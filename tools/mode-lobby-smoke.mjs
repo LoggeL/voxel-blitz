@@ -1,9 +1,13 @@
 // Bounded end-to-end coverage for selected mode/map lobbies. The harness
 // observes only frames exchanged with a real WebSocket server.
-import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
-import WebSocket from 'ws';
+
+import { pass as assertPass } from './lib/assert.mjs';
+import { sleep, withTimeout } from './lib/async.mjs';
+import { PLAYER_KEYS, MATCH_KEYS } from './lib/protocol-contract.mjs';
+import { startServer as startManagedServer, stopServer as stopManagedServer } from './lib/server-process.mjs';
+import { Client, SocketTracker } from './lib/ws-client.mjs';
 import { AIR, createMapState } from '../shared/worlddata.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { PHYSICS } from '../server/game.js';
@@ -17,407 +21,46 @@ const SND_PHASE_TIMEOUT_MS = 15_000;
 const MAP_HEADER_BYTES = 6;
 const REVOLVER_SLOT = 5;
 const CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{5}$/;
-const PLAYER_KEYS = 'ads,bomb,credits,deaths,exhaustion,firing,hp,id,interaction,kills,mag,name,owned,pain,panic,pitch,reloading,reserve,score,spawnProtected,state,team,weapon,x,y,yaw,z';
-const MATCH_KEYS = 'attackers,bomb,defenders,map,mode,phase,phaseEndsAt,round,roundWinner,scores,winner';
 
 let checks = 0;
 let activeServer = null;
-let peakOpenSockets = 0;
 const clients = new Set();
+const socketTracker = new SocketTracker();
 
 function pass(condition, name, detail = '') {
-  if (!condition) throw new Error(`${name}${detail ? `: ${detail}` : ''}`);
-  checks++;
-  console.log(`OK ${checks} - ${name}`);
-}
-
-function abortError(signal, fallback) {
-  return signal?.reason instanceof Error ? signal.reason : new Error(fallback);
-}
-
-function sleep(ms, signal) {
-  return new Promise((resolveSleep, rejectSleep) => {
-    if (signal?.aborted) {
-      rejectSleep(abortError(signal, 'operation aborted'));
-      return;
-    }
-    let settled = false;
-    const timer = setTimeout(() => finish(null), ms);
-    const onAbort = () => finish(abortError(signal, 'operation aborted'));
-    const finish = (error) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      signal?.removeEventListener('abort', onAbort);
-      if (error) rejectSleep(error);
-      else resolveSleep();
-    };
-    signal?.addEventListener('abort', onAbort, { once: true });
+  assertPass(condition, name, detail, () => {
+    checks++;
+    console.log('OK ' + checks + ' - ' + name);
   });
-}
-
-function withTimeout(promise, ms, label, signal) {
-  return new Promise((resolveWait, rejectWait) => {
-    if (signal?.aborted) {
-      rejectWait(abortError(signal, label));
-      return;
-    }
-    let settled = false;
-    const timer = setTimeout(() => finish(new Error(label)), ms);
-    const onAbort = () => finish(abortError(signal, label));
-    const finish = (error, value) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      signal?.removeEventListener('abort', onAbort);
-      if (error) rejectWait(error);
-      else resolveWait(value);
-    };
-    signal?.addEventListener('abort', onAbort, { once: true });
-    Promise.resolve(promise).then(
-      (value) => finish(null, value),
-      (error) => finish(error instanceof Error ? error : new Error(String(error))),
-    );
-  });
-}
-
-function serverFailure(server, info) {
-  const reason = info.error
-    ? info.error.message
-    : `code=${String(info.code)} signal=${info.signal || 'none'}`;
-  const output = server.stderr.trim() || server.stdout.trim();
-  return new Error(`server exited before mode lobby smoke completed (${reason})${output ? `\n${output}` : ''}`);
 }
 
 function startServer() {
-  const child = spawn(process.execPath, ['server/index.js'], {
+  return startManagedServer({
     cwd: ROOT,
-    env: { ...process.env, PORT: '0' },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    portTimeout: START_TIMEOUT_MS,
+    portTimeoutMessage: 'server did not advertise its OS-assigned port',
+    ringBuffer: 12_000,
+    failureContext: 'mode lobby smoke',
+    stopTimeout: STOP_TIMEOUT_MS,
   });
-  const server = {
-    child,
-    stopping: false,
-    stdout: '',
-    stderr: '',
-    readyPort: null,
-  };
-
-  let resolveExit;
-  let exited = false;
-  server.exit = new Promise((resolvePromise) => { resolveExit = resolvePromise; });
-  const settleExit = (info) => {
-    if (exited) return;
-    exited = true;
-    resolveExit(info);
-  };
-  child.once('error', (error) => settleExit({ error, code: null, signal: null }));
-  child.once('exit', (code, signal) => settleExit({ error: null, code, signal }));
-
-  let resolvePort;
-  let rejectPort;
-  let portSettled = false;
-  server.port = new Promise((resolvePromise, rejectPromise) => {
-    resolvePort = resolvePromise;
-    rejectPort = rejectPromise;
-  });
-  server.port.catch(() => {});
-  server.readyTimer = setTimeout(() => {
-    if (portSettled) return;
-    portSettled = true;
-    rejectPort(new Error('server did not advertise its OS-assigned port'));
-  }, START_TIMEOUT_MS);
-
-  child.stdout.setEncoding('utf8');
-  child.stderr.setEncoding('utf8');
-  child.stdout.on('data', (chunk) => {
-    server.stdout = (server.stdout + chunk).slice(-12_000);
-    const match = server.stdout.match(/voxel-blitz listening on :(\d+)\b/);
-    if (!match || portSettled) return;
-    portSettled = true;
-    clearTimeout(server.readyTimer);
-    server.readyPort = Number(match[1]);
-    resolvePort(server.readyPort);
-  });
-  child.stderr.on('data', (chunk) => {
-    server.stderr = (server.stderr + chunk).slice(-12_000);
-  });
-  server.exit.then((info) => {
-    if (portSettled) return;
-    portSettled = true;
-    clearTimeout(server.readyTimer);
-    rejectPort(serverFailure(server, info));
-  });
-
-  server.failIfUnexpected = async () => {
-    const info = await server.exit;
-    if (!server.stopping) throw serverFailure(server, info);
-  };
-  return server;
 }
 
 async function stopServer(server) {
-  if (!server) return;
-  server.stopping = true;
-  const child = server.child;
-  if (child.exitCode === null && child.signalCode === null) {
-    try { child.kill('SIGTERM'); } catch {}
-  }
-  try {
-    await withTimeout(server.exit, STOP_TIMEOUT_MS, 'server did not stop after SIGTERM');
-  } catch {
-    if (child.exitCode === null && child.signalCode === null) {
-      try { child.kill('SIGKILL'); } catch {}
-    }
-    await withTimeout(server.exit, STOP_TIMEOUT_MS, 'server did not stop after SIGKILL');
-  } finally {
-    clearTimeout(server.readyTimer);
-    child.stdout?.destroy();
-    child.stderr?.destroy();
-  }
+  await stopManagedServer(server);
 }
 
 function openSocketCount() {
-  let count = 0;
-  for (const client of clients) {
-    if (client.ws?.readyState === WebSocket.OPEN) count++;
-  }
-  return count;
-}
-
-class Client {
-  constructor(port, label) {
-    this.port = port;
-    this.label = label;
-    this.ws = null;
-    this.frames = [];
-    this.sentAt = [];
-    this.sequence = 0;
-    this.closeInfo = null;
-    this.socketError = null;
-    this.waiters = new Set();
-    clients.add(this);
-  }
-
-  mark() {
-    return this.sequence;
-  }
-
-  framesAfter(mark = 0) {
-    return this.frames.filter((frame) => frame.seq > mark);
-  }
-
-  recordFrame(frame) {
-    frame.seq = ++this.sequence;
-    frame.at = Date.now();
-    this.frames.push(frame);
-    for (const waiter of Array.from(this.waiters)) waiter();
-  }
-
-  async connect(firstFrame, signal) {
-    if (this.ws) throw new Error(`${this.label} was connected twice`);
-    const ws = new WebSocket(`ws://127.0.0.1:${this.port}`);
-    this.ws = ws;
-    ws.binaryType = 'arraybuffer';
-    ws.on('message', (data, isBinary) => {
-      if (isBinary) {
-        this.recordFrame({ kind: 'binary', value: Buffer.from(data) });
-        return;
-      }
-      let value;
-      try { value = JSON.parse(String(data)); } catch { value = null; }
-      this.recordFrame({ kind: value === null ? 'invalid-json' : 'json', value, raw: String(data) });
-    });
-    ws.on('error', (error) => {
-      this.socketError = error;
-      for (const waiter of Array.from(this.waiters)) waiter();
-    });
-    ws.on('close', (code, reason) => {
-      this.closeInfo = { code, reason: String(reason) };
-      for (const waiter of Array.from(this.waiters)) waiter();
-    });
-
-    await this.waitForOpen(signal);
-    peakOpenSockets = Math.max(peakOpenSockets, openSocketCount());
-    if (typeof firstFrame === 'string' || Buffer.isBuffer(firstFrame)) this.sendRaw(firstFrame);
-    else this.send(firstFrame);
-    return this;
-  }
-
-  waitForOpen(signal) {
-    if (this.ws?.readyState === WebSocket.OPEN) return Promise.resolve();
-    return new Promise((resolveOpen, rejectOpen) => {
-      let settled = false;
-      const timer = setTimeout(() => finish(new Error(`${this.label} open timeout`)), FRAME_TIMEOUT_MS);
-      const onOpen = () => finish(null);
-      const onError = (error) => finish(new Error(`${this.label} failed to open: ${error.message}`));
-      const onClose = (code, reason) => finish(new Error(`${this.label} closed before open (${code} ${String(reason)})`));
-      const onAbort = () => finish(abortError(signal, `${this.label} open aborted`));
-      const finish = (error) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        signal?.removeEventListener('abort', onAbort);
-        this.ws?.removeListener('open', onOpen);
-        this.ws?.removeListener('error', onError);
-        this.ws?.removeListener('close', onClose);
-        if (error) rejectOpen(error);
-        else resolveOpen();
-      };
-      this.ws.once('open', onOpen);
-      this.ws.once('error', onError);
-      this.ws.once('close', onClose);
-      signal?.addEventListener('abort', onAbort, { once: true });
-    });
-  }
-
-  sendRaw(payload) {
-    if (this.ws?.readyState !== WebSocket.OPEN) throw new Error(`${this.label} socket is not open`);
-    this.sentAt.push(Date.now());
-    this.ws.send(payload);
-  }
-
-  send(value) {
-    this.sendRaw(JSON.stringify(value));
-  }
-
-  input(seq, overrides = {}) {
-    this.send({
-      t: 'input',
-      seq,
-      keys: {
-        f: !!overrides.forward,
-        b: !!overrides.back,
-        l: !!overrides.left,
-        r: !!overrides.right,
-        jump: !!overrides.jump,
-        sprint: !!overrides.sprint,
-        crouch: !!overrides.crouch,
-        interact: !!overrides.interact,
-      },
-      yaw: overrides.yaw ?? 0,
-      pitch: overrides.pitch ?? 0,
-      weapon: overrides.weapon ?? 0,
-      wantFire: !!overrides.fire,
-      wantAds: !!overrides.ads,
-      reload: !!overrides.reload,
-    });
-  }
-
-  findFrame(predicate, after) {
-    return this.frames.find((frame) => frame.seq > after && predicate(frame));
-  }
-
-  waitForFrame(predicate, description, after = 0, timeoutMs = FRAME_TIMEOUT_MS, signal) {
-    const existing = this.findFrame(predicate, after);
-    if (existing) return Promise.resolve(existing);
-    if (this.closeInfo) {
-      return Promise.reject(new Error(`${this.label} closed before ${description} (${this.closeInfo.code} ${this.closeInfo.reason})`));
-    }
-    return new Promise((resolveFrame, rejectFrame) => {
-      let settled = false;
-      const timer = setTimeout(() => finish(new Error(`${this.label} timeout waiting for ${description}`)), timeoutMs);
-      const onAbort = () => finish(abortError(signal, `${this.label} wait aborted`));
-      const inspect = () => {
-        const frame = this.findFrame(predicate, after);
-        if (frame) {
-          finish(null, frame);
-          return;
-        }
-        if (this.closeInfo) {
-          finish(new Error(`${this.label} closed before ${description} (${this.closeInfo.code} ${this.closeInfo.reason})`));
-        }
-      };
-      const finish = (error, frame) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        signal?.removeEventListener('abort', onAbort);
-        this.waiters.delete(inspect);
-        if (error) rejectFrame(error);
-        else resolveFrame(frame);
-      };
-      this.waiters.add(inspect);
-      signal?.addEventListener('abort', onAbort, { once: true });
-      inspect();
-    });
-  }
-
-  waitForJsonFrame(predicate, description, after = 0, timeoutMs = FRAME_TIMEOUT_MS, signal) {
-    return this.waitForFrame(
-      (frame) => frame.kind === 'json' && predicate(frame.value),
-      description,
-      after,
-      timeoutMs,
-      signal,
-    );
-  }
-
-  async waitForJson(predicate, description, after = 0, timeoutMs = FRAME_TIMEOUT_MS, signal) {
-    const frame = await this.waitForJsonFrame(predicate, description, after, timeoutMs, signal);
-    return frame.value;
-  }
-
-  waitForClose(description = 'socket close', timeoutMs = FRAME_TIMEOUT_MS, signal) {
-    if (this.closeInfo) return Promise.resolve(this.closeInfo);
-    return new Promise((resolveClose, rejectClose) => {
-      let settled = false;
-      const timer = setTimeout(() => finish(new Error(`${this.label} timeout waiting for ${description}`)), timeoutMs);
-      const onAbort = () => finish(abortError(signal, `${this.label} close wait aborted`));
-      const inspect = () => {
-        if (this.closeInfo) finish(null, this.closeInfo);
-      };
-      const finish = (error, info) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        signal?.removeEventListener('abort', onAbort);
-        this.waiters.delete(inspect);
-        if (error) rejectClose(error);
-        else resolveClose(info);
-      };
-      this.waiters.add(inspect);
-      signal?.addEventListener('abort', onAbort, { once: true });
-      inspect();
-    });
-  }
-
-  maxSentInOneSecond() {
-    let max = 0;
-    let left = 0;
-    for (let right = 0; right < this.sentAt.length; right++) {
-      while (left < right && this.sentAt[right] - this.sentAt[left] >= 1_000) left++;
-      max = Math.max(max, right - left + 1);
-    }
-    return max;
-  }
-
-  async close() {
-    const ws = this.ws;
-    if (!ws) return;
-    if (ws.readyState === WebSocket.CLOSED) {
-      ws.removeAllListeners();
-      this.waiters.clear();
-      return;
-    }
-    if (ws.readyState === WebSocket.OPEN) {
-      try { ws.close(1000, 'mode lobby smoke complete'); } catch {}
-    } else if (ws.readyState === WebSocket.CONNECTING) {
-      try { ws.terminate(); } catch {}
-    }
-    try {
-      await this.waitForClose('cleanup close', 750);
-    } catch {
-      try { ws.terminate(); } catch {}
-      try { await this.waitForClose('terminated cleanup close', 750); } catch {}
-    }
-    ws.removeAllListeners();
-    this.waiters.clear();
-  }
+  return socketTracker.openSocketCount();
 }
 
 function makeClient(port, label) {
-  return new Client(port, label);
+  const client = new Client(port, label, {
+    includeInteract: true,
+    tracker: socketTracker,
+    closeReason: 'mode lobby smoke complete',
+  });
+  clients.add(client);
+  return client;
 }
 
 async function closeRoomClients(clientsInRoom, label) {
@@ -1580,8 +1223,8 @@ async function runContracts(server, signal) {
   await runSndCitadel(port, maps.depotBytes, signal);
 
   const observedRate = Math.max(...Array.from(clients, (client) => client.maxSentInOneSecond()));
-  pass(peakOpenSockets < 8 && peakOpenSockets < 32,
-    `all scenarios remain below room and global socket caps (${peakOpenSockets} peak)`);
+  pass(socketTracker.peakOpenSockets < 8 && socketTracker.peakOpenSockets < 32,
+    `all scenarios remain below room and global socket caps (${socketTracker.peakOpenSockets} peak)`);
   pass(observedRate < 180,
     `all clients remain below the server message-rate limit (${observedRate} msg/s peak)`);
 }
@@ -1607,7 +1250,7 @@ async function main() {
   try {
     await Promise.race([
       runContracts(activeServer, controller.signal),
-      activeServer.failIfUnexpected(),
+      activeServer.unexpectedExit,
     ]);
   } catch (error) {
     failure = error instanceof Error ? error : new Error(String(error));

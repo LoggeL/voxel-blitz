@@ -141,9 +141,9 @@ their purchases and remaining ammunition. Weapons cannot fire during prep.
 
 | input | action |
 |---|---|
-| `WASD` | move (`Shift` sprint) |
-| `Space` | jump |
-| `Ctrl` / `C` | crouch |
+| `WASD` | move (`Shift` sprint); `W` / `S` climb up / down while touching a ladder |
+| `Space` | jump; climb up while touching a ladder |
+| `Ctrl` / `C` | crouch; climb down while touching a ladder |
 | mouse1 / mouse2 | fire / ADS |
 | `R` | reload |
 | `1-6` / wheel / `Q` | weapon slots / previous weapon |

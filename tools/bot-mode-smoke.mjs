@@ -16,12 +16,11 @@ import {
   setBlock as setSharedBlock,
 } from '../shared/worlddata.js';
 import { TICK_MS } from '../server/protocol.js';
+import { PLAYER_KEYS } from './lib/protocol-contract.mjs';
 
 const CLOCK_START = 1_000_000;
 const FEET_Y = GROUND + 1.02;
 const BUY_PRIORITY = ['sniper', 'lmg', 'rifle', 'shotgun', 'smg'];
-const PLAYER_KEYS = 'ads,bomb,credits,deaths,exhaustion,firing,hp,id,interaction,kills,mag,name,owned,pain,panic,pitch,reloading,reserve,score,spawnProtected,state,team,weapon,x,y,yaw,z';
-
 const MAP_META = Object.freeze({
   id: 'foundry',
   spawns: {

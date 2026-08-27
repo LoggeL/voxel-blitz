@@ -1,10 +1,11 @@
 // Protocol smoke test: starts the real HTTP+WebSocket server on an OS-assigned
 // port, joins two real clients, and checks both direct simulation contracts and
 // the actual wire stream.
-import { spawn } from 'node:child_process';
-import { once } from 'node:events';
 import { request } from 'node:http';
-import WebSocket from 'ws';
+import { ok as assertOk, nearly, vectorNorm } from './lib/assert.mjs';
+import { delay } from './lib/async.mjs';
+import { startServer as startManagedServer, stopServer, waitForHttp } from './lib/server-process.mjs';
+import { Client } from './lib/ws-client.mjs';
 
 import { WEAPONS, WEAPON_IDS, CONDITION_RULES, computeSpreadConeDeg } from '../shared/combatmath.js';
 import { valueNoise2 } from '../shared/noise.js';
@@ -15,77 +16,19 @@ import { attachBots } from '../server/bots.js';
 import { TICK_MS, evDie, evRespawn, makeSnapshot } from '../server/protocol.js';
 
 const fails = [];
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-const ok = (cond, name) => {
-  if (cond) console.log('  ok -', name);
-  else { console.log('  FAIL -', name); fails.push(name); }
-};
-const vectorNorm = (v) => Array.isArray(v) ? Math.hypot(...v) : 0;
-const nearly = (actual, expected, tolerance = 1e-12) =>
-  Number.isFinite(actual) && Math.abs(actual - expected) <= tolerance;
+const ok = (condition, name) => assertOk(
+  condition,
+  name,
+  (message) => { console.log('  FAIL -', message); fails.push(message); },
+  (message) => console.log('  ok -', message),
+);
 
 function startServer() {
-  const child = spawn(process.execPath, ['server/index.js'], {
-    env: { ...process.env, PORT: '0' },
-    stdio: ['ignore', 'pipe', 'pipe'],
+  return startManagedServer({
+    failureContext: 'smoke',
+    stopTimeout: 2_000,
+    stopSignal: 'SIGINT',
   });
-  const server = { child, stopping: false, stdout: '', stderr: '' };
-
-  server.exit = new Promise((resolve) => {
-    child.once('error', (error) => resolve({ error, code: null, signal: null }));
-    child.once('exit', (code, signal) => resolve({ error: null, code, signal }));
-  });
-
-  server.port = new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('server did not advertise its listening port')), 8000);
-    server.exit.then(() => {
-      clearTimeout(timer);
-      reject(new Error('server exited before advertising its listening port'));
-    });
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
-      server.stdout = (server.stdout + chunk).slice(-8000);
-      const match = server.stdout.match(/voxel-blitz listening on (?:https?:\/\/[^:\s]+)?:(\d+)\b/);
-      if (match) {
-        clearTimeout(timer);
-        resolve(Number(match[1]));
-      }
-    });
-  });
-
-  child.stderr.setEncoding('utf8');
-  child.stderr.on('data', (chunk) => { server.stderr = (server.stderr + chunk).slice(-8000); });
-  server.failed = server.exit.then(({ error, code, signal }) => {
-    if (server.stopping) return new Promise(() => {});
-    const reason = error ? error.message : `code=${code} signal=${signal || 'none'}`;
-    const detail = server.stderr.trim() || server.stdout.trim();
-    throw new Error(`server exited before smoke completed (${reason})${detail ? `\n${detail}` : ''}`);
-  });
-  return server;
-}
-
-async function stopServer(server) {
-  server.stopping = true;
-  if (server.child.exitCode === null && server.child.signalCode === null) server.child.kill('SIGINT');
-  const graceful = await Promise.race([
-    server.exit.then(() => true),
-    delay(2000).then(() => false),
-  ]);
-  if (!graceful && server.child.exitCode === null && server.child.signalCode === null) {
-    server.child.kill('SIGKILL');
-  }
-  await server.exit;
-}
-
-async function waitForHttp(port) {
-  for (let i = 0; i < 40; i++) {
-    try {
-      const r = await fetch(`http://127.0.0.1:${port}/index.html`, { signal: AbortSignal.timeout(500) });
-      if (r.ok) return;
-    } catch {}
-    await delay(50);
-  }
-  throw new Error('server did not serve HTTP after advertising readiness');
 }
 
 async function fetchBytes(port, target) {
@@ -119,88 +62,6 @@ function fetchRawBytes(port, target) {
     req.once('error', reject);
     req.end();
   });
-}
-
-class Client {
-  constructor(port, name) {
-    this.port = port;
-    this.name = name;
-    this.events = [];
-    this.ticks = [];
-    this.ws = null;
-    this.mapBytes = 0;
-  }
-
-  async join() {
-    const ws = new WebSocket(`ws://127.0.0.1:${this.port}`);
-    this.ws = ws;
-    ws.binaryType = 'arraybuffer';
-    ws.on('error', () => {});
-    let welcome = null;
-    let map = null;
-    ws.on('message', (data, isBinary) => {
-      if (isBinary) {
-        if (map === null) map = new Uint8Array(data);
-        return;
-      }
-      let msg;
-      try { msg = JSON.parse(String(data)); } catch { return; }
-      if (msg.t === 'welcome') { welcome = msg; this.id = msg.id; }
-      else if (msg.t === 'ev') this.events.push(msg);
-      else if (msg.t === 'tick') {
-        this.ticks.push(msg);
-        for (const ev of msg.events || []) this.events.push(ev);
-      }
-    });
-    await once(ws, 'open');
-    ws.send(JSON.stringify({ t: 'join', name: this.name }));
-    const deadline = Date.now() + 8000;
-    while (!(welcome && map)) {
-      if (ws.readyState === WebSocket.CLOSED) throw new Error(`${this.name} socket closed during handshake`);
-      if (Date.now() >= deadline) throw new Error(`${this.name} handshake timeout`);
-      await delay(20);
-    }
-    this.welcome = welcome;
-    this.mapBytes = map.byteLength;
-    return welcome;
-  }
-
-  send(obj) {
-    if (this.ws?.readyState !== WebSocket.OPEN) throw new Error(`${this.name} socket is not open`);
-    this.ws.send(JSON.stringify(obj));
-  }
-
-  input(seq, overrides = {}) {
-    this.send({
-      t: 'input', seq,
-      keys: {
-        f: !!overrides.forward,
-        b: !!overrides.back,
-        l: !!overrides.left,
-        r: !!overrides.right,
-        jump: !!overrides.jump,
-        sprint: !!overrides.sprint,
-        crouch: !!overrides.crouch,
-      },
-      yaw: overrides.yaw ?? 0,
-      pitch: overrides.pitch ?? 0,
-      weapon: overrides.weapon ?? 0,
-      wantFire: !!overrides.fire,
-      wantAds: !!overrides.ads,
-      reload: !!overrides.reload,
-    });
-  }
-
-  async close() {
-    const ws = this.ws;
-    if (!ws || ws.readyState === WebSocket.CLOSED) return;
-    const closed = new Promise((resolve) => ws.once('close', resolve));
-    try { ws.close(1000, 'smoke complete'); } catch { try { ws.terminate(); } catch {} }
-    if (!await Promise.race([closed.then(() => true), delay(500).then(() => false)])) {
-      try { ws.terminate(); } catch {}
-      await closed;
-    }
-  }
 }
 
 function runDirectContracts() {
@@ -1546,7 +1407,7 @@ async function main() {
   const server = startServer();
   const clients = [];
   try {
-    await Promise.race([runNetwork(server, clients), server.failed]);
+    await Promise.race([runNetwork(server, clients), server.unexpectedExit]);
     if (fails.length) throw new Error(`SMOKE FAILED: ${fails.length} assertion(s)`);
     console.log('\nSMOKE OK');
   } finally {
