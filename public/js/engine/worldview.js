@@ -19,11 +19,73 @@ const SUN_POS = new THREE.Vector3(60, 90, 20);
 const _rayO = new THREE.Vector3();
 const _rayD = new THREE.Vector3();
 
+const LADDER_RUNG_SPACING = 0.62;
+const LADDER_RUNG_BOTTOM_INSET = 0.3;
+const LADDER_RUNG_TOP_INSET = 0.1;
+
+function ladderRungCount(ladder) {
+  const usable = ladder.maxY - ladder.minY
+    - LADDER_RUNG_BOTTOM_INSET - LADDER_RUNG_TOP_INSET;
+  return usable < 0 ? 0 : Math.floor(usable / LADDER_RUNG_SPACING) + 1;
+}
+
+function buildLadderVisuals(mapMeta) {
+  const ladders = Array.isArray(mapMeta?.ladders) ? mapMeta.ladders : [];
+  if (ladders.length === 0) return null;
+
+  let instanceCount = ladders.length * 2;
+  for (const ladder of ladders) instanceCount += ladderRungCount(ladder);
+
+  const geometry = new THREE.BoxGeometry(1, 1, 1);
+  const material = new THREE.MeshStandardMaterial({
+    color: 0xffd21f,
+    emissive: 0x6b2d00,
+    emissiveIntensity: 0.9,
+    metalness: 0.35,
+    roughness: 0.42,
+  });
+  const mesh = new THREE.InstancedMesh(geometry, material, instanceCount);
+  mesh.name = 'foundry-ladders';
+  const matrix = new THREE.Matrix4();
+  let instance = 0;
+
+  const setBox = (x, y, z, sx, sy, sz) => {
+    matrix.makeScale(sx, sy, sz);
+    matrix.setPosition(x, y, z);
+    mesh.setMatrixAt(instance++, matrix);
+  };
+
+  for (const ladder of ladders) {
+    const z = ladder.minZ + 0.055;
+    const railLeft = ladder.minX + 0.15;
+    const railRight = ladder.maxX - 0.15;
+    const railHeight = ladder.maxY - ladder.minY;
+    const railY = ladder.minY + railHeight * 0.5;
+    setBox(railLeft, railY, z, 0.075, railHeight, 0.075);
+    setBox(railRight, railY, z, 0.075, railHeight, 0.075);
+
+    const rungCount = ladderRungCount(ladder);
+    const rungWidth = railRight - railLeft + 0.075;
+    for (let i = 0; i < rungCount; i++) {
+      const y = ladder.minY + LADDER_RUNG_BOTTOM_INSET + i * LADDER_RUNG_SPACING;
+      setBox((railLeft + railRight) * 0.5, y, z + 0.008, rungWidth, 0.065, 0.085);
+    }
+  }
+
+  mesh.instanceMatrix.needsUpdate = true;
+  if (typeof mesh.computeBoundingSphere === 'function') mesh.computeBoundingSphere();
+  const group = new THREE.Group();
+  group.name = 'ladder-group';
+  group.add(mesh);
+  return { group, mesh, geometry, material };
+}
+
 export class WorldView {
   /**
-   * @param {{getBlock(x:number,y:number,z:number):number}} storeRef
+   * @param {{getBlock(x:number,y:number,z:number):number,meta?:object}} storeRef
+   * @param {object|null} mapMeta
    */
-  constructor(storeRef) {
+  constructor(storeRef, mapMeta = null) {
     if (!storeRef || typeof storeRef.getBlock !== 'function') {
       throw new TypeError('WorldView requires { getBlock }');
     }
@@ -48,6 +110,9 @@ export class WorldView {
 
     this.camera = null;                  // optional: setCamera() enables rayHitCamera()
     this.skyUpdate = installSky(this.scene);
+
+    this.ladderVisuals = buildLadderVisuals(mapMeta || storeRef.meta || null);
+    if (this.ladderVisuals) this.scene.add(this.ladderVisuals.group);
   }
 
   /** Builds every initial chunk column; resolves when the world is renderable. */
@@ -108,6 +173,14 @@ export class WorldView {
     if (this._disposed) return;
     this._disposed = true;
     this.chunkStore.dispose();
+    if (this.ladderVisuals) {
+      this.scene.remove(this.ladderVisuals.group);
+      this.ladderVisuals.mesh.dispose();
+      this.ladderVisuals.geometry.dispose();
+      this.ladderVisuals.material.dispose();
+      this.ladderVisuals.group.clear();
+      this.ladderVisuals = null;
+    }
     this.skyUpdate.dispose();
     this.atlas.dispose();
   }

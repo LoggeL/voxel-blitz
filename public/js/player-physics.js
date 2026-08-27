@@ -1,7 +1,7 @@
 // Client-side predicted player movement. Mirrors the server constants
 // (see BUILD-CONTRACT) so prediction tracks authority closely.
 import { EYE_HEIGHT, GRAVITY, PLAYER_HALF } from '../../shared/combatmath.js';
-import { getBlock } from '../../shared/worlddata.js';
+import { getBlock, ladderContact } from '../../shared/worlddata.js';
 
 const WALK = 4.4, SPRINT = 6.2, CROUCH = 2.2;
 const JUMP_VEL = 8.2;
@@ -9,18 +9,27 @@ const GROUND_ACCEL = 10;
 const AIR_ACCEL = 3;
 const COYOTE_S = 0.08;
 const TERMINAL_VY = -60;
+const LADDER_UP_SPEED = 3.4;
+const LADDER_DOWN_SPEED = -2.4;
 const PLAYER_HEIGHT = PLAYER_HALF.h * 2;
 const EPS = 1e-3;
 const SHRINK = 1e-4;
 const MAX_STEP = 0.45;
 
 export class PlayerPhysics {
-  constructor() {
+  constructor(mapMeta = null) {
     this.pos = { x: 64.5, y: 30, z: 48.5 };
     this.vel = { x: 0, y: 0, z: 0 };
     this.grounded = false;
     this.coyote = 0;
     this._crouching = false;
+    this.mapMeta = null;
+    this.setMapMeta(mapMeta);
+  }
+
+  setMapMeta(mapMeta = null) {
+    this.mapMeta = mapMeta && typeof mapMeta === 'object' ? mapMeta : null;
+    return this;
   }
 
   solid(x, y, z) { return getBlock(x, y, z) !== 0; }
@@ -95,9 +104,17 @@ export class PlayerPhysics {
     return collided;
   }
 
-  /** Integrates one prediction step and returns true only for an accepted jump. */
-  step(dt, wish, speedTarget, wantJump) {
+  /**
+   * Integrates one prediction step and returns true only for an accepted
+   * ground jump. climbAxis is +1 for forward and -1 for back.
+   */
+  step(dt, wish, speedTarget, wantJump, climbAxis = 0) {
     if (this.coyote > 0) this.coyote = Math.max(0, this.coyote - dt);
+
+    const onLadder = ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z);
+    let ladderVy = 0;
+    if (onLadder && (wantJump || climbAxis > 0)) ladderVy = LADDER_UP_SPEED;
+    else if (onLadder && (this._crouching || climbAxis < 0)) ladderVy = LADDER_DOWN_SPEED;
 
     const accel = this.grounded ? GROUND_ACCEL : AIR_ACCEL;
     const blend = 1 - Math.exp(-accel * dt);
@@ -105,18 +122,32 @@ export class PlayerPhysics {
     this.vel.z += (wish.z * speedTarget - this.vel.z) * blend;
     let jumpAccepted = false;
 
-    if (wantJump && (this.grounded || this.coyote > 0) && this.vel.y <= 0.01) {
+    if (!onLadder && wantJump && (this.grounded || this.coyote > 0) && this.vel.y <= 0.01) {
       this.vel.y = JUMP_VEL;
       this.grounded = false;
       this.coyote = 0;
       jumpAccepted = true;
     }
-    this.vel.y = Math.max(TERMINAL_VY, this.vel.y - GRAVITY * dt);
+    if (ladderVy !== 0) this.vel.y = ladderVy;
+    else this.vel.y = Math.max(TERMINAL_VY, this.vel.y - GRAVITY * dt);
 
     this.moveAxis('x', this.vel.x * dt);
     this.moveAxis('z', this.vel.z * dt);
     const descending = this.vel.y < 0;
-    const hitY = this.moveAxis('y', this.vel.y * dt);
+    let hitY = false;
+    if (ladderVy > 0) {
+      this.pos.y += this.vel.y * dt;
+      if (!ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z)) this.vel.y = 0;
+    } else if (ladderVy < 0) {
+      const targetY = this.pos.y + this.vel.y * dt;
+      if (ladderContact(this.mapMeta, this.pos.x, targetY, this.pos.z)) {
+        this.pos.y = targetY;
+      } else {
+        hitY = this.moveAxis('y', this.vel.y * dt);
+      }
+    } else {
+      hitY = this.moveAxis('y', this.vel.y * dt);
+    }
 
     if (hitY && descending) {
       this.grounded = true;

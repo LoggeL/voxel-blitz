@@ -9,7 +9,7 @@ import WebSocket from 'ws';
 import { WEAPONS, WEAPON_IDS, CONDITION_RULES, computeSpreadConeDeg } from '../shared/combatmath.js';
 import { valueNoise2 } from '../shared/noise.js';
 import { raycastVoxels } from '../shared/raycast.js';
-import { serializeWorld } from '../shared/worlddata.js';
+import { getMapMeta, serializeWorld } from '../shared/worlddata.js';
 import { GameEngine } from '../server/game.js';
 import { attachBots } from '../server/bots.js';
 import { TICK_MS, evDie, evRespawn, makeSnapshot } from '../server/protocol.js';
@@ -292,6 +292,10 @@ function runDirectContracts() {
     panicHeadshotGain: 0.22,
     panicDecayPerS: 0.2,
     panicLowHpFloor: 0.45,
+    painDamageGain: 0.016,
+    painHeadshotGain: 0.28,
+    painDecayPerS: 0.65,
+    painLowHpFloor: 0.6,
     exhaustionSprintPerS: 0.24,
     exhaustionRecoverPerS: 0.18,
     exhaustionJumpGain: 0.14,
@@ -420,47 +424,58 @@ function runDirectContracts() {
   const conditionShooter = conditionEngine.entities.get('condition-shooter');
   const conditionTarget = conditionEngine.entities.get('condition-target');
 
-  Object.assign(conditionTarget, { hp: 100, panic: 0.1, state: 'alive' });
+  Object.assign(conditionTarget, { hp: 100, panic: 0.1, pain: 0.1, state: 'alive' });
   const bodyLethal = conditionTarget.takeDamage(10, false);
   const bodyPanic = conditionTarget.panic;
-  Object.assign(conditionTarget, { hp: 100, panic: 0.1, state: 'alive' });
+  const bodyPain = conditionTarget.pain;
+  Object.assign(conditionTarget, { hp: 100, panic: 0.1, pain: 0.1, state: 'alive' });
   const headLethal = conditionTarget.takeDamage(10, true);
   ok(!bodyLethal && !headLethal
     && conditionTarget.hp === 90
     && nearly(bodyPanic, 0.1 + 10 * CONDITION_RULES.panicDamageGain)
     && nearly(conditionTarget.panic, 0.1 + 10 * CONDITION_RULES.panicDamageGain
-      + CONDITION_RULES.panicHeadshotGain),
-  'body damage and headshots apply their exact deterministic panic gains');
+      + CONDITION_RULES.panicHeadshotGain)
+    && nearly(bodyPain, 0.1 + 10 * CONDITION_RULES.painDamageGain)
+    && nearly(conditionTarget.pain, 0.1 + 10 * CONDITION_RULES.painDamageGain
+      + CONDITION_RULES.painHeadshotGain),
+  'body damage and headshots apply their exact deterministic panic and pain gains');
 
   Object.assign(conditionTarget, {
-    hp: 100, panic: 0.8, exhaustion: 0, sprint: false, state: 'alive',
+    hp: 100, panic: 0.8, pain: 0.8, exhaustion: 0, sprint: false, state: 'alive',
   });
   conditionEngine.updateCondition(conditionTarget, 0.5);
   const decayedPanic = conditionTarget.panic;
-  Object.assign(conditionTarget, { hp: 25, panic: 0.1, exhaustion: 0, sprint: false });
+  const decayedPain = conditionTarget.pain;
+  Object.assign(conditionTarget, {
+    hp: 25, panic: 0.1, pain: 0.1, exhaustion: 0, sprint: false,
+  });
   conditionEngine.updateCondition(conditionTarget, 0.5);
   ok(nearly(decayedPanic, 0.8 - CONDITION_RULES.panicDecayPerS * 0.5)
-    && nearly(conditionTarget.panic, 0.75 * CONDITION_RULES.panicLowHpFloor),
-  'panic decays at the exact rate without crossing its low-health floor');
+    && nearly(decayedPain, 0.8 - CONDITION_RULES.painDecayPerS * 0.5)
+    && nearly(conditionTarget.panic, 0.75 * CONDITION_RULES.panicLowHpFloor)
+    && nearly(conditionTarget.pain, 0.75 * CONDITION_RULES.painLowHpFloor),
+  'panic and pain decay at their exact rates without crossing their low-health floors');
 
   Object.assign(conditionTarget, {
-    hp: 100, panic: 0.99, exhaustion: 0.99, sprint: true, state: 'alive',
+    hp: 100, panic: 0.99, pain: 0.99, exhaustion: 0.99, sprint: true, state: 'alive',
   });
   conditionTarget.takeDamage(10, true);
   const upperPanic = conditionTarget.panic;
+  const upperPain = conditionTarget.pain;
   conditionEngine.updateCondition(conditionTarget, 1);
   const upperExhaustion = conditionTarget.exhaustion;
   Object.assign(conditionTarget, {
-    hp: 100, panic: 0.01, exhaustion: 0.01, sprint: false, state: 'alive',
+    hp: 100, panic: 0.01, pain: 0.01, exhaustion: 0.01, sprint: false, state: 'alive',
   });
   conditionEngine.updateCondition(conditionTarget, 1);
-  ok(upperPanic === 1 && upperExhaustion === 1
-    && conditionTarget.panic === 0 && conditionTarget.exhaustion === 0,
-  'panic and exhaustion clamp exactly to their normalized upper and lower bounds');
+  ok(upperPanic === 1 && upperPain === 1 && upperExhaustion === 1
+    && conditionTarget.panic === 0 && conditionTarget.pain === 0
+    && conditionTarget.exhaustion === 0,
+  'panic, pain, and exhaustion clamp exactly to their normalized upper and lower bounds');
 
   Object.assign(conditionShooter, {
     weapon: 0, bloom: 0.7, vx: 3.1, vz: 0, adsT: 0.62,
-    panic: 0.4, exhaustion: 0.65,
+    panic: 0.4, pain: 0.35, exhaustion: 0.65, crouch: false,
   });
   const engineCone = conditionEngine.computeConeDeg(conditionShooter);
   const expectedEngineCone = computeSpreadConeDeg(
@@ -470,13 +485,16 @@ function runDirectContracts() {
     conditionShooter.adsT,
     conditionShooter.panic,
     conditionShooter.exhaustion,
+    conditionShooter.crouch,
+    conditionShooter.pain,
   );
   ok(nearly(engineCone, expectedEngineCone),
-    'GameEngine.computeConeDeg forwards panic and exhaustion into shared spread math');
+    'GameEngine.computeConeDeg forwards panic, exhaustion, stance, and pain into shared spread math');
 
   Object.assign(conditionShooter, {
     x: 60, y: 70, z: 60, yaw: 0, pitch: 0.04, weapon: 0,
-    deployT: 0, adsT: 1, bloom: 0, vx: 0, vz: 0, panic: 0, exhaustion: 0,
+    deployT: 0, adsT: 1, bloom: 0, vx: 0, vz: 0,
+    panic: 0, pain: 0, exhaustion: 0,
   });
   Object.assign(conditionTarget, {
     x: 60, y: 70, z: 55, hp: 100, panic: 0, exhaustion: 0,
@@ -722,6 +740,8 @@ function runDirectContracts() {
     && exact(funStartRow.mag, freshMags)
     && exact(funStartRow.reserve, freshReserve),
   'Fun snapshot exposes the full six-weapon loadout and exact unteamed match fields');
+  fun.engine.addBot('fun-attacker', 'Fun Attacker');
+  const funAttacker = fun.engine.entities.get('fun-attacker');
 
   fun.engine.killPlayer(funPlayer, null, 'world', false);
   const funDeathAt = fun.engine.now;
@@ -729,10 +749,13 @@ function runDirectContracts() {
   const funEarlyTick = stepModeAt(fun, funDeathAt + 1499);
   const funDueTick = stepModeAt(fun, funDeathAt + 1500);
   const funDueRow = playerRow(funDueTick, 'fun-player');
+  const funProtectionUntil = funPlayer.spawnProtectedUntil;
   ok(funDueAt - funDeathAt === 1500
     && playerRow(funEarlyTick, 'fun-player')?.state === 'dead'
     && !funEarlyTick.events.some((event) => event.kind === 'respawn')
     && funDueRow?.state === 'alive'
+    && funDueRow.spawnProtected === true
+    && funProtectionUntil - funDueTick.now === 1500
     && funDueTick.events.filter(
       (event) => event.kind === 'respawn' && event.id === 'fun-player'
     ).length === 1
@@ -740,6 +763,60 @@ function runDirectContracts() {
     && exact(funDueRow.mag, freshMags)
     && exact(funDueRow.reserve, freshReserve),
   'Fun respawns once at exactly 1500ms with a fresh full loadout');
+
+  Object.assign(funAttacker, {
+    x: 60, y: 70, z: 60, yaw: 0, pitch: 0.04, weapon: 0,
+    deployT: 0, cooldown: 0, adsT: 1, bloom: 0, vx: 0, vz: 0,
+  });
+  Object.assign(funPlayer, {
+    x: 60, y: 70, z: 55, hp: 100, state: 'alive', hist: [],
+  });
+  fun.engine.applyInput('fun-attacker', {
+    ...tapInput, seq: 1, yaw: 0, pitch: 0.04, weapon: 0, wantFire: true,
+  });
+  fun.engine.applyInput('fun-attacker', {
+    ...tapInput, seq: 2, yaw: 0, pitch: 0.04, weapon: 0, wantFire: false,
+  });
+  fun.engine.step(0);
+  const funProtectedShotTick = fun.ticks.at(-1);
+  ok(funProtectedShotTick.events.some(
+    (event) => event.kind === 'shoot' && event.id === 'fun-attacker'
+  )
+    && !funProtectedShotTick.events.some(
+      (event) => event.kind === 'hit' && event.victim === 'fun-player'
+    )
+    && funProtectedShotTick.now === funDueTick.now
+    && funProtectionUntil - funProtectedShotTick.now === 1500
+    && playerRow(funProtectedShotTick, 'fun-player')?.spawnProtected === true
+    && funPlayer.hp === 100,
+  'Fun timed-respawn protection blocks an authoritative incoming shot without hiding the shot');
+
+  const funBeforeProtectionExpiry = stepModeAt(fun, funProtectionUntil - 1);
+  const funAtProtectionExpiry = stepModeAt(fun, funProtectionUntil);
+  ok(playerRow(funBeforeProtectionExpiry, 'fun-player')?.spawnProtected === true
+    && playerRow(funAtProtectionExpiry, 'fun-player')?.spawnProtected === false
+    && funAtProtectionExpiry.now - funDueTick.now === 1500,
+  'Fun timed-respawn protection remains through 1499ms and expires at exactly 1500ms');
+
+  funAttacker.cooldown = 0;
+  funAttacker.bloom = 0;
+  fun.engine.applyInput('fun-attacker', {
+    ...tapInput, seq: 3, yaw: 0, pitch: 0.04, weapon: 0, wantFire: true,
+  });
+  fun.engine.applyInput('fun-attacker', {
+    ...tapInput, seq: 4, yaw: 0, pitch: 0.04, weapon: 0, wantFire: false,
+  });
+  fun.engine.step(0);
+  const funExpiredShotTick = fun.ticks.at(-1);
+  const funExpiredHit = funExpiredShotTick.events.find(
+    (event) => event.kind === 'hit' && event.victim === 'fun-player'
+  );
+  ok(funExpiredShotTick.events.some(
+    (event) => event.kind === 'shoot' && event.id === 'fun-attacker'
+  )
+    && funExpiredHit?.dmg === Math.round(100 - funPlayer.hp)
+    && funPlayer.hp < 100,
+  'enemy damage applies through the authoritative fire path at the exact protection boundary');
 
   const tdm = createModeEngine('tdm');
   for (const [id, name] of [
@@ -804,6 +881,7 @@ function runDirectContracts() {
   const tdmRespawnAt = tdmEnemy.respawnAt;
   const tdmEarlyRespawn = stepModeAt(tdm, tdmKillAt + 2999);
   const tdmExactRespawn = stepModeAt(tdm, tdmKillAt + 3000);
+  const tdmProtectionUntil = tdmEnemy.spawnProtectedUntil;
   ok(tdmFirstScore.scores.alpha === 1
     && tdmFirstScore.scores.bravo === 0
     && tdmShooter.score === 1
@@ -812,10 +890,55 @@ function runDirectContracts() {
     && playerRow(tdmEarlyRespawn, 'tdm-b1')?.state === 'dead'
     && !tdmEarlyRespawn.events.some((event) => event.kind === 'respawn')
     && playerRow(tdmExactRespawn, 'tdm-b1')?.state === 'alive'
+    && playerRow(tdmExactRespawn, 'tdm-b1')?.spawnProtected === true
+    && tdmProtectionUntil - tdmExactRespawn.now === 1500
     && tdmExactRespawn.events.filter(
       (event) => event.kind === 'respawn' && event.id === 'tdm-b1'
     ).length === 1,
   'one TDM enemy death awards exactly one team point and respawns once at exactly 3000ms');
+
+  Object.assign(tdmEnemy, {
+    x: 60, y: 70, z: 55, yaw: 0, pitch: 1.2, weapon: 0,
+    deployT: 0, cooldown: 0, adsT: 1, bloom: 0, vx: 0, vz: 0, hp: 100, hist: [],
+  });
+  Object.assign(tdmShooter, {
+    x: 60, y: 70, z: 60, yaw: 0, pitch: 0.04, weapon: 0,
+    deployT: 0, cooldown: 0, adsT: 1, bloom: 0, vx: 0, vz: 0,
+  });
+  tdm.engine.applyInput('tdm-b1', {
+    ...tapInput, seq: 1, yaw: 0, pitch: 1.2, weapon: 0, wantFire: true,
+  });
+  tdm.engine.applyInput('tdm-b1', {
+    ...tapInput, seq: 2, yaw: 0, pitch: 1.2, weapon: 0, wantFire: false,
+  });
+  tdm.engine.step(0);
+  const tdmProtectionClearTick = tdm.ticks.at(-1);
+  ok(tdm.engine.now < tdmProtectionUntil
+    && tdm.engine.now === tdmExactRespawn.now
+    && tdmProtectionClearTick.events.some(
+      (event) => event.kind === 'shoot' && event.id === 'tdm-b1'
+    )
+    && tdmEnemy.spawnProtectedUntil === 0
+    && playerRow(tdmProtectionClearTick, 'tdm-b1')?.spawnProtected === false,
+  'an accepted TDM shot immediately clears timed-respawn protection before its deadline');
+
+  tdm.engine.applyInput('tdm-a1', {
+    ...tapInput, seq: 1, yaw: 0, pitch: 0.04, weapon: 0, wantFire: true,
+  });
+  tdm.engine.applyInput('tdm-a1', {
+    ...tapInput, seq: 2, yaw: 0, pitch: 0.04, weapon: 0, wantFire: false,
+  });
+  tdm.engine.step(0);
+  const tdmClearedProtectionTick = tdm.ticks.at(-1);
+  const tdmClearedProtectionHit = tdmClearedProtectionTick.events.find(
+    (event) => event.kind === 'hit' && event.victim === 'tdm-b1'
+  );
+  ok(tdm.engine.now < tdmProtectionUntil
+    && tdm.engine.now === tdmExactRespawn.now
+    && tdmClearedProtectionHit?.attacker === 'tdm-a1'
+    && tdmClearedProtectionHit.dmg === Math.round(100 - tdmEnemy.hp)
+    && tdmEnemy.hp < 100,
+  'enemy damage applies through the authoritative fire path immediately after protection is cleared');
 
   for (let score = 2; score <= 40; score++) {
     tdm.engine.killPlayer(tdmEnemy, tdmShooter, 'rifle', false);
@@ -903,6 +1026,102 @@ function runDirectContracts() {
     )
     && sndClock.engine.mode.canFire(sndCarrier) === false,
   'S&D prep blocks an otherwise-ready revolver shot without consuming ammunition');
+
+  const sndCombatTicks = [];
+  const sndCombat = new GameEngine({
+    mode: 'snd',
+    mapMeta: getMapMeta('citadel'),
+    broadcast: (tick) => sndCombatTicks.push(tick),
+  });
+  sndCombat.addBot('snd-combat-attacker', 'SND Combat Attacker');
+  sndCombat.addBot('snd-combat-defender', 'SND Combat Defender');
+  sndCombat.step(0);
+  const sndCombatAttacker = sndCombat.players.find(
+    (player) => sndCombat.mode.roleFor(player) === 'attackers'
+  );
+  const sndCombatDefender = sndCombat.players.find(
+    (player) => sndCombat.mode.roleFor(player) === 'defenders'
+  );
+  const stageSndCombat = () => {
+    const x = 60.5;
+    const attackerZ = 76.5;
+    const defenderZ = 73.5;
+    const y = sndCombat.world.heightAt(x, attackerZ) + 1.02;
+    Object.assign(sndCombatAttacker, {
+      x, y, z: attackerZ, yaw: 0, pitch: -0.18, weapon: revolverSlot,
+      deployT: 0, cooldown: 0, bloom: 0, adsT: 1,
+      panic: 0, pain: 0, exhaustion: 0,
+      triggerPrev: false, fireEdgeQueued: false,
+    });
+    Object.assign(sndCombatDefender, {
+      x, y, z: defenderZ, hp: 100, state: 'alive', hist: [],
+      spawnProtectedUntil: 0, spawnProtected: false,
+    });
+    return raycastVoxels(
+      sndCombat.solidAt,
+      sndCombatAttacker.x,
+      sndCombatAttacker.eyeY,
+      sndCombatAttacker.z,
+      0,
+      0,
+      -1,
+      attackerZ - defenderZ,
+    ) === null;
+  };
+  const sndPrepLaneClear = stageSndCombat();
+  const sndCombatPrepHp = sndCombatDefender.hp;
+  const sndCombatPrepMag = sndCombatAttacker.mag[revolverSlot];
+  sndCombat.applyInput(sndCombatAttacker.id, {
+    ...tapInput, seq: 1, yaw: 0, pitch: -0.18,
+    weapon: revolverSlot, wantAds: true, wantFire: true,
+  });
+  sndCombat.applyInput(sndCombatAttacker.id, {
+    ...tapInput, seq: 2, yaw: 0, pitch: -0.18,
+    weapon: revolverSlot, wantAds: true, wantFire: false,
+  });
+  sndCombat.step(0);
+  const sndCombatPrepTick = sndCombatTicks.at(-1);
+  const sndCombatAfterPrepHp = sndCombatDefender.hp;
+  const sndCombatAfterPrepMag = sndCombatAttacker.mag[revolverSlot];
+  const sndCombatLiveAt = sndCombat.mode.matchSnapshot().phaseEndsAt;
+  sndCombat.now = sndCombatLiveAt;
+  sndCombat.step(0);
+  const sndLiveLaneClear = stageSndCombat();
+  const sndCombatLiveHp = sndCombatDefender.hp;
+  sndCombat.applyInput(sndCombatAttacker.id, {
+    ...tapInput, seq: 3, yaw: 0, pitch: -0.18,
+    weapon: revolverSlot, wantAds: true, wantFire: true,
+  });
+  sndCombat.applyInput(sndCombatAttacker.id, {
+    ...tapInput, seq: 4, yaw: 0, pitch: -0.18,
+    weapon: revolverSlot, wantAds: true, wantFire: false,
+  });
+  sndCombat.step(0);
+  const sndCombatLiveTick = sndCombatTicks.at(-1);
+  const sndCombatShot = sndCombatLiveTick.events.find(
+    (event) => event.kind === 'shoot' && event.id === sndCombatAttacker.id
+  );
+  const sndCombatHit = sndCombatLiveTick.events.find(
+    (event) => event.kind === 'hit'
+      && event.attacker === sndCombatAttacker.id
+      && event.victim === sndCombatDefender.id
+  );
+  const sndCombatDamage = sndCombatLiveHp - sndCombatDefender.hp;
+  ok(sndCombat.mode.matchSnapshot().map === 'citadel'
+    && sndPrepLaneClear
+    && sndLiveLaneClear
+    && sndCombatPrepTick.match.phase === 'prep'
+    && sndCombatDefender.hp < sndCombatLiveHp
+    && sndCombatAfterPrepHp === sndCombatPrepHp
+    && sndCombatAfterPrepMag === sndCombatPrepMag
+    && !sndCombatPrepTick.events.some(
+      (event) => event.kind === 'shoot' || event.kind === 'hit'
+    )
+    && sndCombatLiveTick.match.phase === 'live'
+    && sndCombatShot?.w === 'revolver'
+    && sndCombatHit?.dmg === sndCombatDamage
+    && sndCombatDamage > 0,
+  'S&D prep is damage-immune while live enemy fire deals authoritative damage in clear Citadel geometry');
 
   const sndPrepEndsAt = sndClock.engine.mode.matchSnapshot().phaseEndsAt;
   const sndBeforeLive = stepModeAt(sndClock, sndPrepEndsAt - 1);

@@ -3,7 +3,7 @@
 // net -> sim -> guns/FX/HUD/audio modules.
 import * as THREE from './vendor/three.module.js';
 import { WEAPONS, WEAPON_IDS, CONDITION_RULES, computeSpreadConeDeg, sampleSpreadDir } from '../../shared/combatmath.js';
-import { deserializeWorld, getBlock, setBlock, SX, SZ } from '../../shared/worlddata.js';
+import { deserializeWorld, getBlock, getMapMeta, setBlock, SX, SZ } from '../../shared/worlddata.js';
 
 import { NetClient } from './engine/netclient.js';
 import { Input } from './engine/input.js';
@@ -37,6 +37,8 @@ class Game {
     this.camera.updateProjectionMatrix();
     this.worldview = null;
     this.effects = null;
+    this.mapMeta = null;
+    this.ownBody = null;
     this.rig = null;
     this.physics = new PlayerPhysics();
 
@@ -59,6 +61,8 @@ class Game {
     this.recoilYaw = 0;
     this.avatars = new Map();      // id -> avatar refs
     this.pendingAvatarHits = new Map();
+    this.remoteImpacts = new Map();
+    this.pendingRemoteDeaths = new Map();
     this.playersCache = Object.freeze([]);
     this.matchState = null;
     this.selfRow = null;
@@ -78,6 +82,9 @@ class Game {
     this.currentSpeedXZ = 0;
     this.panic = 0;
     this.exhaustion = 0;
+    this.pain = 0;
+    this.spawnProtected = false;
+    this.lastLocalImpact = null;
     this.scopeActive = false;
     this.deathElapsed = 0;
     this.deathRoll = 0;
@@ -102,8 +109,15 @@ class Game {
       this.camera.updateProjectionMatrix();
     };
     this._onPageHide = () => this.teardown();
+    this._onVisibilityChange = () => {
+      if (this._tornDown || document.visibilityState !== 'visible') return;
+      try {
+        Promise.resolve(sfx.unlock()).catch(() => {});
+      } catch (_) {}
+    };
     window.addEventListener('resize', this._onResize);
     window.addEventListener('pagehide', this._onPageHide, { once: true });
+    document.addEventListener('visibilitychange', this._onVisibilityChange);
   }
 
   // ------------------------------------------------------------------ boot
@@ -121,6 +135,7 @@ class Game {
     this.slot = 0;
     this.lastSlot = 1;
     this.ammo = {};
+    this.mapMeta = null;
     this.physics = new PlayerPhysics();
     this.view.yaw = 0;
     this.view.pitch = 0;
@@ -136,12 +151,17 @@ class Game {
     this.currentSpeedXZ = 0;
     this.panic = 0;
     this.exhaustion = 0;
+    this.pain = 0;
+    this.spawnProtected = false;
+    this.lastLocalImpact = null;
     this.scopeActive = false;
     this.deathElapsed = 0;
     this.deathRoll = 0;
     this.deathPitch = 0;
     this.playersCache = Object.freeze([]);
     this._pendingAuthoritativeSnapshots = [];
+    this.remoteImpacts.clear();
+    this.pendingRemoteDeaths.clear();
     this.running = false;
     this.setGameplayInputEnabled(false);
     this.closeBuyMenu();
@@ -160,10 +180,16 @@ class Game {
     this.hud.setState({
       alive: true,
       hp: 100,
-      bloomPx: 0,
+      crosshairConeDeg: 0,
+      panic: 0,
+      pain: 0,
+      crouching: false,
+      spawnProtected: false,
       reloading01: null,
       adsT01: 0,
     });
+    this.hud.setPainImpulse(0);
+    this.hud.setDeathBrutality(0);
     this.hud.hideDeathNote();
     this.hud.clearDamage();
     this.hud.setScope(false);
@@ -221,6 +247,7 @@ class Game {
 
   async beginPregame(action) {
     if (this._tornDown || this._phase !== 'menu' || !action) return;
+    const audioReady = this.unlockAudioFromGesture();
 
     const mode = action.mode === 'create' || action.mode === 'join' ? action.mode : 'quick';
     const name = String(action.name || '').trim().slice(0, 16) || 'Rookie';
@@ -257,7 +284,7 @@ class Game {
       this.maybeEnterLive(attempt);
     };
 
-    await this.unlockAudioFromGesture();
+    await audioReady;
     if (!this.isActivePregameAttempt(attempt)) return;
 
     const opts = { mode };
@@ -416,6 +443,8 @@ class Game {
       if (this._tornDown || attempt.net !== this.net) return;
       this.welcome = attempt.welcome;
       this.myId = attempt.welcome.id;
+      this.mapMeta = getMapMeta(attempt.welcome.map);
+      this.physics.setMapMeta(this.mapMeta);
       this.myHp = 100;
       const spawn = attempt.welcome.spawn;
       if (spawn && [spawn.x, spawn.y, spawn.z].every(Number.isFinite)) {
@@ -435,7 +464,7 @@ class Game {
       }
 
       this.showLiveBootStatus(attempt, 'building voxel mesh…', 'ok');
-      this.worldview = new WorldView({ getBlock });
+      this.worldview = new WorldView({ getBlock }, this.mapMeta);
       await this.worldview.ready();
       if (this._tornDown || attempt.net !== this.net || this._phase !== 'booting') return;
       if (!attempt.net.isOpen()) {
@@ -445,6 +474,8 @@ class Game {
 
       this.effects = new Effects(this.worldview.scene, this.camera, getBlock);
       this.worldview.scene.add(this.camera);   // camera parented => viewmodel children render
+      this.ownBody = makeFirstPersonBody();
+      this.worldview.scene.add(this.ownBody.group);
       this.rig = new ViewmodelRig(this.camera);
       attachShellBridge(this.effects, this.rig);
       this.rig.setWeapon(WEAPON_IDS[this.slot]);
@@ -746,6 +777,13 @@ class Game {
     }
     this.avatars.clear();
     this.pendingAvatarHits.clear();
+    this.remoteImpacts.clear();
+    this.pendingRemoteDeaths.clear();
+    if (this.ownBody) {
+      if (this.worldview) this.worldview.scene.remove(this.ownBody.group);
+      disposeObjectTree(this.ownBody.group);
+      this.ownBody = null;
+    }
     if (this.rig) {
       this.rig.onReloadClick = null;
       this.rig.dispose();
@@ -755,6 +793,7 @@ class Game {
     this.rig = null;
     this.effects = null;
     this.worldview = null;
+    this.mapMeta = null;
     this.playersCache = Object.freeze([]);
     this.dyingAvatars = 0;
     this.runningAvatars = 0;
@@ -785,14 +824,20 @@ class Game {
     this.scopeActive = false;
     this.panic = 0;
     this.exhaustion = 0;
+    this.pain = 0;
+    this.spawnProtected = false;
+    this.lastLocalImpact = null;
     this.currentSpeedXZ = 0;
     this.disposeLiveResources();
+    this.hud.setPainImpulse(0);
+    this.hud.setDeathBrutality(0);
     if (this.net) {
       this.net.onMap = null;
       this.net.close();
     }
     window.removeEventListener('resize', this._onResize);
     window.removeEventListener('pagehide', this._onPageHide);
+    document.removeEventListener('visibilitychange', this._onVisibilityChange);
     if (this._debugInterval) {
       clearInterval(this._debugInterval);
       this._debugInterval = null;
@@ -821,23 +866,36 @@ class Game {
         break;
       }
       case 'hit': {
-        if (ev.victim !== this.myId) this.hitAvatar(ev.victim, ev);
+        const localVictim = ev.victim === this.myId;
+        if (!localVictim) {
+          const victimRow = this.playersCache.find((row) => row.id === ev.victim);
+          const lethal = victimRow?.state === 'dead' ||
+            (Number.isFinite(victimRow?.hp) && victimRow.hp <= 0);
+          this.hitAvatar(ev.victim, ev);
+          sfx.pain({
+            damage: ev.dmg,
+            headshot: ev.hs,
+            lethal,
+            pos: impactPosition(ev),
+            local: false,
+          });
+        }
         this.effects.impact(ev);
-        if (ev.attacker === this.myId && ev.victim !== this.myId) {
+        if (ev.attacker === this.myId && !localVictim) {
           this.hud.hitmark(ev.hs);
           sfx.hitmark(ev.hs);
           this.spawnDamageNumber(ev);
         }
-        if (ev.victim === this.myId) {
-          this.hud.setOwnDamage(Math.min(1, ev.dmg / 45));
-          sfx.impact('flesh', Math.min(0.5, ev.dmg / 60), null);
-        }
+        if (localVictim && this.alive) this.applyLocalHit(ev);
         break;
       }
       case 'kill': {
         this.hud.killfeed(ev);
-        if (ev.victim === this.myId) this.onDeath(ev.killer);
-        else this.beginRemoteDeath(ev.victim);
+        if (ev.victim === this.myId) {
+          this.onDeath(ev.killer, { headshot: ev.hs });
+        } else {
+          this.beginRemoteDeath(ev.victim);
+        }
         break;
       }
       case 'block': {
@@ -854,8 +912,15 @@ class Game {
         break;
       }
       case 'respawn': {
-        if (ev.id === this.myId) this.onRespawned(ev);
-        else this.resetRemoteAvatar(ev.id, ev);
+        if (ev.id === this.myId) {
+          const hp = this.selfRow?.hp;
+          if (!this.alive && this.selfRow?.state === 'alive' &&
+              Number.isFinite(hp) && hp > 0) {
+            this.onRespawned(this.selfRow);
+          }
+        } else {
+          this.resetRemoteAvatar(ev.id, ev);
+        }
         break;
       }
       case 'die': {
@@ -889,23 +954,64 @@ class Game {
     const y = (-v.y * 0.5 + 0.5) * innerHeight;
     this.hud.spawnDamage(ev.dmg, x, y, !behind, ev.hs);
   }
+  applyLocalHit(ev) {
+    this.lastLocalImpact = ev;
+    const damage = Math.max(0, Number(ev.dmg) || 0);
+    const severity = clamp01(damage / 55);
+    const painLevel = Math.max(this.pain, severity);
+    const headshotScale = ev.hs ? 1.45 : 1;
+    const trauma = (0.45 + severity * 0.85 + painLevel * 0.65) * headshotScale;
+    const side = (hashInt(`${ev.attacker}|${ev.vx}|${ev.vz}`) & 1) ? 1 : -1;
+    this.view.yaw += side * trauma * 0.045;
+    this.view.pitch += trauma * 0.052;
+    this.view.pitch = clampPitch(this.view.pitch);
+    this.hud.setPainImpulse(clamp01(0.18 + severity * 0.72 + painLevel * 0.35));
+    this.effects.gore(ev, { lethal: false, local: true });
+    sfx.impact('flesh', Math.min(0.5, damage / 60), null);
+    sfx.pain({
+      damage,
+      headshot: ev.hs,
+      lethal: false,
+      pos: impactPosition(ev),
+      local: true,
+    });
+  }
 
-  onDeath(killerId) {
+
+  onDeath(killerId, context = null) {
     if (!this.alive) return;
+    const impact = context?.impact || this.lastLocalImpact;
+    const headshot = !!(context?.headshot || impact?.hs);
     this.alive = false;
     this.myHp = 0;
     this.reloadState = null;
     this.adsT = 0;
     this.scopeActive = false;
+    this.spawnProtected = false;
     this.currentSpeedXZ = 0;
     this.deathElapsed = 0;
     this.deathSide = (hashInt(String(this.myId) + '|' + String(killerId || 'world')) & 1) ? 1 : -1;
+    this.recoilPitch += headshot ? 0.2 : 0.11;
+    this.recoilYaw += this.deathSide * (headshot ? 0.14 : 0.08);
     if (this.rig && this.rig.root) this.rig.root.visible = true;
     this.closeBuyMenu();
     this.setGameplayInputEnabled(false);
     this._pendingPurchase = null;
     this.input.exit();
     this.hud.closeSettings();
+    this.hud.setPainImpulse(1);
+    this.hud.setDeathBrutality(headshot ? 1 : 0.82);
+    const goreImpact = validImpact(impact)
+      ? impact
+      : {
+        vx: this.physics.pos.x,
+        vy: this.physics.pos.y + 1.05,
+        vz: this.physics.pos.z,
+        hs: headshot,
+      };
+    this.effects?.gore(goreImpact, { lethal: true, local: true });
+    sfx.deathSelf({ headshot });
+    this.lastLocalImpact = null;
     this.hud.setDead(true, killerId ? this.nameOf(killerId) : '');
   }
 
@@ -924,6 +1030,11 @@ class Game {
     this.physics._crouching = false;
     this.panic = 0;
     this.exhaustion = 0;
+    this.pain = Number.isFinite(ev.pain) ? clamp01(ev.pain) : 0;
+    this.spawnProtected = typeof this.selfRow?.spawnProtected === 'boolean'
+      ? this.selfRow.spawnProtected
+      : true;
+    this.lastLocalImpact = null;
     this.deathElapsed = 0;
     this.deathRoll = 0;
     this.deathPitch = 0;
@@ -951,6 +1062,9 @@ class Game {
       this.rig.setWeapon(WEAPON_IDS[this.slot]);
       if (this.rig.root) this.rig.root.visible = true;
     }
+    resetFirstPersonBody(this.ownBody);
+    this.hud.setPainImpulse(0);
+    this.hud.setDeathBrutality(0);
     this.hud.setDead(false, '');
     this.syncGameplayInput();
     if (this._gameplayInputEnabled) this.input.requestLock();
@@ -1052,7 +1166,14 @@ class Game {
     // only after every pellet direction has been fixed, matching authority.
     const fwd = fwdFromAngles(this.view.yaw, this.view.pitch);
     const spreadCone = currentConeDeg(
-      def, this.bloomDeg, this.currentSpeedXZ, this.adsT, this.panic, this.exhaustion,
+      def,
+      this.bloomDeg,
+      this.currentSpeedXZ,
+      this.adsT,
+      this.panic,
+      this.exhaustion,
+      !!this.physics._crouching,
+      this.pain,
     );
     const rngV = () => Math.random();
 
@@ -1136,15 +1257,23 @@ class Game {
     this.playersCache = presentedPlayers;
     this.serverNow = Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : null;
 
-    this.reconcileSelf(self, snapshot.snapSeq);
-    if (self?.state === 'dead' && this.alive) {
-      const localDeathEvent = Array.isArray(snapshot.events)
-        ? snapshot.events.find((event) =>
-          (event?.kind === 'kill' && event.victim === this.myId) ||
-          (event?.kind === 'die' && event.id === this.myId))
-        : null;
-      this.onDeath(localDeathEvent?.killer || null);
+    const events = Array.isArray(snapshot.events) ? snapshot.events : [];
+    const localDeathEvent = events.find((event) =>
+      event?.kind === 'kill' && event.victim === this.myId) ||
+      events.find((event) => event?.kind === 'die' && event.id === this.myId) ||
+      null;
+    let localHitEvent = null;
+    for (let i = events.length - 1; i >= 0; i--) {
+      const event = events[i];
+      if (event?.kind === 'hit' && event.victim === this.myId) {
+        localHitEvent = event;
+        break;
+      }
     }
+    this.reconcileSelf(self, snapshot.snapSeq, {
+      deathEvent: localDeathEvent,
+      impact: localHitEvent,
+    });
     this.applyConfirmedPurchase(self);
     this.hud.setMatchState(
       match,
@@ -1205,8 +1334,17 @@ class Game {
 
     this.readLook();
     this.sampleMovement();
+    const climbAxis = this.keys.forward && !this.keys.back
+      ? 1
+      : (this.keys.back && !this.keys.forward ? -1 : 0);
     const jumped = this.alive
-      ? this.physics.step(dt, this.wishDir, moveSpeedFor(this.keys, this.wantAds), this.keys.jump)
+      ? this.physics.step(
+        dt,
+        this.wishDir,
+        moveSpeedFor(this.keys, this.wantAds),
+        this.keys.jump,
+        climbAxis,
+      )
       : false;
     this.currentSpeedXZ = Math.hypot(this.physics.vel.x, this.physics.vel.z);
     this.updateConditionEstimates(dt, jumped);
@@ -1227,6 +1365,18 @@ class Game {
     if (this.rig && this.rig.root) this.rig.root.visible = !this.scopeActive;
 
     this.updateCamera(dt);
+    updateFirstPersonBody(
+      this.ownBody,
+      dt,
+      this.physics.pos,
+      this.view.yaw,
+      this.currentSpeedXZ,
+      !!this.physics._crouching,
+      this.alive,
+      this.deathElapsed,
+      this.deathSide,
+      this.scopeActive,
+    );
     try {
       this.rig.update(dt, {
         speed: this.currentSpeedXZ,
@@ -1249,11 +1399,25 @@ class Game {
 
     // HUD aggregate
     const a = this.ammo[WEAPON_IDS[this.slot]];
+    const crosshairConeDeg = currentConeDeg(
+      def,
+      this.bloomDeg,
+      this.currentSpeedXZ,
+      this.adsT,
+      this.panic,
+      this.exhaustion,
+      !!this.physics._crouching,
+      this.pain,
+    );
     this.hud.setState({
       hp: this.myHp != null ? this.myHp : 100,
       mag: a.mag, reserve: a.reserve,
       wname: def.name, wid: WEAPON_IDS[this.slot],
-      bloomPx: crosshairPx(this.bloomDeg),
+      crosshairConeDeg,
+      panic: this.panic,
+      pain: this.pain,
+      crouching: !!this.physics._crouching,
+      spawnProtected: this.spawnProtected,
       reloading01: this.reloadState ? (now - (this.reloadState.until - this.reloadState.dur)) / this.reloadState.dur : null,
       adsT01: this.adsT,
       yawDeg: ((-this.view.yaw * 180 / Math.PI) % 360 + 360) % 360,
@@ -1283,8 +1447,7 @@ class Game {
     // input.js already scales movement by this.input.sens — do NOT rescale here.
     this.view.yaw -= delta.dx;
     this.view.pitch -= delta.dy;
-    const lim = Math.PI / 2 - 0.01;
-    this.view.pitch = Math.max(-lim, Math.min(lim, this.view.pitch));
+    this.view.pitch = clampPitch(this.view.pitch);
   }
 
   sampleMovement() {
@@ -1328,6 +1491,16 @@ class Game {
       this.exhaustion = clamp01(this.exhaustion + CONDITION_RULES.exhaustionJumpGain);
     }
 
+    const hp01 = clamp01((Number.isFinite(this.myHp) ? this.myHp : 100) / 100);
+    const missingHealth = 1 - hp01;
+    const panicFloor = missingHealth * CONDITION_RULES.panicLowHpFloor;
+    this.panic = clamp01(Math.max(
+      panicFloor, this.panic - CONDITION_RULES.panicDecayPerS * dt,
+    ));
+    const painFloor = missingHealth * CONDITION_RULES.painLowHpFloor;
+    this.pain = clamp01(Math.max(
+      painFloor, this.pain - CONDITION_RULES.painDecayPerS * dt,
+    ));
     const sprinting = !!(
       this.keys.sprint && this.keys.forward && !this.keys.back &&
       !this.keys.crouch && !this.wantAds
@@ -1336,12 +1509,6 @@ class Game {
       ? CONDITION_RULES.exhaustionSprintPerS
       : -CONDITION_RULES.exhaustionRecoverPerS;
     this.exhaustion = clamp01(this.exhaustion + exhaustionRate * dt);
-
-    const hp01 = clamp01((Number.isFinite(this.myHp) ? this.myHp : 100) / 100);
-    const floor = (1 - hp01) * CONDITION_RULES.panicLowHpFloor;
-    this.panic = clamp01(Math.max(
-      floor, this.panic - CONDITION_RULES.panicDecayPerS * dt,
-    ));
   }
 
 
@@ -1369,7 +1536,7 @@ class Game {
     if (sent && wantFire) this.fireTapLatched = false;
   }
 
-  reconcileSelf(me, snapSeq) {
+  reconcileSelf(me, snapSeq, context = null) {
     if (!me) return;
     if (Number.isFinite(snapSeq)) {
       if (this._lastReconciledSnapSeq !== null && snapSeq <= this._lastReconciledSnapSeq) return;
@@ -1377,15 +1544,23 @@ class Game {
     }
 
     const hp = Number.isFinite(me.hp) ? me.hp : this.myHp;
+    if (Number.isFinite(me.panic)) this.panic = clamp01(me.panic);
+    if (Number.isFinite(me.exhaustion)) this.exhaustion = clamp01(me.exhaustion);
+    if (Number.isFinite(me.pain)) this.pain = clamp01(me.pain);
+    this.spawnProtected = !!me.spawnProtected;
     const authoritativeAlive = me.state === 'alive' && hp > 0;
     if (authoritativeAlive && !this.alive) {
       this.onRespawned(me);
+      if (Number.isFinite(me.pain)) this.pain = clamp01(me.pain);
+      this.spawnProtected = !!me.spawnProtected;
     } else if (!authoritativeAlive && this.alive) {
-      this.onDeath(null);
+      const deathEvent = context?.deathEvent;
+      this.onDeath(deathEvent?.killer || null, {
+        impact: context?.impact || null,
+        headshot: !!(deathEvent?.hs || context?.impact?.hs),
+      });
     }
     this.myHp = hp;
-    if (Number.isFinite(me.panic)) this.panic = clamp01(me.panic);
-    if (Number.isFinite(me.exhaustion)) this.exhaustion = clamp01(me.exhaustion);
 
     if (Array.isArray(me.mag) && Array.isArray(me.reserve)) {
 
@@ -1438,11 +1613,13 @@ class Game {
       this.deathRoll = 0;
       this.deathPitch = 0;
     } else {
-      this.deathElapsed = Math.min(1.35, this.deathElapsed + dt);
-      const t = smooth01(this.deathElapsed / 1.15);
-      this.camera.position.y -= 1.28 * t;
-      this.deathPitch = -0.48 * t;
-      this.deathRoll = this.deathSide * 1.02 * t;
+      this.deathElapsed = Math.min(1.4, this.deathElapsed + dt);
+      const impactT = smooth01(this.deathElapsed / 0.18);
+      const collapseT = smooth01(this.deathElapsed / 0.86);
+      const settleT = smooth01(this.deathElapsed / 1.22);
+      this.camera.position.y -= 1.48 * collapseT + 0.12 * impactT;
+      this.deathPitch = -0.18 * impactT - 0.66 * collapseT + 0.08 * settleT;
+      this.deathRoll = this.deathSide * (0.26 * impactT + 1.12 * collapseT);
     }
 
     // THREE YXZ: rotation.y=yaw (0 => facing -Z, matches canonical fwd), rotation.x=pitch (+up)
@@ -1461,29 +1638,49 @@ class Game {
 
   hitAvatar(id, ev) {
     if (id === this.myId) return;
+    const now = nowMs();
+    boundedMapSet(this.remoteImpacts, id, { ev, until: now + 2200 });
     const av = this.avatars.get(id);
     if (!av) {
-      this.pendingAvatarHits.set(id, { ev, until: nowMs() + 500 });
+      boundedMapSet(this.pendingAvatarHits, id, { ev, until: now + 650 });
       return;
     }
+    av.lastImpact = { ev, until: now + 2200 };
     if (!av.alive) return;
     av.hitT = 0.18;
     av.hitSide = (hashInt(String(ev && ev.attacker || id)) & 1) ? 1 : -1;
   }
 
   beginRemoteDeath(id) {
-    this.pendingAvatarHits.delete(id);
+    if (id === this.myId) return;
+    const now = nowMs();
     const av = this.avatars.get(id);
-    if (!av) return;
-    beginAvatarDeath(av, nowMs());
+    if (!av) {
+      boundedMapSet(this.pendingRemoteDeaths, id, { until: now + 2200 });
+      return;
+    }
+    const stored = this.remoteImpacts.get(id);
+    const recentAvatarImpact = av.lastImpact?.until >= now ? av.lastImpact.ev : null;
+    const impact = stored?.ev || recentAvatarImpact || {
+      vx: av.group.position.x,
+      vy: av.group.position.y + 1.08,
+      vz: av.group.position.z,
+      hs: false,
+    };
+    if (!beginAvatarDeath(av, now, impact)) return;
+    this.pendingRemoteDeaths.delete(id);
+    this.effects?.gore(impact, { lethal: true, local: false });
   }
 
   resetRemoteAvatar(id, ev) {
     this.pendingAvatarHits.delete(id);
+    this.pendingRemoteDeaths.delete(id);
+    this.remoteImpacts.delete(id);
     const av = this.avatars.get(id);
     if (!av) return;
     resetAvatarPose(av);
     av.lastHp = null;
+    av.lastImpact = null;
     av.updateHealth(1);
     if (ev && [ev.x, ev.y, ev.z].every(Number.isFinite)) {
       av.px = ev.x;
@@ -1500,20 +1697,31 @@ class Game {
     for (const [id, pending] of this.pendingAvatarHits) {
       if (pending.until < now) this.pendingAvatarHits.delete(id);
     }
+    for (const [id, pending] of this.remoteImpacts) {
+      if (pending.until < now) this.remoteImpacts.delete(id);
+    }
+    for (const [id, pending] of this.pendingRemoteDeaths) {
+      if (pending.until < now) this.pendingRemoteDeaths.delete(id);
+    }
     for (const [id, av] of this.avatars) {
-      if (!remotes.has(id)) {
+      if (id === this.myId || !remotes.has(id)) {
         scene.remove(av.group);
         this.avatars.delete(id);
+        this.pendingAvatarHits.delete(id);
+        this.pendingRemoteDeaths.delete(id);
+        this.remoteImpacts.delete(id);
         disposeAvatar(av);
       }
     }
 
     for (const r of remotes.values()) {
+      if (r.id === this.myId) continue;
       let av = this.avatars.get(r.id);
       if (!av) {
         av = makeAvatar(r.id, r.name, r.team);
         av.px = r.x;
         av.pz = r.z;
+        av.group.position.set(r.x, r.y, r.z);
         scene.add(av.group);
         this.avatars.set(r.id, av);
       }
@@ -1523,35 +1731,30 @@ class Game {
         this.pendingAvatarHits.delete(r.id);
         if (pending.until >= now) this.hitAvatar(r.id, pending.ev);
       }
+      const pendingDeath = this.pendingRemoteDeaths.get(r.id);
+      if (pendingDeath?.until >= now && av.alive) this.beginRemoteDeath(r.id);
 
       const rowAlive = r.state === 'alive';
       const alive = rowAlive && now >= av.deathForcedUntil;
       if (!alive) {
-        if (av.alive) beginAvatarDeath(av, now);
+        if (av.alive) this.beginRemoteDeath(r.id);
         av.deathT = Math.min(1.5, av.deathT + dt);
         const t = smooth01(av.deathT / 1.28);
         const fade = 1 - smooth01((t - 0.72) / 0.28);
-        av.group.visible = av.deathT < 1.42 && r.id !== this.myId;
-        if (av.group.visible) this.dyingAvatars++;
-        av.group.position.set(r.x, r.y - 0.62 * t, r.z);
-        av.group.rotation.set(1.16 * t, r.yaw, av.deathSide * 0.78 * t);
-        av.torso.rotation.x = 0.24 * t;
-        av.torso.rotation.z = av.deathSide * 0.18 * t;
-        av.head.rotation.x = 0.55 * t;
-        av.head.rotation.z = -av.deathSide * 0.5 * t;
-        av.lLeg.rotation.x = -0.35 * t;
-        av.rLeg.rotation.x = 0.62 * t;
-        av.lArm.rotation.x = 0.85 * t;
-        av.rArm.rotation.x = -0.45 * t;
-        av.lArm.rotation.z = 0.55 * t;
-        av.rArm.rotation.z = -0.45 * t;
+        av.group.visible = av.deathT < 1.42;
+        if (av.group.visible) {
+          this.dyingAvatars++;
+          updateAvatarDeath(av, dt, t);
+        }
+        av.group.position.set(r.x, r.y, r.z);
+        av.group.rotation.set(0, r.yaw, 0);
         setAvatarOpacity(av, fade);
         continue;
       }
 
       if (!av.alive) resetAvatarPose(av);
       av.alive = true;
-      av.group.visible = r.id !== this.myId;
+      av.group.visible = true;
       av.group.rotation.set(0, r.yaw, 0);
       av.group.scale.set(1, 1, 1);
       setAvatarOpacity(av, 1);
@@ -1604,10 +1807,15 @@ class Game {
 
 // ---------------------------------------------------------------- helpers
 
+const MAX_REMOTE_RECORDS = 32;
+
 function nowMs() { return performance.now(); }
 function easeOut(t) { return 1 - Math.pow(1 - t, 3); }
-function crosshairPx(bloomDeg) { return 5 + bloomDeg * 38; }
 function clamp01(v) { return Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0)); }
+function clampPitch(value) {
+  const limit = Math.PI / 2 - 0.01;
+  return Math.max(-limit, Math.min(limit, Number.isFinite(value) ? value : 0));
+}
 function smooth01(v) {
   const t = clamp01(v);
   return t * t * (3 - 2 * t);
@@ -1624,6 +1832,20 @@ function readStoredNumber(key, fallback, min, max) {
     return fallback;
   }
 }
+function validImpact(ev) {
+  return !!ev && Number.isFinite(Number(ev.vx)) &&
+    Number.isFinite(Number(ev.vy)) && Number.isFinite(Number(ev.vz));
+}
+function impactPosition(ev) {
+  return validImpact(ev) ? [Number(ev.vx), Number(ev.vy), Number(ev.vz)] : null;
+}
+function boundedMapSet(map, key, value) {
+  if (!map.has(key) && map.size >= MAX_REMOTE_RECORDS) {
+    const oldest = map.keys().next();
+    if (!oldest.done) map.delete(oldest.value);
+  }
+  map.set(key, value);
+}
 
 /** Canonical look convention (client + server + bots): yaw=0 faces -Z, +yaw LEFT,
  *  +pitch UP. fwd = (-sin(yaw)*cos(pitch), sin(pitch), -cos(yaw)*cos(pitch)). */
@@ -1632,16 +1854,150 @@ export function fwdFromAngles(yaw, pitch) {
   return { x: -Math.sin(yaw) * cp, y: Math.sin(pitch), z: -Math.cos(yaw) * cp };
 }
 
-export function currentConeDeg(def, bloomDeg, speedXZ, adsT, panic = 0, exhaustion = 0) {
-  return computeSpreadConeDeg(def, bloomDeg, speedXZ, adsT, panic, exhaustion);
+export function currentConeDeg(
+  def,
+  bloomDeg,
+  speedXZ,
+  adsT,
+  panic = 0,
+  exhaustion = 0,
+  crouching = false,
+  pain = 0,
+) {
+  return computeSpreadConeDeg(
+    def,
+    bloomDeg,
+    speedXZ,
+    adsT,
+    panic,
+    exhaustion,
+    crouching,
+    pain,
+  );
 }
 
+function makeFirstPersonBody() {
+  const group = new THREE.Group();
+  group.name = 'first-person-body';
+  group.rotation.order = 'YXZ';
+  const cloth = new THREE.MeshLambertMaterial({ color: 0x44515e });
+  const armor = new THREE.MeshLambertMaterial({ color: 0x202831 });
+  const bootMaterial = new THREE.MeshLambertMaterial({ color: 0x0b0f14 });
+  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.22, 0.32), armor);
+  hips.position.set(0, 0.84, -0.1);
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.3, 0.34), cloth);
+  torso.position.set(0, 1.1, -0.16);
+  const thighGeometry = new THREE.BoxGeometry(0.21, 0.42, 0.25);
+  const shinGeometry = new THREE.BoxGeometry(0.19, 0.4, 0.22);
+  const bootGeometry = new THREE.BoxGeometry(0.21, 0.16, 0.38);
 
-function disposeAvatar(av) {
+  function makeLeg(side) {
+    const leg = new THREE.Group();
+    leg.position.set(side * 0.16, 0.78, 0);
+    const thigh = new THREE.Mesh(thighGeometry, cloth);
+    thigh.position.y = -0.2;
+    const knee = new THREE.Group();
+    knee.position.y = -0.39;
+    const shin = new THREE.Mesh(shinGeometry, armor);
+    shin.position.y = -0.19;
+    const boot = new THREE.Mesh(bootGeometry, bootMaterial);
+    boot.position.set(0, -0.42, -0.08);
+    knee.add(shin, boot);
+    leg.add(thigh, knee);
+    return { leg, knee, boot };
+  }
+
+  const left = makeLeg(-1);
+  const right = makeLeg(1);
+  group.add(hips, torso, left.leg, right.leg);
+  const body = {
+    group,
+    hips,
+    torso,
+    left,
+    right,
+    phase: 0,
+    crouch: 0,
+  };
+  resetFirstPersonBody(body);
+  return body;
+}
+
+function resetFirstPersonBody(body) {
+  if (!body) return;
+  body.phase = 0;
+  body.crouch = 0;
+  body.group.visible = true;
+  body.group.rotation.set(0, 0, 0);
+  body.group.scale.set(1, 1, 1);
+  body.hips.position.set(0, 0.84, -0.1);
+  body.hips.rotation.set(0, 0, 0);
+  body.torso.position.set(0, 1.1, -0.16);
+  body.torso.rotation.set(0, 0, 0);
+  body.left.leg.position.set(-0.16, 0.78, 0);
+  body.right.leg.position.set(0.16, 0.78, 0);
+  body.left.leg.rotation.set(0, 0, 0);
+  body.right.leg.rotation.set(0, 0, 0);
+  body.left.knee.rotation.set(0, 0, 0);
+  body.right.knee.rotation.set(0, 0, 0);
+  body.left.boot.rotation.set(0, 0, 0);
+  body.right.boot.rotation.set(0, 0, 0);
+}
+
+function updateFirstPersonBody(
+  body,
+  dt,
+  pos,
+  yaw,
+  speed,
+  crouching,
+  alive,
+  deathElapsed,
+  deathSide,
+  scopeActive,
+) {
+  if (!body || !pos) return;
+  body.group.visible = !scopeActive;
+  body.group.position.set(pos.x, pos.y, pos.z);
+  const stride = alive ? Math.min(1, Math.max(0, speed) / 5.8) : 0;
+  if (stride > 0.025) body.phase += dt * (5.4 + speed * 1.15);
+  body.crouch += ((crouching && alive ? 1 : 0) - body.crouch) *
+    Math.min(1, dt * 13);
+  const crouch = crouching && alive ? 1 : body.crouch;
+  const swing = Math.sin(body.phase) * stride;
+  const bounce = Math.abs(Math.sin(body.phase * 2)) * stride * 0.025;
+
+  if (!alive) {
+    const death = smooth01(deathElapsed / 0.9);
+    body.group.position.y -= death * 0.14;
+    body.group.rotation.set(death * 1.08, yaw, deathSide * death * 0.92);
+    body.torso.rotation.x = death * 0.28;
+    body.hips.rotation.z = deathSide * death * 0.2;
+    body.left.leg.rotation.x = -death * 0.5;
+    body.right.leg.rotation.x = death * 0.72;
+    body.left.knee.rotation.x = death * 0.34;
+    body.right.knee.rotation.x = death * 0.62;
+    return;
+  }
+
+  body.group.rotation.set(0, yaw, 0);
+  body.hips.position.y = 0.84 - crouch * 0.34 + bounce;
+  body.torso.position.y = 1.1 - crouch * 0.42 + bounce;
+  body.torso.rotation.x = crouch * 0.12;
+  body.hips.rotation.z = swing * stride * 0.045;
+  body.left.leg.position.y = 0.78 - crouch * 0.28;
+  body.right.leg.position.y = 0.78 - crouch * 0.28;
+  body.left.leg.rotation.x = swing * 0.72 - crouch * 0.58;
+  body.right.leg.rotation.x = -swing * 0.72 - crouch * 0.58;
+  body.left.knee.rotation.x = crouch * 1.02 + Math.max(0, -swing) * 0.32;
+  body.right.knee.rotation.x = crouch * 1.02 + Math.max(0, swing) * 0.32;
+}
+
+function disposeObjectTree(root) {
   const geometries = new Set();
   const materials = new Set();
   const textures = new Set();
-  av.group.traverse((object) => {
+  root.traverse((object) => {
     if (object.geometry) geometries.add(object.geometry);
     const list = Array.isArray(object.material) ? object.material : [object.material];
     for (const material of list) {
@@ -1653,6 +2009,10 @@ function disposeAvatar(av) {
   for (const texture of textures) texture.dispose();
   for (const material of materials) material.dispose();
   for (const geometry of geometries) geometry.dispose();
+}
+
+function disposeAvatar(av) {
+  disposeObjectTree(av.group);
 }
 function hashInt(value) {
   const s = String(value);
@@ -1697,32 +2057,106 @@ function resetAvatarPose(av) {
   av.hitT = 0;
   av.speedEst = 0;
   av.runPhase = 0;
+  av.lastImpact = null;
   av.motionSeeded = false;
   av.group.visible = true;
   av.group.rotation.set(0, 0, 0);
   av.group.scale.set(1, 1, 1);
+  av.torso.position.set(0, 1.18, 0);
   av.torso.rotation.set(0, 0, 0);
+  av.hips.position.set(0, 0.84, 0);
   av.hips.rotation.set(0, 0, 0);
+  av.head.position.set(0, 1.66, 0);
   av.head.rotation.set(0, 0, 0);
+  av.lLeg.position.set(-0.16, 0.73, 0);
   av.lLeg.rotation.set(0, 0, 0);
+  av.rLeg.position.set(0.16, 0.73, 0);
   av.rLeg.rotation.set(0, 0, 0);
+  av.lArm.position.set(-0.41, 1.45, 0);
   av.lArm.rotation.set(0, 0, -0.08);
+  av.rArm.position.set(0.41, 1.45, 0);
   av.rArm.rotation.set(0, 0, 0.08);
   av.lElbow.rotation.set(-0.34, 0, 0);
   av.rElbow.rotation.set(-0.46, 0, 0);
+  if (av.gunStub) {
+    av.gunStub.position.set(0.22, 1.2, -0.4);
+    av.gunStub.rotation.set(0, 0, 0);
+  }
+  if (av.tag) av.tag.visible = true;
+  if (av.hpSpr) av.hpSpr.visible = true;
+  for (const limb of av.limbStates || []) {
+    limb.object.visible = true;
+    limb.object.position.copy(limb.basePosition);
+    limb.object.rotation.copy(limb.baseRotation);
+    limb.velocity.set(0, 0, 0);
+    limb.angular.set(0, 0, 0);
+  }
   setAvatarOpacity(av, 1);
   setAvatarFlash(av, 0);
 }
 
-function beginAvatarDeath(av, now) {
-  if (!av.alive) return;
+function beginAvatarDeath(av, now, impact = null) {
+  if (!av.alive) return false;
   av.alive = false;
   av.deathT = 0;
   av.hitT = 0;
   av.speedEst = 0;
   av.motionSeeded = false;
+  av.lastImpact = impact ? { ev: impact, until: now + 2200 } : av.lastImpact;
   av.deathForcedUntil = Math.max(av.deathForcedUntil, now + 1420);
+  if (av.tag) av.tag.visible = false;
+  if (av.hpSpr) av.hpSpr.visible = false;
+  const headshot = !!impact?.hs;
+  for (let i = 0; i < av.limbStates.length; i++) {
+    const limb = av.limbStates[i];
+    const seed = hashInt(`${av.id}|${i}|${headshot ? 1 : 0}`);
+    const angle = (seed / 0xffffffff) * Math.PI * 2;
+    const radial = 2.1 + ((seed >>> 8) & 255) / 255 * 1.9;
+    const boost = headshot && i === 0 ? 1.85 : 1;
+    limb.object.position.copy(limb.basePosition);
+    limb.object.rotation.copy(limb.baseRotation);
+    limb.velocity.set(
+      Math.cos(angle) * radial * boost,
+      (3.1 + ((seed >>> 16) & 255) / 255 * 2.8) * boost,
+      Math.sin(angle) * radial * boost,
+    );
+    limb.angular.set(
+      (((seed >>> 3) & 15) - 7.5) * 0.75,
+      (((seed >>> 11) & 15) - 7.5) * 0.62,
+      (((seed >>> 19) & 15) - 7.5) * 0.8,
+    );
+  }
   setAvatarFlash(av, 0);
+  return true;
+}
+
+function updateAvatarDeath(av, dt, t) {
+  av.torso.position.y = 1.18 - t * 0.56;
+  av.torso.rotation.x = t * 1.08;
+  av.torso.rotation.z = av.deathSide * t * 0.3;
+  av.hips.position.y = 0.84 - t * 0.38;
+  av.hips.rotation.x = t * 0.72;
+  av.hips.rotation.z = av.deathSide * t * 0.22;
+  if (av.gunStub) {
+    av.gunStub.position.y = 1.2 - t * 0.58;
+    av.gunStub.rotation.x = t * 0.9;
+    av.gunStub.rotation.z = -av.deathSide * t * 0.48;
+  }
+  for (const limb of av.limbStates) {
+    limb.velocity.y -= 11.8 * dt;
+    limb.object.position.x += limb.velocity.x * dt;
+    limb.object.position.y += limb.velocity.y * dt;
+    limb.object.position.z += limb.velocity.z * dt;
+    if (limb.object.position.y < limb.floorY) {
+      limb.object.position.y = limb.floorY;
+      if (limb.velocity.y < 0) limb.velocity.y *= -0.24;
+      limb.velocity.x *= Math.max(0, 1 - dt * 7);
+      limb.velocity.z *= Math.max(0, 1 - dt * 7);
+    }
+    limb.object.rotation.x += limb.angular.x * dt;
+    limb.object.rotation.y += limb.angular.y * dt;
+    limb.object.rotation.z += limb.angular.z * dt;
+  }
 }
 
 function makeAvatar(id, name, team = null) {
@@ -1836,17 +2270,55 @@ function makeAvatar(id, name, team = null) {
   }
 
   const av = {
-    id, group: g, torso, hips, head, lLeg, rLeg, lArm, rArm, lElbow, rElbow,
-    speedEst: 0, runPhase: 0, px: 0, pz: 0, motionSeeded: false, lastHp: null,
-    alive: true, deathT: 0, deathForcedUntil: 0,
+    id,
+    group: g,
+    torso,
+    hips,
+    head,
+    lLeg,
+    rLeg,
+    lArm,
+    rArm,
+    lElbow,
+    rElbow,
+    gunStub,
+    tag,
+    hpSpr,
+    limbStates: [],
+    speedEst: 0,
+    runPhase: 0,
+    px: 0,
+    pz: 0,
+    motionSeeded: false,
+    lastHp: null,
+    lastImpact: null,
+    alive: true,
+    deathT: 0,
+    deathForcedUntil: 0,
     deathSide: (hashInt(id) & 1) ? 1 : -1,
-    hitT: 0, hitSide: 1, team: undefined,
-    suitMaterial: suit, darkMaterial: dark,
+    hitT: 0,
+    hitSide: 1,
+    team: undefined,
+    suitMaterial: suit,
+    darkMaterial: dark,
     fadeMaterials: [suit, dark, visorMat, tagMat, hpMat],
     flashMaterials: [suit, dark],
     updateHealth,
   };
   resetAvatarPose(av);
+  av.limbStates = [
+    { object: head, floorY: 0.18 },
+    { object: lArm, floorY: 0.86 },
+    { object: rArm, floorY: 0.86 },
+    { object: lLeg, floorY: 0.72 },
+    { object: rLeg, floorY: 0.72 },
+  ].map((limb) => ({
+    ...limb,
+    basePosition: limb.object.position.clone(),
+    baseRotation: limb.object.rotation.clone(),
+    velocity: new THREE.Vector3(),
+    angular: new THREE.Vector3(),
+  }));
   setAvatarTeam(av, team);
   return av;
 }
@@ -1890,6 +2362,9 @@ window.__vb = {
       fov: game.baseFov,
       panic: game.panic,
       exhaustion: game.exhaustion,
+      pain: game.pain,
+      spawnProtected: game.spawnProtected,
+      ownBodyVisible: !!game.ownBody?.group.visible,
       dyingAvatars: game.dyingAvatars,
       runningAvatars: game.runningAvatars,
       maxAvatarSpeed: game.maxAvatarSpeed,

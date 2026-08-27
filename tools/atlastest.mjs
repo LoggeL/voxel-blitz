@@ -796,6 +796,52 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
   // Audio: install the recording context before module evaluation so every
   // graph edge, source start, voice steal, and lifecycle transition is real.
   {
+    class FakeListenerTarget {
+      constructor() {
+        this.listeners = new Map();
+        this.addedListeners = [];
+        this.removedListeners = [];
+        this.unmatchedRemovals = [];
+      }
+      addEventListener(type, fn, options) {
+        const capture = options === true || options?.capture === true;
+        this.addedListeners.push({ type, fn, capture });
+        let listeners = this.listeners.get(type);
+        if (!listeners) this.listeners.set(type, listeners = []);
+        if (!listeners.some((entry) => entry.fn === fn && entry.capture === capture)) {
+          listeners.push({ fn, capture });
+        }
+      }
+      removeEventListener(type, fn, options) {
+        const capture = options === true || options?.capture === true;
+        const listeners = this.listeners.get(type);
+        const index = listeners?.findIndex((entry) =>
+          entry.fn === fn && entry.capture === capture) ?? -1;
+        const removal = { type, fn, capture };
+        this.removedListeners.push(removal);
+        if (index < 0) {
+          this.unmatchedRemovals.push(removal);
+          return;
+        }
+        listeners.splice(index, 1);
+        if (!listeners.length) this.listeners.delete(type);
+      }
+      dispatch(type) {
+        const event = { type, target: this };
+        for (const { fn } of [...(this.listeners.get(type) || [])]) {
+          fn.call(this, event);
+        }
+      }
+      listenerCount(type) {
+        if (type) return this.listeners.get(type)?.length || 0;
+        return [...this.listeners.values()]
+          .reduce((total, listeners) => total + listeners.length, 0);
+      }
+      addCount(type) {
+        return this.addedListeners.filter((entry) => entry.type === type).length;
+      }
+    }
+
     class FakeAudioParam {
       constructor(value = 0) {
         this.value = value;
@@ -857,10 +903,11 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
       }
     }
 
-    class FakeAudioContext {
+    class FakeAudioContext extends FakeListenerTarget {
       static instances = [];
 
       constructor() {
+        super();
         this.state = 'suspended';
         this.currentTime = 0;
         this.sampleRate = 64;
@@ -868,7 +915,7 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
         this.starts = [];
         this.closeCount = 0;
         this.resumeCount = 0;
-        this.listeners = new Map();
+        this.resumeSucceeds = true;
         this.destination = new FakeAudioNode(this, 'destination');
         const param = () => new FakeAudioParam();
         this.listener = {
@@ -878,21 +925,15 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
         };
         FakeAudioContext.instances.push(this);
       }
-      addEventListener(type, fn) {
-        let listeners = this.listeners.get(type);
-        if (!listeners) this.listeners.set(type, listeners = new Set());
-        listeners.add(fn);
-      }
-      removeEventListener(type, fn) {
-        this.listeners.get(type)?.delete(fn);
-      }
       _emit(type) {
-        for (const fn of this.listeners.get(type) || []) fn();
+        this.dispatch(type);
       }
       async resume() {
         this.resumeCount++;
-        this.state = 'running';
-        this._emit('statechange');
+        if (this.resumeSucceeds) {
+          this.state = 'running';
+          this._emit('statechange');
+        }
       }
       async close() {
         this.closeCount++;
@@ -956,8 +997,13 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
       }
     }
 
+    const audioDocument = new FakeListenerTarget();
+    audioDocument.visibilityState = 'visible';
+    const audioWindow = new FakeListenerTarget();
+    audioWindow.AudioContext = FakeAudioContext;
     const restore = installGlobals({
-      window: { AudioContext: FakeAudioContext },
+      document: audioDocument,
+      window: audioWindow,
     });
     let sfx = null;
     try {
@@ -970,6 +1016,40 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
       ok(FakeAudioContext.instances.length === 1,
         'audio init and unlock reuse one live AudioContext');
       const audio = FakeAudioContext.instances[0];
+      ok(audioDocument.addCount('visibilitychange') === 1
+          && audioWindow.addCount('pageshow') === 1
+          && audioDocument.listenerCount('visibilitychange') === 1
+          && audioWindow.listenerCount('pageshow') === 1
+          && audio.listenerCount('statechange') === 1,
+      'repeated audio init arms each lifecycle callback exactly once');
+
+      const gestureAddBaseline = new Map(
+        ['pointerdown', 'touchend', 'keydown']
+          .map((type) => [type, audioDocument.addCount(type)]));
+      audio.resumeSucceeds = false;
+      audio.state = 'suspended';
+      audio._emit('statechange');
+      await sfx.init();
+      audio._emit('statechange');
+      await sfx.init();
+      ok(['pointerdown', 'touchend', 'keydown'].every((type) =>
+        audioDocument.listenerCount(type) === 1
+          && audioDocument.addCount(type) === gestureAddBaseline.get(type) + 1),
+      'repeated suspended recovery arms at most one gesture callback per event');
+
+      const startsBeforeSuspendedCue = audio.starts.length;
+      sfx.fire('rifle');
+      await Promise.resolve();
+      ok(audio.starts.length === startsBeforeSuspendedCue,
+        'a cue requested while audio is suspended remains queued');
+      audio.resumeSucceeds = true;
+      audioDocument.dispatch('pointerdown');
+      await Promise.resolve();
+      ok(audio.state === 'running'
+          && audio.starts.length > startsBeforeSuspendedCue
+          && ['pointerdown', 'touchend', 'keydown'].every((type) =>
+            audioDocument.listenerCount(type) === 0),
+      'a dispatched recovery gesture resumes audio, flushes the cue, and disarms gesture callbacks');
       const master = audio.nodes.find((node) => node.kind === 'gain');
       const limiter = master?.connections[0];
       ok(master?.gain.value === 1
@@ -1024,13 +1104,52 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
       'positional voice registry leaves at most sixteen live panner nodes');
 
       await sfx.dispose();
-      ok(audio.state === 'closed' && audio.closeCount === 1,
-        'audio dispose closes the reusable context exactly once');
+      ok(audio.state === 'closed'
+          && audio.closeCount === 1
+          && audio.listenerCount() === 0
+          && audioDocument.listenerCount() === 0
+          && audioWindow.listenerCount() === 0
+          && audio.unmatchedRemovals.length === 0
+          && audioDocument.unmatchedRemovals.length === 0
+          && audioWindow.unmatchedRemovals.length === 0,
+      'audio dispose closes once and removes every exact registered callback');
       await sfx.init();
+      const replacementAudio = FakeAudioContext.instances[1];
       ok(FakeAudioContext.instances.length === 2
-        && FakeAudioContext.instances[1].state === 'running'
-        && FakeAudioContext.instances[1].nodes.find((node) => node.kind === 'gain')?.gain.value === 0.35,
+          && replacementAudio.state === 'running'
+          && replacementAudio.nodes.find((node) => node.kind === 'gain')?.gain.value === 0.35,
       'audio dispose permits clean re-init with the persisted clamped master volume');
+      await sfx.dispose();
+      ok(replacementAudio.listenerCount() === 0
+          && audioDocument.listenerCount() === 0
+          && audioWindow.listenerCount() === 0
+          && replacementAudio.unmatchedRemovals.length === 0
+          && audioDocument.unmatchedRemovals.length === 0
+          && audioWindow.unmatchedRemovals.length === 0,
+      'reinitialized audio also disposes without leaked or mismatched callbacks');
+
+      const savedDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+      const restoreDetachedWindow = installGlobals({
+        window: { AudioContext: FakeAudioContext },
+      });
+      delete globalThis.document;
+      try {
+        const detachedInstanceCount = FakeAudioContext.instances.length;
+        await sfx.init();
+        const detachedAudio = FakeAudioContext.instances.at(-1);
+        ok(FakeAudioContext.instances.length === detachedInstanceCount + 1
+            && detachedAudio.state === 'running'
+            && detachedAudio.listenerCount('statechange') === 1,
+        'detached audio initializes when window and document expose no listener APIs');
+        await sfx.dispose();
+        ok(detachedAudio.listenerCount() === 0
+            && detachedAudio.unmatchedRemovals.length === 0,
+        'detached audio disposes its context callback without browser listener APIs');
+      } finally {
+        await sfx.dispose();
+        restoreDetachedWindow();
+        Object.defineProperty(globalThis, 'document', savedDocument);
+      }
     } finally {
       if (sfx) await sfx.dispose();
       restore();
@@ -1057,6 +1176,12 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
         event.currentTarget = this;
         for (const fn of [...(this.listeners.get(event.type) || [])]) fn(event);
         return !event.defaultPrevented;
+      }
+      listenerCount(type) {
+        if (type) return this.listeners.get(type)?.size || 0;
+        let count = 0;
+        for (const listeners of this.listeners.values()) count += listeners.size;
+        return count;
       }
     }
 
@@ -1187,10 +1312,30 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
       get options() {
         return this.children.filter((child) => child.tagName === 'OPTION');
       }
+      get firstChild() {
+        return this.children[0] ?? null;
+      }
+      get lastChild() {
+        return this.children.at(-1) ?? null;
+      }
       appendChild(child) {
         child.parentNode?.removeChild(child);
         child.parentNode = this;
         this.children.push(child);
+        this._innerHTML = '';
+        return child;
+      }
+      insertBefore(child, referenceChild) {
+        if (referenceChild === null) return this.appendChild(child);
+        const referenceIndex = this.children.indexOf(referenceChild);
+        if (referenceIndex < 0) {
+          throw new Error('insertBefore reference is not a child');
+        }
+        if (child === referenceChild) return child;
+        child.parentNode?.removeChild(child);
+        const insertIndex = this.children.indexOf(referenceChild);
+        child.parentNode = this;
+        this.children.splice(insertIndex, 0, child);
         this._innerHTML = '';
         return child;
       }
@@ -1375,6 +1520,24 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
         for (const fn of batch) fn(nowMs);
       }
     };
+    const nativeSetTimeout = globalThis.setTimeout;
+    const nativeClearTimeout = globalThis.clearTimeout;
+    const timers = new Set();
+    let timerCallbacksFired = 0;
+    const setTimeout = (fn, delay = 0, ...args) => {
+      let timer;
+      timer = nativeSetTimeout(() => {
+        timers.delete(timer);
+        timerCallbacksFired++;
+        fn(...args);
+      }, delay);
+      timers.add(timer);
+      return timer;
+    };
+    const clearTimeout = (timer) => {
+      timers.delete(timer);
+      nativeClearTimeout(timer);
+    };
     const event = (type, extra = {}) => ({
       type,
       defaultPrevented: false,
@@ -1390,6 +1553,8 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
       localStorage,
       requestAnimationFrame,
       cancelAnimationFrame,
+      setTimeout,
+      clearTimeout,
       performance: { now: () => nowMs },
     });
     let hud = null;
@@ -1774,6 +1939,163 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
         'buy dialog refuses to stay open outside the authoritative prep phase');
 
       await new Promise((resolve) => setTimeout(resolve, 0));
+
+      const assertDisposed = (instance, ownedRoots, ownerDocument, ownerWindow, label) => {
+        ok(!instance.built
+          && instance.names.size === 0
+          && instance.killfeedTimers.size === 0
+          && instance._deferredTimers.size === 0
+          && instance._ownedRoots.size === 0
+          && instance.dmgActive.length === 0
+          && instance.dmgPool.length === 0
+          && instance._latestPlayers.length === 0
+          && instance._latestMatch === null
+          && instance._latestSelfRow === null
+          && instance._buyMenuState.owned.length === 0,
+        `${label} clears every initialized HUD collection and built state`);
+        ok(Object.keys(instance.dom).length === 0
+          && Object.keys(instance.matchDom).length === 0
+          && Object.keys(instance.lobbyDom).length === 0
+          && Object.keys(instance.buyDom).length === 0
+          && Object.keys(instance.settingsDom).length === 0,
+        `${label} releases all retained DOM collections`);
+        ok(instance.onMenuAction === null
+          && instance._lobbyCallbacks === null
+          && instance._buyMenuCallbacks === null
+          && instance._settingsOnChange === null
+          && instance._settingsOnResume === null,
+        `${label} releases lifecycle callback references`);
+        ok(ownedRoots.every((root) => !ownerDocument?.body.contains(root)),
+          `${label} removes every DOM root it owns`);
+        ok((!ownerDocument || ownerDocument.listenerCount() === 0)
+          && (!ownerWindow || ownerWindow.listenerCount() === 0),
+        `${label} removes document and window listeners`);
+        ok(timers.size === 0 && rafs.size === 0,
+          `${label} cancels every pending timer and animation frame`);
+      };
+      const disposeTwice = async (
+        instance,
+        ownedRoots,
+        ownerDocument,
+        ownerWindow,
+        label,
+      ) => {
+        instance.dispose();
+        assertDisposed(instance, ownedRoots, ownerDocument, ownerWindow, label);
+        const callbacksAfterDispose = timerCallbacksFired;
+        await new Promise((resolve) => nativeSetTimeout(resolve, 0));
+        ok(timerCallbacksFired === callbacksAfterDispose && timers.size === 0,
+          `${label} leaves no deferred callback able to run after disposal`);
+        instance.dispose();
+        assertDisposed(instance, ownedRoots, ownerDocument, ownerWindow,
+          `${label} second disposal`);
+      };
+
+      hud.openSettings();
+      hud.hitmark(true);
+      hud.killRow({
+        killer: 'HOST',
+        victim: 'RIVAL',
+        weapon: 'smg',
+        hs: false,
+      });
+      hud.killRow({
+        killer: 'NEWEST',
+        victim: 'LATEST',
+        weapon: 'sniper',
+        hs: true,
+      });
+      ok(hud.dom.kf.children.map((row) => row.children[0]?.textContent).join(',')
+        === 'NEWEST,HOST',
+      'killfeed inserts the newest row before the prior row');
+      hud.setState({ wid: 'sniper', adsT01: 0.9, alive: true, hp: 100 });
+      hud.setPainImpulse(0.8);
+      const fullRoots = [
+        document.getElementById('menu'),
+        document.getElementById('lobby'),
+        document.getElementById('settings-overlay'),
+        document.getElementById('hud'),
+        document.getElementById('buy-menu'),
+      ].filter(Boolean);
+      ok(fullRoots.length === 5
+        && fullRoots.every((root) => document.body.contains(root))
+        && timers.size >= 3
+        && rafs.size > 0
+        && hud.killfeedTimers.size > 0
+        && document.listenerCount() > 0
+        && window.listenerCount() > 0,
+      'full HUD lifecycle fixture owns DOM, listeners, timers, RAFs, and collections');
+      await disposeTwice(hud, fullRoots, document, window, 'full HUD disposal');
+      hud = null;
+
+      const savedDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+      delete globalThis.document;
+      try {
+        const detachedHud = new HUD();
+        await disposeTwice(detachedHud, [], null, window,
+          'constructor-only detached HUD disposal');
+      } finally {
+        if (savedDocument) Object.defineProperty(globalThis, 'document', savedDocument);
+      }
+
+      const runPartialLifecycle = async (label, setup, expectsDocumentListener = false) => {
+        const partialDocument = new FakeDocument();
+        const partialWindow = new FakeEventTarget();
+        const restorePartial = installGlobals({
+          document: partialDocument,
+          window: partialWindow,
+        });
+        let partialHud = null;
+        try {
+          partialHud = new HUD();
+          const ownedRoots = setup(partialHud, partialDocument);
+          ok(ownedRoots.length > 0
+            && ownedRoots.every((root) => partialDocument.body.contains(root))
+            && timers.size > 0,
+          `${label} fixture owns DOM and a deferred callback`);
+          if (expectsDocumentListener) {
+            ok(partialDocument.listenerCount() > 0,
+              `${label} fixture registers its document listener`);
+          }
+          await disposeTwice(
+            partialHud,
+            ownedRoots,
+            partialDocument,
+            partialWindow,
+            label,
+          );
+          partialHud = null;
+        } finally {
+          partialHud?.dispose();
+          restorePartial();
+        }
+      };
+
+      await runPartialLifecycle('menu-only HUD disposal', (partialHud, partialDocument) => {
+        partialHud.buildMenu(() => {});
+        return [partialDocument.getElementById('menu')];
+      });
+      await runPartialLifecycle('lobby-only HUD disposal', (partialHud, partialDocument) => {
+        partialHud.showLobby({
+          code: 'LIFE1',
+          gameMode: 'fun',
+          map: 'foundry',
+          members: [],
+        }, {
+          onReady() {},
+          onStart() {},
+          onLeave() {},
+        });
+        return [partialDocument.getElementById('lobby')];
+      }, true);
+      await runPartialLifecycle('settings-only HUD disposal', (partialHud, partialDocument) => {
+        partialHud.setupSettings({
+          onChange() {},
+          onResume() {},
+        });
+        partialHud.openSettings();
+        return [partialDocument.getElementById('settings-overlay')];
+      });
     } finally {
       hud?.dispose();
       restore();

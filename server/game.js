@@ -13,7 +13,7 @@
 import {
   AIR, GLASS, LEAVES, BLOCK_HP,
   SX, SZ,
-  createMapState, getMapMeta,
+  createMapState, getMapMeta, ladderContact,
 } from '../shared/worlddata.js';
 import { DEFAULT_MAP_ID } from '../shared/modes.js';
 import {
@@ -38,6 +38,8 @@ const JUMP_VELOCITY = 8.2;
 const ACCEL_GROUND = 10;                // 1/s lerp factor toward wish velocity
 const ACCEL_AIR = ACCEL_GROUND * 0.3;   // 30% air control
 const COYOTE_S = 0.08;
+const LADDER_UP_SPEED = 3.4;
+const LADDER_DOWN_SPEED = 2.4;
 
 const HALF_W = PLAYER_HALF.x;           // 0.32
 const P_HEIGHT = PLAYER_HALF.h * 2;     // authoritative full body height 1.9
@@ -53,6 +55,11 @@ const DEAD_FALL_Y = -24;                // void safety net
 const BLOCK_MIN_DMG = 12;               // flat per-pellet block damage floor
 const REWIND_MS = 100;                  // client interp delay seen by human shooters
 const HISTORY_WINDOW_MS = 500;          // max age a rewound sample may carry
+const SPAWN_PROTECTION_MS = 1500;
+const SPAWN_RECENT_MS = 8000;
+const SPAWN_LOS_PENALTY = 36;
+const SPAWN_RECENT_PENALTY = 24;
+const MAX_TRACKED_SPAWNS = 64;
 
 /** Physics numbers mirrored from BUILD-CONTRACT "Physics constants". */
 export const PHYSICS = {
@@ -135,9 +142,12 @@ class PlayerEntity {
     this.yaw = c.yaw; this.pitch = 0;
     this.hp = 100;
     this.panic = 0;
+    this.pain = 0;
     this.exhaustion = 0;
     this.state = 'alive';       // 'alive' | 'dead'
     this.respawnAt = 0;
+    this.spawnProtectedUntil = 0;
+    this.spawnProtected = false;
     this.weapon = 0;
     const load = freshLoadout();
     this.mag = load.mag;
@@ -158,6 +168,9 @@ class PlayerEntity {
     this.sprint = false;
     this.lives++;
     this.lastSpawnIndex = spawn.index | 0;
+    this.lastSpawnX = spawn.x;
+    this.lastSpawnY = spawn.y;
+    this.lastSpawnZ = spawn.z;
   }
 
   get def() { return WEAPONS[WEAPON_IDS[this.weapon]]; }
@@ -170,6 +183,8 @@ class PlayerEntity {
     this.hp -= amount;
     this.panic = clamp01(this.panic + amount * CONDITION_RULES.panicDamageGain +
       (headshot ? CONDITION_RULES.panicHeadshotGain : 0));
+    this.pain = clamp01(this.pain + amount * CONDITION_RULES.painDamageGain +
+      (headshot ? CONDITION_RULES.painHeadshotGain : 0));
     if (this.hp <= 0) { this.hp = 0; return true; }
     return false;
   }
@@ -189,6 +204,7 @@ export class GameEngine {
       : DEFAULT_MAP_ID;
     this.world = callbacks.world || createMapState(fallbackMapId);
     const mapMeta = callbacks.mapMeta || this.world.meta || getMapMeta(fallbackMapId);
+    this.mapMeta = mapMeta;
     this.solidAt = (x, y, z) => this.world.getBlock(x, y, z) !== AIR;
 
     /** @type {Map<string, PlayerEntity>} every combatant incl. bots */
@@ -196,8 +212,10 @@ export class GameEngine {
     /** @type {Set<string>} connection ids of humans only */
     this.humanIds = new Set();
 
-    this.spawnPoints = this.world.findSpawns(9); // generic fallback pool
-    this.spawnCursor = 0;
+    const genericSpawns = Array.isArray(mapMeta?.spawns?.fun) ? mapMeta.spawns.fun : [];
+    this.spawnPoints = (genericSpawns.length ? genericSpawns : this.world.findSpawns(12))
+      .map((spawn) => ({ ...spawn }));
+    this.spawnUseTimes = new Map();
 
     this.now = Date.now();            // engine clock, advances by tick interval
     this.tickNo = 0;
@@ -284,15 +302,93 @@ export class GameEngine {
 
   // ------------------------------------------------------------ roster
 
-  nextSpawnFor(_player, excludeIndex) {
-    const n = this.spawnPoints.length;
-    let idx = -1;
-    for (let k = 0; k < n; k++) {
-      const cand = this.spawnCursor++ % n;
-      if (cand !== excludeIndex) { idx = cand; break; }
+  spawnPointKey(point) {
+    return `${point.x},${point.y},${point.z}`;
+  }
+
+  enemyHasSpawnLos(enemy, point) {
+    const ox = enemy.x;
+    const oy = Number.isFinite(enemy.eyeY) ? enemy.eyeY : enemy.y + EYE;
+    const oz = enemy.z;
+    const tx = point.x;
+    const ty = point.y + EYE;
+    const tz = point.z;
+    const dx = tx - ox, dy = ty - oy, dz = tz - oz;
+    const dist = Math.hypot(dx, dy, dz);
+    if (dist <= 0.2) return true;
+    return !raycastVoxels(this.solidAt, ox, oy, oz, dx, dy, dz, dist - 0.1);
+  }
+
+  selectSafestSpawn(pool, player = null, excludeIndex = -1) {
+    const candidates = [];
+    for (let i = 0; i < pool.length; i++) {
+      const source = pool[i];
+      if (!source || ![source.x, source.y, source.z].every(Number.isFinite)) continue;
+      const index = Number.isFinite(source.index) ? Math.trunc(source.index) : i;
+      candidates.push({ x: source.x, y: source.y, z: source.z, index });
     }
-    if (idx < 0) idx = this.spawnCursor++ % n;
-    return { ...this.spawnPoints[idx], index: idx };
+    if (!candidates.length) return { x: 0, y: 1, z: 0, index: 0 };
+
+    const hasPriorPoint = player
+      && [player.lastSpawnX, player.lastSpawnY, player.lastSpawnZ].every(Number.isFinite);
+    const isPriorSpawn = (candidate) => hasPriorPoint
+      ? candidate.x === player.lastSpawnX
+        && candidate.y === player.lastSpawnY
+        && candidate.z === player.lastSpawnZ
+      : candidate.index === excludeIndex;
+    const canExcludePrior = candidates.length > 1 && candidates.some((candidate) => !isPriorSpawn(candidate));
+    const enemies = [];
+    for (const entity of this.entities.values()) {
+      if (entity === player || entity.state !== 'alive') continue;
+      if (player && !this.mode.isEnemy(player, entity)) continue;
+      enemies.push(entity);
+    }
+
+    let best = null;
+    let bestScore = -Infinity;
+    for (const candidate of candidates) {
+      if (canExcludePrior && isPriorSpawn(candidate)) continue;
+      let nearest = Math.hypot(SX, SZ);
+      let visibleEnemies = 0;
+      for (const enemy of enemies) {
+        nearest = Math.min(nearest, Math.hypot(
+          candidate.x - enemy.x,
+          candidate.y - enemy.y,
+          candidate.z - enemy.z,
+        ));
+        if (this.enemyHasSpawnLos(enemy, candidate)) visibleEnemies++;
+      }
+
+      const usedAt = this.spawnUseTimes.get(this.spawnPointKey(candidate));
+      const age = Number.isFinite(usedAt) ? Math.max(0, this.now - usedAt) : SPAWN_RECENT_MS;
+      const recentPenalty = age < SPAWN_RECENT_MS
+        ? SPAWN_RECENT_PENALTY * (1 - age / SPAWN_RECENT_MS)
+        : 0;
+      const score = nearest - visibleEnemies * SPAWN_LOS_PENALTY - recentPenalty;
+      if (score > bestScore) {
+        best = candidate;
+        bestScore = score;
+      }
+    }
+
+    const chosen = best || candidates[0];
+    this.spawnUseTimes.set(this.spawnPointKey(chosen), this.now);
+    if (this.spawnUseTimes.size > MAX_TRACKED_SPAWNS) {
+      let oldestKey = null;
+      let oldestAt = Infinity;
+      for (const [key, usedAt] of this.spawnUseTimes) {
+        if (usedAt < oldestAt) {
+          oldestKey = key;
+          oldestAt = usedAt;
+        }
+      }
+      if (oldestKey !== null) this.spawnUseTimes.delete(oldestKey);
+    }
+    return { ...chosen };
+  }
+
+  nextSpawnFor(player, excludeIndex) {
+    return this.selectSafestSpawn(this.spawnPoints, player, excludeIndex);
   }
 
   /** Register a human connection and return its welcome spawn info. */
@@ -414,8 +510,11 @@ export class GameEngine {
   }
 
   updateCondition(p, dt) {
-    const lowHealthFloor = (1 - clamp01(p.hp / 100)) * CONDITION_RULES.panicLowHpFloor;
-    p.panic = clamp01(Math.max(lowHealthFloor, p.panic - CONDITION_RULES.panicDecayPerS * dt));
+    const missingHealth = 1 - clamp01(p.hp / 100);
+    const panicFloor = missingHealth * CONDITION_RULES.panicLowHpFloor;
+    const painFloor = missingHealth * CONDITION_RULES.painLowHpFloor;
+    p.panic = clamp01(Math.max(panicFloor, p.panic - CONDITION_RULES.panicDecayPerS * dt));
+    p.pain = clamp01(Math.max(painFloor, p.pain - CONDITION_RULES.painDecayPerS * dt));
     const exhaustionRate = p.sprint
       ? CONDITION_RULES.exhaustionSprintPerS
       : -CONDITION_RULES.exhaustionRecoverPerS;
@@ -532,30 +631,48 @@ export class GameEngine {
     p.vx += (wx * speed - p.vx) * k;
     p.vz += (wz * speed - p.vz) * k;
 
-    // Jump with a short coyote window.
-    if (kf.jump && (p.grounded || p.coyote > 0) && p.vy <= 0.01) {
-      p.vy = JUMP_VELOCITY;
+    const onLadder = ladderContact(this.mapMeta, p.x, p.y, p.z);
+    const ladderUp = onLadder && (kf.jump || (kf.f && !kf.b));
+    const ladderDown = onLadder && !ladderUp && (kf.crouch || (kf.b && !kf.f));
+    const ladderDirected = ladderUp || ladderDown;
+
+    if (ladderDirected) {
+      p.vy = ladderUp ? LADDER_UP_SPEED : -LADDER_DOWN_SPEED;
       p.grounded = false;
       p.coyote = 0;
-      p.exhaustion = clamp01(p.exhaustion + CONDITION_RULES.exhaustionJumpGain);
+    } else {
+      // Jump with a short coyote window.
+      if (kf.jump && (p.grounded || p.coyote > 0) && p.vy <= 0.01) {
+        p.vy = JUMP_VELOCITY;
+        p.grounded = false;
+        p.coyote = 0;
+        p.exhaustion = clamp01(p.exhaustion + CONDITION_RULES.exhaustionJumpGain);
+      }
+      p.vy = Math.max(TERMINAL_VY, p.vy - GRAVITY * dt);
     }
 
-    p.vy = Math.max(TERMINAL_VY, p.vy - GRAVITY * dt);
-
-    // X, Z then Y — each axis separately with slide resolution.
+    // X and Z always collide. Upward travel crosses the solid tower deck.
+    // Downward travel bypasses only while its destination remains in-volume,
+    // so the ordinary collision path catches the floor at the ladder foot.
     this.slideAxis(p, 'x', p.vx * dt);
     this.slideAxis(p, 'z', p.vz * dt);
     const dy = p.vy * dt;
-    const hitY = this.slideAxis(p, 'y', dy);
+    const ladderBypass = ladderUp
+      || (ladderDown && ladderContact(this.mapMeta, p.x, p.y + dy, p.z));
+    const hitY = ladderBypass ? false : this.slideAxis(p, 'y', dy);
+    if (ladderBypass) {
+      p.y += dy;
+      if (ladderUp && !ladderContact(this.mapMeta, p.x, p.y, p.z)) p.vy = 0;
+    }
 
     // Ground bookkeeping. Upward head impacts are not landings.
-    if (hitY && dy < 0) {
+    if (!ladderBypass && hitY && dy < 0) {
       p.grounded = true;
-    } else if (p.vy <= 0.001 && this.solidBelow(p.x, p.y, p.z)) {
+    } else if (!ladderBypass && p.vy <= 0.001 && this.solidBelow(p.x, p.y, p.z)) {
       p.grounded = true;
       p.vy = 0;
     } else {
-      if (p.grounded) p.coyote = COYOTE_S;
+      if (!ladderDirected && p.grounded) p.coyote = COYOTE_S;
       p.grounded = false;
     }
 
@@ -580,7 +697,14 @@ export class GameEngine {
 
   computeConeDeg(p) {
     return computeSpreadConeDeg(
-      p.def, p.bloom, Math.hypot(p.vx, p.vz), p.adsT, p.panic, p.exhaustion,
+      p.def,
+      p.bloom,
+      Math.hypot(p.vx, p.vz),
+      p.adsT,
+      p.panic,
+      p.exhaustion,
+      p.crouch,
+      p.pain,
     );
   }
 
@@ -687,6 +811,8 @@ export class GameEngine {
 
   fireOneShot(p) {
     const def = p.def;
+    p.spawnProtectedUntil = 0;
+    p.spawnProtected = false;
     p.mag[p.weapon]--;
     p.cooldown += 60 / def.rpm;
     p.shotSeq++;
@@ -778,6 +904,7 @@ export class GameEngine {
     victim.adsT = 0;
     victim.reloading = false;
     victim.bloom = 0;
+    victim.spawnProtectedUntil = 0;
     victim.vx = 0; victim.vy = 0; victim.vz = 0;
     if (killer && killer !== victim && killer.id !== victim.id) {
       killer.kills++;
@@ -786,15 +913,18 @@ export class GameEngine {
     this.mode.onPlayerDeath(victim, killer);
     this.tickEvents.push(evDie(victim.id));
     this.tickEvents.push(evKill(killer ? killer.id : '', victim.id, wkey || '', !!hs));
+    victim.spawnProtected = false;
   }
 
-  respawnPlayer(player, spawn = null, { emitEvent = true } = {}) {
+  respawnPlayer(player, spawn = null, { emitEvent = true, protect = false } = {}) {
     const entity = player && typeof player === 'object'
       ? player
       : this.entities.get(String(player));
     if (!entity) return false;
     const next = spawn || this.nextSpawnFor(entity, entity.lastSpawnIndex);
     entity.applySpawn(next);
+    entity.spawnProtectedUntil = protect ? this.now + SPAWN_PROTECTION_MS : 0;
+    entity.spawnProtected = !!protect;
     if (emitEvent) this.tickEvents.push(evRespawn(entity.id, entity.x, entity.y, entity.z));
     return true;
   }
@@ -802,7 +932,11 @@ export class GameEngine {
   processRespawns() {
     for (const p of this.entities.values()) {
       if (p.state === 'dead' && this.now >= p.respawnAt && this.mode.canTimedRespawn(p)) {
-        this.respawnPlayer(p, this.mode.chooseSpawn(p, p.lastSpawnIndex));
+        this.respawnPlayer(
+          p,
+          this.mode.chooseSpawn(p, p.lastSpawnIndex),
+          { protect: true },
+        );
         this.mode.onPlayerRespawn(p);
       }
     }

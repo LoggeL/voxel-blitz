@@ -104,7 +104,6 @@ export class ModeController {
 
     this._players = new Map();
     this._interactions = new Map();
-    this._spawnCursors = new Map();
   }
 
   get now() {
@@ -139,6 +138,7 @@ export class ModeController {
   canDamage(attacker, target) {
     const victim = this._entity(target);
     if (!victim) return false;
+    if (attacker != null && victim.spawnProtectedUntil > this.now) return false;
     if (attacker == null) return true;
     if (this.rules.friendlyFire) {
       const source = this._entity(attacker);
@@ -282,22 +282,17 @@ export class ModeController {
     const entity = this._entity(player);
     const pool = this._spawnPool(entity);
     if (pool.length) {
-      const key = this._spawnPoolKey(entity);
-      let cursor = this._spawnCursors.get(key) || 0;
-      let chosen = null;
+      if (typeof this.engine.selectSafestSpawn === 'function') {
+        return this.engine.selectSafestSpawn(pool, entity, excludeIndex);
+      }
       for (let i = 0; i < pool.length; i++) {
-        const localIndex = cursor++ % pool.length;
-        const point = pointOf(pool[localIndex]);
-        const index = Number.isFinite(pool[localIndex]?.index)
-          ? Math.trunc(pool[localIndex].index)
-          : localIndex;
+        const source = pool[i];
+        const point = pointOf(source);
+        const index = Number.isFinite(source?.index) ? Math.trunc(source.index) : i;
         if (point && (index !== excludeIndex || pool.length === 1)) {
-          chosen = { ...point, index };
-          break;
+          return { ...point, index };
         }
       }
-      this._spawnCursors.set(key, cursor);
-      if (chosen) return chosen;
     }
 
     if (typeof this.engine.nextSpawnFor === 'function') {
@@ -407,6 +402,7 @@ export class ModeController {
         owned: this.mode === 'snd' ? [] : WEAPON_IDS.slice(),
         bomb: false,
         interaction,
+        spawnProtected: false,
       };
     }
     return {
@@ -417,6 +413,8 @@ export class ModeController {
         && this.bomb.state === 'carried'
         && this.bomb.carrierId === String(entity.id),
       interaction,
+      spawnProtected: Number.isFinite(entity.spawnProtectedUntil)
+        && entity.spawnProtectedUntil > this.now,
     };
   }
 
@@ -491,6 +489,8 @@ export class ModeController {
       && this.bomb?.state === 'carried'
       && this.bomb.carrierId === String(entity.id);
     entity.interaction = this._interactionSnapshot(String(entity.id));
+    entity.spawnProtected = Number.isFinite(entity.spawnProtectedUntil)
+      && entity.spawnProtectedUntil > this.now;
   }
 
   _syncAllPlayers() {
@@ -518,6 +518,7 @@ export class ModeController {
     entity.firing = false;
     entity.ads = false;
     entity.adsT = 0;
+    entity.spawnProtectedUntil = 0;
     this._syncPlayer(entity, state);
   }
 
@@ -573,11 +574,6 @@ export class ModeController {
     return Array.isArray(pool) ? pool : [];
   }
 
-  _spawnPoolKey(entity) {
-    if (this.mode === 'fun') return 'fun';
-    if (this.mode === 'tdm') return `tdm:${this.teamFor(entity) || 'none'}`;
-    return `snd:${this.roleFor(entity) || 'none'}`;
-  }
 
   _finishTdmMatch(winner) {
     if (this.phase !== 'live') return;

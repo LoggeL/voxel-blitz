@@ -20,6 +20,7 @@ import { TICK_MS } from '../server/protocol.js';
 const CLOCK_START = 1_000_000;
 const FEET_Y = GROUND + 1.02;
 const BUY_PRIORITY = ['sniper', 'lmg', 'rifle', 'shotgun', 'smg'];
+const PLAYER_KEYS = 'ads,bomb,credits,deaths,exhaustion,firing,hp,id,interaction,kills,mag,name,owned,pain,panic,pitch,reloading,reserve,score,spawnProtected,state,team,weapon,x,y,yaw,z';
 
 const MAP_META = Object.freeze({
   id: 'foundry',
@@ -84,12 +85,12 @@ function makeWorld() {
   };
 }
 
-function createEngine(mode) {
+function createEngine(mode, broadcast = undefined) {
   const world = makeWorld();
   const realNow = Date.now;
   Date.now = () => CLOCK_START;
   try {
-    const engine = new GameEngine({ mode, world, mapMeta: MAP_META });
+    const engine = new GameEngine({ mode, world, mapMeta: MAP_META, broadcast });
     assert.equal(engine.now, CLOCK_START, `${mode} engine clock is deterministic`);
     assert.strictEqual(engine.world, world, `${mode} engine retains its room-owned world`);
     return engine;
@@ -127,6 +128,52 @@ function setPosition(player, x, z, y = FEET_Y) {
   player.vx = 0; player.vy = 0; player.vz = 0;
   player.yaw = 0; player.pitch = 0;
   player.grounded = false;
+}
+
+const CLEAR_SHOT_SETTLE_TICKS = 16;
+
+function stageClearTdmShot(engine, shooter, target, label) {
+  const shooterTeam = engine.mode.teamFor(shooter);
+  const targetTeam = engine.mode.teamFor(target);
+  const shooterSpawn = MAP_META.spawns.tdm[shooterTeam]?.[0];
+  const targetSpawn = MAP_META.spawns.tdm[targetTeam]?.[0];
+  assert.ok(shooterSpawn,
+    `${label}: ${shooter.id} team ${shooterTeam} has a serialized TDM spawn`);
+  assert.ok(targetSpawn,
+    `${label}: ${target.id} team ${targetTeam} has a serialized TDM spawn`);
+
+  setPosition(shooter, shooterSpawn.x, shooterSpawn.z, shooterSpawn.y);
+  setPosition(target, targetSpawn.x, targetSpawn.z, targetSpawn.y);
+  assert.equal(engine.world.heightAt(shooter.x, shooter.z), GROUND,
+    `${label}: ${shooter.id} serialized spawn is standable in the engine world`);
+  assert.equal(engine.world.heightAt(target.x, target.z), GROUND,
+    `${label}: ${target.id} serialized spawn is standable in the engine world`);
+  assert.equal(engine.enemyHasSpawnLos(shooter, targetSpawn), true,
+    `${label}: serialized TDM spawns provide map-clear LOS from ${shooter.id} to ${target.id}`);
+
+  const dx = target.x - shooter.x;
+  const dy = target.y + 1.15 - shooter.eyeY;
+  const dz = target.z - shooter.z;
+  const flat = Math.hypot(dx, dz);
+  const distance = Math.hypot(dx, dy, dz);
+  shooter.yaw = Math.atan2(-dx, -dz);
+  shooter.pitch = Math.atan2(dy, flat);
+  const ray = { x: dx / distance, y: dy / distance, z: dz / distance };
+
+  let resolved = null;
+  for (let tick = 0; tick <= CLEAR_SHOT_SETTLE_TICKS; tick++) {
+    resolved = engine.nearestVictim(
+      shooter,
+      [shooter.x, shooter.eyeY, shooter.z],
+      ray,
+      distance + 1,
+    );
+    if (resolved?.victim === target) break;
+    if (tick < CLEAR_SHOT_SETTLE_TICKS) engine.step(TICK_MS);
+  }
+  assert.strictEqual(resolved?.victim, target,
+    `${label}: ${shooter.id} ray must resolve ${target.id} within ${CLEAR_SHOT_SETTLE_TICKS} history-settle ticks`);
+  return ray;
 }
 
 function assertPoint(actual, expected, label) {
@@ -217,6 +264,165 @@ function proveTdmTargeting() {
     } finally {
       restoreSharedWorld();
     }
+  }
+}
+
+function proveAuthoritativeRowsAndProtection() {
+  const snapshots = [];
+  const engine = createEngine('tdm', (snapshot) => snapshots.push(snapshot));
+  engine.addClient('human-0', 'Human');
+  const calls = captureInputs(engine);
+  const manager = attachBots(engine, 2);
+  let removeDeterministicInputs = null;
+  try {
+    const human = engine.entities.get('human-0');
+    const bot = engine.entities.get('bot-0');
+    const teammate = engine.entities.get('bot-1');
+    assert.notEqual(engine.mode.teamFor(bot), engine.mode.teamFor(human),
+      'bot/human protection fixture requires opposing TDM teams');
+    assert.equal(engine.mode.teamFor(human), engine.mode.teamFor(teammate),
+      'bot/human protection fixture requires bot-1 to share the human team');
+
+    setPosition(teammate, MAP_META.spawns.snd.defenders[0].x, MAP_META.spawns.snd.defenders[0].z);
+    let forcedBotFire = null;
+    let forcedSeq = 100_000;
+    removeDeterministicInputs = engine.registerTickHook(() => {
+      for (const controlledBot of [bot, teammate]) {
+        engine.applyInput(controlledBot.id, {
+          seq: ++forcedSeq,
+          keys: {},
+          yaw: controlledBot.yaw,
+          pitch: controlledBot.pitch,
+          wantFire: controlledBot === forcedBotFire,
+          wantAds: false,
+          reload: false,
+        });
+      }
+    });
+
+    human.hp = 73;
+    const botRay = stageClearTdmShot(
+      engine,
+      bot,
+      human,
+      'protected-human bot shot staging',
+    );
+    assert.equal(engine.mode.canDamage(bot, human), true,
+      'protected-human staging must resolve as enemy damage before protection is enabled');
+    bot.deployT = 0;
+    bot.cooldown = 0;
+    bot.reloading = false;
+    bot.spawnProtectedUntil = engine.now + 1_500;
+    bot.spawnProtected = true;
+    human.spawnProtectedUntil = engine.now + 1_500;
+    human.spawnProtected = true;
+
+    assert.equal(engine.mode.canDamage(bot, human), false,
+      'protected-human canDamage must reject bot-0 as the opposing shooter');
+    assert.equal(
+      engine.nearestVictim(
+        bot,
+        [bot.x, bot.eyeY, bot.z],
+        botRay,
+        Math.hypot(human.x - bot.x, human.z - bot.z) + 1,
+      ),
+      null,
+      'protected-human hit resolution must remove human-0 from the staged clear bot ray',
+    );
+
+    const beforeBotMag = bot.mag[bot.weapon];
+    forcedBotFire = bot;
+    engine.step(TICK_MS);
+    forcedBotFire = null;
+    assert.equal(latestCall(calls, bot.id).input.wantFire, true,
+      'deterministic post-AI bot input must submit the staged protected-human shot');
+    assert.equal(bot.firing, true,
+      'staged bot input must reach the authoritative accepted-fire path');
+    assert.equal(bot.mag[bot.weapon], beforeBotMag - 1,
+      'accepted protected-human bot shot must consume exactly one round');
+    assert.equal(bot.spawnProtected, false,
+      'accepted protected-human bot shot must clear bot-0 shooter protection');
+    assert.equal(bot.spawnProtectedUntil, 0,
+      'accepted protected-human bot shot must clear bot-0 protection deadline');
+    assert.equal(human.hp, 73,
+      'protected human-0 must retain exactly 73 HP after the accepted bot shot');
+    assert.equal(human.spawnProtected, true,
+      'blocked bot damage must leave human-0 target protection active');
+
+    const tick = snapshots.at(-1);
+    assert.ok(tick && Array.isArray(tick.players),
+      'accepted protected-human bot shot must emit an authoritative player snapshot');
+    assert.deepEqual(tick.players.map((row) => row.id).sort(),
+      ['bot-0', 'bot-1', 'human-0'], 'snapshot carries exact bot and human identities');
+    for (const row of tick.players) {
+      assert.equal(Object.keys(row).sort().join(','), PLAYER_KEYS,
+        `${row.id} carries the complete authoritative player row`);
+      assert.ok(Number.isFinite(row.pain) && row.pain >= 0 && row.pain <= 1,
+        `${row.id} pain remains normalized to 0..1`);
+      assert.equal(typeof row.spawnProtected, 'boolean',
+        `${row.id} spawn protection is authoritative boolean state`);
+    }
+    assert.deepEqual(
+      Object.keys(tick.players.find((row) => row.id === bot.id)).sort(),
+      Object.keys(tick.players.find((row) => row.id === human.id)).sort(),
+      'bot and human snapshots expose identical player contracts',
+    );
+
+    bot.hp = 61;
+    const humanRay = stageClearTdmShot(
+      engine,
+      human,
+      bot,
+      'protected-bot human shot staging',
+    );
+    assert.equal(engine.mode.canDamage(human, bot), true,
+      'protected-bot staging must resolve as enemy damage before protection is enabled');
+    human.deployT = 0;
+    human.cooldown = 0;
+    human.reloading = false;
+    human.spawnProtectedUntil = engine.now + 1_500;
+    human.spawnProtected = true;
+    bot.spawnProtectedUntil = engine.now + 1_500;
+    bot.spawnProtected = true;
+    assert.equal(engine.mode.canDamage(human, bot), false,
+      'protected-bot canDamage must reject human-0 as the opposing shooter');
+    assert.equal(
+      engine.nearestVictim(
+        human,
+        [human.x, human.eyeY, human.z],
+        humanRay,
+        Math.hypot(bot.x - human.x, bot.z - human.z) + 1,
+      ),
+      null,
+      'protected-bot hit resolution must remove bot-0 from the staged clear human ray',
+    );
+
+    const beforeHumanMag = human.mag[human.weapon];
+    engine.applyInput(human.id, {
+      seq: 1,
+      keys: {},
+      yaw: human.yaw,
+      pitch: human.pitch,
+      wantFire: true,
+      wantAds: false,
+      reload: false,
+    });
+    engine.step(TICK_MS);
+    assert.equal(human.firing, true,
+      'staged human input must reach the authoritative accepted-fire path');
+    assert.equal(human.mag[human.weapon], beforeHumanMag - 1,
+      'accepted protected-bot human shot must consume exactly one round');
+    assert.equal(human.spawnProtected, false,
+      'accepted protected-bot human shot must clear human-0 shooter protection');
+    assert.equal(human.spawnProtectedUntil, 0,
+      'accepted protected-bot human shot must clear human-0 protection deadline');
+    assert.equal(bot.hp, 61,
+      'protected bot-0 must retain exactly 61 HP after the accepted human shot');
+    assert.equal(bot.spawnProtected, true,
+      'blocked human damage must leave bot-0 target protection active');
+  } finally {
+    if (removeDeterministicInputs) removeDeterministicInputs();
+    disposeAndProveUnhooked(engine, manager, calls);
   }
 }
 
@@ -424,6 +630,7 @@ function proveDroppedBombRecoveryAndGuard() {
 
 console.log('bot mode smoke: deterministic direct behavior');
 proveTdmTargeting();
+proveAuthoritativeRowsAndProtection();
 proveSndEconomyAndPrepSafety();
 provePlantAndDefuseBehavior();
 proveDroppedBombRecoveryAndGuard();

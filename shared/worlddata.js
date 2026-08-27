@@ -96,6 +96,25 @@ export function heightAt(x, z) {
   return defaultWorld.heightAt(x, z);
 }
 
+function ladderAt(mapMeta, x, y, z, margin = 0) {
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null;
+  const ladders = Array.isArray(mapMeta?.ladders) ? mapMeta.ladders : [];
+  const pad = Number.isFinite(margin) ? Math.max(0, margin) : 0;
+  for (const ladder of ladders) {
+    if (x >= ladder.minX - pad && x <= ladder.maxX + pad
+        && y >= ladder.minY - pad && y <= ladder.maxY + pad
+        && z >= ladder.minZ - pad && z <= ladder.maxZ + pad) {
+      return ladder;
+    }
+  }
+  return null;
+}
+
+/** True when a world-space point lies within one of the map's climb volumes. */
+export function ladderContact(mapMeta, x, y, z, margin = 0) {
+  return ladderAt(mapMeta, x, y, z, margin) !== null;
+}
+
 function terrainHeight(x, z) {
   const n1 = fbm2(x * 0.032, z * 0.032, SEED, 4);
   const n2 = fbm2(x * 0.11 + 40, z * 0.11 + 40, SEED + 7, 3);
@@ -111,6 +130,21 @@ const TOWERS = [
   { cx: 26, cz: 78 },
   { cx: 102, cz: 74 },
 ];
+
+function foundryLadderVolumes() {
+  return TOWERS.map(({ cx, cz }) => {
+    const floorY = terrainHeight(cx, cz - 2) + 1;
+    const deckY = terrainHeight(cx, cz) + 12;
+    return {
+      minX: cx + 0.05,
+      maxX: cx + 0.95,
+      minY: floorY,
+      maxY: deckY,
+      minZ: cz - 1.95,
+      maxZ: cz - 1.2,
+    };
+  });
+}
 const HOUSES = [
   { cx: 60, cz: 26, w: 11, d: 9 },
   { cx: 36, cz: 52, w: 9, d: 9 },
@@ -676,6 +710,7 @@ function createMapMetadata(id, world) {
         defenders: resolveSpawnPool(world, anchors.snd.defenders),
       },
     },
+    ladders: id === 'foundry' ? foundryLadderVolumes() : [],
     sites: MAP_SITE_LAYOUTS[id].map((site) => ({ ...site })),
     landmarks: MAP_LANDMARKS[id].map((landmark) => ({
       ...landmark,

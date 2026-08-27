@@ -1,9 +1,9 @@
 // Procedural WebAudio engine for Voxel Blitz. Zero audio files.
 // Contract API: init/unlock/dispose/setMasterVolume/fire/impact/reloadClick/
-// hitmark/deathFar/footstep/draw/bulletWhiz/setListener. fire()/impact() merge
-// an optional {pos:[x,y,z]} opts entry for HRTF positional playback. Voice
-// graphs are capped at 48 overall and 16 positional, stealing oldest first.
-// Calls lazily create the graph and best-effort resume a suspended context.
+// hitmark/deathFar/footstep/draw/bulletWhiz/setListener/pain/deathSelf.
+// fire(), impact(), and pain() accept optional world positions for HRTF
+// playback. Voice graphs are capped at 48 overall and 16 positional, with
+// separate caps for rapid-fire reports and human voices.
 
 let ctx = null;
 let bus = null;             // master input gain
@@ -14,14 +14,22 @@ let masterVolume = 0.9;
 let resumePromise = null;
 let gestureListenersArmed = false;
 let panSide = 1;            // footstep L/R alternator
+let visibilityListenerArmed = false;
+let pageShowListenerArmed = false;
+let flushingCues = false;
+let lastListener = null;
 
 const GESTURE_EVENTS = ['pointerdown', 'touchend', 'keydown'];
 const MAX_POS = 16;
 const MAX_VOICES = 48;
+const MAX_QUEUED_CUES = 16;
+const MAX_HUMAN_VOICES = 4;
 const POS = [];             // live positional voice entries
 const VOICES = [];          // every live output graph, oldest first
 const VOICE_BY_OUT = new Map();
 const CLEANUP_TIMERS = new Set();
+const QUEUED_CUES = [];
+const HUMAN_ACTIVE = [];
 const FIRE_LIMIT = { lmg: 6, revolver: 4 };
 const FIRE_ACTIVE = { lmg: [], revolver: [] };
 
@@ -41,13 +49,13 @@ const FIRE_PARAMS = {
 };
 
 const IMPACT_PARAMS = {
-  stone: { nzFilter: 'bandpass', nzF: 1200, nzQ: 4, ms: 60, g: 0.55 },
-  wood:  { nzFilter: 'bandpass', nzF: 500, nzQ: 5, ms: 75, g: 0.5,
-           knock: { type: 'triangle', f: 180, ms: 40, g: 0.3 } },
-  metal: { partials: [900, 1359, 2140, 3415], ringMs: 300, g: 0.16,
-           strikeMs: 6, strikeG: 0.3 },
-  glass: { sparkles: 5, fMin: 2400, fMax: 7000, lifeMs: 260, g: 0.085 },
-  flesh: { nzFilter: 'lowpass', nzF: 400, nzQ: 0.7, ms: 85, g: 0.42, cap: 0.3 },
+  stone: { nzFilter: 'bandpass', nzF: 1200, nzQ: 4, ms: 60, g: 0.68 },
+  wood:  { nzFilter: 'bandpass', nzF: 500, nzQ: 5, ms: 75, g: 0.62,
+           knock: { type: 'triangle', f: 180, ms: 40, g: 0.36 } },
+  metal: { partials: [900, 1359, 2140, 3415], ringMs: 300, g: 0.19,
+           strikeMs: 6, strikeG: 0.38 },
+  glass: { sparkles: 5, fMin: 2400, fMax: 7000, lifeMs: 260, g: 0.1 },
+  flesh: { nzFilter: 'lowpass', nzF: 400, nzQ: 0.7, ms: 85, g: 0.58, cap: 0.45 },
 };
 
 // Per-weapon brightness factor applied to mechanical click/ping filter freqs.
@@ -138,9 +146,17 @@ function hiss(dest, o) {
 
 /* ------------------------------------------- master graph / voice plumbing */
 
+function documentSupportsLifecycleListeners() {
+  return typeof document !== 'undefined' &&
+    typeof document.addEventListener === 'function' &&
+    typeof document.removeEventListener === 'function';
+}
+
 function disarmGestureUnlock() {
-  if (!gestureListenersArmed || typeof document === 'undefined') return;
+  if (!gestureListenersArmed) return;
   gestureListenersArmed = false;
+  if (typeof document === 'undefined' ||
+      typeof document.removeEventListener !== 'function') return;
   for (const event of GESTURE_EVENTS) {
     document.removeEventListener(event, onUnlockGesture, true);
   }
@@ -148,18 +164,110 @@ function disarmGestureUnlock() {
 
 function armGestureUnlock() {
   if (gestureListenersArmed || !ctx || ctx.state === 'running' ||
-      ctx.state === 'closed' || typeof document === 'undefined') return;
+      ctx.state === 'closed' || !documentSupportsLifecycleListeners()) return;
   gestureListenersArmed = true;
   for (const event of GESTURE_EVENTS) {
     document.addEventListener(event, onUnlockGesture, { capture: true, passive: true });
   }
 }
 
+function armLifecycleListeners() {
+  if (!visibilityListenerArmed && documentSupportsLifecycleListeners()) {
+    document.addEventListener('visibilitychange', onVisibilityChange, true);
+    visibilityListenerArmed = true;
+  }
+  if (!pageShowListenerArmed && typeof window !== 'undefined' &&
+      typeof window.addEventListener === 'function' &&
+      typeof window.removeEventListener === 'function') {
+    window.addEventListener('pageshow', onPageShow, true);
+    pageShowListenerArmed = true;
+  }
+}
+
+function disarmLifecycleListeners() {
+  if (visibilityListenerArmed) {
+    visibilityListenerArmed = false;
+    if (typeof document !== 'undefined' &&
+        typeof document.removeEventListener === 'function') {
+      document.removeEventListener('visibilitychange', onVisibilityChange, true);
+    }
+  }
+  if (pageShowListenerArmed) {
+    pageShowListenerArmed = false;
+    if (typeof window !== 'undefined' &&
+        typeof window.removeEventListener === 'function') {
+      window.removeEventListener('pageshow', onPageShow, true);
+    }
+  }
+}
+
+function audibleMasterGain() {
+  return masterVolume <= 0 ? 0 : Math.max(0.025, masterVolume);
+}
+
+function queueCue(kind, replay) {
+  if (!ctx || ctx.state === 'closed') return false;
+  if (kind === 'footstep') {
+    const stale = QUEUED_CUES.find((cue) => cue.kind === kind);
+    if (stale) {
+      stale.replay = replay;
+      return true;
+    }
+  }
+  // Preserve the first action that exposed the suspension. A bounded queue is
+  // preferable to dumping a long backlog when a tab has been asleep.
+  if (QUEUED_CUES.length >= MAX_QUEUED_CUES) return false;
+  QUEUED_CUES.push({ kind, replay });
+  return true;
+}
+
+function applyLastListener() {
+  if (!lastListener || !ctx || ctx.state !== 'running' || !ctx.listener) return;
+  const { fwd, pos } = lastListener;
+  const L = ctx.listener;
+  if (L.forwardX) {
+    if (fwd) {
+      L.forwardX.value = fwd[0]; L.forwardY.value = fwd[1]; L.forwardZ.value = fwd[2];
+      L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0;
+    }
+    if (pos) {
+      L.positionX.value = pos[0]; L.positionY.value = pos[1]; L.positionZ.value = pos[2];
+    }
+  } else {
+    if (fwd) L.setOrientation(fwd[0], fwd[1], fwd[2], 0, 1, 0);
+    if (pos) L.setPosition(pos[0], pos[1], pos[2]);
+  }
+}
+
+function flushQueuedCues() {
+  if (flushingCues || !ctx || ctx.state !== 'running') return;
+  flushingCues = true;
+  try {
+    applyLastListener();
+    while (QUEUED_CUES.length && ctx && ctx.state === 'running') {
+      const cue = QUEUED_CUES.shift();
+      try { cue.replay(); } catch (_) {}
+    }
+  } finally {
+    flushingCues = false;
+  }
+}
+
 function onUnlockGesture() {
-  // Treat this set as one listener: whichever gesture arrives first removes all
-  // siblings before attempting resume. A failed attempt arms a fresh one-shot set.
+  // Context construction and resume are invoked in this event stack. Do not
+  // defer either behind a promise: autoplay policies inspect the initiating
+  // gesture synchronously.
   disarmGestureUnlock();
-  void resumeAudio(true);
+  if (ensureContext()) void resumeAudio(true);
+}
+
+function onVisibilityChange() {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+  if (ctx && ctx.state !== 'closed') void resumeAudio(true);
+}
+
+function onPageShow() {
+  if (ctx && ctx.state !== 'closed') void resumeAudio(true);
 }
 
 function onAudioStateChange() {
@@ -167,8 +275,15 @@ function onAudioStateChange() {
     disarmGestureUnlock();
   } else if (ctx.state === 'running') {
     disarmGestureUnlock();
+    flushQueuedCues();
   } else {
     armGestureUnlock();
+    // Output devices and browsers may interrupt a previously unlocked context.
+    // A visible document gets an immediate best-effort resume; the gesture
+    // listener remains armed if the platform still requires activation.
+    if (typeof document === 'undefined' || document.visibilityState !== 'hidden') {
+      void resumeAudio();
+    }
   }
 }
 
@@ -183,21 +298,23 @@ function ensureContext() {
     next = new AudioContextCtor();
     ctx = next;
     bus = ctx.createGain();
-    bus.gain.value = masterVolume;
+    bus.gain.value = audibleMasterGain();
     masterLimiter = ctx.createDynamicsCompressor();
-    masterLimiter.threshold.value = -10;
-    masterLimiter.knee.value = 4;
-    masterLimiter.ratio.value = 14;
-    masterLimiter.attack.value = 0.002;
-    masterLimiter.release.value = 0.13;
+    masterLimiter.threshold.value = -12;
+    masterLimiter.knee.value = 3;
+    masterLimiter.ratio.value = 20;
+    masterLimiter.attack.value = 0.001;
+    masterLimiter.release.value = 0.11;
     bus.connect(masterLimiter).connect(ctx.destination);
     noiseBuf = makeNoiseBuffer();
     echo = buildEcho();
     ctx.addEventListener?.('statechange', onAudioStateChange);
+    armLifecycleListeners();
     onAudioStateChange();
     return true;
   } catch (_) {
     disarmGestureUnlock();
+    disarmLifecycleListeners();
     try { next?.removeEventListener?.('statechange', onAudioStateChange); } catch (_) {}
     try { next?.close(); } catch (_) {}
     ctx = null;
@@ -209,35 +326,57 @@ function ensureContext() {
   }
 }
 
-async function resumeAudio(force = false) {
-  if (!ctx || ctx.state === 'closed') return false;
+function resumeAudio(force = false) {
+  if (!ctx || ctx.state === 'closed') return Promise.resolve(false);
   if (ctx.state === 'running') {
     disarmGestureUnlock();
-    return true;
+    flushQueuedCues();
+    return Promise.resolve(true);
   }
   armGestureUnlock();
   if (resumePromise && !force) return resumePromise;
 
   const activeCtx = ctx;
-  const attempt = (async () => {
-    try { await activeCtx.resume(); } catch (_) { /* next gesture retries */ }
-    const running = activeCtx === ctx && activeCtx.state === 'running';
-    if (running) disarmGestureUnlock();
-    else armGestureUnlock();
-    return running;
-  })();
-  resumePromise = attempt;
+  let resumeResult;
   try {
-    return await attempt;
-  } finally {
-    if (resumePromise === attempt) resumePromise = null;
+    // Deliberately invoked before returning so callers inside pointer/key
+    // handlers preserve their browser activation token.
+    resumeResult = activeCtx.resume();
+  } catch (_) {
+    armGestureUnlock();
+    return Promise.resolve(false);
   }
+
+  const finish = () => {
+    const running = activeCtx === ctx && activeCtx.state === 'running';
+    if (running) {
+      disarmGestureUnlock();
+      flushQueuedCues();
+    } else {
+      armGestureUnlock();
+    }
+    return running;
+  };
+  const attempt = Promise.resolve(resumeResult).then(finish, finish);
+  resumePromise = attempt;
+  void attempt.finally(() => {
+    if (resumePromise === attempt) resumePromise = null;
+  });
+  return attempt;
 }
 
 function readyForSound() {
-  if (!ensureContext()) return false;
-  if (ctx.state !== 'running') void resumeAudio();
-  return ctx.state !== 'closed';
+  return ensureContext() && ctx.state === 'running';
+}
+
+function deferCue(kind, replay) {
+  if (!ctx || ctx.state === 'closed') return;
+  if (ctx.state === 'running') {
+    replay();
+    return;
+  }
+  queueCue(kind, replay);
+  void resumeAudio();
 }
 
 function makeNoiseBuffer() {
@@ -307,6 +446,9 @@ function cleanupVoice(entry) {
       if (active[i].out === entry.out) active.splice(i, 1);
     }
   }
+  for (let i = HUMAN_ACTIVE.length - 1; i >= 0; i--) {
+    if (HUMAN_ACTIVE[i].out === entry.out) HUMAN_ACTIVE.splice(i, 1);
+  }
 }
 
 function pruneVoices(tnow) {
@@ -331,6 +473,15 @@ function posOpt(v) {
   if (Array.isArray(v)) return v;
   if (v && Array.isArray(v.pos)) return v.pos;
   return null;
+}
+
+function copySoundOpts(v) {
+  if (Array.isArray(v)) return v.slice(0, 3);
+  if (!v || typeof v !== 'object') return v;
+  return {
+    ...v,
+    pos: Array.isArray(v.pos) ? v.pos.slice(0, 3) : v.pos,
+  };
 }
 
 function muffledOpt(v) {
@@ -393,6 +544,7 @@ function addVoiceCleanup(out, cleanup) {
 
 function makeFireOut(key, opts, lifetime) {
   const out = makeOut(opts, lifetime);
+  out.gain.value = 1.16;
   const active = FIRE_ACTIVE[key];
   if (!active) return out;
   const tnow = ctx.currentTime;
@@ -407,6 +559,109 @@ function makeFireOut(key, opts, lifetime) {
   }
   active.push({ out, until: tnow + lifetime });
   return out;
+}
+
+function makeHumanOut(opts, lifetime) {
+  const tnow = ctx.currentTime;
+  for (let i = HUMAN_ACTIVE.length - 1; i >= 0; i--) {
+    if (HUMAN_ACTIVE[i].until <= tnow || !VOICE_BY_OUT.has(HUMAN_ACTIVE[i].out)) {
+      HUMAN_ACTIVE.splice(i, 1);
+    }
+  }
+  while (HUMAN_ACTIVE.length >= MAX_HUMAN_VOICES) {
+    const oldest = HUMAN_ACTIVE[0];
+    const voice = VOICE_BY_OUT.get(oldest.out);
+    if (voice) cleanupVoice(voice);
+    else HUMAN_ACTIVE.shift();
+  }
+  const out = makeOut(opts, lifetime);
+  HUMAN_ACTIVE.push({ out, until: tnow + lifetime });
+  return out;
+}
+
+// A pitched source is split across resonant vocal bands. Two differently
+// shaped bursts create glottal grit without samples or long-lived nodes.
+function vocalBurst(out, {
+  t0, type, f0, f1, duration, gain, formants,
+}) {
+  const attack = Math.min(0.035, duration * 0.12);
+  const osc = ctx.createOscillator();
+  osc.type = type;
+  osc.frequency.setValueAtTime(Math.max(45, f0), t0);
+  osc.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t0 + duration);
+
+  const throat = biquad('lowpass', rnd(2600, 3900), 0.8);
+  const envelope = envGain(t0, gain, attack, duration);
+  const nodes = [osc, throat, envelope];
+  osc.connect(throat);
+  for (let i = 0; i < formants.length; i++) {
+    const band = biquad('bandpass', formants[i] * rnd(0.94, 1.06), 4.5 + i * 1.2);
+    const weight = ctx.createGain();
+    weight.gain.value = [1, 0.72, 0.46][i] || 0.35;
+    throat.connect(band).connect(weight).connect(envelope);
+    nodes.push(band, weight);
+  }
+  envelope.connect(out);
+  osc.start(t0);
+  osc.stop(t0 + attack + duration + 0.04);
+  addVoiceCleanup(out, () => {
+    try { osc.stop(); } catch (_) {}
+    for (const node of nodes) {
+      try { node.disconnect(); } catch (_) {}
+    }
+  });
+}
+
+function synthPainVoice(out, {
+  damage = 0, headshot = false, lethal = false, self = false,
+} = {}) {
+  const heavy = lethal || damage >= 35;
+  const duration = lethal ? rnd(0.86, 1.08)
+    : headshot ? rnd(0.58, 0.76)
+      : heavy ? rnd(0.52, 0.7) : rnd(0.28, 0.42);
+  const t0 = nowT();
+  const base = headshot ? rnd(235, 285) : heavy ? rnd(145, 185) : rnd(185, 225);
+  const end = lethal ? rnd(62, 82) : heavy ? rnd(82, 108) : rnd(115, 145);
+  const level = self ? 0.42 : lethal ? 0.36 : heavy ? 0.3 : 0.23;
+  const formants = headshot
+    ? [rnd(710, 820), rnd(1450, 1680), rnd(2480, 2820)]
+    : [rnd(520, 680), rnd(1080, 1370), rnd(2180, 2580)];
+
+  vocalBurst(out, {
+    t0, type: lethal || heavy ? 'sawtooth' : 'triangle',
+    f0: base, f1: end, duration: duration * 0.72,
+    gain: level, formants,
+  });
+  vocalBurst(out, {
+    t0: t0 + duration * (lethal ? 0.3 : 0.24),
+    type: lethal || headshot ? 'sawtooth' : 'triangle',
+    f0: base * rnd(0.88, 1.08), f1: end * rnd(0.82, 1),
+    duration: duration * 0.68, gain: level * 0.7,
+    formants: formants.map((f) => f * rnd(0.95, 1.08)),
+  });
+  hiss(out, {
+    t0: t0 + duration * 0.08,
+    filter: 'bandpass', f: headshot ? 1950 : 1280, q: 1.1,
+    sweepTo: lethal ? 520 : 760, sweepMs: duration * 0.75,
+    rate: rnd(0.78, 1.16), att: 0.008, dec: duration * 0.72,
+    g: level * (self ? 0.72 : 0.5),
+  });
+  return { t0, duration };
+}
+
+function bodyImpact(out, t0, gain = 1) {
+  hiss(out, {
+    t0, filter: 'lowpass', f: 310, q: 0.65,
+    sweepTo: 95, sweepMs: 0.16, dec: 0.22, g: 0.72 * gain,
+  });
+  tone(out, {
+    t0, type: 'sine', f0: 78, f1: 34,
+    att: 0.001, dec: 0.24, g: 0.48 * gain,
+  });
+  hiss(out, {
+    t0: t0 + 0.018, filter: 'bandpass', f: 1050, q: 5,
+    dec: 0.028, g: 0.2 * gain,
+  });
 }
 
 /* ------------------------------------------------------------ gun profiles */
@@ -524,28 +779,31 @@ function impactMetal(out, v) {
 /* ------------------------------------------------------------------- sfx */
 
 export const sfx = {
-  // Context construction and graph wiring happen at most once. If init lands
-  // outside the PLAY gesture, the armed one-shot listeners finish the unlock.
-  async init() {
-    if (ensureContext()) await resumeAudio();
-    return this;
+  // These methods remain promise-compatible, but context construction and the
+  // resume() call both happen before returning to the initiating event.
+  init() {
+    if (!ensureContext()) return Promise.resolve(this);
+    return resumeAudio().then(() => this);
   },
 
-  async unlock() {
-    if (!ensureContext()) return false;
+  unlock() {
+    if (!ensureContext()) return Promise.resolve(false);
     return resumeAudio();
   },
 
   async dispose() {
     disarmGestureUnlock();
+    disarmLifecycleListeners();
     const activeCtx = ctx;
     try { activeCtx?.removeEventListener?.('statechange', onAudioStateChange); } catch (_) {}
 
+    QUEUED_CUES.length = 0;
     for (const entry of [...VOICES]) cleanupVoice(entry);
     for (const handle of CLEANUP_TIMERS) clearTimeout(handle);
     CLEANUP_TIMERS.clear();
     POS.length = 0;
     VOICES.length = 0;
+    HUMAN_ACTIVE.length = 0;
     VOICE_BY_OUT.clear();
     for (const entries of Object.values(FIRE_ACTIVE)) entries.length = 0;
 
@@ -561,6 +819,8 @@ export const sfx = {
     noiseBuf = null;
     echo = null;
     resumePromise = null;
+    lastListener = null;
+    flushingCues = false;
     panSide = 1;
 
     if (activeCtx && activeCtx.state !== 'closed') {
@@ -573,19 +833,21 @@ export const sfx = {
     if (Number.isFinite(next)) masterVolume = Math.min(1, Math.max(0, next));
     if (bus && ctx && ctx.state !== 'closed') {
       bus.gain.cancelScheduledValues(ctx.currentTime);
-      bus.gain.setValueAtTime(masterVolume, ctx.currentTime);
+      bus.gain.setValueAtTime(audibleMasterGain(), ctx.currentTime);
     }
   },
 
   // key: rifle|smg|shotgun|sniper|lmg|revolver
   // opts: {muffled?:bool, pos?:[x,y,z]}
   fire(key, opts) {
-    if (!readyForSound()) return;
+    if (!readyForSound()) {
+      const deferredOpts = copySoundOpts(opts);
+      deferCue('fire', () => sfx.fire(key, deferredOpts));
+      return;
+    }
     const lifetime = key === 'sniper' ? 1.3 : key === 'revolver' ? 0.75 : 0.8;
     const outOpts = { pos: posOpt(opts), muffled: muffledOpt(opts) };
-    const out = FIRE_LIMIT[key]
-      ? makeFireOut(key, outOpts, lifetime)
-      : makeOut(outOpts, lifetime);
+    const out = makeFireOut(key, outOpts, lifetime);
     if (key === 'shotgun') shotShotgun(out);
     else if (key === 'sniper') shotSniper(out);
     else if (key === 'lmg') shotLmg(out);
@@ -595,12 +857,17 @@ export const sfx = {
 
   // kind: stone|wood|glass|metal|flesh ; vol 0..1 ; opts: {pos?}
   impact(kind, vol = 1, opts) {
-    if (!readyForSound()) return;
+    if (!readyForSound()) {
+      const deferredOpts = copySoundOpts(opts);
+      deferCue('impact', () => sfx.impact(kind, vol, deferredOpts));
+      return;
+    }
     let v = Math.min(1, Math.max(0, vol));
     const P = IMPACT_PARAMS[kind];
     if (!P) return;
     if (P.cap) v = Math.min(v, P.cap);
     const out = makeOut({ pos: posOpt(opts), muffled: muffledOpt(opts) }, kind === 'glass' ? 0.6 : 0.5);
+    out.gain.value = 1.14;
     const t0 = nowT();
     if (kind === 'glass') impactGlass(out, v);
     else if (kind === 'metal') impactMetal(out, v);
@@ -614,7 +881,10 @@ export const sfx = {
 
   // step 1 mag/cylinder out · 2 insert/load · 3 rack/close
   reloadClick(step, wkey) {
-    if (!readyForSound()) return;
+    if (!readyForSound()) {
+      deferCue('reload', () => sfx.reloadClick(step, wkey));
+      return;
+    }
     const k = WEP_TONE[wkey] || 1;
     const out = makeOut(null, 0.45);
     const t0 = nowT();
@@ -637,7 +907,10 @@ export const sfx = {
   },
 
   hitmark(hs) {
-    if (!readyForSound()) return;
+    if (!readyForSound()) {
+      deferCue('hitmark', () => sfx.hitmark(hs));
+      return;
+    }
     const out = makeOut(null, 0.4);
     const t0 = nowT();
     // Short, upper-mid transient stays legible under a gun report; summed peak
@@ -651,8 +924,57 @@ export const sfx = {
     }
   },
 
+  pain({ damage = 0, headshot = false, lethal = false, pos, local = false } = {}) {
+    if (!readyForSound()) {
+      const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
+      deferCue('pain', () => sfx.pain({
+        damage, headshot, lethal, pos: deferredPos, local,
+      }));
+      return;
+    }
+    const numericDamage = Number(damage);
+    const hitDamage = Number.isFinite(numericDamage)
+      ? Math.min(100, Math.max(0, numericDamage)) : 0;
+    const isHeadshot = !!headshot;
+    const isLethal = !!lethal;
+    const isLocal = !!local;
+    const lifetime = isLethal ? 1.45 : isHeadshot ? 1.05 : hitDamage >= 35 ? 0.95 : 0.7;
+    const out = makeHumanOut({
+      pos: isLocal ? null : posOpt(pos),
+    }, lifetime);
+    out.gain.value = isLocal ? 0.96 : 0.82;
+    synthPainVoice(out, {
+      damage: hitDamage,
+      headshot: isHeadshot,
+      lethal: isLethal,
+      self: false,
+    });
+  },
+
+  deathSelf({ headshot = false } = {}) {
+    if (!readyForSound()) {
+      deferCue('deathSelf', () => sfx.deathSelf({ headshot }));
+      return;
+    }
+    const out = makeHumanOut(null, 1.75);
+    out.gain.value = 0.94;
+    const voice = synthPainVoice(out, {
+      damage: 100, headshot: !!headshot, lethal: true, self: true,
+    });
+    bodyImpact(out, voice.t0 + Math.min(0.82, voice.duration * 0.72), 0.95);
+    if (headshot) {
+      hiss(out, {
+        t0: voice.t0, filter: 'highpass', f: 3600, q: 0.8,
+        dec: 0.035, g: 0.28,
+      });
+    }
+  },
+
   deathFar(vol = 0.4) {
-    if (!readyForSound()) return;
+    if (!readyForSound()) {
+      deferCue('deathFar', () => sfx.deathFar(vol));
+      return;
+    }
     const out = makeOut({ muffled: true }, 0.9);
     const t0 = nowT();
     hiss(out, { t0, filter: 'bandpass', f: 420, q: 0.5, dec: 0.1, g: 0.5 * vol });
@@ -661,7 +983,10 @@ export const sfx = {
   },
 
   footstep(vol = 0.45) {
-    if (!readyForSound()) return;
+    if (!readyForSound()) {
+      deferCue('footstep', () => sfx.footstep(vol));
+      return;
+    }
     panSide = -panSide;
     hiss(makeOut(null, 0.25), {
       filter: 'lowpass', f: 320, q: 0.5,
@@ -671,7 +996,10 @@ export const sfx = {
   },
 
   draw(wkey) {
-    if (!readyForSound()) return;
+    if (!readyForSound()) {
+      deferCue('draw', () => sfx.draw(wkey));
+      return;
+    }
     const D = DRAW_LEN[wkey] || 0.11;
     const out = makeOut(null, D + 0.3);
     const t0 = nowT();
@@ -691,7 +1019,10 @@ export const sfx = {
   },
 
   bulletWhiz(vol = 0.5) {
-    if (!readyForSound()) return;
+    if (!readyForSound()) {
+      deferCue('bulletWhiz', () => sfx.bulletWhiz(vol));
+      return;
+    }
     hiss(makeOut(null, 0.4), {
       filter: 'bandpass', f: 3000, sweepTo: 1400, sweepMs: 0.16, q: 5,
       dec: 0.16, g: 0.32 * vol, pan: (Math.random() < 0.5 ? -1 : 1) * rnd(0.6, 0.95),
@@ -699,19 +1030,10 @@ export const sfx = {
   },
 
   setListener({ fwd, pos } = {}) {
-    if (!readyForSound() || !ctx.listener) return;
-    const L = ctx.listener;
-    if (L.forwardX) {
-      if (Array.isArray(fwd)) {
-        L.forwardX.value = fwd[0]; L.forwardY.value = fwd[1]; L.forwardZ.value = fwd[2];
-        L.upX.value = 0; L.upY.value = 1; L.upZ.value = 0;
-      }
-      if (Array.isArray(pos)) {
-        L.positionX.value = pos[0]; L.positionY.value = pos[1]; L.positionZ.value = pos[2];
-      }
-    } else if (Array.isArray(fwd)) {
-      L.setOrientation(fwd[0], fwd[1], fwd[2], 0, 1, 0);
-      if (Array.isArray(pos)) L.setPosition(pos[0], pos[1], pos[2]);
-    }
+    lastListener = {
+      fwd: Array.isArray(fwd) ? fwd.slice(0, 3) : null,
+      pos: Array.isArray(pos) ? pos.slice(0, 3) : null,
+    };
+    applyLastListener();
   },
 };

@@ -1536,13 +1536,23 @@ h1.vb-title::after {
   top: 50%;
   width: 0;
   height: 0;
+  --gap: 4px;
+  --gap-ease: 52ms;
+  --ch-jx: 0px;
+  --ch-jy: 0px;
+  --ch-rot: 0deg;
+  --ch-arm-opacity: 0.78;
+  --ch-glow: 4px;
 }
 
 .ch-arm {
   position: absolute;
   background: #fffdd8;
+  opacity: var(--ch-arm-opacity);
+  filter: drop-shadow(0 0 var(--ch-glow) rgba(255, 246, 190, 0.2));
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
-  transition: none;
+  transition: transform var(--gap-ease) cubic-bezier(0.2, 0.7, 0.2, 1), opacity 45ms linear, filter 65ms linear;
+  will-change: transform;
 }
 
 .ch-arm:nth-child(1) {
@@ -1550,7 +1560,7 @@ h1.vb-title::after {
   top: 0;
   width: 2px;
   height: 9px;
-  transform: translateY(calc(-1 * var(--gap, 7px) - 100%));
+  transform: translateY(calc(-1 * var(--gap, 4px) - 100% + var(--ch-jy))) translateX(var(--ch-jx)) rotate(var(--ch-rot));
 }
 
 .ch-arm:nth-child(2) {
@@ -1558,7 +1568,7 @@ h1.vb-title::after {
   top: 0;
   width: 2px;
   height: 9px;
-  transform: translateY(var(--gap, 7px));
+  transform: translateY(calc(var(--gap, 4px) + var(--ch-jy))) translateX(var(--ch-jx)) rotate(calc(-1 * var(--ch-rot)));
 }
 
 .ch-arm:nth-child(3) {
@@ -1566,7 +1576,7 @@ h1.vb-title::after {
   top: -1px;
   width: 9px;
   height: 2px;
-  transform: translateX(calc(-1 * var(--gap, 7px) - 100%));
+  transform: translateX(calc(-1 * var(--gap, 4px) - 100% + var(--ch-jx))) translateY(var(--ch-jy)) rotate(calc(-1 * var(--ch-rot)));
 }
 
 .ch-arm:nth-child(4) {
@@ -1574,7 +1584,7 @@ h1.vb-title::after {
   top: -1px;
   width: 9px;
   height: 2px;
-  transform: translateX(var(--gap, 7px));
+  transform: translateX(calc(var(--gap, 4px) + var(--ch-jx))) translateY(var(--ch-jy)) rotate(var(--ch-rot));
 }
 
 #crosshair::after {
@@ -1587,6 +1597,10 @@ h1.vb-title::after {
   border-radius: 50%;
   background: #ffffff;
   box-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+}
+
+#crosshair.vb-dead {
+  opacity: 0 !important;
 }
 
 /* ---------- reload ring + hint ---------- */
@@ -2272,14 +2286,87 @@ h1.vb-title::after {
   z-index: var(--z-lowhp);
   pointer-events: none;
   opacity: 0;
-  background: radial-gradient(
-    ellipse at 50% 50%,
-    rgba(255, 40, 60, 0) 45%,
-    rgba(255, 30, 45, 0.25) 75%,
-    rgba(255, 30, 45, 0.58) 100%
-  );
-  mix-blend-mode: screen;
+  --pain-x: 98%;
+  --pain-y: 50%;
+  --pain-rotation: 0deg;
+  background:
+    radial-gradient(circle at var(--pain-x) var(--pain-y), rgba(195, 5, 28, 0.82) 0, rgba(142, 0, 20, 0.54) 8%, rgba(95, 0, 16, 0.12) 21%, transparent 35%),
+    radial-gradient(ellipse at 50% 50%, transparent 43%, rgba(122, 0, 17, 0.18) 73%, rgba(72, 0, 12, 0.62) 100%);
+  mix-blend-mode: normal;
   will-change: opacity;
+}
+
+#hitflash::before {
+  content: '';
+  position: absolute;
+  inset: -8%;
+  background:
+    repeating-conic-gradient(from var(--pain-rotation) at var(--pain-x) var(--pain-y), rgba(111, 0, 17, 0.58) 0 1.5deg, transparent 2deg 7deg),
+    radial-gradient(circle at var(--pain-x) var(--pain-y), rgba(218, 16, 38, 0.72) 0 3%, transparent 27%);
+  -webkit-mask: radial-gradient(circle at var(--pain-x) var(--pain-y), #000 0 8%, rgba(0, 0, 0, 0.72) 17%, transparent 42%);
+  mask: radial-gradient(circle at var(--pain-x) var(--pain-y), #000 0 8%, rgba(0, 0, 0, 0.72) 17%, transparent 42%);
+}
+
+.vb-death-fx {
+  position: fixed;
+  inset: -10px;
+  z-index: calc(var(--z-hud) - 8);
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  --death-opacity: 0.58;
+  --death-blood-opacity: 0.38;
+  background:
+    radial-gradient(ellipse at 50% 46%, transparent 32%, rgba(62, 0, 9, 0.16) 58%, rgba(35, 0, 7, 0.68) 82%, rgba(7, 0, 3, 0.96) 100%),
+    linear-gradient(180deg, rgba(47, 0, 8, 0.08), rgba(12, 0, 4, 0.34));
+  -webkit-backdrop-filter: grayscale(0.88) saturate(0.42) contrast(1.22);
+  backdrop-filter: grayscale(0.88) saturate(0.42) contrast(1.22);
+  transition: opacity 110ms linear, visibility 0s linear 110ms;
+  will-change: transform, opacity, backdrop-filter;
+}
+
+.vb-death-fx::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: var(--death-blood-opacity);
+  background:
+    radial-gradient(ellipse at 8% 18%, rgba(107, 0, 18, 0.62) 0 1%, transparent 8%),
+    radial-gradient(ellipse at 92% 72%, rgba(103, 0, 15, 0.48) 0 1.5%, transparent 10%),
+    radial-gradient(ellipse at 18% 94%, rgba(89, 0, 13, 0.6) 0 2%, transparent 12%);
+}
+
+.vb-death-fx.vb-active {
+  visibility: visible;
+  opacity: var(--death-opacity);
+  transition-delay: 0s;
+}
+
+.vb-death-fx.vb-impact {
+  animation: vbDeathImpact 380ms cubic-bezier(0.18, 0.78, 0.22, 1) both;
+}
+
+@keyframes vbDeathImpact {
+  0% {
+    transform: translate3d(-7px, 4px, 0) scale(1.025);
+    -webkit-backdrop-filter: grayscale(1) saturate(0.22) contrast(1.38) blur(4px);
+    backdrop-filter: grayscale(1) saturate(0.22) contrast(1.38) blur(4px);
+  }
+  28% {
+    transform: translate3d(5px, -3px, 0) scale(1.018);
+    -webkit-backdrop-filter: grayscale(0.96) saturate(0.3) contrast(1.3) blur(2.2px);
+    backdrop-filter: grayscale(0.96) saturate(0.3) contrast(1.3) blur(2.2px);
+  }
+  58% {
+    transform: translate3d(-2px, 1px, 0) scale(1.008);
+    -webkit-backdrop-filter: grayscale(0.9) saturate(0.38) contrast(1.25) blur(0.7px);
+    backdrop-filter: grayscale(0.9) saturate(0.38) contrast(1.25) blur(0.7px);
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    -webkit-backdrop-filter: grayscale(0.88) saturate(0.42) contrast(1.22);
+    backdrop-filter: grayscale(0.88) saturate(0.42) contrast(1.22);
+  }
 }
 
 /* ---------- death banner ---------- */
@@ -2291,6 +2378,9 @@ h1.vb-title::after {
   top: 56%;
   transform: translate(-50%, -50%);
   padding: 12px 28px;
+  max-width: min(680px, calc(100vw - 48px));
+  line-height: 1.35;
+  text-align: center;
   background: rgba(11, 14, 18, 0.92);
   border: 1px solid var(--danger);
   border-radius: var(--radius);

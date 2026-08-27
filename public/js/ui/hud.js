@@ -118,6 +118,8 @@ export class HUD {
     this._lobbyCallbacks = null;
     this.lobbyDom = {};
     this._onLobbyKeyDown = null;
+    this._ownedRoots = new Set();
+    this._deferredTimers = new Set();
 
     this._buyMenuCallbacks = null;
     this._buyMenuOpen = false;
@@ -142,7 +144,10 @@ export class HUD {
     this.dead = false;
     this.flashV = 0;
     this.flashRAF = 0;
-    this.names = new Map();
+    this.painImpulse = 0;
+    this.painDirectionSeed = 0;
+    this.deathBrutality = 0;
+    this.deathImpactTimer = 0;
     this.scopeShown = false;
     this.scopeProgress = 0;
     this.scopeRAF = 0;
@@ -162,6 +167,7 @@ export class HUD {
     this.lastCritAt = -1e9;
     this.hmTimer = 0;
     this.killfeedTimers = new Set();
+    this.names = new Map();
     this.tabBound = false;
     this.lastWepKey = '';
 
@@ -181,8 +187,20 @@ export class HUD {
 
   root(id) {
     let n = document.getElementById(id);
-    if (!n) { n = el('div', '', document.body, id); }
+    if (!n) {
+      n = el('div', '', document.body, id);
+      this._ownedRoots.add(n);
+    }
     return n;
+  }
+
+  defer(callback) {
+    const timer = setTimeout(() => {
+      this._deferredTimers.delete(timer);
+      callback();
+    }, 0);
+    this._deferredTimers.add(timer);
+    return timer;
   }
 
   loadName() {
@@ -220,8 +238,9 @@ export class HUD {
     return '';
   }
 
-  spreadFromBloom(bloomDeg) {
-    return Math.max(5, 6 + Number(bloomDeg || 0) * 38);
+  spreadFromCone(coneDeg) {
+    const cone = Math.max(0, Number(coneDeg) || 0);
+    return 4 + 72 * (1 - Math.exp(-cone / 7));
   }
 
   cleanCode(raw) {
@@ -534,23 +553,23 @@ export class HUD {
     if (prefillCode) {
       joinInput.value = prefillCode;
       this.showJoinState(`INVITE CODE DETECTED: ${prefillCode}`, 'ok');
-      setTimeout(() => {
+      this.defer(() => {
         try {
           if (document.getElementById('join-code-input') === joinInput) {
             joinInput.focus();
             joinInput.select();
           }
         } catch (_) {}
-      }, 0);
+      });
     } else {
-      setTimeout(() => {
+      this.defer(() => {
         try {
           if (document.getElementById('name-input') === nameIn) {
             nameIn.focus();
             if (nameIn.value) nameIn.select();
           }
         } catch (_) {}
-      }, 0);
+      });
     }
   }
 
@@ -574,6 +593,7 @@ export class HUD {
       root.setAttribute('aria-modal', 'true');
       root.setAttribute('aria-labelledby', 'lobby-title');
       root.setAttribute('aria-hidden', 'true');
+      this._ownedRoots.add(root);
     }
 
     root.innerHTML = '';
@@ -734,7 +754,7 @@ export class HUD {
 
     this.updateLobby(state);
 
-    setTimeout(() => {
+    this.defer(() => {
       try {
         if (
           this.lobbyDom.root?.getAttribute('aria-hidden') === 'false' &&
@@ -743,7 +763,7 @@ export class HUD {
           this.lobbyDom.readyBtn.focus();
         }
       } catch (_) {}
-    }, 0);
+    });
   }
 
   updateLobby(state) {
@@ -917,13 +937,13 @@ export class HUD {
       this.settingsDom.root.style.display = 'flex';
       this.settingsDom.root.setAttribute('aria-hidden', 'false');
     }
-    setTimeout(() => {
+    this.defer(() => {
       try {
         if (this._settingsOpen && this.settingsDom.resumeBtn) {
           this.settingsDom.resumeBtn.focus();
         }
       } catch (_) {}
-    }, 0);
+    });
   }
 
   closeSettings() {
@@ -952,6 +972,7 @@ export class HUD {
     if (this.settingsDom.root) return this.settingsDom.root;
 
     const root = el('div', 'hidden', document.body, 'settings-overlay');
+    this._ownedRoots.add(root);
     root.setAttribute('role', 'dialog');
     root.setAttribute('aria-modal', 'true');
     root.setAttribute('aria-labelledby', 'settings-title');
@@ -1125,6 +1146,7 @@ export class HUD {
       root.setAttribute('aria-modal', 'true');
       root.setAttribute('aria-labelledby', 'buy-title');
       root.setAttribute('aria-hidden', 'true');
+      this._ownedRoots.add(root);
     }
 
     root.innerHTML = '';
@@ -1318,13 +1340,13 @@ export class HUD {
       this._buyPreviousFocus = document.activeElement;
       this.syncBuyMenuUI();
 
-      setTimeout(() => {
+      this.defer(() => {
         try {
           if (this._buyMenuOpen && this.buyDom.closeBtn) {
             this.buyDom.closeBtn.focus();
           }
         } catch (_) {}
-      }, 0);
+      });
 
       return true;
     } else {
@@ -1462,9 +1484,13 @@ export class HUD {
     if (this.dmgRAF) { cancelAnimationFrame(this.dmgRAF); this.dmgRAF = 0; }
     if (this.compassRAF) { cancelAnimationFrame(this.compassRAF); this.compassRAF = 0; }
     if (this.hmTimer) { clearTimeout(this.hmTimer); this.hmTimer = 0; }
+    clearTimeout(this.deathImpactTimer);
+    this.deathImpactTimer = 0;
     this.scopeShown = false;
     this.scopeProgress = 0;
     this.flashV = 0;
+    this.painImpulse = 0;
+    this.deathBrutality = 0;
     this.ringOn = false;
     this.compassW = 0;
     this.compassPPD = 2;
@@ -1577,7 +1603,11 @@ export class HUD {
     d.ringHint = el('div', '', d.ch, 'reload-hint');
     d.ringHint.textContent = 'RELOADING';
     d.ringHint.style.display = 'none';
-    this.setSpread(this.spreadFromBloom(this.st.bloomPx));
+    if (this.st.crosshairConeDeg != null) {
+      this.setSpread(this.spreadFromCone(this.st.crosshairConeDeg));
+    } else {
+      this.setSpread(this.st.bloomPx);
+    }
 
     // health bar
     d.hb = el('div', '', hud, 'healthbar');
@@ -1612,6 +1642,10 @@ export class HUD {
 
     d.flash = el('div', '', hud, 'hitflash');
     d.flash.style.opacity = '0';
+
+    d.deathFx = el('div', 'vb-death-fx', hud, 'death-fx');
+    d.deathFx.style.setProperty('--death-opacity', '0.58');
+    d.deathFx.style.setProperty('--death-blood-opacity', '0.38');
 
     // compass strip: three full duplicate cycles (-360..705) for seamless wrap
     d.compass = el('div', '', hud, 'compass');
@@ -1892,7 +1926,12 @@ export class HUD {
       this.updateAmmoLow();
     }
 
-    if (s.bloomPx != null) this.setSpread(s.bloomPx);
+    if (s.crosshairConeDeg != null) {
+      this.setSpread(this.spreadFromCone(s.crosshairConeDeg));
+    } else if (s.bloomPx != null) {
+      this.setSpread(s.bloomPx);
+    }
+    this.updateCrosshairStress(s.panic, s.pain, alive);
     this.setReloadProgress(s.reloading01 == null ? null : s.reloading01);
     if (s.yawDeg != null) this.updateCompass(s.yawDeg);
 
@@ -1913,9 +1952,30 @@ export class HUD {
 
   setSpread(px) {
     if (!this.dom.ch) return;
-    const gap = Math.max(5, Number(px) || 6);
+    const n = Number(px);
+    const gap = Math.min(76, Math.max(4, Number.isFinite(n) ? n : 4));
+    const previous = Number.isFinite(this.chGap) ? this.chGap : gap;
     this.chGap = gap;
+    this.dom.ch.style.setProperty('--gap-ease', gap >= previous ? '52ms' : '115ms');
     this.dom.ch.style.setProperty('--gap', `${Math.round(gap * 100) / 100}px`);
+  }
+
+  updateCrosshairStress(panicValue, painValue, alive = true) {
+    const ch = this.dom.ch;
+    if (!ch) return;
+    const panic = clamp01(panicValue);
+    const pain = clamp01(painValue);
+    const stress = alive ? Math.min(1, panic * 0.72 + pain * 0.82 + this.painImpulse * 0.48) : 0;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const amplitude = stress * (0.45 + this.painImpulse * 1.35);
+    const jx = amplitude * Math.sin(now * 0.041 + pain * 5.1);
+    const jy = amplitude * Math.sin(now * 0.053 + panic * 4.3 + 1.7);
+    const pulse = stress * (0.5 + 0.5 * Math.sin(now * 0.019));
+    ch.style.setProperty('--ch-jx', `${jx.toFixed(2)}px`);
+    ch.style.setProperty('--ch-jy', `${jy.toFixed(2)}px`);
+    ch.style.setProperty('--ch-rot', `${(jx * 0.85).toFixed(2)}deg`);
+    ch.style.setProperty('--ch-arm-opacity', (0.78 + pulse * 0.22).toFixed(3));
+    ch.style.setProperty('--ch-glow', `${(4 + stress * 7).toFixed(2)}px`);
   }
 
   hideCrosshairForAds(b) {
@@ -2022,7 +2082,11 @@ export class HUD {
     g.textContent = GLYPH[entry.glyphKey] || '?';
     const v = el('span', '', row);
     v.textContent = entry.victim;
-    kf.insertBefore(row, kf.firstChild);
+    if (typeof kf.insertBefore === 'function') {
+      kf.insertBefore(row, kf.firstChild);
+    } else {
+      kf.appendChild(row);
+    }
     while (kf.children.length > 5) {
       const oldest = kf.lastChild;
       if (oldest) oldest.remove();
@@ -2059,39 +2123,70 @@ export class HUD {
   /* -------------------------------------------- own damage / death state */
 
   setOwnDamage(intensity01) {
-    const v = Math.min(1, Math.max(0, Number(intensity01) || 0));
-    if (v === 0) {
+    this.setPainImpulse(intensity01);
+  }
+
+  setPainImpulse(value) {
+    const detail = value && typeof value === 'object' ? value : null;
+    const raw = detail ? (detail.intensity ?? detail.value ?? detail.damage ?? 0) : value;
+    const intensity = clamp01(raw);
+    if (intensity === 0) {
       this.clearOwnDamage();
       return;
     }
-    this.flashV = Math.max(this.flashV, v);
-    if (!this.built) {
-      if (this.dom.flash) this.dom.flash.style.opacity = String(this.flashV);
-      return;
+
+    let x = detail ? Number(detail.x) : NaN;
+    let y = detail ? Number(detail.y) : NaN;
+    if (detail && Number.isFinite(Number(detail.angleDeg))) {
+      const a = Number(detail.angleDeg) * Math.PI / 180;
+      x = Math.sin(a);
+      y = -Math.cos(a);
     }
-    if (!this.flashRAF) {
-      let last = performance.now();
-      const tick = () => {
-        const nowT = performance.now();
-        const dt = Math.min(0.12, (nowT - last) / 1000);
-        last = nowT;
-        this.flashV *= Math.exp(-dt * 6.5);
-        this.flashV -= dt * 0.22;
-        if (this.flashV <= 0.001) {
-          this.flashV = 0;
-          if (this.dom.flash) this.dom.flash.style.opacity = '0';
-          this.flashRAF = 0;
-          return;
-        }
-        if (this.dom.flash) this.dom.flash.style.opacity = String(Math.min(1, this.flashV).toFixed(3));
-        this.flashRAF = requestAnimationFrame(tick);
-      };
+    if (!Number.isFinite(x) || !Number.isFinite(y) || Math.hypot(x, y) < 0.001) {
+      this.painDirectionSeed = (this.painDirectionSeed + 137.508) % 360;
+      const a = this.painDirectionSeed * Math.PI / 180;
+      x = Math.cos(a);
+      y = Math.sin(a);
+    } else {
+      const len = Math.hypot(x, y);
+      x /= len;
+      y /= len;
+    }
+
+    this.flashV = Math.max(this.flashV, intensity);
+    this.painImpulse = Math.max(this.painImpulse, intensity);
+    if (this.dom.flash) {
+      this.dom.flash.style.setProperty('--pain-x', `${(50 + x * 48).toFixed(2)}%`);
+      this.dom.flash.style.setProperty('--pain-y', `${(50 + y * 48).toFixed(2)}%`);
+      this.dom.flash.style.setProperty('--pain-rotation', `${(Math.atan2(y, x) * 180 / Math.PI).toFixed(2)}deg`);
+      this.dom.flash.style.opacity = String(this.flashV);
+    }
+    if (!this.built || this.flashRAF) return;
+
+    let last = performance.now();
+    const tick = () => {
+      const nowT = performance.now();
+      const dt = Math.min(0.12, (nowT - last) / 1000);
+      last = nowT;
+      this.flashV = Math.max(0, this.flashV * Math.exp(-dt * 6.5) - dt * 0.22);
+      this.painImpulse = Math.max(0, this.painImpulse * Math.exp(-dt * 4.8) - dt * 0.1);
+      if (this.dom.flash) this.dom.flash.style.opacity = Math.min(1, this.flashV).toFixed(3);
+      this.updateCrosshairStress(this.st.panic, this.st.pain, !this.dead && this.st.alive !== false);
+      if (this.flashV <= 0.001 && this.painImpulse <= 0.001) {
+        this.flashV = 0;
+        this.painImpulse = 0;
+        if (this.dom.flash) this.dom.flash.style.opacity = '0';
+        this.flashRAF = 0;
+        return;
+      }
       this.flashRAF = requestAnimationFrame(tick);
-    }
+    };
+    this.flashRAF = requestAnimationFrame(tick);
   }
 
   clearOwnDamage() {
     this.flashV = 0;
+    this.painImpulse = 0;
     if (this.flashRAF) {
       cancelAnimationFrame(this.flashRAF);
       this.flashRAF = 0;
@@ -2099,6 +2194,7 @@ export class HUD {
     if (this.dom.flash) {
       this.dom.flash.style.opacity = '0';
     }
+    this.updateCrosshairStress(this.st.panic, this.st.pain, !this.dead && this.st.alive !== false);
   }
 
   clearDamage() {
@@ -2139,8 +2235,53 @@ export class HUD {
     if (dn) dn.style.display = 'none';
   }
 
+  styleDeathTreatment(force) {
+    const fx = this.dom.deathFx;
+    if (!fx) return;
+    const strength = clamp01(force);
+    fx.style.setProperty('--death-opacity', (0.58 + strength * 0.18).toFixed(3));
+    fx.style.setProperty('--death-blood-opacity', (0.38 + strength * 0.34).toFixed(3));
+  }
+
+  setDeathBrutality(value) {
+    this.deathBrutality = clamp01(value);
+    this.styleDeathTreatment(this.deathBrutality);
+    if (this.dead && this.deathBrutality > 0) this.activateDeathTreatment();
+  }
+
+  activateDeathTreatment() {
+    const fx = this.dom.deathFx;
+    if (!fx) return;
+    const force = this.deathBrutality || 0.85;
+    this.deathBrutality = force;
+    this.styleDeathTreatment(force);
+    fx.classList.add('vb-active');
+    fx.classList.remove('vb-impact');
+    void fx.offsetWidth;
+    fx.classList.add('vb-impact');
+    clearTimeout(this.deathImpactTimer);
+    this.deathImpactTimer = setTimeout(() => {
+      this.deathImpactTimer = 0;
+      if (this.dom.deathFx) this.dom.deathFx.classList.remove('vb-impact');
+    }, 420);
+  }
+
+  resetDeathTreatment() {
+    this.deathBrutality = 0;
+    if (this.deathImpactTimer) {
+      clearTimeout(this.deathImpactTimer);
+      this.deathImpactTimer = 0;
+    }
+    if (this.dom.deathFx) {
+      this.dom.deathFx.classList.remove('vb-active', 'vb-impact');
+      this.styleDeathTreatment(0);
+    }
+  }
+
   setDead(dead, killerName = '') {
     this.dead = !!dead;
+    if (!this.dead) this.resetDeathTreatment();
+    else if (this.deathBrutality <= 0) this.deathBrutality = 0.85;
     if (this.dead) {
       this.closeBuyMenuDirect();
       if (this.matchDom?.interactBar) {
@@ -2166,13 +2307,14 @@ export class HUD {
         this.dom.scope.style.transform = '';
       }
       this.setReloadProgress(null);
-      this.flashV = 0;
-      d.flash.style.opacity = '0';
-      if (this.flashRAF) { cancelAnimationFrame(this.flashRAF); this.flashRAF = 0; }
+      this.clearOwnDamage();
       d.lowhp.style.opacity = '0';
+      this.activateDeathTreatment();
       this.showDeathNote(killerName);
     } else {
       this.hideDeathNote();
+      this.hideCrosshairForAds((Number(this.st.adsT01) || 0) > 0.35);
+      this.updateCrosshairStress(this.st.panic, this.st.pain, this.st.alive !== false);
     }
   }
 
@@ -2453,50 +2595,109 @@ export class HUD {
     if (this.scopeRAF) { cancelAnimationFrame(this.scopeRAF); this.scopeRAF = 0; }
     if (this.flashRAF) { cancelAnimationFrame(this.flashRAF); this.flashRAF = 0; }
     if (this.dmgRAF) { cancelAnimationFrame(this.dmgRAF); this.dmgRAF = 0; }
-    if (this.hmTimer) { clearTimeout(this.hmTimer); this.hmTimer = 0; }
     if (this.compassRAF) { cancelAnimationFrame(this.compassRAF); this.compassRAF = 0; }
-    if (this.tabBound) {
-      if (this.onKD) document.removeEventListener('keydown', this.onKD);
-      if (this.onKU) document.removeEventListener('keyup', this.onKU);
-      window.removeEventListener('resize', this._onWindowResize);
-      this.tabBound = false;
+    if (this.hmTimer) { clearTimeout(this.hmTimer); this.hmTimer = 0; }
+    if (this.deathImpactTimer) {
+      clearTimeout(this.deathImpactTimer);
+      this.deathImpactTimer = 0;
     }
+    if (this._deferredTimers instanceof Set) {
+      for (const timer of this._deferredTimers) clearTimeout(timer);
+      this._deferredTimers.clear();
+    } else {
+      this._deferredTimers = new Set();
+    }
+    if (this.killfeedTimers instanceof Set) {
+      for (const timer of this.killfeedTimers) clearTimeout(timer);
+      this.killfeedTimers.clear();
+    } else {
+      this.killfeedTimers = new Set();
+    }
+
+    const doc = typeof document !== 'undefined' ? document : null;
+    const win = typeof window !== 'undefined' ? window : null;
+    if (this.tabBound) {
+      if (doc && this.onKD) doc.removeEventListener('keydown', this.onKD);
+      if (doc && this.onKU) doc.removeEventListener('keyup', this.onKU);
+      if (win) win.removeEventListener('resize', this._onWindowResize);
+    }
+    this.tabBound = false;
+    this.onKD = null;
+    this.onKU = null;
     if (this._onLobbyKeyDown) {
-      document.removeEventListener('keydown', this._onLobbyKeyDown);
+      if (doc) doc.removeEventListener('keydown', this._onLobbyKeyDown);
       this._onLobbyKeyDown = null;
     }
     if (this._onBuyKeyDown) {
-      document.removeEventListener('keydown', this._onBuyKeyDown, true);
+      if (doc) doc.removeEventListener('keydown', this._onBuyKeyDown, true);
       this._onBuyKeyDown = null;
     }
-    this.hideLobby();
+
+    if (doc) this.hideLobby();
+    else this._lobbyCallbacks = null;
     this.closeSettings();
     this.closeBuyMenuDirect();
-    const menuRoot = typeof document !== 'undefined' ? document.getElementById('menu') : null;
-    const hudRoot = typeof document !== 'undefined' ? document.getElementById('hud') : null;
-    if (menuRoot) menuRoot.innerHTML = '';
-    if (hudRoot) hudRoot.innerHTML = '';
-    if (this.lobbyDom.root) this.lobbyDom.root.innerHTML = '';
-    if (this.buyDom.root) this.buyDom.root.innerHTML = '';
-    if (this.settingsDom.root) this.settingsDom.root.remove();
+
+    const ownedRoots = this._ownedRoots instanceof Set ? this._ownedRoots : new Set();
+    const clearOrRemove = (root) => {
+      if (!root) return;
+      if (ownedRoots.has(root)) root.remove();
+      else root.innerHTML = '';
+    };
+    clearOrRemove(doc ? doc.getElementById('menu') : null);
+    clearOrRemove(doc ? doc.getElementById('hud') : null);
+    clearOrRemove(this.lobbyDom?.root);
+    clearOrRemove(this.buyDom?.root);
+    clearOrRemove(this.settingsDom?.root);
+    for (const root of ownedRoots) root.remove();
+    ownedRoots.clear();
+    this._ownedRoots = ownedRoots;
+
+    this.onMenuAction = null;
+    this._lobbyCallbacks = null;
+    this._buyMenuCallbacks = null;
+    this._settingsOnChange = null;
+    this._settingsOnResume = null;
+    this.joinStatus = null;
     this.lobbyDom = {};
     this.buyDom = {};
     this.settingsDom = {};
     this.dom = {};
     this.matchDom = {};
-    this._isClosingBuyMenu = false;
-    this._isClosingSettings = false;
-    this._settingsOnChange = null;
-    this._settingsOnResume = null;
-    this._buyMenuCallbacks = null;
-    this.dmgActive.length = 0;
-    this.dmgPool.length = 0;
-    this.names.clear();
+    this.st = {};
+    this._buyMenuState = { phase: 'idle', credits: 0, owned: [] };
     this._latestMatch = null;
-    for (const timer of this.killfeedTimers) clearTimeout(timer);
-    this.killfeedTimers.clear();
     this._latestSelfRow = null;
     this._latestPlayers = [];
+    this._isClosingBuyMenu = false;
+    this._isClosingSettings = false;
+    this._buyMenuOpen = false;
+    this._buyPreviousFocus = null;
+    this._settingsOpen = false;
+    this._settingsPreviousFocus = null;
+
+    if (Array.isArray(this.dmgActive)) this.dmgActive.length = 0;
+    else this.dmgActive = [];
+    if (Array.isArray(this.dmgPool)) this.dmgPool.length = 0;
+    else this.dmgPool = [];
+    if (this.names instanceof Map) this.names.clear();
+    else this.names = new Map();
+
+    this.dead = false;
+    this.flashV = 0;
+    this.painImpulse = 0;
+    this.painDirectionSeed = 0;
+    this.deathBrutality = 0;
+    this.scopeShown = false;
+    this.scopeProgress = 0;
+    this.ringOn = false;
+    this.compassW = 0;
+    this.compassPPD = 2;
+    this.compassZeroX = 720;
+    this.compassMeasured = false;
+    this.lastCritAt = -1e9;
+    this.lastWepKey = '';
+    this.chGap = undefined;
     this.built = false;
   }
 }

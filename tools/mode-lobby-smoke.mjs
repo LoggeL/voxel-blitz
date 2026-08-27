@@ -4,6 +4,9 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import WebSocket from 'ws';
+import { AIR, createMapState } from '../shared/worlddata.js';
+import { raycastVoxels } from '../shared/raycast.js';
+import { PHYSICS } from '../server/game.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const FRAME_TIMEOUT_MS = 5_000;
@@ -14,7 +17,7 @@ const SND_PHASE_TIMEOUT_MS = 15_000;
 const MAP_HEADER_BYTES = 6;
 const REVOLVER_SLOT = 5;
 const CODE_RE = /^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{5}$/;
-const PLAYER_KEYS = 'ads,bomb,credits,deaths,exhaustion,firing,hp,id,interaction,kills,mag,name,owned,panic,pitch,reloading,reserve,score,state,team,weapon,x,y,yaw,z';
+const PLAYER_KEYS = 'ads,bomb,credits,deaths,exhaustion,firing,hp,id,interaction,kills,mag,name,owned,pain,panic,pitch,reloading,reserve,score,spawnProtected,state,team,weapon,x,y,yaw,z';
 const MATCH_KEYS = 'attackers,bomb,defenders,map,mode,phase,phaseEndsAt,round,roundWinner,scores,winner';
 
 let checks = 0;
@@ -417,6 +420,16 @@ function makeClient(port, label) {
   return new Client(port, label);
 }
 
+async function closeRoomClients(clientsInRoom, label) {
+  await Promise.all(clientsInRoom.map((client) => client.close()));
+  const incomplete = clientsInRoom.filter((client) =>
+    client.ws?.readyState !== WebSocket.CLOSED || !client.closeInfo);
+  pass(incomplete.length === 0 && openSocketCount() === 0,
+    `${label} sockets close before the next room starts`,
+    `open=${openSocketCount()} incomplete=${incomplete.map((client) =>
+      `${client.label}:${client.ws?.readyState ?? 'none'}`).join(',') || 'none'}`);
+}
+
 function validMap(bytes, advertisedLength) {
   if (!Buffer.isBuffer(bytes) || bytes.length !== advertisedLength || bytes.length < MAP_HEADER_BYTES) return false;
   const sx = bytes[3];
@@ -551,9 +564,11 @@ function playerRow(tick, client) {
 function assertPlayerRows(tick, clientsInRoom, label) {
   const expectedIds = clientsInRoom.map((client) => client.welcome.id);
   pass(Array.isArray(tick?.players) && tick.players.length === expectedIds.length &&
-    tick.players.every((row) => Object.keys(row).sort().join(',') === PLAYER_KEYS) &&
+    tick.players.every((row) => Object.keys(row).sort().join(',') === PLAYER_KEYS &&
+      Number.isFinite(row.pain) && row.pain >= 0 && row.pain <= 1 &&
+      Number(row.pain.toFixed(3)) === row.pain && typeof row.spawnProtected === 'boolean') &&
     expectedIds.every((id) => tick.players.some((row) => row.id === id)),
-  `${label} carries exact player identities and complete mode rows`);
+  `${label} carries exact player identities, normalized pain, and complete mode rows`);
 }
 
 function assertMatchShape(tick, selection, label) {
@@ -618,19 +633,15 @@ async function readyAndStart(host, members, selection, signal) {
   return liveMarks;
 }
 
-function mapView(bytes) {
-  if (!validMap(bytes, bytes.length)) throw new Error('cannot inspect invalid map bytes');
-  const sx = bytes[3];
-  const sz = bytes[4];
-  const sy = bytes[5];
-  const get = (x, y, z) => {
-    const ix = Math.floor(x);
-    const iy = Math.floor(y);
-    const iz = Math.floor(z);
-    if (ix < 0 || iz < 0 || iy < 0 || ix >= sx || iz >= sz || iy >= sy) return 255;
-    return bytes[MAP_HEADER_BYTES + ((iy * sz + iz) * sx + ix)];
+function createShotGeometry(mapId, bytes) {
+  if (!validMap(bytes, bytes.length)) throw new Error(`cannot inspect invalid ${mapId} map bytes`);
+  const world = createMapState(mapId, bytes);
+  return {
+    world,
+    sx: bytes[3],
+    sz: bytes[4],
+    solidAt: (x, y, z) => world.getBlock(x, y, z) !== AIR,
   };
-  return { get, sx, sz, sy };
 }
 
 function aimAngles(shooter, target) {
@@ -647,37 +658,340 @@ function angleDistance(left, right) {
   return Math.abs(Math.atan2(Math.sin(left - right), Math.cos(left - right)));
 }
 
-function clearPlayerShot(bytes, shooter, target) {
-  const map = mapView(bytes);
+function shotRay(geometry, shooter, target) {
+  if (!shooter || !target) return { clear: false, distance: NaN, hit: null };
   const start = { x: shooter.x, y: shooter.y + 1.62, z: shooter.z };
   const end = { x: target.x, y: target.y + 0.95, z: target.z };
-  const distance = Math.hypot(end.x - start.x, end.y - start.y, end.z - start.z);
-  const samples = Math.max(2, Math.ceil(distance * 10));
-  for (let i = 1; i < samples; i++) {
-    const t = i / samples;
-    if (map.get(
-      start.x + (end.x - start.x) * t,
-      start.y + (end.y - start.y) * t,
-      start.z + (end.z - start.z) * t,
-    ) !== 0) return false;
-  }
-  return true;
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const dz = end.z - start.z;
+  const distance = Math.hypot(dx, dy, dz);
+  if (!(distance > 0.2)) return { clear: false, distance, hit: null };
+  const hit = raycastVoxels(
+    geometry.solidAt,
+    start.x,
+    start.y,
+    start.z,
+    dx,
+    dy,
+    dz,
+    distance - 0.15,
+  );
+  return { clear: hit === null, distance, hit };
 }
 
-function findClearFriendlyPair(bytes, tick, roomClients) {
-  for (let i = 0; i < roomClients.length; i++) {
-    const shooter = roomClients[i];
-    const shooterRow = playerRow(tick, shooter);
-    for (let j = i + 1; j < roomClients.length; j++) {
-      const target = roomClients[j];
-      const targetRow = playerRow(tick, target);
-      if (shooterRow?.team && shooterRow.team === targetRow?.team &&
-          clearPlayerShot(bytes, shooterRow, targetRow)) {
-        return { shooter, target, shooterRow, targetRow };
+
+function occupancyBlockers(geometry, x, y, z) {
+  const shave = 1e-4;
+  const x0 = Math.floor(x - PHYSICS.halfW + shave);
+  const x1 = Math.floor(x + PHYSICS.halfW - shave);
+  const y0 = Math.floor(y + shave);
+  const y1 = Math.floor(y + PHYSICS.height - shave);
+  const z0 = Math.floor(z - PHYSICS.halfW + shave);
+  const z1 = Math.floor(z + PHYSICS.halfW - shave);
+  const blockers = [];
+  for (let yy = y0; yy <= y1; yy++) {
+    for (let zz = z0; zz <= z1; zz++) {
+      for (let xx = x0; xx <= x1; xx++) {
+        if (geometry.solidAt(xx, yy, zz)) blockers.push(`voxel(${xx},${yy},${zz})`);
       }
     }
   }
+  const floorY = Math.floor(y - 0.06);
+  const supported = [x0, x1].some((xx) =>
+    [z0, z1].some((zz) => geometry.solidAt(xx, floorY, zz)));
+  if (!supported) blockers.push(`unsupported(y=${floorY})`);
+  return blockers;
+}
+
+function routeBlocker(geometry, row, target) {
+  if (!row) return { at: null, blockers: ['missing-authoritative-row'] };
+  const dx = target.x - row.x;
+  const dz = target.z - row.z;
+  const steps = Math.max(1, Math.ceil(Math.hypot(dx, dz) / 0.25));
+  for (let step = 0; step <= steps; step++) {
+    const t = step / steps;
+    const at = { x: row.x + dx * t, y: row.y, z: row.z + dz * t };
+    const blockers = occupancyBlockers(geometry, at.x, at.y, at.z);
+    if (blockers.length > 0) return { at, blockers };
+  }
   return null;
+}
+
+function findWestLanePlan(geometry, hostRow, guestRow) {
+  if (!hostRow || !guestRow) throw new Error('cannot stage S&D without both authoritative player rows');
+  const centerZ = (hostRow.z + guestRow.z) / 2;
+  const hostGoalZ = centerZ + 5;
+  const guestGoalZ = centerZ - 5;
+  const rejected = [];
+  const firstCandidate = Math.floor(Math.min(hostRow.x, guestRow.x)) - 0.5;
+  for (let laneX = firstCandidate; laneX >= 3.5; laneX--) {
+    const hostEntry = routeBlocker(geometry, hostRow, { x: laneX, z: hostRow.z });
+    const guestEntry = routeBlocker(geometry, guestRow, { x: laneX, z: guestRow.z });
+    const northZ = Math.min(hostRow.z, guestRow.z);
+    const southZ = Math.max(hostRow.z, guestRow.z);
+    const hostCorridor = routeBlocker(
+      geometry,
+      { ...hostRow, x: laneX, z: northZ },
+      { x: laneX, z: southZ },
+    );
+    const guestCorridor = routeBlocker(
+      geometry,
+      { ...guestRow, x: laneX, z: northZ },
+      { x: laneX, z: southZ },
+    );
+    const projectedHost = { ...hostRow, x: laneX, z: hostGoalZ };
+    const projectedGuest = { ...guestRow, x: laneX, z: guestGoalZ };
+    const shot = shotRay(geometry, projectedHost, projectedGuest);
+    if (!hostEntry && !guestEntry && !hostCorridor && !guestCorridor && shot.clear) {
+      return { laneX, hostGoalZ, guestGoalZ };
+    }
+    if (rejected.length < 4) {
+      const reason = hostEntry || guestEntry || hostCorridor || guestCorridor;
+      rejected.push(`x=${laneX}:${reason
+        ? reason.blockers.join('|')
+        : `shot=${JSON.stringify(shot.hit)}`}`);
+    }
+  }
+  throw new Error(
+    `Citadel has no map-clear west staging lane from ` +
+    `host=(${hostRow.x.toFixed(2)},${hostRow.y.toFixed(2)},${hostRow.z.toFixed(2)}) ` +
+    `guest=(${guestRow.x.toFixed(2)},${guestRow.y.toFixed(2)},${guestRow.z.toFixed(2)}) ` +
+    `(${rejected.join('; ')})`,
+  );
+}
+
+function latestAuthoritativeTick(client) {
+  for (let i = client.frames.length - 1; i >= 0; i--) {
+    const frame = client.frames[i];
+    if (frame.kind === 'json' && frame.value?.t === 'tick') return frame.value;
+  }
+  return null;
+}
+
+function stagingTimeoutMs(distance) {
+  const travelMs = (Math.max(0, distance) / PHYSICS.walk) * 1_000;
+  return Math.ceil(2_000 + travelMs * 2.5);
+}
+
+function stagingFailure(error, label, host, participants, geometry, targets) {
+  const tick = latestAuthoritativeTick(host);
+  const positions = participants.map((client) => {
+    const row = playerRow(tick, client);
+    return `${client.label}=${row
+      ? `(${row.x.toFixed(2)},${row.y.toFixed(2)},${row.z.toFixed(2)} ${row.state})`
+      : 'missing'}`;
+  }).join(' ');
+  const blockers = participants.map((client) => {
+    const row = playerRow(tick, client);
+    const target = targets.get(client) || (row && { x: row.x, z: row.z });
+    const blocked = target ? routeBlocker(geometry, row, target) : null;
+    return `${client.label}=${blocked
+      ? `${blocked.blockers.join('|')}@${blocked.at
+        ? `${blocked.at.x.toFixed(2)},${blocked.at.y.toFixed(2)},${blocked.at.z.toFixed(2)}`
+        : 'unknown'}`
+      : 'none-on-remaining-route'}`;
+  }).join(' ');
+  const [hostRow, guestRow] = participants.map((client) => playerRow(tick, client));
+  const shot = shotRay(geometry, hostRow, guestRow);
+  return new Error(
+    `${label} failed: ${error.message}; authoritative now=${tick?.now ?? 'none'} ` +
+    `positions ${positions}; blockers ${blockers}; firing-lane=${shot.clear
+      ? `clear/${shot.distance.toFixed(2)}`
+      : JSON.stringify(shot.hit)}`,
+    { cause: error },
+  );
+}
+
+async function waitForSndStage(
+  host,
+  participants,
+  geometry,
+  targets,
+  mark,
+  predicate,
+  label,
+  signal,
+  timeoutMs,
+) {
+  try {
+    return await nextTick(host, mark, predicate, label, signal, timeoutMs);
+  } catch (error) {
+    throw stagingFailure(error, label, host, participants, geometry, targets);
+  }
+}
+
+async function settleMovementInputs(
+  host,
+  participants,
+  geometry,
+  tick,
+  seq,
+  headings,
+  label,
+  signal,
+) {
+  const mark = host.mark();
+  const targets = new Map();
+  const previous = new Map();
+  for (const client of participants) {
+    const row = playerRow(tick, client);
+    targets.set(client, { x: row.x, z: row.z });
+    previous.set(client, { x: row.x, z: row.z });
+    client.input(seq, { yaw: headings.get(client), weapon: REVOLVER_SLOT });
+  }
+  let stableSamples = 0;
+  return waitForSndStage(
+    host,
+    participants,
+    geometry,
+    targets,
+    mark,
+    (next) => {
+      let maxStep = 0;
+      for (const client of participants) {
+        const row = playerRow(next, client);
+        const prior = previous.get(client);
+        if (!row || angleDistance(row.yaw, headings.get(client)) >= 0.002) {
+          stableSamples = 0;
+          return false;
+        }
+        maxStep = Math.max(maxStep, Math.hypot(row.x - prior.x, row.z - prior.z));
+        previous.set(client, { x: row.x, z: row.z });
+      }
+      stableSamples = maxStep <= 0.03 ? stableSamples + 1 : 0;
+      return stableSamples >= 2;
+    },
+    label,
+    signal,
+    FRAME_TIMEOUT_MS,
+  );
+}
+
+async function stageSndWestLane(host, guest, initialTick, geometry, signal) {
+  const participants = [host, guest];
+  const headingsWest = new Map([[host, Math.PI / 2], [guest, Math.PI / 2]]);
+  const plan = findWestLanePlan(
+    geometry,
+    playerRow(initialTick, host),
+    playerRow(initialTick, guest),
+  );
+  let tick = await settleMovementInputs(
+    host,
+    participants,
+    geometry,
+    initialTick,
+    10,
+    headingsWest,
+    'S&D staging movement reset',
+    signal,
+  );
+
+  let mark = host.mark();
+  const entryTargets = new Map(participants.map((client) => [
+    client,
+    { x: plan.laneX, z: playerRow(tick, client).z },
+  ]));
+  const entryDistance = Math.max(...participants.map((client) =>
+    Math.abs(playerRow(tick, client).x - plan.laneX)));
+  for (const client of participants) {
+    client.input(11, {
+      yaw: Math.PI / 2,
+      weapon: REVOLVER_SLOT,
+      forward: true,
+      sprint: true,
+    });
+  }
+  tick = await waitForSndStage(
+    host,
+    participants,
+    geometry,
+    entryTargets,
+    mark,
+    (next) => participants.every((client) => playerRow(next, client)?.x <= plan.laneX),
+    'S&D players enter the map-clear west lane',
+    signal,
+    stagingTimeoutMs(entryDistance),
+  );
+
+  const headingsLongitudinal = new Map([[host, 0], [guest, Math.PI]]);
+  tick = await settleMovementInputs(
+    host,
+    participants,
+    geometry,
+    tick,
+    12,
+    headingsLongitudinal,
+    'S&D west-lane turn reset',
+    signal,
+  );
+
+  mark = host.mark();
+  const convergenceTargets = new Map([
+    [host, { x: plan.laneX, z: plan.hostGoalZ }],
+    [guest, { x: plan.laneX, z: plan.guestGoalZ }],
+  ]);
+  const convergenceDistance = Math.max(
+    Math.abs(playerRow(tick, host).z - plan.hostGoalZ),
+    Math.abs(playerRow(tick, guest).z - plan.guestGoalZ),
+  );
+  host.input(13, { yaw: 0, weapon: REVOLVER_SLOT, forward: true, sprint: true });
+  guest.input(13, { yaw: Math.PI, weapon: REVOLVER_SLOT, forward: true, sprint: true });
+  tick = await waitForSndStage(
+    host,
+    participants,
+    geometry,
+    convergenceTargets,
+    mark,
+    (next) => playerRow(next, host)?.z <= plan.hostGoalZ &&
+      playerRow(next, guest)?.z >= plan.guestGoalZ,
+    'S&D players converge in the map-clear west lane',
+    signal,
+    stagingTimeoutMs(convergenceDistance),
+  );
+
+  tick = await settleMovementInputs(
+    host,
+    participants,
+    geometry,
+    tick,
+    14,
+    headingsLongitudinal,
+    'S&D west-lane combat input reset',
+    signal,
+  );
+  const finalShot = shotRay(geometry, playerRow(tick, host), playerRow(tick, guest));
+  pass(finalShot.clear,
+    'Citadel binary map confirms a clear active-opponent firing lane',
+    `positions ${host.label}=(${playerRow(tick, host).x.toFixed(2)},${playerRow(tick, host).z.toFixed(2)}) ` +
+    `${guest.label}=(${playerRow(tick, guest).x.toFixed(2)},${playerRow(tick, guest).z.toFixed(2)}) ` +
+    `blocker=${JSON.stringify(finalShot.hit)}`);
+  return tick;
+}
+
+
+async function settleAim(client, seq, tick, target, weapon, label, signal) {
+  const angles = aimAngles(playerRow(tick, client), playerRow(tick, target));
+  const aimMark = client.mark();
+  client.input(seq, { yaw: angles.yaw, pitch: angles.pitch, weapon, ads: true });
+  const aimed = await nextTick(
+    client,
+    aimMark,
+    (next) => {
+      const row = playerRow(next, client);
+      return row?.ads && angleDistance(row.yaw, angles.yaw) < 0.002 &&
+        Math.abs(row.pitch - angles.pitch) < 0.002;
+    },
+    `${label} aim lock`,
+    signal,
+  );
+  return nextTick(
+    client,
+    client.mark(),
+    (next) => next.now >= aimed.now + 250,
+    `${label} ADS settle`,
+    signal,
+  );
 }
 
 function eventsBetween(client, after, through) {
@@ -778,7 +1092,7 @@ async function runTdmDepot(port, quickDepotBytes, signal) {
   pass(host.welcome.phase === 'waiting' && host.welcome.lobby.role === 'host',
     'selected TDM Depot create returns a waiting host identity');
   const members = [host];
-  for (const label of ['TDM-Bravo-1', 'TDM-Alpha-2', 'TDM-Bravo-2', 'TDM-Alpha-3']) {
+  for (const label of ['TDM-Bravo-1', 'TDM-Alpha-2', 'TDM-Bravo-2', 'TDM-Alpha-3', 'TDM-Bravo-3']) {
     const member = await admit(
       makeClient(port, label),
       { t: 'join', name: label, lobby: host.welcome.lobby.code.toLowerCase() },
@@ -799,7 +1113,7 @@ async function runTdmDepot(port, quickDepotBytes, signal) {
       `${label} inherits the exact Depot map bytes`);
   }
   pass(new Set(members.map((client) => client.welcome.id)).size === members.length,
-    'TDM lobby assigns five distinct wire player identities');
+    'TDM lobby assigns six distinct wire player identities');
   pass(Buffer.compare(host.map, quickDepotBytes) === 0,
     'selected TDM Depot and fresh Fun Depot start from the same Depot template');
 
@@ -821,12 +1135,11 @@ async function runTdmDepot(port, quickDepotBytes, signal) {
   'TDM match fields expose the exact initial live state');
   assertTeamScores(firstTick.match.scores, 0, 0, 'TDM starts with exact zeroed team scores');
 
-  const expectedTeams = new Map(members.map((client, index) => [
-    client.welcome.id,
-    index % 2 === 0 ? 'alpha' : 'bravo',
-  ]));
-  pass(firstTick.players.every((row) => row.team === expectedTeams.get(row.id)),
-    'first TDM tick rows carry complete exact balanced team assignments');
+  const expectedTeams = new Map(firstTick.players.map((row) => [row.id, row.team]));
+  const assignedTeams = new Set(expectedTeams.values());
+  pass(expectedTeams.size === members.length &&
+    assignedTeams.size === 2 && assignedTeams.has('alpha') && assignedTeams.has('bravo'),
+  'first TDM tick rows establish complete authoritative alpha/bravo assignments');
   assertInitialTeamAssignments(
     eventsBetween(host, liveMarks.get(host), firstTickFrame.seq),
     firstTick.players,
@@ -867,47 +1180,8 @@ async function runTdmDepot(port, quickDepotBytes, signal) {
       (frame.value.code === host.welcome.lobby.code &&
         frame.value.host === host.welcome.id);
   })), 'TDM lobby and client identities remain stable through subsequent ticks');
-  const friendly = findClearFriendlyPair(host.map, armedTick, members);
-  pass(friendly !== null && friendly.shooterRow.team === friendly.targetRow.team,
-    'Depot supplies a clear same-team wire shot for the friendly-fire contract');
-  const angles = aimAngles(friendly.shooterRow, friendly.targetRow);
-  const aimMark = friendly.shooter.mark();
-  friendly.shooter.input(100, { yaw: angles.yaw, pitch: angles.pitch, weapon: 0, ads: true });
-  const aimed = await nextTick(
-    friendly.shooter,
-    aimMark,
-    (tick) => {
-      const row = playerRow(tick, friendly.shooter);
-      return row?.ads && angleDistance(row.yaw, angles.yaw) < 0.002 && Math.abs(row.pitch - angles.pitch) < 0.002;
-    },
-    'TDM friendly aim lock',
-    signal,
-  );
-  const adsMark = friendly.shooter.mark();
-  const settledAim = await nextTick(
-    friendly.shooter,
-    adsMark,
-    (tick) => tick.now >= aimed.now + 250,
-    'TDM full ADS settle',
-    signal,
-  );
-  const targetBefore = playerRow(settledAim, friendly.target);
-  const shotFrame = await fireOne(friendly.shooter, 101, {
-    tick: settledAim,
-    client: friendly.target,
-    weapon: 0,
-  }, signal);
-  const shotTick = shotFrame.value;
-  const targetAfter = playerRow(shotTick, friendly.target);
-  pass(shotTick.events.some((event) => event?.kind === 'shoot' &&
-    event.id === friendly.shooter.welcome.id && event.w === 'rifle'),
-  'same-team fire produces an authoritative rifle shot on the wire');
-  pass(targetAfter?.hp === targetBefore.hp && targetAfter.state === 'alive' &&
-    !shotTick.events.some((event) => event?.kind === 'hit' && event.victim === friendly.target.welcome.id),
-  'TDM authoritative wire blocks friendly damage and hit feedback');
-  assertTeamScores(shotTick.match.scores, 0, 0, 'friendly fire leaves both TDM team scores unchanged');
 
-  await Promise.all(members.map((client) => client.close()));
+  await closeRoomClients(members, 'TDM room');
 }
 
 async function runSndCitadel(port, depotBytes, signal) {
@@ -938,6 +1212,7 @@ async function runSndCitadel(port, depotBytes, signal) {
     'S&D invite join inherits the exact Citadel binary map');
   pass(host.map.length === depotBytes.length && Buffer.compare(host.map, depotBytes) !== 0,
     'Citadel and Depot use equally complete but byte-distinct map payloads');
+  const citadelGeometry = createShotGeometry('citadel', host.map);
 
   const liveMarks = await readyAndStart(host, members, selection, signal);
   const prepTickFrame = await nextTickFrame(
@@ -963,8 +1238,9 @@ async function runSndCitadel(port, depotBytes, signal) {
     hostPrep.credits === 800 && guestPrep.credits === 800 &&
     JSON.stringify(hostPrep.owned) === '["revolver"]' &&
     JSON.stringify(guestPrep.owned) === '["revolver"]' &&
-    hostPrep.weapon === REVOLVER_SLOT && guestPrep.weapon === REVOLVER_SLOT,
-  'S&D prep rows expose exact roles, credits, and revolver-only loadouts');
+    hostPrep.weapon === REVOLVER_SLOT && guestPrep.weapon === REVOLVER_SLOT &&
+    hostPrep.spawnProtected === false && guestPrep.spawnProtected === false,
+  'S&D prep rows expose exact roles, credits, revolver-only loadouts, and no timed protection');
   pass(prepTick.match.bomb &&
     Object.keys(prepTick.match.bomb).sort().join(',') === 'carrier,explodeAt,site,state,x,y,z' &&
     prepTick.match.bomb.state === 'carried' && prepTick.match.bomb.carrier === host.welcome.id &&
@@ -1095,35 +1371,9 @@ async function runSndCitadel(port, depotBytes, signal) {
 
   const liveTransitionMark = host.mark();
 
-  // Move the two active round participants into the open west lane while prep
-  // runs, so one deterministic two-shot elimination advances the real clock.
-  mark = host.mark();
-  host.input(10, { yaw: Math.PI / 2, weapon: REVOLVER_SLOT, forward: true, sprint: true });
-  guest.input(10, { yaw: Math.PI / 2, weapon: REVOLVER_SLOT, forward: true, sprint: true });
-  await nextTick(
-    host,
-    mark,
-    (tick) => playerRow(tick, host)?.x <= 11.5 && playerRow(tick, guest)?.x <= 11.5,
-    'S&D players enter the open west lane',
-    signal,
-    FRAME_TIMEOUT_MS,
-  );
-
-  mark = host.mark();
-  host.input(11, { yaw: 0, weapon: REVOLVER_SLOT, forward: true, sprint: true });
-  guest.input(11, { yaw: Math.PI, weapon: REVOLVER_SLOT, forward: true, sprint: true });
-  const converged = await nextTick(
-    host,
-    mark,
-    (tick) => playerRow(tick, host)?.z <= 53 && playerRow(tick, guest)?.z >= 42,
-    'S&D players converge in the open west lane',
-    signal,
-    8_000,
-  );
-  host.input(12, { yaw: 0, weapon: REVOLVER_SLOT });
-  guest.input(12, { yaw: Math.PI, weapon: REVOLVER_SLOT });
-  pass(clearPlayerShot(host.map, playerRow(converged, host), playerRow(converged, guest)),
-    'Citadel binary map confirms a clear active-opponent firing lane');
+  // Stage against the authoritative Citadel bytes and positions while prep
+  // runs; movement deadlines scale with the two real route legs.
+  await stageSndWestLane(host, guest, deployed, citadelGeometry, signal);
 
   const liveTickFrame = await nextTickFrame(
     host,
@@ -1286,8 +1536,9 @@ async function runSndCitadel(port, depotBytes, signal) {
   assertMatchShape(roundTwo, selection, 'S&D round-two tick');
   pass(lateRoundTwo.team === 'alpha' && lateRoundTwo.state === 'alive' && lateRoundTwo.hp === 100 &&
     lateRoundTwo.weapon === REVOLVER_SLOT && JSON.stringify(lateRoundTwo.owned) === '["revolver"]' &&
+    roundTwo.players.every((row) => row.spawnProtected === false) &&
     roundTwo.events.some((event) => event?.kind === 'round_start' && event.round === 2),
-  'late spectator activates with its exact role and revolver at the next round boundary');
+  'S&D round respawns preserve exact roles and revolvers without timed-respawn protection');
   const carrierRows = roundTwo.players.filter((row) => row.bomb);
   pass(roundTwo.match.attackers === 'alpha' && roundTwo.match.defenders === 'bravo' &&
     roundTwo.match.bomb?.state === 'carried' && carrierRows.length === 1 &&
