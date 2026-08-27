@@ -1,0 +1,713 @@
+import {
+  DEFAULT_MAP_ID,
+  isModeMapCompatible,
+  isWeaponId,
+  normalizeMapId,
+  normalizeModeId,
+} from '../../../shared/modes.js';
+
+// Voxel Blitz — WebSocket client + snapshot interpolation layer.
+//
+// Transport: JSON text frames; the ONE binary frame is the serialized map
+// pushed by the server immediately after {t:'welcome'} (paired by arrival
+// order on this socket). Everything else follows BUILD-CONTRACT.md protocol.
+//
+// The interpolation math and event draining are FACTORED INTO PURE NAMED
+// EXPORTS (angleLerpShortest, drainEventsWithDedupe) so node tests can drive
+// fake snapshot arrays without a WebSocket. WebSockets are only touched lazily
+// inside connect() with an inline typeof guard, so importing this module under
+// plain node is safe.
+
+const INTERP_SPAN = 65536;        // events-per-snapshot domain for composite ids
+const SEEN_SOFT_CAP = 8192;       // dedupe set size before pruning oldest half
+const RING_LEN = 32;
+
+/** JSON-wire copy with every retained object/array made immutable. */
+const immutableWireCopy = (value) => {
+  if (Array.isArray(value)) {
+    return Object.freeze(value.map((item) => immutableWireCopy(item)));
+  }
+  if (value && typeof value === 'object') {
+    return Object.freeze(Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [key, immutableWireCopy(item)]),
+    ));
+  }
+  return value;
+};
+
+/** Timestamp seam: performance.now() when present, Date.now() otherwise. */
+const now = () =>
+  (typeof performance !== 'undefined' && performance.now)
+    ? performance.now()
+    : Date.now();
+
+/**
+ * Shortest-arc yaw lerp in radians. Chooses whichever direction around the
+ * circle is shorter, so yaw=3.0 -> yaw=-3.0 sweeps through PI rather than the
+ * long way. @param {number} a start angle @param {number} b end angle
+ * @param {number} t blend 0..1
+ */
+export function angleLerpShortest(a, b, t) {
+  const diff = (((b - a) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
+  return a + diff * t;
+}
+
+/**
+ * Drains every event living in snapshots whose `.now <= upTo`, in arrival
+ * order, emitting each event EXACTLY ONCE across repeated calls thanks to
+ * shared monotonic-id dedupe state.
+ *
+ * Event identity prefers the server-supplied `ev.seq` when finite ("per-event
+ * monotonic seq counter"); otherwise it falls back to a deterministic
+ * composite of owning snapshot identity (`snapSeq`, or integer `now` for bare
+ * fake arrays) plus event index — stable across calls given identical arrays,
+ * which is all repeated-frame rendering requires.
+ *
+ * Pure apart from mutating the optional `state` bag
+ * ({ seen:Set, seq:number, snapSeq:number }).
+ * @param {Array<{now:number,snapSeq?:number,events?:Array}>} snapshotList
+ * @param {number} upTo inclusive gate compared against snap.now
+ * @param {{seen?:Set<string>,seq?:number,snapSeq?:number}} [state] cross-call dedupe memory
+ * @returns {Array<object>} newly-visible events in chronological order
+ */
+export function drainEventsWithDedupe(snapshotList, upTo, state) {
+  const out = [];
+  if (!Array.isArray(snapshotList)) return out;
+  const ownState = state || {};
+  const seen = ownState.seen instanceof Set ? ownState.seen : new Set();
+  let watermark = Number.isFinite(ownState.seq) ? ownState.seq : -1;
+  let snapWatermark = Number.isFinite(ownState.snapSeq) ? ownState.snapSeq : -1;
+  for (let si = 0; si < snapshotList.length; si++) {
+    const snap = snapshotList[si];
+    if (!snap || typeof snap.now !== 'number' || snap.now > upTo) continue;
+    const ownedSnapSeq = Number.isFinite(snap.snapSeq) ? snap.snapSeq : null;
+    if (ownedSnapSeq !== null && ownedSnapSeq <= snapWatermark) continue;
+    const events = Array.isArray(snap.events) ? snap.events : [];
+    const baseId = ownedSnapSeq !== null
+      ? ownedSnapSeq * INTERP_SPAN
+      : Math.floor(Math.abs(snap.now)) * INTERP_SPAN;
+    for (let ei = 0; ei < events.length; ei++) {
+      const ev = events[ei];
+      if (!ev || typeof ev !== 'object') continue;
+      const hasEventSeq = Number.isFinite(ev.seq);
+      const mono = hasEventSeq ? ev.seq : baseId + ei;
+      const key = (hasEventSeq ? 's' : 'f') + mono;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (mono > watermark) watermark = mono;
+      out.push(ev);
+    }
+    if (ownedSnapSeq !== null && ownedSnapSeq > snapWatermark) {
+      snapWatermark = ownedSnapSeq;
+    }
+  }
+  if (state) {
+    state.seen = seen;
+    state.seq = watermark;
+    state.snapSeq = snapWatermark;
+    // Bound memory: live frames never need more than the freshest window.
+    if (seen.size > SEEN_SOFT_CAP) {
+      let n = SEEN_SOFT_CAP >> 1;
+      for (const k of seen) {
+        seen.delete(k);
+        if (--n === 0) break;
+      }
+    }
+  }
+  return out;
+}
+
+/** Newest-row fields retained alongside interpolated transforms. */
+const PASSTHROUGH_FIELDS = [
+  'name', 'hp', 'team', 'weapon', 'score', 'kills', 'deaths',
+  'state', 'firing', 'ads', 'credits', 'owned', 'bomb', 'interaction',
+];
+
+export class NetClient {
+  constructor() {
+    this.ws = null;
+    this._sessionGeneration = 0;
+    this._connectAbort = null;
+    this.welcome = null;         // frozen welcome payload (also connect()'s resolve value)
+    this.id = null;
+    this.mapBytes = 0;
+    this.tickRate = 20;
+    this.spawn = null;
+    this.dirty = false;          // true once the connection died post-welcome
+    this.ping = 0;               // smoothed tick-arrival jitter estimate (ms)
+    this._lastArrival = null;    // arrival time of the previous tick (local clock)
+
+    /** Newest-last ring buffer (max RING_LEN) of raw tick snapshots. */
+    this.latestSnapshots = [];
+    /** Immutable events returned by the most recent interpolate() call. */
+    this.latestEvents = Object.freeze([]);
+    /** Newest full waiting/live lobby replacement, or null outside a lobby. */
+    this.latestLobbyState = null;
+    /** Newest immutable authoritative match snapshot. */
+    this.latestMatch = null;
+
+    /** Called with map bytes right before connect()'s promise resolves. */
+    this.onMap = null;
+
+    this._listeners = new Map();
+    this._seq = 0;               // outgoing input sequence
+    this._snapSeq = 1;           // monotonic id for received snapshots
+    this._drainState = { seen: new Set(), seq: -1, snapSeq: -1 };
+    this._pingTimer = null;
+  }
+
+  /**
+   * Register a callback. Types: 'open', 'close', 'welcome', 'tick', 'chat',
+   * plus server event kinds ('shoot','hit','kill','block','respawn','die').
+   * @param {string} type @param {(payload:any)=>void} fn
+   * @returns {()=>void} unregister function
+   */
+  on(type, fn) {
+    let set = this._listeners.get(type);
+    if (!set) {
+      set = new Set();
+      this._listeners.set(type, set);
+    }
+    set.add(fn);
+    return () => this.off(type, fn);
+  }
+
+  off(type, fn) {
+    const set = this._listeners.get(type);
+    if (set) {
+      set.delete(fn);
+      if (set.size === 0) this._listeners.delete(type);
+    }
+  }
+
+  _emit(type, payload) {
+    const set = this._listeners.get(type);
+    if (!set) return;
+    for (const fn of set) {
+      try {
+        fn(payload);
+      } catch (err) {
+        // A listener bug must never take down the net loop.
+        if (typeof console !== 'undefined') console.error(err);
+      }
+    }
+  }
+
+  /** True while a socket exists and is open (readyState 1). */
+  isOpen() {
+    return !!this.ws && this.ws.readyState === 1;
+  }
+
+  /** Clear all socket-owned state without touching caller-owned listeners. */
+  _resetSessionState(dirty) {
+    this._stopPing();
+    this.welcome = null;
+    this.id = null;
+    this.mapBytes = 0;
+    this.tickRate = 20;
+    this.spawn = null;
+    this.latestLobbyState = null;
+    this.latestMatch = null;
+    this.latestEvents = Object.freeze([]);
+    this.latestSnapshots.length = 0;
+    this._drainState.seen.clear();
+    this._drainState.seq = -1;
+    this._drainState.snapSeq = -1;
+    this._lastArrival = null;
+    this.ping = 0;
+    this._seq = 0;
+    this._snapSeq = 1;
+    this.dirty = !!dirty;
+  }
+
+  _detachSocket(ws) {
+    if (!ws) return;
+    ws.onopen = null;
+    ws.onmessage = null;
+    ws.onerror = null;
+    ws.onclose = null;
+  }
+
+  /**
+   * Connects, sends the selected admission frame, waits for {t:'welcome'},
+   * then for the single following binary map frame — handed to this.onMap
+   * first — and resolves with the welcome object. Rejects on error/close
+   * before pairing completes. A previous session's buffers are cleared so
+   * reconnects start clean. Omitting opts.mode preserves quick play.
+   * @param {string} url ws(s)://… endpoint @param {string} name display name
+   * @param {{mode?:'quick'|'create'|'join',bots?:number,lobby?:string,
+   *          gameMode?:string,map?:string}} [opts]
+   * @returns {Promise<object>} welcome payload
+   */
+  connect(url, name, opts = null) {
+    const options = opts && typeof opts === 'object' ? opts : {};
+    const bots = (Number(options.bots) | 0) || 0;
+    let initialFrame;
+    if (options.mode === 'create') {
+      const gameMode = normalizeModeId(options.gameMode);
+      const requestedMap = normalizeMapId(options.map);
+      const map = isModeMapCompatible(gameMode, requestedMap)
+        ? requestedMap
+        : DEFAULT_MAP_ID;
+      initialFrame = { t: 'create', name, bots, gameMode, map };
+    } else if (options.mode === 'join') {
+      initialFrame = { t: 'join', name, lobby: options.lobby };
+    } else {
+      initialFrame = { t: 'join', name, bots };
+    }
+    if (this.ws !== null || this._connectAbort !== null) {
+      return Promise.reject(new Error('already connected'));
+    }
+
+    const generation = ++this._sessionGeneration;
+    this._resetSessionState(false);
+    const WSCtor = typeof WebSocket !== 'undefined'
+      ? WebSocket
+      : (typeof globalThis !== 'undefined' ? globalThis.WebSocket : null);
+    if (!WSCtor) return Promise.reject(new Error('WebSocket unavailable'));
+
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      let pairedWelcome = null;
+      const pendingBinaries = [];
+      const ws = new WSCtor(url);
+      this.ws = ws;
+      const isCurrent = () =>
+        this.ws === ws && this._sessionGeneration === generation;
+      const detach = () => this._detachSocket(ws);
+      const rejectConnect = (err) => {
+        if (settled) return;
+        settled = true;
+        pendingBinaries.length = 0;
+        const wasCurrent = isCurrent();
+        detach();
+        if (this._connectAbort === rejectConnect) this._connectAbort = null;
+        if (wasCurrent) {
+          this.ws = null;
+          ++this._sessionGeneration;
+          this._resetSessionState(true);
+        }
+        if (ws && (ws.readyState === 0 || ws.readyState === 1)) {
+          try {
+            ws.close(1000, 'connection failed');
+          } catch { /* socket already failed */ }
+        }
+        reject(err instanceof Error ? err : new Error(String(err)));
+      };
+      const finishPairing = () => {
+        if (settled || !isCurrent() || pairedWelcome === null ||
+            pendingBinaries.length === 0) {
+          return;
+        }
+        const mapBytes = pendingBinaries.shift();
+        pendingBinaries.length = 0;
+        const expectedBytes = Number(pairedWelcome.mapBytes);
+        if (Number.isFinite(expectedBytes) && expectedBytes >= 0 &&
+            mapBytes.byteLength !== expectedBytes) {
+          rejectConnect(new Error('map frame length does not match welcome'));
+          return;
+        }
+        try {
+          if (this.onMap) this.onMap(mapBytes);
+        } catch (err) {
+          rejectConnect(err);
+          return;
+        }
+        // onMap is caller code and may have synchronously closed this session.
+        if (settled || !isCurrent()) return;
+        settled = true;
+        if (this._connectAbort === rejectConnect) this._connectAbort = null;
+        this._reattach(ws, generation);
+        this.dirty = false;
+        resolve(pairedWelcome);
+      };
+
+      this._connectAbort = rejectConnect;
+      try {
+        ws.binaryType = 'arraybuffer';
+      } catch {
+        /* exotic shims: data still arrives as ArrayBuffer-or-String */
+      }
+      ws.onclose = () => {
+        if (isCurrent()) rejectConnect(new Error('closed before welcome/map'));
+      };
+      ws.onerror = () => {
+        if (isCurrent()) rejectConnect(new Error('connection failed before welcome/map'));
+      };
+      ws.onopen = () => {
+        if (!isCurrent() || settled) return;
+        this._emit('open');
+        if (!isCurrent() || settled) return;
+        try {
+          ws.send(JSON.stringify(initialFrame));
+        } catch (err) {
+          rejectConnect(err);
+        }
+      };
+      ws.onmessage = (m) => {
+        if (!isCurrent() || settled) return;
+        if (typeof m.data === 'string') {
+          const type = this._onText(m.data);
+          if (!isCurrent() || settled) return;
+          if (type === 'error') {
+            rejectConnect(new Error('server rejected connection'));
+            return;
+          }
+          if (type === 'welcome') {
+            if (pairedWelcome !== null) {
+              rejectConnect(new Error('duplicate welcome before map'));
+              return;
+            }
+            pairedWelcome = this.welcome;
+            finishPairing();
+          }
+          return;
+        }
+        try {
+          const bytes = m.data instanceof ArrayBuffer
+            ? new Uint8Array(m.data)
+            : Uint8Array.from(m.data);
+          pendingBinaries.push(bytes);
+          finishPairing();
+        } catch {
+          rejectConnect(new Error('invalid map frame'));
+        }
+      };
+    });
+  }
+
+  _reattach(ws, generation) {
+    const isCurrent = () =>
+      this.ws === ws && this._sessionGeneration === generation;
+    ws.onmessage = (m) => {
+      if (!isCurrent()) return;
+      if (typeof m.data === 'string') this._onText(m.data, false);
+      else this._onTickData(m.data);
+    };
+    ws.onerror = () => {
+      if (isCurrent()) this.dirty = true;
+    };
+    ws.onclose = () => {
+      if (!isCurrent()) return;
+      this.ws = null;
+      ++this._sessionGeneration;
+      this._detachSocket(ws);
+      this._resetSessionState(true);
+      this._emit('close');
+    };
+  }
+
+  /**
+   * Send one input sample at the caller's cadence (~60/s per contract).
+   * Movement accepts short ({f,b,l,r}) or verbose
+   * ({forward,back,left,right}) names and is renamed onto the wire contract.
+   * Interaction is always the fixed nested keys.interact boolean; switchTo is
+   * only wired when integer.
+   * @param {{keys?:{f?:boolean,b?:boolean,l?:boolean,r?:boolean,
+   *          forward?:boolean,back?:boolean,left?:boolean,right?:boolean,
+   *          jump?:boolean,sprint?:boolean,crouch?:boolean,interact?:boolean},
+   *          yaw:number,pitch:number,weapon:number,wantFire:boolean,
+   *          wantAds:boolean,reload:boolean,switchTo?:number}} input
+   * @returns {boolean} true only when the frame was handed to the socket
+   */
+  sendInput(input) {
+    if (!this.isOpen()) return false;
+    const k = input.keys || {};
+    const msg = {
+      t: 'input',
+      seq: ++this._seq,
+      keys: {
+        f: !!(k.f !== undefined ? k.f : k.forward),
+        b: !!(k.b !== undefined ? k.b : k.back),
+        l: !!(k.l !== undefined ? k.l : k.left),
+        r: !!(k.r !== undefined ? k.r : k.right),
+        jump: !!k.jump,
+        sprint: !!k.sprint,
+        crouch: !!k.crouch,
+        interact: !!k.interact,
+      },
+      yaw: input.yaw,
+      pitch: input.pitch,
+      weapon: input.weapon | 0,
+      wantFire: !!input.wantFire,
+      wantAds: !!input.wantAds,
+      reload: !!input.reload,
+    };
+    if (Number.isInteger(input.switchTo)) msg.switchTo = input.switchTo;
+    try {
+      this.ws.send(JSON.stringify(msg));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Set this human's waiting-lobby readiness. */
+  setReady(value) {
+    if (!this.isOpen()) return false;
+    try {
+      this.ws.send(JSON.stringify({ t: 'ready', value: !!value }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Buy one exact shared-contract weapon id. */
+  buyWeapon(id) {
+    if (!isWeaponId(id) || !this.isOpen()) return false;
+    try {
+      this.ws.send(JSON.stringify({ t: 'buy', weapon: id }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Ask the server to start this waiting lobby as its host. */
+  requestStart() {
+    if (!this.isOpen()) return false;
+    try {
+      this.ws.send(JSON.stringify({ t: 'start' }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /** Politely disconnects. Idempotent; no auto-reconnect follows. */
+  close() {
+    const abort = this._connectAbort;
+    if (abort) {
+      abort(new Error('closed before welcome/map'));
+      this._emit('close');
+      return;
+    }
+
+    const ws = this.ws;
+    if (!ws) return;
+    this.ws = null;
+    ++this._sessionGeneration;
+    this._detachSocket(ws);
+    this._resetSessionState(true);
+    if (typeof ws.close === 'function' &&
+        (ws.readyState === 0 || ws.readyState === 1)) {
+      try {
+        ws.close(1000, 'bye');
+      } catch { /* already closing */ }
+    }
+    this._emit('close');
+  }
+
+  /**
+   * Advance the view clock. Interpolates remote players between the two
+   * snapshots surrounding `renderNowMs - delayMs` (server-time mapped via the
+   * drift EMA) and drains every newly-visible event exactly once — returned
+   * AND dispatched through on(kind,…). Rows exclude the local player id.
+   * @param {number} renderNowMs performance.now()-based frame time
+   * @param {number} [delayMs=100] interpolation buffering behind wall clock
+   * @returns {{players:Map<string,object>,events:Array<object>,match:object|null}}
+   */
+  interpolate(renderNowMs, delayMs = 100) {
+    const snaps = this.latestSnapshots;
+    // All snapshots now live on the local performance clock (see _onTick).
+    const target = renderNowMs - delayMs;
+    const players = new Map();
+    let match = this.latestMatch;
+
+    let a = null; // newest snapshot with now <= target
+    let b = null; // oldest snapshot with now > target
+    for (let i = 0; i < snaps.length; i++) {
+      if (snaps[i].now <= target) a = snaps[i];
+      else {
+        b = snaps[i];
+        break;
+      }
+    }
+    if (b === null) b = a;
+    if (a === null) a = b;
+
+    if (a !== null && b !== null) {
+      const alphaRaw = b.now > a.now ? (target - a.now) / (b.now - a.now) : 0;
+      const alpha = Math.min(1, Math.max(0, alphaRaw));
+      const oldRows = a !== b ? indexById(a.players) : null;
+      match = b.match || match;
+      const rows = Array.isArray(b.players) ? b.players : [];
+      for (let i = 0; i < rows.length; i++) {
+        const cur = rows[i];
+        if (!cur || cur.id === this.id) continue;
+        const prev = oldRows ? oldRows.get(cur.id) : null;
+        const row = { id: cur.id };
+        for (let f = 0; f < PASSTHROUGH_FIELDS.length; f++) {
+          const field = PASSTHROUGH_FIELDS[f];
+          row[field] = immutableWireCopy(cur[field]);
+        }
+        if (prev) {
+          row.x = prev.x + (cur.x - prev.x) * alpha;
+          row.y = prev.y + (cur.y - prev.y) * alpha;
+          row.z = prev.z + (cur.z - prev.z) * alpha;
+          row.yaw = angleLerpShortest(prev.yaw, cur.yaw, alpha);
+          row.pitch = prev.pitch + (cur.pitch - prev.pitch) * alpha;
+        } else {
+          row.x = cur.x;
+          row.y = cur.y;
+          row.z = cur.z;
+          row.yaw = cur.yaw;
+          row.pitch = cur.pitch;
+        }
+        players.set(cur.id, Object.freeze(row));
+      }
+    }
+
+    // Effect events have one authoritative source: their owning tick snapshot.
+    const events = Object.freeze(
+      drainEventsWithDedupe(this.latestSnapshots, target, this._drainState),
+    );
+    this.latestEvents = events;
+    for (let i = 0; i < events.length; i++) {
+      const ev = events[i];
+      if (ev && ev.kind) this._emit(ev.kind, ev);
+    }
+    return { players, events, match };
+  }
+
+  // ----- internal message plumbing -----
+
+  _onText(text, acceptWelcome = true) {
+    let msg;
+    try {
+      msg = JSON.parse(text);
+    } catch {
+      return null; // malformed frame: ignore, keep the socket alive
+    }
+    if (!msg || typeof msg !== 'object') return null;
+    switch (msg.t) {
+      case 'welcome': {
+        if (!acceptWelcome) return null;
+        const w = immutableWireCopy({
+          id: msg.id,
+          name: msg.name,
+          mapBytes: msg.mapBytes,
+          tickRate: msg.tickRate,
+          spawn: msg.spawn && typeof msg.spawn === 'object' ? msg.spawn : null,
+          lobby: msg.lobby && typeof msg.lobby === 'object' ? msg.lobby : null,
+          gameMode: msg.gameMode,
+          map: msg.map,
+          phase: msg.phase,
+        });
+        this.welcome = w;
+        this.id = w.id;
+        this.mapBytes = w.mapBytes || 0;
+        this.tickRate = w.tickRate || 20;
+        this.spawn = w.spawn;
+        this._startPing(this.ws, this._sessionGeneration);
+        this._emit('welcome', w);
+        break;
+      }
+      case 'lobbyState': {
+        const members = Array.isArray(msg.members)
+          ? msg.members.filter((member) => member && typeof member === 'object')
+          : [];
+        const state = immutableWireCopy({
+          code: msg.code,
+          host: msg.host,
+          phase: msg.phase,
+          bots: msg.bots,
+          gameMode: msg.gameMode,
+          map: msg.map,
+          members,
+          selfId: this.id,
+        });
+        this.latestLobbyState = state;
+        this._emit('lobby', state);
+        break;
+      }
+      case 'error':
+        this._emit('serverError', immutableWireCopy({ msg: msg.msg }));
+        break;
+      case 'tick':
+        this._onTick(msg);
+        break;
+      case 'chat':
+        this._emit('chat', immutableWireCopy({
+          id: msg.id,
+          name: msg.name,
+          text: msg.text,
+        }));
+        break;
+      default:
+        break; // unknown types tolerated forward-compatibly
+    }
+    return msg.t;
+  }
+
+  _onTickData(data) {
+    // Binary frames other than the initial map are not part of the protocol;
+    // ignore defensively instead of choking mid-session.
+  }
+
+  _onTick(msg) {
+    const recvLocal = now();
+    // Single-timeline rule: every downstream consumer (bracket search,
+    // alpha blending, event draining) lives on the LOCAL performance clock,
+    // so the wire's epoch timestamp is parked alongside as serverNow.
+    // Comparing epochs against page-relative ms here is what previously
+    // produced a multi-year clockOffset and snapped the whole interpolation.
+    const prev = this._lastArrival ?? null;
+    this._lastArrival = recvLocal;
+    if (prev != null) {
+      const d = Math.abs(recvLocal - prev - (1000 / this.tickRate || 50));
+      this.ping = Math.round(this.ping * 0.9 + d * 0.1);
+    }
+
+    const rows = Array.isArray(msg.players) ? msg.players : [];
+    const snapshot = immutableWireCopy({
+      ...msg,
+      serverNow: msg.now,
+      now: recvLocal,
+      players: rows.filter((row) => row && typeof row === 'object'),
+      match: msg.match && typeof msg.match === 'object' ? msg.match : null,
+      recvLocalMs: recvLocal,
+      snapSeq: this._snapSeq++,
+    });
+    this.latestMatch = snapshot.match;
+    this.latestSnapshots.push(snapshot);
+    if (this.latestSnapshots.length > RING_LEN) this.latestSnapshots.shift();
+    this._emit('tick', snapshot);
+  }
+
+
+  _startPing(ws = this.ws, generation = this._sessionGeneration) {
+    this._stopPing();
+    this._pingTimer = setInterval(() => {
+      // A queued callback from an old interval must never target its successor.
+      if (!ws || this.ws !== ws || this._sessionGeneration !== generation ||
+          ws.readyState !== 1) {
+        return;
+      }
+      try {
+        ws.send(JSON.stringify({ t: 'ping', now: Date.now() }));
+      } catch { /* socket raced shut; next session re-arms */ }
+    }, 2000);
+    if (typeof this._pingTimer.unref === 'function') this._pingTimer.unref();
+  }
+
+  _stopPing() {
+    if (this._pingTimer !== null) {
+      clearInterval(this._pingTimer);
+      this._pingTimer = null;
+    }
+  }
+}
+
+
+/** Player-row lookup by id for the interpolation source snapshot. */
+const indexById = (rows) => {
+  const map = new Map();
+  if (!Array.isArray(rows)) return map;
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (row && row.id !== undefined) map.set(row.id, row);
+  }
+  return map;
+};

@@ -1,0 +1,25 @@
+{
+  "name": "voxel-blitz",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Browser multiplayer voxel arena shooter — three.js client, authoritative ws server, six bespoke guns with a full feedback stack.",
+  "scripts": {
+    "start": "node server/index.js",
+    "smoke": "node tools/smoke.mjs",
+    "container:smoke": "node tools/container-smoke.mjs",
+    "lobby": "node tools/lobby-smoke.mjs",
+    "modes:lobby": "node tools/mode-lobby-smoke.mjs",
+    "modes:bots": "node tools/bot-mode-smoke.mjs",
+    "test": "node tools/atlastest.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run modes:lobby && npm run modes:bots"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "three": "^0.180.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
