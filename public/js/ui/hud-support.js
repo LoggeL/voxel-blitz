@@ -40,12 +40,14 @@ export const MODE_LABELS = Object.freeze({
   fun: 'FUN · FREE FOR ALL',
   tdm: 'TEAM DEATHMATCH',
   snd: 'SEARCH & DESTROY',
+  gungame: 'GUN GAME',
 });
 
 export const MODE_DESCRIPTIONS = Object.freeze({
   fun: 'Shared instant skirmish · 6-gun full loadout · Rapid respawn',
   tdm: 'Alpha vs Bravo · First team to 40 kills wins · Team spawns',
   snd: 'Attackers vs Defenders · Buy phase economy · First to 7 round wins',
+  gungame: 'Earn a kill with each weapon · Revolver elimination wins',
 });
 
 export const MAP_LABELS = Object.freeze({
@@ -56,7 +58,7 @@ export const MAP_LABELS = Object.freeze({
 
 export const MAP_DESCRIPTIONS = Object.freeze({
   foundry: 'Industrial foundry with multi-level catwalks and mid-lane cover (All Modes)',
-  depot: 'Point-symmetric cargo depot with mirrored containers & central plaza (Fun / TDM)',
+  depot: 'Point-symmetric cargo depot with mirrored containers & central plaza (Fun / TDM / Gun Game)',
   citadel: 'Urban fortress with Courtyard A and Compound B tactical bomb sites (All Modes)',
 });
 

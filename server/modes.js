@@ -10,6 +10,7 @@ import {
 } from '../shared/modes.js';
 import { SndPolicy } from './modes/snd.js';
 import { TdmPolicy } from './modes/tdm.js';
+import { GunGamePolicy } from './modes/gungame.js';
 
 class FunPolicy {
   constructor({ rules, mapMeta, entities, now, respawn, chooseSpawn }) {
@@ -80,6 +81,16 @@ class FunPolicy {
     const entity = this._entity(player);
     const id = entity ? String(entity.id) : String(player ?? '');
     return this._players.delete(id);
+  }
+
+  onPlayerTakeover(player, nextId) {
+    const entity = this._entity(player);
+    const priorId = entity ? String(entity.id) : '';
+    const id = String(nextId ?? '');
+    if (!priorId || !id || !this._players.has(priorId) || this._players.has(id)) return false;
+    this._players.delete(priorId);
+    this._players.add(id);
+    return true;
   }
 
   onPlayerDeath(victim) {
@@ -207,11 +218,10 @@ export class ModeController {
       },
     };
 
-    this.policy = modeId === 'snd'
-      ? new SndPolicy(context)
-      : modeId === 'tdm'
-        ? new TdmPolicy(context)
-        : new FunPolicy(context);
+    if (modeId === 'snd') this.policy = new SndPolicy(context);
+    else if (modeId === 'tdm') this.policy = new TdmPolicy(context);
+    else if (modeId === 'gungame') this.policy = new GunGamePolicy(context);
+    else this.policy = new FunPolicy(context);
   }
 
   get mode() { return this.policy.mode; }
@@ -236,7 +246,16 @@ export class ModeController {
   canFire(player) { return this.policy.canFire(player); }
   onPlayerAdd(player) { return this.policy.onPlayerAdd(player); }
   onPlayerRemove(player) { return this.policy.onPlayerRemove(player); }
-  onPlayerDeath(victim, killer) { return this.policy.onPlayerDeath(victim, killer); }
+  onPlayerDeath(victim, killer, context) {
+    return this.policy.onPlayerDeath(victim, killer, context);
+  }
+  killScoreDelta(victim, killer, context) {
+    const delta = this.policy.killScoreDelta?.(victim, killer, context);
+    return Number.isFinite(delta) ? delta : 1;
+  }
+  onPlayerTakeover(player, nextId) {
+    return this.policy.onPlayerTakeover?.(player, nextId) === true;
+  }
   onPlayerRespawn(player) { return this.policy.onPlayerRespawn(player); }
   respawnDelay() { return this.policy.respawnDelay(); }
   canRespawn(player) { return this.policy.canRespawn(player); }

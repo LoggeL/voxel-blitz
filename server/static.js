@@ -30,6 +30,7 @@ const MIME = {
   '.map': 'application/json; charset=utf-8',
   '.wasm': 'application/wasm',
   '.mp3': 'audio/mpeg',
+  '.ogg': 'audio/ogg',
 };
 
 const INDEX_HTML = 'index.html';

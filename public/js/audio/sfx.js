@@ -4,6 +4,7 @@
 import { AudioEngine } from './engine.js';
 import { VoicePool } from './voices.js';
 import { createVoices } from './primitives.js';
+import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from './samples.js';
 import { bodyImpact, synthPainVoice } from './human.js';
 import { IMPACT_PARAMS, genericImpact, impactGlass, impactMetal } from './impacts.js';
 import {
@@ -27,6 +28,8 @@ import {
 const engine = new AudioEngine();
 let pool = null;
 let primitives = null;
+let samples = null;
+let builtInSamplesPromise = null;
 let panSide = 1;
 
 function copyOptions(value) {
@@ -54,6 +57,12 @@ function ensureSynthesis() {
   if (!engine.ctx || engine.ctx.state === 'closed') return false;
   if (!pool) pool = new VoicePool(engine);
   if (!primitives) primitives = createVoices(engine);
+  if (!samples) {
+    samples = new LocalSampleBank({
+      getContext: () => engine.ctx,
+      addCleanup,
+    });
+  }
   return true;
 }
 
@@ -61,6 +70,15 @@ function run(kind, callback) {
   return engine.queueOrRun(kind, () => {
     if (ensureSynthesis()) callback();
   });
+}
+
+function loadBuiltInSamples() {
+  if (!samples) return Promise.resolve(Object.freeze({ loaded: 0, failed: 0 }));
+  if (!builtInSamplesPromise) {
+    builtInSamplesPromise = samples.load(BUILTIN_SAMPLE_MANIFEST).catch(() =>
+      Object.freeze({ loaded: 0, failed: Object.keys(BUILTIN_SAMPLE_MANIFEST).length }));
+  }
+  return builtInSamplesPromise;
 }
 
 function addCleanup(output, cleanup) {
@@ -71,7 +89,7 @@ export const sfx = {
   init() {
     if (!engine.ensure()) return Promise.resolve(this);
     ensureSynthesis();
-    return engine.resume().then(() => this);
+    return Promise.all([engine.resume(), loadBuiltInSamples()]).then(() => this);
   },
 
   unlock() {
@@ -83,6 +101,9 @@ export const sfx = {
   async dispose() {
     pool = null;
     primitives = null;
+    samples?.clear();
+    samples = null;
+    builtInSamplesPromise = null;
     panSide = 1;
     await engine.dispose();
   },
@@ -91,11 +112,18 @@ export const sfx = {
     engine.setMasterVolume(value);
   },
 
+  async loadSamples(manifest, fetchImpl) {
+    if (!engine.ensure()) return Object.freeze({ loaded: 0, failed: 0 });
+    ensureSynthesis();
+    return samples.load(manifest, fetchImpl);
+  },
+
   fire(key, options) {
     const deferred = copyOptions(options);
     run('fire', () => {
       const lifetime = key === 'sniper' ? 1.3 : key === 'revolver' ? 0.75 : 0.8;
       const output = pool.acquireFire(key, outputOptions(deferred), lifetime);
+      if (samples.play(`weapons.${key}.fire`, output)) return;
       if (key === 'shotgun') shotShotgun(output, primitives);
       else if (key === 'sniper') {
         shotSniper(output, primitives, engine.echoIn, addCleanup);
@@ -114,6 +142,7 @@ export const sfx = {
       if (params.cap) normalized = Math.min(normalized, params.cap);
       const output = pool.acquire(outputOptions(deferred), kind === 'glass' ? 0.6 : 0.5);
       output.gain.value = 1.14;
+      if (samples.play(`impact.${kind}`, output, { gain: normalized })) return;
       if (kind === 'glass') impactGlass(output, primitives, normalized);
       else if (kind === 'metal') impactMetal(output, primitives, normalized);
       else genericImpact(output, primitives, params, normalized);
@@ -124,6 +153,7 @@ export const sfx = {
     run('reload', () => {
       const brightness = WEP_TONE[weapon] || 1;
       const output = pool.acquire(null, 0.45);
+      if (samples.play(`weapons.${weapon}.reload.${step}`, output)) return;
       const at = primitives.nowT();
       if (weapon === 'lmg') reloadLmg(output, primitives, step, at, brightness);
       else if (weapon === 'revolver') {
@@ -135,6 +165,7 @@ export const sfx = {
   hitmark(headshot) {
     run('hitmark', () => {
       const output = pool.acquire(null, 0.4);
+      if (samples.play(headshot ? 'ui.hitmark.head' : 'ui.hitmark.body', output)) return;
       const at = primitives.nowT();
       primitives.hiss(output, {
         t0: at, filter: 'highpass', f: 4800, q: 0.7, dec: 0.018, g: 0.12,
@@ -168,6 +199,14 @@ export const sfx = {
       const lifetime = lethal ? 1.45 : headshot ? 1.05 : hitDamage >= 35 ? 0.95 : 0.7;
       const output = pool.acquireHuman({ pos: local ? null : positionOf(deferredPos) }, lifetime);
       output.gain.value = local ? 0.96 : 0.82;
+      const slot = lethal
+        ? 'human.death.far'
+        : headshot
+          ? 'human.pain.head'
+          : hitDamage >= 35
+            ? 'human.pain.heavy'
+            : 'human.pain.light';
+      if (samples.play(slot, output)) return;
       synthPainVoice(output, primitives, addCleanup, {
         damage: hitDamage,
         headshot: !!headshot,
@@ -181,6 +220,7 @@ export const sfx = {
     run('deathSelf', () => {
       const output = pool.acquireHuman(null, 1.75);
       output.gain.value = 0.94;
+      if (samples.play('human.death.self', output)) return;
       const voice = synthPainVoice(output, primitives, addCleanup, {
         damage: 100, headshot: !!headshot, lethal: true, self: true,
       });
@@ -197,6 +237,7 @@ export const sfx = {
   deathFar(volume = 0.4) {
     run('deathFar', () => {
       const output = pool.acquire({ muffled: true }, 0.9);
+      if (samples.play('human.death.far', output, { gain: volume })) return;
       const at = primitives.nowT();
       primitives.hiss(output, {
         t0: at, filter: 'bandpass', f: 420, q: 0.5,
@@ -214,6 +255,10 @@ export const sfx = {
     run('footstep', () => {
       panSide = -panSide;
       const output = pool.acquire(null, 0.25);
+      if (samples.play('movement.footstep', output, {
+        gain: volume,
+        rate: primitives.rnd(0.93, 1.07),
+      })) return;
       primitives.hiss(output, {
         filter: 'lowpass', f: 320, q: 0.5,
         rate: primitives.rnd(0.85, 1.13), dec: 0.08,
@@ -225,6 +270,7 @@ export const sfx = {
   draw(weapon) {
     run('draw', () => {
       const output = pool.acquire(null, (DRAW_LEN[weapon] || 0.11) + 0.3);
+      if (samples.play(`weapons.${weapon}.draw`, output)) return;
       drawCloth(output, primitives, weapon);
     });
   },
@@ -232,6 +278,7 @@ export const sfx = {
   bulletWhiz(volume = 0.5) {
     run('bulletWhiz', () => {
       const output = pool.acquire(null, 0.4);
+      if (samples.play('combat.bulletWhiz', output, { gain: volume })) return;
       primitives.hiss(output, {
         filter: 'bandpass', f: 3000, sweepTo: 1400,
         sweepMs: 0.16, q: 5, dec: 0.16, g: 0.32 * volume,

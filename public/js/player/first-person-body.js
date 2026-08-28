@@ -2,6 +2,15 @@ import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 import { smooth01 } from '../util/math.js';
 
+const BODY_POSE = Object.freeze({
+  hipsY: 0.72,
+  hipsZ: 0.12,
+  torsoY: 0.91,
+  torsoZ: 0.16,
+  legX: 0.13,
+  legY: 0.66,
+});
+
 export function makeFirstPersonBody() {
   const group = new THREE.Group();
   group.name = 'first-person-body';
@@ -9,25 +18,27 @@ export function makeFirstPersonBody() {
   const cloth = new THREE.MeshLambertMaterial({ color: 0x44515e });
   const armor = new THREE.MeshLambertMaterial({ color: 0x202831 });
   const bootMaterial = new THREE.MeshLambertMaterial({ color: 0x0b0f14 });
-  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.54, 0.22, 0.32), armor);
-  hips.position.set(0, 0.84, -0.1);
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.3, 0.34), cloth);
-  torso.position.set(0, 1.1, -0.16);
-  const thighGeometry = new THREE.BoxGeometry(0.21, 0.42, 0.25);
-  const shinGeometry = new THREE.BoxGeometry(0.19, 0.4, 0.22);
-  const bootGeometry = new THREE.BoxGeometry(0.21, 0.16, 0.38);
+  // The local body is a peripheral silhouette, not a second chest in front of
+  // the camera. Its upper mass stays below and slightly behind the eye line.
+  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.18, 0.25), armor);
+  hips.position.set(0, BODY_POSE.hipsY, BODY_POSE.hipsZ);
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.22, 0.27), cloth);
+  torso.position.set(0, BODY_POSE.torsoY, BODY_POSE.torsoZ);
+  const thighGeometry = new THREE.BoxGeometry(0.18, 0.36, 0.21);
+  const shinGeometry = new THREE.BoxGeometry(0.16, 0.34, 0.19);
+  const bootGeometry = new THREE.BoxGeometry(0.18, 0.13, 0.3);
 
   function makeLeg(side) {
     const leg = new THREE.Group();
-    leg.position.set(side * 0.16, 0.78, 0);
+    leg.position.set(side * BODY_POSE.legX, BODY_POSE.legY, 0.04);
     const thigh = new THREE.Mesh(thighGeometry, cloth);
-    thigh.position.y = -0.2;
+    thigh.position.y = -0.17;
     const knee = new THREE.Group();
-    knee.position.y = -0.39;
+    knee.position.y = -0.34;
     const shin = new THREE.Mesh(shinGeometry, armor);
-    shin.position.y = -0.19;
+    shin.position.y = -0.16;
     const boot = new THREE.Mesh(bootGeometry, bootMaterial);
-    boot.position.set(0, -0.42, -0.08);
+    boot.position.set(0, -0.36, -0.05);
     knee.add(shin, boot);
     leg.add(thigh, knee);
     return { leg, knee, boot };
@@ -57,12 +68,12 @@ export function resetFirstPersonBody(body) {
   body.group.visible = true;
   body.group.rotation.set(0, 0, 0);
   body.group.scale.set(1, 1, 1);
-  body.hips.position.set(0, 0.84, -0.1);
+  body.hips.position.set(0, BODY_POSE.hipsY, BODY_POSE.hipsZ);
   body.hips.rotation.set(0, 0, 0);
-  body.torso.position.set(0, 1.1, -0.16);
+  body.torso.position.set(0, BODY_POSE.torsoY, BODY_POSE.torsoZ);
   body.torso.rotation.set(0, 0, 0);
-  body.left.leg.position.set(-0.16, 0.78, 0);
-  body.right.leg.position.set(0.16, 0.78, 0);
+  body.left.leg.position.set(-BODY_POSE.legX, BODY_POSE.legY, 0.04);
+  body.right.leg.position.set(BODY_POSE.legX, BODY_POSE.legY, 0.04);
   body.left.leg.rotation.set(0, 0, 0);
   body.right.leg.rotation.set(0, 0, 0);
   body.left.knee.rotation.set(0, 0, 0);
@@ -108,12 +119,12 @@ export function updateFirstPersonBody(
   }
 
   body.group.rotation.set(0, yaw, 0);
-  body.hips.position.y = 0.84 - crouch * 0.34 + bounce;
-  body.torso.position.y = 1.1 - crouch * 0.42 + bounce;
+  body.hips.position.y = BODY_POSE.hipsY - crouch * 0.28 + bounce;
+  body.torso.position.y = BODY_POSE.torsoY - crouch * 0.34 + bounce;
   body.torso.rotation.x = crouch * 0.12;
   body.hips.rotation.z = swing * stride * 0.045;
-  body.left.leg.position.y = 0.78 - crouch * 0.28;
-  body.right.leg.position.y = 0.78 - crouch * 0.28;
+  body.left.leg.position.y = BODY_POSE.legY - crouch * 0.24;
+  body.right.leg.position.y = BODY_POSE.legY - crouch * 0.24;
   body.left.leg.rotation.x = swing * 0.72 - crouch * 0.58;
   body.right.leg.rotation.x = -swing * 0.72 - crouch * 0.58;
   body.left.knee.rotation.x = crouch * 1.02 + Math.max(0, -swing) * 0.32;

@@ -95,7 +95,11 @@ export class PregameFlow {
     const mode = action.mode === 'create' || action.mode === 'join' ? action.mode : 'quick';
     const name = String(action.name || '').trim().slice(0, 16) || 'Rookie';
     const requestedBots = Number(action.bots);
-    const bots = Number.isFinite(requestedBots) ? Math.max(0, Math.round(requestedBots)) : 3;
+    const fallbackBots = mode === 'quick' ? 5 : 3;
+    const normalizedBots = Number.isFinite(requestedBots)
+      ? Math.max(0, Math.min(7, Math.round(requestedBots)))
+      : fallbackBots;
+    const bots = mode === 'quick' ? Math.max(5, normalizedBots) : normalizedBots;
     const sensitivity = Number(action.sensitivity);
     const code = String(action.code || '').trim().toUpperCase();
     const net = this._net;

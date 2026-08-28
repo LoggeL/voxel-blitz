@@ -2,6 +2,7 @@
 // every weapon transition and receives only narrow adapters for its side effects.
 import {
   CONDITION_RULES,
+  SNIPER_SCOPE_ADS_THRESHOLD,
   WEAPONS,
   WEAPON_IDS,
   computeSpreadConeDeg,
@@ -11,6 +12,10 @@ import { TIMERS } from './defs.js';
 
 const EMPTY_AMMO = Object.freeze({ mag: 0, reserve: 0 });
 const DEFAULT_MODE = 'fun';
+
+function usesAuthoritativeOwnedWeapons(mode) {
+  return mode === 'snd' || mode === 'gungame';
+}
 
 function clamp01(value) {
   return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
@@ -173,13 +178,13 @@ export class WeaponState {
     if (!unchanged) this._owned = owned.slice();
   }
 
-  /** Select a weapon, enforcing the authoritative S&D owned list. */
+  /** Select a weapon, enforcing mode-owned loadouts such as S&D and Gun Game. */
   forceWeapon(slot, { mode, owned, now = this._now() } = {}) {
     this._setAuthority(mode, owned);
     if (!Number.isInteger(slot) || slot < 0 || slot >= WEAPON_IDS.length || slot === this._slot) {
       return false;
     }
-    if (this._mode === 'snd' && Array.isArray(this._owned) &&
+    if (usesAuthoritativeOwnedWeapons(this._mode) && Array.isArray(this._owned) &&
         !this._owned.includes(WEAPON_IDS[slot])) {
       return false;
     }
@@ -198,11 +203,12 @@ export class WeaponState {
     this._setAuthority(mode, owned);
     if (!Number.isFinite(direction) || direction === 0) return false;
 
-    const sndOwned = this._mode === 'snd' && Array.isArray(this._owned);
+    const authoritativeOwned = usesAuthoritativeOwnedWeapons(this._mode) &&
+      Array.isArray(this._owned);
     let availableCount = 0;
     let currentIndex = -1;
     for (let slot = 0; slot < WEAPON_IDS.length; slot++) {
-      if (sndOwned && !this._owned.includes(WEAPON_IDS[slot])) continue;
+      if (authoritativeOwned && !this._owned.includes(WEAPON_IDS[slot])) continue;
       if (slot === this._slot) currentIndex = availableCount;
       availableCount++;
     }
@@ -214,7 +220,7 @@ export class WeaponState {
     ) % availableCount;
     let seen = 0;
     for (let slot = 0; slot < WEAPON_IDS.length; slot++) {
-      if (sndOwned && !this._owned.includes(WEAPON_IDS[slot])) continue;
+      if (authoritativeOwned && !this._owned.includes(WEAPON_IDS[slot])) continue;
       if (seen === targetIndex) return this.forceWeapon(slot, { now });
       seen++;
     }
@@ -315,7 +321,8 @@ export class WeaponState {
       (this._wantAds && this._alive && !this._reloadState) ? 1 : -1
     ) * dt / Math.max(0.08, def.adsTime);
     this._adsT = Math.max(0, Math.min(1, this._adsT));
-    this._scopeActive = this._alive && def.id === 'sniper' && this._adsT >= 0.72;
+    this._scopeActive = this._alive && def.id === 'sniper' &&
+      this._adsT >= SNIPER_SCOPE_ADS_THRESHOLD;
     if (this._rig.root) this._rig.root.visible = !this._scopeActive;
   }
 
@@ -415,7 +422,7 @@ export class WeaponState {
     this._feedback.addRecoil(pitch, yaw);
   }
 
-  /** Ammo -> S&D forced switch -> reload synchronization, matching reconcile order. */
+  /** Ammo -> authoritative mode switch -> reload synchronization. */
   reconcileServer({
     mag,
     reserve,
@@ -430,7 +437,7 @@ export class WeaponState {
     this._setAuthority(mode, owned);
 
     if (
-      this._mode === 'snd' && Array.isArray(this._owned) &&
+      usesAuthoritativeOwnedWeapons(this._mode) && Array.isArray(this._owned) &&
       !this._owned.includes(WEAPON_IDS[this._slot]) &&
       Number.isInteger(weapon) && WEAPON_IDS[weapon]
     ) {
@@ -470,7 +477,7 @@ export class WeaponState {
     this._bloomDeg = 0;
     this.clearIntents();
 
-    if (mode !== 'snd') {
+    if (!usesAuthoritativeOwnedWeapons(mode)) {
       this._slot = 0;
       this._lastSlot = 1;
       this.resetToLoadout();

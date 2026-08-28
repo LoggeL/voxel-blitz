@@ -6,6 +6,7 @@ export const GRAVITY = 24;
 export const PLAYER_HALF = { x: 0.32, h: 0.95 };   // AABB half-width, half-height
 export const EYE_HEIGHT = 1.62;                    // eye above feet
 export const HEADSHOT_Y_FRAC = 0.86;               // fraction of authoritative full height
+export const SNIPER_SCOPE_ADS_THRESHOLD = 0.72;
 
 const D2R = Math.PI / 180;
 

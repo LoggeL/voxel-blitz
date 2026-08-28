@@ -182,6 +182,17 @@ class BotManager {
     this.brains = [];
   }
 
+  /** Hand the newest bot's complete live entity state to a human player. */
+  takeover(humanId, name) {
+    const brain = this.brains.at(-1);
+    if (!brain) return null;
+    const spawnInfo = this.game.takeoverBot(brain.id, humanId, name);
+    if (!spawnInfo) return null;
+    brain.resetCombat();
+    this.brains.pop();
+    return spawnInfo;
+  }
+
   /** Live roster resize to n bots. Identity is SLOT-STABLE: bot i always has
    *  entity id 'bot-<i>', so repeated resizes can never duplicate or multiply
    *  entities. Stale bot entities from an earlier manager are pruned first. */
@@ -266,6 +277,11 @@ class BotManager {
   /** Buy one durable S&D primary when needed and expose only legal slots. */
   prepareLoadout(br, p) {
     const mode = this.game.mode;
+    if (mode.mode === 'gungame') {
+      const owned = mode.playerSnapshot(p).owned;
+      const slots = owned.map((id) => WEAPON_IDS.indexOf(id)).filter((slot) => slot >= 0);
+      return slots.length ? slots : [DEFAULT_WEAPON_SLOT];
+    }
     if (mode.mode !== 'snd') return ALL_WEAPON_SLOTS;
 
     let snapshot = mode.playerSnapshot(p);
@@ -288,6 +304,7 @@ class BotManager {
   }
 
   preferredSlot(br, ownedSlots) {
+    if (this.game.mode.mode === 'gungame') return ownedSlots[0];
     if (this.game.mode.mode !== 'snd') return ownedSlots[br.index % ownedSlots.length];
     for (const id of BUY_PRIORITY) {
       const slot = WEAPON_IDS.indexOf(id);

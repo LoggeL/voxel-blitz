@@ -1,30 +1,19 @@
 import {
-  MODE_IDS,
-  MAP_IDS,
-  isModeMapCompatible,
-  DEFAULT_MODE_ID,
-  DEFAULT_MAP_ID,
-  normalizeModeId,
-  normalizeMapId,
-} from '../../../shared/modes.js';
-import {
   HudSupport,
-  MAP_DESCRIPTIONS,
   MAP_LABELS,
-  MODE_DESCRIPTIONS,
   MODE_LABELS,
   cleanCode,
   copyInviteLink as copyInviteText,
   el,
   loadName,
-  loadPref,
   loadPrefNum,
   resolveInviteBase,
   saveName,
-  savePref,
 } from './hud-support.js';
+import { CreateLobbySetup } from './create-lobby-setup.js';
 
 const NOOP = () => {};
+const QUICK_PLAY_BOTS = 5;
 
 export class MenuLobbyController {
   constructor(host = {}) {
@@ -36,6 +25,8 @@ export class MenuLobbyController {
     this.lobbyDom = {};
     this.joinStatus = null;
     this._onLobbyKeyDown = null;
+    this._onMenuKeyDown = null;
+    this._createSetup = null;
   }
 
   _callHost(name, ...args) {
@@ -75,130 +66,34 @@ export class MenuLobbyController {
     root.style.display = 'flex';
     root.setAttribute('aria-hidden', 'false');
 
-    const panel = el('div', 'vb-panel', root);
+    const panel = el('div', 'vb-panel vb-main-menu-panel', root);
 
-    const title = el('h1', 'vb-title', panel, 'menu-title');
+    const primary = el('section', 'vb-menu-primary', panel, 'menu-primary-step');
+    primary.setAttribute('aria-labelledby', 'menu-title');
+    el('span', 'vb-step-kicker', primary).textContent = 'STEP 1 / 2 · DEPLOYMENT';
+    const title = el('h1', 'vb-title', primary, 'menu-title');
     title.textContent = 'VOXEL BLITZ';
-    const sub = el('div', 'vb-sub', panel);
+    const sub = el('div', 'vb-sub', primary);
     sub.textContent = 'tactical arena · six weapons · voxel combat';
 
-    const callsignLabel = el('label', 'vb-label', panel);
+    const callsignLabel = el('label', 'vb-label', primary);
     callsignLabel.textContent = 'CALLSIGN';
     callsignLabel.htmlFor = 'name-input';
-    const nameInput = el('input', '', panel, 'name-input');
+    const nameInput = el('input', '', primary, 'name-input');
     nameInput.maxLength = 16;
     nameInput.autocomplete = 'off';
     nameInput.spellcheck = false;
     nameInput.placeholder = 'OPERATOR';
     nameInput.value = loadName();
 
-    const modeSection = el('div', 'vb-menu-field-group', panel);
-    const modeLabel = el('label', 'vb-label', modeSection);
-    modeLabel.textContent = 'GAME MODE';
-    modeLabel.htmlFor = 'game-mode-select';
-
-    const modeSelect = el('select', 'vb-select', modeSection, 'game-mode-select');
-    modeSelect.setAttribute('aria-describedby', 'game-mode-desc');
-
-    for (const modeId of MODE_IDS) {
-      const option = el('option', '', modeSelect);
-      option.value = modeId;
-      option.textContent = MODE_LABELS[modeId] || modeId.toUpperCase();
-    }
-    const savedMode = loadPref('vb-mode', DEFAULT_MODE_ID);
-    modeSelect.value = normalizeModeId(savedMode, DEFAULT_MODE_ID);
-
-    const modeDescription = el('div', 'vb-field-desc', modeSection, 'game-mode-desc');
-    modeDescription.setAttribute('role', 'status');
-    modeDescription.setAttribute('aria-live', 'polite');
-
-    const mapSection = el('div', 'vb-menu-field-group', panel);
-    const mapLabel = el('label', 'vb-label', mapSection);
-    mapLabel.textContent = 'ARENA MAP';
-    mapLabel.htmlFor = 'map-select';
-
-    const mapSelect = el('select', 'vb-select', mapSection, 'map-select');
-    mapSelect.setAttribute('aria-describedby', 'map-desc');
-
-    const mapDescription = el('div', 'vb-field-desc', mapSection, 'map-desc');
-    mapDescription.setAttribute('role', 'status');
-    mapDescription.setAttribute('aria-live', 'polite');
-
-    const syncMapOptions = (currentMode, preferredMap) => {
-      mapSelect.innerHTML = '';
-      const validMaps = MAP_IDS.filter((mapId) => isModeMapCompatible(currentMode, mapId));
-      for (const mapId of validMaps) {
-        const option = el('option', '', mapSelect);
-        option.value = mapId;
-        option.textContent = MAP_LABELS[mapId] || mapId.toUpperCase();
-      }
-      if (preferredMap && validMaps.includes(preferredMap)) {
-        mapSelect.value = preferredMap;
-      } else {
-        mapSelect.value = validMaps[0] || DEFAULT_MAP_ID;
-      }
-      modeDescription.textContent = MODE_DESCRIPTIONS[currentMode] || '';
-      mapDescription.textContent = MAP_DESCRIPTIONS[mapSelect.value] || '';
-    };
-
-    const savedMap = loadPref('vb-map', DEFAULT_MAP_ID);
-    syncMapOptions(modeSelect.value, normalizeMapId(savedMap, DEFAULT_MAP_ID));
-
-    modeSelect.addEventListener('change', () => {
-      const chosenMode = normalizeModeId(modeSelect.value, DEFAULT_MODE_ID);
-      savePref('vb-mode', chosenMode);
-      syncMapOptions(chosenMode, mapSelect.value);
-      savePref('vb-map', mapSelect.value);
-    });
-
-    mapSelect.addEventListener('change', () => {
-      const chosenMap = normalizeMapId(mapSelect.value, DEFAULT_MAP_ID);
-      savePref('vb-map', chosenMap);
-      mapDescription.textContent = MAP_DESCRIPTIONS[chosenMap] || '';
-    });
-
-    const botsSection = el('div', 'vb-menu-field-group', panel);
-    const botsLabel = el('label', 'vb-label', botsSection);
-    botsLabel.textContent = 'BOTS TARGET';
-    botsLabel.htmlFor = 'bot-count';
-    const bots = el('select', 'vb-select', botsSection, 'bot-count');
-    for (let count = 0; count <= 7; count += 1) {
-      const option = el('option', '', bots);
-      option.value = String(count);
-      option.textContent = `${count} BOTS`;
-    }
-    bots.value = '3';
-
-    const sensitivityLabel = el('label', 'vb-label', panel);
-    sensitivityLabel.textContent = 'SENSITIVITY';
-    sensitivityLabel.htmlFor = 'sens-slider';
-    const sensitivityRow = el('div', 'vb-sensrow', panel);
-    const sensitivityInput = el('input', '', sensitivityRow, 'sens-slider');
-    sensitivityInput.type = 'range';
-    sensitivityInput.min = '0.005';
-    sensitivityInput.max = '0.08';
-    sensitivityInput.step = '0.001';
-    sensitivityInput.value = String(this._sensitivity());
-    sensitivityInput.setAttribute('aria-label', 'Mouse Sensitivity');
-    const sensitivityValue = el('span', '', sensitivityRow, 'sens-val');
-
-    const showSensitivity = () => {
-      const value = Number(sensitivityInput.value);
-      sensitivityValue.textContent = (value * 100).toFixed(1);
-      savePref('vb-sens', value);
-      this._callHost('setSensitivity', value);
-    };
-    showSensitivity();
-    sensitivityInput.addEventListener('input', showSensitivity);
-
-    const actionsBox = el('div', 'vb-menu-actions', panel);
+    const actionsBox = el('div', 'vb-menu-actions', primary);
 
     const quickBox = el('div', 'vb-quick-box', actionsBox);
     const quickPlayButton = el('button', 'vb-btn vb-quick-play-btn', quickBox, 'play-btn');
     quickPlayButton.type = 'button';
     quickPlayButton.textContent = 'QUICK PLAY';
     const quickHint = el('div', 'vb-action-hint', quickBox);
-    quickHint.textContent = 'Instant skirmish · Shared Fun mode · Auto-rotating maps';
+    quickHint.textContent = 'Instant Fun match · At least 5 bots · Rotating arenas';
 
     const createBox = el('div', 'vb-create-box', actionsBox);
     const createLobbyButton = el(
@@ -208,11 +103,11 @@ export class MenuLobbyController {
       'create-lobby-btn',
     );
     createLobbyButton.type = 'button';
-    createLobbyButton.textContent = 'CREATE BRIEFING LOBBY';
+    createLobbyButton.textContent = 'CREATE LOBBY';
     const createHint = el('div', 'vb-action-hint', createBox);
-    createHint.textContent = 'Hosts custom briefing using selected mode & map above';
+    createHint.textContent = 'Choose arena, mode, bots and operator settings';
 
-    const joinSection = el('div', 'vb-join-section', panel);
+    const joinSection = el('div', 'vb-join-section', primary);
     const joinLabel = el('label', 'vb-label', joinSection);
     joinLabel.textContent = 'JOIN VIA ROOM CODE';
     joinLabel.htmlFor = 'join-code-input';
@@ -230,34 +125,40 @@ export class MenuLobbyController {
     joinButton.type = 'button';
     joinButton.textContent = 'JOIN';
 
-    this.joinStatus = el('div', 'vb-status', panel, 'join-status');
+    this.joinStatus = el('div', 'vb-status', primary, 'join-status');
     this.joinStatus.setAttribute('role', 'status');
     this.joinStatus.setAttribute('aria-live', 'polite');
 
-    const getPayload = (mode, code = '') => {
+    const getIdentity = () => {
       const name = nameInput.value.trim().slice(0, 16) || 'PLAYER';
       saveName(name);
-      const botCount = Math.round(Number(bots.value)) || 0;
-      const sensitivity = Number(sensitivityInput.value);
-      let gameMode = normalizeModeId(modeSelect.value, DEFAULT_MODE_ID);
-      let map = normalizeMapId(mapSelect.value, DEFAULT_MAP_ID);
-      if (mode === 'quick') {
-        gameMode = 'fun';
-        map = 'foundry';
-      } else if (!isModeMapCompatible(gameMode, map)) {
-        map = MAP_IDS.find((mapId) => isModeMapCompatible(gameMode, mapId)) || DEFAULT_MAP_ID;
-      }
-      return { mode, gameMode, map, name, bots: botCount, sensitivity, code };
+      return { name, sensitivity: this._sensitivity() };
     };
 
     const triggerQuick = () => {
       if (quickPlayButton.disabled) return;
-      this.onMenuAction(getPayload('quick', ''));
+      this.onMenuAction({
+        mode: 'quick',
+        gameMode: 'fun',
+        map: 'foundry',
+        bots: QUICK_PLAY_BOTS,
+        code: '',
+        ...getIdentity(),
+      });
+    };
+
+    const showPrimary = () => {
+      this._createSetup?.hide();
+      primary.classList.remove('hidden');
+      primary.setAttribute('aria-hidden', 'false');
+      createLobbyButton.focus();
     };
 
     const triggerCreate = () => {
-      if (createLobbyButton.disabled) return;
-      this.onMenuAction(getPayload('create', ''));
+      primary.classList.add('hidden');
+      primary.setAttribute('aria-hidden', 'true');
+      this.showJoinState('');
+      this._createSetup?.show();
     };
 
     const triggerJoin = () => {
@@ -275,8 +176,18 @@ export class MenuLobbyController {
         return;
       }
       this.showJoinState('');
-      this.onMenuAction(getPayload('join', cleaned));
+      this.onMenuAction({ mode: 'join', gameMode: 'fun', map: 'foundry', bots: 0,
+        code: cleaned, ...getIdentity() });
     };
+
+    this._createSetup = new CreateLobbySetup({
+      parent: panel,
+      nameInput,
+      getSensitivity: () => this._sensitivity(),
+      setSensitivity: (value) => this._callHost('setSensitivity', value),
+      onBack: showPrimary,
+      onCreate: (payload) => this.onMenuAction(payload),
+    });
 
     quickPlayButton.addEventListener('click', triggerQuick);
     createLobbyButton.addEventListener('click', triggerCreate);
@@ -301,6 +212,14 @@ export class MenuLobbyController {
         else triggerQuick();
       }
     });
+
+    if (this._onMenuKeyDown) document.removeEventListener('keydown', this._onMenuKeyDown);
+    this._onMenuKeyDown = (event) => {
+      if (event.key !== 'Escape' || this._createSetup?.root.classList.contains('hidden')) return;
+      event.preventDefault();
+      showPrimary();
+    };
+    document.addEventListener('keydown', this._onMenuKeyDown);
 
     let prefillCode = '';
     try {
@@ -334,10 +253,12 @@ export class MenuLobbyController {
 
   showJoinState(message, tone = '') {
     const status = document.getElementById('join-status') || this.joinStatus;
-    if (!status) return;
-    status.textContent = message || '';
-    status.classList.toggle('ok', tone === 'ok');
-    status.classList.toggle('err', tone === 'err');
+    if (status) {
+      status.textContent = message || '';
+      status.classList.toggle('ok', tone === 'ok');
+      status.classList.toggle('err', tone === 'err');
+    }
+    this._createSetup?.showStatus(message, tone);
   }
 
   ensureLobbyDom() {
@@ -661,6 +582,10 @@ export class MenuLobbyController {
 
   dispose() {
     const doc = typeof document !== 'undefined' ? document : null;
+    if (this._onMenuKeyDown) {
+      if (doc) doc.removeEventListener('keydown', this._onMenuKeyDown);
+      this._onMenuKeyDown = null;
+    }
     if (this._onLobbyKeyDown) {
       if (doc) doc.removeEventListener('keydown', this._onLobbyKeyDown);
       this._onLobbyKeyDown = null;
@@ -674,5 +599,6 @@ export class MenuLobbyController {
     this._lobbyCallbacks = null;
     this.joinStatus = null;
     this.lobbyDom = {};
+    this._createSetup = null;
   }
 }

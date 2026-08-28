@@ -10,6 +10,7 @@ import {
   SY,
   GROUND,
 } from './blocks.js';
+import { addCitadelSetpieces, addDepotSetpieces } from './setpieces.js';
 
 export function fillBox(world, x0, y0, z0, x1, y1, z1, type) {
   for (let y = y0; y <= y1; y++)
@@ -70,6 +71,7 @@ export function generateDepotInto(world, blocks, heights) {
   fillBox(world, 61, GROUND + 1, 45, 66, GROUND + 2, 50, METAL);
   addSymmetricBox(world, 57, GROUND + 1, 39, 58, GROUND + 1, 40, ACCENT);
   addSymmetricBox(world, 69, GROUND + 1, 39, 70, GROUND + 1, 40, ACCENT);
+  addDepotSetpieces(world);
 }
 
 export function generateCitadelInto(world, blocks, heights) {
@@ -113,6 +115,7 @@ export function generateCitadelInto(world, blocks, heights) {
   // Route markers make the long north/south connectors readable at speed.
   for (const [x, z] of [[45,19],[63,19],[81,19],[45,76],[63,76],[81,76]])
     fillBox(world, x, GROUND + 1, z, x, GROUND + 3, z, ACCENT);
+  addCitadelSetpieces(world);
 }
 
 function buildContainer(world, x0, z0, x1, z1, height = 3) {

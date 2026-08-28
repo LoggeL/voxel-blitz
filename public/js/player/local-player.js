@@ -1,7 +1,8 @@
-import { CONDITION_RULES } from '../../../shared/combatmath.js';
+import { CONDITION_RULES, SNIPER_SCOPE_ADS_THRESHOLD } from '../../../shared/combatmath.js';
 import { PlayerPhysics, moveSpeedFor } from '../player-physics.js';
 import { hashInt } from '../util/hash.js';
 import { clamp01, clampPitch, easeOut, nowMs, smooth01 } from '../util/math.js';
+import { AimSway } from './aim-sway.js';
 import { resetFirstPersonBody, updateFirstPersonBody } from './first-person-body.js';
 
 const DEFAULT_SEND_HZ = 60;
@@ -29,6 +30,7 @@ export class LocalPlayer {
     sendHz = DEFAULT_SEND_HZ,
     body = null,
     baseFov = DEFAULT_FOV,
+    aimSway = new AimSway(),
   } = {}) {
     if (!input || typeof input.consumeDelta !== 'function' || typeof input.getKeys !== 'function') {
       throw new TypeError('LocalPlayer requires an Input-compatible adapter');
@@ -36,12 +38,17 @@ export class LocalPlayer {
     if (!physics || typeof physics.step !== 'function' || typeof physics.eyeY !== 'function') {
       throw new TypeError('LocalPlayer requires a PlayerPhysics-compatible adapter');
     }
+    if (!aimSway || typeof aimSway.update !== 'function' || typeof aimSway.reset !== 'function') {
+      throw new TypeError('LocalPlayer requires an AimSway-compatible module');
+    }
 
     this.physics = physics;
     this.input = input;
     this.body = body;
     this.baseFov = Number.isFinite(baseFov) ? baseFov : DEFAULT_FOV;
     this.sendHz = Number.isFinite(sendHz) && sendHz > 0 ? sendHz : DEFAULT_SEND_HZ;
+    this.aimSway = aimSway;
+    this._aim = aimSway.readModel;
 
     this.view = { yaw: 0, pitch: 0 };
     this.keys = {};
@@ -114,6 +121,9 @@ export class LocalPlayer {
   get gameplayInputEnabled() { return this._gameplayInputEnabled; }
   get lastLocalImpact() { return this._lastLocalImpact; }
   get lastReconciledSnapSeq() { return this._lastReconciledSnapSeq; }
+  get aimYaw() { return this.view.yaw + (this._aim?.yaw || 0); }
+  get aimPitch() { return clampPitch(this.view.pitch + (this._aim?.pitch || 0)); }
+  get aimMotion() { return this._aim; }
 
   setMapMeta(mapMeta = null) {
     this.physics.setMapMeta(mapMeta);
@@ -203,6 +213,7 @@ export class LocalPlayer {
     this._lastLocalImpact = null;
     this._lastReconciledSnapSeq = null;
     this._reconcileResult.transition = null;
+    this._aim = this.aimSway.reset();
   }
 
   /** State-only half of a local respawn. */
@@ -229,6 +240,7 @@ export class LocalPlayer {
     this.pendingShotIntent = null;
     this.wantAds = false;
     this.adsT = 0;
+    this._aim = this.aimSway.reset();
     resetFirstPersonBody(this.body);
     return { kind: 'respawn', row: ev };
   }
@@ -458,8 +470,8 @@ export class LocalPlayer {
         crouch: !!keys.crouch,
         interact: !!(interactAllowed && keys.interact),
       },
-      yaw: this.view ? this.view.yaw : 0,
-      pitch: this.view ? this.view.pitch : 0,
+      yaw: this.aimYaw,
+      pitch: this.aimPitch,
       wantFire,
       weapon: weaponSlot,
       wantAds: this._gameplayInputEnabled && this.wantAds,
@@ -490,6 +502,15 @@ export class LocalPlayer {
     }
     const jumped = this._stepPrediction(dt);
     this._frame.jumped = jumped;
+    this._aim = this.aimSway.update(dt, {
+      alive: this._alive,
+      grounded: this.physics.grounded,
+      stationary: this.currentSpeedXZ < 0.18,
+      shift: !!this.keys.sprint,
+      crouching: !!this.physics._crouching,
+      panic: this.panic,
+      pain: this.pain,
+    });
     if (typeof intents.beforeSend === 'function') intents.beforeSend(this._frame, now);
     this._frame.inputSent = this._sendInputMaybe(dt, intents);
     this.recoilPitch *= Math.max(0, 1 - 11 * dt);
@@ -580,8 +601,8 @@ export class LocalPlayer {
 
     camera.rotation.order = 'YXZ';
     camera.rotation.set(
-      (this.view ? this.view.pitch : 0) + this.recoilPitch + this.deathPitch,
-      (this.view ? this.view.yaw : 0) + this.recoilYaw,
+      this.aimPitch + this.recoilPitch + this.deathPitch,
+      this.aimYaw + this.recoilYaw,
       this.deathRoll,
     );
     const targetFov = baseFov + (weaponDef.adsFov - baseFov) * easeOut(this.adsT) +
@@ -589,7 +610,8 @@ export class LocalPlayer {
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 14);
     camera.updateProjectionMatrix();
 
-    this.scopeActive = this._alive && weaponDef.id === 'sniper' && this.adsT >= 0.72;
+    this.scopeActive = this._alive && weaponDef.id === 'sniper' &&
+      this.adsT >= SNIPER_SCOPE_ADS_THRESHOLD;
     updateFirstPersonBody(
       this.body,
       dt,

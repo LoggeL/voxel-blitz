@@ -191,6 +191,27 @@ export class GameEngine {
     return this.spawnInfoFor(player);
   }
 
+  /** Transfer one live bot entity to a human without resetting its sim state. */
+  takeoverBot(botId, humanId, name) {
+    const priorId = String(botId);
+    const pid = String(humanId);
+    const player = this.entities.get(priorId);
+    if (!player?.bot || !pid || this.entities.has(pid)) return null;
+    if (!this.mode.onPlayerTakeover(player, pid)) return null;
+
+    this.entities.delete(priorId);
+    this.discardPendingEventsFor(priorId);
+    player.id = pid;
+    player.name = String(name || '').trim().slice(0, 24) || 'Player-' + pid.slice(-4);
+    player.bot = false;
+    player.input = null;
+    player.triggerPrev = false;
+    player.fireEdgeQueued = false;
+    this.entities.set(pid, player);
+    this.humanIds.add(pid);
+    return this.spawnInfoFor(player);
+  }
+
   removeClient(id) {
     const pid = String(id);
     const player = this.entities.get(pid);
@@ -338,8 +359,8 @@ export class GameEngine {
     return {
       canFire: (player) => this.mode.canFire(player),
       canUseWeapon: (player, weapon) => this.mode.canUseWeapon(player, weapon),
-      killPlayer: (victim, killer, weapon, headshot) => {
-        this.killPlayer(victim, killer, weapon, headshot);
+      killPlayer: (victim, killer, weapon, headshot, markers) => {
+        this.killPlayer(victim, killer, weapon, headshot, markers);
       },
       getBlock: (x, y, z) => this.world.getBlock(x, y, z),
       setBlock: (x, y, z, value) => this.world.setBlock(x, y, z, value),
@@ -354,7 +375,7 @@ export class GameEngine {
     };
   }
 
-  killPlayer(victim, killer, weaponKey, headshot) {
+  killPlayer(victim, killer, weaponKey, headshot, markers = null) {
     if (victim.state !== 'alive') return;
     victim.hp = 0;
     victim.state = 'dead';
@@ -368,17 +389,23 @@ export class GameEngine {
     victim.vx = 0;
     victim.vy = 0;
     victim.vz = 0;
+    const modeContext = { weapon: weaponKey || '' };
+    const shotTraits = {
+      longRange: !!markers?.longRange,
+      noScope: !!markers?.noScope,
+    };
     if (killer && killer !== victim && killer.id !== victim.id) {
       killer.kills++;
-      killer.score++;
+      killer.score += this.mode.killScoreDelta(victim, killer, modeContext);
     }
-    this.mode.onPlayerDeath(victim, killer);
+    this.mode.onPlayerDeath(victim, killer, modeContext);
     this.tickEvents.push(evDie(victim.id));
     this.tickEvents.push(evKill(
       killer ? killer.id : '',
       victim.id,
       weaponKey || '',
       !!headshot,
+      shotTraits,
     ));
     victim.spawnProtected = false;
   }

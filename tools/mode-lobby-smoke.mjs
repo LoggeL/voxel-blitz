@@ -9,6 +9,7 @@ import { PLAYER_KEYS, MATCH_KEYS } from './lib/protocol-contract.mjs';
 import { startServer as startManagedServer, stopServer as stopManagedServer } from './lib/server-process.mjs';
 import { Client, SocketTracker } from './lib/ws-client.mjs';
 import { AIR, createMapState } from '../shared/worlddata.js';
+import { GUN_GAME_WEAPON_ORDER } from '../shared/modes.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { PHYSICS } from '../server/game.js';
 
@@ -149,12 +150,20 @@ function expectedRoster(members, ready = new Set()) {
   }));
 }
 
-function assertLobbyState(state, { selection, code, host, phase, members, ready = new Set() }, label) {
+function assertLobbyState(
+  state,
+  { selection, code, host, phase, members, ready = new Set(), bots = 0 },
+  label,
+) {
   assertLobbyShape(state, selection, label);
-  pass(state.code === code && state.host === host.welcome.id && state.phase === phase && state.bots === 0,
+  pass(state.code === code && state.host === host.welcome.id && state.phase === phase && state.bots === bots,
     `${label} carries exact room identity and phase`);
   const expected = expectedRoster(members, ready);
-  pass(JSON.stringify(state.members) === JSON.stringify(expected),
+  const humans = state.members.filter((member) => !member.bot);
+  const botRows = state.members.filter((member) => member.bot);
+  pass(JSON.stringify(humans) === JSON.stringify(expected)
+    && botRows.length === bots
+    && botRows.every((member) => member.ready === false),
     `${label} carries the exact ordered human roster`,
     `received ${JSON.stringify(state.members)}`);
 }
@@ -694,6 +703,7 @@ async function runQuickRotation(port, signal) {
     host: quickA,
     phase: 'live',
     members: [quickA, quickB],
+    bots: 4,
   }, 'existing quick-room state');
   pass(Buffer.compare(quickA.map, quickB.map) === 0,
     'clients mixed into one quick room receive identical Foundry bytes');
@@ -716,6 +726,7 @@ async function runQuickRotation(port, signal) {
     host: quickDepot,
     phase: 'live',
     members: [quickDepot],
+    bots: 5,
   }, 'fresh rotated quick-room state');
   pass(foundryBytes.length === quickDepot.map.length && Buffer.compare(foundryBytes, quickDepot.map) !== 0,
     'Foundry and Depot use equally complete but byte-distinct map payloads');
@@ -825,6 +836,56 @@ async function runTdmDepot(port, quickDepotBytes, signal) {
   })), 'TDM lobby and client identities remain stable through subsequent ticks');
 
   await closeRoomClients(members, 'TDM room');
+}
+
+async function runGunGameFoundry(port, signal) {
+  const selection = { gameMode: 'gungame', map: 'foundry' };
+  const host = await admit(
+    makeClient(port, 'GunGame-Host'),
+    { t: 'create', name: 'GunGame-Host', bots: 0, gameMode: 'gungame', map: 'foundry' },
+    selection,
+    signal,
+  );
+  const guest = await admit(
+    makeClient(port, 'GunGame-Guest'),
+    { t: 'join', name: 'GunGame-Guest', lobby: host.welcome.lobby.code },
+    selection,
+    signal,
+  );
+  const members = [host, guest];
+  const liveMarks = await readyAndStart(host, members, selection, signal);
+  const firstTick = await nextTick(
+    host,
+    liveMarks.get(host),
+    (tick) => members.every((client) => playerRow(tick, client)),
+    'first complete Gun Game tick',
+    signal,
+  );
+  assertPlayerRows(firstTick, members, 'Gun Game tick');
+  assertMatchShape(firstTick, selection, 'Gun Game tick');
+  pass(firstTick.match.phase === 'live'
+    && firstTick.match.scores === null
+    && firstTick.match.winner === null
+    && firstTick.players.every((row) => row.team === null
+      && row.weapon === 0
+      && row.score === 0
+      && JSON.stringify(row.owned) === JSON.stringify([GUN_GAME_WEAPON_ORDER[0]])),
+  'Gun Game starts every player on the shared first weapon and zero progression');
+
+  const switchMark = host.mark();
+  host.input(1, { weapon: REVOLVER_SLOT });
+  const guardedTick = await nextTick(
+    host,
+    switchMark,
+    (tick) => tick.now > firstTick.now,
+    'Gun Game illegal weapon-switch guard',
+    signal,
+  );
+  const hostRow = playerRow(guardedTick, host);
+  pass(hostRow.weapon === 0
+    && JSON.stringify(hostRow.owned) === JSON.stringify([GUN_GAME_WEAPON_ORDER[0]]),
+  'Gun Game rejects switching away from the authoritative progression weapon');
+  await closeRoomClients(members, 'Gun Game room');
 }
 
 async function runSndCitadel(port, depotBytes, signal) {
@@ -1219,6 +1280,7 @@ async function runContracts(server, signal) {
   pass(/malformed/i.test(badMap.msg), 'malformed map identity is rejected');
 
   const maps = await runQuickRotation(port, signal);
+  await runGunGameFoundry(port, signal);
   await runTdmDepot(port, maps.depotBytes, signal);
   await runSndCitadel(port, maps.depotBytes, signal);
 

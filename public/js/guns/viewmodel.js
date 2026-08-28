@@ -230,7 +230,7 @@ export class ViewmodelRig {
 
   /**
    * @param dt      seconds, clamped hard to 0.033 (tab-refocus spikes never explode springs)
-   * @param ctx     {speed, grounded, mouseDX, mouseDY, isSprinting, crouch, panic, exhaustion}
+   * @param ctx     {speed, grounded, mouseDX,mouseDY,isSprinting,crouch,panic,exhaustion,pain,aimSwayScale}
    *                Mouse deltas move only this gun rig; camera aim remains caller-authoritative.
    */
   update(dt, ctx = {}) {
@@ -298,18 +298,25 @@ export class ViewmodelRig {
     /* Baseline idle life plus hidden condition motion. Both are deterministic rig-clock functions. */
     const panic = Math.max(0, Math.min(1, Number(ctx.panic) || 0));
     const exhaustion = Math.max(0, Math.min(1, Number(ctx.exhaustion) || 0));
+    const pain = Math.max(0, Math.min(1, Number(ctx.pain) || 0));
+    const distress = Math.min(1.6, panic + pain * 0.9);
+    const aimSwayScale = Number.isFinite(ctx.aimSwayScale)
+      ? Math.max(0, Math.min(2, ctx.aimSwayScale))
+      : 1;
     const condDamp = 1 - adsE * 0.35;
     const phase = cur.conditionPhase;
-    const breathe = Math.sin(this._now * BOB.idleFreq * Math.PI * 2) * BOB.idleAmp * (1 - adsE * 0.6);
+    const breathe = Math.sin(this._now * BOB.idleFreq * Math.PI * 2) * BOB.idleAmp *
+      (1 - adsE * 0.6) * aimSwayScale;
     const exhaustedBreath = Math.sin(this._now * (3.2 + exhaustion * 0.9) + phase) *
-      BOB.idleAmp * 1.8 * exhaustion * condDamp;
+      BOB.idleAmp * 1.8 * exhaustion * condDamp * aimSwayScale;
     const tremorX = (Math.sin(this._now * 41 + phase) * 0.00045 +
-      Math.sin(this._now * 67 + phase * 1.7) * 0.00025) * panic * condDamp;
+      Math.sin(this._now * 67 + phase * 1.7) * 0.00025) * distress * condDamp * aimSwayScale;
     const tremorY = (Math.sin(this._now * 47 + phase * 0.7) * 0.00040 +
-      Math.sin(this._now * 73 + phase * 1.3) * 0.00020) * panic * condDamp;
-    const conditionPitch = (Math.sin(this._now * 13 + phase) * 0.0015 * panic +
-      Math.sin(this._now * 3.4 + phase) * 0.0030 * exhaustion) * condDamp;
-    const conditionYaw = Math.sin(this._now * 19 + phase * 0.8) * 0.0012 * panic * condDamp;
+      Math.sin(this._now * 73 + phase * 1.3) * 0.00020) * distress * condDamp * aimSwayScale;
+    const conditionPitch = (Math.sin(this._now * 13 + phase) * 0.0015 * distress +
+      Math.sin(this._now * 3.4 + phase) * 0.0030 * exhaustion) * condDamp * aimSwayScale;
+    const conditionYaw = Math.sin(this._now * 19 + phase * 0.8) * 0.0012 *
+      distress * condDamp * aimSwayScale;
 
     /* ---------- choreography states ---------- */
     const actionMotion = this._actions.update(this._now, dt, cur, T);

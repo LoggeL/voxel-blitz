@@ -14,6 +14,7 @@ import {
 } from '../shared/worlddata.js';
 import {
   MODE_IDS, TEAM_IDS, MAP_IDS, MODE_RULES, WEAPON_PRICES,
+  GUN_GAME_WEAPON_ORDER,
   START_CREDITS, KILL_CREDITS, PLANT_CREDITS, ROUND_WIN_CREDITS,
   MAX_CREDITS, LOSS_CREDIT_LADDER, MAP_MODE_COMPATIBILITY,
   normalizeModeId, normalizeTeamId, normalizeMapId, normalizeWeaponId,
@@ -196,7 +197,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
 // ---------------------------------------------- mode + map foundation contract
 {
-  ok(sameValue(MODE_IDS, ['fun', 'tdm', 'snd'])
+  ok(sameValue(MODE_IDS, ['fun', 'tdm', 'snd', 'gungame'])
     && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
@@ -215,6 +216,13 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
       respawnMs: 3000,
       scoreLimit: 40,
       postMs: 5000,
+    },
+    gungame: {
+      teams: false,
+      friendlyFire: true,
+      respawnMs: 1500,
+      postMs: 5000,
+      weaponOrder: ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver'],
     },
     snd: {
       teams: true,
@@ -239,6 +247,9 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   };
   ok(sameValue(MODE_RULES, expectedRules) && deeplyFrozen(MODE_RULES),
     'mode rules are exact and recursively immutable');
+  ok(MODE_RULES.gungame.weaponOrder === GUN_GAME_WEAPON_ORDER
+    && deeplyFrozen(GUN_GAME_WEAPON_ORDER),
+  'Gun Game progression has one exact immutable shared weapon order');
 
   const expectedPrices = {
     revolver: 0,
@@ -261,9 +272,9 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   'Search and Destroy prices and credit economy are exact immutable values');
 
   const expectedCompatibility = {
-    foundry: ['fun', 'tdm', 'snd'],
-    depot: ['fun', 'tdm'],
-    citadel: ['fun', 'tdm', 'snd'],
+    foundry: ['fun', 'tdm', 'snd', 'gungame'],
+    depot: ['fun', 'tdm', 'gungame'],
+    citadel: ['fun', 'tdm', 'snd', 'gungame'],
   };
   ok(sameValue(MAP_MODE_COMPATIBILITY, expectedCompatibility)
     && deeplyFrozen(MAP_MODE_COMPATIBILITY)
@@ -295,8 +306,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   };
   const expectedMapHashes = {
     foundry: '78553d52',
-    depot: '6432c666',
-    citadel: '3905a525',
+    depot: '74944f5c',
+    citadel: '5e90ff33',
   };
   const expectedSpawnCounts = {
     foundry: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 5, sndDefenders: 5 },

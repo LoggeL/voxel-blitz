@@ -1,7 +1,7 @@
-// Fixed mode, team, map, and Search and Destroy economy contract.
+// Fixed mode, team, map, Gun Game progression, and Search and Destroy economy contract.
 // This module is dependency-free so the browser and authoritative server share it directly.
 
-export const MODE_IDS = Object.freeze(['fun', 'tdm', 'snd']);
+export const MODE_IDS = Object.freeze(['fun', 'tdm', 'snd', 'gungame']);
 export const TEAM_IDS = Object.freeze(['alpha', 'bravo']);
 export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel']);
 
@@ -9,6 +9,14 @@ export const DEFAULT_MODE_ID = MODE_IDS[0];
 export const DEFAULT_TEAM_ID = TEAM_IDS[0];
 export const DEFAULT_MAP_ID = MAP_IDS[0];
 export const DEFAULT_WEAPON_ID = 'revolver';
+export const GUN_GAME_WEAPON_ORDER = Object.freeze([
+  'rifle',
+  'smg',
+  'shotgun',
+  'sniper',
+  'lmg',
+  'revolver',
+]);
 
 export const START_CREDITS = 800;
 export const KILL_CREDITS = 300;
@@ -39,6 +47,13 @@ export const MODE_RULES = Object.freeze({
     scoreLimit: 40,
     postMs: 5000,
   }),
+  gungame: Object.freeze({
+    teams: false,
+    friendlyFire: true,
+    respawnMs: 1500,
+    postMs: 5000,
+    weaponOrder: GUN_GAME_WEAPON_ORDER,
+  }),
   snd: Object.freeze({
     teams: true,
     friendlyFire: false,
@@ -61,7 +76,7 @@ export const MODE_RULES = Object.freeze({
   }),
 });
 
-const DEPOT_MODE_IDS = Object.freeze([MODE_IDS[0], MODE_IDS[1]]);
+const DEPOT_MODE_IDS = Object.freeze(['fun', 'tdm', 'gungame']);
 
 export const MAP_MODE_COMPATIBILITY = Object.freeze({
   foundry: MODE_IDS,
@@ -70,7 +85,7 @@ export const MAP_MODE_COMPATIBILITY = Object.freeze({
 });
 
 export function isModeId(value) {
-  return value === 'fun' || value === 'tdm' || value === 'snd';
+  return MODE_IDS.includes(value);
 }
 
 export function normalizeModeId(value, fallback = DEFAULT_MODE_ID) {

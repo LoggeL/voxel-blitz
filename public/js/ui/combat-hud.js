@@ -234,6 +234,8 @@ export class CombatHudController {
       victim: this.nameFor(ev.victim),
       glyphKey: resolveKey(ev.w),
       hs: !!ev.hs,
+      longRange: !!ev.lr,
+      noScope: !!ev.ns,
     });
   }
 
@@ -262,11 +264,22 @@ export class CombatHudController {
     const kf = this.dom.kf;
     if (!kf || !entry || this._disposed) return;
 
-    const row = el('div', entry.hs ? 'kf-row kf-hs' : 'kf-row');
+    const classes = ['kf-row'];
+    if (entry.hs) classes.push('kf-hs');
+    if (entry.noScope) classes.push('kf-no-scope');
+    const row = el('div', classes.join(' '));
     const killer = el('b', '', row);
     killer.textContent = entry.killer;
     const glyph = el('span', 'kf-w', row);
     glyph.textContent = GLYPH[entry.glyphKey] || '?';
+    const markers = [];
+    if (entry.hs) markers.push('HEADSHOT');
+    if (entry.longRange) markers.push('LONG RANGE');
+    if (entry.noScope) markers.push('NO-SCOPE');
+    for (const marker of markers) {
+      const badge = el('em', 'kf-marker', row);
+      badge.textContent = marker;
+    }
     const victim = el('span', '', row);
     victim.textContent = entry.victim;
 

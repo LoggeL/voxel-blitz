@@ -141,11 +141,6 @@ class Game {
     });
     this.weapon.resetToLoadout();
     this.rig.setWeapon(WEAPON_IDS[this.weapon.slot]);
-    if (debugMode) {
-      const debugSlot = WEAPON_IDS.indexOf(debugWeapon);
-      if (debugSlot >= 0) this.weapon.forceWeapon(debugSlot);
-      this.input.wantAdsHeld = debugAds;
-    }
     this.rig.onReloadClick = (step) => sfx.reloadClick(step, WEAPON_IDS[this.weapon.slot]);
     this.roster = new AvatarRoster({
       scene: this.worldview.scene,
@@ -175,7 +170,19 @@ class Game {
       activateLive: () => { this.running = true; this.clock.start(); },
       flushQueuedSnapshots: () => this.flushPendingAuthoritativeSnapshots(),
       consumeLatestAuthoritativeState: () => this.consumeLatestAuthoritativeState(),
-      startLoop: () => this.loop(++this._loopGeneration),
+      startLoop: () => {
+        // Apply visual-debug overrides after authoritative boot reconciliation
+        // and input reset so every weapon/ADS URL produces the requested view.
+        if (debugMode) {
+          const debugSlot = WEAPON_IDS.indexOf(debugWeapon);
+          if (debugSlot >= 0) this.weapon.forceWeapon(debugSlot, {
+            mode: this.matchState?.mode,
+            owned: this.selfRow?.owned,
+          });
+          this.input.wantAdsHeld = debugAds;
+        }
+        this.loop(++this._loopGeneration);
+      },
     });
   }
 
@@ -275,7 +282,8 @@ class Game {
     if (!this.session.gameplayInputEnabled || !this.player.alive ||
         this.selfRow?.state !== 'alive') return false;
     if (this.matchState?.mode === 'fun') return true;
-    return (this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd') &&
+    return (this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
+      this.matchState?.mode === 'gungame') &&
       this.matchState.phase === 'live';
   }
 
@@ -295,8 +303,8 @@ class Game {
       panic: this.player.panic,
       exhaustion: this.player.exhaustion,
       pain: this.player.pain,
-      yaw: this.player.view.yaw,
-      pitch: this.player.view.pitch,
+      yaw: this.player.aimYaw,
+      pitch: this.player.aimPitch,
       cameraX: position.x,
       cameraY: position.y,
       cameraZ: position.z,
@@ -347,8 +355,11 @@ class Game {
         mouseDX: this.player.lookVelX,
         mouseDY: this.player.lookVelY,
         isSprinting: !this.player.wantAds && this.player.keys.sprint && this.player.speedXZ > 4.6,
+        crouch: this.player.crouchBool,
         panic: this.player.panic,
         exhaustion: this.player.exhaustion,
+        pain: this.player.pain,
+        aimSwayScale: this.player.aimMotion?.rigMotionScale,
       });
       this.weapon.syncRigAds();
       this.effects.update(dt);
@@ -373,7 +384,7 @@ class Game {
       this._sbAt = now;
       this.hud.setPlayers(this.playersCache);
     }
-    const forward = fwdFromAngles(this.player.view.yaw, this.player.view.pitch);
+    const forward = fwdFromAngles(this.player.aimYaw, this.player.aimPitch);
     sfx.setListener({
       fwd: [forward.x, forward.y, forward.z],
       pos: [this.camera.position.x, this.camera.position.y, this.camera.position.z],

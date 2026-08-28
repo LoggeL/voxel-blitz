@@ -5,6 +5,7 @@
 import { AIR, GLASS, LEAVES, BLOCK_HP } from '../../shared/worlddata.js';
 import {
   CONDITION_RULES,
+  SNIPER_SCOPE_ADS_THRESHOLD,
   PLAYER_HALF,
   HEADSHOT_Y_FRAC,
   damageAtDistance,
@@ -21,6 +22,8 @@ import {
 } from './player.js';
 
 export const SHOT_REACH = 120;
+export const LONG_RANGE_KILL_DISTANCE = 40;
+export const NO_SCOPE_ADS_THRESHOLD = SNIPER_SCOPE_ADS_THRESHOLD;
 const P_HEIGHT = PLAYER_HALF.h * 2;
 const BLOCK_MIN_DMG = 12;
 const REWIND_MS = 100;
@@ -226,7 +229,10 @@ export function fireOneShot(p, ctx) {
       dmg = Math.round(dmg * 10) / 10;
       const lethal = tgt.victim.takeDamage(dmg, hs);
       ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, [ix, iy, iz]));
-      if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs);
+      if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
+        longRange: tgt.t >= LONG_RANGE_KILL_DISTANCE,
+        noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
+      });
     } else if (hit) {
       const type = ctx.getBlock(hit.x, hit.y, hit.z);
       if (BLOCK_HP[type] != null) {

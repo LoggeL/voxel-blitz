@@ -425,6 +425,55 @@ function proveAuthoritativeRowsAndProtection() {
   }
 }
 
+function proveGunGameProgression() {
+  const engine = createEngine('gungame');
+  engine.addClient('human-0', 'Human');
+  engine.addClient('human-1', 'Opponent');
+  {
+    const killer = engine.entities.get('human-0');
+    const victim = engine.entities.get('human-1');
+    for (let level = 0; level < MODE_RULES.gungame.weaponOrder.length; level++) {
+      const required = MODE_RULES.gungame.weaponOrder[level];
+      const slot = WEAPON_IDS.indexOf(required);
+      assert.equal(killer.weapon, slot, `Gun Game level ${level} equips ${required}`);
+      assert.deepEqual(engine.mode.playerSnapshot(killer).owned, [required],
+        `Gun Game level ${level} owns only ${required}`);
+
+      engine.killPlayer(victim, killer, required, level === 3, {
+        longRange: level === 3,
+        noScope: level === 3,
+      });
+      assert.equal(killer.score, level + 1,
+        `Gun Game valid ${required} kill advances exactly one level`);
+      if (level + 1 < MODE_RULES.gungame.weaponOrder.length) {
+        assert.equal(killer.weapon,
+          WEAPON_IDS.indexOf(MODE_RULES.gungame.weaponOrder[level + 1]),
+        'Gun Game immediately equips the next weapon');
+        assert.equal(engine.forceRespawn(victim), true,
+          'Gun Game victim uses the authoritative timed-respawn path');
+      }
+    }
+
+    assert.equal(engine.mode.phase, 'post', 'final revolver kill concludes Gun Game');
+    assert.equal(engine.mode.matchWinner, killer.id, 'Gun Game winner is the final killer');
+    const finalKill = engine.tickEvents.findLast((event) => event.kind === 'kill');
+    const markedKill = engine.tickEvents.find((event) => event.kind === 'kill' && event.hs);
+    assert.deepEqual(
+      { hs: markedKill?.hs, lr: markedKill?.lr, ns: markedKill?.ns },
+      { hs: true, lr: true, ns: true },
+      'kill events preserve authoritative HEADSHOT, LONG RANGE, and NO-SCOPE markers',
+    );
+    assert.equal(finalKill?.w, 'revolver', 'final Gun Game kill reports its required weapon');
+
+    engine.now = engine.mode.phaseEndsAt;
+    engine.step(0);
+    assert.equal(engine.mode.phase, 'live', 'Gun Game post phase resets to live');
+    assert.equal(killer.score, 0, 'Gun Game reset clears progression score');
+    assert.equal(killer.weapon, WEAPON_IDS.indexOf(MODE_RULES.gungame.weaponOrder[0]),
+      'Gun Game reset restores the first weapon');
+  }
+}
+
 function proveSndEconomyAndPrepSafety() {
   const engine = createEngine('snd');
   const calls = captureInputs(engine);
@@ -630,6 +679,7 @@ function proveDroppedBombRecoveryAndGuard() {
 console.log('bot mode smoke: deterministic direct behavior');
 proveTdmTargeting();
 proveAuthoritativeRowsAndProtection();
+proveGunGameProgression();
 proveSndEconomyAndPrepSafety();
 provePlantAndDefuseBehavior();
 proveDroppedBombRecoveryAndGuard();

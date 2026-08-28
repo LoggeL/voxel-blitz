@@ -2,6 +2,81 @@ import * as THREE from '../../public/js/vendor/three.module.js';
 import { WEAPONS, WEAPON_IDS } from '../../shared/combatmath.js';
 
 export async function runViewmodelContracts(ok, installGlobals) {
+  {
+    const { AimSway } = await import('../../public/js/player/aim-sway.js');
+    const idle = new AimSway().update(0.05, { stationary: true, grounded: true });
+    const crouched = new AimSway().update(0.05, {
+      stationary: true, grounded: true, crouching: true,
+    });
+    const held = new AimSway().update(0.05, {
+      stationary: true, grounded: true, shift: true,
+    });
+    const magnitude = (value) => Math.hypot(value.yaw, value.pitch);
+    ok(magnitude(idle) > 0 && magnitude(crouched) < magnitude(idle)
+        && magnitude(held) < magnitude(crouched),
+    'idle aim sway is subtle, crouch-damped, and suppressed by stationary Shift breath hold');
+
+    const holdFrames = (panic, pain) => {
+      const sway = new AimSway();
+      let frames = 0;
+      while (frames < 80 && sway.update(0.05, {
+        stationary: true, grounded: true, shift: true, panic, pain,
+      }).holdingBreath) frames++;
+      return frames;
+    };
+    ok(holdFrames(0.9, 0.9) < holdFrames(0, 0),
+      'pain and panic shorten the finite hold-breath window');
+
+    const calm = new AimSway().update(0.05, { stationary: true, grounded: true });
+    const distressed = new AimSway().update(0.05, {
+      stationary: true, grounded: true, panic: 1, pain: 1,
+    });
+    ok(magnitude(distressed) > magnitude(calm) * 2,
+      'pain and panic materially increase stationary aim sway');
+
+    const { disposeFirstPersonBody, makeFirstPersonBody } =
+      await import('../../public/js/player/first-person-body.js');
+    const body = makeFirstPersonBody();
+    ok(body.torso.position.z > 0
+        && body.torso.position.y + body.torso.geometry.parameters.height / 2 < 1.1,
+    'first-person torso stays below and behind the straight-ahead eye line');
+    disposeFirstPersonBody(body);
+
+    const input = new Proxy({
+      wantAdsHeld: false,
+      wantFireHeld: false,
+      consumeDelta: () => ({ dx: 0, dy: 0 }),
+      getKeys: () => ({ sprint: false, crouch: false }),
+      setGameplayEnabled() {},
+      consumeBuyMenuRequest: () => false,
+      consumeWeaponSwitch: () => 0,
+      consumeWeaponSlot: () => null,
+      consumeLastWeaponRequest: () => false,
+      consumeFireTap: () => false,
+    }, { get: (target, key) => target[key] ?? (() => false) });
+    const physics = {
+      pos: { x: 0, y: 0, z: 0 },
+      vel: { x: 0, y: 0, z: 0 },
+      grounded: true,
+      _crouching: false,
+      step: () => false,
+      eyeY: () => 1.62,
+      setMapMeta() {},
+    };
+    const { LocalPlayer } = await import('../../public/js/player/local-player.js');
+    const player = new LocalPlayer({ input, physics, sendHz: 20 });
+    player.setGameplayInputEnabled(true);
+    let sent = null;
+    player.update(0.05, 0, { sendInput: (payload) => { sent = payload; return true; } });
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.01, 100);
+    player.updateCamera(0.05, camera, { id: 'rifle', adsFov: 60 });
+    ok(Math.hypot(player.aimYaw, player.aimPitch) > 0
+        && sent?.yaw === player.aimYaw && sent?.pitch === player.aimPitch
+        && camera.rotation.y === player.aimYaw && camera.rotation.x === player.aimPitch,
+    'LocalPlayer presents and sends the same swayed aim used by its camera');
+    player.dispose();
+  }
+
   // Viewmodel: every canonical weapon must build and survive a real update.
   // The generic magswap request resolves into the weapon's physical reload
   // profile, and identical mouse travel lags more as weapon mass increases.

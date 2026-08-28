@@ -201,6 +201,9 @@ export async function runAudioContracts(ok, installGlobals) {
         const data = Array.from({ length: channels }, () => new Float32Array(length));
         return { getChannelData: (channel) => data[channel] };
       }
+      async decodeAudioData(data) {
+        return { decoded: data, duration: 0.25 };
+      }
     }
 
     const audioDocument = new FakeListenerTarget();
@@ -286,6 +289,13 @@ export async function runAudioContracts(ok, installGlobals) {
         sfx.reloadClick(1, 'lmg');
         sfx.reloadClick(2, 'revolver');
       }) >= 5, 'LMG and revolver reload voices start');
+
+      const sampleLoad = await sfx.loadSamples({
+        'weapons.rifle.fire': '/assets/audio/weapons/rifle/fire.ogg',
+      }, async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
+      ok(sampleLoad.loaded === 1 && sampleLoad.failed === 0
+          && startedBy(() => sfx.fire('rifle')) === 1,
+      'a loaded local sample occupies the fire cue seam without layering procedural sources');
 
       const liveDirectToMaster = () => audio.nodes.filter((node) =>
         !node.disconnected && node.connections.includes(master));

@@ -22,6 +22,7 @@ import { createMapState, getMapMeta } from '../shared/worlddata.js';
 const MAX_HUMANS = 8;
 const MAX_ROOMS = 16;
 const MAX_BOTS = 7;
+const QUICK_MIN_BOTS = 5;
 
 const QUICK_MAPS = Object.freeze(['foundry', 'depot']);
 
@@ -88,7 +89,7 @@ export class LobbyManager {
           return this._reject(meta, 'Server room capacity reached', CLOSE_FULL, 'rooms full');
         }
         const map = QUICK_MAPS[this.quickMapCursor];
-        room = this._createRoom(true, count, DEFAULT_MODE_ID, map);
+        room = this._createRoom(true, Math.max(QUICK_MIN_BOTS, count), DEFAULT_MODE_ID, map);
         this.quickMapCursor = (this.quickMapCursor + 1) % QUICK_MAPS.length;
         created = true;
       }
@@ -232,6 +233,7 @@ export class LobbyManager {
     }
 
     if (room.host === member.id) room.host = room.members.keys().next().value;
+    this._syncQuickBots(room);
     this._broadcastLobbyState(room);
     return true;
   }
@@ -266,6 +268,7 @@ export class LobbyManager {
       map,
       phase: 'waiting',
       bots,
+      quickPopulation: quick ? bots + 1 : null,
       host: '',
       members: new Map(),
       engine: null,
@@ -292,7 +295,9 @@ export class LobbyManager {
     const member = { id, name, ready: false, meta };
     let added = false;
     try {
-      const spawnInfo = room.engine.addClient(id, name);
+      const spawnInfo = room.quick && room.phase === 'live' && room.botManager
+        ? (room.botManager.takeover(id, name) || room.engine.addClient(id, name))
+        : room.engine.addClient(id, name);
       added = true;
       room.members.set(id, member);
       if (!room.host) room.host = id;
@@ -301,6 +306,7 @@ export class LobbyManager {
       meta.joined = true;
 
       if (startRoom) this._startRoom(room);
+      else this._syncQuickBots(room);
 
       const worldBytes = room.engine.world.serializeWorld();
       const spawn = spawnInfo && spawnInfo.spawn ? spawnInfo.spawn : (spawnInfo || {});
@@ -326,6 +332,7 @@ export class LobbyManager {
       }
       if (room.phase === 'waiting') room.engine.discardPendingEventsFor(id);
       if (room.host === id) room.host = room.members.keys().next().value || '';
+      this._syncQuickBots(room);
       this._clearMeta(meta, room);
       if (room.members.size === 0) this._destroyRoom(room);
       throw err;
@@ -350,6 +357,16 @@ export class LobbyManager {
       room.botManager = null;
       throw err;
     }
+  }
+
+  _syncQuickBots(room) {
+    if (!room?.quick || room.phase !== 'live' || !room.botManager) return;
+    const targetPopulation = Number.isFinite(room.quickPopulation)
+      ? room.quickPopulation
+      : QUICK_MIN_BOTS + 1;
+    const desired = Math.max(0, Math.min(MAX_BOTS, targetPopulation - room.members.size));
+    room.botManager.setCount(desired);
+    room.bots = desired;
   }
 
   _memberFor(meta) {

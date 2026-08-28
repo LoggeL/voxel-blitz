@@ -1,3 +1,4 @@
+import { GUN_GAME_WEAPON_ORDER } from '../../../shared/modes.js';
 import {
   MODE_LABELS,
   MAP_LABELS,
@@ -170,6 +171,16 @@ export class MatchHud {
         }
       } else if (curMode === 'tdm') {
         m.phaseLabel.textContent = phase === 'post' ? 'MATCH CONCLUDED' : 'TEAM DEATHMATCH · FIRST TO 40';
+      } else if (curMode === 'gungame') {
+        if (phase === 'post') {
+          m.phaseLabel.textContent = match?.winner
+            ? `${this._nameFor(match.winner)} WON GUN GAME`
+            : 'GUN GAME CONCLUDED';
+        } else {
+          const lastLevel = GUN_GAME_WEAPON_ORDER.length - 1;
+          const level = Math.max(0, Math.min(lastLevel, selfRow?.score | 0));
+          m.phaseLabel.textContent = `GUN GAME · WEAPON ${level + 1} / ${GUN_GAME_WEAPON_ORDER.length}`;
+        }
       } else {
         m.phaseLabel.textContent = 'INSTANT SKIRMISH · FREE FOR ALL';
       }
@@ -297,6 +308,11 @@ export class MatchHud {
 
   reset() {
     this.setMatchState(null, null, [], undefined);
+  }
+
+  _nameFor(id) {
+    const row = this._latestPlayers.find((player) => String(player?.id) === String(id));
+    return String(row?.name || id || 'PLAYER').toUpperCase();
   }
 
   dispose() {

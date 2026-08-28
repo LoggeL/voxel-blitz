@@ -426,6 +426,23 @@ async function runContracts(server, signal) {
 
   // Legacy direct joins must still rendezvous in one immediately-live quick room.
   const quickA = await admit(makeClient(port, 'Quick-A'), { t: 'join', name: 'Quick-A' }, signal);
+  assertLobbyState(quickA.initialState, {
+    code: quickA.welcome.lobby.code,
+    host: quickA.welcome.id,
+    phase: 'live',
+    bots: 5,
+    humans: [{ client: quickA, ready: false }],
+    botRows: 5,
+  }, 'fresh quick-room population');
+  const initialQuickTick = await nextTick(
+    quickA,
+    0,
+    (tick) => tick.players.filter((row) => String(row.id).startsWith('bot-')).length === 5,
+    'quick-room tick with five starter bots',
+    signal,
+  );
+  pass(initialQuickTick.players.some((row) => row.id === 'bot-4'),
+    'fresh quick room owns the deterministic takeover bot slot');
   const quickB = await admit(makeClient(port, 'Quick-B'), { t: 'join', name: 'Quick-B' }, signal);
   pass(quickA.welcome.phase === 'live' && quickB.welcome.phase === 'live' &&
     quickA.welcome.lobby.code === quickB.welcome.lobby.code,
@@ -436,6 +453,20 @@ async function runContracts(server, signal) {
     client.initialState.gameMode === DEFAULT_GAME_MODE &&
     client.initialState.map === DEFAULT_MAP),
   'legacy quick rooms default welcome and lobby state to fun on foundry');
+  assertLobbyState(quickB.initialState, {
+    code: quickA.welcome.lobby.code,
+    host: quickA.welcome.id,
+    phase: 'live',
+    bots: 4,
+    humans: [
+      { client: quickA, ready: false },
+      { client: quickB, ready: false },
+    ],
+    botRows: 4,
+  }, 'quick human takeover replacement');
+  pass(!quickB.initialState.members.some((row) => row.id === 'bot-4')
+    && quickB.initialState.members.some((row) => row.id === quickB.welcome.id),
+  'joining human replaces the deterministic bot slot without growing the room');
   const quickTick = await nextTick(
     quickA,
     0,
@@ -443,9 +474,11 @@ async function runContracts(server, signal) {
     'quick-room tick containing both humans',
     signal,
   );
-  pass(quickTick.players.some((row) => row.id === quickA.welcome.id) &&
-    quickTick.players.some((row) => row.id === quickB.welcome.id),
-  'quick-room behavior frames contain both direct clients');
+  pass(quickTick.players.length === 6
+    && quickTick.players.some((row) => row.id === quickA.welcome.id)
+    && quickTick.players.some((row) => row.id === quickB.welcome.id)
+    && quickTick.players.filter((row) => String(row.id).startsWith('bot-')).length === 4,
+  'quick-room behavior keeps six entities while humans replace bots');
   await Promise.all([quickA.close(), quickB.close()]);
 
   // Keep a second waiting room present while exercising every public-lobby gate.

@@ -486,6 +486,7 @@ export async function runHudContracts(ok, installGlobals) {
       document.getElementById('name-input').value = 'HOST';
       document.getElementById('bot-count').value = '3';
       document.getElementById('create-lobby-btn').click();
+      document.getElementById('create-lobby-confirm-btn').click();
       ok(menuActions.length === 1
         && menuActions[0].mode === 'create'
         && menuActions[0].name === 'HOST'
@@ -501,6 +502,7 @@ export async function runHudContracts(ok, installGlobals) {
       document.getElementById('play-btn').click();
       ok(menuActions.length === 2
         && menuActions[1].mode === 'quick'
+        && menuActions[1].bots >= 5
         && menuActions[1].gameMode === 'fun'
         && menuActions[1].map === 'foundry'
         && !Object.hasOwn(globalThis, 'location'),
@@ -849,10 +851,15 @@ export async function runHudContracts(ok, installGlobals) {
         victim: 'LATEST',
         weapon: 'sniper',
         hs: true,
+        longRange: true,
+        noScope: true,
       });
       ok(hud.dom.kf.children.map((row) => row.children[0]?.textContent).join(',')
         === 'NEWEST,HOST',
       'killfeed inserts the newest row before the prior row');
+      ok(hud.dom.kf.children[0].children.map((node) => node.textContent).join('|')
+        === 'NEWEST|?|HEADSHOT|LONG RANGE|NO-SCOPE|LATEST',
+      'killfeed renders authoritative HEADSHOT, LONG RANGE, and NO-SCOPE markers');
       hud.setState({ wid: 'sniper', adsT01: 0.9, alive: true, hp: 100 });
       hud.setPainImpulse(0.8);
       const fullRoots = [

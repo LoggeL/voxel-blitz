@@ -28,9 +28,18 @@ export function evHit(attacker, victim, dmg, hs, v) {
   };
 }
 
-/** Killfeed row. */
-export function evKill(killer, victim, w, hs) {
-  return { t: 'ev', kind: 'kill', killer: String(killer), victim: String(victim), w: String(w), hs: !!hs };
+/** Killfeed row with authoritative shot traits. */
+export function evKill(killer, victim, w, hs, markers = null) {
+  return {
+    t: 'ev',
+    kind: 'kill',
+    killer: String(killer),
+    victim: String(victim),
+    w: String(w),
+    hs: !!hs,
+    lr: !!markers?.longRange,
+    ns: !!markers?.noScope,
+  };
 }
 
 /** Block mutation; `from` is the pre-mutation block id. */
