@@ -5,6 +5,7 @@ import { AudioEngine } from './engine.js';
 import { VoicePool } from './voices.js';
 import { createVoices } from './primitives.js';
 import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from './samples.js';
+import { MenuMusicLoop } from './music.js';
 import { bodyImpact, synthPainVoice } from './human.js';
 import { IMPACT_PARAMS, genericImpact, impactGlass, impactMetal } from './impacts.js';
 import {
@@ -30,6 +31,7 @@ let pool = null;
 let primitives = null;
 let samples = null;
 let builtInSamplesPromise = null;
+let menuMusic = null;
 let panSide = 1;
 
 function copyOptions(value) {
@@ -53,7 +55,7 @@ function outputOptions(value) {
   };
 }
 
-function ensureSynthesis() {
+function ensureAudioModules() {
   if (!engine.ctx || engine.ctx.state === 'closed') return false;
   if (!pool) pool = new VoicePool(engine);
   if (!primitives) primitives = createVoices(engine);
@@ -63,12 +65,18 @@ function ensureSynthesis() {
       addCleanup,
     });
   }
+  if (!menuMusic) {
+    menuMusic = new MenuMusicLoop({
+      getContext: () => engine.ctx,
+      getDestination: () => engine.bus,
+    });
+  }
   return true;
 }
 
 function run(kind, callback) {
   return engine.queueOrRun(kind, () => {
-    if (ensureSynthesis()) callback();
+    if (ensureAudioModules()) callback();
   });
 }
 
@@ -88,17 +96,19 @@ function addCleanup(output, cleanup) {
 export const sfx = {
   init() {
     if (!engine.ensure()) return Promise.resolve(this);
-    ensureSynthesis();
+    ensureAudioModules();
     return Promise.all([engine.resume(), loadBuiltInSamples()]).then(() => this);
   },
 
   unlock() {
     if (!engine.ensure()) return Promise.resolve(false);
-    ensureSynthesis();
+    ensureAudioModules();
     return engine.resume();
   },
 
   async dispose() {
+    menuMusic?.dispose();
+    menuMusic = null;
     pool = null;
     primitives = null;
     samples?.clear();
@@ -112,9 +122,20 @@ export const sfx = {
     engine.setMasterVolume(value);
   },
 
+  startMenuMusic(fetchImpl) {
+    if (!engine.ensure()) return Promise.resolve(false);
+    ensureAudioModules();
+    void engine.resume();
+    return menuMusic.start(fetchImpl);
+  },
+
+  stopMenuMusic(fadeSeconds) {
+    return menuMusic?.stop(fadeSeconds) || false;
+  },
+
   async loadSamples(manifest, fetchImpl) {
     if (!engine.ensure()) return Object.freeze({ loaded: 0, failed: 0 });
-    ensureSynthesis();
+    ensureAudioModules();
     return samples.load(manifest, fetchImpl);
   },
 

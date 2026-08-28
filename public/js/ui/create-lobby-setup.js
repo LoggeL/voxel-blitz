@@ -20,7 +20,7 @@ import {
 } from './hud-support.js';
 
 const MAP_PREVIEWS = Object.freeze({
-  foundry: './assets/maps/foundry-preview.svg',
+  foundry: './assets/maps/foundry-concept.webp',
   depot: './assets/maps/depot-concept.png',
   citadel: './assets/maps/citadel-concept.png',
 });
@@ -45,6 +45,10 @@ export class CreateLobbySetup {
     this.botSelect = null;
     this.sensitivityInput = null;
     this.firstFocus = null;
+    this.previewImage = null;
+    this.previewName = null;
+    this.previewDescription = null;
+    this.visible = false;
     this.build();
   }
 
@@ -99,6 +103,9 @@ export class CreateLobbySetup {
     const previewName = el('strong', '', previewCaption);
     const previewDescription = el('span', '', previewCaption, 'map-desc');
     previewDescription.setAttribute('aria-live', 'polite');
+    this.previewImage = previewImage;
+    this.previewName = previewName;
+    this.previewDescription = previewDescription;
 
     const syncMapOptions = (preferredMap = mapSelect.value) => {
       const mode = normalizeModeId(modeSelect.value, DEFAULT_MODE_ID);
@@ -112,7 +119,7 @@ export class CreateLobbySetup {
       const normalized = normalizeMapId(preferredMap, DEFAULT_MAP_ID);
       mapSelect.value = validMaps.includes(normalized) ? normalized : validMaps[0];
       modeDescription.textContent = MODE_DESCRIPTIONS[mode] || '';
-      this._updateMapPreview(previewImage, previewName, previewDescription);
+      this._updateMapPreview();
     };
 
     modeSelect.addEventListener('change', () => {
@@ -123,7 +130,7 @@ export class CreateLobbySetup {
     });
     mapSelect.addEventListener('change', () => {
       savePref('vb-map', normalizeMapId(mapSelect.value, DEFAULT_MAP_ID));
-      this._updateMapPreview(previewImage, previewName, previewDescription);
+      this._updateMapPreview();
     });
     syncMapOptions(loadPref('vb-map', DEFAULT_MAP_ID));
 
@@ -216,13 +223,13 @@ export class CreateLobbySetup {
     this.status = status;
   }
 
-  _updateMapPreview(image, name, description) {
+  _updateMapPreview() {
     const normalized = normalizeMapId(this.mapSelect?.value, DEFAULT_MAP_ID);
-    image.src = MAP_PREVIEWS[normalized];
-    image.alt = `${MAP_LABELS[normalized] || normalized} arena preview`;
-    image.dataset.map = normalized;
-    name.textContent = MAP_LABELS[normalized] || normalized.toUpperCase();
-    description.textContent = MAP_DESCRIPTIONS[normalized] || '';
+    if (this.visible) this.previewImage.src = MAP_PREVIEWS[normalized];
+    this.previewImage.alt = `${MAP_LABELS[normalized] || normalized} arena preview`;
+    this.previewImage.dataset.map = normalized;
+    this.previewName.textContent = MAP_LABELS[normalized] || normalized.toUpperCase();
+    this.previewDescription.textContent = MAP_DESCRIPTIONS[normalized] || '';
   }
 
   _rosterRow(parent, name, badge, empty = false) {
@@ -234,12 +241,15 @@ export class CreateLobbySetup {
   }
 
   show() {
+    this.visible = true;
+    this._updateMapPreview();
     this.root.classList.remove('hidden');
     this.root.setAttribute('aria-hidden', 'false');
     this.firstFocus?.focus();
   }
 
   hide() {
+    this.visible = false;
     this.root.classList.add('hidden');
     this.root.setAttribute('aria-hidden', 'true');
   }

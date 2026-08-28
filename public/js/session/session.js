@@ -296,6 +296,9 @@ export class Session {
     this.hud.buildMenu((action) => {
       void this.begin(action);
     });
+    try {
+      Promise.resolve(this.audio.startMenuMusic?.()).catch(() => {});
+    } catch (_) {}
     if (message) this.hud.showJoinState(message, 'err');
     return true;
   }
@@ -592,6 +595,7 @@ export class Session {
       owned: [],
     });
     this.hud.hideLobby();
+    this.audio.stopMenuMusic?.();
     this.hud.menuDone();
 
     this._phase = 'live';

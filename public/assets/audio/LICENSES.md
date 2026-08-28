@@ -1,8 +1,9 @@
 # Audio asset sources
 
-The runtime `.ogg` files in this directory were trimmed, filtered, normalized,
+The weapon and handling `.ogg` samples were trimmed, filtered, normalized,
 downmixed to mono, and encoded as Opus for VOXEL BLITZ. Procedural audio remains
-the fallback whenever a browser cannot fetch or decode a sample.
+the fallback whenever a browser cannot fetch or decode a sample. Music retains
+the source pack's stereo Vorbis encoding.
 
 ## Weapon reports
 
@@ -22,3 +23,11 @@ the fallback whenever a browser cannot fetch or decode a sample.
 
 Attribution is not required by CC0, but the source record is kept here so the
 origin and license of every bundled recording remain auditable.
+
+## Menu music
+
+- Source: **Dark Sci-Fi Audio Pack** by SRG774
+- Original file: `pulse.ogg`
+- License: Creative Commons Zero (CC0)
+- Source page: https://opengameart.org/content/dark-sci-fi-audio-pack
+- Used as the low-volume, looping menu and lobby music bed.

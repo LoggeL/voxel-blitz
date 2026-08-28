@@ -215,8 +215,10 @@ export async function runAudioContracts(ok, installGlobals) {
       window: audioWindow,
     });
     let sfx = null;
+    let MenuMusicLoop = null;
     try {
       ({ sfx } = await import('../../public/js/audio/sfx.js'));
+      ({ MenuMusicLoop } = await import('../../public/js/audio/music.js'));
       sfx.setMasterVolume(9);
       await sfx.init();
       await sfx.init();
@@ -319,12 +321,34 @@ export async function runAudioContracts(ok, installGlobals) {
         node.kind === 'panner' && !node.disconnected).length <= 16,
       'positional voice registry leaves at most sixteen live panner nodes');
 
+      const menuStarted = await sfx.startMenuMusic(async () => ({
+        ok: true,
+        arrayBuffer: async () => new ArrayBuffer(16),
+      }));
+      const menuSource = audio.nodes.findLast((node) =>
+        node.kind === 'buffer-source' && node.loop === true);
+      const menuGain = menuSource?.connections[0];
+      ok(menuStarted === true
+          && menuSource?.starts.length === 1
+          && menuGain?.kind === 'gain'
+          && menuGain.connections.includes(master)
+          && menuGain.gain.events.some((event) =>
+            event[0] === 'linear' && event[1] === 0.16),
+      'menu music decodes once, loops, fades in, and shares the master bus');
+      ok(sfx.stopMenuMusic(0.55) === true
+          && menuSource.stops.length === 1
+          && menuGain.gain.events.some((event) =>
+            event[0] === 'linear' && event[1] === 0),
+      'menu music fades out through its owned voice');
+
       await sfx.dispose();
       ok(audio.state === 'closed'
           && audio.closeCount === 1
           && audio.listenerCount() === 0
           && audioDocument.listenerCount() === 0
           && audioWindow.listenerCount() === 0
+          && menuSource.disconnected
+          && menuGain.disconnected
           && audio.unmatchedRemovals.length === 0
           && audioDocument.unmatchedRemovals.length === 0
           && audioWindow.unmatchedRemovals.length === 0,
@@ -366,6 +390,28 @@ export async function runAudioContracts(ok, installGlobals) {
         restoreDetachedWindow();
         Object.defineProperty(globalThis, 'document', savedDocument);
       }
+
+      const cancellationAudio = new FakeAudioContext();
+      const cancellationDestination = cancellationAudio.createGain();
+      const cancellableMusic = new MenuMusicLoop({
+        getContext: () => cancellationAudio,
+        getDestination: () => cancellationDestination,
+      });
+      let finishFetch;
+      const cancelledStart = cancellableMusic.start(() =>
+        new Promise((resolve) => { finishFetch = resolve; }));
+      cancellableMusic.dispose();
+      finishFetch({ ok: true, arrayBuffer: async () => new ArrayBuffer(4) });
+      let freshFetches = 0;
+      ok(await cancelledStart === false
+          && await cancellableMusic.start(async () => {
+            freshFetches++;
+            return { ok: true, arrayBuffer: async () => new ArrayBuffer(4) };
+          }) === true
+          && freshFetches === 1,
+      'disposing during a menu music load discards the late buffer and forces a fresh fetch');
+      cancellableMusic.dispose();
+      await cancellationAudio.close();
     } finally {
       if (sfx) await sfx.dispose();
       restore();
