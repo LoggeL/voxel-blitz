@@ -518,7 +518,12 @@ if (debugMode) {
       });
     } catch {}
   }, 500);
-  game._onDebugError = (event) => { root.dataset.vbLastError = String(event?.message || event); };
+  game._onDebugError = (event) => {
+    const failedResource = event?.target?.currentSrc || event?.target?.src || '';
+    const detail = event?.message || event?.error?.message ||
+      (failedResource ? `resource failed: ${failedResource}` : '');
+    if (detail) root.dataset.vbLastError = String(detail);
+  };
   window.addEventListener('error', game._onDebugError, true);
 }
 
