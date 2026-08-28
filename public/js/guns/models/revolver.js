@@ -3,13 +3,21 @@ import { COL } from '../kit.js';
 import { BREACH_Z, BOLT_HOME, TRIGGER_Z } from './common.js';
 
 export function build({ kit, T, groups }) {
-  const { box, cylZ, brakeRings } = kit;
+  const { box, cylZ, brakeRings, ironSights } = kit;
   const { body: b, mag: mg, bolt, trigger: tg, extra } = groups;
 
   box(b, 0.066, 0.100, 0.20, 0, 0.020, -0.105, COL.gunmetal);                  // compact solid frame
   box(b, 0.054, 0.125, 0.070, 0, -0.080, -0.005, COL.walnut, { rx: 0.34 });    // compact grip
   box(b, 0.059, 0.016, 0.065, 0, -0.025, -0.015, COL.brass);                   // grip heel/backstrap
   box(b, 0.072, 0.025, 0.20, 0, -0.005, -0.275, COL.gunmetal);                // full underlug
+  ironSights(b, {
+    rearZ: -0.005,
+    frontZ: -0.455,
+    height: 0.105,
+    width: 0.038,
+    gap: 0.012,
+    accent: COL.brass,
+  });
 
   const bx = T.muzzle[0], by = T.muzzle[1];
   const len = Math.abs(T.muzzle[2] - BREACH_Z.revolver);

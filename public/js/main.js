@@ -141,6 +141,11 @@ class Game {
     });
     this.weapon.resetToLoadout();
     this.rig.setWeapon(WEAPON_IDS[this.weapon.slot]);
+    if (debugMode) {
+      const debugSlot = WEAPON_IDS.indexOf(debugWeapon);
+      if (debugSlot >= 0) this.weapon.forceWeapon(debugSlot);
+      this.input.wantAdsHeld = debugAds;
+    }
     this.rig.onReloadClick = (step) => sfx.reloadClick(step, WEAPON_IDS[this.weapon.slot]);
     this.roster = new AvatarRoster({
       scene: this.worldview.scene,
@@ -420,6 +425,10 @@ class Game {
   }
 }
 
+const debugParams = new URLSearchParams(location.search);
+const debugMode = debugParams.has('debug');
+const debugWeapon = debugParams.get('weapon') || '';
+const debugAds = debugParams.has('ads');
 const game = new Game();
 
 window.__vb = {
@@ -446,6 +455,9 @@ window.__vb = {
       yaw: game.player.view.yaw,
       weapon,
       weaponWeightKg: Number.isFinite(def?.weightKg) ? def.weightKg : null,
+      adsT: game.weapon?.adsT ?? null,
+      rigAdsT: game.rig?.currentAdsT01 ?? null,
+      cameraFov: game.camera?.fov ?? null,
       gunLag: Number.isFinite(sway?.x) && Number.isFinite(sway?.y) ? { x: sway.x, y: sway.y } : null,
       settingsOpen: !!game.hud.settingsOpen,
       volume: game.session.masterVolume,
@@ -475,7 +487,7 @@ window.__vb = {
   },
 };
 
-if (new URLSearchParams(location.search).has('debug')) {
+if (debugMode) {
   const root = document.documentElement;
   const seen = new Map();
   game._debugInterval = setInterval(() => {

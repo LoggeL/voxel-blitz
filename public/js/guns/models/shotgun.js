@@ -3,7 +3,7 @@ import { BOLT_HOME, BREACH_Z, PUMP_REST, TRIGGER_Z } from './common.js';
 
 /** Build the shotgun silhouette into the assembler-owned groups. */
 export function build({ kit, T, groups }) {
-  const { box, cylZ, brakeRings } = kit;
+  const { box, cylZ, brakeRings, ironSights } = kit;
   const { body, mag, bolt, pump, trigger } = groups;
 
   box(body, 0.065, 0.10, 0.16, 0, -0.01, 0.10, COL.walnut);
@@ -18,6 +18,14 @@ export function build({ kit, T, groups }) {
     }
   }
   box(body, 0.03, 0.06, 0.06, 0, 0.045, -0.125, COL.blued);
+  ironSights(body, {
+    rearZ: 0.145,
+    frontZ: -0.61,
+    height: 0.100,
+    width: 0.040,
+    gap: 0.016,
+    accent: COL.brass,
+  });
 
   const barrelY = T.muzzle[1];
   const barrelLength = Math.abs(T.muzzle[2] - BREACH_Z.shotgun);

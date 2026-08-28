@@ -52,7 +52,7 @@ export const TIMERS = {
     cycleKind: null,
     ejectOnFire: true,
     magTimeline: { start: 0.22, home: 0.78, clickAt: 0.90, type: 'mag' }, // symmetric magwell.
-    adsOffset: { x: 0.012, y: -0.075, z: -0.43 },            // sights ride just under eye line.
+    adsOffset: { x: 0.0, y: -0.145, z: -0.68 },              // iron-sight line on camera axis.
     kick: { stiffness: 260, damping: 26, yawWobble: 1.0 },   // crispCRACK spring: fast in, fast out.
   },
   smg: {
@@ -77,7 +77,7 @@ export const TIMERS = {
     cycleKind: null,
     ejectOnFire: true,
     magTimeline: { start: 0.18, home: 0.70, clickAt: 0.85, type: 'mag' }, // snappier slap.
-    adsOffset: { x: 0.020, y: -0.080, z: -0.36 },            // close CheekY adapter pose.
+    adsOffset: { x: 0.0, y: -0.112, z: -0.58 },              // compact notch/blade sight picture.
     kick: { stiffness: 300, damping: 24, yawWobble: 1.25 },  // stiffer buzz with extra jitter.
   },
   shotgun: {
@@ -104,7 +104,7 @@ export const TIMERS = {
     ejectOnFire: false,
     magTimeline: { start: 0.06, home: 0.94, clickAt: 0.0,
                    type: 'tube', repeatMs: 140 }, // tube loads: rhythmic thunk every 140ms.
-    adsOffset: { x: 0.024, y: -0.078, z: -0.50 },
+    adsOffset: { x: 0.0, y: -0.100, z: -0.74 },
     kick: { stiffness: 300, damping: 30, yawWobble: 0.7 },   // violent, dead-straight rear shove.
   },
 
@@ -131,7 +131,7 @@ export const TIMERS = {
     cycleKind: 'bolt',
     ejectOnFire: false,
     magTimeline: { start: 0.35, home: 0.75, clickAt: 0.75, type: 'stripper' }, // one motion.
-    adsOffset: { x: 0.006, y: -0.070, z: -0.34 },            // tucked in; HUD scope overlay owns zoom.
+    adsOffset: { x: 0.0, y: -0.205, z: -0.72 },              // optic aligns during scope transition.
     kick: { stiffness: 160, damping: 18, yawWobble: 0.5 },   // heavyweight slow roll-over, tiny yaw.
   },
   lmg: {
@@ -157,7 +157,7 @@ export const TIMERS = {
     cycleKind: null,
     ejectOnFire: true,
     magTimeline: { start: 0.16, home: 0.84, clickAt: 0.93, type: 'belt' },
-    adsOffset: { x: 0.018, y: -0.073, z: -0.48 },
+    adsOffset: { x: 0.0, y: -0.155, z: -0.78 },
     kick: { stiffness: 205, damping: 25, yawWobble: 0.75 },
   },
   revolver: {
@@ -183,7 +183,7 @@ export const TIMERS = {
     cycleKind: null,
     ejectOnFire: false,
     magTimeline: { start: 0.14, home: 0.86, clickAt: 0.94, type: 'cylinder' },
-    adsOffset: { x: 0.016, y: -0.073, z: -0.39 },
+    adsOffset: { x: 0.0, y: -0.105, z: -0.64 },
     kick: { stiffness: 235, damping: 22, yawWobble: 0.65 },
   },
 };

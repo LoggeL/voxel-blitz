@@ -29,6 +29,7 @@ export function build({ kit, T, groups }) {
   cylZ(body, 0.023, 0.012, 0, barrelY, T.muzzle[2] + 0.006, COL.brake);
 
   // Scope rings, tube, objective bell, ocular, glass, and reticle are the optic silhouette cues.
+  body.userData.sightHeight = 0.205;
   for (const z of [-0.245, -0.375]) {
     box(body, 0.014, 0.10, 0.022, 0, 0.132, z, COL.polyDark);
   }

@@ -2,7 +2,7 @@ import { COL } from '../kit.js';
 import { BOLT_HOME, BREACH_Z, TRIGGER_Z } from './common.js';
 
 export function build({ kit, T, groups }) {
-  const { box, cylZ, brakeRings } = kit;
+  const { box, cylZ, brakeRings, ironSights } = kit;
   const { body, mag, bolt, trigger } = groups;
 
   box(body, 0.085, 0.11, 0.34, 0, 0.03, -0.22, COL.steel);
@@ -14,6 +14,7 @@ export function build({ kit, T, groups }) {
   [0, 2, 4].forEach((i) => {
     box(body, 0.072, 0.006, 0.02, 0, 0.096, -0.06 - i * 0.104, COL.amber);
   });
+  ironSights(body, { rearZ: 0.045, frontZ: -0.53, height: 0.145 });
   [-1, 1].forEach((side) => {
     [-0.36, -0.44, -0.52].forEach((z) => {
       box(body, 0.006, 0.03, 0.05, side * 0.034, 0.052, z, COL.polyDark);

@@ -126,6 +126,31 @@ export function makeKit(cache) {
     }
   }
 
+  /**
+   * Build a readable rear notch and front blade around one shared sight line.
+   * `height` is the local-space aim point; ADS profiles place that point on the camera axis.
+   */
+  function ironSights(parent, {
+    rearZ,
+    frontZ,
+    height,
+    width = 0.046,
+    gap = 0.014,
+    color = COL.polyDark,
+    accent = COL.amber,
+  }) {
+    parent.userData.sightHeight = height;
+    const earWidth = Math.max(0.008, (width - gap) / 2);
+    const earX = gap / 2 + earWidth / 2;
+    const earHeight = 0.032;
+    const bladeHeight = 0.030;
+    box(parent, width, 0.008, 0.018, 0, height - earHeight, rearZ, color);
+    box(parent, earWidth, earHeight, 0.018, -earX, height - earHeight / 2, rearZ, color);
+    box(parent, earWidth, earHeight, 0.018, earX, height - earHeight / 2, rearZ, color);
+    box(parent, 0.030, 0.008, 0.014, 0, height - bladeHeight, frontZ, color);
+    box(parent, 0.008, bladeHeight, 0.014, 0, height - bladeHeight / 2, frontZ, accent);
+  }
+
   /** Static box-mitt pose: deliberately no runtime IK or per-frame work. */
   function glove(parent, anchorX, anchorY, anchorZ, kind, mirror) {
     const group = new THREE.Group();
@@ -156,7 +181,7 @@ export function makeKit(cache) {
   }
 
   // mat is exposed to builders that need a cached material for a custom THREE primitive.
-  return { mat, box, cylZ, brakeRings, glove };
+  return { mat, box, cylZ, brakeRings, glove, ironSights };
 }
 
 const FX_VERTEX_SHADER = `varying vec3 vN; varying vec3 vW;

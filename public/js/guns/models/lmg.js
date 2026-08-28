@@ -3,7 +3,7 @@ import { COL } from '../kit.js';
 import { BREACH_Z, BOLT_HOME, TRIGGER_Z } from './common.js';
 
 export function build({ kit, T, groups }) {
-  const { box, cylZ, brakeRings } = kit;
+  const { box, cylZ, brakeRings, ironSights } = kit;
   const { body: b, mag: mg, bolt, trigger: tg, extra } = groups;
 
   box(b, 0.11, 0.135, 0.39, 0, 0.025, -0.205, COL.parkerized);                  // broad receiver
@@ -24,11 +24,12 @@ export function build({ kit, T, groups }) {
   cylZ(b, 0.029, 0.012, bx, by, T.muzzle[2] + 0.006, COL.brake);
   box(b, 0.006, 0.038, 0.020, bx, by + 0.032, T.muzzle[2] + 0.035, COL.amber);    // tall front blade
 
-  // Carry handle: raised bridge and angled legs make the silhouette unmistakably crew-served.
-  box(b, 0.018, 0.105, 0.024, -0.040, 0.135, -0.31, COL.polyDark, { rz: -0.42 });
-  box(b, 0.018, 0.105, 0.024, 0.040, 0.135, -0.31, COL.polyDark, { rz: 0.42 });
-  box(b, 0.095, 0.022, 0.14, 0, 0.186, -0.31, COL.polymer);
-  box(b, 0.078, 0.010, 0.11, 0, 0.198, -0.31, COL.tan);
+  // The folded carry handle stays off the bore axis so it cannot occlude ADS.
+  box(b, 0.018, 0.090, 0.024, 0.025, 0.128, -0.31, COL.polyDark, { rz: -0.28 });
+  box(b, 0.018, 0.090, 0.024, 0.090, 0.128, -0.31, COL.polyDark, { rz: 0.28 });
+  box(b, 0.082, 0.020, 0.14, 0.058, 0.172, -0.31, COL.polymer);
+  box(b, 0.066, 0.009, 0.11, 0.058, 0.183, -0.31, COL.tan);
+  ironSights(b, { rearZ: 0.070, frontZ: -0.655, height: 0.155, width: 0.052 });
 
   // Detachable belt box and visible brass feed run.
   box(mg, 0.13, 0.15, 0.18, -0.038, -0.125, -0.18, COL.olive);

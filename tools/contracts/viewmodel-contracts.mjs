@@ -34,6 +34,14 @@ export async function runViewmodelContracts(ok, installGlobals) {
 
       ok(Object.keys(rig._models).length === WEAPON_IDS.length,
         'one ViewmodelRig lazily constructs all six canonical weapon models');
+      ok(WEAPON_IDS.every((id) => {
+        const model = rig._models[id];
+        const sightHeight = model?.body?.userData?.sightHeight;
+        return Number.isFinite(sightHeight)
+          && Math.abs(model.T.adsOffset.x) < 1e-9
+          && Math.abs(model.T.adsOffset.y + sightHeight) < 1e-9
+          && model.T.adsOffset.z <= -0.58;
+      }), 'all six ADS profiles center their declared sight line at a safe camera distance');
       const byWeight = [...WEAPON_IDS].sort(
         (a, b) => WEAPONS[a].weightKg - WEAPONS[b].weightKg
       );
