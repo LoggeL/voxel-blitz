@@ -16,6 +16,34 @@ export const FIRE_PARAMS = {
   },
 };
 
+// One audible identity per weapon. Sample gain compensates the measured source
+// peaks, playback rate follows cadence/weight, and layerGain keeps the synthetic
+// transient/mechanics audible without doubling the full report.
+const FIRE_REPORT_PROFILES = Object.freeze({
+  rifle: Object.freeze({
+    lifetime: 0.72, sampleGain: 0.72, sampleRate: 1, layerGain: 0.16,
+  }),
+  smg: Object.freeze({
+    lifetime: 0.5, sampleGain: 1.3, sampleRate: 1.08, layerGain: 0.1,
+  }),
+  shotgun: Object.freeze({
+    lifetime: 1.05, sampleGain: 1.4, sampleRate: 0.92, layerGain: 0.26,
+  }),
+  sniper: Object.freeze({
+    lifetime: 1.45, sampleGain: 0.7, sampleRate: 0.96, layerGain: 0.2,
+  }),
+  lmg: Object.freeze({
+    lifetime: 0.78, sampleGain: 0.66, sampleRate: 0.94, layerGain: 0.18,
+  }),
+  revolver: Object.freeze({
+    lifetime: 0.95, sampleGain: 0.8, sampleRate: 1.02, layerGain: 0.18,
+  }),
+});
+
+export function fireReportProfile(key) {
+  return FIRE_REPORT_PROFILES[key] || FIRE_REPORT_PROFILES.rifle;
+}
+
 export function shotRifleSmg(out, primitives, params) {
   primitives.tone(out, {
     type: params.blipType,
@@ -79,15 +107,15 @@ export function boltClack(out, primitives, t0, brightness) {
 
 // echoIn is the engine-owned persistent echo input. addCleanup is the narrow
 // VoicePool cleanup capability; neither owner object crosses this seam.
-export function sendEcho(out, primitives, gain, echoIn, addCleanup) {
+export function sendEcho(out, primitives, gain, echoIn, addCleanup, cleanupOwner = out) {
   if (!echoIn) return;
   const send = primitives.createGain();
   send.gain.value = gain;
   out.connect(send).connect(echoIn);
-  addCleanup(out, () => send.disconnect());
+  addCleanup(cleanupOwner, () => send.disconnect());
 }
 
-export function shotSniper(out, primitives, echoIn, addCleanup) {
+export function shotSniper(out, primitives, echoIn, addCleanup, cleanupOwner = out) {
   primitives.hiss(out, {
     filter: 'highpass', f: 6000, dec: 0.03, g: 0.6,
   });
@@ -97,7 +125,7 @@ export function shotSniper(out, primitives, echoIn, addCleanup) {
   primitives.tone(out, {
     type: 'sine', f0: 38, f1: 30, dec: 0.42, g: 0.55, att: 0.001,
   });
-  sendEcho(out, primitives, 0.5, echoIn, addCleanup);
+  sendEcho(out, primitives, 0.5, echoIn, addCleanup, cleanupOwner);
   const brightness = WEP_TONE.sniper;
   boltClack(out, primitives, primitives.nowT(0.7), brightness);
   boltClack(out, primitives, primitives.nowT(0.82), brightness);
@@ -134,4 +162,14 @@ export function shotRevolver(out, primitives) {
     t0: primitives.nowT(0.055), type: 'square', f0: 1850, f1: 880,
     dec: 0.018, g: 0.13,
   });
+}
+
+/** Render the weapon-specific synthetic transient and mechanical tail. */
+export function renderFireReport(key, out, primitives, echoIn, addCleanup, cleanupOwner = out) {
+  if (key === 'shotgun') shotShotgun(out, primitives);
+  else if (key === 'sniper') {
+    shotSniper(out, primitives, echoIn, addCleanup, cleanupOwner);
+  } else if (key === 'lmg') shotLmg(out, primitives);
+  else if (key === 'revolver') shotRevolver(out, primitives);
+  else shotRifleSmg(out, primitives, FIRE_PARAMS[key] || FIRE_PARAMS.rifle);
 }

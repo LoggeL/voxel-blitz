@@ -117,6 +117,48 @@ export async function runViewmodelContracts(ok, installGlobals) {
           && Math.abs(model.T.adsOffset.y + sightHeight) < 1e-9
           && model.T.adsOffset.z <= -0.58;
       }), 'all six ADS profiles center their declared sight line at a safe camera distance');
+      const centerRay = new THREE.Raycaster(
+        new THREE.Vector3(),
+        new THREE.Vector3(0, 0, -1),
+        0.01,
+        10,
+      );
+      const blockedIronSights = [];
+      for (const id of WEAPON_IDS.filter((weaponId) => weaponId !== 'sniper')) {
+        rig.setWeapon(id);
+        rig.ads(1);
+        for (let frame = 0; frame < 120; frame++) {
+          rig.update(1 / 60, { grounded: true, aimSwayScale: 0 });
+        }
+        camera.updateWorldMatrix(true, true);
+        const opaqueHit = centerRay.intersectObject(rig.root, true).find(({ object }) =>
+          object.visible && object.material?.transparent !== true);
+        if (opaqueHit) blockedIronSights.push(id);
+      }
+      ok(blockedIronSights.length === 0,
+        `non-scoped ADS sight axes stay clear of opaque geometry (${blockedIronSights.join(', ')})`);
+      rig.setWeapon('revolver');
+      rig.ads(1);
+      for (let frame = 0; frame < 120; frame++) {
+        rig.update(1 / 60, { grounded: true, aimSwayScale: 0 });
+      }
+      let blockedRevolverFrames = 0;
+      for (let frame = 0; frame < 360; frame++) {
+        rig.update(1 / 60, {
+          speed: 4.4,
+          grounded: true,
+          aimSwayScale: 1,
+          panic: 1,
+          pain: 1,
+          exhaustion: 1,
+        });
+        camera.updateWorldMatrix(true, true);
+        const hammerHit = centerRay.intersectObject(rig._models.revolver.bolt, true)
+          .find(({ object }) => object.visible && object.material?.transparent !== true);
+        if (hammerHit) blockedRevolverFrames++;
+      }
+      ok(blockedRevolverFrames === 0,
+        `revolver ADS hammer stays clear throughout moving distressed aim (${blockedRevolverFrames} blocked frames)`);
       const byWeight = [...WEAPON_IDS].sort(
         (a, b) => WEAPONS[a].weightKg - WEAPONS[b].weightKg
       );

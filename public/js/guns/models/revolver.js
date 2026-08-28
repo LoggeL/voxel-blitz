@@ -37,9 +37,10 @@ export function build({ kit, T, groups }) {
   box(mg, 0.020, 0.020, 0.092, 0, 0.025, -0.144, COL.brass);                   // axle/ejector star
   box(b, 0.014, 0.020, 0.10, -0.055, 0.010, -0.13, COL.gunmetal);              // exposed crane
 
-  // Cocking hammer is deliberately prominent; the bolt group drives its fire stroke.
-  box(bolt, 0.042, 0.055, 0.022, 0, 0.092, BOLT_HOME.revolver, COL.gunmetal, { rx: -0.36 });
-  box(bolt, 0.050, 0.012, 0.025, 0, 0.122, BOLT_HOME.revolver + 0.012, COL.brass);
+  // Keep the hammer readable in hipfire without letting its opaque body cross the iron-sight
+  // axis in ADS. The upper brass spur preserves the silhouette above the sight picture.
+  box(bolt, 0.042, 0.030, 0.022, 0, 0.074, BOLT_HOME.revolver, COL.gunmetal, { rx: -0.36 });
+  box(bolt, 0.050, 0.010, 0.025, 0, 0.126, BOLT_HOME.revolver + 0.012, COL.brass);
   box(tg, 0.009, 0.032, 0.009, 0, -0.010, TRIGGER_Z.revolver, COL.brass, { rx: 0.20 });
   box(tg, 0.040, 0.007, 0.060, 0, -0.042, TRIGGER_Z.revolver, COL.gunmetal);
 

@@ -292,13 +292,29 @@ export async function runAudioContracts(ok, installGlobals) {
         sfx.reloadClick(2, 'revolver');
       }) >= 5, 'LMG and revolver reload voices start');
 
-      const sampleLoad = await sfx.loadSamples({
-        'weapons.rifle.fire': '/assets/audio/weapons/rifle/fire.ogg',
-      }, async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
-      ok(sampleLoad.loaded === 1 && sampleLoad.failed === 0
-          && startedBy(() => sfx.fire('rifle')) === 1,
-      'a loaded local sample occupies the fire cue seam without layering procedural sources');
-
+      const fireWeapons = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver'];
+      const sampleLoad = await sfx.loadSamples(Object.fromEntries(
+        fireWeapons.map((weapon) => [
+          `weapons.${weapon}.fire`,
+          `/assets/audio/weapons/${weapon}/fire.ogg`,
+        ]),
+      ), async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
+      const sampleProfiles = fireWeapons.map((weapon) => {
+        const nodeMark = audio.nodes.length;
+        const sourceCount = startedBy(() => sfx.fire(weapon));
+        const sampleSource = audio.nodes.slice(nodeMark).find((node) =>
+          node.kind === 'buffer-source' && node.buffer?.decoded);
+        return {
+          layered: sourceCount >= 4,
+          gain: sampleSource?.connections[0]?.gain.value,
+          rate: sampleSource?.playbackRate.value,
+        };
+      });
+      ok(sampleLoad.loaded === 6 && sampleLoad.failed === 0
+          && sampleProfiles.every(({ layered, gain, rate }) => layered
+            && gain >= 0.4 && gain <= 1.5 && rate >= 0.8 && rate <= 1.2)
+          && new Set(sampleProfiles.map(({ gain, rate }) => `${gain}/${rate}`)).size >= 4,
+      'all weapon samples use bounded distinct profiles and retain synthetic report layers');
       const liveDirectToMaster = () => audio.nodes.filter((node) =>
         !node.disconnected && node.connections.includes(master));
       const voiceBaseline = liveDirectToMaster().length;
@@ -320,6 +336,8 @@ export async function runAudioContracts(ok, installGlobals) {
       ok(audio.nodes.filter((node) =>
         node.kind === 'panner' && !node.disconnected).length <= 16,
       'positional voice registry leaves at most sixteen live panner nodes');
+      ok(startedBy(() => sfx.deathFar()) >= 2,
+        'distant-death procedural fallback renders without losing its echo path');
 
       const menuStarted = await sfx.startMenuMusic(async () => ({
         ok: true,

@@ -21,8 +21,8 @@ import {
 
 const MAP_PREVIEWS = Object.freeze({
   foundry: './assets/maps/foundry-concept.webp',
-  depot: './assets/maps/depot-concept.png',
-  citadel: './assets/maps/citadel-concept.png',
+  depot: './assets/maps/depot-concept.webp',
+  citadel: './assets/maps/citadel-concept.webp',
 });
 
 function clampBots(value) {

@@ -17,13 +17,9 @@ import {
   reloadRevolver,
 } from './mechanics.js';
 import {
-  FIRE_PARAMS,
+  fireReportProfile,
+  renderFireReport,
   sendEcho,
-  shotLmg,
-  shotRevolver,
-  shotRifleSmg,
-  shotShotgun,
-  shotSniper,
 } from './reports.js';
 
 const engine = new AudioEngine();
@@ -93,6 +89,14 @@ function addCleanup(output, cleanup) {
   pool.addCleanup(output, cleanup);
 }
 
+function createReportLayer(output, gain) {
+  const layer = primitives.createGain();
+  layer.gain.value = Math.max(0, Math.min(1, Number(gain) || 0));
+  layer.connect(output);
+  addCleanup(output, () => layer.disconnect());
+  return layer;
+}
+
 export const sfx = {
   init() {
     if (!engine.ensure()) return Promise.resolve(this);
@@ -142,15 +146,16 @@ export const sfx = {
   fire(key, options) {
     const deferred = copyOptions(options);
     run('fire', () => {
-      const lifetime = key === 'sniper' ? 1.3 : key === 'revolver' ? 0.75 : 0.8;
-      const output = pool.acquireFire(key, outputOptions(deferred), lifetime);
-      if (samples.play(`weapons.${key}.fire`, output)) return;
-      if (key === 'shotgun') shotShotgun(output, primitives);
-      else if (key === 'sniper') {
-        shotSniper(output, primitives, engine.echoIn, addCleanup);
-      } else if (key === 'lmg') shotLmg(output, primitives);
-      else if (key === 'revolver') shotRevolver(output, primitives);
-      else shotRifleSmg(output, primitives, FIRE_PARAMS[key] || FIRE_PARAMS.rifle);
+      const profile = fireReportProfile(key);
+      const output = pool.acquireFire(key, outputOptions(deferred), profile.lifetime);
+      const sampled = samples.play(`weapons.${key}.fire`, output, {
+        gain: profile.sampleGain,
+        rate: profile.sampleRate,
+      });
+      const reportOutput = sampled
+        ? createReportLayer(output, profile.layerGain)
+        : output;
+      renderFireReport(key, reportOutput, primitives, engine.echoIn, addCleanup, output);
     });
   },
 
