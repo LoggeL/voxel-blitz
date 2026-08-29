@@ -21,6 +21,45 @@ export const DRAW_LEN = {
   revolver: 0.13,
 };
 
+const CYCLE_TONE = Object.freeze({
+  shotgun: Object.freeze({
+    bandHz: [860, 1180, 2050],
+    thumpHz: [94, 78, 112],
+    gain: [0.34, 0.46, 0.38],
+  }),
+  sniper: Object.freeze({
+    bandHz: [2950, 1620, 3380],
+    thumpHz: [132, 86, 148],
+    gain: [0.30, 0.42, 0.36],
+  }),
+});
+
+/** Render one pump/bolt contact exactly when the viewmodel crosses that contact. */
+export function cycleActionClick(out, primitives, weapon, step, t0 = primitives.nowT()) {
+  const profile = CYCLE_TONE[weapon];
+  if (!profile) return false;
+  const numericStep = Number.isFinite(Number(step)) ? Math.trunc(Number(step)) : 1;
+  const index = Math.max(0, Math.min(2, numericStep - 1));
+  primitives.hiss(out, {
+    t0,
+    filter: 'bandpass',
+    f: profile.bandHz[index],
+    q: index === 1 ? 2.2 : 4.5,
+    dec: index === 1 ? 0.045 : 0.026,
+    g: profile.gain[index],
+  });
+  primitives.tone(out, {
+    t0,
+    type: index === 1 ? 'sine' : 'triangle',
+    f0: profile.thumpHz[index],
+    f1: profile.thumpHz[index] * 0.62,
+    dec: index === 1 ? 0.065 : 0.038,
+    g: profile.gain[index] * 0.72,
+    att: 0.001,
+  });
+  return true;
+}
+
 export function reloadLmg(out, primitives, step, t0, brightness) {
   if (step === 1) {
     primitives.hiss(out, {

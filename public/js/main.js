@@ -145,6 +145,7 @@ class Game {
     this.weapon.resetToLoadout();
     this.rig.setWeapon(WEAPON_IDS[this.weapon.slot]);
     this.rig.onReloadClick = (step) => sfx.reloadClick(step, WEAPON_IDS[this.weapon.slot]);
+    this.rig.onBoltClack = (step) => sfx.cycleClick(step, WEAPON_IDS[this.weapon.slot]);
     this.roster = new AvatarRoster({
       scene: this.worldview.scene,
       gore: (event, options) => this.effects?.gore(event, options),

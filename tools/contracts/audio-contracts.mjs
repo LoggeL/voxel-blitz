@@ -291,6 +291,10 @@ export async function runAudioContracts(ok, installGlobals) {
         sfx.reloadClick(1, 'lmg');
         sfx.reloadClick(2, 'revolver');
       }) >= 5, 'LMG and revolver reload voices start');
+      ok(startedBy(() => {
+        sfx.cycleClick(1, 'shotgun');
+        sfx.cycleClick(2, 'sniper');
+      }) === 4, 'pump and bolt contacts each start one aligned two-layer voice');
 
       const fireWeapons = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver'];
       const sampleLoad = await sfx.loadSamples(Object.fromEntries(

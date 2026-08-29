@@ -6,7 +6,7 @@ three.js ES modules (no bundler). Six hand-tuned guns with a full "gun UX"
 stack: procedural viewmodels, staged timer-driven animations, bloom/recoil,
 ADS, tracers, shell ejects, muzzle flash + barrel heat shader, block-shatter,
 damage numbers, hitmarkers, killfeed, a full-screen sniper optic, synthesized
-WebAudio shot design, and a licensed menu-music asset.
+WebAudio layers, transient-aligned licensed firearm samples, and menu music.
 
 ## Run
 
@@ -58,6 +58,7 @@ npm run maps:capture
 npm run weapons:capture
 npm run weapons:capture -- --weapon revolver
 npm run weapons:capture -- --state scoped
+npm run audio:audit
 ```
 
 The weapon flow renders every gun in a fixed inspection range in three stable
@@ -65,6 +66,12 @@ states: `held`, fully aligned `scoped`/ADS, and `firing` with the real recoil,
 muzzle flash, and heat shader advanced to a deterministic frame. The complete
 run writes 18 PNGs plus `index.html` and `manifest.json` to
 `.artifacts/weapon-renders/` for side-by-side visual review.
+
+The audio audit decodes the six effective fire samples, measures muzzle-onset
+alignment after runtime gain/playback-rate profiles, and writes waveforms,
+spectrograms, metrics, and an HTML comparison to `.artifacts/audio-audit/`.
+It fails when a report misses the 15ms sync budget or the weapon-weight and
+spectral-brightness hierarchy drifts.
 
 For deterministic manual menu QA, `?debug=1&ui=settings` opens the pause/settings
 surface without requiring pointer lock. Main, create-lobby, and waiting-lobby

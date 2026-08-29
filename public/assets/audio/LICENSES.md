@@ -1,9 +1,11 @@
 # Audio asset sources
 
 The weapon and handling `.ogg` samples were trimmed, filtered, normalized,
-downmixed to mono, and encoded as Opus for VOXEL BLITZ. Procedural audio remains
-the fallback whenever a browser cannot fetch or decode a sample. Music retains
-the source pack's stereo Vorbis encoding.
+downmixed to mono, and encoded as Opus for VOXEL BLITZ. Fire samples begin at
+the broadband muzzle transient (5–15ms measured onset after codec pre-roll) so
+their report aligns with recoil and muzzle flash. Procedural audio remains the
+fallback whenever a browser cannot fetch or decode a sample. Music retains the
+source pack's stereo Vorbis encoding.
 
 ## Weapon reports
 

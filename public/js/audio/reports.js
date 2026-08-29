@@ -1,7 +1,7 @@
 // Procedural firearm report graphs. The caller owns output voice lifetime and
 // injects the primitive builders; this module never owns an AudioContext.
 
-import { WEP_TONE } from './mechanics.js';
+import { cycleActionClick } from './mechanics.js';
 
 export const FIRE_PARAMS = {
   rifle: {
@@ -71,7 +71,7 @@ export function shotRifleSmg(out, primitives, params) {
   });
 }
 
-export function shotShotgun(out, primitives) {
+export function shotShotgun(out, primitives, includeMechanics = true) {
   primitives.hiss(out, {
     filter: 'lowpass', f: 900, sweepTo: 200, sweepMs: 0.22,
     dec: 0.22, g: 0.9,
@@ -83,26 +83,12 @@ export function shotShotgun(out, primitives) {
     type: 'sine', f0: 60, f1: 44, dec: 0.22, g: 0.36,
     detune: 9, att: 0.001,
   });
-  // Pump action is integral to the report and is always auto-chained.
-  primitives.hiss(out, {
-    t0: primitives.nowT(0.38), filter: 'bandpass', f: 2600, q: 6,
-    dec: 0.02, g: 0.42,
-  });
-  primitives.hiss(out, {
-    t0: primitives.nowT(0.455), filter: 'bandpass', f: 2100, q: 6,
-    dec: 0.02, g: 0.36,
-  });
-}
-
-export function boltClack(out, primitives, t0, brightness) {
-  primitives.hiss(out, {
-    t0, filter: 'bandpass', f: 3100 * brightness, q: 5,
-    dec: 0.015, g: 0.4,
-  });
-  primitives.tone(out, {
-    t0, type: 'square', f0: 1150 * brightness, f1: 700 * brightness,
-    dec: 0.012, g: 0.14,
-  });
+  if (includeMechanics) {
+    // Remote reports have no local rig callback, so mirror the 430ms pump contacts.
+    [0.0602, 0.215, 0.3698].forEach((offset, index) => {
+      cycleActionClick(out, primitives, 'shotgun', index + 1, primitives.nowT(offset));
+    });
+  }
 }
 
 // echoIn is the engine-owned persistent echo input. addCleanup is the narrow
@@ -115,7 +101,14 @@ export function sendEcho(out, primitives, gain, echoIn, addCleanup, cleanupOwner
   addCleanup(cleanupOwner, () => send.disconnect());
 }
 
-export function shotSniper(out, primitives, echoIn, addCleanup, cleanupOwner = out) {
+export function shotSniper(
+  out,
+  primitives,
+  echoIn,
+  addCleanup,
+  cleanupOwner = out,
+  includeMechanics = true,
+) {
   primitives.hiss(out, {
     filter: 'highpass', f: 6000, dec: 0.03, g: 0.6,
   });
@@ -126,9 +119,12 @@ export function shotSniper(out, primitives, echoIn, addCleanup, cleanupOwner = o
     type: 'sine', f0: 38, f1: 30, dec: 0.42, g: 0.55, att: 0.001,
   });
   sendEcho(out, primitives, 0.5, echoIn, addCleanup, cleanupOwner);
-  const brightness = WEP_TONE.sniper;
-  boltClack(out, primitives, primitives.nowT(0.7), brightness);
-  boltClack(out, primitives, primitives.nowT(0.82), brightness);
+  if (includeMechanics) {
+    // Remote reports mirror the one-second bolt animation's three contacts.
+    [0.12, 0.5, 0.92].forEach((offset, index) => {
+      cycleActionClick(out, primitives, 'sniper', index + 1, primitives.nowT(offset));
+    });
+  }
 }
 
 export function shotLmg(out, primitives) {
@@ -165,10 +161,18 @@ export function shotRevolver(out, primitives) {
 }
 
 /** Render the weapon-specific synthetic transient and mechanical tail. */
-export function renderFireReport(key, out, primitives, echoIn, addCleanup, cleanupOwner = out) {
-  if (key === 'shotgun') shotShotgun(out, primitives);
+export function renderFireReport(
+  key,
+  out,
+  primitives,
+  echoIn,
+  addCleanup,
+  cleanupOwner = out,
+  { includeMechanics = true } = {},
+) {
+  if (key === 'shotgun') shotShotgun(out, primitives, includeMechanics);
   else if (key === 'sniper') {
-    shotSniper(out, primitives, echoIn, addCleanup, cleanupOwner);
+    shotSniper(out, primitives, echoIn, addCleanup, cleanupOwner, includeMechanics);
   } else if (key === 'lmg') shotLmg(out, primitives);
   else if (key === 'revolver') shotRevolver(out, primitives);
   else shotRifleSmg(out, primitives, FIRE_PARAMS[key] || FIRE_PARAMS.rifle);

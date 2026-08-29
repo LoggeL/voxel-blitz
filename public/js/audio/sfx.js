@@ -11,6 +11,7 @@ import { IMPACT_PARAMS, genericImpact, impactGlass, impactMetal } from './impact
 import {
   DRAW_LEN,
   WEP_TONE,
+  cycleActionClick,
   drawCloth,
   genericReloadStep,
   reloadLmg,
@@ -155,7 +156,18 @@ export const sfx = {
       const reportOutput = sampled
         ? createReportLayer(output, profile.layerGain)
         : output;
-      renderFireReport(key, reportOutput, primitives, engine.echoIn, addCleanup, output);
+      renderFireReport(key, reportOutput, primitives, engine.echoIn, addCleanup, output, {
+        // Local pump/bolt contacts come from the actual rig state machine. Remote
+        // reports have no rig, so their matching contacts stay scheduled here.
+        includeMechanics: !!positionOf(deferred),
+      });
+    });
+  },
+
+  cycleClick(step, weapon) {
+    run('cycle', () => {
+      const output = pool.acquire(null, 0.24);
+      cycleActionClick(output, primitives, weapon, step);
     });
   },
 
