@@ -48,6 +48,7 @@ async function renderShot({ browser, profileDir, baseUrl, outDir, dimensions, sh
       'data-capture-ready="true"',
       `data-capture-weapon="${shot.weapon}"`,
       `data-capture-view="${shot.view}"`,
+      `data-capture-pose="${shot.pose}"`,
     ],
   });
   return { ...shot, output, bytes };

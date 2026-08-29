@@ -10,6 +10,7 @@ import {
   setAvatarOpacity,
   setAvatarTeam,
   updateAvatarDeath,
+  updateAvatarStancePose,
   updateAvatarWeaponPose,
 } from './avatar.js';
 
@@ -197,18 +198,18 @@ export class AvatarRoster {
       const flinch = avatar.hitSide * hit01 * 0.2;
 
       avatar.group.position.set(remote.x, remote.y + cadence * stride * 0.045, remote.z);
-      avatar.lLeg.rotation.x += (swing * 0.78 - avatar.lLeg.rotation.x) * poseBlend;
-      avatar.rLeg.rotation.x += (-swing * 0.78 - avatar.rLeg.rotation.x) * poseBlend;
       updateAvatarWeaponPose(avatar, {
         weapon: remote.weapon,
         pitch: remote.pitch,
         firing: remote.firing,
+        ads: remote.ads,
+        crouching: remote.crouch,
         stride,
         swing,
         dt,
         blend: poseBlend,
       });
-      avatar.torso.rotation.x += (stride * 0.16 - avatar.torso.rotation.x) * poseBlend;
+      updateAvatarStancePose(avatar, { stride, swing, blend: poseBlend });
       avatar.torso.rotation.z += ((-swing * stride * 0.055) + flinch - avatar.torso.rotation.z) * poseBlend;
       avatar.hips.rotation.z += (swing * stride * 0.045 - avatar.hips.rotation.z) * poseBlend;
       avatar.head.rotation.x += (remote.pitch * 0.7 - hit01 * 0.1 - avatar.head.rotation.x) * poseBlend;

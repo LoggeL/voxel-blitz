@@ -77,6 +77,14 @@ export class GameplayUiFlow {
     if (this._inputEnabled) this._input.requestLock();
   }
 
+  /** Keyboard fallback for browsers that do not expose pointer lock (including headless QA). */
+  pauseFromKeyboard() {
+    if (!this.canUseInput()) return false;
+    this.setInputEnabled(false);
+    this._hud.openSettings();
+    return true;
+  }
+
   onPointerLockChange(locked) {
     if (locked) {
       if (!this.canUseInput()) {

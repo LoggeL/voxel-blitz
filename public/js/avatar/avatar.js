@@ -46,23 +46,77 @@ export function updateAvatarWeaponPose(av, {
   weapon = 0,
   pitch = 0,
   firing = false,
+  ads = false,
+  crouching = false,
   stride = 0,
   swing = 0,
   dt = 0,
   blend = 1,
 } = {}) {
-  av.weaponModel.update({ weapon, pitch, firing, stride, swing, dt });
   const aimPitch = Math.max(-1.1, Math.min(1.1, Number(pitch) || 0));
   const poseBlend = Math.max(0, Math.min(1, Number(blend) || 0));
-  const twoHanded = av.weaponModel.twoHanded;
-  const leftArmX = twoHanded ? 0.92 + aimPitch - swing * stride * 0.08 : -swing * 0.5;
-  const leftArmZ = twoHanded ? 0.36 : -0.08;
+  const stanceBlend = dt > 0 ? 1 - Math.exp(-dt * 12) : poseBlend;
+  av.crouchPose += ((crouching ? 1 : 0) - av.crouchPose) * stanceBlend;
+  av.weaponModel.update({
+    weapon,
+    pitch,
+    firing,
+    ads,
+    crouchT: av.crouchPose,
+    stride,
+    swing,
+    dt,
+  });
+  const adsT = av.weaponModel.adsT;
+  const handPose = av.weaponModel.handPose;
+  const twoHanded = !!handPose.support;
+  const supportReach = twoHanded
+    ? clamp01((-handPose.support.z - 0.24) / 0.26)
+    : 0;
+  const gripLift = Math.max(-0.03, Math.min(0.03, Number(handPose.grip.y) || 0));
+  const crouchDrop = av.crouchPose * 0.29;
+  const leftArmX = twoHanded
+    ? 0.86 + supportReach * 0.14 + aimPitch + adsT * 0.18 - swing * stride * 0.08
+    : -swing * 0.5;
+  const leftArmZ = twoHanded ? 0.30 + supportReach * 0.12 + adsT * 0.08 : -0.08;
+  av.lArm.position.x += ((-0.41 + (twoHanded ? adsT * 0.035 : 0)) -
+    av.lArm.position.x) * poseBlend;
+  av.rArm.position.x += ((0.41 - adsT * 0.045) - av.rArm.position.x) * poseBlend;
+  av.lArm.position.y += ((1.45 - crouchDrop + adsT * 0.16) - av.lArm.position.y) * poseBlend;
+  av.rArm.position.y += ((1.45 - crouchDrop + adsT * 0.18) - av.rArm.position.y) * poseBlend;
+  av.lArm.position.z += ((twoHanded ? -adsT * 0.025 : 0) - av.lArm.position.z) * poseBlend;
+  av.rArm.position.z += (-adsT * 0.035 - av.rArm.position.z) * poseBlend;
   av.lArm.rotation.x += (leftArmX - av.lArm.rotation.x) * poseBlend;
-  av.rArm.rotation.x += (1.00 + aimPitch + swing * stride * 0.06 - av.rArm.rotation.x) * poseBlend;
+  av.rArm.rotation.x += (1.00 + gripLift * 0.9 + aimPitch + adsT * 0.19 +
+    swing * stride * 0.06 - av.rArm.rotation.x) * poseBlend;
   av.lArm.rotation.z += (leftArmZ - av.lArm.rotation.z) * poseBlend;
   av.rArm.rotation.z += (-0.34 - av.rArm.rotation.z) * poseBlend;
-  av.lElbow.rotation.x += ((twoHanded ? 0.48 : -0.34) - av.lElbow.rotation.x) * poseBlend;
+  av.lElbow.rotation.x += ((twoHanded ? 0.40 + supportReach * 0.14 : -0.34) -
+    av.lElbow.rotation.x) * poseBlend;
   av.rElbow.rotation.x += (0.38 - av.rElbow.rotation.x) * poseBlend;
+}
+
+/** Apply the body-height part of the remote stance without owning world-space movement. */
+export function updateAvatarStancePose(av, {
+  stride = 0,
+  swing = 0,
+  blend = 1,
+} = {}) {
+  const poseBlend = Math.max(0, Math.min(1, Number(blend) || 0));
+  const crouch = clamp01(av.crouchPose);
+  av.lLeg.position.y += ((0.73 - crouch * 0.26) - av.lLeg.position.y) * poseBlend;
+  av.rLeg.position.y += ((0.73 - crouch * 0.26) - av.rLeg.position.y) * poseBlend;
+  av.lLeg.scale.y += ((1 - crouch * 0.35) - av.lLeg.scale.y) * poseBlend;
+  av.rLeg.scale.y += ((1 - crouch * 0.35) - av.rLeg.scale.y) * poseBlend;
+  av.lLeg.rotation.x += (swing * 0.78 * (1 - crouch * 0.6) -
+    av.lLeg.rotation.x) * poseBlend;
+  av.rLeg.rotation.x += (-swing * 0.78 * (1 - crouch * 0.6) -
+    av.rLeg.rotation.x) * poseBlend;
+  av.torso.position.y += ((1.18 - crouch * 0.27) - av.torso.position.y) * poseBlend;
+  av.hips.position.y += ((0.84 - crouch * 0.20) - av.hips.position.y) * poseBlend;
+  av.head.position.y += ((1.66 - crouch * 0.34) - av.head.position.y) * poseBlend;
+  av.torso.rotation.x += (stride * 0.16 + crouch * 0.12 -
+    av.torso.rotation.x) * poseBlend;
 }
 
 export function resetAvatarPose(av) {
@@ -72,6 +126,7 @@ export function resetAvatarPose(av) {
   av.hitT = 0;
   av.speedEst = 0;
   av.runPhase = 0;
+  av.crouchPose = 0;
   av.lastImpact = null;
   av.motionSeeded = false;
   av.group.visible = true;
@@ -84,8 +139,10 @@ export function resetAvatarPose(av) {
   av.head.position.set(0, 1.66, 0);
   av.head.rotation.set(0, 0, 0);
   av.lLeg.position.set(-0.16, 0.73, 0);
+  av.lLeg.scale.set(1, 1, 1);
   av.lLeg.rotation.set(0, 0, 0);
   av.rLeg.position.set(0.16, 0.73, 0);
+  av.rLeg.scale.set(1, 1, 1);
   av.rLeg.rotation.set(0, 0, 0);
   av.lArm.position.set(-0.41, 1.45, 0);
   av.lArm.rotation.set(0, 0, -0.08);
@@ -295,6 +352,7 @@ export function makeAvatar(id, name, team = null) {
     limbStates: [],
     speedEst: 0,
     runPhase: 0,
+    crouchPose: 0,
     px: 0,
     pz: 0,
     motionSeeded: false,

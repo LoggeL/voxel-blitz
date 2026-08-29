@@ -3,6 +3,55 @@
 const GESTURE_EVENTS = ['pointerdown', 'touchend', 'keydown'];
 const MAX_QUEUED_CUES = 16;
 
+/** Build the exact shared master bus/limiter graph for live or offline contexts. */
+export function buildMasterGraph(context, masterGain = 0.9) {
+  if (!context || typeof context.createGain !== 'function' ||
+      typeof context.createDynamicsCompressor !== 'function') {
+    throw new TypeError('buildMasterGraph requires a WebAudio-compatible context');
+  }
+  const bus = context.createGain();
+  bus.gain.value = Math.max(0, Number(masterGain) || 0);
+  const limiter = context.createDynamicsCompressor();
+  limiter.threshold.value = -12;
+  limiter.knee.value = 3;
+  limiter.ratio.value = 20;
+  limiter.attack.value = 0.001;
+  limiter.release.value = 0.11;
+  bus.connect(limiter).connect(context.destination);
+  return { bus, limiter };
+}
+
+/** Build the exact shared multi-tap echo graph against an injected master bus. */
+export function buildEchoGraph(context, bus) {
+  if (!context || !bus) throw new TypeError('buildEchoGraph requires context and bus');
+  const input = context.createGain();
+  const damp = context.createBiquadFilter();
+  damp.type = 'lowpass';
+  damp.frequency.value = 4200;
+  damp.Q.value = 0.5;
+  const output = context.createGain();
+  const nodes = [input, damp, output];
+  output.gain.value = 0.55;
+  damp.connect(output);
+  output.connect(bus);
+
+  const times = [0.11, 0.23, 0.31];
+  const feedback = [0.52, 0.61, 0.45];
+  for (let i = 0; i < times.length; i++) {
+    const delay = context.createDelay(1);
+    delay.delayTime.value = times[i];
+    input.connect(delay);
+    const feedbackGain = context.createGain();
+    feedbackGain.gain.value = feedback[i];
+    delay.connect(feedbackGain).connect(delay);
+    const tap = context.createGain();
+    tap.gain.value = 0.25;
+    delay.connect(tap).connect(damp);
+    nodes.push(delay, feedbackGain, tap);
+  }
+  return { in: input, nodes };
+}
+
 function supportsDocumentListeners() {
   return typeof document !== 'undefined' &&
     typeof document.addEventListener === 'function' &&
@@ -50,17 +99,11 @@ export class AudioEngine {
     try {
       next = new AudioContextCtor();
       this._ctx = next;
-      this._bus = next.createGain();
-      this._bus.gain.value = this._audibleMasterGain();
-      this._masterLimiter = next.createDynamicsCompressor();
-      this._masterLimiter.threshold.value = -12;
-      this._masterLimiter.knee.value = 3;
-      this._masterLimiter.ratio.value = 20;
-      this._masterLimiter.attack.value = 0.001;
-      this._masterLimiter.release.value = 0.11;
-      this._bus.connect(this._masterLimiter).connect(next.destination);
+      const master = buildMasterGraph(next, this._audibleMasterGain());
+      this._bus = master.bus;
+      this._masterLimiter = master.limiter;
       this._noiseBuffer = this._makeNoiseBuffer(next);
-      this._echo = this._buildEcho(next);
+      this._echo = buildEchoGraph(next, this._bus);
       next.addEventListener?.('statechange', this._onAudioStateChange);
       this._armLifecycleListeners();
       this._handleAudioStateChange();
@@ -346,32 +389,4 @@ export class AudioEngine {
     return buffer;
   }
 
-  _buildEcho(activeCtx) {
-    const input = activeCtx.createGain();
-    const damp = activeCtx.createBiquadFilter();
-    damp.type = 'lowpass';
-    damp.frequency.value = 4200;
-    damp.Q.value = 0.5;
-    const output = activeCtx.createGain();
-    const nodes = [input, damp, output];
-    output.gain.value = 0.55;
-    damp.connect(output);
-    output.connect(this._bus);
-
-    const times = [0.11, 0.23, 0.31];
-    const feedback = [0.52, 0.61, 0.45];
-    for (let i = 0; i < times.length; i++) {
-      const delay = activeCtx.createDelay(1);
-      delay.delayTime.value = times[i];
-      input.connect(delay);
-      const feedbackGain = activeCtx.createGain();
-      feedbackGain.gain.value = feedback[i];
-      delay.connect(feedbackGain).connect(delay);
-      const tap = activeCtx.createGain();
-      tap.gain.value = 0.25;
-      delay.connect(tap).connect(damp);
-      nodes.push(delay, feedbackGain, tap);
-    }
-    return { in: input, nodes };
-  }
 }

@@ -150,8 +150,8 @@ export class MatchHud {
     let clockText = '--:--';
     let isUrgentBomb = false;
 
-    if (curMode === 'snd' && match?.bomb?.state === 'planted' && Number.isFinite(match.bomb.fuseEndsAt)) {
-      const fuseRemSec = Math.max(0, (match.bomb.fuseEndsAt - sNow) / 1000);
+    if (curMode === 'snd' && match?.bomb?.state === 'planted' && Number.isFinite(match.bomb.explodeAt)) {
+      const fuseRemSec = Math.max(0, (match.bomb.explodeAt - sNow) / 1000);
       clockText = `${fuseRemSec.toFixed(1)}s`;
       isUrgentBomb = true;
     } else if (Number.isFinite(match?.phaseEndsAt)) {

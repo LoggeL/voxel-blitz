@@ -1,17 +1,13 @@
 import WebSocket from 'ws';
+import {
+  MATCH_KEYS as MATCH_KEY_LIST,
+  PLAYER_KEYS as PLAYER_KEY_LIST,
+} from './lib/protocol-contract.mjs';
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:8070';
 const HARD_TIMEOUT_MS = 15_000;
-const PLAYER_KEYS = [
-  'ads', 'bomb', 'credits', 'deaths', 'exhaustion', 'firing', 'hp', 'id',
-  'interaction', 'kills', 'mag', 'name', 'owned', 'panic', 'pitch',
-  'reloading', 'reserve', 'score', 'state', 'team', 'weapon', 'x', 'y',
-  'yaw', 'z',
-];
-const MATCH_KEYS = [
-  'attackers', 'bomb', 'defenders', 'map', 'mode', 'phase', 'phaseEndsAt',
-  'round', 'roundWinner', 'scores', 'winner',
-];
+const PLAYER_KEYS = PLAYER_KEY_LIST.split(',');
+const MATCH_KEYS = MATCH_KEY_LIST.split(',');
 const WELCOME_KEYS = [
   'gameMode', 'id', 'lobby', 'map', 'mapBytes', 'phase', 'spawn', 't',
   'tickRate',
@@ -80,7 +76,7 @@ async function checkHttp(baseUrl, signal) {
 
 function validateWelcome(message) {
   requireCondition(hasExactKeys(message, WELCOME_KEYS), 'welcome frame is incomplete');
-  requireCondition(message.gameMode === 'fun' && message.map === 'foundry',
+  requireCondition(message.gameMode === 'fun' && ['foundry', 'depot'].includes(message.map),
     `welcome identity is ${JSON.stringify({ mode: message.gameMode, map: message.map })}`);
   requireCondition(typeof message.id === 'string' && message.id.length > 0,
     'welcome has no player id');
@@ -88,9 +84,9 @@ function validateWelcome(message) {
     `welcome has invalid mapBytes ${JSON.stringify(message.mapBytes)}`);
 }
 
-function validateLobby(message, playerId) {
+function validateLobby(message, playerId, expectedMap) {
   requireCondition(hasExactKeys(message, LOBBY_KEYS), 'lobby state is incomplete');
-  requireCondition(message.gameMode === 'fun' && message.map === 'foundry',
+  requireCondition(message.gameMode === 'fun' && message.map === expectedMap,
     `lobby identity is ${JSON.stringify({ mode: message.gameMode, map: message.map })}`);
   requireCondition(Array.isArray(message.members), 'lobby members is not an array');
   requireCondition(message.members.every((member) =>
@@ -101,10 +97,10 @@ function validateLobby(message, playerId) {
   'lobby does not contain ContainerSmoke');
 }
 
-function validateTick(message, playerId) {
+function validateTick(message, playerId, expectedMap) {
   requireCondition(hasExactKeys(message, TICK_KEYS), 'tick frame is incomplete');
   requireCondition(hasExactKeys(message.match, MATCH_KEYS), 'tick match is incomplete');
-  requireCondition(message.match.mode === 'fun' && message.match.map === 'foundry',
+  requireCondition(message.match.mode === 'fun' && message.match.map === expectedMap,
     `tick identity is ${JSON.stringify({ mode: message.match.mode, map: message.match.map })}`);
   requireCondition(Array.isArray(message.players) && message.players.length > 0,
     'tick has no players');
@@ -147,8 +143,8 @@ function exchangeFrames(ws, signal) {
           `received ${binaryFrames} binary map frames instead of one`);
         requireCondition(mapBytes === welcome.mapBytes,
           `binary map is ${mapBytes} bytes; welcome advertised ${welcome.mapBytes}`);
-        validateLobby(lobby, welcome.id);
-        validateTick(tick, welcome.id);
+        validateLobby(lobby, welcome.id, welcome.map);
+        validateTick(tick, welcome.id, welcome.map);
         finish();
       } catch (error) {
         finish(new Error(

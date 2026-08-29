@@ -1,3 +1,5 @@
+import { WEAPON_IDS } from '../../shared/combatmath.js';
+
 export async function runAudioContracts(ok, installGlobals) {
   // Audio: install the recording context before module evaluation so every
   // graph edge, source start, voice steal, and lifecycle transition is real.
@@ -296,7 +298,7 @@ export async function runAudioContracts(ok, installGlobals) {
         sfx.cycleClick(2, 'sniper');
       }) === 4, 'pump and bolt contacts each start one aligned two-layer voice');
 
-      const fireWeapons = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver'];
+      const fireWeapons = WEAPON_IDS;
       const sampleLoad = await sfx.loadSamples(Object.fromEntries(
         fireWeapons.map((weapon) => [
           `weapons.${weapon}.fire`,
@@ -314,11 +316,11 @@ export async function runAudioContracts(ok, installGlobals) {
           rate: sampleSource?.playbackRate.value,
         };
       });
-      ok(sampleLoad.loaded === 6 && sampleLoad.failed === 0
+      ok(sampleLoad.loaded === fireWeapons.length && sampleLoad.failed === 0
           && sampleProfiles.every(({ layered, gain, rate }) => layered
             && gain >= 0.4 && gain <= 1.5 && rate >= 0.8 && rate <= 1.2)
           && new Set(sampleProfiles.map(({ gain, rate }) => `${gain}/${rate}`)).size >= 4,
-      'all weapon samples use bounded distinct profiles and retain synthetic report layers');
+      'all canonical weapon samples use bounded distinct profiles and retain synthetic report layers');
       const liveDirectToMaster = () => audio.nodes.filter((node) =>
         !node.disconnected && node.connections.includes(master));
       const voiceBaseline = liveDirectToMaster().length;

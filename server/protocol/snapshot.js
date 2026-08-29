@@ -112,8 +112,14 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       kills: p.kills | 0,
       deaths: p.deaths | 0,
       state: p.state === 'dead' ? 'dead' : 'alive',
+      // Only dead players with an automatic respawn publish a deadline.
+      // Round-based modes deliberately expose null instead of Infinity.
+      respawnAt: p.state === 'dead' && Number.isFinite(p.respawnAt)
+        ? round(p.respawnAt, 1)
+        : null,
       firing: !!p.firing,
       ads: !!p.ads,
+      crouch: !!p.crouch,
       mag: ammoCopy(p.mag),
       reserve: ammoCopy(p.reserve),
       reloading: !!p.reloading,

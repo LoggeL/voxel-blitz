@@ -1,9 +1,10 @@
 import * as THREE from '../vendor/three.module.js';
-import { MODE_RULES } from '../../../shared/modes.js';
+import { isTeamMode } from '../../../shared/modes.js';
 
-const TEAM_MODES = new Set(['tdm', 'snd']);
 const CAMERA_DISTANCE = 4.2;
-const CAMERA_HEIGHT = 1.65;
+const CAMERA_HEIGHT = 2.45;
+const CAMERA_SHOULDER = 1.35;
+const CAMERA_LOOK_AHEAD = 1.35;
 const WALL_MARGIN = 0.28;
 
 function rowId(row) {
@@ -12,7 +13,7 @@ function rowId(row) {
 
 function livingCandidates(players, self, mode) {
   const selfId = rowId(self);
-  const teamOnly = TEAM_MODES.has(mode) && self?.team;
+  const teamOnly = isTeamMode(mode) && self?.team;
   return (Array.isArray(players) ? players : [])
     .filter((row) => rowId(row) !== selfId && row?.state === 'alive')
     .filter((row) => !teamOnly || row.team === self.team)
@@ -43,6 +44,7 @@ export class SpectatorCamera {
     this._cameraSeeded = false;
     this._lastPresentationKey = '';
     this._focus = new THREE.Vector3();
+    this._lookAt = new THREE.Vector3();
     this._desired = new THREE.Vector3();
     this._direction = new THREE.Vector3();
 
@@ -76,11 +78,11 @@ export class SpectatorCamera {
       return;
     }
 
+    // The authoritative deadline is part of the local player's wire row.
+    // Null also intentionally covers round-based modes such as S&D.
+    this.respawnAt = Number.isFinite(self?.respawnAt) ? self.respawnAt : null;
+
     if (!wasActive) {
-      const delay = Number(MODE_RULES[this.mode]?.respawnMs);
-      this.respawnAt = Number.isFinite(delay) && this.serverNow !== null
-        ? this.serverNow + delay
-        : null;
       this._cameraSeeded = false;
     }
 
@@ -128,10 +130,15 @@ export class SpectatorCamera {
 
     const yaw = target.yaw;
     this._focus.set(target.x, target.y + 1.35, target.z);
+    this._lookAt.set(
+      target.x - Math.sin(yaw) * CAMERA_LOOK_AHEAD,
+      target.y + 1.35,
+      target.z - Math.cos(yaw) * CAMERA_LOOK_AHEAD,
+    );
     this._desired.set(
-      target.x + Math.sin(yaw) * CAMERA_DISTANCE,
+      target.x + Math.sin(yaw) * CAMERA_DISTANCE + Math.cos(yaw) * CAMERA_SHOULDER,
       target.y + CAMERA_HEIGHT,
-      target.z + Math.cos(yaw) * CAMERA_DISTANCE,
+      target.z + Math.cos(yaw) * CAMERA_DISTANCE - Math.sin(yaw) * CAMERA_SHOULDER,
     );
     this._direction.copy(this._desired).sub(this._focus);
     const distance = this._direction.length();
@@ -153,7 +160,7 @@ export class SpectatorCamera {
       this.camera.position.lerp(this._desired, 1 - Math.exp(-Math.max(0, dt) * 9));
     }
     this.camera.up.set(0, 1, 0);
-    this.camera.lookAt(this._focus);
+    this.camera.lookAt(this._lookAt);
     this._present();
     return true;
   }
@@ -197,7 +204,7 @@ export class SpectatorCamera {
       targetName: target?.name || '',
       hasTarget: !!target,
       canCycle: this.candidates.length > 1,
-      teamOnly: TEAM_MODES.has(this.mode),
+      teamOnly: isTeamMode(this.mode),
       respawnText: this.active ? this._respawnText() : '',
     };
     const key = Object.values(state).join('|');

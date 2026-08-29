@@ -104,7 +104,7 @@ export class MenuLobbyController {
     quickPlayButton.type = 'button';
     quickPlayButton.textContent = 'QUICK PLAY';
     const quickHint = el('div', 'vb-action-hint', quickBox);
-    quickHint.textContent = '5 BOTS · FOUNDRY · FUN';
+    quickHint.textContent = '5+ BOTS · AUTO ARENA · FUN';
 
     const createBox = el('div', 'vb-create-box', actionsBox);
     const createLobbyButton = el(
@@ -142,7 +142,7 @@ export class MenuLobbyController {
 
     buildTelemetry(primary, {
       rows: [
-        ['ARENA', 'FOUNDRY'],
+        ['ARENA', 'AUTO ROTATION'],
         ['MODE', 'FUN'],
         ['BOT COUNT', String(QUICK_PLAY_BOTS)],
         ['WEAPONS', 'SIX'],
@@ -159,8 +159,6 @@ export class MenuLobbyController {
       if (quickPlayButton.disabled) return;
       this.onMenuAction({
         mode: 'quick',
-        gameMode: 'fun',
-        map: 'foundry',
         bots: QUICK_PLAY_BOTS,
         code: '',
         ...getIdentity(),

@@ -1,6 +1,11 @@
 import * as THREE from '../vendor/three.module.js';
 import { findAvatarCaptureShot } from '../../../shared/avatar-capture-shots.js';
-import { disposeAvatar, makeAvatar, updateAvatarWeaponPose } from '../avatar/avatar.js';
+import {
+  disposeAvatar,
+  makeAvatar,
+  updateAvatarStancePose,
+  updateAvatarWeaponPose,
+} from '../avatar/avatar.js';
 
 const params = new URLSearchParams(location.search);
 const weapon = params.get('weapon') || 'rifle';
@@ -20,9 +25,13 @@ const cameraByView = {
   front: [2.55, 1.48, -4.1],
   profile: [4.25, 1.44, -0.15],
   firing: [2.55, 1.48, -4.1],
+  'ads-profile': [4.25, 1.48, -0.15],
+  'crouched-profile': [4.25, 1.18, -0.15],
+  spectator: [3.4, 2.45, 3.4],
 };
 camera.position.fromArray(cameraByView[view]);
-camera.lookAt(0, 1.12, -0.12);
+camera.lookAt(0, view === 'crouched-profile' ? 0.92 : view === 'spectator' ? 1.35 : 1.12,
+  view === 'spectator' ? -0.8 : -0.12);
 camera.updateProjectionMatrix();
 
 const scene = new THREE.Scene();
@@ -50,6 +59,7 @@ const backdrop = new THREE.Mesh(
   new THREE.MeshStandardMaterial({ color: 0x263541, roughness: 0.82, metalness: 0.08 }),
 );
 backdrop.position.set(0, 2, 2.6);
+if (view === 'spectator') backdrop.position.z = -2.6;
 scene.add(backdrop);
 
 const avatar = makeAvatar('capture-avatar', 'CAPTURE', 'alpha');
@@ -63,22 +73,42 @@ avatar.group.traverse((object) => {
 });
 scene.add(avatar.group);
 
-const firing = view === 'firing';
-for (let frame = 0; frame < 12; frame++) {
+const { firing, ads, crouching } = shot;
+for (let frame = 0; frame < 30; frame++) {
   updateAvatarWeaponPose(avatar, {
     weapon,
-    pitch: firing ? -0.06 : 0,
+    pitch: firing ? -0.06 : ads ? -0.1 : 0,
     firing,
+    ads,
+    crouching,
     dt: 1 / 60,
     blend: 1,
   });
+  updateAvatarStancePose(avatar, { blend: 1 });
 }
 
 renderer.render(scene, camera);
 renderer.render(scene, camera);
 
+avatar.group.updateMatrixWorld(true);
+const weaponCenter = avatar.weaponModel.modelRoot
+  ? new THREE.Box3().setFromObject(avatar.weaponModel.modelRoot).getCenter(new THREE.Vector3())
+  : new THREE.Vector3();
+const headCenter = avatar.head.getWorldPosition(new THREE.Vector3());
+const weaponScreen = weaponCenter.clone().project(camera);
+const sightLine = avatar.weaponModel.getSightWorldPosition(new THREE.Vector3());
+const captureMetrics = Object.freeze({
+  sightEyeDelta: Math.abs((headCenter.y - 0.04) - sightLine.y),
+  weaponInFrame: Math.abs(weaponScreen.x) < 0.96 && Math.abs(weaponScreen.y) < 0.96 &&
+    weaponScreen.z > -1 && weaponScreen.z < 1,
+});
+if (!captureMetrics.weaponInFrame || (ads && captureMetrics.sightEyeDelta > 0.08)) {
+  throw new Error(`invalid avatar capture composition: ${JSON.stringify(captureMetrics)}`);
+}
+
 document.documentElement.dataset.captureReady = 'true';
 document.documentElement.dataset.captureWeapon = weapon;
 document.documentElement.dataset.captureView = view;
-window.__vbAvatarCapture = Object.freeze({ weapon, view });
+document.documentElement.dataset.capturePose = shot.pose;
+window.__vbAvatarCapture = Object.freeze({ weapon, view, ads, crouching, ...captureMetrics });
 window.addEventListener('pagehide', () => disposeAvatar(avatar), { once: true });

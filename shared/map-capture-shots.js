@@ -12,14 +12,16 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   shot('foundry', 'hero', [64.5, 17.64, 82.5], [65, 23, 46]),
   shot('foundry', 'west-lane', [20.5, 13.64, 48.5], [65, 23, 46]),
   shot('foundry', 'north-forge', [64.5, 18.64, 49.5], [60, 21, 26]),
+  shot('foundry', 'snd-site-a', [50, 20.5, 83], [50, 18, 72], 70, 'snd'),
+  shot('foundry', 'snd-site-b', [80, 20.5, 35], [80, 18, 24], 70, 'snd'),
 
   shot('depot', 'hero', [63.5, 16.64, 83.5], [64, 27, 48]),
-  shot('depot', 'west-bay', [16.5, 16.64, 48.5], [64, 24, 48]),
-  shot('depot', 'east-bay', [111.5, 16.64, 47.5], [64, 24, 48]),
+  shot('depot', 'west-bay', [17.5, 17.5, 68.5], [43, 22, 35]),
+  shot('depot', 'east-bay', [110.5, 18.5, 29.5], [84, 22, 67]),
 
   shot('citadel', 'hero', [64.5, 16.64, 86.5], [63, 22, 28]),
   shot('citadel', 'a-courtyard', [45.5, 16.64, 47.5], [27, 17, 24], 75, 'snd'),
-  shot('citadel', 'b-compound', [82.5, 16.64, 48.5], [103, 20, 48], 75, 'snd'),
+  shot('citadel', 'b-compound', [91.5, 22.5, 77.5], [103, 20, 48], 72, 'snd'),
   shot('citadel', 'snd-site-a', [27.5, 20.5, 34.5], [27.5, 20.3, 24.5], 70, 'snd'),
   shot('citadel', 'snd-site-b', [103, 23.5, 59], [103, 23.3, 48], 70, 'snd'),
 ]);

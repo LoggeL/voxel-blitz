@@ -1,4 +1,5 @@
 import { MODE_IDS } from '../../shared/modes.js';
+import { makeSnapshot } from '../../server/protocol/snapshot.js';
 
 export async function runHudContracts(ok, installGlobals) {
   // HUD: just enough DOM to execute the shipped settings and scope paths.
@@ -500,13 +501,17 @@ export async function runHudContracts(ok, installGlobals) {
       document.getElementById('game-mode-select').dispatchEvent(event('change'));
       document.getElementById('map-select').value = 'citadel';
       document.getElementById('play-btn').click();
+      const quickButton = document.getElementById('play-btn');
+      const quickTelemetry = document.querySelectorAll('.vb-telemetry-value');
       ok(menuActions.length === 2
         && menuActions[1].mode === 'quick'
         && menuActions[1].bots >= 5
-        && menuActions[1].gameMode === 'fun'
-        && menuActions[1].map === 'foundry'
+        && !Object.hasOwn(menuActions[1], 'gameMode')
+        && !Object.hasOwn(menuActions[1], 'map')
+        && /auto arena/i.test(quickButton.parentNode.querySelector('.vb-action-hint').textContent)
+        && /auto rotation/i.test(quickTelemetry[0]?.textContent)
         && !Object.hasOwn(globalThis, 'location'),
-      'HUD quick action always selects the shared Fun match on Foundry');
+      'HUD quick action leaves arena selection to truthful server rotation telemetry');
 
       const lobbyState = {
         code: 'ZX9Q2',
@@ -616,7 +621,7 @@ export async function runHudContracts(ok, installGlobals) {
           kills: 3, deaths: 2, state: 'dead', dead: true,
         },
       ];
-      const prepMatch = {
+      const prepTick = makeSnapshot([], [], [], 20000, {
         mode: 'snd',
         map: 'citadel',
         phase: 'prep',
@@ -627,8 +632,12 @@ export async function runHudContracts(ok, installGlobals) {
         roundWinner: null,
         attackers: 'alpha',
         defenders: 'bravo',
-        bomb: { state: 'carried', carrierId: 17, site: null, fuseEndsAt: null },
-      };
+        bomb: {
+          state: 'carried', carrier: '17', site: null,
+          x: 10, y: 3, z: 12, explodeAt: null,
+        },
+      });
+      const prepMatch = prepTick.match;
       const selfRow = {
         id: 17,
         team: 'alpha',
@@ -651,17 +660,21 @@ export async function runHudContracts(ok, installGlobals) {
         && visible(document.getElementById('hud-buy-prompt')),
       'S&D prep HUD renders authoritative credits, carrier state, and buy prompt');
 
-      const liveMatch = {
+      const liveTick = makeSnapshot([], [], [], 20000, {
         ...prepMatch,
         phase: 'live',
         phaseEndsAt: 90000,
         bomb: {
           state: 'planted',
-          carrierId: null,
+          carrier: null,
           site: 'A',
-          fuseEndsAt: 28000,
+          x: 14,
+          y: 3,
+          z: 18,
+          explodeAt: 28000,
         },
-      };
+      });
+      const liveMatch = liveTick.match;
       hud.setMatchState(liveMatch, {
         ...selfRow,
         bomb: false,
@@ -676,11 +689,13 @@ export async function runHudContracts(ok, installGlobals) {
       'HUD renders authoritative team scores and current S&D roles');
       ok(document.getElementById('match-bomb-banner').textContent.trim()
           === 'BOMB PLANTED AT SITE A'
+        && document.getElementById('match-clock').textContent === '8.0s'
+        && Object.keys(liveMatch.bomb).sort().join(',') === 'carrier,explodeAt,site,state,x,y,z'
         && visible(document.getElementById('interaction-bar'))
         && document.getElementById('interaction-label').textContent.trim()
           === 'DEFUSING BOMB [SITE A]...'
         && interactionFill?.style.width === '40%',
-      'HUD renders explicit planted/defuse objective copy and the exact visible 40% progress state');
+      'HUD renders the real server bomb schema, fuse clock, and exact 40% defuse progress');
 
       hud.setMatchState({
         ...liveMatch,

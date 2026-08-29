@@ -120,7 +120,9 @@ export function drainEventsWithDedupe(snapshotList, upTo, state) {
 /** Newest-row fields retained alongside interpolated transforms. */
 const PASSTHROUGH_FIELDS = [
   'name', 'hp', 'team', 'weapon', 'score', 'kills', 'deaths',
-  'state', 'firing', 'ads', 'credits', 'owned', 'bomb', 'interaction',
+  'state', 'firing', 'ads', 'crouch', 'mag', 'reserve', 'reloading',
+  'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt',
+  'credits', 'owned', 'bomb', 'interaction',
 ];
 
 export class NetClient {

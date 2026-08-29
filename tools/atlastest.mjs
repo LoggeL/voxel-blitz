@@ -18,9 +18,10 @@ import {
   START_CREDITS, KILL_CREDITS, PLANT_CREDITS, ROUND_WIN_CREDITS,
   MAX_CREDITS, LOSS_CREDIT_LADDER, MAP_MODE_COMPATIBILITY,
   normalizeModeId, normalizeTeamId, normalizeMapId, normalizeWeaponId,
-  isModeMapCompatible,
+  isModeMapCompatible, isTeamMode,
 } from '../shared/modes.js';
 import { raycastVoxels } from '../shared/raycast.js';
+import { MAP_CAPTURE_SHOTS } from '../shared/map-capture-shots.js';
 import {
   ChunkStore, aoLevel, FACE_SHADE, CHUNK_X,
   MAX_REBUILDS_PER_FRAME,
@@ -204,6 +205,13 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
   'mode, map, and team identifiers are exact immutable shared lists');
 
+  const sndMaps = MAP_IDS.filter((map) => MAP_MODE_COMPATIBILITY[map].includes('snd'));
+  const capturedSites = sndMaps.every((map) => ['A', 'B'].every((site) =>
+    MAP_CAPTURE_SHOTS.some((shot) =>
+      shot.map === map && shot.id === `snd-site-${site.toLowerCase()}` && shot.mode === 'snd')));
+  ok(capturedSites,
+    'every S&D-compatible map exposes dedicated A/B marker render-validation shots');
+
   const expectedRules = {
     fun: {
       teams: false,
@@ -250,6 +258,9 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   ok(MODE_RULES.gungame.weaponOrder === GUN_GAME_WEAPON_ORDER
     && deeplyFrozen(GUN_GAME_WEAPON_ORDER),
   'Gun Game progression has one exact immutable shared weapon order');
+  ok(isTeamMode('tdm') && isTeamMode('snd')
+    && !isTeamMode('fun') && !isTeamMode('gungame') && !isTeamMode('invalid'),
+  'team-mode classification derives from the shared mode rules');
 
   const expectedPrices = {
     revolver: 0,

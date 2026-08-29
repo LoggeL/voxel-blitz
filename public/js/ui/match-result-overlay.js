@@ -1,6 +1,5 @@
 import { el, formatClock } from './hud-support.js';
-
-const TEAM_MODES = new Set(['tdm', 'snd']);
+import { isTeamMode } from '../../../shared/modes.js';
 
 function upper(value, fallback) {
   return String(value || fallback).toUpperCase();
@@ -41,7 +40,7 @@ export class MatchResultOverlay {
     }
 
     const mode = match.mode || 'fun';
-    const teamMode = TEAM_MODES.has(mode);
+    const teamMode = isTeamMode(mode);
     const selfId = selfRow?.id == null ? null : String(selfRow.id);
     const victory = teamMode
       ? !!selfRow?.team && String(selfRow.team) === String(winner)

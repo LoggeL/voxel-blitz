@@ -19,8 +19,8 @@ The main menu has three admission paths:
 
 - **Quick Play** enters the first live shared Fun room with human capacity, or
   creates one immediately. Fresh quick rooms rotate between Foundry and Depot.
-  The bot count applies only when a new quick room is created; the menu's custom
-  mode and map selectors do not change quick play.
+  A fresh room starts with at least five bots; humans replace bots as they join.
+  The menu's custom mode and map selectors do not change quick play.
 - **Create Lobby** creates a public waiting room with the selected game mode,
   compatible map, and `0–7` bots. Every human, including the host, marks ready;
   the host starts the match after all humans are ready.
@@ -46,8 +46,11 @@ The standard verification commands are:
 npm run smoke        # base gameplay/protocol smoke
 npm run lobby        # room lifecycle and lobby protocol smoke
 npm run modes:lobby  # selected mode/map lobby and wire contracts
-npm run modes:bots   # deterministic bot behavior in Fun, TDM, and S&D
+npm run modes:bots   # deterministic bot behavior in all four modes
 npm test             # atlas/world, smoke, lobby, mode-lobby, then bot-mode smoke
+npm run container:smoke # HTTP + WebSocket check against BASE_URL or localhost
+npm run browser:smoke   # connected menu, Quick Play, pause/resume, and quit flow
+npm run audio:mix       # actual sample + synth + echo + limiter browser render
 ```
 
 Visual capture flows run without a multiplayer session and write ignored QA
@@ -67,14 +70,25 @@ states: `held`, fully aligned `scoped`/ADS, and `firing` with the real recoil,
 muzzle flash, and heat shader advanced to a deterministic frame. The complete
 run writes 18 PNGs plus `index.html` and `manifest.json` to
 `.artifacts/weapon-renders/` for side-by-side visual review.
-The avatar flow renders those same canonical models on remote-player bodies from
-front, profile, and firing views into `.artifacts/avatar-renders/`.
+The avatar flow renders those same canonical models on remote-player bodies in
+front, profile, firing, ADS-profile, and crouched-profile views, plus one
+representative ally-spectator shot. The focused 31-frame matrix is written to
+`.artifacts/avatar-renders/`.
 
-The audio audit decodes the six effective fire samples, measures muzzle-onset
-alignment after runtime gain/playback-rate profiles, and writes waveforms,
+The audio audit inventories all 13 shipped fire, reload, and music assets,
+measures runtime gain/playback-rate profiles, and writes waveforms,
 spectrograms, metrics, and an HTML comparison to `.artifacts/audio-audit/`.
-It fails when a report misses the 15ms sync budget or the weapon-weight and
-spectral-brightness hierarchy drifts.
+It fails on inventory drift, clipping/loudness anomalies, lost peak headroom,
+a fire report missing the 15ms sync budget, or drift in the weapon-weight and
+spectral-brightness hierarchy.
+`npm run audio:mix` additionally renders every complete local fire graph through
+the production sample, synthetic layer, echo, master gain, and limiter in a
+Chromium `OfflineAudioContext`; it checks onset, mixed RMS, clipping, tail shape,
+and weapon-weight ordering.
+
+The fast `npm test` suite runs on every push and pull request. Scheduled/manual
+extended QA keeps audio, deterministic Chromium captures, and the built
+container smoke separate so normal development does not inherit their runtime.
 
 For deterministic manual menu QA, `?debug=1&ui=settings` opens the pause/settings
 surface without requiring pointer lock. Main, create-lobby, and waiting-lobby
@@ -159,19 +173,27 @@ owns and refills the weapon:
 Dead/new players begin the next round with the revolver. Round survivors retain
 their purchases and remaining ammunition. Weapons cannot fire during prep.
 
+### Gun Game
+
+Gun Game is a free-for-all with a **1500 ms** respawn. Every kill advances the
+player through rifle, SMG, shotgun, sniper, LMG, and finally revolver. A kill
+with the revolver wins; a **5000 ms** result phase follows before progression
+and scores reset.
+
 ### Map compatibility
 
 | map id | modes | identity |
 |---|---|---|
-| `foundry` | Fun, TDM, S&D | industrial Foundry with A/B sites |
-| `depot` | Fun, TDM | point-symmetric cargo Depot |
-| `citadel` | Fun, TDM, S&D | Citadel with Courtyard A and elevated Compound B |
+| `foundry` | Fun, TDM, S&D, Gun Game | industrial Foundry with A/B sites |
+| `depot` | Fun, TDM, Gun Game | point-symmetric cargo Depot |
+| `citadel` | Fun, TDM, S&D, Gun Game | Citadel with Courtyard A and elevated Compound B |
 
 ## Controls
 
 | input | action |
 |---|---|
 | `WASD` | move (`Shift` sprint); `W` / `S` climb up / down while touching a ladder |
+| `Shift` while stationary | hold breath until the pain/panic-limited budget is spent |
 | `Space` | jump; climb up while touching a ladder |
 | `Ctrl` / `C` | crouch; climb down while touching a ladder |
 | mouse1 / mouse2 | fire / ADS |
@@ -207,12 +229,15 @@ shotgun 3.6 kg, sniper 5.2 kg, LMG 8.4 kg, and revolver 1.4 kg. Mouse aim and
 server authority remain immediate; only the procedural gun model trails a turn.
 Heavier weapons lag farther and settle more slowly.
 
-Sprinting has a stronger but deliberately slower leg-driven run cycle than ordinary walking. Jumping
-and landing move only the carried weapon through a damped vertical spring while aim stays immediate. Damage
-builds panic, while sprinting, jumping, and firing build exhaustion. Those
-authoritative, normalized conditions subtly add deterministic tremor/breathing
-and widen the shot cone, but are deliberately hidden rather than exposed as
-HUD meters. Both reset on respawn.
+Sprinting has a stronger but deliberately slower leg-driven run cycle than
+ordinary walking. Jumping and landing move only the carried weapon through a
+damped vertical spring while aim stays immediate. Damage builds panic and pain,
+while sprinting, jumping, and firing build exhaustion. Those authoritative,
+normalized conditions subtly add deterministic tremor/breathing and widen the
+shot cone, but are deliberately hidden rather than exposed as HUD meters. They
+reset on respawn. Crouching reduces stationary sway; standing still and holding
+Shift holds breath for 2.4 seconds when calm, with pain and panic reducing that
+budget as low as 0.7 seconds.
 
 The sniper alone enters its circular full-screen optic at 72% ADS. The outside
 mask is opaque and the reticle includes crosshairs, mildots, and range ticks;
@@ -226,8 +251,8 @@ volume (0–1), and field of view (65–100) apply immediately and persist under
 `vb-sens`, `vb-volume`, and `vb-fov`. Resume closes the panel and returns to
 play; Quit to Main Menu cleanly leaves the active match. While dead, a
 collision-safe chase camera follows legal living targets and displays the
-respawn countdown; S&D deaths remain spectators until the next round. Audio
-unlocks idempotently after a user
+authoritative respawn deadline; S&D deaths remain spectators until the next
+round. Audio unlocks idempotently after a user
 gesture, and routes every sound through the persisted master-volume control.
 
 Reloading drops the active magazine immediately, including its remaining
@@ -245,8 +270,8 @@ public/js/
   guns/    defs (feel tables) + viewmodel rig (procedural models, staged anims)
   weapons/ pooled FX: tracers, impacts, shatter, shells, shake
   ui/      menu/lobby, match HUD, buy dialog, scoreboard, combat feedback
-  audio/   procedural WebAudio synth engine
-tools/     atlas/world, base wire, lobby, mode-lobby, and bot-mode harnesses
+  audio/   sample bank + procedural WebAudio fallback, mix, music, voice limits
+tools/     fast contracts plus isolated visual, audio, and container QA flows
 ```
 
 Foundry, Depot, and Citadel are deterministic templates. Every room receives a

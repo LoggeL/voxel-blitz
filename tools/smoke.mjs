@@ -524,7 +524,12 @@ function runDirectContracts() {
     Math.ceil((respawnDueAt - respawnEngine.now) / TICK_MS) - 1,
   );
   for (let i = 0; i < ticksBeforeRespawn; i++) respawnEngine.step(TICK_MS);
+  const deadRespawnRow = respawnSnapshots.at(-1)?.players.find(
+    (row) => row.id === 'timed-respawn'
+  );
   const noEarlyRespawn = respawning.state === 'dead'
+    && deadRespawnRow?.state === 'dead'
+    && deadRespawnRow.respawnAt === respawnDueAt
     && respawnSnapshots.every((tick) =>
       !tick.events.some((event) => event.kind === 'respawn' && event.id === 'timed-respawn'));
   respawnEngine.step(TICK_MS);
@@ -540,12 +545,13 @@ function runDirectContracts() {
     && respawnSnapshot.now >= respawnDueAt
     && respawnSnapshot.now - respawnDueAt < TICK_MS
     && respawnRow?.state === 'alive'
+    && respawnRow.respawnAt === null
     && respawnRow.weapon === WEAPON_IDS.indexOf('rifle')
     && JSON.stringify(respawnRow.mag) === JSON.stringify(freshMags)
     && JSON.stringify(respawnRow.reserve) === JSON.stringify(freshReserve)
     && respawnRow.panic === 0
     && respawnRow.exhaustion === 0,
-  'timed respawn broadcasts its event and fresh rifle six-slot loadout at the due tick');
+  'timed respawn publishes its deadline, event, and fresh rifle loadout at the due tick');
   ok(!!respawnEvent
     && !!respawnRow
     && respawnEvent.x === respawnRow.x

@@ -22,10 +22,22 @@ room/client interfaces below; do not fork their logic into a second convention.
 - `npm run modes:lobby` runs `tools/mode-lobby-smoke.mjs` for selected
   mode/map lobby, wire, isolation, and lifecycle behavior.
 - `npm run modes:bots` runs `tools/bot-mode-smoke.mjs` for deterministic bot
-  behavior in Fun, TDM, and S&D.
+  behavior in Fun, TDM, S&D, and Gun Game.
 - Standard `npm test` runs `tools/atlastest.mjs`, `tools/smoke.mjs`,
   `tools/lobby-smoke.mjs`, `npm run modes:lobby`, and `npm run modes:bots`, in
   that order.
+- `npm run browser:smoke` drives the connected menu → Quick Play → live match
+  → pause/resume → quit flow in Chromium. `npm run maps:capture`,
+  `npm run weapons:capture`, and
+  `npm run avatars:capture` produce deterministic Chromium review matrices;
+  `npm run audio:audit` inventories and analyzes every bundled OGG;
+  `npm run audio:mix` renders the production sample + synth + echo + limiter
+  fire graph for every weapon in Chromium; and
+  `npm run container:smoke` validates HTTP plus WebSocket behavior against
+  `BASE_URL` or localhost.
+- Push/pull-request CI runs only `npm test`. Scheduled/manual extended QA runs
+  audio, visual captures, and the built-container smoke separately so the fast
+  contract gate does not accumulate browser/container test bloat.
 
 ## Protocol (WebSocket; JSON text except the map)
 ### Client → server
@@ -34,7 +46,7 @@ The first non-binary frame is exactly one admission shape:
   live shared Fun room with capacity or creates one. `bots` defaults to zero and
   applies only to a newly created quick room. Fresh quick rooms rotate between
   `foundry` and `depot`.
-- `{t:'create',name:string,bots:number,gameMode?:'fun'|'tdm'|'snd',
+- `{t:'create',name:string,bots:number,gameMode?:'fun'|'tdm'|'snd'|'gungame',
   map?:'foundry'|'depot'|'citadel'}` creates a public waiting lobby. Omitted
   values default to `fun` and the first compatible map. An explicitly
   incompatible mode/map pair is malformed.
@@ -79,16 +91,20 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   `{mode,map,phase,phaseEndsAt,scores,winner,round,roundWinner,attackers,
   defenders,bomb}`. Team scores are `{alpha,bravo}` or `null`; S&D `bomb` is
   `{state,carrier,site,x,y,z,explodeAt}` and is `null` in other modes.
-  Fun uses `live`; TDM uses `live|'post'`; S&D uses
-  `prep|'live'|'post'`. Bomb state is
+  Fun uses `live`; TDM and Gun Game use `live|'post'`; S&D uses
+  `prep|'live'|'post'`. Gun Game's winner is a player id. Bomb state is
   `'carried'|'dropped'|'planted'|'defused'|'exploded'`.
 - Each player row has exactly
-  `{id,name,x,y,z,yaw,pitch,hp,panic,exhaustion,weapon,score,kills,deaths,
-  state,firing,ads,mag,reserve,reloading,team,credits,owned,bomb,interaction}`.
+  `{id,name,x,y,z,yaw,pitch,hp,panic,pain,exhaustion,spawnProtected,weapon,
+  score,kills,deaths,state,respawnAt,firing,ads,crouch,mag,reserve,reloading,
+  team,credits,owned,bomb,interaction}`.
   `team` is `'alpha'|'bravo'|null`; `owned` is an array of weapon ids;
   `interaction` is `{kind:'plant'|'defuse',site,progress}` or `null`; `bomb`
-  marks the carrier. `state` is `'alive'|'dead'`. Panic and exhaustion are
-  authoritative normalized values and are not HUD meters.
+  marks the carrier. `state` is `'alive'|'dead'`; `respawnAt` is the finite
+  authoritative server deadline for an automatic respawn and otherwise
+  `null`. `reserve` is a count of full spare magazines, not loose bullets.
+  Panic, pain, and exhaustion are authoritative normalized values and are not
+  HUD meters.
 - Gameplay and mode events live in `tick.events`; they are not separate
   top-level deliveries. Combat events remain:
   - `{t:'ev',kind:'shoot',id,o:[x,y,z],d:[x,y,z],w,spread:[x,y,z]}`
@@ -121,8 +137,8 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
 
 Validation rule: the server recomputes shot direction from stored yaw/pitch and
 the shared `computeSpreadConeDeg()` result, including authoritative
-panic/exhaustion, with only the documented aim tolerance. It never accepts
-client damage claims.
+panic/pain/exhaustion and stance, with only the documented aim tolerance. It
+never accepts client damage claims.
 
 ## Module APIs (exact)
 ### shared/worlddata.js
@@ -142,33 +158,35 @@ sites,landmarks}`. Serialized map dimensions/header remain common across maps;
 the map id travels in JSON. `createWorldState` remains the default Foundry API.
 
 ### shared/modes.js
-Exports immutable `MODE_IDS=['fun','tdm','snd']`,
+Exports immutable `MODE_IDS=['fun','tdm','snd','gungame']`,
 `TEAM_IDS=['alpha','bravo']`, `MAP_IDS=['foundry','depot','citadel']`,
 `MODE_RULES`, `MAP_MODE_COMPATIBILITY`, S&D credit constants,
 `WEAPON_PRICES`, defaults, validators/normalizers for mode/team/map/weapon ids,
-and `isModeMapCompatible(modeId,mapId)`. This is the browser/server source of
+`isTeamMode(modeId)`, and `isModeMapCompatible(modeId,mapId)`. This is the browser/server source of
 truth for mode ids, map compatibility, timings, and economy.
 
 ### shared/combatmath.js
 Exports `WEAPONS`, `WEAPON_IDS`, `CONDITION_RULES`, `GRAVITY`, `PLAYER_HALF`,
 `EYE_HEIGHT`, `HEADSHOT_Y_FRAC`, `damageAtDistance(def,dist)`,
 `sampleSpreadDir(fwd,rng,halfAngleDeg)`, `angleBetweenDeg(a,b)`, and
-`computeSpreadConeDeg(def,bloomDeg,speedXZ,adsT,panic=0,exhaustion=0)`.
-`CONDITION_RULES` is the single source for panic/exhaustion gain, decay, and
+`computeSpreadConeDeg(def,bloomDeg,speedXZ,adsT,panic=0,exhaustion=0,
+crouching=false,pain=0)`.
+`CONDITION_RULES` is the single source for panic/pain/exhaustion gain, decay, and
 recovery. The condition penalty is exactly
-`(panic*0.85 + exhaustion*1.15) * (1 - adsT*0.45)` degrees.
+`(panic*0.85 + exhaustion*1.15 + pain*1.65) * (1 - adsT*0.45)` degrees;
+crouching also applies each weapon's `crouchSpreadMult` to base spread/bloom.
 
 The slot roster is exactly
 `['rifle','smg','shotgun','sniper','lmg','revolver']`:
 
-| slot/key | display name | mode | rpm | mag/reserve | close→far damage @ end | head | pellets | hip/ADS cone | mass |
+| slot/key | display name | mode | rpm | mag/spare mags | close→far damage @ end | head | pellets | hip/ADS cone | mass |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
-| 0 `rifle` | VK-77 RAPTOR | auto | 660 | 30/180 | 25→15 @ 65 | 1.85× | 1 | 1.35°/0.28° | 3.4 kg |
-| 1 `smg` | HORNET SMG | auto | 900 | 36/216 | 19→10 @ 42 | 1.70× | 1 | 1.90°/0.75° | 2.3 kg |
-| 2 `shotgun` | M-DOCK 12 | pump | 78 | 7/42 | 13→3 @ 24 | 1.35× | 9 | 4.40°/3.10° | 3.6 kg |
-| 3 `sniper` | LONGSHOT MK-II | bolt | 42 | 5/30 | 95→68 @ 120 | 2.10× | 1 | 5.50°/0.02° | 5.2 kg |
-| 4 `lmg` | BASTION LMG | auto | 720 | 60/240 | 22→14 @ 75 | 1.70× | 1 | 1.65°/0.48° | 8.4 kg |
-| 5 `revolver` | IRONCLAD .44 | semi | 300 | 6/48 | 54→35 @ 80 | 1.90× | 1 | 1.15°/0.12° | 1.4 kg |
+| 0 `rifle` | VK-77 RAPTOR | auto | 660 | 30/6 | 25→15 @ 65 | 1.85× | 1 | 1.35°/0.28° | 3.4 kg |
+| 1 `smg` | HORNET SMG | auto | 900 | 36/6 | 19→10 @ 42 | 1.70× | 1 | 1.90°/0.75° | 2.3 kg |
+| 2 `shotgun` | M-DOCK 12 | pump | 78 | 7/6 | 13→3 @ 24 | 1.35× | 9 | 4.40°/3.10° | 3.6 kg |
+| 3 `sniper` | LONGSHOT MK-II | bolt | 42 | 5/6 | 95→68 @ 120 | 2.10× | 1 | 5.50°/0.02° | 5.2 kg |
+| 4 `lmg` | BASTION LMG | auto | 720 | 60/4 | 22→14 @ 75 | 1.70× | 1 | 1.65°/0.48° | 8.4 kg |
+| 5 `revolver` | IRONCLAD .44 | semi | 300 | 6/8 | 54→35 @ 80 | 1.90× | 1 | 1.15°/0.12° | 1.4 kg |
 
 Damage is flat to 20 world units, then falls linearly to the table's far value
 at the listed end. All remaining cadence, bloom, recoil, ADS, reload, deploy,
@@ -245,7 +263,8 @@ and exposes `quickPlay(meta,name,bots?)`,
 - `buildMenu(onAction)` builds Quick Play/Create/Join and calls
   `onAction({mode:'quick'|'create'|'join',gameMode,map,name,bots,sensitivity,
   code})`. Create uses the selected compatible mode/map. Quick uses shared Fun
-  admission; Join uses the code and inherits the room selection. Names trim to
+  admission with five takeover bots and automatic Foundry/Depot rotation; Join
+  uses the code and inherits the room selection. Names trim to
   16 characters with `PLAYER` fallback; codes normalize to the invite alphabet
   and five characters. `?lobby=CODE` pre-fills and focuses Join.
   `showJoinState(message,tone?)` reports menu admission state.
@@ -296,14 +315,21 @@ late join whose welcome/state is already live also proceeds directly.
   getter `currentShakeXY`, and `dispose()`.
 - `new ViewmodelRig(camera)` exposes `setWeapon(id)`, `fire()`, `ads(t01)`,
   `reload(dur,type)`, `pumpAnim()`, `boltAnim()`,
-  `update(dt,{speed,grounded,panic?,exhaustion?})`, and `bobAmt`.
+  `update(dt,{speed,grounded,verticalVelocity?,mouseDX?,mouseDY?,isSprinting?,
+  crouch?,panic?,pain?,exhaustion?,aimSwayScale?})`, and `bobAmt`.
   It builds six procedural models; turn lag affects only the rig, never
   camera/authority aim.
+- `new AimSway()` exposes `update(dt,{alive,grounded,stationary,shift,
+  crouching,panic,pain})`, `reset()`, and its stable `readModel`. It applies
+  deterministic stationary sway; crouching reduces it, while holding Shift
+  when stationary suppresses it until the pain/panic-limited breath budget is
+  spent.
 
 ### Audio
 `sfx` exports:
 `init():Promise`, `unlock():Promise<boolean>`, `dispose():Promise<void>`,
-`setMasterVolume(value)`,
+`setMasterVolume(value)`, `startMenuMusic(fetchImpl?)`,
+`stopMenuMusic(fadeSeconds?)`, `loadSamples(manifest,fetchImpl?)`,
 `fire(key,{muffled?:boolean,pos?:[x,y,z]}|[x,y,z]?)`,
 `impact(kind:'stone'|'wood'|'glass'|'metal'|'flesh',volume,
 {muffled?:boolean,pos?:[x,y,z]}|[x,y,z]?)`,
@@ -315,6 +341,14 @@ idempotent, every voice routes through the clamped master volume and limiter,
 and `dispose()` closes the owned context and clears voices/timers. Fire and
 impact support HRTF positions; the engine caps 48 voices total and 16
 positional voices.
+`BUILTIN_SAMPLE_MANIFEST` is the exact licensed local fire/reload asset set.
+Sample decode/fetch failures retain procedural fallbacks. The menu uses the
+licensed local loop through the same master bus; the offline audit inventories
+every shipped OGG and checks fire onset, runtime peak headroom, RMS/crest
+sanity, clipping ratio, and the weapon duration/brightness profile. The browser
+mix audit additionally renders the complete local fire graph through the shared
+master/echo module and asserts onset, limiter behavior, RMS, tail, and weapon
+weight ordering.
 
 ### Server bots
 `attachBots(engine,n)` returns a `BotManager`. Bots are direct engine entities,
@@ -335,6 +369,10 @@ step listener with the room.
   score. First to `40` enters a `5000 ms` post phase, then team/player scores
   reset and all players respawn. Live deaths respawn after `3000 ms` at the
   player's team spawn pool.
+- **Gun Game (`gungame`):** free-for-all target eligibility and `1500 ms`
+  respawn. Players progress through the immutable shared order rifle, SMG,
+  shotgun, sniper, LMG, revolver; a kill with the revolver wins. The winner is
+  shown during a `5000 ms` post phase before progression and scores reset.
 - **Search and Destroy (`snd`):** persistent `alpha`/`bravo` teams map to
   attackers/defenders, friendly fire is disabled, and roles swap after 6
   completed rounds. First to 7 round wins wins the match. Each round is
@@ -354,12 +392,13 @@ step listener with the room.
   sniper 4750. Only alive participants buy during prep. A purchase owns,
   selects, and refills that weapon. New/dead players start the next round with
   revolver; survivors retain purchases and remaining ammunition.
-- **Map compatibility:** `foundry` supports Fun/TDM/S&D; `depot` supports
-  Fun/TDM; `citadel` supports Fun/TDM/S&D. Foundry has A/B sites, Depot is a
+- **Map compatibility:** `foundry` supports Fun/TDM/S&D/Gun Game; `depot`
+  supports Fun/TDM/Gun Game; `citadel` supports Fun/TDM/S&D/Gun Game. Foundry
+  has A/B sites, Depot is a
   compact point-symmetric cargo map, and Citadel has Courtyard A and elevated
   Compound B with separated sightlines and rotation paths. Every declared spawn
   has solid footing and two-block headroom.
-- **Settings:** sensitivity defaults to `0.030`, clamps to `0.005–0.08`, and
+- **Settings:** sensitivity defaults to `0.018`, clamps to `0.005–0.08`, and
   persists as `vb-sens`; master volume defaults to `0.80`, clamps to `0–1`, and
   persists as `vb-volume`; FOV defaults to `75`, clamps to `65–100`, and
   persists as `vb-fov`. Changes apply immediately. Escape opens the in-game
@@ -368,15 +407,20 @@ step listener with the room.
   full-screen 5× circular optic through `HUD.setState`. Its outside mask is
   opaque; the reticle has crosshairs, mildots, and range ticks. The viewmodel
   hides only while fully scoped.
-- **Audio:** all sound is synthesized procedural WebAudio; there are no media
-  files. Weapon reports, reloads, impacts, hitmarks, distant deaths, footsteps,
-  draws, bullet whizzes, echo, and positional listener updates all route
-  through `sfx`.
+- **Audio:** licensed local fire/reload recordings and the menu loop augment the
+  procedural WebAudio layers. Missing or undecodable samples fall back to the
+  procedural implementation. Weapon reports, reloads, impacts, hitmarks,
+  distant deaths, footsteps, draws, bullet whizzes, echo, music, and positional
+  listener updates all route through `sfx` and the terminal limiter.
 - **Authority:** one room engine simulates movement, ammo, reloads, spread,
   hits, destruction, death, score, and respawn at 20 Hz. The client predicts
   feel/FX but accepted shots and all damage are server decisions. Shooter-side
   rewind uses the 100 ms interpolation delay within a 500 ms history window.
-- **Death:** snapshot `state` plus `die`/`respawn` events are authoritative.
+- **Hit confirmation:** shooter-side hitmarks, their confirmation sound, and
+  world-anchored damage numbers share one camera-to-impact voxel visibility
+  decision; intervening cover suppresses the complete confirmation.
+- **Death:** snapshot `state`/`respawnAt` plus `die`/`respawn` events are
+  authoritative.
   Remote avatars collapse for about 1.2–1.5 seconds before hiding; respawn
   restores every transform. Local death applies a deterministic camera
   fall/roll and respawn resets it. Fun respawns after 1500 ms, TDM after
@@ -388,9 +432,12 @@ step listener with the room.
   clamps to `0–1`, and decays at `0.20/s` toward the low-health floor
   `0.45*(1-hp/100)`. Exhaustion gains `0.24/s` while sprinting, `0.14` per
   accepted jump, and `0.025` per accepted shot; otherwise it recovers at
-  `0.18/s`. It clamps to `0–1`. Both reset on death/respawn, add deterministic
-  tremor/breathing and shot-cone penalty, and remain snapshot-only—not HUD
-  meters.
+  `0.18/s`. Pain gains `damage*0.016 + (headshot ? 0.28 : 0)`, decays at
+  `0.65/s` toward `0.60*(1-hp/100)`, and clamps to `0–1`. All three reset on
+  death/respawn, add deterministic tremor/breathing and shot-cone penalty, and
+  remain snapshot-only—not HUD meters. Stationary Shift hold suppresses sway
+  for 2.4 seconds when calm, falling as low as 0.7 seconds with pain/panic;
+  crouching scales sway to 55%.
 - **Weapon lag:** `weightKg` increases procedural turn-lag amplitude and slows
   viewmodel settling. It does not delay or alter camera/authority aim.
 - **Worlds:** Foundry, Depot, and Citadel are deterministic 128×40×96 templates.

@@ -1,3 +1,5 @@
+import { WEAPON_IDS } from '../../../shared/combatmath.js';
+
 const SLOT_ROOT = '/assets/audio';
 
 const sampleFileSlots = {
@@ -23,7 +25,7 @@ const sampleFileSlots = {
   'impact.flesh': `${SLOT_ROOT}/impacts/flesh.ogg`,
 };
 
-for (const weapon of ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver']) {
+for (const weapon of WEAPON_IDS) {
   // These names document the stable slots without forcing absent assets to be
   // fetched. Callers opt in by passing only licensed entries to load().
   for (let step = 1; step <= 3; step++) {

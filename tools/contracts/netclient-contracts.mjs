@@ -243,6 +243,16 @@ export async function runNetClientContracts(ok, installGlobals) {
           team: 'bravo',
           hp: 100,
           state: 'alive',
+          ads: true,
+          crouch: true,
+          mag: [6, 30, 8, 20, 50, 5],
+          reserve: [4, 3, 3, 3, 3, 3],
+          reloading: false,
+          panic: 0.2,
+          exhaustion: 0.3,
+          pain: 0.4,
+          spawnProtected: true,
+          respawnAt: null,
           credits: 1900,
           owned: firstOwned,
           bomb: firstBomb,
@@ -259,7 +269,10 @@ export async function runNetClientContracts(ok, installGlobals) {
           map: 'citadel',
           phase: 'prep',
           scores: { alpha: 4, bravo: 3 },
-          bomb: { state: 'carried', carrierId: 23 },
+          bomb: {
+            state: 'carried', carrier: '23', site: null,
+            x: 2, y: 3, z: 4, explodeAt: null,
+          },
         },
       }));
       joined.ws.message(JSON.stringify({
@@ -272,6 +285,16 @@ export async function runNetClientContracts(ok, installGlobals) {
           team: 'bravo',
           hp: 100,
           state: 'alive',
+          ads: false,
+          crouch: false,
+          mag: [5, 29, 8, 20, 50, 5],
+          reserve: [4, 3, 3, 3, 3, 3],
+          reloading: true,
+          panic: 0.1,
+          exhaustion: 0.2,
+          pain: 0.25,
+          spawnProtected: false,
+          respawnAt: null,
           credits: 650,
           owned: ['revolver', 'smg'],
           bomb: { state: 'dropped', site: null },
@@ -288,19 +311,34 @@ export async function runNetClientContracts(ok, installGlobals) {
           map: 'citadel',
           phase: 'live',
           scores: { alpha: 4, bravo: 3 },
-          bomb: { state: 'dropped', carrierId: null },
+          bomb: {
+            state: 'dropped', carrier: null, site: null,
+            x: 4, y: 3, z: 4, explodeAt: null,
+          },
         },
       }));
       const view = joined.client.interpolate(performance.now());
       const rival = view.players.get(23);
       ok(rival.team === 'bravo'
+        && rival.ads === true
+        && rival.crouch === true
+        && rival.mag[0] === 6
+        && rival.reserve[1] === 3
+        && rival.reloading === false
+        && rival.panic === 0.2
+        && rival.exhaustion === 0.3
+        && rival.pain === 0.4
+        && rival.spawnProtected === true
+        && rival.respawnAt === null
         && rival.credits === 1900
         && rival.owned.join(',') === 'revolver'
         && rival.bomb.state === 'carried'
         && rival.interaction.progress === 0.2,
-      'interpolation preserves team, credits, owned weapons, bomb, and interaction fields');
+      'interpolation preserves the complete newest remote gameplay state alongside transforms');
       const retainedRival = joined.client.latestSnapshots[0].players[0];
       ok(Object.isFrozen(rival)
+        && Object.isFrozen(rival.mag)
+        && Object.isFrozen(rival.reserve)
         && Object.isFrozen(rival.owned)
         && Object.isFrozen(rival.bomb)
         && Object.isFrozen(rival.interaction)
@@ -320,6 +358,8 @@ export async function runNetClientContracts(ok, installGlobals) {
         return false;
       };
       ok(mutationThrows(() => rival.owned.push('sniper'))
+        && mutationThrows(() => rival.mag.push(99))
+        && mutationThrows(() => { rival.reserve[0] = 99; })
         && mutationThrows(() => { rival.bomb.state = 'exploded'; })
         && mutationThrows(() => { rival.interaction.progress = 1; }),
       'ESM consumers cannot mutate frozen interpolation output');

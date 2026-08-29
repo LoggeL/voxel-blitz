@@ -1,5 +1,5 @@
-const DEFAULT_MENU_TRACK = '/assets/audio/music/menu-pulse.ogg';
-const MENU_GAIN = 0.16;
+export const DEFAULT_MENU_TRACK = '/assets/audio/music/menu-pulse.ogg';
+export const MENU_GAIN = 0.16;
 const FADE_IN_SECONDS = 0.65;
 const FADE_OUT_SECONDS = 0.55;
 

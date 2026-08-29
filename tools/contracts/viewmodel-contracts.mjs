@@ -115,8 +115,13 @@ export async function runViewmodelContracts(ok, installGlobals) {
     });
     const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 100);
     const { SpectatorCamera } = await import('../../public/js/player/spectator-camera.js');
-    const spectator = new SpectatorCamera({ camera, now: () => 1000 });
-    const self = { id: 'self', state: 'dead', team: 'alpha' };
+    const presentations = [];
+    const spectator = new SpectatorCamera({
+      camera,
+      now: () => 1000,
+      onPresent: (state) => presentations.push(state),
+    });
+    const self = { id: 'self', state: 'dead', team: 'alpha', respawnAt: 4000 };
     const ally = {
       id: 'ally', name: 'Ally', state: 'alive', team: 'alpha',
       x: 10, y: 5, z: 8, yaw: 0, pitch: 0, hp: 100,
@@ -128,7 +133,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
     spectator.sync({
       self,
       players: [self, ally, enemy],
-      match: { mode: 'snd', phase: 'live' },
+      match: { mode: 'tdm', phase: 'live' },
       serverNow: 1000,
     });
     const presented = spectator.ensureTargetPresent(new Map());
@@ -138,8 +143,18 @@ export async function runViewmodelContracts(ok, installGlobals) {
         && spectator.candidates.length === 1
         && presented.get(ally.id) === ally
         && !presented.has(enemy.id)
+        && presentations.at(-1)?.respawnText === 'RESPAWN IN 3.0s'
         && chaseDistance > 3.5,
-    'team spectator keeps only the living ally present for a third-person chase view');
+    'team spectator chases only a living ally and presents the authoritative respawn deadline');
+
+    spectator.sync({
+      self: { ...self, respawnAt: null },
+      players: [self, ally, enemy],
+      match: { mode: 'snd', phase: 'live' },
+      serverNow: 1000,
+    });
+    ok(presentations.at(-1)?.respawnText === 'RESPAWN NEXT ROUND',
+      'round-based spectator state does not invent a timed respawn deadline');
     spectator.dispose();
     restoreGlobals();
   }
@@ -150,12 +165,34 @@ export async function runViewmodelContracts(ok, installGlobals) {
     const carried = new AvatarWeaponModel();
     try {
       let valid = true;
+      const hipMounts = new Set();
+      let referenceGrip = null;
       for (const id of WEAPON_IDS) {
-        carried.update({ weapon: id, firing: true, dt: 1 / 60 });
+        carried.update({ weapon: id, dt: 1 / 60 });
+        hipMounts.add(carried.root.position.toArray().map((value) => value.toFixed(4)).join(','));
+        const grip = HANDS[id].grip;
+        const gripWorld = new THREE.Vector3(
+          carried.root.position.x + grip.x * carried.modelRoot.scale.x,
+          carried.root.position.y + grip.y * carried.modelRoot.scale.y,
+          carried.root.position.z + grip.z * carried.modelRoot.scale.z,
+        );
+        referenceGrip ||= gripWorld.clone();
+        valid &&= gripWorld.distanceTo(referenceGrip) < 1e-6;
+        for (let frame = 0; frame < 30; frame++) {
+          carried.update({
+            weapon: id,
+            firing: true,
+            ads: true,
+            crouchT: 1,
+            dt: 1 / 60,
+          });
+        }
         const bakedHands = [];
         carried.modelRoot?.traverse((object) => {
           if (object.name === 'hand_r' || object.name === 'hand_l') bakedHands.push(object);
         });
+        carried.root.updateMatrixWorld(true);
+        const standingSightY = carried.getSightWorldPosition(new THREE.Vector3()).y + 0.29;
         valid &&= carried.id === id
           && carried.modelRoot?.name === `gun_${id}`
           && carried.modelRoot.parent === carried.root
@@ -164,11 +201,13 @@ export async function runViewmodelContracts(ok, installGlobals) {
           && bakedHands.length >= 1
           && bakedHands.every((hand) => hand.visible === false)
           && carried._model.flash.grp.visible
+          && carried.adsT > 0.9
+          && Math.abs(standingSightY - 1.62) < 0.02
           && Number.isFinite(carried.root.position.y)
           && Number.isFinite(carried.root.rotation.x);
       }
-      ok(valid,
-        'remote-avatar mount swaps all six real gun models with correct hand mode and firing pose');
+      ok(valid && hipMounts.size >= 4,
+        'remote-avatar mounts preserve weapon-specific grips and align every ADS sight through firing and crouch');
     } finally {
       carried.dispose();
     }

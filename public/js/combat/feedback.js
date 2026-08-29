@@ -2,6 +2,7 @@
 // with the injected player, roster, world, effects, HUD, and audio collaborators.
 import * as THREE from '../vendor/three.module.js';
 import { SX, SY, SZ } from '../../../shared/worlddata.js';
+import { raycastVoxels } from '../../../shared/raycast.js';
 import { blockSoundFor } from '../weapons/effects.js';
 
 function validImpact(ev) {
@@ -22,6 +23,34 @@ export function distanceToRay(point, origin, direction) {
     px - direction[0] * t,
     py - direction[1] * t,
     pz - direction[2] * t,
+  );
+}
+
+/**
+ * Keep world-anchored combat feedback behind the same voxel cover that hides
+ * its impact point. The small end margin prevents the target surface itself
+ * from being mistaken for intervening cover.
+ */
+export function isWorldPointVisible(world, camera, point, endMargin = 0.12) {
+  const origin = camera?.position;
+  if (!world || typeof world.getBlock !== 'function' || !origin || !Array.isArray(point)) {
+    return false;
+  }
+  const dx = Number(point[0]) - Number(origin.x);
+  const dy = Number(point[1]) - Number(origin.y);
+  const dz = Number(point[2]) - Number(origin.z);
+  const distance = Math.hypot(dx, dy, dz);
+  if (!Number.isFinite(distance)) return false;
+  if (distance <= endMargin) return true;
+  return !raycastVoxels(
+    (x, y, z) => world.getBlock(x, y, z),
+    Number(origin.x),
+    Number(origin.y),
+    Number(origin.z),
+    dx,
+    dy,
+    dz,
+    distance - endMargin,
   );
 }
 
@@ -115,9 +144,12 @@ export class CombatFeedback {
         }
         this.effects.impact(ev);
         if (ev.attacker === myId && !localVictim) {
-          this.hud.hitmark(ev.hs);
-          this.sfx.hitmark(ev.hs);
-          this.spawnDamageNumber(ev);
+          const visible = this.isImpactVisible(ev);
+          if (visible) {
+            this.hud.hitmark(ev.hs);
+            this.sfx.hitmark(ev.hs);
+          }
+          this.spawnDamageNumber(ev, visible);
         }
         if (localVictim && this.player.alive) this.applyLocalHit(ev);
         break;
@@ -179,12 +211,18 @@ export class CombatFeedback {
     return distanceToRay(this.camera.position, origin, direction);
   }
 
-  spawnDamageNumber(ev) {
+  isImpactVisible(ev) {
+    const point = impactPosition(ev);
+    return !!point && isWorldPointVisible(this.world, this.camera, point);
+  }
+
+  spawnDamageNumber(ev, impactVisible = this.isImpactVisible(ev)) {
     const v = new THREE.Vector3(ev.vx, ev.vy, ev.vz).project(this.camera);
     const behind = v.z > 1;
     const x = (v.x * 0.5 + 0.5) * this.viewport.innerWidth;
     const y = (-v.y * 0.5 + 0.5) * this.viewport.innerHeight;
-    this.hud.spawnDamage(ev.dmg, x, y, !behind, ev.hs);
+    const visible = !behind && impactVisible;
+    this.hud.spawnDamage(ev.dmg, x, y, !!visible, ev.hs);
   }
 
   applyLocalHit(ev) {

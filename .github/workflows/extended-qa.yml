@@ -1,0 +1,82 @@
+name: Extended QA
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 3 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: extended-qa-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audio:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run audio:audit
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: audio-audit
+          path: .artifacts/audio-audit/current
+
+  visual:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: test -x /usr/bin/google-chrome
+      - run: npm run browser:smoke
+      - run: npm run audio:mix
+      - run: npm run maps:capture
+      - run: npm run weapons:capture
+      - run: npm run avatars:capture
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: visual-and-runtime-audio-evidence
+          path: |
+            .artifacts/map-renders
+            .artifacts/weapon-renders
+            .artifacts/avatar-renders
+            .artifacts/audio-audit/current/runtime-mix.json
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: docker build --tag voxel-blitz-qa .
+      - run: docker run --detach --name voxel-blitz-qa --publish 8070:8070 voxel-blitz-qa
+      - run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:8070/ >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs voxel-blitz-qa
+          exit 1
+      - run: npm run container:smoke
+      - if: always()
+        run: docker rm --force voxel-blitz-qa || true

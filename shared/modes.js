@@ -88,6 +88,11 @@ export function isModeId(value) {
   return MODE_IDS.includes(value);
 }
 
+/** True when the mode assigns persistent alpha/bravo teams. */
+export function isTeamMode(value) {
+  return MODE_RULES[value]?.teams === true;
+}
+
 export function normalizeModeId(value, fallback = DEFAULT_MODE_ID) {
   if (isModeId(value)) return value;
   return isModeId(fallback) ? fallback : DEFAULT_MODE_ID;

@@ -229,8 +229,26 @@ export class Session {
       }
       this._unlockAudioQuietly();
     };
+    this._onEscape = (event) => {
+      if (
+        event?.code !== 'Escape' ||
+        event.repeat ||
+        this._tornDown ||
+        this._phase !== 'live' ||
+        !this._gameplay.running ||
+        !this._gameplay.alive ||
+        this.hud.settingsOpen ||
+        this.hud.isBuyMenuOpen()
+      ) {
+        return;
+      }
+      event.preventDefault();
+      if (this._document?.pointerLockElement === this.input.canvas) this.input.exit();
+      else this._gameplayUi.pauseFromKeyboard();
+    };
 
     this._window?.addEventListener?.('resize', this._onResize);
+    this._window?.addEventListener?.('keydown', this._onEscape);
     this._window?.addEventListener?.('pagehide', this._onPageHide, { once: true });
     this._document?.addEventListener?.('visibilitychange', this._onVisibilityChange);
   }
@@ -452,6 +470,7 @@ export class Session {
     this._pregame.closeCurrentNet();
 
     this._window?.removeEventListener?.('resize', this._onResize);
+    this._window?.removeEventListener?.('keydown', this._onEscape);
     this._window?.removeEventListener?.('pagehide', this._onPageHide);
     this._document?.removeEventListener?.('visibilitychange', this._onVisibilityChange);
 

@@ -3,6 +3,7 @@ import { runHudContracts } from './hud-contracts.mjs';
 import { runInputContracts } from './input-contracts.mjs';
 import { runNetClientContracts } from './netclient-contracts.mjs';
 import { runViewmodelContracts } from './viewmodel-contracts.mjs';
+import { runCombatFeedbackContracts } from './combat-feedback-contracts.mjs';
 
 function installGlobals(values) {
   const saved = new Map();
@@ -24,6 +25,7 @@ function installGlobals(values) {
 }
 
 export async function runClientContracts(ok) {
+  runCombatFeedbackContracts(ok);
   await runInputContracts(ok, installGlobals);
   await runViewmodelContracts(ok, installGlobals);
   await runAudioContracts(ok, installGlobals);
