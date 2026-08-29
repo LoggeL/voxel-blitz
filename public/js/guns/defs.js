@@ -193,14 +193,21 @@ export const TIMERS = {
  * figure-8: x = sin(pi*p), y = cos(2*pi*p) traces the classic lazy infinity loop.
  */
 export const BOB = {
-  walkFreq: 7.8,     // 4 quick strides/sec pair — tuned against 4.4 m/s walk speed.
+  walkFreq: 2.35,    // vertical steps/sec at the canonical 4.4 m/s walk speed.
   walkVert: 0.012,   // vertical head-of-hammer bounce.
   walkHorz: 0.006,   // half of vertical: figure-8 narrow waist.
-  sprintFreq: 10,    // faster beat at 6.2 m/s.
+  sprintFreq: 3.1,   // purposeful run cadence without rapid vertical vibration.
   sprintAmpMul: 2.2, // and twice-plus-a-bit taller strokes.
   sprintTiltZ: 4 * (Math.PI / 180), // inward gun cant while sprinting — cute, cheap charm.
   crouchDampen: 0.65,// low crouch gait shortens the pendulum.
   airDampen: 0.30,   // airborne legs stop driving the loop; float calm.
+  airVelocityLag: 0.0028, // gun trails vertical body velocity rather than snapping with the camera.
+  airOffsetClamp: 0.022,
+  airSpringStiffness: 92,
+  airSpringDamping: 16,
+  jumpTakeoffImpulse: 0.32,
+  landImpactImpulse: 0.44,
+  airPitchPerMeter: -0.75,
   idleFreq: 1.6,     // breathing sine, 0.0016 m — life without noise-mud.
   idleAmp: 0.0016,
   swayPxPerUnit: 20, // mouse pixels consumed per unit of lag offset (look-inertia).

@@ -7,6 +7,7 @@ import * as THREE from '../vendor/three.module.js';
 import { buildAtlas } from './atlas.js';
 import { ChunkStore } from './chunks.js';
 import { installSky, SUN_DIR } from './sky.js';
+import { SiteMarkers } from './site-markers.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 
 export { SUN_DIR };
@@ -113,6 +114,8 @@ export class WorldView {
 
     this.ladderVisuals = buildLadderVisuals(mapMeta || storeRef.meta || null);
     if (this.ladderVisuals) this.scene.add(this.ladderVisuals.group);
+    this.siteMarkers = new SiteMarkers((mapMeta || storeRef.meta || null)?.sites);
+    this.scene.add(this.siteMarkers.group);
   }
 
   /** Builds every initial chunk column; resolves when the world is renderable. */
@@ -155,6 +158,10 @@ export class WorldView {
     this.camera = camera;
   }
 
+  setGameMode(mode) {
+    this.siteMarkers.setMode(mode);
+  }
+
   /** Camera-centred convenience ray; requires a prior setCamera(). */
   rayHitCamera(maxDist = 64) {
     if (!this.camera) return null;
@@ -181,6 +188,7 @@ export class WorldView {
       this.ladderVisuals.group.clear();
       this.ladderVisuals = null;
     }
+    this.siteMarkers.dispose();
     this.skyUpdate.dispose();
     this.atlas.dispose();
   }

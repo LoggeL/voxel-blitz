@@ -29,6 +29,7 @@ const world = createMapState(map);
 const worldview = new WorldView({ getBlock: world.getBlock, meta: world.meta }, world.meta);
 await worldview.ready();
 worldview.setCamera(camera);
+worldview.setGameMode(shot.mode);
 worldview.scene.add(camera);
 
 // Two synchronous frames let sky callbacks and matrices settle without
@@ -41,4 +42,11 @@ renderer.render(worldview.scene, camera);
 document.documentElement.dataset.captureReady = 'true';
 document.documentElement.dataset.captureMap = map;
 document.documentElement.dataset.captureShot = shotId;
-window.__vbCapture = Object.freeze({ map, shot: shotId, position: shot.position, target: shot.target, fov: shot.fov });
+window.__vbCapture = Object.freeze({
+  map,
+  shot: shotId,
+  mode: shot.mode,
+  position: shot.position,
+  target: shot.target,
+  fov: shot.fov,
+});

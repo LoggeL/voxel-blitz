@@ -165,6 +165,18 @@ export async function runViewmodelContracts(ok, installGlobals) {
       ok(byWeight.every((id, i) =>
         i === 0 || lagByWeapon.get(byWeight[i - 1]) < lagByWeapon.get(id)),
       'viewmodel turn lag strictly follows canonical weapon-weight ordering');
+
+      rig.setWeapon('rifle');
+      rig.update(1 / 60, { grounded: true, speed: 6.2, isSprinting: true });
+      rig.update(1 / 60, { grounded: false, verticalVelocity: 7 });
+      const takeoffLag = rig._air.p;
+      for (let frame = 0; frame < 24; frame++) {
+        rig.update(1 / 60, { grounded: false, verticalVelocity: -6 });
+      }
+      const fallingVelocity = rig._air.v;
+      rig.update(1 / 60, { grounded: true, verticalVelocity: 0 });
+      ok(takeoffLag < 0 && rig._air.v < fallingVelocity,
+        'jump takeoff trails the gun downward and landing adds a damped impact impulse');
     } finally {
       rig.dispose();
     }

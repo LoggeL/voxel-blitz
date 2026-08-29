@@ -19,6 +19,8 @@ const BLOCK_TINTS = Object.freeze({
   10: 0xb08a5a,
   11: 0xcfe8f5,
   12: 0xcfd3d6,
+  13: 0xb5723a,
+  14: 0xa8543e,
 });
 
 const NORMAL_IMPACT_PARTICLES = Object.freeze({
@@ -46,7 +48,7 @@ const SHARD_PARTICLES = Object.freeze({
 export function blockSoundFor(type) {
   if (type === 11) return 'glass';
   if (type === 10 || type === 6 || type === 5) return 'wood';
-  if (type === 9 || type === 8) return 'metal';
+  if (type === 9 || type === 8 || type === 13 || type === 14) return 'metal';
   return 'stone';
 }
 
@@ -84,7 +86,7 @@ export class ImpactFX {
       transparent: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      depthTest: false,
+      depthTest: true,
       side: THREE.DoubleSide,
       toneMapped: false,
     });

@@ -244,7 +244,7 @@ export class GunGamePolicy {
     if (!Array.isArray(entity.reserve)) entity.reserve = WEAPON_IDS.map(() => 0);
     for (let i = 0; i < WEAPON_IDS.length; i++) {
       entity.mag[i] = i === slot ? WEAPONS[id].magSize : 0;
-      entity.reserve[i] = i === slot ? WEAPONS[id].reserveMax : 0;
+      entity.reserve[i] = i === slot ? WEAPONS[id].spareMags : 0;
     }
     entity.weapon = slot;
     entity.reloading = false;

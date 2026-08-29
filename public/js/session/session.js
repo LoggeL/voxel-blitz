@@ -340,6 +340,17 @@ export class Session {
     return this._pregame.leaveLobby(attempt);
   }
 
+  leaveMatch() {
+    if (this._tornDown || (this._phase !== 'live' && this._phase !== 'booting')) return false;
+    this._phase = 'leaving';
+    this.closeBuyMenu();
+    this.hud.closeSettings();
+    this._releaseLiveResources();
+    this._pregame.closeCurrentNet();
+    this._pregame.clearInviteQuery();
+    return this.enterMenu();
+  }
+
   clearInviteQuery() {
     return this._pregame.clearInviteQuery();
   }
@@ -583,6 +594,7 @@ export class Session {
       fov: this._baseFov,
       onChange: (settings) => this.applySettings(settings),
       onResume: () => this.resumeFromSettings(),
+      onLeave: () => this.leaveMatch(),
     });
     this.hud.setupBuyMenu({
       onBuy: (weapon) => this.purchaseWeapon(weapon),

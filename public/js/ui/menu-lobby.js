@@ -11,6 +11,7 @@ import {
   saveName,
 } from './hud-support.js';
 import { CreateLobbySetup } from './create-lobby-setup.js';
+import { clampMouseSensitivity, MOUSE_SENSITIVITY } from '../input-settings.js';
 
 const NOOP = () => {};
 const QUICK_PLAY_BOTS = 5;
@@ -49,9 +50,14 @@ export class MenuLobbyController {
   _sensitivity() {
     const configured = this._callHost('getSensitivity');
     if (Number.isFinite(+configured)) {
-      return Math.min(0.08, Math.max(0.005, +configured));
+      return clampMouseSensitivity(configured);
     }
-    return loadPrefNum('vb-sens', 0.030, 0.005, 0.08);
+    return loadPrefNum(
+      'vb-sens',
+      MOUSE_SENSITIVITY.default,
+      MOUSE_SENSITIVITY.min,
+      MOUSE_SENSITIVITY.max,
+    );
   }
 
   buildMenu(onAction) {

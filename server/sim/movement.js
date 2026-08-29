@@ -35,10 +35,10 @@ export function updateTimers(p, dt) {
     p.reloadT -= dt;
     if (p.reloadT <= 0) {
       p.reloading = false;
-      const need = def.magSize - p.mag[p.weapon];
-      const take = Math.min(need, p.reserve[p.weapon]);
-      p.mag[p.weapon] += take;
-      p.reserve[p.weapon] -= take;
+      if (p.reserve[p.weapon] > 0) {
+        p.reserve[p.weapon] -= 1;
+        p.mag[p.weapon] = def.magSize;
+      }
     }
   }
 }

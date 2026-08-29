@@ -33,6 +33,9 @@ export class ViewmodelRig {
 
     this._spr = { pitch: { p: 0, v: 0 }, yaw: { p: 0, v: 0 }, push: { p: 0, v: 0 } }; // kick springs
     this._sway = { x: 0, y: 0 };       // look-inertia lag (consumed mouse deltas, BOB.swayPxPerUnit px)
+    this._air = { p: 0, v: 0 };         // damped vertical inertia across takeoff/landing
+    this._wasGrounded = true;
+    this._fallSpeed = 0;
     this._phase = 0;                   // walk bob figure-8 phase accumulator
     this._bobVal = 0;                  // public bobAmt readback for HUD/audio glue
     this._yawFlip = 1;                 // alternating yaw kick sign (wobble seeds it)
@@ -80,6 +83,8 @@ export class ViewmodelRig {
 
     this._spr.pitch = { p: 0, v: 0 }; this._spr.yaw = { p: 0, v: 0 }; this._spr.push = { p: 0, v: 0 };
     this._sway.x = this._sway.y = 0;
+    this._air.p = this._air.v = 0;
+    this._fallSpeed = 0;
     this._queue.length = 0;
     this._lockUntil = this._now; this._stallUntil = Infinity;
     this._rngState = (0xB041 ^ (key.charCodeAt(0) * 7919)) | 0;      // deterministic-ish per-mag seed
@@ -230,7 +235,7 @@ export class ViewmodelRig {
 
   /**
    * @param dt      seconds, clamped hard to 0.033 (tab-refocus spikes never explode springs)
-   * @param ctx     {speed, grounded, mouseDX,mouseDY,isSprinting,crouch,panic,exhaustion,pain,aimSwayScale}
+   * @param ctx     {speed, grounded,verticalVelocity,mouseDX,mouseDY,isSprinting,crouch,panic,exhaustion,pain,aimSwayScale}
    *                Mouse deltas move only this gun rig; camera aim remains caller-authoritative.
    */
   update(dt, ctx = {}) {
@@ -238,6 +243,7 @@ export class ViewmodelRig {
     dt = Math.min(dt, 0.033);
     const cur = this._cur;
     const speed = ctx.speed || 0, grounded = ctx.grounded !== false;
+    const verticalVelocity = Number.isFinite(ctx.verticalVelocity) ? ctx.verticalVelocity : 0;
     const sprinting = !!ctx.isSprinting, crouching = !!ctx.crouch;
     this._now += dt;
     this._drainQueue();
@@ -258,6 +264,32 @@ export class ViewmodelRig {
       this._spring(this._spr.pitch, K, C, h);
       this._spring(this._spr.yaw, K, C, h);
       this._spring(this._spr.push, K * 1.2, C * 1.4, h);            // stiffer shove settles faster
+    }
+
+    /* vertical inertia: camera follows physics immediately, the carried gun trails on a damped spring */
+    if (!grounded) this._fallSpeed = Math.max(this._fallSpeed, -verticalVelocity);
+    if (grounded !== this._wasGrounded) {
+      if (!grounded && verticalVelocity > 0.5) {
+        this._air.v -= BOB.jumpTakeoffImpulse;
+      } else if (grounded && this._fallSpeed > 1.5) {
+        const impact = Math.max(0.35, Math.min(1, this._fallSpeed / 8));
+        this._air.v -= BOB.landImpactImpulse * impact;
+      }
+      if (grounded) this._fallSpeed = 0;
+      this._wasGrounded = grounded;
+    }
+    const airTarget = grounded ? 0 : Math.max(
+      -BOB.airOffsetClamp,
+      Math.min(BOB.airOffsetClamp, -verticalVelocity * BOB.airVelocityLag),
+    );
+    for (let i = 0; i < 4; i++) {
+      this._springTo(
+        this._air,
+        airTarget,
+        BOB.airSpringStiffness,
+        BOB.airSpringDamping,
+        h,
+      );
     }
 
     /*
@@ -330,11 +362,11 @@ export class ViewmodelRig {
     /* ---------- compose transforms (condition offsets never touch the authoritative camera) ---------- */
     this.posG.position.set(
       this._sway.x * 0.35 + bobX + tremorX,
-      this._sway.y * 0.35 + bobY + breathe + exhaustedBreath + tremorY,
+      this._sway.y * 0.35 + bobY + this._air.p + breathe + exhaustedBreath + tremorY,
       this._spr.push.p
     );
     this.pivot.rotation.set(
-      this._spr.pitch.p + this._sway.y * 0.6 + conditionPitch,
+      this._spr.pitch.p + this._sway.y * 0.6 + this._air.p * BOB.airPitchPerMeter + conditionPitch,
       this._spr.yaw.p + this._sway.x * 0.6 + conditionYaw,
       roll + cant
     );
@@ -370,6 +402,11 @@ export class ViewmodelRig {
 
   _spring(s, k, c, h) {
     s.v += (-k * s.p - c * s.v) * h;
+    s.p += s.v * h;
+  }
+
+  _springTo(s, target, k, c, h) {
+    s.v += (-k * (s.p - target) - c * s.v) * h;
     s.p += s.v * h;
   }
 

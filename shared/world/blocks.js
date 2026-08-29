@@ -11,6 +11,8 @@ export const ACCENT = 9;
 export const PLANK = 10;
 export const GLASS = 11;
 export const PALE = 12;
+export const RUST = 13;
+export const BRICK = 14;
 
 /** Damage points required to break each destructible block type. */
 export const BLOCK_HP = {

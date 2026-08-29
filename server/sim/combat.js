@@ -83,6 +83,9 @@ export function resolveWeaponIntent(p, _dt, ctx) {
       p.mag[p.weapon] < def.magSize && p.reserve[p.weapon] > 0) {
     p.reloading = true;
     p.reloadT = p.mag[p.weapon] > 0 ? def.tacTime : def.reloadTime;
+    // Dropping a magazine is irreversible, even if the reload is interrupted.
+    // The replacement spare is consumed only when it is seated successfully.
+    p.mag[p.weapon] = 0;
   }
 
   const fireEdge = p.fireEdgeQueued;

@@ -142,12 +142,12 @@ export class WeaponState {
   }
 
 
-  /** Fill canonical magazines/reserves without changing the selected slot. */
+  /** Fill canonical active magazines/spare-mag counts without changing selection. */
   resetToLoadout() {
     this._ammo = Object.create(null);
     for (const weaponId of WEAPON_IDS) {
       const def = WEAPONS[weaponId];
-      this._ammo[weaponId] = { mag: def.magSize, reserve: def.reserveMax };
+      this._ammo[weaponId] = { mag: def.magSize, reserve: def.spareMags };
     }
   }
 
@@ -159,7 +159,7 @@ export class WeaponState {
       let ammo = this._ammo[weaponId];
       if (!ammo) {
         const def = WEAPONS[weaponId];
-        ammo = this._ammo[weaponId] = { mag: def.magSize, reserve: def.reserveMax };
+        ammo = this._ammo[weaponId] = { mag: def.magSize, reserve: def.spareMags };
       }
       if (Number.isFinite(mag[index])) ammo.mag = mag[index];
       if (Number.isFinite(reserve[index])) ammo.reserve = reserve[index];
@@ -278,9 +278,12 @@ export class WeaponState {
     const ammo = this._ammo[def.id];
     if (!ammo || ammo.mag >= def.magSize || ammo.reserve <= 0) return false;
 
-    const dur = def.reloadTime * 1000;
+    const dur = (ammo.mag > 0 ? def.tacTime : def.reloadTime) * 1000;
     const type = def.id === 'shotgun' ? 'tube' : 'magswap';
     this._reloadState = { until: now + dur, dur, type, weapon: def.id };
+    // Mirror the authority: once reload starts, the partial magazine is gone.
+    // A replacement spare is consumed only after the reload completes.
+    ammo.mag = 0;
     this._resetRecoilPattern();
     this._rig.reload(dur / 1000, type);
     return true;
@@ -292,11 +295,9 @@ export class WeaponState {
 
     const def = WEAPONS[reload.weapon];
     const ammo = this._ammo[reload.weapon];
-    if (def && ammo) {
-      const need = def.magSize - ammo.mag;
-      const take = Math.min(need, ammo.reserve);
-      ammo.mag += take;
-      ammo.reserve -= take;
+    if (def && ammo && ammo.reserve > 0) {
+      ammo.reserve -= 1;
+      ammo.mag = def.magSize;
     }
     this._reloadState = null;
     return true;

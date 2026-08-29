@@ -33,7 +33,7 @@ export const CONDITION_RULES = Object.freeze({
  * @property {'auto'|'semi'|'pump'|'bolt'} mode trigger behavior
  * @property {number} rpm           rounds per minute cap
  * @property {number} magSize       magazine capacity
- * @property {number} reserveMax    spare ammo pool
+ * @property {number} spareMags    full spare magazines carried on spawn
  * @property {[number,number,number]} damage  [close, far, falloffEnd] units; linear close->far between falloffStart(20) and falloffEnd
  * @property {number} headMult      headshot damage multiplier
  * @property {number} pellets       projectiles per shot (1 except shotgun)
@@ -60,7 +60,7 @@ export const WEAPONS = {
   rifle: {
     id: 'rifle', name: 'VK-77 RAPTOR', mode: 'auto',
     weightKg: 3.4,
-    rpm: 660, magSize: 30, reserveMax: 180,
+    rpm: 660, magSize: 30, spareMags: 6,
     damage: [25, 15, 65], headMult: 1.85, pellets: 1,
     spreadDeg: { hip: 1.35, ads: 0.28 }, bloomDeg: 0.16, bloomMaxDeg: 2.6,
     bloomRecover: 4.2, moveSpreadDeg: 2.2,
@@ -78,7 +78,7 @@ export const WEAPONS = {
   smg: {
     id: 'smg', name: 'HORNET SMG', mode: 'auto',
     weightKg: 2.3,
-    rpm: 900, magSize: 36, reserveMax: 216,
+    rpm: 900, magSize: 36, spareMags: 6,
     damage: [19, 10, 42], headMult: 1.7, pellets: 1,
     spreadDeg: { hip: 1.9, ads: 0.75 }, bloomDeg: 0.13, bloomMaxDeg: 3.4,
     bloomRecover: 6.0, moveSpreadDeg: 1.4,
@@ -96,7 +96,7 @@ export const WEAPONS = {
   shotgun: {
     id: 'shotgun', name: 'M-DOCK 12', mode: 'pump',
     weightKg: 3.6,
-    rpm: 78, magSize: 7, reserveMax: 42,
+    rpm: 78, magSize: 7, spareMags: 6,
     damage: [13, 3, 24], headMult: 1.35, pellets: 9,
     spreadDeg: { hip: 4.4, ads: 3.1 }, bloomDeg: 0.5, bloomMaxDeg: 6,
     bloomRecover: 5.0, moveSpreadDeg: 1.2,
@@ -114,7 +114,7 @@ export const WEAPONS = {
   sniper: {
     id: 'sniper', name: 'LONGSHOT MK-II', mode: 'bolt',
     weightKg: 5.2,
-    rpm: 42, magSize: 5, reserveMax: 30,
+    rpm: 42, magSize: 5, spareMags: 6,
     damage: [95, 68, 120], headMult: 2.1, pellets: 1,
     spreadDeg: { hip: 5.5, ads: 0.02 }, bloomDeg: 1.2, bloomMaxDeg: 7,
     bloomRecover: 3.0, moveSpreadDeg: 3.5,
@@ -132,7 +132,7 @@ export const WEAPONS = {
   lmg: {
     id: 'lmg', name: 'BASTION LMG', mode: 'auto',
     weightKg: 8.4,
-    rpm: 720, magSize: 60, reserveMax: 240,
+    rpm: 720, magSize: 60, spareMags: 4,
     damage: [22, 14, 75], headMult: 1.7, pellets: 1,
     spreadDeg: { hip: 1.65, ads: 0.48 }, bloomDeg: 0.13, bloomMaxDeg: 3.1,
     bloomRecover: 3.0, moveSpreadDeg: 3.0,
@@ -154,7 +154,7 @@ export const WEAPONS = {
   revolver: {
     id: 'revolver', name: 'IRONCLAD .44', mode: 'semi',
     weightKg: 1.4,
-    rpm: 300, magSize: 6, reserveMax: 48,
+    rpm: 300, magSize: 6, spareMags: 8,
     damage: [54, 35, 80], headMult: 1.9, pellets: 1,
     spreadDeg: { hip: 1.15, ads: 0.12 }, bloomDeg: 0.65, bloomMaxDeg: 3.6,
     bloomRecover: 3.4, moveSpreadDeg: 1.8,

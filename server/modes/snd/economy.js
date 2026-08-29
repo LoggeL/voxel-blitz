@@ -64,7 +64,7 @@ export class SndEconomy {
     if (!Array.isArray(entity.mag)) entity.mag = WEAPON_IDS.map(() => 0);
     if (!Array.isArray(entity.reserve)) entity.reserve = WEAPON_IDS.map(() => 0);
     entity.mag[slot] = WEAPONS[id].magSize;
-    entity.reserve[slot] = WEAPONS[id].reserveMax;
+    entity.reserve[slot] = WEAPONS[id].spareMags;
   }
 
   addCredits(entity, state, amount, reason) {

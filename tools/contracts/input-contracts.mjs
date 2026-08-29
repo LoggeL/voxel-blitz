@@ -8,6 +8,8 @@ export async function runInputContracts(ok, installGlobals) {
     try {
       const { Input } = await import('../../public/js/engine/input.js');
       input = new Input({});
+      ok(input.getSensitivity() === 0.018,
+        'fresh input starts at the lower canonical mouse sensitivity');
       const key = (code, repeat = false) => ({
         code,
         repeat,

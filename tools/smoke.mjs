@@ -20,6 +20,8 @@ import { getMapMeta, serializeWorld } from '../shared/worlddata.js';
 import { GameEngine } from '../server/game.js';
 import { attachBots } from '../server/bots.js';
 import { TICK_MS, evDie, evRespawn, makeSnapshot } from '../server/protocol.js';
+import * as THREE from '../public/js/vendor/three.module.js';
+import { ImpactFX } from '../public/js/weapons/impacts.js';
 
 const fails = [];
 const ok = (condition, name) => assertOk(
@@ -73,6 +75,13 @@ function fetchRawBytes(port, target) {
 function runDirectContracts() {
   console.log('smoke: direct contracts…');
 
+  const impactScene = new THREE.Scene();
+  const impactFx = new ImpactFX(impactScene, new THREE.PerspectiveCamera(), () => 0);
+  ok(impactFx.impactMeshes.every((mesh) =>
+    mesh.material.depthTest === true && mesh.material.depthWrite === false),
+  'world hit confirmations respect scene depth without writing it');
+  impactFx.dispose();
+
   const rangeSolid = (x, y, z) => x === 1 && y === 0 && z === 0;
   ok(raycastVoxels(rangeSolid, 0.5, 0.5, 0.5, 1, 0, 0, 0.49) === null
     && raycastVoxels(rangeSolid, 0.5, 0.5, 0.5, 1, 0, 0, 0.5)?.x === 1,
@@ -121,7 +130,7 @@ function runDirectContracts() {
       && ['auto', 'semi', 'pump', 'bolt'].includes(def.mode)
       && Number.isFinite(def.rpm) && def.rpm > 0
       && Number.isInteger(def.magSize) && def.magSize > 0
-      && Number.isInteger(def.reserveMax) && def.reserveMax >= def.magSize
+      && Number.isInteger(def.spareMags) && def.spareMags > 0
       && Array.isArray(def.damage) && def.damage.length === 3 && def.damage.every(Number.isFinite)
       && Number.isFinite(def.headMult) && Number.isInteger(def.pellets)
       && Number.isFinite(def.spreadDeg?.hip) && Number.isFinite(def.spreadDeg?.ads)
@@ -157,10 +166,10 @@ function runDirectContracts() {
   const lmg = WEAPONS.lmg;
   const revolver = WEAPONS.revolver;
   ok(lmg?.name === 'BASTION LMG' && lmg.mode === 'auto' && lmg.rpm === 720
-    && lmg.magSize === 60 && lmg.reserveMax === 240 && lmg.sfx === 'lmg',
+    && lmg.magSize === 60 && lmg.spareMags === 4 && lmg.sfx === 'lmg',
   'BASTION LMG has the contracted heavy automatic loadout');
   ok(revolver?.name === 'IRONCLAD .44' && revolver.mode === 'semi' && revolver.rpm === 300
-    && revolver.magSize === 6 && revolver.reserveMax === 48 && revolver.sfx === 'revolver',
+    && revolver.magSize === 6 && revolver.spareMags === 8 && revolver.sfx === 'revolver',
   'IRONCLAD .44 has the contracted precision sidearm loadout');
 
   const spreadDef = WEAPONS.rifle;
@@ -231,17 +240,23 @@ function runDirectContracts() {
   ok(lmgShots.length > 15 && Math.abs(actualSpan - configuredSpan) <= TICK_MS,
     `held LMG fire follows configured ${lmg.rpm} rpm within one tick`);
 
-  const firedRounds = lmg.magSize - firing.mag[lmgSlot];
+  const spareMagsBeforeReload = firing.reserve[lmgSlot];
   fireEngine.applyInput('cadence', {
     ...tapInput, seq: 2, weapon: lmgSlot, wantFire: false, reload: true,
   });
+  fireEngine.step(TICK_MS);
+  const reloadStartedRow = snapshots.at(-1)?.players.find((row) => row.id === 'cadence');
+  const reloadDiscardedPartialMag = reloadStartedRow?.reloading === true
+    && reloadStartedRow.mag[lmgSlot] === 0
+    && reloadStartedRow.reserve[lmgSlot] === spareMagsBeforeReload;
   for (let i = 0; i < Math.ceil(lmg.reloadTime * 1000 / TICK_MS) + 2; i++) {
     fireEngine.step(TICK_MS);
   }
   const reloadedRow = snapshots.at(-1)?.players.find((row) => row.id === 'cadence');
-  ok(reloadedRow?.mag[lmgSlot] === lmg.magSize
-    && reloadedRow.reserve[lmgSlot] === lmg.reserveMax - firedRounds,
-  'LMG reload is authoritative in the six-slot snapshot loadout');
+  ok(reloadDiscardedPartialMag
+    && reloadedRow?.mag[lmgSlot] === lmg.magSize
+    && reloadedRow.reserve[lmgSlot] === spareMagsBeforeReload - 1,
+  'reload discards the partial magazine then consumes exactly one full spare magazine');
 
   const revolverSlot = WEAPON_IDS.indexOf('revolver');
   const releasedRevolverAt = (gateMs) => {
@@ -519,7 +534,7 @@ function runDirectContracts() {
   );
   const respawnRow = respawnSnapshot?.players.find((row) => row.id === 'timed-respawn');
   const freshMags = WEAPON_IDS.map((id) => WEAPONS[id].magSize);
-  const freshReserve = WEAPON_IDS.map((id) => WEAPONS[id].reserveMax);
+  const freshReserve = WEAPON_IDS.map((id) => WEAPONS[id].spareMags);
   ok(noEarlyRespawn
     && respawnEvent
     && respawnSnapshot.now >= respawnDueAt
@@ -865,7 +880,7 @@ function runDirectContracts() {
   const sndDefenderRow = playerRow(sndPrepTick, sndDefenderId);
   const revolverOnlyMag = WEAPON_IDS.map((id) => id === 'revolver' ? WEAPONS[id].magSize : 0);
   const revolverOnlyReserve = WEAPON_IDS.map(
-    (id) => id === 'revolver' ? WEAPONS[id].reserveMax : 0
+    (id) => id === 'revolver' ? WEAPONS[id].spareMags : 0
   );
   ok(sndPrepTick.match.mode === 'snd'
     && sndPrepTick.match.map === 'foundry'
@@ -1098,7 +1113,7 @@ function runDirectContracts() {
     && exact(sndBoughtRow.owned, ['rifle', 'revolver'])
     && sndBoughtRow.weapon === WEAPON_IDS.indexOf('rifle')
     && sndBoughtRow.mag[WEAPON_IDS.indexOf('rifle')] === WEAPONS.rifle.magSize
-    && sndBoughtRow.reserve[WEAPON_IDS.indexOf('rifle')] === WEAPONS.rifle.reserveMax
+    && sndBoughtRow.reserve[WEAPON_IDS.indexOf('rifle')] === WEAPONS.rifle.spareMags
     && sndEconomy.engine.mode.playerSnapshot(sndBuyer).credits === 1650,
   'S&D applies kill/win/loss credits once, never respawns mid-round, and enforces valid prep purchases');
 

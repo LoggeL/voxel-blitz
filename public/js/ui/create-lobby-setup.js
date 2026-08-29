@@ -18,6 +18,7 @@ import {
   saveName,
   savePref,
 } from './hud-support.js';
+import { MOUSE_SENSITIVITY } from '../input-settings.js';
 
 const MAP_PREVIEWS = Object.freeze({
   foundry: './assets/maps/foundry-concept.webp',
@@ -164,8 +165,8 @@ export class CreateLobbySetup {
     const sensitivityValue = el('span', 'vb-setting-val', sensitivityHeader, 'sens-val');
     const sensitivityInput = el('input', 'vb-slider', sensitivityGroup, 'sens-slider');
     sensitivityInput.type = 'range';
-    sensitivityInput.min = '0.005';
-    sensitivityInput.max = '0.08';
+    sensitivityInput.min = String(MOUSE_SENSITIVITY.min);
+    sensitivityInput.max = String(MOUSE_SENSITIVITY.max);
     sensitivityInput.step = '0.001';
     sensitivityInput.value = String(this.getSensitivity());
     const syncSensitivity = () => {

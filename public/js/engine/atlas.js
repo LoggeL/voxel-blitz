@@ -6,7 +6,7 @@
 import * as THREE from '../vendor/three.module.js';
 import {
   AIR, GRASS, DIRT, STONE, SAND, WOOD, LEAVES,
-  CONCRETE, METAL, ACCENT, PLANK, GLASS, PALE,
+  CONCRETE, METAL, ACCENT, PLANK, GLASS, PALE, RUST, BRICK,
 } from '../../../shared/worlddata.js';
 
 export const ATLAS_SIZE = 256;
@@ -17,7 +17,7 @@ export const GRID = ATLAS_SIZE / TILE_PX;
 export const TILE = {
   AIR_DEBUG: 0, GRASS_TOP: 1, GRASS_SIDE: 2, DIRT: 3, STONE: 4, SAND: 5,
   WOOD_BARK: 6, WOOD_RINGS: 7, LEAVES: 8, CONCRETE: 9, METAL: 10,
-  ACCENT: 11, PLANK: 12, GLASS: 13, PALE: 14,
+  ACCENT: 11, PLANK: 12, GLASS: 13, PALE: 14, RUST: 15, BRICK: 16,
 };
 
 /** Deterministic integer wobble -> 0..k-1. The atlas' only "randomness". */
@@ -188,6 +188,46 @@ function pale(x, y) {
   return [clamp255(v), clamp255(v + 1), clamp255(v + 2), 255];
 }
 
+/** Weathered corrugated steel: vertical ridges every 4px, orange-brown rust, dark seams. */
+function rust(x, y) {
+  const ridge = x & 3;
+  let r = 122, g = 112, b = 118;
+  if (ridge === 0) { r -= 34; g -= 30; b -= 28; }        // ridge valley shadow
+  else if (ridge === 1) { r += 22; g += 22; b += 24; }   // ridge catch-light
+  const patch = wob(x >> 2, y >> 2, 31, 19);
+  if (patch < 5) {                                       // rust bloom clusters
+    r = 158 + patch * 6; g = 86 + patch * 4; b = 38;
+  } else if (patch < 8) {                                // fading rust tint
+    r += 26; g -= 8; b -= 14;
+  }
+  const grain = wob(x, y, 32, 15) - 7;
+  r += grain; g += grain; b += grain >> 1;
+  if (x === 0 || y === 0) { r += 12; g += 10; b += 10; }
+  if (x === 15 || y === 15) { r -= 26; g -= 24; b -= 22; } // darker seam edge
+  return [clamp255(r), clamp255(g), clamp255(b), 255];
+}
+
+/** Running-bond red masonry: offset mortar lines every 4-row course, per-brick variance. */
+function brick(x, y) {
+  const course = (y >> 2) & 7;
+  const headOff = (course & 1) * 4;                     // half-brick stagger per course
+  const mortar = (y & 3) === 3 || ((x + headOff) & 7) === 0;
+  if (mortar) {
+    const m = wob(x, y, 33, 9) - 4;
+    return [clamp255(178 + m), clamp255(174 + m), clamp255(168 + m), 255];
+  }
+  // Per-brick identity: course row + staggered column bucket drives hue/value.
+  const brickCol = ((x + headOff) >> 3) & 1;
+  const tone = wob(brickCol, course, 34, 13);
+  let r = 148 + tone * 3, g = 66 + tone * 2, b = 52;
+  const grain = wob(x, y, 35, 13) - 6;
+  r += grain; g += grain >> 1; b += grain >> 1;
+  if ((y & 3) === 0) { r -= 18; g -= 10; b -= 8; }        // shadow under mortar above
+  if (x === 0 || y === 0) { r += 10; g += 6; b += 4; }
+  if (x === 15 || y === 15) { r -= 22; g -= 12; b -= 10; }
+  return [clamp255(r), clamp255(g), clamp255(b), 255];
+}
+
 /** Tile-id -> painter registry. Keys are TILE slot values. */
 export const TILE_PAINTERS = Object.freeze({
   [TILE.AIR_DEBUG]: airDebug,
@@ -205,6 +245,8 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.PLANK]: plank,
   [TILE.GLASS]: glass,
   [TILE.PALE]: pale,
+  [TILE.RUST]: rust,
+  [TILE.BRICK]: brick,
 });
 
 // ------------------------------------------------------------- face mapping
@@ -224,6 +266,8 @@ export const DEFAULT_BLOCK_TILES = Object.freeze({
   [PLANK]: { all: TILE.PLANK },
   [GLASS]: { all: TILE.GLASS },
   [PALE]: { all: TILE.PALE },
+  [RUST]: { all: TILE.RUST },
+  [BRICK]: { all: TILE.BRICK },
 });
 
 /**

@@ -306,8 +306,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   };
   const expectedMapHashes = {
     foundry: '78553d52',
-    depot: '74944f5c',
-    citadel: '5e90ff33',
+    depot: '3769109c',
+    citadel: '7fdfff21',
   };
   const expectedSpawnCounts = {
     foundry: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 5, sndDefenders: 5 },

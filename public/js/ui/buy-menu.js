@@ -107,8 +107,8 @@ export class BuyMenuController {
       const damage = Array.isArray(def.damage) ? def.damage[0] : (def.damage || 0);
       const rpm = def.rpm || 0;
       const mag = def.magSize || 0;
-      const reserve = def.reserveMax || 0;
-      statsEl.textContent = `DMG ${damage} · ${rpm ? `${rpm} RPM · ` : ''}${mag}/${reserve} RDS`;
+      const spareMags = def.spareMags || 0;
+      statsEl.textContent = `DMG ${damage} · ${rpm ? `${rpm} RPM · ` : ''}${mag} RDS · ${spareMags} MAGS`;
 
       const cardBottom = el('div', 'vb-buy-card-bottom', card);
       const buyBtn = el('button', 'vb-btn vb-buy-btn', cardBottom, `buy-btn-${wid}`);

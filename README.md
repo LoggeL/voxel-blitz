@@ -6,7 +6,7 @@ three.js ES modules (no bundler). Six hand-tuned guns with a full "gun UX"
 stack: procedural viewmodels, staged timer-driven animations, bloom/recoil,
 ADS, tracers, shell ejects, muzzle flash + barrel heat shader, block-shatter,
 damage numbers, hitmarkers, killfeed, a full-screen sniper optic, synthesized
-WebAudio, and no external media files.
+WebAudio shot design, and a licensed menu-music asset.
 
 ## Run
 
@@ -162,22 +162,24 @@ their purchases and remaining ammunition. Weapons cannot fire during prep.
 | `Ctrl` / `C` | crouch; climb down while touching a ladder |
 | mouse1 / mouse2 | fire / ADS |
 | `R` | reload |
-| `1-6` / wheel / `Q` | weapon slots / previous weapon |
-| `E` | hold S&D plant or defuse interaction |
+| `1-6` / wheel | weapon slots |
+| `Q` | previous weapon; while dead, previous spectator target |
+| `E` | hold S&D interaction; while dead, next spectator target |
+| arrow keys while dead | previous / next spectator target |
 | `B` | open/close the S&D buy menu |
 | `Tab` | scoreboard |
-| `Escape` | close an overlay, or open settings / resume |
+| `Escape` | close an overlay, or open settings / resume / quit to main menu |
 
 ## The six guns
 
 | gun | mode | rate | ammo | feel identity |
 |---|---:|---:|---:|---|
-| **VK-77 RAPTOR** rifle | automatic | 660 rpm | 30 + 180 | climbing-descent burst cadence, amber rail accents |
-| **HORNET SMG** | automatic | 900 rpm | 36 + 216 | fast springy low-kick spray, tan polymer |
-| **M-DOCK 12** shotgun | pump | 78 rpm | 7 + 42 | violent frame rock, staged pump clack-clack, tube reload thunks |
-| **LONGSHOT MK-II** bolt sniper | bolt | 42 rpm | 5 + 30 | 5× full-screen optic, rotary long-throw bolt, canyon echo crack |
-| **BASTION LMG** | automatic | 720 rpm | 60 + 240 | heavy sustained fire and the slowest viewmodel settling |
-| **IRONCLAD .44** revolver | semi-automatic | 300 rpm | 6 + 48 | high-damage precision sidearm with fast handling |
+| **VK-77 RAPTOR** rifle | automatic | 660 rpm | 30 + 6 mags | climbing-descent burst cadence, amber rail accents |
+| **HORNET SMG** | automatic | 900 rpm | 36 + 6 mags | fast springy low-kick spray, tan polymer |
+| **M-DOCK 12** shotgun | pump | 78 rpm | 7 + 6 mags | violent frame rock, staged pump clack-clack |
+| **LONGSHOT MK-II** bolt sniper | bolt | 42 rpm | 5 + 6 mags | 5× full-screen optic, rotary long-throw bolt, canyon echo crack |
+| **BASTION LMG** | automatic | 720 rpm | 60 + 4 mags | heavy sustained fire and the slowest viewmodel settling |
+| **IRONCLAD .44** revolver | semi-automatic | 300 rpm | 6 + 8 mags | high-damage precision sidearm with fast handling |
 
 Gun timing lives in `public/js/guns/defs.js` (timer table per weapon); shared
 ballistics/damage in `shared/combatmath.js`; authoritative resolve in
@@ -191,7 +193,8 @@ shotgun 3.6 kg, sniper 5.2 kg, LMG 8.4 kg, and revolver 1.4 kg. Mouse aim and
 server authority remain immediate; only the procedural gun model trails a turn.
 Heavier weapons lag farther and settle more slowly.
 
-Sprinting has a stronger leg-driven run cycle than ordinary walking. Damage
+Sprinting has a stronger but deliberately slower leg-driven run cycle than ordinary walking. Jumping
+and landing move only the carried weapon through a damped vertical spring while aim stays immediate. Damage
 builds panic, while sprinting, jumping, and firing build exhaustion. Those
 authoritative, normalized conditions subtly add deterministic tremor/breathing
 and widen the shot cone, but are deliberately hidden rather than exposed as
@@ -203,11 +206,20 @@ the first-person weapon hides only while fully scoped. Authoritative death
 state drives a 1.2–1.5 second remote collapse and a deterministic local camera
 fall/roll, with every transform restored on respawn.
 
-`Escape` opens the in-game settings panel. Sensitivity (0.005–0.08), master
+`Escape` opens the in-game settings panel. Sensitivity (0.005–0.08, default
+0.018), master
 volume (0–1), and field of view (65–100) apply immediately and persist under
 `vb-sens`, `vb-volume`, and `vb-fov`. Resume closes the panel and returns to
-play. Audio is fully procedural WebAudio, unlocks idempotently after a user
+play; Quit to Main Menu cleanly leaves the active match. While dead, a
+collision-safe chase camera follows legal living targets and displays the
+respawn countdown; S&D deaths remain spectators until the next round. Audio
+unlocks idempotently after a user
 gesture, and routes every sound through the persisted master-volume control.
+
+Reloading drops the active magazine immediately, including its remaining
+rounds. Completing the reload consumes one full spare magazine; interrupting it
+does not restore the dropped magazine. The HUD and buy menu therefore expose
+spare magazine counts instead of a loose reserve-round total.
 
 ## Architecture
 

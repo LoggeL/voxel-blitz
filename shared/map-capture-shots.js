@@ -1,9 +1,10 @@
-const shot = (map, id, position, target, fov = 75) => Object.freeze({
+const shot = (map, id, position, target, fov = 75, mode = null) => Object.freeze({
   map,
   id,
   position: Object.freeze(position),
   target: Object.freeze(target),
   fov,
+  mode,
 });
 
 /** Stable, collision-independent cameras for truthful map-design captures. */
@@ -17,8 +18,10 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   shot('depot', 'east-bay', [111.5, 16.64, 47.5], [64, 24, 48]),
 
   shot('citadel', 'hero', [64.5, 16.64, 86.5], [63, 22, 28]),
-  shot('citadel', 'a-courtyard', [45.5, 16.64, 47.5], [27, 17, 24]),
-  shot('citadel', 'b-compound', [82.5, 16.64, 48.5], [103, 20, 48]),
+  shot('citadel', 'a-courtyard', [45.5, 16.64, 47.5], [27, 17, 24], 75, 'snd'),
+  shot('citadel', 'b-compound', [82.5, 16.64, 48.5], [103, 20, 48], 75, 'snd'),
+  shot('citadel', 'snd-site-a', [27.5, 20.5, 34.5], [27.5, 20.3, 24.5], 70, 'snd'),
+  shot('citadel', 'snd-site-b', [103, 23.5, 59], [103, 23.3, 48], 70, 'snd'),
 ]);
 
 export function findMapCaptureShot(map, id = 'hero') {

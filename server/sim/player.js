@@ -82,7 +82,9 @@ export function shotRng(player) {
 export function freshLoadout() {
   return {
     mag: WEAPON_IDS.map((key) => WEAPONS[key].magSize),
-    reserve: WEAPON_IDS.map((key) => WEAPONS[key].reserveMax),
+    // Kept as `reserve` on the wire for compatibility; each value is a count
+    // of full spare magazines, never a loose-round pool.
+    reserve: WEAPON_IDS.map((key) => WEAPONS[key].spareMags),
   };
 }
 

@@ -22,6 +22,7 @@ import {
 } from './hud-support.js';
 import { MenuLobbyController } from './menu-lobby.js';
 import { SettingsController } from './settings-panel.js';
+import { SpectatorHud } from './spectator-hud.js';
 
 export {
   MAP_DESCRIPTIONS,
@@ -92,6 +93,7 @@ export class HUD {
         this.gameplay.updateCrosshairStress(panic, pain, alive)
       ),
     });
+    this.spectator = new SpectatorHud();
   }
 
   // Compatibility views retained for the existing game and lifecycle checks.
@@ -151,6 +153,9 @@ export class HUD {
   ensureSettings() { return this.settings.ensureSettings(); }
   syncSettingsUI() { return this.settings.syncSettingsUI(); }
 
+  setupSpectator(config = {}) { return this.spectator.setup(config); }
+  setSpectatorState(state = {}) { return this.spectator.setState(state); }
+
   ensureBuyMenu() { return this.buy.ensureBuyMenu(); }
   setupBuyMenu(config = {}) { return this.buy.setupBuyMenu(config); }
   setBuyMenuState(state = {}) { return this.buy.setBuyMenuState(state); }
@@ -163,6 +168,7 @@ export class HUD {
   buildHUD() {
     const result = this.gameplay.buildHUD();
     this.combat.configure();
+    this.spectator.build(this.root('hud'));
     return result;
   }
 
@@ -222,6 +228,7 @@ export class HUD {
     this.gameplay.dispose();
     this.buy.dispose();
     this.settings.dispose();
+    this.spectator.dispose();
     this.menu.dispose();
   }
 }

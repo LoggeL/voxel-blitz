@@ -9,6 +9,7 @@
 //   pitch -= dy  (mouse down  => look down)
 //   fwd = (-sin(yaw)*cos(pitch), sin(pitch), -cos(yaw)*cos(pitch))
 
+import { clampMouseSensitivity, MOUSE_SENSITIVITY } from '../input-settings.js';
 
 export class Input {
   /**
@@ -20,14 +21,14 @@ export class Input {
     // bypasses explicit gameplay suppression (settings, death, teardown).
     const search = typeof location === 'undefined' ? '' : location.search;
     this.fallback = new URLSearchParams(search).has('headless');
-    this.sens = 0.030;      // rad per pixel of movementX/Y
+    this.sens = MOUSE_SENSITIVITY.default; // rad per pixel of movementX/Y
     this.invertY = false;
     // Sensitivity override (client-side preference). Guarded so the module
     // stays importable in Node (no localStorage).
     try {
       const s = parseFloat(localStorage.getItem('vb-sens'));
       if (Number.isFinite(s) && s > 0) {
-        this.sens = Math.min(0.08, Math.max(0.005, s));
+        this.sens = clampMouseSensitivity(s);
       }
     } catch (_) {}
 
@@ -165,7 +166,7 @@ export class Input {
   setSensitivity(v) {
     const s = Number(v);
     if (!Number.isFinite(s) || s <= 0) return;
-    this.sens = Math.min(0.08, Math.max(0.005, s));
+    this.sens = clampMouseSensitivity(s);
     try { localStorage.setItem('vb-sens', String(this.sens)); } catch (_) {}
   }
 

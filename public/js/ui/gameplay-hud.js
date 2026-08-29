@@ -228,7 +228,10 @@ export class GameplayHud {
       d.mag.textContent = String(Math.max(0, s.mag | 0));
       this.updateAmmoLow();
     }
-    if (s.reserve != null) d.res.textContent = String(Math.max(0, s.reserve | 0));
+    if (s.reserve != null) {
+      const spareMags = Math.max(0, s.reserve | 0);
+      d.res.textContent = `${spareMags} ${spareMags === 1 ? 'MAG' : 'MAGS'}`;
+    }
     if (s.wname != null) d.wname.textContent = String(s.wname).toUpperCase();
 
     const key = resolveKey(s.wid);

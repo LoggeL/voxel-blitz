@@ -12,6 +12,7 @@ import { HUD } from './ui/hud.js';
 import { sfx } from './audio/sfx.js';
 import { Session } from './session/session.js';
 import { LocalPlayer } from './player/local-player.js';
+import { SpectatorCamera } from './player/spectator-camera.js';
 import { AvatarRoster } from './avatar/avatar-roster.js';
 import { CombatFeedback, applySnapshotBlocks } from './combat/feedback.js';
 import { disposeFirstPersonBody, makeFirstPersonBody } from './player/first-person-body.js';
@@ -37,6 +38,7 @@ class Game {
     this.weapon = null;
     this.roster = null;
     this.feedback = null;
+    this.spectator = null;
     this.ownBody = null;
     this.mapMeta = null;
     this.running = false;
@@ -118,6 +120,7 @@ class Game {
     await this.worldview.ready();
     if (!isActive()) return;
     if (!net.isOpen()) return this.session.handleDisconnect();
+    this.worldview.setGameMode(welcome.gameMode);
 
     this.effects = new Effects(this.worldview.scene, this.camera, getBlock);
     this.worldview.scene.add(this.camera);
@@ -146,6 +149,17 @@ class Game {
       scene: this.worldview.scene,
       gore: (event, options) => this.effects?.gore(event, options),
       getMyId: () => this.myId,
+    });
+    this.spectator = new SpectatorCamera({
+      camera: this.camera,
+      raycast: (origin, direction, distance) => (
+        this.worldview?.pickCameraRay(origin, direction, distance)
+      ),
+      now: nowMs,
+      onPresent: (state) => this.hud.setSpectatorState(state),
+    });
+    this.hud.setupSpectator({
+      onCycle: (direction) => this.spectator?.cycle(direction),
     });
     this.feedback = new CombatFeedback({
       effects: this.effects,
@@ -226,6 +240,7 @@ class Game {
     this.selfRow = self;
     this.playersCache = presented;
     this.serverNow = Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : null;
+    this.spectator?.sync({ self, players: presented, match, serverNow: this.serverNow });
 
     const events = Array.isArray(snapshot.events) ? snapshot.events : [];
     const deathEvent = events.find((event) => event?.kind === 'kill' && event.victim === this.myId) ||
@@ -352,6 +367,7 @@ class Game {
       this.rig.update(dt, {
         speed: this.player.speedXZ,
         grounded: this.player.physics.grounded,
+        verticalVelocity: this.player.physics.vel.y,
         mouseDX: this.player.lookVelX,
         mouseDY: this.player.lookVelY,
         isSprinting: !this.player.wantAds && this.player.keys.sprint && this.player.speedXZ > 4.6,
@@ -368,7 +384,12 @@ class Game {
     try {
       const view = this.net?.interpolate(performance.now(), 100);
       if (view) this.roster.sync(view.players, dt, now);
+      this.spectator?.update(view?.players, dt);
     } catch (error) { this.phaseError('net/interp', error); }
+
+    const spectating = this.spectator?.active === true;
+    if (this.rig?.root) this.rig.root.visible = !spectating;
+    if (spectating && this.ownBody?.group) this.ownBody.group.visible = false;
 
     this.hud.setState({
       hp: this.player.hp,
@@ -408,6 +429,7 @@ class Game {
     this._pendingAuthoritativeSnapshots = [];
     this._lastConsumedSnapSeq = null;
     this.feedback?.dispose();
+    this.spectator?.dispose();
     this.roster?.dispose();
     this.weapon?.dispose();
     if (this.ownBody) {
@@ -418,7 +440,7 @@ class Game {
     this.rig?.dispose();
     this.effects?.dispose();
     this.worldview?.dispose();
-    this.feedback = this.roster = this.weapon = this.ownBody = null;
+    this.feedback = this.spectator = this.roster = this.weapon = this.ownBody = null;
     this.rig = this.effects = this.worldview = this.mapMeta = null;
     this.playersCache = Object.freeze([]);
     this.matchState = this.selfRow = this.serverNow = null;

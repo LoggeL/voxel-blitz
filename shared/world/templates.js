@@ -1,6 +1,7 @@
 import { MAP_IDS } from '../modes.js';
 import { SX, SY, SZ } from './blocks.js';
-import { generateCitadelInto, generateDepotInto } from './flatmaps.js';
+import { generateDepotInto } from './flatmap-depot.js';
+import { generateCitadelInto } from './flatmap-citadel.js';
 import { createMapMetadata } from './metadata.js';
 import {
   MAP_BYTES,

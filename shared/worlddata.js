@@ -16,6 +16,8 @@ export {
   PLANK,
   GLASS,
   PALE,
+  RUST,
+  BRICK,
   BLOCK_HP,
   SX,
   SZ,

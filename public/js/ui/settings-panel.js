@@ -1,4 +1,5 @@
 import { el, loadPrefNum, savePref } from './hud-support.js';
+import { clampMouseSensitivity, MOUSE_SENSITIVITY } from '../input-settings.js';
 
 /**
  * Owns the settings dialog's DOM, preferences, callbacks, focus, and close guard.
@@ -12,12 +13,18 @@ export class SettingsController {
 
     this._settingsOpen = false;
     this._settingsConfig = {
-      sensitivity: loadPrefNum('vb-sens', 0.030, 0.005, 0.08),
+      sensitivity: loadPrefNum(
+        'vb-sens',
+        MOUSE_SENSITIVITY.default,
+        MOUSE_SENSITIVITY.min,
+        MOUSE_SENSITIVITY.max,
+      ),
       volume: loadPrefNum('vb-volume', 0.80, 0, 1),
       fov: loadPrefNum('vb-fov', 75, 65, 100),
     };
     this._settingsOnChange = null;
     this._settingsOnResume = null;
+    this._settingsOnLeave = null;
     this._settingsPreviousFocus = null;
     this._isClosingSettings = false;
     this._deferredTimers = new Set();
@@ -28,9 +35,9 @@ export class SettingsController {
     return !!this._settingsOpen;
   }
 
-  setupSettings({ sensitivity, volume, fov, onChange, onResume } = {}) {
+  setupSettings({ sensitivity, volume, fov, onChange, onResume, onLeave } = {}) {
     if (sensitivity != null && Number.isFinite(+sensitivity)) {
-      this._settingsConfig.sensitivity = Math.min(0.08, Math.max(0.005, +sensitivity));
+      this._settingsConfig.sensitivity = clampMouseSensitivity(sensitivity);
       savePref('vb-sens', this._settingsConfig.sensitivity);
     }
     if (volume != null && Number.isFinite(+volume)) {
@@ -46,6 +53,9 @@ export class SettingsController {
     }
     if (typeof onResume === 'function') {
       this._settingsOnResume = onResume;
+    }
+    if (typeof onLeave === 'function') {
+      this._settingsOnLeave = onLeave;
     }
 
     this.ensureSettings();
@@ -121,12 +131,12 @@ export class SettingsController {
     const sensVal = el('span', 'vb-setting-val', sensHeader, 'settings-sens-val');
     const sensSlider = el('input', 'vb-slider', sensRow, 'settings-sens-slider');
     sensSlider.type = 'range';
-    sensSlider.min = '0.005';
-    sensSlider.max = '0.08';
+    sensSlider.min = String(MOUSE_SENSITIVITY.min);
+    sensSlider.max = String(MOUSE_SENSITIVITY.max);
     sensSlider.step = '0.001';
     sensSlider.setAttribute('aria-label', 'Mouse Sensitivity');
-    sensSlider.setAttribute('aria-valuemin', '0.005');
-    sensSlider.setAttribute('aria-valuemax', '0.08');
+    sensSlider.setAttribute('aria-valuemin', String(MOUSE_SENSITIVITY.min));
+    sensSlider.setAttribute('aria-valuemax', String(MOUSE_SENSITIVITY.max));
 
     const volRow = el('div', 'vb-setting-row', panel);
     const volHeader = el('div', 'vb-setting-header', volRow);
@@ -162,6 +172,10 @@ export class SettingsController {
     resumeBtn.type = 'button';
     resumeBtn.textContent = 'RESUME';
 
+    const leaveBtn = el('button', 'vb-btn vb-leave-match-btn', panel, 'settings-leave-btn');
+    leaveBtn.type = 'button';
+    leaveBtn.textContent = 'QUIT TO MAIN MENU';
+
     const hint = el('div', 'vb-settings-hint', panel);
     hint.textContent = 'ESC TO RESUME';
 
@@ -175,10 +189,11 @@ export class SettingsController {
       fovSlider,
       fovVal,
       resumeBtn,
+      leaveBtn,
     };
 
     const onSliderChange = () => {
-      const sensitivity = Math.min(0.08, Math.max(0.005, parseFloat(sensSlider.value) || 0.03));
+      const sensitivity = clampMouseSensitivity(sensSlider.value);
       const volume = Math.min(1, Math.max(0, parseFloat(volSlider.value) || 0));
       const fov = Math.min(100, Math.max(65, Math.round(parseFloat(fovSlider.value) || 75)));
 
@@ -222,6 +237,16 @@ export class SettingsController {
     };
 
     resumeBtn.addEventListener('click', doResume);
+    leaveBtn.addEventListener('click', () => {
+      if (this._isClosingSettings || typeof this._settingsOnLeave !== 'function') return;
+      this._isClosingSettings = true;
+      try {
+        this.closeSettings();
+        this._settingsOnLeave();
+      } finally {
+        this._isClosingSettings = false;
+      }
+    });
     root.addEventListener('keydown', (event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -264,6 +289,7 @@ export class SettingsController {
 
     this._settingsOnChange = null;
     this._settingsOnResume = null;
+    this._settingsOnLeave = null;
     this.settingsDom = {};
     this._isClosingSettings = false;
     this._settingsOpen = false;
