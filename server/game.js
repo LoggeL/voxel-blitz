@@ -305,6 +305,7 @@ export class GameEngine {
       solidAt: this.solidAt,
       mapMeta: this.mapMeta,
       now: this.now,
+      movementLocked: !this.mode.canMove(player),
       onFall: (entity, reason) => {
         if (reason === 'invalid') this.forceRespawn(entity);
         else this.killPlayer(entity, null, 'world', false);

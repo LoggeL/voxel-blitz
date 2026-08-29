@@ -74,7 +74,65 @@ export async function runViewmodelContracts(ok, installGlobals) {
         && sent?.yaw === player.aimYaw && sent?.pitch === player.aimPitch
         && camera.rotation.y === player.aimYaw && camera.rotation.x === player.aimPitch,
     'LocalPlayer presents and sends the same swayed aim used by its camera');
+
+    input.getKeys = () => ({
+      forward: true,
+      back: false,
+      left: false,
+      right: false,
+      jump: true,
+      sprint: true,
+      crouch: true,
+      interact: true,
+    });
+    physics.vel.x = 3;
+    physics.vel.y = 4;
+    physics.vel.z = -2;
+    let frozenInput = null;
+    player.update(0.05, 50, {
+      movementAllowed: false,
+      sendInput: (payload) => { frozenInput = payload; return true; },
+    });
+    ok(Object.values(frozenInput?.keys || {}).every((value) => value === false)
+        && physics.vel.x === 0 && physics.vel.y === 0 && physics.vel.z === 0
+        && player.crouchBool === false,
+    'movement authority freezes local prediction and sends no movement intent');
     player.dispose();
+  }
+
+  {
+    const restoreGlobals = installGlobals({
+      document: { addEventListener() {}, removeEventListener() {} },
+    });
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.05, 100);
+    const { SpectatorCamera } = await import('../../public/js/player/spectator-camera.js');
+    const spectator = new SpectatorCamera({ camera, now: () => 1000 });
+    const self = { id: 'self', state: 'dead', team: 'alpha' };
+    const ally = {
+      id: 'ally', name: 'Ally', state: 'alive', team: 'alpha',
+      x: 10, y: 5, z: 8, yaw: 0, pitch: 0, hp: 100,
+    };
+    const enemy = {
+      id: 'enemy', name: 'Enemy', state: 'alive', team: 'bravo',
+      x: 2, y: 5, z: 2, yaw: 0, pitch: 0, hp: 100,
+    };
+    spectator.sync({
+      self,
+      players: [self, ally, enemy],
+      match: { mode: 'snd', phase: 'live' },
+      serverNow: 1000,
+    });
+    const presented = spectator.ensureTargetPresent(new Map());
+    spectator.update(presented, 1 / 60);
+    const chaseDistance = camera.position.distanceTo(new THREE.Vector3(ally.x, ally.y + 1.35, ally.z));
+    ok(spectator.targetId === ally.id
+        && spectator.candidates.length === 1
+        && presented.get(ally.id) === ally
+        && !presented.has(enemy.id)
+        && chaseDistance > 3.5,
+    'team spectator keeps only the living ally present for a third-person chase view');
+    spectator.dispose();
+    restoreGlobals();
   }
 
   // Viewmodel: every canonical weapon must build and survive a real update.

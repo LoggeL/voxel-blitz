@@ -102,6 +102,21 @@ export class SpectatorCamera {
     return true;
   }
 
+  /** Keep the selected third-person target renderable while interpolation catches up. */
+  ensureTargetPresent(interpolatedPlayers) {
+    const hasPlayers = interpolatedPlayers
+      && typeof interpolatedPlayers.get === 'function'
+      && typeof interpolatedPlayers.has === 'function';
+    if (!this.active || !this.targetId) return hasPlayers ? interpolatedPlayers : null;
+    const players = hasPlayers ? interpolatedPlayers : new Map();
+    if (players.has(this.targetId)) return players;
+    const fallback = this.candidates.find((candidate) => candidate.id === this.targetId)?.row;
+    if (!fallback) return players;
+    const presented = new Map(players);
+    presented.set(this.targetId, fallback);
+    return presented;
+  }
+
   update(interpolatedPlayers, dt) {
     if (!this.active) return false;
     const target = interpolatedPlayers?.get?.(this.targetId)

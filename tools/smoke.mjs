@@ -929,6 +929,24 @@ function runDirectContracts() {
     && sndClock.engine.mode.canFire(sndCarrier) === false,
   'S&D prep blocks an otherwise-ready revolver shot without consuming ammunition');
 
+  const sndFrozenAt = { x: sndCarrier.x, y: sndCarrier.y, z: sndCarrier.z };
+  sndClock.engine.applyInput(sndCarrierId, {
+    ...tapInput,
+    seq: 3,
+    yaw: 0.75,
+    wantFire: false,
+    keys: { ...tapInput.keys, f: true, jump: true, sprint: true, crouch: true },
+  });
+  sndClock.engine.step(TICK_MS);
+  ok(sndCarrier.x === sndFrozenAt.x
+    && sndCarrier.y === sndFrozenAt.y
+    && sndCarrier.z === sndFrozenAt.z
+    && sndCarrier.vx === 0 && sndCarrier.vy === 0 && sndCarrier.vz === 0
+    && sndCarrier.crouch === false && sndCarrier.sprint === false
+    && sndCarrier.yaw === 0.75
+    && sndClock.engine.mode.canMove(sndCarrier) === false,
+  'S&D prep freezes authoritative translation and stance while still allowing aim');
+
   const sndCombatTicks = [];
   const sndCombat = new GameEngine({
     mode: 'snd',

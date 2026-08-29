@@ -129,7 +129,7 @@ function slideAxis(p, axis, total, solidAt) {
 /**
  * Integrate one living entity for one fixed simulation step.
  *
- * ctx = { solidAt(x,y,z), mapMeta, now, onFall(entity) }
+ * ctx = { solidAt(x,y,z), mapMeta, now, movementLocked, onFall(entity) }
  */
 export function stepMovement(p, dt, ctx) {
   const inp = p.input || {
@@ -148,6 +148,19 @@ export function stepMovement(p, dt, ctx) {
   p.ads = !!inp.wantAds;
   const adsStep = dt / Math.max(0.001, p.def.adsTime);
   p.adsT = Math.max(0, Math.min(1, p.adsT + (p.ads ? adsStep : -adsStep)));
+
+  if (ctx.movementLocked) {
+    p.vx = 0;
+    p.vy = 0;
+    p.vz = 0;
+    p.crouch = false;
+    p.sprint = false;
+    p.coyote = 0;
+    p.grounded = solidBelow(ctx.solidAt, p.x, p.y, p.z);
+    p.hist.push({ x: p.x, y: p.y, z: p.z, t: ctx.now });
+    if (p.hist.length > 16) p.hist.shift();
+    return;
+  }
 
   const kf = inp.keys;
   const fwdAmt = (kf.f ? 1 : 0) - (kf.b ? 1 : 0);

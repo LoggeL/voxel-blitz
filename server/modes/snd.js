@@ -203,6 +203,11 @@ export class SndPolicy {
       && this.canUseWeapon(entity, entity.weapon);
   }
 
+  canMove(player) {
+    const entity = this._entity(player);
+    return !!entity && entity.state === 'alive' && this.phase !== 'prep';
+  }
+
   canUseWeapon(player, weapon) {
     const id = weaponId(weapon);
     if (!id) return false;

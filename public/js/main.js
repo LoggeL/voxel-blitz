@@ -308,6 +308,12 @@ class Game {
       this.selfRow?.state === 'alive');
   }
 
+  isAuthoritativeMovementAllowed() {
+    if (!this.session.gameplayInputEnabled || !this.player.alive ||
+        this.selfRow?.state !== 'alive') return false;
+    return !(this.matchState?.mode === 'snd' && this.matchState.phase === 'prep');
+  }
+
   weaponFrameContext() {
     const position = this.camera.position;
     return {
@@ -334,6 +340,7 @@ class Game {
     const now = nowMs();
     this.session.syncGameplayInput();
     this.player.update(dt, now, {
+      movementAllowed: () => this.isAuthoritativeMovementAllowed(),
       fireAllowed: () => this.isAuthoritativeFireAllowed(),
       interactAllowed: () => this.isAuthoritativeInteractAllowed(),
       toggleBuyMenu: () => {
@@ -383,8 +390,10 @@ class Game {
     } catch (error) { this.phaseError('fx/rig', error); }
     try {
       const view = this.net?.interpolate(performance.now(), 100);
-      if (view) this.roster.sync(view.players, dt, now);
-      this.spectator?.update(view?.players, dt);
+      const presentedPlayers = this.spectator?.ensureTargetPresent(view?.players)
+        || view?.players;
+      if (presentedPlayers) this.roster.sync(presentedPlayers, dt, now);
+      this.spectator?.update(presentedPlayers, dt);
     } catch (error) { this.phaseError('net/interp', error); }
 
     const spectating = this.spectator?.active === true;

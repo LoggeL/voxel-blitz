@@ -409,6 +409,27 @@ export class LocalPlayer {
       : { x: 0, z: 0 };
   }
 
+  _lockMovement() {
+    this.keys = {
+      ...this.keys,
+      forward: false,
+      back: false,
+      left: false,
+      right: false,
+      jump: false,
+      sprint: false,
+      crouch: false,
+      interact: false,
+    };
+    this.wishDir.x = 0;
+    this.wishDir.z = 0;
+    this.physics.vel.x = 0;
+    this.physics.vel.y = 0;
+    this.physics.vel.z = 0;
+    this.physics.coyote = 0;
+    this.physics._crouching = false;
+  }
+
   _updateConditionEstimates(dt, jumped) {
     if (!this._alive) return;
     if (jumped) {
@@ -496,6 +517,10 @@ export class LocalPlayer {
     this._frame.inputPayload = null;
     this._readLook();
     const weaponIntents = this._sampleMovement(now, intents);
+    const movementAllowed = intents.movementAllowed == null
+      ? true
+      : isAllowed(intents.movementAllowed);
+    if (!movementAllowed) this._lockMovement();
     if (!weaponIntents.blockedByBuyMenu) this._updateWishDirection();
     if (!weaponIntents.blockedByBuyMenu && typeof intents.onWeaponIntents === 'function') {
       intents.onWeaponIntents(weaponIntents, now);
