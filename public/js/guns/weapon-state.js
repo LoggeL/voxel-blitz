@@ -14,6 +14,11 @@ import { TIMERS } from './defs.js';
 const EMPTY_AMMO = Object.freeze({ mag: 0, reserve: 0 });
 const DEFAULT_MODE = 'fun';
 
+/** One visibility rule shared by scoped weapon state and spectator presentation. */
+export function shouldShowViewmodel({ spectating = false, scopeActive = false } = {}) {
+  return !spectating && !scopeActive;
+}
+
 function usesAuthoritativeOwnedWeapons(mode) {
   return mode === 'snd' || mode === 'gungame';
 }
@@ -327,7 +332,9 @@ export class WeaponState {
     this._adsT = Math.max(0, Math.min(1, this._adsT));
     this._scopeActive = this._alive && def.id === 'sniper' &&
       this._adsT >= SNIPER_SCOPE_ADS_THRESHOLD;
-    if (this._rig.root) this._rig.root.visible = !this._scopeActive;
+    if (this._rig.root) {
+      this._rig.root.visible = shouldShowViewmodel({ scopeActive: this._scopeActive });
+    }
   }
 
   /** Call at the original rig-update point, after camera/body updates. */

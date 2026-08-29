@@ -6,7 +6,7 @@ import { deserializeWorld, getBlock, getMapMeta, setBlock } from '../../shared/w
 import { Input } from './engine/input.js';
 import { WorldView } from './engine/worldview.js';
 import { ViewmodelRig } from './guns/viewmodel.js';
-import { WeaponState } from './guns/weapon-state.js';
+import { WeaponState, shouldShowViewmodel } from './guns/weapon-state.js';
 import { Effects, attachShellBridge } from './weapons/effects.js';
 import { HUD } from './ui/hud.js';
 import { sfx } from './audio/sfx.js';
@@ -397,7 +397,12 @@ class Game {
     } catch (error) { this.phaseError('net/interp', error); }
 
     const spectating = this.spectator?.active === true;
-    if (this.rig?.root) this.rig.root.visible = !spectating;
+    if (this.rig?.root) {
+      this.rig.root.visible = shouldShowViewmodel({
+        spectating,
+        scopeActive: this.weapon?.scopeActive,
+      });
+    }
     if (spectating && this.ownBody?.group) this.ownBody.group.visible = false;
 
     this.hud.setState({

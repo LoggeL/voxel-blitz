@@ -3,6 +3,15 @@ import { WEAPONS, WEAPON_IDS } from '../../shared/combatmath.js';
 
 export async function runViewmodelContracts(ok, installGlobals) {
   {
+    const { shouldShowViewmodel } = await import('../../public/js/guns/weapon-state.js');
+    ok(shouldShowViewmodel()
+        && !shouldShowViewmodel({ scopeActive: true })
+        && !shouldShowViewmodel({ spectating: true })
+        && !shouldShowViewmodel({ scopeActive: true, spectating: true }),
+    'viewmodel stays hidden for both scoped sniper and spectator cameras');
+  }
+
+  {
     const { AimSway } = await import('../../public/js/player/aim-sway.js');
     const idle = new AimSway().update(0.05, { stationary: true, grounded: true });
     const crouched = new AimSway().update(0.05, {
