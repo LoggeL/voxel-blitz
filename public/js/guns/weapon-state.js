@@ -5,6 +5,7 @@ import {
   SNIPER_SCOPE_ADS_THRESHOLD,
   WEAPONS,
   WEAPON_IDS,
+  computeRecoilKickDeg,
   computeSpreadConeDeg,
   sampleSpreadDir,
 } from '../../../shared/combatmath.js';
@@ -191,6 +192,7 @@ export class WeaponState {
 
     this._lastSlot = this._slot;
     this._slot = slot;
+    this._resetRecoilPattern();
     this._reloadState = null;
     this._deployUntil = now + this.def.deployTime * 1000;
     this._nextFireAt = Math.max(this._nextFireAt, this._deployUntil);
@@ -279,6 +281,7 @@ export class WeaponState {
     const dur = def.reloadTime * 1000;
     const type = def.id === 'shotgun' ? 'tube' : 'magswap';
     this._reloadState = { until: now + dur, dur, type, weapon: def.id };
+    this._resetRecoilPattern();
     this._rig.reload(dur / 1000, type);
     return true;
   }
@@ -407,7 +410,7 @@ export class WeaponState {
     }, { local: true });
 
     this._audio.fire(weaponId);
-    this.shakeView(def.kickDeg);
+    this.shakeView(def, now);
     if (mode === 'pump') this._rig.pumpAnim();
     if (mode === 'bolt') this._rig.boltAnim();
 
@@ -415,11 +418,17 @@ export class WeaponState {
     return true;
   }
 
-  shakeView(kick) {
-    const pitch = (kick.pitch * (Math.PI / 180)) * (this._adsT > 0.6 ? 0.55 : 1);
-    const yaw = (kick.yaw * (Math.PI / 180)) * (this._random() * 2 - 1) *
-      (this._adsT > 0.6 ? 0.5 : 1);
-    this._feedback.addRecoil(pitch, yaw);
+  shakeView(def, now) {
+    if (now - this._lastRecoilAt > def.recoil.resetMs) this._recoilIndex = 0;
+    const kick = computeRecoilKickDeg(def, this._recoilIndex, this._adsT, this._random());
+    this._recoilIndex++;
+    this._lastRecoilAt = now;
+    this._feedback.addRecoil(kick.pitch * (Math.PI / 180), kick.yaw * (Math.PI / 180));
+  }
+
+  _resetRecoilPattern() {
+    this._recoilIndex = 0;
+    this._lastRecoilAt = -Infinity;
   }
 
   /** Ammo -> authoritative mode switch -> reload synchronization. */
@@ -455,6 +464,7 @@ export class WeaponState {
         type: 'magswap',
         weapon: def.id,
       };
+      this._resetRecoilPattern();
       this._rig.reload(dur / 1000, 'magswap');
     }
   }
@@ -464,6 +474,7 @@ export class WeaponState {
     this._reloadState = null;
     this._adsT = 0;
     this._scopeActive = false;
+    this._resetRecoilPattern();
     this.clearIntents();
     if (this._rig.root) this._rig.root.visible = true;
   }
@@ -475,6 +486,7 @@ export class WeaponState {
     this._adsT = 0;
     this._scopeActive = false;
     this._bloomDeg = 0;
+    this._resetRecoilPattern();
     this.clearIntents();
 
     if (!usesAuthoritativeOwnedWeapons(mode)) {
@@ -503,6 +515,7 @@ export class WeaponState {
     this._deployUntil = 0;
     this._reloadState = null;
     this._bloomDeg = 0;
+    this._resetRecoilPattern();
     this._adsT = 0;
     this._wantAds = false;
     this._scopeActive = false;

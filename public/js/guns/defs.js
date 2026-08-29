@@ -26,7 +26,7 @@ export const TIMERS = {
     adsTime: WEAPONS.rifle.adsTime,
     deployTime: WEAPONS.rifle.deployTime,
     weightKg: WEAPONS.rifle.weightKg,
-    viewKick: { pitchDeg: WEAPONS.rifle.kickDeg.pitch, yawDeg: WEAPONS.rifle.kickDeg.yaw },
+    viewKick: { pitchDeg: WEAPONS.rifle.recoil.pitch, yawDeg: WEAPONS.rifle.recoil.yaw },
     // Pause ladders in ms BETWEEN cluster groups; descending pauses = cadence climbs.
     bursts: [[100], [70], [52], [34]],
     // Per-group aim-walk nudges (rad), tiny ascending magnitude, alternating sign: recoil
@@ -60,7 +60,7 @@ export const TIMERS = {
     rof: WEAPONS.smg.rpm,
     adsTime: WEAPONS.smg.adsTime,
     deployTime: WEAPONS.smg.deployTime,
-    viewKick: { pitchDeg: WEAPONS.smg.kickDeg.pitch, yawDeg: WEAPONS.smg.kickDeg.yaw },
+    viewKick: { pitchDeg: WEAPONS.smg.recoil.pitch, yawDeg: WEAPONS.smg.recoil.yaw },
     weightKg: WEAPONS.smg.weightKg,
     bursts: [[55]],         // singles only, one tight uniform-ish group pause.
     anglesRad: [-0.0009],
@@ -86,7 +86,7 @@ export const TIMERS = {
     rof: WEAPONS.shotgun.rpm,
     adsTime: WEAPONS.shotgun.adsTime,
     deployTime: WEAPONS.shotgun.deployTime,
-    viewKick: { pitchDeg: WEAPONS.shotgun.kickDeg.pitch, yawDeg: WEAPONS.shotgun.kickDeg.yaw },
+    viewKick: { pitchDeg: WEAPONS.shotgun.recoil.pitch, yawDeg: WEAPONS.shotgun.recoil.yaw },
     weightKg: WEAPONS.shotgun.weightKg,
     bursts: [[0]],          // zero auto pause: mode 'pump' fully locks out via the pump cycle;
                             // the entry references rof pacing rather than driving anything.
@@ -113,7 +113,7 @@ export const TIMERS = {
     rof: WEAPONS.sniper.rpm,
     adsTime: WEAPONS.sniper.adsTime,
     deployTime: WEAPONS.sniper.deployTime,
-    viewKick: { pitchDeg: WEAPONS.sniper.kickDeg.pitch, yawDeg: WEAPONS.sniper.kickDeg.yaw },
+    viewKick: { pitchDeg: WEAPONS.sniper.recoil.pitch, yawDeg: WEAPONS.sniper.recoil.yaw },
     weightKg: WEAPONS.sniper.weightKg,
     bursts: [[1000]],       // INFORMATIONAL: rechambering is NOT auto-enqueued; mode 'bolt'
                             // drives rig.boltAnim() explicitly. The 1000ms documents intended
@@ -140,7 +140,7 @@ export const TIMERS = {
     adsTime: WEAPONS.lmg.adsTime,
     deployTime: WEAPONS.lmg.deployTime,
     weightKg: WEAPONS.lmg.weightKg,
-    viewKick: { pitchDeg: WEAPONS.lmg.kickDeg.pitch, yawDeg: WEAPONS.lmg.kickDeg.yaw },
+    viewKick: { pitchDeg: WEAPONS.lmg.recoil.pitch, yawDeg: WEAPONS.lmg.recoil.yaw },
     bursts: [[70], [48], [32]],
     anglesRad: [0.0012, -0.0017, 0.0021],
     interval: 4,
@@ -166,7 +166,7 @@ export const TIMERS = {
     adsTime: WEAPONS.revolver.adsTime,
     deployTime: WEAPONS.revolver.deployTime,
     weightKg: WEAPONS.revolver.weightKg,
-    viewKick: { pitchDeg: WEAPONS.revolver.kickDeg.pitch, yawDeg: WEAPONS.revolver.kickDeg.yaw },
+    viewKick: { pitchDeg: WEAPONS.revolver.recoil.pitch, yawDeg: WEAPONS.revolver.recoil.yaw },
     bursts: [[0]],
     anglesRad: [-0.0014],
     interval: 0,

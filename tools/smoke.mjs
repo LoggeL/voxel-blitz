@@ -7,7 +7,13 @@ import { delay } from './lib/async.mjs';
 import { startServer as startManagedServer, stopServer, waitForHttp } from './lib/server-process.mjs';
 import { Client } from './lib/ws-client.mjs';
 
-import { WEAPONS, WEAPON_IDS, CONDITION_RULES, computeSpreadConeDeg } from '../shared/combatmath.js';
+import {
+  CONDITION_RULES,
+  WEAPONS,
+  WEAPON_IDS,
+  computeRecoilKickDeg,
+  computeSpreadConeDeg,
+} from '../shared/combatmath.js';
 import { valueNoise2 } from '../shared/noise.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { getMapMeta, serializeWorld } from '../shared/worlddata.js';
@@ -122,12 +128,32 @@ function runDirectContracts() {
       && ['bloomDeg', 'bloomMaxDeg', 'bloomRecover', 'moveSpreadDeg',
         'adsFov', 'zoom', 'adsTime', 'reloadTime', 'tacTime', 'deployTime']
         .every((key) => Number.isFinite(def[key]))
-      && Number.isFinite(def.kickDeg?.pitch) && Number.isFinite(def.kickDeg?.yaw)
+      && Number.isFinite(def.recoil?.pitch) && def.recoil.pitch > 0
+      && Number.isFinite(def.recoil?.pitchRamp) && def.recoil.pitchRamp >= 0
+      && Number.isFinite(def.recoil?.maxPitchRamp) && def.recoil.maxPitchRamp >= 0
+      && Number.isFinite(def.recoil?.yaw) && def.recoil.yaw > 0
+      && Array.isArray(def.recoil?.yawPattern) && def.recoil.yawPattern.length >= 2
+      && def.recoil.yawPattern.every(Number.isFinite)
+      && Number.isFinite(def.recoil?.jitter) && def.recoil.jitter >= 0
+      && Number.isFinite(def.recoil?.resetMs) && def.recoil.resetMs > 0
+      && def.recoil.resetMs > 60000 / def.rpm
+      && Number.isFinite(def.recoil?.adsMult) && def.recoil.adsMult > 0 && def.recoil.adsMult <= 1
       && typeof def.tracer?.color === 'string' && Number.isFinite(def.tracer?.width)
       && Number.isFinite(def.tracer?.len) && typeof def.sfx === 'string'
       && def.weightKg === expectedWeights[slot];
   });
   ok(definitionsComplete, 'all six weapon definitions carry the complete shared contract');
+  const recoilSignatures = WEAPON_IDS.map((id) => WEAPONS[id].recoil.yawPattern.join(','));
+  const rifleKick0 = computeRecoilKickDeg(WEAPONS.rifle, 0, 0, 0.5);
+  const rifleKick5 = computeRecoilKickDeg(WEAPONS.rifle, 5, 0, 0.5);
+  const rifleAdsKick5 = computeRecoilKickDeg(WEAPONS.rifle, 5, 1, 0.5);
+  ok(new Set(recoilSignatures).size === WEAPON_IDS.length
+    && rifleKick5.pitch > rifleKick0.pitch
+    && nearly(rifleAdsKick5.pitch, rifleKick5.pitch * WEAPONS.rifle.recoil.adsMult)
+    && WEAPONS.shotgun.recoil.pitch >= 2.5
+    && WEAPONS.sniper.recoil.pitch >= 3.5
+    && WEAPONS.revolver.recoil.pitch >= 2,
+  'weapon recoil profiles are distinct, stronger, ramping, and ADS-scaled');
   const lmg = WEAPONS.lmg;
   const revolver = WEAPONS.revolver;
   ok(lmg?.name === 'BASTION LMG' && lmg.mode === 'auto' && lmg.rpm === 720

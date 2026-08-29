@@ -43,7 +43,7 @@ export const CONDITION_RULES = Object.freeze({
  * @property {number} bloomRecover  bloom decay deg/s
  * @property {number} moveSpreadDeg additional hip cone at full sprint, degrees
  * @property {number} crouchSpreadMult cone multiplier while crouched
- * @property {{pitch:number, yaw:number}} kickDeg max view-kick per shot, degrees
+ * @property {{pitch:number,pitchRamp:number,maxPitchRamp:number,yaw:number,yawPattern:number[],jitter:number,resetMs:number,adsMult:number}} recoil client camera/viewmodel recoil profile
  * @property {number} adsFov        fov while aiming
  * @property {number} zoom          sight magnification (>1 scopes, used by overlay/SFX)
  * @property {number} adsTime       seconds to reach full ADS
@@ -65,7 +65,12 @@ export const WEAPONS = {
     spreadDeg: { hip: 1.35, ads: 0.28 }, bloomDeg: 0.16, bloomMaxDeg: 2.6,
     bloomRecover: 4.2, moveSpreadDeg: 2.2,
     crouchSpreadMult: 0.72,
-    kickDeg: { pitch: 0.42, yaw: 0.17 }, adsFov: 55, zoom: 1.3, adsTime: 0.16,
+    recoil: {
+      pitch: 0.68, pitchRamp: 0.055, maxPitchRamp: 0.33,
+      yaw: 0.32, yawPattern: [-0.20, 0.15, 0.35, -0.40, -0.65, 0.25, 0.55, -0.15],
+      jitter: 0.12, resetMs: 280, adsMult: 0.72,
+    },
+    adsFov: 55, zoom: 1.3, adsTime: 0.16,
     reloadTime: 2.1, tacTime: 1.55, deployTime: 0.42,
     tracer: { color: '#ffd27a', width: 1.2, len: 26 },
     sfx: 'rifle',
@@ -78,7 +83,12 @@ export const WEAPONS = {
     spreadDeg: { hip: 1.9, ads: 0.75 }, bloomDeg: 0.13, bloomMaxDeg: 3.4,
     bloomRecover: 6.0, moveSpreadDeg: 1.4,
     crouchSpreadMult: 0.78,
-    kickDeg: { pitch: 0.26, yaw: 0.22 }, adsFov: 62, zoom: 1.15, adsTime: 0.11,
+    recoil: {
+      pitch: 0.42, pitchRamp: 0.025, maxPitchRamp: 0.18,
+      yaw: 0.42, yawPattern: [-0.65, 0.70, -0.25, 0.95, -0.90, 0.35],
+      jitter: 0.22, resetMs: 190, adsMult: 0.80,
+    },
+    adsFov: 62, zoom: 1.15, adsTime: 0.11,
     reloadTime: 1.75, tacTime: 1.3, deployTime: 0.3,
     tracer: { color: '#ffe9a8', width: 1.0, len: 22 },
     sfx: 'smg',
@@ -91,7 +101,12 @@ export const WEAPONS = {
     spreadDeg: { hip: 4.4, ads: 3.1 }, bloomDeg: 0.5, bloomMaxDeg: 6,
     bloomRecover: 5.0, moveSpreadDeg: 1.2,
     crouchSpreadMult: 0.88,
-    kickDeg: { pitch: 1.5, yaw: 0.35 }, adsFov: 66, zoom: 1.1, adsTime: 0.14,
+    recoil: {
+      pitch: 2.80, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.72, yawPattern: [-0.40, 0.45],
+      jitter: 0.10, resetMs: 950, adsMult: 0.68,
+    },
+    adsFov: 66, zoom: 1.1, adsTime: 0.14,
     reloadTime: 3.1, tacTime: 2.6, deployTime: 0.5,
     tracer: { color: '#ffc37a', width: 1.0, len: 12 },
     sfx: 'shotgun',
@@ -104,7 +119,12 @@ export const WEAPONS = {
     spreadDeg: { hip: 5.5, ads: 0.02 }, bloomDeg: 1.2, bloomMaxDeg: 7,
     bloomRecover: 3.0, moveSpreadDeg: 3.5,
     crouchSpreadMult: 0.58,
-    kickDeg: { pitch: 2.1, yaw: 0.3 }, adsFov: 18, zoom: 5, adsTime: 0.26,
+    recoil: {
+      pitch: 3.80, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.58, yawPattern: [-0.25, 0.20],
+      jitter: 0.06, resetMs: 1800, adsMult: 0.60,
+    },
+    adsFov: 18, zoom: 5, adsTime: 0.26,
     reloadTime: 3.0, tacTime: 2.2, deployTime: 0.55,
     tracer: { color: '#bfe8ff', width: 1.6, len: 40 },
     sfx: 'sniper',
@@ -117,7 +137,16 @@ export const WEAPONS = {
     spreadDeg: { hip: 1.65, ads: 0.48 }, bloomDeg: 0.13, bloomMaxDeg: 3.1,
     bloomRecover: 3.0, moveSpreadDeg: 3.0,
     crouchSpreadMult: 0.68,
-    kickDeg: { pitch: 0.36, yaw: 0.18 }, adsFov: 58, zoom: 1.2, adsTime: 0.22,
+    recoil: {
+      pitch: 0.58, pitchRamp: 0.04, maxPitchRamp: 0.50,
+      yaw: 0.34,
+      yawPattern: [
+        -0.15, -0.35, 0.20, 0.50, 0.70, 0.35,
+        -0.10, -0.55, -0.75, -0.40, 0.15, 0.45,
+      ],
+      jitter: 0.10, resetMs: 340, adsMult: 0.74,
+    },
+    adsFov: 58, zoom: 1.2, adsTime: 0.22,
     reloadTime: 4.2, tacTime: 3.4, deployTime: 0.65,
     tracer: { color: '#ffbf5f', width: 1.3, len: 30 },
     sfx: 'lmg',
@@ -130,7 +159,12 @@ export const WEAPONS = {
     spreadDeg: { hip: 1.15, ads: 0.12 }, bloomDeg: 0.65, bloomMaxDeg: 3.6,
     bloomRecover: 3.4, moveSpreadDeg: 1.8,
     crouchSpreadMult: 0.7,
-    kickDeg: { pitch: 1.25, yaw: 0.26 }, adsFov: 56, zoom: 1.35, adsTime: 0.13,
+    recoil: {
+      pitch: 2.25, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.68, yawPattern: [-0.65, 0.35, 0.75, -0.25, -0.80, 0.55],
+      jitter: 0.08, resetMs: 650, adsMult: 0.68,
+    },
+    adsFov: 56, zoom: 1.35, adsTime: 0.13,
     reloadTime: 2.35, tacTime: 1.8, deployTime: 0.28,
     tracer: { color: '#ffe0a3', width: 1.4, len: 28 },
     sfx: 'revolver',
@@ -138,6 +172,22 @@ export const WEAPONS = {
 };
 
 export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver'];
+
+/** Deterministic patterned camera kick in degrees; random01 only adds bounded micro-variation. */
+export function computeRecoilKickDeg(def, shotIndex, adsT = 0, random01 = 0.5) {
+  const profile = def.recoil;
+  const index = Math.max(0, Math.trunc(Number.isFinite(shotIndex) ? shotIndex : 0));
+  const ads = Math.max(0, Math.min(1, Number.isFinite(adsT) ? adsT : 0));
+  const adsScale = 1 + (profile.adsMult - 1) * ads;
+  const ramp = Math.min(profile.maxPitchRamp, index * profile.pitchRamp);
+  const pattern = profile.yawPattern[index % profile.yawPattern.length];
+  const random = Math.max(0, Math.min(1, Number.isFinite(random01) ? random01 : 0.5));
+  const yawVariation = (random * 2 - 1) * profile.jitter;
+  return {
+    pitch: (profile.pitch + ramp) * adsScale,
+    yaw: profile.yaw * (pattern + yawVariation) * adsScale,
+  };
+}
 
 /** Linear falloff between close-range and far-range damage. */
 export function damageAtDistance(def, dist) {
