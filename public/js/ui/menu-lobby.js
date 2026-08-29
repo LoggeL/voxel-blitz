@@ -1,6 +1,7 @@
 import {
   HudSupport,
   MAP_LABELS,
+  MAP_PREVIEWS,
   MODE_LABELS,
   cleanCode,
   copyInviteLink as copyInviteText,
@@ -12,6 +13,7 @@ import {
 } from './hud-support.js';
 import { CreateLobbySetup } from './create-lobby-setup.js';
 import { clampMouseSensitivity, MOUSE_SENSITIVITY } from '../input-settings.js';
+import { buildMenuShell, buildTelemetry, setMenuBackdrop } from './menu-chrome.js';
 
 const NOOP = () => {};
 const QUICK_PLAY_BOTS = 5;
@@ -71,35 +73,38 @@ export class MenuLobbyController {
     root.classList.remove('hidden');
     root.style.display = 'flex';
     root.setAttribute('aria-hidden', 'false');
+    setMenuBackdrop(root, 'foundry');
 
-    const panel = el('div', 'vb-panel vb-main-menu-panel', root);
+    const { stage } = buildMenuShell(root, { context: 'DEPLOYMENT' });
+    const panel = el('div', 'vb-panel vb-main-menu-panel', stage);
 
     const primary = el('section', 'vb-menu-primary', panel, 'menu-primary-step');
     primary.setAttribute('aria-labelledby', 'menu-title');
-    el('span', 'vb-step-kicker', primary).textContent = 'STEP 1 / 2 · DEPLOYMENT';
-    const title = el('h1', 'vb-title', primary, 'menu-title');
-    title.textContent = 'VOXEL BLITZ';
-    const sub = el('div', 'vb-sub', primary);
-    sub.textContent = 'tactical arena · six weapons · voxel combat';
+    const primaryBody = el('div', 'vb-menu-primary-body', primary);
+    el('span', 'vb-step-kicker', primaryBody).textContent = 'STEP 1 / 2 · DEPLOYMENT';
+    const title = el('h1', 'vb-title vb-deployment-title', primaryBody, 'menu-title');
+    title.textContent = 'DEPLOYMENT';
+    const sub = el('div', 'vb-sub', primaryBody);
+    sub.textContent = 'choose your route into the arena';
 
-    const callsignLabel = el('label', 'vb-label', primary);
+    const callsignLabel = el('label', 'vb-label', primaryBody);
     callsignLabel.textContent = 'CALLSIGN';
     callsignLabel.htmlFor = 'name-input';
-    const nameInput = el('input', '', primary, 'name-input');
+    const nameInput = el('input', '', primaryBody, 'name-input');
     nameInput.maxLength = 16;
     nameInput.autocomplete = 'off';
     nameInput.spellcheck = false;
     nameInput.placeholder = 'OPERATOR';
     nameInput.value = loadName();
 
-    const actionsBox = el('div', 'vb-menu-actions', primary);
+    const actionsBox = el('div', 'vb-menu-actions', primaryBody);
 
     const quickBox = el('div', 'vb-quick-box', actionsBox);
     const quickPlayButton = el('button', 'vb-btn vb-quick-play-btn', quickBox, 'play-btn');
     quickPlayButton.type = 'button';
     quickPlayButton.textContent = 'QUICK PLAY';
     const quickHint = el('div', 'vb-action-hint', quickBox);
-    quickHint.textContent = 'Instant Fun match · At least 5 bots · Rotating arenas';
+    quickHint.textContent = '5 BOTS · FOUNDRY · FUN';
 
     const createBox = el('div', 'vb-create-box', actionsBox);
     const createLobbyButton = el(
@@ -111,14 +116,14 @@ export class MenuLobbyController {
     createLobbyButton.type = 'button';
     createLobbyButton.textContent = 'CREATE LOBBY';
     const createHint = el('div', 'vb-action-hint', createBox);
-    createHint.textContent = 'Choose arena, mode, bots and operator settings';
+    createHint.textContent = 'CUSTOM RULES & ARENA';
 
-    const joinSection = el('div', 'vb-join-section', primary);
+    const joinSection = el('div', 'vb-join-section', primaryBody);
     const joinLabel = el('label', 'vb-label', joinSection);
-    joinLabel.textContent = 'JOIN VIA ROOM CODE';
+    joinLabel.textContent = 'JOIN SQUAD';
     joinLabel.htmlFor = 'join-code-input';
     const joinHint = el('div', 'vb-action-hint vb-join-hint', joinSection);
-    joinHint.textContent = 'Inherits host game mode & map settings automatically';
+    joinHint.textContent = 'ENTER A FIVE-CHARACTER ROOM CODE';
 
     const joinRow = el('div', 'vb-join-row', joinSection);
     const joinInput = el('input', 'vb-join-input', joinRow, 'join-code-input');
@@ -131,9 +136,18 @@ export class MenuLobbyController {
     joinButton.type = 'button';
     joinButton.textContent = 'JOIN';
 
-    this.joinStatus = el('div', 'vb-status', primary, 'join-status');
+    this.joinStatus = el('div', 'vb-status', primaryBody, 'join-status');
     this.joinStatus.setAttribute('role', 'status');
     this.joinStatus.setAttribute('aria-live', 'polite');
+
+    buildTelemetry(primary, {
+      rows: [
+        ['ARENA', 'FOUNDRY'],
+        ['MODE', 'FUN'],
+        ['BOT COUNT', String(QUICK_PLAY_BOTS)],
+        ['WEAPONS', 'SIX'],
+      ],
+    });
 
     const getIdentity = () => {
       const name = nameInput.value.trim().slice(0, 16) || 'PLAYER';
@@ -281,7 +295,9 @@ export class MenuLobbyController {
     });
 
     root.innerHTML = '';
-    const panel = el('div', 'vb-lobby-panel', root);
+    setMenuBackdrop(root, 'foundry');
+    const { stage } = buildMenuShell(root, { context: 'DEPLOYMENT' });
+    const panel = el('div', 'vb-lobby-panel', stage);
 
     const title = el('h2', 'vb-title', panel, 'lobby-title');
     title.textContent = 'SQUAD BRIEFING';
@@ -290,7 +306,11 @@ export class MenuLobbyController {
 
     const metaCard = el('div', 'vb-lobby-card vb-lobby-meta-card', panel);
     const metaHeader = el('div', 'vb-lobby-meta-header', metaCard);
-    el('span', 'vb-label', metaHeader).textContent = 'MISSION BRIEFING (FIXED)';
+    el('span', 'vb-label', metaHeader).textContent = 'MISSION';
+
+    const missionPreview = el('img', 'vb-lobby-mission-image', metaCard, 'lobby-map-preview');
+    missionPreview.width = 720;
+    missionPreview.height = 360;
 
     const chipsRow = el('div', 'vb-lobby-chips-row', metaCard);
 
@@ -303,6 +323,10 @@ export class MenuLobbyController {
     el('span', 'vb-chip-label', mapChip).textContent = 'MAP';
     const mapValue = el('span', 'vb-chip-val', mapChip, 'lobby-map-val');
     mapValue.textContent = 'CITADEL';
+
+    const missionStatus = el('div', 'vb-lobby-mission-status', metaCard);
+    el('span', 'vb-online-dot', missionStatus).setAttribute('aria-hidden', 'true');
+    el('span', '', missionStatus).textContent = 'WAITING FOR OPERATORS';
 
     const inviteCard = el('div', 'vb-lobby-card vb-lobby-invite-card', panel);
     const codeHeader = el('div', 'vb-lobby-code-row', inviteCard);
@@ -390,6 +414,7 @@ export class MenuLobbyController {
       panel,
       modeVal: modeValue,
       mapVal: mapValue,
+      missionPreview,
       codeVal: codeValue,
       inviteInput,
       copyBtn: copyButton,
@@ -460,8 +485,13 @@ export class MenuLobbyController {
 
     const gameMode = state.gameMode || 'fun';
     const map = state.map || 'foundry';
+    setMenuBackdrop(dom.root, map);
     if (dom.modeVal) dom.modeVal.textContent = MODE_LABELS[gameMode] || gameMode.toUpperCase();
     if (dom.mapVal) dom.mapVal.textContent = MAP_LABELS[map] || map.toUpperCase();
+    if (dom.missionPreview) {
+      dom.missionPreview.src = MAP_PREVIEWS[map] || MAP_PREVIEWS.foundry;
+      dom.missionPreview.alt = `${MAP_LABELS[map] || map} arena preview`;
+    }
 
     const code = cleanCode(state.code) || state.code || '-----';
     if (dom.codeVal) dom.codeVal.textContent = code;

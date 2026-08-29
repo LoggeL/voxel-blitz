@@ -10,6 +10,7 @@ import {
 import {
   MAP_DESCRIPTIONS,
   MAP_LABELS,
+  MAP_PREVIEWS,
   MODE_DESCRIPTIONS,
   MODE_LABELS,
   el,
@@ -19,12 +20,6 @@ import {
   savePref,
 } from './hud-support.js';
 import { MOUSE_SENSITIVITY } from '../input-settings.js';
-
-const MAP_PREVIEWS = Object.freeze({
-  foundry: './assets/maps/foundry-concept.webp',
-  depot: './assets/maps/depot-concept.webp',
-  citadel: './assets/maps/citadel-concept.webp',
-});
 
 function clampBots(value) {
   const parsed = Number(value);

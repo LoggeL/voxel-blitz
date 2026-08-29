@@ -66,6 +66,10 @@ muzzle flash, and heat shader advanced to a deterministic frame. The complete
 run writes 18 PNGs plus `index.html` and `manifest.json` to
 `.artifacts/weapon-renders/` for side-by-side visual review.
 
+For deterministic manual menu QA, `?debug=1&ui=settings` opens the pause/settings
+surface without requiring pointer lock. Main, create-lobby, and waiting-lobby
+states remain reachable through their normal controls.
+
 ## Multiplayer lifecycle
 
 Every admitted client receives a JSON `welcome` carrying the authoritative

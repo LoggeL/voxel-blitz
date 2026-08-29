@@ -462,6 +462,7 @@ const debugParams = new URLSearchParams(location.search);
 const debugMode = debugParams.has('debug');
 const debugWeapon = debugParams.get('weapon') || '';
 const debugAds = debugParams.has('ads');
+const debugUi = debugParams.get('ui') || '';
 const game = new Game();
 
 window.__vb = {
@@ -523,9 +524,14 @@ window.__vb = {
 if (debugMode) {
   const root = document.documentElement;
   const seen = new Map();
+  let debugUiOpened = false;
   game._debugInterval = setInterval(() => {
     try {
       const stats = window.__vb.stats;
+      if (debugUi === 'settings' && !debugUiOpened) {
+        debugUiOpened = true;
+        game.hud.openSettings();
+      }
       if (game.worldview) {
         for (const child of game.worldview.scene.children) {
           if (!seen.has(child.uuid)) seen.set(child.uuid, child.type + '|' + (child.name || ''));

@@ -1,4 +1,4 @@
-import { el, loadPrefNum, savePref } from './hud-support.js';
+import { MAP_LABELS, MODE_LABELS, el, loadPrefNum, savePref } from './hud-support.js';
 import { clampMouseSensitivity, MOUSE_SENSITIVITY } from '../input-settings.js';
 
 /**
@@ -116,14 +116,32 @@ export class SettingsController {
     root.setAttribute('aria-hidden', 'true');
     root.style.display = 'none';
 
-    const panel = el('div', 'vb-settings-panel', root);
+    const shell = el('div', 'vb-pause-shell', root);
+    const nav = el('aside', 'vb-pause-rail', shell);
+    const title = el('h2', 'vb-title', nav, 'settings-title');
+    title.textContent = 'MATCH PAUSED';
+    const sub = el('div', 'vb-sub vb-pause-match-name', nav);
+    sub.textContent = 'LIVE MATCH';
 
-    const title = el('h2', 'vb-title', panel, 'settings-title');
-    title.textContent = 'SETTINGS';
-    const sub = el('div', 'vb-sub', panel);
-    sub.textContent = 'tactical system configuration';
+    const resumeBtn = el('button', 'vb-btn vb-resume-btn', nav, 'settings-resume-btn');
+    resumeBtn.type = 'button';
+    resumeBtn.textContent = 'RESUME';
 
-    const sensRow = el('div', 'vb-setting-row', panel);
+    const current = el('div', 'vb-pause-nav-current', nav);
+    current.textContent = 'SETTINGS';
+
+    const leaveBtn = el('button', 'vb-btn vb-leave-match-btn', nav, 'settings-leave-btn');
+    leaveBtn.type = 'button';
+    leaveBtn.textContent = 'QUIT TO MAIN MENU';
+
+    const hint = el('div', 'vb-settings-hint', nav);
+    hint.textContent = 'ESC · RESUME';
+
+    const panel = el('section', 'vb-settings-panel', shell);
+    el('span', 'vb-step-kicker', panel).textContent = 'CONTROLS';
+    const controls = el('div', 'vb-settings-controls', panel);
+
+    const sensRow = el('div', 'vb-setting-row', controls);
     const sensHeader = el('div', 'vb-setting-header', sensRow);
     const sensLabel = el('label', 'vb-label', sensHeader);
     sensLabel.textContent = 'MOUSE SENSITIVITY';
@@ -138,7 +156,7 @@ export class SettingsController {
     sensSlider.setAttribute('aria-valuemin', String(MOUSE_SENSITIVITY.min));
     sensSlider.setAttribute('aria-valuemax', String(MOUSE_SENSITIVITY.max));
 
-    const volRow = el('div', 'vb-setting-row', panel);
+    const volRow = el('div', 'vb-setting-row', controls);
     const volHeader = el('div', 'vb-setting-header', volRow);
     const volLabel = el('label', 'vb-label', volHeader);
     volLabel.textContent = 'MASTER VOLUME';
@@ -153,10 +171,10 @@ export class SettingsController {
     volSlider.setAttribute('aria-valuemin', '0');
     volSlider.setAttribute('aria-valuemax', '1');
 
-    const fovRow = el('div', 'vb-setting-row', panel);
+    const fovRow = el('div', 'vb-setting-row', controls);
     const fovHeader = el('div', 'vb-setting-header', fovRow);
     const fovLabel = el('label', 'vb-label', fovHeader);
-    fovLabel.textContent = 'BASE FIELD OF VIEW (FOV)';
+    fovLabel.textContent = 'FIELD OF VIEW';
     fovLabel.htmlFor = 'settings-fov-slider';
     const fovVal = el('span', 'vb-setting-val', fovHeader, 'settings-fov-val');
     const fovSlider = el('input', 'vb-slider', fovRow, 'settings-fov-slider');
@@ -168,20 +186,17 @@ export class SettingsController {
     fovSlider.setAttribute('aria-valuemin', '65');
     fovSlider.setAttribute('aria-valuemax', '100');
 
-    const resumeBtn = el('button', 'vb-btn vb-resume-btn', panel, 'settings-resume-btn');
-    resumeBtn.type = 'button';
-    resumeBtn.textContent = 'RESUME';
-
-    const leaveBtn = el('button', 'vb-btn vb-leave-match-btn', panel, 'settings-leave-btn');
-    leaveBtn.type = 'button';
-    leaveBtn.textContent = 'QUIT TO MAIN MENU';
-
-    const hint = el('div', 'vb-settings-hint', panel);
-    hint.textContent = 'ESC TO RESUME';
+    const matchCard = el('aside', 'vb-pause-match-card', panel);
+    el('span', 'vb-label', matchCard).textContent = 'CURRENT MATCH';
+    const matchPlayers = el('strong', 'vb-pause-player-count', matchCard);
+    matchPlayers.textContent = '0 PLAYERS';
 
     this.settingsDom = {
       root,
+      shell,
       panel,
+      matchSub: sub,
+      matchPlayers,
       sensSlider,
       sensVal,
       volSlider,
@@ -278,6 +293,15 @@ export class SettingsController {
     dom.fovVal.textContent = `${config.fov}°`;
     dom.fovSlider.setAttribute('aria-valuenow', String(config.fov));
     dom.fovSlider.setAttribute('aria-valuetext', `${config.fov} degrees`);
+
+    const summary = this.host.getMatchSummary?.() || {};
+    const mode = MODE_LABELS[summary.mode] || String(summary.mode || 'LIVE MATCH').toUpperCase();
+    const map = MAP_LABELS[summary.map] || String(summary.map || '').toUpperCase();
+    if (dom.matchSub) dom.matchSub.textContent = map ? `${mode} · ${map}` : mode;
+    if (dom.matchPlayers) {
+      const players = Math.max(0, Number(summary.players) || 0);
+      dom.matchPlayers.textContent = `${players} PLAYER${players === 1 ? '' : 'S'}`;
+    }
   }
 
   dispose() {

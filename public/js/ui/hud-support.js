@@ -62,6 +62,12 @@ export const MAP_DESCRIPTIONS = Object.freeze({
   citadel: 'Urban fortress with Courtyard A and Compound B tactical bomb sites (All Modes)',
 });
 
+export const MAP_PREVIEWS = Object.freeze({
+  foundry: './assets/maps/foundry-concept.webp',
+  depot: './assets/maps/depot-concept.webp',
+  citadel: './assets/maps/citadel-concept.webp',
+});
+
 export const CARDINAL = Object.freeze({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' });
 export const SCOPE_MS = 120;
 export const DMG_MS = 650;

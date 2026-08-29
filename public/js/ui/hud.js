@@ -54,7 +54,14 @@ export class HUD {
     });
 
     this.settings = new SettingsController(
-      { isLobbyOpen: () => this.menu.isLobbyOpen() },
+      {
+        isLobbyOpen: () => this.menu.isLobbyOpen(),
+        getMatchSummary: () => ({
+          mode: this.gameplay?.match?._latestMatch?.mode || null,
+          map: this.gameplay?.match?._latestMatch?.map || null,
+          players: this.gameplay?.match?._latestPlayers?.length || 0,
+        }),
+      },
       () => this.closeBuyMenuDirect(),
     );
     this.buy = new BuyMenuController(
