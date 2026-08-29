@@ -231,6 +231,12 @@ async function main() {
       if (!msg || typeof msg.t !== 'string') return;
 
       try {
+        if (msg.t === 'ping') {
+          if (Number.isSafeInteger(msg.nonce)) {
+            sendJson(meta, { t: 'pong', nonce: msg.nonce });
+          }
+          return;
+        }
         if (msg.t === 'ready') {
           manager.ready(meta, msg.value);
           return;

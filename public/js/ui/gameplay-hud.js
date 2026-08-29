@@ -9,6 +9,7 @@ import {
 } from './hud-support.js';
 import { MatchHud } from './match-hud.js';
 import { createSniperScope } from './sniper-scope.js';
+import { NetworkHud } from './network-hud.js';
 
 const EMPTY_READ_MODEL = Object.freeze({ dead: false, painImpulse: 0 });
 const noop = () => {};
@@ -66,6 +67,7 @@ export class GameplayHud {
       readModel,
     });
     this.matchDom = this.match.dom;
+    this.network = new NetworkHud();
   }
 
   buildHUD() {
@@ -95,6 +97,7 @@ export class GameplayHud {
     const d = this.dom;
 
     this.match.build(hud);
+    this.network.build(hud);
 
     d.ch = el('div', '', hud, 'crosshair');
     for (let i = 0; i < 4; i++) el('span', 'ch-arm', d.ch);
@@ -114,6 +117,11 @@ export class GameplayHud {
     d.hpf = el('div', '', d.track, 'hpfill');
 
     d.ammo = el('div', '', hud, 'ammo');
+    d.weaponIcon = el('img', 'vb-weapon-icon', d.ammo, 'weapon-icon');
+    d.weaponIcon.alt = '';
+    d.weaponIcon.setAttribute('aria-hidden', 'true');
+    d.grenades = el('span', 'vb-grenade-count', d.ammo, 'grenade-count');
+    d.grenades.textContent = 'G · 0';
     d.mag = el('span', '', d.ammo, 'ammocount');
     d.sep = el('span', '', d.ammo);
     d.sep.textContent = '/';
@@ -233,12 +241,14 @@ export class GameplayHud {
       d.res.textContent = `${spareMags} ${spareMags === 1 ? 'MAG' : 'MAGS'}`;
     }
     if (s.wname != null) d.wname.textContent = String(s.wname).toUpperCase();
+    if (s.grenades != null) d.grenades.textContent = `G · ${Math.max(0, s.grenades | 0)}`;
 
     const key = resolveKey(s.wid);
     if (key && key !== this.lastWepKey) {
       const tint = WEAPON_IDS.includes(key) ? `vb-w-${key}` : '';
       d.wname.className = tint;
       d.ammo.className = tint;
+      d.weaponIcon.src = `./assets/weapons/hud/${key}.png`;
       this.lastWepKey = key;
       this.updateAmmoLow();
     }
@@ -366,6 +376,10 @@ export class GameplayHud {
     const sb = this.dom.sb;
     if (!sb) return;
     sb.style.display = on ? 'block' : 'none';
+  }
+
+  setTelemetry(frameDt, stats, atMs) {
+    this.network.update(frameDt, stats, atMs);
   }
 
   setPlayers(players) {
@@ -549,6 +563,7 @@ export class GameplayHud {
     this.setScoreboard(false);
     if (typeof document !== 'undefined') this.setPlayers([]);
     this.match.reset();
+    this.network.reset();
   }
 
   dispose() {
@@ -573,6 +588,7 @@ export class GameplayHud {
     this.onKU = null;
 
     this.match.dispose();
+    this.network.dispose();
     const hud = doc ? doc.getElementById('hud') : null;
     if (this._ownedHudRoot) {
       this._ownedHudRoot.remove();

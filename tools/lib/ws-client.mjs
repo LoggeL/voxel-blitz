@@ -301,6 +301,7 @@ export class Client {
       wantFire: !!overrides.fire,
       wantAds: !!overrides.ads,
       reload: !!overrides.reload,
+      throwGrenade: !!overrides.throwGrenade,
     });
   }
 

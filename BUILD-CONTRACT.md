@@ -64,8 +64,14 @@ After admission:
 - `{t:'input',seq:number,keys:{f:boolean,b:boolean,l:boolean,r:boolean,
   jump:boolean,sprint:boolean,crouch:boolean,interact:boolean},yaw:number,
   pitch:number,weapon:number,wantFire:boolean,wantAds:boolean,reload:boolean,
-  switchTo?:number}` routes only to this member's live room.
+  viewAge:number,throwGrenade?:boolean,switchTo?:number}` routes only to this
+  member's live room. A grenade throw is edge-triggered and consumes one of two
+  grenades for the current life only when the mode permits firing.
+  `viewAge` is the client's current presentation buffer plus measured RTT and
+  is clamped by authority to `50–450 ms` before hit rewind.
   Weapon slots clamp to `0–5`; keyboard digits are `1–6`.
+- `{t:'ping',nonce:safe-integer}` receives `{t:'pong',nonce}` from the same
+  socket so the client can measure application-level round-trip time.
 - `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'}` requests
   an S&D prep-phase purchase.
 - `{t:'chat',text:string}` broadcasts at most 120 trimmed characters only to
@@ -97,7 +103,7 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
 - Each player row has exactly
   `{id,name,x,y,z,yaw,pitch,hp,panic,pain,exhaustion,spawnProtected,weapon,
   score,kills,deaths,state,respawnAt,firing,ads,crouch,mag,reserve,reloading,
-  team,credits,owned,bomb,interaction}`.
+  team,credits,owned,bomb,interaction,grenades}`.
   `team` is `'alpha'|'bravo'|null`; `owned` is an array of weapon ids;
   `interaction` is `{kind:'plant'|'defuse',site,progress}` or `null`; `bomb`
   marks the carrier. `state` is `'alive'|'dead'`; `respawnAt` is the finite
@@ -112,6 +118,8 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   - `{t:'ev',kind:'kill',killer,victim,w,hs}`
   - `{t:'ev',kind:'block',x,y,z,v:0,from}`; the same mutation appears in
     `tick.blocks` at `i=(y*SZ+z)*SX+x`
+  - `{t:'ev',kind:'grenadeThrow',id,gid,o:[x,y,z],v:[x,y,z],fuse}` and
+    `{t:'ev',kind:'grenadeExplode',id,gid,x,y,z,radius}`
   - `{t:'die',kind:'die',id}` and
     `{t:'respawn',kind:'respawn',id,x,y,z}`
 - Mode events use `{t:'ev',kind,at,...fields}`. Their kinds and supplemental
@@ -141,8 +149,14 @@ panic/pain/exhaustion and stance, with only the documented aim tolerance. It
 never accepts client damage claims.
 
 ## Module APIs (exact)
+### shared/networking.js
+Exports the frozen `NETWORK_PRESENTATION` bounds used by both client smoothing
+and server rewind: buffer `65–180 ms` (default `80`), extrapolation at most
+`75 ms`, and reported view age `50–450 ms` (legacy default `100`).
+
 ### shared/worlddata.js
-Exports block ids `AIR` through `PALE`, `BLOCK_HP`, `SX`, `SZ`, `SY`, `GROUND`,
+Exports block ids `AIR` through `PALE`, `BLOCK_HP`, `GRENADE_RESISTANCE`, `SX`,
+`SZ`, `SY`, `GROUND`,
 `SEED`, the default-Foundry functions `getBlock`, `setBlock`, `heightAt`,
 `findSpawns(n)`, `serializeWorld()`, `deserializeWorld(buf)`,
 `rebuildHeightMap()`, `generateWorld()`, and
@@ -245,8 +259,8 @@ and exposes `quickPlay(meta,name,bots?)`,
   Omitting `mode` means quick.
 - State fields are `welcome`, `id`, `mapBytes`, `tickRate`, `spawn`,
   `latestSnapshots`, `latestEvents`, `latestLobbyState`, `latestMatch`, `ping`,
-  and `dirty`. Welcome, lobby, snapshots, rows, match data, and events are
-  immutable copies. `latestLobbyState` is
+  `networkStats`, and `dirty`. Welcome, lobby, snapshots, rows, match data, and
+  events are immutable copies. `latestLobbyState` is
   `{code,host,phase,bots,gameMode,map,members,selfId}`.
 - `on(type,fn)` returns an unsubscribe function; `off(type,fn)` removes it.
   Observable types are `open`, `close`, `welcome`, `lobby`, `serverError`,
@@ -254,10 +268,14 @@ and exposes `quickPlay(meta,name,bots?)`,
 - `isOpen()`, `sendInput(input)`, `setReady(boolean)`, `requestStart()`,
   `buyWeapon(id)`, and `close()` return or act on the current socket. Send
   methods return `true` only when handed to an open socket and a valid request.
-- `interpolate(renderNowMs,delayMs=100)` returns
+- `interpolate(renderNowMs,delayMs?)` returns
   `{players:Map<id,row>,events,match}`. It excludes the local row, shortest-arc
   interpolates yaw, selects authoritative match state, and emits/drains each
-  visible event once.
+  visible event once. With no override it uses the measured arrival jitter to
+  adapt within a bounded 65–180 ms buffer and extrapolates at most 75 ms at a
+  capped remote speed; state discontinuities snap to authority. Server tick
+  time is mapped onto the local clock with bounded drift correction so packet
+  bursts cannot compress authoritative movement into a speed spike.
 
 ### HUD
 - `buildMenu(onAction)` builds Quick Play/Create/Join and calls
@@ -404,7 +422,7 @@ step listener with the room.
   compact point-symmetric cargo map, and Citadel has Courtyard A and elevated
   Compound B with separated sightlines and rotation paths. Every declared spawn
   has solid footing and two-block headroom.
-- **Settings:** sensitivity defaults to `0.018`, clamps to `0.005–0.08`, and
+- **Settings:** sensitivity defaults to `0.010`, clamps to `0.005–0.08`, and
   persists as `vb-sens`; master volume defaults to `0.80`, clamps to `0–1`, and
   persists as `vb-volume`; FOV defaults to `75`, clamps to `65–100`, and
   persists as `vb-fov`. Changes apply immediately. Escape opens the in-game
@@ -419,9 +437,14 @@ step listener with the room.
   distant deaths, footsteps, draws, bullet whizzes, echo, music, and positional
   listener updates all route through `sfx` and the terminal limiter.
 - **Authority:** one room engine simulates movement, ammo, reloads, spread,
-  hits, destruction, death, score, and respawn at 20 Hz. The client predicts
-  feel/FX but accepted shots and all damage are server decisions. Shooter-side
-  rewind uses the 100 ms interpolation delay within a 500 ms history window.
+  hits, grenades, destruction, death, score, and respawn at 20 Hz. The client
+  predicts feel/FX but accepted shots and all damage are server decisions.
+  Shooter-side rewind uses the client's bounded `viewAge` within a 500 ms
+  history window so hit authority matches the target state actually rendered.
+- **Grenades:** every fresh life has two. `G` queues one throw edge; the server
+  owns trajectory, 2300 ms fuse, blast damage/line of sight, knockback, and a
+  resistance-limited terrain carve. Metal is blast-proof and each explosion
+  destroys at most 110 blocks.
 - **Hit confirmation:** shooter-side hitmarks, their confirmation sound, and
   world-anchored damage numbers share one camera-to-impact voxel visibility
   decision; intervening cover suppresses the complete confirmation.

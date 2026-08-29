@@ -13,6 +13,7 @@ import {
   computeSpreadConeDeg,
 } from '../../shared/combatmath.js';
 import { raycastVoxels } from '../../shared/raycast.js';
+import { NETWORK_PRESENTATION } from '../../shared/networking.js';
 import { evShoot, evHit, evBlock } from '../protocol.js';
 import {
   clamp01,
@@ -26,7 +27,6 @@ export const LONG_RANGE_KILL_DISTANCE = 40;
 export const NO_SCOPE_ADS_THRESHOLD = SNIPER_SCOPE_ADS_THRESHOLD;
 const P_HEIGHT = PLAYER_HALF.h * 2;
 const BLOCK_MIN_DMG = 12;
-const REWIND_MS = 100;
 const HISTORY_WINDOW_MS = 500;
 
 export function computeConeDeg(p) {
@@ -118,11 +118,18 @@ export function rayAABB(o, d, mnX, mnY, mnZ, mxX, mxY, mxZ) {
   return Math.max(t0, 0);
 }
 
-/** Position a human shooter saw after the fixed interpolation rewind. */
-export function rewindVictim(v, now) {
+/** Position a human shooter saw at its bounded reported presentation age. */
+export function rewindVictim(v, now, viewAgeMs = NETWORK_PRESENTATION.defaultViewAgeMs) {
   const h = v.hist;
   if (!h || !h.length) return v;
-  const readAt = now - REWIND_MS;
+  const boundedAge = Math.max(
+    NETWORK_PRESENTATION.minViewAgeMs,
+    Math.min(
+      NETWORK_PRESENTATION.maxViewAgeMs,
+      Number.isFinite(viewAgeMs) ? viewAgeMs : NETWORK_PRESENTATION.defaultViewAgeMs,
+    ),
+  );
+  const readAt = now - boundedAge;
   for (let i = h.length - 1; i >= 0; i--) {
     if (h[i].t <= readAt || i === 0) {
       // Clamp: never use a sample older than the window start.
@@ -139,7 +146,7 @@ export function nearestVictim(shooter, o, d, limit, ctx) {
   for (const v of ctx.entities.values()) {
     if (v === shooter || v.state !== 'alive') continue;
     if (!ctx.canDamage(shooter, v)) continue;
-    const pos = rewoundByShooter ? rewindVictim(v, ctx.now) : v;
+    const pos = rewoundByShooter ? rewindVictim(v, ctx.now, shooter.input?.viewAge) : v;
     const t = rayAABB(
       o, d,
       pos.x - PLAYER_HALF.x, pos.y, pos.z - PLAYER_HALF.x,
@@ -158,19 +165,31 @@ export function blockKey(x, y, z) {
   return x + ',' + y + ',' + z;
 }
 
-export function destroyBlock(x, y, z, key, ctx) {
+/** Remove exactly one non-air block and emit its one authoritative mutation. */
+export function destroyBlockDirect(x, y, z, key, ctx) {
   const from = ctx.getBlock(x, y, z);
+  if (from === AIR) {
+    if (key) ctx.blockHp.delete(key);
+    else ctx.blockHp.delete(blockKey(x, y, z));
+    return false;
+  }
   ctx.setBlock(x, y, z, AIR);
   if (key) ctx.blockHp.delete(key);
   else ctx.blockHp.delete(blockKey(x, y, z));
   ctx.pushBlockDelta(x, y, z, AIR);
   ctx.pushEvent(evBlock(x, y, z, AIR, from));
+  return true;
+}
+
+export function destroyBlock(x, y, z, key, ctx) {
+  if (!destroyBlockDirect(x, y, z, key, ctx)) return false;
 
   // Fragile chain-support: GLASS/LEAVES stacked above collapse too.
   const above = ctx.getBlock(x, y + 1, z);
   if (above === GLASS || above === LEAVES) {
     destroyBlock(x, y + 1, z, null, ctx);
   }
+  return true;
 }
 
 export function damageBlock(x, y, z, type, dmg, ctx) {

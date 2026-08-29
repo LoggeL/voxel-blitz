@@ -5,6 +5,13 @@ import {
   normalizeMapId,
   normalizeModeId,
 } from '../../../shared/modes.js';
+import { NetworkTiming } from './network-timing.js';
+import {
+  findSnapshotWindow,
+  sampleRemoteTransform,
+} from './snapshot-smoothing.js';
+
+export { angleLerpShortest } from './snapshot-smoothing.js';
 
 // Voxel Blitz — WebSocket client + snapshot interpolation layer.
 //
@@ -40,17 +47,6 @@ const now = () =>
   (typeof performance !== 'undefined' && performance.now)
     ? performance.now()
     : Date.now();
-
-/**
- * Shortest-arc yaw lerp in radians. Chooses whichever direction around the
- * circle is shorter, so yaw=3.0 -> yaw=-3.0 sweeps through PI rather than the
- * long way. @param {number} a start angle @param {number} b end angle
- * @param {number} t blend 0..1
- */
-export function angleLerpShortest(a, b, t) {
-  const diff = (((b - a) % (Math.PI * 2)) + Math.PI * 3) % (Math.PI * 2) - Math.PI;
-  return a + diff * t;
-}
 
 /**
  * Drains every event living in snapshots whose `.now <= upTo`, in arrival
@@ -123,6 +119,7 @@ const PASSTHROUGH_FIELDS = [
   'state', 'firing', 'ads', 'crouch', 'mag', 'reserve', 'reloading',
   'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt',
   'credits', 'owned', 'bomb', 'interaction',
+  'grenades',
 ];
 
 export class NetClient {
@@ -136,8 +133,10 @@ export class NetClient {
     this.tickRate = 20;
     this.spawn = null;
     this.dirty = false;          // true once the connection died post-welcome
-    this.ping = 0;               // smoothed tick-arrival jitter estimate (ms)
-    this._lastArrival = null;    // arrival time of the previous tick (local clock)
+    this._timing = new NetworkTiming({ tickRate: this.tickRate });
+    this._playerIndexes = new WeakMap();
+    this._snapshotWindow = [null, null];
+    this._pingNonce = 0;
 
     /** Newest-last ring buffer (max RING_LEN) of raw tick snapshots. */
     this.latestSnapshots = [];
@@ -157,6 +156,10 @@ export class NetClient {
     this._drainState = { seen: new Set(), seq: -1, snapSeq: -1 };
     this._pingTimer = null;
   }
+
+  /** Backward-compatible measured round-trip time in milliseconds. */
+  get ping() { return this._timing.rttMs; }
+  get networkStats() { return this._timing.readModel; }
 
   /**
    * Register a callback. Types: 'open', 'close', 'welcome', 'tick', 'chat',
@@ -215,8 +218,9 @@ export class NetClient {
     this._drainState.seen.clear();
     this._drainState.seq = -1;
     this._drainState.snapSeq = -1;
-    this._lastArrival = null;
-    this.ping = 0;
+    this._timing.reset(this.tickRate);
+    this._playerIndexes = new WeakMap();
+    this._pingNonce = 0;
     this._seq = 0;
     this._snapSeq = 1;
     this.dirty = !!dirty;
@@ -409,7 +413,7 @@ export class NetClient {
    *          forward?:boolean,back?:boolean,left?:boolean,right?:boolean,
    *          jump?:boolean,sprint?:boolean,crouch?:boolean,interact?:boolean},
    *          yaw:number,pitch:number,weapon:number,wantFire:boolean,
-   *          wantAds:boolean,reload:boolean,switchTo?:number}} input
+   *          wantAds:boolean,reload:boolean,throwGrenade?:boolean,switchTo?:number}} input
    * @returns {boolean} true only when the frame was handed to the socket
    */
   sendInput(input) {
@@ -434,7 +438,9 @@ export class NetClient {
       wantFire: !!input.wantFire,
       wantAds: !!input.wantAds,
       reload: !!input.reload,
+      viewAge: Math.round(this._timing.interpolationDelayMs + this._timing.rttMs),
     };
+    if (input.throwGrenade) msg.throwGrenade = true;
     if (Number.isInteger(input.switchTo)) msg.switchTo = input.switchTo;
     try {
       this.ws.send(JSON.stringify(msg));
@@ -503,36 +509,27 @@ export class NetClient {
 
   /**
    * Advance the view clock. Interpolates remote players between the two
-   * snapshots surrounding `renderNowMs - delayMs` (server-time mapped via the
-   * drift EMA) and drains every newly-visible event exactly once — returned
+   * snapshots surrounding `renderNowMs - delayMs` on the server-time-mapped
+   * local clock
+   * and drains every newly-visible event exactly once — returned
    * AND dispatched through on(kind,…). Rows exclude the local player id.
    * @param {number} renderNowMs performance.now()-based frame time
-   * @param {number} [delayMs=100] interpolation buffering behind wall clock
+   * @param {number} [delayMs] optional interpolation buffer override
    * @returns {{players:Map<string,object>,events:Array<object>,match:object|null}}
    */
-  interpolate(renderNowMs, delayMs = 100) {
+  interpolate(renderNowMs, delayMs = this._timing.interpolationDelayMs) {
     const snaps = this.latestSnapshots;
     // All snapshots now live on the local performance clock (see _onTick).
     const target = renderNowMs - delayMs;
     const players = new Map();
     let match = this.latestMatch;
 
-    let a = null; // newest snapshot with now <= target
-    let b = null; // oldest snapshot with now > target
-    for (let i = 0; i < snaps.length; i++) {
-      if (snaps[i].now <= target) a = snaps[i];
-      else {
-        b = snaps[i];
-        break;
-      }
-    }
-    if (b === null) b = a;
-    if (a === null) a = b;
+    findSnapshotWindow(snaps, target, this._snapshotWindow);
+    const a = this._snapshotWindow[0];
+    const b = this._snapshotWindow[1];
 
     if (a !== null && b !== null) {
-      const alphaRaw = b.now > a.now ? (target - a.now) / (b.now - a.now) : 0;
-      const alpha = Math.min(1, Math.max(0, alphaRaw));
-      const oldRows = a !== b ? indexById(a.players) : null;
+      const oldRows = a !== b ? this._playerIndexes.get(a) : null;
       match = b.match || match;
       const rows = Array.isArray(b.players) ? b.players : [];
       for (let i = 0; i < rows.length; i++) {
@@ -542,14 +539,12 @@ export class NetClient {
         const row = { id: cur.id };
         for (let f = 0; f < PASSTHROUGH_FIELDS.length; f++) {
           const field = PASSTHROUGH_FIELDS[f];
-          row[field] = immutableWireCopy(cur[field]);
+          // Snapshot rows are already recursively frozen. Reusing nested
+          // references here avoids cloning loadouts and mode metadata at FPS.
+          row[field] = cur[field];
         }
         if (prev) {
-          row.x = prev.x + (cur.x - prev.x) * alpha;
-          row.y = prev.y + (cur.y - prev.y) * alpha;
-          row.z = prev.z + (cur.z - prev.z) * alpha;
-          row.yaw = angleLerpShortest(prev.yaw, cur.yaw, alpha);
-          row.pitch = prev.pitch + (cur.pitch - prev.pitch) * alpha;
+          sampleRemoteTransform(prev, cur, target, a.now, b.now, row);
         } else {
           row.x = cur.x;
           row.y = cur.y;
@@ -601,6 +596,7 @@ export class NetClient {
         this.id = w.id;
         this.mapBytes = w.mapBytes || 0;
         this.tickRate = w.tickRate || 20;
+        this._timing.reset(this.tickRate);
         this.spawn = w.spawn;
         this._startPing(this.ws, this._sessionGeneration);
         this._emit('welcome', w);
@@ -630,6 +626,9 @@ export class NetClient {
       case 'tick':
         this._onTick(msg);
         break;
+      case 'pong':
+        this._timing.resolvePong(msg.nonce, now());
+        break;
       case 'chat':
         this._emit('chat', immutableWireCopy({
           id: msg.id,
@@ -650,29 +649,25 @@ export class NetClient {
 
   _onTick(msg) {
     const recvLocal = now();
-    // Single-timeline rule: every downstream consumer (bracket search,
-    // alpha blending, event draining) lives on the LOCAL performance clock,
-    // so the wire's epoch timestamp is parked alongside as serverNow.
-    // Comparing epochs against page-relative ms here is what previously
-    // produced a multi-year clockOffset and snapped the whole interpolation.
-    const prev = this._lastArrival ?? null;
-    this._lastArrival = recvLocal;
-    if (prev != null) {
-      const d = Math.abs(recvLocal - prev - (1000 / this.tickRate || 50));
-      this.ping = Math.round(this.ping * 0.9 + d * 0.1);
-    }
+    // Single-timeline rule: bracket search, blending and event draining live
+    // on the local performance clock. The room's fixed-step `msg.now` is
+    // mapped into that clock without inheriting packet-arrival compression.
+    this._timing.recordArrival(recvLocal);
 
     const rows = Array.isArray(msg.players) ? msg.players : [];
+    const serverNow = Number(msg.now);
+    const mappedNow = this._timing.mapServerTime(serverNow, recvLocal);
     const snapshot = immutableWireCopy({
       ...msg,
-      serverNow: msg.now,
-      now: recvLocal,
+      serverNow: Number.isFinite(serverNow) ? serverNow : null,
+      now: mappedNow,
       players: rows.filter((row) => row && typeof row === 'object'),
       match: msg.match && typeof msg.match === 'object' ? msg.match : null,
       recvLocalMs: recvLocal,
       snapSeq: this._snapSeq++,
     });
     this.latestMatch = snapshot.match;
+    this._playerIndexes.set(snapshot, indexById(snapshot.players));
     this.latestSnapshots.push(snapshot);
     if (this.latestSnapshots.length > RING_LEN) this.latestSnapshots.shift();
     this._emit('tick', snapshot);
@@ -681,16 +676,21 @@ export class NetClient {
 
   _startPing(ws = this.ws, generation = this._sessionGeneration) {
     this._stopPing();
-    this._pingTimer = setInterval(() => {
+    const sendPing = () => {
       // A queued callback from an old interval must never target its successor.
       if (!ws || this.ws !== ws || this._sessionGeneration !== generation ||
           ws.readyState !== 1) {
         return;
       }
       try {
-        ws.send(JSON.stringify({ t: 'ping', now: Date.now() }));
+        const nonce = ++this._pingNonce;
+        const sentAt = now();
+        this._timing.beginPing(nonce, sentAt);
+        ws.send(JSON.stringify({ t: 'ping', nonce }));
       } catch { /* socket raced shut; next session re-arms */ }
-    }, 2000);
+    };
+    sendPing();
+    this._pingTimer = setInterval(sendPing, 1500);
     if (typeof this._pingTimer.unref === 'function') this._pingTimer.unref();
   }
 

@@ -349,7 +349,8 @@ class Game {
   loop(generation) {
     if (!this.running || generation !== this._loopGeneration) return;
     this._rafId = requestAnimationFrame(() => { this._rafId = 0; this.loop(generation); });
-    const dt = Math.min(0.05, this.clock.getDelta());
+    const frameDt = Math.min(0.25, this.clock.getDelta());
+    const dt = Math.min(0.05, frameDt);
     const now = nowMs();
     this.session.syncGameplayInput();
     this.player.update(dt, now, {
@@ -383,6 +384,9 @@ class Game {
     this.weapon.settleFrame(dt);
     const def = this.weapon.def;
     this.player.updateCamera(dt, this.camera, def, this.weapon.adsT, this.session.baseFov);
+    const blastShake = this.effects.currentShakeXY;
+    this.camera.rotation.x += blastShake.y;
+    this.camera.rotation.y += blastShake.x;
     try {
       this.rig.update(dt, {
         speed: this.player.speedXZ,
@@ -402,7 +406,7 @@ class Game {
       this.worldview.update(dt);
     } catch (error) { this.phaseError('fx/rig', error); }
     try {
-      const view = this.net?.interpolate(performance.now(), 100);
+      const view = this.net?.interpolate(performance.now());
       const presentedPlayers = this.spectator?.ensureTargetPresent(view?.players)
         || view?.players;
       if (presentedPlayers) this.roster.sync(presentedPlayers, dt, now);
@@ -427,7 +431,9 @@ class Game {
       spawnProtected: this.player.spawnProtected,
       yawDeg: ((-this.player.view.yaw * 180 / Math.PI) % 360 + 360) % 360,
       alive: this.player.alive,
+      grenades: this.selfRow?.grenades ?? 0,
     });
+    this.hud.setTelemetry(frameDt, this.net?.networkStats, now);
     if (now - this._sbAt >= 250 && this.playersCache.length) {
       this._sbAt = now;
       this.hud.setPlayers(this.playersCache);

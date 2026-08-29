@@ -1,7 +1,7 @@
 export const MOUSE_SENSITIVITY = Object.freeze({
   min: 0.005,
   max: 0.08,
-  default: 0.018,
+  default: 0.01,
 });
 
 export function clampMouseSensitivity(value, fallback = MOUSE_SENSITIVITY.default) {

@@ -7,6 +7,9 @@ stack: procedural viewmodels, staged timer-driven animations, bloom/recoil,
 ADS, tracers, shell ejects, muzzle flash + barrel heat shader, block-shatter,
 damage numbers, hitmarkers, killfeed, a full-screen sniper optic, synthesized
 WebAudio layers, transient-aligned licensed firearm samples, and menu music.
+Every weapon has a dedicated generated HUD silhouette. The live HUD also shows
+measured round-trip history, arrival jitter, the adaptive snapshot buffer, FPS,
+and two server-authoritative terrain grenades per life.
 
 ## Run
 
@@ -201,6 +204,7 @@ and scores reset.
 | `Ctrl` / `C` | crouch; climb down while touching a ladder |
 | mouse1 / mouse2 | fire / ADS |
 | `R` | reload |
+| `G` | throw one server-authoritative terrain grenade (2 per life) |
 | `1-6` / wheel | weapon slots |
 | `Q` | previous weapon; while dead, previous spectator target |
 | `E` | hold S&D interaction; while dead, next spectator target |
@@ -269,10 +273,10 @@ spare magazine counts instead of a loose reserve-round total.
 shared/    mode/map rules, world generation/store, DDA raycast, ballistics
 server/    HTTP/ws host, room manager, authoritative 20 Hz sim, modes, bots
 public/js/
-  engine/  input, snapshots, chunk mesher, sky, interpolation, combat shader
+  engine/  input, snapshots, timing/smoothing, chunk mesher, sky, combat shader
   guns/    defs (feel tables) + viewmodel rig (procedural models, staged anims)
-  weapons/ pooled FX: tracers, impacts, shatter, shells, shake
-  ui/      menu/lobby, match HUD, buy dialog, scoreboard, combat feedback
+  weapons/ pooled FX: tracers, impacts, shatter, shells, grenades, shake
+  ui/      menu/lobby, match/network HUD, buy dialog, scoreboard, combat feedback
   audio/   sample bank + procedural WebAudio fallback, mix, music, voice limits
 tools/     fast contracts plus isolated visual, audio, and container QA flows
 ```
@@ -284,6 +288,11 @@ and streams as index deltas inside immutable client snapshots. Each tick also
 carries authoritative `match` state and player `team`, `credits`, `owned`,
 `bomb`, and interaction fields. Mode and combat events remain attached to their
 owning snapshots and are dispatched once by the interpolation/event drain.
+Measured RTT pings are independent of tick-arrival jitter. Remote transforms
+use an adaptive 65–180 ms presentation buffer, shortest-arc interpolation, and
+strictly capped extrapolation through short packet gaps. Server tick time is
+mapped onto the page clock, and bounded hit rewind follows the target age the
+client actually presented.
 
 ## Container deployment
 

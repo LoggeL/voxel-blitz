@@ -153,6 +153,8 @@ export async function runNetClientContracts(ok, installGlobals) {
         wantFire: false,
         wantAds: false,
         reload: false,
+        viewAge: 80,
+        throwGrenade: true,
       });
       const inputFrame = JSON.parse(joined.ws.sent.at(-1));
       ok(JSON.stringify(inputFrame) === JSON.stringify({
@@ -174,6 +176,8 @@ export async function runNetClientContracts(ok, installGlobals) {
         wantFire: false,
         wantAds: false,
         reload: false,
+        viewAge: 80,
+        throwGrenade: true,
       }),
       'NetClient sends the exact nested held-interaction input frame');
 
@@ -235,7 +239,7 @@ export async function runNetClientContracts(ok, installGlobals) {
       const firstInteraction = { kind: 'plant', site: 'A', progress: 0.2 };
       joined.ws.message(JSON.stringify({
         t: 'tick',
-        serverTime: 1000,
+        now: 1000,
         tick: 1,
         players: [{
           id: 23,
@@ -257,6 +261,7 @@ export async function runNetClientContracts(ok, installGlobals) {
           owned: firstOwned,
           bomb: firstBomb,
           interaction: firstInteraction,
+          grenades: 2,
           x: 2,
           y: 3,
           z: 4,
@@ -277,7 +282,7 @@ export async function runNetClientContracts(ok, installGlobals) {
       }));
       joined.ws.message(JSON.stringify({
         t: 'tick',
-        serverTime: 1050,
+        now: 1050,
         tick: 2,
         players: [{
           id: 23,
@@ -333,7 +338,8 @@ export async function runNetClientContracts(ok, installGlobals) {
         && rival.credits === 1900
         && rival.owned.join(',') === 'revolver'
         && rival.bomb.state === 'carried'
-        && rival.interaction.progress === 0.2,
+        && rival.interaction.progress === 0.2
+        && rival.grenades === 2,
       'interpolation preserves the complete newest remote gameplay state alongside transforms');
       const retainedRival = joined.client.latestSnapshots[0].players[0];
       ok(Object.isFrozen(rival)
@@ -389,5 +395,48 @@ export async function runNetClientContracts(ok, installGlobals) {
     } finally {
       restore();
     }
+  }
+
+  // Timing and sampling stay pure: stable links reduce buffer latency, noisy
+  // links expand it, and packet gaps never extrapolate into teleport smears.
+  {
+    const { NetworkTiming } = await import('../../public/js/engine/network-timing.js');
+    const { sampleRemoteTransform } = await import('../../public/js/engine/snapshot-smoothing.js');
+    const stable = new NetworkTiming({ tickRate: 20 });
+    for (let at = 0; at <= 2000; at += 50) stable.recordArrival(at);
+    const stableDelay = stable.interpolationDelayMs;
+    stable.beginPing(7, 100);
+    stable.resolvePong(7, 142);
+    stable.beginPing(8, 200);
+    stable.resolvePong(8, 250);
+    ok(stableDelay < 80
+      && stable.readModel.pingMs >= 42
+      && stable.readModel.pingMs <= 50
+      && stable.readModel.pingHistory.join(',') === '42,50',
+    'stable packet timing converges below the old fixed buffer and records measured RTT history');
+
+    const mappedFirst = stable.mapServerTime(100, 1000);
+    const mappedCompressed = stable.mapServerTime(150, 1012);
+    ok(mappedCompressed - mappedFirst >= 48 && mappedCompressed - mappedFirst <= 52,
+      'server-clock mapping preserves the 50 ms simulation step across compressed packet arrivals');
+
+    const noisy = new NetworkTiming({ tickRate: 20 });
+    let at = 0;
+    for (const spacing of [50, 95, 12, 88, 24, 105, 18, 82, 30, 110, 16, 90]) {
+      at += spacing;
+      noisy.recordArrival(at);
+    }
+    ok(noisy.interpolationDelayMs > stableDelay && noisy.readModel.jitterMs > 20,
+      'arrival jitter expands the adaptive buffer instead of forcing visible packet hitches');
+
+    const previous = { x: 0, y: 2, z: 0, yaw: 0, pitch: 0, state: 'alive' };
+    const current = { x: 0.4, y: 2, z: 0, yaw: 0.1, pitch: 0.05, state: 'alive' };
+    const interpolated = sampleRemoteTransform(previous, current, 25, 0, 50);
+    const extrapolated = sampleRemoteTransform(previous, current, 500, 0, 50);
+    const teleported = sampleRemoteTransform(previous, { ...current, x: 20 }, 25, 0, 50);
+    ok(Math.abs(interpolated.x - 0.2) < 1e-9
+      && extrapolated.x <= 1.01
+      && teleported.x === 20,
+    'remote sampling interpolates normally, caps packet-gap extrapolation, and snaps discontinuities');
   }
 }

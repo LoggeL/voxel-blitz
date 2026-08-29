@@ -74,6 +74,7 @@ export class LocalPlayer {
     this.sendAccum = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
+    this.grenadeThrowLatched = false;
     this._lastLocalImpact = null;
     this._lastReconciledSnapSeq = null;
     this._gameplayInputEnabled = false;
@@ -93,6 +94,7 @@ export class LocalPlayer {
       blockedByBuyMenu: false,
       fireTap: false,
       fireHeld: false,
+      throwGrenade: false,
     };
     this._frame = {
       jumped: false,
@@ -157,6 +159,7 @@ export class LocalPlayer {
     this.wishDir.z = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
+    this.grenadeThrowLatched = false;
     this.wantAds = false;
     this.physics._crouching = false;
   }
@@ -210,6 +213,7 @@ export class LocalPlayer {
     this.sendAccum = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
+    this.grenadeThrowLatched = false;
     this._lastLocalImpact = null;
     this._lastReconciledSnapSeq = null;
     this._reconcileResult.transition = null;
@@ -238,6 +242,7 @@ export class LocalPlayer {
     this.scopeActive = false;
     this.fireTapLatched = false;
     this.pendingShotIntent = null;
+    this.grenadeThrowLatched = false;
     this.wantAds = false;
     this.adsT = 0;
     this._aim = this.aimSway.reset();
@@ -342,6 +347,7 @@ export class LocalPlayer {
     weaponIntents.blockedByBuyMenu = false;
     weaponIntents.fireTap = false;
     weaponIntents.fireHeld = false;
+    weaponIntents.throwGrenade = false;
 
     if (input.consumeBuyMenuRequest()) {
       weaponIntents.buyMenuRequested = true;
@@ -362,6 +368,10 @@ export class LocalPlayer {
     weaponIntents.reload = !!(this.keys.reload && this._alive);
 
     const fireAllowed = isAllowed(intents.fireAllowed);
+    const grenadeTap = input.consumeGrenadeThrow();
+    if (grenadeTap && fireAllowed && this._alive) this.grenadeThrowLatched = true;
+    if (!fireAllowed || !this._alive) this.grenadeThrowLatched = false;
+    weaponIntents.throwGrenade = this.grenadeThrowLatched;
     const fireTap = input.consumeFireTap();
     const fireHeld = !!input.wantFireHeld;
     if (fireTap && fireAllowed) this.fireTapLatched = true;
@@ -497,11 +507,13 @@ export class LocalPlayer {
       weapon: weaponSlot,
       wantAds: this._gameplayInputEnabled && this.wantAds,
       reload: this._gameplayInputEnabled && reloading,
+      throwGrenade: this._gameplayInputEnabled && this.grenadeThrowLatched,
     };
     const sent = typeof intents.sendInput === 'function'
       ? !!intents.sendInput(payload)
       : false;
     if (sent && wantFire) this.fireTapLatched = false;
+    if (sent && payload.throwGrenade) this.grenadeThrowLatched = false;
     this._frame.inputPayload = payload;
     return sent;
   }

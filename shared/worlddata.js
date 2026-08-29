@@ -19,6 +19,7 @@ export {
   RUST,
   BRICK,
   BLOCK_HP,
+  GRENADE_RESISTANCE,
   SX,
   SZ,
   SY,

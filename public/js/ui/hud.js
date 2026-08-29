@@ -196,6 +196,9 @@ export class HUD {
   measureCompass() { return this.gameplay.measureCompass(); }
   findNextZeroTick(after) { return this.gameplay.findNextZeroTick(after); }
   setScoreboard(visible) { return this.gameplay.setScoreboard(visible); }
+  setTelemetry(frameDt, stats, atMs) {
+    return this.gameplay.setTelemetry(frameDt, stats, atMs);
+  }
   setPlayers(players) {
     this.combat.setNames(players);
     return this.gameplay.setPlayers(players);

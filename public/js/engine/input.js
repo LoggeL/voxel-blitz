@@ -45,6 +45,7 @@ export class Input {
     this._accDY = 0;
     this._fireTapQueued = false;
     this._reloadQueued = false;
+    this._grenadeQueued = false;
     this._switchQueue = 0;     // wheel steps accumulated (+/-1)
     this._pendingSlot = null;  // direct Digit1..6 pick (0..5) or null
     this._lastWeaponReq = false;
@@ -252,6 +253,13 @@ export class Input {
     return queued;
   }
 
+  /** G pressed since last call; one throw edge per physical key press. */
+  consumeGrenadeThrow() {
+    const queued = this._grenadeQueued;
+    this._grenadeQueued = false;
+    return queued;
+  }
+
   /** Clears all held keys/taps/intents/queues (window blur, tab hide, etc). */
   clearTransient() {
     const k = this.keys;
@@ -261,6 +269,7 @@ export class Input {
     this.wantAdsHeld = false;
     this._fireTapQueued = false;
     this._reloadQueued = false;
+    this._grenadeQueued = false;
     this._lastWeaponReq = false;
     this._buyMenuQueued = false;
     this._buyMenuHeld = false;
@@ -316,6 +325,7 @@ export class Input {
       case 'ControlLeft': case 'ControlRight': case 'KeyC': this.keys.crouch = true; break;
       case 'KeyE': this.keys.interact = true; break;
       case 'KeyR': if (!e.repeat) this._reloadQueued = true; break;
+      case 'KeyG': if (!e.repeat) this._grenadeQueued = true; break;
       case 'KeyQ': if (!e.repeat) this._lastWeaponReq = true; break;
       case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': case 'Digit6':
         if (!e.repeat) this._pendingSlot = Number(e.code.slice(-1)) - 1;

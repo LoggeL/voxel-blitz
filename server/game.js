@@ -10,6 +10,7 @@ import {
   getMapMeta,
 } from '../shared/worlddata.js';
 import { DEFAULT_MAP_ID } from '../shared/modes.js';
+import { NETWORK_PRESENTATION } from '../shared/networking.js';
 import { TICK_MS, makeSnapshot, evKill, evRespawn, evDie } from './protocol.js';
 import { ModeController } from './modes.js';
 import {
@@ -28,6 +29,7 @@ import {
   computeConeDeg,
   damageBlock,
   destroyBlock,
+  destroyBlockDirect,
   fireOneShot,
   nearestVictim,
   rayAABB,
@@ -36,6 +38,7 @@ import {
   switchWeapon,
 } from './sim/combat.js';
 import { SpawnSelector } from './sim/spawn.js';
+import { GrenadeSystem } from './sim/grenades.js';
 
 export { PHYSICS, SHOT_REACH, aimAngles, fwdFromYawPitch };
 
@@ -69,6 +72,7 @@ export class GameEngine {
     this.tickBlocks = [];
     this.tickEvents = [];
     this.tickHooks = [];
+    this.grenades = new GrenadeSystem();
 
     this.mode = new ModeController(this, { mode: callbacks.mode, mapMeta: this.mapMeta });
     this.spawnSelector = new SpawnSelector({
@@ -130,6 +134,7 @@ export class GameEngine {
     for (const player of this.entities.values()) {
       if (player.state === 'alive') this.updateCondition(player, dt);
     }
+    this.grenades.step(dt, this.grenadeContext());
     for (const player of this.entities.values()) {
       player.firing = false;
       if (player.state === 'alive') this.resolveWeaponIntent(player);
@@ -207,6 +212,7 @@ export class GameEngine {
     player.input = null;
     player.triggerPrev = false;
     player.fireEdgeQueued = false;
+    player.grenadeEdgeQueued = false;
     this.entities.set(pid, player);
     this.humanIds.add(pid);
     return this.spawnInfoFor(player);
@@ -283,6 +289,13 @@ export class GameEngine {
       wantFire: !!msg.wantFire,
       wantAds: !!msg.wantAds,
       reload: !!msg.reload,
+      throwGrenade: !!msg.throwGrenade,
+      viewAge: Number.isFinite(msg.viewAge)
+        ? Math.max(
+          NETWORK_PRESENTATION.minViewAgeMs,
+          Math.min(NETWORK_PRESENTATION.maxViewAgeMs, msg.viewAge),
+        )
+        : (previous?.viewAge ?? NETWORK_PRESENTATION.defaultViewAgeMs),
       switchTo: undefined,
     };
     input.yaw = Number.isFinite(msg.yaw)
@@ -294,6 +307,9 @@ export class GameEngine {
     const requestedWeapon = msg.switchTo != null ? msg.switchTo : msg.weapon;
     if (Number.isFinite(requestedWeapon)) input.switchTo = clampWeaponSlot(requestedWeapon);
     if (input.wantFire && !(previous && previous.wantFire)) player.fireEdgeQueued = true;
+    if (input.throwGrenade && !(previous && previous.throwGrenade)) {
+      player.grenadeEdgeQueued = true;
+    }
     player.input = input;
   }
 
@@ -373,6 +389,24 @@ export class GameEngine {
       pushBlockDelta: (x, y, z, value) => this.pushBlockDelta(x, y, z, value),
       pushEvent: (event) => this.tickEvents.push(event),
       computeConeDeg: (player) => this.computeConeDeg(player),
+    };
+  }
+
+  grenadeContext() {
+    return {
+      now: this.now,
+      entities: this.entities,
+      getBlock: (x, y, z) => this.world.getBlock(x, y, z),
+      canAffectWorld: () => this.mode.phase === 'live',
+      canThrow: (player) => this.mode.canFire(player),
+      canDamage: (attacker, target) => this.mode.canDamage(attacker, target),
+      destroyBlock: (x, y, z) => destroyBlockDirect(
+        x, y, z, null, this.combatContext(),
+      ),
+      killPlayer: (victim, killer, weapon, headshot, markers) => (
+        this.killPlayer(victim, killer, weapon, headshot, markers)
+      ),
+      pushEvent: (event) => this.tickEvents.push(event),
     };
   }
 

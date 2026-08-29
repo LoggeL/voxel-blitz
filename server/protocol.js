@@ -12,4 +12,13 @@ export {
 
 export { makeWelcome, makeLobbyState } from './protocol/welcome.js';
 export { makeSnapshot } from './protocol/snapshot.js';
-export { evShoot, evHit, evKill, evBlock, evRespawn, evDie } from './protocol/events.js';
+export {
+  evShoot,
+  evHit,
+  evKill,
+  evBlock,
+  evRespawn,
+  evDie,
+  evGrenadeThrow,
+  evGrenadeExplode,
+} from './protocol/events.js';

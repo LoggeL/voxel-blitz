@@ -15,11 +15,20 @@ import {
   computeSpreadConeDeg,
 } from '../shared/combatmath.js';
 import { valueNoise2 } from '../shared/noise.js';
+import { NETWORK_PRESENTATION } from '../shared/networking.js';
 import { raycastVoxels } from '../shared/raycast.js';
-import { getMapMeta, serializeWorld } from '../shared/worlddata.js';
+import {
+  AIR,
+  GLASS,
+  METAL,
+  STONE,
+  getMapMeta,
+  serializeWorld,
+} from '../shared/worlddata.js';
 import { GameEngine } from '../server/game.js';
 import { attachBots } from '../server/bots.js';
 import { TICK_MS, evDie, evRespawn, makeSnapshot } from '../server/protocol.js';
+import { GRENADE_RULES } from '../server/sim/grenades.js';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { ImpactFX } from '../public/js/weapons/impacts.js';
 
@@ -207,13 +216,133 @@ function runDirectContracts() {
     t: 'input',
     keys: { f: false, b: false, l: false, r: false, jump: false, sprint: false, crouch: false },
     yaw: 0, pitch: 1.2, weapon: 0, wantAds: false, reload: false,
+    viewAge: 9999,
   };
   tapEngine.applyInput('tap', { ...tapInput, seq: 1, wantFire: true });
   tapEngine.applyInput('tap', { ...tapInput, seq: 2, wantFire: false });
   tapEngine.step(TICK_MS);
   const tapShot = tapSnapshots[0]?.events.find((event) => event.kind === 'shoot' && event.id === 'tap');
-  ok(tapShot && tapper.hp === 100,
-    'a complete fire tap between ticks is accepted once without self-damage');
+  ok(tapShot && tapper.hp === 100
+    && tapper.input.viewAge === NETWORK_PRESENTATION.maxViewAgeMs,
+  'a complete fire tap is accepted once and its reported view age is authority-clamped');
+
+  const grenadeEngine = new GameEngine();
+  grenadeEngine.addBot('thrower', 'Thrower');
+  grenadeEngine.addBot('blast-target', 'Blast Target');
+  const thrower = grenadeEngine.entities.get('thrower');
+  const blastTarget = grenadeEngine.entities.get('blast-target');
+  Object.assign(thrower, { x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0 });
+  Object.assign(blastTarget, { x: 44.5, y: 20, z: 53, hp: 100 });
+  for (let y = 18; y <= 24; y++) {
+    for (let z = 47; z <= 55; z++) {
+      for (let x = 38; x <= 49; x++) grenadeEngine.world.setBlock(x, y, z, AIR);
+    }
+  }
+  grenadeEngine.world.setBlock(44, 20, 50, STONE);
+  grenadeEngine.world.setBlock(45, 20, 50, METAL);
+  const grenadeContext = grenadeEngine.grenadeContext();
+  const grenade = grenadeEngine.grenades.throw(thrower, grenadeContext);
+  Object.assign(grenade, { x: 44.5, y: 21.5, z: 50.5 });
+  grenadeEngine.grenades.explode(grenade, grenadeContext);
+  ok(thrower.grenades === 1
+    && blastTarget.hp < 100
+    && grenadeEngine.world.getBlock(44, 20, 50) === AIR
+    && grenadeEngine.world.getBlock(45, 20, 50) === METAL
+    && grenadeEngine.tickEvents.some((event) => event.kind === 'grenadeThrow')
+    && grenadeEngine.tickEvents.some((event) => event.kind === 'grenadeExplode')
+    && grenadeEngine.tickEvents.some((event) => event.kind === 'hit' && event.victim === 'blast-target'),
+  'one authoritative grenade consumes inventory, damages visible players, destroys stone, and preserves metal');
+
+  const blastCapEngine = new GameEngine();
+  blastCapEngine.addBot('cap-owner', 'Cap Owner');
+  const capOwner = blastCapEngine.entities.get('cap-owner');
+  Object.assign(capOwner, { x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0 });
+  for (let y = 18; y <= 35; y++) {
+    for (let z = 47; z <= 53; z++) {
+      for (let x = 41; x <= 47; x++) blastCapEngine.world.setBlock(x, y, z, GLASS);
+    }
+    blastCapEngine.world.setBlock(44, y, 50, AIR);
+  }
+  const capContext = blastCapEngine.grenadeContext();
+  const capGrenade = blastCapEngine.grenades.throw(capOwner, capContext);
+  const capOrigin = [44.5, 20.5, 50.5];
+  Object.assign(capGrenade, { x: capOrigin[0], y: capOrigin[1], z: capOrigin[2] });
+  blastCapEngine.grenades.explode(capGrenade, capContext);
+  const blastBlocks = blastCapEngine.tickEvents.filter((event) => event.kind === 'block');
+  const blastBlockKeys = new Set(blastBlocks.map((event) => `${event.x},${event.y},${event.z}`));
+  ok(blastBlocks.length > 0
+    && blastBlocks.length <= GRENADE_RULES.maxDestroyedBlocks
+    && blastBlockKeys.size === blastBlocks.length
+    && blastBlocks.every((event) => Math.hypot(
+      event.x + 0.5 - capOrigin[0],
+      event.y + 0.5 - capOrigin[1],
+      event.z + 0.5 - capOrigin[2],
+    ) <= GRENADE_RULES.terrainRadius),
+  'grenade terrain carving stays unique, inside its radius, and below its hard block cap');
+
+  const ownerEngine = new GameEngine();
+  ownerEngine.addBot('owner-bot', 'Owner Bot');
+  ownerEngine.addBot('owner-target', 'Owner Target');
+  const ownerBot = ownerEngine.entities.get('owner-bot');
+  const ownerTarget = ownerEngine.entities.get('owner-target');
+  Object.assign(ownerBot, { x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0 });
+  Object.assign(ownerTarget, { x: 46.5, y: 20, z: 50.5, hp: 100 });
+  for (let y = 18; y <= 24; y++) {
+    for (let z = 47; z <= 53; z++) {
+      for (let x = 38; x <= 49; x++) ownerEngine.world.setBlock(x, y, z, AIR);
+    }
+  }
+  const ownerContext = ownerEngine.grenadeContext();
+  const ownedGrenade = ownerEngine.grenades.throw(ownerBot, ownerContext);
+  ownerEngine.takeoverBot('owner-bot', 'owner-human', 'Owner Human');
+  Object.assign(ownedGrenade, { x: 45.2, y: 21.1, z: 50.5 });
+  ownerEngine.grenades.explode(ownedGrenade, ownerContext);
+  const ownedExplosion = ownerEngine.tickEvents.find((event) => event.kind === 'grenadeExplode');
+  const ownedHit = ownerEngine.tickEvents.find(
+    (event) => event.kind === 'hit' && event.victim === 'owner-target',
+  );
+
+  const protectedEngine = new GameEngine();
+  protectedEngine.addBot('protected-owner', 'Protected Owner');
+  const protectedOwner = protectedEngine.entities.get('protected-owner');
+  const protectedContext = protectedEngine.grenadeContext();
+  const protectedGrenade = protectedEngine.grenades.throw(protectedOwner, protectedContext);
+  protectedEngine.respawnPlayer(
+    protectedOwner,
+    { x: 44.5, y: 20, z: 50.5, index: 0 },
+    { protect: true },
+  );
+  for (let y = 18; y <= 24; y++) {
+    for (let z = 47; z <= 53; z++) {
+      for (let x = 41; x <= 47; x++) protectedEngine.world.setBlock(x, y, z, AIR);
+    }
+  }
+  Object.assign(protectedGrenade, { x: 44.5, y: 21, z: 50.5 });
+  protectedEngine.grenades.explode(protectedGrenade, protectedContext);
+
+  const postEngine = new GameEngine();
+  postEngine.addBot('post-owner', 'Post Owner');
+  postEngine.addBot('post-target', 'Post Target');
+  const postOwner = postEngine.entities.get('post-owner');
+  const postTarget = postEngine.entities.get('post-target');
+  const postContext = postEngine.grenadeContext();
+  const postGrenade = postEngine.grenades.throw(postOwner, postContext);
+  postEngine.mode.policy.phase = 'post';
+  Object.assign(postTarget, { x: 44.5, y: 20, z: 50.5, hp: 100 });
+  postEngine.world.setBlock(44, 20, 51, STONE);
+  Object.assign(postGrenade, { x: 44.5, y: 21, z: 50.5 });
+  const postEventStart = postEngine.tickEvents.length;
+  postEngine.grenades.explode(postGrenade, postContext);
+  const postEvents = postEngine.tickEvents.slice(postEventStart);
+  ok(ownedGrenade.owner.id === 'owner-human'
+    && ownedExplosion?.id === 'owner-human'
+    && ownedHit?.attacker === 'owner-human'
+    && protectedOwner.hp === 100
+    && postTarget.hp === 100
+    && postEngine.world.getBlock(44, 20, 51) === STONE
+    && postEvents.some((event) => event.kind === 'grenadeExplode')
+    && !postEvents.some((event) => event.kind === 'hit' || event.kind === 'block'),
+  'grenades retain takeover ownership, respect fresh-life protection, and become inert after live play');
 
   const snapshots = [];
   const fireEngine = new GameEngine({ broadcast: (msg) => snapshots.push(msg) });
@@ -1431,6 +1560,15 @@ async function runNetwork(server, clients) {
   ok(b.mapBytes === b.welcome.mapBytes, `SmokeB binary length matches welcome (${b.mapBytes} bytes)`);
   ok(a.id && b.id && a.id !== b.id, 'distinct player ids');
 
+  const pingMark = a.mark();
+  a.send({ t: 'ping', nonce: 918273 });
+  const pong = await a.waitForJson(
+    (message) => message?.t === 'pong' && message.nonce === 918273,
+    'application pong',
+    pingMark,
+  );
+  ok(pong.nonce === 918273, 'server echoes the exact application ping nonce for measured RTT');
+
   for (let s = 0; s < 150; s++) {
     a.input(s, { forward: true, fire: true });
     b.input(s, { fire: true, yaw: Math.PI / 4 });
@@ -1449,8 +1587,9 @@ async function runNetwork(server, clients) {
     && me.reserve.every(Number.isFinite)
     && typeof me.reloading === 'boolean'
     && Number.isFinite(me.panic) && me.panic >= 0 && me.panic <= 1
-    && Number.isFinite(me.exhaustion) && me.exhaustion >= 0 && me.exhaustion <= 1,
-  'wire snapshot carries dynamic ammo, reload, and normalized hidden conditions');
+    && Number.isFinite(me.exhaustion) && me.exhaustion >= 0 && me.exhaustion <= 1
+    && Number.isInteger(me.grenades) && me.grenades >= 0,
+  'wire snapshot carries dynamic ammo, reload, grenade, and normalized hidden-condition state');
 
   const shoot = a.events.find((e) => e.kind === 'shoot');
   ok(shoot, 'shoot events broadcast inside snapshots');

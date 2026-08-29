@@ -13,6 +13,7 @@ const sampleFileSlots = {
   'ui.hitmark.head': `${SLOT_ROOT}/ui/hitmark-head.ogg`,
   'movement.footstep': `${SLOT_ROOT}/movement/footstep.ogg`,
   'combat.bulletWhiz': `${SLOT_ROOT}/combat/bullet-whiz.ogg`,
+  'combat.grenadeExplosion': `${SLOT_ROOT}/combat/grenade-explosion.ogg`,
   'human.pain.light': `${SLOT_ROOT}/human/pain-light.ogg`,
   'human.pain.heavy': `${SLOT_ROOT}/human/pain-heavy.ogg`,
   'human.pain.head': `${SLOT_ROOT}/human/pain-head.ogg`,

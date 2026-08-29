@@ -14,6 +14,8 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
   'hit',
   'kill',
   'block',
+  'grenadeThrow',
+  'grenadeExplode',
   'respawn',
   'die',
 ]);

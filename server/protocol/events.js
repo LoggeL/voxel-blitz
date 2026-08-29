@@ -61,3 +61,20 @@ export function evRespawn(id, x, y, z) {
 export function evDie(id) {
   return { t: 'die', kind: 'die', id: String(id) };
 }
+
+export function evGrenadeThrow(id, grenadeId, origin, velocity, fuseMs) {
+  return {
+    t: 'ev', kind: 'grenadeThrow', id: String(id), gid: String(grenadeId),
+    o: origin.map((value) => round(value, D2)),
+    v: velocity.map((value) => round(value, D2)),
+    fuse: Math.max(0, Math.round(Number(fuseMs) || 0)),
+  };
+}
+
+export function evGrenadeExplode(id, grenadeId, origin, radius) {
+  return {
+    t: 'ev', kind: 'grenadeExplode', id: String(id), gid: String(grenadeId),
+    x: round(origin[0], D2), y: round(origin[1], D2), z: round(origin[2], D2),
+    radius: round(radius, D2),
+  };
+}

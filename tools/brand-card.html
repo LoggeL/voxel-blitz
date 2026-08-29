@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { box-sizing: border-box; }
+  html, body { width: 1200px; height: 630px; margin: 0; overflow: hidden; }
+  body {
+    position: relative;
+    color: #eef2f5;
+    background: #05070a url('../public/assets/maps/foundry-concept.webp') center/cover no-repeat;
+    font-family: 'Arial Narrow', 'Helvetica Neue Condensed', Arial, sans-serif;
+  }
+  body::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(90deg, rgba(4, 6, 9, .97) 0%, rgba(4, 6, 9, .82) 46%, rgba(4, 6, 9, .18) 78%),
+      linear-gradient(0deg, rgba(4, 6, 9, .82), transparent 48%);
+  }
+  body::after {
+    content: '';
+    position: absolute;
+    inset: 22px;
+    border: 1px solid rgba(255, 159, 28, .55);
+    clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);
+  }
+  main { position: relative; z-index: 1; width: 690px; height: 100%; padding: 64px 70px; }
+  .mark { width: 164px; height: 164px; object-fit: contain; filter: drop-shadow(0 12px 24px rgba(0, 0, 0, .7)); }
+  .kicker { margin-top: 22px; color: #ffb84d; font-size: 18px; font-weight: 700; letter-spacing: .34em; }
+  h1 { margin: 5px 0 8px; color: #ff9f1c; font-size: 76px; line-height: .95; letter-spacing: .075em; text-shadow: 4px 5px 0 rgba(44, 52, 62, .72); }
+  p { width: 560px; margin: 0; color: #d4dbe2; font-size: 22px; font-weight: 700; letter-spacing: .16em; line-height: 1.35; }
+  .chips { display: flex; gap: 10px; margin-top: 24px; }
+  .chips span { padding: 7px 11px; color: #ffcf87; background: rgba(5, 7, 10, .82); border: 1px solid rgba(255, 159, 28, .45); font-size: 13px; font-weight: 700; letter-spacing: .12em; }
+</style>
+</head>
+<body data-ready="voxel-blitz-brand-card">
+<main>
+  <img class="mark" src="../public/assets/brand/voxel-blitz-mark.png" alt="">
+  <div class="kicker">MULTIPLAYER VOXEL FPS</div>
+  <h1>VOXEL BLITZ</h1>
+  <p>FAST GUNPLAY. DESTRUCTIBLE ARENAS. NO INSTALL.</p>
+  <div class="chips"><span>QUICK PLAY</span><span>S&amp;D</span><span>GUN GAME</span></div>
+</main>
+</body>
+</html>

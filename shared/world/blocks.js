@@ -22,6 +22,24 @@ export const BLOCK_HP = {
   [ACCENT]: 45,
 };
 
+/** Blast resistance. Finite entries can be removed by a close grenade blast. */
+export const GRENADE_RESISTANCE = Object.freeze({
+  [GRASS]: 20,
+  [DIRT]: 24,
+  [STONE]: 92,
+  [SAND]: 16,
+  [WOOD]: 42,
+  [LEAVES]: 8,
+  [CONCRETE]: 112,
+  [METAL]: Infinity,
+  [ACCENT]: 52,
+  [PLANK]: 28,
+  [GLASS]: 6,
+  [PALE]: 94,
+  [RUST]: 68,
+  [BRICK]: 82,
+});
+
 export const SX = 128;
 export const SZ = 96;
 export const SY = 40;

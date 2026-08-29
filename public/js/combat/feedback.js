@@ -176,6 +176,15 @@ export class CombatFeedback {
         }
         break;
       }
+      case 'grenadeThrow': {
+        this.effects.grenadeThrow(ev);
+        break;
+      }
+      case 'grenadeExplode': {
+        this.effects.grenadeExplode(ev);
+        this.sfx.grenadeExplosion([ev.x, ev.y, ev.z]);
+        break;
+      }
       case 'respawn': {
         if (ev.id === myId) {
           const selfRow = this.getSelfRow();

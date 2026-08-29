@@ -7,6 +7,7 @@ export const GLYPH = Object.freeze({
   sniper: 'SN',
   lmg: 'LMG',
   revolver: 'REV',
+  grenade: 'GRN',
 });
 
 export const WEAPON_NAMES = Object.freeze({

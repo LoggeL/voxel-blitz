@@ -325,6 +325,26 @@ export const sfx = {
     });
   },
 
+  grenadeExplosion(pos) {
+    const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
+    run('grenadeExplosion', () => {
+      const output = pool.acquire({ pos: deferredPos }, 1.25);
+      output.gain.value = 1.08;
+      if (samples.play('combat.grenadeExplosion', output)) return;
+      const at = primitives.nowT();
+      primitives.hiss(output, {
+        t0: at, filter: 'lowpass', f: 680, q: 0.55, dec: 0.34, g: 0.82,
+      });
+      primitives.hiss(output, {
+        t0: at + 0.012, filter: 'bandpass', f: 1850, q: 0.8, dec: 0.16, g: 0.34,
+      });
+      primitives.tone(output, {
+        t0: at, type: 'sine', f0: 78, f1: 31, att: 0.001, dec: 0.42, g: 0.72,
+      });
+      sendEcho(output, primitives, 0.22, engine.echoIn, addCleanup);
+    });
+  },
+
   setListener(listener) {
     engine.setListener(listener);
   },

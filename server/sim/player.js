@@ -135,6 +135,8 @@ export class PlayerEntity {
     this.hist = [];
     this.triggerPrev = false;
     this.fireEdgeQueued = false;
+    this.grenadeEdgeQueued = false;
+    this.grenades = 2;
     this.grounded = false;
     this.coyote = 0;
     this.crouch = false;

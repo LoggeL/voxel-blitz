@@ -2000,7 +2000,8 @@ h1.vb-title::after {
   display: flex;
   align-items: baseline;
   gap: 9px;
-  padding: 8px 14px 10px;
+  min-width: 282px;
+  padding: 8px 14px 10px 126px;
   background: var(--glass-soft);
   border: 1px solid var(--line-dim);
   clip-path: polygon(
@@ -2012,6 +2013,81 @@ h1.vb-title::after {
     0 var(--cut)
   );
 }
+
+#weapon-icon {
+  position: absolute;
+  left: 10px;
+  bottom: 7px;
+  width: 110px;
+  height: 56px;
+  object-fit: contain;
+  object-position: center;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.78));
+}
+
+#grenade-count {
+  position: absolute;
+  left: 12px;
+  bottom: calc(100% + 8px);
+  min-width: 44px;
+  padding: 2px 5px;
+  font: 700 10px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  color: var(--amber-hi);
+  background: rgba(5, 7, 10, 0.82);
+  border: 1px solid rgba(255, 159, 28, 0.45);
+}
+
+/* ---------- live telemetry ---------- */
+
+#net-meter {
+  position: absolute;
+  top: 16px;
+  right: 18px;
+  width: 178px;
+  padding: 6px 8px 5px;
+  color: var(--ok);
+  background: rgba(5, 8, 11, 0.76);
+  border: 1px solid rgba(127, 208, 105, 0.28);
+  clip-path: polygon(7px 0, 100% 0, 100% calc(100% - 7px), calc(100% - 7px) 100%, 0 100%, 0 7px);
+}
+
+.vb-net-values {
+  display: flex;
+  justify-content: space-between;
+  font: 700 10px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+.vb-net-history {
+  display: flex;
+  align-items: end;
+  gap: 2px;
+  height: 24px;
+  margin-top: 3px;
+  border-bottom: 1px solid rgba(127, 208, 105, 0.18);
+}
+
+.vb-net-history i {
+  flex: 1 1 0;
+  min-width: 1px;
+  height: 2px;
+  background: currentColor;
+  opacity: 0.78;
+  transition: height 120ms linear;
+}
+
+.vb-net-history i.warn { background: var(--amber); }
+.vb-net-history i.bad { background: var(--danger); }
+.vb-net-buffer {
+  display: block;
+  margin-top: 3px;
+  font: 500 8px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  color: var(--sub);
+}
+#net-meter.vb-net-warn { color: var(--amber); border-color: rgba(255, 159, 28, 0.38); }
+#net-meter.vb-net-bad { color: var(--danger); border-color: rgba(255, 51, 85, 0.5); }
 
 #weaponname {
   position: absolute;
@@ -2844,6 +2920,13 @@ h1.vb-title::after {
 }
 
 @media (max-width: 960px) {
+  #net-meter {
+    top: 104px;
+    right: auto;
+    left: 12px;
+    width: 156px;
+  }
+
   .vb-match-header {
     min-width: calc(100vw - 24px);
     padding: 5px 8px;
@@ -2927,6 +3010,61 @@ h1.vb-title::after {
 
   .vb-econ-cluster {
     bottom: 96px;
+  }
+}
+
+@media (max-width: 520px) {
+  #healthbar {
+    left: 10px;
+    bottom: 12px;
+    width: 138px;
+    padding-inline: 10px;
+  }
+
+  #hpfill {
+    background-size: 116px 100%;
+  }
+
+  #ammo {
+    right: 10px;
+    bottom: 12px;
+    min-width: 0;
+    width: 200px;
+    gap: 4px;
+    padding: 7px 8px 9px 72px;
+  }
+
+  #weapon-icon {
+    left: 5px;
+    bottom: 7px;
+    width: 64px;
+    height: 40px;
+  }
+
+  #grenade-count {
+    left: 6px;
+    bottom: calc(100% + 6px);
+  }
+
+  #weaponname {
+    right: 8px;
+    bottom: calc(100% + 6px);
+    font-size: 10px;
+  }
+
+  #ammocount { font-size: 38px; }
+  #ammoreserve { font-size: 14px; }
+
+  #net-meter {
+    width: 138px;
+  }
+
+  .vb-net-history {
+    height: 14px;
+  }
+
+  .vb-net-buffer {
+    display: none;
   }
 }
 

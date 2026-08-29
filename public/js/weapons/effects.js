@@ -5,6 +5,7 @@ import { BrassPool } from './brass.js';
 import { GoreFX } from './gore.js';
 import { ImpactFX, blockSoundFor } from './impacts.js';
 import { hideInstance } from './instancing.js';
+import { GrenadeFX } from './grenades.js';
 
 export { blockSoundFor };
 
@@ -24,6 +25,7 @@ export class Effects {
     );
     this.goreFx = new GoreFX(scene, camera, this.getBlockFn);
     this.brass = new BrassPool(scene, this.getBlockFn);
+    this.grenades = new GrenadeFX(scene, this.getBlockFn);
 
     this.stats = {};
     Object.defineProperties(this.stats, {
@@ -32,6 +34,7 @@ export class Effects {
         enumerable: true,
         get: () => this.impacts?.particlesSpawned || 0,
       },
+      grenades: { enumerable: true, get: () => this.grenades?.projectiles.size || 0 },
     });
   }
 
@@ -91,6 +94,29 @@ export class Effects {
     if (!this._disposed) this.brass.spawn(position, velocity);
   }
 
+  grenadeThrow(event) {
+    if (!this._disposed) this.grenades.throw(event);
+  }
+
+  grenadeExplode(event) {
+    if (this._disposed) return;
+    this.grenades.explode(event);
+    this.impacts.spawnParticles(
+      Number(event.x), Number(event.y), Number(event.z),
+      34, 0xff9f1c,
+      { speed: 8.2, gravity: 15, size: 1.55, life: 0.72, sparks: true },
+    );
+    const position = this.camera?.position;
+    if (position) {
+      const distance = Math.hypot(
+        position.x - Number(event.x),
+        position.y - Number(event.y),
+        position.z - Number(event.z),
+      );
+      this.shake(Math.max(0, 0.95 - distance / 26));
+    }
+  }
+
   update(dt) {
     if (this._disposed) return;
     this._trauma = Math.max(0, this._trauma - dt * 1.8);
@@ -98,6 +124,7 @@ export class Effects {
     this.impacts.update(dt);
     this.goreFx.update(dt);
     this.brass.update(dt);
+    this.grenades.update(dt);
   }
 
   shake(amount) {
@@ -119,6 +146,7 @@ export class Effects {
     this.impacts.dispose();
     this.goreFx.dispose();
     this.brass.dispose();
+    this.grenades.dispose();
   }
 }
 

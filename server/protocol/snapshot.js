@@ -130,6 +130,7 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       owned: ownedWeapons(p.owned),
       bomb: !!p.bomb,
       interaction: interactionCopy(p.interaction),
+      grenades: Number.isFinite(p.grenades) ? Math.max(0, Math.trunc(p.grenades)) : 0,
     })),
     // Engines clear these scratch arrays after broadcasting, so snapshots must
     // not retain either source array.
