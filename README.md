@@ -78,6 +78,11 @@ front, profile, firing, ADS-profile, and crouched-profile views, plus one
 representative ally-spectator shot. The focused 31-frame matrix is written to
 `.artifacts/avatar-renders/`.
 
+The project-owned illustrations in `public/assets/weapons/hud/` are the
+canonical silhouette and material references for all six procedural models.
+The capture flows validate that each reference-faithful model still fits both
+the first-person view and remote-avatar presentation.
+
 The audio audit inventories all 13 shipped fire, reload, and music assets,
 measures runtime gain/playback-rate profiles, and writes waveforms,
 spectrograms, metrics, and an HTML comparison to `.artifacts/audio-audit/`.

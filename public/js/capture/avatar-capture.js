@@ -91,16 +91,24 @@ renderer.render(scene, camera);
 renderer.render(scene, camera);
 
 avatar.group.updateMatrixWorld(true);
-const weaponCenter = avatar.weaponModel.modelRoot
-  ? new THREE.Box3().setFromObject(avatar.weaponModel.modelRoot).getCenter(new THREE.Vector3())
-  : new THREE.Vector3();
+const weaponBounds = avatar.weaponModel.modelRoot
+  ? new THREE.Box3().setFromObject(avatar.weaponModel.modelRoot)
+  : new THREE.Box3();
+const weaponCorners = [];
+for (const x of [weaponBounds.min.x, weaponBounds.max.x]) {
+  for (const y of [weaponBounds.min.y, weaponBounds.max.y]) {
+    for (const z of [weaponBounds.min.z, weaponBounds.max.z]) {
+      weaponCorners.push(new THREE.Vector3(x, y, z).project(camera));
+    }
+  }
+}
 const headCenter = avatar.head.getWorldPosition(new THREE.Vector3());
-const weaponScreen = weaponCenter.clone().project(camera);
 const sightLine = avatar.weaponModel.getSightWorldPosition(new THREE.Vector3());
 const captureMetrics = Object.freeze({
   sightEyeDelta: Math.abs((headCenter.y - 0.04) - sightLine.y),
-  weaponInFrame: Math.abs(weaponScreen.x) < 0.96 && Math.abs(weaponScreen.y) < 0.96 &&
-    weaponScreen.z > -1 && weaponScreen.z < 1,
+  weaponInFrame: weaponCorners.length === 8 && weaponCorners.every((corner) =>
+    Math.abs(corner.x) < 0.98 && Math.abs(corner.y) < 0.98 &&
+    corner.z > -1 && corner.z < 1),
 });
 if (!captureMetrics.weaponInFrame || (ads && captureMetrics.sightEyeDelta > 0.08)) {
   throw new Error(`invalid avatar capture composition: ${JSON.stringify(captureMetrics)}`);
