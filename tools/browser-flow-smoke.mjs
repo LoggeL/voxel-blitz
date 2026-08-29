@@ -124,6 +124,9 @@ async function main() {
       'Quick Play reaches live play with at least five replacement-capable bots');
     requireCondition(live.lastSnapAgeMs < 1_000 && live.ping >= 0,
       'browser receives fresh authoritative snapshots');
+    requireCondition(live.shader?.enabled === true && live.shader.frames > 0 &&
+      live.shader.fallbacks === 0 && live.shader.bufferWidth > 0 && live.shader.bufferHeight > 0,
+    'combat post-process compiles and renders through its bounded target');
 
     await pressEscape(page);
     await page.waitFor(`window.__vb.stats.settingsOpen === true &&

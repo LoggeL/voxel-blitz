@@ -309,6 +309,12 @@ late join whose welcome/state is already live also proceeds directly.
   around lobby, settings, buy, death, and teardown.
 - `new WorldView({getBlock})`; call `await ready()` before rendering,
   `applyDeltas([{x,y,z,v}])`, `update(dt)`, camera ray helpers, and `dispose()`.
+- `new CombatPostProcess(renderer,options)` owns the bounded scene render target
+  and full-screen combat shader. Call `setSize(width,height,pixelRatio)`, then
+  `render(scene,camera,{time,panic,pain,scopeActive})`; any shader failure must
+  permanently fall back to a direct scene render. Its target pixel ratio caps
+  at `1.35` (`1.0` on devices reporting at most 4 GB), and `?shader=off` is the
+  deterministic manual fallback.
 - `new Effects(scene,camera,worldGetBlockFn)` exposes
   `shoot(ev,{local?})`, `impact(evHit)`, `explodeBlock(x,y,z,blockId)`,
   `spawnBrass(pos,velocity)`, `update(dt)`, `shake(amount)`,

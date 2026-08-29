@@ -4,6 +4,10 @@ import * as THREE from './vendor/three.module.js';
 import { WEAPONS, WEAPON_IDS } from '../../shared/combatmath.js';
 import { deserializeWorld, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
 import { Input } from './engine/input.js';
+import {
+  CombatPostProcess,
+  recommendedPostProcessPixelRatio,
+} from './engine/combat-post-process.js';
 import { WorldView } from './engine/worldview.js';
 import { ViewmodelRig } from './guns/viewmodel.js';
 import { WeaponState, shouldShowViewmodel } from './guns/weapon-state.js';
@@ -29,6 +33,12 @@ class Game {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
     this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
     this.renderer.setSize(innerWidth, innerHeight);
+    this.post = new CombatPostProcess(this.renderer, {
+      enabled: !shaderDisabled,
+      maxPixelRatio: recommendedPostProcessPixelRatio(Number(navigator.deviceMemory)),
+      reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+    });
+    this.post.setSize(innerWidth, innerHeight, devicePixelRatio);
     this.camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 400);
     this.clock = new THREE.Clock();
     this.player = new LocalPlayer({ input: this.input });
@@ -48,6 +58,7 @@ class Game {
     this.serverNow = null;
     this._lastConsumedSnapSeq = null;
     this._pendingAuthoritativeSnapshots = [];
+    this._postFrame = { time: 0, panic: 0, pain: 0, scopeActive: false };
     this._loopGeneration = 0;
     this._rafId = 0;
     this._sbAt = 0;
@@ -96,6 +107,7 @@ class Game {
   resize() {
     if (!this.renderer || !this.camera) return;
     this.renderer.setSize(innerWidth, innerHeight);
+    this.post?.setSize(innerWidth, innerHeight, devicePixelRatio);
     this.camera.aspect = innerWidth / innerHeight;
     this.camera.updateProjectionMatrix();
   }
@@ -425,7 +437,11 @@ class Game {
       fwd: [forward.x, forward.y, forward.z],
       pos: [this.camera.position.x, this.camera.position.y, this.camera.position.z],
     });
-    this.renderer.render(this.worldview.scene, this.camera);
+    this._postFrame.time = now / 1000;
+    this._postFrame.panic = this.player.panic;
+    this._postFrame.pain = this.player.pain;
+    this._postFrame.scopeActive = !!this.weapon?.scopeActive;
+    this.post.render(this.worldview.scene, this.camera, this._postFrame);
   }
 
   phaseError(phase, error) {
@@ -469,6 +485,8 @@ class Game {
     if (this._debugInterval) clearInterval(this._debugInterval);
     if (this._onDebugError) window.removeEventListener('error', this._onDebugError, true);
     this.player.dispose();
+    this.post?.dispose();
+    this.post = null;
     this.renderer.dispose();
   }
 }
@@ -478,6 +496,7 @@ const debugMode = debugParams.has('debug');
 const debugWeapon = debugParams.get('weapon') || '';
 const debugAds = debugParams.has('ads');
 const debugUi = debugParams.get('ui') || '';
+const shaderDisabled = ['0', 'off', 'false'].includes(debugParams.get('shader'));
 const game = new Game();
 
 window.__vb = {
@@ -520,6 +539,7 @@ window.__vb = {
       runningAvatars: counters.runningAvatars || 0,
       maxAvatarSpeed: counters.maxAvatarSpeed || 0,
       scopeActive: !!game.weapon?.scopeActive,
+      shader: game.post?.stats || null,
       geometries: info.memory.geometries,
       textures: info.memory.textures,
       drawCalls: info.render.calls,

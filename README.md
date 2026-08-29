@@ -92,7 +92,10 @@ container smoke separate so normal development does not inherit their runtime.
 
 For deterministic manual menu QA, `?debug=1&ui=settings` opens the pause/settings
 surface without requiring pointer lock. Main, create-lobby, and waiting-lobby
-states remain reachable through their normal controls.
+states remain reachable through their normal controls. The 3D scene is graded
+through a bounded combat post-process with subtle detail recovery and
+pain/panic feedback; DOM HUD stays untouched, and `?shader=off` exercises the
+direct-render fallback.
 
 ## Multiplayer lifecycle
 
@@ -266,7 +269,7 @@ spare magazine counts instead of a loose reserve-round total.
 shared/    mode/map rules, world generation/store, DDA raycast, ballistics
 server/    HTTP/ws host, room manager, authoritative 20 Hz sim, modes, bots
 public/js/
-  engine/  input, immutable network snapshots, chunk mesher, sky, interpolation
+  engine/  input, snapshots, chunk mesher, sky, interpolation, combat shader
   guns/    defs (feel tables) + viewmodel rig (procedural models, staged anims)
   weapons/ pooled FX: tracers, impacts, shatter, shells, shake
   ui/      menu/lobby, match HUD, buy dialog, scoreboard, combat feedback

@@ -4,6 +4,7 @@ import { runInputContracts } from './input-contracts.mjs';
 import { runNetClientContracts } from './netclient-contracts.mjs';
 import { runViewmodelContracts } from './viewmodel-contracts.mjs';
 import { runCombatFeedbackContracts } from './combat-feedback-contracts.mjs';
+import { runPostProcessContracts } from './post-process-contracts.mjs';
 
 function installGlobals(values) {
   const saved = new Map();
@@ -25,6 +26,7 @@ function installGlobals(values) {
 }
 
 export async function runClientContracts(ok) {
+  runPostProcessContracts(ok);
   runCombatFeedbackContracts(ok);
   await runInputContracts(ok, installGlobals);
   await runViewmodelContracts(ok, installGlobals);
