@@ -12,6 +12,7 @@
     "modes:lobby": "node tools/mode-lobby-smoke.mjs",
     "modes:bots": "node tools/bot-mode-smoke.mjs",
     "maps:capture": "node tools/render-map-scenes.mjs",
+    "weapons:capture": "node tools/render-weapon-scenes.mjs",
     "test": "node tools/atlastest.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run modes:lobby && npm run modes:bots"
   },
   "dependencies": {

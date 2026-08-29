@@ -50,6 +50,22 @@ npm run modes:bots   # deterministic bot behavior in Fun, TDM, and S&D
 npm test             # atlas/world, smoke, lobby, mode-lobby, then bot-mode smoke
 ```
 
+Visual capture flows run without a multiplayer session and write ignored QA
+artifacts under `.artifacts/`:
+
+```bash
+npm run maps:capture
+npm run weapons:capture
+npm run weapons:capture -- --weapon revolver
+npm run weapons:capture -- --state scoped
+```
+
+The weapon flow renders every gun in a fixed inspection range in three stable
+states: `held`, fully aligned `scoped`/ADS, and `firing` with the real recoil,
+muzzle flash, and heat shader advanced to a deterministic frame. The complete
+run writes 18 PNGs plus `index.html` and `manifest.json` to
+`.artifacts/weapon-renders/` for side-by-side visual review.
+
 ## Multiplayer lifecycle
 
 Every admitted client receives a JSON `welcome` carrying the authoritative
