@@ -13,6 +13,8 @@ import {
   WEAPON_IDS,
   computeRecoilKickDeg,
   computeSpreadConeDeg,
+  damageAtDistance,
+  samplePelletDirection,
 } from '../shared/combatmath.js';
 import { valueNoise2 } from '../shared/noise.js';
 import { NETWORK_PRESENTATION } from '../shared/networking.js';
@@ -141,7 +143,9 @@ function runDirectContracts() {
       && Number.isInteger(def.magSize) && def.magSize > 0
       && Number.isInteger(def.spareMags) && def.spareMags > 0
       && Array.isArray(def.damage) && def.damage.length === 3 && def.damage.every(Number.isFinite)
+      && (def.falloffStart === undefined || Number.isFinite(def.falloffStart))
       && Number.isFinite(def.headMult) && Number.isInteger(def.pellets)
+      && (def.centerPellet === undefined || typeof def.centerPellet === 'boolean')
       && Number.isFinite(def.spreadDeg?.hip) && Number.isFinite(def.spreadDeg?.ads)
       && ['bloomDeg', 'bloomMaxDeg', 'bloomRecover', 'moveSpreadDeg',
         'adsFov', 'zoom', 'adsTime', 'reloadTime', 'tacTime', 'deployTime']
@@ -168,10 +172,29 @@ function runDirectContracts() {
   ok(new Set(recoilSignatures).size === WEAPON_IDS.length
     && rifleKick5.pitch > rifleKick0.pitch
     && nearly(rifleAdsKick5.pitch, rifleKick5.pitch * WEAPONS.rifle.recoil.adsMult)
-    && WEAPONS.shotgun.recoil.pitch >= 2.5
+    && WEAPONS.shotgun.recoil.pitch >= 2.2
     && WEAPONS.sniper.recoil.pitch >= 3.5
     && WEAPONS.revolver.recoil.pitch >= 2,
   'weapon recoil profiles are distinct, stronger, ramping, and ADS-scaled');
+  const shotgun = WEAPONS.shotgun;
+  const shotgunAim = { x: 0, y: 0, z: -1 };
+  let shotgunRngCalls = 0;
+  const shotgunCenter = samplePelletDirection(
+    shotgun,
+    shotgunAim,
+    () => { shotgunRngCalls += 1; return 0.5; },
+    shotgun.spreadDeg.ads,
+    0,
+  );
+  ok(shotgun.centerPellet === true
+    && shotgun.rpm >= 90
+    && shotgun.spreadDeg.ads <= 1.5
+    && nearly(damageAtDistance(shotgun, 30), 10)
+    && shotgunCenter.x === shotgunAim.x
+    && shotgunCenter.y === shotgunAim.y
+    && shotgunCenter.z === shotgunAim.z
+    && shotgunRngCalls === 0,
+  'shotgun keeps a deterministic aim ray and useful open-map ADS damage');
   const lmg = WEAPONS.lmg;
   const revolver = WEAPONS.revolver;
   ok(lmg?.name === 'BASTION LMG' && lmg.mode === 'auto' && lmg.rpm === 720

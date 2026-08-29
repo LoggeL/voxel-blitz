@@ -182,7 +182,9 @@ truth for mode ids, map compatibility, timings, and economy.
 ### shared/combatmath.js
 Exports `WEAPONS`, `WEAPON_IDS`, `CONDITION_RULES`, `GRAVITY`, `PLAYER_HALF`,
 `EYE_HEIGHT`, `HEADSHOT_Y_FRAC`, `damageAtDistance(def,dist)`,
-`sampleSpreadDir(fwd,rng,halfAngleDeg)`, `angleBetweenDeg(a,b)`, and
+`sampleSpreadDir(fwd,rng,halfAngleDeg)`,
+`samplePelletDirection(def,fwd,rng,halfAngleDeg,pelletIndex)`,
+`angleBetweenDeg(a,b)`, and
 `computeSpreadConeDeg(def,bloomDeg,speedXZ,adsT,panic=0,exhaustion=0,
 crouching=false,pain=0)`.
 `CONDITION_RULES` is the single source for panic/pain/exhaustion gain, decay, and
@@ -197,14 +199,15 @@ The slot roster is exactly
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
 | 0 `rifle` | VK-77 RAPTOR | auto | 660 | 30/6 | 25→15 @ 65 | 1.85× | 1 | 1.35°/0.28° | 3.4 kg |
 | 1 `smg` | HORNET SMG | auto | 900 | 36/6 | 19→10 @ 42 | 1.70× | 1 | 1.90°/0.75° | 2.3 kg |
-| 2 `shotgun` | M-DOCK 12 | pump | 78 | 7/6 | 13→3 @ 24 | 1.35× | 9 | 4.40°/3.10° | 3.6 kg |
+| 2 `shotgun` | M-DOCK 12 | pump | 90 | 7/6 | 14.5→5 @ 50 | 1.35× | 9 | 3.60°/1.45° | 3.6 kg |
 | 3 `sniper` | LONGSHOT MK-II | bolt | 42 | 5/6 | 95→68 @ 120 | 2.10× | 1 | 5.50°/0.02° | 5.2 kg |
 | 4 `lmg` | BASTION LMG | auto | 720 | 60/4 | 22→14 @ 75 | 1.70× | 1 | 1.65°/0.48° | 8.4 kg |
 | 5 `revolver` | IRONCLAD .44 | semi | 300 | 6/8 | 54→35 @ 80 | 1.90× | 1 | 1.15°/0.12° | 1.4 kg |
 
-Damage is flat to 20 world units, then falls linearly to the table's far value
-at the listed end. All remaining cadence, bloom, recoil, ADS, reload, deploy,
-tracer, mass, and SFX fields are read from `WEAPONS`; do not duplicate them.
+Damage is flat to 20 world units by default; the shotgun starts falloff at 12.
+It then falls linearly to the table's far value at the listed end. All remaining
+cadence, bloom, recoil, ADS, reload, deploy, tracer, mass, and SFX fields are
+read from `WEAPONS`; do not duplicate them.
 
 ### shared/raycast.js
 `raycastVoxels(solidAt,ox,oy,oz,dx,dy,dz,maxDist)` returns

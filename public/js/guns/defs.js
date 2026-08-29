@@ -98,14 +98,14 @@ export const TIMERS = {
     heatLen: [0.45, 0.75],  // shells run cool: heat band sits mid-barrel, gone before reload.
     boltTravel: 0.08,       // breach block throw feeding the pump linkage feel.
     rechargeDur: 0.09,      // slower ember fade suits cordite haze.
-    pumpMag: 0.14,          // FULL frame rock on every dispatch — weight you feel in the wrists.
+    pumpMag: 0.10,          // Firm pump impulse without throwing the sight picture off target.
     cycleBack: true,
     cycleKind: 'pump',
     ejectOnFire: false,
     magTimeline: { start: 0.06, home: 0.94, clickAt: 0.0,
                    type: 'tube', repeatMs: 140 }, // tube loads: rhythmic thunk every 140ms.
     adsOffset: { x: 0.0, y: -0.100, z: -0.74 },
-    kick: { stiffness: 300, damping: 30, yawWobble: 0.7 },   // violent, dead-straight rear shove.
+    kick: { stiffness: 320, damping: 34, yawWobble: 0.55 },  // decisive shove with a quick recovery.
   },
 
   sniper: {

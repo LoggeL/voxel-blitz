@@ -7,7 +7,7 @@ import {
   WEAPON_IDS,
   computeRecoilKickDeg,
   computeSpreadConeDeg,
-  sampleSpreadDir,
+  samplePelletDirection,
 } from '../../../shared/combatmath.js';
 import { TIMERS } from './defs.js';
 
@@ -393,7 +393,7 @@ export class WeaponState {
     );
     const pellets = [];
     for (let index = 0; index < def.pellets; index++) {
-      pellets.push(sampleSpreadDir(fwd, this._random, spreadCone));
+      pellets.push(samplePelletDirection(def, fwd, this._random, spreadCone, index));
     }
 
     this._bloomDeg = Math.min(def.bloomMaxDeg, this._bloomDeg + def.bloomDeg);

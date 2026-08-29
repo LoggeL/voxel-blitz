@@ -34,9 +34,11 @@ export const CONDITION_RULES = Object.freeze({
  * @property {number} rpm           rounds per minute cap
  * @property {number} magSize       magazine capacity
  * @property {number} spareMags    full spare magazines carried on spawn
- * @property {[number,number,number]} damage  [close, far, falloffEnd] units; linear close->far between falloffStart(20) and falloffEnd
+ * @property {[number,number,number]} damage  [close, far, falloffEnd] units; linear close->far between falloffStart and falloffEnd
+ * @property {number} [falloffStart=20] distance before damage begins falling
  * @property {number} headMult      headshot damage multiplier
  * @property {number} pellets       projectiles per shot (1 except shotgun)
+ * @property {boolean} [centerPellet=false] keep pellet zero exactly on the aim ray
  * @property {{hip:number, ads:number}} spreadDeg base cone half-angle, degrees
  * @property {number} bloomDeg      spread added per shot, degrees
  * @property {number} bloomMaxDeg   bloom ceiling, degrees
@@ -96,19 +98,20 @@ export const WEAPONS = {
   shotgun: {
     id: 'shotgun', name: 'M-DOCK 12', mode: 'pump',
     weightKg: 3.6,
-    rpm: 78, magSize: 7, spareMags: 6,
-    damage: [13, 3, 24], headMult: 1.35, pellets: 9,
-    spreadDeg: { hip: 4.4, ads: 3.1 }, bloomDeg: 0.5, bloomMaxDeg: 6,
-    bloomRecover: 5.0, moveSpreadDeg: 1.2,
-    crouchSpreadMult: 0.88,
+    rpm: 90, magSize: 7, spareMags: 6,
+    damage: [14.5, 5, 50], falloffStart: 12,
+    headMult: 1.35, pellets: 9, centerPellet: true,
+    spreadDeg: { hip: 3.6, ads: 1.45 }, bloomDeg: 0.25, bloomMaxDeg: 4.2,
+    bloomRecover: 6.0, moveSpreadDeg: 0.9,
+    crouchSpreadMult: 0.82,
     recoil: {
-      pitch: 2.80, pitchRamp: 0, maxPitchRamp: 0,
-      yaw: 0.72, yawPattern: [-0.40, 0.45],
-      jitter: 0.10, resetMs: 950, adsMult: 0.68,
+      pitch: 2.35, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.55, yawPattern: [-0.40, 0.45],
+      jitter: 0.08, resetMs: 780, adsMult: 0.72,
     },
-    adsFov: 66, zoom: 1.1, adsTime: 0.14,
+    adsFov: 62, zoom: 1.15, adsTime: 0.12,
     reloadTime: 3.1, tacTime: 2.6, deployTime: 0.5,
-    tracer: { color: '#ffc37a', width: 1.0, len: 12 },
+    tracer: { color: '#ffc37a', width: 1.0, len: 24 },
     sfx: 'shotgun',
   },
   sniper: {
@@ -191,7 +194,7 @@ export function computeRecoilKickDeg(def, shotIndex, adsT = 0, random01 = 0.5) {
 
 /** Linear falloff between close-range and far-range damage. */
 export function damageAtDistance(def, dist) {
-  const falloffStart = 20;
+  const falloffStart = Number.isFinite(def.falloffStart) ? def.falloffStart : 20;
   const t = Math.min(1, Math.max(0, (dist - falloffStart) / (def.damage[2] - falloffStart)));
   return def.damage[0] + (def.damage[1] - def.damage[0]) * t;
 }
@@ -244,6 +247,14 @@ export function sampleSpreadDir(fwd, rng, halfAngleDeg) {
   const cz = fwd.z + tz * Math.cos(a) * r + bz * Math.sin(a) * r;
   const l = Math.hypot(cx, cy, cz);
   return { x: cx / l, y: cy / l, z: cz / l };
+}
+
+/** Shared per-pellet policy so prediction and authority cannot drift. */
+export function samplePelletDirection(def, fwd, rng, halfAngleDeg, pelletIndex) {
+  if (def.centerPellet === true && pelletIndex === 0) {
+    return { x: fwd.x, y: fwd.y, z: fwd.z };
+  }
+  return sampleSpreadDir(fwd, rng, halfAngleDeg);
 }
 
 /** Smallest angle between two unit dirs, degrees (server-side sanity check). */

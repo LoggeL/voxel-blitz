@@ -219,7 +219,7 @@ and scores reset.
 |---|---:|---:|---:|---|
 | **VK-77 RAPTOR** rifle | automatic | 660 rpm | 30 + 6 mags | climbing-descent burst cadence, amber rail accents |
 | **HORNET SMG** | automatic | 900 rpm | 36 + 6 mags | fast springy low-kick spray, tan polymer |
-| **M-DOCK 12** shotgun | pump | 78 rpm | 7 + 6 mags | violent frame rock, staged pump clack-clack |
+| **M-DOCK 12** shotgun | pump | 90 rpm | 7 + 6 mags | tight ADS buckshot, firm pump shove, staged clack-clack |
 | **LONGSHOT MK-II** bolt sniper | bolt | 42 rpm | 5 + 6 mags | 5× full-screen optic, rotary long-throw bolt, canyon echo crack |
 | **BASTION LMG** | automatic | 720 rpm | 60 + 4 mags | heavy sustained fire and the slowest viewmodel settling |
 | **IRONCLAD .44** revolver | semi-automatic | 300 rpm | 6 + 8 mags | high-damage precision sidearm with fast handling |

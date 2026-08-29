@@ -9,7 +9,7 @@ import {
   PLAYER_HALF,
   HEADSHOT_Y_FRAC,
   damageAtDistance,
-  sampleSpreadDir,
+  samplePelletDirection,
   computeSpreadConeDeg,
 } from '../../shared/combatmath.js';
 import { raycastVoxels } from '../../shared/raycast.js';
@@ -225,13 +225,15 @@ export function fireOneShot(p, ctx) {
     oEye[2] + fwd.z * 0.25,
   ];
 
-  const firstDir = sampleSpreadDir(fwd, rng, coneDeg);
+  const firstDir = samplePelletDirection(def, fwd, rng, coneDeg, 0);
   ctx.pushEvent(evShoot(
     p.id, muzzle, [fwd.x, fwd.y, fwd.z], def.id,
     [firstDir.x, firstDir.y, firstDir.z],
   ));
   for (let pellet = 0; pellet < def.pellets; pellet++) {
-    const d = pellet === 0 ? firstDir : sampleSpreadDir(fwd, rng, coneDeg);
+    const d = pellet === 0
+      ? firstDir
+      : samplePelletDirection(def, fwd, rng, coneDeg, pellet);
 
     const hit = raycastVoxels(
       ctx.solidAt,
