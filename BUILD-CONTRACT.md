@@ -342,10 +342,11 @@ late join whose welcome/state is already live also proceeds directly.
   getter `currentShakeXY`, and `dispose()`.
 - `new ViewmodelRig(camera)` exposes `setWeapon(id)`, `fire()`, `ads(t01)`,
   `reload(dur,type)`, `pumpAnim()`, `boltAnim()`,
-  `update(dt,{speed,grounded,verticalVelocity?,mouseDX?,mouseDY?,isSprinting?,
-  crouch?,panic?,pain?,exhaustion?,aimSwayScale?})`, and `bobAmt`.
-  It builds six procedural models; turn lag affects only the rig, never
-  camera/authority aim.
+  `update(dt,{speed,grounded,verticalVelocity?,isSprinting?,crouch?,panic?,
+  pain?,exhaustion?,aimSwayScale?})`, `bobAmt`, and `turnLag`.
+  It builds six procedural models. Its internal angular follower observes the
+  completed camera orientation, caps weapon rotation speed and acceleration by
+  `weightKg`, and affects only the rig—never camera or authority aim.
 - `new AimSway()` exposes `update(dt,{alive,grounded,stationary,shift,
   crouching,panic,pain})`, `reset()`, and its stable `readModel`. It applies
   deterministic stationary sway; crouching reduces it, while holding Shift
@@ -470,8 +471,10 @@ step listener with the room.
   remain snapshot-only—not HUD meters. Stationary Shift hold suppresses sway
   for 2.4 seconds when calm, falling as low as 0.7 seconds with pain/panic;
   crouching scales sway to 55%.
-- **Weapon lag:** `weightKg` increases procedural turn-lag amplitude and slows
-  viewmodel settling. It does not delay or alter camera/authority aim.
+- **Weapon lag:** the procedural gun owns a separate angular orientation that
+  follows the immediate camera with weight-limited speed and acceleration.
+  Heavier weapons trail farther and settle more slowly; camera/authority aim is
+  never delayed or altered.
 - **Worlds:** Foundry, Depot, and Citadel are deterministic 128×40×96 templates.
   Every room mutates an independent clone of its selected map. Block damage and
   serialized late-join state remain local to that room.

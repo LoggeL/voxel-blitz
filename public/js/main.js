@@ -392,8 +392,6 @@ class Game {
         speed: this.player.speedXZ,
         grounded: this.player.physics.grounded,
         verticalVelocity: this.player.physics.vel.y,
-        mouseDX: this.player.lookVelX,
-        mouseDY: this.player.lookVelY,
         isSprinting: !this.player.wantAds && this.player.keys.sprint && this.player.speedXZ > 4.6,
         crouch: this.player.crouchBool,
         panic: this.player.panic,
@@ -513,7 +511,7 @@ window.__vb = {
       for (const child of game.worldview.scene.children) hist[child.type] = (hist[child.type] || 0) + 1;
     }
     const snapshots = game.net?.latestSnapshots || [];
-    const sway = game.rig?._sway;
+    const turn = game.rig?.turnLag;
     const weapon = game.weapon ? WEAPON_IDS[game.weapon.slot] : null;
     const def = weapon ? WEAPONS[weapon] : null;
     const counters = game.roster?.counters || {};
@@ -532,7 +530,12 @@ window.__vb = {
       adsT: game.weapon?.adsT ?? null,
       rigAdsT: game.rig?.currentAdsT01 ?? null,
       cameraFov: game.camera?.fov ?? null,
-      gunLag: Number.isFinite(sway?.x) && Number.isFinite(sway?.y) ? { x: sway.x, y: sway.y } : null,
+      gunLag: Number.isFinite(turn?.yaw) && Number.isFinite(turn?.pitch) ? {
+        yaw: turn.yaw,
+        pitch: turn.pitch,
+        speed: turn.speed,
+        maxSpeed: turn.maxSpeed,
+      } : null,
       settingsOpen: !!game.hud.settingsOpen,
       volume: game.session.masterVolume,
       fov: game.session.baseFov,

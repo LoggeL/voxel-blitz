@@ -210,8 +210,6 @@ export const BOB = {
   airPitchPerMeter: -0.75,
   idleFreq: 1.6,     // breathing sine, 0.0016 m — life without noise-mud.
   idleAmp: 0.0016,
-  swayPxPerUnit: 20, // mouse pixels consumed per unit of lag offset (look-inertia).
-  swayClamp: 0.05,   // hard clamp (rad-equivalent) so flicks never fling the gun away.
   counterRoll: -1.4 * (Math.PI / 180), // z-roll opposite horizontal bob: handheld weight.
 };
 

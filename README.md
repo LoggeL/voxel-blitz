@@ -233,8 +233,9 @@ your reported view angles — client damage claims are never trusted.
 
 Weapon mass is part of the shared definition: rifle 3.4 kg, SMG 2.3 kg,
 shotgun 3.6 kg, sniper 5.2 kg, LMG 8.4 kg, and revolver 1.4 kg. Mouse aim and
-server authority remain immediate; only the procedural gun model trails a turn.
-Heavier weapons lag farther and settle more slowly.
+server authority remain immediate. The procedural gun owns a separate angular
+orientation with weight-limited speed and acceleration, so heavier weapons trail
+farther during a turn and settle more slowly after the mouse has stopped.
 
 Sprinting has a stronger but deliberately slower leg-driven run cycle than
 ordinary walking. Jumping and landing move only the carried weapon through a

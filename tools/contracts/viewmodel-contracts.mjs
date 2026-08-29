@@ -215,27 +215,30 @@ export async function runViewmodelContracts(ok, installGlobals) {
 
   // Viewmodel: every canonical weapon must build and survive a real update.
   // The generic magswap request resolves into the weapon's physical reload
-  // profile, and identical mouse travel lags more as weapon mass increases.
+  // profile, and the camera-independent turn follower respects weapon mass.
   {
     const { TIMERS } = await import('../../public/js/guns/defs.js');
     const { ViewmodelRig } = await import('../../public/js/guns/viewmodel.js');
     const camera = new THREE.PerspectiveCamera(75, 1, 0.01, 100);
     const rig = new ViewmodelRig(camera);
     const lagByWeapon = new Map();
+    const maxSpeedByWeapon = new Map();
     try {
       for (const id of WEAPON_IDS) {
+        camera.rotation.set(0, 0, 0);
         rig.setWeapon(id);
         rig.reload(2, 'magswap');
         ok(rig._rl?.type === TIMERS[id].magTimeline.type,
           `${id} magswap resolves to its ${TIMERS[id].magTimeline.type} profile`);
 
-        rig.update(0.016, {
+        rig.update(1 / 60, {
           speed: 2.4,
           grounded: true,
-          mouseDX: 1,
-          mouseDY: -0.5,
         });
-        lagByWeapon.set(id, Math.abs(rig._sway.x));
+        camera.rotation.set(0.2, -0.6, 0);
+        rig.update(1 / 60, { speed: 2.4, grounded: true });
+        lagByWeapon.set(id, Math.abs(rig.turnLag.yaw));
+        maxSpeedByWeapon.set(id, rig.turnLag.maxSpeed);
         ok(rig._id === id
           && rig._models[id]?.root.parent === rig.content
           && Number.isFinite(rig.posG.position.x)
@@ -261,6 +264,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
       );
       const blockedIronSights = [];
       for (const id of WEAPON_IDS.filter((weaponId) => weaponId !== 'sniper')) {
+        camera.rotation.set(0, 0, 0);
         rig.setWeapon(id);
         rig.ads(1);
         for (let frame = 0; frame < 120; frame++) {
@@ -273,6 +277,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
       }
       ok(blockedIronSights.length === 0,
         `non-scoped ADS sight axes stay clear of opaque geometry (${blockedIronSights.join(', ')})`);
+      camera.rotation.set(0, 0, 0);
       rig.setWeapon('revolver');
       rig.ads(1);
       for (let frame = 0; frame < 120; frame++) {
@@ -298,10 +303,30 @@ export async function runViewmodelContracts(ok, installGlobals) {
       const byWeight = [...WEAPON_IDS].sort(
         (a, b) => WEAPONS[a].weightKg - WEAPONS[b].weightKg
       );
-      ok(byWeight.every((id, i) =>
-        i === 0 || lagByWeapon.get(byWeight[i - 1]) < lagByWeapon.get(id)),
-      'viewmodel turn lag strictly follows canonical weapon-weight ordering');
+      camera.rotation.set(0, 0, 0);
+      rig.setWeapon('lmg');
+      rig.update(1 / 60, { grounded: true });
+      let lmgPeakSpeed = 0;
+      for (let frame = 0; frame < 30; frame++) {
+        camera.rotation.y -= 0.15;
+        rig.update(1 / 60, { grounded: true });
+        lmgPeakSpeed = Math.max(lmgPeakSpeed, rig.turnLag.speed);
+      }
+      const lmgReleaseLag = Math.abs(rig.turnLag.yaw);
+      for (let frame = 0; frame < 90; frame++) {
+        rig.update(1 / 60, { grounded: true });
+      }
+      ok(byWeight.every((id, i) => i === 0 || (
+        lagByWeapon.get(byWeight[i - 1]) < lagByWeapon.get(id)
+        && maxSpeedByWeapon.get(byWeight[i - 1]) > maxSpeedByWeapon.get(id)
+      ))
+        && lmgPeakSpeed <= rig.turnLag.maxSpeed + 1e-9
+        && lmgPeakSpeed > rig.turnLag.maxSpeed * 0.95
+        && lmgReleaseLag > 0.05
+        && Math.abs(rig.turnLag.yaw) < 0.001,
+      'viewmodel turn follower caps angular speed by weight, trails a flick, and settles');
 
+      camera.rotation.set(0, 0, 0);
       rig.setWeapon('rifle');
       rig.update(1 / 60, { grounded: true, speed: 6.2, isSprinting: true });
       rig.update(1 / 60, { grounded: false, verticalVelocity: 7 });

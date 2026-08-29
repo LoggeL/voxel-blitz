@@ -2,7 +2,7 @@
 //
 // Owns raw device reading ONLY: key state edges, accumulated look deltas,
 // pointer-lock lifecycle, fire/ADS intents and weapon-switch intents.
-// Player physics owns movement integration; main.js owns look integration.
+// Player physics owns movement integration; LocalPlayer owns look integration.
 // This module only accumulates sensitivity-scaled pointer deltas using the
 // canonical convention shared by the camera and authority:
 //   yaw   -= dx  (mouse right => turn right)
@@ -198,9 +198,8 @@ export class Input {
   /**
    * Drains accumulated pointer-look motion since the last call.
    * Units: radians of intended look (already sensitivity-scaled and
-   * invertY-adjusted). The yaw/pitch fields were ALREADY integrated by this
-   * module — callers use dx/dy only for effects like viewmodel sway or recoil
-   * follow-through. Applied angles were yaw -= dx, pitch -= dy.
+   * invertY-adjusted). The local player applies the returned angles directly
+   * to immediate camera/authority aim: yaw -= dx, pitch -= dy.
    * @returns {{dx:number,dy:number}} zeroes both accumulators
    */
   consumeDelta() {

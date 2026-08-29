@@ -69,8 +69,6 @@ export class LocalPlayer {
     this.deathRoll = 0;
     this.deathPitch = 0;
     this.deathSide = 1;
-    this.lookVelX = 0;
-    this.lookVelY = 0;
     this.sendAccum = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
@@ -208,8 +206,6 @@ export class LocalPlayer {
     this.deathRoll = 0;
     this.deathPitch = 0;
     this.deathSide = 1;
-    this.lookVelX = 0;
-    this.lookVelY = 0;
     this.sendAccum = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
@@ -324,8 +320,6 @@ export class LocalPlayer {
 
   _readLook() {
     const delta = this.input.consumeDelta();
-    this.lookVelX = delta.dx;
-    this.lookVelY = delta.dy;
     if (!this._alive) return;
     this.view.yaw -= delta.dx;
     this.view.pitch -= delta.dy;

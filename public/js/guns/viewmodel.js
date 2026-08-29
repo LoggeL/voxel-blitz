@@ -6,6 +6,7 @@ import { buildGun, disposeGunModels } from './assemble.js';
 import { WeaponActions } from './actions.js';
 import { MaterialCache } from './kit.js';
 import { D2R, HIP, VM_FOV_BASE } from './models/common.js';
+import { WeaponTurnInertia } from './turn-inertia.js';
 
 export class ViewmodelRig {
 
@@ -32,7 +33,7 @@ export class ViewmodelRig {
     this._queue = [];                  // deferred timer-boundary events {at, fn}
 
     this._spr = { pitch: { p: 0, v: 0 }, yaw: { p: 0, v: 0 }, push: { p: 0, v: 0 } }; // kick springs
-    this._sway = { x: 0, y: 0 };       // look-inertia lag (consumed mouse deltas, BOB.swayPxPerUnit px)
+    this._turn = new WeaponTurnInertia(); // camera-independent, weight-limited weapon orientation
     this._air = { p: 0, v: 0 };         // damped vertical inertia across takeoff/landing
     this._wasGrounded = true;
     this._fallSpeed = 0;
@@ -82,7 +83,7 @@ export class ViewmodelRig {
     this.comp.position.copy(next.pivotCam).negate();
 
     this._spr.pitch = { p: 0, v: 0 }; this._spr.yaw = { p: 0, v: 0 }; this._spr.push = { p: 0, v: 0 };
-    this._sway.x = this._sway.y = 0;
+    this._turn.reset(this.camera?.rotation?.y, this.camera?.rotation?.x);
     this._air.p = this._air.v = 0;
     this._fallSpeed = 0;
     this._queue.length = 0;
@@ -164,6 +165,7 @@ export class ViewmodelRig {
 
   get bobAmt() { return this._bobVal; }              // 0..~1 normalized walk-bob magnitude
   get currentAdsT01() { return this._adsSmooth; }    // HUD scope-opacity readback
+  get turnLag() { return this._turn.readModel; }      // gun-only angular follower readback
   get _rl() { return this._actions?._reload || null; }
 
   /** Live muzzle world position (uses the actual Object3D — correct through every nested shift). */
@@ -193,8 +195,8 @@ export class ViewmodelRig {
 
   /**
    * @param dt      seconds, clamped hard to 0.033 (tab-refocus spikes never explode springs)
-   * @param ctx     {speed, grounded,verticalVelocity,mouseDX,mouseDY,isSprinting,crouch,panic,exhaustion,pain,aimSwayScale}
-   *                Mouse deltas move only this gun rig; camera aim remains caller-authoritative.
+   * @param ctx     {speed,grounded,verticalVelocity,isSprinting,crouch,panic,exhaustion,pain,aimSwayScale}
+   *                Camera orientation is observed, never delayed or modified by this rig.
    */
   update(dt, ctx = {}) {
     if (!(dt > 0)) return;
@@ -250,20 +252,11 @@ export class ViewmodelRig {
       );
     }
 
-    /*
-     * Turn inertia is an impulse with exact exponential decay: integrated mouse travel produces
-     * the same deterministic gun-only lag, while weapon mass scales amplitude and settling time.
-     */
-    const gain = BOB.swayPxPerUnit;
-    const weightRatio = Math.max(0.25, Math.min(3, (Number(T.weightKg) || 3.4) / 3.4));
-    const turnAmplitude = 0.72 + weightRatio * 0.32;
-    const settleRate = 12 / (0.45 + weightRatio * 0.55);
-    const turnImpulse = 0.12 * turnAmplitude;
-    const turnDecay = Math.exp(-settleRate * dt);
-    this._sway.x = (this._sway.x - (Number(ctx.mouseDX) || 0) / gain * turnImpulse) * turnDecay;
-    this._sway.y = (this._sway.y + (Number(ctx.mouseDY) || 0) / gain * turnImpulse) * turnDecay;
-    this._sway.x = Math.max(-BOB.swayClamp, Math.min(BOB.swayClamp, this._sway.x));
-    this._sway.y = Math.max(-BOB.swayClamp, Math.min(BOB.swayClamp, this._sway.y));
+    const turn = this._turn.update(dt, {
+      yaw: this.camera?.rotation?.y,
+      pitch: this.camera?.rotation?.x,
+      weightKg: T.weightKg,
+    });
 
     /* walk bob figure-8 (freq scales with speed; sprint lifts freq+amp+cant; crouch dampens) */
     const spdN = Math.min(1, speed / 4.4);                            // normalized to contract walk
@@ -319,13 +312,13 @@ export class ViewmodelRig {
 
     /* ---------- compose transforms (condition offsets never touch the authoritative camera) ---------- */
     this.posG.position.set(
-      this._sway.x * 0.35 + bobX + tremorX,
-      this._sway.y * 0.35 + bobY + this._air.p + breathe + exhaustedBreath + tremorY,
+      turn.x + bobX + tremorX,
+      turn.y + bobY + this._air.p + breathe + exhaustedBreath + tremorY,
       this._spr.push.p
     );
     this.pivot.rotation.set(
-      this._spr.pitch.p + this._sway.y * 0.6 + this._air.p * BOB.airPitchPerMeter + conditionPitch,
-      this._spr.yaw.p + this._sway.x * 0.6 + conditionYaw,
+      this._spr.pitch.p + turn.pitch + this._air.p * BOB.airPitchPerMeter + conditionPitch,
+      this._spr.yaw.p + turn.yaw + conditionYaw,
       roll + cant
     );
 
