@@ -13,6 +13,7 @@
     "modes:bots": "node tools/bot-mode-smoke.mjs",
     "maps:capture": "node tools/render-map-scenes.mjs",
     "weapons:capture": "node tools/render-weapon-scenes.mjs",
+    "avatars:capture": "node tools/render-avatar-scenes.mjs",
     "audio:audit": "node tools/analyze-weapon-audio.mjs",
     "test": "node tools/atlastest.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run modes:lobby && npm run modes:bots"
   },

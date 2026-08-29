@@ -56,6 +56,7 @@ artifacts under `.artifacts/`:
 ```bash
 npm run maps:capture
 npm run weapons:capture
+npm run avatars:capture
 npm run weapons:capture -- --weapon revolver
 npm run weapons:capture -- --state scoped
 npm run audio:audit
@@ -66,6 +67,8 @@ states: `held`, fully aligned `scoped`/ADS, and `firing` with the real recoil,
 muzzle flash, and heat shader advanced to a deterministic frame. The complete
 run writes 18 PNGs plus `index.html` and `manifest.json` to
 `.artifacts/weapon-renders/` for side-by-side visual review.
+The avatar flow renders those same canonical models on remote-player bodies from
+front, profile, and firing views into `.artifacts/avatar-renders/`.
 
 The audio audit decodes the six effective fire samples, measures muzzle-onset
 alignment after runtime gain/playback-rate profiles, and writes waveforms,

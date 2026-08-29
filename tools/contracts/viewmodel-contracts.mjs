@@ -144,6 +144,36 @@ export async function runViewmodelContracts(ok, installGlobals) {
     restoreGlobals();
   }
 
+  {
+    const { HANDS } = await import('../../public/js/guns/defs.js');
+    const { AvatarWeaponModel } = await import('../../public/js/avatar/avatar-weapon.js');
+    const carried = new AvatarWeaponModel();
+    try {
+      let valid = true;
+      for (const id of WEAPON_IDS) {
+        carried.update({ weapon: id, firing: true, dt: 1 / 60 });
+        const bakedHands = [];
+        carried.modelRoot?.traverse((object) => {
+          if (object.name === 'hand_r' || object.name === 'hand_l') bakedHands.push(object);
+        });
+        valid &&= carried.id === id
+          && carried.modelRoot?.name === `gun_${id}`
+          && carried.modelRoot.parent === carried.root
+          && carried.root.children.length === 1
+          && carried.twoHanded === !!HANDS[id].support
+          && bakedHands.length >= 1
+          && bakedHands.every((hand) => hand.visible === false)
+          && carried._model.flash.grp.visible
+          && Number.isFinite(carried.root.position.y)
+          && Number.isFinite(carried.root.rotation.x);
+      }
+      ok(valid,
+        'remote-avatar mount swaps all six real gun models with correct hand mode and firing pose');
+    } finally {
+      carried.dispose();
+    }
+  }
+
   // Viewmodel: every canonical weapon must build and survive a real update.
   // The generic magswap request resolves into the weapon's physical reload
   // profile, and identical mouse travel lags more as weapon mass increases.

@@ -2,6 +2,7 @@ import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 import { clamp01 } from '../util/math.js';
 import { hashHue, hashInt } from '../util/hash.js';
+import { AvatarWeaponModel } from './avatar-weapon.js';
 
 export const TEAM_AVATAR_COLORS = Object.freeze({
   alpha: Object.freeze({ suit: 0x38bdf8, dark: 0x0c4a6e }),
@@ -9,6 +10,7 @@ export const TEAM_AVATAR_COLORS = Object.freeze({
 });
 
 export function disposeAvatar(av) {
+  av.weaponModel?.dispose();
   disposeObjectTree(av.group);
 }
 
@@ -29,6 +31,7 @@ export function setAvatarTeam(av, team) {
 
 export function setAvatarOpacity(av, opacity) {
   for (let i = 0; i < av.fadeMaterials.length; i++) av.fadeMaterials[i].opacity = opacity;
+  if (av.weaponModel) av.weaponModel.root.visible = opacity > 0.45;
 }
 
 export function setAvatarFlash(av, amount) {
@@ -36,6 +39,30 @@ export function setAvatarFlash(av, amount) {
   for (let i = 0; i < av.flashMaterials.length; i++) {
     av.flashMaterials[i].emissive.setRGB(flash * 0.9, flash * 0.08, flash * 0.04);
   }
+}
+
+/** Keep the third-person arms and the carried weapon on one shared pose contract. */
+export function updateAvatarWeaponPose(av, {
+  weapon = 0,
+  pitch = 0,
+  firing = false,
+  stride = 0,
+  swing = 0,
+  dt = 0,
+  blend = 1,
+} = {}) {
+  av.weaponModel.update({ weapon, pitch, firing, stride, swing, dt });
+  const aimPitch = Math.max(-1.1, Math.min(1.1, Number(pitch) || 0));
+  const poseBlend = Math.max(0, Math.min(1, Number(blend) || 0));
+  const twoHanded = av.weaponModel.twoHanded;
+  const leftArmX = twoHanded ? 0.92 + aimPitch - swing * stride * 0.08 : -swing * 0.5;
+  const leftArmZ = twoHanded ? 0.36 : -0.08;
+  av.lArm.rotation.x += (leftArmX - av.lArm.rotation.x) * poseBlend;
+  av.rArm.rotation.x += (1.00 + aimPitch + swing * stride * 0.06 - av.rArm.rotation.x) * poseBlend;
+  av.lArm.rotation.z += (leftArmZ - av.lArm.rotation.z) * poseBlend;
+  av.rArm.rotation.z += (-0.34 - av.rArm.rotation.z) * poseBlend;
+  av.lElbow.rotation.x += ((twoHanded ? 0.48 : -0.34) - av.lElbow.rotation.x) * poseBlend;
+  av.rElbow.rotation.x += (0.38 - av.rElbow.rotation.x) * poseBlend;
 }
 
 export function resetAvatarPose(av) {
@@ -66,10 +93,7 @@ export function resetAvatarPose(av) {
   av.rArm.rotation.set(0, 0, 0.08);
   av.lElbow.rotation.set(-0.34, 0, 0);
   av.rElbow.rotation.set(-0.46, 0, 0);
-  if (av.gunStub) {
-    av.gunStub.position.set(0.22, 1.2, -0.4);
-    av.gunStub.rotation.set(0, 0, 0);
-  }
+  av.weaponModel?.resetPose();
   if (av.tag) av.tag.visible = true;
   if (av.hpSpr) av.hpSpr.visible = true;
   for (const limb of av.limbStates || []) {
@@ -125,11 +149,7 @@ export function updateAvatarDeath(av, dt, t) {
   av.hips.position.y = 0.84 - t * 0.38;
   av.hips.rotation.x = t * 0.72;
   av.hips.rotation.z = av.deathSide * t * 0.22;
-  if (av.gunStub) {
-    av.gunStub.position.y = 1.2 - t * 0.58;
-    av.gunStub.rotation.x = t * 0.9;
-    av.gunStub.rotation.z = -av.deathSide * t * 0.48;
-  }
+  av.weaponModel?.setDeathPose(t, av.deathSide);
   for (const limb of av.limbStates) {
     limb.velocity.y -= 11.8 * dt;
     limb.object.position.x += limb.velocity.x * dt;
@@ -204,8 +224,8 @@ export function makeAvatar(id, name, team = null) {
   rElbow.add(rFore);
   rArm.add(rUpper, rElbow);
 
-  const gunStub = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.13, 0.72), dark);
-  gunStub.position.set(0.22, 1.2, -0.4);
+  const weaponModel = new AvatarWeaponModel();
+  weaponModel.setWeapon('rifle');
 
   const tagCv = document.createElement('canvas');
   tagCv.width = 256;
@@ -246,7 +266,7 @@ export function makeAvatar(id, name, team = null) {
   hpSpr.scale.set(1.2, 0.3, 1);
   hpSpr.position.set(0, 1.95, 0);
 
-  group.add(torso, hips, head, lLeg, rLeg, lArm, rArm, gunStub, tag, hpSpr);
+  group.add(torso, hips, head, lLeg, rLeg, lArm, rArm, weaponModel.root, tag, hpSpr);
 
   function updateHealth(t01) {
     hc.clearRect(0, 0, 256, 64);
@@ -269,7 +289,7 @@ export function makeAvatar(id, name, team = null) {
     rArm,
     lElbow,
     rElbow,
-    gunStub,
+    weaponModel,
     tag,
     hpSpr,
     limbStates: [],

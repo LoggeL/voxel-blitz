@@ -2,7 +2,7 @@
 // material cache and one action-state owner.
 import * as THREE from '../vendor/three.module.js';
 import { BOB, DEPLOY, TIMERS } from './defs.js';
-import { buildGun } from './assemble.js';
+import { buildGun, disposeGunModels } from './assemble.js';
 import { WeaponActions } from './actions.js';
 import { MaterialCache } from './kit.js';
 import { D2R, HIP, VM_FOV_BASE } from './models/common.js';
@@ -179,48 +179,7 @@ export class ViewmodelRig {
     this._disposed = true;
     this.camera.remove(this.root);
 
-    const geometries = new Set();
-    const materials = new Set();
-    const textures = new Set();
-    const collectMaterial = (material) => {
-      if (!material || materials.has(material)) return;
-      materials.add(material);
-      for (const value of Object.values(material)) {
-        if (value?.isTexture) textures.add(value);
-      }
-      for (const uniform of Object.values(material.uniforms || {})) {
-        const value = uniform?.value;
-        if (value?.isTexture) textures.add(value);
-        else if (Array.isArray(value)) {
-          for (const item of value) if (item?.isTexture) textures.add(item);
-        }
-      }
-    };
-
-    const models = Object.values(this._models);
-    for (const model of models) {
-      model.root.traverse((object) => {
-        if (object.geometry) geometries.add(object.geometry);
-        if (Array.isArray(object.material)) {
-          for (const material of object.material) collectMaterial(material);
-        } else {
-          collectMaterial(object.material);
-        }
-      });
-    }
-    // Cached materials are reference-counted across rigs; only this rig's unique resources
-    // can be released before the final shared owner goes away.
-
-    for (const geometry of geometries) geometry.dispose();
-    for (const texture of textures) texture.dispose();
-    for (const material of materials) {
-      if (!this._materials.sharedMaterials.has(material)) material.dispose();
-    }
-
-    for (const model of models) {
-      model.root.removeFromParent();
-      model.root.clear();
-    }
+    disposeGunModels(this._models, this._materials);
     this.content.clear();
     this.root.clear();
     this._queue.length = 0;
@@ -228,7 +187,6 @@ export class ViewmodelRig {
     this._models = {};
     this._cur = null;
     this._id = null;
-    this._materials.releaseRig();
   }
 
   /* ------------------------------------- simulation ---------------------------------------- */
