@@ -276,6 +276,28 @@ function runDirectContracts() {
     && grenadeEngine.tickEvents.some((event) => event.kind === 'hit' && event.victim === 'blast-target'),
   'one authoritative grenade consumes inventory, damages visible players, destroys stone, and preserves metal');
 
+  const chargeEngine = new GameEngine();
+  chargeEngine.addBot('charge-thrower', 'Charge Thrower');
+  const chargeThrower = chargeEngine.entities.get('charge-thrower');
+  Object.assign(chargeThrower, { yaw: -Math.PI / 2, pitch: 0, vx: 0, vy: 0, vz: 0 });
+  const chargeContext = chargeEngine.grenadeContext();
+  const shortThrow = chargeEngine.grenades.throw(chargeThrower, chargeContext, 0);
+  const longThrow = chargeEngine.grenades.throw(chargeThrower, chargeContext, 1);
+  ok(Math.hypot(longThrow.vx, longThrow.vz) > Math.hypot(shortThrow.vx, shortThrow.vz) * 2
+    && longThrow.vy > shortThrow.vy,
+  'full grenade charge produces a materially longer and higher throw than a tap');
+
+  const forgedEngine = new GameEngine();
+  forgedEngine.addBot('forged-thrower', 'Forged Thrower');
+  forgedEngine.applyInput('forged-thrower', {
+    seq: 1, keys: {}, yaw: 0, pitch: 0, weapon: 0,
+    wantFire: false, wantAds: false, reload: false,
+    throwGrenade: true, grenadeCharge: 99,
+  });
+  const forgedThrower = forgedEngine.entities.get('forged-thrower');
+  ok(forgedThrower.grenadeEdgeQueued && forgedThrower.grenadeChargeQueued === 1,
+    'authoritative input clamps forged grenade charge before simulation');
+
   const blastCapEngine = new GameEngine();
   blastCapEngine.addBot('cap-owner', 'Cap Owner');
   const capOwner = blastCapEngine.entities.get('cap-owner');

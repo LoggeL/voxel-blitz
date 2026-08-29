@@ -1,9 +1,11 @@
 # Map preview sources
 
-All previews use the same production map pipeline as the game. The source
-captures were rendered without players, weapons, networking, or HUD via
-`npm run maps:capture`, then passed to OpenAI's built-in image generation tool
-as strict geometry references. No external source assets were used.
+All previews originate from the same production map pipeline as the game. The
+source captures were rendered without players, weapons, networking, or HUD via
+`npm run maps:capture`. Foundry, Depot, and Citadel then used OpenAI's built-in
+image generation tool with those captures as strict geometry references.
+Solstice uses its final production render directly after image generation was
+used only for art direction. No external source assets were used.
 
 ## Foundry
 
@@ -34,6 +36,18 @@ as strict geometry references. No external source assets were used.
   geometry reference; preserve the brick-and-stone keep, broken crenellations,
   beacon mast, side compounds, courtyard markings, cover, walls, and clouds while
   refining only materials, daylight, shadows, and ambient occlusion.
+
+## Solstice
+
+- File: `solstice-concept.webp`
+- Created: 2026-08-29
+- Source capture: `.artifacts/map-renders/solstice-hero.png`
+- Art-direction reference: Codex generated-image output (not shipped)
+- Prompt intent: preserve the production heliostat, biodome, turbine hall, and
+  three-lane layout while exploring a sun-bleached sandstone canyon, warm
+  metal accents, solar arrays, vegetation, service details, and tighter cover.
+  The generated reference guided voxel revisions; the shipped preview is a
+  later capture of the resulting production geometry rather than concept art.
 
 All generated PNGs were converted locally to WebP at quality 82 with metadata
 removed. The original generated files remain in the Codex image output folder.

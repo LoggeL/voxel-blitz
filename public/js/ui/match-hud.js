@@ -7,6 +7,7 @@ import {
   formatClock,
 } from './hud-support.js';
 import { MatchResultOverlay } from './match-result-overlay.js';
+import { PlayerStatusStrip } from './player-status-strip.js';
 
 const EMPTY_READ_MODEL = Object.freeze({ dead: false });
 const noop = () => {};
@@ -27,6 +28,7 @@ export class MatchHud {
     this.onPlayers = onPlayers;
     this.readModel = readModel;
     this.result = resultOverlay || new MatchResultOverlay();
+    this.playerStatus = new PlayerStatusStrip();
 
     this.dom = {};
     this._latestMatch = null;
@@ -88,6 +90,8 @@ export class MatchHud {
     m.bravoRole = bravoRole;
     m.bravoScore = bravoScore;
 
+    m.playerStatus = this.playerStatus.build(hud);
+
     const interactBar = el('div', 'vb-interaction-bar', hud, 'interaction-bar');
     interactBar.style.display = 'none';
     const interactLabel = el('div', 'vb-interaction-label', interactBar, 'interaction-label');
@@ -137,6 +141,7 @@ export class MatchHud {
     const curMap = match?.map || 'foundry';
     const phase = match?.phase || 'live';
     const isTeamMode = curMode === 'tdm' || curMode === 'snd';
+    this.playerStatus.update(this._latestPlayers, curMode, selfRow?.id);
 
     if (m.modeBadge) {
       m.modeBadge.textContent = MODE_LABELS[curMode] || curMode.toUpperCase();
@@ -323,6 +328,7 @@ export class MatchHud {
 
   dispose() {
     this.result.dispose();
+    this.playerStatus.dispose();
     this._removeDom();
     clearBag(this.dom);
     this._latestMatch = null;
@@ -332,6 +338,7 @@ export class MatchHud {
 
   _removeDom() {
     const { header, interactBar, creditsBox } = this.dom;
+    this.playerStatus.dispose();
     if (header) header.remove();
     if (interactBar) interactBar.remove();
     const econCluster = creditsBox && creditsBox.parentNode;

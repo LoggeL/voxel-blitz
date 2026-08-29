@@ -24,6 +24,13 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   shot('citadel', 'b-compound', [91.5, 22.5, 77.5], [103, 20, 48], 72, 'snd'),
   shot('citadel', 'snd-site-a', [27.5, 20.5, 34.5], [27.5, 20.3, 24.5], 70, 'snd'),
   shot('citadel', 'snd-site-b', [103, 23.5, 59], [103, 23.3, 48], 70, 'snd'),
+
+  shot('solstice', 'hero', [64.5, 27.5, 87.5], [64, 27, 42], 72),
+  shot('solstice', 'biodome', [48.5, 18.2, 73.5], [27, 21, 47], 72),
+  shot('solstice', 'heliostat', [64.5, 18.2, 67.5], [64, 29, 42], 68),
+  shot('solstice', 'turbine-hall', [73.5, 24.5, 81.5], [102, 22, 47], 72),
+  shot('solstice', 'snd-site-a', [27.5, 19.5, 62], [27.5, 16.8, 49], 70, 'snd'),
+  shot('solstice', 'snd-site-b', [116.5, 19, 48], [100, 16.8, 48], 70, 'snd'),
 ]);
 
 export function findMapCaptureShot(map, id = 'hero') {

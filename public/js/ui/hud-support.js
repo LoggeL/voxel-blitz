@@ -55,18 +55,21 @@ export const MAP_LABELS = Object.freeze({
   foundry: 'FOUNDRY',
   depot: 'DEPOT',
   citadel: 'CITADEL',
+  solstice: 'SOLSTICE',
 });
 
 export const MAP_DESCRIPTIONS = Object.freeze({
   foundry: 'Industrial foundry with multi-level catwalks and mid-lane cover (All Modes)',
   depot: 'Point-symmetric cargo depot with mirrored containers & central plaza (Fun / TDM / Gun Game)',
   citadel: 'Urban fortress with Courtyard A and Compound B tactical bomb sites (All Modes)',
+  solstice: 'Desert solar observatory with a glass biodome, turbine hall, and compact linked lanes (All Modes)',
 });
 
 export const MAP_PREVIEWS = Object.freeze({
   foundry: './assets/maps/foundry-concept.webp',
   depot: './assets/maps/depot-concept.webp',
   citadel: './assets/maps/citadel-concept.webp',
+  solstice: './assets/maps/solstice-concept.webp',
 });
 
 export const CARDINAL = Object.freeze({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' });

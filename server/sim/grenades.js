@@ -8,11 +8,11 @@ import {
 import { raycastVoxels } from '../../shared/raycast.js';
 import { evGrenadeExplode, evGrenadeThrow, evHit } from '../protocol.js';
 import { fwdFromYawPitch } from './player.js';
+import { GRENADE_PER_LIFE, grenadeThrowProfile } from '../../shared/grenade-rules.js';
 
 export const GRENADE_RULES = Object.freeze({
-  perLife: 2,
+  perLife: GRENADE_PER_LIFE,
   fuseMs: 2300,
-  throwSpeed: 11.5,
   terrainRadius: 3.8,
   damageRadius: 5.6,
   maxDestroyedBlocks: 110,
@@ -58,8 +58,10 @@ export class GrenadeSystem {
     for (const player of ctx.entities.values()) {
       if (!player.grenadeEdgeQueued) continue;
       player.grenadeEdgeQueued = false;
+      const charge = player.grenadeChargeQueued;
+      player.grenadeChargeQueued = 0;
       if (player.state !== 'alive' || player.grenades <= 0 || !ctx.canThrow(player)) continue;
-      this.throw(player, ctx);
+      this.throw(player, ctx, charge);
     }
 
     const substeps = 2;
@@ -74,8 +76,9 @@ export class GrenadeSystem {
     }
   }
 
-  throw(player, ctx) {
+  throw(player, ctx, charge = 0.5) {
     const direction = fwdFromYawPitch(player.yaw, player.pitch);
+    const profile = grenadeThrowProfile(charge);
     const id = `g${this._nextId++}`;
     const grenade = {
       id,
@@ -84,9 +87,10 @@ export class GrenadeSystem {
       x: player.x + direction.x * 0.48,
       y: player.eyeY - 0.12 + direction.y * 0.38,
       z: player.z + direction.z * 0.48,
-      vx: direction.x * GRENADE_RULES.throwSpeed + player.vx * 0.35,
-      vy: direction.y * GRENADE_RULES.throwSpeed + 2.6 + player.vy * 0.2,
-      vz: direction.z * GRENADE_RULES.throwSpeed + player.vz * 0.35,
+      vx: direction.x * profile.speed + player.vx * 0.35,
+      vy: direction.y * profile.speed + profile.lift + player.vy * 0.2,
+      vz: direction.z * profile.speed + player.vz * 0.35,
+      charge: profile.charge,
       explodeAt: ctx.now + GRENADE_RULES.fuseMs,
     };
     player.grenades--;

@@ -39,6 +39,7 @@ import {
 } from './sim/combat.js';
 import { SpawnSelector } from './sim/spawn.js';
 import { GrenadeSystem } from './sim/grenades.js';
+import { clampGrenadeCharge } from '../shared/grenade-rules.js';
 
 export { PHYSICS, SHOT_REACH, aimAngles, fwdFromYawPitch };
 
@@ -213,6 +214,7 @@ export class GameEngine {
     player.triggerPrev = false;
     player.fireEdgeQueued = false;
     player.grenadeEdgeQueued = false;
+    player.grenadeChargeQueued = 0;
     this.entities.set(pid, player);
     this.humanIds.add(pid);
     return this.spawnInfoFor(player);
@@ -290,6 +292,7 @@ export class GameEngine {
       wantAds: !!msg.wantAds,
       reload: !!msg.reload,
       throwGrenade: !!msg.throwGrenade,
+      grenadeCharge: clampGrenadeCharge(msg.grenadeCharge),
       viewAge: Number.isFinite(msg.viewAge)
         ? Math.max(
           NETWORK_PRESENTATION.minViewAgeMs,
@@ -309,6 +312,7 @@ export class GameEngine {
     if (input.wantFire && !(previous && previous.wantFire)) player.fireEdgeQueued = true;
     if (input.throwGrenade && !(previous && previous.throwGrenade)) {
       player.grenadeEdgeQueued = true;
+      player.grenadeChargeQueued = input.grenadeCharge;
     }
     player.input = input;
   }

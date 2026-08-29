@@ -6,6 +6,7 @@ export const MAP_NAMES = Object.freeze({
   foundry: 'Foundry',
   depot: 'Depot',
   citadel: 'Citadel',
+  solstice: 'Solstice',
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
@@ -39,6 +40,17 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
       defenders: [[18, 8], [36, 8], [54, 8], [72, 8], [90, 8], [108, 8]],
     },
   },
+  solstice: {
+    fun: [[16, 12], [36, 12], [64, 10], [92, 12], [112, 18], [112, 78], [92, 84], [64, 85], [36, 84], [16, 78], [48, 48], [80, 48]],
+    tdm: {
+      alpha: [[16, 84], [34, 84], [52, 84], [76, 84], [94, 84], [112, 84]],
+      bravo: [[16, 10], [34, 10], [52, 10], [76, 10], [94, 10], [112, 10]],
+    },
+    snd: {
+      attackers: [[16, 84], [34, 84], [52, 84], [76, 84], [94, 84], [112, 84]],
+      defenders: [[16, 10], [34, 10], [52, 10], [76, 10], [94, 10], [112, 10]],
+    },
+  },
 });
 
 export const MAP_SITE_LAYOUTS = Object.freeze({
@@ -50,6 +62,10 @@ export const MAP_SITE_LAYOUTS = Object.freeze({
   citadel: [
     { id: 'A', minX: 21, maxX: 34, minZ: 18, maxZ: 30, y: GROUND + 1.02 },
     { id: 'B', minX: 97, maxX: 108, minZ: 42, maxZ: 54, y: GROUND + 4.02 },
+  ],
+  solstice: [
+    { id: 'A', minX: 21, maxX: 34, minZ: 43, maxZ: 54, y: GROUND + 1.02 },
+    { id: 'B', minX: 94, maxX: 106, minZ: 42, maxZ: 54, y: GROUND + 1.02 },
   ],
 });
 
@@ -68,6 +84,11 @@ export const MAP_LANDMARKS = Object.freeze({
     { id: 'a-courtyard', name: 'A Courtyard', x: 27, z: 24 },
     { id: 'keep', name: 'Central Keep', x: 63, z: 47 },
     { id: 'b-compound', name: 'B Compound', x: 103, z: 48 },
+  ],
+  solstice: [
+    { id: 'biodome', name: 'Glass Biodome', x: 28, z: 48 },
+    { id: 'heliostat', name: 'Heliostat Ring', x: 64, z: 45 },
+    { id: 'turbines', name: 'Turbine Hall', x: 101, z: 48 },
   ],
 });
 
@@ -154,11 +175,11 @@ export function createMapMetadata(id, world) {
     }
   }
 
-  if (id === 'citadel' && metadata.sites.length === 2) {
+  if (metadata.sites.length === 2) {
     const [a, b] = metadata.sites;
     const overlap = a.minX <= b.maxX && b.minX <= a.maxX
       && a.minZ <= b.maxZ && b.minZ <= a.maxZ;
-    if (overlap) throw new Error('citadel plant sites overlap');
+    if (overlap) throw new Error(`${id} plant sites overlap`);
   }
   return deepFreeze(metadata);
 }

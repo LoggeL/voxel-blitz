@@ -298,6 +298,8 @@ export class Session {
       spawnProtected: false,
       reloading01: null,
       adsT01: 0,
+      grenades: 0,
+      grenadeCharge: 0,
     });
     this.hud.setPainImpulse(0);
     this.hud.setDeathBrutality(0);

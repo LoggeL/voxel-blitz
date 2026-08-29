@@ -951,6 +951,112 @@ h1.vb-title::after {
   );
 }
 
+/* ---------- live player status strip ---------- */
+
+.vb-player-status-strip {
+  position: absolute;
+  top: 74px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: min(1040px, calc(100vw - 380px));
+  min-width: 420px;
+  z-index: var(--z-feed);
+  pointer-events: none;
+}
+
+.vb-player-status-group {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.vb-player-status-strip.is-team-mode .vb-player-status-group {
+  flex: 1 1 50%;
+}
+
+.vb-player-status-strip.is-team-mode .vb-player-team-alpha {
+  flex-direction: row-reverse;
+}
+
+.vb-player-status-summary {
+  flex: 0 0 auto;
+  padding: 3px 5px;
+  font: 700 8px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  color: var(--sub);
+  background: rgba(4, 7, 10, 0.78);
+  border: 1px solid var(--line-dim);
+}
+
+.vb-player-status-card {
+  --status-team: var(--amber);
+  position: relative;
+  display: grid;
+  grid-template-columns: 9px minmax(34px, 76px) minmax(14px, auto);
+  align-items: center;
+  gap: 3px;
+  min-width: 74px;
+  max-width: 112px;
+  padding: 4px 6px;
+  overflow: hidden;
+  color: var(--txt);
+  background: rgba(5, 8, 12, 0.82);
+  border: 1px solid color-mix(in srgb, var(--status-team) 32%, var(--line-dim));
+  clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+}
+
+.vb-player-status-card.vb-player-team-alpha { --status-team: var(--team-alpha); }
+.vb-player-status-card.vb-player-team-bravo { --status-team: var(--team-bravo); }
+
+.vb-player-status-card.is-self {
+  border-color: var(--status-team);
+  box-shadow: inset 0 -2px 0 var(--status-team), 0 0 8px color-mix(in srgb, var(--status-team) 22%, transparent);
+}
+
+.vb-player-status-card.is-dead {
+  opacity: 0.42;
+  filter: saturate(0.25);
+}
+
+.vb-player-status-dot {
+  color: var(--ok);
+  font: 700 8px/1 var(--font-mono);
+  text-shadow: 0 0 5px rgba(127, 208, 105, 0.7);
+}
+
+.vb-player-status-card.is-dead .vb-player-status-dot {
+  color: var(--danger);
+  font-size: 11px;
+  text-shadow: none;
+}
+
+.vb-player-status-name {
+  overflow: hidden;
+  font: 650 8px/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vb-player-status-score {
+  color: var(--status-team);
+  font: 700 9px/1 var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.vb-player-status-versus {
+  color: var(--sub);
+  font: 700 8px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
 /* ---------- final match result ---------- */
 
 .vb-match-result {
@@ -2027,15 +2133,109 @@ h1.vb-title::after {
 
 #grenade-count {
   position: absolute;
-  left: 12px;
-  bottom: calc(100% + 8px);
-  min-width: 44px;
-  padding: 2px 5px;
-  font: 700 10px/1 var(--font-mono);
-  letter-spacing: 0.08em;
+  right: 214px;
+  bottom: 102px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 82px;
+  padding: 5px 7px 6px;
   color: var(--amber-hi);
   background: rgba(5, 7, 10, 0.82);
   border: 1px solid rgba(255, 159, 28, 0.45);
+  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+
+.vb-grenade-key {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  font: 700 9px/1 var(--font-mono);
+  color: #07090b;
+  background: var(--amber-hi);
+  border-radius: 2px;
+}
+
+.vb-grenade-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vb-grenade-icon {
+  position: relative;
+  display: block;
+  width: 10px;
+  height: 13px;
+  background: linear-gradient(90deg, #b96b10, var(--amber-hi) 54%, #8f4d08);
+  border: 1px solid rgba(255, 220, 160, 0.64);
+  border-radius: 45% 45% 38% 38%;
+  box-shadow: 0 0 6px rgba(255, 159, 28, 0.32);
+  transition: opacity 120ms linear, transform 120ms ease;
+}
+
+.vb-grenade-icon::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: -4px;
+  width: 6px;
+  height: 4px;
+  border: 1px solid var(--amber-hi);
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+}
+
+.vb-grenade-icon.is-spent {
+  opacity: 0.16;
+  filter: grayscale(1);
+  box-shadow: none;
+}
+
+.vb-grenade-charge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.vb-grenade-charge i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--amber), var(--danger));
+  box-shadow: 0 0 8px var(--amber);
+}
+
+.vb-grenade-hint {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 3px);
+  opacity: 0;
+  font: 700 7px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: var(--amber-hi);
+  transition: opacity 100ms linear;
+}
+
+#grenade-count.is-charging {
+  border-color: var(--amber-hi);
+  box-shadow: 0 0 13px rgba(255, 159, 28, 0.24);
+}
+
+#grenade-count.is-charging .vb-grenade-icon:not(.is-spent) {
+  transform: translateY(-1px);
+}
+
+#grenade-count.is-charging .vb-grenade-hint {
+  opacity: 1;
 }
 
 /* ---------- live telemetry ---------- */
@@ -2139,7 +2339,7 @@ h1.vb-title::after {
 
 #killfeed {
   position: absolute;
-  top: 72px;
+  top: 112px;
   right: 18px;
   display: flex;
   flex-direction: column;
@@ -2167,8 +2367,38 @@ h1.vb-title::after {
 }
 
 .kf-row b { color: var(--amber-hi); font-weight: 600; }
-.kf-row .kf-w,
 .kf-row em { color: var(--sub); font-style: normal; font-size: 10px; letter-spacing: 0.2em; }
+
+.kf-row .kf-weapon {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 64px;
+  padding: 2px 5px;
+  color: var(--amber-hi);
+  background: rgba(255, 159, 28, 0.07);
+  border: 1px solid rgba(255, 159, 28, 0.2);
+}
+
+.kf-weapon-icon {
+  width: 38px;
+  height: 17px;
+  object-fit: contain;
+  filter: sepia(1) saturate(1.2) drop-shadow(0 1px 2px #000);
+}
+
+.kf-grenade-icon {
+  font-size: 11px;
+}
+
+.kf-weapon-name {
+  max-width: 88px;
+  overflow: hidden;
+  font: 700 7px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .kf-row .kf-marker {
   padding: 2px 4px;
@@ -2933,6 +3163,11 @@ h1.vb-title::after {
     gap: 6px;
   }
 
+  .vb-player-status-strip {
+    width: calc(100vw - 220px);
+    min-width: 420px;
+  }
+
   .vb-match-team {
     flex: 0 0 115px;
     padding: 3px 6px;
@@ -2990,6 +3225,25 @@ h1.vb-title::after {
     min-width: 90px;
   }
 
+  .vb-player-status-strip {
+    top: 98px;
+    width: calc(100vw - 20px);
+    min-width: 0;
+  }
+
+  .vb-player-status-summary,
+  .vb-player-status-name {
+    display: none;
+  }
+
+  .vb-player-status-card {
+    grid-template-columns: 8px 16px;
+    min-width: 34px;
+    padding: 4px;
+  }
+
+  #killfeed { top: 132px; }
+
   .vb-buy-grid {
     grid-template-columns: 1fr;
   }
@@ -3042,8 +3296,9 @@ h1.vb-title::after {
   }
 
   #grenade-count {
-    left: 6px;
-    bottom: calc(100% + 6px);
+    right: 132px;
+    bottom: 80px;
+    min-width: 72px;
   }
 
   #weaponname {

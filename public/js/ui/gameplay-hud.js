@@ -10,6 +10,7 @@ import {
 import { MatchHud } from './match-hud.js';
 import { createSniperScope } from './sniper-scope.js';
 import { NetworkHud } from './network-hud.js';
+import { GRENADE_PER_LIFE } from '../../../shared/grenade-rules.js';
 
 const EMPTY_READ_MODEL = Object.freeze({ dead: false, painImpulse: 0 });
 const noop = () => {};
@@ -120,8 +121,22 @@ export class GameplayHud {
     d.weaponIcon = el('img', 'vb-weapon-icon', d.ammo, 'weapon-icon');
     d.weaponIcon.alt = '';
     d.weaponIcon.setAttribute('aria-hidden', 'true');
-    d.grenades = el('span', 'vb-grenade-count', d.ammo, 'grenade-count');
-    d.grenades.textContent = 'G · 0';
+    // Kept outside #ammo because that panel's angular clip-path also clips
+    // absolutely positioned descendants above its bounds.
+    d.grenades = el('div', 'vb-grenade-count', hud, 'grenade-count');
+    d.grenadeKey = el('span', 'vb-grenade-key', d.grenades);
+    d.grenadeKey.textContent = 'G';
+    d.grenadeIcons = el('span', 'vb-grenade-icons', d.grenades);
+    d.grenadeSlots = [];
+    for (let i = 0; i < GRENADE_PER_LIFE; i++) {
+      const icon = el('span', 'vb-grenade-icon is-spent', d.grenadeIcons);
+      icon.setAttribute('aria-hidden', 'true');
+      d.grenadeSlots.push(icon);
+    }
+    d.grenadeCharge = el('span', 'vb-grenade-charge', d.grenades);
+    d.grenadeChargeFill = el('i', '', d.grenadeCharge);
+    d.grenadeHint = el('span', 'vb-grenade-hint', d.grenades);
+    d.grenadeHint.textContent = 'HOLD · RELEASE';
     d.mag = el('span', '', d.ammo, 'ammocount');
     d.sep = el('span', '', d.ammo);
     d.sep.textContent = '/';
@@ -241,7 +256,16 @@ export class GameplayHud {
       d.res.textContent = `${spareMags} ${spareMags === 1 ? 'MAG' : 'MAGS'}`;
     }
     if (s.wname != null) d.wname.textContent = String(s.wname).toUpperCase();
-    if (s.grenades != null) d.grenades.textContent = `G · ${Math.max(0, s.grenades | 0)}`;
+    if (s.grenades != null) {
+      const count = Math.max(0, s.grenades | 0);
+      for (let i = 0; i < d.grenadeSlots.length; i++) {
+        d.grenadeSlots[i].classList.toggle('is-spent', i >= count);
+      }
+      d.grenades.setAttribute('aria-label', `${count} grenades remaining`);
+    }
+    const grenadeCharge = clamp01(s.grenadeCharge);
+    d.grenades.classList.toggle('is-charging', grenadeCharge > 0);
+    d.grenadeChargeFill.style.transform = `scaleX(${grenadeCharge})`;
 
     const key = resolveKey(s.wid);
     if (key && key !== this.lastWepKey) {

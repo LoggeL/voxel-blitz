@@ -10,6 +10,7 @@ import {
   EYE_HEIGHT,
 } from '../../shared/combatmath.js';
 import { mulberry32 } from '../../shared/noise.js';
+import { GRENADE_PER_LIFE } from '../../shared/grenade-rules.js';
 
 const WALK_SPEED = 4.4;
 const SPRINT_SPEED = 6.2;
@@ -136,7 +137,8 @@ export class PlayerEntity {
     this.triggerPrev = false;
     this.fireEdgeQueued = false;
     this.grenadeEdgeQueued = false;
-    this.grenades = 2;
+    this.grenadeChargeQueued = 0;
+    this.grenades = GRENADE_PER_LIFE;
     this.grounded = false;
     this.coyote = 0;
     this.crouch = false;

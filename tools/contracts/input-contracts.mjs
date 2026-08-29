@@ -11,15 +11,25 @@ export async function runInputContracts(ok, installGlobals) {
       ok(input.getSensitivity() === 0.01,
         'fresh input starts at the lower canonical mouse sensitivity');
 
-      const key = (code, repeat = false) => ({
+      const key = (code, repeat = false, timeStamp = 0) => ({
         code,
         repeat,
+        timeStamp,
         preventDefault() {},
       });
 
-      input._onKeyDown(key('KeyG'));
-      ok(input.consumeGrenadeThrow() && !input.consumeGrenadeThrow(),
-        'G queues exactly one grenade edge per physical press');
+      input._onKeyDown(key('KeyG', false, 100));
+      input._onKeyDown(key('KeyG', true, 400));
+      ok(input.consumeGrenadeThrow() === null
+        && input.getGrenadeCharge(700) === 0.5,
+      'holding G exposes deterministic charge progress without throwing or repeating');
+      input._onKeyUp(key('KeyG', false, 1300));
+      ok(input.consumeGrenadeThrow() === 1 && input.consumeGrenadeThrow() === null,
+        'releasing a fully charged G queues exactly one maximum-strength throw');
+      input._onKeyDown(key('KeyG', false, 2000));
+      input._onKeyUp(key('KeyG', false, 2000));
+      ok(input.consumeGrenadeThrow() === 0,
+        'a quick G tap remains a valid zero-charge short throw');
 
       input._onKeyDown(key('Digit5'));
       ok(input.consumeWeaponSlot() === 4 && input.consumeWeaponSlot() === null,

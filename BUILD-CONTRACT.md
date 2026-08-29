@@ -10,7 +10,8 @@ room/client interfaces below; do not fork their logic into a second convention.
   bundler or frontend build.
 - Shared sim modules imported by both sides are `shared/worlddata.js`,
   `shared/modes.js`, `shared/raycast.js`, `shared/combatmath.js`, and
-  `shared/noise.js`.
+  `shared/noise.js`. `shared/grenade-rules.js` is the shared grenade inventory,
+  charge-duration, clamp, and throw-profile contract.
 - One room owns one map clone, `GameEngine`, `ModeController`, optional
   `BotManager`, and room-scoped transports. The server remains authoritative at
   20 Hz.
@@ -45,10 +46,10 @@ The first non-binary frame is exactly one admission shape:
 - `{t:'join',name:string,bots?:number}` selects quick play. It joins the first
   live shared Fun room with capacity or creates one. `bots` defaults to zero and
   applies only to a newly created quick room. Fresh quick rooms rotate between
-  `foundry` and `depot`.
+  `foundry`, `depot`, and `solstice`.
 - `{t:'create',name:string,bots:number,gameMode?:'fun'|'tdm'|'snd'|'gungame',
-  map?:'foundry'|'depot'|'citadel'}` creates a public waiting lobby. Omitted
-  values default to `fun` and the first compatible map. An explicitly
+  map?:'foundry'|'depot'|'citadel'|'solstice'}` creates a public waiting lobby.
+  Omitted values default to `fun` and the first compatible map. An explicitly
   incompatible mode/map pair is malformed.
 - `{t:'join',name:string,lobby:string}` joins a public waiting or live lobby and
   inherits its authoritative mode and map.
@@ -64,9 +65,11 @@ After admission:
 - `{t:'input',seq:number,keys:{f:boolean,b:boolean,l:boolean,r:boolean,
   jump:boolean,sprint:boolean,crouch:boolean,interact:boolean},yaw:number,
   pitch:number,weapon:number,wantFire:boolean,wantAds:boolean,reload:boolean,
-  viewAge:number,throwGrenade?:boolean,switchTo?:number}` routes only to this
-  member's live room. A grenade throw is edge-triggered and consumes one of two
-  grenades for the current life only when the mode permits firing.
+  viewAge:number,throwGrenade?:boolean,grenadeCharge?:number,switchTo?:number}`
+  routes only to this member's live room. A grenade throw is release-edge
+  triggered after holding `G`; authority clamps `grenadeCharge` to `0–1`, maps
+  it to the shared throw-speed/lift profile, and consumes one of two grenades
+  for the current life only when the mode permits firing.
   `viewAge` is the client's current presentation buffer plus measured RTT and
   is clamped by authority to `50–450 ms` before hit rewind.
   Weapon slots clamp to `0–5`; keyboard digits are `1–6`.
@@ -163,7 +166,7 @@ Exports block ids `AIR` through `PALE`, `BLOCK_HP`, `GRENADE_RESISTANCE`, `SX`,
 `createWorldState(serializedBytes?)`. It also exports `getMapMeta(id)` and
 `createMapState(id,serializedBytes?)`.
 
-`createMapState` accepts `foundry`, `depot`, or `citadel` and returns an
+`createMapState` accepts `foundry`, `depot`, `citadel`, or `solstice` and returns an
 independent `{mapId,meta,getBlock,setBlock,heightAt,findSpawns,serializeWorld,
 rebuildHeightMap}`. Templates are generated and cached once, then cloned for
 each room. `meta` is deeply frozen and has
@@ -173,7 +176,7 @@ the map id travels in JSON. `createWorldState` remains the default Foundry API.
 
 ### shared/modes.js
 Exports immutable `MODE_IDS=['fun','tdm','snd','gungame']`,
-`TEAM_IDS=['alpha','bravo']`, `MAP_IDS=['foundry','depot','citadel']`,
+`TEAM_IDS=['alpha','bravo']`, `MAP_IDS=['foundry','depot','citadel','solstice']`,
 `MODE_RULES`, `MAP_MODE_COMPATIBILITY`, S&D credit constants,
 `WEAPON_PRICES`, defaults, validators/normalizers for mode/team/map/weapon ids,
 `isTeamMode(modeId)`, and `isModeMapCompatible(modeId,mapId)`. This is the browser/server source of
@@ -230,8 +233,8 @@ enforces `maxDist`; `computeBlockedMuzzle` performs short cover probes.
   host start changes `waiting` to `live`, attaches configured bots, starts the
   engine, and broadcasts the replacement state.
 - Direct quick-play clients share a live Fun room until it reaches eight
-  humans. Quick play bypasses readiness, rotates Foundry/Depot for fresh rooms,
-  and starts a new room immediately.
+  humans. Quick play bypasses readiness, rotates Foundry/Depot/Solstice for
+  fresh rooms, and starts a new room immediately.
 - Public live late joins are valid. They receive the current selected-map bytes
   without returning the room to waiting. An S&D live/post late join is assigned
   a balanced team and remains dead until the next round; a prep join may spawn
@@ -284,8 +287,8 @@ and exposes `quickPlay(meta,name,bots?)`,
 - `buildMenu(onAction)` builds Quick Play/Create/Join and calls
   `onAction({mode:'quick'|'create'|'join',gameMode,map,name,bots,sensitivity,
   code})`. Create uses the selected compatible mode/map. Quick uses shared Fun
-  admission with five takeover bots and automatic Foundry/Depot rotation; Join
-  uses the code and inherits the room selection. Names trim to
+  admission with five takeover bots and automatic Foundry/Depot/Solstice
+  rotation; Join uses the code and inherits the room selection. Names trim to
   16 characters with `PLAYER` fallback; codes normalize to the invite alphabet
   and five characters. `?lobby=CODE` pre-fills and focuses Join.
   `showJoinState(message,tone?)` reports menu admission state.
@@ -302,14 +305,16 @@ and exposes `quickPlay(meta,name,bots?)`,
   accessible S&D armory. It opens only during prep, displays exact shared
   prices/ownership/affordability, and sends the chosen weapon id.
 - `setMatchState(match,selfRow,players,serverNow)` renders mode/map, team scores,
-  phase clock, S&D round/role/bomb state, interaction progress, and credits from
-  authoritative state. Team colors apply to HUD and scoreboard.
+  phase clock, S&D round/role/bomb state, interaction progress, credits, and the
+  compact alive/dead player status strip from authoritative state. Team colors
+  apply to HUD and scoreboard.
 - `setupSettings({sensitivity,volume,fov,onChange,onResume})`,
   `openSettings()`, `closeSettings()`, and getter `settingsOpen` own settings.
   Settings, buy, and lobby dialogs are mutually exclusive and suppress gameplay.
   `onChange` receives the full `{sensitivity,volume,fov}` object.
 - `buildHUD()`, `menuDone()`, and
-  `setState({hp,mag,reserve,wname,wid,bloomPx,reloading01,yawDeg,adsT01,alive})`
+  `setState({hp,mag,reserve,wname,wid,bloomPx,reloading01,yawDeg,adsT01,alive,
+  grenades,grenadeCharge})`
   own the live HUD. `spreadFromBloom(deg)`, `setSpread(px)`,
   `hideCrosshairForAds(boolean)`, `setReloadProgress(t01|null)`,
   `updateCompass(yawDeg)`, `pushEvent(ev)`, `hitmark(headshot)`,
@@ -325,9 +330,11 @@ late join whose welcome/state is already live also proceeds directly.
 ### Input, rendering, effects, and viewmodel
 - `new Input(canvas).start(canvas,onLockChange)`; poll `getKeys()` for movement
   plus held `interact`, read `yaw`/`pitch`, and drain fire, reload, weapon, and
-  buy-menu edge consumers. `E` holds interact; `B` toggles the buy menu;
-  `1–6`/wheel/`Q` select weapons. `setGameplayEnabled(boolean)` gates input
-  around lobby, settings, buy, death, and teardown.
+  buy-menu edge consumers. `getGrenadeCharge(now?)` exposes live HUD progress;
+  `consumeGrenadeThrow()` returns the released `0–1` charge or `null`. `E` holds
+  interact; `B` toggles the buy menu; `1–6`/wheel/`Q` select weapons.
+  `setGameplayEnabled(boolean)` gates input around lobby, settings, buy, death,
+  and teardown.
 - `new WorldView({getBlock})`; call `await ready()` before rendering,
   `applyDeltas([{x,y,z,v}])`, `update(dt)`, camera ray helpers, and `dispose()`.
 - `new CombatPostProcess(renderer,options)` owns the bounded scene render target
@@ -421,10 +428,11 @@ step listener with the room.
   selects, and refills that weapon. New/dead players start the next round with
   revolver; survivors retain purchases and remaining ammunition.
 - **Map compatibility:** `foundry` supports Fun/TDM/S&D/Gun Game; `depot`
-  supports Fun/TDM/Gun Game; `citadel` supports Fun/TDM/S&D/Gun Game. Foundry
-  has A/B sites, Depot is a
-  compact point-symmetric cargo map, and Citadel has Courtyard A and elevated
-  Compound B with separated sightlines and rotation paths. Every declared spawn
+  supports Fun/TDM/Gun Game; `citadel` and `solstice` support
+  Fun/TDM/S&D/Gun Game. Foundry has A/B sites, Depot is a compact
+  point-symmetric cargo map, Citadel has Courtyard A and elevated Compound B,
+  and Solstice is a desert solar observatory with a biodome, broken heliostat
+  ring, turbine hall, compact linked lanes, and A/B sites. Every declared spawn
   has solid footing and two-block headroom.
 - **Settings:** sensitivity defaults to `0.010`, clamps to `0.005–0.08`, and
   persists as `vb-sens`; master volume defaults to `0.80`, clamps to `0–1`, and
@@ -445,10 +453,11 @@ step listener with the room.
   predicts feel/FX but accepted shots and all damage are server decisions.
   Shooter-side rewind uses the client's bounded `viewAge` within a 500 ms
   history window so hit authority matches the target state actually rendered.
-- **Grenades:** every fresh life has two. `G` queues one throw edge; the server
-  owns trajectory, 2300 ms fuse, blast damage/line of sight, knockback, and a
-  resistance-limited terrain carve. Metal is blast-proof and each explosion
-  destroys at most 110 blocks.
+- **Grenades:** every fresh life has two. Holding `G` charges for up to 1200 ms;
+  releasing queues one throw edge with a shared `0–1` charge profile, which the
+  server clamps before owning trajectory, 2300 ms fuse, blast damage/line of
+  sight, knockback, and a resistance-limited terrain carve. Metal is blast-proof
+  and each explosion destroys at most 110 blocks.
 - **Hit confirmation:** shooter-side hitmarks, their confirmation sound, and
   world-anchored damage numbers share one camera-to-impact voxel visibility
   decision; intervening cover suppresses the complete confirmation.
@@ -475,7 +484,7 @@ step listener with the room.
   follows the immediate camera with weight-limited speed and acceleration.
   Heavier weapons trail farther and settle more slowly; camera/authority aim is
   never delayed or altered.
-- **Worlds:** Foundry, Depot, and Citadel are deterministic 128×40×96 templates.
+- **Worlds:** Foundry, Depot, Citadel, and Solstice are deterministic 128×40×96 templates.
   Every room mutates an independent clone of its selected map. Block damage and
   serialized late-join state remain local to that room.
 

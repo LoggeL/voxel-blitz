@@ -478,7 +478,7 @@ export async function runHudContracts(ok, installGlobals) {
       'HUD menu exposes every canonical game mode');
       modeSelect.value = 'snd';
       modeSelect.dispatchEvent(event('change'));
-      ok(mapSelect.options.map((option) => option.value).join(',') === 'foundry,citadel'
+      ok(mapSelect.options.map((option) => option.value).join(',') === 'foundry,citadel,solstice'
         && !mapSelect.options.some((option) => option.value === 'depot'),
       'HUD menu removes maps incompatible with the selected mode');
       modeSelect.value = 'tdm';
@@ -659,6 +659,21 @@ export async function runHudContracts(ok, installGlobals) {
         && visible(document.getElementById('hud-carrier-badge'))
         && visible(document.getElementById('hud-buy-prompt')),
       'S&D prep HUD renders authoritative credits, carrier state, and buy prompt');
+      const statusStrip = document.getElementById('player-status-strip');
+      ok(statusStrip.querySelectorAll('.vb-player-status-card').length === 2
+        && statusStrip.querySelectorAll('.is-alive').length === 1
+        && statusStrip.querySelectorAll('.is-dead').length === 1
+        && statusStrip.querySelectorAll('.vb-player-team-alpha').length > 0
+        && statusStrip.querySelectorAll('.vb-player-team-bravo').length > 0
+        && /12/.test(statusStrip.textContent)
+        && /8/.test(statusStrip.textContent),
+      'top status strip renders both teams, alive/dead state, and authoritative points');
+
+      hud.setState({ grenades: 1, grenadeCharge: 0.5 });
+      ok(hud.dom.grenadeSlots.filter((slot) => !slot.classList.contains('is-spent')).length === 1
+        && hud.dom.grenades.classList.contains('is-charging')
+        && hud.dom.grenadeChargeFill.style.transform === 'scaleX(0.5)',
+      'grenade HUD renders remaining inventory icons and live hold charge');
 
       const liveTick = makeSnapshot([], [], [], 20000, {
         ...prepMatch,
@@ -901,8 +916,9 @@ export async function runHudContracts(ok, installGlobals) {
         === 'NEWEST,HOST',
       'killfeed inserts the newest row before the prior row');
       ok(hud.dom.kf.children[0].children.map((node) => node.textContent).join('|')
-        === 'NEWEST|?|HEADSHOT|LONG RANGE|NO-SCOPE|LATEST',
-      'killfeed renders authoritative HEADSHOT, LONG RANGE, and NO-SCOPE markers');
+        === 'NEWEST|LONGSHOT MK-II|HEADSHOT|LONG RANGE|NO-SCOPE|LATEST'
+        && hud.dom.kf.children[0].querySelector('.kf-weapon-icon')?.src.endsWith('/sniper.png'),
+      'killfeed renders weapon identity plus authoritative HEADSHOT, LONG RANGE, and NO-SCOPE markers');
       hud.setState({ wid: 'sniper', adsT01: 0.9, alive: true, hp: 100 });
       hud.setPainImpulse(0.8);
       const fullRoots = [

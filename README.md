@@ -21,7 +21,8 @@ npm start            # http://localhost:8070  (PORT env to override)
 The main menu has three admission paths:
 
 - **Quick Play** enters the first live shared Fun room with human capacity, or
-  creates one immediately. Fresh quick rooms rotate between Foundry and Depot.
+  creates one immediately. Fresh quick rooms rotate between Foundry, Depot,
+  and Solstice.
   A fresh room starts with at least five bots; humans replace bots as they join.
   The menu's custom mode and map selectors do not change quick play.
 - **Create Lobby** creates a public waiting room with the selected game mode,
@@ -198,6 +199,7 @@ and scores reset.
 | `foundry` | Fun, TDM, S&D, Gun Game | industrial Foundry with A/B sites |
 | `depot` | Fun, TDM, Gun Game | point-symmetric cargo Depot |
 | `citadel` | Fun, TDM, S&D, Gun Game | Citadel with Courtyard A and elevated Compound B |
+| `solstice` | Fun, TDM, S&D, Gun Game | desert solar observatory with a biodome, heliostat ring, and turbine hall |
 
 ## Controls
 
@@ -209,7 +211,7 @@ and scores reset.
 | `Ctrl` / `C` | crouch; climb down while touching a ladder |
 | mouse1 / mouse2 | fire / ADS |
 | `R` | reload |
-| `G` | throw one server-authoritative terrain grenade (2 per life) |
+| hold/release `G` | charge and throw one server-authoritative terrain grenade; longer holds throw farther (2 per life) |
 | `1-6` / wheel | weapon slots |
 | `Q` | previous weapon; while dead, previous spectator target |
 | `E` | hold S&D interaction; while dead, next spectator target |
@@ -287,7 +289,7 @@ public/js/
 tools/     fast contracts plus isolated visual, audio, and container QA flows
 ```
 
-Foundry, Depot, and Citadel are deterministic templates. Every room receives a
+Foundry, Depot, Citadel, and Solstice are deterministic templates. Every room receives a
 fresh mutable clone of its selected map. The current room map is serialized in
 the single binary admission frame; subsequent block destruction is room-scoped
 and streams as index deltas inside immutable client snapshots. Each tick also

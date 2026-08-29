@@ -155,6 +155,7 @@ export async function runNetClientContracts(ok, installGlobals) {
         reload: false,
         viewAge: 80,
         throwGrenade: true,
+        grenadeCharge: 0.6254,
       });
       const inputFrame = JSON.parse(joined.ws.sent.at(-1));
       ok(JSON.stringify(inputFrame) === JSON.stringify({
@@ -178,8 +179,9 @@ export async function runNetClientContracts(ok, installGlobals) {
         reload: false,
         viewAge: 80,
         throwGrenade: true,
+        grenadeCharge: 0.625,
       }),
-      'NetClient sends the exact nested held-interaction input frame');
+      'NetClient sends the exact nested held-interaction and clamped grenade-charge frame');
 
       const emitted = [];
       joined.client.on('lobby', (state) => emitted.push(state));

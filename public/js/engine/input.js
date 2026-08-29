@@ -10,6 +10,14 @@
 //   fwd = (-sin(yaw)*cos(pitch), sin(pitch), -cos(yaw)*cos(pitch))
 
 import { clampMouseSensitivity, MOUSE_SENSITIVITY } from '../input-settings.js';
+import { GRENADE_CHARGE_MS, clampGrenadeCharge } from '../../../shared/grenade-rules.js';
+
+function eventTime(event) {
+  if (Number.isFinite(event?.timeStamp)) return event.timeStamp;
+  return typeof performance !== 'undefined' && typeof performance.now === 'function'
+    ? performance.now()
+    : Date.now();
+}
 
 export class Input {
   /**
@@ -45,7 +53,9 @@ export class Input {
     this._accDY = 0;
     this._fireTapQueued = false;
     this._reloadQueued = false;
-    this._grenadeQueued = false;
+    this._grenadeChargeQueued = null;
+    this._grenadeHeld = false;
+    this._grenadeHoldStartedAt = 0;
     this._switchQueue = 0;     // wheel steps accumulated (+/-1)
     this._pendingSlot = null;  // direct Digit1..6 pick (0..5) or null
     this._lastWeaponReq = false;
@@ -252,11 +262,20 @@ export class Input {
     return queued;
   }
 
-  /** G pressed since last call; one throw edge per physical key press. */
+  /**
+   * Charge of the released G throw, or null when no release is pending.
+   * A quick tap is a valid zero-charge throw, so callers must not truth-test it.
+   */
   consumeGrenadeThrow() {
-    const queued = this._grenadeQueued;
-    this._grenadeQueued = false;
+    const queued = this._grenadeChargeQueued;
+    this._grenadeChargeQueued = null;
     return queued;
+  }
+
+  /** Live 0..1 hold progress for HUD presentation. */
+  getGrenadeCharge(now = eventTime(null)) {
+    if (!this._grenadeHeld) return 0;
+    return clampGrenadeCharge((now - this._grenadeHoldStartedAt) / GRENADE_CHARGE_MS);
   }
 
   /** Clears all held keys/taps/intents/queues (window blur, tab hide, etc). */
@@ -268,7 +287,9 @@ export class Input {
     this.wantAdsHeld = false;
     this._fireTapQueued = false;
     this._reloadQueued = false;
-    this._grenadeQueued = false;
+    this._grenadeChargeQueued = null;
+    this._grenadeHeld = false;
+    this._grenadeHoldStartedAt = 0;
     this._lastWeaponReq = false;
     this._buyMenuQueued = false;
     this._buyMenuHeld = false;
@@ -324,7 +345,12 @@ export class Input {
       case 'ControlLeft': case 'ControlRight': case 'KeyC': this.keys.crouch = true; break;
       case 'KeyE': this.keys.interact = true; break;
       case 'KeyR': if (!e.repeat) this._reloadQueued = true; break;
-      case 'KeyG': if (!e.repeat) this._grenadeQueued = true; break;
+      case 'KeyG':
+        if (!e.repeat && !this._grenadeHeld) {
+          this._grenadeHeld = true;
+          this._grenadeHoldStartedAt = eventTime(e);
+        }
+        break;
       case 'KeyQ': if (!e.repeat) this._lastWeaponReq = true; break;
       case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': case 'Digit6':
         if (!e.repeat) this._pendingSlot = Number(e.code.slice(-1)) - 1;
@@ -348,6 +374,13 @@ export class Input {
       case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = false; break;
       case 'ControlLeft': case 'ControlRight': case 'KeyC': this.keys.crouch = false; break;
       case 'KeyE': this.keys.interact = false; break;
+      case 'KeyG':
+        if (this._grenadeHeld) {
+          this._grenadeChargeQueued = this.getGrenadeCharge(eventTime(e));
+          this._grenadeHeld = false;
+          this._grenadeHoldStartedAt = 0;
+        }
+        break;
       default: break;
     }
   }

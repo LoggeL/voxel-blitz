@@ -430,6 +430,7 @@ class Game {
       yawDeg: ((-this.player.view.yaw * 180 / Math.PI) % 360 + 360) % 360,
       alive: this.player.alive,
       grenades: this.selfRow?.grenades ?? 0,
+      grenadeCharge: this.player.input.getGrenadeCharge(now),
     });
     this.hud.setTelemetry(frameDt, this.net?.networkStats, now);
     if (now - this._sbAt >= 250 && this.playersCache.length) {

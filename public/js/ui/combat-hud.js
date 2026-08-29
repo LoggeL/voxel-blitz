@@ -3,7 +3,7 @@
 // and the handful of presentation callbacks needed by death transitions.
 
 import {
-  GLYPH,
+  WEAPON_NAMES,
   DMG_MS,
   DMG_MAX_POOL,
   el,
@@ -232,7 +232,7 @@ export class CombatHudController {
     this.killRow({
       killer: this.nameFor(ev.killer),
       victim: this.nameFor(ev.victim),
-      glyphKey: resolveKey(ev.w),
+      weaponKey: resolveKey(ev.w),
       hs: !!ev.hs,
       longRange: !!ev.lr,
       noScope: !!ev.ns,
@@ -270,8 +270,22 @@ export class CombatHudController {
     const row = el('div', classes.join(' '));
     const killer = el('b', '', row);
     killer.textContent = entry.killer;
-    const glyph = el('span', 'kf-w', row);
-    glyph.textContent = GLYPH[entry.glyphKey] || '?';
+    const weaponKey = resolveKey(entry.weaponKey || entry.weapon || entry.glyphKey);
+    const weapon = el('span', `kf-weapon kf-weapon-${weaponKey || 'world'}`, row);
+    if (weaponKey && weaponKey !== 'grenade') {
+      const icon = el('img', 'kf-weapon-icon', weapon);
+      icon.src = `./assets/weapons/hud/${weaponKey}.png`;
+      icon.alt = '';
+      icon.setAttribute('aria-hidden', 'true');
+    } else {
+      const icon = el('span', 'kf-grenade-icon', weapon);
+      icon.textContent = weaponKey === 'grenade' ? '◆' : '·';
+      icon.setAttribute('aria-hidden', 'true');
+    }
+    const weaponName = el('span', 'kf-weapon-name', weapon);
+    weaponName.textContent = weaponKey === 'grenade'
+      ? 'GRENADE'
+      : (WEAPON_NAMES[weaponKey] || 'ENVIRONMENT');
     const markers = [];
     if (entry.hs) markers.push('HEADSHOT');
     if (entry.longRange) markers.push('LONG RANGE');

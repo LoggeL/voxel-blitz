@@ -2,6 +2,7 @@ import { MAP_IDS } from '../modes.js';
 import { SX, SY, SZ } from './blocks.js';
 import { generateDepotInto } from './flatmap-depot.js';
 import { generateCitadelInto } from './flatmap-citadel.js';
+import { generateSolsticeInto } from './flatmap-solstice.js';
 import { createMapMetadata } from './metadata.js';
 import {
   MAP_BYTES,
@@ -32,7 +33,8 @@ function buildPristineTemplate(id) {
 
   if (id === 'foundry') generateFoundryInto(world, blocks, heights);
   else if (id === 'depot') generateDepotInto(world, blocks, heights);
-  else generateCitadelInto(world, blocks, heights);
+  else if (id === 'citadel') generateCitadelInto(world, blocks, heights);
+  else generateSolsticeInto(world, blocks, heights);
 
   rebuildHeights(blocks, heights);
   return Object.freeze({

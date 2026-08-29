@@ -302,6 +302,7 @@ export class Client {
       wantAds: !!overrides.ads,
       reload: !!overrides.reload,
       throwGrenade: !!overrides.throwGrenade,
+      grenadeCharge: overrides.throwGrenade ? (overrides.grenadeCharge ?? 0) : undefined,
     });
   }
 

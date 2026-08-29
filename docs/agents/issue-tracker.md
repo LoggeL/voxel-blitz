@@ -16,8 +16,13 @@ evidence belongs to Extended QA.
 | VB-029-H | Connected menu, create details, Quick Play, pause/resume, and quit flow remains usable | Chromium CDP browser smoke including compact-width and focus checks | Verified in `84354b9` |
 | VB-029-I | Fast and extended validation are enforced without test bloat | Fast CI plus scheduled/manual Extended QA workflows | Verified in `84354b9` |
 | VB-029-J | Build contract matches current runtime interfaces | `BUILD-CONTRACT.md`, `README.md`, protocol keys, and shared mode helpers agree | Verified in `84354b9` |
+| VB-030-A | Grenades charge while G is held and throw on release with authority-clamped distance | Input/netclient contracts plus authoritative grenade smoke | Verified locally; release pending |
+| VB-030-B | HUD shows remaining grenade icons and live charge progress | Focused HUD contract plus connected browser inspection | Verified locally; release pending |
+| VB-030-C | Killfeed identifies the weapon and the top strip shows team, alive state, and points | Focused HUD contract plus connected live-bot inspection | Verified locally; release pending |
+| VB-030-D | Solstice is a deterministic all-mode solar-observatory arena with truthful preview art | Template invariants, six production capture views, iterative visual QA, and final production-rendered preview | Verified locally; release pending |
+| VB-030-E | New behavior preserves modular seams without expanding the test-file count | Shared grenade rules, dedicated status-strip module, existing focused contracts, full suite, browser flow, and container smoke | Verified locally; release pending |
 
-## Release evidence
+## VB-029 release evidence
 
 - Baseline: `c05382669aa72303a86a4e361fa49f7ac2e13270`
 - Feature commit: `84354b98e3f62335ac116c054926a17338ada232`
