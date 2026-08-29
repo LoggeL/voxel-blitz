@@ -6,6 +6,7 @@ import {
   el,
   formatClock,
 } from './hud-support.js';
+import { MatchResultOverlay } from './match-result-overlay.js';
 
 const EMPTY_READ_MODEL = Object.freeze({ dead: false });
 const noop = () => {};
@@ -20,10 +21,12 @@ export class MatchHud {
     onBuyMenuState = noop,
     onPlayers = noop,
     readModel = EMPTY_READ_MODEL,
+    resultOverlay = null,
   } = {}) {
     this.onBuyMenuState = onBuyMenuState;
     this.onPlayers = onPlayers;
     this.readModel = readModel;
+    this.result = resultOverlay || new MatchResultOverlay();
 
     this.dom = {};
     this._latestMatch = null;
@@ -117,6 +120,8 @@ export class MatchHud {
     m.carrierBadge = carrierBadge;
     m.buyPrompt = buyPrompt;
 
+    this.result.build(hud);
+
     return m;
   }
 
@@ -141,6 +146,7 @@ export class MatchHud {
     }
 
     const sNow = Number.isFinite(serverNow) && serverNow > 0 ? serverNow : Date.now();
+    this.result.update(match, selfRow, this._latestPlayers, sNow);
     let clockText = '--:--';
     let isUrgentBomb = false;
 
@@ -316,6 +322,7 @@ export class MatchHud {
   }
 
   dispose() {
+    this.result.dispose();
     this._removeDom();
     clearBag(this.dom);
     this._latestMatch = null;

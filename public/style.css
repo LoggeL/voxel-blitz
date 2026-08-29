@@ -951,6 +951,122 @@ h1.vb-title::after {
   );
 }
 
+/* ---------- final match result ---------- */
+
+.vb-match-result {
+  --result-accent: var(--amber-hi);
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  z-index: calc(var(--z-menu) - 1);
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 44%, color-mix(in srgb, var(--result-accent) 13%, transparent), transparent 42%),
+    linear-gradient(180deg, rgba(3, 5, 8, 0.28), rgba(3, 5, 8, 0.82));
+  -webkit-backdrop-filter: blur(2px) saturate(0.7);
+  backdrop-filter: blur(2px) saturate(0.7);
+}
+
+.vb-match-result.hidden {
+  display: none;
+}
+
+.vb-match-result.is-victory {
+  --result-accent: var(--ok);
+}
+
+.vb-match-result.is-defeat {
+  --result-accent: var(--danger);
+}
+
+.vb-match-result-scan {
+  position: absolute;
+  inset: 0;
+  opacity: 0.18;
+  background: repeating-linear-gradient(
+    180deg,
+    transparent 0,
+    transparent 3px,
+    rgba(255, 255, 255, 0.05) 4px
+  );
+  mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+}
+
+.vb-match-result-panel {
+  position: relative;
+  width: min(680px, calc(100vw - 40px));
+  padding: 40px 56px 34px;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(8, 11, 15, 0.96), rgba(13, 17, 23, 0.9));
+  border: 1px solid color-mix(in srgb, var(--result-accent) 48%, var(--line));
+  box-shadow:
+    0 30px 90px rgba(0, 0, 0, 0.72),
+    inset 4px 0 0 var(--result-accent),
+    inset -4px 0 0 var(--result-accent);
+  clip-path: polygon(24px 0, 100% 0, 100% calc(100% - 24px), calc(100% - 24px) 100%, 0 100%, 0 24px);
+  animation: vb-match-result-enter 360ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.vb-match-result-eyebrow,
+.vb-match-result-countdown {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  color: var(--sub);
+}
+
+.vb-match-result-title {
+  margin: 6px 0 4px;
+  font-family: var(--font-ui);
+  font-size: clamp(58px, 9vw, 112px);
+  font-weight: 800;
+  line-height: 0.92;
+  letter-spacing: 0.1em;
+  text-indent: 0.1em;
+  color: var(--result-accent);
+  text-shadow: 0 0 30px color-mix(in srgb, var(--result-accent) 36%, transparent);
+}
+
+.vb-match-result-rule {
+  width: min(420px, 84%);
+  height: 2px;
+  margin: 20px auto 18px;
+  background: linear-gradient(90deg, transparent, var(--result-accent), transparent);
+  box-shadow: 0 0 14px color-mix(in srgb, var(--result-accent) 55%, transparent);
+}
+
+.vb-match-result-detail {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--txt);
+}
+
+.vb-match-result-score {
+  margin: 12px 0 24px;
+  font-family: var(--font-mono);
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: var(--result-accent);
+}
+
+.vb-match-result-countdown {
+  color: var(--txt);
+}
+
+@keyframes vb-match-result-enter {
+  from { opacity: 0; transform: translateY(18px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vb-match-result-panel { animation: none; }
+}
+
 .vb-match-team {
   flex: 0 0 145px;
   display: flex;
@@ -2758,6 +2874,23 @@ h1.vb-title::after {
 }
 
 @media (max-width: 640px) {
+  .vb-match-result-panel {
+    padding: 32px 22px 28px;
+  }
+
+  .vb-match-result-title {
+    font-size: clamp(46px, 17vw, 72px);
+  }
+
+  .vb-match-result-detail {
+    font-size: 13px;
+    letter-spacing: 0.14em;
+  }
+
+  .vb-match-result-score {
+    font-size: 22px;
+  }
+
   .vb-match-header {
     flex-wrap: wrap;
     justify-content: center;

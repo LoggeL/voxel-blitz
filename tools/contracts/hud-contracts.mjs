@@ -682,6 +682,34 @@ export async function runHudContracts(ok, installGlobals) {
         && interactionFill?.style.width === '40%',
       'HUD renders explicit planted/defuse objective copy and the exact visible 40% progress state');
 
+      hud.setMatchState({
+        ...liveMatch,
+        phase: 'post',
+        phaseEndsAt: 25000,
+        scores: { alpha: 7, bravo: 4 },
+        winner: 'alpha',
+        roundWinner: 'alpha',
+      }, selfRow, players, 22000);
+      const resultScreen = document.getElementById('match-result-screen');
+      ok(visible(resultScreen)
+        && resultScreen.classList.contains('is-victory')
+        && document.getElementById('match-result-title').textContent === 'VICTORY'
+        && document.getElementById('match-result-score').textContent.replace(/\s/g, '') === '7—4'
+        && document.getElementById('match-result-countdown').textContent.endsWith('0:03'),
+      'final team winner snapshot renders a server-clocked victory screen');
+
+      hud.setMatchState({
+        mode: 'gungame', map: 'foundry', phase: 'post', phaseEndsAt: 26000,
+        scores: null, winner: 23,
+      }, selfRow, players, 23000);
+      ok(resultScreen.classList.contains('is-defeat')
+        && document.getElementById('match-result-title').textContent === 'DEFEAT'
+        && /RIVAL/.test(document.getElementById('match-result-detail').textContent),
+      'free-for-all winner identity renders the local defeat state');
+
+      hud.setMatchState(liveMatch, selfRow, players, 23000);
+      ok(!visible(resultScreen), 'the result screen clears on the next live snapshot');
+
       hud.setScoreboard(true);
       hud.setPlayers(players);
       const scoreboard = document.getElementById('scores');
