@@ -52,8 +52,15 @@ export class AimSway {
     crouching = false,
     panic = 0,
     pain = 0,
+    ads = 0,
+    zoom = 1,
   } = {}) {
     const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
+    // Magnified optics make the same wander visible: sway grows with the zoom you
+    // are looking through, which is exactly what breath hold exists to cancel.
+    const ads01 = clamp01(ads);
+    const magnification = Number.isFinite(zoom) && zoom > 1 ? zoom : 1;
+    const opticScale = 1 + ads01 * (magnification - 1) * 0.35;
     this._time += step;
     const panic01 = clamp01(panic);
     const pain01 = clamp01(pain);
@@ -85,7 +92,7 @@ export class AimSway {
     this._idleWeight += ((eligible ? 1 : 0) - this._idleWeight) * Math.min(1, step * 7);
     const targetRigScale = eligible ? crouchScale * breathScale : 1;
     this._rigMotionScale += (targetRigScale - this._rigMotionScale) * Math.min(1, step * 9);
-    const idleScale = conditionScale * this._rigMotionScale * this._idleWeight;
+    const idleScale = conditionScale * this._rigMotionScale * this._idleWeight * opticScale;
 
     // Two incommensurate waves avoid a mechanical circular orbit while staying
     // deterministic and allocation-free.

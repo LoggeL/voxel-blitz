@@ -2021,6 +2021,65 @@ h1.vb-title::after {
   box-shadow: 0 0 8px rgba(255, 51, 85, 0.9);
 }
 
+/* Kill confirmation: a heavier red X that blooms outward and holds longer. */
+#hitmarker.vb-kill {
+  transform: translate(-50%, -50%) scale(1.55);
+  transition: opacity 120ms linear, transform 180ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+
+#hitmarker.vb-kill::before,
+#hitmarker.vb-kill::after {
+  width: 18px;
+  height: 3px;
+  background: var(--danger);
+  box-shadow: 0 0 12px rgba(255, 51, 85, 1), 0 0 3px #fff;
+}
+
+#hitmarker.vb-kill.vb-hs::before,
+#hitmarker.vb-kill.vb-hs::after {
+  background: #fff;
+  box-shadow: 0 0 14px rgba(255, 51, 85, 1), 0 0 4px rgba(255, 255, 255, 0.9);
+}
+
+/* ---------- breath meter (crosshair-anchored, ADS only) ---------- */
+
+.vb-breath-meter {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 34px);
+  width: 64px;
+  height: 3px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 2px;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.vb-breath-meter > i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left center;
+  background: rgba(200, 225, 255, 0.85);
+  border-radius: 2px;
+  transition: background 120ms linear;
+}
+
+.vb-breath-meter.is-holding > i { background: #fff; box-shadow: 0 0 8px rgba(200, 225, 255, 0.8); }
+.vb-breath-meter.is-spent > i { background: var(--danger); }
+
+.vb-breath-hint {
+  position: absolute;
+  left: 50%;
+  top: 7px;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  font: 700 8px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  color: rgba(232, 236, 241, 0.62);
+}
+
 /* ---------- health ---------- */
 
 #healthbar {
@@ -2771,6 +2830,15 @@ h1.vb-title::after {
   will-change: transform, opacity;
 }
 
+.dmgnum.vb-stack {
+  animation: vb-dmg-stack 140ms ease-out;
+}
+
+@keyframes vb-dmg-stack {
+  from { transform: translate3d(var(--x, 0), var(--y, 0), 0) scale(1.35); }
+  to   { transform: translate3d(var(--x, 0), var(--y, 0), 0) scale(1); }
+}
+
 .dmgnum.vb-crit,
 .dmgnum.crit,
 .dmgnum.hs {
@@ -2902,6 +2970,28 @@ h1.vb-title::after {
 }
 
 /* ---------- death banner ---------- */
+
+#deathrecap {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: calc(56% + 42px);
+  transform: translate(-50%, -50%);
+  padding: 6px 16px;
+  max-width: min(680px, calc(100vw - 48px));
+  text-align: center;
+  background: rgba(11, 14, 18, 0.82);
+  border: 1px solid rgba(255, 51, 85, 0.45);
+  border-radius: var(--radius);
+  font: 700 10px/1.4 var(--font-mono);
+  letter-spacing: 0.2em;
+  color: rgba(232, 236, 241, 0.86);
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: var(--z-hud);
+}
+
+.vb-spectator.is-killcam .vb-spectator-label { color: var(--danger); }
 
 #deathnote {
   display: none;

@@ -423,6 +423,8 @@ export class GameEngine {
     victim.ads = false;
     victim.adsT = 0;
     victim.reloading = false;
+    victim.reloadStage = null;
+    victim.reloadLoose = 0;
     victim.bloom = 0;
     victim.spawnProtectedUntil = 0;
     victim.vx = 0;

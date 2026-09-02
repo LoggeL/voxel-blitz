@@ -503,4 +503,215 @@ export async function runViewmodelContracts(ok, installGlobals) {
     }
   }
 
+  {
+    // Recoil recovery, reconciliation smoothing, scope zoom steps, and optic-scaled sway.
+    const stubInput = () => new Proxy({
+      wantAdsHeld: false,
+      wantFireHeld: false,
+      _delta: { dx: 0, dy: 0 },
+      consumeDelta() { const d = this._delta; this._delta = { dx: 0, dy: 0 }; return d; },
+      getKeys: () => ({ sprint: false, crouch: false }),
+      setGameplayEnabled() {},
+      consumeBuyMenuRequest: () => false,
+      consumeWeaponSwitch: () => 0,
+      consumeWeaponSlot: () => null,
+      consumeLastWeaponRequest: () => false,
+      consumeFireTap: () => false,
+    }, { get: (target, key) => target[key] ?? (() => false) });
+    const stubPhysics = () => ({
+      pos: { x: 0, y: 0, z: 0 },
+      vel: { x: 0, y: 0, z: 0 },
+      grounded: true,
+      _crouching: false,
+      step: () => false,
+      eyeY: () => 1.62,
+      setMapMeta() {},
+    });
+    const { LocalPlayer, fovForZoom } = await import('../../public/js/player/local-player.js');
+    const rifle = WEAPONS.rifle;
+
+    const recovering = new LocalPlayer({ input: stubInput(), physics: stubPhysics(), sendHz: 20 });
+    recovering.setGameplayInputEnabled(true);
+    recovering.update(1 / 60, 0, {});
+    const before = recovering.view.pitch;
+    let now = 0;
+    for (let shot = 0; shot < 5; shot++) {
+      recovering.addRecoil(0.02, 0.004, rifle.weightKg, rifle.recoil, now);
+      now += 90;
+      recovering.update(0.09, now, {});
+    }
+    const climbed = recovering.view.pitch - before;
+    const climbPeak = recovering.view.pitch;
+    // Inside resetMs nothing is walked back; afterwards the recovery fraction returns.
+    now += 100;
+    recovering.update(0.1, now, {});
+    const heldClimb = recovering.view.pitch;
+    for (let i = 0; i < 60; i++) {
+      now += 1000 / 60;
+      recovering.update(1 / 60, now, {});
+    }
+    const settled = recovering.view.pitch - before;
+    ok(climbed > 0.017 && climbed < 0.019
+        && Math.abs(heldClimb - climbPeak) < 1e-9
+        && settled > climbed * (1 - rifle.recoil.recovery) - 1e-4
+        && settled < climbed * (1 - rifle.recoil.recovery) + 1e-4,
+    'aim climb holds during the spray, then the weapon recovery fraction walks back after resetMs');
+
+    const compensating = new LocalPlayer({ input: stubInput(), physics: stubPhysics(), sendHz: 20 });
+    compensating.setGameplayInputEnabled(true);
+    compensating.update(1 / 60, 0, {});
+    const start = compensating.view.pitch;
+    compensating.addRecoil(0.02, 0, rifle.weightKg, rifle.recoil, 0);
+    compensating.input._delta = { dx: 0, dy: 0.02 * 0.18 }; // pull straight down by the climb
+    compensating.update(1 / 60, 20, {});
+    const pulled = compensating.view.pitch;
+    for (let i = 0; i < 60; i++) compensating.update(1 / 60, 500 + i * 16.7, {});
+    ok(Math.abs(pulled - start) < 1e-9 && Math.abs(compensating.view.pitch - start) < 1e-9,
+      'mouse compensation during the spray is never undone by recoil recovery');
+
+    const reconciled = new LocalPlayer({ input: stubInput(), physics: stubPhysics(), sendHz: 20 });
+    reconciled.setGameplayInputEnabled(true);
+    const camera = new THREE.PerspectiveCamera(75, 1, 0.01, 100);
+    reconciled.update(1 / 60, 0, {});
+    reconciled.updateCamera(1 / 60, camera, rifle);
+    reconciled.reconcile({ x: 0.6, y: 0, z: 0, hp: 100, state: 'alive' }, 1, {});
+    const bodyMoved = reconciled.pos.x;
+    reconciled.updateCamera(1 / 60, camera, rifle);
+    const cameraAfterOneFrame = camera.position.x;
+    for (let i = 0; i < 90; i++) reconciled.updateCamera(1 / 60, camera, rifle);
+    ok(Math.abs(bodyMoved - 0.6 * 0.28) < 1e-9
+        && cameraAfterOneFrame > 0 && cameraAfterOneFrame < bodyMoved * 0.4
+        && Math.abs(camera.position.x - reconciled.pos.x) < 1e-3,
+    'reconciliation corrects the body at once while the camera eases through the correction');
+
+    reconciled.reconcile({ x: 10, y: 0, z: 0, hp: 100, state: 'alive' }, 2, {});
+    reconciled.updateCamera(1 / 60, camera, rifle);
+    const snapOffset = Math.hypot(
+      reconciled.reconcileOffset.x, reconciled.reconcileOffset.y, reconciled.reconcileOffset.z,
+    );
+    ok(reconciled.pos.x === 10 && snapOffset > 0 && snapOffset <= 1.6 + 1e-9,
+      'a hard snap lands on the authoritative position with a clamped camera ease');
+
+    const sniper = WEAPONS.sniper;
+    const zooming = new LocalPlayer({ input: stubInput(), physics: stubPhysics(), sendHz: 20 });
+    zooming.setGameplayInputEnabled(true);
+    zooming.updateCamera(1 / 60, camera, sniper, 1, 75);
+    const fullZoom = zooming.scopeZoom;
+    const stepped = zooming.cycleScopeZoom(sniper);
+    zooming.updateCamera(1 / 60, camera, sniper, 1, 75);
+    const halfFov = fovForZoom(stepped, 75);
+    const restored = zooming.cycleScopeZoom(sniper);
+    ok(fullZoom === sniper.zoom && stepped === sniper.zoom / 2 && restored === sniper.zoom
+        && Math.abs(fovForZoom(sniper.zoom, 75) - 17.5) < 0.5 && halfFov > 30 && halfFov < 36
+        && zooming.cycleScopeZoom(rifle) === sniper.zoom,
+    'scope zoom steps alternate between full and half magnification and only the sniper has them');
+
+    const { AimSway } = await import('../../public/js/player/aim-sway.js');
+    const settle = (options) => {
+      const sway = new AimSway();
+      let out = null;
+      for (let i = 0; i < 12; i++) out = sway.update(0.05, { stationary: true, grounded: true, ...options });
+      return { yaw: out.yaw, pitch: out.pitch };
+    };
+    const hip = settle({});
+    const scoped = settle({ ads: 1, zoom: 5 });
+    const scopedHeld = settle({ ads: 1, zoom: 5, shift: true });
+    const magnitude = (value) => Math.hypot(value.yaw, value.pitch);
+    ok(magnitude(scoped) > magnitude(hip) * 2 && magnitude(scopedHeld) < magnitude(hip),
+      'a 5x optic magnifies idle sway and holding breath still beats hip sway');
+
+    const { WeaponState, RELOAD_ACK_GRACE_MS } = await import('../../public/js/guns/weapon-state.js');
+    const rigCalls = [];
+    const weaponState = new WeaponState({
+      rig: {
+        root: null,
+        setWeapon() {}, fire: () => true, reload: (...args) => rigCalls.push(['reload', ...args]),
+        cancelReload: () => rigCalls.push(['cancel']),
+        getMuzzleWorldPos: () => ({ x: 0, y: 0, z: 0 }), pumpAnim() {}, boltAnim() {}, ads() {},
+      },
+      audio: { draw() {}, reloadClick() {}, fire() {} },
+      effects: { shoot() {} },
+      network: { isCurrentGeneration: () => true, isRunning: () => true },
+      feedback: { addExhaustion() {}, addRecoil() {} },
+      now: () => 0,
+      random: () => 0.5,
+      setTimer: () => 0,
+      clearTimer: () => {},
+    });
+    weaponState.resetToLoadout();
+    weaponState.forceWeapon(WEAPON_IDS.indexOf('shotgun'), { now: 0 });
+    weaponState._ammo.shotgun.mag = 2;
+    weaponState.startReload(1000);
+    const stages = WEAPONS.shotgun.reloadStages;
+    weaponState.reconcileServer({ reloading: false, alive: true }, 1100);
+    const survivedStaleSnapshot = weaponState.isReloading && weaponState.ammoOf('shotgun').mag === 2;
+    weaponState.tickReload(1000 + (stages.start + stages.perRound * 2 + 0.02) * 1000);
+    const twoSeated = weaponState.ammoOf('shotgun').mag === 4
+      && weaponState.ammoOf('shotgun').reserve === WEAPONS.shotgun.spareMags - 1;
+    weaponState.applyIntents({ fireTap: true }, 2000, { allowFire: true, alive: true });
+    const fired = weaponState.tryFire(2000, {
+      allowFire: true, alive: true, generation: 0,
+    });
+    ok(survivedStaleSnapshot && twoSeated && fired && !weaponState.isReloading
+        && weaponState.ammoOf('shotgun').mag === 3
+        && rigCalls.some((call) => call[0] === 'cancel')
+        && rigCalls[0][2] === 'tube' && rigCalls[0][3]?.rounds === 5,
+    'client tube reload mirrors the authority: staged seating, snapshot grace, and fire interrupt');
+    weaponState.startReload(3000);
+    weaponState.reconcileServer({ reloading: false, alive: true }, 3000 + RELOAD_ACK_GRACE_MS + 1);
+    ok(!weaponState.isReloading,
+      'after the acknowledgement grace an authoritative not-reloading snapshot clears the reload');
+    weaponState.dispose();
+
+    const { AvatarWeaponModel } = await import('../../public/js/avatar/avatar-weapon.js');
+    const remote = new AvatarWeaponModel();
+    try {
+      remote.update({ weapon: 'rifle', dt: 1 / 60 });
+      for (let i = 0; i < 20; i++) remote.update({ weapon: 'rifle', reloading: true, dt: 1 / 60 });
+      const reloadPose = remote.reloadT;
+      const tiltedDown = remote.root.rotation.x < -0.2;
+      for (let i = 0; i < 40; i++) remote.update({ weapon: 'rifle', reloading: false, dt: 1 / 60 });
+      const recovered = remote.reloadT;
+      remote.update({ weapon: 'lmg', dt: 1 / 60 });
+      const drawing = remote.deployT < 1 && remote.modelRoot.rotation.x < 0;
+      for (let i = 0; i < 60; i++) remote.update({ weapon: 'lmg', dt: 1 / 60 });
+      ok(reloadPose > 0.8 && tiltedDown && recovered < 0.05 && drawing
+          && remote.deployT === 1 && Math.abs(remote.modelRoot.rotation.x) < 1e-9,
+      'remote avatars show reload and weapon-draw poses that settle back to the mount');
+    } finally {
+      remote.dispose();
+    }
+
+    const restoreSpectatorGlobals = installGlobals({
+      document: { addEventListener() {}, removeEventListener() {} },
+    });
+    try {
+      const { SpectatorCamera, KILL_CAM_MS } = await import('../../public/js/player/spectator-camera.js');
+      const presentations = [];
+      let clock = 0;
+      const spectator = new SpectatorCamera({
+        camera: new THREE.PerspectiveCamera(75, 1, 0.01, 100),
+        raycast: () => null,
+        now: () => clock,
+        onPresent: (state) => presentations.push(state),
+      });
+      const players = [
+        { id: 'me', state: 'dead', name: 'ME' },
+        { id: 'a', state: 'alive', name: 'A', x: 0, y: 0, z: 0, yaw: 0 },
+        { id: 'killer', state: 'alive', name: 'KILLER', x: 4, y: 0, z: 0, yaw: 0 },
+      ];
+      spectator.focusKiller('killer');
+      spectator.sync({ self: players[0], players, match: { mode: 'fun', phase: 'live' }, serverNow: 0 });
+      const onKiller = spectator.targetId === 'killer' && presentations.at(-1)?.killCam === true;
+      clock = KILL_CAM_MS + 1;
+      spectator.sync({ self: players[0], players, match: { mode: 'fun', phase: 'live' }, serverNow: 0 });
+      const stillOnKiller = spectator.targetId === 'killer' && presentations.at(-1)?.killCam === false;
+      spectator.cycle(1);
+      ok(onKiller && stillOnKiller && spectator.targetId === 'a' && spectator.killCam === null,
+        'kill cam opens on the killer, expires into normal spectating, and cycling clears it');
+      spectator.dispose();
+    } finally {
+      restoreSpectatorGlobals();
+    }
+  }
 }

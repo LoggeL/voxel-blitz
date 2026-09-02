@@ -13,7 +13,7 @@ export class SpectatorHud {
     root.setAttribute('aria-live', 'polite');
 
     const respawn = el('div', 'vb-spectator-respawn', root, 'spectator-respawn');
-    const label = el('div', 'vb-spectator-label', root);
+    const label = el('div', 'vb-spectator-label', root, 'spectator-label');
     label.textContent = 'SPECTATING';
     const target = el('div', 'vb-spectator-target', root, 'spectator-target');
     const hint = el('div', 'vb-spectator-hint', root, 'spectator-hint');
@@ -30,7 +30,7 @@ export class SpectatorHud {
     previous.addEventListener('click', () => this.onCycle?.(-1));
     next.addEventListener('click', () => this.onCycle?.(1));
 
-    this.dom = { root, respawn, target, hint, controls, previous, next };
+    this.dom = { root, respawn, label, target, hint, controls, previous, next };
     return root;
   }
 
@@ -43,11 +43,15 @@ export class SpectatorHud {
     if (!dom.root) return;
     const active = state.active === true;
     dom.root.classList.toggle('hidden', !active);
+    dom.root.classList.toggle('is-killcam', !!state.killCam);
     dom.respawn.textContent = String(state.respawnText || 'RESPAWNING');
+    if (dom.label) dom.label.textContent = state.killCam ? 'KILL CAM' : 'SPECTATING';
     dom.target.textContent = state.hasTarget ? String(state.targetName || 'OPERATOR') : 'NO LIVING PLAYERS';
-    dom.hint.textContent = state.hasTarget
-      ? (state.teamOnly ? 'FOLLOWING LIVING TEAMMATE' : 'FOLLOWING LIVING PLAYER')
-      : (state.teamOnly ? 'NO LIVING TEAMMATES' : 'WAITING FOR A LIVING PLAYER');
+    dom.hint.textContent = state.killCam
+      ? 'YOUR KILLER · Q / E TO SPECTATE OTHERS'
+      : state.hasTarget
+        ? (state.teamOnly ? 'FOLLOWING LIVING TEAMMATE' : 'FOLLOWING LIVING PLAYER')
+        : (state.teamOnly ? 'NO LIVING TEAMMATES' : 'WAITING FOR A LIVING PLAYER');
     dom.controls.style.display = state.canCycle ? 'flex' : 'none';
   }
 

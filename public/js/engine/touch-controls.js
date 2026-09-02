@@ -69,6 +69,33 @@ export function shouldEnableTouchControls({
   }
 }
 
+/** Every contextual button; the pause button is always available. */
+export const TOUCH_ACTIONS = Object.freeze([
+  'fire', 'ads', 'jump', 'crouch', 'reload', 'grenade', 'interact', 'weapon', 'buy', 'zoom',
+]);
+
+/**
+ * Which touch buttons a gameplay context earns. Null context (menu, dead, spectating)
+ * shows nothing but pause. Pure so the rule is contract-testable without DOM.
+ */
+export function visibleTouchActions(context) {
+  const visible = new Set();
+  if (!context || context.alive === false) return visible;
+  visible.add('jump');
+  visible.add('crouch');
+  if (context.canFire !== false) {
+    visible.add('fire');
+    visible.add('ads');
+  }
+  if (context.canReload) visible.add('reload');
+  if ((context.grenades | 0) > 0 && context.canFire !== false) visible.add('grenade');
+  if (context.canInteract) visible.add('interact');
+  if ((context.weaponCount ?? 2) > 1) visible.add('weapon');
+  if (context.canBuy) visible.add('buy');
+  if (context.scoped) visible.add('zoom');
+  return visible;
+}
+
 function addElement(documentRef, tag, className, parent, text = '') {
   const element = documentRef.createElement(tag);
   element.className = className;
@@ -119,6 +146,65 @@ export class TouchControls {
     this._heldSince = new Map();
     this._latched = new Set();
     this._immersiveRequested = false;
+    this._context = null;
+    this._hidden = new Set();
+    this._options = { size: 'medium', hand: 'right' };
+  }
+
+  /** Actions currently hidden by context (contract readback). */
+  get hiddenActions() { return this._hidden; }
+  get options() { return { ...this._options }; }
+
+  /**
+   * Contextual visibility: buttons only exist while they can do something. A button
+   * that hides mid-hold is released first so nothing stays latched behind the HUD.
+   */
+  setContext(context = null) {
+    const next = context && typeof context === 'object' ? context : null;
+    const visible = visibleTouchActions(next);
+    const changed = [];
+    for (const action of TOUCH_ACTIONS) {
+      const hide = !visible.has(action);
+      if (hide === this._hidden.has(action)) continue;
+      if (hide) {
+        this._hidden.add(action);
+        this._releaseAction(action);
+      } else {
+        this._hidden.delete(action);
+      }
+      changed.push(action);
+    }
+    this._context = next;
+    for (const action of changed) {
+      const button = this.dom[action];
+      if (!button) continue;
+      const hide = this._hidden.has(action);
+      button.classList.toggle('is-hidden', hide);
+      button.setAttribute('aria-hidden', hide ? 'true' : 'false');
+    }
+    return changed;
+  }
+
+  /** Layout options: stick/button size and the dominant hand (mirrors the layout). */
+  setOptions({ size, hand } = {}) {
+    if (size === 'small' || size === 'medium' || size === 'large') this._options.size = size;
+    if (hand === 'left' || hand === 'right') this._options.hand = hand;
+    const root = this.root;
+    if (!root) return this.options;
+    root.classList.toggle('is-size-small', this._options.size === 'small');
+    root.classList.toggle('is-size-large', this._options.size === 'large');
+    root.classList.toggle('is-left-handed', this._options.hand === 'left');
+    return this.options;
+  }
+
+  _releaseAction(action) {
+    const button = this.dom[action];
+    const wasHeld = this._heldPointers.has(action) || this._latched.has(action);
+    this._heldPointers.delete(action);
+    this._heldSince.delete(action);
+    this._latched.delete(action);
+    if (button) this._setPressed(button, action, false);
+    if (wasHeld) this.onHold(action, false, eventTime(null));
   }
 
   mount(parent = this.document?.body) {
@@ -154,6 +240,7 @@ export class TouchControls {
     d.interact = this._button(root, 'interact', 'USE', 'Interact');
     d.weapon = this._button(root, 'weapon', 'SWAP', 'Next weapon');
     d.buy = this._button(root, 'buy', 'BUY', 'Open armory');
+    d.zoom = this._button(root, 'zoom', 'ZOOM', 'Scope zoom step');
 
     this._bindMove();
     this._bindLook();
@@ -166,7 +253,10 @@ export class TouchControls {
     this._bindPulse(d.reload, 'reload');
     this._bindPulse(d.weapon, 'weapon');
     this._bindPulse(d.buy, 'buy');
+    this._bindPulse(d.zoom, 'zoom');
     this._bindPulse(d.pause, 'pause');
+    this.setOptions(this._options);
+    this.setContext(this._context);
     this._listen(root, 'contextmenu', (event) => event.preventDefault());
     this._listen(root, 'pointerdown', () => this._ensureImmersive(), { capture: true });
     return root;
@@ -357,7 +447,7 @@ export class TouchControls {
       this.onHold(action, false, eventTime(event));
     };
     this._listen(button, 'pointerdown', (event) => {
-      if (!this.enabled || this._heldPointers.has(action)) return;
+      if (!this.enabled || this._hidden.has(action) || this._heldPointers.has(action)) return;
       event.preventDefault();
       event.stopPropagation();
       this._heldPointers.set(action, event.pointerId);
@@ -387,7 +477,7 @@ export class TouchControls {
 
   _bindPulse(button, action) {
     this._listen(button, 'pointerdown', (event) => {
-      if (!this.enabled) return;
+      if (!this.enabled || this._hidden.has(action)) return;
       event.preventDefault();
       event.stopPropagation();
       button.classList.add('is-held');

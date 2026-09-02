@@ -30,6 +30,7 @@ let samples = null;
 let builtInSamplesPromise = null;
 let menuMusic = null;
 let panSide = 1;
+let heartbeatAt = -Infinity;
 
 function copyOptions(value) {
   if (Array.isArray(value)) return value.slice(0, 3);
@@ -120,6 +121,7 @@ export const sfx = {
     samples = null;
     builtInSamplesPromise = null;
     panSide = 1;
+    heartbeatAt = -Infinity;
     await engine.dispose();
   },
 
@@ -227,6 +229,57 @@ export const sfx = {
         });
       }
     });
+  },
+
+  /** Kill confirmation: a two-note rise above the hitmark, brighter for headshots. */
+  killConfirm(headshot = false) {
+    run('killConfirm', () => {
+      const output = pool.acquire(null, 0.6);
+      if (samples.play(headshot ? 'ui.kill.head' : 'ui.kill.body', output)) return;
+      const at = primitives.nowT();
+      primitives.hiss(output, {
+        t0: at, filter: 'highpass', f: 3400, q: 0.8, dec: 0.05, g: 0.1,
+      });
+      primitives.tone(output, {
+        t0: at, type: 'square', f0: 880, f1: 660, att: 0.002, dec: 0.09, g: 0.2,
+      });
+      primitives.tone(output, {
+        t0: at + 0.07, type: 'sine', f0: 1318.51, att: 0.003, dec: 0.17, g: 0.16,
+      });
+      if (headshot) {
+        primitives.tone(output, {
+          t0: at + 0.13, type: 'sine', f0: 1975.53, att: 0.003, dec: 0.2, g: 0.13,
+        });
+      }
+    });
+  },
+
+  /**
+   * Low-health heartbeat. Call every frame with the 0..1 danger level; the pulse
+   * rate and weight rise with it and nothing plays at zero.
+   */
+  lowHealthPulse(level01, now = Date.now()) {
+    const level = Math.max(0, Math.min(1, Number(level01) || 0));
+    if (level <= 0) {
+      heartbeatAt = -Infinity;
+      return false;
+    }
+    const interval = 1150 - level * 560;
+    if (now - heartbeatAt < interval) return false;
+    heartbeatAt = now;
+    run('heartbeat', () => {
+      const output = pool.acquire({ muffled: true }, 0.5);
+      output.gain.value = 0.3 + level * 0.5;
+      if (samples.play('human.heartbeat', output)) return;
+      const at = primitives.nowT();
+      primitives.tone(output, {
+        t0: at, type: 'sine', f0: 64, f1: 42, att: 0.004, dec: 0.12, g: 0.55,
+      });
+      primitives.tone(output, {
+        t0: at + 0.15, type: 'sine', f0: 58, f1: 38, att: 0.004, dec: 0.1, g: 0.4,
+      });
+    });
+    return true;
   },
 
   pain({ damage = 0, headshot = false, lethal = false, pos, local = false } = {}) {

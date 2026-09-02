@@ -203,6 +203,7 @@ export class AvatarRoster {
         pitch: remote.pitch,
         firing: remote.firing,
         ads: remote.ads,
+        reloading: remote.reloading,
         crouching: remote.crouch,
         stride,
         swing,

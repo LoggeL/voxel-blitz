@@ -9,9 +9,11 @@ import {
   PLAYER_HALF,
   HEADSHOT_Y_FRAC,
   damageAtDistance,
+  reloadPlan,
   samplePelletDirection,
   computeSpreadConeDeg,
 } from '../../shared/combatmath.js';
+import { clearReload } from './movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { NETWORK_PRESENTATION } from '../../shared/networking.js';
 import { evShoot, evHit, evBlock } from '../protocol.js';
@@ -44,8 +46,7 @@ export function computeConeDeg(p) {
 
 export function switchWeapon(p, slot) {
   p.weapon = clampWeaponSlot(slot);
-  p.reloading = false;
-  p.reloadT = 0;
+  clearReload(p);
   p.cooldown = Math.max(p.cooldown, 0);
   p.deployT = p.def.deployTime;
   p.ads = false;
@@ -81,16 +82,28 @@ export function resolveWeaponIntent(p, _dt, ctx) {
   if (inp.reload && ctx.canUseWeapon(p, p.weapon) &&
       !p.reloading && p.deployT <= 0 &&
       p.mag[p.weapon] < def.magSize && p.reserve[p.weapon] > 0) {
+    const plan = reloadPlan(def, p.mag[p.weapon]);
     p.reloading = true;
-    p.reloadT = p.mag[p.weapon] > 0 ? def.tacTime : def.reloadTime;
-    // Dropping a magazine is irreversible, even if the reload is interrupted.
-    // The replacement spare is consumed only when it is seated successfully.
-    p.mag[p.weapon] = 0;
+    if (plan.staged) {
+      // Tube: rounds seat one by one and the chambered rounds stay usable.
+      p.reloadStage = 'start';
+      p.reloadLoose = 0;
+      p.reloadT = plan.startSeconds;
+    } else {
+      p.reloadStage = null;
+      p.reloadT = plan.seconds;
+      // Dropping a magazine is irreversible, even if the reload is interrupted.
+      // The replacement spare is consumed only when it is seated successfully.
+      p.mag[p.weapon] = 0;
+    }
   }
 
   const fireEdge = p.fireEdgeQueued;
   p.fireEdgeQueued = false;
-  if ((inp.wantFire || fireEdge) && canFire(p, fireEdge, ctx)) fireOneShot(p, ctx);
+  const wantsShot = inp.wantFire || fireEdge;
+  // A staged tube reload yields to the trigger: whatever is seated fires now.
+  if (wantsShot && p.reloading && p.reloadStage && p.mag[p.weapon] > 0) clearReload(p);
+  if (wantsShot && canFire(p, fireEdge, ctx)) fireOneShot(p, ctx);
   p.triggerPrev = inp.wantFire;
 }
 

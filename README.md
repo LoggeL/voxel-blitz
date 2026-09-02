@@ -209,8 +209,9 @@ and scores reset.
 | `Shift` while stationary | hold breath until the pain/panic-limited budget is spent |
 | `Space` | jump; climb up while touching a ladder |
 | `Ctrl` / `C` | crouch; climb down while touching a ladder |
-| mouse1 / mouse2 | fire / ADS |
-| `R` | reload |
+| mouse1 / mouse2 | fire / ADS (`F` also aims; ADS is hold or toggle per the settings panel, toggle by default on trackpads) |
+| `Z` / wheel while scoped | sniper zoom step (5× ↔ 2.5×) |
+| `R` | reload; shotgun shells seat one at a time and firing interrupts the load |
 | hold/release `G` | charge and throw one server-authoritative terrain grenade; longer holds throw farther (2 per life) |
 | `1-6` / wheel | weapon slots |
 | `Q` | previous weapon; while dead, previous spectator target |
@@ -220,12 +221,35 @@ and scores reset.
 | `Tab` | scoreboard |
 | `Escape` | close an overlay, or open settings / resume / quit to main menu |
 
+A standard-mapping gamepad works alongside the keyboard once the match is live:
+left stick moves (`L3` sprints, full deflection auto-sprints), right stick aims
+with a dead zone and expo curve, `RT` fires, `LT` aims, `A` jumps, `B` taps to
+toggle crouch or holds, `X` reloads, `Y` swaps, `LB` returns to the previous
+weapon, `RB` holds a grenade charge, `R3` steps scope zoom, the d-pad cycles
+slots (up/down), holds the S&D interaction (left) and opens the armory (right),
+`Back` shows the scoreboard, and `Start` pauses. Pad sensitivity (radians per
+second at full deflection) and aim assist live in the settings panel; aim
+assist only ever slows pad and touch look near a visible enemy and never
+touches a mouse.
+
+Trackpads are detected from their scroll stream (or forced under Pointing
+Device in settings): look runs 2.4× hotter with a light two-frame smoothing,
+two-finger scrolling steps one weapon per flick instead of racing through the
+roster, and ADS defaults to toggle so nothing needs to be held with a second
+finger. Pointer lock requests raw (unaccelerated) mouse deltas where the
+browser offers them.
+
 On touch/coarse-pointer devices, the game enters mobile mode without pointer
 lock. The left stick floats to wherever your thumb lands and auto-sprints at its
 outer ring; drag anywhere else on the screen to aim, and a quick tap there fires
 one shot. FIRE aims while held (drag to track), ADS and crouch are tap-to-toggle
 and hold-to-hold, and G charges a grenade with a live landing preview. Dedicated
-buttons cover jump, reload, use/interact, weapon swap, S&D armory, and pause.
+buttons cover jump, reload, use/interact, weapon swap, S&D armory, scope zoom,
+and pause, and they only exist while they can do something: reload appears when
+the magazine is short and a spare exists, grenade while you carry one, use only
+during a live S&D round, armory only during S&D prep, zoom only while scoped, and
+the whole cluster leaves while you are dead or spectating. Settings offer small,
+medium, or large controls, a left-handed mirror, and a touch look multiplier.
 The first touch asks for fullscreen and a landscape lock where the browser
 allows it, browser gestures (zoom, pull-to-refresh, selection) are suppressed,
 a portrait hint asks you to rotate, and buttons vibrate briefly on devices with
@@ -286,7 +310,32 @@ gesture, and routes every sound through the persisted master-volume control.
 Reloading drops the active magazine immediately, including its remaining
 rounds. Completing the reload consumes one full spare magazine; interrupting it
 does not restore the dropped magazine. The HUD and buy menu therefore expose
-spare magazine counts instead of a loose reserve-round total.
+spare magazine counts instead of a loose reserve-round total. The shotgun is
+the exception: its tube keeps every chambered shell, seats one shell every
+0.36 s after a 0.42 s start, and a trigger pull interrupts the load with every
+seated shell usable (the loose remainder of that spare is lost).
+
+Camera recoil is a deterministic per-weapon pattern with a small jitter. A
+fraction of each kick stays on the true aim; once fire pauses for the weapon's
+reset window, each gun's recovery fraction (48–72%) walks that climb back over
+about 100 ms, while any mouse compensation you applied during the spray is
+subtracted first so a controlled spray never over-recovers. Idle sway grows with
+the magnification you look through, which is what holding breath is for; a
+breath meter appears under the crosshair while aiming and the sniper optic can
+step between 5× and 2.5×.
+
+Hit confirmation is layered: body and headshot marks, a heavier red kill mark
+with its own confirmation tone, damage numbers that stack into one growing total
+per target, a pain vignette that points at the shooter, and a low-health
+heartbeat under 35 HP. Dying shows a recap (weapon, markers, range, and the
+killer's remaining health) and the spectator camera opens as a 2.6 s kill cam
+on the killer before rotating. Remote players show reload and weapon-draw poses
+alongside firing, ADS, and crouch.
+
+Server corrections land on the predicted body immediately while the camera
+eases through a decaying offset (about 75 ms, 140 ms for a hard snap), and a
+locally started reload survives snapshots that predate its input for 400 ms so
+reloads never stutter on a slow link.
 
 ## Architecture
 

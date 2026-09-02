@@ -432,6 +432,55 @@ function runDirectContracts() {
     && reloadedRow.reserve[lmgSlot] === spareMagsBeforeReload - 1,
   'reload discards the partial magazine then consumes exactly one full spare magazine');
 
+  // Tube reload: shells seat one at a time, the chambered shells stay usable, and a
+  // trigger pull interrupts the load keeping every seated shell.
+  {
+    const shotgunSlot = WEAPON_IDS.indexOf('shotgun');
+    const shotgun = WEAPONS.shotgun;
+    const stages = shotgun.reloadStages;
+    fireEngine.applyInput('cadence', {
+      ...tapInput, seq: 3, pitch: 1.2, weapon: shotgunSlot, wantFire: false, reload: false,
+    });
+    for (let i = 0; i < Math.ceil(shotgun.deployTime * 1000 / TICK_MS) + 2; i++) {
+      fireEngine.step(TICK_MS);
+    }
+    firing.mag[shotgunSlot] = 2;
+    const sparesBefore = firing.reserve[shotgunSlot];
+    fireEngine.applyInput('cadence', {
+      ...tapInput, seq: 4, pitch: 1.2, weapon: shotgunSlot, wantFire: false, reload: true,
+    });
+    fireEngine.step(TICK_MS);
+    const tubeStarted = firing.reloading === true && firing.mag[shotgunSlot] === 2
+      && firing.reserve[shotgunSlot] === sparesBefore;
+    const ticksToSecondShell = Math.ceil((stages.start + stages.perRound * 2 + 0.02) * 1000 / TICK_MS);
+    for (let i = 0; i < ticksToSecondShell; i++) fireEngine.step(TICK_MS);
+    const twoSeated = firing.reloading === true && firing.mag[shotgunSlot] === 4
+      && firing.reserve[shotgunSlot] === sparesBefore - 1;
+    fireEngine.applyInput('cadence', {
+      ...tapInput, seq: 5, pitch: 1.2, weapon: shotgunSlot, wantFire: true, reload: false,
+    });
+    fireEngine.step(TICK_MS);
+    const interrupted = firing.reloading === false && firing.mag[shotgunSlot] === 3;
+    ok(tubeStarted && twoSeated && interrupted,
+      'tube reload seats shells one at a time and a shot interrupts it keeping seated shells');
+
+    fireEngine.applyInput('cadence', {
+      ...tapInput, seq: 6, pitch: 1.2, weapon: shotgunSlot, wantFire: false, reload: false,
+    });
+    for (let i = 0; i < 40; i++) fireEngine.step(TICK_MS);
+    const sparesBeforeFull = firing.reserve[shotgunSlot];
+    fireEngine.applyInput('cadence', {
+      ...tapInput, seq: 7, pitch: 1.2, weapon: shotgunSlot, wantFire: false, reload: true,
+    });
+    const missing = shotgun.magSize - firing.mag[shotgunSlot];
+    const fullTicks = Math.ceil((stages.start + stages.perRound * missing + stages.end + 0.05)
+      * 1000 / TICK_MS);
+    for (let i = 0; i < fullTicks; i++) fireEngine.step(TICK_MS);
+    ok(firing.reloading === false && firing.mag[shotgunSlot] === shotgun.magSize
+      && firing.reserve[shotgunSlot] === sparesBeforeFull - 1,
+    'an uninterrupted tube reload fills the tube from exactly one spare');
+  }
+
   const revolverSlot = WEAPON_IDS.indexOf('revolver');
   const releasedRevolverAt = (gateMs) => {
     const gateSnapshots = [];

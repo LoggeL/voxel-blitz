@@ -20,6 +20,7 @@ export const KILLFEED_MAX_ROWS = 5;
 export const KILLFEED_HOLD_MS = 4000;
 export const KILLFEED_REMOVE_MS = 320;
 export const HITMARK_MS = 210;
+export const KILLMARK_MS = 520;
 export { DEATH_IMPACT_MS };
 
 const EMPTY = Object.freeze({});
@@ -357,23 +358,35 @@ export class CombatHudController {
     this._killfeedRows.clear();
   }
 
-  hitmark(hs) {
+  /**
+   * Hit confirmation. `kind` is boolean headshot for legacy callers, or one of
+   * 'body' | 'head' | 'kill' | 'killHead'. Kill marks hold longer and bloom outward.
+   */
+  hitmark(kind) {
     const hm = this.dom.hitmarker;
     if (!hm || this._disposed) return;
+    const resolved = kind === true ? 'head' : (typeof kind === 'string' ? kind : 'body');
+    const kill = resolved === 'kill' || resolved === 'killHead';
+    const hs = resolved === 'head' || resolved === 'killHead';
+    // A kill mark is never downgraded by a trailing body-hit confirmation.
+    if (this.hmTimer && this._hitmarkKind?.startsWith('kill') && !kill) return;
     if (this.hmTimer) this._clearTimer(this.hmTimer);
     hm.classList.remove('vb-show', 'show', 'pop', 'on');
     void hm.offsetWidth;
     hm.classList.add('vb-show');
-    hm.classList.toggle('vb-hs', !!hs);
-    hm.classList.toggle('hs', !!hs);
+    hm.classList.toggle('vb-hs', hs);
+    hm.classList.toggle('hs', hs);
+    hm.classList.toggle('vb-kill', kill);
     this._hitmarkerNode = hm;
-    this.hmTimer = this._setTimer(this._onHitmarkTimeout, HITMARK_MS);
+    this._hitmarkKind = resolved;
+    this.hmTimer = this._setTimer(this._onHitmarkTimeout, kill ? KILLMARK_MS : HITMARK_MS);
   }
 
   _finishHitmark() {
     const hm = this._hitmarkerNode || this.dom.hitmarker;
-    if (hm) hm.classList.remove('vb-show', 'show', 'pop', 'on', 'vb-hs', 'hs');
+    if (hm) hm.classList.remove('vb-show', 'show', 'pop', 'on', 'vb-hs', 'hs', 'vb-kill');
     this._hitmarkerNode = null;
+    this._hitmarkKind = null;
     this.hmTimer = 0;
   }
 
@@ -470,8 +483,8 @@ export class CombatHudController {
     return this._deathTreatment.ensureNote();
   }
 
-  showDeathNote(killerName) {
-    this._deathTreatment.showNote(killerName);
+  showDeathNote(killerName, recap = '') {
+    this._deathTreatment.showNote(killerName, recap);
   }
 
   hideDeathNote() {
@@ -498,7 +511,7 @@ export class CombatHudController {
     this._deathTreatment.reset();
   }
 
-  setDead(dead, killerName = '') {
+  setDead(dead, killerName = '', recap = '') {
     if (this._disposed) return;
     this.dead = !!dead;
     if (!this.dead) this.resetDeathTreatment();
@@ -527,7 +540,7 @@ export class CombatHudController {
       this.clearOwnDamage();
       if (d.lowhp) d.lowhp.style.opacity = '0';
       this.activateDeathTreatment();
-      this.showDeathNote(killerName);
+      this.showDeathNote(killerName, recap);
     } else {
       this.hideDeathNote();
       const state = this.st;
@@ -540,8 +553,8 @@ export class CombatHudController {
 
   /* ------------------------------------------------------ damage numbers */
 
-  spawnDamage(amount, sx, sy, visible = true, hs = false) {
-    return this._damageNumbers.spawn(amount, sx, sy, visible, hs);
+  spawnDamage(amount, sx, sy, visible = true, hs = false, stackKey = null) {
+    return this._damageNumbers.spawn(amount, sx, sy, visible, hs, stackKey);
   }
 
   takeDmgNode() {

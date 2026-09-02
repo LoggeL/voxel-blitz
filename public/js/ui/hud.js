@@ -158,6 +158,7 @@ export class HUD {
   openSettings() { return this.settings.openSettings(); }
   closeSettings() { return this.settings.closeSettings(); }
   ensureSettings() { return this.settings.ensureSettings(); }
+  setDeviceInfo(device) { return this.settings.setDeviceInfo(device); }
   syncSettingsUI() { return this.settings.syncSettingsUI(); }
 
   setupSpectator(config = {}) { return this.spectator.setup(config); }
@@ -217,15 +218,15 @@ export class HUD {
   clearDamage() { return this.combat.clearDamage(); }
   resetDamage() { return this.combat.resetDamage(); }
   ensureDeathNote() { return this.combat.ensureDeathNote(); }
-  showDeathNote(name) { return this.combat.showDeathNote(name); }
+  showDeathNote(name, recap = '') { return this.combat.showDeathNote(name, recap); }
   hideDeathNote() { return this.combat.hideDeathNote(); }
   styleDeathTreatment(force) { return this.combat.styleDeathTreatment(force); }
   setDeathBrutality(value) { return this.combat.setDeathBrutality(value); }
   activateDeathTreatment() { return this.combat.activateDeathTreatment(); }
   resetDeathTreatment() { return this.combat.resetDeathTreatment(); }
-  setDead(dead, killer = '') { return this.combat.setDead(dead, killer); }
-  spawnDamage(amount, x, y, visible = true, headshot = false) {
-    return this.combat.spawnDamage(amount, x, y, visible, headshot);
+  setDead(dead, killer = '', recap = '') { return this.combat.setDead(dead, killer, recap); }
+  spawnDamage(amount, x, y, visible = true, headshot = false, stackKey = null) {
+    return this.combat.spawnDamage(amount, x, y, visible, headshot, stackKey);
   }
   takeDmgNode() { return this.combat.takeDmgNode(); }
   placeDmg(record, elapsed) { return this.combat.placeDmg(record, elapsed); }

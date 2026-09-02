@@ -6,6 +6,8 @@ const CAMERA_HEIGHT = 2.45;
 const CAMERA_SHOULDER = 1.35;
 const CAMERA_LOOK_AHEAD = 1.35;
 const WALL_MARGIN = 0.28;
+/** How long the kill cam follows the killer before the spectator rotation takes over. */
+export const KILL_CAM_MS = 2600;
 
 function rowId(row) {
   return row?.id == null ? null : String(row.id);
@@ -36,6 +38,7 @@ export class SpectatorCamera {
     this.active = false;
     this.targetId = null;
     this.candidates = [];
+    this.killCam = null; // { id, until } - the killer is followed first
     this.mode = 'fun';
     this.phase = 'live';
     this.serverNow = null;
@@ -86,15 +89,39 @@ export class SpectatorCamera {
       this._cameraSeeded = false;
     }
 
-    if (!this.candidates.some((candidate) => candidate.id === this.targetId)) {
+    const killCam = this.killCam;
+    if (killCam && this.observedAt >= killCam.until) this.killCam = null;
+    if (this.killCam && this.candidates.some((candidate) => candidate.id === this.killCam.id)) {
+      if (this.targetId !== this.killCam.id) {
+        this.targetId = this.killCam.id;
+        this._cameraSeeded = false;
+      }
+    } else if (!this.candidates.some((candidate) => candidate.id === this.targetId)) {
       this.targetId = this.candidates[0]?.id || null;
       this._cameraSeeded = false;
     }
     this._present();
   }
 
+  /** Kill cam: follow the killer for `ms` before the normal spectator rotation. */
+  focusKiller(killerId, ms = KILL_CAM_MS) {
+    const id = killerId == null ? null : String(killerId);
+    if (!id) {
+      this.killCam = null;
+      return false;
+    }
+    this.killCam = { id, until: this.now() + Math.max(0, Number(ms) || 0) };
+    if (this.active && this.candidates.some((candidate) => candidate.id === id)) {
+      this.targetId = id;
+      this._cameraSeeded = false;
+      this._present();
+    }
+    return true;
+  }
+
   cycle(direction = 1) {
     if (!this.active || this.candidates.length < 2) return false;
+    this.killCam = null;
     const current = this.candidates.findIndex((candidate) => candidate.id === this.targetId);
     const next = (Math.max(0, current) + (direction < 0 ? -1 : 1) + this.candidates.length)
       % this.candidates.length;
@@ -168,6 +195,7 @@ export class SpectatorCamera {
   reset() {
     this.active = false;
     this.targetId = null;
+    this.killCam = null;
     this.candidates = [];
     this.respawnAt = null;
     this._cameraSeeded = false;
@@ -203,6 +231,7 @@ export class SpectatorCamera {
       active: this.active,
       targetName: target?.name || '',
       hasTarget: !!target,
+      killCam: !!(target && this.killCam && this.killCam.id === target.id),
       canCycle: this.candidates.length > 1,
       teamOnly: isTeamMode(this.mode),
       respawnText: this.active ? this._respawnText() : '',

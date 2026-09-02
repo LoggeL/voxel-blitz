@@ -47,6 +47,7 @@ export function updateAvatarWeaponPose(av, {
   pitch = 0,
   firing = false,
   ads = false,
+  reloading = false,
   crouching = false,
   stride = 0,
   swing = 0,
@@ -62,12 +63,17 @@ export function updateAvatarWeaponPose(av, {
     pitch,
     firing,
     ads,
+    reloading,
     crouchT: av.crouchPose,
     stride,
     swing,
     dt,
   });
   const adsT = av.weaponModel.adsT;
+  const reloadT = av.weaponModel.reloadT;
+  // The support hand leaves the handguard to work the magazine; the firing arm dips.
+  if (dt > 0) av.reloadPhase = (av.reloadPhase || 0) + dt / 0.9;
+  const reloadPulse = reloadT * (0.5 + 0.5 * Math.sin(Math.PI * 2 * (av.reloadPhase || 0)));
   const handPose = av.weaponModel.handPose;
   const twoHanded = !!handPose.support;
   const supportReach = twoHanded
@@ -75,10 +81,10 @@ export function updateAvatarWeaponPose(av, {
     : 0;
   const gripLift = Math.max(-0.03, Math.min(0.03, Number(handPose.grip.y) || 0));
   const crouchDrop = av.crouchPose * 0.29;
-  const leftArmX = twoHanded
+  const leftArmX = (twoHanded
     ? 0.86 + supportReach * 0.14 + aimPitch + adsT * 0.18 - swing * stride * 0.08
-    : -swing * 0.5;
-  const leftArmZ = twoHanded ? 0.30 + supportReach * 0.12 + adsT * 0.08 : -0.08;
+    : -swing * 0.5) - reloadT * 0.55 - reloadPulse * 0.25;
+  const leftArmZ = (twoHanded ? 0.30 + supportReach * 0.12 + adsT * 0.08 : -0.08) + reloadT * 0.22;
   av.lArm.position.x += ((-0.41 + (twoHanded ? adsT * 0.035 : 0)) -
     av.lArm.position.x) * poseBlend;
   av.rArm.position.x += ((0.41 - adsT * 0.045) - av.rArm.position.x) * poseBlend;
@@ -87,11 +93,11 @@ export function updateAvatarWeaponPose(av, {
   av.lArm.position.z += ((twoHanded ? -adsT * 0.025 : 0) - av.lArm.position.z) * poseBlend;
   av.rArm.position.z += (-adsT * 0.035 - av.rArm.position.z) * poseBlend;
   av.lArm.rotation.x += (leftArmX - av.lArm.rotation.x) * poseBlend;
-  av.rArm.rotation.x += (1.00 + gripLift * 0.9 + aimPitch + adsT * 0.19 +
-    swing * stride * 0.06 - av.rArm.rotation.x) * poseBlend;
+  av.rArm.rotation.x += (1.00 + gripLift * 0.9 + aimPitch * (1 - reloadT * 0.6) + adsT * 0.19 +
+    swing * stride * 0.06 - reloadT * 0.3 - av.rArm.rotation.x) * poseBlend;
   av.lArm.rotation.z += (leftArmZ - av.lArm.rotation.z) * poseBlend;
   av.rArm.rotation.z += (-0.34 - av.rArm.rotation.z) * poseBlend;
-  av.lElbow.rotation.x += ((twoHanded ? 0.40 + supportReach * 0.14 : -0.34) -
+  av.lElbow.rotation.x += ((twoHanded ? 0.40 + supportReach * 0.14 : -0.34) + reloadT * 0.5 -
     av.lElbow.rotation.x) * poseBlend;
   av.rElbow.rotation.x += (0.38 - av.rElbow.rotation.x) * poseBlend;
 }
@@ -126,6 +132,7 @@ export function resetAvatarPose(av) {
   av.hitT = 0;
   av.speedEst = 0;
   av.runPhase = 0;
+  av.reloadPhase = 0;
   av.crouchPose = 0;
   av.lastImpact = null;
   av.motionSeeded = false;

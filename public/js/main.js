@@ -18,7 +18,7 @@ import { Session } from './session/session.js';
 import { LocalPlayer } from './player/local-player.js';
 import { SpectatorCamera } from './player/spectator-camera.js';
 import { AvatarRoster } from './avatar/avatar-roster.js';
-import { CombatFeedback, applySnapshotBlocks } from './combat/feedback.js';
+import { CombatFeedback, applySnapshotBlocks, isWorldPointVisible } from './combat/feedback.js';
 import { disposeFirstPersonBody, makeFirstPersonBody } from './player/first-person-body.js';
 import { fwdFromAngles } from './util/look.js';
 import { nowMs } from './util/math.js';
@@ -61,6 +61,9 @@ class Game {
     this._lastConsumedSnapSeq = null;
     this._pendingAuthoritativeSnapshots = [];
     this._postFrame = { time: 0, panic: 0, pain: 0, scopeActive: false };
+    this._padScoreboard = false;
+    this._deviceKey = '';
+    this._touchContext = {};
     this._loopGeneration = 0;
     this._rafId = 0;
     this._sbAt = 0;
@@ -153,7 +156,7 @@ class Game {
       },
       feedback: {
         addExhaustion: (amount) => this.player.addExhaustion(amount),
-        addRecoil: (pitch, yaw) => this.player.addRecoil(pitch, yaw),
+        addRecoil: (...args) => this.player.addRecoil(...args),
       },
     });
     this.weapon.resetToLoadout();
@@ -189,9 +192,11 @@ class Game {
       camera: this.camera,
       world: this._world,
       respawnLocal: (row) => this.respawnLocal(row),
-      onLocalDeath: () => {
+      onLocalDeath: (_transition, killerId) => {
         this.weapon?.deathReset();
         this.session.syncGameplayInput();
+        // Kill cam: the spectator camera opens on the killer before rotating.
+        if (killerId && killerId !== this.myId) this.spectator?.focusKiller(killerId);
       },
     });
 
@@ -273,7 +278,11 @@ class Game {
       id: this.myId,
     });
     if (reconciled.transition?.kind === 'death') {
-      this.feedback?.presentLocalDeath(deathEvent?.killer || null, reconciled.transition);
+      this.feedback?.presentLocalDeath(
+        deathEvent?.killer || null,
+        reconciled.transition,
+        deathEvent?.kind === 'kill' ? deathEvent : null,
+      );
     } else if (reconciled.transition?.kind === 'respawn') {
       this.weapon?.respawn({ mode: match?.mode, weapon: self?.weapon });
       this.feedback?.presentLocalRespawn();
@@ -357,6 +366,75 @@ class Game {
     sfx.grenadeThrow(thrown.charge);
   }
 
+  /**
+   * Contextual touch buttons: only actions that can do something right now are shown.
+   * Cheap on unchanged frames because TouchControls diffs the visibility set.
+   */
+  syncTouchContext() {
+    if (!this.input.usesTouchControls()) return;
+    const alive = this.player.alive && this.selfRow?.state === 'alive';
+    const def = this.weapon?.def;
+    const ammo = this.weapon && def ? this.weapon.ammoOf(def.id) : null;
+    const owned = this.selfRow?.owned;
+    const ctx = this._touchContext;
+    ctx.alive = alive;
+    ctx.canFire = this.isAuthoritativeFireAllowed();
+    ctx.canReload = !!(ammo && def && ammo.mag < def.magSize && ammo.reserve > 0
+      && !this.weapon.isReloading);
+    ctx.grenades = this.selfRow?.grenades ?? 0;
+    ctx.canInteract = this.isAuthoritativeInteractAllowed();
+    ctx.weaponCount = Array.isArray(owned) ? owned.length : WEAPON_IDS.length;
+    ctx.canBuy = this.session.canOpenBuyMenu();
+    ctx.scoped = !!this.weapon?.scopeActive;
+    this.input.setTouchContext(ctx);
+  }
+
+  /**
+   * Aim assist for pad and touch only: a gentle look slowdown while the reticle sits
+   * within a few degrees of a visible living enemy. Mouse look is never touched.
+   */
+  syncAimAssist(now) {
+    if (!this.input.aimAssistEligible(now)) {
+      this.input.setAimAssist(0);
+      return;
+    }
+    const forward = fwdFromAngles(this.player.aimYaw, this.player.aimPitch);
+    const eye = this.camera.position;
+    const selfTeam = this.selfRow?.team || null;
+    let best = 0;
+    let bestPoint = null;
+    for (const row of this.playersCache) {
+      if (row.local || row.state !== 'alive') continue;
+      if (selfTeam && row.team === selfTeam) continue;
+      const dx = row.x - eye.x;
+      const dy = row.y + 1.1 - eye.y;
+      const dz = row.z - eye.z;
+      const distance = Math.hypot(dx, dy, dz);
+      if (distance < 0.5 || distance > 45) continue;
+      const cosine = (dx * forward.x + dy * forward.y + dz * forward.z) / distance;
+      // Angular window widens slightly with range so distant targets still register.
+      const window = (3.2 + Math.min(2.4, distance * 0.05)) * Math.PI / 180;
+      const angle = Math.acos(Math.max(-1, Math.min(1, cosine)));
+      if (angle > window) continue;
+      const strength = 1 - angle / window;
+      if (strength > best) {
+        best = strength;
+        bestPoint = [row.x, row.y + 1.1, row.z];
+      }
+    }
+    if (best > 0 && !isWorldPointVisible(this._world, this.camera, bestPoint, 0.6)) best = 0;
+    this.input.setAimAssist(best);
+  }
+
+  /** Settings copy reacts to the live device (pad appears, trackpad detected). */
+  syncDeviceInfo(now) {
+    const info = this.input.deviceInfo(now);
+    const key = `${info.touch}|${info.pointerKind}|${info.trackpadDetected}|${info.padActive}`;
+    if (key === this._deviceKey) return;
+    this._deviceKey = key;
+    this.hud.setDeviceInfo(info);
+  }
+
   weaponFrameContext() {
     const position = this.camera.position;
     return {
@@ -383,7 +461,13 @@ class Game {
     const dt = Math.min(0.05, frameDt);
     const now = nowMs();
     this.session.syncGameplayInput();
+    this.input.poll(now, dt);
+    if (this.input.scoreboardHeld !== this._padScoreboard) {
+      this._padScoreboard = this.input.scoreboardHeld;
+      this.hud.setScoreboard(this._padScoreboard);
+    }
     this.player.update(dt, now, {
+      weapon: this.weapon,
       movementAllowed: () => this.isAuthoritativeMovementAllowed(),
       fireAllowed: () => this.isAuthoritativeFireAllowed(),
       interactAllowed: () => this.isAuthoritativeInteractAllowed(),
@@ -414,6 +498,12 @@ class Game {
     this.weapon.settleFrame(dt);
     this.presentGrenadeHandling(now);
     const def = this.weapon.def;
+    // Scope zoom steps (Z, wheel while scoped, R3, touch ZOOM) only while looking through the optic.
+    const zoomSteps = this.input.consumeZoomStep();
+    if (zoomSteps && this.weapon.scopeActive) {
+      for (let i = 0; i < Math.abs(zoomSteps); i++) this.player.cycleScopeZoom(def);
+    }
+    this.input.setScopeZoomMode(!!this.weapon.scopeActive);
     this.player.updateCamera(dt, this.camera, def, this.weapon.adsT, this.session.baseFov);
     const blastShake = this.effects.currentShakeXY;
     this.camera.rotation.x += blastShake.y;
@@ -451,6 +541,9 @@ class Game {
     } catch (error) { this.phaseError('net/interp', error); }
 
     const spectating = this.spectator?.active === true;
+    this.syncTouchContext();
+    this.syncAimAssist(now);
+    this.syncDeviceInfo(now);
     if (this.rig?.root) {
       this.rig.root.visible = shouldShowViewmodel({
         spectating,
@@ -471,8 +564,14 @@ class Game {
       grenades: this.selfRow?.grenades ?? 0,
       grenadeCharge: this.player.input.getGrenadeCharge(now),
       grenadeCharging: this._grenadeCharging,
+      holdingBreath: !!this.player.aimMotion?.holdingBreath,
+      breath01: this.player.aimMotion?.breathRemaining01 ?? 1,
+      canHoldBreath: this.player.speedXZ < 0.18 && this.player.physics.grounded,
+      scopeZoom: this.player.scopeZoom,
     });
     this.hud.setTelemetry(frameDt, this.net?.networkStats, now);
+    const hp = this.player.hp;
+    sfx.lowHealthPulse(this.player.alive && hp < 35 ? (35 - hp) / 35 : 0, now);
     if (now - this._sbAt >= 250 && this.playersCache.length) {
       this._sbAt = now;
       this.hud.setPlayers(this.playersCache);
@@ -589,6 +688,14 @@ window.__vb = {
       runningAvatars: counters.runningAvatars || 0,
       maxAvatarSpeed: counters.maxAvatarSpeed || 0,
       scopeActive: !!game.weapon?.scopeActive,
+      scopeZoom: game.player.scopeZoom,
+      recoilClimb: { ...game.player.recoilClimb },
+      reconcileOffset: Math.hypot(
+        game.player.reconcileOffset.x,
+        game.player.reconcileOffset.y,
+        game.player.reconcileOffset.z,
+      ),
+      device: game.input.deviceInfo(),
       shader: game.post?.stats || null,
       geometries: info.memory.geometries,
       textures: info.memory.textures,

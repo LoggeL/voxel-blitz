@@ -433,13 +433,46 @@ export async function runHudContracts(ok, installGlobals) {
       hud.settingsDom.fovSlider.value = '98';
       hud.settingsDom.fovSlider.dispatchEvent(event('input'));
       const lastChange = changes.at(-1);
+      const DEVICE_KEYS = ['adsMode', 'aimAssist', 'padSensitivity', 'pointerMode',
+        'touchHand', 'touchSensitivity', 'touchSize'];
       ok(changes.length === 3
         && changes.every((change) =>
-          Object.keys(change).sort().join(',') === 'fov,sensitivity,volume')
+          Object.keys(change).sort().join(',')
+            === ['fov', 'sensitivity', 'volume', ...DEVICE_KEYS].sort().join(','))
         && lastChange.sensitivity === 0.0047
         && lastChange.volume === 0.63
-        && lastChange.fov === 98,
+        && lastChange.fov === 98
+        && lastChange.adsMode === ''
+        && lastChange.pointerMode === 'auto'
+        && lastChange.aimAssist === true,
       'every HUD slider emits a full current settings object');
+
+      // Device rows: desktop shows pointer/ADS rows, touch shows the layout rows, and a
+      // live pad reveals its sensitivity; the trackpad hint follows detection.
+      hud.setDeviceInfo({ touch: false, pointerKind: 'mouse', trackpadDetected: false, padActive: false });
+      const rowShown = (row) => row.style.display !== 'none';
+      const desktopRows = rowShown(hud.settingsDom.pointerModeRow)
+        && rowShown(hud.settingsDom.adsModeRow)
+        && !rowShown(hud.settingsDom.padSensRow)
+        && !rowShown(hud.settingsDom.touchSizeRow)
+        && hud.settingsDom.adsModeHint.textContent.startsWith('HOLD');
+      hud.setDeviceInfo({ touch: false, pointerKind: 'trackpad', trackpadDetected: true, padActive: true });
+      const trackpadRows = hud.settingsDom.pointerModeHint.textContent === 'TRACKPAD DETECTED'
+        && hud.settingsDom.adsModeHint.textContent.startsWith('TOGGLE')
+        && rowShown(hud.settingsDom.padSensRow)
+        && rowShown(hud.settingsDom.aimAssistRow);
+      hud.setDeviceInfo({ touch: true, pointerKind: 'mouse', trackpadDetected: false, padActive: false });
+      const touchRows = !rowShown(hud.settingsDom.pointerModeRow)
+        && rowShown(hud.settingsDom.touchSizeRow)
+        && rowShown(hud.settingsDom.touchHandRow)
+        && rowShown(hud.settingsDom.touchSensRow);
+      hud.settingsDom.adsModeSelect.value = 'toggle';
+      hud.settingsDom.adsModeSelect.dispatchEvent(event('change'));
+      ok(desktopRows && trackpadRows && touchRows
+        && changes.at(-1).adsMode === 'toggle'
+        && localStorage.getItem('vb-ads-mode') === 'toggle',
+      'settings shows device rows by capability and persists the ADS mode choice');
+      hud.setDeviceInfo({ touch: false, pointerKind: 'mouse', trackpadDetected: false, padActive: false });
       ok(localStorage.getItem('vb-sens-v2') === '0.0047'
         && localStorage.getItem('vb-volume') === '0.63'
         && localStorage.getItem('vb-fov') === '98',
@@ -606,6 +639,38 @@ export async function runHudContracts(ok, installGlobals) {
       ok(!hud.dom.ch.classList.contains('vb-dead')
         && hud.dom.deathnote.style.display === 'none',
       'HUD revival clears explicit death presentation');
+
+      hud.setDead(true, 'RIVAL', 'HORNET SMG · 8 M · KILLER AT 41 HP');
+      const recapShown = hud.dom.deathnote.textContent === 'eliminated by RIVAL'
+        && hud.dom.deathrecap?.textContent === 'HORNET SMG · 8 M · KILLER AT 41 HP'
+        && hud.dom.deathrecap.style.display === 'block';
+      hud.setDead(false);
+      ok(recapShown && hud.dom.deathrecap.style.display === 'none',
+        'death recap line shows under the note and hides with revival');
+
+      hud.hitmark('kill');
+      const killShown = hud.dom.hitmarker.classList.contains('vb-kill')
+        && hud.dom.hitmarker.classList.contains('vb-show')
+        && !hud.dom.hitmarker.classList.contains('vb-hs');
+      hud.hitmark(false);
+      ok(killShown && hud.dom.hitmarker.classList.contains('vb-kill'),
+        'a kill mark is distinct and a trailing body hit cannot downgrade it');
+
+      hud.setState({ alive: true, adsT01: 1, holdingBreath: true, breath01: 0.5, canHoldBreath: true });
+      const breathHolding = hud.dom.breath.style.display === 'block'
+        && hud.dom.breath.classList.contains('is-holding')
+        && hud.dom.breathFill.style.transform === 'scaleX(0.500)';
+      hud.setState({ holdingBreath: false, breath01: 1 });
+      const breathHidden = hud.dom.breath.style.display === 'none';
+      hud.setState({ adsT01: 0, holdingBreath: true, breath01: 0.4 });
+      ok(breathHolding && breathHidden && hud.dom.breath.style.display === 'none',
+        'breath meter appears only while aiming and the window is draining or spent');
+
+      hud.setState({ wid: 'sniper', adsT01: 0.9, alive: true, scopeZoom: 2.5 });
+      const zoomLabel = hud.dom.scope?.querySelector('#scope-zoom-label');
+      ok(zoomLabel?.textContent === '2.5×',
+        'scope overlay label follows the live zoom step');
+      hud.setState({ wid: 'rifle', adsT01: 0 });
 
       const visible = (element) => !!element
         && element.style.display !== 'none'

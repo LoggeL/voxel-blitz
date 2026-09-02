@@ -57,6 +57,7 @@ export class GameplayUiFlow {
     const fov = clampNumber(nextSettings.fov, 65, 100, this._settings.baseFov);
 
     this._input.setSensitivity(sensitivity);
+    if (typeof this._input.setOptions === 'function') this._input.setOptions(nextSettings);
     this._settings.masterVolume = volume;
     this._settings.baseFov = fov;
     this._writeVolume(String(volume));

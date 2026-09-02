@@ -45,7 +45,8 @@ export const CONDITION_RULES = Object.freeze({
  * @property {number} bloomRecover  bloom decay deg/s
  * @property {number} moveSpreadDeg additional hip cone at full sprint, degrees
  * @property {number} crouchSpreadMult cone multiplier while crouched
- * @property {{pitch:number,pitchRamp:number,maxPitchRamp:number,yaw:number,yawPattern:number[],jitter:number,resetMs:number,adsMult:number}} recoil client camera/viewmodel recoil profile
+ * @property {{pitch:number,pitchRamp:number,maxPitchRamp:number,yaw:number,yawPattern:number[],jitter:number,resetMs:number,adsMult:number,recovery:number}} recoil client camera/viewmodel recoil profile; `recovery` is the fraction of accumulated aim climb walked back once fire pauses for resetMs
+ * @property {{start:number,perRound:number,end:number}} [reloadStages] tube/loose-round reload: rounds seat one at a time and firing interrupts the reload keeping every seated round
  * @property {number} adsFov        fov while aiming
  * @property {number} zoom          sight magnification (>1 scopes, used by overlay/SFX)
  * @property {number} adsTime       seconds to reach full ADS
@@ -70,7 +71,7 @@ export const WEAPONS = {
     recoil: {
       pitch: 0.68, pitchRamp: 0.055, maxPitchRamp: 0.33,
       yaw: 0.32, yawPattern: [-0.20, 0.15, 0.35, -0.40, -0.65, 0.25, 0.55, -0.15],
-      jitter: 0.12, resetMs: 280, adsMult: 0.72,
+      jitter: 0.12, resetMs: 280, adsMult: 0.72, recovery: 0.62,
     },
     adsFov: 55, zoom: 1.3, adsTime: 0.16,
     reloadTime: 2.1, tacTime: 1.55, deployTime: 0.42,
@@ -88,7 +89,7 @@ export const WEAPONS = {
     recoil: {
       pitch: 0.42, pitchRamp: 0.025, maxPitchRamp: 0.18,
       yaw: 0.42, yawPattern: [-0.65, 0.70, -0.25, 0.95, -0.90, 0.35],
-      jitter: 0.22, resetMs: 190, adsMult: 0.80,
+      jitter: 0.22, resetMs: 190, adsMult: 0.80, recovery: 0.55,
     },
     adsFov: 62, zoom: 1.15, adsTime: 0.11,
     reloadTime: 1.75, tacTime: 1.3, deployTime: 0.3,
@@ -107,10 +108,12 @@ export const WEAPONS = {
     recoil: {
       pitch: 2.35, pitchRamp: 0, maxPitchRamp: 0,
       yaw: 0.55, yawPattern: [-0.40, 0.45],
-      jitter: 0.08, resetMs: 780, adsMult: 0.72,
+      jitter: 0.08, resetMs: 780, adsMult: 0.72, recovery: 0.72,
     },
     adsFov: 62, zoom: 1.15, adsTime: 0.12,
     reloadTime: 3.1, tacTime: 2.6, deployTime: 0.5,
+    // Tube magazine: shells seat one at a time; a shot interrupts the reload.
+    reloadStages: { start: 0.42, perRound: 0.36, end: 0.22 },
     tracer: { color: '#ffc37a', width: 1.0, len: 24 },
     sfx: 'shotgun',
   },
@@ -125,7 +128,7 @@ export const WEAPONS = {
     recoil: {
       pitch: 3.80, pitchRamp: 0, maxPitchRamp: 0,
       yaw: 0.58, yawPattern: [-0.25, 0.20],
-      jitter: 0.06, resetMs: 1800, adsMult: 0.60,
+      jitter: 0.06, resetMs: 1800, adsMult: 0.60, recovery: 0.55,
     },
     adsFov: 18, zoom: 5, adsTime: 0.26,
     reloadTime: 3.0, tacTime: 2.2, deployTime: 0.55,
@@ -147,7 +150,7 @@ export const WEAPONS = {
         -0.15, -0.35, 0.20, 0.50, 0.70, 0.35,
         -0.10, -0.55, -0.75, -0.40, 0.15, 0.45,
       ],
-      jitter: 0.10, resetMs: 340, adsMult: 0.74,
+      jitter: 0.10, resetMs: 340, adsMult: 0.74, recovery: 0.48,
     },
     adsFov: 58, zoom: 1.2, adsTime: 0.22,
     reloadTime: 4.2, tacTime: 3.4, deployTime: 0.65,
@@ -165,7 +168,7 @@ export const WEAPONS = {
     recoil: {
       pitch: 2.25, pitchRamp: 0, maxPitchRamp: 0,
       yaw: 0.68, yawPattern: [-0.65, 0.35, 0.75, -0.25, -0.80, 0.55],
-      jitter: 0.08, resetMs: 650, adsMult: 0.68,
+      jitter: 0.08, resetMs: 650, adsMult: 0.68, recovery: 0.70,
     },
     adsFov: 56, zoom: 1.35, adsTime: 0.13,
     reloadTime: 2.35, tacTime: 1.8, deployTime: 0.28,
@@ -189,6 +192,36 @@ export function computeRecoilKickDeg(def, shotIndex, adsT = 0, random01 = 0.5) {
   return {
     pitch: (profile.pitch + ramp) * adsScale,
     yaw: profile.yaw * (pattern + yawVariation) * adsScale,
+  };
+}
+
+/**
+ * Reload plan shared by authority and prediction. Magazine weapons swap in one step;
+ * tube weapons seat rounds one at a time (`staged`), so the duration depends on how many
+ * rounds are missing and the reload can be interrupted with every seated round kept.
+ * @returns {{staged:boolean,rounds:number,seconds:number,startSeconds:number,perRoundSeconds:number,endSeconds:number}}
+ */
+export function reloadPlan(def, mag) {
+  const inMag = Math.max(0, Math.min(def.magSize, Number.isFinite(mag) ? Math.trunc(mag) : 0));
+  const stages = def.reloadStages;
+  if (!stages) {
+    return {
+      staged: false,
+      rounds: def.magSize,
+      seconds: inMag > 0 ? def.tacTime : def.reloadTime,
+      startSeconds: 0,
+      perRoundSeconds: 0,
+      endSeconds: 0,
+    };
+  }
+  const rounds = Math.max(0, def.magSize - inMag);
+  return {
+    staged: true,
+    rounds,
+    seconds: stages.start + rounds * stages.perRound + stages.end,
+    startSeconds: stages.start,
+    perRoundSeconds: stages.perRound,
+    endSeconds: stages.end,
   };
 }
 

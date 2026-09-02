@@ -372,3 +372,67 @@
     top: max(248px, calc(env(safe-area-inset-top) + 232px));
   }
 }
+
+/* ---------- contextual buttons, sizes, and the left-handed mirror ---------- */
+
+/* Buttons exist only while they can do something (see visibleTouchActions). */
+.vb-touch-button.is-hidden {
+  display: none;
+  pointer-events: none;
+}
+
+.vb-touch-zoom {
+  top: max(86px, calc(env(safe-area-inset-top) + 60px));
+  right: calc(var(--touch-edge-r) + 148px);
+  min-width: 58px;
+  border-radius: 26px;
+  color: #cfe6ff;
+  border-color: rgba(143, 199, 255, 0.62);
+}
+
+.vb-touch-controls.is-size-small .vb-touch-button { transform: scale(0.86); transform-origin: center; }
+.vb-touch-controls.is-size-small .vb-touch-button.is-held { transform: scale(0.8); }
+.vb-touch-controls.is-size-small .vb-touch-stick-base { width: 96px; height: 96px; }
+.vb-touch-controls.is-size-small .vb-touch-stick-knob { width: 40px; height: 40px; margin: -20px 0 0 -20px; }
+
+.vb-touch-controls.is-size-large .vb-touch-button { transform: scale(1.16); transform-origin: center; }
+.vb-touch-controls.is-size-large .vb-touch-button.is-held { transform: scale(1.08); }
+.vb-touch-controls.is-size-large .vb-touch-fire { width: 104px; height: 104px; }
+.vb-touch-controls.is-size-large .vb-touch-stick-base { width: 136px; height: 136px; }
+.vb-touch-controls.is-size-large .vb-touch-stick-knob { width: 56px; height: 56px; margin: -28px 0 0 -28px; }
+
+/* Left-handed: joystick on the right, action cluster on the left. */
+.vb-touch-controls.is-left-handed .vb-touch-move-zone { left: auto; right: 0; }
+.vb-touch-controls.is-left-handed .vb-touch-stick-base { left: auto; right: calc(var(--touch-edge-r) + 22px); }
+.vb-touch-controls.is-left-handed .vb-touch-move-zone > .vb-touch-zone-label {
+  left: auto;
+  right: calc(var(--touch-edge-r) + 54px);
+}
+.vb-touch-controls.is-left-handed .vb-touch-fire { right: auto; left: calc(var(--touch-edge-x) + 6px); }
+.vb-touch-controls.is-left-handed .vb-touch-ads,
+.vb-touch-controls.is-left-handed .vb-touch-jump { right: auto; left: calc(var(--touch-edge-x) + 112px); }
+.vb-touch-controls.is-left-handed .vb-touch-grenade { right: auto; left: calc(var(--touch-edge-x) + 178px); }
+.vb-touch-controls.is-left-handed .vb-touch-reload { right: auto; left: calc(var(--touch-edge-x) + 182px); }
+.vb-touch-controls.is-left-handed .vb-touch-crouch,
+.vb-touch-controls.is-left-handed .vb-touch-interact { left: auto; right: 46%; }
+.vb-touch-controls.is-left-handed .vb-touch-weapon { right: auto; left: calc(var(--touch-edge-x) + 60px); }
+.vb-touch-controls.is-left-handed .vb-touch-buy { right: auto; left: calc(var(--touch-edge-x) + 132px); }
+.vb-touch-controls.is-left-handed .vb-touch-zoom { right: auto; left: calc(var(--touch-edge-x) + 204px); }
+.vb-touch-controls.is-left-handed .vb-touch-pause { left: auto; right: var(--touch-edge-r); }
+.vb-touch-controls.is-left-handed .vb-touch-look-zone > .vb-touch-zone-label {
+  right: auto;
+  left: calc(var(--touch-edge-x) + 10px);
+}
+
+@media (max-width: 720px) {
+  .vb-touch-controls.is-left-handed .vb-touch-ads,
+  .vb-touch-controls.is-left-handed .vb-touch-jump { left: calc(var(--touch-edge-x) + 94px); }
+  .vb-touch-controls.is-left-handed .vb-touch-grenade,
+  .vb-touch-controls.is-left-handed .vb-touch-reload { left: calc(var(--touch-edge-x) + 150px); }
+  .vb-touch-controls.is-left-handed .vb-touch-crouch,
+  .vb-touch-controls.is-left-handed .vb-touch-interact { right: 44%; }
+}
+
+@media (orientation: portrait) and (max-width: 720px) {
+  .vb-touch-zoom { top: max(264px, calc(env(safe-area-inset-top) + 248px)); }
+}

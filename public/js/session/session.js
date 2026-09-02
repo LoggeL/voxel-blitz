@@ -616,6 +616,8 @@ export class Session {
       sensitivity: this.input.getSensitivity(),
       volume: this._masterVolume,
       fov: this._baseFov,
+      options: this.input.getOptions?.(),
+      device: this.input.deviceInfo?.(),
       onChange: (settings) => this.applySettings(settings),
       onResume: () => this.resumeFromSettings(),
       onLeave: () => this.leaveMatch(),

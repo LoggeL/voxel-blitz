@@ -7,11 +7,14 @@ import {
   WEAPON_IDS,
   computeRecoilKickDeg,
   computeSpreadConeDeg,
+  reloadPlan,
   samplePelletDirection,
 } from '../../../shared/combatmath.js';
 import { TIMERS } from './defs.js';
 
 const EMPTY_AMMO = Object.freeze({ mag: 0, reserve: 0 });
+/** Snapshots older than a round trip cannot cancel a reload the authority has not seen yet. */
+export const RELOAD_ACK_GRACE_MS = 400;
 const DEFAULT_MODE = 'fun';
 
 /** One visibility rule shared by scoped weapon state and spectator presentation. */
@@ -141,6 +144,7 @@ export class WeaponState {
       wid: def.id,
       crosshairConeDeg: this.coneDeg,
       reloading01: this._reloadProgress(now),
+      reloadStaged: !!this._reloadState?.staged,
       adsT01: this._adsT,
       zoom: def.zoom,
     };
@@ -283,23 +287,87 @@ export class WeaponState {
     const ammo = this._ammo[def.id];
     if (!ammo || ammo.mag >= def.magSize || ammo.reserve <= 0) return false;
 
-    const dur = (ammo.mag > 0 ? def.tacTime : def.reloadTime) * 1000;
-    const type = def.id === 'shotgun' ? 'tube' : 'magswap';
-    this._reloadState = { until: now + dur, dur, type, weapon: def.id };
-    // Mirror the authority: once reload starts, the partial magazine is gone.
-    // A replacement spare is consumed only after the reload completes.
-    ammo.mag = 0;
+    const plan = reloadPlan(def, ammo.mag);
+    const dur = plan.seconds * 1000;
+    const type = plan.staged ? 'tube' : 'magswap';
+    this._reloadState = {
+      startedAt: now,
+      until: now + dur,
+      dur,
+      type,
+      weapon: def.id,
+      staged: plan.staged,
+      stage: plan.staged ? 'start' : null,
+      stageAt: now + plan.startSeconds * 1000,
+      perRoundMs: plan.perRoundSeconds * 1000,
+      endMs: plan.endSeconds * 1000,
+      loose: 0,
+    };
+    if (!plan.staged) {
+      // Mirror the authority: once reload starts, the partial magazine is gone.
+      // A replacement spare is consumed only after the reload completes.
+      ammo.mag = 0;
+    }
     this._resetRecoilPattern();
-    this._rig.reload(dur / 1000, type);
+    this._rig.reload(dur / 1000, type, plan.staged ? {
+      startSeconds: plan.startSeconds,
+      perRoundSeconds: plan.perRoundSeconds,
+      rounds: plan.rounds,
+    } : null);
+    return true;
+  }
+
+  /** Staged (tube) reloads seat rounds as the authority does; a shot interrupts them. */
+  cancelReload() {
+    const reload = this._reloadState;
+    if (!reload) return false;
+    this._reloadState = null;
+    this._rig.cancelReload?.();
     return true;
   }
 
   tickReload(now) {
     const reload = this._reloadState;
-    if (!reload || now < reload.until) return false;
-
+    if (!reload) return false;
     const def = WEAPONS[reload.weapon];
     const ammo = this._ammo[reload.weapon];
+
+    if (reload.staged) {
+      let advanced = false;
+      while (reload.stage && now >= reload.stageAt) {
+        advanced = true;
+        if (reload.stage === 'start') {
+          if (!def || !ammo || ammo.reserve <= 0 || ammo.mag >= def.magSize) {
+            reload.stage = null;
+            break;
+          }
+          ammo.reserve -= 1;
+          reload.loose = def.magSize;
+          reload.stage = 'round';
+          reload.stageAt += reload.perRoundMs;
+        } else if (reload.stage === 'round') {
+          if (reload.loose > 0 && ammo.mag < def.magSize) {
+            ammo.mag += 1;
+            reload.loose -= 1;
+          }
+          if (reload.loose > 0 && ammo.mag < def.magSize) {
+            reload.stageAt += reload.perRoundMs;
+          } else {
+            reload.stage = 'end';
+            reload.stageAt += reload.endMs;
+          }
+        } else {
+          reload.stage = null;
+        }
+      }
+      if (reload.stage === null || now >= reload.until) {
+        this._reloadState = null;
+        return true;
+      }
+      return advanced;
+    }
+
+    if (now < reload.until) return false;
     if (def && ammo && ammo.reserve > 0) {
       ammo.reserve -= 1;
       ammo.mag = def.magSize;
@@ -354,10 +422,16 @@ export class WeaponState {
     const def = this.def;
     const weaponId = def.id;
     if (now < this._nextFireAt || now < this._deployUntil) return false;
-    if (this._reloadState) return false;
-
     const ammo = this._ammo[weaponId];
     if (!ammo) return false;
+    const reload = this._reloadState;
+    if (reload) {
+      const wantsShot = !!(this._pendingShotIntent &&
+        (this._pendingShotIntent.tap || this._pendingShotIntent.held));
+      // Tube reload yields to the trigger: whatever is seated fires now.
+      if (!(reload.staged && wantsShot && ammo.mag > 0)) return false;
+      this.cancelReload();
+    }
     if (ammo.mag <= 0) {
       if (this._pendingShotIntent && this._pendingShotIntent.tap) {
         this._audio.reloadClick(3, weaponId);
@@ -435,6 +509,8 @@ export class WeaponState {
       kick.pitch * (Math.PI / 180),
       kick.yaw * (Math.PI / 180),
       def.weightKg,
+      def.recoil,
+      now,
     );
   }
 
@@ -466,18 +542,30 @@ export class WeaponState {
     }
 
     if (!reloading) {
-      this._reloadState = null;
+      const reload = this._reloadState;
+      // A locally started reload is not contradicted by snapshots that predate its
+      // input; only clear it once the authority has had a round trip to see it.
+      if (reload && now - reload.startedAt >= RELOAD_ACK_GRACE_MS) {
+        if (reload.staged && now < reload.until - 200) this.cancelReload();
+        else this._reloadState = null;
+      }
     } else if (!this._reloadState && this._alive) {
       const def = this.def;
-      const dur = def.reloadTime * 1000;
+      const ammo = this._ammo[def.id];
+      const plan = reloadPlan(def, ammo ? ammo.mag : 0);
+      const dur = (plan.staged ? plan.seconds : def.reloadTime) * 1000;
       this._reloadState = {
+        startedAt: now,
         until: now + dur,
         dur,
-        type: 'magswap',
+        type: plan.staged ? 'tube' : 'magswap',
         weapon: def.id,
+        // Authority already owns the ammo counts here; the client only animates.
+        staged: false,
+        stage: null,
       };
       this._resetRecoilPattern();
-      this._rig.reload(dur / 1000, 'magswap');
+      this._rig.reload(dur / 1000, plan.staged ? 'tube' : 'magswap');
     }
   }
 

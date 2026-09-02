@@ -22,8 +22,32 @@ const RECOIL_OMEGA_RANGE = [14, 34];
 const RECOIL_DAMPING_RATIO = 0.82;     // a touch under critical: visible settle bounce
 /** Fraction of each pitch kick that stays on the true aim (spray control), radians in. */
 const RECOIL_AIM_CLIMB = 0.18;
+/** Fraction of each yaw kick that drifts the true aim so patterns matter sideways too. */
+const RECOIL_AIM_DRIFT = 0.10;
 /** Camera roll coupled to lateral recoil (rad per rad of yaw kick). */
 const RECOIL_ROLL_PER_YAW = -0.42;
+/** Aim-climb recovery: once fire pauses for the weapon's resetMs, the weapon's `recovery`
+ * fraction of the accumulated climb walks back at this rate (1/s). Mouse compensation
+ * during the spray is subtracted first, so a controlled spray never over-recovers. */
+const RECOIL_RECOVERY_RATE = 11;
+const DEFAULT_RECOIL_PROFILE = Object.freeze({ resetMs: 280, recovery: 0.6 });
+
+/** Reconciliation: the authority correction lands on the physics body at once while the
+ * camera eases through a decaying visual offset, so corrections never read as a pop. */
+const RECONCILE_SNAP_DISTANCE = 3.2;
+const RECONCILE_DEAD_ZONE = 0.12;
+const RECONCILE_CORRECTION = 0.28;
+const RECONCILE_OFFSET_CLAMP = 1.6;
+const RECONCILE_OFFSET_DECAY = 13;   // 1/s (~75 ms to settle a small correction)
+const RECONCILE_SNAP_DECAY = 7;      // 1/s for a hard snap (~140 ms)
+
+/** Camera FOV that presents `zoom` magnification against `baseFov` (degrees). */
+export function fovForZoom(zoom, baseFov = DEFAULT_FOV) {
+  const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 1;
+  const base = Number.isFinite(baseFov) ? baseFov : DEFAULT_FOV;
+  const half = Math.atan(Math.tan(base * Math.PI / 360) / z);
+  return half * 360 / Math.PI;
+}
 
 function recoilOmegaFor(weightKg) {
   const weight = Number.isFinite(weightKg) && weightKg > 0 ? weightKg : RECOIL_REFERENCE_WEIGHT_KG;
@@ -103,7 +127,14 @@ export class LocalPlayer {
     this.currentSpeedXZ = 0;
     this._recoilSpring = { pitch: { p: 0, v: 0 }, yaw: { p: 0, v: 0 } };
     this._recoilOmega = recoilOmegaFor(RECOIL_REFERENCE_WEIGHT_KG);
+    this._recoilProfile = DEFAULT_RECOIL_PROFILE;
+    this._climb = { pitch: 0, yaw: 0 };
+    this._climbFloor = { pitch: 0, yaw: 0 };
+    this._lastRecoilAt = -Infinity;
+    this._recovering = false;
+    this._reconcileOffset = { x: 0, y: 0, z: 0, decay: RECONCILE_OFFSET_DECAY };
     this._lookScale = 1;
+    this._scopeZoom = 0;
     this._localGrenadeThrow = null;
     this.recoilPitch = 0;
     this.recoilYaw = 0;
@@ -172,6 +203,12 @@ export class LocalPlayer {
   get aimYaw() { return this.view.yaw + (this._aim?.yaw || 0); }
   get aimPitch() { return clampPitch(this.view.pitch + (this._aim?.pitch || 0)); }
   get aimMotion() { return this._aim; }
+  /** Accumulated aim climb still owed to recovery (radians), for HUD/debug readback. */
+  get recoilClimb() { return this._climb; }
+  /** Live camera offset left by the last reconciliation, decaying toward zero. */
+  get reconcileOffset() { return this._reconcileOffset; }
+  /** Current scope magnification (0 when the held weapon has no zoom steps). */
+  get scopeZoom() { return this._scopeZoom; }
 
   setMapMeta(mapMeta = null) {
     this.physics.setMapMeta(mapMeta);
@@ -247,6 +284,8 @@ export class LocalPlayer {
     this.spawnProtected = false;
     this.currentSpeedXZ = 0;
     this._resetRecoil();
+    this._resetReconcileOffset();
+    this._scopeZoom = 0;
     this.adsT = 0;
     this.wantAds = false;
     this.scopeActive = false;
@@ -282,6 +321,7 @@ export class LocalPlayer {
     this.deathRoll = 0;
     this.deathPitch = 0;
     this._resetRecoil();
+    this._resetReconcileOffset();
     this.currentSpeedXZ = 0;
     this.scopeActive = false;
     this.fireTapLatched = false;
@@ -369,14 +409,69 @@ export class LocalPlayer {
    * and recovers on its own; RECOIL_AIM_CLIMB of the pitch kick stays on the authoritative
    * aim so sustained fire must be pulled down. `weightKg` slows the spring for heavy guns.
    */
-  addRecoil(pitch = 0, yaw = 0, weightKg = RECOIL_REFERENCE_WEIGHT_KG) {
+  addRecoil(pitch = 0, yaw = 0, weightKg = RECOIL_REFERENCE_WEIGHT_KG, profile = null, now = nowMs()) {
     const p = Number.isFinite(pitch) ? pitch : 0;
     const y = Number.isFinite(yaw) ? yaw : 0;
     this._recoilOmega = recoilOmegaFor(weightKg);
+    this._recoilProfile = profile && Number.isFinite(profile.resetMs)
+      ? profile
+      : DEFAULT_RECOIL_PROFILE;
     this._impulseRecoil(p, y);
-    if (this._alive && p !== 0) {
-      this.view.pitch = clampPitch(this.view.pitch + p * RECOIL_AIM_CLIMB);
+    if (!this._alive) return;
+    // A fresh shot while recovering re-arms the spray: whatever climb is still owed
+    // keeps accumulating instead of being written off.
+    this._recovering = false;
+    this._climbFloor.pitch = 0;
+    this._climbFloor.yaw = 0;
+    this._lastRecoilAt = Number.isFinite(now) ? now : nowMs();
+    if (p !== 0) {
+      const climb = p * RECOIL_AIM_CLIMB;
+      this.view.pitch = clampPitch(this.view.pitch + climb);
+      this._climb.pitch += climb;
     }
+    if (y !== 0) {
+      const drift = y * RECOIL_AIM_DRIFT;
+      this.view.yaw += drift;
+      this._climb.yaw += drift;
+    }
+  }
+
+  /** Walks the owed aim climb back toward its floor once the spray has paused. */
+  _stepRecoilRecovery(dt, now) {
+    const climb = this._climb;
+    if (!this._alive || (climb.pitch === 0 && climb.yaw === 0)) return;
+    if (now - this._lastRecoilAt < this._recoilProfile.resetMs) return;
+    if (!this._recovering) {
+      this._recovering = true;
+      const keep = 1 - clamp01(this._recoilProfile.recovery);
+      this._climbFloor.pitch = climb.pitch * keep;
+      this._climbFloor.yaw = climb.yaw * keep;
+    }
+    const k = 1 - Math.exp(-dt * RECOIL_RECOVERY_RATE);
+    const dPitch = (climb.pitch - this._climbFloor.pitch) * k;
+    const dYaw = (climb.yaw - this._climbFloor.yaw) * k;
+    this.view.pitch = clampPitch(this.view.pitch - dPitch);
+    this.view.yaw -= dYaw;
+    climb.pitch -= dPitch;
+    climb.yaw -= dYaw;
+    if (Math.abs(climb.pitch - this._climbFloor.pitch) < 1e-4 &&
+        Math.abs(climb.yaw - this._climbFloor.yaw) < 1e-4) {
+      // The remainder becomes permanent aim: the player owns it from here.
+      climb.pitch = 0;
+      climb.yaw = 0;
+      this._climbFloor.pitch = 0;
+      this._climbFloor.yaw = 0;
+      this._recovering = false;
+    }
+  }
+
+  /** Scope zoom step: alternate between the optic's full and half magnification. */
+  cycleScopeZoom(weaponDef) {
+    const full = Number(weaponDef?.zoom) || 0;
+    if (!weaponDef || weaponDef.id !== 'sniper' || full <= 1) return this._scopeZoom;
+    const half = Math.max(1.5, full / 2);
+    this._scopeZoom = this._scopeZoom > 0 && Math.abs(this._scopeZoom - full) < 1e-6 ? half : full;
+    return this._scopeZoom;
   }
 
   /** Current look-input multiplier (1 at hip, shrinks with ADS zoom). */
@@ -414,17 +509,34 @@ export class LocalPlayer {
     this._recoilSpring.pitch.p = this._recoilSpring.pitch.v = 0;
     this._recoilSpring.yaw.p = this._recoilSpring.yaw.v = 0;
     this._recoilOmega = recoilOmegaFor(RECOIL_REFERENCE_WEIGHT_KG);
+    this._climb.pitch = this._climb.yaw = 0;
+    this._climbFloor.pitch = this._climbFloor.yaw = 0;
+    this._lastRecoilAt = -Infinity;
+    this._recovering = false;
     this.recoilPitch = 0;
     this.recoilYaw = 0;
     this.recoilRoll = 0;
   }
 
+  _resetReconcileOffset() {
+    this._reconcileOffset.x = this._reconcileOffset.y = this._reconcileOffset.z = 0;
+    this._reconcileOffset.decay = RECONCILE_OFFSET_DECAY;
+  }
+
   _readLook() {
     const delta = this.input.consumeDelta();
     if (!this._alive) return;
-    this.view.yaw -= delta.dx * this._lookScale;
-    this.view.pitch -= delta.dy * this._lookScale;
+    const dx = delta.dx * this._lookScale;
+    const dy = delta.dy * this._lookScale;
+    this.view.yaw -= dx;
+    this.view.pitch -= dy;
     this.view.pitch = clampPitch(this.view.pitch);
+    // Pulling down against the climb is compensation the recovery must not undo.
+    const climb = this._climb;
+    if (climb.pitch > 0 && dy > 0) climb.pitch = Math.max(0, climb.pitch - dy);
+    if (climb.yaw !== 0 && Math.sign(dx) === Math.sign(climb.yaw)) {
+      climb.yaw = Math.sign(climb.yaw) * Math.max(0, Math.abs(climb.yaw) - Math.abs(dx));
+    }
   }
 
   _sampleMovement(now, intents) {
@@ -655,9 +767,12 @@ export class LocalPlayer {
       crouching: !!this.physics._crouching,
       panic: this.panic,
       pain: this.pain,
+      ads: this.adsT,
+      zoom: this._scopeZoom > 0 ? this._scopeZoom : (Number(intents.weapon?.def?.zoom) || 1),
     });
     if (typeof intents.beforeSend === 'function') intents.beforeSend(this._frame, now);
     this._frame.inputSent = this._sendInputMaybe(dt, intents);
+    this._stepRecoilRecovery(dt, now);
     stepRecoilSpring(this._recoilSpring.pitch, this._recoilOmega, dt);
     stepRecoilSpring(this._recoilSpring.yaw, this._recoilOmega, dt);
     this.recoilPitch = this._recoilSpring.pitch.p;
@@ -713,26 +828,58 @@ export class LocalPlayer {
       const dy = me.y - pos.y;
       const dz = me.z - pos.z;
       const error = Math.hypot(dx, dy, dz);
-      if (error > 3.2) {
-        pos.x = me.x;
-        pos.y = me.y;
-        pos.z = me.z;
-      } else if (error > 0.12) {
-        const correction = 0.18;
-        pos.x += dx * correction;
-        pos.y += dy * correction;
-        pos.z += dz * correction;
+      let cx = 0, cy = 0, cz = 0;
+      let decay = RECONCILE_OFFSET_DECAY;
+      if (error > RECONCILE_SNAP_DISTANCE) {
+        cx = dx; cy = dy; cz = dz;
+        decay = RECONCILE_SNAP_DECAY;
+      } else if (error > RECONCILE_DEAD_ZONE) {
+        cx = dx * RECONCILE_CORRECTION;
+        cy = dy * RECONCILE_CORRECTION;
+        cz = dz * RECONCILE_CORRECTION;
+      }
+      if (cx !== 0 || cy !== 0 || cz !== 0) {
+        pos.x += cx;
+        pos.y += cy;
+        pos.z += cz;
+        if (this._alive) {
+          // The camera stays put and eases into the corrected body over the next frames.
+          const offset = this._reconcileOffset;
+          offset.x -= cx;
+          offset.y -= cy;
+          offset.z -= cz;
+          const magnitude = Math.hypot(offset.x, offset.y, offset.z);
+          if (magnitude > RECONCILE_OFFSET_CLAMP) {
+            const scale = RECONCILE_OFFSET_CLAMP / magnitude;
+            offset.x *= scale;
+            offset.y *= scale;
+            offset.z *= scale;
+          }
+          offset.decay = Math.min(offset.decay, decay);
+        }
       }
     }
     return this._reconcileResult;
+  }
+
+  _stepReconcileOffset(dt) {
+    const offset = this._reconcileOffset;
+    if (offset.x === 0 && offset.y === 0 && offset.z === 0) return;
+    const keep = Math.exp(-Math.max(0, dt) * offset.decay);
+    offset.x *= keep;
+    offset.y *= keep;
+    offset.z *= keep;
+    if (Math.hypot(offset.x, offset.y, offset.z) < 0.002) this._resetReconcileOffset();
   }
 
   /** Update camera, scope visibility and the first-person body in that order. */
   updateCamera(dt, camera, weaponDef, adsT = this.adsT, baseFov = this.baseFov) {
     if (!camera || !weaponDef) return this.scopeActive;
     this.adsT = Number.isFinite(adsT) ? adsT : 0;
+    this._stepReconcileOffset(dt);
     const pos = this.physics.pos;
-    camera.position.set(pos.x, this.physics.eyeY(), pos.z);
+    const offset = this._reconcileOffset;
+    camera.position.set(pos.x + offset.x, this.physics.eyeY() + offset.y, pos.z + offset.z);
     if (this._alive) {
       this.deathElapsed = 0;
       this.deathRoll = 0;
@@ -754,7 +901,11 @@ export class LocalPlayer {
       this.deathRoll + this.recoilRoll,
     );
     this._lookScale = adsLookScale(camera.fov, baseFov);
-    const targetFov = baseFov + (weaponDef.adsFov - baseFov) * easeOut(this.adsT) +
+    if (weaponDef.id === 'sniper') {
+      if (!(this._scopeZoom > 0)) this._scopeZoom = Number(weaponDef.zoom) || 1;
+    } else this._scopeZoom = 0;
+    const adsFov = this._scopeZoom > 0 ? fovForZoom(this._scopeZoom, baseFov) : weaponDef.adsFov;
+    const targetFov = baseFov + (adsFov - baseFov) * easeOut(this.adsT) +
       (!this.wantAds && this.keys && this.keys.sprint && this.currentSpeedXZ > 5 ? 4 : 0);
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 14);
     camera.updateProjectionMatrix();

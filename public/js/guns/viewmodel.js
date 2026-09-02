@@ -164,9 +164,15 @@ export class ViewmodelRig {
   }
 
   /** Magazine, belt box, tube, stripper, or cylinder reload choreography. */
-  reload(dur, type) {
+  reload(dur, type, stages = null) {
     if (!this._cur) return;
-    this._actions.startReload(this._now, dur, type, this._cur.T);
+    this._actions.startReload(this._now, dur, type, this._cur.T, stages);
+  }
+
+  /** A shot interrupted a staged reload: snap the moving parts home, keep the gun raised. */
+  cancelReload() {
+    if (!this._cur) return false;
+    return this._actions.cancelReload(this._cur);
   }
 
   /**

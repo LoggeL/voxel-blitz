@@ -311,17 +311,25 @@ and exposes `quickPlay(meta,name,bots?)`,
   phase clock, S&D round/role/bomb state, interaction progress, credits, and the
   compact alive/dead player status strip from authoritative state. Team colors
   apply to HUD and scoreboard.
-- `setupSettings({sensitivity,volume,fov,onChange,onResume})`,
+- `setupSettings({sensitivity,volume,fov,options?,device?,onChange,onResume})`,
+  `setDeviceInfo({touch,pointerKind,trackpadDetected,padActive})`,
   `openSettings()`, `closeSettings()`, and getter `settingsOpen` own settings.
   Settings, buy, and lobby dialogs are mutually exclusive and suppress gameplay.
-  `onChange` receives the full `{sensitivity,volume,fov}` object.
+  `onChange` receives the full `{sensitivity,volume,fov}` object plus the device
+  options `{adsMode,pointerMode,padSensitivity,aimAssist,touchSensitivity,
+  touchSize,touchHand}`; device rows show by capability (pointer/ADS on
+  desktop, layout rows on touch, pad sensitivity while a pad is active).
 - `buildHUD()`, `menuDone()`, and
   `setState({hp,mag,reserve,wname,wid,bloomPx,reloading01,yawDeg,adsT01,alive,
   grenades,grenadeCharge})`
   own the live HUD. `spreadFromBloom(deg)`, `setSpread(px)`,
-  `hideCrosshairForAds(boolean)`, `setReloadProgress(t01|null)`,
-  `updateCompass(yawDeg)`, `pushEvent(ev)`, `hitmark(headshot)`,
-  `setOwnDamage(intensity01)`, `setDead(dead,killerName?)`,
+  `hideCrosshairForAds(boolean)`, `setReloadProgress(t01|null,staged?)`,
+  `updateCompass(yawDeg)`, `pushEvent(ev)`,
+  `hitmark(headshot|'body'|'head'|'kill'|'killHead')` (a kill mark is never
+  downgraded by a trailing hit), `setOwnDamage(intensity01|{intensity,angleDeg})`,
+  `setDead(dead,killerName?,recap?)`,
+  `spawnDamage(amount,x,y,visible?,headshot?,stackKey?)` (hits sharing a
+  `stackKey` inside 420 ms merge into one growing number),
   `spawnDamage(amount,sx,sy,visible?,headshot?)`, `setScoreboard(boolean)`,
   `setPlayers(rows)`, `setScope(boolean)`, and `dispose()` are the remaining
   live-HUD surface used by the game.
@@ -410,7 +418,8 @@ late join whose welcome/state is already live also proceeds directly.
 `impact(kind:'stone'|'wood'|'glass'|'metal'|'flesh',volume,
 {muffled?:boolean,pos?:[x,y,z]}|[x,y,z]?)`,
 `reloadClick(step:1|2|3,weaponKey)`, `hitmark(headshot)`,
-`deathFar(volume?)`, `footstep(volume?)`, `draw(weaponKey)`,
+`killConfirm(headshot)`, `lowHealthPulse(level01,nowMs)` (rate-limited
+heartbeat; silent at zero), `deathFar(volume?)`, `footstep(volume?)`, `draw(weaponKey)`,
 `bulletWhiz(volume?)`, and `setListener({fwd:[x,y,z],pos:[x,y,z]})`.
 All sound methods are safe before initialization. `init()` and `unlock()` are
 idempotent, every voice routes through the clamped master volume and limiter,
@@ -478,7 +487,15 @@ step listener with the room.
 - **Settings:** sensitivity defaults to `0.003` rad/px, clamps to
   `0.0008–0.012`, and persists as `vb-sens-v2` (`SENSITIVITY_PREF_KEY`; the
   old `vb-sens` scale is ignored rather than clamped). Touch look runs at 1.4×
-  the mouse value. Look input is multiplied by `adsLookScale` while zoomed; master volume defaults to `0.80`, clamps to `0–1`, and
+  the mouse value times the persisted touch multiplier (`vb-touch-sens`,
+  0.5–2.5); trackpad look runs at 2.4× with a 72%-per-frame release filter.
+  Device options persist under `INPUT_PREF_KEYS` (`vb-ads-mode` hold/toggle or
+  auto, `vb-pointer-mode` auto/mouse/trackpad, `vb-pad-sens` 0.6–4.5 rad/s,
+  `vb-aim-assist`, `vb-touch-size`, `vb-touch-hand`). Wheel switching follows
+  `wheelSwitchStep`: line notches are whole steps, pixel deltas accumulate to a
+  48 px notch, reversals reset the bank, and steps are limited to one per
+  120 ms; three pixel-mode deltas of 40 px or less mark the pointer as a
+  trackpad, which also defaults ADS to toggle. Look input is multiplied by `adsLookScale` while zoomed; master volume defaults to `0.80`, clamps to `0–1`, and
   persists as `vb-volume`; FOV defaults to `75`, clamps to `65–100`, and
   persists as `vb-fov`. Changes apply immediately. Escape opens the in-game
   settings overlay; Resume closes it and returns pointer-lock gameplay.
@@ -503,7 +520,33 @@ step listener with the room.
   and each explosion destroys at most 110 blocks.
 - **Hit confirmation:** shooter-side hitmarks, their confirmation sound, and
   world-anchored damage numbers share one camera-to-impact voxel visibility
-  decision; intervening cover suppresses the complete confirmation.
+  decision; intervening cover suppresses the complete confirmation. A kill by
+  the local player promotes the mark to `kill`/`killHead` with `killConfirm`,
+  damage numbers stack per victim, local damage carries the attacker bearing
+  (`bearingDeg`), death shows `deathRecapText`, and the spectator camera opens
+  on the killer for `KILL_CAM_MS` (2600) before its normal rotation.
+- **Reload:** magazine weapons follow `reloadPlan(def,mag)` in one step.
+  Weapons with `reloadStages` (shotgun: start 0.42 s, 0.36 s per round, end
+  0.22 s) keep chambered rounds, hand one spare over as loose rounds at the
+  first seat, seat rounds one at a time, and yield to the trigger with every
+  seated round kept; the loose remainder is forfeited. Server and client mirror
+  the same plan, and the client keeps a locally started reload for
+  `RELOAD_ACK_GRACE_MS` (400) before a not-reloading snapshot may clear it.
+- **Recoil recovery:** `WEAPONS[id].recoil.recovery` (0.48–0.72) is the
+  fraction of accumulated aim climb (18% of pitch kicks, 10% of yaw kicks)
+  walked back at 11/s once fire pauses for `resetMs`; look-input compensation
+  during the spray is subtracted from the owed climb first.
+- **Reconciliation:** corrections above 0.12 m move the predicted body by 28%
+  per snapshot (snaps beyond 3.2 m land fully); the camera carries the negated
+  correction as an offset clamped to 1.6 m that decays at 13/s (7/s after a
+  snap), so corrections never pop.
+- **Gamepad:** standard mapping via `readGamepadFrame`; sticks use
+  `stickCurve` (move dead zone 0.18 linear, look dead zone 0.12 with expo
+  1.75); button edges fold into the same Input queues as the keyboard; a pad
+  counts as active for 2.5 s after input. Aim assist (`setAimAssist`) applies
+  only to pad and touch look and slows it by at most 50%.
+- **Touch context:** `visibleTouchActions(context)` decides which buttons
+  exist; hiding a held or latched button releases it first.
 - **Death:** snapshot `state`/`respawnAt` plus `die`/`respawn` events are
   authoritative.
   Remote avatars collapse for about 1.2–1.5 seconds before hiding; respawn

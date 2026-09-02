@@ -53,6 +53,7 @@ export class GameplayHud {
     this.compassMeasured = false;
     this.lastWepKey = '';
     this.chGap = undefined;
+    this._scopeZoomShown = 0;
 
     this.tabBound = false;
     this.onKD = null;
@@ -90,6 +91,7 @@ export class GameplayHud {
     this.compassZeroX = 720;
     this.compassMeasured = false;
     this.lastWepKey = '';
+    this._scopeZoomShown = 0;
     this.names.clear();
     clearBag(this.dom);
 
@@ -107,6 +109,12 @@ export class GameplayHud {
     d.ringHint = el('div', '', d.ch, 'reload-hint');
     d.ringHint.textContent = 'RELOADING';
     d.ringHint.style.display = 'none';
+    // Breath meter: only while aiming, shows the hold-breath window draining.
+    d.breath = el('div', 'vb-breath-meter', d.ch, 'breath-meter');
+    d.breathFill = el('i', '', d.breath);
+    d.breathHint = el('span', 'vb-breath-hint', d.breath);
+    d.breathHint.textContent = 'SHIFT · HOLD BREATH';
+    d.breath.style.display = 'none';
     if (this.st.crosshairConeDeg != null) {
       this.setSpread(spreadFromCone(this.st.crosshairConeDeg));
     } else {
@@ -287,14 +295,46 @@ export class GameplayHud {
       this.setSpread(s.bloomPx);
     }
     this.updateCrosshairStress(s.panic, s.pain, alive);
-    this.setReloadProgress(s.reloading01 == null ? null : s.reloading01);
+    this.setReloadProgress(s.reloading01 == null ? null : s.reloading01, !!s.reloadStaged);
     if (s.yawDeg != null) this.updateCompass(s.yawDeg);
 
     const adsT = Number(s.adsT01) || 0;
     const wantScope = key === 'sniper' && adsT >= 0.72 && alive;
     this.setScope(wantScope);
+    this.setScopeZoom(s.scopeZoom);
+    this.setBreath(s, alive, adsT);
     this.hideCrosshairForAds(!alive || adsT > 0.35);
     d.ch.classList.toggle('vb-dead', !alive);
+  }
+
+  /** Breath meter lives on the crosshair; the scope overlay mirrors it via the same state. */
+  setBreath(s, alive, adsT) {
+    const d = this.dom;
+    if (!d.breath) return;
+    const holding = !!s.holdingBreath;
+    const breath = s.breath01 == null ? 1 : clamp01(s.breath01);
+    const canHold = alive && adsT > 0.5 && s.canHoldBreath !== false;
+    const show = canHold && (holding || breath < 1);
+    const display = show ? 'block' : 'none';
+    if (d.breath.style.display !== display) d.breath.style.display = display;
+    if (!show) return;
+    d.breathFill.style.transform = `scaleX(${breath.toFixed(3)})`;
+    d.breath.classList.toggle('is-holding', holding);
+    d.breath.classList.toggle('is-spent', breath <= 0.001);
+    const hint = holding ? 'HOLDING' : (breath <= 0.001 ? 'WINDED' : 'SHIFT · HOLD BREATH');
+    if (d.breathHint.textContent !== hint) d.breathHint.textContent = hint;
+  }
+
+  /** Optic magnification label inside the scope overlay (zoom steps change it live). */
+  setScopeZoom(zoom) {
+    const value = Number(zoom);
+    if (!Number.isFinite(value) || value <= 0 || value === this._scopeZoomShown) return;
+    const scope = this.dom.scope;
+    if (!scope) return;
+    const label = scope.querySelector?.('#scope-zoom-label');
+    if (!label) return;
+    label.textContent = `${value.toFixed(1)}×`;
+    this._scopeZoomShown = value;
   }
 
   updateAmmoLow() {
@@ -342,7 +382,7 @@ export class GameplayHud {
     this.dom.ch.style.opacity = hidden ? '0' : '1';
   }
 
-  setReloadProgress(t01) {
+  setReloadProgress(t01, staged = false) {
     const ring = this.dom.ring;
     const hint = this.dom.ringHint;
     if (!ring) return;
@@ -360,6 +400,10 @@ export class GameplayHud {
       ring.style.display = 'block';
       if (hint) hint.style.display = 'block';
       this.ringOn = true;
+    }
+    if (hint) {
+      const text = staged ? 'LOADING · FIRE TO INTERRUPT' : 'RELOADING';
+      if (hint.textContent !== text) hint.textContent = text;
     }
     ring.style.setProperty('--pct', `${Math.round(clamp01(t) * 100)}%`);
     ring.classList.toggle('vb-reload-flash', t > 0.86);

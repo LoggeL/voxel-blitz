@@ -1,6 +1,8 @@
 import { DMG_MAX_POOL, DMG_MS, el, removeNode } from './hud-support.js';
 
 const EMPTY = Object.freeze({});
+/** Hits on the same target inside this window merge into one growing number. */
+export const DMG_STACK_MS = 420;
 
 // Owns the complete floating-damage lifecycle: DOM node reuse, record reuse,
 // animation scheduling, and cancellation. CombatHudController only exposes the
@@ -35,10 +37,28 @@ export class DamageNumberPool {
     return this;
   }
 
-  spawn(amount, sx, sy, visible = true, headshot = false) {
+  spawn(amount, sx, sy, visible = true, headshot = false, stackKey = null) {
     if (!this._isBuilt() || visible === false || this._isDisposed()) return;
     const crit = !!headshot;
     const now = this._now();
+    if (stackKey != null) {
+      // Rapid hits on one target read as a single growing number, not confetti.
+      for (let i = this.active.length - 1; i >= 0; i--) {
+        const rec = this.active[i];
+        if (rec.stackKey !== stackKey || now - rec.t0 > DMG_STACK_MS) continue;
+        rec.total += Math.max(0, Number(amount) || 0);
+        rec.node.textContent = String(Math.round(rec.total));
+        if (crit && !rec.node.classList.contains('vb-crit')) rec.node.classList.add('vb-crit');
+        rec.node.classList.remove('vb-stack');
+        void rec.node.offsetWidth;
+        rec.node.classList.add('vb-stack');
+        rec.sx = sx;
+        rec.sy = sy;
+        rec.t0 = now;
+        this.place(rec, 0);
+        return;
+      }
+    }
     let jx = this._random() * 16 - 8;
     if (crit) {
       jx *= 1.8;
@@ -55,6 +75,9 @@ export class DamageNumberPool {
     rec.sy = sy;
     rec.jx = jx;
     rec.t0 = now;
+    rec.total = Math.max(0, Number(amount) || 0);
+    rec.stackKey = stackKey;
+    rec.node.classList.remove('vb-stack');
     this.place(rec, 0);
     this.active.push(rec);
     if (!this.raf) this.step();
@@ -137,6 +160,8 @@ export class DamageNumberPool {
     rec.sy = 0;
     rec.jx = 0;
     rec.t0 = 0;
+    rec.total = 0;
+    rec.stackKey = null;
     if (this._records.length < DMG_MAX_POOL) this._records.push(rec);
   }
 }

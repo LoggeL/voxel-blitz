@@ -4,6 +4,34 @@ import * as THREE from '../vendor/three.module.js';
 import { SX, SY, SZ } from '../../../shared/worlddata.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { blockSoundFor } from '../weapons/effects.js';
+import { WEAPON_NAMES } from '../ui/hud-support.js';
+
+/**
+ * Screen-space bearing (degrees, 0 = ahead, 90 = right) from the viewer at `from`
+ * looking along `yaw` toward `to`; null when either point is incomplete.
+ */
+export function bearingDeg(from, yaw, to) {
+  if (!from || !to || ![from.x, from.z, to.x, to.z, yaw].every(Number.isFinite)) return null;
+  const dx = to.x - from.x;
+  const dz = to.z - from.z;
+  if (Math.hypot(dx, dz) < 1e-6) return null;
+  const forward = dx * -Math.sin(yaw) + dz * -Math.cos(yaw);
+  const right = dx * Math.cos(yaw) + dz * -Math.sin(yaw);
+  return Math.atan2(right, forward) * 180 / Math.PI;
+}
+
+/** One-line death recap: weapon, markers, range, and what the killer had left. */
+export function deathRecapText({ weapon, headshot, longRange, noScope, distance, killerHp } = {}) {
+  const parts = [];
+  if (weapon === 'grenade') parts.push('GRENADE');
+  else if (weapon && WEAPON_NAMES[weapon]) parts.push(WEAPON_NAMES[weapon]);
+  if (headshot) parts.push('HEADSHOT');
+  if (longRange) parts.push('LONG RANGE');
+  if (noScope) parts.push('NO-SCOPE');
+  if (Number.isFinite(distance)) parts.push(`${Math.round(distance)} M`);
+  if (Number.isFinite(killerHp)) parts.push(`KILLER AT ${Math.max(0, Math.round(killerHp))} HP`);
+  return parts.join(' · ');
+}
 
 function validImpact(ev) {
   return !!ev && Number.isFinite(Number(ev.vx)) &&
@@ -146,7 +174,7 @@ export class CombatFeedback {
         if (ev.attacker === myId && !localVictim) {
           const visible = this.isImpactVisible(ev);
           if (visible) {
-            this.hud.hitmark(ev.hs);
+            this.hud.hitmark(ev.hs ? 'head' : 'body');
             this.sfx.hitmark(ev.hs);
           }
           this.spawnDamageNumber(ev, visible);
@@ -157,9 +185,14 @@ export class CombatFeedback {
       case 'kill': {
         this.hud.killfeed(ev);
         if (ev.victim === myId) {
-          this.localDeath(ev.killer, { headshot: ev.hs });
+          this.localDeath(ev.killer, { headshot: ev.hs, event: ev });
         } else {
           this.roster.death(ev.victim);
+          if (ev.killer === myId) {
+            // Kill confirmation outranks the body/head mark of the lethal hit.
+            this.hud.hitmark(ev.hs ? 'killHead' : 'kill');
+            this.sfx.killConfirm?.(!!ev.hs);
+          }
         }
         break;
       }
@@ -231,7 +264,15 @@ export class CombatFeedback {
     const x = (v.x * 0.5 + 0.5) * this.viewport.innerWidth;
     const y = (-v.y * 0.5 + 0.5) * this.viewport.innerHeight;
     const visible = !behind && impactVisible;
-    this.hud.spawnDamage(ev.dmg, x, y, !!visible, ev.hs);
+    this.hud.spawnDamage(ev.dmg, x, y, !!visible, ev.hs, ev.victim ?? null);
+  }
+
+  /** Where the damage came from, relative to the current view, for the pain vignette. */
+  attackerBearing(ev) {
+    const attacker = this.getPlayersCache().find((row) => row.id === ev?.attacker);
+    const pos = this.player?.pos;
+    const yaw = this.player?.view?.yaw;
+    return bearingDeg(pos, yaw, attacker);
   }
 
   applyLocalHit(ev) {
@@ -239,7 +280,10 @@ export class CombatFeedback {
     const hit = this.player.applyHit(ev);
     if (!hit) return false;
 
-    this.hud.setPainImpulse(hit.painImpulse);
+    const angleDeg = this.attackerBearing(ev);
+    this.hud.setPainImpulse(angleDeg == null
+      ? hit.painImpulse
+      : { intensity: hit.painImpulse, angleDeg });
     this.effects.gore(ev, { lethal: false, local: true });
     this.sfx.impact('flesh', Math.min(0.5, hit.damage / 60), null);
     this.sfx.pain({
@@ -261,24 +305,40 @@ export class CombatFeedback {
     });
     if (!transition) return false;
 
-    return this.presentLocalDeath(killerId, transition);
+    return this.presentLocalDeath(killerId, transition, context?.event || null);
   }
 
-  presentLocalDeath(killerId, transition) {
+  presentLocalDeath(killerId, transition, event = null) {
     if (this._disposed || !transition || typeof transition !== 'object' ||
         this._presentedDeaths.has(transition)) {
       return false;
     }
     this._presentedDeaths.add(transition);
-    this.onLocalDeath(transition);
+    this.onLocalDeath(transition, killerId || null, event);
 
     const headshot = !!transition.headshot;
     this.hud.setPainImpulse(1);
     this.hud.setDeathBrutality(headshot ? 1 : 0.82);
     this.effects?.gore(transition.goreImpact, { lethal: true, local: true });
     this.sfx.deathSelf({ headshot });
-    this.hud.setDead(true, killerId ? this.nameOf(killerId) : '');
+    this.hud.setDead(true, killerId ? this.nameOf(killerId) : '', this.deathRecap(killerId, event, headshot));
     return true;
+  }
+
+  deathRecap(killerId, event, headshot) {
+    const killer = killerId ? this.getPlayersCache().find((row) => row.id === killerId) : null;
+    const pos = this.player?.pos;
+    const distance = killer && pos && [killer.x, killer.z, pos.x, pos.z].every(Number.isFinite)
+      ? Math.hypot(killer.x - pos.x, killer.z - pos.z)
+      : NaN;
+    return deathRecapText({
+      weapon: event?.w || null,
+      headshot: !!(event?.hs ?? headshot),
+      longRange: !!event?.lr,
+      noScope: !!event?.ns,
+      distance,
+      killerHp: killer && killer.id !== this.getMyId() ? killer.hp : NaN,
+    });
   }
 
   presentLocalRespawn() {

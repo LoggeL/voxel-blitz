@@ -128,6 +128,8 @@ export class PlayerEntity {
     this.reserve = load.reserve;
     this.reloading = false;
     this.reloadT = 0;
+    this.reloadStage = null;
+    this.reloadLoose = 0;
     this.deployT = WEAPONS[WEAPON_IDS[0]].deployTime;
     this.cooldown = 0;
     this.bloom = 0;

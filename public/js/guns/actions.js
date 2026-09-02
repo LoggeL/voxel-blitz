@@ -50,7 +50,7 @@ export class WeaponActions {
   }
 
   /** Start magazine, belt, tube, stripper, or cylinder choreography. */
-  startReload(now, dur, type, T) {
+  startReload(now, dur, type, T, stages = null) {
     if (this._disposed || !(dur > 0) || !T) return false;
     const profileType = T.magTimeline.type || 'mag';
     const effectiveType = !type || type === 'magswap' ? profileType : type;
@@ -62,7 +62,23 @@ export class WeaponActions {
       thunks: 0,
       lastFrac: 0,
       done: false,
+      // Staged tube loads thunk exactly when the authority seats each round.
+      stages: stages && stages.perRoundSeconds > 0 ? {
+        start: stages.startSeconds,
+        perRound: stages.perRoundSeconds,
+        rounds: Math.max(0, stages.rounds | 0),
+      } : null,
     };
+    return true;
+  }
+
+  /** Interrupt an in-progress reload (a shot fired mid tube load); the pose snaps home. */
+  cancelReload(model = null) {
+    if (!this._reload) return false;
+    if (model) this._resetReloadPose(model);
+    this._reload = null;
+    this._motion.dip = 0;
+    this._motion.rock = 0;
     return true;
   }
 
@@ -199,14 +215,28 @@ export class WeaponActions {
     const frac = Math.min(1, (now - reload.t0) / reload.dur);
 
     if (reload.type === 'tube') {
-      const thunkEvery = (timeline.repeatMs || 140) / 1000;
-      if (frac >= timeline.start && frac < timeline.home &&
-          now - (reload.lastThunk || 0) >= thunkEvery) {
-        reload.lastThunk = now;
-        reload.thunks++;
-        this._callbacks.onReloadClick(((reload.thunks - 1) % 3) + 1);
+      const elapsed = now - reload.t0;
+      if (reload.stages) {
+        const seatAt = reload.stages.start + (reload.thunks + 1) * reload.stages.perRound;
+        if (reload.thunks < reload.stages.rounds && elapsed >= seatAt) {
+          reload.thunks++;
+          this._callbacks.onReloadClick(((reload.thunks - 1) % 3) + 1);
+        }
+      } else {
+        const thunkEvery = (timeline.repeatMs || 140) / 1000;
+        if (frac >= timeline.start && frac < timeline.home &&
+            now - (reload.lastThunk || 0) >= thunkEvery) {
+          reload.lastThunk = now;
+          reload.thunks++;
+          this._callbacks.onReloadClick(((reload.thunks - 1) % 3) + 1);
+        }
       }
-      out.rock = 0.06 * Math.sin(frac * Math.PI);
+      // Each seated shell rocks the receiver; the rock decays until the next one lands.
+      const seatPulse = reload.stages
+        ? Math.exp(-Math.max(0, (elapsed - reload.stages.start) % reload.stages.perRound) * 9)
+        : 0;
+      out.rock = 0.06 * Math.sin(frac * Math.PI) + 0.035 * seatPulse * (frac < timeline.home ? 1 : 0);
+      out.dip = -0.02 * seatPulse * (frac < timeline.home ? 1 : 0);
       reload.lastFrac = frac;
       if (frac >= 1) {
         this._resetReloadPose(model);

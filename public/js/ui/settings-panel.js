@@ -1,10 +1,37 @@
-import { MAP_LABELS, MODE_LABELS, el, loadPrefNum, savePref } from './hud-support.js';
+import { MAP_LABELS, MODE_LABELS, el, loadPref, loadPrefNum, savePref } from './hud-support.js';
 import {
+  ADS_MODES,
+  INPUT_PREF_KEYS,
+  PAD_SENSITIVITY,
+  POINTER_MODES,
+  TOUCH_HANDS,
+  TOUCH_SENSITIVITY,
+  TOUCH_SIZES,
   clampMouseSensitivity,
+  clampPadSensitivity,
+  clampTouchSensitivity,
   formatMouseSensitivity,
+  normalizeChoice,
   MOUSE_SENSITIVITY,
   SENSITIVITY_PREF_KEY,
 } from '../input-settings.js';
+
+const ADS_MODE_LABELS = Object.freeze({
+  '': 'AUTO (HOLD · TOGGLE ON TRACKPAD)',
+  hold: 'HOLD',
+  toggle: 'TOGGLE',
+});
+const POINTER_MODE_LABELS = Object.freeze({
+  auto: 'AUTO DETECT',
+  mouse: 'MOUSE',
+  trackpad: 'TRACKPAD',
+});
+const TOUCH_SIZE_LABELS = Object.freeze({ small: 'SMALL', medium: 'MEDIUM', large: 'LARGE' });
+const TOUCH_HAND_LABELS = Object.freeze({ right: 'RIGHT HANDED', left: 'LEFT HANDED' });
+
+function readChoicePref(key, choices, fallback) {
+  try { return normalizeChoice(localStorage.getItem(key), choices, fallback); } catch (_) { return fallback; }
+}
 
 /**
  * Owns the settings dialog's DOM, preferences, callbacks, focus, and close guard.
@@ -26,7 +53,17 @@ export class SettingsController {
       ),
       volume: loadPrefNum('vb-volume', 0.80, 0, 1),
       fov: loadPrefNum('vb-fov', 75, 65, 100),
+      adsMode: readChoicePref(INPUT_PREF_KEYS.adsMode, ADS_MODES, ''),
+      pointerMode: readChoicePref(INPUT_PREF_KEYS.pointerMode, POINTER_MODES, 'auto'),
+      padSensitivity: clampPadSensitivity(loadPrefNum(INPUT_PREF_KEYS.padSensitivity, PAD_SENSITIVITY.default)),
+      touchSensitivity: clampTouchSensitivity(
+        loadPrefNum(INPUT_PREF_KEYS.touchSensitivity, TOUCH_SENSITIVITY.default),
+      ),
+      touchSize: readChoicePref(INPUT_PREF_KEYS.touchSize, TOUCH_SIZES, 'medium'),
+      touchHand: readChoicePref(INPUT_PREF_KEYS.touchHand, TOUCH_HANDS, 'right'),
+      aimAssist: loadPref(INPUT_PREF_KEYS.aimAssist, '1') !== '0',
     };
+    this._device = { touch: false, pointerKind: 'mouse', trackpadDetected: false, padActive: false };
     this._settingsOnChange = null;
     this._settingsOnResume = null;
     this._settingsOnLeave = null;
@@ -40,7 +77,11 @@ export class SettingsController {
     return !!this._settingsOpen;
   }
 
-  setupSettings({ sensitivity, volume, fov, onChange, onResume, onLeave } = {}) {
+  setupSettings({
+    sensitivity, volume, fov, options, device, onChange, onResume, onLeave,
+  } = {}) {
+    if (options && typeof options === 'object') this._adoptOptions(options);
+    if (device && typeof device === 'object') this.setDeviceInfo(device);
     if (sensitivity != null && Number.isFinite(+sensitivity)) {
       this._settingsConfig.sensitivity = clampMouseSensitivity(sensitivity);
       savePref(SENSITIVITY_PREF_KEY, this._settingsConfig.sensitivity);
@@ -65,6 +106,43 @@ export class SettingsController {
 
     this.ensureSettings();
     this.syncSettingsUI();
+  }
+
+  /** Device facts drive which rows show and the detection hint copy. */
+  setDeviceInfo(device = {}) {
+    this._device = {
+      touch: !!device.touch,
+      pointerKind: device.pointerKind === 'trackpad' ? 'trackpad' : 'mouse',
+      trackpadDetected: !!device.trackpadDetected,
+      padActive: !!device.padActive,
+    };
+    this.syncSettingsUI();
+  }
+
+  _adoptOptions(options) {
+    const c = this._settingsConfig;
+    if ('adsMode' in options) c.adsMode = normalizeChoice(options.adsMode, ADS_MODES, '');
+    if ('pointerMode' in options) c.pointerMode = normalizeChoice(options.pointerMode, POINTER_MODES, 'auto');
+    if ('padSensitivity' in options) c.padSensitivity = clampPadSensitivity(options.padSensitivity, c.padSensitivity);
+    if ('touchSensitivity' in options) {
+      c.touchSensitivity = clampTouchSensitivity(options.touchSensitivity, c.touchSensitivity);
+    }
+    if ('touchSize' in options) c.touchSize = normalizeChoice(options.touchSize, TOUCH_SIZES, c.touchSize);
+    if ('touchHand' in options) c.touchHand = normalizeChoice(options.touchHand, TOUCH_HANDS, c.touchHand);
+    if ('aimAssist' in options) c.aimAssist = options.aimAssist !== false && options.aimAssist !== '0';
+  }
+
+  _optionsSnapshot() {
+    const c = this._settingsConfig;
+    return {
+      adsMode: c.adsMode,
+      pointerMode: c.pointerMode,
+      padSensitivity: c.padSensitivity,
+      touchSensitivity: c.touchSensitivity,
+      touchSize: c.touchSize,
+      touchHand: c.touchHand,
+      aimAssist: c.aimAssist,
+    };
   }
 
   openSettings() {
@@ -191,6 +269,48 @@ export class SettingsController {
     fovSlider.setAttribute('aria-valuemin', '65');
     fovSlider.setAttribute('aria-valuemax', '100');
 
+    const choiceRow = (id, labelText, choices, labels) => {
+      const row = el('div', 'vb-setting-row', controls);
+      const header = el('div', 'vb-setting-header', row);
+      const label = el('label', 'vb-label', header);
+      label.textContent = labelText;
+      label.htmlFor = id;
+      const hint = el('span', 'vb-setting-val', header, `${id}-hint`);
+      const select = el('select', 'vb-select', row, id);
+      select.setAttribute('aria-label', labelText);
+      for (const choice of choices) {
+        const option = el('option', '', select);
+        option.value = choice;
+        option.textContent = labels[choice] || String(choice).toUpperCase();
+      }
+      return { row, select, hint };
+    };
+    const sliderRow = (id, labelText, spec) => {
+      const row = el('div', 'vb-setting-row', controls);
+      const header = el('div', 'vb-setting-header', row);
+      const label = el('label', 'vb-label', header);
+      label.textContent = labelText;
+      label.htmlFor = id;
+      const value = el('span', 'vb-setting-val', header, `${id}-val`);
+      const slider = el('input', 'vb-slider', row, id);
+      slider.type = 'range';
+      slider.min = String(spec.min);
+      slider.max = String(spec.max);
+      slider.step = String(spec.step);
+      slider.setAttribute('aria-label', labelText);
+      slider.setAttribute('aria-valuemin', String(spec.min));
+      slider.setAttribute('aria-valuemax', String(spec.max));
+      return { row, slider, value };
+    };
+
+    const adsMode = choiceRow('settings-ads-mode', 'AIM DOWN SIGHTS', ['', ...ADS_MODES], ADS_MODE_LABELS);
+    const pointerMode = choiceRow('settings-pointer-mode', 'POINTING DEVICE', POINTER_MODES, POINTER_MODE_LABELS);
+    const padSens = sliderRow('settings-pad-sens', 'GAMEPAD SENSITIVITY', PAD_SENSITIVITY);
+    const aimAssist = choiceRow('settings-aim-assist', 'AIM ASSIST (PAD · TOUCH)', ['1', '0'], { 1: 'ON', 0: 'OFF' });
+    const touchSens = sliderRow('settings-touch-sens', 'TOUCH LOOK SENSITIVITY', TOUCH_SENSITIVITY);
+    const touchSize = choiceRow('settings-touch-size', 'TOUCH CONTROL SIZE', TOUCH_SIZES, TOUCH_SIZE_LABELS);
+    const touchHand = choiceRow('settings-touch-hand', 'TOUCH LAYOUT', TOUCH_HANDS, TOUCH_HAND_LABELS);
+
     const matchCard = el('aside', 'vb-pause-match-card', panel);
     el('span', 'vb-label', matchCard).textContent = 'CURRENT MATCH';
     const matchPlayers = el('strong', 'vb-pause-player-count', matchCard);
@@ -210,12 +330,47 @@ export class SettingsController {
       fovVal,
       resumeBtn,
       leaveBtn,
+      adsModeRow: adsMode.row,
+      adsModeSelect: adsMode.select,
+      adsModeHint: adsMode.hint,
+      pointerModeRow: pointerMode.row,
+      pointerModeSelect: pointerMode.select,
+      pointerModeHint: pointerMode.hint,
+      padSensRow: padSens.row,
+      padSensSlider: padSens.slider,
+      padSensVal: padSens.value,
+      aimAssistRow: aimAssist.row,
+      aimAssistSelect: aimAssist.select,
+      touchSensRow: touchSens.row,
+      touchSensSlider: touchSens.slider,
+      touchSensVal: touchSens.value,
+      touchSizeRow: touchSize.row,
+      touchSizeSelect: touchSize.select,
+      touchHandRow: touchHand.row,
+      touchHandSelect: touchHand.select,
     };
 
     const onSliderChange = () => {
       const sensitivity = clampMouseSensitivity(sensSlider.value);
       const volume = Math.min(1, Math.max(0, parseFloat(volSlider.value) || 0));
       const fov = Math.min(100, Math.max(65, Math.round(parseFloat(fovSlider.value) || 75)));
+      this._adoptOptions({
+        adsMode: adsMode.select.value,
+        pointerMode: pointerMode.select.value,
+        padSensitivity: padSens.slider.value,
+        aimAssist: aimAssist.select.value,
+        touchSensitivity: touchSens.slider.value,
+        touchSize: touchSize.select.value,
+        touchHand: touchHand.select.value,
+      });
+      const options = this._optionsSnapshot();
+      savePref(INPUT_PREF_KEYS.adsMode, options.adsMode);
+      savePref(INPUT_PREF_KEYS.pointerMode, options.pointerMode);
+      savePref(INPUT_PREF_KEYS.padSensitivity, options.padSensitivity);
+      savePref(INPUT_PREF_KEYS.aimAssist, options.aimAssist ? '1' : '0');
+      savePref(INPUT_PREF_KEYS.touchSensitivity, options.touchSensitivity);
+      savePref(INPUT_PREF_KEYS.touchSize, options.touchSize);
+      savePref(INPUT_PREF_KEYS.touchHand, options.touchHand);
 
       sensVal.textContent = formatMouseSensitivity(sensitivity);
       sensSlider.setAttribute('aria-valuenow', String(sensitivity));
@@ -229,19 +384,26 @@ export class SettingsController {
       fovSlider.setAttribute('aria-valuenow', String(fov));
       fovSlider.setAttribute('aria-valuetext', `${fov} degrees`);
 
-      this._settingsConfig = { sensitivity, volume, fov };
+      this._settingsConfig = { ...this._settingsConfig, sensitivity, volume, fov };
       savePref(SENSITIVITY_PREF_KEY, sensitivity);
       savePref('vb-volume', volume);
       savePref('vb-fov', fov);
+      this._syncDeviceRows();
 
       if (typeof this._settingsOnChange === 'function') {
-        this._settingsOnChange({ sensitivity, volume, fov });
+        this._settingsOnChange({ sensitivity, volume, fov, ...options });
       }
     };
 
     sensSlider.addEventListener('input', onSliderChange);
     volSlider.addEventListener('input', onSliderChange);
     fovSlider.addEventListener('input', onSliderChange);
+    padSens.slider.addEventListener('input', onSliderChange);
+    touchSens.slider.addEventListener('input', onSliderChange);
+    for (const select of [adsMode.select, pointerMode.select, aimAssist.select,
+      touchSize.select, touchHand.select]) {
+      select.addEventListener('change', onSliderChange);
+    }
 
     const doResume = () => {
       if (this._isClosingSettings) return;
@@ -298,6 +460,7 @@ export class SettingsController {
     dom.fovVal.textContent = `${config.fov}°`;
     dom.fovSlider.setAttribute('aria-valuenow', String(config.fov));
     dom.fovSlider.setAttribute('aria-valuetext', `${config.fov} degrees`);
+    this._syncDeviceRows();
 
     const summary = this.host.getMatchSummary?.() || {};
     const mode = MODE_LABELS[summary.mode] || String(summary.mode || 'LIVE MATCH').toUpperCase();
@@ -307,6 +470,48 @@ export class SettingsController {
       const players = Math.max(0, Number(summary.players) || 0);
       dom.matchPlayers.textContent = `${players} PLAYER${players === 1 ? '' : 'S'}`;
     }
+  }
+
+  /** Device rows: pointer/ADS on desktop, touch layout on touch, pad rows when a pad is live. */
+  _syncDeviceRows() {
+    const dom = this.settingsDom;
+    if (!dom.adsModeSelect) return;
+    const config = this._settingsConfig;
+    const device = this._device;
+    const show = (row, visible) => {
+      if (!row) return;
+      row.style.display = visible ? '' : 'none';
+      row.setAttribute('aria-hidden', visible ? 'false' : 'true');
+    };
+    dom.adsModeSelect.value = config.adsMode;
+    dom.pointerModeSelect.value = config.pointerMode;
+    dom.padSensSlider.value = String(config.padSensitivity);
+    dom.padSensVal.textContent = `${config.padSensitivity.toFixed(1)} rad/s`;
+    dom.padSensSlider.setAttribute('aria-valuenow', String(config.padSensitivity));
+    dom.aimAssistSelect.value = config.aimAssist ? '1' : '0';
+    dom.touchSensSlider.value = String(config.touchSensitivity);
+    dom.touchSensVal.textContent = `${Math.round(config.touchSensitivity * 100)}%`;
+    dom.touchSensSlider.setAttribute('aria-valuenow', String(config.touchSensitivity));
+    dom.touchSizeSelect.value = config.touchSize;
+    dom.touchHandSelect.value = config.touchHand;
+
+    const effectivePointer = config.pointerMode === 'auto'
+      ? (device.trackpadDetected ? 'trackpad' : 'mouse')
+      : config.pointerMode;
+    dom.pointerModeHint.textContent = config.pointerMode === 'auto'
+      ? (device.trackpadDetected ? 'TRACKPAD DETECTED' : 'MOUSE')
+      : POINTER_MODE_LABELS[config.pointerMode];
+    dom.adsModeHint.textContent = config.adsMode
+      ? ''
+      : (effectivePointer === 'trackpad' ? 'TOGGLE · F OR RIGHT CLICK' : 'HOLD · F OR RIGHT CLICK');
+
+    show(dom.pointerModeRow, !device.touch);
+    show(dom.adsModeRow, !device.touch);
+    show(dom.padSensRow, device.padActive);
+    show(dom.aimAssistRow, device.padActive || device.touch);
+    show(dom.touchSensRow, device.touch);
+    show(dom.touchSizeRow, device.touch);
+    show(dom.touchHandRow, device.touch);
   }
 
   dispose() {

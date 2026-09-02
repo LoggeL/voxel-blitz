@@ -34,13 +34,58 @@ export function updateTimers(p, dt) {
   if (p.reloading) {
     p.reloadT -= dt;
     if (p.reloadT <= 0) {
-      p.reloading = false;
-      if (p.reserve[p.weapon] > 0) {
-        p.reserve[p.weapon] -= 1;
-        p.mag[p.weapon] = def.magSize;
+      if (p.reloadStage) advanceStagedReload(p, def);
+      else {
+        p.reloading = false;
+        if (p.reserve[p.weapon] > 0) {
+          p.reserve[p.weapon] -= 1;
+          p.mag[p.weapon] = def.magSize;
+        }
       }
     }
   }
+}
+
+/**
+ * Tube reload stages: `start` hands the spare over as loose rounds, every `round`
+ * stage seats one, `end` lowers the gun. Interrupting after `start` keeps every seated
+ * round and forfeits the loose remainder, mirroring the dropped-magazine rule.
+ */
+function advanceStagedReload(p, def) {
+  const stages = def.reloadStages;
+  const slot = p.weapon;
+  if (p.reloadStage === 'start') {
+    if (p.reserve[slot] <= 0 || p.mag[slot] >= def.magSize) {
+      clearReload(p);
+      return;
+    }
+    p.reserve[slot] -= 1;
+    p.reloadLoose = def.magSize;
+    p.reloadStage = 'round';
+    p.reloadT += stages.perRound;
+    return;
+  }
+  if (p.reloadStage === 'round') {
+    if (p.reloadLoose > 0 && p.mag[slot] < def.magSize) {
+      p.mag[slot] += 1;
+      p.reloadLoose -= 1;
+    }
+    if (p.reloadLoose > 0 && p.mag[slot] < def.magSize) {
+      p.reloadT += stages.perRound;
+    } else {
+      p.reloadStage = 'end';
+      p.reloadT += stages.end;
+    }
+    return;
+  }
+  clearReload(p);
+}
+
+export function clearReload(p) {
+  p.reloading = false;
+  p.reloadT = 0;
+  p.reloadStage = null;
+  p.reloadLoose = 0;
 }
 
 /** Advance pain, panic, and exhaustion after movement for this tick. */

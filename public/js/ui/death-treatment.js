@@ -11,6 +11,7 @@ export class DeathTreatment {
     this.brutality = 0;
     this.impactTimer = 0;
     this._ownedNote = null;
+    this._ownedRecap = null;
 
     this._getDom = () => EMPTY;
     this._getHudRoot = () => null;
@@ -46,16 +47,36 @@ export class DeathTreatment {
     return note;
   }
 
-  showNote(killerName) {
+  /** The recap (weapon, range, killer's remaining health) sits under the note. */
+  ensureRecap() {
+    const dom = this._getDom();
+    if (dom.deathrecap) return dom.deathrecap;
+    if (this._ownedRecap) return this._ownedRecap;
+    const hud = this._getHudRoot();
+    if (!hud) return null;
+    const recap = el('div', '', hud, 'deathrecap');
+    if (dom !== EMPTY && Object.isExtensible(dom)) dom.deathrecap = recap;
+    this._ownedRecap = recap;
+    return recap;
+  }
+
+  showNote(killerName, recapText = '') {
     const note = this.ensureNote();
     if (!note) return;
     note.textContent = killerName ? `eliminated by ${killerName}` : 'eliminated';
     note.style.display = 'block';
+    const recap = this.ensureRecap();
+    if (recap) {
+      recap.textContent = recapText || '';
+      recap.style.display = recapText ? 'block' : 'none';
+    }
   }
 
   hideNote() {
     const note = this._getDom().deathnote || this._ownedNote;
     if (note) note.style.display = 'none';
+    const recap = this._getDom().deathrecap || this._ownedRecap;
+    if (recap) recap.style.display = 'none';
   }
 
   style(force) {
@@ -109,10 +130,17 @@ export class DeathTreatment {
   clear(removeOwnedNote = false) {
     this.reset();
     this.hideNote();
-    if (!removeOwnedNote || !this._ownedNote) return;
+    if (!removeOwnedNote) return;
     const dom = this._getDom();
-    removeNode(this._ownedNote);
-    if (dom.deathnote === this._ownedNote) delete dom.deathnote;
-    this._ownedNote = null;
+    if (this._ownedNote) {
+      removeNode(this._ownedNote);
+      if (dom.deathnote === this._ownedNote) delete dom.deathnote;
+      this._ownedNote = null;
+    }
+    if (this._ownedRecap) {
+      removeNode(this._ownedRecap);
+      if (dom.deathrecap === this._ownedRecap) delete dom.deathrecap;
+      this._ownedRecap = null;
+    }
   }
 }
