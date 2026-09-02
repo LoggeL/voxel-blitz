@@ -431,7 +431,11 @@ export class WeaponState {
     const kick = computeRecoilKickDeg(def, this._recoilIndex, this._adsT, this._random());
     this._recoilIndex++;
     this._lastRecoilAt = now;
-    this._feedback.addRecoil(kick.pitch * (Math.PI / 180), kick.yaw * (Math.PI / 180));
+    this._feedback.addRecoil(
+      kick.pitch * (Math.PI / 180),
+      kick.yaw * (Math.PI / 180),
+      def.weightKg,
+    );
   }
 
   _resetRecoilPattern() {

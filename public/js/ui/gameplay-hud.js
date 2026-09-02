@@ -264,8 +264,12 @@ export class GameplayHud {
       d.grenades.setAttribute('aria-label', `${count} grenades remaining`);
     }
     const grenadeCharge = clamp01(s.grenadeCharge);
-    d.grenades.classList.toggle('is-charging', grenadeCharge > 0);
+    const charging = grenadeCharge > 0 || !!s.grenadeCharging;
+    d.grenades.classList.toggle('is-charging', charging);
+    d.grenades.classList.toggle('is-full', grenadeCharge >= 1);
     d.grenadeChargeFill.style.transform = `scaleX(${grenadeCharge})`;
+    const hint = grenadeCharge >= 1 ? 'MAX · RELEASE' : 'HOLD · RELEASE';
+    if (d.grenadeHint.textContent !== hint) d.grenadeHint.textContent = hint;
 
     const key = resolveKey(s.wid);
     if (key && key !== this.lastWepKey) {

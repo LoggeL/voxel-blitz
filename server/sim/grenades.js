@@ -8,20 +8,20 @@ import {
 import { raycastVoxels } from '../../shared/raycast.js';
 import { evGrenadeExplode, evGrenadeThrow, evHit } from '../protocol.js';
 import { fwdFromYawPitch } from './player.js';
-import { GRENADE_PER_LIFE, grenadeThrowProfile } from '../../shared/grenade-rules.js';
+import {
+  GRENADE_FUSE_MS,
+  GRENADE_PER_LIFE,
+  grenadeLaunch,
+  stepGrenade,
+} from '../../shared/grenade-rules.js';
 
 export const GRENADE_RULES = Object.freeze({
   perLife: GRENADE_PER_LIFE,
-  fuseMs: 2300,
+  fuseMs: GRENADE_FUSE_MS,
   terrainRadius: 3.8,
   damageRadius: 5.6,
   maxDestroyedBlocks: 110,
 });
-
-const RADIUS = 0.16;
-const BOUNCE = 0.46;
-const FLOOR_FRICTION = 0.82;
-const GRAVITY = 18;
 
 const finitePoint = (x, y, z) =>
   Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z);
@@ -67,7 +67,7 @@ export class GrenadeSystem {
     const substeps = 2;
     const stepSeconds = Math.max(0, Math.min(0.05, dt)) / substeps;
     for (const grenade of this.active.values()) {
-      for (let i = 0; i < substeps; i++) this._integrate(grenade, stepSeconds, ctx);
+      for (let i = 0; i < substeps; i++) stepGrenade(grenade, stepSeconds, grenade.isSolid);
       if (ctx.now >= grenade.explodeAt || !finitePoint(grenade.x, grenade.y, grenade.z) ||
           grenade.y < -2 || grenade.x < -2 || grenade.z < -2 ||
           grenade.x > SX + 2 || grenade.z > SZ + 2) {
@@ -78,20 +78,21 @@ export class GrenadeSystem {
 
   throw(player, ctx, charge = 0.5) {
     const direction = fwdFromYawPitch(player.yaw, player.pitch);
-    const profile = grenadeThrowProfile(charge);
+    const launch = grenadeLaunch({
+      x: player.x, y: player.y, z: player.z, eyeY: player.eyeY,
+      vx: player.vx, vy: player.vy, vz: player.vz,
+      dir: direction, charge,
+    });
     const id = `g${this._nextId++}`;
     const grenade = {
       id,
       ownerId: String(player.id),
       owner: player,
-      x: player.x + direction.x * 0.48,
-      y: player.eyeY - 0.12 + direction.y * 0.38,
-      z: player.z + direction.z * 0.48,
-      vx: direction.x * profile.speed + player.vx * 0.35,
-      vy: direction.y * profile.speed + profile.lift + player.vy * 0.2,
-      vz: direction.z * profile.speed + player.vz * 0.35,
-      charge: profile.charge,
+      x: launch.x, y: launch.y, z: launch.z,
+      vx: launch.vx, vy: launch.vy, vz: launch.vz,
+      charge: launch.charge,
       explodeAt: ctx.now + GRENADE_RULES.fuseMs,
+      isSolid: (x, y, z) => solid(ctx, x, y, z),
     };
     player.grenades--;
     player.spawnProtectedUntil = 0;
@@ -105,34 +106,6 @@ export class GrenadeSystem {
       GRENADE_RULES.fuseMs,
     ));
     return grenade;
-  }
-
-  _integrate(grenade, dt, ctx) {
-    grenade.vy -= GRAVITY * dt;
-    this._moveAxis(grenade, 'x', grenade.vx * dt, ctx);
-    this._moveAxis(grenade, 'z', grenade.vz * dt, ctx);
-    const hitFloor = this._moveAxis(grenade, 'y', grenade.vy * dt, ctx);
-    if (hitFloor && grenade.vy > 0) {
-      grenade.vx *= FLOOR_FRICTION;
-      grenade.vz *= FLOOR_FRICTION;
-    }
-  }
-
-  _moveAxis(grenade, axis, delta, ctx) {
-    if (!Number.isFinite(delta) || Math.abs(delta) < 1e-8) return false;
-    const next = grenade[axis] + delta;
-    const x = axis === 'x' ? next + Math.sign(delta) * RADIUS : grenade.x;
-    const y = axis === 'y' ? next + Math.sign(delta) * RADIUS : grenade.y;
-    const z = axis === 'z' ? next + Math.sign(delta) * RADIUS : grenade.z;
-    const blocked = solid(ctx, x, y, z) ||
-      (axis !== 'y' && solid(ctx, x, y + RADIUS, z));
-    if (!blocked) {
-      grenade[axis] = next;
-      return false;
-    }
-    grenade['v' + axis] *= -BOUNCE;
-    if (axis !== 'y') grenade['v' + axis] *= 0.88;
-    return true;
   }
 
   explode(grenade, ctx) {

@@ -12,7 +12,11 @@ import {
   saveName,
 } from './hud-support.js';
 import { CreateLobbySetup } from './create-lobby-setup.js';
-import { clampMouseSensitivity, MOUSE_SENSITIVITY } from '../input-settings.js';
+import {
+  clampMouseSensitivity,
+  MOUSE_SENSITIVITY,
+  SENSITIVITY_PREF_KEY,
+} from '../input-settings.js';
 import { buildMenuShell, buildTelemetry, setMenuBackdrop } from './menu-chrome.js';
 
 const NOOP = () => {};
@@ -55,7 +59,7 @@ export class MenuLobbyController {
       return clampMouseSensitivity(configured);
     }
     return loadPrefNum(
-      'vb-sens',
+      SENSITIVITY_PREF_KEY,
       MOUSE_SENSITIVITY.default,
       MOUSE_SENSITIVITY.min,
       MOUSE_SENSITIVITY.max,

@@ -343,7 +343,7 @@ export async function runHudContracts(ok, installGlobals) {
     const document = new FakeDocument();
     const window = new FakeEventTarget();
     const localStorage = new FakeStorage([
-      ['vb-sens', '0.021'],
+      ['vb-sens-v2', '0.0021'],
       ['vb-volume', '0.42'],
       ['vb-fov', '86'],
     ]);
@@ -407,7 +407,7 @@ export async function runHudContracts(ok, installGlobals) {
     try {
       const { HUD } = await import('../../public/js/ui/hud.js');
       hud = new HUD();
-      ok(hud._settingsConfig.sensitivity === 0.021
+      ok(hud._settingsConfig.sensitivity === 0.0021
         && hud._settingsConfig.volume === 0.42
         && hud._settingsConfig.fov === 86,
       'HUD loads all persisted settings into its initial configuration');
@@ -415,18 +415,18 @@ export async function runHudContracts(ok, installGlobals) {
       const changes = [];
       let resumes = 0;
       hud.setupSettings({
-        sensitivity: 0.028,
+        sensitivity: 0.0028,
         volume: 0.55,
         fov: 91,
         onChange: (settings) => changes.push(settings),
         onResume: () => { resumes++; },
       });
-      ok(localStorage.getItem('vb-sens') === '0.028'
+      ok(localStorage.getItem('vb-sens-v2') === '0.0028'
         && localStorage.getItem('vb-volume') === '0.55'
         && localStorage.getItem('vb-fov') === '91',
       'HUD setup persists the complete settings triplet');
 
-      hud.settingsDom.sensSlider.value = '0.047';
+      hud.settingsDom.sensSlider.value = '0.0047';
       hud.settingsDom.sensSlider.dispatchEvent(event('input'));
       hud.settingsDom.volSlider.value = '0.63';
       hud.settingsDom.volSlider.dispatchEvent(event('input'));
@@ -436,11 +436,11 @@ export async function runHudContracts(ok, installGlobals) {
       ok(changes.length === 3
         && changes.every((change) =>
           Object.keys(change).sort().join(',') === 'fov,sensitivity,volume')
-        && lastChange.sensitivity === 0.047
+        && lastChange.sensitivity === 0.0047
         && lastChange.volume === 0.63
         && lastChange.fov === 98,
       'every HUD slider emits a full current settings object');
-      ok(localStorage.getItem('vb-sens') === '0.047'
+      ok(localStorage.getItem('vb-sens-v2') === '0.0047'
         && localStorage.getItem('vb-volume') === '0.63'
         && localStorage.getItem('vb-fov') === '98',
       'HUD slider changes persist all three live values');
@@ -672,8 +672,16 @@ export async function runHudContracts(ok, installGlobals) {
       hud.setState({ grenades: 1, grenadeCharge: 0.5 });
       ok(hud.dom.grenadeSlots.filter((slot) => !slot.classList.contains('is-spent')).length === 1
         && hud.dom.grenades.classList.contains('is-charging')
+        && !hud.dom.grenades.classList.contains('is-full')
         && hud.dom.grenadeChargeFill.style.transform === 'scaleX(0.5)',
       'grenade HUD renders remaining inventory icons and live hold charge');
+      hud.setState({ grenades: 1, grenadeCharge: 1 });
+      const fullState = hud.dom.grenades.classList.contains('is-full')
+        && hud.dom.grenadeHint.textContent === 'MAX · RELEASE';
+      hud.setState({ grenades: 1, grenadeCharge: 0, grenadeCharging: true });
+      ok(fullState && hud.dom.grenades.classList.contains('is-charging')
+        && hud.dom.grenadeHint.textContent === 'HOLD · RELEASE',
+      'grenade HUD flags a maxed charge and shows the charging state from the first held frame');
 
       const liveTick = makeSnapshot([], [], [], 20000, {
         ...prepMatch,

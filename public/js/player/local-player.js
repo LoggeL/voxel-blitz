@@ -2,12 +2,53 @@ import { CONDITION_RULES, SNIPER_SCOPE_ADS_THRESHOLD } from '../../../shared/com
 import { PlayerPhysics, moveSpeedFor } from '../player-physics.js';
 import { hashInt } from '../util/hash.js';
 import { clamp01, clampPitch, easeOut, nowMs, smooth01 } from '../util/math.js';
+import { adsLookScale } from '../input-settings.js';
+import { grenadeLaunch } from '../../../shared/grenade-rules.js';
+import { fwdFromAngles } from '../util/look.js';
 import { AimSway } from './aim-sway.js';
 import { resetFirstPersonBody, updateFirstPersonBody } from './first-person-body.js';
 
 const DEFAULT_SEND_HZ = 60;
 const DEFAULT_FOV = 75;
 const EMPTY_RECONCILE = Object.freeze({ applied: false, transition: null });
+
+// Camera recoil is a critically-ish damped spring driven by velocity impulses rather
+// than an instant offset: the kick builds over ~40–60 ms (the frame the round leaves)
+// and then the muzzle is walked back down over a weight-scaled recovery. Heavier guns
+// use a slower spring, so their recoil lingers and sustained fire piles up more.
+const RECOIL_REFERENCE_WEIGHT_KG = 3.4;
+const RECOIL_OMEGA_REFERENCE = 24;      // rad/s natural frequency for the reference mass
+const RECOIL_OMEGA_RANGE = [14, 34];
+const RECOIL_DAMPING_RATIO = 0.82;     // a touch under critical: visible settle bounce
+/** Fraction of each pitch kick that stays on the true aim (spray control), radians in. */
+const RECOIL_AIM_CLIMB = 0.18;
+/** Camera roll coupled to lateral recoil (rad per rad of yaw kick). */
+const RECOIL_ROLL_PER_YAW = -0.42;
+
+function recoilOmegaFor(weightKg) {
+  const weight = Number.isFinite(weightKg) && weightKg > 0 ? weightKg : RECOIL_REFERENCE_WEIGHT_KG;
+  const omega = RECOIL_OMEGA_REFERENCE * Math.pow(RECOIL_REFERENCE_WEIGHT_KG / weight, 0.3);
+  return Math.max(RECOIL_OMEGA_RANGE[0], Math.min(RECOIL_OMEGA_RANGE[1], omega));
+}
+
+/** Velocity impulse that makes an underdamped spring peak at exactly 1 unit of displacement. */
+function impulseGainFor(omega, zeta) {
+  const damped = omega * Math.sqrt(Math.max(1e-6, 1 - zeta * zeta));
+  const peakAt = Math.atan2(damped, zeta * omega) / damped;
+  const peak = Math.exp(-zeta * omega * peakAt) * Math.sin(damped * peakAt) / damped;
+  return peak > 1e-9 ? 1 / peak : omega;
+}
+
+function stepRecoilSpring(spring, omega, dt) {
+  const k = omega * omega;
+  const c = 2 * RECOIL_DAMPING_RATIO * omega;
+  const steps = 4;
+  const h = dt / steps;
+  for (let i = 0; i < steps; i++) {
+    spring.v += (-k * spring.p - c * spring.v) * h;
+    spring.p += spring.v * h;
+  }
+}
 
 function isAllowed(value) {
   return typeof value === 'function' ? !!value() : !!value;
@@ -60,8 +101,13 @@ export class LocalPlayer {
     this.pain = 0;
     this.spawnProtected = false;
     this.currentSpeedXZ = 0;
+    this._recoilSpring = { pitch: { p: 0, v: 0 }, yaw: { p: 0, v: 0 } };
+    this._recoilOmega = recoilOmegaFor(RECOIL_REFERENCE_WEIGHT_KG);
+    this._lookScale = 1;
+    this._localGrenadeThrow = null;
     this.recoilPitch = 0;
     this.recoilYaw = 0;
+    this.recoilRoll = 0;
     this.adsT = 0;
     this.wantAds = false;
     this.scopeActive = false;
@@ -200,8 +246,7 @@ export class LocalPlayer {
     this.pain = 0;
     this.spawnProtected = false;
     this.currentSpeedXZ = 0;
-    this.recoilPitch = 0;
-    this.recoilYaw = 0;
+    this._resetRecoil();
     this.adsT = 0;
     this.wantAds = false;
     this.scopeActive = false;
@@ -236,8 +281,7 @@ export class LocalPlayer {
     this.deathElapsed = 0;
     this.deathRoll = 0;
     this.deathPitch = 0;
-    this.recoilPitch = 0;
-    this.recoilYaw = 0;
+    this._resetRecoil();
     this.currentSpeedXZ = 0;
     this.scopeActive = false;
     this.fireTapLatched = false;
@@ -268,8 +312,10 @@ export class LocalPlayer {
     this.currentSpeedXZ = 0;
     this.deathElapsed = 0;
     this.deathSide = (hashInt(String(id) + '|' + String(killerId || 'world')) & 1) ? 1 : -1;
-    this.recoilPitch += resolvedHeadshot ? 0.2 : 0.11;
-    this.recoilYaw += this.deathSide * (resolvedHeadshot ? 0.14 : 0.08);
+    this._impulseRecoil(
+      resolvedHeadshot ? 0.2 : 0.11,
+      this.deathSide * (resolvedHeadshot ? 0.14 : 0.08),
+    );
     const goreImpact = isValidImpact(resolvedImpact)
       ? resolvedImpact
       : {
@@ -318,16 +364,66 @@ export class LocalPlayer {
     if (Number.isFinite(amount)) this.exhaustion = clamp01(this.exhaustion + amount);
   }
 
-  addRecoil(pitch = 0, yaw = 0) {
-    if (Number.isFinite(pitch)) this.recoilPitch += pitch;
-    if (Number.isFinite(yaw)) this.recoilYaw += yaw;
+  /**
+   * Weapon recoil, radians. The camera spring peaks at (pitch, yaw) a few frames later
+   * and recovers on its own; RECOIL_AIM_CLIMB of the pitch kick stays on the authoritative
+   * aim so sustained fire must be pulled down. `weightKg` slows the spring for heavy guns.
+   */
+  addRecoil(pitch = 0, yaw = 0, weightKg = RECOIL_REFERENCE_WEIGHT_KG) {
+    const p = Number.isFinite(pitch) ? pitch : 0;
+    const y = Number.isFinite(yaw) ? yaw : 0;
+    this._recoilOmega = recoilOmegaFor(weightKg);
+    this._impulseRecoil(p, y);
+    if (this._alive && p !== 0) {
+      this.view.pitch = clampPitch(this.view.pitch + p * RECOIL_AIM_CLIMB);
+    }
+  }
+
+  /** Current look-input multiplier (1 at hip, shrinks with ADS zoom). */
+  get lookScale() { return this._lookScale; }
+
+  /**
+   * One-shot readback of a grenade release accepted this frame (`{charge, at}` or null),
+   * so presentation can spawn the predicted throw before the authority event returns.
+   */
+  consumeLocalGrenadeThrow() {
+    const pending = this._localGrenadeThrow;
+    this._localGrenadeThrow = null;
+    return pending;
+  }
+
+  /** Launch state for a local throw with the same formula authority applies. */
+  grenadeLaunchState(charge) {
+    const dir = fwdFromAngles(this.aimYaw, this.aimPitch);
+    const pos = this.physics.pos;
+    const vel = this.physics.vel;
+    return grenadeLaunch({
+      x: pos.x, y: pos.y, z: pos.z, eyeY: this.physics.eyeY(),
+      vx: vel.x, vy: vel.y, vz: vel.z,
+      dir, charge,
+    });
+  }
+
+  _impulseRecoil(pitch, yaw) {
+    const gain = impulseGainFor(this._recoilOmega, RECOIL_DAMPING_RATIO);
+    this._recoilSpring.pitch.v += pitch * gain;
+    this._recoilSpring.yaw.v += yaw * gain;
+  }
+
+  _resetRecoil() {
+    this._recoilSpring.pitch.p = this._recoilSpring.pitch.v = 0;
+    this._recoilSpring.yaw.p = this._recoilSpring.yaw.v = 0;
+    this._recoilOmega = recoilOmegaFor(RECOIL_REFERENCE_WEIGHT_KG);
+    this.recoilPitch = 0;
+    this.recoilYaw = 0;
+    this.recoilRoll = 0;
   }
 
   _readLook() {
     const delta = this.input.consumeDelta();
     if (!this._alive) return;
-    this.view.yaw -= delta.dx;
-    this.view.pitch -= delta.dy;
+    this.view.yaw -= delta.dx * this._lookScale;
+    this.view.pitch -= delta.dy * this._lookScale;
     this.view.pitch = clampPitch(this.view.pitch);
   }
 
@@ -372,6 +468,7 @@ export class LocalPlayer {
     if (grenadeCharge != null && fireAllowed && this._alive) {
       this.grenadeThrowLatched = true;
       this.grenadeChargeLatched = grenadeCharge;
+      this._localGrenadeThrow = { charge: grenadeCharge, at: now };
     }
     if (!fireAllowed || !this._alive) {
       this.grenadeThrowLatched = false;
@@ -561,8 +658,11 @@ export class LocalPlayer {
     });
     if (typeof intents.beforeSend === 'function') intents.beforeSend(this._frame, now);
     this._frame.inputSent = this._sendInputMaybe(dt, intents);
-    this.recoilPitch *= Math.max(0, 1 - 11 * dt);
-    this.recoilYaw *= Math.max(0, 1 - 9 * dt);
+    stepRecoilSpring(this._recoilSpring.pitch, this._recoilOmega, dt);
+    stepRecoilSpring(this._recoilSpring.yaw, this._recoilOmega, dt);
+    this.recoilPitch = this._recoilSpring.pitch.p;
+    this.recoilYaw = this._recoilSpring.yaw.p;
+    this.recoilRoll = this.recoilYaw * RECOIL_ROLL_PER_YAW;
     return this._frame;
   }
 
@@ -651,8 +751,9 @@ export class LocalPlayer {
     camera.rotation.set(
       this.aimPitch + this.recoilPitch + this.deathPitch,
       this.aimYaw + this.recoilYaw,
-      this.deathRoll,
+      this.deathRoll + this.recoilRoll,
     );
+    this._lookScale = adsLookScale(camera.fov, baseFov);
     const targetFov = baseFov + (weaponDef.adsFov - baseFov) * easeOut(this.adsT) +
       (!this.wantAds && this.keys && this.keys.sprint && this.currentSpeedXZ > 5 ? 4 : 0);
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 14);

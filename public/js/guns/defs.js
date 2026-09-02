@@ -2,7 +2,7 @@
 // WEAPONS dict in shared/combatmath.js. Canonical damage/spread/reload numbers NEVER live here;
 // TIMERS.rof literally references WEAPONS[x].rpm so the mirror cannot drift.
 //
-// EXPORT SURFACE (fixed by BUILD-CONTRACT): TIMERS, BOB, HANDS, DEPLOY, timerFor().
+// EXPORT SURFACE (fixed by BUILD-CONTRACT): TIMERS, BOB, HANDS, DEPLOY, timerFor(), kickMassScale().
 // Everything else is module-private.
 //
 // FRAME CONVENTIONS for this profile sheet:
@@ -211,7 +211,22 @@ export const BOB = {
   idleFreq: 1.6,     // breathing sine, 0.0016 m — life without noise-mud.
   idleAmp: 0.0016,
   counterRoll: -1.4 * (Math.PI / 180), // z-roll opposite horizontal bob: handheld weight.
+  // Body-motion inertia: the gun trails strafes/stops on a loose spring (mass-scaled at runtime).
+  leanMax: 0.028,    // meters of lateral lag at full strafe speed (6.2 m/s).
+  surgeMax: 0.022,   // meters of fore/aft lag at full run speed.
+  leanRollPerMeter: -0.9, // rad of cant per meter of lean: swings the muzzle into the strafe.
+  bodySpringStiffness: 60,
+  bodySpringDamping: 11,
 };
+
+/**
+ * Kick-spring mass multiplier: <1 for heavy guns (slower, lazier springs), >1 for light ones.
+ * Shared by the rig's recoil and body-inertia springs so every weight cue agrees.
+ */
+export function kickMassScale(weightKg) {
+  const weight = Number.isFinite(weightKg) && weightKg > 0 ? weightKg : 3.4;
+  return Math.max(0.55, Math.min(1.5, Math.pow(3.4 / weight, 0.4)));
+}
 
 /**
  * Static hands pose sheet. Coordinates are GUN-LOCAL anchor points for baked glove blocks.

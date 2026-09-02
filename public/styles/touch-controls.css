@@ -1,0 +1,374 @@
+/* ---------- coarse-pointer gameplay controls ---------- */
+
+.vb-touch-controls {
+  --touch-edge-x: max(14px, env(safe-area-inset-left));
+  --touch-edge-r: max(14px, env(safe-area-inset-right));
+  --touch-edge-y: max(14px, env(safe-area-inset-bottom));
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-menu) - 10);
+  display: none;
+  overflow: hidden;
+  pointer-events: none;
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+.vb-touch-controls.is-active { display: block; }
+
+/* Kill browser gestures under the controls: no pull-to-refresh, zoom, or text selection. */
+.vb-touch-mode,
+.vb-touch-mode body {
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: none;
+}
+
+.vb-touch-rotate-hint {
+  position: absolute;
+  top: max(52px, calc(env(safe-area-inset-top) + 40px));
+  left: 50%;
+  display: none;
+  padding: 6px 10px;
+  transform: translateX(-50%);
+  color: var(--amber-hi);
+  background: rgba(8, 11, 15, 0.7);
+  border: 1px solid rgba(255, 159, 28, 0.5);
+  border-radius: 3px;
+  font: 700 9px/1 var(--font-mono);
+  letter-spacing: 0.14em;
+  pointer-events: none;
+}
+
+.vb-touch-look-zone,
+.vb-touch-move-zone,
+.vb-touch-button {
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* The look zone is the whole screen; the joystick zone and buttons sit above it. */
+.vb-touch-look-zone {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: auto;
+  border: 1px solid transparent;
+}
+
+.vb-touch-look-zone.is-engaged {
+  background: radial-gradient(circle at center, transparent 30%, rgba(143, 199, 255, 0.025));
+  border-color: rgba(143, 199, 255, 0.08);
+}
+
+.vb-touch-move-zone {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  z-index: 1;
+  width: 42vw;
+  height: min(72vh, 340px);
+  pointer-events: auto;
+}
+
+.vb-touch-move-zone.is-floating .vb-touch-stick-base {
+  opacity: 1;
+  transition: none;
+}
+
+.vb-touch-move-zone.is-sprinting .vb-touch-stick-base {
+  border-color: #fff;
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.56), 0 0 26px rgba(255, 220, 160, 0.4);
+}
+
+.vb-touch-move-zone.is-sprinting .vb-touch-stick-knob {
+  background: rgba(255, 220, 160, 0.5);
+}
+
+.vb-touch-stick-base {
+  position: absolute;
+  bottom: calc(var(--touch-edge-y) + 22px);
+  left: calc(var(--touch-edge-x) + 22px);
+  width: 116px;
+  height: 116px;
+  opacity: 0.78;
+  transition: opacity 160ms ease;
+  background:
+    radial-gradient(circle, rgba(255, 159, 28, 0.06) 0 39%, transparent 40%),
+    rgba(5, 7, 10, 0.42);
+  border: 1px solid rgba(255, 184, 77, 0.48);
+  border-radius: 50%;
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.56), 0 0 20px rgba(0, 0, 0, 0.28);
+}
+
+.vb-touch-stick-base::before,
+.vb-touch-stick-base::after {
+  content: '';
+  position: absolute;
+  background: rgba(255, 184, 77, 0.22);
+}
+
+.vb-touch-stick-base::before {
+  top: 12px;
+  bottom: 12px;
+  left: 50%;
+  width: 1px;
+}
+
+.vb-touch-stick-base::after {
+  top: 50%;
+  right: 12px;
+  left: 12px;
+  height: 1px;
+}
+
+.vb-touch-stick-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 48px;
+  height: 48px;
+  margin: -24px 0 0 -24px;
+  background: rgba(255, 159, 28, 0.24);
+  border: 2px solid rgba(255, 184, 77, 0.92);
+  border-radius: 50%;
+  box-shadow: inset 0 0 12px rgba(255, 159, 28, 0.22), 0 0 14px rgba(255, 159, 28, 0.18);
+  will-change: transform;
+}
+
+.vb-touch-move-zone.is-engaged .vb-touch-stick-base {
+  border-color: var(--amber-hi);
+  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.56), 0 0 20px rgba(255, 159, 28, 0.16);
+}
+
+.vb-touch-zone-label {
+  position: absolute;
+  color: rgba(232, 236, 241, 0.28);
+  font: 600 8px/1 var(--font-mono);
+  letter-spacing: 0.16em;
+  pointer-events: none;
+}
+
+.vb-touch-move-zone > .vb-touch-zone-label {
+  bottom: calc(var(--touch-edge-y) + 7px);
+  left: calc(var(--touch-edge-x) + 54px);
+}
+
+.vb-touch-look-zone > .vb-touch-zone-label {
+  top: 14px;
+  right: calc(var(--touch-edge-r) + 10px);
+}
+
+.vb-touch-button {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  min-width: 50px;
+  min-height: 50px;
+  margin: 0;
+  padding: 0 8px;
+  pointer-events: auto;
+  color: rgba(232, 236, 241, 0.88);
+  background: rgba(8, 11, 15, 0.58);
+  border: 1px solid rgba(147, 160, 173, 0.58);
+  border-radius: 50%;
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.025), 0 5px 18px rgba(0, 0, 0, 0.32);
+  font: 700 10px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-indent: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.82;
+}
+
+.vb-touch-button.is-held {
+  color: #12161c;
+  background: rgba(255, 159, 28, 0.9);
+  border-color: var(--amber-hi);
+  box-shadow: 0 0 22px rgba(255, 159, 28, 0.36);
+  opacity: 1;
+  transform: scale(0.94);
+}
+
+/* Tap-toggled ADS / crouch stay lit without the pressed squash. */
+.vb-touch-button.is-latched {
+  color: #12161c;
+  background: rgba(143, 199, 255, 0.86);
+  border-color: #cfe6ff;
+  box-shadow: 0 0 22px rgba(143, 199, 255, 0.36);
+  opacity: 1;
+  transform: none;
+}
+
+.vb-touch-fire {
+  right: calc(var(--touch-edge-r) + 6px);
+  bottom: calc(var(--touch-edge-y) + 18px);
+  width: 92px;
+  height: 92px;
+  color: #fff;
+  background: rgba(255, 51, 85, 0.2);
+  border-color: rgba(255, 82, 119, 0.84);
+  font-size: 14px;
+}
+
+.vb-touch-ads {
+  right: calc(var(--touch-edge-r) + 112px);
+  bottom: calc(var(--touch-edge-y) + 26px);
+}
+
+.vb-touch-jump {
+  right: calc(var(--touch-edge-r) + 112px);
+  bottom: calc(var(--touch-edge-y) + 90px);
+}
+
+.vb-touch-grenade {
+  right: calc(var(--touch-edge-r) + 178px);
+  bottom: calc(var(--touch-edge-y) + 22px);
+  color: var(--amber-hi);
+  border-color: rgba(255, 159, 28, 0.72);
+}
+
+.vb-touch-reload {
+  right: calc(var(--touch-edge-r) + 182px);
+  bottom: calc(var(--touch-edge-y) + 84px);
+}
+
+.vb-touch-crouch {
+  left: 46%;
+  bottom: calc(var(--touch-edge-y) + 22px);
+}
+
+.vb-touch-interact {
+  left: 46%;
+  bottom: calc(var(--touch-edge-y) + 84px);
+}
+
+.vb-touch-weapon {
+  top: max(86px, calc(env(safe-area-inset-top) + 60px));
+  right: calc(var(--touch-edge-r) + 4px);
+  min-width: 62px;
+  border-radius: 26px;
+}
+
+.vb-touch-buy {
+  top: max(86px, calc(env(safe-area-inset-top) + 60px));
+  right: calc(var(--touch-edge-r) + 76px);
+  min-width: 54px;
+  border-radius: 26px;
+  color: var(--amber-hi);
+  border-color: rgba(255, 159, 28, 0.62);
+}
+
+.vb-touch-pause {
+  top: max(12px, env(safe-area-inset-top));
+  left: var(--touch-edge-x);
+  min-width: 46px;
+  min-height: 42px;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+.vb-touch-mode #healthbar { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 146px); }
+.vb-touch-mode #ammo { bottom: calc(max(14px, env(safe-area-inset-bottom)) + 132px); }
+.vb-touch-mode #grenade-count {
+  right: calc(max(14px, env(safe-area-inset-right)) + 184px);
+  bottom: calc(max(14px, env(safe-area-inset-bottom)) + 142px);
+}
+
+@media (max-width: 960px) {
+  .vb-touch-look-zone > .vb-touch-zone-label { display: none; }
+}
+
+@media (max-width: 720px) {
+  .vb-touch-stick-base {
+    bottom: calc(var(--touch-edge-y) + 20px);
+    left: calc(var(--touch-edge-x) + 12px);
+    width: 104px;
+    height: 104px;
+  }
+
+  .vb-touch-stick-knob {
+    width: 44px;
+    height: 44px;
+    margin: -22px 0 0 -22px;
+  }
+
+  .vb-touch-button {
+    min-width: 46px;
+    min-height: 46px;
+    font-size: 9px;
+  }
+
+  .vb-touch-fire {
+    width: 78px;
+    height: 78px;
+    font-size: 12px;
+  }
+
+  .vb-touch-ads,
+  .vb-touch-jump { right: calc(var(--touch-edge-r) + 94px); }
+  .vb-touch-grenade,
+  .vb-touch-reload { right: calc(var(--touch-edge-r) + 150px); }
+  .vb-touch-crouch,
+  .vb-touch-interact { left: 44%; }
+
+  .vb-touch-mode #healthbar {
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 126px);
+    width: 132px;
+  }
+
+  .vb-touch-mode #ammo {
+    right: calc(max(10px, env(safe-area-inset-right)) + 2px);
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 116px);
+    transform: scale(0.82);
+    transform-origin: right bottom;
+  }
+
+  .vb-touch-mode #grenade-count {
+    right: calc(max(10px, env(safe-area-inset-right)) + 142px);
+    bottom: calc(max(12px, env(safe-area-inset-bottom)) + 120px);
+  }
+
+  .vb-touch-mode #net-meter { display: none; }
+}
+
+@media (orientation: portrait) and (max-width: 720px) {
+  .vb-touch-rotate-hint { display: block; }
+
+  .vb-touch-move-zone {
+    width: 48vw;
+    height: 48vh;
+  }
+
+  .vb-touch-fire { bottom: calc(var(--touch-edge-y) + 76px); }
+  .vb-touch-ads { bottom: calc(var(--touch-edge-y) + 166px); }
+  .vb-touch-jump { bottom: calc(var(--touch-edge-y) + 226px); }
+  .vb-touch-grenade { bottom: calc(var(--touch-edge-y) + 78px); }
+  .vb-touch-reload { bottom: calc(var(--touch-edge-y) + 138px); }
+  .vb-touch-crouch { bottom: calc(var(--touch-edge-y) + 194px); }
+  .vb-touch-interact { bottom: calc(var(--touch-edge-y) + 252px); }
+  .vb-touch-weapon,
+  .vb-touch-buy { top: max(264px, calc(env(safe-area-inset-top) + 248px)); }
+
+  .vb-touch-mode #healthbar {
+    top: max(152px, calc(env(safe-area-inset-top) + 136px));
+    bottom: auto;
+  }
+  .vb-touch-mode #ammo {
+    top: max(144px, calc(env(safe-area-inset-top) + 128px));
+    bottom: auto;
+    transform: scale(0.72);
+    transform-origin: right top;
+  }
+  .vb-touch-mode #grenade-count {
+    top: max(212px, calc(env(safe-area-inset-top) + 196px));
+    right: calc(max(10px, env(safe-area-inset-right)) + 112px);
+    bottom: auto;
+  }
+
+  /* Killfeed drops below the ammo/grenade block instead of printing over it. */
+  .vb-touch-mode #killfeed {
+    top: max(248px, calc(env(safe-area-inset-top) + 232px));
+  }
+}

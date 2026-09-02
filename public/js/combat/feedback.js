@@ -177,7 +177,7 @@ export class CombatFeedback {
         break;
       }
       case 'grenadeThrow': {
-        this.effects.grenadeThrow(ev);
+        this.effects.grenadeThrow(ev, { fromSelf: ev.id === myId });
         break;
       }
       case 'grenadeExplode': {

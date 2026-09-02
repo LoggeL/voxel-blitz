@@ -6,6 +6,7 @@ import { buildGun, disposeGunModels } from './assemble.js';
 import { WeaponActions } from './actions.js';
 import { MaterialCache } from './kit.js';
 import { D2R, HIP, VM_FOV_BASE } from './models/common.js';
+import { kickMassScale } from './defs.js';
 import { WeaponTurnInertia } from './turn-inertia.js';
 
 export class ViewmodelRig {
@@ -35,6 +36,10 @@ export class ViewmodelRig {
     this._spr = { pitch: { p: 0, v: 0 }, yaw: { p: 0, v: 0 }, push: { p: 0, v: 0 } }; // kick springs
     this._turn = new WeaponTurnInertia(); // camera-independent, weight-limited weapon orientation
     this._air = { p: 0, v: 0 };         // damped vertical inertia across takeoff/landing
+    this._nadeWind = 0;                 // smoothed grenade wind-up 0..1 (gun pulled aside)
+    this._nadeThrowT = 0;               // seconds left in the throw lunge
+    this._lean = { p: 0, v: 0 };        // lagged lateral lean (m) from strafing, mass-scaled
+    this._surge = { p: 0, v: 0 };       // lagged fore/aft surge (m) from acceleration
     this._wasGrounded = true;
     this._fallSpeed = 0;
     this._phase = 0;                   // walk bob figure-8 phase accumulator
@@ -85,6 +90,9 @@ export class ViewmodelRig {
     this._spr.pitch = { p: 0, v: 0 }; this._spr.yaw = { p: 0, v: 0 }; this._spr.push = { p: 0, v: 0 };
     this._turn.reset(this.camera?.rotation?.y, this.camera?.rotation?.x);
     this._air.p = this._air.v = 0;
+    this._lean.p = this._lean.v = 0;
+    this._surge.p = this._surge.v = 0;
+    this._nadeWind = 0; this._nadeThrowT = 0;
     this._fallSpeed = 0;
     this._queue.length = 0;
     this._lockUntil = this._now; this._stallUntil = Infinity;
@@ -107,14 +115,18 @@ export class ViewmodelRig {
     const now = this._now;
     if (this.isBusy(now)) return false;
 
-    const wn = Math.sqrt(T.kick.stiffness);
+    const mass = kickMassScale(T.weightKg);                          // <1 heavy, >1 light
+    const wn = Math.sqrt(T.kick.stiffness * mass);
     const flip = (this._yawFlip = -this._yawFlip);
     const jitter = 0.8 + this._rng() * 0.4;                          // seeded wobble multiplier
     const pr = T.viewKick.pitchDeg * D2R;
     const yr = T.viewKick.yawDeg * D2R * T.kick.yawWobble * jitter * flip;
-    this._spr.pitch.v += pr * wn * 0.9;   // velocity-kick scaled by sqrt(k): peak ~= 0.8x input rad
+    // Velocity kicks scaled by sqrt(k): a light gun snaps up and back fast, a heavy one
+    // lifts less but on a slower spring, so the muzzle is still climbing when the next
+    // round leaves and sustained fire visibly wallows instead of buzzing.
+    this._spr.pitch.v += pr * wn * 0.9;
     this._spr.yaw.v += yr * wn * 0.9;
-    this._spr.push.v += 0.35 + pr * 1.1;  // meters/sec rearward surge — bigger kicks shove harder
+    this._spr.push.v += (0.35 + pr * 1.1) * Math.sqrt(mass);         // m/s rearward surge
 
     this._uniSet(1, Math.min(1, cur.uni.uHeat.value + 0.5)); // burst heat accumulator, capped
     this.revealFlash();
@@ -157,6 +169,24 @@ export class ViewmodelRig {
     this._actions.startReload(this._now, dur, type, this._cur.T);
   }
 
+  /**
+   * Grenade wind-up: 0 idle, up to 1 fully charged. The gun is pulled down and aside as the
+   * throwing arm cocks; presentation only, it never gates fire.
+   */
+  grenadeCharge(t01) {
+    this._nadeTarget = Math.max(0, Math.min(1, Number(t01) || 0));
+  }
+
+  /** Release: a short forward lunge with a muzzle dip, then the springs settle it. */
+  grenadeThrow(charge = 0.5) {
+    const strength = 0.6 + Math.max(0, Math.min(1, Number(charge) || 0)) * 0.4;
+    this._nadeThrowT = 0.34;
+    this._nadeThrowStrength = strength;
+    this._spr.push.v -= 0.9 * strength;                     // forward surge
+    this._spr.pitch.v -= 0.12 * Math.sqrt(this._cur?.T.kick.stiffness || 200) * strength;
+    this._nadeTarget = 0;
+  }
+
   /** Manual staged cycles (mode-driven). Ignored when cycling already or gun lacks the linkage. */
   pumpAnim() { this._actions.beginCycle('pump', false, this._cur?.T); }
   boltAnim() { this._actions.beginCycle('bolt', false, this._cur?.T); }
@@ -195,7 +225,8 @@ export class ViewmodelRig {
 
   /**
    * @param dt      seconds, clamped hard to 0.033 (tab-refocus spikes never explode springs)
-   * @param ctx     {speed,grounded,verticalVelocity,isSprinting,crouch,panic,exhaustion,pain,aimSwayScale}
+   * @param ctx     {speed,grounded,verticalVelocity,lateralSpeed,forwardSpeed,isSprinting,crouch,
+   *                 panic,exhaustion,pain,aimSwayScale}
    *                Camera orientation is observed, never delayed or modified by this rig.
    */
   update(dt, ctx = {}) {
@@ -204,6 +235,8 @@ export class ViewmodelRig {
     const cur = this._cur;
     const speed = ctx.speed || 0, grounded = ctx.grounded !== false;
     const verticalVelocity = Number.isFinite(ctx.verticalVelocity) ? ctx.verticalVelocity : 0;
+    const lateralSpeed = Number.isFinite(ctx.lateralSpeed) ? ctx.lateralSpeed : 0;
+    const forwardSpeed = Number.isFinite(ctx.forwardSpeed) ? ctx.forwardSpeed : 0;
     const sprinting = !!ctx.isSprinting, crouching = !!ctx.crouch;
     this._now += dt;
     this._drainQueue();
@@ -217,8 +250,10 @@ export class ViewmodelRig {
     if (!cur) { this._decayFx(dt, null); return; }
     const T = cur.T;
 
-    /* springs: semi-implicit Euler, 4 equal substeps (h <= 8.25ms, omega^2*h safe for k<=300) */
-    const K = T.kick.stiffness, C = T.kick.damping;
+    /* springs: semi-implicit Euler, 4 equal substeps (h <= 8.25ms, omega^2*h safe for k<=300).
+       Mass scaling lowers the natural frequency for heavy guns while keeping the damping ratio. */
+    const mass = kickMassScale(T.weightKg);
+    const K = T.kick.stiffness * mass, C = T.kick.damping * Math.sqrt(mass);
     const h = dt / 4;
     for (let i = 0; i < 4; i++) {
       this._spring(this._spr.pitch, K, C, h);
@@ -256,7 +291,17 @@ export class ViewmodelRig {
       yaw: this.camera?.rotation?.y,
       pitch: this.camera?.rotation?.x,
       weightKg: T.weightKg,
+      ads: this._adsSmooth,
     });
+
+    /* body-motion inertia: the carried mass trails strafes and stops on a loose, heavy spring */
+    const leanTarget = Math.max(-1, Math.min(1, -lateralSpeed / 6.2)) * BOB.leanMax * (1 - this._adsSmooth * 0.7);
+    const surgeTarget = Math.max(-1, Math.min(1, forwardSpeed / 6.2)) * BOB.surgeMax * (1 - this._adsSmooth * 0.7);
+    const bodyK = BOB.bodySpringStiffness * mass, bodyC = BOB.bodySpringDamping * Math.sqrt(mass);
+    for (let i = 0; i < 4; i++) {
+      this._springTo(this._lean, leanTarget, bodyK, bodyC, h);
+      this._springTo(this._surge, surgeTarget, bodyK, bodyC, h);
+    }
 
     /* walk bob figure-8 (freq scales with speed; sprint lifts freq+amp+cant; crouch dampens) */
     const spdN = Math.min(1, speed / 4.4);                            // normalized to contract walk
@@ -306,30 +351,47 @@ export class ViewmodelRig {
     const reloadDip = actionMotion.dip;
     const reloadRock = actionMotion.rock;
 
-    /* sprint cant + counter-roll composition */
+    /* grenade wind-up + throw lunge (mass-scaled: a heavy gun is slower to pull aside) */
+    const windRate = 9 * Math.sqrt(mass);
+    this._nadeWind += ((this._nadeTarget || 0) - this._nadeWind) * Math.min(1, dt * windRate);
+    const wind = this._smooth01(this._nadeWind);
+    let lunge = 0;
+    if (this._nadeThrowT > 0) {
+      this._nadeThrowT = Math.max(0, this._nadeThrowT - dt);
+      lunge = Math.sin(Math.PI * (1 - this._nadeThrowT / 0.34)) * (this._nadeThrowStrength || 1);
+    }
+    const nadeX = -0.035 * wind + 0.02 * lunge;
+    const nadeY = -0.075 * wind - 0.03 * lunge;
+    const nadeZ = 0.03 * wind - 0.06 * lunge;
+    const nadeRx = -0.14 * wind - 0.16 * lunge;
+    const nadeRz = 0.20 * wind + 0.08 * lunge;
+
+    /* sprint cant + counter-roll + inertia roll composition */
     const cant = sprinting ? BOB.sprintTiltZ * Math.min(1, speed / 6.2) * (1 - adsE) : 0;
-    const roll = bobX / (BOB.walkHorz || 1) * BOB.counterRoll * (1 - adsE * 0.5);
+    const roll = bobX / (BOB.walkHorz || 1) * BOB.counterRoll * (1 - adsE * 0.5)
+      + turn.roll
+      + this._lean.p * BOB.leanRollPerMeter;
 
     /* ---------- compose transforms (condition offsets never touch the authoritative camera) ---------- */
     this.posG.position.set(
-      turn.x + bobX + tremorX,
+      turn.x + this._lean.p + bobX + tremorX,
       turn.y + bobY + this._air.p + breathe + exhaustedBreath + tremorY,
-      this._spr.push.p
+      this._spr.push.p + this._surge.p
     );
     this.pivot.rotation.set(
       this._spr.pitch.p + turn.pitch + this._air.p * BOB.airPitchPerMeter + conditionPitch,
       this._spr.yaw.p + turn.yaw + conditionYaw,
-      roll + cant
+      roll + cant + nadeRz
     );
 
     /* base hip pose eased toward adsOffset absolute pose; dips layered on top */
     const dep = this._deployOffset();
     this.content.position.set(
-      HIP.x + (T.adsOffset.x - HIP.x) * adsE,
-      HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y,
-      HIP.z + (T.adsOffset.z - HIP.z) * adsE
+      HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX,
+      HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y + nadeY,
+      HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ
     );
-    this.content.rotation.set(dep.rx + reloadRock, 0, 0);
+    this.content.rotation.set(dep.rx + reloadRock + nadeRx, 0, 0);
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
     this._decayFx(dt, cur);

@@ -213,6 +213,7 @@ export class Session {
         if (typeof this.onGameplayInputDisabled === 'function') this.onGameplayInputDisabled();
       },
     });
+    this.input.setPauseHandler?.(() => this._gameplayUi.pauseFromKeyboard());
 
     this.input.setGameplayEnabled(false);
 

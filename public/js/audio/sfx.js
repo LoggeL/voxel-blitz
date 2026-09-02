@@ -325,6 +325,36 @@ export const sfx = {
     });
   },
 
+  /** Pin pull at the start of a charge: a short, dry metallic click. */
+  grenadePin() {
+    run('grenadePin', () => {
+      const output = pool.acquire(null, 0.25);
+      if (samples.play('combat.grenadePin', output)) return;
+      const at = primitives.nowT();
+      primitives.hiss(output, {
+        t0: at, filter: 'bandpass', f: 3600, q: 6, dec: 0.035, g: 0.22, pan: 0.25,
+      });
+      primitives.tone(output, {
+        t0: at + 0.004, type: 'square', f0: 2400, f1: 1700, att: 0.001, dec: 0.045, g: 0.08,
+      });
+    });
+  },
+
+  /** Release: an arm swing whoosh whose weight scales with the charge. */
+  grenadeThrow(charge = 0.5) {
+    const strength = Math.max(0, Math.min(1, Number(charge) || 0));
+    run('grenadeThrow', () => {
+      const output = pool.acquire(null, 0.5);
+      if (samples.play('combat.grenadeThrow', output, { gain: 0.6 + strength * 0.4 })) return;
+      const at = primitives.nowT();
+      primitives.hiss(output, {
+        t0: at, filter: 'bandpass', f: 700 + strength * 500, sweepTo: 260,
+        sweepMs: 0.2 + strength * 0.08, q: 1.4, dec: 0.24 + strength * 0.1,
+        g: 0.24 + strength * 0.16, pan: 0.3,
+      });
+    });
+  },
+
   grenadeExplosion(pos) {
     const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
     run('grenadeExplosion', () => {

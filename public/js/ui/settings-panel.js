@@ -1,5 +1,10 @@
 import { MAP_LABELS, MODE_LABELS, el, loadPrefNum, savePref } from './hud-support.js';
-import { clampMouseSensitivity, MOUSE_SENSITIVITY } from '../input-settings.js';
+import {
+  clampMouseSensitivity,
+  formatMouseSensitivity,
+  MOUSE_SENSITIVITY,
+  SENSITIVITY_PREF_KEY,
+} from '../input-settings.js';
 
 /**
  * Owns the settings dialog's DOM, preferences, callbacks, focus, and close guard.
@@ -14,7 +19,7 @@ export class SettingsController {
     this._settingsOpen = false;
     this._settingsConfig = {
       sensitivity: loadPrefNum(
-        'vb-sens',
+        SENSITIVITY_PREF_KEY,
         MOUSE_SENSITIVITY.default,
         MOUSE_SENSITIVITY.min,
         MOUSE_SENSITIVITY.max,
@@ -38,7 +43,7 @@ export class SettingsController {
   setupSettings({ sensitivity, volume, fov, onChange, onResume, onLeave } = {}) {
     if (sensitivity != null && Number.isFinite(+sensitivity)) {
       this._settingsConfig.sensitivity = clampMouseSensitivity(sensitivity);
-      savePref('vb-sens', this._settingsConfig.sensitivity);
+      savePref(SENSITIVITY_PREF_KEY, this._settingsConfig.sensitivity);
     }
     if (volume != null && Number.isFinite(+volume)) {
       this._settingsConfig.volume = Math.min(1, Math.max(0, +volume));
@@ -151,7 +156,7 @@ export class SettingsController {
     sensSlider.type = 'range';
     sensSlider.min = String(MOUSE_SENSITIVITY.min);
     sensSlider.max = String(MOUSE_SENSITIVITY.max);
-    sensSlider.step = '0.001';
+    sensSlider.step = String(MOUSE_SENSITIVITY.step);
     sensSlider.setAttribute('aria-label', 'Mouse Sensitivity');
     sensSlider.setAttribute('aria-valuemin', String(MOUSE_SENSITIVITY.min));
     sensSlider.setAttribute('aria-valuemax', String(MOUSE_SENSITIVITY.max));
@@ -212,9 +217,9 @@ export class SettingsController {
       const volume = Math.min(1, Math.max(0, parseFloat(volSlider.value) || 0));
       const fov = Math.min(100, Math.max(65, Math.round(parseFloat(fovSlider.value) || 75)));
 
-      sensVal.textContent = (sensitivity * 100).toFixed(1);
+      sensVal.textContent = formatMouseSensitivity(sensitivity);
       sensSlider.setAttribute('aria-valuenow', String(sensitivity));
-      sensSlider.setAttribute('aria-valuetext', `${(sensitivity * 100).toFixed(1)} sensitivity`);
+      sensSlider.setAttribute('aria-valuetext', `${formatMouseSensitivity(sensitivity)} sensitivity`);
 
       volVal.textContent = `${Math.round(volume * 100)}%`;
       volSlider.setAttribute('aria-valuenow', String(volume));
@@ -225,7 +230,7 @@ export class SettingsController {
       fovSlider.setAttribute('aria-valuetext', `${fov} degrees`);
 
       this._settingsConfig = { sensitivity, volume, fov };
-      savePref('vb-sens', sensitivity);
+      savePref(SENSITIVITY_PREF_KEY, sensitivity);
       savePref('vb-volume', volume);
       savePref('vb-fov', fov);
 
@@ -280,9 +285,9 @@ export class SettingsController {
     const config = this._settingsConfig;
 
     dom.sensSlider.value = String(config.sensitivity);
-    dom.sensVal.textContent = (config.sensitivity * 100).toFixed(1);
+    dom.sensVal.textContent = formatMouseSensitivity(config.sensitivity);
     dom.sensSlider.setAttribute('aria-valuenow', String(config.sensitivity));
-    dom.sensSlider.setAttribute('aria-valuetext', `${(config.sensitivity * 100).toFixed(1)} sensitivity`);
+    dom.sensSlider.setAttribute('aria-valuetext', `${formatMouseSensitivity(config.sensitivity)} sensitivity`);
 
     dom.volSlider.value = String(config.volume);
     dom.volVal.textContent = `${Math.round(config.volume * 100)}%`;

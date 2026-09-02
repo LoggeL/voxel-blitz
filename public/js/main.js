@@ -22,6 +22,7 @@ import { CombatFeedback, applySnapshotBlocks } from './combat/feedback.js';
 import { disposeFirstPersonBody, makeFirstPersonBody } from './player/first-person-body.js';
 import { fwdFromAngles } from './util/look.js';
 import { nowMs } from './util/math.js';
+import { GRENADE_FUSE_MS } from '../../shared/grenade-rules.js';
 
 export { currentConeDeg, fwdFromAngles } from './util/look.js';
 
@@ -45,6 +46,7 @@ class Game {
     this.worldview = null;
     this.effects = null;
     this.rig = null;
+    this._grenadeCharging = false;
     this.weapon = null;
     this.roster = null;
     this.feedback = null;
@@ -327,6 +329,34 @@ class Game {
     return !(this.matchState?.mode === 'snd' && this.matchState.phase === 'prep');
   }
 
+  /**
+   * Local grenade presentation: pin click and wind-up while G is held, a live flight
+   * preview from the shared integrator, and an immediate predicted projectile on release
+   * that the authority event later adopts.
+   */
+  presentGrenadeHandling(now) {
+    const input = this.player.input;
+    const canThrow = this.player.alive && (this.selfRow?.grenades ?? 0) > 0
+      && this.isAuthoritativeFireAllowed();
+    const charging = !!input.isGrenadeCharging?.() && canThrow;
+    const charge = charging ? input.getGrenadeCharge(now) : 0;
+    if (charging && !this._grenadeCharging) sfx.grenadePin();
+    this._grenadeCharging = charging;
+    this.rig?.grenadeCharge(charging ? 0.35 + 0.65 * charge : 0);
+    this.effects?.grenadePreview(charging ? this.player.grenadeLaunchState(charge) : null);
+
+    const thrown = this.player.consumeLocalGrenadeThrow();
+    if (!thrown || !canThrow) return;
+    const launch = this.player.grenadeLaunchState(thrown.charge);
+    this.effects?.grenadeThrow({
+      o: [launch.x, launch.y, launch.z],
+      v: [launch.vx, launch.vy, launch.vz],
+      fuse: GRENADE_FUSE_MS,
+    }, { local: true });
+    this.rig?.grenadeThrow(thrown.charge);
+    sfx.grenadeThrow(thrown.charge);
+  }
+
   weaponFrameContext() {
     const position = this.camera.position;
     return {
@@ -382,14 +412,23 @@ class Game {
       }),
     });
     this.weapon.settleFrame(dt);
+    this.presentGrenadeHandling(now);
     const def = this.weapon.def;
     this.player.updateCamera(dt, this.camera, def, this.weapon.adsT, this.session.baseFov);
     const blastShake = this.effects.currentShakeXY;
     this.camera.rotation.x += blastShake.y;
     this.camera.rotation.y += blastShake.x;
     try {
+      // Body velocity in the camera frame: +x strafing right, +z backing up. The rig uses
+      // it for a lagged lateral lean so the carried gun swings against direction changes.
+      const vel = this.player.physics.vel;
+      const yaw = this.player.view.yaw;
+      const lateralSpeed = vel.x * Math.cos(yaw) - vel.z * Math.sin(yaw);
+      const forwardSpeed = -(vel.x * Math.sin(yaw) + vel.z * Math.cos(yaw));
       this.rig.update(dt, {
         speed: this.player.speedXZ,
+        lateralSpeed,
+        forwardSpeed,
         grounded: this.player.physics.grounded,
         verticalVelocity: this.player.physics.vel.y,
         isSprinting: !this.player.wantAds && this.player.keys.sprint && this.player.speedXZ > 4.6,
@@ -431,6 +470,7 @@ class Game {
       alive: this.player.alive,
       grenades: this.selfRow?.grenades ?? 0,
       grenadeCharge: this.player.input.getGrenadeCharge(now),
+      grenadeCharging: this._grenadeCharging,
     });
     this.hud.setTelemetry(frameDt, this.net?.networkStats, now);
     if (now - this._sbAt >= 250 && this.playersCache.length) {

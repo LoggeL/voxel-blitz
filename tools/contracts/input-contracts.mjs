@@ -4,12 +4,25 @@ export async function runInputContracts(ok, installGlobals) {
   {
     let input = null;
     let unlocked = null;
+    let touch = null;
     const restore = installGlobals({ location: { search: '?headless=1' } });
     try {
       const { Input } = await import('../../public/js/engine/input.js');
+      const {
+        isTapToFire,
+        joystickVector,
+        resolveToggleRelease,
+        shouldEnableTouchControls,
+      } = await import('../../public/js/engine/touch-controls.js');
+      ok(resolveToggleRelease(120, false) === true
+        && resolveToggleRelease(600, false) === false
+        && resolveToggleRelease(120, true) === false,
+      'touch toggle buttons latch on a quick tap, release on a long hold, and unlatch on the next tap');
+      ok(isTapToFire(90, 4) && !isTapToFire(400, 4) && !isTapToFire(90, 40),
+        'a short, still look-zone touch is a tap-to-fire while drags and long presses aim');
       input = new Input({});
-      ok(input.getSensitivity() === 0.01,
-        'fresh input starts at the lower canonical mouse sensitivity');
+      ok(input.getSensitivity() === 0.003,
+        'fresh input starts at the canonical mouse sensitivity (~2100 px per turn)');
 
       const key = (code, repeat = false, timeStamp = 0) => ({
         code,
@@ -101,6 +114,79 @@ export async function runInputContracts(ok, installGlobals) {
       ok(unlocked.consumeBuyMenuRequest(),
         'transient reset also clears the held-B latch for a fresh physical edge');
 
+      const deadStick = joystickVector(3, -4, 54);
+      const fullForward = joystickVector(0, -54, 54);
+      ok(deadStick.magnitude === 0
+        && fullForward.x === 0
+        && fullForward.y === -1
+        && fullForward.magnitude === 1,
+      'mobile joystick shaping has a stable dead zone and normalized full travel');
+      ok(shouldEnableTouchControls({
+        windowRef: null,
+        navigatorRef: { maxTouchPoints: 0 },
+        locationRef: { search: '?touch=1' },
+      }) && shouldEnableTouchControls({
+        windowRef: { matchMedia: () => ({ matches: true }) },
+        navigatorRef: { maxTouchPoints: 0 },
+        locationRef: { search: '' },
+      }) && !shouldEnableTouchControls({
+        windowRef: { matchMedia: (query) => ({ matches: query === '(pointer: fine)' }) },
+        navigatorRef: { maxTouchPoints: 10 },
+        locationRef: { search: '' },
+      }), 'mobile controls detect QA/coarse pointers without hijacking fine-pointer hybrids');
+
+      globalThis.location = { search: '?touch=1' };
+      touch = new Input({});
+      ok(touch.usesTouchControls() && !touch.requiresPointerLock(),
+        'touch input is gameplay-ready without pointer lock');
+      touch._onMouseMove({ movementX: 10, movementY: -5 });
+      ok(touch.consumeDelta().dx === 0,
+        'touch mode does not turn unlocked hybrid-device mouse movement into aim');
+      touch._onTouchMove({ x: 0.45, y: -0.9, magnitude: 0.92 });
+      const mobileMove = touch.getKeys();
+      ok(mobileMove.forward && mobileMove.right && mobileMove.sprint
+        && !mobileMove.back && !mobileMove.left,
+      'mobile joystick maps diagonals and outer-ring auto sprint onto canonical movement keys');
+      touch._onTouchLook(10, -5);
+      const mobileLook = touch.consumeDelta();
+      ok(Math.abs(mobileLook.dx - 0.042) < 1e-12
+        && Math.abs(mobileLook.dy + 0.021) < 1e-12,
+      'mobile aim feeds the canonical look accumulator at the bounded touch scale');
+      let touchResetCalls = 0;
+      touch._touchControls = {
+        reset: () => { touchResetCalls += 1; },
+        setEnabled: () => {},
+        dispose: () => {},
+      };
+      touch.consumeDelta();
+      ok(touchResetCalls === 0 && touch.getKeys().forward,
+        'reading look deltas never releases the active mobile joystick');
+      touch._onTouchHold('fire', true, 100);
+      ok(touch.wantFireHeld && touch.consumeFireTap(),
+        'mobile fire queues one tap and exposes held automatic fire');
+      touch._onTouchHold('fire', false, 120);
+      touch._onTouchHold('ads', true, 130);
+      touch._onTouchHold('jump', true, 140);
+      ok(!touch.wantFireHeld && touch.wantAdsHeld && touch.getKeys().jump,
+        'mobile hold buttons independently release fire and hold ADS/jump');
+      touch._onTouchPulse('reload');
+      touch._onTouchPulse('weapon');
+      touch._onTouchPulse('buy');
+      ok(touch.getKeys().reload && touch.consumeWeaponSwitch() === 1
+        && touch.consumeBuyMenuRequest(),
+      'mobile reload, weapon swap, and armory emit the existing draining edges');
+      touch._onTouchPulse('fireTap');
+      ok(touch.consumeFireTap() && !touch.consumeFireTap() && !touch.wantFireHeld,
+        'a look-zone tap queues exactly one shot without latching automatic fire');
+      touch._onTouchHold('grenade', true, 200);
+      touch._onTouchHold('grenade', false, 800);
+      ok(touch.consumeGrenadeThrow() === 0.5,
+        'mobile grenade hold/release uses the shared charge duration');
+      touch.setGameplayEnabled(false);
+      ok(!touch.wantAdsHeld && !touch.getKeys().jump && touch.consumeWeaponSwitch() === 0
+        && touchResetCalls === 1,
+        'mobile gameplay suppression clears all held and queued state');
+
       input.setGameplayEnabled(true);
       input._onKeyDown(key('KeyE'));
       input._onKeyDown(key('KeyB'));
@@ -112,6 +198,7 @@ export async function runInputContracts(ok, installGlobals) {
     } finally {
       input?.dispose();
       unlocked?.dispose();
+      touch?.dispose();
       restore();
     }
   }

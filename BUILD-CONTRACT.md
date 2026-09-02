@@ -27,8 +27,11 @@ room/client interfaces below; do not fork their logic into a second convention.
 - Standard `npm test` runs `tools/atlastest.mjs`, `tools/smoke.mjs`,
   `tools/lobby-smoke.mjs`, `npm run modes:lobby`, and `npm run modes:bots`, in
   that order.
-- `npm run browser:smoke` drives the connected menu → Quick Play → live match
-  → pause/resume → quit flow in Chromium. `npm run maps:capture`,
+- `npm run browser:smoke` drives the connected touch-mode menu → Quick Play →
+  live match, validates joystick/look/fire pointer lifecycles, then completes
+  the pause/resume → quit flow in Chromium. `BROWSER_SMOKE_WIDTH`,
+  `BROWSER_SMOKE_HEIGHT`, and `BROWSER_SMOKE_SCREENSHOT` opt into mobile visual
+  capture. `npm run maps:capture`,
   `npm run weapons:capture`, and
   `npm run avatars:capture` produce deterministic Chromium review matrices;
   `npm run audio:audit` inventories and analyzes every bundled OGG;
@@ -335,6 +338,20 @@ late join whose welcome/state is already live also proceeds directly.
   interact; `B` toggles the buy menu; `1–6`/wheel/`Q` select weapons.
   `setGameplayEnabled(boolean)` gates input around lobby, settings, buy, death,
   and teardown.
+- `TouchControls` owns coarse-pointer DOM and pointer lifecycles behind the
+  `Input` seam. Touch mode is selected by touch capability, a coarse primary
+  pointer, or the `?touch=1` QA override; it never requests pointer lock. Its
+  joystick, swipe-look, hold, and pulse callbacks feed the same canonical input
+  state and draining edges as keyboard/mouse, including charged grenades and
+  the S&D buy menu. The look zone is the full screen beneath the other
+  controls; the joystick base floats to the touchdown point; the FIRE button
+  forwards drag deltas to look while held; a look-zone touch shorter than
+  `TOUCH_TAP_FIRE_MS` and stiller than `TOUCH_TAP_FIRE_TRAVEL_PX` pulses
+  `fireTap` (one queued shot); ADS and crouch use `resolveToggleRelease` (tap
+  under `TOUCH_TOGGLE_TAP_MS` latches, long press holds). The first enabled
+  gesture requests fullscreen and a landscape lock (both best-effort, never
+  thrown), presses vibrate through `navigator.vibrate` when present, and
+  disabling gameplay releases every captured, held, or latched control.
 - `new WorldView({getBlock})`; call `await ready()` before rendering,
   `applyDeltas([{x,y,z,v}])`, `update(dt)`, camera ray helpers, and `dispose()`.
 - `new CombatPostProcess(renderer,options)` owns the bounded scene render target
@@ -349,11 +366,35 @@ late join whose welcome/state is already live also proceeds directly.
   getter `currentShakeXY`, and `dispose()`.
 - `new ViewmodelRig(camera)` exposes `setWeapon(id)`, `fire()`, `ads(t01)`,
   `reload(dur,type)`, `pumpAnim()`, `boltAnim()`,
-  `update(dt,{speed,grounded,verticalVelocity?,isSprinting?,crouch?,panic?,
-  pain?,exhaustion?,aimSwayScale?})`, `bobAmt`, and `turnLag`.
+  `update(dt,{speed,grounded,verticalVelocity?,lateralSpeed?,forwardSpeed?,
+  isSprinting?,crouch?,panic?,pain?,exhaustion?,aimSwayScale?})`, `bobAmt`,
+  and `turnLag` (`{yaw,pitch,roll,x,y,speed,maxSpeed,...}`).
   It builds six procedural models. Its internal angular follower observes the
   completed camera orientation, caps weapon rotation speed and acceleration by
-  `weightKg`, and affects only the rig—never camera or authority aim.
+  `weightKg`, tightens toward the sight line with ADS, folds lag beyond its
+  weight budget back into the pose (no hidden unwind), and affects only the
+  rig—never camera or authority aim. `lateralSpeed`/`forwardSpeed` are body
+  velocity in the camera frame and drive a mass-scaled lean/surge spring; the
+  kick and body springs scale by `kickMassScale(weightKg)` from `guns/defs.js`.
+- **Grenades:** `shared/grenade-rules.js` owns `GRENADE_FUSE_MS`,
+  `GRENADE_PHYSICS`, `grenadeLaunch({x,y,z,eyeY,vx,vy,vz,dir,charge})`,
+  `stepGrenade(g,dt,isSolid)`, and `predictGrenadePath(launch,isSolid,opts)`;
+  the server simulation, the client projectile, and the charge preview all run
+  that one integrator. `Effects.grenadeThrow(ev,{local?,fromSelf?})` spawns a
+  predicted local projectile on release, and the authority `grenadeThrow` for
+  the local id adopts it (no pop, no double spawn; unconfirmed predictions time
+  out after 1 s). `Effects.grenadePreview(launch|null)` draws the dotted arc and
+  landing ring while charging. `LocalPlayer.consumeLocalGrenadeThrow()` and
+  `grenadeLaunchState(charge)` feed that presentation; `Input.isGrenadeCharging()`
+  exposes the held state; `ViewmodelRig.grenadeCharge(t01)` / `grenadeThrow(charge)`
+  play the wind-up and lunge; `sfx.grenadePin()` / `sfx.grenadeThrow(charge)` cue
+  them. HUD state accepts `grenadeCharging` and flags `is-full` at max charge.
+- `LocalPlayer.addRecoil(pitchRad, yawRad, weightKg?)` drives a velocity-impulse
+  camera spring that peaks at the requested kick ~40–60 ms after the shot and
+  recovers on a weight-scaled spring (slower for heavy guns), adds a coupled
+  camera roll, and keeps 18% of the pitch kick on the authoritative aim so
+  sustained fire must be controlled. `lookScale` exposes the live ADS look
+  multiplier (`adsLookScale(liveFov, baseFov)` from `input-settings.js`).
 - `new AimSway()` exposes `update(dt,{alive,grounded,stationary,shift,
   crouching,panic,pain})`, `reset()`, and its stable `readModel`. It applies
   deterministic stationary sway; crouching reduces it, while holding Shift
@@ -434,8 +475,10 @@ step listener with the room.
   and Solstice is a desert solar observatory with a biodome, broken heliostat
   ring, turbine hall, compact linked lanes, and A/B sites. Every declared spawn
   has solid footing and two-block headroom.
-- **Settings:** sensitivity defaults to `0.010`, clamps to `0.005–0.08`, and
-  persists as `vb-sens`; master volume defaults to `0.80`, clamps to `0–1`, and
+- **Settings:** sensitivity defaults to `0.003` rad/px, clamps to
+  `0.0008–0.012`, and persists as `vb-sens-v2` (`SENSITIVITY_PREF_KEY`; the
+  old `vb-sens` scale is ignored rather than clamped). Touch look runs at 1.4×
+  the mouse value. Look input is multiplied by `adsLookScale` while zoomed; master volume defaults to `0.80`, clamps to `0–1`, and
   persists as `vb-volume`; FOV defaults to `75`, clamps to `65–100`, and
   persists as `vb-fov`. Changes apply immediately. Escape opens the in-game
   settings overlay; Resume closes it and returns pointer-lock gameplay.

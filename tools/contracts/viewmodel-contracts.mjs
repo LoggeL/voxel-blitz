@@ -106,6 +106,55 @@ export async function runViewmodelContracts(ok, installGlobals) {
         && physics.vel.x === 0 && physics.vel.y === 0 && physics.vel.z === 0
         && player.crouchBool === false,
     'movement authority freezes local prediction and sends no movement intent');
+
+    // Camera recoil is a velocity-driven spring: it peaks a few frames after the shot,
+    // recovers on its own, keeps a fraction of the pitch on the true aim, and recovers
+    // more slowly for a heavier weapon.
+    const recoilTrace = (weightKg) => {
+      const trace = [];
+      const shooter = new LocalPlayer({ input, physics, sendHz: 20 });
+      shooter.setGameplayInputEnabled(true);
+      physics.vel.x = physics.vel.y = physics.vel.z = 0;
+      shooter.update(1 / 60, 0, { sendInput: () => true });
+      const aimBefore = shooter.view.pitch;
+      shooter.addRecoil(0.02, 0.01, weightKg);
+      const aimAfter = shooter.view.pitch;
+      for (let frame = 1; frame <= 60; frame++) {
+        shooter.update(1 / 60, frame * 16, { sendInput: () => true });
+        trace.push(shooter.recoilPitch);
+      }
+      shooter.dispose();
+      return { trace, climb: aimAfter - aimBefore };
+    };
+    const rifleRecoil = recoilTrace(WEAPONS.rifle.weightKg);
+    const lmgRecoil = recoilTrace(WEAPONS.lmg.weightKg);
+    const peakFrame = (trace) => trace.indexOf(Math.max(...trace));
+    const settledAt = (trace) => trace.findIndex((v, i) => i > peakFrame(trace) && Math.abs(v) < 0.002);
+    ok(peakFrame(rifleRecoil.trace) >= 1
+        && Math.max(...rifleRecoil.trace) > 0.015 && Math.max(...rifleRecoil.trace) < 0.022
+        && rifleRecoil.climb > 0.002 && rifleRecoil.climb < 0.01
+        && peakFrame(lmgRecoil.trace) >= peakFrame(rifleRecoil.trace)
+        && settledAt(lmgRecoil.trace) > settledAt(rifleRecoil.trace)
+        && Math.abs(rifleRecoil.trace.at(-1)) < 0.001,
+    'camera recoil peaks after the shot at the requested kick, leaves an aim climb, and recovers slower for heavy guns');
+
+    const zoomed = new LocalPlayer({ input, physics, sendHz: 20 });
+    zoomed.setGameplayInputEnabled(true);
+    const zoomCamera = new THREE.PerspectiveCamera(75, 1, 0.01, 100);
+    zoomed.updateCamera(0.05, zoomCamera, { id: 'rifle', adsFov: 55 }, 0, 75);
+    const hipScale = zoomed.lookScale;
+    zoomCamera.fov = 18;
+    zoomed.updateCamera(0.05, zoomCamera, { id: 'sniper', adsFov: 18 }, 1, 75);
+    const scopedScale = zoomed.lookScale;
+    input.consumeDelta = () => ({ dx: 0.1, dy: 0 });
+    const yawBefore = zoomed.view.yaw;
+    zoomed.update(1 / 60, 0, { sendInput: () => true });
+    const yawTurned = yawBefore - zoomed.view.yaw;
+    input.consumeDelta = () => ({ dx: 0, dy: 0 });
+    zoomed.dispose();
+    ok(hipScale === 1 && scopedScale > 0.15 && scopedScale < 0.25
+        && Math.abs(yawTurned - 0.1 * scopedScale) < 1e-9,
+    'look input scales with the live zoom so a 5x scope turns at about a fifth of hip speed');
     player.dispose();
   }
 
@@ -210,6 +259,66 @@ export async function runViewmodelContracts(ok, installGlobals) {
         'remote-avatar mounts preserve weapon-specific grips and align every ADS sight through firing and crouch');
     } finally {
       carried.dispose();
+    }
+  }
+
+  // Grenades: shared launch/flight rules drive the preview, the local prediction, and
+  // authority adoption so a thrown grenade never pops or double-spawns.
+  {
+    const {
+      GRENADE_FUSE_MS, grenadeLaunch, predictGrenadePath, stepGrenade,
+    } = await import('../../shared/grenade-rules.js');
+    const floor = (x, y) => y < 20;
+    const launch = grenadeLaunch({
+      x: 10, y: 20, z: 10, eyeY: 21.62, vx: 2, vy: 0, vz: 0,
+      dir: { x: 0, y: 0.2, z: -0.98 }, charge: 1,
+    });
+    const weak = grenadeLaunch({
+      x: 10, y: 20, z: 10, eyeY: 21.62, dir: { x: 0, y: 0.2, z: -0.98 }, charge: 0,
+    });
+    const strong = predictGrenadePath(launch, floor);
+    const short = predictGrenadePath(weak, floor);
+    const replay = { ...launch };
+    for (let i = 0; i < 40 * (GRENADE_FUSE_MS / 1000); i++) stepGrenade(replay, 1 / 40, floor);
+    ok(strong.points.length > 10 && strong.points.length <= 96
+        && strong.landing[1] > 19.9 && strong.landing[1] < 20.6
+        && Math.abs(strong.landing[2] - replay.z) < 0.05
+        && (10 - short.landing[2]) < (10 - strong.landing[2]) * 0.7
+        && launch.vx > weak.vx,
+    'shared grenade rules predict a floor-bounded path that matches the integrator and scales with charge');
+
+    const { GrenadeFX } = await import('../../public/js/weapons/grenades.js');
+    const scene = new THREE.Scene();
+    const fx = new GrenadeFX(scene, (x, y) => (y < 20 ? 1 : 0));
+    try {
+      const preview = fx.setPreview(launch);
+      const previewShown = fx.previewLine.visible && fx.landingRing.visible && preview?.points.length > 10;
+      fx.setPreview(null);
+      ok(previewShown && !fx.previewLine.visible && !fx.landingRing.visible,
+        'grenade preview draws a dotted arc with a landing ring and hides on release');
+
+      const o = [launch.x, launch.y, launch.z];
+      const v = [launch.vx, launch.vy, launch.vz];
+      fx.throw({ o, v, fuse: GRENADE_FUSE_MS }, { local: true });
+      fx.update(0.1);
+      const pendingBefore = fx.pendingLocal;
+      const projectilesBefore = fx.projectiles.size;
+      fx.throw({ gid: 'g1', o, v, fuse: GRENADE_FUSE_MS }, { fromSelf: true });
+      const adopted = fx.projectiles.get('g1');
+      ok(pendingBefore === 1 && projectilesBefore === 1 && fx.projectiles.size === 1
+          && adopted && !adopted.local && fx.pendingLocal === 0,
+        'the authority throw event adopts the pending local prediction instead of double-spawning');
+
+      fx.throw({ gid: 'g2', o, v, fuse: GRENADE_FUSE_MS }, { fromSelf: false });
+      fx.throw({ o, v, fuse: GRENADE_FUSE_MS }, { local: true });
+      for (let i = 0; i < 25; i++) fx.update(0.05);
+      ok(fx.projectiles.size === 2 && fx.pendingLocal === 0,
+        'an unconfirmed local throw times out while authoritative grenades keep flying');
+      fx.explode({ gid: 'g1', x: 10, y: 20, z: 5, radius: 5.6 });
+      ok(!fx.projectiles.has('g1') && fx.blasts.length === 1,
+        'explosion removes the adopted projectile and spawns one blast');
+    } finally {
+      fx.dispose();
     }
   }
 
@@ -338,6 +447,57 @@ export async function runViewmodelContracts(ok, installGlobals) {
       rig.update(1 / 60, { grounded: true, verticalVelocity: 0 });
       ok(takeoffLag < 0 && rig._air.v < fallingVelocity,
         'jump takeoff trails the gun downward and landing adds a damped impact impulse');
+
+      // ADS tightens the follower so the sight line stays usable while turning.
+      const flickLag = (adsT) => {
+        camera.rotation.set(0, 0, 0);
+        rig.setWeapon('rifle');
+        rig.ads(adsT);
+        for (let frame = 0; frame < 120; frame++) rig.update(1 / 60, { grounded: true });
+        let peak = 0;
+        for (let frame = 0; frame < 20; frame++) {
+          camera.rotation.y -= 0.05;
+          rig.update(1 / 60, { grounded: true });
+          peak = Math.max(peak, Math.abs(rig.turnLag.yaw));
+        }
+        return peak;
+      };
+      const hipLag = flickLag(0);
+      const adsLag = flickLag(1);
+      ok(hipLag > 0.1 && adsLag < hipLag * 0.4 && Number.isFinite(rig.turnLag.roll),
+        'aiming down sights tightens the weapon follower to a fraction of its hip-fire lag');
+
+      camera.rotation.set(0, 0, 0);
+      rig.setWeapon('lmg');
+      rig.ads(0);
+      for (let frame = 0; frame < 60; frame++) rig.update(1 / 60, { grounded: true });
+      const restX = rig.posG.position.x;
+      for (let frame = 0; frame < 30; frame++) {
+        rig.update(1 / 60, { grounded: true, speed: 6, lateralSpeed: 6 });
+      }
+      const strafeLean = rig.posG.position.x - restX;
+      for (let frame = 0; frame < 90; frame++) rig.update(1 / 60, { grounded: true });
+      ok(strafeLean < -0.01 && Math.abs(rig.posG.position.x - restX) < 0.002,
+        'strafing right swings the carried gun left on a lagged spring that settles when stopped');
+
+      // Grenade wind-up pulls the gun aside while held; release lunges and settles.
+      camera.rotation.set(0, 0, 0);
+      rig.setWeapon('rifle');
+      for (let frame = 0; frame < 60; frame++) rig.update(1 / 60, { grounded: true });
+      const restY = rig.content.position.y;
+      rig.grenadeCharge(1);
+      for (let frame = 0; frame < 40; frame++) rig.update(1 / 60, { grounded: true });
+      const woundY = rig.content.position.y;
+      rig.grenadeThrow(1);
+      let minZ = Infinity;
+      for (let frame = 0; frame < 30; frame++) {
+        rig.update(1 / 60, { grounded: true });
+        minZ = Math.min(minZ, rig.content.position.z + rig.posG.position.z);
+      }
+      for (let frame = 0; frame < 120; frame++) rig.update(1 / 60, { grounded: true });
+      ok(woundY < restY - 0.04 && minZ < -0.02 + rig.content.position.z
+          && Math.abs(rig.content.position.y - restY) < 0.003,
+        'grenade hold winds the weapon down and aside, release lunges forward, and the pose settles');
     } finally {
       rig.dispose();
     }

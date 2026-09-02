@@ -21,6 +21,14 @@ evidence belongs to Extended QA.
 | VB-030-C | Killfeed identifies the weapon and the top strip shows team, alive state, and points | Focused HUD contract plus connected live-bot inspection | Verified in `5130cbe` |
 | VB-030-D | Solstice is a deterministic all-mode solar-observatory arena with truthful preview art | Template invariants, six production capture views, iterative visual QA, and final production-rendered preview | Verified in `5130cbe` |
 | VB-030-E | New behavior preserves modular seams without expanding the test-file count | Shared grenade rules, dedicated status-strip module, existing focused contracts, full suite, browser flow, and container smoke | Verified in `5130cbe` |
+| VB-031-A | Coarse-pointer devices can move, aim, fire, ADS, jump, crouch, reload, charge grenades, interact, swap, buy, and pause without pointer lock | Existing input contract plus connected touch-mode browser flow | Verified locally; release pending |
+| VB-031-B | Mobile controls and HUD remain usable in phone landscape and portrait safe-area layouts | Deterministic 844×390 and 390×844 connected screenshots | Verified locally; release pending |
+| VB-031-C | Mobile support remains behind a dedicated DOM/pointer lifecycle module without adding test files | `TouchControls` seam plus expanded input and browser contracts | Verified locally; release pending |
+| VB-032-A | Mouse sensitivity uses a shooter-scale range with a versioned preference key and ADS/zoom look scaling | Input and HUD contracts plus the `LocalPlayer` look-scale contract | Verified locally; release pending |
+| VB-032-B | Camera recoil is a weight-scaled impulse spring with aim climb and coupled roll | `LocalPlayer` recoil trace contract | Verified locally; release pending |
+| VB-032-C | The first-person weapon moves independently of the eye: heavier follower with overshoot, ADS tightening, strafe lean, and mass-scaled kick springs | Viewmodel follower, ADS-lag, and strafe-lean contracts | Verified locally; release pending |
+| VB-032-E | Mobile controls: aim anywhere, floating joystick with sprint ring, fire-and-aim drag, tap-to-fire, tap-toggle ADS/crouch, haptics, fullscreen/landscape request, gesture suppression, and portrait hint | Touch helper and input contracts plus connected touch browser flow | Verified locally; release pending |
+| VB-032-D | Grenade handling: shared launch/flight integrator, charge trajectory preview, instant local throw adopted by authority, wind-up/throw animation, pin/throw audio, fuse strobe, and max-charge HUD | Shared-rules, `GrenadeFX`, rig, and HUD contracts plus server grenade smoke | Verified locally; release pending |
 
 ## VB-029 release evidence
 

@@ -1,3 +1,5 @@
+import { MOUSE_SENSITIVITY } from '../input-settings.js';
+
 function clampNumber(value, min, max, fallback) {
   const number = Number(value);
   return Number.isFinite(number) ? Math.max(min, Math.min(max, number)) : fallback;
@@ -47,8 +49,8 @@ export class GameplayUiFlow {
     if (!nextSettings || typeof nextSettings !== 'object') return;
     const sensitivity = clampNumber(
       nextSettings.sensitivity,
-      0.005,
-      0.08,
+      MOUSE_SENSITIVITY.min,
+      MOUSE_SENSITIVITY.max,
       this._input.getSensitivity(),
     );
     const volume = clampNumber(nextSettings.volume, 0, 1, this._settings.masterVolume);

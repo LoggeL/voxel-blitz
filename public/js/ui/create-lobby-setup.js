@@ -19,7 +19,11 @@ import {
   saveName,
   savePref,
 } from './hud-support.js';
-import { MOUSE_SENSITIVITY } from '../input-settings.js';
+import {
+  formatMouseSensitivity,
+  MOUSE_SENSITIVITY,
+  SENSITIVITY_PREF_KEY,
+} from '../input-settings.js';
 
 function clampBots(value) {
   const parsed = Number(value);
@@ -162,12 +166,12 @@ export class CreateLobbySetup {
     sensitivityInput.type = 'range';
     sensitivityInput.min = String(MOUSE_SENSITIVITY.min);
     sensitivityInput.max = String(MOUSE_SENSITIVITY.max);
-    sensitivityInput.step = '0.001';
+    sensitivityInput.step = String(MOUSE_SENSITIVITY.step);
     sensitivityInput.value = String(this.getSensitivity());
     const syncSensitivity = () => {
       const value = Number(sensitivityInput.value);
-      sensitivityValue.textContent = (value * 100).toFixed(1);
-      savePref('vb-sens', value);
+      sensitivityValue.textContent = formatMouseSensitivity(value);
+      savePref(SENSITIVITY_PREF_KEY, value);
       this.setSensitivity(value);
     };
     sensitivityInput.addEventListener('input', syncSensitivity);

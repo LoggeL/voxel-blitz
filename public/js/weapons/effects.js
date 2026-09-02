@@ -94,8 +94,15 @@ export class Effects {
     if (!this._disposed) this.brass.spawn(position, velocity);
   }
 
-  grenadeThrow(event) {
-    if (!this._disposed) this.grenades.throw(event);
+  /** `options.local` spawns a prediction; `options.fromSelf` lets authority adopt it. */
+  grenadeThrow(event, options = {}) {
+    if (!this._disposed) this.grenades.throw(event, options);
+  }
+
+  /** Predicted flight preview for a `{x,y,z,vx,vy,vz}` launch, or `null` to hide it. */
+  grenadePreview(launch) {
+    if (this._disposed) return null;
+    return this.grenades.setPreview(launch);
   }
 
   grenadeExplode(event) {

@@ -2238,6 +2238,15 @@ h1.vb-title::after {
   opacity: 1;
 }
 
+#grenade-count.is-full {
+  border-color: var(--danger);
+  box-shadow: 0 0 16px rgba(255, 90, 60, 0.36);
+}
+
+#grenade-count.is-full .vb-grenade-hint {
+  color: var(--danger);
+}
+
 /* ---------- live telemetry ---------- */
 
 #net-meter {

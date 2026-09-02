@@ -9,8 +9,19 @@
 //   pitch -= dy  (mouse down  => look down)
 //   fwd = (-sin(yaw)*cos(pitch), sin(pitch), -cos(yaw)*cos(pitch))
 
-import { clampMouseSensitivity, MOUSE_SENSITIVITY } from '../input-settings.js';
+import {
+  clampMouseSensitivity,
+  MOUSE_SENSITIVITY,
+  SENSITIVITY_PREF_KEY,
+} from '../input-settings.js';
 import { GRENADE_CHARGE_MS, clampGrenadeCharge } from '../../../shared/grenade-rules.js';
+import { TouchControls, shouldEnableTouchControls } from './touch-controls.js';
+
+// Touch drags travel far fewer pixels than a mouse, so thumb-look runs hotter than
+// the mouse scale (default 0.003 rad/px × 1.4 ≈ 0.0042 rad/px, about 72° per 300 px).
+const TOUCH_LOOK_SENSITIVITY_SCALE = 1.4;
+const TOUCH_MOVE_THRESHOLD = 0.2;
+const TOUCH_SPRINT_THRESHOLD = 0.86;
 
 function eventTime(event) {
   if (Number.isFinite(event?.timeStamp)) return event.timeStamp;
@@ -34,7 +45,7 @@ export class Input {
     // Sensitivity override (client-side preference). Guarded so the module
     // stays importable in Node (no localStorage).
     try {
-      const s = parseFloat(localStorage.getItem('vb-sens'));
+      const s = parseFloat(localStorage.getItem(SENSITIVITY_PREF_KEY));
       if (Number.isFinite(s) && s > 0) {
         this.sens = clampMouseSensitivity(s);
       }
@@ -49,6 +60,9 @@ export class Input {
     this._locked = false;
     this._gameplayEnabled = true;
     this._disposed = false;
+    this._touchMode = shouldEnableTouchControls();
+    this._touchControls = null;
+    this._pauseHandler = null;
     this._accDX = 0;          // pending scaled look delta (radians)
     this._accDY = 0;
     this._fireTapQueued = false;
@@ -77,6 +91,10 @@ export class Input {
     this._hBlur = () => this.clearTransient();
     this._hVis = () => { if (document.hidden) this.clearTransient(); };
     this._hLockChange = () => {
+      if (this._touchMode) {
+        this._locked = false;
+        return;
+      }
       this._locked = document.pointerLockElement === this.canvas;
       if (!this._locked) this.clearTransient();
       if (this.onLockChange) this.onLockChange(this._locked);
@@ -137,13 +155,23 @@ export class Input {
     document.addEventListener('wheel', this._hWheel, { passive: false });
     this.canvas.addEventListener('mousedown', this._hMouseDown);
     this.canvas.addEventListener('contextmenu', this._hContext);
+    this._mountTouchControls();
   }
 
   /** True while the game canvas owns the pointer. */
   isLocked() { return this._locked; }
 
+  /** Mobile/coarse-pointer mode never depends on pointer lock. */
+  usesTouchControls() { return this._touchMode; }
+  requiresPointerLock() { return !this._touchMode; }
+
+  setPauseHandler(handler) {
+    this._pauseHandler = typeof handler === 'function' ? handler : null;
+  }
+
   requestLock() {
     if (this._disposed || !this._gameplayEnabled) return;
+    if (this._touchMode) return;
     if (this.canvas && typeof this.canvas.requestPointerLock === 'function') {
       const p = this.canvas.requestPointerLock();
       if (p && typeof p.catch === 'function') p.catch(() => {});
@@ -166,19 +194,20 @@ export class Input {
     const next = !!enabled && !this._disposed;
     if (next === this._gameplayEnabled) return;
     this._gameplayEnabled = next;
+    this._touchControls?.setEnabled(next);
     if (!next) this.clearTransient();
   }
 
   /**
-   * Sets mouse-look sensitivity (rad per pixel) and persists the choice
-   * under 'vb-sens'. Clamped to the settings contract [0.005, 0.08].
+   * Sets mouse-look sensitivity (rad per pixel) and persists the choice under
+   * SENSITIVITY_PREF_KEY. Clamped to the MOUSE_SENSITIVITY contract range.
    * @param {number} v
    */
   setSensitivity(v) {
     const s = Number(v);
     if (!Number.isFinite(s) || s <= 0) return;
     this.sens = clampMouseSensitivity(s);
-    try { localStorage.setItem('vb-sens', String(this.sens)); } catch (_) {}
+    try { localStorage.setItem(SENSITIVITY_PREF_KEY, String(this.sens)); } catch (_) {}
   }
 
   /** Current sensitivity in rad per pixel. */
@@ -273,6 +302,11 @@ export class Input {
   }
 
   /** Live 0..1 hold progress for HUD presentation. */
+  /** True while the grenade key/button is held (charge may still read 0 on the first ms). */
+  isGrenadeCharging() {
+    return this._grenadeHeld;
+  }
+
   getGrenadeCharge(now = eventTime(null)) {
     if (!this._grenadeHeld) return 0;
     return clampGrenadeCharge((now - this._grenadeHoldStartedAt) / GRENADE_CHARGE_MS);
@@ -297,6 +331,7 @@ export class Input {
     this._pendingSlot = null;
     this._accDX = 0;
     this._accDY = 0;
+    this._touchControls?.reset(false);
   }
 
   /** Removes every listener this instance attached. Idempotent and terminal. */
@@ -321,11 +356,83 @@ export class Input {
       this.canvas?.removeEventListener('contextmenu', this._hContext);
     }
     this.onLockChange = null;
+    this._pauseHandler = null;
+    this._touchControls?.dispose();
+    this._touchControls = null;
     this._locked = false;
     if (ownedPointerLock && document.exitPointerLock) document.exitPointerLock();
   }
 
   // ----- internal handlers (also exercised by headless tests) -----
+  _canReadGameplay() {
+    return this._gameplayEnabled && (this._locked || this.fallback || this._touchMode);
+  }
+
+  _mountTouchControls() {
+    if (!this._touchMode || this._touchControls || typeof document === 'undefined') return;
+    this._touchControls = new TouchControls({
+      onMove: (vector) => this._onTouchMove(vector),
+      onLook: (dx, dy) => this._onTouchLook(dx, dy),
+      onHold: (action, held, at) => this._onTouchHold(action, held, at),
+      onPulse: (action) => this._onTouchPulse(action),
+      onPause: () => {
+        if (this._gameplayEnabled) this._pauseHandler?.();
+      },
+    });
+    this._touchControls.mount(document.body);
+    this._touchControls.setEnabled(this._gameplayEnabled);
+  }
+
+  _onTouchMove({ x = 0, y = 0, magnitude = 0 } = {}) {
+    if (!this._gameplayEnabled) return;
+    this.keys.left = x < -TOUCH_MOVE_THRESHOLD;
+    this.keys.right = x > TOUCH_MOVE_THRESHOLD;
+    this.keys.forward = y < -TOUCH_MOVE_THRESHOLD;
+    this.keys.back = y > TOUCH_MOVE_THRESHOLD;
+    this.keys.sprint = this.keys.forward && magnitude >= TOUCH_SPRINT_THRESHOLD;
+  }
+
+  _onTouchLook(dx, dy) {
+    if (!this._gameplayEnabled) return;
+    const scale = this.sens * TOUCH_LOOK_SENSITIVITY_SCALE;
+    this._accDX += (Number(dx) || 0) * scale;
+    this._accDY += (Number(dy) || 0) * scale * (this.invertY ? -1 : 1);
+  }
+
+  _onTouchHold(action, held, at = eventTime(null)) {
+    const down = !!held;
+    if (!this._gameplayEnabled && down) return;
+    switch (action) {
+      case 'fire':
+        if (down && !this.wantFireHeld) this._fireTapQueued = true;
+        this.wantFireHeld = down;
+        break;
+      case 'ads': this.wantAdsHeld = down; break;
+      case 'jump': this.keys.jump = down; break;
+      case 'crouch': this.keys.crouch = down; break;
+      case 'interact': this.keys.interact = down; break;
+      case 'grenade':
+        if (down && !this._grenadeHeld) {
+          this._grenadeHeld = true;
+          this._grenadeHoldStartedAt = at;
+        } else if (!down && this._grenadeHeld) {
+          this._grenadeChargeQueued = this.getGrenadeCharge(at);
+          this._grenadeHeld = false;
+          this._grenadeHoldStartedAt = 0;
+        }
+        break;
+      default: break;
+    }
+  }
+
+  _onTouchPulse(action) {
+    if (!this._gameplayEnabled) return;
+    if (action === 'reload') this._reloadQueued = true;
+    else if (action === 'weapon') this._switchQueue += 1;
+    else if (action === 'buy') this._buyMenuQueued = true;
+    else if (action === 'fireTap') this._fireTapQueued = true;   // look-zone tap: one shot
+  }
+
   _onKeyDown(e) {
     if (this._disposed) return;
     if (e.code === 'KeyB') {
@@ -333,7 +440,7 @@ export class Input {
       this._buyMenuHeld = true;
       return;
     }
-    if (!this._gameplayEnabled || (!this._locked && !this.fallback)) return;
+    if (!this._canReadGameplay()) return;
     if (e.code === 'Space') e.preventDefault();
     switch (e.code) {
       case 'KeyW': this.keys.forward = true; break;
@@ -364,7 +471,7 @@ export class Input {
       this._buyMenuHeld = false;
       return;
     }
-    if (this._disposed || !this._gameplayEnabled || (!this._locked && !this.fallback)) return;
+    if (this._disposed || !this._canReadGameplay()) return;
     switch (e.code) {
       case 'KeyW': this.keys.forward = false; break;
       case 'KeyS': this.keys.back = false; break;

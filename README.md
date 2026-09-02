@@ -53,7 +53,7 @@ npm run modes:lobby  # selected mode/map lobby and wire contracts
 npm run modes:bots   # deterministic bot behavior in all four modes
 npm test             # atlas/world, smoke, lobby, mode-lobby, then bot-mode smoke
 npm run container:smoke # HTTP + WebSocket check against BASE_URL or localhost
-npm run browser:smoke   # connected menu, Quick Play, pause/resume, and quit flow
+npm run browser:smoke   # connected touch-mode menu, play, input, pause, and quit flow
 npm run audio:mix       # actual sample + synth + echo + limiter browser render
 ```
 
@@ -220,6 +220,18 @@ and scores reset.
 | `Tab` | scoreboard |
 | `Escape` | close an overlay, or open settings / resume / quit to main menu |
 
+On touch/coarse-pointer devices, the game enters mobile mode without pointer
+lock. The left stick floats to wherever your thumb lands and auto-sprints at its
+outer ring; drag anywhere else on the screen to aim, and a quick tap there fires
+one shot. FIRE aims while held (drag to track), ADS and crouch are tap-to-toggle
+and hold-to-hold, and G charges a grenade with a live landing preview. Dedicated
+buttons cover jump, reload, use/interact, weapon swap, S&D armory, and pause.
+The first touch asks for fullscreen and a landscape lock where the browser
+allows it, browser gestures (zoom, pull-to-refresh, selection) are suppressed,
+a portrait hint asks you to rotate, and buttons vibrate briefly on devices with
+haptics. Safe-area-aware portrait and landscape layouts keep the combat HUD
+clear of the controls. Append `?touch=1` to force this mode during desktop QA.
+
 ## The six guns
 
 | gun | mode | rate | ammo | feel identity |
@@ -260,10 +272,11 @@ the first-person weapon hides only while fully scoped. Authoritative death
 state drives a 1.2–1.5 second remote collapse and a deterministic local camera
 fall/roll, with every transform restored on respawn.
 
-`Escape` opens the in-game settings panel. Sensitivity (0.005–0.08, default
-0.018), master
-volume (0–1), and field of view (65–100) apply immediately and persist under
-`vb-sens`, `vb-volume`, and `vb-fov`. Resume closes the panel and returns to
+`Escape` opens the in-game settings panel. Sensitivity (0.0008–0.012 rad per
+pixel, default 0.003, shown ×1000 in the UI), master volume (0–1), and field of
+view (65–100) apply immediately and persist under `vb-sens-v2`, `vb-volume`, and
+`vb-fov`. Look input is scaled by the live zoom while aiming, so a scoped shot
+turns at the same on-screen rate per pixel as hip fire. Resume closes the panel and returns to
 play; Quit to Main Menu cleanly leaves the active match. While dead, a
 collision-safe chase camera follows legal living targets and displays the
 authoritative respawn deadline; S&D deaths remain spectators until the next

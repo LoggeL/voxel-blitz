@@ -1,10 +1,13 @@
 import path from 'node:path';
+import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
 import { launchCdpSession } from './lib/cdp-session.mjs';
 import { startServer, stopServer, waitForHttp } from './lib/server-process.mjs';
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const LIVE_WIDTH = Math.max(320, Number(process.env.BROWSER_SMOKE_WIDTH) || 1280);
+const LIVE_HEIGHT = Math.max(320, Number(process.env.BROWSER_SMOKE_HEIGHT) || 720);
 
 function requireCondition(condition, message) {
   if (!condition) throw new Error(message);
@@ -45,7 +48,7 @@ async function main() {
   try {
     const port = await server.port;
     await waitForHttp(port);
-    const url = `http://127.0.0.1:${port}/?debug=1&headless=1`;
+    const url = `http://127.0.0.1:${port}/?debug=1&headless=1&touch=1`;
     browser = await launchCdpSession(url);
     const page = browser.page;
 
@@ -97,10 +100,10 @@ async function main() {
     const fitsCompact = await page.evaluate(`document.documentElement.scrollWidth <= window.innerWidth + 1`);
     requireCondition(fitsCompact, 'create-lobby detail step avoids horizontal overflow at compact width');
     await page.send('Emulation.setDeviceMetricsOverride', {
-      width: 1280,
-      height: 720,
+      width: LIVE_WIDTH,
+      height: LIVE_HEIGHT,
       deviceScaleFactor: 1,
-      mobile: false,
+      mobile: LIVE_WIDTH <= 720,
     });
     await page.evaluate(`document.getElementById('create-step-back').click()`);
     await page.waitFor(`document.getElementById('menu-primary-step')?.getAttribute('aria-hidden') === 'false'`, {
@@ -127,6 +130,79 @@ async function main() {
     requireCondition(live.shader?.enabled === true && live.shader.frames > 0 &&
       live.shader.fallbacks === 0 && live.shader.bufferWidth > 0 && live.shader.bufferHeight > 0,
     'combat post-process compiles and renders through its bounded target');
+
+    const touchControls = await page.evaluate(`(() => ({
+      active: document.getElementById('touch-controls')?.classList.contains('is-active'),
+      buttons: document.querySelectorAll('#touch-controls .vb-touch-button').length,
+      move: !!document.getElementById('touch-move-zone'),
+      look: !!document.getElementById('touch-look-zone'),
+      coarseClass: document.documentElement.classList.contains('vb-touch-mode'),
+    }))()`);
+    requireCondition(touchControls.active && touchControls.buttons === 10 &&
+      touchControls.move && touchControls.look && touchControls.coarseClass,
+    'mobile live play exposes movement, aim, fire, and auxiliary touch controls');
+
+    const mobileInput = await page.evaluate(`(async () => {
+      const pointer = (type, target, init) => target.dispatchEvent(new PointerEvent(type, {
+        bubbles: true, cancelable: true, pointerType: 'touch', isPrimary: true,
+        buttons: type === 'pointerup' ? 0 : 1, ...init,
+      }));
+      const look = document.getElementById('touch-look-zone');
+      const controls = document.getElementById('touch-controls');
+      const waitUntilControllable = async () => {
+        for (let i = 0; i < 120; i += 1) {
+          if (window.__vb.stats.alive && controls.classList.contains('is-active')) return true;
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+        return false;
+      };
+      await waitUntilControllable();
+      const lookRect = look.getBoundingClientRect();
+      pointer('pointerdown', look, { pointerId: 71, clientX: lookRect.left + 80, clientY: lookRect.top + 80 });
+      const lookEngaged = look.classList.contains('is-engaged');
+      pointer('pointermove', look, { pointerId: 71, clientX: lookRect.left + 118, clientY: lookRect.top + 62 });
+      pointer('pointerup', look, { pointerId: 71, clientX: lookRect.left + 118, clientY: lookRect.top + 62 });
+      const lookReleased = !look.classList.contains('is-engaged');
+
+      const move = document.getElementById('touch-move-zone');
+      const base = move.querySelector('.vb-touch-stick-base').getBoundingClientRect();
+      const cx = base.left + base.width / 2;
+      const cy = base.top + base.height / 2;
+      pointer('pointerdown', move, { pointerId: 72, clientX: cx, clientY: cy });
+      pointer('pointermove', move, { pointerId: 72, clientX: cx, clientY: cy - 52 });
+      await new Promise((resolve) => setTimeout(resolve, 80));
+      const knob = move.querySelector('.vb-touch-stick-knob').style.transform;
+      pointer('pointerup', move, { pointerId: 72, clientX: cx, clientY: cy - 52 });
+
+      await waitUntilControllable();
+      const fire = document.getElementById('touch-fire');
+      pointer('pointerdown', fire, { pointerId: 73, clientX: 0, clientY: 0 });
+      const fireHeld = fire.getAttribute('aria-pressed') === 'true';
+      pointer('pointerup', fire, { pointerId: 73, clientX: 0, clientY: 0 });
+      return {
+        lookEngaged,
+        lookReleased,
+        knob,
+        fireHeld,
+        fireReleased: fire.getAttribute('aria-pressed') === 'false',
+        aliveAfter: window.__vb.stats.alive,
+        controlsActiveAfter: document.getElementById('touch-controls')?.classList.contains('is-active'),
+      };
+    })()`);
+    requireCondition(mobileInput.lookEngaged && mobileInput.lookReleased &&
+      mobileInput.knob !== 'translate(0px, 0px)' &&
+      mobileInput.fireHeld && mobileInput.fireReleased,
+    `mobile pointer lifecycles route look, persistent joystick, and fire hold/release ${JSON.stringify(mobileInput)}`);
+
+    if (process.env.BROWSER_SMOKE_SCREENSHOT) {
+      const screenshot = await page.send('Page.captureScreenshot', {
+        format: 'png',
+        captureBeyondViewport: false,
+      });
+      const output = path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT);
+      await writeFile(output, Buffer.from(screenshot.data, 'base64'));
+      console.log(`mobile screenshot: ${output}`);
+    }
 
     await pressEscape(page);
     await page.waitFor(`window.__vb.stats.settingsOpen === true &&
