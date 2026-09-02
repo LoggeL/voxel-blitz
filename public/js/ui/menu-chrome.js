@@ -5,6 +5,7 @@ const MENU_BACKDROPS = Object.freeze({
   depot: '/assets/maps/depot-concept.webp',
   citadel: '/assets/maps/citadel-concept.webp',
   solstice: '/assets/maps/solstice-concept.webp',
+  caldera: '/assets/maps/caldera-concept.webp',
 });
 
 export function setMenuBackdrop(root, map = 'foundry') {

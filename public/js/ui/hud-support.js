@@ -60,6 +60,7 @@ export const MAP_LABELS = Object.freeze({
   depot: 'DEPOT',
   citadel: 'CITADEL',
   solstice: 'SOLSTICE',
+  caldera: 'CALDERA',
 });
 
 export const MAP_DESCRIPTIONS = Object.freeze({
@@ -67,6 +68,7 @@ export const MAP_DESCRIPTIONS = Object.freeze({
   depot: 'Point-symmetric cargo depot with mirrored containers & central plaza (Fun / TDM / Gun Game)',
   citadel: 'Urban fortress with Courtyard A and Compound B tactical bomb sites (All Modes)',
   solstice: 'Desert solar observatory with a glass biodome, turbine hall, and compact linked lanes (All Modes)',
+  caldera: 'Volcanic caldera with a west obsidian gate and elevated east ember refinery (All Modes)',
 });
 
 export const MAP_PREVIEWS = Object.freeze({
@@ -74,6 +76,7 @@ export const MAP_PREVIEWS = Object.freeze({
   depot: './assets/maps/depot-concept.webp',
   citadel: './assets/maps/citadel-concept.webp',
   solstice: './assets/maps/solstice-concept.webp',
+  caldera: './assets/maps/caldera-concept.webp',
 });
 
 export const CARDINAL = Object.freeze({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' });

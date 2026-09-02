@@ -511,7 +511,7 @@ export async function runHudContracts(ok, installGlobals) {
       'HUD menu exposes every canonical game mode');
       modeSelect.value = 'snd';
       modeSelect.dispatchEvent(event('change'));
-      ok(mapSelect.options.map((option) => option.value).join(',') === 'foundry,citadel,solstice'
+      ok(mapSelect.options.map((option) => option.value).join(',') === 'foundry,citadel,solstice,caldera'
         && !mapSelect.options.some((option) => option.value === 'depot'),
       'HUD menu removes maps incompatible with the selected mode');
       modeSelect.value = 'tdm';

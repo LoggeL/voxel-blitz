@@ -199,7 +199,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 // ---------------------------------------------- mode + map foundation contract
 {
   ok(sameValue(MODE_IDS, ['fun', 'tdm', 'snd', 'gungame'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -288,6 +288,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     depot: ['fun', 'tdm', 'gungame'],
     citadel: ['fun', 'tdm', 'snd', 'gungame'],
     solstice: ['fun', 'tdm', 'snd', 'gungame'],
+    caldera: ['fun', 'tdm', 'snd', 'gungame'],
   };
   ok(sameValue(MAP_MODE_COMPATIBILITY, expectedCompatibility)
     && deeplyFrozen(MAP_MODE_COMPATIBILITY)
@@ -317,18 +318,21 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     depot: 'Depot',
     citadel: 'Citadel',
     solstice: 'Solstice',
+    caldera: 'Caldera',
   };
   const expectedMapHashes = {
     foundry: '78553d52',
     depot: '3769109c',
     citadel: '7fdfff21',
     solstice: 'e7809a25',
+    caldera: 'fe8b73d1',
   };
   const expectedSpawnCounts = {
     foundry: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 5, sndDefenders: 5 },
     depot: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 0, sndDefenders: 0 },
     citadel: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     solstice: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
+    caldera: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
   };
   const pristineBytes = new Map();
 

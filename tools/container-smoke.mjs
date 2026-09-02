@@ -76,7 +76,7 @@ async function checkHttp(baseUrl, signal) {
 
 function validateWelcome(message) {
   requireCondition(hasExactKeys(message, WELCOME_KEYS), 'welcome frame is incomplete');
-  requireCondition(message.gameMode === 'fun' && ['foundry', 'depot', 'solstice'].includes(message.map),
+  requireCondition(message.gameMode === 'fun' && ['foundry', 'depot', 'solstice', 'caldera'].includes(message.map),
     `welcome identity is ${JSON.stringify({ mode: message.gameMode, map: message.map })}`);
   requireCondition(typeof message.id === 'string' && message.id.length > 0,
     'welcome has no player id');

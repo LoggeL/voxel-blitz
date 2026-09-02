@@ -49,9 +49,9 @@ The first non-binary frame is exactly one admission shape:
 - `{t:'join',name:string,bots?:number}` selects quick play. It joins the first
   live shared Fun room with capacity or creates one. `bots` defaults to zero and
   applies only to a newly created quick room. Fresh quick rooms rotate between
-  `foundry`, `depot`, and `solstice`.
+  `foundry`, `depot`, `solstice`, and `caldera`.
 - `{t:'create',name:string,bots:number,gameMode?:'fun'|'tdm'|'snd'|'gungame',
-  map?:'foundry'|'depot'|'citadel'|'solstice'}` creates a public waiting lobby.
+  map?:'foundry'|'depot'|'citadel'|'solstice'|'caldera'}` creates a public waiting lobby.
   Omitted values default to `fun` and the first compatible map. An explicitly
   incompatible mode/map pair is malformed.
 - `{t:'join',name:string,lobby:string}` joins a public waiting or live lobby and
@@ -169,7 +169,7 @@ Exports block ids `AIR` through `PALE`, `BLOCK_HP`, `GRENADE_RESISTANCE`, `SX`,
 `createWorldState(serializedBytes?)`. It also exports `getMapMeta(id)` and
 `createMapState(id,serializedBytes?)`.
 
-`createMapState` accepts `foundry`, `depot`, `citadel`, or `solstice` and returns an
+`createMapState` accepts `foundry`, `depot`, `citadel`, `solstice`, or `caldera` and returns an
 independent `{mapId,meta,getBlock,setBlock,heightAt,findSpawns,serializeWorld,
 rebuildHeightMap}`. Templates are generated and cached once, then cloned for
 each room. `meta` is deeply frozen and has
@@ -179,11 +179,12 @@ the map id travels in JSON. `createWorldState` remains the default Foundry API.
 
 ### shared/modes.js
 Exports immutable `MODE_IDS=['fun','tdm','snd','gungame']`,
-`TEAM_IDS=['alpha','bravo']`, `MAP_IDS=['foundry','depot','citadel','solstice']`,
+`TEAM_IDS=['alpha','bravo']`, `MAP_IDS=['foundry','depot','citadel','solstice','caldera']`,
 `MODE_RULES`, `MAP_MODE_COMPATIBILITY`, S&D credit constants,
 `WEAPON_PRICES`, defaults, validators/normalizers for mode/team/map/weapon ids,
 `isTeamMode(modeId)`, and `isModeMapCompatible(modeId,mapId)`. This is the browser/server source of
-truth for mode ids, map compatibility, timings, and economy.
+truth for mode ids, map compatibility, timings, and economy. `MAP_MODE_COMPATIBILITY.caldera`
+covers every mode id.
 
 ### shared/combatmath.js
 Exports `WEAPONS`, `WEAPON_IDS`, `CONDITION_RULES`, `GRAVITY`, `PLAYER_HALF`,
@@ -238,7 +239,7 @@ enforces `maxDist`; `computeBlockedMuzzle` performs short cover probes.
   host start changes `waiting` to `live`, attaches configured bots, starts the
   engine, and broadcasts the replacement state.
 - Direct quick-play clients share a live Fun room until it reaches eight
-  humans. Quick play bypasses readiness, rotates Foundry/Depot/Solstice for
+  humans. Quick play bypasses readiness, rotates Foundry/Depot/Solstice/Caldera for
   fresh rooms, and starts a new room immediately.
 - Public live late joins are valid. They receive the current selected-map bytes
   without returning the room to waiting. An S&D live/post late join is assigned
@@ -292,7 +293,7 @@ and exposes `quickPlay(meta,name,bots?)`,
 - `buildMenu(onAction)` builds Quick Play/Create/Join and calls
   `onAction({mode:'quick'|'create'|'join',gameMode,map,name,bots,sensitivity,
   code})`. Create uses the selected compatible mode/map. Quick uses shared Fun
-  admission with five takeover bots and automatic Foundry/Depot/Solstice
+  admission with five takeover bots and automatic Foundry/Depot/Solstice/Caldera
   rotation; Join uses the code and inherits the room selection. Names trim to
   16 characters with `PLAYER` fallback; codes normalize to the invite alphabet
   and five characters. `?lobby=CODE` pre-fills and focuses Join.
@@ -475,16 +476,18 @@ step listener with the room.
   elimination.
 - **S&D economy:** players start with 800 credits; kill +300, plant +300, round
   win +3250, and consecutive losses +1400/+1900/+2400/+2900/+3400, capped at
-  16000. Prices are revolver 0, SMG 1250, shotgun 1800, rifle 2700, LMG 4000,
-  sniper 4750. Only alive participants buy during prep. A purchase owns,
+  16000. Prices are revolver 0, SMG 1250, shotgun 1800, rifle 2700, longarc 3500,
+  LMG 4000, sniper 4750. Only alive participants buy during prep. A purchase owns,
   selects, and refills that weapon. New/dead players start the next round with
   revolver; survivors retain purchases and remaining ammunition.
 - **Map compatibility:** `foundry` supports Fun/TDM/S&D/Gun Game; `depot`
-  supports Fun/TDM/Gun Game; `citadel` and `solstice` support
+  supports Fun/TDM/Gun Game; `citadel`, `solstice`, and `caldera` support
   Fun/TDM/S&D/Gun Game. Foundry has A/B sites, Depot is a compact
   point-symmetric cargo map, Citadel has Courtyard A and elevated Compound B,
-  and Solstice is a desert solar observatory with a biodome, broken heliostat
-  ring, turbine hall, compact linked lanes, and A/B sites. Every declared spawn
+  Solstice is a desert solar observatory with a biodome, broken heliostat
+  ring, turbine hall, compact linked lanes, and A/B sites, and Caldera is a
+  volcanic caldera with obsidian gate A, elevated refinery B, and a central
+  vent. Every declared spawn
   has solid footing and two-block headroom.
 - **Settings:** sensitivity defaults to `0.003` rad/px, clamps to
   `0.0008–0.012`, and persists as `vb-sens-v2` (`SENSITIVITY_PREF_KEY`; the
@@ -572,7 +575,7 @@ step listener with the room.
   follows the immediate camera with weight-limited speed and acceleration.
   Heavier weapons trail farther and settle more slowly; camera/authority aim is
   never delayed or altered.
-- **Worlds:** Foundry, Depot, Citadel, and Solstice are deterministic 128×40×96 templates.
+- **Worlds:** Foundry, Depot, Citadel, Solstice, and Caldera are deterministic 128×40×96 templates.
   Every room mutates an independent clone of its selected map. Block damage and
   serialized late-join state remain local to that room.
 

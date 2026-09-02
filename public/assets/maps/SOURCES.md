@@ -49,5 +49,15 @@ used only for art direction. No external source assets were used.
   The generated reference guided voxel revisions; the shipped preview is a
   later capture of the resulting production geometry rather than concept art.
 
+## Caldera
+
+- File: `caldera-concept.webp`
+- Created: 2026-09-03
+- Source capture: `.artifacts/map-renders/caldera-hero.png`
+- Art-direction reference: none (built directly in voxels)
+- Prompt intent: none. The shipped preview is the production hero capture
+  converted locally to WebP at quality 82 with metadata removed, per the
+  Solstice direct-render precedent.
+
 All generated PNGs were converted locally to WebP at quality 82 with metadata
 removed. The original generated files remain in the Codex image output folder.

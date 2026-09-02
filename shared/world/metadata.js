@@ -7,6 +7,7 @@ export const MAP_NAMES = Object.freeze({
   depot: 'Depot',
   citadel: 'Citadel',
   solstice: 'Solstice',
+  caldera: 'Caldera',
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
@@ -51,6 +52,17 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
       defenders: [[16, 10], [34, 10], [52, 10], [76, 10], [94, 10], [112, 10]],
     },
   },
+  caldera: {
+    fun: [[12, 8], [36, 8], [64, 9], [92, 8], [115, 18], [115, 77], [92, 87], [64, 86], [36, 87], [12, 77], [45, 47], [82, 48]],
+    tdm: {
+      alpha: [[18, 87], [36, 87], [54, 87], [72, 87], [90, 87], [108, 87]],
+      bravo: [[18, 8], [36, 8], [54, 8], [72, 8], [90, 8], [108, 8]],
+    },
+    snd: {
+      attackers: [[18, 87], [36, 87], [54, 87], [72, 87], [90, 87], [108, 87]],
+      defenders: [[18, 8], [36, 8], [54, 8], [72, 8], [90, 8], [108, 8]],
+    },
+  },
 });
 
 export const MAP_SITE_LAYOUTS = Object.freeze({
@@ -66,6 +78,10 @@ export const MAP_SITE_LAYOUTS = Object.freeze({
   solstice: [
     { id: 'A', minX: 21, maxX: 34, minZ: 43, maxZ: 54, y: GROUND + 1.02 },
     { id: 'B', minX: 94, maxX: 106, minZ: 42, maxZ: 54, y: GROUND + 1.02 },
+  ],
+  caldera: [
+    { id: 'A', minX: 19, maxX: 32, minZ: 41, maxZ: 54, y: GROUND + 1.02 },
+    { id: 'B', minX: 96, maxX: 109, minZ: 41, maxZ: 54, y: GROUND + 4.02 },
   ],
 });
 
@@ -89,6 +105,11 @@ export const MAP_LANDMARKS = Object.freeze({
     { id: 'biodome', name: 'Glass Biodome', x: 28, z: 48 },
     { id: 'heliostat', name: 'Heliostat Ring', x: 64, z: 45 },
     { id: 'turbines', name: 'Turbine Hall', x: 101, z: 48 },
+  ],
+  caldera: [
+    { id: 'obsidian-gate', name: 'Obsidian Gate', x: 25, z: 48 },
+    { id: 'central-vent', name: 'Central Vent', x: 64, z: 48 },
+    { id: 'ember-refinery', name: 'Ember Refinery', x: 103, z: 48 },
   ],
 });
 

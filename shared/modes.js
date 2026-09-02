@@ -3,7 +3,7 @@
 
 export const MODE_IDS = Object.freeze(['fun', 'tdm', 'snd', 'gungame']);
 export const TEAM_IDS = Object.freeze(['alpha', 'bravo']);
-export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice']);
+export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera']);
 
 export const DEFAULT_MODE_ID = MODE_IDS[0];
 export const DEFAULT_TEAM_ID = TEAM_IDS[0];
@@ -85,6 +85,7 @@ export const MAP_MODE_COMPATIBILITY = Object.freeze({
   depot: DEPOT_MODE_IDS,
   citadel: MODE_IDS,
   solstice: MODE_IDS,
+  caldera: MODE_IDS,
 });
 
 export function isModeId(value) {

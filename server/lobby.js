@@ -24,7 +24,7 @@ const MAX_ROOMS = 16;
 const MAX_BOTS = 7;
 const QUICK_MIN_BOTS = 5;
 
-const QUICK_MAPS = Object.freeze(['foundry', 'depot', 'solstice']);
+const QUICK_MAPS = Object.freeze(['foundry', 'depot', 'solstice', 'caldera']);
 
 const CLOSE_MALFORMED = 4002;
 const CLOSE_UNKNOWN = 4004;

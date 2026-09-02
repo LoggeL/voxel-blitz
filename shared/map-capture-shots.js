@@ -31,6 +31,13 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   shot('solstice', 'turbine-hall', [73.5, 24.5, 81.5], [102, 22, 47], 72),
   shot('solstice', 'snd-site-a', [27.5, 19.5, 62], [27.5, 16.8, 49], 70, 'snd'),
   shot('solstice', 'snd-site-b', [116.5, 19, 48], [100, 16.8, 48], 70, 'snd'),
+
+  shot('caldera', 'hero', [64.5, 17.64, 86.5], [64, 19, 40], 75),
+  shot('caldera', 'gate', [45.5, 17.64, 48.5], [25, 16, 48], 75),
+  shot('caldera', 'vent', [64.5, 22.5, 68.5], [64, 19, 48], 72),
+  shot('caldera', 'refinery', [91.5, 22.5, 66.5], [103, 19, 48], 72),
+  shot('caldera', 'snd-site-a', [25.5, 20.5, 62], [25.5, 16, 47.5], 70, 'snd'),
+  shot('caldera', 'snd-site-b', [102.5, 23.5, 62], [102.5, 19, 47.5], 70, 'snd'),
 ]);
 
 export function findMapCaptureShot(map, id = 'hero') {

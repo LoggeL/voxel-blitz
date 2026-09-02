@@ -200,6 +200,7 @@ and scores reset.
 | `depot` | Fun, TDM, Gun Game | point-symmetric cargo Depot |
 | `citadel` | Fun, TDM, S&D, Gun Game | Citadel with Courtyard A and elevated Compound B |
 | `solstice` | Fun, TDM, S&D, Gun Game | desert solar observatory with a biodome, heliostat ring, and turbine hall |
+| `caldera` | Fun, TDM, S&D, Gun Game | volcanic caldera with Obsidian Gate A and elevated Ember Refinery B |
 
 ## Controls
 
