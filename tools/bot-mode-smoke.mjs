@@ -20,7 +20,7 @@ import { PLAYER_KEYS } from './lib/protocol-contract.mjs';
 
 const CLOCK_START = 1_000_000;
 const FEET_Y = GROUND + 1.02;
-const BUY_PRIORITY = ['sniper', 'lmg', 'rifle', 'shotgun', 'smg'];
+const BUY_PRIORITY = ['sniper', 'lmg', 'longarc', 'rifle', 'shotgun', 'smg'];
 const MAP_META = Object.freeze({
   id: 'foundry',
   spawns: {

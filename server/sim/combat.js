@@ -153,7 +153,7 @@ export function rewindVictim(v, now, viewAgeMs = NETWORK_PRESENTATION.defaultVie
   return v;
 }
 
-export function nearestVictim(shooter, o, d, limit, ctx) {
+export function nearestVictim(shooter, o, d, limit, ctx, minT = 0) {
   let best = null, bestT = limit;
   const rewoundByShooter = !shooter.bot;
   for (const v of ctx.entities.values()) {
@@ -165,7 +165,7 @@ export function nearestVictim(shooter, o, d, limit, ctx) {
       pos.x - PLAYER_HALF.x, pos.y, pos.z - PLAYER_HALF.x,
       pos.x + PLAYER_HALF.x, pos.y + P_HEIGHT, pos.z + PLAYER_HALF.x,
     );
-    if (t != null && t < bestT) {
+    if (t != null && t >= minT && t < bestT) {
       bestT = t;
       best = { victim: v, x: pos.x, y: pos.y, z: pos.z };
     }
@@ -243,40 +243,121 @@ export function fireOneShot(p, ctx) {
     p.id, muzzle, [fwd.x, fwd.y, fwd.z], def.id,
     [firstDir.x, firstDir.y, firstDir.z],
   ));
+  const pierce = def.pierce;
+  const piercePlayers = Number.isFinite(pierce?.players) ? Math.max(0, Math.trunc(pierce.players)) : 0;
+  const pierceWalls = Number.isFinite(pierce?.walls) ? Math.max(0, Math.trunc(pierce.walls)) : 0;
+  const playerFalloff = Number.isFinite(pierce?.playerFalloff) ? pierce.playerFalloff : 1;
+  const wallFalloff = Number.isFinite(pierce?.wallFalloff) ? pierce.wallFalloff : 1;
+  const piercing = piercePlayers > 0 || pierceWalls > 0;
   for (let pellet = 0; pellet < def.pellets; pellet++) {
     const d = pellet === 0
       ? firstDir
       : samplePelletDirection(def, fwd, rng, coneDeg, pellet);
 
-    const hit = raycastVoxels(
-      ctx.solidAt,
-      oEye[0], oEye[1], oEye[2],
-      d.x, d.y, d.z,
-      SHOT_REACH,
-    );
-    const wallT = hit ? hit.t : SHOT_REACH;
+    if (!piercing) {
+      const hit = raycastVoxels(
+        ctx.solidAt,
+        oEye[0], oEye[1], oEye[2],
+        d.x, d.y, d.z,
+        SHOT_REACH,
+      );
+      const wallT = hit ? hit.t : SHOT_REACH;
 
-    const tgt = nearestVictim(p, oEye, d, wallT, ctx);
-    if (tgt) {
-      const ix = oEye[0] + d.x * tgt.t;
-      const iy = oEye[1] + d.y * tgt.t;
-      const iz = oEye[2] + d.z * tgt.t;
-      const hs = iy - tgt.ry > HEADSHOT_Y_FRAC * P_HEIGHT;
-      let dmg = damageAtDistance(def, tgt.t) * (hs ? def.headMult : 1);
-      dmg = Math.round(dmg * 10) / 10;
-      const lethal = tgt.victim.takeDamage(dmg, hs);
-      ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, [ix, iy, iz]));
-      if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
-        longRange: tgt.t >= LONG_RANGE_KILL_DISTANCE,
-        noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
-      });
-    } else if (hit) {
-      const type = ctx.getBlock(hit.x, hit.y, hit.z);
-      if (BLOCK_HP[type] != null) {
-        const dmgB = Math.max(BLOCK_MIN_DMG, Math.round(damageAtDistance(def, hit.t)));
-        damageBlock(hit.x, hit.y, hit.z, type, dmgB, ctx);
+      const tgt = nearestVictim(p, oEye, d, wallT, ctx);
+      if (tgt) {
+        const ix = oEye[0] + d.x * tgt.t;
+        const iy = oEye[1] + d.y * tgt.t;
+        const iz = oEye[2] + d.z * tgt.t;
+        const hs = iy - tgt.ry > HEADSHOT_Y_FRAC * P_HEIGHT;
+        let dmg = damageAtDistance(def, tgt.t) * (hs ? def.headMult : 1);
+        dmg = Math.round(dmg * 10) / 10;
+        const lethal = tgt.victim.takeDamage(dmg, hs);
+        ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, [ix, iy, iz]));
+        if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
+          longRange: tgt.t >= LONG_RANGE_KILL_DISTANCE,
+          noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
+        });
+      } else if (hit) {
+        const type = ctx.getBlock(hit.x, hit.y, hit.z);
+        if (BLOCK_HP[type] != null) {
+          const dmgB = Math.max(BLOCK_MIN_DMG, Math.round(damageAtDistance(def, hit.t)));
+          damageBlock(hit.x, hit.y, hit.z, type, dmgB, ctx);
+        }
+        // Indestructible types simply terminate the tracer here.
       }
-      // Indestructible types simply terminate the tracer here.
+      continue;
+    }
+
+    // Rail slug: one ray per pellet that keeps going through players and walls.
+    // State resets per pellet; distances stay absolute from the eye for falloff.
+    let ox = oEye[0], oy = oEye[1], oz = oEye[2];
+    let traveled = 0;
+    let dmgMult = 1;
+    let playersLeft = piercePlayers;
+    let wallsLeft = pierceWalls;
+    for (;;) {
+      const reach = SHOT_REACH - traveled;
+      if (!(reach > 0)) break;
+      const o = [ox, oy, oz];
+      const hit = raycastVoxels(
+        ctx.solidAt,
+        ox, oy, oz,
+        d.x, d.y, d.z,
+        reach,
+      );
+      const wallSegT = hit ? hit.t : reach;
+      let minT = 0;
+      let stoppedInFlesh = false;
+      for (;;) {
+        const tgt = nearestVictim(p, o, d, wallSegT, ctx, minT);
+        if (!tgt) break;
+        const dist = traveled + tgt.t;
+        const ix = ox + d.x * tgt.t;
+        const iy = oy + d.y * tgt.t;
+        const iz = oz + d.z * tgt.t;
+        const hs = iy - tgt.ry > HEADSHOT_Y_FRAC * P_HEIGHT;
+        let dmg = damageAtDistance(def, dist) * (hs ? def.headMult : 1) * dmgMult;
+        dmg = Math.round(dmg * 10) / 10;
+        const lethal = tgt.victim.takeDamage(dmg, hs);
+        ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, [ix, iy, iz]));
+        if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
+          longRange: dist >= LONG_RANGE_KILL_DISTANCE,
+          noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
+        });
+        if (playersLeft <= 0) { stoppedInFlesh = true; break; }
+        playersLeft -= 1;
+        dmgMult *= playerFalloff;
+        minT = tgt.t + 0.1;
+      }
+      if (stoppedInFlesh) break;
+      if (!hit) break;
+      if (wallsLeft <= 0) {
+        const type = ctx.getBlock(hit.x, hit.y, hit.z);
+        if (BLOCK_HP[type] != null) {
+          const dmgB = Math.max(BLOCK_MIN_DMG, Math.round(damageAtDistance(def, traveled + hit.t)));
+          damageBlock(hit.x, hit.y, hit.z, type, dmgB, ctx);
+        }
+        // Indestructible types simply terminate the tracer here.
+        break;
+      }
+      // Pierce this wall untouched and resume past its far face. The DDA reports
+      // an origin voxel immediately, so entry + 0.05 would re-hit this same wall;
+      // stepping to the far face + 0.05 carries the identical 0.05 epsilon.
+      wallsLeft -= 1;
+      dmgMult *= wallFalloff;
+      let tExit = Infinity;
+      if (d.x > 0) tExit = Math.min(tExit, (hit.x + 1 - ox) / d.x);
+      else if (d.x < 0) tExit = Math.min(tExit, (hit.x - ox) / d.x);
+      if (d.y > 0) tExit = Math.min(tExit, (hit.y + 1 - oy) / d.y);
+      else if (d.y < 0) tExit = Math.min(tExit, (hit.y - oy) / d.y);
+      if (d.z > 0) tExit = Math.min(tExit, (hit.z + 1 - oz) / d.z);
+      else if (d.z < 0) tExit = Math.min(tExit, (hit.z - oz) / d.z);
+      if (!Number.isFinite(tExit) || tExit < hit.t) tExit = hit.t;
+      const step = tExit + 0.05;
+      ox += d.x * step;
+      oy += d.y * step;
+      oz += d.z * step;
+      traveled += step;
     }
   }
 }

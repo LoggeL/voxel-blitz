@@ -28,7 +28,7 @@ export const CONDITION_RULES = Object.freeze({
 
 /**
  * @typedef {Object} WeaponDef
- * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver')
+ * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc')
  * @property {string} name          display name
  * @property {'auto'|'semi'|'pump'|'bolt'} mode trigger behavior
  * @property {number} rpm           rounds per minute cap
@@ -58,7 +58,7 @@ export const CONDITION_RULES = Object.freeze({
  * @property {string} sfx           bank key for the audio engine
  */
 
-/** The six-gun roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
+/** The seven-gun roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
 export const WEAPONS = {
   rifle: {
     id: 'rifle', name: 'VK-77 RAPTOR', mode: 'auto',
@@ -175,9 +175,28 @@ export const WEAPONS = {
     tracer: { color: '#ffe0a3', width: 1.4, len: 28 },
     sfx: 'revolver',
   },
+  longarc: {
+    id: 'longarc', name: 'LN-03 LONGARC', mode: 'semi',
+    weightKg: 4.1,
+    rpm: 160, magSize: 8, spareMags: 6,
+    damage: [62, 45, 95], headMult: 2.0, pellets: 1,
+    spreadDeg: { hip: 1.6, ads: 0.08 }, bloomDeg: 0.5, bloomMaxDeg: 3.0,
+    bloomRecover: 3.2, moveSpreadDeg: 2.2,
+    crouchSpreadMult: 0.65,
+    recoil: {
+      pitch: 1.9, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.4, yawPattern: [-0.5, 0.35, 0.6, -0.3],
+      jitter: 0.07, resetMs: 900, adsMult: 0.65, recovery: 0.6,
+    },
+    adsFov: 38, zoom: 2, adsTime: 0.18,
+    reloadTime: 2.6, tacTime: 2.0, deployTime: 0.5,
+    tracer: { color: '#7dfcff', width: 1.5, len: 44 },
+    sfx: 'longarc',
+    pierce: { players: 2, walls: 1, playerFalloff: 0.7, wallFalloff: 0.6 },
+  },
 };
 
-export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver'];
+export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc'];
 
 /** Deterministic patterned camera kick in degrees; random01 only adds bounded micro-variation. */
 export function computeRecoilKickDeg(def, shotIndex, adsT = 0, random01 = 0.5) {

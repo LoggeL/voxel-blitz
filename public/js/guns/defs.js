@@ -186,6 +186,34 @@ export const TIMERS = {
     adsOffset: { x: 0.0, y: -0.105, z: -0.64 },
     kick: { stiffness: 235, damping: 22, yawWobble: 0.65 },
   },
+  longarc: {
+    // Coilgun DMR: single rail slug per trigger pull; the capacitor recharge
+    // (rechargeDur) is the visual signature, not a mechanical cycle.
+    tbase: -0.02,
+    rof: WEAPONS.longarc.rpm,
+    adsTime: WEAPONS.longarc.adsTime,
+    deployTime: WEAPONS.longarc.deployTime,
+    weightKg: WEAPONS.longarc.weightKg,
+    viewKick: { pitchDeg: WEAPONS.longarc.recoil.pitch, yawDeg: WEAPONS.longarc.recoil.yaw },
+    bursts: [[0]],          // semi-auto: one slug per pull, no auto cadence.
+    anglesRad: [-0.0012],
+    interval: 0,
+    clip: 999,
+    muzzle: [0, 0.055, -0.71],
+    portY: 0.15,
+    ejectRight: -0.06,
+    barrelLen: 0.41,        // exposed rail breech -0.30 -> tip.
+    heatLen: [0.35, 0.9],   // coil-bank glow spans the rail length.
+    boltTravel: 0.11,       // capacitor sled throw on recharge.
+    rechargeDur: 0.14,      // slow cyan coil-glow decay sells the charge-up.
+    pumpMag: 0,
+    cycleBack: false,
+    cycleKind: null,
+    ejectOnFire: false,     // caseless slug: nothing to fling per shot.
+    magTimeline: { start: 0.2, home: 0.8, clickAt: 0.9, type: 'mag' },
+    adsOffset: { x: 0, y: -0.155, z: -0.78 },
+    kick: { stiffness: 190, damping: 21, yawWobble: 0.55 },
+  },
 };
 
 /**
@@ -262,9 +290,13 @@ export const HANDS = {
     grip: { x: 0.042, y: -0.012, z: -0.055 },
     support: null,
   },
+  longarc: {
+    grip: { x: 0.045, y: 0.015, z: -0.10 },                // dominant palm wraps pistol grip.
+    support: { x: -0.055, y: 0.005, z: -0.42, on: 'body' }, // foregrip cup under the rail shroud.
+  },
 };
 
-/** Equip ("draw") choreography, fractions of WEAPONS[id].deployTime. Shared by all six guns;
+/** Equip ("draw") choreography, fractions of WEAPONS[id].deployTime. Shared by all seven guns;
  * heavier weapons feel slower automatically through their canonical deploy times. */
 export const DEPLOY = {
   raise: 0.38,     // first slice spends rising out of the equip dip.

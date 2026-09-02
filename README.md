@@ -80,7 +80,7 @@ representative ally-spectator shot. The focused 31-frame matrix is written to
 `.artifacts/avatar-renders/`.
 
 The project-owned illustrations in `public/assets/weapons/hud/` are the
-canonical silhouette and material references for all six procedural models.
+canonical silhouette and material references for all seven procedural models.
 The capture flows validate that each reference-faithful model still fits both
 the first-person view and remote-avatar presentation.
 
@@ -256,7 +256,7 @@ a portrait hint asks you to rotate, and buttons vibrate briefly on devices with
 haptics. Safe-area-aware portrait and landscape layouts keep the combat HUD
 clear of the controls. Append `?touch=1` to force this mode during desktop QA.
 
-## The six guns
+## The seven guns
 
 | gun | mode | rate | ammo | feel identity |
 |---|---:|---:|---:|---|
@@ -266,6 +266,7 @@ clear of the controls. Append `?touch=1` to force this mode during desktop QA.
 | **LONGSHOT MK-II** bolt sniper | bolt | 42 rpm | 5 + 6 mags | 5× full-screen optic, rotary long-throw bolt, canyon echo crack |
 | **BASTION LMG** | automatic | 720 rpm | 60 + 4 mags | heavy sustained fire and the slowest viewmodel settling |
 | **IRONCLAD .44** revolver | semi-automatic | 300 rpm | 6 + 8 mags | high-damage precision sidearm with fast handling |
+| **LN-03 LONGARC** | semi-automatic | 160 rpm | 8 + 6 mags | wall/player-piercing rail slug, coil recharge cadence |
 
 Gun timing lives in `public/js/guns/defs.js` (timer table per weapon); shared
 ballistics/damage in `shared/combatmath.js`; authoritative resolve in
@@ -273,9 +274,8 @@ ballistics/damage in `shared/combatmath.js`; authoritative resolve in
 your reported view angles — client damage claims are never trusted.
 
 ## Feel and settings
-
 Weapon mass is part of the shared definition: rifle 3.4 kg, SMG 2.3 kg,
-shotgun 3.6 kg, sniper 5.2 kg, LMG 8.4 kg, and revolver 1.4 kg. Mouse aim and
+shotgun 3.6 kg, sniper 5.2 kg, LMG 8.4 kg, revolver 1.4 kg, and longarc 4.1 kg. Mouse aim and
 server authority remain immediate. The procedural gun owns a separate angular
 orientation with weight-limited speed and acceleration, so heavier weapons trail
 farther during a turn and settle more slowly after the mouse has stopped.

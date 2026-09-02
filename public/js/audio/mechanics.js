@@ -9,6 +9,7 @@ export const WEP_TONE = {
   sniper: 1.05,
   lmg: 0.72,
   revolver: 1.32,
+  longarc: 1.42,
 };
 
 // Cloth-rustle draw length per weapon.
@@ -19,6 +20,7 @@ export const DRAW_LEN = {
   sniper: 0.21,
   lmg: 0.25,
   revolver: 0.13,
+  longarc: 0.22,
 };
 
 const CYCLE_TONE = Object.freeze({
@@ -31,6 +33,11 @@ const CYCLE_TONE = Object.freeze({
     bandHz: [2950, 1620, 3380],
     thumpHz: [132, 86, 148],
     gain: [0.30, 0.42, 0.36],
+  }),
+  longarc: Object.freeze({
+    bandHz: [1750, 980, 2900],
+    thumpHz: [118, 70, 142],
+    gain: [0.3, 0.4, 0.32],
   }),
 });
 
@@ -123,6 +130,22 @@ export function reloadRevolver(out, primitives, step, t0, brightness) {
   }
 }
 
+/** Coilgun cell swap: generic handling plus a battery-seat clunk and energize chirp. */
+export function reloadLongarc(out, primitives, step, t0, brightness) {
+  genericReloadStep(out, primitives, step, t0, brightness);
+  if (step === 1) {
+    primitives.tone(out, {
+      t0: t0 + 0.09, type: 'sine', f0: 140, f1: 62,
+      dec: 0.06, g: 0.4, att: 0.002,
+    });
+  } else if (step === 2) {
+    primitives.tone(out, {
+      t0: t0 + 0.12, type: 'sawtooth', f0: 640 * brightness,
+      f1: 2200 * brightness, dec: 0.1, g: 0.13,
+    });
+  }
+}
+
 export function genericReloadStep(out, primitives, step, t0, brightness) {
   if (step === 1) {
     primitives.hiss(out, {
@@ -189,6 +212,19 @@ export function drawCloth(out, primitives, weapon, t0 = primitives.nowT()) {
     primitives.tone(out, {
       t0: t0 + duration * 0.82, type: 'square', f0: 2050, f1: 980,
       dec: 0.018, g: 0.12,
+    });
+  } else if (weapon === 'longarc') {
+    primitives.hiss(out, {
+      t0, filter: 'lowpass', f: 480, q: 0.7,
+      dec: duration * 0.7, g: 0.32,
+    });
+    primitives.tone(out, {
+      t0: t0 + duration * 0.5, type: 'sawtooth', f0: 300, f1: 1500,
+      dec: 0.09, g: 0.1,
+    });
+    primitives.tone(out, {
+      t0: t0 + duration * 0.85, type: 'square', f0: 1900, f1: 950,
+      dec: 0.018, g: 0.1,
     });
   } else {
     primitives.hiss(out, {

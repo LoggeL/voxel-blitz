@@ -131,7 +131,7 @@ export class BuyMenuController {
 
     const footer = el('div', 'vb-buy-footer', panel);
     const hint = el('span', 'vb-buy-footer-hint', footer);
-    hint.textContent = 'PRESS [1-6] TO BUY · [ESC] TO CLOSE · UI UPDATES ON SERVER CONFIRMATION';
+    hint.textContent = 'PRESS [1-7] TO BUY · [ESC] TO CLOSE · UI UPDATES ON SERVER CONFIRMATION';
 
     this.buyDom = {
       root,
@@ -159,9 +159,9 @@ export class BuyMenuController {
         }
 
         let digitIndex = -1;
-        if (event.code >= 'Digit1' && event.code <= 'Digit6') {
+        if (event.code >= 'Digit1' && event.code <= 'Digit7') {
           digitIndex = parseInt(event.code.replace('Digit', ''), 10) - 1;
-        } else if (event.code >= 'Numpad1' && event.code <= 'Numpad6') {
+        } else if (event.code >= 'Numpad1' && event.code <= 'Numpad7') {
           digitIndex = parseInt(event.code.replace('Numpad', ''), 10) - 1;
         }
 

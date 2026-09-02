@@ -75,10 +75,10 @@ After admission:
   for the current life only when the mode permits firing.
   `viewAge` is the client's current presentation buffer plus measured RTT and
   is clamped by authority to `50–450 ms` before hit rewind.
-  Weapon slots clamp to `0–5`; keyboard digits are `1–6`.
+  Weapon slots clamp to `0–6`; keyboard digits are `1–7`.
 - `{t:'ping',nonce:safe-integer}` receives `{t:'pong',nonce}` from the same
   socket so the client can measure application-level round-trip time.
-- `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'}` requests
+- `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'}` requests
   an S&D prep-phase purchase.
 - `{t:'chat',text:string}` broadcasts at most 120 trimmed characters only to
   this member's room.
@@ -199,7 +199,7 @@ recovery. The condition penalty is exactly
 crouching also applies each weapon's `crouchSpreadMult` to base spread/bloom.
 
 The slot roster is exactly
-`['rifle','smg','shotgun','sniper','lmg','revolver']`:
+`['rifle','smg','shotgun','sniper','lmg','revolver','longarc']`:
 
 | slot/key | display name | mode | rpm | mag/spare mags | close→far damage @ end | head | pellets | hip/ADS cone | mass |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -209,11 +209,13 @@ The slot roster is exactly
 | 3 `sniper` | LONGSHOT MK-II | bolt | 42 | 5/6 | 95→68 @ 120 | 2.10× | 1 | 5.50°/0.02° | 5.2 kg |
 | 4 `lmg` | BASTION LMG | auto | 720 | 60/4 | 22→14 @ 75 | 1.70× | 1 | 1.65°/0.48° | 8.4 kg |
 | 5 `revolver` | IRONCLAD .44 | semi | 300 | 6/8 | 54→35 @ 80 | 1.90× | 1 | 1.15°/0.12° | 1.4 kg |
+| 6 `longarc` | LN-03 LONGARC | semi | 160 | 8/6 | 62→45 @ 95 | 2.00× | 1 | 1.60°/0.08° | 4.1 kg |
 
 Damage is flat to 20 world units by default; the shotgun starts falloff at 12.
-It then falls linearly to the table's far value at the listed end. All remaining
-cadence, bloom, recoil, ADS, reload, deploy, tracer, mass, and SFX fields are
-read from `WEAPONS`; do not duplicate them.
+It then falls linearly to the table's far value at the listed end. The longarc
+rail slug pierces up to 2 players and 1 wall, losing damage per penetration.
+All remaining cadence, bloom, recoil, ADS, reload, deploy, tracer, mass, and
+SFX fields are read from `WEAPONS`; do not duplicate them.
 
 ### shared/raycast.js
 `raycastVoxels(solidAt,ox,oy,oz,dx,dy,dz,maxDist)` returns
@@ -343,7 +345,7 @@ late join whose welcome/state is already live also proceeds directly.
   plus held `interact`, read `yaw`/`pitch`, and drain fire, reload, weapon, and
   buy-menu edge consumers. `getGrenadeCharge(now?)` exposes live HUD progress;
   `consumeGrenadeThrow()` returns the released `0–1` charge or `null`. `E` holds
-  interact; `B` toggles the buy menu; `1–6`/wheel/`Q` select weapons.
+  interact; `B` toggles the buy menu; `1–7`/wheel/`Q` select weapons.
   `setGameplayEnabled(boolean)` gates input around lobby, settings, buy, death,
   and teardown.
 - `TouchControls` owns coarse-pointer DOM and pointer lifecycles behind the
@@ -377,7 +379,7 @@ late join whose welcome/state is already live also proceeds directly.
   `update(dt,{speed,grounded,verticalVelocity?,lateralSpeed?,forwardSpeed?,
   isSprinting?,crouch?,panic?,pain?,exhaustion?,aimSwayScale?})`, `bobAmt`,
   and `turnLag` (`{yaw,pitch,roll,x,y,speed,maxSpeed,...}`).
-  It builds six procedural models. Its internal angular follower observes the
+  It builds seven procedural models. Its internal angular follower observes the
   completed camera orientation, caps weapon rotation speed and acceleration by
   `weightKg`, tightens toward the sight line with ADS, folds lag beyond its
   weight budget back into the pose (no hidden unwind), and affects only the
@@ -444,19 +446,19 @@ weapons, recover/escort/plant/guard/defuse the bomb, and dispose their engine
 step listener with the room.
 
 ## Runtime gameplay contracts
-- **Fun (`fun`):** free-for-all target eligibility, complete six-weapon
+- **Fun (`fun`):** free-for-all target eligibility, complete seven-weapon
   loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
   `1500 ms` respawn. Shared quick rooms allow join in progress with no ready
   gate.
 - **Team Deathmatch (`tdm`):** persistent `alpha`/`bravo` assignment chooses the
   lower human+bot population; friendly fire is disabled and every player owns
-  the complete six-weapon loadout. Enemy kills increment the killer's team
+  the complete seven-weapon loadout. Enemy kills increment the killer's team
   score. First to `40` enters a `5000 ms` post phase, then team/player scores
   reset and all players respawn. Live deaths respawn after `3000 ms` at the
   player's team spawn pool.
 - **Gun Game (`gungame`):** free-for-all target eligibility and `1500 ms`
   respawn. Players progress through the immutable shared order rifle, SMG,
-  shotgun, sniper, LMG, revolver; a kill with the revolver wins. The winner is
+  shotgun, sniper, LMG, longarc, revolver; a kill with the revolver wins. The winner is
   shown during a `5000 ms` post phase before progression and scores reset.
 - **Search and Destroy (`snd`):** persistent `alpha`/`bravo` teams map to
   attackers/defenders, friendly fire is disabled, and roles swap after 6

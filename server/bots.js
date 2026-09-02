@@ -37,7 +37,7 @@ const CHEST_Y = 1.15;             // aim point above enemy feet
 const CROUCH_EYE = EYE_HEIGHT * 0.58;
 const BOT_SEED = 0x00B0755;
 const DEFAULT_WEAPON_SLOT = WEAPON_IDS.indexOf(DEFAULT_WEAPON_ID);
-const BUY_PRIORITY = Object.freeze(['sniper', 'lmg', 'rifle', 'shotgun', 'smg']);
+const BUY_PRIORITY = Object.freeze(['sniper', 'lmg', 'longarc', 'rifle', 'shotgun', 'smg']);
 const URGENT_GOALS = new Set(['plant', 'recoverBomb', 'defuse']);
 const ALL_WEAPON_SLOTS = Object.freeze(WEAPON_IDS.map((_, slot) => slot));
 const PLANT_READY_DIST = 2.0;

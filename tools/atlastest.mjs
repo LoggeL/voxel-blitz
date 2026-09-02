@@ -230,7 +230,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
       friendlyFire: true,
       respawnMs: 1500,
       postMs: 5000,
-      weaponOrder: ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver'],
+      weaponOrder: ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'longarc', 'revolver'],
     },
     snd: {
       teams: true,
@@ -267,6 +267,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     smg: 1250,
     shotgun: 1800,
     rifle: 2700,
+    longarc: 3500,
     lmg: 4000,
     sniper: 4750,
   };

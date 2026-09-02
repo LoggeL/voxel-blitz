@@ -131,10 +131,10 @@ function runDirectContracts() {
   ok(stateEvents[0]?.kind === 'die' && stateEvents[1]?.kind === 'respawn',
     'embedded die and respawn events are dispatchable by kind');
 
-  const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver'];
-  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4];
+  const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc'];
+  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1];
   ok(JSON.stringify(WEAPON_IDS) === JSON.stringify(expectedWeaponIds),
-    'weapon roster exposes the exact six-slot order');
+    'weapon roster exposes the exact seven-slot order');
   const definitionsComplete = WEAPON_IDS.every((id, slot) => {
     const def = WEAPONS[id];
     return def?.id === id && typeof def.name === 'string' && def.name.length > 0
@@ -164,7 +164,7 @@ function runDirectContracts() {
       && Number.isFinite(def.tracer?.len) && typeof def.sfx === 'string'
       && def.weightKg === expectedWeights[slot];
   });
-  ok(definitionsComplete, 'all six weapon definitions carry the complete shared contract');
+  ok(definitionsComplete, 'all seven weapon definitions carry the complete shared contract');
   const recoilSignatures = WEAPON_IDS.map((id) => WEAPONS[id].recoil.yawPattern.join(','));
   const rifleKick0 = computeRecoilKickDeg(WEAPONS.rifle, 0, 0, 0.5);
   const rifleKick5 = computeRecoilKickDeg(WEAPONS.rifle, 5, 0, 0.5);
@@ -530,7 +530,7 @@ function runDirectContracts() {
   slotEngine.applyInput('slots', { ...tapInput, seq: 2, weapon: -999 });
   slotEngine.step(TICK_MS);
   ok(highSlot === WEAPON_IDS.length - 1 && slotter.weapon === 0,
-    'authoritative slot selection clamps dynamically across all six weapons');
+    'authoritative slot selection clamps dynamically across all seven weapons');
 
   const botEngine = new GameEngine();
   const botManager = attachBots(botEngine, WEAPON_IDS.length);
@@ -870,7 +870,7 @@ function runDirectContracts() {
     && funStartRow.interaction === null
     && exact(funStartRow.mag, freshMags)
     && exact(funStartRow.reserve, freshReserve),
-  'Fun snapshot exposes the full six-weapon loadout and exact unteamed match fields');
+  'Fun snapshot exposes the full seven-weapon loadout and exact unteamed match fields');
   fun.engine.addBot('fun-attacker', 'Fun Attacker');
   const funAttacker = fun.engine.entities.get('fun-attacker');
 

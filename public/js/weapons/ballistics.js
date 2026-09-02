@@ -117,8 +117,11 @@ export class TracerFX {
         length,
       );
       if (hit) {
-        length = Math.max(0.1, Math.min(length, hit.t) - 0.35);
         if (i === 0 && this.onWallImpact) this.onWallImpact(hit, local);
+        // Piercing rail slugs pass through: keep the full-length tracer and
+        // only clip non-piercing reports at the first terrain hit.
+        const piercesWalls = Boolean(definition && definition.pierce && definition.pierce.walls > 0);
+        if (!piercesWalls) length = Math.max(0.1, Math.min(length, hit.t) - 0.35);
       }
       this.spawnTracer(event.o, direction, length, definition);
     }

@@ -109,7 +109,7 @@ export class Input {
     this._grenadeHoldStartedAt = 0;
     this._switchQueue = 0;     // wheel steps accumulated (+/-1)
     this._wheel = { acc: 0, lastAt: -Infinity };
-    this._pendingSlot = null;  // direct Digit1..6 pick (0..5) or null
+    this._pendingSlot = null;  // direct Digit1..7 pick (0..6) or null
     this._lastWeaponReq = false;
     this._buyMenuQueued = false;
     this._buyMenuHeld = false; // physical B latch suppresses repeat/re-entry
@@ -548,7 +548,7 @@ export class Input {
   }
 
   /**
-   * Direct slot picked with Digit1..6 (0..5), or null if none pending.
+   * Direct slot picked with Digit1..7 (0..6), or null if none pending.
    * Consumed on read.
    * @returns {number|null}
    */
@@ -772,7 +772,7 @@ export class Input {
         }
         break;
       case 'KeyQ': if (!e.repeat) this._lastWeaponReq = true; break;
-      case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': case 'Digit6':
+      case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': case 'Digit6': case 'Digit7':
         if (!e.repeat) this._pendingSlot = Number(e.code.slice(-1)) - 1;
         break;
       default: break;

@@ -15,6 +15,7 @@ export const GUN_GAME_WEAPON_ORDER = Object.freeze([
   'shotgun',
   'sniper',
   'lmg',
+  'longarc',
   'revolver',
 ]);
 
@@ -30,6 +31,7 @@ export const WEAPON_PRICES = Object.freeze({
   smg: 1250,
   shotgun: 1800,
   rifle: 2700,
+  longarc: 3500,
   lmg: 4000,
   sniper: 4750,
 });

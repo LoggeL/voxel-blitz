@@ -12,6 +12,7 @@ export const BREACH_Z = {
   sniper: -0.26,
   lmg: -0.34,
   revolver: -0.16,
+  longarc: -0.30,
 };
 
 // Heat-sleeve radii include the existing tiny clearance that prevents z-fighting.
@@ -22,6 +23,7 @@ export const BARREL_R = {
   sniper: 0.0215,
   lmg: 0.0295,
   revolver: 0.0185,
+  longarc: 0.020,
 };
 
 export const BOLT_HOME = {
@@ -31,6 +33,7 @@ export const BOLT_HOME = {
   sniper: -0.010,
   lmg: -0.025,
   revolver: -0.018,
+  longarc: -0.030,
 };
 
 export const PUMP_REST = new THREE.Vector3(0, 0.038, -0.30);
@@ -42,6 +45,7 @@ export const TRIGGER_Z = {
   sniper: -0.165,
   lmg: -0.13,
   revolver: -0.075,
+  longarc: -0.14,
 };
 
 // Camera-space hip carry; +x is true screen-right.

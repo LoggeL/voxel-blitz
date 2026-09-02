@@ -38,6 +38,9 @@ const FIRE_REPORT_PROFILES = Object.freeze({
   revolver: Object.freeze({
     lifetime: 0.95, sampleGain: 0.8, sampleRate: 1.02, layerGain: 0.18,
   }),
+  longarc: Object.freeze({
+    lifetime: 1.15, sampleGain: 0.85, sampleRate: 1, layerGain: 0.22,
+  }),
 });
 
 export function fireReportProfile(key) {
@@ -160,6 +163,34 @@ export function shotRevolver(out, primitives) {
   });
 }
 
+export function shotLongarc(out, primitives) {
+  const t0 = primitives.nowT();
+  const crackAt = primitives.nowT(0.12);
+  // Capacitor whine rising into the discharge.
+  primitives.tone(out, {
+    t0, type: 'sawtooth', f0: 320, f1: 2600, dec: 0.12, g: 0.13,
+  });
+  primitives.tone(out, {
+    t0, type: 'sine', f0: 640, f1: 3100, dec: 0.12, g: 0.07,
+  });
+  // Hypersonic crack: brighter and louder than the revolver transient.
+  primitives.hiss(out, {
+    t0: crackAt, filter: 'highpass', f: 6800, q: 0.6, dec: 0.05, g: 0.74,
+  });
+  primitives.tone(out, {
+    t0: crackAt, type: 'sawtooth', f0: 340, f1: 90, dec: 0.16, g: 0.34,
+  });
+  // Sub thump under the crack, lighter than the sniper's weight.
+  primitives.tone(out, {
+    t0: crackAt, type: 'sine', f0: 55, f1: 30, dec: 0.3, g: 0.46, att: 0.001,
+  });
+  // ~0.5s ionized tail sweeping down from the discharge.
+  primitives.hiss(out, {
+    t0: crackAt, filter: 'bandpass', f: 4200, sweepTo: 900,
+    sweepMs: 0.5, q: 1.2, dec: 0.5, g: 0.2,
+  });
+}
+
 /** Render the weapon-specific synthetic transient and mechanical tail. */
 export function renderFireReport(
   key,
@@ -175,5 +206,6 @@ export function renderFireReport(
     shotSniper(out, primitives, echoIn, addCleanup, cleanupOwner, includeMechanics);
   } else if (key === 'lmg') shotLmg(out, primitives);
   else if (key === 'revolver') shotRevolver(out, primitives);
+  else if (key === 'longarc') shotLongarc(out, primitives);
   else shotRifleSmg(out, primitives, FIRE_PARAMS[key] || FIRE_PARAMS.rifle);
 }

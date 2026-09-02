@@ -1,6 +1,6 @@
 # Weapon model references
 
-The six HUD illustrations in [`hud/`](./hud/) are the canonical visual
+The seven HUD illustrations in [`hud/`](./hud/) are the canonical visual
 references for the procedural weapon models:
 
 - `rifle.png`
@@ -9,6 +9,7 @@ references for the procedural weapon models:
 - `sniper.png`
 - `lmg.png`
 - `revolver.png`
+- `longarc.png` (side-profile render of the procedural `longarc` model, 480 px wide)
 
 Model changes should preserve the recognizable side-profile proportions,
 materials, furniture, sights, feeding system, and muzzle treatment shown in the

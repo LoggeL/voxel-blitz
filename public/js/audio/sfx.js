@@ -15,6 +15,7 @@ import {
   drawCloth,
   genericReloadStep,
   reloadLmg,
+  reloadLongarc,
   reloadRevolver,
 } from './mechanics.js';
 import {
@@ -196,6 +197,7 @@ export const sfx = {
       if (samples.play(`weapons.${weapon}.reload.${step}`, output)) return;
       const at = primitives.nowT();
       if (weapon === 'lmg') reloadLmg(output, primitives, step, at, brightness);
+      else if (weapon === 'longarc') reloadLongarc(output, primitives, step, at, brightness);
       else if (weapon === 'revolver') {
         reloadRevolver(output, primitives, step, at, brightness);
       } else genericReloadStep(output, primitives, step, at, brightness);

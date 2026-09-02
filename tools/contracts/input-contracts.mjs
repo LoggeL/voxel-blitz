@@ -1,6 +1,6 @@
 export async function runInputContracts(ok, installGlobals) {
   // Input: headless is a pointer-lock substitute, not a gameplay-suppression
-  // bypass. Direct slots cover the full six-gun roster and wheel edges drain.
+  // bypass. Direct slots cover the full seven-gun roster and wheel edges drain.
   {
     let input = null;
     let unlocked = null;
@@ -50,6 +50,9 @@ export async function runInputContracts(ok, installGlobals) {
       input._onKeyDown(key('Digit6'));
       ok(input.consumeWeaponSlot() === 5,
         'headless Digit6 reaches the sixth weapon slot');
+      input._onKeyDown(key('Digit7'));
+      ok(input.consumeWeaponSlot() === 6,
+        'headless Digit7 reaches the seventh weapon slot');
 
       let prevented = 0;
       const wheel = (deltaY, timeStamp, deltaMode = 0) => ({
