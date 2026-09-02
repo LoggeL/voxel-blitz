@@ -156,6 +156,8 @@ export async function runNetClientContracts(ok, installGlobals) {
         viewAge: 80,
         throwGrenade: true,
         grenadeCharge: 0.6254,
+        grenadeType: 7,
+        grenadeCook: 99999,
       });
       const inputFrame = JSON.parse(joined.ws.sent.at(-1));
       ok(JSON.stringify(inputFrame) === JSON.stringify({
@@ -180,8 +182,10 @@ export async function runNetClientContracts(ok, installGlobals) {
         viewAge: 80,
         throwGrenade: true,
         grenadeCharge: 0.625,
+        grenadeType: 2,
+        grenadeCook: 0,
       }),
-      'NetClient sends the exact nested held-interaction and clamped grenade-charge frame');
+      'NetClient sends the exact nested held-interaction and clamped grenade charge/type/cook frame');
 
       const emitted = [];
       joined.client.on('lobby', (state) => emitted.push(state));
@@ -263,7 +267,8 @@ export async function runNetClientContracts(ok, installGlobals) {
           owned: firstOwned,
           bomb: firstBomb,
           interaction: firstInteraction,
-          grenades: 2,
+          grenades: [2, 1, 2],
+          charge: 0.5,
           x: 2,
           y: 3,
           z: 4,
@@ -341,7 +346,8 @@ export async function runNetClientContracts(ok, installGlobals) {
         && rival.owned.join(',') === 'revolver'
         && rival.bomb.state === 'carried'
         && rival.interaction.progress === 0.2
-        && rival.grenades === 2,
+        && rival.grenades.join(',') === '2,1,2'
+        && rival.charge === 0.5,
       'interpolation preserves the complete newest remote gameplay state alongside transforms');
       const retainedRival = joined.client.latestSnapshots[0].players[0];
       ok(Object.isFrozen(rival)

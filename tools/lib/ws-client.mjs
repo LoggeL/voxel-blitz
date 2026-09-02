@@ -303,6 +303,8 @@ export class Client {
       reload: !!overrides.reload,
       throwGrenade: !!overrides.throwGrenade,
       grenadeCharge: overrides.throwGrenade ? (overrides.grenadeCharge ?? 0) : undefined,
+      grenadeType: overrides.throwGrenade ? (overrides.grenadeType ?? 0) : undefined,
+      grenadeCook: overrides.throwGrenade ? (overrides.grenadeCook ?? 0) : undefined,
     });
   }
 

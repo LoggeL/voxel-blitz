@@ -37,7 +37,7 @@ const CHEST_Y = 1.15;             // aim point above enemy feet
 const CROUCH_EYE = EYE_HEIGHT * 0.58;
 const BOT_SEED = 0x00B0755;
 const DEFAULT_WEAPON_SLOT = WEAPON_IDS.indexOf(DEFAULT_WEAPON_ID);
-const BUY_PRIORITY = Object.freeze(['sniper', 'lmg', 'longarc', 'rifle', 'shotgun', 'smg']);
+const BUY_PRIORITY = Object.freeze(['sniper', 'lmg', 'rocket', 'longarc', 'rifle', 'shotgun', 'smg']);
 const URGENT_GOALS = new Set(['plant', 'recoverBomb', 'defuse']);
 const ALL_WEAPON_SLOTS = Object.freeze(WEAPON_IDS.map((_, slot) => slot));
 const PLANT_READY_DIST = 2.0;
@@ -499,7 +499,13 @@ class BotManager {
             br.inBurst = true;
           }
           if (now < br.burstEnd) {
-            inp.wantFire = p.def.mode === 'auto' || !p.triggerPrev;
+            if (p.def.mode === 'charge') {
+              // Coilgun: press, hold to ~90% charge, release; never dry-hold past the vent.
+              const chargeMs = p.def.charge?.ms || 850;
+              inp.wantFire = p.charging ? p.chargeT < chargeMs * 0.9 : !p.triggerPrev;
+            } else {
+              inp.wantFire = p.def.mode === 'auto' || !p.triggerPrev;
+            }
           }
           else { br.inBurst = false; br.pauseUntil = now + BURST_PAUSE_MS; }
         }

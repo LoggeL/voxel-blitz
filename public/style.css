@@ -2191,18 +2191,65 @@ h1.vb-title::after {
 }
 
 #grenade-count {
+  --nade: var(--amber-hi);
   position: absolute;
   right: 214px;
   bottom: 102px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   min-width: 82px;
   padding: 5px 7px 6px;
-  color: var(--amber-hi);
+  color: var(--nade);
   background: rgba(5, 7, 10, 0.82);
-  border: 1px solid rgba(255, 159, 28, 0.45);
+  border: 1px solid color-mix(in srgb, var(--nade) 45%, transparent);
   clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+}
+
+.vb-grenade-types {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.vb-grenade-type {
+  --nade: var(--amber-hi);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 26px;
+  padding: 2px 3px;
+  color: var(--nade);
+  border: 1px solid transparent;
+  border-radius: 2px;
+  opacity: 0.55;
+  transition: opacity 120ms linear, border-color 120ms linear, background 120ms linear;
+}
+
+.vb-grenade-type.is-selected {
+  opacity: 1;
+  border-color: color-mix(in srgb, var(--nade) 70%, transparent);
+  background: color-mix(in srgb, var(--nade) 14%, transparent);
+}
+
+.vb-grenade-type.is-empty { opacity: 0.28; }
+.vb-grenade-type.is-empty.is-selected { opacity: 0.5; }
+
+.vb-grenade-type-label {
+  font: 700 7px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+.vb-grenade-name {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 3px);
+  font: 700 7px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: var(--nade);
+  opacity: 0.85;
 }
 
 .vb-grenade-key {
@@ -2225,13 +2272,23 @@ h1.vb-title::after {
 .vb-grenade-icon {
   position: relative;
   display: block;
-  width: 10px;
-  height: 13px;
-  background: linear-gradient(90deg, #b96b10, var(--amber-hi) 54%, #8f4d08);
-  border: 1px solid rgba(255, 220, 160, 0.64);
+  width: 9px;
+  height: 12px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--nade) 55%, #000), var(--nade) 54%, color-mix(in srgb, var(--nade) 45%, #000));
+  border: 1px solid color-mix(in srgb, var(--nade) 70%, #fff);
   border-radius: 45% 45% 38% 38%;
-  box-shadow: 0 0 6px rgba(255, 159, 28, 0.32);
+  box-shadow: 0 0 6px color-mix(in srgb, var(--nade) 35%, transparent);
   transition: opacity 120ms linear, transform 120ms ease;
+}
+
+.vb-grenade-type-limpet .vb-grenade-icon {
+  height: 7px;
+  border-radius: 40%;
+}
+
+.vb-grenade-type-pulse .vb-grenade-icon {
+  border-radius: 50%;
+  height: 10px;
 }
 
 .vb-grenade-icon::before {
@@ -2239,12 +2296,15 @@ h1.vb-title::after {
   position: absolute;
   left: 2px;
   top: -4px;
-  width: 6px;
+  width: 5px;
   height: 4px;
-  border: 1px solid var(--amber-hi);
+  border: 1px solid var(--nade);
   border-bottom: 0;
   border-radius: 4px 4px 0 0;
 }
+
+.vb-grenade-type-limpet .vb-grenade-icon::before,
+.vb-grenade-type-pulse .vb-grenade-icon::before { display: none; }
 
 .vb-grenade-icon.is-spent {
   opacity: 0.16;
@@ -2268,8 +2328,23 @@ h1.vb-title::after {
   height: 100%;
   transform: scaleX(0);
   transform-origin: left center;
-  background: linear-gradient(90deg, var(--amber), var(--danger));
-  box-shadow: 0 0 8px var(--amber);
+  background: linear-gradient(90deg, var(--nade), var(--danger));
+  box-shadow: 0 0 8px var(--nade);
+}
+
+#grenade-count.is-cooking .vb-grenade-charge i {
+  transform-origin: right center;
+  background: linear-gradient(90deg, var(--danger), var(--nade));
+}
+
+#grenade-count.is-critical {
+  border-color: var(--danger);
+  animation: vb-grenade-critical 220ms steps(2, end) infinite;
+}
+
+@keyframes vb-grenade-critical {
+  from { box-shadow: 0 0 16px rgba(255, 90, 60, 0.7); }
+  to { box-shadow: 0 0 4px rgba(255, 90, 60, 0.2); }
 }
 
 .vb-grenade-hint {
@@ -2285,8 +2360,78 @@ h1.vb-title::after {
 }
 
 #grenade-count.is-charging {
-  border-color: var(--amber-hi);
-  box-shadow: 0 0 13px rgba(255, 159, 28, 0.24);
+  border-color: var(--nade);
+  box-shadow: 0 0 13px color-mix(in srgb, var(--nade) 30%, transparent);
+}
+
+/* ---------- charge weapon (LONGARC) coil meter ---------- */
+
+#charge-meter {
+  position: absolute;
+  right: 26px;
+  bottom: 96px;
+  display: none;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  width: 150px;
+  pointer-events: none;
+}
+
+#charge-meter.is-visible { display: flex; }
+
+.vb-charge-track {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 4px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(53, 224, 255, 0.35);
+}
+
+.vb-charge-track i:first-child {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg, #1c8fa8, #35e0ff 70%, #dffbff);
+  box-shadow: 0 0 8px #35e0ff;
+}
+
+.vb-charge-chain-mark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: 85%;
+  width: 2px;
+  background: rgba(223, 251, 255, 0.85);
+}
+
+.vb-charge-label {
+  font: 700 7px/1 var(--font-mono);
+  letter-spacing: 0.12em;
+  color: rgba(53, 224, 255, 0.7);
+  transition: color 80ms linear;
+}
+
+#charge-meter.is-charging .vb-charge-label { color: #35e0ff; }
+
+#charge-meter.is-chain .vb-charge-label {
+  color: #dffbff;
+  text-shadow: 0 0 8px #35e0ff;
+}
+
+#charge-meter.is-chain .vb-charge-track {
+  border-color: #dffbff;
+  box-shadow: 0 0 12px rgba(53, 224, 255, 0.5);
+  animation: vb-charge-chain 160ms steps(2, end) infinite;
+}
+
+@keyframes vb-charge-chain {
+  from { box-shadow: 0 0 14px rgba(53, 224, 255, 0.6); }
+  to { box-shadow: 0 0 5px rgba(53, 224, 255, 0.25); }
 }
 
 #grenade-count.is-charging .vb-grenade-icon:not(.is-spent) {

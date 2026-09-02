@@ -1,14 +1,25 @@
-/** Shared client/server contract for charge-to-distance grenade throws. */
-export const GRENADE_PER_LIFE = 2;
+/**
+ * Shared client/server contract for the throwable roster: three grenade types with
+ * one inventory, one charge/cook hold model, and one physics integrator.
+ *
+ * - `frag`   M-4 FRAG      timed fuse that starts at the pin pull (cookable), bounces.
+ * - `limpet` LIMPET CHARGE sticks to the first wall or player it touches, then arms a
+ *                          short fuse; breaching blast with the deepest terrain carve.
+ * - `pulse`  PULSE SHOCK   detonates on impact; light damage, huge knockback, and a
+ *                          concussion that slows and panics whoever it lands on.
+ */
+export const GRENADE_TYPE_IDS = Object.freeze(['frag', 'limpet', 'pulse']);
+
+/** Hold time (ms) that reaches full throw strength. Cooking continues beyond it. */
 export const GRENADE_CHARGE_MS = 1200;
-export const GRENADE_FUSE_MS = 2300;
 export const GRENADE_MIN_THROW_SPEED = 7;
 export const GRENADE_MAX_THROW_SPEED = 16;
 export const GRENADE_MIN_LIFT = 2.1;
 export const GRENADE_MAX_LIFT = 3.5;
+/** A cooked fuse never gets shorter than this once the grenade leaves the hand. */
+export const GRENADE_MIN_AIR_MS = 180;
 
-/** One integrator for authority, local prediction, and the throw preview. */
-export const GRENADE_PHYSICS = Object.freeze({
+const FRAG_PHYSICS = Object.freeze({
   gravity: 18,
   bounce: 0.46,
   floorFriction: 0.82,
@@ -16,9 +27,137 @@ export const GRENADE_PHYSICS = Object.freeze({
   radius: 0.16,
 });
 
+export const GRENADE_TYPES = Object.freeze({
+  frag: Object.freeze({
+    id: 'frag',
+    name: 'M-4 FRAG',
+    short: 'FRAG',
+    perLife: 2,
+    fuseMs: 2600,
+    cook: true,
+    impact: false,
+    sticky: false,
+    damage: 115,
+    damageRadius: 5.4,
+    selfDamage: 0.72,
+    knockback: 8.5,
+    terrainRadius: 3.6,
+    terrainPower: 150,
+    maxDestroyedBlocks: 110,
+    concussMs: 0,
+    concussPanic: 0,
+    color: '#ffb347',
+    physics: FRAG_PHYSICS,
+  }),
+  limpet: Object.freeze({
+    id: 'limpet',
+    name: 'LIMPET CHARGE',
+    short: 'LMP',
+    perLife: 1,
+    /** Fuse that starts the moment the charge sticks. */
+    fuseMs: 1500,
+    /** A limpet that never lands still detonates after this long in the air. */
+    flightMaxMs: 3500,
+    cook: false,
+    impact: false,
+    sticky: true,
+    damage: 140,
+    damageRadius: 4.2,
+    selfDamage: 0.72,
+    knockback: 9.5,
+    terrainRadius: 4.6,
+    terrainPower: 200,
+    maxDestroyedBlocks: 160,
+    concussMs: 0,
+    concussPanic: 0,
+    color: '#ff5a3c',
+    physics: Object.freeze({
+      gravity: 16,
+      bounce: 0,
+      floorFriction: 0,
+      wallDamping: 0,
+      radius: 0.14,
+      /** First contact freezes the grenade in place (the authority then arms its fuse). */
+      stick: true,
+    }),
+  }),
+  pulse: Object.freeze({
+    id: 'pulse',
+    name: 'PULSE SHOCK',
+    short: 'PLS',
+    perLife: 2,
+    fuseMs: 1800,
+    cook: false,
+    impact: true,
+    sticky: false,
+    damage: 38,
+    damageRadius: 6.5,
+    selfDamage: 0.5,
+    knockback: 17,
+    terrainRadius: 0,
+    terrainPower: 0,
+    maxDestroyedBlocks: 0,
+    /** Concussion: movement runs at 60% speed and panic spikes for this long. */
+    concussMs: 1600,
+    concussPanic: 0.55,
+    color: '#59e8ff',
+    physics: Object.freeze({
+      gravity: 14,
+      bounce: 0,
+      floorFriction: 0,
+      wallDamping: 0,
+      radius: 0.15,
+    }),
+  }),
+});
+
+/** Legacy names kept for the frag profile so older call sites read the same numbers. */
+export const GRENADE_FUSE_MS = GRENADE_TYPES.frag.fuseMs;
+export const GRENADE_PHYSICS = FRAG_PHYSICS;
+export const GRENADE_PER_LIFE = GRENADE_TYPES.frag.perLife;
+
+/** Per-type inventory for a fresh life, in `GRENADE_TYPE_IDS` order. */
+export function freshGrenadeLoadout() {
+  return GRENADE_TYPE_IDS.map((id) => GRENADE_TYPES[id].perLife);
+}
+
 export function clampGrenadeCharge(value) {
   const charge = Number(value);
   return Number.isFinite(charge) ? Math.max(0, Math.min(1, charge)) : 0;
+}
+
+/** Type index clamped into the roster; anything unreadable is the first type. */
+export function clampGrenadeType(value) {
+  const index = Number.isFinite(value) ? Math.trunc(value) : 0;
+  return Math.max(0, Math.min(GRENADE_TYPE_IDS.length - 1, index));
+}
+
+export function grenadeTypeAt(index) {
+  return GRENADE_TYPES[GRENADE_TYPE_IDS[clampGrenadeType(index)]];
+}
+
+export function grenadeTypeById(id) {
+  return GRENADE_TYPES[id] || null;
+}
+
+/**
+ * Cooked milliseconds already burned off a timed fuse. Non-cookable types always report
+ * zero; a cook at or beyond the fuse means the grenade detonates in the hand.
+ */
+export function clampGrenadeCook(value, type = GRENADE_TYPES.frag) {
+  const profile = typeof type === 'string' ? GRENADE_TYPES[type] : type;
+  if (!profile || !profile.cook) return 0;
+  const cook = Number(value);
+  if (!Number.isFinite(cook) || cook <= 0) return 0;
+  return Math.min(profile.fuseMs, Math.round(cook));
+}
+
+/** Remaining fuse for a cook value; clamps so the grenade always clears the hand. */
+export function grenadeFuseAfterCook(cookMs, type = GRENADE_TYPES.frag) {
+  const profile = typeof type === 'string' ? GRENADE_TYPES[type] : type;
+  if (!profile) return GRENADE_FUSE_MS;
+  const cook = clampGrenadeCook(cookMs, profile);
+  return Math.max(GRENADE_MIN_AIR_MS, profile.fuseMs - cook);
 }
 
 export function grenadeThrowProfile(value) {
@@ -36,10 +175,12 @@ export function grenadeThrowProfile(value) {
  * inherits part of the thrower's body velocity. `dir` is the unit look vector.
  * Returns plain numbers so both the server entity and client prediction can copy them.
  */
-export function grenadeLaunch({ x, y, z, eyeY, vx = 0, vy = 0, vz = 0, dir, charge }) {
+export function grenadeLaunch({ x, y, z, eyeY, vx = 0, vy = 0, vz = 0, dir, charge, type = 'frag' }) {
   const profile = grenadeThrowProfile(charge);
   const d = dir || { x: 0, y: 0, z: -1 };
+  const typeId = GRENADE_TYPES[type] ? type : 'frag';
   return {
+    type: typeId,
     charge: profile.charge,
     x: x + d.x * 0.48,
     y: eyeY - 0.12 + d.y * 0.38,
@@ -50,9 +191,14 @@ export function grenadeLaunch({ x, y, z, eyeY, vx = 0, vy = 0, vz = 0, dir, char
   };
 }
 
-function moveGrenadeAxis(grenade, axis, delta, isSolid) {
+function physicsFor(grenade) {
+  const profile = grenade && GRENADE_TYPES[grenade.type];
+  return profile ? profile.physics : FRAG_PHYSICS;
+}
+
+function moveGrenadeAxis(grenade, axis, delta, isSolid, physics) {
   if (!Number.isFinite(delta) || Math.abs(delta) < 1e-8) return false;
-  const radius = GRENADE_PHYSICS.radius;
+  const radius = physics.radius;
   const next = grenade[axis] + delta;
   const x = axis === 'x' ? next + Math.sign(delta) * radius : grenade.x;
   const y = axis === 'y' ? next + Math.sign(delta) * radius : grenade.y;
@@ -62,26 +208,40 @@ function moveGrenadeAxis(grenade, axis, delta, isSolid) {
     grenade[axis] = next;
     return false;
   }
-  grenade['v' + axis] *= -GRENADE_PHYSICS.bounce;
-  if (axis !== 'y') grenade['v' + axis] *= GRENADE_PHYSICS.wallDamping;
+  grenade['v' + axis] *= -physics.bounce;
+  if (axis !== 'y') grenade['v' + axis] *= physics.wallDamping;
   return true;
 }
 
 /**
- * Advance one grenade `{x,y,z,vx,vy,vz}` by `dt` seconds against `isSolid(x,y,z)` in
- * world coordinates. Mutates and returns the grenade; `hitFloor` reports a floor bounce.
+ * Advance one grenade `{type?,x,y,z,vx,vy,vz}` by `dt` seconds against `isSolid(x,y,z)`
+ * in world coordinates. Mutates and returns the grenade; `hitFloor` reports a floor
+ * contact and `hitSolid` any contact at all (sticky/impact types read it).
  */
 export function stepGrenade(grenade, dt, isSolid) {
   const step = Math.max(0, Number(dt) || 0);
-  grenade.vy -= GRENADE_PHYSICS.gravity * step;
-  moveGrenadeAxis(grenade, 'x', grenade.vx * step, isSolid);
-  moveGrenadeAxis(grenade, 'z', grenade.vz * step, isSolid);
-  const hitFloor = moveGrenadeAxis(grenade, 'y', grenade.vy * step, isSolid);
+  const physics = physicsFor(grenade);
+  if (grenade.stuck) {
+    grenade.hitFloor = false;
+    grenade.hitSolid = false;
+    return grenade;
+  }
+  grenade.vy -= physics.gravity * step;
+  const hitX = moveGrenadeAxis(grenade, 'x', grenade.vx * step, isSolid, physics);
+  const hitZ = moveGrenadeAxis(grenade, 'z', grenade.vz * step, isSolid, physics);
+  const hitFloor = moveGrenadeAxis(grenade, 'y', grenade.vy * step, isSolid, physics);
   if (hitFloor && grenade.vy > 0) {
-    grenade.vx *= GRENADE_PHYSICS.floorFriction;
-    grenade.vz *= GRENADE_PHYSICS.floorFriction;
+    grenade.vx *= physics.floorFriction;
+    grenade.vz *= physics.floorFriction;
   }
   grenade.hitFloor = hitFloor;
+  grenade.hitSolid = hitFloor || hitX || hitZ;
+  if (physics.stick && grenade.hitSolid) {
+    grenade.stuck = true;
+    grenade.vx = 0;
+    grenade.vy = 0;
+    grenade.vz = 0;
+  }
   return grenade;
 }
 
@@ -89,20 +249,39 @@ export function stepGrenade(grenade, dt, isSolid) {
  * Predicted flight path from a launch state until the fuse burns out. Returns
  * `{points:[[x,y,z],...], landing:[x,y,z], rests:boolean}`; `rests` is true when the
  * grenade has effectively stopped before detonating (a settled, readable landing spot).
+ * Sticky and impact types stop at their first contact, which is where they detonate.
  */
 export function predictGrenadePath(launch, isSolid, {
-  fuseMs = GRENADE_FUSE_MS,
+  fuseMs = null,
   stepSeconds = 1 / 40,
   maxPoints = 96,
 } = {}) {
-  const grenade = { x: launch.x, y: launch.y, z: launch.z, vx: launch.vx, vy: launch.vy, vz: launch.vz };
+  const profile = GRENADE_TYPES[launch.type] || GRENADE_TYPES.frag;
+  const horizon = Number.isFinite(fuseMs)
+    ? fuseMs
+    : (profile.sticky ? profile.flightMaxMs : profile.fuseMs);
+  const grenade = {
+    type: profile.id,
+    x: launch.x, y: launch.y, z: launch.z,
+    vx: launch.vx, vy: launch.vy, vz: launch.vz,
+  };
   const points = [[grenade.x, grenade.y, grenade.z]];
-  const steps = Math.max(1, Math.ceil((fuseMs / 1000) / stepSeconds));
+  const steps = Math.max(1, Math.ceil((horizon / 1000) / stepSeconds));
   const stride = Math.max(1, Math.ceil(steps / (maxPoints - 1)));
+  let contact = false;
   for (let i = 1; i <= steps; i++) {
     stepGrenade(grenade, stepSeconds, isSolid);
+    if ((profile.sticky || profile.impact) && grenade.hitSolid) {
+      contact = true;
+      points.push([grenade.x, grenade.y, grenade.z]);
+      break;
+    }
     if (i % stride === 0 || i === steps) points.push([grenade.x, grenade.y, grenade.z]);
   }
   const speed = Math.hypot(grenade.vx, grenade.vy, grenade.vz);
-  return { points, landing: [grenade.x, grenade.y, grenade.z], rests: speed < 1.5 };
+  return {
+    points,
+    landing: [grenade.x, grenade.y, grenade.z],
+    rests: contact || speed < 1.5,
+  };
 }

@@ -19,6 +19,8 @@ export {
   evBlock,
   evRespawn,
   evDie,
-  evGrenadeThrow,
-  evGrenadeExplode,
+  evProjectileLaunch,
+  evProjectileStick,
+  evProjectileExplode,
+  evArc,
 } from './protocol/events.js';

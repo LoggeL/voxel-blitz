@@ -30,7 +30,8 @@ import {
 import { GameEngine } from '../server/game.js';
 import { attachBots } from '../server/bots.js';
 import { TICK_MS, evDie, evRespawn, makeSnapshot } from '../server/protocol.js';
-import { GRENADE_RULES } from '../server/sim/grenades.js';
+import { PROJECTILE_RULES } from '../server/sim/projectiles.js';
+import { GRENADE_TYPES, GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { ImpactFX } from '../public/js/weapons/impacts.js';
 
@@ -131,14 +132,14 @@ function runDirectContracts() {
   ok(stateEvents[0]?.kind === 'die' && stateEvents[1]?.kind === 'respawn',
     'embedded die and respawn events are dispatchable by kind');
 
-  const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc'];
-  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1];
+  const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket'];
+  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6];
   ok(JSON.stringify(WEAPON_IDS) === JSON.stringify(expectedWeaponIds),
-    'weapon roster exposes the exact seven-slot order');
+    'weapon roster exposes the exact eight-slot order');
   const definitionsComplete = WEAPON_IDS.every((id, slot) => {
     const def = WEAPONS[id];
     return def?.id === id && typeof def.name === 'string' && def.name.length > 0
-      && ['auto', 'semi', 'pump', 'bolt'].includes(def.mode)
+      && ['auto', 'semi', 'pump', 'bolt', 'charge'].includes(def.mode)
       && Number.isFinite(def.rpm) && def.rpm > 0
       && Number.isInteger(def.magSize) && def.magSize > 0
       && Number.isInteger(def.spareMags) && def.spareMags > 0
@@ -164,7 +165,7 @@ function runDirectContracts() {
       && Number.isFinite(def.tracer?.len) && typeof def.sfx === 'string'
       && def.weightKg === expectedWeights[slot];
   });
-  ok(definitionsComplete, 'all seven weapon definitions carry the complete shared contract');
+  ok(definitionsComplete, 'all eight weapon definitions carry the complete shared contract');
   const recoilSignatures = WEAPON_IDS.map((id) => WEAPONS[id].recoil.yawPattern.join(','));
   const rifleKick0 = computeRecoilKickDeg(WEAPONS.rifle, 0, 0, 0.5);
   const rifleKick5 = computeRecoilKickDeg(WEAPONS.rifle, 5, 0, 0.5);
@@ -263,40 +264,116 @@ function runDirectContracts() {
   }
   grenadeEngine.world.setBlock(44, 20, 50, STONE);
   grenadeEngine.world.setBlock(45, 20, 50, METAL);
-  const grenadeContext = grenadeEngine.grenadeContext();
-  const grenade = grenadeEngine.grenades.throw(thrower, grenadeContext);
+  const grenadeContext = grenadeEngine.projectileContext();
+  const grenade = grenadeEngine.projectiles.throw(thrower, grenadeContext);
   Object.assign(grenade, { x: 44.5, y: 21.5, z: 50.5 });
-  grenadeEngine.grenades.explode(grenade, grenadeContext);
-  ok(thrower.grenades === 1
+  grenadeEngine.projectiles.explode(grenade, grenadeContext);
+  ok(thrower.grenades.join(',') === '1,1,2'
     && blastTarget.hp < 100
     && grenadeEngine.world.getBlock(44, 20, 50) === AIR
     && grenadeEngine.world.getBlock(45, 20, 50) === METAL
-    && grenadeEngine.tickEvents.some((event) => event.kind === 'grenadeThrow')
-    && grenadeEngine.tickEvents.some((event) => event.kind === 'grenadeExplode')
+    && grenadeEngine.tickEvents.some((event) => event.kind === 'projectileLaunch' && event.type === 'frag')
+    && grenadeEngine.tickEvents.some((event) => event.kind === 'projectileExplode' && event.type === 'frag')
     && grenadeEngine.tickEvents.some((event) => event.kind === 'hit' && event.victim === 'blast-target'),
-  'one authoritative grenade consumes inventory, damages visible players, destroys stone, and preserves metal');
+  'one authoritative frag consumes its own inventory slot, damages visible players, destroys stone, and preserves metal');
 
   const chargeEngine = new GameEngine();
   chargeEngine.addBot('charge-thrower', 'Charge Thrower');
   const chargeThrower = chargeEngine.entities.get('charge-thrower');
   Object.assign(chargeThrower, { yaw: -Math.PI / 2, pitch: 0, vx: 0, vy: 0, vz: 0 });
-  const chargeContext = chargeEngine.grenadeContext();
-  const shortThrow = chargeEngine.grenades.throw(chargeThrower, chargeContext, 0);
-  const longThrow = chargeEngine.grenades.throw(chargeThrower, chargeContext, 1);
+  const chargeContext = chargeEngine.projectileContext();
+  const shortThrow = chargeEngine.projectiles.throw(chargeThrower, chargeContext, 0);
+  const longThrow = chargeEngine.projectiles.throw(chargeThrower, chargeContext, 1);
+  const cookedThrow = chargeEngine.projectiles.throw(chargeThrower, chargeContext, 1, 0, 1500);
+  const cookedLaunch = chargeEngine.tickEvents.filter((event) => event.kind === 'projectileLaunch').at(-1);
   ok(Math.hypot(longThrow.vx, longThrow.vz) > Math.hypot(shortThrow.vx, shortThrow.vz) * 2
-    && longThrow.vy > shortThrow.vy,
-  'full grenade charge produces a materially longer and higher throw than a tap');
+    && longThrow.vy > shortThrow.vy
+    && cookedThrow.explodeAt - chargeContext.now === GRENADE_TYPES.frag.fuseMs - 1500
+    && cookedLaunch.fuse === GRENADE_TYPES.frag.fuseMs - 1500,
+  'full grenade charge throws materially farther and higher, and a cooked frag leaves with the burned fuse');
 
   const forgedEngine = new GameEngine();
   forgedEngine.addBot('forged-thrower', 'Forged Thrower');
   forgedEngine.applyInput('forged-thrower', {
     seq: 1, keys: {}, yaw: 0, pitch: 0, weapon: 0,
     wantFire: false, wantAds: false, reload: false,
-    throwGrenade: true, grenadeCharge: 99,
+    throwGrenade: true, grenadeCharge: 99, grenadeType: 42, grenadeCook: 999999,
   });
   const forgedThrower = forgedEngine.entities.get('forged-thrower');
-  ok(forgedThrower.grenadeEdgeQueued && forgedThrower.grenadeChargeQueued === 1,
-    'authoritative input clamps forged grenade charge before simulation');
+  ok(forgedThrower.grenadeEdgeQueued && forgedThrower.grenadeChargeQueued === 1
+    && forgedThrower.grenadeTypeQueued === GRENADE_TYPE_IDS.length - 1
+    && forgedThrower.grenadeCookQueued === 0,
+  'authoritative input clamps forged grenade charge, type, and cook before simulation');
+
+  const handEngine = new GameEngine();
+  handEngine.addBot('cook-owner', 'Cook Owner');
+  const cookOwner = handEngine.entities.get('cook-owner');
+  Object.assign(cookOwner, { x: 44.5, y: 20, z: 50.5, hp: 100 });
+  cookOwner.grenadeEdgeQueued = true;
+  cookOwner.grenadeChargeQueued = 1;
+  cookOwner.grenadeTypeQueued = 0;
+  cookOwner.grenadeCookQueued = GRENADE_TYPES.frag.fuseMs;
+  handEngine.projectiles.step(0.05, handEngine.projectileContext());
+  ok(cookOwner.grenades[0] === 1 && cookOwner.hp < 100
+    && handEngine.projectiles.active.size === 0
+    && handEngine.tickEvents.some((event) => event.kind === 'projectileExplode' && event.type === 'frag'),
+  'a frag cooked to the end of its fuse detonates in the hand and hurts the holder');
+
+  const limpetEngine = new GameEngine();
+  limpetEngine.addBot('limpet-owner', 'Limpet Owner');
+  limpetEngine.addBot('limpet-victim', 'Limpet Victim');
+  const limpetOwner = limpetEngine.entities.get('limpet-owner');
+  const limpetVictim = limpetEngine.entities.get('limpet-victim');
+  for (let y = 18; y <= 26; y++) {
+    for (let z = 44; z <= 58; z++) {
+      for (let x = 36; x <= 56; x++) limpetEngine.world.setBlock(x, y, z, AIR);
+    }
+  }
+  Object.assign(limpetOwner, { x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0, vx: 0, vy: 0, vz: 0 });
+  Object.assign(limpetVictim, { x: 46.5, y: 20, z: 50.5, hp: 100, vx: 0, vy: 0, vz: 0 });
+  const limpetIndex = GRENADE_TYPE_IDS.indexOf('limpet');
+  const limpet = limpetEngine.projectiles.throw(limpetOwner, limpetEngine.projectileContext(), 1, limpetIndex);
+  Object.assign(limpet, { x: 46.2, y: 21.0, z: 50.5, vx: 12, vy: 0, vz: 0 });
+  limpetEngine.now += 300;
+  limpetEngine.projectiles.step(0.05, limpetEngine.projectileContext());
+  const stickEvent = limpetEngine.tickEvents.find((event) => event.kind === 'projectileStick');
+  limpetVictim.x = 50.5;
+  limpetEngine.projectiles.step(0.05, limpetEngine.projectileContext());
+  const rideX = limpet.x;
+  limpetEngine.now += GRENADE_TYPES.limpet.fuseMs + 50;
+  limpetEngine.projectiles.step(0.05, limpetEngine.projectileContext());
+  const limpetKill = limpetEngine.tickEvents.find((event) => event.kind === 'kill' && event.victim === 'limpet-victim');
+  ok(limpetOwner.grenades[limpetIndex] === 0
+    && stickEvent?.to === 'limpet-victim' && limpet.stuckTo === limpetVictim
+    && Math.abs(rideX - (50.5 + limpet.stickOffset.x)) < 1e-9
+    && limpetKill?.w === 'limpet' && limpetVictim.state === 'dead',
+  'a limpet sticks to the first player it touches, rides that carrier, and its short fuse kills with a direct blast');
+
+  const pulseEngine = new GameEngine();
+  pulseEngine.addBot('pulse-owner', 'Pulse Owner');
+  pulseEngine.addBot('pulse-victim', 'Pulse Victim');
+  const pulseOwner = pulseEngine.entities.get('pulse-owner');
+  const pulseVictim = pulseEngine.entities.get('pulse-victim');
+  for (let y = 18; y <= 26; y++) {
+    for (let z = 44; z <= 58; z++) {
+      for (let x = 36; x <= 56; x++) pulseEngine.world.setBlock(x, y, z, AIR);
+    }
+  }
+  pulseEngine.world.setBlock(46, 20, 50, STONE);
+  Object.assign(pulseOwner, { x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0 });
+  Object.assign(pulseVictim, { x: 44.5, y: 20, z: 50.5, hp: 100, vx: 0, vy: 0, vz: 0, panic: 0 });
+  const pulseIndex = GRENADE_TYPE_IDS.indexOf('pulse');
+  const pulse = pulseEngine.projectiles.throw(pulseOwner, pulseEngine.projectileContext(), 1, pulseIndex);
+  Object.assign(pulse, { x: 45.7, y: 20.5, z: 50.5, vx: 14, vy: 0, vz: 0 });
+  pulseEngine.now += 300;
+  pulseEngine.projectiles.step(0.05, pulseEngine.projectileContext());
+  ok(pulseEngine.projectiles.active.size === 0
+    && pulseEngine.tickEvents.some((event) => event.kind === 'projectileExplode' && event.type === 'pulse')
+    && pulseEngine.world.getBlock(46, 20, 50) === STONE
+    && pulseVictim.hp < 100 && pulseVictim.hp > 50
+    && Math.hypot(pulseVictim.vx, pulseVictim.vz) > 8
+    && pulseVictim.concussedUntil > pulseEngine.now && pulseVictim.panic > 0.3,
+  'a pulse shock detonates on impact, spares terrain, and trades damage for knockback plus a concussion');
 
   const blastCapEngine = new GameEngine();
   blastCapEngine.addBot('cap-owner', 'Cap Owner');
@@ -308,22 +385,40 @@ function runDirectContracts() {
     }
     blastCapEngine.world.setBlock(44, y, 50, AIR);
   }
-  const capContext = blastCapEngine.grenadeContext();
-  const capGrenade = blastCapEngine.grenades.throw(capOwner, capContext);
+  const capContext = blastCapEngine.projectileContext();
+  const capGrenade = blastCapEngine.projectiles.throw(capOwner, capContext);
   const capOrigin = [44.5, 20.5, 50.5];
   Object.assign(capGrenade, { x: capOrigin[0], y: capOrigin[1], z: capOrigin[2] });
-  blastCapEngine.grenades.explode(capGrenade, capContext);
+  blastCapEngine.projectiles.explode(capGrenade, capContext);
   const blastBlocks = blastCapEngine.tickEvents.filter((event) => event.kind === 'block');
   const blastBlockKeys = new Set(blastBlocks.map((event) => `${event.x},${event.y},${event.z}`));
   ok(blastBlocks.length > 0
-    && blastBlocks.length <= GRENADE_RULES.maxDestroyedBlocks
+    && blastBlocks.length <= PROJECTILE_RULES.frag.maxDestroyedBlocks
     && blastBlockKeys.size === blastBlocks.length
     && blastBlocks.every((event) => Math.hypot(
       event.x + 0.5 - capOrigin[0],
       event.y + 0.5 - capOrigin[1],
       event.z + 0.5 - capOrigin[2],
-    ) <= GRENADE_RULES.terrainRadius),
+    ) <= PROJECTILE_RULES.frag.terrainRadius),
   'grenade terrain carving stays unique, inside its radius, and below its hard block cap');
+
+  const chainEngine = new GameEngine();
+  chainEngine.addBot('chain-owner', 'Chain Owner');
+  const chainOwner = chainEngine.entities.get('chain-owner');
+  for (let y = 18; y <= 26; y++) {
+    for (let z = 44; z <= 58; z++) {
+      for (let x = 36; x <= 56; x++) chainEngine.world.setBlock(x, y, z, AIR);
+    }
+  }
+  Object.assign(chainOwner, { x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0 });
+  const chainContext = chainEngine.projectileContext();
+  const first = chainEngine.projectiles.throw(chainOwner, chainContext, 1, 0);
+  const second = chainEngine.projectiles.throw(chainOwner, chainContext, 1, 0);
+  Object.assign(first, { x: 44.5, y: 21, z: 50.5 });
+  Object.assign(second, { x: 47.0, y: 21, z: 50.5, explodeAt: chainEngine.now + 5000 });
+  chainEngine.projectiles.explode(first, chainContext);
+  ok(second.explodeAt === chainEngine.now && second.chained === true,
+    'an explosion sympathetically detonates other live explosives inside its blast');
 
   const ownerEngine = new GameEngine();
   ownerEngine.addBot('owner-bot', 'Owner Bot');
@@ -337,12 +432,12 @@ function runDirectContracts() {
       for (let x = 38; x <= 49; x++) ownerEngine.world.setBlock(x, y, z, AIR);
     }
   }
-  const ownerContext = ownerEngine.grenadeContext();
-  const ownedGrenade = ownerEngine.grenades.throw(ownerBot, ownerContext);
+  const ownerContext = ownerEngine.projectileContext();
+  const ownedGrenade = ownerEngine.projectiles.throw(ownerBot, ownerContext);
   ownerEngine.takeoverBot('owner-bot', 'owner-human', 'Owner Human');
   Object.assign(ownedGrenade, { x: 45.2, y: 21.1, z: 50.5 });
-  ownerEngine.grenades.explode(ownedGrenade, ownerContext);
-  const ownedExplosion = ownerEngine.tickEvents.find((event) => event.kind === 'grenadeExplode');
+  ownerEngine.projectiles.explode(ownedGrenade, ownerContext);
+  const ownedExplosion = ownerEngine.tickEvents.find((event) => event.kind === 'projectileExplode');
   const ownedHit = ownerEngine.tickEvents.find(
     (event) => event.kind === 'hit' && event.victim === 'owner-target',
   );
@@ -350,8 +445,8 @@ function runDirectContracts() {
   const protectedEngine = new GameEngine();
   protectedEngine.addBot('protected-owner', 'Protected Owner');
   const protectedOwner = protectedEngine.entities.get('protected-owner');
-  const protectedContext = protectedEngine.grenadeContext();
-  const protectedGrenade = protectedEngine.grenades.throw(protectedOwner, protectedContext);
+  const protectedContext = protectedEngine.projectileContext();
+  const protectedGrenade = protectedEngine.projectiles.throw(protectedOwner, protectedContext);
   protectedEngine.respawnPlayer(
     protectedOwner,
     { x: 44.5, y: 20, z: 50.5, index: 0 },
@@ -363,21 +458,21 @@ function runDirectContracts() {
     }
   }
   Object.assign(protectedGrenade, { x: 44.5, y: 21, z: 50.5 });
-  protectedEngine.grenades.explode(protectedGrenade, protectedContext);
+  protectedEngine.projectiles.explode(protectedGrenade, protectedContext);
 
   const postEngine = new GameEngine();
   postEngine.addBot('post-owner', 'Post Owner');
   postEngine.addBot('post-target', 'Post Target');
   const postOwner = postEngine.entities.get('post-owner');
   const postTarget = postEngine.entities.get('post-target');
-  const postContext = postEngine.grenadeContext();
-  const postGrenade = postEngine.grenades.throw(postOwner, postContext);
+  const postContext = postEngine.projectileContext();
+  const postGrenade = postEngine.projectiles.throw(postOwner, postContext);
   postEngine.mode.policy.phase = 'post';
   Object.assign(postTarget, { x: 44.5, y: 20, z: 50.5, hp: 100 });
   postEngine.world.setBlock(44, 20, 51, STONE);
   Object.assign(postGrenade, { x: 44.5, y: 21, z: 50.5 });
   const postEventStart = postEngine.tickEvents.length;
-  postEngine.grenades.explode(postGrenade, postContext);
+  postEngine.projectiles.explode(postGrenade, postContext);
   const postEvents = postEngine.tickEvents.slice(postEventStart);
   ok(ownedGrenade.owner.id === 'owner-human'
     && ownedExplosion?.id === 'owner-human'
@@ -385,9 +480,128 @@ function runDirectContracts() {
     && protectedOwner.hp === 100
     && postTarget.hp === 100
     && postEngine.world.getBlock(44, 20, 51) === STONE
-    && postEvents.some((event) => event.kind === 'grenadeExplode')
+    && postEvents.some((event) => event.kind === 'projectileExplode')
     && !postEvents.some((event) => event.kind === 'hit' || event.kind === 'block'),
   'grenades retain takeover ownership, respect fresh-life protection, and become inert after live play');
+
+  const rocketEngine = new GameEngine();
+  rocketEngine.addBot('rocketeer', 'Rocketeer');
+  rocketEngine.addBot('rocket-target', 'Rocket Target');
+  const rocketeer = rocketEngine.entities.get('rocketeer');
+  const rocketTarget = rocketEngine.entities.get('rocket-target');
+  for (let y = 18; y <= 28; y++) {
+    for (let z = 44; z <= 58; z++) {
+      for (let x = 36; x <= 60; x++) rocketEngine.world.setBlock(x, y, z, AIR);
+    }
+  }
+  for (let y = 18; y <= 28; y++) {
+    for (let z = 44; z <= 58; z++) rocketEngine.world.setBlock(56, y, z, STONE);
+  }
+  const rocketSlot = WEAPON_IDS.indexOf('rocket');
+  Object.assign(rocketeer, {
+    x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0, weapon: rocketSlot, deployT: 0, cooldown: 0,
+  });
+  Object.assign(rocketTarget, { x: 54.5, y: 20, z: 53.2, hp: 100, vx: 0, vy: 0, vz: 0 });
+  rocketEngine.fireOneShot(rocketeer);
+  const rocketLaunchEvent = rocketEngine.tickEvents.find((event) => event.kind === 'projectileLaunch' && event.type === 'rocket');
+  const rocketShoot = rocketEngine.tickEvents.find((event) => event.kind === 'shoot' && event.w === 'rocket');
+  let rocketTicks = 0;
+  while (rocketEngine.projectiles.active.size > 0 && rocketTicks < 60) {
+    rocketEngine.now += 50;
+    rocketEngine.projectiles.step(0.05, rocketEngine.projectileContext());
+    rocketTicks++;
+  }
+  const rocketBlast = rocketEngine.tickEvents.find((event) => event.kind === 'projectileExplode' && event.type === 'rocket');
+  ok(rocketeer.mag[rocketSlot] === 0 && rocketShoot && rocketLaunchEvent
+    && rocketLaunchEvent.v[0] > 38 && rocketTicks > 2 && rocketTicks < 20
+    && rocketBlast && rocketBlast.x > 52 && rocketBlast.x < 56.5
+    && rocketTarget.hp < 100 && Math.hypot(rocketTarget.vx, rocketTarget.vz) > 1.5
+    && rocketEngine.tickEvents.some((event) => event.kind === 'kill' && event.w === 'rocket')
+      === (rocketTarget.state === 'dead'),
+  'a fired rocket is its own authoritative projectile that flies straight, detonates on the far wall, and blasts the bystander');
+
+  const jumpEngine = new GameEngine();
+  jumpEngine.addBot('jumper', 'Jumper');
+  const jumper = jumpEngine.entities.get('jumper');
+  for (let y = 18; y <= 28; y++) {
+    for (let z = 44; z <= 58; z++) {
+      for (let x = 36; x <= 56; x++) jumpEngine.world.setBlock(x, y, z, AIR);
+    }
+  }
+  for (let z = 47; z <= 54; z++) {
+    for (let x = 41; x <= 48; x++) jumpEngine.world.setBlock(x, 19, z, STONE);
+  }
+  Object.assign(jumper, { x: 44.5, y: 20, z: 50.5, yaw: 0, pitch: -1.4, weapon: rocketSlot, deployT: 0, cooldown: 0, vx: 0, vy: 0, vz: 0 });
+  jumpEngine.fireOneShot(jumper);
+  let jumpTicks = 0;
+  while (jumpEngine.projectiles.active.size > 0 && jumpTicks < 20) {
+    jumpEngine.now += 50;
+    jumpEngine.projectiles.step(0.05, jumpEngine.projectileContext());
+    jumpTicks++;
+  }
+  ok(jumper.vy > 8 && jumper.hp < 100 && jumper.hp > 30 && jumper.state === 'alive',
+    'a rocket fired at the floor launches its owner upward for a survivable rocket jump');
+
+  const coilEngine = new GameEngine();
+  coilEngine.addBot('coil', 'Coil');
+  coilEngine.addBot('coil-first', 'Coil First');
+  coilEngine.addBot('coil-second', 'Coil Second');
+  const coil = coilEngine.entities.get('coil');
+  const coilFirst = coilEngine.entities.get('coil-first');
+  const coilSecond = coilEngine.entities.get('coil-second');
+  for (let y = 18; y <= 28; y++) {
+    for (let z = 44; z <= 58; z++) {
+      for (let x = 36; x <= 60; x++) coilEngine.world.setBlock(x, y, z, AIR);
+    }
+  }
+  const longarcSlot = WEAPON_IDS.indexOf('longarc');
+  Object.assign(coil, { x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0, weapon: longarcSlot, deployT: 0, cooldown: 0, adsT: 1 });
+  Object.assign(coilFirst, { x: 48.5, y: 20, z: 50.5, hp: 100 });
+  Object.assign(coilSecond, { x: 48.5, y: 20, z: 54.5, hp: 100 });
+  const coilInput = {
+    keys: { f: false, b: false, l: false, r: false, jump: false, sprint: false, crouch: false },
+    yaw: -Math.PI / 2, pitch: 0, weapon: longarcSlot, wantAds: false, reload: false, viewAge: 100,
+  };
+  coilEngine.applyInput('coil', { ...coilInput, seq: 1, wantFire: true });
+  for (let i = 0; i < 4; i++) coilEngine.resolveWeaponIntent(coil, 0.05);
+  const midCharge = coil.charge;
+  coilEngine.applyInput('coil', { ...coilInput, seq: 2, wantFire: false });
+  coilEngine.resolveWeaponIntent(coil, 0.05);
+  const coilTapShot = coilEngine.tickEvents.find((event) => event.kind === 'shoot' && event.w === 'longarc');
+  const coilTapHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-first');
+  const tapArc = coilEngine.tickEvents.some((event) => event.kind === 'arc');
+  ok(midCharge > 0 && midCharge < 0.3 && coilTapShot && coilTapShot.charge < 0.3
+    && coilTapHit && coilTapHit.dmg < WEAPONS.longarc.damage[0] * 0.65 && !tapArc && coil.charge === 0,
+  'a short LONGARC trigger tap releases a weak dart: charge scales the damage down and never arcs');
+
+  coilEngine.tickEvents.length = 0;
+  Object.assign(coil, { cooldown: 0, triggerPrev: false, adsT: 1, bloom: 0 });
+  Object.assign(coilFirst, { hp: 100 });
+  coilEngine.applyInput('coil', { ...coilInput, seq: 3, wantFire: true });
+  for (let i = 0; i < 40; i++) coilEngine.resolveWeaponIntent(coil, 0.05);
+  const fullCharge = coil.charge;
+  coilEngine.applyInput('coil', { ...coilInput, seq: 4, wantFire: false });
+  coilEngine.resolveWeaponIntent(coil, 0.05);
+  const fullShot = coilEngine.tickEvents.find((event) => event.kind === 'shoot' && event.w === 'longarc');
+  const fullHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-first');
+  const arcEvent = coilEngine.tickEvents.find((event) => event.kind === 'arc');
+  const arcHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-second');
+  ok(fullCharge === 1 && fullShot?.charge === 1 && fullHit?.dmg === WEAPONS.longarc.damage[0]
+    && arcEvent && arcHit && Math.abs(arcHit.dmg - fullHit.dmg * WEAPONS.longarc.chain.damageMult) < 1
+    && Math.abs(coilSecond.hp - (100 - fullHit.dmg * WEAPONS.longarc.chain.damageMult)) < 0.2,
+  'a full LONGARC charge deals full damage and chain-arcs to a nearby visible enemy for a fraction');
+
+  coilEngine.tickEvents.length = 0;
+  Object.assign(coil, { cooldown: 0, triggerPrev: false });
+  coilEngine.applyInput('coil', { ...coilInput, seq: 5, wantFire: true });
+  let ventShots = 0;
+  for (let i = 0; i < 60; i++) {
+    coilEngine.resolveWeaponIntent(coil, 0.05);
+    ventShots = coilEngine.tickEvents.filter((event) => event.kind === 'shoot').length;
+    if (ventShots) break;
+  }
+  ok(ventShots === 1 && !coil.charging,
+    'holding the LONGARC trigger past the vent time fires the shot on its own');
 
   const snapshots = [];
   const fireEngine = new GameEngine({ broadcast: (msg) => snapshots.push(msg) });
@@ -530,14 +744,15 @@ function runDirectContracts() {
   slotEngine.applyInput('slots', { ...tapInput, seq: 2, weapon: -999 });
   slotEngine.step(TICK_MS);
   ok(highSlot === WEAPON_IDS.length - 1 && slotter.weapon === 0,
-    'authoritative slot selection clamps dynamically across all seven weapons');
+    'authoritative slot selection clamps dynamically across all eight weapons');
 
   const botEngine = new GameEngine();
   const botManager = attachBots(botEngine, WEAPON_IDS.length);
   for (let i = 0; i < 20; i++) botEngine.step(TICK_MS);
   const botSlots = [...botEngine.entities.values()].map((player) => player.weapon).sort((a, b) => a - b);
-  ok(JSON.stringify(botSlots) === JSON.stringify(WEAPON_IDS.map((_, i) => i)),
-    'authoritative bots deploy across the full weapon roster');
+  ok(botSlots.length === 7
+    && JSON.stringify(botSlots) === JSON.stringify(WEAPON_IDS.slice(0, 7).map((_, i) => i)),
+    'authoritative bots (capped at seven) deploy across distinct roster slots');
   botManager.dispose();
 
   const conditionSnapshots = [];
@@ -870,7 +1085,7 @@ function runDirectContracts() {
     && funStartRow.interaction === null
     && exact(funStartRow.mag, freshMags)
     && exact(funStartRow.reserve, freshReserve),
-  'Fun snapshot exposes the full seven-weapon loadout and exact unteamed match fields');
+  'Fun snapshot exposes the full eight-weapon loadout and exact unteamed match fields');
   fun.engine.addBot('fun-attacker', 'Fun Attacker');
   const funAttacker = fun.engine.entities.get('fun-attacker');
 
@@ -1682,8 +1897,10 @@ async function runNetwork(server, clients) {
     && typeof me.reloading === 'boolean'
     && Number.isFinite(me.panic) && me.panic >= 0 && me.panic <= 1
     && Number.isFinite(me.exhaustion) && me.exhaustion >= 0 && me.exhaustion <= 1
-    && Number.isInteger(me.grenades) && me.grenades >= 0,
-  'wire snapshot carries dynamic ammo, reload, grenade, and normalized hidden-condition state');
+    && Array.isArray(me.grenades) && me.grenades.length === GRENADE_TYPE_IDS.length
+    && me.grenades.every((count) => Number.isInteger(count) && count >= 0)
+    && Number.isFinite(me.charge) && me.charge >= 0 && me.charge <= 1,
+  'wire snapshot carries dynamic ammo, reload, per-type grenade, charge, and normalized hidden-condition state');
 
   const shoot = a.events.find((e) => e.kind === 'shoot');
   ok(shoot, 'shoot events broadcast inside snapshots');

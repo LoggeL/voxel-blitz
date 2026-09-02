@@ -4,7 +4,7 @@ import * as THREE from '../vendor/three.module.js';
 import { SX, SY, SZ } from '../../../shared/worlddata.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { blockSoundFor } from '../weapons/effects.js';
-import { WEAPON_NAMES } from '../ui/hud-support.js';
+import { THROWABLE_NAMES, WEAPON_NAMES } from '../ui/hud-support.js';
 
 /**
  * Screen-space bearing (degrees, 0 = ahead, 90 = right) from the viewer at `from`
@@ -23,7 +23,7 @@ export function bearingDeg(from, yaw, to) {
 /** One-line death recap: weapon, markers, range, and what the killer had left. */
 export function deathRecapText({ weapon, headshot, longRange, noScope, distance, killerHp } = {}) {
   const parts = [];
-  if (weapon === 'grenade') parts.push('GRENADE');
+  if (weapon && THROWABLE_NAMES[weapon]) parts.push(THROWABLE_NAMES[weapon]);
   else if (weapon && WEAPON_NAMES[weapon]) parts.push(WEAPON_NAMES[weapon]);
   if (headshot) parts.push('HEADSHOT');
   if (longRange) parts.push('LONG RANGE');
@@ -209,13 +209,23 @@ export class CombatFeedback {
         }
         break;
       }
-      case 'grenadeThrow': {
-        this.effects.grenadeThrow(ev, { fromSelf: ev.id === myId });
+      case 'projectileLaunch': {
+        this.effects.projectileLaunch(ev, { fromSelf: ev.id === myId });
         break;
       }
-      case 'grenadeExplode': {
-        this.effects.grenadeExplode(ev);
-        this.sfx.grenadeExplosion([ev.x, ev.y, ev.z]);
+      case 'projectileStick': {
+        this.effects.projectileStick(ev);
+        this.sfx.impact('metal', 0.5, { pos: [ev.x, ev.y, ev.z] });
+        break;
+      }
+      case 'projectileExplode': {
+        this.effects.projectileExplode(ev);
+        this.sfx.explosion([ev.x, ev.y, ev.z], ev.type);
+        break;
+      }
+      case 'arc': {
+        this.effects.arc(ev.from, ev.to);
+        this.sfx.arcZap?.(ev.to);
         break;
       }
       case 'respawn': {

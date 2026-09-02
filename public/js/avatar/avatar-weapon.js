@@ -125,6 +125,7 @@ export class AvatarWeaponModel {
     stride = 0,
     swing = 0,
     dt = 0,
+    charge = 0,
   } = {}) {
     this.setWeapon(weapon);
     if (!this._model) return;
@@ -174,6 +175,10 @@ export class AvatarWeaponModel {
     this._model.flash.grp.visible = this._flash > 0;
     for (const material of this._model.flash.mats) material.opacity = this._flash;
     this._model.flash.light.intensity = this._flash * 1.4;
+    // A remote capacitor charge lights the coils exactly like the first-person rig.
+    const charge01 = Math.max(0, Math.min(1, Number(charge) || 0));
+    const glow = this._model.uni.uGlow;
+    glow.value = Math.max(charge01, glow.value * Math.exp(-frameDt / 0.05), this._flash);
   }
 
   resetPose() {

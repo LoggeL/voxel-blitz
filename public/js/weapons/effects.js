@@ -5,12 +5,22 @@ import { BrassPool } from './brass.js';
 import { GoreFX } from './gore.js';
 import { ImpactFX, blockSoundFor } from './impacts.js';
 import { hideInstance } from './instancing.js';
-import { GrenadeFX } from './grenades.js';
+import { ProjectileFX } from './projectiles.js';
+import { ArcFX } from './arcs.js';
+import { WEAPONS } from '../../../shared/combatmath.js';
+import { rocketLaunch } from '../../../shared/rocket-rules.js';
 
 export { blockSoundFor };
 
+const BLAST_PARTICLES = Object.freeze({
+  frag: Object.freeze({ count: 34, tint: 0xff9f1c, speed: 8.2, size: 1.55, life: 0.72, shake: 0.95, reach: 26 }),
+  limpet: Object.freeze({ count: 44, tint: 0xffc27a, speed: 9.5, size: 1.7, life: 0.8, shake: 1.05, reach: 28 }),
+  pulse: Object.freeze({ count: 26, tint: 0x9ff4ff, speed: 11, size: 1.2, life: 0.45, shake: 0.7, reach: 24 }),
+  rocket: Object.freeze({ count: 52, tint: 0xffb347, speed: 10.5, size: 1.8, life: 0.85, shake: 1.15, reach: 32 }),
+});
+
 export class Effects {
-  constructor(scene, camera, worldGetBlockFn) {
+  constructor(scene, camera, worldGetBlockFn, { getEntityPosition = null } = {}) {
     this.scene = scene;
     this.camera = camera;
     this.getBlockFn = worldGetBlockFn || (() => 0);
@@ -25,7 +35,13 @@ export class Effects {
     );
     this.goreFx = new GoreFX(scene, camera, this.getBlockFn);
     this.brass = new BrassPool(scene, this.getBlockFn);
-    this.grenades = new GrenadeFX(scene, this.getBlockFn);
+    this.projectiles = new ProjectileFX(scene, this.getBlockFn, {
+      getEntityPosition,
+      onTrail: (x, y, z) => this.impacts.spawnParticles(
+        x, y, z, 1, 0x8d8f94, { speed: 0.6, gravity: -0.4, size: 1.6, life: 0.55, softness: true },
+      ),
+    });
+    this.arcs = new ArcFX(scene);
 
     this.stats = {};
     Object.defineProperties(this.stats, {
@@ -34,7 +50,7 @@ export class Effects {
         enumerable: true,
         get: () => this.impacts?.particlesSpawned || 0,
       },
-      grenades: { enumerable: true, get: () => this.grenades?.projectiles.size || 0 },
+      projectiles: { enumerable: true, get: () => this.projectiles?.projectiles.size || 0 },
     });
   }
 
@@ -47,7 +63,23 @@ export class Effects {
   }
 
   shoot(event, options = {}) {
-    if (!this._disposed) this.tracers.shoot(event, options);
+    if (this._disposed) return;
+    this.tracers.shoot(event, options);
+    // A rocket shot spawns the predicted projectile locally; remote rockets arrive as
+    // authoritative `projectileLaunch` events and only get the muzzle flash here.
+    const definition = WEAPONS[event?.w];
+    if (options.local && definition?.projectile === 'rocket' && Array.isArray(event.o)) {
+      const dir = event.spread || event.d;
+      const direction = Array.isArray(dir)
+        ? { x: dir[0], y: dir[1], z: dir[2] }
+        : dir;
+      const launch = rocketLaunch({ x: event.o[0], y: event.o[1], z: event.o[2], dir: direction });
+      this.projectiles.launch({
+        type: 'rocket',
+        o: [launch.x, launch.y, launch.z],
+        v: [launch.vx, launch.vy, launch.vz],
+      }, { local: true });
+    }
   }
 
   spawnTracer(origin, direction, length, definition) {
@@ -95,23 +127,28 @@ export class Effects {
   }
 
   /** `options.local` spawns a prediction; `options.fromSelf` lets authority adopt it. */
-  grenadeThrow(event, options = {}) {
-    if (!this._disposed) this.grenades.throw(event, options);
+  projectileLaunch(event, options = {}) {
+    if (!this._disposed) this.projectiles.launch(event, options);
   }
 
-  /** Predicted flight preview for a `{x,y,z,vx,vy,vz}` launch, or `null` to hide it. */
-  grenadePreview(launch) {
+  /** Predicted flight preview for a `{type,x,y,z,vx,vy,vz}` launch, or `null` to hide it. */
+  projectilePreview(launch) {
     if (this._disposed) return null;
-    return this.grenades.setPreview(launch);
+    return this.projectiles.setPreview(launch);
   }
 
-  grenadeExplode(event) {
+  projectileStick(event) {
+    if (!this._disposed) this.projectiles.stick(event);
+  }
+
+  projectileExplode(event) {
     if (this._disposed) return;
-    this.grenades.explode(event);
+    this.projectiles.explode(event);
+    const style = BLAST_PARTICLES[event?.type] || BLAST_PARTICLES.frag;
     this.impacts.spawnParticles(
       Number(event.x), Number(event.y), Number(event.z),
-      34, 0xff9f1c,
-      { speed: 8.2, gravity: 15, size: 1.55, life: 0.72, sparks: true },
+      style.count, style.tint,
+      { speed: style.speed, gravity: event?.type === 'pulse' ? 2 : 15, size: style.size, life: style.life, sparks: true },
     );
     const position = this.camera?.position;
     if (position) {
@@ -120,8 +157,13 @@ export class Effects {
         position.y - Number(event.y),
         position.z - Number(event.z),
       );
-      this.shake(Math.max(0, 0.95 - distance / 26));
+      this.shake(Math.max(0, style.shake - distance / style.reach));
     }
+  }
+
+  /** Chain-arc lightning between two world points. */
+  arc(from, to) {
+    if (!this._disposed) this.arcs.arc(from, to);
   }
 
   update(dt) {
@@ -131,7 +173,8 @@ export class Effects {
     this.impacts.update(dt);
     this.goreFx.update(dt);
     this.brass.update(dt);
-    this.grenades.update(dt);
+    this.projectiles.update(dt);
+    this.arcs.update(dt);
   }
 
   shake(amount) {
@@ -153,7 +196,8 @@ export class Effects {
     this.impacts.dispose();
     this.goreFx.dispose();
     this.brass.dispose();
-    this.grenades.dispose();
+    this.projectiles.dispose();
+    this.arcs.dispose();
   }
 }
 

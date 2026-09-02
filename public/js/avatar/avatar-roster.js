@@ -101,6 +101,14 @@ export class AvatarRoster {
     }
   }
 
+  /** Presented world position of one remote avatar (`{x,y,z}`), or null when absent. */
+  positionOf(id) {
+    const avatar = this._avatars.get(String(id));
+    if (!avatar) return null;
+    const position = avatar.group.position;
+    return { x: position.x, y: position.y, z: position.z };
+  }
+
   sync(remotes, dt, now) {
     const counters = this._counters;
     counters.dyingAvatars = 0;
@@ -209,6 +217,7 @@ export class AvatarRoster {
         swing,
         dt,
         blend: poseBlend,
+        charge: remote.charge,
       });
       updateAvatarStancePose(avatar, { stride, swing, blend: poseBlend });
       avatar.torso.rotation.z += ((-swing * stride * 0.055) + flinch - avatar.torso.rotation.z) * poseBlend;

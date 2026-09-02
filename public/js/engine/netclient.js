@@ -5,7 +5,12 @@ import {
   normalizeMapId,
   normalizeModeId,
 } from '../../../shared/modes.js';
-import { clampGrenadeCharge } from '../../../shared/grenade-rules.js';
+import {
+  clampGrenadeCharge,
+  clampGrenadeCook,
+  clampGrenadeType,
+  grenadeTypeAt,
+} from '../../../shared/grenade-rules.js';
 import { NetworkTiming } from './network-timing.js';
 import {
   findSnapshotWindow,
@@ -120,7 +125,7 @@ const PASSTHROUGH_FIELDS = [
   'state', 'firing', 'ads', 'crouch', 'mag', 'reserve', 'reloading',
   'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt',
   'credits', 'owned', 'bomb', 'interaction',
-  'grenades',
+  'grenades', 'charge',
 ];
 
 export class NetClient {
@@ -415,7 +420,7 @@ export class NetClient {
    *          jump?:boolean,sprint?:boolean,crouch?:boolean,interact?:boolean},
    *          yaw:number,pitch:number,weapon:number,wantFire:boolean,
    *          wantAds:boolean,reload:boolean,throwGrenade?:boolean,grenadeCharge?:number,
-   *          switchTo?:number}} input
+   *          grenadeType?:number,grenadeCook?:number,switchTo?:number}} input
    * @returns {boolean} true only when the frame was handed to the socket
    */
   sendInput(input) {
@@ -445,6 +450,8 @@ export class NetClient {
     if (input.throwGrenade) {
       msg.throwGrenade = true;
       msg.grenadeCharge = Math.round(clampGrenadeCharge(input.grenadeCharge) * 1000) / 1000;
+      msg.grenadeType = clampGrenadeType(input.grenadeType);
+      msg.grenadeCook = clampGrenadeCook(input.grenadeCook, grenadeTypeAt(msg.grenadeType));
     }
     if (Number.isInteger(input.switchTo)) msg.switchTo = input.switchTo;
     try {

@@ -2,14 +2,15 @@
 
 Browser multiplayer voxel arena shooter. One Node process serves the game **and**
 runs the authoritative 20 Hz simulation over WebSockets; clients are plain
-three.js ES modules (no bundler). Six hand-tuned guns with a full "gun UX"
+three.js ES modules (no bundler). Eight hand-tuned guns with a full "gun UX"
 stack: procedural viewmodels, staged timer-driven animations, bloom/recoil,
 ADS, tracers, shell ejects, muzzle flash + barrel heat shader, block-shatter,
 damage numbers, hitmarkers, killfeed, a full-screen sniper optic, synthesized
 WebAudio layers, transient-aligned licensed firearm samples, and menu music.
 Every weapon has a dedicated generated HUD silhouette. The live HUD also shows
 measured round-trip history, arrival jitter, the adaptive snapshot buffer, FPS,
-and two server-authoritative terrain grenades per life.
+and three kinds of server-authoritative throwables per life: cookable frags,
+sticky limpet charges, and concussive pulse shocks.
 
 ## Run
 
@@ -80,7 +81,9 @@ representative ally-spectator shot. The focused 31-frame matrix is written to
 `.artifacts/avatar-renders/`.
 
 The project-owned illustrations in `public/assets/weapons/hud/` are the
-canonical silhouette and material references for all seven procedural models.
+canonical silhouette and material references for all eight procedural models.
+`npm run weapons:icons` regenerates them from the procedural models with a
+browser-free software rasterizer (`tools/render-hud-icon.mjs`).
 The capture flows validate that each reference-faithful model still fits both
 the first-person view and remote-avatar presentation.
 
@@ -213,8 +216,10 @@ and scores reset.
 | mouse1 / mouse2 | fire / ADS (`F` also aims; ADS is hold or toggle per the settings panel, toggle by default on trackpads) |
 | `Z` / wheel while scoped | sniper zoom step (5× ↔ 2.5×) |
 | `R` | reload; shotgun shells seat one at a time and firing interrupts the load |
-| hold/release `G` | charge and throw one server-authoritative terrain grenade; longer holds throw farther (2 per life) |
-| `1-6` / wheel | weapon slots |
+| hold/release `G` | charge and throw the selected throwable; longer holds throw farther, and a frag cooks while held (hold past the fuse and it goes off in your hand) |
+| `H`, or wheel while holding `G` | cycle the throwable: M-4 FRAG (2), LIMPET CHARGE (1, sticks to walls and players), PULSE SHOCK (2, impact concussion) |
+| hold/release mouse1 with the LONGARC | charge the coilgun; release fires, a full charge pierces walls and chain-arcs off the first body hit |
+| `1-8` / wheel | weapon slots |
 | `Q` | previous weapon; while dead, previous spectator target |
 | `E` | hold S&D interaction; while dead, next spectator target |
 | arrow keys while dead | previous / next spectator target |
@@ -226,7 +231,8 @@ A standard-mapping gamepad works alongside the keyboard once the match is live:
 left stick moves (`L3` sprints, full deflection auto-sprints), right stick aims
 with a dead zone and expo curve, `RT` fires, `LT` aims, `A` jumps, `B` taps to
 toggle crouch or holds, `X` reloads, `Y` swaps, `LB` returns to the previous
-weapon, `RB` holds a grenade charge, `R3` steps scope zoom, the d-pad cycles
+weapon (`Y` while `RB` is held cycles the throwable instead), `RB` holds a
+grenade charge, `R3` steps scope zoom, the d-pad cycles
 slots (up/down), holds the S&D interaction (left) and opens the armory (right),
 `Back` shows the scoreboard, and `Start` pauses. Pad sensitivity (radians per
 second at full deflection) and aim assist live in the settings panel; aim
@@ -244,7 +250,8 @@ On touch/coarse-pointer devices, the game enters mobile mode without pointer
 lock. The left stick floats to wherever your thumb lands and auto-sprints at its
 outer ring; drag anywhere else on the screen to aim, and a quick tap there fires
 one shot. FIRE aims while held (drag to track), ADS and crouch are tap-to-toggle
-and hold-to-hold, and G charges a grenade with a live landing preview. Dedicated
+and hold-to-hold, G charges a grenade with a live landing preview, and the
+chip beside it cycles the throwable. Dedicated
 buttons cover jump, reload, use/interact, weapon swap, S&D armory, scope zoom,
 and pause, and they only exist while they can do something: reload appears when
 the magazine is short and a spare exists, grenade while you carry one, use only
@@ -257,7 +264,7 @@ a portrait hint asks you to rotate, and buttons vibrate briefly on devices with
 haptics. Safe-area-aware portrait and landscape layouts keep the combat HUD
 clear of the controls. Append `?touch=1` to force this mode during desktop QA.
 
-## The seven guns
+## The eight guns
 
 | gun | mode | rate | ammo | feel identity |
 |---|---:|---:|---:|---|
@@ -267,7 +274,8 @@ clear of the controls. Append `?touch=1` to force this mode during desktop QA.
 | **LONGSHOT MK-II** bolt sniper | bolt | 42 rpm | 5 + 6 mags | 5× full-screen optic, rotary long-throw bolt, canyon echo crack |
 | **BASTION LMG** | automatic | 720 rpm | 60 + 4 mags | heavy sustained fire and the slowest viewmodel settling |
 | **IRONCLAD .44** revolver | semi-automatic | 300 rpm | 6 + 8 mags | high-damage precision sidearm with fast handling |
-| **LN-03 LONGARC** | semi-automatic | 160 rpm | 8 + 6 mags | wall/player-piercing rail slug, coil recharge cadence |
+| **LN-03 LONGARC** | charge (hold/release) | 160 rpm | 8 + 6 mags | coilgun: a tap is a weak dart, a full charge pierces a wall and chain-arcs to two nearby enemies, holding too long vents the shot; rising capacitor whine and coil glow |
+| **RX-8 HAVOC** | semi-automatic | 45 rpm | 1 + 5 tubes | slow authoritative rocket with splash, terrain carve, direct-hit bonus, and a self-knockback tuned for rocket jumps |
 
 Gun timing lives in `public/js/guns/defs.js` (timer table per weapon); shared
 ballistics/damage in `shared/combatmath.js`; authoritative resolve in
@@ -276,7 +284,8 @@ your reported view angles — client damage claims are never trusted.
 
 ## Feel and settings
 Weapon mass is part of the shared definition: rifle 3.4 kg, SMG 2.3 kg,
-shotgun 3.6 kg, sniper 5.2 kg, LMG 8.4 kg, revolver 1.4 kg, and longarc 4.1 kg. Mouse aim and
+shotgun 3.6 kg, sniper 5.2 kg, LMG 8.4 kg, revolver 1.4 kg, longarc 4.1 kg, and
+rocket 9.6 kg. Mouse aim and
 server authority remain immediate. The procedural gun owns a separate angular
 orientation with weight-limited speed and acceleration, so heavier weapons trail
 farther during a turn and settle more slowly after the mouse has stopped.
@@ -341,12 +350,12 @@ reloads never stutter on a slow link.
 ## Architecture
 
 ```
-shared/    mode/map rules, world generation/store, DDA raycast, ballistics
+shared/    mode/map rules, world generation/store, DDA raycast, ballistics, throwable/rocket rules
 server/    HTTP/ws host, room manager, authoritative 20 Hz sim, modes, bots
 public/js/
   engine/  input, snapshots, timing/smoothing, chunk mesher, sky, combat shader
   guns/    defs (feel tables) + viewmodel rig (procedural models, staged anims)
-  weapons/ pooled FX: tracers, impacts, shatter, shells, grenades, shake
+  weapons/ pooled FX: tracers, impacts, shatter, shells, projectiles, chain arcs, shake
   ui/      menu/lobby, match/network HUD, buy dialog, scoreboard, combat feedback
   audio/   sample bank + procedural WebAudio fallback, mix, music, voice limits
 tools/     fast contracts plus isolated visual, audio, and container QA flows

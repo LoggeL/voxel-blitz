@@ -22,7 +22,7 @@ import { CombatFeedback, applySnapshotBlocks, isWorldPointVisible } from './comb
 import { disposeFirstPersonBody, makeFirstPersonBody } from './player/first-person-body.js';
 import { fwdFromAngles } from './util/look.js';
 import { nowMs } from './util/math.js';
-import { GRENADE_FUSE_MS } from '../../shared/grenade-rules.js';
+import { GRENADE_TYPES, GRENADE_TYPE_IDS, grenadeFuseAfterCook } from '../../shared/grenade-rules.js';
 
 export { currentConeDeg, fwdFromAngles } from './util/look.js';
 
@@ -47,6 +47,8 @@ class Game {
     this.effects = null;
     this.rig = null;
     this._grenadeCharging = false;
+    this._grenadeCook01 = 0;
+    this._grenadeCookLeftMs = 0;
     this.weapon = null;
     this.roster = null;
     this.feedback = null;
@@ -139,7 +141,16 @@ class Game {
     if (!net.isOpen()) return this.session.handleDisconnect();
     this.worldview.setGameMode(welcome.gameMode);
 
-    this.effects = new Effects(this.worldview.scene, this.camera, getBlock);
+    this.effects = new Effects(this.worldview.scene, this.camera, getBlock, {
+      // Stuck limpets ride their carrier: the local body or a presented remote avatar.
+      getEntityPosition: (id) => {
+        if (id === this.myId) {
+          const pos = this.player.pos;
+          return { x: pos.x, y: pos.y, z: pos.z };
+        }
+        return this.roster?.positionOf(id) || null;
+      },
+    });
     this.worldview.scene.add(this.camera);
     this.ownBody = makeFirstPersonBody();
     this.worldview.scene.add(this.ownBody.group);
@@ -338,29 +349,54 @@ class Game {
     return !(this.matchState?.mode === 'snd' && this.matchState.phase === 'prep');
   }
 
+  /** Remaining count of the selected throwable from the authoritative row. */
+  selectedGrenadeCount() {
+    const counts = this.selfRow?.grenades;
+    const index = this.input.getGrenadeType();
+    return Array.isArray(counts) ? (counts[index] | 0) : 0;
+  }
+
   /**
    * Local grenade presentation: pin click and wind-up while G is held, a live flight
-   * preview from the shared integrator, and an immediate predicted projectile on release
-   * that the authority event later adopts.
+   * preview from the shared integrator per grenade type, cook feedback for timed fuses
+   * (a fuse held to the end forces the release so authority detonates it in hand), and an
+   * immediate predicted projectile on release that the authority event later adopts.
    */
   presentGrenadeHandling(now) {
     const input = this.player.input;
-    const canThrow = this.player.alive && (this.selfRow?.grenades ?? 0) > 0
+    const typeIndex = input.getGrenadeType();
+    const type = GRENADE_TYPES[GRENADE_TYPE_IDS[typeIndex]];
+    const canThrow = this.player.alive && this.selectedGrenadeCount() > 0
       && this.isAuthoritativeFireAllowed();
     const charging = !!input.isGrenadeCharging?.() && canThrow;
     const charge = charging ? input.getGrenadeCharge(now) : 0;
+    const heldMs = charging ? input.getGrenadeHoldMs(now) : 0;
     if (charging && !this._grenadeCharging) sfx.grenadePin();
     this._grenadeCharging = charging;
+    this._grenadeCook01 = charging && type.cook ? Math.min(1, heldMs / type.fuseMs) : 0;
+    this._grenadeCookLeftMs = charging && type.cook ? Math.max(0, type.fuseMs - heldMs) : 0;
+    if (charging && type.cook && heldMs >= type.fuseMs) input.forceGrenadeRelease(now);
     this.rig?.grenadeCharge(charging ? 0.35 + 0.65 * charge : 0);
-    this.effects?.grenadePreview(charging ? this.player.grenadeLaunchState(charge) : null);
+    this.effects?.projectilePreview(
+      charging ? this.player.grenadeLaunchState(charge, type.id) : null,
+    );
 
     const thrown = this.player.consumeLocalGrenadeThrow();
     if (!thrown || !canThrow) return;
-    const launch = this.player.grenadeLaunchState(thrown.charge);
-    this.effects?.grenadeThrow({
+    const thrownType = GRENADE_TYPES[GRENADE_TYPE_IDS[thrown.type]] || type;
+    if (thrownType.cook && thrown.cookMs >= thrownType.fuseMs) {
+      // Cooked to the end: authority detonates it in the hand; nothing flies.
+      this.rig?.grenadeThrow(0);
+      return;
+    }
+    const launch = this.player.grenadeLaunchState(thrown.charge, thrownType.id);
+    this.effects?.projectileLaunch({
+      type: thrownType.id,
       o: [launch.x, launch.y, launch.z],
       v: [launch.vx, launch.vy, launch.vz],
-      fuse: GRENADE_FUSE_MS,
+      fuse: thrownType.cook
+        ? grenadeFuseAfterCook(thrown.cookMs, thrownType)
+        : (thrownType.sticky ? thrownType.flightMaxMs : thrownType.fuseMs),
     }, { local: true });
     this.rig?.grenadeThrow(thrown.charge);
     sfx.grenadeThrow(thrown.charge);
@@ -382,6 +418,7 @@ class Game {
     ctx.canReload = !!(ammo && def && ammo.mag < def.magSize && ammo.reserve > 0
       && !this.weapon.isReloading);
     ctx.grenades = this.selfRow?.grenades ?? 0;
+    ctx.grenadeType = this.input.getGrenadeType();
     ctx.canInteract = this.isAuthoritativeInteractAllowed();
     ctx.weaponCount = Array.isArray(owned) ? owned.length : WEAPON_IDS.length;
     ctx.canBuy = this.session.canOpenBuyMenu();
@@ -562,8 +599,11 @@ class Game {
       yawDeg: ((-this.player.view.yaw * 180 / Math.PI) % 360 + 360) % 360,
       alive: this.player.alive,
       grenades: this.selfRow?.grenades ?? 0,
+      grenadeType: this.input.getGrenadeType(),
       grenadeCharge: this.player.input.getGrenadeCharge(now),
       grenadeCharging: this._grenadeCharging,
+      grenadeCook01: this._grenadeCook01,
+      grenadeCookLeftMs: this._grenadeCookLeftMs,
       holdingBreath: !!this.player.aimMotion?.holdingBreath,
       breath01: this.player.aimMotion?.breathRemaining01 ?? 1,
       canHoldBreath: this.player.speedXZ < 0.18 && this.player.physics.grounded,

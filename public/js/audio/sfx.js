@@ -17,8 +17,10 @@ import {
   reloadLmg,
   reloadLongarc,
   reloadRevolver,
+  reloadRocket,
 } from './mechanics.js';
 import {
+  arcZap,
   fireReportProfile,
   renderFireReport,
   sendEcho,
@@ -32,6 +34,51 @@ let builtInSamplesPromise = null;
 let menuMusic = null;
 let panSide = 1;
 let heartbeatAt = -Infinity;
+let chargeLoop = null;
+
+/** Blast voice per explosive type: gain, low weight, and crack brightness. */
+const EXPLOSION_PROFILES = Object.freeze({
+  frag: Object.freeze({ gain: 1.08, lifetime: 1.25, low: 0.72, lowHz: 78, crack: 0.34, crackHz: 1850, echo: 0.22 }),
+  limpet: Object.freeze({ gain: 1.18, lifetime: 1.45, low: 0.9, lowHz: 64, crack: 0.42, crackHz: 1500, echo: 0.28 }),
+  pulse: Object.freeze({ gain: 1.0, lifetime: 1.0, low: 0.36, lowHz: 110, crack: 0.5, crackHz: 3400, echo: 0.16, electric: true }),
+  rocket: Object.freeze({ gain: 1.22, lifetime: 1.6, low: 0.95, lowHz: 58, crack: 0.4, crackHz: 1600, echo: 0.3 }),
+});
+
+/** One sustained capacitor whine for the held LONGARC charge; created lazily, never pooled. */
+function ensureChargeLoop() {
+  const ctx = engine.ctx;
+  if (!ctx || ctx.state === 'closed' || !engine.bus) return null;
+  if (chargeLoop && chargeLoop.ctx === ctx) return chargeLoop;
+  const oscillator = ctx.createOscillator();
+  oscillator.type = 'sawtooth';
+  oscillator.frequency.value = 180;
+  const shimmer = ctx.createOscillator();
+  shimmer.type = 'sine';
+  shimmer.frequency.value = 360;
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 600;
+  filter.Q.value = 3;
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  oscillator.connect(filter);
+  shimmer.connect(filter);
+  filter.connect(gain).connect(engine.bus);
+  oscillator.start();
+  shimmer.start();
+  chargeLoop = { ctx, oscillator, shimmer, filter, gain, level: 0 };
+  return chargeLoop;
+}
+
+function disposeChargeLoop() {
+  if (!chargeLoop) return;
+  try {
+    chargeLoop.oscillator.stop();
+    chargeLoop.shimmer.stop();
+    chargeLoop.gain.disconnect();
+  } catch {}
+  chargeLoop = null;
+}
 
 function copyOptions(value) {
   if (Array.isArray(value)) return value.slice(0, 3);
@@ -114,6 +161,7 @@ export const sfx = {
   },
 
   async dispose() {
+    disposeChargeLoop();
     menuMusic?.dispose();
     menuMusic = null;
     pool = null;
@@ -163,7 +211,47 @@ export const sfx = {
         // Local pump/bolt contacts come from the actual rig state machine. Remote
         // reports have no rig, so their matching contacts stay scheduled here.
         includeMechanics: !!positionOf(deferred),
+        charge: deferred && !Array.isArray(deferred) && Number.isFinite(deferred.charge)
+          ? deferred.charge
+          : 1,
       });
+    });
+  },
+
+  /**
+   * Held capacitor charge (LONGARC): call every frame with the 0..1 level while `active`;
+   * the whine climbs in pitch and brightness with the charge and fades out on release.
+   */
+  weaponCharge(level01, active = true) {
+    const level = Math.max(0, Math.min(1, Number(level01) || 0));
+    if (!active) {
+      if (chargeLoop) {
+        const at = chargeLoop.ctx.currentTime;
+        chargeLoop.gain.gain.cancelScheduledValues(at);
+        chargeLoop.gain.gain.setTargetAtTime(0, at, 0.03);
+        chargeLoop.level = 0;
+      }
+      return false;
+    }
+    if (!engine.ctx || engine.ctx.state === 'closed') return false;
+    const loop = ensureChargeLoop();
+    if (!loop) return false;
+    const at = loop.ctx.currentTime;
+    loop.level = level;
+    loop.oscillator.frequency.setTargetAtTime(160 + level * level * 1500, at, 0.04);
+    loop.shimmer.frequency.setTargetAtTime(320 + level * 2600, at, 0.04);
+    loop.filter.frequency.setTargetAtTime(500 + level * 3200, at, 0.05);
+    loop.gain.gain.setTargetAtTime(0.03 + level * 0.11, at, 0.04);
+    return true;
+  },
+
+  /** Chain-arc crackle at a world position. */
+  arcZap(pos) {
+    const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
+    run('arcZap', () => {
+      const output = pool.acquire({ pos: deferredPos }, 0.4);
+      output.gain.value = 0.9;
+      arcZap(output, primitives);
     });
   },
 
@@ -198,6 +286,7 @@ export const sfx = {
       const at = primitives.nowT();
       if (weapon === 'lmg') reloadLmg(output, primitives, step, at, brightness);
       else if (weapon === 'longarc') reloadLongarc(output, primitives, step, at, brightness);
+      else if (weapon === 'rocket') reloadRocket(output, primitives, step, at, brightness);
       else if (weapon === 'revolver') {
         reloadRevolver(output, primitives, step, at, brightness);
       } else genericReloadStep(output, primitives, step, at, brightness);
@@ -410,24 +499,55 @@ export const sfx = {
     });
   },
 
-  grenadeExplosion(pos) {
+  /** Blast at a world position. `type` is frag | limpet | pulse | rocket (frag by default). */
+  explosion(pos, type = 'frag') {
     const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
-    run('grenadeExplosion', () => {
-      const output = pool.acquire({ pos: deferredPos }, 1.25);
-      output.gain.value = 1.08;
-      if (samples.play('combat.grenadeExplosion', output)) return;
+    const profile = EXPLOSION_PROFILES[type] || EXPLOSION_PROFILES.frag;
+    run('explosion', () => {
+      const output = pool.acquire({ pos: deferredPos }, profile.lifetime);
+      output.gain.value = profile.gain;
       const at = primitives.nowT();
+      if (profile.electric) {
+        // Pulse: an electric snap, a rising shockwave sweep, and a thin low thud.
+        primitives.hiss(output, {
+          t0: at, filter: 'bandpass', f: profile.crackHz, sweepTo: 900, sweepMs: 0.18, q: 1.6, dec: 0.2, g: profile.crack,
+        });
+        primitives.tone(output, {
+          t0: at, type: 'square', f0: 1800, f1: 240, att: 0.001, dec: 0.14, g: 0.18,
+        });
+        primitives.hiss(output, {
+          t0: at + 0.02, filter: 'highpass', f: 2400, q: 0.7, dec: 0.3, g: 0.26,
+        });
+        primitives.tone(output, {
+          t0: at, type: 'sine', f0: profile.lowHz, f1: 40, att: 0.001, dec: 0.28, g: profile.low,
+        });
+        sendEcho(output, primitives, profile.echo, engine.echoIn, addCleanup);
+        return;
+      }
+      if (samples.play('combat.grenadeExplosion', output, { gain: 0.8 + profile.low * 0.3 })) {
+        if (type !== 'frag') {
+          primitives.tone(output, {
+            t0: at, type: 'sine', f0: profile.lowHz, f1: 28, att: 0.001, dec: 0.5, g: profile.low * 0.5,
+          });
+        }
+        return;
+      }
       primitives.hiss(output, {
-        t0: at, filter: 'lowpass', f: 680, q: 0.55, dec: 0.34, g: 0.82,
+        t0: at, filter: 'lowpass', f: 680, q: 0.55, dec: 0.3 + profile.low * 0.1, g: 0.82,
       });
       primitives.hiss(output, {
-        t0: at + 0.012, filter: 'bandpass', f: 1850, q: 0.8, dec: 0.16, g: 0.34,
+        t0: at + 0.012, filter: 'bandpass', f: profile.crackHz, q: 0.8, dec: 0.16, g: profile.crack,
       });
       primitives.tone(output, {
-        t0: at, type: 'sine', f0: 78, f1: 31, att: 0.001, dec: 0.42, g: 0.72,
+        t0: at, type: 'sine', f0: profile.lowHz, f1: 31, att: 0.001, dec: 0.3 + profile.low * 0.2, g: profile.low,
       });
-      sendEcho(output, primitives, 0.22, engine.echoIn, addCleanup);
+      sendEcho(output, primitives, profile.echo, engine.echoIn, addCleanup);
     });
+  },
+
+  /** Legacy alias kept for the frag blast. */
+  grenadeExplosion(pos) {
+    return this.explosion(pos, 'frag');
   },
 
   setListener(listener) {

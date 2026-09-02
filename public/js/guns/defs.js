@@ -214,6 +214,34 @@ export const TIMERS = {
     adsOffset: { x: 0, y: -0.155, z: -0.78 },
     kick: { stiffness: 190, damping: 21, yawWobble: 0.55 },
   },
+  rocket: {
+    // Shoulder launcher: one rocket per tube, so there is no cycle; the "bolt" slot is the
+    // arming lever that drops after the launch and the reload slides a fresh rocket in.
+    tbase: -0.03,
+    rof: WEAPONS.rocket.rpm,
+    adsTime: WEAPONS.rocket.adsTime,
+    deployTime: WEAPONS.rocket.deployTime,
+    weightKg: WEAPONS.rocket.weightKg,
+    viewKick: { pitchDeg: WEAPONS.rocket.recoil.pitch, yawDeg: WEAPONS.rocket.recoil.yaw },
+    bursts: [[0]],
+    anglesRad: [-0.002],
+    interval: 0,
+    clip: 999,
+    muzzle: [0, 0.075, -0.78],
+    portY: 0.1,
+    ejectRight: -0.03,
+    barrelLen: 0.56,        // tube from breech -0.22 -> muzzle.
+    heatLen: [0.55, 0.95],  // backblast scorch near the tube mouth.
+    boltTravel: 0.04,       // arming lever drop.
+    rechargeDur: 0.22,      // slow orange glow decay after the launch.
+    pumpMag: 0,
+    cycleBack: false,
+    cycleKind: null,
+    ejectOnFire: false,     // nothing to fling: the rocket is the round.
+    magTimeline: { start: 0.18, home: 0.84, clickAt: 0.92, type: 'mag' },
+    adsOffset: { x: 0, y: -0.175, z: -0.62 },
+    kick: { stiffness: 150, damping: 20, yawWobble: 0.7 },
+  },
 };
 
 /**
@@ -294,9 +322,13 @@ export const HANDS = {
     grip: { x: 0.045, y: 0.015, z: -0.10 },                // dominant palm wraps pistol grip.
     support: { x: -0.055, y: 0.005, z: -0.42, on: 'body' }, // foregrip cup under the rail shroud.
   },
+  rocket: {
+    grip: { x: 0.045, y: -0.02, z: -0.08 },                 // pistol grip under the tube.
+    support: { x: -0.06, y: -0.03, z: -0.40, on: 'body' },  // forward handle under the tube.
+  },
 };
 
-/** Equip ("draw") choreography, fractions of WEAPONS[id].deployTime. Shared by all seven guns;
+/** Equip ("draw") choreography, fractions of WEAPONS[id].deployTime. Shared by all eight guns;
  * heavier weapons feel slower automatically through their canonical deploy times. */
 export const DEPLOY = {
   raise: 0.38,     // first slice spends rising out of the equip dip.

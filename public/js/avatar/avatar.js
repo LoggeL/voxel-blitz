@@ -53,6 +53,7 @@ export function updateAvatarWeaponPose(av, {
   swing = 0,
   dt = 0,
   blend = 1,
+  charge = 0,
 } = {}) {
   const aimPitch = Math.max(-1.1, Math.min(1.1, Number(pitch) || 0));
   const poseBlend = Math.max(0, Math.min(1, Number(blend) || 0));
@@ -68,6 +69,7 @@ export function updateAvatarWeaponPose(av, {
     stride,
     swing,
     dt,
+    charge,
   });
   const adsT = av.weaponModel.adsT;
   const reloadT = av.weaponModel.reloadT;

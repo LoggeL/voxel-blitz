@@ -734,19 +734,49 @@ export async function runHudContracts(ok, installGlobals) {
         && /8/.test(statusStrip.textContent),
       'top status strip renders both teams, alive/dead state, and authoritative points');
 
-      hud.setState({ grenades: 1, grenadeCharge: 0.5 });
-      ok(hud.dom.grenadeSlots.filter((slot) => !slot.classList.contains('is-spent')).length === 1
+      hud.setState({ grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 0.5 });
+      const fragChip = hud.dom.grenadeTypeChips[0];
+      const pulseChip = hud.dom.grenadeTypeChips[2];
+      ok(hud.dom.grenadeTypeChips.length === 3
+        && fragChip.classList.contains('is-selected')
+        && fragChip.pips.filter((slot) => !slot.classList.contains('is-spent')).length === 1
+        && pulseChip.classList.contains('is-empty')
+        && hud.dom.grenades.dataset.type === 'frag'
         && hud.dom.grenades.classList.contains('is-charging')
         && !hud.dom.grenades.classList.contains('is-full')
         && hud.dom.grenadeChargeFill.style.transform === 'scaleX(0.5)',
-      'grenade HUD renders remaining inventory icons and live hold charge');
-      hud.setState({ grenades: 1, grenadeCharge: 1 });
+      'grenade HUD renders one chip per throwable with remaining pips, the selection, and live hold charge');
+      hud.setState({ grenades: [1, 1, 0], grenadeType: 1, grenadeCharge: 1 });
       const fullState = hud.dom.grenades.classList.contains('is-full')
-        && hud.dom.grenadeHint.textContent === 'MAX · RELEASE';
-      hud.setState({ grenades: 1, grenadeCharge: 0, grenadeCharging: true });
-      ok(fullState && hud.dom.grenades.classList.contains('is-charging')
-        && hud.dom.grenadeHint.textContent === 'HOLD · RELEASE',
-      'grenade HUD flags a maxed charge and shows the charging state from the first held frame');
+        && hud.dom.grenadeHint.textContent === 'MAX · RELEASE'
+        && hud.dom.grenades.dataset.type === 'limpet'
+        && hud.dom.grenadeTypeChips[1].classList.contains('is-selected')
+        && hud.dom.grenadeName.textContent === 'LIMPET CHARGE';
+      hud.setState({ grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 0, grenadeCharging: true });
+      const heldState = hud.dom.grenades.classList.contains('is-charging')
+        && hud.dom.grenadeHint.textContent === 'HOLD · RELEASE';
+      hud.setState({
+        grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 1, grenadeCharging: true,
+        grenadeCook01: 0.75, grenadeCookLeftMs: 650,
+      });
+      ok(fullState && heldState
+        && hud.dom.grenades.classList.contains('is-cooking')
+        && hud.dom.grenades.classList.contains('is-critical')
+        && hud.dom.grenadeHint.textContent === 'COOKING · 0.7s'
+        && hud.dom.grenadeChargeFill.style.transform === 'scaleX(0.25)',
+      'grenade HUD flags a maxed charge, the held state from the first frame, and a burning cook');
+      hud.setState({ charge01: 0.4, chainAt: 0.85 });
+      const chargingMeter = hud.dom.chargeMeter.classList.contains('is-visible')
+        && hud.dom.chargeMeter.classList.contains('is-charging')
+        && !hud.dom.chargeMeter.classList.contains('is-chain')
+        && hud.dom.chargeMeterFill.style.transform === 'scaleX(0.4)'
+        && hud.dom.chargeMeterLabel.textContent === 'CHARGING';
+      hud.setState({ charge01: 0.9, chainAt: 0.85 });
+      const chainMeter = hud.dom.chargeMeter.classList.contains('is-chain')
+        && hud.dom.chargeMeterLabel.textContent === 'CHAIN ARC READY';
+      hud.setState({ charge01: null });
+      ok(chargingMeter && chainMeter && !hud.dom.chargeMeter.classList.contains('is-visible'),
+        'the coil meter shows the live LONGARC charge, flags chain readiness, and hides for other weapons');
 
       const liveTick = makeSnapshot([], [], [], 20000, {
         ...prepMatch,

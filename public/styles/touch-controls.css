@@ -234,6 +234,16 @@
   bottom: calc(var(--touch-edge-y) + 84px);
 }
 
+.vb-touch-grenadeType {
+  right: calc(var(--touch-edge-r) + 246px);
+  bottom: calc(var(--touch-edge-y) + 22px);
+  width: 46px;
+  height: 46px;
+  font-size: 8px;
+  color: var(--amber-hi);
+  border-color: rgba(255, 159, 28, 0.55);
+}
+
 .vb-touch-crouch {
   left: 46%;
   bottom: calc(var(--touch-edge-y) + 22px);
@@ -310,6 +320,7 @@
   .vb-touch-jump { right: calc(var(--touch-edge-r) + 94px); }
   .vb-touch-grenade,
   .vb-touch-reload { right: calc(var(--touch-edge-r) + 150px); }
+  .vb-touch-grenadeType { right: calc(var(--touch-edge-r) + 206px); }
   .vb-touch-crouch,
   .vb-touch-interact { left: 44%; }
 
@@ -345,6 +356,7 @@
   .vb-touch-ads { bottom: calc(var(--touch-edge-y) + 166px); }
   .vb-touch-jump { bottom: calc(var(--touch-edge-y) + 226px); }
   .vb-touch-grenade { bottom: calc(var(--touch-edge-y) + 78px); }
+  .vb-touch-grenadeType { bottom: calc(var(--touch-edge-y) + 78px); }
   .vb-touch-reload { bottom: calc(var(--touch-edge-y) + 138px); }
   .vb-touch-crouch { bottom: calc(var(--touch-edge-y) + 194px); }
   .vb-touch-interact { bottom: calc(var(--touch-edge-y) + 252px); }
@@ -412,6 +424,7 @@
 .vb-touch-controls.is-left-handed .vb-touch-ads,
 .vb-touch-controls.is-left-handed .vb-touch-jump { right: auto; left: calc(var(--touch-edge-x) + 112px); }
 .vb-touch-controls.is-left-handed .vb-touch-grenade { right: auto; left: calc(var(--touch-edge-x) + 178px); }
+.vb-touch-controls.is-left-handed .vb-touch-grenadeType { right: auto; left: calc(var(--touch-edge-x) + 246px); }
 .vb-touch-controls.is-left-handed .vb-touch-reload { right: auto; left: calc(var(--touch-edge-x) + 182px); }
 .vb-touch-controls.is-left-handed .vb-touch-crouch,
 .vb-touch-controls.is-left-handed .vb-touch-interact { left: auto; right: 46%; }
@@ -429,6 +442,7 @@
   .vb-touch-controls.is-left-handed .vb-touch-jump { left: calc(var(--touch-edge-x) + 94px); }
   .vb-touch-controls.is-left-handed .vb-touch-grenade,
   .vb-touch-controls.is-left-handed .vb-touch-reload { left: calc(var(--touch-edge-x) + 150px); }
+  .vb-touch-controls.is-left-handed .vb-touch-grenadeType { left: calc(var(--touch-edge-x) + 206px); }
   .vb-touch-controls.is-left-handed .vb-touch-crouch,
   .vb-touch-controls.is-left-handed .vb-touch-interact { right: 44%; }
 }

@@ -14,7 +14,7 @@ export const PAD_BUTTONS = Object.freeze({
   jump: 0,          // A / Cross
   crouch: 1,        // B / Circle (tap toggles, hold holds)
   reload: 2,        // X / Square
-  weapon: 3,        // Y / Triangle: next weapon
+  weapon: 3,        // Y / Triangle: next weapon (cycles the throwable while RB is held)
   lastWeapon: 4,    // LB / L1
   grenade: 5,       // RB / R1 (hold to charge)
   ads: 6,           // LT / L2

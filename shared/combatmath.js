@@ -28,9 +28,10 @@ export const CONDITION_RULES = Object.freeze({
 
 /**
  * @typedef {Object} WeaponDef
- * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc')
+ * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket')
  * @property {string} name          display name
- * @property {'auto'|'semi'|'pump'|'bolt'} mode trigger behavior
+ * @property {'auto'|'semi'|'pump'|'bolt'|'charge'} mode trigger behavior; `charge` fires on
+ *                                  trigger release and scales with the hold (see `charge`)
  * @property {number} rpm           rounds per minute cap
  * @property {number} magSize       magazine capacity
  * @property {number} spareMags    full spare magazines carried on spawn
@@ -58,7 +59,7 @@ export const CONDITION_RULES = Object.freeze({
  * @property {string} sfx           bank key for the audio engine
  */
 
-/** The seven-gun roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
+/** The eight-gun roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
 export const WEAPONS = {
   rifle: {
     id: 'rifle', name: 'VK-77 RAPTOR', mode: 'auto',
@@ -176,10 +177,13 @@ export const WEAPONS = {
     sfx: 'revolver',
   },
   longarc: {
-    id: 'longarc', name: 'LN-03 LONGARC', mode: 'semi',
+    // Charge coilgun: the trigger charges the capacitor bank and the slug leaves on
+    // release. A short tap is a weak dart; a full charge pierces walls and, on a body hit,
+    // arcs to nearby enemies (chain lightning). Holding past `holdMaxMs` fires on its own.
+    id: 'longarc', name: 'LN-03 LONGARC', mode: 'charge',
     weightKg: 4.1,
     rpm: 160, magSize: 8, spareMags: 6,
-    damage: [62, 45, 95], headMult: 2.0, pellets: 1,
+    damage: [88, 62, 95], headMult: 2.0, pellets: 1,
     spreadDeg: { hip: 1.6, ads: 0.08 }, bloomDeg: 0.5, bloomMaxDeg: 3.0,
     bloomRecover: 3.2, moveSpreadDeg: 2.2,
     crouchSpreadMult: 0.65,
@@ -192,11 +196,67 @@ export const WEAPONS = {
     reloadTime: 2.6, tacTime: 2.0, deployTime: 0.5,
     tracer: { color: '#7dfcff', width: 1.5, len: 44 },
     sfx: 'longarc',
+    charge: {
+      ms: 850,            // hold that reaches a full charge
+      holdMaxMs: 2200,    // capacitor vents: the shot fires itself at this hold
+      minDamageMult: 0.4, // damage multiplier at zero charge (linear to 1.0)
+      wallPierceAt: 0.6,  // charge needed before the slug passes through a wall
+      chainAt: 0.85,      // charge needed to arc from the first body hit
+    },
+    chain: { targets: 2, radius: 7.5, damageMult: 0.45 },
     pierce: { players: 2, walls: 1, playerFalloff: 0.7, wallFalloff: 0.6 },
+  },
+  rocket: {
+    // Shoulder launcher: one slow rocket per tube that detonates on any contact. Splash
+    // and terrain carve come from shared/rocket-rules.js; the owner's own blast launches
+    // them hardest, so rocket jumps are a real movement tool.
+    id: 'rocket', name: 'RX-8 HAVOC', mode: 'semi',
+    weightKg: 9.6,
+    rpm: 45, magSize: 1, spareMags: 5,
+    damage: [100, 100, 60], headMult: 1.0, pellets: 1,
+    spreadDeg: { hip: 1.1, ads: 0.25 }, bloomDeg: 0, bloomMaxDeg: 0,
+    bloomRecover: 1, moveSpreadDeg: 1.4,
+    crouchSpreadMult: 0.8,
+    recoil: {
+      pitch: 4.2, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 1.1, yawPattern: [0.6, -0.5, 0.4, -0.6],
+      jitter: 0.15, resetMs: 1500, adsMult: 0.8, recovery: 0.5,
+    },
+    adsFov: 58, zoom: 1.3, adsTime: 0.32,
+    reloadTime: 2.9, tacTime: 2.9, deployTime: 0.85,
+    tracer: { color: '#ff9f1c', width: 2.2, len: 6 },
+    sfx: 'rocket',
+    projectile: 'rocket',
   },
 };
 
-export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc'];
+export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket'];
+
+/** Charge profile with safe defaults for weapons that are not `charge` mode. */
+export function chargeProfile(def) {
+  const charge = def && def.charge;
+  return {
+    ms: Number.isFinite(charge?.ms) ? charge.ms : 850,
+    holdMaxMs: Number.isFinite(charge?.holdMaxMs) ? charge.holdMaxMs : 2200,
+    minDamageMult: Number.isFinite(charge?.minDamageMult) ? charge.minDamageMult : 1,
+    wallPierceAt: Number.isFinite(charge?.wallPierceAt) ? charge.wallPierceAt : 0,
+    chainAt: Number.isFinite(charge?.chainAt) ? charge.chainAt : 2,
+  };
+}
+
+/** Normalized 0..1 charge for a hold of `heldMs` on a `charge` weapon. */
+export function chargeFromHold(def, heldMs) {
+  const profile = chargeProfile(def);
+  const held = Number.isFinite(heldMs) ? Math.max(0, heldMs) : 0;
+  return Math.min(1, held / Math.max(1, profile.ms));
+}
+
+/** Damage multiplier the charge applies (linear from minDamageMult at 0 to 1 at full). */
+export function chargeDamageMult(def, charge01) {
+  const profile = chargeProfile(def);
+  const t = Math.max(0, Math.min(1, Number.isFinite(charge01) ? charge01 : 1));
+  return profile.minDamageMult + (1 - profile.minDamageMult) * t;
+}
 
 /** Deterministic patterned camera kick in degrees; random01 only adds bounded micro-variation. */
 export function computeRecoilKickDeg(def, shotIndex, adsT = 0, random01 = 0.5) {

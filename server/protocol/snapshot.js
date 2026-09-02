@@ -1,4 +1,5 @@
 import { WEAPON_IDS } from '../../shared/combatmath.js';
+import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
 import {
   DEFAULT_MODE_ID,
   MAX_CREDITS,
@@ -16,6 +17,14 @@ function round(v, d) {
 function ammoCopy(values) {
   const src = Array.isArray(values) ? values : [];
   return WEAPON_IDS.map((_, i) => {
+    const value = src[i];
+    return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
+  });
+}
+
+function grenadeCopy(values) {
+  const src = Array.isArray(values) ? values : [];
+  return GRENADE_TYPE_IDS.map((_, i) => {
     const value = src[i];
     return Number.isFinite(value) ? Math.max(0, Math.trunc(value)) : 0;
   });
@@ -130,7 +139,8 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       owned: ownedWeapons(p.owned),
       bomb: !!p.bomb,
       interaction: interactionCopy(p.interaction),
-      grenades: Number.isFinite(p.grenades) ? Math.max(0, Math.trunc(p.grenades)) : 0,
+      grenades: grenadeCopy(p.grenades),
+      charge: round(Math.max(0, Math.min(1, Number.isFinite(p.charge) ? p.charge : 0)), D3),
     })),
     // Engines clear these scratch arrays after broadcasting, so snapshots must
     // not retain either source array.

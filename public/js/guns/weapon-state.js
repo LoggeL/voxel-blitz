@@ -9,6 +9,8 @@ import {
   computeSpreadConeDeg,
   reloadPlan,
   samplePelletDirection,
+  chargeProfile,
+  chargeFromHold,
 } from '../../../shared/combatmath.js';
 import { TIMERS } from './defs.js';
 
@@ -108,6 +110,12 @@ export class WeaponState {
   get scopeActive() { return this._scopeActive; }
   get isReloading() { return this._reloadState !== null; }
   get reload01() { return this._reloadProgress(this._now()); }
+  /** Live 0..1 capacitor charge of a `charge` weapon while the trigger is held. */
+  get charge01() {
+    if (this._chargeStart === null) return 0;
+    return chargeFromHold(this.def, this._now() - this._chargeStart);
+  }
+  get isCharging() { return this._chargeStart !== null; }
   get coneDeg() {
     return computeSpreadConeDeg(
       this.def,
@@ -147,7 +155,18 @@ export class WeaponState {
       reloadStaged: !!this._reloadState?.staged,
       adsT01: this._adsT,
       zoom: def.zoom,
+      charge01: def.mode === 'charge' ? this.charge01 : null,
+      chainAt: def.mode === 'charge' ? chargeProfile(def).chainAt : null,
     };
+  }
+
+  /** Drop a capacitor charge without firing (switch, reload, death, blocked mode). */
+  cancelCharge() {
+    if (this._chargeStart === null) return false;
+    this._chargeStart = null;
+    this._rig.setCharge?.(0);
+    this._audio.weaponCharge?.(0, false);
+    return true;
   }
 
 
@@ -201,6 +220,7 @@ export class WeaponState {
 
     this._lastSlot = this._slot;
     this._slot = slot;
+    this.cancelCharge();
     this._resetRecoilPattern();
     this._reloadState = null;
     this._deployUntil = now + this.def.deployTime * 1000;
@@ -279,6 +299,8 @@ export class WeaponState {
     this._fireTapLatched = false;
     this._wantAds = false;
     this._allowFire = false;
+    this._chargeHeldPrev = false;
+    this.cancelCharge();
   }
 
   startReload(now) {
@@ -308,6 +330,7 @@ export class WeaponState {
       // A replacement spare is consumed only after the reload completes.
       ammo.mag = 0;
     }
+    this.cancelCharge();
     this._resetRecoilPattern();
     this._rig.reload(dur / 1000, type, plan.staged ? {
       startSeconds: plan.startSeconds,
@@ -418,9 +441,13 @@ export class WeaponState {
 
   _tryFire(now) {
     // Authority is deliberately the first gate.
-    if (!this._allowFire) return false;
+    if (!this._allowFire) {
+      this.cancelCharge();
+      return false;
+    }
     const def = this.def;
     const weaponId = def.id;
+    if (def.mode === 'charge') return this._tryChargeFire(now, def, weaponId);
     if (now < this._nextFireAt || now < this._deployUntil) return false;
     const ammo = this._ammo[weaponId];
     if (!ammo) return false;
@@ -448,6 +475,51 @@ export class WeaponState {
     } else if (!input.tap) {
       return false;
     }
+    return this._commitShot(now, def, weaponId, ammo, 1);
+  }
+
+  /**
+   * Charge weapons: the press starts the capacitor, the hold is presented on the rig and
+   * as a rising whine, and the slug leaves on release (or when the bank vents at holdMaxMs).
+   * Mirrors the authoritative `resolveChargeIntent` so the predicted shot matches.
+   */
+  _tryChargeFire(now, def, weaponId) {
+    const input = this._pendingShotIntent || { tap: false, held: false };
+    const heldPrev = this._chargeHeldPrev;
+    this._chargeHeldPrev = !!input.held;
+    const profile = chargeProfile(def);
+    const ammo = this._ammo[weaponId];
+    if (this._chargeStart === null) {
+      const pressed = input.tap || (input.held && !heldPrev);
+      if (!pressed) return false;
+      if (now < this._nextFireAt || now < this._deployUntil) return false;
+      if (!ammo || this._reloadState) return false;
+      if (ammo.mag <= 0) {
+        this._audio.reloadClick(3, weaponId);
+        this.startReload(now);
+        return false;
+      }
+      this._chargeStart = now;
+      this._rig.setCharge?.(0);
+      this._audio.weaponCharge?.(0, true);
+      return false;
+    }
+    const heldMs = now - this._chargeStart;
+    const charge = chargeFromHold(def, heldMs);
+    const vent = heldMs >= profile.holdMaxMs;
+    if (input.held && !vent) {
+      this._rig.setCharge?.(charge);
+      this._audio.weaponCharge?.(charge, true);
+      return false;
+    }
+    this.cancelCharge();
+    if (!ammo || ammo.mag <= 0 || this._reloadState) return false;
+    return this._commitShot(now, def, weaponId, ammo, charge);
+  }
+
+  /** The accepted local shot: ammo, prediction, tracer/rocket FX, report, and recoil. */
+  _commitShot(now, def, weaponId, ammo, charge = 1) {
+    const mode = def.mode;
     if (!this._rig.fire()) return false;
 
     ammo.mag -= 1;
@@ -489,10 +561,11 @@ export class WeaponState {
       w: weaponId,
       spread: pellets[0],
       pellets,
+      charge: mode === 'charge' ? charge : undefined,
     }, { local: true });
 
-    this._audio.fire(weaponId);
-    this.shakeView(def, now);
+    this._audio.fire(weaponId, mode === 'charge' ? { charge } : undefined);
+    this.shakeView(def, now, mode === 'charge' ? 0.45 + 0.55 * charge : 1);
     if (mode === 'pump') this._rig.pumpAnim();
     if (mode === 'bolt') this._rig.boltAnim();
 
@@ -500,14 +573,14 @@ export class WeaponState {
     return true;
   }
 
-  shakeView(def, now) {
+  shakeView(def, now, scale = 1) {
     if (now - this._lastRecoilAt > def.recoil.resetMs) this._recoilIndex = 0;
     const kick = computeRecoilKickDeg(def, this._recoilIndex, this._adsT, this._random());
     this._recoilIndex++;
     this._lastRecoilAt = now;
     this._feedback.addRecoil(
-      kick.pitch * (Math.PI / 180),
-      kick.yaw * (Math.PI / 180),
+      kick.pitch * (Math.PI / 180) * scale,
+      kick.yaw * (Math.PI / 180) * scale,
       def.weightKg,
       def.recoil,
       now,
@@ -571,6 +644,7 @@ export class WeaponState {
 
   deathReset() {
     this._alive = false;
+    this.cancelCharge();
     this._reloadState = null;
     this._adsT = 0;
     this._scopeActive = false;
@@ -621,6 +695,8 @@ export class WeaponState {
     this._scopeActive = false;
     this._pendingShotIntent = null;
     this._fireTapLatched = false;
+    this._chargeStart = null;
+    this._chargeHeldPrev = false;
     this._allowFire = false;
     this._alive = true;
     this._mode = DEFAULT_MODE;

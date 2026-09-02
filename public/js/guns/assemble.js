@@ -1,4 +1,4 @@
-// Seven-model registry and shared first-person gun composition root.
+// Eight-model registry and shared first-person gun composition root.
 import * as THREE from '../vendor/three.module.js';
 import { HANDS, timerFor } from './defs.js';
 import { makeFlash, makeFx, makeKit } from './kit.js';
@@ -16,6 +16,7 @@ import { build as buildSniper } from './models/sniper.js';
 import { build as buildLmg } from './models/lmg.js';
 import { build as buildRevolver } from './models/revolver.js';
 import { build as buildLongarc } from './models/longarc.js';
+import { build as buildRocket } from './models/rocket.js';
 
 const MODELS = Object.freeze({
   rifle: buildRifle,
@@ -25,11 +26,12 @@ const MODELS = Object.freeze({
   lmg: buildLmg,
   revolver: buildRevolver,
   longarc: buildLongarc,
+  rocket: buildRocket,
 });
 
 /**
  * Assemble one model bundle. MaterialCache is rig-owned; registering the completed hierarchy
- * preserves one shared-material reference per rig even when all seven models are built lazily.
+ * preserves one shared-material reference per rig even when all eight models are built lazily.
  */
 export function buildGun(id, cache) {
   const buildModel = MODELS[id];

@@ -1,6 +1,6 @@
 export async function runInputContracts(ok, installGlobals) {
   // Input: headless is a pointer-lock substitute, not a gameplay-suppression
-  // bypass. Direct slots cover the full seven-gun roster and wheel edges drain.
+  // bypass. Direct slots cover the full eight-gun roster and wheel edges drain.
   {
     let input = null;
     let unlocked = null;
@@ -34,15 +34,33 @@ export async function runInputContracts(ok, installGlobals) {
       input._onKeyDown(key('KeyG', false, 100));
       input._onKeyDown(key('KeyG', true, 400));
       ok(input.consumeGrenadeThrow() === null
-        && input.getGrenadeCharge(700) === 0.5,
-      'holding G exposes deterministic charge progress without throwing or repeating');
+        && input.getGrenadeCharge(700) === 0.5
+        && input.getGrenadeHoldMs(700) === 600,
+      'holding G exposes deterministic charge and cook progress without throwing or repeating');
       input._onKeyUp(key('KeyG', false, 1300));
-      ok(input.consumeGrenadeThrow() === 1 && input.consumeGrenadeThrow() === null,
-        'releasing a fully charged G queues exactly one maximum-strength throw');
+      const fullThrow = input.consumeGrenadeThrow();
+      ok(fullThrow?.charge === 1 && fullThrow.cookMs === 1200 && fullThrow.type === 0
+        && input.consumeGrenadeThrow() === null,
+      'releasing a fully charged G queues exactly one maximum-strength throw with its cook time');
       input._onKeyDown(key('KeyG', false, 2000));
       input._onKeyUp(key('KeyG', false, 2000));
-      ok(input.consumeGrenadeThrow() === 0,
+      ok(input.consumeGrenadeThrow()?.charge === 0,
         'a quick G tap remains a valid zero-charge short throw');
+      const typeInput = new Input({});
+      typeInput._onKeyDown(key('KeyH'));
+      const cycled = typeInput.getGrenadeType();
+      typeInput._onKeyDown(key('KeyG', false, 3000));
+      typeInput._onWheel({ deltaY: 100, deltaMode: 0, timeStamp: 3100, preventDefault() {} });
+      const wheeled = typeInput.getGrenadeType();
+      typeInput._onKeyUp(key('KeyG', false, 3200));
+      const typed = typeInput.consumeGrenadeThrow();
+      ok(cycled === 1 && wheeled === 2 && typed?.type === 2
+        && typeInput.consumeWeaponSwitch() === 0,
+      'H cycles the throwable, the wheel cycles it while G is held instead of switching weapons, and the release carries the type');
+      typeInput._onKeyDown(key('KeyG', false, 4000));
+      ok(typeInput.forceGrenadeRelease(6600) && typeInput.consumeGrenadeThrow()?.cookMs === 2600,
+        'a presentation-forced release reports the full cooked hold');
+      typeInput.dispose?.();
 
       input._onKeyDown(key('Digit5'));
       ok(input.consumeWeaponSlot() === 4 && input.consumeWeaponSlot() === null,
@@ -53,6 +71,9 @@ export async function runInputContracts(ok, installGlobals) {
       input._onKeyDown(key('Digit7'));
       ok(input.consumeWeaponSlot() === 6,
         'headless Digit7 reaches the seventh weapon slot');
+      input._onKeyDown(key('Digit8'));
+      ok(input.consumeWeaponSlot() === 7,
+        'headless Digit8 reaches the eighth weapon slot');
 
       let prevented = 0;
       const wheel = (deltaY, timeStamp, deltaMode = 0) => ({
@@ -230,8 +251,12 @@ export async function runInputContracts(ok, installGlobals) {
         'a look-zone tap queues exactly one shot without latching automatic fire');
       touch._onTouchHold('grenade', true, 200);
       touch._onTouchHold('grenade', false, 800);
-      ok(touch.consumeGrenadeThrow() === 0.5,
+      ok(touch.consumeGrenadeThrow()?.charge === 0.5,
         'mobile grenade hold/release uses the shared charge duration');
+      touch._onTouchPulse('grenadeType');
+      ok(touch.getGrenadeType() === 1,
+        'the mobile type chip cycles the selected throwable');
+      touch.setGrenadeType(0);
       touch.setGameplayEnabled(false);
       ok(!touch.wantAdsHeld && !touch.getKeys().jump && touch.consumeWeaponSwitch() === 0
         && touchResetCalls === 1,
@@ -296,7 +321,7 @@ export async function runInputContracts(ok, installGlobals) {
     });
     ok(none.size === 0 && dead2.size === 0
         && [...prep].sort().join(',') === 'buy,crouch,jump'
-        && [...live].sort().join(',') === 'ads,crouch,fire,grenade,interact,jump,reload,weapon,zoom',
+        && [...live].sort().join(',') === 'ads,crouch,fire,grenade,grenadeType,interact,jump,reload,weapon,zoom',
     'touch buttons appear only for actions the current gameplay context allows');
 
     const holds = [];

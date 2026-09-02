@@ -27,7 +27,12 @@ import {
   normalizeChoice,
   wheelSwitchStep,
 } from '../input-settings.js';
-import { GRENADE_CHARGE_MS, clampGrenadeCharge } from '../../../shared/grenade-rules.js';
+import {
+  GRENADE_CHARGE_MS,
+  GRENADE_TYPE_IDS,
+  clampGrenadeCharge,
+  clampGrenadeType,
+} from '../../../shared/grenade-rules.js';
 import { TouchControls, shouldEnableTouchControls } from './touch-controls.js';
 import { GamepadInput } from './gamepad.js';
 
@@ -104,12 +109,13 @@ export class Input {
     this._adsLatched = false; // toggle-mode ADS latch (mouse/keyboard)
     this._fireTapQueued = false;
     this._reloadQueued = false;
-    this._grenadeChargeQueued = null;
+    this._grenadeThrowQueued = null; // {charge, cookMs, type} released this frame
     this._grenadeHeld = false;
     this._grenadeHoldStartedAt = 0;
+    this._grenadeType = 0;     // selected throwable (index into GRENADE_TYPE_IDS)
     this._switchQueue = 0;     // wheel steps accumulated (+/-1)
     this._wheel = { acc: 0, lastAt: -Infinity };
-    this._pendingSlot = null;  // direct Digit1..7 pick (0..6) or null
+    this._pendingSlot = null;  // direct Digit1..8 pick (0..7) or null
     this._lastWeaponReq = false;
     this._buyMenuQueued = false;
     this._buyMenuHeld = false; // physical B latch suppresses repeat/re-entry
@@ -439,7 +445,11 @@ export class Input {
     this._padFire = frame.held.fire;
     this._padAds = frame.held.ads;
     if (frame.pressed.reload) this._reloadQueued = true;
-    if (frame.pressed.weapon) this._switchQueue += 1;
+    // Y while the grenade is held cycles the throwable instead of the weapon.
+    if (frame.pressed.weapon) {
+      if (this._grenadeHeld) this.cycleGrenadeType(1);
+      else this._switchQueue += 1;
+    }
     if (frame.pressed.slotUp) this._switchQueue -= 1;
     if (frame.pressed.slotDown) this._switchQueue += 1;
     if (frame.pressed.lastWeapon) this._lastWeaponReq = true;
@@ -447,14 +457,8 @@ export class Input {
     if (frame.pressed.zoom) this._zoomStepQueue += 1;
     if (frame.pressed.pause) this._pauseHandler?.();
     this._padScoreboard = frame.held.scoreboard;
-    if (frame.pressed.grenade && !this._grenadeHeld) {
-      this._grenadeHeld = true;
-      this._grenadeHoldStartedAt = now;
-    } else if (frame.released.grenade && this._grenadeHeld) {
-      this._grenadeChargeQueued = this.getGrenadeCharge(now);
-      this._grenadeHeld = false;
-      this._grenadeHoldStartedAt = 0;
-    }
+    if (frame.pressed.grenade && !this._grenadeHeld) this._beginGrenadeHold(now);
+    else if (frame.released.grenade && this._grenadeHeld) this._releaseGrenade(now);
 
     const look = frame.look;
     if (look.magnitude > 0) {
@@ -579,14 +583,37 @@ export class Input {
     return q;
   }
 
+  _beginGrenadeHold(at) {
+    this._grenadeHeld = true;
+    this._grenadeHoldStartedAt = at;
+  }
+
+  _releaseGrenade(at) {
+    this._grenadeThrowQueued = {
+      charge: this.getGrenadeCharge(at),
+      cookMs: this.getGrenadeHoldMs(at),
+      type: this._grenadeType,
+    };
+    this._grenadeHeld = false;
+    this._grenadeHoldStartedAt = 0;
+  }
+
   /**
-   * Charge of the released G throw, or null when no release is pending.
-   * A quick tap is a valid zero-charge throw, so callers must not truth-test it.
+   * The released G throw `{charge, cookMs, type}`, or null when no release is pending.
+   * A quick tap is a valid zero-charge throw; `cookMs` is the full hold so the authority
+   * can burn it off a timed fuse; `type` indexes GRENADE_TYPE_IDS.
    */
   consumeGrenadeThrow() {
-    const queued = this._grenadeChargeQueued;
-    this._grenadeChargeQueued = null;
+    const queued = this._grenadeThrowQueued;
+    this._grenadeThrowQueued = null;
     return queued;
+  }
+
+  /** Presentation-driven release (a fuse cooked to the end): queues the throw as if let go. */
+  forceGrenadeRelease(now = eventTime(null)) {
+    if (!this._grenadeHeld) return false;
+    this._releaseGrenade(now);
+    return true;
   }
 
   /** True while the grenade key/button is held (charge may still read 0 on the first ms). */
@@ -600,6 +627,29 @@ export class Input {
     return clampGrenadeCharge((now - this._grenadeHoldStartedAt) / GRENADE_CHARGE_MS);
   }
 
+  /** Milliseconds the grenade has been held (cook time); 0 while not held. */
+  getGrenadeHoldMs(now = eventTime(null)) {
+    if (!this._grenadeHeld) return 0;
+    return Math.max(0, now - this._grenadeHoldStartedAt);
+  }
+
+  /** Selected throwable index (H / wheel or Y while holding G / touch chip cycle it). */
+  getGrenadeType() {
+    return this._grenadeType;
+  }
+
+  setGrenadeType(index) {
+    this._grenadeType = clampGrenadeType(index);
+    return this._grenadeType;
+  }
+
+  cycleGrenadeType(direction = 1) {
+    const count = GRENADE_TYPE_IDS.length;
+    const step = Math.trunc(direction) || 1;
+    this._grenadeType = ((this._grenadeType + step) % count + count) % count;
+    return this._grenadeType;
+  }
+
   /** Clears all held keys/taps/intents/queues (window blur, tab hide, etc). */
   clearTransient() {
     const k = this.keys;
@@ -610,7 +660,7 @@ export class Input {
     this._adsLatched = false;
     this._fireTapQueued = false;
     this._reloadQueued = false;
-    this._grenadeChargeQueued = null;
+    this._grenadeThrowQueued = null;
     this._grenadeHeld = false;
     this._grenadeHoldStartedAt = 0;
     this._lastWeaponReq = false;
@@ -710,14 +760,8 @@ export class Input {
       case 'crouch': this.keys.crouch = down; break;
       case 'interact': this.keys.interact = down; break;
       case 'grenade':
-        if (down && !this._grenadeHeld) {
-          this._grenadeHeld = true;
-          this._grenadeHoldStartedAt = at;
-        } else if (!down && this._grenadeHeld) {
-          this._grenadeChargeQueued = this.getGrenadeCharge(at);
-          this._grenadeHeld = false;
-          this._grenadeHoldStartedAt = 0;
-        }
+        if (down && !this._grenadeHeld) this._beginGrenadeHold(at);
+        else if (!down && this._grenadeHeld) this._releaseGrenade(at);
         break;
       default: break;
     }
@@ -727,6 +771,7 @@ export class Input {
     if (!this._gameplayEnabled) return;
     if (action === 'reload') this._reloadQueued = true;
     else if (action === 'weapon') this._switchQueue += 1;
+    else if (action === 'grenadeType') this.cycleGrenadeType(1);
     else if (action === 'buy') this._buyMenuQueued = true;
     else if (action === 'fireTap') this._fireTapQueued = true;   // look-zone tap: one shot
     else if (action === 'zoom') this._zoomStepQueue += 1;
@@ -766,13 +811,11 @@ export class Input {
       case 'KeyF': if (!e.repeat) this._toggleAds(true); break;   // ADS without a second button
       case 'KeyZ': if (!e.repeat) this._zoomStepQueue += 1; break;
       case 'KeyG':
-        if (!e.repeat && !this._grenadeHeld) {
-          this._grenadeHeld = true;
-          this._grenadeHoldStartedAt = eventTime(e);
-        }
+        if (!e.repeat && !this._grenadeHeld) this._beginGrenadeHold(eventTime(e));
         break;
+      case 'KeyH': if (!e.repeat) this.cycleGrenadeType(1); break;
       case 'KeyQ': if (!e.repeat) this._lastWeaponReq = true; break;
-      case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': case 'Digit6': case 'Digit7':
+      case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': case 'Digit6': case 'Digit7': case 'Digit8':
         if (!e.repeat) this._pendingSlot = Number(e.code.slice(-1)) - 1;
         break;
       default: break;
@@ -796,11 +839,7 @@ export class Input {
       case 'KeyE': this.keys.interact = false; break;
       case 'KeyF': if (this.adsMode() === 'hold') this._mouseAds = false; break;
       case 'KeyG':
-        if (this._grenadeHeld) {
-          this._grenadeChargeQueued = this.getGrenadeCharge(eventTime(e));
-          this._grenadeHeld = false;
-          this._grenadeHoldStartedAt = 0;
-        }
+        if (this._grenadeHeld) this._releaseGrenade(eventTime(e));
         break;
       default: break;
     }
@@ -847,7 +886,8 @@ export class Input {
     }
     const step = wheelSwitchStep(this._wheel, e, eventTime(e));
     if (step === 0) return;
-    if (this._scopeZoomMode) this._zoomStepQueue += 1;
+    if (this._grenadeHeld) this.cycleGrenadeType(step);
+    else if (this._scopeZoomMode) this._zoomStepQueue += 1;
     else this._switchQueue += step;
   }
 }

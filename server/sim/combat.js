@@ -12,11 +12,14 @@ import {
   reloadPlan,
   samplePelletDirection,
   computeSpreadConeDeg,
+  chargeProfile,
+  chargeFromHold,
+  chargeDamageMult,
 } from '../../shared/combatmath.js';
 import { clearReload } from './movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { NETWORK_PRESENTATION } from '../../shared/networking.js';
-import { evShoot, evHit, evBlock } from '../protocol.js';
+import { evShoot, evHit, evBlock, evArc } from '../protocol.js';
 import {
   clamp01,
   clampWeaponSlot,
@@ -44,9 +47,17 @@ export function computeConeDeg(p) {
   );
 }
 
+/** Drop a capacitor charge without firing (switch, reload, death, blocked mode). */
+export function cancelCharge(p) {
+  p.charging = false;
+  p.chargeT = 0;
+  p.charge = 0;
+}
+
 export function switchWeapon(p, slot) {
   p.weapon = clampWeaponSlot(slot);
   clearReload(p);
+  cancelCharge(p);
   p.cooldown = Math.max(p.cooldown, 0);
   p.deployT = p.def.deployTime;
   p.ads = false;
@@ -83,6 +94,7 @@ export function resolveWeaponIntent(p, _dt, ctx) {
       !p.reloading && p.deployT <= 0 &&
       p.mag[p.weapon] < def.magSize && p.reserve[p.weapon] > 0) {
     const plan = reloadPlan(def, p.mag[p.weapon]);
+    cancelCharge(p);
     p.reloading = true;
     if (plan.staged) {
       // Tube: rounds seat one by one and the chambered rounds stay usable.
@@ -100,11 +112,43 @@ export function resolveWeaponIntent(p, _dt, ctx) {
 
   const fireEdge = p.fireEdgeQueued;
   p.fireEdgeQueued = false;
+  if (def.mode === 'charge') {
+    resolveChargeIntent(p, _dt, inp, fireEdge, ctx);
+    p.triggerPrev = inp.wantFire;
+    return;
+  }
   const wantsShot = inp.wantFire || fireEdge;
   // A staged tube reload yields to the trigger: whatever is seated fires now.
   if (wantsShot && p.reloading && p.reloadStage && p.mag[p.weapon] > 0) clearReload(p);
   if (wantsShot && canFire(p, fireEdge, ctx)) fireOneShot(p, ctx);
   p.triggerPrev = inp.wantFire;
+}
+
+/**
+ * Charge weapons (LONGARC): the trigger press starts the capacitor bank, the hold time
+ * becomes the shot's charge, and the slug leaves on release (or when the bank vents at
+ * `holdMaxMs`). A hold that started while the weapon could not fire never charges.
+ */
+function resolveChargeIntent(p, dt, inp, fireEdge, ctx) {
+  const profile = chargeProfile(p.def);
+  const held = inp.wantFire;
+  if (!p.charging) {
+    const pressed = fireEdge || (held && !p.triggerPrev);
+    if (pressed && canFire(p, true, ctx)) {
+      p.charging = true;
+      p.chargeT = 0;
+      p.charge = 0;
+    }
+    return;
+  }
+  p.chargeT += Math.max(0, dt) * 1000;
+  p.charge = chargeFromHold(p.def, p.chargeT);
+  const vent = p.chargeT >= profile.holdMaxMs;
+  if (held && !vent) return;
+  const charge = p.charge;
+  cancelCharge(p);
+  if (!ctx.canFire(p) || p.reloading || p.deployT > 0 || p.mag[p.weapon] <= 0) return;
+  fireOneShot(p, ctx, charge);
 }
 
 /** Segment (array origin o, unit object direction d) vs victim AABB. */
@@ -213,8 +257,42 @@ export function damageBlock(x, y, z, type, dmg, ctx) {
   else ctx.blockHp.set(key, hp);
 }
 
-/** Resolve one accepted shot, including every pellet, in authoritative order. */
-export function fireOneShot(p, ctx) {
+/** Chain-arc: from a body hit, jump to nearby visible enemies for a fraction of the damage. */
+function chainArc(p, def, firstVictim, from, baseDamage, ctx) {
+  const chain = def.chain;
+  if (!chain || !(chain.targets > 0)) return;
+  const candidates = [];
+  for (const v of ctx.entities.values()) {
+    if (v === p || v === firstVictim || v.state !== 'alive') continue;
+    if (!ctx.canDamage(p, v)) continue;
+    const target = [v.x, v.y + PLAYER_HALF.h, v.z];
+    const distance = Math.hypot(target[0] - from[0], target[1] - from[1], target[2] - from[2]);
+    if (distance > chain.radius) continue;
+    const blocked = raycastVoxels(
+      ctx.solidAt, from[0], from[1], from[2],
+      target[0] - from[0], target[1] - from[1], target[2] - from[2],
+      Math.max(0.05, distance - 0.2),
+    );
+    if (blocked) continue;
+    candidates.push({ victim: v, target, distance });
+  }
+  candidates.sort((a, b) => a.distance - b.distance);
+  for (const { victim, target } of candidates.slice(0, chain.targets)) {
+    const dmg = Math.round(baseDamage * chain.damageMult * 10) / 10;
+    if (dmg <= 0) continue;
+    const lethal = victim.takeDamage(dmg, false);
+    ctx.pushEvent(evArc(p.id, from, target));
+    ctx.pushEvent(evHit(p.id, victim.id, dmg, false, target));
+    if (lethal) ctx.killPlayer(victim, p, def.id, false, { chained: true });
+  }
+}
+
+/**
+ * Resolve one accepted shot, including every pellet, in authoritative order.
+ * `charge` (0..1) only applies to `charge` weapons and scales damage, wall piercing,
+ * and the chain arc; hitscan guns pass the default full charge.
+ */
+export function fireOneShot(p, ctx, charge = 1) {
   const def = p.def;
   p.spawnProtectedUntil = 0;
   p.spawnProtected = false;
@@ -222,6 +300,10 @@ export function fireOneShot(p, ctx) {
   p.cooldown += 60 / def.rpm;
   p.shotSeq++;
   p.firing = true;
+  const charged = def.mode === 'charge';
+  const charge01 = charged ? Math.max(0, Math.min(1, Number.isFinite(charge) ? charge : 1)) : 1;
+  const chargeMult = charged ? chargeDamageMult(def, charge01) : 1;
+  const profile = chargeProfile(def);
 
   const rng = shotRng(p);
   const fwd = fwdFromYawPitch(p.yaw, p.pitch);
@@ -239,13 +321,23 @@ export function fireOneShot(p, ctx) {
   ];
 
   const firstDir = samplePelletDirection(def, fwd, rng, coneDeg, 0);
-  ctx.pushEvent(evShoot(
+  const shootEvent = evShoot(
     p.id, muzzle, [fwd.x, fwd.y, fwd.z], def.id,
     [firstDir.x, firstDir.y, firstDir.z],
-  ));
+  );
+  if (charged) shootEvent.charge = Math.round(charge01 * 1000) / 1000;
+  ctx.pushEvent(shootEvent);
+  if (def.projectile === 'rocket') {
+    // The rocket is its own authoritative entity from here on.
+    if (typeof ctx.launchRocket === 'function') ctx.launchRocket(p, firstDir);
+    return;
+  }
   const pierce = def.pierce;
   const piercePlayers = Number.isFinite(pierce?.players) ? Math.max(0, Math.trunc(pierce.players)) : 0;
-  const pierceWalls = Number.isFinite(pierce?.walls) ? Math.max(0, Math.trunc(pierce.walls)) : 0;
+  const pierceWalls = charged && charge01 < profile.wallPierceAt
+    ? 0
+    : (Number.isFinite(pierce?.walls) ? Math.max(0, Math.trunc(pierce.walls)) : 0);
+  const chainReady = charged && charge01 >= profile.chainAt;
   const playerFalloff = Number.isFinite(pierce?.playerFalloff) ? pierce.playerFalloff : 1;
   const wallFalloff = Number.isFinite(pierce?.wallFalloff) ? pierce.wallFalloff : 1;
   const piercing = piercePlayers > 0 || pierceWalls > 0;
@@ -269,7 +361,7 @@ export function fireOneShot(p, ctx) {
         const iy = oEye[1] + d.y * tgt.t;
         const iz = oEye[2] + d.z * tgt.t;
         const hs = iy - tgt.ry > HEADSHOT_Y_FRAC * P_HEIGHT;
-        let dmg = damageAtDistance(def, tgt.t) * (hs ? def.headMult : 1);
+        let dmg = damageAtDistance(def, tgt.t) * (hs ? def.headMult : 1) * chargeMult;
         dmg = Math.round(dmg * 10) / 10;
         const lethal = tgt.victim.takeDamage(dmg, hs);
         ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, [ix, iy, iz]));
@@ -277,6 +369,7 @@ export function fireOneShot(p, ctx) {
           longRange: tgt.t >= LONG_RANGE_KILL_DISTANCE,
           noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
         });
+        if (chainReady) chainArc(p, def, tgt.victim, [ix, iy, iz], dmg, ctx);
       } else if (hit) {
         const type = ctx.getBlock(hit.x, hit.y, hit.z);
         if (BLOCK_HP[type] != null) {
@@ -292,9 +385,10 @@ export function fireOneShot(p, ctx) {
     // State resets per pellet; distances stay absolute from the eye for falloff.
     let ox = oEye[0], oy = oEye[1], oz = oEye[2];
     let traveled = 0;
-    let dmgMult = 1;
+    let dmgMult = chargeMult;
     let playersLeft = piercePlayers;
     let wallsLeft = pierceWalls;
+    let arced = false;
     for (;;) {
       const reach = SHOT_REACH - traveled;
       if (!(reach > 0)) break;
@@ -324,6 +418,10 @@ export function fireOneShot(p, ctx) {
           longRange: dist >= LONG_RANGE_KILL_DISTANCE,
           noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
         });
+        if (chainReady && !arced) {
+          arced = true;
+          chainArc(p, def, tgt.victim, [ix, iy, iz], dmg, ctx);
+        }
         if (playersLeft <= 0) { stoppedInFlesh = true; break; }
         playersLeft -= 1;
         dmgMult *= playerFalloff;

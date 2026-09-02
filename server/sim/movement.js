@@ -15,6 +15,7 @@ const HALF_W = PHYSICS.halfW;
 const P_HEIGHT = PHYSICS.height;
 
 const COYOTE_S = 0.08;
+const CONCUSSED_SPEED_MULT = 0.6;
 const LADDER_UP_SPEED = 3.4;
 const LADDER_DOWN_SPEED = 2.4;
 const EPS = 1e-3;
@@ -222,7 +223,9 @@ export function stepMovement(p, dt, ctx) {
     const length = Math.hypot(wx, wz);
     wx /= length; wz /= length;
   }
-  const speed = p.crouch ? CROUCH_SPEED : (p.sprint ? SPRINT_SPEED : WALK_SPEED);
+  let speed = p.crouch ? CROUCH_SPEED : (p.sprint ? SPRINT_SPEED : WALK_SPEED);
+  // A pulse concussion drags the legs: 60% speed until the deadline passes.
+  if (Number.isFinite(p.concussedUntil) && p.concussedUntil > ctx.now) speed *= CONCUSSED_SPEED_MULT;
   const accel = 1 - Math.exp(-(p.grounded ? ACCEL_GROUND : ACCEL_AIR) * dt);
   p.vx += (wx * speed - p.vx) * accel;
   p.vz += (wz * speed - p.vz) * accel;

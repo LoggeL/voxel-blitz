@@ -10,7 +10,7 @@ import {
 import { MatchHud } from './match-hud.js';
 import { createSniperScope } from './sniper-scope.js';
 import { NetworkHud } from './network-hud.js';
-import { GRENADE_PER_LIFE } from '../../../shared/grenade-rules.js';
+import { GRENADE_TYPES, GRENADE_TYPE_IDS, clampGrenadeType } from '../../../shared/grenade-rules.js';
 
 const EMPTY_READ_MODEL = Object.freeze({ dead: false, painImpulse: 0 });
 const noop = () => {};
@@ -134,17 +134,40 @@ export class GameplayHud {
     d.grenades = el('div', 'vb-grenade-count', hud, 'grenade-count');
     d.grenadeKey = el('span', 'vb-grenade-key', d.grenades);
     d.grenadeKey.textContent = 'G';
-    d.grenadeIcons = el('span', 'vb-grenade-icons', d.grenades);
-    d.grenadeSlots = [];
-    for (let i = 0; i < GRENADE_PER_LIFE; i++) {
-      const icon = el('span', 'vb-grenade-icon is-spent', d.grenadeIcons);
-      icon.setAttribute('aria-hidden', 'true');
-      d.grenadeSlots.push(icon);
+    d.grenadeTypes = el('span', 'vb-grenade-types', d.grenades);
+    d.grenadeTypeChips = [];
+    for (const typeId of GRENADE_TYPE_IDS) {
+      const type = GRENADE_TYPES[typeId];
+      const chip = el('span', `vb-grenade-type vb-grenade-type-${typeId}`, d.grenadeTypes);
+      chip.dataset.type = typeId;
+      chip.style.setProperty('--nade', type.color);
+      const label = el('b', 'vb-grenade-type-label', chip);
+      label.textContent = type.short;
+      const pips = el('span', 'vb-grenade-icons', chip);
+      chip.pips = [];
+      for (let i = 0; i < type.perLife; i++) {
+        const icon = el('span', 'vb-grenade-icon is-spent', pips);
+        icon.setAttribute('aria-hidden', 'true');
+        chip.pips.push(icon);
+      }
+      d.grenadeTypeChips.push(chip);
     }
+    d.grenadeName = el('span', 'vb-grenade-name', d.grenades);
+    d.grenadeName.textContent = GRENADE_TYPES[GRENADE_TYPE_IDS[0]].name;
+    d.grenades.dataset.type = GRENADE_TYPE_IDS[0];
+    d.grenades.style.setProperty('--nade', GRENADE_TYPES[GRENADE_TYPE_IDS[0]].color);
     d.grenadeCharge = el('span', 'vb-grenade-charge', d.grenades);
     d.grenadeChargeFill = el('i', '', d.grenadeCharge);
     d.grenadeHint = el('span', 'vb-grenade-hint', d.grenades);
     d.grenadeHint.textContent = 'HOLD · RELEASE';
+    this._grenadeType = 0;
+    // Charge weapons (LONGARC): capacitor meter under the ammo panel.
+    d.chargeMeter = el('div', 'vb-charge-meter', hud, 'charge-meter');
+    d.chargeMeterTrack = el('span', 'vb-charge-track', d.chargeMeter);
+    d.chargeMeterFill = el('i', '', d.chargeMeterTrack);
+    d.chargeMeterChain = el('i', 'vb-charge-chain-mark', d.chargeMeterTrack);
+    d.chargeMeterLabel = el('span', 'vb-charge-label', d.chargeMeter);
+    d.chargeMeterLabel.textContent = 'COIL CHARGE';
     d.mag = el('span', '', d.ammo, 'ammocount');
     d.sep = el('span', '', d.ammo);
     d.sep.textContent = '/';
@@ -264,20 +287,65 @@ export class GameplayHud {
       d.res.textContent = `${spareMags} ${spareMags === 1 ? 'MAG' : 'MAGS'}`;
     }
     if (s.wname != null) d.wname.textContent = String(s.wname).toUpperCase();
-    if (s.grenades != null) {
-      const count = Math.max(0, s.grenades | 0);
-      for (let i = 0; i < d.grenadeSlots.length; i++) {
-        d.grenadeSlots[i].classList.toggle('is-spent', i >= count);
+    if (s.grenadeType != null) {
+      const index = clampGrenadeType(s.grenadeType);
+      if (index !== this._grenadeType) {
+        this._grenadeType = index;
+        d.grenades.dataset.type = GRENADE_TYPE_IDS[index];
+        d.grenades.style.setProperty('--nade', GRENADE_TYPES[GRENADE_TYPE_IDS[index]].color);
+        d.grenadeName.textContent = GRENADE_TYPES[GRENADE_TYPE_IDS[index]].name;
       }
-      d.grenades.setAttribute('aria-label', `${count} grenades remaining`);
+    }
+    for (let i = 0; i < d.grenadeTypeChips.length; i++) {
+      d.grenadeTypeChips[i].classList.toggle('is-selected', i === this._grenadeType);
+    }
+    if (s.grenades != null) {
+      const counts = Array.isArray(s.grenades)
+        ? s.grenades
+        : GRENADE_TYPE_IDS.map((_, i) => (i === 0 ? s.grenades : 0));
+      let total = 0;
+      for (let t = 0; t < d.grenadeTypeChips.length; t++) {
+        const count = Math.max(0, counts[t] | 0);
+        total += count;
+        const chip = d.grenadeTypeChips[t];
+        chip.classList.toggle('is-empty', count <= 0);
+        for (let i = 0; i < chip.pips.length; i++) {
+          chip.pips[i].classList.toggle('is-spent', i >= count);
+        }
+      }
+      d.grenades.setAttribute('aria-label', `${total} grenades remaining`);
     }
     const grenadeCharge = clamp01(s.grenadeCharge);
     const charging = grenadeCharge > 0 || !!s.grenadeCharging;
+    const cook01 = clamp01(s.grenadeCook01);
     d.grenades.classList.toggle('is-charging', charging);
     d.grenades.classList.toggle('is-full', grenadeCharge >= 1);
-    d.grenadeChargeFill.style.transform = `scaleX(${grenadeCharge})`;
-    const hint = grenadeCharge >= 1 ? 'MAX · RELEASE' : 'HOLD · RELEASE';
+    d.grenades.classList.toggle('is-cooking', charging && cook01 > 0);
+    d.grenades.classList.toggle('is-critical', charging && cook01 >= 0.7);
+    d.grenadeChargeFill.style.transform = `scaleX(${charging && cook01 > 0 ? 1 - cook01 : grenadeCharge})`;
+    let hint = 'HOLD · RELEASE';
+    if (charging && cook01 > 0 && Number.isFinite(s.grenadeCookLeftMs)) {
+      hint = `COOKING · ${(Math.max(0, s.grenadeCookLeftMs) / 1000).toFixed(1)}s`;
+    } else if (grenadeCharge >= 1) {
+      hint = 'MAX · RELEASE';
+    }
     if (d.grenadeHint.textContent !== hint) d.grenadeHint.textContent = hint;
+
+    if (s.charge01 !== undefined) {
+      const chargeVisible = s.charge01 !== null && Number.isFinite(s.charge01);
+      d.chargeMeter.classList.toggle('is-visible', chargeVisible);
+      if (chargeVisible) {
+        const charge01 = clamp01(s.charge01);
+        const chainAt = Number.isFinite(s.chainAt) ? clamp01(s.chainAt) : 1;
+        d.chargeMeterFill.style.transform = `scaleX(${charge01})`;
+        d.chargeMeterChain.style.left = `${Math.round(chainAt * 100)}%`;
+        d.chargeMeter.classList.toggle('is-charging', charge01 > 0);
+        d.chargeMeter.classList.toggle('is-chain', charge01 >= chainAt);
+        d.chargeMeter.classList.toggle('is-full', charge01 >= 1);
+        const label = charge01 >= chainAt ? 'CHAIN ARC READY' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE';
+        if (d.chargeMeterLabel.textContent !== label) d.chargeMeterLabel.textContent = label;
+      }
+    }
 
     const key = resolveKey(s.wid);
     if (key && key !== this.lastWepKey) {

@@ -38,8 +38,13 @@ import {
   switchWeapon,
 } from './sim/combat.js';
 import { SpawnSelector } from './sim/spawn.js';
-import { GrenadeSystem } from './sim/grenades.js';
-import { clampGrenadeCharge } from '../shared/grenade-rules.js';
+import { ProjectileSystem } from './sim/projectiles.js';
+import {
+  clampGrenadeCharge,
+  clampGrenadeCook,
+  clampGrenadeType,
+  grenadeTypeAt,
+} from '../shared/grenade-rules.js';
 
 export { PHYSICS, SHOT_REACH, aimAngles, fwdFromYawPitch };
 
@@ -73,7 +78,7 @@ export class GameEngine {
     this.tickBlocks = [];
     this.tickEvents = [];
     this.tickHooks = [];
-    this.grenades = new GrenadeSystem();
+    this.projectiles = new ProjectileSystem();
 
     this.mode = new ModeController(this, { mode: callbacks.mode, mapMeta: this.mapMeta });
     this.spawnSelector = new SpawnSelector({
@@ -135,10 +140,10 @@ export class GameEngine {
     for (const player of this.entities.values()) {
       if (player.state === 'alive') this.updateCondition(player, dt);
     }
-    this.grenades.step(dt, this.grenadeContext());
+    this.projectiles.step(dt, this.projectileContext());
     for (const player of this.entities.values()) {
       player.firing = false;
-      if (player.state === 'alive') this.resolveWeaponIntent(player);
+      if (player.state === 'alive') this.resolveWeaponIntent(player, dt);
     }
     this.mode.tick();
     this.processRespawns();
@@ -215,6 +220,11 @@ export class GameEngine {
     player.fireEdgeQueued = false;
     player.grenadeEdgeQueued = false;
     player.grenadeChargeQueued = 0;
+    player.grenadeTypeQueued = 0;
+    player.grenadeCookQueued = 0;
+    player.charging = false;
+    player.chargeT = 0;
+    player.charge = 0;
     this.entities.set(pid, player);
     this.humanIds.add(pid);
     return this.spawnInfoFor(player);
@@ -293,6 +303,8 @@ export class GameEngine {
       reload: !!msg.reload,
       throwGrenade: !!msg.throwGrenade,
       grenadeCharge: clampGrenadeCharge(msg.grenadeCharge),
+      grenadeType: clampGrenadeType(msg.grenadeType),
+      grenadeCook: clampGrenadeCook(msg.grenadeCook, grenadeTypeAt(msg.grenadeType)),
       viewAge: Number.isFinite(msg.viewAge)
         ? Math.max(
           NETWORK_PRESENTATION.minViewAgeMs,
@@ -313,6 +325,8 @@ export class GameEngine {
     if (input.throwGrenade && !(previous && previous.throwGrenade)) {
       player.grenadeEdgeQueued = true;
       player.grenadeChargeQueued = input.grenadeCharge;
+      player.grenadeTypeQueued = input.grenadeType;
+      player.grenadeCookQueued = input.grenadeCook;
     }
     player.input = input;
   }
@@ -344,8 +358,8 @@ export class GameEngine {
 
   computeConeDeg(player) { return computeConeDeg(player); }
 
-  resolveWeaponIntent(player) {
-    return resolveWeaponIntent(player, 0, this.combatContext());
+  resolveWeaponIntent(player, dt = this.intervalMs / 1000) {
+    return resolveWeaponIntent(player, dt, this.combatContext());
   }
 
   switchWeapon(player, slot) { return switchWeapon(player, slot); }
@@ -393,10 +407,13 @@ export class GameEngine {
       pushBlockDelta: (x, y, z, value) => this.pushBlockDelta(x, y, z, value),
       pushEvent: (event) => this.tickEvents.push(event),
       computeConeDeg: (player) => this.computeConeDeg(player),
+      launchRocket: (player, dir) => this.projectiles.launchRocket(
+        player, this.projectileContext(), dir,
+      ),
     };
   }
 
-  grenadeContext() {
+  projectileContext() {
     return {
       now: this.now,
       entities: this.entities,
@@ -426,6 +443,9 @@ export class GameEngine {
     victim.reloadStage = null;
     victim.reloadLoose = 0;
     victim.bloom = 0;
+    victim.charging = false;
+    victim.chargeT = 0;
+    victim.charge = 0;
     victim.spawnProtectedUntil = 0;
     victim.vx = 0;
     victim.vy = 0;

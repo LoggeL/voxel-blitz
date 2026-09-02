@@ -62,19 +62,41 @@ export function evDie(id) {
   return { t: 'die', kind: 'die', id: String(id) };
 }
 
-export function evGrenadeThrow(id, grenadeId, origin, velocity, fuseMs) {
+/** A grenade leaves the hand or a rocket leaves the tube. `type` is a throwable/rocket id. */
+export function evProjectileLaunch(id, projectileId, type, origin, velocity, fuseMs) {
   return {
-    t: 'ev', kind: 'grenadeThrow', id: String(id), gid: String(grenadeId),
+    t: 'ev', kind: 'projectileLaunch', id: String(id), pid: String(projectileId),
+    type: String(type),
     o: origin.map((value) => round(value, D2)),
     v: velocity.map((value) => round(value, D2)),
     fuse: Math.max(0, Math.round(Number(fuseMs) || 0)),
   };
 }
 
-export function evGrenadeExplode(id, grenadeId, origin, radius) {
+/** A limpet stuck to terrain (`to` null) or to a player (`to` is that player's id). */
+export function evProjectileStick(id, projectileId, origin, to, fuseMs) {
   return {
-    t: 'ev', kind: 'grenadeExplode', id: String(id), gid: String(grenadeId),
+    t: 'ev', kind: 'projectileStick', id: String(id), pid: String(projectileId),
+    x: round(origin[0], D2), y: round(origin[1], D2), z: round(origin[2], D2),
+    to: to == null ? null : String(to),
+    fuse: Math.max(0, Math.round(Number(fuseMs) || 0)),
+  };
+}
+
+export function evProjectileExplode(id, projectileId, type, origin, radius) {
+  return {
+    t: 'ev', kind: 'projectileExplode', id: String(id), pid: String(projectileId),
+    type: String(type),
     x: round(origin[0], D2), y: round(origin[1], D2), z: round(origin[2], D2),
     radius: round(radius, D2),
+  };
+}
+
+/** A charged coilgun slug arcing from one body to the next. */
+export function evArc(id, from, to) {
+  return {
+    t: 'ev', kind: 'arc', id: String(id),
+    from: from.map((value) => round(value, D2)),
+    to: to.map((value) => round(value, D2)),
   };
 }

@@ -37,6 +37,7 @@ export class ViewmodelRig {
     this._turn = new WeaponTurnInertia(); // camera-independent, weight-limited weapon orientation
     this._air = { p: 0, v: 0 };         // damped vertical inertia across takeoff/landing
     this._nadeWind = 0;                 // smoothed grenade wind-up 0..1 (gun pulled aside)
+    this._chargeT = 0;                  // held capacitor charge 0..1 (coil glow floor + squeeze)
     this._nadeThrowT = 0;               // seconds left in the throw lunge
     this._lean = { p: 0, v: 0 };        // lagged lateral lean (m) from strafing, mass-scaled
     this._surge = { p: 0, v: 0 };       // lagged fore/aft surge (m) from acceleration
@@ -93,6 +94,7 @@ export class ViewmodelRig {
     this._lean.p = this._lean.v = 0;
     this._surge.p = this._surge.v = 0;
     this._nadeWind = 0; this._nadeThrowT = 0;
+    this._chargeT = 0;
     this._fallSpeed = 0;
     this._queue.length = 0;
     this._lockUntil = this._now; this._stallUntil = Infinity;
@@ -157,6 +159,16 @@ export class ViewmodelRig {
     }
     return true;
   }
+
+  /**
+   * Charge weapons: live 0..1 capacitor charge while the trigger is held. Drives the coil
+   * glow floor and a slight rearward squeeze; presentation only, it never gates fire.
+   */
+  setCharge(t01) {
+    this._chargeT = Math.max(0, Math.min(1, Number(t01) || 0));
+  }
+
+  get currentCharge01() { return this._chargeT; }
 
   /** External button-hold ramp reaches us pre-normalized (0..1); we ease-polish + expose readback. */
   ads(t01) {
@@ -366,9 +378,13 @@ export class ViewmodelRig {
       this._nadeThrowT = Math.max(0, this._nadeThrowT - dt);
       lunge = Math.sin(Math.PI * (1 - this._nadeThrowT / 0.34)) * (this._nadeThrowStrength || 1);
     }
+    /* capacitor charge: the gun creeps back into the shoulder and hums with a fine tremor */
+    const chargeT = this._chargeT;
+    const chargeZ = 0.022 * chargeT + Math.sin(this._now * 61) * 0.0012 * chargeT;
+    const chargeY = Math.sin(this._now * 47) * 0.0010 * chargeT;
     const nadeX = -0.035 * wind + 0.02 * lunge;
-    const nadeY = -0.075 * wind - 0.03 * lunge;
-    const nadeZ = 0.03 * wind - 0.06 * lunge;
+    const nadeY = -0.075 * wind - 0.03 * lunge + chargeY;
+    const nadeZ = 0.03 * wind - 0.06 * lunge + chargeZ;
     const nadeRx = -0.14 * wind - 0.16 * lunge;
     const nadeRz = 0.20 * wind + 0.08 * lunge;
 
@@ -450,6 +466,11 @@ export class ViewmodelRig {
     const u = cur.uni;
     const tauG = Math.max(0.004, cur.T.rechargeDur / 3);
     u.uGlow.value *= Math.exp(-dt / tauG);
+    // A held charge keeps the coils lit at the charge level (plus a fast flicker near full).
+    if (this._chargeT > 0) {
+      const flicker = this._chargeT > 0.85 ? 0.85 + 0.15 * Math.sin(this._now * 90) : 1;
+      u.uGlow.value = Math.max(u.uGlow.value, this._chargeT * flicker);
+    }
     u.uHeat.value *= Math.exp(-dt / 0.6);
     u.uT.value = this._now;
     if (this._flashT >= 0) {

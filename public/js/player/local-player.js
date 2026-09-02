@@ -149,8 +149,7 @@ export class LocalPlayer {
     this.sendAccum = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
-    this.grenadeThrowLatched = false;
-    this.grenadeChargeLatched = 0;
+    this.grenadeThrowLatched = null; // {charge, cookMs, type} awaiting a network send
     this._lastLocalImpact = null;
     this._lastReconciledSnapSeq = null;
     this._gameplayInputEnabled = false;
@@ -170,8 +169,7 @@ export class LocalPlayer {
       blockedByBuyMenu: false,
       fireTap: false,
       fireHeld: false,
-      throwGrenade: false,
-      grenadeCharge: 0,
+      throwGrenade: null,
     };
     this._frame = {
       jumped: false,
@@ -242,8 +240,7 @@ export class LocalPlayer {
     this.wishDir.z = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
-    this.grenadeThrowLatched = false;
-    this.grenadeChargeLatched = 0;
+    this.grenadeThrowLatched = null;
     this.wantAds = false;
     this.physics._crouching = false;
   }
@@ -296,8 +293,7 @@ export class LocalPlayer {
     this.sendAccum = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
-    this.grenadeThrowLatched = false;
-    this.grenadeChargeLatched = 0;
+    this.grenadeThrowLatched = null;
     this._lastLocalImpact = null;
     this._lastReconciledSnapSeq = null;
     this._reconcileResult.transition = null;
@@ -326,8 +322,7 @@ export class LocalPlayer {
     this.scopeActive = false;
     this.fireTapLatched = false;
     this.pendingShotIntent = null;
-    this.grenadeThrowLatched = false;
-    this.grenadeChargeLatched = 0;
+    this.grenadeThrowLatched = null;
     this.wantAds = false;
     this.adsT = 0;
     this._aim = this.aimSway.reset();
@@ -478,8 +473,9 @@ export class LocalPlayer {
   get lookScale() { return this._lookScale; }
 
   /**
-   * One-shot readback of a grenade release accepted this frame (`{charge, at}` or null),
-   * so presentation can spawn the predicted throw before the authority event returns.
+   * One-shot readback of a grenade release accepted this frame
+   * (`{charge, cookMs, type, at}` or null), so presentation can spawn the predicted throw
+   * before the authority event returns.
    */
   consumeLocalGrenadeThrow() {
     const pending = this._localGrenadeThrow;
@@ -488,14 +484,14 @@ export class LocalPlayer {
   }
 
   /** Launch state for a local throw with the same formula authority applies. */
-  grenadeLaunchState(charge) {
+  grenadeLaunchState(charge, type = 'frag') {
     const dir = fwdFromAngles(this.aimYaw, this.aimPitch);
     const pos = this.physics.pos;
     const vel = this.physics.vel;
     return grenadeLaunch({
       x: pos.x, y: pos.y, z: pos.z, eyeY: this.physics.eyeY(),
       vx: vel.x, vy: vel.y, vz: vel.z,
-      dir, charge,
+      dir, charge, type,
     });
   }
 
@@ -554,8 +550,7 @@ export class LocalPlayer {
     weaponIntents.blockedByBuyMenu = false;
     weaponIntents.fireTap = false;
     weaponIntents.fireHeld = false;
-    weaponIntents.throwGrenade = false;
-    weaponIntents.grenadeCharge = 0;
+    weaponIntents.throwGrenade = null;
 
     if (input.consumeBuyMenuRequest()) {
       weaponIntents.buyMenuRequested = true;
@@ -576,18 +571,17 @@ export class LocalPlayer {
     weaponIntents.reload = !!(this.keys.reload && this._alive);
 
     const fireAllowed = isAllowed(intents.fireAllowed);
-    const grenadeCharge = input.consumeGrenadeThrow();
-    if (grenadeCharge != null && fireAllowed && this._alive) {
-      this.grenadeThrowLatched = true;
-      this.grenadeChargeLatched = grenadeCharge;
-      this._localGrenadeThrow = { charge: grenadeCharge, at: now };
+    const grenadeThrow = input.consumeGrenadeThrow();
+    if (grenadeThrow && fireAllowed && this._alive) {
+      this.grenadeThrowLatched = {
+        charge: grenadeThrow.charge,
+        cookMs: grenadeThrow.cookMs,
+        type: grenadeThrow.type,
+      };
+      this._localGrenadeThrow = { ...this.grenadeThrowLatched, at: now };
     }
-    if (!fireAllowed || !this._alive) {
-      this.grenadeThrowLatched = false;
-      this.grenadeChargeLatched = 0;
-    }
+    if (!fireAllowed || !this._alive) this.grenadeThrowLatched = null;
     weaponIntents.throwGrenade = this.grenadeThrowLatched;
-    weaponIntents.grenadeCharge = this.grenadeChargeLatched;
     const fireTap = input.consumeFireTap();
     const fireHeld = !!input.wantFireHeld;
     if (fireTap && fireAllowed) this.fireTapLatched = true;
@@ -723,17 +717,16 @@ export class LocalPlayer {
       weapon: weaponSlot,
       wantAds: this._gameplayInputEnabled && this.wantAds,
       reload: this._gameplayInputEnabled && reloading,
-      throwGrenade: this._gameplayInputEnabled && this.grenadeThrowLatched,
-      grenadeCharge: this._gameplayInputEnabled ? this.grenadeChargeLatched : 0,
+      throwGrenade: !!(this._gameplayInputEnabled && this.grenadeThrowLatched),
+      grenadeCharge: this._gameplayInputEnabled ? (this.grenadeThrowLatched?.charge ?? 0) : 0,
+      grenadeType: this._gameplayInputEnabled ? (this.grenadeThrowLatched?.type ?? 0) : 0,
+      grenadeCook: this._gameplayInputEnabled ? (this.grenadeThrowLatched?.cookMs ?? 0) : 0,
     };
     const sent = typeof intents.sendInput === 'function'
       ? !!intents.sendInput(payload)
       : false;
     if (sent && wantFire) this.fireTapLatched = false;
-    if (sent && payload.throwGrenade) {
-      this.grenadeThrowLatched = false;
-      this.grenadeChargeLatched = 0;
-    }
+    if (sent && payload.throwGrenade) this.grenadeThrowLatched = null;
     this._frame.inputPayload = payload;
     return sent;
   }

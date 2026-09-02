@@ -8,6 +8,7 @@ export const GLYPH = Object.freeze({
   lmg: 'LMG',
   revolver: 'REV',
   longarc: 'LA',
+  rocket: 'RKT',
   grenade: 'GRN',
 });
 
@@ -19,6 +20,15 @@ export const WEAPON_NAMES = Object.freeze({
   lmg: 'BASTION LMG',
   sniper: 'LONGSHOT MK-II',
   longarc: 'LN-03 LONGARC',
+  rocket: 'RX-8 HAVOC',
+});
+
+/** Kill-feed / recap names for explosives that are not weapon slots. */
+export const THROWABLE_NAMES = Object.freeze({
+  grenade: 'GRENADE',
+  frag: 'M-4 FRAG',
+  limpet: 'LIMPET CHARGE',
+  pulse: 'PULSE SHOCK',
 });
 
 export const WEAPON_CLASSES = Object.freeze({
@@ -28,7 +38,8 @@ export const WEAPON_CLASSES = Object.freeze({
   rifle: 'ASSAULT RIFLE · FULL AUTO',
   lmg: 'HEAVY MACHINE GUN · AUTO',
   sniper: 'PRECISION SNIPER · 5× OPTIC',
-  longarc: 'RAIL DMR · PIERCING SLUG',
+  longarc: 'CHARGE COILGUN · PIERCE & CHAIN ARC',
+  rocket: 'ROCKET LAUNCHER · SPLASH & ROCKET JUMP',
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([
@@ -39,6 +50,7 @@ export const WEAPON_BUY_ORDER = Object.freeze([
   'lmg',
   'sniper',
   'longarc',
+  'rocket',
 ]);
 
 export const MODE_LABELS = Object.freeze({
@@ -49,7 +61,7 @@ export const MODE_LABELS = Object.freeze({
 });
 
 export const MODE_DESCRIPTIONS = Object.freeze({
-  fun: 'Shared instant skirmish · 7-gun full loadout · Rapid respawn',
+  fun: 'Shared instant skirmish · 8-gun full loadout · Rapid respawn',
   tdm: 'Alpha vs Bravo · First team to 40 kills wins · Team spawns',
   snd: 'Attackers vs Defenders · Buy phase economy · First to 7 round wins',
   gungame: 'Earn a kill with each weapon · Revolver elimination wins',

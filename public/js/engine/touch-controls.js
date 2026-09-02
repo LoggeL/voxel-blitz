@@ -1,3 +1,4 @@
+import { GRENADE_TYPES, GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 const DEFAULT_RADIUS = 54;
 const DEFAULT_DEAD_ZONE = 0.14;
 /** Quick press/release on a toggle button latches it instead of acting as a hold. */
@@ -71,7 +72,7 @@ export function shouldEnableTouchControls({
 
 /** Every contextual button; the pause button is always available. */
 export const TOUCH_ACTIONS = Object.freeze([
-  'fire', 'ads', 'jump', 'crouch', 'reload', 'grenade', 'interact', 'weapon', 'buy', 'zoom',
+  'fire', 'ads', 'jump', 'crouch', 'reload', 'grenade', 'grenadeType', 'interact', 'weapon', 'buy', 'zoom',
 ]);
 
 /**
@@ -88,7 +89,13 @@ export function visibleTouchActions(context) {
     visible.add('ads');
   }
   if (context.canReload) visible.add('reload');
-  if ((context.grenades | 0) > 0 && context.canFire !== false) visible.add('grenade');
+  const grenadeCount = Array.isArray(context.grenades)
+    ? context.grenades.reduce((sum, count) => sum + (count | 0), 0)
+    : (context.grenades | 0);
+  if (grenadeCount > 0 && context.canFire !== false) {
+    visible.add('grenade');
+    visible.add('grenadeType');
+  }
   if (context.canInteract) visible.add('interact');
   if ((context.weaponCount ?? 2) > 1) visible.add('weapon');
   if (context.canBuy) visible.add('buy');
@@ -175,6 +182,12 @@ export class TouchControls {
       changed.push(action);
     }
     this._context = next;
+    // The type chip names the selected throwable so the thumb knows what G will throw.
+    const typeIndex = Number.isInteger(next?.grenadeType) ? next.grenadeType : 0;
+    const typeLabel = GRENADE_TYPES[GRENADE_TYPE_IDS[typeIndex]]?.short || 'NADE';
+    if (this.dom.grenadeType && this.dom.grenadeType.textContent !== typeLabel) {
+      this.dom.grenadeType.textContent = typeLabel;
+    }
     for (const action of changed) {
       const button = this.dom[action];
       if (!button) continue;
@@ -237,6 +250,7 @@ export class TouchControls {
     d.crouch = this._button(root, 'crouch', 'C', 'Crouch (tap to toggle, hold to hold)');
     d.reload = this._button(root, 'reload', 'R', 'Reload');
     d.grenade = this._button(root, 'grenade', 'G', 'Hold to charge grenade, release to throw');
+    d.grenadeType = this._button(root, 'grenadeType', 'NADE', 'Cycle grenade type');
     d.interact = this._button(root, 'interact', 'USE', 'Interact');
     d.weapon = this._button(root, 'weapon', 'SWAP', 'Next weapon');
     d.buy = this._button(root, 'buy', 'BUY', 'Open armory');
@@ -251,6 +265,7 @@ export class TouchControls {
     this._bindHold(d.grenade, 'grenade', { haptic: 8, releaseHaptic: 18 });
     this._bindHold(d.interact, 'interact');
     this._bindPulse(d.reload, 'reload');
+    this._bindPulse(d.grenadeType, 'grenadeType');
     this._bindPulse(d.weapon, 'weapon');
     this._bindPulse(d.buy, 'buy');
     this._bindPulse(d.zoom, 'zoom');

@@ -38,6 +38,10 @@ evidence belongs to Extended QA.
 | VB-033-H | Trackpad handling: detection from the scroll stream, notch-accumulated weapon wheel, hotter smoothed look, toggle ADS default, `F` aim key, raw pointer-lock deltas | Input wheel/trackpad/ADS-mode contracts | Verified locally; release pending |
 | VB-033-I | Reconciliation eases the camera through corrections and hard snaps instead of popping | `LocalPlayer` reconcile-offset contracts | Verified locally; release pending |
 | VB-032-D | Grenade handling: shared launch/flight integrator, charge trajectory preview, instant local throw adopted by authority, wind-up/throw animation, pin/throw audio, fuse strobe, and max-charge HUD | Shared-rules, `GrenadeFX`, rig, and HUD contracts plus server grenade smoke | Verified locally; release pending |
+| VB-034-A | RX-8 HAVOC rocket launcher (8th gun): authoritative projectile with contact detonation, splash, direct-hit bonus, terrain carve, and rocket-jump self knockback; predicted local rocket adopted by authority | Server smoke (flight, wall blast, rocket jump), shared rocket-rules and `ProjectileFX` contracts, eight-model viewmodel contract | Verified locally; release pending |
+| VB-034-B | Throwable rework: frag (cookable fuse, in-hand detonation), limpet (sticks to walls/players, breaching carve), pulse (impact concussion, no carve), per-type inventory, chain detonation, type cycling on keyboard/pad/touch, per-type HUD chips and cook hint | Server projectile smoke, shared-rules/`ProjectileFX`/input/netclient/HUD contracts | Verified locally; release pending |
+| VB-034-C | LN-03 LONGARC as a charge coilgun: hold-to-charge with vent, charge-scaled damage, wall pierce gated by charge, chain arc from a full-charge body hit, coil glow, capacitor whine, coil meter, remote `charge` row field | Server charge/chain smoke, `WeaponState` charge path, HUD coil-meter contract, protocol key pin | Verified locally; release pending |
+| VB-034-D | HUD silhouettes can be regenerated without a browser | `tools/render-hud-icon.mjs` software rasterizer (`npm run weapons:icons`) produced `rocket.png` | Verified locally; release pending |
 
 ## VB-029 release evidence
 

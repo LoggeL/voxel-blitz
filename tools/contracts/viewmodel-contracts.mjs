@@ -262,12 +262,13 @@ export async function runViewmodelContracts(ok, installGlobals) {
     }
   }
 
-  // Grenades: shared launch/flight rules drive the preview, the local prediction, and
+  // Throwables: shared launch/flight rules drive the preview, the local prediction, and
   // authority adoption so a thrown grenade never pops or double-spawns.
   {
     const {
-      GRENADE_FUSE_MS, grenadeLaunch, predictGrenadePath, stepGrenade,
+      GRENADE_FUSE_MS, GRENADE_TYPES, grenadeLaunch, predictGrenadePath, stepGrenade,
     } = await import('../../shared/grenade-rules.js');
+    const { rocketLaunch, stepRocket } = await import('../../shared/rocket-rules.js');
     const floor = (x, y) => y < 20;
     const launch = grenadeLaunch({
       x: 10, y: 20, z: 10, eyeY: 21.62, vx: 2, vy: 0, vz: 0,
@@ -287,9 +288,39 @@ export async function runViewmodelContracts(ok, installGlobals) {
         && launch.vx > weak.vx,
     'shared grenade rules predict a floor-bounded path that matches the integrator and scales with charge');
 
-    const { GrenadeFX } = await import('../../public/js/weapons/grenades.js');
+    const limpetLaunch = grenadeLaunch({
+      x: 10, y: 20, z: 10, eyeY: 21.62, dir: { x: 0, y: -0.3, z: -0.95 }, charge: 1, type: 'limpet',
+    });
+    const limpetPath = predictGrenadePath(limpetLaunch, floor);
+    const limpetReplay = { ...limpetLaunch };
+    for (let i = 0; i < 80; i++) stepGrenade(limpetReplay, 1 / 40, floor);
+    const pulseLaunch = grenadeLaunch({
+      x: 10, y: 20, z: 10, eyeY: 21.62, dir: { x: 0, y: -0.3, z: -0.95 }, charge: 1, type: 'pulse',
+    });
+    const pulsePath = predictGrenadePath(pulseLaunch, floor);
+    ok(limpetLaunch.type === 'limpet' && limpetPath.rests && limpetPath.landing[1] > 19.9
+        && Math.abs(limpetReplay.vx) < 1e-9 && Math.abs(limpetReplay.vz) < 1e-9
+        && pulsePath.rests && pulsePath.points.length < strong.points.length
+        && GRENADE_TYPES.pulse.impact && GRENADE_TYPES.limpet.sticky,
+    'sticky and impact throwables stop at their first contact in prediction and integration');
+
+    const rocket = rocketLaunch({ x: 10, y: 21.62, z: 10, dir: { x: 0, y: 0, z: -1 } });
+    const flight = { ...rocket };
+    const raycast = (ox, oy, oz, dx, dy, dz, max) => (oz + dz * max <= 0
+      ? { x: 10, y: 21, z: -1, t: Math.max(0, (oz - 0) / Math.max(1e-6, -dz)) }
+      : null);
+    let stepsToWall = 0;
+    while (!flight.hit && stepsToWall < 200) { stepRocket(flight, 1 / 40, raycast); stepsToWall++; }
+    ok(rocket.type === 'rocket' && rocket.vz < -40 && flight.hit && flight.z < 0.5 && flight.z > -0.5
+        && stepsToWall > 5,
+    'shared rocket rules fly a straight fast projectile that stops at the first voxel contact');
+
+    const { ProjectileFX } = await import('../../public/js/weapons/projectiles.js');
     const scene = new THREE.Scene();
-    const fx = new GrenadeFX(scene, (x, y) => (y < 20 ? 1 : 0));
+    const carriers = new Map([['p9', { x: 30, y: 20, z: 30 }]]);
+    const fx = new ProjectileFX(scene, (x, y) => (y < 20 ? 1 : 0), {
+      getEntityPosition: (id) => carriers.get(id) || null,
+    });
     try {
       const preview = fx.setPreview(launch);
       const previewShown = fx.previewLine.visible && fx.landingRing.visible && preview?.points.length > 10;
@@ -299,24 +330,44 @@ export async function runViewmodelContracts(ok, installGlobals) {
 
       const o = [launch.x, launch.y, launch.z];
       const v = [launch.vx, launch.vy, launch.vz];
-      fx.throw({ o, v, fuse: GRENADE_FUSE_MS }, { local: true });
+      fx.launch({ type: 'frag', o, v, fuse: GRENADE_FUSE_MS }, { local: true });
       fx.update(0.1);
       const pendingBefore = fx.pendingLocal;
       const projectilesBefore = fx.projectiles.size;
-      fx.throw({ gid: 'g1', o, v, fuse: GRENADE_FUSE_MS }, { fromSelf: true });
+      fx.launch({ pid: 'g1', type: 'frag', o, v, fuse: GRENADE_FUSE_MS }, { fromSelf: true });
       const adopted = fx.projectiles.get('g1');
       ok(pendingBefore === 1 && projectilesBefore === 1 && fx.projectiles.size === 1
           && adopted && !adopted.local && fx.pendingLocal === 0,
-        'the authority throw event adopts the pending local prediction instead of double-spawning');
+        'the authority launch event adopts the pending local prediction instead of double-spawning');
 
-      fx.throw({ gid: 'g2', o, v, fuse: GRENADE_FUSE_MS }, { fromSelf: false });
-      fx.throw({ o, v, fuse: GRENADE_FUSE_MS }, { local: true });
+      fx.launch({ pid: 'g2', type: 'frag', o, v, fuse: GRENADE_FUSE_MS }, { fromSelf: false });
+      fx.launch({ type: 'frag', o, v, fuse: GRENADE_FUSE_MS }, { local: true });
       for (let i = 0; i < 25; i++) fx.update(0.05);
       ok(fx.projectiles.size === 2 && fx.pendingLocal === 0,
         'an unconfirmed local throw times out while authoritative grenades keep flying');
-      fx.explode({ gid: 'g1', x: 10, y: 20, z: 5, radius: 5.6 });
+      fx.explode({ pid: 'g1', type: 'frag', x: 10, y: 20, z: 5, radius: 5.6 });
       ok(!fx.projectiles.has('g1') && fx.blasts.length === 1,
         'explosion removes the adopted projectile and spawns one blast');
+
+      fx.launch({ pid: 'l1', type: 'limpet', o, v, fuse: 3500 });
+      fx.stick({ pid: 'l1', x: 30.2, y: 21, z: 30.1, to: 'p9', fuse: 1500 });
+      carriers.set('p9', { x: 34, y: 20, z: 30 });
+      fx.update(0.05);
+      const limpet = fx.projectiles.get('l1');
+      ok(limpet?.stuck && limpet.stuckTo === 'p9' && Math.abs(limpet.x - 34.2) < 1e-6
+          && Math.abs(limpet.fuse - (limpet.age + 1.5 - 0.05)) < 1e-6,
+        'a limpet stuck to a player rides that carrier and re-arms its fuse from the stick event');
+
+      fx.launch({ pid: 'r1', type: 'rocket', o: [rocket.x, rocket.y, rocket.z], v: [rocket.vx, rocket.vy, rocket.vz], fuse: 4000 }, { fromSelf: false });
+      const rocketBefore = fx.projectiles.get('r1').z;
+      fx.update(0.05);
+      ok(fx.projectiles.get('r1').z < rocketBefore - 1.5,
+        'a launched rocket flies straight along the shared integrator');
+      fx.explode({ pid: 'r1', type: 'rocket', x: 10, y: 21, z: 0, radius: 4.8 });
+      fx.explode({ pid: 'l1', type: 'pulse', x: 34, y: 21, z: 30, radius: 6.5 });
+      ok(!fx.projectiles.has('r1') && !fx.projectiles.has('l1')
+          && fx.blasts.filter((blast) => blast.ring).length === 2,
+        'rocket and pulse blasts add the expanding shockwave ring');
     } finally {
       fx.dispose();
     }
@@ -356,7 +407,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
       }
 
       ok(Object.keys(rig._models).length === WEAPON_IDS.length,
-        'one ViewmodelRig lazily constructs all seven canonical weapon models');
+        'one ViewmodelRig lazily constructs all eight canonical weapon models');
       ok(WEAPON_IDS.every((id) => {
         const model = rig._models[id];
         const sightHeight = model?.body?.userData?.sightHeight;
@@ -364,7 +415,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
           && Math.abs(model.T.adsOffset.x) < 1e-9
           && Math.abs(model.T.adsOffset.y + sightHeight) < 1e-9
           && model.T.adsOffset.z <= -0.58;
-      }), 'all seven ADS profiles center their declared sight line at a safe camera distance');
+      }), 'all eight ADS profiles center their declared sight line at a safe camera distance');
       const centerRay = new THREE.Raycaster(
         new THREE.Vector3(),
         new THREE.Vector3(0, 0, -1),

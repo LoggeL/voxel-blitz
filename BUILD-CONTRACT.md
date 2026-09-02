@@ -10,8 +10,10 @@ room/client interfaces below; do not fork their logic into a second convention.
   bundler or frontend build.
 - Shared sim modules imported by both sides are `shared/worlddata.js`,
   `shared/modes.js`, `shared/raycast.js`, `shared/combatmath.js`, and
-  `shared/noise.js`. `shared/grenade-rules.js` is the shared grenade inventory,
-  charge-duration, clamp, and throw-profile contract.
+  `shared/noise.js`. `shared/grenade-rules.js` is the shared throwable roster
+  (`frag`, `limpet`, `pulse`), per-type inventory, charge/cook, clamp,
+  throw-profile, and flight-integrator contract; `shared/rocket-rules.js` is the
+  shared rocket launch/flight/blast contract.
 - One room owns one map clone, `GameEngine`, `ModeController`, optional
   `BotManager`, and room-scoped transports. The server remains authoritative at
   20 Hz.
@@ -68,17 +70,23 @@ After admission:
 - `{t:'input',seq:number,keys:{f:boolean,b:boolean,l:boolean,r:boolean,
   jump:boolean,sprint:boolean,crouch:boolean,interact:boolean},yaw:number,
   pitch:number,weapon:number,wantFire:boolean,wantAds:boolean,reload:boolean,
-  viewAge:number,throwGrenade?:boolean,grenadeCharge?:number,switchTo?:number}`
+  viewAge:number,throwGrenade?:boolean,grenadeCharge?:number,grenadeType?:number,
+  grenadeCook?:number,switchTo?:number}`
   routes only to this member's live room. A grenade throw is release-edge
   triggered after holding `G`; authority clamps `grenadeCharge` to `0–1`, maps
-  it to the shared throw-speed/lift profile, and consumes one of two grenades
-  for the current life only when the mode permits firing.
+  it to the shared throw-speed/lift profile, clamps `grenadeType` into
+  `GRENADE_TYPE_IDS` (`0` frag, `1` limpet, `2` pulse), clamps `grenadeCook`
+  (held milliseconds, timed fuses only) to the type's fuse, and consumes one
+  grenade of that type for the current life only when the mode permits firing.
+  A `grenadeCook` at or beyond the frag fuse detonates the grenade in the hand.
+  `wantFire` held on a `charge`-mode weapon (LONGARC) charges the capacitor and
+  the shot leaves on release or when the hold reaches `holdMaxMs`.
   `viewAge` is the client's current presentation buffer plus measured RTT and
   is clamped by authority to `50–450 ms` before hit rewind.
-  Weapon slots clamp to `0–6`; keyboard digits are `1–7`.
+  Weapon slots clamp to `0–7`; keyboard digits are `1–8`.
 - `{t:'ping',nonce:safe-integer}` receives `{t:'pong',nonce}` from the same
   socket so the client can measure application-level round-trip time.
-- `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'}` requests
+- `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'}` requests
   an S&D prep-phase purchase.
 - `{t:'chat',text:string}` broadcasts at most 120 trimmed characters only to
   this member's room.
@@ -109,8 +117,11 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
 - Each player row has exactly
   `{id,name,x,y,z,yaw,pitch,hp,panic,pain,exhaustion,spawnProtected,weapon,
   score,kills,deaths,state,respawnAt,firing,ads,crouch,mag,reserve,reloading,
-  team,credits,owned,bomb,interaction,grenades}`.
+  team,credits,owned,bomb,interaction,grenades,charge}`.
   `team` is `'alpha'|'bravo'|null`; `owned` is an array of weapon ids;
+  `grenades` is the remaining per-type count array in `GRENADE_TYPE_IDS` order;
+  `charge` is the normalized `0–1` capacitor charge of a held `charge`-mode
+  weapon (`0` otherwise);
   `interaction` is `{kind:'plant'|'defuse',site,progress}` or `null`; `bomb`
   marks the carrier. `state` is `'alive'|'dead'`; `respawnAt` is the finite
   authoritative server deadline for an automatic respawn and otherwise
@@ -119,13 +130,19 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   HUD meters.
 - Gameplay and mode events live in `tick.events`; they are not separate
   top-level deliveries. Combat events remain:
-  - `{t:'ev',kind:'shoot',id,o:[x,y,z],d:[x,y,z],w,spread:[x,y,z]}`
+  - `{t:'ev',kind:'shoot',id,o:[x,y,z],d:[x,y,z],w,spread:[x,y,z],charge?}`
+    (`charge` only on `charge`-mode weapons)
   - `{t:'ev',kind:'hit',attacker,victim,dmg,hs,vx,vy,vz}`
   - `{t:'ev',kind:'kill',killer,victim,w,hs}`
   - `{t:'ev',kind:'block',x,y,z,v:0,from}`; the same mutation appears in
     `tick.blocks` at `i=(y*SZ+z)*SX+x`
-  - `{t:'ev',kind:'grenadeThrow',id,gid,o:[x,y,z],v:[x,y,z],fuse}` and
-    `{t:'ev',kind:'grenadeExplode',id,gid,x,y,z,radius}`
+  - `{t:'ev',kind:'projectileLaunch',id,pid,type,o:[x,y,z],v:[x,y,z],fuse}`,
+    `{t:'ev',kind:'projectileStick',id,pid,x,y,z,to,fuse}` (a limpet on terrain
+    has `to:null`, on a player `to` is that id), and
+    `{t:'ev',kind:'projectileExplode',id,pid,type,x,y,z,radius}` where `type`
+    is `'frag'|'limpet'|'pulse'|'rocket'`
+  - `{t:'ev',kind:'arc',id,from:[x,y,z],to:[x,y,z]}` for each chain-arc jump of
+    a fully charged LONGARC body hit; the arced victim receives a normal `hit`
   - `{t:'die',kind:'die',id}` and
     `{t:'respawn',kind:'respawn',id,x,y,z}`
 - Mode events use `{t:'ev',kind,at,...fields}`. Their kinds and supplemental
@@ -189,6 +206,7 @@ covers every mode id.
 ### shared/combatmath.js
 Exports `WEAPONS`, `WEAPON_IDS`, `CONDITION_RULES`, `GRAVITY`, `PLAYER_HALF`,
 `EYE_HEIGHT`, `HEADSHOT_Y_FRAC`, `damageAtDistance(def,dist)`,
+`chargeProfile(def)`, `chargeFromHold(def,heldMs)`, `chargeDamageMult(def,charge01)`,
 `sampleSpreadDir(fwd,rng,halfAngleDeg)`,
 `samplePelletDirection(def,fwd,rng,halfAngleDeg,pelletIndex)`,
 `angleBetweenDeg(a,b)`, and
@@ -200,7 +218,7 @@ recovery. The condition penalty is exactly
 crouching also applies each weapon's `crouchSpreadMult` to base spread/bloom.
 
 The slot roster is exactly
-`['rifle','smg','shotgun','sniper','lmg','revolver','longarc']`:
+`['rifle','smg','shotgun','sniper','lmg','revolver','longarc','rocket']`:
 
 | slot/key | display name | mode | rpm | mag/spare mags | close→far damage @ end | head | pellets | hip/ADS cone | mass |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -210,13 +228,26 @@ The slot roster is exactly
 | 3 `sniper` | LONGSHOT MK-II | bolt | 42 | 5/6 | 95→68 @ 120 | 2.10× | 1 | 5.50°/0.02° | 5.2 kg |
 | 4 `lmg` | BASTION LMG | auto | 720 | 60/4 | 22→14 @ 75 | 1.70× | 1 | 1.65°/0.48° | 8.4 kg |
 | 5 `revolver` | IRONCLAD .44 | semi | 300 | 6/8 | 54→35 @ 80 | 1.90× | 1 | 1.15°/0.12° | 1.4 kg |
-| 6 `longarc` | LN-03 LONGARC | semi | 160 | 8/6 | 62→45 @ 95 | 2.00× | 1 | 1.60°/0.08° | 4.1 kg |
+| 6 `longarc` | LN-03 LONGARC | charge | 160 | 8/6 | 88→62 @ 95 | 2.00× | 1 | 1.60°/0.08° | 4.1 kg |
+| 7 `rocket` | RX-8 HAVOC | semi | 45 | 1/5 | projectile | 1.00× | 1 | 1.10°/0.25° | 9.6 kg |
 
 Damage is flat to 20 world units by default; the shotgun starts falloff at 12.
-It then falls linearly to the table's far value at the listed end. The longarc
-rail slug pierces up to 2 players and 1 wall, losing damage per penetration.
-All remaining cadence, bloom, recoil, ADS, reload, deploy, tracer, mass, and
-SFX fields are read from `WEAPONS`; do not duplicate them.
+It then falls linearly to the table's far value at the listed end.
+
+The LONGARC is the `charge` mode: holding the trigger charges the capacitor
+over `charge.ms` (850) and the slug leaves on release, or on its own at
+`charge.holdMaxMs` (2200). Damage scales linearly from `minDamageMult` (0.40) at
+a tap to the table value at full charge. The slug always pierces up to 2
+players (`playerFalloff` 0.7); it passes 1 wall (`wallFalloff` 0.6) only from
+`wallPierceAt` (0.60), and from `chainAt` (0.85) the first body hit arcs to up
+to `chain.targets` (2) visible enemies within `chain.radius` (7.5) for
+`chain.damageMult` (0.45) of that hit. The `rocket` is `projectile:'rocket'`:
+its shot event carries no hitscan; `shared/rocket-rules.js` owns the launch
+(speed 42, gravity 2.4, 4000 ms lifetime), the direct-hit bonus (100), the
+splash (96 @ 4.8 radius, 0.55 self), knockback (11, 15.5 self), and the carve
+(radius 3.1, power 145, 80 blocks). All remaining cadence, bloom, recoil, ADS,
+reload, deploy, tracer, mass, and SFX fields are read from `WEAPONS`; do not
+duplicate them.
 
 ### shared/raycast.js
 `raycastVoxels(solidAt,ox,oy,oz,dx,dy,dz,maxDist)` returns
@@ -324,7 +355,8 @@ and exposes `quickPlay(meta,name,bots?)`,
   desktop, layout rows on touch, pad sensitivity while a pad is active).
 - `buildHUD()`, `menuDone()`, and
   `setState({hp,mag,reserve,wname,wid,bloomPx,reloading01,yawDeg,adsT01,alive,
-  grenades,grenadeCharge})`
+  grenades,grenadeType,grenadeCharge,grenadeCharging,grenadeCook01,
+  grenadeCookLeftMs,charge01,chainAt})`
   own the live HUD. `spreadFromBloom(deg)`, `setSpread(px)`,
   `hideCrosshairForAds(boolean)`, `setReloadProgress(t01|null,staged?)`,
   `updateCompass(yawDeg)`, `pushEvent(ev)`,
@@ -344,17 +376,22 @@ late join whose welcome/state is already live also proceeds directly.
 ### Input, rendering, effects, and viewmodel
 - `new Input(canvas).start(canvas,onLockChange)`; poll `getKeys()` for movement
   plus held `interact`, read `yaw`/`pitch`, and drain fire, reload, weapon, and
-  buy-menu edge consumers. `getGrenadeCharge(now?)` exposes live HUD progress;
-  `consumeGrenadeThrow()` returns the released `0–1` charge or `null`. `E` holds
-  interact; `B` toggles the buy menu; `1–7`/wheel/`Q` select weapons.
+  buy-menu edge consumers. `getGrenadeCharge(now?)` and `getGrenadeHoldMs(now?)`
+  expose live HUD progress; `consumeGrenadeThrow()` returns the released
+  `{charge,cookMs,type}` or `null`; `forceGrenadeRelease(now?)` lets the
+  presentation release a fuse cooked to the end. `getGrenadeType()`,
+  `setGrenadeType(i)`, and `cycleGrenadeType(dir)` own the selected throwable:
+  `H` cycles it, and the wheel (or pad `Y`) cycles it while `G` is held instead
+  of switching weapons. `E` holds interact; `B` toggles the buy menu;
+  `1–8`/wheel/`Q` select weapons.
   `setGameplayEnabled(boolean)` gates input around lobby, settings, buy, death,
   and teardown.
 - `TouchControls` owns coarse-pointer DOM and pointer lifecycles behind the
   `Input` seam. Touch mode is selected by touch capability, a coarse primary
   pointer, or the `?touch=1` QA override; it never requests pointer lock. Its
   joystick, swipe-look, hold, and pulse callbacks feed the same canonical input
-  state and draining edges as keyboard/mouse, including charged grenades and
-  the S&D buy menu. The look zone is the full screen beneath the other
+  state and draining edges as keyboard/mouse, including charged grenades, the
+  `grenadeType` chip that cycles the throwable, and the S&D buy menu. The look zone is the full screen beneath the other
   controls; the joystick base floats to the touchdown point; the FIRE button
   forwards drag deltas to look while held; a look-zone touch shorter than
   `TOUCH_TAP_FIRE_MS` and stiller than `TOUCH_TAP_FIRE_TRAVEL_PX` pulses
@@ -371,35 +408,53 @@ late join whose welcome/state is already live also proceeds directly.
   permanently fall back to a direct scene render. Its target pixel ratio caps
   at `1.35` (`1.0` on devices reporting at most 4 GB), and `?shader=off` is the
   deterministic manual fallback.
-- `new Effects(scene,camera,worldGetBlockFn)` exposes
-  `shoot(ev,{local?})`, `impact(evHit)`, `explodeBlock(x,y,z,blockId)`,
-  `spawnBrass(pos,velocity)`, `update(dt)`, `shake(amount)`,
-  getter `currentShakeXY`, and `dispose()`.
+- `new Effects(scene,camera,worldGetBlockFn,{getEntityPosition?})` exposes
+  `shoot(ev,{local?})` (a local rocket shot also spawns the predicted rocket),
+  `impact(evHit)`, `explodeBlock(x,y,z,blockId)`, `spawnBrass(pos,velocity)`,
+  `projectileLaunch(ev,{local?,fromSelf?})`, `projectilePreview(launch|null)`,
+  `projectileStick(ev)`, `projectileExplode(ev)`, `arc(from,to)`, `update(dt)`,
+  `shake(amount)`, getter `currentShakeXY`, and `dispose()`.
 - `new ViewmodelRig(camera)` exposes `setWeapon(id)`, `fire()`, `ads(t01)`,
-  `reload(dur,type)`, `pumpAnim()`, `boltAnim()`,
+  `setCharge(t01)` (held capacitor charge: coil glow floor plus a rearward
+  squeeze), `reload(dur,type)`, `pumpAnim()`, `boltAnim()`,
   `update(dt,{speed,grounded,verticalVelocity?,lateralSpeed?,forwardSpeed?,
   isSprinting?,crouch?,panic?,pain?,exhaustion?,aimSwayScale?})`, `bobAmt`,
   and `turnLag` (`{yaw,pitch,roll,x,y,speed,maxSpeed,...}`).
-  It builds seven procedural models. Its internal angular follower observes the
+  It builds eight procedural models. Its internal angular follower observes the
   completed camera orientation, caps weapon rotation speed and acceleration by
   `weightKg`, tightens toward the sight line with ADS, folds lag beyond its
   weight budget back into the pose (no hidden unwind), and affects only the
   rig—never camera or authority aim. `lateralSpeed`/`forwardSpeed` are body
   velocity in the camera frame and drive a mass-scaled lean/surge spring; the
   kick and body springs scale by `kickMassScale(weightKg)` from `guns/defs.js`.
-- **Grenades:** `shared/grenade-rules.js` owns `GRENADE_FUSE_MS`,
-  `GRENADE_PHYSICS`, `grenadeLaunch({x,y,z,eyeY,vx,vy,vz,dir,charge})`,
+- **Throwables and rockets:** `shared/grenade-rules.js` owns `GRENADE_TYPE_IDS`,
+  `GRENADE_TYPES` (per-type fuse, cook/impact/sticky flags, blast, knockback,
+  concussion, carve, colour, and physics), `freshGrenadeLoadout()`,
+  `clampGrenadeType`, `clampGrenadeCook`, `grenadeFuseAfterCook`,
+  `grenadeLaunch({x,y,z,eyeY,vx,vy,vz,dir,charge,type})`,
   `stepGrenade(g,dt,isSolid)`, and `predictGrenadePath(launch,isSolid,opts)`;
-  the server simulation, the client projectile, and the charge preview all run
-  that one integrator. `Effects.grenadeThrow(ev,{local?,fromSelf?})` spawns a
-  predicted local projectile on release, and the authority `grenadeThrow` for
-  the local id adopts it (no pop, no double spawn; unconfirmed predictions time
-  out after 1 s). `Effects.grenadePreview(launch|null)` draws the dotted arc and
-  landing ring while charging. `LocalPlayer.consumeLocalGrenadeThrow()` and
-  `grenadeLaunchState(charge)` feed that presentation; `Input.isGrenadeCharging()`
-  exposes the held state; `ViewmodelRig.grenadeCharge(t01)` / `grenadeThrow(charge)`
-  play the wind-up and lunge; `sfx.grenadePin()` / `sfx.grenadeThrow(charge)` cue
-  them. HUD state accepts `grenadeCharging` and flags `is-full` at max charge.
+  `shared/rocket-rules.js` owns `ROCKET_RULES`, `rocketLaunch({x,y,z,dir})`, and
+  `stepRocket(r,dt,raycast)`. The server `ProjectileSystem`
+  (`server/sim/projectiles.js`, `PROJECTILE_RULES`), the client `ProjectileFX`
+  (`public/js/weapons/projectiles.js`), and the charge preview all run those
+  integrators. `Effects.projectileLaunch(ev,{local?,fromSelf?})` spawns a
+  predicted local projectile on release (and `Effects.shoot` does the same for
+  a local rocket shot), and the authority `projectileLaunch` for the local id
+  adopts the oldest pending prediction of that type (no pop, no double spawn;
+  unconfirmed predictions time out after 1 s). `Effects.projectilePreview`
+  draws the type-coloured dotted arc and landing ring while charging; sticky
+  and impact previews stop at the first contact. `ProjectileFX` rides a limpet
+  stuck to a player through `getEntityPosition(id)`. `LocalPlayer`
+  `consumeLocalGrenadeThrow()` (`{charge,cookMs,type,at}`) and
+  `grenadeLaunchState(charge,type)` feed that presentation; the composition
+  root forces the release when a frag has been held for its whole fuse so
+  authority detonates it in the hand. `ViewmodelRig.grenadeCharge(t01)` /
+  `grenadeThrow(charge)` play the wind-up and lunge; `sfx.grenadePin()`,
+  `sfx.grenadeThrow(charge)`, `sfx.explosion(pos,type)`, `sfx.arcZap(pos)`, and
+  the sustained `sfx.weaponCharge(level01,active)` whine cue them. HUD state
+  renders one chip per throwable with remaining pips, the selected type name,
+  `is-full` at max charge, `is-cooking`/`is-critical` with a `COOKING · n.ns`
+  hint, and the LONGARC coil meter (`charge01`, `chainAt`, `is-chain`).
 - `LocalPlayer.addRecoil(pitchRad, yawRad, weightKg?)` drives a velocity-impulse
   camera spring that peaks at the requested kick ~40–60 ms after the shot and
   recovers on a weight-scaled spring (slower for heavy guns), adds a coupled
@@ -447,19 +502,19 @@ weapons, recover/escort/plant/guard/defuse the bomb, and dispose their engine
 step listener with the room.
 
 ## Runtime gameplay contracts
-- **Fun (`fun`):** free-for-all target eligibility, complete seven-weapon
+- **Fun (`fun`):** free-for-all target eligibility, complete eight-weapon
   loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
   `1500 ms` respawn. Shared quick rooms allow join in progress with no ready
   gate.
 - **Team Deathmatch (`tdm`):** persistent `alpha`/`bravo` assignment chooses the
   lower human+bot population; friendly fire is disabled and every player owns
-  the complete seven-weapon loadout. Enemy kills increment the killer's team
+  the complete eight-weapon loadout. Enemy kills increment the killer's team
   score. First to `40` enters a `5000 ms` post phase, then team/player scores
   reset and all players respawn. Live deaths respawn after `3000 ms` at the
   player's team spawn pool.
 - **Gun Game (`gungame`):** free-for-all target eligibility and `1500 ms`
   respawn. Players progress through the immutable shared order rifle, SMG,
-  shotgun, sniper, LMG, longarc, revolver; a kill with the revolver wins. The winner is
+  shotgun, sniper, LMG, rocket, longarc, revolver; a kill with the revolver wins. The winner is
   shown during a `5000 ms` post phase before progression and scores reset.
 - **Search and Destroy (`snd`):** persistent `alpha`/`bravo` teams map to
   attackers/defenders, friendly fire is disabled, and roles swap after 6
@@ -477,7 +532,7 @@ step listener with the room.
 - **S&D economy:** players start with 800 credits; kill +300, plant +300, round
   win +3250, and consecutive losses +1400/+1900/+2400/+2900/+3400, capped at
   16000. Prices are revolver 0, SMG 1250, shotgun 1800, rifle 2700, longarc 3500,
-  LMG 4000, sniper 4750. Only alive participants buy during prep. A purchase owns,
+  LMG 4000, rocket 4300, sniper 4750. Only alive participants buy during prep. A purchase owns,
   selects, and refills that weapon. New/dead players start the next round with
   revolver; survivors retain purchases and remaining ammunition.
 - **Map compatibility:** `foundry` supports Fun/TDM/S&D/Gun Game; `depot`
@@ -514,15 +569,31 @@ step listener with the room.
   distant deaths, footsteps, draws, bullet whizzes, echo, music, and positional
   listener updates all route through `sfx` and the terminal limiter.
 - **Authority:** one room engine simulates movement, ammo, reloads, spread,
-  hits, grenades, destruction, death, score, and respawn at 20 Hz. The client
+  hits, grenades, rockets, destruction, death, score, and respawn at 20 Hz. The client
   predicts feel/FX but accepted shots and all damage are server decisions.
   Shooter-side rewind uses the client's bounded `viewAge` within a 500 ms
   history window so hit authority matches the target state actually rendered.
-- **Grenades:** every fresh life has two. Holding `G` charges for up to 1200 ms;
-  releasing queues one throw edge with a shared `0–1` charge profile, which the
-  server clamps before owning trajectory, 2300 ms fuse, blast damage/line of
-  sight, knockback, and a resistance-limited terrain carve. Metal is blast-proof
-  and each explosion destroys at most 110 blocks.
+- **Throwables:** every fresh life carries 2 frag, 1 limpet, and 2 pulse.
+  Holding `G` charges the throw for up to 1200 ms; releasing queues one throw
+  edge with the shared `0–1` charge profile, the selected type, and the held
+  cook time, which the server clamps before owning trajectory, fuse, blast
+  damage/line of sight, knockback, and a resistance-limited terrain carve.
+  `frag` (M-4 FRAG): 2600 ms fuse that starts at the pin pull, so the hold
+  cooks it and a hold past the fuse detonates in the hand; 115 damage @ 5.4,
+  0.72 self, carve radius 3.6 / power 150 / 110 blocks. `limpet` (LIMPET
+  CHARGE): sticks to the first wall or player it touches (riding a player),
+  arms a 1500 ms fuse on contact (3500 ms flight cap), a stuck player takes the
+  full 140 @ 4.2 blast, carve radius 4.6 / power 200 / 160 blocks. `pulse`
+  (PULSE SHOCK): detonates on impact, 38 @ 6.5, knockback 17, no carve, and a
+  1600 ms concussion that slows the victim to 60% speed and adds 0.55 panic.
+  Every blast sympathetically detonates other live explosives within 80% of
+  its radius with line of sight. Metal is blast-proof.
+- **Rockets:** the RX-8 HAVOC fires one authoritative rocket per tube (shot
+  event plus `projectileLaunch`) that detonates on the first voxel or body it
+  meets; a direct body hit adds 100 before the splash. The owner's own blast
+  launches them with the stronger self knockback (rocket jump) at 0.55 self
+  damage. Bots hold a `charge` trigger to ~90% and release, and buy the rocket
+  after the LMG.
 - **Hit confirmation:** shooter-side hitmarks, their confirmation sound, and
   world-anchored damage numbers share one camera-to-impact voxel visibility
   decision; intervening cover suppresses the complete confirmation. A kill by

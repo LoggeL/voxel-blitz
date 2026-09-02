@@ -4,6 +4,7 @@
 
 import {
   WEAPON_NAMES,
+  THROWABLE_NAMES,
   DMG_MS,
   DMG_MAX_POOL,
   el,
@@ -272,20 +273,21 @@ export class CombatHudController {
     const killer = el('b', '', row);
     killer.textContent = entry.killer;
     const weaponKey = resolveKey(entry.weaponKey || entry.weapon || entry.glyphKey);
+    const throwable = !!(weaponKey && THROWABLE_NAMES[weaponKey]);
     const weapon = el('span', `kf-weapon kf-weapon-${weaponKey || 'world'}`, row);
-    if (weaponKey && weaponKey !== 'grenade') {
+    if (weaponKey && WEAPON_NAMES[weaponKey]) {
       const icon = el('img', 'kf-weapon-icon', weapon);
       icon.src = `./assets/weapons/hud/${weaponKey}.png`;
       icon.alt = '';
       icon.setAttribute('aria-hidden', 'true');
     } else {
       const icon = el('span', 'kf-grenade-icon', weapon);
-      icon.textContent = weaponKey === 'grenade' ? '◆' : '·';
+      icon.textContent = throwable ? '◆' : '·';
       icon.setAttribute('aria-hidden', 'true');
     }
     const weaponName = el('span', 'kf-weapon-name', weapon);
-    weaponName.textContent = weaponKey === 'grenade'
-      ? 'GRENADE'
+    weaponName.textContent = throwable
+      ? THROWABLE_NAMES[weaponKey]
       : (WEAPON_NAMES[weaponKey] || 'ENVIRONMENT');
     const markers = [];
     if (entry.hs) markers.push('HEADSHOT');

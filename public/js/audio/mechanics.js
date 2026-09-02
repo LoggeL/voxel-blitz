@@ -10,6 +10,7 @@ export const WEP_TONE = {
   lmg: 0.72,
   revolver: 1.32,
   longarc: 1.42,
+  rocket: 0.66,
 };
 
 // Cloth-rustle draw length per weapon.
@@ -21,6 +22,7 @@ export const DRAW_LEN = {
   lmg: 0.25,
   revolver: 0.13,
   longarc: 0.22,
+  rocket: 0.3,
 };
 
 const CYCLE_TONE = Object.freeze({
@@ -146,6 +148,35 @@ export function reloadLongarc(out, primitives, step, t0, brightness) {
   }
 }
 
+/** Rocket reload: canister latch pops, a heavy rocket slides home, the arming lever cocks. */
+export function reloadRocket(out, primitives, step, t0, brightness) {
+  if (step === 1) {
+    primitives.hiss(out, {
+      t0, filter: 'lowpass', f: 600 * brightness, q: 0.8, dec: 0.09, g: 0.42,
+    });
+    primitives.tone(out, {
+      t0: t0 + 0.05, type: 'square', f0: 900 * brightness, f1: 400, dec: 0.03, g: 0.2,
+    });
+  } else if (step === 2) {
+    primitives.hiss(out, {
+      t0, filter: 'bandpass', f: 520 * brightness, q: 0.9, dec: 0.22, g: 0.3,
+    });
+    primitives.tone(out, {
+      t0: t0 + 0.16, type: 'sine', f0: 110, f1: 52, dec: 0.08, g: 0.55, att: 0.002,
+    });
+    primitives.tone(out, {
+      t0: t0 + 0.2, type: 'sine', f0: 84, f1: 46, dec: 0.07, g: 0.4, att: 0.002,
+    });
+  } else {
+    primitives.tone(out, {
+      t0, type: 'square', f0: 1400 * brightness, f1: 700, dec: 0.02, g: 0.22,
+    });
+    primitives.hiss(out, {
+      t0: t0 + 0.02, filter: 'bandpass', f: 2200 * brightness, q: 5, dec: 0.02, g: 0.16,
+    });
+  }
+}
+
 export function genericReloadStep(out, primitives, step, t0, brightness) {
   if (step === 1) {
     primitives.hiss(out, {
@@ -212,6 +243,19 @@ export function drawCloth(out, primitives, weapon, t0 = primitives.nowT()) {
     primitives.tone(out, {
       t0: t0 + duration * 0.82, type: 'square', f0: 2050, f1: 980,
       dec: 0.018, g: 0.12,
+    });
+  } else if (weapon === 'rocket') {
+    primitives.hiss(out, {
+      t0, filter: 'lowpass', f: 380, q: 0.7,
+      dec: duration * 0.8, g: 0.38,
+    });
+    primitives.tone(out, {
+      t0: t0 + duration * 0.6, type: 'sine', f0: 88, f1: 44,
+      dec: 0.08, g: 0.34,
+    });
+    primitives.tone(out, {
+      t0: t0 + duration * 0.88, type: 'square', f0: 1100, f1: 520,
+      dec: 0.02, g: 0.14,
     });
   } else if (weapon === 'longarc') {
     primitives.hiss(out, {

@@ -14,8 +14,10 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
   'hit',
   'kill',
   'block',
-  'grenadeThrow',
-  'grenadeExplode',
+  'projectileLaunch',
+  'projectileStick',
+  'projectileExplode',
+  'arc',
   'respawn',
   'die',
 ]);
@@ -299,8 +301,10 @@ export class Session {
       spawnProtected: false,
       reloading01: null,
       adsT01: 0,
-      grenades: 0,
+      grenades: [0, 0, 0],
+      grenadeType: 0,
       grenadeCharge: 0,
+      charge01: null,
     });
     this.hud.setPainImpulse(0);
     this.hud.setDeathBrutality(0);

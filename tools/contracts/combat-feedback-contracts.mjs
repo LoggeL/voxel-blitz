@@ -82,6 +82,8 @@ export function runCombatFeedbackContracts(ok) {
   ok(deathRecapText({ weapon: 'sniper', headshot: true, longRange: true, distance: 41.4, killerHp: 33.4 })
       === 'LONGSHOT MK-II · HEADSHOT · LONG RANGE · 41 M · KILLER AT 33 HP'
       && deathRecapText({ weapon: 'grenade' }) === 'GRENADE'
+      && deathRecapText({ weapon: 'limpet' }) === 'LIMPET CHARGE'
+      && deathRecapText({ weapon: 'rocket' }) === 'RX-8 HAVOC'
       && deathRecapText({}) === '',
   'death recap lists weapon, markers, range, and the killer\'s remaining health');
 

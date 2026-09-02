@@ -10,7 +10,7 @@ import {
   EYE_HEIGHT,
 } from '../../shared/combatmath.js';
 import { mulberry32 } from '../../shared/noise.js';
-import { GRENADE_PER_LIFE } from '../../shared/grenade-rules.js';
+import { freshGrenadeLoadout } from '../../shared/grenade-rules.js';
 
 const WALK_SPEED = 4.4;
 const SPRINT_SPEED = 6.2;
@@ -140,7 +140,15 @@ export class PlayerEntity {
     this.fireEdgeQueued = false;
     this.grenadeEdgeQueued = false;
     this.grenadeChargeQueued = 0;
-    this.grenades = GRENADE_PER_LIFE;
+    this.grenadeTypeQueued = 0;
+    this.grenadeCookQueued = 0;
+    this.grenades = freshGrenadeLoadout();
+    // Charge-mode weapons (LONGARC): hold time and the normalized wire charge.
+    this.charging = false;
+    this.chargeT = 0;
+    this.charge = 0;
+    // Pulse concussion deadline (server clock ms); movement slows until then.
+    this.concussedUntil = 0;
     this.grounded = false;
     this.coyote = 0;
     this.crouch = false;
