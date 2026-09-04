@@ -23,6 +23,7 @@ import {
 import { MenuLobbyController } from './menu-lobby.js';
 import { SettingsController } from './settings-panel.js';
 import { SpectatorHud } from './spectator-hud.js';
+import { WeaponWheelController } from './weapon-wheel.js';
 
 export {
   MAP_DESCRIPTIONS,
@@ -101,6 +102,7 @@ export class HUD {
       ),
     });
     this.spectator = new SpectatorHud();
+    this.wheel = new WeaponWheelController();
   }
 
   // Compatibility views retained for the existing game and lifecycle checks.
@@ -173,6 +175,16 @@ export class HUD {
   triggerPurchase(weapon) { return this.buy.triggerPurchase(weapon); }
   syncBuyMenuUI() { return this.buy.syncBuyMenuUI(); }
 
+  setupWeaponWheel(config = {}) { return this.wheel.setup(config); }
+  ensureWeaponWheel() { return this.wheel.ensure(); }
+  setWeaponWheelState(state = {}) { return this.wheel.setState(state); }
+  isWeaponWheelOpen() { return this.wheel.isOpen(); }
+  requestWheelCancel() {
+    if (!this.wheel.isOpen()) return false;
+    return this.wheel.requestCancel();
+  }
+  weaponWheelHighlight() { return this.wheel.highlightedSlot(); }
+
   buildHUD() {
     const result = this.gameplay.buildHUD();
     this.combat.configure();
@@ -240,6 +252,7 @@ export class HUD {
     this.buy.dispose();
     this.settings.dispose();
     this.spectator.dispose();
+    this.wheel.dispose();
     this.menu.dispose();
   }
 }

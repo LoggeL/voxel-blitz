@@ -6,6 +6,8 @@ export const TOUCH_TOGGLE_TAP_MS = 260;
 /** A look-zone touch shorter and stiller than this fires one shot instead of aiming. */
 export const TOUCH_TAP_FIRE_MS = 180;
 export const TOUCH_TAP_FIRE_TRAVEL_PX = 10;
+/** A weapon-chip press held this long opens the radial weapon wheel instead of swapping. */
+export const WHEEL_TOUCH_HOLD_MS = 300;
 const LOOK_DELTA_CLAMP_PX = 90;
 
 function clamp(value, min, max) {
@@ -50,6 +52,10 @@ export function resolveToggleRelease(heldMs, wasLatched) {
 export function isTapToFire(heldMs, travelPx) {
   return Number(heldMs) < TOUCH_TAP_FIRE_MS && Number(travelPx) < TOUCH_TAP_FIRE_TRAVEL_PX;
 }
+/** Whether a weapon-chip press held this long opens the radial wheel. */
+export function isWheelTouchHold(heldMs) {
+  return Number(heldMs) >= WHEEL_TOUCH_HOLD_MS;
+}
 
 /** Touch/coarse-pointer capability detection; ?touch=1 is the explicit QA override. */
 export function shouldEnableTouchControls({
@@ -77,11 +83,13 @@ export const TOUCH_ACTIONS = Object.freeze([
 
 /**
  * Which touch buttons a gameplay context earns. Null context (menu, dead, spectating)
- * shows nothing but pause. Pure so the rule is contract-testable without DOM.
+ * shows nothing but pause; a wheelOpen context keeps only pause while the radial
+ * weapon wheel is up. Pure so the rule is contract-testable without DOM.
  */
 export function visibleTouchActions(context) {
   const visible = new Set();
   if (!context || context.alive === false) return visible;
+  if (context.wheelOpen) return visible; // wheel up: every chip but pause hides
   visible.add('jump');
   visible.add('crouch');
   if (context.canFire !== false) {
@@ -152,6 +160,7 @@ export class TouchControls {
     this._heldPointers = new Map();
     this._heldSince = new Map();
     this._latched = new Set();
+    this._pulseHolds = new Map(); // deferred pulses: weapon chip press -> wheel on long hold
     this._immersiveRequested = false;
     this._context = null;
     this._hidden = new Set();
@@ -216,6 +225,7 @@ export class TouchControls {
     this._heldPointers.delete(action);
     this._heldSince.delete(action);
     this._latched.delete(action);
+    this._pulseHolds.delete(action);
     if (button) this._setPressed(button, action, false);
     if (wasHeld) this.onHold(action, false, eventTime(null));
   }
@@ -252,7 +262,7 @@ export class TouchControls {
     d.grenade = this._button(root, 'grenade', 'G', 'Hold to charge grenade, release to throw');
     d.grenadeType = this._button(root, 'grenadeType', 'NADE', 'Cycle grenade type');
     d.interact = this._button(root, 'interact', 'USE', 'Interact');
-    d.weapon = this._button(root, 'weapon', 'SWAP', 'Next weapon');
+    d.weapon = this._button(root, 'weapon', 'SWAP', 'Next weapon; hold to open the weapon wheel');
     d.buy = this._button(root, 'buy', 'BUY', 'Open armory');
     d.zoom = this._button(root, 'zoom', 'ZOOM', 'Scope zoom step');
 
@@ -266,7 +276,7 @@ export class TouchControls {
     this._bindHold(d.interact, 'interact');
     this._bindPulse(d.reload, 'reload');
     this._bindPulse(d.grenadeType, 'grenadeType');
-    this._bindPulse(d.weapon, 'weapon');
+    this._bindPulse(d.weapon, 'weapon', { holdAction: 'wheel', holdHaptic: 18 });
     this._bindPulse(d.buy, 'buy');
     this._bindPulse(d.zoom, 'zoom');
     this._bindPulse(d.pause, 'pause');
@@ -490,21 +500,40 @@ export class TouchControls {
     this._listen(button, 'lostpointercapture', release);
   }
 
-  _bindPulse(button, action) {
+  /**
+   * Pulse button: acts once per press. A press on a `holdAction` chip defers the
+   * pulse to the release: held past WHEEL_TOUCH_HOLD_MS it pulses `holdAction`
+   * instead (the weapon chip: a quick tap swaps weapons, a long press opens the
+   * radial wheel). Interrupted presses (cancel, capture loss) never pulse.
+   */
+  _bindPulse(button, action, { holdAction = null, holdHaptic = 0 } = {}) {
     this._listen(button, 'pointerdown', (event) => {
       if (!this.enabled || this._hidden.has(action)) return;
+      if (holdAction && this._pulseHolds.has(action)) return;
       event.preventDefault();
       event.stopPropagation();
       button.classList.add('is-held');
       this._capture(button, event);
+      if (holdAction) this._pulseHolds.set(action, { id: event.pointerId, at: eventTime(event) });
       this._haptic(6);
       if (action === 'pause') this.onPause();
-      else this.onPulse(action);
+      else if (!holdAction) this.onPulse(action);
     });
     const release = (event) => {
+      const hold = this._pulseHolds.get(action);
+      if (holdAction && (!hold || hold.id !== event.pointerId)) return;
       event.preventDefault();
       event.stopPropagation();
       button.classList.remove('is-held');
+      if (!holdAction) return;
+      this._pulseHolds.delete(action);
+      if (event.type !== 'pointerup') return; // cancelled or capture lost: no pulse
+      if (isWheelTouchHold(eventTime(event) - hold.at)) {
+        if (holdHaptic) this._haptic(holdHaptic);
+        this.onPulse(holdAction);
+      } else {
+        this.onPulse(action);
+      }
     };
     this._listen(button, 'pointerup', release);
     this._listen(button, 'pointercancel', release);
@@ -534,6 +563,7 @@ export class TouchControls {
     this._heldPointers.clear();
     this._heldSince.clear();
     this._latched.clear();
+    this._pulseHolds.clear();
     if (this.dom.moveKnob) this.dom.moveKnob.style.transform = 'translate(0px, 0px)';
     if (this.dom.moveBase) {
       this.dom.moveBase.style.left = '';

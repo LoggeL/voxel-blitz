@@ -13,6 +13,7 @@ import { ViewmodelRig } from './guns/viewmodel.js';
 import { WeaponState, shouldShowViewmodel } from './guns/weapon-state.js';
 import { Effects, attachShellBridge } from './weapons/effects.js';
 import { HUD } from './ui/hud.js';
+import { WEAPON_NAMES, WEAPON_CLASSES } from './ui/hud-support.js';
 import { sfx } from './audio/sfx.js';
 import { Session } from './session/session.js';
 import { LocalPlayer } from './player/local-player.js';
@@ -70,6 +71,8 @@ class Game {
     this._rafId = 0;
     this._sbAt = 0;
     this._disposed = false;
+    this._wheelOpen = false;
+    this._wheelEntriesSig = '';
 
     const game = this;
     this._gameplay = Object.freeze({
@@ -171,6 +174,10 @@ class Game {
       },
     });
     this.weapon.resetToLoadout();
+    this.hud.setupWeaponWheel({
+      onPick: (slot) => this.commitWeaponWheel(slot),
+      onCancel: () => this.closeWeaponWheel(),
+    });
     this.rig.setWeapon(WEAPON_IDS[this.weapon.slot]);
     this.rig.onReloadClick = (step) => sfx.reloadClick(step, WEAPON_IDS[this.weapon.slot]);
     this.rig.onBoltClack = (step) => sfx.cycleClick(step, WEAPON_IDS[this.weapon.slot]);
@@ -330,7 +337,7 @@ class Game {
 
   isAuthoritativeFireAllowed() {
     if (!this.session.gameplayInputEnabled || !this.player.alive ||
-        this.selfRow?.state !== 'alive') return false;
+        this.selfRow?.state !== 'alive' || this._wheelOpen) return false;
     if (this.matchState?.mode === 'fun') return true;
     return (this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
       this.matchState?.mode === 'gungame') &&
@@ -403,6 +410,122 @@ class Game {
   }
 
   /**
+   * Wheel entries for every weapon slot: display name/class from the HUD support
+   * tables, live ammo, and per-slot ownership. Ownership is only authoritative in
+   * snd/gungame when the server sent an owned list; otherwise every slot is usable.
+   */
+  wheelEntries() {
+    const authoritative = Array.isArray(this.selfRow?.owned) &&
+      (this.matchState?.mode === 'snd' || this.matchState?.mode === 'gungame');
+    return WEAPON_IDS.map((id, slot) => {
+      const locked = authoritative && !this.selfRow.owned.includes(id);
+      const ammo = this.weapon?.ammoOf(id);
+      return {
+        id,
+        name: WEAPON_NAMES[id] || id.toUpperCase(),
+        cls: WEAPON_CLASSES[id] || '',
+        icon: `./assets/weapons/hud/${id}.png`,
+        key: `[${slot + 1}]`,
+        ammo: locked ? '—' : `${ammo?.mag || 0} / ${ammo?.reserve || 0}`,
+        owned: !locked,
+        current: this.weapon?.slot === slot,
+      };
+    });
+  }
+
+  /**
+   * Open the radial wheel: freezes aim in the input seam and shows the overlay.
+   * Pointer-drag interaction is enabled only for touch users.
+   */
+  openWeaponWheel() {
+    if (!this.weapon || this._wheelOpen) return false;
+    this._wheelOpen = true;
+    this.input.setWeaponWheelOpen(true);
+    this.hud.ensureWeaponWheel();
+    this.hud.setWeaponWheelState({
+      open: true,
+      entries: this.wheelEntries(),
+      pointerInteractive: this.input.usesTouchControls(),
+    });
+    this._wheelEntriesSig = '';
+    return true;
+  }
+
+  /**
+   * Close the wheel. A non-null `slot` equips through forceWeapon, which re-checks
+   * the authoritative owned list; cancel paths pass null and switch nothing.
+   */
+  closeWeaponWheel(slot = null) {
+    if (!this._wheelOpen) return false;
+    this._wheelOpen = false;
+    this.input.setWeaponWheelOpen(false);
+    this.hud.setWeaponWheelState({ open: false });
+    if (slot !== null && this.weapon) {
+      this.weapon.forceWeapon(slot, { mode: this.matchState?.mode, owned: this.selfRow?.owned });
+    }
+    return true;
+  }
+
+  /**
+   * Confirm a wheel pick (digit, gamepad confirm, touch/pointer release). A locked
+   * or already-current weapon just closes without switching.
+   */
+  commitWeaponWheel(slot) {
+    if (!this._wheelOpen) return;
+    const entry = this.wheelEntries()[slot];
+    if (!entry?.owned || entry.current || slot === this.weapon?.slot) {
+      this.closeWeaponWheel();
+    } else {
+      this.closeWeaponWheel(slot);
+    }
+  }
+
+  /**
+   * Per-frame wheel pump: ?ui=wheel debug force-open, open/close validation against
+   * the live gameplay state, highlight streaming, and cancel/release edge handling.
+   */
+  syncWeaponWheel() {
+    const forced = debugUi === 'wheel' && !!this.weapon;
+    if (forced && !this._wheelOpen) this.openWeaponWheel();
+    const openable = this.session.gameplayInputEnabled && this.player.alive &&
+      this.selfRow?.state === 'alive' && this.spectator?.active !== true &&
+      !this.hud.isBuyMenuOpen() && !this.hud.settingsOpen;
+    if (this._wheelOpen && !forced && !openable) {
+      this.closeWeaponWheel();
+      return;
+    }
+    if (!this._wheelOpen) {
+      if (this.input.takeWheelOpenRequest() && (forced || openable)) this.openWeaponWheel();
+      return;
+    }
+    const direct = this.input.takeWheelDirectSlot();
+    if (direct !== null) {
+      this.commitWeaponWheel(direct);
+      return;
+    }
+    const steps = this.input.takeWheelSteps();
+    if (steps) this.hud.setWeaponWheelState({ step: steps });
+    const vector = this.input.takeWheelVector();
+    if (vector.x || vector.y) this.hud.setWeaponWheelState({ x: vector.x, y: vector.y });
+    if (this.input.takeWheelCancelRequest()) {
+      this.closeWeaponWheel();
+      return;
+    }
+    if (this.input.takeWheelRelease()) {
+      const highlighted = this.hud.weaponWheelHighlight();
+      this.closeWeaponWheel(highlighted >= 0 ? highlighted : null);
+      return;
+    }
+    const entries = this.wheelEntries();
+    const sig = entries.map((entry) =>
+      `${entry.id}|${entry.ammo}|${entry.owned ? 1 : 0}|${entry.current ? 1 : 0}`).join(';');
+    if (sig !== this._wheelEntriesSig) {
+      this._wheelEntriesSig = sig;
+      this.hud.setWeaponWheelState({ entries });
+    }
+  }
+
+  /**
    * Contextual touch buttons: only actions that can do something right now are shown.
    * Cheap on unchanged frames because TouchControls diffs the visibility set.
    */
@@ -423,6 +546,7 @@ class Game {
     ctx.weaponCount = Array.isArray(owned) ? owned.length : WEAPON_IDS.length;
     ctx.canBuy = this.session.canOpenBuyMenu();
     ctx.scoped = !!this.weapon?.scopeActive;
+    ctx.wheelOpen = this._wheelOpen;
     this.input.setTouchContext(ctx);
   }
 
@@ -499,6 +623,7 @@ class Game {
     const now = nowMs();
     this.session.syncGameplayInput();
     this.input.poll(now, dt);
+    this.syncWeaponWheel();
     if (this.input.scoreboardHeld !== this._padScoreboard) {
       this._padScoreboard = this.input.scoreboardHeld;
       this.hud.setScoreboard(this._padScoreboard);
@@ -655,6 +780,10 @@ class Game {
     this.rig?.dispose();
     this.effects?.dispose();
     this.worldview?.dispose();
+    this._wheelOpen = false;
+    this._wheelEntriesSig = '';
+    this.input?.setWeaponWheelOpen?.(false);
+    this.hud?.setWeaponWheelState?.({ open: false });
     this.feedback = this.spectator = this.roster = this.weapon = this.ownBody = null;
     this.rig = this.effects = this.worldview = this.mapMeta = null;
     this.playersCache = Object.freeze([]);
@@ -751,6 +880,9 @@ window.__vb = {
       chunks: game.worldview?.chunkStore.stats || null,
     };
   },
+  get wheelOpen() { return game._wheelOpen; },
+  get wheelOwned() { return game.selfRow?.owned ?? null; },
+  get wheelMatchMode() { return game.matchState?.mode ?? null; },
 };
 
 if (debugMode) {

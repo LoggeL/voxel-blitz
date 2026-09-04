@@ -134,11 +134,15 @@ async function main() {
     const touchControls = await page.evaluate(`(() => ({
       active: document.getElementById('touch-controls')?.classList.contains('is-active'),
       buttons: document.querySelectorAll('#touch-controls .vb-touch-button').length,
+      visible: document.querySelectorAll('#touch-controls .vb-touch-button:not(.is-hidden)').length,
+      fire: !!document.querySelector('#touch-controls .vb-touch-fire:not(.is-hidden)'),
+      weapon: !!document.querySelector('#touch-controls .vb-touch-weapon:not(.is-hidden)'),
       move: !!document.getElementById('touch-move-zone'),
       look: !!document.getElementById('touch-look-zone'),
       coarseClass: document.documentElement.classList.contains('vb-touch-mode'),
     }))()`);
-    requireCondition(touchControls.active && touchControls.buttons === 10 &&
+    requireCondition(touchControls.active && touchControls.buttons === 12 &&
+      touchControls.visible >= 8 && touchControls.fire && touchControls.weapon &&
       touchControls.move && touchControls.look && touchControls.coarseClass,
     'mobile live play exposes movement, aim, fire, and auxiliary touch controls');
 

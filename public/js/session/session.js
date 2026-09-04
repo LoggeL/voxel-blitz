@@ -235,6 +235,12 @@ export class Session {
       this._unlockAudioQuietly();
     };
     this._onEscape = (event) => {
+      if (this.hud?.isWeaponWheelOpen?.()) {
+        event.preventDefault();
+        this.hud.requestWheelCancel();
+        return;
+      }
+
       if (
         event?.code !== 'Escape' ||
         event.repeat ||

@@ -5,8 +5,9 @@ runs the authoritative 20 Hz simulation over WebSockets; clients are plain
 three.js ES modules (no bundler). Eight hand-tuned guns with a full "gun UX"
 stack: procedural viewmodels, staged timer-driven animations, bloom/recoil,
 ADS, tracers, shell ejects, muzzle flash + barrel heat shader, block-shatter,
-damage numbers, hitmarkers, killfeed, a full-screen sniper optic, synthesized
-WebAudio layers, transient-aligned licensed firearm samples, and menu music.
+damage numbers, hitmarkers, killfeed, a full-screen sniper optic, a radial
+weapon wheel, synthesized WebAudio layers, transient-aligned licensed firearm
+samples, and menu music.
 Every weapon has a dedicated generated HUD silhouette. The live HUD also shows
 measured round-trip history, arrival jitter, the adaptive snapshot buffer, FPS,
 and three kinds of server-authoritative throwables per life: cookable frags,
@@ -103,7 +104,8 @@ extended QA keeps audio, deterministic Chromium captures, and the built
 container smoke separate so normal development does not inherit their runtime.
 
 For deterministic manual menu QA, `?debug=1&ui=settings` opens the pause/settings
-surface without requiring pointer lock. Main, create-lobby, and waiting-lobby
+surface without requiring pointer lock, and `?debug=1&ui=wheel` force-opens the
+radial weapon wheel the same way. Main, create-lobby, and waiting-lobby
 states remain reachable through their normal controls. The 3D scene is graded
 through a bounded combat post-process with subtle detail recovery and
 pain/panic feedback; DOM HUD stays untouched, and `?shader=off` exercises the
@@ -219,8 +221,9 @@ and scores reset.
 | hold/release `G` | charge and throw the selected throwable; longer holds throw farther, and a frag cooks while held (hold past the fuse and it goes off in your hand) |
 | `H`, or wheel while holding `G` | cycle the throwable: M-4 FRAG (2), LIMPET CHARGE (1, sticks to walls and players), PULSE SHOCK (2, impact concussion) |
 | hold/release mouse1 with the LONGARC | charge the coilgun; release fires, a full charge pierces walls and chain-arcs off the first body hit |
-| `1-8` / wheel | weapon slots |
-| `Q` | previous weapon; while dead, previous spectator target |
+| `1-8` / wheel | weapon slots (`1-8` also pick directly while the weapon wheel is open) |
+| `Q` | previous weapon; hold instead opens the weapon wheel; while dead, previous spectator target |
+| hold `Q` / middle mouse | open the radial weapon wheel: aim freezes, mouse motion or scroll highlights a wedge, releasing the held control or clicking equips it, and a centered release, `Esc`, or right mouse cancels |
 | `E` | hold S&D interaction; while dead, next spectator target |
 | arrow keys while dead | previous / next spectator target |
 | `B` | open/close the S&D buy menu |
@@ -230,8 +233,10 @@ and scores reset.
 A standard-mapping gamepad works alongside the keyboard once the match is live:
 left stick moves (`L3` sprints, full deflection auto-sprints), right stick aims
 with a dead zone and expo curve, `RT` fires, `LT` aims, `A` jumps, `B` taps to
-toggle crouch or holds, `X` reloads, `Y` swaps, `LB` returns to the previous
-weapon (`Y` while `RB` is held cycles the throwable instead), `RB` holds a
+toggle crouch or holds, `X` reloads, a quick `Y` tap swaps or — while `RB`
+grenade is held — cycles the throwable, holding `Y` opens the radial weapon
+wheel (d-pad up/down or the right stick highlights a wedge, releasing `Y`
+equips it, `B` cancels), `LB` returns to the previous weapon, `RB` holds a
 grenade charge, `R3` steps scope zoom, the d-pad cycles
 slots (up/down), holds the S&D interaction (left) and opens the armory (right),
 `Back` shows the scoreboard, and `Start` pauses. Pad sensitivity (radians per
@@ -252,7 +257,10 @@ outer ring; drag anywhere else on the screen to aim, and a quick tap there fires
 one shot. FIRE aims while held (drag to track), ADS and crouch are tap-to-toggle
 and hold-to-hold, G charges a grenade with a live landing preview, and the
 chip beside it cycles the throwable. Dedicated
-buttons cover jump, reload, use/interact, weapon swap, S&D armory, scope zoom,
+buttons cover jump, reload, use/interact, weapon swap (a quick tap steps to
+the next weapon and holding it 300 ms opens the draggable radial wheel — drag
+to highlight a wedge and release to equip, with only the pause button left on
+screen), S&D armory, scope zoom,
 and pause, and they only exist while they can do something: reload appears when
 the magazine is short and a spare exists, grenade while you carry one, use only
 during a live S&D round, armory only during S&D prep, zoom only while scoped, and

@@ -278,9 +278,202 @@ export async function runInputContracts(ok, installGlobals) {
     }
   }
 
+
+  // Weapon wheel seam: the tap/hold split, the open-state rerouting, and the
+  // closed-path invariants it must not break.
+  {
+    let input = null;
+    const restore = installGlobals({ location: { search: '?headless=1' } });
+    try {
+      const { Input, WHEEL_HOLD_MS, PAD_WHEEL_HOLD_MS, WHEEL_VECTOR_RADIUS_PX } =
+        await import('../../public/js/engine/input.js');
+      const key = (code, repeat = false, timeStamp = 0) => ({
+        code, repeat, timeStamp, preventDefault() {},
+      });
+      const wheel = (deltaY, timeStamp, deltaMode = 0) => ({
+        deltaY, deltaMode, timeStamp, preventDefault() {},
+      });
+      ok(WHEEL_HOLD_MS === 180 && PAD_WHEEL_HOLD_MS === 260
+          && WHEEL_VECTOR_RADIUS_PX === 90,
+      'the wheel seam pins its hold thresholds and selection radius for the overlay');
+
+      // Q is a tap/hold split: a quick tap still swaps to the previous weapon.
+      input = new Input({});
+      input._onKeyDown(key('KeyQ', false, 1000));
+      input._onKeyUp(key('KeyQ', false, 1100));
+      ok(input.consumeLastWeaponRequest() && !input.takeWheelOpenRequest()
+          && !input.takeWheelOpenRequest(),
+      'a quick Q tap queues exactly one previous-weapon swap without arming the wheel');
+      input.dispose();
+
+      // Holding Q opens the wheel exactly at the threshold; releasing it closes.
+      input = new Input({});
+      input._onKeyDown(key('KeyQ', false, 1000));
+      input.poll(1179);
+      ok(!input.takeWheelOpenRequest(),
+      'a Q hold one millisecond under the threshold does not open the wheel');
+      input.poll(1180);
+      ok(input.takeWheelOpenRequest() && !input.takeWheelOpenRequest(),
+      'a Q held exactly WHEEL_HOLD_MS queues exactly one wheel-open request');
+      input.setWeaponWheelOpen(true);
+      input._onKeyUp(key('KeyQ', false, 1400));
+      ok(input.takeWheelRelease() && !input.takeWheelRelease(),
+      'releasing Q while the wheel is up queues the pick-and-close exactly once');
+      input.dispose();
+
+      // Middle mouse opens; its release closes. A closed right click latches
+      // toggle ADS, an open-wheel right click only cancels.
+      input = new Input({});
+      input.setOptions({ adsMode: 'toggle' });
+      input._onMouseDown({ button: 1, isTrusted: true, preventDefault() {} });
+      ok(input.takeWheelOpenRequest(),
+      'a middle-mouse press queues the wheel open');
+      input.setWeaponWheelOpen(true);
+      input._onMouseUp({ button: 1 });
+      ok(input.takeWheelRelease(),
+      'releasing the middle mouse button closes the wheel');
+      input.setWeaponWheelOpen(false);
+      input._onMouseDown({ button: 2, isTrusted: true, preventDefault() {} });
+      input._onMouseUp({ button: 2 });
+      ok(input.wantAdsHeld,
+      'a closed right click still latches toggle ADS');
+      input.setWeaponWheelOpen(true);
+      input._onMouseDown({ button: 2, isTrusted: true, preventDefault() {} });
+      ok(input.takeWheelCancelRequest() && !input.takeWheelCancelRequest(),
+      'a right click while the wheel is up queues exactly one cancel');
+      input.setWeaponWheelOpen(false);
+      ok(!input.wantAdsHeld,
+      'the wheel-open right click toggled nothing: ADS reads unchanged after close');
+      input.dispose();
+
+      // The wheel owns the left button while it is up: confirm, never fire.
+      input = new Input({});
+      input.setWeaponWheelOpen(true);
+      input._onMouseDown({ button: 0, isTrusted: true, preventDefault() {} });
+      ok(input.takeWheelRelease() && !input.consumeFireTap() && !input.wantFireHeld,
+      'a left click on the open wheel confirms the pick and never queues a shot');
+      input.dispose();
+
+      // Open-wheel mouse motion feeds the selection vector; look stays frozen.
+      input = new Input({});
+      input.setWeaponWheelOpen(true);
+      input._onMouseMove({ movementX: 40, movementY: 30 });
+      let vector = input.takeWheelVector();
+      ok(Math.abs(vector.x - 40 / 90) < 1e-9 && Math.abs(vector.y - 30 / 90) < 1e-9,
+      'open-wheel mouse motion accumulates into a vector normalized to the ring radius');
+      input._onMouseMove({ movementX: 400, movementY: 0 });
+      vector = input.takeWheelVector();
+      ok(Math.abs(Math.hypot(vector.x, vector.y) - 1) < 1e-9 && Math.abs(vector.x - 1) < 1e-9,
+      'a swing past the ring radius clamps the selection vector to magnitude 1');
+      ok(input.consumeDelta().dx === 0 && input.consumeDelta().dy === 0,
+      'the camera look accumulator stays frozen while the wheel steers');
+      input.dispose();
+
+      // Open-wheel scroll steps the wheel and wins over scope zoom.
+      input = new Input({});
+      input.setWeaponWheelOpen(true);
+      input._onWheel(wheel(100, 1000));
+      ok(input.takeWheelSteps() === 1 && input.takeWheelSteps() === 0,
+      'an open-wheel scroll queues one slot step and drains');
+      input.setScopeZoomMode(true);
+      input._onWheel(wheel(100, 1200));
+      ok(input.consumeZoomStep() === 0 && input.takeWheelSteps() === 1,
+      'an open wheel wins over scope zoom: scroll steps the wheel, not the scope');
+      input.setScopeZoomMode(false);
+      input.dispose();
+
+      // Digits route to the wheel while open and to the slot seam while closed.
+      input = new Input({});
+      input.setWeaponWheelOpen(true);
+      input._onKeyDown(key('Digit3'));
+      ok(input.takeWheelDirectSlot() === 2 && input.consumeWeaponSlot() === null,
+      'a digit while the wheel is up picks the wheel slot directly and skips the closed seam');
+      input.setWeaponWheelOpen(false);
+      input._onKeyDown(key('Digit3'));
+      ok(input.consumeWeaponSlot() === 2 && input.consumeWeaponSlot() === null,
+      'a closed digit still routes through the weapon-slot seam');
+      input.dispose();
+
+      // While the wheel is up every combat edge is suppressed; movement stays live.
+      input = new Input({});
+      input.setOptions({ adsMode: 'hold' });
+      input.setWeaponWheelOpen(true);
+      input._onKeyDown(key('KeyR'));
+      ok(!input.getKeys().reload,
+      'R cannot reload through the open wheel');
+      input._onKeyDown(key('KeyF'));
+      ok(!input.wantAdsHeld,
+      'F cannot aim through the open wheel');
+      input._onKeyUp(key('KeyF'));
+      input.setWeaponWheelOpen(false);
+      ok(!input.wantAdsHeld,
+      'the suppressed F leaves no ADS held or latched after close');
+      input.setWeaponWheelOpen(true);
+      input._onKeyDown(key('KeyG', false, 2000));
+      input._onKeyUp(key('KeyG', false, 2100));
+      ok(input.consumeGrenadeThrow() === null && !input.isGrenadeCharging(),
+      'G cannot start or release a grenade through the open wheel');
+      input._onKeyDown(key('KeyB'));
+      ok(!input.consumeBuyMenuRequest(),
+      'B cannot open the armory through the open wheel');
+      input._onKeyDown(key('KeyE'));
+      ok(!input.getKeys().interact,
+      'E cannot interact through the open wheel');
+      input._onKeyDown(key('KeyZ'));
+      ok(input.consumeZoomStep() === 0,
+      'Z cannot zoom through the open wheel');
+      input._onKeyDown(key('KeyH'));
+      ok(input.getGrenadeType() === 0,
+      'H cannot cycle the throwable through the open wheel');
+      input._onKeyDown(key('KeyW'));
+      ok(input.getKeys().forward,
+      'movement stays live while the wheel is up');
+      input.dispose();
+
+      // Opening force-clears every held or queued combat intent.
+      input = new Input({});
+      input._onMouseDown({ button: 0, isTrusted: true, preventDefault() {} });
+      ok(input.wantFireHeld && input.consumeFireTap(),
+      'control: a closed left click holds fire and queues its tap');
+      input.setWeaponWheelOpen(true);
+      ok(!input.wantFireHeld && !input.consumeFireTap(),
+      'opening the wheel force-clears held fire and any queued tap');
+      input.dispose();
+      input = new Input({});
+      input._onKeyDown(key('KeyG', false, 1000));
+      ok(input.isGrenadeCharging(),
+      'control: a closed G starts the grenade hold');
+      input.setWeaponWheelOpen(true);
+      ok(!input.isGrenadeCharging() && input.consumeGrenadeThrow() === null,
+      'opening the wheel cancels a cooking grenade without throwing it');
+      input.dispose();
+
+      // Escape cancels; a transient reset closes the wheel and drains every edge.
+      input = new Input({});
+      input.setWeaponWheelOpen(true);
+      input._onKeyDown(key('Escape'));
+      ok(input.takeWheelCancelRequest(),
+      'Escape while the wheel is up queues the cancel');
+      input._onKeyDown(key('Digit3'));
+      input._onWheel(wheel(100, 500));
+      input._onMouseMove({ movementX: 10, movementY: 0 });
+      input.clearTransient();
+      ok(!input.isWeaponWheelOpen() && !input.takeWheelOpenRequest()
+          && !input.takeWheelRelease() && !input.takeWheelCancelRequest()
+          && input.takeWheelDirectSlot() === null && input.takeWheelSteps() === 0
+          && input.takeWheelVector().x === 0,
+      'a transient reset closes the wheel and drains every wheel edge');
+      input.dispose();
+    } finally {
+      input?.dispose();
+      restore();
+    }
+  }
+
   {
     const { stickCurve, readGamepadFrame, PAD_BUTTONS } = await import('../../public/js/engine/gamepad.js');
-    const { visibleTouchActions, TouchControls } = await import('../../public/js/engine/touch-controls.js');
+    const { visibleTouchActions, TouchControls, isWheelTouchHold, WHEEL_TOUCH_HOLD_MS } =
+      await import('../../public/js/engine/touch-controls.js');
     const { wheelSwitchStep } = await import('../../public/js/input-settings.js');
 
     const dead = stickCurve(0.1, 0.05, 0.18, 1.75);
@@ -323,6 +516,14 @@ export async function runInputContracts(ok, installGlobals) {
         && [...prep].sort().join(',') === 'buy,crouch,jump'
         && [...live].sort().join(',') === 'ads,crouch,fire,grenade,grenadeType,interact,jump,reload,weapon,zoom',
     'touch buttons appear only for actions the current gameplay context allows');
+    const wheelLive = visibleTouchActions({
+      alive: true, canFire: true, canReload: true, grenades: 1, canInteract: true,
+      weaponCount: 2, canBuy: false, scoped: true, wheelOpen: true,
+    });
+    ok(wheelLive.size === 0,
+    'a wheelOpen touch context hides every chip (the pause button stays outside this set)');
+    ok(WHEEL_TOUCH_HOLD_MS === 300 && !isWheelTouchHold(299) && isWheelTouchHold(300),
+    'a weapon-chip press reaches wheel-open exactly at the touch hold threshold');
 
     const holds = [];
     const controls = new TouchControls({
@@ -345,7 +546,8 @@ export async function runInputContracts(ok, installGlobals) {
     const restore = installGlobals({ location: { search: '?headless=1' } });
     let pad = null;
     try {
-      const { Input } = await import('../../public/js/engine/input.js');
+      const { Input, PAD_WHEEL_HOLD_MS, WHEEL_VECTOR_RADIUS_PX } =
+        await import('../../public/js/engine/input.js');
       pad = new Input({});
       const padButtons = Array.from({ length: 17 }, () => ({ pressed: false, value: 0 }));
       const fake = { connected: true, mapping: 'standard', axes: [0, -1, 1, 0], buttons: padButtons };
@@ -382,6 +584,47 @@ export async function runInputContracts(ok, installGlobals) {
       pad.poll(1500, 1 / 60);
       ok(pad.getKeys().forward && !pad.wantFireHeld,
         'keyboard and pad inputs combine without one device cancelling the other');
+      // Pad wheel seam: Y is a tap/hold split, the d-pad steps the open wheel,
+      // B cancels it instead of toggling crouch, and pad look steers the ring.
+      padButtons[PAD_BUTTONS.weapon] = { pressed: true, value: 1 };
+      pad.poll(1600, 1 / 60);
+      padButtons[PAD_BUTTONS.weapon] = { pressed: false, value: 0 };
+      pad.poll(1700, 1 / 60);
+      ok(!pad.takeWheelOpenRequest() && pad.consumeWeaponSwitch() === 1,
+      'a quick pad Y tap still queues one weapon switch without arming the wheel');
+      padButtons[PAD_BUTTONS.weapon] = { pressed: true, value: 1 };
+      pad.poll(1800, 1 / 60);
+      pad.poll(2060, 1 / 60);
+      ok(pad.takeWheelOpenRequest() && PAD_WHEEL_HOLD_MS === 260,
+      'a pad Y held the full threshold queues exactly one wheel open');
+      pad.setWeaponWheelOpen(true);
+      padButtons[PAD_BUTTONS.crouch] = { pressed: true, value: 1 };
+      pad.poll(2100, 1 / 60);
+      ok(pad.takeWheelCancelRequest(),
+      'pad B while the wheel is up queues the cancel instead of crouch');
+      padButtons[PAD_BUTTONS.crouch] = { pressed: false, value: 0 };
+      padButtons[PAD_BUTTONS.slotDown] = { pressed: true, value: 1 };
+      pad.poll(2150, 1 / 60);
+      padButtons[PAD_BUTTONS.slotDown] = { pressed: false, value: 0 };
+      ok(pad.takeWheelSteps() === 1,
+      'pad d-pad down steps the open wheel forward');
+      padButtons[PAD_BUTTONS.slotUp] = { pressed: true, value: 1 };
+      pad.poll(2200, 1 / 60);
+      padButtons[PAD_BUTTONS.slotUp] = { pressed: false, value: 0 };
+      ok(pad.takeWheelSteps() === -1,
+      'pad d-pad up steps the open wheel backward');
+      fake.axes = [0, 0, 1, 0];
+      pad.poll(2250, 1 / 60);
+      const wheelVec = pad.takeWheelVector();
+      fake.axes = [0, 0, 0, 0];
+      ok(Math.abs(wheelVec.x - 1) < 1e-9 && Math.abs(wheelVec.y) < 1e-9
+          && pad.consumeDelta().dx === 0 && pad.consumeDelta().dy === 0,
+      `pad look steers the wheel at the shared ${WHEEL_VECTOR_RADIUS_PX}px radius and freezes the camera`);
+      padButtons[PAD_BUTTONS.weapon] = { pressed: false, value: 0 };
+      pad.poll(2300, 1 / 60);
+      ok(pad.takeWheelRelease(),
+      'releasing Y while the wheel is up closes it');
+      pad.setWeaponWheelOpen(false);
     } finally {
       pad?.dispose();
       restore();

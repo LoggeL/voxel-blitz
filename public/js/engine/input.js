@@ -45,6 +45,12 @@ const TOUCH_SPRINT_THRESHOLD = 0.86;
 export const AIM_ASSIST_MAX_SLOWDOWN = 0.5;
 /** Quick pad crouch press latches; a longer hold releases with the button. */
 const PAD_TOGGLE_TAP_MS = 260;
+/** Q / middle-mouse hold that opens the weapon wheel; a shorter Q press stays "previous weapon". */
+export const WHEEL_HOLD_MS = 180;
+/** Pad Y hold that opens the weapon wheel; a quick Y tap keeps swapping/cycling. */
+export const PAD_WHEEL_HOLD_MS = 260;
+/** Wheel selection vector length: 1 == this many raw mouse px of accumulated motion. */
+export const WHEEL_VECTOR_RADIUS_PX = 90;
 
 function eventTime(event) {
   if (Number.isFinite(event?.timeStamp)) return event.timeStamp;
@@ -121,6 +127,22 @@ export class Input {
     this._buyMenuHeld = false; // physical B latch suppresses repeat/re-entry
     this._zoomStepQueue = 0;   // scope zoom steps (KeyZ, wheel while scoped, R3)
     this._scopeZoomMode = false;
+    // Radial weapon wheel seam: while open, devices reroute (see setWeaponWheelOpen).
+    this._wheelOpen = false;
+    this._wheelVecX = 0;       // raw mouse px (pad look scaled) toward full ring deflection
+    this._wheelVecY = 0;
+    this._wheelStepQueue = 0;  // wheel-scroll / pad d-pad steps while open
+    this._pendingWheelSlot = null; // direct Digit1..8 pick while open (0..7) or null
+    this._wheelOpenQueued = false;
+    this._wheelReleaseQueued = false;
+    this._wheelCancelQueued = false;
+    this._qHeld = false;       // Q tap/hold split: holding Q opens the wheel
+    this._qDownAt = 0;
+    this._qWheelFired = false;
+    this._mmbHeld = false;     // physical middle-mouse latch while it opens the wheel
+    this._padYHeld = false;    // pad Y tap/hold split: holding Y opens the wheel
+    this._padYDownAt = 0;
+    this._padYWheelFired = false;
     this._trackpadEvidence = 0;
     this._trackpadDetected = false;
     this._aimAssist = 0;       // 0..1 strength supplied by the composition root
@@ -167,12 +189,12 @@ export class Input {
 
   /* ----------------------------------------------------------- held intents */
 
-  /** LMB / RT / touch fire held. Assignable for debug and legacy callers. */
-  get wantFireHeld() { return this._mouseFire || this._padFire; }
+  /** LMB / RT / touch fire held; reads false while the weapon wheel is open. Assignable for debug and legacy callers. */
+  get wantFireHeld() { return !this._wheelOpen && (this._mouseFire || this._padFire); }
   set wantFireHeld(value) { this._mouseFire = !!value; }
 
-  /** RMB / F / LT / touch ADS held or latched. */
-  get wantAdsHeld() { return this._mouseAds || this._adsLatched || this._padAds; }
+  /** RMB / F / LT / touch ADS held or latched; reads false while the weapon wheel is open. */
+  get wantAdsHeld() { return !this._wheelOpen && (this._mouseAds || this._adsLatched || this._padAds); }
   set wantAdsHeld(value) {
     this._mouseAds = !!value;
     if (!value) this._adsLatched = false;
@@ -398,6 +420,52 @@ export class Input {
     this._touchControls?.setContext(context);
   }
 
+  /* ----------------------------------------------------------- weapon wheel */
+
+  /**
+   * Opens or closes the radial weapon wheel. While it is up, devices reroute:
+   * mouse and pad look feed the wheel vector, scroll/d-pad steps and digits queue
+   * wheel intents, and the held-intent getters read false. Opening force-clears
+   * every held or queued combat intent (fire, ADS, reload, grenade hold, zoom,
+   * switch, direct slot, last-weapon) so nothing stale lands when the wheel
+   * closes; closing just zeroes the wheel accumulators.
+   * @param {boolean} open
+   */
+  setWeaponWheelOpen(open) {
+    if (open) {
+      this._wheelOpen = true;
+      this._wheelVecX = 0;
+      this._wheelVecY = 0;
+      this._wheelStepQueue = 0;
+      this._pendingWheelSlot = null;
+      this._mouseFire = false;
+      this._fireTapQueued = false;
+      this._padFire = false;
+      this._mouseAds = false;
+      this._adsLatched = false;
+      this._reloadQueued = false;
+      // Cancel a held grenade without throwing it.
+      this._grenadeHeld = false;
+      this._grenadeHoldStartedAt = 0;
+      this._grenadeThrowQueued = null;
+      this._zoomStepQueue = 0;
+      this._switchQueue = 0;
+      this._pendingSlot = null;
+      this._lastWeaponReq = false;
+      return;
+    }
+    this._wheelOpen = false;
+    this._wheelVecX = 0;
+    this._wheelVecY = 0;
+    this._wheelStepQueue = 0;
+    this._pendingWheelSlot = null;
+  }
+
+  /** True while the radial weapon wheel routes device input. */
+  isWeaponWheelOpen() {
+    return this._wheelOpen;
+  }
+
   /* ---------------------------------------------------------------- gamepad */
 
   /**
@@ -407,6 +475,18 @@ export class Input {
   poll(now = eventTime(null), dt = 1 / 60) {
     if (this._disposed) return null;
     const frame = this._pad.poll(now);
+    // Q hold opens the wheel; read before the pad early-return so keyboard-only
+    // players can open it with no pad connected.
+    if (
+      this._gameplayEnabled &&
+      !this._wheelOpen &&
+      this._qHeld &&
+      !this._qWheelFired &&
+      now - this._qDownAt >= WHEEL_HOLD_MS
+    ) {
+      this._wheelOpenQueued = true;
+      this._qWheelFired = true;
+    }
     if (!frame) return null;
     if (!this._gameplayEnabled) {
       if (frame.pressed.pause) this._pauseHandler?.();
@@ -426,7 +506,10 @@ export class Input {
     pk.interact = frame.held.interact;
 
     // Crouch: a quick tap latches, the next tap releases, a long hold follows the button.
-    if (frame.pressed.crouch) {
+    // While the wheel is up, pad B cancels the wheel instead of touching crouch.
+    if (this._wheelOpen) {
+      if (frame.pressed.crouch) this._wheelCancelQueued = true;
+    } else if (frame.pressed.crouch) {
       this._padCrouchSince = now;
       this._padCrouchUnlatch = this._padCrouchLatched;
       this._padCrouchLatched = false;
@@ -441,31 +524,69 @@ export class Input {
       pk.crouch = (frame.held.crouch && !this._padCrouchUnlatch) || this._padCrouchLatched;
     }
 
-    if (frame.pressed.fire) this._fireTapQueued = true;
+    if (frame.pressed.fire && !this._wheelOpen) this._fireTapQueued = true;
     this._padFire = frame.held.fire;
     this._padAds = frame.held.ads;
-    if (frame.pressed.reload) this._reloadQueued = true;
+    if (frame.pressed.reload && !this._wheelOpen) this._reloadQueued = true;
     // Y while the grenade is held cycles the throwable instead of the weapon.
+    // Closed and off the grenade it arms the tap/hold split: a quick release still
+    // swaps, holding it PAD_WHEEL_HOLD_MS opens the wheel instead.
     if (frame.pressed.weapon) {
-      if (this._grenadeHeld) this.cycleGrenadeType(1);
+      if (this._grenadeHeld) {
+        this.cycleGrenadeType(1);
+        this._padYWheelFired = true;
+      } else {
+        this._padYHeld = true;
+        this._padYDownAt = now;
+        this._padYWheelFired = false;
+      }
+    }
+    if (
+      !this._wheelOpen &&
+      this._padYHeld &&
+      !this._padYWheelFired &&
+      now - this._padYDownAt >= PAD_WHEEL_HOLD_MS
+    ) {
+      this._wheelOpenQueued = true;
+      this._padYWheelFired = true;
+    }
+    if (frame.released.weapon) {
+      if (this._wheelOpen) this._wheelReleaseQueued = true;
+      else if (this._padYHeld && !this._padYWheelFired) {
+        if (this._grenadeHeld) this.cycleGrenadeType(1);
+        else this._switchQueue += 1;
+      }
+      this._padYHeld = false;
+    }
+    // D-pad steps select on the wheel while it is up; closed they switch weapons.
+    if (frame.pressed.slotUp) {
+      if (this._wheelOpen) this._wheelStepQueue -= 1;
+      else this._switchQueue -= 1;
+    }
+    if (frame.pressed.slotDown) {
+      if (this._wheelOpen) this._wheelStepQueue += 1;
       else this._switchQueue += 1;
     }
-    if (frame.pressed.slotUp) this._switchQueue -= 1;
-    if (frame.pressed.slotDown) this._switchQueue += 1;
     if (frame.pressed.lastWeapon) this._lastWeaponReq = true;
-    if (frame.pressed.buy) this._buyMenuQueued = true;
-    if (frame.pressed.zoom) this._zoomStepQueue += 1;
+    if (frame.pressed.buy && !this._wheelOpen) this._buyMenuQueued = true;
+    if (frame.pressed.zoom && !this._wheelOpen) this._zoomStepQueue += 1;
     if (frame.pressed.pause) this._pauseHandler?.();
     this._padScoreboard = frame.held.scoreboard;
-    if (frame.pressed.grenade && !this._grenadeHeld) this._beginGrenadeHold(now);
+    if (frame.pressed.grenade && !this._wheelOpen && !this._grenadeHeld) this._beginGrenadeHold(now);
     else if (frame.released.grenade && this._grenadeHeld) this._releaseGrenade(now);
 
     const look = frame.look;
     if (look.magnitude > 0) {
-      const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
-      const rate = this._options.padSensitivity * this._assistScale() * step;
-      this._accDX += look.x * rate;
-      this._accDY += look.y * rate * (this.invertY ? -1 : 1);
+      if (this._wheelOpen) {
+        // Pad look steers the wheel selection; the camera stays put.
+        this._wheelVecX += look.x * WHEEL_VECTOR_RADIUS_PX;
+        this._wheelVecY += look.y * WHEEL_VECTOR_RADIUS_PX;
+      } else {
+        const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
+        const rate = this._options.padSensitivity * this._assistScale() * step;
+        this._accDX += look.x * rate;
+        this._accDY += look.y * rate * (this.invertY ? -1 : 1);
+      }
     }
     return frame;
   }
@@ -583,6 +704,79 @@ export class Input {
     return q;
   }
 
+  /**
+   * Queued wheel-open request since the last call: Q held >= WHEEL_HOLD_MS, a
+   * middle-mouse press, pad Y held >= PAD_WHEEL_HOLD_MS, or a touch 'wheel' pulse
+   * from the weapon chip's long press. Consumed on read.
+   * @returns {boolean}
+   */
+  takeWheelOpenRequest() {
+    const queued = this._wheelOpenQueued;
+    this._wheelOpenQueued = false;
+    return queued;
+  }
+
+  /**
+   * True when a control that opens the wheel released while it is up (Q keyup,
+   * middle-mouse up, pad Y release, LMB press to confirm). Consumed on read.
+   * @returns {boolean}
+   */
+  takeWheelRelease() {
+    const queued = this._wheelReleaseQueued;
+    this._wheelReleaseQueued = false;
+    return queued;
+  }
+
+  /**
+   * True when a cancel was requested while the wheel is open (Esc, RMB, pad B).
+   * Consumed on read.
+   * @returns {boolean}
+   */
+  takeWheelCancelRequest() {
+    const queued = this._wheelCancelQueued;
+    this._wheelCancelQueued = false;
+    return queued;
+  }
+
+  /**
+   * Wheel selection vector since the last call, normalized so 1 equals
+   * WHEEL_VECTOR_RADIUS_PX raw mouse px and the magnitude never exceeds the
+   * ring (1); pad look adds per poll scaled by the same radius. Consumed and
+   * reset on read.
+   * @returns {{x:number, y:number}}
+   */
+  takeWheelVector() {
+    const x = this._wheelVecX / WHEEL_VECTOR_RADIUS_PX;
+    const y = this._wheelVecY / WHEEL_VECTOR_RADIUS_PX;
+    const magnitude = Math.hypot(x, y);
+    const scale = magnitude > 1 ? 1 / magnitude : 1;
+    this._wheelVecX = 0;
+    this._wheelVecY = 0;
+    return { x: x * scale, y: y * scale };
+  }
+
+  /**
+   * Wheel-scroll / pad d-pad steps accumulated while the wheel is open.
+   * Consumed on read.
+   * @returns {number}
+   */
+  takeWheelSteps() {
+    const steps = this._wheelStepQueue;
+    this._wheelStepQueue = 0;
+    return steps;
+  }
+
+  /**
+   * Direct Digit1..8 slot pick (0..7) made while the wheel is open, or null.
+   * Consumed on read.
+   * @returns {number|null}
+   */
+  takeWheelDirectSlot() {
+    const slot = this._pendingWheelSlot;
+    this._pendingWheelSlot = null;
+    return slot;
+  }
+
   _beginGrenadeHold(at) {
     this._grenadeHeld = true;
     this._grenadeHoldStartedAt = at;
@@ -672,6 +866,21 @@ export class Input {
     this._zoomStepQueue = 0;
     this._accDX = 0;
     this._accDY = 0;
+    this._wheelOpen = false;
+    this._wheelVecX = 0;
+    this._wheelVecY = 0;
+    this._wheelStepQueue = 0;
+    this._pendingWheelSlot = null;
+    this._wheelOpenQueued = false;
+    this._wheelReleaseQueued = false;
+    this._wheelCancelQueued = false;
+    this._qHeld = false;
+    this._qDownAt = 0;
+    this._qWheelFired = false;
+    this._mmbHeld = false;
+    this._padYHeld = false;
+    this._padYDownAt = 0;
+    this._padYWheelFired = false;
     this._clearPadState();
     this._touchControls?.reset(false);
   }
@@ -775,6 +984,7 @@ export class Input {
     else if (action === 'buy') this._buyMenuQueued = true;
     else if (action === 'fireTap') this._fireTapQueued = true;   // look-zone tap: one shot
     else if (action === 'zoom') this._zoomStepQueue += 1;
+    else if (action === 'wheel') this._wheelOpenQueued = true;   // weapon chip long press
   }
 
   _toggleAds(down) {
@@ -792,7 +1002,7 @@ export class Input {
   _onKeyDown(e) {
     if (this._disposed) return;
     if (e.code === 'KeyB') {
-      if (!e.repeat && !this._buyMenuHeld) this._buyMenuQueued = true;
+      if (!e.repeat && !this._buyMenuHeld && !this._wheelOpen) this._buyMenuQueued = true;
       this._buyMenuHeld = true;
       return;
     }
@@ -806,17 +1016,34 @@ export class Input {
       case 'Space': this.keys.jump = true; break;
       case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = true; break;
       case 'ControlLeft': case 'ControlRight': case 'KeyC': this.keys.crouch = true; break;
-      case 'KeyE': this.keys.interact = true; break;
-      case 'KeyR': if (!e.repeat) this._reloadQueued = true; break;
-      case 'KeyF': if (!e.repeat) this._toggleAds(true); break;   // ADS without a second button
-      case 'KeyZ': if (!e.repeat) this._zoomStepQueue += 1; break;
+      case 'KeyE': if (!this._wheelOpen) this.keys.interact = true; break;
+      case 'KeyR': if (!e.repeat && !this._wheelOpen) this._reloadQueued = true; break;
+      case 'KeyF': if (!e.repeat && !this._wheelOpen) this._toggleAds(true); break;   // ADS without a second button
+      case 'KeyZ': if (!e.repeat && !this._wheelOpen) this._zoomStepQueue += 1; break;
       case 'KeyG':
-        if (!e.repeat && !this._grenadeHeld) this._beginGrenadeHold(eventTime(e));
+        if (!e.repeat && !this._wheelOpen && !this._grenadeHeld) this._beginGrenadeHold(eventTime(e));
         break;
-      case 'KeyH': if (!e.repeat) this.cycleGrenadeType(1); break;
-      case 'KeyQ': if (!e.repeat) this._lastWeaponReq = true; break;
+      case 'KeyH': if (!e.repeat && !this._wheelOpen) this.cycleGrenadeType(1); break;
+      // Q arms a tap/hold split: a quick release swaps to the previous weapon,
+      // holding it WHEEL_HOLD_MS opens the wheel (poll() completes the hold).
+      case 'KeyQ':
+        if (!e.repeat) {
+          this._qHeld = true;
+          this._qDownAt = eventTime(e);
+          this._qWheelFired = false;
+        }
+        break;
+      case 'Escape':
+        if (this._wheelOpen) {
+          this._wheelCancelQueued = true;
+          e.preventDefault();
+        }
+        break;
       case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': case 'Digit6': case 'Digit7': case 'Digit8':
-        if (!e.repeat) this._pendingSlot = Number(e.code.slice(-1)) - 1;
+        if (!e.repeat) {
+          if (this._wheelOpen) this._pendingWheelSlot = Number(e.code.slice(-1)) - 1;
+          else this._pendingSlot = Number(e.code.slice(-1)) - 1;
+        }
         break;
       default: break;
     }
@@ -841,12 +1068,24 @@ export class Input {
       case 'KeyG':
         if (this._grenadeHeld) this._releaseGrenade(eventTime(e));
         break;
+      case 'KeyQ':
+        // Q release while the wheel is up closes it; a quick tap still swaps.
+        if (this._wheelOpen) this._wheelReleaseQueued = true;
+        else if (this._qHeld && !this._qWheelFired) this._lastWeaponReq = true;
+        this._qHeld = false;
+        break;
       default: break;
     }
   }
 
   _onMouseMove(e) {
     if (!this._gameplayEnabled || (!this._locked && !this.fallback)) return;
+    if (this._wheelOpen) {
+      // Raw pixels steer the wheel selection; look accumulators stay untouched.
+      this._wheelVecX += e.movementX || 0;
+      this._wheelVecY += e.movementY || 0;
+      return;
+    }
     const scale = this.sens * (this.pointerKind() === 'trackpad' ? TRACKPAD_LOOK_SCALE : 1);
     const dx = (e.movementX || 0) * scale;
     const dy = (e.movementY || 0) * scale * (this.invertY ? -1 : 1);
@@ -860,9 +1099,26 @@ export class Input {
       if (e.isTrusted) this.requestLock();
       return;
     }
+    if (this._wheelOpen) {
+      // The wheel owns the mouse while it is up: LMB confirms the highlighted
+      // slot, RMB cancels; combat clicks never pass through.
+      if (e.button === 0) {
+        this._wheelReleaseQueued = true;
+        return;
+      }
+      if (e.button === 2) {
+        this._wheelCancelQueued = true;
+        e.preventDefault();
+        return;
+      }
+      return;
+    }
     if (e.button === 0) {
       this._mouseFire = true;
       this._fireTapQueued = true;
+    } else if (e.button === 1) {
+      this._wheelOpenQueued = true;
+      this._mmbHeld = true;
     } else if (e.button === 2) {
       this._toggleAds(true);
       e.preventDefault();
@@ -870,6 +1126,12 @@ export class Input {
   }
 
   _onMouseUp(e) {
+    if (e.button === 1) {
+      this._mmbHeld = false;
+      if (this._wheelOpen) this._wheelReleaseQueued = true;
+      return;
+    }
+    if (this._wheelOpen) return;
     if (e.button === 0) this._mouseFire = false;
     else if (e.button === 2 && this.adsMode() === 'hold') this._mouseAds = false;
   }
@@ -886,6 +1148,11 @@ export class Input {
     }
     const step = wheelSwitchStep(this._wheel, e, eventTime(e));
     if (step === 0) return;
+    if (this._wheelOpen) {
+      // While the wheel is up the scroll steps through its slots.
+      this._wheelStepQueue += step;
+      return;
+    }
     if (this._grenadeHeld) this.cycleGrenadeType(step);
     else if (this._scopeZoomMode) this._zoomStepQueue += 1;
     else this._switchQueue += step;

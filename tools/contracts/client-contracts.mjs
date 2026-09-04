@@ -1,6 +1,7 @@
 import { runAudioContracts } from './audio-contracts.mjs';
 import { runHudContracts } from './hud-contracts.mjs';
 import { runInputContracts } from './input-contracts.mjs';
+import { runWeaponWheelContracts } from './weapon-wheel-contracts.mjs';
 import { runNetClientContracts } from './netclient-contracts.mjs';
 import { runViewmodelContracts } from './viewmodel-contracts.mjs';
 import { runCombatFeedbackContracts } from './combat-feedback-contracts.mjs';
@@ -29,6 +30,7 @@ export async function runClientContracts(ok) {
   runPostProcessContracts(ok);
   runCombatFeedbackContracts(ok);
   await runInputContracts(ok, installGlobals);
+  await runWeaponWheelContracts(ok, installGlobals);
   await runViewmodelContracts(ok, installGlobals);
   await runAudioContracts(ok, installGlobals);
   await runHudContracts(ok, installGlobals);

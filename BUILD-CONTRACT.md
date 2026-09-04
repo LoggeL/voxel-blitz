@@ -341,6 +341,14 @@ and exposes `quickPlay(meta,name,bots?)`,
   `toggleBuyMenu(force?)`, `closeBuyMenuDirect()`, and `isBuyMenuOpen()` own the
   accessible S&D armory. It opens only during prep, displays exact shared
   prices/ownership/affordability, and sends the chosen weapon id.
+- `setupWeaponWheel({onPick,onCancel})`, `ensureWeaponWheel()`,
+  `setWeaponWheelState({open,entries,x,y,step,highlight,setHighlight,
+  pointerInteractive})`, `isWeaponWheelOpen()`, `requestWheelCancel()` (a
+  guarded onCancel), and the additive `weaponWheelHighlight()` getter own the
+  radial weapon wheel. Entries are `{id,name,cls,icon,key,ammo,owned,current}`
+  with wheel index == weapon slot; all eight render, unowned entries render
+  locked, and `pointerInteractive` enables the touch pointer-capture path
+  (drag to highlight, release to pick).
 - `setMatchState(match,selfRow,players,serverNow)` renders mode/map, team scores,
   phase clock, S&D round/role/bomb state, interaction progress, credits, and the
   compact alive/dead player status strip from authoritative state. Team colors
@@ -384,6 +392,21 @@ late join whose welcome/state is already live also proceeds directly.
   `H` cycles it, and the wheel (or pad `Y`) cycles it while `G` is held instead
   of switching weapons. `E` holds interact; `B` toggles the buy menu;
   `1–8`/wheel/`Q` select weapons.
+  The radial weapon wheel drains `takeWheelOpenRequest()` (Q held
+  `WHEEL_HOLD_MS=180`, a middle-mouse press, pad `Y` held
+  `PAD_WHEEL_HOLD_MS=260`, or a touch `wheel` pulse; a quicker Q press still
+  swaps to the previous weapon and a quicker Y tap still swaps or cycles the
+  throwable), `takeWheelRelease()` (the opening control released while open),
+  `takeWheelCancelRequest()` (`Esc`, right mouse, or pad `B` while open),
+  `takeWheelVector()` (normalized selection motion where `1` equals
+  `WHEEL_VECTOR_RADIUS_PX=90` raw mouse px, pad look scaled by the same
+  radius), `takeWheelSteps()` (wheel scroll plus d-pad up/down while open),
+  and `takeWheelDirectSlot()` (`1`–`8` while open; `0–7` or `null`).
+  `setWeaponWheelOpen(open)` reroutes devices while the wheel is up: look
+  deltas feed the wheel instead of the camera, fire/ADS/reload/grenade/zoom/
+  buy/interact edges are suppressed, movement keys stay live,
+  `wantFireHeld`/`wantAdsHeld` read false, and `clearTransient()` resets all
+  wheel state; `isWeaponWheelOpen()` reports the seam state.
   `setGameplayEnabled(boolean)` gates input around lobby, settings, buy, death,
   and teardown.
 - `TouchControls` owns coarse-pointer DOM and pointer lifecycles behind the
@@ -391,7 +414,11 @@ late join whose welcome/state is already live also proceeds directly.
   pointer, or the `?touch=1` QA override; it never requests pointer lock. Its
   joystick, swipe-look, hold, and pulse callbacks feed the same canonical input
   state and draining edges as keyboard/mouse, including charged grenades, the
-  `grenadeType` chip that cycles the throwable, and the S&D buy menu. The look zone is the full screen beneath the other
+  `grenadeType` chip that cycles the throwable, and the S&D buy menu. The
+  weapon chip keeps its quick-tap `weapon` pulse (next weapon) and pulses
+  `wheel` instead when a press is held past `WHEEL_TOUCH_HOLD_MS`; a
+  `wheelOpen` context collapses `visibleTouchActions` to the pause-only set.
+  The look zone is the full screen beneath the other
   controls; the joystick base floats to the touchdown point; the FIRE button
   forwards drag deltas to look while held; a look-zone touch shorter than
   `TOUCH_TAP_FIRE_MS` and stiller than `TOUCH_TAP_FIRE_TRAVEL_PX` pulses
