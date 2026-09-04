@@ -7,7 +7,7 @@ import {
   DEFAULT_BLOCK_TILES, ATLAS_SIZE, TILE_PX, GRID,
 } from '../public/js/engine/atlas.js';
 import {
-  AIR, LEAVES, GLASS, GRASS, WOOD, SX, SZ, SY, BLOCK_HP,
+  AIR, LEAVES, GLASS, GRASS, WOOD, PLANK, SX, SZ, SY, BLOCK_HP,
   getBlock as getWorldBlock, setBlock as setWorldBlock, heightAt,
   serializeWorld, deserializeWorld, createWorldState, createMapState,
   getMapMeta, MAP_IDS as WORLD_MAP_IDS,
@@ -21,13 +21,14 @@ import {
   isModeMapCompatible, isTeamMode,
 } from '../shared/modes.js';
 import { raycastVoxels } from '../shared/raycast.js';
+import { WEAPON_IDS, PLAYER_HALF, EYE_HEIGHT } from '../shared/combatmath.js';
 import { MAP_CAPTURE_SHOTS } from '../shared/map-capture-shots.js';
 import {
   ChunkStore, aoLevel, FACE_SHADE, CHUNK_X,
   MAX_REBUILDS_PER_FRAME,
 } from '../public/js/engine/chunks.js';
 import * as THREE from '../public/js/vendor/three.module.js';
-import { GameEngine } from '../server/game.js';
+import { GameEngine, aimAngles } from '../server/game.js';
 import { runClientContracts } from './contracts/client-contracts.mjs';
 import {
   bytesEqual,
@@ -230,7 +231,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
       friendlyFire: true,
       respawnMs: 1500,
       postMs: 5000,
-      weaponOrder: ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'rocket', 'longarc', 'revolver'],
+      weaponOrder: ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'rocket', 'longarc', 'lance', 'revolver', 'knife'],
     },
     snd: {
       teams: true,
@@ -264,10 +265,12 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
   const expectedPrices = {
     revolver: 0,
+    knife: 500,
     smg: 1250,
     shotgun: 1800,
     rifle: 2700,
     longarc: 3500,
+    lance: 3800,
     lmg: 4000,
     rocket: 4300,
     sniper: 4750,
@@ -489,6 +492,160 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   'createWorldState remains the default Foundry API with byte restoration support');
 }
 
+
+// ------------------------------------------- melee + lance combat contracts
+// Headless server behavior: drive the REAL GameEngine combat resolve over a
+// carved flat arena and pin the K-7 RIPPER and CL-9 VOLTLANCE contracts.
+{
+  const world = createMapState('foundry');
+  const engine = new GameEngine({ world });
+  // Flat arena: solid floor at y=14, open 15..22, across x 56..71 / z 40..55.
+  for (let x = 56; x < 72; x++) {
+    for (let z = 40; z < 56; z++) {
+      for (let y = 15; y <= 22; y++) world.setBlock(x, y, z, AIR);
+      world.setBlock(x, 14, z, GRASS);
+    }
+  }
+
+  const KNIFE = WEAPON_IDS.indexOf('knife');
+  const LANCE = WEAPON_IDS.indexOf('lance');
+  const eyeY = 15 + EYE_HEIGHT;
+
+  // Seat one entity on the arena floor with a weapon and a look direction.
+  function seat(id, x, z, lookX, weapon, lookZ = 48) {
+    engine.addClient(id, id);
+    const p = engine.entities.get(id);
+    p.x = x;
+    p.y = 15;
+    p.z = z;
+    p.vx = p.vy = p.vz = 0;
+    p.weapon = weapon;
+    p.deployT = 0;
+    p.cooldown = 0;
+    p.spawnProtectedUntil = 0;
+    p.spawnProtected = false;
+    const angles = aimAngles([x, eyeY, z], [lookX, eyeY, lookZ]);
+    p.yaw = angles.yaw;
+    p.pitch = angles.pitch;
+    engine.applyInput(id, { yaw: angles.yaw, pitch: angles.pitch, wantFire: false });
+    return p;
+  }
+
+  const eventsOf = (kind) => engine.tickEvents.filter((e) => e.kind === kind);
+
+  // (a1) Best-angle selection: a dead-ahead victim at 2 m beats a nearer one
+  // sitting 30 degrees off the aim ray, and the swing consumes no ammunition.
+  const hero = seat('m-hero', 60, 48, 62, KNIFE);
+  seat('m-ahead', 62, 48, 58, KNIFE);
+  seat('m-angled', 61.3, 48.75, 58, KNIFE);
+  engine.applyInput('m-hero', { wantFire: true });
+  engine.resolveWeaponIntent(hero, 0.016);
+  const bestHits = eventsOf('hit');
+  ok(eventsOf('shoot').length === 1 && eventsOf('shoot')[0].w === 'knife'
+    && bestHits.length === 1
+    && bestHits[0].attacker === 'm-hero' && bestHits[0].victim === 'm-ahead'
+    && bestHits[0].dmg === 58 && bestHits[0].hs === false
+    && hero.mag[KNIFE] === 0 && hero.reserve[KNIFE] === 0
+    && engine.entities.get('m-angled').hp === 100,
+  'knife swing hits the best-angle victim inside the reach cone and consumes no ammo');
+
+  // (a2) Held trigger respects the rpm cadence (120 rpm -> 0.5 s per swing).
+  engine.resolveWeaponIntent(hero, 0.016);
+  ok(eventsOf('hit').length === 1 && hero.cooldown > 0,
+    'held knife trigger cannot swing inside the cooldown');
+  engine.updateTimers(hero, 0.5);
+  engine.resolveWeaponIntent(hero, 0.016);
+  ok(eventsOf('hit').length === 2,
+    'held knife trigger swings again once the cadence elapses');
+
+  // (a3) Backstab: swinging from behind the victim's facing multiplies 2.5x.
+  engine.tickEvents.length = 0;
+  const bHero = seat('b-hero', 60, 48, 62, KNIFE);
+  seat('b-back', 62, 48, 70, KNIFE); // faces the same way the swing travels
+  engine.applyInput('b-hero', { wantFire: true });
+  engine.resolveWeaponIntent(bHero, 0.016);
+  const backHits = eventsOf('hit');
+  const backKills = eventsOf('kill');
+  ok(backHits.length === 1 && backHits[0].dmg === 145 && backHits[0].hs === false
+    && backKills.length === 1 && backKills[0].w === 'knife'
+    && backKills[0].killer === 'b-hero' && backKills[0].victim === 'b-back'
+    && backKills[0].hs === false && backKills[0].lr === false,
+  'knife backstab multiplies swing damage and kills through the normal kill path');
+
+  // (a4) Frontal swing: the victim faces the blade, so base damage only.
+  engine.tickEvents.length = 0;
+  const fHero = seat('f-hero', 60, 48, 62, KNIFE);
+  seat('f-face', 62, 48, 58, KNIFE); // faces back toward the hero
+  engine.applyInput('f-hero', { wantFire: true });
+  engine.resolveWeaponIntent(fHero, 0.016);
+  const faceHits = eventsOf('hit');
+  ok(faceHits.length === 1 && faceHits[0].dmg === 58
+    && engine.entities.get('f-face').hp === 42,
+  'frontal knife swing deals base damage with no backstab multiplier');
+
+  // (a5) A wall between blade and body voids the swing and takes no damage.
+  engine.tickEvents.length = 0;
+  world.setBlock(61, 16, 48, PLANK);
+  const wHero = seat('w-hero', 60, 48, 62, KNIFE);
+  seat('w-victim', 62, 48, 70, KNIFE);
+  engine.applyInput('w-hero', { wantFire: true });
+  engine.resolveWeaponIntent(wHero, 0.016);
+  ok(eventsOf('shoot').length === 1 && eventsOf('hit').length === 0
+    && eventsOf('kill').length === 0
+    && world.getBlock(61, 16, 48) === PLANK,
+  'a wall between shooter and victim voids the knife swing without block damage');
+  world.setBlock(61, 16, 48, AIR);
+
+  // Full charge on the lance: press, hold past the 620 ms charge, release.
+  function fireFullChargeLance(id) {
+    engine.applyInput(id, { wantFire: true });
+    engine.resolveWeaponIntent(engine.entities.get(id), 0.1);
+    for (let i = 0; i < 7; i++) {
+      engine.resolveWeaponIntent(engine.entities.get(id), 0.1); // 700 ms hold
+    }
+    engine.applyInput(id, { wantFire: false });
+    engine.resolveWeaponIntent(engine.entities.get(id), 0.1);
+  }
+
+  // (b1) Full charge spears up to pierce.players (3) aligned victims with
+  // playerFalloff per body, and the unreachable chainAt sentinel never arcs.
+  engine.tickEvents.length = 0;
+  const lHero = seat('l-hero', 60, 44.5, 70, LANCE, 44.5);
+  lHero.ads = true;
+  lHero.adsT = 1;
+  seat('l-v1', 64, 44.5, 70, LANCE);
+  seat('l-v2', 66, 44.5, 70, LANCE);
+  seat('l-v3', 68, 44.5, 70, LANCE);
+  seat('l-v4', 70, 44.5, 70, LANCE);
+  fireFullChargeLance('l-hero');
+  const lanceHits = eventsOf('hit');
+  const lanceShots = eventsOf('shoot');
+  ok(lanceShots.length === 1 && lanceShots[0].w === 'lance'
+    && lanceShots[0].charge === 1
+    && lanceHits.length === 3
+    && lanceHits[0].victim === 'l-v1' && lanceHits[0].dmg === 96
+    && lanceHits[1].victim === 'l-v2' && lanceHits[1].dmg === 79
+    && lanceHits[2].victim === 'l-v3' && lanceHits[2].dmg === 65
+    && eventsOf('arc').length === 0
+    && engine.entities.get('l-v4').hp === 100
+    && lHero.mag[LANCE] === 4,
+  'a full-charge lance pierces exactly 3 aligned victims with falloff and never chains');
+  // (b2) Zero wall pierce: the slug dies on the first wall, never reaching the
+  // victim behind it, and spends its damage on the block instead.
+  engine.tickEvents.length = 0;
+  world.setBlock(62, 16, 42, PLANK);
+  const lwHero = seat('lw-hero', 60, 42.5, 70, LANCE, 42.5);
+  lwHero.ads = true;
+  lwHero.adsT = 1;
+  seat('lw-v', 64, 42.5, 70, LANCE);
+  fireFullChargeLance('lw-hero');
+  ok(eventsOf('shoot').length === 1 && eventsOf('hit').length === 0
+    && eventsOf('arc').length === 0
+    && world.getBlock(62, 16, 42) === AIR
+    && engine.entities.get('lw-v').hp === 100,
+  'a full-charge lance stops dead on a wall with zero wall pierce and no chain');
+  world.setBlock(62, 16, 42, AIR);
+}
 // -------------------------------------------------------------------- AO
 ok(aoLevel(0, 0, 0) === 1.0, 'open corner brightest');
 ok(aoLevel(1, 1, 0) === 0.42, 'two sides -> forced darkest (corner rule)');

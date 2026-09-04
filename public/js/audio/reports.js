@@ -41,6 +41,12 @@ const FIRE_REPORT_PROFILES = Object.freeze({
   longarc: Object.freeze({
     lifetime: 1.15, sampleGain: 0.85, sampleRate: 1, layerGain: 0.22,
   }),
+  lance: Object.freeze({
+    lifetime: 1.0, sampleGain: 0.85, sampleRate: 1.04, layerGain: 0.24,
+  }),
+  knife: Object.freeze({
+    lifetime: 0.5, sampleGain: 0.9, sampleRate: 1.12, layerGain: 0.18,
+  }),
   rocket: Object.freeze({
     lifetime: 1.6, sampleGain: 0.9, sampleRate: 0.9, layerGain: 0.3,
   }),
@@ -232,6 +238,62 @@ export function arcZap(out, primitives) {
   });
 }
 
+/**
+ * VOLTLANCE discharge. `charge` (0..1) is the released capacitor level, floor-lifted so a
+ * tap still lands at the lance's minimum intensity: a needle-sharp high crack on release,
+ * a fast descending bandpass "lance snap" tail, and much less boom than LONGARC's bank
+ * dump. The whine-up is skipped because the live charge loop already played it while held.
+ */
+export function shotLance(out, primitives, charge = 1) {
+  const held = Math.max(0, Math.min(1, Number.isFinite(charge) ? charge : 1));
+  const level = 0.45 + 0.55 * held;
+  const t0 = primitives.nowT();
+  const crackAt = primitives.nowT(0.015 + 0.02 * (held - 1));
+  // Rail ionization tick: a thin, fast square needle, brighter and tighter than LONGARC's saw snap.
+  primitives.tone(out, {
+    t0, type: 'square', f0: 1600 + level * 1800, f1: 3400 + level * 2600, dec: 0.028, g: 0.05 + level * 0.05,
+  });
+  // Needle crack: an ultra-bright transient with almost no body behind it.
+  primitives.hiss(out, {
+    t0: crackAt, filter: 'highpass', f: 7400 + level * 2200, q: 0.5,
+    dec: 0.02 + level * 0.015, g: 0.34 + level * 0.3,
+  });
+  primitives.tone(out, {
+    t0: crackAt, type: 'square', f0: 980, f1: 210, dec: 0.05 + level * 0.04, g: 0.12 + level * 0.1,
+  });
+  // Less boom than LONGARC: a light, quick sub tap under the crack.
+  primitives.tone(out, {
+    t0: crackAt, type: 'sine', f0: 78, f1: 40, dec: 0.06 + level * 0.08, g: 0.05 + level * 0.09, att: 0.001,
+  });
+  // Lance snap: a fast descending bandpass tail, shorter and harder-edged than the ionized sweep.
+  primitives.hiss(out, {
+    t0: crackAt, filter: 'bandpass', f: 5600, sweepTo: 700,
+    sweepMs: 0.1 + level * 0.18, q: 1.8, dec: 0.09 + level * 0.18, g: 0.05 + level * 0.13,
+  });
+}
+
+/**
+ * RIPPER swing: a dry filtered-noise whoosh sweeping down through the arc, then a tight
+ * metallic shing at the swing apex. Deliberately short and echo-free; melee needs no report.
+ */
+export function shotKnife(out, primitives) {
+  const t0 = primitives.nowT();
+  // Whoosh: bandpass noise falling through the swing arc.
+  primitives.hiss(out, {
+    t0, filter: 'bandpass', f: 2600, sweepTo: 380, sweepMs: 0.16, q: 0.9, dec: 0.17, g: 0.3,
+  });
+  // Tight metallic shing at the apex: bright transient over two inharmonic partials.
+  primitives.hiss(out, {
+    t0: t0 + 0.08, filter: 'bandpass', f: 6800, sweepTo: 5200, sweepMs: 0.05, q: 2.2, dec: 0.05, g: 0.26,
+  });
+  primitives.tone(out, {
+    t0: t0 + 0.08, type: 'square', f0: 2350, f1: 1980, att: 0.001, dec: 0.045, g: 0.09,
+  });
+  primitives.tone(out, {
+    t0: t0 + 0.085, type: 'sine', f0: 3140, f1: 2960, att: 0.001, dec: 0.07, g: 0.11,
+  });
+}
+
 /** Render the weapon-specific synthetic transient and mechanical tail. */
 export function renderFireReport(
   key,
@@ -248,6 +310,8 @@ export function renderFireReport(
   } else if (key === 'lmg') shotLmg(out, primitives);
   else if (key === 'revolver') shotRevolver(out, primitives);
   else if (key === 'longarc') shotLongarc(out, primitives, charge);
+  else if (key === 'lance') shotLance(out, primitives, charge);
+  else if (key === 'knife') shotKnife(out, primitives);
   else if (key === 'rocket') shotRocket(out, primitives);
   else shotRifleSmg(out, primitives, FIRE_PARAMS[key] || FIRE_PARAMS.rifle);
 }

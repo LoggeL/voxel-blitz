@@ -241,6 +241,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
           if (object.name === 'hand_r' || object.name === 'hand_l') bakedHands.push(object);
         });
         carried.root.updateMatrixWorld(true);
+        const isMelee = id === 'knife';
         const standingSightY = carried.getSightWorldPosition(new THREE.Vector3()).y + 0.29;
         valid &&= carried.id === id
           && carried.modelRoot?.name === `gun_${id}`
@@ -249,11 +250,17 @@ export async function runViewmodelContracts(ok, installGlobals) {
           && carried.twoHanded === !!HANDS[id].support
           && bakedHands.length >= 1
           && bakedHands.every((hand) => hand.visible === false)
-          && carried._model.flash.grp.visible
           && carried.adsT > 0.9
-          && Math.abs(standingSightY - 1.62) < 0.02
           && Number.isFinite(carried.root.position.y)
-          && Number.isFinite(carried.root.rotation.x);
+          && Number.isFinite(carried.root.rotation.x)
+          // Melee carries no ballistic flash and its firing pose is the forward
+          // stab lunge (forward = -z, with a slight pitch dip), not a gun sight.
+          && (isMelee
+            ? (carried._model.flash.mats.length === 0
+              && carried.root.position.z < -0.05
+              && carried.root.rotation.x < -0.02)
+            : (carried._model.flash.grp.visible
+              && Math.abs(standingSightY - 1.62) < 0.02));
       }
       ok(valid && hipMounts.size >= 4,
         'remote-avatar mounts preserve weapon-specific grips and align every ADS sight through firing and crouch');
@@ -377,7 +384,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
   // The generic magswap request resolves into the weapon's physical reload
   // profile, and the camera-independent turn follower respects weapon mass.
   {
-    const { TIMERS } = await import('../../public/js/guns/defs.js');
+    const { HANDS, TIMERS } = await import('../../public/js/guns/defs.js');
     const { ViewmodelRig } = await import('../../public/js/guns/viewmodel.js');
     const camera = new THREE.PerspectiveCamera(75, 1, 0.01, 100);
     const rig = new ViewmodelRig(camera);
@@ -407,7 +414,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
       }
 
       ok(Object.keys(rig._models).length === WEAPON_IDS.length,
-        'one ViewmodelRig lazily constructs all eight canonical weapon models');
+        'one ViewmodelRig lazily constructs all ten canonical weapon models');
       ok(WEAPON_IDS.every((id) => {
         const model = rig._models[id];
         const sightHeight = model?.body?.userData?.sightHeight;
@@ -415,7 +422,40 @@ export async function runViewmodelContracts(ok, installGlobals) {
           && Math.abs(model.T.adsOffset.x) < 1e-9
           && Math.abs(model.T.adsOffset.y + sightHeight) < 1e-9
           && model.T.adsOffset.z <= -0.58;
-      }), 'all eight ADS profiles center their declared sight line at a safe camera distance');
+      }), 'all ten ADS profiles center their declared sight line at a safe camera distance');
+      // CL-9 VOLTLANCE + K-7 RIPPER additions: both build like the legacy roster and land
+      // their forward tip exactly on the canonical muzzle anchor; the knife declares a small
+      // usable sight line and ships genuinely flashless (melee has no ballistic flash);
+      // HANDS grows a grip for every roster entry because the mount contract iterates them.
+      ok(['lance', 'knife'].every((id) => rig._models[id]?.root)
+        && rig._models.knife.root.parent === rig.content,
+        'lance and knife models build and attach with the legacy roster');
+      const muzzleProbe = (id) => {
+        const model = rig._models[id];
+        camera.rotation.set(0, 0, 0);
+        rig.setWeapon(id);
+        rig.ads(0);
+        for (let frame = 0; frame < 60; frame++) {
+          rig.update(1 / 60, { grounded: true, aimSwayScale: 0 });
+        }
+        rig.content.updateWorldMatrix(true, true);
+        const tip = new THREE.Box3();
+        for (const child of model.body.children) {
+          if (child !== model.flash.grp && child !== model.muzzleMarker) tip.expandByObject(child);
+        }
+        return Math.abs(tip.min.z
+          - model.muzzleMarker.getWorldPosition(new THREE.Vector3()).z) < 1e-4;
+      };
+      ok(muzzleProbe('lance'), 'lance emitter tip lands exactly on its T.muzzle anchor');
+      ok(muzzleProbe('knife'), 'knife point lands exactly on its T.muzzle anchor');
+      const knifeSight = Number(rig._models.knife.body.userData.sightHeight);
+      ok(Number.isFinite(knifeSight) && knifeSight > 0 && knifeSight <= 0.05
+        && rig._models.knife.flash.mats.length === 0 && rig._models.lance.flash.mats.length === 2,
+        'knife declares a small sightHeight and ships flashless; lance keeps its muzzle flash');
+      ok(WEAPON_IDS.every((id) => {
+        const grip = HANDS[id]?.grip;
+        return Number.isFinite(grip?.x) && Number.isFinite(grip?.y) && Number.isFinite(grip?.z);
+      }), `HANDS carries a grip anchor for all ${WEAPON_IDS.length} roster ids`);
       const centerRay = new THREE.Raycaster(
         new THREE.Vector3(),
         new THREE.Vector3(0, 0, -1),
@@ -712,6 +752,31 @@ export async function runViewmodelContracts(ok, installGlobals) {
     weaponState.reconcileServer({ reloading: false, alive: true }, 3000 + RELOAD_ACK_GRACE_MS + 1);
     ok(!weaponState.isReloading,
       'after the acknowledgement grace an authoritative not-reloading snapshot clears the reload');
+    weaponState.resetToLoadout();
+    weaponState.forceWeapon(WEAPON_IDS.indexOf('knife'), { now: 4000 });
+    weaponState.applyIntents({ fireTap: true }, 4600, { allowFire: true, alive: true });
+    const swung = weaponState.tryFire(4600, { allowFire: true, alive: true, generation: 0 });
+    const knifeAmmo = weaponState.ammoOf('knife');
+    const cadenceBlocked = weaponState.tryFire(4700, { allowFire: true, alive: true, generation: 0 });
+    const swingsAgain = weaponState.tryFire(5100, { allowFire: true, alive: true, generation: 0 });
+    weaponState.applyIntents({ reload: true }, 5100, { allowFire: true, alive: true });
+    ok(swung && !cadenceBlocked && swingsAgain && knifeAmmo.mag === 0
+        && knifeAmmo.reserve === 0 && !weaponState.isReloading
+        && weaponState.readModel(4600).charge01 === null,
+    'a melee swing is free: no ammo consumed, no reload ever, and no charge readout');
+
+    weaponState.resetToLoadout();
+    weaponState.forceWeapon(WEAPON_IDS.indexOf('lance'), { now: 6400 });
+    weaponState.applyIntents({ fireHeld: true }, 7000, { allowFire: true, alive: true });
+    weaponState.tryFire(7000, { allowFire: true, alive: true, generation: 0 });
+    const quarterCell = weaponState.readModel(7000 + WEAPONS.lance.charge.ms / 4).charge01;
+    const threeQuarterCell = weaponState.readModel(
+      7000 + (WEAPONS.lance.charge.ms * 3) / 4,
+    ).charge01;
+    ok(weaponState.isCharging && quarterCell > 0.2 && quarterCell < 0.3
+        && threeQuarterCell > 0.7 && threeQuarterCell < 0.8
+        && threeQuarterCell > quarterCell,
+    'the lance charges its cell on hold, climbing like the longarc coil');
     weaponState.dispose();
 
     const { AvatarWeaponModel } = await import('../../public/js/avatar/avatar-weapon.js');

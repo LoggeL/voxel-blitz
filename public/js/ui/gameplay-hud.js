@@ -279,12 +279,19 @@ export class GameplayHud {
     }
 
     if (s.mag != null) {
-      d.mag.textContent = String(Math.max(0, s.mag | 0));
+      const melee = WEAPONS[resolveKey(s.wid)]?.mode === 'melee';
+      if (melee) {
+        // A knife has no magazine to count: the swing is always ready, and the
+        // zero-round spare-mag readout is meaningless, so the separator hides too.
+        d.mag.textContent = '∞';
+        d.sep.style.display = 'none';
+        d.res.style.display = 'none';
+      } else {
+        d.mag.textContent = String(Math.max(0, s.mag | 0));
+        d.sep.style.display = '';
+        d.res.style.display = '';
+      }
       this.updateAmmoLow();
-    }
-    if (s.reserve != null) {
-      const spareMags = Math.max(0, s.reserve | 0);
-      d.res.textContent = `${spareMags} ${spareMags === 1 ? 'MAG' : 'MAGS'}`;
     }
     if (s.wname != null) d.wname.textContent = String(s.wname).toUpperCase();
     if (s.grenadeType != null) {
@@ -336,13 +343,24 @@ export class GameplayHud {
       d.chargeMeter.classList.toggle('is-visible', chargeVisible);
       if (chargeVisible) {
         const charge01 = clamp01(s.charge01);
-        const chainAt = Number.isFinite(s.chainAt) ? clamp01(s.chainAt) : 1;
+        // A chainAt outside the 0..1 charge range is the "never" sentinel (the lance
+        // never arcs): the threshold mark and its ready flag stay hidden, and the
+        // label settles on CHARGED at a full cell instead of CHAIN ARC READY.
+        const hasChain = Number.isFinite(s.chainAt) && s.chainAt <= 1;
+        const chainAt = hasChain ? clamp01(s.chainAt) : null;
         d.chargeMeterFill.style.transform = `scaleX(${charge01})`;
-        d.chargeMeterChain.style.left = `${Math.round(chainAt * 100)}%`;
+        if (hasChain) {
+          d.chargeMeterChain.style.left = `${Math.round(chainAt * 100)}%`;
+          d.chargeMeterChain.style.display = '';
+        } else {
+          d.chargeMeterChain.style.display = 'none';
+        }
         d.chargeMeter.classList.toggle('is-charging', charge01 > 0);
-        d.chargeMeter.classList.toggle('is-chain', charge01 >= chainAt);
+        d.chargeMeter.classList.toggle('is-chain', hasChain && charge01 >= chainAt);
         d.chargeMeter.classList.toggle('is-full', charge01 >= 1);
-        const label = charge01 >= chainAt ? 'CHAIN ARC READY' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE';
+        const label = hasChain
+          ? (charge01 >= chainAt ? 'CHAIN ARC READY' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE')
+          : charge01 >= 1 ? 'CHARGED' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE';
         if (d.chargeMeterLabel.textContent !== label) d.chargeMeterLabel.textContent = label;
       }
     }
@@ -409,6 +427,11 @@ export class GameplayHud {
     const def = WEAPONS[this.lastWepKey];
     const magEl = this.dom.mag;
     if (!def || !magEl) return;
+    if (def.mode === 'melee') {
+      // A knife has no magazine: never carry a stale low-ammo flag across swings.
+      magEl.classList.remove('vb-low');
+      return;
+    }
     const mag = parseInt(magEl.textContent, 10);
     magEl.classList.toggle(
       'vb-low',

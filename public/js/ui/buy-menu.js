@@ -81,7 +81,8 @@ export class BuyMenuController {
     WEAPON_BUY_ORDER.forEach((wid, index) => {
       const def = WEAPONS[wid] || {};
       const price = WEAPON_PRICES[wid] || 0;
-      const keyNumber = index + 1;
+      // 1..9 then 0 for the tenth entry, matching the digit shortcuts below.
+      const keyNumber = (index + 1) % 10;
 
       const card = el('div', 'vb-buy-card', grid, `buy-card-${wid}`);
       card.dataset.wid = wid;
@@ -159,10 +160,14 @@ export class BuyMenuController {
         }
 
         let digitIndex = -1;
-        if (event.code >= 'Digit1' && event.code <= 'Digit8') {
+        if (event.code >= 'Digit1' && event.code <= 'Digit9') {
           digitIndex = parseInt(event.code.replace('Digit', ''), 10) - 1;
-        } else if (event.code >= 'Numpad1' && event.code <= 'Numpad8') {
+        } else if (event.code === 'Digit0') {
+          digitIndex = 9; // 0 trails 9 as the tenth weapon shortcut
+        } else if (event.code >= 'Numpad1' && event.code <= 'Numpad9') {
           digitIndex = parseInt(event.code.replace('Numpad', ''), 10) - 1;
+        } else if (event.code === 'Numpad0') {
+          digitIndex = 9;
         }
 
         if (digitIndex >= 0 && digitIndex < WEAPON_BUY_ORDER.length) {

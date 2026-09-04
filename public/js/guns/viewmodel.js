@@ -8,6 +8,8 @@ import { MaterialCache } from './kit.js';
 import { D2R, HIP, VM_FOV_BASE } from './models/common.js';
 import { kickMassScale } from './defs.js';
 import { WeaponTurnInertia } from './turn-inertia.js';
+const SWING_S = 0.28;  // K-7 slash arc: wind-up -> strike -> recover, in seconds
+
 
 export class ViewmodelRig {
 
@@ -36,9 +38,10 @@ export class ViewmodelRig {
     this._spr = { pitch: { p: 0, v: 0 }, yaw: { p: 0, v: 0 }, push: { p: 0, v: 0 } }; // kick springs
     this._turn = new WeaponTurnInertia(); // camera-independent, weight-limited weapon orientation
     this._air = { p: 0, v: 0 };         // damped vertical inertia across takeoff/landing
-    this._nadeWind = 0;                 // smoothed grenade wind-up 0..1 (gun pulled aside)
-    this._chargeT = 0;                  // held capacitor charge 0..1 (coil glow floor + squeeze)
     this._nadeThrowT = 0;               // seconds left in the throw lunge
+    this._swingT = 0;                   // seconds left in the knife slash arc (T.melee only)
+    this._swingParity = false;          // flips per swing; alternates mirrored left/right slashes
+    this._chargeT = 0;                  // held capacitor charge 0..1 (coil glow floor + squeeze)
     this._lean = { p: 0, v: 0 };        // lagged lateral lean (m) from strafing, mass-scaled
     this._surge = { p: 0, v: 0 };       // lagged fore/aft surge (m) from acceleration
     this._wasGrounded = true;
@@ -90,7 +93,8 @@ export class ViewmodelRig {
 
     this._spr.pitch = { p: 0, v: 0 }; this._spr.yaw = { p: 0, v: 0 }; this._spr.push = { p: 0, v: 0 };
     this._turn.reset(this.camera?.rotation?.y, this.camera?.rotation?.x);
-    this._air.p = this._air.v = 0;
+    this._nadeWind = 0; this._nadeThrowT = 0;
+    this._swingT = 0; this._swingParity = false;                     // no mid-swap slash residue
     this._lean.p = this._lean.v = 0;
     this._surge.p = this._surge.v = 0;
     this._nadeWind = 0; this._nadeThrowT = 0;
@@ -116,6 +120,17 @@ export class ViewmodelRig {
     const T = cur.T;
     const now = this._now;
     if (this.isBusy(now)) return false;
+    // K-7 RIPPER (T.melee): a slash, not a shot. The generic kick/heat/flash path is
+    // bypassed wholesale — a blade carries no recoil impulse, no barrel heat, and no
+    // muzzle event (the assembled flash stub stays inert); the swing pose composed in
+    // update() is the entire visual. Only the rof cap paces the swings.
+    if (T.melee) {
+      this._swingParity = !this._swingParity;   // alternate mirrored slashes
+      this._swingT = SWING_S;
+      this._lockUntil = Math.max(this._lockUntil, now + 60000 / T.rof / 1000);
+      return true;
+    }
+
 
     const mass = kickMassScale(T.weightKg);                          // <1 heavy, >1 light
     const wn = Math.sqrt(T.kick.stiffness * mass);
@@ -388,6 +403,27 @@ export class ViewmodelRig {
     const nadeRx = -0.14 * wind - 0.16 * lunge;
     const nadeRz = 0.20 * wind + 0.08 * lunge;
 
+    /* knife slash (T.melee): three-phase arc across SWING_S — cock the blade up-and-out,
+       whip it down-across the screen, then settle back to guard. Mirrored per swing via
+       _swingParity so consecutive cuts alternate. Runs entirely as content-pose offsets
+       (like the nade/charge terms), never through the kick springs or the camera. */
+    let swingX = 0, swingY = 0, swingZ = 0, swingRx = 0, swingRy = 0, swingRz = 0;
+    if (this._swingT > 0) {
+      this._swingT = Math.max(0, this._swingT - dt);
+      const side = this._swingParity ? -1 : 1;                       // +1: right-dominant slash
+      const p = 1 - this._swingT / SWING_S;                          // 0 start -> 1 settled
+      const cocked = this._smooth01(Math.min(1, p / 0.26));          // wind-up (~26% of arc)
+      const strike = this._smooth01(Math.max(0, Math.min(1, (p - 0.26) / 0.22))); // fast cut
+      const amp = 1 - this._smooth01(Math.max(0, (p - 0.52) / 0.48)); // recover to guard
+      const wd = cocked * (1 - strike);                              // wind pose weight
+      swingX = (0.028 * wd - 0.050 * strike) * side * amp;           // out wide, across body
+      swingY = (0.045 * wd - 0.048 * strike) * amp;                  // high, then low
+      swingZ = (0.030 * wd - 0.018 * strike) * amp;                  // pulled back, then through
+      swingRx = (-0.38 * wd + 0.55 * strike) * amp;                  // tip up, whip down
+      swingRy = (0.50 * wd - 0.42 * strike) * side * amp;            // blade turned out, then in
+      swingRz = (0.28 * wd - 0.50 * strike) * side * amp;            // wrist roll through the cut
+    }
+
     /* sprint cant + counter-roll + inertia roll composition */
     const cant = sprinting ? BOB.sprintTiltZ * Math.min(1, speed / 6.2) * (1 - adsE) : 0;
     const roll = bobX / (BOB.walkHorz || 1) * BOB.counterRoll * (1 - adsE * 0.5)
@@ -409,11 +445,11 @@ export class ViewmodelRig {
     /* base hip pose eased toward adsOffset absolute pose; dips layered on top */
     const dep = this._deployOffset();
     this.content.position.set(
-      HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX,
-      HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y + nadeY,
-      HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ
+      HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX,
+      HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y + nadeY + swingY,
+      HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ
     );
-    this.content.rotation.set(dep.rx + reloadRock + nadeRx, 0, 0);
+    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx, swingRy, swingRz);
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
     this._decayFx(dt, cur);

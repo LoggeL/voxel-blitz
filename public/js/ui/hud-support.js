@@ -9,6 +9,8 @@ export const GLYPH = Object.freeze({
   revolver: 'REV',
   longarc: 'LA',
   rocket: 'RKT',
+  lance: 'VL',
+  knife: 'KN',
   grenade: 'GRN',
 });
 
@@ -21,6 +23,8 @@ export const WEAPON_NAMES = Object.freeze({
   sniper: 'LONGSHOT MK-II',
   longarc: 'LN-03 LONGARC',
   rocket: 'RX-8 HAVOC',
+  lance: 'CL-9 VOLTLANCE',
+  knife: 'K-7 RIPPER',
 });
 
 /** Kill-feed / recap names for explosives that are not weapon slots. */
@@ -40,6 +44,8 @@ export const WEAPON_CLASSES = Object.freeze({
   sniper: 'PRECISION SNIPER · 5× OPTIC',
   longarc: 'CHARGE COILGUN · PIERCE & CHAIN ARC',
   rocket: 'ROCKET LAUNCHER · SPLASH & ROCKET JUMP',
+  lance: 'CHARGE LANCE · LINE PIERCE ×3',
+  knife: 'COMBAT KNIFE · MELEE',
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([
@@ -50,7 +56,9 @@ export const WEAPON_BUY_ORDER = Object.freeze([
   'lmg',
   'sniper',
   'longarc',
+  'lance',
   'rocket',
+  'knife',
 ]);
 
 export const MODE_LABELS = Object.freeze({

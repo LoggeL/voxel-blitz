@@ -1,6 +1,6 @@
 export async function runInputContracts(ok, installGlobals) {
   // Input: headless is a pointer-lock substitute, not a gameplay-suppression
-  // bypass. Direct slots cover the full eight-gun roster and wheel edges drain.
+  // bypass. Direct slots cover the full ten-gun roster and wheel edges drain.
   {
     let input = null;
     let unlocked = null;
@@ -74,6 +74,12 @@ export async function runInputContracts(ok, installGlobals) {
       input._onKeyDown(key('Digit8'));
       ok(input.consumeWeaponSlot() === 7,
         'headless Digit8 reaches the eighth weapon slot');
+      input._onKeyDown(key('Digit9'));
+      ok(input.consumeWeaponSlot() === 8,
+        'headless Digit9 reaches the ninth weapon slot');
+      input._onKeyDown(key('Digit0'));
+      ok(input.consumeWeaponSlot() === 9,
+        'headless Digit0 reaches the tenth weapon slot');
 
       let prevented = 0;
       const wheel = (deltaY, timeStamp, deltaMode = 0) => ({
@@ -392,6 +398,11 @@ export async function runInputContracts(ok, installGlobals) {
       input._onKeyDown(key('Digit3'));
       ok(input.consumeWeaponSlot() === 2 && input.consumeWeaponSlot() === null,
       'a closed digit still routes through the weapon-slot seam');
+      input.setWeaponWheelOpen(true);
+      input._onKeyDown(key('Digit0'));
+      ok(input.takeWheelDirectSlot() === 9 && input.consumeWeaponSlot() === null,
+      'a Digit0 while the wheel is up picks the tenth wheel slot directly');
+      input.setWeaponWheelOpen(false);
       input.dispose();
 
       // While the wheel is up every combat edge is suppressed; movement stays live.

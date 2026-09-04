@@ -44,7 +44,7 @@ const EXPLOSION_PROFILES = Object.freeze({
   rocket: Object.freeze({ gain: 1.22, lifetime: 1.6, low: 0.95, lowHz: 58, crack: 0.4, crackHz: 1600, echo: 0.3 }),
 });
 
-/** One sustained capacitor whine for the held LONGARC charge; created lazily, never pooled. */
+/** One sustained capacitor whine for a held charge (LONGARC, VOLTLANCE); created lazily, never pooled. */
 function ensureChargeLoop() {
   const ctx = engine.ctx;
   if (!ctx || ctx.state === 'closed' || !engine.bus) return null;
@@ -219,8 +219,9 @@ export const sfx = {
   },
 
   /**
-   * Held capacitor charge (LONGARC): call every frame with the 0..1 level while `active`;
-   * the whine climbs in pitch and brightness with the charge and fades out on release.
+   * Held capacitor charge (LONGARC, VOLTLANCE): call every frame with the 0..1 level while
+   * `active`; the whine climbs in pitch and brightness with the charge and fades out on
+   * release.
    */
   weaponCharge(level01, active = true) {
     const level = Math.max(0, Math.min(1, Number(level01) || 0));

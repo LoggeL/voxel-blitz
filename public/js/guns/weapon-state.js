@@ -155,7 +155,9 @@ export class WeaponState {
       reloadStaged: !!this._reloadState?.staged,
       adsT01: this._adsT,
       zoom: def.zoom,
-      charge01: def.mode === 'charge' ? this.charge01 : null,
+      charge01: def.mode === 'charge'
+        ? (this._chargeStart === null ? 0 : chargeFromHold(def, now - this._chargeStart))
+        : null,
       chainAt: def.mode === 'charge' ? chargeProfile(def).chainAt : null,
     };
   }
@@ -284,7 +286,8 @@ export class WeaponState {
     if (switchDelta) this.cycleWeapon(switchDelta, { now });
     if (slot !== null) this.forceWeapon(slot, { now });
     if (lastWeapon) this.forceWeapon(this._lastSlot, { now });
-    if (reload && this._alive) this.startReload(now);
+    // Melee never reloads: a manual request with a no-magazine weapon drawn is a no-op.
+    if (reload && this._alive && this.def.mode !== 'melee') this.startReload(now);
 
     if (fireTap && this._allowFire) this._fireTapLatched = true;
     if (!this._allowFire) this._fireTapLatched = false;
@@ -306,6 +309,7 @@ export class WeaponState {
   startReload(now) {
     if (this._reloadState || !this._alive) return false;
     const def = this.def;
+    if (def.mode === 'melee') return false; // a knife has no magazine to refill
     const ammo = this._ammo[def.id];
     if (!ammo || ammo.mag >= def.magSize || ammo.reserve <= 0) return false;
 
@@ -448,6 +452,7 @@ export class WeaponState {
     const def = this.def;
     const weaponId = def.id;
     if (def.mode === 'charge') return this._tryChargeFire(now, def, weaponId);
+    if (def.mode === 'melee') return this._tryMeleeFire(now, def, weaponId);
     if (now < this._nextFireAt || now < this._deployUntil) return false;
     const ammo = this._ammo[weaponId];
     if (!ammo) return false;
@@ -515,6 +520,24 @@ export class WeaponState {
     this.cancelCharge();
     if (!ammo || ammo.mag <= 0 || this._reloadState) return false;
     return this._commitShot(now, def, weaponId, ammo, charge);
+  }
+
+  /**
+   * Melee (K-7 RIPPER): a swing is free — no magazine, no reload, no ballistics.
+   * A tap edge or a held trigger swings on the rpm cadence alone; the reach cone
+   * (and its backstab multiplier) is resolved by the authority, so the client
+   * only replays the standard fire feedback: rig kick, report, and recoil.
+   */
+  _tryMeleeFire(now, def, weaponId) {
+    const input = this._pendingShotIntent;
+    if (!input || (!input.tap && !input.held)) return false;
+    if (now < this._nextFireAt || now < this._deployUntil) return false;
+    if (this._reloadState) return false;
+    if (!this._rig.fire()) return false;
+    this._nextFireAt = now + 60000 / def.rpm;
+    this._audio.fire(weaponId);
+    this.shakeView(def, now, 1);
+    return true;
   }
 
   /** The accepted local shot: ammo, prediction, tracer/rocket FX, report, and recoil. */

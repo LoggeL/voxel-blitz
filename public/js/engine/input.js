@@ -121,7 +121,7 @@ export class Input {
     this._grenadeType = 0;     // selected throwable (index into GRENADE_TYPE_IDS)
     this._switchQueue = 0;     // wheel steps accumulated (+/-1)
     this._wheel = { acc: 0, lastAt: -Infinity };
-    this._pendingSlot = null;  // direct Digit1..8 pick (0..7) or null
+    this._pendingSlot = null;  // direct Digit1..9/0 pick (0..9) or null
     this._lastWeaponReq = false;
     this._buyMenuQueued = false;
     this._buyMenuHeld = false; // physical B latch suppresses repeat/re-entry
@@ -132,7 +132,7 @@ export class Input {
     this._wheelVecX = 0;       // raw mouse px (pad look scaled) toward full ring deflection
     this._wheelVecY = 0;
     this._wheelStepQueue = 0;  // wheel-scroll / pad d-pad steps while open
-    this._pendingWheelSlot = null; // direct Digit1..8 pick while open (0..7) or null
+    this._pendingWheelSlot = null; // direct Digit1..9/0 pick while open (0..9) or null
     this._wheelOpenQueued = false;
     this._wheelReleaseQueued = false;
     this._wheelCancelQueued = false;
@@ -673,7 +673,7 @@ export class Input {
   }
 
   /**
-   * Direct slot picked with Digit1..7 (0..6), or null if none pending.
+   * Direct slot picked with Digit1..9 (slots 0..8) or Digit0 (slot 9), or null if none pending.
    * Consumed on read.
    * @returns {number|null}
    */
@@ -767,7 +767,7 @@ export class Input {
   }
 
   /**
-   * Direct Digit1..8 slot pick (0..7) made while the wheel is open, or null.
+   * Direct Digit1..9/Digit0 slot pick (0..9) made while the wheel is open, or null.
    * Consumed on read.
    * @returns {number|null}
    */
@@ -1039,10 +1039,13 @@ export class Input {
           e.preventDefault();
         }
         break;
-      case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5': case 'Digit6': case 'Digit7': case 'Digit8':
+      case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5':
+      case 'Digit6': case 'Digit7': case 'Digit8': case 'Digit9': case 'Digit0':
         if (!e.repeat) {
-          if (this._wheelOpen) this._pendingWheelSlot = Number(e.code.slice(-1)) - 1;
-          else this._pendingSlot = Number(e.code.slice(-1)) - 1;
+          // Digit0 trails Digit9 as the tenth slot key.
+          const digit = e.code === 'Digit0' ? 10 : Number(e.code.slice(-1));
+          if (this._wheelOpen) this._pendingWheelSlot = digit - 1;
+          else this._pendingSlot = digit - 1;
         }
         break;
       default: break;

@@ -79,14 +79,15 @@ After admission:
   (held milliseconds, timed fuses only) to the type's fuse, and consumes one
   grenade of that type for the current life only when the mode permits firing.
   A `grenadeCook` at or beyond the frag fuse detonates the grenade in the hand.
-  `wantFire` held on a `charge`-mode weapon (LONGARC) charges the capacitor and
-  the shot leaves on release or when the hold reaches `holdMaxMs`.
+  `wantFire` held on a `charge`-mode weapon (LONGARC, VOLTLANCE) charges the
+  capacitor and the shot leaves on release or when the hold reaches `holdMaxMs`.
   `viewAge` is the client's current presentation buffer plus measured RTT and
   is clamped by authority to `50–450 ms` before hit rewind.
-  Weapon slots clamp to `0–7`; keyboard digits are `1–8`.
+  Weapon slots clamp to `0–9`; keyboard digits are `1–9` with `0` for the
+  tenth slot.
 - `{t:'ping',nonce:safe-integer}` receives `{t:'pong',nonce}` from the same
   socket so the client can measure application-level round-trip time.
-- `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'}` requests
+- `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'}` requests
   an S&D prep-phase purchase.
 - `{t:'chat',text:string}` broadcasts at most 120 trimmed characters only to
   this member's room.
@@ -218,7 +219,7 @@ recovery. The condition penalty is exactly
 crouching also applies each weapon's `crouchSpreadMult` to base spread/bloom.
 
 The slot roster is exactly
-`['rifle','smg','shotgun','sniper','lmg','revolver','longarc','rocket']`:
+`['rifle','smg','shotgun','sniper','lmg','revolver','longarc','rocket','lance','knife']`:
 
 | slot/key | display name | mode | rpm | mag/spare mags | close→far damage @ end | head | pellets | hip/ADS cone | mass |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -230,9 +231,12 @@ The slot roster is exactly
 | 5 `revolver` | IRONCLAD .44 | semi | 300 | 6/8 | 54→35 @ 80 | 1.90× | 1 | 1.15°/0.12° | 1.4 kg |
 | 6 `longarc` | LN-03 LONGARC | charge | 160 | 8/6 | 88→62 @ 95 | 2.00× | 1 | 1.60°/0.08° | 4.1 kg |
 | 7 `rocket` | RX-8 HAVOC | semi | 45 | 1/5 | projectile | 1.00× | 1 | 1.10°/0.25° | 9.6 kg |
+| 8 `lance` | CL-9 VOLTLANCE | charge | 140 | 5/6 | 96→70 @ 70 | 1.90× | 1 | 1.20°/0.05° | 3.8 kg |
+| 9 `knife` | K-7 RIPPER | melee | 120 | 0/0 | 58→58 (flat) | 1.00× | 1 | 0°/0° | 0.9 kg |
 
-Damage is flat to 20 world units by default; the shotgun starts falloff at 12.
-It then falls linearly to the table's far value at the listed end.
+Damage is flat to 20 world units by default; the shotgun starts falloff at 12
+and the lance at 30. It then falls linearly to the table's far value at the
+listed end.
 
 The LONGARC is the `charge` mode: holding the trigger charges the capacitor
 over `charge.ms` (850) and the slug leaves on release, or on its own at
@@ -248,6 +252,24 @@ splash (96 @ 4.8 radius, 0.55 self), knockback (11, 15.5 self), and the carve
 (radius 3.1, power 145, 80 blocks). All remaining cadence, bloom, recoil, ADS,
 reload, deploy, tracer, mass, and SFX fields are read from `WEAPONS`; do not
 duplicate them.
+
+The VOLTLANCE (`lance`) is the second `charge` mode: it charges over
+`charge.ms` (620), vents itself at `charge.holdMaxMs` (1800), and taps for
+`minDamageMult` (0.45), but its pierce profile is 3 players / 0 walls with
+`playerFalloff` 0.82 — a charged lance spears up to three enemies on the line
+and dies on the first wall. Its `wallPierceAt` (2) and `chainAt` (2) are
+unreachable sentinels: the shared charge thresholds compare against a charge
+normalized to `0–1`, so they can never be met. Disabling wall piercing and
+chain arcing this way keeps LONGARC and VOLTLANCE on one code path — no
+weapon-specific branch and no `chain` profile at all on the lance.
+
+The RIPPER (`knife`) is the `melee` mode: `magSize` 0 and `spareMags` 0 mean a
+swing consumes no ammunition and the reload path never engages (`reloadPlan`
+seats 0 rounds). The swing arc (`melee.reach` 2.2, `melee.coneDeg` 110)
+replaces ballistics — no tracer, flat 58 damage with no falloff, `headMult` 1.0
+so there are no headshots, and no block damage. When the strike lands from
+behind the victim's facing (`dot(victimForward, swingDir)` above
+`melee.backstabDot` 0.4) the damage multiplies by `melee.backstabMult` (2.5).
 
 ### shared/raycast.js
 `raycastVoxels(solidAt,ox,oy,oz,dx,dy,dz,maxDist)` returns
@@ -346,7 +368,7 @@ and exposes `quickPlay(meta,name,bots?)`,
   pointerInteractive})`, `isWeaponWheelOpen()`, `requestWheelCancel()` (a
   guarded onCancel), and the additive `weaponWheelHighlight()` getter own the
   radial weapon wheel. Entries are `{id,name,cls,icon,key,ammo,owned,current}`
-  with wheel index == weapon slot; all eight render, unowned entries render
+  with wheel index == weapon slot; all ten render, unowned entries render
   locked, and `pointerInteractive` enables the touch pointer-capture path
   (drag to highlight, release to pick).
 - `setMatchState(match,selfRow,players,serverNow)` renders mode/map, team scores,
@@ -391,7 +413,7 @@ late join whose welcome/state is already live also proceeds directly.
   `setGrenadeType(i)`, and `cycleGrenadeType(dir)` own the selected throwable:
   `H` cycles it, and the wheel (or pad `Y`) cycles it while `G` is held instead
   of switching weapons. `E` holds interact; `B` toggles the buy menu;
-  `1–8`/wheel/`Q` select weapons.
+  `1–9`/`0`/wheel/`Q` select weapons.
   The radial weapon wheel drains `takeWheelOpenRequest()` (Q held
   `WHEEL_HOLD_MS=180`, a middle-mouse press, pad `Y` held
   `PAD_WHEEL_HOLD_MS=260`, or a touch `wheel` pulse; a quicker Q press still
@@ -401,7 +423,7 @@ late join whose welcome/state is already live also proceeds directly.
   `takeWheelVector()` (normalized selection motion where `1` equals
   `WHEEL_VECTOR_RADIUS_PX=90` raw mouse px, pad look scaled by the same
   radius), `takeWheelSteps()` (wheel scroll plus d-pad up/down while open),
-  and `takeWheelDirectSlot()` (`1`–`8` while open; `0–7` or `null`).
+  and `takeWheelDirectSlot()` (`1`–`9` and `0` while open; `0–9` or `null`).
   `setWeaponWheelOpen(open)` reroutes devices while the wheel is up: look
   deltas feed the wheel instead of the camera, fire/ADS/reload/grenade/zoom/
   buy/interact edges are suppressed, movement keys stay live,
@@ -447,7 +469,11 @@ late join whose welcome/state is already live also proceeds directly.
   `update(dt,{speed,grounded,verticalVelocity?,lateralSpeed?,forwardSpeed?,
   isSprinting?,crouch?,panic?,pain?,exhaustion?,aimSwayScale?})`, `bobAmt`,
   and `turnLag` (`{yaw,pitch,roll,x,y,speed,maxSpeed,...}`).
-  It builds eight procedural models. Its internal angular follower observes the
+  It builds ten procedural models — one `build()` per weapon id from the
+  `guns/models/*.js` registry wired in `guns/assemble.js`, adding
+  `models/lance.js` (cell whine, violet lance glow) and `models/knife.js`
+  (a compact blade with no reload or charge furniture). Its internal angular
+  follower observes the
   completed camera orientation, caps weapon rotation speed and acceleration by
   `weightKg`, tightens toward the sight line with ADS, folds lag beyond its
   weight budget back into the pose (no hidden unwind), and affects only the
@@ -481,7 +507,7 @@ late join whose welcome/state is already live also proceeds directly.
   the sustained `sfx.weaponCharge(level01,active)` whine cue them. HUD state
   renders one chip per throwable with remaining pips, the selected type name,
   `is-full` at max charge, `is-cooking`/`is-critical` with a `COOKING · n.ns`
-  hint, and the LONGARC coil meter (`charge01`, `chainAt`, `is-chain`).
+  hint, and the LONGARC/VOLTLANCE coil meter (`charge01`, `chainAt`, `is-chain`).
 - `LocalPlayer.addRecoil(pitchRad, yawRad, weightKg?)` drives a velocity-impulse
   camera spring that peaks at the requested kick ~40–60 ms after the shot and
   recovers on a weight-scaled spring (slower for heavy guns), adds a coupled
@@ -529,20 +555,21 @@ weapons, recover/escort/plant/guard/defuse the bomb, and dispose their engine
 step listener with the room.
 
 ## Runtime gameplay contracts
-- **Fun (`fun`):** free-for-all target eligibility, complete eight-weapon
+- **Fun (`fun`):** free-for-all target eligibility, complete ten-weapon
   loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
   `1500 ms` respawn. Shared quick rooms allow join in progress with no ready
   gate.
 - **Team Deathmatch (`tdm`):** persistent `alpha`/`bravo` assignment chooses the
   lower human+bot population; friendly fire is disabled and every player owns
-  the complete eight-weapon loadout. Enemy kills increment the killer's team
+  the complete ten-weapon loadout. Enemy kills increment the killer's team
   score. First to `40` enters a `5000 ms` post phase, then team/player scores
   reset and all players respawn. Live deaths respawn after `3000 ms` at the
   player's team spawn pool.
 - **Gun Game (`gungame`):** free-for-all target eligibility and `1500 ms`
   respawn. Players progress through the immutable shared order rifle, SMG,
-  shotgun, sniper, LMG, rocket, longarc, revolver; a kill with the revolver wins. The winner is
-  shown during a `5000 ms` post phase before progression and scores reset.
+  shotgun, sniper, LMG, rocket, longarc, lance, revolver, knife; a kill with
+  the RIPPER knife wins. The winner is shown during a `5000 ms` post phase
+  before progression and scores reset.
 - **Search and Destroy (`snd`):** persistent `alpha`/`bravo` teams map to
   attackers/defenders, friendly fire is disabled, and roles swap after 6
   completed rounds. First to 7 round wins wins the match. Each round is
@@ -558,8 +585,9 @@ step listener with the room.
   elimination.
 - **S&D economy:** players start with 800 credits; kill +300, plant +300, round
   win +3250, and consecutive losses +1400/+1900/+2400/+2900/+3400, capped at
-  16000. Prices are revolver 0, SMG 1250, shotgun 1800, rifle 2700, longarc 3500,
-  LMG 4000, rocket 4300, sniper 4750. Only alive participants buy during prep. A purchase owns,
+  16000. Prices are revolver 0, knife 500, SMG 1250, shotgun 1800, rifle 2700,
+  longarc 3500, lance 3800, LMG 4000, rocket 4300, sniper 4750. Only alive
+  participants buy during prep. A purchase owns,
   selects, and refills that weapon. New/dead players start the next round with
   revolver; survivors retain purchases and remaining ammunition.
 - **Map compatibility:** `foundry` supports Fun/TDM/S&D/Gun Game; `depot`

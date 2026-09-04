@@ -82,7 +82,7 @@ representative ally-spectator shot. The focused 31-frame matrix is written to
 `.artifacts/avatar-renders/`.
 
 The project-owned illustrations in `public/assets/weapons/hud/` are the
-canonical silhouette and material references for all eight procedural models.
+canonical silhouette and material references for all ten procedural models.
 `npm run weapons:icons` regenerates them from the procedural models with a
 browser-free software rasterizer (`tools/render-hud-icon.mjs`).
 The capture flows validate that each reference-faithful model still fits both
@@ -145,13 +145,13 @@ and a full room or 16-room exhaustion with `4005`; the server sends a JSON
 ### Fun
 
 Fun is a free-for-all with no teams, no score-limit reset, the complete
-six-weapon loadout, and a **1500 ms** respawn. Quick Play uses shared live Fun
+ten-weapon loadout, and a **1500 ms** respawn. Quick Play uses shared live Fun
 rooms with join in progress and no ready gate.
 
 ### Team Deathmatch
 
 Team Deathmatch assigns each player to the lower-population `alpha` or `bravo`
-team, disables friendly fire, provides the complete six-weapon loadout, and
+team, disables friendly fire, provides the complete ten-weapon loadout, and
 uses team-specific spawn pools. Enemy kills increment the team score. The first
 team to **40** wins; a **5000 ms** post-match phase follows, then team and player
 scores reset and everyone respawns. Deaths respawn after **3000 ms** during the
@@ -181,9 +181,11 @@ owns and refills the weapon:
 | weapon | price |
 |---|---:|
 | revolver | 0 |
+| knife | 500 |
 | SMG | 1250 |
 | shotgun | 1800 |
 | rifle | 2700 |
+| lance | 3800 |
 | LMG | 4000 |
 | sniper | 4750 |
 
@@ -193,9 +195,9 @@ their purchases and remaining ammunition. Weapons cannot fire during prep.
 ### Gun Game
 
 Gun Game is a free-for-all with a **1500 ms** respawn. Every kill advances the
-player through rifle, SMG, shotgun, sniper, LMG, and finally revolver. A kill
-with the revolver wins; a **5000 ms** result phase follows before progression
-and scores reset.
+player through rifle, SMG, shotgun, sniper, LMG, rocket, LONGARC, VOLTLANCE,
+revolver, and finally the RIPPER knife. A kill with the RIPPER wins; a
+**5000 ms** result phase follows before progression and scores reset.
 
 ### Map compatibility
 
@@ -221,7 +223,9 @@ and scores reset.
 | hold/release `G` | charge and throw the selected throwable; longer holds throw farther, and a frag cooks while held (hold past the fuse and it goes off in your hand) |
 | `H`, or wheel while holding `G` | cycle the throwable: M-4 FRAG (2), LIMPET CHARGE (1, sticks to walls and players), PULSE SHOCK (2, impact concussion) |
 | hold/release mouse1 with the LONGARC | charge the coilgun; release fires, a full charge pierces walls and chain-arcs off the first body hit |
-| `1-8` / wheel | weapon slots (`1-8` also pick directly while the weapon wheel is open) |
+| hold/release mouse1 with the VOLTLANCE | charge the rail-lance; release fires, a full charge spears up to three enemies on the line and dies on the first wall (no wall pierce, no chain) |
+| mouse1 with the K-7 RIPPER | swing freely: swipes consume no ammo and never reload, and a strike from behind an enemy's facing backstabs for 2.5x |
+| `1-9` / `0` / wheel | weapon slots (`1-9` and `0` also pick directly while the weapon wheel is open) |
 | `Q` | previous weapon; hold instead opens the weapon wheel; while dead, previous spectator target |
 | hold `Q` / middle mouse | open the radial weapon wheel: aim freezes, mouse motion or scroll highlights a wedge, releasing the held control or clicking equips it, and a centered release, `Esc`, or right mouse cancels |
 | `E` | hold S&D interaction; while dead, next spectator target |
@@ -272,7 +276,7 @@ a portrait hint asks you to rotate, and buttons vibrate briefly on devices with
 haptics. Safe-area-aware portrait and landscape layouts keep the combat HUD
 clear of the controls. Append `?touch=1` to force this mode during desktop QA.
 
-## The eight guns
+## The ten guns
 
 | gun | mode | rate | ammo | feel identity |
 |---|---:|---:|---:|---|
@@ -284,6 +288,8 @@ clear of the controls. Append `?touch=1` to force this mode during desktop QA.
 | **IRONCLAD .44** revolver | semi-automatic | 300 rpm | 6 + 8 mags | high-damage precision sidearm with fast handling |
 | **LN-03 LONGARC** | charge (hold/release) | 160 rpm | 8 + 6 mags | coilgun: a tap is a weak dart, a full charge pierces a wall and chain-arcs to two nearby enemies, holding too long vents the shot; rising capacitor whine and coil glow |
 | **RX-8 HAVOC** | semi-automatic | 45 rpm | 1 + 5 tubes | slow authoritative rocket with splash, terrain carve, direct-hit bonus, and a self-knockback tuned for rocket jumps |
+| **CL-9 VOLTLANCE** | charge (hold/release) | 140 rpm | 5 + 6 mags | charge rail-lance: a tap flings a weak dart, a full charge spears up to three enemies on the line and dies on the first wall — no wall pierce, no chain; rising cell whine and violet lance glow |
+| **K-7 RIPPER** | melee | 120 rpm | no ammo — swings are free | free-swinging fighting knife: short-arc swipes that never reload, 2.5x backstabs from behind, and infinite ammo |
 
 Gun timing lives in `public/js/guns/defs.js` (timer table per weapon); shared
 ballistics/damage in `shared/combatmath.js`; authoritative resolve in
@@ -292,8 +298,8 @@ your reported view angles — client damage claims are never trusted.
 
 ## Feel and settings
 Weapon mass is part of the shared definition: rifle 3.4 kg, SMG 2.3 kg,
-shotgun 3.6 kg, sniper 5.2 kg, LMG 8.4 kg, revolver 1.4 kg, longarc 4.1 kg, and
-rocket 9.6 kg. Mouse aim and
+shotgun 3.6 kg, sniper 5.2 kg, LMG 8.4 kg, revolver 1.4 kg, longarc 4.1 kg,
+rocket 9.6 kg, lance 3.8 kg, and knife 0.9 kg. Mouse aim and
 server authority remain immediate. The procedural gun owns a separate angular
 orientation with weight-limited speed and acceleration, so heavier weapons trail
 farther during a turn and settle more slowly after the mouse has stopped.

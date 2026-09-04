@@ -17,7 +17,9 @@ export const GUN_GAME_WEAPON_ORDER = Object.freeze([
   'lmg',
   'rocket',
   'longarc',
+  'lance',
   'revolver',
+  'knife',
 ]);
 
 export const START_CREDITS = 800;
@@ -29,10 +31,12 @@ export const LOSS_CREDIT_LADDER = Object.freeze([1400, 1900, 2400, 2900, 3400]);
 
 export const WEAPON_PRICES = Object.freeze({
   revolver: 0,
+  knife: 500,
   smg: 1250,
   shotgun: 1800,
   rifle: 2700,
   longarc: 3500,
+  lance: 3800,
   lmg: 4000,
   rocket: 4300,
   sniper: 4750,

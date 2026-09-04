@@ -28,10 +28,11 @@ export const CONDITION_RULES = Object.freeze({
 
 /**
  * @typedef {Object} WeaponDef
- * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket')
+ * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife')
  * @property {string} name          display name
- * @property {'auto'|'semi'|'pump'|'bolt'|'charge'} mode trigger behavior; `charge` fires on
- *                                  trigger release and scales with the hold (see `charge`)
+ * @property {'auto'|'semi'|'pump'|'bolt'|'charge'|'melee'} mode trigger behavior; `charge` fires on
+ *                                  trigger release and scales with the hold (see `charge`); `melee`
+ *                                  swings consume no ammunition and never reload (see `melee`)
  * @property {number} rpm           rounds per minute cap
  * @property {number} magSize       magazine capacity
  * @property {number} spareMags    full spare magazines carried on spawn
@@ -54,12 +55,13 @@ export const CONDITION_RULES = Object.freeze({
  * @property {number} reloadTime    full magazine reload seconds
  * @property {number} tacTime       fast tactical reload seconds (round still chambered)
  * @property {number} deployTime    equip raise seconds
- * @property {{color:string,width:number,len:number}} tracer  visual spec, hex + px + world units
+ * @property {?{color:string,width:number,len:number}} tracer  visual spec, hex + px + world units; `null` for weapons with no projectile line (melee)
  * @property {number} weightKg      carried weapon mass; drives viewmodel inertia only
  * @property {string} sfx           bank key for the audio engine
+ * @property {{reach:number,coneDeg:number,backstabMult:number,backstabDot:number}} [melee] melee profile: swing hits enemies within `reach` meters inside a `coneDeg` arc; damage multiplies by `backstabMult` when the swing direction aligns with the victim's facing beyond `backstabDot`
  */
 
-/** The eight-gun roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
+/** The ten-weapon roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
 export const WEAPONS = {
   rifle: {
     id: 'rifle', name: 'VK-77 RAPTOR', mode: 'auto',
@@ -206,6 +208,58 @@ export const WEAPONS = {
     chain: { targets: 2, radius: 7.5, damageMult: 0.45 },
     pierce: { players: 2, walls: 1, playerFalloff: 0.7, wallFalloff: 0.6 },
   },
+  lance: {
+    // CL-9 VOLTLANCE: charge rail-lance. The trigger charges a lance cell and the
+    // coherent particle lance leaves on release. A tap flings a weak dart; a full
+    // charge spears every enemy standing on the line (up to `pierce.players`) and
+    // dies on the first wall — unlike LONGARC it never pierces terrain and never arcs.
+    id: 'lance', name: 'CL-9 VOLTLANCE', mode: 'charge',
+    weightKg: 3.8,
+    rpm: 140, magSize: 5, spareMags: 6,
+    damage: [96, 70, 70], falloffStart: 30, headMult: 1.9, pellets: 1,
+    spreadDeg: { hip: 1.2, ads: 0.05 }, bloomDeg: 0.4, bloomMaxDeg: 2.4,
+    bloomRecover: 3.4, moveSpreadDeg: 2.0,
+    crouchSpreadMult: 0.66,
+    recoil: {
+      pitch: 2.1, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.45, yawPattern: [-0.40, 0.50, -0.30, 0.60],
+      jitter: 0.06, resetMs: 850, adsMult: 0.60, recovery: 0.62,
+    },
+    adsFov: 42, zoom: 1.8, adsTime: 0.17,
+    reloadTime: 2.4, tacTime: 1.9, deployTime: 0.46,
+    tracer: { color: '#c9a2ff', width: 1.7, len: 58 },
+    sfx: 'lance',
+    charge: {
+      ms: 620,            // hold that reaches a full charge
+      holdMaxMs: 1800,    // cell vents: the shot fires itself at this hold
+      minDamageMult: 0.45,
+      wallPierceAt: 2,    // unreachable sentinel: the lance never pierces walls
+      chainAt: 2,         // unreachable sentinel: no chain arc on this weapon
+    },
+    pierce: { players: 3, walls: 0, playerFalloff: 0.82, wallFalloff: 0.6 },
+  },
+  knife: {
+    // K-7 RIPPER: fighting knife. No magazine and no reload — every swing is free
+    // and the cadence is the rpm cap alone. A short reach cone replaces ballistics;
+    // swinging into an enemy from behind their facing is a lethal backstab.
+    id: 'knife', name: 'K-7 RIPPER', mode: 'melee',
+    weightKg: 0.9,
+    rpm: 120, magSize: 0, spareMags: 0,
+    damage: [58, 58, 2], headMult: 1.0, pellets: 1,
+    spreadDeg: { hip: 0, ads: 0 }, bloomDeg: 0, bloomMaxDeg: 0,
+    bloomRecover: 1, moveSpreadDeg: 0,
+    crouchSpreadMult: 1,
+    recoil: {
+      pitch: 1.1, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.3, yawPattern: [0.40, -0.35],
+      jitter: 0.05, resetMs: 550, adsMult: 1, recovery: 0.7,
+    },
+    adsFov: 68, zoom: 1, adsTime: 0.08,
+    reloadTime: 0, tacTime: 0, deployTime: 0.3,
+    tracer: null,        // no projectile line: the swing arc is presentation-only
+    sfx: 'knife',
+    melee: { reach: 2.2, coneDeg: 110, backstabMult: 2.5, backstabDot: 0.4 },
+  },
   rocket: {
     // Shoulder launcher: one slow rocket per tube that detonates on any contact. Splash
     // and terrain carve come from shared/rocket-rules.js; the owner's own blast launches
@@ -230,7 +284,7 @@ export const WEAPONS = {
   },
 };
 
-export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket'];
+export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife'];
 
 /** Charge profile with safe defaults for weapons that are not `charge` mode. */
 export function chargeProfile(def) {
@@ -257,7 +311,6 @@ export function chargeDamageMult(def, charge01) {
   const t = Math.max(0, Math.min(1, Number.isFinite(charge01) ? charge01 : 1));
   return profile.minDamageMult + (1 - profile.minDamageMult) * t;
 }
-
 /** Deterministic patterned camera kick in degrees; random01 only adds bounded micro-variation. */
 export function computeRecoilKickDeg(def, shotIndex, adsT = 0, random01 = 0.5) {
   const profile = def.recoil;

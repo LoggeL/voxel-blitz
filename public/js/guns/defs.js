@@ -242,6 +242,66 @@ export const TIMERS = {
     adsOffset: { x: 0, y: -0.175, z: -0.62 },
     kick: { stiffness: 150, damping: 20, yawWobble: 0.7 },
   },
+  lance: {
+    // CL-9 VOLTLANCE: compact charge rail-lance. The trigger charges a lance cell; the
+    // coherent lance leaves on release with zero mechanical cycle, so the capacitor
+    // recharge (rechargeDur) is the whole visual signature, like the LONGARC above.
+    tbase: -0.02,
+    rof: WEAPONS.lance.rpm,
+    adsTime: WEAPONS.lance.adsTime,
+    deployTime: WEAPONS.lance.deployTime,
+    weightKg: WEAPONS.lance.weightKg,
+    viewKick: { pitchDeg: WEAPONS.lance.recoil.pitch, yawDeg: WEAPONS.lance.recoil.yaw },
+    bursts: [[0]],          // charge mode: one lance per release, no auto cadence.
+    anglesRad: [-0.0011],
+    interval: 0,
+    clip: 999,
+    muzzle: [0, 0.055, -0.72],
+    portY: 0.15,
+    ejectRight: -0.06,
+    barrelLen: 0.42,        // exposed rail breech -0.30 -> tip.
+    heatLen: [0.35, 0.9],   // coil-glow band spans the rail between the lance cells.
+    boltTravel: 0.10,       // charging sled throw on recharge.
+    rechargeDur: 0.16,      // violet-cyan coil-glow decay sells the cell venting.
+    pumpMag: 0,
+    cycleBack: false,
+    cycleKind: null,
+    ejectOnFire: false,     // the lance is a coherent particle spear: nothing to fling.
+    magTimeline: { start: 0.2, home: 0.8, clickAt: 0.9, type: 'mag' },
+    adsOffset: { x: 0, y: -0.155, z: -0.78 },   // shared 0.155 sight line with the rail optic.
+    kick: { stiffness: 185, damping: 21, yawWobble: 0.6 },
+  },
+  knife: {
+    // K-7 RIPPER: fighting knife. Melee never reloads and never cycles — every field below
+    // still exists so the rig/action code can read the sheet without mode special cases.
+    muzzle: [0, 0.02, -0.42],   // blade point; the spine sits just under the 0.02 sight line.
+    // bolt-status cap for it (a remote-avatar stab pose reads the same flag).
+    tbase: -0.01,
+    rof: WEAPONS.knife.rpm,
+    adsTime: WEAPONS.knife.adsTime,
+    deployTime: WEAPONS.knife.deployTime,
+    weightKg: WEAPONS.knife.weightKg,
+    viewKick: { pitchDeg: WEAPONS.knife.recoil.pitch, yawDeg: WEAPONS.knife.recoil.yaw },
+    bursts: [[0]],          // one swing per pull; pacing is the rpm cap alone.
+    anglesRad: [0],
+    interval: 0,
+    clip: 999,
+    muzzle: [0, 0.02, -0.42],   // blade point; the spine top IS the 0.02 sight line.
+    portY: 0.05,
+    ejectRight: 0,
+    barrelLen: 0.40,        // guard plane -0.02 -> blade point; heat-band mapping span.
+    heatLen: [0.04, 0.12],  // small ember collar at the blade base, short of the guard.
+    boltTravel: 0,          // no bolt: the per-shot jerk stroke no-ops on an empty group.
+    rechargeDur: 0.09,
+    pumpMag: 0,
+    cycleBack: false,
+    cycleKind: null,
+    ejectOnFire: false,     // nothing to eject; swings consume no ammunition.
+    magTimeline: { start: 0.1, home: 0.6, clickAt: 0, type: 'mag' }, // never plays: magSize 0.
+    adsOffset: { x: 0, y: -0.02, z: -0.60 },    // point the blade spine down the camera axis.
+    kick: { stiffness: 320, damping: 26, yawWobble: 0.5 },  // light, snappy wrist snap.
+    melee: true,
+  },
 };
 
 /**
@@ -326,9 +386,18 @@ export const HANDS = {
     grip: { x: 0.045, y: -0.02, z: -0.08 },                 // pistol grip under the tube.
     support: { x: -0.06, y: -0.03, z: -0.40, on: 'body' },  // forward handle under the tube.
   },
+  lance: {
+    grip: { x: 0.045, y: 0.015, z: -0.10 },                 // dominant palm wraps pistol grip.
+    support: { x: -0.055, y: 0.005, z: -0.42, on: 'body' }, // cup under the rail shroud.
+  },
+  knife: {
+    grip: { x: 0.020, y: -0.030, z: 0.005 },                // fist rides low: the baked glove
+                                                            // cuff must stay under the 0.02 sight line.
+    support: null,                                          // single hand: the blade is the support.
+  },
 };
 
-/** Equip ("draw") choreography, fractions of WEAPONS[id].deployTime. Shared by all eight guns;
+/** Equip ("draw") choreography, fractions of WEAPONS[id].deployTime. Shared by all ten guns;
  * heavier weapons feel slower automatically through their canonical deploy times. */
 export const DEPLOY = {
   raise: 0.38,     // first slice spends rising out of the equip dip.

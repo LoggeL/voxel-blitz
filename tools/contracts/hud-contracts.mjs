@@ -777,6 +777,27 @@ export async function runHudContracts(ok, installGlobals) {
       hud.setState({ charge01: null });
       ok(chargingMeter && chainMeter && !hud.dom.chargeMeter.classList.contains('is-visible'),
         'the coil meter shows the live LONGARC charge, flags chain readiness, and hides for other weapons');
+      hud.setState({ charge01: 0.5, chainAt: null });
+      const chainlessMeter = hud.dom.chargeMeter.classList.contains('is-visible')
+        && !hud.dom.chargeMeter.classList.contains('is-chain')
+        && hud.dom.chargeMeterChain.style.display === 'none'
+        && hud.dom.chargeMeterLabel.textContent === 'CHARGING';
+      hud.setState({ charge01: 1 });
+      ok(chainlessMeter && !hud.dom.chargeMeter.classList.contains('is-chain')
+        && hud.dom.chargeMeterLabel.textContent === 'CHARGED',
+      'a chainAt-null charge weapon hides the chain mark and settles on CHARGED at full');
+      hud.setState({ charge01: null });
+
+      hud.setState({ wid: 'knife', wname: 'K-7 RIPPER', mag: 0, reserve: 0 });
+      const meleeAmmo = hud.dom.mag.textContent === '∞'
+        && hud.dom.sep.style.display === 'none'
+        && hud.dom.res.style.display === 'none'
+        && !hud.dom.mag.classList.contains('vb-low');
+      hud.setState({ wid: 'rifle', mag: 24, reserve: 3 });
+      ok(meleeAmmo && hud.dom.mag.textContent === '24'
+        && hud.dom.sep.style.display !== 'none'
+        && hud.dom.res.style.display !== 'none',
+      'melee ammo renders an infinite magazine with no reserve and a gun restores the readout');
 
       const liveTick = makeSnapshot([], [], [], 20000, {
         ...prepMatch,

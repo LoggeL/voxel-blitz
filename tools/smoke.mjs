@@ -132,17 +132,17 @@ function runDirectContracts() {
   ok(stateEvents[0]?.kind === 'die' && stateEvents[1]?.kind === 'respawn',
     'embedded die and respawn events are dispatchable by kind');
 
-  const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket'];
-  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6];
+  const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife'];
+  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6, 3.8, 0.9];
   ok(JSON.stringify(WEAPON_IDS) === JSON.stringify(expectedWeaponIds),
-    'weapon roster exposes the exact eight-slot order');
+    'weapon roster exposes the exact ten-slot order');
   const definitionsComplete = WEAPON_IDS.every((id, slot) => {
     const def = WEAPONS[id];
     return def?.id === id && typeof def.name === 'string' && def.name.length > 0
-      && ['auto', 'semi', 'pump', 'bolt', 'charge'].includes(def.mode)
+      && ['auto', 'semi', 'pump', 'bolt', 'charge', 'melee'].includes(def.mode)
       && Number.isFinite(def.rpm) && def.rpm > 0
-      && Number.isInteger(def.magSize) && def.magSize > 0
-      && Number.isInteger(def.spareMags) && def.spareMags > 0
+      && Number.isInteger(def.magSize) && def.magSize >= 0
+      && Number.isInteger(def.spareMags) && def.spareMags >= 0
       && Array.isArray(def.damage) && def.damage.length === 3 && def.damage.every(Number.isFinite)
       && (def.falloffStart === undefined || Number.isFinite(def.falloffStart))
       && Number.isFinite(def.headMult) && Number.isInteger(def.pellets)
@@ -161,11 +161,14 @@ function runDirectContracts() {
       && Number.isFinite(def.recoil?.resetMs) && def.recoil.resetMs > 0
       && def.recoil.resetMs > 60000 / def.rpm
       && Number.isFinite(def.recoil?.adsMult) && def.recoil.adsMult > 0 && def.recoil.adsMult <= 1
-      && typeof def.tracer?.color === 'string' && Number.isFinite(def.tracer?.width)
-      && Number.isFinite(def.tracer?.len) && typeof def.sfx === 'string'
+      && (def.mode === 'melee'
+        ? def.tracer === null
+        : (typeof def.tracer?.color === 'string' && Number.isFinite(def.tracer?.width)
+          && Number.isFinite(def.tracer?.len)))
+      && typeof def.sfx === 'string'
       && def.weightKg === expectedWeights[slot];
   });
-  ok(definitionsComplete, 'all eight weapon definitions carry the complete shared contract');
+  ok(definitionsComplete, 'all ten weapon definitions carry the complete shared contract');
   const recoilSignatures = WEAPON_IDS.map((id) => WEAPONS[id].recoil.yawPattern.join(','));
   const rifleKick0 = computeRecoilKickDeg(WEAPONS.rifle, 0, 0, 0.5);
   const rifleKick5 = computeRecoilKickDeg(WEAPONS.rifle, 5, 0, 0.5);

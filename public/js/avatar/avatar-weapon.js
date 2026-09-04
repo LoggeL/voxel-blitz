@@ -54,6 +54,7 @@ export class AvatarWeaponModel {
     this._model = null;
     this._weaponId = null;
     this._recoil = 0;
+    this._stab = 0;        // smoothed 0..1 melee stab lunge weight (T.melee bundles only)
     this._flash = 0;
     this._ads = 0;
     this._reload = 0;      // smoothed 0..1 reload pose weight
@@ -130,12 +131,19 @@ export class AvatarWeaponModel {
     this.setWeapon(weapon);
     if (!this._model) return;
     const frameDt = Math.max(0, Number(dt) || 0);
+    // Melee (T.melee): the firing pulse drives a forward stab, not a recoil shove, and
+    // the assembled flash stub stays dark — a blade neither flashes nor kicks.
+    const melee = this._model.T.melee === true;
     const weight = WEAPONS[this._weaponId]?.weightKg || 3.4;
     // Heavier guns kick their carrier harder and settle slower, as in first person.
     const kickScale = Math.max(0.7, Math.min(1.5, Math.pow(weight / 3.4, 0.35)));
     const blend = 1 - Math.exp(-frameDt * (firing ? 28 : 16 / Math.sqrt(kickScale)));
-    this._recoil += ((firing ? 1 : 0) - this._recoil) * blend;
-    this._flash = firing ? 1 : Math.max(0, this._flash - frameDt / 0.065);
+    this._recoil += ((firing && !melee ? 1 : 0) - this._recoil) * blend;
+    this._flash = melee ? 0 : (firing ? 1 : Math.max(0, this._flash - frameDt / 0.065));
+    // Stab envelope mirrors the recoil pulse: fast exp attack (full lunge over ~0.12s of
+    // held firing), slower exp settle once the swing flag drops.
+    const stabBlend = 1 - Math.exp(-frameDt * (firing ? 22 : 10));
+    this._stab += ((firing ? 1 : 0) - this._stab) * stabBlend;
     const adsTime = Math.max(0.05, WEAPONS[this._weaponId]?.adsTime || 0.16);
     const adsBlend = 1 - Math.exp(-frameDt * 3 / adsTime);
     this._ads += (((ads && !reloading) ? 1 : 0) - this._ads) * adsBlend;
@@ -152,15 +160,17 @@ export class AvatarWeaponModel {
     const aimPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, Number(pitch) || 0));
     const hip = this._profile.hip;
     const aimed = this._profile.ads;
-    const recoil = this._recoil * kickScale;
+    const recoil = melee ? 0 : this._recoil * kickScale;
+    const stab = melee ? this._stab : 0;
     this.root.position.set(
       THREE.MathUtils.lerp(hip.x, aimed.x, this._ads) - this._reload * 0.02,
       THREE.MathUtils.lerp(hip.y, aimed.y, this._ads) - crouch * 0.29 +
         Math.abs(swing) * stride * 0.012 - this._reload * 0.07,
-      THREE.MathUtils.lerp(hip.z, aimed.z, this._ads) + recoil * 0.035 + this._reload * 0.03,
+      THREE.MathUtils.lerp(hip.z, aimed.z, this._ads) + recoil * 0.035 - stab * 0.15 +
+      this._reload * 0.03,
     );
     this.root.rotation.set(
-      aimPitch * (1 - this._reload * 0.6) + recoil * 0.045 - this._reload * 0.42,
+      aimPitch * (1 - this._reload * 0.6) + recoil * 0.045 - stab * 0.09 - this._reload * 0.42,
       this._reload * 0.18,
       -swing * stride * 0.025 * (1 - this._ads * 0.72) + this._reload * 0.28,
     );
@@ -183,6 +193,7 @@ export class AvatarWeaponModel {
 
   resetPose() {
     this._recoil = 0;
+    this._stab = 0;
     this._flash = 0;
     this._ads = 0;
     this._reload = 0;

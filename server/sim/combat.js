@@ -65,9 +65,12 @@ export function switchWeapon(p, slot) {
 }
 
 export function canFire(p, fireEdge, ctx) {
-  const semi = p.def.mode !== 'auto';
+  const mode = p.def.mode;
+  // Melee swings are free: no magazine and no semi-auto lock — the rpm cadence
+  // is the only rate limiter, so a held trigger keeps swinging.
+  const semi = mode !== 'auto' && mode !== 'melee';
   return ctx.canFire(p) && !p.reloading && p.deployT <= 0 &&
-    p.cooldown <= 0 && p.mag[p.weapon] > 0 &&
+    p.cooldown <= 0 && (mode === 'melee' || p.mag[p.weapon] > 0) &&
     !(semi && p.triggerPrev && !fireEdge);
 }
 
@@ -117,6 +120,11 @@ export function resolveWeaponIntent(p, _dt, ctx) {
     p.triggerPrev = inp.wantFire;
     return;
   }
+  if (def.mode === 'melee') {
+    resolveMeleeIntent(p, inp, fireEdge, ctx);
+    p.triggerPrev = inp.wantFire;
+    return;
+  }
   const wantsShot = inp.wantFire || fireEdge;
   // A staged tube reload yields to the trigger: whatever is seated fires now.
   if (wantsShot && p.reloading && p.reloadStage && p.mag[p.weapon] > 0) clearReload(p);
@@ -149,6 +157,89 @@ function resolveChargeIntent(p, dt, inp, fireEdge, ctx) {
   cancelCharge(p);
   if (!ctx.canFire(p) || p.reloading || p.deployT > 0 || p.mag[p.weapon] <= 0) return;
   fireOneShot(p, ctx, charge);
+}
+
+/**
+ * Melee weapons (K-7 RIPPER): every swing is free — no magazine, no reload — so
+ * the press edge or a held trigger swings at the rpm cadence alone. A short
+ * reach cone replaces ballistics entirely (see `meleeSwing`).
+ */
+function resolveMeleeIntent(p, inp, fireEdge, ctx) {
+  if (!(inp.wantFire || fireEdge) || !canFire(p, true, ctx)) return;
+  p.cooldown = 60 / p.def.rpm;
+  meleeSwing(p, ctx);
+}
+
+/**
+ * Resolve one accepted swing: the single best-angle living victim inside
+ * `melee.reach` (center distance + victim radius) and the `melee.coneDeg` arc,
+ * with voxel line of sight from the shooter's eye, takes the hit. A victim
+ * facing along the swing direction beyond `melee.backstabDot` is a backstab.
+ * Damage flows through the same body-hit event path as `fireOneShot` — kill
+ * credit included — but never headshots, never falls off, and never breaks
+ * blocks.
+ */
+function meleeSwing(p, ctx) {
+  const def = p.def;
+  const melee = def.melee;
+  p.spawnProtectedUntil = 0;
+  p.spawnProtected = false;
+  p.shotSeq++;
+  p.firing = true;
+  const fwd = fwdFromYawPitch(p.yaw, p.pitch);
+  const oEye = [p.x, p.eyeY, p.z];
+  // Same presentation origin as fireOneShot so client FX share one contract.
+  const muzzle = [
+    oEye[0] + fwd.x * 0.25,
+    oEye[1] - 0.15 + fwd.y * 0.25,
+    oEye[2] + fwd.z * 0.25,
+  ];
+  ctx.pushEvent(evShoot(
+    p.id, muzzle, [fwd.x, fwd.y, fwd.z], def.id, [fwd.x, fwd.y, fwd.z],
+  ));
+
+  const cosHalf = Math.cos(melee.coneDeg * Math.PI / 360);
+  let best = null;
+  let bestDot = -Infinity;
+  let bestDist = Infinity;
+  for (const v of ctx.entities.values()) {
+    if (v === p || v.state !== 'alive') continue;
+    if (!ctx.canDamage(p, v)) continue;
+    const dx = v.x - oEye[0];
+    const dy = v.y + PLAYER_HALF.h - oEye[1];
+    const dz = v.z - oEye[2];
+    const dist = Math.hypot(dx, dy, dz);
+    if (dist > melee.reach + PLAYER_HALF.x) continue;
+    const dot = dist > 0 ? (dx * fwd.x + dy * fwd.y + dz * fwd.z) / dist : 1;
+    if (dot < cosHalf) continue;
+    // Smallest angle to the aim ray wins; ties break to the nearer victim.
+    if (dot < bestDot - 1e-9 || (dot <= bestDot + 1e-9 && dist >= bestDist)) {
+      continue;
+    }
+    bestDot = dot;
+    bestDist = dist;
+    best = { victim: v, dx, dy, dz, dist };
+  }
+  if (!best) return;
+
+  // Voxel line of sight: a wall between the blade and the body stops the swing.
+  const dirX = best.dx / best.dist;
+  const dirY = best.dy / best.dist;
+  const dirZ = best.dz / best.dist;
+  if (raycastVoxels(
+    ctx.solidAt,
+    oEye[0], oEye[1], oEye[2],
+    dirX, dirY, dirZ,
+    Math.max(0.05, best.dist - 0.2),
+  )) return;
+
+  const victim = best.victim;
+  const vFwd = fwdFromYawPitch(victim.yaw, victim.pitch);
+  const backstab = vFwd.x * dirX + vFwd.y * dirY + vFwd.z * dirZ > melee.backstabDot;
+  const dmg = Math.round(def.damage[0] * (backstab ? melee.backstabMult : 1) * 10) / 10;
+  const lethal = victim.takeDamage(dmg, false);
+  ctx.pushEvent(evHit(p.id, victim.id, dmg, false, [victim.x, victim.eyeY, victim.z]));
+  if (lethal) ctx.killPlayer(victim, p, def.id, false);
 }
 
 /** Segment (array origin o, unit object direction d) vs victim AABB. */
@@ -405,6 +496,9 @@ export function fireOneShot(p, ctx, charge = 1) {
       for (;;) {
         const tgt = nearestVictim(p, o, d, wallSegT, ctx, minT);
         if (!tgt) break;
+        // `pierce.players` caps the victims the slug damages; the next body in
+        // line stops it (BUILD-CONTRACT: LONGARC pierces up to 2, lance up to 3).
+        if (playersLeft <= 0) { stoppedInFlesh = true; break; }
         const dist = traveled + tgt.t;
         const ix = ox + d.x * tgt.t;
         const iy = oy + d.y * tgt.t;
@@ -422,7 +516,6 @@ export function fireOneShot(p, ctx, charge = 1) {
           arced = true;
           chainArc(p, def, tgt.victim, [ix, iy, iz], dmg, ctx);
         }
-        if (playersLeft <= 0) { stoppedInFlesh = true; break; }
         playersLeft -= 1;
         dmgMult *= playerFalloff;
         minT = tgt.t + 0.1;

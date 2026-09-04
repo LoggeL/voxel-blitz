@@ -426,7 +426,7 @@ class Game {
         cls: WEAPON_CLASSES[id] || '',
         icon: `./assets/weapons/hud/${id}.png`,
         key: `[${slot + 1}]`,
-        ammo: locked ? '—' : `${ammo?.mag || 0} / ${ammo?.reserve || 0}`,
+        ammo: locked ? '—' : (WEAPONS[id].mode === 'melee' ? '∞' : `${ammo?.mag || 0} / ${ammo?.reserve || 0}`),
         owned: !locked,
         current: this.weapon?.slot === slot,
       };
@@ -518,7 +518,7 @@ class Game {
     }
     const entries = this.wheelEntries();
     const sig = entries.map((entry) =>
-      `${entry.id}|${entry.ammo}|${entry.owned ? 1 : 0}|${entry.current ? 1 : 0}`).join(';');
+      `${entry.id}|${entry.name}|${entry.ammo}|${entry.owned ? 1 : 0}|${entry.current ? 1 : 0}`).join(';');
     if (sig !== this._wheelEntriesSig) {
       this._wheelEntriesSig = sig;
       this.hud.setWeaponWheelState({ entries });

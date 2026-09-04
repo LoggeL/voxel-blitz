@@ -1,4 +1,4 @@
-// Eight-model registry and shared first-person gun composition root.
+// Ten-model registry and shared first-person gun composition root.
 import * as THREE from '../vendor/three.module.js';
 import { HANDS, timerFor } from './defs.js';
 import { makeFlash, makeFx, makeKit } from './kit.js';
@@ -17,6 +17,8 @@ import { build as buildLmg } from './models/lmg.js';
 import { build as buildRevolver } from './models/revolver.js';
 import { build as buildLongarc } from './models/longarc.js';
 import { build as buildRocket } from './models/rocket.js';
+import { build as buildLance } from './models/lance.js';
+import { build as buildKnife } from './models/knife.js';
 
 const MODELS = Object.freeze({
   rifle: buildRifle,
@@ -27,11 +29,28 @@ const MODELS = Object.freeze({
   revolver: buildRevolver,
   longarc: buildLongarc,
   rocket: buildRocket,
+  lance: buildLance,
+  knife: buildKnife,
 });
+
+// Glow accents for the two roster ids kit.js's GLOW_ACCENT sheet does not carry yet. makeFx()
+// defaults to GLOW_ACCENT[id], so assemble passes the def-tracer-matched colors here and the
+// rig, HUD icon rasterizer, and models all agree on one accent per weapon.
+const FX_ACCENT = Object.freeze({ lance: 0xc9a2ff, knife: 0xb8c4d4 });
+
+/**
+ * Melee bundles have no ballistic muzzle flash, but the flash object is part of the model
+ * contract: the rig (revealFlash/flashOff/_decayFx), the avatar mount, and HUD capture all
+ * dereference `flash.grp/mats/light` unconditionally. A stub with an empty group and an
+ * inert light stand-in keeps every consumer honest while never rendering anything.
+ */
+function makeMeleeFlash() {
+  return { grp: new THREE.Group(), mats: [], light: { intensity: 0 } };
+}
 
 /**
  * Assemble one model bundle. MaterialCache is rig-owned; registering the completed hierarchy
- * preserves one shared-material reference per rig even when all eight models are built lazily.
+ * preserves one shared-material reference per rig even when all ten models are built lazily.
  */
 export function buildGun(id, cache) {
   const buildModel = MODELS[id];
@@ -41,6 +60,7 @@ export function buildGun(id, cache) {
   }
 
   const T = timerFor(id);
+  const melee = T.melee === true;
   const hands = HANDS[id];
   const kit = makeKit(cache);
   const root = new THREE.Group();
@@ -70,17 +90,19 @@ export function buildGun(id, cache) {
   muzzleMarker.position.set(T.muzzle[0], T.muzzle[1], T.muzzle[2]);
   body.add(muzzleMarker);
 
-  const flash = makeFlash();
+  const flash = melee ? makeMeleeFlash() : makeFlash();
   flash.grp.position.copy(muzzleMarker.position).add(new THREE.Vector3(0, 0, -0.01));
   body.add(flash.grp);
 
-  const fx = makeFx(id);
+  const fx = makeFx(id, FX_ACCENT[id]);
   const uni = fx.uniforms;
   const glow = fx.material;
-  const capZ = BOLT_HOME[id];
-  const cap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.012), glow);
-  cap.position.set(-0.02, 0.07, capZ + 0.052);
-  bolt.add(cap);
+  if (!melee) {
+    const capZ = BOLT_HOME[id];
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.012), glow);
+    cap.position.set(-0.02, 0.07, capZ + 0.052);
+    bolt.add(cap);
+  }
 
   const span = (T.heatLen[1] - T.heatLen[0]) * T.barrelLen;
   const startZ = BREACH_Z[id] - T.heatLen[0] * T.barrelLen;

@@ -22,6 +22,13 @@ export async function runWeaponWheelContracts(ok) {
   ok(wheelSlotFromVector(0, -1, 4) === 0 && wheelSlotFromVector(1, 0, 4) === 1
       && wheelSlotFromVector(0, 1, 4) === 2 && wheelSlotFromVector(-1, 0, 4) === 3,
     'a four-slot wheel gives each cardinal its own slot');
+  ok(wheelSlotFromVector(0, -1, 10) === 0 && wheelSlotFromVector(1, 0, 10) === 3
+      && wheelSlotFromVector(0, 1, 10) === 5 && wheelSlotFromVector(-1, 0, 10) === 8,
+    'the shipped ten-slot wheel maps up/right/down/left onto slots 0/3/5/8');
+  ok(wheelSlotFromVector(Math.sin(Math.PI / 10), -Math.cos(Math.PI / 10), 10) === 1,
+    'a vector on the ten-slot half-up boundary between slots rounds into the next clockwise slot');
+  ok(wheelSlotFromVector(-Math.sin(Math.PI / 10), -Math.cos(Math.PI / 10), 10) === 0,
+    'a vector on the last ten-slot half-up boundary wraps around into slot 0');
 
   ok(wheelSlotFromVector(0.1, 0.1, 8) === -1 && wheelSlotFromVector(0, 0, 8) === -1
       && wheelSlotFromVector(NaN, 1, 8) === -1 && wheelSlotFromVector(1, NaN, 8) === -1

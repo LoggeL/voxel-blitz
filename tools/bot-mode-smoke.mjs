@@ -454,7 +454,7 @@ function proveGunGameProgression() {
       }
     }
 
-    assert.equal(engine.mode.phase, 'post', 'final revolver kill concludes Gun Game');
+    assert.equal(engine.mode.phase, 'post', 'final knife kill concludes Gun Game');
     assert.equal(engine.mode.matchWinner, killer.id, 'Gun Game winner is the final killer');
     const finalKill = engine.tickEvents.findLast((event) => event.kind === 'kill');
     const markedKill = engine.tickEvents.find((event) => event.kind === 'kill' && event.hs);
@@ -463,7 +463,7 @@ function proveGunGameProgression() {
       { hs: true, lr: true, ns: true },
       'kill events preserve authoritative HEADSHOT, LONG RANGE, and NO-SCOPE markers',
     );
-    assert.equal(finalKill?.w, 'revolver', 'final Gun Game kill reports its required weapon');
+    assert.equal(finalKill?.w, 'knife', 'final Gun Game kill reports its required weapon');
 
     engine.now = engine.mode.phaseEndsAt;
     engine.step(0);

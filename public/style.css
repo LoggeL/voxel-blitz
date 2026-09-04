@@ -35,6 +35,8 @@
   --w-sniper:   #8fc7ff;
   --w-lmg:      #5ce6b0;
   --w-revolver: #ff5277;
+  --w-lance:    #c9a2ff;
+  --w-knife:    #b9c6cf;
 
   /* geometry */
   --cut: 10px;               /* chamfer bite */
@@ -2434,6 +2436,19 @@ h1.vb-title::after {
   to { box-shadow: 0 0 5px rgba(53, 224, 255, 0.25); }
 }
 
+/* A chainless charge weapon (VOLTLANCE) has no is-chain state; a full cell still
+   earns the bright charged treatment. Identical values to is-chain, so LONGARC's
+   own full state looks unchanged. */
+#charge-meter.is-full .vb-charge-label {
+  color: #dffbff;
+  text-shadow: 0 0 8px #35e0ff;
+}
+
+#charge-meter.is-full .vb-charge-track {
+  border-color: #dffbff;
+  box-shadow: 0 0 12px rgba(53, 224, 255, 0.5);
+}
+
 #grenade-count.is-charging .vb-grenade-icon:not(.is-spent) {
   transform: translateY(-1px);
 }
@@ -2540,6 +2555,8 @@ h1.vb-title::after {
 .vb-w-sniper   { --gun-tint: var(--w-sniper); }
 .vb-w-lmg      { --gun-tint: var(--w-lmg); }
 .vb-w-revolver { --gun-tint: var(--w-revolver); }
+.vb-w-lance    { --gun-tint: var(--w-lance); }
+.vb-w-knife    { --gun-tint: var(--w-knife); }
 
 #ammo.vb-w-rifle #weaponname, #weaponname.vb-w-rifle       { color: var(--w-rifle); }
 #ammo.vb-w-smg #weaponname, #weaponname.vb-w-smg           { color: var(--w-smg); }
@@ -2547,6 +2564,8 @@ h1.vb-title::after {
 #ammo.vb-w-sniper #weaponname, #weaponname.vb-w-sniper     { color: var(--w-sniper); }
 #ammo.vb-w-lmg #weaponname, #weaponname.vb-w-lmg           { color: var(--w-lmg); }
 #ammo.vb-w-revolver #weaponname, #weaponname.vb-w-revolver { color: var(--w-revolver); }
+#ammo.vb-w-lance #weaponname, #weaponname.vb-w-lance       { color: var(--w-lance); }
+#ammo.vb-w-knife #weaponname, #weaponname.vb-w-knife       { color: var(--w-knife); }
 
 /* ---------- killfeed ---------- */
 
