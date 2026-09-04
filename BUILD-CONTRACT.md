@@ -13,7 +13,8 @@ room/client interfaces below; do not fork their logic into a second convention.
   `shared/noise.js`. `shared/grenade-rules.js` is the shared throwable roster
   (`frag`, `limpet`, `pulse`), per-type inventory, charge/cook, clamp,
   throw-profile, and flight-integrator contract; `shared/rocket-rules.js` is the
-  shared rocket launch/flight/blast contract.
+  shared rocket launch/flight/blast contract, and `shared/bolt-rules.js` is the
+  shared bolt launch/flight/ricochet contract.
 - One room owns one map clone, `GameEngine`, `ModeController`, optional
   `BotManager`, and room-scoped transports. The server remains authoritative at
   20 Hz.
@@ -52,8 +53,8 @@ The first non-binary frame is exactly one admission shape:
   live shared Fun room with capacity or creates one. `bots` defaults to zero and
   applies only to a newly created quick room. Fresh quick rooms rotate between
   `foundry`, `depot`, `solstice`, and `caldera`.
-- `{t:'create',name:string,bots:number,gameMode?:'fun'|'tdm'|'snd'|'gungame',
-  map?:'foundry'|'depot'|'citadel'|'solstice'|'caldera'}` creates a public waiting lobby.
+- `{t:'create',name:string,bots:number,gameMode?:'fun'|'tdm'|'snd'|'gungame'|'training',
+  map?:'foundry'|'depot'|'citadel'|'solstice'|'caldera'|'killhouse'}` creates a public waiting lobby.
   Omitted values default to `fun` and the first compatible map. An explicitly
   incompatible mode/map pair is malformed.
 - `{t:'join',name:string,lobby:string}` joins a public waiting or live lobby and
@@ -138,12 +139,12 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   - `{t:'ev',kind:'block',x,y,z,v:0,from}`; the same mutation appears in
     `tick.blocks` at `i=(y*SZ+z)*SX+x`
   - `{t:'ev',kind:'projectileLaunch',id,pid,type,o:[x,y,z],v:[x,y,z],fuse}`,
-    `{t:'ev',kind:'projectileStick',id,pid,x,y,z,to,fuse}` (a limpet on terrain
-    has `to:null`, on a player `to` is that id), and
+    with bolts additionally carrying `bn` (reflections left: 1 at a tap, 3 at a
+    full charge), `{t:'ev',kind:'projectileStick',id,pid,x,y,z,to,fuse}` (a
+    limpet on terrain has `to:null`, on a player `to` is that id), and
     `{t:'ev',kind:'projectileExplode',id,pid,type,x,y,z,radius}` where `type`
-    is `'frag'|'limpet'|'pulse'|'rocket'`
-  - `{t:'ev',kind:'arc',id,from:[x,y,z],to:[x,y,z]}` for each chain-arc jump of
-    a fully charged LONGARC body hit; the arced victim receives a normal `hit`
+    is `'frag'|'limpet'|'pulse'|'rocket'|'bolt'`; a `'bolt'` explosion is the
+    harmless fizzle (radius 0.5, no blast, no knockback)
   - `{t:'die',kind:'die',id}` and
     `{t:'respawn',kind:'respawn',id,x,y,z}`
 - Mode events use `{t:'ev',kind,at,...fields}`. Their kinds and supplemental
@@ -187,7 +188,7 @@ Exports block ids `AIR` through `PALE`, `BLOCK_HP`, `GRENADE_RESISTANCE`, `SX`,
 `createWorldState(serializedBytes?)`. It also exports `getMapMeta(id)` and
 `createMapState(id,serializedBytes?)`.
 
-`createMapState` accepts `foundry`, `depot`, `citadel`, `solstice`, or `caldera` and returns an
+`createMapState` accepts `foundry`, `depot`, `citadel`, `solstice`, `caldera`, or `killhouse` and returns an
 independent `{mapId,meta,getBlock,setBlock,heightAt,findSpawns,serializeWorld,
 rebuildHeightMap}`. Templates are generated and cached once, then cloned for
 each room. `meta` is deeply frozen and has
@@ -196,13 +197,14 @@ sites,landmarks}`. Serialized map dimensions/header remain common across maps;
 the map id travels in JSON. `createWorldState` remains the default Foundry API.
 
 ### shared/modes.js
-Exports immutable `MODE_IDS=['fun','tdm','snd','gungame']`,
-`TEAM_IDS=['alpha','bravo']`, `MAP_IDS=['foundry','depot','citadel','solstice','caldera']`,
+Exports immutable `MODE_IDS=['fun','tdm','snd','gungame','training']`,
+`TEAM_IDS=['alpha','bravo']`, `MAP_IDS=['foundry','depot','citadel','solstice','caldera','killhouse']`,
 `MODE_RULES`, `MAP_MODE_COMPATIBILITY`, S&D credit constants,
 `WEAPON_PRICES`, defaults, validators/normalizers for mode/team/map/weapon ids,
 `isTeamMode(modeId)`, and `isModeMapCompatible(modeId,mapId)`. This is the browser/server source of
 truth for mode ids, map compatibility, timings, and economy. `MAP_MODE_COMPATIBILITY.caldera`
 covers every mode id.
+`MAP_MODE_COMPATIBILITY.killhouse` covers only training.
 
 ### shared/combatmath.js
 Exports `WEAPONS`, `WEAPON_IDS`, `CONDITION_RULES`, `GRAVITY`, `PLAYER_HALF`,
@@ -231,21 +233,22 @@ The slot roster is exactly
 | 5 `revolver` | IRONCLAD .44 | semi | 300 | 6/8 | 54→35 @ 80 | 1.90× | 1 | 1.15°/0.12° | 1.4 kg |
 | 6 `longarc` | LN-03 LONGARC | charge | 160 | 8/6 | 88→62 @ 95 | 2.00× | 1 | 1.60°/0.08° | 4.1 kg |
 | 7 `rocket` | RX-8 HAVOC | semi | 45 | 1/5 | projectile | 1.00× | 1 | 1.10°/0.25° | 9.6 kg |
-| 8 `lance` | CL-9 VOLTLANCE | charge | 140 | 5/6 | 96→70 @ 70 | 1.90× | 1 | 1.20°/0.05° | 3.8 kg |
+| 8 `lance` | CL-9 VOLTLANCE | charge | 100 | 4/5 | 130→95 @ 95 | 2.00× | 1 | 1.20°/0.05° | 3.8 kg |
 | 9 `knife` | K-7 RIPPER | melee | 120 | 0/0 | 58→58 (flat) | 1.00× | 1 | 0°/0° | 0.9 kg |
 
 Damage is flat to 20 world units by default; the shotgun starts falloff at 12
-and the lance at 30. It then falls linearly to the table's far value at the
+and the lance at 45. It then falls linearly to the table's far value at the
 listed end.
 
 The LONGARC is the `charge` mode: holding the trigger charges the capacitor
-over `charge.ms` (850) and the slug leaves on release, or on its own at
+over `charge.ms` (850) and the bolt leaves on release, or on its own at
 `charge.holdMaxMs` (2200). Damage scales linearly from `minDamageMult` (0.40) at
-a tap to the table value at full charge. The slug always pierces up to 2
-players (`playerFalloff` 0.7); it passes 1 wall (`wallFalloff` 0.6) only from
-`wallPierceAt` (0.60), and from `chainAt` (0.85) the first body hit arcs to up
-to `chain.targets` (2) visible enemies within `chain.radius` (7.5) for
-`chain.damageMult` (0.45) of that hit. The `rocket` is `projectile:'rocket'`:
+a tap to the table value at full charge. The LONGARC is `projectile:'bolt'`: its
+shot event carries no hitscan; `shared/bolt-rules.js` owns the ricochet rules —
+a tap bolt reflects off walls once, a full charge three times (`boltBounces`),
+bolts never pierce a body or a wall, and the bolt fizzles (a small
+`projectileExplode` pop with no blast) once the reflections run out or its
+lifetime expires. The `rocket` is `projectile:'rocket'`:
 its shot event carries no hitscan; `shared/rocket-rules.js` owns the launch
 (speed 42, gravity 2.4, 4000 ms lifetime), the direct-hit bonus (100), the
 splash (96 @ 4.8 radius, 0.55 self), knockback (11, 15.5 self), and the carve
@@ -254,14 +257,13 @@ reload, deploy, tracer, mass, and SFX fields are read from `WEAPONS`; do not
 duplicate them.
 
 The VOLTLANCE (`lance`) is the second `charge` mode: it charges over
-`charge.ms` (620), vents itself at `charge.holdMaxMs` (1800), and taps for
-`minDamageMult` (0.45), but its pierce profile is 3 players / 0 walls with
-`playerFalloff` 0.82 — a charged lance spears up to three enemies on the line
-and dies on the first wall. Its `wallPierceAt` (2) and `chainAt` (2) are
-unreachable sentinels: the shared charge thresholds compare against a charge
-normalized to `0–1`, so they can never be met. Disabling wall piercing and
-chain arcing this way keeps LONGARC and VOLTLANCE on one code path — no
-weapon-specific branch and no `chain` profile at all on the lance.
+`charge.ms` (1150), vents itself at `charge.holdMaxMs` (2400), and taps for
+`minDamageMult` (0.35). Its pierce profile is 6 players / 2 walls with
+`playerFalloff` 0.9 and `wallFalloff` 0.72 — a charged lance spears up to six
+enemies on the line, and only a FULL charge (`charge.wallPierceAt` 1) crosses
+up to two walls. Weapon chains are deleted from the game: the lance carries no
+`chain` profile and no unreachable sentinels — `chargeProfile` for both charge
+weapons exposes only `ms`, `holdMaxMs`, `minDamageMult`, and `wallPierceAt`.
 
 The RIPPER (`knife`) is the `melee` mode: `magSize` 0 and `spareMags` 0 mean a
 swing consumes no ammunition and the reload path never engages (`reloadPlan`
@@ -386,7 +388,7 @@ and exposes `quickPlay(meta,name,bots?)`,
 - `buildHUD()`, `menuDone()`, and
   `setState({hp,mag,reserve,wname,wid,bloomPx,reloading01,yawDeg,adsT01,alive,
   grenades,grenadeType,grenadeCharge,grenadeCharging,grenadeCook01,
-  grenadeCookLeftMs,charge01,chainAt})`
+  grenadeCookLeftMs,charge01})`
   own the live HUD. `spreadFromBloom(deg)`, `setSpread(px)`,
   `hideCrosshairForAds(boolean)`, `setReloadProgress(t01|null,staged?)`,
   `updateCompass(yawDeg)`, `pushEvent(ev)`,
@@ -461,7 +463,7 @@ late join whose welcome/state is already live also proceeds directly.
   `shoot(ev,{local?})` (a local rocket shot also spawns the predicted rocket),
   `impact(evHit)`, `explodeBlock(x,y,z,blockId)`, `spawnBrass(pos,velocity)`,
   `projectileLaunch(ev,{local?,fromSelf?})`, `projectilePreview(launch|null)`,
-  `projectileStick(ev)`, `projectileExplode(ev)`, `arc(from,to)`, `update(dt)`,
+  `projectileStick(ev)`, `projectileExplode(ev)`, `update(dt)`,
   `shake(amount)`, getter `currentShakeXY`, and `dispose()`.
 - `new ViewmodelRig(camera)` exposes `setWeapon(id)`, `fire()`, `ads(t01)`,
   `setCharge(t01)` (held capacitor charge: coil glow floor plus a rearward
@@ -487,7 +489,13 @@ late join whose welcome/state is already live also proceeds directly.
   `grenadeLaunch({x,y,z,eyeY,vx,vy,vz,dir,charge,type})`,
   `stepGrenade(g,dt,isSolid)`, and `predictGrenadePath(launch,isSolid,opts)`;
   `shared/rocket-rules.js` owns `ROCKET_RULES`, `rocketLaunch({x,y,z,dir})`, and
-  `stepRocket(r,dt,raycast)`. The server `ProjectileSystem`
+  `stepRocket(r,dt,raycast)`; `shared/bolt-rules.js` owns `BOLT_RULES` (speed
+  52, gravity 3.0, radius 0.1, lifetimeMs 3000, bouncesTap 1 / bouncesCharged 3
+  at `chargedAt` 1, blockDamage 18 per destructible wall contact, colour
+  '#7dfcff'), `boltBounces(charge01)`, `boltLaunch({x,y,z,dir,charge01})`, and
+  `stepBolt(bolt,dt,raycast)` — one swept reflection walk so prediction,
+  presentation, and authority ricochet identically (clients derive bounce FX
+  from the step's `bounced` flag). The server `ProjectileSystem`
   (`server/sim/projectiles.js`, `PROJECTILE_RULES`), the client `ProjectileFX`
   (`public/js/weapons/projectiles.js`), and the charge preview all run those
   integrators. `Effects.projectileLaunch(ev,{local?,fromSelf?})` spawns a
@@ -503,11 +511,11 @@ late join whose welcome/state is already live also proceeds directly.
   root forces the release when a frag has been held for its whole fuse so
   authority detonates it in the hand. `ViewmodelRig.grenadeCharge(t01)` /
   `grenadeThrow(charge)` play the wind-up and lunge; `sfx.grenadePin()`,
-  `sfx.grenadeThrow(charge)`, `sfx.explosion(pos,type)`, `sfx.arcZap(pos)`, and
+  `sfx.grenadeThrow(charge)`, `sfx.explosion(pos,type)`, and
   the sustained `sfx.weaponCharge(level01,active)` whine cue them. HUD state
   renders one chip per throwable with remaining pips, the selected type name,
   `is-full` at max charge, `is-cooking`/`is-critical` with a `COOKING · n.ns`
-  hint, and the LONGARC/VOLTLANCE coil meter (`charge01`, `chainAt`, `is-chain`).
+  hint, and the LONGARC/VOLTLANCE coil meter (`charge01`).
 - `LocalPlayer.addRecoil(pitchRad, yawRad, weightKg?)` drives a velocity-impulse
   camera spring that peaks at the requested kick ~40–60 ms after the shot and
   recovers on a weight-scaled spring (slower for heavy guns), adds a coupled
@@ -567,7 +575,7 @@ step listener with the room.
   player's team spawn pool.
 - **Gun Game (`gungame`):** free-for-all target eligibility and `1500 ms`
   respawn. Players progress through the immutable shared order rifle, SMG,
-  shotgun, sniper, LMG, rocket, longarc, lance, revolver, knife; a kill with
+  shotgun, sniper, LMG, revolver, longarc, rocket, lance, knife; a kill with
   the RIPPER knife wins. The winner is shown during a `5000 ms` post phase
   before progression and scores reset.
 - **Search and Destroy (`snd`):** persistent `alpha`/`bravo` teams map to
@@ -590,14 +598,20 @@ step listener with the room.
   participants buy during prep. A purchase owns,
   selects, and refills that weapon. New/dead players start the next round with
   revolver; survivors retain purchases and remaining ammunition.
+- **Training (`training`):** exclusive to `killhouse` — a weapon-test firing
+  range with 17 respawning dummies that never shoot back, humans cannot hurt
+  each other, a 4-stage timed killhouse run whose metal gates open as stages
+  clear, all 10 guns unlocked, and zero combat bots (the bot slider does not
+  apply).
 - **Map compatibility:** `foundry` supports Fun/TDM/S&D/Gun Game; `depot`
   supports Fun/TDM/Gun Game; `citadel`, `solstice`, and `caldera` support
-  Fun/TDM/S&D/Gun Game. Foundry has A/B sites, Depot is a compact
-  point-symmetric cargo map, Citadel has Courtyard A and elevated Compound B,
-  Solstice is a desert solar observatory with a biodome, broken heliostat
-  ring, turbine hall, compact linked lanes, and A/B sites, and Caldera is a
-  volcanic caldera with obsidian gate A, elevated refinery B, and a central
-  vent. Every declared spawn
+  Fun/TDM/S&D/Gun Game; `killhouse` supports Training only. Foundry has A/B
+  sites, Depot is a compact point-symmetric cargo map, Citadel has Courtyard A
+  and elevated Compound B, Solstice is a desert solar observatory with a
+  biodome, broken heliostat ring, turbine hall, compact linked lanes, and A/B
+  sites, Caldera is a volcanic caldera with obsidian gate A, elevated refinery
+  B, and a central vent, and Killhouse is a weapon-test firing range with
+  respawning dummies and a timed 4-stage course. Every declared spawn
   has solid footing and two-block headroom.
 - **Settings:** sensitivity defaults to `0.003` rad/px, clamps to
   `0.0008–0.012`, and persists as `vb-sens-v2` (`SENSITIVITY_PREF_KEY`; the

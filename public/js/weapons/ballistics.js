@@ -27,6 +27,8 @@ export class TracerFX {
     this._position = new THREE.Vector3();
     this._scale = new THREE.Vector3();
     this._direction = new THREE.Vector3();
+    this._muzzle = new THREE.Vector3();
+    this.muzzleProvider = null;
 
     const tracerGeometry = new THREE.BoxGeometry(1, 1, 1);
     tracerGeometry.translate(0, 0, -0.5);
@@ -52,6 +54,7 @@ export class TracerFX {
         life: 0.06,
         len: 20,
         w: 0.03,
+        anchored: false,
         color: new THREE.Color(0xffffff),
       };
       this.tracers[i] = tracer;
@@ -80,6 +83,11 @@ export class TracerFX {
     this.stats = { shots: 0 };
     this._tracersDisposed = false;
     this._flashesDisposed = false;
+  }
+
+  /** Live muzzle anchor for local tracers; null restores the fixed camera-space spawn. */
+  setMuzzleProvider(fn) {
+    this.muzzleProvider = typeof fn === 'function' ? fn : null;
   }
 
   /**
@@ -123,11 +131,16 @@ export class TracerFX {
         const piercesWalls = Boolean(definition && definition.pierce && definition.pierce.walls > 0);
         if (!piercesWalls) length = Math.max(0.1, Math.min(length, hit.t) - 0.35);
       }
-      this.spawnTracer(event.o, direction, length, definition);
+      // Local shots anchor to the live rig muzzle and converge on this eye-ray
+      // endpoint; remote shots keep the server's presentation origin.
+      const endpoint = local && this.muzzleProvider
+        ? [ox + direction.x * length, oy + direction.y * length, oz + direction.z * length]
+        : null;
+      this.spawnTracer(event.o, direction, length, definition, endpoint);
     }
   }
 
-  spawnTracer(origin, direction, length, definition) {
+  spawnTracer(origin, direction, length, definition, endpoint = null) {
     let index = -1;
     for (let i = 0; i < this.tracers.length; i++) {
       if (!this.tracers[i].active) {
@@ -140,16 +153,37 @@ export class TracerFX {
     const tracer = this.tracers[index];
     tracer.active = true;
     tracer.t = 0;
+    tracer.anchored = false;
+    // Anchored (local) shots rebase the beam on the live rig muzzle and aim it at the
+    // eye-ray endpoint, so the streak starts at the visible barrel tip and converges
+    // on the crosshair impact. A degenerate muzzle-on-target falls back to the eye ray.
+    let dirX = direction.x;
+    let dirY = direction.y;
+    let dirZ = direction.z;
+    if (endpoint) {
+      const m = this.muzzleProvider(this._muzzle);
+      const ex = endpoint[0] - m.x;
+      const ey = endpoint[1] - m.y;
+      const ez = endpoint[2] - m.z;
+      const beam = Math.hypot(ex, ey, ez);
+      if (beam > 0.05) {
+        dirX = ex / beam;
+        dirY = ey / beam;
+        dirZ = ez / beam;
+        length = beam;
+        tracer.anchored = true;
+      }
+    }
     tracer.life = 0.055 + length * 0.0006;
     tracer.len = length;
     tracer.w = definition ? 0.028 * definition.tracer.width : 0.03;
     tracer.color.set(definition ? definition.tracer.color : '#ffd27a');
 
-    this._position.set(direction.x, direction.y, direction.z).normalize();
+    this._position.set(dirX, dirY, dirZ).normalize();
     this._rotation.setFromUnitVectors(NEG_Z, this._position);
-    const px = origin[0] + direction.x * 0.35;
-    const py = origin[1] + direction.y * 0.35;
-    const pz = origin[2] + direction.z * 0.35;
+    const px = tracer.anchored ? this._muzzle.x : origin[0] + direction.x * 0.35;
+    const py = tracer.anchored ? this._muzzle.y : origin[1] + direction.y * 0.35;
+    const pz = tracer.anchored ? this._muzzle.z : origin[2] + direction.z * 0.35;
     this._scale.set(tracer.w, tracer.w, length);
     this._matrix.compose(
       this._position.set(px, py, pz),
@@ -211,13 +245,15 @@ export class TracerFX {
         continue;
       }
       const remaining = 1 - tracer.t / tracer.life;
+      if (tracer.anchored && this.muzzleProvider) {
+        const m = this.muzzleProvider(this._muzzle);
+        this._position.set(m.x, m.y, m.z);
+      } else {
+        this._position.set(tracer.px, tracer.py, tracer.pz);
+      }
       this._scale.set(tracer.w, tracer.w, tracer.len * remaining);
       this._rotation.set(tracer.qx, tracer.qy, tracer.qz, tracer.qw);
-      this._matrix.compose(
-        this._position.set(tracer.px, tracer.py, tracer.pz),
-        this._rotation,
-        this._scale,
-      );
+      this._matrix.compose(this._position, this._rotation, this._scale);
       this.tracerMesh.setMatrixAt(i, this._matrix);
     }
     this.tracerMesh.instanceMatrix.needsUpdate = true;

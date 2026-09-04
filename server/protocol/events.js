@@ -62,15 +62,23 @@ export function evDie(id) {
   return { t: 'die', kind: 'die', id: String(id) };
 }
 
-/** A grenade leaves the hand or a rocket leaves the tube. `type` is a throwable/rocket id. */
-export function evProjectileLaunch(id, projectileId, type, origin, velocity, fuseMs) {
-  return {
+/**
+ * A grenade leaves the hand, a rocket leaves the tube, or a bolt leaves the coil.
+ * `type` is a throwable/rocket/bolt id. Bolts alone carry `bn`: the reflections
+ * they still hold at launch, so clients can mirror the ricochet FX locally.
+ */
+export function evProjectileLaunch(id, projectileId, type, origin, velocity, fuseMs, bounces) {
+  const event = {
     t: 'ev', kind: 'projectileLaunch', id: String(id), pid: String(projectileId),
     type: String(type),
     o: origin.map((value) => round(value, D2)),
     v: velocity.map((value) => round(value, D2)),
     fuse: Math.max(0, Math.round(Number(fuseMs) || 0)),
   };
+  if (String(type) === 'bolt' && Number.isFinite(bounces)) {
+    event.bn = Math.max(0, Math.trunc(bounces));
+  }
+  return event;
 }
 
 /** A limpet stuck to terrain (`to` null) or to a player (`to` is that player's id). */
@@ -89,14 +97,5 @@ export function evProjectileExplode(id, projectileId, type, origin, radius) {
     type: String(type),
     x: round(origin[0], D2), y: round(origin[1], D2), z: round(origin[2], D2),
     radius: round(radius, D2),
-  };
-}
-
-/** A charged coilgun slug arcing from one body to the next. */
-export function evArc(id, from, to) {
-  return {
-    t: 'ev', kind: 'arc', id: String(id),
-    from: from.map((value) => round(value, D2)),
-    to: to.map((value) => round(value, D2)),
   };
 }

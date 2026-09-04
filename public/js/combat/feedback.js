@@ -223,11 +223,6 @@ export class CombatFeedback {
         this.sfx.explosion([ev.x, ev.y, ev.z], ev.type);
         break;
       }
-      case 'arc': {
-        this.effects.arc(ev.from, ev.to);
-        this.sfx.arcZap?.(ev.to);
-        break;
-      }
       case 'respawn': {
         if (ev.id === myId) {
           const selfRow = this.getSelfRow();

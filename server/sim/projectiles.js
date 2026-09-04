@@ -1,17 +1,24 @@
-// Room-scoped authoritative projectile simulation: three grenade types plus the rocket.
-// One system owns flight, sticking, detonation, blast damage, knockback, concussion,
-// terrain carving, and sympathetic (chain) detonation so every explosive in the arena
-// follows the same rules.
+// Room-scoped authoritative projectile simulation: three grenade types, the
+// rocket, and the LONGARC bolt. One system owns flight, sticking, detonation,
+// blast damage, knockback, concussion, terrain carving, sympathetic (chain)
+// detonation, and bolt ricochets so every projectile follows the same rules.
 
 import {
   AIR,
+  BLOCK_HP,
   GRENADE_RESISTANCE,
   SX,
   SY,
   SZ,
 } from '../../shared/worlddata.js';
 import { raycastVoxels } from '../../shared/raycast.js';
-import { PLAYER_HALF } from '../../shared/combatmath.js';
+import {
+  HEADSHOT_Y_FRAC,
+  PLAYER_HALF,
+  WEAPONS,
+  chargeDamageMult,
+  damageAtDistance,
+} from '../../shared/combatmath.js';
 import {
   evHit,
   evProjectileExplode,
@@ -29,12 +36,15 @@ import {
   stepGrenade,
 } from '../../shared/grenade-rules.js';
 import { ROCKET_RULES, rocketLaunch, stepRocket } from '../../shared/rocket-rules.js';
+import { BOLT_RULES, boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
 
 const P_HEIGHT = PLAYER_HALF.h * 2;
 /** A sticky/impact projectile ignores its own thrower for this long after release. */
 const OWNER_GRACE_MS = 220;
 /** Chain detonation reaches this fraction of the blast radius. */
 const CHAIN_REACH = 0.8;
+/** A bolt contact ends in this tiny "blast" — a pop, never a real explosion. */
+const BOLT_FIZZLE_RADIUS = 0.5;
 
 /** Blast profile per projectile type, read by tests and the explosion path alike. */
 export const PROJECTILE_RULES = Object.freeze({
@@ -129,6 +139,7 @@ export class ProjectileSystem {
       if (!this.active.has(projectile.id)) continue;
       if (projectile.stuckTo) this._followCarrier(projectile, ctx);
       else if (projectile.type === 'rocket') this._flyRocket(projectile, stepSeconds * substeps, ctx);
+      else if (projectile.type === 'bolt') this._flyBolt(projectile, stepSeconds * substeps, ctx);
       else this._flyGrenade(projectile, stepSeconds, substeps, ctx);
       if (!this.active.has(projectile.id)) continue;
       if (ctx.now >= projectile.explodeAt || outsideWorld(projectile)) this.explode(projectile, ctx);
@@ -172,12 +183,81 @@ export class ProjectileSystem {
     return false;
   }
 
-  _contactVictim(point, radius, ctx, projectile = point) {
+  /**
+   * One bolt flies on the shared integrator: every wall contact chips the voxel
+   * it bounced from, the first body it touches (never its owner) takes falloff
+   * damage measured from the launch point, and a spent bolt always fizzles.
+   */
+  _flyBolt(projectile, seconds, ctx) {
+    const prev = { x: projectile.x, y: projectile.y, z: projectile.z };
+    stepBolt(projectile, seconds, projectile.raycast);
+    // A ricochet abrades the destructible voxel it bounced from.
+    if (projectile.bounced) {
+      const type = ctx.getBlock(
+        projectile.bounced.x, projectile.bounced.y, projectile.bounced.z,
+      );
+      if (BLOCK_HP[type] != null && typeof ctx.damageBlock === 'function') {
+        ctx.damageBlock(
+          projectile.bounced.x, projectile.bounced.y, projectile.bounced.z,
+          type, BOLT_RULES.blockDamage,
+        );
+      }
+    }
+    // Swept body test: sample the segment so a fast bolt cannot skip a player.
+    const dx = projectile.x - prev.x, dy = projectile.y - prev.y, dz = projectile.z - prev.z;
+    const length = Math.hypot(dx, dy, dz);
+    const samples = Math.max(1, Math.ceil(length / 0.35));
+    for (let i = 1; i <= samples; i++) {
+      const t = i / samples;
+      const probe = { x: prev.x + dx * t, y: prev.y + dy * t, z: prev.z + dz * t };
+      const victim = this._contactVictim(probe, BOLT_RULES.radius, ctx, projectile, true);
+      if (!victim) continue;
+      // A bolt never pierces: the first body it touches ends the flight.
+      projectile.x = probe.x; projectile.y = probe.y; projectile.z = probe.z;
+      const hs = probe.y - victim.y > HEADSHOT_Y_FRAC * P_HEIGHT;
+      const traveled = Math.hypot(
+        probe.x - projectile.origin.x,
+        probe.y - projectile.origin.y,
+        probe.z - projectile.origin.z,
+      );
+      let dmg = damageAtDistance(WEAPONS.longarc, traveled)
+        * chargeDamageMult(WEAPONS.longarc, projectile.charge01);
+      if (hs) dmg *= WEAPONS.longarc.headMult;
+      dmg = Math.round(dmg * 10) / 10;
+      const lethal = victim.takeDamage(dmg, hs);
+      ctx.pushEvent(evHit(projectile.ownerId, victim.id, dmg, hs, [probe.x, probe.y, probe.z]));
+      if (lethal) ctx.killPlayer(victim, projectile.owner, WEAPONS.longarc.id, hs, {});
+      this.active.delete(projectile.id);
+      ctx.pushEvent(evProjectileExplode(
+        projectile.ownerId,
+        projectile.id,
+        'bolt',
+        [projectile.x, projectile.y, projectile.z],
+        BOLT_FIZZLE_RADIUS,
+      ));
+      return true;
+    }
+    if (projectile.hit || ctx.now >= projectile.explodeAt || outsideWorld(projectile)) {
+      // Reflections spent or lifetime over: the bolt fizzles with no blast.
+      this.active.delete(projectile.id);
+      ctx.pushEvent(evProjectileExplode(
+        projectile.ownerId,
+        projectile.id,
+        'bolt',
+        [projectile.x, projectile.y, projectile.z],
+        BOLT_FIZZLE_RADIUS,
+      ));
+      return true;
+    }
+    return false;
+  }
+
+  _contactVictim(point, radius, ctx, projectile = point, ignoreOwner = false) {
     const owner = projectile.owner;
-    const ownerGrace = ctx.now - projectile.launchedAt < OWNER_GRACE_MS;
+    const skipOwner = ignoreOwner || ctx.now - projectile.launchedAt < OWNER_GRACE_MS;
     for (const victim of ctx.entities.values()) {
       if (victim.state !== 'alive') continue;
-      if (victim === owner && ownerGrace) continue;
+      if (victim === owner && skipOwner) continue;
       if (victim !== owner && !ctx.canDamage(owner, victim)) continue;
       if (touchesPlayer(point, radius, victim)) return victim;
     }
@@ -326,6 +406,42 @@ export class ProjectileSystem {
       [projectile.x, projectile.y, projectile.z],
       [projectile.vx, projectile.vy, projectile.vz],
       ROCKET_RULES.lifetimeMs,
+    ));
+    return projectile;
+  }
+
+  /** A bolt leaves the coil from the shooter's eye along the spread-sampled `dir`. */
+  launchBolt(player, ctx, dir, charge01 = 1) {
+    const launch = boltLaunch({ x: player.x, y: player.eyeY, z: player.z, dir, charge01 });
+    const id = `b${this._nextId++}`;
+    const projectile = {
+      id,
+      type: 'bolt',
+      ownerId: String(player.id),
+      owner: player,
+      x: launch.x, y: launch.y, z: launch.z,
+      vx: launch.vx, vy: launch.vy, vz: launch.vz,
+      charge01: Math.max(0, Math.min(1, Number.isFinite(charge01) ? charge01 : 1)),
+      bouncesLeft: launch.bouncesLeft,
+      launchedAt: ctx.now,
+      explodeAt: ctx.now + BOLT_RULES.lifetimeMs,
+      hit: null,
+      bounced: null,
+      // Falloff is measured from the launch point, so post-bounce hits decay.
+      origin: { x: launch.x, y: launch.y, z: launch.z },
+      raycast: (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
+        (x, y, z) => ctx.getBlock(x, y, z) !== AIR, ox, oy, oz, dx, dy, dz, max,
+      ),
+    };
+    this.active.set(id, projectile);
+    ctx.pushEvent(evProjectileLaunch(
+      player.id,
+      id,
+      'bolt',
+      [projectile.x, projectile.y, projectile.z],
+      [projectile.vx, projectile.vy, projectile.vz],
+      BOLT_RULES.lifetimeMs,
+      projectile.bouncesLeft,
     ));
     return projectile;
   }

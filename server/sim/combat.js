@@ -19,7 +19,7 @@ import {
 import { clearReload } from './movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { NETWORK_PRESENTATION } from '../../shared/networking.js';
-import { evShoot, evHit, evBlock, evArc } from '../protocol.js';
+import { evShoot, evHit, evBlock } from '../protocol.js';
 import {
   clamp01,
   clampWeaponSlot,
@@ -348,40 +348,10 @@ export function damageBlock(x, y, z, type, dmg, ctx) {
   else ctx.blockHp.set(key, hp);
 }
 
-/** Chain-arc: from a body hit, jump to nearby visible enemies for a fraction of the damage. */
-function chainArc(p, def, firstVictim, from, baseDamage, ctx) {
-  const chain = def.chain;
-  if (!chain || !(chain.targets > 0)) return;
-  const candidates = [];
-  for (const v of ctx.entities.values()) {
-    if (v === p || v === firstVictim || v.state !== 'alive') continue;
-    if (!ctx.canDamage(p, v)) continue;
-    const target = [v.x, v.y + PLAYER_HALF.h, v.z];
-    const distance = Math.hypot(target[0] - from[0], target[1] - from[1], target[2] - from[2]);
-    if (distance > chain.radius) continue;
-    const blocked = raycastVoxels(
-      ctx.solidAt, from[0], from[1], from[2],
-      target[0] - from[0], target[1] - from[1], target[2] - from[2],
-      Math.max(0.05, distance - 0.2),
-    );
-    if (blocked) continue;
-    candidates.push({ victim: v, target, distance });
-  }
-  candidates.sort((a, b) => a.distance - b.distance);
-  for (const { victim, target } of candidates.slice(0, chain.targets)) {
-    const dmg = Math.round(baseDamage * chain.damageMult * 10) / 10;
-    if (dmg <= 0) continue;
-    const lethal = victim.takeDamage(dmg, false);
-    ctx.pushEvent(evArc(p.id, from, target));
-    ctx.pushEvent(evHit(p.id, victim.id, dmg, false, target));
-    if (lethal) ctx.killPlayer(victim, p, def.id, false, { chained: true });
-  }
-}
-
 /**
  * Resolve one accepted shot, including every pellet, in authoritative order.
- * `charge` (0..1) only applies to `charge` weapons and scales damage, wall piercing,
- * and the chain arc; hitscan guns pass the default full charge.
+ * `charge` (0..1) only applies to `charge` weapons and scales damage (and the
+ * lance's wall piercing); hitscan guns pass the default full charge.
  */
 export function fireOneShot(p, ctx, charge = 1) {
   const def = p.def;
@@ -423,12 +393,18 @@ export function fireOneShot(p, ctx, charge = 1) {
     if (typeof ctx.launchRocket === 'function') ctx.launchRocket(p, firstDir);
     return;
   }
+  if (def.projectile === 'bolt' && typeof ctx.launchBolt === 'function') {
+    // The LONGARC bolt is its own authoritative entity from here on: it launches
+    // and ricochets inside the projectile system, piercing neither players nor
+    // walls, so none of the pierce code below may run for it.
+    ctx.launchBolt(p, firstDir, charge01);
+    return;
+  }
   const pierce = def.pierce;
   const piercePlayers = Number.isFinite(pierce?.players) ? Math.max(0, Math.trunc(pierce.players)) : 0;
   const pierceWalls = charged && charge01 < profile.wallPierceAt
     ? 0
     : (Number.isFinite(pierce?.walls) ? Math.max(0, Math.trunc(pierce.walls)) : 0);
-  const chainReady = charged && charge01 >= profile.chainAt;
   const playerFalloff = Number.isFinite(pierce?.playerFalloff) ? pierce.playerFalloff : 1;
   const wallFalloff = Number.isFinite(pierce?.wallFalloff) ? pierce.wallFalloff : 1;
   const piercing = piercePlayers > 0 || pierceWalls > 0;
@@ -460,7 +436,6 @@ export function fireOneShot(p, ctx, charge = 1) {
           longRange: tgt.t >= LONG_RANGE_KILL_DISTANCE,
           noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
         });
-        if (chainReady) chainArc(p, def, tgt.victim, [ix, iy, iz], dmg, ctx);
       } else if (hit) {
         const type = ctx.getBlock(hit.x, hit.y, hit.z);
         if (BLOCK_HP[type] != null) {
@@ -479,7 +454,6 @@ export function fireOneShot(p, ctx, charge = 1) {
     let dmgMult = chargeMult;
     let playersLeft = piercePlayers;
     let wallsLeft = pierceWalls;
-    let arced = false;
     for (;;) {
       const reach = SHOT_REACH - traveled;
       if (!(reach > 0)) break;
@@ -497,7 +471,9 @@ export function fireOneShot(p, ctx, charge = 1) {
         const tgt = nearestVictim(p, o, d, wallSegT, ctx, minT);
         if (!tgt) break;
         // `pierce.players` caps the victims the slug damages; the next body in
-        // line stops it (BUILD-CONTRACT: LONGARC pierces up to 2, lance up to 3).
+        // line stops it (the lance pierces up to 6 players and, on a full charge,
+        // crosses 2 walls at wallPierceAt 1; LONGARC is a bouncing bolt and never
+        // reaches this path).
         if (playersLeft <= 0) { stoppedInFlesh = true; break; }
         const dist = traveled + tgt.t;
         const ix = ox + d.x * tgt.t;
@@ -512,10 +488,6 @@ export function fireOneShot(p, ctx, charge = 1) {
           longRange: dist >= LONG_RANGE_KILL_DISTANCE,
           noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
         });
-        if (chainReady && !arced) {
-          arced = true;
-          chainArc(p, def, tgt.victim, [ix, iy, iz], dmg, ctx);
-        }
         playersLeft -= 1;
         dmgMult *= playerFalloff;
         minT = tgt.t + 0.1;

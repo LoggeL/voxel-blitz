@@ -32,6 +32,7 @@ import { attachBots } from '../server/bots.js';
 import { TICK_MS, evDie, evRespawn, makeSnapshot } from '../server/protocol.js';
 import { PROJECTILE_RULES } from '../server/sim/projectiles.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
+import { BOLT_RULES, boltBounces } from '../shared/bolt-rules.js';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { ImpactFX } from '../public/js/weapons/impacts.js';
 
@@ -557,6 +558,15 @@ function runDirectContracts() {
       for (let x = 36; x <= 60; x++) coilEngine.world.setBlock(x, y, z, AIR);
     }
   }
+  // Bounce arena: indestructible STONE end walls so bolts ricochet between
+  // them instead of escaping the carved lane (test lanes sit at z 50.5/54.5
+  // so the swept DDA never grazes a cell boundary).
+  for (let y = 18; y <= 28; y++) {
+    for (let z = 44; z <= 58; z++) {
+      coilEngine.world.setBlock(35, y, z, STONE);
+      coilEngine.world.setBlock(52, y, z, STONE);
+    }
+  }
   const longarcSlot = WEAPON_IDS.indexOf('longarc');
   Object.assign(coil, { x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0, weapon: longarcSlot, deployT: 0, cooldown: 0, adsT: 1 });
   Object.assign(coilFirst, { x: 48.5, y: 20, z: 50.5, hp: 100 });
@@ -571,11 +581,25 @@ function runDirectContracts() {
   coilEngine.applyInput('coil', { ...coilInput, seq: 2, wantFire: false });
   coilEngine.resolveWeaponIntent(coil, 0.05);
   const coilTapShot = coilEngine.tickEvents.find((event) => event.kind === 'shoot' && event.w === 'longarc');
+  const coilTapLaunch = coilEngine.tickEvents.find(
+    (event) => event.kind === 'projectileLaunch' && event.type === 'bolt');
+  let tapBoltTicks = 0;
+  while (coilEngine.projectiles.active.size > 0 && tapBoltTicks < 60) {
+    coilEngine.now += 50;
+    coilEngine.projectiles.step(0.05, coilEngine.projectileContext());
+    tapBoltTicks++;
+  }
   const coilTapHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-first');
-  const tapArc = coilEngine.tickEvents.some((event) => event.kind === 'arc');
+  const tapFizzle = coilEngine.tickEvents.find(
+    (event) => event.kind === 'projectileExplode' && event.type === 'bolt');
   ok(midCharge > 0 && midCharge < 0.3 && coilTapShot && coilTapShot.charge < 0.3
-    && coilTapHit && coilTapHit.dmg < WEAPONS.longarc.damage[0] * 0.65 && !tapArc && coil.charge === 0,
-  'a short LONGARC trigger tap releases a weak dart: charge scales the damage down and never arcs');
+    && coilTapLaunch && coilTapLaunch.bn === boltBounces(midCharge)
+    && coilTapLaunch.bn === BOLT_RULES.bouncesTap
+    && coilTapLaunch.fuse === BOLT_RULES.lifetimeMs && coilTapLaunch.v[0] > 45
+    && coilTapHit && coilTapHit.dmg > 0 && coilTapHit.dmg < WEAPONS.longarc.damage[0] * 0.65
+    && tapFizzle && tapFizzle.radius === 0.5 && Math.abs(tapFizzle.x - 48.5) < 1
+    && !coilEngine.tickEvents.some((event) => event.kind === 'arc'),
+  'a short LONGARC trigger tap launches a one-bounce bolt (bn 1) that lands a weak dart and fizzles in a small pop at the victim with no arc events');
 
   coilEngine.tickEvents.length = 0;
   Object.assign(coil, { cooldown: 0, triggerPrev: false, adsT: 1, bloom: 0 });
@@ -586,17 +610,51 @@ function runDirectContracts() {
   coilEngine.applyInput('coil', { ...coilInput, seq: 4, wantFire: false });
   coilEngine.resolveWeaponIntent(coil, 0.05);
   const fullShot = coilEngine.tickEvents.find((event) => event.kind === 'shoot' && event.w === 'longarc');
+  const fullLaunch = coilEngine.tickEvents.find(
+    (event) => event.kind === 'projectileLaunch' && event.type === 'bolt');
+  let fullBoltTicks = 0;
+  while (coilEngine.projectiles.active.size > 0 && fullBoltTicks < 60) {
+    coilEngine.now += 50;
+    coilEngine.projectiles.step(0.05, coilEngine.projectileContext());
+    fullBoltTicks++;
+  }
   const fullHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-first');
-  const arcEvent = coilEngine.tickEvents.find((event) => event.kind === 'arc');
-  const arcHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-second');
-  ok(fullCharge === 1 && fullShot?.charge === 1 && fullHit?.dmg === WEAPONS.longarc.damage[0]
-    && arcEvent && arcHit && Math.abs(arcHit.dmg - fullHit.dmg * WEAPONS.longarc.chain.damageMult) < 1
-    && Math.abs(coilSecond.hp - (100 - fullHit.dmg * WEAPONS.longarc.chain.damageMult)) < 0.2,
-  'a full LONGARC charge deals full damage and chain-arcs to a nearby visible enemy for a fraction');
+  ok(fullCharge === 1 && fullShot?.charge === 1 && fullLaunch?.bn === boltBounces(1)
+    && fullHit && fullHit.dmg === WEAPONS.longarc.damage[0]
+    && Math.abs(coilFirst.hp - (100 - WEAPONS.longarc.damage[0])) < 0.2,
+  'a FULL LONGARC charge launches a three-bounce bolt that lands its full 88 damage on a direct body hit');
+
+  // Ricochet exhaustion: with both victims parked off the flight line, a full
+  // charge (bn 3) bounces between the two end walls, ignores its owner, and
+  // fizzles harmlessly once the reflections run out.
+  coilEngine.tickEvents.length = 0;
+  Object.assign(coil, { cooldown: 0, triggerPrev: false, adsT: 1, bloom: 0 });
+  Object.assign(coilFirst, { x: 44.5, y: 20, z: 46.5, hp: 100, vx: 0, vy: 0, vz: 0 });
+  Object.assign(coilSecond, { x: 48.5, y: 20, z: 54.5, hp: 100, vx: 0, vy: 0, vz: 0 });
+  coilEngine.applyInput('coil', { ...coilInput, seq: 5, wantFire: true });
+  for (let i = 0; i < 40; i++) coilEngine.resolveWeaponIntent(coil, 0.05);
+  coilEngine.applyInput('coil', { ...coilInput, seq: 6, wantFire: false });
+  coilEngine.resolveWeaponIntent(coil, 0.05);
+  const ricochetLaunch = coilEngine.tickEvents.find(
+    (event) => event.kind === 'projectileLaunch' && event.type === 'bolt');
+  let ricochetTicks = 0;
+  while (coilEngine.projectiles.active.size > 0 && ricochetTicks < 80) {
+    coilEngine.now += 50;
+    coilEngine.projectiles.step(0.05, coilEngine.projectileContext());
+    ricochetTicks++;
+  }
+  const ricochetFizzle = coilEngine.tickEvents.find(
+    (event) => event.kind === 'projectileExplode' && event.type === 'bolt');
+  ok(ricochetLaunch?.bn === BOLT_RULES.bouncesCharged && ricochetTicks > 12 && ricochetTicks < 80
+    && ricochetFizzle && ricochetFizzle.radius === 0.5
+    && ricochetFizzle.x > 35 && ricochetFizzle.x < 38
+    && coil.hp === 100 && coilFirst.hp === 100 && coilSecond.hp === 100
+    && !coilEngine.tickEvents.some((event) => event.kind === 'hit' || event.kind === 'kill'),
+  'a full-charge bolt with no targets ricochets between both end walls, never hurts its owner, and fizzles harmlessly once its three reflections run out');
 
   coilEngine.tickEvents.length = 0;
   Object.assign(coil, { cooldown: 0, triggerPrev: false });
-  coilEngine.applyInput('coil', { ...coilInput, seq: 5, wantFire: true });
+  coilEngine.applyInput('coil', { ...coilInput, seq: 7, wantFire: true });
   let ventShots = 0;
   for (let i = 0; i < 60; i++) {
     coilEngine.resolveWeaponIntent(coil, 0.05);

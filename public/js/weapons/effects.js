@@ -6,7 +6,7 @@ import { GoreFX } from './gore.js';
 import { ImpactFX, blockSoundFor } from './impacts.js';
 import { hideInstance } from './instancing.js';
 import { ProjectileFX } from './projectiles.js';
-import { ArcFX } from './arcs.js';
+import { boltBounces, BOLT_RULES } from '../../../shared/bolt-rules.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { rocketLaunch } from '../../../shared/rocket-rules.js';
 
@@ -17,10 +17,11 @@ const BLAST_PARTICLES = Object.freeze({
   limpet: Object.freeze({ count: 44, tint: 0xffc27a, speed: 9.5, size: 1.7, life: 0.8, shake: 1.05, reach: 28 }),
   pulse: Object.freeze({ count: 26, tint: 0x9ff4ff, speed: 11, size: 1.2, life: 0.45, shake: 0.7, reach: 24 }),
   rocket: Object.freeze({ count: 52, tint: 0xffb347, speed: 10.5, size: 1.8, life: 0.85, shake: 1.15, reach: 32 }),
+  bolt: Object.freeze({ count: 10, tint: 0x7dfcff, speed: 5.5, size: 1.0, life: 0.4, shake: 0.18, reach: 14 }),
 });
 
 export class Effects {
-  constructor(scene, camera, worldGetBlockFn, { getEntityPosition = null } = {}) {
+  constructor(scene, camera, worldGetBlockFn, { getEntityPosition = null, onBounce = null } = {}) {
     this.scene = scene;
     this.camera = camera;
     this.getBlockFn = worldGetBlockFn || (() => 0);
@@ -40,8 +41,8 @@ export class Effects {
       onTrail: (x, y, z) => this.impacts.spawnParticles(
         x, y, z, 1, 0x8d8f94, { speed: 0.6, gravity: -0.4, size: 1.6, life: 0.55, softness: true },
       ),
+      onBounce: typeof onBounce === 'function' ? onBounce : null,
     });
-    this.arcs = new ArcFX(scene);
 
     this.stats = {};
     Object.defineProperties(this.stats, {
@@ -78,6 +79,24 @@ export class Effects {
         type: 'rocket',
         o: [launch.x, launch.y, launch.z],
         v: [launch.vx, launch.vy, launch.vz],
+      }, { local: true });
+    } else if (options.local && definition?.projectile === 'bolt' && Array.isArray(event.o)) {
+      // A bolt shot spawns the predicted projectile locally with its reflection budget;
+      // remote bolts arrive as authoritative `projectileLaunch` events instead.
+      const dir = event.spread || event.d;
+      const direction = Array.isArray(dir)
+        ? { x: dir[0], y: dir[1], z: dir[2] }
+        : dir;
+      const length = Math.hypot(direction.x, direction.y, direction.z) || 1;
+      this.projectiles.launch({
+        type: 'bolt',
+        o: [event.o[0], event.o[1], event.o[2]],
+        v: [
+          direction.x / length * BOLT_RULES.speed,
+          direction.y / length * BOLT_RULES.speed,
+          direction.z / length * BOLT_RULES.speed,
+        ],
+        bn: boltBounces(event.charge ?? 1),
       }, { local: true });
     }
   }
@@ -161,11 +180,6 @@ export class Effects {
     }
   }
 
-  /** Chain-arc lightning between two world points. */
-  arc(from, to) {
-    if (!this._disposed) this.arcs.arc(from, to);
-  }
-
   update(dt) {
     if (this._disposed) return;
     this._trauma = Math.max(0, this._trauma - dt * 1.8);
@@ -174,7 +188,6 @@ export class Effects {
     this.goreFx.update(dt);
     this.brass.update(dt);
     this.projectiles.update(dt);
-    this.arcs.update(dt);
   }
 
   shake(amount) {
@@ -197,11 +210,15 @@ export class Effects {
     this.goreFx.dispose();
     this.brass.dispose();
     this.projectiles.dispose();
-    this.arcs.dispose();
   }
 }
 
 /** Wire the rig's world-space shell recipe into the single brass owner. */
 export function attachShellBridge(effects, rig) {
   rig.onShellEject = ({ pos, vel }) => effects.spawnBrass(pos, vel);
+}
+
+/** Wire the rig's live muzzle transform into the local tracer anchor. */
+export function attachMuzzleBridge(effects, rig) {
+  effects.tracers.setMuzzleProvider((out) => rig.getMuzzleWorldPos(out));
 }

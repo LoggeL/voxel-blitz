@@ -5,6 +5,7 @@ import {
   stepGrenade,
 } from '../../../shared/grenade-rules.js';
 import { ROCKET_RULES, stepRocket } from '../../../shared/rocket-rules.js';
+import { BOLT_RULES, boltBounces, stepBolt } from '../../../shared/bolt-rules.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 
 /** Unconfirmed local launches are dropped after this long without a matching authority event. */
@@ -19,6 +20,7 @@ const BLAST_STYLE = Object.freeze({
   frag: Object.freeze({ color: 0xff9f1c, grow: 0.38, life: 0.42, ring: false }),
   limpet: Object.freeze({ color: 0xffd9a8, grow: 0.46, life: 0.5, ring: true, ringColor: 0xff5a3c }),
   pulse: Object.freeze({ color: 0x59e8ff, grow: 0.16, life: 0.32, ring: true, ringColor: 0x9ff4ff }),
+  bolt: Object.freeze({ color: 0x7dfcff, grow: 0.16, life: 0.28, ring: false }),
   rocket: Object.freeze({ color: 0xffb347, grow: 0.5, life: 0.55, ring: true, ringColor: 0xff7a1c }),
 });
 
@@ -28,17 +30,18 @@ function styleFor(type) {
 
 /**
  * Predicted presentation for every thrown or launched explosive: frag/limpet/pulse
- * grenades and the rocket. Authority `projectileLaunch` events own the truth, but the local
+ * grenades, the rocket, and the LONGARC bolt. Authority `projectileLaunch` events own the truth, but the local
  * player's own launch is spawned immediately (`launch(event, {local:true})`) and later
  * *adopted* by the matching authority event (`{fromSelf:true}`) so nothing pops or doubles.
  * The charge preview draws the same shared integrator's path per grenade type.
  */
 export class ProjectileFX {
-  constructor(scene, getBlock = () => 0, { getEntityPosition = null, onTrail = null } = {}) {
+  constructor(scene, getBlock = () => 0, { getEntityPosition = null, onTrail = null, onBounce = null } = {}) {
     this.scene = scene;
     this.getBlock = getBlock;
     this.getEntityPosition = typeof getEntityPosition === 'function' ? getEntityPosition : null;
     this.onTrail = typeof onTrail === 'function' ? onTrail : null;
+    this.onBounce = typeof onBounce === 'function' ? onBounce : null;
     this.projectiles = new Map();
     this.blasts = [];
     this._localSeq = 0;
@@ -79,6 +82,14 @@ export class ProjectileFX {
       color: 0xffb347, transparent: true, opacity: 0.85,
       blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
       side: THREE.DoubleSide,
+    });
+    this.boltCoreMaterial = new THREE.MeshStandardMaterial({
+      color: 0x0f2a33, roughness: 0.3, metalness: 0.85,
+      emissive: 0x7dfcff, emissiveIntensity: 1.2,
+    });
+    this.boltGlowMaterial = new THREE.MeshBasicMaterial({
+      color: 0x7dfcff, transparent: true, opacity: 0.35, toneMapped: false,
+      blending: THREE.AdditiveBlending, depthWrite: false,
     });
 
     // Charge preview: dotted arc plus a landing ring, both hidden until the first hold.
@@ -148,6 +159,14 @@ export class ProjectileFX {
       const light = new THREE.PointLight(0x59e8ff, 0.9, 5);
       group.add(core, halo, light);
       group.userData.halo = halo;
+    } else if (type === 'bolt') {
+      // Coilgun bolt: thin emissive core, additive glow shell, cyan light.
+      const core = new THREE.Mesh(this.capGeometry, this.boltCoreMaterial);
+      core.scale.set(0.7, 0.7, 2.6);
+      const glow = new THREE.Mesh(this.pulseGeometry, this.boltGlowMaterial);
+      glow.scale.setScalar(1.1);
+      const light = new THREE.PointLight(0x7dfcff, 1.0, 4);
+      group.add(core, glow, light);
     } else {
       const body = new THREE.Mesh(this.fragGeometry, this.fragMaterial);
       body.rotation.set(0.35, 0.45, 0.12);
@@ -168,10 +187,19 @@ export class ProjectileFX {
     if (!event || !Array.isArray(event.o) || !Array.isArray(event.v)) return false;
     const values = [...event.o, ...event.v].map(Number);
     if (!values.every(Number.isFinite)) return false;
-    const type = event.type === 'rocket' || GRENADE_TYPES[event.type] ? event.type : 'frag';
-    const fallbackFuse = type === 'rocket' ? ROCKET_RULES.lifetimeMs : GRENADE_TYPES[type].fuseMs;
+    const type = event.type === 'rocket' || event.type === 'bolt' || GRENADE_TYPES[event.type]
+      ? event.type
+      : 'frag';
+    const fallbackFuse = type === 'rocket'
+      ? ROCKET_RULES.lifetimeMs
+      : type === 'bolt' ? BOLT_RULES.lifetimeMs : GRENADE_TYPES[type].fuseMs;
     const fuseMs = Number(event.fuse);
     const fuse = Math.max(0.05, (Number.isFinite(fuseMs) && fuseMs > 0 ? fuseMs : fallbackFuse) / 1000);
+    // Reflection budget: authority events carry `bn`; local spawns may pass `charge`.
+    const bn = Number(event.bn);
+    const bouncesLeft = type === 'bolt'
+      ? Number.isFinite(bn) ? Math.max(0, Math.floor(bn)) : boltBounces(Number(event.charge ?? 1))
+      : 0;
 
     if (!local) {
       if (!event.pid || this.projectiles.has(String(event.pid))) return false;
@@ -190,13 +218,14 @@ export class ProjectileFX {
       vx: values[3], vy: values[4], vz: values[5],
       age: 0,
       fuse,
+      bouncesLeft,
       local,
       stuck: false,
       stuckTo: null,
       stickOffset: null,
       trailAt: 0,
     });
-    if (type === 'rocket') this._orientRocket(this.projectiles.get(id));
+    if (type === 'rocket' || type === 'bolt') this._orientRocket(this.projectiles.get(id));
     return true;
   }
 
@@ -312,6 +341,12 @@ export class ProjectileFX {
     const x = Number(event?.x), y = Number(event?.y), z = Number(event?.z);
     if (![x, y, z].every(Number.isFinite)) return false;
     const style = styleFor(type);
+    this._spawnBlast(x, y, z, style, Number(event.radius) || style.grow * 12);
+    return true;
+  }
+
+  /** One additive flash sphere (plus optional ring) at a world point. */
+  _spawnBlast(x, y, z, style, radius) {
     const material = new THREE.MeshBasicMaterial({
       color: style.color,
       transparent: true,
@@ -325,7 +360,6 @@ export class ProjectileFX {
     mesh.scale.setScalar(0.08);
     mesh.renderOrder = 9;
     this.scene.add(mesh);
-    const radius = Number(event.radius) || styleFor(type).grow * 12;
     const blast = { mesh, material, age: 0, life: style.life, radius, grow: style.grow, ring: null };
     if (style.ring) {
       const ringMaterial = new THREE.MeshBasicMaterial({
@@ -345,7 +379,6 @@ export class ProjectileFX {
       blast.ring = { mesh: ring, material: ringMaterial };
     }
     this.blasts.push(blast);
-    return true;
   }
 
   _orientRocket(projectile) {
@@ -383,6 +416,19 @@ export class ProjectileFX {
           this.onTrail(projectile.x, projectile.y, projectile.z, projectile);
         }
         if (projectile.hit && !projectile.local) projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
+      } else if (projectile.type === 'bolt') {
+        stepBolt(projectile, step, this.raycast);
+        this._orientRocket(projectile);
+        // Reflections are client-derived: the shared integrator flags each contact.
+        if (projectile.bounced) {
+          const contact = projectile.bounced;
+          this._spawnBlast(contact.x, contact.y, contact.z, BLAST_STYLE.bolt, 0.6);
+          this.onBounce?.(contact.x, contact.y, contact.z);
+        }
+        // Authority owns bolt death (projectileExplode); the local view just keeps flying.
+        if (projectile.hit && !projectile.local) {
+          projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
+        }
       } else if (!projectile.stuck) {
         stepGrenade(projectile, step, this.isSolid);
         const type = GRENADE_TYPES[projectile.type];
@@ -465,7 +511,7 @@ export class ProjectileFX {
     ]) geometry.dispose();
     for (const material of [
       this.fragMaterial, this.limpetMaterial, this.pulseMaterial, this.rocketMaterial,
-      this.rocketNoseMaterial, this.exhaustMaterial,
+      this.rocketNoseMaterial, this.exhaustMaterial, this.boltCoreMaterial, this.boltGlowMaterial,
     ]) material.dispose();
   }
 }

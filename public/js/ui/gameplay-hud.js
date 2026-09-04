@@ -165,7 +165,6 @@ export class GameplayHud {
     d.chargeMeter = el('div', 'vb-charge-meter', hud, 'charge-meter');
     d.chargeMeterTrack = el('span', 'vb-charge-track', d.chargeMeter);
     d.chargeMeterFill = el('i', '', d.chargeMeterTrack);
-    d.chargeMeterChain = el('i', 'vb-charge-chain-mark', d.chargeMeterTrack);
     d.chargeMeterLabel = el('span', 'vb-charge-label', d.chargeMeter);
     d.chargeMeterLabel.textContent = 'COIL CHARGE';
     d.mag = el('span', '', d.ammo, 'ammocount');
@@ -343,24 +342,10 @@ export class GameplayHud {
       d.chargeMeter.classList.toggle('is-visible', chargeVisible);
       if (chargeVisible) {
         const charge01 = clamp01(s.charge01);
-        // A chainAt outside the 0..1 charge range is the "never" sentinel (the lance
-        // never arcs): the threshold mark and its ready flag stay hidden, and the
-        // label settles on CHARGED at a full cell instead of CHAIN ARC READY.
-        const hasChain = Number.isFinite(s.chainAt) && s.chainAt <= 1;
-        const chainAt = hasChain ? clamp01(s.chainAt) : null;
         d.chargeMeterFill.style.transform = `scaleX(${charge01})`;
-        if (hasChain) {
-          d.chargeMeterChain.style.left = `${Math.round(chainAt * 100)}%`;
-          d.chargeMeterChain.style.display = '';
-        } else {
-          d.chargeMeterChain.style.display = 'none';
-        }
         d.chargeMeter.classList.toggle('is-charging', charge01 > 0);
-        d.chargeMeter.classList.toggle('is-chain', hasChain && charge01 >= chainAt);
         d.chargeMeter.classList.toggle('is-full', charge01 >= 1);
-        const label = hasChain
-          ? (charge01 >= chainAt ? 'CHAIN ARC READY' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE')
-          : charge01 >= 1 ? 'CHARGED' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE';
+        const label = charge01 >= 1 ? 'CHARGED' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE';
         if (d.chargeMeterLabel.textContent !== label) d.chargeMeterLabel.textContent = label;
       }
     }

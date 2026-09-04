@@ -49,7 +49,7 @@ function requireMethod(owner, name) {
 
 /**
  * Adapter interface:
- * - rig: setWeapon, fire, reload, getMuzzleWorldPos, pumpAnim, boltAnim, ads
+ * - rig: setWeapon, fire, reload, pumpAnim, boltAnim, ads
  * - audio: draw, reloadClick, fire
  * - effects: shoot
  * - network: isCurrentGeneration, isRunning
@@ -71,7 +71,6 @@ export class WeaponState {
       'setWeapon',
       'fire',
       'reload',
-      'getMuzzleWorldPos',
       'pumpAnim',
       'boltAnim',
       'ads',
@@ -96,7 +95,6 @@ export class WeaponState {
     this._clearTimer = clearTimer;
 
     this._emptyReloadTimer = null;
-    this._muzzleTarget = null;
     this._disposed = false;
     this.menuReset();
   }
@@ -158,7 +156,6 @@ export class WeaponState {
       charge01: def.mode === 'charge'
         ? (this._chargeStart === null ? 0 : chargeFromHold(def, now - this._chargeStart))
         : null,
-      chainAt: def.mode === 'charge' ? chargeProfile(def).chainAt : null,
     };
   }
 
@@ -569,15 +566,9 @@ export class WeaponState {
     this._exhaustion = clamp01(this._exhaustion + CONDITION_RULES.exhaustionShotGain);
     this._feedback.addExhaustion(CONDITION_RULES.exhaustionShotGain);
 
-    let origin;
-    if (this._adsT > 0.55) {
-      const muzzle = this._muzzleTarget
-        ? this._rig.getMuzzleWorldPos(this._muzzleTarget)
-        : (this._muzzleTarget = this._rig.getMuzzleWorldPos());
-      origin = [muzzle.x, muzzle.y, muzzle.z];
-    } else {
-      origin = [this._cameraX, this._cameraY, this._cameraZ];
-    }
+    // The wire/prediction origin is the eye (the crosshair ray). The FX layer anchors
+    // local tracers to the live rig muzzle and converges them on this ray's endpoint.
+    const origin = [this._cameraX, this._cameraY, this._cameraZ];
     this._effects.shoot({
       o: origin,
       d: [fwd.x, fwd.y, fwd.z],
@@ -747,7 +738,6 @@ export class WeaponState {
     this._alive = false;
     this._reloadState = null;
     this.clearIntents();
-    this._muzzleTarget = null;
   }
 
   _acceptFrameContext({

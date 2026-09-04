@@ -8,6 +8,7 @@ export async function runLanceKnifeContracts(ok) {
   const { WEAPONS, WEAPON_IDS, chargeProfile, chargeDamageMult, reloadPlan, damageAtDistance } =
     await import('../../shared/combatmath.js');
   const { GUN_GAME_WEAPON_ORDER, WEAPON_PRICES } = await import('../../shared/modes.js');
+  const { BOLT_RULES, boltBounces } = await import('../../shared/bolt-rules.js');
   const { wheelAngleForSlot, wheelSlotFromVector } = await import('../../public/js/ui/weapon-wheel.js');
 
   ok(WEAPON_IDS.length === 10 && WEAPON_IDS[8] === 'lance' && WEAPON_IDS[9] === 'knife',
@@ -16,17 +17,20 @@ export async function runLanceKnifeContracts(ok) {
   const lance = WEAPONS.lance;
   ok(lance && lance.name === 'CL-9 VOLTLANCE' && lance.mode === 'charge',
     'the VOLTLANCE is a named charge-mode weapon');
-  ok(lance.magSize === 5 && lance.spareMags === 6,
-    'the VOLTLANCE carries five charges per cell plus six spares');
+  ok(lance.magSize === 4 && lance.spareMags === 5,
+    'the VOLTLANCE carries four charges per cell plus five spares');
+  ok(lance.rpm === 100 && JSON.stringify(lance.damage) === JSON.stringify([130, 95, 95])
+      && lance.falloffStart === 45,
+    'the VOLTLANCE spears for 130 body damage at rpm 100 with falloff starting at 45 units');
   const lanceCharge = lance.charge;
-  ok(lanceCharge.ms === 620 && lanceCharge.holdMaxMs === 1800
-      && lanceCharge.minDamageMult === 0.45,
-    'the VOLTLANCE charges in 620 ms, vents itself at 1800 ms, and taps for 45% damage');
-  ok(lanceCharge.wallPierceAt > 1 && lanceCharge.chainAt > 1,
-    'the VOLTLANCE disables wall piercing and chain arcs with unreachable above-range sentinels');
-  ok(lance.pierce.players === 3 && lance.pierce.walls === 0
-      && lance.pierce.playerFalloff === 0.82,
-    'a charged lance spears up to three enemies on the line and dies on the first wall');
+  ok(lanceCharge.ms === 1150 && lanceCharge.holdMaxMs === 2400
+      && lanceCharge.minDamageMult === 0.35,
+    'the VOLTLANCE charges in 1150 ms, vents itself at 2400 ms, and taps for 35% damage');
+  ok(lanceCharge.wallPierceAt === 1,
+    'only a FULL VOLTLANCE charge crosses terrain: the wall-pierce threshold is 1');
+  ok(lance.pierce.players === 6 && lance.pierce.walls === 2
+      && lance.pierce.playerFalloff === 0.9 && lance.pierce.wallFalloff === 0.72,
+    'a charged lance spears up to six enemies on the line and crosses up to two walls, decaying 0.9 per body and 0.72 per wall');
 
   const knife = WEAPONS.knife;
   ok(knife && knife.name === 'K-7 RIPPER' && knife.mode === 'melee',
@@ -40,16 +44,16 @@ export async function runLanceKnifeContracts(ok) {
       && melee.backstabMult === 2.5 && melee.backstabDot === 0.4,
     'the RIPPER swings a 2.2-unit 110-degree arc and backstabs for 2.5x past a 0.4 facing dot');
 
-  ok(chargeDamageMult(lance, 0) === 0.45
+  ok(chargeDamageMult(lance, 0) === 0.35
       && chargeDamageMult(lance, 0.25) < chargeDamageMult(lance, 0.5)
       && chargeDamageMult(lance, 0.5) < chargeDamageMult(lance, 0.75)
       && chargeDamageMult(lance, 1) === 1,
-    'lance charge damage ramps monotonically from the 0.45 tap floor to full at one');
+    'lance charge damage ramps monotonically from the 0.35 tap floor to full at one');
 
   ok(reloadPlan(knife, 0).rounds === 0,
     'the RIPPER reload plan seats zero rounds, so the reload path never engages');
-  ok(reloadPlan(lance, 0).seconds === 2.4,
-    'an empty VOLTLANCE cell swaps in one 2.4 s step');
+  ok(reloadPlan(lance, 0).seconds === 2.9,
+    'an empty VOLTLANCE cell swaps in one 2.9 s step');
 
   ok(damageAtDistance(knife, 2) === 58,
     'a RIPPER swing deals flat 58 inside its reach with no falloff');
@@ -61,11 +65,24 @@ export async function runLanceKnifeContracts(ok) {
   ok(WEAPON_PRICES.lance === 3800 && WEAPON_PRICES.knife === 500,
     'the VOLTLANCE costs 3800 credits and the RIPPER 500 in the S&D armory');
 
-  // Guard the sentinel approach: the LONGARC charge thresholds must stay inside
-  // the 0-1 range so the lance's above-range defaults cannot leak back into it.
+  // Guard the defaults: the LONGARC keeps its charge profile inside the shared
+  // defaults (no lance-style wall piercing, no chain arc anywhere in the game)
+  // and launches bouncing bolts from shared/bolt-rules.js.
   const longarc = chargeProfile(WEAPONS.longarc);
-  ok(longarc.wallPierceAt === 0.6 && longarc.chainAt === 0.85,
-    'the LONGARC keeps piercing walls at 0.60 charge and chaining at 0.85');
+  ok(longarc.wallPierceAt === 0 && chargeProfile(lance).chainAt === undefined
+      && longarc.chainAt === undefined,
+    'the LONGARC never pierces walls and the chain-arc thresholds are deleted from both charge profiles');
+  ok(WEAPONS.longarc.projectile === 'bolt' && WEAPONS.longarc.magSize === 8
+      && JSON.stringify(WEAPONS.longarc.damage) === JSON.stringify([88, 62, 95]),
+    'the LONGARC launches bouncing bolts with its unchanged 88/62/95 damage and 8-round cell');
+  ok(BOLT_RULES.bouncesTap === 1 && BOLT_RULES.bouncesCharged === 3
+      && boltBounces(0) === 1 && boltBounces(0.99) === 1 && boltBounces(1) === 3,
+    'bolt reflections follow bolt-rules.js: one bounce below a full charge, three at full');
+  ok(BOLT_RULES.speed === 52 && BOLT_RULES.gravity === 3.0
+      && BOLT_RULES.blockDamage === 18 && BOLT_RULES.lifetimeMs === 3000,
+    'bolts fly at 52 u/s under gravity 3.0, chew 18 damage per wall contact, and fizzle after 3000 ms');
+  ok(BOLT_RULES.color === '#7dfcff',
+    'bolts and their shared color come from bolt-rules.js');
 
   // Wheel geometry stays count-agnostic: a ten-slot wheel just tightens the
   // wedge angle; slot 9 sits at -90 + 324, normalized to 234 degrees.

@@ -246,7 +246,7 @@ export const sfx = {
     return true;
   },
 
-  /** Chain-arc crackle at a world position. */
+  /** Bolt wall-ricochet crackle at a world position (client-derived from the shared integrator). */
   arcZap(pos) {
     const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
     run('arcZap', () => {

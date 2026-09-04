@@ -765,28 +765,26 @@ export async function runHudContracts(ok, installGlobals) {
         && hud.dom.grenadeHint.textContent === 'COOKING · 0.7s'
         && hud.dom.grenadeChargeFill.style.transform === 'scaleX(0.25)',
       'grenade HUD flags a maxed charge, the held state from the first frame, and a burning cook');
-      hud.setState({ charge01: 0.4, chainAt: 0.85 });
+      hud.setState({ charge01: 0.4 });
       const chargingMeter = hud.dom.chargeMeter.classList.contains('is-visible')
         && hud.dom.chargeMeter.classList.contains('is-charging')
-        && !hud.dom.chargeMeter.classList.contains('is-chain')
         && hud.dom.chargeMeterFill.style.transform === 'scaleX(0.4)'
         && hud.dom.chargeMeterLabel.textContent === 'CHARGING';
-      hud.setState({ charge01: 0.9, chainAt: 0.85 });
-      const chainMeter = hud.dom.chargeMeter.classList.contains('is-chain')
-        && hud.dom.chargeMeterLabel.textContent === 'CHAIN ARC READY';
+      hud.setState({ charge01: 0.9 });
+      const midMeter = hud.dom.chargeMeter.classList.contains('is-charging')
+        && !hud.dom.chargeMeter.classList.contains('is-full')
+        && hud.dom.chargeMeterLabel.textContent === 'CHARGING';
       hud.setState({ charge01: null });
-      ok(chargingMeter && chainMeter && !hud.dom.chargeMeter.classList.contains('is-visible'),
-        'the coil meter shows the live LONGARC charge, flags chain readiness, and hides for other weapons');
-      hud.setState({ charge01: 0.5, chainAt: null });
-      const chainlessMeter = hud.dom.chargeMeter.classList.contains('is-visible')
-        && !hud.dom.chargeMeter.classList.contains('is-chain')
-        && hud.dom.chargeMeterChain.style.display === 'none'
+      ok(chargingMeter && midMeter && !hud.dom.chargeMeter.classList.contains('is-visible'),
+        'the coil meter shows the live LONGARC charge and hides for other weapons');
+      hud.setState({ charge01: 0.5 });
+      const partialMeter = hud.dom.chargeMeter.classList.contains('is-visible')
+        && hud.dom.chargeMeterFill.style.transform === 'scaleX(0.5)'
         && hud.dom.chargeMeterLabel.textContent === 'CHARGING';
       hud.setState({ charge01: 1 });
-      ok(chainlessMeter && !hud.dom.chargeMeter.classList.contains('is-chain')
+      ok(partialMeter && hud.dom.chargeMeter.classList.contains('is-full')
         && hud.dom.chargeMeterLabel.textContent === 'CHARGED',
-      'a chainAt-null charge weapon hides the chain mark and settles on CHARGED at full');
-      hud.setState({ charge01: null });
+      'a full charge cell settles on CHARGED');
 
       hud.setState({ wid: 'knife', wname: 'K-7 RIPPER', mag: 0, reserve: 0 });
       const meleeAmmo = hud.dom.mag.textContent === '∞'

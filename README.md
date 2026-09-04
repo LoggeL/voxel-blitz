@@ -52,7 +52,7 @@ The standard verification commands are:
 npm run smoke        # base gameplay/protocol smoke
 npm run lobby        # room lifecycle and lobby protocol smoke
 npm run modes:lobby  # selected mode/map lobby and wire contracts
-npm run modes:bots   # deterministic bot behavior in all four modes
+npm run modes:bots   # deterministic bot behavior in Fun, TDM, S&D, and Gun Game
 npm test             # atlas/world, smoke, lobby, mode-lobby, then bot-mode smoke
 npm run container:smoke # HTTP + WebSocket check against BASE_URL or localhost
 npm run browser:smoke   # connected touch-mode menu, play, input, pause, and quit flow
@@ -195,8 +195,8 @@ their purchases and remaining ammunition. Weapons cannot fire during prep.
 ### Gun Game
 
 Gun Game is a free-for-all with a **1500 ms** respawn. Every kill advances the
-player through rifle, SMG, shotgun, sniper, LMG, rocket, LONGARC, VOLTLANCE,
-revolver, and finally the RIPPER knife. A kill with the RIPPER wins; a
+player through rifle, SMG, shotgun, sniper, LMG, revolver, LONGARC, rocket,
+VOLTLANCE, and finally the RIPPER knife. A kill with the RIPPER wins; a
 **5000 ms** result phase follows before progression and scores reset.
 
 ### Map compatibility
@@ -208,6 +208,7 @@ revolver, and finally the RIPPER knife. A kill with the RIPPER wins; a
 | `citadel` | Fun, TDM, S&D, Gun Game | Citadel with Courtyard A and elevated Compound B |
 | `solstice` | Fun, TDM, S&D, Gun Game | desert solar observatory with a biodome, heliostat ring, and turbine hall |
 | `caldera` | Fun, TDM, S&D, Gun Game | volcanic caldera with Obsidian Gate A and elevated Ember Refinery B |
+| `killhouse` | Training | weapon-test firing range with respawning dummies and a timed 4-stage killhouse course |
 
 ## Controls
 
@@ -222,8 +223,8 @@ revolver, and finally the RIPPER knife. A kill with the RIPPER wins; a
 | `R` | reload; shotgun shells seat one at a time and firing interrupts the load |
 | hold/release `G` | charge and throw the selected throwable; longer holds throw farther, and a frag cooks while held (hold past the fuse and it goes off in your hand) |
 | `H`, or wheel while holding `G` | cycle the throwable: M-4 FRAG (2), LIMPET CHARGE (1, sticks to walls and players), PULSE SHOCK (2, impact concussion) |
-| hold/release mouse1 with the LONGARC | charge the coilgun; release fires, a full charge pierces walls and chain-arcs off the first body hit |
-| hold/release mouse1 with the VOLTLANCE | charge the rail-lance; release fires, a full charge spears up to three enemies on the line and dies on the first wall (no wall pierce, no chain) |
+| hold/release mouse1 with the LONGARC | charge the coilgun; release fires a bouncing bolt — a tap ricochets off one wall, a full charge ricochets three times |
+| hold/release mouse1 with the VOLTLANCE | charge the rail-lance; release fires a lance that spears up to six enemies on the line, and only a full charge crosses up to two walls |
 | mouse1 with the K-7 RIPPER | swing freely: swipes consume no ammo and never reload, and a strike from behind an enemy's facing backstabs for 2.5x |
 | `1-9` / `0` / wheel | weapon slots (`1-9` and `0` also pick directly while the weapon wheel is open) |
 | `Q` | previous weapon; hold instead opens the weapon wheel; while dead, previous spectator target |
@@ -286,13 +287,14 @@ clear of the controls. Append `?touch=1` to force this mode during desktop QA.
 | **LONGSHOT MK-II** bolt sniper | bolt | 42 rpm | 5 + 6 mags | 5× full-screen optic, rotary long-throw bolt, canyon echo crack |
 | **BASTION LMG** | automatic | 720 rpm | 60 + 4 mags | heavy sustained fire and the slowest viewmodel settling |
 | **IRONCLAD .44** revolver | semi-automatic | 300 rpm | 6 + 8 mags | high-damage precision sidearm with fast handling |
-| **LN-03 LONGARC** | charge (hold/release) | 160 rpm | 8 + 6 mags | coilgun: a tap is a weak dart, a full charge pierces a wall and chain-arcs to two nearby enemies, holding too long vents the shot; rising capacitor whine and coil glow |
+| **LN-03 LONGARC** | charge (hold/release) | 160 rpm | 8 + 6 mags | coilgun: a tap flings a quick single-bounce dart, a full charge launches a bolt that ricochets off walls three times — bolts never pierce bodies or terrain and fizzle once the reflections run out, holding too long vents the shot; rising capacitor whine and coil glow |
 | **RX-8 HAVOC** | semi-automatic | 45 rpm | 1 + 5 tubes | slow authoritative rocket with splash, terrain carve, direct-hit bonus, and a self-knockback tuned for rocket jumps |
-| **CL-9 VOLTLANCE** | charge (hold/release) | 140 rpm | 5 + 6 mags | charge rail-lance: a tap flings a weak dart, a full charge spears up to three enemies on the line and dies on the first wall — no wall pierce, no chain; rising cell whine and violet lance glow |
+| **CL-9 VOLTLANCE** | charge (hold/release) | 100 rpm | 4 + 5 mags | siege rail-lance: a tap flings a weak dart, a charged lance spears up to six enemies on the line with 0.9-per-body falloff, and only a full charge crosses up to two walls decaying 0.72 per wall; rising cell whine and violet lance glow |
 | **K-7 RIPPER** | melee | 120 rpm | no ammo — swings are free | free-swinging fighting knife: short-arc swipes that never reload, 2.5x backstabs from behind, and infinite ammo |
 
 Gun timing lives in `public/js/guns/defs.js` (timer table per weapon); shared
-ballistics/damage in `shared/combatmath.js`; authoritative resolve in
+ballistics/damage in `shared/combatmath.js`; the LONGARC's bouncing bolts in
+`shared/bolt-rules.js`; authoritative resolve in
 `server/game.js`. The server re-samples every shot's spread cone itself from
 your reported view angles — client damage claims are never trusted.
 
@@ -369,13 +371,12 @@ server/    HTTP/ws host, room manager, authoritative 20 Hz sim, modes, bots
 public/js/
   engine/  input, snapshots, timing/smoothing, chunk mesher, sky, combat shader
   guns/    defs (feel tables) + viewmodel rig (procedural models, staged anims)
-  weapons/ pooled FX: tracers, impacts, shatter, shells, projectiles, chain arcs, shake
+  weapons/ pooled FX: tracers, impacts, shatter, shells, projectiles, ricocheting bolts, shake
   ui/      menu/lobby, match/network HUD, buy dialog, scoreboard, combat feedback
   audio/   sample bank + procedural WebAudio fallback, mix, music, voice limits
 tools/     fast contracts plus isolated visual, audio, and container QA flows
 ```
-
-Foundry, Depot, Citadel, and Solstice are deterministic templates. Every room receives a
+Foundry, Depot, Citadel, Solstice, Caldera, and Killhouse are deterministic templates. Every room receives a
 fresh mutable clone of its selected map. The current room map is serialized in
 the single binary admission frame; subsequent block destruction is room-scoped
 and streams as index deltas inside immutable client snapshots. Each tick also

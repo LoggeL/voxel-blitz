@@ -410,6 +410,9 @@ export class GameEngine {
       launchRocket: (player, dir) => this.projectiles.launchRocket(
         player, this.projectileContext(), dir,
       ),
+      launchBolt: (player, dir, charge01) => this.projectiles.launchBolt(
+        player, this.projectileContext(), dir, charge01,
+      ),
     };
   }
 
@@ -423,6 +426,9 @@ export class GameEngine {
       canDamage: (attacker, target) => this.mode.canDamage(attacker, target),
       destroyBlock: (x, y, z) => destroyBlockDirect(
         x, y, z, null, this.combatContext(),
+      ),
+      damageBlock: (x, y, z, type, dmg) => damageBlock(
+        x, y, z, type, dmg, this.combatContext(),
       ),
       killPlayer: (victim, killer, weapon, headshot, markers) => (
         this.killPlayer(victim, killer, weapon, headshot, markers)

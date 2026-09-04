@@ -22,5 +22,4 @@ export {
   evProjectileLaunch,
   evProjectileStick,
   evProjectileExplode,
-  evArc,
 } from './protocol/events.js';
