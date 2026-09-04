@@ -70,6 +70,27 @@ async function main() {
     requireCondition(/AUTO ARENA/.test(menu.hint),
       'Quick Play truthfully advertises automatic arena rotation');
 
+    await clickElement(page, 'menu-music-toggle');
+    requireCondition(await page.evaluate(`localStorage.getItem('vb-menu-music') === '0' &&
+      document.getElementById('menu-music-toggle').getAttribute('aria-pressed') === 'false'`),
+    'menu music can be disabled independently and persists its preference');
+    await page.send('Page.reload');
+    await page.waitFor(`document.getElementById('menu-music-toggle')?.getAttribute('aria-pressed') === 'false'`,
+      { label: 'muted music after reload' });
+    await clickElement(page, 'menu-music-toggle');
+    requireCondition(await page.evaluate(`localStorage.getItem('vb-menu-music') === '1' &&
+      document.getElementById('menu-music-toggle').getAttribute('aria-pressed') === 'true'`),
+    'menu music can be re-enabled from a user gesture');
+    requireCondition(await page.evaluate(`(async () => {
+      const { DEFAULT_MENU_TRACK } = await import('/js/audio/music.js');
+      const ctx = new AudioContext();
+      try {
+        const response = await fetch(DEFAULT_MENU_TRACK);
+        const buffer = await ctx.decodeAudioData(await response.arrayBuffer());
+        return buffer.duration > 63 && buffer.duration < 65 && buffer.numberOfChannels === 2;
+      } finally { await ctx.close(); }
+    })()`), 'new industrial menu track loads and decodes as a 64-second stereo loop');
+
     await page.send('Emulation.setDeviceMetricsOverride', {
       width: LIVE_WIDTH, height: LIVE_HEIGHT, deviceScaleFactor: 1, mobile: false,
     });

@@ -340,3 +340,27 @@ h1.vb-deployment-title::after { display: none; }
   .vb-training-card { min-height: 0; }
   .vb-training-info { padding: 24px; }
 }
+
+.vb-music-toggle {
+  margin: 0;
+  margin-left: 24px;
+  width: auto;
+  flex: 0 0 auto;
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 11px;
+  letter-spacing: .08em;
+  color: #ffb04b;
+  background: #ffffff05;
+  border: 1px solid #ffffff30;
+  border-radius: 5px;
+  box-shadow: none;
+  clip-path: none;
+}
+#menu .vb-brand-context { margin-left: auto; }
+.vb-music-toggle:hover { background: #ffffff10; box-shadow: none; }
+.vb-music-toggle[aria-pressed="false"] { color: #aeb7c4; }
+@media (max-width: 760px) {
+  .vb-music-toggle { flex-shrink: 0; }
+  #menu .vb-brand-context { display: none; }
+}

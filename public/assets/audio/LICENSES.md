@@ -4,8 +4,7 @@ The weapon and handling `.ogg` samples were trimmed, filtered, normalized,
 downmixed to mono, and encoded as Opus for VOXEL BLITZ. Fire samples begin at
 the broadband muzzle transient (5–15ms measured onset after codec pre-roll) so
 their report aligns with recoil and muzzle flash. Procedural audio remains the
-fallback whenever a browser cannot fetch or decode a sample. Music retains the
-source pack's stereo Vorbis encoding.
+fallback whenever a browser cannot fetch or decode a sample. The menu loop is encoded as stereo Opus.
 
 ## Weapon reports
 
@@ -28,8 +27,9 @@ origin and license of every bundled recording remain auditable.
 
 ## Menu music
 
-- Source: **Dark Sci-Fi Audio Pack** by SRG774
-- Original file: `pulse.ogg`
-- License: Creative Commons Zero (CC0)
-- Source page: https://opengameart.org/content/dark-sci-fi-audio-pack
-- Used as the low-volume, looping menu and lobby music bed.
+- Track: **Foundry Aftermath** (`music/menu-industrial.ogg`)
+- Original procedural composition for this project; no external samples.
+- Source: `tools/generate-menu-music.mjs` (deterministic synthesis).
+- 120 BPM, 32 bars, 64 seconds, stereo Opus at 128 kbit/s.
+- Regenerate from the repository root with `node tools/generate-menu-music.mjs` (requires ffmpeg with libopus).
+- Used as the menu and lobby loop; the main menu's music switch saves its state locally.

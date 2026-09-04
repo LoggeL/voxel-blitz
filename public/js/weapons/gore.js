@@ -1,12 +1,14 @@
 // Bounded blood mist, ballistic droplets, surface stains, and local camera veil.
 import * as THREE from '../vendor/three.module.js';
 import { freeOldestIndex, hideInstance } from './instancing.js';
+import { raycastVoxels } from '../../../shared/raycast.js';
 
 const TAU = Math.PI * 2;
-const GORE_MIST_POOL_SIZE = 96;
-const GORE_DROPLET_POOL_SIZE = 144;
-const GORE_STAIN_POOL_SIZE = 48;
+const GORE_MIST_POOL_SIZE = 192;
+const GORE_DROPLET_POOL_SIZE = 384;
+const GORE_STAIN_POOL_SIZE = 256;
 const GORE_VEIL_POOL_SIZE = 12;
+const GORE_CHUNK_POOL_SIZE = 128;
 const BLOOD_RED = Object.freeze({ r: 0.34, g: 0.012, b: 0.018 });
 const BLOOD_DARK = Object.freeze({ r: 0.11, g: 0.003, b: 0.005 });
 
@@ -58,6 +60,25 @@ export class GoreFX {
       }),
       GORE_STAIN_POOL_SIZE,
     );
+    // A ragged silhouette gives every surface splash a torn edge.
+    const edge = this.goreStainMesh.geometry.attributes.position;
+    for (let i = 1; i < edge.count; i++) {
+      const radius = i % 3 === 0 ? 0.58 : (i % 2 ? 1 : 0.82);
+      edge.setXY(i, edge.getX(i) * radius, edge.getY(i) * radius);
+    }
+    edge.needsUpdate = true;
+    this.goreChunkMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshLambertMaterial({ color: 0xffffff }),
+      GORE_CHUNK_POOL_SIZE,
+    );
+    this.goreChunks = Array.from({ length: GORE_CHUNK_POOL_SIZE }, (_, i) => {
+      hideInstance(this.goreChunkMesh, i);
+      this.goreChunkMesh.setColorAt(i, this._col.setHex(i % 4 === 0 ? 0xc7ac89 : (i % 2 ? 0x880e20 : 0x4b0711)));
+      return { active: false, t: 0, life: 1, x: 0, y: 0, z: 0,
+        vx: 0, vy: 0, vz: 0, rx: 0, ry: 0, rz: 0, spin: 0,
+        sx: 0, sy: 0, sz: 0, settled: false, trail: 0 };
+    });
     this.goreVeilMesh = new THREE.InstancedMesh(
       new THREE.CircleGeometry(1, 12),
       new THREE.MeshBasicMaterial({
@@ -72,6 +93,7 @@ export class GoreFX {
       GORE_VEIL_POOL_SIZE,
     );
     this.goreMeshes = [
+      this.goreChunkMesh,
       this.goreMistMesh,
       this.goreDropletMesh,
       this.goreStainMesh,
@@ -164,9 +186,9 @@ export class GoreFX {
 
     const headshot = !!ev.hs;
     const severe = headshot || lethal;
-    const mistCount = lethal ? (headshot ? 24 : 19) : (headshot ? 16 : 9);
-    const dropletCount = lethal ? (headshot ? 26 : 21) : (headshot ? 16 : 9);
-    const width = severe ? (lethal ? 5.8 : 4.6) : 3.1;
+    const mistCount = lethal ? (headshot ? 56 : 42) : (headshot ? 26 : 16);
+    const dropletCount = lethal ? (headshot ? 92 : 68) : (headshot ? 36 : 22);
+    const width = severe ? (lethal ? 8.8 : 5.8) : 4.2;
 
     for (let i = 0; i < mistCount; i++) {
       const idx = this._claimSlot(this.goreMist);
@@ -174,14 +196,14 @@ export class GoreFX {
       const speed = width * (0.3 + Math.random() * 0.7);
       p.active = true;
       p.t = 0;
-      p.life = (severe ? 0.48 : 0.36) * (0.72 + Math.random() * 0.45);
+      p.life = (severe ? 0.68 : 0.42) * (0.72 + Math.random() * 0.45);
       p.x = x;
       p.y = y;
       p.z = z;
       p.vx = (Math.random() - 0.5) * speed + this._normal.x * speed * 0.48;
       p.vy = (Math.random() - 0.32) * speed + this._normal.y * speed * 0.48;
       p.vz = (Math.random() - 0.5) * speed + this._normal.z * speed * 0.48;
-      p.size = (severe ? 0.105 : 0.075) * (0.65 + Math.random() * 0.7);
+      p.size = (severe ? 0.14 : 0.085) * (0.65 + Math.random() * 0.7);
       this._m4.compose(
         this._v.set(x, y, z), this._q.identity(), this._s.setScalar(p.size),
       );
@@ -194,19 +216,21 @@ export class GoreFX {
       const speed = width * (0.42 + Math.random() * 0.95);
       p.active = true;
       p.t = 0;
-      p.life = 1.05 + Math.random() * 0.7;
+      p.life = 1.6 + Math.random() * 0.9;
       p.x = x;
       p.y = y;
       p.z = z;
       p.vx = (Math.random() - 0.5) * speed + this._normal.x * speed * 0.62;
       p.vy = Math.random() * speed * 0.8 + 0.7 + this._normal.y * speed * 0.35;
       p.vz = (Math.random() - 0.5) * speed + this._normal.z * speed * 0.62;
-      p.size = (severe ? 0.026 : 0.019) * (0.65 + Math.random() * 0.8);
+      p.size = (severe ? 0.038 : 0.024) * (0.65 + Math.random() * 0.8);
       this._m4.compose(
         this._v.set(x, y, z), this._q.identity(), this._s.setScalar(p.size),
       );
       this.goreDropletMesh.setMatrixAt(idx, this._m4);
     }
+
+    if (lethal) this.spawnChunks(x, y, z, headshot);
 
     if (suppliedNormal) {
       this.spawnBloodStain(
@@ -254,7 +278,7 @@ export class GoreFX {
     const stain = this.goreStains[idx];
     stain.active = true;
     stain.t = 0;
-    stain.life = 2.1 + Math.random() * 1.2;
+    stain.life = 12 + Math.random() * 8;
     stain.x = x;
     stain.y = y;
     stain.z = z;
@@ -273,7 +297,81 @@ export class GoreFX {
     this.goreStainMesh.instanceMatrix.needsUpdate = true;
   }
 
+  spawnChunks(x, y, z, headshot) {
+    for (let i = 0; i < (headshot ? 28 : 20); i++) {
+      const index = this._claimSlot(this.goreChunks);
+      const p = this.goreChunks[index];
+      const angle = Math.random() * TAU;
+      const speed = 2.5 + Math.random() * 6;
+      Object.assign(p, {
+        active: true, t: 0, life: 6 + Math.random() * 4,
+        x, y, z, vx: Math.cos(angle) * speed, vy: 3 + Math.random() * 6,
+        vz: Math.sin(angle) * speed, rx: angle, ry: 0, rz: angle,
+        spin: (Math.random() - 0.5) * 16, settled: false, trail: 0,
+        sx: 0.065 + Math.random() * 0.11,
+        sy: 0.14 + Math.random() * 0.23,
+        sz: 0.06 + Math.random() * 0.10,
+      });
+      this._drawChunk(p, index);
+    }
+  }
+
+  _drawChunk(p, index) {
+    const fade = Math.min(1, (p.life - p.t) * 2);
+    this._q.setFromEuler(this._e.set(p.rx, p.ry, p.rz));
+    this._m4.compose(this._v.set(p.x, p.y, p.z), this._q,
+      this._s.set(p.sx * fade, p.sy * fade, p.sz * fade));
+    this.goreChunkMesh.setMatrixAt(index, this._m4);
+  }
+
+  _updateChunks(dt) {
+    for (let i = 0; i < this.goreChunks.length; i++) {
+      const p = this.goreChunks[i];
+      if (!p.active) continue;
+      p.t += dt;
+      if (p.t >= p.life) {
+        p.active = false;
+        hideInstance(this.goreChunkMesh, i);
+        continue;
+      }
+      if (!p.settled) {
+        p.vy -= 15 * dt;
+        const distance = Math.hypot(p.vx, p.vy, p.vz) * dt;
+        const hit = raycastVoxels(this.getBlockFn, p.x, p.y, p.z, p.vx, p.vy, p.vz, distance);
+        if (hit) {
+          const f = distance > 0 ? hit.t / distance : 0;
+          const cx = p.x + p.vx * dt * f, cy = p.y + p.vy * dt * f, cz = p.z + p.vz * dt * f;
+          this.spawnBloodStain(cx + hit.nx * 0.015, cy + hit.ny * 0.015,
+            cz + hit.nz * 0.015, hit.nx, hit.ny, hit.nz, 0.18 + p.sy * 0.6);
+          p.x = cx + hit.nx * 0.12;
+          p.y = cy + hit.ny * 0.12;
+          p.z = cz + hit.nz * 0.12;
+          const dot = p.vx * hit.nx + p.vy * hit.ny + p.vz * hit.nz;
+          p.vx = (p.vx - 1.3 * dot * hit.nx) * 0.55;
+          p.vy = (p.vy - 1.3 * dot * hit.ny) * 0.55;
+          p.vz = (p.vz - 1.3 * dot * hit.nz) * 0.55;
+          if (hit.ny > 0 && Math.hypot(p.vx, p.vy, p.vz) < 1.5) p.settled = true;
+          // A spawn already inside cover has no entry face.
+          if (!hit.nx && !hit.ny && !hit.nz) p.settled = true;
+        } else {
+          p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+        }
+        p.rx += p.spin * dt; p.ry += p.spin * dt * 0.7; p.rz += p.spin * dt * 0.4;
+        p.trail += dt;
+        if (p.trail > 0.085 && p.t < 1.2) {
+          p.trail = 0;
+          const index = this._claimSlot(this.goreDroplets);
+          Object.assign(this.goreDroplets[index], { active: true, t: 0, life: 1.4,
+            x: p.x, y: p.y, z: p.z, vx: p.vx * 0.1, vy: -0.4, vz: p.vz * 0.1, size: 0.026 });
+        }
+      }
+      this._drawChunk(p, i);
+    }
+    this.goreChunkMesh.instanceMatrix.needsUpdate = true;
+  }
+
   update(dt) {
+    this._updateChunks(dt);
     for (let i = 0; i < this.goreMist.length; i++) {
       const p = this.goreMist[i];
       if (!p.active) continue;
@@ -311,37 +409,23 @@ export class GoreFX {
         continue;
       }
       p.vy -= 13.5 * dt;
+      const distance = Math.hypot(p.vx, p.vy, p.vz) * dt;
+      const hit = raycastVoxels(this.getBlockFn, p.x, p.y, p.z, p.vx, p.vy, p.vz, distance);
+      if (hit) {
+        const f = distance > 0 ? hit.t / distance : 0;
+        p.active = false;
+        hideInstance(this.goreDropletMesh, i);
+        this.spawnBloodStain(
+          p.x + p.vx * dt * f + hit.nx * 0.012,
+          p.y + p.vy * dt * f + hit.ny * 0.012,
+          p.z + p.vz * dt * f + hit.nz * 0.012,
+          hit.nx, hit.ny, hit.nz, p.size * 7.5,
+        );
+        continue;
+      }
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.z += p.vz * dt;
-      if (this.getBlockFn(Math.floor(p.x), Math.floor(p.y), Math.floor(p.z))) {
-        const ax = Math.abs(p.vx);
-        const ay = Math.abs(p.vy);
-        const az = Math.abs(p.vz);
-        let cx = p.x;
-        let cy = p.y;
-        let cz = p.z;
-        let nx = 0;
-        let ny = 0;
-        let nz = 0;
-        if (ax >= ay && ax >= az) {
-          const bx = Math.floor(p.x);
-          nx = p.vx > 0 ? -1 : 1;
-          cx = p.vx > 0 ? bx - 0.006 : bx + 1.006;
-        } else if (ay >= az) {
-          const by = Math.floor(p.y);
-          ny = p.vy > 0 ? -1 : 1;
-          cy = p.vy > 0 ? by - 0.006 : by + 1.006;
-        } else {
-          const bz = Math.floor(p.z);
-          nz = p.vz > 0 ? -1 : 1;
-          cz = p.vz > 0 ? bz - 0.006 : bz + 1.006;
-        }
-        p.active = false;
-        hideInstance(this.goreDropletMesh, i);
-        this.spawnBloodStain(cx, cy, cz, nx, ny, nz, p.size * 5.4);
-        continue;
-      }
       const speed = Math.sqrt(p.vx * p.vx + p.vy * p.vy + p.vz * p.vz);
       this._normal.set(p.vx, p.vy, p.vz);
       if (speed > 0.0001) this._normal.multiplyScalar(1 / speed);

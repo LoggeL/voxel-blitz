@@ -147,7 +147,7 @@ export class HUD {
   spreadFromCone(cone) { return spreadFromCone(cone); }
   cleanCode(raw) { return cleanCode(raw); }
 
-  buildMenu(callback) { return this.menu.buildMenu(callback); }
+  buildMenu(callback, options) { return this.menu.buildMenu(callback, options); }
   showJoinState(message, tone = '') { return this.menu.showJoinState(message, tone); }
   ensureLobbyDom() { return this.menu.ensureLobbyDom(); }
   showLobby(state, callbacks = {}) { return this.menu.showLobby(state, callbacks); }

@@ -1,5 +1,6 @@
 import { aimAssistStrength } from '../../public/js/player/aim-assist.js';
 import * as THREE from '../../public/js/vendor/three.module.js';
+import { GoreFX } from '../../public/js/weapons/gore.js';
 import {
   CombatFeedback,
   bearingDeg,
@@ -8,6 +9,26 @@ import {
 } from '../../public/js/combat/feedback.js';
 
 export function runCombatFeedbackContracts(ok) {
+  const goreScene = new THREE.Scene();
+  const gore = new GoreFX(goreScene, null, (x, y) => y < 0 || x === 2 ? 1 : 0);
+  gore.gore({ vx: 0.5, vy: 1.5, vz: 0.5, hs: true }, { lethal: true });
+  ok(gore.goreChunks.some((p) => p.active), 'lethal hits emit physical gore fragments');
+  // Cross an entire wall voxel in one frame: the swept ray must still stain its entry face.
+  for (const p of gore.goreDroplets) p.active = false;
+  Object.assign(gore.goreDroplets[0], { active: true, t: 0, life: 2,
+    x: 0.5, y: 1.5, z: 0.5, vx: 100, vy: 0, vz: 0, size: 0.04 });
+  gore.update(0.05);
+  ok(gore.goreStains.some((p) => p.active && p.x > 1.9 && p.x < 2),
+    'fast blood droplets hit the wall entry face without tunneling');
+  for (let i = 0; i < 40; i++) gore.gore({ vx: 0.5, vy: 2, vz: 0.5 }, { lethal: true });
+  for (let i = 0; i < 240; i++) gore.update(0.1);
+  ok([gore.goreChunks, gore.goreStains, gore.goreMist, gore.goreDroplets]
+    .every((pool) => pool.every((p) => !p.active)),
+  'sustained gore stays bounded and every fragment and stain expires');
+  gore.dispose();
+  gore.dispose();
+  ok(goreScene.children.length === 0, 'gore teardown releases every instanced mesh');
+
   const assistContext = {
     players: [
       { id: 'covered', x: 0, y: -1.1, z: -10, state: 'alive' },

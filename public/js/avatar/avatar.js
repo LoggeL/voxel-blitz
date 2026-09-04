@@ -189,7 +189,7 @@ export function beginAvatarDeath(av, now, impact = null) {
     const limb = av.limbStates[i];
     const seed = hashInt(`${av.id}|${i}|${headshot ? 1 : 0}`);
     const angle = (seed / 0xffffffff) * Math.PI * 2;
-    const radial = 2.1 + ((seed >>> 8) & 255) / 255 * 1.9;
+    const radial = 3.4 + ((seed >>> 8) & 255) / 255 * 2.8;
     const boost = headshot && i === 0 ? 1.85 : 1;
     limb.object.position.copy(limb.basePosition);
     limb.object.rotation.copy(limb.baseRotation);
@@ -209,12 +209,6 @@ export function beginAvatarDeath(av, now, impact = null) {
 }
 
 export function updateAvatarDeath(av, dt, t) {
-  av.torso.position.y = 1.18 - t * 0.56;
-  av.torso.rotation.x = t * 1.08;
-  av.torso.rotation.z = av.deathSide * t * 0.3;
-  av.hips.position.y = 0.84 - t * 0.38;
-  av.hips.rotation.x = t * 0.72;
-  av.hips.rotation.z = av.deathSide * t * 0.22;
   av.weaponModel?.setDeathPose(t, av.deathSide);
   for (const limb of av.limbStates) {
     limb.velocity.y -= 11.8 * dt;
@@ -387,6 +381,8 @@ export function makeAvatar(id, name, team = null) {
     { object: rArm, floorY: 0.86 },
     { object: lLeg, floorY: 0.72 },
     { object: rLeg, floorY: 0.72 },
+    { object: torso, floorY: 0.28 },
+    { object: hips, floorY: 0.18 },
   ].map((limb) => ({
     ...limb,
     basePosition: limb.object.position.clone(),

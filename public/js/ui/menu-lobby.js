@@ -66,7 +66,7 @@ export class MenuLobbyController {
     );
   }
 
-  buildMenu(onAction) {
+  buildMenu(onAction, { musicEnabled = true, onMusicToggle = NOOP } = {}) {
     this.onMenuAction = typeof onAction === 'function' ? onAction : NOOP;
     this.hideLobby();
     this._callHost('closeSettings');
@@ -79,7 +79,20 @@ export class MenuLobbyController {
     root.setAttribute('aria-hidden', 'false');
     setMenuBackdrop(root, 'foundry');
 
-    const { stage } = buildMenuShell(root, { context: 'MAIN MENU' });
+    const { stage, rail } = buildMenuShell(root, { context: 'MAIN MENU' });
+    const musicButton = el('button', 'vb-btn vb-music-toggle', rail, 'menu-music-toggle');
+    musicButton.type = 'button';
+    musicButton.setAttribute('aria-label', 'Menu music');
+    const syncMusic = () => {
+      musicButton.textContent = `MUSIC: ${musicEnabled ? 'ON' : 'OFF'}`;
+      musicButton.setAttribute('aria-pressed', String(musicEnabled));
+    };
+    syncMusic();
+    musicButton.addEventListener('click', () => {
+      musicEnabled = !musicEnabled;
+      syncMusic();
+      onMusicToggle(musicEnabled);
+    });
     const panel = el('div', 'vb-panel vb-main-menu-panel', stage);
 
     const primary = el('section', 'vb-menu-primary', panel, 'menu-primary-step');

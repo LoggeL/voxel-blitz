@@ -125,6 +125,7 @@ export class Session {
     this._storage = Object.hasOwn(browser, 'storage')
       ? browser.storage
       : (typeof localStorage !== 'undefined' ? localStorage : null);
+    this._menuMusicEnabled = readStoredNumber(this._storage, 'vb-menu-music', 1, 0, 1) !== 0;
     this._now = typeof browser.now === 'function' ? browser.now : nowMs;
 
     const hooks = callbacks && typeof callbacks === 'object' ? callbacks : {};
@@ -331,9 +332,21 @@ export class Session {
     this._replacePregameNet();
     this.hud.buildMenu((action) => {
       void this.begin(action);
+    }, {
+      musicEnabled: this._menuMusicEnabled,
+      onMusicToggle: (enabled) => {
+        this._menuMusicEnabled = enabled;
+        this._writePreference('vb-menu-music', enabled ? 1 : 0);
+        if (enabled) {
+          void this.unlockAudioFromGesture();
+          Promise.resolve(this.audio.startMenuMusic?.()).catch(() => {});
+        } else {
+          this.audio.stopMenuMusic?.();
+        }
+      },
     });
     try {
-      Promise.resolve(this.audio.startMenuMusic?.()).catch(() => {});
+      if (this._menuMusicEnabled) Promise.resolve(this.audio.startMenuMusic?.()).catch(() => {});
     } catch (_) {}
     if (message) this.hud.showJoinState(message, 'err');
     return true;
