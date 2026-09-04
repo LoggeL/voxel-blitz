@@ -59,5 +59,15 @@ used only for art direction. No external source assets were used.
   converted locally to WebP at quality 82 with metadata removed, per the
   Solstice direct-render precedent.
 
+## Killhouse
+
+- File: `killhouse-concept.webp`
+- Created: 2026-09-04
+- Source capture: `.artifacts/map-renders/killhouse-hero.png`
+- Art-direction reference: none (built directly in voxels)
+- Prompt intent: none. The shipped preview is the production hero capture
+  converted locally to WebP at quality 82 with metadata removed, per the
+  Caldera direct-render precedent.
+
 All generated PNGs were converted locally to WebP at quality 82 with metadata
 removed. The original generated files remain in the Codex image output folder.

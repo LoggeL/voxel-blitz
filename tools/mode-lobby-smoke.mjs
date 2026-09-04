@@ -888,6 +888,160 @@ async function runGunGameFoundry(port, signal) {
   await closeRoomClients(members, 'Gun Game room');
 }
 
+async function runTrainingKillhouse(port, signal) {
+  const selection = { gameMode: 'training', map: 'killhouse' };
+  const localWorld = createMapState('killhouse');
+  const expectedBytes = Buffer.from(localWorld.serializeWorld());
+  const dummyPosts = localWorld.meta.dummyPosts;
+  const dummyRowOf = (tick, index) => tick?.players?.find((row) => row.id === 'dummy-' + index);
+
+  const badPair = await expectRejected(
+    makeClient(port, 'Bad-Training-Foundry'),
+    { t: 'create', name: 'Bad-Training-Foundry', bots: 3, gameMode: 'training', map: 'foundry' },
+    4002,
+    signal,
+  );
+  pass(/malformed/i.test(badPair.msg), 'incompatible Training Foundry is rejected as malformed');
+
+  const host = await admit(
+    makeClient(port, 'Training-Host'),
+    { t: 'create', name: 'Training-Host', bots: 3, gameMode: 'training', map: 'killhouse' },
+    selection,
+    signal,
+  );
+  pass(host.welcome.phase === 'waiting' && host.welcome.lobby.role === 'host',
+    'selected Training Killhouse create returns a waiting host identity');
+  const hostInitial = host.initialState;
+  assertLobbyShape(hostInitial, selection, 'Training host initial state');
+  pass(hostInitial.code === host.welcome.lobby.code && hostInitial.host === host.welcome.id &&
+    hostInitial.phase === 'waiting' && hostInitial.bots === 3,
+    'Training host initial state carries exact room identity, waiting phase, and the echoed bot slider',
+    `received ${JSON.stringify({ code: hostInitial.code, host: hostInitial.host, phase: hostInitial.phase, bots: hostInitial.bots })}`);
+  pass(JSON.stringify(hostInitial.members) === JSON.stringify(expectedRoster([host])) &&
+    !hostInitial.members.some((member) => member.bot),
+    'Training host initial state carries the exact ordered human roster with zero bot rows',
+    `received ${JSON.stringify(hostInitial.members)}`);
+  const guest = await admit(
+    makeClient(port, 'Training-Guest'),
+    { t: 'join', name: 'Training-Guest', lobby: host.welcome.lobby.code },
+    selection,
+    signal,
+  );
+  const members = [host, guest];
+  pass(guest.welcome.lobby.code === host.welcome.lobby.code && guest.welcome.lobby.role === 'member',
+    'Training invite join inherits the exact Killhouse room identity');
+  const guestInitial = guest.initialState;
+  assertLobbyShape(guestInitial, selection, 'Training invite inherited state');
+  pass(guestInitial.code === host.welcome.lobby.code && guestInitial.host === host.welcome.id &&
+    guestInitial.phase === 'waiting' && guestInitial.bots === 3,
+    'Training invite inherited state carries exact room identity, waiting phase, and the echoed bot slider',
+    `received ${JSON.stringify({ code: guestInitial.code, host: guestInitial.host, phase: guestInitial.phase, bots: guestInitial.bots })}`);
+  pass(JSON.stringify(guestInitial.members) === JSON.stringify(expectedRoster(members)) &&
+    !guestInitial.members.some((member) => member.bot),
+    'Training invite inherited state carries the exact ordered human roster with zero bot rows',
+    `received ${JSON.stringify(guestInitial.members)}`);
+  pass(Buffer.compare(host.map, guest.map) === 0,
+    'Training invite join inherits the exact Killhouse binary map');
+  pass(host.map.length === expectedBytes.length && Buffer.compare(host.map, expectedBytes) === 0,
+    'Killhouse map payload equals the locally built pristine template bytes');
+
+  // The live room carries the training bot-slider contract: the requested 3
+  // combat bots are dropped (the live state pins bots === 0), leaving only
+  // humans plus the mode's own dummy targets on the wire. The start sequence
+  // mirrors readyAndStart, but the waiting assertion is training-specific:
+  // the state echoes the requested slider (bots === 3) while carrying an
+  // all-human roster, which assertLobbyState's fixed bot-row expectation
+  // cannot express.
+  const code = host.welcome.lobby.code;
+  const readyMarks = new Map(members.map((client) => [client, client.mark()]));
+  for (const member of members) member.send({ t: 'ready', value: true });
+  const readySet = new Set(members);
+  const readyStates = await Promise.all(members.map((client) => nextLobbyState(
+    client,
+    readyMarks.get(client),
+    code,
+    (state) => state.phase === 'waiting' && state.members.length === members.length &&
+      state.members.every((row) => row.ready),
+    `${client.label} all-ready replacement`,
+    signal,
+  )));
+  for (let i = 0; i < members.length; i++) {
+    const readyState = readyStates[i];
+    assertLobbyShape(readyState, selection, `${members[i].label} all-ready state`);
+    pass(readyState.code === code && readyState.host === host.welcome.id &&
+      readyState.phase === 'waiting' && readyState.bots === 3,
+      `${members[i].label} all-ready state carries exact room identity, waiting phase, and the echoed bot slider`,
+      `received ${JSON.stringify({ code: readyState.code, host: readyState.host, phase: readyState.phase, bots: readyState.bots })}`);
+    pass(JSON.stringify(readyState.members) === JSON.stringify(expectedRoster(members, readySet)) &&
+      !readyState.members.some((member) => member.bot),
+      `${members[i].label} all-ready state carries the exact ordered human roster with zero bot rows`,
+      `received ${JSON.stringify(readyState.members)}`);
+  }
+
+  const liveMarks = new Map(members.map((client) => [client, client.mark()]));
+  host.send({ t: 'start' });
+  const liveStates = await Promise.all(members.map((client) => nextLobbyState(
+    client,
+    liveMarks.get(client),
+    code,
+    (state) => state.phase === 'live',
+    `${client.label} live replacement`,
+    signal,
+  )));
+  for (let i = 0; i < members.length; i++) {
+    assertLobbyState(liveStates[i], {
+      selection,
+      code,
+      host,
+      phase: 'live',
+      members,
+      ready: readySet,
+    }, `${members[i].label} live state`);
+  }
+  const firstTickFrame = await nextTickFrame(
+    host,
+    liveMarks.get(host),
+    (tick) => members.every((client) => tick.players.some((row) => row.id === client.welcome.id)) &&
+      tick.players.length === members.length + dummyPosts.length,
+    'first complete Training tick',
+    signal,
+  );
+  const firstTick = firstTickFrame.value;
+  assertMatchShape(firstTick, selection, 'Training tick');
+  pass(firstTick.match.phase === 'live' && firstTick.match.phaseEndsAt === null &&
+    firstTick.match.scores === null && firstTick.match.winner === null &&
+    firstTick.match.round === null && firstTick.match.roundWinner === null &&
+    firstTick.match.attackers === null && firstTick.match.defenders === null &&
+    firstTick.match.bomb === null,
+  'Training match fields expose the exact live firing-range state');
+  const humanRows = firstTick.players.filter((row) => !row.id.startsWith('dummy-'));
+  pass(firstTick.players.every((row) =>
+      members.some((client) => client.welcome.id === row.id) || /^dummy-\d+$/.test(row.id)) &&
+    humanRows.length === members.length &&
+    !firstTick.players.some((row) => /^bot-\d+$/.test(row.id)) &&
+    dummyPosts.every((post, index) => {
+      const row = dummyRowOf(firstTick, index);
+      return row && row.name === 'Dummy ' + String(index + 1).padStart(2, '0') &&
+        row.x === post.x + 0.5 && row.y === post.y && row.z === post.z + 0.5 &&
+        row.state === 'alive' && row.hp === 100 && row.team === null;
+    }),
+  'first Training tick attaches zero combat bots: humans plus exact dummy-target rows only');
+  const firstGuestTick = await nextTick(
+    guest,
+    liveMarks.get(guest),
+    (tick) => tick.players.length === members.length + dummyPosts.length &&
+      members.every((client) => tick.players.some((row) => row.id === client.welcome.id)),
+    'first guest Training tick',
+    signal,
+  );
+  pass(firstGuestTick.players.every((row) =>
+      members.some((client) => client.welcome.id === row.id) || /^dummy-\d+$/.test(row.id)) &&
+    !firstGuestTick.players.some((row) => /^bot-\d+$/.test(row.id)),
+  'guest Training tick carries the same human-plus-dummy roster with no combat bots');
+
+  await closeRoomClients(members, 'Training room');
+}
+
 async function runSndCitadel(port, depotBytes, signal) {
   const selection = { gameMode: 'snd', map: 'citadel' };
   const host = await admit(
@@ -1281,6 +1435,7 @@ async function runContracts(server, signal) {
 
   const maps = await runQuickRotation(port, signal);
   await runGunGameFoundry(port, signal);
+  await runTrainingKillhouse(port, signal);
   await runTdmDepot(port, maps.depotBytes, signal);
   await runSndCitadel(port, maps.depotBytes, signal);
 
