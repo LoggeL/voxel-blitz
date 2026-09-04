@@ -92,7 +92,7 @@ export const MAP_DESCRIPTIONS = Object.freeze({
   citadel: 'Urban fortress with Courtyard A and Compound B tactical bomb sites (All Modes)',
   solstice: 'Desert solar observatory with a glass biodome, turbine hall, and compact linked lanes (All Modes)',
   caldera: 'Volcanic caldera with a west obsidian gate and elevated east ember refinery (All Modes)',
-  killhouse: 'Weapon-test range with respawning dummies and a 4-stage timed killhouse course (Training)',
+  killhouse: 'Covered firing bays and four numbered rooms. Practice on respawning targets or race the course.',
 });
 
 export const MAP_PREVIEWS = Object.freeze({
@@ -101,7 +101,7 @@ export const MAP_PREVIEWS = Object.freeze({
   citadel: './assets/maps/citadel-concept.webp',
   solstice: './assets/maps/solstice-concept.webp',
   caldera: './assets/maps/caldera-concept.webp',
-  killhouse: './assets/maps/killhouse-concept.webp',
+  killhouse: './assets/maps/killhouse-range.webp',
 });
 
 export const CARDINAL = Object.freeze({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' });

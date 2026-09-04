@@ -189,7 +189,7 @@ export function spawnIsWalkable(world, spawn) {
     && world.getBlock(x, feetY + 1, z) === AIR;
 }
 
-function resolveSpawnPool(world, anchors) {
+function resolveSpawnPool(world, anchors, floorY = null) {
   const out = [];
   const occupied = new Set();
   for (const [px, pz] of anchors) {
@@ -201,7 +201,7 @@ function resolveSpawnPool(world, anchors) {
           const x = px + dx;
           const z = pz + dz;
           if (x < 3 || z < 3 || x >= SX - 3 || z >= SZ - 3) continue;
-          const h = world.heightAt(x, z);
+          const h = floorY ?? world.heightAt(x, z);
           const spawn = { x: x + 0.5, y: h + 1.02, z: z + 0.5 };
           const key = `${x},${z}`;
           if (!occupied.has(key) && spawnIsWalkable(world, spawn)) {
@@ -220,30 +220,32 @@ function resolveSpawnPool(world, anchors) {
 
 export function createMapMetadata(id, world) {
   const anchors = MAP_SPAWN_ANCHORS[id];
+  // Training targets and operators belong inside the facility, below its canopy.
+  const floorY = id === 'killhouse' ? GROUND : null;
   const metadata = {
     id,
     name: MAP_NAMES[id],
     modes: MAP_MODE_COMPATIBILITY[id],
     spawns: {
-      fun: resolveSpawnPool(world, anchors.fun),
+      fun: resolveSpawnPool(world, anchors.fun, floorY),
       tdm: {
-        alpha: resolveSpawnPool(world, anchors.tdm.alpha),
-        bravo: resolveSpawnPool(world, anchors.tdm.bravo),
+        alpha: resolveSpawnPool(world, anchors.tdm.alpha, floorY),
+        bravo: resolveSpawnPool(world, anchors.tdm.bravo, floorY),
       },
       snd: {
-        attackers: resolveSpawnPool(world, anchors.snd.attackers),
-        defenders: resolveSpawnPool(world, anchors.snd.defenders),
+        attackers: resolveSpawnPool(world, anchors.snd.attackers, floorY),
+        defenders: resolveSpawnPool(world, anchors.snd.defenders, floorY),
       },
     },
     ladders: id === 'foundry' ? foundryLadderVolumes() : [],
     sites: MAP_SITE_LAYOUTS[id].map((site) => ({ ...site })),
     landmarks: MAP_LANDMARKS[id].map((landmark) => ({
       ...landmark,
-      y: world.heightAt(landmark.x, landmark.z) + 1.02,
+      y: (floorY ?? world.heightAt(landmark.x, landmark.z)) + 1.02,
     })),
     dummyPosts: (MAP_DUMMY_POSTS[id] || []).map((post) => ({
       ...post,
-      y: world.heightAt(post.x, post.z) + 1.02,
+      y: (floorY ?? world.heightAt(post.x, post.z)) + 1.02,
     })),
     course: MAP_RUN_COURSE[id] ? structuredClone(MAP_RUN_COURSE[id]) : null,
   };
@@ -261,7 +263,7 @@ export function createMapMetadata(id, world) {
   }
 
   for (const post of metadata.dummyPosts) {
-    const h = world.heightAt(post.x, post.z);
+    const h = Math.floor(post.y) - 1;
     if (world.getBlock(post.x, h, post.z) === AIR
       || world.getBlock(post.x, h + 1, post.z) !== AIR
       || world.getBlock(post.x, h + 2, post.z) !== AIR) {

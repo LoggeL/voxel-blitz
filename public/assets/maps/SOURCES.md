@@ -71,3 +71,13 @@ used only for art direction. No external source assets were used.
 
 All generated PNGs were converted locally to WebP at quality 82 with metadata
 removed. The original generated files remain in the Codex image output folder.
+
+## Killhouse redesign (current preview)
+
+- File: `killhouse-range.webp`
+- Created: 2026-09-05
+- Source: `.artifacts/killhouse-redesign/killhouse-firing-line.png`
+- Render: `node tools/render-map-scenes.mjs --map killhouse --width 1280 --height 720 --out-dir .artifacts/killhouse-redesign`
+- Conversion: `cwebp -q 88` with no compositing or generated scenery.
+- The main-menu card, map picker, and lobby use this production capture.
+- `killhouse-concept.webp` is retained as the earlier design reference.

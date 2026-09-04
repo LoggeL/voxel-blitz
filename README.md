@@ -20,7 +20,7 @@ npm install
 npm start            # http://localhost:8070  (PORT env to override)
 ```
 
-The main menu has three admission paths:
+The main menu offers Quick Play, custom lobbies, room codes, and a Killhouse shortcut:
 
 - **Quick Play** enters the first live shared Fun room with human capacity, or
   creates one immediately. Fresh quick rooms rotate between Foundry, Depot,
@@ -33,6 +33,12 @@ The main menu has three admission paths:
 - **Join** accepts a five-character invite code and inherits the room's
   authoritative mode and map. It may enter either a waiting lobby or a match
   already in progress.
+
+**Enter Killhouse** creates a Training lobby directly with your current name and
+no combat bots. Ready up and start to enter the covered firing gallery. The
+facility has nine respawning range targets, four numbered course rooms with eight
+stage targets, skylights, a marked start portal, and a return door beside the finish.
+The menu preview is a capture of the same geometry used in the game.
 
 The lobby displays its mode, map, roster, invite code, and copyable invite URL,
 constructed as `${location.origin}${location.pathname}?lobby=${code}`. Loading

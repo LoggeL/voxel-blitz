@@ -539,16 +539,21 @@ export async function runHudContracts(ok, installGlobals) {
       document.getElementById('map-select').value = 'citadel';
       document.getElementById('play-btn').click();
       const quickButton = document.getElementById('play-btn');
-      const quickTelemetry = document.querySelectorAll('.vb-telemetry-value');
       ok(menuActions.length === 2
         && menuActions[1].mode === 'quick'
         && menuActions[1].bots >= 5
         && !Object.hasOwn(menuActions[1], 'gameMode')
         && !Object.hasOwn(menuActions[1], 'map')
         && /auto arena/i.test(quickButton.parentNode.querySelector('.vb-action-hint').textContent)
-        && /auto rotation/i.test(quickTelemetry[0]?.textContent)
         && !Object.hasOwn(globalThis, 'location'),
-      'HUD quick action leaves arena selection to truthful server rotation telemetry');
+      'HUD quick action leaves arena selection to server rotation and accurately labels the action');
+
+      document.getElementById('training-btn').click();
+      const trainingAction = menuActions.at(-1);
+      ok(trainingAction.mode === 'create' && trainingAction.gameMode === 'training'
+        && trainingAction.map === 'killhouse' && trainingAction.bots === 0
+        && trainingAction.name === document.getElementById('name-input').value,
+      'the main-menu Killhouse entry creates a training lobby with the current identity and no combat bots');
 
       const lobbyState = {
         code: 'ZX9Q2',

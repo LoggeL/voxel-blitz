@@ -190,6 +190,11 @@ Exports block ids `AIR` through `PALE`, `BLOCK_HP`, `GRENADE_RESISTANCE`, `SX`,
 `createWorldState(serializedBytes?)`. It also exports `getMapMeta(id)` and
 `createMapState(id,serializedBytes?)`.
 
+Killhouse has a covered gallery and skylit course. Its spawn pools, target posts,
+and landmarks use the ground floor at `GROUND + 1.02`, independently of the highest
+roof voxel recorded by `heightAt`. Spawn and target validation checks the actual
+feet cell and headroom. The four-stage gate metadata remains authoritative.
+
 `createMapState` accepts `foundry`, `depot`, `citadel`, `solstice`, `caldera`, or `killhouse` and returns an
 independent `{mapId,meta,getBlock,setBlock,heightAt,findSpawns,serializeWorld,
 rebuildHeightMap}`. Templates are generated and cached once, then cloned for
@@ -348,13 +353,16 @@ and exposes `quickPlay(meta,name,bots?)`,
   bursts cannot compress authoritative movement into a speed spike.
 
 ### HUD
-- `buildMenu(onAction)` builds Quick Play/Create/Join and calls
+- `buildMenu(onAction)` builds Quick Play/Create/Join and a Killhouse shortcut, and calls
   `onAction({mode:'quick'|'create'|'join',gameMode,map,name,bots,sensitivity,
   code})`. Create uses the selected compatible mode/map. Quick uses shared Fun
   admission with five takeover bots and automatic Foundry/Depot/Solstice/Caldera
   rotation; Join uses the code and inherits the room selection. Names trim to
   16 characters with `PLAYER` fallback; codes normalize to the invite alphabet
   and five characters. `?lobby=CODE` pre-fills and focuses Join.
+  The Killhouse shortcut emits a normal create action for `training` / `killhouse`
+  with zero combat bots and the current identity. Its preview uses the production
+  firing-line capture; no synthetic telemetry or connection claim is displayed.
   `showJoinState(message,tone?)` reports menu admission state.
 - `showLobby(state,{onReady,onStart,onLeave})`, `updateLobby(state)`,
   `hideLobby()`, and `showLobbyStatus(message,tone?)` own the waiting UI. It

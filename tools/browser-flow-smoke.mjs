@@ -70,6 +70,20 @@ async function main() {
     requireCondition(/AUTO ARENA/.test(menu.hint),
       'Quick Play truthfully advertises automatic arena rotation');
 
+    await page.send('Emulation.setDeviceMetricsOverride', {
+      width: LIVE_WIDTH, height: LIVE_HEIGHT, deviceScaleFactor: 1, mobile: false,
+    });
+    await page.waitFor(`document.querySelector('.vb-training-image')?.complete &&
+      document.querySelector('.vb-training-image')?.naturalWidth > 0`, { label: 'Killhouse menu preview' });
+    requireCondition(await page.evaluate(`document.getElementById('menu').scrollWidth <= innerWidth`),
+      'redesigned main menu has no horizontal overflow at the requested viewport');
+    if (process.env.BROWSER_SMOKE_SCREENSHOT) {
+      await page.evaluate(`document.getElementById('menu').scrollTop = 0`);
+      const screenshot = await page.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }, 15_000);
+      const output = path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT).replace(/\.png$/, '-menu.png');
+      await writeFile(output, Buffer.from(screenshot.data, 'base64'));
+    }
+
     await page.evaluate(`document.getElementById('create-lobby-btn').click()`);
     await page.waitFor(`document.getElementById('create-lobby-step')?.getAttribute('aria-hidden') === 'false' &&
       document.getElementById('map-preview-image')?.complete &&
@@ -310,7 +324,8 @@ async function main() {
     })()`);
     requireCondition(await page.evaluate(`document.getElementById('map-select').value === 'killhouse'`),
       'Training selects its compatible Killhouse map');
-    await clickElement(page, 'create-lobby-confirm-btn');
+    await clickElement(page, 'create-step-back');
+    await clickElement(page, 'training-btn');
     await page.waitFor(`!!document.getElementById('lobby-ready-btn') &&
       !document.getElementById('lobby')?.classList.contains('hidden')`, { label: 'Training waiting lobby' });
     await clickElement(page, 'lobby-ready-btn');

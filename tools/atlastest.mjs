@@ -347,7 +347,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     citadel: '7fdfff21',
     solstice: 'e7809a25',
     caldera: 'fe8b73d1',
-    killhouse: '90ce2aa6',
+    killhouse: '8e89c37e',
   };
   const expectedSpawnCounts = {
     foundry: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 5, sndDefenders: 5 },
@@ -423,7 +423,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     roomA.rebuildHeightMap();
     ok(roomA.getBlock(x, probeY, z) === GLASS
       && roomB.getBlock(x, probeY, z) === AIR
-      && roomA.heightAt(x, z) === probeY
+      && roomA.heightAt(x, z) === Math.max(probeY, originalHeight)
       && roomB.heightAt(x, z) === originalHeight,
     `${mapId} room cells and rebuilt height maps are isolated`);
 
@@ -721,6 +721,34 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   });
   const posts = meta.dummyPosts;
   const course = meta.course;
+  ok([...meta.spawns.fun, ...meta.spawns.tdm.alpha, ...meta.spawns.tdm.bravo, ...posts]
+    .every((point) => Math.floor(point.y) === 15),
+  'covered Killhouse spawns and all dummy targets stay on the facility floor, never the roof');
+  ok(world.getBlock(16, 22, 86) === METAL && world.getBlock(16, 15, 86) === AIR
+    && world.getBlock(14, 15, 47) === AIR && world.getBlock(114, 15, 47) === AIR,
+  'Killhouse canopy preserves standing headroom and walkable course entry and return doors');
+  const openCourse = createMapState('killhouse');
+  for (const gate of course.gates) {
+    for (let y = course.gateY[0]; y <= course.gateY[1]; y++) {
+      for (let z = course.gateZ[0]; z <= course.gateZ[1]; z++) openCourse.setBlock(gate.x, y, z, AIR);
+    }
+  }
+  const visited = new Set(['16,86']);
+  const queue = [[16, 86]];
+  for (let i = 0; i < queue.length; i++) {
+    const [x, z] = queue[i];
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, nz = z + dz, key = `${nx},${nz}`;
+      if (nx < 7 || nx > 121 || nz < 26 || nz > 90 || visited.has(key)) continue;
+      if (openCourse.getBlock(nx, 14, nz) === AIR || openCourse.getBlock(nx, 15, nz) !== AIR
+        || openCourse.getBlock(nx, 16, nz) !== AIR) continue;
+      visited.add(key);
+      queue.push([nx, nz]);
+    }
+  }
+  ok(posts.every((post) => visited.has(`${post.x},${post.z}`)) && visited.has('114,38'),
+    'every target and the finish remain reachable on foot from the covered gallery with course gates open');
+
   // Teleport the runner onto one cell (y = terrain headroom) and zero its
   // velocity: `_feetInside` keys the run clock to the floored feet cell.
   const runner = (x, z) => {

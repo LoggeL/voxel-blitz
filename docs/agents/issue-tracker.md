@@ -51,6 +51,9 @@ evidence belongs to Extended QA.
 | VB-035-G | Compact weapon wheel stays legible; short-screen settings and lobby actions remain reachable | Connected browser flows and rendered screenshots at 390×844 and 844×390; natural roster height and scrollable settings | Verified locally; release pending |
 | VB-036-A | Compact mobile controls, ammo-panel weapon swap, and essential HUD; removed touch crouch/grenade/zoom buttons, tap-to-fire, long-press wheel, haptics, and forced immersion | Existing input contracts, connected 320×568 and 844×390 browser flows, all size/hand combinations, and all-mode header bounds | Verified locally; release pending |
 | VB-036-B | Reserve ammo actually displays and restores after switching away from melee | Existing HUD contract checks displayed reserve count | Verified locally; release pending |
+| VB-037-A | Redesigned main menu with a clear play action, real Killhouse preview, dedicated Training shortcut, compact identity/join controls, and no fake telemetry | Existing HUD admission contracts and connected desktop/mobile menu, create, play, and Training flows | Verified locally; release pending |
+| VB-037-B | Covered firing gallery, clear floor markings, skylit numbered course rooms, entrance portal, and finish return; no scattered collision debris | Five production camera renders, stable world fingerprint, gate lifecycle and on-foot target reachability contracts | Verified locally; release pending |
+| VB-037-C | Indoor Training spawn and target positions use the floor under roofs | Existing map/headroom contracts and live Training handoff | Verified locally; release pending |
 
 ## VB-029 release evidence
 

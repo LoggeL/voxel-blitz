@@ -1,5 +1,4 @@
 import { el } from './hud-support.js';
-import { WEAPON_IDS } from '../../../shared/combatmath.js';
 
 const MENU_BACKDROPS = Object.freeze({
   foundry: '/assets/ui/menu-foundry-dusk.webp',
@@ -7,7 +6,7 @@ const MENU_BACKDROPS = Object.freeze({
   citadel: '/assets/maps/citadel-concept.webp',
   solstice: '/assets/maps/solstice-concept.webp',
   caldera: '/assets/maps/caldera-concept.webp',
-  killhouse: '/assets/maps/killhouse-concept.webp',
+  killhouse: '/assets/maps/killhouse-range.webp',
 });
 
 export function setMenuBackdrop(root, map = 'foundry') {
@@ -25,17 +24,7 @@ function buildBrandRail(parent, { context = 'DEPLOYMENT', titleId = '' } = {}) {
   el('span', 'vb-brand-voxel', lockup).textContent = 'VOXEL';
   el('span', 'vb-brand-blitz', lockup).textContent = 'BLITZ';
 
-  const nav = el('div', 'vb-brand-context', rail);
-  el('span', 'vb-brand-context-active', nav).textContent = context;
-  el('span', '', nav).textContent = 'TACTICAL ARENA';
-  el('span', '', nav).textContent = `${WEAPON_IDS.length} WEAPONS`;
-  el('span', '', nav).textContent = 'VOXEL COMBAT';
-
-  const status = el('div', 'vb-brand-status', rail);
-  el('span', 'vb-online-dot', status).setAttribute('aria-hidden', 'true');
-  el('span', '', status).textContent = 'ONLINE';
-
-  el('div', 'vb-brand-build', rail).textContent = 'BUILD 0.1';
+  el('span', 'vb-brand-context', rail).textContent = context;
   return rail;
 }
 
@@ -44,20 +33,4 @@ export function buildMenuShell(root, options = {}) {
   const rail = buildBrandRail(shell, options);
   const stage = el('main', 'vb-menu-stage', shell);
   return { shell, rail, stage };
-}
-
-export function buildTelemetry(parent, { title = 'MISSION TELEMETRY', rows = [] } = {}) {
-  const card = el('aside', 'vb-menu-telemetry', parent);
-  el('div', 'vb-telemetry-title', card).textContent = title;
-
-  const radar = el('div', 'vb-telemetry-radar', card);
-  radar.setAttribute('aria-hidden', 'true');
-
-  const list = el('div', 'vb-telemetry-list', card);
-  for (const [label, value] of rows) {
-    const row = el('div', 'vb-telemetry-row', list);
-    el('span', 'vb-telemetry-label', row).textContent = label;
-    el('span', 'vb-telemetry-value', row).textContent = value;
-  }
-  return card;
 }

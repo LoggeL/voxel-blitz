@@ -38,10 +38,11 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   shot('caldera', 'refinery', [91.5, 22.5, 66.5], [103, 19, 48], 72),
   shot('caldera', 'snd-site-a', [25.5, 20.5, 62], [25.5, 16, 47.5], 70, 'snd'),
   shot('caldera', 'snd-site-b', [102.5, 23.5, 62], [102.5, 19, 47.5], 70, 'snd'),
-  shot('killhouse', 'hero', [64.5, 24.64, 90.5], [64, 16, 40], 75),
-  shot('killhouse', 'firing-line', [64.5, 17.64, 88.5], [64, 16, 58], 72),
-  shot('killhouse', 'long-lane', [64.5, 17.64, 84.5], [64, 16, 58], 60),
-  shot('killhouse', 'killhouse-run', [14.5, 18.64, 51.5], [60, 16, 37], 70),
+  shot('killhouse', 'hero', [38, 34, 81], [65, 16, 44], 72),
+  shot('killhouse', 'firing-line', [35, 16.64, 87], [58, 17, 59], 76),
+  shot('killhouse', 'long-lane', [64.5, 16.64, 85.5], [64, 16, 58], 65),
+  shot('killhouse', 'killhouse-run', [14.5, 16.64, 53.5], [14.5, 18, 35], 75),
+  shot('killhouse', 'room-one', [18, 16.64, 36], [24, 19, 27], 78),
 ]);
 
 export function findMapCaptureShot(map, id = 'hero') {

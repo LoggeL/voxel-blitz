@@ -17,7 +17,7 @@ import {
   MOUSE_SENSITIVITY,
   SENSITIVITY_PREF_KEY,
 } from '../input-settings.js';
-import { buildMenuShell, buildTelemetry, setMenuBackdrop } from './menu-chrome.js';
+import { buildMenuShell, setMenuBackdrop } from './menu-chrome.js';
 
 const NOOP = () => {};
 const QUICK_PLAY_BOTS = 5;
@@ -79,26 +79,26 @@ export class MenuLobbyController {
     root.setAttribute('aria-hidden', 'false');
     setMenuBackdrop(root, 'foundry');
 
-    const { stage } = buildMenuShell(root, { context: 'DEPLOYMENT' });
+    const { stage } = buildMenuShell(root, { context: 'MAIN MENU' });
     const panel = el('div', 'vb-panel vb-main-menu-panel', stage);
 
     const primary = el('section', 'vb-menu-primary', panel, 'menu-primary-step');
     primary.setAttribute('aria-labelledby', 'menu-title');
     const primaryBody = el('div', 'vb-menu-primary-body', primary);
-    el('span', 'vb-step-kicker', primaryBody).textContent = 'STEP 1 / 2 · DEPLOYMENT';
     const title = el('h1', 'vb-title vb-deployment-title', primaryBody, 'menu-title');
-    title.textContent = 'DEPLOYMENT';
+    el('span', '', title).textContent = 'VOXEL';
+    el('span', '', title).textContent = ' BLITZ';
     const sub = el('div', 'vb-sub', primaryBody);
-    sub.textContent = 'choose your route into the arena';
+    sub.textContent = 'Fast rounds. Destructible arenas.';
 
     const callsignLabel = el('label', 'vb-label', primaryBody);
-    callsignLabel.textContent = 'CALLSIGN';
+    callsignLabel.textContent = 'PLAYER NAME';
     callsignLabel.htmlFor = 'name-input';
     const nameInput = el('input', '', primaryBody, 'name-input');
     nameInput.maxLength = 16;
     nameInput.autocomplete = 'off';
     nameInput.spellcheck = false;
-    nameInput.placeholder = 'OPERATOR';
+    nameInput.placeholder = 'PLAYER';
     nameInput.value = loadName();
 
     const actionsBox = el('div', 'vb-menu-actions', primaryBody);
@@ -120,14 +120,12 @@ export class MenuLobbyController {
     createLobbyButton.type = 'button';
     createLobbyButton.textContent = 'CREATE LOBBY';
     const createHint = el('div', 'vb-action-hint', createBox);
-    createHint.textContent = 'CUSTOM RULES & ARENA';
+    createHint.textContent = 'Choose a map. Bring your friends.';
 
     const joinSection = el('div', 'vb-join-section', primaryBody);
     const joinLabel = el('label', 'vb-label', joinSection);
-    joinLabel.textContent = 'JOIN SQUAD';
+    joinLabel.textContent = 'HAVE A ROOM CODE?';
     joinLabel.htmlFor = 'join-code-input';
-    const joinHint = el('div', 'vb-action-hint vb-join-hint', joinSection);
-    joinHint.textContent = 'ENTER A FIVE-CHARACTER ROOM CODE';
 
     const joinRow = el('div', 'vb-join-row', joinSection);
     const joinInput = el('input', 'vb-join-input', joinRow, 'join-code-input');
@@ -144,14 +142,19 @@ export class MenuLobbyController {
     this.joinStatus.setAttribute('role', 'status');
     this.joinStatus.setAttribute('aria-live', 'polite');
 
-    buildTelemetry(primary, {
-      rows: [
-        ['ARENA', 'AUTO ROTATION'],
-        ['MODE', 'FUN'],
-        ['BOT COUNT', String(QUICK_PLAY_BOTS)],
-        ['WEAPONS', 'SIX'],
-      ],
-    });
+    const training = el('section', 'vb-training-card', primary);
+    const trainingImage = el('img', 'vb-training-image', training);
+    trainingImage.src = '/assets/maps/killhouse-range.webp';
+    trainingImage.alt = 'Covered firing bays in the Killhouse training facility';
+    trainingImage.width = 1280;
+    trainingImage.height = 720;
+    const trainingInfo = el('div', 'vb-training-info', training);
+    el('span', 'vb-step-kicker', trainingInfo).textContent = 'THE PRACTICE RANGE';
+    el('h2', '', trainingInfo).textContent = 'KILLHOUSE';
+    el('p', '', trainingInfo).textContent = 'Find your aim. Beat your time.';
+    const trainingButton = el('button', 'vb-btn vb-training-btn', trainingInfo, 'training-btn');
+    trainingButton.type = 'button';
+    trainingButton.textContent = 'ENTER KILLHOUSE';
 
     const getIdentity = () => {
       const name = nameInput.value.trim().slice(0, 16) || 'PLAYER';
@@ -211,6 +214,11 @@ export class MenuLobbyController {
       onCreate: (payload) => this.onMenuAction(payload),
     });
 
+    trainingButton.addEventListener('click', () => {
+      if (trainingButton.disabled) return;
+      this.onMenuAction({ mode: 'create', gameMode: 'training', map: 'killhouse', bots: 0,
+        code: '', ...getIdentity() });
+    });
     quickPlayButton.addEventListener('click', triggerQuick);
     createLobbyButton.addEventListener('click', triggerCreate);
     joinButton.addEventListener('click', triggerJoin);
@@ -298,7 +306,7 @@ export class MenuLobbyController {
 
     root.innerHTML = '';
     setMenuBackdrop(root, 'foundry');
-    const { stage } = buildMenuShell(root, { context: 'DEPLOYMENT' });
+    const { stage } = buildMenuShell(root, { context: 'MAIN MENU' });
     const panel = el('div', 'vb-lobby-panel', stage);
 
     const title = el('h2', 'vb-title', panel, 'lobby-title');
