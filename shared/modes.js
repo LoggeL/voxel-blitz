@@ -1,9 +1,9 @@
 // Fixed mode, team, map, Gun Game progression, and Search and Destroy economy contract.
 // This module is dependency-free so the browser and authoritative server share it directly.
 
-export const MODE_IDS = Object.freeze(['fun', 'tdm', 'snd', 'gungame']);
+export const MODE_IDS = Object.freeze(['fun', 'tdm', 'snd', 'gungame', 'training']);
 export const TEAM_IDS = Object.freeze(['alpha', 'bravo']);
-export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera']);
+export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'killhouse']);
 
 export const DEFAULT_MODE_ID = MODE_IDS[0];
 export const DEFAULT_TEAM_ID = TEAM_IDS[0];
@@ -82,16 +82,23 @@ export const MODE_RULES = Object.freeze({
     lossCredits: LOSS_CREDIT_LADDER,
     maxCredits: MAX_CREDITS,
   }),
+  training: Object.freeze({
+    teams: false,
+    friendlyFire: false,
+    respawnMs: 1500,
+  }),
 });
 
+const COMBAT_MODE_IDS = Object.freeze(['fun', 'tdm', 'snd', 'gungame']);
 const DEPOT_MODE_IDS = Object.freeze(['fun', 'tdm', 'gungame']);
 
 export const MAP_MODE_COMPATIBILITY = Object.freeze({
-  foundry: MODE_IDS,
+  foundry: COMBAT_MODE_IDS,
   depot: DEPOT_MODE_IDS,
-  citadel: MODE_IDS,
-  solstice: MODE_IDS,
-  caldera: MODE_IDS,
+  citadel: COMBAT_MODE_IDS,
+  solstice: COMBAT_MODE_IDS,
+  caldera: COMBAT_MODE_IDS,
+  killhouse: Object.freeze(['training']),
 });
 
 export function isModeId(value) {

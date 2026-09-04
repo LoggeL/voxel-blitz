@@ -1,4 +1,4 @@
-import { AIR, GROUND, SX, SY, SZ } from './blocks.js';
+import { AIR, GROUND, METAL, SX, SY, SZ } from './blocks.js';
 import { MAP_MODE_COMPATIBILITY } from '../modes.js';
 import { foundryLadderVolumes } from './terrain-foundry.js';
 
@@ -8,6 +8,7 @@ export const MAP_NAMES = Object.freeze({
   citadel: 'Citadel',
   solstice: 'Solstice',
   caldera: 'Caldera',
+  killhouse: 'Killhouse',
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
@@ -63,6 +64,14 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
       defenders: [[18, 8], [36, 8], [54, 8], [72, 8], [90, 8], [108, 8]],
     },
   },
+  killhouse: {
+    fun: [[16, 86], [40, 86], [64, 86], [88, 86], [112, 86], [18, 76], [56, 76], [104, 76], [34, 60], [94, 60], [64, 62], [14, 50]],
+    tdm: {
+      alpha: [[16, 86], [30, 86], [16, 74], [30, 66], [46, 86], [14, 50]],
+      bravo: [[112, 86], [98, 86], [112, 74], [98, 66], [82, 86], [113, 50]],
+    },
+    snd: { attackers: [], defenders: [] },
+  },
 });
 
 export const MAP_SITE_LAYOUTS = Object.freeze({
@@ -83,6 +92,7 @@ export const MAP_SITE_LAYOUTS = Object.freeze({
     { id: 'A', minX: 19, maxX: 32, minZ: 41, maxZ: 54, y: GROUND + 1.02 },
     { id: 'B', minX: 96, maxX: 109, minZ: 41, maxZ: 54, y: GROUND + 4.02 },
   ],
+  killhouse: [],
 });
 
 export const MAP_LANDMARKS = Object.freeze({
@@ -111,6 +121,55 @@ export const MAP_LANDMARKS = Object.freeze({
     { id: 'central-vent', name: 'Central Vent', x: 64, z: 48 },
     { id: 'ember-refinery', name: 'Ember Refinery', x: 103, z: 48 },
   ],
+  killhouse: [
+    { id: 'firing-line', name: 'Firing Line', x: 64, z: 84 },
+    { id: 'killhouse-yard', name: 'Killhouse Yard', x: 14, z: 50 },
+    { id: 'long-lane', name: 'Long Lane', x: 64, z: 62 },
+  ],
+});
+
+/** Dummy-target posts per map, indexed by dummy bot id (dummy-<index>). Killhouse only. */
+export const MAP_DUMMY_POSTS = Object.freeze({
+  killhouse: Object.freeze([
+    { kind: 'range', x: 18, z: 74 },
+    { kind: 'range', x: 34, z: 74 },
+    { kind: 'range', x: 54, z: 74 },
+    { kind: 'range', x: 74, z: 74 },
+    { kind: 'range', x: 94, z: 74 },
+    { kind: 'range', x: 114, z: 74 },
+    { kind: 'range', x: 34, z: 64 },
+    { kind: 'range', x: 94, z: 64 },
+    { kind: 'range', x: 64, z: 58 },
+    { kind: 'stage', stage: 0, x: 16, z: 32 },
+    { kind: 'stage', stage: 0, x: 34, z: 42 },
+    { kind: 'stage', stage: 1, x: 46, z: 30 },
+    { kind: 'stage', stage: 1, x: 66, z: 44 },
+    { kind: 'stage', stage: 2, x: 76, z: 44 },
+    { kind: 'stage', stage: 2, x: 96, z: 30 },
+    { kind: 'stage', stage: 3, x: 104, z: 30 },
+    { kind: 'stage', stage: 3, x: 115, z: 42 },
+  ]),
+});
+
+/** Timed run course per map, staged behind METAL gates. Killhouse only. */
+export const MAP_RUN_COURSE = Object.freeze({
+  killhouse: Object.freeze({
+    start: Object.freeze({ minX: 12, minZ: 48, maxX: 17, maxZ: 53 }),
+    finish: Object.freeze({ minX: 112, minZ: 34, maxX: 117, maxZ: 42 }),
+    stages: Object.freeze([
+      Object.freeze([10, 28, 39, 46]),
+      Object.freeze([41, 28, 69, 46]),
+      Object.freeze([71, 28, 99, 46]),
+      Object.freeze([101, 28, 117, 46]),
+    ]),
+    gates: Object.freeze([
+      Object.freeze({ x: 40 }),
+      Object.freeze({ x: 70 }),
+      Object.freeze({ x: 100 }),
+    ]),
+    gateY: Object.freeze([15, 17]),
+    gateZ: Object.freeze([28, 46]),
+  }),
 });
 
 export function deepFreeze(value) {
@@ -182,6 +241,11 @@ export function createMapMetadata(id, world) {
       ...landmark,
       y: world.heightAt(landmark.x, landmark.z) + 1.02,
     })),
+    dummyPosts: (MAP_DUMMY_POSTS[id] || []).map((post) => ({
+      ...post,
+      y: world.heightAt(post.x, post.z) + 1.02,
+    })),
+    course: MAP_RUN_COURSE[id] ? structuredClone(MAP_RUN_COURSE[id]) : null,
   };
 
   for (const pool of [
@@ -193,6 +257,27 @@ export function createMapMetadata(id, world) {
   ]) {
     for (const spawn of pool) {
       if (!spawnIsWalkable(world, spawn)) throw new Error(`${id} contains an invalid spawn`);
+    }
+  }
+
+  for (const post of metadata.dummyPosts) {
+    const h = world.heightAt(post.x, post.z);
+    if (world.getBlock(post.x, h, post.z) === AIR
+      || world.getBlock(post.x, h + 1, post.z) !== AIR
+      || world.getBlock(post.x, h + 2, post.z) !== AIR) {
+      throw new Error(`${id} contains an invalid dummy post at ${post.x},${post.z}`);
+    }
+  }
+
+  if (metadata.course) {
+    for (const gate of metadata.course.gates) {
+      for (const y of metadata.course.gateY) {
+        for (const z of metadata.course.gateZ) {
+          if (world.getBlock(gate.x, y, z) !== METAL) {
+            throw new Error(`${id} gate at x=${gate.x} is not sealed with METAL`);
+          }
+        }
+      }
     }
   }
 

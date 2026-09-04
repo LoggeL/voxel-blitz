@@ -11,6 +11,7 @@ import {
   rebuildHeights,
   validateSerializedWorld,
 } from './serialize.js';
+import { generateKillhouseInto } from './flatmap-killhouse.js';
 import { createStateApi } from './state.js';
 import { generateFoundryInto } from './terrain-foundry.js';
 
@@ -36,6 +37,7 @@ function buildPristineTemplate(id) {
   else if (id === 'depot') generateDepotInto(world, blocks, heights);
   else if (id === 'citadel') generateCitadelInto(world, blocks, heights);
   else if (id === 'caldera') generateCalderaInto(world, blocks, heights);
+  else if (id === 'killhouse') generateKillhouseInto(world, blocks, heights);
   else generateSolsticeInto(world, blocks, heights);
 
   rebuildHeights(blocks, heights);
