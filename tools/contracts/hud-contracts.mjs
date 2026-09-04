@@ -514,6 +514,10 @@ export async function runHudContracts(ok, installGlobals) {
       ok(mapSelect.options.map((option) => option.value).join(',') === 'foundry,citadel,solstice,caldera'
         && !mapSelect.options.some((option) => option.value === 'depot'),
       'HUD menu removes maps incompatible with the selected mode');
+      modeSelect.value = 'training';
+      modeSelect.dispatchEvent(event('change'));
+      ok(mapSelect.options.map((option) => option.value).join(',') === 'killhouse',
+      'HUD menu maps the training mode to exactly killhouse');
       modeSelect.value = 'tdm';
       modeSelect.dispatchEvent(event('change'));
       mapSelect.value = 'depot';

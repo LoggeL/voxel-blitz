@@ -7,7 +7,7 @@ import {
   DEFAULT_BLOCK_TILES, ATLAS_SIZE, TILE_PX, GRID,
 } from '../public/js/engine/atlas.js';
 import {
-  AIR, LEAVES, GLASS, GRASS, STONE, WOOD, PLANK, SX, SZ, SY, BLOCK_HP,
+  AIR, LEAVES, GLASS, GRASS, STONE, WOOD, PLANK, METAL, SX, SZ, SY, BLOCK_HP,
   getBlock as getWorldBlock, setBlock as setWorldBlock, heightAt,
   serializeWorld, deserializeWorld, createWorldState, createMapState,
   getMapMeta, MAP_IDS as WORLD_MAP_IDS,
@@ -200,8 +200,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
 // ---------------------------------------------- mode + map foundation contract
 {
-  ok(sameValue(MODE_IDS, ['fun', 'tdm', 'snd', 'gungame'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera'])
+  ok(sameValue(MODE_IDS, ['fun', 'tdm', 'snd', 'gungame', 'training'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'killhouse'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -254,6 +254,11 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
       lossCredits: [1400, 1900, 2400, 2900, 3400],
       maxCredits: 16000,
     },
+    training: {
+      teams: false,
+      friendlyFire: false,
+      respawnMs: 1500,
+    },
   };
   ok(sameValue(MODE_RULES, expectedRules) && deeplyFrozen(MODE_RULES),
     'mode rules are exact and recursively immutable');
@@ -261,7 +266,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && deeplyFrozen(GUN_GAME_WEAPON_ORDER),
   'Gun Game progression has one exact immutable shared weapon order');
   ok(isTeamMode('tdm') && isTeamMode('snd')
-    && !isTeamMode('fun') && !isTeamMode('gungame') && !isTeamMode('invalid'),
+    && !isTeamMode('fun') && !isTeamMode('gungame') && !isTeamMode('training')
+    && !isTeamMode('invalid'),
   'team-mode classification derives from the shared mode rules');
 
   const expectedPrices = {
@@ -294,6 +300,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     citadel: ['fun', 'tdm', 'snd', 'gungame'],
     solstice: ['fun', 'tdm', 'snd', 'gungame'],
     caldera: ['fun', 'tdm', 'snd', 'gungame'],
+    killhouse: ['training'],
   };
   ok(sameValue(MAP_MODE_COMPATIBILITY, expectedCompatibility)
     && deeplyFrozen(MAP_MODE_COMPATIBILITY)
@@ -324,6 +331,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     citadel: 'Citadel',
     solstice: 'Solstice',
     caldera: 'Caldera',
+    killhouse: 'Killhouse',
   };
   const expectedMapHashes = {
     foundry: '78553d52',
@@ -331,6 +339,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     citadel: '7fdfff21',
     solstice: 'e7809a25',
     caldera: 'fe8b73d1',
+    killhouse: '90ce2aa6',
   };
   const expectedSpawnCounts = {
     foundry: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 5, sndDefenders: 5 },
@@ -338,6 +347,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     citadel: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     solstice: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     caldera: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
+    killhouse: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 0, sndDefenders: 0 },
   };
   const pristineBytes = new Map();
 
@@ -398,8 +408,9 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     const z = Math.floor(probe.z);
     const probeY = Math.floor(probe.y) + 1;
     const originalHeight = roomA.heightAt(x, z);
-    const engineA = new GameEngine({ world: roomA });
-    const engineB = new GameEngine({ world: roomB });
+    const loopMode = MAP_MODE_COMPATIBILITY[mapId][0];
+    const engineA = new GameEngine({ world: roomA, mode: loopMode });
+    const engineB = new GameEngine({ world: roomB, mode: loopMode });
     roomA.setBlock(x, probeY, z, GLASS);
     roomA.rebuildHeightMap();
     ok(roomA.getBlock(x, probeY, z) === GLASS
@@ -684,6 +695,208 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && engine.entities.get('ls-v').hp === 100,
   'a sub-full lance charge pierces no walls: the slug dies on the first wall and the body behind is unharmed');
   world.setBlock(62, 16, 40, AIR);
+}
+
+// ------------------------------------------- training firing range contracts
+// Headless server behavior: drive the REAL GameEngine in training mode over
+// the killhouse template and pin the dummy-target, staged-run, and METAL gate
+// contracts through the engine's own step -> snapshot -> block-delta seam.
+{
+  const meta = getMapMeta('killhouse');
+  const world = createMapState('killhouse');
+  const frames = [];
+  const engine = new GameEngine({
+    world,
+    mapMeta: meta,
+    mode: 'training',
+    broadcast: (snapshot) => frames.push(snapshot),
+  });
+  const posts = meta.dummyPosts;
+  const course = meta.course;
+  // Teleport the runner onto one cell (y = terrain headroom) and zero its
+  // velocity: `_feetInside` keys the run clock to the floored feet cell.
+  const runner = (x, z) => {
+    const entity = engine.entities.get('runner');
+    entity.x = x + 0.5;
+    entity.z = z + 0.5;
+    entity.y = world.heightAt(x, z) + 1.02;
+    entity.vx = entity.vy = entity.vz = 0;
+  };
+  const dummy = (id) => engine.entities.get(id);
+  const gateCells = (gate) => {
+    const cells = [];
+    for (let y = course.gateY[0]; y <= course.gateY[1]; y++) {
+      for (let z = course.gateZ[0]; z <= course.gateZ[1]; z++) {
+        cells.push({ x: gate.x, y, z, i: ((y * SZ) + z) * SX + gate.x });
+      }
+    }
+    return cells;
+  };
+  const gates = course.gates.map(gateCells);
+  const stepOnce = () => {
+    engine.step(engine.intervalMs);
+    return frames[frames.length - 1];
+  };
+  const eventsOf = (frame, kind) => (frame.events || []).filter((e) => e.kind === kind);
+  const openedGateDeltas = (frame, cells) =>
+    frame.blocks.length === cells.length
+    && frame.blocks.every((delta) => delta.v === AIR && cells.some((cell) => cell.i === delta.i));
+
+  // (a) Zero dummies before the first policy tick, then all 17 as bots on it.
+  ok(engine.entities.size === 0, 'training room attaches zero entities before its first tick');
+  stepOnce();
+  ok([...engine.entities.keys()].length === 17
+    && [...engine.entities.keys()].every((id, index) => id === 'dummy-' + index)
+    && [...engine.entities.values()].every((entity) => entity.bot && entity.state === 'alive')
+    && [...engine.entities.values()].every((entity, index) =>
+      entity.name === 'Dummy ' + String(index + 1).padStart(2, '0'))
+    && posts.every((post, index) => {
+      const entity = engine.entities.get('dummy-' + index);
+      return entity.x === post.x + 0.5 && entity.y === post.y && entity.z === post.z + 0.5;
+    }),
+  'first training tick spawns all 17 dummy targets on their exact posts as bots');
+
+  // Seat one human far from the start region so the idle ticks below start
+  // no run: the run clock begins only when feet enter the start cell.
+  engine.addClient('runner', 'Runner');
+  runner(64, 62);
+
+  // (b) Dummies never fire; humans damage dummies but never each other.
+  ok(engine.mode.canFire(dummy('dummy-0')) === false
+    && engine.mode.canFire(engine.entities.get('runner')) === true
+    && engine.mode.canDamage('runner', 'dummy-0') === true
+    && engine.mode.canDamage('runner', 'runner') === false
+    && engine.mode.canDamage('dummy-0', 'runner') === false,
+  'training damage policy: dummies never fire, humans shoot dummies, humans never shoot humans');
+
+  // (c) A range dummy stays dead through its whole 1200 ms respawn window
+  // (23 x 50 ms ticks) and returns to its exact post on the tick past it.
+  const rangePost = { x: posts[0].x + 0.5, y: posts[0].y, z: posts[0].z + 0.5 };
+  const rangeKilledAt = engine.now;
+  engine.killPlayer(dummy('dummy-0'), null, 'world', false);
+  for (let i = 0; i < 23; i++) stepOnce();
+  ok(engine.now === rangeKilledAt + 1150 && dummy('dummy-0').state === 'dead',
+    'range dummy remains dead through 1200 ms minus one tick');
+  const rangeReviveFrame = stepOnce();
+  ok(rangeReviveFrame.now === rangeKilledAt + 1200
+    && dummy('dummy-0').state === 'alive' && dummy('dummy-0').hp === 100
+    && dummy('dummy-0').x === rangePost.x && dummy('dummy-0').y === rangePost.y
+    && dummy('dummy-0').z === rangePost.z
+    && eventsOf(rangeReviveFrame, 'respawn').some((e) => e.id === 'dummy-0'),
+  'range dummy respawns at its exact post when the 1200 ms window elapses');
+
+  // (c) A stage dummy plays the same contract over the 4000 ms window.
+  const stagePost = { x: posts[9].x + 0.5, y: posts[9].y, z: posts[9].z + 0.5 };
+  const stageKilledAt = engine.now;
+  engine.killPlayer(dummy('dummy-9'), null, 'world', false);
+  for (let i = 0; i < 79; i++) stepOnce();
+  ok(engine.now === stageKilledAt + 3950 && dummy('dummy-9').state === 'dead',
+    'stage dummy remains dead through 4000 ms minus one tick');
+  const stageReviveFrame = stepOnce();
+  ok(stageReviveFrame.now === stageKilledAt + 4000
+    && dummy('dummy-9').state === 'alive'
+    && dummy('dummy-9').x === stagePost.x && dummy('dummy-9').y === stagePost.y
+    && dummy('dummy-9').z === stagePost.z,
+  'stage dummy respawns at its exact post when the 4000 ms window elapses');
+
+  // (d) Staged run: start, one split per cleared stage, gate cells opening
+  // through matching AIR deltas, finish, persisted personal best.
+  runner(14, 50);
+  const start1Frame = stepOnce();
+  const start1 = eventsOf(start1Frame, 'run_start');
+  ok(start1.length === 1 && start1[0].id === 'runner' && start1[0].at === start1Frame.now,
+    'entering the start cell starts a staged training run on the wire');
+  ok(gates.every((cells) => cells.every((cell) => world.getBlock(cell.x, cell.y, cell.z) === METAL)),
+    'run start re-arms every METAL gate cell');
+
+  engine.killPlayer(dummy('dummy-9'), null, 'world', false);
+  engine.killPlayer(dummy('dummy-10'), null, 'world', false);
+  const split0Frame = stepOnce();
+  const split0 = eventsOf(split0Frame, 'run_split');
+  ok(split0.length === 1 && split0[0].id === 'runner' && split0[0].stage === 0
+    && split0[0].ms > 0
+    && gates[0].every((cell) => world.getBlock(cell.x, cell.y, cell.z) === AIR)
+    && openedGateDeltas(split0Frame, gates[0]),
+  'stage zero kills emit one run_split and open the first gate cell by cell');
+
+  engine.killPlayer(dummy('dummy-11'), null, 'world', false);
+  engine.killPlayer(dummy('dummy-12'), null, 'world', false);
+  const split1Frame = stepOnce();
+  ok(eventsOf(split1Frame, 'run_split')[0]?.stage === 1
+    && gates[1].every((cell) => world.getBlock(cell.x, cell.y, cell.z) === AIR)
+    && openedGateDeltas(split1Frame, gates[1]),
+  'stage one opens the second gate cell by cell');
+  for (let i = 0; i < 6; i++) stepOnce(); // pad run one so it stays the slower run
+  engine.killPlayer(dummy('dummy-13'), null, 'world', false);
+  engine.killPlayer(dummy('dummy-14'), null, 'world', false);
+  const split2Frame = stepOnce();
+  ok(eventsOf(split2Frame, 'run_split')[0]?.stage === 2
+    && gates[2].every((cell) => world.getBlock(cell.x, cell.y, cell.z) === AIR)
+    && openedGateDeltas(split2Frame, gates[2]),
+  'stage two opens the third gate cell by cell');
+  for (let i = 0; i < 6; i++) stepOnce();
+  engine.killPlayer(dummy('dummy-15'), null, 'world', false);
+  engine.killPlayer(dummy('dummy-16'), null, 'world', false);
+  const split3Frame = stepOnce();
+  ok(eventsOf(split3Frame, 'run_split')[0]?.stage === 3
+    && gates.every((cells) => cells.every((cell) => world.getBlock(cell.x, cell.y, cell.z) === AIR)),
+  'stage three completes the course with every gate fully open');
+
+  runner(114, 38);
+  const finish1Frame = stepOnce();
+  const finish1 = eventsOf(finish1Frame, 'run_finish');
+  ok(finish1.length === 1 && finish1[0].id === 'runner'
+    && finish1[0].ms > 0
+    && finish1[0].best === finish1[0].ms
+    && finish1[0].splits.length === 4
+    && finish1[0].splits.every((value) => Number.isFinite(value) && value > 0),
+  'crossing the finish after four splits publishes the run time and a fresh personal best');
+  const firstFinish = finish1[0];
+
+  // Re-enter the start for a second run: gates re-arm, stage dummies reset,
+  // and re-entering mid-run rearms the clock. Finish faster so the persisted
+  // best shrinks to the smaller run time.
+  runner(14, 50);
+  const start2Frame = stepOnce();
+  ok(eventsOf(start2Frame, 'run_start').length === 1
+    && gates.every((cells) => cells.every((cell) => world.getBlock(cell.x, cell.y, cell.z) === METAL)),
+  're-entering the start re-arms the METAL gates and starts a fresh run');
+  runner(64, 62);
+  const leftFrame = stepOnce();
+  ok(eventsOf(leftFrame, 'run_reset').length === 0 && eventsOf(leftFrame, 'run_finish').length === 0,
+    'leaving the start region alone does not reset the run');
+  runner(14, 50);
+  const rearmedFrame = stepOnce();
+  const rearmedResets = eventsOf(rearmedFrame, 'run_reset');
+  ok(rearmedResets.length === 1 && rearmedResets[0].reason === 'rearmed'
+    && eventsOf(rearmedFrame, 'run_start').length === 1,
+    're-entering the start mid-run rearms the run and restarts it fresh');
+  for (let index = 9; index <= 16; index++) {
+    engine.killPlayer(dummy('dummy-' + index), null, 'world', false);
+  }
+  for (let i = 0; i < 4; i++) stepOnce();
+  runner(114, 38);
+  const finish2Frame = stepOnce();
+  const finish2 = eventsOf(finish2Frame, 'run_finish');
+  ok(finish2.length === 1 && finish2[0].ms > 0
+    && finish2[0].best === finish2[0].ms
+    && finish2[0].splits.length === 4
+    && finish2[0].ms < firstFinish.ms && finish2[0].best < firstFinish.best,
+  'a faster second run replaces the persisted personal best with the smaller time');
+
+  // (e) Dying mid-run tears the run down with reason death.
+  runner(14, 50);
+  const start3Frame = stepOnce();
+  ok(eventsOf(start3Frame, 'run_start').length === 1,
+    'a third run starts after the second finishes');
+  engine.killPlayer(engine.entities.get('runner'), null, 'world', false);
+  const deathFrame = stepOnce();
+  const deathResets = eventsOf(deathFrame, 'run_reset');
+  ok(deathResets.length === 1 && deathResets[0].reason === 'death'
+    && deathResets[0].id === 'runner'
+    && engine.entities.get('runner').state === 'dead'
+    && eventsOf(deathFrame, 'die').some((e) => e.id === 'runner'),
+  'dying mid-run resets the staged run with reason death');
 }
 
 // ------------------------------------------- longarc bolt combat contracts
