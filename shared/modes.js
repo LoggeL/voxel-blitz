@@ -110,6 +110,11 @@ export function isTeamMode(value) {
   return MODE_RULES[value]?.teams === true;
 }
 
+/** Training target identity is stable across authority and presentation. */
+export function isTrainingDummyId(value) {
+  return typeof value === 'string' && value.startsWith('dummy-');
+}
+
 export function normalizeModeId(value, fallback = DEFAULT_MODE_ID) {
   if (isModeId(value)) return value;
   return isModeId(fallback) ? fallback : DEFAULT_MODE_ID;
@@ -147,4 +152,10 @@ export function isModeMapCompatible(modeId, mapId) {
   return isModeId(modeId)
     && isMapId(mapId)
     && MAP_MODE_COMPATIBILITY[mapId].includes(modeId);
+}
+
+/** Keep a compatible selection, otherwise choose the mode's first playable map. */
+export function mapForMode(modeId, preferredMap) {
+  if (isModeMapCompatible(modeId, preferredMap)) return preferredMap;
+  return MAP_IDS.find((mapId) => isModeMapCompatible(modeId, mapId)) ?? null;
 }

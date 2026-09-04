@@ -2,9 +2,8 @@
 // functions only — no engine state or world access.
 
 import {
-  DEFAULT_MAP_ID,
   DEFAULT_MODE_ID,
-  MAP_IDS,
+  mapForMode,
   isMapId,
   isModeId,
   isModeMapCompatible,
@@ -47,7 +46,7 @@ export function validBotCount(value) {
 
 export function resolveModeMap(gameMode, map) {
   const resolvedMode = gameMode === undefined ? DEFAULT_MODE_ID : gameMode;
-  const resolvedMap = map === undefined ? DEFAULT_MAP_ID : map;
+  const resolvedMap = map === undefined ? mapForMode(resolvedMode) : map;
   if (!isModeId(resolvedMode) ||
       !isMapId(resolvedMap) ||
       !isModeMapCompatible(resolvedMode, resolvedMap)) {
@@ -92,7 +91,7 @@ export function parseAdmissionFrame(raw) {
     const gameMode = hasMode ? raw.gameMode : DEFAULT_MODE_ID;
     const map = hasMap
       ? raw.map
-      : MAP_IDS.find((mapId) => isModeMapCompatible(gameMode, mapId));
+      : mapForMode(gameMode);
     if (!map || !isModeMapCompatible(gameMode, map)) return null;
     return {
       kind: 'create',

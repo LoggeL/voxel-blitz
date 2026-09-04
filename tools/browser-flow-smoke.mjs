@@ -16,7 +16,9 @@ function requireCondition(condition, message) {
 
 async function clickElement(page, id) {
   const point = await page.evaluate(`(() => {
-    const rect = document.getElementById(${JSON.stringify(id)})?.getBoundingClientRect();
+    const element = document.getElementById(${JSON.stringify(id)});
+    element?.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' });
+    const rect = element?.getBoundingClientRect();
     return rect && rect.width > 0 && rect.height > 0
       ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
       : null;
@@ -141,10 +143,69 @@ async function main() {
       look: !!document.getElementById('touch-look-zone'),
       coarseClass: document.documentElement.classList.contains('vb-touch-mode'),
     }))()`);
-    requireCondition(touchControls.active && touchControls.buttons === 12 &&
-      touchControls.visible >= 8 && touchControls.fire && touchControls.weapon &&
+    requireCondition(touchControls.active && touchControls.buttons === 8 &&
+      touchControls.visible >= 5 && touchControls.visible <= 6 && touchControls.fire && touchControls.weapon &&
       touchControls.move && touchControls.look && touchControls.coarseClass,
-    'mobile live play exposes movement, aim, fire, and auxiliary touch controls');
+    'mobile live play exposes only core touch actions during arena play');
+
+    const mobileLayout = await page.evaluate(`(async () => {
+      const { TouchControls } = await import('/js/engine/touch-controls.js');
+      const fixture = new TouchControls();
+      fixture.mount();
+      fixture.setContext({ alive: true, canFire: true, canReload: true, weaponCount: 2, canInteract: true });
+      fixture.setEnabled(true);
+      const errors = [];
+      try {
+        for (const size of ['small', 'medium', 'large']) {
+          for (const hand of ['right', 'left']) {
+            fixture.setOptions({ size, hand });
+            const targets = [...fixture.root.querySelectorAll('.vb-touch-button:not(.is-hidden)')]
+              .map((el) => ({ id: el.id, rect: el.getBoundingClientRect() }));
+            for (let i = 0; i < targets.length; i++) {
+              const { id, rect: r } = targets[i];
+              if (r.width < 44 || r.height < 44 || r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight) {
+                errors.push(size + '/' + hand + ': clipped or undersized ' + id);
+              }
+              for (const { id: other, rect: b } of targets.slice(i + 1)) {
+                if (r.left < b.right && r.right > b.left && r.top < b.bottom && r.bottom > b.top) {
+                  errors.push(size + '/' + hand + ': ' + id + ' overlaps ' + other);
+                }
+              }
+            }
+          }
+        }
+      } finally { fixture.dispose(); }
+      // The fixture shares this global capability class with the live controls.
+      document.documentElement.classList.add('vb-touch-mode');
+      return errors;
+    })()`);
+    requireCondition(mobileLayout.length === 0,
+      'all mobile sizes and hands have separate, in-bounds targets of at least 44px: ' + mobileLayout.join('; '));
+
+    const matchLayout = await page.evaluate(`(async () => {
+      const { MatchHud } = await import('/js/ui/match-hud.js');
+      const root = document.createElement('div');
+      root.style.cssText = 'position:fixed;inset:0;pointer-events:none';
+      document.body.appendChild(root);
+      const fixture = new MatchHud();
+      fixture.build(root);
+      const errors = [];
+      try {
+        for (const mode of ['fun', 'training', 'tdm', 'snd', 'gungame']) {
+          fixture.setMatchState({ mode, phase: 'live', round: 13, phaseEndsAt: Date.now() + 90000,
+            scores: { alpha: 12, bravo: 11 }, attackers: 'alpha',
+            bomb: { state: 'planted', site: 'B', explodeAt: Date.now() + 30000 } },
+            { id: 'qa', team: 'alpha', state: 'alive', score: 4 }, [], Date.now());
+          const header = fixture.dom.header;
+          const r = header.getBoundingClientRect();
+          if (header.scrollWidth > header.clientWidth + 1 || r.left < 0 || r.right > innerWidth || r.bottom > 64) {
+            errors.push(mode + ': header overlaps health/ammo or clips (' + r.width + ' x ' + r.height + ')');
+          }
+        }
+      } finally { fixture.dispose(); root.remove(); }
+      return errors;
+    })()`);
+    requireCondition(matchLayout.length === 0, 'mobile headers fit above health and ammo in every mode: ' + matchLayout.join('; '));
 
     const mobileInput = await page.evaluate(`(async () => {
       const pointer = (type, target, init) => target.dispatchEvent(new PointerEvent(type, {
@@ -202,13 +263,13 @@ async function main() {
       const screenshot = await page.send('Page.captureScreenshot', {
         format: 'png',
         captureBeyondViewport: false,
-      });
+      }, 15_000);
       const output = path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT);
       await writeFile(output, Buffer.from(screenshot.data, 'base64'));
       console.log(`mobile screenshot: ${output}`);
     }
 
-    await pressEscape(page);
+    await clickElement(page, 'touch-pause');
     await page.waitFor(`window.__vb.stats.settingsOpen === true &&
       document.getElementById('settings-overlay')?.getAttribute('aria-hidden') === 'false' &&
       document.activeElement?.id === 'settings-resume-btn'`, {
@@ -241,10 +302,84 @@ async function main() {
     });
     requireCondition(true, 'Quit tears down live resources and returns to the main menu');
 
+    await clickElement(page, 'create-lobby-btn');
+    await page.evaluate(`(() => {
+      const select = document.getElementById('game-mode-select');
+      select.value = 'training';
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`);
+    requireCondition(await page.evaluate(`document.getElementById('map-select').value === 'killhouse'`),
+      'Training selects its compatible Killhouse map');
+    await clickElement(page, 'create-lobby-confirm-btn');
+    await page.waitFor(`!!document.getElementById('lobby-ready-btn') &&
+      !document.getElementById('lobby')?.classList.contains('hidden')`, { label: 'Training waiting lobby' });
+    await clickElement(page, 'lobby-ready-btn');
+    await page.waitFor(`document.getElementById('lobby-start-btn')?.disabled === false`, {
+      label: 'Training ready gate',
+    });
+    await clickElement(page, 'lobby-start-btn');
+    await page.waitFor(`window.__vb.stats.running && window.__vb.stats.avatars === 17 &&
+      document.getElementById('run-overlay') &&
+      !document.getElementById('run-overlay').classList.contains('hidden')`, {
+      label: 'Training live handoff', timeoutMs: 30_000,
+    });
+    requireCondition(true, 'Training starts with exactly 17 targets and its run overlay after a previous match');
+    const initialWeapon = await page.evaluate('window.__vb.stats.weapon');
+    const ammoPoint = await page.evaluate(`(() => {
+      const r = document.getElementById('ammo').getBoundingClientRect();
+      return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    })()`);
+    await page.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...ammoPoint, id: 1 }] });
+    await page.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    await page.waitFor('window.__vb.stats.weapon !== ' + JSON.stringify(initialWeapon), { label: 'ammo-panel weapon swap' });
+    requireCondition(await page.evaluate('!window.__vb.wheelOpen'), 'tapping the ammo panel swaps weapons without opening a wheel');
+    if (process.env.BROWSER_SMOKE_SCREENSHOT) {
+      const screenshot = await page.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }, 15_000);
+      const output = path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT).replace(/\.png$/, '-training.png');
+      await writeFile(output, Buffer.from(screenshot.data, 'base64'));
+    }
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ' });
+    await page.waitFor(`window.__vb.wheelOpen`, { label: 'held Q opens weapon wheel' });
+    requireCondition(await page.evaluate(`(() => {
+      const keys = [...document.querySelectorAll('#weapon-wheel .vb-wheel-key')];
+      return keys.length === 10 && keys[9].textContent === '[0]';
+    })()`), 'live weapon wheel shows ten slots with the correct zero key for the knife');
+    if (process.env.BROWSER_SMOKE_SCREENSHOT) {
+      const screenshot = await page.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }, 15_000);
+      const output = path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT).replace(/\.png$/, '-wheel.png');
+      await writeFile(output, Buffer.from(screenshot.data, 'base64'));
+    }
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: '0', code: 'Digit0' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: '0', code: 'Digit0' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
+    await page.waitFor(`!window.__vb.wheelOpen && window.__vb.stats.weapon === 'knife'`, {
+      label: 'weapon wheel knife selection',
+    });
+    requireCondition(true, 'wheel selection equips the knife and closes through the live controller');
+    await pressEscape(page);
+    await page.waitFor(`window.__vb.stats.settingsOpen`, { label: 'Training pause' });
+    await clickElement(page, 'settings-leave-btn');
+    await page.waitFor(`!window.__vb.stats.running && !document.getElementById('run-overlay')`, {
+      label: 'Training teardown',
+    });
+    requireCondition(true, 'leaving Training disposes its overlay and returns to the menu');
+
     const appError = await page.evaluate(`document.documentElement.dataset.vbLastError || ''`);
     requireCondition(!appError && page.errors.length === 0,
       'full browser flow completes without runtime or resource errors');
     console.log('BROWSER FLOW SMOKE: OK');
+  } catch (error) {
+    if (browser) {
+      try {
+        const capture = await browser.page.send('Page.captureScreenshot', { format: 'png' }, 15_000);
+        await writeFile(path.join(PROJECT_ROOT, '.artifacts/browser-flow-failure.png'), Buffer.from(capture.data, 'base64'));
+        console.error('browser failure state:', await browser.page.evaluate(`JSON.stringify({
+          stats: window.__vb?.stats,
+          leave: document.getElementById('settings-leave-btn')?.getBoundingClientRect().toJSON(),
+        })`));
+      } catch { /* Preserve the original browser failure if diagnostics cannot run. */ }
+    }
+    throw error;
   } finally {
     await browser?.close();
     await stopServer(server);

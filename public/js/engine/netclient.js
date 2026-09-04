@@ -1,8 +1,6 @@
 import {
-  DEFAULT_MAP_ID,
-  isModeMapCompatible,
+  mapForMode,
   isWeaponId,
-  normalizeMapId,
   normalizeModeId,
 } from '../../../shared/modes.js';
 import {
@@ -257,10 +255,7 @@ export class NetClient {
     let initialFrame;
     if (options.mode === 'create') {
       const gameMode = normalizeModeId(options.gameMode);
-      const requestedMap = normalizeMapId(options.map);
-      const map = isModeMapCompatible(gameMode, requestedMap)
-        ? requestedMap
-        : DEFAULT_MAP_ID;
+      const map = mapForMode(gameMode, options.map);
       initialFrame = { t: 'create', name, bots, gameMode, map };
     } else if (options.mode === 'join') {
       initialFrame = { t: 'join', name, lobby: options.lobby };

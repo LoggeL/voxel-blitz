@@ -136,13 +136,15 @@ function resolveWithinRoot(target) {
   }
   if (!pathname.startsWith('/') || pathname.includes('\0')) return null;
   pathname = pathname.replace(/\\/g, '/');
+  if (pathname.split('/').includes('..')) return null;
   const resolved = path.resolve(PUBLIC_ROOT, '.' + pathname);
   const rel = path.relative(PUBLIC_ROOT, resolved);
+  // Validate before the directory-index branch, including encoded trailing slashes.
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
   if (rel === '' || pathname.endsWith('/')) {
     const idx = path.join(resolved, INDEX_HTML);
     return existsSync(idx) ? idx : null;
   }
-  if (rel.startsWith('..') || path.isAbsolute(rel)) return null;
   if (existsSync(resolved)) return resolved;
   // Fallback: '/shared/<rest>' maps onto the canonical repo-root shared/.
   const parts = rel.split(path.sep);

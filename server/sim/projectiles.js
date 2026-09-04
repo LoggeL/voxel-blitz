@@ -37,6 +37,7 @@ import {
 } from '../../shared/grenade-rules.js';
 import { ROCKET_RULES, rocketLaunch, stepRocket } from '../../shared/rocket-rules.js';
 import { BOLT_RULES, boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
+import { sweepPlayers } from './projectile-contact.js';
 
 const P_HEIGHT = PLAYER_HALF.h * 2;
 /** A sticky/impact projectile ignores its own thrower for this long after release. */
@@ -165,19 +166,11 @@ export class ProjectileSystem {
   _flyRocket(projectile, seconds, ctx) {
     const prev = { x: projectile.x, y: projectile.y, z: projectile.z };
     stepRocket(projectile, seconds, projectile.raycast);
-    // Swept body test: sample the segment so a fast rocket cannot skip a player.
-    const dx = projectile.x - prev.x, dy = projectile.y - prev.y, dz = projectile.z - prev.z;
-    const length = Math.hypot(dx, dy, dz);
-    const samples = Math.max(1, Math.ceil(length / 0.35));
-    for (let i = 1; i <= samples; i++) {
-      const t = i / samples;
-      const probe = { x: prev.x + dx * t, y: prev.y + dy * t, z: prev.z + dz * t };
-      const victim = this._contactVictim(probe, ROCKET_RULES.radius, ctx, projectile);
-      if (victim) {
-        projectile.x = probe.x; projectile.y = probe.y; projectile.z = probe.z;
-        projectile.directVictim = victim;
-        return this.explode(projectile, ctx);
-      }
+    const contact = this._sweepVictim(prev, projectile, ROCKET_RULES.radius, ctx, projectile);
+    if (contact) {
+      projectile.x = contact.x; projectile.y = contact.y; projectile.z = contact.z;
+      projectile.directVictim = contact.victim;
+      return this.explode(projectile, ctx);
     }
     if (projectile.hit) return this.explode(projectile, ctx);
     return false;
@@ -186,79 +179,65 @@ export class ProjectileSystem {
   /**
    * One bolt flies on the shared integrator: every wall contact chips the voxel
    * it bounced from, the first body it touches (never its owner) takes falloff
-   * damage measured from the launch point, and a spent bolt always fizzles.
+   * damage measured along its entire flight path, and a spent bolt always fizzles.
    */
   _flyBolt(projectile, seconds, ctx) {
-    const prev = { x: projectile.x, y: projectile.y, z: projectile.z };
-    stepBolt(projectile, seconds, projectile.raycast);
-    // A ricochet abrades the destructible voxel it bounced from.
-    if (projectile.bounced) {
-      const type = ctx.getBlock(
-        projectile.bounced.x, projectile.bounced.y, projectile.bounced.z,
-      );
-      if (BLOCK_HP[type] != null && typeof ctx.damageBlock === 'function') {
-        ctx.damageBlock(
-          projectile.bounced.x, projectile.bounced.y, projectile.bounced.z,
-          type, BOLT_RULES.blockDamage,
-        );
-      }
-    }
-    // Swept body test: sample the segment so a fast bolt cannot skip a player.
-    const dx = projectile.x - prev.x, dy = projectile.y - prev.y, dz = projectile.z - prev.z;
-    const length = Math.hypot(dx, dy, dz);
-    const samples = Math.max(1, Math.ceil(length / 0.35));
-    for (let i = 1; i <= samples; i++) {
-      const t = i / samples;
-      const probe = { x: prev.x + dx * t, y: prev.y + dy * t, z: prev.z + dz * t };
-      const victim = this._contactVictim(probe, BOLT_RULES.radius, ctx, projectile, true);
-      if (!victim) continue;
-      // A bolt never pierces: the first body it touches ends the flight.
-      projectile.x = probe.x; projectile.y = probe.y; projectile.z = probe.z;
-      const hs = probe.y - victim.y > HEADSHOT_Y_FRAC * P_HEIGHT;
-      const traveled = Math.hypot(
-        probe.x - projectile.origin.x,
-        probe.y - projectile.origin.y,
-        probe.z - projectile.origin.z,
-      );
-      let dmg = damageAtDistance(WEAPONS.longarc, traveled)
-        * chargeDamageMult(WEAPONS.longarc, projectile.charge01);
-      if (hs) dmg *= WEAPONS.longarc.headMult;
-      dmg = Math.round(dmg * 10) / 10;
-      const lethal = victim.takeDamage(dmg, hs);
-      ctx.pushEvent(evHit(projectile.ownerId, victim.id, dmg, hs, [probe.x, probe.y, probe.z]));
-      if (lethal) ctx.killPlayer(victim, projectile.owner, WEAPONS.longarc.id, hs, {});
-      this.active.delete(projectile.id);
-      ctx.pushEvent(evProjectileExplode(
-        projectile.ownerId,
-        projectile.id,
-        'bolt',
-        [projectile.x, projectile.y, projectile.z],
-        BOLT_FIZZLE_RADIUS,
-      ));
-      return true;
-    }
+    stepBolt(projectile, seconds, projectile.raycast, {
+      onTravel: (from, to) => {
+        const contact = this._sweepVictim(from, to, BOLT_RULES.radius, ctx, projectile, true);
+        if (!contact) return false;
+        const { victim, x, y, z } = contact;
+        const traveled = (projectile.traveled || 0) + Math.hypot(x - from.x, y - from.y, z - from.z);
+        projectile.x = x; projectile.y = y; projectile.z = z;
+        const hs = y - victim.y > HEADSHOT_Y_FRAC * P_HEIGHT;
+        let dmg = damageAtDistance(WEAPONS.longarc, traveled)
+          * chargeDamageMult(WEAPONS.longarc, projectile.charge01);
+        if (hs) dmg *= WEAPONS.longarc.headMult;
+        dmg = Math.round(dmg * 10) / 10;
+        const lethal = victim.takeDamage(dmg, hs);
+        ctx.pushEvent(evHit(projectile.ownerId, victim.id, dmg, hs, [x, y, z]));
+        if (lethal) ctx.killPlayer(victim, projectile.owner, WEAPONS.longarc.id, hs, {});
+        this._fizzleBolt(projectile, ctx);
+        return true;
+      },
+      onBounce: (contact) => {
+        if (typeof ctx.canAffectWorld === 'function' && !ctx.canAffectWorld()) return;
+        const type = ctx.getBlock(contact.x, contact.y, contact.z);
+        if (BLOCK_HP[type] != null) {
+          ctx.damageBlock?.(contact.x, contact.y, contact.z, type, BOLT_RULES.blockDamage);
+        }
+      },
+    });
+    if (!this.active.has(projectile.id)) return true;
     if (projectile.hit || ctx.now >= projectile.explodeAt || outsideWorld(projectile)) {
-      // Reflections spent or lifetime over: the bolt fizzles with no blast.
-      this.active.delete(projectile.id);
-      ctx.pushEvent(evProjectileExplode(
-        projectile.ownerId,
-        projectile.id,
-        'bolt',
-        [projectile.x, projectile.y, projectile.z],
-        BOLT_FIZZLE_RADIUS,
-      ));
-      return true;
+      return this._fizzleBolt(projectile, ctx);
     }
     return false;
   }
 
+  _fizzleBolt(projectile, ctx) {
+    if (!this.active.delete(projectile.id)) return false;
+    ctx.pushEvent(evProjectileExplode(projectile.ownerId, projectile.id, 'bolt',
+      [projectile.x, projectile.y, projectile.z], BOLT_FIZZLE_RADIUS));
+    return true;
+  }
+
+  _canContact(victim, projectile, ctx, ignoreOwner = false) {
+    if (victim.state !== 'alive') return false;
+    if (victim === projectile.owner) {
+      return !ignoreOwner && ctx.now - projectile.launchedAt >= OWNER_GRACE_MS;
+    }
+    return ctx.canDamage(projectile.owner, victim);
+  }
+
+  _sweepVictim(from, to, radius, ctx, projectile, ignoreOwner = false) {
+    return sweepPlayers(from, to, radius, ctx.entities,
+      (victim) => this._canContact(victim, projectile, ctx, ignoreOwner));
+  }
+
   _contactVictim(point, radius, ctx, projectile = point, ignoreOwner = false) {
-    const owner = projectile.owner;
-    const skipOwner = ignoreOwner || ctx.now - projectile.launchedAt < OWNER_GRACE_MS;
     for (const victim of ctx.entities.values()) {
-      if (victim.state !== 'alive') continue;
-      if (victim === owner && skipOwner) continue;
-      if (victim !== owner && !ctx.canDamage(owner, victim)) continue;
+      if (!this._canContact(victim, projectile, ctx, ignoreOwner)) continue;
       if (touchesPlayer(point, radius, victim)) return victim;
     }
     return null;
@@ -427,8 +406,8 @@ export class ProjectileSystem {
       explodeAt: ctx.now + BOLT_RULES.lifetimeMs,
       hit: null,
       bounced: null,
-      // Falloff is measured from the launch point, so post-bounce hits decay.
-      origin: { x: launch.x, y: launch.y, z: launch.z },
+      // Accumulated path length includes every reflection for damage falloff.
+      traveled: 0,
       raycast: (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
         (x, y, z) => ctx.getBlock(x, y, z) !== AIR, ox, oy, oz, dx, dy, dz, max,
       ),
@@ -447,6 +426,7 @@ export class ProjectileSystem {
   }
 
   explode(projectile, ctx) {
+    if (projectile.type === 'bolt') return this._fizzleBolt(projectile, ctx);
     if (!this.active.delete(projectile.id)) return false;
     const rules = PROJECTILE_RULES[projectile.type] || PROJECTILE_RULES.frag;
     const origin = [projectile.x, projectile.y, projectile.z];
@@ -551,7 +531,7 @@ export class ProjectileSystem {
   _chainDetonate(source, origin, rules, ctx) {
     const reach = rules.damageRadius * CHAIN_REACH;
     for (const other of this.active.values()) {
-      if (other === source || other.explodeAt <= ctx.now) continue;
+      if (other === source || other.type === 'bolt' || other.explodeAt <= ctx.now) continue;
       const distance = Math.hypot(other.x - origin[0], other.y - origin[1], other.z - origin[2]);
       if (distance > reach) continue;
       if (!visibleTo(ctx, origin, [other.x, other.y, other.z])) continue;

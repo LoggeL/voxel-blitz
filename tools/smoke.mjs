@@ -2,6 +2,9 @@
 // port, joins two real clients, and checks both direct simulation contracts and
 // the actual wire stream.
 import { request } from 'node:http';
+import { mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { ok as assertOk, nearly, vectorNorm } from './lib/assert.mjs';
 import { delay } from './lib/async.mjs';
 import { startServer as startManagedServer, stopServer, waitForHttp } from './lib/server-process.mjs';
@@ -1906,17 +1909,29 @@ async function runNetwork(server, clients) {
     && queriedAsset.body.equals(asset.body),
   'static asset query serves identical status, content type, and bytes');
 
-  const blockedTargets = [
-    '/%ZZ/server/index.js',
-    '/../server/index.js',
-    '/%2e%2e/server/index.js',
-  ];
-  const blockedResponses = await Promise.all(
-    blockedTargets.map((target) => fetchRawBytes(port, target))
-  );
-  ok(blockedResponses.every((response) => response.status < 200 || response.status >= 300)
-    && blockedResponses.every((response) => !response.body.includes(Buffer.from('voxel-blitz listening on'))),
-  'malformed encoding and plain or encoded traversal are rejected without source disclosure');
+  const outside = await mkdtemp(fileURLToPath(new URL('../.static-test-', import.meta.url)));
+  try {
+    await writeFile(path.join(outside, 'index.html'), 'PRIVATE INDEX SENTINEL');
+    const blockedTargets = [
+      '/%ZZ/server/index.js',
+      '/../server/index.js',
+      '/%2e%2e/server/index.js',
+      '/%252e%252e/server/index.js',
+      `/../${path.basename(outside)}/`,
+      `/%2e%2e/${path.basename(outside)}/`,
+      `/%252e%252e/${path.basename(outside)}/`,
+      `/%252e%252e%252f${path.basename(outside)}%252f`,
+    ];
+    const blockedResponses = await Promise.all(
+      blockedTargets.map((target) => fetchRawBytes(port, target))
+    );
+    ok(blockedResponses.every((response) => response.status < 200 || response.status >= 300)
+      && blockedResponses.every((response) => !response.body.includes(Buffer.from('voxel-blitz listening on'))
+        && !response.body.includes(Buffer.from('PRIVATE INDEX SENTINEL'))),
+    'malformed encoding and plain or encoded traversal are rejected without source disclosure');
+  } finally {
+    await rm(outside, { recursive: true, force: true });
+  }
 
   const a = new Client(port, 'SmokeA');
   const b = new Client(port, 'SmokeB');

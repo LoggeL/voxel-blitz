@@ -4002,7 +4002,7 @@ h1.vb-title::after {
 }
 
 .vb-wheel-ring {
-  --vb-wheel-r: calc(min(52vmin, 420px) / 2);
+  --vb-wheel-r: calc(min(68vmin, 460px) / 2);
   position: relative;
   width: calc(var(--vb-wheel-r) * 2);
   height: calc(var(--vb-wheel-r) * 2);
@@ -4032,9 +4032,9 @@ h1.vb-title::after {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 150px;
-  height: 150px;
-  margin: -75px 0 0 -75px;
+  width: 120px;
+  height: 104px;
+  margin: -52px 0 0 -60px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -4061,15 +4061,15 @@ h1.vb-title::after {
 }
 
 .vb-wheel-icon {
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 48px;
   object-fit: contain;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
   opacity: 0.92;
 }
 
 .vb-wheel-name {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.12em;
 }
@@ -4173,24 +4173,32 @@ h1.vb-title::after {
   color: var(--sub);
 }
 
-@media (max-width: 480px) {
+@media (max-width: 600px), (max-height: 600px) {
   .vb-wheel-slot {
-    width: 110px;
-    height: 110px;
-    margin: -55px 0 0 -55px;
+    width: 70px;
+    height: 64px;
+    margin: -32px 0 0 -35px;
+    gap: 2px;
   }
 
   .vb-wheel-icon {
-    width: 44px;
-    height: 44px;
+    width: 52px;
+    height: 32px;
   }
 
   .vb-wheel-name {
-    font-size: 10px;
+    display: none; /* The highlighted weapon's full name remains in the hub. */
   }
 
+  .vb-wheel-key { font-size: 9px; }
+  .vb-wheel-ammo { font-size: 10px; }
+
   .vb-wheel-slot.is-current::after {
-    font-size: 8px;
+    content: '';
+    width: 18px;
+    height: 2px;
+    margin: 0;
+    padding: 0;
   }
 
   .vb-wheel-hub {

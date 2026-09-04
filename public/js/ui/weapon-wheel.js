@@ -408,6 +408,7 @@ export class WeaponWheelController {
       const icon = entry && entry.icon ? entry.icon : '';
       if (item.icon.getAttribute('src') !== icon) item.icon.setAttribute('src', icon);
       _setText(item.name, (entry && entry.name) || '');
+      item.node.setAttribute('aria-label', `${entry?.name || ''}, ${entry?.owned ? entry.ammo : 'locked'}${entry?.current ? ', equipped' : ''}`);
       _setText(item.key, (entry && entry.key) || '');
       _setText(item.ammo, (entry && entry.ammo) || '');
       item.node.classList.toggle('is-current', !!(entry && entry.current));

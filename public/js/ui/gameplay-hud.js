@@ -292,6 +292,7 @@ export class GameplayHud {
       }
       this.updateAmmoLow();
     }
+    if (s.reserve != null) d.res.textContent = String(Math.max(0, s.reserve | 0));
     if (s.wname != null) d.wname.textContent = String(s.wname).toUpperCase();
     if (s.grenadeType != null) {
       const index = clampGrenadeType(s.grenadeType);

@@ -2,7 +2,8 @@
 
 import { CONDITION_RULES } from '../../shared/combatmath.js';
 import { ladderContact } from '../../shared/worlddata.js';
-import { PHYSICS, clamp01 } from './player.js';
+import { clamp01 } from './player.js';
+import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow } from '../../shared/player-movement.js';
 
 const WALK_SPEED = PHYSICS.walk;
 const SPRINT_SPEED = PHYSICS.sprint;
@@ -11,17 +12,12 @@ const JUMP_VELOCITY = PHYSICS.jump;
 const GRAVITY = PHYSICS.gravity;
 const ACCEL_GROUND = PHYSICS.accelGround;
 const ACCEL_AIR = PHYSICS.accelAir;
-const HALF_W = PHYSICS.halfW;
-const P_HEIGHT = PHYSICS.height;
 
-const COYOTE_S = 0.08;
+const COYOTE_S = MOVEMENT_RULES.coyoteS;
 const CONCUSSED_SPEED_MULT = 0.6;
-const LADDER_UP_SPEED = 3.4;
-const LADDER_DOWN_SPEED = 2.4;
-const EPS = 1e-3;
-const SHRINK = 1e-4;
-const MAX_STEP = 0.45;
-const TERMINAL_VY = -60;
+const LADDER_UP_SPEED = MOVEMENT_RULES.ladderUp;
+const LADDER_DOWN_SPEED = MOVEMENT_RULES.ladderDown;
+const TERMINAL_VY = MOVEMENT_RULES.terminalVy;
 const DEAD_FALL_Y = -24;
 
 /** Advance weapon, deploy, coyote, bloom, and reload timers. */
@@ -102,73 +98,9 @@ export function updateCondition(p, dt) {
   p.exhaustion = clamp01(p.exhaustion + exhaustionRate * dt);
 }
 
-function boxCollides(solidAt, px, py, pz) {
-  const x0 = Math.floor(px - HALF_W + SHRINK), x1 = Math.floor(px + HALF_W - SHRINK);
-  const y0 = Math.floor(py + SHRINK), y1 = Math.floor(py + P_HEIGHT - SHRINK);
-  const z0 = Math.floor(pz - HALF_W + SHRINK), z1 = Math.floor(pz + HALF_W - SHRINK);
-  for (let y = y0; y <= y1; y++) {
-    for (let z = z0; z <= z1; z++) {
-      for (let x = x0; x <= x1; x++) {
-        if (solidAt(x, y, z)) return true;
-      }
-    }
-  }
-  return false;
-}
-
-/** Grounded probe: any solid within a hair below the feet. */
-function solidBelow(solidAt, px, py, pz) {
-  const yy = py - 0.06;
-  if (Math.floor(yy) < 0) return true;
-  const xs = [px - HALF_W + SHRINK, px + HALF_W - SHRINK];
-  const zs = [pz - HALF_W + SHRINK, pz + HALF_W - SHRINK];
-  const cellY = Math.floor(yy);
-  for (const cx of xs) {
-    for (const cz of zs) {
-      if (solidAt(Math.floor(cx), cellY, Math.floor(cz))) return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Move along one axis in <=MAX_STEP sub-steps, sliding flush against the
- * first obstructing voxel face. Returns true when a collision occurred.
- */
-function slideAxis(p, axis, total, solidAt) {
-  if (total === 0) return false;
-  const sign = total < 0 ? -1 : 1;
-  let collided = false;
-  let rem = Math.abs(total);
-  while (rem > 1e-9 && !collided) {
-    const d = Math.min(MAX_STEP, rem) * sign;
-    rem -= Math.abs(d);
-    const before = p[axis];
-    p[axis] = before + d;
-    if (boxCollides(solidAt, p.x, p.y, p.z)) {
-      collided = true;
-      if (axis === 'x') {
-        const wallCell = sign > 0 ? Math.floor(p.x + HALF_W) : Math.floor(p.x - HALF_W);
-        p.x = sign > 0 ? wallCell - HALF_W - EPS : wallCell + 1 + HALF_W + EPS;
-      } else if (axis === 'z') {
-        const wallCell = sign > 0 ? Math.floor(p.z + HALF_W) : Math.floor(p.z - HALF_W);
-        p.z = sign > 0 ? wallCell - HALF_W - EPS : wallCell + 1 + HALF_W + EPS;
-      } else {
-        const cell = Math.floor(sign > 0 ? p.y + P_HEIGHT : p.y);
-        p.y = sign > 0 ? cell - P_HEIGHT - EPS : cell + 1;
-        if (sign < 0) { p.vy = 0; } else { p.vy = 0; }
-      }
-      if (boxCollides(solidAt, p.x, p.y, p.z)) {
-        // Corner degeneracy — fall back wholesale.
-        p[axis] = before;
-        if (axis === 'x') p.vx = 0;
-        else if (axis === 'z') p.vz = 0;
-        else p.vy = 0;
-      } else if (axis === 'x') p.vx = 0;
-      else if (axis === 'z') p.vz = 0;
-      else p.vy = 0;
-    }
-  }
+function slideAxis(player, axis, amount, solidAt) {
+  const collided = slidePlayerAxis(player, axis, amount, solidAt);
+  if (collided) player[`v${axis}`] = 0;
   return collided;
 }
 

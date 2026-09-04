@@ -57,7 +57,7 @@ export function stepRocket(rocket, dt, raycast) {
   const hit = raycast(rocket.x, rocket.y, rocket.z, dx / length, dy / length, dz / length,
     length + ROCKET_RULES.radius);
   if (hit) {
-    const t = Math.max(0, hit.t - ROCKET_RULES.radius * 0.5);
+    const t = Math.min(length, Math.max(0, hit.t - ROCKET_RULES.radius * 0.5));
     rocket.x += (dx / length) * t;
     rocket.y += (dy / length) * t;
     rocket.z += (dz / length) * t;

@@ -798,7 +798,7 @@ export async function runHudContracts(ok, installGlobals) {
       hud.setState({ wid: 'rifle', mag: 24, reserve: 3 });
       ok(meleeAmmo && hud.dom.mag.textContent === '24'
         && hud.dom.sep.style.display !== 'none'
-        && hud.dom.res.style.display !== 'none',
+        && hud.dom.res.style.display !== 'none' && hud.dom.res.textContent === '3',
       'melee ammo renders an infinite magazine with no reserve and a gun restores the readout');
 
       const liveTick = makeSnapshot([], [], [], 20000, {

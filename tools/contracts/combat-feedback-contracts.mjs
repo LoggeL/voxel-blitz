@@ -1,3 +1,4 @@
+import { aimAssistStrength } from '../../public/js/player/aim-assist.js';
 import * as THREE from '../../public/js/vendor/three.module.js';
 import {
   CombatFeedback,
@@ -7,6 +8,20 @@ import {
 } from '../../public/js/combat/feedback.js';
 
 export function runCombatFeedbackContracts(ok) {
+  const assistContext = {
+    players: [
+      { id: 'covered', x: 0, y: -1.1, z: -10, state: 'alive' },
+      { id: 'visible', x: 0.3, y: -1.1, z: -10, state: 'alive' },
+    ],
+    self: { id: 'self' }, mode: 'fun',
+    eye: { x: 0, y: 0, z: 0 }, forward: { x: 0, y: 0, z: -1 },
+    isVisible: (_point, row) => row.id === 'visible',
+  };
+  ok(aimAssistStrength(assistContext) > 0,
+    'a covered target nearer the crosshair cannot suppress aim assist for a visible enemy');
+  ok(aimAssistStrength({ ...assistContext, mode: 'training' }) === 0,
+    'training aim assist ignores other human players');
+
   const solids = new Set();
   const world = {
     getBlock(x, y, z) {

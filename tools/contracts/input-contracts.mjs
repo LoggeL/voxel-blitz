@@ -9,7 +9,6 @@ export async function runInputContracts(ok, installGlobals) {
     try {
       const { Input } = await import('../../public/js/engine/input.js');
       const {
-        isTapToFire,
         joystickVector,
         resolveToggleRelease,
         shouldEnableTouchControls,
@@ -18,8 +17,6 @@ export async function runInputContracts(ok, installGlobals) {
         && resolveToggleRelease(600, false) === false
         && resolveToggleRelease(120, true) === false,
       'touch toggle buttons latch on a quick tap, release on a long hold, and unlatch on the next tap');
-      ok(isTapToFire(90, 4) && !isTapToFire(400, 4) && !isTapToFire(90, 40),
-        'a short, still look-zone touch is a tap-to-fire while drags and long presses aim');
       input = new Input({});
       ok(input.getSensitivity() === 0.003,
         'fresh input starts at the canonical mouse sensitivity (~2100 px per turn)');
@@ -30,6 +27,16 @@ export async function runInputContracts(ok, installGlobals) {
         timeStamp,
         preventDefault() {},
       });
+
+      input._onMouseDown({ button: 1 });
+      input._onMouseUp({ button: 1 });
+      ok(input.takeWheelOpenRequest() && input.takeWheelRelease(),
+        'a middle-click released between render frames preserves both wheel edges');
+      input.setWeaponWheelOpen(true);
+      input._onMouseUp({ button: 1 });
+      input.setWeaponWheelOpen(false);
+      ok(!input.takeWheelRelease() && !input.takeWheelCancelRequest(),
+        'closing the wheel clears pending release and cancel edges before another open');
 
       input._onKeyDown(key('KeyG', false, 100));
       input._onKeyDown(key('KeyG', true, 400));
@@ -252,17 +259,10 @@ export async function runInputContracts(ok, installGlobals) {
       ok(touch.getKeys().reload && touch.consumeWeaponSwitch() === 1
         && touch.consumeBuyMenuRequest(),
       'mobile reload, weapon swap, and armory emit the existing draining edges');
-      touch._onTouchPulse('fireTap');
-      ok(touch.consumeFireTap() && !touch.consumeFireTap() && !touch.wantFireHeld,
-        'a look-zone tap queues exactly one shot without latching automatic fire');
-      touch._onTouchHold('grenade', true, 200);
-      touch._onTouchHold('grenade', false, 800);
-      ok(touch.consumeGrenadeThrow()?.charge === 0.5,
-        'mobile grenade hold/release uses the shared charge duration');
-      touch._onTouchPulse('grenadeType');
-      ok(touch.getGrenadeType() === 1,
-        'the mobile type chip cycles the selected throwable');
-      touch.setGrenadeType(0);
+      touch._onTouchHold('interact', true, 200);
+      ok(touch.getKeys().interact, 'mobile objective interaction stays available as a hold');
+      touch._onTouchHold('interact', false, 800);
+      ok(!touch.getKeys().interact, 'releasing mobile interaction stops planting or defusing');
       touch.setGameplayEnabled(false);
       ok(!touch.wantAdsHeld && !touch.getKeys().jump && touch.consumeWeaponSwitch() === 0
         && touchResetCalls === 1,
@@ -483,7 +483,7 @@ export async function runInputContracts(ok, installGlobals) {
 
   {
     const { stickCurve, readGamepadFrame, PAD_BUTTONS } = await import('../../public/js/engine/gamepad.js');
-    const { visibleTouchActions, TouchControls, isWheelTouchHold, WHEEL_TOUCH_HOLD_MS } =
+    const { visibleTouchActions, TouchControls } =
       await import('../../public/js/engine/touch-controls.js');
     const { wheelSwitchStep } = await import('../../public/js/input-settings.js');
 
@@ -524,8 +524,8 @@ export async function runInputContracts(ok, installGlobals) {
       weaponCount: 2, canBuy: false, scoped: true,
     });
     ok(none.size === 0 && dead2.size === 0
-        && [...prep].sort().join(',') === 'buy,crouch,jump'
-        && [...live].sort().join(',') === 'ads,crouch,fire,grenade,grenadeType,interact,jump,reload,weapon,zoom',
+        && [...prep].sort().join(',') === 'buy,jump'
+        && [...live].sort().join(',') === 'ads,fire,interact,jump,reload,weapon',
     'touch buttons appear only for actions the current gameplay context allows');
     const wheelLive = visibleTouchActions({
       alive: true, canFire: true, canReload: true, grenades: 1, canInteract: true,
@@ -533,26 +533,63 @@ export async function runInputContracts(ok, installGlobals) {
     });
     ok(wheelLive.size === 0,
     'a wheelOpen touch context hides every chip (the pause button stays outside this set)');
-    ok(WHEEL_TOUCH_HOLD_MS === 300 && !isWheelTouchHold(299) && isWheelTouchHold(300),
-    'a weapon-chip press reaches wheel-open exactly at the touch hold threshold');
-
     const holds = [];
     const controls = new TouchControls({
       documentRef: null,
       onHold: (action, held) => holds.push(`${action}:${held}`),
     });
-    controls._heldPointers.set('grenade', 7);
+    controls._heldPointers.set('fire', 7);
     controls._latched.add('ads');
     const changed = controls.setContext({ alive: true, canFire: false, grenades: 0 });
-    ok(changed.includes('fire') && changed.includes('grenade')
-        && controls.hiddenActions.has('grenade') && controls.hiddenActions.has('ads')
-        && holds.includes('grenade:false') && holds.includes('ads:false')
+    ok(changed.includes('fire')
+        && controls.hiddenActions.has('fire') && controls.hiddenActions.has('ads')
+        && holds.includes('fire:false') && holds.includes('ads:false')
         && !controls.hiddenActions.has('jump'),
     'hiding a held or latched touch button releases it before it disappears');
     ok(controls.setOptions({ size: 'large', hand: 'left' }).hand === 'left'
         && controls.setOptions({ size: 'huge' }).size === 'large',
     'touch layout options accept only known sizes and hands');
     controls.dispose();
+
+    // Exercise the pointer callbacks, including cancellation, without a browser.
+    const target = () => ({
+      handlers: new Map(),
+      classList: { add() {}, remove() {}, toggle() {} },
+      setAttribute() {},
+      addEventListener(type, fn) { this.handlers.set(type, fn); },
+      removeEventListener(type) { this.handlers.delete(type); },
+      dispatch(type, pointerId = 1, timeStamp = 0) {
+        this.handlers.get(type)?.({ type, pointerId, timeStamp, clientX: 50, clientY: 50,
+          preventDefault() {}, stopPropagation() {} });
+      },
+    });
+    const pulses = [];
+    const minimal = new TouchControls({ documentRef: null, onPulse: (action) => pulses.push(action) });
+    minimal.setEnabled(true);
+    minimal.dom.look = target();
+    minimal._bindLook();
+    minimal.dom.look.dispatch('pointerdown');
+    minimal.dom.look.dispatch('pointerup', 1, 50);
+    ok(pulses.length === 0, 'tapping the aim surface never fires a weapon');
+    const swap = target();
+    minimal._bindPulse(swap, 'weapon');
+    for (const heldMs of [50, 900]) {
+      swap.dispatch('pointerdown');
+      swap.dispatch('pointerup', 1, heldMs);
+    }
+    ok(pulses.join(',') === 'weapon,weapon', 'short and long ammo-panel presses each swap once without opening a wheel');
+    for (const cancelled of ['pointercancel', 'lostpointercapture']) {
+      swap.dispatch('pointerdown');
+      swap.dispatch(cancelled);
+      swap.dispatch('pointerup');
+    }
+    swap.dispatch('pointerdown');
+    swap.dispatch('pointerdown', 2);
+    swap.dispatch('pointerup', 2);
+    minimal.setContext({ alive: false });
+    swap.dispatch('pointerup');
+    ok(pulses.length === 2, 'cancelled, hidden, and secondary-finger presses cannot trigger a swap');
+    minimal.dispose();
 
     const restore = installGlobals({ location: { search: '?headless=1' } });
     let pad = null;
@@ -636,6 +673,32 @@ export async function runInputContracts(ok, installGlobals) {
       ok(pad.takeWheelRelease(),
       'releasing Y while the wheel is up closes it');
       pad.setWeaponWheelOpen(false);
+      pad.clearTransient();
+      pad._onKeyDown({ code: 'KeyW', preventDefault() {} });
+      for (const action of ['crouch', 'grenade', 'weapon', 'fire']) {
+        padButtons[PAD_BUTTONS[action]] = { pressed: true, value: 1 };
+      }
+      pad.poll(3000, 1 / 60);
+      pad.consumeFireTap();
+      fake.connected = false;
+      pad.poll(3050, 1 / 60);
+      pad.poll(3100, 1 / 60);
+      ok(pad.getKeys().forward && !pad.getKeys().crouch && !pad.wantFireHeld
+          && !pad.isGrenadeCharging() && pad.consumeGrenadeThrow() === null
+          && pad.consumeWeaponSwitch() === 0 && !pad.deviceInfo(3100).padActive,
+        'controller disconnect cancels combat and crouch holds without throwing, swapping, or clearing keyboard movement');
+
+      pad.setWeaponWheelOpen(true);
+      pad._onTouchLook(40, 20);
+      pad._onTouchHold('fire', true);
+      pad._onTouchHold('grenade', true, 3200);
+      pad._onTouchPulse('reload');
+      pad._onTouchPulse('fireTap');
+      pad.setWeaponWheelOpen(false);
+      const afterWheel = pad.consumeDelta();
+      ok(afterWheel.dx === 0 && afterWheel.dy === 0 && !pad.wantFireHeld
+          && !pad.isGrenadeCharging() && !pad.getKeys().reload && !pad.consumeFireTap(),
+        'touch input behind the weapon wheel cannot move the camera or queue combat after closing');
     } finally {
       pad?.dispose();
       restore();

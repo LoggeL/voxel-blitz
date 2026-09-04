@@ -417,14 +417,13 @@ export class ProjectileFX {
         }
         if (projectile.hit && !projectile.local) projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
       } else if (projectile.type === 'bolt') {
-        stepBolt(projectile, step, this.raycast);
+        stepBolt(projectile, step, this.raycast, {
+          onBounce: (contact) => {
+            this._spawnBlast(contact.x, contact.y, contact.z, BLAST_STYLE.bolt, 0.6);
+            this.onBounce?.(contact.x, contact.y, contact.z);
+          },
+        });
         this._orientRocket(projectile);
-        // Reflections are client-derived: the shared integrator flags each contact.
-        if (projectile.bounced) {
-          const contact = projectile.bounced;
-          this._spawnBlast(contact.x, contact.y, contact.z, BLAST_STYLE.bolt, 0.6);
-          this.onBounce?.(contact.x, contact.y, contact.z);
-        }
         // Authority owns bolt death (projectileExplode); the local view just keeps flying.
         if (projectile.hit && !projectile.local) {
           projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);

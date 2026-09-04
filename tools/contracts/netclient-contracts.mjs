@@ -117,6 +117,13 @@ export async function runNetClientContracts(ok, installGlobals) {
       }, 'snd', 'foundry');
       incompatible.client.close();
 
+      for (const map of [undefined, 'foundry', 'killhouse']) {
+        const training = await connect('RANGE', { mode: 'create', bots: 0, gameMode: 'training', map }, {
+          t: 'create', name: 'RANGE', bots: 0, gameMode: 'training', map: 'killhouse',
+        }, 'training', 'killhouse');
+        training.client.close();
+      }
+
       const joined = await connect('GUEST', {
         mode: 'join',
         bots: 7,

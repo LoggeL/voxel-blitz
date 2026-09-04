@@ -40,4 +40,27 @@ export async function runWeaponWheelContracts(ok) {
     'a vector on the half-up boundary between slots rounds into the next clockwise slot');
   ok(wheelSlotFromVector(-Math.sin(Math.PI / 8), -Math.cos(Math.PI / 8), 8) === 0,
     'a vector on the last half-up boundary wraps around into slot 0');
+  const { WeaponWheelController } = await import('../../public/js/session/weapon-wheel-controller.js');
+  const picks = [];
+  const context = {
+    match: { mode: 'snd' }, self: { owned: ['revolver', 'knife'], state: 'alive' },
+    enabled: true, alive: true, spectating: false,
+    weapon: { slot: 5, ammoOf: () => ({ mag: 6, reserve: 3 }), forceWeapon: (slot) => picks.push(slot) },
+  };
+  const controller = new WeaponWheelController({
+    input: { setWeaponWheelOpen() {}, usesTouchControls: () => false },
+    hud: { ensureWeaponWheel() {}, setWeaponWheelState() {} },
+    getContext: () => context,
+  });
+  const entries = controller.entries();
+  ok(entries.length === 10 && entries[9].key === '[0]' && entries[9].ammo === '∞'
+      && !entries[0].owned && entries[5].owned,
+    'wheel entries use the real tenth-slot key and authoritative ownership');
+  controller.openWheel();
+  controller.commit(0);
+  controller.openWheel();
+  controller.commit(9);
+  ok(!controller.open && picks.length === 1 && picks[0] === 9,
+    'wheel confirmation ignores locked slots and equips an owned selection once');
+
 }

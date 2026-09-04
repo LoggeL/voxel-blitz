@@ -1,13 +1,7 @@
-import { GRENADE_TYPES, GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 const DEFAULT_RADIUS = 54;
 const DEFAULT_DEAD_ZONE = 0.14;
 /** Quick press/release on a toggle button latches it instead of acting as a hold. */
 export const TOUCH_TOGGLE_TAP_MS = 260;
-/** A look-zone touch shorter and stiller than this fires one shot instead of aiming. */
-export const TOUCH_TAP_FIRE_MS = 180;
-export const TOUCH_TAP_FIRE_TRAVEL_PX = 10;
-/** A weapon-chip press held this long opens the radial weapon wheel instead of swapping. */
-export const WHEEL_TOUCH_HOLD_MS = 300;
 const LOOK_DELTA_CLAMP_PX = 90;
 
 function clamp(value, min, max) {
@@ -39,22 +33,13 @@ export function joystickVector(dx, dy, radius = DEFAULT_RADIUS, deadZone = DEFAU
 }
 
 /**
- * Toggle-button policy shared by ADS and crouch: a quick tap latches the action on
+ * Toggle-button policy for ADS: a quick tap latches the action on
  * until the next tap; a long press behaves like a hold and releases with the finger.
  * Returns the held state the button should report after the release.
  */
 export function resolveToggleRelease(heldMs, wasLatched) {
   if (wasLatched) return false;
   return Number(heldMs) < TOUCH_TOGGLE_TAP_MS;
-}
-
-/** Whether a look-zone touch reads as a tap-to-fire rather than an aim drag. */
-export function isTapToFire(heldMs, travelPx) {
-  return Number(heldMs) < TOUCH_TAP_FIRE_MS && Number(travelPx) < TOUCH_TAP_FIRE_TRAVEL_PX;
-}
-/** Whether a weapon-chip press held this long opens the radial wheel. */
-export function isWheelTouchHold(heldMs) {
-  return Number(heldMs) >= WHEEL_TOUCH_HOLD_MS;
 }
 
 /** Touch/coarse-pointer capability detection; ?touch=1 is the explicit QA override. */
@@ -78,7 +63,7 @@ export function shouldEnableTouchControls({
 
 /** Every contextual button; the pause button is always available. */
 export const TOUCH_ACTIONS = Object.freeze([
-  'fire', 'ads', 'jump', 'crouch', 'reload', 'grenade', 'grenadeType', 'interact', 'weapon', 'buy', 'zoom',
+  'fire', 'ads', 'jump', 'reload', 'interact', 'weapon', 'buy',
 ]);
 
 /**
@@ -91,23 +76,14 @@ export function visibleTouchActions(context) {
   if (!context || context.alive === false) return visible;
   if (context.wheelOpen) return visible; // wheel up: every chip but pause hides
   visible.add('jump');
-  visible.add('crouch');
   if (context.canFire !== false) {
     visible.add('fire');
     visible.add('ads');
   }
   if (context.canReload) visible.add('reload');
-  const grenadeCount = Array.isArray(context.grenades)
-    ? context.grenades.reduce((sum, count) => sum + (count | 0), 0)
-    : (context.grenades | 0);
-  if (grenadeCount > 0 && context.canFire !== false) {
-    visible.add('grenade');
-    visible.add('grenadeType');
-  }
   if (context.canInteract) visible.add('interact');
   if ((context.weaponCount ?? 2) > 1) visible.add('weapon');
   if (context.canBuy) visible.add('buy');
-  if (context.scoped) visible.add('zoom');
   return visible;
 }
 
@@ -125,14 +101,12 @@ function addElement(documentRef, tag, className, parent, text = '') {
  *
  * Layout: the look zone is the whole screen underneath everything else, so any
  * free thumb aims. The joystick floats to wherever the left thumb lands. The fire
- * button aims while held (drag to track), a quick tap on the look zone fires once,
- * and ADS / crouch are tap-to-toggle, hold-to-hold buttons.
+ * button aims while held (drag to track). ADS supports tap-to-toggle or holding.
+ * Each pulse button has one action; there are no hidden long-press actions.
  */
 export class TouchControls {
   constructor({
     documentRef = typeof document !== 'undefined' ? document : null,
-    windowRef = typeof window !== 'undefined' ? window : null,
-    navigatorRef = typeof navigator !== 'undefined' ? navigator : null,
     onMove = () => {},
     onLook = () => {},
     onHold = () => {},
@@ -140,8 +114,6 @@ export class TouchControls {
     onPause = () => {},
   } = {}) {
     this.document = documentRef;
-    this.window = windowRef;
-    this.navigator = navigatorRef;
     this.onMove = onMove;
     this.onLook = onLook;
     this.onHold = onHold;
@@ -156,12 +128,10 @@ export class TouchControls {
     this._moveRadius = DEFAULT_RADIUS;
     this._lookPointer = null;
     this._lookPoint = null;
-    this._lookStart = null;
     this._heldPointers = new Map();
     this._heldSince = new Map();
     this._latched = new Set();
-    this._pulseHolds = new Map(); // deferred pulses: weapon chip press -> wheel on long hold
-    this._immersiveRequested = false;
+    this._pulsePointers = new Map();
     this._context = null;
     this._hidden = new Set();
     this._options = { size: 'medium', hand: 'right' };
@@ -191,12 +161,6 @@ export class TouchControls {
       changed.push(action);
     }
     this._context = next;
-    // The type chip names the selected throwable so the thumb knows what G will throw.
-    const typeIndex = Number.isInteger(next?.grenadeType) ? next.grenadeType : 0;
-    const typeLabel = GRENADE_TYPES[GRENADE_TYPE_IDS[typeIndex]]?.short || 'NADE';
-    if (this.dom.grenadeType && this.dom.grenadeType.textContent !== typeLabel) {
-      this.dom.grenadeType.textContent = typeLabel;
-    }
     for (const action of changed) {
       const button = this.dom[action];
       if (!button) continue;
@@ -225,7 +189,7 @@ export class TouchControls {
     this._heldPointers.delete(action);
     this._heldSince.delete(action);
     this._latched.delete(action);
-    this._pulseHolds.delete(action);
+    this._pulsePointers.delete(action);
     if (button) this._setPressed(button, action, false);
     if (wasHeld) this.onHold(action, false, eventTime(null));
   }
@@ -242,48 +206,36 @@ export class TouchControls {
 
     d.look = addElement(this.document, 'div', 'vb-touch-look-zone', root);
     d.look.id = 'touch-look-zone';
-    d.look.setAttribute('aria-label', 'Drag anywhere to aim, tap to fire');
-    addElement(this.document, 'span', 'vb-touch-zone-label', d.look, 'DRAG TO AIM · TAP TO FIRE');
-    d.rotateHint = addElement(this.document, 'div', 'vb-touch-rotate-hint', root, 'ROTATE TO LANDSCAPE');
+    d.look.setAttribute('aria-label', 'Drag to aim');
 
     d.move = addElement(this.document, 'div', 'vb-touch-move-zone', root);
     d.move.id = 'touch-move-zone';
     d.move.setAttribute('aria-label', 'Movement joystick');
     d.moveBase = addElement(this.document, 'div', 'vb-touch-stick-base', d.move);
     d.moveKnob = addElement(this.document, 'div', 'vb-touch-stick-knob', d.moveBase);
-    addElement(this.document, 'span', 'vb-touch-zone-label', d.move, 'MOVE · EDGE TO SPRINT');
 
     d.pause = this._button(root, 'pause', 'Ⅱ', 'Pause');
     d.fire = this._button(root, 'fire', 'FIRE', 'Fire weapon; drag to aim while firing');
-    d.ads = this._button(root, 'ads', 'ADS', 'Aim down sights (tap to toggle, hold to hold)');
+    d.ads = this._button(root, 'ads', 'AIM', 'Aim down sights (tap to toggle, hold to hold)');
     d.jump = this._button(root, 'jump', 'JUMP', 'Jump');
-    d.crouch = this._button(root, 'crouch', 'C', 'Crouch (tap to toggle, hold to hold)');
-    d.reload = this._button(root, 'reload', 'R', 'Reload');
-    d.grenade = this._button(root, 'grenade', 'G', 'Hold to charge grenade, release to throw');
-    d.grenadeType = this._button(root, 'grenadeType', 'NADE', 'Cycle grenade type');
+    d.reload = this._button(root, 'reload', 'LOAD', 'Reload');
     d.interact = this._button(root, 'interact', 'USE', 'Interact');
-    d.weapon = this._button(root, 'weapon', 'SWAP', 'Next weapon; hold to open the weapon wheel');
+    d.weapon = this._button(root, 'weapon', '⇄', 'Next weapon');
     d.buy = this._button(root, 'buy', 'BUY', 'Open armory');
-    d.zoom = this._button(root, 'zoom', 'ZOOM', 'Scope zoom step');
 
     this._bindMove();
     this._bindLook();
-    this._bindHold(d.fire, 'fire', { look: true, haptic: 12 });
+    this._bindHold(d.fire, 'fire', { look: true });
     this._bindHold(d.ads, 'ads', { toggle: true });
     this._bindHold(d.jump, 'jump');
-    this._bindHold(d.crouch, 'crouch', { toggle: true });
-    this._bindHold(d.grenade, 'grenade', { haptic: 8, releaseHaptic: 18 });
     this._bindHold(d.interact, 'interact');
     this._bindPulse(d.reload, 'reload');
-    this._bindPulse(d.grenadeType, 'grenadeType');
-    this._bindPulse(d.weapon, 'weapon', { holdAction: 'wheel', holdHaptic: 18 });
+    this._bindPulse(d.weapon, 'weapon');
     this._bindPulse(d.buy, 'buy');
-    this._bindPulse(d.zoom, 'zoom');
     this._bindPulse(d.pause, 'pause');
     this.setOptions(this._options);
     this.setContext(this._context);
     this._listen(root, 'contextmenu', (event) => event.preventDefault());
-    this._listen(root, 'pointerdown', () => this._ensureImmersive(), { capture: true });
     return root;
   }
 
@@ -310,31 +262,6 @@ export class TouchControls {
 
   _capture(element, event) {
     try { element.setPointerCapture?.(event.pointerId); } catch (_) {}
-  }
-
-  _haptic(ms) {
-    try {
-      if (ms > 0 && typeof this.navigator?.vibrate === 'function') this.navigator.vibrate(ms);
-    } catch (_) {}
-  }
-
-  /** Best-effort fullscreen + landscape lock from the first real gesture; never throws. */
-  _ensureImmersive() {
-    if (this._immersiveRequested || !this.enabled) return;
-    this._immersiveRequested = true;
-    const doc = this.document;
-    try {
-      const element = doc?.documentElement;
-      if (element?.requestFullscreen && !doc.fullscreenElement) {
-        const request = element.requestFullscreen({ navigationUI: 'hide' });
-        if (request?.catch) request.catch(() => {});
-      }
-    } catch (_) {}
-    try {
-      const orientation = this.window?.screen?.orientation;
-      const lock = orientation?.lock?.('landscape');
-      if (lock?.catch) lock.catch(() => {});
-    } catch (_) {}
   }
 
   _bindMove() {
@@ -397,25 +324,15 @@ export class TouchControls {
     const release = (event) => {
       if (event.pointerId !== this._lookPointer) return;
       event.preventDefault();
-      const start = this._lookStart;
       this._lookPointer = null;
       this._lookPoint = null;
-      this._lookStart = null;
       zone.classList.remove('is-engaged');
-      if (this.enabled && start && event.type === 'pointerup') {
-        const travel = Math.hypot(event.clientX - start.x, event.clientY - start.y);
-        if (isTapToFire(eventTime(event) - start.at, travel)) {
-          this._haptic(10);
-          this.onPulse('fireTap');
-        }
-      }
     };
     this._listen(zone, 'pointerdown', (event) => {
       if (!this.enabled || this._lookPointer !== null) return;
       event.preventDefault();
       this._lookPointer = event.pointerId;
       this._lookPoint = { x: event.clientX, y: event.clientY };
-      this._lookStart = { x: event.clientX, y: event.clientY, at: eventTime(event) };
       zone.classList.add('is-engaged');
       this._capture(zone, event);
     });
@@ -447,7 +364,7 @@ export class TouchControls {
    * Hold button. `toggle` buttons latch on a quick tap and release on the next tap;
    * `look` buttons forward drag deltas so you can track a target while firing.
    */
-  _bindHold(button, action, { toggle = false, look = false, haptic = 0, releaseHaptic = 0 } = {}) {
+  _bindHold(button, action, { toggle = false, look = false } = {}) {
     let lookPoint = null;
     const release = (event) => {
       if (this._heldPointers.get(action) !== event.pointerId) return;
@@ -468,7 +385,6 @@ export class TouchControls {
       }
       this._latched.delete(action);
       this._setPressed(button, action, false);
-      if (releaseHaptic) this._haptic(releaseHaptic);
       this.onHold(action, false, eventTime(event));
     };
     this._listen(button, 'pointerdown', (event) => {
@@ -485,7 +401,6 @@ export class TouchControls {
         return;
       }
       this._setPressed(button, action, true);
-      if (haptic) this._haptic(haptic);
       this.onHold(action, true, eventTime(event));
     });
     if (look) {
@@ -500,40 +415,25 @@ export class TouchControls {
     this._listen(button, 'lostpointercapture', release);
   }
 
-  /**
-   * Pulse button: acts once per press. A press on a `holdAction` chip defers the
-   * pulse to the release: held past WHEEL_TOUCH_HOLD_MS it pulses `holdAction`
-   * instead (the weapon chip: a quick tap swaps weapons, a long press opens the
-   * radial wheel). Interrupted presses (cancel, capture loss) never pulse.
-   */
-  _bindPulse(button, action, { holdAction = null, holdHaptic = 0 } = {}) {
+  /** One action on release. Cancelled or hidden presses never activate. */
+  _bindPulse(button, action) {
     this._listen(button, 'pointerdown', (event) => {
-      if (!this.enabled || this._hidden.has(action)) return;
-      if (holdAction && this._pulseHolds.has(action)) return;
+      if (!this.enabled || this._hidden.has(action) || this._pulsePointers.has(action)) return;
       event.preventDefault();
       event.stopPropagation();
-      button.classList.add('is-held');
+      this._pulsePointers.set(action, event.pointerId);
+      this._setPressed(button, action, true);
       this._capture(button, event);
-      if (holdAction) this._pulseHolds.set(action, { id: event.pointerId, at: eventTime(event) });
-      this._haptic(6);
-      if (action === 'pause') this.onPause();
-      else if (!holdAction) this.onPulse(action);
     });
     const release = (event) => {
-      const hold = this._pulseHolds.get(action);
-      if (holdAction && (!hold || hold.id !== event.pointerId)) return;
+      if (this._pulsePointers.get(action) !== event.pointerId) return;
       event.preventDefault();
       event.stopPropagation();
-      button.classList.remove('is-held');
-      if (!holdAction) return;
-      this._pulseHolds.delete(action);
-      if (event.type !== 'pointerup') return; // cancelled or capture lost: no pulse
-      if (isWheelTouchHold(eventTime(event) - hold.at)) {
-        if (holdHaptic) this._haptic(holdHaptic);
-        this.onPulse(holdAction);
-      } else {
-        this.onPulse(action);
-      }
+      this._pulsePointers.delete(action);
+      this._setPressed(button, action, false);
+      if (!this.enabled || this._hidden.has(action) || event.type !== 'pointerup') return;
+      if (action === 'pause') this.onPause();
+      else this.onPulse(action);
     };
     this._listen(button, 'pointerup', release);
     this._listen(button, 'pointercancel', release);
@@ -559,11 +459,10 @@ export class TouchControls {
     this._moveCenter = null;
     this._lookPointer = null;
     this._lookPoint = null;
-    this._lookStart = null;
     this._heldPointers.clear();
     this._heldSince.clear();
     this._latched.clear();
-    this._pulseHolds.clear();
+    this._pulsePointers.clear();
     if (this.dom.moveKnob) this.dom.moveKnob.style.transform = 'translate(0px, 0px)';
     if (this.dom.moveBase) {
       this.dom.moveBase.style.left = '';

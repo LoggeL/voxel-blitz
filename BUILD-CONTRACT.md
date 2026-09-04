@@ -10,7 +10,9 @@ room/client interfaces below; do not fork their logic into a second convention.
   bundler or frontend build.
 - Shared sim modules imported by both sides are `shared/worlddata.js`,
   `shared/modes.js`, `shared/raycast.js`, `shared/combatmath.js`, and
-  `shared/noise.js`. `shared/grenade-rules.js` is the shared throwable roster
+  `shared/noise.js`. `shared/player-movement.js` owns the shared `PHYSICS`,
+  movement constants, body collision, ground probe, and axis-slide helpers.
+  `shared/grenade-rules.js` is the shared throwable roster
   (`frag`, `limpet`, `pulse`), per-type inventory, charge/cook, clamp,
   throw-profile, and flight-integrator contract; `shared/rocket-rules.js` is the
   shared rocket launch/flight/blast contract, and `shared/bolt-rules.js` is the
@@ -201,9 +203,10 @@ Exports immutable `MODE_IDS=['fun','tdm','snd','gungame','training']`,
 `TEAM_IDS=['alpha','bravo']`, `MAP_IDS=['foundry','depot','citadel','solstice','caldera','killhouse']`,
 `MODE_RULES`, `MAP_MODE_COMPATIBILITY`, S&D credit constants,
 `WEAPON_PRICES`, defaults, validators/normalizers for mode/team/map/weapon ids,
-`isTeamMode(modeId)`, and `isModeMapCompatible(modeId,mapId)`. This is the browser/server source of
+`isTeamMode(modeId)`, `isModeMapCompatible(modeId,mapId)`,
+`mapForMode(modeId,preferredMap)`, and `isTrainingDummyId(id)`. This is the browser/server source of
 truth for mode ids, map compatibility, timings, and economy. `MAP_MODE_COMPATIBILITY.caldera`
-covers every mode id.
+covers the four combat modes.
 `MAP_MODE_COMPATIBILITY.killhouse` covers only training.
 
 ### shared/combatmath.js
@@ -406,6 +409,11 @@ until `lobbyState.phase === 'live'`. Quick play proceeds directly; a public
 late join whose welcome/state is already live also proceeds directly.
 
 ### Input, rendering, effects, and viewmodel
+- `WeaponWheelController` owns selection entries, ownership checks, and open,
+  cancel, and confirm transitions. `Game` supplies its current live context;
+  the controller talks only to Input, WeaponState, and the HUD facade. Touch
+  look/combat cannot pass through the open overlay, and controller disconnects
+  cancel holds without synthesizing throws, swaps, or crouch toggles.
 - `new Input(canvas).start(canvas,onLockChange)`; poll `getKeys()` for movement
   plus held `interact`, read `yaw`/`pitch`, and drain fire, reload, weapon, and
   buy-menu edge consumers. `getGrenadeCharge(now?)` and `getGrenadeHoldMs(now?)`
@@ -418,7 +426,7 @@ late join whose welcome/state is already live also proceeds directly.
   `1–9`/`0`/wheel/`Q` select weapons.
   The radial weapon wheel drains `takeWheelOpenRequest()` (Q held
   `WHEEL_HOLD_MS=180`, a middle-mouse press, pad `Y` held
-  `PAD_WHEEL_HOLD_MS=260`, or a touch `wheel` pulse; a quicker Q press still
+  `PAD_WHEEL_HOLD_MS=260`; a quicker Q press still
   swaps to the previous weapon and a quicker Y tap still swaps or cycles the
   throwable), `takeWheelRelease()` (the opening control released while open),
   `takeWheelCancelRequest()` (`Esc`, right mouse, or pad `B` while open),
@@ -434,23 +442,20 @@ late join whose welcome/state is already live also proceeds directly.
   `setGameplayEnabled(boolean)` gates input around lobby, settings, buy, death,
   and teardown.
 - `TouchControls` owns coarse-pointer DOM and pointer lifecycles behind the
-  `Input` seam. Touch mode is selected by touch capability, a coarse primary
-  pointer, or the `?touch=1` QA override; it never requests pointer lock. Its
-  joystick, swipe-look, hold, and pulse callbacks feed the same canonical input
-  state and draining edges as keyboard/mouse, including charged grenades, the
-  `grenadeType` chip that cycles the throwable, and the S&D buy menu. The
-  weapon chip keeps its quick-tap `weapon` pulse (next weapon) and pulses
-  `wheel` instead when a press is held past `WHEEL_TOUCH_HOLD_MS`; a
-  `wheelOpen` context collapses `visibleTouchActions` to the pause-only set.
-  The look zone is the full screen beneath the other
-  controls; the joystick base floats to the touchdown point; the FIRE button
-  forwards drag deltas to look while held; a look-zone touch shorter than
-  `TOUCH_TAP_FIRE_MS` and stiller than `TOUCH_TAP_FIRE_TRAVEL_PX` pulses
-  `fireTap` (one queued shot); ADS and crouch use `resolveToggleRelease` (tap
-  under `TOUCH_TOGGLE_TAP_MS` latches, long press holds). The first enabled
-  gesture requests fullscreen and a landscape lock (both best-effort, never
-  thrown), presses vibrate through `navigator.vibrate` when present, and
-  disabling gameplay releases every captured, held, or latched control.
+  `Input` seam. A coarse primary pointer or the `?touch=1` QA override enables it;
+  devices without a pointer classification fall back to touch capability. It never
+  requests pointer lock, fullscreen, or orientation locking. The floating stick,
+  swipe-look, hold, and pulse callbacks feed canonical input state. The normal
+  controls are fire, ADS, jump, contextual reload, weapon swap through the ammo
+  panel, and pause. S&D retains contextual interact and buy controls. Crouch,
+  grenades/type cycling, scope zoom, and weapon-wheel gestures have no mobile
+  buttons. The aim surface only aims; it never fires on a tap. FIRE forwards drag
+  deltas while held. ADS uses `resolveToggleRelease`: a tap under
+  `TOUCH_TOGGLE_TAP_MS` latches, a long press holds. Pulse buttons activate once
+  on pointer release; cancellation, capture loss, a second pointer, or hiding the
+  button cannot activate them. A `wheelOpen` context collapses contextual buttons
+  to the pause-only set. Disabling gameplay releases captured and latched controls.
+  Size and hand options preserve separate touch targets of at least 44 CSS pixels.
 - `new WorldView({getBlock})`; call `await ready()` before rendering,
   `applyDeltas([{x,y,z,v}])`, `update(dt)`, camera ray helpers, and `dispose()`.
 - `new CombatPostProcess(renderer,options)` owns the bounded scene render target
@@ -493,9 +498,12 @@ late join whose welcome/state is already live also proceeds directly.
   52, gravity 3.0, radius 0.1, lifetimeMs 3000, bouncesTap 1 / bouncesCharged 3
   at `chargedAt` 1, blockDamage 18 per destructible wall contact, colour
   '#7dfcff'), `boltBounces(charge01)`, `boltLaunch({x,y,z,dir,charge01})`, and
-  `stepBolt(bolt,dt,raycast)` — one swept reflection walk so prediction,
-  presentation, and authority ricochet identically (clients derive bounce FX
-  from the step's `bounced` flag). The server `ProjectileSystem`
+  `stepBolt(bolt,dt,raycast,{onTravel?,onBounce?})` — one swept reflection walk so prediction,
+  presentation, and authority ricochet identically. `onTravel(from,bolt)` runs
+  before each wall contact and can return true to stop at a body hit;
+  `onBounce(contact)` reports every reflection. `traveled` accumulates flight
+  distance for damage falloff. Bolts always fizzle harmlessly, including when
+  terminated explicitly, and do not participate in explosive chain reactions. The server `ProjectileSystem`
   (`server/sim/projectiles.js`, `PROJECTILE_RULES`), the client `ProjectileFX`
   (`public/js/weapons/projectiles.js`), and the charge preview all run those
   integrators. `Effects.projectileLaunch(ev,{local?,fromSelf?})` spawns a
@@ -602,7 +610,12 @@ step listener with the room.
   range with 17 respawning dummies that never shoot back, humans cannot hurt
   each other, a 4-stage timed killhouse run whose metal gates open as stages
   clear, all 10 guns unlocked, and zero combat bots (the bot slider does not
-  apply).
+  apply). Range targets respawn after 1200 ms; stage targets respawn after
+  4000 ms while idle and remain cleared during an attempt. `TrainingCourse`
+  owns one active runner per room, splits, gates, and connection-scoped bests.
+  Other humans may use the range but cannot clear that runner's stage targets
+  or reset the course. Death/disconnect releases it; returning to the start
+  restarts the active attempt. Dummies have no respawn protection.
 - **Map compatibility:** `foundry` supports Fun/TDM/S&D/Gun Game; `depot`
   supports Fun/TDM/Gun Game; `citadel`, `solstice`, and `caldera` support
   Fun/TDM/S&D/Gun Game; `killhouse` supports Training only. Foundry has A/B

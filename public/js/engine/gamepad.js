@@ -117,13 +117,16 @@ export class GamepadInput {
   poll(now) {
     const pad = this._firstPad();
     if (!pad) {
+      this._activeUntil = -Infinity;
       if (this._held) {
         // Pad vanished mid-hold: emit the release edges so nothing stays latched.
         const frame = readGamepadFrame({ axes: [], buttons: [] }, this._held);
+        frame.connected = false;
         this._held = null;
         this._lastFrame = frame;
         return frame;
       }
+      this._lastFrame = null;
       return null;
     }
     const frame = readGamepadFrame(pad, this._held);

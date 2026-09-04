@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Browser multiplayer voxel arena shooter — three.js client, authoritative ws server, eight bespoke guns, three throwables, and a full feedback stack.",
+  "description": "Browser multiplayer voxel arena shooter — three.js client, authoritative ws server, ten bespoke weapons, three throwables, and a full feedback stack.",
   "scripts": {
     "start": "node server/index.js",
     "smoke": "node tools/smoke.mjs",

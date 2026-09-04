@@ -438,6 +438,8 @@ export class Input {
       this._wheelVecY = 0;
       this._wheelStepQueue = 0;
       this._pendingWheelSlot = null;
+      this._accDX = 0;
+      this._accDY = 0;
       this._mouseFire = false;
       this._fireTapQueued = false;
       this._padFire = false;
@@ -459,6 +461,9 @@ export class Input {
     this._wheelVecY = 0;
     this._wheelStepQueue = 0;
     this._pendingWheelSlot = null;
+    this._wheelOpenQueued = false;
+    this._wheelReleaseQueued = false;
+    this._wheelCancelQueued = false;
   }
 
   /** True while the radial weapon wheel routes device input. */
@@ -488,6 +493,19 @@ export class Input {
       this._qWheelFired = true;
     }
     if (!frame) return null;
+    if (frame.connected === false) {
+      // Losing a controller cancels holds. Synthetic releases must not throw a
+      // grenade, equip a weapon, or latch crouch as though the user tapped it.
+      if (frame.released.grenade) {
+        this._grenadeHeld = false;
+        this._grenadeHoldStartedAt = 0;
+      }
+      if (this._padYHeld && this._wheelOpen) this._wheelCancelQueued = true;
+      this._padYHeld = false;
+      this._padYWheelFired = false;
+      this._clearPadState();
+      return frame;
+    }
     if (!this._gameplayEnabled) {
       if (frame.pressed.pause) this._pauseHandler?.();
       this._clearPadState();
@@ -706,8 +724,8 @@ export class Input {
 
   /**
    * Queued wheel-open request since the last call: Q held >= WHEEL_HOLD_MS, a
-   * middle-mouse press, pad Y held >= PAD_WHEEL_HOLD_MS, or a touch 'wheel' pulse
-   * from the weapon chip's long press. Consumed on read.
+   * middle-mouse press, or pad Y held >= PAD_WHEEL_HOLD_MS
+   * (a short press swaps weapons). Consumed on read.
    * @returns {boolean}
    */
   takeWheelOpenRequest() {
@@ -827,7 +845,7 @@ export class Input {
     return Math.max(0, now - this._grenadeHoldStartedAt);
   }
 
-  /** Selected throwable index (H / wheel or Y while holding G / touch chip cycle it). */
+  /** Selected throwable index (H / wheel or Y while holding G cycle it). */
   getGrenadeType() {
     return this._grenadeType;
   }
@@ -925,7 +943,7 @@ export class Input {
     this._touchControls = new TouchControls({
       onMove: (vector) => this._onTouchMove(vector),
       onLook: (dx, dy) => this._onTouchLook(dx, dy),
-      onHold: (action, held, at) => this._onTouchHold(action, held, at),
+      onHold: (action, held) => this._onTouchHold(action, held),
       onPulse: (action) => this._onTouchPulse(action),
       onPause: () => {
         if (this._gameplayEnabled) this._pauseHandler?.();
@@ -949,16 +967,16 @@ export class Input {
   }
 
   _onTouchLook(dx, dy) {
-    if (!this._gameplayEnabled) return;
+    if (!this._gameplayEnabled || this._wheelOpen) return;
     const scale = this.sens * TOUCH_LOOK_SENSITIVITY_SCALE *
       this._options.touchSensitivity * this._assistScale();
     this._accDX += (Number(dx) || 0) * scale;
     this._accDY += (Number(dy) || 0) * scale * (this.invertY ? -1 : 1);
   }
 
-  _onTouchHold(action, held, at = eventTime(null)) {
+  _onTouchHold(action, held) {
     const down = !!held;
-    if (!this._gameplayEnabled && down) return;
+    if ((!this._gameplayEnabled || this._wheelOpen) && down) return;
     switch (action) {
       case 'fire':
         if (down && !this._mouseFire) this._fireTapQueued = true;
@@ -966,25 +984,16 @@ export class Input {
         break;
       case 'ads': this._mouseAds = down; break;
       case 'jump': this.keys.jump = down; break;
-      case 'crouch': this.keys.crouch = down; break;
       case 'interact': this.keys.interact = down; break;
-      case 'grenade':
-        if (down && !this._grenadeHeld) this._beginGrenadeHold(at);
-        else if (!down && this._grenadeHeld) this._releaseGrenade(at);
-        break;
       default: break;
     }
   }
 
   _onTouchPulse(action) {
-    if (!this._gameplayEnabled) return;
+    if (!this._gameplayEnabled || this._wheelOpen) return;
     if (action === 'reload') this._reloadQueued = true;
     else if (action === 'weapon') this._switchQueue += 1;
-    else if (action === 'grenadeType') this.cycleGrenadeType(1);
     else if (action === 'buy') this._buyMenuQueued = true;
-    else if (action === 'fireTap') this._fireTapQueued = true;   // look-zone tap: one shot
-    else if (action === 'zoom') this._zoomStepQueue += 1;
-    else if (action === 'wheel') this._wheelOpenQueued = true;   // weapon chip long press
   }
 
   _toggleAds(down) {
@@ -1131,7 +1140,7 @@ export class Input {
   _onMouseUp(e) {
     if (e.button === 1) {
       this._mmbHeld = false;
-      if (this._wheelOpen) this._wheelReleaseQueued = true;
+      if (this._wheelOpen || this._wheelOpenQueued) this._wheelReleaseQueued = true;
       return;
     }
     if (this._wheelOpen) return;

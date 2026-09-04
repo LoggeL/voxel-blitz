@@ -87,28 +87,16 @@ async function main() {
 
   const server = http.createServer(async (req, res) => {
     try {
-      const originalUrl = req.url;
-      const requestTarget = originalUrl.split(/[?#]/, 1)[0];
-      let decodedPathname;
       try {
-        const target = new URL(originalUrl, 'http://localhost');
-        const decodedTarget = decodeURIComponent(originalUrl);
-        decodedPathname = decodeURIComponent(target.pathname);
-        if (decodedTarget.includes('\0') || decodedPathname.includes('\0')) throw new URIError('NUL');
+        if (decodeURIComponent(req.url || '/').includes('\0')) throw new URIError('NUL');
       } catch {
         res.writeHead(400, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
         res.end(JSON.stringify({ t: 'error', msg: 'bad request' }));
         return;
       }
-
-      if (!/(?:^|[\\/]|%2f|%5c)(?:\.|%2e){2}(?=$|[\\/]|%2f|%5c)/i.test(requestTarget)) {
-        try {
-          req.url = decodedPathname;
-          if (await staticHandler(req, res)) return;
-        } finally {
-          req.url = originalUrl;
-        }
-      }
+      // Pass the original target through: staticHandler owns decoding and root
+      // validation. Decoding it here as well can turn encoded filenames into paths.
+      if (await staticHandler(req, res)) return;
       res.writeHead(404, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify({ t: 'error', msg: 'not found' }));
     } catch (err) {

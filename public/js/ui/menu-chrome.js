@@ -1,4 +1,5 @@
 import { el } from './hud-support.js';
+import { WEAPON_IDS } from '../../../shared/combatmath.js';
 
 const MENU_BACKDROPS = Object.freeze({
   foundry: '/assets/ui/menu-foundry-dusk.webp',
@@ -27,7 +28,7 @@ function buildBrandRail(parent, { context = 'DEPLOYMENT', titleId = '' } = {}) {
   const nav = el('div', 'vb-brand-context', rail);
   el('span', 'vb-brand-context-active', nav).textContent = context;
   el('span', '', nav).textContent = 'TACTICAL ARENA';
-  el('span', '', nav).textContent = 'SIX WEAPONS';
+  el('span', '', nav).textContent = `${WEAPON_IDS.length} WEAPONS`;
   el('span', '', nav).textContent = 'VOXEL COMBAT';
 
   const status = el('div', 'vb-brand-status', rail);

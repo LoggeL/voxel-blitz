@@ -49,9 +49,11 @@ export function boltLaunch({ x, y, z, dir, charge01 = 1 }) {
  * every reflection consumes one `bouncesLeft`. Once the budget is spent the next contact
  * is terminal: `hit` reports it and the caller fizzles the bolt. A contact that
  * reflected sets `bounced` for presentation. `raycast` is the shared DDA returning
- * `{x,y,z,nx,ny,nz,t}`.
+ * `{x,y,z,nx,ny,nz,t}`. Optional observers see each traveled segment before
+ * its wall contact. `onTravel(from, bolt)` may return true to stop at a body;
+ * `onBounce(contact)` observes every reflection, including multiple per step.
  */
-export function stepBolt(bolt, dt, raycast) {
+export function stepBolt(bolt, dt, raycast, { onTravel, onBounce } = {}) {
   const step = Math.max(0, Number(dt) || 0);
   bolt.hit = null;
   bolt.bounced = null;
@@ -65,24 +67,24 @@ export function stepBolt(bolt, dt, raycast) {
   let guard = 0;
   while (budget > 1e-6 && guard++ < 6) {
     const hit = raycast(bolt.x, bolt.y, bolt.z, ux, uy, uz, budget + BOLT_RULES.radius);
-    if (!hit) {
-      bolt.x += ux * budget;
-      bolt.y += uy * budget;
-      bolt.z += uz * budget;
-      return bolt;
-    }
-    const t = Math.max(0, hit.t - BOLT_RULES.radius * 0.5);
+    const t = hit ? Math.min(budget, Math.max(0, hit.t - BOLT_RULES.radius * 0.5)) : budget;
+    const from = { x: bolt.x, y: bolt.y, z: bolt.z };
     bolt.x += ux * t;
     bolt.y += uy * t;
     bolt.z += uz * t;
     budget -= t;
+    if (onTravel?.(from, bolt)) return bolt;
+    bolt.traveled = (bolt.traveled || 0) + t;
+    if (!hit) return bolt;
     const contact = { x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz, t };
-    if ((bolt.bouncesLeft ?? 0) <= 0 || !Number.isFinite(hit.nx + hit.ny + hit.nz)) {
+    const normalLength = Math.hypot(hit.nx, hit.ny, hit.nz);
+    if ((bolt.bouncesLeft ?? 0) <= 0 || !Number.isFinite(normalLength) || normalLength < 0.5) {
       bolt.hit = contact;
       return bolt;
     }
     bolt.bouncesLeft -= 1;
     bolt.bounced = contact;
+    onBounce?.(contact);
     // Mirror the velocity about the face normal, nudge off the surface so the next
     // segment cannot re-hit the entry voxel, and keep flying the leftover budget.
     const dot = bolt.vx * hit.nx + bolt.vy * hit.ny + bolt.vz * hit.nz;
@@ -101,7 +103,9 @@ export function stepBolt(bolt, dt, raycast) {
     bolt.y += hit.ny * 0.002;
     bolt.z += hit.nz * 0.002;
   }
-  // Reflection storm guard: freeze the bolt where it stands; the caller fizzles it.
-  bolt.hit = { x: bolt.x, y: bolt.y, z: bolt.z, nx: 0, ny: 1, nz: 0, t: 0 };
+  // Exhausting this frame's distance at a reflection is not a terminal hit.
+  if (budget > 1e-6) {
+    bolt.hit = { x: bolt.x, y: bolt.y, z: bolt.z, nx: 0, ny: 1, nz: 0, t: 0 };
+  }
   return bolt;
 }

@@ -2,7 +2,7 @@
 
 Browser multiplayer voxel arena shooter. One Node process serves the game **and**
 runs the authoritative 20 Hz simulation over WebSockets; clients are plain
-three.js ES modules (no bundler). Eight hand-tuned guns with a full "gun UX"
+three.js ES modules (no bundler). Ten hand-tuned weapons with a full "gun UX"
 stack: procedural viewmodels, staged timer-driven animations, bloom/recoil,
 ADS, tracers, shell ejects, muzzle flash + barrel heat shader, block-shatter,
 damage numbers, hitmarkers, killfeed, a full-screen sniper optic, a radial
@@ -24,7 +24,7 @@ The main menu has three admission paths:
 
 - **Quick Play** enters the first live shared Fun room with human capacity, or
   creates one immediately. Fresh quick rooms rotate between Foundry, Depot,
-  and Solstice.
+  Solstice, and Caldera.
   A fresh room starts with at least five bots; humans replace bots as they join.
   The menu's custom mode and map selectors do not change quick play.
 - **Create Lobby** creates a public waiting room with the selected game mode,
@@ -74,11 +74,11 @@ npm run audio:audit
 The weapon flow renders every gun in a fixed inspection range in three stable
 states: `held`, fully aligned `scoped`/ADS, and `firing` with the real recoil,
 muzzle flash, and heat shader advanced to a deterministic frame. The complete
-run writes 18 PNGs plus `index.html` and `manifest.json` to
+run writes 30 PNGs plus `index.html` and `manifest.json` to
 `.artifacts/weapon-renders/` for side-by-side visual review.
 The avatar flow renders those same canonical models on remote-player bodies in
 front, profile, firing, ADS-profile, and crouched-profile views, plus one
-representative ally-spectator shot. The focused 31-frame matrix is written to
+representative ally-spectator shot. The focused 51-frame matrix is written to
 `.artifacts/avatar-renders/`.
 
 The project-owned illustrations in `public/assets/weapons/hud/` are the
@@ -199,6 +199,19 @@ player through rifle, SMG, shotgun, sniper, LMG, revolver, LONGARC, rocket,
 VOLTLANCE, and finally the RIPPER knife. A kill with the RIPPER wins; a
 **5000 ms** result phase follows before progression and scores reset.
 
+### Training
+
+Training runs on Killhouse with all ten weapons, nine range targets, and eight
+course targets. Range targets respawn after 1200 ms. Course targets respawn
+after 4000 ms during practice and stay cleared throughout a timed attempt.
+Step onto the start pad to begin the four-stage course. Each cleared stage
+opens its gate; crossing the finish records the time and personal best.
+
+The room has one physical course and permits one timed runner at a time.
+Other players can use the range while it is occupied, but cannot reset the
+runner's gates or clear their course targets. Returning to the start restarts
+the attempt. Death or disconnect releases the course for the next runner.
+
 ### Map compatibility
 
 | map id | modes | identity |
@@ -256,26 +269,20 @@ roster, and ADS defaults to toggle so nothing needs to be held with a second
 finger. Pointer lock requests raw (unaccelerated) mouse deltas where the
 browser offers them.
 
-On touch/coarse-pointer devices, the game enters mobile mode without pointer
-lock. The left stick floats to wherever your thumb lands and auto-sprints at its
-outer ring; drag anywhere else on the screen to aim, and a quick tap there fires
-one shot. FIRE aims while held (drag to track), ADS and crouch are tap-to-toggle
-and hold-to-hold, G charges a grenade with a live landing preview, and the
-chip beside it cycles the throwable. Dedicated
-buttons cover jump, reload, use/interact, weapon swap (a quick tap steps to
-the next weapon and holding it 300 ms opens the draggable radial wheel — drag
-to highlight a wedge and release to equip, with only the pause button left on
-screen), S&D armory, scope zoom,
-and pause, and they only exist while they can do something: reload appears when
-the magazine is short and a spare exists, grenade while you carry one, use only
-during a live S&D round, armory only during S&D prep, zoom only while scoped, and
-the whole cluster leaves while you are dead or spectating. Settings offer small,
-medium, or large controls, a left-handed mirror, and a touch look multiplier.
-The first touch asks for fullscreen and a landscape lock where the browser
-allows it, browser gestures (zoom, pull-to-refresh, selection) are suppressed,
-a portrait hint asks you to rotate, and buttons vibrate briefly on devices with
-haptics. Safe-area-aware portrait and landscape layouts keep the combat HUD
-clear of the controls. Append `?touch=1` to force this mode during desktop QA.
+On touch/coarse-pointer devices, the game runs without pointer lock. The left
+stick follows your thumb and auto-sprints at its outer edge. Drag the screen to
+aim, or drag FIRE to aim while shooting. AIM supports tapping to toggle or holding.
+JUMP and FIRE stay near the right thumb; LOAD appears when you can reload. Tap
+the ammo panel to swap weapons. USE appears during live S&D rounds and BUY during
+S&D prep. Pause stays in the upper-left corner. Controls disappear while dead,
+spectating, or in a menu.
+
+The mobile HUD keeps health, ammo, match status, and objectives. Extra grenade,
+crouch, zoom, and weapon-wheel touch controls are omitted. A tap on the aim
+surface never fires. There are no automatic fullscreen or rotation requests,
+rotation banners, or vibration effects. Settings retain control size, handedness,
+and look sensitivity. All three sizes keep touch targets at least 44 pixels and
+support portrait and landscape. Append `?touch=1` for desktop QA.
 
 ## The ten guns
 
@@ -366,16 +373,26 @@ reloads never stutter on a slow link.
 ## Architecture
 
 ```
-shared/    mode/map rules, world generation/store, DDA raycast, ballistics, throwable/rocket rules
+shared/    mode/map rules, movement/collision, world generation, raycasts, weapon/projectile rules
 server/    HTTP/ws host, room manager, authoritative 20 Hz sim, modes, bots
 public/js/
   engine/  input, snapshots, timing/smoothing, chunk mesher, sky, combat shader
   guns/    defs (feel tables) + viewmodel rig (procedural models, staged anims)
   weapons/ pooled FX: tracers, impacts, shatter, shells, projectiles, ricocheting bolts, shake
   ui/      menu/lobby, match/network HUD, buy dialog, scoreboard, combat feedback
+  session/ connection lifecycle and weapon-wheel coordination
+  player/  prediction, camera, recoil, aim assist, spectator view
   audio/   sample bank + procedural WebAudio fallback, mix, music, voice limits
 tools/     fast contracts plus isolated visual, audio, and container QA flows
 ```
+Client prediction and server movement share `shared/player-movement.js` for
+physics constants, body collision, ground probes, and wall sliding. Wheel
+coordination lives in `session/weapon-wheel-controller.js`; the DOM overlay
+stays in `ui/weapon-wheel.js`. Training progression and gate ownership live in
+`server/modes/training/course.js`. Projectile contact checks follow each
+flight segment in order, including ricochet legs, and damage falloff uses the
+full traveled path.
+
 Foundry, Depot, Citadel, Solstice, Caldera, and Killhouse are deterministic templates. Every room receives a
 fresh mutable clone of its selected map. The current room map is serialized in
 the single binary admission frame; subsequent block destruction is room-scoped

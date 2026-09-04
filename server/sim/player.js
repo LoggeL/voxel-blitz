@@ -5,37 +5,16 @@ import {
   WEAPONS,
   WEAPON_IDS,
   CONDITION_RULES,
-  GRAVITY,
-  PLAYER_HALF,
-  EYE_HEIGHT,
 } from '../../shared/combatmath.js';
 import { mulberry32 } from '../../shared/noise.js';
 import { freshGrenadeLoadout } from '../../shared/grenade-rules.js';
 
-const WALK_SPEED = 4.4;
-const SPRINT_SPEED = 6.2;
-const CROUCH_SPEED = 2.2;
-const JUMP_VELOCITY = 8.2;
-const ACCEL_GROUND = 10;
-const ACCEL_AIR = ACCEL_GROUND * 0.3;
-const EYE = EYE_HEIGHT;
-const CROUCH_EYE = EYE * 0.58;
-const CHEST_Y = 1.2;
+import { PHYSICS } from '../../shared/player-movement.js';
+export { PHYSICS } from '../../shared/player-movement.js';
 
-/** Physics numbers mirrored from BUILD-CONTRACT "Physics constants". */
-export const PHYSICS = {
-  walk: WALK_SPEED,
-  sprint: SPRINT_SPEED,
-  crouch: CROUCH_SPEED,
-  jump: JUMP_VELOCITY,
-  gravity: GRAVITY,
-  eye: EYE,
-  crouchEye: CROUCH_EYE,
-  accelGround: ACCEL_GROUND,
-  accelAir: ACCEL_AIR,
-  halfW: PLAYER_HALF.x,
-  height: PLAYER_HALF.h * 2,
-};
+const EYE = PHYSICS.eye;
+const CROUCH_EYE = PHYSICS.crouchEye;
+const CHEST_Y = 1.2;
 
 /** Direction vector from aim angles. yaw=0 faces -Z and pitch>0 looks up. */
 export function fwdFromYawPitch(yaw, pitch) {

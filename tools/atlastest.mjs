@@ -18,11 +18,11 @@ import {
   START_CREDITS, KILL_CREDITS, PLANT_CREDITS, ROUND_WIN_CREDITS,
   MAX_CREDITS, LOSS_CREDIT_LADDER, MAP_MODE_COMPATIBILITY,
   normalizeModeId, normalizeTeamId, normalizeMapId, normalizeWeaponId,
-  isModeMapCompatible, isTeamMode,
+  isModeMapCompatible, isTeamMode, mapForMode,
 } from '../shared/modes.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { WEAPON_IDS, PLAYER_HALF, EYE_HEIGHT } from '../shared/combatmath.js';
-import { BOLT_RULES } from '../shared/bolt-rules.js';
+import { BOLT_RULES, stepBolt } from '../shared/bolt-rules.js';
 import { MAP_CAPTURE_SHOTS } from '../shared/map-capture-shots.js';
 import {
   ChunkStore, aoLevel, FACE_SHADE, CHUNK_X,
@@ -30,6 +30,8 @@ import {
 } from '../public/js/engine/chunks.js';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { GameEngine, aimAngles } from '../server/game.js';
+import { resolveModeMap, parseAdmissionFrame } from '../server/protocol/admission.js';
+import { PlayerPhysics } from '../public/js/player-physics.js';
 import { runClientContracts } from './contracts/client-contracts.mjs';
 import {
   bytesEqual,
@@ -206,6 +208,12 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
   'mode, map, and team identifiers are exact immutable shared lists');
+
+  ok(mapForMode('training', 'foundry') === 'killhouse'
+    && resolveModeMap('training').map === 'killhouse'
+    && parseAdmissionFrame({ t: 'create', name: 'Range', bots: 0, gameMode: 'training' }).map === 'killhouse'
+    && mapForMode('snd', 'depot') === 'foundry' && mapForMode('invalid') === null,
+  'mode defaults agree across browser selection and strict admission, including Training');
 
   const sndMaps = MAP_IDS.filter((map) => MAP_MODE_COMPATIBILITY[map].includes('snd'));
   const capturedSites = sndMaps.every((map) => ['A', 'B'].every((site) =>
@@ -819,7 +827,19 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && openedGateDeltas(split0Frame, gates[0]),
   'stage zero kills emit one run_split and open the first gate cell by cell');
 
+  engine.addClient('guest', 'Guest');
+  Object.assign(engine.entities.get('guest'), { x: 14.5, y: 7, z: 50.5 });
+  const guestFrame = stepOnce();
+  ok(eventsOf(guestFrame, 'run_start').length === 0
+      && gates[0].every((cell) => world.getBlock(cell.x, cell.y, cell.z) === AIR)
+      && !engine.mode.canDamage('guest', 'dummy-11') && engine.mode.canDamage('runner', 'dummy-11')
+      && engine.mode.canDamage('guest', 'dummy-0'),
+    'a second player cannot reset an active course or clear its targets, while range practice remains available');
+  engine.removeClient('guest');
   engine.killPlayer(dummy('dummy-11'), null, 'world', false);
+  for (let i = 0; i < 85; i++) stepOnce();
+  ok(dummy('dummy-9').state === 'dead' && dummy('dummy-11').state === 'dead',
+    'stage targets stay cleared throughout a run even beyond their idle respawn deadline');
   engine.killPlayer(dummy('dummy-12'), null, 'world', false);
   const split1Frame = stepOnce();
   ok(eventsOf(split1Frame, 'run_split')[0]?.stage === 1
@@ -1068,6 +1088,75 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && engine.projectiles.active.size === 0,
   'a full bolt survives three ricochets between the walls and fizzles on the fourth contact');
 }
+// Collision regression: one tick can travel to a wall and back past a body.
+{
+  const engine = new GameEngine();
+  engine.addClient('shooter', 'Shooter');
+  engine.addClient('target', 'Target');
+  const shooter = engine.entities.get('shooter');
+  const target = engine.entities.get('target');
+  const ctx = engine.projectileContext();
+  for (let x = 38; x <= 44; x++) for (let y = 19; y <= 24; y++) for (let z = 48; z <= 52; z++) {
+    engine.world.setBlock(x, y, z, x === 42 ? STONE : AIR);
+  }
+  Object.assign(shooter, { x: 40, y: 20, z: 50.5 });
+  Object.assign(target, { x: 41.6, y: 20, z: 50.5, spawnProtectedUntil: 0 });
+  const bolt = engine.projectiles.launchBolt(shooter, ctx, { x: 1, y: 0, z: 0 }, 1);
+  engine.tickEvents.length = 0;
+  engine.projectiles.step(0.05, ctx);
+  ok(target.hp < 100 && !engine.projectiles.active.has(bolt.id)
+      && engine.tickEvents.filter((e) => e.kind === 'hit').length === 1,
+    'a body on the outgoing ricochet leg is hit before the bolt can reflect back');
+
+  const reflected = { x: 40, y: 21, z: 50.5, vx: 52, vy: 0, vz: 0, bouncesLeft: 3 };
+  const travel = [];
+  stepBolt(reflected, 0.05, (...args) => raycastVoxels((x) => x === 42, ...args), {
+    onTravel: (from, to) => { travel.push([from.x, to.x]); },
+  });
+  ok(travel.length === 2 && travel[0][1] > travel[0][0] && travel[1][1] < travel[1][0]
+      && reflected.traveled > 2.59 && !reflected.hit,
+    'shared bolt integration reports both ricochet legs and accumulates actual flight distance');
+  const embedded = { x: 42.5, y: 21, z: 50.5, vx: 52, vy: 0, vz: 0, bouncesLeft: 3 };
+  stepBolt(embedded, 0.05, (...args) => raycastVoxels((x) => x === 42, ...args));
+  ok(embedded.hit && embedded.bouncesLeft === 3,
+    'a bolt spawned inside a voxel fizzles instead of inventing zero-normal reflections');
+  const edge = { x: 0, y: 5, z: 0, vx: 1, vy: 0.3, vz: 0, bouncesLeft: 1 };
+  stepBolt(edge, 0.1, () => ({ x: 1, y: 5, z: 0, nx: -1, ny: 0, nz: 0, t: 0.15 }));
+  ok(!edge.hit && edge.bouncesLeft === 0,
+    'using the last distance of a frame to ricochet does not prematurely fizzle a bolt');
+
+  target.hp = 100;
+  const inert = engine.projectiles.launchBolt(shooter, ctx, { x: 1, y: 0, z: 0 }, 1);
+  engine.tickEvents.length = 0;
+  engine.projectiles.explode(inert, ctx);
+  ok(target.hp === 100 && engine.tickEvents.length === 1 && engine.tickEvents[0].radius === 0.5,
+    'every bolt termination path remains a harmless fizzle with no grenade blast fallback');
+}
+
+// Client/server movement use the same collision primitive over identical voxels.
+{
+  const engine = new GameEngine();
+  engine.addClient('movement', 'Movement');
+  const player = engine.entities.get('movement');
+  const physics = new PlayerPhysics();
+  physics.solid = engine.solidAt;
+  for (let x = 48; x <= 58; x++) for (let z = 48; z <= 58; z++) for (let y = 18; y <= 25; y++) {
+    engine.world.setBlock(x, y, z, y === 18 || x === 55 ? STONE : AIR);
+  }
+  Object.assign(player, { x: 51.5, y: 19, z: 51.5, vx: 0, vy: 0, vz: 0, grounded: true });
+  Object.assign(physics.pos, { x: player.x, y: player.y, z: player.z });
+  physics.grounded = true;
+  engine.applyInput(player.id, { yaw: -Math.PI / 2, pitch: 0, keys: { f: true } });
+  for (let i = 0; i < 40; i++) {
+    engine.updateTimers(player, 0.05);
+    engine.integrate(player, 0.05);
+    physics.step(0.05, { x: 1, z: 0 }, 4.4, false);
+  }
+  ok(Math.abs(player.x - physics.pos.x) < 1e-9 && player.y === physics.pos.y
+      && player.x < 55 && player.vx === 0 && physics.vel.x === 0,
+    'predicted and authoritative movement stop at the same wall and floor without velocity drift');
+}
+
 // -------------------------------------------------------------------- AO
 ok(aoLevel(0, 0, 0) === 1.0, 'open corner brightest');
 ok(aoLevel(1, 1, 0) === 0.42, 'two sides -> forced darkest (corner rule)');

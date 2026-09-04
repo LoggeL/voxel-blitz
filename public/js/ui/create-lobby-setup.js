@@ -4,6 +4,7 @@ import {
   MAP_IDS,
   MODE_IDS,
   isModeMapCompatible,
+  mapForMode,
   normalizeMapId,
   normalizeModeId,
 } from '../../../shared/modes.js';
@@ -116,8 +117,7 @@ export class CreateLobbySetup {
         option.value = mapId;
         option.textContent = MAP_LABELS[mapId] || mapId.toUpperCase();
       }
-      const normalized = normalizeMapId(preferredMap, DEFAULT_MAP_ID);
-      mapSelect.value = validMaps.includes(normalized) ? normalized : validMaps[0];
+      mapSelect.value = mapForMode(mode, preferredMap);
       modeDescription.textContent = MODE_DESCRIPTIONS[mode] || '';
       this._updateMapPreview();
     };

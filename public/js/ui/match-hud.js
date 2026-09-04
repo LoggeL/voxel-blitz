@@ -138,6 +138,7 @@ export class MatchHud {
     if (!m.header) return;
 
     const curMode = match?.mode || 'fun';
+    m.header.dataset.mode = curMode;
     const curMap = match?.map || 'foundry';
     const phase = match?.phase || 'live';
     const isTeamMode = curMode === 'tdm' || curMode === 'snd';
@@ -197,6 +198,14 @@ export class MatchHud {
       } else {
         m.phaseLabel.textContent = 'INSTANT SKIRMISH · FREE FOR ALL';
       }
+    }
+
+    if (m.phaseLabel) {
+      m.phaseLabel.dataset.compact = curMode === 'snd'
+        ? `R${match?.round || 1} · ${phase === 'prep' ? 'PREP' : phase === 'post' ? 'OVER' : 'LIVE'}`
+        : curMode === 'tdm'
+          ? (phase === 'post' ? 'MATCH OVER' : 'FIRST TO 40')
+          : m.phaseLabel.textContent;
     }
 
     if (isTeamMode) {

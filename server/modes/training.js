@@ -1,5 +1,6 @@
 import { WEAPON_IDS } from '../../shared/combatmath.js';
-import { AIR, METAL } from '../../shared/worlddata.js';
+import { isTrainingDummyId as isDummyId } from '../../shared/modes.js';
+import { TrainingCourse } from './training/course.js';
 
 // Firing-range policy for the killhouse map. Idle dummy targets occupy fixed
 // posts (range dummies respawn fast, stage dummies gate a 4-stage timed run),
@@ -9,14 +10,9 @@ import { AIR, METAL } from '../../shared/worlddata.js';
 const DUMMY_ID_PREFIX = 'dummy-';
 const RANGE_DUMMY_RESPAWN_MS = 1200;
 const STAGE_DUMMY_RESPAWN_MS = 4000;
-const FINISH_STAGE = 3;
 
 function pad2(value) {
   return String(value).padStart(2, '0');
-}
-
-function isDummyId(value) {
-  return String(value ?? '').startsWith(DUMMY_ID_PREFIX);
 }
 
 /** Owns dummy targets, spawn protection, and the staged killhouse run clock. */
@@ -61,18 +57,23 @@ export class TrainingPolicy {
 
     this._entities = entities;
     this._clock = now;
-    this._emitEvent = emit;
     this._respawnEntity = respawn;
     this._chooseSpawn = chooseSpawn;
     this._spawnDummy = spawnDummy;
-    this._blocks = blocks;
     this._players = new Set();
-    this._runs = new Map();
-    this._best = new Map();
     // Built lazily on the first tick: engine.spawnSelector is assigned after
     // ModeController during engine construction, so addBot would crash earlier.
     this._dummies = null;
     this._stageDummyIds = new Map();
+    this.course = new TrainingCourse({
+      course: this.mapMeta?.course,
+      entities,
+      now: () => this.now,
+      emit,
+      blocks,
+      stageTargets: () => this._stageDummyIds,
+      resetTargets: () => this._resetStageDummies(),
+    });
   }
 
   get now() {
@@ -82,7 +83,7 @@ export class TrainingPolicy {
 
   tick() {
     this._ensureDummies();
-    this._tickRuns();
+    this.course.tick();
   }
 
   teamFor() { return null; }
@@ -105,6 +106,8 @@ export class TrainingPolicy {
         && victim.spawnProtectedUntil > this.now) {
       return false;
     }
+    if (attacker != null && this._dummies?.get(String(victim.id))?.kind === 'stage'
+        && this.course.active && this._entity(attacker)?.id !== this.course.active.id) return false;
     return attacker == null || this.isEnemy(attacker, victim);
   }
 
@@ -134,7 +137,7 @@ export class TrainingPolicy {
   onPlayerRemove(player) {
     const entity = this._entity(player);
     const id = entity ? String(entity.id) : String(player ?? '');
-    this._runs.delete(id);
+    this.course.removePlayer(id);
     return this._players.delete(id);
   }
 
@@ -143,11 +146,7 @@ export class TrainingPolicy {
     if (!entity || !this._players.has(String(entity.id))) return false;
     entity.respawnAt = this.now + this.respawnDelay(entity);
     if (isDummyId(entity.id)) return true;
-    const id = String(entity.id);
-    if (this._runs.has(id)) {
-      this._runs.delete(id);
-      this._emit('run_reset', { id, reason: 'death' });
-    }
+    this.course.reset(String(entity.id), 'death');
     return true;
   }
 
@@ -173,7 +172,13 @@ export class TrainingPolicy {
     return !!entity && entity.state === 'dead';
   }
 
-  canTimedRespawn(player) { return this.canRespawn(player); }
+  canTimedRespawn(player) {
+    const entity = this._entity(player);
+    // A timed attempt records its targets until the run ends. Range practice
+    // keeps its independent respawn cadence throughout the attempt.
+    if (this.course.active && this._dummies?.get(String(entity?.id))?.kind === 'stage') return false;
+    return this.canRespawn(player);
+  }
 
   chooseSpawn(player, excludeIndex = -1) {
     const entity = this._entity(player);
@@ -223,8 +228,7 @@ export class TrainingPolicy {
 
   dispose() {
     this._players.clear();
-    this._runs.clear();
-    this._best.clear();
+    this.course.dispose();
     this._dummies = null;
     this._stageDummyIds.clear();
   }
@@ -236,6 +240,7 @@ export class TrainingPolicy {
   }
 
   _syncPlayer(entity) {
+    if (isDummyId(entity.id)) entity.spawnProtectedUntil = 0;
     entity.team = null;
     entity.credits = 0;
     entity.owned = WEAPON_IDS.slice();
@@ -281,67 +286,6 @@ export class TrainingPolicy {
     });
   }
 
-  _tickRuns() {
-    const course = this.mapMeta?.course;
-    if (!course) return;
-    const now = this.now;
-    for (const entity of this._entities.values()) {
-      if (!entity || entity.state !== 'alive') continue;
-      const id = String(entity.id);
-      if (isDummyId(id)) continue;
-      const run = this._runs.get(id);
-      if (!run) {
-        if (this._feetInside(entity, course.start)) this._startRun(id, now);
-        continue;
-      }
-      if (this._stageCleared(run.stage)) {
-        const ms = now - run.startedAt;
-        run.splits.push(ms);
-        this._emit('run_split', { id, stage: run.stage, ms });
-        // Postfix reading: the gate the player must now pass is the one in
-        // front of the room they just cleared.
-        if (run.stage < FINISH_STAGE) this._openGate(run.stage);
-        run.stage++;
-        continue;
-      }
-      if (run.leftStart) {
-        if (this._feetInside(entity, course.start)) {
-          this._emit('run_reset', { id, reason: 'rearmed' });
-          this._startRun(id, now);
-          continue;
-        }
-      } else if (!this._feetInside(entity, course.start)) {
-        run.leftStart = true;
-      }
-      if (run.stage > FINISH_STAGE && this._feetInside(entity, course.finish)) {
-        const ms = now - run.startedAt;
-        const prior = this._best.get(id);
-        const best = Number.isFinite(prior) ? Math.min(prior, ms) : ms;
-        this._best.set(id, best);
-        this._emit('run_finish', { id, ms, best, splits: run.splits.slice() });
-        this._runs.delete(id);
-      }
-    }
-  }
-
-  _stageCleared(stage) {
-    const ids = this._stageDummyIds.get(stage);
-    if (!ids || !ids.length) return false;
-    return ids.every((id) => !this._isAlive(id));
-  }
-
-  _isAlive(id) {
-    const entity = this._entities.get(id);
-    return !!entity && entity.state === 'alive';
-  }
-
-  _startRun(id, now) {
-    this._runs.set(id, { stage: 0, startedAt: now, splits: [], leftStart: false });
-    this._rearmGates();
-    this._resetStageDummies();
-    this._emit('run_start', { id, at: now });
-  }
-
   /** Fresh targets per attempt: stage dummies return to their posts. */
   _resetStageDummies() {
     for (const ids of this._stageDummyIds.values()) {
@@ -350,39 +294,5 @@ export class TrainingPolicy {
         if (entity) this._respawn(entity, { emitEvent: false });
       }
     }
-  }
-
-  _feetInside(entity, region) {
-    if (!region) return false;
-    const x = Math.floor(entity.x);
-    const z = Math.floor(entity.z);
-    return x >= region.minX && x <= region.maxX
-      && z >= region.minZ && z <= region.maxZ;
-  }
-
-  _setGate(gate, value) {
-    const course = this.mapMeta?.course;
-    if (!course || !gate || !Number.isFinite(gate.x)) return;
-    const x = Math.trunc(gate.x);
-    const [yMin, yMax] = course.gateY;
-    const [zMin, zMax] = course.gateZ;
-    for (let y = yMin; y <= yMax; y++) {
-      for (let z = zMin; z <= zMax; z++) {
-        this._blocks.set(x, y, z, value);
-      }
-    }
-  }
-
-  _rearmGates() {
-    for (const gate of this.mapMeta?.course?.gates || []) this._setGate(gate, METAL);
-  }
-
-  _openGate(stage) {
-    const gate = this.mapMeta?.course?.gates?.[stage];
-    if (gate) this._setGate(gate, AIR);
-  }
-
-  _emit(kind, fields = {}) {
-    this._emitEvent(kind, fields);
   }
 }

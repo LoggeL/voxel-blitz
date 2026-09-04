@@ -11,7 +11,7 @@ import {
   normalizeLobbyCode,
 } from './protocol.js';
 import {
-  DEFAULT_MAP_ID,
+  mapForMode,
   DEFAULT_MODE_ID,
   isMapId,
   isModeId,
@@ -100,7 +100,7 @@ export class LobbyManager {
     }
   }
 
-  create(meta, name, bots, gameMode = DEFAULT_MODE_ID, map = DEFAULT_MAP_ID) {
+  create(meta, name, bots, gameMode = DEFAULT_MODE_ID, map = mapForMode(gameMode)) {
     if (!this._validAdmission(meta, name) ||
         !validBotCount(bots) ||
         !this._validModeMap(gameMode, map)) {

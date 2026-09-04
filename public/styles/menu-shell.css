@@ -314,7 +314,8 @@
     'roster mission'
     'actions actions'
     'status status';
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto auto;
+  /* Keep the roster's natural height when the panel scrolls on short screens. */
+  grid-template-rows: auto auto auto minmax(min-content, 1fr) auto auto;
   align-items: start;
   gap: 12px 28px;
 }
@@ -367,6 +368,8 @@
 #settings-overlay {
   align-items: stretch;
   justify-content: stretch;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: clamp(24px, 4vw, 64px);
   background: linear-gradient(90deg, rgba(3, 6, 10, 0.88), rgba(3, 6, 10, 0.34) 72%, rgba(3, 6, 10, 0.62));
   -webkit-backdrop-filter: blur(3px) saturate(75%);
