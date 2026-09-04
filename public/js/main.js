@@ -11,9 +11,10 @@ import {
 import { WorldView } from './engine/worldview.js';
 import { ViewmodelRig } from './guns/viewmodel.js';
 import { WeaponState, shouldShowViewmodel } from './guns/weapon-state.js';
-import { Effects, attachShellBridge } from './weapons/effects.js';
+import { Effects, attachShellBridge, attachMuzzleBridge } from './weapons/effects.js';
 import { HUD } from './ui/hud.js';
 import { WEAPON_NAMES, WEAPON_CLASSES } from './ui/hud-support.js';
+import { RunHud } from './ui/run-hud.js';
 import { sfx } from './audio/sfx.js';
 import { Session } from './session/session.js';
 import { LocalPlayer } from './player/local-player.js';
@@ -53,6 +54,7 @@ class Game {
     this.weapon = null;
     this.roster = null;
     this.feedback = null;
+    this.runHud = null;
     this.spectator = null;
     this.ownBody = null;
     this.mapMeta = null;
@@ -95,6 +97,7 @@ class Game {
         onEnterLive: (payload) => this.bootLive(payload),
         onDisconnect: () => this.disposeLiveResources(),
         onGameplayEvent: (event) => this.feedback?.handleEvent(event),
+        onRunEvent: (event) => this.runHud?.handleEvent(event),
         onTick: (snapshot, phase) => this.handleTick(snapshot, phase),
         onGameplayInputDisabled: () => {
           this.player.setGameplayInputEnabled(false);
@@ -153,6 +156,8 @@ class Game {
         }
         return this.roster?.positionOf(id) || null;
       },
+      // Bolt wall-ricochet zap: client-derived from the shared integrator's bounced flag.
+      onBounce: (x, y, z) => sfx.arcZap?.([x, y, z]),
     });
     this.worldview.scene.add(this.camera);
     this.ownBody = makeFirstPersonBody();
@@ -160,6 +165,7 @@ class Game {
     this.player.setFirstPersonBody(this.ownBody);
     this.rig = new ViewmodelRig(this.camera);
     attachShellBridge(this.effects, this.rig);
+    attachMuzzleBridge(this.effects, this.rig);
     this.weapon = new WeaponState({
       rig: this.rig,
       audio: sfx,
@@ -217,6 +223,7 @@ class Game {
         if (killerId && killerId !== this.myId) this.spectator?.focusKiller(killerId);
       },
     });
+    this.runHud = new RunHud({ getMyId: () => this.myId });
 
     complete({
       activateLive: () => { this.running = true; this.clock.start(); },
@@ -323,6 +330,7 @@ class Game {
       if (slot >= 0) this.weapon.forceWeapon(slot, { mode: match?.mode, owned: self?.owned });
     }
     this.hud.setMatchState(match, self, presented, this.serverNow);
+    this.runHud?.setMatch(match);
     this.session.syncBuyMenuState();
   }
 
@@ -338,7 +346,7 @@ class Game {
   isAuthoritativeFireAllowed() {
     if (!this.session.gameplayInputEnabled || !this.player.alive ||
         this.selfRow?.state !== 'alive' || this._wheelOpen) return false;
-    if (this.matchState?.mode === 'fun') return true;
+    if (this.matchState?.mode === 'fun' || this.matchState?.mode === 'training') return true;
     return (this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
       this.matchState?.mode === 'gungame') &&
       this.matchState.phase === 'live';
@@ -769,6 +777,7 @@ class Game {
     this._pendingAuthoritativeSnapshots = [];
     this._lastConsumedSnapSeq = null;
     this.feedback?.dispose();
+    this.runHud?.dispose();
     this.spectator?.dispose();
     this.roster?.dispose();
     this.weapon?.dispose();
@@ -785,6 +794,7 @@ class Game {
     this.input?.setWeaponWheelOpen?.(false);
     this.hud?.setWeaponWheelState?.({ open: false });
     this.feedback = this.spectator = this.roster = this.weapon = this.ownBody = null;
+    this.runHud = null;
     this.rig = this.effects = this.worldview = this.mapMeta = null;
     this.playersCache = Object.freeze([]);
     this.matchState = this.selfRow = this.serverNow = null;

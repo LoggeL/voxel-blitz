@@ -42,9 +42,9 @@ export const WEAPON_CLASSES = Object.freeze({
   rifle: 'ASSAULT RIFLE · FULL AUTO',
   lmg: 'HEAVY MACHINE GUN · AUTO',
   sniper: 'PRECISION SNIPER · 5× OPTIC',
-  longarc: 'CHARGE COILGUN · PIERCE & CHAIN ARC',
+  longarc: 'CHARGE COILGUN · ARC BOLTS ×3 BOUNCE',
   rocket: 'ROCKET LAUNCHER · SPLASH & ROCKET JUMP',
-  lance: 'CHARGE LANCE · LINE PIERCE ×3',
+  lance: 'SIEGE LANCE · LINE PIERCE ×6',
   knife: 'COMBAT KNIFE · MELEE',
 });
 
@@ -66,6 +66,7 @@ export const MODE_LABELS = Object.freeze({
   tdm: 'TEAM DEATHMATCH',
   snd: 'SEARCH & DESTROY',
   gungame: 'GUN GAME',
+  training: 'TRAINING · RANGE & KILLHOUSE',
 });
 
 export const MODE_DESCRIPTIONS = Object.freeze({
@@ -73,6 +74,7 @@ export const MODE_DESCRIPTIONS = Object.freeze({
   tdm: 'Alpha vs Bravo · First team to 40 kills wins · Team spawns',
   snd: 'Attackers vs Defenders · Buy phase economy · First to 7 round wins',
   gungame: 'Earn a kill with each weapon · Revolver elimination wins',
+  training: 'Test every gun on respawning dummies · Race the 4-stage killhouse for the best time',
 });
 
 export const MAP_LABELS = Object.freeze({
@@ -81,6 +83,7 @@ export const MAP_LABELS = Object.freeze({
   citadel: 'CITADEL',
   solstice: 'SOLSTICE',
   caldera: 'CALDERA',
+  killhouse: 'KILLHOUSE',
 });
 
 export const MAP_DESCRIPTIONS = Object.freeze({
@@ -89,6 +92,7 @@ export const MAP_DESCRIPTIONS = Object.freeze({
   citadel: 'Urban fortress with Courtyard A and Compound B tactical bomb sites (All Modes)',
   solstice: 'Desert solar observatory with a glass biodome, turbine hall, and compact linked lanes (All Modes)',
   caldera: 'Volcanic caldera with a west obsidian gate and elevated east ember refinery (All Modes)',
+  killhouse: 'Weapon-test range with respawning dummies and a 4-stage timed killhouse course (Training)',
 });
 
 export const MAP_PREVIEWS = Object.freeze({
@@ -97,6 +101,7 @@ export const MAP_PREVIEWS = Object.freeze({
   citadel: './assets/maps/citadel-concept.webp',
   solstice: './assets/maps/solstice-concept.webp',
   caldera: './assets/maps/caldera-concept.webp',
+  killhouse: './assets/maps/killhouse-concept.webp',
 });
 
 export const CARDINAL = Object.freeze({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' });

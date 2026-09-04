@@ -1436,6 +1436,140 @@ h1.vb-title::after {
   outline: none;
 }
 
+/* ---------- training run ---------- */
+
+.vb-run-hud {
+  position: absolute;
+  left: 22px;
+  top: 30%;
+  min-width: 250px;
+  max-width: min(340px, calc(100vw - 44px));
+  padding: 12px 16px 14px;
+  color: var(--txt);
+  background: rgba(5, 8, 12, 0.82);
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--amber);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.58);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  z-index: var(--z-feed);
+}
+
+.vb-run-hint {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--amber-hi);
+}
+
+.vb-run-best {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--sub);
+  font-variant-numeric: tabular-nums;
+}
+
+.vb-run-timer {
+  display: none;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.vb-run-stage {
+  display: none;
+  margin-top: 2px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+}
+
+.vb-run-result {
+  display: none;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--txt);
+  font-variant-numeric: tabular-nums;
+}
+
+.vb-run-newbest {
+  display: none;
+  margin-top: 8px;
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  color: #111317;
+  background: var(--amber-hi);
+  border-radius: var(--radius);
+}
+
+.vb-run-toast {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--amber-hi);
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: opacity 260ms ease, transform 260ms ease;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.vb-run-toast.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.vb-run-hud.state-live .vb-run-timer,
+.vb-run-hud.state-live .vb-run-stage,
+.vb-run-hud.state-result .vb-run-timer,
+.vb-run-hud.state-result .vb-run-stage,
+.vb-run-hud.state-result .vb-run-result {
+  display: block;
+}
+
+.vb-run-hud.state-live .vb-run-hint,
+.vb-run-hud.state-result .vb-run-hint,
+.vb-run-hud.state-result .vb-run-best {
+  display: none;
+}
+
+.vb-run-hud.state-result.is-new-best .vb-run-newbest {
+  display: inline-block;
+}
+
+@media (max-width: 720px) {
+  .vb-run-hud {
+    left: 10px;
+    top: 24%;
+    min-width: 0;
+    max-width: calc(100vw - 32px);
+    padding: 10px 12px 12px;
+  }
+
+  .vb-run-timer {
+    font-size: 24px;
+  }
+}
+
 /* ---------- interaction progress ---------- */
 
 .vb-interaction-bar {
@@ -2402,15 +2536,6 @@ h1.vb-title::after {
   box-shadow: 0 0 8px #35e0ff;
 }
 
-.vb-charge-chain-mark {
-  position: absolute;
-  top: -2px;
-  bottom: -2px;
-  left: 85%;
-  width: 2px;
-  background: rgba(223, 251, 255, 0.85);
-}
-
 .vb-charge-label {
   font: 700 7px/1 var(--font-mono);
   letter-spacing: 0.12em;
@@ -2420,25 +2545,7 @@ h1.vb-title::after {
 
 #charge-meter.is-charging .vb-charge-label { color: #35e0ff; }
 
-#charge-meter.is-chain .vb-charge-label {
-  color: #dffbff;
-  text-shadow: 0 0 8px #35e0ff;
-}
-
-#charge-meter.is-chain .vb-charge-track {
-  border-color: #dffbff;
-  box-shadow: 0 0 12px rgba(53, 224, 255, 0.5);
-  animation: vb-charge-chain 160ms steps(2, end) infinite;
-}
-
-@keyframes vb-charge-chain {
-  from { box-shadow: 0 0 14px rgba(53, 224, 255, 0.6); }
-  to { box-shadow: 0 0 5px rgba(53, 224, 255, 0.25); }
-}
-
-/* A chainless charge weapon (VOLTLANCE) has no is-chain state; a full cell still
-   earns the bright charged treatment. Identical values to is-chain, so LONGARC's
-   own full state looks unchanged. */
+/* A full cell earns the bright charged treatment for both charge weapons. */
 #charge-meter.is-full .vb-charge-label {
   color: #dffbff;
   text-shadow: 0 0 8px #35e0ff;

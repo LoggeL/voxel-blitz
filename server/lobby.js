@@ -345,8 +345,15 @@ export class LobbyManager {
 
     let manager = null;
     try {
-      manager = attachBots(room.engine, room.bots);
-      room.botManager = manager;
+      if (room.gameMode === 'training') {
+        // Training is self-populating: dummy targets are engine bots, so the
+        // lobby never attaches a combat-bot manager.
+        room.botManager = null;
+        room.bots = 0;
+      } else {
+        manager = attachBots(room.engine, room.bots);
+        room.botManager = manager;
+      }
       room.engine.start(this.tickMs);
       room.phase = 'live';
     } catch (err) {

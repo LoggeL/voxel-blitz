@@ -127,6 +127,7 @@ export class CreateLobbySetup {
       savePref('vb-mode', mode);
       syncMapOptions(mapSelect.value);
       savePref('vb-map', mapSelect.value);
+      syncBotControls();
     });
     mapSelect.addEventListener('change', () => {
       savePref('vb-map', normalizeMapId(mapSelect.value, DEFAULT_MAP_ID));
@@ -177,9 +178,18 @@ export class CreateLobbySetup {
     sensitivityInput.addEventListener('input', syncSensitivity);
     syncSensitivity();
 
+    const syncBotControls = () => {
+      const training = normalizeModeId(modeSelect.value, DEFAULT_MODE_ID) === 'training';
+      botSelect.disabled = training;
+      botsHint.textContent = training
+        ? 'Training mode: target dummies are built into the range.'
+        : 'Bots fill open slots; human operators take priority.';
+      renderRoster();
+    };
     const renderRoster = () => {
-      const bots = clampBots(botSelect.value);
-      savePref('vb-bots', bots);
+      const training = normalizeModeId(modeSelect.value, DEFAULT_MODE_ID) === 'training';
+      const bots = training ? 0 : clampBots(botSelect.value);
+      if (!training) savePref('vb-bots', bots);
       const hostName = this.nameInput.value.trim().slice(0, 16) || 'OPERATOR';
       rosterCount.textContent = `${bots + 1} / 8 SLOTS`;
       rosterList.innerHTML = '';
@@ -193,7 +203,7 @@ export class CreateLobbySetup {
     };
     botSelect.addEventListener('change', renderRoster);
     this.nameInput.addEventListener('input', renderRoster);
-    renderRoster();
+    syncBotControls();
 
     const createButton = el('button', 'vb-btn vb-create-confirm', root, 'create-lobby-confirm-btn');
     createButton.type = 'button';

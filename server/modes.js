@@ -11,6 +11,7 @@ import {
 import { SndPolicy } from './modes/snd.js';
 import { TdmPolicy } from './modes/tdm.js';
 import { GunGamePolicy } from './modes/gungame.js';
+import { TrainingPolicy } from './modes/training.js';
 
 class FunPolicy {
   constructor({ rules, mapMeta, entities, now, respawn, chooseSpawn }) {
@@ -216,11 +217,20 @@ export class ModeController {
         }
         return engine.nextSpawnFor(entity, excludeIndex);
       },
+      spawnDummy: (id, name) => engine.addBot(id, name),
+      blocks: {
+        get: (x, y, z) => engine.world.getBlock(x, y, z),
+        set: (x, y, z, value) => {
+          engine.world.setBlock(x, y, z, value);
+          engine.pushBlockDelta(x, y, z, value);
+        },
+      },
     };
 
     if (modeId === 'snd') this.policy = new SndPolicy(context);
     else if (modeId === 'tdm') this.policy = new TdmPolicy(context);
     else if (modeId === 'gungame') this.policy = new GunGamePolicy(context);
+    else if (modeId === 'training') this.policy = new TrainingPolicy(context);
     else this.policy = new FunPolicy(context);
   }
 

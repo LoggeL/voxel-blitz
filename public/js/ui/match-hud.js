@@ -192,6 +192,8 @@ export class MatchHud {
           const level = Math.max(0, Math.min(lastLevel, selfRow?.score | 0));
           m.phaseLabel.textContent = `GUN GAME · WEAPON ${level + 1} / ${GUN_GAME_WEAPON_ORDER.length}`;
         }
+      } else if (curMode === 'training') {
+        m.phaseLabel.textContent = 'TRAINING · RANGE & KILLHOUSE';
       } else {
         m.phaseLabel.textContent = 'INSTANT SKIRMISH · FREE FOR ALL';
       }

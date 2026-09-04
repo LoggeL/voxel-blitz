@@ -17,10 +17,12 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
   'projectileLaunch',
   'projectileStick',
   'projectileExplode',
-  'arc',
   'respawn',
   'die',
 ]);
+
+/** Training run course events emitted by the server's training policy. */
+const RUN_EVENT_KINDS = Object.freeze(['run_start', 'run_split', 'run_finish', 'run_reset']);
 
 function nowMs() {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -131,6 +133,7 @@ export class Session {
     this.onGameplayEvent = typeof hooks.onGameplayEvent === 'function'
       ? hooks.onGameplayEvent
       : null;
+    this.onRunEvent = typeof hooks.onRunEvent === 'function' ? hooks.onRunEvent : null;
     this.onTick = typeof hooks.onTick === 'function' ? hooks.onTick : null;
     this.onGameplayInputDisabled = typeof hooks.onGameplayInputDisabled === 'function'
       ? hooks.onGameplayInputDisabled
@@ -502,6 +505,7 @@ export class Session {
 
     this.onEnterLive = null;
     this.onDisconnect = null;
+    this.onRunEvent = null;
     this.onGameplayEvent = null;
     this.onTick = null;
     this.onGameplayInputDisabled = null;
@@ -527,6 +531,12 @@ export class Session {
       this._gameplayUnsubs.push(net.on(kind, (event) => {
         if (this._tornDown || net !== this.net || !this._liveResourcesOwned) return;
         if (typeof this.onGameplayEvent === 'function') this.onGameplayEvent(event);
+      }));
+    }
+    for (const kind of RUN_EVENT_KINDS) {
+      this._gameplayUnsubs.push(net.on(kind, (event) => {
+        if (this._tornDown || net !== this.net || !this._liveResourcesOwned) return;
+        if (typeof this.onRunEvent === 'function') this.onRunEvent(event);
       }));
     }
     this._gameplayUnsubs.push(
