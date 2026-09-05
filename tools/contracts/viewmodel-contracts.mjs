@@ -776,7 +776,28 @@ export async function runViewmodelContracts(ok, installGlobals) {
     ok(weaponState.isCharging && quarterCell > 0.2 && quarterCell < 0.3
         && threeQuarterCell > 0.7 && threeQuarterCell < 0.8
         && threeQuarterCell > quarterCell,
-    'the lance charges its cell on hold, climbing like the longarc coil');
+    'the lance charge readout climbs throughout the long hold');
+    const frame = { allowFire: true, alive: true, generation: 0 };
+    weaponState.applyIntents({ fireHeld: false }, 8400, frame);
+    ok(!weaponState.tryFire(8400, frame) && weaponState.ammoOf('lance').mag === 1
+        && !weaponState.isCharging, 'early client rail release cancels without spending ammo');
+    weaponState.applyIntents({ fireHeld: true }, 8500, frame);
+    weaponState.tryFire(8500, frame);
+    ok(!weaponState.tryFire(11299, frame) && weaponState.tryFire(11300, frame)
+        && weaponState.ammoOf('lance').mag === 0,
+      'client rail fires only after 2800 ms and empties its single cell');
+    weaponState.startReload(11600);
+    weaponState.tickReload(14499);
+    ok(weaponState.isReloading && weaponState.ammoOf('lance').mag === 0,
+      'rail cell remains empty until the 2.9 second reload finishes');
+    weaponState.tickReload(14500);
+    ok(!weaponState.isReloading && weaponState.ammoOf('lance').mag === 1,
+      'rail reload seats exactly one new shot');
+    weaponState.forceWeapon(WEAPON_IDS.indexOf('longarc'), { now: 15000 });
+    weaponState.applyIntents({ fireHeld: true }, 16000, frame);
+    ok(weaponState.tryFire(16000, frame) && !weaponState.tryFire(16199, frame)
+        && weaponState.tryFire(16200, frame) && weaponState.ammoOf('longarc').mag === 6,
+      'held client Bounce fires every 200 ms without a charge or another tap');
     weaponState.dispose();
 
     const { AvatarWeaponModel } = await import('../../public/js/avatar/avatar-weapon.js');

@@ -133,7 +133,7 @@ export function resolveWeaponIntent(p, _dt, ctx) {
 }
 
 /**
- * Charge weapons (LONGARC): the trigger press starts the capacitor bank, the hold time
+ * Charge weapons (VOLTLANCE): the trigger press starts the capacitor bank, the hold time
  * becomes the shot's charge, and the slug leaves on release (or when the bank vents at
  * `holdMaxMs`). A hold that started while the weapon could not fire never charges.
  */
@@ -155,6 +155,7 @@ function resolveChargeIntent(p, dt, inp, fireEdge, ctx) {
   if (held && !vent) return;
   const charge = p.charge;
   cancelCharge(p);
+  if (profile.requireFull && charge < 1) return;
   if (!ctx.canFire(p) || p.reloading || p.deployT > 0 || p.mag[p.weapon] <= 0) return;
   fireOneShot(p, ctx, charge);
 }
@@ -288,7 +289,7 @@ export function rewindVictim(v, now, viewAgeMs = NETWORK_PRESENTATION.defaultVie
   return v;
 }
 
-export function nearestVictim(shooter, o, d, limit, ctx, minT = 0) {
+export function nearestVictim(shooter, o, d, limit, ctx, minT = 0, radius = 0) {
   let best = null, bestT = limit;
   const rewoundByShooter = !shooter.bot;
   for (const v of ctx.entities.values()) {
@@ -297,8 +298,8 @@ export function nearestVictim(shooter, o, d, limit, ctx, minT = 0) {
     const pos = rewoundByShooter ? rewindVictim(v, ctx.now, shooter.input?.viewAge) : v;
     const t = rayAABB(
       o, d,
-      pos.x - PLAYER_HALF.x, pos.y, pos.z - PLAYER_HALF.x,
-      pos.x + PLAYER_HALF.x, pos.y + P_HEIGHT, pos.z + PLAYER_HALF.x,
+      pos.x - PLAYER_HALF.x - radius, pos.y - radius, pos.z - PLAYER_HALF.x - radius,
+      pos.x + PLAYER_HALF.x + radius, pos.y + P_HEIGHT + radius, pos.z + PLAYER_HALF.x + radius,
     );
     if (t != null && t >= minT && t < bestT) {
       bestT = t;
@@ -468,11 +469,11 @@ export function fireOneShot(p, ctx, charge = 1) {
       let minT = 0;
       let stoppedInFlesh = false;
       for (;;) {
-        const tgt = nearestVictim(p, o, d, wallSegT, ctx, minT);
+        const tgt = nearestVictim(p, o, d, wallSegT, ctx, minT, def.hitRadius || 0);
         if (!tgt) break;
         // `pierce.players` caps the victims the slug damages; the next body in
         // line stops it (the lance pierces up to 6 players and, on a full charge,
-        // crosses 2 walls at wallPierceAt 1; LONGARC is a bouncing bolt and never
+        // crosses 5 destructible voxels at wallPierceAt 1; LONGARC is a bouncing bolt and never
         // reaches this path).
         if (playersLeft <= 0) { stoppedInFlesh = true; break; }
         const dist = traveled + tgt.t;
@@ -494,6 +495,8 @@ export function fireOneShot(p, ctx, charge = 1) {
       }
       if (stoppedInFlesh) break;
       if (!hit) break;
+      const wallType = ctx.getBlock(hit.x, hit.y, hit.z);
+      if (BLOCK_HP[wallType] == null) break;
       if (wallsLeft <= 0) {
         const type = ctx.getBlock(hit.x, hit.y, hit.z);
         if (BLOCK_HP[type] != null) {
@@ -503,7 +506,9 @@ export function fireOneShot(p, ctx, charge = 1) {
         // Indestructible types simply terminate the tracer here.
         break;
       }
-      // Pierce this wall untouched and resume past its far face. The DDA reports
+      damageBlock(hit.x, hit.y, hit.z, wallType,
+        Math.max(BLOCK_MIN_DMG, Math.round(damageAtDistance(def, traveled + hit.t) * dmgMult)), ctx);
+      // Damage the pierced voxel and resume past its far face. The DDA reports
       // an origin voxel immediately, so entry + 0.05 would re-hit this same wall;
       // stepping to the far face + 0.05 carries the identical 0.05 epsilon.
       wallsLeft -= 1;

@@ -515,6 +515,7 @@ export class WeaponState {
       return false;
     }
     this.cancelCharge();
+    if (profile.requireFull && charge < 1) return false;
     if (!ammo || ammo.mag <= 0 || this._reloadState) return false;
     return this._commitShot(now, def, weaponId, ammo, charge);
   }

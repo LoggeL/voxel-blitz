@@ -187,7 +187,7 @@ export const TIMERS = {
     kick: { stiffness: 235, damping: 22, yawWobble: 0.65 },
   },
   longarc: {
-    // Coilgun DMR: single rail slug per trigger pull; the capacitor recharge
+    // Automatic arc launcher: one bolt per cadence tick; the capacitor recharge
     // (rechargeDur) is the visual signature, not a mechanical cycle.
     tbase: -0.02,
     rof: WEAPONS.longarc.rpm,
@@ -195,7 +195,7 @@ export const TIMERS = {
     deployTime: WEAPONS.longarc.deployTime,
     weightKg: WEAPONS.longarc.weightKg,
     viewKick: { pitchDeg: WEAPONS.longarc.recoil.pitch, yawDeg: WEAPONS.longarc.recoil.yaw },
-    bursts: [[0]],          // semi-auto: one slug per pull, no auto cadence.
+    bursts: [[0]],          // One bolt per automatic fire event.
     anglesRad: [-0.0012],
     interval: 0,
     clip: 999,

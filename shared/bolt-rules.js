@@ -9,10 +9,10 @@ export const BOLT_RULES = Object.freeze({
   radius: 0.1,
   /** Self-destruct after this long in flight (map edge or open sky). */
   lifetimeMs: 3000,
-  /** Wall reflections: a tap bolt skips once, a full charge ricochets three times. */
+  /** Wall reflections: every automatic bolt skips once. */
   bouncesTap: 1,
-  bouncesCharged: 3,
-  /** Charge (0..1) that arms the heavy multi-bounce bolt. 1 = a full charge only. */
+  bouncesCharged: 1,
+  /** Legacy charge threshold; all bolts now carry the same reflection budget. */
   chargedAt: 1,
   /** Block damage dealt to a destructible voxel at every wall contact. */
   blockDamage: 18,

@@ -595,14 +595,14 @@ function runDirectContracts() {
   const coilTapHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-first');
   const tapFizzle = coilEngine.tickEvents.find(
     (event) => event.kind === 'projectileExplode' && event.type === 'bolt');
-  ok(midCharge > 0 && midCharge < 0.3 && coilTapShot && coilTapShot.charge < 0.3
+  ok(midCharge === 0 && coilTapShot && coilTapShot.charge === undefined
     && coilTapLaunch && coilTapLaunch.bn === boltBounces(midCharge)
     && coilTapLaunch.bn === BOLT_RULES.bouncesTap
     && coilTapLaunch.fuse === BOLT_RULES.lifetimeMs && coilTapLaunch.v[0] > 45
-    && coilTapHit && coilTapHit.dmg > 0 && coilTapHit.dmg < WEAPONS.longarc.damage[0] * 0.65
+    && coilTapHit && coilTapHit.dmg > 0 && coilTapHit.dmg === WEAPONS.longarc.damage[0]
     && tapFizzle && tapFizzle.radius === 0.5 && Math.abs(tapFizzle.x - 48.5) < 1
     && !coilEngine.tickEvents.some((event) => event.kind === 'arc'),
-  'a short LONGARC trigger tap launches a one-bounce bolt (bn 1) that lands a weak dart and fizzles in a small pop at the victim with no arc events');
+  'a short LONGARC trigger tap launches a one-bounce bolt (bn 1) that lands full damage and fizzles in a small pop at the victim with no arc events');
 
   coilEngine.tickEvents.length = 0;
   Object.assign(coil, { cooldown: 0, triggerPrev: false, adsT: 1, bloom: 0 });
@@ -622,10 +622,10 @@ function runDirectContracts() {
     fullBoltTicks++;
   }
   const fullHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-first');
-  ok(fullCharge === 1 && fullShot?.charge === 1 && fullLaunch?.bn === boltBounces(1)
+  ok(fullCharge === 0 && fullShot && fullShot.charge === undefined && fullLaunch?.bn === boltBounces(1)
     && fullHit && fullHit.dmg === WEAPONS.longarc.damage[0]
     && Math.abs(coilFirst.hp - (100 - WEAPONS.longarc.damage[0])) < 0.2,
-  'a FULL LONGARC charge launches a three-bounce bolt that lands its full 88 damage on a direct body hit');
+  'holding LONGARC launches a one-bounce bolt that lands its full 88 damage on a direct body hit');
 
   // Ricochet exhaustion: with both victims parked off the flight line, a full
   // charge (bn 3) bounces between the two end walls, ignores its owner, and
@@ -648,12 +648,12 @@ function runDirectContracts() {
   }
   const ricochetFizzle = coilEngine.tickEvents.find(
     (event) => event.kind === 'projectileExplode' && event.type === 'bolt');
-  ok(ricochetLaunch?.bn === BOLT_RULES.bouncesCharged && ricochetTicks > 12 && ricochetTicks < 80
+  ok(ricochetLaunch?.bn === BOLT_RULES.bouncesCharged && ricochetTicks > 2 && ricochetTicks < 80
     && ricochetFizzle && ricochetFizzle.radius === 0.5
     && ricochetFizzle.x > 35 && ricochetFizzle.x < 38
     && coil.hp === 100 && coilFirst.hp === 100 && coilSecond.hp === 100
     && !coilEngine.tickEvents.some((event) => event.kind === 'hit' || event.kind === 'kill'),
-  'a full-charge bolt with no targets ricochets between both end walls, never hurts its owner, and fizzles harmlessly once its three reflections run out');
+  'a full-charge bolt with no targets ricochets between both end walls, never hurts its owner, and fizzles harmlessly once its one reflection runs out');
 
   coilEngine.tickEvents.length = 0;
   Object.assign(coil, { cooldown: 0, triggerPrev: false });

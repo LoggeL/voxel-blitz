@@ -17,20 +17,20 @@ export async function runLanceKnifeContracts(ok) {
   const lance = WEAPONS.lance;
   ok(lance && lance.name === 'CL-9 VOLTLANCE' && lance.mode === 'charge',
     'the VOLTLANCE is a named charge-mode weapon');
-  ok(lance.magSize === 4 && lance.spareMags === 5,
-    'the VOLTLANCE carries four charges per cell plus five spares');
-  ok(lance.rpm === 100 && JSON.stringify(lance.damage) === JSON.stringify([130, 95, 95])
+  ok(lance.magSize === 1 && lance.spareMags === 5,
+    'the VOLTLANCE carries one shot per cell plus five spares');
+  ok(lance.rpm === 100 && JSON.stringify(lance.damage) === JSON.stringify([300, 220, 95])
       && lance.falloffStart === 45,
-    'the VOLTLANCE spears for 130 body damage at rpm 100 with falloff starting at 45 units');
+    'the VOLTLANCE spears for 300 body damage at rpm 100 with falloff starting at 45 units');
   const lanceCharge = lance.charge;
-  ok(lanceCharge.ms === 1150 && lanceCharge.holdMaxMs === 2400
+  ok(lanceCharge.ms === 2800 && lanceCharge.holdMaxMs === 2800 && lanceCharge.requireFull
       && lanceCharge.minDamageMult === 0.35,
-    'the VOLTLANCE charges in 1150 ms, vents itself at 2400 ms, and taps for 35% damage');
+    'the VOLTLANCE requires a full 2800 ms charge and fires at the limit');
   ok(lanceCharge.wallPierceAt === 1,
     'only a FULL VOLTLANCE charge crosses terrain: the wall-pierce threshold is 1');
-  ok(lance.pierce.players === 6 && lance.pierce.walls === 2
-      && lance.pierce.playerFalloff === 0.9 && lance.pierce.wallFalloff === 0.72,
-    'a charged lance spears up to six enemies on the line and crosses up to two walls, decaying 0.9 per body and 0.72 per wall');
+  ok(lance.pierce.players === 6 && lance.pierce.walls === 5
+      && lance.pierce.playerFalloff === 0.9 && lance.pierce.wallFalloff === 0.9,
+    'a charged lance spears up to six enemies on the line and crosses up to five blocks, decaying 0.9 per body and wall');
 
   const knife = WEAPONS.knife;
   ok(knife && knife.name === 'K-7 RIPPER' && knife.mode === 'melee',
@@ -75,9 +75,9 @@ export async function runLanceKnifeContracts(ok) {
   ok(WEAPONS.longarc.projectile === 'bolt' && WEAPONS.longarc.magSize === 8
       && JSON.stringify(WEAPONS.longarc.damage) === JSON.stringify([88, 62, 95]),
     'the LONGARC launches bouncing bolts with its unchanged 88/62/95 damage and 8-round cell');
-  ok(BOLT_RULES.bouncesTap === 1 && BOLT_RULES.bouncesCharged === 3
-      && boltBounces(0) === 1 && boltBounces(0.99) === 1 && boltBounces(1) === 3,
-    'bolt reflections follow bolt-rules.js: one bounce below a full charge, three at full');
+  ok(BOLT_RULES.bouncesTap === 1 && BOLT_RULES.bouncesCharged === 1
+      && boltBounces(0) === 1 && boltBounces(0.99) === 1 && boltBounces(1) === 1,
+    'bolt reflections follow bolt-rules.js: exactly one bounce for every shot');
   ok(BOLT_RULES.speed === 52 && BOLT_RULES.gravity === 3.0
       && BOLT_RULES.blockDamage === 18 && BOLT_RULES.lifetimeMs === 3000,
     'bolts fly at 52 u/s under gravity 3.0, chew 18 damage per wall contact, and fizzle after 3000 ms');

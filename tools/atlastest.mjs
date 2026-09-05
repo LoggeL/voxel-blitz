@@ -640,30 +640,26 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   seat('l-v4', 70, 44.5, 80, LANCE);
   seat('l-v5', 72, 44.5, 80, LANCE);
   seat('l-v6', 74, 44.5, 80, LANCE);
-  fireCharged('l-hero', 12); // 1300 ms hold -> a full lance cell
+  fireCharged('l-hero', 28); // 2800 ms reaches a full lance cell
   const lanceHits = eventsOf('hit');
   const lanceShots = eventsOf('shoot');
   const lanceKills = eventsOf('kill');
   ok(lanceShots.length === 1 && lanceShots[0].w === 'lance'
     && lanceShots[0].charge === 1
     && lanceHits.length === 6
-    && lanceHits[0].victim === 'l-v1' && lanceHits[0].dmg === 130
-    && lanceHits[1].victim === 'l-v2' && lanceHits[1].dmg === 117
-    && lanceHits[2].victim === 'l-v3' && lanceHits[2].dmg === 105
-    && lanceHits[3].victim === 'l-v4' && lanceHits[3].dmg === 95
-    && lanceHits[4].victim === 'l-v5' && lanceHits[4].dmg === 85
-    && lanceHits[5].victim === 'l-v6' && lanceHits[5].dmg === 77
+    && lanceHits[0].victim === 'l-v1' && lanceHits[0].dmg === 300
+    && lanceHits[1].victim === 'l-v2' && lanceHits[1].dmg === 270
+    && lanceHits[2].victim === 'l-v3' && lanceHits[2].dmg === 243
+    && lanceHits[3].victim === 'l-v4' && lanceHits[3].dmg === 219
+    && lanceHits[4].victim === 'l-v5' && lanceHits[4].dmg === 197
+    && lanceHits[5].victim === 'l-v6' && lanceHits[5].dmg === 177
     && lanceHits.every((hit) => !hit.hs)
-    && lanceKills.length === 3
+    && lanceKills.length === 6
     && lanceKills.every((kill) => kill.w === 'lance' && kill.killer === 'l-hero')
-    && Math.round(engine.entities.get('l-v4').hp * 10) / 10 === 5.2
-    && engine.entities.get('l-v5').hp > 0 && engine.entities.get('l-v6').hp > 0
-    && lHero.mag[LANCE] === 3,
+    && lHero.mag[LANCE] === 0,
   'a full-charge lance spears exactly 6 aligned victims with per-body falloff');
 
-  // (b2) A full charge crosses exactly two walls: the body behind them takes
-  // wallFalloff-squared damage, a third wall stops the slug for good, and the
-  // crossed walls themselves go untouched.
+  // (b2) A full rail destroys successive blocks and hits bodies behind them.
   engine.tickEvents.length = 0;
   world.setBlock(62, 16, 42, PLANK);
   world.setBlock(64, 16, 42, PLANK);
@@ -673,36 +669,48 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   lwHero.adsT = 1;
   seat('lw-v1', 66, 42.5, 80, LANCE);
   seat('lw-v2', 70, 42.5, 80, LANCE);
-  fireCharged('lw-hero', 12);
+  fireCharged('lw-hero', 28);
   const wallHits = eventsOf('hit');
   ok(eventsOf('shoot').length === 1 && eventsOf('shoot')[0].charge === 1
-    && wallHits.length === 1 && wallHits[0].victim === 'lw-v1'
-    && wallHits[0].dmg === 67 && wallHits[0].hs === false
-    && world.getBlock(62, 16, 42) === PLANK
-    && world.getBlock(64, 16, 42) === PLANK
+    && wallHits.length === 2 && wallHits[0].victim === 'lw-v1'
+    && wallHits[0].dmg === 243 && wallHits[0].hs === false
+    && world.getBlock(62, 16, 42) === AIR
+    && world.getBlock(64, 16, 42) === AIR
     && world.getBlock(68, 16, 42) === AIR
-    && Math.round(engine.entities.get('lw-v1').hp * 10) / 10 === 32.6
-    && engine.entities.get('lw-v2').hp === 100,
-  'a full-charge lance crosses exactly two walls to hurt the body behind and dies on the third');
+    && engine.entities.get('lw-v1').state === 'dead'
+    && engine.entities.get('lw-v2').state === 'dead',
+  'a full-charge lance destroys three blocks and hits both bodies behind them');
   world.setBlock(62, 16, 42, AIR);
   world.setBlock(64, 16, 42, AIR);
 
-  // (b3) A sub-full charge pierces no walls (wallPierceAt 1): the slug dies on
-  // the first wall, spends its damage on the block, and the body behind lives.
+  // (b3) An early release cancels without a shot or terrain damage.
   engine.tickEvents.length = 0;
   world.setBlock(62, 16, 40, PLANK);
   const lsHero = seat('ls-hero', 60, 40.5, 80, LANCE, 40.5);
   lsHero.ads = true;
   lsHero.adsT = 1;
   seat('ls-v', 66, 40.5, 80, LANCE);
-  fireCharged('ls-hero', 5); // 600 ms hold -> charge ~0.52, below wallPierceAt
+  fireCharged('ls-hero', 5); // Early release before the mandatory charge completes.
   const lsShot = eventsOf('shoot')[0];
-  ok(lsShot && lsShot.w === 'lance' && lsShot.charge > 0.4 && lsShot.charge < 0.6
+  ok(!lsShot && lsHero.mag[LANCE] === 1
     && eventsOf('hit').length === 0
-    && world.getBlock(62, 16, 40) === AIR
+    && world.getBlock(62, 16, 40) === PLANK
     && engine.entities.get('ls-v').hp === 100,
-  'a sub-full lance charge pierces no walls: the slug dies on the first wall and the body behind is unharmed');
+  'an early rail release cancels without firing or consuming the cell');
   world.setBlock(62, 16, 40, AIR);
+}
+
+// The heavy rail accepts a grazing body hit that a thin ray misses.
+{
+  const { nearestVictim } = await import('../server/sim/combat.js');
+  const { WEAPONS, PLAYER_HALF } = await import('../shared/combatmath.js');
+  const shooter = { bot: true };
+  const victim = { state: 'alive', x: 5, y: 0, z: PLAYER_HALF.x + 0.15 };
+  const ctx = { entities: new Map([['target', victim]]), canDamage: () => true };
+  const origin = [0, 1, 0], direction = { x: 1, y: 0, z: 0 };
+  ok(!nearestVictim(shooter, origin, direction, 10, ctx)
+      && nearestVictim(shooter, origin, direction, 10, ctx, 0, WEAPONS.lance.hitRadius)?.victim === victim,
+    'the wider rail catches a grazing body outside the ordinary hitscan ray');
 }
 
 // ------------------------------------------- training firing range contracts
@@ -949,7 +957,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
 // ------------------------------------------- longarc bolt combat contracts
 // Headless server behavior: the LN-03 LONGARC launches an authoritative bolt
-// that reflects off walls (1 on a tap, 3 on a full charge), chips the voxel it
+// that reflects off one wall, chips the voxel it
 // bounced from, never pierces players, and always fizzles — never blasts.
 {
   const world = createMapState('foundry');
@@ -1015,11 +1023,11 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   fireCharged('c-hero', 1); // 200 ms hold -> a weak tap
   const tapShot = eventsOf('shoot')[0];
   const tapLaunch = eventsOf('projectileLaunch')[0];
-  ok(tapShot && tapShot.w === 'longarc' && tapShot.charge > 0 && tapShot.charge < 1
+  ok(tapShot && tapShot.w === 'longarc' && tapShot.charge === undefined
     && tapLaunch && tapLaunch.type === 'bolt' && tapLaunch.bn === 1
     && tapLaunch.fuse === 3000 && tapLaunch.o[0] > 58 && tapLaunch.o[0] < 59.5
     && tapLaunch.v[0] > 45,
-  'a short LONGARC tap releases a bolt with a sub-full charge and one reflection');
+  'a short LONGARC tap releases a bolt immediately with one reflection');
   runBolt();
   const tapBoom = eventsOf('projectileExplode')[0];
   ok(tapBoom && tapBoom.type === 'bolt' && tapBoom.radius === 0.5
@@ -1027,7 +1035,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && engine.projectiles.active.size === 0,
   'an unobstructed tap bolt fizzles harmlessly with no blast damage');
 
-  // (c2) A full charge arms the heavy bolt with three reflections.
+  // (c2) Holding the trigger does not increase the reflection budget.
   engine.tickEvents.length = 0;
   const dHero = seat('d-hero', 58, 48, 70, LONGARC, 48);
   dHero.ads = true;
@@ -1035,9 +1043,9 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   fireCharged('d-hero', 8); // 900 ms hold -> a full charge
   const fullShot = eventsOf('shoot')[0];
   const fullLaunch = eventsOf('projectileLaunch')[0];
-  ok(fullShot && fullShot.w === 'longarc' && fullShot.charge === 1
-    && fullLaunch && fullLaunch.type === 'bolt' && fullLaunch.bn === 3,
-  'a full LONGARC charge releases a bolt with three reflections');
+  ok(fullShot && fullShot.w === 'longarc' && fullShot.charge === undefined
+    && fullLaunch && fullLaunch.type === 'bolt' && fullLaunch.bn === 1,
+  'holding LONGARC launches a bolt with one reflection');
   runBolt();
   ok(eventsOf('projectileExplode').length === 1
     && eventsOf('projectileExplode')[0].type === 'bolt'
@@ -1062,7 +1070,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   const cornerHits = eventsOf('hit');
   const cornerKills = eventsOf('kill');
   const cornerBoom = eventsOf('projectileExplode')[0];
-  ok(cornerLaunch && cornerLaunch.type === 'bolt' && cornerLaunch.bn === 3
+  ok(cornerLaunch && cornerLaunch.type === 'bolt' && cornerLaunch.bn === 1
     && cornerHits.length === 1 && cornerHits[0].victim === 'e-vic'
     && cornerHits[0].attacker === 'e-hero' && cornerHits[0].dmg === 88
     && cornerHits[0].hs === false
@@ -1096,7 +1104,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && engine.projectiles.active.size === 0,
   'a tap bolt exhausts its one reflection in the corridor and fizzles without damage');
 
-  // (c5) A full bolt survives three ricochets and dies on its fourth contact.
+  // (c5) Every bolt dies on its second wall contact.
   engine.tickEvents.length = 0;
   world.setBlock(58, 16, 50, STONE);
   world.setBlock(64, 16, 50, STONE);
@@ -1106,7 +1114,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   fireCharged('g-hero', 8);
   const spinLaunch = eventsOf('projectileLaunch')[0];
   runBolt();
-  ok(spinLaunch && spinLaunch.type === 'bolt' && spinLaunch.bn === 3
+  ok(spinLaunch && spinLaunch.type === 'bolt' && spinLaunch.bn === 1
     && eventsOf('projectileExplode').length === 1
     && eventsOf('projectileExplode')[0].type === 'bolt'
     && eventsOf('hit').length === 0 && eventsOf('kill').length === 0
@@ -1114,7 +1122,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && world.getBlock(58, 16, 50) === STONE && world.getBlock(64, 16, 50) === STONE
     && gHero.hp === 100
     && engine.projectiles.active.size === 0,
-  'a full bolt survives three ricochets between the walls and fizzles on the fourth contact');
+  'a full bolt bounces once between the walls and fizzles on the second contact');
 }
 // Collision regression: one tick can travel to a wall and back past a body.
 {

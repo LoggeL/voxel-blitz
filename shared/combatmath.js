@@ -60,7 +60,8 @@ export const CONDITION_RULES = Object.freeze({
  * @property {string} sfx           bank key for the audio engine
  * @property {{reach:number,coneDeg:number,backstabMult:number,backstabDot:number}} [melee] melee profile: swing hits enemies within `reach` meters inside a `coneDeg` arc; damage multiplies by `backstabMult` when the swing direction aligns with the victim's facing beyond `backstabDot`
  * @property {'rocket'|'bolt'} [projectile]  when set, the shot launches an authoritative projectile (shared/rocket-rules.js, shared/bolt-rules.js) instead of firing hitscan rays
- * @property {{ms:number,holdMaxMs:number,minDamageMult:number,wallPierceAt?:number}} [charge]  charge-fire profile; `wallPierceAt` is the charge needed before terrain pierces (the lance crosses walls only on a full charge)
+ * @property {{ms:number,holdMaxMs:number,minDamageMult:number,requireFull?:boolean,wallPierceAt?:number}} [charge]  charge-fire profile; `wallPierceAt` is the charge needed before terrain pierces (the lance crosses walls only on a full charge)
+ * @property {number} [hitRadius] extra body collision radius for a thick rail beam
  * @property {{players:number,walls:number,playerFalloff:number,wallFalloff:number}} [pierce]  rail pierce profile: victims the slug passes through, walls it crosses, and the multiplicative damage falloff per crossing
  */
 
@@ -182,14 +183,10 @@ export const WEAPONS = {
     sfx: 'revolver',
   },
   longarc: {
-    // LN-03 LONGARC: charge coilgun lobbing self-guided arc bolts. The trigger charges
-    // the capacitor bank and the bolt leaves on release: a tap flings a quick
-    // single-bounce dart, a FULL charge (CHARGED) launches a heavy bolt that reflects
-    // off walls three times. Bolts never pierce players or terrain — they ricochet
-    // around corners (shared/bolt-rules.js) and fizzle when the reflections run out.
-    id: 'longarc', name: 'LN-03 LONGARC', mode: 'charge',
+    // Automatic arc bolts, each carrying exactly one wall reflection.
+    id: 'longarc', name: 'LN-03 LONGARC', mode: 'auto',
     weightKg: 4.1,
-    rpm: 160, magSize: 8, spareMags: 6,
+    rpm: 300, magSize: 8, spareMags: 6,
     damage: [88, 62, 95], headMult: 2.0, pellets: 1,
     spreadDeg: { hip: 1.6, ads: 0.08 }, bloomDeg: 0.5, bloomMaxDeg: 3.0,
     bloomRecover: 3.2, moveSpreadDeg: 2.2,
@@ -204,21 +201,13 @@ export const WEAPONS = {
     tracer: { color: '#7dfcff', width: 1.5, len: 44 },
     sfx: 'longarc',
     projectile: 'bolt',
-    charge: {
-      ms: 850,            // hold that reaches a full charge
-      holdMaxMs: 2200,    // capacitor vents: the shot fires itself at this hold
-      minDamageMult: 0.4, // damage multiplier at zero charge (linear to 1.0)
-    },
   },
   lance: {
-    // CL-9 VOLTLANCE: siege rail-lance. The trigger charges a lance cell and the
-    // coherent particle lance leaves on release. A tap flings a weak dart; a full
-    // charge spears every enemy on the line (up to `pierce.players`) and crosses up
-    // to `pierce.walls` walls — terrain piercing demands a complete cell (charge 1).
+    // Heavy single-cell rail shot: full charge required, then reload.
     id: 'lance', name: 'CL-9 VOLTLANCE', mode: 'charge',
     weightKg: 3.8,
-    rpm: 100, magSize: 4, spareMags: 5,
-    damage: [130, 95, 95], falloffStart: 45, headMult: 2.0, pellets: 1,
+    rpm: 100, magSize: 1, spareMags: 5,
+    damage: [300, 220, 95], falloffStart: 45, headMult: 2.0, pellets: 1,
     spreadDeg: { hip: 1.2, ads: 0.05 }, bloomDeg: 0.4, bloomMaxDeg: 2.4,
     bloomRecover: 3.4, moveSpreadDeg: 2.0,
     crouchSpreadMult: 0.66,
@@ -229,15 +218,17 @@ export const WEAPONS = {
     },
     adsFov: 42, zoom: 1.8, adsTime: 0.17,
     reloadTime: 2.9, tacTime: 2.3, deployTime: 0.6,
-    tracer: { color: '#c9a2ff', width: 2.0, len: 70 },
+    tracer: { color: '#c9a2ff', width: 4.0, len: 70 },
     sfx: 'lance',
     charge: {
-      ms: 1150,           // hold that reaches a full charge
-      holdMaxMs: 2400,    // cell vents: the shot fires itself at this hold
+      ms: 2800,           // hold that reaches a full charge
+      holdMaxMs: 2800,    // cell vents: the shot fires itself at this hold
       minDamageMult: 0.35,
+      requireFull: true,
       wallPierceAt: 1,    // only a complete cell crosses terrain
     },
-    pierce: { players: 6, walls: 2, playerFalloff: 0.9, wallFalloff: 0.72 },
+    hitRadius: 0.22,
+    pierce: { players: 6, walls: 5, playerFalloff: 0.9, wallFalloff: 0.9 },
   },
   knife: {
     // K-7 RIPPER: fighting knife. No magazine and no reload — every swing is free
@@ -291,6 +282,7 @@ export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver
 export function chargeProfile(def) {
   const charge = def && def.charge;
   return {
+    requireFull: charge?.requireFull === true,
     ms: Number.isFinite(charge?.ms) ? charge.ms : 850,
     holdMaxMs: Number.isFinite(charge?.holdMaxMs) ? charge.holdMaxMs : 2200,
     minDamageMult: Number.isFinite(charge?.minDamageMult) ? charge.minDamageMult : 1,

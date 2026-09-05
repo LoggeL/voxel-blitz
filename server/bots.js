@@ -500,9 +500,9 @@ class BotManager {
           }
           if (now < br.burstEnd) {
             if (p.def.mode === 'charge') {
-              // Coilgun: press, hold to ~90% charge, release; never dry-hold past the vent.
+              // Mandatory-charge rails hold until full; other capacitors release at 90%.
               const chargeMs = p.def.charge?.ms || 850;
-              inp.wantFire = p.charging ? p.chargeT < chargeMs * 0.9 : !p.triggerPrev;
+              inp.wantFire = p.charging ? p.chargeT < chargeMs * (p.def.charge?.requireFull ? 1 : 0.9) : !p.triggerPrev;
             } else {
               inp.wantFire = p.def.mode === 'auto' || !p.triggerPrev;
             }
