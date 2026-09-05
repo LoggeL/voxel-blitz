@@ -500,9 +500,9 @@ class BotManager {
           }
           if (now < br.burstEnd) {
             if (p.def.mode === 'charge') {
-              // Mandatory-charge rails hold until full; other capacitors release at 90%.
+              // Charge weapons release near full power.
               const chargeMs = p.def.charge?.ms || 850;
-              inp.wantFire = p.charging ? p.chargeT < chargeMs * (p.def.charge?.requireFull ? 1 : 0.9) : !p.triggerPrev;
+              inp.wantFire = p.charging ? p.chargeT < chargeMs * 0.95 : !p.triggerPrev;
             } else {
               inp.wantFire = p.def.mode === 'auto' || !p.triggerPrev;
             }

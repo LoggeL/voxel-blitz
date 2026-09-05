@@ -1,6 +1,6 @@
 // Tracer and remote muzzle-flash pools for the weapon-effects facade.
 import * as THREE from '../vendor/three.module.js';
-import { WEAPONS } from '../../../shared/combatmath.js';
+import { WEAPONS, chargeShotProfile } from '../../../shared/combatmath.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { freeOldestIndex, hideInstance, makeFlashTexture } from './instancing.js';
 
@@ -128,7 +128,7 @@ export class TracerFX {
         if (i === 0 && this.onWallImpact) this.onWallImpact(hit, local);
         // Piercing rail slugs pass through: keep the full-length tracer and
         // only clip non-piercing reports at the first terrain hit.
-        const piercesWalls = Boolean(definition && definition.pierce && definition.pierce.walls > 0);
+        const piercesWalls = Boolean(definition && definition.pierce && chargeShotProfile(definition, event.charge ?? 1).walls > 0);
         if (!piercesWalls) length = Math.max(0.1, Math.min(length, hit.t) - 0.35);
       }
       // Local shots anchor to the live rig muzzle and converge on this eye-ray
@@ -136,11 +136,11 @@ export class TracerFX {
       const endpoint = local && this.muzzleProvider
         ? [ox + direction.x * length, oy + direction.y * length, oz + direction.z * length]
         : null;
-      this.spawnTracer(event.o, direction, length, definition, endpoint);
+      this.spawnTracer(event.o, direction, length, definition, endpoint, event.charge ?? 1);
     }
   }
 
-  spawnTracer(origin, direction, length, definition, endpoint = null) {
+  spawnTracer(origin, direction, length, definition, endpoint = null, charge = 1) {
     let index = -1;
     for (let i = 0; i < this.tracers.length; i++) {
       if (!this.tracers[i].active) {
@@ -176,7 +176,7 @@ export class TracerFX {
     }
     tracer.life = 0.055 + length * 0.0006;
     tracer.len = length;
-    tracer.w = definition ? 0.028 * definition.tracer.width : 0.03;
+    tracer.w = definition ? 0.028 * definition.tracer.width * chargeShotProfile(definition, charge).size : 0.03;
     tracer.color.set(definition ? definition.tracer.color : '#ffd27a');
 
     this._position.set(dirX, dirY, dirZ).normalize();

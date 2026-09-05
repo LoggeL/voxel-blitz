@@ -30,6 +30,20 @@ export class ViewmodelRig {
     this._disposed = false;
     this._models = {};                 // lazily-built gun cache keyed by weapon id
     this._materials = new MaterialCache();
+    this._chargeOrb = new THREE.Group();
+    const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.055, 1),
+      new THREE.MeshBasicMaterial({ color: 0xc9a2ff, transparent: true, opacity: 0.8,
+        blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
+    this._chargeOrb.add(core);
+    for (let i = 0; i < 2; i++) {
+      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.085 + i * 0.018, 0.004, 4, 24),
+        new THREE.MeshBasicMaterial({ color: i ? 0x86edff : 0xc9a2ff,
+          transparent: true, opacity: 0.65, blending: THREE.AdditiveBlending,
+          depthWrite: false, toneMapped: false }));
+      ring.rotation.x = i * Math.PI / 2;
+      this._chargeOrb.add(ring);
+    }
+    this._chargeOrb.visible = false;
     this._cur = null;                  // active model bundle
     this._id = null;
     this._now = 0;                     // rig-local clock, advanced only by update()
@@ -88,6 +102,8 @@ export class ViewmodelRig {
     if (this._cur && this._cur !== next) this.content.remove(this._cur.root);
     this._cur = next; this._id = key;
     this.content.add(next.root);
+    next.muzzleMarker.add(this._chargeOrb);
+    this._chargeOrb.visible = false;
     this.pivot.position.copy(next.pivotCam);
     this.comp.position.copy(next.pivotCam).negate();
 
@@ -181,6 +197,7 @@ export class ViewmodelRig {
    */
   setCharge(t01) {
     this._chargeT = Math.max(0, Math.min(1, Number(t01) || 0));
+    if (this._chargeT === 0) this._chargeOrb.visible = false;
   }
 
   get currentCharge01() { return this._chargeT; }
@@ -244,6 +261,11 @@ export class ViewmodelRig {
     this._disposed = true;
     this.camera.remove(this.root);
 
+    this._chargeOrb.removeFromParent();
+    for (const mesh of this._chargeOrb.children) {
+      mesh.geometry.dispose();
+      mesh.material.dispose();
+    }
     disposeGunModels(this._models, this._materials);
     this.content.clear();
     this.root.clear();
@@ -395,12 +417,13 @@ export class ViewmodelRig {
     }
     /* capacitor charge: the gun creeps back into the shoulder and hums with a fine tremor */
     const chargeT = this._chargeT;
-    const chargeZ = 0.022 * chargeT + Math.sin(this._now * 61) * 0.0012 * chargeT;
-    const chargeY = Math.sin(this._now * 47) * 0.0010 * chargeT;
-    const nadeX = -0.035 * wind + 0.02 * lunge;
+    const strain = this._id === 'lance' ? chargeT ** 3 : chargeT * 0.12;
+    const chargeZ = 0.045 * chargeT + Math.sin(this._now * 61) * 0.009 * strain;
+    const chargeY = Math.sin(this._now * 47) * 0.007 * strain;
+    const nadeX = -0.035 * wind + 0.02 * lunge + Math.sin(this._now * 73) * 0.006 * strain;
     const nadeY = -0.075 * wind - 0.03 * lunge + chargeY;
     const nadeZ = 0.03 * wind - 0.06 * lunge + chargeZ;
-    const nadeRx = -0.14 * wind - 0.16 * lunge;
+    const nadeRx = -0.14 * wind - 0.16 * lunge + Math.sin(this._now * 53) * 0.018 * strain;
     const nadeRz = 0.20 * wind + 0.08 * lunge;
 
     /* knife slash (T.melee): three-phase arc across SWING_S — cock the blade up-and-out,
@@ -505,7 +528,7 @@ export class ViewmodelRig {
     // A held charge keeps the coils lit at the charge level (plus a fast flicker near full).
     if (this._chargeT > 0) {
       const flicker = this._chargeT > 0.85 ? 0.85 + 0.15 * Math.sin(this._now * 90) : 1;
-      u.uGlow.value = Math.max(u.uGlow.value, this._chargeT * flicker);
+      u.uGlow.value = Math.max(u.uGlow.value, this._chargeT * flicker * (this._id === 'lance' ? 2.5 : 1));
     }
     u.uHeat.value *= Math.exp(-dt / 0.6);
     u.uT.value = this._now;
@@ -519,6 +542,19 @@ export class ViewmodelRig {
       this._lightT -= dt;
       cur.flash.light.intensity = 2.4 * Math.max(0, this._lightT / 0.08); // 80ms exponential-feel falloff
       if (this._lightT < 0) cur.flash.light.intensity = 0;
+    }
+    // A growing energy corona at the muzzle accompanies the charging rails.
+    if (this._id === 'lance' && this._chargeT > 0) {
+      const energy = this._chargeT ** 2;
+      const pulse = 0.9 + 0.1 * Math.sin(this._now * (14 + 36 * energy));
+      this._chargeOrb.visible = true;
+      this._chargeOrb.scale.setScalar((0.25 + energy * 1.8) * pulse);
+      this._chargeOrb.rotation.set(this._now * 2, this._now * 3, this._now * 4);
+      for (const mesh of this._chargeOrb.children) mesh.material.opacity = (0.25 + energy * 0.6) * pulse;
+      cur.flash.light.intensity = 0.2 + energy * 2.8 * pulse;
+    } else if (this._flashT < 0 && this._lightT < 0) {
+      cur.flash.grp.visible = false;
+      cur.flash.light.intensity = 0;
     }
   }
 

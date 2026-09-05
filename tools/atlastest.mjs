@@ -683,20 +683,20 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   world.setBlock(62, 16, 42, AIR);
   world.setBlock(64, 16, 42, AIR);
 
-  // (b3) An early release cancels without a shot or terrain damage.
+  // (b3) An early release fires a weak shot that cannot pierce the wall.
   engine.tickEvents.length = 0;
   world.setBlock(62, 16, 40, PLANK);
   const lsHero = seat('ls-hero', 60, 40.5, 80, LANCE, 40.5);
   lsHero.ads = true;
   lsHero.adsT = 1;
   seat('ls-v', 66, 40.5, 80, LANCE);
-  fireCharged('ls-hero', 5); // Early release before the mandatory charge completes.
+  fireCharged('ls-hero', 1); // Early release before the mandatory charge completes.
   const lsShot = eventsOf('shoot')[0];
-  ok(!lsShot && lsHero.mag[LANCE] === 1
+  ok(lsShot && lsShot.charge > 0 && lsShot.charge < 0.3 && lsHero.mag[LANCE] === 0
     && eventsOf('hit').length === 0
     && world.getBlock(62, 16, 40) === PLANK
     && engine.entities.get('ls-v').hp === 100,
-  'an early rail release cancels without firing or consuming the cell');
+  'an early rail release spends its cell but cannot destroy or cross the plank');
   world.setBlock(62, 16, 40, AIR);
 }
 

@@ -388,6 +388,25 @@ export async function runViewmodelContracts(ok, installGlobals) {
     const { ViewmodelRig } = await import('../../public/js/guns/viewmodel.js');
     const camera = new THREE.PerspectiveCamera(75, 1, 0.01, 100);
     const rig = new ViewmodelRig(camera);
+    rig.setWeapon('lance');
+    rig.setCharge(0.2);
+    rig.update(1 / 60, { speed: 0, grounded: true });
+    const smallOrb = rig._chargeOrb.scale.x;
+    const lowGlow = rig._cur.uni.uGlow.value;
+    rig.setCharge(0.95);
+    rig.update(1 / 60, { speed: 0, grounded: true });
+    ok(rig._chargeOrb.visible && rig._chargeOrb.scale.x > smallOrb * 3
+        && rig._cur.uni.uGlow.value > lowGlow,
+      'rail energy orb and coil glow grow visibly with charge');
+    rig.setCharge(0);
+    rig.update(1 / 60, { speed: 0, grounded: true });
+    ok(!rig._chargeOrb.visible && rig._cur.flash.light.intensity === 0,
+      'release removes the charging orb and light');
+    rig.setCharge(0.9);
+    rig.setWeapon('rifle');
+    ok(!rig._chargeOrb.visible && rig.currentCharge01 === 0,
+      'weapon switching clears rail charging effects');
+
     const lagByWeapon = new Map();
     const maxSpeedByWeapon = new Map();
     try {
@@ -779,18 +798,20 @@ export async function runViewmodelContracts(ok, installGlobals) {
     'the lance charge readout climbs throughout the long hold');
     const frame = { allowFire: true, alive: true, generation: 0 };
     weaponState.applyIntents({ fireHeld: false }, 8400, frame);
-    ok(!weaponState.tryFire(8400, frame) && weaponState.ammoOf('lance').mag === 1
-        && !weaponState.isCharging, 'early client rail release cancels without spending ammo');
-    weaponState.applyIntents({ fireHeld: true }, 8500, frame);
-    weaponState.tryFire(8500, frame);
-    ok(!weaponState.tryFire(11299, frame) && weaponState.tryFire(11300, frame)
+    ok(weaponState.tryFire(8400, frame) && weaponState.ammoOf('lance').mag === 0
+        && !weaponState.isCharging, 'early client rail release fires and spends the single cell');
+    weaponState.resetToLoadout();
+    weaponState.forceWeapon(WEAPON_IDS.indexOf('lance'), { now: 8800 });
+    weaponState.applyIntents({ fireHeld: true }, 9500, frame);
+    weaponState.tryFire(9500, frame);
+    ok(!weaponState.tryFire(12299, frame) && weaponState.tryFire(12300, frame)
         && weaponState.ammoOf('lance').mag === 0,
-      'client rail fires only after 2800 ms and empties its single cell');
-    weaponState.startReload(11600);
-    weaponState.tickReload(14499);
+      'held client rail automatically fires at 2800 ms and empties its single cell');
+    weaponState.startReload(12600);
+    weaponState.tickReload(15499);
     ok(weaponState.isReloading && weaponState.ammoOf('lance').mag === 0,
       'rail cell remains empty until the 2.9 second reload finishes');
-    weaponState.tickReload(14500);
+    weaponState.tickReload(15500);
     ok(!weaponState.isReloading && weaponState.ammoOf('lance').mag === 1,
       'rail reload seats exactly one new shot');
     weaponState.forceWeapon(WEAPON_IDS.indexOf('longarc'), { now: 15000 });

@@ -74,6 +74,8 @@ const stablePose = Object.freeze({
   aimSwayScale: 0,
 });
 switch (state) {
+  case 'charge-low':
+  case 'charge-high':
   case 'held':
     rig.ads(0);
     break;
@@ -94,6 +96,11 @@ if (state === 'scoped' && weapon === 'sniper') {
   scope.classList.add('active');
   scope.style.opacity = '1';
   scope.style.transform = 'scale(1)';
+}
+
+if (state.startsWith('charge-')) {
+  rig.setCharge(state === 'charge-low' ? 0.2 : 0.95);
+  for (let frame = 0; frame < 30; frame++) rig.update(1 / 60, stablePose);
 }
 
 if (state === 'firing') {

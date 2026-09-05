@@ -5,7 +5,7 @@
 // HUD, wheel) relies on.
 
 export async function runLanceKnifeContracts(ok) {
-  const { WEAPONS, WEAPON_IDS, chargeProfile, chargeDamageMult, reloadPlan, damageAtDistance } =
+  const { WEAPONS, WEAPON_IDS, chargeProfile, chargeDamageMult, chargeShotProfile, reloadPlan, damageAtDistance } =
     await import('../../shared/combatmath.js');
   const { GUN_GAME_WEAPON_ORDER, WEAPON_PRICES } = await import('../../shared/modes.js');
   const { BOLT_RULES, boltBounces } = await import('../../shared/bolt-rules.js');
@@ -23,14 +23,22 @@ export async function runLanceKnifeContracts(ok) {
       && lance.falloffStart === 45,
     'the VOLTLANCE spears for 300 body damage at rpm 100 with falloff starting at 45 units');
   const lanceCharge = lance.charge;
-  ok(lanceCharge.ms === 2800 && lanceCharge.holdMaxMs === 2800 && lanceCharge.requireFull
-      && lanceCharge.minDamageMult === 0.35,
-    'the VOLTLANCE requires a full 2800 ms charge and fires at the limit');
-  ok(lanceCharge.wallPierceAt === 1,
-    'only a FULL VOLTLANCE charge crosses terrain: the wall-pierce threshold is 1');
+  ok(lanceCharge.ms === 2800 && lanceCharge.holdMaxMs === 2800
+      && lanceCharge.minDamageMult === 0.08,
+    'the VOLTLANCE reaches full power at 2800 ms and allows early releases');
+  ok(lanceCharge.wallPierceAt === 0.4,
+    'terrain piercing begins at 40% charge');
   ok(lance.pierce.players === 6 && lance.pierce.walls === 5
       && lance.pierce.playerFalloff === 0.9 && lance.pierce.wallFalloff === 0.9,
     'a charged lance spears up to six enemies on the line and crosses up to five blocks, decaying 0.9 per body and wall');
+
+  const tap = chargeShotProfile(lance, 0), half = chargeShotProfile(lance, 0.5);
+  const full = chargeShotProfile(lance, 1);
+  ok(tap.walls === 0 && half.walls === 2 && full.walls === 5
+      && tap.hitRadius < half.hitRadius && half.hitRadius < full.hitRadius
+      && tap.size < half.size && half.size < full.size
+      && Math.round(chargeDamageMult(lance, 0.5) * 300) === 93,
+    'rail charge grows damage, body radius, beam size and terrain penetration together');
 
   const knife = WEAPONS.knife;
   ok(knife && knife.name === 'K-7 RIPPER' && knife.mode === 'melee',
@@ -44,11 +52,11 @@ export async function runLanceKnifeContracts(ok) {
       && melee.backstabMult === 2.5 && melee.backstabDot === 0.4,
     'the RIPPER swings a 2.2-unit 110-degree arc and backstabs for 2.5x past a 0.4 facing dot');
 
-  ok(chargeDamageMult(lance, 0) === 0.35
+  ok(chargeDamageMult(lance, 0) === 0.08
       && chargeDamageMult(lance, 0.25) < chargeDamageMult(lance, 0.5)
       && chargeDamageMult(lance, 0.5) < chargeDamageMult(lance, 0.75)
       && chargeDamageMult(lance, 1) === 1,
-    'lance charge damage ramps monotonically from the 0.35 tap floor to full at one');
+    'lance charge damage ramps monotonically from the 0.08 tap floor to full at one');
 
   ok(reloadPlan(knife, 0).rounds === 0,
     'the RIPPER reload plan seats zero rounds, so the reload path never engages');

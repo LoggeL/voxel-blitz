@@ -60,7 +60,7 @@ export const CONDITION_RULES = Object.freeze({
  * @property {string} sfx           bank key for the audio engine
  * @property {{reach:number,coneDeg:number,backstabMult:number,backstabDot:number}} [melee] melee profile: swing hits enemies within `reach` meters inside a `coneDeg` arc; damage multiplies by `backstabMult` when the swing direction aligns with the victim's facing beyond `backstabDot`
  * @property {'rocket'|'bolt'} [projectile]  when set, the shot launches an authoritative projectile (shared/rocket-rules.js, shared/bolt-rules.js) instead of firing hitscan rays
- * @property {{ms:number,holdMaxMs:number,minDamageMult:number,requireFull?:boolean,wallPierceAt?:number}} [charge]  charge-fire profile; `wallPierceAt` is the charge needed before terrain pierces (the lance crosses walls only on a full charge)
+ * @property {{ms:number,holdMaxMs:number,minDamageMult:number,damageExponent?:number,wallPierceAt?:number}} [charge]  charge-fire profile; `wallPierceAt` is the charge needed before terrain pierces (terrain penetration grows with charge)
  * @property {number} [hitRadius] extra body collision radius for a thick rail beam
  * @property {{players:number,walls:number,playerFalloff:number,wallFalloff:number}} [pierce]  rail pierce profile: victims the slug passes through, walls it crosses, and the multiplicative damage falloff per crossing
  */
@@ -203,7 +203,7 @@ export const WEAPONS = {
     projectile: 'bolt',
   },
   lance: {
-    // Heavy single-cell rail shot: full charge required, then reload.
+    // Single-cell rail shot: release at any charge, then reload.
     id: 'lance', name: 'CL-9 VOLTLANCE', mode: 'charge',
     weightKg: 3.8,
     rpm: 100, magSize: 1, spareMags: 5,
@@ -223,9 +223,9 @@ export const WEAPONS = {
     charge: {
       ms: 2800,           // hold that reaches a full charge
       holdMaxMs: 2800,    // cell vents: the shot fires itself at this hold
-      minDamageMult: 0.35,
-      requireFull: true,
-      wallPierceAt: 1,    // only a complete cell crosses terrain
+      minDamageMult: 0.08,
+      damageExponent: 2,
+      wallPierceAt: 0.4,    // piercing grows from this charge to five blocks at full
     },
     hitRadius: 0.22,
     pierce: { players: 6, walls: 5, playerFalloff: 0.9, wallFalloff: 0.9 },
@@ -282,7 +282,7 @@ export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver
 export function chargeProfile(def) {
   const charge = def && def.charge;
   return {
-    requireFull: charge?.requireFull === true,
+    damageExponent: charge?.damageExponent ?? 1,
     ms: Number.isFinite(charge?.ms) ? charge.ms : 850,
     holdMaxMs: Number.isFinite(charge?.holdMaxMs) ? charge.holdMaxMs : 2200,
     minDamageMult: Number.isFinite(charge?.minDamageMult) ? charge.minDamageMult : 1,
@@ -297,11 +297,23 @@ export function chargeFromHold(def, heldMs) {
   return Math.min(1, held / Math.max(1, profile.ms));
 }
 
-/** Damage multiplier the charge applies (linear from minDamageMult at 0 to 1 at full). */
+/** Damage multiplier grows from the tap floor to full power using the charge curve. */
 export function chargeDamageMult(def, charge01) {
   const profile = chargeProfile(def);
   const t = Math.max(0, Math.min(1, Number.isFinite(charge01) ? charge01 : 1));
-  return profile.minDamageMult + (1 - profile.minDamageMult) * t;
+  return profile.minDamageMult + (1 - profile.minDamageMult) * t ** profile.damageExponent;
+}
+
+/** Shared beam size and terrain penetration for prediction and authority. */
+export function chargeShotProfile(def, charge01 = 1) {
+  const t = def?.mode === 'charge' ? Math.max(0, Math.min(1, Number.isFinite(charge01) ? charge01 : 1)) : 1;
+  const size = def?.mode === 'charge' ? 0.15 + 0.85 * t * t : 1;
+  const threshold = chargeProfile(def).wallPierceAt;
+  return {
+    size,
+    hitRadius: (def?.hitRadius || 0) * size,
+    walls: t < threshold ? 0 : Math.floor((def?.pierce?.walls || 0) * t),
+  };
 }
 /** Deterministic patterned camera kick in degrees; random01 only adds bounded micro-variation. */
 export function computeRecoilKickDeg(def, shotIndex, adsT = 0, random01 = 0.5) {

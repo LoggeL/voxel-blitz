@@ -15,6 +15,7 @@ import {
   chargeProfile,
   chargeFromHold,
   chargeDamageMult,
+  chargeShotProfile,
 } from '../../shared/combatmath.js';
 import { clearReload } from './movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
@@ -155,7 +156,6 @@ function resolveChargeIntent(p, dt, inp, fireEdge, ctx) {
   if (held && !vent) return;
   const charge = p.charge;
   cancelCharge(p);
-  if (profile.requireFull && charge < 1) return;
   if (!ctx.canFire(p) || p.reloading || p.deployT > 0 || p.mag[p.weapon] <= 0) return;
   fireOneShot(p, ctx, charge);
 }
@@ -365,8 +365,6 @@ export function fireOneShot(p, ctx, charge = 1) {
   const charged = def.mode === 'charge';
   const charge01 = charged ? Math.max(0, Math.min(1, Number.isFinite(charge) ? charge : 1)) : 1;
   const chargeMult = charged ? chargeDamageMult(def, charge01) : 1;
-  const profile = chargeProfile(def);
-
   const rng = shotRng(p);
   const fwd = fwdFromYawPitch(p.yaw, p.pitch);
   const coneDeg = typeof ctx.computeConeDeg === 'function'
@@ -403,9 +401,8 @@ export function fireOneShot(p, ctx, charge = 1) {
   }
   const pierce = def.pierce;
   const piercePlayers = Number.isFinite(pierce?.players) ? Math.max(0, Math.trunc(pierce.players)) : 0;
-  const pierceWalls = charged && charge01 < profile.wallPierceAt
-    ? 0
-    : (Number.isFinite(pierce?.walls) ? Math.max(0, Math.trunc(pierce.walls)) : 0);
+  const shotProfile = chargeShotProfile(def, charge01);
+  const pierceWalls = shotProfile.walls;
   const playerFalloff = Number.isFinite(pierce?.playerFalloff) ? pierce.playerFalloff : 1;
   const wallFalloff = Number.isFinite(pierce?.wallFalloff) ? pierce.wallFalloff : 1;
   const piercing = piercePlayers > 0 || pierceWalls > 0;
@@ -469,7 +466,7 @@ export function fireOneShot(p, ctx, charge = 1) {
       let minT = 0;
       let stoppedInFlesh = false;
       for (;;) {
-        const tgt = nearestVictim(p, o, d, wallSegT, ctx, minT, def.hitRadius || 0);
+        const tgt = nearestVictim(p, o, d, wallSegT, ctx, minT, shotProfile.hitRadius);
         if (!tgt) break;
         // `pierce.players` caps the victims the slug damages; the next body in
         // line stops it (the lance pierces up to 6 players and, on a full charge,
@@ -500,7 +497,7 @@ export function fireOneShot(p, ctx, charge = 1) {
       if (wallsLeft <= 0) {
         const type = ctx.getBlock(hit.x, hit.y, hit.z);
         if (BLOCK_HP[type] != null) {
-          const dmgB = Math.max(BLOCK_MIN_DMG, Math.round(damageAtDistance(def, traveled + hit.t)));
+          const dmgB = Math.max(BLOCK_MIN_DMG, Math.round(damageAtDistance(def, traveled + hit.t) * dmgMult));
           damageBlock(hit.x, hit.y, hit.z, type, dmgB, ctx);
         }
         // Indestructible types simply terminate the tracer here.

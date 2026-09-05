@@ -242,7 +242,8 @@ export const sfx = {
     loop.oscillator.frequency.setTargetAtTime(160 + level * level * 1500, at, 0.04);
     loop.shimmer.frequency.setTargetAtTime(320 + level * 2600, at, 0.04);
     loop.filter.frequency.setTargetAtTime(500 + level * 3200, at, 0.05);
-    loop.gain.gain.setTargetAtTime(0.03 + level * 0.11, at, 0.04);
+    const pulse = 1 + Math.sin(at * (18 + level * 30)) * level ** 3 * 0.22;
+    loop.gain.gain.setTargetAtTime((0.03 + level * 0.11) * pulse, at, 0.015);
     return true;
   },
 
