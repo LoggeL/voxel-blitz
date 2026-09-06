@@ -113,7 +113,7 @@ export class WeaponWheelController {
     const hubCls = el('div', 'vb-wheel-hub-cls', hub);
     const hubHint = el('div', 'vb-wheel-hub-hint', hub);
     hubName.textContent = 'MOVE TO SELECT';
-    hubCls.textContent = 'Q / ESC CANCEL';
+    hubCls.textContent = 'ESC CANCEL';
 
     this.dom = { root, ring, cursor, hub, hubName, hubCls, hubHint, slots: [], ticks: [] };
     this._attachPointerHandlers();
@@ -441,8 +441,8 @@ export class WeaponWheelController {
 
   /**
    * Renders the hub lines for the current highlight:
-   * none -> MOVE TO SELECT / Q / ESC CANCEL; locked -> name + LOCKED · NOT
-   * OWNED; otherwise name + class + CLICK / RT TO EQUIP · Q / ESC CANCEL.
+   * none -> MOVE TO SELECT / ESC CANCEL; locked -> name + LOCKED · NOT
+   * OWNED; otherwise name + class + RELEASE Q / CLICK / RT TO EQUIP · ESC CANCEL.
    *
    * @private
    */
@@ -452,14 +452,14 @@ export class WeaponWheelController {
     const entry = this._highlight >= 0 ? this._entries[this._highlight] : null;
     if (!entry) {
       _setText(dom.hubName, 'MOVE TO SELECT');
-      _setText(dom.hubCls, 'Q / ESC CANCEL');
+      _setText(dom.hubCls, 'ESC CANCEL');
       _setText(dom.hubHint, '');
       return;
     }
     const locked = !entry.owned;
     _setText(dom.hubName, entry.name || '');
     _setText(dom.hubCls, locked ? 'LOCKED · NOT OWNED' : entry.cls || '');
-    _setText(dom.hubHint, locked ? 'Q / ESC CANCEL' : 'CLICK / RT TO EQUIP · Q / ESC CANCEL');
+    _setText(dom.hubHint, locked ? 'ESC CANCEL' : 'RELEASE Q / CLICK / RT TO EQUIP · ESC CANCEL');
   }
 
   /** Re-measures the ring radius used to normalize pointer deltas. @private */

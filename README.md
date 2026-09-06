@@ -77,7 +77,7 @@ PORT=8080 npm start
 | Left / right mouse | Fire / aim down sights |
 | `R` | Reload |
 | `1–9`, `0` or scroll wheel | Switch weapons |
-| Tap / hold `Q` | Previous weapon / weapon wheel |
+| Hold `Q`, release to equip | Weapon wheel |
 | Hold and release `G` / press `H` | Throw / change throwable |
 | `E` / `B` | Objective interaction / S&D buy menu |
 | `Tab` / `Escape` | Scoreboard / settings and pause menu |

@@ -143,6 +143,7 @@ export class Input {
     this._wheelOpenQueued = false;
     this._wheelReleaseQueued = false;
     this._wheelCancelQueued = false;
+    this._wheelQHeld = false;
     this._mmbHeld = false;     // physical middle-mouse latch while it opens the wheel
     this._padYHeld = false;    // pad Y tap/hold split: holding Y opens the wheel
     this._padYDownAt = 0;
@@ -913,6 +914,7 @@ export class Input {
     this._wheelOpenQueued = false;
     this._wheelReleaseQueued = false;
     this._wheelCancelQueued = false;
+    this._wheelQHeld = false;
     this._mmbHeld = false;
     this._padYHeld = false;
     this._padYDownAt = 0;
@@ -1053,11 +1055,11 @@ export class Input {
         if (!e.repeat && !this._wheelOpen && !this._grenadeHeld) this._beginGrenadeHold(eventTime(e));
         break;
       case 'KeyH': if (!e.repeat && !this._wheelOpen) this.cycleGrenadeType(1); break;
-      // Q toggles the wheel; releasing the key never confirms a selection.
+      // Hold Q to select; only the release confirms the highlighted weapon.
       case 'KeyQ':
-        if (!e.repeat) {
-          if (this._wheelOpen) this._wheelCancelQueued = true;
-          else this._wheelOpenQueued = true;
+        if (!e.repeat && !this._wheelQHeld) {
+          this._wheelQHeld = true;
+          if (!this._wheelOpen) this._wheelOpenQueued = true;
         }
         break;
       case 'Escape':
@@ -1100,6 +1102,10 @@ export class Input {
         if (this._grenadeHeld) this._releaseGrenade(eventTime(e));
         break;
       case 'KeyQ':
+        if (this._wheelQHeld && (this._wheelOpen || this._wheelOpenQueued)) {
+          this._wheelReleaseQueued = true;
+        }
+        this._wheelQHeld = false;
         break;
       default: break;
     }

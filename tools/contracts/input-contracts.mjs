@@ -356,19 +356,34 @@ export async function runInputContracts(ok, installGlobals) {
           && WHEEL_VECTOR_RADIUS_PX === 90,
       'the wheel seam pins its pad hold threshold and selection radius for the overlay');
 
-      // Q toggles immediately and key release never commits.
+      // Q stays open through repeat events and commits only on release.
       input = new Input({});
       input._onKeyDown(key('KeyQ', false, 1000));
       ok(input.takeWheelOpenRequest() && !input.takeWheelOpenRequest(),
         'Q immediately queues exactly one wheel open');
       input.setWeaponWheelOpen(true);
-      input._onKeyUp(key('KeyQ', false, 1100));
-      ok(!input.takeWheelRelease() && !input.consumeLastWeaponRequest(),
-        'releasing Q leaves the wheel open without changing weapons');
-      input._onKeyDown(key('KeyQ', true, 1200));
-      ok(!input.takeWheelCancelRequest(), 'key repeat does not close the wheel');
-      input._onKeyDown(key('KeyQ', false, 1300));
-      ok(input.takeWheelCancelRequest(), 'a second Q press cancels the wheel');
+      for (let time = 1100; time <= 3000; time += 100) {
+        input._onKeyDown(key('KeyQ', true, time));
+      }
+      input._onKeyDown(key('KeyQ', false, 3100));
+      ok(!input.takeWheelCancelRequest() && !input.takeWheelRelease()
+          && !input.takeWheelOpenRequest() && input.isWeaponWheelOpen(),
+        'holding Q through repeated or duplicate keydown events keeps the wheel open');
+      input._onKeyUp(key('KeyQ', false, 3200));
+      ok(input.takeWheelRelease() && !input.takeWheelRelease() && !input.consumeLastWeaponRequest(),
+        'releasing Q confirms once without requesting the previous weapon');
+      input.setWeaponWheelOpen(false);
+      input._onKeyDown(key('KeyQ', false, 3300));
+      input._onKeyUp(key('KeyQ', false, 3301));
+      ok(input.takeWheelOpenRequest(), 'a quick Q tap still opens the wheel');
+      input.setWeaponWheelOpen(true);
+      ok(input.takeWheelRelease(), 'a Q release before the next frame survives opening the wheel');
+      input.setWeaponWheelOpen(false);
+      input._onKeyDown(key('KeyQ', false, 3400));
+      input.clearTransient();
+      input._onKeyUp(key('KeyQ', false, 3500));
+      ok(!input.takeWheelRelease() && !input.takeWheelOpenRequest(),
+        'a focus reset cancels the Q hold without selecting a weapon');
       input.dispose();
 
       // Middle mouse opens; its release closes. A closed right click latches
