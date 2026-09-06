@@ -107,6 +107,7 @@ export class TracerFX {
     const local = !!options.local;
 
     if (!local) this.spawnFlash(event.o, event.d);
+    if (definition && !definition.tracer) return;
 
     for (let i = 0; i < limit; i++) {
       const rawDirection = usePellets
@@ -141,6 +142,7 @@ export class TracerFX {
   }
 
   spawnTracer(origin, direction, length, definition, endpoint = null, charge = 1) {
+    if (definition && !definition.tracer) return;
     let index = -1;
     for (let i = 0; i < this.tracers.length; i++) {
       if (!this.tracers[i].active) {

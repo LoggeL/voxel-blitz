@@ -6,6 +6,7 @@ import { GoreFX } from './gore.js';
 import { ImpactFX, blockSoundFor } from './impacts.js';
 import { hideInstance } from './instancing.js';
 import { ProjectileFX } from './projectiles.js';
+import { RailBeamFX } from './rail-beam.js';
 import { boltBounces, BOLT_RULES } from '../../../shared/bolt-rules.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { rocketLaunch } from '../../../shared/rocket-rules.js';
@@ -34,6 +35,7 @@ export class Effects {
       this.getBlockFn,
       (hit, local) => this.impacts.wallDust(hit, local),
     );
+    this.railBeams = new RailBeamFX(scene, this.getBlockFn);
     this.goreFx = new GoreFX(scene, camera, this.getBlockFn);
     this.brass = new BrassPool(scene, this.getBlockFn);
     this.projectiles = new ProjectileFX(scene, this.getBlockFn, {
@@ -66,6 +68,7 @@ export class Effects {
   shoot(event, options = {}) {
     if (this._disposed) return;
     this.tracers.shoot(event, options);
+    if (event.w === 'lance') this.railBeams.shoot(event, options);
     // A rocket shot spawns the predicted projectile locally; remote rockets arrive as
     // authoritative `projectileLaunch` events and only get the muzzle flash here.
     const definition = WEAPONS[event?.w];
@@ -184,6 +187,7 @@ export class Effects {
     if (this._disposed) return;
     this._trauma = Math.max(0, this._trauma - dt * 1.8);
     this.tracers.update(dt);
+    this.railBeams.update(dt);
     this.impacts.update(dt);
     this.goreFx.update(dt);
     this.brass.update(dt);
@@ -206,6 +210,7 @@ export class Effects {
     if (this._disposed) return;
     this._disposed = true;
     this.tracers.dispose();
+    this.railBeams.dispose();
     this.impacts.dispose();
     this.goreFx.dispose();
     this.brass.dispose();
@@ -220,5 +225,6 @@ export function attachShellBridge(effects, rig) {
 
 /** Wire the rig's live muzzle transform into the local tracer anchor. */
 export function attachMuzzleBridge(effects, rig) {
+  if (effects.railBeams) effects.railBeams.muzzleProvider = (out) => rig.getMuzzleWorldPos(out);
   effects.tracers.setMuzzleProvider((out) => rig.getMuzzleWorldPos(out));
 }

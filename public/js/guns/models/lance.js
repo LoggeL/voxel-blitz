@@ -22,6 +22,17 @@ export function build({ kit, T, groups }) {
   const railLength = Math.abs(muzzleZ - breachZ);
   const railMid = (muzzleZ + breachZ) / 2;
 
+  // Split accelerator cage with exposed energy channels and staggered cooling fins.
+  for (const side of [-1, 1]) {
+    box(body, 0.016, 0.044, 0.27, side * 0.050, muzzleY, -0.48, COL.gunmetal);
+    box(body, 0.008, 0.012, 0.25, side * 0.060, muzzleY, -0.48, VIOLET);
+    for (let i = 0; i < 4; i++) {
+      const z = -0.38 - i * 0.062;
+      box(body, 0.022, 0.056, 0.018, side * 0.052, muzzleY, z, COL.polyDark, { rz: side * 0.20 });
+      box(body, 0.024, 0.008, 0.020, side * 0.054, muzzleY + 0.032, z, VIOLET);
+    }
+  }
+
   // Stepped polymer receiver with gunmetal side plates; the shroud and buffer tube both
   // overlap the receiver body so the silhouette never reads as detached parts.
   box(body, 0.090, 0.084, 0.200, 0, 0.046, -0.155, COL.polymer);

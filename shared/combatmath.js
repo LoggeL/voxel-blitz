@@ -198,7 +198,7 @@ export const WEAPONS = {
     },
     adsFov: 38, zoom: 2, adsTime: 0.18,
     reloadTime: 2.6, tacTime: 2.0, deployTime: 0.5,
-    tracer: { color: '#7dfcff', width: 1.5, len: 44 },
+    tracer: null,
     sfx: 'longarc',
     projectile: 'bolt',
   },
@@ -218,7 +218,7 @@ export const WEAPONS = {
     },
     adsFov: 42, zoom: 1.8, adsTime: 0.17,
     reloadTime: 2.9, tacTime: 2.3, deployTime: 0.6,
-    tracer: { color: '#c9a2ff', width: 4.0, len: 70 },
+    tracer: null,
     sfx: 'lance',
     charge: {
       ms: 2800,           // hold that reaches a full charge

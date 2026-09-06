@@ -1,6 +1,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { findWeaponCaptureShot } from '../../../shared/weapon-capture-shots.js';
+import { RailBeamFX } from '../weapons/rail-beam.js';
 import { ViewmodelRig } from '../guns/viewmodel.js';
 import { createSniperScope } from '../ui/sniper-scope.js';
 
@@ -110,6 +111,13 @@ if (state === 'firing') {
   if (WEAPONS[weapon].mode === 'pump') rig.pumpAnim();
   if (WEAPONS[weapon].mode === 'bolt') rig.boltAnim();
   rig.update(1 / 60, stablePose);
+  if (weapon === 'lance') {
+    const beam = new RailBeamFX(scene, (_x, _y, z) => z <= -16 ? 3 : 0);
+    scene.updateMatrixWorld(true);
+    beam.muzzleProvider = (out) => rig.getMuzzleWorldPos(out);
+    beam.shoot({ o: [0, 1.62, 0], d: [0, 0, -1], charge: 1 }, { local: true });
+    beam.update(0.04);
+  }
 }
 
 renderer.render(scene, camera);

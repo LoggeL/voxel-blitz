@@ -17,6 +17,17 @@ export function build({ kit, T, groups }) {
   const barrelLength = Math.abs(muzzleZ - breachZ);
   const barrelMid = (muzzleZ + breachZ) / 2;
 
+  // Split accelerator cage with exposed energy channels and staggered cooling fins.
+  for (const side of [-1, 1]) {
+    box(body, 0.016, 0.044, 0.27, side * 0.050, muzzleY, -0.48, COL.gunmetal);
+    box(body, 0.008, 0.012, 0.25, side * 0.060, muzzleY, -0.48, CYAN);
+    for (let i = 0; i < 4; i++) {
+      const z = -0.38 - i * 0.062;
+      box(body, 0.022, 0.056, 0.018, side * 0.052, muzzleY, z, COL.polyDark, { rz: side * 0.20 });
+      box(body, 0.024, 0.008, 0.020, side * 0.054, muzzleY + 0.032, z, CYAN);
+    }
+  }
+
   // Stepped polymer receiver with gunmetal side plates.
   box(body, 0.092, 0.088, 0.240, 0, 0.048, -0.150, COL.polymer);
   box(body, 0.098, 0.034, 0.220, 0, 0.100, -0.152, COL.gunmetal);

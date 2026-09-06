@@ -58,19 +58,21 @@ async function renderWeapon(weapon) {
   output.connect(master.bus);
 
   const profile = fireReportProfile(weapon);
-  const response = await fetch(BUILTIN_SAMPLE_MANIFEST[`weapons.${weapon}.fire`]);
-  if (!response.ok) throw new Error(`${weapon} sample fetch failed: ${response.status}`);
-  const decoded = await context.decodeAudioData(await response.arrayBuffer());
-  const source = context.createBufferSource();
-  const sampleGain = context.createGain();
-  source.buffer = decoded;
-  source.playbackRate.value = profile.sampleRate;
-  sampleGain.gain.value = profile.sampleGain;
-  source.connect(sampleGain).connect(output);
-  source.start(0.001);
-
+  const sampleUrl = BUILTIN_SAMPLE_MANIFEST[`weapons.${weapon}.fire`];
+  if (sampleUrl) {
+    const response = await fetch(sampleUrl);
+    if (!response.ok) throw new Error(`${weapon} sample fetch failed: ${response.status}`);
+    const decoded = await context.decodeAudioData(await response.arrayBuffer());
+    const source = context.createBufferSource();
+    const sampleGain = context.createGain();
+    source.buffer = decoded;
+    source.playbackRate.value = profile.sampleRate;
+    sampleGain.gain.value = profile.sampleGain;
+    source.connect(sampleGain).connect(output);
+    source.start(0.001);
+  }
   const layer = context.createGain();
-  layer.gain.value = profile.layerGain;
+  layer.gain.value = sampleUrl ? profile.layerGain : 1;
   layer.connect(output);
   renderFireReport(weapon, layer, primitives, echo.in, () => {}, output, {
     includeMechanics: false,

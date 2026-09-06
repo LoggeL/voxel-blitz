@@ -209,11 +209,12 @@ async function main() {
   const reloadWeapons = assets
     .filter(({ kind }) => kind === 'reload')
     .map(({ slot }) => slot.split('.')[1]);
-  if (fireWeapons.join(',') !== WEAPON_IDS.join(',')) {
-    failures.push('fire sample roster does not match WEAPON_IDS');
+  const sampledWeapons = WEAPON_IDS.filter((id) => !['longarc', 'lance', 'knife', 'rocket'].includes(id));
+  if (fireWeapons.join(',') !== sampledWeapons.join(',')) {
+    failures.push('fire sample roster does not match the sampled firearm roster');
   }
-  if (!WEAPON_IDS.every((weapon) => reloadWeapons.includes(weapon))) {
-    failures.push('every weapon must ship at least one reload sample');
+  if (!sampledWeapons.every((weapon) => reloadWeapons.includes(weapon))) {
+    failures.push('every sampled firearm must ship at least one reload sample');
   }
 
   const rows = [];

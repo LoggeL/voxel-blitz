@@ -165,7 +165,7 @@ function runDirectContracts() {
       && Number.isFinite(def.recoil?.resetMs) && def.recoil.resetMs > 0
       && def.recoil.resetMs > 60000 / def.rpm
       && Number.isFinite(def.recoil?.adsMult) && def.recoil.adsMult > 0 && def.recoil.adsMult <= 1
-      && (def.mode === 'melee'
+      && (def.mode === 'melee' || def.id === 'longarc' || def.id === 'lance'
         ? def.tracer === null
         : (typeof def.tracer?.color === 'string' && Number.isFinite(def.tracer?.width)
           && Number.isFinite(def.tracer?.len)))

@@ -180,27 +180,18 @@ export function shotRevolver(out, primitives) {
 export function shotLongarc(out, primitives, charge = 1) {
   const level = Math.max(0, Math.min(1, Number.isFinite(charge) ? charge : 1));
   const t0 = primitives.nowT();
-  const crackAt = primitives.nowT(0.02 + 0.03 * (1 - level));
-  // Discharge snap: the bank dumping into the rails, brighter with charge.
+  // A short, rounded pulse with a restrained ion tail, without the firearm crack.
   primitives.tone(out, {
-    t0, type: 'sawtooth', f0: 900 + level * 1700, f1: 2600 + level * 1400, dec: 0.05, g: 0.08 + level * 0.06,
+    t0, type: 'sine', f0: 1500 + level * 500, f1: 420,
+    att: 0.004, dec: 0.12, g: 0.12 + level * 0.05,
   });
-  // Hypersonic crack: louder and brighter than the revolver transient at full charge.
+  primitives.tone(out, {
+    t0, type: 'sine', f0: 110, f1: 55,
+    att: 0.004, dec: 0.1, g: 0.08 + level * 0.04,
+  });
   primitives.hiss(out, {
-    t0: crackAt, filter: 'highpass', f: 5200 + level * 1600, q: 0.6,
-    dec: 0.03 + level * 0.025, g: 0.42 + level * 0.36,
-  });
-  primitives.tone(out, {
-    t0: crackAt, type: 'sawtooth', f0: 340, f1: 90, dec: 0.08 + level * 0.09, g: 0.2 + level * 0.16,
-  });
-  // Sub thump under the crack, lighter than the sniper's weight; a tap barely thumps.
-  primitives.tone(out, {
-    t0: crackAt, type: 'sine', f0: 55, f1: 30, dec: 0.12 + level * 0.2, g: 0.16 + level * 0.32, att: 0.001,
-  });
-  // Ionized tail sweeping down from the discharge; grows with the charge.
-  primitives.hiss(out, {
-    t0: crackAt, filter: 'bandpass', f: 4200, sweepTo: 900,
-    sweepMs: 0.2 + level * 0.32, q: 1.2, dec: 0.2 + level * 0.32, g: 0.06 + level * 0.16,
+    t0, filter: 'bandpass', f: 1800, sweepTo: 700,
+    sweepMs: 0.16, q: 0.7, dec: 0.16, g: 0.035,
   });
 }
 

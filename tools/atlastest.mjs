@@ -1345,6 +1345,7 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
 // Browser-adjacent client contracts live in their own harness so the atlas
 // checks stay focused and the shared fakes have one lifecycle owner.
 await runClientContracts(ok);
+await (await import('./contracts/energy-fx-contracts.mjs')).runEnergyFxContracts(ok);
 await (await import('./contracts/vault-contracts.mjs')).runVaultContracts(ok);
 await (await import('./contracts/destruction-contracts.mjs')).runDestructionContracts(ok);
 await (await import('./contracts/gungame-rules-contracts.mjs')).runGunGameRulesContracts(ok);
