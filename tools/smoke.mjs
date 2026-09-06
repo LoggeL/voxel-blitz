@@ -1965,6 +1965,7 @@ async function runNetwork(server, clients) {
   ok(lastTick?.players.length >= 2, 'snapshot carries both players');
   const me = lastTick?.players.find((p) => p.id === a.id);
   ok(me && Number.isFinite(me.x) && Number.isFinite(me.y), 'own row has finite position');
+  ok(Number.isFinite(me?.ping) && me.ping >= 0, 'scoreboard row carries server-measured WebSocket RTT');
   ok(me && typeof me.hp === 'number' && me.hp >= 0 && me.hp <= 100, 'hp sane');
   ok(me && Array.isArray(me.mag) && me.mag.length === WEAPON_IDS.length
     && me.mag.every(Number.isFinite)

@@ -181,7 +181,7 @@ export class GameplayHud {
     const table = el('table', '', d.sb);
     const thead = el('thead', '', table);
     const hr = el('tr', '', thead);
-    for (const h of ['TEAM', 'SCORE', 'KILLS', 'DEATHS', 'OPERATOR']) {
+    for (const h of ['TEAM', 'SCORE', 'KILLS', 'DEATHS', 'PING', 'OPERATOR']) {
       el('th', '', hr).textContent = h;
     }
     el('tbody', '', table, 'scores');
@@ -573,6 +573,7 @@ export class GameplayHud {
       el('td', '', tr).textContent = String(player.score | 0);
       el('td', '', tr).textContent = String(player.kills | 0);
       el('td', '', tr).textContent = String(player.deaths | 0);
+      el('td', '', tr).textContent = Number.isFinite(player.ping) ? `${Math.round(player.ping)} ms` : '—';
 
       const nameTd = el('td', 'vb-sb-name', tr);
       nameTd.textContent = String(player.name || 'OPERATOR');

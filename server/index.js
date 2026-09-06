@@ -138,7 +138,14 @@ async function main() {
     };
     clients.set(id, meta);
 
-    ws.on('pong', () => { meta.alive = true; });
+    ws.on('pong', () => {
+      meta.alive = true;
+      if (meta.pingSentAt != null) {
+        const player = meta.room?.engine?.entities.get(meta.id);
+        if (player) player.ping = Math.max(0, Math.round(performance.now() - meta.pingSentAt));
+        meta.pingSentAt = null;
+      }
+    });
     ws.on('error', () => { /* 'close' always follows */ });
 
     const joinTimer = setTimeout(() => {
@@ -222,6 +229,10 @@ async function main() {
         if (msg.t === 'ping') {
           if (Number.isSafeInteger(msg.nonce)) {
             sendJson(meta, { t: 'pong', nonce: msg.nonce });
+            if (meta.pingSentAt == null) {
+              meta.pingSentAt = performance.now();
+              ws.ping();
+            }
           }
           return;
         }
