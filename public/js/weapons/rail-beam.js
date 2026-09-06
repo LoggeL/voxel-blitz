@@ -86,6 +86,7 @@ export class RailBeamFX {
     beam.life = 0.18 + charge * 0.3;
     beam.charge = charge;
     beam.hitRadius = profile.hitRadius;
+    beam.coreRadius = profile.coreRadius;
     beam.group.visible = true;
     this._render(beam);
   }
@@ -95,7 +96,7 @@ export class RailBeamFX {
     const fade = Math.pow(Math.max(0, 1 - t), 1.7);
     const width = 0.006 + 0.022 * beam.charge * beam.charge;
     beam.layers.forEach((mesh, i) => {
-      const radius = (i === 2 ? beam.hitRadius : width * [1, 3][i]) * (1 + t * 0.6);
+      const radius = (i === 2 ? beam.hitRadius : i === 1 ? beam.coreRadius : width) * (1 + t * 0.6);
       mesh.scale.set(radius, radius, beam.length);
       mesh.material.opacity = fade * [1, 0.4, 0.12][i];
     });

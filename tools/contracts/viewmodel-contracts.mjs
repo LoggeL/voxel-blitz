@@ -84,6 +84,36 @@ export async function runViewmodelContracts(ok, installGlobals) {
         && camera.rotation.y === player.aimYaw && camera.rotation.x === player.aimPitch,
     'LocalPlayer presents and sends the same swayed aim used by its camera');
 
+    const sniper = new LocalPlayer({ input, physics, sendHz: 20 });
+    sniper.setGameplayInputEnabled(true);
+    sniper.recoilPitch = 0.015;
+    sniper.recoilYaw = -0.007;
+    const preShot = { yaw: sniper.shotYaw, pitch: sniper.shotPitch };
+    sniper.addRecoil(0.04, 0.01, WEAPONS.sniper.weightKg, WEAPONS.sniper.recoil, 0);
+    let recoilPacket;
+    sniper._sendInputMaybe(0.05, { sendInput: payload => { recoilPacket = payload; return false; } });
+    ok(recoilPacket.yaw === preShot.yaw && recoilPacket.pitch === preShot.pitch
+      && sniper._pendingShotAim != null,
+      'shot packet retains pre-shot visible recoil and excludes its own kick even after a failed send');
+    sniper._sendInputMaybe(0.05, { sendInput: payload => { recoilPacket = payload; return true; } });
+    ok(recoilPacket.pitch === preShot.pitch && sniper._pendingShotAim === null,
+      'successful send clears the frozen shot aim');
+    sniper._sendInputMaybe(0.05, { sendInput: payload => { recoilPacket = payload; return true; } });
+    ok(recoilPacket.pitch === sniper.shotPitch && recoilPacket.pitch !== preShot.pitch,
+      'subsequent aim packets include accumulated climb and the current camera spring');
+    const secondAim = { yaw: sniper.shotYaw, pitch: sniper.shotPitch };
+    sniper.addRecoil(0.04, 0.01, WEAPONS.sniper.weightKg, WEAPONS.sniper.recoil, 1430);
+    sniper._sendInputMaybe(0.05, { sendInput: payload => { recoilPacket = payload; return true; } });
+    ok(recoilPacket.pitch === secondAim.pitch && recoilPacket.yaw === secondAim.yaw
+      && secondAim.pitch !== preShot.pitch,
+      'a repeated sniper shot uses existing recoil exactly once and never adds its new kick to itself');
+    const { computeSpreadConeDeg, SNIPER_SCOPE_ADS_THRESHOLD } = await import('../../shared/combatmath.js');
+    ok(computeSpreadConeDeg(WEAPONS.sniper, 0, 0, SNIPER_SCOPE_ADS_THRESHOLD)
+      === computeSpreadConeDeg(WEAPONS.sniper, 0, 0, 1)
+      && computeSpreadConeDeg(WEAPONS.sniper, 0.8, 0, 1) > WEAPONS.sniper.spreadDeg.ads,
+      'the first visible sniper scope has settled accuracy while residual shot bloom still matters');
+    sniper.dispose();
+
     input.getKeys = () => ({
       forward: true,
       back: false,

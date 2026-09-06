@@ -37,13 +37,21 @@ export function runRailPenetrationContracts(ok) {
   ok(shoot([METAL], 0, 0).hits.length === 1 && shoot([METAL, METAL], 0, 0).hits.length === 0,
     'an uncharged rail can penetrate one solid block');
   ok(shoot([], PLAYER_HALF.x + 0.4).hits.length === 1
-    && shoot([], PLAYER_HALF.x + 0.6).hits.length === 0,
-    'wide rail collision catches a clear graze and rejects targets outside its half-meter radius');
+    && shoot([], PLAYER_HALF.x + 1.7).hits.length === 0,
+    'wide rail collision catches a clear graze and rejects targets outside its 1.6-meter radius');
   ok(shoot([STONE], 0, 1, 42.8).hits.length === 1,
     'a body overlapping a pierced wall receives damage only once');
+  const core = shoot([], PLAYER_HALF.x + 0.15);
+  const middle = shoot([], PLAYER_HALF.x + 0.8);
+  const edge = shoot([], PLAYER_HALF.x + 1.4);
+  ok(core.damage === clear.damage && middle.damage > edge.damage && edge.damage > 0
+    && middle.damage < core.damage && core.hits.every(hit => !hit.hs),
+    'rail core retains full damage while the corona fades continuously without grazing headshots');
+  ok(shoot([], PLAYER_HALF.x + 0.8, 0).hits.length === 0,
+    'a tap has a smaller real collision radius than a full charge');
   const tap = chargeShotProfile(WEAPONS.lance, 0).hitRadius;
   const full = chargeShotProfile(WEAPONS.lance, 1).hitRadius;
-  ok(full === 0.5 && tap === 0.2
+  ok(full === 1.6 && Math.abs(tap - 0.64) < 1e-9
     && beamReticleRadiusPx(full, 20) > beamReticleRadiusPx(tap, 20)
     && beamReticleRadiusPx(full, 10) > beamReticleRadiusPx(full, 20)
     && beamReticleRadiusPx(full, 20, 42) > beamReticleRadiusPx(full, 20, 75),

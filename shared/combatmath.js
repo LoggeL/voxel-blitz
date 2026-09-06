@@ -61,7 +61,8 @@ export const CONDITION_RULES = Object.freeze({
  * @property {{reach:number,coneDeg:number,backstabMult:number,backstabDot:number}} [melee] melee profile: swing hits enemies within `reach` meters inside a `coneDeg` arc; damage multiplies by `backstabMult` when the swing direction aligns with the victim's facing beyond `backstabDot`
  * @property {'rocket'|'bolt'} [projectile]  when set, the shot launches an authoritative projectile (shared/rocket-rules.js, shared/bolt-rules.js) instead of firing hitscan rays
  * @property {{ms:number,holdMaxMs:number,minDamageMult:number,damageExponent?:number,wallPierceAt?:number}} [charge]  charge-fire profile; `wallPierceAt` is the charge needed before terrain pierces (terrain penetration grows with charge)
- * @property {number} [hitRadius] extra body collision radius for a thick rail beam
+ * @property {number} [hitRadius] outer radius around a body reached by the rail corona
+ * @property {number} [coreRadius] full-damage radius around a body inside the rail core
  * @property {{players:number,walls:number,minWalls?:number,playerFalloff:number,wallFalloff:number}} [pierce]  rail pierce profile: victims the slug passes through, walls it crosses, and the multiplicative damage falloff per crossing
  */
 
@@ -227,7 +228,8 @@ export const WEAPONS = {
       damageExponent: 2,
       wallPierceAt: 0,      // every shot penetrates; charging increases the block budget
     },
-    hitRadius: 0.5,
+    hitRadius: 1.6,
+    coreRadius: 0.3,
     pierce: { players: 6, walls: 8, minWalls: 1, playerFalloff: 0.9, wallFalloff: 0.9 },
   },
   knife: {
@@ -312,9 +314,18 @@ export function chargeShotProfile(def, charge01 = 1) {
   return {
     size,
     hitRadius: (def?.hitRadius || 0) * (def?.mode === 'charge' ? 0.4 + 0.6 * t * t : 1),
+    coreRadius: (def?.coreRadius || 0) * (def?.mode === 'charge' ? 0.4 + 0.6 * t * t : 1),
     walls: t < threshold ? 0 : Math.max(def?.pierce?.minWalls || 0, Math.floor((def?.pierce?.walls || 0) * t)),
   };
 }
+/** Full damage in the rail core, smoothly fading to zero at its outer radius. */
+export function railDamageMult(profile, distance) {
+  if (distance <= profile.coreRadius) return 1;
+  if (!(profile.hitRadius > profile.coreRadius) || distance >= profile.hitRadius) return 0;
+  const t = (distance - profile.coreRadius) / (profile.hitRadius - profile.coreRadius);
+  return 1 - t * t * (3 - 2 * t);
+}
+
 /** Deterministic patterned camera kick in degrees; random01 only adds bounded micro-variation. */
 export function computeRecoilKickDeg(def, shotIndex, adsT = 0, random01 = 0.5) {
   const profile = def.recoil;
@@ -379,7 +390,8 @@ export function computeSpreadConeDeg(
   crouching = false,
   pain = 0,
 ) {
-  const t = Math.max(0, Math.min(1, adsT));
+  const t = Math.max(0, Math.min(1, def.id === 'sniper'
+    ? adsT / SNIPER_SCOPE_ADS_THRESHOLD : adsT));
   const hip = def.spreadDeg.hip + def.moveSpreadDeg * Math.min(1, speedXZ / 6.2);
   const base = hip + (def.spreadDeg.ads - hip) * t;
   const panic01 = Math.max(0, Math.min(1, Number.isFinite(panic) ? panic : 0));

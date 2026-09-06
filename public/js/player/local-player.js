@@ -149,6 +149,7 @@ export class LocalPlayer {
     this.sendAccum = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
+    this._pendingShotAim = null;
     this.grenadeThrowLatched = null; // {charge, cookMs, type} awaiting a network send
     this._lastLocalImpact = null;
     this._lastReconciledSnapSeq = null;
@@ -198,6 +199,9 @@ export class LocalPlayer {
   get gameplayInputEnabled() { return this._gameplayInputEnabled; }
   get lastLocalImpact() { return this._lastLocalImpact; }
   get lastReconciledSnapSeq() { return this._lastReconciledSnapSeq; }
+  get shotYaw() { return this.aimYaw + this.recoilYaw; }
+  get shotPitch() { return clampPitch(this.aimPitch + this.recoilPitch); }
+
   get aimYaw() { return this.view.yaw + (this._aim?.yaw || 0); }
   get aimPitch() { return clampPitch(this.view.pitch + (this._aim?.pitch || 0)); }
   get aimMotion() { return this._aim; }
@@ -240,6 +244,7 @@ export class LocalPlayer {
     this.wishDir.z = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
+    this._pendingShotAim = null;
     this.grenadeThrowLatched = null;
     this.wantAds = false;
     this.physics._crouching = false;
@@ -296,6 +301,7 @@ export class LocalPlayer {
     this.sendAccum = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
+    this._pendingShotAim = null;
     this.grenadeThrowLatched = null;
     this._lastLocalImpact = null;
     this._lastReconciledSnapSeq = null;
@@ -324,6 +330,7 @@ export class LocalPlayer {
     this.currentSpeedXZ = 0;
     this.scopeActive = false;
     this.fireTapLatched = false;
+    this._pendingShotAim = null;
     this.pendingShotIntent = null;
     this.grenadeThrowLatched = null;
     this.wantAds = false;
@@ -414,6 +421,8 @@ export class LocalPlayer {
     this._recoilProfile = profile && Number.isFinite(profile.resetMs)
       ? profile
       : DEFAULT_RECOIL_PROFILE;
+    // Freeze this shot before its own recoil changes view angles. Keep it until sent.
+    if (this._alive) this._pendingShotAim = { yaw: this.shotYaw, pitch: this.shotPitch };
     this._impulseRecoil(p, y);
     if (!this._alive) return;
     // A fresh shot while recovering re-arms the spray: whatever climb is still owed
@@ -716,8 +725,8 @@ export class LocalPlayer {
         crouch: !!keys.crouch,
         interact: !!(interactAllowed && keys.interact),
       },
-      yaw: this.aimYaw,
-      pitch: this.aimPitch,
+      yaw: this._pendingShotAim?.yaw ?? this.shotYaw,
+      pitch: this._pendingShotAim?.pitch ?? this.shotPitch,
       wantFire,
       weapon: weaponSlot,
       wantAds: this._gameplayInputEnabled && this.wantAds,
@@ -730,6 +739,7 @@ export class LocalPlayer {
     const sent = typeof intents.sendInput === 'function'
       ? !!intents.sendInput(payload)
       : false;
+    if (sent) this._pendingShotAim = null;
     if (sent && wantFire) this.fireTapLatched = false;
     if (sent && payload.throwGrenade) this.grenadeThrowLatched = null;
     this._frame.inputPayload = payload;
