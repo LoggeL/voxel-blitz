@@ -15,6 +15,7 @@ export class PlayerPhysics {
     this.vel = { x: 0, y: 0, z: 0 };
     this.grounded = false;
     this.vault = null;
+    this.lastImpulseSeq = 0;
     this.jumpGroundY = null;
     this.coyote = 0;
     this._crouching = false;
@@ -115,6 +116,19 @@ export class PlayerPhysics {
     if (Math.abs(this.vel.x) < 0.001) this.vel.x = 0;
     if (Math.abs(this.vel.z) < 0.001) this.vel.z = 0;
     return jumpAccepted;
+  }
+
+  adoptImpulse(impulse) {
+    if (!Number.isSafeInteger(impulse?.seq) || impulse.seq <= this.lastImpulseSeq
+        || !Array.isArray(impulse.velocity) || impulse.velocity.length !== 3
+        || !impulse.velocity.every(Number.isFinite)) return false;
+    this.lastImpulseSeq = impulse.seq;
+    [this.vel.x, this.vel.y, this.vel.z] = impulse.velocity;
+    this.vault = null;
+    this.jumpGroundY = null;
+    this.grounded = false;
+    this.coyote = 0;
+    return true;
   }
 
   eyeY() {

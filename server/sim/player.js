@@ -106,6 +106,7 @@ export class PlayerEntity {
     this.mag = load.mag;
     this.reserve = load.reserve;
     this.infiniteMagazines = false;
+    this.impulseSeq = 0;
     this.reloading = false;
     this.reloadT = 0;
     this.reloadPrev = false;

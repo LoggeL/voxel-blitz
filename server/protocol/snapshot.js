@@ -120,6 +120,9 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       score: p.score | 0,
       kills: p.kills | 0,
       deaths: p.deaths | 0,
+      impulse: p.impulseSeq > 0 && [p.vx, p.vy, p.vz].every(Number.isFinite)
+        ? { seq: p.impulseSeq, velocity: [round(p.vx, D2), round(p.vy, D2), round(p.vz, D2)] }
+        : null,
       ping: Number.isFinite(p.ping) ? Math.max(0, Math.round(p.ping)) : null,
       state: p.state === 'dead' ? 'dead' : 'alive',
       // Only dead players with an automatic respawn publish a deadline.

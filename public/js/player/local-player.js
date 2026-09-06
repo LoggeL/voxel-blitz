@@ -257,6 +257,7 @@ export class LocalPlayer {
     this.physics.coyote = 0;
     this.physics.vault = null;
     this.physics.jumpGroundY = null;
+    this.physics.lastImpulseSeq = 0;
     this.physics._crouching = false;
     return true;
   }
@@ -817,7 +818,7 @@ export class LocalPlayer {
       });
     }
     this._hp = hp;
-
+    if (authoritativeAlive && me.impulse) this.physics.adoptImpulse(me.impulse);
 
     if ([me.x, me.y, me.z].every(Number.isFinite)) {
       const pos = this.physics.pos;

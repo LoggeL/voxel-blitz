@@ -123,7 +123,7 @@ const PASSTHROUGH_FIELDS = [
   'state', 'firing', 'ads', 'crouch', 'mag', 'reserve', 'reloading',
   'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt',
   'credits', 'owned', 'bomb', 'interaction',
-  'grenades', 'charge',
+  'grenades', 'charge', 'impulse',
 ];
 
 export class NetClient {

@@ -61,6 +61,7 @@ export const PROJECTILE_RULES = Object.freeze({
     selfDamage: ROCKET_RULES.selfDamage,
     knockback: ROCKET_RULES.knockback,
     selfKnockback: ROCKET_RULES.selfKnockback,
+    knockbackFalloff: ROCKET_RULES.knockbackFalloff,
     terrainRadius: ROCKET_RULES.terrainRadius,
     terrainPower: ROCKET_RULES.terrainPower,
     maxDestroyedBlocks: ROCKET_RULES.maxDestroyedBlocks,
@@ -447,7 +448,8 @@ export class ProjectileSystem {
   }
 
   _damagePlayers(owner, origin, rules, projectile, ctx) {
-    if (ctx.grenadeDamage === false && projectile.type !== 'rocket') return;
+    const damageEnabled = ctx.grenadeDamage !== false || projectile.type === 'rocket';
+    if (!damageEnabled && projectile.type !== 'pulse') return;
     const weaponKey = projectile.type;
     for (const victim of ctx.entities.values()) {
       if (victim.state !== 'alive') continue;
@@ -469,14 +471,27 @@ export class ProjectileSystem {
       let damage = rules.damage * falloff;
       if (direct && Number.isFinite(rules.directDamage)) damage += rules.directDamage;
       damage = Math.round(damage * (isSelf ? rules.selfDamage : 1) * 10) / 10;
-      if (damage <= 0) continue;
-      const lethal = victim.takeDamage(damage, false);
-      ctx.pushEvent(evHit(owner?.id || '', victim.id, damage, false, target));
+      let lethal = false;
+      if (damageEnabled && damage > 0) {
+        lethal = victim.takeDamage(damage, false);
+        ctx.pushEvent(evHit(owner?.id || '', victim.id, damage, false, target));
+      }
       const strength = isSelf && Number.isFinite(rules.selfKnockback)
         ? rules.selfKnockback
         : rules.knockback;
-      const impulse = Math.max(0, strength * falloff);
+      // Pressure falls off more gently than damage for displacement-focused blasts.
+      const pressure = direct ? 1 : Math.pow(Math.max(0, 1 - distance / rules.damageRadius),
+        rules.knockbackFalloff ?? 1.22);
+      const impulse = Math.max(0, strength * pressure);
       const invDistance = distance > 0.01 ? 1 / distance : 0;
+      if (impulse > 0) {
+        // A grounded acceleration step or an in-progress vault must not swallow the launch.
+        victim.impulseSeq = (victim.impulseSeq || 0) + 1;
+        victim.grounded = false;
+        victim.coyote = 0;
+        victim.vault = null;
+        victim.jumpGroundY = null;
+      }
       victim.vx += dx * invDistance * impulse;
       victim.vy += Math.max(0.8, dy * invDistance + 0.35) * impulse;
       victim.vz += dz * invDistance * impulse;
