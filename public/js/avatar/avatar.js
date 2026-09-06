@@ -3,6 +3,7 @@ import { disposeObjectTree } from '../engine/dispose.js';
 import { clamp01 } from '../util/math.js';
 import { hashHue, hashInt } from '../util/hash.js';
 import { AvatarWeaponModel } from './avatar-weapon.js';
+import { buildOperator, poseOperatorArm } from './operator-model.js';
 
 export const TEAM_AVATAR_COLORS = Object.freeze({
   alpha: Object.freeze({ suit: 0x38bdf8, dark: 0x0c4a6e }),
@@ -55,7 +56,6 @@ export function updateAvatarWeaponPose(av, {
   blend = 1,
   charge = 0,
 } = {}) {
-  const aimPitch = Math.max(-1.1, Math.min(1.1, Number(pitch) || 0));
   const poseBlend = Math.max(0, Math.min(1, Number(blend) || 0));
   const stanceBlend = dt > 0 ? 1 - Math.exp(-dt * 12) : poseBlend;
   av.crouchPose += ((crouching ? 1 : 0) - av.crouchPose) * stanceBlend;
@@ -71,37 +71,11 @@ export function updateAvatarWeaponPose(av, {
     dt,
     charge,
   });
-  const adsT = av.weaponModel.adsT;
-  const reloadT = av.weaponModel.reloadT;
-  // The support hand leaves the handguard to work the magazine; the firing arm dips.
   if (dt > 0) av.reloadPhase = (av.reloadPhase || 0) + dt / 0.9;
-  const reloadPulse = reloadT * (0.5 + 0.5 * Math.sin(Math.PI * 2 * (av.reloadPhase || 0)));
-  const handPose = av.weaponModel.handPose;
-  const twoHanded = !!handPose.support;
-  const supportReach = twoHanded
-    ? clamp01((-handPose.support.z - 0.24) / 0.26)
-    : 0;
-  const gripLift = Math.max(-0.03, Math.min(0.03, Number(handPose.grip.y) || 0));
-  const crouchDrop = av.crouchPose * 0.29;
-  const leftArmX = (twoHanded
-    ? 0.86 + supportReach * 0.14 + aimPitch + adsT * 0.18 - swing * stride * 0.08
-    : -swing * 0.5) - reloadT * 0.55 - reloadPulse * 0.25;
-  const leftArmZ = (twoHanded ? 0.30 + supportReach * 0.12 + adsT * 0.08 : -0.08) + reloadT * 0.22;
-  av.lArm.position.x += ((-0.41 + (twoHanded ? adsT * 0.035 : 0)) -
-    av.lArm.position.x) * poseBlend;
-  av.rArm.position.x += ((0.41 - adsT * 0.045) - av.rArm.position.x) * poseBlend;
-  av.lArm.position.y += ((1.45 - crouchDrop + adsT * 0.16) - av.lArm.position.y) * poseBlend;
-  av.rArm.position.y += ((1.45 - crouchDrop + adsT * 0.18) - av.rArm.position.y) * poseBlend;
-  av.lArm.position.z += ((twoHanded ? -adsT * 0.025 : 0) - av.lArm.position.z) * poseBlend;
-  av.rArm.position.z += (-adsT * 0.035 - av.rArm.position.z) * poseBlend;
-  av.lArm.rotation.x += (leftArmX - av.lArm.rotation.x) * poseBlend;
-  av.rArm.rotation.x += (1.00 + gripLift * 0.9 + aimPitch * (1 - reloadT * 0.6) + adsT * 0.19 +
-    swing * stride * 0.06 - reloadT * 0.3 - av.rArm.rotation.x) * poseBlend;
-  av.lArm.rotation.z += (leftArmZ - av.lArm.rotation.z) * poseBlend;
-  av.rArm.rotation.z += (-0.34 - av.rArm.rotation.z) * poseBlend;
-  av.lElbow.rotation.x += ((twoHanded ? 0.40 + supportReach * 0.14 : -0.34) + reloadT * 0.5 -
-    av.lElbow.rotation.x) * poseBlend;
-  av.rElbow.rotation.x += (0.38 - av.rElbow.rotation.x) * poseBlend;
+  const reload = av.weaponModel.reloadT * (0.65 + 0.25 * Math.sin(Math.PI * 2 * (av.reloadPhase || 0)));
+  av.group.updateMatrixWorld(true);
+  poseOperatorArm(av, 1, av.weaponModel.handPose.grip);
+  poseOperatorArm(av, -1, av.weaponModel.handPose.support, reload);
 }
 
 /** Apply the body-height part of the remote stance without owning world-space movement. */
@@ -157,6 +131,10 @@ export function resetAvatarPose(av) {
   av.lArm.rotation.set(0, 0, -0.08);
   av.rArm.position.set(0.41, 1.45, 0);
   av.rArm.rotation.set(0, 0, 0.08);
+  av.lArm.scale.set(1, 1, 1);
+  av.rArm.scale.set(1, 1, 1);
+  av.lElbow.scale.set(1, 1, 1);
+  av.rElbow.scale.set(1, 1, 1);
   av.lElbow.rotation.set(-0.34, 0, 0);
   av.rElbow.rotation.set(-0.46, 0, 0);
   av.weaponModel?.resetPose();
@@ -238,51 +216,12 @@ export function makeAvatar(id, name, team = null) {
     color: new THREE.Color().setHSL(hue / 360, 0.25, 0.2),
     transparent: true,
   });
-  const visorMat = new THREE.MeshBasicMaterial({ color: 0x11141a, transparent: true });
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.34), suit);
-  torso.position.y = 1.18;
-  const hips = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.22, 0.32), dark);
-  hips.position.y = 0.84;
-
-  const head = new THREE.Group();
-  head.position.y = 1.66;
-  const headBox = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.32, 0.34), suit);
-  const helm = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.14, 0.38), dark);
-  helm.position.y = 0.16;
-  const visor = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.07, 0.02), visorMat);
-  visor.position.set(0, 0.02, -0.175);
-  head.add(headBox, helm, visor);
-
-  const lLeg = new THREE.Group();
-  lLeg.position.set(-0.16, 0.73, 0);
-  const lLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.72, 0.24), dark);
-  lLegMesh.position.y = -0.36;
-  lLeg.add(lLegMesh);
-  const rLeg = new THREE.Group();
-  rLeg.position.set(0.16, 0.73, 0);
-  const rLegMesh = lLegMesh.clone();
-  rLegMesh.position.y = -0.36;
-  rLeg.add(rLegMesh);
-
-  const lArm = new THREE.Group();
-  lArm.position.set(-0.41, 1.45, 0);
-  const lUpper = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.48, 0.2), suit);
-  lUpper.position.y = -0.23;
-  const lElbow = new THREE.Group();
-  lElbow.position.y = -0.45;
-  const lFore = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.42, 0.18), dark);
-  lFore.position.set(0, -0.19, -0.04);
-  lElbow.add(lFore);
-  lArm.add(lUpper, lElbow);
-
-  const rArm = new THREE.Group();
-  rArm.position.set(0.41, 1.45, 0);
-  const rUpper = lUpper.clone();
-  const rElbow = new THREE.Group();
-  rElbow.position.y = -0.45;
-  const rFore = lFore.clone();
-  rElbow.add(rFore);
-  rArm.add(rUpper, rElbow);
+  const armor = new THREE.MeshStandardMaterial({ color: 0x26323b, roughness: 0.7, metalness: 0.25, transparent: true });
+  const visorMat = new THREE.MeshStandardMaterial({ color: 0x6aa5af, roughness: 0.22, metalness: 0.75, transparent: true });
+  const variant = hashInt(id) % 3;
+  const skin = new THREE.MeshStandardMaterial({ color: [0xc68b67, 0x8c5b42, 0xe0ae87][variant], roughness: 0.92, transparent: true });
+  const { torso, hips, head, lLeg, rLeg, lArm, rArm, lElbow, rElbow, lHand, rHand } =
+    buildOperator({ suit, dark, armor, visor: visorMat, skin, variant });
 
   const weaponModel = new AvatarWeaponModel();
   weaponModel.setWeapon('rifle');
@@ -350,6 +289,9 @@ export function makeAvatar(id, name, team = null) {
     lElbow,
     rElbow,
     weaponModel,
+    lHand,
+    rHand,
+    variant,
     tag,
     hpSpr,
     limbStates: [],
@@ -370,8 +312,8 @@ export function makeAvatar(id, name, team = null) {
     team: undefined,
     suitMaterial: suit,
     darkMaterial: dark,
-    fadeMaterials: [suit, dark, visorMat, tagMat, hpMat],
-    flashMaterials: [suit, dark],
+    fadeMaterials: [suit, dark, armor, skin, visorMat, tagMat, hpMat],
+    flashMaterials: [suit, dark, armor, skin],
     updateHealth,
   };
   resetAvatarPose(avatar);

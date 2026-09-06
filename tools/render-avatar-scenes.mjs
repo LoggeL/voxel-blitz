@@ -14,7 +14,7 @@ const DEFAULT_OUT_DIR = path.join(PROJECT_ROOT, '.artifacts', 'avatar-renders');
 function parseArgs(argv) {
   return parseCaptureArgs(argv, {
     defaultOutDir: DEFAULT_OUT_DIR,
-    selectors: { '--weapon': 'weapon', '--view': 'view' },
+    selectors: { '--weapon': 'weapon', '--view': 'view', '--avatar': 'avatar', '--team': 'team' },
     validate: (options) => {
       if (options.view && !AVATAR_CAPTURE_VIEWS.includes(options.view)) {
         throw new Error(`unknown avatar capture view: ${options.view}`);
@@ -30,7 +30,7 @@ function selectedShots(options) {
   if (!matches.length) {
     throw new Error(`unknown avatar capture selection: ${options.weapon || '*'}/${options.view || '*'}`);
   }
-  return matches;
+  return matches.map(shot => ({ ...shot, avatar: options.avatar, team: options.team }));
 }
 
 async function renderShot({ browser, profileDir, baseUrl, outDir, dimensions, shot }) {
@@ -38,6 +38,8 @@ async function renderShot({ browser, profileDir, baseUrl, outDir, dimensions, sh
   const url = new URL('/avatar-capture.html', baseUrl);
   url.searchParams.set('weapon', shot.weapon);
   url.searchParams.set('view', shot.view);
+  if (shot.avatar) url.searchParams.set('avatar', shot.avatar);
+  if (shot.team) url.searchParams.set('team', shot.team);
   const bytes = await captureBrowserPage({
     browser,
     profileDir,

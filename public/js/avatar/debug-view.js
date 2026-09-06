@@ -1,8 +1,8 @@
 import * as THREE from '../vendor/three.module.js';
-import { PLAYER_HALF, HEADSHOT_Y_FRAC } from '../../../shared/combatmath.js';
+import { playerHitboxes } from '../../../shared/player-hitboxes.js';
 import { displaySettings } from '../ui/display-settings.js';
 
-/** Axis-aligned combat bounds, independent of cosmetic avatar bob and pose. */
+/** The same oriented body zones the server uses for damage. */
 export class AvatarDebugView {
   constructor(scene) {
     this.scene = scene;
@@ -37,25 +37,27 @@ export class AvatarDebugView {
       }
     }
     if (!showHitboxes) return;
-    const height = PLAYER_HALF.h * 2;
-    const bodyHeight = height * HEADSHOT_Y_FRAC;
     for (const remote of remotes.values()) {
       if (remote.id === myId || remote.state !== 'alive') continue;
       let group = this.boxes.get(remote.id);
       if (!group) {
         group = new THREE.Group();
         group.name = 'debug-hitbox';
-        const body = new THREE.LineSegments(this.geometry, this.bodyMaterial);
-        body.scale.set(PLAYER_HALF.x * 2, bodyHeight, PLAYER_HALF.x * 2);
-        body.position.y = bodyHeight / 2;
-        const head = new THREE.LineSegments(this.geometry, this.headMaterial);
-        head.scale.set(PLAYER_HALF.x * 2, height - bodyHeight, PLAYER_HALF.x * 2);
-        head.position.y = (height + bodyHeight) / 2;
-        group.add(body, head);
         this.scene.add(group);
         this.boxes.set(remote.id, group);
       }
-      group.position.set(remote.x, remote.y, remote.z);
+      const zones = playerHitboxes(remote);
+      zones.forEach((zone, i) => {
+        let wire = group.children[i];
+        if (!wire) {
+          wire = new THREE.LineSegments(this.geometry, zone.zone === 'head' ? this.headMaterial : this.bodyMaterial);
+          group.add(wire);
+        }
+        wire.position.set(...zone.center);
+        wire.scale.set(...zone.half.map(v => v * 2));
+        const matrix = new THREE.Matrix4().makeBasis(...zone.basis.map(v => new THREE.Vector3(...v)));
+        wire.quaternion.setFromRotationMatrix(matrix);
+      });
     }
   }
 

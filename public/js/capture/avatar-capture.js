@@ -62,7 +62,7 @@ backdrop.position.set(0, 2, 2.6);
 if (view === 'spectator') backdrop.position.z = -2.6;
 scene.add(backdrop);
 
-const avatar = makeAvatar('capture-avatar', 'CAPTURE', 'alpha');
+const avatar = makeAvatar(params.get('avatar') || 'capture-avatar', 'CAPTURE', params.get('team') || 'alpha');
 avatar.tag.visible = false;
 avatar.hpSpr.visible = false;
 avatar.group.traverse((object) => {
@@ -105,12 +105,15 @@ for (const x of [weaponBounds.min.x, weaponBounds.max.x]) {
 const headCenter = avatar.head.getWorldPosition(new THREE.Vector3());
 const sightLine = avatar.weaponModel.getSightWorldPosition(new THREE.Vector3());
 const captureMetrics = Object.freeze({
+  gripError: avatar.rHand.getWorldPosition(new THREE.Vector3()).distanceTo(
+    avatar.weaponModel.modelRoot.localToWorld(new THREE.Vector3(
+      avatar.weaponModel.handPose.grip.x, avatar.weaponModel.handPose.grip.y, avatar.weaponModel.handPose.grip.z))),
   sightEyeDelta: Math.abs((headCenter.y - 0.04) - sightLine.y),
   weaponInFrame: weaponCorners.length === 8 && weaponCorners.every((corner) =>
     Math.abs(corner.x) < 0.98 && Math.abs(corner.y) < 0.98 &&
     corner.z > -1 && corner.z < 1),
 });
-if (!captureMetrics.weaponInFrame || (ads && captureMetrics.sightEyeDelta > 0.08)) {
+if (captureMetrics.gripError > 0.001 || !captureMetrics.weaponInFrame || (ads && captureMetrics.sightEyeDelta > 0.08)) {
   throw new Error(`invalid avatar capture composition: ${JSON.stringify(captureMetrics)}`);
 }
 
