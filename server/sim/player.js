@@ -105,8 +105,10 @@ export class PlayerEntity {
     const load = freshLoadout();
     this.mag = load.mag;
     this.reserve = load.reserve;
+    this.infiniteMagazines = false;
     this.reloading = false;
     this.reloadT = 0;
+    this.reloadPrev = false;
     this.reloadStage = null;
     this.reloadLoose = 0;
     this.deployT = WEAPONS[WEAPON_IDS[0]].deployTime;

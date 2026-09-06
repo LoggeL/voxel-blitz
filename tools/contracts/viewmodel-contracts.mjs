@@ -772,6 +772,29 @@ export async function runViewmodelContracts(ok, installGlobals) {
     ok(!weaponState.isReloading,
       'after the acknowledgement grace an authoritative not-reloading snapshot clears the reload');
     weaponState.resetToLoadout();
+    weaponState.forceWeapon(WEAPON_IDS.indexOf('rifle'), { mode: 'gungame', now: 0 });
+    weaponState._ammo.rifle.mag = 0;
+    const infiniteReserve = weaponState.ammoOf('rifle').reserve;
+    weaponState.startReload(1000);
+    weaponState.tickReload(10000);
+    const reloadCallsBefore = rigCalls.filter((call) => call[0] === 'reload').length;
+    weaponState.reconcileServer({ reloading: true, alive: true }, 10001);
+    ok(!weaponState.isReloading && !weaponState.startReload(10002)
+      && rigCalls.filter((call) => call[0] === 'reload').length === reloadCallsBefore,
+      'late server reload snapshot does not replay a completed reload');
+    weaponState.reconcileServer({ reloading: false, alive: true }, 10003);
+    ok(weaponState.ammoOf('rifle').reserve === infiniteReserve
+      && weaponState.ammoOf('rifle').mag === WEAPONS.rifle.magSize
+      && weaponState.readModel().infiniteMagazines,
+      'Gun Game client reload fills the magazine without consuming reserves');
+    weaponState.forceWeapon(WEAPON_IDS.indexOf('shotgun'), { mode: 'fun', now: 0 });
+    weaponState._ammo.shotgun.mag = 1;
+    weaponState.startReload(11000);
+    weaponState.applyIntents({ fireHeld: true }, 11100, { allowFire: true, alive: true });
+    ok(!weaponState.tryFire(11100, { allowFire: true, alive: true, generation: 0 })
+      && weaponState.isReloading && weaponState.ammoOf('shotgun').mag === 1,
+      'holding fire through a tube reload does not interrupt or fire a stray round');
+    weaponState.resetToLoadout();
     weaponState.forceWeapon(WEAPON_IDS.indexOf('knife'), { now: 4000 });
     weaponState.applyIntents({ fireTap: true }, 4600, { allowFire: true, alive: true });
     const swung = weaponState.tryFire(4600, { allowFire: true, alive: true, generation: 0 });

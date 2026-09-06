@@ -1345,6 +1345,7 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
 // Browser-adjacent client contracts live in their own harness so the atlas
 // checks stay focused and the shared fakes have one lifecycle owner.
 await runClientContracts(ok);
+await (await import('./contracts/reload-contracts.mjs')).runReloadContracts(ok);
 
 
 if (failures === 0) console.log('atlastest: ALL OK');

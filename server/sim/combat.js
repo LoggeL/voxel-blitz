@@ -83,7 +83,9 @@ export function canFire(p, fireEdge, ctx) {
  */
 export function resolveWeaponIntent(p, _dt, ctx) {
   const inp = p.input;
-  if (!inp) { p.triggerPrev = false; return; }
+  if (!inp) { p.triggerPrev = false; p.reloadPrev = false; return; }
+  const reloadEdge = !!inp.reload && !p.reloadPrev;
+  p.reloadPrev = !!inp.reload;
 
   // A new selection interrupts the current draw and starts the selected
   // weapon's full deploy timer, matching the client-side equip contract.
@@ -94,7 +96,7 @@ export function resolveWeaponIntent(p, _dt, ctx) {
   }
 
   const def = p.def;
-  if (inp.reload && ctx.canUseWeapon(p, p.weapon) &&
+  if (reloadEdge && ctx.canUseWeapon(p, p.weapon) &&
       !p.reloading && p.deployT <= 0 &&
       p.mag[p.weapon] < def.magSize && p.reserve[p.weapon] > 0) {
     const plan = reloadPlan(def, p.mag[p.weapon]);
@@ -128,7 +130,8 @@ export function resolveWeaponIntent(p, _dt, ctx) {
   }
   const wantsShot = inp.wantFire || fireEdge;
   // A staged tube reload yields to the trigger: whatever is seated fires now.
-  if (wantsShot && p.reloading && p.reloadStage && p.mag[p.weapon] > 0) clearReload(p);
+  if (!reloadEdge && (fireEdge || (inp.wantFire && !p.triggerPrev)) &&
+      p.reloading && p.reloadStage && p.mag[p.weapon] > 0) clearReload(p);
   if (wantsShot && canFire(p, fireEdge, ctx)) fireOneShot(p, ctx);
   p.triggerPrev = inp.wantFire;
 }

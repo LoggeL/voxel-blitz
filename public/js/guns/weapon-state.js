@@ -146,6 +146,7 @@ export class WeaponState {
     return {
       mag: ammo.mag,
       reserve: ammo.reserve,
+      infiniteMagazines: this._mode === 'gungame',
       wname: def.name,
       wid: def.id,
       crosshairConeDeg: this.coneDeg,
@@ -222,6 +223,7 @@ export class WeaponState {
     this.cancelCharge();
     this._resetRecoilPattern();
     this._reloadState = null;
+    this._completedReloadWeapon = null;
     this._deployUntil = now + this.def.deployTime * 1000;
     this._nextFireAt = Math.max(this._nextFireAt, this._deployUntil);
     this._rig.setWeapon(WEAPON_IDS[slot]);
@@ -289,7 +291,7 @@ export class WeaponState {
     if (fireTap && this._allowFire) this._fireTapLatched = true;
     if (!this._allowFire) this._fireTapLatched = false;
     this._pendingShotIntent = {
-      tap: this._allowFire && !!fireTap,
+      tap: this._allowFire && !reload && !!fireTap,
       held: this._allowFire && !!fireHeld,
     };
   }
@@ -304,7 +306,7 @@ export class WeaponState {
   }
 
   startReload(now) {
-    if (this._reloadState || !this._alive) return false;
+    if (this._reloadState || this._completedReloadWeapon === this.def.id || !this._alive) return false;
     const def = this.def;
     if (def.mode === 'melee') return false; // a knife has no magazine to refill
     const ammo = this._ammo[def.id];
@@ -346,6 +348,7 @@ export class WeaponState {
     const reload = this._reloadState;
     if (!reload) return false;
     this._reloadState = null;
+    this._completedReloadWeapon = null;
     this._rig.cancelReload?.();
     return true;
   }
@@ -365,7 +368,7 @@ export class WeaponState {
             reload.stage = null;
             break;
           }
-          ammo.reserve -= 1;
+          if (this._mode !== 'gungame') ammo.reserve -= 1;
           reload.loose = def.magSize;
           reload.stage = 'round';
           reload.stageAt += reload.perRoundMs;
@@ -386,6 +389,7 @@ export class WeaponState {
       }
       if (reload.stage === null || now >= reload.until) {
         this._reloadState = null;
+        this._completedReloadWeapon = reload.weapon;
         return true;
       }
       return advanced;
@@ -393,10 +397,13 @@ export class WeaponState {
 
     if (now < reload.until) return false;
     if (def && ammo && ammo.reserve > 0) {
-      ammo.reserve -= 1;
+      if (this._mode !== 'gungame') ammo.reserve -= 1;
       ammo.mag = def.magSize;
     }
     this._reloadState = null;
+    // Wait for the authoritative completion before accepting another shot/reload.
+    // A late in-progress snapshot must not replay the full animation.
+    this._completedReloadWeapon = reload.weapon;
     return true;
   }
 
@@ -448,6 +455,7 @@ export class WeaponState {
     }
     const def = this.def;
     const weaponId = def.id;
+    if (this._completedReloadWeapon === weaponId) return false;
     if (def.mode === 'charge') return this._tryChargeFire(now, def, weaponId);
     if (def.mode === 'melee') return this._tryMeleeFire(now, def, weaponId);
     if (now < this._nextFireAt || now < this._deployUntil) return false;
@@ -456,7 +464,7 @@ export class WeaponState {
     const reload = this._reloadState;
     if (reload) {
       const wantsShot = !!(this._pendingShotIntent &&
-        (this._pendingShotIntent.tap || this._pendingShotIntent.held));
+        this._pendingShotIntent.tap);
       // Tube reload yields to the trigger: whatever is seated fires now.
       if (!(reload.staged && wantsShot && ammo.mag > 0)) return false;
       this.cancelReload();
@@ -629,6 +637,7 @@ export class WeaponState {
     }
 
     if (!reloading) {
+      this._completedReloadWeapon = null;
       const reload = this._reloadState;
       // A locally started reload is not contradicted by snapshots that predate its
       // input; only clear it once the authority has had a round trip to see it.
@@ -636,7 +645,7 @@ export class WeaponState {
         if (reload.staged && now < reload.until - 200) this.cancelReload();
         else this._reloadState = null;
       }
-    } else if (!this._reloadState && this._alive) {
+    } else if (!this._reloadState && this._completedReloadWeapon !== this.def.id && this._alive) {
       const def = this.def;
       const ammo = this._ammo[def.id];
       const plan = reloadPlan(def, ammo ? ammo.mag : 0);
@@ -660,6 +669,7 @@ export class WeaponState {
     this._alive = false;
     this.cancelCharge();
     this._reloadState = null;
+    this._completedReloadWeapon = null;
     this._adsT = 0;
     this._scopeActive = false;
     this._resetRecoilPattern();
@@ -671,6 +681,7 @@ export class WeaponState {
     this._alive = true;
     this._mode = mode;
     this._reloadState = null;
+    this._completedReloadWeapon = null;
     this._adsT = 0;
     this._scopeActive = false;
     this._bloomDeg = 0;
@@ -702,6 +713,7 @@ export class WeaponState {
     this._nextFireAt = 0;
     this._deployUntil = 0;
     this._reloadState = null;
+    this._completedReloadWeapon = null;
     this._bloomDeg = 0;
     this._resetRecoilPattern();
     this._adsT = 0;
@@ -737,6 +749,7 @@ export class WeaponState {
     this._disposed = true;
     this._alive = false;
     this._reloadState = null;
+    this._completedReloadWeapon = null;
     this.clearIntents();
   }
 

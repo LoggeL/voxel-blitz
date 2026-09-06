@@ -246,6 +246,7 @@ export class GunGamePolicy {
       entity.mag[i] = i === slot ? WEAPONS[id].magSize : 0;
       entity.reserve[i] = i === slot ? WEAPONS[id].spareMags : 0;
     }
+    entity.infiniteMagazines = true;
     entity.weapon = slot;
     entity.reloading = false;
     entity.reloadT = 0;

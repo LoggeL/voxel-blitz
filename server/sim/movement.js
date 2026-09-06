@@ -35,7 +35,7 @@ export function updateTimers(p, dt) {
       else {
         p.reloading = false;
         if (p.reserve[p.weapon] > 0) {
-          p.reserve[p.weapon] -= 1;
+          if (!p.infiniteMagazines) p.reserve[p.weapon] -= 1;
           p.mag[p.weapon] = def.magSize;
         }
       }
@@ -56,7 +56,7 @@ function advanceStagedReload(p, def) {
       clearReload(p);
       return;
     }
-    p.reserve[slot] -= 1;
+    if (!p.infiniteMagazines) p.reserve[slot] -= 1;
     p.reloadLoose = def.magSize;
     p.reloadStage = 'round';
     p.reloadT += stages.perRound;
