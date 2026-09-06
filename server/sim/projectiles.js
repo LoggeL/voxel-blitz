@@ -447,6 +447,7 @@ export class ProjectileSystem {
   }
 
   _damagePlayers(owner, origin, rules, projectile, ctx) {
+    if (ctx.grenadeDamage === false && projectile.type !== 'rocket') return;
     const weaponKey = projectile.type;
     for (const victim of ctx.entities.values()) {
       if (victim.state !== 'alive') continue;

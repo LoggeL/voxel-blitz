@@ -9,7 +9,7 @@ import { PLAYER_KEYS, MATCH_KEYS } from './lib/protocol-contract.mjs';
 import { startServer as startManagedServer, stopServer as stopManagedServer } from './lib/server-process.mjs';
 import { Client, SocketTracker } from './lib/ws-client.mjs';
 import { AIR, createMapState } from '../shared/worlddata.js';
-import { GUN_GAME_WEAPON_ORDER } from '../shared/modes.js';
+import { WEAPON_IDS } from '../shared/combatmath.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { PHYSICS } from '../server/game.js';
 
@@ -867,13 +867,13 @@ async function runGunGameFoundry(port, signal) {
     && firstTick.match.scores === null
     && firstTick.match.winner === null
     && firstTick.players.every((row) => row.team === null
-      && row.weapon === 0
+      && row.weapon === firstTick.players[0].weapon
       && row.score === 0
-      && JSON.stringify(row.owned) === JSON.stringify([GUN_GAME_WEAPON_ORDER[0]])),
+      && JSON.stringify(row.owned) === JSON.stringify([WEAPON_IDS[firstTick.players[0].weapon]])),
   'Gun Game starts every player on the shared first weapon and zero progression');
 
   const switchMark = host.mark();
-  host.input(1, { weapon: REVOLVER_SLOT });
+  host.input(1, { weapon: (firstTick.players[0].weapon + 1) % WEAPON_IDS.length });
   const guardedTick = await nextTick(
     host,
     switchMark,
@@ -882,8 +882,8 @@ async function runGunGameFoundry(port, signal) {
     signal,
   );
   const hostRow = playerRow(guardedTick, host);
-  pass(hostRow.weapon === 0
-    && JSON.stringify(hostRow.owned) === JSON.stringify([GUN_GAME_WEAPON_ORDER[0]]),
+  pass(hostRow.weapon === firstTick.players[0].weapon
+    && JSON.stringify(hostRow.owned) === JSON.stringify([WEAPON_IDS[firstTick.players[0].weapon]]),
   'Gun Game rejects switching away from the authoritative progression weapon');
   await closeRoomClients(members, 'Gun Game room');
 }

@@ -1,5 +1,14 @@
 import { WEAPONS, WEAPON_IDS } from '../../shared/combatmath.js';
 
+export function shuffledGunGameOrder(order, random = Math.random) {
+  const weapons = order.filter((id) => id !== 'knife');
+  for (let i = weapons.length - 1; i > 0; i--) {
+    const j = Math.floor(random() * (i + 1));
+    [weapons[i], weapons[j]] = [weapons[j], weapons[i]];
+  }
+  return Object.freeze([...weapons, 'knife']);
+}
+
 /** Owns Gun Game weapon progression, legal loadouts, and match completion. */
 export class GunGamePolicy {
   constructor({ rules, mapMeta = null, entities, now, emit, respawn, chooseSpawn }) {
@@ -18,6 +27,7 @@ export class GunGamePolicy {
 
     this.mode = 'gungame';
     this.rules = rules;
+    this.weaponOrder = shuffledGunGameOrder(rules.weaponOrder);
     this.mapMeta = mapMeta && typeof mapMeta === 'object' ? mapMeta : null;
     this.phase = 'live';
     this.phaseEndsAt = null;
@@ -121,7 +131,7 @@ export class GunGamePolicy {
 
     state.level++;
     scorer.score = state.level;
-    if (state.level >= this.rules.weaponOrder.length) {
+    if (state.level >= this.weaponOrder.length) {
       this._finishMatch(String(scorer.id));
       return true;
     }
@@ -196,6 +206,7 @@ export class GunGamePolicy {
   }
 
   reset() {
+    this.weaponOrder = shuffledGunGameOrder(this.rules.weaponOrder);
     this.phase = 'live';
     this.phaseEndsAt = null;
     this.matchWinner = null;
@@ -226,8 +237,8 @@ export class GunGamePolicy {
   }
 
   _weaponId(level) {
-    return this.rules.weaponOrder[Math.max(0, Math.min(
-      this.rules.weaponOrder.length - 1,
+    return this.weaponOrder[Math.max(0, Math.min(
+      this.weaponOrder.length - 1,
       Number.isFinite(level) ? Math.trunc(level) : 0,
     ))] || null;
   }

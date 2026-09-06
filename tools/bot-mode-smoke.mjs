@@ -432,8 +432,8 @@ function proveGunGameProgression() {
   {
     const killer = engine.entities.get('human-0');
     const victim = engine.entities.get('human-1');
-    for (let level = 0; level < MODE_RULES.gungame.weaponOrder.length; level++) {
-      const required = MODE_RULES.gungame.weaponOrder[level];
+    for (let level = 0; level < engine.mode.policy.weaponOrder.length; level++) {
+      const required = engine.mode.policy.weaponOrder[level];
       const slot = WEAPON_IDS.indexOf(required);
       assert.equal(killer.weapon, slot, `Gun Game level ${level} equips ${required}`);
       assert.deepEqual(engine.mode.playerSnapshot(killer).owned, [required],
@@ -445,9 +445,9 @@ function proveGunGameProgression() {
       });
       assert.equal(killer.score, level + 1,
         `Gun Game valid ${required} kill advances exactly one level`);
-      if (level + 1 < MODE_RULES.gungame.weaponOrder.length) {
+      if (level + 1 < engine.mode.policy.weaponOrder.length) {
         assert.equal(killer.weapon,
-          WEAPON_IDS.indexOf(MODE_RULES.gungame.weaponOrder[level + 1]),
+          WEAPON_IDS.indexOf(engine.mode.policy.weaponOrder[level + 1]),
         'Gun Game immediately equips the next weapon');
         assert.equal(engine.forceRespawn(victim), true,
           'Gun Game victim uses the authoritative timed-respawn path');
@@ -469,7 +469,7 @@ function proveGunGameProgression() {
     engine.step(0);
     assert.equal(engine.mode.phase, 'live', 'Gun Game post phase resets to live');
     assert.equal(killer.score, 0, 'Gun Game reset clears progression score');
-    assert.equal(killer.weapon, WEAPON_IDS.indexOf(MODE_RULES.gungame.weaponOrder[0]),
+    assert.equal(killer.weapon, WEAPON_IDS.indexOf(engine.mode.policy.weaponOrder[0]),
       'Gun Game reset restores the first weapon');
   }
 }
