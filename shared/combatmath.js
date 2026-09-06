@@ -38,6 +38,7 @@ export const CONDITION_RULES = Object.freeze({
  * @property {number} spareMags    full spare magazines carried on spawn
  * @property {[number,number,number]} damage  [close, far, falloffEnd] units; linear close->far between falloffStart and falloffEnd
  * @property {number} [falloffStart=20] distance before damage begins falling
+ * @property {number} [range=120] maximum hitscan distance in world units
  * @property {number} headMult      headshot damage multiplier
  * @property {number} pellets       projectiles per shot (1 except shotgun)
  * @property {boolean} [centerPellet=false] keep pellet zero exactly on the aim ray
@@ -127,6 +128,7 @@ export const WEAPONS = {
   },
   sniper: {
     id: 'sniper', name: 'LONGSHOT MK-II', mode: 'bolt',
+    range: 300,
     weightKg: 5.2,
     rpm: 42, magSize: 5, spareMags: 6,
     damage: [95, 68, 120], headMult: 2.1, pellets: 1,

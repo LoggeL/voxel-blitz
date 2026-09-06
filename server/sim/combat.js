@@ -412,6 +412,7 @@ export function damageBlock(x, y, z, type, dmg, ctx) {
  */
 export function fireOneShot(p, ctx, charge = 1) {
   const def = p.def;
+  const shotReach = def.range ?? SHOT_REACH;
   p.spawnProtectedUntil = 0;
   p.spawnProtected = false;
   p.mag[p.weapon]--;
@@ -472,9 +473,9 @@ export function fireOneShot(p, ctx, charge = 1) {
         ctx.solidAt,
         oEye[0], oEye[1], oEye[2],
         d.x, d.y, d.z,
-        SHOT_REACH,
+        shotReach,
       );
-      const wallT = hit ? hit.t : SHOT_REACH;
+      const wallT = hit ? hit.t : shotReach;
 
       const tgt = nearestVictim(p, oEye, d, wallT, ctx);
       if (tgt) {
@@ -510,7 +511,7 @@ export function fireOneShot(p, ctx, charge = 1) {
     let wallsLeft = pierceWalls;
     const hitVictims = new Set();
     for (;;) {
-      const reach = SHOT_REACH - traveled;
+      const reach = shotReach - traveled;
       if (!(reach > 0)) break;
       const o = [ox, oy, oz];
       const hit = raycastVoxels(
