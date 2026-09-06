@@ -2339,7 +2339,7 @@ h1.vb-title::after {
   color: var(--nade);
   background: rgba(5, 7, 10, 0.82);
   border: 1px solid color-mix(in srgb, var(--nade) 45%, transparent);
-  clip-path: polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px);
+  border-radius: 3px;
 }
 
 .vb-grenade-types {
@@ -2485,8 +2485,8 @@ h1.vb-title::after {
 
 .vb-grenade-hint {
   position: absolute;
-  left: 0;
-  bottom: calc(100% + 3px);
+  right: 0;
+  top: calc(100% + 17px);
   opacity: 0;
   font: 700 7px/1 var(--font-mono);
   letter-spacing: 0.1em;
@@ -4232,6 +4232,16 @@ h1.vb-title::after {
   box-sizing: border-box;
   box-shadow: 0 0 7px rgba(165, 112, 255, 0.4), inset 0 0 5px rgba(165, 112, 255, 0.18);
   pointer-events: none;
+}
+
+.vb-grenade-switch {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 5px);
+  color: var(--text-dim, #a5adb7);
+  font: 700 8px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
 }
 
 .vb-wheel-cursor { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px; border: 1px solid white; border-radius: 50%; background: var(--amber); pointer-events: none; z-index: 5; }

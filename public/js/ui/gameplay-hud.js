@@ -141,6 +141,9 @@ export class GameplayHud {
     d.grenades = el('div', 'vb-grenade-count', hud, 'grenade-count');
     d.grenadeKey = el('span', 'vb-grenade-key', d.grenades);
     d.grenadeKey.textContent = 'G';
+    d.grenadeSwitch = el('span', 'vb-grenade-switch', d.grenades);
+    d.grenadeSwitch.textContent = 'H · SWITCH';
+    d.grenadeSwitch.title = 'Switch grenade type (H)';
     d.grenadeTypes = el('span', 'vb-grenade-types', d.grenades);
     d.grenadeTypeChips = [];
     for (const typeId of GRENADE_TYPE_IDS) {

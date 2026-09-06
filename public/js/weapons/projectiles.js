@@ -17,9 +17,9 @@ const ROCKET_TRAIL_INTERVAL_S = 0.028;
 
 /** Blast presentation per projectile type: colour, growth, and life of the flash sphere. */
 const BLAST_STYLE = Object.freeze({
-  frag: Object.freeze({ color: 0xff9f1c, grow: 0.38, life: 0.42, ring: false }),
+  frag: Object.freeze({ color: 0xff9f1c, grow: 0.38, life: 0.42, ring: true, ringColor: 0xffc56b }),
   limpet: Object.freeze({ color: 0xffd9a8, grow: 0.46, life: 0.5, ring: true, ringColor: 0xff5a3c }),
-  pulse: Object.freeze({ color: 0x59e8ff, grow: 0.16, life: 0.32, ring: true, ringColor: 0x9ff4ff }),
+  pulse: Object.freeze({ color: 0x59e8ff, grow: 0.65, life: 0.42, wireframe: true, ring: true, ringColor: 0x9ff4ff }),
   bolt: Object.freeze({ color: 0x7dfcff, grow: 0.16, life: 0.28, ring: false }),
   rocket: Object.freeze({ color: 0xffb347, grow: 0.5, life: 0.55, ring: true, ringColor: 0xff7a1c }),
 });
@@ -51,6 +51,8 @@ export class ProjectileFX {
     );
 
     this.fragGeometry = new THREE.BoxGeometry(0.26, 0.26, 0.26);
+    this.grenadeRibGeometry = new THREE.BoxGeometry(0.29, 0.035, 0.29);
+    this.grenadeBandGeometry = new THREE.TorusGeometry(0.19, 0.018, 4, 16);
     this.capGeometry = new THREE.BoxGeometry(0.1, 0.08, 0.13);
     this.limpetGeometry = new THREE.CylinderGeometry(0.17, 0.17, 0.09, 10);
     this.pulseGeometry = new THREE.IcosahedronGeometry(0.17, 1);
@@ -148,6 +150,16 @@ export class ProjectileFX {
       led.scale.set(0.7, 0.7, 0.7);
       led.position.set(0, 0.07, 0);
       group.add(disc, led);
+      for (let i = 0; i < 4; i++) {
+        const foot = new THREE.Mesh(this.capGeometry, this.fragMaterial);
+        const angle = i * Math.PI / 2;
+        foot.position.set(Math.cos(angle) * 0.17, -0.015, Math.sin(angle) * 0.17);
+        foot.rotation.y = -angle;
+        group.add(foot);
+      }
+      const rim = new THREE.Mesh(this.grenadeBandGeometry, capMaterial);
+      rim.rotation.x = Math.PI / 2;
+      group.add(rim);
     } else if (type === 'pulse') {
       const core = new THREE.Mesh(this.pulseGeometry, this.pulseMaterial);
       capMaterial = new THREE.MeshBasicMaterial({
@@ -158,6 +170,11 @@ export class ProjectileFX {
       halo.scale.setScalar(1.55);
       const light = new THREE.PointLight(0x59e8ff, 0.9, 5);
       group.add(core, halo, light);
+      for (let i = 0; i < 2; i++) {
+        const band = new THREE.Mesh(this.grenadeBandGeometry, this.fragMaterial);
+        band.rotation.x = i * Math.PI / 2;
+        group.add(band);
+      }
       group.userData.halo = halo;
     } else if (type === 'bolt') {
       // Coilgun bolt: thin emissive core, additive glow shell, cyan light.
@@ -174,6 +191,16 @@ export class ProjectileFX {
       const cap = new THREE.Mesh(this.capGeometry, capMaterial);
       cap.position.set(0, 0.17, 0);
       group.add(body, cap);
+      for (const height of [-0.09, 0, 0.09]) {
+        const rib = new THREE.Mesh(this.grenadeRibGeometry, this.limpetMaterial);
+        rib.position.y = height;
+        group.add(rib);
+      }
+      const lever = new THREE.Mesh(this.capGeometry, this.fragMaterial);
+      lever.scale.set(0.65, 3.6, 0.65);
+      lever.position.set(0.16, 0.035, 0);
+      lever.rotation.z = 0.2;
+      group.add(lever);
     }
     return { group, capMaterial };
   }
@@ -355,6 +382,7 @@ export class ProjectileFX {
       blending: THREE.AdditiveBlending,
       toneMapped: false,
     });
+    material.wireframe = !!style.wireframe;
     const mesh = new THREE.Mesh(this.blastGeometry, material);
     mesh.position.set(x, y, z);
     mesh.scale.setScalar(0.08);
@@ -505,6 +533,7 @@ export class ProjectileFX {
     this.landingMaterial.dispose();
     for (const geometry of [
       this.fragGeometry, this.capGeometry, this.limpetGeometry, this.pulseGeometry,
+      this.grenadeRibGeometry, this.grenadeBandGeometry,
       this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry,
       this.blastGeometry, this.ringGeometry,
     ]) geometry.dispose();

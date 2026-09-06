@@ -325,6 +325,16 @@ export async function runViewmodelContracts(ok, installGlobals) {
         && launch.vx > weak.vx,
     'shared grenade rules predict a floor-bounded path that matches the integrator and scales with charge');
 
+    const wall = (x) => x >= 1 && x < 2;
+    const fast = { type: 'frag', x: 0, y: 3, z: 0, vx: 80, vy: 0, vz: 0 };
+    stepGrenade(fast, 0.05, wall);
+    ok(fast.x < 1 && fast.vx < 0 && fast.hitSolid,
+      'fast grenades bounce off a one-voxel wall even in a slow frame');
+    const resting = { type: 'frag', x: 0, y: 20.18, z: 0, vx: 1, vy: -0.1, vz: 0 };
+    for (let i = 0; i < 120; i++) stepGrenade(resting, 1 / 60, floor);
+    ok(Math.abs(resting.y - 20.16) < 0.002 && resting.vy === 0 && resting.vx === 0,
+      'frag grenades settle flush on the floor without endless micro-bounces');
+
     const limpetLaunch = grenadeLaunch({
       x: 10, y: 20, z: 10, eyeY: 21.62, dir: { x: 0, y: -0.3, z: -0.95 }, charge: 1, type: 'limpet',
     });
@@ -403,7 +413,8 @@ export async function runViewmodelContracts(ok, installGlobals) {
       fx.explode({ pid: 'r1', type: 'rocket', x: 10, y: 21, z: 0, radius: 4.8 });
       fx.explode({ pid: 'l1', type: 'pulse', x: 34, y: 21, z: 30, radius: 6.5 });
       ok(!fx.projectiles.has('r1') && !fx.projectiles.has('l1')
-          && fx.blasts.filter((blast) => blast.ring).length === 2,
+          && fx.blasts.slice(-2).every((blast) => blast.ring)
+          && fx.blasts.at(-1).material.wireframe,
         'rocket and pulse blasts add the expanding shockwave ring');
     } finally {
       fx.dispose();
@@ -778,6 +789,25 @@ export async function runViewmodelContracts(ok, installGlobals) {
       setTimer: () => 0,
       clearTimer: () => {},
     });
+    weaponState.resetToLoadout();
+    weaponState.forceWeapon(WEAPON_IDS.indexOf('sniper'), { now: 0 });
+    weaponState.forceWeapon(WEAPON_IDS.indexOf('shotgun'), { now: 0 });
+    const previousSlot = weaponState._lastSlot;
+    weaponState.deathReset();
+    weaponState.respawn({ mode: 'ffa', now: 1000 });
+    ok(weaponState.slot === WEAPON_IDS.indexOf('shotgun') && weaponState._lastSlot === previousSlot
+      && weaponState.ammoOf('shotgun').mag === WEAPONS.shotgun.magSize,
+      'respawn retains equipped and quick-swap weapons with fresh ammunition');
+    weaponState.respawn({ mode: 'gungame', weapon: WEAPON_IDS.indexOf('rifle'), now: 2000 });
+    ok(weaponState.slot === WEAPON_IDS.indexOf('rifle'), 'Gun Game respawn obeys its authoritative weapon');
+    const { PlayerEntity } = await import('../../server/sim/player.js');
+    const spawn = { x: 4, y: 20, z: 4, index: 0 };
+    const entity = new PlayerEntity('respawn-contract', 'Test', spawn, false);
+    entity.weapon = WEAPON_IDS.indexOf('shotgun');
+    entity.applySpawn(spawn);
+    ok(entity.weapon === WEAPON_IDS.indexOf('shotgun') && entity.deployT === WEAPONS.shotgun.deployTime,
+      'server respawn keeps the equipped weapon and uses its deployment time');
+    weaponState.menuReset();
     weaponState.resetToLoadout();
     weaponState.forceWeapon(WEAPON_IDS.indexOf('shotgun'), { now: 0 });
     weaponState._ammo.shotgun.mag = 2;

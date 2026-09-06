@@ -210,6 +210,18 @@ function moveGrenadeAxis(grenade, axis, delta, isSolid, physics) {
     grenade[axis] = next;
     return false;
   }
+  // Move up to the surface instead of bouncing early and hovering above it.
+  let low = 0, high = 1;
+  for (let i = 0; i < 8; i++) {
+    const fraction = (low + high) / 2;
+    const sample = grenade[axis] + delta * fraction + Math.sign(delta) * radius;
+    const sx = axis === 'x' ? sample : grenade.x;
+    const sy = axis === 'y' ? sample : grenade.y;
+    const sz = axis === 'z' ? sample : grenade.z;
+    if (isSolid(sx, sy, sz) || (axis !== 'y' && isSolid(sx, sy + radius, sz))) high = fraction;
+    else low = fraction;
+  }
+  grenade[axis] += delta * low;
   grenade['v' + axis] *= -physics.bounce;
   if (axis !== 'y') grenade['v' + axis] *= physics.wallDamping;
   return true;
@@ -221,28 +233,34 @@ function moveGrenadeAxis(grenade, axis, delta, isSolid, physics) {
  * contact and `hitSolid` any contact at all (sticky/impact types read it).
  */
 export function stepGrenade(grenade, dt, isSolid) {
-  const step = Math.max(0, Number(dt) || 0);
+  const duration = Number.isFinite(dt) ? Math.max(0, Math.min(0.1, dt)) : 0;
   const physics = physicsFor(grenade);
-  if (grenade.stuck) {
-    grenade.hitFloor = false;
-    grenade.hitSolid = false;
-    return grenade;
-  }
-  grenade.vy -= physics.gravity * step;
-  const hitX = moveGrenadeAxis(grenade, 'x', grenade.vx * step, isSolid, physics);
-  const hitZ = moveGrenadeAxis(grenade, 'z', grenade.vz * step, isSolid, physics);
-  const hitFloor = moveGrenadeAxis(grenade, 'y', grenade.vy * step, isSolid, physics);
-  if (hitFloor && grenade.vy > 0) {
-    grenade.vx *= physics.floorFriction;
-    grenade.vz *= physics.floorFriction;
-  }
-  grenade.hitFloor = hitFloor;
-  grenade.hitSolid = hitFloor || hitX || hitZ;
-  if (physics.stick && grenade.hitSolid) {
-    grenade.stuck = true;
-    grenade.vx = 0;
-    grenade.vy = 0;
-    grenade.vz = 0;
+  grenade.hitFloor = false;
+  grenade.hitSolid = false;
+  if (grenade.stuck || duration === 0) return grenade;
+  // Small swept steps prevent fast throws from skipping thin voxel walls.
+  const speed = Math.hypot(grenade.vx, grenade.vy, grenade.vz) + physics.gravity * duration;
+  const count = Math.max(1, Math.ceil(Math.max(duration * 120, speed * duration / physics.radius)));
+  const step = duration / count;
+  for (let i = 0; i < count; i++) {
+    grenade.vy -= physics.gravity * step;
+    const falling = grenade.vy < 0;
+    const hitX = moveGrenadeAxis(grenade, 'x', grenade.vx * step, isSolid, physics);
+    const hitZ = moveGrenadeAxis(grenade, 'z', grenade.vz * step, isSolid, physics);
+    const hitY = moveGrenadeAxis(grenade, 'y', grenade.vy * step, isSolid, physics);
+    if (hitY && falling) {
+      grenade.vx *= physics.floorFriction;
+      grenade.vz *= physics.floorFriction;
+      if (grenade.vy < 0.65) grenade.vy = 0;
+      if (Math.hypot(grenade.vx, grenade.vz) < 0.15) grenade.vx = grenade.vz = 0;
+    }
+    grenade.hitFloor ||= hitY && falling;
+    grenade.hitSolid ||= hitY || hitX || hitZ;
+    if (grenade.hitSolid && (physics.stick || GRENADE_TYPES[grenade.type]?.impact)) {
+      if (physics.stick) grenade.stuck = true;
+      grenade.vx = grenade.vy = grenade.vz = 0;
+      break;
+    }
   }
   return grenade;
 }

@@ -101,7 +101,7 @@ export class PlayerEntity {
     this.respawnAt = 0;
     this.spawnProtectedUntil = 0;
     this.spawnProtected = false;
-    this.weapon = 0;
+    this.weapon = Number.isInteger(this.weapon) && WEAPON_IDS[this.weapon] ? this.weapon : 0;
     const load = freshLoadout();
     this.mag = load.mag;
     this.reserve = load.reserve;
@@ -114,7 +114,7 @@ export class PlayerEntity {
     this.jumpGroundY = null;
     this.reloadStage = null;
     this.reloadLoose = 0;
-    this.deployT = WEAPONS[WEAPON_IDS[0]].deployTime;
+    this.deployT = WEAPONS[WEAPON_IDS[this.weapon]].deployTime;
     this.cooldown = 0;
     this.bloom = 0;
     this.ads = false;

@@ -1049,12 +1049,12 @@ function runDirectContracts() {
     && respawnSnapshot.now - respawnDueAt < TICK_MS
     && respawnRow?.state === 'alive'
     && respawnRow.respawnAt === null
-    && respawnRow.weapon === WEAPON_IDS.indexOf('rifle')
+    && respawnRow.weapon === revolverSlot
     && JSON.stringify(respawnRow.mag) === JSON.stringify(freshMags)
     && JSON.stringify(respawnRow.reserve) === JSON.stringify(freshReserve)
     && respawnRow.panic === 0
     && respawnRow.exhaustion === 0,
-  'timed respawn publishes its deadline, event, and fresh rifle loadout at the due tick');
+  'timed respawn publishes its deadline and event, retains the selected weapon, and refills ammunition');
   ok(!!respawnEvent
     && !!respawnRow
     && respawnEvent.x === respawnRow.x
