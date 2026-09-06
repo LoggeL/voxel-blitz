@@ -1,3 +1,4 @@
+import { displaySettings } from './display-settings.js';
 const BAR_COUNT = 32;
 const UPDATE_MS = 250;
 
@@ -19,8 +20,7 @@ export class NetworkHud {
     this.dispose();
     const root = document.createElement('div');
     root.id = 'net-meter';
-    const search = typeof location === 'undefined' ? '' : location.search;
-    root.dataset.diagnostics = String(new URLSearchParams(search).has('debug'));
+    root.dataset.diagnostics = 'true';
     root.setAttribute('aria-label', 'Network and frame rate telemetry');
     const values = document.createElement('div');
     values.className = 'vb-net-values';
@@ -45,7 +45,18 @@ export class NetworkHud {
     root.append(values, history, this.buffer);
     parent.appendChild(root);
     this.root = root;
+    this.applyVisibility();
     return root;
+  }
+
+  applyVisibility() {
+    if (!this.root) return;
+    const { showPing, showFps, showNetwork } = displaySettings();
+    this.root.style.display = showPing || showFps || showNetwork ? 'block' : 'none';
+    this.ping.style.display = showPing ? '' : 'none';
+    this.fps.style.display = showFps ? '' : 'none';
+    this.buffer.style.display = showNetwork ? 'block' : 'none';
+    this.root.querySelector('.vb-net-history').style.display = showNetwork ? 'flex' : 'none';
   }
 
   update(frameDt, stats = null, atMs = performance.now()) {
@@ -55,6 +66,8 @@ export class NetworkHud {
     }
     if (!this.root || atMs - this.lastPaintAt < UPDATE_MS) return;
     this.lastPaintAt = atMs;
+    this.applyVisibility();
+    if (this.root.style.display === 'none') return;
 
     const pingMs = Math.max(0, Number(stats?.pingMs) || 0);
     const jitterMs = Math.max(0, Number(stats?.jitterMs) || 0);

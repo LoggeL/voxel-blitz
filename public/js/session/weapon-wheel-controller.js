@@ -39,18 +39,19 @@ export class WeaponWheelController {
 
   /**
    * Open the radial wheel: freezes aim in the input seam and shows the overlay.
-   * Pointer-drag interaction is enabled only for touch users.
+   * Unlocked pointers hover directly; locked mouse movement steers a virtual cursor.
    */
   openWheel() {
     const context = this.getContext();
     if (!context.weapon || this.open) return false;
     this.open = true;
+    this._pointer = { x: 0, y: 0 };
     this.input.setWeaponWheelOpen(true);
     this.hud.ensureWeaponWheel();
     this.hud.setWeaponWheelState({
       open: true,
       entries: this.entries(),
-      pointerInteractive: this.input.usesTouchControls(),
+      pointerInteractive: true,
     });
     this._entriesSig = '';
     return true;
@@ -118,7 +119,16 @@ export class WeaponWheelController {
     const steps = this.input.takeWheelSteps();
     if (steps) this.hud.setWeaponWheelState({ step: steps });
     const vector = this.input.takeWheelVector();
-    if (vector.x || vector.y) this.hud.setWeaponWheelState({ x: vector.x, y: vector.y });
+    if (vector.x || vector.y) {
+      this._pointer.x += vector.x;
+      this._pointer.y += vector.y;
+      const length = Math.hypot(this._pointer.x, this._pointer.y);
+      if (length > 1) {
+        this._pointer.x /= length;
+        this._pointer.y /= length;
+      }
+      this.hud.setWeaponWheelState(this._pointer);
+    }
     if (this.input.takeWheelRelease()) {
       const highlighted = this.hud.weaponWheelHighlight();
       this.close(highlighted >= 0 ? highlighted : null);

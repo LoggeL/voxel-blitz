@@ -107,14 +107,15 @@ export class WeaponWheelController {
     root.style.display = 'none';
 
     const ring = el('div', 'vb-wheel-ring', root);
+    const cursor = el('span', 'vb-wheel-cursor', ring);
     const hub = el('div', 'vb-wheel-hub', ring);
     const hubName = el('div', 'vb-wheel-hub-name', hub);
     const hubCls = el('div', 'vb-wheel-hub-cls', hub);
     const hubHint = el('div', 'vb-wheel-hub-hint', hub);
     hubName.textContent = 'MOVE TO SELECT';
-    hubCls.textContent = 'RELEASE CANCELS';
+    hubCls.textContent = 'Q / ESC CANCEL';
 
-    this.dom = { root, ring, hub, hubName, hubCls, hubHint, slots: [], ticks: [] };
+    this.dom = { root, ring, cursor, hub, hubName, hubCls, hubHint, slots: [], ticks: [] };
     this._attachPointerHandlers();
     return root;
   }
@@ -158,6 +159,7 @@ export class WeaponWheelController {
     root.setAttribute('aria-hidden', 'false');
 
     this._refreshRingRadius();
+    this.point(0, 0);
     this._applyHighlight();
     if (!!pointerInteractive !== this._pointerInteractive) {
       this.setPointerInteractive(!!pointerInteractive);
@@ -217,6 +219,9 @@ export class WeaponWheelController {
     const slot = wheelSlotFromVector(x, y, this._entries.length);
     this._vecX = x;
     this._vecY = y;
+    if (this.dom.cursor) {
+      this.dom.cursor.style.transform = `translate(${x * this._ringRadius}px, ${y * this._ringRadius}px)`;
+    }
     this.highlightSlot(slot);
     return slot;
   }
@@ -436,8 +441,8 @@ export class WeaponWheelController {
 
   /**
    * Renders the hub lines for the current highlight:
-   * none -> MOVE TO SELECT / RELEASE CANCELS; locked -> name + LOCKED · NOT
-   * OWNED; otherwise name + class + RELEASE TO EQUIP · ESC CANCELS.
+   * none -> MOVE TO SELECT / Q / ESC CANCEL; locked -> name + LOCKED · NOT
+   * OWNED; otherwise name + class + CLICK / RT TO EQUIP · Q / ESC CANCEL.
    *
    * @private
    */
@@ -447,14 +452,14 @@ export class WeaponWheelController {
     const entry = this._highlight >= 0 ? this._entries[this._highlight] : null;
     if (!entry) {
       _setText(dom.hubName, 'MOVE TO SELECT');
-      _setText(dom.hubCls, 'RELEASE CANCELS');
+      _setText(dom.hubCls, 'Q / ESC CANCEL');
       _setText(dom.hubHint, '');
       return;
     }
     const locked = !entry.owned;
     _setText(dom.hubName, entry.name || '');
     _setText(dom.hubCls, locked ? 'LOCKED · NOT OWNED' : entry.cls || '');
-    _setText(dom.hubHint, locked ? 'RELEASE CANCELS' : 'RELEASE TO EQUIP · ESC CANCELS');
+    _setText(dom.hubHint, locked ? 'Q / ESC CANCEL' : 'CLICK / RT TO EQUIP · Q / ESC CANCEL');
   }
 
   /** Re-measures the ring radius used to normalize pointer deltas. @private */
@@ -511,7 +516,7 @@ export class WeaponWheelController {
    * @private
    */
   _onPointerDown(event) {
-    if (!this._pointerInteractive || !this._open) return;
+    if (!this._pointerInteractive || !this._open || document.pointerLockElement || event.button > 0) return;
     event.preventDefault();
     this._pointerId = event.pointerId;
     this._refreshRingRadius();
@@ -529,7 +534,8 @@ export class WeaponWheelController {
    * @private
    */
   _onPointerMove(event) {
-    if (!this._pointerInteractive || !this._open || event.pointerId !== this._pointerId) return;
+    if (!this._pointerInteractive || !this._open || document.pointerLockElement) return;
+    if (event.pointerType !== 'mouse' && event.pointerId !== this._pointerId) return;
     const vec = this._pointerVector(event);
     this.point(vec.x, vec.y);
   }

@@ -83,8 +83,8 @@ export async function runInputContracts(ok, installGlobals) {
 
       input._onMouseDown({ button: 1 });
       input._onMouseUp({ button: 1 });
-      ok(input.takeWheelOpenRequest() && input.takeWheelRelease(),
-        'a middle-click released between render frames preserves both wheel edges');
+      ok(input.takeWheelOpenRequest() && !input.takeWheelRelease(),
+        'a middle-click released between render frames keeps the toggle open request without confirming');
       input.setWeaponWheelOpen(true);
       input._onMouseUp({ button: 1 });
       input.setWeaponWheelOpen(false);
@@ -344,7 +344,7 @@ export async function runInputContracts(ok, installGlobals) {
     let input = null;
     const restore = installGlobals({ location: { search: '?headless=1' } });
     try {
-      const { Input, WHEEL_HOLD_MS, PAD_WHEEL_HOLD_MS, WHEEL_VECTOR_RADIUS_PX } =
+      const { Input, PAD_WHEEL_HOLD_MS, WHEEL_VECTOR_RADIUS_PX } =
         await import('../../public/js/engine/input.js');
       const key = (code, repeat = false, timeStamp = 0) => ({
         code, repeat, timeStamp, preventDefault() {},
@@ -352,32 +352,23 @@ export async function runInputContracts(ok, installGlobals) {
       const wheel = (deltaY, timeStamp, deltaMode = 0) => ({
         deltaY, deltaMode, timeStamp, preventDefault() {},
       });
-      ok(WHEEL_HOLD_MS === 180 && PAD_WHEEL_HOLD_MS === 260
+      ok(PAD_WHEEL_HOLD_MS === 260
           && WHEEL_VECTOR_RADIUS_PX === 90,
-      'the wheel seam pins its hold thresholds and selection radius for the overlay');
+      'the wheel seam pins its pad hold threshold and selection radius for the overlay');
 
-      // Q is a tap/hold split: a quick tap still swaps to the previous weapon.
+      // Q toggles immediately and key release never commits.
       input = new Input({});
       input._onKeyDown(key('KeyQ', false, 1000));
-      input._onKeyUp(key('KeyQ', false, 1100));
-      ok(input.consumeLastWeaponRequest() && !input.takeWheelOpenRequest()
-          && !input.takeWheelOpenRequest(),
-      'a quick Q tap queues exactly one previous-weapon swap without arming the wheel');
-      input.dispose();
-
-      // Holding Q opens the wheel exactly at the threshold; releasing it closes.
-      input = new Input({});
-      input._onKeyDown(key('KeyQ', false, 1000));
-      input.poll(1179);
-      ok(!input.takeWheelOpenRequest(),
-      'a Q hold one millisecond under the threshold does not open the wheel');
-      input.poll(1180);
       ok(input.takeWheelOpenRequest() && !input.takeWheelOpenRequest(),
-      'a Q held exactly WHEEL_HOLD_MS queues exactly one wheel-open request');
+        'Q immediately queues exactly one wheel open');
       input.setWeaponWheelOpen(true);
-      input._onKeyUp(key('KeyQ', false, 1400));
-      ok(input.takeWheelRelease() && !input.takeWheelRelease(),
-      'releasing Q while the wheel is up queues the pick-and-close exactly once');
+      input._onKeyUp(key('KeyQ', false, 1100));
+      ok(!input.takeWheelRelease() && !input.consumeLastWeaponRequest(),
+        'releasing Q leaves the wheel open without changing weapons');
+      input._onKeyDown(key('KeyQ', true, 1200));
+      ok(!input.takeWheelCancelRequest(), 'key repeat does not close the wheel');
+      input._onKeyDown(key('KeyQ', false, 1300));
+      ok(input.takeWheelCancelRequest(), 'a second Q press cancels the wheel');
       input.dispose();
 
       // Middle mouse opens; its release closes. A closed right click latches
@@ -389,8 +380,8 @@ export async function runInputContracts(ok, installGlobals) {
       'a middle-mouse press queues the wheel open');
       input.setWeaponWheelOpen(true);
       input._onMouseUp({ button: 1 });
-      ok(input.takeWheelRelease(),
-      'releasing the middle mouse button closes the wheel');
+      ok(!input.takeWheelRelease(),
+      'releasing the middle mouse button keeps the wheel open');
       input.setWeaponWheelOpen(false);
       input._onMouseDown({ button: 2, isTrusted: true, preventDefault() {} });
       input._onMouseUp({ button: 2 });
@@ -415,6 +406,7 @@ export async function runInputContracts(ok, installGlobals) {
 
       // Open-wheel mouse motion feeds the selection vector; look stays frozen.
       input = new Input({});
+      input._locked = true;
       input.setWeaponWheelOpen(true);
       input._onMouseMove({ movementX: 40, movementY: 30 });
       let vector = input.takeWheelVector();
@@ -723,8 +715,8 @@ export async function runInputContracts(ok, installGlobals) {
       `pad look steers the wheel at the shared ${WHEEL_VECTOR_RADIUS_PX}px radius and freezes the camera`);
       padButtons[PAD_BUTTONS.weapon] = { pressed: false, value: 0 };
       pad.poll(2300, 1 / 60);
-      ok(pad.takeWheelRelease(),
-      'releasing Y while the wheel is up closes it');
+      ok(!pad.takeWheelRelease(),
+      'releasing Y while the wheel is up keeps it open');
       pad.setWeaponWheelOpen(false);
       pad.clearTransient();
       pad._onKeyDown({ code: 'KeyW', preventDefault() {} });

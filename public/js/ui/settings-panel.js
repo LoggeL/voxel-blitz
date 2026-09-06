@@ -1,3 +1,4 @@
+import { DISPLAY_OPTIONS, displaySettings, setDisplaySetting } from './display-settings.js';
 import { MAP_LABELS, MODE_LABELS, el, loadPref, loadPrefNum, savePref } from './hud-support.js';
 import {
   ADS_MODES,
@@ -311,6 +312,19 @@ export class SettingsController {
     const touchSize = choiceRow('settings-touch-size', 'TOUCH CONTROL SIZE', TOUCH_SIZES, TOUCH_SIZE_LABELS);
     const touchHand = choiceRow('settings-touch-hand', 'TOUCH LAYOUT', TOUCH_HANDS, TOUCH_HAND_LABELS);
 
+    const displaySelects = {};
+    for (const option of DISPLAY_OPTIONS) {
+      if (option.section) el('h3', 'vb-step-kicker', controls).textContent = option.section;
+      const control = choiceRow(`settings-${option.key}`, option.label, ['0', '1'], { 0: 'OFF', 1: 'ON' });
+      control.select.value = displaySettings()[option.key] ? '1' : '0';
+      control.select.addEventListener('change', () => {
+        setDisplaySetting(option.key, control.select.value === '1');
+      });
+      displaySelects[option.key] = control.select;
+    }
+    const debugHint = el('p', 'vb-settings-hint', controls);
+    debugHint.textContent = 'HITBOXES: cyan body, orange headshot zone. Uses server dimensions at interpolated player positions, not the server rewind. Walls still occlude these views.';
+
     const matchCard = el('aside', 'vb-pause-match-card', panel);
     el('span', 'vb-label', matchCard).textContent = 'CURRENT MATCH';
     const matchPlayers = el('strong', 'vb-pause-player-count', matchCard);
@@ -320,6 +334,7 @@ export class SettingsController {
       root,
       shell,
       panel,
+      displaySelects,
       matchSub: sub,
       matchPlayers,
       sensSlider,
@@ -460,6 +475,9 @@ export class SettingsController {
     dom.fovVal.textContent = `${config.fov}°`;
     dom.fovSlider.setAttribute('aria-valuenow', String(config.fov));
     dom.fovSlider.setAttribute('aria-valuetext', `${config.fov} degrees`);
+    for (const [key, select] of Object.entries(dom.displaySelects || {})) {
+      select.value = displaySettings()[key] ? '1' : '0';
+    }
     this._syncDeviceRows();
 
     const summary = this.host.getMatchSummary?.() || {};

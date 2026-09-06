@@ -4056,7 +4056,7 @@ h1.vb-title::after {
     rotate(calc(var(--vb-wheel-angle) + 90deg))
     translateY(calc(-1 * var(--vb-wheel-r)))
     rotate(calc(-1 * var(--vb-wheel-angle) - 90deg))
-    scale(1.12);
+    scale(1.25);
   color: var(--amber-hi);
 }
 
@@ -4233,3 +4233,5 @@ h1.vb-title::after {
   box-shadow: 0 0 7px rgba(165, 112, 255, 0.4), inset 0 0 5px rgba(165, 112, 255, 0.18);
   pointer-events: none;
 }
+
+.vb-wheel-cursor { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px; border: 1px solid white; border-radius: 50%; background: var(--amber); pointer-events: none; z-index: 5; }

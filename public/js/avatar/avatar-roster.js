@@ -1,3 +1,4 @@
+import { AvatarDebugView } from './debug-view.js';
 import { nowMs, smooth01 } from '../util/math.js';
 import { boundedMapSet } from '../util/bounded-map.js';
 import { hashInt } from '../util/hash.js';
@@ -20,6 +21,7 @@ const PENDING_HIT_TTL_MS = 650;
 export class AvatarRoster {
   constructor({ scene, gore = null, getMyId = () => null, now = nowMs }) {
     this._scene = scene;
+    this._debugView = new AvatarDebugView(scene);
     this._gore = gore;
     this._getMyId = getMyId;
     this._now = now;
@@ -231,9 +233,11 @@ export class AvatarRoster {
         avatar.updateHealth(remote.hp / 100);
       }
     }
+    this._debugView.sync(remotes, this._avatars, myId);
   }
 
   dispose() {
+    this._debugView.dispose();
     for (const avatar of this._avatars.values()) {
       this._scene?.remove(avatar.group);
       disposeAvatar(avatar);

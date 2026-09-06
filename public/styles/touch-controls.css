@@ -113,7 +113,7 @@
 }
 
 /* Remove desktop ornaments and keyboard-only hints from mobile play. */
-.vb-touch-mode :is(#compass, #net-meter, #player-status-strip, #grenade-count, #weapon-icon, #killfeed, .vb-breath-hint, .vb-interaction-hint, #hud-buy-prompt, #match-map-chip) { display: none !important; }
+.vb-touch-mode :is(#compass, #player-status-strip, #grenade-count, #weapon-icon, #killfeed, .vb-breath-hint, .vb-interaction-hint, #hud-buy-prompt, #match-map-chip) { display: none !important; }
 .vb-touch-mode #match-header {
   top: max(10px, env(safe-area-inset-top));
   min-width: 0;

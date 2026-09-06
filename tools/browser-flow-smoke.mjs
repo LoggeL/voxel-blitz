@@ -468,18 +468,31 @@ async function main() {
       await writeFile(output, Buffer.from(screenshot.data, 'base64'));
     }
     await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ' });
-    await page.waitFor(`window.__vb.wheelOpen`, { label: 'held Q opens weapon wheel' });
+    await page.waitFor(`window.__vb.wheelOpen`, { label: 'Q toggles weapon wheel' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
+    await page.evaluate('new Promise(resolve => setTimeout(resolve, 300))');
+    requireCondition(await page.evaluate('window.__vb.wheelOpen'), 'Q release keeps the wheel open');
     requireCondition(await page.evaluate(`(() => {
       const keys = [...document.querySelectorAll('#weapon-wheel .vb-wheel-key')];
       return keys.length === 10 && keys[9].textContent === '[0]';
     })()`), 'live weapon wheel shows ten slots with the correct zero key for the knife');
+    const wheelPick = await page.evaluate(`(() => {
+      const rect = document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[9].getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })()`);
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...wheelPick });
+    await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[9].classList.contains('is-hl')`, {
+      label: 'mouse hover highlights the knife without clicking',
+    });
+    requireCondition(await page.evaluate(`window.__vb.wheelOpen && window.__vb.stats.weapon !== 'knife'`),
+      'hover previews the weapon without equipping it');
     if (process.env.BROWSER_SMOKE_SCREENSHOT) {
       const screenshot = await page.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }, 15_000);
       const output = path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT).replace(/\.png$/, '-wheel.png');
       await writeFile(output, Buffer.from(screenshot.data, 'base64'));
     }
-    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: '0', code: 'Digit0' });
-    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: '0', code: 'Digit0' });
+    await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...wheelPick, button: 'left', buttons: 1, clickCount: 1 });
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...wheelPick, button: 'left', buttons: 0, clickCount: 1 });
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
     await page.waitFor(`!window.__vb.wheelOpen && window.__vb.stats.weapon === 'knife'`, {
       label: 'weapon wheel knife selection',
@@ -487,6 +500,19 @@ async function main() {
     requireCondition(true, 'wheel selection equips the knife and closes through the live controller');
     await pressEscape(page);
     await page.waitFor(`window.__vb.stats.settingsOpen`, { label: 'Training pause' });
+    requireCondition(await page.evaluate(`(() => {
+      for (const key of ['showPing', 'showFps', 'showNetwork', 'showHitboxes', 'showWireframes']) {
+        const select = document.getElementById('settings-' + key);
+        if (!select) return false;
+        select.value = '1';
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        if (localStorage.getItem('vb-display-' + key) !== '1') return false;
+      }
+      return true;
+    })()`), 'all display and debug settings are available and persisted');
+    await page.waitFor(`getComputedStyle(document.getElementById('net-meter')).display !== 'none'`, {
+      label: 'enabled telemetry visible on touch layout',
+    });
     await clickElement(page, 'settings-leave-btn');
     await page.waitFor(`!window.__vb.stats.running && !document.getElementById('run-overlay')`, {
       label: 'Training teardown',
