@@ -150,11 +150,16 @@ export class GameplayUiFlow {
     if (this._inputEnabled) this._input.requestLock();
   }
 
+  _isBuyPhase() {
+    const match = this._gameplay.matchState;
+    return (match?.mode === 'snd' && match.phase === 'prep')
+      || (match?.mode === 'chaos' && match.phase === 'live');
+  }
+
   canOpenBuyMenu() {
     return !!(
       this.canUseInput() &&
-      this._gameplay.matchState?.mode === 'snd' &&
-      this._gameplay.matchState.phase === 'prep' &&
+      this._isBuyPhase() &&
       this._gameplay.selfRow?.state === 'alive'
     );
   }
@@ -180,6 +185,7 @@ export class GameplayUiFlow {
       phase: this._gameplay.matchState?.phase || 'live',
       credits: 0,
       owned: [],
+      chaosUpgrades: {},
     });
   }
 
@@ -192,8 +198,7 @@ export class GameplayUiFlow {
       this._lifecycle.phase === 'live' &&
       this._gameplay.alive &&
       !this._lifecycle.disconnected &&
-      this._gameplay.matchState?.mode === 'snd' &&
-      phase === 'prep' &&
+      this._isBuyPhase() &&
       self?.state === 'alive'
     );
 
@@ -207,6 +212,7 @@ export class GameplayUiFlow {
       phase,
       credits: Number.isFinite(self?.credits) ? self.credits : 0,
       owned: Array.isArray(self?.owned) ? self.owned : [],
+      chaosUpgrades: self?.chaosUpgrades || {},
     });
     if (!open) this.syncInput();
   }
@@ -216,8 +222,7 @@ export class GameplayUiFlow {
       typeof weapon !== 'string' ||
       !this._hud.isBuyMenuOpen() ||
       !this._gameplay.matchState ||
-      this._gameplay.matchState.mode !== 'snd' ||
-      this._gameplay.matchState.phase !== 'prep' ||
+      !this._isBuyPhase() ||
       this._gameplay.selfRow?.state !== 'alive' ||
       !this._gameplay.running ||
       this._lifecycle.disconnected
@@ -226,6 +231,7 @@ export class GameplayUiFlow {
     }
     if (!this._getNet()?.buyWeapon(weapon)) return false;
 
+    if (this._gameplay.matchState.mode === 'chaos') return true;
     this._pendingPurchase = { weapon, until: this._now() + 1500 };
     return true;
   }

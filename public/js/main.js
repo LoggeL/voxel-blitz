@@ -326,6 +326,7 @@ class Game {
       this.weapon.reconcileServer({
         mag: self.mag,
         reserve: self.reserve,
+        chaosUpgrades: self.chaosUpgrades,
         mode: match?.mode,
         owned: self.owned,
         weapon: self.weapon,

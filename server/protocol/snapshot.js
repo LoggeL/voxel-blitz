@@ -141,6 +141,7 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
         ? Math.max(0, Math.min(MAX_CREDITS, Math.trunc(p.credits)))
         : 0,
       owned: ownedWeapons(p.owned),
+      ...(p.chaosUpgrades ? { chaosUpgrades: { ...p.chaosUpgrades } } : {}),
       bomb: !!p.bomb,
       interaction: interactionCopy(p.interaction),
       grenades: grenadeCopy(p.grenades),

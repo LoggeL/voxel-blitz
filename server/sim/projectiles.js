@@ -1,3 +1,4 @@
+import { chaosLevel } from '../../shared/chaos.js';
 // Room-scoped authoritative projectile simulation: three grenade types, the
 // rocket, and the LONGARC bolt. One system owns flight, sticking, detonation,
 // blast damage, knockback, concussion, terrain carving, sympathetic (chain)
@@ -139,11 +140,18 @@ export class ProjectileSystem {
     const stepSeconds = Math.max(0, Math.min(0.05, dt)) / substeps;
     for (const projectile of Array.from(this.active.values())) {
       if (!this.active.has(projectile.id)) continue;
+      if (projectile.chaosHoming && !projectile.stuck) this._home(projectile, dt, ctx);
+      if (projectile.type === 'pulse' && projectile.chaosLevel >= 1 && !projectile.child) this._pull(projectile, dt, ctx);
       if (projectile.stuckTo) this._followCarrier(projectile, ctx);
       else if (projectile.type === 'rocket') this._flyRocket(projectile, stepSeconds * substeps, ctx);
       else if (projectile.type === 'bolt') this._flyBolt(projectile, stepSeconds * substeps, ctx);
       else this._flyGrenade(projectile, stepSeconds, substeps, ctx);
       if (!this.active.has(projectile.id)) continue;
+      if (projectile.chaosLevel && ctx.now >= (projectile.syncAt || 0)) {
+        projectile.syncAt = ctx.now + 100;
+        ctx.pushEvent({ t: 'ev', kind: 'projectileUpdate', pid: projectile.id,
+          o: [projectile.x, projectile.y, projectile.z], v: [projectile.vx, projectile.vy, projectile.vz], bn: projectile.bouncesLeft });
+      }
       if (ctx.now >= projectile.explodeAt || outsideWorld(projectile)) this.explode(projectile, ctx);
     }
   }
@@ -156,7 +164,7 @@ export class ProjectileSystem {
         const victim = this._contactVictim(projectile, type.physics.radius, ctx);
         if (victim) return this._stick(projectile, ctx, victim);
         if (projectile.hitSolid) return this._stick(projectile, ctx, null);
-      } else if (type.impact) {
+      } else if (type.impact && !(projectile.child && projectile.type === 'pulse')) {
         const victim = this._contactVictim(projectile, type.physics.radius, ctx);
         if (victim || projectile.hitSolid) return this.explode(projectile, ctx);
       }
@@ -203,6 +211,7 @@ export class ProjectileSystem {
       },
       onBounce: (contact) => {
         if (typeof ctx.canAffectWorld === 'function' && !ctx.canAffectWorld()) return;
+        if (projectile.chaosLevel >= 3) this.chaosBlast(projectile.owner, [projectile.x, projectile.y, projectile.z], 'pulse', 3, 25, 12, ctx);
         const type = ctx.getBlock(contact.x, contact.y, contact.z);
         if (BLOCK_HP[type] != null) {
           ctx.damageBlock?.(contact.x, contact.y, contact.z, type, BOLT_RULES.blockDamage);
@@ -281,6 +290,7 @@ export class ProjectileSystem {
 
   /** Release-edge throw. `typeIndex` selects the grenade; `cookMs` shortens a timed fuse. */
   throw(player, ctx, charge = 0.5, typeIndex = 0, cookMs = 0) {
+    if (this.active.size >= 192) return null;
     const index = clampGrenadeType(typeIndex);
     const type = GRENADE_TYPES[GRENADE_TYPE_IDS[index]];
     const direction = fwdFromYawPitch(player.yaw, player.pitch);
@@ -312,15 +322,16 @@ export class ProjectileSystem {
     player.grenades[index]--;
     player.spawnProtectedUntil = 0;
     player.spawnProtected = false;
+    this._configureChaos(projectile);
     this.active.set(id, projectile);
-    ctx.pushEvent(evProjectileLaunch(
+    ctx.pushEvent(Object.assign(evProjectileLaunch(
       player.id,
       id,
       type.id,
       [projectile.x, projectile.y, projectile.z],
       [projectile.vx, projectile.vy, projectile.vz],
       fuseMs,
-    ));
+    ), { chaos: projectile.chaosLevel || 0 }));
     return projectile;
   }
 
@@ -348,17 +359,19 @@ export class ProjectileSystem {
     player.grenades[index]--;
     player.spawnProtectedUntil = 0;
     player.spawnProtected = false;
+    this._configureChaos(projectile);
     this.active.set(id, projectile);
-    ctx.pushEvent(evProjectileLaunch(
+    ctx.pushEvent(Object.assign(evProjectileLaunch(
       player.id, id, type.id,
       [projectile.x, projectile.y, projectile.z], [0, 0, 0], 0,
-    ));
+    ), { chaos: projectile.chaosLevel || 0 }));
     this.explode(projectile, ctx);
     return projectile;
   }
 
   /** A rocket leaves the tube from the shooter's eye along the spread-sampled `dir`. */
   launchRocket(player, ctx, dir) {
+    if (this.active.size >= 192) return null;
     const launch = rocketLaunch({ x: player.x, y: player.eyeY, z: player.z, dir });
     const id = `r${this._nextId++}`;
     const projectile = {
@@ -378,20 +391,22 @@ export class ProjectileSystem {
         (x, y, z) => ctx.getBlock(x, y, z) !== AIR, ox, oy, oz, dx, dy, dz, max,
       ),
     };
+    this._configureChaos(projectile);
     this.active.set(id, projectile);
-    ctx.pushEvent(evProjectileLaunch(
+    ctx.pushEvent(Object.assign(evProjectileLaunch(
       player.id,
       id,
       'rocket',
       [projectile.x, projectile.y, projectile.z],
       [projectile.vx, projectile.vy, projectile.vz],
       ROCKET_RULES.lifetimeMs,
-    ));
+    ), { chaos: projectile.chaosLevel || 0 }));
     return projectile;
   }
 
   /** A bolt leaves the coil from the shooter's eye along the spread-sampled `dir`. */
-  launchBolt(player, ctx, dir, charge01 = 1) {
+  launchBolt(player, ctx, dir, charge01 = 1, satellite = false) {
+    if (this.active.size >= 192) return null;
     const launch = boltLaunch({ x: player.x, y: player.eyeY, z: player.z, dir, charge01 });
     const id = `b${this._nextId++}`;
     const projectile = {
@@ -413,8 +428,9 @@ export class ProjectileSystem {
         (x, y, z) => ctx.getBlock(x, y, z) !== AIR, ox, oy, oz, dx, dy, dz, max,
       ),
     };
+    this._configureChaos(projectile);
     this.active.set(id, projectile);
-    ctx.pushEvent(evProjectileLaunch(
+    ctx.pushEvent(Object.assign(evProjectileLaunch(
       player.id,
       id,
       'bolt',
@@ -422,14 +438,104 @@ export class ProjectileSystem {
       [projectile.vx, projectile.vy, projectile.vz],
       BOLT_RULES.lifetimeMs,
       projectile.bouncesLeft,
-    ));
+    ), { chaos: projectile.chaosLevel || 0 }));
+    if (!satellite && chaosLevel(player, 'longarc') >= 2 && player.def.id === 'longarc') {
+      for (const angle of [-0.18, 0.18]) this.launchBolt(player, ctx, {
+        x: dir.x * Math.cos(angle) - dir.z * Math.sin(angle), y: dir.y,
+        z: dir.x * Math.sin(angle) + dir.z * Math.cos(angle),
+      }, charge01, true);
+    }
     return projectile;
+  }
+
+  _configureChaos(projectile) {
+    if (projectile.child) return;
+    const p = projectile.owner;
+    projectile.chaosLevel = chaosLevel(p, projectile.type === 'bolt' ? 'longarc' : projectile.type);
+    if (projectile.type === 'bolt' && p?.chaosUpgrades && (projectile.chaosLevel > 0 || p.def.id !== 'longarc')) {
+      projectile.chaosLevel = Math.max(1, projectile.chaosLevel);
+      projectile.bouncesLeft = 8;
+    }
+    projectile.chaosHoming = (projectile.type === 'rocket' && (projectile.chaosLevel >= 2
+      || chaosLevel(p, 'smg') >= 3 && p.def.id === 'smg'
+      || chaosLevel(p, 'lmg') >= 3 && p.def.id === 'lmg'))
+      || projectile.type === 'limpet' && projectile.chaosLevel >= 1;
+    if (projectile.chaosHoming) projectile.chaosLevel = Math.max(1, projectile.chaosLevel);
+  }
+
+  _home(projectile, dt, ctx) {
+    const speed = Math.hypot(projectile.vx, projectile.vy, projectile.vz);
+    if (speed < 0.1) return;
+    let best = null, distance = 42;
+    for (const v of ctx.entities.values()) {
+      if (v === projectile.owner || v.state !== 'alive' || !ctx.canDamage(projectile.owner, v)) continue;
+      const dx = v.x - projectile.x, dy = v.y + 1 - projectile.y, dz = v.z - projectile.z;
+      const d = Math.hypot(dx, dy, dz);
+      if (d < 0.1 || d >= distance || (dx * projectile.vx + dy * projectile.vy + dz * projectile.vz) / (d * speed) < 0.15) continue;
+      if (!visibleTo(ctx, [projectile.x, projectile.y, projectile.z], [v.x, v.y + 1, v.z])) continue;
+      distance = d; best = [dx / d, dy / d, dz / d];
+    }
+    if (!best) return;
+    const t = Math.min(1, Math.max(0, dt) * 5);
+    const vector = [projectile.vx / speed, projectile.vy / speed, projectile.vz / speed].map((v, i) => v * (1 - t) + best[i] * t);
+    const norm = Math.hypot(...vector) || 1;
+    [projectile.vx, projectile.vy, projectile.vz] = vector.map(v => v / norm * speed);
+  }
+
+  _pull(projectile, dt, ctx) {
+    for (const v of ctx.entities.values()) {
+      if (v === projectile.owner || v.state !== 'alive' || !ctx.canDamage(projectile.owner, v)) continue;
+      const dx = projectile.x - v.x, dy = projectile.y - (v.y + 1), dz = projectile.z - v.z;
+      const distance = Math.hypot(dx, dy, dz);
+      if (distance < 0.5 || distance > 9 || !visibleTo(ctx, [projectile.x, projectile.y, projectile.z], [v.x, v.y + 1, v.z])) continue;
+      const force = Math.min(0.05, Math.max(0, dt)) * 32 / distance;
+      v.vx += dx * force; v.vy += Math.max(0.15, dy) * force; v.vz += dz * force;
+      v.impulseSeq = (v.impulseSeq || 0) + 1; v.grounded = false; v.vault = null;
+    }
+  }
+
+  _scatter(source, count, ctx) {
+    const type = source.type === 'rocket' ? 'frag' : source.type;
+    for (let i = 0; i < count && this.active.size < 192; i++) {
+      const angle = i / count * Math.PI * 2;
+      const id = `g${this._nextId++}`;
+      const child = { ...source, id, type, child: true, stuck: false, stuckTo: null,
+        stickOffset: null, hitSolid: false, directVictim: null, chained: false,
+        x: source.x, y: source.y + 0.2, z: source.z,
+        vx: Math.cos(angle) * (count > 6 ? 10 : 7), vy: 8 + i % 3, vz: Math.sin(angle) * (count > 6 ? 10 : 7),
+        launchedAt: ctx.now, explodeAt: ctx.now + 700 + i * 65,
+        chaosHoming: type === 'limpet' && source.chaosLevel >= 3,
+        isSolid: (x, y, z) => solid(ctx, x, y, z),
+      };
+      this.active.set(id, child);
+      ctx.pushEvent(Object.assign(evProjectileLaunch(child.ownerId, id, type,
+        [child.x, child.y, child.z], [child.vx, child.vy, child.vz], child.explodeAt - ctx.now),
+        { chaos: child.chaosLevel, child: true }));
+    }
+  }
+
+  chaosBlast(owner, origin, type, radius, damage, knockback, ctx) {
+    const id = `c${this._nextId++}`;
+    const projectile = { id, type, owner, ownerId: String(owner.id),
+      x: origin[0], y: origin[1], z: origin[2], child: true,
+      blastRules: { ...PROJECTILE_RULES[type], damageRadius: radius, damage,
+        knockback, terrainRadius: 0, selfDamage: 0, selfKnockback: 0 } };
+    this.active.set(id, projectile);
+    return this.explode(projectile, ctx);
   }
 
   explode(projectile, ctx) {
     if (projectile.type === 'bolt') return this._fizzleBolt(projectile, ctx);
     if (!this.active.delete(projectile.id)) return false;
-    const rules = PROJECTILE_RULES[projectile.type] || PROJECTILE_RULES.frag;
+    const baseRules = PROJECTILE_RULES[projectile.type] || PROJECTILE_RULES.frag;
+    const level = projectile.chaosLevel || 0;
+    const giant = projectile.type === 'rocket' && level >= 1;
+    const rules = projectile.blastRules || { ...baseRules,
+      damageRadius: baseRules.damageRadius * (giant ? 1.8 : projectile.child && level >= 3 ? 1.3 : 1),
+      terrainRadius: Math.min(7, baseRules.terrainRadius * (giant ? 1.7 : level >= 3 ? 1.4 : 1)),
+      selfKnockback: projectile.type === 'pulse' && level >= 2 ? 64 : baseRules.selfKnockback,
+      knockback: projectile.type === 'pulse' && level >= 2 ? 64 : baseRules.knockback * (level >= 3 ? 1.8 : 1),
+    };
     const origin = [projectile.x, projectile.y, projectile.z];
     const owner = projectile.owner || ctx.entities.get(projectile.ownerId) || null;
     const ownerId = owner?.id == null ? projectile.ownerId : String(owner.id);
@@ -444,6 +550,13 @@ export class ProjectileSystem {
     this._damagePlayers(owner, origin, rules, projectile, ctx);
     if (rules.terrainRadius > 0) this._destroyTerrain(origin, rules, ctx);
     this._chainDetonate(projectile, origin, rules, ctx);
+    if (!projectile.child) {
+      const count = projectile.type === 'frag' && level >= 1 ? (level >= 2 ? 12 : 6)
+        : projectile.type === 'rocket' && level >= 3 ? 6
+        : projectile.type === 'limpet' && level >= 2 ? 5
+        : projectile.type === 'pulse' && level >= 3 ? 8 : 0;
+      if (count) this._scatter(projectile, count, ctx);
+    }
     return true;
   }
 
@@ -495,6 +608,7 @@ export class ProjectileSystem {
       victim.vx += dx * invDistance * impulse;
       victim.vy += Math.max(0.8, dy * invDistance + 0.35) * impulse;
       victim.vz += dz * invDistance * impulse;
+      if (projectile.type === 'pulse' && projectile.chaosLevel >= 2 && impulse > 0) victim.vy = Math.max(victim.vy, impulse);
       if (rules.concussMs > 0 && !isSelf) {
         victim.concussedUntil = Math.max(victim.concussedUntil || 0, ctx.now + rules.concussMs);
         victim.panic = clamp01(victim.panic + rules.concussPanic * falloff);

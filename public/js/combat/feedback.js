@@ -145,6 +145,7 @@ export class CombatFeedback {
     const myId = this.getMyId();
     switch (ev.kind) {
       case 'shoot': {
+        if (ev.chaosArc) { this.effects.railBeams?.shoot(ev); break; }
         const local = ev.id === myId;
         if (!local) {
           this.effects.shoot(ev);
@@ -216,6 +217,10 @@ export class CombatFeedback {
       }
       case 'projectileLaunch': {
         this.effects.projectileLaunch(ev, { fromSelf: ev.id === myId });
+        break;
+      }
+      case 'projectileUpdate': {
+        this.effects.projectiles?.updateAuthority(ev);
         break;
       }
       case 'projectileStick': {

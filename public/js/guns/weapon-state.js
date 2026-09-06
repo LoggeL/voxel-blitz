@@ -1,3 +1,4 @@
+import { chaosWeaponDef } from '../../../shared/chaos.js';
 // Client weapon state machine. The composition root owns frame order; this module owns
 // every weapon transition and receives only narrow adapters for its side effects.
 import {
@@ -101,7 +102,7 @@ export class WeaponState {
     this.menuReset();
   }
 
-  get def() { return WEAPONS[WEAPON_IDS[this._slot]]; }
+  get def() { return chaosWeaponDef({ chaosUpgrades: this._mode === 'chaos' ? this._chaosUpgrades : null }, WEAPONS[WEAPON_IDS[this._slot]]); }
   get timerDef() { return TIMERS[WEAPON_IDS[this._slot]]; }
   get slot() { return this._slot; }
   get bloomDeg() { return this._bloomDeg; }
@@ -590,6 +591,7 @@ export class WeaponState {
       w: weaponId,
       spread: pellets[0],
       pellets,
+      chaos: this._mode === 'chaos',
       charge: mode === 'charge' ? charge : undefined,
     }, { local: true });
 
@@ -627,11 +629,13 @@ export class WeaponState {
     reserve,
     mode,
     owned,
+    chaosUpgrades,
     weapon,
     reloading,
     alive = this._alive,
   }, now = this._now()) {
     this._alive = !!alive;
+    this._chaosUpgrades = chaosUpgrades ? { ...chaosUpgrades } : null;
     this.adoptServerAmmo(mag, reserve);
     this._setAuthority(mode, owned);
 
@@ -732,6 +736,7 @@ export class WeaponState {
     this._allowFire = false;
     this._alive = true;
     this._mode = DEFAULT_MODE;
+    this._chaosUpgrades = null;
     this._owned = null;
     this._generation = 0;
     this._yaw = 0;

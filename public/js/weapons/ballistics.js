@@ -100,7 +100,7 @@ export class TracerFX {
     const pelletDirections = event.pellets;
     const usePellets = pelletDirections && pelletDirections.length > 1;
     const directionCount = usePellets ? pelletDirections.length : 1;
-    const limit = Math.min(directionCount, definition ? definition.pellets : 1);
+    const limit = Math.min(directionCount, definition ? definition.pellets * (event.chaos && event.w === 'shotgun' ? 2 : 1) : 1);
     const ox = event.o[0];
     const oy = event.o[1];
     const oz = event.o[2];

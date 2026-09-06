@@ -409,6 +409,7 @@ export class GameEngine {
       pushBlockDelta: (x, y, z, value) => this.pushBlockDelta(x, y, z, value),
       pushEvent: (event) => this.tickEvents.push(event),
       computeConeDeg: (player) => this.computeConeDeg(player),
+      chaosBlast: (player, origin, type, radius, damage, knockback) => this.projectiles.chaosBlast(player, origin, type, radius, damage, knockback, this.projectileContext()),
       launchRocket: (player, dir) => this.projectiles.launchRocket(
         player, this.projectileContext(), dir,
       ),

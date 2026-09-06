@@ -1,3 +1,4 @@
+import { chaosWeaponDef } from './chaos-combat.js';
 // Authoritative combatant state, loadouts, and aim helpers.
 
 import { SX, SZ } from '../../shared/worlddata.js';
@@ -144,7 +145,7 @@ export class PlayerEntity {
     this.lastSpawnZ = spawn.z;
   }
 
-  get def() { return WEAPONS[WEAPON_IDS[this.weapon]]; }
+  get def() { return chaosWeaponDef(this, WEAPONS[WEAPON_IDS[this.weapon]]); }
   get eyeY() { return this.y + (this.crouch ? CROUCH_EYE : EYE); }
 
   /** Return true when the hit is lethal. */

@@ -1,9 +1,11 @@
 import { WEAPONS } from '../../../shared/combatmath.js';
+import { CHAOS_UPGRADES, chaosLevel, chaosPurchaseId } from '../../../shared/chaos.js';
 import { WEAPON_PRICES } from '../../../shared/modes.js';
 import {
   el,
   GLYPH,
   WEAPON_NAMES,
+  THROWABLE_NAMES,
   WEAPON_CLASSES,
   WEAPON_BUY_ORDER,
 } from './hud-support.js';
@@ -34,7 +36,8 @@ export class BuyMenuController {
   }
 
   ensureBuyMenu() {
-    if (this.buyDom.root) return this.buyDom.root;
+    const mode = this._isChaosMode() ? 'chaos' : 'snd';
+    if (this.buyDom.root && this.buyDom.mode === mode) return this.buyDom.root;
 
     let root = document.getElementById('buy-menu');
     if (!root) {
@@ -47,6 +50,7 @@ export class BuyMenuController {
     }
 
     root.innerHTML = '';
+    root.classList.toggle('vb-chaos-shop', mode === 'chaos');
     root.style.display = 'none';
 
     const panel = el('div', 'vb-buy-panel', root);
@@ -54,9 +58,9 @@ export class BuyMenuController {
 
     const titlesBox = el('div', 'vb-buy-titles', header);
     const title = el('h2', 'vb-title', titlesBox, 'buy-title');
-    title.textContent = 'ARMORY REQUISITION';
+    title.textContent = mode === 'chaos' ? 'CHAOS LAB' : 'ARMORY REQUISITION';
     const sub = el('div', 'vb-sub', titlesBox);
-    sub.textContent = 'Tactical weapons procurement · Prep phase only';
+    sub.textContent = mode === 'chaos' ? 'Kills pay. Upgrades stack. Death keeps your experiments. Shopping does not pause the fight.' : 'Tactical weapons procurement · Prep phase only';
 
     const metaBox = el('div', 'vb-buy-meta-row', header);
 
@@ -73,12 +77,13 @@ export class BuyMenuController {
     const closeBtn = el('button', 'vb-buy-close-btn', metaBox, 'buy-close-btn');
     closeBtn.type = 'button';
     closeBtn.textContent = '✕ CLOSE [ESC]';
-    closeBtn.setAttribute('aria-label', 'Close Armory Requisition');
+    closeBtn.setAttribute('aria-label', mode === 'chaos' ? 'Close Chaos Lab' : 'Close Armory Requisition');
 
     const grid = el('div', 'vb-buy-grid', panel, 'buy-grid');
     const cards = {};
 
-    WEAPON_BUY_ORDER.forEach((wid, index) => {
+    const itemOrder = mode === 'chaos' ? Object.keys(CHAOS_UPGRADES) : WEAPON_BUY_ORDER;
+    itemOrder.forEach((wid, index) => {
       const def = WEAPONS[wid] || {};
       const price = WEAPON_PRICES[wid] || 0;
       // 1..9 then 0 for the tenth entry, matching the digit shortcuts below.
@@ -89,7 +94,7 @@ export class BuyMenuController {
 
       const cardTop = el('div', 'vb-buy-card-top', card);
       const keyBadge = el('span', 'vb-buy-key-badge', cardTop);
-      keyBadge.textContent = `[${keyNumber}]`;
+      keyBadge.textContent = index < 10 ? `[${keyNumber}]` : 'GRENADE';
 
       const glyphBadge = el('span', `vb-buy-glyph-badge vb-w-${wid}`, cardTop);
       glyphBadge.textContent = GLYPH[wid] || wid.toUpperCase();
@@ -99,7 +104,7 @@ export class BuyMenuController {
 
       const cardBody = el('div', 'vb-buy-card-body', card);
       const nameEl = el('div', 'vb-buy-wname', cardBody);
-      nameEl.textContent = WEAPON_NAMES[wid] || def.name || wid.toUpperCase();
+      nameEl.textContent = WEAPON_NAMES[wid] || THROWABLE_NAMES[wid] || def.name || wid.toUpperCase();
 
       const classEl = el('div', 'vb-buy-wclass', cardBody);
       classEl.textContent = WEAPON_CLASSES[wid] || 'TACTICAL WEAPON';
@@ -110,6 +115,20 @@ export class BuyMenuController {
       const mag = def.magSize || 0;
       const spareMags = def.spareMags || 0;
       statsEl.textContent = `DMG ${damage} · ${rpm ? `${rpm} RPM · ` : ''}${mag} RDS · ${spareMags} MAGS`;
+
+      const stages = [];
+      if (mode === 'chaos') {
+        classEl.textContent = ['frag', 'limpet', 'pulse'].includes(wid) ? 'GRENADE EXPERIMENTS' : 'WEAPON EXPERIMENTS';
+        statsEl.textContent = '3 cumulative upgrades';
+        const ladder = el('ol', 'vb-chaos-ladder', cardBody);
+        CHAOS_UPGRADES[wid].forEach((upgrade) => {
+          const stage = el('li', 'vb-chaos-stage', ladder);
+          const heading = el('strong', '', stage);
+          heading.textContent = `${upgrade.name} · $${upgrade.price}`;
+          el('span', '', stage).textContent = upgrade.description;
+          stages.push(stage);
+        });
+      }
 
       const cardBottom = el('div', 'vb-buy-card-bottom', card);
       const buyBtn = el('button', 'vb-btn vb-buy-btn', cardBottom, `buy-btn-${wid}`);
@@ -127,15 +146,18 @@ export class BuyMenuController {
         priceBadge,
         buyBtn,
         price,
+        stages,
       };
     });
 
     const footer = el('div', 'vb-buy-footer', panel);
     const hint = el('span', 'vb-buy-footer-hint', footer);
-    hint.textContent = 'PRESS [1-8] TO BUY · [ESC] TO CLOSE · UI UPDATES ON SERVER CONFIRMATION';
+    hint.textContent = mode === 'chaos' ? '[1-9, 0] WEAPON UPGRADES · CLICK FOR GRENADES · [ESC] CLOSE · SERVER CONFIRMS PURCHASES' : 'PRESS [1-8] TO BUY · [ESC] TO CLOSE · UI UPDATES ON SERVER CONFIRMATION';
 
     this.buyDom = {
       root,
+      mode,
+      itemOrder,
       panel,
       credVal,
       phaseVal,
@@ -159,6 +181,18 @@ export class BuyMenuController {
           return;
         }
 
+        if (event.key === 'Tab') {
+          const buttons = [...this.buyDom.root.querySelectorAll('button:not(:disabled)')];
+          if (buttons.length) {
+            event.preventDefault();
+            event.stopPropagation();
+            const current = buttons.indexOf(document.activeElement);
+            buttons[(current + (event.shiftKey ? -1 : 1) + buttons.length) % buttons.length].focus();
+          }
+          return;
+        }
+        if (event.repeat) return;
+
         let digitIndex = -1;
         if (event.code >= 'Digit1' && event.code <= 'Digit9') {
           digitIndex = parseInt(event.code.replace('Digit', ''), 10) - 1;
@@ -170,10 +204,10 @@ export class BuyMenuController {
           digitIndex = 9;
         }
 
-        if (digitIndex >= 0 && digitIndex < WEAPON_BUY_ORDER.length) {
+        if (digitIndex >= 0 && digitIndex < this.buyDom.itemOrder.length) {
           event.preventDefault();
           event.stopPropagation();
-          this.triggerPurchase(WEAPON_BUY_ORDER[digitIndex]);
+          this.triggerPurchase(this.buyDom.itemOrder[digitIndex]);
         }
       };
       document.addEventListener('keydown', this._onBuyKeyDown, true);
@@ -188,11 +222,17 @@ export class BuyMenuController {
     this.ensureBuyMenu();
   }
 
-  setBuyMenuState({ open, phase, credits, owned } = {}) {
+  setBuyMenuState({ open, phase, credits, owned, chaosUpgrades } = {}) {
     if (phase !== undefined) this._buyMenuState.phase = phase;
     if (credits !== undefined) this._buyMenuState.credits = Number(credits) || 0;
     if (owned !== undefined) {
       this._buyMenuState.owned = Array.isArray(owned) ? owned.slice() : [];
+    }
+
+    if (chaosUpgrades !== undefined) this._buyMenuState.chaosUpgrades = { ...chaosUpgrades };
+    if (this.buyDom.root && this.buyDom.mode !== (this._isChaosMode() ? 'chaos' : 'snd')) {
+      this.closeBuyMenuDirect();
+      this.ensureBuyMenu();
     }
 
     const admitted = this._isAdmitted();
@@ -282,8 +322,14 @@ export class BuyMenuController {
     const cardData = this.buyDom.cards && this.buyDom.cards[wid];
     if (!cardData) return;
 
-    const isPrep = this._buyMenuState.phase === 'prep';
-    if (!this._isSndMode() || !isPrep || !this._isAlive() || !this._buyMenuOpen) return;
+    if (!this._isAdmitted() || !this._buyMenuOpen) return;
+    if (this._isChaosMode()) {
+      const level = chaosLevel(this._buyMenuState, wid);
+      const upgrade = CHAOS_UPGRADES[wid]?.[level];
+      if (!upgrade || this._buyMenuState.credits < upgrade.price) return;
+      this._buyMenuCallbacks?.onBuy?.(chaosPurchaseId(wid, level));
+      return;
+    }
 
     if (this._buyMenuState.credits < cardData.price) return;
 
@@ -295,6 +341,11 @@ export class BuyMenuController {
   syncBuyMenuUI() {
     const dom = this.buyDom;
     if (!dom.root) return;
+
+    if (this._isChaosMode()) {
+      this._syncChaosUI();
+      return;
+    }
 
     const credits = this._buyMenuState.credits;
     const owned = this._buyMenuState.owned || [];
@@ -366,6 +417,34 @@ export class BuyMenuController {
     }
   }
 
+  _syncChaosUI() {
+    const { credVal, phaseVal, cards } = this.buyDom;
+    const credits = this._buyMenuState.credits;
+    const admitted = this._isAdmitted();
+    credVal.textContent = `$ ${credits.toLocaleString()}`;
+    phaseVal.textContent = admitted ? 'EXPERIMENTS OPEN' : 'LAB LOCKED';
+    phaseVal.classList.toggle('is-open', admitted);
+    phaseVal.classList.toggle('is-closed', !admitted);
+    for (const [id, item] of Object.entries(cards)) {
+      const level = chaosLevel(this._buyMenuState, id);
+      const next = CHAOS_UPGRADES[id][level];
+      const canAfford = !!next && credits >= next.price;
+      item.priceBadge.textContent = `${level} / 3 INSTALLED`;
+      item.card.classList.toggle('is-owned', !next);
+      item.card.classList.toggle('is-unaffordable', !!next && !canAfford);
+      item.card.classList.toggle('can-buy', admitted && canAfford);
+      item.card.classList.toggle('is-locked', !admitted);
+      item.stages.forEach((stage, index) => {
+        stage.classList.toggle('is-installed', index < level);
+        stage.classList.toggle('is-next', index === level);
+      });
+      item.buyBtn.disabled = !admitted || !canAfford;
+      item.buyBtn.setAttribute('aria-disabled', String(item.buyBtn.disabled));
+      item.buyBtn.textContent = !next ? 'MAXIMUM STUPIDITY' : !admitted ? 'LAB LOCKED' : canAfford ? `UPGRADE ${level + 1} · $${next.price}` : `NEED $${next.price - credits} MORE`;
+      item.buyBtn.title = next ? `${next.name}: ${next.description}` : 'All three upgrades installed';
+    }
+  }
+
   dispose() {
     for (const timer of this._deferredTimers) clearTimeout(timer);
     this._deferredTimers.clear();
@@ -392,11 +471,15 @@ export class BuyMenuController {
   }
 
   _isAdmitted() {
-    return this._isSndMode()
-      && this._buyMenuState.phase === 'prep'
+    return ((this._isSndMode() && this._buyMenuState.phase === 'prep')
+      || (this._isChaosMode() && this._buyMenuState.phase === 'live'))
       && this._isAlive()
       && !this.host.settingsOpen?.()
       && !this.host.isLobbyOpen?.();
+  }
+
+  _isChaosMode() {
+    return this.host.mode?.() === 'chaos';
   }
 
   _isSndMode() {

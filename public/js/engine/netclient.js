@@ -1,3 +1,4 @@
+import { parseChaosPurchase } from '../../../shared/chaos.js';
 import {
   mapForMode,
   isWeaponId,
@@ -122,7 +123,7 @@ const PASSTHROUGH_FIELDS = [
   'name', 'hp', 'team', 'weapon', 'score', 'kills', 'deaths', 'ping',
   'state', 'firing', 'ads', 'crouch', 'mag', 'reserve', 'reloading',
   'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt',
-  'credits', 'owned', 'bomb', 'interaction',
+  'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
   'grenades', 'charge', 'impulse',
 ];
 
@@ -482,7 +483,7 @@ export class NetClient {
 
   /** Buy one exact shared-contract weapon id. */
   buyWeapon(id) {
-    if (!isWeaponId(id) || !this.isOpen()) return false;
+    if ((!isWeaponId(id) && !parseChaosPurchase(id)) || !this.isOpen()) return false;
     try {
       this.ws.send(JSON.stringify({ t: 'buy', weapon: id }));
       return true;

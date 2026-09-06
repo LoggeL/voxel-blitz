@@ -62,6 +62,7 @@ export const WEAPON_BUY_ORDER = Object.freeze([
 ]);
 
 export const MODE_LABELS = Object.freeze({
+  chaos: 'CHAOS LAB',
   fun: 'FUN · FREE FOR ALL',
   tdm: 'TEAM DEATHMATCH',
   snd: 'SEARCH & DESTROY',
@@ -70,6 +71,7 @@ export const MODE_LABELS = Object.freeze({
 });
 
 export const MODE_DESCRIPTIONS = Object.freeze({
+  chaos: 'Kills pay $300 · 39 stacking upgrades · Open the lab with B · No balance, just chaos',
   fun: 'Shared instant skirmish · 8-gun full loadout · Rapid respawn',
   tdm: 'Alpha vs Bravo · First team to 40 kills wins · Team spawns',
   snd: 'Attackers vs Defenders · Buy phase economy · First to 7 round wins',

@@ -67,7 +67,7 @@ export class Scoreboard {
       const dead = mode === 'snd' && player.state === 'dead';
       const tr = el('tr', [self ? 'vb-me' : '', dead ? 'dead' : '', team ? `vb-team-${team}` : ''].filter(Boolean).join(' '), body);
       tr.dataset.pid = String(player.id);
-      if (mode === 'fun' || mode === 'gungame') el('td', 'vb-sb-rank', tr).textContent = String(index + 1);
+      if (mode === 'fun' || mode === 'chaos' || mode === 'gungame') el('td', 'vb-sb-rank', tr).textContent = String(index + 1);
       const name = el('td', 'vb-sb-name', tr);
       name.textContent = String(player.name || 'PLAYER');
       if (self) el('span', 'vb-sb-you', name).textContent = 'YOU';

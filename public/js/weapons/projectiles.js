@@ -230,11 +230,18 @@ export class ProjectileFX {
 
     if (!local) {
       if (!event.pid || this.projectiles.has(String(event.pid))) return false;
-      if (fromSelf && this._adoptLocal(String(event.pid), type, values, fuse)) return true;
+      if (fromSelf && !event.child && this._adoptLocal(String(event.pid), type, values, fuse)) {
+        const adopted = this.projectiles.get(String(event.pid));
+        adopted.bouncesLeft = bouncesLeft;
+        adopted.chaos = event.chaos || 0;
+        if (type === 'rocket' && event.chaos) adopted.group.scale.setScalar(2.2);
+        return true;
+      }
     }
     const id = local ? `local-${++this._localSeq}` : String(event.pid);
     const { group, capMaterial } = this._buildVisual(type);
     group.position.set(values[0], values[1], values[2]);
+    if (type === 'rocket' && event.chaos) group.scale.setScalar(2.2);
     this.scene.add(group);
     this.projectiles.set(id, {
       id,
@@ -246,6 +253,8 @@ export class ProjectileFX {
       age: 0,
       fuse,
       bouncesLeft,
+      chaos: event.chaos || 0,
+      child: !!event.child,
       local,
       stuck: false,
       stuckTo: null,
@@ -253,6 +262,16 @@ export class ProjectileFX {
       trailAt: 0,
     });
     if (type === 'rocket' || type === 'bolt') this._orientRocket(this.projectiles.get(id));
+    return true;
+  }
+
+  updateAuthority(event) {
+    const p = this.projectiles.get(String(event.pid));
+    if (!p || !Array.isArray(event.o) || !Array.isArray(event.v) || ![...event.o, ...event.v].every(Number.isFinite)) return false;
+    [p.x, p.y, p.z] = event.o;
+    [p.vx, p.vy, p.vz] = event.v;
+    if (Number.isFinite(event.bn)) p.bouncesLeft = event.bn;
+    p.group.position.set(p.x, p.y, p.z);
     return true;
   }
 
@@ -374,6 +393,13 @@ export class ProjectileFX {
 
   /** One additive flash sphere (plus optional ring) at a world point. */
   _spawnBlast(x, y, z, style, radius) {
+    // Cluster salvos and bumper bombs share a bounded visual budget.
+    if (this.blasts.length >= 96) {
+      const oldest = this.blasts.shift();
+      this.scene.remove(oldest.mesh);
+      oldest.material.dispose();
+      if (oldest.ring) { this.scene.remove(oldest.ring.mesh); oldest.ring.material.dispose(); }
+    }
     const material = new THREE.MeshBasicMaterial({
       color: style.color,
       transparent: true,
@@ -443,7 +469,7 @@ export class ProjectileFX {
           projectile.trailAt = projectile.age;
           this.onTrail(projectile.x, projectile.y, projectile.z, projectile);
         }
-        if (projectile.hit && !projectile.local) projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
+        if (projectile.hit && !projectile.local && !projectile.chaos) projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
       } else if (projectile.type === 'bolt') {
         stepBolt(projectile, step, this.raycast, {
           onBounce: (contact) => {
@@ -453,7 +479,7 @@ export class ProjectileFX {
         });
         this._orientRocket(projectile);
         // Authority owns bolt death (projectileExplode); the local view just keeps flying.
-        if (projectile.hit && !projectile.local) {
+        if (projectile.hit && !projectile.local && !projectile.chaos) {
           projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
         }
       } else if (!projectile.stuck) {

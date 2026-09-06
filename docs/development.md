@@ -13,6 +13,24 @@ shows round-trip history, arrival jitter, the adaptive snapshot buffer, and FPS.
 The live HUD shows three kinds of server-authoritative throwables per life: cookable frags,
 sticky limpet charges, and concussive pulse shocks.
 
+## Chaos Lab
+
+Create a lobby, select **CHAOS LAB**, ready up and start. All ten weapons are available.
+Start with $600, earn $300 per kill, and open the upgrade shop with **B** (or the touch
+BUY button / gamepad D-pad right). Each of the ten weapons and three grenades has
+three cumulative upgrades costing $300, $600 and $900. Money and upgrades survive
+respawns for the current match; joining a new room starts fresh. Kills also restore
+one grenade of each type, up to five. The shop does not pause combat. Bots buy upgrades too.
+
+Experiments include Tesla chain hits, shotgun bowling bolts, wall-piercing explosive
+sniper rounds, rocket-fed LMG salvos, revolver pinball rings, eight-bounce LONGARC
+multiball with explosive bumpers, homing cluster rockets, tunnel rails, pickaxe
+shockwaves, frag offspring, homing sticky offspring and vacuum-to-launch pulse bombs.
+The shop describes all 39 stages before purchase. Cluster children cannot reproduce;
+rooms cap live projectiles at 192 and clients retain at most 96 blast visuals.
+
+Validate with `npm run chaos:test` and `node tools/chaos-browser-smoke.mjs`.
+
 ## Run
 
 ```bash

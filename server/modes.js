@@ -1,3 +1,4 @@
+import { CHAOS_START_CREDITS, CHAOS_KILL_CREDITS, CHAOS_UPGRADES, chaosLevel, parseChaosPurchase, chaosPurchaseId } from '../shared/chaos.js';
 // Authoritative mode facade. GameEngine talks to one stable controller while
 // state-owning team policies live in server/modes/.
 
@@ -187,6 +188,47 @@ class FunPolicy {
   }
 }
 
+class ChaosPolicy extends FunPolicy {
+  constructor(context) { super(context); this.mode = 'chaos'; }
+  _syncPlayer(entity) {
+    const credits = entity.credits;
+    super._syncPlayer(entity);
+    entity.credits = Number.isFinite(credits) && entity.chaosUpgrades ? credits : CHAOS_START_CREDITS;
+    entity.chaosUpgrades ??= {};
+  }
+  playerSnapshot(player) {
+    const entity = this._entity(player);
+    return { ...super.playerSnapshot(player), credits: entity?.credits ?? 0,
+      chaosUpgrades: { ...entity?.chaosUpgrades } };
+  }
+  onPlayerDeath(victim, killer) {
+    if (!super.onPlayerDeath(victim)) return false;
+    const winner = this._entity(killer);
+    if (winner && this.isEnemy(winner, victim)) {
+      winner.credits = Math.min(16000, winner.credits + CHAOS_KILL_CREDITS);
+      winner.grenades = winner.grenades.map(n => Math.min(5, n + 1));
+    }
+    return true;
+  }
+  buy(player, request) {
+    const p = this._entity(player), purchase = parseChaosPurchase(request);
+    if (!p || p.state !== 'alive' || !purchase || !this._players.has(String(p.id))) return false;
+    const { item, level } = purchase;
+    const current = chaosLevel(p, item), upgrade = CHAOS_UPGRADES[item][current];
+    if (!upgrade || level !== current + 1 || p.credits < upgrade.price) return false;
+    p.credits -= upgrade.price;
+    p.chaosUpgrades[item] = level;
+    return true;
+  }
+  tick() {
+    for (const p of this._entities.values()) {
+      if (!p.bot || p.state !== 'alive') continue;
+      const item = WEAPON_IDS[p.weapon];
+      this.buy(p, chaosPurchaseId(item, chaosLevel(p, item)));
+    }
+  }
+}
+
 /** Stable policy interface consumed by GameEngine and BotManager. */
 export class ModeController {
   constructor(engine, { mode = DEFAULT_MODE_ID, mapMeta = null } = {}) {
@@ -213,7 +255,7 @@ export class ModeController {
       respawn: (entity, spawn, options) => engine.respawnPlayer(entity, spawn, options),
       chooseSpawn: (pool, entity, excludeIndex) => {
         if (Array.isArray(pool) && pool.length) {
-          const candidates = ['fun', 'tdm', 'gungame'].includes(modeId)
+          const candidates = ['fun', 'chaos', 'tdm', 'gungame'].includes(modeId)
             ? engine.spawnSelector.expand(pool) : pool;
           return engine.selectSafestSpawn(candidates, entity, excludeIndex);
         }
@@ -229,7 +271,8 @@ export class ModeController {
       },
     };
 
-    if (modeId === 'snd') this.policy = new SndPolicy(context);
+    if (modeId === 'chaos') this.policy = new ChaosPolicy(context);
+    else if (modeId === 'snd') this.policy = new SndPolicy(context);
     else if (modeId === 'tdm') this.policy = new TdmPolicy(context);
     else if (modeId === 'gungame') this.policy = new GunGamePolicy(context);
     else if (modeId === 'training') this.policy = new TrainingPolicy(context);

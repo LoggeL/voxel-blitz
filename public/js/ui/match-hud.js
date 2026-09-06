@@ -274,7 +274,7 @@ export class MatchHud {
 
     if (selfRow) {
       if (m.creditsBox) {
-        m.creditsBox.style.display = curMode === 'snd' ? 'flex' : 'none';
+        m.creditsBox.style.display = (curMode === 'snd' || curMode === 'chaos') ? 'flex' : 'none';
       }
       if (m.creditsVal) {
         m.creditsVal.textContent = `$ ${Number(selfRow.credits || 0).toLocaleString()}`;
@@ -283,11 +283,11 @@ export class MatchHud {
         m.carrierBadge.style.display = (curMode === 'snd' && selfRow.bomb) ? 'inline-block' : 'none';
       }
       if (m.buyPrompt) {
-        const canBuy = curMode === 'snd'
-          && phase === 'prep'
+        const canBuy = ((curMode === 'snd' && phase === 'prep') || (curMode === 'chaos' && phase === 'live'))
           && this.readModel.dead !== true
           && selfRow.hp > 0
           && selfRow.state !== 'dead';
+        m.buyPrompt.textContent = curMode === 'chaos' ? '[B] CHAOS LAB · BUY UPGRADES' : '[B] ARMORY OPEN';
         m.buyPrompt.style.display = canBuy ? 'block' : 'none';
       }
 
@@ -295,6 +295,7 @@ export class MatchHud {
         phase: match?.phase || 'live',
         credits: selfRow.credits || 0,
         owned: selfRow.owned || [],
+        chaosUpgrades: selfRow.chaosUpgrades || {},
       });
     } else {
       if (m.creditsBox) m.creditsBox.style.display = 'none';
@@ -305,6 +306,7 @@ export class MatchHud {
         phase: match?.phase || 'live',
         credits: 0,
         owned: [],
+        chaosUpgrades: {},
       });
     }
 

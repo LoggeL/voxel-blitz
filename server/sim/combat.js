@@ -1,3 +1,4 @@
+import { chaosShot, chaosHit } from './chaos-combat.js';
 // Authoritative weapon intent, ballistics, and destructible-block damage.
 // The caller owns world/entity state and exposes only the narrow operations
 // needed by this hot path through `ctx`.
@@ -207,6 +208,7 @@ function meleeSwing(p, ctx) {
     p.id, muzzle, [fwd.x, fwd.y, fwd.z], def.id, [fwd.x, fwd.y, fwd.z],
   ));
 
+  chaosShot(p, ctx, fwd);
   const cosHalf = Math.cos(melee.coneDeg * Math.PI / 360);
   let best = null;
   let bestDot = -Infinity;
@@ -444,6 +446,7 @@ export function fireOneShot(p, ctx, charge = 1) {
   );
   if (charged) shootEvent.charge = Math.round(charge01 * 1000) / 1000;
   ctx.pushEvent(shootEvent);
+  chaosShot(p, ctx, fwd);
   if (def.projectile === 'rocket') {
     // The rocket is its own authoritative entity from here on.
     if (typeof ctx.launchRocket === 'function') ctx.launchRocket(p, firstDir);
@@ -491,6 +494,7 @@ export function fireOneShot(p, ctx, charge = 1) {
           longRange: tgt.t >= LONG_RANGE_KILL_DISTANCE,
           noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
         });
+        chaosHit(p, tgt.victim, [ix, iy, iz], ctx);
       } else if (hit) {
         const type = ctx.getBlock(hit.x, hit.y, hit.z);
         if (BLOCK_HP[type] != null) {
@@ -544,6 +548,7 @@ export function fireOneShot(p, ctx, charge = 1) {
           longRange: dist >= LONG_RANGE_KILL_DISTANCE,
           noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
         });
+        chaosHit(p, tgt.victim, [ix, iy, iz], ctx);
         hitVictims.add(tgt.victim);
         playersLeft -= 1;
         dmgMult *= playerFalloff;

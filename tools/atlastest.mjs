@@ -202,7 +202,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
 // ---------------------------------------------- mode + map foundation contract
 {
-  ok(sameValue(MODE_IDS, ['fun', 'tdm', 'snd', 'gungame', 'training'])
+  ok(sameValue(MODE_IDS, ['fun', 'chaos', 'tdm', 'snd', 'gungame', 'training'])
     && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'killhouse'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
@@ -223,6 +223,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     'every S&D-compatible map exposes dedicated A/B marker render-validation shots');
 
   const expectedRules = {
+    chaos: { teams: false, friendlyFire: true, respawnMs: 1500 },
     fun: {
       teams: false,
       friendlyFire: true,
@@ -303,11 +304,11 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   'Search and Destroy prices and credit economy are exact immutable values');
 
   const expectedCompatibility = {
-    foundry: ['fun', 'tdm', 'snd', 'gungame'],
-    depot: ['fun', 'tdm', 'gungame'],
-    citadel: ['fun', 'tdm', 'snd', 'gungame'],
-    solstice: ['fun', 'tdm', 'snd', 'gungame'],
-    caldera: ['fun', 'tdm', 'snd', 'gungame'],
+    foundry: ['fun', 'chaos', 'tdm', 'snd', 'gungame'],
+    depot: ['fun', 'chaos', 'tdm', 'gungame'],
+    citadel: ['fun', 'chaos', 'tdm', 'snd', 'gungame'],
+    solstice: ['fun', 'chaos', 'tdm', 'snd', 'gungame'],
+    caldera: ['fun', 'chaos', 'tdm', 'snd', 'gungame'],
     killhouse: ['training'],
   };
   ok(sameValue(MAP_MODE_COMPATIBILITY, expectedCompatibility)

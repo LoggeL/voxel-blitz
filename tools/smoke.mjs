@@ -1955,8 +1955,12 @@ async function runNetwork(server, clients) {
   );
   ok(pong.nonce === 918273, 'server echoes the exact application ping nonce for measured RTT');
 
+  const movementTickStart = a.ticks.length;
+  const movementHeadings = [0, Math.PI / 2, Math.PI, -Math.PI / 2];
   for (let s = 0; s < 150; s++) {
-    a.input(s, { forward: true, fire: true });
+    // Sample every cardinal direction so a spawn-facing wall cannot trap the test.
+    const yaw = movementHeadings[Math.floor(s * movementHeadings.length / 150)];
+    a.input(s, { forward: true, fire: true, yaw });
     b.input(s, { fire: true, yaw: Math.PI / 4 });
     await delay(22);
   }
@@ -1988,10 +1992,20 @@ async function runNetwork(server, clients) {
   const blockEvents = a.events.filter((e) => e.kind === 'block').length;
   console.log(`  info - kills=${totalKillEvs} brokenBlocks=${blockEvents}`);
 
-  const firstTick = a.ticks.find((t) => t.players.some((p) => p.id === a.id));
-  const firstMe = firstTick?.players.find((p) => p.id === a.id);
-  const movedDist = me && firstMe ? Math.hypot(me.x - firstMe.x, me.z - firstMe.z) : 0;
-  ok(movedDist > 0.5, `raw f input integrates movement (${movedDist.toFixed(2)}u)`);
+  let lifeOrigin = null, movedDist = 0;
+  for (const tick of a.ticks.slice(movementTickStart)) {
+    const row = tick.players.find((p) => p.id === a.id);
+    if (!row || row.state !== 'alive') { lifeOrigin = null; continue; }
+    const respawned = tick.events.some((event) => event.kind === 'respawn' && event.id === a.id);
+    // A death count change also catches a life transition between snapshots.
+    // Never count the respawn teleport itself as evidence of movement.
+    if (!lifeOrigin || respawned || row.deaths !== lifeOrigin.deaths) {
+      lifeOrigin = row;
+      continue;
+    }
+    movedDist = Math.max(movedDist, Math.hypot(row.x - lifeOrigin.x, row.z - lifeOrigin.z));
+  }
+  ok(movedDist > 0.5, `raw f input integrates movement within one life (${movedDist.toFixed(2)}u)`);
 }
 
 async function main() {

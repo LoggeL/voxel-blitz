@@ -62,7 +62,7 @@ export class RailBeamFX {
     direction.normalize();
     const eye = new THREE.Vector3(...event.o);
     const profile = chargeShotProfile(WEAPONS.lance, charge);
-    let length = 95;
+    let length = event.chaosArc && Number.isFinite(event.reach) ? Math.max(0.1, Math.min(9, event.reach)) : 95;
     const pierced = new Set();
     for (let wall = 0; wall <= profile.walls; wall++) {
       const hit = raycastVoxels((x, y, z) =>
