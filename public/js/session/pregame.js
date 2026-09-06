@@ -143,7 +143,9 @@ export class PregameFlow {
     await audioReady;
     if (!this.isActive(attempt)) return;
 
+    const password = typeof action.password === 'string' ? action.password : '';
     const opts = { mode };
+    if (mode !== 'quick') opts.password = password;
     if (mode === 'quick' || mode === 'create') opts.bots = bots;
     if (mode === 'create') {
       opts.gameMode = action.gameMode;
@@ -159,7 +161,7 @@ export class PregameFlow {
       }
       attempt.welcome = welcome;
       attempt.recoveryToken = null;
-      this._rejoin = { mode: mode === 'quick' ? 'quick' : 'join', code: welcome.lobby?.code, name, sensitivity, bots };
+      this._rejoin = { mode: mode === 'quick' ? 'quick' : 'join', code: welcome.lobby?.code, name, sensitivity, bots, password };
       if (net.latestLobbyState) attempt.lobbyState = net.latestLobbyState;
       if (this.maybeEnterLive(attempt)) return true;
       if (attempt.lobbyState?.phase === 'waiting') {

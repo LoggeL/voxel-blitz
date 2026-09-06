@@ -723,9 +723,9 @@ export async function runHudContracts(ok, installGlobals) {
         && statusStrip.querySelectorAll('.is-dead').length === 1
         && statusStrip.querySelectorAll('.vb-player-team-alpha').length > 0
         && statusStrip.querySelectorAll('.vb-player-team-bravo').length > 0
-        && /12/.test(statusStrip.textContent)
-        && /8/.test(statusStrip.textContent),
-      'top status strip renders both teams, alive/dead state, and authoritative points');
+        && /1 ALIVE/.test(statusStrip.textContent)
+        && /0 ALIVE/.test(statusStrip.textContent),
+      'S&D status strip shows remaining lives without repeating names and scores');
 
       hud.setState({ grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 0.5 });
       const fragChip = hud.dom.grenadeTypeChips[0];
@@ -818,7 +818,7 @@ export async function runHudContracts(ok, installGlobals) {
         && /defend/i.test(document.getElementById('match-bravo-role').textContent),
       'HUD renders authoritative team scores and current S&D roles');
       ok(document.getElementById('match-bomb-banner').textContent.trim()
-          === 'BOMB PLANTED AT SITE A'
+          === 'BOMB · SITE A'
         && document.getElementById('match-clock').textContent === '8.0s'
         && Object.keys(liveMatch.bomb).sort().join(',') === 'carrier,explodeAt,site,state,x,y,z'
         && visible(document.getElementById('interaction-bar'))
@@ -867,6 +867,38 @@ export async function runHudContracts(ok, installGlobals) {
         && scoreboard.querySelectorAll('.vb-badge-bravo').length === 1
         && scoreboard.querySelectorAll('.vb-sb-bomb-badge').length === 1,
       'scoreboard renders team badges and objective-carrier badge');
+
+      for (const mode of ['fun', 'tdm', 'gungame', 'training']) {
+        hud.setMatchState({ mode, map: mode === 'training' ? 'killhouse' : 'foundry',
+          phase: 'live', phaseEndsAt: 50000, scores: { alpha: 5, bravo: 3 } }, players[0], players, 23000);
+        const headers = Array.from(document.getElementById('scores').querySelectorAll('th'), (th) => th.textContent);
+        ok(!visible(document.getElementById('match-clock'))
+          && document.getElementById('match-clock').textContent === ''
+          && !visible(document.getElementById('player-status-strip')),
+        `${mode} never shows an irrelevant clock or permanent roster`);
+        if (mode === 'fun') {
+          ok(headers.join(',') === '#,PLAYER,KILLS,DEATHS'
+            && document.getElementById('match-phase-label').textContent === '#1 · 5 KILLS'
+            && document.getElementById('scores').querySelectorAll('.vb-sb-bomb-badge').length === 0,
+          'FFA shows local rank and kills with a ranked K/D table and no objective baggage');
+        } else if (mode === 'tdm') {
+          ok(headers.join(',') === 'PLAYER,KILLS,DEATHS,PLAYER,KILLS,DEATHS'
+            && document.getElementById('scores').querySelectorAll('.vb-scoreboard-team').length === 2,
+          'TDM groups players into two team tables with only relevant combat stats');
+        } else if (mode === 'gungame') {
+          ok(headers.join(',') === '#,PLAYER,WEAPON'
+            && /10 \/ 10/.test(document.getElementById('match-phase-label').textContent)
+            && /10\/10/.test(document.getElementById('scores').textContent),
+          'Gun Game clamps authoritative weapon progression to the final weapon');
+        } else {
+          ok(!visible(document.getElementById('match-header')) && headers.join(',') === 'PLAYER',
+          'Training has a participant list without competitive counters or a match header');
+        }
+      }
+      hud.setMatchState(liveMatch, selfRow, players, 23000);
+      ok(visible(document.getElementById('match-clock'))
+        && visible(document.getElementById('player-status-strip')),
+      'returning from Training restores the S&D clock and remaining lives');
 
       const purchases = [];
       let buyCloses = 0;

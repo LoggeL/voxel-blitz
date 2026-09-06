@@ -424,6 +424,41 @@ async function runContracts(server, signal) {
   const port = await withTimeout(server.port, START_TIMEOUT_MS, 'server startup timeout', signal);
   pass(Number.isInteger(port) && port > 0, 'server binds an OS-assigned port');
 
+  const directory = async () => {
+    const response = await fetch(`http://127.0.0.1:${port}/api/lobbies`);
+    pass(response.ok && response.headers.get('cache-control') === 'no-store', 'directory is fresh JSON');
+    return response.json();
+  };
+  pass((await directory()).lobbies.length === 0, 'empty directory reports no rooms');
+  const secret = 'Room pass 42!';
+  const protectedHost = await admit(makeClient(port, 'Protected-Host'),
+    { t: 'create', name: 'Protected-Host', bots: 0, password: secret }, signal);
+  const protectedCode = protectedHost.welcome.lobby.code;
+  const listing = await directory();
+  const listed = listing.lobbies.find((room) => room.code === protectedCode);
+  pass(listed?.passwordRequired === true && listed.players === 1 && listed.host === 'Protected-Host'
+    && listed.phase === 'waiting' && listed.capacity === 8, 'directory exposes joinable room metadata');
+  pass(!JSON.stringify(listing).includes(secret) && !JSON.stringify(protectedHost.initialState).includes(secret)
+    && Object.keys(listed).sort().join(',') === 'capacity,code,gameMode,host,map,passwordRequired,phase,players',
+    'directory and lobby frames never expose password material');
+  for (const password of [undefined, 'wrong', secret.toLowerCase()]) {
+    const frame = { t: 'join', name: 'Password-Check', lobby: protectedCode };
+    if (password !== undefined) frame.password = password;
+    const rejection = await expectRejected(makeClient(port, 'Password-Check'), frame, 4003, signal);
+    pass(/password/i.test(rejection.error.msg), 'missing or incorrect password rejects code-based admission');
+  }
+  for (const password of [42, 'x'.repeat(65)]) {
+    await expectRejected(makeClient(port, 'Invalid-Password'),
+      { t: 'create', name: 'Invalid-Password', bots: 0, password }, 4002, signal);
+  }
+  const protectedPeer = await admit(makeClient(port, 'Protected-Peer'),
+    { t: 'join', name: 'Protected-Peer', lobby: protectedCode, password: secret }, signal);
+  pass((await directory()).lobbies.find((room) => room.code === protectedCode)?.players === 2,
+    'correct password admits a directory-selected player');
+  await Promise.all([protectedPeer.close(), protectedHost.close()]);
+  await sleep(100, signal);
+  pass(!(await directory()).lobbies.some((room) => room.code === protectedCode), 'empty rooms disappear from directory');
+
   // Configure an already joinable room while peers are connected.
   const editor = await admit(makeClient(port, 'Editor'), { t: 'create', name: 'Editor', bots: 3 }, signal);
   const editCode = editor.welcome.lobby.code;

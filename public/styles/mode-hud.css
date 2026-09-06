@@ -1,0 +1,79 @@
+/* Only the current mode's live objective belongs over the arena. */
+#hud #compass, #net-meter:not([data-diagnostics="true"]) { display: none; }
+#match-header {
+  top: max(12px, env(safe-area-inset-top));
+  min-width: 0; width: max-content; max-width: calc(100vw - 32px);
+  gap: 18px; padding: 8px 14px; align-items: center; flex-wrap: nowrap;
+  border: 1px solid #ffffff18; border-radius: 7px; clip-path: none;
+  background: #0b1014c9; box-shadow: none;
+}
+#match-header .vb-match-center { flex: 0 1 auto; width: auto; order: 0; gap: 3px; margin: 0; }
+#match-header .vb-match-mode-chip { padding: 0; background: none; font-size: 10px; letter-spacing: .08em; }
+#match-header .vb-match-clock-box { display: flex; align-items: center; gap: 10px; }
+#match-header .vb-match-phase-label { font-size: 13px; letter-spacing: .04em; white-space: nowrap; }
+#match-header .vb-match-phase-label::after { content: none; }
+#match-header .vb-match-clock { font-size: 22px; line-height: 1; letter-spacing: 0; text-shadow: none; }
+#match-header .vb-match-team { flex: 0 0 auto; min-width: 0; gap: 10px; padding: 0; border: 0; background: none; box-shadow: none; }
+#match-header .vb-team-name { font-size: 10px; letter-spacing: .08em; }
+#match-header .vb-team-score { font-size: 26px; line-height: 1; text-shadow: none; }
+#match-header .vb-team-role { font-size: 8px; letter-spacing: .08em; }
+#match-header:is([data-mode="fun"], [data-mode="gungame"]) .vb-match-center { flex-direction: row; gap: 16px; }
+#match-header:is([data-mode="tdm"], [data-mode="snd"]) .vb-match-meta-bar { display: none; }
+#match-header .vb-match-bomb-banner { padding: 0; margin: 0; border: 0; background: none; font-size: 9px; letter-spacing: .04em; animation: none; color: var(--danger); }
+#player-status-strip { top: 72px; width: max-content; min-width: 0; max-width: calc(100vw - 24px); gap: 16px; }
+#player-status-strip .vb-player-status-group { flex: 0 1 auto; gap: 5px; }
+#player-status-strip .vb-player-status-summary { padding: 0 4px; background: none; border: 0; font-size: 9px; }
+#player-status-strip .vb-player-status-card { display: flex; min-width: 0; width: 10px; padding: 0; background: none; border: 0; clip-path: none; box-shadow: none; }
+#player-status-strip .vb-player-status-name, #player-status-strip .vb-player-status-score, #player-status-strip .vb-player-status-versus { display: none; }
+#player-status-strip .vb-player-status-dot { font-size: 10px; color: var(--status-team); text-shadow: none; }
+
+#scoreboard.vb-mode-scoreboard {
+  box-sizing: border-box; top: 50%; min-width: 0; width: min(620px, calc(100vw - 24px));
+  max-width: none; max-height: calc(100dvh - 100px); padding: 20px;
+  overflow: auto; pointer-events: auto; border: 1px solid #ffffff26; border-radius: 10px;
+  clip-path: none; background: #0b1014ed; box-shadow: 0 16px 60px #0005;
+}
+#scoreboard::before { display: none; }
+.vb-scoreboard-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.vb-scoreboard-heading h2 { font-size: 18px; margin: 0; letter-spacing: .04em; }
+.vb-scoreboard-heading > span { font-size: 11px; color: var(--sub); }
+.vb-scoreboard-team + .vb-scoreboard-team { margin-top: 20px; }
+#scoreboard .vb-sb-team-heading { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 6px; padding: 8px 10px; font-size: 15px; letter-spacing: .06em; border: 0; border-radius: 4px; }
+#scoreboard .vb-sb-team-heading span { font-size: 9px; letter-spacing: .04em; }
+#scoreboard table { table-layout: auto; }
+#scoreboard th, #scoreboard td { padding: 10px 8px; text-align: right; letter-spacing: 0; }
+#scoreboard th { font-size: 10px; color: #a4afb4; }
+#scoreboard td { font-size: 14px; }
+#scoreboard th:first-child, #scoreboard td:first-child { text-align: left; }
+#scoreboard :is(th, td):last-child { text-align: right; padding-left: 8px; }
+#scoreboard.vb-mode-scoreboard td.vb-sb-name { width: 100%; text-align: left; overflow-wrap: anywhere; }
+#scoreboard .vb-sb-rank { width: 24px; color: var(--sub); }
+#scoreboard .vb-sb-number { min-width: 38px; }
+#scoreboard[data-mode="fun"] th:nth-child(2), #scoreboard[data-mode="gungame"] th:nth-child(2) { text-align: left; }
+#scoreboard .vb-sb-progress { min-width: 128px; }
+.vb-sb-progress strong { color: var(--amber-hi); font-size: 16px; }
+.vb-sb-progress span { display: block; color: var(--sub); font-size: 9px; margin-top: 3px; }
+.vb-sb-you { display: inline-block; margin-left: 8px; font-size: 8px; color: var(--amber-hi); }
+#scoreboard .vb-sb-state { font-size: 10px; }
+#scoreboard .vb-me { background: #ffffff09; }
+#scoreboard tr.dead td { opacity: .6; }
+
+@media (max-width: 600px) {
+  #match-header { gap: 12px; padding: 7px 10px; }
+  #match-header .vb-team-score { font-size: 22px; }
+  #match-header .vb-match-team { gap: 6px; }
+  #match-header .vb-team-name { font-size: 9px; }
+  #match-header .vb-match-phase-label { font-size: 11px; }
+  #scoreboard.vb-mode-scoreboard { padding: 14px; }
+  .vb-scoreboard-heading h2 { font-size: 15px; }
+  .vb-scoreboard-heading { gap: 8px; }
+  #scoreboard td { font-size: 12px; padding: 9px 6px; }
+  #scoreboard .vb-sb-number { min-width: 28px; }
+  #scoreboard .vb-sb-progress { min-width: 94px; }
+}
+.vb-touch-mode #match-header { top: max(10px, env(safe-area-inset-top)); max-width: calc(100vw - 100px); gap: 10px; padding: 5px 8px; }
+.vb-touch-mode #match-header .vb-team-score { font-size: 18px; }
+.vb-touch-mode #match-header .vb-match-clock { font-size: 19px; }
+.vb-touch-mode #match-header .vb-match-mode-chip { font-size: 9px; }
+.vb-touch-mode #match-header:is([data-mode="fun"], [data-mode="gungame"]) .vb-match-center { gap: 10px; }
+.vb-touch-mode #match-header .vb-match-team { gap: 2px; }

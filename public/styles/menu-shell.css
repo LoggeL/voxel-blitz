@@ -401,3 +401,35 @@ h1.vb-deployment-title::after { display: none; }
   .vb-lobby-invite-card .vb-invite-input { flex-basis: 100%; }
   .vb-lobby-invite-card .vb-btn-copy { flex: 1; min-height: 44px; }
 }
+
+.vb-password-option { color: #a4afb4; font-size: 12px; }
+.vb-password-option summary { cursor: pointer; padding: 8px 0; min-height: 24px; }
+.vb-password-option label, .vb-browser-password { display: grid; gap: 8px; }
+.vb-password-option input, .vb-lobby-browser input {
+  box-sizing: border-box; width: 100%; min-height: 44px; padding: 10px 12px;
+  color: #f1f0e9; background: #111a23; border: 1px solid #65717d; border-radius: 5px;
+}
+.vb-menu-primary .vb-browse-btn { min-height: 46px; padding: 12px 16px; font-size: 14px; background: #ffffff09; border: 1px solid #ffffff30; color: #f1f0e9; }
+.vb-lobby-browser {
+  box-sizing: border-box; width: min(800px, calc(100vw - 24px)); max-height: calc(100dvh - 24px);
+  padding: clamp(16px, 3vw, 28px); overflow: auto; border: 1px solid #65717d; border-radius: 12px;
+  background: #0c131b; color: #f1f0e9;
+}
+.vb-lobby-browser::backdrop { background: #000c; }
+.vb-browser-header { display: flex; gap: 16px; justify-content: space-between; align-items: center; }
+.vb-browser-header h2 { margin: 0; font-size: 20px; }
+.vb-lobby-browser .vb-btn { width: auto; min-height: 44px; margin: 0; padding: 10px 16px; font-size: 12px; clip-path: none; }
+.vb-browser-status { color: #b3bfc9; font-size: 13px; }
+.vb-browser-rows { display: grid; gap: 12px; margin: 16px 0; }
+.vb-browser-room { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding: 16px; border: 1px solid #ffffff26; border-radius: 6px; }
+.vb-browser-room-info { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.vb-browser-room h3 { margin: 0 0 6px; font-size: 16px; }
+.vb-browser-room p { margin: 4px 0; font-size: 12px; color: #b3bfc9; }
+.vb-browser-password { flex: 1 1 170px; font-size: 12px; }
+.vb-browser-room .vb-btn:disabled { opacity: .5; cursor: default; }
+.vb-lobby-browser :focus-visible, .vb-password-option :focus-visible { outline: 2px solid #ffb04b; outline-offset: 3px; }
+@media (max-width: 480px) {
+  .vb-browser-room-info { flex-basis: 100%; }
+  .vb-browser-header { align-items: flex-start; }
+  .vb-browser-header h2 { font-size: 17px; }
+}

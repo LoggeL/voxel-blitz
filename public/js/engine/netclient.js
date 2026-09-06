@@ -247,7 +247,7 @@ export class NetClient {
    * before pairing completes. A previous session's buffers are cleared so
    * reconnects start clean. Omitting opts.mode preserves quick play.
    * @param {string} url ws(s)://… endpoint @param {string} name display name
-   * @param {{mode?:'quick'|'create'|'join',bots?:number,lobby?:string,
+   * @param {{mode?:'quick'|'create'|'join',bots?:number,lobby?:string,password?:string,
    *          gameMode?:string,map?:string}} [opts]
    * @returns {Promise<object>} welcome payload
    */
@@ -259,8 +259,10 @@ export class NetClient {
       const gameMode = normalizeModeId(options.gameMode);
       const map = mapForMode(gameMode, options.map);
       initialFrame = { t: 'create', name, bots, gameMode, map };
+      if (options.password) initialFrame.password = options.password;
     } else if (options.mode === 'join') {
       initialFrame = { t: 'join', name, lobby: options.lobby };
+      if (options.password) initialFrame.password = options.password;
     } else {
       initialFrame = { t: 'join', name, bots };
     }

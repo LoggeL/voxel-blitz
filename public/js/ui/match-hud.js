@@ -1,11 +1,11 @@
-import { GUN_GAME_WEAPON_ORDER } from '../../../shared/modes.js';
+import { GUN_GAME_WEAPON_ORDER, MODE_RULES } from '../../../shared/modes.js';
 import {
-  MODE_LABELS,
   MAP_LABELS,
   clamp01,
   el,
   formatClock,
 } from './hud-support.js';
+import { MODE_TITLES, gunLevel, rankPlayers } from './mode-presentation.js';
 import { MatchResultOverlay } from './match-result-overlay.js';
 import { PlayerStatusStrip } from './player-status-strip.js';
 
@@ -75,6 +75,7 @@ export class MatchHud {
     m.modeBadge = modeBadge;
     m.mapBadge = mapBadge;
     m.clock = clock;
+    m.clockBox = clockBox;
     m.phaseLabel = phaseLabel;
     m.bombBanner = bombBanner;
 
@@ -139,13 +140,17 @@ export class MatchHud {
 
     const curMode = match?.mode || 'fun';
     m.header.dataset.mode = curMode;
+    m.header.parentNode.dataset.mode = curMode;
+    m.header.style.display = curMode === 'training' ? 'none' : 'flex';
+    m.mapBadge.style.display = 'none';
+    m.clock.style.display = curMode === 'snd' ? 'block' : 'none';
     const curMap = match?.map || 'foundry';
     const phase = match?.phase || 'live';
     const isTeamMode = curMode === 'tdm' || curMode === 'snd';
     this.playerStatus.update(this._latestPlayers, curMode, selfRow?.id);
 
     if (m.modeBadge) {
-      m.modeBadge.textContent = MODE_LABELS[curMode] || curMode.toUpperCase();
+      m.modeBadge.textContent = curMode === 'fun' ? 'FFA' : (MODE_TITLES[curMode] || curMode.toUpperCase());
     }
     if (m.mapBadge) {
       m.mapBadge.textContent = MAP_LABELS[curMap] || curMap.toUpperCase();
@@ -153,14 +158,14 @@ export class MatchHud {
 
     const sNow = Number.isFinite(serverNow) && serverNow > 0 ? serverNow : Date.now();
     this.result.update(match, selfRow, this._latestPlayers, sNow);
-    let clockText = '--:--';
+    let clockText = '';
     let isUrgentBomb = false;
 
     if (curMode === 'snd' && match?.bomb?.state === 'planted' && Number.isFinite(match.bomb.explodeAt)) {
       const fuseRemSec = Math.max(0, (match.bomb.explodeAt - sNow) / 1000);
       clockText = `${fuseRemSec.toFixed(1)}s`;
       isUrgentBomb = true;
-    } else if (Number.isFinite(match?.phaseEndsAt)) {
+    } else if (curMode === 'snd' && Number.isFinite(match?.phaseEndsAt)) {
       const remSec = Math.max(0, (match.phaseEndsAt - sNow) / 1000);
       clockText = formatClock(remSec);
     }
@@ -172,40 +177,20 @@ export class MatchHud {
 
     if (m.phaseLabel) {
       if (curMode === 'snd') {
-        const roundNum = match?.round || 1;
-        if (phase === 'prep') {
-          m.phaseLabel.textContent = `ROUND ${roundNum} / 13 · PREP PHASE`;
-        } else if (phase === 'post') {
-          const rw = match?.roundWinner ? match.roundWinner.toUpperCase() : 'ROUND';
-          m.phaseLabel.textContent = `ROUND ${roundNum} OVER · ${rw} WON`;
-        } else {
-          m.phaseLabel.textContent = `ROUND ${roundNum} / 13 · OBJECTIVE LIVE`;
-        }
+        const status = phase === 'prep' ? 'BUY' : phase === 'post' ? 'ROUND OVER' : '';
+        m.phaseLabel.textContent = `R${match?.round || 1}${status ? ` · ${status}` : ''}`;
       } else if (curMode === 'tdm') {
-        m.phaseLabel.textContent = phase === 'post' ? 'MATCH CONCLUDED' : 'TEAM DEATHMATCH · FIRST TO 40';
+        m.phaseLabel.textContent = `FIRST TO ${MODE_RULES.tdm.scoreLimit}`;
       } else if (curMode === 'gungame') {
-        if (phase === 'post') {
-          m.phaseLabel.textContent = match?.winner
-            ? `${this._nameFor(match.winner)} WON GUN GAME`
-            : 'GUN GAME CONCLUDED';
-        } else {
-          const lastLevel = GUN_GAME_WEAPON_ORDER.length - 1;
-          const level = Math.max(0, Math.min(lastLevel, selfRow?.score | 0));
-          m.phaseLabel.textContent = `GUN GAME · WEAPON ${level + 1} / ${GUN_GAME_WEAPON_ORDER.length}`;
-        }
+        m.phaseLabel.textContent = `WEAPON ${gunLevel(selfRow)} / ${GUN_GAME_WEAPON_ORDER.length}`;
       } else if (curMode === 'training') {
-        m.phaseLabel.textContent = 'TRAINING · RANGE & KILLHOUSE';
+        m.phaseLabel.textContent = '';
       } else {
-        m.phaseLabel.textContent = 'INSTANT SKIRMISH · FREE FOR ALL';
+        const ranked = rankPlayers(this._latestPlayers, curMode);
+        const rank = ranked.findIndex((p) => String(p.id) === String(selfRow?.id));
+        m.phaseLabel.textContent = `${rank >= 0 ? `#${rank + 1} · ` : ''}${selfRow?.kills | 0} KILLS`;
       }
-    }
-
-    if (m.phaseLabel) {
-      m.phaseLabel.dataset.compact = curMode === 'snd'
-        ? `R${match?.round || 1} · ${phase === 'prep' ? 'PREP' : phase === 'post' ? 'OVER' : 'LIVE'}`
-        : curMode === 'tdm'
-          ? (phase === 'post' ? 'MATCH OVER' : 'FIRST TO 40')
-          : m.phaseLabel.textContent;
+      m.phaseLabel.dataset.compact = m.phaseLabel.textContent;
     }
 
     if (isTeamMode) {
@@ -237,7 +222,7 @@ export class MatchHud {
     }
 
     if (m.bombBanner) {
-      if (curMode === 'snd' && match?.bomb) {
+      if (curMode === 'snd' && match?.bomb && ['dropped', 'planted', 'defused', 'exploded'].includes(match.bomb.state)) {
         const b = match.bomb;
         m.bombBanner.style.display = 'block';
         m.bombBanner.className = `vb-match-bomb-banner state-${b.state || 'none'}`;
@@ -245,13 +230,13 @@ export class MatchHud {
         if (b.state === 'carried') {
           m.bombBanner.textContent = 'BOMB: IN POSSESSION';
         } else if (b.state === 'dropped') {
-          m.bombBanner.textContent = 'BOMB: DROPPED ON GROUND';
+          m.bombBanner.textContent = 'BOMB DROPPED';
         } else if (b.state === 'planted') {
-          m.bombBanner.textContent = `BOMB PLANTED AT SITE ${String(b.site || 'A').toUpperCase()}`;
+          m.bombBanner.textContent = `BOMB · SITE ${String(b.site || 'A').toUpperCase()}`;
         } else if (b.state === 'defused') {
-          m.bombBanner.textContent = 'BOMB: DEFUSED (DEFENDERS WIN)';
+          m.bombBanner.textContent = 'BOMB DEFUSED';
         } else if (b.state === 'exploded') {
-          m.bombBanner.textContent = 'BOMB: DETONATED (ATTACKERS WIN)';
+          m.bombBanner.textContent = 'BOMB DETONATED';
         } else {
           m.bombBanner.textContent = 'BOMB OBJECTIVE';
         }
@@ -324,17 +309,12 @@ export class MatchHud {
     }
 
     if (this._latestPlayers) {
-      this.onPlayers(this._latestPlayers);
+      this.onPlayers(this._latestPlayers, match, selfRow);
     }
   }
 
   reset() {
     this.setMatchState(null, null, [], undefined);
-  }
-
-  _nameFor(id) {
-    const row = this._latestPlayers.find((player) => String(player?.id) === String(id));
-    return String(row?.name || id || 'PLAYER').toUpperCase();
   }
 
   dispose() {

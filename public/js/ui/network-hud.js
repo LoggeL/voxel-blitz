@@ -19,6 +19,8 @@ export class NetworkHud {
     this.dispose();
     const root = document.createElement('div');
     root.id = 'net-meter';
+    const search = typeof location === 'undefined' ? '' : location.search;
+    root.dataset.diagnostics = String(new URLSearchParams(search).has('debug'));
     root.setAttribute('aria-label', 'Network and frame rate telemetry');
     const values = document.createElement('div');
     values.className = 'vb-net-values';

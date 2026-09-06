@@ -8,6 +8,7 @@ import {
   spreadFromCone,
   beamReticleRadiusPx,
 } from './hud-support.js';
+import { Scoreboard } from './scoreboard.js';
 import { MatchHud } from './match-hud.js';
 import { createSniperScope } from './sniper-scope.js';
 import { NetworkHud } from './network-hud.js';
@@ -42,6 +43,9 @@ export class GameplayHud {
     this.st = {};
     this.dom = {};
     this.names = new Map();
+    this.scoreboard = new Scoreboard();
+    this.scoreboardMatch = null;
+    this.scoreboardSelfId = null;
 
     this.scopeShown = false;
     this.scopeProgress = 0;
@@ -66,7 +70,7 @@ export class GameplayHud {
 
     this.match = matchHud || new MatchHud({
       onBuyMenuState,
-      onPlayers: (players) => this.setPlayers(players),
+      onPlayers: (players, match, selfRow) => this.setPlayers(players, match, selfRow),
       readModel,
     });
     this.matchDom = this.match.dom;
@@ -179,15 +183,7 @@ export class GameplayHud {
     d.kf = el('div', '', hud, 'killfeed');
     d.dmglayer = el('div', '', hud, 'dmglayer');
 
-    d.sb = el('div', '', hud, 'scoreboard');
-    d.sb.style.display = 'none';
-    const table = el('table', '', d.sb);
-    const thead = el('thead', '', table);
-    const hr = el('tr', '', thead);
-    for (const h of ['TEAM', 'SCORE', 'KILLS', 'DEATHS', 'PING', 'OPERATOR']) {
-      el('th', '', hr).textContent = h;
-    }
-    el('tbody', '', table, 'scores');
+    d.sb = this.scoreboard.build(hud);
 
     d.hitmarker = el('div', '', hud, 'hitmarker');
     d.lowhp = el('div', '', hud, 'lowhp-vignette');
@@ -541,59 +537,14 @@ export class GameplayHud {
     this.network.update(frameDt, stats, atMs);
   }
 
-  setPlayers(players) {
-    const body = document.getElementById('scores');
-    if (!body || !Array.isArray(players)) return;
-
+  setPlayers(players, match = this.scoreboardMatch, selfRow = null) {
+    if (!Array.isArray(players)) return;
+    this.scoreboardMatch = match;
+    if (selfRow) this.scoreboardSelfId = selfRow.id;
     for (const player of players) {
-      if (player && player.id != null) {
-        this.names.set(String(player.id), String(player.name || player.id));
-      }
+      if (player && player.id != null) this.names.set(String(player.id), String(player.name || player.id));
     }
-
-    const rows = players.slice().sort((a, b) => {
-      const scoreA = a.score | 0;
-      const scoreB = b.score | 0;
-      if (scoreA !== scoreB) return scoreB - scoreA;
-      return (b.kills | 0) - (a.kills | 0);
-    });
-
-    body.innerHTML = '';
-    for (const player of rows) {
-      const me = player.local === true;
-      const dead = player.state === 'dead';
-      const team = player.team === 'alpha' || player.team === 'bravo' ? player.team : null;
-      const classes = [
-        me ? 'vb-me' : '',
-        dead ? 'dead' : '',
-        team ? `vb-team-${team}` : '',
-      ].filter(Boolean).join(' ');
-
-      const tr = el('tr', classes);
-      tr.dataset.pid = String(player.id ?? '');
-
-      const teamTd = el('td', 'vb-sb-team', tr);
-      if (team) {
-        const teamBadge = el('span', `vb-sb-team-badge vb-badge-${team}`, teamTd);
-        teamBadge.textContent = team.toUpperCase();
-      } else {
-        teamTd.textContent = 'FFA';
-      }
-
-      el('td', '', tr).textContent = String(player.score | 0);
-      el('td', '', tr).textContent = String(player.kills | 0);
-      el('td', '', tr).textContent = String(player.deaths | 0);
-      el('td', '', tr).textContent = Number.isFinite(player.ping) ? `${Math.round(player.ping)} ms` : '—';
-
-      const nameTd = el('td', 'vb-sb-name', tr);
-      nameTd.textContent = String(player.name || 'OPERATOR');
-      if (player.bomb) {
-        const bombBadge = el('span', 'vb-sb-bomb-badge', nameTd);
-        bombBadge.textContent = '[BOMB]';
-      }
-
-      body.appendChild(tr);
-    }
+    this.scoreboard.update(players, match, this.scoreboardSelfId);
   }
 
   ensureScope() {
@@ -748,6 +699,7 @@ export class GameplayHud {
     this.onKU = null;
 
     this.match.dispose();
+    this.scoreboard.dispose();
     this.network.dispose();
     const hud = doc ? doc.getElementById('hud') : null;
     if (this._ownedHudRoot) {

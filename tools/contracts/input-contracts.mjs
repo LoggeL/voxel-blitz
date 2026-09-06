@@ -1,4 +1,57 @@
 export async function runInputContracts(ok, installGlobals) {
+  {
+    const { Input } = await import('../../public/js/engine/input.js');
+    const calls = [];
+    const root = { requestFullscreen() { calls.push('fullscreen'); return Promise.resolve(); } };
+    const doc = { documentElement: root, fullscreenElement: null, pointerLockElement: null };
+    const restore = installGlobals({
+      location: { search: '' }, document: doc,
+      navigator: { userActivation: { isActive: true }, keyboard: {
+        lock(keys) { calls.push(keys); return Promise.resolve(); },
+        unlock() { calls.push('unlock'); },
+      } },
+    });
+    let input;
+    try {
+      input = new Input({ requestPointerLock() { calls.push('pointer'); return Promise.resolve(); } });
+      input._touchMode = false;
+      input.requestLock();
+      ok(calls[0] === 'pointer' && calls[1] === 'fullscreen',
+        'desktop entry requests pointer lock before fullscreen consumes user activation');
+      doc.fullscreenElement = root;
+      doc.pointerLockElement = input.canvas;
+      input._hLockChange();
+      const captured = calls.at(-1);
+      ok(Array.isArray(captured) && captured.includes('KeyW') && captured.includes('Digit1')
+        && !captured.includes('Escape'), 'fullscreen gameplay captures shortcuts while leaving Escape free');
+      for (const modifiers of [{ ctrlKey: true }, { metaKey: true }]) {
+        let prevented = 0;
+        const event = { code: 'KeyW', ...modifiers, preventDefault() { prevented++; } };
+        input._onKeyDown(event);
+        ok(input.keys.forward && prevented === 1, 'modified W moves and cancels browser default');
+        input._onKeyUp(event);
+        ok(!input.keys.forward && prevented === 2, 'modified W release clears movement and browser default');
+      }
+      input.setGameplayEnabled(false);
+      ok(calls.at(-1) === 'unlock', 'pausing releases keyboard capture');
+      let prevented = false;
+      input._onKeyDown({ code: 'KeyW', preventDefault() { prevented = true; } });
+      ok(!prevented && !input.keys.forward, 'paused gameplay leaves browser shortcuts alone');
+      input.setGameplayEnabled(true);
+      doc.fullscreenElement = null;
+      input._hFullscreenChange();
+      ok(calls.at(-1) === 'unlock', 'leaving fullscreen releases keyboard capture');
+      root.requestFullscreen = () => Promise.reject(new Error('denied'));
+      input.requestLock();
+      await Promise.resolve();
+      ok(calls.at(-1) === 'pointer', 'fullscreen denial still permits pointer lock');
+      input.dispose();
+      ok(calls.at(-1) === 'unlock', 'disposing releases keyboard capture');
+    } finally {
+      input?.dispose();
+      restore();
+    }
+  }
   // Input: headless is a pointer-lock substitute, not a gameplay-suppression
   // bypass. Direct slots cover the full ten-gun roster and wheel edges drain.
   {

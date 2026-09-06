@@ -8,9 +8,9 @@ ADS, tracers, shell ejects, muzzle flash + barrel heat shader, block-shatter,
 damage numbers, hitmarkers, killfeed, a full-screen sniper optic, a radial
 weapon wheel, synthesized WebAudio layers, transient-aligned licensed firearm
 samples, and menu music.
-Every weapon has a dedicated generated HUD silhouette. The live HUD also shows
-measured round-trip history, arrival jitter, the adaptive snapshot buffer, FPS,
-and three kinds of server-authoritative throwables per life: cookable frags,
+Every weapon has a dedicated generated HUD silhouette. With `?debug=1`, the HUD
+shows round-trip history, arrival jitter, the adaptive snapshot buffer, and FPS.
+The live HUD shows three kinds of server-authoritative throwables per life: cookable frags,
 sticky limpet charges, and concussive pulse shocks.
 
 ## Run
@@ -20,20 +20,25 @@ npm install
 npm start            # http://localhost:8070  (PORT env to override)
 ```
 
-The main menu offers Quick Play, custom lobbies, room codes, and a Killhouse shortcut:
+The main menu offers Quick Play, a lobby browser, custom lobbies, room codes, and a Killhouse shortcut:
 
 - **Quick Play** enters the first live shared Fun room with human capacity, or
   creates one immediately. Fresh quick rooms rotate between Foundry, Depot,
   Solstice, and Caldera.
   A fresh room starts with at least five bots; humans replace bots as they join.
   Custom lobby settings do not change quick play.
+- **Find a Lobby** lists custom rooms with their host, mode, map, human occupancy,
+  match status, and password requirement. Refresh reloads the directory. Join
+  directly without typing a code; full rooms are disabled. Quick Play and
+  Training rooms are not listed.
 - **Create Lobby** immediately creates a joinable waiting room and puts its code
   in the browser URL. The host can change mode, compatible map and `0–7` bots
   while friends join. Changes reset everyone's readiness. Every human, including the host, marks ready;
-  the host starts the match after all humans are ready.
+  the host starts the match after all humans are ready. Expand "Set a lobby
+  password" before creating to protect the room, or leave it empty for open access.
 - **Join** accepts a five-character invite code and inherits the room's
   authoritative mode and map. It may enter either a waiting lobby or a match
-  already in progress.
+  already in progress. Expand "This lobby has a password" for protected rooms.
 
 **Enter Killhouse** creates a Training lobby directly with your current name and
 no combat bots. Ready up and start to enter the covered firing gallery. The
@@ -48,6 +53,12 @@ case-insensitive, uppercase on the wire, and use
 `ABCDEFGHJKMNPQRSTUVWXYZ23456789`. The QR button opens a large, locally generated
 code for the full invite URL. Escape, Close or clicking the backdrop returns to
 the lobby without disconnecting.
+
+Lobby passwords are case-sensitive, support up to 64 characters, and are
+checked by the server on every join, including invite links. The server keeps
+salted scrypt hashes in memory and never includes passwords in directory or
+lobby frames. The client retains the password in memory for automatic reconnect;
+it is not saved in preferences or invitation URLs.
 
 Headless clients can join quick play from additional shells:
 
@@ -238,6 +249,22 @@ the attempt. Death or disconnect releases the course for the next runner.
 | `caldera` | Fun, TDM, S&D, Gun Game | volcanic caldera with Obsidian Gate A and elevated Ember Refinery B |
 | `killhouse` | Training | weapon-test firing range with respawning dummies and a timed 4-stage killhouse course |
 
+## Mode-specific HUD and scoreboards
+
+The top summary and Tab scoreboard use each mode's own rules:
+
+| Mode | Live summary | Scoreboard |
+| --- | --- | --- |
+| Free-for-All | Your rank and kills | Rank, player, kills, deaths |
+| Team Deathmatch | Team scores and first-to-40 target | Separate team tables with kills and deaths |
+| Search & Destroy | Round, clock/fuse, team rounds, attack/defend roles, remaining lives | Separate team tables with kills, deaths, alive/out, and bomb carrier |
+| Gun Game | Current weapon level out of ten | Ranked weapon progression and weapon names |
+| Training | The existing course HUD | Participants, without competitive counters |
+
+Clocks only appear in the S&D match summary. Final-result countdowns and Training
+run timing remain with their respective overlays. The compass and permanent
+roster cards are omitted; S&D keeps a compact remaining-lives strip on desktop.
+
 ## Controls
 
 | input | action |
@@ -282,7 +309,13 @@ Device in settings): look runs 2.4× hotter with a light two-frame smoothing,
 two-finger scrolling steps one weapon per flick instead of racing through the
 roster, and ADS defaults to toggle so nothing needs to be held with a second
 finger. Pointer lock requests raw (unaccelerated) mouse deltas where the
-browser offers them.
+browser offers them. Clicking into desktop play also requests fullscreen.
+While gameplay owns the pointer in fullscreen, supported browsers are asked to
+capture the game keys through Keyboard Lock, including W with Ctrl or Command.
+Game key events cancel browser defaults during play. Escape remains available
+to exit, and keyboard capture is released on pause, pointer/fullscreen loss, or
+teardown. Browsers may deny or not support capture; C is also available for
+crouching without holding Ctrl.
 
 On touch/coarse-pointer devices, the game runs without pointer lock. The left
 stick follows your thumb and auto-sprints at its outer edge. Drag the screen to

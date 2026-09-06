@@ -13,6 +13,7 @@ import {
   saveName,
 } from './hud-support.js';
 import { LobbyInviteQr } from './lobby-invite-qr.js';
+import { LobbyBrowser } from './lobby-browser.js';
 import { LobbySettings } from './lobby-settings.js';
 import { normalizeModeId, mapForMode } from '../../../shared/modes.js';
 import {
@@ -68,6 +69,7 @@ export class MenuLobbyController {
   }
 
   buildMenu(onAction, { musicEnabled = true, onMusicToggle = NOOP } = {}) {
+    this.browser?.dispose();
     this.onMenuAction = typeof onAction === 'function' ? onAction : NOOP;
     this.hideLobby();
     this._callHost('closeSettings');
@@ -134,7 +136,25 @@ export class MenuLobbyController {
     createLobbyButton.type = 'button';
     createLobbyButton.textContent = 'CREATE LOBBY';
     const createHint = el('div', 'vb-action-hint', createBox);
-    createHint.textContent = 'Get an invite link. Set up while friends join.';
+    createHint.textContent = 'Open to everyone, or protect with a password.';
+
+    const passwordOption = (parent, id, title) => {
+      const details = el('details', 'vb-password-option', parent);
+      el('summary', '', details).textContent = title;
+      const label = el('label', '', details);
+      el('span', '', label).textContent = 'PASSWORD (OPTIONAL)';
+      const input = el('input', '', label, id);
+      input.type = 'password';
+      input.maxLength = 64;
+      input.autocomplete = 'off';
+      input.placeholder = 'Leave empty for an open lobby';
+      return input;
+    };
+    const createPassword = passwordOption(actionsBox, 'create-password-input', 'Set a lobby password');
+    const browseButton = el('button', 'vb-btn vb-browse-btn', actionsBox, 'browse-lobbies-btn');
+    browseButton.type = 'button';
+    browseButton.textContent = 'FIND A LOBBY';
+    browseButton.setAttribute('aria-haspopup', 'dialog');
 
     const joinSection = el('div', 'vb-join-section', primaryBody);
     const joinLabel = el('label', 'vb-label', joinSection);
@@ -151,6 +171,8 @@ export class MenuLobbyController {
     const joinButton = el('button', 'vb-btn vb-join-btn', joinRow, 'join-lobby-btn');
     joinButton.type = 'button';
     joinButton.textContent = 'JOIN';
+    const joinPassword = passwordOption(joinSection, 'join-password-input', 'This lobby has a password');
+    joinPassword.placeholder = 'Enter the lobby password';
 
     this.joinStatus = el('div', 'vb-status', primaryBody, 'join-status');
     this.joinStatus.setAttribute('role', 'status');
@@ -192,7 +214,7 @@ export class MenuLobbyController {
       this.onMenuAction({ mode: 'create', gameMode,
         map: mapForMode(gameMode, loadPref('vb-map', 'foundry')),
         bots: gameMode === 'training' ? 0 : Math.round(loadPrefNum('vb-bots', 3, 0, 7)),
-        code: '', ...getIdentity() });
+        code: '', password: createPassword.value, ...getIdentity() });
     };
 
     const triggerJoin = () => {
@@ -211,8 +233,19 @@ export class MenuLobbyController {
       }
       this.showJoinState('');
       this.onMenuAction({ mode: 'join', gameMode: 'fun', map: 'foundry', bots: 0,
-        code: cleaned, ...getIdentity() });
+        code: cleaned, password: joinPassword.value, ...getIdentity() });
     };
+
+    this.browser = new LobbyBrowser(root, (code, password) => {
+      this.onMenuAction({ mode: 'join', code, password, ...getIdentity() });
+    });
+    browseButton.addEventListener('click', () => this.browser.show());
+    joinPassword.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') { event.preventDefault(); triggerJoin(); }
+    });
+    createPassword.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') { event.preventDefault(); triggerCreate(); }
+    });
 
     trainingButton.addEventListener('click', () => {
       if (trainingButton.disabled) return;
@@ -641,6 +674,8 @@ export class MenuLobbyController {
   }
 
   dispose() {
+    this.browser?.dispose();
+    this.browser = null;
     const doc = typeof document !== 'undefined' ? document : null;
     if (this._onLobbyKeyDown) {
       if (doc) doc.removeEventListener('keydown', this._onLobbyKeyDown);

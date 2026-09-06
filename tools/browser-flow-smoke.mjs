@@ -114,6 +114,46 @@ async function main() {
       await writeFile(output, Buffer.from(screenshot.data, 'base64'));
     }
 
+    await clickElement(page, 'browse-lobbies-btn');
+    await page.waitFor(`document.querySelector('.vb-browser-status')?.textContent.includes('No lobbies yet')`,
+      { label: 'empty lobby browser' });
+    await pressEscape(page);
+    requireCondition(await page.evaluate(`!document.getElementById('lobby-browser').open`),
+      'Escape closes the lobby browser');
+    await page.evaluate(`new Promise((resolve, reject) => {
+      const ws = window.__directoryHost = new WebSocket('ws://' + location.host);
+      ws.onopen = () => ws.send(JSON.stringify({ t: 'create', name: 'DirectoryHost', bots: 0, password: 'test room' }));
+      ws.onmessage = (event) => {
+        if (typeof event.data === 'string' && JSON.parse(event.data).t === 'lobbyState') resolve(true);
+      };
+      ws.onerror = reject;
+    })`);
+    await clickElement(page, 'browse-lobbies-btn');
+    await page.waitFor(`document.querySelector('.vb-browser-room input')`, { label: 'protected directory entry' });
+    requireCondition(await page.evaluate(`document.querySelector('.vb-browser-room').textContent.includes('DirectoryHost')
+      && document.querySelector('.vb-browser-room').textContent.includes('Password required')
+      && document.getElementById('lobby-browser').scrollWidth <= document.getElementById('lobby-browser').clientWidth`),
+      'directory shows protected rooms without horizontal overflow');
+    await page.evaluate(`(() => {
+      document.querySelector('.vb-browser-room input').value = 'wrong';
+      document.querySelector('.vb-browser-room').requestSubmit();
+    })()`);
+    await page.waitFor(`document.getElementById('join-status')?.textContent.includes('Incorrect lobby password')`,
+      { label: 'wrong lobby password feedback' });
+    await clickElement(page, 'browse-lobbies-btn');
+    await page.waitFor(`document.querySelector('.vb-browser-room input')`, { label: 'password retry' });
+    await page.evaluate(`(() => {
+      document.querySelector('.vb-browser-room input').value = 'test room';
+      document.querySelector('.vb-browser-room').requestSubmit();
+    })()`);
+    await page.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false'`,
+      { label: 'direct join from directory' });
+    requireCondition(true, 'correct password joins a directory room without entering a code');
+    await clickElement(page, 'lobby-leave-btn');
+    await page.waitFor(`document.getElementById('menu')?.getAttribute('aria-hidden') === 'false'`, { label: 'leave directory lobby' });
+    await page.evaluate(`window.__directoryHost.close()`);
+    await page.evaluate(`document.getElementById('create-password-input').value = 'host password'`);
+
     await clickElement(page, 'create-lobby-btn');
     await page.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false' &&
       document.getElementById('lobby-map-preview')?.naturalWidth > 0`, { label: 'immediate waiting lobby' });
@@ -168,7 +208,7 @@ async function main() {
       window.__interruptedSocket = window.__testSockets.at(-1);
       const peer = window.__recoveryPeer = new WebSocket(location.origin.replace(/^http/, 'ws'));
       peer.onopen = () => peer.send(JSON.stringify({t: 'join', name: 'RecoveryWitness',
-        lobby: new URL(location.href).searchParams.get('lobby')}));
+        lobby: new URL(location.href).searchParams.get('lobby'), password: 'host password'}));
       peer.onmessage = (event) => {
         if (typeof event.data === 'string' && JSON.parse(event.data).t === 'lobbyState') resolve(true);
       };
@@ -400,7 +440,7 @@ async function main() {
       window.__interruptedSocket = window.__testSockets.at(-1);
       const peer = window.__recoveryPeer = new WebSocket(location.origin.replace(/^http/, 'ws'));
       peer.onopen = () => peer.send(JSON.stringify({t: 'join', name: 'LiveWitness',
-        lobby: new URL(location.href).searchParams.get('lobby')}));
+        lobby: new URL(location.href).searchParams.get('lobby'), password: 'host password'}));
       peer.onmessage = (event) => {
         if (typeof event.data === 'string' && JSON.parse(event.data).t === 'lobbyState') resolve(true);
       };

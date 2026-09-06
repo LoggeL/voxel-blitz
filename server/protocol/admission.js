@@ -40,6 +40,10 @@ function hasExactKeys(value, expected) {
     expected.every((key) => Object.prototype.hasOwnProperty.call(value, key));
 }
 
+export function validLobbyPassword(value) {
+  return typeof value === 'string' && value.length <= 64;
+}
+
 export function validBotCount(value) {
   return Number.isInteger(value) && value >= 0 && value <= 7;
 }
@@ -63,6 +67,8 @@ export function resolveModeMap(gameMode, map) {
 export function parseAdmissionFrame(raw) {
   if (!isRecord(raw) || typeof raw.name !== 'string') return null;
 
+  const hasPassword = Object.prototype.hasOwnProperty.call(raw, 'password');
+  if (hasPassword && !validLobbyPassword(raw.password)) return null;
   const hasBots = Object.prototype.hasOwnProperty.call(raw, 'bots');
   if (raw.t === 'join' &&
       !Object.prototype.hasOwnProperty.call(raw, 'lobby')) {
@@ -82,6 +88,7 @@ export function parseAdmissionFrame(raw) {
     const hasMode = Object.prototype.hasOwnProperty.call(raw, 'gameMode');
     const hasMap = Object.prototype.hasOwnProperty.call(raw, 'map');
     const expected = ['t', 'name', 'bots'];
+    if (hasPassword) expected.push('password');
     if (hasMode) expected.push('gameMode');
     if (hasMap) expected.push('map');
     if (!hasExactKeys(raw, expected) || !validBotCount(raw.bots)) return null;
@@ -95,6 +102,7 @@ export function parseAdmissionFrame(raw) {
     if (!map || !isModeMapCompatible(gameMode, map)) return null;
     return {
       kind: 'create',
+      password: raw.password || '',
       name: raw.name,
       bots: raw.bots,
       gameMode,
@@ -104,12 +112,13 @@ export function parseAdmissionFrame(raw) {
   }
 
   if (raw.t === 'join' &&
-      hasExactKeys(raw, ['t', 'name', 'lobby']) &&
+      hasExactKeys(raw, hasPassword ? ['t', 'name', 'lobby', 'password'] : ['t', 'name', 'lobby']) &&
       typeof raw.lobby === 'string') {
     const lobby = normalizeLobbyCode(raw.lobby);
     if (!lobby) return null;
     return {
       kind: 'join',
+      password: raw.password || '',
       name: raw.name,
       bots: 0,
       gameMode: null,

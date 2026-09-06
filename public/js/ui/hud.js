@@ -83,7 +83,7 @@ export class HUD {
       readModel,
     });
     // Match snapshots are also the authoritative source for combat names.
-    this.gameplay.match.onPlayers = (players) => this.setPlayers(players);
+    this.gameplay.match.onPlayers = (players, match, selfRow) => this.setPlayers(players, match, selfRow);
 
     this.combat = new CombatHudController({
       dom: () => this.gameplay.dom,
@@ -212,9 +212,9 @@ export class HUD {
   setTelemetry(frameDt, stats, atMs) {
     return this.gameplay.setTelemetry(frameDt, stats, atMs);
   }
-  setPlayers(players) {
+  setPlayers(players, match, selfRow) {
     this.combat.setNames(players);
-    return this.gameplay.setPlayers(players);
+    return this.gameplay.setPlayers(players, match, selfRow);
   }
   ensureScope() { return this.gameplay.ensureScope(); }
   setScope(visible) { return this.gameplay.setScope(visible); }

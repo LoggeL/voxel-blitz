@@ -70,6 +70,15 @@ function writePref(key, value) {
   } catch (_) {}
 }
 
+// Escape is deliberately excluded so the browser always offers its normal exit.
+const GAME_KEY_CODES = [
+  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyC', 'KeyE', 'KeyR', 'KeyF',
+  'KeyZ', 'KeyG', 'KeyH', 'KeyQ', 'KeyB', 'Space', 'Tab',
+  'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight',
+  ...Array.from({ length: 10 }, (_, i) => `Digit${i}`),
+];
+const GAME_KEYS = new Set(GAME_KEY_CODES);
+
 const MOVEMENT_KEYS = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'crouch', 'interact'];
 
 export class Input {
@@ -176,6 +185,7 @@ export class Input {
     this._hContext = (e) => { e.preventDefault(); };
     this._hBlur = () => this.clearTransient();
     this._hVis = () => { if (document.hidden) this.clearTransient(); };
+    this._hFullscreenChange = () => this._syncKeyboardLock();
     this._hLockChange = () => {
       if (this._touchMode) {
         this._locked = false;
@@ -183,6 +193,7 @@ export class Input {
       }
       this._locked = document.pointerLockElement === this.canvas;
       if (!this._locked) this.clearTransient();
+      this._syncKeyboardLock();
       if (this.onLockChange) this.onLockChange(this._locked);
     };
   }
@@ -254,6 +265,7 @@ export class Input {
     document.addEventListener('mousemove', this._hMouseMove);
     document.addEventListener('mouseup', this._hMouseUp);
     document.addEventListener('pointerlockchange', this._hLockChange);
+    document.addEventListener('fullscreenchange', this._hFullscreenChange);
     document.addEventListener('wheel', this._hWheel, { passive: false });
     this.canvas.addEventListener('mousedown', this._hMouseDown);
     this.canvas.addEventListener('contextmenu', this._hContext);
@@ -297,6 +309,29 @@ export class Input {
         if (plain && typeof plain.catch === 'function') plain.catch(() => {});
       } catch (_) {}
     }
+    this._requestFullscreen();
+  }
+
+  // Pointer lock must be requested first: fullscreen consumes user activation.
+  _requestFullscreen() {
+    if (this.fallback || typeof document === 'undefined' || document.fullscreenElement) return;
+    if (typeof navigator !== 'undefined' && navigator.userActivation?.isActive === false) return;
+    try {
+      const request = document.documentElement?.requestFullscreen?.();
+      request?.catch?.(() => {}); // Denial/unsupported browsers keep windowed play usable.
+    } catch (_) {}
+  }
+
+  _syncKeyboardLock() {
+    const keyboard = typeof navigator === 'undefined' ? null : navigator.keyboard;
+    if (!keyboard) return;
+    const active = !this._disposed && this._gameplayEnabled && this._locked
+      && typeof document !== 'undefined'
+      && document.fullscreenElement === document.documentElement;
+    try {
+      if (active) keyboard.lock?.(GAME_KEY_CODES)?.catch?.(() => {});
+      else keyboard.unlock?.();
+    } catch (_) {}
   }
 
   /** Release pointer lock. */
@@ -315,6 +350,7 @@ export class Input {
     const next = !!enabled && !this._disposed;
     if (next === this._gameplayEnabled) return;
     this._gameplayEnabled = next;
+    this._syncKeyboardLock();
     this._touchControls?.setEnabled(next);
     if (!next) this.clearTransient();
   }
@@ -907,6 +943,7 @@ export class Input {
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
+    this._syncKeyboardLock();
     this._gameplayEnabled = false;
     this.clearTransient();
     this._pad.reset();
@@ -921,6 +958,7 @@ export class Input {
       document.removeEventListener('mousemove', this._hMouseMove);
       document.removeEventListener('mouseup', this._hMouseUp);
       document.removeEventListener('pointerlockchange', this._hLockChange);
+      document.removeEventListener('fullscreenchange', this._hFullscreenChange);
       document.removeEventListener('wheel', this._hWheel);
       this.canvas?.removeEventListener('mousedown', this._hMouseDown);
       this.canvas?.removeEventListener('contextmenu', this._hContext);
@@ -1010,13 +1048,13 @@ export class Input {
 
   _onKeyDown(e) {
     if (this._disposed) return;
+    if (this._canReadGameplay() && GAME_KEYS.has(e.code)) e.preventDefault();
     if (e.code === 'KeyB') {
       if (!e.repeat && !this._buyMenuHeld && !this._wheelOpen) this._buyMenuQueued = true;
       this._buyMenuHeld = true;
       return;
     }
     if (!this._canReadGameplay()) return;
-    if (e.code === 'Space') e.preventDefault();
     switch (e.code) {
       case 'KeyW': this.keys.forward = true; break;
       case 'KeyS': this.keys.back = true; break;
@@ -1062,6 +1100,7 @@ export class Input {
   }
 
   _onKeyUp(e) {
+    if (!this._disposed && this._canReadGameplay() && GAME_KEYS.has(e.code)) e.preventDefault();
     if (e.code === 'KeyB') {
       this._buyMenuHeld = false;
       return;

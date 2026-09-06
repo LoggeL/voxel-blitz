@@ -94,6 +94,11 @@ async function main() {
         res.end(JSON.stringify({ t: 'error', msg: 'bad request' }));
         return;
       }
+      if ((req.url || '').split('?')[0] === '/api/lobbies' && req.method === 'GET') {
+        res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ lobbies: manager.list() }));
+        return;
+      }
       // Pass the original target through: staticHandler owns decoding and root
       // validation. Decoding it here as well can turn encoded filenames into paths.
       if (await staticHandler(req, res)) return;
@@ -153,7 +158,7 @@ async function main() {
         try { ws.close(4008, 'join timeout'); } catch { /* already down */ }
       }
     }, 10000);
-    ws.on('message', (data, isBinary) => {
+    ws.on('message', async (data, isBinary) => {
       if (meta.rateLimited || ws.readyState !== WebSocket.OPEN) return;
       const now = Date.now();
       const elapsed = now - meta.messageRefillAt;
@@ -172,6 +177,7 @@ async function main() {
       meta.messageTokens--;
 
       if (!meta.joined) {
+        if (meta.admitting) return;
         if (isBinary) return;                       // binaries from clients are ignored
         let msg;
         try { msg = JSON.parse(data.toString('utf8')); } catch { msg = null; }
@@ -195,25 +201,29 @@ async function main() {
 
         const name = sanitizeName(admission.name, n);
         let admitted = false;
+        meta.admitting = true;
         try {
           if (admission.kind === 'quick') {
             admitted = manager.quickPlay(meta, name, admission.bots);
           } else if (admission.kind === 'create') {
-            admitted = manager.create(
+            admitted = await manager.create(
               meta,
               name,
               admission.bots,
               admission.gameMode,
               admission.map,
+              admission.password,
             );
           } else {
-            admitted = manager.join(meta, name, admission.lobby);
+            admitted = await manager.join(meta, name, admission.lobby, admission.password);
           }
         } catch (err) {
           console.error('[voxel-blitz] join failed for', id, err.message);
           try { manager.leave(meta); } catch { /* retain original failure */ }
           closeClient(meta, 1011, 'internal error');
           return;
+        } finally {
+          meta.admitting = false;
         }
 
         if (admitted) clearTimeout(joinTimer);
@@ -264,6 +274,7 @@ async function main() {
     });
 
     ws.on('close', (code) => {
+      meta.closed = true;
       clearTimeout(joinTimer);
       try {
         manager.leave(meta, { reconnectable: code === 1006 || code === 1001 });

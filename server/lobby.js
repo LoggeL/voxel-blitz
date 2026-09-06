@@ -1,4 +1,6 @@
-import { randomInt } from 'node:crypto';
+import { randomInt, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
+
+import { promisify } from 'node:util';
 
 import { GameEngine } from './game.js';
 import { attachBots } from './bots.js';
@@ -17,8 +19,10 @@ import {
   isModeId,
   isModeMapCompatible,
 } from '../shared/modes.js';
+import { validLobbyPassword } from './protocol/admission.js';
 import { createMapState, getMapMeta } from '../shared/worlddata.js';
 
+const derivePassword = promisify(scrypt);
 const MAX_HUMANS = 8;
 const MAX_ROOMS = 16;
 const MAX_BOTS = 7;
@@ -100,8 +104,8 @@ export class LobbyManager {
     }
   }
 
-  create(meta, name, bots, gameMode = DEFAULT_MODE_ID, map = mapForMode(gameMode)) {
-    if (!this._validAdmission(meta, name) ||
+  async create(meta, name, bots, gameMode = DEFAULT_MODE_ID, map = mapForMode(gameMode), password = '') {
+    if (!this._validAdmission(meta, name) || !validLobbyPassword(password) ||
         !validBotCount(bots) ||
         !this._validModeMap(gameMode, map)) {
       return this._reject(meta, 'Malformed lobby creation request', CLOSE_MALFORMED, 'bad create');
@@ -113,7 +117,16 @@ export class LobbyManager {
 
     let room = null;
     try {
+      const passwordSalt = password ? randomBytes(16) : null;
+      const passwordHash = password ? await derivePassword(password, passwordSalt, 32) : null;
+      // Password work runs off the simulation thread. Recheck admission after it.
+      if (!this._validAdmission(meta, name) || this.stopped) return false;
+      if (this.rooms.size >= MAX_ROOMS) {
+        return this._reject(meta, 'Server room capacity reached', CLOSE_FULL, 'rooms full');
+      }
       room = this._createRoom(false, bots, gameMode, map);
+      room.passwordSalt = passwordSalt;
+      room.passwordHash = passwordHash;
       return this._admit(room, meta, name, false);
     } catch {
       if (room) this._destroyRoom(room);
@@ -121,8 +134,8 @@ export class LobbyManager {
     }
   }
 
-  join(meta, name, rawCode) {
-    if (!this._validAdmission(meta, name)) {
+  async join(meta, name, rawCode, password = '') {
+    if (!this._validAdmission(meta, name) || !validLobbyPassword(password)) {
       return this._reject(meta, 'Malformed lobby join request', CLOSE_MALFORMED, 'bad join');
     }
     if (this.stopped) return this._reject(meta, 'Server is shutting down', 1013, 'server shutdown');
@@ -134,6 +147,12 @@ export class LobbyManager {
     if (!room || room.destroyed || room.quick) {
       return this._reject(meta, `Unknown lobby ${code}`, CLOSE_UNKNOWN, 'unknown lobby');
     }
+    if (room.passwordHash && (!password || !timingSafeEqual(
+      await derivePassword(password, room.passwordSalt, 32), room.passwordHash,
+    ))) {
+      return this._reject(meta, 'Incorrect lobby password', 4003, 'incorrect password');
+    }
+    if (!this._validAdmission(meta, name) || this.stopped) return false;
     if (room.members.size >= MAX_HUMANS) {
       return this._reject(meta, `Lobby ${code} is full`, CLOSE_FULL, 'lobby full');
     }
@@ -143,6 +162,22 @@ export class LobbyManager {
     } catch {
       return this._reject(meta, 'Unable to join lobby', 1011, 'room admission failed');
     }
+  }
+
+  list() {
+    if (this.stopped) return [];
+    return [...this.rooms.values()]
+      .filter((room) => !room.destroyed && !room.quick && room.gameMode !== 'training' && room.members.size > 0)
+      .map((room) => ({
+        code: room.code,
+        host: room.members.get(room.host)?.name || 'PLAYER',
+        gameMode: room.gameMode,
+        map: room.map,
+        phase: room.phase,
+        players: room.members.size,
+        capacity: MAX_HUMANS,
+        passwordRequired: !!room.passwordHash,
+      }));
   }
 
   ready(meta, value) {
@@ -301,7 +336,7 @@ export class LobbyManager {
 
   _validAdmission(meta, name) {
     return memberId(meta) !== null && typeof name === 'string' && name.length > 0 &&
-      !meta.joined && !meta.room;
+      !meta.joined && !meta.room && !meta.closed;
   }
 
   _validModeMap(gameMode, map) {
