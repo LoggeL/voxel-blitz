@@ -17,9 +17,9 @@ export const ROCKET_RULES = Object.freeze({
   /** Rocket jumps: the owner is launched harder than bystanders. */
   knockback: 11,
   selfKnockback: 15.5,
-  terrainRadius: 3.1,
-  terrainPower: 145,
-  maxDestroyedBlocks: 80,
+  terrainRadius: 4.4,
+  terrainPower: 210,
+  maxDestroyedBlocks: 180,
   color: '#ff9f1c',
 });
 
