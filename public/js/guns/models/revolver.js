@@ -1,6 +1,6 @@
 import * as THREE from '../../vendor/three.module.js';
 import { COL } from '../kit.js';
-import { BREACH_Z, BOLT_HOME, TRIGGER_Z } from './common.js';
+import { TRIGGER_Z } from './common.js';
 
 // Extrude a reference-profile polygon across local X. This keeps the unmistakable stepped
 // side silhouette while still giving the remote-avatar model real thickness and lighting.
@@ -30,54 +30,35 @@ function cylX(parent, radius, length, x, y, z, material, segments = 10) {
   return mesh;
 }
 
-/** Build the IRONCLAD .44 around its chunky six-shot HUD-reference silhouette. */
+/** Build the IRONCLAD .44 as a six-shot, swing-out-cylinder revolver. */
 export function build({ kit, T, groups }) {
   const { box, cylZ, ironSights, mat } = kit;
   const { body, mag, bolt, trigger, extra } = groups;
   const metal = mat(COL.gunmetal, 0.50, 0.68);
-  const darkMetal = mat(COL.blued, 0.42, 0.78);
   const walnut = mat(COL.walnut, 0.86, 0.08);
   const amber = mat(COL.amber, 0.47, 0.48);
 
-  // One deep, angular frame gives the gun the same massive upper bridge and dropped trigger
-  // shelf as the reference. The oversized cylinder projects beyond it on both sides.
+  // Separate frame straps leave an actual opening around the cylinder. There is no slide.
   profilePlate(body, [
-    [0.045, 0.083], [-0.185, 0.083], [-0.220, 0.060], [-0.212, -0.026],
-    [-0.158, -0.052], [-0.042, -0.052], [0.018, -0.018], [0.055, 0.030],
-  ], 0.072, metal);
-  box(body, 0.078, 0.020, 0.222, 0, 0.087, -0.075, COL.blued,
-    { rg: 0.42, mt: 0.78 });
-  box(body, 0.060, 0.018, 0.126, 0, -0.045, -0.101, COL.polyDark,
-    { rg: 0.64, mt: 0.35 });
-  box(body, 0.080, 0.018, 0.034, 0, 0.052, -0.209, COL.gunmetal,
-    { rx: -0.32, rg: 0.48, mt: 0.70 });
+    [0.040, 0.068], [-0.075, 0.068], [-0.080, -0.029],
+    [-0.045, -0.050], [0.025, -0.023],
+  ], 0.052, metal);
+  box(body, 0.048, 0.014, 0.172, 0, 0.075, -0.126, COL.blued);
+  box(body, 0.034, 0.014, 0.145, 0, -0.052, -0.140, COL.gunmetal);
+  box(body, 0.042, 0.104, 0.018, 0, 0.014, -0.205, COL.gunmetal);
 
-  // Long slab-sided barrel, full underlug and inset side flats. Its forward faces and the bore
-  // terminate exactly at T.muzzle, so muzzle flash/heat geometry keep their canonical anchor.
+  // A round, exposed long barrel and slender ejector-rod shroud create the revolver profile.
   const barrelTip = T.muzzle[2];
-  profilePlate(body, [
-    [BREACH_Z.revolver, 0.087], [barrelTip + 0.020, 0.087], [barrelTip, 0.069],
-    [barrelTip, 0.006], [barrelTip + 0.022, -0.010], [BREACH_Z.revolver, -0.010],
-  ], 0.074, darkMetal);
-  box(body, 0.078, 0.014, 0.292, 0, 0.092, -0.348, COL.gunmetal,
-    { rg: 0.46, mt: 0.72 });
-  box(body, 0.080, 0.025, 0.296, 0, -0.018, -0.346, COL.gunmetal,
-    { rg: 0.50, mt: 0.66 });
-  for (const side of [-1, 1]) {
-    box(body, 0.005, 0.046, 0.235, side * 0.0395, 0.040, -0.350, COL.polyDark,
-      { rg: 0.62, mt: 0.38 });
-    box(body, 0.006, 0.009, 0.245, side * 0.041, 0.071, -0.348, COL.gunmetal,
-      { rg: 0.47, mt: 0.70 });
-  }
-  const barrelLength = Math.abs(barrelTip - BREACH_Z.revolver);
-  cylZ(body, 0.017, barrelLength, T.muzzle[0], T.muzzle[1],
-    (barrelTip + BREACH_Z.revolver) / 2, COL.brake, { seg: 12, rg: 0.38, mt: 0.82 });
-  cylZ(body, 0.031, 0.018, T.muzzle[0], T.muzzle[1], barrelTip + 0.009,
-    COL.gunmetal, { seg: 12, rg: 0.43, mt: 0.76 });
-  cylZ(body, 0.021, 0.006, T.muzzle[0], T.muzzle[1], barrelTip + 0.003,
-    COL.polyDark, { seg: 12, rg: 0.68, mt: 0.30 });
-  box(body, 0.050, 0.008, 0.030, 0, 0.095, barrelTip + 0.025, COL.amber,
-    { rg: 0.47, mt: 0.50 });
+  const barrelRear = -0.205;
+  cylZ(body, 0.027, barrelRear - barrelTip, 0, T.muzzle[1],
+    (barrelRear + barrelTip) / 2, COL.blued, { seg: 12, rg: 0.38, mt: 0.8 });
+  box(body, 0.027, 0.013, 0.300, 0, 0.069, -0.360, COL.gunmetal);
+  cylZ(body, 0.014, 0.216, 0, -0.004, -0.315, COL.gunmetal, { seg: 10 });
+  cylZ(body, 0.030, 0.012, 0, T.muzzle[1], barrelTip + 0.006,
+    COL.gunmetal, { seg: 12 });
+  cylZ(body, 0.018, 0.003, 0, T.muzzle[1], barrelTip + 0.001,
+    COL.polyDark, { seg: 12 });
+  box(body, 0.026, 0.020, 0.025, 0, 0.081, barrelTip + 0.035, COL.blued);
 
   // Open sights stay on the existing 0.105 ADS axis; neither the hammer nor the top rib crosses
   // the center gap, including while the hammer cycles.
@@ -91,41 +72,45 @@ export function build({ kit, T, groups }) {
     accent: COL.amber,
   });
 
-  // The rotating group contains the entire six-shot cylinder, its chamber flutes and ejector.
-  // Keeping all of it under `mag` preserves swing-out reload and 60-degree firing rotation.
-  cylZ(mag, 0.056, 0.090, 0, 0.025, -0.145, COL.gunmetal,
-    { seg: 12, rg: 0.44, mt: 0.72 });
-  cylZ(mag, 0.058, 0.007, 0, 0.025, -0.1035, COL.brass,
-    { seg: 12, rg: 0.40, mt: 0.72 });
-  cylZ(mag, 0.058, 0.007, 0, 0.025, -0.1865, COL.blued,
-    { seg: 12, rg: 0.40, mt: 0.76 });
+  // Crane pivots about the bore-parallel hinge below the cylinder; the drum spins on
+  // its own centerline. Reload swing and firing index therefore never orbit the gun origin.
+  const crane = new THREE.Group();
+  crane.name = 'cylinderCrane';
+  crane.position.set(0, -0.052, -0.145);
+  mag.add(crane);
+  box(crane, 0.015, 0.060, 0.016, 0, 0.030, -0.049, COL.gunmetal);
+  cylZ(crane, 0.009, 0.151, 0, 0.058, -0.028, COL.gunmetal, { seg: 10 });
+  const cylinder = new THREE.Group();
+  cylinder.name = 'cylinder';
+  cylinder.position.y = 0.058;
+  crane.add(cylinder);
+  cylZ(cylinder, 0.057, 0.090, 0, 0, 0, COL.gunmetal,
+    { seg: 18, rg: 0.38, mt: 0.78 });
+  cylZ(cylinder, 0.059, 0.006, 0, 0, 0.046, COL.blued, { seg: 18 });
+  const cases = new THREE.Group();
+  cases.name = 'cartridgeCases';
+  cylinder.add(cases);
   for (let i = 0; i < 6; i++) {
-    const angle = i * Math.PI / 3;
-    cylZ(mag, 0.0105, 0.094, Math.cos(angle) * 0.034,
-      0.025 + Math.sin(angle) * 0.034, -0.145, COL.fluteDark,
-      { seg: 8, rg: 0.66, mt: 0.32 });
+    const angle = Math.PI / 2 + i * Math.PI / 3;
+    const x = Math.cos(angle) * 0.034;
+    const y = Math.sin(angle) * 0.034;
+    // Dark chamber mouths remain visible when the cartridges are extracted.
+    cylZ(cylinder, 0.011, 0.096, x, y, 0, COL.fluteDark, { seg: 10 });
+    cylZ(cases, 0.009, 0.066, x, y, 0.012, COL.brass, { seg: 10 });
+    cylZ(cases, 0.0105, 0.004, x, y, 0.050, COL.brass, { seg: 10 });
+    cylZ(cases, 0.0035, 0.005, x, y, 0.051, COL.gunmetal, { seg: 8 });
+    // Long radial flute panels follow the drum rather than a square slide silhouette.
+    box(cylinder, 0.021, 0.003, 0.062, Math.cos(angle) * 0.056,
+      Math.sin(angle) * 0.056, 0, COL.fluteDark, { rz: angle - Math.PI / 2 });
   }
-  // Broad stepped flutes remain readable from the third-person side view instead of looking
-  // like a featureless wheel.
-  for (const side of [-1, 1]) {
-    for (const y of [0.000, 0.025, 0.050]) {
-      box(mag, 0.004, 0.012, 0.050, side * 0.056, y, -0.145, COL.polyDark,
-        { rg: 0.68, mt: 0.30 });
-    }
-  }
-  cylZ(mag, 0.014, 0.104, 0, 0.025, -0.145, COL.brass,
-    { seg: 10, rg: 0.40, mt: 0.72 });
+  const ejector = new THREE.Group();
+  ejector.name = 'ejectorRod';
+  cylinder.add(ejector);
+  cylZ(ejector, 0.006, 0.160, 0, 0, -0.025, COL.gunmetal, { seg: 10 });
+  cylZ(ejector, 0.020, 0.006, 0, 0, 0.051, COL.blued, { seg: 6 });
+  extra.userData.revolver = { crane, cylinder, cases, ejector };
 
-  // Crane and ejector hardware sit outside the frame, like the orange-backed assembly in the
-  // reference, but remain static so the established reload choreography stays unchanged.
-  for (const side of [-1, 1]) {
-    box(body, 0.010, 0.018, 0.105, side * 0.061, 0.003, -0.145, COL.gunmetal,
-      { rg: 0.48, mt: 0.70 });
-    box(body, 0.012, 0.030, 0.018, side * 0.061, -0.009, -0.098, COL.brass,
-      { rg: 0.42, mt: 0.68 });
-  }
-
-  // Reference-shaped grip: broad at the frame, swept rearward at the heel, with a dark
+  // Swept wooden grip: broad at the frame, swept rearward at the heel, with a dark
   // backstrap, orange butt cap, grip panels, checker blocks and visible fasteners.
   profilePlate(body, [
     [-0.052, -0.010], [0.025, -0.010], [0.069, -0.142], [0.050, -0.165],
@@ -146,13 +131,14 @@ export function build({ kit, T, groups }) {
     cylX(body, 0.007, 0.006, side * 0.038, -0.087, 0.018, amber, 10);
   }
 
-  // Hammer remains fully animated via `bolt`, but is forked around the open sight line.
-  box(bolt, 0.046, 0.030, 0.024, 0, 0.066, BOLT_HOME.revolver, COL.gunmetal,
-    { rx: -0.36, rg: 0.48, mt: 0.70 });
-  for (const side of [-1, 1]) {
-    box(bolt, 0.015, 0.010, 0.030, side * 0.019, 0.092,
-      BOLT_HOME.revolver + 0.013, COL.brass, { rg: 0.42, mt: 0.70 });
-  }
+  // The hammer rotates about its pin, below the rear sight, instead of translating a slide.
+  const hammer = new THREE.Group();
+  hammer.name = 'hammer';
+  hammer.position.set(0, 0.024, 0.016);
+  bolt.add(hammer);
+  box(hammer, 0.021, 0.035, 0.018, 0, 0.018, 0, COL.gunmetal);
+  box(hammer, 0.029, 0.009, 0.027, 0, 0.033, 0.012, COL.blued);
+  extra.userData.revolver.hammer = hammer;
   // A proper open trigger guard replaces the old solid shelf and exposes the amber trigger.
   box(trigger, 0.010, 0.042, 0.010, 0, -0.036, TRIGGER_Z.revolver, COL.amber,
     { rx: 0.32, rg: 0.45, mt: 0.56 });
@@ -163,16 +149,16 @@ export function build({ kit, T, groups }) {
   box(body, 0.054, 0.056, 0.008, 0, -0.061, -0.038, COL.gunmetal,
     { rx: 0.35, rg: 0.48, mt: 0.68 });
 
-  // Six visible speed-loader rounds retain the exact reload handle and home-position contract.
+  // Six speed-loader rounds share the cylinder chamber radius and approach from behind.
   const loader = new THREE.Group();
   loader.name = 'speedloader';
   for (let i = 0; i < 6; i++) {
     const angle = i * Math.PI / 3;
-    cylZ(loader, 0.007, 0.045, Math.cos(angle) * 0.024, Math.sin(angle) * 0.024,
+    cylZ(loader, 0.007, 0.045, Math.cos(angle + Math.PI / 2) * 0.034, Math.sin(angle + Math.PI / 2) * 0.034,
       0, COL.brass, { seg: 8, rg: 0.38, mt: 0.74 });
   }
   cylZ(loader, 0.010, 0.020, 0, 0, 0.025, COL.polymer, { seg: 10 });
-  loader.position.set(-0.10, 0.04, -0.145);
+  loader.position.set(-0.058, -0.052, 0.025);
   loader.userData.homePosition = loader.position.clone();
   loader.visible = false;
   extra.add(loader);

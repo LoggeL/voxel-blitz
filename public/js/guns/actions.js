@@ -91,8 +91,12 @@ export class WeaponActions {
       dur: revolver ? Math.max(0.11, dur) : dur,
       travel,
       revolver,
-      cylinderStart: revolver ? model.mag.rotation.z : 0,
+      cylinderStart: revolver ? (model.extra.userData.revolver?.cylinder.rotation.z ?? model.mag.rotation.z) : 0,
     };
+    if (revolver && model.extra.userData.revolver) {
+      // The chamber locks before the shot; recoil must not spin the drum beneath the barrel.
+      model.extra.userData.revolver.cylinder.rotation.z = this._jerk.cylinderStart + Math.PI / 3;
+    }
     return true;
   }
 
@@ -124,11 +128,20 @@ export class WeaponActions {
     model.mag.position.set(0, 0, 0);
     model.mag.rotation.x = 0;
     model.mag.rotation.y = 0;
+    const revolver = model.extra.userData.revolver;
+    if (revolver) {
+      revolver.crane.rotation.z = 0;
+      revolver.ejector.position.z = 0;
+      revolver.cases.position.set(0, 0, 0);
+      revolver.cases.visible = true;
+    }
     const cover = model.extra.userData.reloadPart;
     if (cover) cover.rotation.set(0, 0, 0);
     const rounds = model.extra.userData.reloadRounds;
     if (rounds) {
       rounds.visible = false;
+      for (const child of rounds.children) child.visible = true;
+      if (revolver) rounds.rotation.set(0, 0, 0);
       if (rounds.userData.homePosition) rounds.position.copy(rounds.userData.homePosition);
     }
     const cartridges = model.extra.userData.cartridges;
@@ -142,6 +155,11 @@ export class WeaponActions {
   _resetModelPose(model) {
     this._resetReloadPose(model);
     model.mag.rotation.z = 0;
+    const revolver = model.extra.userData.revolver;
+    if (revolver) {
+      revolver.cylinder.rotation.z = 0;
+      revolver.hammer.rotation.x = 0;
+    }
     model.bolt.position.set(0, 0, 0);
     model.bolt.rotation.set(0, 0, 0);
     model.triggerGroup.rotation.set(0, 0, 0);
@@ -155,8 +173,13 @@ export class WeaponActions {
     const stroke = Math.sin(Math.PI * u);
     model.triggerGroup.rotation.x = 0.20 * stroke;
     if (jerk.revolver) {
-      model.bolt.rotation.x = -0.70 * stroke;
-      model.mag.rotation.z = jerk.cylinderStart + (Math.PI / 3) * this._smooth01(u);
+      const revolver = model.extra.userData.revolver;
+      if (revolver) {
+        revolver.hammer.rotation.x = 0.65 * (1 - this._smooth01(Math.min(1, u / 0.24)));
+      } else {
+        model.bolt.rotation.x = -0.70 * stroke;
+        model.mag.rotation.z = jerk.cylinderStart + (Math.PI / 3) * this._smooth01(u);
+      }
     } else {
       model.bolt.position.z = stroke * jerk.travel;
     }
@@ -245,6 +268,16 @@ export class WeaponActions {
       return;
     }
 
+    if (reload.type === 'cylinder' && model.extra.userData.revolver) {
+      this._updateCylinderReload(frac, model, out);
+      reload.lastFrac = frac;
+      if (frac >= 1) {
+        this._resetReloadPose(model);
+        this._reload = null;
+      }
+      return;
+    }
+
     const tMag = Math.max(0, Math.min(1,
       (frac - timeline.start) / Math.max(0.001, timeline.home - timeline.start)));
     const pulse = Math.sin(Math.PI * tMag);
@@ -309,6 +342,37 @@ export class WeaponActions {
     if (frac >= 1) {
       this._resetReloadPose(model);
       this._reload = null;
+    }
+  }
+
+  _updateCylinderReload(frac, model, out) {
+    const reload = this._reload;
+    const { crane, cylinder, ejector, cases } = model.extra.userData.revolver;
+    const phase = (from, to) => this._smooth01(Math.max(0, Math.min(1, (frac - from) / (to - from))));
+    // Open, hold fully open through extraction and insertion, then latch closed.
+    const open = phase(0.10, 0.25) * (1 - phase(0.80, 0.92));
+    crane.rotation.z = Math.PI / 2 * open;
+    out.dip = -0.045 * open;
+    out.rock = 0.22 * open;
+    const extraction = phase(0.29, 0.39);
+    ejector.position.z = 0.058 * extraction * (1 - phase(0.44, 0.50));
+    cases.position.z = 0.105 * extraction;
+    cases.position.y = -0.07 * phase(0.37, 0.45);
+    cases.visible = frac < 0.45 || frac >= 0.68;
+    if (frac >= 0.68) cases.position.set(0, 0, 0);
+
+    const loader = model.extra.userData.reloadRounds;
+    if (loader) {
+      // Cartridge tips enter the rear chamber mouths along the bore axis.
+      loader.visible = frac >= 0.50 && frac < 0.77;
+      loader.rotation.z = crane.rotation.z + cylinder.rotation.z;
+      loader.position.set(-0.058, -0.052,
+        0.025 - 0.142 * phase(0.50, 0.67) + 0.16 * phase(0.69, 0.77));
+      // Once seated, leave rounds in the cylinder and withdraw just the loader handle.
+      for (const child of loader.children) child.visible = frac < 0.68 || child === loader.children.at(-1);
+    }
+    for (const [at, click] of [[0.10, 1], [0.68, 2], [0.92, 3]]) {
+      if (frac >= at && reload.lastFrac < at) this._callbacks.onReloadClick(click);
     }
   }
 

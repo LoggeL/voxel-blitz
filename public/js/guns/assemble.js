@@ -97,7 +97,7 @@ export function buildGun(id, cache) {
   const fx = makeFx(id, FX_ACCENT[id]);
   const uni = fx.uniforms;
   const glow = fx.material;
-  if (!melee) {
+  if (!melee && id !== 'revolver') {
     const capZ = BOLT_HOME[id];
     const cap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.012), glow);
     cap.position.set(-0.02, 0.07, capZ + 0.052);

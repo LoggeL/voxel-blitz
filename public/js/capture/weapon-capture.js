@@ -76,6 +76,9 @@ const stablePose = Object.freeze({
   aimSwayScale: 0,
 });
 switch (state) {
+  case 'reload-open':
+  case 'reload-eject':
+  case 'reload-load':
   case 'charge-low':
   case 'charge-high':
   case 'vaulting':
@@ -104,6 +107,12 @@ if (state === 'scoped' && weapon === 'sniper') {
 if (state.startsWith('charge-')) {
   rig.setCharge(state === 'charge-low' ? 0.2 : 0.95);
   for (let frame = 0; frame < 30; frame++) rig.update(1 / 60, stablePose);
+}
+
+if (state.startsWith('reload-')) {
+  rig.reload(1, 'cylinder');
+  const fraction = { 'reload-open': 0.26, 'reload-eject': 0.40, 'reload-load': 0.64 }[state];
+  for (let frame = 0; frame < Math.round(fraction * 100); frame++) rig.update(0.01, stablePose);
 }
 
 if (state === 'firing') {
