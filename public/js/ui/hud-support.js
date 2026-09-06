@@ -281,3 +281,11 @@ export class HudSupport {
     this._ownedRoots.clear();
   }
 }
+
+/** Project the beam radius at the aimed surface into CSS pixels, independent of device pixel ratio. */
+export function beamReticleRadiusPx(radius, distance = 20, fov = 75, height = 800, coneDegrees = 0) {
+  if (!(radius > 0)) return 0;
+  const angularRadius = radius / Math.max(1, distance) + Math.tan(coneDegrees * Math.PI / 180);
+  const projectionScale = height / (2 * Math.tan(fov * Math.PI / 360));
+  return Math.min(120, Math.max(4, angularRadius * projectionScale));
+}

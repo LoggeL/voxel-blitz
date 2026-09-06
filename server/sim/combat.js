@@ -293,11 +293,11 @@ export function rewindVictim(v, now, viewAgeMs = NETWORK_PRESENTATION.defaultVie
   return v;
 }
 
-export function nearestVictim(shooter, o, d, limit, ctx, minT = 0, radius = 0) {
+export function nearestVictim(shooter, o, d, limit, ctx, minT = 0, radius = 0, hitVictims = null) {
   let best = null, bestT = limit;
   const rewoundByShooter = !shooter.bot;
   for (const v of ctx.entities.values()) {
-    if (v === shooter || v.state !== 'alive') continue;
+    if (v === shooter || v.state !== 'alive' || hitVictims?.has(v)) continue;
     if (!ctx.canDamage(shooter, v)) continue;
     const pos = rewoundByShooter ? rewindVictim(v, ctx.now, shooter.input?.viewAge) : v;
     const t = rayAABB(
@@ -456,6 +456,7 @@ export function fireOneShot(p, ctx, charge = 1) {
     let dmgMult = chargeMult;
     let playersLeft = piercePlayers;
     let wallsLeft = pierceWalls;
+    const hitVictims = new Set();
     for (;;) {
       const reach = SHOT_REACH - traveled;
       if (!(reach > 0)) break;
@@ -470,11 +471,11 @@ export function fireOneShot(p, ctx, charge = 1) {
       let minT = 0;
       let stoppedInFlesh = false;
       for (;;) {
-        const tgt = nearestVictim(p, o, d, wallSegT, ctx, minT, shotProfile.hitRadius);
+        const tgt = nearestVictim(p, o, d, wallSegT, ctx, minT, shotProfile.hitRadius, hitVictims);
         if (!tgt) break;
         // `pierce.players` caps the victims the slug damages; the next body in
         // line stops it (the lance pierces up to 6 players and, on a full charge,
-        // crosses 5 destructible voxels at wallPierceAt 1; LONGARC is a bouncing bolt and never
+        // crosses up to 8 voxels, including solid stone and metal; LONGARC is a bouncing bolt and never
         // reaches this path).
         if (playersLeft <= 0) { stoppedInFlesh = true; break; }
         const dist = traveled + tgt.t;
@@ -490,6 +491,7 @@ export function fireOneShot(p, ctx, charge = 1) {
           longRange: dist >= LONG_RANGE_KILL_DISTANCE,
           noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
         });
+        hitVictims.add(tgt.victim);
         playersLeft -= 1;
         dmgMult *= playerFalloff;
         minT = tgt.t + 0.1;
@@ -497,7 +499,6 @@ export function fireOneShot(p, ctx, charge = 1) {
       if (stoppedInFlesh) break;
       if (!hit) break;
       const wallType = ctx.getBlock(hit.x, hit.y, hit.z);
-      if (BLOCK_HP[wallType] == null) break;
       if (wallsLeft <= 0) {
         const type = ctx.getBlock(hit.x, hit.y, hit.z);
         if (BLOCK_HP[type] != null) {
@@ -507,8 +508,10 @@ export function fireOneShot(p, ctx, charge = 1) {
         // Indestructible types simply terminate the tracer here.
         break;
       }
-      damageBlock(hit.x, hit.y, hit.z, wallType,
-        Math.max(BLOCK_MIN_DMG, Math.round(damageAtDistance(def, traveled + hit.t) * dmgMult)), ctx);
+      if (BLOCK_HP[wallType] != null) {
+        damageBlock(hit.x, hit.y, hit.z, wallType,
+          Math.max(BLOCK_MIN_DMG, Math.round(damageAtDistance(def, traveled + hit.t) * dmgMult)), ctx);
+      }
       // Damage the pierced voxel and resume past its far face. The DDA reports
       // an origin voxel immediately, so entry + 0.05 would re-hit this same wall;
       // stepping to the far face + 0.05 carries the identical 0.05 epsilon.

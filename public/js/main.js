@@ -601,7 +601,13 @@ class Game {
     }
     if (spectating && this.ownBody?.group) this.ownBody.group.visible = false;
 
+    const beamAim = this.weapon.def.id === 'lance'
+      ? this.worldview.pickCameraRay(this.camera.position, fwdFromAngles(this.player.aimYaw, this.player.aimPitch), 120)
+      : null;
     this.hud.setState({
+      crosshairDistance: beamAim?.t ?? 20,
+      crosshairFov: this.camera.fov,
+      crosshairHeight: innerHeight,
       hp: this.player.hp,
       ...this.weapon.readModel(now),
       panic: this.player.panic,

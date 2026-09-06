@@ -4220,3 +4220,16 @@ h1.vb-title::after {
     letter-spacing: 0.08em;
   }
 }
+
+/* Charged rail collision width, projected at the surface under the crosshair. */
+.vb-beam-reticle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(210, 183, 255, 0.85);
+  border-radius: 50%;
+  box-sizing: border-box;
+  box-shadow: 0 0 7px rgba(165, 112, 255, 0.4), inset 0 0 5px rgba(165, 112, 255, 0.18);
+  pointer-events: none;
+}

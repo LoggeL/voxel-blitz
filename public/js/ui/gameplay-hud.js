@@ -6,6 +6,7 @@ import {
   el,
   resolveKey,
   spreadFromCone,
+  beamReticleRadiusPx,
 } from './hud-support.js';
 import { MatchHud } from './match-hud.js';
 import { createSniperScope } from './sniper-scope.js';
@@ -104,6 +105,8 @@ export class GameplayHud {
 
     d.ch = el('div', '', hud, 'crosshair');
     for (let i = 0; i < 4; i++) el('span', 'ch-arm', d.ch);
+    d.beamRing = el('div', 'vb-beam-reticle', d.ch);
+    d.beamRing.style.display = 'none';
     d.ring = el('div', 'vb-reload-ring', d.ch);
     d.ring.style.display = 'none';
     d.ringHint = el('div', '', d.ch, 'reload-hint');
@@ -366,6 +369,13 @@ export class GameplayHud {
     } else if (s.bloomPx != null) {
       this.setSpread(s.bloomPx);
     }
+    const beamRadius = beamReticleRadiusPx(s.crosshairHitRadius, s.crosshairDistance,
+      s.crosshairFov, s.crosshairHeight, s.crosshairConeDeg ?? 0);
+    if (d.beamRing) {
+      d.beamRing.style.display = beamRadius > 0 ? 'block' : 'none';
+      d.beamRing.style.width = d.beamRing.style.height = `${beamRadius * 2}px`;
+    }
+    if (beamRadius > 0) this.setSpread(Math.max(this.chGap, beamRadius + 3));
     this.updateCrosshairStress(s.panic, s.pain, alive);
     this.setReloadProgress(s.reloading01 == null ? null : s.reloading01, !!s.reloadStaged);
     if (s.yawDeg != null) this.updateCompass(s.yawDeg);

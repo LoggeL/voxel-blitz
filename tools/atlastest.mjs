@@ -683,7 +683,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   world.setBlock(62, 16, 42, AIR);
   world.setBlock(64, 16, 42, AIR);
 
-  // (b3) An early release fires a weak shot that cannot pierce the wall.
+  // (b3) An early release penetrates one wall while retaining its low damage.
   engine.tickEvents.length = 0;
   world.setBlock(62, 16, 40, PLANK);
   const lsHero = seat('ls-hero', 60, 40.5, 80, LANCE, 40.5);
@@ -693,10 +693,10 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   fireCharged('ls-hero', 1); // Early release before the mandatory charge completes.
   const lsShot = eventsOf('shoot')[0];
   ok(lsShot && lsShot.charge > 0 && lsShot.charge < 0.3 && lsHero.mag[LANCE] === 0
-    && eventsOf('hit').length === 0
+    && eventsOf('hit').length === 1
     && world.getBlock(62, 16, 40) === PLANK
-    && engine.entities.get('ls-v').hp === 100,
-  'an early rail release spends its cell but cannot destroy or cross the plank');
+    && engine.entities.get('ls-v').hp < 100 && engine.entities.get('ls-v').hp > 70,
+  'an early rail release crosses the plank without destroying it and deals reduced damage');
   world.setBlock(62, 16, 40, AIR);
 }
 
@@ -1345,6 +1345,7 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
 // Browser-adjacent client contracts live in their own harness so the atlas
 // checks stay focused and the shared fakes have one lifecycle owner.
 await runClientContracts(ok);
+await (await import('./contracts/rail-penetration-contracts.mjs')).runRailPenetrationContracts(ok);
 await (await import('./contracts/blast-impulse-contracts.mjs')).runBlastImpulseContracts(ok);
 await (await import('./contracts/spawn-variety-contracts.mjs')).runSpawnVarietyContracts(ok);
 await (await import('./contracts/energy-fx-contracts.mjs')).runEnergyFxContracts(ok);

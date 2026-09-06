@@ -11,6 +11,7 @@ import {
   samplePelletDirection,
   chargeProfile,
   chargeFromHold,
+  chargeShotProfile,
 } from '../../../shared/combatmath.js';
 import { TIMERS } from './defs.js';
 
@@ -150,6 +151,7 @@ export class WeaponState {
       wname: def.name,
       wid: def.id,
       crosshairConeDeg: this.coneDeg,
+      crosshairHitRadius: chargeShotProfile(def, this._chargeStart === null ? 0 : chargeFromHold(def, now - this._chargeStart)).hitRadius,
       reloading01: this._reloadProgress(now),
       reloadStaged: !!this._reloadState?.staged,
       adsT01: this._adsT,
@@ -689,8 +691,7 @@ export class WeaponState {
     this.clearIntents();
 
     if (!usesAuthoritativeOwnedWeapons(mode)) {
-      this._slot = 0;
-      this._lastSlot = 1;
+      // Keep the equipped and quick-swap slots across lives.
       this.resetToLoadout();
     } else if (Number.isInteger(weapon) && WEAPON_IDS[weapon]) {
       this._slot = weapon;

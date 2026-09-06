@@ -62,7 +62,7 @@ export const CONDITION_RULES = Object.freeze({
  * @property {'rocket'|'bolt'} [projectile]  when set, the shot launches an authoritative projectile (shared/rocket-rules.js, shared/bolt-rules.js) instead of firing hitscan rays
  * @property {{ms:number,holdMaxMs:number,minDamageMult:number,damageExponent?:number,wallPierceAt?:number}} [charge]  charge-fire profile; `wallPierceAt` is the charge needed before terrain pierces (terrain penetration grows with charge)
  * @property {number} [hitRadius] extra body collision radius for a thick rail beam
- * @property {{players:number,walls:number,playerFalloff:number,wallFalloff:number}} [pierce]  rail pierce profile: victims the slug passes through, walls it crosses, and the multiplicative damage falloff per crossing
+ * @property {{players:number,walls:number,minWalls?:number,playerFalloff:number,wallFalloff:number}} [pierce]  rail pierce profile: victims the slug passes through, walls it crosses, and the multiplicative damage falloff per crossing
  */
 
 /** The ten-weapon roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
@@ -225,10 +225,10 @@ export const WEAPONS = {
       holdMaxMs: 2800,    // cell vents: the shot fires itself at this hold
       minDamageMult: 0.08,
       damageExponent: 2,
-      wallPierceAt: 0.4,    // piercing grows from this charge to five blocks at full
+      wallPierceAt: 0,      // every shot penetrates; charging increases the block budget
     },
-    hitRadius: 0.22,
-    pierce: { players: 6, walls: 5, playerFalloff: 0.9, wallFalloff: 0.9 },
+    hitRadius: 0.5,
+    pierce: { players: 6, walls: 8, minWalls: 1, playerFalloff: 0.9, wallFalloff: 0.9 },
   },
   knife: {
     // K-7 RIPPER: fighting knife. No magazine and no reload — every swing is free
@@ -311,8 +311,8 @@ export function chargeShotProfile(def, charge01 = 1) {
   const threshold = chargeProfile(def).wallPierceAt;
   return {
     size,
-    hitRadius: (def?.hitRadius || 0) * size,
-    walls: t < threshold ? 0 : Math.floor((def?.pierce?.walls || 0) * t),
+    hitRadius: (def?.hitRadius || 0) * (def?.mode === 'charge' ? 0.4 + 0.6 * t * t : 1),
+    walls: t < threshold ? 0 : Math.max(def?.pierce?.minWalls || 0, Math.floor((def?.pierce?.walls || 0) * t)),
   };
 }
 /** Deterministic patterned camera kick in degrees; random01 only adds bounded micro-variation. */

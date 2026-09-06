@@ -1,6 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
 import { WEAPONS, chargeShotProfile } from '../../../shared/combatmath.js';
-import { BLOCK_HP } from '../../../shared/worlddata.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 
 const AXIS = new THREE.Vector3(0, 0, -1);
@@ -70,7 +69,7 @@ export class RailBeamFX {
         !pierced.has(`${x},${y},${z}`) && this.getBlock(x, y, z),
         eye.x, eye.y, eye.z, direction.x, direction.y, direction.z, length);
       if (!hit) break;
-      if (wall === profile.walls || BLOCK_HP[this.getBlock(hit.x, hit.y, hit.z)] == null) {
+      if (wall === profile.walls) {
         length = hit.t;
         break;
       }
@@ -86,6 +85,7 @@ export class RailBeamFX {
     beam.age = 0;
     beam.life = 0.18 + charge * 0.3;
     beam.charge = charge;
+    beam.hitRadius = profile.hitRadius;
     beam.group.visible = true;
     this._render(beam);
   }
@@ -95,7 +95,7 @@ export class RailBeamFX {
     const fade = Math.pow(Math.max(0, 1 - t), 1.7);
     const width = 0.006 + 0.022 * beam.charge * beam.charge;
     beam.layers.forEach((mesh, i) => {
-      const radius = width * [1, 3, 8][i] * (1 + t * 0.6);
+      const radius = (i === 2 ? beam.hitRadius : width * [1, 3][i]) * (1 + t * 0.6);
       mesh.scale.set(radius, radius, beam.length);
       mesh.material.opacity = fade * [1, 0.4, 0.12][i];
     });

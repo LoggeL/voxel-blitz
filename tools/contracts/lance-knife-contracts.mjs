@@ -26,15 +26,15 @@ export async function runLanceKnifeContracts(ok) {
   ok(lanceCharge.ms === 2800 && lanceCharge.holdMaxMs === 2800
       && lanceCharge.minDamageMult === 0.08,
     'the VOLTLANCE reaches full power at 2800 ms and allows early releases');
-  ok(lanceCharge.wallPierceAt === 0.4,
-    'terrain piercing begins at 40% charge');
-  ok(lance.pierce.players === 6 && lance.pierce.walls === 5
+  ok(lanceCharge.wallPierceAt === 0,
+    'terrain piercing is available even on an early release');
+  ok(lance.pierce.players === 6 && lance.pierce.walls === 8
       && lance.pierce.playerFalloff === 0.9 && lance.pierce.wallFalloff === 0.9,
-    'a charged lance spears up to six enemies on the line and crosses up to five blocks, decaying 0.9 per body and wall');
+    'a charged lance spears up to six enemies on the line and crosses up to eight blocks, decaying 0.9 per body and wall');
 
   const tap = chargeShotProfile(lance, 0), half = chargeShotProfile(lance, 0.5);
   const full = chargeShotProfile(lance, 1);
-  ok(tap.walls === 0 && half.walls === 2 && full.walls === 5
+  ok(tap.walls === 1 && half.walls === 4 && full.walls === 8
       && tap.hitRadius < half.hitRadius && half.hitRadius < full.hitRadius
       && tap.size < half.size && half.size < full.size
       && Math.round(chargeDamageMult(lance, 0.5) * 300) === 93,
