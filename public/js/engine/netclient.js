@@ -121,7 +121,7 @@ export function drainEventsWithDedupe(snapshotList, upTo, state) {
 /** Newest-row fields retained alongside interpolated transforms. */
 const PASSTHROUGH_FIELDS = [
   'name', 'hp', 'team', 'weapon', 'score', 'kills', 'deaths', 'ping',
-  'state', 'firing', 'ads', 'crouch', 'moveSpeed', 'mag', 'reserve', 'reloading',
+  'state', 'firing', 'ads', 'crouch', 'mag', 'reserve', 'reloading',
   'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt',
   'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
   'grenades', 'charge', 'impulse',

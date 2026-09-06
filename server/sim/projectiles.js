@@ -1,4 +1,3 @@
-import { pointPlayerDistance } from '../../shared/player-hitboxes.js';
 import { chaosLevel } from '../../shared/chaos.js';
 // Room-scoped authoritative projectile simulation: three grenade types, the
 // rocket, and the LONGARC bolt. One system owns flight, sticking, detonation,
@@ -15,6 +14,7 @@ import {
 } from '../../shared/worlddata.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import {
+  HEADSHOT_Y_FRAC,
   PLAYER_HALF,
   WEAPONS,
   chargeDamageMult,
@@ -97,9 +97,13 @@ function outsideWorld(p) {
     p.y < -2 || p.x < -2 || p.z < -2 || p.x > SX + 2 || p.z > SZ + 2;
 }
 
-/** Sphere contact against the same body zones used by hitscan and bolts. */
+/** Player AABB overlap test for a sphere of `radius` at the projectile position. */
 function touchesPlayer(p, radius, victim) {
-  return pointPlayerDistance([p.x, p.y, p.z], victim) <= radius;
+  const nx = Math.max(victim.x - PLAYER_HALF.x, Math.min(p.x, victim.x + PLAYER_HALF.x));
+  const ny = Math.max(victim.y, Math.min(p.y, victim.y + P_HEIGHT));
+  const nz = Math.max(victim.z - PLAYER_HALF.x, Math.min(p.z, victim.z + PLAYER_HALF.x));
+  const dx = p.x - nx, dy = p.y - ny, dz = p.z - nz;
+  return dx * dx + dy * dy + dz * dz <= radius * radius;
 }
 
 export class ProjectileSystem {
@@ -194,7 +198,7 @@ export class ProjectileSystem {
         const { victim, x, y, z } = contact;
         const traveled = (projectile.traveled || 0) + Math.hypot(x - from.x, y - from.y, z - from.z);
         projectile.x = x; projectile.y = y; projectile.z = z;
-        const hs = contact.zone === 'head';
+        const hs = y - victim.y > HEADSHOT_Y_FRAC * P_HEIGHT;
         let dmg = damageAtDistance(WEAPONS.longarc, traveled)
           * chargeDamageMult(WEAPONS.longarc, projectile.charge01);
         if (hs) dmg *= WEAPONS.longarc.headMult;

@@ -136,9 +136,7 @@ export function stepMovement(p, dt, ctx) {
     p.sprint = false;
     p.coyote = 0;
     p.grounded = solidBelow(ctx.solidAt, p.x, p.y, p.z);
-    p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
-      crouch: p.crouch, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
-      vx: p.vx, vz: p.vz, t: ctx.now });
+    p.hist.push({ x: p.x, y: p.y, z: p.z, t: ctx.now });
     if (p.hist.length > 16) p.hist.shift();
     return;
   }
@@ -169,9 +167,7 @@ export function stepMovement(p, dt, ctx) {
     p.grounded = !active && solidBelow(ctx.solidAt, p.x, p.y, p.z);
     p.coyote = 0;
     if (!active) p.vault = null;
-    p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
-      crouch: p.crouch, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
-      vx: p.vx, vz: p.vz, t: ctx.now });
+    p.hist.push({ x: p.x, y: p.y, z: p.z, t: ctx.now });
     if (p.hist.length > 16) p.hist.shift();
     return;
   }
@@ -228,9 +224,7 @@ export function stepMovement(p, dt, ctx) {
   }
 
   // Keep the 16-sample authoritative trail used by shooter-side rewind.
-  p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
-      crouch: p.crouch, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
-      vx: p.vx, vz: p.vz, t: ctx.now });
+  p.hist.push({ x: p.x, y: p.y, z: p.z, t: ctx.now });
   if (p.hist.length > 16) p.hist.shift();
 
   if (p.y < DEAD_FALL_Y) ctx.onFall(p, 'void');

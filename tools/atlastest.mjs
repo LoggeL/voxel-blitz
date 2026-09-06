@@ -641,8 +641,6 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   seat('l-v4', 70, 44.5, 80, LANCE);
   seat('l-v5', 72, 44.5, 80, LANCE);
   seat('l-v6', 74, 44.5, 80, LANCE);
-  // Lift the targets so this fixed horizontal lane tests torso damage.
-  for (let i = 1; i <= 6; i++) engine.entities.get(`l-v${i}`).y += 0.5;
   fireCharged('l-hero', 28); // 2800 ms reaches a full lance cell
   const lanceHits = eventsOf('hit');
   const lanceShots = eventsOf('shoot');
@@ -662,8 +660,6 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && lHero.mag[LANCE] === 0,
   'a full-charge lance spears exactly 6 aligned victims with per-body falloff');
 
-  lHero.state = 'dead'; // Remove the previous scenario's shooter from the adjacent lane.
-
   // (b2) A full rail destroys successive blocks and hits bodies behind them.
   engine.tickEvents.length = 0;
   world.setBlock(62, 16, 42, PLANK);
@@ -674,8 +670,6 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   lwHero.adsT = 1;
   seat('lw-v1', 66, 42.5, 80, LANCE);
   seat('lw-v2', 70, 42.5, 80, LANCE);
-  engine.entities.get('lw-v1').y += 0.5;
-  engine.entities.get('lw-v2').y += 0.5;
   fireCharged('lw-hero', 28);
   const wallHits = eventsOf('hit');
   ok(eventsOf('shoot').length === 1 && eventsOf('shoot')[0].charge === 1
@@ -697,7 +691,6 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   lsHero.ads = true;
   lsHero.adsT = 1;
   seat('ls-v', 66, 40.5, 80, LANCE);
-  engine.entities.get('ls-v').y += 0.5;
   fireCharged('ls-hero', 1); // Early release before the mandatory charge completes.
   const lsShot = eventsOf('shoot')[0];
   ok(lsShot && lsShot.charge > 0 && lsShot.charge < 0.3 && lsHero.mag[LANCE] === 0
@@ -1061,8 +1054,6 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && engine.projectiles.active.size === 0,
   'a full bolt with nothing around still ends as a harmless fizzle');
 
-  cHero.state = dHero.state = 'dead'; // Previous shots must not leave targets in this lane.
-
   // (c3) The direct lane to the victim is walled off, but a ricochet off the
   // corner wall reaches them: the bolt kills through the normal longarc path,
   // chips the wall it bounced from, and fizzles without a blast.
@@ -1074,7 +1065,6 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   eHero.adsT = 1;
   const eVic = seat('e-vic', 60, 42.5, 70, LONGARC);
   eVic.hp = 30;
-  eVic.y += 0.5; // Keep the ricochet fixture aimed at the torso.
   fireCharged('e-hero', 8);
   const cornerLaunch = eventsOf('projectileLaunch')[0];
   runBolt();
@@ -1356,8 +1346,6 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
 // Browser-adjacent client contracts live in their own harness so the atlas
 // checks stay focused and the shared fakes have one lifecycle owner.
 await runClientContracts(ok);
-(await import('./contracts/player-hitbox-contracts.mjs')).runPlayerHitboxContracts(ok);
-(await import('./contracts/player-hitbox-pose-contracts.mjs')).runPlayerHitboxPoseContracts(ok);
 await (await import('./contracts/rail-penetration-contracts.mjs')).runRailPenetrationContracts(ok);
 await (await import('./contracts/blast-impulse-contracts.mjs')).runBlastImpulseContracts(ok);
 await (await import('./contracts/spawn-variety-contracts.mjs')).runSpawnVarietyContracts(ok);

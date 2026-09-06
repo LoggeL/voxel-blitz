@@ -17,7 +17,7 @@ export function runRailPenetrationContracts(ok) {
     const target = engine.entities.get('target');
     Object.assign(shooter, { x: 40, y: 15, z: 40.5, yaw: -Math.PI / 2, pitch: 0,
       weapon: WEAPON_IDS.indexOf('lance'), cooldown: 0, bloom: 0, exhaustion: 0 });
-    Object.assign(target, { x: targetX, y: 15.5, yaw: -Math.PI / 2, pitch: 0, z: 40.5 + offset, hp: 1000,
+    Object.assign(target, { x: targetX, y: 15, z: 40.5 + offset, hp: 1000,
       spawnProtected: false, spawnProtectedUntil: 0 });
     engine.tickEvents.length = 0;
     fireOneShot(shooter, { ...engine.combatContext(), computeConeDeg: () => 0 }, charge);
@@ -37,7 +37,7 @@ export function runRailPenetrationContracts(ok) {
   ok(shoot([METAL], 0, 0).hits.length === 1 && shoot([METAL, METAL], 0, 0).hits.length === 0,
     'an uncharged rail can penetrate one solid block');
   ok(shoot([], PLAYER_HALF.x + 0.4).hits.length === 1
-    && shoot([], 0.6 + 1.7).hits.length === 0,
+    && shoot([], PLAYER_HALF.x + 1.7).hits.length === 0,
     'wide rail collision catches a clear graze and rejects targets outside its 1.6-meter radius');
   ok(shoot([STONE], 0, 1, 42.8).hits.length === 1,
     'a body overlapping a pierced wall receives damage only once');

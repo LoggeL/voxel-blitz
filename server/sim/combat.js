@@ -1,4 +1,3 @@
-import { rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { chaosShot, chaosHit } from './chaos-combat.js';
 // Authoritative weapon intent, ballistics, and destructible-block damage.
 // The caller owns world/entity state and exposes only the narrow operations
@@ -11,6 +10,7 @@ import {
   CONDITION_RULES,
   SNIPER_SCOPE_ADS_THRESHOLD,
   PLAYER_HALF,
+  HEADSHOT_Y_FRAC,
   damageAtDistance,
   reloadPlan,
   samplePelletDirection,
@@ -35,6 +35,7 @@ import {
 export const SHOT_REACH = 120;
 export const LONG_RANGE_KILL_DISTANCE = 40;
 export const NO_SCOPE_ADS_THRESHOLD = SNIPER_SCOPE_ADS_THRESHOLD;
+const P_HEIGHT = PLAYER_HALF.h * 2;
 const BLOCK_MIN_DMG = 12;
 const HISTORY_WINDOW_MS = 500;
 
@@ -328,14 +329,43 @@ export function nearestVictim(shooter, o, d, limit, ctx, minT = 0, radius = 0, h
     if (v === shooter || v.state !== 'alive' || hitVictims?.has(v)) continue;
     if (!ctx.canDamage(shooter, v)) continue;
     const pos = rewoundByShooter ? rewindVictim(v, ctx.now, shooter.input?.viewAge) : v;
-    const hit = rayPlayerHitboxes(o, d, pos, limit, { minT, radius, preferCore: true });
-    if (hit && hit.t < bestT) {
-      bestT = hit.t;
-      best = { victim: v, x: pos.x, y: pos.y, z: pos.z, ...hit };
+    let t = rayAABB(
+      o, d,
+      pos.x - PLAYER_HALF.x - radius, pos.y - radius, pos.z - PLAYER_HALF.x - radius,
+      pos.x + PLAYER_HALF.x + radius, pos.y + P_HEIGHT + radius, pos.z + PLAYER_HALF.x + radius,
+    );
+    let radialDistance = 0;
+    let coreHit = true;
+    if (radius > 0 && t != null) {
+      const coreT = rayAABB(o, d, pos.x - PLAYER_HALF.x, pos.y, pos.z - PLAYER_HALF.x,
+        pos.x + PLAYER_HALF.x, pos.y + P_HEIGHT, pos.z + PLAYER_HALF.x);
+      coreHit = coreT != null && coreT >= minT && coreT < limit;
+      if (coreHit) t = coreT;
+      else {
+        // Distance to the actual body, not the corners of an inflated hit box.
+        const distanceSq = (at) => {
+          const x = o[0] + d.x * at, y = o[1] + d.y * at, z = o[2] + d.z * at;
+          return Math.max(0, Math.abs(x - pos.x) - PLAYER_HALF.x) ** 2
+            + Math.max(0, pos.y - y, y - pos.y - P_HEIGHT) ** 2
+            + Math.max(0, Math.abs(z - pos.z) - PLAYER_HALF.x) ** 2;
+        };
+        let low = Math.max(minT, t), high = limit;
+        for (let i = 0; i < 36; i++) {
+          const a = low + (high - low) / 3, b = high - (high - low) / 3;
+          if (distanceSq(a) <= distanceSq(b)) high = b; else low = a;
+        }
+        t = (low + high) / 2;
+        radialDistance = Math.sqrt(distanceSq(t));
+        if (radialDistance >= radius) continue;
+      }
+    }
+    if (t != null && t >= minT && t < bestT) {
+      bestT = t;
+      best = { victim: v, x: pos.x, y: pos.y, z: pos.z, radialDistance, coreHit };
     }
   }
   if (!best) return null;
-  return { victim: best.victim, t: bestT, rx: best.x, ry: best.y, rz: best.z, radialDistance: best.radialDistance, coreHit: best.coreHit, zone: best.zone };
+  return { victim: best.victim, t: bestT, rx: best.x, ry: best.y, rz: best.z, radialDistance: best.radialDistance, coreHit: best.coreHit };
 }
 
 export function blockKey(x, y, z) {
@@ -455,7 +485,7 @@ export function fireOneShot(p, ctx, charge = 1) {
         const ix = oEye[0] + d.x * tgt.t;
         const iy = oEye[1] + d.y * tgt.t;
         const iz = oEye[2] + d.z * tgt.t;
-        const hs = tgt.zone === 'head';
+        const hs = iy - tgt.ry > HEADSHOT_Y_FRAC * P_HEIGHT;
         let dmg = damageAtDistance(def, tgt.t) * (hs ? def.headMult : 1) * chargeMult;
         dmg = Math.round(dmg * 10) / 10;
         const lethal = tgt.victim.takeDamage(dmg, hs);
@@ -509,7 +539,7 @@ export function fireOneShot(p, ctx, charge = 1) {
         const ix = ox + d.x * tgt.t;
         const iy = oy + d.y * tgt.t;
         const iz = oz + d.z * tgt.t;
-        const hs = tgt.coreHit && tgt.zone === 'head';
+        const hs = tgt.coreHit && iy - tgt.ry > HEADSHOT_Y_FRAC * P_HEIGHT;
         let dmg = railDamageMult(shotProfile, tgt.radialDistance) * damageAtDistance(def, dist) * (hs ? def.headMult : 1) * dmgMult;
         dmg = Math.round(dmg * 10) / 10;
         const lethal = tgt.victim.takeDamage(dmg, hs);
