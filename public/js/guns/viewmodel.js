@@ -10,7 +10,7 @@ import { MaterialCache } from './kit.js';
 import { D2R, HIP, VM_FOV_BASE } from './models/common.js';
 import { kickMassScale } from './defs.js';
 import { WeaponTurnInertia } from './turn-inertia.js';
-const SWING_S = 0.28;  // K-7 slash arc: wind-up -> strike -> recover, in seconds
+import { PICKAXE_SWING_SECONDS as SWING_S, pickaxeSwingPose } from './pickaxe-swing.js';
 
 
 export class ViewmodelRig {
@@ -450,25 +450,13 @@ export class ViewmodelRig {
     const nadeRx = -0.14 * wind - 0.16 * lunge + Math.sin(this._now * 53) * 0.018 * strain;
     const nadeRz = 0.20 * wind + 0.08 * lunge;
 
-    /* knife slash (T.melee): three-phase arc across SWING_S — cock the blade up-and-out,
-       whip it down-across the screen, then settle back to guard. Mirrored per swing via
-       _swingParity so consecutive cuts alternate. Runs entirely as content-pose offsets
-       (like the nade/charge terms), never through the kick springs or the camera. */
+    // A pickaxe chops vertically around the palm, with no alternating knife slash.
     let swingX = 0, swingY = 0, swingZ = 0, swingRx = 0, swingRy = 0, swingRz = 0;
     if (this._swingT > 0) {
       this._swingT = Math.max(0, this._swingT - dt);
-      const side = 1;                       // +1: right-dominant slash
-      const p = 1 - this._swingT / SWING_S;                          // 0 start -> 1 settled
-      const cocked = this._smooth01(Math.min(1, p / 0.26));          // wind-up (~26% of arc)
-      const strike = this._smooth01(Math.max(0, Math.min(1, (p - 0.26) / 0.22))); // fast cut
-      const amp = 1 - this._smooth01(Math.max(0, (p - 0.52) / 0.48)); // recover to guard
-      const wd = cocked * (1 - strike);                              // wind pose weight
-      swingX = (0.028 * wd - 0.050 * strike) * side * amp;           // out wide, across body
-      swingY = (0.045 * wd - 0.048 * strike) * amp;                  // high, then low
-      swingZ = (0.030 * wd - 0.018 * strike) * amp;                  // pulled back, then through
-      swingRx = (-0.65 * wd + 0.95 * strike) * amp;                  // tip up, whip down
-      swingRy = (0.50 * wd - 0.42 * strike) * side * amp;            // blade turned out, then in
-      swingRz = (0.28 * wd - 0.50 * strike) * side * amp;            // wrist roll through the cut
+      const pose = pickaxeSwingPose(1 - this._swingT / SWING_S);
+      swingX = pose.x; swingY = pose.y; swingZ = pose.z;
+      swingRx = pose.rx; swingRy = pose.ry; swingRz = pose.rz;
     }
 
     /* sprint cant + counter-roll + inertia roll composition */

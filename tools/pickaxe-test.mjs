@@ -43,3 +43,35 @@ for (const [type, required] of Object.entries(MINING_HITS)) {
   resolveWeaponIntent(s.p, 0.01, s.ctx); assert.equal(s.events.length, n, 'cooldown prevents faster mining');
 }
 console.log('Pickaxe: all materials, release, timeout, aim, reach, fire gating and cadence passed.');
+
+const THREE = await import('../public/js/vendor/three.module.js');
+const { pickaxeSwingPose } = await import('../public/js/guns/pickaxe-swing.js');
+const lift = pickaxeSwingPose(0.34), strike = pickaxeSwingPose(0.6);
+assert.ok(lift.rx > 0.9 && strike.rx < -0.4 && lift.y + 0.4 * Math.sin(lift.rx) > strike.y + 0.4 * Math.sin(strike.rx));
+assert.equal(lift.ry, 0); assert.equal(strike.ry, 0);
+assert.ok(Math.abs(lift.rz) < 0.04 && Math.abs(strike.rz) < 0.04);
+assert.ok(Math.abs(pickaxeSwingPose(1).rx) < 1e-9);
+const { ImpactFX } = await import('../public/js/weapons/impacts.js');
+const scene = new THREE.Scene();
+const fx = new ImpactFX(scene, new THREE.PerspectiveCamera(), () => 3);
+let previous = 0;
+for (const material of fx.crackMaterials) {
+  assert.equal(material.map.magFilter, THREE.NearestFilter);
+  const pixels = material.map.image.data;
+  let count = 0;
+  for (let i = 3; i < pixels.length; i += 4) if (pixels[i] > 0) count++;
+  assert.ok(count >= previous && count < 256);
+  previous = count;
+}
+const event = { x: 0, y: 2, z: 0, nx: 0, ny: 0, nz: 1, from: 3, progress: 0.2 };
+fx.mine(event);
+const first = fx.miningCracks.get('0,2,0').mesh;
+assert.ok(first.isMesh && first.geometry.type === 'BoxGeometry');
+fx.mine({ ...event, progress: 0.9 });
+const next = fx.miningCracks.get('0,2,0').mesh;
+assert.equal(first.parent, null);
+assert.equal(next.material, fx.crackMaterials[8]);
+assert.equal(next.geometry, first.geometry);
+fx.update(0.81); assert.equal(fx.miningCracks.size, 0);
+fx.dispose(); assert.equal(scene.children.length, 0);
+console.log('Pickaxe presentation: vertical chop, progressive pixel textures and overlay cleanup passed.');

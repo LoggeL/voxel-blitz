@@ -1,6 +1,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { findWeaponCaptureShot } from '../../../shared/weapon-capture-shots.js';
+import { ImpactFX } from '../weapons/impacts.js';
 import { RailBeamFX } from '../weapons/rail-beam.js';
 import { ViewmodelRig } from '../guns/viewmodel.js';
 import { createSniperScope } from '../ui/sniper-scope.js';
@@ -76,6 +77,10 @@ const stablePose = Object.freeze({
   aimSwayScale: 0,
 });
 switch (state) {
+  case 'pickaxe-lift':
+  case 'pickaxe-impact':
+  case 'mining-low':
+  case 'mining-high':
   case 'swap-stow':
   case 'swap-draw':
   case 'swap-ready':
@@ -98,6 +103,21 @@ switch (state) {
     throw new Error(`weapon capture state is not implemented: ${state}`);
 }
 for (let frame = 0; frame < 300; frame++) rig.update(1 / 60, stablePose);
+
+if (state.startsWith('pickaxe-')) {
+  rig.fire();
+  const seconds = state === 'pickaxe-lift' ? 0.15 : 0.27;
+  for (let frame = 0; frame < Math.round(seconds * 100); frame++) rig.update(0.01, stablePose);
+}
+if (state.startsWith('mining-')) {
+  const block = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0x90969a, roughness: 1 }));
+  block.position.set(-0.5, 1.5, -2.5);
+  scene.add(block);
+  const fx = new ImpactFX(scene, camera, () => 3);
+  fx.mine({ x: -1, y: 1, z: -3, nx: 0, ny: 0, nz: 1, from: 3,
+    progress: state === 'mining-low' ? 0.2 : 0.9 });
+}
 
 if (state.startsWith('swap-')) {
   rig.equipWeapon(weapon);
