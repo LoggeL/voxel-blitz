@@ -133,6 +133,7 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       firing: !!p.firing,
       ads: !!p.ads,
       crouch: !!p.crouch,
+      moveSpeed: round(Math.hypot(p.vx || 0, p.vz || 0), D2),
       mag: ammoCopy(p.mag),
       reserve: ammoCopy(p.reserve),
       reloading: !!p.reloading,

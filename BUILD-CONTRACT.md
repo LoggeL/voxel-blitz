@@ -220,9 +220,20 @@ truth for mode ids, map compatibility, timings, and economy. `MAP_MODE_COMPATIBI
 covers the four combat modes.
 `MAP_MODE_COMPATIBILITY.killhouse` covers only training.
 
+### shared/player-hitboxes.js
+`playerHitboxes(player)` defines oriented head, torso, hip, arm and leg volumes
+using world position, yaw, pitch, crouch, weapon, ADS, reload and movement speed.
+`rayPlayerHitboxes` and `pointPlayerDistance` drive hitscan, projectile sweeps and
+sphere contacts. Headshot damage comes from the first body zone struck, with
+rail corona grazes excluded. Movement retains its independent `PLAYER_HALF` collider.
+The debug overlay consumes these same volumes. Arms follow settled weapon poses;
+small margins and speed-dependent leg envelopes cover cosmetic animation.
+Rewind samples retain pose fields alongside position. Player snapshots publish
+`moveSpeed` so the debug overlay can reproduce the running-leg envelope.
+
 ### shared/combatmath.js
 Exports `WEAPONS`, `WEAPON_IDS`, `CONDITION_RULES`, `GRAVITY`, `PLAYER_HALF`,
-`EYE_HEIGHT`, `HEADSHOT_Y_FRAC`, `damageAtDistance(def,dist)`,
+`EYE_HEIGHT`, `damageAtDistance(def,dist)`,
 `chargeProfile(def)`, `chargeFromHold(def,heldMs)`, `chargeDamageMult(def,charge01)`,
 `sampleSpreadDir(fwd,rng,halfAngleDeg)`,
 `samplePelletDirection(def,fwd,rng,halfAngleDeg,pelletIndex)`,

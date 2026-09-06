@@ -1,5 +1,4 @@
-import { PLAYER_HALF } from '../../shared/combatmath.js';
-import { rayAABB } from './combat.js';
+import { rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 
 /** First body touched by a swept projectile, independent of entity insertion order. */
 export function sweepPlayers(from, to, radius, entities, canHit) {
@@ -8,15 +7,11 @@ export function sweepPlayers(from, to, radius, entities, canHit) {
   let nearest = null;
   for (const victim of entities.values()) {
     if (!canHit(victim)) continue;
-    // Expand the player's collision box by the projectile's radius. The ray's
-    // parameter is a fraction of this segment, so t in [0,1] is in flight.
-    const t = rayAABB(origin, direction,
-      victim.x - PLAYER_HALF.x - radius, victim.y - radius, victim.z - PLAYER_HALF.x - radius,
-      victim.x + PLAYER_HALF.x + radius, victim.y + PLAYER_HALF.h * 2 + radius,
-      victim.z + PLAYER_HALF.x + radius);
-    if (t === null || t > 1 || (nearest && t >= nearest.t)) continue;
+    const hit = rayPlayerHitboxes(origin, direction, victim, 1, { radius });
+    if (!hit || (nearest && hit.t >= nearest.t)) continue;
+    const { t, zone } = hit;
     nearest = {
-      victim, t,
+      victim, t, zone,
       x: from.x + direction.x * t,
       y: from.y + direction.y * t,
       z: from.z + direction.z * t,
