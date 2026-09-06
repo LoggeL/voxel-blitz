@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../shared/minigun.js';
+import { MINIGUN, createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../shared/minigun.js';
 import { resolveWeaponIntent } from '../server/sim/combat.js';
 import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
 import { WeaponState } from '../public/js/guns/weapon-state.js';
@@ -8,7 +8,7 @@ const thermal = createMinigunState();
 assert.equal(stepMinigun(thermal, 0.69, true), false);
 assert.equal(stepMinigun(thermal, 0.02, true), true);
 assert.equal(minigunDamageMult(thermal), 1);
-for (let i = 0; i < 40; i++) heatMinigun(thermal);
+for (let i = 0; i < Math.ceil(MINIGUN.sweetHeat / MINIGUN.heatPerShot); i++) heatMinigun(thermal);
 assert.equal(minigunDamageMult(thermal), 1.65);
 while (!thermal.overheated) heatMinigun(thermal);
 assert.equal(stepMinigun(thermal, 3, true), false);
@@ -26,7 +26,7 @@ assert.ok(Math.abs(coarse.heat - 0.66) < 1e-10);
 
 const slot = WEAPON_IDS.indexOf('minigun');
 const p = { id: 'thermal-test', def: WEAPONS.minigun, weapon: slot,
-  mag: WEAPON_IDS.map(() => 180), reserve: WEAPON_IDS.map(() => 3),
+  mag: WEAPON_IDS.map(id => WEAPONS[id].magSize), reserve: WEAPON_IDS.map(id => WEAPONS[id].spareMags),
   input: { wantFire: true }, cooldown: 0, deployT: 0, shotSeq: 0,
   x: 0, eyeY: 2, z: 0, yaw: 0, pitch: 0, vx: 0, vz: 0,
   adsT: 0, panic: 0, pain: 0, exhaustion: 0, bloom: 0 };

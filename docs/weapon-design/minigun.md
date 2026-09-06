@@ -1,11 +1,13 @@
 # M-6 FURNACE
 
-The playable weapon uses six rotating barrels and a 180-round drum at 900 RPM.
-The rotor needs 0.7 seconds to reach firing speed. Each shot adds 1.8% heat.
+The playable weapon uses six rotating barrels and a 300-round drum at 1200 RPM, with four spare drums.
+The rotor needs 0.7 seconds to reach firing speed. Each shot adds 1.35% heat.
 Damage increases with heat, reaching +65% at 65% heat. The bonus plateaus there,
 so short pauses can hold the sweet spot without forcing an overheat.
 At 100% heat the gun locks until it cools to 30%, then needs to spin up again.
 Heat survives switching weapons; a new life resets it.
+
+Reduced recoil and a tighter spread keep sustained bursts controllable.
 
 The HUD marks the 65% threshold and shows the current damage bonus or cooling lock.
 The server owns the thermal state and damage; the client predicts local feedback.
