@@ -17,6 +17,20 @@ async function key(page, key, code) {
 async function select(page, id, value) {
   await page.evaluate(`(() => { const el=document.getElementById(${JSON.stringify(id)}); el.value=${JSON.stringify(value)}; el.dispatchEvent(new Event('change',{bubbles:true})); })()`);
 }
+async function fireShot(page, label) {
+  const self = `window.__qaMessages.filter(m=>m.t==='tick').at(-1)?.players.find(p=>p.id===window.__vb.stats.localId)`;
+  await page.waitFor(`(${self})?.state==='alive'`, { label: 'alive shooter' });
+  const before = await page.evaluate(`(() => {const p=${self};return {weapon:p.weapon,mag:p.mag[p.weapon]};})()`);
+  await page.waitFor(`(() => {const el=document.querySelector('[data-action="fire"]');const r=el?.getBoundingClientRect();return r?.width>0 && r?.height>0 && document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)===el;})()`, { label: 'fire control ready' });
+  const point = await page.evaluate(`(() => {const r=document.querySelector('[data-action="fire"]').getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2};})()`);
+  await page.send('Input.dispatchMouseEvent', {type:'mousePressed',...point,button:'left',buttons:1,clickCount:1});
+  try {
+    await page.waitFor(`(${self})?.mag[${before.weapon}]<${before.mag}`, { label });
+  } finally {
+    await page.send('Input.dispatchMouseEvent', {type:'mouseReleased',...point,button:'left',buttons:0,clickCount:1});
+  }
+  check(true, label);
+}
 async function screenshot(page, filename) {
   const result=await page.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false},15000);
   await writeFile(filename,Buffer.from(result.data,'base64'));
@@ -42,6 +56,7 @@ async function main() {
     await page.waitFor(`document.getElementById('lobby-start-btn')?.disabled===false`,{label:'ready to start'});
     await click(page,'lobby-start-btn');
     await page.waitFor(`window.__vb?.stats?.running && window.__vb.stats.ringLen>0`,{timeoutMs:30000,label:'live chaos'});
+    await fireShot(page,'shooting consumes authoritative ammo before opening shop');
     await key(page,'b','KeyB');
     await page.waitFor(`document.getElementById('buy-menu')?.getAttribute('aria-hidden')==='false'`,{label:'B opens shop'});
     check(await page.evaluate(`document.querySelectorAll('#buy-grid .vb-buy-card').length===13 && document.querySelectorAll('#buy-grid .vb-chaos-stage span').length===39 && [...document.querySelectorAll('#buy-grid .vb-chaos-stage span')].every(el=>el.textContent.length>10)`),'all 13 items and 39 upgrade descriptions render');
@@ -62,6 +77,7 @@ async function main() {
     await screenshot(page,'/tmp/voxel-chaos-shop-mobile.png');
     await key(page,'Escape','Escape');
     await page.waitFor(`document.getElementById('buy-menu')?.getAttribute('aria-hidden')==='true' && window.__vb.stats.running && !window.__vb.stats.settingsOpen`,{label:'close returns to gameplay'});
+    await fireShot(page,'shooting resumes after upgrading and closing shop');
     check(await page.evaluate(`!document.documentElement.dataset.vbLastError`)&&page.errors.length===0,`no browser runtime errors: ${page.errors.join('; ')}`);
     console.log('CHAOS BROWSER SMOKE: OK');
   } catch(error) {

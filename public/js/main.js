@@ -357,7 +357,7 @@ class Game {
     if (!this.session.gameplayInputEnabled || !this.player.alive ||
         this.selfRow?.state !== 'alive' || this._wheelOpen || this.player.physics.vault) return false;
     if (this.matchState?.mode === 'fun' || this.matchState?.mode === 'training') return true;
-    return (this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
+    return (this.matchState?.mode === 'chaos' || this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
       this.matchState?.mode === 'gungame') &&
       this.matchState.phase === 'live';
   }
