@@ -324,6 +324,7 @@ class Game {
     }
     if (self && this.weapon) {
       this.weapon.reconcileServer({
+        minigun: self.minigun,
         mag: self.mag,
         reserve: self.reserve,
         chaosUpgrades: self.chaosUpgrades,
@@ -573,6 +574,7 @@ class Game {
         verticalVelocity: this.player.physics.vel.y,
         isSprinting: !this.player.wantAds && this.player.keys.sprint && this.player.speedXZ > 4.6,
         crouch: this.player.crouchBool,
+        proneT: this.player.physics.proneT,
         panic: this.player.panic,
         exhaustion: this.player.exhaustion,
         pain: this.player.pain,
@@ -641,6 +643,7 @@ class Game {
       pos: [this.camera.position.x, this.camera.position.y, this.camera.position.z],
     });
     this._postFrame.time = now / 1000;
+    this._postFrame.burning = this.player.alive ? Math.min(1, this.player.burning * 2) : 0;
     this._postFrame.panic = this.player.panic;
     this._postFrame.pain = this.player.pain;
     this._postFrame.scopeActive = !!this.weapon?.scopeActive;

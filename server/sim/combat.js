@@ -1,3 +1,5 @@
+import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../../shared/minigun.js';
+import { fireFlame } from './fire.js';
 import { rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { chaosShot, chaosHit } from './chaos-combat.js';
 // Authoritative weapon intent, ballistics, and destructible-block damage.
@@ -60,6 +62,7 @@ export function cancelCharge(p) {
 
 export function switchWeapon(p, slot) {
   p.mining = null;
+  if (p.minigun) p.minigun.spin = 0;
   p.weapon = clampWeaponSlot(slot);
   clearReload(p);
   cancelCharge(p);
@@ -87,6 +90,11 @@ export function canFire(p, fireEdge, ctx) {
  */
 export function resolveWeaponIntent(p, _dt, ctx) {
   const inp = p.input;
+  p.minigun ??= createMinigunState();
+  const minigunHeld = p.def.id === 'minigun' && inp?.wantFire &&
+    (inp.switchTo == null || inp.switchTo === p.weapon) && !inp.reload &&
+    ctx.canFire(p) && !p.vault && !p.reloading && p.deployT <= 0 && p.mag[p.weapon] > 0;
+  const minigunReady = stepMinigun(p.minigun, _dt, minigunHeld);
   if (!inp?.wantFire && !p.fireEdgeQueued) p.mining = null;
   if (!inp) { p.triggerPrev = false; p.reloadPrev = false; return; }
   const reloadEdge = !!inp.reload && !p.reloadPrev;
@@ -138,6 +146,10 @@ export function resolveWeaponIntent(p, _dt, ctx) {
   // A staged tube reload yields to the trigger: whatever is seated fires now.
   if (!reloadEdge && (fireEdge || (inp.wantFire && !p.triggerPrev)) &&
       p.reloading && p.reloadStage && p.mag[p.weapon] > 0) clearReload(p);
+  if (def.id === 'minigun' && !minigunReady) {
+    p.triggerPrev = inp.wantFire;
+    return;
+  }
   if (wantsShot && canFire(p, fireEdge, ctx)) fireOneShot(p, ctx);
   p.triggerPrev = inp.wantFire;
 }
@@ -393,7 +405,8 @@ export function fireOneShot(p, ctx, charge = 1) {
   p.firing = true;
   const charged = def.mode === 'charge';
   const charge01 = charged ? Math.max(0, Math.min(1, Number.isFinite(charge) ? charge : 1)) : 1;
-  const chargeMult = charged ? chargeDamageMult(def, charge01) : 1;
+  const chargeMult = charged ? chargeDamageMult(def, charge01) : def.id === 'minigun' ? minigunDamageMult(p.minigun) : 1;
+  if (def.id === 'minigun') heatMinigun(p.minigun);
   const rng = shotRng(p);
   const fwd = fwdFromYawPitch(p.yaw, p.pitch);
   const coneDeg = typeof ctx.computeConeDeg === 'function'
@@ -429,6 +442,7 @@ export function fireOneShot(p, ctx, charge = 1) {
     ctx.launchBolt(p, firstDir, charge01);
     return;
   }
+  if (def.flame) { fireFlame(p, oEye, fwd, ctx); return; }
   const pierce = def.pierce;
   const piercePlayers = Number.isFinite(pierce?.players) ? Math.max(0, Math.trunc(pierce.players)) : 0;
   const shotProfile = chargeShotProfile(def, charge01);

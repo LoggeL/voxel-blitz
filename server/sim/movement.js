@@ -1,9 +1,10 @@
 // Authoritative movement, collision, timers, and hidden-condition integration.
 
+import { PRONE, stepProne } from '../../shared/player-stance.js';
 import { CONDITION_RULES } from '../../shared/combatmath.js';
 import { ladderContact } from '../../shared/worlddata.js';
 import { clamp01 } from './player.js';
-import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow, findVault, stepVault } from '../../shared/player-movement.js';
+import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
 
 const WALK_SPEED = PHYSICS.walk;
 const SPRINT_SPEED = PHYSICS.sprint;
@@ -133,11 +134,12 @@ export function stepMovement(p, dt, ctx) {
     p.vy = 0;
     p.vz = 0;
     p.crouch = false;
+    p.proneT = 0;
     p.sprint = false;
     p.coyote = 0;
     p.grounded = solidBelow(ctx.solidAt, p.x, p.y, p.z);
     p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
-      crouch: p.crouch, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
+      crouch: p.crouch, proneT: p.proneT, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
       vx: p.vx, vz: p.vz, t: ctx.now });
     if (p.hist.length > 16) p.hist.shift();
     return;
@@ -146,8 +148,11 @@ export function stepMovement(p, dt, ctx) {
   const kf = inp.keys;
   const fwdAmt = (kf.f ? 1 : 0) - (kf.b ? 1 : 0);
   const strafe = (kf.r ? 1 : 0) - (kf.l ? 1 : 0);
+  const ladderHere = ladderContact(ctx.mapMeta, p.x, p.y, p.z);
+  p.proneT = stepProne(p.proneT, !!kf.prone && !p.vault && !ladderHere, dt);
+  const low = !!kf.prone || p.proneT > 0;
   p.crouch = !!kf.crouch;
-  p.sprint = !!kf.sprint && fwdAmt > 0 && !p.crouch && !p.ads;
+  p.sprint = !!kf.sprint && fwdAmt > 0 && !p.crouch && !low && !p.ads;
 
   // Normalized wish direction prevents diagonal movement from gaining speed.
   let wx = 0, wz = 0;
@@ -159,7 +164,7 @@ export function stepMovement(p, dt, ctx) {
     wx /= length; wz /= length;
   }
   if (p.grounded) p.jumpGroundY = p.y;
-  if (!p.vault && kf.jump && fwdAmt > 0 && !p.crouch && (p.grounded || p.vy > 0)) {
+  if (!p.vault && canStartVault(p.grounded, kf.jump, fwdAmt, p.crouch || low, p.y, p.jumpGroundY)) {
     p.vault = findVault(ctx.solidAt, p, { x: wx, z: wz }, p.jumpGroundY);
   }
   if (p.vault) {
@@ -170,19 +175,19 @@ export function stepMovement(p, dt, ctx) {
     p.coyote = 0;
     if (!active) p.vault = null;
     p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
-      crouch: p.crouch, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
+      crouch: p.crouch, proneT: p.proneT, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
       vx: p.vx, vz: p.vz, t: ctx.now });
     if (p.hist.length > 16) p.hist.shift();
     return;
   }
-  let speed = p.crouch ? CROUCH_SPEED : (p.sprint ? SPRINT_SPEED : WALK_SPEED);
+  let speed = low ? PRONE.speed : p.crouch ? CROUCH_SPEED : (p.sprint ? SPRINT_SPEED : WALK_SPEED);
   // A pulse concussion drags the legs: 60% speed until the deadline passes.
   if (Number.isFinite(p.concussedUntil) && p.concussedUntil > ctx.now) speed *= CONCUSSED_SPEED_MULT;
   const accel = 1 - Math.exp(-(p.grounded ? ACCEL_GROUND : ACCEL_AIR) * dt);
   p.vx += (wx * speed - p.vx) * accel;
   p.vz += (wz * speed - p.vz) * accel;
 
-  const onLadder = ladderContact(ctx.mapMeta, p.x, p.y, p.z);
+  const onLadder = !low && ladderHere;
   const ladderUp = onLadder && (kf.jump || (kf.f && !kf.b));
   const ladderDown = onLadder && !ladderUp && (kf.crouch || (kf.b && !kf.f));
   const ladderDirected = ladderUp || ladderDown;
@@ -193,7 +198,7 @@ export function stepMovement(p, dt, ctx) {
     p.coyote = 0;
   } else {
     // Jump with a short coyote window.
-    if (kf.jump && (p.grounded || p.coyote > 0) && p.vy <= 0.01) {
+    if (!low && kf.jump && (p.grounded || p.coyote > 0) && p.vy <= 0.01) {
       p.vy = JUMP_VELOCITY;
       p.grounded = false;
       p.coyote = 0;
@@ -229,7 +234,7 @@ export function stepMovement(p, dt, ctx) {
 
   // Keep the 16-sample authoritative trail used by shooter-side rewind.
   p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
-      crouch: p.crouch, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
+      crouch: p.crouch, proneT: p.proneT, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
       vx: p.vx, vz: p.vz, t: ctx.now });
   if (p.hist.length > 16) p.hist.shift();
 

@@ -1,3 +1,4 @@
+import { stanceEye } from '../../shared/player-stance.js';
 import { chaosWeaponDef } from './chaos-combat.js';
 // Authoritative combatant state, loadouts, and aim helpers.
 
@@ -96,6 +97,8 @@ export class PlayerEntity {
     this.yaw = centerAim.yaw; this.pitch = 0;
     this.hp = 100;
     this.panic = 0;
+    this.burn = null;
+    this.burning = 0;
     this.pain = 0;
     this.exhaustion = 0;
     this.state = 'alive';
@@ -132,11 +135,13 @@ export class PlayerEntity {
     this.charging = false;
     this.chargeT = 0;
     this.charge = 0;
+    this.minigun = { heat: 0, spin: 0, overheated: false };
     // Pulse concussion deadline (server clock ms); movement slows until then.
     this.concussedUntil = 0;
     this.grounded = false;
     this.coyote = 0;
     this.crouch = false;
+    this.proneT = 0;
     this.sprint = false;
     this.lives++;
     this.lastSpawnIndex = spawn.index | 0;
@@ -146,7 +151,7 @@ export class PlayerEntity {
   }
 
   get def() { return chaosWeaponDef(this, WEAPONS[WEAPON_IDS[this.weapon]]); }
-  get eyeY() { return this.y + (this.crouch ? CROUCH_EYE : EYE); }
+  get eyeY() { return this.y + stanceEye(EYE, this.crouch, this.proneT); }
 
   /** Return true when the hit is lethal. */
   takeDamage(dmg, headshot = false) {

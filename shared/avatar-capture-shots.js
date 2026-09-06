@@ -6,6 +6,7 @@ const VIEW_POSES = Object.freeze({
   firing: Object.freeze({ firing: true, ads: false, crouching: false, pose: 'hip-standing' }),
   'ads-profile': Object.freeze({ firing: false, ads: true, crouching: false, pose: 'ads-standing' }),
   'crouched-profile': Object.freeze({ firing: false, ads: false, crouching: true, pose: 'hip-crouched' }),
+  'prone-profile': Object.freeze({ firing: false, ads: false, crouching: false, proneT: 1, pose: 'hip-prone' }),
   spectator: Object.freeze({ firing: false, ads: true, crouching: false, pose: 'ads-standing' }),
 });
 

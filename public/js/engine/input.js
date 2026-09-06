@@ -70,14 +70,14 @@ function writePref(key, value) {
 
 // Escape is deliberately excluded so the browser always offers its normal exit.
 const GAME_KEY_CODES = [
-  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyC', 'KeyE', 'KeyR', 'KeyF',
+  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyC', 'KeyX', 'KeyE', 'KeyR', 'KeyF',
   'KeyZ', 'KeyG', 'KeyH', 'KeyQ', 'KeyB', 'Space', 'Tab',
   'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight',
   ...Array.from({ length: 10 }, (_, i) => `Digit${i}`),
 ];
 const GAME_KEYS = new Set(GAME_KEY_CODES);
 
-const MOVEMENT_KEYS = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'crouch', 'interact'];
+const MOVEMENT_KEYS = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'crouch', 'prone', 'interact'];
 
 export class Input {
   /**
@@ -153,14 +153,14 @@ export class Input {
     this._aimAssist = 0;       // 0..1 strength supplied by the composition root
     this.keys = {
       forward: false, back: false, left: false, right: false,
-      jump: false, sprint: false, crouch: false, interact: false,
+      jump: false, sprint: false, crouch: false, prone: false, interact: false,
     };
 
     // Gamepad state lives beside the keyboard so both can be held at once.
     this._pad = new GamepadInput();
     this._padKeys = {
       forward: false, back: false, left: false, right: false,
-      jump: false, sprint: false, crouch: false, interact: false,
+      jump: false, sprint: false, crouch: false, prone: false, interact: false,
     };
     this._padFire = false;
     this._padAds = false;
@@ -663,6 +663,7 @@ export class Input {
       jump: k.jump || p.jump,
       sprint: k.sprint || p.sprint,
       crouch: k.crouch || p.crouch,
+      prone: !!k.prone,
       interact: k.interact || p.interact,
       reload: this._reloadQueued,
     };
@@ -888,7 +889,7 @@ export class Input {
   clearTransient() {
     const k = this.keys;
     k.forward = k.back = k.left = k.right = false;
-    k.jump = k.sprint = k.crouch = k.interact = false;
+    k.jump = k.sprint = k.crouch = k.prone = k.interact = false;
     this._mouseFire = false;
     this._mouseAds = false;
     this._adsLatched = false;
@@ -1040,6 +1041,7 @@ export class Input {
     }
     if (!this._canReadGameplay()) return;
     switch (e.code) {
+      case 'KeyX': if (!e.repeat && !this._wheelOpen) this.keys.prone = !this.keys.prone; break;
       case 'KeyW': this.keys.forward = true; break;
       case 'KeyS': this.keys.back = true; break;
       case 'KeyA': this.keys.left = true; break;

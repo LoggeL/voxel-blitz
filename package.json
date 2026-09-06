@@ -11,6 +11,7 @@
     "lobby": "node tools/lobby-smoke.mjs",
     "modes:lobby": "node tools/mode-lobby-smoke.mjs",
     "modes:bots": "node tools/bot-mode-smoke.mjs",
+    "maps:test": "node tools/nuketown-test.mjs && node tools/nuketown-lobby-test.mjs",
     "maps:capture": "node tools/render-map-scenes.mjs",
     "weapons:capture": "node tools/render-weapon-scenes.mjs",
     "weapons:icons": "node tools/render-hud-icon.mjs --all",
@@ -20,8 +21,12 @@
     "audio:audit": "node tools/analyze-weapon-audio.mjs",
     "brand:render": "node tools/render-brand-card.mjs",
     "chaos:test": "node tools/chaos-test.mjs",
-    "test": "node tools/chaos-test.mjs && node tools/atlastest.mjs && node tools/pickaxe-test.mjs && node tools/weapon-swap-test.mjs && node tools/revolver-smoke.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run modes:lobby && npm run modes:bots",
-    "avatars:test": "node tools/avatar-pose-test.mjs"
+    "flamethrower:test": "node tools/flamethrower-test.mjs && node tools/flamethrower-hitbox-test.mjs",
+    "minigun:test": "node tools/minigun-test.mjs",
+    "test": "npm run flamethrower:test && npm run minigun:test && npm run projectiles:test && node tools/chaos-test.mjs && node tools/atlastest.mjs && node tools/pickaxe-test.mjs && node tools/weapon-swap-test.mjs && node tools/revolver-smoke.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run modes:lobby && npm run modes:bots",
+    "avatars:test": "node tools/avatar-pose-test.mjs",
+    "prone:test": "node tools/prone-test.mjs",
+    "projectiles:test": "node tools/projectile-server-performance-test.mjs && node tools/projectile-performance-test.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"

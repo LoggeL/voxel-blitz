@@ -1,9 +1,20 @@
-.vb-chaos-shop .vb-buy-panel { width: min(1160px, calc(100vw - 28px)); }
-.vb-chaos-shop .vb-buy-grid { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+/* Compact experiment cards retain all three cumulative upgrade descriptions. */
+.vb-chaos-shop .vb-buy-panel { padding: 18px; }
+.vb-chaos-shop .vb-buy-grid { gap: 8px; }
+.vb-chaos-shop .vb-buy-card { padding: 10px; }
+.vb-chaos-shop .vb-buy-card-top { margin-bottom: 4px; }
+.vb-chaos-shop .vb-buy-card-body { margin-bottom: 8px; }
+.vb-chaos-shop .vb-buy-wname { font-size: 11px; letter-spacing: .06em; color: var(--sub); }
+.vb-chaos-weapon-image { display: block; width: 100%; height: 48px; object-fit: contain; margin-bottom: 4px; }
+.vb-chaos-shop .vb-buy-titles .vb-title { font-size: 23px; }
+.vb-chaos-shop .vb-buy-btn { min-height: 36px; padding: 7px; font-size: 11px; letter-spacing: .06em; }
+.vb-chaos-shop .vb-buy-credits-val { font-size: 22px; }
+.vb-chaos-shop .vb-buy-panel { width: min(1040px, calc(100vw - 28px)); }
+.vb-chaos-shop .vb-buy-grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .vb-chaos-shop .vb-buy-titles .vb-sub { max-width: 620px; line-height: 1.5; }
-.vb-chaos-ladder { margin: 14px 0; padding-left: 20px; display: grid; gap: 12px; }
-.vb-chaos-stage { color: #aeb9c7; font-size: 12px; line-height: 1.45; }
-.vb-chaos-stage strong { display: block; color: #dbe2ea; font-size: 12px; margin-bottom: 3px; }
+.vb-chaos-ladder { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 7px; }
+.vb-chaos-stage { color: #aeb9c7; font-size: 12px; line-height: 1.3; }
+.vb-chaos-stage strong { display: block; color: #dbe2ea; font-size: 12px; margin-bottom: 2px; }
 .vb-chaos-stage span { display: block; }
 .vb-chaos-stage.is-next strong { color: var(--accent, #9fed65); }
 .vb-chaos-stage.is-installed strong { color: #78d7b3; }

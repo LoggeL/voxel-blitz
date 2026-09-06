@@ -123,14 +123,26 @@ export class AvatarWeaponModel {
     ads = false,
     reloading = false,
     crouchT = 0,
+    prone = 0,
     stride = 0,
     swing = 0,
     dt = 0,
     charge = 0,
+    minigun,
   } = {}) {
     this.setWeapon(weapon);
     if (!this._model) return;
     const frameDt = Math.max(0, Number(dt) || 0);
+    const rotor = this._model.body.getObjectByName('minigun_rotor');
+    if (rotor) {
+      rotor.rotation.z += frameDt * (minigun?.spin ?? (firing ? 1 : 0)) * 42;
+      rotor.traverse(o => {
+        if (o.material?.userData.thermal) {
+          o.material.emissive.setHex(0xff3808);
+          o.material.emissiveIntensity = (minigun?.heat || 0) ** 2 * 1.8;
+        }
+      });
+    }
     // Melee (T.melee): the firing pulse drives a forward stab, not a recoil shove, and
     // the assembled flash stub stays dark — a blade neither flashes nor kicks.
     const melee = this._model.T.melee === true;
@@ -156,7 +168,7 @@ export class AvatarWeaponModel {
     // and an aimed weapon is never held below its sight line.
     const raise = deploy * deploy * (1 - this._ads);
     const reloadPulse = Math.sin(Math.PI * ((this._reloadT / 0.9) % 1));
-    const crouch = clamp01(crouchT);
+    const crouch = clamp01(crouchT) * (1 - prone);
     const aimPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, Number(pitch) || 0));
     const hip = this._profile.hip;
     const aimed = this._profile.ads;
@@ -164,7 +176,7 @@ export class AvatarWeaponModel {
     const stab = melee ? this._stab : 0;
     this.root.position.set(
       THREE.MathUtils.lerp(hip.x, aimed.x, this._ads) - this._reload * 0.02,
-      THREE.MathUtils.lerp(hip.y, aimed.y, this._ads) - crouch * 0.29 +
+      THREE.MathUtils.lerp(hip.y, aimed.y, this._ads) - crouch * 0.29 - prone * 1.14 +
         Math.abs(swing) * stride * 0.012 - this._reload * 0.07,
       THREE.MathUtils.lerp(hip.z, aimed.z, this._ads) + recoil * 0.035 - stab * 0.15 +
       this._reload * 0.03,

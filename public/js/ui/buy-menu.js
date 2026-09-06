@@ -60,7 +60,7 @@ export class BuyMenuController {
     const title = el('h2', 'vb-title', titlesBox, 'buy-title');
     title.textContent = mode === 'chaos' ? 'CHAOS LAB' : 'ARMORY REQUISITION';
     const sub = el('div', 'vb-sub', titlesBox);
-    sub.textContent = mode === 'chaos' ? 'Kills pay. Upgrades stack. Death keeps your experiments. Shopping does not pause the fight.' : 'Tactical weapons procurement · Prep phase only';
+    sub.textContent = mode === 'chaos' ? 'Upgrades stack and survive death. The fight stays live.' : 'Tactical weapons procurement · Prep phase only';
 
     const metaBox = el('div', 'vb-buy-meta-row', header);
 
@@ -94,10 +94,11 @@ export class BuyMenuController {
 
       const cardTop = el('div', 'vb-buy-card-top', card);
       const keyBadge = el('span', 'vb-buy-key-badge', cardTop);
-      keyBadge.textContent = index < 10 ? `[${keyNumber}]` : 'GRENADE';
+      keyBadge.textContent = index < 10 ? `[${keyNumber}]` : WEAPONS[wid] ? 'SELECT' : 'GRENADE';
 
       const glyphBadge = el('span', `vb-buy-glyph-badge vb-w-${wid}`, cardTop);
       glyphBadge.textContent = GLYPH[wid] || wid.toUpperCase();
+      if (mode === 'chaos') glyphBadge.remove();
 
       const priceBadge = el('span', 'vb-buy-price-badge', cardTop, `buy-price-${wid}`);
       priceBadge.textContent = price > 0 ? `$${price.toLocaleString()}` : 'FREE';
@@ -119,7 +120,15 @@ export class BuyMenuController {
       const stages = [];
       if (mode === 'chaos') {
         classEl.textContent = ['frag', 'limpet', 'pulse'].includes(wid) ? 'GRENADE EXPERIMENTS' : 'WEAPON EXPERIMENTS';
-        statsEl.textContent = '3 cumulative upgrades';
+        classEl.remove();
+        statsEl.remove();
+        if (WEAPONS[wid]) {
+          const image = el('img', 'vb-chaos-weapon-image', cardBody);
+          image.src = `./assets/weapons/hud/${wid}.png`;
+          image.alt = '';
+          image.draggable = false;
+          cardBody.insertBefore(image, nameEl);
+        }
         const ladder = el('ol', 'vb-chaos-ladder', cardBody);
         CHAOS_UPGRADES[wid].forEach((upgrade) => {
           const stage = el('li', 'vb-chaos-stage', ladder);
@@ -152,7 +161,7 @@ export class BuyMenuController {
 
     const footer = el('div', 'vb-buy-footer', panel);
     const hint = el('span', 'vb-buy-footer-hint', footer);
-    hint.textContent = mode === 'chaos' ? '[1-9, 0] WEAPON UPGRADES · CLICK FOR GRENADES · [ESC] CLOSE · SERVER CONFIRMS PURCHASES' : 'PRESS [1-8] TO BUY · [ESC] TO CLOSE · UI UPDATES ON SERVER CONFIRMATION';
+    hint.textContent = mode === 'chaos' ? '[1-9, 0] WEAPONS · CLICK GRENADES · [ESC] CLOSE' : 'PRESS [1-8] TO BUY · [ESC] TO CLOSE · UI UPDATES ON SERVER CONFIRMATION';
 
     this.buyDom = {
       root,

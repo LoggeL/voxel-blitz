@@ -1,7 +1,8 @@
 // Client-side predicted player movement. Mirrors the server constants
 // (see BUILD-CONTRACT) so prediction tracks authority closely.
+import { PRONE, stepProne, stanceEye } from '../../shared/player-stance.js';
 import { EYE_HEIGHT } from '../../shared/combatmath.js';
-import { PHYSICS, MOVEMENT_RULES, boxCollides, slidePlayerAxis, solidBelow, findVault, stepVault } from '../../shared/player-movement.js';
+import { PHYSICS, MOVEMENT_RULES, boxCollides, slidePlayerAxis, solidBelow, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
 import { getBlock, ladderContact } from '../../shared/worlddata.js';
 
 const { walk: WALK, sprint: SPRINT, crouch: CROUCH, jump: JUMP_VEL,
@@ -19,6 +20,8 @@ export class PlayerPhysics {
     this.jumpGroundY = null;
     this.coyote = 0;
     this._crouching = false;
+    this.proneT = 0;
+    this.wantProne = false;
     this.mapMeta = null;
     this._solidAt = (x, y, z) => this.solid(x, y, z);
     this.setMapMeta(mapMeta);
@@ -50,11 +53,15 @@ export class PlayerPhysics {
    * ground jump. climbAxis is +1 for forward and -1 for back.
    */
   step(dt, wish, speedTarget, wantJump, climbAxis = 0) {
+    const onLadderNow = ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z);
+    this.proneT = stepProne(this.proneT, this.wantProne && !this.vault && !onLadderNow, dt);
+    const low = this.wantProne || this.proneT > 0;
+    if (low) { speedTarget = Math.min(speedTarget, PRONE.speed); wantJump = false; }
     if (this.coyote > 0) this.coyote = Math.max(0, this.coyote - dt);
 
     if (this.grounded) this.jumpGroundY = this.pos.y;
-    if (!this.vault && wantJump && climbAxis > 0 && !this._crouching &&
-        (this.grounded || this.vel.y > 0)) {
+    if (!this.vault && canStartVault(this.grounded, wantJump, climbAxis,
+        this._crouching || low, this.pos.y, this.jumpGroundY)) {
       this.vault = findVault(this._solidAt, this.pos, wish, this.jumpGroundY);
     }
     if (this.vault) {
@@ -65,7 +72,7 @@ export class PlayerPhysics {
       if (!active) this.vault = null;
       return false;
     }
-    const onLadder = ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z);
+    const onLadder = !low && onLadderNow;
     let ladderVy = 0;
     if (onLadder && (wantJump || climbAxis > 0)) ladderVy = LADDER_UP_SPEED;
     else if (onLadder && (this._crouching || climbAxis < 0)) ladderVy = LADDER_DOWN_SPEED;
@@ -132,7 +139,7 @@ export class PlayerPhysics {
   }
 
   eyeY() {
-    return this.pos.y + EYE_HEIGHT * (this._crouching ? 0.58 : 1);
+    return this.pos.y + stanceEye(EYE_HEIGHT, this._crouching, this.proneT);
   }
 }
 

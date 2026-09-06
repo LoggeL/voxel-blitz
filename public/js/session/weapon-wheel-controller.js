@@ -29,7 +29,7 @@ export class WeaponWheelController {
         name: WEAPON_NAMES[id] || id.toUpperCase(),
         cls: WEAPON_CLASSES[id] || '',
         icon: `./assets/weapons/hud/${id}.png`,
-        key: `[${(slot + 1) % 10}]`,
+        key: slot < 10 ? `[${(slot + 1) % 10}]` : '[WHEEL]',
         ammo: locked ? '—' : (WEAPONS[id].mode === 'melee' ? '∞' : `${ammo?.mag || 0} / ${context.match?.mode === 'gungame' ? '∞' : ammo?.reserve || 0}`),
         owned: !locked,
         current: context.weapon?.slot === slot,

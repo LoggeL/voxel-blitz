@@ -84,7 +84,7 @@ function randSpot(world, rng) {
 }
 
 function eyeOf(p) {
-  return [p.x, p.y + (p.crouch ? CROUCH_EYE : EYE_HEIGHT), p.z];
+  return [p.x, p.eyeY, p.z];
 }
 
 /** Sparse 1-unit voxel LOS between two points. */

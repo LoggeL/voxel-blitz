@@ -24,6 +24,7 @@ uniform sampler2D sceneTexture;
 uniform vec2 resolution;
 uniform float time;
 uniform float panic;
+uniform float burning;
 uniform float pain;
 uniform float scopeActive;
 uniform float motion;
@@ -77,6 +78,14 @@ void main() {
   float grain = hash21(gl_FragCoord.xy + grainFrame) - 0.5;
   color += grain * (0.005 + panic * 0.004);
 
+  float flameTime = time * motion;
+  float tongues = 0.08 + 0.055 * sin(vUv.x * 43.0 + sin(vUv.x * 19.0 - flameTime * 2.0) * 2.0)
+    + 0.035 * sin(vUv.x * 81.0 + flameTime * 3.0);
+  float border = min(vUv.x, 1.0 - vUv.x);
+  float fire = (1.0 - smoothstep(tongues, tongues + 0.15, vUv.y))
+    + (1.0 - smoothstep(0.015, 0.11, border)) * 0.4;
+  float hot = 0.7 + 0.3 * sin(vUv.x * 32.0 + vUv.y * 21.0 - flameTime * 4.0);
+  color = mix(color, vec3(1.0, 0.16 + hot * 0.32, 0.015), clamp(fire * burning * 0.62, 0.0, 0.72));
   gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
   #include <colorspace_fragment>
 }`;
@@ -88,6 +97,7 @@ function clamp01(value) {
 export function normalizePostProcessState(state = {}) {
   return Object.freeze({
     panic: clamp01(state.panic),
+    burning: clamp01(state.burning),
     pain: clamp01(state.pain),
     scopeActive: state.scopeActive ? 1 : 0,
     motion: state.reducedMotion ? 0 : 1,
@@ -152,6 +162,7 @@ export class CombatPostProcess {
       resolution: { value: new THREE.Vector2(1, 1) },
       time: { value: 0 },
       panic: { value: 0 },
+      burning: { value: 0 },
       pain: { value: 0 },
       scopeActive: { value: 0 },
       motion: { value: reducedMotion ? 0 : 1 },
@@ -196,6 +207,7 @@ export class CombatPostProcess {
     // public pure helper for contracts and non-frame callers.
     this.uniforms.time.value = Math.max(0, Number(state.time) || 0);
     this.uniforms.panic.value = clamp01(state.panic);
+    this.uniforms.burning.value = clamp01(state.burning);
     this.uniforms.pain.value = clamp01(state.pain);
     this.uniforms.scopeActive.value = state.scopeActive ? 1 : 0;
     this.uniforms.motion.value = this.reducedMotion ? 0 : 1;

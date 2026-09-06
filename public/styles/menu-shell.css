@@ -433,3 +433,33 @@ h1.vb-deployment-title::after { display: none; }
   .vb-browser-header { align-items: flex-start; }
   .vb-browser-header h2 { font-size: 17px; }
 }
+
+/* Keep settings dense enough to scan without a full-screen menu. */
+#settings-overlay { padding: 18px; }
+.vb-pause-shell { width: min(940px, 100%); grid-template-columns: 200px minmax(0, 1fr); gap: 12px; align-items: start; }
+.vb-pause-rail { min-height: 0; padding: 18px; }
+.vb-pause-rail .vb-title { font-size: 21px; }
+.vb-pause-rail .vb-resume-btn,
+.vb-pause-rail .vb-leave-match-btn,
+.vb-pause-nav-current { min-height: 40px; padding: 11px 10px; margin-top: 8px; font-size: 11px; letter-spacing: .08em; }
+.vb-pause-rail .vb-settings-hint { margin-top: 18px; }
+.vb-settings-panel { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 18px; min-width: 0; }
+.vb-settings-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 18px; }
+.vb-settings-controls .vb-setting-row { min-width: 0; padding: 9px 0; }
+.vb-settings-controls > .vb-step-kicker,
+.vb-settings-controls > .vb-settings-hint { grid-column: 1 / -1; margin: 10px 0 6px; }
+.vb-settings-controls .vb-setting-header { gap: 6px; flex-wrap: wrap; }
+.vb-settings-controls .vb-label { font-size: 10px; letter-spacing: .06em; }
+.vb-settings-controls .vb-setting-val { font-size: 10px; letter-spacing: .03em; }
+.vb-settings-controls .vb-select { width: 100%; min-width: 0; min-height: 36px; padding: 8px; font-size: 11px; letter-spacing: .02em; }
+.vb-pause-match-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; }
+.vb-pause-player-count { margin: 0; font-size: 11px; }
+@media (max-width: 760px) {
+  #settings-overlay { padding: 10px; }
+  .vb-pause-shell { grid-template-columns: 1fr; }
+  .vb-pause-rail { padding: 12px; }
+  .vb-settings-panel { padding: 14px; }
+}
+@media (max-width: 520px) {
+  .vb-settings-controls { grid-template-columns: 1fr; }
+}

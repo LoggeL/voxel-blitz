@@ -1,3 +1,4 @@
+import { pronePose } from './player-stance.js';
 import { HANDS } from './avatar-hands.js';
 import { WEAPON_IDS } from './combatmath.js';
 
@@ -14,7 +15,10 @@ function basisFor(x = 0, y = 0, z = 0) {
 }
 
 export function playerHitboxes(p) {
+  const prone = pronePose(p.proneT);
+  const mix = (a, b) => a + (b - a) * prone;
   const crouch = p.crouch ? 1 : 0;
+  const armCrouch = crouch * (1 - prone);
   const pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, p.pitch || 0));
   const hands = HANDS[WEAPON_IDS[p.weapon || 0]] || HANDS.rifle;
   const yaw = basisFor(0, p.yaw || 0, 0);
@@ -25,36 +29,38 @@ export function playerHitboxes(p) {
       half: size.map(v => v / 2), basis: basis.map(v => rotate(v, yaw)) });
   }
   const headBasis = basisFor(pitch * 0.7);
-  const head = [0, 1.66 - crouch * 0.34, 0];
+  const head = [0, mix(1.66 - crouch * 0.34, 0.48), 0];
   box('head', head, [0.34, 0.32, 0.34], headBasis);
   box('head', add(head, rotate([0, 0.16, 0], headBasis)), [0.38, 0.14, 0.38], headBasis);
-  box('torso', [0, 1.18 - crouch * 0.27, 0], [0.56, 0.56, 0.58], basisFor(crouch * 0.12));
-  box('torso', [0, 1.48 - crouch * 0.34, 0], [0.18, 0.12, 0.19]);
-  box('hips', [0, 0.84 - crouch * 0.20, 0], [0.49, 0.22, 0.36]);
+  box('torso', [0, mix(1.18 - crouch * 0.27, 0.3), prone * 0.4], [0.56, 0.56, 0.58], basisFor(mix(crouch * 0.12, -Math.PI / 2)));
+  box('torso', [0, mix(1.48 - crouch * 0.34, 0.4), prone * 0.1], [0.18, 0.12, 0.19]);
+  box('hips', [0, mix(0.84 - crouch * 0.20, 0.25), prone * 0.8], [0.49, 0.22, 0.36], basisFor(-prone * Math.PI / 2));
   // Stable leg envelopes cover the cosmetic running stride without making the
   // empty space between the legs a target. Standing legs stay narrow in depth.
   const speed = Math.min(1, (p.moveSpeed ?? Math.hypot(p.vx || 0, p.vz || 0)) / 5.8);
-  const legHeight = 0.72 * (1 - crouch * 0.35);
+  const legHeight = 0.72 * (1 - crouch * 0.35 * (1 - prone));
   for (const side of [-1, 1]) {
-    box('leg', [side * 0.16, 0.73 - crouch * 0.26 - legHeight / 2, 0],
-      [0.24, legHeight + 0.02, 0.40 + speed * 0.78 * (1 - crouch * 0.6)]);
+    const legAngle = -prone * Math.PI / 2;
+    box('leg', [side * 0.16, mix(0.73 - crouch * 0.26, 0.25) - Math.cos(legAngle) * legHeight / 2,
+      prone * 0.85 - Math.sin(legAngle) * legHeight / 2],
+      [0.24, legHeight + 0.02, 0.40 + speed * 0.78 * (1 - crouch * 0.6) * (1 - prone)], basisFor(legAngle));
     const ads = p.ads && !p.reloading ? 1 : 0;
     const reload = p.reloading ? 1 : 0;
-    const shoulder = [side * 0.32, 1.43 - crouch * 0.29, 0];
+    const shoulder = [side * 0.32, 1.43 - armCrouch * 0.29 - prone * 1.08, prone * 0.14];
     const anchor = side < 0 ? hands.support : hands.grip;
-    let target = [side * 0.34, 0.82 - crouch * 0.29, -0.08];
+    let target = [side * 0.34, 0.82 - armCrouch * 0.29 - prone * 0.5, -0.08];
     if (anchor) {
       // Settled weapon mount from AvatarWeaponModel. Recoil/reload animation
       // is cosmetic and covered by the small margins around each arm segment.
       const sight = { rifle: 0.145, smg: 0.112, shotgun: 0.100, sniper: 0.205,
-        lmg: 0.155, revolver: 0.105, longarc: 0.155, rocket: 0.175, lance: 0.155, knife: 0.02 }[WEAPON_IDS[p.weapon || 0]];
+        minigun: 0.155, lmg: 0.155, revolver: 0.105, longarc: 0.155, rocket: 0.175, lance: 0.155, knife: 0.02 }[WEAPON_IDS[p.weapon || 0]];
       const hip = [0.1995 - hands.grip.x * 1.1, 1.3165 - hands.grip.y * 1.1, -0.309 - hands.grip.z * 1.1];
       const mount = [ads ? 0.055 : hip[0], ads ? 1.62 - (sight || 0.12) * 1.1 : hip[1], hip[2] - ads * 0.045];
-      mount[0] -= reload * 0.02; mount[1] -= crouch * 0.29 + reload * 0.07; mount[2] += reload * 0.03;
+      mount[0] -= reload * 0.02; mount[1] -= armCrouch * 0.29 + prone * 1.14 + reload * 0.07; mount[2] += reload * 0.03;
       const aim = Math.max(-Math.PI * 0.43, Math.min(Math.PI * 0.43, p.pitch || 0));
       target = add(mount, rotate([anchor.x * 1.1, anchor.y * 1.1, anchor.z * 1.1],
         basisFor(aim * (1 - reload * 0.6) - reload * 0.42, reload * 0.18, reload * 0.28)));
-      if (reload && side < 0) target = target.map((v, i) => v * 0.35 + [0.08, 1.08 - crouch * 0.29, -0.33][i] * 0.65);
+      if (reload && side < 0) target = target.map((v, i) => v * 0.35 + [0.08, 1.08 - armCrouch * 0.29 - prone * 0.7, -0.33][i] * 0.65);
     }
     const delta = target.map((v, i) => v - shoulder[i]);
     const distance = Math.max(0.001, Math.hypot(...delta));

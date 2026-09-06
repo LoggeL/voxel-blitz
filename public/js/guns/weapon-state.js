@@ -1,3 +1,4 @@
+import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../../../shared/minigun.js';
 import { chaosWeaponDef } from '../../../shared/chaos.js';
 // Client weapon state machine. The composition root owns frame order; this module owns
 // every weapon transition and receives only narrow adapters for its side effects.
@@ -158,6 +159,10 @@ export class WeaponState {
       reloadStaged: !!this._reloadState?.staged,
       adsT01: this._adsT,
       zoom: def.zoom,
+      heat01: def.id === 'minigun' ? this._minigun.heat : null,
+      spin01: this._minigun.spin,
+      overheated: this._minigun.overheated,
+      heatDamageMult: minigunDamageMult(this._minigun),
       charge01: def.mode === 'charge'
         ? (this._chargeStart === null ? 0 : chargeFromHold(def, now - this._chargeStart))
         : null,
@@ -177,6 +182,8 @@ export class WeaponState {
   /** Fill canonical active magazines/spare-mag counts without changing selection. */
   resetToLoadout() {
     this._ammo = Object.create(null);
+    this._minigun = createMinigunState();
+    this._thermalAt = null;
     for (const weaponId of WEAPON_IDS) {
       const def = WEAPONS[weaponId];
       this._ammo[weaponId] = { mag: def.magSize, reserve: def.spareMags };
@@ -222,6 +229,8 @@ export class WeaponState {
       return false;
     }
 
+    if (this.def.id === 'minigun') this._audio.weaponCharge?.(0, false);
+    this._minigun.spin = 0;
     this._lastSlot = this._slot;
     this._slot = slot;
     this.cancelCharge();
@@ -309,6 +318,7 @@ export class WeaponState {
     this._fireTapLatched = false;
     this._wantAds = false;
     this._allowFire = false;
+    this._audio.weaponCharge?.(0, false);
     this._chargeHeldPrev = false;
     this.cancelCharge();
   }
@@ -456,6 +466,16 @@ export class WeaponState {
   }
 
   _tryFire(now) {
+    const thermalDt = this._thermalAt === null ? 0 : Math.max(0, (now - this._thermalAt) / 1000);
+    this._thermalAt = now;
+    const driving = this.def.id === 'minigun' && this._allowFire && this._alive &&
+      this._pendingShotIntent?.held && !this._reloadState && !this._completedReloadWeapon &&
+      now >= this._deployUntil && this._ammo.minigun?.mag > 0;
+    const ready = stepMinigun(this._minigun, thermalDt, driving);
+    this._rig.setMinigun?.(this._minigun);
+    if (this.def.id === 'minigun') {
+      this._audio.weaponCharge?.(this._minigun.spin * 0.3, driving && !this._minigun.overheated);
+    }
     // Authority is deliberately the first gate.
     if (!this._allowFire) {
       this.cancelCharge();
@@ -484,6 +504,9 @@ export class WeaponState {
       this.startReload(now);
       return false;
     }
+
+    // Empty-magazine handling must remain reachable while the rotor is stopped.
+    if (weaponId === 'minigun' && !ready) return false;
 
     const input = this._pendingShotIntent;
     if (!input) return false;
@@ -558,6 +581,7 @@ export class WeaponState {
     const mode = def.mode;
     if (!this._rig.fire()) return false;
 
+    if (weaponId === 'minigun') heatMinigun(this._minigun);
     ammo.mag -= 1;
     this._nextFireAt = now + 60000 / def.rpm;
 
@@ -630,6 +654,7 @@ export class WeaponState {
     mode,
     owned,
     chaosUpgrades,
+    minigun,
     weapon,
     reloading,
     alive = this._alive,
@@ -637,6 +662,13 @@ export class WeaponState {
     this._alive = !!alive;
     this._chaosUpgrades = chaosUpgrades ? { ...chaosUpgrades } : null;
     this.adoptServerAmmo(mag, reserve);
+    if (minigun) {
+      this._minigun = { ...minigun };
+      // A snapshot from before our weapon switch must not restore a spun-up
+      // rotor during the new draw. Heat and the overheat lock remain authoritative.
+      if (this.def.id !== 'minigun' || now < this._deployUntil) this._minigun.spin = 0;
+      this._thermalAt = now;
+    }
     this._setAuthority(mode, owned);
 
     if (
@@ -690,6 +722,8 @@ export class WeaponState {
 
   respawn({ mode = this._mode, weapon, now = this._now() } = {}) {
     this._alive = true;
+    this._minigun = createMinigunState();
+    this._thermalAt = null;
     this._mode = mode;
     this._reloadState = null;
     this._completedReloadWeapon = null;
@@ -720,6 +754,8 @@ export class WeaponState {
     this._slot = 0;
     this._lastSlot = 1;
     this._ammo = Object.create(null);
+    this._minigun = createMinigunState();
+    this._thermalAt = null;
     this._nextFireAt = 0;
     this._deployUntil = 0;
     this._reloadState = null;

@@ -203,7 +203,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 // ---------------------------------------------- mode + map foundation contract
 {
   ok(sameValue(MODE_IDS, ['fun', 'chaos', 'tdm', 'snd', 'gungame', 'training'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'killhouse'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'killhouse'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -241,7 +241,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
       friendlyFire: true,
       respawnMs: 1500,
       postMs: 5000,
-      weaponOrder: ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'rocket', 'longarc', 'lance', 'revolver', 'knife'],
+      weaponOrder: ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'flamethrower', 'rocket', 'longarc', 'lance', 'revolver', 'minigun', 'knife'],
     },
     snd: {
       teams: true,
@@ -288,7 +288,9 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     longarc: 3500,
     lance: 3800,
     lmg: 4000,
+    minigun: 4800,
     rocket: 4300,
+    flamethrower: 2400,
     sniper: 4750,
   };
   ok(sameValue(WEAPON_PRICES, expectedPrices)
@@ -309,6 +311,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     citadel: ['fun', 'chaos', 'tdm', 'snd', 'gungame'],
     solstice: ['fun', 'chaos', 'tdm', 'snd', 'gungame'],
     caldera: ['fun', 'chaos', 'tdm', 'snd', 'gungame'],
+    nuketown: ['fun', 'chaos', 'tdm', 'snd', 'gungame'],
     killhouse: ['training'],
   };
   ok(sameValue(MAP_MODE_COMPATIBILITY, expectedCompatibility)
@@ -340,6 +343,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     citadel: 'Citadel',
     solstice: 'Solstice',
     caldera: 'Caldera',
+    nuketown: 'Nuketown',
     killhouse: 'Killhouse',
   };
   const expectedMapHashes = {
@@ -348,6 +352,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     citadel: '7fdfff21',
     solstice: 'e7809a25',
     caldera: 'fe8b73d1',
+    nuketown: 'a162a72a',
     killhouse: '8e89c37e',
   };
   const expectedSpawnCounts = {
@@ -356,6 +361,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     citadel: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     solstice: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     caldera: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
+    nuketown: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     killhouse: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 0, sndDefenders: 0 },
   };
   const pristineBytes = new Map();

@@ -6,6 +6,7 @@ const MENU_BACKDROPS = Object.freeze({
   citadel: '/assets/maps/citadel-concept.webp',
   solstice: '/assets/maps/solstice-concept.webp',
   caldera: '/assets/maps/caldera-concept.webp',
+  nuketown: '/assets/maps/nuketown.webp',
   killhouse: '/assets/maps/killhouse-range.webp',
 });
 

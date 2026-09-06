@@ -131,14 +131,14 @@ export function poseOperatorArm(av, side, anchor, reload = 0) {
   const arm = side < 0 ? av.lArm : av.rArm;
   const elbow = side < 0 ? av.lElbow : av.rElbow;
   const hand = side < 0 ? av.lHand : av.rHand;
-  arm.position.set(side * 0.32, 1.43 - av.crouchPose * 0.29, 0);
+  arm.position.set(side * 0.32, 1.43 - av.crouchPose * 0.29 * (1 - (av.pronePose || 0)) - (av.pronePose || 0) * 1.08, (av.pronePose || 0) * 0.14);
   if (anchor) {
     target.set(anchor.x, anchor.y, anchor.z);
     av.weaponModel.modelRoot.localToWorld(target);
     av.group.worldToLocal(target);
-    if (reload && side < 0) target.lerp(new THREE.Vector3(0.08, 1.08 - av.crouchPose * 0.29, -0.33), reload);
+    if (reload && side < 0) target.lerp(new THREE.Vector3(0.08, 1.08 - av.crouchPose * 0.29 * (1 - (av.pronePose || 0)) - (av.pronePose || 0) * 0.7, -0.33), reload);
   } else {
-    target.set(side * 0.34, 0.82 - av.crouchPose * 0.29, -0.08);
+    target.set(side * 0.34, 0.82 - av.crouchPose * 0.29 * (1 - (av.pronePose || 0)) - (av.pronePose || 0) * 0.5, -0.08);
   }
   direction.subVectors(target, arm.position);
   const distance = Math.max(0.001, direction.length());

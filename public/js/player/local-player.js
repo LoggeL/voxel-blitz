@@ -1,4 +1,4 @@
-import { CONDITION_RULES, SNIPER_SCOPE_ADS_THRESHOLD } from '../../../shared/combatmath.js';
+import { WEAPONS, CONDITION_RULES, SNIPER_SCOPE_ADS_THRESHOLD } from '../../../shared/combatmath.js';
 import { PlayerPhysics, moveSpeedFor } from '../player-physics.js';
 import { hashInt } from '../util/hash.js';
 import { clamp01, clampPitch, easeOut, nowMs, smooth01 } from '../util/math.js';
@@ -121,6 +121,7 @@ export class LocalPlayer {
     this._alive = true;
     this._hp = 100;
     this.panic = 0;
+    this.burning = 0;
     this.exhaustion = 0;
     this.pain = 0;
     this.spawnProtected = false;
@@ -248,6 +249,8 @@ export class LocalPlayer {
     this.grenadeThrowLatched = null;
     this.wantAds = false;
     this.physics._crouching = false;
+    this.physics.proneT = 0;
+    this.physics.wantProne = false;
   }
 
   spawnAt(x, y, z) {
@@ -264,6 +267,8 @@ export class LocalPlayer {
     this.physics.jumpGroundY = null;
     this.physics.lastImpulseSeq = 0;
     this.physics._crouching = false;
+    this.physics.proneT = 0;
+    this.physics.wantProne = false;
     return true;
   }
 
@@ -284,6 +289,7 @@ export class LocalPlayer {
     this._alive = true;
     this._hp = 100;
     this.panic = 0;
+    this.burning = 0;
     this.exhaustion = 0;
     this.pain = 0;
     this.spawnProtected = false;
@@ -318,6 +324,7 @@ export class LocalPlayer {
     this._alive = true;
     this._hp = 100;
     this.panic = 0;
+    this.burning = 0;
     this.exhaustion = 0;
     this.pain = Number.isFinite(ev.pain) ? clamp01(ev.pain) : 0;
     this.spawnProtected = typeof spawnProtected === 'boolean' ? spawnProtected : true;
@@ -350,6 +357,7 @@ export class LocalPlayer {
     const resolvedImpact = impact || this._lastLocalImpact;
     const resolvedHeadshot = !!(headshot || resolvedImpact?.hs);
     this._alive = false;
+    this.burning = 0;
     this._hp = 0;
     this.adsT = 0;
     this.scopeActive = false;
@@ -605,6 +613,7 @@ export class LocalPlayer {
     weaponIntents.shot = this.pendingShotIntent;
     weaponIntents.fireTap = fireTap;
     weaponIntents.fireHeld = fireHeld;
+    this.physics.wantProne = !!this.keys.prone;
     this.physics._crouching = !!this.keys.crouch;
     return weaponIntents;
   }
@@ -651,6 +660,7 @@ export class LocalPlayer {
       jump: false,
       sprint: false,
       crouch: false,
+      prone: false,
       interact: false,
     };
     this.wishDir.x = 0;
@@ -662,6 +672,8 @@ export class LocalPlayer {
     this.physics.vault = null;
     this.physics.jumpGroundY = null;
     this.physics._crouching = false;
+    this.physics.proneT = 0;
+    this.physics.wantProne = false;
   }
 
   _updateConditionEstimates(dt, jumped) {
@@ -671,7 +683,8 @@ export class LocalPlayer {
     }
     const hp01 = clamp01((Number.isFinite(this._hp) ? this._hp : 100) / 100);
     const missingHealth = 1 - hp01;
-    const panicFloor = missingHealth * CONDITION_RULES.panicLowHpFloor;
+    this.burning = Math.max(0, this.burning - dt);
+    const panicFloor = Math.max(this.burning > 0 ? WEAPONS.flamethrower.flame.panicFloor : 0, missingHealth * CONDITION_RULES.panicLowHpFloor);
     this.panic = clamp01(Math.max(
       panicFloor,
       this.panic - CONDITION_RULES.panicDecayPerS * dt,
@@ -683,7 +696,7 @@ export class LocalPlayer {
     ));
     const sprinting = !!(
       this.keys.sprint && this.keys.forward && !this.keys.back &&
-      !this.keys.crouch && !this.wantAds
+      !this.keys.crouch && !this.keys.prone && !this.physics.proneT && !this.wantAds
     );
     const exhaustionRate = sprinting
       ? CONDITION_RULES.exhaustionSprintPerS
@@ -723,6 +736,7 @@ export class LocalPlayer {
         jump: !!keys.jump,
         sprint: !!keys.sprint,
         crouch: !!keys.crouch,
+        prone: !!keys.prone,
         interact: !!(interactAllowed && keys.interact),
       },
       yaw: this._pendingShotAim?.yaw ?? this.shotYaw,
@@ -807,6 +821,7 @@ export class LocalPlayer {
     }
 
     const hp = Number.isFinite(me.hp) ? me.hp : this._hp;
+    this.burning = Math.max(0, Number(me.burning) || 0);
     if (Number.isFinite(me.panic)) this.panic = clamp01(me.panic);
     if (Number.isFinite(me.exhaustion)) this.exhaustion = clamp01(me.exhaustion);
     if (Number.isFinite(me.pain)) this.pain = clamp01(me.pain);
@@ -931,6 +946,7 @@ export class LocalPlayer {
       this.deathElapsed,
       this.deathSide,
       this.scopeActive,
+      this.physics.proneT,
     );
     return this.scopeActive;
   }

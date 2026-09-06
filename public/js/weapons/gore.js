@@ -4,12 +4,12 @@ import { freeOldestIndex, hideInstance } from './instancing.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 
 const TAU = Math.PI * 2;
-const GORE_MIST_POOL_SIZE = 192;
-const GORE_DROPLET_POOL_SIZE = 384;
-const GORE_STAIN_POOL_SIZE = 256;
+const GORE_MIST_POOL_SIZE = 256;
+const GORE_DROPLET_POOL_SIZE = 640;
+const GORE_STAIN_POOL_SIZE = 384;
 const GORE_VEIL_POOL_SIZE = 12;
-const GORE_CHUNK_POOL_SIZE = 128;
-const BLOOD_RED = Object.freeze({ r: 0.34, g: 0.012, b: 0.018 });
+const GORE_CHUNK_POOL_SIZE = 192;
+const BLOOD_RED = Object.freeze({ r: 0.56, g: 0.012, b: 0.025 });
 const BLOOD_DARK = Object.freeze({ r: 0.11, g: 0.003, b: 0.005 });
 
 export class GoreFX {
@@ -56,6 +56,7 @@ export class GoreFX {
         polygonOffset: true,
         polygonOffsetFactor: -2,
         side: THREE.DoubleSide,
+        forceSinglePass: true,
         toneMapped: false,
       }),
       GORE_STAIN_POOL_SIZE,
@@ -88,6 +89,7 @@ export class GoreFX {
         depthWrite: false,
         depthTest: false,
         side: THREE.DoubleSide,
+        forceSinglePass: true,
         toneMapped: false,
       }),
       GORE_VEIL_POOL_SIZE,
@@ -186,9 +188,9 @@ export class GoreFX {
 
     const headshot = !!ev.hs;
     const severe = headshot || lethal;
-    const mistCount = lethal ? (headshot ? 56 : 42) : (headshot ? 26 : 16);
-    const dropletCount = lethal ? (headshot ? 92 : 68) : (headshot ? 36 : 22);
-    const width = severe ? (lethal ? 8.8 : 5.8) : 4.2;
+    const mistCount = lethal ? (headshot ? 88 : 64) : (headshot ? 32 : 20);
+    const dropletCount = lethal ? (headshot ? 160 : 120) : (headshot ? 48 : 30);
+    const width = severe ? (lethal ? 13.5 : 6.8) : 4.2;
 
     for (let i = 0; i < mistCount; i++) {
       const idx = this._claimSlot(this.goreMist);
@@ -203,7 +205,7 @@ export class GoreFX {
       p.vx = (Math.random() - 0.5) * speed + this._normal.x * speed * 0.48;
       p.vy = (Math.random() - 0.32) * speed + this._normal.y * speed * 0.48;
       p.vz = (Math.random() - 0.5) * speed + this._normal.z * speed * 0.48;
-      p.size = (severe ? 0.14 : 0.085) * (0.65 + Math.random() * 0.7);
+      p.size = (lethal ? 0.21 : (severe ? 0.14 : 0.095)) * (0.65 + Math.random() * 0.7);
       this._m4.compose(
         this._v.set(x, y, z), this._q.identity(), this._s.setScalar(p.size),
       );
@@ -223,7 +225,7 @@ export class GoreFX {
       p.vx = (Math.random() - 0.5) * speed + this._normal.x * speed * 0.62;
       p.vy = Math.random() * speed * 0.8 + 0.7 + this._normal.y * speed * 0.35;
       p.vz = (Math.random() - 0.5) * speed + this._normal.z * speed * 0.62;
-      p.size = (severe ? 0.038 : 0.024) * (0.65 + Math.random() * 0.8);
+      p.size = (lethal ? 0.058 : (severe ? 0.038 : 0.028)) * (0.65 + Math.random() * 0.8);
       this._m4.compose(
         this._v.set(x, y, z), this._q.identity(), this._s.setScalar(p.size),
       );
@@ -298,19 +300,19 @@ export class GoreFX {
   }
 
   spawnChunks(x, y, z, headshot) {
-    for (let i = 0; i < (headshot ? 28 : 20); i++) {
+    for (let i = 0; i < (headshot ? 46 : 34); i++) {
       const index = this._claimSlot(this.goreChunks);
       const p = this.goreChunks[index];
       const angle = Math.random() * TAU;
-      const speed = 2.5 + Math.random() * 6;
+      const speed = 4 + Math.random() * 8;
       Object.assign(p, {
         active: true, t: 0, life: 6 + Math.random() * 4,
-        x, y, z, vx: Math.cos(angle) * speed, vy: 3 + Math.random() * 6,
+        x, y, z, vx: Math.cos(angle) * speed, vy: 5 + Math.random() * 8,
         vz: Math.sin(angle) * speed, rx: angle, ry: 0, rz: angle,
-        spin: (Math.random() - 0.5) * 16, settled: false, trail: 0,
-        sx: 0.065 + Math.random() * 0.11,
-        sy: 0.14 + Math.random() * 0.23,
-        sz: 0.06 + Math.random() * 0.10,
+        spin: (Math.random() - 0.5) * 26, settled: false, trail: 0, squash: 0,
+        sx: 0.09 + Math.random() * 0.15,
+        sy: 0.18 + Math.random() * 0.30,
+        sz: 0.08 + Math.random() * 0.14,
       });
       this._drawChunk(p, index);
     }
@@ -318,9 +320,10 @@ export class GoreFX {
 
   _drawChunk(p, index) {
     const fade = Math.min(1, (p.life - p.t) * 2);
+    const squash = 1 + (p.squash || 0);
     this._q.setFromEuler(this._e.set(p.rx, p.ry, p.rz));
     this._m4.compose(this._v.set(p.x, p.y, p.z), this._q,
-      this._s.set(p.sx * fade, p.sy * fade, p.sz * fade));
+      this._s.set(p.sx * fade * squash, p.sy * fade / squash, p.sz * fade * squash));
     this.goreChunkMesh.setMatrixAt(index, this._m4);
   }
 
@@ -334,6 +337,7 @@ export class GoreFX {
         hideInstance(this.goreChunkMesh, i);
         continue;
       }
+      p.squash = Math.max(0, (p.squash || 0) - dt * 5);
       if (!p.settled) {
         p.vy -= 15 * dt;
         const distance = Math.hypot(p.vx, p.vy, p.vz) * dt;
@@ -342,14 +346,15 @@ export class GoreFX {
           const f = distance > 0 ? hit.t / distance : 0;
           const cx = p.x + p.vx * dt * f, cy = p.y + p.vy * dt * f, cz = p.z + p.vz * dt * f;
           this.spawnBloodStain(cx + hit.nx * 0.015, cy + hit.ny * 0.015,
-            cz + hit.nz * 0.015, hit.nx, hit.ny, hit.nz, 0.18 + p.sy * 0.6);
+            cz + hit.nz * 0.015, hit.nx, hit.ny, hit.nz, 0.28 + p.sy * 0.9);
           p.x = cx + hit.nx * 0.12;
           p.y = cy + hit.ny * 0.12;
           p.z = cz + hit.nz * 0.12;
+          p.squash = 0.65;
           const dot = p.vx * hit.nx + p.vy * hit.ny + p.vz * hit.nz;
-          p.vx = (p.vx - 1.3 * dot * hit.nx) * 0.55;
-          p.vy = (p.vy - 1.3 * dot * hit.ny) * 0.55;
-          p.vz = (p.vz - 1.3 * dot * hit.nz) * 0.55;
+          p.vx = (p.vx - 1.65 * dot * hit.nx) * 0.72;
+          p.vy = (p.vy - 1.65 * dot * hit.ny) * 0.72;
+          p.vz = (p.vz - 1.65 * dot * hit.nz) * 0.72;
           if (hit.ny > 0 && Math.hypot(p.vx, p.vy, p.vz) < 1.5) p.settled = true;
           // A spawn already inside cover has no entry face.
           if (!hit.nx && !hit.ny && !hit.nz) p.settled = true;
@@ -358,11 +363,11 @@ export class GoreFX {
         }
         p.rx += p.spin * dt; p.ry += p.spin * dt * 0.7; p.rz += p.spin * dt * 0.4;
         p.trail += dt;
-        if (p.trail > 0.085 && p.t < 1.2) {
+        if (p.trail > 0.065 && p.t < 1.6) {
           p.trail = 0;
           const index = this._claimSlot(this.goreDroplets);
           Object.assign(this.goreDroplets[index], { active: true, t: 0, life: 1.4,
-            x: p.x, y: p.y, z: p.z, vx: p.vx * 0.1, vy: -0.4, vz: p.vz * 0.1, size: 0.026 });
+            x: p.x, y: p.y, z: p.z, vx: p.vx * 0.1, vy: -0.4, vz: p.vz * 0.1, size: 0.038 });
         }
       }
       this._drawChunk(p, i);
@@ -419,7 +424,7 @@ export class GoreFX {
           p.x + p.vx * dt * f + hit.nx * 0.012,
           p.y + p.vy * dt * f + hit.ny * 0.012,
           p.z + p.vz * dt * f + hit.nz * 0.012,
-          hit.nx, hit.ny, hit.nz, p.size * 7.5,
+          hit.nx, hit.ny, hit.nz, p.size * 10,
         );
         continue;
       }

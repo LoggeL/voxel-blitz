@@ -31,6 +31,20 @@ rooms cap live projectiles at 192 and clients retain at most 96 blast visuals.
 
 Validate with `npm run chaos:test` and `node tools/chaos-browser-smoke.mjs`.
 
+Projectile performance checks: `npm run projectiles:test` compares server contact
+and homing behavior against frozen reference algorithms, checks the conservative
+collision envelope across weapon poses, and reports component timings and update
+sizes. It also checks client light/smoke budgets and instanced rocket transforms.
+`node tools/projectile-render-smoke.mjs` renders a 192-rocket salvo in WebGL and
+checks draw calls and GL errors. Timings are local microbenchmarks, not live match
+latency measurements. For live diagnosis use `?debug=1` to compare FPS against
+round-trip and arrival jitter during salvos.
+
+Swept rocket/bolt contacts reject distant players before constructing body hitboxes.
+Homing checks eligible targets nearest-first and stops at the first visible target;
+steering still runs every simulation tick. Correction packets keep their 100 ms
+cadence and use the same two-decimal wire precision as launch packets.
+
 ## Run
 
 ```bash
@@ -291,6 +305,7 @@ roster cards are omitted; S&D keeps a compact remaining-lives strip on desktop.
 | `Shift` while stationary | hold breath until the pain/panic-limited budget is spent |
 | `Space` | jump; climb up while touching a ladder |
 | `Ctrl` / `C` | crouch; climb down while touching a ladder |
+| `X` | toggle prone: 0.65 s to lie down, 0.8 s to stand up; crawl at 1.15 m/s; no jumping or sprinting until upright |
 | mouse1 / mouse2 | fire / ADS (`F` also aims; ADS is hold or toggle per the settings panel, toggle by default on trackpads) |
 | `Z` | sniper zoom step (5× ↔ 2.5×) |
 | `R` | reload; shotgun shells seat one at a time and firing interrupts the load |

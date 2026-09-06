@@ -73,6 +73,12 @@ export function slidePlayerAxis(position, axis, amount, solidAt) {
 
 export const VAULT_SECONDS = 0.48;
 
+/** A forward jump keeps reaching for a ledge after the jump button is released. */
+export function canStartVault(grounded, wantJump, forward, crouching, y, groundY) {
+  return forward > 0 && !crouching && (grounded ? wantJump
+    : Number.isFinite(groundY) && y > groundY + 0.1);
+}
+
 /** Find a reachable ledge relative to the last grounded height, never a midair wall climb. */
 export function findVault(solidAt, position, wish, groundY) {
   if (!Number.isFinite(groundY) || Math.hypot(wish.x, wish.z) < 0.5) return null;

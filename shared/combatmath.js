@@ -166,6 +166,28 @@ export const WEAPONS = {
     tracer: { color: '#ffbf5f', width: 1.3, len: 30 },
     sfx: 'lmg',
   },
+  minigun: {
+    id: 'minigun', name: 'M-6 FURNACE', mode: 'auto',
+    weightKg: 11.8,
+    rpm: 900, magSize: 180, spareMags: 3,
+    damage: [12, 8, 70], headMult: 1.7, pellets: 1,
+    spreadDeg: { hip: 1.65, ads: 0.48 }, bloomDeg: 0.13, bloomMaxDeg: 3.1,
+    bloomRecover: 3.0, moveSpreadDeg: 3.0,
+    crouchSpreadMult: 0.68,
+    recoil: {
+      pitch: 0.42, pitchRamp: 0.025, maxPitchRamp: 0.35,
+      yaw: 0.34,
+      yawPattern: [
+        -0.12, -0.28, 0.18, 0.42, 0.58, 0.30,
+        -0.10, -0.55, -0.75, -0.40, 0.15, 0.45,
+      ],
+      jitter: 0.10, resetMs: 340, adsMult: 0.74, recovery: 0.48,
+    },
+    adsFov: 58, zoom: 1.2, adsTime: 0.22,
+    reloadTime: 4.2, tacTime: 3.4, deployTime: 0.8,
+    tracer: { color: '#ffbf5f', width: 1.3, len: 30 },
+    sfx: 'lmg',
+  },
   revolver: {
     id: 'revolver', name: 'IRONCLAD .44', mode: 'semi',
     weightKg: 1.4,
@@ -255,6 +277,20 @@ export const WEAPONS = {
     sfx: 'knife',
     melee: { reach: 2.2, coneDeg: 110, backstabMult: 2.5, backstabDot: 0.4 },
   },
+  flamethrower: {
+    id: 'flamethrower', name: 'F-4 FIRESTORM', mode: 'auto',
+    weightKg: 5.8, rpm: 300, magSize: 40, spareMags: 5,
+    damage: [9, 5, 10], falloffStart: 3, range: 10,
+    headMult: 1, pellets: 1,
+    flame: { coneDeg: 18, duration: 4, damagePerS: 7, panicFloor: 0.95 },
+    spreadDeg: { hip: 0, ads: 0 }, bloomDeg: 0, bloomMaxDeg: 0,
+    bloomRecover: 5, moveSpreadDeg: 0, crouchSpreadMult: 1,
+    recoil: { pitch: 0.12, pitchRamp: 0, maxPitchRamp: 0, yaw: 0.08,
+      yawPattern: [-0.1, 0.1], jitter: 0.03, resetMs: 240, adsMult: 0.8, recovery: 0.8 },
+    adsFov: 65, zoom: 1.1, adsTime: 0.2,
+    reloadTime: 2.8, tacTime: 2.3, deployTime: 0.5,
+    tracer: { color: '#ff7518', width: 3, len: 10 }, sfx: 'flamethrower',
+  },
   rocket: {
     // Shoulder launcher: one slow rocket per tube that detonates on any contact. Splash
     // and terrain carve come from shared/rocket-rules.js; the owner's own blast launches
@@ -279,7 +315,7 @@ export const WEAPONS = {
   },
 };
 
-export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife'];
+export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower'];
 
 /** Charge profile with safe defaults for weapons that are not `charge` mode. */
 export function chargeProfile(def) {

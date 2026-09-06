@@ -1,4 +1,4 @@
-import { MODE_IDS } from '../../shared/modes.js';
+import { MODE_IDS, GUN_GAME_WEAPON_ORDER } from '../../shared/modes.js';
 import { makeSnapshot } from '../../server/protocol/snapshot.js';
 
 export async function runHudContracts(ok, installGlobals) {
@@ -779,6 +779,13 @@ export async function runHudContracts(ok, installGlobals) {
         && hud.dom.chargeMeterLabel.textContent === 'CHARGED',
       'a full charge cell settles on CHARGED');
 
+      hud.setState({ charge01: null, heat01: 0.75, spin01: 1, overheated: false, heatDamageMult: 1.65 });
+      ok(hud.dom.chargeMeterLabel.textContent === 'SWEET SPOT 75% · +65% DMG'
+        && hud.dom.chargeMeterFill.style.transform === 'scaleX(0.75)', 'minigun HUD shows heat sweet spot and damage bonus');
+      hud.setState({ charge01: null, heat01: 0.8, spin01: 0, overheated: true });
+      ok(hud.dom.chargeMeterLabel.textContent === 'OVERHEATED · COOLING', 'minigun HUD keeps the lock visible while cooling');
+      hud.setState({ charge01: null, heat01: null });
+      ok(!hud.dom.chargeMeter.classList.contains('is-visible'), 'switching away hides the thermal meter');
       hud.setState({ wid: 'knife', wname: 'K-7 RIPPER', mag: 0, reserve: 0 });
       const meleeAmmo = hud.dom.mag.textContent === '∞'
         && hud.dom.sep.style.display === 'none'
@@ -887,8 +894,8 @@ export async function runHudContracts(ok, installGlobals) {
           'TDM groups players into two team tables with only relevant combat stats');
         } else if (mode === 'gungame') {
           ok(headers.join(',') === '#,PLAYER,WEAPON'
-            && /10 \/ 10/.test(document.getElementById('match-phase-label').textContent)
-            && /10\/10/.test(document.getElementById('scores').textContent),
+            && /12 \/ 12/.test(document.getElementById('match-phase-label').textContent)
+            && /12\/12/.test(document.getElementById('scores').textContent),
           'Gun Game clamps authoritative weapon progression to the final weapon');
         } else {
           ok(!visible(document.getElementById('match-header')) && headers.join(',') === 'PLAYER',
@@ -914,6 +921,9 @@ export async function runHudContracts(ok, installGlobals) {
       });
       const buyCredits = document.getElementById('buy-credits-val');
       const ownedCard = document.getElementById('buy-card-revolver');
+      const minigunCard = document.getElementById('buy-card-minigun');
+      ok(minigunCard.querySelector('.vb-buy-key-badge').textContent !== 'GRENADE',
+        'minigun armory card is labelled as a weapon');
       const smgButton = document.getElementById('buy-btn-smg');
       const sniperButton = document.getElementById('buy-btn-sniper');
       ok(!Object.hasOwn(globalThis, 'location')

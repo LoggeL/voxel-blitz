@@ -1,3 +1,4 @@
+import { pronePose } from '../../../shared/player-stance.js';
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 import { smooth01 } from '../util/math.js';
@@ -93,6 +94,7 @@ export function updateFirstPersonBody(
   deathElapsed,
   deathSide,
   scopeActive,
+  proneT = 0,
 ) {
   if (!body || body.disposed || !pos) return;
   body.group.visible = !scopeActive;
@@ -122,6 +124,7 @@ export function updateFirstPersonBody(
   body.hips.position.y = BODY_POSE.hipsY - crouch * 0.28 + bounce;
   body.torso.position.y = BODY_POSE.torsoY - crouch * 0.34 + bounce;
   body.torso.rotation.x = crouch * 0.12;
+  body.hips.rotation.x = 0;
   body.hips.rotation.z = swing * stride * 0.045;
   body.left.leg.position.y = BODY_POSE.legY - crouch * 0.24;
   body.right.leg.position.y = BODY_POSE.legY - crouch * 0.24;
@@ -129,6 +132,16 @@ export function updateFirstPersonBody(
   body.right.leg.rotation.x = -swing * 0.72 - crouch * 0.58;
   body.left.knee.rotation.x = crouch * 1.02 + Math.max(0, -swing) * 0.32;
   body.right.knee.rotation.x = crouch * 1.02 + Math.max(0, swing) * 0.32;
+  const prone = pronePose(proneT);
+  for (const [part, y, z] of [[body.hips, 0.25, 0.8], [body.torso, 0.3, 0.4],
+    [body.left.leg, 0.25, 0.85], [body.right.leg, 0.25, 0.85]]) {
+    part.position.y += (y - part.position.y) * prone;
+    const standingZ = part === body.hips ? BODY_POSE.hipsZ : part === body.torso ? BODY_POSE.torsoZ : 0.04;
+    part.position.z = standingZ + (z - standingZ) * prone;
+    part.rotation.x = part.rotation.x * (1 - prone) - Math.PI / 2 * prone;
+  }
+  body.left.knee.rotation.x *= 1 - prone;
+  body.right.knee.rotation.x *= 1 - prone;
 }
 
 /** Terminal cleanup for every scene object and GPU resource created by the factory. */

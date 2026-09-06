@@ -14,6 +14,9 @@ const PREVIEW_MAX_POINTS = 96;
 const CAP_LIT = 0xffd27a;
 const CAP_DIM = 0xff5a1c;
 const ROCKET_TRAIL_INTERVAL_S = 0.028;
+const PROJECTILE_LIGHT_LIMIT = 4;
+const ROCKET_TRAILS_PER_SECOND = 360;
+const ROCKET_TRAIL_BURST = 12;
 
 /** Blast presentation per projectile type: colour, growth, and life of the flash sphere. */
 const BLAST_STYLE = Object.freeze({
@@ -36,7 +39,7 @@ function styleFor(type) {
  * The charge preview draws the same shared integrator's path per grenade type.
  */
 export class ProjectileFX {
-  constructor(scene, getBlock = () => 0, { getEntityPosition = null, onTrail = null, onBounce = null } = {}) {
+  constructor(scene, getBlock = () => 0, { getEntityPosition = null, onTrail = null, onBounce = null, camera = null } = {}) {
     this.scene = scene;
     this.getBlock = getBlock;
     this.getEntityPosition = typeof getEntityPosition === 'function' ? getEntityPosition : null;
@@ -44,6 +47,18 @@ export class ProjectileFX {
     this.onBounce = typeof onBounce === 'function' ? onBounce : null;
     this.projectiles = new Map();
     this.blasts = [];
+    this.camera = camera;
+    this._aimTarget = new THREE.Vector3();
+    this._lightCandidates = [];
+    this._trailCandidates = [];
+    this._trailCursor = 0;
+    this._trailTokens = 0;
+    // Keep the light count fixed: changing it recompiles lit scene shaders.
+    this._lights = Array.from({ length: PROJECTILE_LIGHT_LIMIT }, () => {
+      const light = new THREE.PointLight(0xffa040, 0, 7);
+      this.scene.add(light);
+      return light;
+    });
     this._localSeq = 0;
     this.isSolid = (x, y, z) => this.getBlock(Math.floor(x), Math.floor(y), Math.floor(z)) !== 0;
     this.raycast = (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
@@ -94,6 +109,10 @@ export class ProjectileFX {
       blending: THREE.AdditiveBlending, depthWrite: false,
     });
 
+    // Submit rocket bodies, noses and exhausts in three instanced draws per pass.
+    this._rocketCapacity = 256;
+    this._rocketBatches = this._createRocketBatches(this._rocketCapacity);
+
     // Charge preview: dotted arc plus a landing ring, both hidden until the first hold.
     this.previewPositions = new Float32Array(PREVIEW_MAX_POINTS * 3);
     const previewGeometry = new THREE.BufferGeometry();
@@ -129,6 +148,44 @@ export class ProjectileFX {
     this._previewType = '';
   }
 
+  _createRocketBatches(capacity) {
+    return [
+      [this.rocketBodyGeometry, this.rocketMaterial],
+      [this.rocketNoseGeometry, this.rocketNoseMaterial],
+      [this.exhaustGeometry, this.exhaustMaterial],
+    ].map(([geometry, material]) => {
+      const mesh = new THREE.InstancedMesh(geometry, material, capacity);
+      mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+      mesh.frustumCulled = false;
+      mesh.count = 0;
+      this.scene.add(mesh);
+      return mesh;
+    });
+  }
+
+  _updateRocketBatches() {
+    let count = 0;
+    for (const p of this.projectiles.values()) if (p.type === 'rocket') count++;
+    if (count > this._rocketCapacity) {
+      for (const mesh of this._rocketBatches) { this.scene.remove(mesh); mesh.dispose(); }
+      while (this._rocketCapacity < count) this._rocketCapacity *= 2;
+      this._rocketBatches = this._createRocketBatches(this._rocketCapacity);
+    }
+    let index = 0;
+    for (const p of this.projectiles.values()) {
+      if (p.type !== 'rocket') continue;
+      p.group.updateMatrixWorld(true);
+      for (let part = 0; part < this._rocketBatches.length; part++) {
+        this._rocketBatches[part].setMatrixAt(index, p.group.children[part].matrixWorld);
+      }
+      index++;
+    }
+    for (const mesh of this._rocketBatches) {
+      mesh.count = count;
+      if (count) mesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+
   _buildVisual(type) {
     const group = new THREE.Group();
     let capMaterial = null;
@@ -138,11 +195,8 @@ export class ProjectileFX {
       nose.position.z = -0.35;
       const exhaust = new THREE.Mesh(this.exhaustGeometry, this.exhaustMaterial);
       exhaust.position.z = 0.45;
-      const light = new THREE.PointLight(0xffa040, 1.6, 7);
-      light.position.z = 0.3;
-      group.add(body, nose, exhaust, light);
+      group.add(body, nose, exhaust);
       group.userData.exhaust = exhaust;
-      group.userData.light = light;
     } else if (type === 'limpet') {
       const disc = new THREE.Mesh(this.limpetGeometry, this.limpetMaterial);
       capMaterial = new THREE.MeshBasicMaterial({ color: 0xff5a3c, toneMapped: false });
@@ -168,8 +222,7 @@ export class ProjectileFX {
       });
       const halo = new THREE.Mesh(this.pulseGeometry, capMaterial);
       halo.scale.setScalar(1.55);
-      const light = new THREE.PointLight(0x59e8ff, 0.9, 5);
-      group.add(core, halo, light);
+      group.add(core, halo);
       for (let i = 0; i < 2; i++) {
         const band = new THREE.Mesh(this.grenadeBandGeometry, this.fragMaterial);
         band.rotation.x = i * Math.PI / 2;
@@ -182,8 +235,7 @@ export class ProjectileFX {
       core.scale.set(0.7, 0.7, 2.6);
       const glow = new THREE.Mesh(this.pulseGeometry, this.boltGlowMaterial);
       glow.scale.setScalar(1.1);
-      const light = new THREE.PointLight(0x7dfcff, 1.0, 4);
-      group.add(core, glow, light);
+      group.add(core, glow);
     } else {
       const body = new THREE.Mesh(this.fragGeometry, this.fragMaterial);
       body.rotation.set(0.35, 0.45, 0.12);
@@ -242,7 +294,7 @@ export class ProjectileFX {
     const { group, capMaterial } = this._buildVisual(type);
     group.position.set(values[0], values[1], values[2]);
     if (type === 'rocket' && event.chaos) group.scale.setScalar(2.2);
-    this.scene.add(group);
+    if (type !== 'rocket') this.scene.add(group);
     this.projectiles.set(id, {
       id,
       type,
@@ -438,7 +490,7 @@ export class ProjectileFX {
   _orientRocket(projectile) {
     const speed = Math.hypot(projectile.vx, projectile.vy, projectile.vz);
     if (speed < 1e-6) return;
-    const target = new THREE.Vector3(
+    const target = this._aimTarget.set(
       projectile.x + projectile.vx / speed,
       projectile.y + projectile.vy / speed,
       projectile.z + projectile.vz / speed,
@@ -450,6 +502,8 @@ export class ProjectileFX {
 
   update(dt) {
     const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
+    this._trailCandidates.length = 0;
+    this._trailTokens = Math.min(ROCKET_TRAIL_BURST, this._trailTokens + step * ROCKET_TRAILS_PER_SECOND);
     for (const [id, projectile] of this.projectiles) {
       projectile.age += step;
       if (projectile.stuckTo && this.getEntityPosition) {
@@ -461,13 +515,12 @@ export class ProjectileFX {
         }
       } else if (projectile.type === 'rocket') {
         stepRocket(projectile, step, this.raycast);
+        projectile.group.position.set(projectile.x, projectile.y, projectile.z);
         this._orientRocket(projectile);
         const flicker = 0.8 + Math.sin(projectile.age * 90) * 0.2;
         projectile.group.userData.exhaust.scale.set(flicker, flicker, 0.8 + flicker * 0.4);
-        projectile.group.userData.light.intensity = 1.2 + flicker * 0.8;
         if (this.onTrail && projectile.age - projectile.trailAt >= ROCKET_TRAIL_INTERVAL_S) {
-          projectile.trailAt = projectile.age;
-          this.onTrail(projectile.x, projectile.y, projectile.z, projectile);
+          this._trailCandidates.push(projectile);
         }
         if (projectile.hit && !projectile.local && !projectile.chaos) projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
       } else if (projectile.type === 'bolt') {
@@ -509,6 +562,19 @@ export class ProjectileFX {
       else if (projectile.age > projectile.fuse + 1) this._removeProjectile(id);
     }
 
+    const trails = this._trailCandidates;
+    const emissions = Math.min(trails.length, Math.floor(this._trailTokens));
+    for (let i = 0; i < emissions; i++) {
+      const p = trails[(this._trailCursor + i) % trails.length];
+      if (!this.projectiles.has(p.id)) continue;
+      p.trailAt = p.age;
+      this.onTrail(p.x, p.y, p.z, p);
+      this._trailTokens--;
+    }
+    this._trailCursor = trails.length ? (this._trailCursor + emissions) % trails.length : 0;
+    this._updateRocketBatches();
+    this._updateLights();
+
     for (let index = this.blasts.length - 1; index >= 0; index--) {
       const blast = this.blasts[index];
       blast.age += step;
@@ -532,6 +598,32 @@ export class ProjectileFX {
     }
   }
 
+  _updateLights() {
+    const nearest = this._lightCandidates;
+    nearest.length = 0;
+    const eye = this.camera?.position;
+    for (const p of this.projectiles.values()) {
+      if (p.type !== 'rocket' && p.type !== 'pulse' && p.type !== 'bolt') continue;
+      p.lightDistance = eye
+        ? (p.x - eye.x) ** 2 + (p.y - eye.y) ** 2 + (p.z - eye.z) ** 2 : 0;
+      let i = nearest.length;
+      while (i > 0 && nearest[i - 1].lightDistance > p.lightDistance) i--;
+      if (i >= PROJECTILE_LIGHT_LIMIT) continue;
+      nearest.splice(i, 0, p);
+      if (nearest.length > PROJECTILE_LIGHT_LIMIT) nearest.pop();
+    }
+    for (let i = 0; i < this._lights.length; i++) {
+      const light = this._lights[i], p = nearest[i];
+      light.intensity = 0;
+      if (!p) continue;
+      light.position.set(p.x, p.y, p.z);
+      light.color.setHex(p.type === 'rocket' ? 0xffa040 : p.type === 'pulse' ? 0x59e8ff : 0x7dfcff);
+      light.distance = p.type === 'rocket' ? 7 : p.type === 'pulse' ? 5 : 4;
+      light.intensity = p.type === 'rocket' ? 1.84 + Math.sin(p.age * 90) * 0.16
+        : p.type === 'pulse' ? 0.9 : 1;
+    }
+  }
+
   _removeProjectile(id) {
     const projectile = this.projectiles.get(id);
     if (!projectile) return false;
@@ -542,6 +634,10 @@ export class ProjectileFX {
   }
 
   dispose() {
+    for (const mesh of this._rocketBatches) { this.scene.remove(mesh); mesh.dispose(); }
+    for (const light of this._lights) this.scene.remove(light);
+    this._lightCandidates.length = 0;
+    this._trailCandidates.length = 0;
     for (const id of Array.from(this.projectiles.keys())) this._removeProjectile(id);
     for (const blast of this.blasts) {
       this.scene.remove(blast.mesh);

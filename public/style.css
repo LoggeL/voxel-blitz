@@ -4245,3 +4245,25 @@ h1.vb-title::after {
 }
 
 .vb-wheel-cursor { position: absolute; left: 50%; top: 50%; width: 8px; height: 8px; margin: -4px; border: 1px solid white; border-radius: 50%; background: var(--amber); pointer-events: none; z-index: 5; }
+
+/* Minigun: a fixed 65% threshold makes controlled bursts readable at a glance. */
+#charge-meter.is-thermal { width: 210px; }
+#charge-meter.is-thermal .vb-charge-track {
+  height: 7px;
+  border-color: #b87736;
+  background: linear-gradient(90deg, #332a20 65%, #65431e 65%, #65431e 90%, #6b2424 90%);
+  box-shadow: none;
+}
+#charge-meter.is-thermal .vb-charge-track::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 65%;
+  width: 2px;
+  background: #fff0c4;
+}
+#charge-meter.is-thermal .vb-charge-track i { box-shadow: 0 0 8px #ff9f32; }
+#charge-meter.is-thermal .vb-charge-label { color: #ffd06b; font-size: 9px; text-shadow: none; }
+#charge-meter.is-overheated .vb-charge-label { color: #ff6960; }
+#charge-meter.is-overheated .vb-charge-track { border-color: #ff6960; }

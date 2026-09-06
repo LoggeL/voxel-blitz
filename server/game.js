@@ -1,3 +1,4 @@
+import { updateBurn } from './sim/fire.js';
 // Authoritative fixed-step simulation facade. Transport, room management and
 // map delivery stay outside; focused simulation modules own player state,
 // movement, combat and spawn selection.
@@ -140,6 +141,8 @@ export class GameEngine {
     for (const player of this.entities.values()) {
       if (player.state === 'alive') this.updateCondition(player, dt);
     }
+    const burnContext = this.combatContext();
+    for (const player of this.entities.values()) updateBurn(player, dt, burnContext);
     this.projectiles.step(dt, this.projectileContext());
     for (const player of this.entities.values()) {
       player.firing = false;
@@ -298,6 +301,7 @@ export class GameEngine {
         jump: !!keys.jump,
         sprint: !!keys.sprint,
         crouch: !!keys.crouch,
+        prone: !!keys.prone,
         interact: !!keys.interact,
       },
       wantFire: !!msg.wantFire,
@@ -395,6 +399,7 @@ export class GameEngine {
   combatContext() {
     return {
       canFire: (player) => this.mode.canFire(player),
+      canBurn: () => this.mode.phase === 'live',
       canUseWeapon: (player, weapon) => this.mode.canUseWeapon(player, weapon),
       killPlayer: (victim, killer, weapon, headshot, markers) => {
         this.killPlayer(victim, killer, weapon, headshot, markers);
@@ -445,6 +450,8 @@ export class GameEngine {
     if (victim.state !== 'alive') return;
     victim.hp = 0;
     victim.state = 'dead';
+    victim.burn = null;
+    victim.burning = 0;
     victim.deaths++;
     victim.firing = false;
     victim.ads = false;

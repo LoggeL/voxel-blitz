@@ -7,6 +7,7 @@ import * as THREE from '../vendor/three.module.js';
 import { buildAtlas } from './atlas.js';
 import { ChunkStore } from './chunks.js';
 import { installSky, SUN_DIR } from './sky.js';
+import { buildNuketownDetails } from './nuketown-details.js';
 import { SiteMarkers } from './site-markers.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 
@@ -109,6 +110,9 @@ export class WorldView {
     this.atlas = buildAtlas();
     this.chunkStore = new ChunkStore(this.scene, this.atlas, storeRef.getBlock);
 
+    this.mapDetails = (mapMeta || storeRef.meta)?.id === 'nuketown' ? buildNuketownDetails() : null;
+    if (this.mapDetails) this.scene.add(this.mapDetails.group);
+
     this.camera = null;                  // optional: setCamera() enables rayHitCamera()
     this.skyUpdate = installSky(this.scene);
 
@@ -187,6 +191,11 @@ export class WorldView {
       this.ladderVisuals.material.dispose();
       this.ladderVisuals.group.clear();
       this.ladderVisuals = null;
+    }
+    if (this.mapDetails) {
+      this.scene.remove(this.mapDetails.group);
+      this.mapDetails.dispose();
+      this.mapDetails = null;
     }
     this.siteMarkers.dispose();
     this.skyUpdate.dispose();

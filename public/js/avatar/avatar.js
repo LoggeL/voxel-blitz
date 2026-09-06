@@ -1,3 +1,4 @@
+import { pronePose } from '../../../shared/player-stance.js';
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 import { clamp01 } from '../util/math.js';
@@ -50,14 +51,17 @@ export function updateAvatarWeaponPose(av, {
   ads = false,
   reloading = false,
   crouching = false,
+  proneT = 0,
   stride = 0,
   swing = 0,
   dt = 0,
   blend = 1,
   charge = 0,
+  minigun,
 } = {}) {
   const poseBlend = Math.max(0, Math.min(1, Number(blend) || 0));
   const stanceBlend = dt > 0 ? 1 - Math.exp(-dt * 12) : poseBlend;
+  av.pronePose = pronePose(proneT);
   av.crouchPose += ((crouching ? 1 : 0) - av.crouchPose) * stanceBlend;
   av.weaponModel.update({
     weapon,
@@ -66,10 +70,12 @@ export function updateAvatarWeaponPose(av, {
     ads,
     reloading,
     crouchT: av.crouchPose,
+    prone: av.pronePose,
     stride,
     swing,
     dt,
     charge,
+    minigun,
   });
   if (dt > 0) av.reloadPhase = (av.reloadPhase || 0) + dt / 0.9;
   const reload = av.weaponModel.reloadT * (0.65 + 0.25 * Math.sin(Math.PI * 2 * (av.reloadPhase || 0)));
@@ -84,7 +90,7 @@ export function updateAvatarStancePose(av, {
   swing = 0,
   blend = 1,
 } = {}) {
-  const poseBlend = Math.max(0, Math.min(1, Number(blend) || 0));
+  const poseBlend = av.pronePose > 0 ? 1 : Math.max(0, Math.min(1, Number(blend) || 0));
   const crouch = clamp01(av.crouchPose);
   av.lLeg.position.y += ((0.73 - crouch * 0.26) - av.lLeg.position.y) * poseBlend;
   av.rLeg.position.y += ((0.73 - crouch * 0.26) - av.rLeg.position.y) * poseBlend;
@@ -99,6 +105,18 @@ export function updateAvatarStancePose(av, {
   av.head.position.y += ((1.66 - crouch * 0.34) - av.head.position.y) * poseBlend;
   av.torso.rotation.x += (stride * 0.16 + crouch * 0.12 -
     av.torso.rotation.x) * poseBlend;
+  av.hips.rotation.x = 0;
+  const prone = av.pronePose || 0;
+  for (const [part, y, z, tilt] of [
+    [av.head, 0.48, 0, null], [av.torso, 0.3, 0.4, -Math.PI / 2],
+    [av.hips, 0.25, 0.8, -Math.PI / 2],
+    [av.lLeg, 0.25, 0.85, -Math.PI / 2], [av.rLeg, 0.25, 0.85, -Math.PI / 2],
+  ]) {
+    if (part === av.lLeg || part === av.rLeg) part.scale.y += (1 - part.scale.y) * prone;
+    part.position.y += (y - part.position.y) * prone;
+    part.position.z = z * prone;
+    if (tilt !== null) part.rotation.x = part.rotation.x * (1 - prone) + tilt * prone;
+  }
 }
 
 export function resetAvatarPose(av) {
@@ -110,6 +128,8 @@ export function resetAvatarPose(av) {
   av.runPhase = 0;
   av.reloadPhase = 0;
   av.crouchPose = 0;
+  av.pronePose = 0;
+  for (const part of [av.head, av.torso, av.hips, av.lLeg, av.rLeg]) part.position.z = 0;
   av.lastImpact = null;
   av.motionSeeded = false;
   av.group.visible = true;
@@ -167,19 +187,19 @@ export function beginAvatarDeath(av, now, impact = null) {
     const limb = av.limbStates[i];
     const seed = hashInt(`${av.id}|${i}|${headshot ? 1 : 0}`);
     const angle = (seed / 0xffffffff) * Math.PI * 2;
-    const radial = 3.4 + ((seed >>> 8) & 255) / 255 * 2.8;
-    const boost = headshot && i === 0 ? 1.85 : 1;
+    const radial = 5.8 + ((seed >>> 8) & 255) / 255 * 4.2;
+    const boost = headshot && i === 0 ? 1.55 : 1;
     limb.object.position.copy(limb.basePosition);
     limb.object.rotation.copy(limb.baseRotation);
     limb.velocity.set(
       Math.cos(angle) * radial * boost,
-      (3.1 + ((seed >>> 16) & 255) / 255 * 2.8) * boost,
+      (6.2 + ((seed >>> 16) & 255) / 255 * 3.8) * boost,
       Math.sin(angle) * radial * boost,
     );
     limb.angular.set(
-      (((seed >>> 3) & 15) - 7.5) * 0.75,
-      (((seed >>> 11) & 15) - 7.5) * 0.62,
-      (((seed >>> 19) & 15) - 7.5) * 0.8,
+      (((seed >>> 3) & 15) - 7.5) * 1.5,
+      (((seed >>> 11) & 15) - 7.5) * 1.24,
+      (((seed >>> 19) & 15) - 7.5) * 1.6,
     );
   }
   setAvatarFlash(av, 0);
@@ -195,7 +215,7 @@ export function updateAvatarDeath(av, dt, t) {
     limb.object.position.z += limb.velocity.z * dt;
     if (limb.object.position.y < limb.floorY) {
       limb.object.position.y = limb.floorY;
-      if (limb.velocity.y < 0) limb.velocity.y *= -0.24;
+      if (limb.velocity.y < 0) limb.velocity.y *= -0.58;
       limb.velocity.x *= Math.max(0, 1 - dt * 7);
       limb.velocity.z *= Math.max(0, 1 - dt * 7);
     }

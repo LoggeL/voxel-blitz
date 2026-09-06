@@ -13,8 +13,8 @@ export const COL = {
 
 export const GLOW_ACCENT = {
   rifle: 0xffa03c, smg: 0x59e8ff, shotgun: 0xff7433, sniper: 0x7dfcff,
-  lmg: 0xffb02e, revolver: 0xff6f45, longarc: 0x35e0ff, rocket: 0xff7a1c,
-  lance: 0xc9a2ff, knife: 0xb8c4d4,
+  minigun: 0xff9f32, lmg: 0xffb02e, revolver: 0xff6f45, longarc: 0x35e0ff, rocket: 0xff7a1c,
+  lance: 0xc9a2ff, knife: 0xb8c4d4, flamethrower: 0xff7518,
 };
 
 // Materials are shared across every rig, while each MaterialCache instance represents one rig's

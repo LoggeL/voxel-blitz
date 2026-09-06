@@ -121,10 +121,10 @@ export function drainEventsWithDedupe(snapshotList, upTo, state) {
 /** Newest-row fields retained alongside interpolated transforms. */
 const PASSTHROUGH_FIELDS = [
   'name', 'hp', 'team', 'weapon', 'score', 'kills', 'deaths', 'ping',
-  'state', 'firing', 'ads', 'crouch', 'moveSpeed', 'mag', 'reserve', 'reloading',
-  'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt',
+  'state', 'firing', 'ads', 'crouch', 'proneT', 'moveSpeed', 'mag', 'reserve', 'reloading',
+  'burning', 'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt',
   'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
-  'grenades', 'charge', 'impulse',
+  'grenades', 'charge', 'minigun', 'impulse',
 ];
 
 export class NetClient {
@@ -437,6 +437,7 @@ export class NetClient {
         jump: !!k.jump,
         sprint: !!k.sprint,
         crouch: !!k.crouch,
+        prone: !!k.prone,
         interact: !!k.interact,
       },
       yaw: input.yaw,
@@ -565,6 +566,8 @@ export class NetClient {
         }
         if (prev) {
           sampleRemoteTransform(prev, cur, target, a.now, b.now, row);
+          const stanceT = Math.max(0, Math.min(1, (target - a.now) / Math.max(1, b.now - a.now)));
+          row.proneT = (prev.proneT || 0) + ((cur.proneT || 0) - (prev.proneT || 0)) * stanceT;
         } else {
           row.x = cur.x;
           row.y = cur.y;

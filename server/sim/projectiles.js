@@ -24,6 +24,7 @@ import {
   evHit,
   evProjectileExplode,
   evProjectileLaunch,
+  evProjectileUpdate,
   evProjectileStick,
 } from '../protocol.js';
 import { fwdFromYawPitch, clamp01 } from './player.js';
@@ -106,6 +107,7 @@ export class ProjectileSystem {
   constructor() {
     this.active = new Map();
     this._nextId = 1;
+    this._homingCandidates = [];
   }
 
   clear() {
@@ -145,8 +147,9 @@ export class ProjectileSystem {
       if (!this.active.has(projectile.id)) continue;
       if (projectile.chaosLevel && ctx.now >= (projectile.syncAt || 0)) {
         projectile.syncAt = ctx.now + 100;
-        ctx.pushEvent({ t: 'ev', kind: 'projectileUpdate', pid: projectile.id,
-          o: [projectile.x, projectile.y, projectile.z], v: [projectile.vx, projectile.vy, projectile.vz], bn: projectile.bouncesLeft });
+        ctx.pushEvent(evProjectileUpdate(projectile.id,
+          [projectile.x, projectile.y, projectile.z],
+          [projectile.vx, projectile.vy, projectile.vz], projectile.bouncesLeft));
       }
       if (ctx.now >= projectile.explodeAt || outsideWorld(projectile)) this.explode(projectile, ctx);
     }
@@ -462,20 +465,31 @@ export class ProjectileSystem {
   _home(projectile, dt, ctx) {
     const speed = Math.hypot(projectile.vx, projectile.vy, projectile.vz);
     if (speed < 0.1) return;
-    let best = null, distance = 42;
+    const candidates = this._homingCandidates;
+    candidates.length = 0;
     for (const v of ctx.entities.values()) {
       if (v === projectile.owner || v.state !== 'alive' || !ctx.canDamage(projectile.owner, v)) continue;
       const dx = v.x - projectile.x, dy = v.y + 1 - projectile.y, dz = v.z - projectile.z;
-      const d = Math.hypot(dx, dy, dz);
-      if (d < 0.1 || d >= distance || (dx * projectile.vx + dy * projectile.vy + dz * projectile.vz) / (d * speed) < 0.15) continue;
-      if (!visibleTo(ctx, [projectile.x, projectile.y, projectile.z], [v.x, v.y + 1, v.z])) continue;
-      distance = d; best = [dx / d, dy / d, dz / d];
+      const d2 = dx * dx + dy * dy + dz * dz;
+      if (d2 < 0.01 || d2 >= 42 * 42) continue;
+      const d = Math.sqrt(d2);
+      if ((dx * projectile.vx + dy * projectile.vy + dz * projectile.vz) / (d * speed) < 0.15) continue;
+      candidates.push({ v, dx, dy, dz, d });
     }
-    if (!best) return;
-    const t = Math.min(1, Math.max(0, dt) * 5);
-    const vector = [projectile.vx / speed, projectile.vy / speed, projectile.vz / speed].map((v, i) => v * (1 - t) + best[i] * t);
-    const norm = Math.hypot(...vector) || 1;
-    [projectile.vx, projectile.vy, projectile.vz] = vector.map(v => v / norm * speed);
+    // The nearest visible candidate wins. Near-first traversal avoids raycasting
+    // every progressively closer enemy; stable sorting preserves distance ties.
+    candidates.sort((a, b) => a.d - b.d);
+    for (const { v, dx, dy, dz, d } of candidates) {
+      if (!visibleTo(ctx, [projectile.x, projectile.y, projectile.z], [v.x, v.y + 1, v.z])) continue;
+      const t = Math.min(1, Math.max(0, dt) * 5);
+      const x = projectile.vx / speed * (1 - t) + dx / d * t;
+      const y = projectile.vy / speed * (1 - t) + dy / d * t;
+      const z = projectile.vz / speed * (1 - t) + dz / d * t;
+      const scale = speed / (Math.hypot(x, y, z) || 1);
+      projectile.vx = x * scale; projectile.vy = y * scale; projectile.vz = z * scale;
+      break;
+    }
+    candidates.length = 0;
   }
 
   _pull(projectile, dt, ctx) {

@@ -7,6 +7,7 @@ import * as THREE from '../vendor/three.module.js';
 import {
   AIR, GRASS, DIRT, STONE, SAND, WOOD, LEAVES,
   CONCRETE, METAL, ACCENT, PLANK, GLASS, PALE, RUST, BRICK,
+  YELLOW_SIDING, TEAL_SIDING, ASPHALT, ROOF, BUS_YELLOW, TRUCK_RED,
 } from '../../../shared/worlddata.js';
 
 export const ATLAS_SIZE = 256;
@@ -15,6 +16,7 @@ export const GRID = ATLAS_SIZE / TILE_PX;
 
 /** Stable slot indices on the sheet. Face maps elsewhere reference these names. */
 export const TILE = {
+  YELLOW_SIDING: 17, TEAL_SIDING: 18, ASPHALT: 19, ROOF: 20, BUS_YELLOW: 21, TRUCK_RED: 22,
   AIR_DEBUG: 0, GRASS_TOP: 1, GRASS_SIDE: 2, DIRT: 3, STONE: 4, SAND: 5,
   WOOD_BARK: 6, WOOD_RINGS: 7, LEAVES: 8, CONCRETE: 9, METAL: 10,
   ACCENT: 11, PLANK: 12, GLASS: 13, PALE: 14, RUST: 15, BRICK: 16,
@@ -228,6 +230,12 @@ function brick(x, y) {
   return [clamp255(r), clamp255(g), clamp255(b), 255];
 }
 
+function siding(base, x, y) {
+  const n = wob(x, y, 40, 9) - 4;
+  const shade = y % 8 === 7 ? -35 : y % 8 === 0 ? 15 : 0;
+  return [...base.map(v => clamp255(v + n + shade)), 255];
+}
+
 /** Tile-id -> painter registry. Keys are TILE slot values. */
 export const TILE_PAINTERS = Object.freeze({
   [TILE.AIR_DEBUG]: airDebug,
@@ -247,6 +255,12 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.PALE]: pale,
   [TILE.RUST]: rust,
   [TILE.BRICK]: brick,
+  [TILE.YELLOW_SIDING]: (x,y) => siding([226,190,87],x,y),
+  [TILE.TEAL_SIDING]: (x,y) => siding([93,177,156],x,y),
+  [TILE.ASPHALT]: (x,y) => { const n = wob(x,y,41,16); return [49+n,52+n,55+n,255]; },
+  [TILE.ROOF]: (x,y) => { const n = y%4===3 || (x+(Math.floor(y/4)%2)*8)%16===0 ? -12 : wob(x,y,42,12); return [91+n,74+n,62+n,255]; },
+  [TILE.BUS_YELLOW]: (x,y) => siding([242,177,38],x,y),
+  [TILE.TRUCK_RED]: (x,y) => siding([167,52,42],x,y),
 });
 
 // ------------------------------------------------------------- face mapping
@@ -268,6 +282,13 @@ export const DEFAULT_BLOCK_TILES = Object.freeze({
   [PALE]: { all: TILE.PALE },
   [RUST]: { all: TILE.RUST },
   [BRICK]: { all: TILE.BRICK },
+  [YELLOW_SIDING]: { all: TILE.YELLOW_SIDING },
+  [TEAL_SIDING]: { all: TILE.TEAL_SIDING },
+  [ASPHALT]: { all: TILE.ASPHALT },
+  [ROOF]: { all: TILE.ROOF },
+  [BUS_YELLOW]: { all: TILE.BUS_YELLOW },
+  [TRUCK_RED]: { all: TILE.TRUCK_RED },
+
 });
 
 /**

@@ -341,14 +341,18 @@ export class GameplayHud {
     if (d.grenadeHint.textContent !== hint) d.grenadeHint.textContent = hint;
 
     if (s.charge01 !== undefined) {
-      const chargeVisible = s.charge01 !== null && Number.isFinite(s.charge01);
+      const thermal = Number.isFinite(s.heat01);
+      d.chargeMeter.classList.toggle('is-thermal', thermal);
+      d.chargeMeter.classList.toggle('is-overheated', thermal && !!s.overheated);
+      const chargeVisible = thermal || s.charge01 !== null && Number.isFinite(s.charge01);
       d.chargeMeter.classList.toggle('is-visible', chargeVisible);
       if (chargeVisible) {
-        const charge01 = clamp01(s.charge01);
+        const charge01 = clamp01(thermal ? s.heat01 : s.charge01);
+        d.chargeMeterFill.style.background = thermal ? (s.overheated ? "#ff3838" : s.heat01 >= 0.65 ? "#ff9f32" : "#ffd06b") : "";
         d.chargeMeterFill.style.transform = `scaleX(${charge01})`;
         d.chargeMeter.classList.toggle('is-charging', charge01 > 0);
         d.chargeMeter.classList.toggle('is-full', charge01 >= 1);
-        const label = charge01 >= 1 ? 'CHARGED' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE';
+        const label = thermal ? (s.overheated ? 'OVERHEATED · COOLING' : s.spin01 > 0 && s.spin01 < 1 ? `SPIN UP · ${Math.round(s.spin01 * 100)}%` : `${s.heat01 >= 0.65 ? 'SWEET SPOT' : 'HEAT'} ${Math.round(s.heat01 * 100)}% · +${Math.round((s.heatDamageMult - 1) * 100)}% DMG`) : charge01 >= 1 ? 'CHARGED' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE';
         if (d.chargeMeterLabel.textContent !== label) d.chargeMeterLabel.textContent = label;
       }
     }

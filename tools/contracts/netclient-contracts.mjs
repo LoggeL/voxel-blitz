@@ -178,6 +178,7 @@ export async function runNetClientContracts(ok, installGlobals) {
           jump: false,
           sprint: false,
           crouch: false,
+          prone: false,
           interact: true,
         },
         yaw: 0.25,
@@ -276,6 +277,7 @@ export async function runNetClientContracts(ok, installGlobals) {
           interaction: firstInteraction,
           grenades: [2, 1, 2],
           charge: 0.5,
+          minigun: { heat: 0.8, spin: 0.6, overheated: false },
           x: 2,
           y: 3,
           z: 4,
@@ -354,10 +356,12 @@ export async function runNetClientContracts(ok, installGlobals) {
         && rival.bomb.state === 'carried'
         && rival.interaction.progress === 0.2
         && rival.grenades.join(',') === '2,1,2'
-        && rival.charge === 0.5,
+        && rival.charge === 0.5
+        && rival.minigun.heat === 0.8 && rival.minigun.spin === 0.6 && rival.minigun.overheated === false,
       'interpolation preserves the complete newest remote gameplay state alongside transforms');
       const retainedRival = joined.client.latestSnapshots[0].players[0];
       ok(Object.isFrozen(rival)
+        && Object.isFrozen(rival.minigun)
         && Object.isFrozen(rival.mag)
         && Object.isFrozen(rival.reserve)
         && Object.isFrozen(rival.owned)

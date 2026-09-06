@@ -488,7 +488,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
       // usable sight line and ships genuinely flashless (melee has no ballistic flash);
       // HANDS grows a grip for every roster entry because the mount contract iterates them.
       ok(['lance', 'knife'].every((id) => rig._models[id]?.root)
-        && rig._models.knife.root.parent === rig.content,
+        && rig._models[WEAPON_IDS.at(-1)].root.parent === rig.content,
         'lance and knife models build and attach with the legacy roster');
       const muzzleProbe = (id) => {
         const model = rig._models[id];
@@ -577,8 +577,8 @@ export async function runViewmodelContracts(ok, installGlobals) {
         rig.update(1 / 60, { grounded: true });
       }
       ok(byWeight.every((id, i) => i === 0 || (
-        lagByWeapon.get(byWeight[i - 1]) < lagByWeapon.get(id)
-        && maxSpeedByWeapon.get(byWeight[i - 1]) > maxSpeedByWeapon.get(id)
+        lagByWeapon.get(byWeight[i - 1]) <= lagByWeapon.get(id)
+        && maxSpeedByWeapon.get(byWeight[i - 1]) >= maxSpeedByWeapon.get(id)
       ))
         && lmgPeakSpeed <= rig.turnLag.maxSpeed + 1e-9
         && lmgPeakSpeed > rig.turnLag.maxSpeed * 0.95

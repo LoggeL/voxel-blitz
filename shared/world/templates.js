@@ -1,3 +1,4 @@
+import { generateNuketownInto } from './flatmap-nuketown.js';
 import { MAP_IDS } from '../modes.js';
 import { SX, SY, SZ } from './blocks.js';
 import { generateDepotInto } from './flatmap-depot.js';
@@ -37,6 +38,7 @@ function buildPristineTemplate(id) {
   else if (id === 'depot') generateDepotInto(world, blocks, heights);
   else if (id === 'citadel') generateCitadelInto(world, blocks, heights);
   else if (id === 'caldera') generateCalderaInto(world, blocks, heights);
+  else if (id === 'nuketown') generateNuketownInto(world, blocks, heights);
   else if (id === 'killhouse') generateKillhouseInto(world, blocks, heights);
   else generateSolsticeInto(world, blocks, heights);
 

@@ -11,10 +11,12 @@ export const BREACH_Z = {
   shotgun: -0.11,
   sniper: -0.26,
   lmg: -0.34,
+  minigun: -0.34,
   revolver: -0.16,
   longarc: -0.30,
   lance: -0.30,
   rocket: -0.22,
+  flamethrower: -0.22,
   knife: -0.02,
 };
 
@@ -25,10 +27,12 @@ export const BARREL_R = {
   shotgun: 0.0205,
   sniper: 0.0215,
   lmg: 0.0295,
+  minigun: 0.0295,
   revolver: 0.0185,
   longarc: 0.020,
   lance: 0.020,
   rocket: 0.0625,
+  flamethrower: 0.043,
   knife: 0.0075,
 };
 
@@ -38,10 +42,12 @@ export const BOLT_HOME = {
   shotgun: -0.050,
   sniper: -0.010,
   lmg: -0.025,
+  minigun: -0.025,
   revolver: -0.018,
   longarc: -0.030,
   lance: -0.032,
   rocket: -0.040,
+  flamethrower: -0.040,
   knife: -0.020,
 };
 
@@ -53,10 +59,12 @@ export const TRIGGER_Z = {
   shotgun: -0.145,
   sniper: -0.165,
   lmg: -0.13,
+  minigun: -0.13,
   revolver: -0.075,
   longarc: -0.14,
   lance: -0.14,
   rocket: -0.11,
+  flamethrower: -0.11,
   knife: -0.08,
 };
 

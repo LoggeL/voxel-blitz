@@ -197,6 +197,7 @@ export const sfx = {
   },
 
   fire(key, options) {
+    if (key === 'minigun') key = 'lmg';
     const deferred = copyOptions(options);
     run('fire', () => {
       const profile = fireReportProfile(key);

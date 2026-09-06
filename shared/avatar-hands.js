@@ -20,6 +20,10 @@ export const HANDS = {
     grip: { x: 0.050, y: 0.000, z: -0.10 },
     support: { x: -0.060, y: -0.012, z: -0.47, on: 'body' },
   },
+  minigun: {
+    grip: { x: 0.050, y: 0.000, z: -0.10 },
+    support: { x: -0.060, y: -0.012, z: -0.47, on: 'body' },
+  },
   revolver: {
     grip: { x: 0.042, y: -0.012, z: -0.055 },
     support: null,
@@ -27,6 +31,10 @@ export const HANDS = {
   longarc: {
     grip: { x: 0.045, y: 0.015, z: -0.10 },                // dominant palm wraps pistol grip.
     support: { x: -0.055, y: 0.005, z: -0.42, on: 'body' }, // foregrip cup under the rail shroud.
+  },
+  flamethrower: {
+    grip: { x: 0.045, y: -0.02, z: -0.08 },
+    support: { x: -0.06, y: -0.03, z: -0.40, on: 'body' },
   },
   rocket: {
     grip: { x: 0.045, y: -0.02, z: -0.08 },                 // pistol grip under the tube.

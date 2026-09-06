@@ -26,6 +26,7 @@ const cameraByView = {
   profile: [4.25, 1.44, -0.15],
   firing: [2.55, 1.48, -4.1],
   'ads-profile': [4.25, 1.48, -0.15],
+  'prone-profile': [4.25, 1.18, -0.15],
   'crouched-profile': [4.25, 1.18, -0.15],
   spectator: [3.4, 2.45, 3.4],
 };
@@ -73,7 +74,7 @@ avatar.group.traverse((object) => {
 });
 scene.add(avatar.group);
 
-const { firing, ads, crouching } = shot;
+const { firing, ads, crouching, proneT = 0 } = shot;
 for (let frame = 0; frame < 30; frame++) {
   updateAvatarWeaponPose(avatar, {
     weapon,
@@ -81,6 +82,7 @@ for (let frame = 0; frame < 30; frame++) {
     firing,
     ads,
     crouching,
+    proneT,
     dt: 1 / 60,
     blend: 1,
   });

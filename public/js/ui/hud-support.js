@@ -6,11 +6,13 @@ export const GLYPH = Object.freeze({
   shotgun: 'SG',
   sniper: 'SN',
   lmg: 'LMG',
+  minigun: 'M6',
   revolver: 'REV',
   longarc: 'LA',
   rocket: 'RKT',
   lance: 'VL',
   knife: 'PX',
+  flamethrower: 'FLM',
   grenade: 'GRN',
 });
 
@@ -20,11 +22,13 @@ export const WEAPON_NAMES = Object.freeze({
   shotgun: 'M-DOCK 12',
   rifle: 'VK-77 RAPTOR',
   lmg: 'BASTION LMG',
+  minigun: 'M-6 FURNACE',
   sniper: 'LONGSHOT MK-II',
   longarc: 'LN-03 LONGARC',
   rocket: 'RX-8 HAVOC',
   lance: 'CL-9 VOLTLANCE',
   knife: 'PIXEL PICK',
+  flamethrower: 'F-4 FIRESTORM',
 });
 
 /** Kill-feed / recap names for explosives that are not weapon slots. */
@@ -41,11 +45,13 @@ export const WEAPON_CLASSES = Object.freeze({
   shotgun: 'TACTICAL SHOTGUN · PUMP',
   rifle: 'ASSAULT RIFLE · FULL AUTO',
   lmg: 'HEAVY MACHINE GUN · AUTO',
+  minigun: 'SPIN UP · HEAT BOOST · OVERHEAT LOCK',
   sniper: 'PRECISION SNIPER · 5× OPTIC',
   longarc: 'CHARGE COILGUN · ARC BOLTS ×3 BOUNCE',
   rocket: 'ROCKET LAUNCHER · SPLASH & ROCKET JUMP',
   lance: 'SIEGE LANCE · LINE PIERCE ×6',
   knife: 'PICKAXE · HOLD TO MINE',
+  flamethrower: 'FLAMETHROWER · 4s BURN & PANIC',
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([
@@ -58,7 +64,9 @@ export const WEAPON_BUY_ORDER = Object.freeze([
   'longarc',
   'lance',
   'rocket',
+  'flamethrower',
   'knife',
+  'minigun',
 ]);
 
 export const MODE_LABELS = Object.freeze({
@@ -85,6 +93,7 @@ export const MAP_LABELS = Object.freeze({
   citadel: 'CITADEL',
   solstice: 'SOLSTICE',
   caldera: 'CALDERA',
+  nuketown: 'NUKETOWN',
   killhouse: 'KILLHOUSE',
 });
 
@@ -94,6 +103,7 @@ export const MAP_DESCRIPTIONS = Object.freeze({
   citadel: 'Urban fortress with Courtyard A and Compound B tactical bomb sites (All Modes)',
   solstice: 'Desert solar observatory with a glass biodome, turbine hall, and compact linked lanes (All Modes)',
   caldera: 'Volcanic caldera with a west obsidian gate and elevated east ember refinery (All Modes)',
+  nuketown: 'Classic test-town: furnished two-storey houses, school bus, moving truck and backyard routes (All Modes)',
   killhouse: 'Covered firing bays and four numbered rooms. Practice on respawning targets or race the course.',
 });
 
@@ -103,6 +113,7 @@ export const MAP_PREVIEWS = Object.freeze({
   citadel: './assets/maps/citadel-concept.webp',
   solstice: './assets/maps/solstice-concept.webp',
   caldera: './assets/maps/caldera-concept.webp',
+  nuketown: './assets/maps/nuketown.webp',
   killhouse: './assets/maps/killhouse-range.webp',
 });
 

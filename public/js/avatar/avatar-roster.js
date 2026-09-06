@@ -164,10 +164,10 @@ export class AvatarRoster {
       const alive = rowAlive && now >= avatar.deathForcedUntil;
       if (!alive) {
         if (avatar.alive) this.death(remote.id, now);
-        avatar.deathT = Math.min(1.5, avatar.deathT + dt);
-        const t = smooth01(avatar.deathT / 1.28);
+        avatar.deathT = Math.min(2.8, avatar.deathT + dt);
+        const t = smooth01(avatar.deathT / 2.7);
         const fade = 1 - smooth01((t - 0.72) / 0.28);
-        avatar.group.visible = avatar.deathT < 1.42;
+        avatar.group.visible = avatar.deathT < 2.7;
         if (avatar.group.visible) {
           counters.dyingAvatars++;
           updateAvatarDeath(avatar, dt, t);
@@ -215,11 +215,13 @@ export class AvatarRoster {
         ads: remote.ads,
         reloading: remote.reloading,
         crouching: remote.crouch,
+        proneT: remote.proneT,
         stride,
         swing,
         dt,
         blend: poseBlend,
         charge: remote.charge,
+        minigun: remote.minigun,
       });
       updateAvatarStancePose(avatar, { stride, swing, blend: poseBlend });
       avatar.torso.rotation.z += ((-swing * stride * 0.055) + flinch - avatar.torso.rotation.z) * poseBlend;

@@ -99,3 +99,14 @@ export function evProjectileExplode(id, projectileId, type, origin, radius) {
     radius: round(radius, D2),
   };
 }
+
+/** Match launch precision; full simulation precision stays on the server. */
+export function evProjectileUpdate(projectileId, origin, velocity, bounces) {
+  const event = {
+    t: 'ev', kind: 'projectileUpdate', pid: String(projectileId),
+    o: origin.map(value => round(value, D2)),
+    v: velocity.map(value => round(value, D2)),
+  };
+  if (Number.isFinite(bounces)) event.bn = Math.max(0, Math.trunc(bounces));
+  return event;
+}

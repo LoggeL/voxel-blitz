@@ -20,6 +20,7 @@ export {
   evRespawn,
   evDie,
   evProjectileLaunch,
+  evProjectileUpdate,
   evProjectileStick,
   evProjectileExplode,
 } from './protocol/events.js';

@@ -8,10 +8,16 @@ export const MAP_NAMES = Object.freeze({
   citadel: 'Citadel',
   solstice: 'Solstice',
   caldera: 'Caldera',
+  nuketown: 'Nuketown',
   killhouse: 'Killhouse',
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
+  nuketown: {
+    fun: [[43,12],[56,12],[73,12],[86,12],[43,83],[56,83],[73,83],[86,83],[28,40],[99,55],[35,59],[92,39]],
+    tdm: { alpha: [[43,83],[51,83],[59,83],[68,83],[77,83],[86,83]], bravo: [[43,12],[51,12],[59,12],[68,12],[77,12],[86,12]] },
+    snd: { attackers: [[43,83],[51,83],[59,83],[68,83],[77,83],[86,83]], defenders: [[43,12],[51,12],[59,12],[68,12],[77,12],[86,12]] },
+  },
   foundry: {
     fun: [[16, 16], [112, 16], [112, 80], [16, 80], [64, 14], [64, 82], [20, 48], [108, 48], [52, 40], [76, 56], [40, 72], [88, 24]],
     tdm: {
@@ -75,6 +81,10 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
 });
 
 export const MAP_SITE_LAYOUTS = Object.freeze({
+  nuketown: [
+    { id: 'A', minX: 32, maxX: 39, minZ: 43, maxZ: 51, y: GROUND + 1.02 },
+    { id: 'B', minX: 92, maxX: 99, minZ: 43, maxZ: 51, y: GROUND + 1.02 },
+  ],
   foundry: [
     { id: 'A', minX: 46, maxX: 53, minZ: 68, maxZ: 75, y: GROUND + 1.02 },
     { id: 'B', minX: 76, maxX: 83, minZ: 20, maxZ: 27, y: GROUND + 1.02 },
@@ -96,6 +106,11 @@ export const MAP_SITE_LAYOUTS = Object.freeze({
 });
 
 export const MAP_LANDMARKS = Object.freeze({
+  nuketown: [
+    { id: 'yellow-house', name: 'Yellow House', x: 59, z: 67 },
+    { id: 'school-bus', name: 'School Bus', x: 57, z: 46 },
+    { id: 'green-house', name: 'Green House', x: 68, z: 28 },
+  ],
   foundry: [
     { id: 'north-forge', name: 'North Forge', x: 60, z: 26 },
     { id: 'center-crane', name: 'Center Crane', x: 65, z: 46 },

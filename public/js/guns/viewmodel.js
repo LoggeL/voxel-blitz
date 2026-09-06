@@ -210,6 +210,8 @@ export class ViewmodelRig {
    * Charge weapons: live 0..1 capacitor charge while the trigger is held. Drives the coil
    * glow floor and a slight rearward squeeze; presentation only, it never gates fire.
    */
+  setMinigun(state) { this._minigunState = { ...state }; }
+
   setCharge(t01) {
     this._chargeT = Math.max(0, Math.min(1, Number(t01) || 0));
     if (this._chargeT === 0) this._chargeOrb.visible = false;
@@ -312,6 +314,17 @@ export class ViewmodelRig {
       }
     }
     const cur = this._cur;
+    const rotor = cur?.body.getObjectByName('minigun_rotor');
+    if (rotor) {
+      const state = this._minigunState || { spin: 0, heat: 0 };
+      rotor.rotation.z += dt * state.spin * 42;
+      rotor.traverse(o => {
+        if (o.material?.userData.thermal) {
+          o.material.emissive.setHex(0xff3808);
+          o.material.emissiveIntensity = state.heat * state.heat * 1.8;
+        }
+      });
+    }
     const speed = ctx.speed || 0, grounded = ctx.grounded !== false;
     const verticalVelocity = Number.isFinite(ctx.verticalVelocity) ? ctx.verticalVelocity : 0;
     const lateralSpeed = Number.isFinite(ctx.lateralSpeed) ? ctx.lateralSpeed : 0;
@@ -460,6 +473,7 @@ export class ViewmodelRig {
     }
 
     /* sprint cant + counter-roll + inertia roll composition */
+    const proneMotion = Math.sin(Math.PI * Math.max(0, Math.min(1, ctx.proneT || 0)));
     this._vaultDip = (this._vaultDip || 0) + ((ctx.vaulting ? 1 : 0) - (this._vaultDip || 0)) * (1 - Math.exp(-18 * dt));
     const cant = sprinting ? BOB.sprintTiltZ * Math.min(1, speed / 6.2) * (1 - adsE) : 0;
     const roll = bobX / (BOB.walkHorz || 1) * BOB.counterRoll * (1 - adsE * 0.5)
@@ -482,10 +496,10 @@ export class ViewmodelRig {
     const dep = this._deployOffset();
     this.content.position.set(
       HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX + (dep.x || 0),
-      HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.16,
+      HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.16 - proneMotion * 0.12,
       HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0)
     );
-    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.35, swingRy + (dep.ry || 0), swingRz + (dep.rz || 0) + this._vaultDip * 0.18);
+    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.35 - proneMotion * 0.22, swingRy + (dep.ry || 0), swingRz + (dep.rz || 0) + this._vaultDip * 0.18);
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
     this._decayFx(dt, cur);

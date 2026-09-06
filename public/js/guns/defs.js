@@ -160,6 +160,32 @@ export const TIMERS = {
     adsOffset: { x: 0.0, y: -0.155, z: -0.78 },
     kick: { stiffness: 205, damping: 25, yawWobble: 0.75 },
   },
+  minigun: {
+    tbase: -0.02,
+    rof: WEAPONS.minigun.rpm,
+    adsTime: WEAPONS.minigun.adsTime,
+    deployTime: WEAPONS.minigun.deployTime,
+    weightKg: WEAPONS.minigun.weightKg,
+    viewKick: { pitchDeg: WEAPONS.minigun.recoil.pitch, yawDeg: WEAPONS.minigun.recoil.yaw },
+    bursts: [[70], [48], [32]],
+    anglesRad: [0.0012, -0.0017, 0.0021],
+    interval: 0,
+    clip: 12,
+    muzzle: [0.0, 0.055, -0.820],
+    portY: 0.17,
+    ejectRight: -0.075,
+    barrelLen: 0.38,
+    heatLen: [0.30, 0.94],
+    boltTravel: 0.075,
+    rechargeDur: 0.055,
+    pumpMag: 0,
+    cycleBack: false,
+    cycleKind: null,
+    ejectOnFire: true,
+    magTimeline: { start: 0.16, home: 0.84, clickAt: 0.93, type: 'belt' },
+    adsOffset: { x: 0.0, y: -0.155, z: -0.78 },
+    kick: { stiffness: 205, damping: 25, yawWobble: 0.75 },
+  },
   revolver: {
     tbase: -0.01,
     rof: WEAPONS.revolver.rpm,
@@ -302,6 +328,14 @@ export const TIMERS = {
     kick: { stiffness: 320, damping: 26, yawWobble: 0.5 },  // light, snappy wrist snap.
     melee: true,
   },
+};
+
+TIMERS.flamethrower = {
+  ...TIMERS.rocket,
+  rof: WEAPONS.flamethrower.rpm, adsTime: WEAPONS.flamethrower.adsTime,
+  deployTime: WEAPONS.flamethrower.deployTime, weightKg: WEAPONS.flamethrower.weightKg,
+  viewKick: { pitchDeg: WEAPONS.flamethrower.recoil.pitch, yawDeg: WEAPONS.flamethrower.recoil.yaw },
+  boltTravel: 0.01, rechargeDur: 0.2,
 };
 
 /**

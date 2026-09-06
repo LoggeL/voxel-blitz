@@ -47,6 +47,7 @@ const FIRE_REPORT_PROFILES = Object.freeze({
   knife: Object.freeze({
     lifetime: 0.5, sampleGain: 0.9, sampleRate: 1.12, layerGain: 0.18,
   }),
+  flamethrower: Object.freeze({ lifetime: 0.5, sampleGain: 1, sampleRate: 1, layerGain: 1 }),
   rocket: Object.freeze({
     lifetime: 1.6, sampleGain: 0.99, sampleRate: 0.9, layerGain: 0.18,
   }),
@@ -296,7 +297,10 @@ export function renderFireReport(
   cleanupOwner = out,
   { includeMechanics = true, charge = 1 } = {},
 ) {
-  if (key === 'shotgun') shotShotgun(out, primitives, includeMechanics);
+  if (key === 'flamethrower') {
+    primitives.hiss(out, { filter: 'lowpass', f: 1800, sweepTo: 450, sweepMs: 0.3, dec: 0.32, att: 0.025, g: 0.6 });
+    primitives.tone(out, { type: 'sine', f0: 75, f1: 40, dec: 0.25, att: 0.02, g: 0.2 });
+  } else if (key === 'shotgun') shotShotgun(out, primitives, includeMechanics);
   else if (key === 'sniper') {
     shotSniper(out, primitives, echoIn, addCleanup, cleanupOwner, includeMechanics);
   } else if (key === 'lmg') shotLmg(out, primitives);

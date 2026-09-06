@@ -13,11 +13,13 @@ import { build as buildRifle } from './models/rifle.js';
 import { build as buildSmg } from './models/smg.js';
 import { build as buildShotgun } from './models/shotgun.js';
 import { build as buildSniper } from './models/sniper.js';
+import { build as buildMinigun } from './models/minigun.js';
 import { build as buildLmg } from './models/lmg.js';
 import { build as buildRevolver } from './models/revolver.js';
 import { build as buildLongarc } from './models/longarc.js';
 import { build as buildRocket } from './models/rocket.js';
 import { build as buildLance } from './models/lance.js';
+import { build as buildFlamethrower } from './models/flamethrower.js';
 import { build as buildKnife } from './models/knife.js';
 
 const MODELS = Object.freeze({
@@ -26,11 +28,13 @@ const MODELS = Object.freeze({
   shotgun: buildShotgun,
   sniper: buildSniper,
   lmg: buildLmg,
+  minigun: buildMinigun,
   revolver: buildRevolver,
   longarc: buildLongarc,
   rocket: buildRocket,
   lance: buildLance,
   knife: buildKnife,
+  flamethrower: buildFlamethrower,
 });
 
 // Glow accents for the two roster ids kit.js's GLOW_ACCENT sheet does not carry yet. makeFx()

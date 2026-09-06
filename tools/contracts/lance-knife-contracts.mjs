@@ -11,7 +11,7 @@ export async function runLanceKnifeContracts(ok) {
   const { BOLT_RULES, boltBounces } = await import('../../shared/bolt-rules.js');
   const { wheelAngleForSlot, wheelSlotFromVector } = await import('../../public/js/ui/weapon-wheel.js');
 
-  ok(WEAPON_IDS.length === 10 && WEAPON_IDS[8] === 'lance' && WEAPON_IDS[9] === 'knife',
+  ok(WEAPON_IDS.length === 12 && WEAPON_IDS[8] === 'lance' && WEAPON_IDS[9] === 'knife',
     'the roster holds ten weapons with VOLTLANCE and RIPPER in the last two slots');
 
   const lance = WEAPONS.lance;
@@ -66,9 +66,10 @@ export async function runLanceKnifeContracts(ok) {
   ok(damageAtDistance(knife, 2) === 58,
     'a RIPPER swing deals flat 58 inside its reach with no falloff');
 
-  ok(GUN_GAME_WEAPON_ORDER.length === 10 && GUN_GAME_WEAPON_ORDER[6] === 'longarc'
-      && GUN_GAME_WEAPON_ORDER[7] === 'lance' && GUN_GAME_WEAPON_ORDER[9] === 'knife',
-    'Gun Game puts the VOLTLANCE right after the LONGARC and the RIPPER last in a ten-step ladder');
+  ok(GUN_GAME_WEAPON_ORDER.length === WEAPON_IDS.length
+      && GUN_GAME_WEAPON_ORDER.indexOf('lance') === GUN_GAME_WEAPON_ORDER.indexOf('longarc') + 1
+      && GUN_GAME_WEAPON_ORDER.at(-1) === 'knife',
+    'Gun Game includes the roster, puts VOLTLANCE after LONGARC and keeps PIXEL PICK last');
 
   ok(WEAPON_PRICES.lance === 3800 && WEAPON_PRICES.knife === 500,
     'the VOLTLANCE costs 3800 credits and the RIPPER 500 in the S&D armory');

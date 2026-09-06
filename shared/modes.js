@@ -3,7 +3,7 @@
 
 export const MODE_IDS = Object.freeze(['fun', 'chaos', 'tdm', 'snd', 'gungame', 'training']);
 export const TEAM_IDS = Object.freeze(['alpha', 'bravo']);
-export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'killhouse']);
+export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'killhouse']);
 
 export const DEFAULT_MODE_ID = MODE_IDS[0];
 export const DEFAULT_TEAM_ID = TEAM_IDS[0];
@@ -15,10 +15,12 @@ export const GUN_GAME_WEAPON_ORDER = Object.freeze([
   'shotgun',
   'sniper',
   'lmg',
+  'flamethrower',
   'rocket',
   'longarc',
   'lance',
   'revolver',
+  'minigun',
   'knife',
 ]);
 
@@ -38,7 +40,9 @@ export const WEAPON_PRICES = Object.freeze({
   longarc: 3500,
   lance: 3800,
   lmg: 4000,
+  minigun: 4800,
   rocket: 4300,
+  flamethrower: 2400,
   sniper: 4750,
 });
 
@@ -99,6 +103,7 @@ export const MAP_MODE_COMPATIBILITY = Object.freeze({
   citadel: COMBAT_MODE_IDS,
   solstice: COMBAT_MODE_IDS,
   caldera: COMBAT_MODE_IDS,
+  nuketown: COMBAT_MODE_IDS,
   killhouse: Object.freeze(['training']),
 });
 
