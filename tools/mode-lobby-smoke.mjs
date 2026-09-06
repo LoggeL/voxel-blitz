@@ -217,6 +217,7 @@ function assertPlayerRows(tick, clientsInRoom, label) {
   const expectedIds = clientsInRoom.map((client) => client.welcome.id);
   pass(Array.isArray(tick?.players) && tick.players.length === expectedIds.length &&
     tick.players.every((row) => Object.keys(row).sort().join(',') === PLAYER_KEYS &&
+      Number.isFinite(row.burning) && row.burning >= 0 && row.burning <= 4 &&
       Number.isFinite(row.pain) && row.pain >= 0 && row.pain <= 1 &&
       Number(row.pain.toFixed(3)) === row.pain && typeof row.spawnProtected === 'boolean') &&
     expectedIds.every((id) => tick.players.some((row) => row.id === id)),

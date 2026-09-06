@@ -75,7 +75,7 @@ export class VoicePool {
     this._byOutput.set(output, entry);
     if (panner) this._positional.push(entry);
     entry.timer = this._scheduleCleanup(
-      () => this._cleanupVoice(entry),
+      () => this._expireVoice(entry),
       (lifetime + 0.5) * 1000,
     );
     return output;
@@ -128,6 +128,36 @@ export class VoicePool {
       return;
     }
     entry.cleanups.push(cleanup);
+  }
+
+  /** Extend one sustained voice without allocating another graph or timer per refresh. */
+  refresh(output, opts, lifetimeSec) {
+    const entry = this._byOutput.get(output);
+    if (!entry || entry.closed) return false;
+    const ctx = this._context();
+    entry.until = ctx.currentTime + lifetimeSec + 0.5;
+    if (entry.panner && Array.isArray(opts?.pos)) {
+      if (entry.panner.positionX) {
+        ['X', 'Y', 'Z'].forEach((axis, index) => {
+          entry.panner[`position${axis}`].setTargetAtTime(opts.pos[index], ctx.currentTime, 0.025);
+        });
+      } else entry.panner.setPosition(...opts.pos);
+    }
+    return true;
+  }
+
+  release(output) {
+    this._cleanupVoice(this._byOutput.get(output));
+  }
+
+  _expireVoice(entry) {
+    if (entry.closed) return;
+    const ctx = this._context();
+    // A suspended audio clock must not leave a cleanup timer rescheduling forever.
+    const remaining = ctx.state === 'running' ? entry.until - ctx.currentTime : 0;
+    if (remaining > 0.001) {
+      entry.timer = this._scheduleCleanup(() => this._expireVoice(entry), remaining * 1000);
+    } else this._cleanupVoice(entry);
   }
 
   disposeAll() {

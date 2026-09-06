@@ -151,6 +151,12 @@ export class ViewmodelRig {
     const T = cur.T;
     const now = this._now;
     if (this.isBusy(now)) return false;
+    // The weapon state meters continuous fuel. Heating the nozzle does not cycle
+    // a bolt or repeatedly kick/flash like individual firearm discharges.
+    if (T.continuous) {
+      this._uniSet(1, Math.min(1, cur.uni.uHeat.value + 0.12));
+      return true;
+    }
     // K-7 RIPPER (T.melee): a slash, not a shot. The generic kick/heat/flash path is
     // bypassed wholesale — a blade carries no recoil impulse, no barrel heat, and no
     // muzzle event (the assembled flash stub stays inert); the swing pose composed in
@@ -296,18 +302,21 @@ export class ViewmodelRig {
   /* ------------------------------------- simulation ---------------------------------------- */
 
   /**
-   * @param dt      seconds, clamped hard to 0.033 (tab-refocus spikes never explode springs)
+   * @param dt      elapsed seconds; action clocks advance while spring steps stay capped at 0.033
    * @param ctx     {speed,grounded,verticalVelocity,lateralSpeed,forwardSpeed,isSprinting,crouch,
    *                 panic,exhaustion,pain,aimSwayScale}
    *                Camera orientation is observed, never delayed or modified by this rig.
    */
   update(dt, ctx = {}) {
     if (!(dt > 0)) return;
+    const elapsed = Math.min(dt, 0.25);
+    let drawElapsed = elapsed;
     dt = Math.min(dt, 0.033);
     if (this._swap) {
-      this._swap.elapsed += dt;
+      this._swap.elapsed += elapsed;
       if (this._swap.elapsed >= this._swap.holster) {
         const pending = this._swap;
+        drawElapsed = pending.elapsed - pending.holster;
         this.setWeapon(pending.id);
         this._swapDraw = true;
         this._swapDrawSeconds = pending.draw;
@@ -330,7 +339,7 @@ export class ViewmodelRig {
     const lateralSpeed = Number.isFinite(ctx.lateralSpeed) ? ctx.lateralSpeed : 0;
     const forwardSpeed = Number.isFinite(ctx.forwardSpeed) ? ctx.forwardSpeed : 0;
     const sprinting = !!ctx.isSprinting, crouching = !!ctx.crouch;
-    this._now += dt;
+    this._now += elapsed;
     this._drainQueue();
 
     /* fov counter-scale trick — apparent size locked while WEAPONS.adsFov zooms the real camera */
@@ -413,7 +422,7 @@ export class ViewmodelRig {
     const adsE = this._smooth01(this._adsSmooth);
 
     /* deploy timeline: rise over DEPLOY.raise slice, spring overshoot, quenched by settleBy */
-    this._depT = Math.min(1.0001, this._depT + dt / Math.max(0.05, this._swapDraw ? this._swapDrawSeconds : T.deployTime));
+    this._depT = Math.min(1.0001, this._depT + drawElapsed / Math.max(0.05, this._swapDraw ? this._swapDrawSeconds : T.deployTime));
 
     /* Baseline idle life plus hidden condition motion. Both are deterministic rig-clock functions. */
     const panic = Math.max(0, Math.min(1, Number(ctx.panic) || 0));

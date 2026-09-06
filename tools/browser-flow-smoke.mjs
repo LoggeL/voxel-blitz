@@ -1,5 +1,6 @@
 import path from 'node:path';
 import jsQR from 'jsqr';
+import { WEAPON_IDS } from '../shared/combatmath.js';
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
@@ -468,14 +469,16 @@ async function main() {
       await writeFile(output, Buffer.from(screenshot.data, 'base64'));
     }
     await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ' });
-    await page.waitFor(`window.__vb.wheelOpen`, { label: 'Q toggles weapon wheel' });
+    await page.waitFor(`window.__vb.wheelOpen`, { label: 'Q opens weapon wheel while held' });
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
     await page.evaluate('new Promise(resolve => setTimeout(resolve, 300))');
-    requireCondition(await page.evaluate('window.__vb.wheelOpen'), 'Q release keeps the wheel open');
+    requireCondition(await page.evaluate('!window.__vb.wheelOpen'), 'Q release closes the weapon wheel');
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ' });
+    await page.waitFor('window.__vb.wheelOpen', { label: 'held Q reopens wheel for selection' });
     requireCondition(await page.evaluate(`(() => {
       const keys = [...document.querySelectorAll('#weapon-wheel .vb-wheel-key')];
-      return keys.length === 10 && keys[9].textContent === '[0]';
-    })()`), 'live weapon wheel shows ten slots with the correct zero key for the knife');
+      return keys.length === ${WEAPON_IDS.length} && keys[9].textContent === '[0]';
+    })()`), 'live weapon wheel shows the full roster with the correct zero key for the knife');
     const wheelPick = await page.evaluate(`(() => {
       const rect = document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[9].getBoundingClientRect();
       return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
@@ -491,13 +494,46 @@ async function main() {
       const output = path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT).replace(/\.png$/, '-wheel.png');
       await writeFile(output, Buffer.from(screenshot.data, 'base64'));
     }
-    await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', ...wheelPick, button: 'left', buttons: 1, clickCount: 1 });
-    await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', ...wheelPick, button: 'left', buttons: 0, clickCount: 1 });
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
     await page.waitFor(`!window.__vb.wheelOpen && window.__vb.stats.weapon === 'knife'`, {
       label: 'weapon wheel knife selection',
     });
     requireCondition(true, 'wheel selection equips the knife and closes through the live controller');
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ' });
+    await page.waitFor('window.__vb.wheelOpen', { label: 'flamethrower wheel selection' });
+    const flamePick = await page.evaluate(`(() => {
+      const rect = document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${WEAPON_IDS.indexOf('flamethrower')}].getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })()`);
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...flamePick });
+    await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${WEAPON_IDS.indexOf('flamethrower')}].classList.contains('is-hl')`,
+      { label: 'flamethrower highlighted' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
+    await page.waitFor(`!window.__vb.wheelOpen && window.__vb.stats.weapon === 'flamethrower'`,
+      { label: 'flamethrower equipped' });
+    const stream = await page.evaluate(`(async () => {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const fire = document.getElementById('touch-fire');
+      const dispatch = type => fire.dispatchEvent(new PointerEvent(type,
+        { bubbles: true, pointerId: 81, pointerType: 'touch', clientX: 0, clientY: 0 }));
+      const before = window.__vb.stats.flameStream.fuel;
+      dispatch('pointerdown');
+      const samples = [];
+      for (let i = 0; i < 12; i++) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        samples.push(window.__vb.stats.flameStream);
+      }
+      dispatch('pointerup');
+      await new Promise(resolve => setTimeout(resolve, 100));
+      const released = !window.__vb.stats.flameStream.active;
+      await new Promise(resolve => setTimeout(resolve, 750));
+      return { before, samples, released, drained: window.__vb.stats.flameStream.particles === 0 };
+    })()`);
+    console.log('live flame stream samples:', JSON.stringify(stream));
+    requireCondition(stream.samples.slice(2).every(s => s.active && s.particles > 0)
+      && stream.before - stream.samples.at(-1).fuel >= 15 && stream.released && stream.drained,
+      'live held flamethrower consumes fuel continuously, keeps its jet visible, stops on release and drains particles');
+
     await pressEscape(page);
     await page.waitFor(`window.__vb.stats.settingsOpen`, { label: 'Training pause' });
     requireCondition(await page.evaluate(`(() => {

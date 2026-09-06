@@ -111,6 +111,11 @@ export class WeaponState {
   get wantAds() { return this._wantAds; }
   get scopeActive() { return this._scopeActive; }
   get isReloading() { return this._reloadState !== null; }
+  get flameFiring() {
+    return this.def.id === 'flamethrower' && this._flameActive && this._allowFire && this._alive &&
+      !this._reloadState && this._pendingShotIntent?.held === true &&
+      this._now() >= this._deployUntil && this._now() - this._flameLastShotAt <= 125;
+  }
   get reload01() { return this._reloadProgress(this._now()); }
   /** Live 0..1 capacitor charge of a `charge` weapon while the trigger is held. */
   get charge01() {
@@ -161,6 +166,8 @@ export class WeaponState {
       zoom: def.zoom,
       heat01: def.id === 'minigun' ? this._minigun.heat : null,
       spin01: this._minigun.spin,
+      minigunSpinningUp: def.id === 'minigun' && this._minigun.spin > 0 && this._minigun.spin < 1 &&
+        !this._minigun.overheated && this._allowFire && !!this._pendingShotIntent?.held,
       overheated: this._minigun.overheated,
       heatDamageMult: minigunDamageMult(this._minigun),
       charge01: def.mode === 'charge'
@@ -229,6 +236,7 @@ export class WeaponState {
       return false;
     }
 
+    this._stopFlame();
     if (this.def.id === 'minigun') this._audio.weaponCharge?.(0, false);
     this._minigun.spin = 0;
     this._lastSlot = this._slot;
@@ -298,6 +306,7 @@ export class WeaponState {
     this._allowFire = !!allowFire;
     this._setAuthority(mode, owned);
     this._wantAds = !!wantAds;
+    if (!fireHeld || !this._alive || !this._allowFire) this._stopFlame();
 
     if (switchDelta) this.cycleWeapon(switchDelta, { now });
     if (slot !== null) this.forceWeapon(slot, { now });
@@ -313,7 +322,14 @@ export class WeaponState {
     };
   }
 
+  _stopFlame() {
+    if (!this._flameActive) return;
+    this._flameActive = false;
+    this._audio.stopFlame?.();
+  }
+
   clearIntents() {
+    this._stopFlame();
     this._pendingShotIntent = null;
     this._fireTapLatched = false;
     this._wantAds = false;
@@ -330,6 +346,7 @@ export class WeaponState {
     const ammo = this._ammo[def.id];
     if (!ammo || ammo.mag >= def.magSize || ammo.reserve <= 0) return false;
 
+    this._stopFlame();
     const plan = reloadPlan(def, ammo.mag);
     const dur = plan.seconds * 1000;
     const type = plan.staged ? 'tube' : 'magswap';
@@ -583,7 +600,11 @@ export class WeaponState {
 
     if (weaponId === 'minigun') heatMinigun(this._minigun);
     ammo.mag -= 1;
-    this._nextFireAt = now + 60000 / def.rpm;
+    const period = 60000 / def.rpm;
+    // Preserve the fuel cadence across frame boundaries without catching up
+    // missed shots after a pause or a stalled frame.
+    this._nextFireAt = def.flame && now - this._nextFireAt < period
+      ? this._nextFireAt + period : now + period;
 
     // Every direction uses the pre-shot bloom and exhaustion values.
     const fwd = forwardFromAngles(this._yaw, this._pitch);
@@ -603,8 +624,9 @@ export class WeaponState {
     }
 
     this._bloomDeg = Math.min(def.bloomMaxDeg, this._bloomDeg + def.bloomDeg);
-    this._exhaustion = clamp01(this._exhaustion + CONDITION_RULES.exhaustionShotGain);
-    this._feedback.addExhaustion(CONDITION_RULES.exhaustionShotGain);
+    const exhaustionGain = CONDITION_RULES.exhaustionShotGain * (def.flame ? 0.25 : 1);
+    this._exhaustion = clamp01(this._exhaustion + exhaustionGain);
+    this._feedback.addExhaustion(exhaustionGain);
 
     // The wire/prediction origin is the eye (the crosshair ray). The FX layer anchors
     // local tracers to the live rig muzzle and converges them on this ray's endpoint.
@@ -619,6 +641,7 @@ export class WeaponState {
       charge: mode === 'charge' ? charge : undefined,
     }, { local: true });
 
+    if (def.flame) { this._flameActive = true; this._flameLastShotAt = now; }
     this._audio.fire(weaponId, mode === 'charge' ? { charge } : undefined);
     this.shakeView(def, now, mode === 'charge' ? 0.45 + 0.55 * charge : 1);
     if (mode === 'pump') this._rig.pumpAnim();
@@ -747,6 +770,7 @@ export class WeaponState {
   }
 
   menuReset() {
+    this._stopFlame();
     if (this._emptyReloadTimer !== null) {
       this._clearTimer(this._emptyReloadTimer);
       this._emptyReloadTimer = null;
@@ -817,6 +841,7 @@ export class WeaponState {
   } = {}) {
     this._allowFire = !!allowFire;
     this._alive = !!alive;
+    if (!this._alive || !this._allowFire) this._stopFlame();
     this._crouching = !!crouching;
     this._speedXZ = Number.isFinite(speedXZ) ? speedXZ : 0;
     this._panic = clamp01(panic);

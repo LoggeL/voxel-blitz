@@ -3,6 +3,7 @@
 // are pure graph builders.
 import { AudioEngine } from './engine.js';
 import { VoicePool } from './voices.js';
+import { FlameLoops } from './flame-loop.js';
 import { createVoices } from './primitives.js';
 import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from './samples.js';
 import { MenuMusicLoop } from './music.js';
@@ -36,6 +37,7 @@ let menuMusic = null;
 let panSide = 1;
 let heartbeatAt = -Infinity;
 let chargeLoop = null;
+let flameLoops = null;
 
 /** Blast voice per explosive type: gain, low weight, and crack brightness. */
 const EXPLOSION_PROFILES = Object.freeze({
@@ -105,6 +107,7 @@ function outputOptions(value) {
 function ensureAudioModules() {
   if (!engine.ctx || engine.ctx.state === 'closed') return false;
   if (!pool) pool = new VoicePool(engine);
+  if (!flameLoops) flameLoops = new FlameLoops(engine, pool);
   if (!primitives) primitives = createVoices(engine);
   if (!samples) {
     samples = new LocalSampleBank({
@@ -163,6 +166,8 @@ export const sfx = {
 
   async dispose() {
     disposeChargeLoop();
+    flameLoops?.dispose();
+    flameLoops = null;
     menuMusic?.dispose();
     menuMusic = null;
     pool = null;
@@ -199,6 +204,13 @@ export const sfx = {
   fire(key, options) {
     if (key === 'minigun') key = 'lmg';
     const deferred = copyOptions(options);
+    if (key === 'flamethrower') {
+      if (!engine.ensure()) return;
+      ensureAudioModules();
+      if (engine.ctx.state !== 'running') { void engine.resume(); return; }
+      flameLoops.refresh({ ...outputOptions(deferred), shooterId: deferred?.shooterId });
+      return;
+    }
     run('fire', () => {
       const profile = fireReportProfile(key);
       const charge = deferred && !Array.isArray(deferred) && Number.isFinite(deferred.charge)
@@ -215,6 +227,14 @@ export const sfx = {
         charge,
       });
     });
+  },
+
+  stopFlame(shooterId = null) {
+    flameLoops?.stop(shooterId);
+  },
+
+  stopFlames() {
+    flameLoops?.dispose();
   },
 
   /**

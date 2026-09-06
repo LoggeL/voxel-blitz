@@ -10,7 +10,15 @@ import { chaosShot, chaosHit, chaosWeaponDef } from '../server/sim/chaos-combat.
 
 assert.equal(CHAOS_START_CREDITS, 600);
 assert.equal(CHAOS_KILL_CREDITS, 300);
-assert.deepEqual(Object.keys(CHAOS_UPGRADES).sort(), [...WEAPON_IDS, ...GRENADE_TYPE_IDS].sort());
+// The original ten guns have upgrade ladders; the two newer guns use their
+// base mechanics in Chaos Lab. Verify both the supported catalog and rejection.
+const upgradeWeapons = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife'];
+assert.deepEqual(Object.keys(CHAOS_UPGRADES).sort(), [...upgradeWeapons, ...GRENADE_TYPE_IDS].sort());
+for (const id of ['minigun', 'flamethrower']) {
+  assert.ok(WEAPON_IDS.includes(id));
+  assert.equal(parseChaosPurchase(`chaos:${id}:1`), null);
+  assert.equal(chaosWeaponDef({ chaosUpgrades: {} }, WEAPONS[id]), WEAPONS[id]);
+}
 assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 39);
 for (const rows of Object.values(CHAOS_UPGRADES)) {
   assert.deepEqual(rows.map(r => r.price), [300, 600, 900]);

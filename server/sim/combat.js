@@ -412,7 +412,7 @@ export function fireOneShot(p, ctx, charge = 1) {
   const coneDeg = typeof ctx.computeConeDeg === 'function'
     ? ctx.computeConeDeg(p)
     : computeConeDeg(p);
-  p.exhaustion = clamp01(p.exhaustion + CONDITION_RULES.exhaustionShotGain);
+  p.exhaustion = clamp01(p.exhaustion + CONDITION_RULES.exhaustionShotGain * (def.flame ? 0.25 : 1));
   p.bloom = Math.min(def.bloomMaxDeg, p.bloom + def.bloomDeg);
   const oEye = [p.x, p.eyeY, p.z];
   // Muzzle-ish origin reported to clients: eye dropped 0.15, nudged forward.
@@ -424,7 +424,7 @@ export function fireOneShot(p, ctx, charge = 1) {
 
   const firstDir = samplePelletDirection(def, fwd, rng, coneDeg, 0);
   const shootEvent = evShoot(
-    p.id, muzzle, [fwd.x, fwd.y, fwd.z], def.id,
+    p.id, def.flame ? oEye : muzzle, [fwd.x, fwd.y, fwd.z], def.id,
     [firstDir.x, firstDir.y, firstDir.z],
   );
   if (charged) shootEvent.charge = Math.round(charge01 * 1000) / 1000;

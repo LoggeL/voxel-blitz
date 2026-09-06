@@ -149,9 +149,10 @@ export class CombatFeedback {
         const local = ev.id === myId;
         if (!local) {
           this.effects.shoot(ev);
-          this.sfx.fire(ev.w, { pos: ev.o });
+          this.sfx.fire(ev.w, ev.w === 'flamethrower'
+            ? { pos: ev.o, shooterId: ev.id } : { pos: ev.o });
           const d = this.distanceToRay(ev.o, ev.spread || ev.d);
-          if (d < 2.2) this.sfx.bulletWhiz(Math.max(0.15, 1 - d / 2.2));
+          if (ev.w !== 'flamethrower' && d < 2.2) this.sfx.bulletWhiz(Math.max(0.15, 1 - d / 2.2));
         }
         break;
       }
@@ -370,12 +371,14 @@ export class CombatFeedback {
   }
 
   reset() {
+    this.sfx.stopFlames?.();
     this.presentLocalRespawn();
   }
 
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
+    this.sfx.stopFlames?.();
     this._presentedDeaths = new WeakSet();
     this.effects = null;
     this.sfx = null;

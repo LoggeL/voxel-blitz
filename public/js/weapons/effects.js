@@ -187,12 +187,12 @@ export class Effects {
     }
   }
 
-  update(dt) {
+  update(dt, elapsed = dt) {
     if (this._disposed) return;
     this._trauma = Math.max(0, this._trauma - dt * 1.8);
     this.tracers.update(dt);
     this.railBeams.update(dt);
-    this.flames.update(dt);
+    this.flames.update(elapsed);
     this.impacts.update(dt);
     this.goreFx.update(dt);
     this.brass.update(dt);

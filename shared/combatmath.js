@@ -2,6 +2,8 @@
 // Both server (combat resolve / anticheat) and client (recoil & spray feel) import this.
 // THERE IS ONE SOURCE OF TRUTH for every gun number in the game.
 
+import { FLAME_RULES } from './flame-rules.js';
+
 export const GRAVITY = 24;
 export const PLAYER_HALF = { x: 0.32, h: 0.95 };   // movement collider half-width, half-height
 export const EYE_HEIGHT = 1.62;                    // eye above feet
@@ -279,17 +281,17 @@ export const WEAPONS = {
   },
   flamethrower: {
     id: 'flamethrower', name: 'F-4 FIRESTORM', mode: 'auto',
-    weightKg: 5.8, rpm: 300, magSize: 40, spareMags: 5,
-    damage: [9, 5, 10], falloffStart: 3, range: 10,
+    weightKg: 5.8, rpm: 60 / FLAME_RULES.cadence, magSize: 160, spareMags: 5,
+    damage: [2.25, 1.25, FLAME_RULES.range], falloffStart: 6, range: FLAME_RULES.range,
     headMult: 1, pellets: 1,
-    flame: { coneDeg: 18, duration: 4, damagePerS: 7, panicFloor: 0.95 },
+    flame: { coneDeg: FLAME_RULES.coneDeg, duration: 4, damagePerS: 7, panicFloor: 0.95 },
     spreadDeg: { hip: 0, ads: 0 }, bloomDeg: 0, bloomMaxDeg: 0,
     bloomRecover: 5, moveSpreadDeg: 0, crouchSpreadMult: 1,
-    recoil: { pitch: 0.12, pitchRamp: 0, maxPitchRamp: 0, yaw: 0.08,
-      yawPattern: [-0.1, 0.1], jitter: 0.03, resetMs: 240, adsMult: 0.8, recovery: 0.8 },
+    recoil: { pitch: 0.03, pitchRamp: 0, maxPitchRamp: 0, yaw: 0.02,
+      yawPattern: [-0.1, 0.1], jitter: 0.0075, resetMs: 240, adsMult: 0.8, recovery: 0.8 },
     adsFov: 65, zoom: 1.1, adsTime: 0.2,
     reloadTime: 2.8, tacTime: 2.3, deployTime: 0.5,
-    tracer: { color: '#ff7518', width: 3, len: 10 }, sfx: 'flamethrower',
+    tracer: { color: '#ff7518', width: 3, len: FLAME_RULES.range }, sfx: 'flamethrower',
   },
   rocket: {
     // Shoulder launcher: one slow rocket per tube that detonates on any contact. Splash

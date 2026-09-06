@@ -298,7 +298,8 @@ export async function runAudioContracts(ok, installGlobals) {
         sfx.cycleClick(2, 'sniper');
       }) === 4, 'pump and bolt contacts each start one aligned two-layer voice');
 
-      const fireWeapons = WEAPON_IDS;
+      // The flamethrower owns a sustained procedural stream, not a sampled shot.
+      const fireWeapons = WEAPON_IDS.filter((weapon) => weapon !== 'flamethrower');
       const sampleLoad = await sfx.loadSamples(Object.fromEntries(
         fireWeapons.map((weapon) => [
           `weapons.${weapon}.fire`,
@@ -322,7 +323,7 @@ export async function runAudioContracts(ok, installGlobals) {
           && sampleProfiles.every(({ layered, gain, rate }) => layered
             && gain >= 0.4 && gain <= 1.5 && rate >= 0.8 && rate <= 1.2)
           && new Set(sampleProfiles.map(({ gain, rate }) => `${gain}/${rate}`)).size >= 4,
-      'all canonical weapon samples use bounded distinct profiles and retain synthetic report layers');
+      'all sampled weapons use bounded distinct profiles and retain synthetic report layers');
       for (const weapon of ['longarc', 'lance']) {
         const gains = [0, 0.5, 1].map((charge) => {
           const mark = audio.nodes.length;

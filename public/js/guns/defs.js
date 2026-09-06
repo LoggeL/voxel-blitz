@@ -332,6 +332,7 @@ export const TIMERS = {
 
 TIMERS.flamethrower = {
   ...TIMERS.rocket,
+  continuous: true,
   rof: WEAPONS.flamethrower.rpm, adsTime: WEAPONS.flamethrower.adsTime,
   deployTime: WEAPONS.flamethrower.deployTime, weightKg: WEAPONS.flamethrower.weightKg,
   viewKick: { pitchDeg: WEAPONS.flamethrower.recoil.pitch, yawDeg: WEAPONS.flamethrower.recoil.yaw },

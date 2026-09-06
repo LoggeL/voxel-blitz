@@ -565,7 +565,7 @@ class Game {
       const yaw = this.player.view.yaw;
       const lateralSpeed = vel.x * Math.cos(yaw) - vel.z * Math.sin(yaw);
       const forwardSpeed = -(vel.x * Math.sin(yaw) + vel.z * Math.cos(yaw));
-      this.rig.update(dt, {
+      this.rig.update(frameDt, {
         speed: this.player.speedXZ,
         lateralSpeed,
         forwardSpeed,
@@ -581,7 +581,11 @@ class Game {
         aimSwayScale: this.player.aimMotion?.rigMotionScale,
       });
       this.weapon.syncRigAds();
-      this.effects.update(dt);
+      const flameDirection = fwdFromAngles(this.player.aimYaw, this.player.aimPitch);
+      this.effects.flames?.setLocalStream(this.weapon.flameFiring,
+        [flameDirection.x, flameDirection.y, flameDirection.z],
+        [this.camera.position.x, this.camera.position.y, this.camera.position.z]);
+      this.effects.update(dt, frameDt);
       this.worldview.update(dt);
     } catch (error) { this.phaseError('fx/rig', error); }
     try {
@@ -732,6 +736,11 @@ window.__vb = {
       yaw: game.player.view.yaw,
       weapon,
       weaponWeightKg: Number.isFinite(def?.weightKg) ? def.weightKg : null,
+      flameStream: {
+        active: !!game.weapon?.flameFiring,
+        particles: game.effects?.flames?.geometry.instanceCount || 0,
+        fuel: game.weapon?.ammoOf('flamethrower').mag ?? 0,
+      },
       adsT: game.weapon?.adsT ?? null,
       rigAdsT: game.rig?.currentAdsT01 ?? null,
       cameraFov: game.camera?.fov ?? null,

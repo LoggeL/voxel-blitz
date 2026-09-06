@@ -15,9 +15,9 @@ sticky limpet charges, and concussive pulse shocks.
 
 ## Chaos Lab
 
-Create a lobby, select **CHAOS LAB**, ready up and start. All ten weapons are available.
+Create a lobby, select **CHAOS LAB**, ready up and start. The full weapon roster is available.
 Start with $600, earn $300 per kill, and open the upgrade shop with **B** (or the touch
-BUY button / gamepad D-pad right). Each of the ten weapons and three grenades has
+BUY button / gamepad D-pad right). The original ten weapons and three grenades each have
 three cumulative upgrades costing $300, $600 and $900. Money and upgrades survive
 respawns for the current match; joining a new room starts fresh. Kills also restore
 one grenade of each type, up to five. The shop does not pause combat. Bots buy upgrades too.
@@ -28,6 +28,8 @@ multiball with explosive bumpers, homing cluster rockets, tunnel rails, pickaxe
 shockwaves, frag offspring, homing sticky offspring and vacuum-to-launch pulse bombs.
 The shop describes all 39 stages before purchase. Cluster children cannot reproduce;
 rooms cap live projectiles at 192 and clients retain at most 96 blast visuals.
+
+Minigun and flamethrower use their base mechanics in Chaos Lab without upgrade ladders.
 
 Validate with `npm run chaos:test` and `node tools/chaos-browser-smoke.mjs`.
 
@@ -44,6 +46,24 @@ Swept rocket/bolt contacts reject distant players before constructing body hitbo
 Homing checks eligible targets nearest-first and stops at the first visible target;
 steering still runs every simulation tick. Correction packets keep their 100 ms
 cadence and use the same two-decimal wire precision as launch packets.
+
+## Continuous flamethrower
+
+Hold fire to sustain the F-4 FIRESTORM jet. A 160-unit tank supplies eight seconds
+of fire, with 20 authoritative packets per second travelling at 30 m/s up to 18 m.
+Packets sweep against terrain and posed player hitboxes, stop on contact, and
+ignite victims for four seconds at 7 HP/s. Further hits refresh one burn without
+stacking its rate. Burning holds panic at least at 95%; death, respawn and round
+boundaries clear it. Already-emitted fire keeps travelling when the trigger is released.
+
+`shared/flame-rules.js` defines shared flight and cadence values. The server bounds
+fire to 512 packets. The client renders a fixed 512-particle batch in one draw call;
+local emission follows the current nozzle and stops immediately when fire is blocked.
+A sustained WebAudio noise loop replaces discrete gun reports and fades on release.
+
+Run `npm run flamethrower:test` for combat, hitbox, client cadence and audio checks.
+`node tools/flamethrower-render-smoke.mjs` verifies a sustained stream, nozzle continuity,
+range, wall clipping, pool limits, release behavior and WebGL rendering.
 
 ## Run
 

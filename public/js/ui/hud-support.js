@@ -51,7 +51,7 @@ export const WEAPON_CLASSES = Object.freeze({
   rocket: 'ROCKET LAUNCHER · SPLASH & ROCKET JUMP',
   lance: 'SIEGE LANCE · LINE PIERCE ×6',
   knife: 'PICKAXE · HOLD TO MINE',
-  flamethrower: 'FLAMETHROWER · 4s BURN & PANIC',
+  flamethrower: 'FLAMETHROWER · CONTINUOUS JET · 18m',
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([
