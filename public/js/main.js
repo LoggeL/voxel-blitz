@@ -354,7 +354,7 @@ class Game {
 
   isAuthoritativeFireAllowed() {
     if (!this.session.gameplayInputEnabled || !this.player.alive ||
-        this.selfRow?.state !== 'alive' || this._wheelOpen) return false;
+        this.selfRow?.state !== 'alive' || this._wheelOpen || this.player.physics.vault) return false;
     if (this.matchState?.mode === 'fun' || this.matchState?.mode === 'training') return true;
     return (this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
       this.matchState?.mode === 'gungame') &&
@@ -568,6 +568,7 @@ class Game {
         lateralSpeed,
         forwardSpeed,
         grounded: this.player.physics.grounded,
+        vaulting: !!this.player.physics.vault,
         verticalVelocity: this.player.physics.vel.y,
         isSprinting: !this.player.wantAds && this.player.keys.sprint && this.player.speedXZ > 4.6,
         crouch: this.player.crouchBool,

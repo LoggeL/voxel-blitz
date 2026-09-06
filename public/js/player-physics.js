@@ -1,7 +1,7 @@
 // Client-side predicted player movement. Mirrors the server constants
 // (see BUILD-CONTRACT) so prediction tracks authority closely.
 import { EYE_HEIGHT } from '../../shared/combatmath.js';
-import { PHYSICS, MOVEMENT_RULES, boxCollides, slidePlayerAxis, solidBelow } from '../../shared/player-movement.js';
+import { PHYSICS, MOVEMENT_RULES, boxCollides, slidePlayerAxis, solidBelow, findVault, stepVault } from '../../shared/player-movement.js';
 import { getBlock, ladderContact } from '../../shared/worlddata.js';
 
 const { walk: WALK, sprint: SPRINT, crouch: CROUCH, jump: JUMP_VEL,
@@ -14,6 +14,8 @@ export class PlayerPhysics {
     this.pos = { x: 64.5, y: 30, z: 48.5 };
     this.vel = { x: 0, y: 0, z: 0 };
     this.grounded = false;
+    this.vault = null;
+    this.jumpGroundY = null;
     this.coyote = 0;
     this._crouching = false;
     this.mapMeta = null;
@@ -49,6 +51,19 @@ export class PlayerPhysics {
   step(dt, wish, speedTarget, wantJump, climbAxis = 0) {
     if (this.coyote > 0) this.coyote = Math.max(0, this.coyote - dt);
 
+    if (this.grounded) this.jumpGroundY = this.pos.y;
+    if (!this.vault && wantJump && climbAxis > 0 && !this._crouching &&
+        (this.grounded || this.vel.y > 0)) {
+      this.vault = findVault(this._solidAt, this.pos, wish, this.jumpGroundY);
+    }
+    if (this.vault) {
+      const active = stepVault(this.pos, this.vault, dt, this._solidAt);
+      this.vel.x = this.vel.y = this.vel.z = 0;
+      this.grounded = !active && this.solidBelow(this.pos.x, this.pos.y, this.pos.z);
+      this.coyote = 0;
+      if (!active) this.vault = null;
+      return false;
+    }
     const onLadder = ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z);
     let ladderVy = 0;
     if (onLadder && (wantJump || climbAxis > 0)) ladderVy = LADDER_UP_SPEED;

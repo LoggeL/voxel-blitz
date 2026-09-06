@@ -422,7 +422,7 @@ export class GameEngine {
       entities: this.entities,
       getBlock: (x, y, z) => this.world.getBlock(x, y, z),
       canAffectWorld: () => this.mode.phase === 'live',
-      canThrow: (player) => this.mode.canFire(player),
+      canThrow: (player) => !player.vault && this.mode.canFire(player),
       grenadeDamage: this.mode.mode !== 'gungame',
       canDamage: (attacker, target) => this.mode.canDamage(attacker, target),
       destroyBlock: (x, y, z) => destroyBlockDirect(

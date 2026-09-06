@@ -109,6 +109,8 @@ export class PlayerEntity {
     this.reloading = false;
     this.reloadT = 0;
     this.reloadPrev = false;
+    this.vault = null;
+    this.jumpGroundY = null;
     this.reloadStage = null;
     this.reloadLoose = 0;
     this.deployT = WEAPONS[WEAPON_IDS[0]].deployTime;

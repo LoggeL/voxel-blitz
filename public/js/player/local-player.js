@@ -255,6 +255,8 @@ export class LocalPlayer {
     this.physics.vel.z = 0;
     this.physics.grounded = false;
     this.physics.coyote = 0;
+    this.physics.vault = null;
+    this.physics.jumpGroundY = null;
     this.physics._crouching = false;
     return true;
   }
@@ -647,6 +649,8 @@ export class LocalPlayer {
     this.physics.vel.y = 0;
     this.physics.vel.z = 0;
     this.physics.coyote = 0;
+    this.physics.vault = null;
+    this.physics.jumpGroundY = null;
     this.physics._crouching = false;
   }
 

@@ -70,3 +70,48 @@ export function slidePlayerAxis(position, axis, amount, solidAt) {
   }
   return false;
 }
+
+export const VAULT_SECONDS = 0.48;
+
+/** Find a reachable ledge relative to the last grounded height, never a midair wall climb. */
+export function findVault(solidAt, position, wish, groundY) {
+  if (!Number.isFinite(groundY) || Math.hypot(wish.x, wish.z) < 0.5) return null;
+  const dx = Math.abs(wish.x) > Math.abs(wish.z) ? Math.sign(wish.x) : 0;
+  const dz = dx ? 0 : Math.sign(wish.z);
+  const tx = position.x + dx * 0.95, tz = position.z + dz * 0.95;
+  const top = Math.round(groundY) + 2;
+  if (top - groundY > 2.05 || top <= position.y + 0.1) return null;
+  if (!solidAt(Math.floor(tx), top - 1, Math.floor(tz)) ||
+      boxCollides(solidAt, tx, top, tz)) return null;
+  const vault = { from: { x: position.x, y: position.y, z: position.z }, to: { x: tx, y: top, z: tz }, elapsed: 0 };
+  // Check the complete lift and pull path, including headroom above the takeoff point.
+  for (let i = 0; i <= 20; i++) {
+    const point = vaultPoint(vault, i / 20);
+    if (boxCollides(solidAt, point.x, point.y, point.z)) return null;
+  }
+  return vault;
+}
+
+function vaultPoint(vault, t) {
+  const smooth = (v) => v * v * (3 - 2 * v);
+  const lift = smooth(Math.min(1, t / 0.58));
+  const pull = smooth(Math.max(0, (t - 0.58) / 0.42));
+  return {
+    x: vault.from.x + (vault.to.x - vault.from.x) * pull,
+    y: vault.from.y + (vault.to.y - vault.from.y) * lift,
+    z: vault.from.z + (vault.to.z - vault.from.z) * pull,
+  };
+}
+
+/** Sweep each animation step so changing terrain cannot push a player through a ceiling. */
+export function stepVault(position, vault, dt, solidAt) {
+  const elapsed = Math.min(VAULT_SECONDS, vault.elapsed + dt);
+  for (let time = vault.elapsed; time < elapsed;) {
+    time = Math.min(elapsed, time + 1 / 120);
+    const point = vaultPoint(vault, time / VAULT_SECONDS);
+    if (boxCollides(solidAt, point.x, point.y, point.z)) return false;
+    Object.assign(position, point);
+  }
+  vault.elapsed = elapsed;
+  return elapsed < VAULT_SECONDS;
+}

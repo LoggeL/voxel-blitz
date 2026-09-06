@@ -3,7 +3,7 @@
 import { CONDITION_RULES } from '../../shared/combatmath.js';
 import { ladderContact } from '../../shared/worlddata.js';
 import { clamp01 } from './player.js';
-import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow } from '../../shared/player-movement.js';
+import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow, findVault, stepVault } from '../../shared/player-movement.js';
 
 const WALK_SPEED = PHYSICS.walk;
 const SPRINT_SPEED = PHYSICS.sprint;
@@ -128,6 +128,7 @@ export function stepMovement(p, dt, ctx) {
   p.adsT = Math.max(0, Math.min(1, p.adsT + (p.ads ? adsStep : -adsStep)));
 
   if (ctx.movementLocked) {
+    p.vault = null;
     p.vx = 0;
     p.vy = 0;
     p.vz = 0;
@@ -154,6 +155,21 @@ export function stepMovement(p, dt, ctx) {
     wz = -cy * fwdAmt - sy * strafe;
     const length = Math.hypot(wx, wz);
     wx /= length; wz /= length;
+  }
+  if (p.grounded) p.jumpGroundY = p.y;
+  if (!p.vault && kf.jump && fwdAmt > 0 && !p.crouch && (p.grounded || p.vy > 0)) {
+    p.vault = findVault(ctx.solidAt, p, { x: wx, z: wz }, p.jumpGroundY);
+  }
+  if (p.vault) {
+    const active = stepVault(p, p.vault, dt, ctx.solidAt);
+    p.vx = p.vy = p.vz = 0;
+    p.ads = false;
+    p.grounded = !active && solidBelow(ctx.solidAt, p.x, p.y, p.z);
+    p.coyote = 0;
+    if (!active) p.vault = null;
+    p.hist.push({ x: p.x, y: p.y, z: p.z, t: ctx.now });
+    if (p.hist.length > 16) p.hist.shift();
+    return;
   }
   let speed = p.crouch ? CROUCH_SPEED : (p.sprint ? SPRINT_SPEED : WALK_SPEED);
   // A pulse concussion drags the legs: 60% speed until the deadline passes.

@@ -70,12 +70,14 @@ rig.setWeapon(weapon);
 
 const stablePose = Object.freeze({
   speed: 0,
+  vaulting: state === 'vaulting',
   grounded: true,
   aimSwayScale: 0,
 });
 switch (state) {
   case 'charge-low':
   case 'charge-high':
+  case 'vaulting':
   case 'held':
     rig.ads(0);
     break;

@@ -448,6 +448,7 @@ export class ViewmodelRig {
     }
 
     /* sprint cant + counter-roll + inertia roll composition */
+    this._vaultDip = (this._vaultDip || 0) + ((ctx.vaulting ? 1 : 0) - (this._vaultDip || 0)) * (1 - Math.exp(-18 * dt));
     const cant = sprinting ? BOB.sprintTiltZ * Math.min(1, speed / 6.2) * (1 - adsE) : 0;
     const roll = bobX / (BOB.walkHorz || 1) * BOB.counterRoll * (1 - adsE * 0.5)
       + turn.roll
@@ -469,10 +470,10 @@ export class ViewmodelRig {
     const dep = this._deployOffset();
     this.content.position.set(
       HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX,
-      HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y + nadeY + swingY,
+      HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.16,
       HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ
     );
-    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx, swingRy, swingRz);
+    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.35, swingRy, swingRz + this._vaultDip * 0.18);
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
     this._decayFx(dt, cur);
