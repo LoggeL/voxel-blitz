@@ -26,9 +26,10 @@ The main menu offers Quick Play, custom lobbies, room codes, and a Killhouse sho
   creates one immediately. Fresh quick rooms rotate between Foundry, Depot,
   Solstice, and Caldera.
   A fresh room starts with at least five bots; humans replace bots as they join.
-  The menu's custom mode and map selectors do not change quick play.
-- **Create Lobby** creates a public waiting room with the selected game mode,
-  compatible map, and `0–7` bots. Every human, including the host, marks ready;
+  Custom lobby settings do not change quick play.
+- **Create Lobby** immediately creates a joinable waiting room and puts its code
+  in the browser URL. The host can change mode, compatible map and `0–7` bots
+  while friends join. Changes reset everyone's readiness. Every human, including the host, marks ready;
   the host starts the match after all humans are ready.
 - **Join** accepts a five-character invite code and inherits the room's
   authoritative mode and map. It may enter either a waiting lobby or a match
@@ -40,11 +41,13 @@ facility has nine respawning range targets, four numbered course rooms with eigh
 stage targets, skylights, a marked start portal, and a return door beside the finish.
 The menu preview is a capture of the same geometry used in the game.
 
-The lobby displays its mode, map, roster, invite code, and copyable invite URL,
+The lobby displays its mode, map, roster, invite code, a QR button, and copyable invite URL,
 constructed as `${location.origin}${location.pathname}?lobby=${code}`. Loading
 that query preselects Join and pre-fills the normalized code. Codes are
 case-insensitive, uppercase on the wire, and use
-`ABCDEFGHJKMNPQRSTUVWXYZ23456789`.
+`ABCDEFGHJKMNPQRSTUVWXYZ23456789`. The QR button opens a large, locally generated
+code for the full invite URL. Escape, Close or clicking the backdrop returns to
+the lobby without disconnecting.
 
 Headless clients can join quick play from additional shells:
 
@@ -111,7 +114,7 @@ container smoke separate so normal development does not inherit their runtime.
 
 For deterministic manual menu QA, `?debug=1&ui=settings` opens the pause/settings
 surface without requiring pointer lock, and `?debug=1&ui=wheel` force-opens the
-radial weapon wheel the same way. Main, create-lobby, and waiting-lobby
+radial weapon wheel the same way. Main and waiting-lobby
 states remain reachable through their normal controls. The 3D scene is graded
 through a bounded combat post-process with subtle detail recovery and
 pain/panic feedback; DOM HUD stays untouched, and `?shader=off` exercises the
@@ -122,8 +125,9 @@ direct-render fallback.
 Every admitted client receives a JSON `welcome` carrying the authoritative
 `gameMode` and `map`, immediately followed by exactly one binary frame for that
 room's current map. Room members also receive immutable full `lobbyState`
-replacements after membership, readiness, phase, or host changes; those
-replacements retain the room's mode and map. Quick rooms remain live and bypass
+replacements after membership, settings, readiness, phase, or host changes.
+Changing the waiting-room arena sends a `lobbyConfig` header with new spawn and
+map metadata, then the replacement binary map, then `lobbyState`. Quick rooms remain live and bypass
 the waiting UI.
 
 - A created public room remains paused in `waiting`. Every human—including the
@@ -132,9 +136,14 @@ the waiting UI.
 - Starting changes the room to `live`, attaches its bots, and starts its
   authoritative 20 Hz engine. A human may join a live public room later and
   receives that room's current, already-mutated map before gameplay begins.
+  Combat bots fill at most eight total slots; late joins take an available bot
+  when the mode permits takeover.
 - If the host leaves, the earliest remaining human becomes host. When the last
-  human leaves, the engine stops, bots are disposed, and the room/code is
-  released.
+  human leaves normally, the engine stops, bots are disposed, and the room/code
+  is released. After an abnormal last-player disconnect, the room stays available
+  for 30 seconds. The client retries connection up to six times. Reconnection is
+  a fresh admission with the same name and code, so personal score, loadout and
+  host ownership are not reserved; Quick Play re-enters matchmaking.
 - Each room owns a fresh map-specific voxel world, `GameEngine`, mode
   controller, optional `BotManager`, and room-scoped broadcasts. Damage, chat,
   ticks, mode events, block deltas, and world mutations never cross room

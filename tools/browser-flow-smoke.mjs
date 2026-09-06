@@ -1,4 +1,5 @@
 import path from 'node:path';
+import jsQR from 'jsqr';
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
@@ -53,6 +54,14 @@ async function main() {
     const url = `http://127.0.0.1:${port}/?debug=1&headless=1&touch=1`;
     browser = await launchCdpSession(url);
     const page = browser.page;
+    await page.send('Page.addScriptToEvaluateOnNewDocument', { source: `
+      window.__testSockets = [];
+      const NativeWebSocket = window.WebSocket;
+      window.WebSocket = class extends NativeWebSocket {
+        constructor(...args) { super(...args); window.__testSockets.push(this); }
+      };
+    ` });
+    await page.send('Page.reload');
 
     await page.waitFor(`document.readyState === 'complete' &&
       !!document.getElementById('play-btn') &&
@@ -105,47 +114,77 @@ async function main() {
       await writeFile(output, Buffer.from(screenshot.data, 'base64'));
     }
 
-    await page.evaluate(`document.getElementById('create-lobby-btn').click()`);
-    await page.waitFor(`document.getElementById('create-lobby-step')?.getAttribute('aria-hidden') === 'false' &&
-      document.getElementById('map-preview-image')?.complete &&
-      document.getElementById('map-preview-image')?.naturalWidth > 0`, {
-      label: 'create-lobby detail step',
-    });
-    const createStep = await page.evaluate(`(() => ({
-      modes: [...document.getElementById('game-mode-select').options].map((option) => option.value),
-      maps: [...document.getElementById('map-select').options].map((option) => option.value),
-      preview: document.getElementById('map-preview-image').dataset.map,
-      previewAlt: document.getElementById('map-preview-image').alt,
-      players: document.querySelectorAll('.vb-create-player').length,
-      bots: document.getElementById('bot-count').options.length,
-      focused: document.activeElement?.id,
-    }))()`);
-    requireCondition(createStep.modes.includes('gungame') && createStep.maps.length >= 2,
-      'create-lobby detail step exposes current modes and compatible map choices');
-    requireCondition(createStep.players === 8 && createStep.bots === 8 &&
-      createStep.preview && /arena preview/i.test(createStep.previewAlt),
-    'create-lobby detail step renders map preview, player list, and bot settings');
-    requireCondition(createStep.focused === 'create-step-back',
-      'multi-step menu moves keyboard focus into the detail step');
-
-    await page.send('Emulation.setDeviceMetricsOverride', {
-      width: 840,
-      height: 720,
-      deviceScaleFactor: 1,
-      mobile: false,
-    });
-    const fitsCompact = await page.evaluate(`document.documentElement.scrollWidth <= window.innerWidth + 1`);
-    requireCondition(fitsCompact, 'create-lobby detail step avoids horizontal overflow at compact width');
-    await page.send('Emulation.setDeviceMetricsOverride', {
-      width: LIVE_WIDTH,
-      height: LIVE_HEIGHT,
-      deviceScaleFactor: 1,
-      mobile: LIVE_WIDTH <= 720,
-    });
-    await page.evaluate(`document.getElementById('create-step-back').click()`);
-    await page.waitFor(`document.getElementById('menu-primary-step')?.getAttribute('aria-hidden') === 'false'`, {
-      label: 'create-lobby back navigation',
-    });
+    await clickElement(page, 'create-lobby-btn');
+    await page.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false' &&
+      document.getElementById('lobby-map-preview')?.naturalWidth > 0`, { label: 'immediate waiting lobby' });
+    requireCondition(await page.evaluate(`new URL(location.href).searchParams.get('lobby') ===
+      document.getElementById('lobby-code-val').textContent &&
+      document.getElementById('lobby-invite-input').value.includes('?lobby=')`),
+      'Create immediately exposes an active code in the URL and invitation');
+    await page.evaluate(`(() => {
+      const select = document.getElementById('game-mode-select');
+      select.value = 'tdm'; select.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`);
+    await page.waitFor(`document.getElementById('lobby-mode-val').textContent.includes('TEAM')`,
+      { label: 'authoritative mode edit' });
+    await page.evaluate(`(() => {
+      const select = document.getElementById('map-select');
+      select.value = 'depot'; select.dispatchEvent(new Event('change', { bubbles: true }));
+    })()`);
+    await page.waitFor(`document.getElementById('lobby-map-val').textContent.includes('DEPOT')`,
+      { label: 'authoritative map edit' });
+    requireCondition(await page.evaluate(`document.getElementById('lobby').scrollWidth <= innerWidth`),
+      'editable lobby fits the requested viewport');
+    if (process.env.BROWSER_SMOKE_SCREENSHOT) {
+      const screenshot = await page.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+      await writeFile(path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT).replace(/\.png$/, '-lobby.png'),
+        Buffer.from(screenshot.data, 'base64'));
+    }
+    await clickElement(page, 'lobby-qr-btn');
+    await page.waitFor(`document.getElementById('lobby-qr-dialog')?.open`, { label: 'large invitation QR dialog' });
+    const qrPixels = await page.evaluate(`(() => {
+      const canvas = document.getElementById('lobby-qr-canvas');
+      return { width: canvas.width, height: canvas.height,
+        pixels: Array.from(canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height).data),
+        url: document.getElementById('lobby-invite-input').value };
+    })()`);
+    const decoded = jsQR(new Uint8ClampedArray(qrPixels.pixels), qrPixels.width, qrPixels.height);
+    requireCondition(decoded?.data === qrPixels.url, 'rendered QR independently decodes to the exact lobby invitation URL');
+    requireCondition(await page.evaluate(`(() => {
+      const r = document.getElementById('lobby-qr-dialog').getBoundingClientRect();
+      return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
+    })()`), 'large QR dialog stays within the viewport');
+    if (process.env.BROWSER_SMOKE_SCREENSHOT) {
+      const screenshot = await page.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+      await writeFile(path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT).replace(/\.png$/, '-qr.png'),
+        Buffer.from(screenshot.data, 'base64'));
+    }
+    await pressEscape(page);
+    requireCondition(await page.evaluate(`!document.getElementById('lobby-qr-dialog').open &&
+      document.getElementById('lobby').getAttribute('aria-hidden') === 'false' &&
+      document.activeElement.id === 'lobby-qr-btn'`), 'Escape closes only the QR dialog and restores button focus');
+    const reconnectCode = await page.evaluate(`document.getElementById('lobby-code-val').textContent`);
+    await page.evaluate(`new Promise((resolve, reject) => {
+      window.__interruptedSocket = window.__testSockets.at(-1);
+      const peer = window.__recoveryPeer = new WebSocket(location.origin.replace(/^http/, 'ws'));
+      peer.onopen = () => peer.send(JSON.stringify({t: 'join', name: 'RecoveryWitness',
+        lobby: new URL(location.href).searchParams.get('lobby')}));
+      peer.onmessage = (event) => {
+        if (typeof event.data === 'string' && JSON.parse(event.data).t === 'lobbyState') resolve(true);
+      };
+      peer.onerror = reject;
+    })`);
+    await page.evaluate(`window.__interruptedSocket.close(1000, 'simulated transport interruption')`);
+    await page.waitFor(`document.getElementById('join-status')?.textContent.includes('Reconnecting')`,
+      { label: 'automatic reconnect feedback' });
+    await page.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false' &&
+      document.getElementById('lobby-code-val').textContent === ${JSON.stringify(reconnectCode)}`,
+      { label: 'automatic waiting lobby recovery' });
+    requireCondition(true, 'lost connection automatically returns to the same configured lobby');
+    await page.evaluate(`window.__recoveryPeer.close()`);
+    await clickElement(page, 'lobby-leave-btn');
+    await page.waitFor(`document.getElementById('menu')?.getAttribute('aria-hidden') === 'false'`,
+      { label: 'leave immediate lobby' });
 
     await page.evaluate(`(() => {
       const name = document.getElementById('name-input');
@@ -338,17 +377,14 @@ async function main() {
     requireCondition(true, 'Quit tears down live resources and returns to the main menu');
 
     await clickElement(page, 'create-lobby-btn');
+    await page.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false'`,
+      { label: 'new lobby after live match' });
     await page.evaluate(`(() => {
       const select = document.getElementById('game-mode-select');
-      select.value = 'training';
-      select.dispatchEvent(new Event('change', { bubbles: true }));
+      select.value = 'training'; select.dispatchEvent(new Event('change', { bubbles: true }));
     })()`);
-    requireCondition(await page.evaluate(`document.getElementById('map-select').value === 'killhouse'`),
-      'Training selects its compatible Killhouse map');
-    await clickElement(page, 'create-step-back');
-    await clickElement(page, 'training-btn');
-    await page.waitFor(`!!document.getElementById('lobby-ready-btn') &&
-      !document.getElementById('lobby')?.classList.contains('hidden')`, { label: 'Training waiting lobby' });
+    await page.waitFor(`document.getElementById('map-select').value === 'killhouse' &&
+      document.getElementById('bot-count').disabled`, { label: 'authoritative Training configuration' });
     await clickElement(page, 'lobby-ready-btn');
     await page.waitFor(`document.getElementById('lobby-start-btn')?.disabled === false`, {
       label: 'Training ready gate',
@@ -360,6 +396,23 @@ async function main() {
       label: 'Training live handoff', timeoutMs: 30_000,
     });
     requireCondition(true, 'Training starts with exactly 17 targets and its run overlay after a previous match');
+    await page.evaluate(`new Promise((resolve, reject) => {
+      window.__interruptedSocket = window.__testSockets.at(-1);
+      const peer = window.__recoveryPeer = new WebSocket(location.origin.replace(/^http/, 'ws'));
+      peer.onopen = () => peer.send(JSON.stringify({t: 'join', name: 'LiveWitness',
+        lobby: new URL(location.href).searchParams.get('lobby')}));
+      peer.onmessage = (event) => {
+        if (typeof event.data === 'string' && JSON.parse(event.data).t === 'lobbyState') resolve(true);
+      };
+      peer.onerror = reject;
+    })`);
+    await page.evaluate(`window.__interruptedSocket.close(1000, 'simulated live interruption')`);
+    await page.waitFor(`document.getElementById('join-status')?.textContent.includes('Reconnecting')`,
+      { label: 'live reconnect feedback' });
+    await page.waitFor(`window.__vb.stats.running && window.__vb.stats.lastSnapAgeMs < 1000`,
+      { label: 'live match automatic recovery', timeoutMs: 30000 });
+    await page.evaluate(`window.__recoveryPeer.close()`);
+    requireCondition(true, 'a lost live connection automatically rejoins the running match');
     const initialWeapon = await page.evaluate('window.__vb.stats.weapon');
     const ammoPoint = await page.evaluate(`(() => {
       const r = document.getElementById('ammo').getBoundingClientRect();

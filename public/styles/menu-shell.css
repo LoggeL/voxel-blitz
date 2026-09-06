@@ -364,3 +364,40 @@ h1.vb-deployment-title::after { display: none; }
   .vb-music-toggle { flex-shrink: 0; }
   #menu .vb-brand-context { display: none; }
 }
+
+.vb-lobby-settings { display: grid; gap: 12px; margin: 16px 0; }
+.vb-lobby-settings .vb-select { width: 100%; }
+
+.vb-invite-qr {
+  position: fixed;
+  inset: 0;
+  box-sizing: border-box;
+  width: min(620px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  padding: 24px;
+  overflow: auto;
+  border: 1px solid #66717b;
+  border-radius: 12px;
+  background: #0c131b;
+  color: #fff;
+  text-align: center;
+}
+.vb-invite-qr::backdrop { background: rgba(0, 0, 0, 0.86); }
+.vb-invite-qr h2 { margin: 0 0 8px; font-size: 22px; letter-spacing: 3px; }
+.vb-invite-qr-code { margin-bottom: 16px; color: #ffad32; font-size: 30px; letter-spacing: 8px; }
+.vb-invite-qr-image {
+  display: block;
+  width: min(100%, 480px, 55dvh);
+  height: auto;
+  margin: auto;
+  image-rendering: pixelated;
+  background: #fff;
+}
+.vb-invite-qr-link { margin: 14px 0; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5; }
+.vb-invite-qr .vb-btn { min-height: 44px; width: 100%; }
+@media (max-width: 600px) {
+  .vb-lobby-invite-card .vb-invite-row { flex-wrap: wrap; }
+  .vb-lobby-invite-card .vb-invite-input { flex-basis: 100%; }
+  .vb-lobby-invite-card .vb-btn-copy { flex: 1; min-height: 44px; }
+}

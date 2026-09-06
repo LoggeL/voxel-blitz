@@ -7,11 +7,14 @@ import {
   copyInviteLink as copyInviteText,
   el,
   loadName,
+  loadPref,
   loadPrefNum,
   resolveInviteBase,
   saveName,
 } from './hud-support.js';
-import { CreateLobbySetup } from './create-lobby-setup.js';
+import { LobbyInviteQr } from './lobby-invite-qr.js';
+import { LobbySettings } from './lobby-settings.js';
+import { normalizeModeId, mapForMode } from '../../../shared/modes.js';
 import {
   clampMouseSensitivity,
   MOUSE_SENSITIVITY,
@@ -32,8 +35,6 @@ export class MenuLobbyController {
     this.lobbyDom = {};
     this.joinStatus = null;
     this._onLobbyKeyDown = null;
-    this._onMenuKeyDown = null;
-    this._createSetup = null;
   }
 
   _callHost(name, ...args) {
@@ -133,7 +134,7 @@ export class MenuLobbyController {
     createLobbyButton.type = 'button';
     createLobbyButton.textContent = 'CREATE LOBBY';
     const createHint = el('div', 'vb-action-hint', createBox);
-    createHint.textContent = 'Choose a map. Bring your friends.';
+    createHint.textContent = 'Get an invite link. Set up while friends join.';
 
     const joinSection = el('div', 'vb-join-section', primaryBody);
     const joinLabel = el('label', 'vb-label', joinSection);
@@ -185,18 +186,13 @@ export class MenuLobbyController {
       });
     };
 
-    const showPrimary = () => {
-      this._createSetup?.hide();
-      primary.classList.remove('hidden');
-      primary.setAttribute('aria-hidden', 'false');
-      createLobbyButton.focus();
-    };
-
     const triggerCreate = () => {
-      primary.classList.add('hidden');
-      primary.setAttribute('aria-hidden', 'true');
-      this.showJoinState('');
-      this._createSetup?.show();
+      if (createLobbyButton.disabled) return;
+      const gameMode = normalizeModeId(loadPref('vb-mode', 'fun'), 'fun');
+      this.onMenuAction({ mode: 'create', gameMode,
+        map: mapForMode(gameMode, loadPref('vb-map', 'foundry')),
+        bots: gameMode === 'training' ? 0 : Math.round(loadPrefNum('vb-bots', 3, 0, 7)),
+        code: '', ...getIdentity() });
     };
 
     const triggerJoin = () => {
@@ -217,15 +213,6 @@ export class MenuLobbyController {
       this.onMenuAction({ mode: 'join', gameMode: 'fun', map: 'foundry', bots: 0,
         code: cleaned, ...getIdentity() });
     };
-
-    this._createSetup = new CreateLobbySetup({
-      parent: panel,
-      nameInput,
-      getSensitivity: () => this._sensitivity(),
-      setSensitivity: (value) => this._callHost('setSensitivity', value),
-      onBack: showPrimary,
-      onCreate: (payload) => this.onMenuAction(payload),
-    });
 
     trainingButton.addEventListener('click', () => {
       if (trainingButton.disabled) return;
@@ -255,14 +242,6 @@ export class MenuLobbyController {
         else triggerQuick();
       }
     });
-
-    if (this._onMenuKeyDown) document.removeEventListener('keydown', this._onMenuKeyDown);
-    this._onMenuKeyDown = (event) => {
-      if (event.key !== 'Escape' || this._createSetup?.root.classList.contains('hidden')) return;
-      event.preventDefault();
-      showPrimary();
-    };
-    document.addEventListener('keydown', this._onMenuKeyDown);
 
     let prefillCode = '';
     try {
@@ -301,7 +280,6 @@ export class MenuLobbyController {
       status.classList.toggle('ok', tone === 'ok');
       status.classList.toggle('err', tone === 'err');
     }
-    this._createSetup?.showStatus(message, tone);
   }
 
   ensureLobbyDom() {
@@ -334,6 +312,8 @@ export class MenuLobbyController {
     const missionPreview = el('img', 'vb-lobby-mission-image', metaCard, 'lobby-map-preview');
     missionPreview.width = 720;
     missionPreview.height = 360;
+
+    const settings = new LobbySettings(metaCard, (value) => this._lobbyCallbacks?.onConfigure?.(value));
 
     const chipsRow = el('div', 'vb-lobby-chips-row', metaCard);
 
@@ -374,6 +354,18 @@ export class MenuLobbyController {
     copyButton.setAttribute('aria-label', 'Copy Invite Link');
     copyButton.addEventListener('click', () => {
       void this.copyInviteLink(inviteInput.value);
+    });
+
+    const qr = new LobbyInviteQr(root);
+    const qrButton = el('button', 'vb-btn-copy', inviteRow, 'lobby-qr-btn');
+    qrButton.type = 'button';
+    qrButton.textContent = 'QR CODE';
+    qrButton.setAttribute('aria-haspopup', 'dialog');
+    qrButton.setAttribute('aria-label', 'Show lobby invitation QR code');
+    qrButton.addEventListener('click', () => {
+      void qr.show(inviteInput.value, codeValue.textContent, qrButton).catch(() => {
+        this.showLobbyStatus('Could not display the QR code. Please use the invite link.', 'err');
+      });
     });
 
     const rosterCard = el('div', 'vb-lobby-card vb-roster-card', panel);
@@ -438,9 +430,11 @@ export class MenuLobbyController {
       modeVal: modeValue,
       mapVal: mapValue,
       missionPreview,
+      settings,
       codeVal: codeValue,
       inviteInput,
       copyBtn: copyButton,
+      qr,
       readyCount,
       rosterList,
       leaveBtn: leaveButton,
@@ -453,6 +447,7 @@ export class MenuLobbyController {
     if (!this._onLobbyKeyDown) {
       this._onLobbyKeyDown = (event) => {
         if (root.classList.contains('hidden') || root.style.display === 'none') return;
+        if (this.lobbyDom.qr?.isOpen) return;
         if (this._settingsOpen()) return;
         if (this._buyMenuOpen()) return;
         if (event.key === 'Escape') {
@@ -468,12 +463,12 @@ export class MenuLobbyController {
     return root;
   }
 
-  showLobby(state, { onReady, onStart, onLeave } = {}) {
+  showLobby(state, { onReady, onStart, onLeave, onConfigure } = {}) {
     this._callHost('closeSettings');
     if (this._buyMenuOpen()) this._callHost('toggleBuyMenu', false);
     else this._callHost('closeBuyMenuDirect');
 
-    this._lobbyCallbacks = { onReady, onStart, onLeave };
+    this._lobbyCallbacks = { onReady, onStart, onLeave, onConfigure };
     const menu = document.getElementById('menu');
     if (menu) {
       menu.classList.add('hidden');
@@ -524,7 +519,11 @@ export class MenuLobbyController {
       dom.inviteInput.value = inviteUrl;
     }
 
-    const members = Array.isArray(state.members) ? state.members : [];
+    const members = Array.isArray(state.members) ? [...state.members] : [];
+    if (state.phase === 'waiting' && gameMode !== 'training') {
+      const count = Math.min(state.bots || 0, 8 - members.length);
+      for (let i = 0; i < count; i++) members.push({ id: `planned-bot-${i}`, name: `TACTICAL BOT ${i + 1}`, bot: true });
+    }
     const humans = members.filter((member) => !member.bot);
     const readyHumans = humans.filter((member) => !!member.ready).length;
     const totalHumans = humans.length;
@@ -593,6 +592,7 @@ export class MenuLobbyController {
       state.selfId != null
       && state.host != null
       && String(state.selfId) === String(state.host);
+    dom.settings.update(state, isHost);
     if (isHost) {
       if (dom.startBtn) {
         dom.startBtn.style.display = 'block';
@@ -608,6 +608,7 @@ export class MenuLobbyController {
   }
 
   hideLobby() {
+    this.lobbyDom.qr?.close();
     const root = document.getElementById('lobby');
     if (root) {
       root.classList.add('hidden');
@@ -641,10 +642,6 @@ export class MenuLobbyController {
 
   dispose() {
     const doc = typeof document !== 'undefined' ? document : null;
-    if (this._onMenuKeyDown) {
-      if (doc) doc.removeEventListener('keydown', this._onMenuKeyDown);
-      this._onMenuKeyDown = null;
-    }
     if (this._onLobbyKeyDown) {
       if (doc) doc.removeEventListener('keydown', this._onLobbyKeyDown);
       this._onLobbyKeyDown = null;
@@ -658,6 +655,5 @@ export class MenuLobbyController {
     this._lobbyCallbacks = null;
     this.joinStatus = null;
     this.lobbyDom = {};
-    this._createSetup = null;
   }
 }

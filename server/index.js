@@ -225,6 +225,10 @@ async function main() {
           }
           return;
         }
+        if (msg.t === 'configure') {
+          manager.configure(meta, msg);
+          return;
+        }
         if (msg.t === 'ready') {
           manager.ready(meta, msg.value);
           return;
@@ -248,10 +252,10 @@ async function main() {
       } catch { /* malformed game traffic must not kill sockets */ }
     });
 
-    ws.on('close', () => {
+    ws.on('close', (code) => {
       clearTimeout(joinTimer);
       try {
-        manager.leave(meta);
+        manager.leave(meta, { reconnectable: code === 1006 || code === 1001 });
       } catch (err) {
         console.error('[voxel-blitz] lobby leave:', err.message);
       }

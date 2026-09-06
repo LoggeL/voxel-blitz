@@ -25,6 +25,7 @@
     "ws": "^8.18.0"
   },
   "devDependencies": {
+    "jsqr": "^1.4.0",
     "three": "^0.180.0"
   },
   "engines": {

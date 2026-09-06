@@ -19,9 +19,9 @@ export { angleLerpShortest } from './snapshot-smoothing.js';
 
 // Voxel Blitz — WebSocket client + snapshot interpolation layer.
 //
-// Transport: JSON text frames; the ONE binary frame is the serialized map
+// Transport: JSON text frames; binary frames carry the serialized map
 // pushed by the server immediately after {t:'welcome'} (paired by arrival
-// order on this socket). Everything else follows BUILD-CONTRACT.md protocol.
+// order on this socket), or after a waiting-room lobbyConfig update.
 //
 // The interpolation math and event draining are FACTORED INTO PURE NAMED
 // EXPORTS (angleLerpShortest, drainEventsWithDedupe) so node tests can drive
@@ -131,6 +131,7 @@ export class NetClient {
     this.ws = null;
     this._sessionGeneration = 0;
     this._connectAbort = null;
+    this._pendingLobbyConfig = null;
     this.welcome = null;         // frozen welcome payload (also connect()'s resolve value)
     this.id = null;
     this.mapBytes = 0;
@@ -210,6 +211,7 @@ export class NetClient {
   /** Clear all socket-owned state without touching caller-owned listeners. */
   _resetSessionState(dirty) {
     this._stopPing();
+    this._pendingLobbyConfig = null;
     this.welcome = null;
     this.id = null;
     this.mapBytes = 0;
@@ -468,6 +470,14 @@ export class NetClient {
     }
   }
 
+  configureLobby({ gameMode, map, bots }) {
+    if (!this.isOpen()) return false;
+    try {
+      this.ws.send(JSON.stringify({ t: 'configure', gameMode, map, bots }));
+      return true;
+    } catch { return false; }
+  }
+
   /** Buy one exact shared-contract weapon id. */
   buyWeapon(id) {
     if (!isWeaponId(id) || !this.isOpen()) return false;
@@ -609,6 +619,11 @@ export class NetClient {
         this._emit('welcome', w);
         break;
       }
+      case 'lobbyConfig': {
+        if (this.latestLobbyState?.phase !== 'waiting' || msg.id !== this.id) break;
+        this._pendingLobbyConfig = immutableWireCopy(msg);
+        break;
+      }
       case 'lobbyState': {
         const members = Array.isArray(msg.members)
           ? msg.members.filter((member) => member && typeof member === 'object')
@@ -650,8 +665,19 @@ export class NetClient {
   }
 
   _onTickData(data) {
-    // Binary frames other than the initial map are not part of the protocol;
-    // ignore defensively instead of choking mid-session.
+    const config = this._pendingLobbyConfig;
+    if (!config) return;
+    this._pendingLobbyConfig = null;
+    const bytes = data instanceof ArrayBuffer ? new Uint8Array(data) : Uint8Array.from(data);
+    if (bytes.byteLength !== config.mapBytes) {
+      this._emit('serverError', { msg: 'Lobby map transfer failed. Please rejoin.' });
+      this.close();
+      return;
+    }
+    this.welcome = config;
+    this.mapBytes = config.mapBytes;
+    this.spawn = config.spawn;
+    if (this.onMap) this.onMap(bytes);
   }
 
   _onTick(msg) {

@@ -424,6 +424,59 @@ async function runContracts(server, signal) {
   const port = await withTimeout(server.port, START_TIMEOUT_MS, 'server startup timeout', signal);
   pass(Number.isInteger(port) && port > 0, 'server binds an OS-assigned port');
 
+  // Configure an already joinable room while peers are connected.
+  const editor = await admit(makeClient(port, 'Editor'), { t: 'create', name: 'Editor', bots: 3 }, signal);
+  const editCode = editor.welcome.lobby.code;
+  const peer = await admit(makeClient(port, 'Editing-Peer'), { t: 'join', name: 'Editing-Peer', lobby: editCode }, signal);
+  let editMark = peer.mark();
+  peer.send({ t: 'configure', gameMode: 'tdm', map: 'depot', bots: 7 });
+  await peer.waitForJson((msg) => msg.t === 'error' && /host/i.test(msg.msg), 'guest settings rejection', editMark, FRAME_TIMEOUT_MS, signal);
+  pass(peer.ws.readyState === WebSocket.OPEN, 'only the host can edit without disconnecting a guest');
+  editMark = editor.mark();
+  peer.send({ t: 'ready', value: true });
+  await nextLobbyState(editor, editMark, editCode, signal);
+  const editorConfigMark = editor.mark();
+  const peerConfigMark = peer.mark();
+  editor.send({ t: 'configure', gameMode: 'tdm', map: 'depot', bots: 7 });
+  for (const [client, from] of [[editor, editorConfigMark], [peer, peerConfigMark]]) {
+    const header = await client.waitForFrame((frame) => frame.kind === 'json' && frame.value.t === 'lobbyConfig',
+      'replacement arena header', from, FRAME_TIMEOUT_MS, signal);
+    const bytes = await client.waitForFrame((frame) => frame.kind === 'binary',
+      'replacement arena bytes', from, FRAME_TIMEOUT_MS, signal);
+    const replacement = await nextLobbyState(client, from, editCode, signal, (state) => state.map === 'depot');
+    pass(header.seq < bytes.seq && validMap(bytes.value, header.value.mapBytes)
+      && header.value.map === 'depot' && replacement.gameMode === 'tdm'
+      && replacement.host === editor.welcome.id && replacement.members.length === 2
+      && replacement.members.every((row) => !row.ready),
+      `${client.label} keeps code and roster, replaces arena and resets readiness`);
+  }
+  const editingLate = await admit(makeClient(port, 'Editing-Late'),
+    { t: 'join', name: 'Editing-Late', lobby: editCode }, signal, { gameMode: 'tdm', map: 'depot' });
+  pass(editingLate.initialState.bots === 7, 'new arrivals receive current settings while the host configures');
+  for (const client of [editor, peer, editingLate]) {
+    const readyMark = editor.mark();
+    client.send({ t: 'ready', value: true });
+    await nextLobbyState(editor, readyMark, editCode, signal);
+  }
+  editor.send({ t: 'start' });
+  await nextTick(editor, editorConfigMark, (tick) => tick.players.length === 8, 'configured match caps bots to open slots', signal);
+  const afterStartMark = editor.mark();
+  editor.send({ t: 'configure', gameMode: 'fun', map: 'foundry', bots: 0 });
+  await editor.waitForJson((msg) => msg.t === 'error' && /started/i.test(msg.msg), 'live edit rejection', afterStartMark, FRAME_TIMEOUT_MS, signal);
+  const liveLate = await admit(makeClient(port, 'Live-Editing-Late'),
+    { t: 'join', name: 'Live-Editing-Late', lobby: editCode }, signal, { gameMode: 'tdm', map: 'depot' });
+  pass(liveLate.initialState.members.length === 8 && liveLate.initialState.bots === 4,
+    'late private-match join takes a bot slot without increasing match population');
+  await Promise.all([peer.close(), editingLate.close(), liveLate.close()]);
+  await nextLobbyState(editor, afterStartMark, editCode, signal, (state) => humanRows(state).length === 1);
+  editor.ws.terminate();
+  await sleep(100, signal);
+  const recovered = await admit(makeClient(port, 'Recovered-Editor'),
+    { t: 'join', name: 'Editor', lobby: editCode }, signal, { gameMode: 'tdm', map: 'depot' });
+  pass(recovered.welcome.phase === 'live' && recovered.initialState.host === recovered.welcome.id,
+    'an abnormal last-player disconnect leaves the same live lobby available for recovery');
+  await recovered.close();
+
   // Legacy direct joins must still rendezvous in one immediately-live quick room.
   const quickA = await admit(makeClient(port, 'Quick-A'), { t: 'join', name: 'Quick-A' }, signal);
   assertLobbyState(quickA.initialState, {

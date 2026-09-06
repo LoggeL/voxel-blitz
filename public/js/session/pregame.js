@@ -37,6 +37,8 @@ export class PregameFlow {
     this._location = location;
     this._history = history;
 
+    this._recoveryGeneration = 0;
+    this._rejoin = null;
     this._generation = 0;
     this._attempt = null;
     this._net = null;
@@ -51,6 +53,7 @@ export class PregameFlow {
   }
 
   invalidate() {
+    this._recoveryGeneration++;
     this._generation++;
     this._attempt = null;
     this.detachListeners();
@@ -88,8 +91,12 @@ export class PregameFlow {
     this._unsubs = [];
   }
 
-  async begin(action) {
+  async begin(action, recoveryToken = null) {
     if (this._isTornDown() || this._getPhase() !== 'menu' || !action) return;
+    if (recoveryToken === null) {
+      this._recoveryGeneration++;
+      this._rejoin = null;
+    }
     const audioReady = this._unlockAudio();
 
     const mode = action.mode === 'create' || action.mode === 'join' ? action.mode : 'quick';
@@ -104,6 +111,7 @@ export class PregameFlow {
     const code = String(action.code || '').trim().toUpperCase();
     const net = this._net;
     const attempt = {
+      recoveryToken,
       generation: this._generation,
       net,
       mode,
@@ -128,6 +136,7 @@ export class PregameFlow {
     net.onMap = (bytes) => {
       if (!this.isActive(attempt)) return;
       attempt.mapBytes = bytes;
+      if (attempt.welcome && net.welcome) attempt.welcome = net.welcome;
       this.maybeEnterLive(attempt);
     };
 
@@ -149,17 +158,41 @@ export class PregameFlow {
         return;
       }
       attempt.welcome = welcome;
+      attempt.recoveryToken = null;
+      this._rejoin = { mode: mode === 'quick' ? 'quick' : 'join', code: welcome.lobby?.code, name, sensitivity, bots };
       if (net.latestLobbyState) attempt.lobbyState = net.latestLobbyState;
-      if (this.maybeEnterLive(attempt)) return;
+      if (this.maybeEnterLive(attempt)) return true;
       if (attempt.lobbyState?.phase === 'waiting') {
         this._presentLobby(attempt, attempt.lobbyState);
       } else if (mode !== 'quick') {
         this._hud.showJoinState('waiting for lobby…');
       }
+      return true;
     } catch (error) {
       if (!this.isActive(attempt)) return;
       const detail = error && error.message ? error.message : 'try again';
-      this._enterMenu(`connection failed — ${detail}`);
+      if (recoveryToken === null) this._enterMenu(`connection failed — ${detail}`);
+      return false;
+    }
+  }
+
+  async recover() {
+    const action = this._rejoin;
+    if (!action?.code || this._isTornDown()) {
+      this._enterMenu('connection lost. Please join again.');
+      return;
+    }
+    const token = ++this._recoveryGeneration;
+    for (let retry = 0; retry < 6; retry++) {
+      if (this._isTornDown() || token !== this._recoveryGeneration) return;
+      this._enterMenu(`Connection lost. Reconnecting (${retry + 1}/6)…`);
+      await new Promise((resolve) => setTimeout(resolve, Math.min(4000, 500 * 2 ** retry)));
+      if (this._isTornDown() || token !== this._recoveryGeneration || this._getPhase() !== 'menu') return;
+      const connected = await this.begin(action, token);
+      if (connected || token !== this._recoveryGeneration) return;
+    }
+    if (!this._isTornDown() && token === this._recoveryGeneration) {
+      this._enterMenu('Could not reconnect. Your room code is still in the link.');
     }
   }
 
@@ -184,6 +217,8 @@ export class PregameFlow {
 
   leaveLobby(attempt = this._attempt) {
     if (!this.isActive(attempt) || this._getPhase() !== 'lobby') return false;
+    this._recoveryGeneration++;
+    this._rejoin = null;
     this._setPhase('disconnecting');
     this._attempt = null;
     this.detachListeners();
@@ -244,6 +279,13 @@ export class PregameFlow {
   _presentLobby(attempt, state) {
     if (!this.isActive(attempt) || attempt.liveStarted) return;
     this._setPhase('lobby');
+    try {
+      if (this._location?.href && this._history?.replaceState) {
+        const url = new URL(this._location.href);
+        url.searchParams.set('lobby', state.code);
+        this._history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+      }
+    } catch (_) {}
     if (attempt.lobbyShown) {
       this._hud.updateLobby(state);
       return;
@@ -251,6 +293,9 @@ export class PregameFlow {
 
     attempt.lobbyShown = true;
     this._hud.showLobby(state, {
+      onConfigure: (settings) => {
+        if (this.isActive(attempt) && this._getPhase() === 'lobby') attempt.net.configureLobby(settings);
+      },
       onReady: (value) => { void this.setLobbyReady(attempt, value); },
       onStart: () => { void this.startLobby(attempt); },
       onLeave: () => this.leaveLobby(attempt),
@@ -260,6 +305,7 @@ export class PregameFlow {
   _handleServerError(net, error) {
     const attempt = this._attempt;
     if (!attempt || attempt.net !== net || !this.isActive(attempt)) return;
+    if (attempt.recoveryToken !== null && attempt.recoveryToken !== undefined) return;
     const message = error && typeof error.msg === 'string'
       ? error.msg
       : (typeof error === 'string' ? error : 'server rejected request');
@@ -274,8 +320,10 @@ export class PregameFlow {
     const attempt = this._attempt;
     if (!attempt || attempt.net !== net || !this.isActive(attempt)) return;
     const phase = this._getPhase();
-    if (phase === 'connecting' || phase === 'lobby') {
-      this._enterMenu('connection lost — try again');
+    if (phase === 'lobby') {
+      void this.recover();
+    } else if (phase === 'connecting' && attempt.recoveryToken == null) {
+      this._enterMenu('connection lost. Please try again.');
     }
   }
 }

@@ -66,6 +66,9 @@ The first non-binary frame is exactly one admission shape:
 Names are sanitized to at most 16 characters after admission validation.
 
 After admission:
+- `{t:'configure',gameMode,map,bots}` changes a waiting room for its host only.
+  Compatible mode/map and integer bots `0..7` are required. Changes reset all
+  human readiness; training uses zero combat bots.
 - `{t:'ready',value:boolean}` sets this human's readiness while a public room is
   waiting.
 - `{t:'start'}` starts only for the current host, while waiting, after every
@@ -105,10 +108,13 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   binary frame is the admitted room's current mutable map. `welcome.lobby.role`
   is admission-time information; later `lobbyState.host`, `gameMode`, and `map`
   are authoritative.
+- A waiting-room mode/map change sends each member a `lobbyConfig` frame with
+  the same fields as `welcome`, followed by the new binary map and `lobbyState`.
+  The client replaces its pending gameplay spawn/map without replacing its socket.
 - Room members receive full replacements
   `{t:'lobbyState',code,host,phase:'waiting'|'live',bots,gameMode,map,
   members:[{id,name,ready,bot}]}` after create/join, readiness changes, start,
-  leave, and host migration. Bot rows appear only after the room is live.
+  leave, settings changes, and host migration. Bot rows appear only after the room is live.
 - At 20 Hz a live room sends
   `{t:'tick',now,match,players:[...],blocks:[{i,v}],events:[...]}`.
   `match` has exactly
@@ -294,7 +300,8 @@ enforces `maxDist`; `computeBlockedMuzzle` performs short cover probes.
   for public rooms; quick-room codes are not a public join surface.
 - A room owns one fresh `createMapState(map)` result, one `GameEngine` with its
   sole `ModeController`, an optional `BotManager`, and transport callbacks
-  scoped to its human members. Mode and map stay fixed for the room lifetime.
+  scoped to its human members. The host can replace mode and map while waiting;
+  they remain fixed after launch. Code, member ids and sockets survive configuration.
 - Create and waiting-room join add the human to the paused engine and send
   welcome plus the room map immediately. Inputs are ignored until the room is
   live; a live late join is added to the already-running engine.
@@ -307,11 +314,15 @@ enforces `maxDist`; `computeBlockedMuzzle` performs short cover probes.
 - Public live late joins are valid. They receive the current selected-map bytes
   without returning the room to waiting. An S&D live/post late join is assigned
   a balanced team and remains dead until the next round; a prep join may spawn
-  and buy.
+  and buy. An available bot is transferred only when the mode permits takeover.
+  Combat bots are capped to the remaining slots in an eight-player roster.
 - The first admitted human is host. If the host leaves, the earliest remaining
   human by admission order is promoted. When no humans remain, the engine is
   stopped, bots are disposed, member metadata is cleared, and the code is
-  released. A failed admission rolls back engine, member, host, and metadata
+  released. Abnormal disconnects (1006/1001) keep an otherwise empty room for
+  30 seconds, cancellable by admission. Client recovery retries up to six times
+  as a fresh admission; it does not reserve identity, score or host ownership.
+  A failed admission rolls back engine, member, host, and metadata
   changes; an empty newly created room is destroyed.
 - Chat, input, snapshots, block mutations, gameplay/mode events, lobby state,
   host changes, and map state never broadcast outside their owning room.

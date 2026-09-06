@@ -474,7 +474,7 @@ export class Session {
     this._releaseLiveResources();
 
     if (!this._tornDown && this._phase === 'disconnecting') {
-      this.enterMenu('disconnected — try again');
+      void this._pregame.recover();
     }
     return true;
   }

@@ -177,6 +177,54 @@ export class LobbyManager {
     return true;
   }
 
+  configure(meta, { gameMode, map, bots } = {}) {
+    const found = this._memberFor(meta);
+    if (!found) return this._error(meta, 'Not in a lobby');
+    const { room, member } = found;
+    if (room.phase !== 'waiting') return this._error(meta, 'Lobby has already started');
+    if (room.host !== member.id) return this._error(meta, 'Only the host can configure the lobby');
+    if (!this._validModeMap(gameMode, map) || !validBotCount(bots)) {
+      return this._error(meta, 'Invalid lobby settings');
+    }
+    bots = gameMode === 'training' ? 0 : bots;
+    const arenaChanged = gameMode !== room.gameMode || map !== room.map;
+    if (!arenaChanged && bots === room.bots) return true;
+    if (arenaChanged) {
+      // Build the replacement before changing the shared room. Sockets, ids and
+      // the invite code stay attached to the same room throughout configuration.
+      const engine = new GameEngine({
+        broadcast: (obj) => this._broadcastJson(room, obj),
+        world: createMapState(map), mode: gameMode, mapMeta: getMapMeta(map),
+      });
+      const spawns = new Map();
+      try {
+        for (const human of room.members.values()) {
+          spawns.set(human.id, engine.addClient(human.id, human.name));
+        }
+      } catch (error) { engine.stop(); throw error; }
+      room.engine.stop();
+      room.engine = engine;
+      room.gameMode = gameMode;
+      room.map = map;
+      const bytes = engine.world.serializeWorld();
+      for (const human of room.members.values()) {
+        const spawn = spawns.get(human.id);
+        this.sendJson(human.meta, {
+          ...makeWelcome({ id: human.id, mapBytes: bytes.byteLength,
+            tickRate: Math.round(1000 / this.tickMs), spawn: spawn.spawn || spawn,
+            lobby: { code: room.code, role: room.host === human.id ? 'host' : 'member' },
+            phase: 'waiting', gameMode, map }),
+          t: 'lobbyConfig',
+        });
+        this.sendFrame(human.meta, bytes);
+      }
+    }
+    room.bots = bots;
+    for (const human of room.members.values()) human.ready = false;
+    this._broadcastLobbyState(room);
+    return true;
+  }
+
   input(meta, msg) {
     const found = this._memberFor(meta);
     if (!found || found.room.phase !== 'live') return false;
@@ -214,7 +262,7 @@ export class LobbyManager {
     return true;
   }
 
-  leave(meta) {
+  leave(meta, { reconnectable = false } = {}) {
     const found = this._memberFor(meta);
     if (!found) {
       this._clearMeta(meta, meta && meta.room);
@@ -228,12 +276,18 @@ export class LobbyManager {
     this._clearMeta(meta, room);
 
     if (room.members.size === 0) {
+      if (reconnectable) {
+        room.host = '';
+        room.expiryTimer = setTimeout(() => this._destroyRoom(room), 30_000);
+        room.expiryTimer.unref?.();
+        return true;
+      }
       this._destroyRoom(room);
       return true;
     }
 
     if (room.host === member.id) room.host = room.members.keys().next().value;
-    this._syncQuickBots(room);
+    this._syncBots(room);
     this._broadcastLobbyState(room);
     return true;
   }
@@ -292,10 +346,12 @@ export class LobbyManager {
       return this._reject(meta, 'Lobby is full or unavailable', CLOSE_FULL, 'lobby full');
     }
 
+    clearTimeout(room.expiryTimer);
+    room.expiryTimer = null;
     const member = { id, name, ready: false, meta };
     let added = false;
     try {
-      const spawnInfo = room.quick && room.phase === 'live' && room.botManager
+      const spawnInfo = room.phase === 'live' && room.botManager
         ? (room.botManager.takeover(id, name) || room.engine.addClient(id, name))
         : room.engine.addClient(id, name);
       added = true;
@@ -306,7 +362,7 @@ export class LobbyManager {
       meta.joined = true;
 
       if (startRoom) this._startRoom(room);
-      else this._syncQuickBots(room);
+      else this._syncBots(room);
 
       const worldBytes = room.engine.world.serializeWorld();
       const spawn = spawnInfo && spawnInfo.spawn ? spawnInfo.spawn : (spawnInfo || {});
@@ -332,7 +388,7 @@ export class LobbyManager {
       }
       if (room.phase === 'waiting') room.engine.discardPendingEventsFor(id);
       if (room.host === id) room.host = room.members.keys().next().value || '';
-      this._syncQuickBots(room);
+      this._syncBots(room);
       this._clearMeta(meta, room);
       if (room.members.size === 0) this._destroyRoom(room);
       throw err;
@@ -351,6 +407,7 @@ export class LobbyManager {
         room.botManager = null;
         room.bots = 0;
       } else {
+        room.bots = Math.min(room.bots, MAX_HUMANS - room.members.size);
         manager = attachBots(room.engine, room.bots);
         room.botManager = manager;
       }
@@ -366,8 +423,13 @@ export class LobbyManager {
     }
   }
 
-  _syncQuickBots(room) {
-    if (!room?.quick || room.phase !== 'live' || !room.botManager) return;
+  _syncBots(room) {
+    if (!room || room.phase !== 'live' || !room.botManager) return;
+    if (!room.quick) {
+      room.bots = Math.min(room.botManager.brains.length, MAX_HUMANS - room.members.size);
+      room.botManager.setCount(room.bots);
+      return;
+    }
     const targetPopulation = Number.isFinite(room.quickPopulation)
       ? room.quickPopulation
       : QUICK_MIN_BOTS + 1;
@@ -439,6 +501,7 @@ export class LobbyManager {
   _destroyRoom(room) {
     if (!room || room.destroyed) return;
     room.destroyed = true;
+    clearTimeout(room.expiryTimer);
 
     try { room.engine.stop(); } catch { /* cleanup continues */ }
     if (room.botManager) {

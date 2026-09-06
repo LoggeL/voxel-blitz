@@ -504,49 +504,33 @@ export async function runHudContracts(ok, installGlobals) {
 
       const menuActions = [];
       hud.buildMenu((action) => menuActions.push(action));
+      document.getElementById('name-input').value = 'HOST';
+      document.getElementById('create-lobby-btn').click();
+      ok(menuActions.length === 1 && menuActions[0].mode === 'create'
+        && menuActions[0].name === 'HOST',
+      'HUD creates the lobby immediately from the main menu');
+      const edits = [];
+      hud.showLobby({ code: 'ABCDE', selfId: 'host', host: 'host', phase: 'waiting',
+        gameMode: 'fun', map: 'foundry', bots: 3,
+        members: [{ id: 'host', name: 'HOST', ready: false, bot: false }],
+      }, { onConfigure: (settings) => edits.push(settings) });
       const modeSelect = document.getElementById('game-mode-select');
       const mapSelect = document.getElementById('map-select');
-      ok(modeSelect && mapSelect
-        && modeSelect.options.map((option) => option.value).join(',') === MODE_IDS.join(','),
-      'HUD menu exposes every canonical game mode');
+      ok(modeSelect.options.map((option) => option.value).join(',') === MODE_IDS.join(','),
+        'Waiting lobby exposes all modes');
       modeSelect.value = 'snd';
       modeSelect.dispatchEvent(event('change'));
-      ok(mapSelect.options.map((option) => option.value).join(',') === 'foundry,citadel,solstice,caldera'
-        && !mapSelect.options.some((option) => option.value === 'depot'),
-      'HUD menu removes maps incompatible with the selected mode');
+      ok(!mapSelect.options.some((option) => option.value === 'depot')
+        && edits.at(-1).gameMode === 'snd', 'Host sends settings with compatible maps');
       modeSelect.value = 'training';
       modeSelect.dispatchEvent(event('change'));
-      ok(mapSelect.options.map((option) => option.value).join(',') === 'killhouse',
-      'HUD menu maps the training mode to exactly killhouse');
-      modeSelect.value = 'tdm';
-      modeSelect.dispatchEvent(event('change'));
-      mapSelect.value = 'depot';
-      document.getElementById('name-input').value = 'HOST';
-      document.getElementById('bot-count').value = '3';
-      document.getElementById('create-lobby-btn').click();
-      document.getElementById('create-lobby-confirm-btn').click();
-      ok(menuActions.length === 1
-        && menuActions[0].mode === 'create'
-        && menuActions[0].name === 'HOST'
-        && menuActions[0].bots === 3
-        && menuActions[0].gameMode === 'tdm'
-        && menuActions[0].map === 'depot',
-      'HUD create action carries the selected compatible mode-map pair');
-
+      ok(mapSelect.value === 'killhouse' && edits.at(-1).bots === 0,
+        'Training configuration selects Killhouse without bots');
+      hud.hideLobby();
       hud.buildMenu((action) => menuActions.push(action));
-      document.getElementById('game-mode-select').value = 'snd';
-      document.getElementById('game-mode-select').dispatchEvent(event('change'));
-      document.getElementById('map-select').value = 'citadel';
       document.getElementById('play-btn').click();
-      const quickButton = document.getElementById('play-btn');
-      ok(menuActions.length === 2
-        && menuActions[1].mode === 'quick'
-        && menuActions[1].bots >= 5
-        && !Object.hasOwn(menuActions[1], 'gameMode')
-        && !Object.hasOwn(menuActions[1], 'map')
-        && /auto arena/i.test(quickButton.parentNode.querySelector('.vb-action-hint').textContent)
-        && !Object.hasOwn(globalThis, 'location'),
-      'HUD quick action leaves arena selection to server rotation and accurately labels the action');
+      ok(menuActions.length === 2 && menuActions[1].mode === 'quick'
+        && !Object.hasOwn(menuActions[1], 'gameMode'), 'Quick Play keeps server map rotation');
 
       document.getElementById('training-btn').click();
       const trainingAction = menuActions.at(-1);
