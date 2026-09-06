@@ -39,9 +39,9 @@ let chargeLoop = null;
 /** Blast voice per explosive type: gain, low weight, and crack brightness. */
 const EXPLOSION_PROFILES = Object.freeze({
   frag: Object.freeze({ gain: 1.08, lifetime: 1.25, low: 0.72, lowHz: 78, crack: 0.34, crackHz: 1850, echo: 0.22 }),
-  limpet: Object.freeze({ gain: 1.18, lifetime: 1.45, low: 0.9, lowHz: 64, crack: 0.42, crackHz: 1500, echo: 0.28 }),
-  pulse: Object.freeze({ gain: 1.0, lifetime: 1.0, low: 0.36, lowHz: 110, crack: 0.5, crackHz: 3400, echo: 0.16, electric: true }),
-  rocket: Object.freeze({ gain: 1.22, lifetime: 1.6, low: 0.95, lowHz: 58, crack: 0.4, crackHz: 1600, echo: 0.3 }),
+  limpet: Object.freeze({ gain: 1.18, lifetime: 2.2, low: 0.9, lowHz: 64, crack: 0.42, crackHz: 1500, echo: 0.28 }),
+  pulse: Object.freeze({ gain: 1.0, lifetime: 1.2, low: 0.36, lowHz: 110, crack: 0.5, crackHz: 3400, echo: 0.16, electric: true }),
+  rocket: Object.freeze({ gain: 1.22, lifetime: 2.2, low: 0.95, lowHz: 58, crack: 0.4, crackHz: 1600, echo: 0.3 }),
 });
 
 /** One sustained capacitor whine for a held charge (LONGARC, VOLTLANCE); created lazily, never pooled. */
@@ -509,6 +509,14 @@ export const sfx = {
       const output = pool.acquire({ pos: deferredPos }, profile.lifetime);
       output.gain.value = profile.gain;
       const at = primitives.nowT();
+      const sampleType = type === 'rocket' ? 'limpet' : type;
+      if (samples.play(`grenades.${sampleType}.explosion`, output, {
+        gain: type === 'pulse' ? 0.75 : 0.95,
+        rate: type === 'rocket' ? 1.08 : 1,
+      })) {
+        sendEcho(output, primitives, profile.echo * 0.45, engine.echoIn, addCleanup);
+        return;
+      }
       if (profile.electric) {
         // Pulse: an electric snap, a rising shockwave sweep, and a thin low thud.
         primitives.hiss(output, {

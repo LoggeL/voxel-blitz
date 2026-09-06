@@ -1,0 +1,63 @@
+{
+  "author": "Kenney",
+  "license": "CC0-1.0",
+  "sourcePage": "https://kenney.nl/assets/sci-fi-sounds",
+  "archiveUrl": "https://kenney.nl/media/pages/assets/sci-fi-sounds/6b296f9ecf-1677589334/kenney_sci-fi-sounds.zip",
+  "archiveSha256": "119340f351a5098ad814f78719438c0da355a9ce8a4c8a3af6a8d48aa3d49e04",
+  "samples": {
+    "frag": {
+      "layers": [
+        {
+          "file": "explosionCrunch_000.ogg",
+          "gain": 1.0,
+          "trimStartSeconds": 0.0
+        },
+        {
+          "file": "lowFrequency_explosion_001.ogg",
+          "gain": 0.3,
+          "trimStartSeconds": 0.0069166666666666664
+        }
+      ],
+      "durationSeconds": 0.9931458333333333,
+      "peak": 0.8199999928474426,
+      "rms": 0.15095534992075527,
+      "outputSha256": "193bba0870dc6b79534583c46f65e4b4aa863ed6579f0e9e75a29d9587ad27f1"
+    },
+    "limpet": {
+      "layers": [
+        {
+          "file": "explosionCrunch_004.ogg",
+          "gain": 0.85,
+          "trimStartSeconds": 0.0
+        },
+        {
+          "file": "lowFrequency_explosion_000.ogg",
+          "gain": 0.5,
+          "trimStartSeconds": 0.012125
+        }
+      ],
+      "durationSeconds": 1.9879375,
+      "peak": 0.8199999928474426,
+      "rms": 0.10273286249704151,
+      "outputSha256": "25187d961d2abb8986605764b2c1d1047b50961efc5b0e59b099d0a291c902e7"
+    },
+    "pulse": {
+      "layers": [
+        {
+          "file": "forceField_002.ogg",
+          "gain": 1.0,
+          "trimStartSeconds": 0.0023333333333333335
+        },
+        {
+          "file": "lowFrequency_explosion_001.ogg",
+          "gain": 0.16,
+          "trimStartSeconds": 0.0069166666666666664
+        }
+      ],
+      "durationSeconds": 0.9931458333333333,
+      "peak": 0.8199999928474426,
+      "rms": 0.18497056071780466,
+      "outputSha256": "d46ea6c62c8e80b9bfc5d0b597ea732c8f46aa08fe94263d42c5ca24a921142b"
+    }
+  }
+}

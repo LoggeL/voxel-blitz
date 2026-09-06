@@ -13,6 +13,9 @@ const sampleFileSlots = {
   'ui.hitmark.head': `${SLOT_ROOT}/ui/hitmark-head.ogg`,
   'movement.footstep': `${SLOT_ROOT}/movement/footstep.ogg`,
   'combat.bulletWhiz': `${SLOT_ROOT}/combat/bullet-whiz.ogg`,
+  'grenades.frag.explosion': `${SLOT_ROOT}/grenades/frag.ogg`,
+  'grenades.limpet.explosion': `${SLOT_ROOT}/grenades/limpet.ogg`,
+  'grenades.pulse.explosion': `${SLOT_ROOT}/grenades/pulse.ogg`,
   'combat.grenadeExplosion': `${SLOT_ROOT}/combat/grenade-explosion.ogg`,
   'human.pain.light': `${SLOT_ROOT}/human/pain-light.ogg`,
   'human.pain.heavy': `${SLOT_ROOT}/human/pain-heavy.ogg`,
@@ -41,6 +44,9 @@ export const SAMPLE_FILE_SLOTS = Object.freeze(sampleFileSlots);
 // Only files that ship with the game belong here. The wider slot catalog stays
 // optional, so one missing sample never turns into a startup fetch waterfall.
 export const BUILTIN_SAMPLE_MANIFEST = Object.freeze({
+  'grenades.frag.explosion': SAMPLE_FILE_SLOTS['grenades.frag.explosion'],
+  'grenades.limpet.explosion': SAMPLE_FILE_SLOTS['grenades.limpet.explosion'],
+  'grenades.pulse.explosion': SAMPLE_FILE_SLOTS['grenades.pulse.explosion'],
   'weapons.rifle.fire': SAMPLE_FILE_SLOTS['weapons.rifle.fire'],
   'weapons.smg.fire': SAMPLE_FILE_SLOTS['weapons.smg.fire'],
   'weapons.shotgun.fire': SAMPLE_FILE_SLOTS['weapons.shotgun.fire'],
