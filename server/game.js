@@ -165,7 +165,9 @@ export class GameEngine {
 
   selectSafestSpawn(pool, player = null, excludeIndex = -1) {
     this.spawnSelector.setNow(this.now);
-    return this.spawnSelector.pick(pool, player, excludeIndex);
+    return this.spawnSelector.pick(pool, player, excludeIndex, {
+      variety: ['fun', 'tdm', 'gungame'].includes(this.mode.mode),
+    });
   }
 
   enemyHasSpawnLos(enemy, point) {

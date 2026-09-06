@@ -1,13 +1,14 @@
 // Safest-spawn selection with bounded recent-use tracking.
 
-import { SX, SZ } from '../../shared/worlddata.js';
+import { SX, SZ, SY } from '../../shared/worlddata.js';
 import { EYE_HEIGHT } from '../../shared/combatmath.js';
+import { boxCollides, solidBelow } from '../../shared/player-movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 
 const SPAWN_RECENT_MS = 8000;
 const SPAWN_LOS_PENALTY = 36;
 const SPAWN_RECENT_PENALTY = 24;
-export const MAX_TRACKED_SPAWNS = 64;
+export const MAX_TRACKED_SPAWNS = 256;
 
 function spawnPointKey(point) {
   return `${point.x},${point.y},${point.z}`;
@@ -27,6 +28,7 @@ export class SpawnSelector {
     this.solidAt = solidAt;
     this.now = now;
     this.spawnUseTimes = new Map();
+    this.expandedPools = new WeakMap();
   }
 
   setNow(ms) {
@@ -45,6 +47,38 @@ export class SpawnSelector {
     this.now = 0;
   }
 
+  expand(pool) {
+    if (this.expandedPools.has(pool)) return this.expandedPools.get(pool);
+    const expanded = pool.map((point) => ({ ...point }));
+    const seen = new Set(expanded.map(spawnPointKey));
+    // Stay near authored routes and elevations, avoiding inaccessible roofs and map edges.
+    for (const radius of [3, 6, 9]) for (const seed of pool) {
+      for (const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]]) {
+        const x = seed.x + dx * radius, z = seed.z + dz * radius;
+        if (x < 3 || z < 3 || x >= SX - 3 || z >= SZ - 3) continue;
+        for (const dy of [0, -1, 1, -2, 2]) {
+          const y = Math.floor(seed.y) + dy;
+          const point = { x, y, z, index: expanded.length };
+          if (y < 1 || y > SY - 3 || !this.walkable(point) || seen.has(spawnPointKey(point))) continue;
+          const exits = [[1,0],[-1,0],[0,1],[0,-1]].filter(([ex, ez]) =>
+            !boxCollides(this.solidAt, x + ex, y, z + ez)
+            && solidBelow(this.solidAt, x + ex, y, z + ez));
+          if (exits.length < 2) continue;
+          expanded.push(point);
+          seen.add(spawnPointKey(point));
+          break;
+        }
+      }
+    }
+    this.expandedPools.set(pool, expanded);
+    return expanded;
+  }
+
+  walkable(point) {
+    return !boxCollides(this.solidAt, point.x, point.y, point.z)
+      && solidBelow(this.solidAt, point.x, point.y, point.z);
+  }
+
   enemyHasSpawnLos(enemy, point) {
     const ox = enemy.x;
     const oy = Number.isFinite(enemy.eyeY) ? enemy.eyeY : enemy.y + EYE_HEIGHT;
@@ -58,15 +92,25 @@ export class SpawnSelector {
     return !raycastVoxels(this.solidAt, ox, oy, oz, dx, dy, dz, dist - 0.1);
   }
 
-  pick(pool, player = null, excludeIndex = -1) {
+  pick(pool, player = null, excludeIndex = -1, { variety = false } = {}) {
     const candidates = [];
     for (let i = 0; i < pool.length; i++) {
       const source = pool[i];
       if (!source || ![source.x, source.y, source.z].every(Number.isFinite)) continue;
       const index = Number.isFinite(source.index) ? Math.trunc(source.index) : i;
+      if (!this.walkable(source)) continue;
       candidates.push({ x: source.x, y: source.y, z: source.z, index });
     }
-    if (!candidates.length) return { x: 0, y: 1, z: 0, index: 0 };
+    if (!candidates.length) {
+      // Terrain may have removed every authored floor. Recover on actual current geometry.
+      for (let z = 4; z < SZ - 4; z += 8) for (let x = 4; x < SX - 4; x += 8) {
+        for (let y = 1; y < SY - 2; y++) {
+          const point = { x: x + 0.5, y, z: z + 0.5, index: candidates.length };
+          if (this.walkable(point)) { candidates.push(point); break; }
+        }
+      }
+      if (!candidates.length) throw new Error('World has no walkable spawn surface');
+    }
 
     const hasPriorPoint = player &&
       [player.lastSpawnX, player.lastSpawnY, player.lastSpawnZ].every(Number.isFinite);
@@ -86,8 +130,9 @@ export class SpawnSelector {
 
     let best = null;
     let bestScore = -Infinity;
+    let bestSafety = -Infinity;
     for (const candidate of candidates) {
-      if (canExcludePrior && isPriorSpawn(candidate)) continue;
+      if (!variety && canExcludePrior && isPriorSpawn(candidate)) continue;
       let nearest = Math.hypot(SX, SZ);
       let visibleEnemies = 0;
       for (const enemy of enemies) {
@@ -106,8 +151,13 @@ export class SpawnSelector {
       const recentPenalty = age < SPAWN_RECENT_MS
         ? SPAWN_RECENT_PENALTY * (1 - age / SPAWN_RECENT_MS)
         : 0;
-      const score = nearest - visibleEnemies * SPAWN_LOS_PENALTY - recentPenalty;
-      if (score > bestScore) {
+      const occupied = [...this.entities.values()].some((entity) => entity !== player
+        && entity.state === 'alive' && Math.hypot(candidate.x - entity.x,
+          candidate.y - entity.y, candidate.z - entity.z) < 2.5);
+      const safety = !variety ? 0 : occupied ? -1 : nearest >= 12 && visibleEnemies === 0 ? 2 : nearest >= 8 ? 1 : 0;
+      const score = nearest - visibleEnemies * SPAWN_LOS_PENALTY - recentPenalty - (variety && isPriorSpawn(candidate) ? 12 : 0) + (variety ? Math.random() * 6 : 0);
+      if (safety > bestSafety || (safety === bestSafety && score > bestScore)) {
+        bestSafety = safety;
         best = candidate;
         bestScore = score;
       }
