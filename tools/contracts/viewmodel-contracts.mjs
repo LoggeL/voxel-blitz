@@ -825,7 +825,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
       && weaponState.isReloading && weaponState.ammoOf('shotgun').mag === 1,
       'holding fire through a tube reload does not interrupt or fire a stray round');
     weaponState.resetToLoadout();
-    weaponState.forceWeapon(WEAPON_IDS.indexOf('knife'), { now: 4000 });
+    weaponState.forceWeapon(WEAPON_IDS.indexOf('knife'), { now: 3500 });
     weaponState.applyIntents({ fireTap: true }, 4600, { allowFire: true, alive: true });
     const swung = weaponState.tryFire(4600, { allowFire: true, alive: true, generation: 0 });
     const knifeAmmo = weaponState.ammoOf('knife');
@@ -838,7 +838,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
     'a melee swing is free: no ammo consumed, no reload ever, and no charge readout');
 
     weaponState.resetToLoadout();
-    weaponState.forceWeapon(WEAPON_IDS.indexOf('lance'), { now: 6400 });
+    weaponState.forceWeapon(WEAPON_IDS.indexOf('lance'), { now: 5800 });
     weaponState.applyIntents({ fireHeld: true }, 7000, { allowFire: true, alive: true });
     weaponState.tryFire(7000, { allowFire: true, alive: true, generation: 0 });
     const quarterCell = weaponState.readModel(7000 + WEAPONS.lance.charge.ms / 4).charge01;

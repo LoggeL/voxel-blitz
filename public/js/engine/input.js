@@ -1205,7 +1205,6 @@ export class Input {
       return;
     }
     if (this._grenadeHeld) this.cycleGrenadeType(step);
-    else if (this._scopeZoomMode) this._zoomStepQueue += 1;
     else this._switchQueue += step;
   }
 }

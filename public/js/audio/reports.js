@@ -274,25 +274,16 @@ export function shotLance(out, primitives, charge = 1) {
 }
 
 /**
- * RIPPER swing: a dry filtered-noise whoosh sweeping down through the arc, then a tight
- * metallic shing at the swing apex. Deliberately short and echo-free; melee needs no report.
+ * Pickaxe swing: a short wooden swish and low retro transient. Deliberately short and echo-free; melee needs no report.
  */
 export function shotKnife(out, primitives) {
   const t0 = primitives.nowT();
-  // Whoosh: bandpass noise falling through the swing arc.
   primitives.hiss(out, {
-    t0, filter: 'bandpass', f: 2600, sweepTo: 380, sweepMs: 0.16, q: 0.9, dec: 0.17, g: 0.3,
+    t0, filter: 'bandpass', f: 1200, sweepTo: 280, sweepMs: 0.12,
+    q: 0.6, dec: 0.12, g: 0.2,
   });
-  // Tight metallic shing at the apex: bright transient over two inharmonic partials.
-  primitives.hiss(out, {
-    t0: t0 + 0.08, filter: 'bandpass', f: 6800, sweepTo: 5200, sweepMs: 0.05, q: 2.2, dec: 0.05, g: 0.26,
-  });
-  primitives.tone(out, {
-    t0: t0 + 0.08, type: 'square', f0: 2350, f1: 1980, att: 0.001, dec: 0.045, g: 0.09,
-  });
-  primitives.tone(out, {
-    t0: t0 + 0.085, type: 'sine', f0: 3140, f1: 2960, att: 0.001, dec: 0.07, g: 0.11,
-  });
+  primitives.hiss(out, { t0: t0 + 0.025, filter: 'lowpass', f: 420, dec: 0.06, g: 0.07 });
+  primitives.tone(out, { t0, type: 'triangle', f0: 160, f1: 70, dec: 0.045, g: 0.025 });
 }
 
 /** Render the weapon-specific synthetic transient and mechanical tail. */

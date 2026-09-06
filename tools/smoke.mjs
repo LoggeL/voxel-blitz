@@ -1,3 +1,4 @@
+import { weaponSwapProfile } from '../shared/weapon-swap.js';
 // Protocol smoke test: starts the real HTTP+WebSocket server on an OS-assigned
 // port, joins two real clients, and checks both direct simulation contracts and
 // the actual wire stream.
@@ -719,7 +720,7 @@ function runDirectContracts() {
     fireEngine.applyInput('cadence', {
       ...tapInput, seq: 3, pitch: 1.2, weapon: shotgunSlot, wantFire: false, reload: false,
     });
-    for (let i = 0; i < Math.ceil(shotgun.deployTime * 1000 / TICK_MS) + 2; i++) {
+    for (let i = 0; i < Math.ceil(weaponSwapProfile(shotgun).total * 1000 / TICK_MS) + 2; i++) {
       fireEngine.step(TICK_MS);
     }
     firing.mag[shotgunSlot] = 2;

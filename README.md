@@ -222,7 +222,7 @@ their purchases and remaining ammunition. Weapons cannot fire during prep.
 
 Gun Game is a free-for-all with a **1500 ms** respawn. Every kill advances the
 player through rifle, SMG, shotgun, sniper, LMG, revolver, LONGARC, rocket,
-VOLTLANCE, and finally the RIPPER knife. A kill with the RIPPER wins; a
+VOLTLANCE, and finally the PIXEL PICK pickaxe. A kill with the PIXEL PICK wins; a
 **5000 ms** result phase follows before progression and scores reset.
 
 ### Training
@@ -274,13 +274,13 @@ roster cards are omitted; S&D keeps a compact remaining-lives strip on desktop.
 | `Space` | jump; climb up while touching a ladder |
 | `Ctrl` / `C` | crouch; climb down while touching a ladder |
 | mouse1 / mouse2 | fire / ADS (`F` also aims; ADS is hold or toggle per the settings panel, toggle by default on trackpads) |
-| `Z` / wheel while scoped | sniper zoom step (5× ↔ 2.5×) |
+| `Z` | sniper zoom step (5× ↔ 2.5×) |
 | `R` | reload; shotgun shells seat one at a time and firing interrupts the load |
 | hold/release `G` | charge and throw the selected throwable; longer holds throw farther, and a frag cooks while held (hold past the fuse and it goes off in your hand) |
 | `H`, or wheel while holding `G` | cycle the throwable: M-4 FRAG (2), LIMPET CHARGE (1, sticks to walls and players), PULSE SHOCK (2, impact concussion) |
 | hold/release mouse1 with the LONGARC | charge the coilgun; release fires a bouncing bolt — a tap ricochets off one wall, a full charge ricochets three times |
 | hold/release mouse1 with the VOLTLANCE | charge the rail-lance; release fires a lance that spears up to six enemies on the line, and only a full charge crosses up to two walls |
-| mouse1 with the K-7 RIPPER | swing freely: swipes consume no ammo and never reload, and a strike from behind an enemy's facing backstabs for 2.5x |
+| mouse1 with the PIXEL PICK | hold to mine nearby blocks; harder materials require more swings. No ammo or reload; melee hits retain 2.5x backstabs |
 | `1-9` / `0` / wheel | weapon slots (`1-9` and `0` also pick directly while the weapon wheel is open) |
 | `Q` | previous weapon; hold instead opens the weapon wheel; while dead, previous spectator target |
 | hold `Q` / middle mouse | open the radial weapon wheel: aim freezes, mouse motion or scroll highlights a wedge, releasing the held control or clicking equips it, and a centered release, `Esc`, or right mouse cancels |
@@ -345,7 +345,7 @@ support portrait and landscape. Append `?touch=1` for desktop QA.
 | **LN-03 LONGARC** | charge (hold/release) | 160 rpm | 8 + 6 mags | coilgun: a tap flings a quick single-bounce dart, a full charge launches a bolt that ricochets off walls three times — bolts never pierce bodies or terrain and fizzle once the reflections run out, holding too long vents the shot; rising capacitor whine and coil glow |
 | **RX-8 HAVOC** | semi-automatic | 45 rpm | 1 + 5 tubes | slow authoritative rocket with splash, terrain carve, direct-hit bonus, and a self-knockback tuned for rocket jumps |
 | **CL-9 VOLTLANCE** | charge (hold/release) | 100 rpm | 4 + 5 mags | siege rail-lance: a tap flings a weak dart, a charged lance spears up to six enemies on the line with 0.9-per-body falloff, and only a full charge crosses up to two walls decaying 0.72 per wall; rising cell whine and violet lance glow |
-| **K-7 RIPPER** | melee | 120 rpm | no ammo — swings are free | free-swinging fighting knife: short-arc swipes that never reload, 2.5x backstabs from behind, and infinite ammo |
+| **PIXEL PICK** | melee | 120 rpm | no ammo — swings are free | pixel pickaxe: material-dependent mining with cracks, cube debris and retro sounds; melee hits and 2.5x backstabs |
 
 Gun timing lives in `public/js/guns/defs.js` (timer table per weapon); shared
 ballistics/damage in `shared/combatmath.js`; the LONGARC's bouncing bolts in
@@ -464,3 +464,5 @@ process memory, so a container restart clears active matches; no persistent
 volume is part of the current runtime contract. Deployment-specific hostnames,
 TLS, health checks, and public URLs remain platform configuration rather than
 repository constants.
+
+Weapon scrolling also works while scoped. Switching stows the old weapon before drawing the new one (0.96–1.42 seconds); firing and aiming resume after the swap finishes.

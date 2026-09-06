@@ -1,5 +1,7 @@
 // First-person viewmodel facade: public gunfeel API plus one rig-owned
 // material cache and one action-state owner.
+import { weaponSwapProfile } from '../../../shared/weapon-swap.js';
+import { WEAPONS } from '../../../shared/combatmath.js';
 import * as THREE from '../vendor/three.module.js';
 import { BOB, DEPLOY, TIMERS } from './defs.js';
 import { buildGun, disposeGunModels } from './assemble.js';
@@ -90,7 +92,20 @@ export class ViewmodelRig {
   /* ------------------------------------ public API ----------------------------------------- */
 
   /** Lazily builds `id`, swaps visibility, resets transient motion state, replays equip dip. */
+  /** Keep the outgoing model attached until it has reached the holster. */
+  equipWeapon(id) {
+    if (!this._cur) { this.setWeapon(id); return; }
+    const profile = weaponSwapProfile(WEAPONS[id]);
+    this._swap = { id, elapsed: this._swap?.elapsed || 0, ...profile };
+    this._actions.reset(this._cur);
+    this._queue.length = 0;
+    this._adsTarget = 0;
+    this.flashOff(true);
+  }
+
   setWeapon(id) {
+    this._swap = null;
+    this._swapDraw = false;
     const key = TIMERS[id] ? id : 'rifle';                           // forgiving: bad key stays playable
     if (!this._models[key]) {
       const model = buildGun(key, this._materials);
@@ -132,7 +147,7 @@ export class ViewmodelRig {
    * timer-driven choreography enqueues, rof lockout, callback dispatch. Returns false when busy.
    */
   fire() {
-    const cur = this._cur; if (!cur) return false;
+    const cur = this._cur; if (!cur || this._swap || (this._swapDraw && this._depT < 1)) return false;
     const T = cur.T;
     const now = this._now;
     if (this.isBusy(now)) return false;
@@ -287,6 +302,15 @@ export class ViewmodelRig {
   update(dt, ctx = {}) {
     if (!(dt > 0)) return;
     dt = Math.min(dt, 0.033);
+    if (this._swap) {
+      this._swap.elapsed += dt;
+      if (this._swap.elapsed >= this._swap.holster) {
+        const pending = this._swap;
+        this.setWeapon(pending.id);
+        this._swapDraw = true;
+        this._swapDrawSeconds = pending.draw;
+      }
+    }
     const cur = this._cur;
     const speed = ctx.speed || 0, grounded = ctx.grounded !== false;
     const verticalVelocity = Number.isFinite(ctx.verticalVelocity) ? ctx.verticalVelocity : 0;
@@ -376,7 +400,7 @@ export class ViewmodelRig {
     const adsE = this._smooth01(this._adsSmooth);
 
     /* deploy timeline: rise over DEPLOY.raise slice, spring overshoot, quenched by settleBy */
-    this._depT = Math.min(1.0001, this._depT + dt / Math.max(0.05, T.deployTime));
+    this._depT = Math.min(1.0001, this._depT + dt / Math.max(0.05, this._swapDraw ? this._swapDrawSeconds : T.deployTime));
 
     /* Baseline idle life plus hidden condition motion. Both are deterministic rig-clock functions. */
     const panic = Math.max(0, Math.min(1, Number(ctx.panic) || 0));
@@ -433,7 +457,7 @@ export class ViewmodelRig {
     let swingX = 0, swingY = 0, swingZ = 0, swingRx = 0, swingRy = 0, swingRz = 0;
     if (this._swingT > 0) {
       this._swingT = Math.max(0, this._swingT - dt);
-      const side = this._swingParity ? -1 : 1;                       // +1: right-dominant slash
+      const side = 1;                       // +1: right-dominant slash
       const p = 1 - this._swingT / SWING_S;                          // 0 start -> 1 settled
       const cocked = this._smooth01(Math.min(1, p / 0.26));          // wind-up (~26% of arc)
       const strike = this._smooth01(Math.max(0, Math.min(1, (p - 0.26) / 0.22))); // fast cut
@@ -442,7 +466,7 @@ export class ViewmodelRig {
       swingX = (0.028 * wd - 0.050 * strike) * side * amp;           // out wide, across body
       swingY = (0.045 * wd - 0.048 * strike) * amp;                  // high, then low
       swingZ = (0.030 * wd - 0.018 * strike) * amp;                  // pulled back, then through
-      swingRx = (-0.38 * wd + 0.55 * strike) * amp;                  // tip up, whip down
+      swingRx = (-0.65 * wd + 0.95 * strike) * amp;                  // tip up, whip down
       swingRy = (0.50 * wd - 0.42 * strike) * side * amp;            // blade turned out, then in
       swingRz = (0.28 * wd - 0.50 * strike) * side * amp;            // wrist roll through the cut
     }
@@ -469,11 +493,11 @@ export class ViewmodelRig {
     /* base hip pose eased toward adsOffset absolute pose; dips layered on top */
     const dep = this._deployOffset();
     this.content.position.set(
-      HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX,
+      HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX + (dep.x || 0),
       HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.16,
-      HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ
+      HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0)
     );
-    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.35, swingRy, swingRz + this._vaultDip * 0.18);
+    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.35, swingRy + (dep.ry || 0), swingRz + (dep.rz || 0) + this._vaultDip * 0.18);
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
     this._decayFx(dt, cur);
@@ -603,7 +627,18 @@ export class ViewmodelRig {
 
   /** Equip dip: rise out of DEPLOY.startDrop across `raise` slice, overshoot settle, tilt ease. */
   _deployOffset() {
+    if (this._swap) {
+      const t = this._smooth01(Math.min(1, this._swap.elapsed / this._swap.holster));
+      return { x: 0.22 * t, y: -0.72 * t, z: 0.18 * t,
+        rx: -0.65 * t, ry: 0.3 * t, rz: -0.65 * t };
+    }
     const p = this._depT;
+    if (this._swapDraw && p < 1) {
+      const t = this._smooth01(Math.min(1, p / 0.86));
+      const settle = Math.sin(Math.max(0, (p - 0.75) / 0.25) * Math.PI) * 0.014;
+      return { x: 0.16 * (1 - t), y: -0.72 * (1 - t) + settle,
+        z: 0.18 * (1 - t), rx: -0.55 * (1 - t), ry: -0.2 * (1 - t), rz: -0.4 * (1 - t) };
+    }
     if (p >= 1) return { y: 0, rx: 0 };
     const rise = this._smooth01(Math.min(1, p / DEPLOY.raise));
     const osc = p < DEPLOY.settleBy

@@ -1,5 +1,5 @@
 // Lance/knife seam: shared-definition contracts for the CL-9 VOLTLANCE charge
-// rail-lance and the K-7 RIPPER melee knife. Presentation (viewmodels, swing
+// rail-lance and the PIXEL PICK melee knife. Presentation (viewmodels, swing
 // arcs, SFX) is verified visually by the orchestrator; here we pin the roster
 // shape and shared math every consumer (client prediction, server authority,
 // HUD, wheel) relies on.
@@ -41,7 +41,7 @@ export async function runLanceKnifeContracts(ok) {
     'rail charge grows damage, body radius, beam size and terrain penetration together');
 
   const knife = WEAPONS.knife;
-  ok(knife && knife.name === 'K-7 RIPPER' && knife.mode === 'melee',
+  ok(knife && knife.name === 'PIXEL PICK' && knife.mode === 'melee',
     'the RIPPER is a named melee-mode weapon');
   ok(knife.magSize === 0 && knife.spareMags === 0,
     'the RIPPER holds no ammunition and never reloads');

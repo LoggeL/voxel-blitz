@@ -48,3 +48,10 @@ export const SEED = 20260826;
 
 /** Convert an in-bounds voxel coordinate to the world's y/z/x byte layout. */
 export const idx = (x, y, z) => ((y * SZ) + z) * SX + x;
+
+/** Accepted pickaxe swings per block; independent of bullet damage. */
+export const MINING_HITS = Object.freeze({
+  [GLASS]: 1, [LEAVES]: 1, [SAND]: 2, [DIRT]: 2, [GRASS]: 2,
+  [PLANK]: 3, [WOOD]: 4, [ACCENT]: 4, [BRICK]: 5,
+  [STONE]: 6, [PALE]: 6, [RUST]: 7, [CONCRETE]: 8, [METAL]: 12,
+});

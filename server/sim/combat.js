@@ -2,6 +2,8 @@
 // The caller owns world/entity state and exposes only the narrow operations
 // needed by this hot path through `ctx`.
 
+import { MINING_HITS } from '../../shared/world/blocks.js';
+import { weaponSwapProfile } from '../../shared/weapon-swap.js';
 import { AIR, GLASS, LEAVES, BLOCK_HP } from '../../shared/worlddata.js';
 import {
   CONDITION_RULES,
@@ -57,11 +59,12 @@ export function cancelCharge(p) {
 }
 
 export function switchWeapon(p, slot) {
+  p.mining = null;
   p.weapon = clampWeaponSlot(slot);
   clearReload(p);
   cancelCharge(p);
   p.cooldown = Math.max(p.cooldown, 0);
-  p.deployT = p.def.deployTime;
+  p.deployT = weaponSwapProfile(p.def).total;
   p.ads = false;
   p.adsT = 0;
 }
@@ -84,6 +87,7 @@ export function canFire(p, fireEdge, ctx) {
  */
 export function resolveWeaponIntent(p, _dt, ctx) {
   const inp = p.input;
+  if (!inp?.wantFire && !p.fireEdgeQueued) p.mining = null;
   if (!inp) { p.triggerPrev = false; p.reloadPrev = false; return; }
   const reloadEdge = !!inp.reload && !p.reloadPrev;
   p.reloadPrev = !!inp.reload;
@@ -166,7 +170,7 @@ function resolveChargeIntent(p, dt, inp, fireEdge, ctx) {
 }
 
 /**
- * Melee weapons (K-7 RIPPER): every swing is free — no magazine, no reload — so
+ * Melee weapons (PIXEL PICK): every swing is free — no magazine, no reload — so
  * the press edge or a held trigger swings at the rpm cadence alone. A short
  * reach cone replaces ballistics entirely (see `meleeSwing`).
  */
@@ -182,8 +186,7 @@ function resolveMeleeIntent(p, inp, fireEdge, ctx) {
  * with voxel line of sight from the shooter's eye, takes the hit. A victim
  * facing along the swing direction beyond `melee.backstabDot` is a backstab.
  * Damage flows through the same body-hit event path as `fireOneShot` — kill
- * credit included — but never headshots, never falls off, and never breaks
- * blocks.
+ * credit included. Swings without an unobstructed victim mine the aimed block.
  */
 function meleeSwing(p, ctx) {
   const def = p.def;
@@ -226,7 +229,8 @@ function meleeSwing(p, ctx) {
     bestDist = dist;
     best = { victim: v, dx, dy, dz, dist };
   }
-  if (!best) return;
+  const mine = () => mineBlock(p, oEye, fwd, ctx);
+  if (!best) { mine(); return; }
 
   // Voxel line of sight: a wall between the blade and the body stops the swing.
   const dirX = best.dx / best.dist;
@@ -237,8 +241,9 @@ function meleeSwing(p, ctx) {
     oEye[0], oEye[1], oEye[2],
     dirX, dirY, dirZ,
     Math.max(0.05, best.dist - 0.2),
-  )) return;
+  )) { mine(); return; }
 
+  p.mining = null;
   const victim = best.victim;
   const vFwd = fwdFromYawPitch(victim.yaw, victim.pitch);
   const backstab = vFwd.x * dirX + vFwd.y * dirY + vFwd.z * dirZ > melee.backstabDot;
@@ -246,6 +251,27 @@ function meleeSwing(p, ctx) {
   const lethal = victim.takeDamage(dmg, false);
   ctx.pushEvent(evHit(p.id, victim.id, dmg, false, [victim.x, victim.eyeY, victim.z]));
   if (lethal) ctx.killPlayer(victim, p, def.id, false);
+}
+
+/** Mining progress belongs to a player and expires when swings stop. */
+function mineBlock(p, eye, fwd, ctx) {
+  const hit = raycastVoxels(ctx.solidAt, ...eye, fwd.x, fwd.y, fwd.z, p.def.melee.reach);
+  if (!hit || hit.y <= 0) { p.mining = null; return; }
+  const type = ctx.getBlock(hit.x, hit.y, hit.z);
+  const required = MINING_HITS[type];
+  if (!required) { p.mining = null; return; }
+  const key = blockKey(hit.x, hit.y, hit.z);
+  const previous = p.mining;
+  const hits = previous?.key === key && previous.type === type && ctx.now - previous.at < 800
+    ? previous.hits + 1 : 1;
+  p.mining = { key, type, hits, at: ctx.now };
+  ctx.pushEvent({ t: 'ev', kind: 'mine', id: String(p.id),
+    x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz,
+    from: type, progress: Math.min(1, hits / required) });
+  if (hits >= required) {
+    destroyBlock(hit.x, hit.y, hit.z, key, ctx);
+    p.mining = null;
+  }
 }
 
 /** Segment (array origin o, unit object direction d) vs victim AABB. */

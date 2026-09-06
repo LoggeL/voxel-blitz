@@ -18,7 +18,7 @@ const MAP_HEADER_BYTES = 6;
 const BREAKABLE_BLOCKS = new Set([6, 9, 10, 11]);
 const SNIPER_SLOT = 3;
 const AUTHORITATIVE_TICK_MS = 50;
-const SNIPER_DEPLOY_MS = 550;
+const SNIPER_DEPLOY_MS = 1050;
 const SNIPER_ADS_MS = 260;
 const SNIPER_SPREAD_RAD = 0.02 * Math.PI / 180;
 const FRAGILE_CHAIN_BLOCKS = new Set([6, 11]);
@@ -785,7 +785,7 @@ async function runContracts(server, signal) {
     roomBHost,
     equipMark,
     (tick) => tick.now >= equippedAt +
-      Math.max(SNIPER_DEPLOY_MS, SNIPER_ADS_MS) +
+      (SNIPER_DEPLOY_MS + SNIPER_ADS_MS) +
       AUTHORITATIVE_TICK_MS &&
       tick.players.some((row) =>
         row.id === roomBHost.welcome.id &&

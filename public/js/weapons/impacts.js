@@ -59,6 +59,7 @@ export class ImpactFX {
     this.getBlockFn = worldGetBlockFn || (() => 0);
     this.particlesSpawned = 0;
     this._disposed = false;
+    this.miningCracks = new Map();
 
     this._m4 = new THREE.Matrix4();
     this._q = new THREE.Quaternion();
@@ -225,6 +226,48 @@ export class ImpactFX {
     }
   }
 
+  mine(ev) {
+    const key = `${ev.x},${ev.y},${ev.z}`;
+    const old = this.miningCracks.get(key);
+    if (old) { this.scene.remove(old.mesh); old.mesh.geometry.dispose(); old.mesh.material.dispose(); }
+    this.miningCracks.delete(key);
+    this.spawnParticles(ev.x + 0.5 + ev.nx * 0.53, ev.y + 0.5 + ev.ny * 0.53,
+      ev.z + 0.5 + ev.nz * 0.53, ev.progress >= 1 ? 18 : 5,
+      BLOCK_TINTS[ev.from] || 0x999999, DUST_PARTICLES);
+    if (ev.progress >= 1) return;
+    // Pixel stair-step cracks on every face, visible from either side of a block.
+    const points = [];
+    const count = Math.ceil(ev.progress * 8);
+    for (let face = 0; face < 6; face++) {
+      const axis = Math.floor(face / 2), side = face % 2 ? 0.502 : -0.502;
+      const point = (u, v) => {
+        const p = [0, 0, 0]; p[axis] = side;
+        p[(axis + 1) % 3] = u; p[(axis + 2) % 3] = v;
+        return p;
+      };
+      for (let branch = 0; branch < count; branch++) {
+        let u = 0, v = 0;
+        for (let step = 0; step < 5; step++) {
+          const nu = u + Math.cos(branch * 2.4) * 0.085;
+          const nv = v + Math.sin(branch * 2.4) * 0.085;
+          points.push(...point(u, v), ...point(nu, v), ...point(nu, v), ...point(nu, nv));
+          u = nu; v = nv;
+        }
+      }
+    }
+    if (this.miningCracks.size >= 24) {
+      const [oldKey, cue] = this.miningCracks.entries().next().value;
+      this.scene.remove(cue.mesh); cue.mesh.geometry.dispose(); cue.mesh.material.dispose();
+      this.miningCracks.delete(oldKey);
+    }
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
+    const mesh = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color: 0x171c19 }));
+    mesh.position.set(ev.x + 0.5, ev.y + 0.5, ev.z + 0.5);
+    this.scene.add(mesh);
+    this.miningCracks.set(key, { mesh, life: 0.8, x: ev.x, y: ev.y, z: ev.z });
+  }
+
   explodeBlock(x, y, z, blockId) {
     const tint = BLOCK_TINTS[blockId] || 0x999999;
     this.spawnParticles(
@@ -275,6 +318,13 @@ export class ImpactFX {
   }
 
   update(dt) {
+    for (const [key, cue] of this.miningCracks) {
+      cue.life -= dt;
+      if (cue.life <= 0 || !this.getBlockFn(cue.x, cue.y, cue.z)) {
+        this.scene.remove(cue.mesh); cue.mesh.geometry.dispose(); cue.mesh.material.dispose();
+        this.miningCracks.delete(key);
+      }
+    }
     for (let i = 0; i < this.impacts.length; i++) {
       const cue = this.impacts[i];
       if (!cue.active) continue;
@@ -346,6 +396,10 @@ export class ImpactFX {
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
+    for (const cue of this.miningCracks.values()) {
+      this.scene.remove(cue.mesh); cue.mesh.geometry.dispose(); cue.mesh.material.dispose();
+    }
+    this.miningCracks.clear();
     for (const mesh of [this.partMesh, ...this.impactMeshes]) {
       this.scene.remove(mesh);
       mesh.geometry.dispose();

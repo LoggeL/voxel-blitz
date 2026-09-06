@@ -233,10 +233,10 @@ export const WEAPONS = {
     pierce: { players: 6, walls: 8, minWalls: 1, playerFalloff: 0.9, wallFalloff: 0.9 },
   },
   knife: {
-    // K-7 RIPPER: fighting knife. No magazine and no reload — every swing is free
+    // PIXEL PICK: fighting knife. No magazine and no reload — every swing is free
     // and the cadence is the rpm cap alone. A short reach cone replaces ballistics;
     // swinging into an enemy from behind their facing is a lethal backstab.
-    id: 'knife', name: 'K-7 RIPPER', mode: 'melee',
+    id: 'knife', name: 'PIXEL PICK', mode: 'melee',
     weightKg: 0.9,
     rpm: 120, magSize: 0, spareMags: 0,
     damage: [58, 58, 2], headMult: 1.0, pellets: 1,

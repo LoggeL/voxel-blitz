@@ -193,8 +193,8 @@ export async function runInputContracts(ok, installGlobals) {
       input._onKeyDown(key('KeyZ'));
       input.setScopeZoomMode(true);
       input._onWheel(wheel(100, 9000));
-      ok(input.consumeZoomStep() === 2 && input.consumeWeaponSwitch() === 0,
-        'Z and the wheel while scoped queue zoom steps instead of weapon switches');
+      ok(input.consumeZoomStep() === 1 && input.consumeWeaponSwitch() === 1,
+        'Z changes scope zoom while scrolling switches weapons even when scoped');
       input.setScopeZoomMode(false);
 
       input._onKeyDown(key('KeyE'));

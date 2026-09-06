@@ -67,7 +67,7 @@ inspectionFill.position.set(-0.35, 0.45, 0.25);
 camera.add(inspectionFill);
 
 const rig = new ViewmodelRig(camera);
-rig.setWeapon(weapon);
+rig.setWeapon(state.startsWith('swap-') ? (weapon === 'rifle' ? 'revolver' : 'rifle') : weapon);
 
 const stablePose = Object.freeze({
   speed: 0,
@@ -76,6 +76,9 @@ const stablePose = Object.freeze({
   aimSwayScale: 0,
 });
 switch (state) {
+  case 'swap-stow':
+  case 'swap-draw':
+  case 'swap-ready':
   case 'reload-open':
   case 'reload-eject':
   case 'reload-load':
@@ -95,6 +98,12 @@ switch (state) {
     throw new Error(`weapon capture state is not implemented: ${state}`);
 }
 for (let frame = 0; frame < 300; frame++) rig.update(1 / 60, stablePose);
+
+if (state.startsWith('swap-')) {
+  rig.equipWeapon(weapon);
+  const seconds = { 'swap-stow': 0.18, 'swap-draw': 0.8, 'swap-ready': 1.6 }[state];
+  for (let frame = 0; frame < Math.round(seconds * 100); frame++) rig.update(0.01, stablePose);
+}
 
 if (state === 'scoped' && weapon === 'sniper') {
   rig.root.visible = false;

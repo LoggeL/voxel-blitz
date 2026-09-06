@@ -196,6 +196,11 @@ export class CombatFeedback {
         }
         break;
       }
+      case 'mine': {
+        this.effects.impacts.mine(ev);
+        this.sfx.mine(ev.from, ev.progress >= 1, [ev.x + 0.5, ev.y + 0.5, ev.z + 0.5]);
+        break;
+      }
       case 'block': {
         const nextType = ev.v | 0;
         const fromType = ev.from | 0;

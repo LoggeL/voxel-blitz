@@ -19,7 +19,7 @@
     "audio:mix": "node tools/audio-mix-smoke.mjs",
     "audio:audit": "node tools/analyze-weapon-audio.mjs",
     "brand:render": "node tools/render-brand-card.mjs",
-    "test": "node tools/atlastest.mjs && node tools/revolver-smoke.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run modes:lobby && npm run modes:bots"
+    "test": "node tools/atlastest.mjs && node tools/pickaxe-test.mjs && node tools/weapon-swap-test.mjs && node tools/revolver-smoke.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run modes:lobby && npm run modes:bots"
   },
   "dependencies": {
     "ws": "^8.18.0"

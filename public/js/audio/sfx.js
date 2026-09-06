@@ -278,6 +278,21 @@ export const sfx = {
     });
   },
 
+  mine(type, broken, pos) {
+    run('impact', () => {
+      const output = pool.acquire({ pos }, 0.4);
+      const at = primitives.nowT();
+      const soft = [1, 2, 4, 5, 6, 10].includes(type);
+      const pitch = (soft ? 150 : type === 11 ? 950 : 330) * (0.9 + Math.random() * 0.2);
+      for (let i = 0; i < (broken ? 4 : 2); i++) {
+        primitives.hiss(output, { t0: at + i * 0.028, filter: 'bandpass',
+          f: pitch * 4, q: 0.7, dec: 0.045, g: broken ? 0.3 : 0.18 });
+        primitives.tone(output, { t0: at + i * 0.028, type: 'square',
+          f0: pitch, f1: pitch * 0.45, att: 0.001, dec: 0.035, g: 0.055 });
+      }
+    });
+  },
+
   reloadClick(step, weapon) {
     run('reload', () => {
       const brightness = WEP_TONE[weapon] || 1;

@@ -123,7 +123,7 @@ export function stepMovement(p, dt, ctx) {
   }
 
   p.yaw = inp.yaw; p.pitch = inp.pitch;
-  p.ads = !!inp.wantAds;
+  p.ads = !!inp.wantAds && p.deployT <= 0;
   const adsStep = dt / Math.max(0.001, p.def.adsTime);
   p.adsT = Math.max(0, Math.min(1, p.adsT + (p.ads ? adsStep : -adsStep)));
 

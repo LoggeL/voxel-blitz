@@ -391,7 +391,7 @@ export const HANDS = {
     support: { x: -0.055, y: 0.005, z: -0.42, on: 'body' }, // cup under the rail shroud.
   },
   knife: {
-    grip: { x: 0.020, y: -0.030, z: 0.005 },                // fist rides low: the baked glove
+    grip: { x: 0.020, y: -0.225, z: -0.035 },                // fist rides low: the baked glove
                                                             // cuff must stay under the 0.02 sight line.
     support: null,                                          // single hand: the blade is the support.
   },

@@ -13,6 +13,7 @@ import {
   chargeFromHold,
   chargeShotProfile,
 } from '../../../shared/combatmath.js';
+import { weaponSwapProfile } from '../../../shared/weapon-swap.js';
 import { TIMERS } from './defs.js';
 
 const EMPTY_AMMO = Object.freeze({ mag: 0, reserve: 0 });
@@ -226,9 +227,13 @@ export class WeaponState {
     this._resetRecoilPattern();
     this._reloadState = null;
     this._completedReloadWeapon = null;
-    this._deployUntil = now + this.def.deployTime * 1000;
+    this._deployUntil = now + weaponSwapProfile(this.def).total * 1000;
+    this._adsT = 0;
+    this._scopeActive = false;
+    if (this._rig.root) this._rig.root.visible = true;
     this._nextFireAt = Math.max(this._nextFireAt, this._deployUntil);
-    this._rig.setWeapon(WEAPON_IDS[slot]);
+    if (this._rig.equipWeapon) this._rig.equipWeapon(WEAPON_IDS[slot]);
+    else this._rig.setWeapon(WEAPON_IDS[slot]);
     this._audio.draw(WEAPON_IDS[slot]);
     return true;
   }
@@ -308,7 +313,7 @@ export class WeaponState {
   }
 
   startReload(now) {
-    if (this._reloadState || this._completedReloadWeapon === this.def.id || !this._alive) return false;
+    if (this._reloadState || this._completedReloadWeapon === this.def.id || !this._alive || now < this._deployUntil) return false;
     const def = this.def;
     if (def.mode === 'melee') return false; // a knife has no magazine to refill
     const ammo = this._ammo[def.id];
@@ -428,7 +433,7 @@ export class WeaponState {
     const def = this.def;
     this._bloomDeg = Math.max(0, this._bloomDeg - def.bloomRecover * dt);
     this._adsT += (
-      (this._wantAds && this._alive && !this._reloadState) ? 1 : -1
+      (this._wantAds && this._alive && !this._reloadState && this._now() >= this._deployUntil) ? 1 : -1
     ) * dt / Math.max(0.08, def.adsTime);
     this._adsT = Math.max(0, Math.min(1, this._adsT));
     this._scopeActive = this._alive && def.id === 'sniper' &&
