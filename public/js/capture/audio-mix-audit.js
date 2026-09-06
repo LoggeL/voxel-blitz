@@ -1,7 +1,7 @@
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { buildEchoGraph, buildMasterGraph } from '../audio/engine.js';
 import { createVoices } from '../audio/primitives.js';
-import { fireReportProfile, renderFireReport } from '../audio/reports.js';
+import { fireReportProfile, fireSampleProfile, renderFireReport } from '../audio/reports.js';
 import { BUILTIN_SAMPLE_MANIFEST } from '../audio/samples.js';
 
 const SAMPLE_RATE = 48_000;
@@ -45,7 +45,7 @@ function metricsFor(data) {
   });
 }
 
-async function renderWeapon(weapon) {
+async function renderWeapon(weapon, charge = 1) {
   const context = new OfflineAudioContext(1, SAMPLE_RATE * RENDER_SECONDS, SAMPLE_RATE);
   const master = buildMasterGraph(context, 0.8);
   const echo = buildEchoGraph(context, master.bus);
@@ -58,6 +58,7 @@ async function renderWeapon(weapon) {
   output.connect(master.bus);
 
   const profile = fireReportProfile(weapon);
+  const sampleProfile = fireSampleProfile(weapon, charge);
   const sampleUrl = BUILTIN_SAMPLE_MANIFEST[`weapons.${weapon}.fire`];
   if (sampleUrl) {
     const response = await fetch(sampleUrl);
@@ -66,8 +67,8 @@ async function renderWeapon(weapon) {
     const source = context.createBufferSource();
     const sampleGain = context.createGain();
     source.buffer = decoded;
-    source.playbackRate.value = profile.sampleRate;
-    sampleGain.gain.value = profile.sampleGain;
+    source.playbackRate.value = sampleProfile.rate;
+    sampleGain.gain.value = sampleProfile.gain;
     source.connect(sampleGain).connect(output);
     source.start(0.001);
   }
@@ -76,6 +77,7 @@ async function renderWeapon(weapon) {
   layer.connect(output);
   renderFireReport(weapon, layer, primitives, echo.in, () => {}, output, {
     includeMechanics: false,
+    charge,
   });
 
   const rendered = await context.startRendering();
@@ -86,6 +88,15 @@ try {
   const entries = await Promise.all(WEAPON_IDS.map(async (weapon) =>
     [weapon, await renderWeapon(weapon)]));
   const metrics = Object.freeze(Object.fromEntries(entries));
+  const chargeEntries = await Promise.all(['longarc', 'lance'].map(async (weapon) =>
+    [weapon, await Promise.all([0, 0.5, 1].map((charge) => renderWeapon(weapon, charge)))]));
+  const chargeMetrics = Object.fromEntries(chargeEntries);
+  for (const [weapon, levels] of chargeEntries) {
+    if (!(levels[0].rms < levels[1].rms && levels[1].rms < levels[2].rms)) {
+      throw new Error(`${weapon} charge mixes must increase in RMS`);
+    }
+  }
+  document.documentElement.dataset.audioChargeMetrics = JSON.stringify(chargeMetrics);
   document.documentElement.dataset.audioMixReady = 'true';
   document.documentElement.dataset.audioMixMetrics = JSON.stringify(metrics);
   document.getElementById('status').textContent = 'runtime mix audit ready';

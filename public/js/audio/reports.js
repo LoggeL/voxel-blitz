@@ -39,21 +39,31 @@ const FIRE_REPORT_PROFILES = Object.freeze({
     lifetime: 0.95, sampleGain: 0.8, sampleRate: 1.02, layerGain: 0.18,
   }),
   longarc: Object.freeze({
-    lifetime: 1.15, sampleGain: 0.85, sampleRate: 1, layerGain: 0.22,
+    lifetime: 1.25, sampleGain: 0.99, sampleRate: 1, layerGain: 0.12,
   }),
   lance: Object.freeze({
-    lifetime: 1.0, sampleGain: 0.85, sampleRate: 1.04, layerGain: 0.24,
+    lifetime: 1.0, sampleGain: 1.05, sampleRate: 1.04, layerGain: 0.12,
   }),
   knife: Object.freeze({
     lifetime: 0.5, sampleGain: 0.9, sampleRate: 1.12, layerGain: 0.18,
   }),
   rocket: Object.freeze({
-    lifetime: 1.6, sampleGain: 0.9, sampleRate: 0.9, layerGain: 0.3,
+    lifetime: 1.6, sampleGain: 0.99, sampleRate: 0.9, layerGain: 0.18,
   }),
 });
 
 export function fireReportProfile(key) {
   return FIRE_REPORT_PROFILES[key] || FIRE_REPORT_PROFILES.rifle;
+}
+
+// The recording is a full discharge. Early release must reduce the recorded
+// layer as well as the procedural voice, including remote positional shots.
+export function fireSampleProfile(key, charge = 1) {
+  const profile = fireReportProfile(key);
+  const held = Math.max(0, Math.min(1, Number.isFinite(charge) ? charge : 1));
+  const strength = key === 'longarc' ? 0.16 + 0.84 * held * held
+    : key === 'lance' ? 0.45 + 0.55 * held : 1;
+  return { gain: profile.sampleGain * strength, rate: profile.sampleRate };
 }
 
 export function shotRifleSmg(out, primitives, params) {
@@ -239,7 +249,7 @@ export function shotLance(out, primitives, charge = 1) {
   const held = Math.max(0, Math.min(1, Number.isFinite(charge) ? charge : 1));
   const level = 0.45 + 0.55 * held;
   const t0 = primitives.nowT();
-  const crackAt = primitives.nowT(0.015 + 0.02 * (held - 1));
+  const crackAt = primitives.nowT(Math.max(0, 0.015 + 0.02 * (held - 1)));
   // Rail ionization tick: a thin, fast square needle, brighter and tighter than LONGARC's saw snap.
   primitives.tone(out, {
     t0, type: 'square', f0: 1600 + level * 1800, f1: 3400 + level * 2600, dec: 0.028, g: 0.05 + level * 0.05,

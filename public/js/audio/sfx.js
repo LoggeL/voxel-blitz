@@ -22,6 +22,7 @@ import {
 import {
   arcZap,
   fireReportProfile,
+  fireSampleProfile,
   renderFireReport,
   sendEcho,
 } from './reports.js';
@@ -199,11 +200,10 @@ export const sfx = {
     const deferred = copyOptions(options);
     run('fire', () => {
       const profile = fireReportProfile(key);
+      const charge = deferred && !Array.isArray(deferred) && Number.isFinite(deferred.charge)
+        ? deferred.charge : 1;
       const output = pool.acquireFire(key, outputOptions(deferred), profile.lifetime);
-      const sampled = samples.play(`weapons.${key}.fire`, output, {
-        gain: profile.sampleGain,
-        rate: profile.sampleRate,
-      });
+      const sampled = samples.play(`weapons.${key}.fire`, output, fireSampleProfile(key, charge));
       const reportOutput = sampled
         ? createReportLayer(output, profile.layerGain)
         : output;
@@ -211,9 +211,7 @@ export const sfx = {
         // Local pump/bolt contacts come from the actual rig state machine. Remote
         // reports have no rig, so their matching contacts stay scheduled here.
         includeMechanics: !!positionOf(deferred),
-        charge: deferred && !Array.isArray(deferred) && Number.isFinite(deferred.charge)
-          ? deferred.charge
-          : 1,
+        charge,
       });
     });
   },

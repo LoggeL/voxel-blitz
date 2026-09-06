@@ -311,7 +311,9 @@ export async function runAudioContracts(ok, installGlobals) {
         const sampleSource = audio.nodes.slice(nodeMark).find((node) =>
           node.kind === 'buffer-source' && node.buffer?.decoded);
         return {
-          layered: sourceCount >= 4,
+          // One recording plus at least one procedural source. The number of
+          // oscillators is an implementation detail (knife uses one whoosh).
+          layered: sourceCount >= 2,
           gain: sampleSource?.connections[0]?.gain.value,
           rate: sampleSource?.playbackRate.value,
         };
@@ -321,6 +323,17 @@ export async function runAudioContracts(ok, installGlobals) {
             && gain >= 0.4 && gain <= 1.5 && rate >= 0.8 && rate <= 1.2)
           && new Set(sampleProfiles.map(({ gain, rate }) => `${gain}/${rate}`)).size >= 4,
       'all canonical weapon samples use bounded distinct profiles and retain synthetic report layers');
+      for (const weapon of ['longarc', 'lance']) {
+        const gains = [0, 0.5, 1].map((charge) => {
+          const mark = audio.nodes.length;
+          sfx.fire(weapon, { charge, pos: [0, 0, -3] });
+          return audio.nodes.slice(mark).find((node) =>
+            node.kind === 'buffer-source' && node.buffer?.decoded)?.connections[0]?.gain.value;
+        });
+        ok(gains[0] > 0 && gains[0] < gains[1] && gains[1] < gains[2]
+            && gains[2] / gains[0] >= (weapon === 'longarc' ? 5 : 2),
+          `${weapon} recorded shots retain charge dynamics for positional playback`);
+      }
       const liveDirectToMaster = () => audio.nodes.filter((node) =>
         !node.disconnected && node.connections.includes(master));
       const voiceBaseline = liveDirectToMaster().length;

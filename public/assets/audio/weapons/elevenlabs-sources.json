@@ -1,0 +1,60 @@
+{
+  "service": "ElevenLabs Sound Effects",
+  "generated": "2026-09-06",
+  "selections": [
+    {
+      "weapon": "longarc",
+      "source": "Single_powerful_sci-_#4-1788693297029.wav",
+      "source_sha256": "7adfbc610bc3195a95eb75c2e4e9ea2dcac69449ccb788bcd7da68351c0ec78a",
+      "trim_seconds": [
+        0.3,
+        1.4
+      ],
+      "highpass_hz": 55,
+      "lowpass_hz": 9000,
+      "fade_in_seconds": 0.001,
+      "fade_out_seconds": 0.05,
+      "mono": "0.5L + 0.5R",
+      "peak_target": 0.7,
+      "normalization_gain": 0.7775984812529663,
+      "output": "public/assets/audio/weapons/longarc/fire.ogg",
+      "output_sha256": "e2244c6ae16daeedeff7fd98c687a3d1597e9921d79d7bc65bacecdc3df1f00d"
+    },
+    {
+      "weapon": "lance",
+      "source": "Single_electric_lanc_#3-1788693253125.wav",
+      "source_sha256": "f29270780c9b241c2c5d1a0e90cd1e7b758a8ec2d9f775169e6f41810131c20c",
+      "trim_seconds": [
+        0,
+        0.55
+      ],
+      "highpass_hz": 180,
+      "lowpass_hz": 9500,
+      "fade_in_seconds": 0.001,
+      "fade_out_seconds": 0.05,
+      "mono": "0.5L + 0.5R",
+      "peak_target": 0.7,
+      "normalization_gain": 0.7829334061508004,
+      "output": "public/assets/audio/weapons/lance/fire.ogg",
+      "output_sha256": "c5ed7dc1b5e1f0f4914ee54c4c5daaf6971a8d040cfe4cda6f21280b9aec3c9b"
+    },
+    {
+      "weapon": "rocket",
+      "source": "Single_shoulder-fire_#4-1788693253100.wav",
+      "source_sha256": "1fc76efba0b5301f405d0a446c9091965122ecc3f42edb86a94f9dd5d470b46f",
+      "trim_seconds": [
+        0.1,
+        0.75
+      ],
+      "highpass_hz": 45,
+      "lowpass_hz": 8500,
+      "fade_in_seconds": 0.001,
+      "fade_out_seconds": 0.05,
+      "mono": "0.5L + 0.5R",
+      "peak_target": 0.7,
+      "normalization_gain": 1.0936728174319363,
+      "output": "public/assets/audio/weapons/rocket/fire.ogg",
+      "output_sha256": "7acc4af4fb7fd901c3215bf46a912ce72a07618aec4bbbdcaa42f52eeb1f164b"
+    }
+  ]
+}

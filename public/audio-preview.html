@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VOXEL BLITZ · Soundtest</title>
+<style>
+  body{max-width:760px;margin:48px auto;padding:0 24px;background:#101418;color:#eee;font:17px/1.5 system-ui}
+  h1{font-size:28px}h2{font-size:20px}section{border-top:1px solid #394047;padding:20px 0}
+  button{font:inherit;background:#ffa432;color:#111;border:0;border-radius:6px;padding:10px 16px;margin:4px;cursor:pointer}
+  button:disabled{opacity:.5}button:focus-visible{outline:3px solid white;outline-offset:3px}
+  p{color:#bdc6cf}audio{display:block;width:100%;margin-top:12px}#status{min-height:28px}
+</style>
+<h1>VOXEL BLITZ · Soundtest</h1>
+<p>Die Buttons spielen den fertigen Spielmix. Darunter kannst du das bearbeitete Sample allein hören.</p>
+<p id="status" role="status">Zum Hören einen Schuss auswählen.</p>
+<section><h2>LONGARC · Variante 4</h2><p>Satter Schuss, gekürzter Anlauf.</p>
+<button data-weapon="longarc" data-charge="0">Kurz</button><button data-weapon="longarc" data-charge="0.5">Halb geladen</button><button data-weapon="longarc" data-charge="1">Voll geladen</button>
+<audio controls preload="none" src="/assets/audio/weapons/longarc/fire.ogg" aria-label="LONGARC Sample"></audio></section>
+<section><h2>VOLTLANCE · Variante 3</h2><p>Kurzer elektrischer Impuls mit weniger Bass.</p>
+<button data-weapon="lance" data-charge="0">Kurz</button><button data-weapon="lance" data-charge="0.5">Halb geladen</button><button data-weapon="lance" data-charge="1">Voll geladen</button>
+<audio controls preload="none" src="/assets/audio/weapons/lance/fire.ogg" aria-label="VOLTLANCE Sample"></audio></section>
+<section><h2>Raketenstart · Variante 4</h2><p>Direkter Anschlag, kurzer Abgasnachlauf.</p>
+<button data-weapon="rocket" data-charge="1">Abfeuern</button>
+<audio controls preload="none" src="/assets/audio/weapons/rocket/fire.ogg" aria-label="Raketenstart Sample"></audio></section>
+<script type="module" src="/js/capture/audio-preview.js"></script>
+</html>

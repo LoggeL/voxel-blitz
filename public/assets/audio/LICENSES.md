@@ -48,3 +48,18 @@ origin and license of every bundled recording remain auditable.
 - Rebuild with `python3 tools/prepare-grenade-audio.py` (ffmpeg required).
   Before/after spectrograms are kept in `.artifacts/grenade-audio-source/` during preparation.
 - Rocket explosions reuse the heavier Limpet sample at 1.08x playback rate.
+
+## Generated energy weapons and rocket launch
+
+- Source: ElevenLabs Sound Effects, generated in the user's account on 2026-09-06.
+- LONGARC: railgun variant #4. VOLTLANCE: electric lance variant #3.
+  Rocket launch: shoulder-fired rocket variant #4.
+- These generated recordings are separate from the CC0 assets above; no CC0
+  license is asserted for them. Account/service terms govern their use.
+- `weapons/elevenlabs-sources.json` records original filenames, SHA-256 hashes,
+  trims, mono conversion, filters, fades and normalization.
+- Rebuild: `python3 tools/prepare-elevenlabs-audio.py <downloaded-wav-directory>`.
+- Original WAVs and the twelve-variant analysis are retained locally in
+  `.artifacts/elevenlabs-audio/`. The shipped files are mono 48 kHz Opus, 96 kbit/s.
+- LONGARC and VOLTLANCE sample gain follows charge; procedural reports remain
+  a quiet layer and the fallback if sample loading fails.
