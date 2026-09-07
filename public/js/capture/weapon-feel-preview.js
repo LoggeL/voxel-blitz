@@ -4,6 +4,8 @@ import { ViewmodelRig } from '../guns/viewmodel.js';
 import { WeaponAimMotion } from '../guns/weapon-aim.js';
 import { projectAimReticle } from '../ui/aim-reticle.js';
 import { fwdFromAngles } from '../util/look.js';
+import { GRENADE_TYPES, GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
+import { sfx } from '../audio/sfx.js';
 
 const $ = (id) => document.getElementById(id);
 const renderer = new THREE.WebGLRenderer({ canvas: $('scene'), antialias: true });
@@ -23,6 +25,18 @@ for (let x = -12; x <= 12; x += 3) {
   target.position.set(x, 1.62, -14.93); scene.add(target);
 }
 const rig = new ViewmodelRig(camera), aimMotion = new WeaponAimMotion();
+let sound = false, throwableHeldAt = null;
+rig.onGrenadeCue = ({ cue }) => {
+  if (!sound) return;
+  if (cue === 'pin') sfx.grenadePin();
+  else if (cue === 'ignite') sfx.molotovIgnite();
+  else if (cue === 'draw') sfx.grenadeDraw();
+};
+rig.onReloadClick = step => { if (sound) sfx.reloadClick(step, weapon); };
+for (const id of GRENADE_TYPE_IDS) {
+  const option = document.createElement('option'); option.value = id; option.textContent = GRENADE_TYPES[id].name;
+  $('throwable').append(option);
+}
 for (const id of WEAPON_IDS) {
   const option = document.createElement('option'); option.value = id; option.textContent = WEAPONS[id].name; $('weapon').append(option);
 }
@@ -32,6 +46,7 @@ const context = () => ({ speed: sprint ? 6.2 : 0, grounded: true, isSprinting: s
   forwardSpeed: sprint ? 6.2 : 0, aimSwayScale: 0, weaponAim: aimMotion.readModel,
   shotYaw: yaw + aimMotion.readModel.yaw, shotPitch: aimMotion.readModel.pitch });
 const settle = () => {
+  throwableHeldAt = null; rig.cancelGrenade(); toggle('hold-throwable', false);
   rig.setWeapon(weapon); aimMotion.reset(yaw, 0); rig.ads(ads ? 1 : 0);
   for (let i = 0; i < 180; i++) rig.update(1 / 60, context());
 };
@@ -65,6 +80,21 @@ $('fire').addEventListener('click', () => {
     new THREE.LineBasicMaterial({ color: 0xffd79a }));
   scene.add(trace); traceUntil = elapsed + 0.18;
 });
+$('sound').addEventListener('click', async () => {
+  sound = !sound; toggle('sound', sound);
+  if (sound) await sfx.unlock();
+});
+$('hold-throwable').addEventListener('click', () => {
+  if (throwableHeldAt !== null) { throwableHeldAt = null; rig.cancelGrenade(); }
+  else { rig.cancelReload(); throwableHeldAt = elapsed; paused = false; toggle('pause', false); }
+  toggle('hold-throwable', throwableHeldAt !== null);
+});
+$('throw-throwable').addEventListener('click', () => {
+  const charge = throwableHeldAt === null ? 0 : Math.min(1, (elapsed - throwableHeldAt) / 1.2);
+  rig.grenadeThrow(charge, $('throwable').value); throwableHeldAt = null;
+  if (sound) sfx.grenadeThrow(charge);
+  toggle('hold-throwable', false); paused = false; toggle('pause', false);
+});
 function resize() {
   renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
 }
@@ -74,6 +104,10 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   if (!paused) {
     elapsed += dt; camera.rotation.y = yaw;
+    if (throwableHeldAt !== null) {
+      const holdMs = (elapsed - throwableHeldAt) * 1000;
+      rig.grenadeCharge(Math.min(1, holdMs / 1200), $('throwable').value, holdMs, true);
+    }
     aimMotion.update(dt, { weapon, yaw, pitch: 0, weightKg: WEAPONS[weapon].weightKg,
       ads: ads ? 1 : 0, sprinting: sprint && !ads });
     rig.update(dt, context());

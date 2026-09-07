@@ -28,7 +28,7 @@ A multiplayer voxel arena shooter with destructible cover, twelve weapons and bo
 | Mode | What you play |
 | --- | --- |
 | Fun | Free-for-all with the full arsenal and fast respawns. Quick Play drops you into a live room. |
-| Chaos Lab | Kills earn credits for 45 cumulative upgrades across all twelve weapons and three grenade types. Open the lab with B; upgrades survive death. |
+| Chaos Lab | Kills earn credits for 48 cumulative upgrades across all twelve weapons and four throwables. Open the lab with B; upgrades survive death. |
 | Team Deathmatch | Two teams race to 40 kills. |
 | Search and Destroy | Plant or defuse the bomb, buy your loadout and make each life count. |
 | Gun Game | Every kill advances your weapon. Finish the ladder to win. |
@@ -80,7 +80,7 @@ PORT=8080 npm start
 | Left / right mouse | Fire / aim down sights |
 | `R` | Reload |
 | `1–9`, `0` or scroll wheel | Switch weapons |
-| Hold `Q`, release to equip | Weapon wheel |
+| Hold `Q`; hover a weapon and release, or move past the outer ring | Weapon wheel |
 | Hold and release `G` / press `H` | Throw / change throwable |
 | `E` / `B` | Objective interaction / S&D buy menu or Chaos Lab |
 | `Tab` / `Escape` | Scoreboard / settings and pause menu |

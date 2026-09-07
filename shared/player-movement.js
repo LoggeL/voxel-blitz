@@ -84,8 +84,10 @@ export function canStartVault(grounded, wantJump, forward, crouching, y, groundY
  * Find a supported ledge within arm's reach. Automatic grabs use the takeoff
  * height as reachY; a fresh airborne jump press uses the current feet height.
  * Facing supplies a direction when the player releases the movement keys.
+ * Ordinary one-block steps stay normal jumps. Deliberate airborne grabs pass
+ * minRise=0 so a second jump press can still catch a low ledge while falling.
  */
-export function findVault(solidAt, position, wish, reachY = position.y, yaw = null) {
+export function findVault(solidAt, position, wish, reachY = position.y, yaw = null, minRise = 1) {
   if (!Number.isFinite(reachY)) return null;
   let dx = wish.x, dz = wish.z;
   const length = Math.hypot(dx, dz);
@@ -95,6 +97,7 @@ export function findVault(solidAt, position, wish, reachY = position.y, yaw = nu
   const tx = position.x + dx * 0.95, tz = position.z + dz * 0.95;
   const maxTop = Math.floor(Math.min(reachY, position.y) + VAULT_REACH);
   for (let top = Math.floor(position.y + 0.1) + 1; top <= maxTop; top++) {
+    if (top <= reachY + minRise + EPS) continue;
     if (!solidAt(Math.floor(tx), top - 1, Math.floor(tz)) ||
         boxCollides(solidAt, tx, top, tz)) continue;
     const vault = { from: { x: position.x, y: position.y, z: position.z }, to: { x: tx, y: top, z: tz }, elapsed: 0 };

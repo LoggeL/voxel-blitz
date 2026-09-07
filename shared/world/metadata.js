@@ -1,6 +1,10 @@
 import { AIR, GROUND, METAL, SX, SY, SZ } from './blocks.js';
 import { MAP_MODE_COMPATIBILITY } from '../modes.js';
 import { foundryLadderVolumes } from './terrain-foundry.js';
+import {
+  DUST2_NAV_FLOORS, DUST2_SPAWN_ANCHORS, DUST2_SITES, DUST2_LANDMARKS,
+  dust2FloorsAt,
+} from './dust2-layout.js';
 
 const MAP_NAMES = Object.freeze({
   foundry: 'Foundry',
@@ -14,17 +18,7 @@ const MAP_NAMES = Object.freeze({
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
-  dust2: {
-    fun: [[56,84],[74,84],[57,14],[75,14],[16,15],[36,15],[21,65],[44,74],[107,70],[64,64]],
-    tdm: {
-      alpha: [[57,83],[61,83],[65,83],[69,83],[73,83],[65,87]],
-      bravo: [[57,15],[61,15],[65,15],[69,15],[73,15],[65,11]],
-    },
-    snd: {
-      attackers: [[57,83],[61,83],[65,83],[69,83],[73,83],[65,87]],
-      defenders: [[57,15],[61,15],[65,15],[69,15],[73,15],[65,11]],
-    },
-  },
+  dust2: DUST2_SPAWN_ANCHORS,
   nuketown: {
     fun: [[43,12],[56,12],[73,12],[86,12],[43,83],[56,83],[73,83],[86,83],[28,40],[99,55],[35,59],[92,39]],
     tdm: { alpha: [[43,83],[51,83],[59,83],[68,83],[77,83],[86,83]], bravo: [[43,12],[51,12],[59,12],[68,12],[77,12],[86,12]] },
@@ -93,10 +87,7 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
 });
 
 const MAP_SITE_LAYOUTS = Object.freeze({
-  dust2: [
-    { id: 'A', minX: 96, maxX: 103, minZ: 21, maxZ: 28, y: GROUND + 4.02 },
-    { id: 'B', minX: 23, maxX: 30, minZ: 20, maxZ: 27, y: GROUND + 1.02 },
-  ],
+  dust2: DUST2_SITES,
   nuketown: [
     { id: 'A', minX: 32, maxX: 39, minZ: 43, maxZ: 51, y: GROUND + 1.02 },
     { id: 'B', minX: 92, maxX: 99, minZ: 43, maxZ: 51, y: GROUND + 1.02 },
@@ -122,13 +113,7 @@ const MAP_SITE_LAYOUTS = Object.freeze({
 });
 
 const MAP_LANDMARKS = Object.freeze({
-  dust2: [
-    { id: 'a-site', name: 'A Site', x: 99, z: 24 },
-    { id: 'b-site', name: 'B Site', x: 26, z: 23 },
-    { id: 'mid-doors', name: 'Mid Doors', x: 62, z: 32 },
-    { id: 'a-long', name: 'A Long', x: 112, z: 50 },
-    { id: 'upper-tunnels', name: 'Upper Tunnels', x: 24, z: 45, floorY: GROUND },
-  ],
+  dust2: DUST2_LANDMARKS,
   nuketown: [
     { id: 'yellow-house', name: 'Yellow House', x: 59, z: 67 },
     { id: 'school-bus', name: 'School Bus', x: 57, z: 46 },
@@ -230,7 +215,7 @@ function spawnIsWalkable(world, spawn) {
 function resolveSpawnPool(world, anchors, floorY = null) {
   const out = [];
   const occupied = new Set();
-  for (const [px, pz] of anchors) {
+  for (const [px, pz, anchorFloorY] of anchors) {
     let resolved = null;
     for (let r = 0; r <= 8 && !resolved; r++) {
       for (let dz = -r; dz <= r && !resolved; dz++) {
@@ -239,14 +224,19 @@ function resolveSpawnPool(world, anchors, floorY = null) {
           const x = px + dx;
           const z = pz + dz;
           if (x < 3 || z < 3 || x >= SX - 3 || z >= SZ - 3) continue;
-          const h = floorY ?? world.heightAt(x, z);
-          const spawn = { x: x + 0.5, y: h + 1.02, z: z + 0.5 };
-          const key = `${x},${z}`;
-          if (!occupied.has(key) && spawnIsWalkable(world, spawn)) {
-            occupied.add(key);
-            resolved = spawn;
-            break;
+          const floors = world.mapId === 'dust2'
+            ? [...dust2FloorsAt(x, z)].sort((a, b) => Math.abs(a - anchorFloorY) - Math.abs(b - anchorFloorY))
+            : [anchorFloorY ?? floorY ?? world.heightAt(x, z)];
+          for (const h of floors) {
+            const spawn = { x: x + 0.5, y: h + 1.02, z: z + 0.5 };
+            const key = `${x},${h},${z}`;
+            if (!occupied.has(key) && spawnIsWalkable(world, spawn)) {
+              occupied.add(key);
+              resolved = spawn;
+              break;
+            }
           }
+          if (resolved) break;
         }
       }
     }
@@ -258,8 +248,8 @@ function resolveSpawnPool(world, anchors, floorY = null) {
 
 export function createMapMetadata(id, world) {
   const anchors = MAP_SPAWN_ANCHORS[id];
-  // Training operators and Dust 2 players spawn below the canopy/tunnel roofs.
-  const floorY = id === 'killhouse' || id === 'dust2' ? GROUND : null;
+  // Training uses one authored floor; Dust II anchors carry individual NAV levels.
+  const floorY = id === 'killhouse' ? GROUND : null;
   const metadata = {
     id,
     name: MAP_NAMES[id],
@@ -269,8 +259,9 @@ export function createMapMetadata(id, world) {
       minY: GROUND + 1, maxY: GROUND + 1.1,
     } } : {}),
     ...(id === 'dust2' ? { spawnBounds: {
-      minX: 7.5, maxX: 120.5, minZ: 7.5, maxZ: 88.5,
-      minY: GROUND + 1, maxY: GROUND + 1.1,
+      minX: 22.5, maxX: 105.5, minZ: 3.5, maxZ: 92.5,
+      minY: 11, maxY: 18.1,
+      surfaces: DUST2_NAV_FLOORS,
     } } : {}),
     modes: MAP_MODE_COMPATIBILITY[id],
     spawns: {

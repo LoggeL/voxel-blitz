@@ -158,6 +158,7 @@ export class LocalPlayer {
     this.fireTapLatched = false;
     this._pendingShotAim = null;
     this.grenadeThrowLatched = null; // {charge, cookMs, type, at, grenadeAim} awaiting a network send
+    this.grenadeHandling = false;
     this._lastLocalImpact = null;
     this._lastReconciledSnapSeq = null;
     this._gameplayInputEnabled = false;
@@ -178,6 +179,7 @@ export class LocalPlayer {
       fireTap: false,
       fireHeld: false,
       throwGrenade: null,
+      grenadeHandling: false,
     };
     this._frame = {
       jumped: false,
@@ -252,6 +254,7 @@ export class LocalPlayer {
     this.fireTapLatched = false;
     this._pendingShotAim = null;
     this.grenadeThrowLatched = null;
+    this.grenadeHandling = false;
     this._localGrenadeThrow = null;
     this.wantAds = false;
     this.physics._crouching = false;
@@ -316,6 +319,7 @@ export class LocalPlayer {
     this.fireTapLatched = false;
     this._pendingShotAim = null;
     this.grenadeThrowLatched = null;
+    this.grenadeHandling = false;
     this._localGrenadeThrow = null;
     this._lastLocalImpact = null;
     this._lastReconciledSnapSeq = null;
@@ -349,6 +353,7 @@ export class LocalPlayer {
     this._pendingShotAim = null;
     this.pendingShotIntent = null;
     this.grenadeThrowLatched = null;
+    this.grenadeHandling = false;
     this._localGrenadeThrow = null;
     this.wantAds = false;
     this.adsT = 0;
@@ -588,6 +593,7 @@ export class LocalPlayer {
     weaponIntents.fireTap = false;
     weaponIntents.fireHeld = false;
     weaponIntents.throwGrenade = null;
+    weaponIntents.grenadeHandling = this.grenadeHandling;
 
     if (input.consumeBuyMenuRequest()) {
       weaponIntents.buyMenuRequested = true;
@@ -599,13 +605,6 @@ export class LocalPlayer {
         return weaponIntents;
       }
     }
-
-    this.wantAds = !!input.wantAdsHeld;
-    weaponIntents.wantAds = this.wantAds;
-    weaponIntents.switchDelta = input.consumeWeaponSwitch();
-    weaponIntents.slot = input.consumeWeaponSlot();
-    weaponIntents.lastWeapon = input.consumeLastWeaponRequest();
-    weaponIntents.reload = !!(this.keys.reload && this._alive);
 
     const fireAllowed = isAllowed(intents.fireAllowed);
     const grenadeThrow = input.consumeGrenadeThrow();
@@ -622,10 +621,26 @@ export class LocalPlayer {
       this._localGrenadeThrow = null;
     }
     weaponIntents.throwGrenade = this.grenadeThrowLatched;
-    const fireTap = input.consumeFireTap();
-    const fireHeld = !!input.wantFireHeld;
+    const externalHandling = intents.weaponHandlingAllowed == null || isAllowed(intents.weaponHandlingAllowed);
+    this.grenadeHandling = this._alive && fireAllowed && (!externalHandling || !!this.grenadeThrowLatched);
+    weaponIntents.grenadeHandling = this.grenadeHandling;
+    const weaponHandling = !this.grenadeHandling;
+    this.wantAds = !!input.wantAdsHeld && weaponHandling;
+    weaponIntents.wantAds = this.wantAds;
+    weaponIntents.switchDelta = input.consumeWeaponSwitch();
+    weaponIntents.slot = input.consumeWeaponSlot();
+    weaponIntents.lastWeapon = input.consumeLastWeaponRequest();
+    weaponIntents.reload = !!(this.keys.reload && this._alive);
+    if (!weaponHandling) {
+      weaponIntents.switchDelta = 0;
+      weaponIntents.slot = null;
+      weaponIntents.lastWeapon = false;
+      weaponIntents.reload = false;
+    }
+    const fireTap = input.consumeFireTap() && weaponHandling;
+    const fireHeld = !!input.wantFireHeld && weaponHandling;
     if (fireTap && fireAllowed) this.fireTapLatched = true;
-    if (!fireAllowed) this.fireTapLatched = false;
+    if (!fireAllowed || !weaponHandling) this.fireTapLatched = false;
     this.pendingShotIntent = {
       tap: fireAllowed && fireTap,
       held: fireAllowed && fireHeld,
@@ -768,6 +783,7 @@ export class LocalPlayer {
       wantAds: this._gameplayInputEnabled && this.wantAds,
       reload: this._gameplayInputEnabled && reloading,
       throwGrenade: !!(this._gameplayInputEnabled && this.grenadeThrowLatched),
+      grenadeHandling: this._gameplayInputEnabled && this.grenadeHandling,
       grenadeCharge: this._gameplayInputEnabled ? (this.grenadeThrowLatched?.charge ?? 0) : 0,
       grenadeType: this._gameplayInputEnabled ? (this.grenadeThrowLatched?.type ?? 0) : 0,
       grenadeCook: this._gameplayInputEnabled ? (this.grenadeThrowLatched?.cookMs ?? 0) : 0,
@@ -976,7 +992,7 @@ export class LocalPlayer {
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 14);
     camera.updateProjectionMatrix();
 
-    this.scopeActive = this._alive && !this.physics.vault && weaponDef.id === 'sniper' &&
+    this.scopeActive = this._alive && !this.physics.vault && !this.grenadeHandling && weaponDef.id === 'sniper' &&
       this.adsT >= SNIPER_SCOPE_ADS_THRESHOLD;
     updateFirstPersonBody(
       this.body,

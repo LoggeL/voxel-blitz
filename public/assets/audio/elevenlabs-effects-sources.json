@@ -426,7 +426,7 @@
       "fade_out_seconds": 0.009,
       "peak_target": 0.7,
       "max_duration_seconds": 0.2,
-      "output": "public/assets/audio/weapons/minigun/fire.ogg",
+      "output": ".artifacts/elevenlabs-effects-2026-09-07/legacy-output/minigun-fire.ogg",
       "selection_rationale": "All four generated candidates contain multiple reports. The first report of candidate 2 was separately plotted and selected: its 25-80 ms interval contains one fast attack followed by a compact falling tail, with no near-full-scale samples in that interval. Candidate 1 has a slower broad swell; the inspected first reports of candidates 3 and 4 reach full scale. The game supplies firing cadence, so only this isolated 55 ms shot is shipped.",
       "source_sha256": "5f0f3a2d592df11a2083fdf6401a5c8795b123c00102aa8d33644edd554e4aa6",
       "trim_energy_retained_percent": 25.195916621532305,
@@ -487,7 +487,8 @@
         "method": "ElevenLabs API",
         "raw_source": "minigun-2.mp3",
         "conversion_note": "API MP3 decoded to 48 kHz PCM WAV for analysis; the WAV conversion preserves the decoded MP3 signal, not the uncompressed generated original."
-      }
+      },
+      "replaced_by": "public/assets/audio/elevenlabs-minigun-sources.json"
     },
     {
       "id": "knife",

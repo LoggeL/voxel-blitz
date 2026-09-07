@@ -13,7 +13,7 @@ reloads take 2.8 seconds; tactical reloads take 2.3 seconds.
 
 Each packet deals four direct damage within five metres, equivalent to 80 direct
 DPS while every packet connects. Damage falls linearly to 1.25 per packet at the
-18-metre maximum range, or 25 direct DPS. Flames have no headshot multiplier.
+28-metre stream reach, or 25 direct DPS. Flames have no headshot multiplier.
 Flight time gives targets a chance to leave the stream at longer distances.
 
 One graze starts a 0.75-second afterburn. Further contacts add 0.16 seconds to its

@@ -736,7 +736,7 @@ export async function runHudContracts(ok, installGlobals) {
       hud.setState({ grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 0.5 });
       const fragChip = document.querySelectorAll('.vb-grenade-type')[0];
       const pulseChip = document.querySelectorAll('.vb-grenade-type')[2];
-      ok(document.querySelectorAll('.vb-grenade-type').length === 3
+      ok(document.querySelectorAll('.vb-grenade-type').length === 4
         && fragChip.classList.contains('is-selected')
         && fragChip.querySelectorAll('.vb-grenade-icon').filter((slot) => !slot.classList.contains('is-spent')).length === 1
         && pulseChip.classList.contains('is-empty')

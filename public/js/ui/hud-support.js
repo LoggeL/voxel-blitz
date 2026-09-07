@@ -43,6 +43,7 @@ export const THROWABLE_NAMES = Object.freeze({
   frag: 'M-4 FRAG',
   limpet: 'LIMPET CHARGE',
   pulse: 'PULSE SHOCK',
+  molotov: 'MOLOTOV COCKTAIL',
 });
 
 export const WEAPON_CLASSES = Object.freeze({
@@ -57,7 +58,7 @@ export const WEAPON_CLASSES = Object.freeze({
   rocket: 'ROCKET LAUNCHER · SPLASH & ROCKET JUMP',
   lance: 'SIEGE LANCE · LINE PIERCE ×6',
   knife: 'PICKAXE · HOLD TO MINE',
-  flamethrower: 'CLOSE-RANGE JET · BUILD AFTERBURN · 18m',
+  flamethrower: 'FLAME JET · BUILD AFTERBURN · 28m',
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([

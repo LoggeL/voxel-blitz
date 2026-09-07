@@ -99,6 +99,7 @@ export class PlayerEntity {
     this.panic = 0;
     this.burn = null;
     this.burning = 0;
+    this.molotovBurning = 0;
     this.pain = 0;
     this.exhaustion = 0;
     this.state = 'alive';
@@ -127,6 +128,7 @@ export class PlayerEntity {
     this.hist = [];
     this.triggerPrev = false;
     this.fireEdgeQueued = false;
+    this.grenadeHandlingQueued = false;
     this.grenadeEdgeQueued = false;
     this.grenadeChargeQueued = 0;
     this.grenadeTypeQueued = 0;

@@ -8,6 +8,8 @@ import {
   AIR, GRASS, DIRT, STONE, SAND, WOOD, LEAVES,
   CONCRETE, METAL, ACCENT, PLANK, GLASS, PALE, RUST, BRICK,
   YELLOW_SIDING, TEAL_SIDING, ASPHALT, ROOF, BUS_YELLOW, TRUCK_RED,
+  DUST_SANDSTONE, DUST_PLASTER, DUST_ROCK, DUST_FLOOR,
+  DUST_TRIM, DUST_TILE, DUST_CRATE, DUST_WOOD,
 } from '../../../shared/worlddata.js';
 
 export const ATLAS_SIZE = 256;
@@ -20,6 +22,8 @@ export const TILE = {
   AIR_DEBUG: 0, GRASS_TOP: 1, GRASS_SIDE: 2, DIRT: 3, STONE: 4, SAND: 5,
   WOOD_BARK: 6, WOOD_RINGS: 7, LEAVES: 8, CONCRETE: 9, METAL: 10,
   ACCENT: 11, PLANK: 12, GLASS: 13, PALE: 14, RUST: 15, BRICK: 16,
+  DUST_SANDSTONE: 23, DUST_PLASTER: 24, DUST_ROCK: 25, DUST_FLOOR: 26,
+  DUST_TRIM: 27, DUST_TILE: 28, DUST_CRATE: 29, DUST_WOOD: 30,
 };
 
 /** Deterministic integer wobble -> 0..k-1. The atlas' only "randomness". */
@@ -237,6 +241,88 @@ function siding(base, x, y) {
   return [...base.map(v => clamp255(v + n + shade)), 255];
 }
 
+// Dust II's Kasbah stone and sun-faded plaster have soft mineral variation.
+// Keep them separate from the existing industrial tiles: their visible faces
+// have no artificial bevel or dark ring around every voxel.
+function dustGrain(x, y, salt, range) {
+  let value = Math.imul(x + 17, 374761393) ^ Math.imul(y + 29, 668265263) ^ Math.imul(salt, 1274126177);
+  value = Math.imul(value ^ (value >>> 13), 1274126177);
+  return ((value ^ (value >>> 16)) >>> 0) % range;
+}
+
+function dustColor(base, shade) {
+  return [clamp255(base[0] + shade), clamp255(base[1] + shade), clamp255(base[2] + shade), 255];
+}
+
+function dustSandstone(x, y) {
+  const course = y >> 3;
+  const jointX = (x + course * 8) & 15;
+  const joint = (y & 7) === 7 || jointX === 0;
+  let shade = dustGrain(x, y, 51, 11) - 5;
+  shade += dustGrain(x >> 2, y >> 1, 52, 7) - 3;
+  if (joint) return dustColor([162, 139, 104], shade >> 1);
+  // Slightly eroded, rounded stone courses, without embossed block outlines.
+  if ((y & 7) === 6 && dustGrain(x, y, 53, 5) === 0) shade -= 9;
+  return dustColor([188, 163, 122], shade);
+}
+
+function dustPlaster(x, y) {
+  const grain = dustGrain(x, y, 54, 9) - 4;
+  const mottle = dustGrain(x >> 2, y >> 2, 55, 7) - 3;
+  const pore = dustGrain(x, y, 56, 71) === 0 ? -12 : 0;
+  return dustColor([205, 187, 155], grain + mottle + pore);
+}
+
+function dustRock(x, y) {
+  const drift = [0, 0, 1, 1, 0, 0, -1, -1][x >> 1];
+  const layer = (y + drift + 16) & 7;
+  const strata = [3, 7, 4, -2, -7, -4, 0, 2][layer];
+  const grain = dustGrain(x, y, 57, 15) - 7;
+  return dustColor([160, 132, 90], strata + grain);
+}
+
+function dustFloor(x, y) {
+  const grain = dustGrain(x, y, 58, 11) - 5;
+  const mottle = dustGrain(x >> 2, y >> 2, 59, 9) - 4;
+  // Fine aggregate under a film of dust, without a tile-size paving grid.
+  const aggregate = dustGrain(x, y, 60, 83) === 0 ? -13 : 0;
+  return dustColor([172, 160, 138], grain + mottle + aggregate);
+}
+
+function dustTrim(x, y) {
+  const grain = dustGrain(x, y, 61, 7) - 3;
+  const pore = dustGrain(x, y, 62, 101) === 0 ? -10 : 0;
+  return dustColor([220, 209, 180], grain + pore);
+}
+
+function dustTile(x, y) {
+  const grout = (x & 7) === 7 || (y & 7) === 7;
+  const grain = dustGrain(x, y, 63, 7) - 3;
+  if (grout) return dustColor([171, 175, 155], grain);
+  const glaze = dustGrain(x >> 3, y >> 3, 64, 9) - 4;
+  return dustColor([77, 119, 137], grain + glaze);
+}
+
+function dustCrate(x, y) {
+  const grain = dustGrain(x, y, 65, 9) - 4;
+  const slat = x === 2 || x === 13 || y === 2 || y === 13;
+  const joint = (y & 3) === 3;
+  const worn = dustGrain(x, y, 66, 59) === 0 ? 15 : 0;
+  if ((x === 2 || x === 13) && (y === 3 || y === 12)) return [71, 72, 53, 255];
+  return dustColor(slat ? [124, 123, 80] : [104, 106, 69], grain + worn - (joint && !slat ? 11 : 0));
+}
+
+function dustWood(x, y) {
+  const grain = dustGrain(x, y >> 2, 67, 13) - 6;
+  if (y === 4 || y === 11) {
+    if (x === 2 || x === 13) return [103, 95, 74, 255];
+    return dustColor([60, 58, 47], grain >> 1);
+  }
+  const seam = (x & 3) === 3 ? -17 : 0;
+  const scratch = dustGrain(x, y, 68, 67) === 0 ? 18 : 0;
+  return dustColor([91, 73, 49], grain + seam + scratch);
+}
+
 /** Tile-id -> painter registry. Keys are TILE slot values. */
 export const TILE_PAINTERS = Object.freeze({
   [TILE.AIR_DEBUG]: airDebug,
@@ -262,6 +348,14 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.ROOF]: (x,y) => { const n = y%4===3 || (x+(Math.floor(y/4)%2)*8)%16===0 ? -12 : wob(x,y,42,12); return [91+n,74+n,62+n,255]; },
   [TILE.BUS_YELLOW]: (x,y) => siding([242,177,38],x,y),
   [TILE.TRUCK_RED]: (x,y) => siding([167,52,42],x,y),
+  [TILE.DUST_SANDSTONE]: dustSandstone,
+  [TILE.DUST_PLASTER]: dustPlaster,
+  [TILE.DUST_ROCK]: dustRock,
+  [TILE.DUST_FLOOR]: dustFloor,
+  [TILE.DUST_TRIM]: dustTrim,
+  [TILE.DUST_TILE]: dustTile,
+  [TILE.DUST_CRATE]: dustCrate,
+  [TILE.DUST_WOOD]: dustWood,
 });
 
 // ------------------------------------------------------------- face mapping
@@ -289,7 +383,14 @@ export const DEFAULT_BLOCK_TILES = Object.freeze({
   [ROOF]: { all: TILE.ROOF },
   [BUS_YELLOW]: { all: TILE.BUS_YELLOW },
   [TRUCK_RED]: { all: TILE.TRUCK_RED },
-
+  [DUST_SANDSTONE]: { all: TILE.DUST_SANDSTONE },
+  [DUST_PLASTER]: { all: TILE.DUST_PLASTER },
+  [DUST_ROCK]: { all: TILE.DUST_ROCK },
+  [DUST_FLOOR]: { all: TILE.DUST_FLOOR },
+  [DUST_TRIM]: { all: TILE.DUST_TRIM },
+  [DUST_TILE]: { all: TILE.DUST_TILE },
+  [DUST_CRATE]: { all: TILE.DUST_CRATE },
+  [DUST_WOOD]: { all: TILE.DUST_WOOD },
 });
 
 /**
@@ -330,8 +431,12 @@ export function tileRect(tile) {
 
 // ---------------------------------------------------------------- assembly
 
-/** Tiles excluded from the universal 1px darken ring (their own border IS the look). */
-const NO_RING_DARKEN = new Set([TILE.AIR_DEBUG, TILE.GLASS]);
+/** These tiles supply their own seams or deliberately have a seamless surface. */
+const NO_RING_DARKEN = new Set([
+  TILE.AIR_DEBUG, TILE.GLASS,
+  TILE.DUST_SANDSTONE, TILE.DUST_PLASTER, TILE.DUST_ROCK, TILE.DUST_FLOOR,
+  TILE.DUST_TRIM, TILE.DUST_TILE, TILE.DUST_CRATE, TILE.DUST_WOOD,
+]);
 const RING_DARKEN = 0.78;
 
 function paintSheet(data) {

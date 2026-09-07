@@ -12,7 +12,7 @@ const feedback = new CombatFeedback({
   isRunning: () => running,
 });
 
-for (const type of ['frag', 'limpet', 'pulse']) {
+for (const type of ['frag', 'limpet', 'pulse', 'molotov']) {
   const remote = evProjectileLaunch('remote', `remote-${type}`, type, [5, 2, 1], [1, 2, 3], 1000);
   feedback.handleEvent(remote);
   assert.equal(launches.at(-1).options.fromSelf, false);
@@ -23,7 +23,7 @@ for (const type of ['frag', 'limpet', 'pulse']) {
   assert.equal(launches.at(-1).options.fromSelf, true);
   assert.equal(sounds.length, before, 'authoritative local launch never doubles predicted hand audio');
 }
-assert.equal(sounds.length, 3, 'each remote grenade type plays exactly one throw cue');
+assert.equal(sounds.length, 4, 'each remote throwable type plays exactly one throw cue');
 
 const charged = evProjectileLaunch('remote', 'charged', 'frag', [6, 3, 2], [1, 2, 3], 1000);
 feedback.handleEvent({ ...charged, charge: 0.85 });

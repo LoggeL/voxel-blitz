@@ -4,7 +4,7 @@ import { BOLT_HOME, BREACH_Z, PUMP_REST, TRIGGER_Z } from './common.js';
 /** Build the M-DOCK 12's full-stock, tube-fed pump-action silhouette. */
 export function build({ kit, T, groups }) {
   const { box, cylZ, brakeRings, ironSights } = kit;
-  const { body, mag, bolt, pump, trigger } = groups;
+  const { body, mag, bolt, pump, trigger, extra } = groups;
 
   // Layered full stock. The short rotated sections read as the reference's flowing pistol-grip
   // neck without bringing one large cuboid close enough to fill the first-person camera.
@@ -65,6 +65,14 @@ export function build({ kit, T, groups }) {
 
   // Tube-fed weapons retain the assembler's magazine hierarchy without a removable box.
   box(mag, 0.001, 0.001, 0.001, 0, -0.5, -0.5, COL.brake);
+  const reloadShell = new THREE.Group();
+  reloadShell.name = 'shotgun_reload_shell';
+  cylZ(reloadShell, 0.012, 0.050, 0, 0, 0, 0xb34225, { seg: 8 });
+  cylZ(reloadShell, 0.013, 0.014, 0, 0, 0.025, COL.brass, { seg: 8 });
+  reloadShell.visible = false;
+  reloadShell.userData.homePosition = reloadShell.position.clone();
+  extra.add(reloadShell);
+  extra.userData.reloadRounds = reloadShell;
 
   // The visible breech face sits inside the body-side ejection window and follows bolt travel.
   box(bolt, 0.008, 0.029, 0.055, -0.050, 0.030, BOLT_HOME.shotgun, COL.steel,
@@ -92,3 +100,4 @@ export function build({ kit, T, groups }) {
   box(trigger, 0.038, 0.025, 0.007, 0, -0.032, TRIGGER_Z.shotgun - 0.031, COL.polyDark);
   box(trigger, 0.038, 0.025, 0.007, 0, -0.032, TRIGGER_Z.shotgun + 0.039, COL.polyDark);
 }
+import * as THREE from '../../vendor/three.module.js';

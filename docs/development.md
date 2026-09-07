@@ -10,8 +10,19 @@ weapon wheel, synthesized WebAudio layers, transient-aligned licensed firearm
 samples, and menu music.
 Every weapon has a dedicated generated HUD silhouette. With `?debug=1`, the HUD
 shows round-trip history, arrival jitter, the adaptive snapshot buffer, and FPS.
-The live HUD shows three kinds of server-authoritative throwables per life: cookable frags,
-sticky limpet charges, and concussive pulse shocks.
+The live HUD shows four server-authoritative throwables per life: cookable frags,
+sticky limpet charges, concussive pulse shocks, and Molotov cocktails. Holding a
+throwable raises it into the hand, then animates pin extraction or bottle ignition
+with the matching sound. A Molotov breaks on impact and leaves ground fire for
+6.5 seconds. Its 3.2 m footprint follows exposed terrain and deals 24 damage per
+second, subject to team rules, cover and spawn protection.
+
+Firearm hit rays have no weapon-specific maximum distance; damage falloff and
+terrain cover still apply. The flamethrower jet reaches 28 m. Normal jumps onto
+one-block ledges skip automatic vaulting; a deliberate second jump press can
+still grab a ledge in the air. Reloads have weapon-specific hand and ammunition
+motions, with exchange magazines leaving the view before a replacement enters.
+Use `/weapon-feel-preview.html` to inspect reload phases and throwable handling.
 
 ## Map power-ups
 
@@ -36,7 +47,7 @@ Run `npm run powerups:test` for simulation and protocol checks, and
 
 Create a lobby, select **CHAOS LAB**, ready up and start. The full weapon roster is available.
 Start with $600, earn $300 per kill, and open the upgrade shop with **B** (or the touch
-BUY button / gamepad D-pad right). All twelve weapons and three grenades each have
+BUY button / gamepad D-pad right). All twelve weapons and four throwables each have
 three cumulative upgrades costing $300, $600 and $900. Money and upgrades survive
 respawns for the current match; joining a new room starts fresh. Kills also restore
 one grenade of each type, up to five. The shop does not pause combat. Bots buy upgrades too.
@@ -45,7 +56,7 @@ Experiments include Tesla chain hits, shotgun bowling bolts, wall-piercing explo
 sniper rounds, rocket-fed LMG salvos, revolver pinball rings, eight-bounce LONGARC
 multiball with explosive bumpers, homing cluster rockets, tunnel rails, pickaxe
 shockwaves, frag offspring, homing sticky offspring and vacuum-to-launch pulse bombs.
-The shop describes all 45 stages before purchase, with artwork for every weapon and
+The shop describes all 48 stages before purchase, with artwork for every weapon and
 grenade. Cluster children cannot reproduce;
 rooms cap live projectiles at 192 and clients retain at most 96 blast visuals.
 
@@ -72,7 +83,7 @@ cadence and use the same two-decimal wire precision as launch packets.
 ## Continuous flamethrower
 
 Hold fire to sustain the F-4 FIRESTORM jet. A 160-unit tank supplies eight seconds
-of fire, with 20 authoritative packets per second travelling at 30 m/s up to 18 m.
+of fire, with 20 authoritative packets per second travelling at 30 m/s up to 28 m.
 Packets sweep against terrain and posed player hitboxes, stop on contact, and
 ignite victims for four seconds at 7 HP/s. Further hits refresh one burn without
 stacking its rate. Burning holds panic at least at 95%; death, respawn and round
@@ -359,7 +370,7 @@ roster cards are omitted; S&D keeps a compact remaining-lives strip on desktop.
 | `Z` | sniper zoom step (5× ↔ 2.5×) |
 | `R` | reload; shotgun shells seat one at a time and firing interrupts the load |
 | hold/release `G` | charge and throw the selected throwable; longer holds throw farther, and a frag cooks while held (hold past the fuse and it goes off in your hand) |
-| `H`, or wheel while holding `G` | cycle the throwable: M-4 FRAG (2), LIMPET CHARGE (1, sticks to walls and players), PULSE SHOCK (2, impact concussion) |
+| `H`, or wheel while holding `G` | cycle the throwable: M-4 FRAG (2), LIMPET CHARGE (1, sticks to walls and players), PULSE SHOCK (2, impact concussion), MOLOTOV COCKTAIL (1, ground fire) |
 | hold/release mouse1 with the LONGARC | charge the coilgun; release fires a bouncing bolt — a tap ricochets off one wall, a full charge ricochets three times |
 | hold/release mouse1 with the VOLTLANCE | charge the rail-lance; release fires a lance that spears up to six enemies on the line, and only a full charge crosses up to two walls |
 | mouse1 with the PIXEL PICK | hold to mine nearby blocks; harder materials require more swings. No ammo or reload; melee hits retain 2.5x backstabs |

@@ -18,7 +18,7 @@ const MAX_RUNTIME_RMS_DBFS = -3;
 const STANDARD_FIREARMS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver'];
 
 function assetKind(slot) {
-  if (slot.endsWith('.fire')) return 'fire';
+  if (/\.fire(?:\.\d+)?$/.test(slot)) return 'fire';
   if (slot.endsWith('.loop')) return 'loop';
   if (slot.endsWith('.explosion')) return 'blast';
   if (slot === 'combat.grenadePin' || slot === 'combat.grenadeThrow') return 'handling';
@@ -212,7 +212,7 @@ async function main() {
     const untracked = actualFiles.filter((file) => !expected.has(file));
     failures.push(`audio inventory drift (missing: ${missing.join(', ') || 'none'}; untracked: ${untracked.join(', ') || 'none'})`);
   }
-  const fireWeapons = assets.filter(({ kind }) => kind === 'fire').map(({ weapon }) => weapon);
+  const fireWeapons = new Set(assets.filter(({ kind }) => kind === 'fire').map(({ weapon }) => weapon));
   const reloadWeapons = assets
     .filter(({ kind }) => kind === 'reload')
     .map(({ slot }) => slot.split('.')[1]);

@@ -356,8 +356,9 @@ export async function runInputContracts(ok, installGlobals) {
           && WHEEL_VECTOR_RADIUS_PX === 90,
       'the wheel seam pins its pad hold threshold and selection radius for the overlay');
 
-      // Q stays open through repeat events and commits only on release.
+      // Q opens once per physical hold and preserves a release before the frame.
       input = new Input({});
+      ok(!input.isWeaponWheelClosing(), 'a new input has no pending wheel close');
       input._onKeyDown(key('KeyQ', false, 1000));
       ok(input.takeWheelOpenRequest() && !input.takeWheelOpenRequest(),
         'Q immediately queues exactly one wheel open');
@@ -384,9 +385,45 @@ export async function runInputContracts(ok, installGlobals) {
       input._onKeyUp(key('KeyQ', false, 3500));
       ok(!input.takeWheelRelease() && !input.takeWheelOpenRequest(),
         'a focus reset cancels the Q hold without selecting a weapon');
+
+      for (const action of ['flick', 'cancel']) {
+        input._onKeyDown(key('KeyQ', false, 3600));
+        ok(input.takeWheelOpenRequest(), `${action} begins with a new physical Q press`);
+        input.setWeaponWheelOpen(true);
+        if (action === 'cancel') input._onKeyDown(key('Escape'));
+        input.setWeaponWheelOpen(false);
+        input._onKeyDown(key('KeyQ', true, 3700));
+        input._onKeyDown(key('KeyQ', false, 3800));
+        ok(!input.takeWheelOpenRequest() && !input.takeWheelRelease()
+            && !input.takeWheelCancelRequest(),
+          `a ${action} close stays closed through held-Q repeats and duplicate keydown events`);
+        input._onKeyUp(key('KeyQ', false, 3900));
+        ok(!input.takeWheelRelease(), `Q release after a ${action} close cannot select twice`);
+      }
+
+      input._onKeyDown(key('KeyQ', false, 4000));
+      input._onKeyDown(key('Escape', false, 4001));
+      ok(input.takeWheelOpenRequest() && input.takeWheelCancelRequest(),
+        'Escape can cancel a Q open request before the first frame');
+      input.setWeaponWheelOpen(false);
+      input.fallback = false;
+      input._touchMode = false;
+      input._locked = false;
+      input._onKeyUp(key('KeyQ', false, 4002));
+      ok(!input.takeWheelRelease(), 'Q release without gameplay access never selects a weapon');
+      input._locked = true;
+      input._onKeyDown(key('KeyQ', false, 4100));
+      ok(input.takeWheelOpenRequest(),
+        'Q release without gameplay access still rearms the next physical Q press');
+      input.setWeaponWheelOpen(true);
+      input._hBlur();
+      input._onKeyDown(key('KeyQ', true, 4200));
+      input._onKeyUp(key('KeyQ', false, 4300));
+      ok(!input.isWeaponWheelOpen() && !input.takeWheelOpenRequest() && !input.takeWheelRelease(),
+        'blur cancels the wheel and later Q repeats or release cannot reopen or equip');
       input.dispose();
 
-      // Middle mouse opens; its release closes. A closed right click latches
+      // Middle mouse opens; its release leaves it open. A closed right click latches
       // toggle ADS, an open-wheel right click only cancels.
       input = new Input({});
       input.setOptions({ adsMode: 'toggle' });
@@ -429,10 +466,55 @@ export async function runInputContracts(ok, installGlobals) {
       'open-wheel mouse motion accumulates into a vector normalized to the ring radius');
       input._onMouseMove({ movementX: 400, movementY: 0 });
       vector = input.takeWheelVector();
-      ok(Math.abs(Math.hypot(vector.x, vector.y) - 1) < 1e-9 && Math.abs(vector.x - 1) < 1e-9,
-      'a swing past the ring radius clamps the selection vector to magnitude 1');
+      ok(Math.abs(vector.x - 400 / 90) < 1e-9 && vector.y === 0,
+      'a fast swing preserves its full travel beyond the ring radius');
+      input._onMouseMove({ movementX: 200, movementY: -100 });
+      vector = input.takeWheelVector(200);
+      ok(vector.x === 1 && vector.y === -0.5 && input.takeWheelVector(200).x === 0,
+      'mouse travel uses the measured visible ring radius and drains once');
+      input._onMouseMove({ movementX: 90, movementY: 0 });
+      ok(input.takeWheelVector(0).x === 1,
+      'an unavailable ring radius falls back to the default normalization');
       ok(input.consumeDelta().dx === 0 && input.consumeDelta().dy === 0,
       'the camera look accumulator stays frozen while the wheel steers');
+      input.setWeaponWheelOpen(false);
+      input._onKeyDown(key('KeyQ'));
+      input._onMouseMove({ movementX: 260, movementY: -80 });
+      input._onKeyUp(key('KeyQ'));
+      ok(input.isWeaponWheelClosing() && input.isWeaponWheelClosing(),
+        'the readonly closing state freezes overlay motion immediately after Q release');
+      input._onMouseMove({ movementX: -180, movementY: 180 });
+      ok(input.takeWheelOpenRequest(), 'a rapid Q gesture requests the wheel');
+      input.setWeaponWheelOpen(true);
+      vector = input.takeWheelVector(200);
+      ok(vector.x === 1.3 && vector.y === -0.4 && input.takeWheelRelease()
+          && input.consumeDelta().dx === 0 && input.consumeDelta().dy === 0,
+      'a rapid Q gesture keeps movement before release and ignores movement after release');
+
+      for (const stop of ['release', 'cancel']) {
+        input.setWeaponWheelOpen(false);
+        input._onKeyDown(key('KeyQ'));
+        input.takeWheelOpenRequest();
+        input.setWeaponWheelOpen(true);
+        input._onMouseMove({ movementX: 40, movementY: 20 });
+        if (stop === 'release') input._onKeyUp(key('KeyQ'));
+        else input._onKeyDown(key('Escape'));
+        ok(input.isWeaponWheelClosing(), `${stop} exposes the frozen wheel state to pointer overlays`);
+        input._onMouseMove({ movementX: -200, movementY: 200 });
+        vector = input.takeWheelVector(200);
+        ok(vector.x === 0.2 && vector.y === 0.1
+            && input.consumeDelta().dx === 0 && input.consumeDelta().dy === 0,
+          `mouse movement after wheel ${stop} preserves the release position and keeps the camera still`);
+        input.setWeaponWheelOpen(false);
+        ok(!input.isWeaponWheelClosing(), `${stop} close clears the frozen state for the next gesture`);
+        input._onKeyUp(key('KeyQ'));
+      }
+      input.setWeaponWheelOpen(true);
+      input._locked = false;
+      input._onMouseMove({ movementX: 200, movementY: 100 });
+      vector = input.takeWheelVector(200);
+      ok(vector.x === 0 && vector.y === 0,
+      'unlocked overlay pointer motion is never applied again as relative wheel input');
       input.dispose();
 
       // Open-wheel scroll steps the wheel and wins over scope zoom.
@@ -725,6 +807,22 @@ export async function runInputContracts(ok, installGlobals) {
       ok(Math.abs(wheelVec.x - 1) < 1e-9 && Math.abs(wheelVec.y) < 1e-9
           && pad.consumeDelta().dx === 0 && pad.consumeDelta().dy === 0,
       `pad look steers the wheel at the shared ${WHEEL_VECTOR_RADIUS_PX}px radius and freezes the camera`);
+      fake.axes = [0, 0, 1, 0];
+      pad.poll(2255, 1 / 60);
+      pad._onKeyDown({ code: 'KeyQ', preventDefault() {} });
+      pad._onKeyUp({ code: 'KeyQ', preventDefault() {} });
+      fake.axes = [0, 0, -1, 1];
+      pad.poll(2260, 1 / 60);
+      const releasedPadVec = pad.takeWheelVector();
+      ok(releasedPadVec.x === 1 && releasedPadVec.y === 0 && pad.takeWheelRelease()
+          && pad.consumeDelta().dx === 0 && pad.consumeDelta().dy === 0,
+        'pad look after Q release preserves prior wheel movement and cannot move the camera');
+      pad._onKeyDown({ code: 'Escape', preventDefault() {} });
+      pad.poll(2265, 1 / 60);
+      const cancelledPadVec = pad.takeWheelVector();
+      ok(cancelledPadVec.x === 0 && cancelledPadVec.y === 0 && pad.takeWheelCancelRequest(),
+        'pad look after wheel cancel adds no selection movement');
+      fake.axes = [0, 0, 0, 0];
       padButtons[PAD_BUTTONS.weapon] = { pressed: false, value: 0 };
       pad.poll(2300, 1 / 60);
       ok(!pad.takeWheelRelease(),

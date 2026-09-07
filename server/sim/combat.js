@@ -11,6 +11,7 @@ import { AIR, GLASS, LEAVES, BLOCK_HP } from '../../shared/worlddata.js';
 import {
   CONDITION_RULES,
   SNIPER_SCOPE_ADS_THRESHOLD,
+  HITSCAN_REACH,
   PLAYER_HALF,
   damageAtDistance,
   reloadPlan,
@@ -33,7 +34,6 @@ import {
   shotRng,
 } from './player.js';
 
-const SHOT_REACH = 120;
 const LONG_RANGE_KILL_DISTANCE = 40;
 const NO_SCOPE_ADS_THRESHOLD = SNIPER_SCOPE_ADS_THRESHOLD;
 const BLOCK_MIN_DMG = 12;
@@ -90,6 +90,17 @@ export function canFire(p, fireEdge, ctx) {
 export function resolveWeaponIntent(p, _dt, ctx) {
   const inp = p.input;
   p.minigun ??= createMinigunState();
+  if (inp?.grenadeHandling || p.grenadeHandlingQueued) {
+    p.grenadeHandlingQueued = false;
+    p.fireEdgeQueued = false;
+    p.triggerPrev = false;
+    p.reloadPrev = false;
+    p.mining = null;
+    p.ads = false;
+    cancelCharge(p);
+    stepMinigun(p.minigun, _dt, false, false);
+    return;
+  }
   const minigunEnabled = p.def.id === 'minigun' && inp &&
     (inp.switchTo == null || inp.switchTo === p.weapon) && !inp.reload &&
     ctx.canFire(p) && !p.vault && !p.reloading && p.deployT <= 0 && p.mag[p.weapon] > 0;
@@ -401,7 +412,7 @@ function publishBlockDamage(x, y, z, type, previousProgress, ctx) {
  */
 export function fireOneShot(p, ctx, charge = 1) {
   const def = p.def;
-  const shotReach = def.range ?? SHOT_REACH;
+  const shotReach = HITSCAN_REACH;
   p.spawnProtectedUntil = 0;
   p.spawnProtected = false;
   p.mag[p.weapon]--;

@@ -7,6 +7,9 @@ import { el } from './hud-support.js';
 /** Vectors shorter than this (normalized against the full ring radius) select nothing. */
 export const WHEEL_DEAD_ZONE = 0.32;
 
+/** Passing the cards' outer edge confirms a flick; hovering a card stays open. */
+export const WHEEL_COMMIT_RADIUS = 1.4;
+
 /**
  * Angle in degrees of slot `index` around a `count`-slot wheel, in atan2
  * space: -90deg is straight up (slot 0 sits at the top) and the value grows
@@ -76,6 +79,7 @@ export class WeaponWheelController {
     this._highlight = -1;
     this._ownsRoot = false;
     this._pointerInteractive = false;
+    this._canMovePointer = null;
     this._pointerId = null;
     this._ringRadius = 1;
     this._vecX = 0;
@@ -107,6 +111,7 @@ export class WeaponWheelController {
     root.style.display = 'none';
 
     const ring = el('div', 'vb-wheel-ring', root);
+    ring.style.setProperty('--vb-wheel-commit-diameter', `${WHEEL_COMMIT_RADIUS * 100}%`);
     const cursor = el('span', 'vb-wheel-cursor', ring);
     const hub = el('div', 'vb-wheel-hub', ring);
     const hubName = el('div', 'vb-wheel-hub-name', hub);
@@ -171,7 +176,7 @@ export class WeaponWheelController {
   close() {
     this._open = false;
     this._highlight = -1;
-    this._pointerId = null;
+    this._releasePointerCapture();
     this._vecX = 0;
     this._vecY = 0;
     const root = this.dom.root;
@@ -191,7 +196,7 @@ export class WeaponWheelController {
   /**
    * Refreshes the slot set in place: rebuilds the slot nodes only when the
    * count changes, otherwise patches text, icon, classes, and angles cheaply.
-   * Counts outside 2..8 are ignored.
+   * Counts outside 2..16 are ignored.
    *
    * @param {Array<{id: string, name: string, cls: string, icon: string,
    *   key: string, ammo: string, owned: boolean, current: boolean}>} entries
@@ -209,13 +214,15 @@ export class WeaponWheelController {
   }
 
   /**
-   * Highlights the slot under a normalized wheel vector.
+   * Highlights the slot under a normalized wheel vector. Moving past the outer
+   * ring immediately confirms an owned weapon; a card hover waits for release.
    *
    * @param {number} x Normalized vector X.
    * @param {number} y Normalized vector Y.
    * @returns {number} The resulting slot index (-1 in the dead zone).
    */
-  point(x, y) {
+  point(x, y, { commitOutward = true } = {}) {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return this._highlight;
     const slot = wheelSlotFromVector(x, y, this._entries.length);
     this._vecX = x;
     this._vecY = y;
@@ -223,6 +230,9 @@ export class WeaponWheelController {
       this.dom.cursor.style.transform = `translate(${x * this._ringRadius}px, ${y * this._ringRadius}px)`;
     }
     this.highlightSlot(slot);
+    if (commitOutward && Math.hypot(x, y) >= WHEEL_COMMIT_RADIUS && this._entries[slot]?.owned) {
+      this._pick(slot);
+    }
     return slot;
   }
 
@@ -258,6 +268,12 @@ export class WeaponWheelController {
     return this._highlight;
   }
 
+  /** Visible ring radius in pixels, shared by locked and unlocked mouse input. */
+  radius() {
+    this._refreshRingRadius();
+    return this._ringRadius;
+  }
+
   /**
    * Toggles the touch pointer path: pointer capture on the root, move maps to
    * point() against the ring, release picks the highlighted slot or cancels.
@@ -274,12 +290,14 @@ export class WeaponWheelController {
    * skipped. `setHighlight` accepts either an explicit slot override (number)
    * or a change-listener callback invoked with the current highlight.
    *
-   * @param {{open?: boolean, entries?: Array, x?: number, y?: number,
+   * @param {{open?: boolean, entries?: Array, x?: number, y?: number, dx?: number, dy?: number,
    *   highlight?: number, step?: number, setHighlight?: number|Function,
-   *   pointerInteractive?: boolean}} [state]
+   *   pointerInteractive?: boolean, canMovePointer?: Function}} [state]
    */
   setState(state = {}) {
-    const { open, entries, x, y, highlight, step, setHighlight, pointerInteractive } = state;
+    const { open, entries, x, y, dx = 0, dy = 0, highlight, step, setHighlight, pointerInteractive, canMovePointer } = state;
+
+    if (canMovePointer !== undefined) this._canMovePointer = canMovePointer;
 
     if (entries !== undefined) {
       this.ensure();
@@ -303,9 +321,9 @@ export class WeaponWheelController {
       else if (setHighlight !== null) this.highlightSlot(setHighlight);
     }
     if (step) this.stepHighlight(step);
-    if (x !== undefined || y !== undefined) {
-      const px = x === undefined ? this._vecX : x;
-      const py = y === undefined ? this._vecY : y;
+    if (x !== undefined || y !== undefined || dx || dy) {
+      const px = (x === undefined ? this._vecX : x) + dx;
+      const py = (y === undefined ? this._vecY : y) + dy;
       if (px !== this._vecX || py !== this._vecY) this.point(px, py);
     }
     if (pointerInteractive !== undefined && !!pointerInteractive !== this._pointerInteractive) {
@@ -352,6 +370,7 @@ export class WeaponWheelController {
     this._open = false;
     this._ownsRoot = false;
     this._pointerInteractive = false;
+    this._canMovePointer = null;
     this._pointerId = null;
   }
 
@@ -443,7 +462,7 @@ export class WeaponWheelController {
   /**
    * Renders the hub lines for the current highlight:
    * none -> MOVE TO SELECT / ESC CANCEL; locked -> name + LOCKED · NOT
-   * OWNED; otherwise name + class + RELEASE Q / CLICK / RT TO EQUIP · ESC CANCEL.
+   * OWNED; otherwise name + class + the two mouse confirmation paths.
    *
    * @private
    */
@@ -454,13 +473,13 @@ export class WeaponWheelController {
     if (!entry) {
       _setText(dom.hubName, 'MOVE TO SELECT');
       _setText(dom.hubCls, 'ESC CANCEL');
-      _setText(dom.hubHint, '');
+      _setText(dom.hubHint, 'OUTER RING / RELEASE Q');
       return;
     }
     const locked = !entry.owned;
     _setText(dom.hubName, entry.name || '');
     _setText(dom.hubCls, locked ? 'LOCKED · NOT OWNED' : entry.cls || '');
-    _setText(dom.hubHint, locked ? 'ESC CANCEL' : 'RELEASE Q / CLICK / RT TO EQUIP · ESC CANCEL');
+    _setText(dom.hubHint, locked ? 'ESC CANCEL' : 'OUTER RING / RELEASE Q · CLICK / RT');
   }
 
   /** Re-measures the ring radius used to normalize pointer deltas. @private */
@@ -486,7 +505,7 @@ export class WeaponWheelController {
     const ring = this.dom.ring;
     if (!ring || !Number.isFinite(event.clientX)) return { x: 0, y: 0 };
     const rect = ring.getBoundingClientRect();
-    const radius = this._ringRadius > 1 ? this._ringRadius : Math.max(rect.width / 2, 1);
+    const radius = this._ringRadius = Math.max(rect.width / 2, 1);
     return {
       x: (event.clientX - (rect.left + rect.width / 2)) / radius,
       y: (event.clientY - (rect.top + rect.height / 2)) / radius,
@@ -518,11 +537,12 @@ export class WeaponWheelController {
    */
   _onPointerDown(event) {
     if (!this._pointerInteractive || !this._open || document.pointerLockElement || event.button > 0) return;
+    if (this._canMovePointer && !this._canMovePointer()) return;
     event.preventDefault();
     this._pointerId = event.pointerId;
     this._refreshRingRadius();
     const vec = this._pointerVector(event);
-    this.point(vec.x, vec.y);
+    this.point(vec.x, vec.y, { commitOutward: false });
     try {
       this.dom.root.setPointerCapture(event.pointerId);
     } catch (_) { /* capture is best-effort */ }
@@ -536,6 +556,9 @@ export class WeaponWheelController {
    */
   _onPointerMove(event) {
     if (!this._pointerInteractive || !this._open || document.pointerLockElement) return;
+    // Q release is queued before the frame closes us. Preserve that highlight
+    // even if another absolute pointer event arrives before the frame runs.
+    if (this._canMovePointer && !this._canMovePointer()) return;
     if (event.pointerType !== 'mouse' && event.pointerId !== this._pointerId) return;
     const vec = this._pointerVector(event);
     this.point(vec.x, vec.y);
@@ -549,10 +572,10 @@ export class WeaponWheelController {
    */
   _onPointerUp(event) {
     if (!this._pointerInteractive || !this._open || event.pointerId !== this._pointerId) return;
-    this._pointerId = null;
-    try {
-      this.dom.root.releasePointerCapture(event.pointerId);
-    } catch (_) { /* release is best-effort */ }
+    if (this._canMovePointer && !this._canMovePointer()) return;
+    const vec = this._pointerVector(event);
+    this.point(vec.x, vec.y, { commitOutward: false });
+    this._releasePointerCapture();
     if (this._highlight >= 0) this._pick(this._highlight);
     else this._cancel();
   }
@@ -565,9 +588,16 @@ export class WeaponWheelController {
    */
   _onPointerCancel(event) {
     if (event.pointerId !== this._pointerId) return;
+    this._releasePointerCapture();
+  }
+
+  /** Release capture on every close path, including an outward drag. @private */
+  _releasePointerCapture() {
+    const pointerId = this._pointerId;
     this._pointerId = null;
+    if (pointerId === null) return;
     try {
-      this.dom.root.releasePointerCapture(event.pointerId);
+      this.dom.root?.releasePointerCapture(pointerId);
     } catch (_) { /* release is best-effort */ }
   }
 

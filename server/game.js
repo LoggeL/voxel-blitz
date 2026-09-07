@@ -97,6 +97,7 @@ export class GameEngine {
 
   stop() {
     this.running = false;
+    this.projectiles.clear();
     this.flames.clear();
     this.powerups.clear();
     if (this.timer !== null) {
@@ -146,8 +147,12 @@ export class GameEngine {
       if (player.state === 'alive') resolveWeaponIntent(player, dt, combat);
     }
     // Clear ended rounds before a policy can reset directly into live play.
-    if (this.mode.phase !== 'live') this.powerups.clear();
+    if (this.mode.phase !== 'live') {
+      this.powerups.clear();
+      this.projectiles.fire.clear();
+    }
     this.mode.tick();
+    if (this.mode.phase !== 'live') this.projectiles.fire.clear();
     this.processRespawns();
     this.powerups.step({
       now: this.now, mode: this.mode.mode, phase: this.mode.phase, round: this.mode.round,
@@ -164,6 +169,7 @@ export class GameEngine {
       this.mode.matchSnapshot(),
       Array.from(this.tickBlockDamage.values()),
       this.powerups.snapshot(),
+      this.projectiles.fire.snapshot(),
     );
 
     this.tickBlocks.length = 0;
@@ -224,6 +230,7 @@ export class GameEngine {
     player.input = null;
     player.triggerPrev = false;
     player.fireEdgeQueued = false;
+    player.grenadeHandlingQueued = false;
     player.grenadeEdgeQueued = false;
     player.grenadeChargeQueued = 0;
     player.grenadeTypeQueued = 0;
@@ -282,6 +289,7 @@ export class GameEngine {
       wantAds: !!msg.wantAds,
       reload: !!msg.reload,
       throwGrenade: !!msg.throwGrenade,
+      grenadeHandling: !!msg.grenadeHandling || !!msg.throwGrenade,
       grenadeCharge: clampGrenadeCharge(msg.grenadeCharge),
       grenadeType: clampGrenadeType(msg.grenadeType),
       grenadeCook: clampGrenadeCook(msg.grenadeCook, grenadeTypeAt(msg.grenadeType)),
@@ -304,6 +312,15 @@ export class GameEngine {
     input.viewYaw = Number.isFinite(msg.viewYaw) ? wrapAngle(msg.viewYaw) : input.yaw;
     const requestedWeapon = msg.switchTo != null ? msg.switchTo : msg.weapon;
     if (Number.isFinite(requestedWeapon)) input.switchTo = clampWeaponSlot(requestedWeapon);
+    if (input.grenadeHandling) {
+      input.wantFire = false;
+      input.wantAds = false;
+      input.reload = false;
+      input.switchTo = undefined;
+      player.fireEdgeQueued = false;
+      // Preserve the interruption if a later input arrives before the next tick.
+      player.grenadeHandlingQueued = true;
+    }
     if (input.wantFire && !(previous && previous.wantFire)) player.fireEdgeQueued = true;
     if (input.throwGrenade && !(previous && previous.throwGrenade)) {
       player.grenadeEdgeQueued = true;

@@ -466,6 +466,7 @@ export class NetClient {
       reload: !!input.reload,
       viewAge: Math.round(this._timing.interpolationDelayMs + this._timing.rttMs),
     };
+    if (input.grenadeHandling) msg.grenadeHandling = true;
     if (input.throwGrenade) {
       msg.throwGrenade = true;
       msg.grenadeCharge = Math.round(clampGrenadeCharge(input.grenadeCharge) * 1000) / 1000;

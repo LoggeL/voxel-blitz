@@ -63,7 +63,7 @@ export class PlayerPhysics {
     if (!this.vault && canStartVault(this.grounded, this.grounded ? wantJump : deliberateGrab, climbAxis,
         this._crouching || low, this.pos.y, this.jumpGroundY)) {
       this.vault = findVault(this._solidAt, this.pos, wish,
-        deliberateGrab ? this.pos.y : this.jumpGroundY, yaw);
+        deliberateGrab ? this.pos.y : this.jumpGroundY, yaw, deliberateGrab ? 0 : 1);
     }
     if (this.vault) {
       const active = stepVault(this.pos, this.vault, dt, this._solidAt);

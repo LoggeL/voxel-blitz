@@ -20,7 +20,7 @@ function animation(id, duration = WEAPONS[id].reloadTime, stages = null) {
     sample(frac) {
       at = frac * duration;
       const motion = action.update(at, 0, model, model.T);
-      return { ...motion, magazine: model.mag.position.clone(), magazineRotation: model.mag.rotation.clone() };
+      return { ...motion, magazine: model.mag.position.clone(), magazineRotation: model.mag.rotation.clone(), magazineVisible: model.mag.visible };
     },
   };
 }
@@ -42,10 +42,12 @@ try {
   const pullSpeed = pulled.magazine.distanceTo(beforePull.magazine) / (0.085 * rifle.duration);
   assert.ok(pullSpeed > 1, 'magazine is pulled clear in a brisk separate stroke');
   const holdA = rifle.sample(0.44);
-  const holdB = rifle.sample(home - 0.09);
+  const holdB = rifle.sample(0.55);
   assert.ok(holdA.magazine.y < -0.17 && holdA.magazine.x < -0.06,
     'removed magazine visibly clears the receiver');
   near(holdA.magazine.distanceTo(holdB.magazine), 0);
+  assert.equal(holdA.magazineVisible, false, 'spent magazine stays offscreen during replacement');
+  assert.equal(holdB.magazineVisible, false);
   const seating = rifle.sample(home);
   assert.equal(seating.magazine.length(), 0, 'magazine is fully seated at its unchanged home click');
   assert.ok(seating.push < holdB.push - 0.04 && seating.dip > holdB.dip + 0.02,

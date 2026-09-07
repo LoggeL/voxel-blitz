@@ -63,7 +63,7 @@ function serverLaunch(wire, laterInput = null) {
   return [...system.active.values()][0];
 }
 
-for (const [typeIndex, type] of ['frag', 'limpet', 'pulse'].entries()) {
+for (const [typeIndex, type] of ['frag', 'limpet', 'pulse', 'molotov'].entries()) {
   const run = client();
   run.release(typeIndex);
   let releaseAim;
@@ -73,13 +73,15 @@ for (const [typeIndex, type] of ['frag', 'limpet', 'pulse'].entries()) {
   });
   const thrown = run.player.consumeLocalGrenadeThrow();
   const wire = run.wires.at(-1);
+  assert.equal(wire.wantFire, false, `${type}: a queued quick throw suppresses gunfire`);
+  assert.equal(wire.grenadeHandling, true, `${type}: the server receives the same handling lock`);
   assert.deepEqual(thrown.grenadeAim, releaseAim, `${type}: prediction captures pre-shot release aim`);
   assert.deepEqual(wire.grenadeAim, releaseAim, `${type}: wire retains the same release aim`);
   assert.ok(run.player.shotPitch > releaseAim.pitch + 0.03, 'fixture advances recoil after release');
-  close(wire.pitch, releaseAim.pitch, 'Separate grenade aim preserves the simultaneous gunshot');
+  close(wire.pitch, releaseAim.pitch, 'Separate grenade aim preserves the captured release direction');
   const predicted = run.player.grenadeLaunchState(thrown.charge, type, thrown.grenadeAim);
   const authoritative = serverLaunch(wire);
-  for (const key of launchKeys) close(predicted[key], authoritative[key], `${type}: simultaneous shot/throw ${key}`);
+  for (const key of launchKeys) close(predicted[key], authoritative[key], `${type}: release amid camera recoil ${key}`);
   run.player.dispose();
 }
 
@@ -147,4 +149,4 @@ for (const reset of [player => player.setGameplayInputEnabled(false),
   close(authority.grenadeAimQueued.pitch, 89 * Math.PI / 180, 'authority clamps captured pitch');
 }
 
-console.log('Grenade aim: simultaneous firing, all grenade types, delayed/failed sends, later server input, lifecycle cancellation, legacy fallback and sanitization passed.');
+console.log('Grenade aim: quick-throw firing suppression, all grenade types, delayed/failed sends, later server input, lifecycle cancellation, legacy fallback and sanitization passed.');

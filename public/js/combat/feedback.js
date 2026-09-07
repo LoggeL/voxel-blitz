@@ -235,7 +235,7 @@ export class CombatFeedback {
       case 'projectileLaunch': {
         const fromSelf = ev.id === myId;
         this.effects.projectileLaunch(ev, { fromSelf });
-        if (!fromSelf && ['frag', 'limpet', 'pulse'].includes(ev.type)) {
+        if (!fromSelf && ['frag', 'limpet', 'pulse', 'molotov'].includes(ev.type)) {
           // The local hand release already played its predicted throw cue.
           this.sfx.grenadeThrow(Number.isFinite(ev.charge) ? ev.charge : 0.5, { pos: ev.o });
         }

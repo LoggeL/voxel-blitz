@@ -4,7 +4,7 @@
 import { AudioEngine } from './engine.js';
 import { VoicePool } from './voices.js';
 import { FlameLoops } from './flame-loop.js';
-import { MinigunMotor, MINIGUN_REPORT, renderMinigunReport } from './minigun-motor.js';
+import { MinigunMotor, MINIGUN_REPORT, minigunReportChoice, renderMinigunReport } from './minigun-motor.js';
 import { createVoices } from './primitives.js';
 import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from './samples.js';
 import { MenuMusicLoop } from './music.js';
@@ -40,6 +40,7 @@ let heartbeatAt = -Infinity;
 let chargeLoop = null;
 let flameLoops = null;
 let minigunMotor = null;
+let minigunReportIndex = 0;
 
 /** Blast voice per explosive type: gain, low weight, and crack brightness. */
 const EXPLOSION_PROFILES = Object.freeze({
@@ -176,6 +177,7 @@ export const sfx = {
     flameLoops = null;
     minigunMotor?.dispose();
     minigunMotor = null;
+    minigunReportIndex = 0;
     menuMusic?.dispose();
     menuMusic = null;
     pool = null;
@@ -223,10 +225,17 @@ export const sfx = {
         // Share the six-output rapid-fire budget; the rotary report has its own
         // recording rate, gain and short transient so it stays clear at 1200 RPM.
         const output = pool.acquireFire('lmg', outputOptions(deferred), MINIGUN_REPORT.lifetime);
-        const sampled = samples.play('weapons.minigun.fire', output, MINIGUN_REPORT)
-          || samples.play('weapons.lmg.fire', output, MINIGUN_REPORT);
+        const at = engine.ctx.currentTime;
+        output.gain.setValueAtTime(output.gain.value, at);
+        output.gain.setValueAtTime(output.gain.value, at + MINIGUN_REPORT.lifetime - 0.025);
+        output.gain.linearRampToValueAtTime(0, at + MINIGUN_REPORT.lifetime);
+        const choice = minigunReportChoice(minigunReportIndex++);
+        const sampled = samples.play(choice.slot, output, choice)
+          || (choice.slot !== 'weapons.minigun.fire'
+            && samples.play('weapons.minigun.fire', output, choice))
+          || samples.play('weapons.lmg.fire', output, choice);
         const reportOutput = sampled ? createReportLayer(output, MINIGUN_REPORT.layerGain) : output;
-        renderMinigunReport(reportOutput, primitives);
+        renderMinigunReport(reportOutput, primitives, { sampled });
         return;
       }
       const profile = fireReportProfile(key);
@@ -514,7 +523,31 @@ export const sfx = {
     });
   },
 
-  /** Pin pull at the start of a charge: a short, dry metallic click. */
+  /** Cloth movement as the throwable is raised into view. */
+  grenadeDraw() {
+    run('grenadeDraw', () => {
+      const output = pool.acquire(null, 0.22);
+      primitives.hiss(output, {
+        t0: primitives.nowT(), filter: 'bandpass', f: 850, q: 0.8, att: 0.015, dec: 0.16, g: 0.09,
+      });
+    });
+  },
+
+  /** A lighter strike followed by the soft ignition of the visible cloth. */
+  molotovIgnite() {
+    run('molotovIgnite', () => {
+      const output = pool.acquire(null, 0.65);
+      const at = primitives.nowT();
+      primitives.hiss(output, { t0: at, filter: 'highpass', f: 4200, dec: 0.025, g: 0.2 });
+      primitives.tone(output, { t0: at, type: 'square', f0: 1600, f1: 900, dec: 0.035, g: 0.035 });
+      primitives.hiss(output, {
+        t0: at + 0.04, filter: 'bandpass', f: 620, sweepTo: 1300, sweepMs: 0.18,
+        q: 0.7, att: 0.025, dec: 0.48, g: 0.19,
+      });
+    });
+  },
+
+  /** Pin extraction cue, triggered by the hand animation. */
   grenadePin() {
     run('grenadePin', () => {
       const output = pool.acquire(null, 0.25);
@@ -550,6 +583,17 @@ export const sfx = {
     const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
     // Bolt expiry shares the projectile event channel, but has no blast radius.
     if (type === 'bolt') return this.arcZap(deferredPos);
+    if (type === 'molotov') {
+      run('molotovBreak', () => {
+        const output = pool.acquire({ pos: deferredPos, priority: 2 }, 1.5);
+        impactGlass(output, primitives, 1.5);
+        primitives.hiss(output, {
+          t0: primitives.nowT() + 0.035, filter: 'lowpass', f: 1600, sweepTo: 500,
+          sweepMs: 0.8, q: 0.65, att: 0.025, dec: 1.25, g: 0.45,
+        });
+      });
+      return;
+    }
     const profile = EXPLOSION_PROFILES[type] || EXPLOSION_PROFILES.frag;
     run('explosion', () => {
       const output = pool.acquire({ pos: deferredPos, priority: 2 }, profile.lifetime);

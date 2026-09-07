@@ -1,7 +1,7 @@
 // Voxel Blitz browser composition root. Mutable gameplay ownership lives in
 // Session, LocalPlayer, WeaponState, AvatarRoster, and CombatFeedback.
 import * as THREE from './vendor/three.module.js';
-import { WEAPONS, WEAPON_IDS } from '../../shared/combatmath.js';
+import { WEAPONS, WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
 import { VAULT_SECONDS } from '../../shared/player-movement.js';
 import { deserializeWorld, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
 import { Input } from './engine/input.js';
@@ -197,6 +197,11 @@ class Game {
     this.rig.setWeapon(WEAPON_IDS[this.weapon.slot]);
     this.rig.onReloadClick = (step) => sfx.reloadClick(step, WEAPON_IDS[this.weapon.slot]);
     this.rig.onBoltClack = (step) => sfx.cycleClick(step, WEAPON_IDS[this.weapon.slot]);
+    this.rig.onGrenadeCue = ({ cue }) => {
+      if (cue === 'pin') sfx.grenadePin();
+      else if (cue === 'ignite') sfx.molotovIgnite();
+      else if (cue === 'draw') sfx.grenadeDraw();
+    };
     this.roster = new AvatarRoster({
       scene: this.worldview.scene,
       gore: (event, options) => this.effects?.gore(event, options),
@@ -296,6 +301,7 @@ class Game {
     this.selfRow = self;
     this.playersCache = presented;
     this.serverNow = Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : null;
+    this.effects?.syncFireFields?.(snapshot.fireFields, this.serverNow);
     this.spectator?.sync({ self, players: presented, match, serverNow: this.serverNow });
 
     const events = Array.isArray(snapshot.events) ? snapshot.events : [];
@@ -399,12 +405,12 @@ class Game {
     const charging = !!input.isGrenadeCharging?.() && canThrow;
     const charge = charging ? input.getGrenadeCharge(now) : 0;
     const heldMs = charging ? input.getGrenadeHoldMs(now) : 0;
-    if (charging && !this._grenadeCharging) sfx.grenadePin();
     this._grenadeCharging = charging;
     this._grenadeCook01 = charging && type.cook ? Math.min(1, heldMs / type.fuseMs) : 0;
     this._grenadeCookLeftMs = charging && type.cook ? Math.max(0, type.fuseMs - heldMs) : 0;
     if (charging && type.cook && heldMs >= type.fuseMs) input.forceGrenadeRelease(now);
-    this.rig?.grenadeCharge(charging ? 0.35 + 0.65 * charge : 0);
+    if (!canThrow && !this.player.alive) this.rig?.cancelGrenade();
+    else this.rig?.grenadeCharge(charge, typeIndex, heldMs, charging);
     this.effects?.projectilePreview(
       charging ? this.player.grenadeLaunchState(charge, type.id) : null,
     );
@@ -414,7 +420,7 @@ class Game {
     const thrownType = GRENADE_TYPES[GRENADE_TYPE_IDS[thrown.type]] || type;
     if (thrownType.cook && thrown.cookMs >= thrownType.fuseMs) {
       // Cooked to the end: authority detonates it in the hand; nothing flies.
-      this.rig?.grenadeThrow(0);
+      this.rig?.cancelGrenade();
       return;
     }
     const launch = this.player.grenadeLaunchState(thrown.charge, thrownType.id, thrown.grenadeAim);
@@ -426,7 +432,7 @@ class Game {
         ? grenadeFuseAfterCook(thrown.cookMs, thrownType)
         : (thrownType.sticky ? thrownType.flightMaxMs : thrownType.fuseMs),
     }, { local: true });
-    this.rig?.grenadeThrow(thrown.charge);
+    this.rig?.grenadeThrow(thrown.charge, thrown.type);
     sfx.grenadeThrow(thrown.charge);
   }
 
@@ -484,6 +490,7 @@ class Game {
     const position = this.camera.position;
     return {
       allowFire: this.isAuthoritativeFireAllowed(),
+      grenadeHandling: this.player.grenadeHandling,
       alive: this.player.alive,
       crouching: this.player.crouchBool,
       speedXZ: this.player.speedXZ,
@@ -516,6 +523,8 @@ class Game {
       weapon: this.weapon,
       movementAllowed: () => this.isAuthoritativeMovementAllowed(),
       fireAllowed: () => this.isAuthoritativeFireAllowed(),
+      weaponHandlingAllowed: () => !(this.rig?.grenadeActive ||
+        (this.input.isGrenadeCharging() && this.selectedGrenadeCount() > 0)),
       interactAllowed: () => this.isAuthoritativeInteractAllowed(),
       toggleBuyMenu: () => {
         this.session.toggleBuyMenuFromInput();
@@ -609,7 +618,7 @@ class Game {
     if (spectating && this.ownBody?.group) this.ownBody.group.visible = false;
 
     const beamAim = this.weapon.def.id === 'lance'
-      ? this.worldview.pickCameraRay(this.camera.position, fwdFromAngles(this.player.shotYaw, this.player.shotPitch), 120)
+      ? this.worldview.pickCameraRay(this.camera.position, fwdFromAngles(this.player.shotYaw, this.player.shotPitch), HITSCAN_REACH)
       : null;
     const reticle = projectAimReticle(this.camera, this.player.shotYaw, this.player.shotPitch);
     this.hud.setState({
@@ -740,6 +749,15 @@ window.__vb = {
         particles: game.effects?.flames?.geometry.instanceCount || 0,
         fuel: game.weapon?.ammoOf('flamethrower').mag ?? 0,
       },
+      throwable: {
+        type: GRENADE_TYPE_IDS[game.input.getGrenadeType()],
+        counts: game.selfRow?.grenades || [],
+        active: !!game.rig?.grenadeActive,
+        held: !!game.rig?._throwableHands.held,
+        visible: !!(game.rig?.root.visible && game.rig?._throwableHands.root.visible && game.rig?._throwableHands.grip.visible),
+        armed: !!game.rig?._throwableHands._armed,
+      },
+      fireFields: game.effects?.fireFields.fields.size || 0,
       adsT: game.weapon?.adsT ?? null,
       rigAdsT: game.rig?.currentAdsT01 ?? null,
       cameraFov: game.camera?.fov ?? null,

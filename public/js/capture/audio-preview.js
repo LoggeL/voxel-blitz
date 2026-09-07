@@ -13,7 +13,7 @@ let loading;
 let generation = 0;
 let waveformCount = 0;
 let waveformFailures = 0;
-const featuredCueCount = 14;
+const featuredCueCount = 16;
 
 for (const [control, suffix, factor] of [[volume, '%', 100], [distance, ' m', 1], [charge, '%', 100]]) {
   control.addEventListener('input', () => {
@@ -120,8 +120,34 @@ function playWeapon(weapon, strength = 1) {
   status.textContent = `${WEAPONS[weapon].name}: game mix`;
 }
 
+function minigunCycle(fireSeconds = 0) {
+  stopLoops();
+  const token = generation;
+  const fireAt = 0.7, coastAt = fireAt + (fireSeconds || 0.4), end = coastAt + 0.4;
+  for (let frame = 0; frame <= Math.ceil(end * 20); frame++) {
+    const at = frame / 20;
+    later(() => {
+      if (generation !== token) return;
+      const spin = Math.min(1, at / fireAt, Math.max(0, (end - at) / 0.4));
+      sfx.minigunMotor(spin, Math.min(0.95, Math.max(0, at - fireAt) / 4.2), true, false);
+    }, at * 1000);
+  }
+  for (let i = 0; i < Math.round(fireSeconds * 20); i++) later(() => {
+    if (generation === token) sfx.fire('minigun');
+  }, (fireAt + i / 20) * 1000);
+  later(() => {
+    if (generation !== token) return;
+    sfx.minigunMotor(0, 0, false);
+    status.textContent = fireSeconds ? 'Minigun: 80 shots finished; rotor coast-down complete.' : 'Minigun: rotor coast-down complete.';
+  }, end * 1000);
+  status.textContent = fireSeconds
+    ? 'Minigun: spin-up, four seconds at 1200 RPM, then coast-down'
+    : 'Minigun: mechanical rotor spin-up and coast-down';
+}
+
 function card(container, title, description, slot, buttons) {
   const article = document.createElement('article');
+  if (slot === 'weapons.minigun.fire') article.id = 'minigun';
   const heading = document.createElement('h3'); heading.textContent = title;
   const paragraph = document.createElement('p'); paragraph.textContent = description;
   const actions = document.createElement('div'); actions.className = 'actions'; actions.append(...buttons);
@@ -253,8 +279,10 @@ card(newCues, 'Grenade throw', 'A short arm swing. The strength control changes 
 card(newCues, WEAPONS.knife.name, 'A compact swing for the pickaxe.', 'weapons.knife.fire', [
   button('Swing', () => playWeapon('knife')),
 ]);
-card(newCues, WEAPONS.minigun.name, 'A short discharge that stays readable at 1200 RPM.', 'weapons.minigun.fire', [
+card(newCues, WEAPONS.minigun.name, 'Three dry, weighty discharge variations, with a low mechanical rotor texture.', 'weapons.minigun.fire', [
   button('One shot', () => playWeapon('minigun')),
+  button('Rotor only', () => minigunCycle(), true),
+  button('Four-second minigun', () => minigunCycle(4), true),
   button('20-shot burst', () => {
     stopLoops(); const token = generation;
     for (let i = 0; i < 20; i++) later(() => {
@@ -265,6 +293,9 @@ card(newCues, WEAPONS.minigun.name, 'A short discharge that stays readable at 12
     status.textContent = 'Minigun: 20 shots at 1200 RPM with rotor feedback';
   }, true),
 ]);
+for (let variant = 2; variant <= 3; variant++) card(newCues,
+  `${WEAPONS.minigun.name}, variation ${variant}`, 'Alternate discharge used automatically during sustained fire.',
+  `weapons.minigun.fire.${variant}`, []);
 card(newCues, WEAPONS.flamethrower.name, 'One sustained recording with the game’s release fade.', 'weapons.flamethrower.loop', [
   heldFlameButton(), button('Two-second flame', () => {
     stopLoops(); const token = generation; flameTick(token);

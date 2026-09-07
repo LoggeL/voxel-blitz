@@ -1,7 +1,7 @@
 import * as THREE from '../../vendor/three.module.js';
 import { COL } from '../kit.js';
 
-export function build({ kit, T, groups: { body, mag, trigger } }) {
+export function build({ kit, T, groups: { body, mag, trigger, extra } }) {
   const { box, cylZ, mat, ironSights } = kit;
   const axisY = T.muzzle[1];
   const armor = 0x62694a;
@@ -67,10 +67,18 @@ export function build({ kit, T, groups: { body, mag, trigger } }) {
     const a = i / 8 * Math.PI * 0.78;
     const x = -0.126 - Math.sin(a) * 0.055;
     const y = -0.033 - i * 0.018;
-    cylZ(body, 0.011, 0.082, x, y, -0.203, COL.brass, { seg: 6 });
-    cylZ(body, 0.011, 0.027, x, y, -0.257, COL.tan, { seg: 6, rBot: 0.002 });
-    box(body, 0.024, 0.009, 0.022, x, y, -0.179, COL.polyDark);
+    cylZ(mag, 0.011, 0.082, x, y, -0.203, COL.brass, { seg: 6 });
+    cylZ(mag, 0.011, 0.027, x, y, -0.257, COL.tan, { seg: 6, rBot: 0.002 });
+    box(mag, 0.024, 0.009, 0.022, x, y, -0.179, COL.polyDark);
   }
+  const feedCover = new THREE.Group();
+  feedCover.name = 'minigun_feed_cover';
+  feedCover.position.set(-0.11, 0.006, -0.17);
+  feedCover.userData.reloadAxis = 'z';
+  box(feedCover, 0.025, 0.05, 0.09, -0.02, -0.018, -0.03, armor);
+  box(feedCover, 0.03, 0.011, 0.05, -0.02, -0.046, -0.02, COL.amber);
+  extra.add(feedCover);
+  extra.userData.reloadPart = feedCover;
 
   const rotor = new THREE.Group();
   rotor.name = 'minigun_rotor';

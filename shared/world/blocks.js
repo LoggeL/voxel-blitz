@@ -19,6 +19,14 @@ export const ASPHALT = 17;
 export const ROOF = 18;
 export const BUS_YELLOW = 19;
 export const TRUCK_RED = 20;
+export const DUST_SANDSTONE = 21;
+export const DUST_PLASTER = 22;
+export const DUST_ROCK = 23;
+export const DUST_FLOOR = 24;
+export const DUST_TRIM = 25;
+export const DUST_TILE = 26;
+export const DUST_CRATE = 27;
+export const DUST_WOOD = 28;
 
 /** Damage points required to break each destructible block type. */
 export const BLOCK_HP = {
@@ -27,6 +35,8 @@ export const BLOCK_HP = {
   [LEAVES]: 10,
   [PLANK]: 30,
   [ACCENT]: 45,
+  [DUST_CRATE]: 65,
+  [DUST_WOOD]: 85,
 };
 
 /** Blast resistance. Finite entries can be removed by a close grenade blast. */
@@ -47,6 +57,14 @@ export const GRENADE_RESISTANCE = Object.freeze({
   [PALE]: 94,
   [RUST]: 68,
   [BRICK]: 82,
+  [DUST_SANDSTONE]: 100,
+  [DUST_PLASTER]: 105,
+  [DUST_ROCK]: 110,
+  [DUST_FLOOR]: 112,
+  [DUST_TRIM]: 100,
+  [DUST_TILE]: 94,
+  [DUST_CRATE]: 62,
+  [DUST_WOOD]: 72,
 });
 
 export const SX = 128;
@@ -65,4 +83,7 @@ export const MINING_HITS = Object.freeze({
   [GLASS]: 1, [LEAVES]: 1, [SAND]: 2, [DIRT]: 2, [GRASS]: 2,
   [PLANK]: 3, [WOOD]: 4, [ACCENT]: 4, [BRICK]: 5,
   [STONE]: 6, [PALE]: 6, [RUST]: 7, [CONCRETE]: 8, [METAL]: 12,
+  [DUST_SANDSTONE]: 7, [DUST_PLASTER]: 7, [DUST_ROCK]: 8,
+  [DUST_FLOOR]: 8, [DUST_TRIM]: 7, [DUST_TILE]: 6,
+  [DUST_CRATE]: 5, [DUST_WOOD]: 6,
 });

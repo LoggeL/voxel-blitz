@@ -4,12 +4,13 @@ import { BOLT_HOME, BREACH_Z, TRIGGER_Z } from './common.js';
 // RX-8 HAVOC: shoulder-fired rocket launcher. One fat launch tube with a rear venturi,
 // a pistol grip and a forward handle under the tube, flip-up ladder sights on a top rail,
 // and a side-mounted arming lever (bolt group) that drops after each launch. The reload
-// swaps the propellant canister under the breech (mag group). The tube is built from
+// opens the rear breech and inserts a fresh rocket along the tube axis. The tube is built from
 // BREACH_Z.rocket to T.muzzle so the tube mouth lands exactly on T.muzzle; the sight line
 // (0.175) matches the ADS offset.
 export function build({ kit, T, groups }) {
   const { box, cylZ, ironSights } = kit;
-  const { body, mag, bolt, trigger } = groups;
+  const { body, bolt, trigger, extra } = groups;
+  const mag = body; // The underslung control canister stays fixed during a rocket reload.
   const ORANGE = GLOW_ACCENT.rocket;
 
   const muzzleX = T.muzzle[0];
@@ -31,10 +32,29 @@ export function build({ kit, T, groups }) {
   }
   // Rear breech block and venturi (back-blast cone) behind the shooter's shoulder.
   cylZ(body, TUBE_R + 0.01, 0.16, muzzleX, muzzleY, breachZ + 0.08, COL.gunmetal, { seg: 14, rg: 0.55, mt: 0.55 });
-  cylZ(body, TUBE_R + 0.004, 0.2, muzzleX, muzzleY, breachZ + 0.26, COL.brake, {
+  const gate = new THREE.Group();
+  gate.name = 'rocket_rear_breech';
+  gate.position.set(muzzleX, muzzleY, breachZ + 0.16);
+  extra.add(gate);
+  cylZ(gate, TUBE_R + 0.004, 0.2, 0, 0, 0.10, COL.brake, {
     seg: 14, rg: 0.5, mt: 0.6, rTop: TUBE_R - 0.012, rBot: TUBE_R + 0.03,
   });
-  cylZ(body, TUBE_R + 0.034, 0.014, muzzleX, muzzleY, breachZ + 0.36, COL.steel, { seg: 14, rg: 0.5, mt: 0.6 });
+  cylZ(gate, TUBE_R + 0.034, 0.014, 0, 0, 0.20, COL.steel, { seg: 14, rg: 0.5, mt: 0.6 });
+  extra.userData.reloadPart = gate;
+  extra.userData.rocketReload = { gate, axisY: muzzleY, rearZ: breachZ + 0.16 };
+  const reloadRound = new THREE.Group();
+  reloadRound.name = 'rocket_reload_round';
+  cylZ(reloadRound, 0.039, 0.28, 0, 0, 0, COL.olive, { seg: 10 });
+  cylZ(reloadRound, 0.046, 0.11, 0, 0, -0.19, ORANGE, { seg: 10, rTop: 0.005, rBot: 0.046 });
+  cylZ(reloadRound, 0.042, 0.02, 0, 0, 0.14, COL.steel, { seg: 10 });
+  for (const side of [-1, 1]) {
+    box(reloadRound, 0.017, 0.074, 0.065, side * 0.038, 0, 0.11, COL.gunmetal);
+    box(reloadRound, 0.074, 0.017, 0.065, 0, side * 0.038, 0.11, COL.gunmetal);
+  }
+  reloadRound.visible = false;
+  reloadRound.userData.homePosition = reloadRound.position.clone();
+  extra.add(reloadRound);
+  extra.userData.reloadRounds = reloadRound;
   // Shoulder rest hanging under the breech.
   box(body, 0.06, 0.05, 0.12, 0, -0.005, breachZ + 0.14, COL.polymer, { rx: 0.1 });
   box(body, 0.07, 0.014, 0.13, 0, -0.03, breachZ + 0.14, COL.polyDark, { rx: 0.1 });
@@ -88,7 +108,7 @@ export function build({ kit, T, groups }) {
   // Rocket nose peeking out of the tube mouth (static: the shot itself is a projectile).
   cylZ(body, 0.045, 0.06, muzzleX, muzzleY, muzzleZ + 0.04, ORANGE, { seg: 12, rg: 0.5, mt: 0.4, rTop: 0.02, rBot: 0.045 });
 
-  // Propellant canister under the breech: the 'mag' reload timeline slides this group.
+  // Fixed control canister under the breech. Ammunition enters through the rear gate.
   box(mag, 0.07, 0.09, 0.11, 0, -0.06, breachZ - 0.06, COL.blued, { rx: 0.06 });
   box(mag, 0.074, 0.016, 0.114, 0, -0.112, breachZ - 0.058, ORANGE, { rx: 0.06 });
   box(mag, 0.04, 0.012, 0.004, 0, -0.04, breachZ - 0.118, ORANGE, { rx: 0.06 });
@@ -105,3 +125,4 @@ export function build({ kit, T, groups }) {
   box(trigger, 0.038, 0.025, 0.007, 0, -0.036, TRIGGER_Z.rocket - 0.031, COL.polyDark);
   box(trigger, 0.038, 0.025, 0.007, 0, -0.036, TRIGGER_Z.rocket + 0.039, COL.polyDark);
 }
+import * as THREE from '../../vendor/three.module.js';

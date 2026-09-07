@@ -1,6 +1,6 @@
 # Grenade inventory artwork
 
-The transparent inventory illustrations in `hud/` were generated with the built-in
+The frag, limpet and pulse inventory illustrations in `hud/` were generated with the built-in
 Imagegen tool on 2026-09-08 for the Chaos Lab shop. Each illustration has its own
 prompt in [`hud/imagegen-prompts.json`](./hud/imagegen-prompts.json).
 
@@ -10,5 +10,9 @@ prompt in [`hud/imagegen-prompts.json`](./hud/imagegen-prompts.json).
 
 The silhouettes and accent colors follow `public/js/weapons/projectiles.js` and
 `shared/grenade-rules.js`. These are shop illustrations; the existing procedural
-models remain the in-world projectiles. Each runtime PNG is 512 by 512 pixels,
+models remain the in-world projectiles. Those three PNGs are 512 by 512 pixels,
 resampled from the generated original while retaining its alpha channel.
+
+`hud/molotov.png` is a transparent 480 by 480 pixel render of the game's own
+procedural Molotov bottle, generated on 2026-09-08 by
+`node tools/render-molotov-icon.mjs`. It uses no external image source.

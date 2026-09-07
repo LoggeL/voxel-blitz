@@ -16,6 +16,7 @@ import { WEAPON_IDS, EYE_HEIGHT } from '../shared/combatmath.js';
 import { DEFAULT_WEAPON_ID, WEAPON_PRICES } from '../shared/modes.js';
 import { mulberry32 } from '../shared/noise.js';
 import { raycastVoxels } from '../shared/raycast.js';
+import { DUST2_NAV_FLOORS, dust2FloorsAt } from '../shared/world/dust2-layout.js';
 
 const TAU = Math.PI * 2;
 const TURN_RATE = 3.0;            // rad/s steering cap
@@ -66,8 +67,19 @@ function dist3(ax, ay, az, bx, by, bz) {
   return Math.hypot(bx - ax, by - ay, bz - az);
 }
 
-function standable(world, x, z) {
+function standable(world, x, z, preferredY = null) {
   x |= 0; z |= 0;
+  if (world.mapId === 'dust2') {
+    const floors = [...dust2FloorsAt(x, z)];
+    if (preferredY !== null) floors.sort((a, b) => Math.abs(a + 1 - preferredY) - Math.abs(b + 1 - preferredY));
+    for (const h of floors) {
+      if (world.getBlock(x, h, z) !== AIR
+        && world.getBlock(x, h + 1, z) === AIR && world.getBlock(x, h + 2, z) === AIR) {
+        return { x: x + 0.5, y: h + 1.02, z: z + 0.5 };
+      }
+    }
+    return null;
+  }
   const h = world.heightAt(x, z);
   if (h < GROUND - 1 || h > GROUND + 9) return null;
   if (world.getBlock(x, h, z) === AIR) return null;
@@ -76,6 +88,16 @@ function standable(world, x, z) {
 }
 
 function randSpot(world, rng) {
+  if (world.mapId === 'dust2') {
+    const count = DUST2_NAV_FLOORS.length / 3;
+    const start = Math.floor(rng() * count);
+    for (let n = 0; n < count; n++) {
+      const i = ((start + n) % count) * 3;
+      const spot = standable(world, DUST2_NAV_FLOORS[i], DUST2_NAV_FLOORS[i + 1], DUST2_NAV_FLOORS[i + 2] + 1);
+      if (spot) return spot;
+    }
+    return { ...world.meta.spawns.fun[0] };
+  }
   for (let i = 0; i < 14; i++) {
     const s = standable(world, (8 + rng() * (SX - 16)) | 0, (8 + rng() * (SZ - 16)) | 0);
     if (s) return s;
@@ -401,8 +423,8 @@ class BotManager {
       const dx = enemy.x - p.x, dz = enemy.z - p.z;
       const pl = Math.hypot(dx, dz) || 1;
       const px = -dz / pl, pz = dx / pl;                    // perpendicular
-      const cA = standable(this.game.world, (p.x + px * 8) | 0, (p.z + pz * 8) | 0);
-      const cB = standable(this.game.world, (p.x - px * 8) | 0, (p.z - pz * 8) | 0);
+      const cA = standable(this.game.world, (p.x + px * 8) | 0, (p.z + pz * 8) | 0, p.y);
+      const cB = standable(this.game.world, (p.x - px * 8) | 0, (p.z - pz * 8) | 0, p.y);
       const farthest = (s) => (s ? dist3(s.x, s.y, s.z, enemy.x, enemy.y, enemy.z) : -1);
       br.roamTarget = farthest(cA) >= farthest(cB)
         ? (cA || cB || randSpot(this.game.world, br.rng))

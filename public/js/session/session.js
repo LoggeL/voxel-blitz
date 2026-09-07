@@ -1,4 +1,5 @@
 import { getMapMeta } from '../../../shared/worlddata.js';
+import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 import { NetClient } from '../engine/netclient.js';
 import { GameplayUiFlow } from './gameplay-ui.js';
 import { PregameFlow } from './pregame.js';
@@ -241,6 +242,7 @@ export class Session {
       this._unlockAudioQuietly();
     };
     this._onEscape = (event) => {
+      if (event?.code !== 'Escape' || event.repeat || this._tornDown) return;
       if (this.hud?.isWeaponWheelOpen?.()) {
         event.preventDefault();
         this.hud.requestWheelCancel();
@@ -248,9 +250,6 @@ export class Session {
       }
 
       if (
-        event?.code !== 'Escape' ||
-        event.repeat ||
-        this._tornDown ||
         this._phase !== 'live' ||
         !this._gameplay.running ||
         !this._gameplay.alive ||
@@ -313,7 +312,7 @@ export class Session {
       spawnProtected: false,
       reloading01: null,
       adsT01: 0,
-      grenades: [0, 0, 0],
+      grenades: GRENADE_TYPE_IDS.map(() => 0),
       grenadeType: 0,
       grenadeCharge: 0,
       charge01: null,

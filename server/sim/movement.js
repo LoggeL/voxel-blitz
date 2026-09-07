@@ -128,7 +128,7 @@ export function stepMovement(p, dt, ctx) {
   }
 
   if (inp) { p.yaw = inp.yaw; p.pitch = inp.pitch; }
-  p.ads = !!inp?.wantAds && p.deployT <= 0;
+  p.ads = !!inp?.wantAds && !inp?.grenadeHandling && !p.grenadeHandlingQueued && p.deployT <= 0;
   const previousAdsT = p.adsT;
   const adsStep = dt / Math.max(0.001, p.def.adsTime);
   p.adsT = Math.max(0, Math.min(1, p.adsT + (p.ads ? adsStep : -adsStep)));
@@ -174,7 +174,7 @@ export function stepMovement(p, dt, ctx) {
   if (!p.vault && canStartVault(p.grounded, p.grounded ? kf.jump : deliberateGrab,
       fwdAmt, p.crouch || low, p.y, p.jumpGroundY)) {
     p.vault = findVault(ctx.solidAt, p, { x: wx, z: wz },
-      deliberateGrab ? p.y : p.jumpGroundY, movementYaw);
+      deliberateGrab ? p.y : p.jumpGroundY, movementYaw, deliberateGrab ? 0 : 1);
   }
   if (p.vault) {
     const active = stepVault(p, p.vault, dt, ctx.solidAt);

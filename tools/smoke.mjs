@@ -280,7 +280,7 @@ function runDirectContracts() {
   const grenade = grenadeEngine.projectiles.throw(thrower, grenadeContext);
   Object.assign(grenade, { x: 44.5, y: 21.5, z: 50.5 });
   grenadeEngine.projectiles.explode(grenade, grenadeContext);
-  ok(thrower.grenades.join(',') === '1,1,2'
+  ok(thrower.grenades.join(',') === '1,1,2,1'
     && blastTarget.hp < 100
     && grenadeEngine.world.getBlock(44, 20, 50) === AIR
     && grenadeEngine.world.getBlock(45, 20, 50) === METAL

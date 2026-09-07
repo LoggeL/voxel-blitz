@@ -5,6 +5,7 @@ import { launchCdpSession } from './lib/cdp-session.mjs';
 import { startServer, stopServer, waitForHttp } from './lib/server-process.mjs';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { CHAOS_UPGRADES } from '../shared/chaos.js';
+import { GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const check = (condition, message) => { if (!condition) throw new Error(message); console.log(`ok - ${message}`); };
@@ -42,7 +43,7 @@ async function screenshot(page, filename) {
   await writeFile(filename,Buffer.from(result.data,'base64'));
 }
 async function main() {
-  const expectedItems = [...WEAPON_IDS, 'frag', 'limpet', 'pulse'];
+  const expectedItems = [...WEAPON_IDS, ...GRENADE_TYPE_IDS];
   check(expectedItems.length === Object.keys(CHAOS_UPGRADES).length && expectedItems.every(id => CHAOS_UPGRADES[id]?.length === 3), 'every weapon and grenade has three Chaos upgrades');
   const server=startServer({cwd:root,failureContext:'chaos browser smoke'});
   let browser;

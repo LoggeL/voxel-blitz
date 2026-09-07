@@ -1,6 +1,14 @@
 import * as THREE from '../../public/js/vendor/three.module.js';
 import { WEAPONS, WEAPON_IDS } from '../../shared/combatmath.js';
 
+function isRenderedOpaque({ object }) {
+  if (object.material?.transparent === true) return false;
+  // Three.js raycasting includes descendants of hidden groups. Match renderer
+  // visibility so holstered throwable hands do not obstruct an iron-sight test.
+  for (let node = object; node; node = node.parent) if (!node.visible) return false;
+  return true;
+}
+
 export async function runViewmodelContracts(ok, installGlobals) {
   {
     const { shouldShowViewmodel } = await import('../../public/js/guns/weapon-state.js');
@@ -506,8 +514,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
           rig.update(1 / 60, { grounded: true, aimSwayScale: 0 });
         }
         camera.updateWorldMatrix(true, true);
-        const opaqueHit = centerRay.intersectObject(rig.root, true).find(({ object }) =>
-          object.visible && object.material?.transparent !== true);
+        const opaqueHit = centerRay.intersectObject(rig.root, true).find(isRenderedOpaque);
         if (opaqueHit) blockedIronSights.push(id);
       }
       ok(blockedIronSights.length === 0,
@@ -530,7 +537,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
         });
         camera.updateWorldMatrix(true, true);
         const hammerHit = centerRay.intersectObject(rig._models.revolver.bolt, true)
-          .find(({ object }) => object.visible && object.material?.transparent !== true);
+          .find(isRenderedOpaque);
         if (hammerHit) blockedRevolverFrames++;
       }
       ok(blockedRevolverFrames === 0,

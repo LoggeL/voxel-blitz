@@ -25,6 +25,7 @@ const BLAST_STYLE = Object.freeze({
   pulse: Object.freeze({ color: 0x59e8ff, grow: 0.65, life: 0.42, wireframe: true, ring: true, ringColor: 0x9ff4ff }),
   bolt: Object.freeze({ color: 0x7dfcff, grow: 0.16, life: 0.28, ring: false }),
   rocket: Object.freeze({ color: 0xffb347, grow: 0.5, life: 0.55, ring: true, ringColor: 0xff7a1c }),
+  molotov: Object.freeze({ color: 0xff7924, grow: 0.2, life: 0.3, ring: false }),
 });
 
 function styleFor(type) {
@@ -71,6 +72,9 @@ export class ProjectileFX {
     this.capGeometry = new THREE.BoxGeometry(0.1, 0.08, 0.13);
     this.limpetGeometry = new THREE.CylinderGeometry(0.17, 0.17, 0.09, 10);
     this.pulseGeometry = new THREE.IcosahedronGeometry(0.17, 1);
+    this.bottleGeometry = new THREE.CylinderGeometry(0.11, 0.12, 0.34, 8);
+    this.bottleNeckGeometry = new THREE.CylinderGeometry(0.042, 0.085, 0.19, 8);
+    this.bottleFlameGeometry = new THREE.ConeGeometry(0.055, 0.22, 6);
     this.rocketBodyGeometry = new THREE.CylinderGeometry(0.075, 0.075, 0.52, 10);
     this.rocketBodyGeometry.rotateX(Math.PI / 2);
     this.rocketNoseGeometry = new THREE.ConeGeometry(0.075, 0.18, 10);
@@ -89,6 +93,10 @@ export class ProjectileFX {
       color: 0x0f2a33, roughness: 0.3, metalness: 0.85,
       emissive: 0x59e8ff, emissiveIntensity: 0.9,
     });
+    this.bottleMaterial = new THREE.MeshStandardMaterial({
+      color: 0x426d2d, roughness: 0.25, metalness: 0.12,
+    });
+    this.bottleLabelMaterial = new THREE.MeshStandardMaterial({ color: 0xdbbd78, roughness: 0.9 });
     this.rocketMaterial = new THREE.MeshStandardMaterial({
       color: 0x4a4f57, roughness: 0.55, metalness: 0.7,
     });
@@ -197,6 +205,21 @@ export class ProjectileFX {
       exhaust.position.z = 0.45;
       group.add(body, nose, exhaust);
       group.userData.exhaust = exhaust;
+    } else if (type === 'molotov') {
+      const body = new THREE.Mesh(this.bottleGeometry, this.bottleMaterial);
+      const neck = new THREE.Mesh(this.bottleNeckGeometry, this.bottleMaterial);
+      neck.position.y = 0.245;
+      const label = new THREE.Mesh(this.bottleGeometry, this.bottleLabelMaterial);
+      label.scale.set(1.015, 0.43, 1.015);
+      const cloth = new THREE.Mesh(this.capGeometry, this.bottleLabelMaterial);
+      cloth.scale.set(0.5, 1.4, 0.42);
+      cloth.position.set(0.022, 0.365, 0);
+      cloth.rotation.z = -0.4;
+      capMaterial = new THREE.MeshBasicMaterial({ color: 0xffac30, toneMapped: false });
+      const flame = new THREE.Mesh(this.bottleFlameGeometry, capMaterial);
+      flame.position.set(0.04, 0.47, 0);
+      group.add(body, neck, label, cloth, flame);
+      group.userData.flame = flame;
     } else if (type === 'limpet') {
       const disc = new THREE.Mesh(this.limpetGeometry, this.limpetMaterial);
       capMaterial = new THREE.MeshBasicMaterial({ color: 0xff5a3c, toneMapped: false });
@@ -554,6 +577,9 @@ export class ProjectileFX {
           projectile.group.userData.halo.scale.setScalar(1.4 + Math.sin(projectile.age * 14) * 0.2);
         } else if (projectile.type === 'limpet') {
           projectile.capMaterial.color.setHex(lit ? 0xff5a3c : 0x3a0f08);
+        } else if (projectile.type === 'molotov') {
+          projectile.capMaterial.color.setHex(0xffac30);
+          projectile.group.userData.flame.scale.setScalar(0.9 + Math.sin(projectile.age * 35) * 0.18);
         } else {
           projectile.capMaterial.color.setHex(lit ? CAP_LIT : CAP_DIM);
         }
@@ -656,11 +682,13 @@ export class ProjectileFX {
     for (const geometry of [
       this.fragGeometry, this.capGeometry, this.limpetGeometry, this.pulseGeometry,
       this.grenadeRibGeometry, this.grenadeBandGeometry,
+      this.bottleGeometry, this.bottleNeckGeometry, this.bottleFlameGeometry,
       this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry,
       this.blastGeometry, this.ringGeometry,
     ]) geometry.dispose();
     for (const material of [
       this.fragMaterial, this.limpetMaterial, this.pulseMaterial, this.rocketMaterial,
+      this.bottleMaterial, this.bottleLabelMaterial,
       this.rocketNoseMaterial, this.exhaustMaterial, this.boltCoreMaterial, this.boltGlowMaterial,
     ]) material.dispose();
   }

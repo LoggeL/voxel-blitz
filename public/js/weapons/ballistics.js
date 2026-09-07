@@ -1,6 +1,6 @@
 // Tracer and remote muzzle-flash pools for the weapon-effects facade.
 import * as THREE from '../vendor/three.module.js';
-import { WEAPONS, chargeShotProfile } from '../../../shared/combatmath.js';
+import { WEAPONS, HITSCAN_REACH, chargeShotProfile } from '../../../shared/combatmath.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { freeOldestIndex, hideInstance, makeFlashTexture } from './instancing.js';
 
@@ -122,7 +122,7 @@ export class TracerFX {
         direction.x,
         direction.y,
         direction.z,
-        length,
+        HITSCAN_REACH,
       );
       if (hit) {
         if (i === 0 && this.onWallImpact) this.onWallImpact(hit, local);

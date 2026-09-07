@@ -299,6 +299,7 @@ export class WeaponState {
     fireTap = false,
     fireHeld = false,
     wantAds = false,
+    grenadeHandling = false,
   }, now, {
     allowFire = false,
     alive = this._alive,
@@ -307,9 +308,20 @@ export class WeaponState {
   } = {}) {
     this._alive = !!alive;
     this._allowFire = !!allowFire;
+    this._grenadeHandling = !!grenadeHandling;
     this._setAuthority(mode, owned);
-    this._wantAds = !!wantAds;
+    this._wantAds = !!wantAds && !this._grenadeHandling;
     if (!fireHeld || !this._alive || !this._allowFire) this._stopFlame();
+
+    if (this._grenadeHandling) {
+      this.cancelCharge();
+      this._chargeHeldPrev = false;
+      this._stopFlame();
+      this._scopeActive = false;
+      this._fireTapLatched = false;
+      this._pendingShotIntent = { tap: false, held: false };
+      return;
+    }
 
     if (switchDelta) this.cycleWeapon(switchDelta, { now });
     if (slot !== null) this.forceWeapon(slot, { now });
@@ -341,13 +353,14 @@ export class WeaponState {
     this._fireTapLatched = false;
     this._wantAds = false;
     this._allowFire = false;
+    this._grenadeHandling = false;
     this._audio.weaponCharge?.(0, false);
     this._chargeHeldPrev = false;
     this.cancelCharge();
   }
 
   startReload(now) {
-    if (this._reloadState || this._completedReloadWeapon === this.def.id || !this._alive || now < this._deployUntil) return false;
+    if (this._grenadeHandling || this._reloadState || this._completedReloadWeapon === this.def.id || !this._alive || now < this._deployUntil) return false;
     const def = this.def;
     if (def.mode === 'melee') return false; // a knife has no magazine to refill
     const ammo = this._ammo[def.id];
@@ -470,10 +483,10 @@ export class WeaponState {
     const def = this.def;
     this._bloomDeg = Math.max(0, this._bloomDeg - def.bloomRecover * dt);
     this._adsT += (
-      (this._wantAds && this._alive && !vaulting && !this._reloadState && this._now() >= this._deployUntil) ? 1 : -1
+      (this._wantAds && this._alive && !vaulting && !this._grenadeHandling && !this._reloadState && this._now() >= this._deployUntil) ? 1 : -1
     ) * dt / Math.max(0.08, def.adsTime);
     this._adsT = Math.max(0, Math.min(1, this._adsT));
-    this._scopeActive = this._alive && !vaulting && def.id === 'sniper' &&
+    this._scopeActive = this._alive && !vaulting && !this._grenadeHandling && def.id === 'sniper' &&
       this._adsT >= SNIPER_SCOPE_ADS_THRESHOLD;
     if (this._rig.root) {
       this._rig.root.visible = shouldShowViewmodel({ scopeActive: this._scopeActive });
@@ -496,7 +509,7 @@ export class WeaponState {
     this._flameFrameAt = now;
     const thermalDt = this._thermalAt === null ? 0 : Math.max(0, (now - this._thermalAt) / 1000);
     this._thermalAt = now;
-    const canSpin = this.def.id === 'minigun' && this._allowFire && this._alive &&
+    const canSpin = this.def.id === 'minigun' && this._allowFire && !this._grenadeHandling && this._alive &&
       !this._reloadState && !this._completedReloadWeapon &&
       now >= this._deployUntil && this._ammo.minigun?.mag > 0;
     const driving = canSpin && !!(this._pendingShotIntent?.held || this._pendingShotIntent?.tap);
@@ -507,7 +520,7 @@ export class WeaponState {
         canSpin, this._minigun.overheated);
     }
     // Authority is deliberately the first gate.
-    if (!this._allowFire) {
+    if (!this._allowFire || this._grenadeHandling) {
       this.cancelCharge();
       return false;
     }
@@ -815,6 +828,7 @@ export class WeaponState {
     this._chargeStart = null;
     this._chargeHeldPrev = false;
     this._allowFire = false;
+    this._grenadeHandling = false;
     this._alive = true;
     this._mode = DEFAULT_MODE;
     this._chaosUpgrades = null;
@@ -847,6 +861,7 @@ export class WeaponState {
 
   _acceptFrameContext({
     allowFire = false,
+    grenadeHandling = this._grenadeHandling,
     alive = this._alive,
     crouching = false,
     speedXZ = 0,
@@ -861,6 +876,7 @@ export class WeaponState {
     generation = this._generation,
   } = {}) {
     this._allowFire = !!allowFire;
+    this._grenadeHandling = !!grenadeHandling;
     this._alive = !!alive;
     if (!this._alive || !this._allowFire) this._stopFlame();
     this._crouching = !!crouching;

@@ -1,6 +1,7 @@
 import * as THREE from '../vendor/three.module.js';
-import { WEAPONS, chargeShotProfile } from '../../../shared/combatmath.js';
+import { WEAPONS, HITSCAN_REACH, chargeShotProfile } from '../../../shared/combatmath.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
+import { SX, SY, SZ } from '../../../shared/worlddata.js';
 
 const AXIS = new THREE.Vector3(0, 0, -1);
 const POOL_SIZE = 12;
@@ -62,12 +63,16 @@ export class RailBeamFX {
     direction.normalize();
     const eye = new THREE.Vector3(...event.o);
     const profile = chargeShotProfile(WEAPONS.lance, charge);
-    let length = event.chaosArc && Number.isFinite(event.reach) ? Math.max(0.1, Math.min(9, event.reach)) : 95;
+    const chaosArc = event.chaosArc && Number.isFinite(event.reach);
+    // Empty-sky beams need finite geometry, but a terrain hit can be as distant
+    // as the world permits. This fallback does not constrain authoritative hits.
+    let length = chaosArc ? Math.max(0.1, Math.min(9, event.reach)) : Math.hypot(SX, SY, SZ);
+    const traceReach = chaosArc ? length : HITSCAN_REACH;
     const pierced = new Set();
     for (let wall = 0; wall <= profile.walls; wall++) {
       const hit = raycastVoxels((x, y, z) =>
         !pierced.has(`${x},${y},${z}`) && this.getBlock(x, y, z),
-        eye.x, eye.y, eye.z, direction.x, direction.y, direction.z, length);
+        eye.x, eye.y, eye.z, direction.x, direction.y, direction.z, traceReach);
       if (!hit) break;
       if (wall === profile.walls) {
         length = hit.t;

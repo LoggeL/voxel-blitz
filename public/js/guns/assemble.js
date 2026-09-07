@@ -135,6 +135,10 @@ export function buildGun(id, cache) {
     const lz = hands.support.z - (target === pump ? PUMP_REST.z : 0);
     const leftHand = kit.glove(target, lx, ly, lz, 'support', -1);
     leftHand.name = 'hand_l';
+  } else if (!melee) {
+    const leftHand = kit.glove(extra, -0.10, -0.12, -0.14, 'support', -1);
+    leftHand.name = 'hand_l';
+    leftHand.visible = false;
   }
 
   root.add(body);

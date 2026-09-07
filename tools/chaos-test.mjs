@@ -6,6 +6,7 @@ import { parseBuyFrame } from '../server/protocol/admission.js';
 import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
 import { GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
 import { FLAME_RULES } from '../shared/flame-rules.js';
+import { MOLOTOV_FIRE, molotovFireProfile } from '../shared/molotov-rules.js';
 import { MAP_IDS, isModeMapCompatible, mapForMode } from '../shared/modes.js';
 import { CHAOS_UPGRADES, CHAOS_START_CREDITS, CHAOS_KILL_CREDITS, chaosPurchaseId, parseChaosPurchase, chaosWeaponDef } from '../shared/chaos.js';
 import { chaosShot, chaosHit } from '../server/sim/chaos-combat.js';
@@ -18,7 +19,7 @@ for (const id of WEAPON_IDS) {
   assert.deepEqual(parseChaosPurchase(`chaos:${id}:1`), { item: id, level: 1 });
   assert.equal(chaosWeaponDef({ chaosUpgrades: {} }, WEAPONS[id]), WEAPONS[id]);
 }
-assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 45);
+assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 48);
 for (const rows of Object.values(CHAOS_UPGRADES)) {
   assert.deepEqual(rows.map(r => r.price), [300, 600, 900]);
   assert.equal(new Set(rows.map(r => r.name)).size, 3);
@@ -72,7 +73,7 @@ for (const [item, rows] of Object.entries(CHAOS_UPGRADES)) {
 const boughtUpgrades = { ...buyer.chaosUpgrades }, creditsBeforeRespawn = buyer.credits;
 engine.killPlayer(buyer, buyer, 'rocket', false);
 engine.respawnPlayer(buyer);
-assert.deepEqual(buyer.chaosUpgrades, boughtUpgrades, 'all 45 purchases survive a fresh life');
+assert.deepEqual(buyer.chaosUpgrades, boughtUpgrades, 'all 48 purchases survive a fresh life');
 assert.equal(buyer.credits, creditsBeforeRespawn);
 const snapshot = makeSnapshot([buyer], [], [], engine.now, engine.mode.matchSnapshot());
 assert.equal(snapshot.match.mode, 'chaos');
@@ -83,7 +84,7 @@ const normal = new GameEngine({ mode: 'fun' });
 normal.addClient('normal', 'Normal');
 const vanilla = normal.entities.get('normal');
 assert.equal(normal.mode.purchase(vanilla, 'chaos:shotgun:1'), false);
-for (const id of ['minigun', 'flamethrower']) assert.equal(normal.mode.purchase(vanilla, `chaos:${id}:1`), false);
+for (const id of ['minigun', 'flamethrower', 'molotov']) assert.equal(normal.mode.purchase(vanilla, `chaos:${id}:1`), false);
 assert.equal(vanilla.chaosUpgrades, undefined);
 assert.equal(chaosWeaponDef(vanilla, WEAPONS.shotgun), WEAPONS.shotgun);
 assert.equal('chaosUpgrades' in makeSnapshot([vanilla], [], [], normal.now).players[0], false);
@@ -135,13 +136,13 @@ for (const [id, count] of [['rifle', 4], ['revolver', 2], ['lance', 4]]) {
   chaosHit(p, {}, [0, 10, 20], { entities: new Map(targets.map(t => [t.id, t])), canDamage: () => true, solidAt: () => false, pushEvent: () => {} });
   assert.equal(targets.filter(t => t.hp < 100).length, count, `${id} arcs to intended number of targets`);
 }
-console.log('Chaos: 45 purchases, complete weapon catalog, economy, stale requests, death persistence, normal-mode isolation, snapshots and cumulative weapon effects passed.');
+console.log('Chaos: 48 purchases, complete weapon catalog, economy, stale requests, death persistence, normal-mode isolation, snapshots and cumulative weapon effects passed.');
 
 // Empty-space projectile fixtures verify explosions and steering without map geometry noise.
 function projectileFixture(type, level) {
   const system = new engine.projectiles.constructor();
   const p = { id: 'projectile-owner', x: 20, y: 10, eyeY: 11.6, z: 20, vx: 0, vy: 0, vz: 0,
-    yaw: 0, pitch: 0, def: WEAPONS[type === 'bolt' ? 'longarc' : 'rocket'], grenades: [5, 5, 5],
+    yaw: 0, pitch: 0, def: WEAPONS[type === 'bolt' ? 'longarc' : 'rocket'], grenades: GRENADE_TYPE_IDS.map(() => 5),
     chaosUpgrades: { [type === 'bolt' ? 'longarc' : type]: level } };
   const events = [];
   const ctx = { now: 0, entities: new Map(), getBlock: () => 0, canDamage: () => true,
@@ -150,6 +151,29 @@ function projectileFixture(type, level) {
     : type === 'bolt' ? system.launchBolt(p, ctx, { x: 0, y: 0, z: -1 })
       : system.throw(p, ctx, 0.5, GRENADE_TYPE_IDS.indexOf(type));
   return { system, p, ctx, events, projectile };
+}
+// Upgraded bottles carry their purchased profile through throw, impact, and snapshot.
+for (const [level, radius, durationMs, dps] of [[0, 3.2, 6500, 24], [1, 4.2, 6500, 24],
+  [2, 4.2, 9000, 24], [3, 4.2, 9000, 32]]) {
+  const f = projectileFixture('molotov', level);
+  f.ctx.getBlock = (_x, y) => y === 0 ? 1 : 0;
+  f.projectile.y = 1.16;
+  assert.equal(f.projectile.chaosLevel, level);
+  // A later purchase must not change a bottle that has already left the hand.
+  f.p.chaosUpgrades.molotov = 3;
+  f.system.explode(f.projectile, f.ctx);
+  const field = [...f.system.fire.active.values()][0];
+  assert.equal(field.radius, radius);
+  assert.equal(field.expiresAt - field.createdAt, durationMs);
+  assert.equal(field.damagePerSecond, dps);
+  assert.equal(f.system.active.size, 0, 'Molotov upgrades never invent cluster explosives');
+  assert(field.cells.length <= MOLOTOV_FIRE.maxCells);
+  if (level) assert(field.cells.some(cell => Math.hypot(cell[0] - field.x, cell[2] - field.z) > 3.8),
+    'larger footprint includes actual outer cells instead of clipping to the nearest base-size patch');
+  const wire = makeSnapshot([], [], [], f.ctx.now, undefined, [], [], f.system.fire.snapshot());
+  assert.equal(wire.fireFields[0].radius, radius);
+  assert.equal(wire.fireFields[0].cells.length, field.cells.length);
+  assert.equal(molotovFireProfile(level).damagePerSecond, dps);
 }
 for (const [type, level, expected] of [['frag', 1, 6], ['frag', 2, 12], ['frag', 3, 12], ['rocket', 3, 6], ['limpet', 2, 5], ['limpet', 3, 5], ['pulse', 3, 8]]) {
   const f = projectileFixture(type, level);

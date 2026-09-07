@@ -117,6 +117,7 @@ export class HUD {
     return this.wheel.requestCancel();
   }
   weaponWheelHighlight() { return this.wheel.highlightedSlot(); }
+  weaponWheelRadius() { return this.wheel.radius(); }
 
   buildHUD() {
     this.gameplay.buildHUD();

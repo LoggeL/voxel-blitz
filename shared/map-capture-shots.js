@@ -21,14 +21,16 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   shot('nuketown', 'garden', [30, 18.5, 72], [43, 20, 77], 78),
   shot('nuketown', 'playground', [45, 18, 61], [37, 18, 68], 78),
 
-  shot('dust2', 'hero', [126, 88, 119], [64, 15, 45], 60),
-  shot('dust2', 'long-a', [112, 17, 53], [110, 19, 25], 74),
-  shot('dust2', 'mid-doors', [61, 17, 61], [59, 18, 30], 70),
-  shot('dust2', 'catwalk', [72.5, 19.64, 47.5], [60, 19, 32], 74),
-  shot('dust2', 'b-tunnels', [25, 17, 62], [25, 18, 37], 76),
-  shot('dust2', 'b-site', [28.5, 17, 29.5], [26.5, 20.5, 10], 76),
-  shot('dust2', 'snd-site-a', [113, 26, 29], [99.5, 18.5, 23.5], 72, 'snd'),
-  shot('dust2', 'snd-site-b', [34, 23, 30], [26.5, 15.5, 23.5], 72, 'snd'),
+  // Remaster spectator cameras, transformed at 48 Source units per voxel.
+  // Site views deliberately include the CT underpass and B's raised window.
+  shot('dust2', 'hero', [116, 105, 126], [64, 13, 48], 58),
+  shot('dust2', 'long-a', [99.252, 19.119, 53.106], [92.048, 12.583, 37.077], 78),
+  shot('dust2', 'catwalk', [66.76, 16.875, 57.063], [61.344, 13.958, 38.104], 80),
+  shot('dust2', 't-spawn', [60.604, 20.519, 81.856], [30.927, 15.667, 78.729], 80),
+  shot('dust2', 'b-tunnels', [26.177, 17.604, 46.583], [34.535, 15.84, 29.892], 80),
+  shot('dust2', 'tunnel-stairs', [43.325, 15.331, 36.692], [58.274, 10.668, 47.004], 82),
+  shot('dust2', 'snd-site-a', [100.135, 22.542, 24.479], [85.983, 12.578, 17.268], 78, 'snd'),
+  shot('dust2', 'snd-site-b', [43.079, 24.106, 11.473], [34.326, 11.129, 21.794], 78, 'snd'),
 
   shot('foundry', 'hero', [64.5, 17.64, 82.5], [65, 23, 46]),
   shot('foundry', 'west-lane', [20.5, 13.64, 48.5], [65, 23, 46]),

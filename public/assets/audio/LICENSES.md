@@ -53,7 +53,8 @@ origin and license of every bundled recording remain auditable.
 
 - Source: ElevenLabs Sound Effects, generated in the user's account on 2026-09-07.
 - Used for frag, limpet, pulse and rocket explosions, grenade pin and throw cues,
-  the minigun shot, pickaxe swing (`weapons/knife/fire.ogg`) and flamethrower loop.
+  pickaxe swing (`weapons/knife/fire.ogg`) and flamethrower loop. The original
+  minigun report is superseded by the three variants below.
 - The four explosion groups were generated in the browser. The other five groups
   were generated through the ElevenLabs API; their original MP3 responses and
   receipts are retained locally in `.artifacts/elevenlabs-effects-2026-09-07/api-source/`.
@@ -69,12 +70,26 @@ origin and license of every bundled recording remain auditable.
 - Shipped files are mono 48 kHz Opus at 96 kbit/s. One-shots have trimmed onsets
   and faded tails. The flamethrower uses a 200 ms equal-power overlap; the decoded
   Opus loop boundary is measured and plotted during preparation.
-- The minigun asset contains one isolated report from its generated burst. The
-  game supplies the firing cadence. The API MP3s were decoded to WAV for analysis;
+- The historical minigun recipe now writes to `legacy-output` in its artifact
+  directory. The API MP3s were decoded to WAV for analysis;
   this does not recover an uncompressed original from the lossy source.
 - Historical Kenney CC0 grenade provenance remains in `grenades/sources.json`,
   explicitly marked as replaced. `tools/prepare-grenade-audio.py` rebuilds that
   historical recipe only into `.artifacts/grenade-audio-source/legacy-output/`.
+
+## Heavy rotary minigun reports
+
+- Source: ElevenLabs Sound Effects API, generated in the user's account on 2026-09-08.
+- Three reports selected from eight candidates replace the earlier 55 ms shot.
+  They last 160-180 ms, with equal decoded RMS levels, low-mid body and controlled
+  high-frequency energy. The game alternates the recordings at natural speed.
+- `elevenlabs-minigun-sources.json` records prompts, selected original/decoded
+  hashes, processing recipes, final Opus hashes and measurements.
+- Rebuild with `python tools/prepare-minigun-audio.py`; `--analyze` also regenerates
+  the candidate waveform and spectrum sheets. Original API responses and receipts
+  remain in `.artifacts/elevenlabs-minigun-2026-09-08/`.
+- Mono 48 kHz Opus, 96 kbit/s. Account/service terms govern these generated assets;
+  no CC0 license is asserted.
 
 ## Hit confirmations and body impacts
 

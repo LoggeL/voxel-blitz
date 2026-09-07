@@ -149,11 +149,12 @@ export async function launchCdpSession(url, {
   browser: explicitBrowser = null,
   width = 1280,
   height = 720,
+  headless = true,
 } = {}) {
   const browser = await executableBrowser(explicitBrowser);
   const profileDir = await createBrowserProfile('voxel-blitz-cdp-');
   const child = spawn(browser, [
-    '--headless=new',
+    ...(headless ? ['--headless=new'] : []),
     '--mute-audio',
     '--no-first-run',
     '--disable-background-networking',

@@ -82,14 +82,17 @@ After admission:
   jump:boolean,sprint:boolean,crouch:boolean,interact:boolean},yaw:number,
   pitch:number,weapon:number,wantFire:boolean,wantAds:boolean,reload:boolean,
   viewAge:number,throwGrenade?:boolean,grenadeCharge?:number,grenadeType?:number,
-  grenadeCook?:number,switchTo?:number}`
+  grenadeCook?:number,grenadeHandling?:boolean,switchTo?:number}`
   routes only to this member's live room. A grenade throw is release-edge
   triggered after holding `G`; authority clamps `grenadeCharge` to `0–1`, maps
   it to the shared throw-speed/lift profile, clamps `grenadeType` into
-  `GRENADE_TYPE_IDS` (`0` frag, `1` limpet, `2` pulse), clamps `grenadeCook`
+  `GRENADE_TYPE_IDS` (`0` frag, `1` limpet, `2` pulse, `3` molotov), clamps `grenadeCook`
   (held milliseconds, timed fuses only) to the type's fuse, and consumes one
   grenade of that type for the current life only when the mode permits firing.
   A `grenadeCook` at or beyond the frag fuse detonates the grenade in the hand.
+  `grenadeHandling` suppresses weapon fire, ADS, switching and new reloads
+  while the hands prepare or throw an item. It cancels capacitor charging
+  without firing; authority retains this interruption across coalesced inputs.
   `wantFire` held on a `charge`-mode weapon (LONGARC, VOLTLANCE) charges the
   capacitor and the shot leaves on release or when the hold reaches `holdMaxMs`.
   `viewAge` is the client's current presentation buffer plus measured RTT and
@@ -578,13 +581,27 @@ late join whose welcome/state is already live also proceeds directly.
   `consumeLocalGrenadeThrow()` (`{charge,cookMs,type,at}`) and
   `grenadeLaunchState(charge,type)` feed that presentation; the composition
   root forces the release when a frag has been held for its whole fuse so
-  authority detonates it in the hand. `ViewmodelRig.grenadeCharge(t01)` /
-  `grenadeThrow(charge)` play the wind-up and lunge; `sfx.grenadePin()`,
+  authority detonates it in the hand. `ViewmodelRig.grenadeCharge(t01,type,holdMs,active)` /
+  `grenadeThrow(charge,type)` draw, arm, hold and release separate throwable hands.
+  `onGrenadeCue({cue,type,charge})` reports draw, pin/ignite, ready and throw;
+  pin/ignite fires at the 0.24 s extraction contact. `cancelGrenade()` resets
+  the pose and `grenadeActive` exposes occupied hands. `sfx.grenadePin()`,
   `sfx.grenadeThrow(charge)`, `sfx.explosion(pos,type)`, and
   the sustained `sfx.weaponCharge(level01,active)` whine cue them. HUD state
   renders one chip per throwable with remaining pips, the selected type name,
   `is-full` at max charge, `is-cooking`/`is-critical` with a `COOKING · n.ns`
   hint, and the LONGARC/VOLTLANCE coil meter (`charge01`).
+- **Molotov fire:** `shared/molotov-rules.js` owns the 3.2 m footprint, 6.5 s
+  duration, 24 DPS and 32-field/64-cell limits. `MolotovFireSystem` owns
+  authoritative contact damage and publishes `fireFields` snapshots with
+  `{id,ownerId,x,y,z,radius,createdAt,expiresAt,cells}`. Each cell is an exposed
+  ground point `[x,y,z]`; walls and unsupported terrain block spread. The
+  client `FireFieldFX` renders those cells in one bounded billboard draw and
+  expires them against server time. It uses a separate local animation clock.
+  Molotov contact contributes to the existing `burning` feedback without
+  flamethrower afterburn. Round/room cleanup removes all fields.
+  The three cumulative Chaos tiers extend radius to 4.2 m, duration to 9 s,
+  then damage to 32 DPS; each thrown bottle freezes its purchased profile.
 - `LocalPlayer.addRecoil(pitchRad, yawRad, weightKg?)` drives a velocity-impulse
   camera spring that peaks at the requested kick ~40–60 ms after the shot and
   recovers on a weight-scaled spring (slower for heavy guns), adds a coupled
@@ -768,6 +785,14 @@ step listener with the room.
   (`bearingDeg`), death shows `deathRecapText`, and the spectator camera opens
   on the killer for `KILL_CAM_MS` (2600) before its normal rotation.
 - **Reload:** magazine weapons follow `reloadPlan(def,mag)` in one step.
+  `WeaponActions` gives rifle/SMG, belt/drum, energy-cell and fuel-tank weapons
+  separate removal and insertion paths. Swapped ammunition physically exits
+  the camera frustum, remains hidden during exchange, then enters again with
+  the support hand. The launcher opens its rear breech and receives a full
+  rocket; shotgun shells and sniper top-loaded rounds have explicit feed
+  meshes. The revolver uses its crane, extractor and speedloader sequence.
+  Timed audio contacts still follow the canonical reload timeline; finishing
+  or canceling restores the original parts and hand visibility.
   Weapons with `reloadStages` (shotgun: start 0.42 s, 0.36 s per round, end
   0.22 s) keep chambered rounds, hand one spare over as loose rounds at the
   first seat, seat rounds one at a time, and yield to the trigger with every

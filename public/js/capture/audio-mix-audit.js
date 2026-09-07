@@ -2,6 +2,8 @@ import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { sfx } from '../audio/sfx.js';
 import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from '../audio/samples.js';
 import { VoicePool } from '../audio/voices.js';
+import { MINIGUN_REPORT_SLOTS } from '../audio/minigun-motor.js';
+import { auditBufferPeak, recordedTailComplete } from './audio-source-audit.js';
 
 const RATE = 48_000;
 const SECONDS = 3.2;
@@ -106,18 +108,24 @@ async function renderScenario(label, events, seconds = SECONDS, missingHitSample
       };
       if (property === 'createBufferSource') return () => {
         const source = target.createBufferSource();
-        const start = source.start.bind(source), disconnect = source.disconnect.bind(source);
+        const start = source.start.bind(source), stop = source.stop.bind(source), disconnect = source.disconnect.bind(source);
         let started;
+        source.addEventListener('ended', () => {
+          if (started) started.endedAt = context.currentTime;
+        });
         source.start = (...args) => {
           const buffer = source.buffer;
-          let peak = 0;
-          if (buffer) for (const value of buffer.getChannelData(0)) peak = Math.max(peak, Math.abs(value));
+          const peak = auditBufferPeak(buffer);
           started = { at: args[0] ?? context.currentTime,
             sample: decodedLabels.get(buffer) || 'procedural noise',
             peak, rate: source.playbackRate.value, duration: buffer?.duration || 0,
-            disconnectedAt: null };
+            disconnectedAt: null, endedAt: null, stopAt: null };
           trace.sources.push(started);
           return start(...args);
+        };
+        source.stop = (...args) => {
+          if (started) started.stopAt = args[0] ?? context.currentTime;
+          return stop(...args);
         };
         source.disconnect = (...args) => {
           if (started) started.disconnectedAt = context.currentTime;
@@ -317,13 +325,62 @@ async function main() {
   }]);
   burst.push([1, () => sfx.minigunMotor(0, 0, false)]);
   const rapid = await cue('Minigun, 20-shot burst at 1200 RPM', burst);
-  const rotarySample = BUILTIN_SAMPLE_MANIFEST['weapons.minigun.fire'];
-  check(weaponResults.minigun.trace.sources.filter((source) => source.sample === rotarySample).length === 1
-    && rapid.trace.sources.filter((source) => source.sample === rotarySample).length === 20,
+  const rotarySamples = MINIGUN_REPORT_SLOTS.map((slot) => BUILTIN_SAMPLE_MANIFEST[slot]);
+  const isRotary = (source) => rotarySamples.includes(source.sample);
+  check(weaponResults.minigun.trace.sources.filter(isRotary).length === 1
+    && rapid.trace.sources.filter(isRotary).length === 20,
   'Minigun starts its own decoded recording once per discharge');
+  check(rotarySamples.every((url) => rapid.trace.sources.some((source) => source.sample === url)),
+    'Minigun burst rotates all three authored report variants');
   check(rapid.metrics.rms > weaponResults.minigun.metrics.rms * 1.5
     && regionRms(rapid.data, 0.65, 0.9) > 0.002,
   'Minigun keeps firing audibly through the scheduled burst');
+  const rotaryEvents = [], motorEvents = [];
+  // Four seconds of 20 Hz reports, preceded by spin-up and followed by coasting.
+  for (let frame = 0; frame <= 102; frame++) {
+    const at = frame / 20;
+    const spin = Math.min(1, at / 0.7, Math.max(0, (5.1 - at) / 0.4));
+    const motorEvent = [at, () => sfx.minigunMotor(spin, Math.min(0.95, Math.max(0, at - 0.7) / 4.2), true, false)];
+    rotaryEvents.push(motorEvent);
+    if (at <= 1.5) motorEvents.push([at, () =>
+      sfx.minigunMotor(Math.min(1, at / 0.7, Math.max(0, (1.5 - at) / 0.4)), 0.2, true, false)]);
+  }
+  for (let shot = 0; shot < 80; shot++) rotaryEvents.push([Number((0.7 + shot / 20).toFixed(3)), () => sfx.fire('minigun')]);
+  rotaryEvents.push([5.1, () => sfx.minigunMotor(0, 0, false)]);
+  motorEvents.push([1.5, () => sfx.minigunMotor(0, 0, false)]);
+  const sustainedName = 'Minigun, spin-up, 80 shots and coast-down';
+  const sustained = await renderScenario(sustainedName, rotaryEvents, 5.8);
+  cues[sustainedName] = sustained.metrics;
+  audible(sustained, sustainedName, 250);
+  const sustainedShots = sustained.trace.sources.filter(isRotary);
+  check(sustainedShots.length === 80 && rotarySamples.every((url) =>
+    sustainedShots.filter((source) => source.sample === url).length >= 26),
+  'Four-second fire retains all 80 reports across the three variations');
+  check(sustainedShots.every((source) => source.rate >= 0.98 && source.rate <= 1.02),
+    'Rotary samples retain their natural pitch and mechanical weight');
+  const shortRecords = sustainedShots.filter((source) => source.disconnectedAt != null
+    && source.disconnectedAt < source.at + source.duration / source.rate);
+  const tailDiagnostic = {
+    count: shortRecords.length,
+    worstEarlyMs: Math.max(0, ...shortRecords.map((source) =>
+      1000 * (source.at + source.duration / source.rate - source.disconnectedAt))),
+    naturalEnds: shortRecords.filter((source) => source.endedAt != null && source.stopAt == null).length,
+    examples: shortRecords.slice(0, 8),
+  };
+  document.documentElement.dataset.minigunTailDiagnostic = JSON.stringify(tailDiagnostic);
+  check(sustainedShots.every((source) => recordedTailComplete(source, RATE)),
+  `Rapid-fire voice recycling never cuts a recorded minigun tail (${tailDiagnostic.naturalEnds} natural ends with native block timestamps, at most ${(128 / RATE * 1000).toFixed(4)} ms)`);
+  check(regionRms(sustained.data, 3.7, 4.65) > 0.01,
+    'Minigun keeps its body throughout four seconds of continuous firing');
+  check(regionRms(sustained.data, 5.3, 5.75) < 0.00001,
+    'Minigun coast-down reaches silence without a hanging motor');
+  const motorName = 'Minigun rotor, spin-up and coast-down without firing';
+  const motorOnly = await renderScenario(motorName, motorEvents, 2.1);
+  cues[motorName] = motorOnly.metrics;
+  check(regionRms(motorOnly.data, 0.7, 1.1) > 0.001,
+    'Mechanical motor remains audible while pre-spinning without shots');
+  check(regionRms(motorOnly.data, 1.7, 2.05) < 0.00001,
+    'Pre-spin rotor releases cleanly after coasting');
   const flame = await cue('Flamethrower, 2.4-second hold and release', flameEvents(2.4), 60);
   const heldRms = regionRms(flame.data, 0.3, 2.35);
   check(heldRms > 0.01, 'Flame sustains through loop wraps');

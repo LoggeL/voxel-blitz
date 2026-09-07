@@ -153,6 +153,12 @@ def process():
     final = []
     plots = []
     for recipe in recipes:
+        # The original 55 ms minigun report has been replaced by three heavier
+        # reports. Historical regeneration must not overwrite the active assets.
+        if recipe["id"] == "minigun":
+            recipe = dict(recipe,
+                output=".artifacts/elevenlabs-effects-2026-09-07/legacy-output/minigun-fire.ogg",
+                replaced_by="public/assets/audio/elevenlabs-minigun-sources.json")
         source = WORK / "source" / recipe["source"]
         x = decode(source)
         source_energy = float(np.sum(x * x))

@@ -5,6 +5,7 @@ import { PlayerEntity } from '../server/sim/player.js';
 import { WEAPONS, WEAPON_IDS, damageAtDistance } from '../shared/combatmath.js';
 import { FLAME_RULES, FLAME_BURN, flamePanicFloor } from '../shared/flame-rules.js';
 
+const FLAME_FLIGHT_SECONDS = FLAME_RULES.range / FLAME_RULES.speed;
 const spawn = { x: 0.5, y: 1, z: 8.5, index: 0 };
 function setup() {
   const owner = new PlayerEntity('owner', 'Owner', spawn, false);
@@ -20,7 +21,7 @@ function setup() {
 }
 {
   const { owner, victim, ctx } = setup();
-  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+  fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   const direct = 100 - victim.hp;
   assert.equal(direct, 4, 'close contact deals four immediate damage');
   assert.equal(victim.burning, 0.75, 'one graze produces a short afterburn');
@@ -33,8 +34,8 @@ function setup() {
 }
 {
   const { owner, victim, ctx } = setup();
-  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx); updateBurn(victim, 0.25, ctx);
-  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+  fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx); updateBurn(victim, 0.25, ctx);
+  fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   const hp = victim.hp;
   updateBurn(victim, 0.25, ctx);
   assert.ok(Math.abs(hp - victim.hp - 4) < 1e-8, 'new contact never stacks or discards pending burn damage');
@@ -45,15 +46,15 @@ function setup() {
 {
   const { owner, victim, ctx } = setup();
   victim.hp = 1000;
-  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+  fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   for (let i = 0; i < 6; i++) {
     updateBurn(victim, FLAME_RULES.cadence, ctx);
-    fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+    fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   }
   assert.ok(victim.burning > 1.3 && victim.burning < 1.5, 'short tracking builds a medium afterburn');
   for (let i = 0; i < 24; i++) {
     updateBurn(victim, FLAME_RULES.cadence, ctx);
-    fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+    fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   }
   assert.equal(victim.burning, 3, 'sustained tracking caps one afterburn at three seconds');
   assert.ok(victim.panic >= FLAME_BURN.panicFloor);
@@ -68,15 +69,15 @@ function setup() {
     const { owner, victim, ctx } = setup();
     victim.z = owner.z - distance;
     victim.hp = 1000;
-    for (let i = 0; i < 20; i++) { fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx); }
+    for (let i = 0; i < 20; i++) { fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx); }
     return 1000 - victim.hp;
   };
-  const nearDps = directDps(3), farDps = directDps(17);
+  const nearDps = directDps(3), farDps = directDps(27);
   assert.equal(nearDps, 80, 'twenty close-range packets deliver eighty direct DPS');
   assert.ok(farDps >= 25 && farDps < 40, 'distant flame contact loses most of its direct damage');
   assert.ok(nearDps > farDps * 2, 'close tracking has a clear damage advantage');
   assert.equal(damageAtDistance(WEAPONS.flamethrower, 5) / FLAME_RULES.cadence, 80);
-  assert.equal(damageAtDistance(WEAPONS.flamethrower, 18) / FLAME_RULES.cadence, 25);
+  assert.equal(damageAtDistance(WEAPONS.flamethrower, 28) / FLAME_RULES.cadence, 25);
   assert.equal(flamePanicFloor(0), 0);
   assert.equal(flamePanicFloor(FLAME_BURN.duration), FLAME_BURN.panicFloor);
 }
@@ -84,14 +85,14 @@ for (const blocked of ['wall', 'friendly', 'range', 'behind']) {
   const { owner, victim, ctx } = setup();
   if (blocked === 'wall') ctx.solidAt = (_x, _y, z) => z === 6;
   if (blocked === 'friendly') ctx.canDamage = () => false;
-  if (blocked === 'range') victim.z = -12;
+  if (blocked === 'range') victim.z = owner.z - 30;
   if (blocked === 'behind') victim.z = 12;
-  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+  fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   assert.equal(victim.hp, 100, blocked); assert.equal(victim.burn, null);
 }
 {
   const { owner, victim, ctx, kills } = setup();
-  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx); victim.hp = 3; owner.state = 'dead';
+  fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx); victim.hp = 3; owner.state = 'dead';
   updateBurn(victim, 0.5, ctx);
   assert.equal(kills.length, 1); assert.equal(kills[0].killer, owner);
   assert.equal(kills[0].weapon, 'flamethrower');
@@ -99,17 +100,17 @@ for (const blocked of ['wall', 'friendly', 'range', 'behind']) {
 }
 {
   const { owner, victim, ctx } = setup();
-  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx); ctx.canDamage = () => false;
+  fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx); ctx.canDamage = () => false;
   const hp = victim.hp; updateBurn(victim, 1, ctx);
   assert.equal(victim.hp, hp); assert.equal(victim.burning, 0);
 }
 {
   const { owner, victim, ctx, kills } = setup();
-  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx); updateBurn(victim, 0.25, ctx);
+  fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx); updateBurn(victim, 0.25, ctx);
   const nextOwner = new PlayerEntity('next-owner', 'Next Owner', spawn, false);
   ctx.entities.delete(owner.id); ctx.entities.set(nextOwner.id, nextOwner);
   ctx.flames.launch(nextOwner, [nextOwner.x, nextOwner.eyeY, nextOwner.z], { x: 0, y: 0, z: -1 }, ctx);
-  ctx.flames.step(0.6, ctx);
+  ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   assert.equal(victim.burn.owner, nextOwner, 'most recent contact owns the single afterburn');
   assert.equal(victim.burn.elapsed, 0.25, 'owner handoff preserves pending burn time');
   victim.hp = 3;
@@ -122,7 +123,7 @@ for (const blocked of ['wall', 'friendly', 'range', 'behind']) {
   const { owner, victim, ctx } = setup();
   const behind = new PlayerEntity('behind', 'Behind', { ...spawn, z: 2.5 }, false);
   ctx.entities.set(behind.id, behind);
-  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+  fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   assert.equal(victim.hp, 96, 'front body receives the packet');
   assert.equal(behind.hp, 100, 'one packet cannot pass through a body into a second victim');
   assert.equal(behind.burn, null);
@@ -134,7 +135,7 @@ const { makeSnapshot } = await import('../server/protocol/snapshot.js');
 const { NetClient } = await import('../public/js/engine/netclient.js');
 const { LocalPlayer } = await import('../public/js/player/local-player.js');
 {
-  const { owner, victim, ctx } = setup(); fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+  const { owner, victim, ctx } = setup(); fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   const row = makeSnapshot([victim], [], [], 100).players[0];
   assert.equal(row.burning, 0.75); assert.ok(row.panic >= 0.46 && row.panic < 0.5);
   const net = new NetClient();
@@ -154,7 +155,7 @@ const { LocalPlayer } = await import('../public/js/player/local-player.js');
 console.log('Flamethrower snapshots, interpolation, client panic, death, respawn and menu reset passed.');
 
 {
-  const { owner, victim, ctx } = setup(); fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+  const { owner, victim, ctx } = setup(); fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   ctx.canBurn = () => false;
   const hp = victim.hp; updateBurn(victim, 1, ctx);
   assert.equal(victim.hp, hp); assert.equal(victim.burning, 0);
@@ -184,15 +185,15 @@ console.log('Authoritative game loop applies burning and broadcasts its status a
 // Packets need flight time, retain their original aim, and do not tunnel on slow ticks.
 {
   const { owner, victim, ctx, events } = setup();
-  victim.z = -7.5; // Sixteen metres, beyond the former ten-metre flame reach.
+  victim.z = owner.z - 26; // Far end of the extended flame stream.
   fireOneShot(owner, ctx);
   assert.equal(victim.hp, 100, 'launch causes no hitscan damage');
   assert.equal(ctx.flames.active.length, 1);
   ctx.flames.step(0.25, ctx);
   assert.equal(victim.hp, 100, 'target remains unharmed before packet arrival');
   owner.yaw = Math.PI; owner.state = 'dead';
-  ctx.flames.step(0.3, ctx);
-  assert.ok(victim.hp < 100, 'original packet travels beyond ten metres after owner turns and dies');
+  ctx.flames.step(0.65, ctx);
+  assert.ok(victim.hp < 100, 'original packet travels twenty-six metres after owner turns and dies');
   assert.equal(ctx.flames.active.length, 0, 'body contact consumes packet');
   assert.equal(events.filter(e => e.kind === 'hit').length, 1);
 }
@@ -207,7 +208,7 @@ console.log('Authoritative game loop applies burning and broadcasts its status a
 {
   const { owner, victim, ctx } = setup();
   fireOneShot(owner, ctx); victim.state = 'dead';
-  ctx.flames.step(0.6, ctx);
+  ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   assert.equal(victim.hp, 100, 'corpses receive no fire damage');
   assert.equal(ctx.flames.active.length, 0, 'packet expires at maximum range');
 }
@@ -215,13 +216,13 @@ console.log('Authoritative game loop applies burning and broadcasts its status a
   const { owner, victim, ctx } = setup();
   ctx.canDamage = (_attacker, target) => target.spawnProtectedUntil <= ctx.now;
   victim.spawnProtectedUntil = 1000;
-  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+  fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   assert.equal(victim.hp, 100, 'spawn protection is checked at contact');
 }
 {
   const { owner, victim, ctx } = setup();
   fireOneShot(owner, ctx); ctx.canBurn = () => false;
-  ctx.flames.step(0.6, ctx);
+  ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   assert.equal(victim.hp, 100, 'round end cancels packets still in flight');
   assert.equal(ctx.flames.active.length, 0);
   fireOneShot(owner, ctx);
@@ -257,4 +258,4 @@ console.log('Authoritative game loop applies burning and broadcasts its status a
   assert.equal(events.filter(e => e.kind === 'shoot').length, 20, 'releasing trigger stops new packets');
   assert.equal(ctx.flames.active.length, 0, 'remaining stream expires after release');
 }
-console.log('Flame stream: flight time, eighteen-metre reach, preserved aim, swept walls, corpses, protection, phase reset, packet cap and held-trigger cadence passed.');
+console.log('Flame stream: flight time, twenty-eight-metre reach, preserved aim, swept walls, corpses, protection, phase reset, packet cap and held-trigger cadence passed.');

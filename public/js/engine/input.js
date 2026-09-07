@@ -46,7 +46,7 @@ export const AIM_ASSIST_MAX_SLOWDOWN = 0.5;
 const PAD_TOGGLE_TAP_MS = 260;
 /** Pad Y hold that opens the weapon wheel; a quick Y tap keeps swapping/cycling. */
 export const PAD_WHEEL_HOLD_MS = 260;
-/** Wheel selection vector length: 1 == this many raw mouse px of accumulated motion. */
+/** Default wheel radius for mouse normalization and pad look's pixel-equivalent motion. */
 export const WHEEL_VECTOR_RADIUS_PX = 90;
 
 function eventTime(event) {
@@ -433,8 +433,8 @@ export class Input {
   setWeaponWheelOpen(open) {
     if (open) {
       this._wheelOpen = true;
-      this._wheelVecX = 0;
-      this._wheelVecY = 0;
+      // Preserve a fast Q/flick/release gesture queued before the first frame.
+      // Closing and transient resets already clear the previous gesture's vector.
       this._wheelStepQueue = 0;
       this._pendingWheelSlot = null;
       this._accDX = 0;
@@ -468,6 +468,11 @@ export class Input {
   /** True while the radial weapon wheel routes device input. */
   isWeaponWheelOpen() {
     return this._wheelOpen;
+  }
+
+  /** True once a release or cancel freezes selection until the frame closes it. */
+  isWeaponWheelClosing() {
+    return this._wheelReleaseQueued || this._wheelCancelQueued;
   }
 
   /* ---------------------------------------------------------------- gamepad */
@@ -585,10 +590,12 @@ export class Input {
 
     const look = frame.look;
     if (look.magnitude > 0) {
-      if (this._wheelOpen) {
+      if (this._wheelOpen || this._wheelOpenQueued) {
         // Pad look steers the wheel selection; the camera stays put.
-        this._wheelVecX += look.x * WHEEL_VECTOR_RADIUS_PX;
-        this._wheelVecY += look.y * WHEEL_VECTOR_RADIUS_PX;
+        if (!this._wheelReleaseQueued && !this._wheelCancelQueued) {
+          this._wheelVecX += look.x * WHEEL_VECTOR_RADIUS_PX;
+          this._wheelVecY += look.y * WHEEL_VECTOR_RADIUS_PX;
+        }
       } else {
         const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
         const rate = this._options.padSensitivity * this._assistScale() * step;
@@ -726,7 +733,8 @@ export class Input {
   }
 
   /**
-   * True when LMB or the pad trigger confirms a wheel selection. Consumed on read.
+   * True when Q is released, LMB clicks, or the pad trigger confirms a wheel
+   * selection. Consumed on read.
    * @returns {boolean}
    */
   takeWheelRelease() {
@@ -747,20 +755,21 @@ export class Input {
   }
 
   /**
-   * Wheel selection vector since the last call, normalized so 1 equals
-   * WHEEL_VECTOR_RADIUS_PX raw mouse px and the magnitude never exceeds the
-   * ring (1); pad look adds per poll scaled by the same radius. Consumed and
-   * reset on read.
+   * Wheel movement since the last call, divided by the visible ring radius.
+   * Keep the full distance: clamping each frame loses fast flicks and makes
+   * cursor travel depend on frame rate. Pad look contributes pixel-equivalent
+   * motion using WHEEL_VECTOR_RADIUS_PX. Consumed and reset on read.
+   * @param {number} [radiusPx=WHEEL_VECTOR_RADIUS_PX]
    * @returns {{x:number, y:number}}
    */
-  takeWheelVector() {
-    const x = this._wheelVecX / WHEEL_VECTOR_RADIUS_PX;
-    const y = this._wheelVecY / WHEEL_VECTOR_RADIUS_PX;
-    const magnitude = Math.hypot(x, y);
-    const scale = magnitude > 1 ? 1 / magnitude : 1;
+  takeWheelVector(radiusPx = WHEEL_VECTOR_RADIUS_PX) {
+    const radius = Number.isFinite(radiusPx) && radiusPx > 0
+      ? radiusPx : WHEEL_VECTOR_RADIUS_PX;
+    const x = this._wheelVecX / radius;
+    const y = this._wheelVecY / radius;
     this._wheelVecX = 0;
     this._wheelVecY = 0;
-    return { x: x * scale, y: y * scale };
+    return { x, y };
   }
 
   /**
@@ -1019,7 +1028,7 @@ export class Input {
         if (!e.repeat && !this._wheelOpen && !this._grenadeHeld) this._beginGrenadeHold(eventTime(e));
         break;
       case 'KeyH': if (!e.repeat && !this._wheelOpen) this.cycleGrenadeType(1); break;
-      // Hold Q to select; only the release confirms the highlighted weapon.
+      // A physical Q hold opens once; closing after a flick must not rearm it.
       case 'KeyQ':
         if (!e.repeat && !this._wheelQHeld) {
           this._wheelQHeld = true;
@@ -1027,7 +1036,7 @@ export class Input {
         }
         break;
       case 'Escape':
-        if (this._wheelOpen) {
+        if (this._wheelOpen || this._wheelOpenQueued) {
           this._wheelCancelQueued = true;
           e.preventDefault();
         }
@@ -1051,6 +1060,16 @@ export class Input {
       this._buyMenuHeld = false;
       return;
     }
+    if (e.code === 'KeyQ') {
+      if (!this._disposed && this._canReadGameplay() && this._wheelQHeld
+          && (this._wheelOpen || this._wheelOpenQueued)) {
+        this._wheelReleaseQueued = true;
+      }
+      // A physical release always rearms Q, even if gameplay became unavailable
+      // before pointer-lock loss or another lifecycle reset reaches us.
+      this._wheelQHeld = false;
+      return;
+    }
     if (this._disposed || !this._canReadGameplay()) return;
     switch (e.code) {
       case 'KeyW': this.keys.forward = false; break;
@@ -1065,20 +1084,15 @@ export class Input {
       case 'KeyG':
         if (this._grenadeHeld) this._releaseGrenade(eventTime(e));
         break;
-      case 'KeyQ':
-        if (this._wheelQHeld && (this._wheelOpen || this._wheelOpenQueued)) {
-          this._wheelReleaseQueued = true;
-        }
-        this._wheelQHeld = false;
-        break;
       default: break;
     }
   }
 
   _onMouseMove(e) {
     if (!this._gameplayEnabled || (!this._locked && !this.fallback)) return;
-    if (this._wheelOpen) {
+    if (this._wheelOpen || this._wheelOpenQueued) {
       if (!this._locked) return; // Unlocked pointers use the overlay coordinates.
+      if (this._wheelReleaseQueued || this._wheelCancelQueued) return;
       // Raw pixels steer the wheel selection; look accumulators stay untouched.
       this._wheelVecX += e.movementX || 0;
       this._wheelVecY += e.movementY || 0;

@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { BUILTIN_SAMPLE_MANIFEST } from '../public/js/audio/samples.js';
-import { MINIGUN_REPORT } from '../public/js/audio/minigun-motor.js';
+import { MINIGUN_REPORT, MINIGUN_REPORT_SLOTS, minigunReportChoice } from '../public/js/audio/minigun-motor.js';
 import { fireSampleProfile } from '../public/js/audio/reports.js';
 import { sfx } from '../public/js/audio/sfx.js';
 
 class Param {
-  constructor() { this.value = 0; }
-  setValueAtTime(value) { this.value = value; }
-  linearRampToValueAtTime() {}
+  constructor() { this.value = 0; this.events = []; }
+  setValueAtTime(value, at) { this.value = value; this.events.push(['set', value, at]); }
+  linearRampToValueAtTime(value, at) { this.events.push(['ramp', value, at]); }
   exponentialRampToValueAtTime() {}
   setTargetAtTime() {}
   cancelScheduledValues() {}
@@ -93,11 +93,26 @@ try {
   const minigun = sampledCue(() => sfx.fire('minigun'), 'weapons.minigun.fire');
   assert.equal(minigun.playbackRate.value, MINIGUN_REPORT.rate);
   assert.equal(minigun.connections[0].gain.value, MINIGUN_REPORT.gain);
+  assert.deepEqual(minigun.connections[0].connections[0].gain.events.at(-1),
+    ['ramp', 0, MINIGUN_REPORT.lifetime], 'rotary output expires audibly before a pool cleanup timer runs');
   assert.deepEqual(fireSampleProfile('minigun'), { gain: MINIGUN_REPORT.gain, rate: MINIGUN_REPORT.rate },
     'offline audit uses the same rotary report profile as live fire');
+  for (let shot = 1; shot < 80; shot++) {
+    ctx.currentTime = shot / 20;
+    const choice = minigunReportChoice(shot);
+    const report = sampledCue(() => sfx.fire('minigun'), choice.slot);
+    assert.equal(report.playbackRate.value, choice.rate);
+    assert.ok(report.playbackRate.value >= 0.98 && report.playbackRate.value <= 1.02);
+  }
+  const rotarySources = ctx.nodes.filter((node) => node.kind === 'source'
+    && MINIGUN_REPORT_SLOTS.some((slot) => node.buffer?.url === BUILTIN_SAMPLE_MANIFEST[slot]));
+  assert.equal(rotarySources.length, 80, 'each authoritative discharge starts exactly one variant at 1200 RPM');
+  assert.ok(rotarySources.filter((source) => !source.disconnected
+    && ctx.currentTime - source.startedAt < MINIGUN_REPORT.lifetime).length <= 6,
+    'four seconds of minigun fire keeps the existing six-report voice budget');
   const flame = sampledCue(() => sfx.fire('flamethrower'), 'weapons.flamethrower.loop');
   assert.equal(flame.loop, true);
-  ctx.currentTime = 0.05;
+  ctx.currentTime += 0.05;
   const beforeRefresh = ctx.nodes.length;
   sfx.fire('flamethrower');
   assert.equal(ctx.nodes.length, beforeRefresh, 'flame facade refreshes the loaded loop without a new source');
@@ -115,6 +130,24 @@ try {
   assert.equal(blast.disconnected, undefined, 'facade assigns enough priority to survive same-frame terrain debris');
   await sfx.dispose();
   assert.ok(blast.disconnected);
+
+  globalThis.fetch = async (url) => ({
+    ok: !url.endsWith('fire-2.ogg') && !url.endsWith('fire-3.ogg'),
+    arrayBuffer: async () => new TextEncoder().encode(url),
+  });
+  await sfx.init();
+  for (let shot = 0; shot < 6; shot++) sampledCue(() => sfx.fire('minigun'), 'weapons.minigun.fire');
+  await sfx.dispose();
+
+  globalThis.fetch = async (url) => ({
+    ok: !url.includes('/weapons/minigun/'),
+    arrayBuffer: async () => new TextEncoder().encode(url),
+  });
+  await sfx.init();
+  const lmgFallback = sampledCue(() => sfx.fire('minigun'), 'weapons.lmg.fire');
+  assert.deepEqual(lmgFallback.connections[0].connections[0].gain.events.at(-1),
+    ['ramp', 0, MINIGUN_REPORT.lifetime], 'long optional LMG fallback cannot accumulate beyond the rotary report budget');
+  await sfx.dispose();
 
   globalThis.fetch = async () => ({ ok: false });
   await sfx.init();

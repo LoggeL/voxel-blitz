@@ -62,11 +62,12 @@ CUES = {
     },
     'minigun': {
         'duration_seconds': 0.5,
-        'text': ('Exactly one short rotary minigun gunshot, starting immediately: a tight '
-                 'mechanical crack, punchy low-mid thump and dry fast decay within 0.18 '
-                 'seconds. Isolated close game weapon report for rapid repeated playback. '
-                 'Single discharge only, no burst, no motor loop, no shell drops, no long '
-                 'reverb, no voices, no music, no ambience.'),
+        'text': ('Single shot from a brutal industrial rotary cannon. A fast dense percussive '
+                 'attack, thick growling low-mid concussion and coarse mechanical clack. '
+                 'Deep compact CHUG with textured powder roar, strong body on small speakers, '
+                 'short dry 160 ms decay. One self-contained gunshot starting immediately. '
+                 'No other shots, no motor, no shell ping, no ricochet, no laser, no squeak, '
+                 'no sci-fi pew, no voice, no music, no long echo.'),
     },
     'knife': {
         'duration_seconds': 0.5,

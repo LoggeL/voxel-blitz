@@ -4,6 +4,8 @@ import { WeaponState } from '../public/js/guns/weapon-state.js';
 import { ViewmodelRig } from '../public/js/guns/viewmodel.js';
 import { CombatFeedback } from '../public/js/combat/feedback.js';
 import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
+import { FLAME_RULES } from '../shared/flame-rules.js';
+import { FlameFX } from '../public/js/weapons/flame.js';
 
 function setup() {
   let now = 0, stops = 0, boltClacks = 0;
@@ -103,3 +105,19 @@ console.log('Flame deploy respects elapsed time on slow render frames without un
   assert.equal(sounds.length, 0, 'side jets do not multiply the continuous firing audio');
 }
 console.log('Chaos side flames render for local and remote shooters without replaying firing audio.');
+
+{
+  const flame = new FlameFX(new THREE.Scene(), () => 0);
+  try {
+    flame.shoot({ o: [0, 2, 0], d: [0, 0, -1] });
+    const puff = flame.puffs[0];
+    assert.equal(puff.life, FLAME_RULES.range / FLAME_RULES.speed,
+      'visual lifetime follows the same twenty-eight-metre flight as the server');
+    flame.update(0.8);
+    assert.ok(puff.position.length() > 23 && puff.age < puff.life,
+      'flame visuals visibly travel beyond the previous eighteen-metre reach');
+    flame.update(0.2);
+    assert.equal(flame.geometry.instanceCount, 0, 'extended flight still expires');
+  } finally { flame.dispose(); }
+}
+console.log('Flame particles match the extended twenty-eight-metre server flight.');

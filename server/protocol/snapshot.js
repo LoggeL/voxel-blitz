@@ -9,6 +9,7 @@ import {
 import { isRecord } from './admission.js';
 import { copyBlockDamage } from './block-damage.js';
 import { POWERUP_RULES, POWERUP_TYPES } from '../../shared/powerups.js';
+import { MOLOTOV_FIRE } from '../../shared/molotov-rules.js';
 
 const D2 = 100, D3 = 1000;
 
@@ -97,7 +98,7 @@ function defaultMatchSnapshot() {
  * Player rows carry the exact contracted field set; positions are 2-decimal,
  * angles 3-decimal so payloads stay small and floats stay finite.
  */
-export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = undefined, blockDamage = [], powerups = []) {
+export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = undefined, blockDamage = [], powerups = [], fireFields = []) {
   const matchSnapshot = match === undefined
     ? defaultMatchSnapshot()
     : (isRecord(match) ? wireCopy(match) : defaultMatchSnapshot());
@@ -115,7 +116,7 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       pitch: round(p.pitch, D3),
       hp: round(p.hp, 1),
       armor: round(Math.max(0, Math.min(POWERUP_RULES.maxArmor, Number.isFinite(p.armor) ? p.armor : 0)), 1),
-      burning: round(Math.max(0, p.burning || 0), D3),
+      burning: round(Math.max(0, p.burning || 0, p.molotovBurning || 0), D3),
       panic: round(Math.max(0, Math.min(1, Number.isFinite(p.panic) ? p.panic : 0)), D3),
       pain: round(Math.max(0, Math.min(1, Number.isFinite(p.pain) ? p.pain : 0)), D3),
       exhaustion: round(Math.max(0, Math.min(1, Number.isFinite(p.exhaustion) ? p.exhaustion : 0)), D3),
@@ -165,6 +166,17 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
         && [pickup.x, pickup.y, pickup.z, pickup.expiresAt].every(Number.isFinite))
       .map(({ id, type, x, y, z, expiresAt }) => ({ id, type,
         x: round(x, D2), y: round(y, D2), z: round(z, D2), expiresAt: round(expiresAt, 1) })),
+    fireFields: (Array.isArray(fireFields) ? fireFields : []).filter(field => field
+      && typeof field.id === 'string'
+      && [field.x, field.y, field.z, field.radius, field.createdAt, field.expiresAt].every(Number.isFinite))
+      .slice(0, MOLOTOV_FIRE.maxFields)
+      .map(({ id, ownerId, x, y, z, radius, createdAt, expiresAt, cells }) => ({
+        id, ownerId: String(ownerId || ''), x: round(x, D2), y: round(y, D2), z: round(z, D2),
+        radius: round(radius, D2), createdAt: round(createdAt, 1), expiresAt: round(expiresAt, 1),
+        cells: (Array.isArray(cells) ? cells : []).filter(cell => Array.isArray(cell)
+          && cell.length === 3 && cell.every(Number.isFinite)).slice(0, MOLOTOV_FIRE.maxCells)
+          .map(cell => cell.map(value => round(value, D2))),
+      })),
     events: (eventsArr || []).slice(),
   };
 }

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
-import { MinigunMotor } from '../public/js/audio/minigun-motor.js';
+import { MinigunMotor, MINIGUN_REPORT, MINIGUN_REPORT_SLOTS, minigunReportChoice,
+  renderMinigunReport } from '../public/js/audio/minigun-motor.js';
 import { VoicePool } from '../public/js/audio/voices.js';
+import { auditBufferPeak, recordedTailComplete } from '../public/js/capture/audio-source-audit.js';
 
 class Param {
   constructor() { this.value = 0; this.events = []; }
@@ -44,7 +46,12 @@ try {
   assert.equal(ctx.nodes.length, 0);
   assert.equal(motor.refresh(0.2, 0.1), true);
   const voice = motor.voice;
-  const initialPitch = voice.teeth.source.frequency.events.at(-1)[1];
+  const initialPitch = voice.rotorPulse.frequency.events.at(-1)[1];
+  assert.ok(voice.layers.every((layer) => layer.source.kind === 'noise'),
+    'drive and heat feedback use physical broadband texture, not audible whine oscillators');
+  assert.deepEqual(voice.rotorPulse.connections, [voice.pulseDepth]);
+  assert.deepEqual(voice.pulseDepth.connections, [voice.pulse.gain],
+    'the rotor oscillator only modulates noise amplitude, never the audible output');
   const count = ctx.nodes.length;
   const timer = pool._byOutput.get(voice.output).timer;
   assert.deepEqual(voice.output.connections, [engine.bus], 'motor uses shared master volume and limiter');
@@ -55,13 +62,17 @@ try {
   }
   assert.equal(ctx.nodes.length, count, 'five seconds of rotor/heat updates reuse all sources and nodes');
   assert.equal(pool._byOutput.get(voice.output).timer, timer, 'no cleanup timer per frame');
-  assert.ok(voice.teeth.source.frequency.events.at(-1)[1] > initialPitch * 2, 'rotor pitch tracks speed');
+  assert.ok(voice.rotorPulse.frequency.events.at(-1)[1] > initialPitch * 2, 'mechanical pulse rate tracks speed');
+  assert.equal(voice.rotorPulse.frequency.events.at(-1)[1], 32);
+  assert.ok(voice.teeth.filter.frequency.events.at(-1)[1] < 800,
+    'feed rattle stays below the old piercing motor harmonics');
   assert.ok(voice.warning.target > 0 && voice.warning.target <= 0.019, 'high heat has a restrained warning');
   for (const layer of voice.layers) {
     near(layer.source.stoppedAt, 5.18);
     if (layer !== voice.steam) assert.deepEqual(layer.gain.gain.events.at(-1), ['ramp', 0, 5.18],
       'missed refresh schedules exact silence on the audio clock');
   }
+  near(voice.rotorPulse.stoppedAt, 5.18);
 
   ctx.currentTime = 5.01;
   motor.refresh(0.9, 1, true, true);
@@ -97,7 +108,7 @@ try {
   ctx.state = 'running';
   ctx.currentTime = 5.31;
   motor.refresh(Infinity, -Infinity);
-  assert.ok(Number.isFinite(motor.voice.teeth.source.frequency.events.at(-1)[1]));
+  assert.ok(Number.isFinite(motor.voice.rotorPulse.frequency.events.at(-1)[1]));
   for (let i = 0; i < 50; i++) pool.acquire(null, 0.1);
   assert.equal(motor.voice, null, 'global voice pressure releases every motor source');
   motor.refresh(1, 1, true, true);
@@ -106,10 +117,56 @@ try {
   motor.dispose();
   assert.equal(motor.voice, null);
   assert.ok(finalVoice.layers.every((layer) => layer.source.disconnected && layer.filter.disconnected && layer.gain.disconnected));
+  assert.ok(finalVoice.rotorPulse.disconnected && finalVoice.pulse.disconnected && finalVoice.pulseDepth.disconnected,
+    'amplitude modulation graph disconnects with its pooled voice');
   assert.ok(ctx.nodes.filter((node) => ['noise', 'oscillator'].includes(node.kind)).every((node) => node.disconnected),
     'all sources disconnect on final disposal');
 } finally {
   motor.dispose();
   pool.disposeAll();
 }
+
+const sampledLayers = [];
+const fallbackLayers = [];
+const record = (target) => ({
+  hiss: (_output, options) => target.push({ kind: 'noise', ...options }),
+  tone: (_output, options) => target.push({ kind: 'tone', ...options }),
+});
+renderMinigunReport({}, record(sampledLayers), { sampled: true });
+renderMinigunReport({}, record(fallbackLayers));
+assert.ok(sampledLayers.every((layer) => (layer.f || layer.f0) < 300),
+  'recorded shot has only low body support, with no synthetic needle transient');
+assert.equal(fallbackLayers.length, sampledLayers.length + 1,
+  'missing samples restore the complete dry report');
+assert.ok(fallbackLayers.every((layer) => layer.type !== 'square'));
+assert.ok(Math.max(...fallbackLayers.map((layer) => layer.dec)) < 0.12,
+  'fallback body does not build long tails across a sustained 20 Hz burst');
+assert.equal(MINIGUN_REPORT.rate, 1, 'new recording retains its natural weight');
+for (let i = 0; i < 90; i++) {
+  const choice = minigunReportChoice(i);
+  assert.equal(choice.slot, MINIGUN_REPORT_SLOTS[i % 3]);
+  assert.ok(choice.rate >= 0.98 && choice.rate <= 1.02);
+}
+const complete = { at: 0.952, duration: 0.16, rate: 1,
+  disconnectedAt: 1.1093333333333333, endedAt: 1.1093333333333333, stopAt: null };
+assert.ok(recordedTailComplete(complete, 48000),
+  'natural onended timestamps may precede the nominal end by exactly one render quantum');
+assert.equal(recordedTailComplete({ ...complete, endedAt: null }, 48000), false,
+  'the same early disconnect caused by voice recycling must still fail');
+assert.equal(recordedTailComplete({ ...complete, stopAt: 1.109 }, 48000), false,
+  'an explicit premature stop is not treated as a natural buffer end');
+assert.equal(recordedTailComplete({ ...complete, disconnectedAt: 1.109, endedAt: 1.109 }, 48000), false,
+  'natural end tolerance never extends beyond one render quantum');
+assert.ok(recordedTailComplete({ ...complete, disconnectedAt: 1.112, endedAt: null }, 48000),
+  'cleanup at the full recording end is valid without an onended observation');
+let copyReads = 0;
+const measuredBuffer = { length: 3,
+  getChannelData() { throw new Error('Audit must not request the mutable channel view.'); },
+  copyFromChannel(destination, channel) {
+    assert.equal(channel, 0); copyReads++; destination.set([0, 0.7, -0.5]);
+  },
+};
+near(auditBufferPeak(measuredBuffer), Math.fround(0.7));
+near(auditBufferPeak(measuredBuffer), Math.fround(0.7));
+assert.equal(copyReads, 1, 'peak diagnostics inspect a separate copy once per decoded buffer');
 console.log('Minigun audio: bounded rotor graph, RPM/heat feedback, one overheat hiss, frame expiry, release/re-press, suspension, voice stealing and disposal passed.');

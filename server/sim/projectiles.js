@@ -1,6 +1,6 @@
 import { pointPlayerDistance } from '../../shared/player-hitboxes.js';
 import { chaosLevel } from '../../shared/chaos.js';
-// Room-scoped authoritative projectile simulation: three grenade types, the
+// Room-scoped authoritative projectile simulation: four throwable types, the
 // rocket, and the LONGARC bolt. One system owns flight, sticking, detonation,
 // blast damage, knockback, concussion, terrain carving, sympathetic (chain)
 // detonation, and bolt ricochets so every projectile follows the same rules.
@@ -40,6 +40,7 @@ import {
 import { ROCKET_RULES, rocketLaunch, stepRocket } from '../../shared/rocket-rules.js';
 import { BOLT_RULES, boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
 import { sweepPlayers } from './projectile-contact.js';
+import { MolotovFireSystem } from './molotov-fire.js';
 
 const P_HEIGHT = PLAYER_HALF.h * 2;
 /** A sticky/impact projectile ignores its own thrower for this long after release. */
@@ -54,6 +55,7 @@ export const PROJECTILE_RULES = Object.freeze({
   frag: GRENADE_TYPES.frag,
   limpet: GRENADE_TYPES.limpet,
   pulse: GRENADE_TYPES.pulse,
+  molotov: GRENADE_TYPES.molotov,
   rocket: Object.freeze({
     id: 'rocket',
     name: 'RX-8 HAVOC',
@@ -106,6 +108,7 @@ function touchesPlayer(p, radius, victim) {
 export class ProjectileSystem {
   constructor() {
     this.active = new Map();
+    this.fire = new MolotovFireSystem();
     this._nextId = 1;
     this._homingCandidates = [];
     this._stepping = [];
@@ -113,9 +116,11 @@ export class ProjectileSystem {
 
   clear() {
     this.active.clear();
+    this.fire.clear();
   }
 
   step(dt, ctx) {
+    this.fire.step(dt, ctx);
     for (const player of ctx.entities.values()) {
       if (!player.grenadeEdgeQueued) continue;
       player.grenadeEdgeQueued = false;
@@ -566,6 +571,10 @@ export class ProjectileSystem {
       rules.damageRadius,
     ));
     if (typeof ctx.canAffectWorld === 'function' && !ctx.canAffectWorld()) return true;
+    if (projectile.type === 'molotov') {
+      this.fire.ignite(projectile, ctx);
+      return true;
+    }
     this._damagePlayers(owner, origin, rules, projectile, ctx);
     if (rules.terrainRadius > 0) this._destroyTerrain(origin, rules, ctx);
     this._chainDetonate(projectile, origin, rules, ctx);

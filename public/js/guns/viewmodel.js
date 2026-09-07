@@ -13,6 +13,7 @@ import { kickMassScale } from './defs.js';
 import { WeaponTurnInertia } from './turn-inertia.js';
 import { SPRINT_AIM_DIP } from './weapon-aim.js';
 import { VaultHands } from './vault-hands.js';
+import { ThrowableHands } from './throwable-hands.js';
 import { PICKAXE_SWING_SECONDS as SWING_S, pickaxeSwingPose } from './pickaxe-swing.js';
 
 
@@ -33,6 +34,7 @@ export class ViewmodelRig {
     this.root.add(this.posG); this.posG.add(this.pivot);
     this.pivot.add(this.comp); this.comp.add(this.content);
     this._vaultHands = new VaultHands(this.root);
+    this._throwableHands = new ThrowableHands(this.root, (event) => this.onGrenadeCue?.(event));
 
     this._disposed = false;
     this._models = {};                 // lazily-built gun cache keyed by weapon id
@@ -88,6 +90,7 @@ export class ViewmodelRig {
     this.onMuzzleFlash = null;  // (posWorld:{x,y,z}, quatWorld) — first-fire-frame world anchor
     this.onBoltClack = null;    // (stepNum: 1|2|3)  — staged mechanical crossing cues
     this.onReloadClick = null;  // (n:int>=1)       — drop/insert/tap or tube thunk counter
+    this.onGrenadeCue = null;   // ({cue,type,charge}) — draw, pin/ignite, ready, throw contacts
 
     this._tmpV = new THREE.Vector3(); this._tmpQ = new THREE.Quaternion();
     this._aimQ = new THREE.Quaternion();
@@ -162,7 +165,7 @@ export class ViewmodelRig {
    * timer-driven choreography enqueues, rof lockout, callback dispatch. Returns false when busy.
    */
   fire() {
-    const cur = this._cur; if (!cur || this._swap || (this._swapDraw && this._depT < 1)) return false;
+    const cur = this._cur; if (!cur || this.grenadeActive || this._swap || (this._swapDraw && this._depT < 1)) return false;
     const T = cur.T;
     const now = this._now;
     // Rotary cadence is metered by WeaponState, like the continuous nozzle.
@@ -266,21 +269,34 @@ export class ViewmodelRig {
   }
 
   /**
-   * Grenade wind-up: 0 idle, up to 1 fully charged. The gun is pulled down and aside as the
-   * throwing arm cocks; presentation only, it never gates fire.
+   * Explicit active supports the first held frame at zero charge. holdMs advances
+   * draw/pin contacts even when a render frame is skipped; numeric-only callers remain valid.
    */
-  grenadeCharge(t01) {
-    this._nadeTarget = Math.max(0, Math.min(1, Number(t01) || 0));
+  grenadeCharge(t01, type = 0, holdMs = null, active = Number(t01) > 0) {
+    this._nadeTarget = active ? Math.max(0, Math.min(1, Number(t01) || 0)) : 0;
+    this._throwableHands.setCharge(t01, type, holdMs, active);
   }
 
   /** Release: a short forward lunge with a muzzle dip, then the springs settle it. */
-  grenadeThrow(charge = 0.5) {
+  grenadeThrow(charge = 0.5, type = this._throwableHands.type) {
+    this._throwableHands.throw(charge, type);
     const strength = 0.6 + Math.max(0, Math.min(1, Number(charge) || 0)) * 0.4;
     this._nadeThrowT = 0.34;
     this._nadeThrowStrength = strength;
     this._spr.push.v -= 0.9 * strength;                     // forward surge
     this._spr.pitch.v -= 0.12 * Math.sqrt(this._cur?.T.kick.stiffness || 200) * strength;
     this._nadeTarget = 0;
+  }
+
+  cancelGrenade() {
+    this._throwableHands.cancel();
+    this._nadeTarget = this._nadeWind = this._nadeThrowT = 0;
+    this.content.visible = true;
+  }
+
+  get grenadeActive() {
+    const hands = this._throwableHands;
+    return hands.held || hands.throwElapsed !== null || hands.returnElapsed !== null;
   }
 
   /** Manual staged cycles (mode-driven). Ignored when cycling already or gun lacks the linkage. */
@@ -306,6 +322,7 @@ export class ViewmodelRig {
     this._disposed = true;
     this.camera.remove(this.root);
     this._vaultHands.dispose();
+    this._throwableHands.dispose();
 
     this._chargeOrb.removeFromParent();
     for (const mesh of this._chargeOrb.children) {
@@ -355,6 +372,8 @@ export class ViewmodelRig {
     const sprinting = !!ctx.isSprinting, crouching = !!ctx.crouch;
     const vaulting = !!ctx.vaulting;
     const vaultBlend = this._vaultHands.update(elapsed, vaulting, ctx.vaultProgress);
+    const throwableBlend = this._throwableHands.update(elapsed, { suppressed: vaulting });
+    this.content.visible = throwableBlend < 0.92;
     this._now += elapsed;
     this._drainQueue();
 
@@ -476,7 +495,7 @@ export class ViewmodelRig {
 
     /* grenade wind-up + throw lunge (mass-scaled: a heavy gun is slower to pull aside) */
     const windRate = 9 * Math.sqrt(mass);
-    this._nadeWind += ((this._nadeTarget || 0) - this._nadeWind) * Math.min(1, dt * windRate);
+    this._nadeWind += (Math.max(this._nadeTarget || 0, throwableBlend) - this._nadeWind) * Math.min(1, dt * windRate);
     const wind = this._smooth01(this._nadeWind);
     let lunge = 0;
     if (this._nadeThrowT > 0) {
@@ -489,7 +508,7 @@ export class ViewmodelRig {
     const chargeZ = 0.045 * chargeT + Math.sin(this._now * 61) * 0.009 * strain;
     const chargeY = Math.sin(this._now * 47) * 0.007 * strain;
     const nadeX = -0.035 * wind + 0.02 * lunge + Math.sin(this._now * 73) * 0.006 * strain;
-    const nadeY = -0.075 * wind - 0.03 * lunge + chargeY;
+    const nadeY = -0.42 * wind - 0.03 * lunge + chargeY;
     const nadeZ = 0.03 * wind - 0.06 * lunge + chargeZ;
     const nadeRx = -0.14 * wind - 0.16 * lunge + Math.sin(this._now * 53) * 0.018 * strain;
     const nadeRz = 0.20 * wind + 0.08 * lunge;

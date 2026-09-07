@@ -36,6 +36,36 @@ export function runVaultContracts(ok) {
   }
   ok(matches && authoritative.y === 12, 'vault prediction and authority agree throughout the full pull-up');
 
+  const step = (x, y) => y < 10 || (x >= 20 && x < 23 && y < 11);
+  for (const fps of [20, 60]) for (const x of [18, 19.5]) {
+    const client = new PlayerPhysics();
+    client.solid = step;
+    Object.assign(client.pos, { ...start, x });
+    client.vel.x = PHYSICS.walk;
+    client.grounded = true;
+    const server = { ...authoritative, x, y: 10, z: start.z,
+      vx: PHYSICS.walk, vy: 0, vz: 0, grounded: true, vault: null, hist: [],
+      jumpGroundY: null, jumpWasHeld: false, coyote: 0,
+      input: { yaw: -Math.PI / 2, pitch: 0, keys: { f: true } } };
+    let climbed = false, vaulted = false, jumped = false, parity = true;
+    for (let i = 0; i < 75; i++) {
+      const jump = i === 0;
+      server.input.keys.jump = jump;
+      const accepted = client.step(1 / fps, { x: 1, z: 0 }, PHYSICS.walk, jump, 1);
+      jumped ||= accepted;
+      stepMovement(server, 1 / fps, { solidAt: step, now: i * 1000 / fps, onFall() {} });
+      vaulted ||= !!client.vault || !!server.vault;
+      parity &&= Math.hypot(client.pos.x - server.x, client.pos.y - server.y,
+        client.pos.z - server.z) < 1e-8;
+      if (client.grounded && client.pos.y === 11) { climbed = true; break; }
+    }
+    ok(jumped && climbed && !vaulted && parity,
+      `a normal jump from x=${x} at ${fps}Hz lands on a one-block step without a vault, with client/server parity`);
+  }
+  ok(!findVault(step, start, { x: 1, z: 0 }, 10)
+    && findVault(step, { ...start, y: 10.4 }, { x: 1, z: 0 }, 10.4, null, 0),
+  'one-block terrain is excluded from automatic vaults but remains reachable by an explicit airborne grab');
+
   for (const [x, descendingCatch] of [[18, false], [16.5, true]]) {
     const client = new PlayerPhysics();
     client.solid = wall;

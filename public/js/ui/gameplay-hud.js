@@ -15,6 +15,7 @@ import { createSniperScope } from './sniper-scope.js';
 import { NetworkHud } from './network-hud.js';
 import { PowerupHud } from './powerup-hud.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS, clampGrenadeType } from '../../../shared/grenade-rules.js';
+import { FLAME_RULES } from '../../../shared/flame-rules.js';
 
 const EMPTY_READ_MODEL = Object.freeze({ dead: false, painImpulse: 0 });
 const noop = () => {};
@@ -415,7 +416,7 @@ export class GameplayHud {
           else if (s.heat01 <= 0 && s.spin01 <= 0) label = 'AIM TO PRE-SPIN';
           else label = `${s.heat01 >= 0.65 ? 'SWEET SPOT' : 'HEAT'} ${Math.round(s.heat01 * 100)}% · +${Math.round((s.heatDamageMult - 1) * 100)}% DMG`;
         } else if (fuel) {
-          label = `FUEL ${Math.max(0, s.fuelSeconds || 0).toFixed(1)}s · ${s.flameFiring ? 'IGNITING' : '18m JET'}`;
+          label = `FUEL ${Math.max(0, s.fuelSeconds || 0).toFixed(1)}s · ${s.flameFiring ? 'IGNITING' : `${FLAME_RULES.range}m JET`}`;
         } else label = charge01 >= 1 ? 'CHARGED' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE';
         if (d.chargeMeterLabel.textContent !== label) d.chargeMeterLabel.textContent = label;
       }

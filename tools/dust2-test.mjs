@@ -8,7 +8,7 @@ import { MINING_HITS, GRENADE_RESISTANCE } from '../shared/world/blocks.js';
 import { MAP_HEADER_BYTES } from '../shared/world/serialize.js';
 import { findPowerupSites, isPowerupSiteSupported } from '../shared/powerup-sites.js';
 import {
-  boxCollides, solidBelow, slidePlayerAxis, findVault, stepVault, VAULT_SECONDS,
+  boxCollides, solidBelow, slidePlayerAxis, findVault, stepVault, VAULT_SECONDS, PHYSICS,
 } from '../shared/player-movement.js';
 import { DEFAULT_BLOCK_TILES, TILE_PAINTERS } from '../public/js/engine/atlas.js';
 
@@ -67,12 +67,32 @@ const centered = point => ({ x: Math.floor(point.x) + 0.5,
 const walkable = (point, collision = solidAt) => !boxCollides(collision, point.x, point.y, point.z)
   && solidBelow(collision, point.x, point.y, point.z);
 
-// Route traversal uses the same body collider, swept axis movement and ledge
-// vault as real players. In particular, a one-cell stair cannot pass a low
-// ceiling just because the destination feet/head cells happen to be empty.
+// Route traversal includes normal jumps onto one-block stairs, plus ledge
+// vaults for taller rises. Every move sweeps the body collider: a stair cannot
+// bypass a low ceiling just because its destination standing cell is clear.
+function jumpToStep(position, to, axis, collision) {
+  const dt = 1 / 60;
+  let vy = PHYSICS.jump;
+  for (let frame = 0; frame < 90; frame++) {
+    vy -= PHYSICS.gravity * dt;
+    const distance = to[axis] - position[axis];
+    // Stop at the next route node rather than leaping across untested cells.
+    slidePlayerAxis(position, axis,
+      Math.sign(distance) * Math.min(Math.abs(distance), PHYSICS.walk * dt), collision);
+    const descending = vy < 0;
+    if (slidePlayerAxis(position, 'y', vy * dt, collision)) {
+      vy = 0;
+      if (descending) return Math.abs(position.y - to.y) < 0.001;
+    }
+  }
+  return false;
+}
+
 function connects(from, to, axis, collision = solidAt) {
   const position = { ...from };
-  if (to.y > from.y) {
+  if (to.y > from.y && to.y - from.y <= 1) {
+    if (!jumpToStep(position, to, axis, collision)) return false;
+  } else if (to.y > from.y) {
     const wish = { x: Math.sign(to.x - from.x), z: Math.sign(to.z - from.z) };
     const vault = findVault(collision, from, wish, from.y);
     if (!vault || vault.to.y !== to.y) return false;
@@ -84,6 +104,13 @@ function connects(from, to, axis, collision = solidAt) {
   return Math.abs(position.x - to.x) < 0.001 && Math.abs(position.y - to.y) < 0.001
     && Math.abs(position.z - to.z) < 0.001;
 }
+
+const stepFixture = (x, y) => y < 10 || (x >= 20 && y < 11);
+const stepFrom = { x: 19.5, y: 10, z: 24.5 }, stepTo = { x: 20.5, y: 11, z: 24.5 };
+assert.ok(connects(stepFrom, stepTo, 'x', stepFixture),
+  'route modelling includes an ordinary jump onto a one-block step');
+assert.equal(connects(stepFrom, stepTo, 'x', (x, y, z) => stepFixture(x, y, z)
+  || (x === 19 && y === 12)), false, 'jump routes cannot pass through a low takeoff ceiling');
 
 function reachableFrom(spawn, { collision = solidAt, within = () => true } = {}) {
   const start = centered(spawn);

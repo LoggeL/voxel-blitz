@@ -27,6 +27,11 @@ export class SpawnSelector {
     this.isEnemy = isEnemy;
     this.solidAt = solidAt;
     this.spawnBounds = spawnBounds;
+    this.spawnSurfaces = spawnBounds?.surfaces ? new Set() : null;
+    for (let i = 0; i < (spawnBounds?.surfaces?.length || 0); i += 3) {
+      const [x, z, floorY] = spawnBounds.surfaces.slice(i, i + 3);
+      this.spawnSurfaces.add(`${x},${floorY + 1},${z}`);
+    }
     this.now = now;
     this.spawnUseTimes = new Map();
     this.expandedPools = new WeakMap();
@@ -45,6 +50,7 @@ export class SpawnSelector {
     this.entities = null;
     this.isEnemy = null;
     this.solidAt = null;
+    this.spawnSurfaces = null;
     this.now = 0;
   }
 
@@ -80,6 +86,9 @@ export class SpawnSelector {
     if (bounds && (point.x < bounds.minX || point.x > bounds.maxX
       || point.z < bounds.minZ || point.z > bounds.maxZ
       || point.y < bounds.minY || point.y > bounds.maxY)) return false;
+    if (this.spawnSurfaces && !this.spawnSurfaces.has(
+      `${Math.floor(point.x)},${Math.floor(point.y)},${Math.floor(point.z)}`,
+    )) return false;
     return !boxCollides(this.solidAt, point.x, point.y, point.z)
       && solidBelow(this.solidAt, point.x, point.y, point.z);
   }
@@ -108,10 +117,20 @@ export class SpawnSelector {
     }
     if (!candidates.length) {
       // Terrain may have removed every authored floor. Recover on actual current geometry.
-      for (let z = 4; z < SZ - 4; z += 8) for (let x = 4; x < SX - 4; x += 8) {
-        for (let y = 1; y < SY - 2; y++) {
-          const point = { x: x + 0.5, y, z: z + 0.5, index: candidates.length };
-          if (this.walkable(point)) { candidates.push(point); break; }
+      if (this.spawnSurfaces) {
+        // Original navigation includes covered passages and stacked floors.
+        const surfaces = this.spawnBounds.surfaces;
+        for (let i = 0; i < surfaces.length; i += 3) {
+          const point = { x: surfaces[i] + 0.5, y: surfaces[i + 2] + 1.02,
+            z: surfaces[i + 1] + 0.5, index: candidates.length };
+          if (this.walkable(point)) candidates.push(point);
+        }
+      } else {
+        for (let z = 4; z < SZ - 4; z += 8) for (let x = 4; x < SX - 4; x += 8) {
+          for (let y = 1; y < SY - 2; y++) {
+            const point = { x: x + 0.5, y, z: z + 0.5, index: candidates.length };
+            if (this.walkable(point)) { candidates.push(point); break; }
+          }
         }
       }
       if (!candidates.length) throw new Error('World has no walkable spawn surface');

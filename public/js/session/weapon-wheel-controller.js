@@ -45,12 +45,12 @@ export class WeaponWheelController {
     const context = this.getContext();
     if (!context.weapon || this.open) return false;
     this.open = true;
-    this._pointer = { x: 0, y: 0 };
     this.input.setWeaponWheelOpen(true);
     this.hud.setWeaponWheelState({
       open: true,
       entries: this.entries(),
       pointerInteractive: true,
+      canMovePointer: () => !this.input.isWeaponWheelClosing(),
     });
     this._entriesSig = '';
     return true;
@@ -98,17 +98,17 @@ export class WeaponWheelController {
     const openable = context.enabled && context.alive &&
       context.self?.state === 'alive' && context.spectating !== true &&
       !this.hud.isBuyMenuOpen() && !this.hud.settingsOpen;
-    if (this.open && !forced && !openable) {
+    if (this.open && ((!forced && !openable) || this.input.isWeaponWheelOpen?.() === false)) {
       this.close();
-      return;
-    }
-    if (!this.open) {
-      if (this.input.takeWheelOpenRequest() && (forced || openable)) this.openWheel();
       return;
     }
     if (this.input.takeWheelCancelRequest()) {
-      this.close();
+      if (!this.close()) this.input.setWeaponWheelOpen(false);
       return;
+    }
+    if (!this.open) {
+      if (!this.input.takeWheelOpenRequest() || (!forced && !openable)) return;
+      if (!this.openWheel()) return;
     }
     const direct = this.input.takeWheelDirectSlot();
     if (direct !== null) {
@@ -117,20 +117,15 @@ export class WeaponWheelController {
     }
     const steps = this.input.takeWheelSteps();
     if (steps) this.hud.setWeaponWheelState({ step: steps });
-    const vector = this.input.takeWheelVector();
+    const vector = this.input.takeWheelVector(this.hud.weaponWheelRadius());
     if (vector.x || vector.y) {
-      this._pointer.x += vector.x;
-      this._pointer.y += vector.y;
-      const length = Math.hypot(this._pointer.x, this._pointer.y);
-      if (length > 1) {
-        this._pointer.x /= length;
-        this._pointer.y /= length;
-      }
-      this.hud.setWeaponWheelState(this._pointer);
+      this.hud.setWeaponWheelState({ dx: vector.x, dy: vector.y });
+      if (!this.open) return; // Crossing the outer ring can commit synchronously.
     }
     if (this.input.takeWheelRelease()) {
       const highlighted = this.hud.weaponWheelHighlight();
-      this.close(highlighted >= 0 ? highlighted : null);
+      if (highlighted >= 0) this.commit(highlighted);
+      else this.close();
       return;
     }
     const entries = this.entries();

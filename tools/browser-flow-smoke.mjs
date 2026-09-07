@@ -602,7 +602,8 @@ async function main() {
       dispatch('pointerup');
       await new Promise(resolve => setTimeout(resolve, 100));
       const released = !window.__vb.stats.flameStream.active;
-      await new Promise(resolve => setTimeout(resolve, 750));
+      const { FLAME_RULES } = await import('/shared/flame-rules.js');
+      await new Promise(resolve => setTimeout(resolve, FLAME_RULES.range / FLAME_RULES.speed * 1000 + 350));
       return { before, samples, released, drained: window.__vb.stats.flameStream.particles === 0 };
     })()`);
     console.log('live flame stream samples:', JSON.stringify(stream));

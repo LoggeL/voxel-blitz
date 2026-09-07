@@ -1,5 +1,5 @@
 /**
- * Shared client/server contract for the throwable roster: three grenade types with
+ * Shared client/server contract for the throwable roster: four throwable types with
  * one inventory, one charge/cook hold model, and one physics integrator.
  *
  * - `frag`   M-4 FRAG      timed fuse that starts at the pin pull (cookable), bounces.
@@ -7,8 +7,9 @@
  *                          short fuse; breaching blast with the deepest terrain carve.
  * - `pulse`  PULSE SHOCK   detonates on impact; light damage, huge knockback, and a
  *                          concussion that slows and panics whoever it lands on.
+ * - `molotov`             shatters on impact and leaves a persistent ground fire.
  */
-export const GRENADE_TYPE_IDS = Object.freeze(['frag', 'limpet', 'pulse']);
+export const GRENADE_TYPE_IDS = Object.freeze(['frag', 'limpet', 'pulse', 'molotov']);
 
 /** Hold time (ms) that reaches full throw strength. Cooking continues beyond it. */
 export const GRENADE_CHARGE_MS = 1200;
@@ -109,6 +110,34 @@ export const GRENADE_TYPES = Object.freeze({
       floorFriction: 0,
       wallDamping: 0,
       radius: 0.15,
+    }),
+  }),
+  molotov: Object.freeze({
+    id: 'molotov',
+    name: 'MOLOTOV COCKTAIL',
+    short: 'MOL',
+    perLife: 1,
+    /** Flight failsafe; this bottle normally breaks on its first contact. */
+    fuseMs: 5000,
+    cook: false,
+    impact: true,
+    sticky: false,
+    damage: 0,
+    damageRadius: 3.2,
+    selfDamage: 0.72,
+    knockback: 0,
+    terrainRadius: 0,
+    terrainPower: 0,
+    maxDestroyedBlocks: 0,
+    concussMs: 0,
+    concussPanic: 0,
+    color: '#ff742b',
+    physics: Object.freeze({
+      gravity: 18,
+      bounce: 0,
+      floorFriction: 0,
+      wallDamping: 0,
+      radius: 0.16,
     }),
   }),
 });

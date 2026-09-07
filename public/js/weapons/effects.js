@@ -1,6 +1,7 @@
 // Public effects facade. Each bounded pool has exactly one owner and the
 // facade preserves the historic API consumed by the game composition root.
 import { FlameFX } from './flame.js';
+import { FireFieldFX } from './fire-fields.js';
 import { TracerFX } from './ballistics.js';
 import { BrassPool } from './brass.js';
 import { GoreFX } from './gore.js';
@@ -19,6 +20,7 @@ const BLAST_PARTICLES = Object.freeze({
   pulse: Object.freeze({ count: 26, tint: 0x9ff4ff, speed: 11, size: 1.2, life: 0.45, shake: 0.7, reach: 24 }),
   rocket: Object.freeze({ count: 52, tint: 0xffb347, speed: 10.5, size: 1.8, life: 0.85, shake: 1.15, reach: 32 }),
   bolt: Object.freeze({ count: 10, tint: 0x7dfcff, speed: 5.5, size: 1.0, life: 0.4, shake: 0.18, reach: 14 }),
+  molotov: Object.freeze({ count: 24, tint: 0xff9238, speed: 4.5, size: 1.1, life: 0.65, shake: 0.22, reach: 14 }),
 });
 
 export class Effects {
@@ -36,6 +38,7 @@ export class Effects {
       (hit, local) => this.impacts.wallDust(hit, local),
     );
     this.flames = new FlameFX(scene, this.getBlockFn);
+    this.fireFields = new FireFieldFX(scene);
     this.railBeams = new RailBeamFX(scene, this.getBlockFn);
     this.goreFx = new GoreFX(scene, camera, this.getBlockFn);
     this.brass = new BrassPool(scene, this.getBlockFn);
@@ -150,12 +153,17 @@ export class Effects {
     }
   }
 
+  syncFireFields(rows, serverNow) {
+    if (!this._disposed) this.fireFields.sync(rows, serverNow);
+  }
+
   update(dt, elapsed = dt) {
     if (this._disposed) return;
     this._trauma = Math.max(0, this._trauma - dt * 1.8);
     this.tracers.update(dt);
     this.railBeams.update(dt);
     this.flames.update(elapsed);
+    this.fireFields.update(elapsed);
     this.impacts.update(dt);
     this.goreFx.update(dt);
     this.brass.update(dt);
@@ -180,6 +188,7 @@ export class Effects {
     this.tracers.dispose();
     this.railBeams.dispose();
     this.flames.dispose();
+    this.fireFields.dispose();
     this.impacts.dispose();
     this.goreFx.dispose();
     this.brass.dispose();
