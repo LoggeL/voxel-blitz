@@ -92,7 +92,6 @@ export class HUD {
       built: () => this.gameplay.built,
       hudRoot: () => (typeof document !== 'undefined' ? document.getElementById('hud') : null),
       root: (id) => this.gameplay._root(id),
-      resolveName: (id) => this.gameplay.names.get(id) || String(id),
       closeBuyMenuDirect: () => this.buy.closeBuyMenuDirect(),
       resetScope: () => this.gameplay.resetScope(),
       setReloadProgress: (value) => this.gameplay.setReloadProgress(value),

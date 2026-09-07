@@ -33,6 +33,7 @@ export class BuyMenuController {
     this._isClosingBuyMenu = false;
     this._ownsRoot = false;
     this._deferredTimers = new Set();
+    this._paintedState = null;
   }
 
   ensureBuyMenu() {
@@ -50,6 +51,7 @@ export class BuyMenuController {
     }
 
     root.innerHTML = '';
+    this._paintedState = null;
     root.classList.toggle('vb-chaos-shop', mode === 'chaos');
     root.style.display = 'none';
 
@@ -255,7 +257,7 @@ export class BuyMenuController {
       this.toggleBuyMenu(false);
     }
 
-    this.syncBuyMenuUI();
+    if (this._buyMenuOpen) this.syncBuyMenuUI();
   }
 
   toggleBuyMenu(force) {
@@ -350,6 +352,15 @@ export class BuyMenuController {
   syncBuyMenuUI() {
     const dom = this.buyDom;
     if (!dom.root) return;
+
+    // Store incoming state while closed, and repaint an open dialog only when
+    // the fields it actually presents change. Successive snapshots often
+    // contain the same authoritative economy.
+    const state = this._buyMenuState;
+    const painted = JSON.stringify([dom.mode, this._isAdmitted(), this._isAlive(),
+      state.phase, state.credits, state.owned, state.chaosUpgrades]);
+    if (painted === this._paintedState) return;
+    this._paintedState = painted;
 
     if (this._isChaosMode()) {
       this._syncChaosUI();
@@ -472,6 +483,7 @@ export class BuyMenuController {
 
     this._buyMenuCallbacks = null;
     this.buyDom = {};
+    this._paintedState = null;
     this._buyMenuState = { phase: 'idle', credits: 0, owned: [] };
     this._isClosingBuyMenu = false;
     this._buyMenuOpen = false;

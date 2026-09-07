@@ -46,13 +46,3 @@ export function raycastVoxels(solidAt, ox, oy, oz, dx, dy, dz, maxDist) {
   }
   return null;
 }
-
-/** True when the eye position is essentially against cover (kills most of the shot arc). */
-export function computeBlockedMuzzle(solidAt, x, y, z) {
-  const probes = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]];
-  for (let i = 0; i < probes.length; i++) {
-    const p = probes[i];
-    if (raycastVoxels(solidAt, x, y, z, p[0], p[1], p[2], 0.6)) return true;
-  }
-  return false;
-}

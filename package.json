@@ -23,10 +23,12 @@
     "chaos:test": "node tools/chaos-test.mjs",
     "flamethrower:test": "node tools/flamethrower-test.mjs && node tools/flamethrower-hitbox-test.mjs && node tools/flamethrower-client-test.mjs && node tools/flamethrower-audio-test.mjs",
     "minigun:test": "node tools/minigun-test.mjs && node tools/minigun-client-test.mjs && node tools/minigun-audio-test.mjs && node tools/heavy-weapon-model-test.mjs",
-    "test": "npm run flamethrower:test && npm run minigun:test && npm run projectiles:test && node tools/chaos-test.mjs && node tools/atlastest.mjs && node tools/pickaxe-test.mjs && node tools/weapon-swap-test.mjs && node tools/revolver-smoke.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run modes:lobby && npm run modes:bots",
+    "test": "npm run refactor:test && npm run flamethrower:test && npm run minigun:test && npm run projectiles:test && node tools/chaos-test.mjs && node tools/atlastest.mjs && node tools/pickaxe-test.mjs && node tools/weapon-swap-test.mjs && node tools/revolver-smoke.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run modes:lobby && npm run modes:bots",
     "avatars:test": "node tools/avatar-pose-test.mjs",
     "prone:test": "node tools/prone-test.mjs",
-    "projectiles:test": "node tools/projectile-server-performance-test.mjs && node tools/projectile-performance-test.mjs"
+    "projectiles:test": "node tools/projectile-server-performance-test.mjs && node tools/projectile-performance-test.mjs",
+    "refactor:test": "node tools/hitbox-refactor-test.mjs && node tools/server-refactor-test.mjs && node tools/client-refactor-test.mjs",
+    "browser:ui": "node tools/session-refactor-test.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"

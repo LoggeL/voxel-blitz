@@ -41,8 +41,8 @@ export class GameplayHud {
 
     this.built = false;
     this.st = {};
+    this._painted = {};
     this.dom = {};
-    this.names = new Map();
     this.scoreboard = new Scoreboard();
     this.scoreboardMatch = null;
     this.scoreboardSelfId = null;
@@ -97,8 +97,9 @@ export class GameplayHud {
     this.compassMeasured = false;
     this.lastWepKey = '';
     this._scopeZoomShown = 0;
-    this.names.clear();
     clearBag(this.dom);
+    this._painted = {};
+    this.chGap = undefined;
 
     const hud = this._root('hud');
     hud.innerHTML = '';
@@ -171,6 +172,7 @@ export class GameplayHud {
     d.grenadeHint = el('span', 'vb-grenade-hint', d.grenades);
     d.grenadeHint.textContent = 'HOLD · RELEASE';
     this._grenadeType = 0;
+    d.grenadeTypeChips[0].classList.add('is-selected');
     // Charge weapons (LONGARC): capacitor meter under the ammo panel.
     d.chargeMeter = el('div', 'vb-charge-meter', hud, 'charge-meter');
     d.chargeMeterTrack = el('span', 'vb-charge-track', d.chargeMeter);
@@ -266,36 +268,55 @@ export class GameplayHud {
     const d = this.dom;
     if (!d.hpf) return;
     const alive = s.alive !== false && this.readModel.dead !== true;
+    const painted = this._painted;
+    const key = resolveKey(s.wid);
 
     if (s.hp != null) {
       const hp = Math.min(100, Math.max(0, Number(s.hp)));
-      d.hpf.style.width = `${hp}%`;
-      d.hb.dataset.hp = String(Math.round(hp));
-      d.hb.classList.toggle('critical', hp < 30);
+      if (hp !== painted.hp) {
+        painted.hp = hp;
+        d.hpf.style.width = `${hp}%`;
+        d.hb.dataset.hp = String(Math.round(hp));
+        d.hb.classList.toggle('critical', hp < 30);
+      }
       const low = alive && hp < 35;
-      const beat = 0.82 + 0.18 * Math.sin((performance.now() / 1200) * Math.PI * 2);
-      d.lowhp.style.opacity = low ? (((35 - hp) / 35) * 0.85 * beat).toFixed(3) : '0';
+      const opacity = low
+        ? (((35 - hp) / 35) * 0.85 * (0.82 + 0.18 * Math.sin((performance.now() / 1200) * Math.PI * 2))).toFixed(3)
+        : '0';
+      if (d.lowhp.style.opacity !== opacity) d.lowhp.style.opacity = opacity;
     } else {
       d.lowhp.style.opacity = '0';
     }
 
-    if (s.mag != null) {
-      const melee = WEAPONS[resolveKey(s.wid)]?.mode === 'melee';
-      if (melee) {
-        // A knife has no magazine to count: the swing is always ready, and the
-        // zero-round spare-mag readout is meaningless, so the separator hides too.
-        d.mag.textContent = '∞';
-        d.sep.style.display = 'none';
-        d.res.style.display = 'none';
-      } else {
-        d.mag.textContent = String(Math.max(0, s.mag | 0));
-        d.sep.style.display = '';
-        d.res.style.display = '';
-      }
+    if (key !== this.lastWepKey) {
+      const tint = WEAPON_IDS.includes(key) ? `vb-w-${key}` : '';
+      d.wname.className = tint;
+      d.ammo.className = tint;
+      if (key) d.weaponIcon.src = `./assets/weapons/hud/${key}.png`;
+      this.lastWepKey = key;
+    }
+    const melee = WEAPONS[key]?.mode === 'melee';
+    if (s.mag != null && (s.mag !== painted.mag || melee !== painted.melee)) {
+      painted.mag = s.mag;
+      painted.melee = melee;
+      d.mag.textContent = melee ? '∞' : String(Math.max(0, s.mag | 0));
+      d.sep.style.display = melee ? 'none' : '';
+      d.res.style.display = melee ? 'none' : '';
+    }
+    if (painted.ammoWeapon !== key || painted.ammoMag !== s.mag) {
+      painted.ammoWeapon = key;
+      painted.ammoMag = s.mag;
       this.updateAmmoLow();
     }
-    if (s.reserve != null) d.res.textContent = s.infiniteMagazines ? '∞' : String(Math.max(0, s.reserve | 0));
-    if (s.wname != null) d.wname.textContent = String(s.wname).toUpperCase();
+    if (s.reserve != null && (s.reserve !== painted.reserve || s.infiniteMagazines !== painted.infiniteMagazines)) {
+      painted.reserve = s.reserve;
+      painted.infiniteMagazines = s.infiniteMagazines;
+      d.res.textContent = s.infiniteMagazines ? '∞' : String(Math.max(0, s.reserve | 0));
+    }
+    if (s.wname != null && s.wname !== painted.wname) {
+      painted.wname = s.wname;
+      d.wname.textContent = String(s.wname).toUpperCase();
+    }
     if (s.grenadeType != null) {
       const index = clampGrenadeType(s.grenadeType);
       if (index !== this._grenadeType) {
@@ -303,35 +324,46 @@ export class GameplayHud {
         d.grenades.dataset.type = GRENADE_TYPE_IDS[index];
         d.grenades.style.setProperty('--nade', GRENADE_TYPES[GRENADE_TYPE_IDS[index]].color);
         d.grenadeName.textContent = GRENADE_TYPES[GRENADE_TYPE_IDS[index]].name;
+        for (let i = 0; i < d.grenadeTypeChips.length; i++) {
+          d.grenadeTypeChips[i].classList.toggle('is-selected', i === index);
+        }
       }
     }
-    for (let i = 0; i < d.grenadeTypeChips.length; i++) {
-      d.grenadeTypeChips[i].classList.toggle('is-selected', i === this._grenadeType);
-    }
     if (s.grenades != null) {
-      const counts = Array.isArray(s.grenades)
-        ? s.grenades
-        : GRENADE_TYPE_IDS.map((_, i) => (i === 0 ? s.grenades : 0));
+      const counts = painted.grenades || (painted.grenades = []);
       let total = 0;
+      let changed = false;
       for (let t = 0; t < d.grenadeTypeChips.length; t++) {
-        const count = Math.max(0, counts[t] | 0);
+        const count = Math.max(0, (Array.isArray(s.grenades) ? s.grenades[t] : t === 0 ? s.grenades : 0) | 0);
         total += count;
+        if (counts[t] === count) continue;
+        counts[t] = count;
+        changed = true;
         const chip = d.grenadeTypeChips[t];
         chip.classList.toggle('is-empty', count <= 0);
         for (let i = 0; i < chip.pips.length; i++) {
           chip.pips[i].classList.toggle('is-spent', i >= count);
         }
       }
-      d.grenades.setAttribute('aria-label', `${total} grenades remaining`);
+      if (changed) d.grenades.setAttribute('aria-label', `${total} grenades remaining`);
     }
     const grenadeCharge = clamp01(s.grenadeCharge);
     const charging = grenadeCharge > 0 || !!s.grenadeCharging;
     const cook01 = clamp01(s.grenadeCook01);
-    d.grenades.classList.toggle('is-charging', charging);
-    d.grenades.classList.toggle('is-full', grenadeCharge >= 1);
-    d.grenades.classList.toggle('is-cooking', charging && cook01 > 0);
-    d.grenades.classList.toggle('is-critical', charging && cook01 >= 0.7);
-    d.grenadeChargeFill.style.transform = `scaleX(${charging && cook01 > 0 ? 1 - cook01 : grenadeCharge})`;
+    const grenadeFlags = Number(charging) | (Number(grenadeCharge >= 1) << 1)
+      | (Number(charging && cook01 > 0) << 2) | (Number(charging && cook01 >= 0.7) << 3);
+    if (grenadeFlags !== painted.grenadeFlags) {
+      painted.grenadeFlags = grenadeFlags;
+      d.grenades.classList.toggle('is-charging', charging);
+      d.grenades.classList.toggle('is-full', grenadeCharge >= 1);
+      d.grenades.classList.toggle('is-cooking', charging && cook01 > 0);
+      d.grenades.classList.toggle('is-critical', charging && cook01 >= 0.7);
+    }
+    const grenadeFill = charging && cook01 > 0 ? 1 - cook01 : grenadeCharge;
+    if (grenadeFill !== painted.grenadeFill) {
+      painted.grenadeFill = grenadeFill;
+      d.grenadeChargeFill.style.transform = `scaleX(${grenadeFill})`;
+    }
     let hint = 'HOLD · RELEASE';
     if (charging && cook01 > 0 && Number.isFinite(s.grenadeCookLeftMs)) {
       hint = `COOKING · ${(Math.max(0, s.grenadeCookLeftMs) / 1000).toFixed(1)}s`;
@@ -343,18 +375,32 @@ export class GameplayHud {
     if (s.charge01 !== undefined) {
       const thermal = Number.isFinite(s.heat01);
       const fuel = Number.isFinite(s.fuel01);
-      d.chargeMeter.classList.toggle('is-thermal', thermal);
-      d.chargeMeter.classList.toggle('is-fuel', fuel);
-      d.chargeMeter.classList.toggle('is-critical', thermal && s.heat01 >= 0.9 && !s.overheated);
-      d.chargeMeter.classList.toggle('is-overheated', thermal && !!s.overheated);
       const chargeVisible = thermal || fuel || s.charge01 !== null && Number.isFinite(s.charge01);
-      d.chargeMeter.classList.toggle('is-visible', chargeVisible);
-      if (chargeVisible) {
-        const charge01 = clamp01(thermal ? s.heat01 : fuel ? s.fuel01 : s.charge01);
-        d.chargeMeterFill.style.background = thermal ? (s.overheated || s.heat01 >= 0.9 ? '#ff5750' : s.heat01 >= 0.65 ? '#ff9f32' : '#ffd06b') : fuel ? '#ff9f54' : '';
-        d.chargeMeterFill.style.transform = `scaleX(${charge01})`;
+      const charge01 = clamp01(thermal ? s.heat01 : fuel ? s.fuel01 : s.charge01);
+      const chargeFlags = Number(thermal) | (Number(fuel) << 1) | (Number(chargeVisible) << 2)
+        | (Number(thermal && s.heat01 >= 0.9 && !s.overheated) << 3)
+        | (Number(thermal && !!s.overheated) << 4) | (Number(charge01 > 0) << 5)
+        | (Number(charge01 >= 1) << 6);
+      if (chargeFlags !== painted.chargeFlags) {
+        painted.chargeFlags = chargeFlags;
+        d.chargeMeter.classList.toggle('is-thermal', thermal);
+        d.chargeMeter.classList.toggle('is-fuel', fuel);
+        d.chargeMeter.classList.toggle('is-critical', thermal && s.heat01 >= 0.9 && !s.overheated);
+        d.chargeMeter.classList.toggle('is-overheated', thermal && !!s.overheated);
+        d.chargeMeter.classList.toggle('is-visible', chargeVisible);
         d.chargeMeter.classList.toggle('is-charging', charge01 > 0);
         d.chargeMeter.classList.toggle('is-full', charge01 >= 1);
+      }
+      if (chargeVisible) {
+        const color = thermal ? (s.overheated || s.heat01 >= 0.9 ? '#ff5750' : s.heat01 >= 0.65 ? '#ff9f32' : '#ffd06b') : fuel ? '#ff9f54' : '';
+        if (color !== painted.chargeColor) {
+          painted.chargeColor = color;
+          d.chargeMeterFill.style.background = color;
+        }
+        if (charge01 !== painted.chargeFill) {
+          painted.chargeFill = charge01;
+          d.chargeMeterFill.style.transform = `scaleX(${charge01})`;
+        }
         let label;
         if (thermal) {
           if (s.overheated) label = 'OVERHEATED · COOLING';
@@ -370,28 +416,16 @@ export class GameplayHud {
       }
     }
 
-    const key = resolveKey(s.wid);
-    if (key && key !== this.lastWepKey) {
-      const tint = WEAPON_IDS.includes(key) ? `vb-w-${key}` : '';
-      d.wname.className = tint;
-      d.ammo.className = tint;
-      d.weaponIcon.src = `./assets/weapons/hud/${key}.png`;
-      this.lastWepKey = key;
-      this.updateAmmoLow();
-    }
-
-    if (s.crosshairConeDeg != null) {
-      this.setSpread(spreadFromCone(s.crosshairConeDeg));
-    } else if (s.bloomPx != null) {
-      this.setSpread(s.bloomPx);
-    }
     const beamRadius = beamReticleRadiusPx(s.crosshairHitRadius, s.crosshairDistance,
       s.crosshairFov, s.crosshairHeight, s.crosshairConeDeg ?? 0);
-    if (d.beamRing) {
+    if (d.beamRing && beamRadius !== painted.beamRadius) {
+      painted.beamRadius = beamRadius;
       d.beamRing.style.display = beamRadius > 0 ? 'block' : 'none';
       d.beamRing.style.width = d.beamRing.style.height = `${beamRadius * 2}px`;
     }
-    if (beamRadius > 0) this.setSpread(Math.max(this.chGap, beamRadius + 3));
+    const spread = s.crosshairConeDeg != null ? spreadFromCone(s.crosshairConeDeg)
+      : s.bloomPx != null ? s.bloomPx : this.chGap;
+    if (spread != null) this.setSpread(beamRadius > 0 ? Math.max(spread, beamRadius + 3) : spread);
     this.updateCrosshairStress(s.panic, s.pain, alive);
     this.setReloadProgress(s.reloading01 == null ? null : s.reloading01, !!s.reloadStaged);
     if (s.yawDeg != null) this.updateCompass(s.yawDeg);
@@ -402,7 +436,10 @@ export class GameplayHud {
     this.setScopeZoom(s.scopeZoom);
     this.setBreath(s, alive, adsT);
     this.hideCrosshairForAds(!alive || adsT > 0.35);
-    d.ch.classList.toggle('vb-dead', !alive);
+    if (alive !== painted.alive) {
+      painted.alive = alive;
+      d.ch.classList.toggle('vb-dead', !alive);
+    }
   }
 
   /** Breath meter lives on the crosshair; the scope overlay mirrors it via the same state. */
@@ -416,9 +453,14 @@ export class GameplayHud {
     const display = show ? 'block' : 'none';
     if (d.breath.style.display !== display) d.breath.style.display = display;
     if (!show) return;
-    d.breathFill.style.transform = `scaleX(${breath.toFixed(3)})`;
-    d.breath.classList.toggle('is-holding', holding);
-    d.breath.classList.toggle('is-spent', breath <= 0.001);
+    const fill = breath.toFixed(3);
+    if (fill !== this._painted.breathFill || holding !== this._painted.holdingBreath) {
+      this._painted.breathFill = fill;
+      this._painted.holdingBreath = holding;
+      d.breathFill.style.transform = `scaleX(${fill})`;
+      d.breath.classList.toggle('is-holding', holding);
+      d.breath.classList.toggle('is-spent', breath <= 0.001);
+    }
     const hint = holding ? 'HOLDING' : (breath <= 0.001 ? 'WINDED' : 'SHIFT · HOLD BREATH');
     if (d.breathHint.textContent !== hint) d.breathHint.textContent = hint;
   }
@@ -454,11 +496,12 @@ export class GameplayHud {
   setSpread(px) {
     if (!this.dom.ch) return;
     const n = Number(px);
-    const gap = Math.min(76, Math.max(4, Number.isFinite(n) ? n : 4));
+    const gap = Math.round(Math.min(76, Math.max(4, Number.isFinite(n) ? n : 4)) * 100) / 100;
+    if (gap === this.chGap) return;
     const previous = Number.isFinite(this.chGap) ? this.chGap : gap;
     this.chGap = gap;
     this.dom.ch.style.setProperty('--gap-ease', gap >= previous ? '52ms' : '115ms');
-    this.dom.ch.style.setProperty('--gap', `${Math.round(gap * 100) / 100}px`);
+    this.dom.ch.style.setProperty('--gap', `${gap}px`);
   }
 
   updateCrosshairStress(panicValue, painValue, alive = true) {
@@ -468,6 +511,8 @@ export class GameplayHud {
     const pain = clamp01(painValue);
     const painImpulse = Number(this.readModel.painImpulse) || 0;
     const stress = alive ? Math.min(1, panic * 0.72 + pain * 0.82 + painImpulse * 0.48) : 0;
+    if (stress === 0 && this._painted.stress === 0) return;
+    this._painted.stress = stress;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     const amplitude = stress * (0.45 + painImpulse * 1.35);
     const jx = amplitude * Math.sin(now * 0.041 + pain * 5.1);
@@ -482,7 +527,8 @@ export class GameplayHud {
 
   hideCrosshairForAds(hidden) {
     if (!this.dom.ch) return;
-    this.dom.ch.style.opacity = hidden ? '0' : '1';
+    const opacity = hidden ? '0' : '1';
+    if (this.dom.ch.style.opacity !== opacity) this.dom.ch.style.opacity = opacity;
   }
 
   setReloadProgress(t01, staged = false) {
@@ -495,6 +541,7 @@ export class GameplayHud {
         if (hint) hint.style.display = 'none';
         ring.classList.remove('vb-reload-flash');
         this.ringOn = false;
+        this._painted.reloadPercent = undefined;
       }
       return;
     }
@@ -508,8 +555,13 @@ export class GameplayHud {
       const text = staged ? 'LOADING · FIRE TO INTERRUPT' : 'RELOADING';
       if (hint.textContent !== text) hint.textContent = text;
     }
-    ring.style.setProperty('--pct', `${Math.round(clamp01(t) * 100)}%`);
-    ring.classList.toggle('vb-reload-flash', t > 0.86);
+    const percent = Math.round(t * 100);
+    if (percent !== this._painted.reloadPercent) {
+      this._painted.reloadPercent = percent;
+      ring.style.setProperty('--pct', `${percent}%`);
+    }
+    const flash = t > 0.86;
+    if (flash !== ring.classList.contains('vb-reload-flash')) ring.classList.toggle('vb-reload-flash', flash);
   }
 
   updateCompass(yawDeg) {
@@ -525,7 +577,10 @@ export class GameplayHud {
     }
     const y = ((yawDeg % 360) + 360) % 360;
     const x = this.compassW / 2 - y * this.compassPPD - this.compassZeroX;
-    d.strip.style.transform = `translate3d(${x}px,0,0)`;
+    if (x !== this._painted.compassX) {
+      this._painted.compassX = x;
+      d.strip.style.transform = `translate3d(${x}px,0,0)`;
+    }
   }
 
   measureCompass() {
@@ -561,9 +616,6 @@ export class GameplayHud {
     if (!Array.isArray(players)) return;
     this.scoreboardMatch = match;
     if (selfRow) this.scoreboardSelfId = selfRow.id;
-    for (const player of players) {
-      if (player && player.id != null) this.names.set(String(player.id), String(player.name || player.id));
-    }
     this.scoreboard.update(players, match, this.scoreboardSelfId);
   }
 
@@ -668,7 +720,8 @@ export class GameplayHud {
       this.compassRAF = 0;
     }
     clearBag(this.st);
-    this.names.clear();
+    this._painted = {};
+    this._grenadeType = -1;
     this.ringOn = false;
     this.compassW = 0;
     this.compassPPD = 2;
@@ -731,7 +784,8 @@ export class GameplayHud {
 
     clearBag(this.dom);
     clearBag(this.st);
-    this.names.clear();
+    this._painted = {};
+    this._grenadeType = -1;
     this.scopeShown = false;
     this.scopeProgress = 0;
     this.ringOn = false;

@@ -4,9 +4,16 @@ import { WEAPON_IDS } from './combatmath.js';
 
 // Combat volumes follow the avatar's proportions, independently of the movement
 // collider. Cosmetic gait/flinch uses small limb margins, never a full-body box.
-const add = (a, b) => a.map((v, i) => v + b[i]);
-const dot = (a, b) => a.reduce((s, v, i) => s + v * b[i], 0);
-const rotate = (v, basis) => [0, 1, 2].map(i => v.reduce((s, n, j) => s + n * basis[j][i], 0));
+const add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+const rotate = (v, basis) => [
+  v[0] * basis[0][0] + v[1] * basis[1][0] + v[2] * basis[2][0],
+  v[0] * basis[0][1] + v[1] * basis[1][1] + v[2] * basis[2][1],
+  v[0] * basis[0][2] + v[1] * basis[1][2] + v[2] * basis[2][2],
+];
+const IDENTITY_BASIS = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+const SIGHT_HEIGHT = { rifle: 0.145, smg: 0.112, shotgun: 0.100, sniper: 0.205,
+  minigun: 0.155, lmg: 0.155, revolver: 0.105, longarc: 0.155, rocket: 0.175, lance: 0.155, knife: 0.02 };
 function basisFor(x = 0, y = 0, z = 0) {
   const a = Math.cos(x), b = Math.sin(x), c = Math.cos(y), d = Math.sin(y);
   const e = Math.cos(z), f = Math.sin(z);
@@ -24,9 +31,10 @@ export function playerHitboxes(p) {
   const yaw = basisFor(0, p.yaw || 0, 0);
   const feet = [p.x, p.y, p.z];
   const boxes = [];
-  function box(zone, center, size, basis = basisFor()) {
+  function box(zone, center, size, basis = IDENTITY_BASIS) {
     boxes.push({ zone, center: add(feet, rotate(center, yaw)),
-      half: size.map(v => v / 2), basis: basis.map(v => rotate(v, yaw)) });
+      half: [size[0] / 2, size[1] / 2, size[2] / 2],
+      basis: [rotate(basis[0], yaw), rotate(basis[1], yaw), rotate(basis[2], yaw)] });
   }
   const headBasis = basisFor(pitch * 0.7);
   const head = [0, mix(1.66 - crouch * 0.34, 0.48), 0];
@@ -39,27 +47,27 @@ export function playerHitboxes(p) {
   // empty space between the legs a target. Standing legs stay narrow in depth.
   const speed = Math.min(1, (p.moveSpeed ?? Math.hypot(p.vx || 0, p.vz || 0)) / 5.8);
   const legHeight = 0.72 * (1 - crouch * 0.35 * (1 - prone));
+  const legAngle = -prone * Math.PI / 2;
+  const legBasis = basisFor(legAngle);
+  const ads = p.ads && !p.reloading ? 1 : 0;
+  const reload = p.reloading ? 1 : 0;
+  const sight = SIGHT_HEIGHT[WEAPON_IDS[p.weapon || 0]] || 0.12;
+  const hip = [0.1995 - hands.grip.x * 1.1, 1.3165 - hands.grip.y * 1.1, -0.309 - hands.grip.z * 1.1];
+  const mount = [ads ? 0.055 : hip[0], ads ? 1.62 - sight * 1.1 : hip[1], hip[2] - ads * 0.045];
+  mount[0] -= reload * 0.02; mount[1] -= armCrouch * 0.29 + prone * 1.14 + reload * 0.07; mount[2] += reload * 0.03;
+  const aim = Math.max(-Math.PI * 0.43, Math.min(Math.PI * 0.43, p.pitch || 0));
+  const armBasis = basisFor(aim * (1 - reload * 0.6) - reload * 0.42, reload * 0.18, reload * 0.28);
   for (const side of [-1, 1]) {
-    const legAngle = -prone * Math.PI / 2;
     box('leg', [side * 0.16, mix(0.73 - crouch * 0.26, 0.25) - Math.cos(legAngle) * legHeight / 2,
       prone * 0.85 - Math.sin(legAngle) * legHeight / 2],
-      [0.24, legHeight + 0.02, 0.40 + speed * 0.78 * (1 - crouch * 0.6) * (1 - prone)], basisFor(legAngle));
-    const ads = p.ads && !p.reloading ? 1 : 0;
-    const reload = p.reloading ? 1 : 0;
+      [0.24, legHeight + 0.02, 0.40 + speed * 0.78 * (1 - crouch * 0.6) * (1 - prone)], legBasis);
     const shoulder = [side * 0.32, 1.43 - armCrouch * 0.29 - prone * 1.08, prone * 0.14];
     const anchor = side < 0 ? hands.support : hands.grip;
     let target = [side * 0.34, 0.82 - armCrouch * 0.29 - prone * 0.5, -0.08];
     if (anchor) {
       // Settled weapon mount from AvatarWeaponModel. Recoil/reload animation
       // is cosmetic and covered by the small margins around each arm segment.
-      const sight = { rifle: 0.145, smg: 0.112, shotgun: 0.100, sniper: 0.205,
-        minigun: 0.155, lmg: 0.155, revolver: 0.105, longarc: 0.155, rocket: 0.175, lance: 0.155, knife: 0.02 }[WEAPON_IDS[p.weapon || 0]];
-      const hip = [0.1995 - hands.grip.x * 1.1, 1.3165 - hands.grip.y * 1.1, -0.309 - hands.grip.z * 1.1];
-      const mount = [ads ? 0.055 : hip[0], ads ? 1.62 - (sight || 0.12) * 1.1 : hip[1], hip[2] - ads * 0.045];
-      mount[0] -= reload * 0.02; mount[1] -= armCrouch * 0.29 + prone * 1.14 + reload * 0.07; mount[2] += reload * 0.03;
-      const aim = Math.max(-Math.PI * 0.43, Math.min(Math.PI * 0.43, p.pitch || 0));
-      target = add(mount, rotate([anchor.x * 1.1, anchor.y * 1.1, anchor.z * 1.1],
-        basisFor(aim * (1 - reload * 0.6) - reload * 0.42, reload * 0.18, reload * 0.28)));
+      target = add(mount, rotate([anchor.x * 1.1, anchor.y * 1.1, anchor.z * 1.1], armBasis));
       if (reload && side < 0) target = target.map((v, i) => v * 0.35 + [0.08, 1.08 - armCrouch * 0.29 - prone * 0.7, -0.33][i] * 0.65);
     }
     const delta = target.map((v, i) => v - shoulder[i]);
@@ -86,8 +94,10 @@ export function playerHitboxes(p) {
 }
 
 function localRay(o, d, box) {
-  const offset = o.map((v, i) => v - box.center[i]);
-  return { o: box.basis.map(v => dot(offset, v)), d: box.basis.map(v => dot(d, v)) };
+  const offset = [o[0] - box.center[0], o[1] - box.center[1], o[2] - box.center[2]];
+  const basis = box.basis;
+  return { o: [dot(offset, basis[0]), dot(offset, basis[1]), dot(offset, basis[2])],
+    d: [dot(d, basis[0]), dot(d, basis[1]), dot(d, basis[2])] };
 }
 function interval(o, d, half, radius, min, max) {
   let lo = min, hi = max;
@@ -103,27 +113,39 @@ function interval(o, d, half, radius, min, max) {
   }
   return [lo, hi];
 }
-const distanceSq = (o, half) => o.reduce((s, v, i) => s + Math.max(0, Math.abs(v) - half[i]) ** 2, 0);
+// Swept-radius searches evaluate this up to 96 times per box. Keep each sample
+// scalar so a contact query creates no temporary points inside the search.
+function distanceSqAt(o, d, at, half) {
+  const x = Math.max(0, Math.abs(o[0] + d[0] * at) - half[0]);
+  const y = Math.max(0, Math.abs(o[1] + d[1] * at) - half[1]);
+  const z = Math.max(0, Math.abs(o[2] + d[2] * at) - half[2]);
+  return x * x + y * y + z * z;
+}
+const ZERO = [0, 0, 0];
 
 export function pointPlayerDistance(point, p) {
-  return Math.sqrt(Math.min(...playerHitboxes(p).map(box => {
-    const { o } = localRay(point, [0, 0, 0], box);
-    return distanceSq(o, box.half);
-  })));
+  let nearest = Infinity;
+  for (const box of playerHitboxes(p)) {
+    const { o } = localRay(point, ZERO, box);
+    nearest = Math.min(nearest, distanceSqAt(o, ZERO, 0, box.half));
+    if (nearest === 0) return 0;
+  }
+  return Math.sqrt(nearest);
 }
 
 /** Unit rays use metres; projectile segment directions use fractions [0,1]. */
 export function rayPlayerHitboxes(origin, direction, p, limit, { minT = 0, radius = 0, preferCore = false } = {}) {
   let best = null, core = null;
+  const ray = [direction.x, direction.y, direction.z];
   for (const box of playerHitboxes(p)) {
-    const { o, d } = localRay(origin, [direction.x, direction.y, direction.z], box);
+    const { o, d } = localRay(origin, ray, box);
     const direct = interval(o, d, box.half, 0, minT, limit);
     if (direct && (!core || direct[0] < core.t)) core = { t: direct[0], zone: box.zone, coreHit: true, radialDistance: 0 };
-    const bounds = interval(o, d, box.half, radius, minT, limit);
+    const bounds = radius === 0 ? direct : interval(o, d, box.half, radius, minT, limit);
     if (!bounds) continue;
     let t = bounds[0], radialDistance = 0;
     if (radius > 0) {
-      const distance = at => distanceSq(o.map((v, i) => v + d[i] * at), box.half);
+      const distance = at => distanceSqAt(o, d, at, box.half);
       let low = bounds[0], high = bounds[1];
       for (let i = 0; i < 32; i++) {
         const a = low + (high-low)/3, b = high - (high-low)/3;

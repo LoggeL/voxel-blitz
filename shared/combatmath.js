@@ -476,9 +476,3 @@ export function samplePelletDirection(def, fwd, rng, halfAngleDeg, pelletIndex) 
   }
   return sampleSpreadDir(fwd, rng, halfAngleDeg);
 }
-
-/** Smallest angle between two unit dirs, degrees (server-side sanity check). */
-export function angleBetweenDeg(a, b) {
-  const d = Math.min(1, Math.max(-1, a.x * b.x + a.y * b.y + a.z * b.z));
-  return Math.acos(d) / D2R;
-}

@@ -328,9 +328,11 @@ export class GoreFX {
   }
 
   _updateChunks(dt) {
+    let chunksDirty = false;
     for (let i = 0; i < this.goreChunks.length; i++) {
       const p = this.goreChunks[i];
       if (!p.active) continue;
+      chunksDirty = true;
       p.t += dt;
       if (p.t >= p.life) {
         p.active = false;
@@ -372,14 +374,16 @@ export class GoreFX {
       }
       this._drawChunk(p, i);
     }
-    this.goreChunkMesh.instanceMatrix.needsUpdate = true;
+    if (chunksDirty) this.goreChunkMesh.instanceMatrix.needsUpdate = true;
   }
 
   update(dt) {
     this._updateChunks(dt);
+    let mistDirty = false;
     for (let i = 0; i < this.goreMist.length; i++) {
       const p = this.goreMist[i];
       if (!p.active) continue;
+      mistDirty = true;
       p.t += dt;
       if (p.t >= p.life) {
         p.active = false;
@@ -402,11 +406,13 @@ export class GoreFX {
       );
       this.goreMistMesh.setMatrixAt(i, this._m4);
     }
-    this.goreMistMesh.instanceMatrix.needsUpdate = true;
+    if (mistDirty) this.goreMistMesh.instanceMatrix.needsUpdate = true;
 
+    let dropletsDirty = false;
     for (let i = 0; i < this.goreDroplets.length; i++) {
       const p = this.goreDroplets[i];
       if (!p.active) continue;
+      dropletsDirty = true;
       p.t += dt;
       if (p.t >= p.life) {
         p.active = false;
@@ -444,11 +450,13 @@ export class GoreFX {
       this._m4.compose(this._v.set(p.x, p.y, p.z), this._q, this._s);
       this.goreDropletMesh.setMatrixAt(i, this._m4);
     }
-    this.goreDropletMesh.instanceMatrix.needsUpdate = true;
+    if (dropletsDirty) this.goreDropletMesh.instanceMatrix.needsUpdate = true;
 
+    let stainsDirty = false;
     for (let i = 0; i < this.goreStains.length; i++) {
       const stain = this.goreStains[i];
       if (!stain.active) continue;
+      stainsDirty = true;
       stain.t += dt;
       if (stain.t >= stain.life) {
         stain.active = false;
@@ -464,8 +472,9 @@ export class GoreFX {
       );
       this.goreStainMesh.setMatrixAt(i, this._m4);
     }
-    this.goreStainMesh.instanceMatrix.needsUpdate = true;
+    if (stainsDirty) this.goreStainMesh.instanceMatrix.needsUpdate = true;
 
+    let veilDirty = false;
     if (this.camera && this.camera.position && this.camera.quaternion) {
       this.camera.getWorldDirection(this._forward);
       this._right.set(1, 0, 0).applyQuaternion(this.camera.quaternion);
@@ -473,6 +482,7 @@ export class GoreFX {
       for (let i = 0; i < this.goreVeil.length; i++) {
         const veil = this.goreVeil[i];
         if (!veil.active) continue;
+        veilDirty = true;
         veil.t += dt;
         if (veil.t >= veil.life) {
           veil.active = false;
@@ -495,11 +505,12 @@ export class GoreFX {
     } else {
       for (let i = 0; i < this.goreVeil.length; i++) {
         if (!this.goreVeil[i].active) continue;
+        veilDirty = true;
         this.goreVeil[i].active = false;
         hideInstance(this.goreVeilMesh, i);
       }
     }
-    this.goreVeilMesh.instanceMatrix.needsUpdate = true;
+    if (veilDirty) this.goreVeilMesh.instanceMatrix.needsUpdate = true;
   }
 
   dispose() {
@@ -507,6 +518,7 @@ export class GoreFX {
     this._disposed = true;
     for (const mesh of this.goreMeshes) {
       this.scene.remove(mesh);
+      mesh.dispose();
       mesh.geometry.dispose();
       mesh.material.dispose();
     }

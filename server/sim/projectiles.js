@@ -87,7 +87,7 @@ function visibleTo(ctx, origin, target, endMargin = 0.18) {
   const distance = Math.hypot(dx, dy, dz);
   if (distance <= endMargin) return true;
   return !raycastVoxels(
-    (x, y, z) => ctx.getBlock(x, y, z) !== AIR,
+    ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR),
     origin[0], origin[1], origin[2], dx, dy, dz,
     distance - endMargin,
   );
@@ -108,6 +108,7 @@ export class ProjectileSystem {
     this.active = new Map();
     this._nextId = 1;
     this._homingCandidates = [];
+    this._stepping = [];
   }
 
   clear() {
@@ -136,7 +137,12 @@ export class ProjectileSystem {
 
     const substeps = 2;
     const stepSeconds = Math.max(0, Math.min(0.05, dt)) / substeps;
-    for (const projectile of Array.from(this.active.values())) {
+    // Snapshot membership before flight: an explosion can delete siblings and
+    // spawn children, whose first integration belongs to the following tick.
+    const stepping = this._stepping;
+    stepping.length = 0;
+    for (const projectile of this.active.values()) stepping.push(projectile);
+    for (const projectile of stepping) {
       if (!this.active.has(projectile.id)) continue;
       if (projectile.chaosHoming && !projectile.stuck) this._home(projectile, dt, ctx);
       if (projectile.type === 'pulse' && projectile.chaosLevel >= 1 && !projectile.child) this._pull(projectile, dt, ctx);
@@ -153,6 +159,7 @@ export class ProjectileSystem {
       }
       if (ctx.now >= projectile.explodeAt || outsideWorld(projectile)) this.explode(projectile, ctx);
     }
+    stepping.length = 0;
   }
 
   _flyGrenade(projectile, stepSeconds, substeps, ctx) {
@@ -387,7 +394,7 @@ export class ProjectileSystem {
       hit: null,
       directVictim: null,
       raycast: (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
-        (x, y, z) => ctx.getBlock(x, y, z) !== AIR, ox, oy, oz, dx, dy, dz, max,
+        ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
       ),
     };
     this._configureChaos(projectile);
@@ -424,7 +431,7 @@ export class ProjectileSystem {
       // Accumulated path length includes every reflection for damage falloff.
       traveled: 0,
       raycast: (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
-        (x, y, z) => ctx.getBlock(x, y, z) !== AIR, ox, oy, oz, dx, dy, dz, max,
+        ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
       ),
     };
     this._configureChaos(projectile);
@@ -629,7 +636,9 @@ export class ProjectileSystem {
 
   _destroyTerrain(origin, rules, ctx) {
     const radius = rules.terrainRadius;
+    const radiusSquared = radius * radius;
     const candidates = [];
+    const solidAt = ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR);
     const minX = Math.max(0, Math.floor(origin[0] - radius));
     const maxX = Math.min(SX - 1, Math.ceil(origin[0] + radius));
     const minY = Math.max(1, Math.floor(origin[1] - radius));
@@ -639,10 +648,14 @@ export class ProjectileSystem {
     for (let y = minY; y <= maxY; y++) {
       for (let z = minZ; z <= maxZ; z++) {
         for (let x = minX; x <= maxX; x++) {
+          const dx = x + 0.5 - origin[0], dy = y + 0.5 - origin[1], dz = z + 0.5 - origin[2];
+          // Reject the bounding cube's corners before touching world storage.
+          // Keep the original distance calculation for ordering and damage.
+          if (dx * dx + dy * dy + dz * dz > radiusSquared + 1e-9) continue;
           const type = ctx.getBlock(x, y, z);
           const resistance = GRENADE_RESISTANCE[type];
           if (!Number.isFinite(resistance)) continue;
-          const distance = Math.hypot(x + 0.5 - origin[0], y + 0.5 - origin[1], z + 0.5 - origin[2]);
+          const distance = Math.hypot(dx, dy, dz);
           if (distance > radius) continue;
           const power = rules.terrainPower * Math.pow(Math.max(0, 1 - distance / radius), 0.58);
           if (power >= resistance) candidates.push({ x, y, z, distance });
@@ -658,7 +671,7 @@ export class ProjectileSystem {
       const dy = target[1] - origin[1];
       const dz = target[2] - origin[2];
       const hit = raycastVoxels(
-        (x, y, z) => ctx.getBlock(x, y, z) !== AIR,
+        solidAt,
         origin[0], origin[1], origin[2], dx, dy, dz,
         block.distance + 0.2,
       );

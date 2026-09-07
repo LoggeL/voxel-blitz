@@ -29,9 +29,11 @@ room/client interfaces below; do not fork their logic into a second convention.
   mode/map lobby, wire, isolation, and lifecycle behavior.
 - `npm run modes:bots` runs `tools/bot-mode-smoke.mjs` for deterministic bot
   behavior in Fun, TDM, S&D, and Gun Game.
-- Standard `npm test` runs `tools/atlastest.mjs`, `tools/smoke.mjs`,
-  `tools/lobby-smoke.mjs`, `npm run modes:lobby`, and `npm run modes:bots`, in
-  that order.
+- Standard `npm test` runs refactor regression checks, weapon/projectile
+  contracts, atlas/client contracts, gameplay smoke, lobby smoke, mode-lobby
+  smoke, and bot-mode smoke. `npm run refactor:test` checks frozen hitbox
+  contacts, terrain destruction equivalence, live simulation contexts,
+  effect upload budgets and resource disposal.
 - `npm run browser:smoke` drives the connected touch-mode menu → Quick Play →
   live match, validates joystick/look/fire pointer lifecycles, then completes
   the pause/resume → quit flow in Chromium. `BROWSER_SMOKE_WIDTH`,
@@ -236,8 +238,7 @@ Exports `WEAPONS`, `WEAPON_IDS`, `CONDITION_RULES`, `GRAVITY`, `PLAYER_HALF`,
 `EYE_HEIGHT`, `damageAtDistance(def,dist)`,
 `chargeProfile(def)`, `chargeFromHold(def,heldMs)`, `chargeDamageMult(def,charge01)`,
 `sampleSpreadDir(fwd,rng,halfAngleDeg)`,
-`samplePelletDirection(def,fwd,rng,halfAngleDeg,pelletIndex)`,
-`angleBetweenDeg(a,b)`, and
+`samplePelletDirection(def,fwd,rng,halfAngleDeg,pelletIndex)`, and
 `computeSpreadConeDeg(def,bloomDeg,speedXZ,adsT,panic=0,exhaustion=0,
 crouching=false,pain=0)`.
 `CONDITION_RULES` is the single source for panic/pain/exhaustion gain, decay, and
@@ -301,7 +302,7 @@ behind the victim's facing (`dot(victimForward, swingDir)` above
 ### shared/raycast.js
 `raycastVoxels(solidAt,ox,oy,oz,dx,dy,dz,maxDist)` returns
 `{x,y,z,nx,ny,nz,t}|null`, normalizes any finite nonzero direction, and
-enforces `maxDist`; `computeBlockedMuzzle` performs short cover probes.
+enforces `maxDist`.
 
 ## Lobby and room lifecycle
 - Invite codes are five uppercase characters from

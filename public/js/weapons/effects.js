@@ -5,7 +5,6 @@ import { TracerFX } from './ballistics.js';
 import { BrassPool } from './brass.js';
 import { GoreFX } from './gore.js';
 import { ImpactFX, blockSoundFor } from './impacts.js';
-import { hideInstance } from './instancing.js';
 import { ProjectileFX } from './projectiles.js';
 import { RailBeamFX } from './rail-beam.js';
 import { boltBounces, BOLT_RULES } from '../../../shared/bolt-rules.js';
@@ -60,14 +59,6 @@ export class Effects {
     });
   }
 
-  setShellSpawner(_spawn) {
-    // Legacy no-op: attachShellBridge injects directly into spawnBrass().
-  }
-
-  hideInstance(mesh, index) {
-    hideInstance(mesh, index);
-  }
-
   shoot(event, options = {}) {
     if (this._disposed) return;
     if (event.w === 'flamethrower') { this.flames.shoot(event, options); return; }
@@ -108,44 +99,16 @@ export class Effects {
     }
   }
 
-  spawnTracer(origin, direction, length, definition) {
-    if (!this._disposed) this.tracers.spawnTracer(origin, direction, length, definition);
-  }
-
-  spawnFlash(origin, direction) {
-    if (!this._disposed) this.tracers.spawnFlash(origin, direction);
-  }
-
   impact(event) {
     if (!this._disposed) this.impacts.impact(event);
-  }
-
-  updateImpactCue(index, cue, progress) {
-    if (!this._disposed) this.impacts._updateImpactCue(index, cue, progress);
   }
 
   gore(event, options = {}) {
     if (!this._disposed) this.goreFx.gore(event, options);
   }
 
-  claimGoreSlot(pool) {
-    return this.goreFx._claimSlot(pool);
-  }
-
-  spawnBloodStain(x, y, z, nx, ny, nz, size) {
-    if (!this._disposed) this.goreFx.spawnBloodStain(x, y, z, nx, ny, nz, size);
-  }
-
-  wallDust(hit, local) {
-    if (!this._disposed) this.impacts.wallDust(hit, local);
-  }
-
   explodeBlock(x, y, z, blockId) {
     if (!this._disposed) this.impacts.explodeBlock(x, y, z, blockId);
-  }
-
-  spawnParticles(x, y, z, count, tint, options) {
-    if (!this._disposed) this.impacts.spawnParticles(x, y, z, count, tint, options);
   }
 
   spawnBrass(position, velocity) {

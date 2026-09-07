@@ -72,7 +72,6 @@ class Game {
     this._touchContext = {};
     this._loopGeneration = 0;
     this._rafId = 0;
-    this._sbAt = 0;
     this._disposed = false;
     this.weaponWheel = new WeaponWheelController({
       input: this.input,
@@ -637,10 +636,6 @@ class Game {
     this.hud.setTelemetry(frameDt, this.net?.networkStats, now);
     const hp = this.player.hp;
     sfx.lowHealthPulse(this.player.alive && hp < 35 ? (35 - hp) / 35 : 0, now);
-    if (now - this._sbAt >= 250 && this.playersCache.length) {
-      this._sbAt = now;
-      this.hud.setPlayers(this.playersCache);
-    }
     const forward = fwdFromAngles(this.player.aimYaw, this.player.aimPitch);
     sfx.setListener({
       fwd: [forward.x, forward.y, forward.z],
@@ -694,7 +689,6 @@ class Game {
   disposeTerminalResources() {
     if (this._disposed) return;
     this._disposed = true;
-    this.disposeLiveResources();
     if (this._debugInterval) clearInterval(this._debugInterval);
     if (this._onDebugError) window.removeEventListener('error', this._onDebugError, true);
     this.player.dispose();

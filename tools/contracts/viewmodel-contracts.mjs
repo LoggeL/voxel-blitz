@@ -289,7 +289,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
             ? (carried._model.flash.mats.length === 0
               && carried.root.position.z < -0.05
               && carried.root.rotation.x < -0.02)
-            : (carried._model.flash.grp.visible
+            : (carried._model.flash.grp.visible === !carried._model.T.continuous
               && Math.abs(standingSightY - 1.62) < 0.02));
       }
       ok(valid && hipMounts.size >= 4,

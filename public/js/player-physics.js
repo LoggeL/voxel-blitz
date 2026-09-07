@@ -2,7 +2,7 @@
 // (see BUILD-CONTRACT) so prediction tracks authority closely.
 import { PRONE, stepProne, stanceEye } from '../../shared/player-stance.js';
 import { EYE_HEIGHT } from '../../shared/combatmath.js';
-import { PHYSICS, MOVEMENT_RULES, boxCollides, slidePlayerAxis, solidBelow, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
+import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
 import { getBlock, ladderContact } from '../../shared/worlddata.js';
 
 const { walk: WALK, sprint: SPRINT, crouch: CROUCH, jump: JUMP_VEL,
@@ -33,10 +33,6 @@ export class PlayerPhysics {
   }
 
   solid(x, y, z) { return getBlock(x, y, z) !== 0; }
-
-  boxBlocked(x, y, z) {
-    return boxCollides(this._solidAt, x, y, z);
-  }
 
   solidBelow(x, y, z) {
     return solidBelow(this._solidAt, x, y, z);

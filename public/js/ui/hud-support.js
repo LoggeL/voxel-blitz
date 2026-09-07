@@ -288,7 +288,6 @@ export class HudSupport {
       if (this._ownedRoots.has(root)) root.remove();
       else root.innerHTML = '';
     }
-    for (const root of this._ownedRoots) root.remove();
 
     this._roots.clear();
     this._ownedRoots.clear();

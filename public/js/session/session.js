@@ -328,6 +328,7 @@ export class Session {
       phase: 'idle',
       credits: 0,
       owned: [],
+      chaosUpgrades: {},
     });
 
     this._replacePregameNet();
@@ -665,6 +666,7 @@ export class Session {
       phase: 'live',
       credits: 0,
       owned: [],
+      chaosUpgrades: {},
     });
     this.hud.hideLobby();
     this.audio.stopMenuMusic?.();

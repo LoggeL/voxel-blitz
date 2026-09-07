@@ -81,8 +81,7 @@ export class TracerFX {
     }
 
     this.stats = { shots: 0 };
-    this._tracersDisposed = false;
-    this._flashesDisposed = false;
+    this._disposed = false;
   }
 
   /** Live muzzle anchor for local tracers; null restores the fixed camera-space spawn. */
@@ -237,9 +236,11 @@ export class TracerFX {
   }
 
   updateTracers(dt) {
+    let dirty = false;
     for (let i = 0; i < this.tracers.length; i++) {
       const tracer = this.tracers[i];
       if (!tracer.active) continue;
+      dirty = true;
       tracer.t += dt;
       if (tracer.t >= tracer.life) {
         tracer.active = false;
@@ -258,7 +259,7 @@ export class TracerFX {
       this._matrix.compose(this._position, this._rotation, this._scale);
       this.tracerMesh.setMatrixAt(i, this._matrix);
     }
-    this.tracerMesh.instanceMatrix.needsUpdate = true;
+    if (dirty) this.tracerMesh.instanceMatrix.needsUpdate = true;
   }
 
   updateFlashes(dt) {
@@ -295,29 +296,17 @@ export class TracerFX {
     this.stats.shots = 0;
   }
 
-  /** Dispose the instanced tracer resource before the other instanced FX pools. */
-  disposeTracers() {
-    if (this._tracersDisposed) return;
-    this._tracersDisposed = true;
+  dispose() {
+    if (this._disposed) return;
+    this._disposed = true;
     this.scene.remove(this.tracerMesh);
+    this.tracerMesh.dispose();
     this.tracerMesh.geometry.dispose();
     this.tracerMesh.material.dispose();
-  }
-
-  /** Dispose sprites after every instanced FX pool, preserving facade order. */
-  disposeFlashes() {
-    if (this._flashesDisposed) return;
-    this._flashesDisposed = true;
-    for (let i = 0; i < this.flashes.length; i++) {
-      const sprite = this.flashes[i].spr;
-      this.scene.remove(sprite);
-      sprite.material.dispose();
+    for (const { spr } of this.flashes) {
+      this.scene.remove(spr);
+      spr.material.dispose();
     }
     this.flashTexture.dispose();
-  }
-
-  dispose() {
-    this.disposeTracers();
-    this.disposeFlashes();
   }
 }

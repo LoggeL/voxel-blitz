@@ -308,9 +308,11 @@ export class ImpactFX {
         this.miningCracks.delete(key);
       }
     }
+    let impactsDirty = false;
     for (let i = 0; i < this.impacts.length; i++) {
       const cue = this.impacts[i];
       if (!cue.active) continue;
+      impactsDirty = true;
       cue.t += dt;
       if (cue.t >= cue.life) {
         cue.active = false;
@@ -319,14 +321,16 @@ export class ImpactFX {
       }
       this._updateImpactCue(i, cue, cue.t / cue.life);
     }
-    for (const mesh of this.impactMeshes) {
+    if (impactsDirty) for (const mesh of this.impactMeshes) {
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
 
+    let particlesDirty = false;
     for (let i = 0; i < this.parts.length; i++) {
       const p = this.parts[i];
       if (!p.active) continue;
+      particlesDirty = true;
       p.t += dt;
       if (p.t >= p.life) {
         p.active = false;
@@ -348,7 +352,7 @@ export class ImpactFX {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.z += p.vz * dt;
-      if (p.vy < 0 && wasVy >= 0 === false) {
+      if (p.vy < 0 && wasVy < 0) {
         const below = this.getBlockFn(
           Math.floor(p.x), Math.floor(p.y - 0.04), Math.floor(p.z),
         );
@@ -372,8 +376,10 @@ export class ImpactFX {
         i, this._col.setRGB(p.colR * fade, p.colG * fade, p.colB * fade),
       );
     }
-    this.partMesh.instanceMatrix.needsUpdate = true;
-    if (this.partMesh.instanceColor) this.partMesh.instanceColor.needsUpdate = true;
+    if (particlesDirty) {
+      this.partMesh.instanceMatrix.needsUpdate = true;
+      if (this.partMesh.instanceColor) this.partMesh.instanceColor.needsUpdate = true;
+    }
   }
 
   dispose() {
@@ -387,6 +393,7 @@ export class ImpactFX {
     for (const material of this.crackMaterials) { material.map.dispose(); material.dispose(); }
     for (const mesh of [this.partMesh, ...this.impactMeshes]) {
       this.scene.remove(mesh);
+      mesh.dispose();
       mesh.geometry.dispose();
       mesh.material.dispose();
     }

@@ -180,18 +180,12 @@ export class GameplayUiFlow {
 
   closeBuyMenu() {
     if (this._hud.isBuyMenuOpen()) this._hud.toggleBuyMenu(false);
-    this._hud.setBuyMenuState({
-      open: false,
-      phase: this._gameplay.matchState?.phase || 'live',
-      credits: 0,
-      owned: [],
-      chaosUpgrades: {},
-    });
   }
 
+  // MatchHud supplies the authoritative economy; this flow only arbitrates
+  // dialog admission and the corresponding input transition.
   syncBuyMenuState() {
     const self = this._gameplay.selfRow;
-    const phase = this._gameplay.matchState?.phase || 'live';
     const admitted = !!(
       this._gameplay.running &&
       this._lifecycle.liveActive &&
@@ -207,13 +201,6 @@ export class GameplayUiFlow {
       this._hud.toggleBuyMenu(false);
       open = false;
     }
-    this._hud.setBuyMenuState({
-      open: open && admitted,
-      phase,
-      credits: Number.isFinite(self?.credits) ? self.credits : 0,
-      owned: Array.isArray(self?.owned) ? self.owned : [],
-      chaosUpgrades: self?.chaosUpgrades || {},
-    });
     if (!open) this.syncInput();
   }
 

@@ -125,9 +125,12 @@ npm run smoke        # base gameplay/protocol smoke
 npm run lobby        # room lifecycle and lobby protocol smoke
 npm run modes:lobby  # selected mode/map lobby and wire contracts
 npm run modes:bots   # deterministic bot behavior in Fun, TDM, S&D, and Gun Game
-npm test             # atlas/world, smoke, lobby, mode-lobby, then bot-mode smoke
+npm test             # refactor/weapon/client contracts, gameplay, lobbies, bot modes
+npm run refactor:test # hitbox equivalence, server contexts/terrain, FX budgets/cleanup
 npm run container:smoke # HTTP + WebSocket check against BASE_URL or localhost
 npm run browser:smoke   # connected touch-mode menu, play, input, pause, and quit flow
+npm run browser:ui      # HUD/shop DOM mutation budgets and session input lifecycle
+node tools/client-refactor-test.mjs --browser # shell batching, pixels and GPU cleanup
 npm run audio:mix       # actual sample + synth + echo + limiter browser render
 ```
 
@@ -170,6 +173,8 @@ spectral-brightness hierarchy.
 the production sample, synthetic layer, echo, master gain, and limiter in a
 Chromium `OfflineAudioContext`; it checks onset, mixed RMS, clipping, tail shape,
 and weapon-weight ordering.
+
+Automated browser sessions and captures mute their audio output.
 
 The fast `npm test` suite runs on every push and pull request. Scheduled/manual
 extended QA keeps audio, deterministic Chromium captures, and the built
@@ -493,6 +498,13 @@ stays in `ui/weapon-wheel.js`. Training progression and gate ownership live in
 `server/modes/training/course.js`. Projectile contact checks follow each
 flight segment in order, including ricochet legs, and damage falloff uses the
 full traveled path.
+
+`server/sim/context.js` creates each room's simulation callbacks once, with live
+clock and mode access. Hitbox queries reuse pose calculations and evaluate swept
+distances without allocating a point for every sample. Shell casings share one
+instanced batch; idle effect pools skip GPU uploads. The HUD and shop update DOM
+properties only when their displayed values change, while timed effects keep
+animating. `refactor:test` and `browser:ui` protect these behavior and cost limits.
 
 Foundry, Depot, Citadel, Solstice, Caldera, and Killhouse are deterministic templates. Every room receives a
 fresh mutable clone of its selected map. The current room map is serialized in

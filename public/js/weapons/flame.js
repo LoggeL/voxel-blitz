@@ -4,6 +4,7 @@ import { FLAME_RULES } from '../../../shared/flame-rules.js';
 
 const CAPACITY = 512;
 const PARTICLES_PER_SHOT = 6;
+const LOCAL_OPTIONS = Object.freeze({ local: true });
 
 /** Bounded billboard batch. Accepted shots sustain a continuous, cancellable local emitter. */
 export class FlameFX {
@@ -11,6 +12,12 @@ export class FlameFX {
     this.getBlock = getBlock;
     this.muzzleProvider = null;
     this.origin = new THREE.Vector3();
+    this._forward = new THREE.Vector3();
+    this._right = new THREE.Vector3();
+    this._up = new THREE.Vector3();
+    this._direction = new THREE.Vector3();
+    this._target = new THREE.Vector3();
+    this._muzzleRay = new THREE.Vector3();
     this.cursor = 0;
     this.localEvent = null;
     this.localActive = false;
@@ -96,34 +103,39 @@ export class FlameFX {
         event.o.length !== 3 || event.d.length !== 3 ||
         !event.o.every(Number.isFinite) || !event.d.every(Number.isFinite)) return;
     this.origin.fromArray(event.o);
-    const forward = new THREE.Vector3().fromArray(event.d);
+    const forward = this._forward.fromArray(event.d);
     if (forward.lengthSq() < 0.0001) return;
     forward.normalize();
     if (options.local && this.muzzleProvider) {
-      const eye = this.origin.clone();
-      const eyeHit = raycastVoxels(this.getBlock, ...event.o, ...forward.toArray(), FLAME_RULES.range);
-      const target = eye.clone().addScaledVector(forward, eyeHit ? Math.max(0, eyeHit.t - 0.05) : FLAME_RULES.range);
+      const eyeHit = raycastVoxels(this.getBlock, this.origin.x, this.origin.y, this.origin.z,
+        forward.x, forward.y, forward.z, FLAME_RULES.range);
+      const target = this._target.copy(this.origin)
+        .addScaledVector(forward, eyeHit ? Math.max(0, eyeHit.t - 0.05) : FLAME_RULES.range);
       this.muzzleProvider(this.origin);
-      const muzzleRay = this.origin.clone().sub(eye);
+      const muzzleRay = this._muzzleRay.set(
+        this.origin.x - event.o[0], this.origin.y - event.o[1], this.origin.z - event.o[2],
+      );
       const muzzleDistance = muzzleRay.length();
       if (muzzleDistance > 0) {
         muzzleRay.divideScalar(muzzleDistance);
-        if (raycastVoxels(this.getBlock, ...event.o, ...muzzleRay.toArray(), muzzleDistance)) return;
+        if (raycastVoxels(this.getBlock, event.o[0], event.o[1], event.o[2],
+          muzzleRay.x, muzzleRay.y, muzzleRay.z, muzzleDistance)) return;
       }
       forward.copy(target).sub(this.origin).normalize();
     }
-    const right = new THREE.Vector3(0, 1, 0).cross(forward);
+    const right = this._right.set(0, 1, 0).cross(forward);
     if (right.lengthSq() < 0.001) right.set(1, 0, 0);
     right.normalize();
-    const up = forward.clone().cross(right).normalize();
+    const up = this._up.copy(forward).cross(right).normalize();
     for (let i = 0, total = count + (count === 1 ? Number(Math.random() < 0.33) : 2); i < total; i++) {
       const puff = this.puffs[this.cursor++ % CAPACITY];
       const ember = i >= count;
       const angle = Math.random() * Math.PI * 2;
       const spread = Math.sqrt(Math.random()) * Math.tan(FLAME_RULES.coneDeg * Math.PI / 360) * (ember ? 1 : 0.65);
-      const direction = forward.clone().addScaledVector(right, Math.cos(angle) * spread)
+      const direction = this._direction.copy(forward).addScaledVector(right, Math.cos(angle) * spread)
         .addScaledVector(up, Math.sin(angle) * spread).normalize();
-      const hit = raycastVoxels(this.getBlock, ...this.origin.toArray(), ...direction.toArray(), FLAME_RULES.range);
+      const hit = raycastVoxels(this.getBlock, this.origin.x, this.origin.y, this.origin.z,
+        direction.x, direction.y, direction.z, FLAME_RULES.range);
       const reach = hit ? Math.max(0, hit.t - 0.15) : FLAME_RULES.range;
       puff.age = stagger ? (i % PARTICLES_PER_SHOT) * FLAME_RULES.cadence / PARTICLES_PER_SHOT : initialAge;
       puff.life = reach / FLAME_RULES.speed;
@@ -153,7 +165,7 @@ export class FlameFX {
       this.localElapsed = Math.max(0, this.localElapsed - elapsedIntervals * interval);
       for (let i = 0; i < emissions; i++) {
         const age = this.localElapsed + i * interval;
-        this.emit(this.localEvent, { local: true }, 1, false, age);
+        this.emit(this.localEvent, LOCAL_OPTIONS, 1, false, age);
       }
     } else this.localElapsed = 0;
     let count = 0;
@@ -172,7 +184,7 @@ export class FlameFX {
       count++;
     }
     this.geometry.instanceCount = count;
-    this.centers.needsUpdate = this.shapes.needsUpdate = this.colors.needsUpdate = true;
+    if (count) this.centers.needsUpdate = this.shapes.needsUpdate = this.colors.needsUpdate = true;
   }
 
   dispose() {

@@ -288,30 +288,6 @@ function mineBlock(p, eye, fwd, ctx) {
   }
 }
 
-/** Segment (array origin o, unit object direction d) vs victim AABB. */
-export function rayAABB(o, d, mnX, mnY, mnZ, mxX, mxY, mxZ) {
-  let t0 = -Infinity, t1 = Infinity;
-  const axes = [
-    [o[0], d.x, mnX, mxX],
-    [o[1], d.y, mnY, mxY],
-    [o[2], d.z, mnZ, mxZ],
-  ];
-  for (let i = 0; i < 3; i++) {
-    const ov = axes[i][0], dv = axes[i][1];
-    if (Math.abs(dv) < 1e-9) {
-      if (ov < axes[i][2] || ov > axes[i][3]) return null;
-    } else {
-      let ta = (axes[i][2] - ov) / dv;
-      let tb = (axes[i][3] - ov) / dv;
-      if (ta > tb) { const tmp = ta; ta = tb; tb = tmp; }
-      if (ta > t0) t0 = ta;
-      if (tb < t1) t1 = tb;
-    }
-  }
-  if (t1 < t0 || t1 < 0) return null;
-  return Math.max(t0, 0);
-}
-
 /** Position a human shooter saw at its bounded reported presentation age. */
 export function rewindVictim(v, now, viewAgeMs = NETWORK_PRESENTATION.defaultViewAgeMs) {
   const h = v.hist;
@@ -359,13 +335,11 @@ export function blockKey(x, y, z) {
 export function destroyBlockDirect(x, y, z, key, ctx) {
   const from = ctx.getBlock(x, y, z);
   if (from === AIR) {
-    if (key) ctx.blockHp.delete(key);
-    else ctx.blockHp.delete(blockKey(x, y, z));
+    ctx.blockHp.delete(key || blockKey(x, y, z));
     return false;
   }
   ctx.setBlock(x, y, z, AIR);
-  if (key) ctx.blockHp.delete(key);
-  else ctx.blockHp.delete(blockKey(x, y, z));
+  ctx.blockHp.delete(key || blockKey(x, y, z));
   ctx.pushBlockDelta(x, y, z, AIR);
   ctx.pushEvent(evBlock(x, y, z, AIR, from));
   return true;
@@ -384,7 +358,7 @@ export function destroyBlock(x, y, z, key, ctx) {
 
 export function damageBlock(x, y, z, type, dmg, ctx) {
   const key = blockKey(x, y, z);
-  let hp = ctx.blockHp.has(key) ? ctx.blockHp.get(key) : BLOCK_HP[type];
+  let hp = ctx.blockHp.get(key) ?? BLOCK_HP[type];
   hp -= dmg;
   if (hp <= 0) destroyBlock(x, y, z, key, ctx);
   else ctx.blockHp.set(key, hp);
@@ -543,10 +517,9 @@ export function fireOneShot(p, ctx, charge = 1) {
       if (!hit) break;
       const wallType = ctx.getBlock(hit.x, hit.y, hit.z);
       if (wallsLeft <= 0) {
-        const type = ctx.getBlock(hit.x, hit.y, hit.z);
-        if (BLOCK_HP[type] != null) {
+        if (BLOCK_HP[wallType] != null) {
           const dmgB = Math.max(BLOCK_MIN_DMG, Math.round(damageAtDistance(def, traveled + hit.t) * dmgMult));
-          damageBlock(hit.x, hit.y, hit.z, type, dmgB, ctx);
+          damageBlock(hit.x, hit.y, hit.z, wallType, dmgB, ctx);
         }
         // Indestructible types simply terminate the tracer here.
         break;

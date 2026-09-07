@@ -1,4 +1,4 @@
-import { WEAPONS, CONDITION_RULES, SNIPER_SCOPE_ADS_THRESHOLD } from '../../../shared/combatmath.js';
+import { CONDITION_RULES, SNIPER_SCOPE_ADS_THRESHOLD } from '../../../shared/combatmath.js';
 import { PlayerPhysics, moveSpeedFor } from '../player-physics.js';
 import { hashInt } from '../util/hash.js';
 import { clamp01, clampPitch, easeOut, nowMs, smooth01 } from '../util/math.js';

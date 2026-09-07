@@ -227,9 +227,7 @@ export class MatchHud {
         m.bombBanner.style.display = 'block';
         m.bombBanner.className = `vb-match-bomb-banner state-${b.state || 'none'}`;
 
-        if (b.state === 'carried') {
-          m.bombBanner.textContent = 'BOMB: IN POSSESSION';
-        } else if (b.state === 'dropped') {
+        if (b.state === 'dropped') {
           m.bombBanner.textContent = 'BOMB DROPPED';
         } else if (b.state === 'planted') {
           m.bombBanner.textContent = `BOMB · SITE ${String(b.site || 'A').toUpperCase()}`;
@@ -237,8 +235,6 @@ export class MatchHud {
           m.bombBanner.textContent = 'BOMB DEFUSED';
         } else if (b.state === 'exploded') {
           m.bombBanner.textContent = 'BOMB DETONATED';
-        } else {
-          m.bombBanner.textContent = 'BOMB OBJECTIVE';
         }
       } else {
         m.bombBanner.style.display = 'none';

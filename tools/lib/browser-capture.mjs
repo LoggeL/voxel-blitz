@@ -96,6 +96,7 @@ function run(command, args, timeoutMs = 45_000) {
 function chromiumArgs(profileDir, { width, height }) {
   return [
     '--headless=new',
+    '--mute-audio',
     '--no-first-run',
     '--disable-background-networking',
     '--disable-component-update',

@@ -42,6 +42,8 @@ jobs:
       - run: npm ci
       - run: test -x /usr/bin/google-chrome
       - run: npm run browser:smoke
+      - run: npm run browser:ui
+      - run: node tools/client-refactor-test.mjs --browser
       - run: npm run audio:mix
       - run: npm run maps:capture
       - run: npm run weapons:capture

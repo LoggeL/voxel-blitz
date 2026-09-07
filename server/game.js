@@ -30,16 +30,15 @@ import {
   computeConeDeg,
   damageBlock,
   destroyBlock,
-  destroyBlockDirect,
   fireOneShot,
   nearestVictim,
-  rayAABB,
   resolveWeaponIntent,
   rewindVictim,
   switchWeapon,
 } from './sim/combat.js';
 import { SpawnSelector } from './sim/spawn.js';
 import { ProjectileSystem } from './sim/projectiles.js';
+import { createSimulationContexts } from './sim/context.js';
 import {
   clampGrenadeCharge,
   clampGrenadeCook,
@@ -83,6 +82,7 @@ export class GameEngine {
     this.flames = new FlameSystem();
 
     this.mode = new ModeController(this, { mode: callbacks.mode, mapMeta: this.mapMeta });
+    this.contexts = createSimulationContexts(this);
     this.spawnSelector = new SpawnSelector({
       entities: this.entities,
       isEnemy: (left, right) => this.mode.isEnemy(left, right),
@@ -345,16 +345,9 @@ export class GameEngine {
   updateCondition(player, dt) { return updateCondition(player, dt); }
 
   integrate(player, dt) {
-    return stepMovement(player, dt, {
-      solidAt: this.solidAt,
-      mapMeta: this.mapMeta,
-      now: this.now,
-      movementLocked: !this.mode.canMove(player),
-      onFall: (entity, reason) => {
-        if (reason === 'invalid') this.forceRespawn(entity);
-        else this.killPlayer(entity, null, 'world', false);
-      },
-    });
+    const ctx = this.contexts.movement;
+    ctx.movementLocked = !this.mode.canMove(player);
+    return stepMovement(player, dt, ctx);
   }
 
   forceRespawn(player) {
@@ -375,10 +368,9 @@ export class GameEngine {
   switchWeapon(player, slot) { return switchWeapon(player, slot); }
 
   canFire(player, fireEdge = false) {
-    return canFire(player, fireEdge, { canFire: (entity) => this.mode.canFire(entity) });
+    return canFire(player, fireEdge, this.combatContext());
   }
 
-  rayAABB(...args) { return rayAABB(...args); }
   rewindVictim(player) { return rewindVictim(player, this.now); }
 
   nearestVictim(shooter, origin, direction, limit) {
@@ -400,56 +392,8 @@ export class GameEngine {
     this.tickBlocks.push({ i: ((y * SZ) + z) * SX + x, v: value });
   }
 
-  combatContext() {
-    return {
-      canFire: (player) => this.mode.canFire(player),
-      flames: this.flames,
-      canBurn: () => this.mode.phase === 'live',
-      canUseWeapon: (player, weapon) => this.mode.canUseWeapon(player, weapon),
-      killPlayer: (victim, killer, weapon, headshot, markers) => {
-        this.killPlayer(victim, killer, weapon, headshot, markers);
-      },
-      getBlock: (x, y, z) => this.world.getBlock(x, y, z),
-      setBlock: (x, y, z, value) => this.world.setBlock(x, y, z, value),
-      blockHp: this.blockHp,
-      entities: this.entities,
-      canDamage: (attacker, target) => this.mode.canDamage(attacker, target),
-      now: this.now,
-      solidAt: this.solidAt,
-      pushBlockDelta: (x, y, z, value) => this.pushBlockDelta(x, y, z, value),
-      pushEvent: (event) => this.tickEvents.push(event),
-      computeConeDeg: (player) => this.computeConeDeg(player),
-      chaosBlast: (player, origin, type, radius, damage, knockback) => this.projectiles.chaosBlast(player, origin, type, radius, damage, knockback, this.projectileContext()),
-      launchRocket: (player, dir) => this.projectiles.launchRocket(
-        player, this.projectileContext(), dir,
-      ),
-      launchBolt: (player, dir, charge01) => this.projectiles.launchBolt(
-        player, this.projectileContext(), dir, charge01,
-      ),
-    };
-  }
-
-  projectileContext() {
-    return {
-      now: this.now,
-      entities: this.entities,
-      getBlock: (x, y, z) => this.world.getBlock(x, y, z),
-      canAffectWorld: () => this.mode.phase === 'live',
-      canThrow: (player) => !player.vault && this.mode.canFire(player),
-      grenadeDamage: this.mode.mode !== 'gungame',
-      canDamage: (attacker, target) => this.mode.canDamage(attacker, target),
-      destroyBlock: (x, y, z) => destroyBlockDirect(
-        x, y, z, null, this.combatContext(),
-      ),
-      damageBlock: (x, y, z, type, dmg) => damageBlock(
-        x, y, z, type, dmg, this.combatContext(),
-      ),
-      killPlayer: (victim, killer, weapon, headshot, markers) => (
-        this.killPlayer(victim, killer, weapon, headshot, markers)
-      ),
-      pushEvent: (event) => this.tickEvents.push(event),
-    };
-  }
+  combatContext() { return this.contexts.combat; }
+  projectileContext() { return this.contexts.projectiles; }
 
   killPlayer(victim, killer, weaponKey, headshot, markers = null) {
     if (victim.state !== 'alive') return;

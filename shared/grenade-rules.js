@@ -113,10 +113,7 @@ export const GRENADE_TYPES = Object.freeze({
   }),
 });
 
-/** Legacy names kept for the frag profile so older call sites read the same numbers. */
 export const GRENADE_FUSE_MS = GRENADE_TYPES.frag.fuseMs;
-export const GRENADE_PHYSICS = FRAG_PHYSICS;
-export const GRENADE_PER_LIFE = GRENADE_TYPES.frag.perLife;
 
 /** Per-type inventory for a fresh life, in `GRENADE_TYPE_IDS` order. */
 export function freshGrenadeLoadout() {
@@ -136,10 +133,6 @@ export function clampGrenadeType(value) {
 
 export function grenadeTypeAt(index) {
   return GRENADE_TYPES[GRENADE_TYPE_IDS[clampGrenadeType(index)]];
-}
-
-export function grenadeTypeById(id) {
-  return GRENADE_TYPES[id] || null;
 }
 
 /**

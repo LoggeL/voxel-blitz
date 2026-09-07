@@ -18,19 +18,25 @@ export class PlayerStatusStrip {
   update(players, mode, selfId) {
     const root = this.root;
     if (!root) return;
-    root.style.display = mode === 'snd' ? 'flex' : 'none';
-    const roster = mode === 'snd' && Array.isArray(players) ? players.filter(Boolean) : [];
+    const display = mode === 'snd' ? 'flex' : 'none';
+    if (root.style.display !== display) root.style.display = display;
+    if (mode !== 'snd') {
+      if (this._signature) root.innerHTML = '';
+      this._signature = '';
+      return;
+    }
+    const roster = Array.isArray(players) ? players.filter(Boolean) : [];
     const signature = JSON.stringify([mode, selfId,
       roster.map((p) => [p.id, p.name, p.team, isAlive(p), p.local])]);
     if (signature === this._signature) return;
     this._signature = signature;
     root.innerHTML = '';
-    if (mode !== 'snd') return;
     for (const team of ['alpha', 'bravo']) {
       const members = roster.filter((p) => p.team === team);
       const group = el('div', `vb-player-status-group vb-player-team-${team}`, root);
-      group.setAttribute('aria-label', `${team}, ${members.filter(isAlive).length} alive`);
-      el('span', 'vb-player-status-summary', group).textContent = `${members.filter(isAlive).length} ALIVE`;
+      const aliveCount = members.reduce((total, player) => total + Number(isAlive(player)), 0);
+      group.setAttribute('aria-label', `${team}, ${aliveCount} alive`);
+      el('span', 'vb-player-status-summary', group).textContent = `${aliveCount} ALIVE`;
       for (const player of members) {
         const alive = isAlive(player);
         const self = player.local === true || (selfId != null && String(player.id) === String(selfId));

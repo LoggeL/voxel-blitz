@@ -76,7 +76,7 @@ export class MatchResultOverlay {
 
   hide() {
     const root = this.dom.root;
-    if (!root) return;
+    if (!root || root.classList.contains('hidden')) return;
     root.className = 'vb-match-result hidden';
     root.setAttribute('aria-hidden', 'true');
   }

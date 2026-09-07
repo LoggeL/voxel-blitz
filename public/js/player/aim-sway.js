@@ -115,9 +115,3 @@ export class AimSway {
     return this._readModel;
   }
 }
-
-export const AIM_SWAY_TIMING = Object.freeze({
-  baseBreathSeconds: BASE_BREATH_SECONDS,
-  minBreathSeconds: MIN_BREATH_SECONDS,
-  releaseRecoverySeconds: RELEASE_RECOVERY_SECONDS,
-});

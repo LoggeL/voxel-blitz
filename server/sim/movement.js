@@ -20,6 +20,7 @@ const LADDER_UP_SPEED = MOVEMENT_RULES.ladderUp;
 const LADDER_DOWN_SPEED = MOVEMENT_RULES.ladderDown;
 const TERMINAL_VY = MOVEMENT_RULES.terminalVy;
 const DEAD_FALL_Y = -24;
+const IDLE_KEYS = Object.freeze({});
 
 /** Advance weapon, deploy, coyote, bloom, and reload timers. */
 export function updateTimers(p, dt) {
@@ -105,26 +106,29 @@ function slideAxis(player, axis, amount, solidAt) {
   return collided;
 }
 
+function recordPose(p, now) {
+  p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
+    crouch: p.crouch, proneT: p.proneT, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
+    vx: p.vx, vz: p.vz, t: now });
+  if (p.hist.length > 16) p.hist.shift();
+}
+
 /**
  * Integrate one living entity for one fixed simulation step.
  *
  * ctx = { solidAt(x,y,z), mapMeta, now, movementLocked, onFall(entity) }
  */
 export function stepMovement(p, dt, ctx) {
-  const inp = p.input || {
-    seq: 0,
-    keys: { f: 0, b: 0, l: 0, r: 0, jump: 0, sprint: 0, crouch: 0 },
-    yaw: p.yaw, pitch: p.pitch, wantAds: false,
-  };
+  const inp = p.input;
 
   // NaN paranoia: corrupted state never propagates.
-  if (![isFinite(p.x), isFinite(p.y), isFinite(p.z)].every(Boolean)) {
+  if (!Number.isFinite(p.x) || !Number.isFinite(p.y) || !Number.isFinite(p.z)) {
     ctx.onFall(p, 'invalid');
     return;
   }
 
-  p.yaw = inp.yaw; p.pitch = inp.pitch;
-  p.ads = !!inp.wantAds && p.deployT <= 0;
+  if (inp) { p.yaw = inp.yaw; p.pitch = inp.pitch; }
+  p.ads = !!inp?.wantAds && p.deployT <= 0;
   const adsStep = dt / Math.max(0.001, p.def.adsTime);
   p.adsT = Math.max(0, Math.min(1, p.adsT + (p.ads ? adsStep : -adsStep)));
 
@@ -138,14 +142,11 @@ export function stepMovement(p, dt, ctx) {
     p.sprint = false;
     p.coyote = 0;
     p.grounded = solidBelow(ctx.solidAt, p.x, p.y, p.z);
-    p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
-      crouch: p.crouch, proneT: p.proneT, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
-      vx: p.vx, vz: p.vz, t: ctx.now });
-    if (p.hist.length > 16) p.hist.shift();
+    recordPose(p, ctx.now);
     return;
   }
 
-  const kf = inp.keys;
+  const kf = inp ? inp.keys : IDLE_KEYS;
   const fwdAmt = (kf.f ? 1 : 0) - (kf.b ? 1 : 0);
   const strafe = (kf.r ? 1 : 0) - (kf.l ? 1 : 0);
   const ladderHere = ladderContact(ctx.mapMeta, p.x, p.y, p.z);
@@ -174,10 +175,7 @@ export function stepMovement(p, dt, ctx) {
     p.grounded = !active && solidBelow(ctx.solidAt, p.x, p.y, p.z);
     p.coyote = 0;
     if (!active) p.vault = null;
-    p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
-      crouch: p.crouch, proneT: p.proneT, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
-      vx: p.vx, vz: p.vz, t: ctx.now });
-    if (p.hist.length > 16) p.hist.shift();
+    recordPose(p, ctx.now);
     return;
   }
   let speed = low ? PRONE.speed : p.crouch ? CROUCH_SPEED : (p.sprint ? SPRINT_SPEED : WALK_SPEED);
@@ -233,10 +231,7 @@ export function stepMovement(p, dt, ctx) {
   }
 
   // Keep the 16-sample authoritative trail used by shooter-side rewind.
-  p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
-      crouch: p.crouch, proneT: p.proneT, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
-      vx: p.vx, vz: p.vz, t: ctx.now });
-  if (p.hist.length > 16) p.hist.shift();
+  recordPose(p, ctx.now);
 
   if (p.y < DEAD_FALL_Y) ctx.onFall(p, 'void');
 }

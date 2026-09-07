@@ -112,9 +112,11 @@ export class WeaponState {
   get scopeActive() { return this._scopeActive; }
   get isReloading() { return this._reloadState !== null; }
   get flameFiring() {
+    // Presentation reads one simulation decision even when rendering takes longer
+    // than the keepalive. The next fire update still expires a stalled emitter.
     return this.def.id === 'flamethrower' && this._flameActive && this._allowFire && this._alive &&
       !this._reloadState && this._pendingShotIntent?.held === true &&
-      this._now() >= this._deployUntil && this._now() - this._flameLastShotAt <= 125;
+      this._flameFrameAt >= this._deployUntil && this._flameFrameAt - this._flameLastShotAt <= 125;
   }
   get reload01() { return this._reloadProgress(this._now()); }
   /** Live 0..1 capacitor charge of a `charge` weapon while the trigger is held. */
@@ -329,9 +331,11 @@ export class WeaponState {
 
   _stopFlame() {
     this._rig.setFlame?.(false, 0);
-    if (!this._flameActive) return;
+    const wasActive = this._flameActive;
     this._flameActive = false;
-    this._audio.stopFlame?.();
+    this._flameFrameAt = 0;
+    this._flameLastShotAt = -Infinity;
+    if (wasActive) this._audio.stopFlame?.();
   }
 
   clearIntents() {
@@ -492,6 +496,7 @@ export class WeaponState {
   }
 
   _tryFire(now) {
+    this._flameFrameAt = now;
     const thermalDt = this._thermalAt === null ? 0 : Math.max(0, (now - this._thermalAt) / 1000);
     this._thermalAt = now;
     const canSpin = this.def.id === 'minigun' && this._allowFire && this._alive &&
