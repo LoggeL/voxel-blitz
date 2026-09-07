@@ -12,6 +12,7 @@ const ANCHORS = Object.freeze({
   solstice: [[64, 14, 29], [31, 14, 44], [64, 14, 61], [80, 14, 71]],
   caldera: [[56, 14, 34], [72, 14, 25], [53, 14, 67], [73, 14, 70]],
   nuketown: [[43, 14, 37], [79, 14, 40], [49, 14, 56], [84, 14, 59]],
+  dust2: [[59, 14, 35], [28, 14, 26], [100, 17, 23], [112, 14, 50]],
 });
 
 /** Cheap live check for active pickups; a mined or blocked pad is invalid. */

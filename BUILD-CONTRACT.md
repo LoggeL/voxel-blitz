@@ -61,7 +61,7 @@ The first non-binary frame is exactly one admission shape:
   applies only to a newly created quick room. Fresh quick rooms rotate between
   `foundry`, `depot`, `solstice`, and `caldera`.
 - `{t:'create',name:string,bots:number,gameMode?:'fun'|'tdm'|'snd'|'gungame'|'training',
-  map?:'foundry'|'depot'|'citadel'|'solstice'|'caldera'|'killhouse'}` creates a public waiting lobby.
+  map?:'foundry'|'depot'|'citadel'|'solstice'|'caldera'|'nuketown'|'dust2'|'killhouse'}` creates a public waiting lobby.
   Omitted values default to `fun` and the first compatible map. An explicitly
   incompatible mode/map pair is malformed.
 - `{t:'join',name:string,lobby:string}` joins a public waiting or live lobby and
@@ -215,7 +215,7 @@ and landmarks use the ground floor at `GROUND + 1.02`, independently of the high
 roof voxel recorded by `heightAt`. Spawn and target validation checks the actual
 feet cell and headroom. The four-stage gate metadata remains authoritative.
 
-`createMapState` accepts `foundry`, `depot`, `citadel`, `solstice`, `caldera`, or `killhouse` and returns an
+`createMapState` accepts `foundry`, `depot`, `citadel`, `solstice`, `caldera`, `nuketown`, `dust2`, or `killhouse` and returns an
 independent `{mapId,meta,getBlock,setBlock,heightAt,findSpawns,serializeWorld,
 rebuildHeightMap}`. Templates are generated and cached once, then cloned for
 each room. `meta` is deeply frozen and has
@@ -225,7 +225,7 @@ the map id travels in JSON. `createWorldState` remains the default Foundry API.
 
 ### shared/modes.js
 Exports immutable `MODE_IDS=['fun','tdm','snd','gungame','training']`,
-`TEAM_IDS=['alpha','bravo']`, `MAP_IDS=['foundry','depot','citadel','solstice','caldera','killhouse']`,
+`TEAM_IDS=['alpha','bravo']`, `MAP_IDS=['foundry','depot','citadel','solstice','caldera','nuketown','dust2','killhouse']`,
 `MODE_RULES`, `MAP_MODE_COMPATIBILITY`, S&D credit constants,
 `WEAPON_PRICES`, defaults, validators/normalizers for mode/team/map/weapon ids,
 `isTeamMode(modeId)`, `isModeMapCompatible(modeId,mapId)`,
@@ -694,6 +694,15 @@ step listener with the room.
   B, and a central vent, and Killhouse is a weapon-test firing range with
   respawning dummies and a timed 4-stage course. Every declared spawn
   has solid footing and two-block headroom.
+- **Dust 2 (`dust2`):** supports Fun, Chaos Lab, TDM, S&D and Gun Game. T spawn
+  connects to B Tunnels, Mid Doors and Long A; Short/Catwalk links Mid to the
+  elevated A site. CT spawn connects both sites across the north. Doors, crates,
+  tunnel ceilings, stairs and buildings use authoritative voxels. Spawn pools
+  use the ground floor below tunnel roofs; expanded and recovery spawns stay
+  inside the perimeter at that same floor height. A/B plant rectangles stay
+  clear of cover, and four exposed power-up pads follow the common pickup rules.
+  `npm run maps:test` covers route connectivity, spawns and live map admission;
+  `npm run maps:capture -- --map dust2` renders overview, route and site views.
 - **Settings:** sensitivity defaults to `0.003` rad/px, clamps to
   `0.0008–0.012`, and persists as `vb-sens-v2` (`SENSITIVITY_PREF_KEY`; the
   old `vb-sens` scale is ignored rather than clamped). Touch look runs at 1.4×

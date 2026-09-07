@@ -21,6 +21,15 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   shot('nuketown', 'garden', [30, 18.5, 72], [43, 20, 77], 78),
   shot('nuketown', 'playground', [45, 18, 61], [37, 18, 68], 78),
 
+  shot('dust2', 'hero', [126, 88, 119], [64, 15, 45], 60),
+  shot('dust2', 'long-a', [112, 17, 53], [110, 19, 25], 74),
+  shot('dust2', 'mid-doors', [61, 17, 61], [59, 18, 30], 70),
+  shot('dust2', 'catwalk', [72.5, 19.64, 47.5], [60, 19, 32], 74),
+  shot('dust2', 'b-tunnels', [25, 17, 62], [25, 18, 37], 76),
+  shot('dust2', 'b-site', [28.5, 17, 29.5], [26.5, 20.5, 10], 76),
+  shot('dust2', 'snd-site-a', [113, 26, 29], [99.5, 18.5, 23.5], 72, 'snd'),
+  shot('dust2', 'snd-site-b', [34, 23, 30], [26.5, 15.5, 23.5], 72, 'snd'),
+
   shot('foundry', 'hero', [64.5, 17.64, 82.5], [65, 23, 46]),
   shot('foundry', 'west-lane', [20.5, 13.64, 48.5], [65, 23, 46]),
   shot('foundry', 'north-forge', [64.5, 18.64, 49.5], [60, 21, 26]),

@@ -29,6 +29,12 @@ const SIGNS = {
     ['01', 'ATOMIC AVENUE', 60.5, 19.5, 61, 2.4, 0.8, '-z'],
     ['02', 'ATOMIC AVENUE', 67.5, 19.5, 35, 2.4, 0.8, '+z'],
   ],
+  dust2: [
+    ['A SITE', 'LONG / SHORT', 104, 21, 10, 7, 1.8, '+z'],
+    ['B SITE', 'KASBAH / TUNNELS', 26.5, 20.5, 10, 7, 1.8, '+z'],
+    ['MID DOORS', 'CT SPAWN', 59.5, 23.1, 32, 8, 1.4, '+z'],
+    ['T SPAWN', 'MID / LONG / TUNNELS', 65.5, 20.5, 90, 8, 1.8, '-z'],
+  ],
   killhouse: [
     ['LIVE FIRE', 'KEEP DOWNRANGE CLEAR', 64, 18.5, 58, 15, 2, '+z'],
     ['THE COURSE', 'ENTRY', 15, 20.5, 50, 6.7, 0.85, '+z'],
@@ -39,6 +45,7 @@ const COLORS = {
   foundry: ['#273b39', '#f0c97b'], depot: ['#253744', '#ffce75'],
   citadel: ['#753c36', '#f7dfaf'], solstice: ['#25555a', '#f5e5b6'],
   caldera: ['#433b40', '#ffd1a0'], nuketown: ['#427268', '#fff0cd'],
+  dust2: ['#d9bd86', '#823e2b'],
   killhouse: ['#263848', '#ffcf77'],
 };
 const supportsPaint = type => type !== AIR && type !== GLASS;

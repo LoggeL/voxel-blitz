@@ -9,10 +9,22 @@ const MAP_NAMES = Object.freeze({
   solstice: 'Solstice',
   caldera: 'Caldera',
   nuketown: 'Nuketown',
+  dust2: 'Dust 2',
   killhouse: 'Killhouse',
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
+  dust2: {
+    fun: [[56,84],[74,84],[57,14],[75,14],[16,15],[36,15],[21,65],[44,74],[107,70],[64,64]],
+    tdm: {
+      alpha: [[57,83],[61,83],[65,83],[69,83],[73,83],[65,87]],
+      bravo: [[57,15],[61,15],[65,15],[69,15],[73,15],[65,11]],
+    },
+    snd: {
+      attackers: [[57,83],[61,83],[65,83],[69,83],[73,83],[65,87]],
+      defenders: [[57,15],[61,15],[65,15],[69,15],[73,15],[65,11]],
+    },
+  },
   nuketown: {
     fun: [[43,12],[56,12],[73,12],[86,12],[43,83],[56,83],[73,83],[86,83],[28,40],[99,55],[35,59],[92,39]],
     tdm: { alpha: [[43,83],[51,83],[59,83],[68,83],[77,83],[86,83]], bravo: [[43,12],[51,12],[59,12],[68,12],[77,12],[86,12]] },
@@ -81,6 +93,10 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
 });
 
 const MAP_SITE_LAYOUTS = Object.freeze({
+  dust2: [
+    { id: 'A', minX: 96, maxX: 103, minZ: 21, maxZ: 28, y: GROUND + 4.02 },
+    { id: 'B', minX: 23, maxX: 30, minZ: 20, maxZ: 27, y: GROUND + 1.02 },
+  ],
   nuketown: [
     { id: 'A', minX: 32, maxX: 39, minZ: 43, maxZ: 51, y: GROUND + 1.02 },
     { id: 'B', minX: 92, maxX: 99, minZ: 43, maxZ: 51, y: GROUND + 1.02 },
@@ -106,6 +122,13 @@ const MAP_SITE_LAYOUTS = Object.freeze({
 });
 
 const MAP_LANDMARKS = Object.freeze({
+  dust2: [
+    { id: 'a-site', name: 'A Site', x: 99, z: 24 },
+    { id: 'b-site', name: 'B Site', x: 26, z: 23 },
+    { id: 'mid-doors', name: 'Mid Doors', x: 62, z: 32 },
+    { id: 'a-long', name: 'A Long', x: 112, z: 50 },
+    { id: 'upper-tunnels', name: 'Upper Tunnels', x: 24, z: 45, floorY: GROUND },
+  ],
   nuketown: [
     { id: 'yellow-house', name: 'Yellow House', x: 59, z: 67 },
     { id: 'school-bus', name: 'School Bus', x: 57, z: 46 },
@@ -235,14 +258,18 @@ function resolveSpawnPool(world, anchors, floorY = null) {
 
 export function createMapMetadata(id, world) {
   const anchors = MAP_SPAWN_ANCHORS[id];
-  // Training targets and operators belong inside the facility, below its canopy.
-  const floorY = id === 'killhouse' ? GROUND : null;
+  // Training operators and Dust 2 players spawn below the canopy/tunnel roofs.
+  const floorY = id === 'killhouse' || id === 'dust2' ? GROUND : null;
   const metadata = {
     id,
     name: MAP_NAMES[id],
     // Keep procedural and terrain-recovery spawns inside the test-town wall.
     ...(id === 'nuketown' ? { spawnBounds: {
       minX: 22.5, maxX: 104.5, minZ: 6.5, maxZ: 88.5,
+      minY: GROUND + 1, maxY: GROUND + 1.1,
+    } } : {}),
+    ...(id === 'dust2' ? { spawnBounds: {
+      minX: 7.5, maxX: 120.5, minZ: 7.5, maxZ: 88.5,
       minY: GROUND + 1, maxY: GROUND + 1.1,
     } } : {}),
     modes: MAP_MODE_COMPATIBILITY[id],
@@ -259,9 +286,9 @@ export function createMapMetadata(id, world) {
     },
     ladders: id === 'foundry' ? foundryLadderVolumes() : [],
     sites: MAP_SITE_LAYOUTS[id].map((site) => ({ ...site })),
-    landmarks: MAP_LANDMARKS[id].map((landmark) => ({
+    landmarks: MAP_LANDMARKS[id].map(({ floorY: landmarkFloorY, ...landmark }) => ({
       ...landmark,
-      y: (floorY ?? world.heightAt(landmark.x, landmark.z)) + 1.02,
+      y: (landmarkFloorY ?? (id === 'killhouse' ? GROUND : world.heightAt(landmark.x, landmark.z))) + 1.02,
     })),
     dummyPosts: (MAP_DUMMY_POSTS[id] || []).map((post) => ({
       ...post,

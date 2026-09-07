@@ -46,7 +46,7 @@ Actual browser captures from the game. Arena shots use the built-in fixed-camera
 
 The Killhouse firing line. Practice here, then head into the timed course.
 
-Six maps ship with the game: Foundry, Depot, Citadel, Solstice, Caldera and Killhouse. See the [map compatibility table](docs/development.md#map-compatibility) for supported modes.
+Eight maps ship with the game: Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2 and Killhouse. [Dust 2](docs/maps/dust2.md) brings Long A, Short/Catwalk, Mid Doors and B Tunnels to the destructible voxel world. Select it in a custom lobby for Fun, Chaos Lab, Team Deathmatch, Search and Destroy or Gun Game. See the [map compatibility table](docs/development.md#map-compatibility) for supported modes.
 
 ## Get started
 

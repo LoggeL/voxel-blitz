@@ -323,6 +323,8 @@ the attempt. Death or disconnect releases the course for the next runner.
 | `citadel` | Fun, TDM, S&D, Gun Game | Citadel with Courtyard A and elevated Compound B |
 | `solstice` | Fun, TDM, S&D, Gun Game | desert solar observatory with a biodome, heliostat ring, and turbine hall |
 | `caldera` | Fun, TDM, S&D, Gun Game | volcanic caldera with Obsidian Gate A and elevated Ember Refinery B |
+| `nuketown` | Fun, Chaos Lab, TDM, S&D, Gun Game | furnished houses, school bus, moving truck and backyard routes |
+| `dust2` | Fun, Chaos Lab, TDM, S&D, Gun Game | Long A, Short/Catwalk, Mid Doors, B Tunnels and raised A site |
 | `killhouse` | Training | weapon-test firing range with respawning dummies and a timed 4-stage killhouse course |
 
 ## Mode-specific HUD and scoreboards
@@ -525,7 +527,7 @@ instanced batch; idle effect pools skip GPU uploads. The HUD and shop update DOM
 properties only when their displayed values change, while timed effects keep
 animating. `refactor:test` and `browser:ui` protect these behavior and cost limits.
 
-Foundry, Depot, Citadel, Solstice, Caldera, and Killhouse are deterministic templates. Every room receives a
+Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2 and Killhouse are deterministic templates. Every room receives a
 fresh mutable clone of its selected map. The current room map is serialized in
 the single binary admission frame; subsequent block destruction is room-scoped
 and streams as index deltas inside immutable client snapshots. Each tick also

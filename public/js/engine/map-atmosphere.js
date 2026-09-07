@@ -11,6 +11,7 @@ const PALETTES = {
   solstice: { skyTop: '#378bc9', skyHorizon: '#bce5f7', groundLight: '#817f6b', density: 0.003 },
   caldera: { skyTop: '#5686b4', skyHorizon: '#c1d7e8', groundLight: '#73747e' },
   nuketown: { skyTop: '#3987c9', skyHorizon: '#bee6fa', groundLight: '#73805f', density: 0.003 },
+  dust2: { skyTop: '#438fc9', skyHorizon: '#d5e6ec', groundLight: '#9a8668', sun: '#fff3df', density: 0.0028 },
   killhouse: { skyTop: '#4e8dc5', skyHorizon: '#c9e5f5', groundLight: '#78838a', ambient: 0.82 },
 };
 export function mapAtmosphere(mapId) {

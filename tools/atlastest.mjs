@@ -206,7 +206,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 // ---------------------------------------------- mode + map foundation contract
 {
   ok(sameValue(MODE_IDS, ['fun', 'chaos', 'tdm', 'snd', 'gungame', 'training'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'killhouse'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'killhouse'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -315,6 +315,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     solstice: ['fun', 'chaos', 'tdm', 'snd', 'gungame'],
     caldera: ['fun', 'chaos', 'tdm', 'snd', 'gungame'],
     nuketown: ['fun', 'chaos', 'tdm', 'snd', 'gungame'],
+    dust2: ['fun', 'chaos', 'tdm', 'snd', 'gungame'],
     killhouse: ['training'],
   };
   ok(sameValue(MAP_MODE_COMPATIBILITY, expectedCompatibility)
@@ -347,6 +348,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     solstice: 'Solstice',
     caldera: 'Caldera',
     nuketown: 'Nuketown',
+    dust2: 'Dust 2',
     killhouse: 'Killhouse',
   };
   const expectedMapHashes = {
@@ -356,6 +358,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     solstice: '7f03eaad',
     caldera: 'aa81f327',
     nuketown: '10f21fd4',
+    dust2: '8d4f6f4a',
     killhouse: '5f8a8d45',
   };
   const expectedSpawnCounts = {
@@ -365,6 +368,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     solstice: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     caldera: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     nuketown: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
+    dust2: { fun: 10, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     killhouse: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 0, sndDefenders: 0 },
   };
   const pristineBytes = new Map();

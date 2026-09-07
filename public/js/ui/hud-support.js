@@ -94,6 +94,7 @@ export const MAP_LABELS = Object.freeze({
   solstice: 'SOLSTICE',
   caldera: 'CALDERA',
   nuketown: 'NUKETOWN',
+  dust2: 'DUST 2',
   killhouse: 'KILLHOUSE',
 });
 
@@ -104,6 +105,7 @@ export const MAP_DESCRIPTIONS = Object.freeze({
   solstice: 'Desert solar observatory with a glass biodome, turbine hall, and compact linked lanes (All Modes)',
   caldera: 'Volcanic caldera with a west obsidian gate and elevated east ember refinery (All Modes)',
   nuketown: 'Classic test-town: furnished two-storey houses, school bus, moving truck and backyard routes (All Modes)',
+  dust2: 'Sandstone streets with Long A, Catwalk, Mid Doors and B Tunnels',
   killhouse: 'Covered firing bays and four numbered rooms. Practice on respawning targets or race the course.',
 });
 
@@ -114,6 +116,7 @@ export const MAP_PREVIEWS = Object.freeze({
   solstice: './assets/maps/solstice-concept.webp',
   caldera: './assets/maps/caldera-concept.webp',
   nuketown: './assets/maps/nuketown.webp',
+  dust2: './assets/maps/dust2.webp',
   killhouse: './assets/maps/killhouse-range.webp',
 });
 
