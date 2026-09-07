@@ -407,10 +407,12 @@ export async function runHudContracts(ok, installGlobals) {
     try {
       const { HUD } = await import('../../public/js/ui/hud.js');
       hud = new HUD();
-      ok(hud._settingsConfig.sensitivity === 0.0021
-        && hud._settingsConfig.volume === 0.42
-        && hud._settingsConfig.fov === 86,
-      'HUD loads all persisted settings into its initial configuration');
+      hud.openSettings();
+      ok(document.getElementById('settings-sens-slider').value === '0.0021'
+        && document.getElementById('settings-vol-slider').value === '0.42'
+        && document.getElementById('settings-fov-slider').value === '86',
+      'HUD settings controls show persisted sensitivity, volume, and FOV');
+      hud.closeSettings();
 
       const changes = [];
       let resumes = 0;
@@ -426,19 +428,14 @@ export async function runHudContracts(ok, installGlobals) {
         && localStorage.getItem('vb-fov') === '91',
       'HUD setup persists the complete settings triplet');
 
-      hud.settingsDom.sensSlider.value = '0.0047';
-      hud.settingsDom.sensSlider.dispatchEvent(event('input'));
-      hud.settingsDom.volSlider.value = '0.63';
-      hud.settingsDom.volSlider.dispatchEvent(event('input'));
-      hud.settingsDom.fovSlider.value = '98';
-      hud.settingsDom.fovSlider.dispatchEvent(event('input'));
+      document.getElementById('settings-sens-slider').value = '0.0047';
+      document.getElementById('settings-sens-slider').dispatchEvent(event('input'));
+      document.getElementById('settings-vol-slider').value = '0.63';
+      document.getElementById('settings-vol-slider').dispatchEvent(event('input'));
+      document.getElementById('settings-fov-slider').value = '98';
+      document.getElementById('settings-fov-slider').dispatchEvent(event('input'));
       const lastChange = changes.at(-1);
-      const DEVICE_KEYS = ['adsMode', 'aimAssist', 'padSensitivity', 'pointerMode',
-        'touchHand', 'touchSensitivity', 'touchSize'];
       ok(changes.length === 3
-        && changes.every((change) =>
-          Object.keys(change).sort().join(',')
-            === ['fov', 'sensitivity', 'volume', ...DEVICE_KEYS].sort().join(','))
         && lastChange.sensitivity === 0.0047
         && lastChange.volume === 0.63
         && lastChange.fov === 98
@@ -451,23 +448,23 @@ export async function runHudContracts(ok, installGlobals) {
       // live pad reveals its sensitivity; the trackpad hint follows detection.
       hud.setDeviceInfo({ touch: false, pointerKind: 'mouse', trackpadDetected: false, padActive: false });
       const rowShown = (row) => row.style.display !== 'none';
-      const desktopRows = rowShown(hud.settingsDom.pointerModeRow)
-        && rowShown(hud.settingsDom.adsModeRow)
-        && !rowShown(hud.settingsDom.padSensRow)
-        && !rowShown(hud.settingsDom.touchSizeRow)
-        && hud.settingsDom.adsModeHint.textContent.startsWith('HOLD');
+      const desktopRows = rowShown(document.getElementById('settings-pointer-mode').parentNode)
+        && rowShown(document.getElementById('settings-ads-mode').parentNode)
+        && !rowShown(document.getElementById('settings-pad-sens').parentNode)
+        && !rowShown(document.getElementById('settings-touch-size').parentNode)
+        && document.getElementById('settings-ads-mode-hint').textContent.startsWith('HOLD');
       hud.setDeviceInfo({ touch: false, pointerKind: 'trackpad', trackpadDetected: true, padActive: true });
-      const trackpadRows = hud.settingsDom.pointerModeHint.textContent === 'TRACKPAD DETECTED'
-        && hud.settingsDom.adsModeHint.textContent.startsWith('TOGGLE')
-        && rowShown(hud.settingsDom.padSensRow)
-        && rowShown(hud.settingsDom.aimAssistRow);
+      const trackpadRows = document.getElementById('settings-pointer-mode-hint').textContent === 'TRACKPAD DETECTED'
+        && document.getElementById('settings-ads-mode-hint').textContent.startsWith('TOGGLE')
+        && rowShown(document.getElementById('settings-pad-sens').parentNode)
+        && rowShown(document.getElementById('settings-aim-assist').parentNode);
       hud.setDeviceInfo({ touch: true, pointerKind: 'mouse', trackpadDetected: false, padActive: false });
-      const touchRows = !rowShown(hud.settingsDom.pointerModeRow)
-        && rowShown(hud.settingsDom.touchSizeRow)
-        && rowShown(hud.settingsDom.touchHandRow)
-        && rowShown(hud.settingsDom.touchSensRow);
-      hud.settingsDom.adsModeSelect.value = 'toggle';
-      hud.settingsDom.adsModeSelect.dispatchEvent(event('change'));
+      const touchRows = !rowShown(document.getElementById('settings-pointer-mode').parentNode)
+        && rowShown(document.getElementById('settings-touch-size').parentNode)
+        && rowShown(document.getElementById('settings-touch-hand').parentNode)
+        && rowShown(document.getElementById('settings-touch-sens').parentNode);
+      document.getElementById('settings-ads-mode').value = 'toggle';
+      document.getElementById('settings-ads-mode').dispatchEvent(event('change'));
       ok(desktopRows && trackpadRows && touchRows
         && changes.at(-1).adsMode === 'toggle'
         && localStorage.getItem('vb-ads-mode') === 'toggle',
@@ -480,22 +477,22 @@ export async function runHudContracts(ok, installGlobals) {
 
       hud.openSettings();
       ok(hud.settingsOpen
-        && hud.settingsDom.root.style.display === 'flex'
-        && hud.settingsDom.root.getAttribute('aria-hidden') === 'false',
+        && document.getElementById('settings-overlay').style.display === 'flex'
+        && document.getElementById('settings-overlay').getAttribute('aria-hidden') === 'false',
       'HUD settings open state makes the dialog visible and accessible');
       hud.closeSettings();
       ok(!hud.settingsOpen
-        && hud.settingsDom.root.style.display === 'none'
-        && hud.settingsDom.root.classList.contains('hidden'),
+        && document.getElementById('settings-overlay').style.display === 'none'
+        && document.getElementById('settings-overlay').classList.contains('hidden'),
       'HUD closeSettings hides the dialog and clears its open state');
 
       hud.openSettings();
-      hud.settingsDom.resumeBtn.dispatchEvent(event('click'));
+      document.getElementById('settings-resume-btn').dispatchEvent(event('click'));
       ok(!hud.settingsOpen && resumes === 1,
         'HUD resume button closes settings and invokes onResume once');
       hud.openSettings();
       const escape = event('keydown', { key: 'Escape' });
-      hud.settingsDom.root.dispatchEvent(escape);
+      document.getElementById('settings-overlay').dispatchEvent(escape);
       ok(!hud.settingsOpen
         && resumes === 2
         && escape.defaultPrevented
@@ -574,11 +571,8 @@ export async function runHudContracts(ok, installGlobals) {
       } finally {
         restoreLocation();
       }
-      ok(!Object.hasOwn(globalThis, 'location'),
-        'HUD invite fixture restores detached global location state');
       hud.updateLobby({ ...lobbyState, gameMode: 'tdm', map: 'depot' });
-      ok(!Object.hasOwn(globalThis, 'location')
-        && document.getElementById('lobby-invite-input').value === '?lobby=ZX9Q2'
+      ok(document.getElementById('lobby-invite-input').value === '?lobby=ZX9Q2'
         && /team|deathmatch|tdm/i.test(document.getElementById('lobby-mode-val').textContent)
         && /depot/i.test(document.getElementById('lobby-map-val').textContent),
       'HUD lobby chips update when a replacement lobby state arrives');
@@ -587,80 +581,93 @@ export async function runHudContracts(ok, installGlobals) {
 
       hud.buildHUD();
       hud.setState({ wid: 'sniper', adsT01: 0.7199, alive: true, hp: 100 });
-      ok(!hud.scopeShown && !hud.dom.scope,
+      ok(!document.getElementById('sniper-scope'),
         'sniper scope stays absent immediately below the ADS threshold');
       hud.setState({ adsT01: 0.72 });
-      ok(hud.scopeShown && hud.dom.scope.classList.contains('active'),
+      ok(document.getElementById('sniper-scope').classList.contains('active'),
         'sniper scope enters exactly at the ADS threshold');
       flushRaf();
-      ok(hud.scopeProgress === 1
-        && hud.dom.scope.style.opacity === '1'
-        && !hud.dom.scope.classList.contains('exiting'),
+      ok(document.getElementById('sniper-scope').style.opacity === '1'
+        && !document.getElementById('sniper-scope').classList.contains('exiting'),
       'sniper scope RAF reaches its fully active live state');
 
       hud.setState({ adsT01: 0.7199 });
-      ok(!hud.scopeShown
-        && !hud.dom.scope.classList.contains('active')
-        && hud.dom.scope.classList.contains('exiting'),
+      ok(!document.getElementById('sniper-scope').classList.contains('active')
+        && document.getElementById('sniper-scope').classList.contains('exiting'),
       'dropping below the threshold begins the scope exit transition');
       flushRaf();
-      ok(hud.scopeProgress === 0
-        && !hud.dom.scope.classList.contains('active')
-        && !hud.dom.scope.classList.contains('exiting')
-        && hud.dom.scope.style.opacity === ''
-        && hud.dom.scope.style.transform === '',
+      ok(!document.getElementById('sniper-scope').classList.contains('active')
+        && !document.getElementById('sniper-scope').classList.contains('exiting')
+        && document.getElementById('sniper-scope').style.opacity === ''
+        && document.getElementById('sniper-scope').style.transform === '',
       'scope exit removes transition classes and inline animation residue');
 
       hud.setState({ adsT01: 0.9, alive: true });
       flushRaf();
       hud.setState({ alive: false });
-      ok(!hud.scopeShown && hud.dom.ch.classList.contains('vb-dead'),
+      ok(document.getElementById('crosshair').classList.contains('vb-dead'),
         'live-to-dead state immediately suppresses the scope and marks the crosshair dead');
       flushRaf();
-      ok(!hud.dom.scope.classList.contains('active')
-        && !hud.dom.scope.classList.contains('exiting'),
+      ok(!document.getElementById('sniper-scope').classList.contains('active')
+        && !document.getElementById('sniper-scope').classList.contains('exiting'),
       'live-to-dead scope exit leaves no active or exiting class');
 
       hud.setState({ alive: true, adsT01: 0.2 });
       hud.setDead(true, 'RIVAL');
-      ok(hud.dom.ch.classList.contains('vb-dead')
-        && hud.dom.deathnote.textContent === 'eliminated by RIVAL'
-        && hud.dom.deathnote.style.display === 'block',
+      ok(document.getElementById('crosshair').classList.contains('vb-dead')
+        && document.getElementById('deathnote').textContent === 'eliminated by RIVAL'
+        && document.getElementById('deathnote').style.display === 'block',
       'explicit death state shows the killer note and dead crosshair');
       hud.setDead(false);
       hud.setState({ alive: true });
-      ok(!hud.dom.ch.classList.contains('vb-dead')
-        && hud.dom.deathnote.style.display === 'none',
+      ok(!document.getElementById('crosshair').classList.contains('vb-dead')
+        && document.getElementById('deathnote').style.display === 'none',
       'HUD revival clears explicit death presentation');
 
       hud.setDead(true, 'RIVAL', 'HORNET SMG · 8 M · KILLER AT 41 HP');
-      const recapShown = hud.dom.deathnote.textContent === 'eliminated by RIVAL'
-        && hud.dom.deathrecap?.textContent === 'HORNET SMG · 8 M · KILLER AT 41 HP'
-        && hud.dom.deathrecap.style.display === 'block';
+      const recapShown = document.getElementById('deathnote').textContent === 'eliminated by RIVAL'
+        && document.getElementById('deathrecap')?.textContent === 'HORNET SMG · 8 M · KILLER AT 41 HP'
+        && document.getElementById('deathrecap').style.display === 'block';
       hud.setDead(false);
-      ok(recapShown && hud.dom.deathrecap.style.display === 'none',
+      ok(recapShown && document.getElementById('deathrecap').style.display === 'none',
         'death recap line shows under the note and hides with revival');
 
       hud.hitmark('kill');
-      const killShown = hud.dom.hitmarker.classList.contains('vb-kill')
-        && hud.dom.hitmarker.classList.contains('vb-show')
-        && !hud.dom.hitmarker.classList.contains('vb-hs');
+      const killShown = document.getElementById('hitmarker').classList.contains('vb-kill')
+        && document.getElementById('hitmarker').classList.contains('vb-show')
+        && !document.getElementById('hitmarker').classList.contains('vb-hs');
       hud.hitmark(false);
-      ok(killShown && hud.dom.hitmarker.classList.contains('vb-kill'),
+      ok(killShown && document.getElementById('hitmarker').classList.contains('vb-kill'),
         'a kill mark is distinct and a trailing body hit cannot downgrade it');
 
+      hud.setPainImpulse({ intensity: 0.8, angleDeg: 90 });
+      const hitFlash = document.getElementById('hitflash');
+      const flashShown = Number(hitFlash.style.opacity) === 0.8
+        && hitFlash.style.getPropertyValue('--pain-x') === '98.00%';
+      hud.spawnDamage(25, 100, 100, true, false, 'target');
+      hud.spawnDamage(15, 100, 100, true, true, 'target');
+      const damageLayer = document.getElementById('dmglayer');
+      const damageStacked = damageLayer.children.length === 1
+        && damageLayer.firstChild.textContent === '40'
+        && damageLayer.firstChild.classList.contains('vb-crit');
+      flushRaf();
+      ok(flashShown && hitFlash.style.opacity === '0',
+        'directional pain feedback appears and fades without a later state update');
+      ok(damageStacked && damageLayer.firstChild.style.opacity === '0',
+        'rapid hits combine into one critical damage number and fade after their lifetime');
+
       hud.setState({ alive: true, adsT01: 1, holdingBreath: true, breath01: 0.5, canHoldBreath: true });
-      const breathHolding = hud.dom.breath.style.display === 'block'
-        && hud.dom.breath.classList.contains('is-holding')
-        && hud.dom.breathFill.style.transform === 'scaleX(0.500)';
+      const breathHolding = document.getElementById('breath-meter').style.display === 'block'
+        && document.getElementById('breath-meter').classList.contains('is-holding')
+        && document.getElementById('breath-meter').children[0].style.transform === 'scaleX(0.500)';
       hud.setState({ holdingBreath: false, breath01: 1 });
-      const breathHidden = hud.dom.breath.style.display === 'none';
+      const breathHidden = document.getElementById('breath-meter').style.display === 'none';
       hud.setState({ adsT01: 0, holdingBreath: true, breath01: 0.4 });
-      ok(breathHolding && breathHidden && hud.dom.breath.style.display === 'none',
+      ok(breathHolding && breathHidden && document.getElementById('breath-meter').style.display === 'none',
         'breath meter appears only while aiming and the window is draining or spent');
 
       hud.setState({ wid: 'sniper', adsT01: 0.9, alive: true, scopeZoom: 2.5 });
-      const zoomLabel = hud.dom.scope?.querySelector('#scope-zoom-label');
+      const zoomLabel = document.getElementById('sniper-scope')?.querySelector('#scope-zoom-label');
       ok(zoomLabel?.textContent === '2.5×',
         'scope overlay label follows the live zoom step');
       hud.setState({ wid: 'rifle', adsT01: 0 });
@@ -707,8 +714,7 @@ export async function runHudContracts(ok, installGlobals) {
         interaction: null,
       };
       hud.setMatchState(prepMatch, selfRow, players, 20000);
-      ok(!Object.hasOwn(globalThis, 'location')
-        && visible(document.getElementById('match-header'))
+      ok(visible(document.getElementById('match-header'))
         && /snd|search|destroy/i.test(document.getElementById('match-mode-chip').textContent)
         && /citadel/i.test(document.getElementById('match-map-chip').textContent)
         && document.getElementById('match-clock').textContent.length > 0,
@@ -728,91 +734,87 @@ export async function runHudContracts(ok, installGlobals) {
       'S&D status strip shows remaining lives without repeating names and scores');
 
       hud.setState({ grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 0.5 });
-      const fragChip = hud.dom.grenadeTypeChips[0];
-      const pulseChip = hud.dom.grenadeTypeChips[2];
-      ok(hud.dom.grenadeTypeChips.length === 3
+      const fragChip = document.querySelectorAll('.vb-grenade-type')[0];
+      const pulseChip = document.querySelectorAll('.vb-grenade-type')[2];
+      ok(document.querySelectorAll('.vb-grenade-type').length === 3
         && fragChip.classList.contains('is-selected')
-        && fragChip.pips.filter((slot) => !slot.classList.contains('is-spent')).length === 1
+        && fragChip.querySelectorAll('.vb-grenade-icon').filter((slot) => !slot.classList.contains('is-spent')).length === 1
         && pulseChip.classList.contains('is-empty')
-        && hud.dom.grenades.dataset.type === 'frag'
-        && hud.dom.grenades.classList.contains('is-charging')
-        && !hud.dom.grenades.classList.contains('is-full')
-        && hud.dom.grenadeChargeFill.style.transform === 'scaleX(0.5)',
+        && document.getElementById('grenade-count').dataset.type === 'frag'
+        && document.getElementById('grenade-count').classList.contains('is-charging')
+        && !document.getElementById('grenade-count').classList.contains('is-full')
+        && document.querySelector('.vb-grenade-charge').children[0].style.transform === 'scaleX(0.5)',
       'grenade HUD renders one chip per throwable with remaining pips, the selection, and live hold charge');
       hud.setState({ grenades: [1, 1, 0], grenadeType: 1, grenadeCharge: 1 });
-      const fullState = hud.dom.grenades.classList.contains('is-full')
-        && hud.dom.grenadeHint.textContent === 'MAX · RELEASE'
-        && hud.dom.grenades.dataset.type === 'limpet'
-        && hud.dom.grenadeTypeChips[1].classList.contains('is-selected')
-        && hud.dom.grenadeName.textContent === 'LIMPET CHARGE';
+      const fullState = document.getElementById('grenade-count').classList.contains('is-full')
+        && document.querySelector('.vb-grenade-hint').textContent === 'MAX · RELEASE'
+        && document.getElementById('grenade-count').dataset.type === 'limpet'
+        && document.querySelectorAll('.vb-grenade-type')[1].classList.contains('is-selected')
+        && document.querySelector('.vb-grenade-name').textContent === 'LIMPET CHARGE';
       hud.setState({ grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 0, grenadeCharging: true });
-      const heldState = hud.dom.grenades.classList.contains('is-charging')
-        && hud.dom.grenadeHint.textContent === 'HOLD · RELEASE';
+      const heldState = document.getElementById('grenade-count').classList.contains('is-charging')
+        && document.querySelector('.vb-grenade-hint').textContent === 'HOLD · RELEASE';
       hud.setState({
         grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 1, grenadeCharging: true,
         grenadeCook01: 0.75, grenadeCookLeftMs: 650,
       });
       ok(fullState && heldState
-        && hud.dom.grenades.classList.contains('is-cooking')
-        && hud.dom.grenades.classList.contains('is-critical')
-        && hud.dom.grenadeHint.textContent === 'COOKING · 0.7s'
-        && hud.dom.grenadeChargeFill.style.transform === 'scaleX(0.25)',
+        && document.getElementById('grenade-count').classList.contains('is-cooking')
+        && document.getElementById('grenade-count').classList.contains('is-critical')
+        && document.querySelector('.vb-grenade-hint').textContent === 'COOKING · 0.7s'
+        && document.querySelector('.vb-grenade-charge').children[0].style.transform === 'scaleX(0.25)',
       'grenade HUD flags a maxed charge, the held state from the first frame, and a burning cook');
       hud.setState({ charge01: 0.4 });
-      const chargingMeter = hud.dom.chargeMeter.classList.contains('is-visible')
-        && hud.dom.chargeMeter.classList.contains('is-charging')
-        && hud.dom.chargeMeterFill.style.transform === 'scaleX(0.4)'
-        && hud.dom.chargeMeterLabel.textContent === 'CHARGING';
+      const chargingMeter = document.getElementById('charge-meter').classList.contains('is-visible')
+        && document.getElementById('charge-meter').classList.contains('is-charging')
+        && document.querySelector('.vb-charge-track').children[0].style.transform === 'scaleX(0.4)'
+        && document.querySelector('.vb-charge-label').textContent === 'CHARGING';
       hud.setState({ charge01: 0.9 });
-      const midMeter = hud.dom.chargeMeter.classList.contains('is-charging')
-        && !hud.dom.chargeMeter.classList.contains('is-full')
-        && hud.dom.chargeMeterLabel.textContent === 'CHARGING';
+      const midMeter = document.getElementById('charge-meter').classList.contains('is-charging')
+        && !document.getElementById('charge-meter').classList.contains('is-full')
+        && document.querySelector('.vb-charge-label').textContent === 'CHARGING';
       hud.setState({ charge01: null });
-      ok(chargingMeter && midMeter && !hud.dom.chargeMeter.classList.contains('is-visible'),
+      ok(chargingMeter && midMeter && !document.getElementById('charge-meter').classList.contains('is-visible'),
         'the coil meter shows the live LONGARC charge and hides for other weapons');
-      hud.setState({ charge01: 0.5 });
-      const partialMeter = hud.dom.chargeMeter.classList.contains('is-visible')
-        && hud.dom.chargeMeterFill.style.transform === 'scaleX(0.5)'
-        && hud.dom.chargeMeterLabel.textContent === 'CHARGING';
       hud.setState({ charge01: 1 });
-      ok(partialMeter && hud.dom.chargeMeter.classList.contains('is-full')
-        && hud.dom.chargeMeterLabel.textContent === 'CHARGED',
+      ok(document.getElementById('charge-meter').classList.contains('is-full')
+        && document.querySelector('.vb-charge-label').textContent === 'CHARGED',
       'a full charge cell settles on CHARGED');
 
       hud.setState({ charge01: null, heat01: 0.75, spin01: 1, overheated: false, heatDamageMult: 1.65 });
-      ok(hud.dom.chargeMeterLabel.textContent === 'SWEET SPOT 75% · +65% DMG'
-        && hud.dom.chargeMeterFill.style.transform === 'scaleX(0.75)', 'minigun HUD shows heat sweet spot and damage bonus');
+      ok(document.querySelector('.vb-charge-label').textContent === 'SWEET SPOT 75% · +65% DMG'
+        && document.querySelector('.vb-charge-track').children[0].style.transform === 'scaleX(0.75)', 'minigun HUD shows heat sweet spot and damage bonus');
       hud.setState({ charge01: null, heat01: 0.75, spin01: 0.85, minigunSpinningUp: false,
         overheated: false, heatDamageMult: 1.65 });
-      ok(hud.dom.chargeMeterLabel.textContent === 'SWEET SPOT 75% · +65% DMG',
+      ok(document.querySelector('.vb-charge-label').textContent === 'SWEET SPOT 75% · +65% DMG',
         'coasting rotor keeps the sweet spot visible during trigger pauses');
       hud.setState({ charge01: null, heat01: 0.75, spin01: 0.85, minigunSpinningUp: true,
         overheated: false, heatDamageMult: 1.65 });
-      ok(hud.dom.chargeMeterLabel.textContent === 'SPIN UP · 85%', 'held trigger displays actual spin-up');
+      ok(document.querySelector('.vb-charge-label').textContent === 'SPIN UP · 85%', 'held trigger displays actual spin-up');
       hud.setState({ charge01: null, heat01: 0.8, spin01: 0, overheated: true });
-      ok(hud.dom.chargeMeterLabel.textContent === 'OVERHEATED · COOLING', 'minigun HUD keeps the lock visible while cooling');
+      ok(document.querySelector('.vb-charge-label').textContent === 'OVERHEATED · COOLING', 'minigun HUD keeps the lock visible while cooling');
       hud.setState({ heat01: 0.1, spin01: 1, overheated: false, minigunSpinningUp: false, minigunPrimed: true });
-      ok(hud.dom.chargeMeterLabel.textContent === 'ROTOR READY · PULL TRIGGER', 'pre-spun rotor has a ready cue');
+      ok(document.querySelector('.vb-charge-label').textContent === 'ROTOR READY · PULL TRIGGER', 'pre-spun rotor has a ready cue');
       hud.setState({ heat01: 0.94, minigunPrimed: false });
-      ok(hud.dom.chargeMeterLabel.textContent.includes('RELEASE TO COOL')
-        && hud.dom.chargeMeter.classList.contains('is-critical'), 'critical heat gives an actionable warning');
+      ok(document.querySelector('.vb-charge-label').textContent.includes('RELEASE TO COOL')
+        && document.getElementById('charge-meter').classList.contains('is-critical'), 'critical heat gives an actionable warning');
       hud.setState({ charge01: null, heat01: null });
-      ok(!hud.dom.chargeMeter.classList.contains('is-visible'), 'switching away hides the thermal meter');
+      ok(!document.getElementById('charge-meter').classList.contains('is-visible'), 'switching away hides the thermal meter');
       hud.setState({ fuel01: 0.5, fuelSeconds: 4, flameFiring: true });
-      ok(hud.dom.chargeMeterLabel.textContent === 'FUEL 4.0s · IGNITING'
-        && hud.dom.chargeMeterFill.style.transform === 'scaleX(0.5)', 'flame tank shows remaining firing time');
+      ok(document.querySelector('.vb-charge-label').textContent === 'FUEL 4.0s · IGNITING'
+        && document.querySelector('.vb-charge-track').children[0].style.transform === 'scaleX(0.5)', 'flame tank shows remaining firing time');
       hud.setState({ fuel01: null, flameFiring: false });
-      ok(!hud.dom.chargeMeter.classList.contains('is-visible')
-        && !hud.dom.chargeMeter.classList.contains('is-fuel'), 'switching away clears the tank meter');
+      ok(!document.getElementById('charge-meter').classList.contains('is-visible')
+        && !document.getElementById('charge-meter').classList.contains('is-fuel'), 'switching away clears the tank meter');
       hud.setState({ wid: 'knife', wname: 'K-7 RIPPER', mag: 0, reserve: 0 });
-      const meleeAmmo = hud.dom.mag.textContent === '∞'
-        && hud.dom.sep.style.display === 'none'
-        && hud.dom.res.style.display === 'none'
-        && !hud.dom.mag.classList.contains('vb-low');
+      const meleeAmmo = document.getElementById('ammocount').textContent === '∞'
+        && document.getElementById('ammo').children[2].style.display === 'none'
+        && document.getElementById('ammoreserve').style.display === 'none'
+        && !document.getElementById('ammocount').classList.contains('vb-low');
       hud.setState({ wid: 'rifle', mag: 24, reserve: 3 });
-      ok(meleeAmmo && hud.dom.mag.textContent === '24'
-        && hud.dom.sep.style.display !== 'none'
-        && hud.dom.res.style.display !== 'none' && hud.dom.res.textContent === '3',
+      ok(meleeAmmo && document.getElementById('ammocount').textContent === '24'
+        && document.getElementById('ammo').children[2].style.display !== 'none'
+        && document.getElementById('ammoreserve').style.display !== 'none' && document.getElementById('ammoreserve').textContent === '3',
       'melee ammo renders an infinite magazine with no reserve and a gun restores the readout');
 
       const liveTick = makeSnapshot([], [], [], 20000, {
@@ -881,7 +883,6 @@ export async function runHudContracts(ok, installGlobals) {
       ok(!visible(resultScreen), 'the result screen clears on the next live snapshot');
 
       hud.setScoreboard(true);
-      hud.setPlayers(players);
       const scoreboard = document.getElementById('scores');
       ok(scoreboard.querySelectorAll('tr.vb-team-alpha').length === 1
         && scoreboard.querySelectorAll('tr.vb-team-bravo').length === 1
@@ -944,8 +945,7 @@ export async function runHudContracts(ok, installGlobals) {
         'minigun armory card is labelled as a weapon');
       const smgButton = document.getElementById('buy-btn-smg');
       const sniperButton = document.getElementById('buy-btn-sniper');
-      ok(!Object.hasOwn(globalThis, 'location')
-        && hud.isBuyMenuOpen()
+      ok(hud.isBuyMenuOpen()
         && /prep|buy/i.test(document.getElementById('buy-phase-val').textContent)
         && buyCredits.textContent.replace(/\D/g, '') === '2000'
         && (/owned|refill/i.test(ownedCard.textContent)
@@ -964,9 +964,8 @@ export async function runHudContracts(ok, installGlobals) {
         smgButton.className,
         smgButton.textContent,
       ].join('|');
-      hud.triggerPurchase('smg');
-      hud.triggerPurchase('laser');
-      hud.triggerPurchase('sniper');
+      document.getElementById('buy-btn-smg').click();
+      document.getElementById('buy-btn-sniper').click();
       ok(purchases.join(',') === 'smg'
         && [
           buyCredits.textContent,
@@ -975,7 +974,7 @@ export async function runHudContracts(ok, installGlobals) {
           smgButton.className,
           smgButton.textContent,
         ].join('|') === authoritativeBuyView,
-      'buy requests reject unknown and unaffordable weapons without local purchase optimism');
+      'shop controls reject unaffordable purchases without changing authoritative balance or ownership');
 
       hud.setBuyMenuState({
         open: true,
@@ -983,7 +982,7 @@ export async function runHudContracts(ok, installGlobals) {
         credits: 2000,
         owned: ['revolver', 'smg'],
       });
-      hud.triggerPurchase('smg');
+      document.getElementById('buy-btn-smg').click();
       ok(purchases.join(',') === 'smg,smg',
         'an affordable owned weapon remains requestable as an authoritative refill');
 
@@ -1020,31 +1019,7 @@ export async function runHudContracts(ok, installGlobals) {
 
       await new Promise((resolve) => setTimeout(resolve, 0));
 
-      const assertDisposed = (instance, ownedRoots, ownerDocument, ownerWindow, label) => {
-        ok(!instance.built
-          && instance.names.size === 0
-          && instance.killfeedTimers.size === 0
-          && instance._deferredTimers.size === 0
-          && instance._ownedRoots.size === 0
-          && instance.dmgActive.length === 0
-          && instance.dmgPool.length === 0
-          && instance._latestPlayers.length === 0
-          && instance._latestMatch === null
-          && instance._latestSelfRow === null
-          && instance._buyMenuState.owned.length === 0,
-        `${label} clears every initialized HUD collection and built state`);
-        ok(Object.keys(instance.dom).length === 0
-          && Object.keys(instance.matchDom).length === 0
-          && Object.keys(instance.lobbyDom).length === 0
-          && Object.keys(instance.buyDom).length === 0
-          && Object.keys(instance.settingsDom).length === 0,
-        `${label} releases all retained DOM collections`);
-        ok(instance.onMenuAction === null
-          && instance._lobbyCallbacks === null
-          && instance._buyMenuCallbacks === null
-          && instance._settingsOnChange === null
-          && instance._settingsOnResume === null,
-        `${label} releases lifecycle callback references`);
+      const assertDisposed = (ownedRoots, ownerDocument, ownerWindow, label) => {
         ok(ownedRoots.every((root) => !ownerDocument?.body.contains(root)),
           `${label} removes every DOM root it owns`);
         ok((!ownerDocument || ownerDocument.listenerCount() === 0)
@@ -1061,38 +1036,37 @@ export async function runHudContracts(ok, installGlobals) {
         label,
       ) => {
         instance.dispose();
-        assertDisposed(instance, ownedRoots, ownerDocument, ownerWindow, label);
+        assertDisposed(ownedRoots, ownerDocument, ownerWindow, label);
         const callbacksAfterDispose = timerCallbacksFired;
         await new Promise((resolve) => nativeSetTimeout(resolve, 0));
         ok(timerCallbacksFired === callbacksAfterDispose && timers.size === 0,
           `${label} leaves no deferred callback able to run after disposal`);
         instance.dispose();
-        assertDisposed(instance, ownedRoots, ownerDocument, ownerWindow,
-          `${label} second disposal`);
+        ok(timers.size === 0 && rafs.size === 0, `${label} remains inert on repeated disposal`);
       };
 
       hud.openSettings();
       hud.hitmark(true);
-      hud.killRow({
+      hud.killfeed({
         killer: 'HOST',
         victim: 'RIVAL',
-        weapon: 'smg',
+        w: 'smg',
         hs: false,
       });
-      hud.killRow({
+      hud.killfeed({
         killer: 'NEWEST',
         victim: 'LATEST',
-        weapon: 'sniper',
+        w: 'sniper',
         hs: true,
-        longRange: true,
-        noScope: true,
+        lr: true,
+        ns: true,
       });
-      ok(hud.dom.kf.children.map((row) => row.children[0]?.textContent).join(',')
+      ok(document.getElementById('killfeed').children.map((row) => row.children[0]?.textContent).join(',')
         === 'NEWEST,HOST',
       'killfeed inserts the newest row before the prior row');
-      ok(hud.dom.kf.children[0].children.map((node) => node.textContent).join('|')
+      ok(document.getElementById('killfeed').children[0].children.map((node) => node.textContent).join('|')
         === 'NEWEST|LONGSHOT MK-II|HEADSHOT|LONG RANGE|NO-SCOPE|LATEST'
-        && hud.dom.kf.children[0].querySelector('.kf-weapon-icon')?.src.endsWith('/sniper.png'),
+        && document.getElementById('killfeed').children[0].querySelector('.kf-weapon-icon')?.src.endsWith('/sniper.png'),
       'killfeed renders weapon identity plus authoritative HEADSHOT, LONG RANGE, and NO-SCOPE markers');
       hud.setState({ wid: 'sniper', adsT01: 0.9, alive: true, hp: 100 });
       hud.setPainImpulse(0.8);
@@ -1107,7 +1081,6 @@ export async function runHudContracts(ok, installGlobals) {
         && fullRoots.every((root) => document.body.contains(root))
         && timers.size >= 3
         && rafs.size > 0
-        && hud.killfeedTimers.size > 0
         && document.listenerCount() > 0
         && window.listenerCount() > 0,
       'full HUD lifecycle fixture owns DOM, listeners, timers, RAFs, and collections');

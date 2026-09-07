@@ -26,7 +26,7 @@ import {
   evProjectileLaunch,
   evProjectileUpdate,
   evProjectileStick,
-} from '../protocol.js';
+} from '../protocol/events.js';
 import { fwdFromYawPitch, clamp01 } from './player.js';
 import {
   GRENADE_TYPES,

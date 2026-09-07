@@ -1,7 +1,7 @@
 // One cumulative upgrade ladder per weapon/throwable. Authority owns purchases.
 export const CHAOS_START_CREDITS = 600;
 export const CHAOS_KILL_CREDITS = 300;
-export const CHAOS_PRICES = Object.freeze([300, 600, 900]);
+const CHAOS_PRICES = Object.freeze([300, 600, 900]);
 const ladder = (...rows) => Object.freeze(rows.map(([name, description], i) => Object.freeze({ name, description, price: CHAOS_PRICES[i] })));
 export const CHAOS_UPGRADES = Object.freeze({
   rifle: ladder(['Tesla rounds', 'Hits arc to 2 nearby enemies.'], ['Forklift lightning', 'Lightning forks to 4 enemies and kicks them into the air.'], ['Thunder tax', 'Every third shot also launches a ricocheting energy bolt.']),
@@ -18,7 +18,7 @@ export const CHAOS_UPGRADES = Object.freeze({
   limpet: ladder(['Group hug', 'The flying charge steers toward visible enemies.'], ['Clingy friends', 'Detonation scatters 5 sticky charges.'], ['Separation anxiety', 'Sticky children home in too, then explode with a larger blast.']),
   pulse: ladder(['Reverse sneeze', 'The grenade pulls nearby enemies inward before impact.'], ['Space programme', 'Impact launches players high into the air.'], ['Afterparty', 'Impact scatters 8 bouncing pulse bombs with a delayed second launch.']),
 });
-export function isChaosItem(id) { return typeof id === 'string' && Object.hasOwn(CHAOS_UPGRADES, id); }
+function isChaosItem(id) { return typeof id === 'string' && Object.hasOwn(CHAOS_UPGRADES, id); }
 export function chaosLevel(player, id) {
   return player?.chaosUpgrades && isChaosItem(id) ? Math.max(0, Math.min(3, player.chaosUpgrades[id] | 0)) : 0;
 }

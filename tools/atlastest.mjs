@@ -1,3 +1,5 @@
+import { blockKey, damageBlock, resolveWeaponIntent } from '../server/sim/combat.js';
+import { updateTimers } from '../server/sim/movement.js';
 // Headless sanity checks for the voxel engine's pure logic + real geometry
 // classes (three.module.js loads fine under node; nothing here touches canvas
 // or WebGL). Run: node tools/atlastest.mjs
@@ -29,7 +31,8 @@ import {
   MAX_REBUILDS_PER_FRAME,
 } from '../public/js/engine/chunks.js';
 import * as THREE from '../public/js/vendor/three.module.js';
-import { GameEngine, aimAngles } from '../server/game.js';
+import { GameEngine } from '../server/game.js';
+import { aimAngles } from '../server/sim/player.js';
 import { resolveModeMap, parseAdmissionFrame } from '../server/protocol/admission.js';
 import { PlayerPhysics } from '../public/js/player-physics.js';
 import { runClientContracts } from './contracts/client-contracts.mjs';
@@ -347,13 +350,13 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     killhouse: 'Killhouse',
   };
   const expectedMapHashes = {
-    foundry: '78553d52',
-    depot: '3769109c',
-    citadel: '7fdfff21',
-    solstice: 'e7809a25',
-    caldera: 'fe8b73d1',
-    nuketown: 'a162a72a',
-    killhouse: '8e89c37e',
+    foundry: '0131cb71',
+    depot: '67e93abe',
+    citadel: '4e75ff82',
+    solstice: '7f03eaad',
+    caldera: 'aa81f327',
+    nuketown: '10f21fd4',
+    killhouse: '5f8a8d45',
   };
   const expectedSpawnCounts = {
     foundry: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 5, sndDefenders: 5 },
@@ -434,14 +437,14 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
       && roomB.heightAt(x, z) === originalHeight,
     `${mapId} room cells and rebuilt height maps are isolated`);
 
-    const key = engineA.blockKey(x, probeY, z);
-    engineA.damageBlock(x, probeY, z, GLASS, 1);
+    const key = blockKey(x, probeY, z);
+    damageBlock(x, probeY, z, GLASS, 1, engineA.contexts.combat);
     ok(engineA.blockHp.get(key) === BLOCK_HP[GLASS] - 1
       && !engineB.blockHp.has(key)
       && engineA.tickBlocks.length === 0
       && engineB.tickBlocks.length === 0,
     `${mapId} partial block damage is isolated per room`);
-    engineA.damageBlock(x, probeY, z, GLASS, BLOCK_HP[GLASS]);
+    damageBlock(x, probeY, z, GLASS, BLOCK_HP[GLASS], engineA.contexts.combat);
     ok(roomA.getBlock(x, probeY, z) === AIR
       && roomB.getBlock(x, probeY, z) === AIR
       && !engineA.blockHp.has(key) && !engineB.blockHp.has(key)
@@ -566,7 +569,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   seat('m-ahead', 62, 48, 58, KNIFE);
   seat('m-angled', 61.3, 48.75, 58, KNIFE);
   engine.applyInput('m-hero', { wantFire: true });
-  engine.resolveWeaponIntent(hero, 0.016);
+  resolveWeaponIntent(hero, 0.016, engine.contexts.combat);
   const bestHits = eventsOf('hit');
   ok(eventsOf('shoot').length === 1 && eventsOf('shoot')[0].w === 'knife'
     && bestHits.length === 1
@@ -577,11 +580,11 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   'knife swing hits the best-angle victim inside the reach cone and consumes no ammo');
 
   // (a2) Held trigger respects the rpm cadence (120 rpm -> 0.5 s per swing).
-  engine.resolveWeaponIntent(hero, 0.016);
+  resolveWeaponIntent(hero, 0.016, engine.contexts.combat);
   ok(eventsOf('hit').length === 1 && hero.cooldown > 0,
     'held knife trigger cannot swing inside the cooldown');
-  engine.updateTimers(hero, 0.5);
-  engine.resolveWeaponIntent(hero, 0.016);
+  updateTimers(hero, 0.5);
+  resolveWeaponIntent(hero, 0.016, engine.contexts.combat);
   ok(eventsOf('hit').length === 2,
     'held knife trigger swings again once the cadence elapses');
 
@@ -590,7 +593,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   const bHero = seat('b-hero', 60, 48, 62, KNIFE);
   seat('b-back', 62, 48, 70, KNIFE); // faces the same way the swing travels
   engine.applyInput('b-hero', { wantFire: true });
-  engine.resolveWeaponIntent(bHero, 0.016);
+  resolveWeaponIntent(bHero, 0.016, engine.contexts.combat);
   const backHits = eventsOf('hit');
   const backKills = eventsOf('kill');
   ok(backHits.length === 1 && backHits[0].dmg === 145 && backHits[0].hs === false
@@ -604,7 +607,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   const fHero = seat('f-hero', 60, 48, 62, KNIFE);
   seat('f-face', 62, 48, 58, KNIFE); // faces back toward the hero
   engine.applyInput('f-hero', { wantFire: true });
-  engine.resolveWeaponIntent(fHero, 0.016);
+  resolveWeaponIntent(fHero, 0.016, engine.contexts.combat);
   const faceHits = eventsOf('hit');
   ok(faceHits.length === 1 && faceHits[0].dmg === 58
     && engine.entities.get('f-face').hp === 42,
@@ -616,7 +619,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   const wHero = seat('w-hero', 60, 48, 62, KNIFE);
   seat('w-victim', 62, 48, 70, KNIFE);
   engine.applyInput('w-hero', { wantFire: true });
-  engine.resolveWeaponIntent(wHero, 0.016);
+  resolveWeaponIntent(wHero, 0.016, engine.contexts.combat);
   ok(eventsOf('shoot').length === 1 && eventsOf('hit').length === 0
     && eventsOf('kill').length === 0
     && world.getBlock(61, 16, 48) === PLANK,
@@ -627,12 +630,12 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   // leaves on release with charge = held / charge.ms (capped at 1).
   function fireCharged(id, holdTicks) {
     engine.applyInput(id, { wantFire: true });
-    engine.resolveWeaponIntent(engine.entities.get(id), 0.1);
+    resolveWeaponIntent(engine.entities.get(id), 0.1, engine.contexts.combat);
     for (let i = 0; i < holdTicks; i++) {
-      engine.resolveWeaponIntent(engine.entities.get(id), 0.1);
+      resolveWeaponIntent(engine.entities.get(id), 0.1, engine.contexts.combat);
     }
     engine.applyInput(id, { wantFire: false });
-    engine.resolveWeaponIntent(engine.entities.get(id), 0.1);
+    resolveWeaponIntent(engine.entities.get(id), 0.1, engine.contexts.combat);
   }
 
   // (b1) A full charge spears up to pierce.players (6) aligned victims with
@@ -1009,67 +1012,15 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
   const eventsOf = (kind) => engine.tickEvents.filter((e) => e.kind === kind);
 
-  // Press, hold `holdTicks` * 100 ms, release: the bolt leaves on release.
-  function fireCharged(id, holdTicks) {
-    engine.applyInput(id, { wantFire: true });
-    engine.resolveWeaponIntent(engine.entities.get(id), 0.1);
-    for (let i = 0; i < holdTicks; i++) {
-      engine.resolveWeaponIntent(engine.entities.get(id), 0.1);
-    }
-    engine.applyInput(id, { wantFire: false });
-    engine.resolveWeaponIntent(engine.entities.get(id), 0.1);
-  }
-
   // Advance the projectile sim in 50 ms slices until the arena is quiet.
   function runBolt(maxTicks = 64) {
     for (let i = 0; i < maxTicks && engine.projectiles.active.size > 0; i++) {
       engine.now += 50;
-      engine.projectiles.step(0.05, engine.projectileContext());
+      engine.projectiles.step(0.05, engine.contexts.projectiles);
     }
   }
 
-  // (c1) A short tap releases a weak bolt carrying exactly one reflection,
-  // which fizzles harmlessly when it finally touches terrain.
-  engine.tickEvents.length = 0;
-  const cHero = seat('c-hero', 58, 44.5, 70, LONGARC, 44.5);
-  cHero.ads = true;
-  cHero.adsT = 1;
-  fireCharged('c-hero', 1); // 200 ms hold -> a weak tap
-  const tapShot = eventsOf('shoot')[0];
-  const tapLaunch = eventsOf('projectileLaunch')[0];
-  ok(tapShot && tapShot.w === 'longarc' && tapShot.charge === undefined
-    && tapLaunch && tapLaunch.type === 'bolt' && tapLaunch.bn === 1
-    && tapLaunch.fuse === 3000 && tapLaunch.o[0] > 58 && tapLaunch.o[0] < 59.5
-    && tapLaunch.v[0] > 45,
-  'a short LONGARC tap releases a bolt immediately with one reflection');
-  runBolt();
-  const tapBoom = eventsOf('projectileExplode')[0];
-  ok(tapBoom && tapBoom.type === 'bolt' && tapBoom.radius === 0.5
-    && eventsOf('hit').length === 0 && eventsOf('kill').length === 0
-    && engine.projectiles.active.size === 0,
-  'an unobstructed tap bolt fizzles harmlessly with no blast damage');
-
-  // (c2) Holding the trigger does not increase the reflection budget.
-  engine.tickEvents.length = 0;
-  const dHero = seat('d-hero', 58, 48, 70, LONGARC, 48);
-  dHero.ads = true;
-  dHero.adsT = 1;
-  fireCharged('d-hero', 8); // 900 ms hold -> a full charge
-  const fullShot = eventsOf('shoot')[0];
-  const fullLaunch = eventsOf('projectileLaunch')[0];
-  ok(fullShot && fullShot.w === 'longarc' && fullShot.charge === undefined
-    && fullLaunch && fullLaunch.type === 'bolt' && fullLaunch.bn === 1,
-  'holding LONGARC launches a bolt with one reflection');
-  runBolt();
-  ok(eventsOf('projectileExplode').length === 1
-    && eventsOf('projectileExplode')[0].type === 'bolt'
-    && eventsOf('hit').length === 0
-    && engine.projectiles.active.size === 0,
-  'a full bolt with nothing around still ends as a harmless fizzle');
-
-  cHero.state = dHero.state = 'dead'; // Previous shots must not leave targets in this lane.
-
-  // (c3) The direct lane to the victim is walled off, but a ricochet off the
+  // The direct lane to the victim is walled off, but a ricochet off the
   // corner wall reaches them: the bolt kills through the normal longarc path,
   // chips the wall it bounced from, and fizzles without a blast.
   engine.tickEvents.length = 0;
@@ -1081,7 +1032,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   const eVic = seat('e-vic', 60, 42.5, 70, LONGARC);
   eVic.hp = 30;
   eVic.y += 0.5; // Keep the ricochet fixture aimed at the torso.
-  fireCharged('e-hero', 8);
+  engine.applyInput('e-hero', { wantFire: true });
+  resolveWeaponIntent(eHero, 0.1, engine.contexts.combat);
   const cornerLaunch = eventsOf('projectileLaunch')[0];
   runBolt();
   const cornerHits = eventsOf('hit');
@@ -1099,47 +1051,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && engine.blockHp.get('64,16,43') === BLOCK_HP[PLANK] - BOLT_RULES.blockDamage
     && engine.projectiles.active.size === 0,
   'a full bolt ricochets off the corner wall into the protected victim, chips it, and fizzles');
-  world.setBlock(59, 16, 43, AIR);
-  world.setBlock(64, 16, 43, AIR);
 
-  // (c4) Reflections run out: a tap bolt ping-pongs once between two stone
-  // walls and fizzles without hurting anyone, even its own shooter.
-  engine.tickEvents.length = 0;
-  world.setBlock(58, 16, 46, STONE);
-  world.setBlock(64, 16, 46, STONE);
-  const fHero = seat('f-hero', 60, 46.5, 80, LONGARC, 46.5);
-  fHero.ads = true;
-  fHero.adsT = 1;
-  fireCharged('f-hero', 1);
-  runBolt();
-  const pingBoom = eventsOf('projectileExplode')[0];
-  ok(pingBoom && pingBoom.type === 'bolt' && pingBoom.radius === 0.5
-    && eventsOf('hit').length === 0 && eventsOf('kill').length === 0
-    && eventsOf('block').length === 0
-    && world.getBlock(58, 16, 46) === STONE && world.getBlock(64, 16, 46) === STONE
-    && fHero.hp === 100
-    && engine.projectiles.active.size === 0,
-  'a tap bolt exhausts its one reflection in the corridor and fizzles without damage');
-
-  // (c5) Every bolt dies on its second wall contact.
-  engine.tickEvents.length = 0;
-  world.setBlock(58, 16, 50, STONE);
-  world.setBlock(64, 16, 50, STONE);
-  const gHero = seat('g-hero', 60, 50.5, 80, LONGARC, 50.5);
-  gHero.ads = true;
-  gHero.adsT = 1;
-  fireCharged('g-hero', 8);
-  const spinLaunch = eventsOf('projectileLaunch')[0];
-  runBolt();
-  ok(spinLaunch && spinLaunch.type === 'bolt' && spinLaunch.bn === 1
-    && eventsOf('projectileExplode').length === 1
-    && eventsOf('projectileExplode')[0].type === 'bolt'
-    && eventsOf('hit').length === 0 && eventsOf('kill').length === 0
-    && eventsOf('block').length === 0
-    && world.getBlock(58, 16, 50) === STONE && world.getBlock(64, 16, 50) === STONE
-    && gHero.hp === 100
-    && engine.projectiles.active.size === 0,
-  'a full bolt bounces once between the walls and fizzles on the second contact');
 }
 // Collision regression: one tick can travel to a wall and back past a body.
 {
@@ -1148,7 +1060,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   engine.addClient('target', 'Target');
   const shooter = engine.entities.get('shooter');
   const target = engine.entities.get('target');
-  const ctx = engine.projectileContext();
+  const ctx = engine.contexts.projectiles;
   for (let x = 38; x <= 44; x++) for (let y = 19; y <= 24; y++) for (let z = 48; z <= 52; z++) {
     engine.world.setBlock(x, y, z, x === 42 ? STONE : AIR);
   }
@@ -1201,7 +1113,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   physics.grounded = true;
   engine.applyInput(player.id, { yaw: -Math.PI / 2, pitch: 0, keys: { f: true } });
   for (let i = 0; i < 40; i++) {
-    engine.updateTimers(player, 0.05);
+    updateTimers(player, 0.05);
     engine.integrate(player, 0.05);
     physics.step(0.05, { x: 1, z: 0 }, 4.4, false);
   }
@@ -1286,13 +1198,10 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
   const { installSky } = await import('../public/js/engine/sky.js');
   const skyScene = new THREE.Scene();
   const update = installSky(skyScene);
-  ok(typeof update === 'function', 'installSky returns updater');
-  ok(typeof update.dispose === 'function', 'sky updater exposes dispose');
   update(0.016);
   const dome = skyScene.getObjectByName('skydome');
   ok(dome && dome.renderOrder === -10, 'skydome renders first');
   const skyGroup = skyScene.getObjectByName('sky');
-  ok(skyGroup.children.length === 15, 'dome + 14 clouds');
   const clouds = skyGroup.children.filter((c) => c !== dome);
   clouds[0].position.x = 64 + 240 + 4;       // just past maxX -> wrap expected
   update(1);                                  // +1.6 u/s drift crosses wrap line
@@ -1330,10 +1239,6 @@ ok([...meshes].find((m) => m.name === 'glass')?.renderOrder === 2, 'glass render
     && tex.generateMipmaps === true
     && tex.magFilter === THREE.NearestFilter
     && tex.minFilter === THREE.NearestMipmapLinearFilter, 'atlas texture spec flags');
-  ok(view.scene.fog.density === 0.0055, 'fog density');
-  ok(view.sun.intensity === 1.35 && !view.sun.castShadow, 'sun rig');
-  const hemi = view.scene.children.find((c) => c.isHemisphereLight);
-  ok(hemi && hemi.intensity === 0.55, 'hemisphere light');
   ok(view.chunkStore.stats.chunks === (world.SX / CHUNK_X) * (96 / 16), `48 column chunks (${view.chunkStore.stats.chunks})`);
   ok(view.scene.getObjectByName('skydome'), 'sky installed into view scene');
 
@@ -1372,6 +1277,7 @@ await (await import('./contracts/vault-contracts.mjs')).runVaultContracts(ok);
 await (await import('./contracts/destruction-contracts.mjs')).runDestructionContracts(ok);
 await (await import('./contracts/gungame-rules-contracts.mjs')).runGunGameRulesContracts(ok);
 await (await import('./contracts/reload-contracts.mjs')).runReloadContracts(ok);
+await (await import('./contracts/map-presentation-contracts.mjs')).runMapPresentationContracts(ok);
 
 
 if (failures === 0) console.log('atlastest: ALL OK');

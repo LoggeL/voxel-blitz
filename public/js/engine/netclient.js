@@ -1,4 +1,5 @@
 import { parseChaosPurchase } from '../../../shared/chaos.js';
+import { SX, SY, SZ } from '../../../shared/world/blocks.js';
 import {
   mapForMode,
   isWeaponId,
@@ -16,19 +17,14 @@ import {
   sampleRemoteTransform,
 } from './snapshot-smoothing.js';
 
-export { angleLerpShortest } from './snapshot-smoothing.js';
-
 // Voxel Blitz — WebSocket client + snapshot interpolation layer.
 //
 // Transport: JSON text frames; binary frames carry the serialized map
 // pushed by the server immediately after {t:'welcome'} (paired by arrival
 // order on this socket), or after a waiting-room lobbyConfig update.
 //
-// The interpolation math and event draining are FACTORED INTO PURE NAMED
-// EXPORTS (angleLerpShortest, drainEventsWithDedupe) so node tests can drive
-// fake snapshot arrays without a WebSocket. WebSockets are only touched lazily
-// inside connect() with an inline typeof guard, so importing this module under
-// plain node is safe.
+// Snapshot interpolation lives in snapshot-smoothing.js. Event draining below
+// tracks delivered sequence numbers across frames.
 
 const INTERP_SPAN = 65536;        // events-per-snapshot domain for composite ids
 const SEEN_SOFT_CAP = 8192;       // dedupe set size before pruning oldest half
@@ -120,8 +116,8 @@ export function drainEventsWithDedupe(snapshotList, upTo, state) {
 
 /** Newest-row fields retained alongside interpolated transforms. */
 const PASSTHROUGH_FIELDS = [
-  'name', 'hp', 'team', 'weapon', 'score', 'kills', 'deaths', 'ping',
-  'state', 'firing', 'ads', 'crouch', 'proneT', 'moveSpeed', 'mag', 'reserve', 'reloading',
+  'name', 'hp', 'armor', 'team', 'weapon', 'score', 'kills', 'deaths', 'ping',
+  'state', 'firing', 'ads', 'crouch', 'grounded', 'vaulting', 'proneT', 'moveSpeed', 'mag', 'reserve', 'reloading',
   'burning', 'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt',
   'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
   'grenades', 'charge', 'minigun', 'impulse',
@@ -152,6 +148,8 @@ export class NetClient {
     this.latestLobbyState = null;
     /** Newest immutable authoritative match snapshot. */
     this.latestMatch = null;
+    /** Authoritative persistent damage, keyed by "x,y,z". */
+    this.blockDamage = new Map();
 
     /** Called with map bytes right before connect()'s promise resolves. */
     this.onMap = null;
@@ -166,6 +164,25 @@ export class NetClient {
   /** Backward-compatible measured round-trip time in milliseconds. */
   get ping() { return this._timing.rttMs; }
   get networkStats() { return this._timing.readModel; }
+
+  getBlockDamage(x, y, z) {
+    return this.blockDamage.get(`${x},${y},${z}`)?.progress || 0;
+  }
+
+  _applyBlockDamage(rows, replace = false) {
+    if (replace) this.blockDamage.clear();
+    if (!Array.isArray(rows)) return;
+    for (const row of rows) {
+      if (!row || !Number.isInteger(row.x) || row.x < 0 || row.x >= SX ||
+          !Number.isInteger(row.y) || row.y < 0 || row.y >= SY ||
+          !Number.isInteger(row.z) || row.z < 0 || row.z >= SZ ||
+          !Number.isInteger(row.v) || row.v < 0 || !Number.isFinite(row.progress)) continue;
+      const key = `${row.x},${row.y},${row.z}`;
+      if (row.progress <= 0 || row.v === 0) this.blockDamage.delete(key);
+      else this.blockDamage.set(key, Object.freeze({ x: row.x, y: row.y, z: row.z,
+        v: row.v, progress: Math.min(1, row.progress) }));
+    }
+  }
 
   /**
    * Register a callback. Types: 'open', 'close', 'welcome', 'tick', 'chat',
@@ -220,6 +237,7 @@ export class NetClient {
     this.spawn = null;
     this.latestLobbyState = null;
     this.latestMatch = null;
+    this.blockDamage.clear();
     this.latestEvents = Object.freeze([]);
     this.latestSnapshots.length = 0;
     this._drainState.seen.clear();
@@ -614,6 +632,7 @@ export class NetClient {
           gameMode: msg.gameMode,
           map: msg.map,
           phase: msg.phase,
+          blockDamage: Array.isArray(msg.blockDamage) ? msg.blockDamage : [],
         });
         this.welcome = w;
         this.id = w.id;
@@ -621,6 +640,7 @@ export class NetClient {
         this.tickRate = w.tickRate || 20;
         this._timing.reset(this.tickRate);
         this.spawn = w.spawn;
+        this._applyBlockDamage(w.blockDamage, true);
         this._startPing(this.ws, this._sessionGeneration);
         this._emit('welcome', w);
         break;
@@ -683,6 +703,7 @@ export class NetClient {
     this.welcome = config;
     this.mapBytes = config.mapBytes;
     this.spawn = config.spawn;
+    this._applyBlockDamage(config.blockDamage, true);
     if (this.onMap) this.onMap(bytes);
   }
 
@@ -706,6 +727,14 @@ export class NetClient {
       snapSeq: this._snapSeq++,
     });
     this.latestMatch = snapshot.match;
+    // Terrain replacements invalidate old damage even when a peer omits the
+    // corresponding zero row. Apply newer damage after replacements.
+    for (const delta of Array.isArray(snapshot.blocks) ? snapshot.blocks : []) {
+      const i = delta?.i;
+      if (!Number.isInteger(i) || i < 0 || i >= SX * SY * SZ) continue;
+      this.blockDamage.delete(`${i % SX},${Math.floor(i / (SX * SZ))},${Math.floor(i / SX) % SZ}`);
+    }
+    this._applyBlockDamage(snapshot.blockDamage);
     this._playerIndexes.set(snapshot, indexById(snapshot.players));
     this.latestSnapshots.push(snapshot);
     if (this.latestSnapshots.length > RING_LEN) this.latestSnapshots.shift();

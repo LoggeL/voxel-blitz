@@ -1,26 +1,36 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>VOXEL BLITZ · Soundtest</title>
+<title>VOXEL BLITZ · Sound check</title>
 <style>
-  body{max-width:760px;margin:48px auto;padding:0 24px;background:#101418;color:#eee;font:17px/1.5 system-ui}
-  h1{font-size:28px}h2{font-size:20px}section{border-top:1px solid #394047;padding:20px 0}
-  button{font:inherit;background:#ffa432;color:#111;border:0;border-radius:6px;padding:10px 16px;margin:4px;cursor:pointer}
-  button:disabled{opacity:.5}button:focus-visible{outline:3px solid white;outline-offset:3px}
-  p{color:#bdc6cf}audio{display:block;width:100%;margin-top:12px}#status{min-height:28px}
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#101418;color:#edf2f7}
+body{max-width:1120px;margin:36px auto;padding:0 22px 60px}h1{margin:0;font-size:clamp(25px,4vw,36px);letter-spacing:-.03em}h2{font-size:21px;margin:28px 0 12px}h3{font-size:17px;margin:0 0 6px}p{color:#bac7d2;line-height:1.55;margin:8px 0 16px}a{color:#ffb45f}
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:18px;background:#182129;padding:16px;border:1px solid #3b4650;border-radius:10px;margin:18px 0}.toolbar label{display:flex;align-items:center;gap:10px;font-size:14px}.toolbar input{width:120px;accent-color:#ffa432}.toolbar output{min-width:42px;font-variant-numeric:tabular-nums}
+#status{min-height:24px;margin:12px 0;padding:12px 16px;background:#17261d;border-radius:8px;color:#b5edc6}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}article{padding:18px;background:#182129;border:1px solid #394650;border-radius:10px;min-width:0}article p{font-size:14px;min-height:22px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+button{font:600 14px system-ui;background:#ffa432;color:#151515;border:0;border-radius:6px;padding:10px 14px;cursor:pointer;touch-action:none}button.secondary{background:#2f3f4d;color:#edf2f7}button[aria-pressed=true]{background:#ffe3a5}button:disabled{opacity:.45;cursor:wait}button:focus-visible,input:focus-visible,a:focus-visible,summary:focus-visible{outline:3px solid white;outline-offset:3px}
+figure{margin:12px 0 0}canvas{display:block;width:100%;height:95px;background:#0d1319;border-radius:5px}figcaption{font-size:12px;color:#aab9c7;margin-top:6px;font-variant-numeric:tabular-nums}audio{display:block;width:100%;height:36px;margin:12px 0 0}details{margin-top:28px}summary{cursor:pointer;font-size:18px;padding:12px 0}.error{color:#ffaaa2}
+@media(max-width:700px){body{padding:0 14px 36px;margin-top:24px}.grid{grid-template-columns:1fr}.toolbar{gap:14px}.toolbar label{width:100%;justify-content:space-between}}
 </style>
-<h1>VOXEL BLITZ · Soundtest</h1>
-<p>Die Buttons spielen den fertigen Spielmix. Darunter kannst du das bearbeitete Sample allein hören.</p>
-<p id="status" role="status">Zum Hören einen Schuss auswählen.</p>
-<section><h2>LONGARC · Variante 4</h2><p>Satter Schuss, gekürzter Anlauf.</p>
-<button data-weapon="longarc" data-charge="0">Kurz</button><button data-weapon="longarc" data-charge="0.5">Halb geladen</button><button data-weapon="longarc" data-charge="1">Voll geladen</button>
-<audio controls preload="none" src="/assets/audio/weapons/longarc/fire.ogg" aria-label="LONGARC Sample"></audio></section>
-<section><h2>VOLTLANCE · Variante 3</h2><p>Kurzer elektrischer Impuls mit weniger Bass.</p>
-<button data-weapon="lance" data-charge="0">Kurz</button><button data-weapon="lance" data-charge="0.5">Halb geladen</button><button data-weapon="lance" data-charge="1">Voll geladen</button>
-<audio controls preload="none" src="/assets/audio/weapons/lance/fire.ogg" aria-label="VOLTLANCE Sample"></audio></section>
-<section><h2>Raketenstart · Variante 4</h2><p>Direkter Anschlag, kurzer Abgasnachlauf.</p>
-<button data-weapon="rocket" data-charge="1">Abfeuern</button>
-<audio controls preload="none" src="/assets/audio/weapons/rocket/fire.ogg" aria-label="Raketenstart Sample"></audio></section>
+</head>
+<body>
+<h1>VOXEL BLITZ · Sound check</h1>
+<p>The buttons play the actual game mix. Each waveform and audio player shows the shipped sample on its own, at the same amplitude scale.</p>
+<div class="toolbar" aria-label="Listening controls">
+<label>Volume <input id="volume" type="range" min="0" max="1" value="0.8" step="0.05"><output id="volume-value">80%</output></label>
+<label>Blast distance <input id="distance" type="range" min="1" max="70" value="4" step="1"><output id="distance-value">4 m</output></label>
+<label>Throw strength <input id="charge" type="range" min="0" max="1" value="1" step="0.05"><output id="charge-value">100%</output></label>
+<button id="stop-loops" class="secondary">Stop loops</button>
+<a href="/audio-mix-audit.html">Run mix checks</a>
+</div>
+<p id="status" role="status">Choose a sound to hear its game mix. Sample waveforms are loading.</p>
+<p id="availability" role="status">Checking the nine new cue samples. Unavailable samples keep their playback controls disabled.</p>
+<h2>Grenades and rocket impact</h2>
+<div class="grid" id="explosions"></div>
+<h2>Weapon and handling sounds</h2>
+<div class="grid" id="new-cues"></div>
+<details id="existing"><summary>Existing weapon library</summary><div class="grid" id="existing-weapons"></div></details>
 <script type="module" src="/js/capture/audio-preview.js"></script>
+</body>
 </html>

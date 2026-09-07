@@ -11,6 +11,7 @@ import {
   STONE,
   SX,
   SZ,
+  SY,
 } from './blocks.js';
 import { fillBox, generateFlatBase, paintFloor } from './flatmaps.js';
 import { MAP_SPAWN_ANCHORS } from './metadata.js';
@@ -36,6 +37,7 @@ const ANCHOR_CELLS = _calderaAnchors
 
 export function generateCalderaInto(world, blocks, heights) {
   generateFlatBase(world, blocks, heights);
+  dressCalderaBoundary(world);
   buildLavaCrustFloor(world);
   buildWestGate(world);
   buildRefineryMassif(world);
@@ -43,6 +45,30 @@ export function generateCalderaInto(world, blocks, heights) {
   buildLaneMarkers(world);
   addCalderaSetpieces(world);
   polishCalderaGround(world);
+}
+
+// Lava-cut retaining faces reuse the inner boundary cells. The solid outer
+// metal shell is unchanged, including its height and collision footprint.
+function dressCalderaBoundary(world) {
+  const face = (x, z, along) => {
+    for (let y = GROUND + 1; y <= SY - 8; y++) {
+      const rise = y - GROUND;
+      const coolingEdge = 3 + Math.floor(2 * Math.sin(along * 0.21));
+      let material = rise <= coolingEdge ? BRICK : STONE;
+      if (along % 20 <= 1) material = CONCRETE;
+      if (rise === 7 || rise === 15) material = RUST;
+      if (rise === 8 && along % 20 === 10) material = ACCENT;
+      world.setBlock(x, y, z, material);
+    }
+  };
+  for (let x = 2; x < SX - 2; x++) {
+    face(x, 2, x);
+    face(x, SZ - 3, x);
+  }
+  for (let z = 3; z < SZ - 3; z++) {
+    face(2, z, z);
+    face(SX - 3, z, z);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -206,9 +232,8 @@ function buildLaneMarkers(world) {
 }
 
 // ---------------------------------------------------------------------------
-// Polish LAST: deterministic RUST/STONE floor patching + ACCENT ember and
-// STONE rubble dressing. Skips every anchor cell + r3 guard, only touches
-// untouched CONCRETE floor with AIR headroom. Grenade-soft dressing only.
+// Polish LAST: flat crust weathering and service-road joints. Raised rubble
+// is confined to the authored off-lane bands in the setpiece builder.
 // ---------------------------------------------------------------------------
 
 function polishCalderaGround(world) {
@@ -217,21 +242,25 @@ function polishCalderaGround(world) {
   const nearSpawn = (x, z) => ANCHOR_CELLS.some(
     ([ax, az]) => Math.max(Math.abs(x - ax), Math.abs(z - az)) <= 3,
   );
+  // Saw-cut paving seams and small hazard ticks on the existing pale ramps.
+  for (let z = 8; z <= 88; z++) {
+    for (let x = 8; x <= 119; x++) {
+      if (world.getBlock(x, T, z) !== CONCRETE || nearSpawn(x, z)) continue;
+      if (z % 8 === 0 && x % 4 === 0) world.setBlock(x, T, z, STONE);
+    }
+  }
+  for (const z of [42, 48, 52, 58]) {
+    for (let x = 82; x <= 87; x++) {
+      const top = GROUND + Math.min(3, Math.floor((x - 80) / 2));
+      world.setBlock(x, top, z, x % 2 === 0 ? RUST : PALE);
+    }
+  }
   for (let i = 0; i < 240; i++) {
     const x = 6 + ((rng() * (SX - 12)) | 0);
     const z = 6 + ((rng() * (SZ - 12)) | 0);
     if (nearSpawn(x, z)) continue;
     if (world.getBlock(x, T, z) !== CONCRETE && world.getBlock(x, T, z) !== STONE) continue;
     if (world.getBlock(x, T + 1, z) !== AIR) continue;
-    const kind = rng();
-    if (kind < 0.62) {
-      world.setBlock(x, T, z, rng() < 0.55 ? STONE : RUST);
-    } else if (kind < 0.9) {
-      if (world.getBlock(x, T + 2, z) !== AIR) continue;
-      world.setBlock(x, T + 1, z, ACCENT); // ember
-    } else {
-      if (world.getBlock(x, T + 2, z) !== AIR) continue;
-      world.setBlock(x, T + 1, z, STONE); // rubble
-    }
+    world.setBlock(x, T, z, rng() < 0.7 ? STONE : RUST);
   }
 }

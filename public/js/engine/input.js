@@ -31,7 +31,6 @@ import {
   GRENADE_CHARGE_MS,
   GRENADE_TYPE_IDS,
   clampGrenadeCharge,
-  clampGrenadeType,
 } from '../../../shared/grenade-rules.js';
 import { TouchControls, shouldEnableTouchControls } from './touch-controls.js';
 import { GamepadInput } from './gamepad.js';
@@ -196,9 +195,8 @@ export class Input {
 
   /* ----------------------------------------------------------- held intents */
 
-  /** LMB / RT / touch fire held; reads false while the weapon wheel is open. Assignable for debug and legacy callers. */
+  /** LMB / RT / touch fire held; reads false while the weapon wheel is open. */
   get wantFireHeld() { return !this._wheelOpen && (this._mouseFire || this._padFire); }
-  set wantFireHeld(value) { this._mouseFire = !!value; }
 
   /** RMB / F / LT / touch ADS held or latched; reads false while the weapon wheel is open. */
   get wantAdsHeld() { return !this._wheelOpen && (this._mouseAds || this._adsLatched || this._padAds); }
@@ -209,37 +207,6 @@ export class Input {
 
   /** Back/Select on a pad holds the scoreboard, like Tab. */
   get scoreboardHeld() { return this._padScoreboard; }
-
-  /**
-   * Contract convenience wrapper: bind listeners against (a possibly replaced)
-   * canvas and register the lock-change callback. Equivalent to setting
-   * .canvas then calling bind(cb).
-   * @param {HTMLCanvasElement} canvasEl
-   * @param {(locked:boolean)=>void} [cb]
-   */
-  start(canvasEl, cb) {
-    if (canvasEl && canvasEl !== this.canvas) {
-      const previousCanvas = this.canvas;
-      if (
-        this._bound &&
-        document.pointerLockElement === previousCanvas &&
-        document.exitPointerLock
-      ) {
-        document.exitPointerLock();
-      }
-      this.canvas = canvasEl;
-      if (this._bound) {
-        previousCanvas?.removeEventListener('mousedown', this._hMouseDown);
-        previousCanvas?.removeEventListener('contextmenu', this._hContext);
-        this.canvas.addEventListener('mousedown', this._hMouseDown);
-        this.canvas.addEventListener('contextmenu', this._hContext);
-        this._locked = document.pointerLockElement === this.canvas;
-        this.clearTransient();
-      }
-    }
-    this.bind(cb);
-    return this;
-  }
 
   /**
    * Attaches all DOM listeners. Safe to call once; extra calls are ignored.
@@ -870,11 +837,6 @@ export class Input {
 
   /** Selected throwable index (H / wheel or Y while holding G cycle it). */
   getGrenadeType() {
-    return this._grenadeType;
-  }
-
-  setGrenadeType(index) {
-    this._grenadeType = clampGrenadeType(index);
     return this._grenadeType;
   }
 

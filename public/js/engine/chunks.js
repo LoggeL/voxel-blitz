@@ -4,7 +4,8 @@
 // whole terrain renders as cheap Lambert surfaces with crisp voxel lighting.
 
 import * as THREE from '../vendor/three.module.js';
-import { AIR, GRASS, LEAVES, GLASS, SX, SZ, SY } from '../../../shared/worlddata.js';
+import { AIR, GRASS, DIRT, LEAVES, GLASS, SX, SZ, SY } from '../../../shared/worlddata.js';
+import { DAMAGE_GRID, damageStage, damageCells } from './block-damage-geometry.js';
 
 export const CHUNK_X = 16;
 export const CHUNK_Z = 16;
@@ -62,11 +63,13 @@ export class ChunkStore {
    * @param getBlockFn live voxel getter (x,y,z)->blockId closed over the CURRENT
    *        store, so rebuilds always read fresh blocks and chunk-border
    *        neighbours resolve exactly across chunk seams.
+   * @param getBlockDamage optional live visual damage getter (x,y,z)->0..1
    */
-  constructor(scene, atlas, getBlockFn) {
+  constructor(scene, atlas, getBlockFn, getBlockDamage = () => 0) {
     this.scene = scene;
     this.atlas = atlas;
     this.getBlock = getBlockFn;
+    this.getBlockDamage = getBlockDamage;
     // FACE_MAP aligned with the atlas sheet via the atlas' own registry.
     this.FACE_MAP = {
       resolveTile: (id, face) => atlas.faceTile(id, face),
@@ -183,6 +186,19 @@ export class ChunkStore {
     const gb = this.getBlock;
     const rectOf = this.atlas.tileRect;
     const resolveTile = this.FACE_MAP.resolveTile;
+    // A one-voxel halo includes neighbour visibility and corner AO samples.
+    // Cache intact results too: each block's live damage is read once per build.
+    const strideX = CHUNK_X + 2, strideZ = CHUNK_Z + 2;
+    const stages = new Int8Array(strideX * strideZ * (SY + 2)).fill(-1);
+    const shapeAt = (x, y, z) => {
+      const index = x - x0 + 1 + strideX * (z - z0 + 1 + strideZ * (y + 1));
+      let stage = stages[index];
+      if (stage === -1) {
+        stage = damageStage(this.getBlockDamage(x, y, z));
+        stages[index] = stage;
+      }
+      return stage > 0 ? damageCells(x, y, z, stage) : null;
+    };
 
     for (let ly = 0; ly < SY; ly++) {
       for (let lz = 0; lz < CHUNK_Z; lz++) {
@@ -191,16 +207,25 @@ export class ChunkStore {
           const wx = x0 + lx;
           const id = gb(wx, ly, wz);
           if (id === AIR) continue;
+          const bucket = id === GLASS ? buckets.glass
+            : id === LEAVES ? buckets.cutout : buckets.opaque;
+          const shape = shapeAt(wx, ly, wz);
+          if (shape) {
+            emitDamagedBlock(bucket, wx, ly, wz, id, shape, rectOf, resolveTile, gb, shapeAt);
+            continue;
+          }
           for (let f = 0; f < 6; f++) {
             const fd = FACES[f];
             // Visible unless fully hidden: air, or see-through neighbour of another kind.
-            const nb = gb(wx + fd.n[0], ly + fd.n[1], wz + fd.n[2]);
-            if (!(nb === AIR || (isSeeThrough(nb) && nb !== id))) continue;
-
-            const bucket = id === GLASS ? buckets.glass
-              : id === LEAVES ? buckets.cutout
-                : buckets.opaque;
-            emitFace(bucket, wx, ly, wz, f, id, rectOf, resolveTile, gb);
+            const nx = wx + fd.n[0], ny = ly + fd.n[1], nz = wz + fd.n[2];
+            const nb = gb(nx, ny, nz);
+            if (nb === AIR || (isSeeThrough(nb) && nb !== id)) {
+              emitFace(bucket, wx, ly, wz, f, id, rectOf, resolveTile, gb);
+            } else if (shapeAt(nx, ny, nz)) {
+              // A chipped neighbour exposes parts of this otherwise hidden
+              // intact face. Cover those holes, including across chunk seams.
+              emitUncoveredFace(bucket, wx, ly, wz, f, id, rectOf, resolveTile, gb, shapeAt);
+            }
           }
         }
       }
@@ -221,6 +246,93 @@ export class ChunkStore {
 function newBuckets() {
   const mk = () => ({ pos: [], nrm: [], col: [], uv: [], index: [], verts: 0 });
   return { opaque: mk(), cutout: mk(), glass: mk() };
+}
+
+function cellOccludes(gb, shapeAt, x, y, z, faceBlockId) {
+  const wx = Math.floor(x / DAMAGE_GRID), wy = Math.floor(y / DAMAGE_GRID);
+  const wz = Math.floor(z / DAMAGE_GRID);
+  const id = gb(wx, wy, wz);
+  if (id === AIR || (faceBlockId !== undefined && isSeeThrough(id) && id !== faceBlockId)) return 0;
+  const shape = shapeAt(wx, wy, wz);
+  if (!shape) return 1;
+  return shape[(x - wx * DAMAGE_GRID) + DAMAGE_GRID
+    * ((y - wy * DAMAGE_GRID) + DAMAGE_GRID * (z - wz * DAMAGE_GRID))];
+}
+
+function emitDamagedBlock(bucket, wx, wy, wz, id, shape, rectOf, resolveTile, gb, shapeAt) {
+  for (let z = 0; z < DAMAGE_GRID; z++) {
+    for (let y = 0; y < DAMAGE_GRID; y++) {
+      for (let x = 0; x < DAMAGE_GRID; x++) {
+        if (!shape[x + DAMAGE_GRID * (y + DAMAGE_GRID * z)]) continue;
+        for (let f = 0; f < FACES.length; f++) {
+          const n = FACES[f].n;
+          if (cellOccludes(gb, shapeAt, wx * DAMAGE_GRID + x + n[0],
+            wy * DAMAGE_GRID + y + n[1], wz * DAMAGE_GRID + z + n[2], id)) continue;
+          emitCellFace(bucket, wx, wy, wz, x, y, z, f, id, rectOf, resolveTile, gb, shapeAt);
+        }
+      }
+    }
+  }
+}
+
+function emitUncoveredFace(bucket, wx, wy, wz, f, id, rectOf, resolveTile, gb, shapeAt) {
+  const fd = FACES[f];
+  for (let v = 0; v < DAMAGE_GRID; v++) {
+    for (let u = 0; u < DAMAGE_GRID; u++) {
+      // The tangent frame runs backwards on some faces. Choose the occupied
+      // quarter-cell on the inside of the face at each tangent coordinate.
+      const cell = fd.o.map((o, axis) => Math.min(DAMAGE_GRID - 1,
+        o * DAMAGE_GRID + fd.u[axis] * u + fd.v[axis] * v
+          + Math.min(0, fd.u[axis]) + Math.min(0, fd.v[axis])));
+      if (cellOccludes(gb, shapeAt, wx * DAMAGE_GRID + cell[0] + fd.n[0],
+        wy * DAMAGE_GRID + cell[1] + fd.n[1], wz * DAMAGE_GRID + cell[2] + fd.n[2], id)) continue;
+      emitCellFace(bucket, wx, wy, wz, ...cell, f, id, rectOf, resolveTile, gb, shapeAt);
+    }
+  }
+}
+
+/** Quarter-block quad, with the original full-block texture scale and cut AO. */
+function emitCellFace(bucket, wx, wy, wz, x, y, z, f, id, tileRectFn, resolveTile, gb, shapeAt) {
+  const fd = FACES[f];
+  const local = [x, y, z];
+  const normalAxis = fd.n.findIndex((value) => value !== 0);
+  const plane = local[normalAxis] + Number(fd.n[normalAxis] > 0);
+  const isCut = plane > 0 && plane < DAMAGE_GRID;
+  const textureId = isCut && id === GRASS ? DIRT : id;
+  const rect = tileRectFn(resolveTile(textureId, f));
+  const base = bucket.verts;
+  const grassTop = id === GRASS && f === 2 && !isCut;
+  const shade = FACE_SHADE[f] * (isCut ? 0.82 : 1)
+    * (1 + (grassTop ? (posJitter(wx, wy, wz) - 50) * 0.0006 : 0));
+  const outer = [wx * DAMAGE_GRID + x + fd.n[0], wy * DAMAGE_GRID + y + fd.n[1],
+    wz * DAMAGE_GRID + z + fd.n[2]];
+  const ao = [];
+  const sample = (u, v) => cellOccludes(gb, shapeAt,
+    outer[0] + fd.u[0] * u + fd.v[0] * v,
+    outer[1] + fd.u[1] * u + fd.v[1] * v,
+    outer[2] + fd.u[2] * u + fd.v[2] * v);
+
+  for (let c = 0; c < CORNER_UV.length; c++) {
+    const [cu, cv] = CORNER_UV[c];
+    const su = cu ? 1 : -1, sv = cv ? 1 : -1;
+    const level = aoLevel(sample(su, 0), sample(0, sv), sample(su, sv));
+    ao.push(level);
+    const p = local.map((value, axis) =>
+      (value + fd.o[axis] + cu * fd.u[axis] + cv * fd.v[axis]) / DAMAGE_GRID);
+    bucket.pos.push(wx + p[0], wy + p[1], wz + p[2]);
+    bucket.nrm.push(...fd.n);
+    const k = shade * level;
+    bucket.col.push(k * (grassTop ? 1.02 : 1), k, k * (grassTop ? 0.94 : 1));
+    const u = p.reduce((sum, value, axis) => sum + (value - fd.o[axis]) * fd.u[axis], 0);
+    const v = p.reduce((sum, value, axis) => sum + (value - fd.o[axis]) * fd.v[axis], 0);
+    bucket.uv.push(rect.u0 + (rect.u1 - rect.u0) * u, rect.v1 + (rect.v0 - rect.v1) * v);
+  }
+  if (ao[0] + ao[2] > ao[1] + ao[3]) {
+    bucket.index.push(base + 1, base + 2, base + 3, base + 1, base + 3, base);
+  } else {
+    bucket.index.push(base, base + 1, base + 2, base, base + 2, base + 3);
+  }
+  bucket.verts += 4;
 }
 
 /**

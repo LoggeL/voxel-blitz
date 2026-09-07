@@ -642,6 +642,15 @@ async function main() {
     requireCondition(true, 'leaving Training disposes its overlay and returns to the menu');
 
     const appError = await page.evaluate(`document.documentElement.dataset.vbLastError || ''`);
+    if (appError || page.errors.length) {
+      console.error('browser runtime/resource diagnostics:', JSON.stringify({
+        appError,
+        errors: page.errors,
+        logEntries: page.events
+          .filter((event) => event.method === 'Log.entryAdded' && event.params?.entry?.level === 'error')
+          .map((event) => event.params.entry),
+      }));
+    }
     requireCondition(!appError && page.errors.length === 0,
       'full browser flow completes without runtime or resource errors');
     console.log('BROWSER FLOW SMOKE: OK');

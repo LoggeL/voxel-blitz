@@ -73,7 +73,7 @@ try {
     };
     hud.setState(state);
     await new Promise(requestAnimationFrame);
-    hud.apply();
+    hud.setState(state);
     const countMutations = (target, action) => {
       const observer = new MutationObserver(() => {});
       observer.observe(target, { attributes: true, childList: true, characterData: true, subtree: true });
@@ -82,37 +82,38 @@ try {
       observer.disconnect();
       return records.length;
     };
-    const idleMutations = countMutations(hud.root('hud'), () => {
+    const idleMutations = countMutations(document.getElementById('hud'), () => {
       for (let i = 0; i < 240; i++) hud.setState(state);
     });
     const counts = state.grenades;
     counts[0] = 0;
     hud.setState({ mag: 1, hp: 25, grenades: counts, grenadeType: 1 });
-    const changedState = hud.dom.mag.textContent === '1'
-      && hud.dom.mag.classList.contains('vb-low')
-      && hud.dom.hpf.style.width === '25%'
-      && hud.dom.grenadeTypeChips[0].classList.contains('is-empty')
-      && hud.dom.grenadeTypeChips[1].classList.contains('is-selected');
+    const changedState = document.getElementById('ammocount').textContent === '1'
+      && document.getElementById('ammocount').classList.contains('vb-low')
+      && document.getElementById('hpfill').style.width === '25%'
+      && document.querySelectorAll('.vb-grenade-type')[0].classList.contains('is-empty')
+      && document.querySelectorAll('.vb-grenade-type')[1].classList.contains('is-selected');
     hud.setState({ ...state, hp: 100, mag: 30, grenadeType: 0 });
     hud.buildHUD();
-    const rebuiltState = hud.dom.mag.textContent === '30'
-      && hud.dom.hpf.style.width === '100%'
-      && hud.dom.grenadeTypeChips[0].classList.contains('is-selected');
+    const rebuiltState = document.getElementById('ammocount').textContent === '30'
+      && document.getElementById('hpfill').style.width === '100%'
+      && document.querySelectorAll('.vb-grenade-type')[0].classList.contains('is-selected');
 
     const self = { id: 'self', name: 'SELF', hp: 100, state: 'alive', credits: 2000, owned: ['revolver'], team: 'alpha' };
     const match = { mode: 'snd', phase: 'prep', map: 'citadel', scores: { alpha: 0, bravo: 0 } };
     hud.setMatchState(match, self, [self], 1000);
-    const closedBuyMutations = countMutations(hud.buyDom.root, () => {
+    const closedBuyMutations = countMutations(document.getElementById('buy-menu'), () => {
       for (let i = 0; i < 50; i++) hud.setBuyMenuState({ credits: 2000 + i, owned: self.owned });
     });
     hud.toggleBuyMenu(true);
-    const openedCurrentBalance = hud.buyDom.credVal.textContent.replace(/\\D/g, '') === '2049';
-    const openBuyMutations = countMutations(hud.buyDom.root, () => {
+    const openedCurrentBalance = document.getElementById('buy-credits-val').textContent.replace(/\\D/g, '') === '2049';
+    const openBuyMutations = countMutations(document.getElementById('buy-menu'), () => {
       for (let i = 0; i < 50; i++) hud.setBuyMenuState({ credits: 2049, owned: [...self.owned] });
     });
     hud.setBuyMenuState({ credits: 0 });
-    const purchaseGuard = hud.buyDom.cards.smg.buyBtn.disabled;
-    const names = hud.nameFor('self') === 'SELF';
+    const purchaseGuard = document.getElementById('buy-btn-smg').disabled;
+    hud.killfeed({ killer: 'self', victim: 'other', w: 'rifle' });
+    const names = document.getElementById('killfeed').firstChild.querySelector('b').textContent === 'SELF';
 
     const chaosSelf = { ...self, owned: ['rifle'], chaosUpgrades: { rifle: 2 } };
     const chaosMatch = { ...match, mode: 'chaos', phase: 'live' };
@@ -130,17 +131,23 @@ try {
     // Reopen before any replacement snapshot can refresh the economy.
     flow.toggleBuyMenuFromInput();
     const pauseResumeEconomy = hud.isBuyMenuOpen()
-      && hud.buyDom.credVal.textContent.replace(/\\D/g, '') === '2000'
-      && hud.buyDom.cards.rifle.priceBadge.textContent === '2 / 3 INSTALLED'
-      && hud.buy._buyMenuState.owned.includes('rifle');
+      && document.getElementById('buy-credits-val').textContent.replace(/\\D/g, '') === '2000'
+      && document.getElementById('buy-price-rifle').textContent === '2 / 3 INSTALLED'
+      && document.getElementById('buy-btn-rifle').textContent.startsWith('UPGRADE 3');
+    hud.setWeaponWheelState({ open: true, entries: [
+      { id: 'rifle', name: 'RIFLE', cls: 'ASSAULT', icon: '', key: '1', ammo: '30', owned: true, current: true },
+      { id: 'smg', name: 'SMG', cls: 'AUTO', icon: '', key: '2', ammo: '36', owned: true, current: false },
+    ] });
+    const lazyWheel = document.getElementById('weapon-wheel').getAttribute('aria-hidden') === 'false'
+      && document.querySelectorAll('.vb-wheel-slot').length === 2;
     hud.dispose();
     return { idleMutations, changedState, rebuiltState, closedBuyMutations,
-      openedCurrentBalance, openBuyMutations, purchaseGuard, names, pauseResumeEconomy };
+      openedCurrentBalance, openBuyMutations, purchaseGuard, names, pauseResumeEconomy, lazyWheel };
   })()`);
   assert.equal(results.idleMutations, 0, '240 unchanged gameplay frames must not mutate HUD DOM');
   assert.equal(results.closedBuyMutations, 0, 'closed shops retain state without repainting cards');
   assert.equal(results.openBuyMutations, 0, 'identical authority updates must not repaint an open shop');
-  for (const key of ['changedState', 'rebuiltState', 'openedCurrentBalance', 'purchaseGuard', 'names', 'pauseResumeEconomy']) {
+  for (const key of ['changedState', 'rebuiltState', 'openedCurrentBalance', 'purchaseGuard', 'names', 'pauseResumeEconomy', 'lazyWheel']) {
     assert.equal(results[key], true, key);
   }
   console.log('ok - browser HUD mutation and rebuild contracts', JSON.stringify(results));

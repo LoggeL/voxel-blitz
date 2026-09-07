@@ -1,4 +1,4 @@
-// One refreshable noise graph per shooter, using the shared master bus and pool.
+// One refreshable sample or fallback noise graph per shooter, using the shared bus.
 // All fade and source-stop deadlines run on the audio clock, including if JS stalls.
 const HOLD = 0.1;
 const FADE = 0.04;
@@ -7,9 +7,10 @@ const LEVEL = 0.75;
 const MAX_LOOPS = 8;
 
 export class FlameLoops {
-  constructor(engine, pool) {
+  constructor(engine, pool, getSampleBuffer = () => null) {
     this.engine = engine;
     this.pool = pool;
+    this.getSampleBuffer = getSampleBuffer;
     this.voices = new Map();
   }
 
@@ -33,21 +34,26 @@ export class FlameLoops {
       }
       const output = this.pool.acquire(options, HOLD + FADE);
       const source = ctx.createBufferSource();
-      source.buffer = this.engine.noiseBuffer;
+      const sample = this.getSampleBuffer();
+      source.buffer = sample || this.engine.noiseBuffer;
       source.loop = true;
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'lowpass';
-      filter.frequency.value = 1800;
-      filter.Q.value = 0.65;
+      let filter = null;
+      if (!sample) {
+        filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 1800;
+        filter.Q.value = 0.65;
+        source.connect(filter);
+      }
       const gain = ctx.createGain();
       gain.gain.value = 0;
-      source.connect(filter).connect(gain).connect(output);
+      (filter || source).connect(gain).connect(output);
       voice = { key, output, source, filter, gain, last: at, start: at, from: 0, end: at };
       this.voices.set(key, voice);
       this.pool.addCleanup(output, () => {
         try { source.stop(); } catch {}
         source.disconnect();
-        filter.disconnect();
+        filter?.disconnect();
         gain.disconnect();
         if (this.voices.get(key) === voice) this.voices.delete(key);
       });

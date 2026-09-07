@@ -2292,6 +2292,41 @@ h1.vb-title::after {
 
 #healthbar.critical::before { color: var(--danger); }
 
+.vb-armor {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px;
+  margin-top: 10px;
+  color: #66cfff;
+  font: 10px var(--font-mono);
+  letter-spacing: 0.14em;
+}
+.vb-armor[hidden], .vb-powerup-toast[hidden] { display: none; }
+.vb-armor b { font-weight: 500; letter-spacing: 0; }
+.vb-armor-track { grid-column: 1 / -1; height: 4px; background: #66cfff22; }
+.vb-armor-track i { display: block; height: 100%; background: #66cfff; }
+#hud:has(#armor-status:not([hidden])) .vb-econ-cluster { bottom: 120px; }
+.vb-touch-mode #hud:has(#armor-status:not([hidden])) #econ-cluster {
+  top: calc(max(10px, env(safe-area-inset-top)) + 140px);
+  bottom: auto;
+}
+.vb-powerup-toast {
+  position: absolute;
+  left: 50%;
+  top: 27%;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  width: max-content;
+  padding: 10px 16px;
+  border: 1px solid var(--pickup-color, #66cfff);
+  background: var(--glass-soft);
+  color: var(--pickup-color, #66cfff);
+  font: 600 12px var(--font-mono);
+  letter-spacing: 0.1em;
+  text-align: center;
+  pointer-events: none;
+}
+
 /* ---------- ammo ---------- */
 
 #ammo {

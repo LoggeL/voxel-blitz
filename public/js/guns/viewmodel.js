@@ -11,6 +11,7 @@ import { MaterialCache } from './kit.js';
 import { D2R, HIP, VM_FOV_BASE } from './models/common.js';
 import { kickMassScale } from './defs.js';
 import { WeaponTurnInertia } from './turn-inertia.js';
+import { VaultHands } from './vault-hands.js';
 import { PICKAXE_SWING_SECONDS as SWING_S, pickaxeSwingPose } from './pickaxe-swing.js';
 
 
@@ -29,6 +30,7 @@ export class ViewmodelRig {
     camera.add(this.root);
     this.root.add(this.posG); this.posG.add(this.pivot);
     this.pivot.add(this.comp); this.comp.add(this.content);
+    this._vaultHands = new VaultHands(this.root);
 
     this._disposed = false;
     this._models = {};                 // lazily-built gun cache keyed by weapon id
@@ -65,6 +67,10 @@ export class ViewmodelRig {
     this._fallSpeed = 0;
     this._phase = 0;                   // walk bob figure-8 phase accumulator
     this._bobVal = 0;                  // public bobAmt readback for HUD/audio glue
+    this._gait = 0;
+    this._sprint = 0;
+    this._crouchBlend = 0;
+    this._groundBlend = 1;
     this._yawFlip = 1;                 // alternating yaw kick sign (wobble seeds it)
     this._rngState = 0xB041;           // mulberry-lite seed, reseeded per magazine below
 
@@ -236,8 +242,6 @@ export class ViewmodelRig {
     if (this._chargeT === 0) this._chargeOrb.visible = false;
   }
 
-  get currentCharge01() { return this._chargeT; }
-
   /** External button-hold ramp reaches us pre-normalized (0..1); we ease-polish + expose readback. */
   ads(t01) {
     this._adsTarget = Math.max(0, Math.min(1, Number(t01) || 0));
@@ -282,7 +286,6 @@ export class ViewmodelRig {
   get bobAmt() { return this._bobVal; }              // 0..~1 normalized walk-bob magnitude
   get currentAdsT01() { return this._adsSmooth; }    // HUD scope-opacity readback
   get turnLag() { return this._turn.readModel; }      // gun-only angular follower readback
-  get _rl() { return this._actions?._reload || null; }
 
   /** Live muzzle world position (uses the actual Object3D — correct through every nested shift). */
   getMuzzleWorldPos(out) {
@@ -296,6 +299,7 @@ export class ViewmodelRig {
     if (this._disposed) return;
     this._disposed = true;
     this.camera.remove(this.root);
+    this._vaultHands.dispose();
 
     this._chargeOrb.removeFromParent();
     for (const mesh of this._chargeOrb.children) {
@@ -343,6 +347,8 @@ export class ViewmodelRig {
     const lateralSpeed = Number.isFinite(ctx.lateralSpeed) ? ctx.lateralSpeed : 0;
     const forwardSpeed = Number.isFinite(ctx.forwardSpeed) ? ctx.forwardSpeed : 0;
     const sprinting = !!ctx.isSprinting, crouching = !!ctx.crouch;
+    const vaulting = !!ctx.vaulting;
+    const vaultBlend = this._vaultHands.update(elapsed, vaulting, ctx.vaultProgress);
     this._now += elapsed;
     this._drainQueue();
 
@@ -409,14 +415,20 @@ export class ViewmodelRig {
     }
 
     /* walk bob figure-8 (freq scales with speed; sprint lifts freq+amp+cant; crouch dampens) */
-    const spdN = Math.min(1, speed / 4.4);                            // normalized to contract walk
-    let ampMul = (sprinting ? BOB.sprintAmpMul : 1) * (grounded ? 1 : BOB.airDampen);
-    if (crouching) ampMul *= BOB.crouchDampen;
-    const freq = sprinting ? BOB.sprintFreq : BOB.walkFreq;
-    this._phase += dt * freq * Math.max(spdN, sprinting ? 1 : spdN) ;
+    const follow = 1 - Math.exp(-12 * elapsed);
+    this._gait += ((vaulting ? 0 : Math.min(1, speed / 4.4)) - this._gait) * follow;
+    this._sprint += ((sprinting && grounded && !crouching && !vaulting ? 1 : 0) - this._sprint) * follow;
+    this._crouchBlend += ((crouching ? 1 : 0) - this._crouchBlend) * follow;
+    this._groundBlend += ((grounded ? 1 : 0) - this._groundBlend) * follow;
+    const spdN = this._gait;
+    const ampMul = (1 + (BOB.sprintAmpMul - 1) * this._sprint)
+      * (BOB.airDampen + (1 - BOB.airDampen) * this._groundBlend)
+      * (1 + (BOB.crouchDampen - 1) * this._crouchBlend) * (1 - vaultBlend);
+    const freq = BOB.walkFreq + (BOB.sprintFreq - BOB.walkFreq) * this._sprint;
+    this._phase += elapsed * freq * spdN;
     const bp = this._phase * Math.PI * 2;
     const bobX = Math.sin(bp * 0.5) * BOB.walkHorz * ampMul * spdN;   // figure-8: lazy infinity loop
-    const bobY = Math.cos(bp) * BOB.walkVert * ampMul * spdN * (sprinting ? 1 : 0.8);
+    const bobY = Math.cos(bp) * BOB.walkVert * ampMul * spdN * (0.8 + this._sprint * 0.2);
     this._bobVal = Math.min(1, Math.abs(bobY) / (BOB.walkVert * BOB.sprintAmpMul) +
                                 Math.abs(bobX) / (BOB.walkHorz * BOB.sprintAmpMul));
 
@@ -487,8 +499,9 @@ export class ViewmodelRig {
 
     /* sprint cant + counter-roll + inertia roll composition */
     const proneMotion = Math.sin(Math.PI * Math.max(0, Math.min(1, ctx.proneT || 0)));
-    this._vaultDip = (this._vaultDip || 0) + ((ctx.vaulting ? 1 : 0) - (this._vaultDip || 0)) * (1 - Math.exp(-18 * dt));
-    const cant = sprinting ? BOB.sprintTiltZ * Math.min(1, speed / 6.2) * (1 - adsE) : 0;
+    this._vaultDip = vaultBlend;
+    const carry = this._sprint * (1 - adsE) * (1 - vaultBlend);
+    const cant = BOB.sprintTiltZ * carry;
     const roll = bobX / (BOB.walkHorz || 1) * BOB.counterRoll * (1 - adsE * 0.5)
       + turn.roll
       + this._lean.p * BOB.leanRollPerMeter;
@@ -511,11 +524,13 @@ export class ViewmodelRig {
     /* base hip pose eased toward adsOffset absolute pose; dips layered on top */
     const dep = this._deployOffset();
     this.content.position.set(
-      HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX + (dep.x || 0),
-      HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.16 - proneMotion * 0.12,
-      HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0)
+      HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055,
+      HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065,
+      HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1
     );
-    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.35 - proneMotion * 0.22, swingRy + (dep.ry || 0), swingRz + (dep.rz || 0) + this._vaultDip * 0.18);
+    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22 - carry * 0.22,
+      swingRy + (dep.ry || 0) + carry * 0.18,
+      swingRz + (dep.rz || 0) + this._vaultDip * 0.18);
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
     this._decayFx(dt, cur);

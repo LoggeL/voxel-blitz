@@ -2,7 +2,7 @@ import { AIR, GROUND, METAL, SX, SY, SZ, idx } from './blocks.js';
 import { MAP_SPAWN_ANCHORS } from './metadata.js';
 import { rebuildHeights, serializeBlocks } from './serialize.js';
 
-export const RING = [...MAP_SPAWN_ANCHORS.foundry.fun.slice(0, 8), [64, 48]];
+const RING = [...MAP_SPAWN_ANCHORS.foundry.fun.slice(0, 8), [64, 48]];
 
 export function createStateApi(
   blocks,
@@ -61,7 +61,7 @@ export function createStateApi(
   return world;
 }
 
-export function findSpawnsFor(world, n) {
+function findSpawnsFor(world, n) {
   const out = [];
   for (const [px, pz] of RING) {
     if (out.length >= n) break;
@@ -74,7 +74,7 @@ export function findSpawnsFor(world, n) {
   return out;
 }
 
-export function freeSpotNear(world, px, pz) {
+function freeSpotNear(world, px, pz) {
   const { getBlock, heightAt } = world;
   for (let r = 0; r < 12; r++) {
     for (let dz = -r; dz <= r; dz++) {
@@ -93,7 +93,7 @@ export function freeSpotNear(world, px, pz) {
   return null;
 }
 
-export function ladderAt(mapMeta, x, y, z, margin = 0) {
+function ladderAt(mapMeta, x, y, z, margin = 0) {
   if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null;
   const ladders = Array.isArray(mapMeta?.ladders) ? mapMeta.ladders : [];
   const pad = Number.isFinite(margin) ? Math.max(0, margin) : 0;

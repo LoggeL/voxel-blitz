@@ -27,7 +27,7 @@ const NOOP = () => {};
 const QUICK_PLAY_BOTS = 5;
 
 export class MenuLobbyController {
-  constructor(host = {}) {
+  constructor(host) {
     this.host = host;
     this.support = new HudSupport();
 
@@ -38,25 +38,8 @@ export class MenuLobbyController {
     this._onLobbyKeyDown = null;
   }
 
-  _callHost(name, ...args) {
-    const callback = this.host && this.host[name];
-    if (typeof callback === 'function') return callback.call(this.host, ...args);
-    return undefined;
-  }
-
-  _settingsOpen() {
-    if (this.host && typeof this.host.isSettingsOpen === 'function') {
-      return !!this.host.isSettingsOpen();
-    }
-    return !!(this.host && this.host.settingsOpen);
-  }
-
-  _buyMenuOpen() {
-    return !!this._callHost('isBuyMenuOpen');
-  }
-
   _sensitivity() {
-    const configured = this._callHost('getSensitivity');
+    const configured = this.host.getSensitivity();
     if (Number.isFinite(+configured)) {
       return clampMouseSensitivity(configured);
     }
@@ -72,8 +55,8 @@ export class MenuLobbyController {
     this.browser?.dispose();
     this.onMenuAction = typeof onAction === 'function' ? onAction : NOOP;
     this.hideLobby();
-    this._callHost('closeSettings');
-    this._callHost('closeBuyMenuDirect');
+    this.host.closeSettings();
+    this.host.closeBuyMenuDirect();
 
     const root = this.support.root('menu');
     root.innerHTML = '';
@@ -101,16 +84,18 @@ export class MenuLobbyController {
     const primary = el('section', 'vb-menu-primary', panel, 'menu-primary-step');
     primary.setAttribute('aria-labelledby', 'menu-title');
     const primaryBody = el('div', 'vb-menu-primary-body', primary);
+    el('div', 'vb-menu-eyebrow', primaryBody).textContent = 'DESTRUCTIBLE MULTIPLAYER ARENA';
     const title = el('h1', 'vb-title vb-deployment-title', primaryBody, 'menu-title');
     el('span', '', title).textContent = 'VOXEL';
     el('span', '', title).textContent = ' BLITZ';
     const sub = el('div', 'vb-sub', primaryBody);
     sub.textContent = 'Fast rounds. Destructible arenas.';
 
-    const callsignLabel = el('label', 'vb-label', primaryBody);
+    const playerIdentity = el('div', 'vb-player-identity', primaryBody);
+    const callsignLabel = el('label', 'vb-label', playerIdentity);
     callsignLabel.textContent = 'PLAYER NAME';
     callsignLabel.htmlFor = 'name-input';
-    const nameInput = el('input', '', primaryBody, 'name-input');
+    const nameInput = el('input', '', playerIdentity, 'name-input');
     nameInput.maxLength = 16;
     nameInput.autocomplete = 'off';
     nameInput.spellcheck = false;
@@ -124,7 +109,7 @@ export class MenuLobbyController {
     quickPlayButton.type = 'button';
     quickPlayButton.textContent = 'QUICK PLAY';
     const quickHint = el('div', 'vb-action-hint', quickBox);
-    quickHint.textContent = '5+ BOTS · AUTO ARENA · FUN';
+    quickHint.textContent = '5+ BOTS · AUTO ARENA · INSTANT ACTION';
 
     const createBox = el('div', 'vb-create-box', actionsBox);
     const createLobbyButton = el(
@@ -136,7 +121,7 @@ export class MenuLobbyController {
     createLobbyButton.type = 'button';
     createLobbyButton.textContent = 'CREATE LOBBY';
     const createHint = el('div', 'vb-action-hint', createBox);
-    createHint.textContent = 'Open to everyone, or protect with a password.';
+    createHint.textContent = 'YOUR RULES. YOUR ARENA.';
 
     const passwordOption = (parent, id, title) => {
       const details = el('details', 'vb-password-option', parent);
@@ -150,11 +135,13 @@ export class MenuLobbyController {
       input.placeholder = 'Leave empty for an open lobby';
       return input;
     };
-    const createPassword = passwordOption(actionsBox, 'create-password-input', 'Set a lobby password');
-    const browseButton = el('button', 'vb-btn vb-browse-btn', actionsBox, 'browse-lobbies-btn');
+    const browseBox = el('div', 'vb-browse-box', actionsBox);
+    const browseButton = el('button', 'vb-btn vb-browse-btn', browseBox, 'browse-lobbies-btn');
     browseButton.type = 'button';
     browseButton.textContent = 'FIND A LOBBY';
     browseButton.setAttribute('aria-haspopup', 'dialog');
+    el('div', 'vb-action-hint', browseBox).textContent = 'EXPLORE OPEN ROOMS';
+    const createPassword = passwordOption(actionsBox, 'create-password-input', 'Set a lobby password');
 
     const joinSection = el('div', 'vb-join-section', primaryBody);
     const joinLabel = el('label', 'vb-label', joinSection);
@@ -185,12 +172,16 @@ export class MenuLobbyController {
     trainingImage.width = 1280;
     trainingImage.height = 720;
     const trainingInfo = el('div', 'vb-training-info', training);
-    el('span', 'vb-step-kicker', trainingInfo).textContent = 'THE PRACTICE RANGE';
+    el('span', 'vb-step-kicker', trainingInfo).textContent = 'WARM UP';
     el('h2', '', trainingInfo).textContent = 'KILLHOUSE';
     el('p', '', trainingInfo).textContent = 'Find your aim. Beat your time.';
     const trainingButton = el('button', 'vb-btn vb-training-btn', trainingInfo, 'training-btn');
     trainingButton.type = 'button';
     trainingButton.textContent = 'ENTER KILLHOUSE';
+
+    const menuFooter = el('div', 'vb-menu-footer', panel);
+    el('span', '', menuFooter).textContent = 'MOVE FAST. BREAK EVERYTHING.';
+    el('span', '', menuFooter).textContent = 'MULTIPLAYER · DESTRUCTIBLE ARENAS';
 
     const getIdentity = () => {
       const name = nameInput.value.trim().slice(0, 16) || 'PLAYER';
@@ -481,8 +472,8 @@ export class MenuLobbyController {
       this._onLobbyKeyDown = (event) => {
         if (root.classList.contains('hidden') || root.style.display === 'none') return;
         if (this.lobbyDom.qr?.isOpen) return;
-        if (this._settingsOpen()) return;
-        if (this._buyMenuOpen()) return;
+        if (this.host.isSettingsOpen()) return;
+        if (this.host.isBuyMenuOpen()) return;
         if (event.key === 'Escape') {
           event.preventDefault();
           if (this._lobbyCallbacks && typeof this._lobbyCallbacks.onLeave === 'function') {
@@ -497,9 +488,9 @@ export class MenuLobbyController {
   }
 
   showLobby(state, { onReady, onStart, onLeave, onConfigure } = {}) {
-    this._callHost('closeSettings');
-    if (this._buyMenuOpen()) this._callHost('toggleBuyMenu', false);
-    else this._callHost('closeBuyMenuDirect');
+    this.host.closeSettings();
+    if (this.host.isBuyMenuOpen()) this.host.toggleBuyMenu(false);
+    else this.host.closeBuyMenuDirect();
 
     this._lobbyCallbacks = { onReady, onStart, onLeave, onConfigure };
     const menu = document.getElementById('menu');

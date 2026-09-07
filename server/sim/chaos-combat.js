@@ -1,9 +1,7 @@
 import { chaosLevel } from '../../shared/chaos.js';
 import { WEAPONS } from '../../shared/combatmath.js';
 import { raycastVoxels } from '../../shared/raycast.js';
-import { evHit, evShoot } from '../protocol.js';
-
-export { chaosWeaponDef } from '../../shared/chaos.js';
+import { evHit, evShoot } from '../protocol/events.js';
 
 function fan(p, ctx, dir, count, rocket = false, circle = false) {
   for (let i = 0; i < count; i++) {

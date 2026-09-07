@@ -1,12 +1,13 @@
+import { fireOneShot } from '../server/sim/combat.js';
 import assert from 'node:assert/strict';
 import { GameEngine } from '../server/game.js';
-import { makeSnapshot } from '../server/protocol.js';
+import { makeSnapshot } from '../server/protocol/snapshot.js';
 import { parseBuyFrame } from '../server/protocol/admission.js';
 import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
 import { GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
 import { MAP_IDS, isModeMapCompatible, mapForMode } from '../shared/modes.js';
-import { CHAOS_UPGRADES, CHAOS_START_CREDITS, CHAOS_KILL_CREDITS, chaosPurchaseId, parseChaosPurchase } from '../shared/chaos.js';
-import { chaosShot, chaosHit, chaosWeaponDef } from '../server/sim/chaos-combat.js';
+import { CHAOS_UPGRADES, CHAOS_START_CREDITS, CHAOS_KILL_CREDITS, chaosPurchaseId, parseChaosPurchase, chaosWeaponDef } from '../shared/chaos.js';
+import { chaosShot, chaosHit } from '../server/sim/chaos-combat.js';
 
 assert.equal(CHAOS_START_CREDITS, 600);
 assert.equal(CHAOS_KILL_CREDITS, 300);
@@ -188,9 +189,9 @@ for (const item of ['sniper', 'lance']) for (const mode of ['chaos', 'fun']) {
   // Preserve the engine's real damage, explosion and arc hooks; remove terrain
   // and spread only so a target hit is deterministic.
   game.world.getBlock = () => 0;
-  game.computeConeDeg = () => 0;
+  game.contexts.combat.computeConeDeg = () => 0;
   game.tickEvents.length = 0;
-  game.fireOneShot(shooter);
+  fireOneShot(shooter, game.contexts.combat);
   assert(direct.hp < 1000, `${mode} ${item} primary shot hits`);
   if (mode === 'chaos') {
     assert(side.hp < 1000, `${item} secondary effect actually damages off-ray target through fireOneShot`);

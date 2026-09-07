@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { PlayerEntity, aimAngles, fwdFromYawPitch } from '../server/sim/player.js';
-import { FlameSystem, fireFlame } from '../server/sim/fire.js';
+import { FlameSystem } from '../server/sim/fire.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 
 function scenario({ victimAt = [10.5, 0.5, 8.5], prone = false, aim = null, solidAt = () => 0 } = {}) {
@@ -17,7 +17,7 @@ function scenario({ victimAt = [10.5, 0.5, 8.5], prone = false, aim = null, soli
     canDamage: () => true, solidAt, pushEvent: event => events.push(event),
     killPlayer: () => assert.fail('one flame shot must not kill a healthy target'),
   };
-  fireFlame(owner, eye, direction, ctx);
+  ctx.flames.launch(owner, eye, direction, ctx);
   ctx.flames.step(0.6, ctx);
   return { victim, events };
 }

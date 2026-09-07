@@ -29,7 +29,6 @@ export class WeaponActions {
 
   get reloading() { return this._reload !== null; }
   get cycling() { return this._cycle !== null; }
-  get jerking() { return this._jerk !== null; }
 
   /** Clear all transient action state and restore the supplied model's moving parts. */
   reset(model = null) {

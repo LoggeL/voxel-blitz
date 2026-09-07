@@ -110,18 +110,19 @@ function woodRings(x, y) {
   return [clamp255(r), clamp255(g), clamp255(b), 255];
 }
 
-/** Two-green clusters, strong per-pixel variance, ~15% alpha-0 punch-through. */
+/** Mottled leaf clusters with scattered holes, without repeating diagonal bands. */
 function leaves(x, y) {
-  if (wob(x, y, 19, 100) < 15) return [0, 0, 0, 0];
-  const cluster = wob(x >> 2, y >> 2, 20, 7) & 1;
-  const v = wob(x, y, 21, 61) - 30;              // +/-30 swing
-  const base = cluster ? [44, 108, 36] : [80, 148, 56];
-  return [
-    clamp255(base[0] + v),
-    clamp255(base[1] + (v >> 1)),
-    clamp255(base[2] + (v >> 2)),
-    255,
-  ];
+  // An invertible byte shuffle distributes exactly 38 cutouts over the tile.
+  let grain = x + y * 16;
+  grain ^= grain >> 4;
+  grain = (grain * 157) & 255;
+  grain ^= grain >> 3;
+  grain = (grain * 109) & 255;
+  if (grain < 38) return [0, 0, 0, 0];
+  const cluster = ((x >> 1) * 13 ^ (y >> 1) * 23 ^ ((x + y) >> 2) * 7) % 3;
+  const shade = (grain % 15) - 7;
+  const base = [[42, 94, 35], [55, 114, 43], [70, 134, 51]][cluster];
+  return [base[0] + shade, base[1] + shade, base[2] + (shade >> 1), 255];
 }
 
 function concrete(x, y) {

@@ -1,7 +1,7 @@
 // Shared deterministic value-noise / fbm used by world generation.
 // No Math.random anywhere: every call is a pure function of coordinates + seed.
 
-export function hash2i(xi, zi, seed) {
+function hash2i(xi, zi, seed) {
   // Integer lattice hash -> [-1, 1]. Deterministic across JS engines (int32 math).
   let h = xi * 374761393 + zi * 668265263 + seed * 1274126177;
   h = (h ^ (h >>> 13)) | 0;

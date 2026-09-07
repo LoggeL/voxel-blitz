@@ -1,6 +1,6 @@
 import { ProjectileSystem, PROJECTILE_RULES } from '../../server/sim/projectiles.js';
 import { PlayerPhysics } from '../../public/js/player-physics.js';
-import { makeSnapshot } from '../../server/protocol.js';
+import { makeSnapshot } from '../../server/protocol/snapshot.js';
 
 export function runBlastImpulseContracts(ok) {
   const system = new ProjectileSystem();

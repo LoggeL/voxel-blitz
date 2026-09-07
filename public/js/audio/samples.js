@@ -8,6 +8,9 @@ const sampleFileSlots = {
   'weapons.shotgun.fire': `${SLOT_ROOT}/weapons/shotgun/fire.ogg`,
   'weapons.sniper.fire': `${SLOT_ROOT}/weapons/sniper/fire.ogg`,
   'weapons.lmg.fire': `${SLOT_ROOT}/weapons/lmg/fire.ogg`,
+  'weapons.minigun.fire': `${SLOT_ROOT}/weapons/minigun/fire.ogg`,
+  'weapons.knife.fire': `${SLOT_ROOT}/weapons/knife/fire.ogg`,
+  'weapons.flamethrower.loop': `${SLOT_ROOT}/weapons/flamethrower/loop.ogg`,
   'weapons.revolver.fire': `${SLOT_ROOT}/weapons/revolver/fire.ogg`,
   'weapons.longarc.fire': `${SLOT_ROOT}/weapons/longarc/fire.ogg`,
   'weapons.lance.fire': `${SLOT_ROOT}/weapons/lance/fire.ogg`,
@@ -19,6 +22,9 @@ const sampleFileSlots = {
   'grenades.frag.explosion': `${SLOT_ROOT}/grenades/frag.ogg`,
   'grenades.limpet.explosion': `${SLOT_ROOT}/grenades/limpet.ogg`,
   'grenades.pulse.explosion': `${SLOT_ROOT}/grenades/pulse.ogg`,
+  'grenades.rocket.explosion': `${SLOT_ROOT}/grenades/rocket.ogg`,
+  'combat.grenadePin': `${SLOT_ROOT}/grenades/pin.ogg`,
+  'combat.grenadeThrow': `${SLOT_ROOT}/grenades/throw.ogg`,
   'combat.grenadeExplosion': `${SLOT_ROOT}/combat/grenade-explosion.ogg`,
   'human.pain.light': `${SLOT_ROOT}/human/pain-light.ogg`,
   'human.pain.heavy': `${SLOT_ROOT}/human/pain-heavy.ogg`,
@@ -50,11 +56,17 @@ export const BUILTIN_SAMPLE_MANIFEST = Object.freeze({
   'grenades.frag.explosion': SAMPLE_FILE_SLOTS['grenades.frag.explosion'],
   'grenades.limpet.explosion': SAMPLE_FILE_SLOTS['grenades.limpet.explosion'],
   'grenades.pulse.explosion': SAMPLE_FILE_SLOTS['grenades.pulse.explosion'],
+  'grenades.rocket.explosion': SAMPLE_FILE_SLOTS['grenades.rocket.explosion'],
+  'combat.grenadePin': SAMPLE_FILE_SLOTS['combat.grenadePin'],
+  'combat.grenadeThrow': SAMPLE_FILE_SLOTS['combat.grenadeThrow'],
   'weapons.rifle.fire': SAMPLE_FILE_SLOTS['weapons.rifle.fire'],
   'weapons.smg.fire': SAMPLE_FILE_SLOTS['weapons.smg.fire'],
   'weapons.shotgun.fire': SAMPLE_FILE_SLOTS['weapons.shotgun.fire'],
   'weapons.sniper.fire': SAMPLE_FILE_SLOTS['weapons.sniper.fire'],
   'weapons.lmg.fire': SAMPLE_FILE_SLOTS['weapons.lmg.fire'],
+  'weapons.minigun.fire': SAMPLE_FILE_SLOTS['weapons.minigun.fire'],
+  'weapons.knife.fire': SAMPLE_FILE_SLOTS['weapons.knife.fire'],
+  'weapons.flamethrower.loop': SAMPLE_FILE_SLOTS['weapons.flamethrower.loop'],
   'weapons.revolver.fire': SAMPLE_FILE_SLOTS['weapons.revolver.fire'],
   'weapons.longarc.fire': SAMPLE_FILE_SLOTS['weapons.longarc.fire'],
   'weapons.lance.fire': SAMPLE_FILE_SLOTS['weapons.lance.fire'],
@@ -104,9 +116,14 @@ export class LocalSampleBank {
     return Object.freeze({ loaded, failed });
   }
 
+  /** Read a decoded sample for a sustained voice that owns its own envelope. */
+  getBuffer(slot) {
+    return this._buffers.get(slot) || null;
+  }
+
   play(slot, output, { gain = 1, rate = 1 } = {}) {
     const ctx = this._getContext();
-    const buffer = this._buffers.get(slot);
+    const buffer = this.getBuffer(slot);
     if (!ctx || !buffer || !output) return false;
 
     const source = ctx.createBufferSource();

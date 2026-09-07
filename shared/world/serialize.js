@@ -1,6 +1,6 @@
 import { AIR, SX, SY, SZ, idx } from './blocks.js';
 
-export const MAP_VERSION = 1;
+const MAP_VERSION = 1;
 export const MAP_HEADER_BYTES = 6;
 export const MAP_BYTES = MAP_HEADER_BYTES + SX * SY * SZ;
 

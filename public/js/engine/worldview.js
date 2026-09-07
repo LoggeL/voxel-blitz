@@ -6,20 +6,16 @@
 import * as THREE from '../vendor/three.module.js';
 import { buildAtlas } from './atlas.js';
 import { ChunkStore } from './chunks.js';
-import { installSky, SUN_DIR } from './sky.js';
+import { installSky } from './sky.js';
 import { buildNuketownDetails } from './nuketown-details.js';
+import { mapAtmosphere } from './map-atmosphere.js';
+import { buildMapSigns } from './map-signs.js';
 import { SiteMarkers } from './site-markers.js';
+import { PowerupView } from './powerup-view.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 
-export { SUN_DIR };
-
-const FOG_COLOR = '#9fbcd8';
-const FOG_DENSITY = 0.0055;
 /** Sun placement in world units; direction normalises to sky.SUN_DIR. */
 const SUN_POS = new THREE.Vector3(60, 90, 20);
-
-const _rayO = new THREE.Vector3();
-const _rayD = new THREE.Vector3();
 
 const LADDER_RUNG_SPACING = 0.62;
 const LADDER_RUNG_BOTTOM_INSET = 0.3;
@@ -84,7 +80,7 @@ function buildLadderVisuals(mapMeta) {
 
 export class WorldView {
   /**
-   * @param {{getBlock(x:number,y:number,z:number):number,meta?:object}} storeRef
+   * @param {{getBlock:Function,getBlockDamage?:Function,meta?:object}} storeRef
    * @param {object|null} mapMeta
    */
   constructor(storeRef, mapMeta = null) {
@@ -92,15 +88,17 @@ export class WorldView {
       throw new TypeError('WorldView requires { getBlock }');
     }
     this.store = storeRef;
+    const meta = mapMeta || storeRef.meta;
+    const palette = mapAtmosphere(meta?.id);
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(FOG_COLOR, FOG_DENSITY);
+    this.scene.fog = new THREE.FogExp2(palette.fog, palette.density);
 
-    const hemi = new THREE.HemisphereLight(0xbcd8ff, 0x5a4a38, 0.55);
+    const hemi = new THREE.HemisphereLight(palette.skyLight, palette.groundLight, palette.ambient);
     hemi.name = 'hemi';
     this.scene.add(hemi);
 
-    const sun = new THREE.DirectionalLight(0xfff2dd, 1.35);
+    const sun = new THREE.DirectionalLight(palette.sun, palette.sunlight);
     sun.name = 'sun';
     sun.position.copy(SUN_POS);
     sun.castShadow = false;              // perf: AO + face shading carry the look
@@ -108,24 +106,26 @@ export class WorldView {
     this.sun = sun;
 
     this.atlas = buildAtlas();
-    this.chunkStore = new ChunkStore(this.scene, this.atlas, storeRef.getBlock);
+    this.chunkStore = new ChunkStore(this.scene, this.atlas, storeRef.getBlock, storeRef.getBlockDamage);
 
     this.mapDetails = (mapMeta || storeRef.meta)?.id === 'nuketown' ? buildNuketownDetails() : null;
     if (this.mapDetails) this.scene.add(this.mapDetails.group);
+    this.mapSigns = buildMapSigns(meta?.id, storeRef.getBlock);
+    this.scene.add(this.mapSigns.group);
 
-    this.camera = null;                  // optional: setCamera() enables rayHitCamera()
-    this.skyUpdate = installSky(this.scene);
+    this.skyUpdate = installSky(this.scene, palette);
 
     this.ladderVisuals = buildLadderVisuals(mapMeta || storeRef.meta || null);
     if (this.ladderVisuals) this.scene.add(this.ladderVisuals.group);
     this.siteMarkers = new SiteMarkers((mapMeta || storeRef.meta || null)?.sites);
     this.scene.add(this.siteMarkers.group);
+    this.powerups = new PowerupView();
+    this.scene.add(this.powerups.group);
   }
 
   /** Builds every initial chunk column; resolves when the world is renderable. */
   async ready() {
     this.chunkStore.buildAll();
-    await Promise.resolve();             // let the first paint schedule before use
     return this;
   }
 
@@ -138,11 +138,7 @@ export class WorldView {
       const d = deltas[i];
       this.chunkStore.applyBlockDelta(d.x, d.y, d.z, d.v);
     }
-  }
-
-  /** Single-block convenience wrapper around applyDeltas(). */
-  applyDelta(x, y, z, v) {
-    this.chunkStore.applyBlockDelta(x, y, z, v);
+    if (deltas.length) this.mapSigns.refresh();
   }
 
   /**
@@ -158,26 +154,19 @@ export class WorldView {
     );
   }
 
-  setCamera(camera) {
-    this.camera = camera;
-  }
-
   setGameMode(mode) {
     this.siteMarkers.setMode(mode);
   }
 
-  /** Camera-centred convenience ray; requires a prior setCamera(). */
-  rayHitCamera(maxDist = 64) {
-    if (!this.camera) return null;
-    _rayO.setFromMatrixPosition(this.camera.matrixWorld);
-    _rayD.set(0, 0, -1).applyQuaternion(this.camera.quaternion);
-    return this.pickCameraRay(_rayO, _rayD, maxDist);
+  setPowerups(rows) {
+    this.powerups.sync(rows);
   }
 
   /** Per-frame tick: drains the chunk remesh budget and drifts the clouds. */
   update(dt) {
     this.chunkStore.update();
     this.skyUpdate(dt);
+    this.powerups.update(dt);
   }
 
   dispose() {
@@ -198,6 +187,8 @@ export class WorldView {
       this.mapDetails = null;
     }
     this.siteMarkers.dispose();
+    this.powerups.dispose();
+    this.mapSigns.dispose();
     this.skyUpdate.dispose();
     this.atlas.dispose();
   }

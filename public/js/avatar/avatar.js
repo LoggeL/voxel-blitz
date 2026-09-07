@@ -4,6 +4,7 @@ import { disposeObjectTree } from '../engine/dispose.js';
 import { clamp01 } from '../util/math.js';
 import { hashHue, hashInt } from '../util/hash.js';
 import { AvatarWeaponModel } from './avatar-weapon.js';
+import { AvatarMotion } from './avatar-motion.js';
 import { buildOperator, poseOperatorArm } from './operator-model.js';
 
 export const TEAM_AVATAR_COLORS = Object.freeze({
@@ -58,11 +59,13 @@ export function updateAvatarWeaponPose(av, {
   blend = 1,
   charge = 0,
   minigun,
+  movement,
 } = {}) {
   const poseBlend = Math.max(0, Math.min(1, Number(blend) || 0));
   const stanceBlend = dt > 0 ? 1 - Math.exp(-dt * 12) : poseBlend;
   av.pronePose = pronePose(proneT);
   av.crouchPose += ((crouching ? 1 : 0) - av.crouchPose) * stanceBlend;
+  av.motion.update(dt, { stride, swing, ...movement });
   av.weaponModel.update({
     weapon,
     pitch,
@@ -77,6 +80,11 @@ export function updateAvatarWeaponPose(av, {
     charge,
     minigun,
   });
+  // Add the tiny carrier motion before solving the arms so palms stay on the gun.
+  const upright = 1 - av.pronePose;
+  const aimDamping = ads || reloading ? 0.25 : 1;
+  av.weaponModel.root.position.y += (av.motion.breath * 0.004 - av.motion.landing * 0.009) * upright * aimDamping;
+  av.weaponModel.root.rotation.z += (av.motion.side * -0.008 + av.motion.turn * -0.008) * upright * aimDamping;
   if (dt > 0) av.reloadPhase = (av.reloadPhase || 0) + dt / 0.9;
   const reload = av.weaponModel.reloadT * (0.65 + 0.25 * Math.sin(Math.PI * 2 * (av.reloadPhase || 0)));
   av.group.updateMatrixWorld(true);
@@ -92,19 +100,30 @@ export function updateAvatarStancePose(av, {
 } = {}) {
   const poseBlend = av.pronePose > 0 ? 1 : Math.max(0, Math.min(1, Number(blend) || 0));
   const crouch = clamp01(av.crouchPose);
-  av.lLeg.position.y += ((0.73 - crouch * 0.26) - av.lLeg.position.y) * poseBlend;
-  av.rLeg.position.y += ((0.73 - crouch * 0.26) - av.rLeg.position.y) * poseBlend;
-  av.lLeg.scale.y += ((1 - crouch * 0.35) - av.lLeg.scale.y) * poseBlend;
-  av.rLeg.scale.y += ((1 - crouch * 0.35) - av.rLeg.scale.y) * poseBlend;
-  av.lLeg.rotation.x += (swing * 0.78 * (1 - crouch * 0.6) -
+  const motion = av.motion;
+  const upright = 1 - (av.pronePose || 0);
+  const settle = motion.landing * (1 - crouch * 0.6) * upright;
+  const legScale = 1 - crouch * 0.35 - (settle * 0.022 + motion.air * 0.025) * upright;
+  av.lLeg.position.y += ((0.73 - crouch * 0.26 - settle * 0.008) - av.lLeg.position.y) * poseBlend;
+  av.rLeg.position.y += ((0.73 - crouch * 0.26 - settle * 0.008) - av.rLeg.position.y) * poseBlend;
+  av.lLeg.scale.y += (legScale - av.lLeg.scale.y) * poseBlend;
+  av.rLeg.scale.y += (legScale - av.rLeg.scale.y) * poseBlend;
+  const gait = swing * 0.78 * (1 - crouch * 0.6) * (1 - motion.air * 0.9);
+  // A small asymmetric foot tuck fits inside the standing combat leg envelopes.
+  av.lLeg.rotation.x += (gait - motion.air * 0.02 * upright -
     av.lLeg.rotation.x) * poseBlend;
-  av.rLeg.rotation.x += (-swing * 0.78 * (1 - crouch * 0.6) -
+  av.rLeg.rotation.x += (-gait - motion.air * 0.08 * upright -
     av.rLeg.rotation.x) * poseBlend;
-  av.torso.position.y += ((1.18 - crouch * 0.27) - av.torso.position.y) * poseBlend;
-  av.hips.position.y += ((0.84 - crouch * 0.20) - av.hips.position.y) * poseBlend;
+  av.torso.position.y += ((1.18 - crouch * 0.27 - settle * 0.012) - av.torso.position.y) * poseBlend;
+  av.hips.position.y += ((0.84 - crouch * 0.20 - settle * 0.008) - av.hips.position.y) * poseBlend;
   av.head.position.y += ((1.66 - crouch * 0.34) - av.head.position.y) * poseBlend;
   av.torso.rotation.x += (stride * 0.16 + crouch * 0.12 -
     av.torso.rotation.x) * poseBlend;
+  av.torso.rotation.y = (motion.turn * 0.018 - motion.side * 0.008) * upright;
+  av.torso.scale.set(1 + motion.breath * 0.004 * upright,
+    1 + motion.breath * 0.006 * upright, 1 + motion.breath * 0.01 * upright);
+  av.pack.rotation.set(motion.gearPitch * upright, 0, motion.gearRoll * upright);
+  av.pouches.rotation.set(-motion.gearPitch * 0.7 * upright, 0, -motion.gearRoll * 0.45 * upright);
   av.hips.rotation.x = 0;
   const prone = av.pronePose || 0;
   for (const [part, y, z, tilt] of [
@@ -132,11 +151,19 @@ export function resetAvatarPose(av) {
   for (const part of [av.head, av.torso, av.hips, av.lLeg, av.rLeg]) part.position.z = 0;
   av.lastImpact = null;
   av.motionSeeded = false;
+  av.motion?.reset();
+  av.py = null;
+  av.lastYaw = null;
+  av.airborneHold = 0;
+  av.verticalSpeed = 0;
   av.group.visible = true;
   av.group.rotation.set(0, 0, 0);
   av.group.scale.set(1, 1, 1);
   av.torso.position.set(0, 1.18, 0);
   av.torso.rotation.set(0, 0, 0);
+  av.torso.scale.set(1, 1, 1);
+  av.pack?.rotation.set(0, 0, 0);
+  av.pouches?.rotation.set(0, 0, 0);
   av.hips.position.set(0, 0.84, 0);
   av.hips.rotation.set(0, 0, 0);
   av.head.position.set(0, 1.66, 0);
@@ -240,7 +267,7 @@ export function makeAvatar(id, name, team = null) {
   const visorMat = new THREE.MeshStandardMaterial({ color: 0x6aa5af, roughness: 0.22, metalness: 0.75, transparent: true });
   const variant = hashInt(id) % 3;
   const skin = new THREE.MeshStandardMaterial({ color: [0xc68b67, 0x8c5b42, 0xe0ae87][variant], roughness: 0.92, transparent: true });
-  const { torso, hips, head, lLeg, rLeg, lArm, rArm, lElbow, rElbow, lHand, rHand } =
+  const { torso, hips, head, lLeg, rLeg, lArm, rArm, lElbow, rElbow, lHand, rHand, pack, pouches } =
     buildOperator({ suit, dark, armor, visor: visorMat, skin, variant });
 
   const weaponModel = new AvatarWeaponModel();
@@ -311,6 +338,9 @@ export function makeAvatar(id, name, team = null) {
     weaponModel,
     lHand,
     rHand,
+    pack,
+    pouches,
+    motion: new AvatarMotion(hashInt(id) / 0xffffffff * Math.PI * 2),
     variant,
     tag,
     hpSpr,

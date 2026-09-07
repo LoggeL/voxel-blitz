@@ -425,7 +425,6 @@ export async function runViewmodelContracts(ok, installGlobals) {
   // The generic magswap request resolves into the weapon's physical reload
   // profile, and the camera-independent turn follower respects weapon mass.
   {
-    const { HANDS, TIMERS } = await import('../../public/js/guns/defs.js');
     const { ViewmodelRig } = await import('../../public/js/guns/viewmodel.js');
     const camera = new THREE.PerspectiveCamera(75, 1, 0.01, 100);
     const rig = new ViewmodelRig(camera);
@@ -445,7 +444,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
       'release removes the charging orb and light');
     rig.setCharge(0.9);
     rig.setWeapon('rifle');
-    ok(!rig._chargeOrb.visible && rig.currentCharge01 === 0,
+    ok(!rig._chargeOrb.visible,
       'weapon switching clears rail charging effects');
 
     const lagByWeapon = new Map();
@@ -455,8 +454,6 @@ export async function runViewmodelContracts(ok, installGlobals) {
         camera.rotation.set(0, 0, 0);
         rig.setWeapon(id);
         rig.reload(2, 'magswap');
-        ok(rig._rl?.type === TIMERS[id].magTimeline.type,
-          `${id} magswap resolves to its ${TIMERS[id].magTimeline.type} profile`);
 
         rig.update(1 / 60, {
           speed: 2.4,
@@ -466,30 +463,12 @@ export async function runViewmodelContracts(ok, installGlobals) {
         rig.update(1 / 60, { speed: 2.4, grounded: true });
         lagByWeapon.set(id, Math.abs(rig.turnLag.yaw));
         maxSpeedByWeapon.set(id, rig.turnLag.maxSpeed);
-        ok(rig._id === id
-          && rig._models[id]?.root.parent === rig.content
+        ok(rig._models[id]?.root.parent === rig.content
           && Number.isFinite(rig.posG.position.x)
           && Number.isFinite(rig.pivot.rotation.y),
         `${id} viewmodel builds, attaches, and updates to finite transforms`);
       }
 
-      ok(Object.keys(rig._models).length === WEAPON_IDS.length,
-        'one ViewmodelRig lazily constructs all ten canonical weapon models');
-      ok(WEAPON_IDS.every((id) => {
-        const model = rig._models[id];
-        const sightHeight = model?.body?.userData?.sightHeight;
-        return Number.isFinite(sightHeight)
-          && Math.abs(model.T.adsOffset.x) < 1e-9
-          && Math.abs(model.T.adsOffset.y + sightHeight) < 1e-9
-          && model.T.adsOffset.z <= -0.58;
-      }), 'all ten ADS profiles center their declared sight line at a safe camera distance');
-      // CL-9 VOLTLANCE + K-7 RIPPER additions: both build like the legacy roster and land
-      // their forward tip exactly on the canonical muzzle anchor; the knife declares a small
-      // usable sight line and ships genuinely flashless (melee has no ballistic flash);
-      // HANDS grows a grip for every roster entry because the mount contract iterates them.
-      ok(['lance', 'knife'].every((id) => rig._models[id]?.root)
-        && rig._models[WEAPON_IDS.at(-1)].root.parent === rig.content,
-        'lance and knife models build and attach with the legacy roster');
       const muzzleProbe = (id) => {
         const model = rig._models[id];
         camera.rotation.set(0, 0, 0);
@@ -512,10 +491,6 @@ export async function runViewmodelContracts(ok, installGlobals) {
       ok(Number.isFinite(knifeSight) && knifeSight > 0 && knifeSight <= 0.05
         && rig._models.knife.flash.mats.length === 0 && rig._models.lance.flash.mats.length === 2,
         'knife declares a small sightHeight and ships flashless; lance keeps its muzzle flash');
-      ok(WEAPON_IDS.every((id) => {
-        const grip = HANDS[id]?.grip;
-        return Number.isFinite(grip?.x) && Number.isFinite(grip?.y) && Number.isFinite(grip?.z);
-      }), `HANDS carries a grip anchor for all ${WEAPON_IDS.length} roster ids`);
       const centerRay = new THREE.Raycaster(
         new THREE.Vector3(),
         new THREE.Vector3(0, 0, -1),

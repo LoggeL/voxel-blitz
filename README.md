@@ -19,6 +19,7 @@ A multiplayer voxel arena shooter with destructible cover, ten weapons and bots 
 ## Inside the arena
 
 - **Break through cover.** Block destruction changes the arena as you fight.
+- **Risk a supply run.** Armor, Medkits and Ammo appear on exposed ground in Fun, Team Deathmatch and Chaos Lab. Walk over one to collect it.
 - **Find your weapon.** Rifles, a shotgun, a revolver, a sniper, an LMG, rockets, melee, ricocheting LONGARC bolts and the piercing VOLTLANCE. Add cookable frags, sticky charges and pulse shocks.
 - **Play with friends or bots.** Up to eight human players per room, lobby discovery, invite links, QR codes and optional lobby passwords.
 - **Feel every shot.** Procedural weapon models, recoil, aiming down sights, staged reloads, tracers, hit feedback and layered audio.
@@ -74,6 +75,7 @@ PORT=8080 npm start
 | --- | --- |
 | `WASD` / mouse | Move / look |
 | `Shift` / `Space` / `Ctrl` or `C` | Sprint / jump / crouch |
+| `Space` again in midair | Grab a reachable ledge and pull up, even after releasing movement keys |
 | Left / right mouse | Fire / aim down sights |
 | `R` | Reload |
 | `1–9`, `0` or scroll wheel | Switch weapons |

@@ -3,6 +3,7 @@ import {
   YELLOW_SIDING, TEAL_SIDING, ASPHALT, ROOF, BUS_YELLOW, TRUCK_RED, GROUND,
 } from './blocks.js';
 import { generateFlatBase, fillBox, paintFloor } from './flatmaps.js';
+import { addNeighborhoodLandmarks } from './setpiece-nuketown.js';
 
 /** Classic test-town layout. All cover, furniture and architecture are authoritative voxels. */
 export function generateNuketownInto(world, blocks, heights) {
@@ -61,6 +62,60 @@ export function generateNuketownInto(world, blocks, heights) {
   box(28,4,32,39,7,32,TEAL_SIDING);
   for (const [x,z] of [[65,52],[80,44],[83,45],[40,42]]) {
     box(x,1,z,x+2,2,z+2,PLANK); box(x,3,z,x+1,3,z+1,PLANK);
+  }
+  polishNeighborhood(world);
+  addNeighborhoodLandmarks(world);
+}
+
+function polishNeighborhood(world) {
+  for (const flip of [false, true]) {
+    const b = orientedBox(world, flip);
+    // Stepping stones and a patio border make each garden read as a lived-in
+    // place. These are floor inlays, including through the rear spawn strip.
+    for (let z = 63; z <= 84; z += 3) b(28,0,z,30,0,z+1,CONCRETE);
+    for (let x = 40; x <= 55; x += 3) b(x,0,82,x+1,0,83,PALE);
+    b(36,0,73,47,0,73,BRICK); b(36,0,73,36,0,80,BRICK);
+    // Flush zebra markings at each end of the street, plus driveway tyre wear.
+    for (let z = 41; z <= 45; z += 2) b(36,0,z,39,0,z,PALE);
+    b(78,0,57,78,0,62,ASPHALT); b(83,0,57,83,0,62,ASPHALT);
+    // Garden shed: timber facade, braced door surround, window and roof vent.
+    b(30,1,77,31,4,77,PLANK); b(35,1,77,37,4,77,PLANK);
+    b(32,4,77,34,4,77,WOOD);
+    b(37,2,80,37,3,82,GLASS);
+    b(32,6,80,34,6,81,METAL);
+    b(33,7,80,33,7,81,PALE);
+    // A workbench and stacked seed boxes occupy the shed's rear wall.
+    b(31,1,83,35,1,83,WOOD); b(31,2,83,35,2,83,PLANK);
+    b(31,3,83,32,3,83,TEAL_SIDING);
+    // Raised trellis along the existing side fence, clear of the garden route.
+    for (let z = 65; z <= 74; z += 3) {
+      b(100,4,z,100,5,z,WOOD);
+      b(100,5,z+1,100,5,z+1,LEAVES);
+    }
+    b(100,6,65,100,6,74,WOOD);
+    // Roof hardware and window shutters give the two houses more depth.
+    b(76,7,65,78,7,67,METAL); b(76,8,65,78,8,65,PALE);
+    b(85,7,71,87,7,74,METAL);
+    for (const x of [51,57,65,71]) {
+      b(x,3,61,x,4,61,flip?YELLOW_SIDING:TEAL_SIDING);
+      b(x,9,61,x,10,61,flip?YELLOW_SIDING:TEAL_SIDING);
+    }
+    // Living-room rug and kitchen splashback are flush, preserving stair and
+    // door clearance. The garage has a tool board above its existing bench.
+    b(55,0,69,62,0,74,TRUCK_RED);
+    b(55,0,69,62,0,69,PALE); b(55,0,74,62,0,74,PALE);
+    b(55,0,70,55,0,73,PALE); b(62,0,70,62,0,73,PALE);
+    b(66,4,76,72,4,76,TEAL_SIDING);
+    for (const x of [77,79,81]) {
+      b(x,3,76,x,4,76,TRUCK_RED);
+      b(x,4,76,x,4,76,PALE);
+    }
+    b(78,3,75,79,3,75,METAL);
+    b(66,5,75,68,5,75,PLANK);
+    // A bedside cabinet and wall artwork sit away from upper-floor routes.
+    b(71,7,74,72,8,75,PLANK); b(72,9,75,72,9,75,PALE);
+    b(65,9,76,68,10,76,TEAL_SIDING);
+    b(66,9,76,67,9,76,BUS_YELLOW);
   }
 }
 

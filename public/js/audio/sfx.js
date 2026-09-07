@@ -109,7 +109,10 @@ function outputOptions(value) {
 function ensureAudioModules() {
   if (!engine.ctx || engine.ctx.state === 'closed') return false;
   if (!pool) pool = new VoicePool(engine);
-  if (!flameLoops) flameLoops = new FlameLoops(engine, pool);
+  if (!flameLoops) {
+    flameLoops = new FlameLoops(engine, pool,
+      () => samples?.getBuffer('weapons.flamethrower.loop'));
+  }
   if (!minigunMotor) minigunMotor = new MinigunMotor(engine, pool);
   if (!primitives) primitives = createVoices(engine);
   if (!samples) {
@@ -546,10 +549,11 @@ export const sfx = {
   },
 
   /** Release: an arm swing whoosh whose weight scales with the charge. */
-  grenadeThrow(charge = 0.5) {
+  grenadeThrow(charge = 0.5, options) {
     const strength = Math.max(0, Math.min(1, Number(charge) || 0));
+    const deferred = copyOptions(options);
     run('grenadeThrow', () => {
-      const output = pool.acquire(null, 0.5);
+      const output = pool.acquire(outputOptions(deferred), 0.5);
       if (samples.play('combat.grenadeThrow', output, { gain: 0.6 + strength * 0.4 })) return;
       const at = primitives.nowT();
       primitives.hiss(output, {
@@ -563,15 +567,17 @@ export const sfx = {
   /** Blast at a world position. `type` is frag | limpet | pulse | rocket (frag by default). */
   explosion(pos, type = 'frag') {
     const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
+    // Bolt expiry shares the projectile event channel, but has no blast radius.
+    if (type === 'bolt') return this.arcZap(deferredPos);
     const profile = EXPLOSION_PROFILES[type] || EXPLOSION_PROFILES.frag;
     run('explosion', () => {
-      const output = pool.acquire({ pos: deferredPos }, profile.lifetime);
+      const output = pool.acquire({ pos: deferredPos, priority: 2 }, profile.lifetime);
       output.gain.value = profile.gain;
       const at = primitives.nowT();
-      const sampleType = type === 'rocket' ? 'limpet' : type;
+      const sampleType = EXPLOSION_PROFILES[type] ? type : 'frag';
       if (samples.play(`grenades.${sampleType}.explosion`, output, {
         gain: type === 'pulse' ? 0.75 : 0.95,
-        rate: type === 'rocket' ? 1.08 : 1,
+        rate: 1,
       })) {
         sendEcho(output, primitives, profile.echo * 0.45, engine.echoIn, addCleanup);
         return;

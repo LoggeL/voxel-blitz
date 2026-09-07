@@ -7,6 +7,8 @@ import {
   isWeaponId,
 } from '../../shared/modes.js';
 import { isRecord } from './admission.js';
+import { copyBlockDamage } from './block-damage.js';
+import { POWERUP_RULES, POWERUP_TYPES } from '../../shared/powerups.js';
 
 const D2 = 100, D3 = 1000;
 
@@ -95,7 +97,7 @@ function defaultMatchSnapshot() {
  * Player rows carry the exact contracted field set; positions are 2-decimal,
  * angles 3-decimal so payloads stay small and floats stay finite.
  */
-export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = undefined) {
+export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = undefined, blockDamage = [], powerups = []) {
   const matchSnapshot = match === undefined
     ? defaultMatchSnapshot()
     : (isRecord(match) ? wireCopy(match) : defaultMatchSnapshot());
@@ -112,6 +114,7 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       yaw: round(p.yaw, D3),
       pitch: round(p.pitch, D3),
       hp: round(p.hp, 1),
+      armor: round(Math.max(0, Math.min(POWERUP_RULES.maxArmor, Number.isFinite(p.armor) ? p.armor : 0)), 1),
       burning: round(Math.max(0, p.burning || 0), D3),
       panic: round(Math.max(0, Math.min(1, Number.isFinite(p.panic) ? p.panic : 0)), D3),
       pain: round(Math.max(0, Math.min(1, Number.isFinite(p.pain) ? p.pain : 0)), D3),
@@ -134,6 +137,8 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       firing: !!p.firing,
       ads: !!p.ads,
       crouch: !!p.crouch,
+      grounded: !!p.grounded,
+      vaulting: !!p.vault,
       proneT: p.proneT || 0,
       moveSpeed: round(Math.hypot(p.vx || 0, p.vz || 0), D2),
       mag: ammoCopy(p.mag),
@@ -154,6 +159,12 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
     // Engines clear these scratch arrays after broadcasting, so snapshots must
     // not retain either source array.
     blocks: (blockDeltas || []).map((b) => ({ i: b.i | 0, v: b.v | 0 })),
+    blockDamage: copyBlockDamage(blockDamage),
+    powerups: (Array.isArray(powerups) ? powerups : []).filter((pickup) =>
+      pickup && typeof pickup.id === 'string' && Object.hasOwn(POWERUP_TYPES, pickup.type)
+        && [pickup.x, pickup.y, pickup.z, pickup.expiresAt].every(Number.isFinite))
+      .map(({ id, type, x, y, z, expiresAt }) => ({ id, type,
+        x: round(x, D2), y: round(y, D2), z: round(z, D2), expiresAt: round(expiresAt, 1) })),
     events: (eventsArr || []).slice(),
   };
 }

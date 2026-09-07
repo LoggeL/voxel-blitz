@@ -20,7 +20,7 @@ export function runRailPenetrationContracts(ok) {
     Object.assign(target, { x: targetX, y: 15.5, yaw: -Math.PI / 2, pitch: 0, z: 40.5 + offset, hp: 1000,
       spawnProtected: false, spawnProtectedUntil: 0 });
     engine.tickEvents.length = 0;
-    fireOneShot(shooter, { ...engine.combatContext(), computeConeDeg: () => 0 }, charge);
+    fireOneShot(shooter, { ...engine.contexts.combat, computeConeDeg: () => 0 }, charge);
     const hits = engine.tickEvents.filter((event) => event.kind === 'hit');
     const result = { hits, damage: 1000 - target.hp,
       blocks: blocks.map((_, i) => engine.world.getBlock(42 + i, 16, 40)) };

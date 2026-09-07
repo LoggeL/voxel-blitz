@@ -1,5 +1,5 @@
-// Gamepad reading for the first-person input manager. Pure shaping helpers are exported
-// for contracts; GamepadInput polls navigator.getGamepads() once per frame and emits a
+// Gamepad reading for the first-person input manager. GamepadInput polls
+// navigator.getGamepads() once per frame and emits a
 // normalized frame (sticks, held buttons, and button edges) using the standard mapping.
 
 export const PAD_DEADZONE = Object.freeze({ move: 0.18, look: 0.12 });
@@ -89,15 +89,12 @@ export class GamepadInput {
     this.navigator = navigatorRef;
     this._held = null;
     this._activeUntil = -Infinity;
-    this._lastFrame = null;
   }
 
   /** True when a pad produced input recently (used to route aim assist and hints). */
   isActive(now) {
     return now < this._activeUntil;
   }
-
-  get lastFrame() { return this._lastFrame; }
 
   _firstPad() {
     try {
@@ -123,15 +120,12 @@ export class GamepadInput {
         const frame = readGamepadFrame({ axes: [], buttons: [] }, this._held);
         frame.connected = false;
         this._held = null;
-        this._lastFrame = frame;
         return frame;
       }
-      this._lastFrame = null;
       return null;
     }
     const frame = readGamepadFrame(pad, this._held);
     this._held = frame.held;
-    this._lastFrame = frame;
     if (frame.any) this._activeUntil = now + PAD_ACTIVE_MS;
     return frame;
   }
@@ -139,6 +133,5 @@ export class GamepadInput {
   reset() {
     this._held = null;
     this._activeUntil = -Infinity;
-    this._lastFrame = null;
   }
 }

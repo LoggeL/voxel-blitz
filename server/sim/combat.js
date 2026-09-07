@@ -1,5 +1,4 @@
 import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../../shared/minigun.js';
-import { fireFlame } from './fire.js';
 import { rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { chaosShot, chaosHit } from './chaos-combat.js';
 // Authoritative weapon intent, ballistics, and destructible-block damage.
@@ -26,7 +25,7 @@ import {
 import { clearReload } from './movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { NETWORK_PRESENTATION } from '../../shared/networking.js';
-import { evShoot, evHit, evBlock } from '../protocol.js';
+import { evShoot, evHit, evBlock } from '../protocol/events.js';
 import {
   clamp01,
   clampWeaponSlot,
@@ -34,9 +33,9 @@ import {
   shotRng,
 } from './player.js';
 
-export const SHOT_REACH = 120;
-export const LONG_RANGE_KILL_DISTANCE = 40;
-export const NO_SCOPE_ADS_THRESHOLD = SNIPER_SCOPE_ADS_THRESHOLD;
+const SHOT_REACH = 120;
+const LONG_RANGE_KILL_DISTANCE = 40;
+const NO_SCOPE_ADS_THRESHOLD = SNIPER_SCOPE_ADS_THRESHOLD;
 const BLOCK_MIN_DMG = 12;
 const HISTORY_WINDOW_MS = 500;
 
@@ -54,7 +53,7 @@ export function computeConeDeg(p) {
 }
 
 /** Drop a capacitor charge without firing (switch, reload, death, blocked mode). */
-export function cancelCharge(p) {
+function cancelCharge(p) {
   p.charging = false;
   p.chargeT = 0;
   p.charge = 0;
@@ -267,7 +266,7 @@ function meleeSwing(p, ctx) {
   if (lethal) ctx.killPlayer(victim, p, def.id, false);
 }
 
-/** Mining progress belongs to a player and expires when swings stop. */
+/** Accepted swings leave shared damage on the block until it is replaced. */
 function mineBlock(p, eye, fwd, ctx) {
   const hit = raycastVoxels(ctx.solidAt, ...eye, fwd.x, fwd.y, fwd.z, p.def.melee.reach);
   if (!hit || hit.y <= 0) { p.mining = null; return; }
@@ -275,9 +274,10 @@ function mineBlock(p, eye, fwd, ctx) {
   const required = MINING_HITS[type];
   if (!required) { p.mining = null; return; }
   const key = blockKey(hit.x, hit.y, hit.z);
-  const previous = p.mining;
-  const hits = previous?.key === key && previous.type === type && ctx.now - previous.at < 800
-    ? previous.hits + 1 : 1;
+  const mining = ctx.blockMining || (ctx.blockMining = new Map());
+  const previousProgress = blockDamageProgress(key, type, ctx);
+  const hits = (mining.get(key) || 0) + 1;
+  mining.set(key, hits);
   p.mining = { key, type, hits, at: ctx.now };
   ctx.pushEvent({ t: 'ev', kind: 'mine', id: String(p.id),
     x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz,
@@ -285,11 +285,13 @@ function mineBlock(p, eye, fwd, ctx) {
   if (hits >= required) {
     destroyBlock(hit.x, hit.y, hit.z, key, ctx);
     p.mining = null;
+  } else {
+    publishBlockDamage(hit.x, hit.y, hit.z, type, previousProgress, ctx);
   }
 }
 
 /** Position a human shooter saw at its bounded reported presentation age. */
-export function rewindVictim(v, now, viewAgeMs = NETWORK_PRESENTATION.defaultViewAgeMs) {
+function rewindVictim(v, now, viewAgeMs = NETWORK_PRESENTATION.defaultViewAgeMs) {
   const h = v.hist;
   if (!h || !h.length) return v;
   const boundedAge = Math.max(
@@ -333,13 +335,16 @@ export function blockKey(x, y, z) {
 
 /** Remove exactly one non-air block and emit its one authoritative mutation. */
 export function destroyBlockDirect(x, y, z, key, ctx) {
+  const damageKey = key || blockKey(x, y, z);
   const from = ctx.getBlock(x, y, z);
   if (from === AIR) {
-    ctx.blockHp.delete(key || blockKey(x, y, z));
+    ctx.blockHp.delete(damageKey);
+    ctx.blockMining?.delete(damageKey);
     return false;
   }
   ctx.setBlock(x, y, z, AIR);
-  ctx.blockHp.delete(key || blockKey(x, y, z));
+  ctx.blockHp.delete(damageKey);
+  ctx.blockMining?.delete(damageKey);
   ctx.pushBlockDelta(x, y, z, AIR);
   ctx.pushEvent(evBlock(x, y, z, AIR, from));
   return true;
@@ -357,11 +362,32 @@ export function destroyBlock(x, y, z, key, ctx) {
 }
 
 export function damageBlock(x, y, z, type, dmg, ctx) {
+  if (!(dmg > 0) || !Number.isFinite(dmg) || !BLOCK_HP[type] || ctx.getBlock(x, y, z) !== type) return;
   const key = blockKey(x, y, z);
+  const previousProgress = blockDamageProgress(key, type, ctx);
   let hp = ctx.blockHp.get(key) ?? BLOCK_HP[type];
   hp -= dmg;
   if (hp <= 0) destroyBlock(x, y, z, key, ctx);
-  else ctx.blockHp.set(key, hp);
+  else {
+    ctx.blockHp.set(key, hp);
+    publishBlockDamage(x, y, z, type, previousProgress, ctx);
+  }
+}
+
+/** Bullet HP and mining retain their own balance, sharing one visible state. */
+function blockDamageProgress(key, type, ctx) {
+  const hp = ctx.blockHp.get(key);
+  const bulletProgress = Number.isFinite(hp) && BLOCK_HP[type] ? 1 - hp / BLOCK_HP[type] : 0;
+  const miningProgress = (ctx.blockMining?.get(key) || 0) / (MINING_HITS[type] || Infinity);
+  return Math.max(0, Math.min(1, Math.max(bulletProgress, miningProgress)));
+}
+
+function publishBlockDamage(x, y, z, type, previousProgress, ctx) {
+  const progress = blockDamageProgress(blockKey(x, y, z), type, ctx);
+  if (progress <= previousProgress) return;
+  ctx.pushBlockDamage?.(x, y, z, type, progress);
+  ctx.pushEvent({ t: 'ev', kind: 'blockDamage', x, y, z, v: type, from: type,
+    progress, previousProgress });
 }
 
 /**
@@ -417,7 +443,7 @@ export function fireOneShot(p, ctx, charge = 1) {
     ctx.launchBolt(p, firstDir, charge01);
     return;
   }
-  if (def.flame) { fireFlame(p, oEye, fwd, ctx); return; }
+  if (def.flame) { ctx.flames.launch(p, oEye, fwd, ctx); return; }
   const pierce = def.pierce;
   const piercePlayers = Number.isFinite(pierce?.players) ? Math.max(0, Math.trunc(pierce.players)) : 0;
   const shotProfile = chargeShotProfile(def, charge01);

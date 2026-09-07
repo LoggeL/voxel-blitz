@@ -11,7 +11,7 @@ import { Client, SocketTracker } from './lib/ws-client.mjs';
 import { AIR, createMapState } from '../shared/worlddata.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { raycastVoxels } from '../shared/raycast.js';
-import { PHYSICS } from '../server/game.js';
+import { PHYSICS } from '../shared/player-movement.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const FRAME_TIMEOUT_MS = 5_000;
@@ -85,7 +85,8 @@ function validMap(bytes, advertisedLength) {
 
 function assertWelcome(welcome, selection, label) {
   pass(welcome?.t === 'welcome' &&
-    Object.keys(welcome).sort().join(',') === 'gameMode,id,lobby,map,mapBytes,phase,spawn,t,tickRate' &&
+    Object.keys(welcome).sort().join(',') === 'blockDamage,gameMode,id,lobby,map,mapBytes,phase,spawn,t,tickRate' &&
+    Array.isArray(welcome.blockDamage) &&
     Object.keys(welcome.lobby || {}).sort().join(',') === 'code,role' &&
     Object.keys(welcome.spawn || {}).sort().join(',') === 'x,y,z',
   `${label} is a complete welcome replacement`);

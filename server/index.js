@@ -4,7 +4,7 @@ import http from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { staticHandler } from './static.js';
 import { LobbyManager } from './lobby.js';
-import { TICK_MS, parseAdmissionFrame, parseBuyFrame } from './protocol.js';
+import { TICK_MS, parseAdmissionFrame, parseBuyFrame } from './protocol/admission.js';
 
 const MAX_CONNECTIONS = 32;
 const MAX_MESSAGE_BYTES = 64 * 1024;

@@ -192,15 +192,12 @@ export class LocalPlayer {
 
   get alive() { return this._alive; }
   get hp() { return this._hp; }
-  get myHp() { return this._hp; }
   get conditions() { return this._conditions; }
   get pos() { return this.physics.pos; }
   get eyeY() { return this.physics.eyeY(); }
   get speedXZ() { return this.currentSpeedXZ; }
   get crouchBool() { return !!this.physics._crouching; }
   get gameplayInputEnabled() { return this._gameplayInputEnabled; }
-  get lastLocalImpact() { return this._lastLocalImpact; }
-  get lastReconciledSnapSeq() { return this._lastReconciledSnapSeq; }
   get shotYaw() { return this.aimYaw + this.recoilYaw; }
   get shotPitch() { return clampPitch(this.aimPitch + this.recoilPitch); }
 
@@ -266,6 +263,7 @@ export class LocalPlayer {
     this.physics.coyote = 0;
     this.physics.vault = null;
     this.physics.jumpGroundY = null;
+    this.physics.jumpWasHeld = false;
     this.physics.lastImpulseSeq = 0;
     this.physics._crouching = false;
     this.physics.proneT = 0;
@@ -630,6 +628,7 @@ export class LocalPlayer {
         moveSpeedFor(this.keys, this.wantAds),
         this.keys.jump,
         climbAxis,
+        this.view.yaw,
       )
       : false;
     this.currentSpeedXZ = Math.hypot(this.physics.vel.x, this.physics.vel.z);
@@ -934,7 +933,7 @@ export class LocalPlayer {
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 14);
     camera.updateProjectionMatrix();
 
-    this.scopeActive = this._alive && weaponDef.id === 'sniper' &&
+    this.scopeActive = this._alive && !this.physics.vault && weaponDef.id === 'sniper' &&
       this.adsT >= SNIPER_SCOPE_ADS_THRESHOLD;
     updateFirstPersonBody(
       this.body,
@@ -948,6 +947,10 @@ export class LocalPlayer {
       this.deathSide,
       this.scopeActive,
       this.physics.proneT,
+      { grounded: this.physics.grounded, verticalVelocity: this.physics.vel.y,
+        vaulting: !!this.physics.vault,
+        forwardSpeed: -(this.physics.vel.x * Math.sin(this.view.yaw) + this.physics.vel.z * Math.cos(this.view.yaw)),
+        lateralSpeed: this.physics.vel.x * Math.cos(this.view.yaw) - this.physics.vel.z * Math.sin(this.view.yaw) },
     );
     return this.scopeActive;
   }

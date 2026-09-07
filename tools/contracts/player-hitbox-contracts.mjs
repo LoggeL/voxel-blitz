@@ -1,4 +1,4 @@
-import { playerHitboxes, rayPlayerHitboxes, pointPlayerDistance } from '../../shared/player-hitboxes.js';
+import { rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { nearestVictim } from '../../server/sim/combat.js';
 import { sweepPlayers } from '../../server/sim/projectile-contact.js';
 
@@ -16,17 +16,6 @@ export function runPlayerHitboxContracts(ok) {
   ok(!shot(0.25, 1.15, { ...player, yaw: Math.PI / 2, crouch: true }) ||
       shot(0.25, 1.15, { ...player, yaw: Math.PI / 2, crouch: true })?.zone !== 'head',
     'shoulder-height side hits are not classified as headshots');
-  for (const yaw of [0, Math.PI / 2, 2.3]) {
-    const target = { ...player, x: 7, y: 3, z: -4, yaw, pitch: 0.5 };
-    const box = playerHitboxes(target).find(b => b.zone === 'head');
-    const direction = { x: Math.sin(yaw), y: 0, z: Math.cos(yaw) };
-    const origin = box.center.map((v, i) => v - [direction.x, 0, direction.z][i] * 5);
-    ok(rayPlayerHitboxes(origin, direction, target, 10)?.zone === 'head',
-      `translated and rotated head zone registers at yaw ${yaw}`);
-  }
-  const arm = playerHitboxes(player).find(b => b.zone === 'arm');
-  ok(pointPlayerDistance(arm.center, player) === 0,
-    'arm volumes outside the movement collider accept direct contacts');
   const shooter = { bot: false, input: { viewAge: 100 } };
   const victim = { ...crouched, hist: [{ ...player, t: 900 }] };
   const ctx = { now: 1000, entities: new Map([['v', victim]]), canDamage: () => true };

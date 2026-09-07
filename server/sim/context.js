@@ -1,4 +1,4 @@
-import { damageBlock, destroyBlockDirect } from './combat.js';
+import { computeConeDeg, damageBlock, destroyBlockDirect } from './combat.js';
 
 /**
  * Room-scoped ports into the engine. Callbacks are allocated once, including
@@ -10,6 +10,7 @@ export function createSimulationContexts(engine) {
     get now() { return engine.now; },
     get entities() { return engine.entities; },
     get blockHp() { return engine.blockHp; },
+    get blockMining() { return engine.blockMining; },
     get flames() { return engine.flames; },
     solidAt: engine.solidAt,
     getBlock: (x, y, z) => engine.world.getBlock(x, y, z),
@@ -22,8 +23,9 @@ export function createSimulationContexts(engine) {
       engine.killPlayer(victim, killer, weapon, headshot, markers)
     ),
     pushBlockDelta: (x, y, z, value) => engine.pushBlockDelta(x, y, z, value),
+    pushBlockDamage: (x, y, z, value, progress) => engine.pushBlockDamage(x, y, z, value, progress),
     pushEvent: (event) => engine.tickEvents.push(event),
-    computeConeDeg: (player) => engine.computeConeDeg(player),
+    computeConeDeg,
     chaosBlast: (player, origin, type, radius, damage, knockback) => (
       engine.projectiles.chaosBlast(player, origin, type, radius, damage, knockback, projectiles)
     ),

@@ -185,29 +185,42 @@ export class AvatarRoster {
       avatar.group.scale.set(1, 1, 1);
       setAvatarOpacity(avatar, 1);
 
-      const rawSpeed = avatar.motionSeeded && dt > 0
-        ? Math.hypot(remote.x - avatar.px, remote.z - avatar.pz) / dt
-        : 0;
+      const sampleMotion = avatar.motionSeeded && dt > 0;
+      const velocityX = sampleMotion ? (remote.x - avatar.px) / dt : 0;
+      const velocityZ = sampleMotion ? (remote.z - avatar.pz) / dt : 0;
+      const verticalSpeed = sampleMotion && avatar.py != null ? (remote.y - avatar.py) / dt : 0;
+      const turnSpeed = sampleMotion && avatar.lastYaw != null
+        ? Math.atan2(Math.sin(remote.yaw - avatar.lastYaw), Math.cos(remote.yaw - avatar.lastYaw)) / dt : 0;
+      // Authoritative flags cover jump apices and the level finish of a mantle.
+      // The short hold also keeps older snapshots stable around a jump apex.
+      avatar.airborneHold = Math.abs(verticalSpeed) > 0.35 ? 0.14 : Math.max(0, avatar.airborneHold - dt);
+      const grounded = !remote.vaulting && (typeof remote.grounded === 'boolean'
+        ? remote.grounded : avatar.airborneHold === 0);
+      const rawSpeed = Number.isFinite(remote.moveSpeed)
+        ? remote.moveSpeed : Math.hypot(velocityX, velocityZ);
       const speedBlend = 1 - Math.exp(-dt * 10);
       avatar.speedEst += (Math.min(9, rawSpeed) - avatar.speedEst) * speedBlend;
       avatar.motionSeeded = true;
       avatar.px = remote.x;
       avatar.pz = remote.z;
+      avatar.py = remote.y;
+      avatar.lastYaw = remote.yaw;
+      avatar.verticalSpeed = Math.max(-20, Math.min(12, verticalSpeed));
       counters.maxAvatarSpeed = Math.max(counters.maxAvatarSpeed, avatar.speedEst);
       const stride = Math.min(1, avatar.speedEst / 5.8);
       if (stride > 0.03) {
-        avatar.runPhase += dt * (5.2 + avatar.speedEst * 1.25);
+        avatar.runPhase += dt * (5.2 + avatar.speedEst * 1.25) * (1 - avatar.motion.air * 0.85);
         counters.runningAvatars++;
       }
 
       const swing = Math.sin(avatar.runPhase) * stride;
-      const cadence = Math.abs(Math.sin(avatar.runPhase * 2));
+      const cadence = 0.5 - Math.cos(avatar.runPhase * 2) * 0.5;
       const poseBlend = 1 - Math.exp(-dt * (9 + stride * 5));
       const hit01 = avatar.hitT > 0 ? avatar.hitT / 0.18 : 0;
       avatar.hitT = Math.max(0, avatar.hitT - dt);
       const flinch = avatar.hitSide * hit01 * 0.2;
 
-      avatar.group.position.set(remote.x, remote.y + cadence * stride * 0.045, remote.z);
+      avatar.group.position.set(remote.x, remote.y + cadence * stride * 0.025 * (1 - avatar.motion.air), remote.z);
       updateAvatarWeaponPose(avatar, {
         weapon: remote.weapon,
         pitch: remote.pitch,
@@ -222,6 +235,13 @@ export class AvatarRoster {
         blend: poseBlend,
         charge: remote.charge,
         minigun: remote.minigun,
+        movement: {
+          grounded,
+          verticalSpeed: avatar.verticalSpeed,
+          lateralSpeed: velocityX * Math.cos(remote.yaw) - velocityZ * Math.sin(remote.yaw),
+          forwardSpeed: -(velocityX * Math.sin(remote.yaw) + velocityZ * Math.cos(remote.yaw)),
+          turnSpeed,
+        },
       });
       updateAvatarStancePose(avatar, { stride, swing, blend: poseBlend });
       avatar.torso.rotation.z += ((-swing * stride * 0.055) + flinch - avatar.torso.rotation.z) * poseBlend;

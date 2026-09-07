@@ -84,9 +84,7 @@ export function isWorldPointVisible(world, camera, point, endMargin = 0.12) {
 
 /** Apply authoritative block deltas before consuming the rest of a snapshot. */
 export function applySnapshotBlocks(msg, world) {
-  const deltas = msg && Array.isArray(msg.blocks) ? msg.blocks : null;
-  if (!deltas || !deltas.length) return;
-
+  const deltas = Array.isArray(msg?.blocks) ? msg.blocks : [];
   const touched = [];
   for (const d of deltas) {
     const i = d.i | 0;
@@ -98,6 +96,14 @@ export function applySnapshotBlocks(msg, world) {
     if (world.getBlock(x, y, z) === v) continue;
     world.setBlock(x, y, z, v);
     touched.push({ x, y, z, v });
+  }
+
+  // NetClient has already applied these persistent health changes. A block
+  // can keep its material ID while its silhouette needs to be rebuilt.
+  for (const d of Array.isArray(msg?.blockDamage) ? msg.blockDamage : []) {
+    if (!d || ![d.x, d.y, d.z].every(Number.isInteger) ||
+        d.x < 0 || d.x >= SX || d.y < 0 || d.y >= SY || d.z < 0 || d.z >= SZ) continue;
+    touched.push({ x: d.x, y: d.y, z: d.z, v: world.getBlock(d.x, d.y, d.z) });
   }
 
   if (touched.length && world.applyDeltas) world.applyDeltas(touched);
@@ -144,6 +150,10 @@ export class CombatFeedback {
 
     const myId = this.getMyId();
     switch (ev.kind) {
+      case 'powerup': {
+        if (ev.id === myId) this.hud.powerup(ev);
+        break;
+      }
       case 'shoot': {
         if (ev.chaosArc) { this.effects.railBeams?.shoot(ev); break; }
         const local = ev.id === myId;
@@ -203,6 +213,10 @@ export class CombatFeedback {
         this.sfx.mine(ev.from, ev.progress >= 1, [ev.x + 0.5, ev.y + 0.5, ev.z + 0.5]);
         break;
       }
+      case 'blockDamage': {
+        this.effects.impacts.chipBlock(ev);
+        break;
+      }
       case 'block': {
         const nextType = ev.v | 0;
         const fromType = ev.from | 0;
@@ -217,7 +231,12 @@ export class CombatFeedback {
         break;
       }
       case 'projectileLaunch': {
-        this.effects.projectileLaunch(ev, { fromSelf: ev.id === myId });
+        const fromSelf = ev.id === myId;
+        this.effects.projectileLaunch(ev, { fromSelf });
+        if (!fromSelf && ['frag', 'limpet', 'pulse'].includes(ev.type)) {
+          // The local hand release already played its predicted throw cue.
+          this.sfx.grenadeThrow(Number.isFinite(ev.charge) ? ev.charge : 0.5, { pos: ev.o });
+        }
         break;
       }
       case 'projectileUpdate': {

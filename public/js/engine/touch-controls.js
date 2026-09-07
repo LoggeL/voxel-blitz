@@ -137,8 +137,6 @@ export class TouchControls {
     this._options = { size: 'medium', hand: 'right' };
   }
 
-  /** Actions currently hidden by context (contract readback). */
-  get hiddenActions() { return this._hidden; }
   get options() { return { ...this._options }; }
 
   /**

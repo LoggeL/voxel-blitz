@@ -83,6 +83,9 @@ export class NetworkTiming {
    * Map the room's fixed-step clock onto the page clock. Packet arrival jitter
    * may move the offset by at most 2 ms per tick, so compressed deliveries do
    * not turn two authoritative 50 ms steps into a visible speed spike.
+   * A startup backlog can make that slow correction run seconds ahead of the
+   * page clock. Rebase excessive lead so events become visible before their
+   * owning snapshots leave the ring, while ordinary jitter keeps its smoothing.
    */
   mapServerTime(serverAtMs, arrivalAtMs) {
     if (!Number.isFinite(serverAtMs) || !Number.isFinite(arrivalAtMs)) return arrivalAtMs;
@@ -100,6 +103,11 @@ export class NetworkTiming {
       this._serverClockOffsetMs += correction;
     }
     let mapped = serverAtMs + this._serverClockOffsetMs;
+    const latestAllowed = arrivalAtMs + NETWORK_PRESENTATION.maxBufferMs;
+    if (mapped > latestAllowed) {
+      this._serverClockOffsetMs = latestAllowed - serverAtMs;
+      mapped = latestAllowed;
+    }
     if (this._lastMappedTimeMs !== null && serverAtMs >= this._lastServerTimeMs) {
       mapped = Math.max(this._lastMappedTimeMs, mapped);
     }

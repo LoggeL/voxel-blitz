@@ -8,10 +8,10 @@ import {
   LOBBY_CODE_ALPHABET,
   LOBBY_CODE_LENGTH,
   TICK_MS,
-  makeLobbyState,
-  makeWelcome,
   normalizeLobbyCode,
-} from './protocol.js';
+  validLobbyPassword,
+} from './protocol/admission.js';
+import { makeLobbyState, makeWelcome } from './protocol/welcome.js';
 import {
   mapForMode,
   DEFAULT_MODE_ID,
@@ -19,7 +19,6 @@ import {
   isModeId,
   isModeMapCompatible,
 } from '../shared/modes.js';
-import { validLobbyPassword } from './protocol/admission.js';
 import { createMapState, getMapMeta } from '../shared/worlddata.js';
 
 const derivePassword = promisify(scrypt);
@@ -248,7 +247,8 @@ export class LobbyManager {
           ...makeWelcome({ id: human.id, mapBytes: bytes.byteLength,
             tickRate: Math.round(1000 / this.tickMs), spawn: spawn.spawn || spawn,
             lobby: { code: room.code, role: room.host === human.id ? 'host' : 'member' },
-            phase: 'waiting', gameMode, map }),
+            phase: 'waiting', gameMode, map,
+            blockDamage: Array.from(engine.blockDamage.values()) }),
           t: 'lobbyConfig',
         });
         this.sendFrame(human.meta, bytes);
@@ -410,6 +410,7 @@ export class LobbyManager {
         phase: room.phase,
         gameMode: room.gameMode,
         map: room.map,
+        blockDamage: Array.from(room.engine.blockDamage.values()),
       });
 
       if (this.sendJson(meta, welcome) === false) throw new Error('welcome send failed');

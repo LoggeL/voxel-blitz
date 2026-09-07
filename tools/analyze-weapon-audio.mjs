@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { BUILTIN_SAMPLE_MANIFEST } from '../public/js/audio/samples.js';
 import { DEFAULT_MENU_TRACK, MENU_GAIN } from '../public/js/audio/music.js';
-import { fireReportProfile } from '../public/js/audio/reports.js';
+import { fireSampleProfile } from '../public/js/audio/reports.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SAMPLE_RATE = 48_000;
@@ -15,9 +15,13 @@ const MAX_RUNTIME_PEAK_DBFS = -0.05;
 const MAX_CLIPPED_SAMPLE_RATIO = 0.005;
 const MIN_RUNTIME_RMS_DBFS = -48;
 const MAX_RUNTIME_RMS_DBFS = -3;
+const STANDARD_FIREARMS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver'];
 
 function assetKind(slot) {
   if (slot.endsWith('.fire')) return 'fire';
+  if (slot.endsWith('.loop')) return 'loop';
+  if (slot.endsWith('.explosion')) return 'blast';
+  if (slot === 'combat.grenadePin' || slot === 'combat.grenadeThrow') return 'handling';
   if (slot.includes('.reload.')) return 'reload';
   return 'sample';
 }
@@ -26,14 +30,15 @@ function bundledAssets() {
   const assets = Object.entries(BUILTIN_SAMPLE_MANIFEST).map(([slot, url]) => {
     const kind = assetKind(slot);
     const weapon = kind === 'fire' ? slot.split('.')[1] : null;
-    const profile = weapon ? fireReportProfile(weapon) : null;
+    const profile = weapon ? fireSampleProfile(weapon) : null;
     return Object.freeze({
       slot,
       url,
       kind,
       weapon,
-      gain: profile?.sampleGain ?? 1,
-      rate: profile?.sampleRate ?? 1,
+      gain: profile?.gain ?? (kind === 'loop' || slot === 'grenades.pulse.explosion' ? 0.75
+        : kind === 'blast' ? 0.95 : 1),
+      rate: profile?.rate ?? 1,
     });
   });
   assets.push(Object.freeze({
@@ -141,6 +146,7 @@ function analyzePcm(buffer) {
     crestDb: db(peak / Math.max(Number.EPSILON, overallRms)),
     brightness: Math.sqrt(differenceSquares / Math.max(Number.EPSILON, sumSquares)),
     clippedSampleRatio: clippedSamples / Math.max(1, samples.length),
+    boundaryJump: Math.abs((samples[0] || 0) - (samples.at(-1) || 0)),
   });
 }
 
@@ -184,7 +190,8 @@ th,td{border:1px solid #283746;padding:8px;text-align:right}th:first-child{text-
 h2{margin:0 0 10px;text-transform:uppercase;font-size:16px;color:#ff9f32}img{display:block;width:100%;height:auto;margin-top:8px}
 @media(max-width:850px){.grid{grid-template-columns:1fr}}
 </style></head><body><h1>Bundled audio alignment and spectrum</h1>
-<p>Every shipped OGG is inventoried. Fire onset is the first pair of 5ms RMS windows within 18dB of the strongest transient and must meet the ${ALIGNMENT_LIMIT_MS}ms muzzle-sync budget. Runtime levels include sample playback gain.</p>
+<p>Every shipped OGG is inventoried. Onset is the first pair of 5ms RMS windows within 18dB of the strongest transient. Gunshots use a ${ALIGNMENT_LIMIT_MS}ms onset budget; melee, throws and sustained flame have separate movement and attack budgets. Playback levels include the sample gain before the output bus and limiter. The browser mix audit measures the complete game mix.</p>
+<p>The six conventional firearm reports retain their existing peak balance and spectral hierarchy. The minigun, pickaxe, handling sounds, explosions and flame loop are checked for their own cadence, headroom and useful level; they are not forced to share a gunshot peak.</p>
 <table><thead><tr><th>Slot</th><th>Kind</th><th>Source ms</th><th>Runtime ms</th><th>Onset ms</th><th>Peak ms</th><th>Peak dBFS</th><th>RMS dBFS</th><th>Crest dB</th><th>Clipped ppm</th><th>Brightness</th></tr></thead>
 <tbody>${rows.map(({ asset, metrics, runtime, passed }) => tableRow(asset, metrics, runtime, passed)).join('\n')}</tbody></table>
 <main class="grid">${cards}</main></body></html>`;
@@ -195,7 +202,7 @@ async function main() {
   const outDir = optionValue('--out-dir', path.join(ROOT, '.artifacts/audio-audit/current'));
   await mkdir(outDir, { recursive: true });
   const assets = bundledAssets();
-  const expectedFiles = assets.map(({ url }) => assetPath(assetsRoot, url)).sort();
+  const expectedFiles = [...new Set(assets.map(({ url }) => assetPath(assetsRoot, url)))].sort();
   const actualFiles = await listOggFiles(assetsRoot);
   const failures = [];
   if (expectedFiles.join('\n') !== actualFiles.join('\n')) {
@@ -209,13 +216,16 @@ async function main() {
   const reloadWeapons = assets
     .filter(({ kind }) => kind === 'reload')
     .map(({ slot }) => slot.split('.')[1]);
-  const sampledWeapons = WEAPON_IDS.filter((id) => id !== 'knife');
-  const firearms = sampledWeapons.filter((id) => !['longarc', 'lance', 'rocket'].includes(id));
+  const sampledWeapons = WEAPON_IDS.filter((id) => id !== 'flamethrower');
   if ([...fireWeapons].sort().join(',') !== [...sampledWeapons].sort().join(',')) {
     failures.push('fire sample roster does not match the sampled weapon roster');
   }
-  if (!firearms.every((weapon) => reloadWeapons.includes(weapon))) {
-    failures.push('every sampled firearm must ship at least one reload sample');
+  if (!STANDARD_FIREARMS.every((weapon) => reloadWeapons.includes(weapon))) {
+    failures.push('every conventional firearm must ship at least one reload sample');
+  }
+  for (const slot of ['weapons.flamethrower.loop', 'combat.grenadePin', 'combat.grenadeThrow',
+    ...['frag', 'limpet', 'pulse', 'rocket'].map((type) => `grenades.${type}.explosion`)]) {
+    if (!assets.some((asset) => asset.slot === slot)) failures.push(`required cue missing: ${slot}`);
   }
 
   const rows = [];
@@ -240,8 +250,15 @@ async function main() {
     if (!(runtime.durationMs >= 20 && Number.isFinite(runtime.durationMs))) {
       rowFailures.push('invalid duration');
     }
-    if (asset.kind === 'fire' && runtime.onsetMs > ALIGNMENT_LIMIT_MS) {
+    const onsetLimit = asset.weapon === 'knife' ? 50
+      : asset.kind === 'fire' ? ALIGNMENT_LIMIT_MS
+      : asset.kind === 'blast' ? 25
+      : asset.kind === 'handling' ? 70 : asset.kind === 'loop' ? 100 : Infinity;
+    if (runtime.onsetMs > onsetLimit) {
       rowFailures.push(`onset ${runtime.onsetMs.toFixed(1)}ms`);
+    }
+    if (asset.kind === 'loop' && (runtime.durationMs < 250 || metrics.boundaryJump > 0.12)) {
+      rowFailures.push('loop is too short or has an abrupt edit boundary');
     }
     if (runtime.peakDbfs > MAX_RUNTIME_PEAK_DBFS) rowFailures.push('no peak headroom');
     if (runtime.rmsDbfs < MIN_RUNTIME_RMS_DBFS || runtime.rmsDbfs > MAX_RUNTIME_RMS_DBFS) {
@@ -299,10 +316,10 @@ async function main() {
     failures.push('runtime spectral brightness does not descend from SMG to shotgun');
   }
   const peaks = rows
-    .filter(({ asset }) => asset.kind === 'fire')
+    .filter(({ asset }) => STANDARD_FIREARMS.includes(asset.weapon))
     .map(({ runtime }) => runtime.peakDbfs);
   if (Math.max(...peaks) - Math.min(...peaks) > 1.25) {
-    failures.push('runtime sample peaks exceed the 1.25dB balance window');
+    failures.push('conventional firearm sample peaks exceed the 1.25dB balance window');
   }
   if (failures.length) throw new Error(`audio audit failed: ${failures.join('; ')}`);
   console.log(`audio audit ok -> ${path.join(outDir, 'index.html')}`);

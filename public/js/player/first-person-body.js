@@ -66,6 +66,14 @@ export function resetFirstPersonBody(body) {
   if (!body || body.disposed) return;
   body.phase = 0;
   body.crouch = 0;
+  body.stride = 0;
+  body.air = 0;
+  body.land = 0;
+  body.fallSpeed = 0;
+  body.wasGrounded = null;
+  body.forward = 1;
+  body.lateral = 0;
+  body.clock = 0;
   body.group.visible = true;
   body.group.rotation.set(0, 0, 0);
   body.group.scale.set(1, 1, 1);
@@ -95,17 +103,38 @@ export function updateFirstPersonBody(
   deathSide,
   scopeActive,
   proneT = 0,
+  motion = {},
 ) {
   if (!body || body.disposed || !pos) return;
   body.group.visible = !scopeActive;
   body.group.position.set(pos.x, pos.y, pos.z);
-  const stride = alive ? Math.min(1, Math.max(0, speed) / 5.8) : 0;
-  if (stride > 0.025) body.phase += dt * (5.4 + speed * 1.15);
-  body.crouch += ((crouching && alive ? 1 : 0) - body.crouch) *
-    Math.min(1, dt * 13);
-  const crouch = crouching && alive ? 1 : body.crouch;
+  const seconds = Math.max(0, Math.min(0.1, dt));
+  const follow = 1 - Math.exp(-13 * seconds);
+  const grounded = motion.grounded !== false && !motion.vaulting;
+  const vertical = Number(motion.verticalVelocity) || 0;
+  body.clock += seconds;
+  body.stride += ((alive && grounded ? Math.min(1, Math.max(0, speed) / 5.8) : 0) - body.stride) * follow;
+  body.air += ((alive && !grounded ? 1 : 0) - body.air) * follow;
+  body.land *= Math.exp(-12 * seconds);
+  if (!grounded && !motion.vaulting) body.fallSpeed = Math.max(body.fallSpeed, -vertical);
+  if (grounded && body.wasGrounded === false) {
+    body.land = Math.min(1, body.fallSpeed / 9);
+    body.fallSpeed = 0;
+  }
+  if (motion.vaulting) body.fallSpeed = 0;
+  body.wasGrounded = grounded;
+  const forward = speed > 0.1 && Number.isFinite(motion.forwardSpeed) ? motion.forwardSpeed / speed : 1;
+  const lateral = speed > 0.1 && Number.isFinite(motion.lateralSpeed) ? motion.lateralSpeed / speed : 0;
+  body.forward += (forward - body.forward) * follow;
+  body.lateral += (lateral - body.lateral) * follow;
+  const stride = body.stride;
+  if (stride > 0.025) body.phase += seconds * (5.4 + speed * 1.15);
+  body.crouch += ((crouching && alive ? 1 : 0) - body.crouch) * follow;
+  const crouch = body.crouch;
   const swing = Math.sin(body.phase) * stride;
   const bounce = Math.abs(Math.sin(body.phase * 2)) * stride * 0.025;
+  const compression = body.land * 0.075;
+  const breathing = Math.sin(body.clock * 2.3) * 0.004 * (1 - stride) * (1 - body.air);
 
   if (!alive) {
     const death = smooth01(deathElapsed / 0.9);
@@ -121,17 +150,21 @@ export function updateFirstPersonBody(
   }
 
   body.group.rotation.set(0, yaw, 0);
-  body.hips.position.y = BODY_POSE.hipsY - crouch * 0.28 + bounce;
-  body.torso.position.y = BODY_POSE.torsoY - crouch * 0.34 + bounce;
-  body.torso.rotation.x = crouch * 0.12;
+  body.hips.position.y = BODY_POSE.hipsY - crouch * 0.28 + bounce - compression;
+  body.torso.position.y = BODY_POSE.torsoY - crouch * 0.34 + bounce - compression + breathing;
+  body.torso.rotation.x = crouch * 0.12 + body.land * 0.08;
   body.hips.rotation.x = 0;
   body.hips.rotation.z = swing * stride * 0.045;
   body.left.leg.position.y = BODY_POSE.legY - crouch * 0.24;
   body.right.leg.position.y = BODY_POSE.legY - crouch * 0.24;
-  body.left.leg.rotation.x = swing * 0.72 - crouch * 0.58;
-  body.right.leg.rotation.x = -swing * 0.72 - crouch * 0.58;
-  body.left.knee.rotation.x = crouch * 1.02 + Math.max(0, -swing) * 0.32;
-  body.right.knee.rotation.x = crouch * 1.02 + Math.max(0, swing) * 0.32;
+  body.left.leg.rotation.x = swing * 0.72 * body.forward - crouch * 0.58 - body.air * 0.42 - body.land * 0.2;
+  body.right.leg.rotation.x = -swing * 0.72 * body.forward - crouch * 0.58 - body.air * 0.28 - body.land * 0.2;
+  body.left.leg.rotation.z = swing * 0.42 * body.lateral;
+  body.right.leg.rotation.z = -swing * 0.42 * body.lateral;
+  body.left.knee.rotation.x = crouch * 1.02 + Math.max(0, -swing) * 0.32 + body.air * 0.72 + body.land * 0.36;
+  body.right.knee.rotation.x = crouch * 1.02 + Math.max(0, swing) * 0.32 + body.air * 0.55 + body.land * 0.36;
+  body.left.boot.rotation.x = -body.air * 0.14 - Math.max(0, swing) * 0.12;
+  body.right.boot.rotation.x = -body.air * 0.10 - Math.max(0, -swing) * 0.12;
   const prone = pronePose(proneT);
   for (const [part, y, z] of [[body.hips, 0.25, 0.8], [body.torso, 0.3, 0.4],
     [body.left.leg, 0.25, 0.85], [body.right.leg, 0.25, 0.85]]) {
@@ -142,6 +175,8 @@ export function updateFirstPersonBody(
   }
   body.left.knee.rotation.x *= 1 - prone;
   body.right.knee.rotation.x *= 1 - prone;
+  body.left.leg.rotation.z *= 1 - prone;
+  body.right.leg.rotation.z *= 1 - prone;
 }
 
 /** Terminal cleanup for every scene object and GPU resource created by the factory. */

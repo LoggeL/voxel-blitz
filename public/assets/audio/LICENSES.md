@@ -1,9 +1,9 @@
 # Audio asset sources
 
 The weapon and handling `.ogg` samples were trimmed, filtered, normalized,
-downmixed to mono, and encoded as Opus for VOXEL BLITZ. Fire samples begin at
-the broadband muzzle transient (5–15ms measured onset after codec pre-roll) so
-their report aligns with recoil and muzzle flash. Procedural audio remains the
+downmixed to mono, and encoded as Opus for VOXEL BLITZ. Fire samples are aligned
+to their initial report transients so their onset matches recoil and muzzle
+flash. Procedural audio remains the
 fallback whenever a browser cannot fetch or decode a sample. The menu loop is encoded as stereo Opus.
 
 ## Weapon reports
@@ -34,20 +34,32 @@ origin and license of every bundled recording remain auditable.
 - Regenerate from the repository root with `node tools/generate-menu-music.mjs` (requires ffmpeg with libopus).
 - Used as the menu and lobby loop; the main menu's music switch saves its state locally.
 
-## Grenade explosions
+## Generated grenades, handling and continuous weapons
 
-- Source: **Sci-Fi Sounds 1.0** by Kenney
-- License: Creative Commons Zero (CC0-1.0)
-- Source page: https://kenney.nl/assets/sci-fi-sounds
-- Frag: `explosionCrunch_000.ogg` plus `lowFrequency_explosion_001.ogg`.
-- Limpet: `explosionCrunch_004.ogg` plus `lowFrequency_explosion_000.ogg`.
-- Pulse: `forceField_002.ogg` plus a quieter `lowFrequency_explosion_001.ogg`.
-- Each layer is aligned to its onset, mixed in mono, filtered at 35 Hz / 10.5 kHz,
-  peak normalized, faded at edit boundaries, and encoded as 96 kbit/s Opus.
-- `grenades/sources.json` records exact trims, layer gains and source/output SHA-256 hashes.
-- Rebuild with `python3 tools/prepare-grenade-audio.py` (ffmpeg required).
-  Before/after spectrograms are kept in `.artifacts/grenade-audio-source/` during preparation.
-- Rocket explosions reuse the heavier Limpet sample at 1.08x playback rate.
+- Source: ElevenLabs Sound Effects, generated in the user's account on 2026-09-07.
+- Used for frag, limpet, pulse and rocket explosions, grenade pin and throw cues,
+  the minigun shot, pickaxe swing (`weapons/knife/fire.ogg`) and flamethrower loop.
+- The four explosion groups were generated in the browser. The other five groups
+  were generated through the ElevenLabs API; their original MP3 responses and
+  receipts are retained locally in `.artifacts/elevenlabs-effects-2026-09-07/api-source/`.
+- These generated recordings are separate from the CC0 assets above; no CC0
+  license is asserted for them. Account/service terms govern their use.
+- `elevenlabs-effects-sources.json` records selected candidate filenames, original
+  and output SHA-256 hashes, trims, filters, fades, normalization and final decoded
+  measurements. Each effect was selected from four generated candidates.
+- Rebuild with `python tools/prepare-elevenlabs-effects.py process` using ffmpeg,
+  NumPy, SciPy, Matplotlib and the local raw WAVs and `recipes.json` in
+  `.artifacts/elevenlabs-effects-2026-09-07/`. The `analyze` command regenerates
+  candidate waveform and spectrogram sheets there.
+- Shipped files are mono 48 kHz Opus at 96 kbit/s. One-shots have trimmed onsets
+  and faded tails. The flamethrower uses a 200 ms equal-power overlap; the decoded
+  Opus loop boundary is measured and plotted during preparation.
+- The minigun asset contains one isolated report from its generated burst. The
+  game supplies the firing cadence. The API MP3s were decoded to WAV for analysis;
+  this does not recover an uncompressed original from the lossy source.
+- Historical Kenney CC0 grenade provenance remains in `grenades/sources.json`,
+  explicitly marked as replaced. `tools/prepare-grenade-audio.py` rebuilds that
+  historical recipe only into `.artifacts/grenade-audio-source/legacy-output/`.
 
 ## Generated energy weapons and rocket launch
 

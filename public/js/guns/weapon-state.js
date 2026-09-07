@@ -104,7 +104,6 @@ export class WeaponState {
   }
 
   get def() { return chaosWeaponDef({ chaosUpgrades: this._mode === 'chaos' ? this._chaosUpgrades : null }, WEAPONS[WEAPON_IDS[this._slot]]); }
-  get timerDef() { return TIMERS[WEAPON_IDS[this._slot]]; }
   get slot() { return this._slot; }
   get bloomDeg() { return this._bloomDeg; }
   get adsT() { return this._adsT; }
@@ -118,7 +117,6 @@ export class WeaponState {
       !this._reloadState && this._pendingShotIntent?.held === true &&
       this._flameFrameAt >= this._deployUntil && this._flameFrameAt - this._flameLastShotAt <= 125;
   }
-  get reload01() { return this._reloadProgress(this._now()); }
   /** Live 0..1 capacitor charge of a `charge` weapon while the trigger is held. */
   get charge01() {
     if (this._chargeStart === null) return 0;
@@ -468,15 +466,15 @@ export class WeaponState {
   }
 
   /** Bloom recovery and ADS are intentionally separate from the pre-send reload/fire phase. */
-  settleFrame(dt) {
+  settleFrame(dt, { vaulting = false } = {}) {
     if (this._disposed) return;
     const def = this.def;
     this._bloomDeg = Math.max(0, this._bloomDeg - def.bloomRecover * dt);
     this._adsT += (
-      (this._wantAds && this._alive && !this._reloadState && this._now() >= this._deployUntil) ? 1 : -1
+      (this._wantAds && this._alive && !vaulting && !this._reloadState && this._now() >= this._deployUntil) ? 1 : -1
     ) * dt / Math.max(0.08, def.adsTime);
     this._adsT = Math.max(0, Math.min(1, this._adsT));
-    this._scopeActive = this._alive && def.id === 'sniper' &&
+    this._scopeActive = this._alive && !vaulting && def.id === 'sniper' &&
       this._adsT >= SNIPER_SCOPE_ADS_THRESHOLD;
     if (this._rig.root) {
       this._rig.root.visible = shouldShowViewmodel({ scopeActive: this._scopeActive });

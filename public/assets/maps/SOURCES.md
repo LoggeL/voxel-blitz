@@ -1,83 +1,30 @@
 # Map preview sources
 
-All previews originate from the same production map pipeline as the game. The
-source captures were rendered without players, weapons, networking, or HUD via
-`npm run maps:capture`. Foundry, Depot, and Citadel then used OpenAI's built-in
-image generation tool with those captures as strict geometry references.
-Solstice uses its final production render directly after image generation was
-used only for art direction. No external source assets were used.
+The seven active map previews are direct captures of the production voxel maps,
+refreshed on 2026-09-07 after the expanded structures and props pass. They use the same world
+generation, lighting, sky and landmark signs as gameplay. No generated scenery,
+external assets, compositing or retouching is included in these previews.
 
-## Foundry
+| Map | Active file | Source capture |
+| --- | --- | --- |
+| foundry | `foundry-concept.webp` | `.artifacts/map-rich-pass/foundry-furnace-yard.png` |
+| depot | `depot-concept.webp` | `.artifacts/map-rich-pass/depot-freight-truck.png` |
+| citadel | `citadel-concept.webp` | `.artifacts/map-rich-pass/citadel-market-tower.png` |
+| solstice | `solstice-concept.webp` | `.artifacts/map-rich-pass/solstice-solar-receiver.png` |
+| caldera | `caldera-concept.webp` | `.artifacts/map-rich-pass/caldera-reactor-deck.png` |
+| nuketown | `nuketown.webp` | `.artifacts/map-rich-pass/nuketown-hero.png` |
+| killhouse | `killhouse-range.webp` | `.artifacts/map-rich-pass/killhouse-control-yard.png` |
 
-- File: `foundry-concept.webp`
-- Created: 2026-08-29
-- Source capture: `.artifacts/map-renders/foundry-hero.png`
-- Prompt intent: use the current production capture as the strict camera and
-  geometry reference; preserve the outdoor terrain, walls, crane, towers, forge,
-  cover, and clouds while refining only materials, daylight, shadows, and ambient
-  occlusion.
+Capture command:
 
-## Depot
+```sh
+node tools/render-map-scenes.mjs --all --width 1200 --height 650 --out-dir .artifacts/map-rich-pass
+```
 
-- File: `depot-concept.webp`
-- Created: 2026-08-29
-- Source capture: `.artifacts/map-renders/depot-hero.png`
-- Prompt intent: use the current production capture as the strict camera and
-  geometry reference; preserve the open yard, gantry crane and hanging load,
-  loading bays, rust-red containers, road markings, cover, walls, and clouds while
-  refining only materials, daylight, shadows, and ambient occlusion.
+PNGs were converted locally with `cwebp -q 88`. Existing filenames are retained
+so the map picker, lobby and training card continue to use the same asset paths.
+The `-concept` suffix on several active filenames is historical; their contents
+are now production captures.
 
-## Citadel
-
-- File: `citadel-concept.webp`
-- Created: 2026-08-29
-- Source capture: `.artifacts/map-renders/citadel-hero.png`
-- Prompt intent: use the current production capture as the strict camera and
-  geometry reference; preserve the brick-and-stone keep, broken crenellations,
-  beacon mast, side compounds, courtyard markings, cover, walls, and clouds while
-  refining only materials, daylight, shadows, and ambient occlusion.
-
-## Solstice
-
-- File: `solstice-concept.webp`
-- Created: 2026-08-29
-- Source capture: `.artifacts/map-renders/solstice-hero.png`
-- Art-direction reference: Codex generated-image output (not shipped)
-- Prompt intent: preserve the production heliostat, biodome, turbine hall, and
-  three-lane layout while exploring a sun-bleached sandstone canyon, warm
-  metal accents, solar arrays, vegetation, service details, and tighter cover.
-  The generated reference guided voxel revisions; the shipped preview is a
-  later capture of the resulting production geometry rather than concept art.
-
-## Caldera
-
-- File: `caldera-concept.webp`
-- Created: 2026-09-03
-- Source capture: `.artifacts/map-renders/caldera-hero.png`
-- Art-direction reference: none (built directly in voxels)
-- Prompt intent: none. The shipped preview is the production hero capture
-  converted locally to WebP at quality 82 with metadata removed, per the
-  Solstice direct-render precedent.
-
-## Killhouse
-
-- File: `killhouse-concept.webp`
-- Created: 2026-09-04
-- Source capture: `.artifacts/map-renders/killhouse-hero.png`
-- Art-direction reference: none (built directly in voxels)
-- Prompt intent: none. The shipped preview is the production hero capture
-  converted locally to WebP at quality 82 with metadata removed, per the
-  Caldera direct-render precedent.
-
-All generated PNGs were converted locally to WebP at quality 82 with metadata
-removed. The original generated files remain in the Codex image output folder.
-
-## Killhouse redesign (current preview)
-
-- File: `killhouse-range.webp`
-- Created: 2026-09-05
-- Source: `.artifacts/killhouse-redesign/killhouse-firing-line.png`
-- Render: `node tools/render-map-scenes.mjs --map killhouse --width 1280 --height 720 --out-dir .artifacts/killhouse-redesign`
-- Conversion: `cwebp -q 88` with no compositing or generated scenery.
-- The main-menu card, map picker, and lobby use this production capture.
-- `killhouse-concept.webp` is retained as the earlier design reference.
+`killhouse-concept.webp` is retained as an earlier design reference and is not
+the active training preview.

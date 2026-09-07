@@ -1,39 +1,23 @@
-import { clamp01, el, removeNode } from './hud-support.js';
+import { clamp01, el } from './hud-support.js';
 
-export const DEATH_IMPACT_MS = 420;
+const DEATH_IMPACT_MS = 420;
 
-const EMPTY = Object.freeze({});
-
-// Owns death-note DOM and the complete death-impact timer lifecycle. Its small
-// interface keeps the combat controller compatible without sharing ownership.
+// Owns death-note DOM and the complete death-impact timer lifecycle.
 export class DeathTreatment {
-  constructor(adapter = EMPTY) {
+  constructor({ getDom, getHudRoot, isDead, isDisposed, setTimer, clearTimer }) {
     this.brutality = 0;
     this.impactTimer = 0;
     this._ownedNote = null;
     this._ownedRecap = null;
 
-    this._getDom = () => EMPTY;
-    this._getHudRoot = () => null;
-    this._isDead = () => false;
-    this._isDisposed = () => false;
-    this._setTimer = () => 0;
-    this._clearTimer = () => {};
+    this._getDom = getDom;
+    this._getHudRoot = getHudRoot;
+    this._isDead = isDead;
+    this._isDisposed = isDisposed;
+    this._setTimer = setTimer;
+    this._clearTimer = clearTimer;
     this._onImpactTimeout = () => this.finishImpact();
-    this.configure(adapter);
   }
-
-  configure(adapter = EMPTY) {
-    if (typeof adapter.getDom === 'function') this._getDom = adapter.getDom;
-    if (typeof adapter.getHudRoot === 'function') this._getHudRoot = adapter.getHudRoot;
-    if (typeof adapter.isDead === 'function') this._isDead = adapter.isDead;
-    if (typeof adapter.isDisposed === 'function') this._isDisposed = adapter.isDisposed;
-    if (typeof adapter.setTimer === 'function') this._setTimer = adapter.setTimer;
-    if (typeof adapter.clearTimer === 'function') this._clearTimer = adapter.clearTimer;
-    return this;
-  }
-
-  get ownedNote() { return this._ownedNote; }
 
   ensureNote() {
     const dom = this._getDom();
@@ -42,7 +26,7 @@ export class DeathTreatment {
     const hud = this._getHudRoot();
     if (!hud) return null;
     const note = el('div', '', hud, 'deathnote');
-    if (dom !== EMPTY && Object.isExtensible(dom)) dom.deathnote = note;
+    dom.deathnote = note;
     this._ownedNote = note;
     return note;
   }
@@ -55,7 +39,7 @@ export class DeathTreatment {
     const hud = this._getHudRoot();
     if (!hud) return null;
     const recap = el('div', '', hud, 'deathrecap');
-    if (dom !== EMPTY && Object.isExtensible(dom)) dom.deathrecap = recap;
+    dom.deathrecap = recap;
     this._ownedRecap = recap;
     return recap;
   }
@@ -127,18 +111,17 @@ export class DeathTreatment {
     }
   }
 
-  clear(removeOwnedNote = false) {
+  clear() {
     this.reset();
     this.hideNote();
-    if (!removeOwnedNote) return;
     const dom = this._getDom();
     if (this._ownedNote) {
-      removeNode(this._ownedNote);
+      this._ownedNote?.remove();
       if (dom.deathnote === this._ownedNote) delete dom.deathnote;
       this._ownedNote = null;
     }
     if (this._ownedRecap) {
-      removeNode(this._ownedRecap);
+      this._ownedRecap?.remove();
       if (dom.deathrecap === this._ownedRecap) delete dom.deathrecap;
       this._ownedRecap = null;
     }

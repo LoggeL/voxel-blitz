@@ -119,8 +119,6 @@ export const MAP_PREVIEWS = Object.freeze({
 
 export const CARDINAL = Object.freeze({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' });
 export const SCOPE_MS = 120;
-export const DMG_MS = 650;
-export const DMG_MAX_POOL = 40;
 
 export function el(tag, cls, parent, id) {
   const node = document.createElement(tag);
@@ -128,14 +126,6 @@ export function el(tag, cls, parent, id) {
   if (id) node.id = id;
   if (parent) parent.appendChild(node);
   return node;
-}
-
-export function removeNode(node) {
-  if (!node) return;
-  if (typeof node.remove === 'function') node.remove();
-  else if (node.parentNode && typeof node.parentNode.removeChild === 'function') {
-    node.parentNode.removeChild(node);
-  }
 }
 
 export function clamp01(value) {

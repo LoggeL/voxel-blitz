@@ -29,6 +29,9 @@ room/client interfaces below; do not fork their logic into a second convention.
   mode/map lobby, wire, isolation, and lifecycle behavior.
 - `npm run modes:bots` runs `tools/bot-mode-smoke.mjs` for deterministic bot
   behavior in Fun, TDM, S&D, and Gun Game.
+- `npm run powerups:test` checks armor across damage paths, pickup authority,
+  spawn scheduling, map placement, room/mode boundaries and snapshot lifecycle.
+  `npm run powerups:browser` checks pickup rendering and the live client HUD.
 - Standard `npm test` runs refactor regression checks, weapon/projectile
   contracts, atlas/client contracts, gameplay smoke, lobby smoke, mode-lobby
   smoke, and bot-mode smoke. `npm run refactor:test` checks frozen hitbox
@@ -118,7 +121,11 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   members:[{id,name,ready,bot}]}` after create/join, readiness changes, start,
   leave, settings changes, and host migration. Bot rows appear only after the room is live.
 - At 20 Hz a live room sends
-  `{t:'tick',now,match,players:[...],blocks:[{i,v}],events:[...]}`.
+  `{t:'tick',now,match,players:[...],blocks:[{i,v}],powerups:[...],events:[...]}`.
+  `powerups` is a full replacement array of active
+  `{id,type:'armor'|'health'|'ammo',x,y,z,expiresAt}` rows. Coordinates use the
+  floor's standing height; expiry uses the server clock. Late joiners receive
+  the current pickups with their first tick.
   `match` has exactly
   `{mode,map,phase,phaseEndsAt,scores,winner,round,roundWinner,attackers,
   defenders,bomb}`. Team scores are `{alpha,bravo}` or `null`; S&D `bomb` is
@@ -127,7 +134,7 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   `prep|'live'|'post'`. Gun Game's winner is a player id. Bomb state is
   `'carried'|'dropped'|'planted'|'defused'|'exploded'`.
 - Each player row has exactly
-  `{id,name,x,y,z,yaw,pitch,hp,panic,pain,exhaustion,spawnProtected,weapon,
+  `{id,name,x,y,z,yaw,pitch,hp,armor,panic,pain,exhaustion,spawnProtected,weapon,
   score,kills,deaths,state,respawnAt,firing,ads,crouch,mag,reserve,reloading,
   team,credits,owned,bomb,interaction,grenades,charge}`.
   `team` is `'alpha'|'bravo'|null`; `owned` is an array of weapon ids;
@@ -140,6 +147,11 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   `null`. `reserve` is a count of full spare magazines, not loose bullets.
   Panic, pain, and exhaustion are authoritative normalized values and are not
   HUD meters.
+- `armor` is 0 through 100 and absorbs incoming combat damage before HP,
+  including fire and blasts. Death and respawn reset it. Successful collection
+  emits `{t:'ev',kind:'powerup',id,pickupId,type,amount}` in `tick.events`;
+  `id` is the collector and `amount` is the actual gained armor, HP, or spare
+  magazine count. There is no client pickup command.
 - Gameplay and mode events live in `tick.events`; they are not separate
   top-level deliveries. Combat events remain:
   - `{t:'ev',kind:'shoot',id,o:[x,y,z],d:[x,y,z],w,spread:[x,y,z],charge?}`
@@ -295,7 +307,8 @@ The RIPPER (`knife`) is the `melee` mode: `magSize` 0 and `spareMags` 0 mean a
 swing consumes no ammunition and the reload path never engages (`reloadPlan`
 seats 0 rounds). The swing arc (`melee.reach` 2.2, `melee.coneDeg` 110)
 replaces ballistics — no tracer, flat 58 damage with no falloff, `headMult` 1.0
-so there are no headshots, and no block damage. When the strike lands from
+so there are no headshots. Swings aimed at terrain mine the contacted block
+using its `MINING_HITS` count. When the strike lands from
 behind the victim's facing (`dot(victimForward, swingDir)` above
 `melee.backstabDot` 0.4) the damage multiplies by `melee.backstabMult` (2.5).
 
@@ -348,6 +361,10 @@ and exposes `quickPlay(meta,name,bots?)`,
 
 ## Browser APIs (exact)
 ### NetClient
+- Server clock mapping smooths ordinary jitter by at most 2 ms per tick. A
+  startup backlog rebases excessive clock lead to at most the maximum
+  presentation buffer (180 ms) ahead of receipt, keeping event delivery within
+  snapshot retention while preserving monotonic timestamps.
 `new NetClient()` is safe to construct/import without a browser WebSocket.
 
 - `connect(url,name,{mode?:'quick'|'create'|'join',bots?:number,lobby?:string,
@@ -392,21 +409,24 @@ and exposes `quickPlay(meta,name,bots?)`,
   renders authoritative mode/map chips, code/link, and full roster; uses a real
   ready toggle with `aria-pressed`; shows Start only to the host; and disables
   Start until every human is ready. Copy uses
-  `${location.origin}${location.pathname}?lobby=${code}`;
-  `copyInviteLink(url)` returns `Promise<boolean>` and reports through the
-  lobby's `aria-live` status. Leave returns to the main menu.
-- `setupBuyMenu({onBuy,onClose})`, `setBuyMenuState({open,phase,credits,owned})`,
-  `toggleBuyMenu(force?)`, `closeBuyMenuDirect()`, and `isBuyMenuOpen()` own the
-  accessible S&D armory. It opens only during prep, displays exact shared
-  prices/ownership/affordability, and sends the chosen weapon id.
-- `setupWeaponWheel({onPick,onCancel})`, `ensureWeaponWheel()`,
+  `${location.origin}${location.pathname}?lobby=${code}` and reports success
+  through the lobby's `aria-live` status. Leave returns to the main menu.
+- `setupBuyMenu({onBuy,onClose})`,
+  `setBuyMenuState({open,phase,credits,owned,chaosUpgrades})`,
+  `toggleBuyMenu(force?)`, and `isBuyMenuOpen()` own the accessible S&D armory
+  and Chaos Lab shop. S&D admits purchases during prep; Chaos admits them during
+  live play. Both display authoritative prices, ownership/upgrades, and
+  affordability. Closing or pausing preserves the current economy; session
+  reset clears it. Closed shops retain incoming state and repaint when opened.
+- `setupWeaponWheel({onPick,onCancel})`,
   `setWeaponWheelState({open,entries,x,y,step,highlight,setHighlight,
   pointerInteractive})`, `isWeaponWheelOpen()`, `requestWheelCancel()` (a
-  guarded onCancel), and the additive `weaponWheelHighlight()` getter own the
+  guarded onCancel), and `weaponWheelHighlight()` own the
   radial weapon wheel. Entries are `{id,name,cls,icon,key,ammo,owned,current}`
-  with wheel index == weapon slot; all ten render, unowned entries render
+  with wheel index == weapon slot; every roster entry renders, unowned entries render
   locked, and `pointerInteractive` enables the touch pointer-capture path
-  (drag to highlight, release to pick).
+  (drag to highlight, release to pick). Setup or the first entries update
+  creates the wheel's DOM.
 - `setMatchState(match,selfRow,players,serverNow)` renders mode/map, team scores,
   phase clock, S&D round/role/bomb state, interaction progress, credits, and the
   compact alive/dead player status strip from authoritative state. Team colors
@@ -419,21 +439,24 @@ and exposes `quickPlay(meta,name,bots?)`,
   options `{adsMode,pointerMode,padSensitivity,aimAssist,touchSensitivity,
   touchSize,touchHand}`; device rows show by capability (pointer/ADS on
   desktop, layout rows on touch, pad sensitivity while a pad is active).
-- `buildHUD()`, `menuDone()`, and
-  `setState({hp,mag,reserve,wname,wid,bloomPx,reloading01,yawDeg,adsT01,alive,
-  grenades,grenadeType,grenadeCharge,grenadeCharging,grenadeCook01,
-  grenadeCookLeftMs,charge01})`
-  own the live HUD. `spreadFromBloom(deg)`, `setSpread(px)`,
-  `hideCrosshairForAds(boolean)`, `setReloadProgress(t01|null,staged?)`,
-  `updateCompass(yawDeg)`, `pushEvent(ev)`,
-  `hitmark(headshot|'body'|'head'|'kill'|'killHead')` (a kill mark is never
-  downgraded by a trailing hit), `setOwnDamage(intensity01|{intensity,angleDeg})`,
-  `setDead(dead,killerName?,recap?)`,
-  `spawnDamage(amount,x,y,visible?,headshot?,stackKey?)` (hits sharing a
-  `stackKey` inside 420 ms merge into one growing number),
-  `spawnDamage(amount,sx,sy,visible?,headshot?)`, `setScoreboard(boolean)`,
-  `setPlayers(rows)`, `setScope(boolean)`, and `dispose()` are the remaining
-  live-HUD surface used by the game.
+- `buildHUD()`, `menuDone()`, and `setState(state)` own the live HUD. State
+  carries health, armor, weapon/ammunition, crosshair cone and beam radius, reload,
+  compass yaw, ADS/scope zoom, breath, grenade selection/charge/cook, and weapon
+  charge/heat/fuel values. Unchanged display values skip DOM writes; timed
+  feedback continues until it finishes. `setScoreboard(boolean)`,
+  `setScope(boolean)`, and `setTelemetry(frameDt,stats,atMs)` control the
+  scoreboard, scope transition, and measured network/frame telemetry.
+- `killfeed(event)` resolves player names from the latest match roster.
+  `hitmark(headshot|'body'|'head'|'kill'|'killHead')` keeps a visible kill mark
+  from being downgraded by a trailing hit.
+  `setPainImpulse(intensity01|{intensity,angleDeg})`, `clearDamage()`,
+  `setDeathBrutality(value)`, `hideDeathNote()`, and
+  `setDead(dead,killerName?,recap?)` own combat feedback and death presentation.
+  `spawnDamage(amount,x,y,visible?,headshot?,stackKey?)` merges hits sharing a
+  `stackKey` inside 420 ms into one growing damage number.
+- `setupSpectator({onCycle})` and `setSpectatorState(state)` present the current
+  target, respawn status, and target-cycle controls. `dispose()` releases all
+  HUD-owned DOM, listeners, timers, and animation frames and is idempotent.
 
 The game must not build, pointer-lock, or start live gameplay for a public room
 until `lobbyState.phase === 'live'`. Quick play proceeds directly; a public
@@ -445,13 +468,13 @@ late join whose welcome/state is already live also proceeds directly.
   the controller talks only to Input, WeaponState, and the HUD facade. Touch
   look/combat cannot pass through the open overlay, and controller disconnects
   cancel holds without synthesizing throws, swaps, or crouch toggles.
-- `new Input(canvas).start(canvas,onLockChange)`; poll `getKeys()` for movement
+- `new Input(canvas)` then `bind(onLockChange)`; poll `getKeys()` for movement
   plus held `interact`, read `yaw`/`pitch`, and drain fire, reload, weapon, and
   buy-menu edge consumers. `getGrenadeCharge(now?)` and `getGrenadeHoldMs(now?)`
   expose live HUD progress; `consumeGrenadeThrow()` returns the released
   `{charge,cookMs,type}` or `null`; `forceGrenadeRelease(now?)` lets the
-  presentation release a fuse cooked to the end. `getGrenadeType()`,
-  `setGrenadeType(i)`, and `cycleGrenadeType(dir)` own the selected throwable:
+  presentation release a fuse cooked to the end. `getGrenadeType()`
+  and `cycleGrenadeType(dir)` own the selected throwable:
   `H` cycles it, and the wheel (or pad `Y`) cycles it while `G` is held instead
   of switching weapons. `E` holds interact; `B` toggles the buy menu;
   `1–9`/`0`/wheel/`Q` select weapons.
@@ -488,7 +511,7 @@ late join whose welcome/state is already live also proceeds directly.
   to the pause-only set. Disabling gameplay releases captured and latched controls.
   Size and hand options preserve separate touch targets of at least 44 CSS pixels.
 - `new WorldView({getBlock})`; call `await ready()` before rendering,
-  `applyDeltas([{x,y,z,v}])`, `update(dt)`, camera ray helpers, and `dispose()`.
+  `applyDeltas([{x,y,z,v}])`, `update(dt)`, `pickCameraRay(origin,dir,maxDist)`, and `dispose()`.
 - `new CombatPostProcess(renderer,options)` owns the bounded scene render target
   and full-screen combat shader. Call `setSize(width,height,pixelRatio)`, then
   `render(scene,camera,{time,panic,pain,scopeActive})`; any shader failure must
@@ -602,6 +625,20 @@ weapons, recover/escort/plant/guard/defuse the bomb, and dispose their engine
 step listener with the room.
 
 ## Runtime gameplay contracts
+- **Map power-ups:** Fun, TDM and Chaos Lab spawn Armor (+50, cap 100), Medkit
+  (+35 HP, cap 100) and Ammo (refills owned weapons' spare magazines). The first
+  pickup is Armor after 12 seconds, then a random type appears every 18 to 28
+  seconds. Up to three exist per room; unclaimed pickups expire after 30 seconds.
+  Each combat map has four exposed pads at least 12 units from player spawn
+  pools, with open sky, solid standing space and multiple clear firing lanes.
+  Live terrain checks remove invalid pads. Alive players and bots collect by
+  proximity (1.3 horizontal, 0.75 vertical) with line of sight; a player who
+  gains nothing leaves the pickup for someone else. Ammo preserves loaded
+  magazines and reload progress. Round boundaries clear pickups, and S&D,
+  Gun Game and Training keep their existing mode rules without pickups.
+  `shared/powerups.js` owns balance, `shared/powerup-sites.js` owns placement,
+  and `server/sim/powerups.js` owns collection and scheduling. `PowerupView`
+  renders depth-tested symbols; `PowerupHud` shows armor and collection feedback.
 - **Fun (`fun`):** free-for-all target eligibility, complete ten-weapon
   loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
   `1500 ms` respawn. Shared quick rooms allow join in progress with no ready
@@ -745,6 +782,12 @@ step listener with the room.
 - **Movement:** walk is 4.4, sprint 6.2, and crouch 2.2 m/s; jump velocity is
   8.2; eye height 1.62; ground acceleration 10/s; air control is 30% of that;
   gravity is 24. Sprint has a visibly stronger leg-driven cycle than walk.
+  Forward jumps automatically grab ledges within two blocks of takeoff.
+  A fresh airborne Space press checks ledges within two blocks above the
+  current feet, using view direction when no movement key is held. Holding
+  the original jump does not extend the automatic reach. Shared vault
+  geometry checks landing support, body clearance, and the entire 0.48 s
+  lift and pull path on both client and server; new obstructions cancel it.
 - **Hidden conditions:** panic gains `damage*0.012 + (headshot ? 0.22 : 0)`,
   clamps to `0–1`, and decays at `0.20/s` toward the low-health floor
   `0.45*(1-hp/100)`. Exhaustion gains `0.24/s` while sprinting, `0.14` per
@@ -762,6 +805,17 @@ step listener with the room.
 - **Worlds:** Foundry, Depot, Citadel, Solstice, and Caldera are deterministic 128×40×96 templates.
   Every room mutates an independent clone of its selected map. Block damage and
   serialized late-join state remain local to that room.
+- **Block damage:** partial bullet damage and accepted mining swings leave a
+  persistent shared state until the block is destroyed or replaced. Mining
+  retains the per-material swing counts in `MINING_HITS`; bullet HP and mining
+  counts remain independent, with the larger damage fraction driving the visual.
+  Five cumulative stages remove quarter-block pieces from the textured terrain
+  mesh, and matching debris appears when a stage advances. Collision and voxel
+  picking retain the block until destruction. Welcome and lobby replacement
+  frames carry full `blockDamage` rows; ticks carry only changed rows. A zero
+  progress row clears damage. `npm run blocks:test` covers authority, replication,
+  geometry and cleanup; `npm run blocks:browser` checks the WebGL stages and live
+  client remeshing.
 
 ## Container deployment
 

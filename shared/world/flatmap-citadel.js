@@ -2,7 +2,9 @@ import { mulberry32 } from '../noise.js';
 import {
   AIR,
   ACCENT,
+  BRICK,
   CONCRETE,
+  GRASS,
   GROUND,
   LEAVES,
   PALE,
@@ -10,6 +12,7 @@ import {
   STONE,
   SX,
   SZ,
+  SY,
 } from './blocks.js';
 import {
   fillBox,
@@ -39,11 +42,39 @@ const ANCHOR_CELLS = [
 
 export function generateCitadelInto(world, blocks, heights) {
   generateFlatBase(world, blocks, heights);
+  dressCitadelBoundary(world);
   buildCourtyard(world);
   buildBCompound(world);
   buildLaneMarkers(world);
   addCitadelSetpieces(world);
   polishCitadelGround(world);
+}
+
+// Reface the occupied inner curtain only. The outer metal shell and every
+// boundary voxel stay in place, so the distant fortress has no new footholds.
+function dressCitadelBoundary(world) {
+  const face = (x, z, along) => {
+    for (let y = GROUND + 1; y <= SY - 8; y++) {
+      const rise = y - GROUND;
+      const pier = along % 16 < 2;
+      const course = rise === 7 || rise === 16;
+      let material = rise <= 2 || pier ? STONE : BRICK;
+      if (course) material = PALE;
+      // Tall pale lancet reliefs between buttress strips.
+      if (along % 16 >= 7 && along % 16 <= 9 && rise >= 10 && rise <= 13) {
+        material = along % 16 === 8 || rise === 10 ? PALE : STONE;
+      }
+      world.setBlock(x, y, z, material);
+    }
+  };
+  for (let x = 2; x < SX - 2; x++) {
+    face(x, 2, x);
+    face(x, SZ - 3, x);
+  }
+  for (let z = 3; z < SZ - 3; z++) {
+    face(2, z, z);
+    face(SX - 3, z, z);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -73,7 +104,19 @@ function polishCitadelGround(world) {
   paintFloor(world, 44, 52, 59, 57, T, PALE);
   paintFloor(world, 68, 42, 83, 47, T, PALE);
 
-  // Deterministic cobbles and shrubs break up the concrete aprons.
+  // Garden beds and a worn paving rhythm make the keep feel occupied.
+  for (const [x0, z0, x1, z1] of [[52, 50, 59, 61], [67, 50, 74, 61], [17, 15, 25, 16], [30, 15, 39, 16]]) {
+    paintFloor(world, x0, z0, x1, z1, T, GRASS);
+  }
+  for (let z = 8; z <= 84; z++) {
+    for (let x = 15; x <= 111; x++) {
+      if (world.getBlock(x, T, z) !== PALE) continue;
+      if (z % 5 === 0 && (x + Math.floor(z / 5)) % 4 === 0) world.setBlock(x, T, z, STONE);
+    }
+  }
+
+  // Weathering stays flat. Greenery and supplies are authored beside walls,
+  // rather than scattering ankle-high collisions across rotation lanes.
   const rng = mulberry32(20260828);
   const nearAnchor = (x, z) => ANCHOR_CELLS.some(
     ([ax, az]) => Math.max(Math.abs(x - ax), Math.abs(z - az)) <= 2,
@@ -82,14 +125,8 @@ function polishCitadelGround(world) {
     const x = 6 + ((rng() * (SX - 12)) | 0);
     const z = 6 + ((rng() * (SZ - 12)) | 0);
     if (world.getBlock(x, T, z) !== CONCRETE || nearAnchor(x, z)) continue;
-    const kind = rng();
-    if (kind < 0.7) {
-      world.setBlock(x, T, z, STONE);
-    } else if (kind < 0.92 && world.getBlock(x, T + 1, z) === AIR) {
-      world.setBlock(x, T + 1, z, LEAVES);
-    } else if (world.getBlock(x, T + 1, z) === AIR) {
-      world.setBlock(x, T + 1, z, STONE); // rubble
-    }
+    if (world.getBlock(x, T + 1, z) !== AIR) continue;
+    world.setBlock(x, T, z, rng() < 0.8 ? STONE : PALE);
   }
 }
 

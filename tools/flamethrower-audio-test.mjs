@@ -46,6 +46,7 @@ try {
     loops.refresh();
   }
   assert.equal(ctx.nodes.length, originalNodeCount, 'five seconds held fire reuses one graph');
+  assert.equal(local.source.buffer, engine.noiseBuffer, 'missing recording keeps the noise fallback');
   assert.equal(pool._byOutput.get(local.output).timer, originalTimer, 'no timer allocated per refresh');
   assert.equal(ctx.nodes.filter((node) => node.kind === 'source').length, 1);
   near(local.source.stoppedAt, 5.14);
@@ -92,4 +93,40 @@ try {
   loops.dispose();
   pool.disposeAll();
 }
-console.log('Flamethrower audio: continuity, stop envelope, positional identity, caps and disposal passed.');
+
+// A late-loaded recording is picked up by the next voice, without replacing the
+// active source or allocating a new graph on every fire event.
+let decoded = null;
+const sampledLoops = new FlameLoops(engine, pool, () => decoded);
+try {
+  ctx.currentTime = 10;
+  sampledLoops.refresh();
+  const fallback = sampledLoops.voices.get('local');
+  decoded = { duration: 2 };
+  ctx.currentTime = 10.05;
+  sampledLoops.refresh();
+  assert.equal(fallback.source.buffer, engine.noiseBuffer, 'loading never splices a held fallback mid-loop');
+  ctx.currentTime = 10.3;
+  sampledLoops.refresh();
+  const sampled = sampledLoops.voices.get('local');
+  assert.equal(sampled.source.buffer, decoded, 'next flame voice uses the decoded recording');
+  assert.equal(sampled.source.loop, true);
+  assert.equal(sampled.filter, null, 'the authored sample is not muffled by the noise fallback filter');
+  const nodeCount = ctx.nodes.length;
+  for (let i = 1; i <= 100; i++) {
+    ctx.currentTime = 10.3 + i * 0.05;
+    sampledLoops.refresh();
+  }
+  assert.equal(ctx.nodes.length, nodeCount, 'held recorded fire keeps one looping source');
+  near(sampled.source.stoppedAt, 15.44);
+  ctx.currentTime = 15.31;
+  sampledLoops.stop();
+  near(sampled.source.stoppedAt, 15.35);
+  assert.deepEqual(sampled.gain.gain.events.at(-1), ['ramp', 0, sampled.end]);
+  sampledLoops.dispose();
+  assert.ok(sampled.source.disconnected, 'recorded source disconnects on disposal');
+} finally {
+  sampledLoops.dispose();
+  pool.disposeAll();
+}
+console.log('Flamethrower audio: recorded loop, noise fallback, continuity, stop envelope, positional identity, caps and disposal passed.');

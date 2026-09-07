@@ -116,7 +116,8 @@ function assertWelcome(welcome, { gameMode = DEFAULT_GAME_MODE, map = DEFAULT_MA
   const lobbyKeys = Object.keys(welcome?.lobby || {}).sort().join(',');
   const spawnKeys = Object.keys(welcome?.spawn || {}).sort().join(',');
   pass(welcome?.t === 'welcome' &&
-    topKeys === 'gameMode,id,lobby,map,mapBytes,phase,spawn,t,tickRate' &&
+    topKeys === 'blockDamage,gameMode,id,lobby,map,mapBytes,phase,spawn,t,tickRate' &&
+    Array.isArray(welcome.blockDamage) &&
     lobbyKeys === 'code,role' &&
     spawnKeys === 'x,y,z',
   `${label} is a complete replacement frame`);

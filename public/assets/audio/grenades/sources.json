@@ -1,4 +1,6 @@
 {
+  "status": "historical_replaced_2026-09-07",
+  "note": "These Kenney recipes and output hashes describe the previous grenade assets, not the currently shipped OGG files. See ../elevenlabs-effects-sources.json for current provenance. The legacy rebuild writes only to .artifacts/grenade-audio-source/legacy-output/.",
   "author": "Kenney",
   "license": "CC0-1.0",
   "sourcePage": "https://kenney.nl/assets/sci-fi-sounds",

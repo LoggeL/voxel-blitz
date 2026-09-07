@@ -143,7 +143,7 @@ export class MinigunMotor {
   }
 }
 
-/** Short, dry rotary discharge. Existing LMG recording supplies the weight. */
+/** Short, dry rotary layer beneath the dedicated shot sample or LMG fallback. */
 export function renderMinigunReport(output, primitives) {
   primitives.hiss(output, {
     filter: 'bandpass', f: 2600, q: 0.8, sweepTo: 900,

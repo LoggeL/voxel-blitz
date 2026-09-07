@@ -1,31 +1,24 @@
 // Combat-only HUD feedback. The controller owns every timer, animation handle,
-// pool, and transient combat value; callers provide only narrow DOM/state getters
-// and the handful of presentation callbacks needed by death transitions.
+// pool, and transient combat value. Gameplay supplies stable DOM/state objects
+// and the presentation callbacks needed by death transitions.
 
 import {
   WEAPON_NAMES,
   THROWABLE_NAMES,
-  DMG_MS,
-  DMG_MAX_POOL,
   el,
   clamp01,
-  removeNode,
   resolveKey,
 } from './hud-support.js';
 import { DamageNumberPool } from './damage-numbers.js';
-import { DEATH_IMPACT_MS, DeathTreatment } from './death-treatment.js';
+import { DeathTreatment } from './death-treatment.js';
 
-export { DMG_MS, DMG_MAX_POOL };
-
-export const KILLFEED_MAX_ROWS = 5;
-export const KILLFEED_HOLD_MS = 4000;
-export const KILLFEED_REMOVE_MS = 320;
-export const HITMARK_MS = 210;
-export const KILLMARK_MS = 520;
-export { DEATH_IMPACT_MS };
+const KILLFEED_MAX_ROWS = 5;
+const KILLFEED_HOLD_MS = 4000;
+const KILLFEED_REMOVE_MS = 320;
+const HITMARK_MS = 210;
+const KILLMARK_MS = 520;
 
 const EMPTY = Object.freeze({});
-const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 
 function nowDefault() {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -43,39 +36,31 @@ function cancelFrameDefault(handle) {
   else clearTimeout(handle);
 }
 
-/**
- * Narrow adapter: DOM/state entries may be stable objects or zero-argument
- * getters; optional callbacks cover only the death-transition operations.
- * @typedef {Object} CombatHudAdapter
- */
-
+/** Owns transient combat presentation across gameplay HUD rebuilds. */
 export class CombatHudController {
-  /** @param {CombatHudAdapter} [adapter] */
-  constructor(adapter = EMPTY) {
-    this._domSource = EMPTY;
-    this._matchDomSource = EMPTY;
-    this._stateSource = EMPTY;
-    this._builtSource = null;
-    this._hudRootSource = null;
-    this._root = null;
-    this._resolveName = null;
-    this._closeBuyMenuDirect = null;
-    this._resetScope = null;
-    this._setReloadProgress = null;
-    this._hideCrosshairForAds = null;
-    this._updateCrosshairStress = null;
+  constructor({ dom, matchDom, state, isBuilt, getHudRoot, closeBuyMenuDirect,
+    resetScope, setReloadProgress, hideCrosshairForAds, updateCrosshairStress }) {
+    this.dom = dom;
+    this.matchDom = matchDom;
+    this.st = state;
+    this._isBuilt = isBuilt;
+    this._getHudRoot = getHudRoot;
+    this._closeBuyMenuDirect = closeBuyMenuDirect;
+    this._resetScope = resetScope;
+    this._setReloadProgress = setReloadProgress;
+    this._hideCrosshairForAds = hideCrosshairForAds;
+    this._updateCrosshairStress = updateCrosshairStress;
 
     this._now = nowDefault;
     this._random = Math.random;
     this._requestFrame = requestFrameDefault;
     this._cancelFrame = cancelFrameDefault;
     // Browser timer functions may require their global receiver. Wrappers keep
-    // the adapter callable as an ordinary method in strict ES modules.
+    // timer calls safe as ordinary methods in strict ES modules.
     this._setTimer = (callback, delay) => setTimeout(callback, delay);
     this._clearTimer = (handle) => clearTimeout(handle);
 
     this.names = new Map();
-    this.killfeedTimers = new Set();
     this._killfeedRows = new Map();
 
     this._onPainFrame = () => this._stepPain();
@@ -93,7 +78,7 @@ export class CombatHudController {
 
     this._damageNumbers = new DamageNumberPool({
       getLayer: () => this.dom.dmglayer,
-      isBuilt: () => this.built,
+      isBuilt: () => this._isBuilt(),
       isDisposed: () => this._disposed,
       now: () => this._now(),
       random: () => this._random(),
@@ -102,103 +87,12 @@ export class CombatHudController {
     });
     this._deathTreatment = new DeathTreatment({
       getDom: () => this.dom,
-      getHudRoot: () => this._hudRoot(),
+      getHudRoot: () => this._getHudRoot(),
       isDead: () => this.dead,
       isDisposed: () => this._disposed,
       setTimer: (callback, delay) => this._setTimer(callback, delay),
       clearTimer: (handle) => this._clearTimer(handle),
     });
-
-    this.configure(adapter);
-  }
-
-  /** Update only the explicitly supplied adapter fields. */
-  configure(adapter = EMPTY) {
-    if (!adapter || typeof adapter !== 'object') return this;
-    if (hasOwn(adapter, 'dom')) this._domSource = adapter.dom || EMPTY;
-    if (hasOwn(adapter, 'matchDom')) this._matchDomSource = adapter.matchDom || EMPTY;
-    if (hasOwn(adapter, 'state')) this._stateSource = adapter.state || EMPTY;
-    if (hasOwn(adapter, 'built')) this._builtSource = adapter.built;
-    if (hasOwn(adapter, 'hudRoot')) this._hudRootSource = adapter.hudRoot;
-    if (hasOwn(adapter, 'root')) this._root = typeof adapter.root === 'function' ? adapter.root : null;
-    if (hasOwn(adapter, 'resolveName')) {
-      this._resolveName = typeof adapter.resolveName === 'function' ? adapter.resolveName : null;
-    }
-
-    for (const key of ['closeBuyMenuDirect', 'resetScope', 'setReloadProgress',
-      'hideCrosshairForAds', 'updateCrosshairStress']) {
-      if (hasOwn(adapter, key)) {
-        this[`_${key}`] = typeof adapter[key] === 'function' ? adapter[key] : null;
-      }
-    }
-
-    if (typeof adapter.now === 'function') this._now = adapter.now;
-    if (typeof adapter.random === 'function') this._random = adapter.random;
-    if (typeof adapter.requestFrame === 'function') this._requestFrame = adapter.requestFrame;
-    if (typeof adapter.cancelFrame === 'function') this._cancelFrame = adapter.cancelFrame;
-    if (typeof adapter.setTimer === 'function') this._setTimer = adapter.setTimer;
-    if (typeof adapter.clearTimer === 'function') this._clearTimer = adapter.clearTimer;
-    return this;
-  }
-
-  get dom() { return this._readObject(this._domSource); }
-  get matchDom() { return this._readObject(this._matchDomSource); }
-  get st() { return this._readObject(this._stateSource); }
-  get built() { return this._isBuilt(); }
-  get disposed() { return this._disposed; }
-  get dmgPool() { return this._damageNumbers.pool; }
-  get dmgActive() { return this._damageNumbers.active; }
-  get dmgRAF() { return this._damageNumbers.raf; }
-  set dmgRAF(value) { this._damageNumbers.raf = value; }
-  get lastCritAt() { return this._damageNumbers.lastCritAt; }
-  set lastCritAt(value) { this._damageNumbers.lastCritAt = value; }
-  get deathBrutality() { return this._deathTreatment.brutality; }
-  set deathBrutality(value) { this._deathTreatment.brutality = value; }
-  get deathImpactTimer() { return this._deathTreatment.impactTimer; }
-  set deathImpactTimer(value) { this._deathTreatment.impactTimer = value; }
-  get _ownedDeathNote() { return this._deathTreatment.ownedNote; }
-
-  setDom(dom, matchDom = undefined) {
-    this._domSource = dom || EMPTY;
-    if (matchDom !== undefined) this._matchDomSource = matchDom || EMPTY;
-    return this;
-  }
-
-  setStateSource(state) {
-    this._stateSource = state || EMPTY;
-    return this;
-  }
-
-  setBuiltSource(built) {
-    this._builtSource = built;
-    return this;
-  }
-
-  _readObject(source) {
-    const value = typeof source === 'function' ? source() : source;
-    return value && typeof value === 'object' ? value : EMPTY;
-  }
-
-  _isBuilt() {
-    if (typeof this._builtSource === 'function') return !!this._builtSource();
-    if (this._builtSource != null) return !!this._builtSource;
-    const d = this.dom;
-    return !!(d.kf || d.hitmarker || d.dmglayer || d.flash || d.deathFx);
-  }
-
-  _hudRoot() {
-    const supplied = typeof this._hudRootSource === 'function'
-      ? this._hudRootSource()
-      : this._hudRootSource;
-    if (supplied) return supplied;
-    if (this._root) {
-      const root = this._root('hud');
-      if (root) return root;
-    }
-    const d = this.dom;
-    if (d.hud) return d.hud;
-    if (d.root) return d.root;
-    return typeof document !== 'undefined' ? document.getElementById('hud') : null;
   }
 
   _stress() {
@@ -214,37 +108,8 @@ export class CombatHudController {
 
   /* ------------------------------------------------------------- events */
 
-  pushEvent(ev) {
-    if (!ev || !this.built || this._disposed) return;
-    switch (ev.kind) {
-      case 'kill':
-        this.killfeed(ev);
-        break;
-      case 'hit':
-        this.hitmark(!!ev.hs);
-        if (typeof ev.sx === 'number' && typeof ev.sy === 'number' && !ev.behind) {
-          this.spawnDamage(ev.dmg, ev.sx, ev.sy, true, !!ev.hs);
-        }
-        break;
-    }
-  }
-
-  killfeed(ev) {
-    if (!ev || this._disposed) return;
-    this.killRow({
-      killer: this.nameFor(ev.killer),
-      victim: this.nameFor(ev.victim),
-      weaponKey: resolveKey(ev.w),
-      hs: !!ev.hs,
-      longRange: !!ev.lr,
-      noScope: !!ev.ns,
-    });
-  }
-
   setNames(players) {
-    if (players instanceof Map) {
-      for (const [id, name] of players) this.names.set(String(id), String(name));
-    } else if (Array.isArray(players)) {
+    if (Array.isArray(players)) {
       for (const player of players) {
         if (player && player.id != null) {
           this.names.set(String(player.id), String(player.name || player.id));
@@ -255,24 +120,20 @@ export class CombatHudController {
   }
 
   nameFor(id) {
-    if (this._resolveName) {
-      const resolved = this._resolveName(id);
-      if (resolved != null) return String(resolved);
-    }
     return this.names.get(String(id)) ?? String(id);
   }
 
-  killRow(entry) {
+  killfeed(ev) {
     const kf = this.dom.kf;
-    if (!kf || !entry || this._disposed) return;
+    if (!kf || !ev || this._disposed) return;
 
     const classes = ['kf-row'];
-    if (entry.hs) classes.push('kf-hs');
-    if (entry.noScope) classes.push('kf-no-scope');
+    if (ev.hs) classes.push('kf-hs');
+    if (ev.ns) classes.push('kf-no-scope');
     const row = el('div', classes.join(' '));
     const killer = el('b', '', row);
-    killer.textContent = entry.killer;
-    const weaponKey = resolveKey(entry.weaponKey || entry.weapon || entry.glyphKey);
+    killer.textContent = this.nameFor(ev.killer);
+    const weaponKey = resolveKey(ev.w);
     const throwable = !!(weaponKey && THROWABLE_NAMES[weaponKey]);
     const weapon = el('span', `kf-weapon kf-weapon-${weaponKey || 'world'}`, row);
     if (weaponKey && WEAPON_NAMES[weaponKey]) {
@@ -290,20 +151,17 @@ export class CombatHudController {
       ? THROWABLE_NAMES[weaponKey]
       : (WEAPON_NAMES[weaponKey] || 'ENVIRONMENT');
     const markers = [];
-    if (entry.hs) markers.push('HEADSHOT');
-    if (entry.longRange) markers.push('LONG RANGE');
-    if (entry.noScope) markers.push('NO-SCOPE');
+    if (ev.hs) markers.push('HEADSHOT');
+    if (ev.lr) markers.push('LONG RANGE');
+    if (ev.ns) markers.push('NO-SCOPE');
     for (const marker of markers) {
       const badge = el('em', 'kf-marker', row);
       badge.textContent = marker;
     }
     const victim = el('span', '', row);
-    victim.textContent = entry.victim;
+    victim.textContent = this.nameFor(ev.victim);
 
-    if (typeof kf.insertBefore === 'function') kf.insertBefore(row, kf.firstChild);
-    else if (typeof kf.prepend === 'function') kf.prepend(row);
-    else if (typeof kf.appendChild === 'function') kf.appendChild(row);
-    else return;
+    kf.insertBefore(row, kf.firstChild);
 
     this._killfeedRows.set(row, 0);
     while (this._killfeedRows.size > KILLFEED_MAX_ROWS) {
@@ -317,7 +175,7 @@ export class CombatHudController {
     this._setKillRowTimer(row, () => {
       if (row.isConnected === false) {
         this._killfeedRows.delete(row);
-        removeNode(row);
+        row?.remove();
         return;
       }
       row.style.transition = 'opacity 300ms linear';
@@ -330,16 +188,13 @@ export class CombatHudController {
     const prior = this._killfeedRows.get(row);
     if (prior) {
       this._clearTimer(prior);
-      this.killfeedTimers.delete(prior);
     }
     let timer = 0;
     timer = this._setTimer(() => {
-      this.killfeedTimers.delete(timer);
       if (this._killfeedRows.get(row) === timer) this._killfeedRows.set(row, 0);
       callback();
     }, delay);
     this._killfeedRows.set(row, timer);
-    this.killfeedTimers.add(timer);
   }
 
   _removeKillRow(row) {
@@ -347,23 +202,19 @@ export class CombatHudController {
     const timer = this._killfeedRows.get(row);
     if (timer) {
       this._clearTimer(timer);
-      this.killfeedTimers.delete(timer);
     }
     this._killfeedRows.delete(row);
-    removeNode(row);
+    row?.remove();
   }
 
   clearKillfeed() {
-    for (const timer of this.killfeedTimers) this._clearTimer(timer);
-    this.killfeedTimers.clear();
-    for (const row of Array.from(this._killfeedRows.keys())) removeNode(row);
+    for (const [row, timer] of this._killfeedRows) {
+      if (timer) this._clearTimer(timer);
+      row.remove();
+    }
     this._killfeedRows.clear();
   }
 
-  /**
-   * Hit confirmation. `kind` is boolean headshot for legacy callers, or one of
-   * 'body' | 'head' | 'kill' | 'killHead'. Kill marks hold longer and bloom outward.
-   */
   hitmark(kind) {
     const hm = this.dom.hitmarker;
     if (!hm || this._disposed) return;
@@ -393,10 +244,6 @@ export class CombatHudController {
   }
 
   /* -------------------------------------------- own damage / death state */
-
-  setOwnDamage(intensity01) {
-    this.setPainImpulse(intensity01);
-  }
 
   setPainImpulse(value) {
     if (this._disposed) return;
@@ -435,7 +282,7 @@ export class CombatHudController {
       flash.style.setProperty('--pain-rotation', `${(Math.atan2(y, x) * 180 / Math.PI).toFixed(2)}deg`);
       flash.style.opacity = String(this.flashV);
     }
-    if (!this.built || this.flashRAF) return;
+    if (!this._isBuilt() || this.flashRAF) return;
 
     this._painLastAt = this._now();
     this.flashRAF = this._requestFrame(this._onPainFrame);
@@ -477,47 +324,19 @@ export class CombatHudController {
     this._damageNumbers.clear();
   }
 
-  resetDamage() {
-    this.clearDamage();
-  }
-
-  ensureDeathNote() {
-    return this._deathTreatment.ensureNote();
-  }
-
-  showDeathNote(killerName, recap = '') {
-    this._deathTreatment.showNote(killerName, recap);
-  }
-
   hideDeathNote() {
     this._deathTreatment.hideNote();
-  }
-
-  styleDeathTreatment(force) {
-    this._deathTreatment.style(force);
   }
 
   setDeathBrutality(value) {
     this._deathTreatment.setBrutality(value);
   }
 
-  activateDeathTreatment() {
-    this._deathTreatment.activate();
-  }
-
-  _finishDeathImpact() {
-    this._deathTreatment.finishImpact();
-  }
-
-  resetDeathTreatment() {
-    this._deathTreatment.reset();
-  }
-
   setDead(dead, killerName = '', recap = '') {
     if (this._disposed) return;
     this.dead = !!dead;
-    if (!this.dead) this.resetDeathTreatment();
-    else if (this.deathBrutality <= 0) this.deathBrutality = 0.85;
+    if (!this.dead) this._deathTreatment.reset();
+    else if (this._deathTreatment.brutality <= 0) this._deathTreatment.brutality = 0.85;
 
     if (this.dead) {
       if (this._closeBuyMenuDirect) this._closeBuyMenuDirect();
@@ -527,7 +346,7 @@ export class CombatHudController {
         if (match.interactFill) match.interactFill.style.width = '0%';
       }
     }
-    if (!this.built) return;
+    if (!this._isBuilt()) return;
 
     const d = this.dom;
     if (d.ch) d.ch.classList.toggle('vb-dead', this.dead);
@@ -541,8 +360,8 @@ export class CombatHudController {
       if (this._setReloadProgress) this._setReloadProgress(null);
       this.clearOwnDamage();
       if (d.lowhp) d.lowhp.style.opacity = '0';
-      this.activateDeathTreatment();
-      this.showDeathNote(killerName, recap);
+      this._deathTreatment.activate();
+      this._deathTreatment.showNote(killerName, recap);
     } else {
       this.hideDeathNote();
       const state = this.st;
@@ -559,31 +378,10 @@ export class CombatHudController {
     return this._damageNumbers.spawn(amount, sx, sy, visible, hs, stackKey);
   }
 
-  takeDmgNode() {
-    return this._damageNumbers.take();
-  }
-
-  placeDmg(rec, elapsed) {
-    return this._damageNumbers.place(rec, elapsed);
-  }
-
-  dmgStep() {
-    return this._damageNumbers.step();
-  }
-
-  _stepDamage() {
-    return this._damageNumbers._step();
-  }
-
-  _releaseDamageRecord(rec) {
-    return this._damageNumbers._release(rec);
-  }
-
   /* ------------------------------------------------------------ lifecycle */
 
-  reset(adapter = null) {
-    this._clearPresentation(true);
-    if (adapter) this.configure(adapter);
+  reset() {
+    this._clearPresentation();
     this.names.clear();
     this.dead = false;
     this.flashV = 0;
@@ -596,7 +394,7 @@ export class CombatHudController {
 
   dispose() {
     if (this._disposed) return;
-    this._clearPresentation(true);
+    this._clearPresentation();
     this.names.clear();
     this.dead = false;
     this.flashV = 0;
@@ -604,13 +402,9 @@ export class CombatHudController {
     this.painDirectionSeed = 0;
     this._disposed = true;
 
-    this._domSource = EMPTY;
-    this._matchDomSource = EMPTY;
-    this._stateSource = EMPTY;
-    this._builtSource = false;
-    this._hudRootSource = null;
-    this._root = null;
-    this._resolveName = null;
+    this.dom = this.matchDom = this.st = EMPTY;
+    this._isBuilt = () => false;
+    this._getHudRoot = () => null;
     this._closeBuyMenuDirect = null;
     this._resetScope = null;
     this._setReloadProgress = null;
@@ -618,7 +412,7 @@ export class CombatHudController {
     this._updateCrosshairStress = null;
   }
 
-  _clearPresentation(removeDamageNodes) {
+  _clearPresentation() {
     this.clearKillfeed();
 
     if (this.hmTimer) {
@@ -627,10 +421,9 @@ export class CombatHudController {
     }
     this._finishHitmark();
 
-    this.clearDamage();
-    if (removeDamageNodes) this._damageNumbers.clear(true);
-    this._damageNumbers.lastCritAt = -1e9;
+    this.clearOwnDamage();
+    this._damageNumbers.reset();
 
-    this._deathTreatment.clear(true);
+    this._deathTreatment.clear();
   }
 }

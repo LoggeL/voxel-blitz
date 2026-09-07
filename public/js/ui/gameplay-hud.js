@@ -12,6 +12,7 @@ import { Scoreboard } from './scoreboard.js';
 import { MatchHud } from './match-hud.js';
 import { createSniperScope } from './sniper-scope.js';
 import { NetworkHud } from './network-hud.js';
+import { PowerupHud } from './powerup-hud.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS, clampGrenadeType } from '../../../shared/grenade-rules.js';
 
 const EMPTY_READ_MODEL = Object.freeze({ dead: false, painImpulse: 0 });
@@ -75,6 +76,7 @@ export class GameplayHud {
     });
     this.matchDom = this.match.dom;
     this.network = new NetworkHud();
+    this.powerups = new PowerupHud();
   }
 
   buildHUD() {
@@ -132,6 +134,7 @@ export class GameplayHud {
     d.hb = el('div', '', hud, 'healthbar');
     d.track = el('div', 'hp-track', d.hb);
     d.hpf = el('div', '', d.track, 'hpfill');
+    this.powerups.build(hud, d.hb);
 
     d.ammo = el('div', '', hud, 'ammo');
     d.weaponIcon = el('img', 'vb-weapon-icon', d.ammo, 'weapon-icon');
@@ -270,6 +273,7 @@ export class GameplayHud {
     const alive = s.alive !== false && this.readModel.dead !== true;
     const painted = this._painted;
     const key = resolveKey(s.wid);
+    this.powerups.update(s.armor, alive);
 
     if (s.hp != null) {
       const hp = Math.min(100, Math.max(0, Number(s.hp)));
@@ -748,6 +752,7 @@ export class GameplayHud {
     if (typeof document !== 'undefined') this.setPlayers([]);
     this.match.reset();
     this.network.reset();
+    this.powerups.reset();
   }
 
   dispose() {
@@ -774,6 +779,7 @@ export class GameplayHud {
     this.match.dispose();
     this.scoreboard.dispose();
     this.network.dispose();
+    this.powerups.dispose();
     const hud = doc ? doc.getElementById('hud') : null;
     if (this._ownedHudRoot) {
       this._ownedHudRoot.remove();

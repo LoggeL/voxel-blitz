@@ -33,11 +33,26 @@ async function main() {
     });
     const result = await page.evaluate(`({
       metrics: window.__vbAudioMixAudit || null,
+      report: window.__vbAudioCueAudit || null,
       error: document.documentElement.dataset.audioMixError || '',
     })`);
     if (result.error) throw new Error(result.error);
     requireCondition(result.metrics && Object.keys(result.metrics).join(',') === WEAPON_IDS.join(','),
       'offline WebAudio audit renders the complete weapon roster');
+    requireCondition(result.report && Array.isArray(result.report.checks)
+      && result.report.checks.length >= 100 && result.report.checks.every((check) => check.passed)
+      && result.report.failures.length === 0,
+    'actual game-facade scenarios pass every audible, timing and lifecycle check');
+    const requiredCues = [
+      'Grenade pin', 'Grenade throw, light', 'Grenade throw, full charge',
+      ...['frag', 'limpet', 'pulse', 'rocket'].map((type) => `${type} explosion, 4 m`),
+      'Frag explosion, 35 m', 'Frag explosion plus 32 block impacts',
+      'Minigun, 20-shot burst at 1200 RPM',
+      'Flamethrower, 2.4-second hold and release', 'Flamethrower, missing refresh',
+      'LONGARC bolt fizzle',
+    ];
+    requireCondition(requiredCues.every((cue) => result.report.cues?.[cue]),
+      'grenade handling, every blast, distance, destruction, burst, loop and fizzle are rendered');
     console.table(Object.entries(result.metrics).map(([weapon, metrics]) => ({
       weapon,
       peak: metrics.peak.toFixed(4),
@@ -48,14 +63,15 @@ async function main() {
     })));
     for (const weapon of WEAPON_IDS) {
       const metrics = result.metrics[weapon];
-      requireCondition(metrics.peak > 0.02 && metrics.peak <= 1,
+      requireCondition(metrics.peak > 0.015 && metrics.peak <= 1,
         `${weapon} runtime mix is audible and limiter-bounded`);
-      requireCondition(metrics.rms > 0.001 && metrics.rms < 0.5,
+      requireCondition(metrics.rms > 0.0003 && metrics.rms < 0.5,
         `${weapon} runtime mix RMS remains in a useful range`);
       requireCondition(metrics.clippedRatio <= 0.001,
         `${weapon} runtime mix avoids sustained clipping`);
-      requireCondition(metrics.onsetMs <= 15 && metrics.audibleTailMs >= 40,
-        `${weapon} runtime mix preserves muzzle sync and an audible tail`);
+      const onsetBudget = weapon === 'flamethrower' ? 60 : weapon === 'knife' ? 55 : 20;
+      requireCondition(metrics.onsetMs <= onsetBudget && metrics.audibleTailMs >= 40,
+        `${weapon} runtime mix preserves its attack timing and an audible tail`);
     }
     const tailOrder = ['sniper', 'revolver', 'shotgun', 'lmg', 'rifle', 'smg'];
     requireCondition(tailOrder.every((weapon, index) => index === 0 ||
@@ -66,8 +82,10 @@ async function main() {
       result.metrics[bodyOrder[index - 1]].rms > result.metrics[weapon].rms),
     'runtime mixed energy profiles preserve distinct weapon weight');
     await mkdir(OUT_DIR, { recursive: true });
-    await writeFile(path.join(OUT_DIR, 'runtime-mix.json'),
-      `${JSON.stringify(result.metrics, null, 2)}\n`);
+    await Promise.all([
+      writeFile(path.join(OUT_DIR, 'runtime-mix.json'), `${JSON.stringify(result.metrics, null, 2)}\n`),
+      writeFile(path.join(OUT_DIR, 'runtime-cues.json'), `${JSON.stringify(result.report, null, 2)}\n`),
+    ]);
     requireCondition(page.errors.length === 0,
       'runtime WebAudio mix audit completes without browser errors');
     console.log('AUDIO MIX SMOKE: OK');

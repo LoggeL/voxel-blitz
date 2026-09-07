@@ -31,9 +31,6 @@ export class VoicePool {
     const lifetime = lifetimeSec || 1.4;
     const now = activeCtx.currentTime;
     this._pruneVoices(now);
-    while (this._voices.length >= MAX_VOICES) {
-      this._cleanupVoice(this._voices[0]);
-    }
 
     const output = activeCtx.createGain();
     let panner = null;
@@ -47,9 +44,6 @@ export class VoicePool {
       last = lowpass;
     }
     if (opts && Array.isArray(opts.pos) && activeCtx.createPanner) {
-      while (this._positional.length >= MAX_POSITIONAL_VOICES) {
-        this._cleanupVoice(this._positional[0]);
-      }
       panner = activeCtx.createPanner();
       panner.panningModel = 'HRTF';
       panner.distanceModel = 'inverse';
@@ -66,6 +60,7 @@ export class VoicePool {
     const entry = {
       out: output,
       panner,
+      priority: Math.max(0, Math.min(2, Number(opts?.priority) || 0)),
       until: now + lifetime + 0.5,
       timer: null,
       cleanups: [],
@@ -78,6 +73,16 @@ export class VoicePool {
       () => this._expireVoice(entry),
       (lifetime + 0.5) * 1000,
     );
+    // A blast arrives before the block-break events it causes. Keep those
+    // quieter voices from stealing the blast before its first audio frame.
+    // Include the new voice in selection so lower-priority arrivals cannot
+    // evict an all-important pool. Equal priorities retain FIFO behavior.
+    while (this._positional.length > MAX_POSITIONAL_VOICES) {
+      this._cleanupVoice(this._leastImportantVoice(this._positional));
+    }
+    while (this._voices.length > MAX_VOICES) {
+      this._cleanupVoice(this._leastImportantVoice(this._voices));
+    }
     return output;
   }
 
@@ -178,6 +183,14 @@ export class VoicePool {
       throw new Error('AudioEngine context is not ready');
     }
     return activeCtx;
+  }
+
+  _leastImportantVoice(voices) {
+    let candidate = voices[0];
+    for (let i = 1; i < voices.length; i++) {
+      if (voices[i].priority < candidate.priority) candidate = voices[i];
+    }
+    return candidate;
   }
 
   _scheduleCleanup(cleanup, delayMs) {

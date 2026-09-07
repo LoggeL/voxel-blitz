@@ -55,16 +55,24 @@ export function buildOperator({ suit, dark, armor, visor, skin, variant }) {
   plate(torso, suit, [0.53, 0.24, 0.32], [0, 0.13, 0]);
   plate(torso, armor, [0.40, 0.35, 0.10], [0, 0.015, -0.19]);
   plate(torso, suit, [0.30, 0.045, 0.025], [0, 0.13, -0.252]);
+  const pouches = new THREE.Group();
+  pouches.name = 'operator_pouches';
+  pouches.position.set(0, -0.075, -0.19);
+  torso.add(pouches);
   for (const x of [-0.14, 0, 0.14]) {
-    plate(torso, dark, [0.115, 0.15, 0.085], [x, -0.15, -0.21]);
-    plate(torso, armor, [0.10, 0.035, 0.02], [x, -0.10, -0.262]);
+    plate(pouches, dark, [0.115, 0.15, 0.085], [x, -0.075, -0.02]);
+    plate(pouches, armor, [0.10, 0.035, 0.02], [x, -0.025, -0.072]);
   }
   for (const x of [-0.19, 0.19]) plate(torso, dark, [0.065, 0.39, 0.04], [x, 0.045, -0.185]);
-  plate(torso, armor, [0.34, 0.37, 0.12], [0, 0.035, 0.20]);
-  plate(torso, suit, [0.24, 0.08, 0.025], [0, 0.12, 0.272]);
+  const pack = new THREE.Group();
+  pack.name = 'operator_pack';
+  pack.position.set(0, 0.20, 0.18);
+  torso.add(pack);
+  plate(pack, armor, [0.34, 0.37, 0.12], [0, -0.165, 0.02]);
+  plate(pack, suit, [0.24, 0.08, 0.025], [0, -0.08, 0.092]);
   if (variant === 2) {
-    plate(torso, dark, [0.30, 0.32, 0.15], [0, -0.03, 0.28]);
-    plate(torso, armor, [0.03, 0.30, 0.03], [0.15, 0.28, 0.22]);
+    plate(pack, dark, [0.30, 0.32, 0.15], [0, -0.23, 0.10]);
+    plate(pack, armor, [0.03, 0.30, 0.03], [0.15, 0.08, 0.04]);
   }
   const hips = new THREE.Group();
   plate(hips, dark, [0.45, 0.18, 0.29], [0, 0, 0]);
@@ -114,7 +122,7 @@ export function buildOperator({ suit, dark, armor, visor, skin, variant }) {
   return { torso, hips, head, lLeg: legs[0], rLeg: legs[1],
     lArm: arms[0].arm, rArm: arms[1].arm,
     lElbow: arms[0].elbow, rElbow: arms[1].elbow,
-    lHand: arms[0].hand, rHand: arms[1].hand };
+    lHand: arms[0].hand, rHand: arms[1].hand, pack, pouches };
 }
 
 const down = new THREE.Vector3(0, -1, 0);

@@ -2,7 +2,7 @@ import { AIR, GROUND, METAL, SX, SY, SZ } from './blocks.js';
 import { MAP_MODE_COMPATIBILITY } from '../modes.js';
 import { foundryLadderVolumes } from './terrain-foundry.js';
 
-export const MAP_NAMES = Object.freeze({
+const MAP_NAMES = Object.freeze({
   foundry: 'Foundry',
   depot: 'Depot',
   citadel: 'Citadel',
@@ -80,7 +80,7 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
   },
 });
 
-export const MAP_SITE_LAYOUTS = Object.freeze({
+const MAP_SITE_LAYOUTS = Object.freeze({
   nuketown: [
     { id: 'A', minX: 32, maxX: 39, minZ: 43, maxZ: 51, y: GROUND + 1.02 },
     { id: 'B', minX: 92, maxX: 99, minZ: 43, maxZ: 51, y: GROUND + 1.02 },
@@ -105,7 +105,7 @@ export const MAP_SITE_LAYOUTS = Object.freeze({
   killhouse: [],
 });
 
-export const MAP_LANDMARKS = Object.freeze({
+const MAP_LANDMARKS = Object.freeze({
   nuketown: [
     { id: 'yellow-house', name: 'Yellow House', x: 59, z: 67 },
     { id: 'school-bus', name: 'School Bus', x: 57, z: 46 },
@@ -187,13 +187,13 @@ export const MAP_RUN_COURSE = Object.freeze({
   }),
 });
 
-export function deepFreeze(value) {
+function deepFreeze(value) {
   if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
   for (const child of Object.values(value)) deepFreeze(child);
   return Object.freeze(value);
 }
 
-export function spawnIsWalkable(world, spawn) {
+function spawnIsWalkable(world, spawn) {
   const x = Math.floor(spawn.x);
   const z = Math.floor(spawn.z);
   const feetY = Math.floor(spawn.y);

@@ -1,3 +1,5 @@
+import { computeConeDeg, fireOneShot, nearestVictim, resolveWeaponIntent } from '../server/sim/combat.js';
+import { updateCondition } from '../server/sim/movement.js';
 import { weaponSwapProfile } from '../shared/weapon-swap.js';
 // Protocol smoke test: starts the real HTTP+WebSocket server on an OS-assigned
 // port, joins two real clients, and checks both direct simulation contracts and
@@ -33,7 +35,9 @@ import {
 } from '../shared/worlddata.js';
 import { GameEngine } from '../server/game.js';
 import { attachBots } from '../server/bots.js';
-import { TICK_MS, evDie, evRespawn, makeSnapshot } from '../server/protocol.js';
+import { TICK_MS } from '../server/protocol/admission.js';
+import { evDie, evRespawn } from '../server/protocol/events.js';
+import { makeSnapshot } from '../server/protocol/snapshot.js';
 import { PROJECTILE_RULES } from '../server/sim/projectiles.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
 import { BOLT_RULES, boltBounces } from '../shared/bolt-rules.js';
@@ -129,7 +133,7 @@ function runDirectContracts() {
   Object.assign(shooter, { x: 60, y: 30, z: 60 });
   Object.assign(dead, { x: 60, y: 30, z: 58, state: 'dead' });
   Object.assign(target, { x: 60, y: 30, z: 55, state: 'alive' });
-  const targetHit = hitEngine.nearestVictim(shooter, [60, 31.62, 60], { x: 0, y: 0, z: -1 }, 20);
+  const targetHit = nearestVictim(shooter, [60, 31.62, 60], { x: 0, y: 0, z: -1 }, 20, hitEngine.contexts.combat);
   ok(targetHit?.victim === target && targetHit.t > 4,
     'player ray excludes shooter and dead bodies, then hits the live target');
 
@@ -272,7 +276,7 @@ function runDirectContracts() {
   }
   grenadeEngine.world.setBlock(44, 20, 50, STONE);
   grenadeEngine.world.setBlock(45, 20, 50, METAL);
-  const grenadeContext = grenadeEngine.projectileContext();
+  const grenadeContext = grenadeEngine.contexts.projectiles;
   const grenade = grenadeEngine.projectiles.throw(thrower, grenadeContext);
   Object.assign(grenade, { x: 44.5, y: 21.5, z: 50.5 });
   grenadeEngine.projectiles.explode(grenade, grenadeContext);
@@ -289,7 +293,7 @@ function runDirectContracts() {
   chargeEngine.addBot('charge-thrower', 'Charge Thrower');
   const chargeThrower = chargeEngine.entities.get('charge-thrower');
   Object.assign(chargeThrower, { yaw: -Math.PI / 2, pitch: 0, vx: 0, vy: 0, vz: 0 });
-  const chargeContext = chargeEngine.projectileContext();
+  const chargeContext = chargeEngine.contexts.projectiles;
   const shortThrow = chargeEngine.projectiles.throw(chargeThrower, chargeContext, 0);
   const longThrow = chargeEngine.projectiles.throw(chargeThrower, chargeContext, 1);
   const cookedThrow = chargeEngine.projectiles.throw(chargeThrower, chargeContext, 1, 0, 1500);
@@ -321,7 +325,7 @@ function runDirectContracts() {
   cookOwner.grenadeChargeQueued = 1;
   cookOwner.grenadeTypeQueued = 0;
   cookOwner.grenadeCookQueued = GRENADE_TYPES.frag.fuseMs;
-  handEngine.projectiles.step(0.05, handEngine.projectileContext());
+  handEngine.projectiles.step(0.05, handEngine.contexts.projectiles);
   ok(cookOwner.grenades[0] === 1 && cookOwner.hp < 100
     && handEngine.projectiles.active.size === 0
     && handEngine.tickEvents.some((event) => event.kind === 'projectileExplode' && event.type === 'frag'),
@@ -340,16 +344,16 @@ function runDirectContracts() {
   Object.assign(limpetOwner, { x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0, vx: 0, vy: 0, vz: 0 });
   Object.assign(limpetVictim, { x: 46.5, y: 20, z: 50.5, hp: 100, vx: 0, vy: 0, vz: 0 });
   const limpetIndex = GRENADE_TYPE_IDS.indexOf('limpet');
-  const limpet = limpetEngine.projectiles.throw(limpetOwner, limpetEngine.projectileContext(), 1, limpetIndex);
+  const limpet = limpetEngine.projectiles.throw(limpetOwner, limpetEngine.contexts.projectiles, 1, limpetIndex);
   Object.assign(limpet, { x: 46.2, y: 21.0, z: 50.5, vx: 12, vy: 0, vz: 0 });
   limpetEngine.now += 300;
-  limpetEngine.projectiles.step(0.05, limpetEngine.projectileContext());
+  limpetEngine.projectiles.step(0.05, limpetEngine.contexts.projectiles);
   const stickEvent = limpetEngine.tickEvents.find((event) => event.kind === 'projectileStick');
   limpetVictim.x = 50.5;
-  limpetEngine.projectiles.step(0.05, limpetEngine.projectileContext());
+  limpetEngine.projectiles.step(0.05, limpetEngine.contexts.projectiles);
   const rideX = limpet.x;
   limpetEngine.now += GRENADE_TYPES.limpet.fuseMs + 50;
-  limpetEngine.projectiles.step(0.05, limpetEngine.projectileContext());
+  limpetEngine.projectiles.step(0.05, limpetEngine.contexts.projectiles);
   const limpetKill = limpetEngine.tickEvents.find((event) => event.kind === 'kill' && event.victim === 'limpet-victim');
   ok(limpetOwner.grenades[limpetIndex] === 0
     && stickEvent?.to === 'limpet-victim' && limpet.stuckTo === limpetVictim
@@ -371,10 +375,10 @@ function runDirectContracts() {
   Object.assign(pulseOwner, { x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0 });
   Object.assign(pulseVictim, { x: 44.5, y: 20, z: 50.5, hp: 100, vx: 0, vy: 0, vz: 0, panic: 0 });
   const pulseIndex = GRENADE_TYPE_IDS.indexOf('pulse');
-  const pulse = pulseEngine.projectiles.throw(pulseOwner, pulseEngine.projectileContext(), 1, pulseIndex);
+  const pulse = pulseEngine.projectiles.throw(pulseOwner, pulseEngine.contexts.projectiles, 1, pulseIndex);
   Object.assign(pulse, { x: 45.7, y: 20.5, z: 50.5, vx: 14, vy: 0, vz: 0 });
   pulseEngine.now += 300;
-  pulseEngine.projectiles.step(0.05, pulseEngine.projectileContext());
+  pulseEngine.projectiles.step(0.05, pulseEngine.contexts.projectiles);
   ok(pulseEngine.projectiles.active.size === 0
     && pulseEngine.tickEvents.some((event) => event.kind === 'projectileExplode' && event.type === 'pulse')
     && pulseEngine.world.getBlock(46, 20, 50) === STONE
@@ -393,7 +397,7 @@ function runDirectContracts() {
     }
     blastCapEngine.world.setBlock(44, y, 50, AIR);
   }
-  const capContext = blastCapEngine.projectileContext();
+  const capContext = blastCapEngine.contexts.projectiles;
   const capGrenade = blastCapEngine.projectiles.throw(capOwner, capContext);
   const capOrigin = [44.5, 20.5, 50.5];
   Object.assign(capGrenade, { x: capOrigin[0], y: capOrigin[1], z: capOrigin[2] });
@@ -419,7 +423,7 @@ function runDirectContracts() {
     }
   }
   Object.assign(chainOwner, { x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0 });
-  const chainContext = chainEngine.projectileContext();
+  const chainContext = chainEngine.contexts.projectiles;
   const first = chainEngine.projectiles.throw(chainOwner, chainContext, 1, 0);
   const second = chainEngine.projectiles.throw(chainOwner, chainContext, 1, 0);
   Object.assign(first, { x: 44.5, y: 21, z: 50.5 });
@@ -440,7 +444,7 @@ function runDirectContracts() {
       for (let x = 38; x <= 49; x++) ownerEngine.world.setBlock(x, y, z, AIR);
     }
   }
-  const ownerContext = ownerEngine.projectileContext();
+  const ownerContext = ownerEngine.contexts.projectiles;
   const ownedGrenade = ownerEngine.projectiles.throw(ownerBot, ownerContext);
   ownerEngine.takeoverBot('owner-bot', 'owner-human', 'Owner Human');
   Object.assign(ownedGrenade, { x: 45.2, y: 21.1, z: 50.5 });
@@ -453,7 +457,7 @@ function runDirectContracts() {
   const protectedEngine = new GameEngine();
   protectedEngine.addBot('protected-owner', 'Protected Owner');
   const protectedOwner = protectedEngine.entities.get('protected-owner');
-  const protectedContext = protectedEngine.projectileContext();
+  const protectedContext = protectedEngine.contexts.projectiles;
   const protectedGrenade = protectedEngine.projectiles.throw(protectedOwner, protectedContext);
   protectedEngine.respawnPlayer(
     protectedOwner,
@@ -473,7 +477,7 @@ function runDirectContracts() {
   postEngine.addBot('post-target', 'Post Target');
   const postOwner = postEngine.entities.get('post-owner');
   const postTarget = postEngine.entities.get('post-target');
-  const postContext = postEngine.projectileContext();
+  const postContext = postEngine.contexts.projectiles;
   const postGrenade = postEngine.projectiles.throw(postOwner, postContext);
   postEngine.mode.policy.phase = 'post';
   Object.assign(postTarget, { x: 44.5, y: 20, z: 50.5, hp: 100 });
@@ -510,13 +514,13 @@ function runDirectContracts() {
     x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0, weapon: rocketSlot, deployT: 0, cooldown: 0,
   });
   Object.assign(rocketTarget, { x: 54.5, y: 20, z: 53.2, hp: 100, vx: 0, vy: 0, vz: 0 });
-  rocketEngine.fireOneShot(rocketeer);
+  fireOneShot(rocketeer, rocketEngine.contexts.combat);
   const rocketLaunchEvent = rocketEngine.tickEvents.find((event) => event.kind === 'projectileLaunch' && event.type === 'rocket');
   const rocketShoot = rocketEngine.tickEvents.find((event) => event.kind === 'shoot' && event.w === 'rocket');
   let rocketTicks = 0;
   while (rocketEngine.projectiles.active.size > 0 && rocketTicks < 60) {
     rocketEngine.now += 50;
-    rocketEngine.projectiles.step(0.05, rocketEngine.projectileContext());
+    rocketEngine.projectiles.step(0.05, rocketEngine.contexts.projectiles);
     rocketTicks++;
   }
   const rocketBlast = rocketEngine.tickEvents.find((event) => event.kind === 'projectileExplode' && event.type === 'rocket');
@@ -540,11 +544,11 @@ function runDirectContracts() {
     for (let x = 41; x <= 48; x++) jumpEngine.world.setBlock(x, 19, z, STONE);
   }
   Object.assign(jumper, { x: 44.5, y: 20, z: 50.5, yaw: 0, pitch: -1.4, weapon: rocketSlot, deployT: 0, cooldown: 0, vx: 0, vy: 0, vz: 0 });
-  jumpEngine.fireOneShot(jumper);
+  fireOneShot(jumper, jumpEngine.contexts.combat);
   let jumpTicks = 0;
   while (jumpEngine.projectiles.active.size > 0 && jumpTicks < 20) {
     jumpEngine.now += 50;
-    jumpEngine.projectiles.step(0.05, jumpEngine.projectileContext());
+    jumpEngine.projectiles.step(0.05, jumpEngine.contexts.projectiles);
     jumpTicks++;
   }
   ok(jumper.vy > 8 && jumper.hp < 100 && jumper.hp > 30 && jumper.state === 'alive',
@@ -580,17 +584,17 @@ function runDirectContracts() {
     yaw: -Math.PI / 2, pitch: 0, weapon: longarcSlot, wantAds: false, reload: false, viewAge: 100,
   };
   coilEngine.applyInput('coil', { ...coilInput, seq: 1, wantFire: true });
-  for (let i = 0; i < 4; i++) coilEngine.resolveWeaponIntent(coil, 0.05);
+  for (let i = 0; i < 4; i++) resolveWeaponIntent(coil, 0.05, coilEngine.contexts.combat);
   const midCharge = coil.charge;
   coilEngine.applyInput('coil', { ...coilInput, seq: 2, wantFire: false });
-  coilEngine.resolveWeaponIntent(coil, 0.05);
+  resolveWeaponIntent(coil, 0.05, coilEngine.contexts.combat);
   const coilTapShot = coilEngine.tickEvents.find((event) => event.kind === 'shoot' && event.w === 'longarc');
   const coilTapLaunch = coilEngine.tickEvents.find(
     (event) => event.kind === 'projectileLaunch' && event.type === 'bolt');
   let tapBoltTicks = 0;
   while (coilEngine.projectiles.active.size > 0 && tapBoltTicks < 60) {
     coilEngine.now += 50;
-    coilEngine.projectiles.step(0.05, coilEngine.projectileContext());
+    coilEngine.projectiles.step(0.05, coilEngine.contexts.projectiles);
     tapBoltTicks++;
   }
   const coilTapHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-first');
@@ -609,17 +613,17 @@ function runDirectContracts() {
   Object.assign(coil, { cooldown: 0, triggerPrev: false, adsT: 1, bloom: 0 });
   Object.assign(coilFirst, { hp: 100 });
   coilEngine.applyInput('coil', { ...coilInput, seq: 3, wantFire: true });
-  for (let i = 0; i < 40; i++) coilEngine.resolveWeaponIntent(coil, 0.05);
+  for (let i = 0; i < 40; i++) resolveWeaponIntent(coil, 0.05, coilEngine.contexts.combat);
   const fullCharge = coil.charge;
   coilEngine.applyInput('coil', { ...coilInput, seq: 4, wantFire: false });
-  coilEngine.resolveWeaponIntent(coil, 0.05);
+  resolveWeaponIntent(coil, 0.05, coilEngine.contexts.combat);
   const fullShot = coilEngine.tickEvents.find((event) => event.kind === 'shoot' && event.w === 'longarc');
   const fullLaunch = coilEngine.tickEvents.find(
     (event) => event.kind === 'projectileLaunch' && event.type === 'bolt');
   let fullBoltTicks = 0;
   while (coilEngine.projectiles.active.size > 0 && fullBoltTicks < 60) {
     coilEngine.now += 50;
-    coilEngine.projectiles.step(0.05, coilEngine.projectileContext());
+    coilEngine.projectiles.step(0.05, coilEngine.contexts.projectiles);
     fullBoltTicks++;
   }
   const fullHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-first');
@@ -636,15 +640,15 @@ function runDirectContracts() {
   Object.assign(coilFirst, { x: 44.5, y: 20, z: 46.5, hp: 100, vx: 0, vy: 0, vz: 0 });
   Object.assign(coilSecond, { x: 48.5, y: 20, z: 54.5, hp: 100, vx: 0, vy: 0, vz: 0 });
   coilEngine.applyInput('coil', { ...coilInput, seq: 5, wantFire: true });
-  for (let i = 0; i < 40; i++) coilEngine.resolveWeaponIntent(coil, 0.05);
+  for (let i = 0; i < 40; i++) resolveWeaponIntent(coil, 0.05, coilEngine.contexts.combat);
   coilEngine.applyInput('coil', { ...coilInput, seq: 6, wantFire: false });
-  coilEngine.resolveWeaponIntent(coil, 0.05);
+  resolveWeaponIntent(coil, 0.05, coilEngine.contexts.combat);
   const ricochetLaunch = coilEngine.tickEvents.find(
     (event) => event.kind === 'projectileLaunch' && event.type === 'bolt');
   let ricochetTicks = 0;
   while (coilEngine.projectiles.active.size > 0 && ricochetTicks < 80) {
     coilEngine.now += 50;
-    coilEngine.projectiles.step(0.05, coilEngine.projectileContext());
+    coilEngine.projectiles.step(0.05, coilEngine.contexts.projectiles);
     ricochetTicks++;
   }
   const ricochetFizzle = coilEngine.tickEvents.find(
@@ -661,7 +665,7 @@ function runDirectContracts() {
   coilEngine.applyInput('coil', { ...coilInput, seq: 7, wantFire: true });
   let ventShots = 0;
   for (let i = 0; i < 60; i++) {
-    coilEngine.resolveWeaponIntent(coil, 0.05);
+    resolveWeaponIntent(coil, 0.05, coilEngine.contexts.combat);
     ventShots = coilEngine.tickEvents.filter((event) => event.kind === 'shoot').length;
     if (ventShots) break;
   }
@@ -848,13 +852,13 @@ function runDirectContracts() {
   Object.assign(conditionTarget, {
     hp: 100, panic: 0.8, pain: 0.8, exhaustion: 0, sprint: false, state: 'alive',
   });
-  conditionEngine.updateCondition(conditionTarget, 0.5);
+  updateCondition(conditionTarget, 0.5);
   const decayedPanic = conditionTarget.panic;
   const decayedPain = conditionTarget.pain;
   Object.assign(conditionTarget, {
     hp: 25, panic: 0.1, pain: 0.1, exhaustion: 0, sprint: false,
   });
-  conditionEngine.updateCondition(conditionTarget, 0.5);
+  updateCondition(conditionTarget, 0.5);
   ok(nearly(decayedPanic, 0.8 - CONDITION_RULES.panicDecayPerS * 0.5)
     && nearly(decayedPain, 0.8 - CONDITION_RULES.painDecayPerS * 0.5)
     && nearly(conditionTarget.panic, 0.75 * CONDITION_RULES.panicLowHpFloor)
@@ -867,34 +871,16 @@ function runDirectContracts() {
   conditionTarget.takeDamage(10, true);
   const upperPanic = conditionTarget.panic;
   const upperPain = conditionTarget.pain;
-  conditionEngine.updateCondition(conditionTarget, 1);
+  updateCondition(conditionTarget, 1);
   const upperExhaustion = conditionTarget.exhaustion;
   Object.assign(conditionTarget, {
     hp: 100, panic: 0.01, pain: 0.01, exhaustion: 0.01, sprint: false, state: 'alive',
   });
-  conditionEngine.updateCondition(conditionTarget, 1);
+  updateCondition(conditionTarget, 1);
   ok(upperPanic === 1 && upperPain === 1 && upperExhaustion === 1
     && conditionTarget.panic === 0 && conditionTarget.pain === 0
     && conditionTarget.exhaustion === 0,
   'panic, pain, and exhaustion clamp exactly to their normalized upper and lower bounds');
-
-  Object.assign(conditionShooter, {
-    weapon: 0, bloom: 0.7, vx: 3.1, vz: 0, adsT: 0.62,
-    panic: 0.4, pain: 0.35, exhaustion: 0.65, crouch: false,
-  });
-  const engineCone = conditionEngine.computeConeDeg(conditionShooter);
-  const expectedEngineCone = computeSpreadConeDeg(
-    conditionShooter.def,
-    conditionShooter.bloom,
-    Math.hypot(conditionShooter.vx, conditionShooter.vz),
-    conditionShooter.adsT,
-    conditionShooter.panic,
-    conditionShooter.exhaustion,
-    conditionShooter.crouch,
-    conditionShooter.pain,
-  );
-  ok(nearly(engineCone, expectedEngineCone),
-    'GameEngine.computeConeDeg forwards panic, exhaustion, stance, and pain into shared spread math');
 
   Object.assign(conditionShooter, {
     x: 60, y: 70, z: 60, yaw: 0, pitch: 0.04, weapon: 0,
@@ -906,8 +892,8 @@ function runDirectContracts() {
     state: 'alive', hist: [],
   });
   let conditionSpreadExhaustion = null;
-  const computeConditionCone = conditionEngine.computeConeDeg.bind(conditionEngine);
-  conditionEngine.computeConeDeg = (player) => {
+  const computeConditionCone = computeConeDeg;
+  conditionEngine.contexts.combat.computeConeDeg = (player) => {
     if (player === conditionShooter) conditionSpreadExhaustion = player.exhaustion;
     return computeConditionCone(player);
   };
@@ -974,8 +960,8 @@ function runDirectContracts() {
   'recovery, sprint, and clamped jump exhaustion evolve in fixed-step order at exact rates');
 
   const shotConeExhaustion = [];
-  const computeEvolutionCone = evolutionEngine.computeConeDeg.bind(evolutionEngine);
-  evolutionEngine.computeConeDeg = (player) => {
+  const computeEvolutionCone = computeConeDeg;
+  evolutionEngine.contexts.combat.computeConeDeg = (player) => {
     shotConeExhaustion.push(player.exhaustion);
     return computeEvolutionCone(player);
   };
@@ -1273,12 +1259,11 @@ function runDirectContracts() {
   Object.assign(tdmFriend, { x: 60, y: 70, z: 58, hp: 100 });
   Object.assign(tdmEnemy, { x: 60, y: 70, z: 55, hp: 100 });
   Object.assign(tdmOtherEnemy, { x: 80, y: 70, z: 80, hp: 100 });
-  const tdmTarget = tdm.engine.nearestVictim(
+  const tdmTarget = nearestVictim(
     tdmShooter,
     [60, 71.62, 60],
     { x: 0, y: 0, z: -1 },
-    20,
-  );
+    20, tdm.engine.contexts.combat);
   ok(tdm.engine.mode.canDamage(tdmShooter, tdmFriend) === false
     && tdm.engine.mode.canDamage(tdmShooter, tdmEnemy) === true
     && tdmTarget?.victim === tdmEnemy
@@ -1465,10 +1450,10 @@ function runDirectContracts() {
   sndCombat.addBot('snd-combat-attacker', 'SND Combat Attacker');
   sndCombat.addBot('snd-combat-defender', 'SND Combat Defender');
   sndCombat.step(0);
-  const sndCombatAttacker = sndCombat.players.find(
+  const sndCombatAttacker = Array.from(sndCombat.entities.values()).find(
     (player) => sndCombat.mode.roleFor(player) === 'attackers'
   );
-  const sndCombatDefender = sndCombat.players.find(
+  const sndCombatDefender = Array.from(sndCombat.entities.values()).find(
     (player) => sndCombat.mode.roleFor(player) === 'defenders'
   );
   const stageSndCombat = () => {
@@ -1655,12 +1640,12 @@ function runDirectContracts() {
   const objectiveLiveAt = sndObjective.engine.now;
   const droppedCarrierId = sndObjective.engine.mode.matchSnapshot().bomb.carrier;
   const droppedCarrier = sndObjective.engine.entities.get(droppedCarrierId);
-  const pickupPlayer = sndObjective.engine.players.find(
+  const pickupPlayer = Array.from(sndObjective.engine.entities.values()).find(
     (player) =>
       player.id !== droppedCarrierId
         && sndObjective.engine.mode.roleFor(player) === 'attackers'
   );
-  const objectiveDefender = sndObjective.engine.players.find(
+  const objectiveDefender = Array.from(sndObjective.engine.entities.values()).find(
     (player) => sndObjective.engine.mode.roleFor(player) === 'defenders'
   );
   Object.assign(droppedCarrier, { x: 63, y: 70, z: 63 });
@@ -1715,7 +1700,7 @@ function runDirectContracts() {
   ok(plantedEliminationTick.match.phase === 'live'
     && plantedEliminationTick.match.roundWinner === null
     && plantedEliminationTick.match.bomb.state === 'planted'
-    && sndObjective.engine.players
+    && Array.from(sndObjective.engine.entities.values())
       .filter((player) => sndObjective.engine.mode.roleFor(player) === 'attackers')
       .every((player) => player.state === 'dead')
     && !plantedEliminationTick.events.some((event) => event.kind === 'round_end'),
@@ -1753,7 +1738,7 @@ function runDirectContracts() {
   stepModeAt(sndPriority, sndPriority.engine.mode.matchSnapshot().phaseEndsAt);
   const priorityCarrierId = sndPriority.engine.mode.matchSnapshot().bomb.carrier;
   const priorityCarrier = sndPriority.engine.entities.get(priorityCarrierId);
-  const priorityDefender = sndPriority.engine.players.find(
+  const priorityDefender = Array.from(sndPriority.engine.entities.values()).find(
     (player) => sndPriority.engine.mode.roleFor(player) === 'defenders'
   );
   Object.assign(priorityCarrier, { x: 51, y: 70, z: 51 });

@@ -1,6 +1,19 @@
 import { deeplyFrozen } from '../lib/assert.mjs';
 
 export async function runNetClientContracts(ok, installGlobals) {
+  {
+    const { makeSnapshot } = await import('../../server/protocol/snapshot.js');
+    const rows = makeSnapshot([
+      { id: 'ground', grounded: true, vault: null },
+      { id: 'climb', grounded: false, vault: { elapsed: 0.2 } },
+      { id: 'missing' },
+    ], [], [], 1000).players;
+    ok(rows[0].grounded === true && rows[0].vaulting === false
+      && rows[1].grounded === false && rows[1].vaulting === true
+      && rows[2].grounded === false && rows[2].vaulting === false,
+    'snapshots publish grounded and active vault state as explicit booleans');
+  }
+
   // NetClient: admission frames normalize mode-map pairs, inbound state is
   // owned defensively, and gameplay frames remain guarded by socket state.
   {
@@ -263,6 +276,8 @@ export async function runNetClientContracts(ok, installGlobals) {
           state: 'alive',
           ads: true,
           crouch: true,
+          grounded: true,
+          vaulting: false,
           mag: [6, 30, 8, 20, 50, 5],
           reserve: [4, 3, 3, 3, 3, 3],
           reloading: false,
@@ -308,6 +323,8 @@ export async function runNetClientContracts(ok, installGlobals) {
           state: 'alive',
           ads: false,
           crouch: false,
+          grounded: false,
+          vaulting: true,
           mag: [5, 29, 8, 20, 50, 5],
           reserve: [4, 3, 3, 3, 3, 3],
           reloading: true,
@@ -343,6 +360,8 @@ export async function runNetClientContracts(ok, installGlobals) {
       ok(rival.team === 'bravo'
         && rival.ads === true
         && rival.crouch === true
+        && rival.grounded === true
+        && rival.vaulting === false
         && rival.mag[0] === 6
         && rival.reserve[1] === 3
         && rival.reloading === false
@@ -401,6 +420,14 @@ export async function runNetClientContracts(ok, installGlobals) {
         && deeplyFrozen(joined.client.latestMatch),
       'NetClient stores the newest immutable match replacement independently of render delay');
 
+      const [firstSnapshot, secondSnapshot] = joined.client.latestSnapshots;
+      const between = joined.client.interpolate((firstSnapshot.now + secondSnapshot.now) / 2, 0).players.get(23);
+      const after = joined.client.interpolate(secondSnapshot.now + 25, 0).players.get(23);
+      ok(between.x > 2 && between.x < 4
+        && between.grounded === false && between.vaulting === true
+        && after.grounded === false && after.vaulting === true,
+      'interpolation and extrapolation retain discrete movement flags from the selected newest row');
+
       const sentBeforeClose = joined.ws.sent.length;
       joined.client.close();
       joined.client.buyWeapon('rifle');
@@ -438,6 +465,29 @@ export async function runNetClientContracts(ok, installGlobals) {
     const mappedCompressed = stable.mapServerTime(150, 1012);
     ok(mappedCompressed - mappedFirst >= 48 && mappedCompressed - mappedFirst <= 52,
       'server-clock mapping preserves the 50 ms simulation step across compressed packet arrivals');
+
+    // Delayed first delivery followed by a startup backlog used to map events
+    // seconds into the future, beyond the lifetime of the 32-snapshot ring.
+    const { NETWORK_PRESENTATION } = await import('../../shared/networking.js');
+    const { drainEventsWithDedupe } = await import('../../public/js/engine/netclient.js');
+    const backlog = new NetworkTiming({ tickRate: 20 });
+    const pending = [], delivered = [], drain = { seen: new Set(), seq: -1, snapSeq: -1 };
+    let arrival = 1000, previousMapped = -Infinity, bounded = true;
+    for (let sequence = 1; sequence <= 120; sequence++) {
+      arrival += sequence <= 64 ? 0.5 : 50;
+      const mapped = backlog.mapServerTime(sequence * 50, arrival);
+      bounded &&= mapped >= previousMapped
+        && mapped <= arrival + NETWORK_PRESENTATION.maxBufferMs;
+      previousMapped = mapped;
+      pending.push({ now: mapped, snapSeq: sequence,
+        events: sequence === 65 ? [{ kind: 'powerup', id: 'self', amount: 50 }] : [] });
+      if (pending.length > 32) pending.shift();
+      delivered.push(...drainEventsWithDedupe(pending,
+        arrival - NETWORK_PRESENTATION.maxBufferMs, drain));
+    }
+    ok(bounded, 'startup backlog keeps monotonic snapshot times within the presentation lead limit');
+    ok(delivered.length === 1 && delivered[0].kind === 'powerup' && delivered[0].amount === 50,
+      'collection feedback survives a startup backlog and is delivered exactly once before ring eviction');
 
     const noisy = new NetworkTiming({ tickRate: 20 });
     let at = 0;

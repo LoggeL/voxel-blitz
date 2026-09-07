@@ -47,7 +47,6 @@ export class WeaponWheelController {
     this.open = true;
     this._pointer = { x: 0, y: 0 };
     this.input.setWeaponWheelOpen(true);
-    this.hud.ensureWeaponWheel();
     this.hud.setWeaponWheelState({
       open: true,
       entries: this.entries(),

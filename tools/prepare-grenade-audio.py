@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Rebuild the CC0 grenade samples and spectral evidence (requires ffmpeg)."""
+"""Rebuild historical CC0 grenade samples into artifacts (requires ffmpeg).
+
+Shipped grenade assets now use ElevenLabs sources; this legacy recipe never
+overwrites those files. See prepare-elevenlabs-effects.py for the current path.
+"""
 import array
 import hashlib
 import io
@@ -12,7 +16,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 WORK = ROOT / '.artifacts/grenade-audio-source'
-OUT = ROOT / 'public/assets/audio/grenades'
+OUT = WORK / 'legacy-output'
 URL = 'https://kenney.nl/media/pages/assets/sci-fi-sounds/6b296f9ecf-1677589334/kenney_sci-fi-sounds.zip'
 SHA256 = '119340f351a5098ad814f78719438c0da355a9ce8a4c8a3af6a8d48aa3d49e04'
 RATE = 48000

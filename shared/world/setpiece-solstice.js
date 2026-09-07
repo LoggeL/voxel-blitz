@@ -3,6 +3,7 @@ import {
   AIR,
   BRICK,
   CONCRETE,
+  DIRT,
   GLASS,
   GROUND,
   LEAVES,
@@ -33,13 +34,37 @@ function crate(world, x, z, w = 2, d = 2, h = 2, type = PLANK) {
     world.setBlock(px, GROUND + h, z, WOOD);
     world.setBlock(px, GROUND + h, z + d - 1, WOOD);
   }
+  // Corner protectors and a shipping stamp belong to the existing crate volume.
+  for (const px of [x, x + w - 1]) {
+    world.setBlock(px, GROUND + 1, z, type === RUST ? METAL : WOOD);
+    world.setBlock(px, GROUND + 1, z + d - 1, type === RUST ? METAL : WOOD);
+  }
+  if (w > 2) world.setBlock(x + 1, GROUND + h, z, PALE);
 }
 
 function desertTree(world, x, z) {
-  fillBox(world, x, GROUND + 1, z, x, GROUND + 3, z, WOOD);
-  fillBox(world, x - 2, GROUND + 4, z, x + 2, GROUND + 4, z, LEAVES);
-  fillBox(world, x - 1, GROUND + 4, z - 1, x + 1, GROUND + 4, z + 1, LEAVES);
-  world.setBlock(x, GROUND + 5, z, LEAVES);
+  const T = GROUND;
+  // Mature specimen trees fill the greenhouse height with trunks, forked limbs
+  // and overlapping crowns, while their ground footprint stays in the beds.
+  fillBox(world, x, T + 1, z, x, T + 9, z, WOOD);
+  fillBox(world, x - 2, T + 6, z, x + 2, T + 6, z, WOOD);
+  fillBox(world, x - 2, T + 6, z, x - 2, T + 8, z, WOOD);
+  fillBox(world, x + 2, T + 6, z, x + 2, T + 8, z, WOOD);
+  fillBox(world, x, T + 7, z - 2, x, T + 7, z + 2, WOOD);
+  for (const [cx, cy, cz, rx, ry, rz] of [
+    [x - 2, T + 9, z, 3.8, 2.4, 3.2],
+    [x + 2, T + 10, z + 1, 3.7, 2.7, 3.6],
+    [x, T + 12, z - 1, 3.6, 2.2, 3.2],
+  ]) {
+    for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
+      for (let pz = Math.floor(cz - rz); pz <= Math.ceil(cz + rz); pz++) {
+        for (let px = Math.floor(cx - rx); px <= Math.ceil(cx + rx); px++) {
+          if (((px - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 + ((pz - cz) / rz) ** 2 > 1) continue;
+          if (world.getBlock(px, y, pz) === AIR) world.setBlock(px, y, pz, LEAVES);
+        }
+      }
+    }
+  }
 }
 
 function solarPanelX(world, x0, z0, width = 8, depth = 5, rise = 2, baseY = GROUND + 8) {
@@ -56,7 +81,7 @@ function solarPanelX(world, x0, z0, width = 8, depth = 5, rise = 2, baseY = GROU
 }
 
 /** Monumental halo plus a sheltered, playable calibration court beneath it. */
-export function buildHeliostat(world) {
+function buildHeliostat(world) {
   const T = GROUND;
   paintFloor(world, 51, 31, 77, 62, T, PALE);
   paintFloor(world, 57, 25, 71, 70, T, CONCRETE);
@@ -104,7 +129,7 @@ export function buildHeliostat(world) {
 }
 
 /** West close-quarters glass biome with shootable panes and vegetation. */
-export function buildBiodome(world) {
+function buildBiodome(world) {
   const T = GROUND;
   paintFloor(world, 10, 25, 46, 70, T, PALE);
   paintFloor(world, 15, 30, 41, 65, T, CONCRETE);
@@ -156,7 +181,7 @@ export function buildBiodome(world) {
 }
 
 /** East machine hall: roofed side cells around an open turbine court. */
-export function buildTurbineHall(world) {
+function buildTurbineHall(world) {
   const T = GROUND;
   paintFloor(world, 82, 25, 117, 70, T, CONCRETE);
 
@@ -229,5 +254,227 @@ export function dressSolstice(world) {
   }
   for (const [x, z] of [[22, 18], [39, 19], [88, 18], [107, 19], [22, 77], [40, 78], [88, 77], [108, 78]]) {
     crate(world, x, z, 3, 2, 2, x > 64 ? RUST : PLANK);
+  }
+  dressCalibrationCourt(world);
+  dressGreenhouse(world);
+  dressMachineWings(world);
+  buildReceiverDish(world);
+  buildStationInteriors(world);
+  buildGardenInfrastructure(world);
+}
+
+function buildReceiverDish(world) {
+  const T = GROUND;
+  // The south machine wing carries a full-scale tracking dish. Its curved bowl
+  // faces the south approach, with an exposed yoke and suspended receiver feed.
+  fillBox(world, 92, T + 8, 59, 106, T + 15, 66, AIR);
+  fillBox(world, 96, T + 8, 60, 102, T + 10, 64, CONCRETE);
+  fillBox(world, 98, T + 11, 60, 100, T + 16, 62, METAL);
+  fillBox(world, 93, T + 15, 61, 105, T + 16, 62, RUST);
+  for (const x of [93, 105]) fillBox(world, x, T + 16, 61, x, T + 19, 64, METAL);
+  const cy = T + 17;
+  for (let y = cy - 7; y <= cy + 7; y++) {
+    for (let x = 92; x <= 106; x++) {
+      const r = Math.hypot(x - 99, y - cy);
+      if (r > 7.35) continue;
+      const z = 62 + Math.round((r * r) / 13);
+      world.setBlock(x, y, z, r > 6.35 ? METAL : PALE);
+      world.setBlock(x, y, z - 1, r > 6.35 || x === 99 || y === cy ? METAL : CONCRETE);
+    }
+  }
+  // Four spider struts hold the feed in front of the concave reflector.
+  for (let n = 0; n <= 5; n++) {
+    const z = 66 + Math.round(n * 0.6);
+    for (const sign of [-1, 1]) {
+      world.setBlock(99 + sign * (5 - n), cy, z, METAL);
+      world.setBlock(99, cy + sign * (5 - n), z, METAL);
+    }
+  }
+  fillBox(world, 98, cy - 1, 69, 100, cy + 1, 70, ACCENT);
+  world.setBlock(99, cy, 71, GLASS);
+  // Rooftop power cabinets flank the dish instead of floating equipment boxes.
+  for (const x of [87, 110]) {
+    fillBox(world, x, T + 8, 64, x + 2, T + 12, 66, PALE);
+    fillBox(world, x + 1, T + 9, 67, x + 1, T + 11, 67, METAL);
+    world.setBlock(x + 1, T + 11, 68, ACCENT);
+  }
+}
+
+function buildStationInteriors(world) {
+  const T = GROUND;
+  for (const [z0, z1] of [[29, 36], [59, 65]]) {
+    // Full-height plant cabinets line the outer walls, leaving the original wide
+    // door-to-door passages through each machine room open.
+    for (const x of [87, 111]) {
+      fillBox(world, x, T + 1, z0, x + 1, T + 4, z1, METAL);
+      for (let z = z0; z <= z1; z += 3) {
+        fillBox(world, x, T + 2, z, x + 1, T + 3, z + 1, GLASS);
+        world.setBlock(x, T + 4, z, ACCENT);
+      }
+    }
+    // A central turbine service module has a thick casing, exposed axle and
+    // separate gauges, with three- and four-block aisles beside both doors.
+    fillBox(world, 98, T + 1, z0 + 1, 101, T + 3, z1 - 1, RUST);
+    fillBox(world, 99, T + 4, z0 + 1, 100, T + 4, z1 - 1, PALE);
+    for (const z of [z0 + 1, z1 - 1]) {
+      fillBox(world, 98, T + 2, z, 101, T + 2, z, METAL);
+      world.setBlock(99, T + 3, z, GLASS);
+    }
+    fillBox(world, 95, T + 5, z0 + 2, 104, T + 5, z0 + 2, RUST);
+    for (const x of [95, 104]) fillBox(world, x, T + 4, z0 + 2, x, T + 5, z0 + 2, METAL);
+  }
+  // Two glazed service kiosks sit beside existing court cover, keeping the
+  // central objective court and its north/south entrances clear.
+  for (const [x0, z0] of [[85, 44], [109, 51]]) {
+    fillBox(world, x0, T + 1, z0, x0 + 4, T + 5, z0 + 4, PALE);
+    fillBox(world, x0 + 1, T + 1, z0 + 1, x0 + 3, T + 4, z0 + 3, AIR);
+    fillBox(world, x0, T + 3, z0 + 1, x0, T + 4, z0 + 3, GLASS);
+    fillBox(world, x0 + 4, T + 3, z0 + 1, x0 + 4, T + 4, z0 + 3, GLASS);
+    fillBox(world, x0 + 1, T + 3, z0 + 4, x0 + 3, T + 4, z0 + 4, GLASS);
+    fillBox(world, x0 + 1, T + 1, z0, x0 + 3, T + 3, z0, AIR);
+    fillBox(world, x0, T + 6, z0, x0 + 4, T + 6, z0 + 4, METAL);
+    fillBox(world, x0 + 1, T + 2, z0 + 3, x0 + 3, T + 2, z0 + 3, RUST);
+    world.setBlock(x0 + 2, T + 3, z0 + 3, GLASS);
+  }
+}
+
+function buildGardenInfrastructure(world) {
+  const T = GROUND;
+  // Proper raised grow tables and a tank/pump assembly turn the biome into a
+  // working garden. Everything below crown height stays outside Site A.
+  for (const [x0, z0] of [[24, 33], [30, 60]]) {
+    fillBox(world, x0, T + 1, z0, x0 + 4, T + 1, z0 + 3, BRICK);
+    fillBox(world, x0, T + 2, z0, x0 + 4, T + 2, z0 + 3, PALE);
+    fillBox(world, x0 + 1, T + 2, z0 + 1, x0 + 3, T + 2, z0 + 2, DIRT);
+    for (const x of [x0 + 1, x0 + 3]) fillBox(world, x, T + 3, z0 + 1, x, T + 3, z0 + 2, LEAVES);
+  }
+  for (const z of [40, 53]) {
+    fillBox(world, 13, T + 1, z, 15, T + 5, z + 2, PALE);
+    fillBox(world, 14, T + 2, z, 14, T + 4, z, GLASS);
+    fillBox(world, 13, T + 6, z, 15, T + 6, z + 2, METAL);
+    fillBox(world, 16, T + 1, z + 1, 17, T + 2, z + 2, RUST);
+  }
+  // Irrigation manifolds and high support trusses frame the mature trees.
+  for (const x of [14, 42]) {
+    fillBox(world, x, T + 6, 35, x, T + 6, 59, RUST);
+    for (const z of [35, 59]) fillBox(world, x, T + 1, z, x, T + 6, z, METAL);
+  }
+  for (const z of [35, 59]) {
+    fillBox(world, 14, T + 13, z, 42, T + 13, z, PALE);
+    for (const x of [14, 42]) fillBox(world, x, T + 7, z, x, T + 12, z, METAL);
+  }
+}
+
+function dressCalibrationCourt(world) {
+  const T = GROUND;
+  // Pale ceramic cheeks and copper joints make the supporting machinery legible.
+  for (const x of [52, 76]) {
+    fillBox(world, x, T + 3, 42, x, T + 9, 45, PALE);
+    for (const y of [T + 4, T + 8]) fillBox(world, x, y, 42, x, y, 45, RUST);
+  }
+  for (const [x0, z0] of [[52, 35], [71, 35], [52, 55], [71, 55]]) {
+    paintFloor(world, x0 + 1, z0 + 1, x0 + 4, z0 + 3, T + 2, PALE);
+    world.setBlock(x0 + 2, T + 2, z0 + 2, METAL);
+  }
+  // Survey ticks are inset into the surviving halo, including its broken upper arc.
+  for (let y = T + 3; y <= T + 25; y++) {
+    for (let x = 52; x <= 76; x++) {
+      if (world.getBlock(x, y, 43) !== ACCENT) continue;
+      if (x === 64 || y === T + 14 || Math.abs(x - 64) === Math.abs(y - T - 14)) {
+        world.setBlock(x, y, 43, PALE);
+      }
+    }
+  }
+  for (const [x0, z0, x1, z1] of [[59, 52, 62, 54], [66, 45, 69, 47]]) {
+    paintFloor(world, x0, z0, x1, z0, T + 2, METAL);
+    paintFloor(world, x0 + 1, z0 + 1, x1 - 1, z1, T + 2, GLASS);
+    world.setBlock(x0, T + 2, z1, ACCENT);
+  }
+  // Calibration arcs and radial marks stay entirely underfoot.
+  for (let x = 57; x <= 71; x++) {
+    for (let z = 34; z <= 62; z++) {
+      const radius = Math.hypot(x - 64, z - 48);
+      if ((radius > 10.7 && radius < 11.3) || (radius > 5.8 && radius < 6.2)) {
+        world.setBlock(x, T, z, STONE);
+      }
+    }
+  }
+  for (const z of [36, 60]) paintFloor(world, 62, z, 66, z, T, ACCENT);
+  for (const [x0, z0, x1, z1] of [[55, 66, 61, 69], [67, 73, 73, 76]]) {
+    for (let x = x0 + 1; x < x1; x += 2) {
+      world.setBlock(x, T + 1, z0, METAL);
+      world.setBlock(x, T + 1, z1, METAL);
+    }
+  }
+}
+
+function dressGreenhouse(world) {
+  const T = GROUND;
+  // A continuous south lintel ties the greenhouse ribs together above the doors.
+  fillBox(world, 13, T + 7, 67, 43, T + 7, 67, PALE);
+  // Irrigation channels join the existing growing beds without adding obstacles.
+  for (const [x0, x1, z0, z1] of [[16, 20, 35, 37], [36, 40, 57, 59], [15, 19, 56, 58], [37, 41, 36, 38]]) {
+    for (let x = x0 + 1; x < x1; x++) {
+      for (let z = z0; z <= z1; z++) {
+        if (world.getBlock(x, T + 1, z) === BRICK) world.setBlock(x, T + 1, z, DIRT);
+      }
+    }
+    paintFloor(world, x0, z0 - 1, x1, z0 - 1, T, METAL);
+    world.setBlock(x0, T, z0 - 1, ACCENT);
+  }
+  // White structural caps, dark footings and interrupted repair panels break the
+  // repeated metal/glass bands while preserving every original door opening.
+  for (const x of [12, 20, 28, 36, 44]) {
+    for (const z of [28, 67]) {
+      fillBox(world, x, T + 2, z, x, T + 5, z, PALE);
+      world.setBlock(x, T + 6, z, ACCENT);
+    }
+    for (const z of [34, 61]) fillBox(world, x, T + 7, z, x, T + 8, z, PALE);
+  }
+  for (const [x0, z] of [[15, 28], [36, 67]]) {
+    for (let x = x0; x < x0 + 4; x++) {
+      world.setBlock(x, T + 2, z, PALE);
+      world.setBlock(x, T + 5, z, PALE);
+    }
+  }
+  // Low display beds keep their cover height; leaf/soil rows suggest cultivation.
+  for (const [x0, x1, z] of [[24, 27, 34], [30, 34, 62]]) {
+    for (let x = x0; x <= x1; x++) world.setBlock(x, T + 1, z, BRICK);
+  }
+}
+
+function dressMachineWings(world) {
+  const T = GROUND;
+  for (const [z0, z1] of [[27, 39], [57, 68]]) {
+    // Ceramic end ribs, copper roof gutters and inset service panels are all
+    // replacements in existing wall/roof cells, never narrower doorways.
+    for (const x of [85, 86, 113, 114]) {
+      for (const z of [z0, z1]) fillBox(world, x, T + 1, z, x, T + 5, z, PALE);
+    }
+    for (const z of [z0, z1]) {
+      fillBox(world, 87, T + 6, z, 112, T + 6, z, RUST);
+      fillBox(world, 98, T + 1, z, 101, T + 1, z, METAL);
+      world.setBlock(100, T + 4, z, ACCENT);
+    }
+    for (const x of [85, 114]) {
+      fillBox(world, x, T + 2, z0 + 4, x, T + 4, z0 + 7, METAL);
+      for (const z of [z0 + 4, z0 + 6]) fillBox(world, x, T + 3, z, x, T + 3, z, PALE);
+    }
+    // A narrow ventilation spine occupies the unused strip between roof arrays.
+    fillBox(world, 99, T + 8, z0 + 3, 100, T + 9, z0 + 7, RUST);
+    for (let z = z0 + 3; z <= z0 + 7; z += 2) fillBox(world, 99, T + 9, z, 100, T + 9, z, PALE);
+  }
+  for (const [x0, z0, x1, z1] of [[86, 45, 91, 49], [109, 48, 114, 52]]) {
+    paintFloor(world, x0 + 1, z0 + 1, x1 - 1, z1 - 1, T + 2, METAL);
+    for (let x = x0 + 1; x < x1; x += 2) world.setBlock(x, T + 1, z1, PALE);
+    world.setBlock(x0, T + 2, z0, ACCENT);
+  }
+  for (const [x, z] of [[97, 46], [102, 51]]) {
+    world.setBlock(x + 1, T + 2, z + 1, GLASS);
+    world.setBlock(x, T + 2, z, ACCENT);
+  }
+  for (const x of [91, 108]) {
+    fillBox(world, x, T + 9, 39, x, T + 11, 39, PALE);
+    world.setBlock(x, T + 10, 39, RUST);
   }
 }

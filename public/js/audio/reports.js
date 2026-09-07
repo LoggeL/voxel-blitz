@@ -2,6 +2,7 @@
 // injects the primitive builders; this module never owns an AudioContext.
 
 import { cycleActionClick } from './mechanics.js';
+import { MINIGUN_REPORT } from './minigun-motor.js';
 
 export const FIRE_PARAMS = {
   rifle: {
@@ -34,6 +35,10 @@ const FIRE_REPORT_PROFILES = Object.freeze({
   }),
   lmg: Object.freeze({
     lifetime: 0.78, sampleGain: 0.66, sampleRate: 0.94, layerGain: 0.18,
+  }),
+  minigun: Object.freeze({
+    lifetime: MINIGUN_REPORT.lifetime, sampleGain: MINIGUN_REPORT.gain,
+    sampleRate: MINIGUN_REPORT.rate, layerGain: MINIGUN_REPORT.layerGain,
   }),
   revolver: Object.freeze({
     lifetime: 0.95, sampleGain: 0.8, sampleRate: 1.02, layerGain: 0.18,

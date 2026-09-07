@@ -12,41 +12,28 @@ import {
 } from '../shared/worlddata.js';
 import { DEFAULT_MAP_ID } from '../shared/modes.js';
 import { NETWORK_PRESENTATION } from '../shared/networking.js';
-import { TICK_MS, makeSnapshot, evKill, evRespawn, evDie } from './protocol.js';
+import { TICK_MS } from './protocol/admission.js';
+import { makeSnapshot } from './protocol/snapshot.js';
+import { evKill, evRespawn, evDie } from './protocol/events.js';
 import { ModeController } from './modes.js';
 import {
-  PHYSICS,
   PlayerEntity,
-  aimAngles,
   clampWeaponSlot,
-  fwdFromYawPitch,
   wrapAngle,
 } from './sim/player.js';
 import { stepMovement, updateCondition, updateTimers } from './sim/movement.js';
-import {
-  SHOT_REACH,
-  blockKey,
-  canFire,
-  computeConeDeg,
-  damageBlock,
-  destroyBlock,
-  fireOneShot,
-  nearestVictim,
-  resolveWeaponIntent,
-  rewindVictim,
-  switchWeapon,
-} from './sim/combat.js';
+import { resolveWeaponIntent } from './sim/combat.js';
 import { SpawnSelector } from './sim/spawn.js';
 import { ProjectileSystem } from './sim/projectiles.js';
 import { createSimulationContexts } from './sim/context.js';
+import { PowerupSystem } from './sim/powerups.js';
+import { findPowerupSites, isPowerupSiteSupported } from '../shared/powerup-sites.js';
 import {
   clampGrenadeCharge,
   clampGrenadeCook,
   clampGrenadeType,
   grenadeTypeAt,
 } from '../shared/grenade-rules.js';
-
-export { PHYSICS, SHOT_REACH, aimAngles, fwdFromYawPitch };
 
 const MAX_PITCH = (89 * Math.PI) / 180;
 const SPAWN_PROTECTION_MS = 1500;
@@ -62,7 +49,6 @@ export class GameEngine {
     this.solidAt = (x, y, z) => this.world.getBlock(x, y, z) !== AIR;
 
     this.entities = new Map();
-    this.humanIds = new Set();
     const genericSpawns = Array.isArray(this.mapMeta?.spawns?.fun)
       ? this.mapMeta.spawns.fun
       : [];
@@ -70,11 +56,13 @@ export class GameEngine {
       .map((spawn) => ({ ...spawn }));
 
     this.now = Date.now();
-    this.tickNo = 0;
     this.intervalMs = TICK_MS;
     this.running = false;
     this.timer = null;
     this.blockHp = new Map();
+    this.blockMining = new Map();
+    this.blockDamage = new Map();
+    this.tickBlockDamage = new Map();
     this.tickBlocks = [];
     this.tickEvents = [];
     this.tickHooks = [];
@@ -82,6 +70,13 @@ export class GameEngine {
     this.flames = new FlameSystem();
 
     this.mode = new ModeController(this, { mode: callbacks.mode, mapMeta: this.mapMeta });
+    this.powerups = new PowerupSystem({
+      solidAt: this.solidAt,
+      findSites: () => findPowerupSites(this.world, this.mapMeta),
+      isSupported: (site) => isPowerupSiteSupported(this.world, site),
+      rng: callbacks.powerupRng,
+      now: this.now,
+    });
     this.contexts = createSimulationContexts(this);
     this.spawnSelector = new SpawnSelector({
       entities: this.entities,
@@ -90,8 +85,6 @@ export class GameEngine {
       spawnBounds: this.mapMeta?.spawnBounds,
       now: this.now,
     });
-    // Retain the established observable map while ownership lives in SpawnSelector.
-    this.spawnUseTimes = this.spawnSelector.spawnUseTimes;
   }
 
   start(tickRateMs = TICK_MS) {
@@ -105,6 +98,7 @@ export class GameEngine {
   stop() {
     this.running = false;
     this.flames.clear();
+    this.powerups.clear();
     if (this.timer !== null) {
       clearInterval(this.timer);
       this.timer = null;
@@ -130,30 +124,35 @@ export class GameEngine {
   step(intervalMs = this.intervalMs) {
     const dt = intervalMs / 1000;
     this.now += intervalMs;
-    this.tickNo++;
     this.spawnSelector.setNow(this.now);
 
     for (let i = 0; i < this.tickHooks.length; i++) {
       try { this.tickHooks[i](dt); } catch { /* a broken hook never kills the sim */ }
     }
 
-    for (const player of this.entities.values()) this.updateTimers(player, dt);
+    for (const player of this.entities.values()) updateTimers(player, dt);
     for (const player of this.entities.values()) {
       if (player.state === 'alive') this.integrate(player, dt);
     }
     for (const player of this.entities.values()) {
-      if (player.state === 'alive') this.updateCondition(player, dt);
+      if (player.state === 'alive') updateCondition(player, dt);
     }
-    const burnContext = this.combatContext();
-    for (const player of this.entities.values()) updateBurn(player, dt, burnContext);
-    this.flames.step(dt, burnContext);
-    this.projectiles.step(dt, this.projectileContext());
+    const combat = this.contexts.combat;
+    for (const player of this.entities.values()) updateBurn(player, dt, combat);
+    this.flames.step(dt, combat);
+    this.projectiles.step(dt, this.contexts.projectiles);
     for (const player of this.entities.values()) {
       player.firing = false;
-      if (player.state === 'alive') this.resolveWeaponIntent(player, dt);
+      if (player.state === 'alive') resolveWeaponIntent(player, dt, combat);
     }
+    // Clear ended rounds before a policy can reset directly into live play.
+    if (this.mode.phase !== 'live') this.powerups.clear();
     this.mode.tick();
     this.processRespawns();
+    this.powerups.step({
+      now: this.now, mode: this.mode.mode, phase: this.mode.phase, round: this.mode.round,
+      entities: this.entities, pushEvent: (event) => this.tickEvents.push(event),
+    });
 
     const players = Array.from(this.entities.values());
     for (const player of players) Object.assign(player, this.mode.playerSnapshot(player));
@@ -163,9 +162,12 @@ export class GameEngine {
       this.tickEvents,
       this.now,
       this.mode.matchSnapshot(),
+      Array.from(this.tickBlockDamage.values()),
+      this.powerups.snapshot(),
     );
 
     this.tickBlocks.length = 0;
+    this.tickBlockDamage.clear();
     this.tickEvents.length = 0;
     this.broadcast(snapshot);
   }
@@ -175,10 +177,6 @@ export class GameEngine {
     return this.spawnSelector.pick(pool, player, excludeIndex, {
       variety: ['fun', 'tdm', 'gungame'].includes(this.mode.mode),
     });
-  }
-
-  enemyHasSpawnLos(enemy, point) {
-    return this.spawnSelector.enemyHasSpawnLos(enemy, point);
   }
 
   nextSpawnFor(player, excludeIndex) {
@@ -193,7 +191,6 @@ export class GameEngine {
         || 'Player-' + pid.slice(-4);
       const player = new PlayerEntity(pid, normalizedName, this.nextSpawnFor(null, -1), false);
       this.entities.set(pid, player);
-      this.humanIds.add(pid);
       this.mode.onPlayerAdd(player);
     }
     return this.spawnInfoFor(this.entities.get(pid));
@@ -235,7 +232,6 @@ export class GameEngine {
     player.chargeT = 0;
     player.charge = 0;
     this.entities.set(pid, player);
-    this.humanIds.add(pid);
     return this.spawnInfoFor(player);
   }
 
@@ -244,13 +240,6 @@ export class GameEngine {
     const player = this.entities.get(pid);
     if (player) this.mode.onPlayerRemove(player);
     this.entities.delete(pid);
-    this.humanIds.delete(pid);
-  }
-
-  renameClient(id, name) {
-    const player = this.entities.get(String(id));
-    if (player) player.name = String(name || '').trim().slice(0, 24) || player.name;
-    return player ? this.spawnInfoFor(player) : null;
   }
 
   spawnInfoFor(player) {
@@ -267,26 +256,6 @@ export class GameEngine {
       weapon: player.weapon,
       state: player.state,
       tickRate: Math.round(1000 / this.intervalMs),
-    };
-  }
-
-  get count() { return this.humanIds.size; }
-  get population() { return this.entities.size; }
-  get players() { return Array.from(this.entities.values()); }
-  get stats() {
-    let bots = 0;
-    let alive = 0;
-    for (const player of this.entities.values()) {
-      if (player.bot) bots++;
-      if (player.state === 'alive') alive++;
-    }
-    return {
-      now: this.now,
-      tick: this.tickNo,
-      players: this.entities.size,
-      humans: this.humanIds.size,
-      bots,
-      alive,
     };
   }
 
@@ -341,9 +310,6 @@ export class GameEngine {
     player.input = input;
   }
 
-  updateTimers(player, dt) { return updateTimers(player, dt); }
-  updateCondition(player, dt) { return updateCondition(player, dt); }
-
   integrate(player, dt) {
     const ctx = this.contexts.movement;
     ctx.movementLocked = !this.mode.canMove(player);
@@ -359,45 +325,28 @@ export class GameEngine {
     return true;
   }
 
-  computeConeDeg(player) { return computeConeDeg(player); }
-
-  resolveWeaponIntent(player, dt = this.intervalMs / 1000) {
-    return resolveWeaponIntent(player, dt, this.combatContext());
-  }
-
-  switchWeapon(player, slot) { return switchWeapon(player, slot); }
-
-  canFire(player, fireEdge = false) {
-    return canFire(player, fireEdge, this.combatContext());
-  }
-
-  rewindVictim(player) { return rewindVictim(player, this.now); }
-
-  nearestVictim(shooter, origin, direction, limit) {
-    return nearestVictim(shooter, origin, direction, limit, this.combatContext());
-  }
-
-  fireOneShot(player) { return fireOneShot(player, this.combatContext()); }
-  blockKey(x, y, z) { return blockKey(x, y, z); }
-
-  damageBlock(x, y, z, type, damage) {
-    return damageBlock(x, y, z, type, damage, this.combatContext());
-  }
-
-  destroyBlock(x, y, z, key) {
-    return destroyBlock(x, y, z, key, this.combatContext());
-  }
-
   pushBlockDelta(x, y, z, value) {
+    // Any block replacement (including a repair to the same type) is fresh.
+    const key = `${x},${y},${z}`;
+    this.blockHp.delete(key);
+    this.blockMining.delete(key);
+    if (this.blockDamage.delete(key)) {
+      this.tickBlockDamage.set(key, { x, y, z, v: value, progress: 0 });
+    }
     this.tickBlocks.push({ i: ((y * SZ) + z) * SX + x, v: value });
   }
 
-  combatContext() { return this.contexts.combat; }
-  projectileContext() { return this.contexts.projectiles; }
+  pushBlockDamage(x, y, z, value, progress) {
+    const key = `${x},${y},${z}`;
+    const row = { x, y, z, v: value, progress };
+    this.blockDamage.set(key, row);
+    this.tickBlockDamage.set(key, row);
+  }
 
   killPlayer(victim, killer, weaponKey, headshot, markers = null) {
     if (victim.state !== 'alive') return;
     victim.hp = 0;
+    victim.armor = 0;
     victim.state = 'dead';
     victim.burn = null;
     victim.burning = 0;
@@ -465,12 +414,3 @@ export class GameEngine {
     }
   }
 }
-
-export function _tickForTest(engine, ticks = 1) {
-  for (let i = 0; i < ticks; i++) engine.step(engine.intervalMs);
-  return engine;
-}
-
-GameEngine.prototype._tickForTest = function (ticks = 1) {
-  return _tickForTest(this, ticks);
-};

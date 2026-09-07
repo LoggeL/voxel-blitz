@@ -1,40 +1,28 @@
-import { DMG_MAX_POOL, DMG_MS, el, removeNode } from './hud-support.js';
+import { el } from './hud-support.js';
 
-const EMPTY = Object.freeze({});
 /** Hits on the same target inside this window merge into one growing number. */
-export const DMG_STACK_MS = 420;
+const DMG_STACK_MS = 420;
+const DMG_MS = 650;
+const DMG_MAX_POOL = 40;
 
 // Owns the complete floating-damage lifecycle: DOM node reuse, record reuse,
-// animation scheduling, and cancellation. CombatHudController only exposes the
-// historic methods and collection views.
+// animation scheduling, and cancellation.
 export class DamageNumberPool {
-  constructor(adapter = EMPTY) {
+  constructor({ getLayer, isBuilt, isDisposed, now, random, requestFrame, cancelFrame }) {
     this.pool = [];
     this.active = [];
     this._records = [];
     this.raf = 0;
     this.lastCritAt = -1e9;
 
-    this._getLayer = () => null;
-    this._isBuilt = () => false;
-    this._isDisposed = () => false;
-    this._now = Date.now;
-    this._random = Math.random;
-    this._requestFrame = () => 0;
-    this._cancelFrame = () => {};
+    this._getLayer = getLayer;
+    this._isBuilt = isBuilt;
+    this._isDisposed = isDisposed;
+    this._now = now;
+    this._random = random;
+    this._requestFrame = requestFrame;
+    this._cancelFrame = cancelFrame;
     this._onFrame = () => this._step();
-    this.configure(adapter);
-  }
-
-  configure(adapter = EMPTY) {
-    if (typeof adapter.getLayer === 'function') this._getLayer = adapter.getLayer;
-    if (typeof adapter.isBuilt === 'function') this._isBuilt = adapter.isBuilt;
-    if (typeof adapter.isDisposed === 'function') this._isDisposed = adapter.isDisposed;
-    if (typeof adapter.now === 'function') this._now = adapter.now;
-    if (typeof adapter.random === 'function') this._random = adapter.random;
-    if (typeof adapter.requestFrame === 'function') this._requestFrame = adapter.requestFrame;
-    if (typeof adapter.cancelFrame === 'function') this._cancelFrame = adapter.cancelFrame;
-    return this;
   }
 
   spawn(amount, sx, sy, visible = true, headshot = false, stackKey = null) {
@@ -143,14 +131,14 @@ export class DamageNumberPool {
       this.raf = 0;
     }
     if (removeNodes) {
-      for (const node of this.pool) removeNode(node);
+      for (const node of this.pool) node?.remove();
       this.pool.length = 0;
       this._records.length = 0;
     }
   }
 
-  reset(removeNodes = false) {
-    this.clear(removeNodes);
+  reset() {
+    this.clear(true);
     this.lastCritAt = -1e9;
   }
 

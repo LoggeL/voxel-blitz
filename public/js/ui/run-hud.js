@@ -9,7 +9,6 @@ import {
   el,
   formatClock,
   loadPrefNum,
-  removeNode,
   savePref,
 } from './hud-support.js';
 
@@ -108,7 +107,7 @@ export class RunHud {
     this._clearTimer(this._toastTimer);
     this._resultTimer = 0;
     this._toastTimer = 0;
-    removeNode(this.dom.root);
+    this.dom.root?.remove();
     this.dom = {};
     this._mode = null;
     this._state = null;
@@ -123,7 +122,7 @@ export class RunHud {
 
   _ensureDom() {
     if (this._domIfConnected()) return this.dom;
-    removeNode(this.dom.root);
+    this.dom.root?.remove();
     const hudRoot = typeof document !== 'undefined' ? document.getElementById('hud') : null;
     if (!hudRoot) return null;
     const root = el('section', 'vb-run-hud', hudRoot, 'run-overlay');

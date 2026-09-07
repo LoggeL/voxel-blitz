@@ -1,0 +1,646 @@
+{
+  "service": "ElevenLabs Sound Effects",
+  "generated": "2026-09-07",
+  "coverage_status": "complete",
+  "completed_effects": [
+    "frag",
+    "limpet",
+    "pulse",
+    "rocket",
+    "pin",
+    "throw",
+    "minigun",
+    "knife",
+    "flame"
+  ],
+  "pending_effects": [],
+  "review_basis": "Raw candidate waveforms, 5 ms RMS, spectrograms and decoded final measurements. No listening claim is made by the automated analysis.",
+  "rebuild": "python tools/prepare-elevenlabs-effects.py process",
+  "selections": [
+    {
+      "id": "frag",
+      "source": "frag-3.wav",
+      "trim_seconds": [
+        0,
+        1.08
+      ],
+      "highpass_hz": 40,
+      "lowpass_hz": 10500,
+      "fade_in_seconds": 0.0005,
+      "fade_out_seconds": 0.1,
+      "peak_target": 0.67,
+      "max_duration_seconds": 1.15,
+      "output": "public/assets/audio/grenades/frag.ogg",
+      "selection_rationale": "Candidate 3 has a clean broadband attack and an orderly decay, with no full-scale samples. Candidates 1 and 2 have 48 and 33 near-full-scale samples and concentrate 86-90% of their energy below 120 Hz. Candidate 4 is clean but its attack starts 52 ms late and has less low-frequency weight. Candidate 3 keeps the immediate impact and a compact fading tail.",
+      "source_sha256": "3db161dd4887e82055d41c2550810eda4d4197c5997f625b48c73dfbe89bb695",
+      "trim_energy_retained_percent": 99.91664139494442,
+      "mono": "0.5L + 0.5R for stereo; unchanged for mono",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "normalization_gain": 0.9881927858831264,
+      "opus_peak_corrections": [
+        1.0485948717040268
+      ],
+      "final_metrics": {
+        "duration_seconds": 1.08,
+        "peak": 0.6660045981407166,
+        "rms": 0.06912354340610459,
+        "peak_dbfs": -3.530455448418403,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.0004488666330462133,
+        "onset_seconds_2pct_peak": 4.1666666666666665e-05,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.515,
+        "rms_5ms_peak": 0.29491918158080704,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.07666666666666666,
+          "90": 0.1828125,
+          "95": 0.29322916666666665,
+          "99": 0.500625
+        },
+        "spectral_centroid_hz": 374.2955949059155,
+        "energy_band_percent": {
+          "0-120Hz": 55.45000947060136,
+          "120-1000Hz": 36.08716649663884,
+          "1000-5000Hz": 7.69320114037524,
+          "5000-24001Hz": 0.7696228923845616
+        },
+        "boundary_step": 0.004789210640296915,
+        "sample_step_99pct": 0.03783228427171708,
+        "first_20ms_rms": 0.2309490145978936,
+        "last_20ms_rms": 0.0005969872895760286,
+        "rms_5ms_coefficient_of_variation": 1.4583983181221496
+      },
+      "output_sha256": "548f312d13d9df6eabb2ce95618a74ad5509647c9de0afc58d0c51062dfd0be4",
+      "generation": {
+        "method": "ElevenLabs browser",
+        "source_codec": "wav"
+      }
+    },
+    {
+      "id": "limpet",
+      "source": "limpet-4.wav",
+      "trim_seconds": [
+        0.024,
+        1.7
+      ],
+      "highpass_hz": 35,
+      "lowpass_hz": 10500,
+      "fade_in_seconds": 0.001,
+      "fade_out_seconds": 0.13,
+      "peak_target": 0.67,
+      "max_duration_seconds": 1.9,
+      "output": "public/assets/audio/grenades/limpet.ogg",
+      "selection_rationale": "Candidate 4 has no full-scale samples, a broad attack and a falling tail. Its mid/high spectrum gives the blast a more distinct impact than the bass-heavy candidate 1. Candidates 2 and 3 contain 28 and 6 near-full-scale samples. The 24 ms leading trim aligns the impact; the longer tail distinguishes it from frag.",
+      "source_sha256": "c547dda2ef438fdf6d4b27c78dde7f418c89d9a7810c5ebfd95da37a0c05a6fa",
+      "trim_energy_retained_percent": 99.99975639030241,
+      "mono": "0.5L + 0.5R for stereo; unchanged for mono",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "normalization_gain": 0.9251127639529454,
+      "opus_peak_corrections": [
+        1.0276442173580882
+      ],
+      "final_metrics": {
+        "duration_seconds": 1.676,
+        "peak": 0.65472012758255,
+        "rms": 0.08240784034755433,
+        "peak_dbfs": -3.6788861534962063,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 3.437055215567785e-05,
+        "onset_seconds_2pct_peak": 0.0025833333333333333,
+        "onset_seconds_8pct_rms": 0.005,
+        "last_active_seconds_8pct_rms": 0.9500000000000001,
+        "rms_5ms_peak": 0.29266714911801534,
+        "rms_5ms_peak_at_seconds": 0.145,
+        "energy_seconds": {
+          "50": 0.19789583333333333,
+          "90": 0.5008541666666667,
+          "95": 0.557875,
+          "99": 0.7478333333333333
+        },
+        "spectral_centroid_hz": 526.8672542284148,
+        "energy_band_percent": {
+          "0-120Hz": 56.12219208372932,
+          "120-1000Hz": 31.010999316473537,
+          "1000-5000Hz": 10.720679813402752,
+          "5000-24001Hz": 2.146128786394398
+        },
+        "boundary_step": 0.00022440493467001943,
+        "sample_step_99pct": 0.06461759805679299,
+        "first_20ms_rms": 0.022866721292747808,
+        "last_20ms_rms": 5.570654316413492e-05,
+        "rms_5ms_coefficient_of_variation": 1.2297743893373543
+      },
+      "output_sha256": "73c340ec90564f506b9b0f624fc3da1de33a49ab4d63f95e4ef61def0df8884b",
+      "generation": {
+        "method": "ElevenLabs browser",
+        "source_codec": "wav"
+      }
+    },
+    {
+      "id": "pulse",
+      "source": "pulse-4.wav",
+      "trim_seconds": [
+        0,
+        1.05
+      ],
+      "highpass_hz": 110,
+      "lowpass_hz": 10500,
+      "fade_in_seconds": 0.0005,
+      "fade_out_seconds": 0.1,
+      "peak_target": 0.65,
+      "max_duration_seconds": 1.1,
+      "output": "public/assets/audio/grenades/pulse.ogg",
+      "selection_rationale": "Candidate 4 has visible descending harmonic bands and a contained resonant body that distinguishes the electric pulse from the broadband conventional explosions. Candidates 1-3 show predominantly noisy impact-and-rumble profiles. Candidate 4 decays naturally by approximately 0.7 s; trim its quiet remainder and attenuate sub-bass to preserve the electric character.",
+      "source_sha256": "731aa46909da6cb2314fbf6deb1b2c1b0fcd99e720f5388d829b1804d0c49d7c",
+      "trim_energy_retained_percent": 99.99967825084755,
+      "mono": "0.5L + 0.5R for stereo; unchanged for mono",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "normalization_gain": 1.5488563908526607,
+      "opus_peak_corrections": [],
+      "final_metrics": {
+        "duration_seconds": 1.05,
+        "peak": 0.6385297179222107,
+        "rms": 0.10349494908217591,
+        "peak_dbfs": -3.8963777071096044,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.00012877112386826243,
+        "onset_seconds_2pct_peak": 0.000125,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.6900000000000001,
+        "rms_5ms_peak": 0.24873373480022765,
+        "rms_5ms_peak_at_seconds": 0.13,
+        "energy_seconds": {
+          "50": 0.18514583333333334,
+          "90": 0.43283333333333335,
+          "95": 0.4701875,
+          "99": 0.5574166666666667
+        },
+        "spectral_centroid_hz": 731.3972205523502,
+        "energy_band_percent": {
+          "0-120Hz": 16.887731158359824,
+          "120-1000Hz": 57.85686819882223,
+          "1000-5000Hz": 24.253400475166476,
+          "5000-24001Hz": 1.0020001676514747
+        },
+        "boundary_step": 0.0011613116982971405,
+        "sample_step_99pct": 0.07057304151356203,
+        "first_20ms_rms": 0.1489331621168273,
+        "last_20ms_rms": 0.00014146837172605988,
+        "rms_5ms_coefficient_of_variation": 0.9386781905078342
+      },
+      "output_sha256": "6ea6c551a2b05efe6c02af7c4ae21a515ea44fdd8eac531d96675192e6d39b34",
+      "generation": {
+        "method": "ElevenLabs browser",
+        "source_codec": "wav"
+      }
+    },
+    {
+      "id": "rocket",
+      "source": "rocket-1.wav",
+      "trim_seconds": [
+        0,
+        1.8
+      ],
+      "highpass_hz": 30,
+      "lowpass_hz": 10000,
+      "fade_in_seconds": 0.0005,
+      "fade_out_seconds": 0.15,
+      "peak_target": 0.67,
+      "max_duration_seconds": 1.9,
+      "output": "public/assets/audio/grenades/rocket.ogg",
+      "selection_rationale": "Candidate 1 combines an immediate impact with a broad debris-like tail and no full-scale samples. Candidate 2 has a gradual 150 ms swell before its strongest transient; candidate 3 reaches full scale; candidate 4 has a thinner body. The clean candidate 1 fits an impact-triggered rocket explosion, with a heavier low-frequency filter and a longer natural tail than frag.",
+      "source_sha256": "30f0520b6a1538344ebebfc2e3a7354c23714e40c7e05e19ac7b8266154a43b6",
+      "trim_energy_retained_percent": 99.99976824968233,
+      "mono": "0.5L + 0.5R for stereo; unchanged for mono",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "normalization_gain": 0.7238366242672519,
+      "opus_peak_corrections": [],
+      "final_metrics": {
+        "duration_seconds": 1.8,
+        "peak": 0.6651695370674133,
+        "rms": 0.057948115599439534,
+        "peak_dbfs": -3.5413529697619266,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -2.38157542020412e-05,
+        "onset_seconds_2pct_peak": 6.25e-05,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.9500000000000001,
+        "rms_5ms_peak": 0.25975117034587525,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.1720625,
+          "90": 0.42460416666666667,
+          "95": 0.5867916666666667,
+          "99": 0.8407916666666667
+        },
+        "spectral_centroid_hz": 272.26403768193853,
+        "energy_band_percent": {
+          "0-120Hz": 57.68495674413036,
+          "120-1000Hz": 36.95720593781756,
+          "1000-5000Hz": 5.1719698193845405,
+          "5000-24001Hz": 0.18586749866753183
+        },
+        "boundary_step": 0.0020820079938630442,
+        "sample_step_99pct": 0.018754109982401176,
+        "first_20ms_rms": 0.2090735748948141,
+        "last_20ms_rms": 3.787461884863178e-05,
+        "rms_5ms_coefficient_of_variation": 1.306180202908372
+      },
+      "output_sha256": "f5e5d208d13ee9297997c2c0f9b8819fb7af1189ec5a81d66079c42007baff45",
+      "generation": {
+        "method": "ElevenLabs browser",
+        "source_codec": "wav"
+      }
+    },
+    {
+      "id": "pin",
+      "source": "pin-2.wav",
+      "trim_seconds": [
+        0,
+        0.2
+      ],
+      "highpass_hz": 350,
+      "lowpass_hz": 11000,
+      "fade_in_seconds": 0.0005,
+      "fade_out_seconds": 0.025,
+      "peak_target": 0.45,
+      "max_duration_seconds": 0.23,
+      "output": "public/assets/audio/grenades/pin.ogg",
+      "selection_rationale": "Candidate 2 has a single immediate metallic transient and smooth high-frequency ring decay. Candidates 1, 3 and 4 have distinct secondary clicks. The 200 ms cut retains the full useful ring while removing the quiet padded remainder and an end artifact. The cue is kept quieter than weapon reports.",
+      "source_sha256": "6167bb20843f55b0a128ebdda65c3297c6e4e8743f782ac898d087699c9ac2ec",
+      "trim_energy_retained_percent": 99.9882442347541,
+      "mono": "0.5L + 0.5R for stereo; unchanged for mono",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "normalization_gain": 0.8498265641639634,
+      "opus_peak_corrections": [
+        0.98051398231946
+      ],
+      "final_metrics": {
+        "duration_seconds": 0.2,
+        "peak": 0.44840478897094727,
+        "rms": 0.048079445841870384,
+        "peak_dbfs": -6.966595155593471,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -3.250537483038644e-07,
+        "onset_seconds_2pct_peak": 8.333333333333333e-05,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.115,
+        "rms_5ms_peak": 0.1400648340802116,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.015229166666666667,
+          "90": 0.056979166666666664,
+          "95": 0.07289583333333334,
+          "99": 0.10175
+        },
+        "spectral_centroid_hz": 8592.681194734318,
+        "energy_band_percent": {
+          "0-120Hz": 0.003148298865966975,
+          "120-1000Hz": 0.5911177589150272,
+          "1000-5000Hz": 0.9462135383872707,
+          "5000-24001Hz": 98.45952040383173
+        },
+        "boundary_step": 0.0008972445418748975,
+        "sample_step_99pct": 0.2082111051678661,
+        "first_20ms_rms": 0.12260437746275925,
+        "last_20ms_rms": 0.0001005616397243885,
+        "rms_5ms_coefficient_of_variation": 1.1981945919512789
+      },
+      "output_sha256": "6996e1d3eca260d310a929d119d07695a15fee929b31598fbf9116594992f533",
+      "generation": {
+        "created_at": "2026-09-07T21:24:00.899121+00:00",
+        "endpoint": "https://api.elevenlabs.io/v1/sound-generation",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "One close, dry grenade safety pin pull: a tiny metallic ring scrape and one crisp short spring click, immediate onset, quick natural decay. Isolated first-person game handling sound, restrained and precise. No explosion, no voices, no music, no ambience, no repeated actions.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "9f7d5bf54b935945fd75cf6d5a242a97337797d5f4906aa8d31788c3fbd1bdd6",
+        "decoded_sha256": "6167bb20843f55b0a128ebdda65c3297c6e4e8743f782ac898d087699c9ac2ec",
+        "decoded_sample_rate": 48000,
+        "method": "ElevenLabs API",
+        "raw_source": "pin-2.mp3",
+        "conversion_note": "API MP3 decoded to 48 kHz PCM WAV for analysis; the WAV conversion preserves the decoded MP3 signal, not the uncompressed generated original."
+      }
+    },
+    {
+      "id": "throw",
+      "source": "throw-3.wav",
+      "trim_seconds": [
+        0,
+        0.3
+      ],
+      "highpass_hz": 160,
+      "lowpass_hz": 9000,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.035,
+      "peak_target": 0.45,
+      "max_duration_seconds": 0.45,
+      "output": "public/assets/audio/grenades/throw.ogg",
+      "selection_rationale": "Candidate 3 has a compact mid-frequency swish with 79.3% of its raw energy in 120-1000 Hz. The other candidates put 97.5-99.4% below 120 Hz and resemble large low-frequency pressure pulses in their waveforms. A 160 Hz high-pass removes remaining rumble; the 300 ms cue decays naturally inside the throw playback lifetime.",
+      "source_sha256": "a426421782ca5a4216d4b2c34bf4c2273577a96a8701675b5d1351d1ba761ea4",
+      "trim_energy_retained_percent": 99.96860163812494,
+      "mono": "0.5L + 0.5R for stereo; unchanged for mono",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "normalization_gain": 0.43693072502628405,
+      "opus_peak_corrections": [
+        0.985180635085481
+      ],
+      "final_metrics": {
+        "duration_seconds": 0.3,
+        "peak": 0.4458581209182739,
+        "rms": 0.06470700017340186,
+        "peak_dbfs": -7.016066373068812,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 1.803016272777125e-05,
+        "onset_seconds_2pct_peak": 0.0001875,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.07,
+        "rms_5ms_peak": 0.2674867575546187,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.016270833333333335,
+          "90": 0.031208333333333334,
+          "95": 0.035770833333333335,
+          "99": 0.0524375
+        },
+        "spectral_centroid_hz": 576.2230438171091,
+        "energy_band_percent": {
+          "0-120Hz": 0.008904695885449836,
+          "120-1000Hz": 98.41169035864867,
+          "1000-5000Hz": 1.4307718521939379,
+          "5000-24001Hz": 0.1486330932719254
+        },
+        "boundary_step": 0.0015857596598820578,
+        "sample_step_99pct": 0.02581227272748949,
+        "first_20ms_rms": 0.2008940616691685,
+        "last_20ms_rms": 0.00023883580622421061,
+        "rms_5ms_coefficient_of_variation": 2.2371455477574482
+      },
+      "output_sha256": "56e0171ef579e711734382174ef547fdf06ca13aa78dcd22b58a055b5dafd400",
+      "generation": {
+        "created_at": "2026-09-07T21:24:12.973729+00:00",
+        "endpoint": "https://api.elevenlabs.io/v1/sound-generation",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "One quick arm swing releasing a hand grenade: close cloth movement with a compact airy whoosh, immediate onset, a light hand-release flick and fast decay. Isolated first-person game action. No impact or landing, no explosion, no voices, no music, no ambience, no repeated swings.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "96c883e80fbe8a2f1e0c9e7400f23d46ef415072c0e835858ef3c7ec89cd9fb1",
+        "decoded_sha256": "a426421782ca5a4216d4b2c34bf4c2273577a96a8701675b5d1351d1ba761ea4",
+        "decoded_sample_rate": 48000,
+        "method": "ElevenLabs API",
+        "raw_source": "throw-3.mp3",
+        "conversion_note": "API MP3 decoded to 48 kHz PCM WAV for analysis; the WAV conversion preserves the decoded MP3 signal, not the uncompressed generated original."
+      }
+    },
+    {
+      "id": "minigun",
+      "source": "minigun-2.wav",
+      "trim_seconds": [
+        0.025,
+        0.08
+      ],
+      "highpass_hz": 110,
+      "lowpass_hz": 9500,
+      "fade_in_seconds": 0.0005,
+      "fade_out_seconds": 0.009,
+      "peak_target": 0.7,
+      "max_duration_seconds": 0.2,
+      "output": "public/assets/audio/weapons/minigun/fire.ogg",
+      "selection_rationale": "All four generated candidates contain multiple reports. The first report of candidate 2 was separately plotted and selected: its 25-80 ms interval contains one fast attack followed by a compact falling tail, with no near-full-scale samples in that interval. Candidate 1 has a slower broad swell; the inspected first reports of candidates 3 and 4 reach full scale. The game supplies firing cadence, so only this isolated 55 ms shot is shipped.",
+      "source_sha256": "5f0f3a2d592df11a2083fdf6401a5c8795b123c00102aa8d33644edd554e4aa6",
+      "trim_energy_retained_percent": 25.195916621532305,
+      "mono": "0.5L + 0.5R for stereo; unchanged for mono",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "normalization_gain": 0.7275446415454281,
+      "opus_peak_corrections": [
+        0.9757591792371098
+      ],
+      "final_metrics": {
+        "duration_seconds": 0.055,
+        "peak": 0.6963557600975037,
+        "rms": 0.12453912917801462,
+        "peak_dbfs": -3.143376553386849,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 8.875333141779926e-05,
+        "onset_seconds_2pct_peak": 0.00022916666666666666,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.04,
+        "rms_5ms_peak": 0.24622157391404031,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.0067708333333333336,
+          "90": 0.018895833333333334,
+          "95": 0.022041666666666668,
+          "99": 0.03345833333333333
+        },
+        "spectral_centroid_hz": 2917.9803620250786,
+        "energy_band_percent": {
+          "0-120Hz": 0.06607622902177622,
+          "120-1000Hz": 17.939792915514452,
+          "1000-5000Hz": 62.22000361760862,
+          "5000-24001Hz": 19.77412723785513
+        },
+        "boundary_step": 0.005723058944568038,
+        "sample_step_99pct": 0.20450811935588703,
+        "first_20ms_rms": 0.1980553078931116,
+        "last_20ms_rms": 0.018539826418163225,
+        "rms_5ms_coefficient_of_variation": 0.9152365028841253
+      },
+      "output_sha256": "ae420df82d42b53b1ff9194935f6e02e424e3fd83a90c424fda00a5651c8fd9e",
+      "generation": {
+        "created_at": "2026-09-07T21:24:19.357209+00:00",
+        "endpoint": "https://api.elevenlabs.io/v1/sound-generation",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "Exactly one short rotary minigun gunshot, starting immediately: a tight mechanical crack, punchy low-mid thump and dry fast decay within 0.18 seconds. Isolated close game weapon report for rapid repeated playback. Single discharge only, no burst, no motor loop, no shell drops, no long reverb, no voices, no music, no ambience.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "a4838f6dd37218030924ab7cd5ab9deb23e0d84cc05a8b291ac6285597c28515",
+        "decoded_sha256": "5f0f3a2d592df11a2083fdf6401a5c8795b123c00102aa8d33644edd554e4aa6",
+        "decoded_sample_rate": 48000,
+        "method": "ElevenLabs API",
+        "raw_source": "minigun-2.mp3",
+        "conversion_note": "API MP3 decoded to 48 kHz PCM WAV for analysis; the WAV conversion preserves the decoded MP3 signal, not the uncompressed generated original."
+      }
+    },
+    {
+      "id": "knife",
+      "source": "knife-3.wav",
+      "trim_seconds": [
+        0,
+        0.2
+      ],
+      "highpass_hz": 150,
+      "lowpass_hz": 9500,
+      "fade_in_seconds": 0.001,
+      "fade_out_seconds": 0.025,
+      "peak_target": 0.68,
+      "max_duration_seconds": 0.4,
+      "output": "public/assets/audio/weapons/knife/fire.ogg",
+      "selection_rationale": "Candidate 3 has one compact broadband swish, an immediate onset and no near-full-scale samples. Its visible energy body resolves by about 150 ms. Candidate 1 reaches full scale and builds late, candidate 2 has two broad swells, and candidate 4 has a 38 ms delay and heavier bass. This sound accompanies the pickaxe swing; impact material sounds remain a separate game event.",
+      "source_sha256": "3abcf5b045718fa4174673a3d858673f6d864a86c633cfde8cee51ac882d30d8",
+      "trim_energy_retained_percent": 99.99993463084085,
+      "mono": "0.5L + 0.5R for stereo; unchanged for mono",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "normalization_gain": 0.748359879944212,
+      "opus_peak_corrections": [
+        0.9573224901186039
+      ],
+      "final_metrics": {
+        "duration_seconds": 0.2,
+        "peak": 0.6723058819770813,
+        "rms": 0.12187802934061981,
+        "peak_dbfs": -3.4486617820745167,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -1.6503950322293014e-05,
+        "onset_seconds_2pct_peak": 0.0005,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.12,
+        "rms_5ms_peak": 0.256474333032152,
+        "rms_5ms_peak_at_seconds": 0.055,
+        "energy_seconds": {
+          "50": 0.0470625,
+          "90": 0.083875,
+          "95": 0.09172916666666667,
+          "99": 0.10589583333333333
+        },
+        "spectral_centroid_hz": 2120.4719926061057,
+        "energy_band_percent": {
+          "0-120Hz": 0.00137977861238164,
+          "120-1000Hz": 33.05080773833473,
+          "1000-5000Hz": 63.298809518108044,
+          "5000-24001Hz": 3.6490029649448394
+        },
+        "boundary_step": 0.0025647819547884865,
+        "sample_step_99pct": 0.14060739815235165,
+        "first_20ms_rms": 0.12444113899458317,
+        "last_20ms_rms": 0.00020095966901532788,
+        "rms_5ms_coefficient_of_variation": 0.9349684599258639
+      },
+      "output_sha256": "5aebd38393473d665fa96714330d3350d4e232baff1edc377f0294134a1ab39b",
+      "generation": {
+        "created_at": "2026-09-07T21:24:29.880819+00:00",
+        "endpoint": "https://api.elevenlabs.io/v1/sound-generation",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "One fast first-person melee pickaxe swing through air: a short weighty whoosh with a subtle steel edge swish and light grip movement, immediate onset and quick decay. Clean isolated game action, one swing only. No strike, no impact, no debris, no voices, no music, no ambience.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "0fa6bc3287e0b7bf472fa405f6cf41f620a722840c1869e442ed106d97de3f3e",
+        "decoded_sha256": "3abcf5b045718fa4174673a3d858673f6d864a86c633cfde8cee51ac882d30d8",
+        "decoded_sample_rate": 48000,
+        "method": "ElevenLabs API",
+        "raw_source": "knife-3.mp3",
+        "conversion_note": "API MP3 decoded to 48 kHz PCM WAV for analysis; the WAV conversion preserves the decoded MP3 signal, not the uncompressed generated original."
+      }
+    },
+    {
+      "id": "flame",
+      "source": "flame-4.wav",
+      "trim_seconds": [
+        0.1,
+        2.2
+      ],
+      "highpass_hz": 80,
+      "lowpass_hz": 10000,
+      "loop_crossfade_seconds": 0.2,
+      "peak_target": 0.6,
+      "max_duration_seconds": 2.0,
+      "output": "public/assets/audio/weapons/flamethrower/loop.ogg",
+      "selection_rationale": "All four loop candidates show sustained broadband noise without separate ignition or release events. Candidate 4 has the lowest 5 ms RMS coefficient of variation (0.256), no near-full-scale samples and a stable frequency balance. Use its central 2.10 s region with a 200 ms equal-power overlap to make a 1.90 s continuous loop. The actual decoded Opus wrap is measured and plotted separately; no endpoint attack or release fades are applied. Equal-power weighting prevents the cyclic level dip seen with the first linear overlap.",
+      "loop_crossfade_curve": "equal_power_cosine_sine",
+      "source_sha256": "33c4853c83fefa2f3eec8ea9181a13ef559c0f40e560b9d296a40d9c27b4354c",
+      "trim_energy_retained_percent": 96.31692258805705,
+      "mono": "0.5L + 0.5R for stereo; unchanged for mono",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "normalization_gain": 0.9011232611605992,
+      "opus_peak_corrections": [
+        1.0329456327563562
+      ],
+      "final_metrics": {
+        "duration_seconds": 1.9,
+        "peak": 0.5993096828460693,
+        "rms": 0.14944831692564478,
+        "peak_dbfs": -4.4469741099232705,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -8.541091132959384e-06,
+        "onset_seconds_2pct_peak": 0.0,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 1.9000000000000001,
+        "rms_5ms_peak": 0.25487355456844335,
+        "rms_5ms_peak_at_seconds": 0.47500000000000003,
+        "energy_seconds": {
+          "50": 0.9107708333333333,
+          "90": 1.6677083333333333,
+          "95": 1.7935625,
+          "99": 1.8808333333333334
+        },
+        "spectral_centroid_hz": 1086.8424019630713,
+        "energy_band_percent": {
+          "0-120Hz": 14.242564607726223,
+          "120-1000Hz": 72.66218841252014,
+          "1000-5000Hz": 3.7902790470152103,
+          "5000-24001Hz": 9.304967932738416
+        },
+        "boundary_step": 0.010396823287010193,
+        "sample_step_99pct": 0.1306664717197419,
+        "first_20ms_rms": 0.1534275876434277,
+        "last_20ms_rms": 0.15006858373171736,
+        "rms_5ms_coefficient_of_variation": 0.26906457563611874
+      },
+      "output_sha256": "12fc5573582a318dce54debbf78d11340524902e0e3d17a1e109db5d7f47dcbc",
+      "generation": {
+        "created_at": "2026-09-07T21:24:43.502840+00:00",
+        "endpoint": "https://api.elevenlabs.io/v1/sound-generation",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "A steady close pressurized flamethrower jet: dense rushing fire, warm low roar, fine fast crackling and a controlled gas hiss. Continuous stationary game weapon texture, seamless loop, consistent energy from start to finish. No ignition, no fade, no shutdown, no explosions, no separate impacts, no voices, no music, no ambience.",
+          "duration_seconds": 2.0,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2",
+          "loop": true
+        },
+        "raw_sha256": "274a54b15b53e2cc28f331b01b9eb87de4085cf04a6b11f84c8f407e3cba5dee",
+        "decoded_sha256": "33c4853c83fefa2f3eec8ea9181a13ef559c0f40e560b9d296a40d9c27b4354c",
+        "decoded_sample_rate": 48000,
+        "method": "ElevenLabs API",
+        "raw_source": "flame-4.mp3",
+        "conversion_note": "API MP3 decoded to 48 kHz PCM WAV for analysis; the WAV conversion preserves the decoded MP3 signal, not the uncompressed generated original."
+      }
+    }
+  ]
+}

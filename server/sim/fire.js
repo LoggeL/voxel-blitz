@@ -3,7 +3,7 @@ import { WEAPONS, damageAtDistance } from '../../shared/combatmath.js';
 import { FLAME_RULES, flamePanicFloor } from '../../shared/flame-rules.js';
 import { playerHitboxes, rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { raycastVoxels } from '../../shared/raycast.js';
-import { evHit } from '../protocol.js';
+import { evHit } from '../protocol/events.js';
 
 // Expanded body volumes must never pull damage across cover. Find a real body
 // point inside the packet and require an unobstructed line from its launch eye.
@@ -81,10 +81,6 @@ export class FlameSystem {
     }
     this.active.length = kept;
   }
-}
-
-export function fireFlame(owner, eye, direction, ctx) {
-  ctx.flames.launch(owner, eye, direction, ctx);
 }
 
 export function updateBurn(victim, dt, ctx) {

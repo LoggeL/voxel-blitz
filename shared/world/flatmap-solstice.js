@@ -36,8 +36,9 @@ function buildCanyonRim(world) {
       const height = Math.max(T + 7, Math.min(T + 21,
         Math.round(T + 19 - edge * 1.35 + ridge)));
       for (let y = T + 1; y < 40; y++) {
+        const stratum = (y + Math.floor(Math.sin(x * 0.065 + z * 0.04) * 2)) % 9;
         world.setBlock(x, y, z, y <= height
-          ? ((x + z + y) % 11 === 0 ? STONE : SAND)
+          ? (stratum === 0 ? PALE : stratum === 1 ? STONE : SAND)
           : AIR);
       }
     }
@@ -81,6 +82,15 @@ function buildLaneFoundation(world) {
   for (let x = 12; x <= 116; x += 6) {
     world.setBlock(x, T, 20, ACCENT);
     world.setBlock(x, T, 75, ACCENT);
+  }
+
+  // Expansion joints and buried service runs give the broad approaches a scale.
+  // They sit in the paving so running, jumping and spawn clearance stay unchanged.
+  for (const x of [18, 39, 88, 111]) {
+    for (const [z0, z1] of [[9, 16], [79, 87]]) paintFloor(world, x, z0, x, z1, T, STONE);
+  }
+  for (const z of [18, 77]) {
+    for (let x = 25; x <= 103; x += 13) paintFloor(world, x, z, x + 4, z, T, CONCRETE);
   }
 }
 

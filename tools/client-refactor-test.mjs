@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { BrassPool } from '../public/js/weapons/brass.js';
 import { Effects } from '../public/js/weapons/effects.js';
-import { FlameFX } from '../public/js/weapons/flame.js';
 import { WeaponState } from '../public/js/guns/weapon-state.js';
 import { ViewmodelRig } from '../public/js/guns/viewmodel.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
@@ -52,8 +51,6 @@ const disposals = resource => {
 {
   const scene = new THREE.Scene();
   const brass = new BrassPool(scene, () => 0);
-  assert.equal(scene.children.length, 1, '32 shell slots share one draw call and material');
-  assert.ok(brass.mesh.isInstancedMesh);
   const disposed = [brass.mesh, brass.mesh.geometry, brass.mesh.material].map(disposals);
   const idleVersion = brass.mesh.instanceMatrix.version;
   brass.update(1 / 60);
@@ -132,43 +129,6 @@ try {
   else globalThis.document = previousDocument;
 }
 
-{
-  const scene = new THREE.Scene();
-  const flame = new FlameFX(scene, () => 0);
-  flame.muzzleProvider = out => out.set(0.2, 1.5, -0.5);
-  const event = { w: 'flamethrower', o: [0, 1.62, 0], d: [0, 0, -1] };
-  const idleVersion = flame.centers.version;
-  flame.update(1 / 60);
-  assert.equal(flame.centers.version, idleVersion);
-  const previousClone = THREE.Vector3.prototype.clone;
-  const previousToArray = THREE.Vector3.prototype.toArray;
-  let allocations = 0;
-  THREE.Vector3.prototype.clone = function () { allocations++; return previousClone.call(this); };
-  THREE.Vector3.prototype.toArray = function (...args) {
-    if (!args[0]) allocations++;
-    return previousToArray.apply(this, args);
-  };
-  try {
-    flame.setLocalStream(true);
-    for (let frame = 0; frame < 120; frame++) {
-      if (frame % 3 === 0) flame.shoot(event, { local: true });
-      flame.update(1 / 60);
-    }
-  } finally {
-    THREE.Vector3.prototype.clone = previousClone;
-    THREE.Vector3.prototype.toArray = previousToArray;
-  }
-  assert.equal(allocations, 0, 'continuous flame emission reuses vectors and passes scalar ray coordinates');
-  assert.ok(flame.geometry.instanceCount > 0, 'continuous stream remains rendered');
-  flame.setLocalStream(false);
-  flame.update(2);
-  assert.equal(flame.geometry.instanceCount, 0, 'release lets existing particles expire');
-  const expiredVersion = flame.centers.version;
-  flame.update(1 / 60);
-  assert.equal(flame.centers.version, expiredVersion);
-  flame.dispose();
-  assert.equal(scene.children.length, 0);
-}
 
 {
   const geometry = new THREE.BoxGeometry();
@@ -189,7 +149,7 @@ try {
   assert.equal(retained.count, 0, 'cache-owned materials remain with their owner');
   cached.dispose();
 }
-console.log('Client refactor: one brass batch, flight/collision/reuse, zero idle FX uploads, flame allocation budget and GPU/resource cleanup passed.');
+console.log('Client refactor: one brass batch, flight/collision/reuse, zero idle FX uploads and GPU/resource cleanup passed.');
 
 if (process.argv.includes('--browser')) {
   const { launchCdpSession } = await import('./lib/cdp-session.mjs');

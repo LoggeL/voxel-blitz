@@ -49,7 +49,7 @@ export async function runWeaponWheelContracts(ok) {
   };
   const controller = new WeaponWheelController({
     input: { setWeaponWheelOpen() {}, usesTouchControls: () => false },
-    hud: { ensureWeaponWheel() {}, setWeaponWheelState() {} },
+    hud: { setWeaponWheelState() {} },
     getContext: () => context,
   });
   const entries = controller.entries();

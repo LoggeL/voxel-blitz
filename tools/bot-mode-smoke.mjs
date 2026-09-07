@@ -1,3 +1,4 @@
+import { nearestVictim } from '../server/sim/combat.js';
 import assert from 'node:assert/strict';
 
 import { attachBots } from '../server/bots.js';
@@ -15,7 +16,7 @@ import {
   getBlock as getSharedBlock,
   setBlock as setSharedBlock,
 } from '../shared/worlddata.js';
-import { TICK_MS } from '../server/protocol.js';
+import { TICK_MS } from '../server/protocol/admission.js';
 import { PLAYER_KEYS } from './lib/protocol-contract.mjs';
 
 const CLOCK_START = 1_000_000;
@@ -147,7 +148,7 @@ function stageClearTdmShot(engine, shooter, target, label) {
     `${label}: ${shooter.id} serialized spawn is standable in the engine world`);
   assert.equal(engine.world.heightAt(target.x, target.z), GROUND,
     `${label}: ${target.id} serialized spawn is standable in the engine world`);
-  assert.equal(engine.enemyHasSpawnLos(shooter, targetSpawn), true,
+  assert.equal(engine.spawnSelector.enemyHasSpawnLos(shooter, targetSpawn), true,
     `${label}: serialized TDM spawns provide map-clear LOS from ${shooter.id} to ${target.id}`);
 
   const dx = target.x - shooter.x;
@@ -161,12 +162,11 @@ function stageClearTdmShot(engine, shooter, target, label) {
 
   let resolved = null;
   for (let tick = 0; tick <= CLEAR_SHOT_SETTLE_TICKS; tick++) {
-    resolved = engine.nearestVictim(
+    resolved = nearestVictim(
       shooter,
       [shooter.x, shooter.eyeY, shooter.z],
       ray,
-      distance + 1,
-    );
+      distance + 1, engine.contexts.combat);
     if (resolved?.victim === target) break;
     if (tick < CLEAR_SHOT_SETTLE_TICKS) engine.step(TICK_MS);
   }
@@ -189,7 +189,7 @@ function transitionToLive(engine, calls) {
   engine.step(0);
   assert.equal(engine.mode.phase, 'live', 'fixed clock step starts S&D live phase');
   const boundaryCalls = calls.slice(before);
-  assert.equal(boundaryCalls.length, engine.stats.bots,
+  assert.equal(boundaryCalls.length, Array.from(engine.entities.values()).filter(player => player.bot).length,
     'every bot runs before the mode controller changes the boundary tick to live');
   assert.ok(boundaryCalls.every((call) => call.phase === 'prep' && !call.input.wantFire),
     'the live-transition tick is still a fire-free prep decision for every bot');
@@ -204,7 +204,7 @@ function disposeAndProveUnhooked(engine, manager, calls) {
     manager.dispose();
     assert.equal(engine.tickHooks.length, beforeHooks - 1,
       'dispose removes only the bot tick hook');
-    assert.equal(engine.stats.bots, 0, 'dispose removes bot entities');
+    assert.equal(Array.from(engine.entities.values()).filter(player => player.bot).length, 0, 'dispose removes bot entities');
     engine.step(TICK_MS);
     assert.equal(calls.length, beforeCalls, 'disposed manager cannot submit stale bot inputs');
     assert.equal(probeTicks, 1, 'dispose leaves unrelated engine tick hooks active');
@@ -319,12 +319,11 @@ function proveAuthoritativeRowsAndProtection() {
     assert.equal(engine.mode.canDamage(bot, human), false,
       'protected-human canDamage must reject bot-0 as the opposing shooter');
     assert.equal(
-      engine.nearestVictim(
+      nearestVictim(
         bot,
         [bot.x, bot.eyeY, bot.z],
         botRay,
-        Math.hypot(human.x - bot.x, human.z - bot.z) + 1,
-      ),
+        Math.hypot(human.x - bot.x, human.z - bot.z) + 1, engine.contexts.combat),
       null,
       'protected-human hit resolution must remove human-0 from the staged clear bot ray',
     );
@@ -386,12 +385,11 @@ function proveAuthoritativeRowsAndProtection() {
     assert.equal(engine.mode.canDamage(human, bot), false,
       'protected-bot canDamage must reject human-0 as the opposing shooter');
     assert.equal(
-      engine.nearestVictim(
+      nearestVictim(
         human,
         [human.x, human.eyeY, human.z],
         humanRay,
-        Math.hypot(bot.x - human.x, bot.z - human.z) + 1,
-      ),
+        Math.hypot(bot.x - human.x, bot.z - human.z) + 1, engine.contexts.combat),
       null,
       'protected-bot hit resolution must remove bot-0 from the staged clear human ray',
     );

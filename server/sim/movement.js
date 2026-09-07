@@ -129,11 +129,13 @@ export function stepMovement(p, dt, ctx) {
 
   if (inp) { p.yaw = inp.yaw; p.pitch = inp.pitch; }
   p.ads = !!inp?.wantAds && p.deployT <= 0;
+  const previousAdsT = p.adsT;
   const adsStep = dt / Math.max(0.001, p.def.adsTime);
   p.adsT = Math.max(0, Math.min(1, p.adsT + (p.ads ? adsStep : -adsStep)));
 
   if (ctx.movementLocked) {
     p.vault = null;
+    p.jumpWasHeld = !!inp?.keys?.jump;
     p.vx = 0;
     p.vy = 0;
     p.vz = 0;
@@ -147,6 +149,8 @@ export function stepMovement(p, dt, ctx) {
   }
 
   const kf = inp ? inp.keys : IDLE_KEYS;
+  const jumpPressed = !!kf.jump && !p.jumpWasHeld;
+  p.jumpWasHeld = !!kf.jump;
   const fwdAmt = (kf.f ? 1 : 0) - (kf.b ? 1 : 0);
   const strafe = (kf.r ? 1 : 0) - (kf.l ? 1 : 0);
   const ladderHere = ladderContact(ctx.mapMeta, p.x, p.y, p.z);
@@ -165,13 +169,17 @@ export function stepMovement(p, dt, ctx) {
     wx /= length; wz /= length;
   }
   if (p.grounded) p.jumpGroundY = p.y;
-  if (!p.vault && canStartVault(p.grounded, kf.jump, fwdAmt, p.crouch || low, p.y, p.jumpGroundY)) {
-    p.vault = findVault(ctx.solidAt, p, { x: wx, z: wz }, p.jumpGroundY);
+  const deliberateGrab = !p.grounded && jumpPressed && !low;
+  if (!p.vault && canStartVault(p.grounded, p.grounded ? kf.jump : deliberateGrab,
+      fwdAmt, p.crouch || low, p.y, p.jumpGroundY)) {
+    p.vault = findVault(ctx.solidAt, p, { x: wx, z: wz },
+      deliberateGrab ? p.y : p.jumpGroundY, p.yaw);
   }
   if (p.vault) {
     const active = stepVault(p, p.vault, dt, ctx.solidAt);
     p.vx = p.vy = p.vz = 0;
     p.ads = false;
+    p.adsT = Math.max(0, previousAdsT - adsStep);
     p.grounded = !active && solidBelow(ctx.solidAt, p.x, p.y, p.z);
     p.coyote = 0;
     if (!active) p.vault = null;

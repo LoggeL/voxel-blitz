@@ -13,6 +13,25 @@ shows round-trip history, arrival jitter, the adaptive snapshot buffer, and FPS.
 The live HUD shows three kinds of server-authoritative throwables per life: cookable frags,
 sticky limpet charges, and concussive pulse shocks.
 
+## Map power-ups
+
+Fun, Team Deathmatch and Chaos Lab have pickups on exposed ground across all six
+combat maps. Walk over one to collect it. Armor adds 50 protection (up to 100),
+Medkits restore 35 HP (up to 100), and Ammo refills spare magazines for owned
+weapons without changing the loaded magazine or an ongoing reload.
+
+The first Armor spawns after 12 seconds. Further random pickups spawn every
+18 to 28 seconds, expire after 30 seconds, and avoid the previous location when
+another pad is available. Full players leave unneeded pickups for others. Bots
+can collect them too. Armor absorbs damage before HP and resets on death.
+Each map has four exposed sites away from player spawns; damaged or blocked pads
+are skipped. S&D, Gun Game and Training do not spawn pickups.
+
+`shared/powerups.js` contains tuning and labels. `shared/powerup-sites.js` checks
+current terrain; `server/sim/powerups.js` owns scheduling and collection.
+Run `npm run powerups:test` for simulation and protocol checks, and
+`npm run powerups:browser` for Chromium rendering and live-client validation.
+
 ## Chaos Lab
 
 Create a lobby, select **CHAOS LAB**, ready up and start. The full weapon roster is available.
@@ -328,7 +347,7 @@ roster cards are omitted; S&D keeps a compact remaining-lives strip on desktop.
 |---|---|
 | `WASD` | move (`Shift` sprint); `W` / `S` climb up / down while touching a ladder |
 | `Shift` while stationary | hold breath until the pain/panic-limited budget is spent |
-| `Space` | jump; climb up while touching a ladder |
+| `Space` | jump; press again in midair to grab a reachable ledge; climb up while touching a ladder |
 | `Ctrl` / `C` | crouch; climb down while touching a ladder |
 | `X` | toggle prone: 0.65 s to lie down, 0.8 s to stand up; crawl at 1.15 m/s; no jumping or sprinting until upright |
 | mouse1 / mouse2 | fire / ADS (`F` also aims; ADS is hold or toggle per the settings panel, toggle by default on trackpads) |

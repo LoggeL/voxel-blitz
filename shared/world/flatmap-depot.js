@@ -20,7 +20,7 @@ import {
   generateFlatBase,
   mirroredBox,
 } from './flatmaps.js';
-import { addDepotSetpieces } from './setpiece-depot.js';
+import { addDepotSetpieces, addDepotOperations } from './setpiece-depot.js';
 
 // Spawn anchors from metadata.js — scatter keeps a clear radius around each.
 const ANCHORS = [
@@ -105,6 +105,7 @@ export function generateDepotInto(world, blocks, heights) {
 
   addDepotSetpieces(world);
   scatterDetail(world);
+  addDepotOperations(world);
 }
 
 /** Container stacks with ribbed sides, door ends, and staggered second tiers. */
@@ -148,6 +149,16 @@ function buildContainerYard(world) {
   mirroredBox(world, 33, GROUND + 4, 69, 40, GROUND + 5, 74, METAL);
   mirroredBox(world, 80, GROUND + 4, 14, 87, GROUND + 5, 18, ACCENT);
   mirroredBox(world, 77, GROUND + 4, 63, 83, GROUND + 5, 67, RUST);
+  // Visible roof seams and corner castings give the stacked boxes a freight
+  // silhouette without adding another tier or changing their collision.
+  for (const [x0, z0, x1, z1] of [[31, 18, 38, 22], [33, 69, 40, 74], [80, 14, 87, 18], [77, 63, 83, 67]]) {
+    for (let x = x0 + 2; x < x1; x += 3) {
+      mirroredBox(world, x, GROUND + 5, z0, x, GROUND + 5, z1, METAL);
+    }
+    for (const x of [x0, x1]) {
+      for (const z of [z0, z1]) mirroredBox(world, x, GROUND + 5, z, x, GROUND + 5, z, PALE);
+    }
+  }
 }
 
 function paintPads(world, x0, z0, x1, z1) {
@@ -182,6 +193,17 @@ function buildDepotOffices(world) {
   mirroredBox(world, 28, GROUND + 5, 40, 29, GROUND + 5, 41, RUST);
   mirroredBox(world, 31, GROUND + 5, 42, 32, GROUND + 5, 43, RUST);
   mirroredBox(world, 26, GROUND + 5, 39, 34, GROUND + 5, 39, ACCENT);
+
+  // Dispatch bench, terminal and filing cabinets sit against the rear wall,
+  // leaving the two-wide entrance and the middle of the room clear.
+  mirroredBox(world, 27, y0, 43, 30, y0, 43, PLANK);
+  mirroredBox(world, 27, GROUND + 2, 43, 27, GROUND + 2, 43, METAL);
+  mirroredBox(world, 28, GROUND + 2, 43, 28, GROUND + 2, 43, GLASS);
+  mirroredBox(world, 32, y0, 43, 33, GROUND + 2, 43, METAL);
+  mirroredBox(world, 32, GROUND + 2, 42, 33, GROUND + 2, 42, PALE);
+  // Inset dispatch board and utility cover are readable through the windows.
+  mirroredBox(world, 29, GROUND + 2, 44, 30, GROUND + 3, 44, PALE);
+  mirroredBox(world, 30, GROUND + 3, 44, 30, GROUND + 3, 44, ACCENT);
 
   // RUST pipe run with ACCENT valves along the shed's rear wall.
   mirroredBox(world, 26, GROUND + 2, 45, 34, GROUND + 2, 45, RUST);
@@ -290,6 +312,14 @@ function buildContainer(world, x0, z0, x1, z1, height, body, trim, flip = false)
         fillBox(world, x, GROUND + 1, z, x, GROUND + height, z, trim);
       }
     }
+  }
+  // ID plate and upper hinge bar are inset into the door, with the plate
+  // offset reversed together with the container to preserve point symmetry.
+  const plateZ = flip ? z1 - 1 : z0 + 1;
+  fillBox(world, doorX, GROUND + height, plateZ, doorX, GROUND + height, plateZ, PALE);
+  for (let z = z0 + 1; z < z1; z++) {
+    const ribX = flip ? x1 - 1 : x0 + 1;
+    world.setBlock(ribX, GROUND + height, z, trim);
   }
   // Corner castings (self-symmetric under the flip).
   for (const px of [x0, x1]) {

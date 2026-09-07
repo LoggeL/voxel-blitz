@@ -14,7 +14,6 @@ export class PregameFlow {
     connectUrl,
     closeNet,
     writeName,
-    setBotCount,
     enterMenu,
     detachGameplay,
     enterLive,
@@ -30,7 +29,6 @@ export class PregameFlow {
     this._connectUrl = connectUrl;
     this._closeNet = closeNet;
     this._writeName = writeName;
-    this._setBotCount = setBotCount;
     this._enterMenu = enterMenu;
     this._detachGameplay = detachGameplay;
     this._enterLive = enterLive;
@@ -130,7 +128,6 @@ export class PregameFlow {
     this._attempt = attempt;
     this._setPhase('connecting');
     this._writeName(name);
-    this._setBotCount(bots);
     this._hud.showJoinState('connecting…');
 
     net.onMap = (bytes) => {

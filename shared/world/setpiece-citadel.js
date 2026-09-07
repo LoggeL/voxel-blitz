@@ -6,11 +6,15 @@ import {
   GLASS,
   GROUND,
   LEAVES,
+  METAL,
   PALE,
   PLANK,
+  ROOF,
+  RUST,
   SEED,
   STONE,
   WOOD,
+  TEAL_SIDING,
 } from './blocks.js';
 import { fillBox, paintFloor } from './flatmaps.js';
 
@@ -19,7 +23,7 @@ import { fillBox, paintFloor } from './flatmaps.js';
 // ---------------------------------------------------------------------------
 
 /** Deterministic per-voxel noise in [0, 1), keyed off the shared map seed. */
-export function hash3(x, y, z) {
+function hash3(x, y, z) {
   let h =
     (SEED ^
       Math.imul(x + 1013, 0x27d4eb2f) ^
@@ -70,7 +74,7 @@ export function merlonLineZ(world, x, y, z0, z1) {
 }
 
 /** Crenellation around all four edges of a rectangle. */
-export function merlons(world, x0, z0, x1, z1, y) {
+function merlons(world, x0, z0, x1, z1, y) {
   merlonLineX(world, z0, y, x0, x1);
   merlonLineX(world, z1, y, x0, x1);
   merlonLineZ(world, x0, y, z0, z1);
@@ -131,6 +135,156 @@ export function addCitadelSetpieces(world) {
   buildKeep(world);
   buildNorthGate(world);
   buildFountain(world);
+  dressKeepFacades(world);
+  buildGarrisonFurnishings(world);
+  buildBellTower(world);
+  buildSouthMarket(world);
+  buildGardenCaravans(world);
+}
+
+/** The south keep grows into a full clock tower on a solid masonry footing. */
+function buildBellTower(world) {
+  const T = GROUND;
+  // Tiled pitched roof of the great hall behind the new south tower.
+  for (let inset = 0; inset <= 4; inset++) {
+    fillBox(world, 55 + inset, T + 7 + inset, 27, 71 - inset, T + 7 + inset, 42, ROOF);
+  }
+  // The body stands on the south curtain, close enough to read on arrival.
+  // Its rear footing occupies the dead-end garden, clear of both side gates.
+  masonry(world, 59, T + 1, 58, 67, T + 18, 66, 0.08);
+  for (const x of [59, 67]) for (const z of [58, 66]) {
+    fillBox(world, x, T + 1, z, x, T + 18, z, PALE);
+  }
+  for (const y of [T + 12, T + 18]) {
+    fillBox(world, 58, y, 57, 68, y, 67, STONE);
+  }
+  // Seven-cell clock face, with a pale dial and fixed dark hands.
+  for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+    if (Math.abs(dx) === 3 && Math.abs(dy) === 3) continue;
+    world.setBlock(63 + dx, T + 14 + dy, 67, Math.abs(dx) === 3 || Math.abs(dy) === 3 ? RUST : PALE);
+  }
+  fillBox(world, 63, T + 14, 67, 63, T + 16, 67, METAL);
+  fillBox(world, 63, T + 14, 67, 65, T + 14, 67, METAL);
+  // Open belfry: four stone piers hold the roof around a bronze bell.
+  for (const x of [59, 67]) for (const z of [58, 66]) fillBox(world, x, T + 19, z, x, T + 21, z, STONE);
+  fillBox(world, 62, T + 19, 61, 64, T + 20, 63, RUST);
+  fillBox(world, 61, T + 19, 60, 65, T + 19, 64, RUST);
+  world.setBlock(63, T + 21, 62, METAL);
+  // A steep dark hipped roof gives the skyline a distinct pointed silhouette.
+  for (let inset = 0; inset <= 3; inset++) fillBox(world, 58 + inset, T + 22 + inset, 57 + inset, 68 - inset, T + 22 + inset, 67 - inset, ROOF);
+}
+
+/** Two real open-front stalls frame a generous central arrival lane. */
+function buildSouthMarket(world) {
+  const T = GROUND;
+  for (const [x0, x1, canopy] of [[47, 57, TEAL_SIDING], [70, 80, PALE]]) {
+    paintFloor(world, x0, 67, x1, 71, T, PLANK);
+    for (const x of [x0, x1]) for (const z of [67, 71]) fillBox(world, x, T + 1, z, x, T + 5, z, WOOD);
+    // Rear shelving and a low counter provide plausible, destructible cover.
+    fillBox(world, x0 + 1, T + 1, 67, x1 - 1, T + 2, 67, PLANK);
+    fillBox(world, x0 + 1, T + 1, 71, x1 - 3, T + 1, 71, PLANK);
+    for (let x = x0; x <= x1; x++) {
+      const cloth = (x - x0) % 4 < 2 ? canopy : PLANK;
+      for (let z = 66; z <= 73; z++) {
+        const rise = z >= 68 && z <= 70 ? 7 : 6;
+        world.setBlock(x, T + rise, z, cloth);
+      }
+    }
+    for (let x = x0 + 2; x <= x1 - 2; x += 3) {
+      world.setBlock(x, T + 3, 67, x % 2 === 0 ? ACCENT : LEAVES);
+      world.setBlock(x, T + 2, 71, PLANK);
+    }
+    // Timber valance ties the fabric roof to the supporting posts.
+    fillBox(world, x0, T + 5, 71, x1, T + 5, 71, WOOD);
+  }
+}
+
+function matureTree(world, cx, cz) {
+  const T = GROUND;
+  fillBox(world, cx, T + 1, cz, cx + 1, T + 8, cz + 1, WOOD);
+  fillBox(world, cx - 2, T + 6, cz, cx + 3, T + 6, cz + 1, WOOD);
+  fillBox(world, cx, T + 7, cz - 2, cx + 1, T + 7, cz + 3, WOOD);
+  for (let rise = 7; rise <= 12; rise++) {
+    const radius = rise === 12 ? 2 : rise === 7 || rise === 11 ? 4 : 5;
+    for (let dz = -radius; dz <= radius; dz++) for (let dx = -radius; dx <= radius; dx++) {
+      if (dx * dx + dz * dz > radius * radius + 3) continue;
+      if (world.getBlock(cx + dx, T + rise, cz + dz) === AIR) world.setBlock(cx + dx, T + rise, cz + dz, LEAVES);
+    }
+  }
+  for (const [dx, dz] of [[-1, 0], [2, 1], [0, -1], [1, 2]]) world.setBlock(cx + dx, T + 1, cz + dz, WOOD);
+}
+
+/** Large trees and loaded carts make the open flanks into a garrison garden. */
+function buildGardenCaravans(world) {
+  const T = GROUND;
+  for (const [x, z] of [[33, 73], [94, 77], [18, 58]]) matureTree(world, x, z);
+  for (const [x, z] of [[29, 61], [92, 69]]) {
+    // Four block-built wheels surround an elevated timber cart bed.
+    for (const wheelX of [x, x + 6]) for (const wheelZ of [z, z + 3]) {
+      fillBox(world, wheelX, T + 1, wheelZ, wheelX, T + 2, wheelZ, STONE);
+      world.setBlock(wheelX, T + 2, wheelZ, WOOD);
+    }
+    fillBox(world, x + 1, T + 2, z, x + 5, T + 2, z + 3, WOOD);
+    fillBox(world, x + 1, T + 3, z, x + 5, T + 3, z, PLANK);
+    fillBox(world, x + 1, T + 3, z + 3, x + 5, T + 3, z + 3, PLANK);
+    fillBox(world, x + 2, T + 3, z + 1, x + 4, T + 4, z + 2, PLANK);
+    fillBox(world, x + 7, T + 1, z + 1, x + 9, T + 1, z + 1, WOOD);
+  }
+}
+
+/** Large heraldry and fitted timberwork remain inside existing wall cells. */
+function dressKeepFacades(world) {
+  const T = GROUND;
+  // The south curtain is the arrival landmark: pale edging around a shield.
+  for (let y = T + 2; y <= T + 5; y++) {
+    for (let x = 60; x <= 66; x++) {
+      const edge = x === 60 || x === 66 || y === T + 5;
+      world.setBlock(x, y, 65, edge ? PALE : ACCENT);
+    }
+  }
+  world.setBlock(62, T + 1, 65, PALE);
+  world.setBlock(63, T + 1, 65, ACCENT);
+  world.setBlock(64, T + 1, 65, PALE);
+  fillBox(world, 63, T + 2, 65, 63, T + 5, 65, PALE);
+  // Timber hoarding and stone corbels on the solid tower faces.
+  for (const [x0, x1, z, high] of [[48, 55, 65, 8], [71, 78, 65, 8], [48, 55, 25, 10], [71, 78, 25, 10]]) {
+    fillBox(world, x0 + 2, T + high - 2, z, x1 - 2, T + high - 1, z, PLANK);
+    for (const x of [x0 + 2, x1 - 2]) world.setBlock(x, T + high - 3, z, STONE);
+  }
+  // Ivy follows selected existing masonry joints, never a route or window.
+  for (const [x, z, high] of [[13, 29, 4], [43, 34, 4], [48, 54, 5], [78, 36, 4], [113, 57, 6]]) {
+    const base = x === 113 ? T + 4 : T + 1;
+    for (let y = base; y <= T + high; y++) {
+      if (world.getBlock(x, y, z) === BRICK || world.getBlock(x, y, z) === STONE) world.setBlock(x, y, z, LEAVES);
+    }
+  }
+}
+
+/** Small supply and armoury groups occupy the rear court and deck corners. */
+function buildGarrisonFurnishings(world) {
+  const T = GROUND;
+  // Practice shields along the inner south curtain, beyond the gate crosswalk.
+  for (const x of [56, 70]) {
+    fillBox(world, x, T + 1, 61, x, T + 3, 61, WOOD);
+    fillBox(world, x - 1, T + 2, 61, x + 1, T + 3, 61, PLANK);
+    world.setBlock(x, T + 3, 61, ACCENT);
+    world.setBlock(x, T + 1, 60, STONE);
+  }
+  // Coopered barrels on stone feet, with a timber supply bench between them.
+  for (const [x, z, deck] of [[35, 33, T], [37, 33, T], [92, 39, T + 3], [94, 39, T + 3]]) {
+    world.setBlock(x, deck + 1, z, WOOD);
+    world.setBlock(x, deck + 2, z, PLANK);
+    world.setBlock(x, deck + 3, z, METAL);
+  }
+  fillBox(world, 92, T + 4, 59, 94, T + 4, 60, PLANK);
+  world.setBlock(92, T + 5, 60, WOOD);
+  world.setBlock(94, T + 5, 60, WOOD);
+  // Courtyard seats tucked beside the fountain garden, clear of site A.
+  for (const x of [22, 31]) {
+    fillBox(world, x, T + 1, 34, x + 2, T + 1, 34, PLANK);
+    world.setBlock(x, T + 2, 34, WOOD);
+    world.setBlock(x + 2, T + 2, 34, WOOD);
+  }
 }
 
 /** One corner tower: brick drum, stone quoins, slits, battlement cap. */

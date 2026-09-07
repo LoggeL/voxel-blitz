@@ -18,6 +18,7 @@ export class PlayerPhysics {
     this.vault = null;
     this.lastImpulseSeq = 0;
     this.jumpGroundY = null;
+    this.jumpWasHeld = false;
     this.coyote = 0;
     this._crouching = false;
     this.proneT = 0;
@@ -48,7 +49,9 @@ export class PlayerPhysics {
    * Integrates one prediction step and returns true only for an accepted
    * ground jump. climbAxis is +1 for forward and -1 for back.
    */
-  step(dt, wish, speedTarget, wantJump, climbAxis = 0) {
+  step(dt, wish, speedTarget, wantJump, climbAxis = 0, yaw = null) {
+    const jumpPressed = !!wantJump && !this.jumpWasHeld;
+    this.jumpWasHeld = !!wantJump;
     const onLadderNow = ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z);
     this.proneT = stepProne(this.proneT, this.wantProne && !this.vault && !onLadderNow, dt);
     const low = this.wantProne || this.proneT > 0;
@@ -56,9 +59,11 @@ export class PlayerPhysics {
     if (this.coyote > 0) this.coyote = Math.max(0, this.coyote - dt);
 
     if (this.grounded) this.jumpGroundY = this.pos.y;
-    if (!this.vault && canStartVault(this.grounded, wantJump, climbAxis,
+    const deliberateGrab = !this.grounded && jumpPressed && !low;
+    if (!this.vault && canStartVault(this.grounded, this.grounded ? wantJump : deliberateGrab, climbAxis,
         this._crouching || low, this.pos.y, this.jumpGroundY)) {
-      this.vault = findVault(this._solidAt, this.pos, wish, this.jumpGroundY);
+      this.vault = findVault(this._solidAt, this.pos, wish,
+        deliberateGrab ? this.pos.y : this.jumpGroundY, yaw);
     }
     if (this.vault) {
       const active = stepVault(this.pos, this.vault, dt, this._solidAt);

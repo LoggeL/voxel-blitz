@@ -72,30 +72,41 @@ export function slidePlayerAxis(position, axis, amount, solidAt) {
 }
 
 export const VAULT_SECONDS = 0.48;
+const VAULT_REACH = 2.05;
 
-/** A forward jump keeps reaching for a ledge after the jump button is released. */
+/** Airborne jump presses reach deliberately; forward jumps also keep their automatic grab. */
 export function canStartVault(grounded, wantJump, forward, crouching, y, groundY) {
-  return forward > 0 && !crouching && (grounded ? wantJump
-    : Number.isFinite(groundY) && y > groundY + 0.1);
+  return !crouching && (grounded ? wantJump && forward > 0
+    : wantJump || (forward > 0 && Number.isFinite(groundY) && y > groundY + 0.1));
 }
 
-/** Find a reachable ledge relative to the last grounded height, never a midair wall climb. */
-export function findVault(solidAt, position, wish, groundY) {
-  if (!Number.isFinite(groundY) || Math.hypot(wish.x, wish.z) < 0.5) return null;
-  const dx = Math.abs(wish.x) > Math.abs(wish.z) ? Math.sign(wish.x) : 0;
-  const dz = dx ? 0 : Math.sign(wish.z);
+/**
+ * Find a supported ledge within arm's reach. Automatic grabs use the takeoff
+ * height as reachY; a fresh airborne jump press uses the current feet height.
+ * Facing supplies a direction when the player releases the movement keys.
+ */
+export function findVault(solidAt, position, wish, reachY = position.y, yaw = null) {
+  if (!Number.isFinite(reachY)) return null;
+  let dx = wish.x, dz = wish.z;
+  const length = Math.hypot(dx, dz);
+  if (length >= 0.5) { dx /= length; dz /= length; }
+  else if (Number.isFinite(yaw)) { dx = -Math.sin(yaw); dz = -Math.cos(yaw); }
+  else return null;
   const tx = position.x + dx * 0.95, tz = position.z + dz * 0.95;
-  const top = Math.round(groundY) + 2;
-  if (top - groundY > 2.05 || top <= position.y + 0.1) return null;
-  if (!solidAt(Math.floor(tx), top - 1, Math.floor(tz)) ||
-      boxCollides(solidAt, tx, top, tz)) return null;
-  const vault = { from: { x: position.x, y: position.y, z: position.z }, to: { x: tx, y: top, z: tz }, elapsed: 0 };
-  // Check the complete lift and pull path, including headroom above the takeoff point.
-  for (let i = 0; i <= 20; i++) {
-    const point = vaultPoint(vault, i / 20);
-    if (boxCollides(solidAt, point.x, point.y, point.z)) return null;
+  const maxTop = Math.floor(Math.min(reachY, position.y) + VAULT_REACH);
+  for (let top = Math.floor(position.y + 0.1) + 1; top <= maxTop; top++) {
+    if (!solidAt(Math.floor(tx), top - 1, Math.floor(tz)) ||
+        boxCollides(solidAt, tx, top, tz)) continue;
+    const vault = { from: { x: position.x, y: position.y, z: position.z }, to: { x: tx, y: top, z: tz }, elapsed: 0 };
+    // Check the complete lift and pull path, including headroom above takeoff.
+    let clear = true;
+    for (let i = 0; i <= 20; i++) {
+      const point = vaultPoint(vault, i / 20);
+      if (boxCollides(solidAt, point.x, point.y, point.z)) { clear = false; break; }
+    }
+    if (clear) return vault;
   }
-  return vault;
+  return null;
 }
 
 function vaultPoint(vault, t) {

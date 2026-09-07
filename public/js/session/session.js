@@ -14,12 +14,15 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
   'hit',
   'kill',
   'block',
+  'blockDamage',
+  'mine',
   'projectileLaunch',
   'projectileUpdate',
   'projectileStick',
   'projectileExplode',
   'respawn',
   'die',
+  'powerup',
 ]);
 
 /** Training run course events emitted by the server's training policy. */
@@ -157,7 +160,6 @@ export class Session {
     this._welcome = null;
     this._myId = null;
     this._mapMeta = null;
-    this._botCount = undefined;
     this._masterVolume = readStoredNumber(
       this._storage,
       this._persist.volume,
@@ -183,7 +185,6 @@ export class Session {
       connectUrl: () => this._connectUrl(),
       closeNet: (net) => this._closeNet(net),
       writeName: (name) => this._writePreference(this._persist.name, name),
-      setBotCount: (bots) => { this._botCount = bots; },
       enterMenu: (message) => this.enterMenu(message),
       detachGameplay: () => this._detachGameplayListeners(),
       enterLive: (attempt) => this._beginLiveBoot(attempt),
@@ -274,7 +275,6 @@ export class Session {
   get welcome() { return this._welcome; }
   get myId() { return this._myId; }
   get mapMeta() { return this._mapMeta; }
-  get botCount() { return this._botCount; }
   get masterVolume() { return this._masterVolume; }
   get baseFov() { return this._baseFov; }
   get disconnected() { return this._disconnected; }
@@ -305,6 +305,7 @@ export class Session {
     this.hud.setState({
       alive: true,
       hp: 100,
+      armor: 0,
       crosshairConeDeg: 0,
       panic: 0,
       pain: 0,
@@ -321,6 +322,7 @@ export class Session {
     this.hud.setDeathBrutality(0);
     this.hud.hideDeathNote();
     this.hud.clearDamage();
+    this.hud.clearPowerups?.();
     this.hud.setScope(false);
     this.hud.setMatchState(null, null, [], null);
     this.hud.setBuyMenuState({
@@ -331,7 +333,7 @@ export class Session {
       chaosUpgrades: {},
     });
 
-    this._replacePregameNet();
+    this._pregame.replaceNet();
     this.hud.buildMenu((action) => {
       void this.begin(action);
     }, {
@@ -375,10 +377,6 @@ export class Session {
     }
   }
 
-  isActivePregameAttempt(attempt) {
-    return this._pregame.isActive(attempt);
-  }
-
   async setLobbyReady(attempt, value) {
     return this._pregame.setLobbyReady(attempt, value);
   }
@@ -402,10 +400,6 @@ export class Session {
     return this.enterMenu();
   }
 
-  clearInviteQuery() {
-    return this._pregame.clearInviteQuery();
-  }
-
   applySettings(settings) {
     return this._gameplayUi.applySettings(settings);
   }
@@ -420,10 +414,6 @@ export class Session {
 
   onPointerLockChange(locked) {
     return this._gameplayUi.onPointerLockChange(locked);
-  }
-
-  canUseGameplayInput() {
-    return this._gameplayUi.canUseInput();
   }
 
   setGameplayInputEnabled(enabled) {
@@ -530,14 +520,6 @@ export class Session {
     return true;
   }
 
-  _replacePregameNet() {
-    return this._pregame.replaceNet();
-  }
-
-  _detachPregameListeners() {
-    this._pregame.detachListeners();
-  }
-
   _attachGameplayListeners(net) {
     if (this._gameplayEventsWired) return;
     this._gameplayEventsWired = true;
@@ -619,7 +601,7 @@ export class Session {
   }
 
   _isActiveBootAttempt(attempt) {
-    return this.isActivePregameAttempt(attempt) &&
+    return this._pregame.isActive(attempt) &&
       attempt.liveStarted &&
       !attempt.bootCompleted &&
       this._phase === 'booting';

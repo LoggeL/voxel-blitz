@@ -1,4 +1,5 @@
 import { fbm2, mulberry32 } from '../noise.js';
+import { addFoundryDetails } from './detail-foundry.js';
 import {
   AIR,
   GRASS,
@@ -49,7 +50,7 @@ const FOUNDRY_SPAWN_ANCHORS = {
   },
 };
 
-export function terrainHeight(x, z) {
+function terrainHeight(x, z) {
   const n1 = fbm2(x * 0.032, z * 0.032, SEED, 4);
   const n2 = fbm2(x * 0.11 + 40, z * 0.11 + 40, SEED + 7, 3);
   const h = GROUND + Math.round(n1 * 7 + n2 * 1.5);
@@ -302,6 +303,10 @@ function polishFoundry(world, heights) {
     fillBox(world, x - width, y, z, x + width, y + 1, z, CONCRETE);
     world.setBlock(x, y + 2, z, ACCENT);
   }
+
+  addFoundryDetails(world, heights, {
+    towers: TOWERS, houses: HOUSES, sites: FOUNDRY_SITE_LAYOUTS, craneTop,
+  });
 
   for (const pool of [
     FOUNDRY_SPAWN_ANCHORS.fun,

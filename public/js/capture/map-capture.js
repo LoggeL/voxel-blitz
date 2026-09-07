@@ -28,7 +28,6 @@ camera.updateProjectionMatrix();
 const world = createMapState(map);
 const worldview = new WorldView({ getBlock: world.getBlock, meta: world.meta }, world.meta);
 await worldview.ready();
-worldview.setCamera(camera);
 worldview.setGameMode(shot.mode);
 worldview.scene.add(camera);
 

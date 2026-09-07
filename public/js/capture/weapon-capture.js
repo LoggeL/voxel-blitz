@@ -2,6 +2,8 @@ import * as THREE from '../vendor/three.module.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { findWeaponCaptureShot } from '../../../shared/weapon-capture-shots.js';
 import { ImpactFX } from '../weapons/impacts.js';
+import { ChunkStore } from '../engine/chunks.js';
+import { buildAtlas } from '../engine/atlas.js';
 import { RailBeamFX } from '../weapons/rail-beam.js';
 import { FlameFX } from '../weapons/flame.js';
 import { ViewmodelRig } from '../guns/viewmodel.js';
@@ -111,13 +113,14 @@ if (state.startsWith('pickaxe-')) {
   for (let frame = 0; frame < Math.round(seconds * 100); frame++) rig.update(0.01, stablePose);
 }
 if (state.startsWith('mining-')) {
-  const block = new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1),
-    new THREE.MeshStandardMaterial({ color: 0x90969a, roughness: 1 }));
-  block.position.set(-0.5, 1.5, -2.5);
-  scene.add(block);
+  const progress = state === 'mining-low' ? 0.2 : 0.9;
+  const chunks = new ChunkStore(scene, buildAtlas(),
+    (x, y, z) => x === 1 && y === 1 && z === 1 ? 3 : 0, () => progress);
+  chunks.rebuildChunk(0, 0);
+  chunks.group.position.set(-2, 0, -4);
   const fx = new ImpactFX(scene, camera, () => 3);
   fx.mine({ x: -1, y: 1, z: -3, nx: 0, ny: 0, nz: 1, from: 3,
-    progress: state === 'mining-low' ? 0.2 : 0.9 });
+    progress });
 }
 
 if (state.startsWith('swap-')) {

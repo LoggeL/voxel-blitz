@@ -53,6 +53,8 @@ void main() {
   col += vec3(1.00, 0.88, 0.62) * pow(sd, 320.0) * 0.35;
   col += vec3(1.00, 0.92, 0.75) * pow(sd, 24.0) * 0.10;
   gl_FragColor = vec4(col, 1.0);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
 }`;
 
 const _tmpVec = new THREE.Vector3();
@@ -61,7 +63,7 @@ const _tmpVec = new THREE.Vector3();
  * Adds sky dome + clouds to the scene.
  * @returns {((dt:number)=>void) & {dispose:()=>void}} cloud updater with owned-resource cleanup.
  */
-export function installSky(scene) {
+export function installSky(scene, palette = {}) {
   const group = new THREE.Group();
   group.name = 'sky';
 
@@ -69,8 +71,8 @@ export function installSky(scene) {
     new THREE.SphereGeometry(SKY_RADIUS, 32, 16),
     new THREE.ShaderMaterial({
       uniforms: {
-        topColor: { value: new THREE.Color(SKY_TOP_HEX) },
-        horizonColor: { value: new THREE.Color(SKY_HORIZON_HEX) },
+        topColor: { value: new THREE.Color(palette.skyTop || SKY_TOP_HEX) },
+        horizonColor: { value: new THREE.Color(palette.skyHorizon || SKY_HORIZON_HEX) },
         sunDir: { value: SUN_DIR.clone() },
       },
       vertexShader: SKY_VERT,
@@ -91,7 +93,7 @@ export function installSky(scene) {
   group.add(dome);
 
   const cloudMat = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
+    color: palette.cloud || 0xffffff,
     transparent: true,
     opacity: 0.85,
   });

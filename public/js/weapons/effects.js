@@ -187,11 +187,6 @@ export class Effects {
   }
 }
 
-/** Wire the rig's world-space shell recipe into the single brass owner. */
-export function attachShellBridge(effects, rig) {
-  rig.onShellEject = ({ pos, vel }) => effects.spawnBrass(pos, vel);
-}
-
 /** Wire the rig's live muzzle transform into the local tracer anchor. */
 export function attachMuzzleBridge(effects, rig) {
   if (effects.flames) effects.flames.muzzleProvider = (out) => rig.getMuzzleWorldPos(out);

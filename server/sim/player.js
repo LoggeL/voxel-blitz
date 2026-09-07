@@ -1,5 +1,5 @@
 import { stanceEye } from '../../shared/player-stance.js';
-import { chaosWeaponDef } from './chaos-combat.js';
+import { chaosWeaponDef } from '../../shared/chaos.js';
 // Authoritative combatant state, loadouts, and aim helpers.
 
 import { SX, SZ } from '../../shared/worlddata.js';
@@ -10,12 +10,10 @@ import {
 } from '../../shared/combatmath.js';
 import { mulberry32 } from '../../shared/noise.js';
 import { freshGrenadeLoadout } from '../../shared/grenade-rules.js';
+import { POWERUP_RULES } from '../../shared/powerups.js';
 
 import { PHYSICS } from '../../shared/player-movement.js';
-export { PHYSICS } from '../../shared/player-movement.js';
 
-const EYE = PHYSICS.eye;
-const CROUCH_EYE = PHYSICS.crouchEye;
 const CHEST_Y = 1.2;
 
 /** Direction vector from aim angles. yaw=0 faces -Z and pitch>0 looks up. */
@@ -44,7 +42,7 @@ export function wrapAngle(a) {
   return Math.atan2(Math.sin(a), Math.cos(a));
 }
 
-export function seedFromString(s) {
+function seedFromString(s) {
   let h = 2166136261 >>> 0;
   for (let i = 0; i < s.length; i++) {
     h ^= s.charCodeAt(i);
@@ -61,7 +59,7 @@ export function shotRng(player) {
 }
 
 /** Return independent ammunition arrays for a fresh life. */
-export function freshLoadout() {
+function freshLoadout() {
   return {
     mag: WEAPON_IDS.map((key) => WEAPONS[key].magSize),
     // Kept as `reserve` on the wire for compatibility; each value is a count
@@ -96,6 +94,7 @@ export class PlayerEntity {
     );
     this.yaw = centerAim.yaw; this.pitch = 0;
     this.hp = 100;
+    this.armor = 0;
     this.panic = 0;
     this.burn = null;
     this.burning = 0;
@@ -116,6 +115,7 @@ export class PlayerEntity {
     this.reloadPrev = false;
     this.vault = null;
     this.jumpGroundY = null;
+    this.jumpWasHeld = false;
     this.reloadStage = null;
     this.reloadLoose = 0;
     this.deployT = WEAPONS[WEAPON_IDS[this.weapon]].deployTime;
@@ -151,13 +151,19 @@ export class PlayerEntity {
   }
 
   get def() { return chaosWeaponDef(this, WEAPONS[WEAPON_IDS[this.weapon]]); }
-  get eyeY() { return this.y + stanceEye(EYE, this.crouch, this.proneT); }
+  get eyeY() { return this.y + stanceEye(PHYSICS.eye, this.crouch, this.proneT); }
 
   /** Return true when the hit is lethal. */
   takeDamage(dmg, headshot = false) {
     if (this.state !== 'alive') return false;
-    const amount = Math.max(0, Number.isFinite(dmg) ? dmg : 0);
-    this.hp -= amount;
+    if (!Number.isFinite(dmg) || dmg <= 0) return false;
+    const amount = dmg;
+    const armor = Math.max(0, Math.min(POWERUP_RULES.maxArmor,
+      Number.isFinite(this.armor) ? this.armor : 0));
+    const absorbed = Math.min(armor, amount);
+    this.armor = armor - absorbed;
+    this.hp -= amount - absorbed;
+    // Armor prevents wounds, while the incoming impact still shakes the player.
     this.panic = clamp01(this.panic + amount * CONDITION_RULES.panicDamageGain +
       (headshot ? CONDITION_RULES.panicHeadshotGain : 0));
     this.pain = clamp01(this.pain + amount * CONDITION_RULES.painDamageGain +

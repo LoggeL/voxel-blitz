@@ -282,6 +282,7 @@ export class WeaponWheelController {
     const { open, entries, x, y, highlight, step, setHighlight, pointerInteractive } = state;
 
     if (entries !== undefined) {
+      this.ensure();
       const sig = _entriesSignature(entries);
       if (sig !== this._entriesSig) {
         this._entriesSig = sig;

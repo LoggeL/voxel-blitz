@@ -4,7 +4,7 @@ import { ProjectileSystem } from '../server/sim/projectiles.js';
 import { sweepPlayers } from '../server/sim/projectile-contact.js';
 import { playerHitboxes, rayPlayerHitboxes } from '../shared/player-hitboxes.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
-import { evProjectileUpdate } from '../server/protocol.js';
+import { evProjectileUpdate } from '../server/protocol/events.js';
 import { raycastVoxels } from '../shared/raycast.js';
 
 // Frozen reference algorithms keep equivalence and cost comparisons useful after commits.

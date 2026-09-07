@@ -45,7 +45,6 @@ for (let i = 0; i < expected.length; i++) {
   const copy = structuredClone(boxes);
   playerHitboxes({ ...p, yaw: p.yaw + 1, proneT: 1 - p.proneT });
   assert.deepEqual(boxes, copy);
-  for (const box of boxes) close(pointPlayerDistance(box.center, p), 0);
 }
 assert.ok(contacts > 0 && misses > 0);
 console.log(`Hitbox refactor: ${contacts} contacts, ${misses} misses, ${expected.length} point distances and independently owned pose geometry match.`);

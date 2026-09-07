@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { fireOneShot } from '../server/sim/combat.js';
-import { FlameSystem, fireFlame, updateBurn } from '../server/sim/fire.js';
+import { FlameSystem, updateBurn } from '../server/sim/fire.js';
 import { PlayerEntity } from '../server/sim/player.js';
 import { WEAPONS, WEAPON_IDS, damageAtDistance } from '../shared/combatmath.js';
 import { FLAME_RULES, FLAME_BURN, flamePanicFloor } from '../shared/flame-rules.js';
@@ -108,7 +108,7 @@ for (const blocked of ['wall', 'friendly', 'range', 'behind']) {
   fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx); updateBurn(victim, 0.25, ctx);
   const nextOwner = new PlayerEntity('next-owner', 'Next Owner', spawn, false);
   ctx.entities.delete(owner.id); ctx.entities.set(nextOwner.id, nextOwner);
-  fireFlame(nextOwner, [nextOwner.x, nextOwner.eyeY, nextOwner.z], { x: 0, y: 0, z: -1 }, ctx);
+  ctx.flames.launch(nextOwner, [nextOwner.x, nextOwner.eyeY, nextOwner.z], { x: 0, y: 0, z: -1 }, ctx);
   ctx.flames.step(0.6, ctx);
   assert.equal(victim.burn.owner, nextOwner, 'most recent contact owns the single afterburn');
   assert.equal(victim.burn.elapsed, 0.25, 'owner handoff preserves pending burn time');
@@ -170,7 +170,7 @@ const { GameEngine } = await import('../server/game.js');
   Object.assign(owner, { x: 40.5, y: 40, z: 50.5, yaw: 0, pitch: 0,
     weapon: WEAPON_IDS.indexOf('flamethrower'), spawnProtectedUntil: 0 });
   Object.assign(victim, { x: 40.5, y: 40, z: 47.5, spawnProtectedUntil: 0 });
-  engine.fireOneShot(owner);
+  fireOneShot(owner, engine.contexts.combat);
   const hp = victim.hp;
   for (let i = 0; i < 35; i++) engine.step(20);
   assert.ok(victim.hp < hp, 'real simulation advances burn damage');

@@ -2,6 +2,7 @@
 // Session, LocalPlayer, WeaponState, AvatarRoster, and CombatFeedback.
 import * as THREE from './vendor/three.module.js';
 import { WEAPONS, WEAPON_IDS } from '../../shared/combatmath.js';
+import { VAULT_SECONDS } from '../../shared/player-movement.js';
 import { deserializeWorld, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
 import { Input } from './engine/input.js';
 import {
@@ -11,7 +12,7 @@ import {
 import { WorldView } from './engine/worldview.js';
 import { ViewmodelRig } from './guns/viewmodel.js';
 import { WeaponState, shouldShowViewmodel } from './guns/weapon-state.js';
-import { Effects, attachShellBridge, attachMuzzleBridge } from './weapons/effects.js';
+import { Effects, attachMuzzleBridge } from './weapons/effects.js';
 import { HUD } from './ui/hud.js';
 import { WeaponWheelController } from './session/weapon-wheel-controller.js';
 import { RunHud } from './ui/run-hud.js';
@@ -26,8 +27,6 @@ import { disposeFirstPersonBody, makeFirstPersonBody } from './player/first-pers
 import { fwdFromAngles } from './util/look.js';
 import { nowMs } from './util/math.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS, grenadeFuseAfterCook } from '../../shared/grenade-rules.js';
-
-export { currentConeDeg, fwdFromAngles } from './util/look.js';
 
 class Game {
   constructor() {
@@ -123,8 +122,6 @@ class Game {
   get net() { return this.session.net; }
   get myId() { return this.session.myId; }
 
-  start() { this.session.start(); }
-
   resize() {
     if (!this.renderer || !this.camera) return;
     this.renderer.setSize(innerWidth, innerHeight);
@@ -149,7 +146,10 @@ class Game {
     if (!net.isOpen()) return this.session.handleDisconnect();
 
     showStatus('building voxel mesh…', 'ok');
-    this.worldview = new WorldView({ getBlock }, this.mapMeta);
+    this.worldview = new WorldView({
+      getBlock,
+      getBlockDamage: (x, y, z) => net.getBlockDamage(x, y, z),
+    }, this.mapMeta);
     await this.worldview.ready();
     if (!isActive()) return;
     if (!net.isOpen()) return this.session.handleDisconnect();
@@ -172,7 +172,8 @@ class Game {
     this.worldview.scene.add(this.ownBody.group);
     this.player.setFirstPersonBody(this.ownBody);
     this.rig = new ViewmodelRig(this.camera);
-    attachShellBridge(this.effects, this.rig);
+    const effects = this.effects;
+    this.rig.onShellEject = ({ pos, vel }) => effects.spawnBrass(pos, vel);
     attachMuzzleBridge(this.effects, this.rig);
     this.weapon = new WeaponState({
       rig: this.rig,
@@ -189,8 +190,8 @@ class Game {
     });
     this.weapon.resetToLoadout();
     this.hud.setupWeaponWheel({
-      onPick: (slot) => this.commitWeaponWheel(slot),
-      onCancel: () => this.closeWeaponWheel(),
+      onPick: (slot) => this.weaponWheel.commit(slot),
+      onCancel: () => this.weaponWheel.close(),
     });
     this.rig.setWeapon(WEAPON_IDS[this.weapon.slot]);
     this.rig.onReloadClick = (step) => sfx.reloadClick(step, WEAPON_IDS[this.weapon.slot]);
@@ -290,6 +291,7 @@ class Game {
     const self = players.find((row) => row.id === this.myId) || null;
     const match = snapshot.match && typeof snapshot.match === 'object' ? snapshot.match : null;
     this.matchState = match;
+    this.worldview?.setPowerups(snapshot.powerups);
     this.selfRow = self;
     this.playersCache = presented;
     this.serverNow = Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : null;
@@ -355,7 +357,7 @@ class Game {
 
   isAuthoritativeFireAllowed() {
     if (!this.session.gameplayInputEnabled || !this.player.alive ||
-        this.selfRow?.state !== 'alive' || this._wheelOpen || this.player.physics.vault) return false;
+        this.selfRow?.state !== 'alive' || this.weaponWheel.open || this.player.physics.vault) return false;
     if (this.matchState?.mode === 'fun' || this.matchState?.mode === 'training') return true;
     return (this.matchState?.mode === 'chaos' || this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
       this.matchState?.mode === 'gungame') &&
@@ -365,7 +367,7 @@ class Game {
   isAuthoritativeInteractAllowed() {
     return !!(this.session.gameplayInputEnabled && this.player.alive &&
       this.matchState?.mode === 'snd' && this.matchState.phase === 'live' &&
-      this.selfRow?.state === 'alive' && !this._wheelOpen);
+      this.selfRow?.state === 'alive' && !this.weaponWheel.open);
   }
 
   isAuthoritativeMovementAllowed() {
@@ -427,12 +429,6 @@ class Game {
     sfx.grenadeThrow(thrown.charge);
   }
 
-  get _wheelOpen() { return this.weaponWheel.open; }
-  openWeaponWheel() { return this.weaponWheel.openWheel(); }
-  closeWeaponWheel(slot = null) { return this.weaponWheel.close(slot); }
-  commitWeaponWheel(slot) { return this.weaponWheel.commit(slot); }
-  syncWeaponWheel() { this.weaponWheel.sync(); }
-
   /**
    * Contextual touch buttons: only actions that can do something right now are shown.
    * Cheap on unchanged frames because TouchControls diffs the visibility set.
@@ -451,7 +447,7 @@ class Game {
     ctx.canInteract = this.isAuthoritativeInteractAllowed();
     ctx.weaponCount = Array.isArray(owned) ? owned.length : WEAPON_IDS.length;
     ctx.canBuy = this.session.canOpenBuyMenu();
-    ctx.wheelOpen = this._wheelOpen;
+    ctx.wheelOpen = this.weaponWheel.open;
     this.input.setTouchContext(ctx);
   }
 
@@ -510,7 +506,7 @@ class Game {
     const now = nowMs();
     this.session.syncGameplayInput();
     this.input.poll(now, dt);
-    this.syncWeaponWheel();
+    this.weaponWheel.sync();
     if (this.input.scoreboardHeld !== this._padScoreboard) {
       this._padScoreboard = this.input.scoreboardHeld;
       this.hud.setScoreboard(this._padScoreboard);
@@ -544,7 +540,7 @@ class Game {
         reloading: this.weapon.isReloading,
       }),
     });
-    this.weapon.settleFrame(dt);
+    this.weapon.settleFrame(dt, { vaulting: !!this.player.physics.vault });
     this.presentGrenadeHandling(now);
     const def = this.weapon.def;
     // Scope zoom steps (Z, wheel while scoped, R3, touch ZOOM) only while looking through the optic.
@@ -570,6 +566,7 @@ class Game {
         forwardSpeed,
         grounded: this.player.physics.grounded,
         vaulting: !!this.player.physics.vault,
+        vaultProgress: this.player.physics.vault ? this.player.physics.vault.elapsed / VAULT_SECONDS : 0,
         verticalVelocity: this.player.physics.vel.y,
         isSprinting: !this.player.wantAds && this.player.keys.sprint && this.player.speedXZ > 4.6,
         crouch: this.player.crouchBool,
@@ -615,6 +612,7 @@ class Game {
       crosshairFov: this.camera.fov,
       crosshairHeight: innerHeight,
       hp: this.player.hp,
+      armor: this.selfRow?.armor ?? 0,
       ...this.weapon.readModel(now),
       panic: this.player.panic,
       pain: this.player.pain,
@@ -777,11 +775,10 @@ window.__vb = {
       ping: Math.round(game.net?.ping || 0),
       avatars: game.roster?.size || 0,
       chunks: game.worldview?.chunkStore.stats || null,
+      damagedBlocks: game.net?.blockDamage?.size || 0,
     };
   },
-  get wheelOpen() { return game._wheelOpen; },
-  get wheelOwned() { return game.selfRow?.owned ?? null; },
-  get wheelMatchMode() { return game.matchState?.mode ?? null; },
+  get wheelOpen() { return game.weaponWheel.open; },
 };
 
 if (debugMode) {
@@ -818,4 +815,4 @@ if (debugMode) {
   window.addEventListener('error', game._onDebugError, true);
 }
 
-game.start();
+game.session.start();

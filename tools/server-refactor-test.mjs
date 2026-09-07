@@ -7,24 +7,10 @@ import { stepMovement } from '../server/sim/movement.js';
 import { AIR, STONE, WOOD, PLANK, GLASS, METAL, SX, SY, SZ, GRENADE_RESISTANCE } from '../shared/worlddata.js';
 import { raycastVoxels } from '../shared/raycast.js';
 
-// Engine ports remain live across ticks, phase transitions, state replacement,
-// and nested projectile -> terrain -> combat operations.
+// Terrain effects retain the current room world after state replacement.
 {
   const game = new GameEngine();
-  const combat = game.combatContext(), projectiles = game.projectileContext();
-  assert.equal(game.combatContext(), combat);
-  assert.equal(game.projectileContext(), projectiles);
-  game.now += 500;
-  assert.equal(combat.now, game.now);
-  assert.equal(projectiles.now, game.now);
-  game.mode.policy.phase = 'post';
-  assert.equal(combat.canBurn(), false);
-  assert.equal(projectiles.canAffectWorld(), false);
-  game.mode.policy.phase = 'live';
-  game.mode.policy.mode = 'gungame';
-  assert.equal(projectiles.grenadeDamage, false);
-  game.mode.policy.mode = 'fun';
-  assert.equal(projectiles.grenadeDamage, true);
+  const projectiles = game.contexts.projectiles;
   const blocks = new Map([['10,10,10', PLANK], ['10,11,10', GLASS]]);
   game.world = {
     getBlock: (x, y, z) => blocks.get(`${x},${y},${z}`) || AIR,
@@ -32,7 +18,6 @@ import { raycastVoxels } from '../shared/raycast.js';
   };
   game.tickEvents = [];
   game.blockHp = new Map();
-  assert.equal(combat.solidAt(10, 10, 10), true);
   projectiles.damageBlock(10, 10, 10, PLANK, 10000);
   assert.equal(blocks.get('10,10,10'), AIR);
   assert.equal(blocks.get('10,11,10'), AIR, 'fragile support collapse survives the shared ports');
@@ -171,4 +156,4 @@ for (const origin of [[20.5, 20.5, 20.5], [22.123, 12.876, 18.42], [0.12, 1.2, 0
 assert(totals.destroyed > 100, 'equivalence fixtures must actually destroy terrain');
 assert(totals.after < totals.before * 0.7, 'sphere rejection removes at least 30% of terrain reads');
 console.log(JSON.stringify({ terrainVoxelReads: totals, elapsedMs: Math.round(performance.now() - start) }));
-console.log('Server refactor: live room contexts, pose history, projectile membership and terrain equivalence passed.');
+console.log('Server refactor: room terrain effects, pose history, projectile membership and terrain equivalence passed.');

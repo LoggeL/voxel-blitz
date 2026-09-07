@@ -1,5 +1,5 @@
 // Bounded hit confirmations, material-aware voxel debris, and block shatter FX.
-import { createBlockCrackMaterials } from './block-cracks.js';
+import { removedDamageCells } from '../engine/block-damage-geometry.js';
 import * as THREE from '../vendor/three.module.js';
 import { freeOldestIndex, hideInstance, makeImpactCrossGeometry } from './instancing.js';
 
@@ -22,6 +22,12 @@ const BLOCK_TINTS = Object.freeze({
   12: 0xcfd3d6,
   13: 0xb5723a,
   14: 0xa8543e,
+  15: 0xe6c665,
+  16: 0x76aaa5,
+  17: 0x444b54,
+  18: 0x716052,
+  19: 0xe5b537,
+  20: 0xb74538,
 });
 
 const NORMAL_IMPACT_PARTICLES = Object.freeze({
@@ -60,9 +66,6 @@ export class ImpactFX {
     this.getBlockFn = worldGetBlockFn || (() => 0);
     this.particlesSpawned = 0;
     this._disposed = false;
-    this.miningCracks = new Map();
-    this.crackMaterials = createBlockCrackMaterials();
-    this.crackGeometry = new THREE.BoxGeometry(1.006, 1.006, 1.006);
 
     this._m4 = new THREE.Matrix4();
     this._q = new THREE.Quaternion();
@@ -230,25 +233,22 @@ export class ImpactFX {
   }
 
   mine(ev) {
-    const key = `${ev.x},${ev.y},${ev.z}`;
-    const old = this.miningCracks.get(key);
-    if (old) { this.scene.remove(old.mesh); }
-    this.miningCracks.delete(key);
     this.spawnParticles(ev.x + 0.5 + ev.nx * 0.53, ev.y + 0.5 + ev.ny * 0.53,
       ev.z + 0.5 + ev.nz * 0.53, ev.progress >= 1 ? 18 : 5,
       BLOCK_TINTS[ev.from] || 0x999999, DUST_PARTICLES);
-    if (ev.progress >= 1) return;
-    if (this.miningCracks.size >= 24) {
-      const [oldKey, cue] = this.miningCracks.entries().next().value;
-      this.scene.remove(cue.mesh);
-      this.miningCracks.delete(oldKey);
+  }
+
+  /** Debris follows exactly the cells removed by the persistent chunk mesh. */
+  chipBlock(ev) {
+    if (this._disposed || this.getBlockFn(ev.x, ev.y, ev.z) !== ev.v) return;
+    const cells = removedDamageCells(ev.x, ev.y, ev.z, ev.previousProgress || 0, ev.progress);
+    for (const [x, y, z] of cells) {
+      this.spawnParticles(ev.x + x, ev.y + y, ev.z + z, 1,
+        BLOCK_TINTS[ev.v] || 0x999999, {
+          speed: 1.5, gravity: 15, size: 2.4, life: 0.85,
+          outward: [x - 0.5, y - 0.5, z - 0.5],
+        });
     }
-    const stage = Math.max(0, Math.min(9, Math.ceil(ev.progress * 10) - 1));
-    const mesh = new THREE.Mesh(this.crackGeometry, this.crackMaterials[stage]);
-    mesh.renderOrder = 2;
-    mesh.position.set(ev.x + 0.5, ev.y + 0.5, ev.z + 0.5);
-    this.scene.add(mesh);
-    this.miningCracks.set(key, { mesh, life: 0.8, x: ev.x, y: ev.y, z: ev.z });
   }
 
   explodeBlock(x, y, z, blockId) {
@@ -289,6 +289,11 @@ export class ImpactFX {
       p.vx = Math.sin(ph) * Math.cos(th) * speed;
       p.vy = Math.abs(Math.cos(ph)) * speed * (opt.sparks ? 1 : 0.9);
       p.vz = Math.sin(ph) * Math.sin(th) * speed;
+      if (opt.outward) {
+        p.vx += opt.outward[0] * 7;
+        p.vy += opt.outward[1] * 4 + 1.2;
+        p.vz += opt.outward[2] * 7;
+      }
       p.spinX = (Math.random() - 0.5) * 12;
       p.spinY = (Math.random() - 0.5) * 12;
       p.rx = Math.random() * TAU;
@@ -301,13 +306,6 @@ export class ImpactFX {
   }
 
   update(dt) {
-    for (const [key, cue] of this.miningCracks) {
-      cue.life -= dt;
-      if (cue.life <= 0 || !this.getBlockFn(cue.x, cue.y, cue.z)) {
-        this.scene.remove(cue.mesh);
-        this.miningCracks.delete(key);
-      }
-    }
     let impactsDirty = false;
     for (let i = 0; i < this.impacts.length; i++) {
       const cue = this.impacts[i];
@@ -385,12 +383,6 @@ export class ImpactFX {
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
-    for (const cue of this.miningCracks.values()) {
-      this.scene.remove(cue.mesh);
-    }
-    this.miningCracks.clear();
-    this.crackGeometry.dispose();
-    for (const material of this.crackMaterials) { material.map.dispose(); material.dispose(); }
     for (const mesh of [this.partMesh, ...this.impactMeshes]) {
       this.scene.remove(mesh);
       mesh.dispose();
