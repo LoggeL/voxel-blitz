@@ -228,6 +228,7 @@ export class GameEngine {
     player.grenadeChargeQueued = 0;
     player.grenadeTypeQueued = 0;
     player.grenadeCookQueued = 0;
+    player.grenadeAimQueued = null;
     player.charging = false;
     player.chargeT = 0;
     player.charge = 0;
@@ -298,6 +299,9 @@ export class GameEngine {
     input.pitch = Number.isFinite(msg.pitch)
       ? Math.max(-MAX_PITCH, Math.min(MAX_PITCH, msg.pitch))
       : (previous ? previous.pitch : player.pitch);
+    // Carry/turn lag changes weapon aim without steering the player's feet.
+    // Older clients omit viewYaw and retain their original movement convention.
+    input.viewYaw = Number.isFinite(msg.viewYaw) ? wrapAngle(msg.viewYaw) : input.yaw;
     const requestedWeapon = msg.switchTo != null ? msg.switchTo : msg.weapon;
     if (Number.isFinite(requestedWeapon)) input.switchTo = clampWeaponSlot(requestedWeapon);
     if (input.wantFire && !(previous && previous.wantFire)) player.fireEdgeQueued = true;
@@ -306,6 +310,11 @@ export class GameEngine {
       player.grenadeChargeQueued = input.grenadeCharge;
       player.grenadeTypeQueued = input.grenadeType;
       player.grenadeCookQueued = input.grenadeCook;
+      // Freeze the release independently of gun aim in this and later inputs.
+      // Legacy or malformed payloads use the sanitized input direction.
+      player.grenadeAimQueued = Number.isFinite(msg.grenadeAim?.yaw) && Number.isFinite(msg.grenadeAim?.pitch)
+        ? { yaw: wrapAngle(msg.grenadeAim.yaw), pitch: Math.max(-MAX_PITCH, Math.min(MAX_PITCH, msg.grenadeAim.pitch)) }
+        : { yaw: input.yaw, pitch: input.pitch };
     }
     player.input = input;
   }
@@ -345,6 +354,7 @@ export class GameEngine {
 
   killPlayer(victim, killer, weaponKey, headshot, markers = null) {
     if (victim.state !== 'alive') return;
+    const damage = victim.hp <= 0 && victim.lastDamage?.lethal ? victim.lastDamage : null;
     victim.hp = 0;
     victim.armor = 0;
     victim.state = 'dead';
@@ -369,13 +379,14 @@ export class GameEngine {
     const shotTraits = {
       longRange: !!markers?.longRange,
       noScope: !!markers?.noScope,
+      damage,
     };
     if (killer && killer !== victim && killer.id !== victim.id) {
       killer.kills++;
       killer.score += this.mode.killScoreDelta(victim, killer, modeContext);
     }
     this.mode.onPlayerDeath(victim, killer, modeContext);
-    this.tickEvents.push(evDie(victim.id));
+    this.tickEvents.push(evDie(victim.id, damage));
     this.tickEvents.push(evKill(
       killer ? killer.id : '',
       victim.id,

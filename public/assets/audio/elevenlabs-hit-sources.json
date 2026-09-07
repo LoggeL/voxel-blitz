@@ -1,0 +1,335 @@
+{
+  "service": "ElevenLabs Sound Effects",
+  "generated": "2026-09-08",
+  "candidates": 8,
+  "selections": [
+    {
+      "id": "hit-body",
+      "source": "hitbody-2.wav",
+      "trim": [
+        0,
+        0.08
+      ],
+      "highpass": 160,
+      "lowpass": 2400,
+      "peak": 0.24,
+      "fade_out": 0.012,
+      "output": "public/assets/audio/ui/hitmark-body.ogg",
+      "reason": "Candidate 2 has an immediate contained tick and short decay. Candidates 1 and 3 have later main impacts; candidate 4 contains weaker separated pulses. Remove sub-bass and bright ringing so rapid hits stay soft.",
+      "mono": "0.5L + 0.5R",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "fade_in_seconds": 0.001,
+      "normalization_gain": 0.7181190319513856,
+      "final_metrics": {
+        "duration_seconds": 0.08,
+        "peak": 0.23750391602516174,
+        "rms": 0.04291599552717191,
+        "peak_dbfs": -12.486584504437214,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -8.186084986879412e-05,
+        "onset_seconds_2pct_peak": 0.000125,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.07,
+        "rms_5ms_peak": 0.09452357835340916,
+        "rms_5ms_peak_at_seconds": 0.01,
+        "energy_seconds": {
+          "50": 0.017145833333333332,
+          "90": 0.03960416666666667,
+          "95": 0.04625,
+          "99": 0.058770833333333335
+        },
+        "spectral_centroid_hz": 755.4519900236409,
+        "energy_band_percent": {
+          "0-120Hz": 33.16351397942373,
+          "120-1000Hz": 35.86501471633627,
+          "1000-5000Hz": 30.42274575293769,
+          "5000-24001Hz": 0.5487255513023164
+        },
+        "boundary_step": 0.0010872170896618627,
+        "sample_step_99pct": 0.031029841518029563,
+        "first_20ms_rms": 0.0651607720678401,
+        "last_20ms_rms": 0.0070377881633991056,
+        "rms_5ms_coefficient_of_variation": 0.7378498109494767
+      },
+      "output_sha256": "8e9591c6e66ac9a78f87f4cddba8cb16b6e6dcbb0a17b84312fb5a7ae2f6b069",
+      "generation": {
+        "created_at": "2026-09-07T22:12:57.615577+00:00",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "One subtle dry FPS hit-confirmation tick, immediate onset: a soft tight woody tack with a small low-mid punch, tactile and clean, fast natural decay under 0.09 seconds. Quiet close game UI feedback for rapid repeats. No beep, no pitched note, no chime, no ringing, no metallic clang, no wet gore, no gunshot, no voice, no reverb, no music, one event only.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "2882f1f5a13c92f21d2defbc370a55098ed76e9e2d58631da65b390124b3180d",
+        "decoded_sha256": "8544ba6ce098291ce188cf478dbc8883cd8a5c03310b219f225ffe12da658e38"
+      }
+    },
+    {
+      "id": "hit-head",
+      "source": "hithead-3.wav",
+      "trim": [
+        0,
+        0.075
+      ],
+      "highpass": 220,
+      "lowpass": 3800,
+      "peak": 0.28,
+      "fade_out": 0.012,
+      "output": "public/assets/audio/ui/hitmark-head.ogg",
+      "reason": "Candidate 3 is the clean immediate snap. Candidate 1 reaches full scale with a 284 ms delay; candidates 2 and 4 are nearly silent low-frequency artifacts. A broader midrange and slightly higher level distinguish precision hits without pitched tones.",
+      "mono": "0.5L + 0.5R",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "fade_in_seconds": 0.001,
+      "normalization_gain": 1.5794477941589333,
+      "final_metrics": {
+        "duration_seconds": 0.075,
+        "peak": 0.2759392559528351,
+        "rms": 0.03627611598199945,
+        "peak_dbfs": -11.183730221591004,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 1.4843234913162936e-05,
+        "onset_seconds_2pct_peak": 0.00014583333333333335,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.035,
+        "rms_5ms_peak": 0.0991710124184931,
+        "rms_5ms_peak_at_seconds": 0.0,
+        "energy_seconds": {
+          "50": 0.005020833333333334,
+          "90": 0.011375,
+          "95": 0.0161875,
+          "99": 0.03
+        },
+        "spectral_centroid_hz": 3105.6315915382397,
+        "energy_band_percent": {
+          "0-120Hz": 0.018275166140165108,
+          "120-1000Hz": 3.367733535683871,
+          "1000-5000Hz": 71.70310860654607,
+          "5000-24001Hz": 24.910882691629897
+        },
+        "boundary_step": 0.0027093819153378718,
+        "sample_step_99pct": 0.07457324981689452,
+        "first_20ms_rms": 0.06902203045622494,
+        "last_20ms_rms": 0.002047624309794665,
+        "rms_5ms_coefficient_of_variation": 1.4224199719092752
+      },
+      "output_sha256": "f7aed4dc80696379f328357288d3e169389c353beb0a9cde15f6299d828a22f5",
+      "generation": {
+        "created_at": "2026-09-07T22:13:07.566753+00:00",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "One compact satisfying FPS precision-hit confirmation: a dry rounded wooden knock with a fine crisp papery snap, slightly brighter than a soft body-hit tick, immediate attack and short decay under 0.12 seconds. Restrained clean game UI feedback. No beep, no musical pitch, no chime, no ringing, no metallic clang, no gunshot, no gore, no voices or reverb.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "d3ca85a100166beeb9e06e9cd5e3bd53d1e1433937ff4d9ab6480738559ffda8",
+        "decoded_sha256": "2e7093eb5c29ffd2627d11d64d69480a3a8ef546f79c63fecbc29d9a56607222"
+      }
+    },
+    {
+      "id": "kill-body",
+      "source": "hitbody-3.wav",
+      "trim": [
+        0.051,
+        0.195
+      ],
+      "highpass": 110,
+      "lowpass": 2500,
+      "peak": 0.32,
+      "fade_out": 0.025,
+      "output": "public/assets/audio/ui/kill-body.ogg",
+      "reason": "The isolated delayed knock from body candidate 3 has a weightier body and longer decay than the per-hit tick. Trimming to that knock makes a clear short kill confirmation without a melodic flourish.",
+      "mono": "0.5L + 0.5R",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "fade_in_seconds": 0.001,
+      "normalization_gain": 0.6031228063435016,
+      "final_metrics": {
+        "duration_seconds": 0.144,
+        "peak": 0.3194959759712219,
+        "rms": 0.03578030686511885,
+        "peak_dbfs": -9.910692147576336,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -3.224196759431407e-05,
+        "onset_seconds_2pct_peak": 0.0009375,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.075,
+        "rms_5ms_peak": 0.11128955782146879,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.0146875,
+          "90": 0.031208333333333334,
+          "95": 0.037333333333333336,
+          "99": 0.069125
+        },
+        "spectral_centroid_hz": 504.5265251283518,
+        "energy_band_percent": {
+          "0-120Hz": 32.25239814508197,
+          "120-1000Hz": 49.574052421187254,
+          "1000-5000Hz": 17.948345901234728,
+          "5000-24001Hz": 0.2252035324960556
+        },
+        "boundary_step": 0.0009453043439862086,
+        "sample_step_99pct": 0.019645575247704928,
+        "first_20ms_rms": 0.07819006038658109,
+        "last_20ms_rms": 0.0009706680079528436,
+        "rms_5ms_coefficient_of_variation": 1.3208994541470884
+      },
+      "output_sha256": "07cb8ad25d13908d587c783c145a883709de467f39ce1e6e164e019869e0cd75",
+      "generation": {
+        "created_at": "2026-09-07T22:12:59.540594+00:00",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "One subtle dry FPS hit-confirmation tick, immediate onset: a soft tight woody tack with a small low-mid punch, tactile and clean, fast natural decay under 0.09 seconds. Quiet close game UI feedback for rapid repeats. No beep, no pitched note, no chime, no ringing, no metallic clang, no wet gore, no gunshot, no voice, no reverb, no music, one event only.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "b7069f3aac100b3ee66a86183bc07909fd69958e7486283463396afaf1829a10",
+        "decoded_sha256": "c46ae77946ad234a9754e8ae09006328faefdef66cfbe08f3daeb7d282f439b7"
+      }
+    },
+    {
+      "id": "kill-head",
+      "source": "hitbody-1.wav",
+      "trim": [
+        0.051,
+        0.19
+      ],
+      "highpass": 160,
+      "lowpass": 3400,
+      "peak": 0.35,
+      "fade_out": 0.025,
+      "output": "public/assets/audio/ui/kill-head.ogg",
+      "reason": "The second stronger knock from body candidate 1 is isolated and retains slightly more upper mids than body kills. Its short rounded tail adds distinction while leaving headshot hit and kill overlap well below full scale.",
+      "mono": "0.5L + 0.5R",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "fade_in_seconds": 0.001,
+      "normalization_gain": 0.7799304122174077,
+      "final_metrics": {
+        "duration_seconds": 0.139,
+        "peak": 0.3480302691459656,
+        "rms": 0.03006065869353381,
+        "peak_dbfs": -9.167659652597782,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 9.365206518828365e-05,
+        "onset_seconds_2pct_peak": 8.333333333333333e-05,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.085,
+        "rms_5ms_peak": 0.10965747173952649,
+        "rms_5ms_peak_at_seconds": 0.0,
+        "energy_seconds": {
+          "50": 0.005166666666666667,
+          "90": 0.03914583333333333,
+          "95": 0.0514375,
+          "99": 0.07652083333333333
+        },
+        "spectral_centroid_hz": 1045.3906705626168,
+        "energy_band_percent": {
+          "0-120Hz": 20.488673681035298,
+          "120-1000Hz": 37.08719612562167,
+          "1000-5000Hz": 41.104070243767204,
+          "5000-24001Hz": 1.3200599495758365
+        },
+        "boundary_step": 0.00048824094483279623,
+        "sample_step_99pct": 0.03125479775480927,
+        "first_20ms_rms": 0.07298387344283891,
+        "last_20ms_rms": 0.0011077565677398526,
+        "rms_5ms_coefficient_of_variation": 1.43400703312866
+      },
+      "output_sha256": "b18ab534f4187607594086150dcacd78c373514f8413308d58b6a040f1ca8d74",
+      "generation": {
+        "created_at": "2026-09-07T22:12:53.812682+00:00",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "One subtle dry FPS hit-confirmation tick, immediate onset: a soft tight woody tack with a small low-mid punch, tactile and clean, fast natural decay under 0.09 seconds. Quiet close game UI feedback for rapid repeats. No beep, no pitched note, no chime, no ringing, no metallic clang, no wet gore, no gunshot, no voice, no reverb, no music, one event only.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "9bc6e7436a3b71f3db3a530c124b9fe5cf773f02a505ec9883e6d579cf879c83",
+        "decoded_sha256": "752593cdc9a9807b687d947be3d71be07354bf3ec23d25c30c9dca80f55b71f0"
+      }
+    },
+    {
+      "id": "flesh",
+      "source": "hitbody-3.wav",
+      "trim": [
+        0.051,
+        0.175
+      ],
+      "highpass": 80,
+      "lowpass": 1250,
+      "peak": 0.32,
+      "fade_out": 0.025,
+      "output": "public/assets/audio/impacts/flesh.ogg",
+      "reason": "Use the rounded knock as a muted incoming body impact. Low-pass filtering removes the UI snap, and the existing damage gain and flesh cap keep it secondary to the victim pain cue.",
+      "mono": "0.5L + 0.5R",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "fade_in_seconds": 0.001,
+      "normalization_gain": 0.6451291277463334,
+      "final_metrics": {
+        "duration_seconds": 0.124,
+        "peak": 0.3198917508125305,
+        "rms": 0.045024741727721064,
+        "peak_dbfs": -9.89993918223724,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 7.232933488870579e-05,
+        "onset_seconds_2pct_peak": 0.0004375,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.08,
+        "rms_5ms_peak": 0.1285291826915781,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.015583333333333333,
+          "90": 0.035041666666666665,
+          "95": 0.041604166666666664,
+          "99": 0.073125
+        },
+        "spectral_centroid_hz": 237.51100606704077,
+        "energy_band_percent": {
+          "0-120Hz": 47.507082366592364,
+          "120-1000Hz": 47.40529262899954,
+          "1000-5000Hz": 5.075498559091365,
+          "5000-24001Hz": 0.012126445316767855
+        },
+        "boundary_step": 8.937462325775414e-05,
+        "sample_step_99pct": 0.010673394426703453,
+        "first_20ms_rms": 0.09073003119873783,
+        "last_20ms_rms": 0.0029095938622447416,
+        "rms_5ms_coefficient_of_variation": 1.0947306051848658
+      },
+      "output_sha256": "50d99a12130efa40bd82c2168a27b8ee71c133ea76855c06c79cfaced5739bce",
+      "generation": {
+        "created_at": "2026-09-07T22:12:59.540594+00:00",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "One subtle dry FPS hit-confirmation tick, immediate onset: a soft tight woody tack with a small low-mid punch, tactile and clean, fast natural decay under 0.09 seconds. Quiet close game UI feedback for rapid repeats. No beep, no pitched note, no chime, no ringing, no metallic clang, no wet gore, no gunshot, no voice, no reverb, no music, one event only.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "b7069f3aac100b3ee66a86183bc07909fd69958e7486283463396afaf1829a10",
+        "decoded_sha256": "c46ae77946ad234a9754e8ae09006328faefdef66cfbe08f3daeb7d282f439b7"
+      }
+    }
+  ],
+  "review_basis": "Waveform, 5 ms RMS, spectrogram and decoded-output analysis. Listening is not asserted.",
+  "rebuild": "python tools/prepare-hit-audio.py",
+  "source_note": "Original API MP3 responses and receipts are retained; analysis WAVs are decoded PCM."
+}

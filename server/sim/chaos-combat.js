@@ -57,7 +57,7 @@ export function chaosHit(p, victim, point, ctx) {
     if (raycastVoxels(ctx.solidAt, ...point, ...dir, d - 0.1)) continue;
     ctx.pushEvent({ ...evShoot(p.id, point, dir, 'lance', dir), chaosArc: true, reach: d, charge: 0.35 });
     const lethal = v.takeDamage(28, false);
-    ctx.pushEvent(evHit(p.id, v.id, 28, false, [v.x, v.eyeY, v.z]));
+    ctx.pushEvent(evHit(p.id, v.id, 28, false, [v.x, v.eyeY, v.z], v.lastDamage));
     if (lethal) ctx.killPlayer(v, p, id, false);
     else if (id === 'rifle' && level >= 2) { v.vy = Math.max(v.vy, 12); v.grounded = false; v.vault = null; v.impulseSeq = (v.impulseSeq || 0) + 1; }
     if (++hit >= count) break;

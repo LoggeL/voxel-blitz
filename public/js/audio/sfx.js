@@ -359,53 +359,34 @@ export const sfx = {
 
   hitmark(headshot) {
     run('hitmark', () => {
-      const output = pool.acquire(null, 0.4);
+      const output = pool.acquire(null, headshot ? 0.14 : 0.10);
       if (samples.play(headshot ? 'ui.hitmark.head' : 'ui.hitmark.body', output)) return;
       const at = primitives.nowT();
       primitives.hiss(output, {
-        t0: at, filter: 'highpass', f: 4800, q: 0.7, dec: 0.018, g: 0.12,
+        t0: at, filter: 'bandpass', f: headshot ? 1600 : 1050,
+        q: 0.6, dec: headshot ? 0.032 : 0.022, g: headshot ? 0.12 : 0.10,
       });
       primitives.tone(output, {
-        t0: at, type: 'square', f0: 1760, f1: 1420,
-        att: 0.001, dec: 0.04, g: 0.2,
+        t0: at, type: 'triangle', f0: headshot ? 580 : 390,
+        f1: headshot ? 380 : 270, att: 0.001, dec: 0.024, g: 0.09,
       });
-      if (headshot) {
-        primitives.tone(output, {
-          t0: at + 0.012, type: 'sine', f0: 2489.02,
-          att: 0.002, dec: 0.045, g: 0.14,
-        });
-        primitives.tone(output, {
-          t0: at + 0.025, type: 'sine', f0: 987.77,
-          att: 0.005, dec: 0.1, g: 0.12,
-        });
-        primitives.tone(output, {
-          t0: at + 0.095, type: 'sine', f0: 1567.98,
-          att: 0.005, dec: 0.13, g: 0.11,
-        });
-      }
     });
   },
 
-  /** Kill confirmation: a two-note rise above the hitmark, brighter for headshots. */
+  /** A weightier, slightly longer confirmation that stays soft beside the hit tick. */
   killConfirm(headshot = false) {
     run('killConfirm', () => {
-      const output = pool.acquire(null, 0.6);
+      const output = pool.acquire(null, 0.24);
       if (samples.play(headshot ? 'ui.kill.head' : 'ui.kill.body', output)) return;
       const at = primitives.nowT();
       primitives.hiss(output, {
-        t0: at, filter: 'highpass', f: 3400, q: 0.8, dec: 0.05, g: 0.1,
+        t0: at, filter: 'bandpass', f: headshot ? 1300 : 850,
+        q: 0.6, dec: 0.052, g: 0.13,
       });
       primitives.tone(output, {
-        t0: at, type: 'square', f0: 880, f1: 660, att: 0.002, dec: 0.09, g: 0.2,
+        t0: at, type: 'triangle', f0: headshot ? 460 : 330, f1: 200,
+        att: 0.002, dec: 0.065, g: 0.11,
       });
-      primitives.tone(output, {
-        t0: at + 0.07, type: 'sine', f0: 1318.51, att: 0.003, dec: 0.17, g: 0.16,
-      });
-      if (headshot) {
-        primitives.tone(output, {
-          t0: at + 0.13, type: 'sine', f0: 1975.53, att: 0.003, dec: 0.2, g: 0.13,
-        });
-      }
     });
   },
 

@@ -170,8 +170,8 @@ export class CombatFeedback {
         const localVictim = ev.victim === myId;
         if (!localVictim) {
           const victimRow = this.getPlayersCache().find((row) => row.id === ev.victim);
-          const lethal = victimRow?.state === 'dead' ||
-            (Number.isFinite(victimRow?.hp) && victimRow.hp <= 0);
+          const lethal = ev.lethal ?? (victimRow?.state === 'dead' ||
+            (Number.isFinite(victimRow?.hp) && victimRow.hp <= 0));
           this.roster.hit(ev.victim, ev);
           if (!lethal) this.effects.gore(ev, { lethal: false, local: false });
           this.sfx.pain({
@@ -199,7 +199,7 @@ export class CombatFeedback {
         if (ev.victim === myId) {
           this.localDeath(ev.killer, { headshot: ev.hs, event: ev });
         } else {
-          this.roster.death(ev.victim);
+          this.roster.death(ev.victim, undefined, ev);
           if (ev.killer === myId) {
             // Kill confirmation outranks the body/head mark of the lethal hit.
             this.hud.hitmark(ev.hs ? 'killHead' : 'kill');
@@ -268,8 +268,8 @@ export class CombatFeedback {
         break;
       }
       case 'die': {
-        if (ev.id === myId) this.localDeath(null);
-        else this.roster.death(ev.id);
+        if (ev.id === myId) this.localDeath(null, { event: ev });
+        else this.roster.death(ev.id, undefined, ev);
         break;
       }
     }
@@ -335,6 +335,7 @@ export class CombatFeedback {
     if (this._disposed) return false;
     const transition = this.player.die(killerId, {
       impact: context?.impact || null,
+      damageEvent: context?.event || null,
       headshot: !!context?.headshot,
       id: this.getMyId(),
     });

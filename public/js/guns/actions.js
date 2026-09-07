@@ -23,7 +23,8 @@ export class WeaponActions {
     this._reload = null;
     this._cycle = null;
     this._jerk = null;
-    this._motion = { dip: 0, rock: 0 };
+    // Position offsets are meters; pitch (rock), yaw and roll are radians.
+    this._motion = { dip: 0, rock: 0, x: 0, push: 0, yaw: 0, roll: 0 };
     this._disposed = false;
   }
 
@@ -36,8 +37,7 @@ export class WeaponActions {
     this._reload = null;
     this._cycle = null;
     this._jerk = null;
-    this._motion.dip = 0;
-    this._motion.rock = 0;
+    this._clearMotion();
   }
 
   /** Idempotent teardown; a disposed action controller cannot be restarted. */
@@ -76,8 +76,7 @@ export class WeaponActions {
     if (!this._reload) return false;
     if (model) this._resetReloadPose(model);
     this._reload = null;
-    this._motion.dip = 0;
-    this._motion.rock = 0;
+    this._clearMotion();
     return true;
   }
 
@@ -114,8 +113,7 @@ export class WeaponActions {
    */
   update(now, dt, model, T) {
     const motion = this._motion;
-    motion.dip = 0;
-    motion.rock = 0;
+    this._clearMotion();
     if (this._disposed || !model || !T) return motion;
     if (this._reload) this._updateReload(now, model, T, motion);
     if (this._jerk) this._stepJerk(model, dt);
@@ -128,6 +126,7 @@ export class WeaponActions {
     model.mag.rotation.x = 0;
     model.mag.rotation.y = 0;
     const revolver = model.extra.userData.revolver;
+    if (!revolver) model.mag.rotation.z = 0;
     if (revolver) {
       revolver.crane.rotation.z = 0;
       revolver.ejector.position.z = 0;
@@ -234,13 +233,13 @@ export class WeaponActions {
   _updateReload(now, model, T, out) {
     const reload = this._reload;
     const timeline = T.magTimeline;
-    const frac = Math.min(1, (now - reload.t0) / reload.dur);
+    const frac = Math.max(0, Math.min(1, (now - reload.t0) / reload.dur));
 
     if (reload.type === 'tube') {
       const elapsed = now - reload.t0;
       if (reload.stages) {
-        const seatAt = reload.stages.start + (reload.thunks + 1) * reload.stages.perRound;
-        if (reload.thunks < reload.stages.rounds && elapsed >= seatAt) {
+        while (reload.thunks < reload.stages.rounds && elapsed >=
+            reload.stages.start + (reload.thunks + 1) * reload.stages.perRound) {
           reload.thunks++;
           this._callbacks.onReloadClick(((reload.thunks - 1) % 3) + 1);
         }
@@ -253,16 +252,27 @@ export class WeaponActions {
           this._callbacks.onReloadClick(((reload.thunks - 1) % 3) + 1);
         }
       }
-      // Each seated shell rocks the receiver; the rock decays until the next one lands.
-      const seatPulse = reload.stages
-        ? Math.exp(-Math.max(0, (elapsed - reload.stages.start) % reload.stages.perRound) * 9)
-        : 0;
-      out.rock = 0.06 * Math.sin(frac * Math.PI) + 0.035 * seatPulse * (frac < timeline.home ? 1 : 0);
-      out.dip = -0.02 * seatPulse * (frac < timeline.home ? 1 : 0);
+      // Present the loading port quickly, hold it steady, then punch each shell
+      // into the tube at the same instant as its canonical seating click.
+      const present = this._phase(frac, 0.015, 0.13) * (1 - this._phase(frac, 0.91, 1));
+      let seatPulse = 0;
+      if (reload.stages?.rounds > 0) {
+        const first = reload.stages.start + reload.stages.perRound;
+        const nearest = Math.max(0, Math.min(reload.stages.rounds - 1,
+          Math.round((elapsed - first) / reload.stages.perRound)));
+        seatPulse = this._contact(elapsed, first + nearest * reload.stages.perRound, 0.095);
+      }
+      out.rock = 0.30 * present + 0.10 * seatPulse;
+      out.dip = 0.045 * present + 0.016 * seatPulse;
+      out.x = -0.025 * present;
+      out.push = 0.025 * present - 0.026 * seatPulse;
+      out.yaw = 0.06 * present;
+      out.roll = -0.24 * present - 0.045 * seatPulse;
       reload.lastFrac = frac;
       if (frac >= 1) {
         this._resetReloadPose(model);
         this._reload = null;
+        this._clearMotion();
       }
       return;
     }
@@ -273,19 +283,35 @@ export class WeaponActions {
       if (frac >= 1) {
         this._resetReloadPose(model);
         this._reload = null;
+        this._clearMotion();
       }
       return;
     }
 
-    const tMag = Math.max(0, Math.min(1,
-      (frac - timeline.start) / Math.max(0.001, timeline.home - timeline.start)));
-    const pulse = Math.sin(Math.PI * tMag);
     const hasMovingAmmo = model.magazines ? 1 : 0;
     const isBelt = reload.type === 'belt';
     const isCylinder = reload.type === 'cylinder';
-    out.dip = (isBelt ? -0.12 : isCylinder ? -0.035 : -0.095) * pulse *
-      (hasMovingAmmo ? 1 : 0.15);
-    out.rock = (isBelt ? 0.22 : isCylinder ? 0.16 : 0.35) * pulse;
+    const liftEnd = Math.min(0.16, timeline.start * 0.82);
+    const grip = this._phase(frac, 0.025, liftEnd) *
+      (1 - this._phase(frac, Math.max(0.82, timeline.home), 0.99));
+    const anticipate = this._phase(frac, 0, 0.025) * (1 - this._phase(frac, 0.025, 0.09));
+    const pullEnd = timeline.start + Math.min(0.085, (timeline.home - timeline.start) * 0.20);
+    const pull = this._phase(frac, timeline.start, pullEnd);
+    const insert = this._phase(frac, timeline.home - 0.085, timeline.home);
+    const removed = pull * (1 - insert);
+    const tug = this._contact(frac, pullEnd, 0.10);
+    const seat = this._contact(frac, timeline.home, Math.min(0.09, (1 - timeline.home) * 0.7));
+    const latch = timeline.clickAt > timeline.home
+      ? this._contact(frac, timeline.clickAt, Math.min(0.055, (1 - timeline.clickAt) * 0.75)) : 0;
+    const weight = isBelt ? 0.85 : 1;
+    // Snatch up and cant, brace through the swap, then separate seating and
+    // charging-handle contacts from the final return to the shoulder.
+    out.dip = 0.070 * grip - 0.018 * anticipate - 0.020 * tug + 0.030 * seat - 0.016 * latch;
+    out.rock = (0.46 * grip - 0.08 * anticipate + 0.10 * tug - 0.14 * seat + 0.10 * latch) * weight;
+    out.x = -0.052 * grip - 0.025 * tug + 0.014 * seat;
+    out.push = 0.050 * grip + 0.035 * tug - 0.055 * seat + 0.036 * latch;
+    out.yaw = 0.10 * grip - 0.06 * tug + 0.025 * seat;
+    out.roll = (-0.34 * grip + 0.10 * tug - 0.10 * seat + 0.06 * latch) * weight;
 
     if (reload.type === 'mag' || isBelt || isCylinder) {
       if (frac >= timeline.start && reload.lastFrac < timeline.start) {
@@ -299,17 +325,22 @@ export class WeaponActions {
     const mag = model.mag;
     if (mag) {
       if (isCylinder) {
-        mag.position.x = -0.075 * pulse * hasMovingAmmo;
-        mag.position.y = 0.012 * pulse * hasMovingAmmo;
-        mag.rotation.y = -1.05 * pulse * hasMovingAmmo;
+        mag.position.x = -0.075 * removed * hasMovingAmmo;
+        mag.position.y = 0.012 * removed * hasMovingAmmo;
+        mag.rotation.y = -1.05 * removed * hasMovingAmmo;
       } else {
-        mag.position.y = (isBelt ? -0.075 : -0.05) * pulse * hasMovingAmmo;
-        mag.rotation.x = (isBelt ? 0.20 : 0.30) * pulse * hasMovingAmmo;
+        mag.position.x = (isBelt ? -0.045 : -0.075) * removed * hasMovingAmmo;
+        mag.position.y = (isBelt ? -0.14 : -0.19) * removed * hasMovingAmmo;
+        mag.position.z = 0.035 * removed * hasMovingAmmo;
+        mag.rotation.x = (isBelt ? 0.20 : 0.32) * removed * hasMovingAmmo;
+        mag.rotation.z = -0.18 * removed * hasMovingAmmo;
       }
     }
 
     const cover = model.extra.userData.reloadPart;
-    if (isBelt && cover) cover.rotation.x = -1.10 * pulse;
+    if (isBelt && cover) cover.rotation.x = -1.22 *
+      this._phase(frac, timeline.start, pullEnd) *
+      (1 - this._phase(frac, timeline.home - 0.045, timeline.home + 0.055));
 
     const rounds = model.extra.userData.reloadRounds;
     if (isCylinder && rounds) {
@@ -341,6 +372,7 @@ export class WeaponActions {
     if (frac >= 1) {
       this._resetReloadPose(model);
       this._reload = null;
+      this._clearMotion();
     }
   }
 
@@ -351,8 +383,15 @@ export class WeaponActions {
     // Open, hold fully open through extraction and insertion, then latch closed.
     const open = phase(0.10, 0.25) * (1 - phase(0.80, 0.92));
     crane.rotation.z = Math.PI / 2 * open;
-    out.dip = -0.045 * open;
-    out.rock = 0.22 * open;
+    const extractHit = this._contact(frac, 0.39, 0.08);
+    const seatHit = this._contact(frac, 0.68, 0.08);
+    const latchHit = this._contact(frac, 0.92, 0.06);
+    out.dip = 0.065 * open - 0.025 * extractHit + 0.025 * seatHit;
+    out.rock = 0.40 * open + 0.12 * extractHit - 0.12 * seatHit + 0.09 * latchHit;
+    out.x = -0.04 * open;
+    out.push = 0.040 * open + 0.025 * extractHit - 0.040 * seatHit;
+    out.yaw = 0.12 * open;
+    out.roll = -0.30 * open - 0.08 * seatHit + 0.10 * latchHit;
     const extraction = phase(0.29, 0.39);
     ejector.position.z = 0.058 * extraction * (1 - phase(0.44, 0.50));
     cases.position.z = 0.105 * extraction;
@@ -376,4 +415,19 @@ export class WeaponActions {
   }
 
   _smooth01(t) { return t * t * (3 - 2 * t); }
+
+  _phase(t, from, to) {
+    return this._smooth01(Math.max(0, Math.min(1, (t - from) / Math.max(0.001, to - from))));
+  }
+
+  /** Brief wind-up, contact at the exact cue boundary, then a damped return. */
+  _contact(t, at, decay) {
+    const attack = Math.min(0.018, decay * 0.25);
+    return this._phase(t, at - attack, at) * (1 - this._phase(t, at, at + decay));
+  }
+
+  _clearMotion() {
+    const motion = this._motion;
+    motion.dip = motion.rock = motion.x = motion.push = motion.yaw = motion.roll = 0;
+  }
 }

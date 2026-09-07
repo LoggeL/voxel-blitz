@@ -160,9 +160,10 @@ export function stepMovement(p, dt, ctx) {
   p.sprint = !!kf.sprint && fwdAmt > 0 && !p.crouch && !low && !p.ads;
 
   // Normalized wish direction prevents diagonal movement from gaining speed.
+  const movementYaw = Number.isFinite(inp?.viewYaw) ? inp.viewYaw : p.yaw;
   let wx = 0, wz = 0;
   if (fwdAmt !== 0 || strafe !== 0) {
-    const sy = Math.sin(p.yaw), cy = Math.cos(p.yaw);
+    const sy = Math.sin(movementYaw), cy = Math.cos(movementYaw);
     wx = -sy * fwdAmt + cy * strafe;
     wz = -cy * fwdAmt - sy * strafe;
     const length = Math.hypot(wx, wz);
@@ -173,7 +174,7 @@ export function stepMovement(p, dt, ctx) {
   if (!p.vault && canStartVault(p.grounded, p.grounded ? kf.jump : deliberateGrab,
       fwdAmt, p.crouch || low, p.y, p.jumpGroundY)) {
     p.vault = findVault(ctx.solidAt, p, { x: wx, z: wz },
-      deliberateGrab ? p.y : p.jumpGroundY, p.yaw);
+      deliberateGrab ? p.y : p.jumpGroundY, movementYaw);
   }
   if (p.vault) {
     const active = stepVault(p, p.vault, dt, ctx.solidAt);

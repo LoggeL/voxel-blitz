@@ -6,7 +6,9 @@ import { adsLookScale } from '../input-settings.js';
 import { grenadeLaunch } from '../../../shared/grenade-rules.js';
 import { flamePanicFloor } from '../../../shared/flame-rules.js';
 import { fwdFromAngles } from '../util/look.js';
+import { withGoreDamage } from '../weapons/gore-profile.js';
 import { AimSway } from './aim-sway.js';
+import { WeaponAimMotion } from '../guns/weapon-aim.js';
 import { resetFirstPersonBody, updateFirstPersonBody } from './first-person-body.js';
 
 const DEFAULT_SEND_HZ = 60;
@@ -32,6 +34,8 @@ const RECOIL_ROLL_PER_YAW = -0.42;
  * during the spray is subtracted first, so a controlled spray never over-recovers. */
 const RECOIL_RECOVERY_RATE = 11;
 const DEFAULT_RECOIL_PROFILE = Object.freeze({ resetMs: 280, recovery: 0.6 });
+const AIM_PUNCH_FULL_DAMAGE = 55;
+const AIM_PUNCH_MAX_TRAUMA = 1.55;
 
 /** Reconciliation: the authority correction lands on the physics body at once while the
  * camera eases through a decaying visual offset, so corrections never read as a pop. */
@@ -115,6 +119,7 @@ export class LocalPlayer {
     this.sendHz = Number.isFinite(sendHz) && sendHz > 0 ? sendHz : DEFAULT_SEND_HZ;
     this.aimSway = aimSway;
     this._aim = aimSway.readModel;
+    this._weaponAim = new WeaponAimMotion();
 
     this.view = { yaw: 0, pitch: 0 };
     this.keys = {};
@@ -152,7 +157,7 @@ export class LocalPlayer {
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
     this._pendingShotAim = null;
-    this.grenadeThrowLatched = null; // {charge, cookMs, type} awaiting a network send
+    this.grenadeThrowLatched = null; // {charge, cookMs, type, at, grenadeAim} awaiting a network send
     this._lastLocalImpact = null;
     this._lastReconciledSnapSeq = null;
     this._gameplayInputEnabled = false;
@@ -198,8 +203,9 @@ export class LocalPlayer {
   get speedXZ() { return this.currentSpeedXZ; }
   get crouchBool() { return !!this.physics._crouching; }
   get gameplayInputEnabled() { return this._gameplayInputEnabled; }
-  get shotYaw() { return this.aimYaw + this.recoilYaw; }
-  get shotPitch() { return clampPitch(this.aimPitch + this.recoilPitch); }
+  get weaponAim() { return this._weaponAim.readModel; }
+  get shotYaw() { return this.aimYaw + this.recoilYaw + this.weaponAim.yaw; }
+  get shotPitch() { return clampPitch(this.aimPitch + this.recoilPitch + this.weaponAim.pitch); }
 
   get aimYaw() { return this.view.yaw + (this._aim?.yaw || 0); }
   get aimPitch() { return clampPitch(this.view.pitch + (this._aim?.pitch || 0)); }
@@ -241,10 +247,12 @@ export class LocalPlayer {
     this.keys = {};
     this.wishDir.x = 0;
     this.wishDir.z = 0;
+    this._weaponAim.reset(this.aimYaw, this.aimPitch);
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
     this._pendingShotAim = null;
     this.grenadeThrowLatched = null;
+    this._localGrenadeThrow = null;
     this.wantAds = false;
     this.physics._crouching = false;
     this.physics.proneT = 0;
@@ -308,10 +316,12 @@ export class LocalPlayer {
     this.fireTapLatched = false;
     this._pendingShotAim = null;
     this.grenadeThrowLatched = null;
+    this._localGrenadeThrow = null;
     this._lastLocalImpact = null;
     this._lastReconciledSnapSeq = null;
     this._reconcileResult.transition = null;
     this._aim = this.aimSway.reset();
+    this._weaponAim.reset(this.aimYaw, this.aimPitch);
   }
 
   /** State-only half of a local respawn. */
@@ -339,9 +349,11 @@ export class LocalPlayer {
     this._pendingShotAim = null;
     this.pendingShotIntent = null;
     this.grenadeThrowLatched = null;
+    this._localGrenadeThrow = null;
     this.wantAds = false;
     this.adsT = 0;
     this._aim = this.aimSway.reset();
+    this._weaponAim.reset(this.aimYaw, this.aimPitch);
     resetFirstPersonBody(this.body);
     return { kind: 'respawn', row: ev };
   }
@@ -349,6 +361,7 @@ export class LocalPlayer {
   /** State-only half of local death; presentation belongs to combat feedback. */
   die(killerId, {
     impact = null,
+    damageEvent = null,
     headshot = false,
     id = null,
   } = {}) {
@@ -368,14 +381,14 @@ export class LocalPlayer {
       resolvedHeadshot ? 0.2 : 0.11,
       this.deathSide * (resolvedHeadshot ? 0.14 : 0.08),
     );
-    const goreImpact = isValidImpact(resolvedImpact)
+    const goreImpact = withGoreDamage(isValidImpact(resolvedImpact)
       ? resolvedImpact
       : {
         vx: this.physics.pos.x,
         vy: this.physics.pos.y + 1.05,
         vz: this.physics.pos.z,
         hs: resolvedHeadshot,
-      };
+      }, damageEvent);
     this._lastLocalImpact = null;
     return {
       kind: 'death',
@@ -391,17 +404,22 @@ export class LocalPlayer {
   applyHit(ev) {
     if (!this._alive || !ev) return null;
     this._lastLocalImpact = ev;
-    const damage = Math.max(0, Number(ev.dmg) || 0);
+    const rawDamage = Number(ev.dmg);
+    const damage = Number.isFinite(rawDamage) ? Math.max(0, rawDamage) : 0;
+    const healthDamage = Number.isFinite(ev.healthDamage) ? Math.max(0, ev.healthDamage) : damage;
     const severity = clamp01(damage / 55);
     const painLevel = Math.max(this.pain, severity);
     const headshot = !!ev.hs;
-    const trauma = (0.45 + severity * 0.85 + painLevel * 0.65) * (headshot ? 1.45 : 1);
+    // Only this hit's post-armor damage moves the aim. Headshots already carry
+    // their damage multiplier; old wounds must not amplify a small new hit.
+    const trauma = clamp01(healthDamage / AIM_PUNCH_FULL_DAMAGE) * AIM_PUNCH_MAX_TRAUMA;
     const side = (hashInt(`${ev.attacker}|${ev.vx}|${ev.vz}`) & 1) ? 1 : -1;
     this.view.yaw += side * trauma * 0.045;
     this.view.pitch += trauma * 0.052;
     this.view.pitch = clampPitch(this.view.pitch);
     return {
       damage,
+      healthDamage,
       severity,
       painLevel,
       headshot,
@@ -493,7 +511,7 @@ export class LocalPlayer {
 
   /**
    * One-shot readback of a grenade release accepted this frame
-   * (`{charge, cookMs, type, at}` or null), so presentation can spawn the predicted throw
+   * (`{charge, cookMs, type, at, grenadeAim}` or null), so presentation can spawn the predicted throw
    * before the authority event returns.
    */
   consumeLocalGrenadeThrow() {
@@ -503,8 +521,8 @@ export class LocalPlayer {
   }
 
   /** Launch state for a local throw with the same formula authority applies. */
-  grenadeLaunchState(charge, type = 'frag') {
-    const dir = fwdFromAngles(this.aimYaw, this.aimPitch);
+  grenadeLaunchState(charge, type = 'frag', grenadeAim = null) {
+    const dir = fwdFromAngles(grenadeAim?.yaw ?? this.shotYaw, grenadeAim?.pitch ?? this.shotPitch);
     const pos = this.physics.pos;
     const vel = this.physics.vel;
     return grenadeLaunch({
@@ -596,10 +614,13 @@ export class LocalPlayer {
         charge: grenadeThrow.charge,
         cookMs: grenadeThrow.cookMs,
         type: grenadeThrow.type,
+        at: now,
       };
-      this._localGrenadeThrow = { ...this.grenadeThrowLatched, at: now };
     }
-    if (!fireAllowed || !this._alive) this.grenadeThrowLatched = null;
+    if (!fireAllowed || !this._alive) {
+      this.grenadeThrowLatched = null;
+      this._localGrenadeThrow = null;
+    }
     weaponIntents.throwGrenade = this.grenadeThrowLatched;
     const fireTap = input.consumeFireTap();
     const fireHeld = !!input.wantFireHeld;
@@ -741,6 +762,7 @@ export class LocalPlayer {
       },
       yaw: this._pendingShotAim?.yaw ?? this.shotYaw,
       pitch: this._pendingShotAim?.pitch ?? this.shotPitch,
+      viewYaw: this.view.yaw,
       wantFire,
       weapon: weaponSlot,
       wantAds: this._gameplayInputEnabled && this.wantAds,
@@ -750,6 +772,7 @@ export class LocalPlayer {
       grenadeType: this._gameplayInputEnabled ? (this.grenadeThrowLatched?.type ?? 0) : 0,
       grenadeCook: this._gameplayInputEnabled ? (this.grenadeThrowLatched?.cookMs ?? 0) : 0,
     };
+    if (payload.throwGrenade) payload.grenadeAim = this.grenadeThrowLatched.grenadeAim;
     const sent = typeof intents.sendInput === 'function'
       ? !!intents.sendInput(payload)
       : false;
@@ -792,6 +815,25 @@ export class LocalPlayer {
       ads: this.adsT,
       zoom: this._scopeZoom > 0 ? this._scopeZoom : (Number(intents.weapon?.def?.zoom) || 1),
     });
+    const aimWeapon = intents.weapon?.def;
+    this._weaponAim.update(dt, {
+      weapon: aimWeapon?.id,
+      yaw: this.aimYaw + this.recoilYaw,
+      pitch: this.aimPitch + this.recoilPitch,
+      weightKg: aimWeapon?.weightKg,
+      ads: intents.weapon?.adsT ?? this.adsT,
+      sprinting: !this.wantAds && this.keys.sprint && this.currentSpeedXZ > 4.6,
+      grounded: this.physics.grounded,
+      crouching: this.crouchBool || !!this.physics.proneT,
+      vaulting: !!this.physics.vault,
+      enabled: !!aimWeapon && this._alive && this._gameplayInputEnabled,
+    });
+    // Capture release after carry aim settles for this frame and before a shot
+    // adds recoil. Prediction and a later network send retain this same ray.
+    if (this.grenadeThrowLatched && !this.grenadeThrowLatched.grenadeAim) {
+      this.grenadeThrowLatched.grenadeAim = { yaw: this.shotYaw, pitch: this.shotPitch };
+      this._localGrenadeThrow = { ...this.grenadeThrowLatched };
+    }
     if (typeof intents.beforeSend === 'function') intents.beforeSend(this._frame, now);
     this._frame.inputSent = this._sendInputMaybe(dt, intents);
     this._stepRecoilRecovery(dt, now);
@@ -838,6 +880,7 @@ export class LocalPlayer {
     } else if (!authoritativeAlive && this._alive) {
       this._reconcileResult.transition = this.die(deathEvent?.killer || null, {
         impact,
+        damageEvent: deathEvent,
         headshot: !!(deathEvent?.hs || impact?.hs),
         id,
       });

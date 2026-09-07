@@ -2,6 +2,7 @@ import { AvatarDebugView } from './debug-view.js';
 import { nowMs, smooth01 } from '../util/math.js';
 import { boundedMapSet } from '../util/bounded-map.js';
 import { hashInt } from '../util/hash.js';
+import { withGoreDamage } from '../weapons/gore-profile.js';
 import {
   beginAvatarDeath,
   disposeAvatar,
@@ -65,22 +66,22 @@ export class AvatarRoster {
     avatar.hitSide = (hashInt(String(ev && ev.attacker || id)) & 1) ? 1 : -1;
   }
 
-  death(id, at) {
+  death(id, at, damageEvent = null) {
     if (id === this._getMyId()) return;
     const now = Number.isFinite(at) ? at : this._now();
     const avatar = this._avatars.get(id);
     if (!avatar) {
-      boundedMapSet(this._pendingDeaths, id, { until: now + IMPACT_TTL_MS });
+      boundedMapSet(this._pendingDeaths, id, { until: now + IMPACT_TTL_MS, damageEvent });
       return;
     }
     const stored = this._remoteImpacts.get(id);
     const recentAvatarImpact = avatar.lastImpact?.until >= now ? avatar.lastImpact.ev : null;
-    const impact = stored?.ev || recentAvatarImpact || {
+    const impact = withGoreDamage(stored?.ev || recentAvatarImpact || {
       vx: avatar.group.position.x,
       vy: avatar.group.position.y + 1.08,
       vz: avatar.group.position.z,
       hs: false,
-    };
+    }, damageEvent);
     if (!beginAvatarDeath(avatar, now, impact)) return;
     this._pendingDeaths.delete(id);
     this._gore?.(impact, { lethal: true, local: false });
@@ -158,7 +159,7 @@ export class AvatarRoster {
         if (pendingHit.until >= now) this.hit(remote.id, pendingHit.ev);
       }
       const pendingDeath = this._pendingDeaths.get(remote.id);
-      if (pendingDeath?.until >= now && avatar.alive) this.death(remote.id, now);
+      if (pendingDeath?.until >= now && avatar.alive) this.death(remote.id, now, pendingDeath.damageEvent);
 
       const rowAlive = remote.state === 'alive';
       const alive = rowAlive && now >= avatar.deathForcedUntil;

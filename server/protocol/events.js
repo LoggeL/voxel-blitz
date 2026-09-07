@@ -18,13 +18,21 @@ export function evShoot(id, o, d, w, spread) {
   };
 }
 
-/** Damage feedback. v = impact point (or victim chest). */
-export function evHit(attacker, victim, dmg, hs, v) {
+function damageMetadata(damage) {
+  if (!damage || !Number.isFinite(damage.healthDamage) || !Number.isFinite(damage.overkill)) return {};
+  return { healthDamage: round(Math.max(0, damage.healthDamage), D2),
+    overkill: damage.lethal ? round(Math.max(0, damage.overkill), D2) : 0,
+    lethal: !!damage.lethal };
+}
+
+/** Damage feedback. v = impact point; damage describes the accepted post-armor hit. */
+export function evHit(attacker, victim, dmg, hs, v, damage = null) {
   return {
     t: 'ev', kind: 'hit',
     attacker: String(attacker), victim: String(victim),
     dmg: round(dmg, 1), hs: !!hs,
     vx: round(v[0], D2), vy: round(v[1], D2), vz: round(v[2], D2),
+    ...damageMetadata(damage),
   };
 }
 
@@ -39,6 +47,7 @@ export function evKill(killer, victim, w, hs, markers = null) {
     hs: !!hs,
     lr: !!markers?.longRange,
     ns: !!markers?.noScope,
+    ...damageMetadata(markers?.damage),
   };
 }
 
@@ -58,8 +67,8 @@ export function evRespawn(id, x, y, z) {
   };
 }
 
-export function evDie(id) {
-  return { t: 'die', kind: 'die', id: String(id) };
+export function evDie(id, damage = null) {
+  return { t: 'die', kind: 'die', id: String(id), ...damageMetadata(damage) };
 }
 
 /**

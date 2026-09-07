@@ -95,6 +95,7 @@ export class PlayerEntity {
     this.yaw = centerAim.yaw; this.pitch = 0;
     this.hp = 100;
     this.armor = 0;
+    this.lastDamage = null;
     this.panic = 0;
     this.burn = null;
     this.burning = 0;
@@ -130,6 +131,7 @@ export class PlayerEntity {
     this.grenadeChargeQueued = 0;
     this.grenadeTypeQueued = 0;
     this.grenadeCookQueued = 0;
+    this.grenadeAimQueued = null;
     this.grenades = freshGrenadeLoadout();
     // Charge-mode weapons (LONGARC): hold time and the normalized wire charge.
     this.charging = false;
@@ -161,8 +163,13 @@ export class PlayerEntity {
     const armor = Math.max(0, Math.min(POWERUP_RULES.maxArmor,
       Number.isFinite(this.armor) ? this.armor : 0));
     const absorbed = Math.min(armor, amount);
+    const healthBefore = Math.max(0, this.hp);
+    const healthDamage = amount - absorbed;
+    const lethal = healthDamage >= healthBefore;
+    this.lastDamage = { healthBefore, healthDamage, lethal,
+      overkill: lethal ? Math.max(0, healthDamage - healthBefore) : 0 };
     this.armor = armor - absorbed;
-    this.hp -= amount - absorbed;
+    this.hp -= healthDamage;
     // Armor prevents wounds, while the incoming impact still shakes the player.
     this.panic = clamp01(this.panic + amount * CONDITION_RULES.panicDamageGain +
       (headshot ? CONDITION_RULES.panicHeadshotGain : 0));

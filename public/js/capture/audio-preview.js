@@ -13,6 +13,7 @@ let loading;
 let generation = 0;
 let waveformCount = 0;
 let waveformFailures = 0;
+const featuredCueCount = 14;
 
 for (const [control, suffix, factor] of [[volume, '%', 100], [distance, ' m', 1], [charge, '%', 100]]) {
   control.addEventListener('input', () => {
@@ -182,15 +183,45 @@ async function waveform(url, canvas, caption) {
   }
   document.documentElement.dataset.waveformCount = String(waveformCount);
   document.documentElement.dataset.waveformFailures = String(waveformFailures);
-  if (waveformCount + waveformFailures <= 9) {
+  if (waveformCount + waveformFailures <= featuredCueCount) {
     document.getElementById('availability').textContent =
-      `${waveformCount} of 9 new cue samples available.${waveformFailures ? ` ${waveformFailures} are unavailable; their controls stay disabled.` : ''}`;
-    if (waveformCount + waveformFailures === 9 && status.textContent.includes('waveforms are loading')) {
+      `${waveformCount} of ${featuredCueCount} featured samples available.${waveformFailures ? ` ${waveformFailures} are unavailable; their controls stay disabled.` : ''}`;
+    if (waveformCount + waveformFailures === featuredCueCount && status.textContent.includes('waveforms are loading')) {
       status.textContent = 'Choose an available sound to hear its game mix.';
     }
   }
   return available;
 }
+
+const hitFeedback = document.getElementById('hit-feedback');
+for (const headshot of [false, true]) {
+  const label = headshot ? 'Headshot' : 'Body';
+  card(hitFeedback, `${label} hit`, 'A short dry confirmation that stays soft during repeated hits.',
+    `ui.hitmark.${headshot ? 'head' : 'body'}`, [
+      button(`${label} hit`, () => { sfx.hitmark(headshot); status.textContent = `${label} hit: game mix`; }),
+      button(`${label} hit burst`, () => {
+        stopLoops(); const token = generation;
+        for (let i = 0; i < 20; i++) later(() => {
+          if (generation !== token) return;
+          sfx.fire('minigun'); sfx.hitmark(headshot);
+          if (i === 19) sfx.killConfirm(headshot);
+        }, i * 50);
+        status.textContent = `${label}: 20 hits at 1200 RPM, with a final kill confirmation`;
+      }, true),
+    ]);
+  card(hitFeedback, `${label} kill`, 'The game plays the hit tick and kill confirmation together.',
+    `ui.kill.${headshot ? 'head' : 'body'}`, [
+      button(`${label} kill`, () => {
+        sfx.hitmark(headshot); sfx.killConfirm(headshot);
+        status.textContent = `${label} kill: hit and kill cues together`;
+      }),
+    ]);
+}
+card(hitFeedback, 'Incoming body impact', 'A muted physical impact, scaled by received damage.', 'impact.flesh', [
+  button('Incoming impact', () => {
+    sfx.impact('flesh', 0.45); status.textContent = 'Incoming body impact: maximum game impact gain';
+  }),
+]);
 
 const explosions = document.getElementById('explosions');
 for (const [type, title, description] of [

@@ -2,6 +2,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { freeOldestIndex, hideInstance } from './instancing.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
+import { goreProfile } from './gore-profile.js';
 
 const TAU = Math.PI * 2;
 const GORE_MIST_POOL_SIZE = 256;
@@ -186,11 +187,8 @@ export class GoreFX {
       this._normal.set(0, 1, 0);
     }
 
-    const headshot = !!ev.hs;
-    const severe = headshot || lethal;
-    const mistCount = lethal ? (headshot ? 88 : 64) : (headshot ? 32 : 20);
-    const dropletCount = lethal ? (headshot ? 160 : 120) : (headshot ? 48 : 30);
-    const width = severe ? (lethal ? 13.5 : 6.8) : 4.2;
+    const profile = goreProfile(ev, { lethal });
+    const { mistCount, dropletCount, width } = profile;
 
     for (let i = 0; i < mistCount; i++) {
       const idx = this._claimSlot(this.goreMist);
@@ -198,14 +196,14 @@ export class GoreFX {
       const speed = width * (0.3 + Math.random() * 0.7);
       p.active = true;
       p.t = 0;
-      p.life = (severe ? 0.68 : 0.42) * (0.72 + Math.random() * 0.45);
+      p.life = profile.mistLife * (0.72 + Math.random() * 0.45);
       p.x = x;
       p.y = y;
       p.z = z;
       p.vx = (Math.random() - 0.5) * speed + this._normal.x * speed * 0.48;
       p.vy = (Math.random() - 0.32) * speed + this._normal.y * speed * 0.48;
       p.vz = (Math.random() - 0.5) * speed + this._normal.z * speed * 0.48;
-      p.size = (lethal ? 0.21 : (severe ? 0.14 : 0.095)) * (0.65 + Math.random() * 0.7);
+      p.size = profile.mistSize * (0.65 + Math.random() * 0.7);
       this._m4.compose(
         this._v.set(x, y, z), this._q.identity(), this._s.setScalar(p.size),
       );
@@ -225,16 +223,16 @@ export class GoreFX {
       p.vx = (Math.random() - 0.5) * speed + this._normal.x * speed * 0.62;
       p.vy = Math.random() * speed * 0.8 + 0.7 + this._normal.y * speed * 0.35;
       p.vz = (Math.random() - 0.5) * speed + this._normal.z * speed * 0.62;
-      p.size = (lethal ? 0.058 : (severe ? 0.038 : 0.028)) * (0.65 + Math.random() * 0.8);
+      p.size = profile.dropletSize * (0.65 + Math.random() * 0.8);
       this._m4.compose(
         this._v.set(x, y, z), this._q.identity(), this._s.setScalar(p.size),
       );
       this.goreDropletMesh.setMatrixAt(idx, this._m4);
     }
 
-    if (lethal) this.spawnChunks(x, y, z, headshot);
+    if (lethal) this.spawnChunks(x, y, z, profile);
 
-    if (suppliedNormal) {
+    if (suppliedNormal && profile.stainSize > 0) {
       this.spawnBloodStain(
         x + this._normal.x * 0.012,
         y + this._normal.y * 0.012,
@@ -242,12 +240,12 @@ export class GoreFX {
         this._normal.x,
         this._normal.y,
         this._normal.z,
-        severe ? 0.24 : 0.15,
+        profile.stainSize,
       );
     }
 
     if (local && this.camera) {
-      const veilCount = lethal ? 6 : (headshot ? 5 : 3);
+      const veilCount = profile.veilCount;
       for (let i = 0; i < veilCount; i++) {
         const idx = this._claimSlot(this.goreVeil);
         const veil = this.goreVeil[idx];
@@ -256,7 +254,7 @@ export class GoreFX {
         veil.life = (lethal ? 0.72 : 0.48) * (0.75 + Math.random() * 0.35);
         veil.side = (i & 1 ? 1 : -1) * (0.78 + Math.random() * 0.32);
         veil.lift = (Math.random() - 0.5) * 1.35;
-        veil.size = (lethal ? 0.048 : 0.035) * (0.72 + Math.random() * 0.55);
+        veil.size = profile.veilSize * (0.72 + Math.random() * 0.55);
         veil.rot = Math.random() * TAU;
       }
     }
@@ -299,20 +297,20 @@ export class GoreFX {
     this.goreStainMesh.instanceMatrix.needsUpdate = true;
   }
 
-  spawnChunks(x, y, z, headshot) {
-    for (let i = 0; i < (headshot ? 46 : 34); i++) {
+  spawnChunks(x, y, z, profile) {
+    for (let i = 0; i < profile.chunkCount; i++) {
       const index = this._claimSlot(this.goreChunks);
       const p = this.goreChunks[index];
       const angle = Math.random() * TAU;
-      const speed = 4 + Math.random() * 8;
+      const speed = (4 + Math.random() * 8) * profile.chunkSpeed;
       Object.assign(p, {
         active: true, t: 0, life: 6 + Math.random() * 4,
-        x, y, z, vx: Math.cos(angle) * speed, vy: 5 + Math.random() * 8,
+        x, y, z, vx: Math.cos(angle) * speed, vy: (5 + Math.random() * 8) * profile.chunkSpeed,
         vz: Math.sin(angle) * speed, rx: angle, ry: 0, rz: angle,
         spin: (Math.random() - 0.5) * 26, settled: false, trail: 0, squash: 0,
-        sx: 0.09 + Math.random() * 0.15,
-        sy: 0.18 + Math.random() * 0.30,
-        sz: 0.08 + Math.random() * 0.14,
+        sx: (0.09 + Math.random() * 0.15) * profile.chunkScale,
+        sy: (0.18 + Math.random() * 0.30) * profile.chunkScale,
+        sz: (0.08 + Math.random() * 0.14) * profile.chunkScale,
       });
       this._drawChunk(p, index);
     }

@@ -1,6 +1,6 @@
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { sfx } from '../audio/sfx.js';
-import { BUILTIN_SAMPLE_MANIFEST } from '../audio/samples.js';
+import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from '../audio/samples.js';
 import { VoicePool } from '../audio/voices.js';
 
 const RATE = 48_000;
@@ -61,12 +61,17 @@ async function cachedFetch(url) {
 /** Exercise the production facade, voice pool, loops and limiter in a native
  * OfflineAudioContext. Only lifecycle state/resume are adapted. Scheduled
  * suspends advance the native audio clock before gameplay refreshes run. */
-async function renderScenario(label, events, seconds = SECONDS) {
+async function renderScenario(label, events, seconds = SECONDS, missingHitSamples = false) {
   const context = new OfflineAudioContext(1, Math.ceil(RATE * seconds), RATE);
   const original = Object.getOwnPropertyDescriptor(window, 'AudioContext');
   const originalRandom = Math.random;
   const originalAcquire = VoicePool.prototype.acquire;
   const originalCleanup = VoicePool.prototype._cleanupVoice;
+  const originalSamplePlay = LocalSampleBank.prototype.play;
+  if (missingHitSamples) LocalSampleBank.prototype.play = function (slot, ...args) {
+    if (slot.startsWith('ui.hitmark.') || slot.startsWith('ui.kill.') || slot === 'impact.flesh') return false;
+    return originalSamplePlay.call(this, slot, ...args);
+  };
   const trace = { acquisitions: [], cleanups: [], sources: [] };
   VoicePool.prototype.acquire = function (...args) {
     const output = originalAcquire.apply(this, args);
@@ -162,6 +167,7 @@ async function renderScenario(label, events, seconds = SECONDS) {
     Math.random = originalRandom;
     VoicePool.prototype.acquire = originalAcquire;
     VoicePool.prototype._cleanupVoice = originalCleanup;
+    LocalSampleBank.prototype.play = originalSamplePlay;
     if (original) Object.defineProperty(window, 'AudioContext', original);
     else delete window.AudioContext;
   }
@@ -249,6 +255,37 @@ async function main() {
     const result = await renderScenario(name, events); cues[name] = result.metrics;
     audible(result, name, onset); return result;
   };
+  for (const headshot of [false, true]) {
+    const label = headshot ? 'Headshot' : 'Body';
+    const suffix = headshot ? 'head' : 'body';
+    const hit = await cue(`${label} hit confirmation`, [[0, () => sfx.hitmark(headshot)]]);
+    check(hit.trace.sources.length === 1
+      && hit.trace.sources[0].sample === BUILTIN_SAMPLE_MANIFEST[`ui.hitmark.${suffix}`],
+    `${label} hit uses one recording with no layered synthetic noise`);
+    check(hit.metrics.audibleTailMs < 120, `${label} hit ends inside the compact confirmation budget`);
+    const kill = await cue(`${label} lethal hit confirmation`, [[0, () => {
+      sfx.hitmark(headshot); sfx.killConfirm(headshot);
+    }]]);
+    check(kill.trace.sources.length === 2 && kill.trace.sources.every((source) => source.sample !== 'procedural noise'),
+      `${label} lethal feedback uses the intended hit and kill recordings`);
+    check(kill.metrics.peak < 0.6, `${label} lethal overlap retains headroom`);
+    const events = Array.from({ length: 20 }, (_, index) => [index * 0.05, () => {
+      sfx.fire('minigun'); sfx.hitmark(headshot);
+      if (index === 19) sfx.killConfirm(headshot);
+    }]);
+    const rapid = await cue(`${label} hits, minigun burst and final kill`, events);
+    check(rapid.trace.sources.filter((source) => source.sample === BUILTIN_SAMPLE_MANIFEST[`ui.hitmark.${suffix}`]).length === 20,
+      `${label} burst keeps all 20 authoritative hit confirmations`);
+    check(regionRms(rapid.data, 1.25, 2) < 0.00001, `${label} burst leaves no ringing hit tail`);
+    const fallbackName = `${label} hit burst, missing confirmation samples`;
+    const fallback = await renderScenario(fallbackName, events, SECONDS, true);
+    cues[fallbackName] = fallback.metrics;
+    audible(fallback, fallbackName);
+    check(!fallback.trace.sources.some((source) => source.sample.includes('/ui/')),
+      `${label} missing-recording audit exercises the procedural fallback`);
+    check(regionRms(fallback.data, 1.25, 2) < 0.00001, `${label} fallback burst has no delayed chirp tail`);
+  }
+  await cue('Incoming flesh impact', [[0, () => sfx.impact('flesh', 0.45)]]);
   await cue('Grenade pin', [[0, () => sfx.grenadePin()]], 75);
   const weakThrow = await cue('Grenade throw, light', [[0, () => sfx.grenadeThrow(0)]], 75);
   const fullThrow = await cue('Grenade throw, full charge', [[0, () => sfx.grenadeThrow(1)]], 75);

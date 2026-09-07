@@ -438,7 +438,7 @@ export class NetClient {
    *          jump?:boolean,sprint?:boolean,crouch?:boolean,interact?:boolean},
    *          yaw:number,pitch:number,weapon:number,wantFire:boolean,
    *          wantAds:boolean,reload:boolean,throwGrenade?:boolean,grenadeCharge?:number,
-   *          grenadeType?:number,grenadeCook?:number,switchTo?:number}} input
+   *          grenadeType?:number,grenadeCook?:number,grenadeAim?:{yaw:number,pitch:number},switchTo?:number}} input
    * @returns {boolean} true only when the frame was handed to the socket
    */
   sendInput(input) {
@@ -471,8 +471,12 @@ export class NetClient {
       msg.grenadeCharge = Math.round(clampGrenadeCharge(input.grenadeCharge) * 1000) / 1000;
       msg.grenadeType = clampGrenadeType(input.grenadeType);
       msg.grenadeCook = clampGrenadeCook(input.grenadeCook, grenadeTypeAt(msg.grenadeType));
+      if (Number.isFinite(input.grenadeAim?.yaw) && Number.isFinite(input.grenadeAim?.pitch)) {
+        msg.grenadeAim = { yaw: input.grenadeAim.yaw, pitch: input.grenadeAim.pitch };
+      }
     }
     if (Number.isInteger(input.switchTo)) msg.switchTo = input.switchTo;
+    if (Number.isFinite(input.viewYaw)) msg.viewYaw = input.viewYaw;
     try {
       this.ws.send(JSON.stringify(msg));
       return true;
@@ -572,9 +576,14 @@ export class NetClient {
       match = b.match || match;
       const rows = Array.isArray(b.players) ? b.players : [];
       for (let i = 0; i < rows.length; i++) {
-        const cur = rows[i];
-        if (!cur || cur.id === this.id) continue;
-        const prev = oldRows ? oldRows.get(cur.id) : null;
+        const incoming = rows[i];
+        if (!incoming || incoming.id === this.id) continue;
+        const prev = oldRows ? oldRows.get(incoming.id) : null;
+        // Death/respawn must become visible with their events. Starting a death
+        // from the future bracket consumes its one gore burst before the hit's
+        // overkill arrives; a future respawn also moves the old corpse too soon.
+        if (!prev && incoming.state === 'dead' && target < b.now) continue;
+        const cur = prev && prev.state !== incoming.state && target < b.now ? prev : incoming;
         const row = { id: cur.id };
         for (let f = 0; f < PASSTHROUGH_FIELDS.length; f++) {
           const field = PASSTHROUGH_FIELDS[f];

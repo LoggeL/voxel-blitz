@@ -19,8 +19,6 @@ import { weaponSwapProfile } from '../../../shared/weapon-swap.js';
 import { TIMERS } from './defs.js';
 
 const EMPTY_AMMO = Object.freeze({ mag: 0, reserve: 0 });
-/** Snapshots older than a round trip cannot cancel a reload the authority has not seen yet. */
-export const RELOAD_ACK_GRACE_MS = 400;
 const DEFAULT_MODE = 'fun';
 
 /** One visibility rule shared by scoped weapon state and spectator presentation. */
@@ -362,6 +360,7 @@ export class WeaponState {
     const type = plan.staged ? 'tube' : 'magswap';
     this._reloadState = {
       startedAt: now,
+      acknowledged: false,
       until: now + dur,
       dur,
       type,
@@ -719,22 +718,26 @@ export class WeaponState {
       this.forceWeapon(weapon, { now });
     }
 
+    // A late snapshot for the previous weapon says nothing about this request.
+    if (typeof reloading !== 'boolean' ||
+        (Number.isInteger(weapon) && weapon !== this._slot)) return;
     if (!reloading) {
       this._completedReloadWeapon = null;
       const reload = this._reloadState;
-      // A locally started reload is not contradicted by snapshots that predate its
-      // input; only clear it once the authority has had a round trip to see it.
-      if (reload && now - reload.startedAt >= RELOAD_ACK_GRACE_MS) {
-        if (reload.staged && now < reload.until - 200) this.cancelReload();
-        else this._reloadState = null;
-      }
-    } else if (!this._reloadState && this._completedReloadWeapon !== this.def.id && this._alive) {
+      // Until the authority acknowledges this reload, false may predate the
+      // request or reflect a temporary draw/vault lock. An elapsed-time guess
+      // used to cancel and restart empty-mag reloads every 400ms.
+      if (reload?.acknowledged) this.cancelReload();
+    } else if (this._reloadState) {
+      this._reloadState.acknowledged = true;
+    } else if (this._completedReloadWeapon !== this.def.id && this._alive) {
       const def = this.def;
       const ammo = this._ammo[def.id];
       const plan = reloadPlan(def, ammo ? ammo.mag : 0);
       const dur = (plan.staged ? plan.seconds : def.reloadTime) * 1000;
       this._reloadState = {
         startedAt: now,
+        acknowledged: true,
         until: now + dur,
         dur,
         type: plan.staged ? 'tube' : 'magswap',

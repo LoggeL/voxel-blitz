@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate remaining weapon cues through ElevenLabs without browser downloads.
+"""Generate game sound effects through ElevenLabs without browser downloads.
 
 Dry runs neither read credentials nor contact the service. Live requests spend
 credits and are never retried automatically. The API key stays in memory after
@@ -30,6 +30,22 @@ KEYCHAIN_SERVICE = 'voxel-blitz.elevenlabs'
 KEYCHAIN_ACCOUNT = 'sound-effects'
 
 CUES = {
+    'hitbody': {
+        'duration_seconds': 0.5,
+        'text': ('One subtle dry FPS hit-confirmation tick, immediate onset: a soft tight '
+                 'woody tack with a small low-mid punch, tactile and clean, fast natural '
+                 'decay under 0.09 seconds. Quiet close game UI feedback for rapid repeats. '
+                 'No beep, no pitched note, no chime, no ringing, no metallic clang, '
+                 'no wet gore, no gunshot, no voice, no reverb, no music, one event only.'),
+    },
+    'hithead': {
+        'duration_seconds': 0.5,
+        'text': ('One compact satisfying FPS precision-hit confirmation: a dry rounded '
+                 'wooden knock with a fine crisp papery snap, slightly brighter than a '
+                 'soft body-hit tick, immediate attack and short decay under 0.12 seconds. '
+                 'Restrained clean game UI feedback. No beep, no musical pitch, no chime, '
+                 'no ringing, no metallic clang, no gunshot, no gore, no voices or reverb.'),
+    },
     'pin': {
         'duration_seconds': 0.5,
         'text': ('One close, dry grenade safety pin pull: a tiny metallic ring scrape '

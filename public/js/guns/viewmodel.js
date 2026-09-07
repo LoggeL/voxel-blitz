@@ -11,6 +11,7 @@ import { MaterialCache } from './kit.js';
 import { D2R, HIP, VM_FOV_BASE } from './models/common.js';
 import { kickMassScale } from './defs.js';
 import { WeaponTurnInertia } from './turn-inertia.js';
+import { SPRINT_AIM_DIP } from './weapon-aim.js';
 import { VaultHands } from './vault-hands.js';
 import { PICKAXE_SWING_SECONDS as SWING_S, pickaxeSwingPose } from './pickaxe-swing.js';
 
@@ -25,6 +26,7 @@ export class ViewmodelRig {
     this.root.renderOrder = 10;
     this.posG = new THREE.Group();                                 // dynamic translation layer
     this.pivot = new THREE.Group();                                // static pos + dynamic ROTATION
+    this.pivot.rotation.order = 'YXZ';
     this.comp = new THREE.Group();                                 // cancels pivot -> rotation about grip
     this.content = new THREE.Group();                              // animated base pose (hip<->ADS)
     camera.add(this.root);
@@ -88,6 +90,10 @@ export class ViewmodelRig {
     this.onReloadClick = null;  // (n:int>=1)       — drop/insert/tap or tube thunk counter
 
     this._tmpV = new THREE.Vector3(); this._tmpQ = new THREE.Quaternion();
+    this._aimQ = new THREE.Quaternion();
+    this._cameraQ = new THREE.Quaternion();
+    this._cosmeticQ = new THREE.Quaternion();
+    this._aimEuler = new THREE.Euler(0, 0, 0, 'YXZ');
     this._actions = new WeaponActions({
       onBoltClack: (step) => this.onBoltClack?.(step),
       onShellEject: () => this._emitShell(),
@@ -398,7 +404,7 @@ export class ViewmodelRig {
       );
     }
 
-    const turn = this._turn.update(dt, {
+    const turn = ctx.weaponAim?.turn || this._turn.update(dt, {
       yaw: this.camera?.rotation?.y,
       pitch: this.camera?.rotation?.x,
       weightKg: T.weightKg,
@@ -501,6 +507,8 @@ export class ViewmodelRig {
     const proneMotion = Math.sin(Math.PI * Math.max(0, Math.min(1, ctx.proneT || 0)));
     this._vaultDip = vaultBlend;
     const carry = this._sprint * (1 - adsE) * (1 - vaultBlend);
+    const aimYaw = ctx.weaponAim?.yaw ?? turn.yaw * (1 - adsE);
+    const aimPitch = ctx.weaponAim?.pitch ?? (turn.pitch - SPRINT_AIM_DIP * this._sprint) * (1 - adsE);
     const cant = BOB.sprintTiltZ * carry;
     const roll = bobX / (BOB.walkHorz || 1) * BOB.counterRoll * (1 - adsE * 0.5)
       + turn.roll
@@ -515,22 +523,31 @@ export class ViewmodelRig {
       turn.y + bobY + this._air.p + breathe + exhaustedBreath + tremorY + Math.sin(this._now * 43) * pressure * 0.0008,
       this._spr.push.p + this._surge.p + pressure * 0.006
     );
-    this.pivot.rotation.set(
-      this._spr.pitch.p + turn.pitch + this._air.p * BOB.airPitchPerMeter + conditionPitch,
-      this._spr.yaw.p + turn.yaw + conditionYaw,
-      roll + cant + nadeRz
-    );
+    // World-space yaw/pitch offsets are not camera-local Euler offsets when the
+    // player looks steeply up/down. Transform the actual shot orientation back
+    // into camera space, then layer the short decorative recoil/carry motion.
+    this.camera.getWorldQuaternion(this._cameraQ);
+    this._aimEuler.setFromQuaternion(this._cameraQ, 'YXZ');
+    const shotYaw = Number.isFinite(ctx.shotYaw) ? ctx.shotYaw : this._aimEuler.y + aimYaw;
+    const shotPitch = Number.isFinite(ctx.shotPitch) ? ctx.shotPitch : this._aimEuler.x + aimPitch;
+    this._aimQ.setFromEuler(this._aimEuler.set(shotPitch, shotYaw, 0, 'YXZ'));
+    this._aimQ.premultiply(this._cameraQ.invert());
+    this._cosmeticQ.setFromEuler(this._aimEuler.set(
+      this._spr.pitch.p + this._air.p * BOB.airPitchPerMeter + conditionPitch,
+      this._spr.yaw.p + conditionYaw,
+      roll + cant + nadeRz, 'YXZ'));
+    this.pivot.quaternion.copy(this._aimQ).multiply(this._cosmeticQ);
 
     /* base hip pose eased toward adsOffset absolute pose; dips layered on top */
     const dep = this._deployOffset();
     this.content.position.set(
-      HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055,
+      HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0),
       HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065,
-      HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1
+      HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0)
     );
-    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22 - carry * 0.22,
-      swingRy + (dep.ry || 0) + carry * 0.18,
-      swingRz + (dep.rz || 0) + this._vaultDip * 0.18);
+    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22,
+      swingRy + (dep.ry || 0) + (actionMotion.yaw || 0),
+      swingRz + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0));
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
     this._decayFx(dt, cur);

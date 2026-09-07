@@ -429,6 +429,17 @@ export class GameplayHud {
     }
     const spread = s.crosshairConeDeg != null ? spreadFromCone(s.crosshairConeDeg)
       : s.bloomPx != null ? s.bloomPx : this.chGap;
+    const aimX = Number.isFinite(s.crosshairX) ? s.crosshairX * 100 : 50;
+    const aimY = Number.isFinite(s.crosshairY) ? s.crosshairY * 100 : 50;
+    if (aimX !== painted.aimX || aimY !== painted.aimY) {
+      painted.aimX = aimX; painted.aimY = aimY;
+      d.ch.style.left = `${aimX}%`;
+      d.ch.style.top = `${aimY}%`;
+      if (d.hitmarker) {
+        d.hitmarker.style.left = `${aimX}%`;
+        d.hitmarker.style.top = `${aimY}%`;
+      }
+    }
     if (spread != null) this.setSpread(beamRadius > 0 ? Math.max(spread, beamRadius + 3) : spread);
     this.updateCrosshairStress(s.panic, s.pain, alive);
     this.setReloadProgress(s.reloading01 == null ? null : s.reloading01, !!s.reloadStaged);

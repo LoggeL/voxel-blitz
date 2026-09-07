@@ -108,6 +108,10 @@ export function resolveWeaponIntent(p, _dt, ctx) {
     switchWeapon(p, inp.switchTo);
   }
 
+  // The client holds its reload request while prediction is active. Keep an
+  // unaccepted edge pending across a draw/vault lock, so the same request starts
+  // when the weapon becomes usable. Accepted requests retain their edge latch.
+  if (reloadEdge && (p.vault || p.deployT > 0)) p.reloadPrev = false;
   if (p.vault) { cancelCharge(p); p.triggerPrev = !!inp.wantFire; return; }
   const def = p.def;
   if (reloadEdge && ctx.canUseWeapon(p, p.weapon) &&
@@ -262,7 +266,7 @@ function meleeSwing(p, ctx) {
   const backstab = vFwd.x * dirX + vFwd.y * dirY + vFwd.z * dirZ > melee.backstabDot;
   const dmg = Math.round(def.damage[0] * (backstab ? melee.backstabMult : 1) * 10) / 10;
   const lethal = victim.takeDamage(dmg, false);
-  ctx.pushEvent(evHit(p.id, victim.id, dmg, false, [victim.x, victim.eyeY, victim.z]));
+  ctx.pushEvent(evHit(p.id, victim.id, dmg, false, [victim.x, victim.eyeY, victim.z], victim.lastDamage));
   if (lethal) ctx.killPlayer(victim, p, def.id, false);
 }
 
@@ -474,7 +478,7 @@ export function fireOneShot(p, ctx, charge = 1) {
         let dmg = damageAtDistance(def, tgt.t) * (hs ? def.headMult : 1) * chargeMult;
         dmg = Math.round(dmg * 10) / 10;
         const lethal = tgt.victim.takeDamage(dmg, hs);
-        ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, [ix, iy, iz]));
+        ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, [ix, iy, iz], tgt.victim.lastDamage));
         if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
           longRange: tgt.t >= LONG_RANGE_KILL_DISTANCE,
           noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
@@ -528,7 +532,7 @@ export function fireOneShot(p, ctx, charge = 1) {
         let dmg = railDamageMult(shotProfile, tgt.radialDistance) * damageAtDistance(def, dist) * (hs ? def.headMult : 1) * dmgMult;
         dmg = Math.round(dmg * 10) / 10;
         const lethal = tgt.victim.takeDamage(dmg, hs);
-        ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, [ix, iy, iz]));
+        ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, [ix, iy, iz], tgt.victim.lastDamage));
         if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
           longRange: dist >= LONG_RANGE_KILL_DISTANCE,
           noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,

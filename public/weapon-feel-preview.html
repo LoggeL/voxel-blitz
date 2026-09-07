@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VOXEL BLITZ · Waffenprüfung</title>
+<style>
+html,body{margin:0;overflow:hidden;background:#263c52;font:14px system-ui;color:#fff}canvas{display:block;width:100vw;height:100vh}
+header{position:absolute;top:18px;left:18px;right:18px;padding:14px 18px;background:#101922ed;border:1px solid #62727c;border-radius:10px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+button,select{font:inherit;color:#fff;background:#344451;border:1px solid #718594;padding:8px 12px;border-radius:5px}button[aria-pressed=true]{background:#956018;border-color:#ffa432}input{accent-color:#ffa432}output{font-variant-numeric:tabular-nums}
+#crosshair{position:absolute;width:14px;height:14px;transform:translate(-50%,-50%);pointer-events:none;color:#fff;filter:drop-shadow(0 0 2px #000)}#crosshair:before,#crosshair:after{content:'';position:absolute;background:currentColor}#crosshair:before{left:6px;width:2px;height:14px}#crosshair:after{top:6px;height:2px;width:14px}
+#status{position:absolute;left:18px;bottom:18px;white-space:pre-line;background:#101922df;padding:12px 16px;border-radius:8px;line-height:1.6;pointer-events:none}
+</style>
+<canvas id="scene" aria-label="Waffenhaltung und Nachladeanimation"></canvas>
+<div id="crosshair"></div>
+<header>
+<strong>Waffenprüfung</strong>
+<label>Waffe <select id="weapon"></select></label>
+<button id="sprint" aria-pressed="false">Sprint</button>
+<button id="turn">Blickschwenk</button>
+<button id="ads" aria-pressed="false">Visier</button>
+<button id="reload">Nachladen</button>
+<button id="fire">Schuss</button>
+<label>Nachladephase <input id="phase" type="range" min="0" max="1" step="0.01" value="0"></label>
+<output id="progress">0%</output>
+<button id="pause" aria-pressed="false">Pause</button>
+</header>
+<div id="status" role="status">Lädt…</div>
+<script type="module" src="./js/capture/weapon-feel-preview.js"></script>
+</html>

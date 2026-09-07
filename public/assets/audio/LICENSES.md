@@ -61,6 +61,19 @@ origin and license of every bundled recording remain auditable.
   explicitly marked as replaced. `tools/prepare-grenade-audio.py` rebuilds that
   historical recipe only into `.artifacts/grenade-audio-source/legacy-output/`.
 
+## Hit confirmations and body impacts
+
+- Source: ElevenLabs Sound Effects API, generated in the user's account on 2026-09-08.
+- Eight candidates produced separate body/head hit confirmations, body/head kill
+  confirmations and a muted flesh impact. Hit cues last 75-80 ms; kill cues last
+  139-144 ms. The recordings replace the corresponding procedural cue when loaded.
+- Account/service terms govern these generated assets; no CC0 license is asserted.
+- `elevenlabs-hit-sources.json` records selected sources, API prompts, original and
+  decoded hashes, processing recipes and actual decoded Opus measurements.
+- Rebuild with `python tools/prepare-hit-audio.py`; add `--analyze` for candidate
+  waveform and spectrum sheets. Local API responses, WAVs and receipts remain in
+  `.artifacts/elevenlabs-hit-audio-2026-09-08/`.
+
 ## Generated energy weapons and rocket launch
 
 - Source: ElevenLabs Sound Effects, generated in the user's account on 2026-09-06.

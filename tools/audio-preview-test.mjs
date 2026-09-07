@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { sfx } from '../public/js/audio/sfx.js';
+import { BUILTIN_SAMPLE_MANIFEST } from '../public/js/audio/samples.js';
 
 class Element {
   constructor(tagName = 'div') {
@@ -66,6 +67,8 @@ Object.assign(sfx, {
   loadSamples: () => loadPromise,
   setMasterVolume() {}, setListener() {}, minigunMotor() {},
   grenadePin: () => calls.push('pin'),
+  hitmark: (headshot) => calls.push(`hit:${headshot}`),
+  killConfirm: (headshot) => calls.push(`kill:${headshot}`),
   fire: (weapon) => calls.push(weapon),
   stopFlame: () => calls.push('fade'),
   stopFlames: () => { throw new Error('Preview release must fade, not dispose the flame graph.'); },
@@ -78,12 +81,16 @@ try {
   const pending = pin.dispatch('click');
   await Promise.resolve();
   await document.getElementById('stop-loops').dispatch('click');
-  finishLoading({ loaded: 25, failed: 0 });
+  finishLoading({ loaded: Object.keys(BUILTIN_SAMPLE_MANIFEST).length, failed: 0 });
   await pending;
   assert.ok(!calls.includes('pin'), 'Stop during loading cancels the pending runtime cue');
   assert.equal(document.getElementById('status').textContent, 'Loops stopped.');
   await pin.dispatch('click');
   assert.equal(calls.at(-1), 'pin', 'a fresh click after Stop can play normally');
+  await findButton('Body hit').dispatch('click');
+  assert.equal(calls.at(-1), 'hit:false');
+  await findButton('Headshot kill').dispatch('click');
+  assert.deepEqual(calls.slice(-2), ['hit:true', 'kill:true'], 'preview reproduces real lethal-hit overlap');
 
   const hold = findButton('Hold flame');
   await hold.dispatch('pointerdown', { button: 0, pointerId: 1 });

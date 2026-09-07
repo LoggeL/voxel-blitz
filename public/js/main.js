@@ -14,6 +14,7 @@ import { ViewmodelRig } from './guns/viewmodel.js';
 import { WeaponState, shouldShowViewmodel } from './guns/weapon-state.js';
 import { Effects, attachMuzzleBridge } from './weapons/effects.js';
 import { HUD } from './ui/hud.js';
+import { projectAimReticle } from './ui/aim-reticle.js';
 import { WeaponWheelController } from './session/weapon-wheel-controller.js';
 import { RunHud } from './ui/run-hud.js';
 import { sfx } from './audio/sfx.js';
@@ -416,7 +417,7 @@ class Game {
       this.rig?.grenadeThrow(0);
       return;
     }
-    const launch = this.player.grenadeLaunchState(thrown.charge, thrownType.id);
+    const launch = this.player.grenadeLaunchState(thrown.charge, thrownType.id, thrown.grenadeAim);
     this.effects?.projectileLaunch({
       type: thrownType.id,
       o: [launch.x, launch.y, launch.z],
@@ -465,7 +466,7 @@ class Game {
       self: this.selfRow,
       mode: this.matchState?.mode,
       eye: this.camera.position,
-      forward: fwdFromAngles(this.player.aimYaw, this.player.aimPitch),
+      forward: fwdFromAngles(this.player.shotYaw, this.player.shotPitch),
       isVisible: (point) => isWorldPointVisible(this._world, this.camera, point, 0.6),
     }));
   }
@@ -575,9 +576,12 @@ class Game {
         exhaustion: this.player.exhaustion,
         pain: this.player.pain,
         aimSwayScale: this.player.aimMotion?.rigMotionScale,
+        weaponAim: this.player.weaponAim,
+        shotYaw: this.player.shotYaw,
+        shotPitch: this.player.shotPitch,
       });
       this.weapon.syncRigAds();
-      const flameDirection = fwdFromAngles(this.player.aimYaw, this.player.aimPitch);
+      const flameDirection = fwdFromAngles(this.player.shotYaw, this.player.shotPitch);
       this.effects.flames?.setLocalStream(this.weapon.flameFiring,
         [flameDirection.x, flameDirection.y, flameDirection.z],
         [this.camera.position.x, this.camera.position.y, this.camera.position.z]);
@@ -605,9 +609,12 @@ class Game {
     if (spectating && this.ownBody?.group) this.ownBody.group.visible = false;
 
     const beamAim = this.weapon.def.id === 'lance'
-      ? this.worldview.pickCameraRay(this.camera.position, fwdFromAngles(this.player.aimYaw, this.player.aimPitch), 120)
+      ? this.worldview.pickCameraRay(this.camera.position, fwdFromAngles(this.player.shotYaw, this.player.shotPitch), 120)
       : null;
+    const reticle = projectAimReticle(this.camera, this.player.shotYaw, this.player.shotPitch);
     this.hud.setState({
+      crosshairX: reticle.x,
+      crosshairY: reticle.y,
       crosshairDistance: beamAim?.t ?? 20,
       crosshairFov: this.camera.fov,
       crosshairHeight: innerHeight,

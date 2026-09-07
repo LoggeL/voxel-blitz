@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>VOXEL BLITZ · Overkill comparison</title>
+<style>
+body{max-width:1200px;margin:28px auto;padding:0 20px;background:#111820;color:#edf2f7;font:16px/1.5 system-ui}h1{font-size:28px;margin:0}p{color:#bdc9d3}button{background:#ffa432;border:0;border-radius:5px;padding:10px 15px;font:600 14px system-ui;margin-right:8px;cursor:pointer}button:focus-visible{outline:3px solid white;outline-offset:3px}#labels{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:20px}article{background:#1c2833;border-radius:6px;padding:12px}h2{font-size:19px;margin:0}article p{font-size:13px;margin:4px 0}canvas{display:block;width:100%;height:auto;margin-top:14px;border-radius:7px}#status{color:#a9e5b8}label{margin-left:10px;font-size:14px}input{accent-color:#ffa432}@media(max-width:700px){body{padding:0 10px}h2{font-size:14px}article{padding:7px}article p{font-size:11px}}
+</style></head><body>
+<h1>Overkill controls the splatter</h1>
+<p>Overkill is the health damage left after armor, minus the victim's health before the lethal hit. The same game effects and camera are shown at three damage levels.</p>
+<button data-time="0.18">Burst · 0.18 s</button><button data-time="0.75">Flight · 0.75 s</button><button data-time="2">Surface stains · 2 s</button>
+<label><input id="headshot" type="checkbox">Headshot</label>
+<div id="labels"></div><div id="view"></div><p id="status" role="status">Preparing comparison…</p>
+<script type="module" src="/js/capture/gore-preview.js"></script></body></html>

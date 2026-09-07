@@ -60,7 +60,7 @@ export class FlameSystem {
           const def = WEAPONS.flamethrower;
           const damage = damageAtDistance(def, packet.distance + t);
           const lethal = victim.takeDamage(damage, false);
-          ctx.pushEvent(evHit(packet.owner.id, victim.id, damage, false, point));
+          ctx.pushEvent(evHit(packet.owner.id, victim.id, damage, false, point, victim.lastDamage));
           if (lethal) ctx.killPlayer(victim, packet.owner, def.id, false);
           else {
             const remaining = Math.min(def.flame.duration,
@@ -103,7 +103,7 @@ export function updateBurn(victim, dt, ctx) {
     burn.elapsed = 0;
     const lethal = victim.takeDamage(damage, false);
     ctx.pushEvent(evHit(burn.owner.id, victim.id, damage, false,
-      [victim.x, victim.eyeY, victim.z]));
+      [victim.x, victim.eyeY, victim.z], victim.lastDamage));
     if (lethal) ctx.killPlayer(victim, burn.owner, 'flamethrower', false);
   }
   if (burn.remaining <= 0 || victim.state !== 'alive') {

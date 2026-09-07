@@ -122,16 +122,18 @@ export class ProjectileSystem {
       const charge = player.grenadeChargeQueued;
       const typeIndex = player.grenadeTypeQueued;
       const cook = player.grenadeCookQueued;
+      const aim = player.grenadeAimQueued;
       player.grenadeChargeQueued = 0;
       player.grenadeTypeQueued = 0;
       player.grenadeCookQueued = 0;
+      player.grenadeAimQueued = null;
       if (player.state !== 'alive' || !ctx.canThrow(player)) continue;
       if (!(player.grenades[typeIndex] > 0)) continue;
       const type = GRENADE_TYPES[GRENADE_TYPE_IDS[typeIndex]];
       if (type.cook && clampGrenadeCook(cook, type) >= type.fuseMs) {
         this.detonateInHand(player, ctx, typeIndex);
       } else {
-        this.throw(player, ctx, charge, typeIndex, cook);
+        this.throw(player, ctx, charge, typeIndex, cook, aim);
       }
     }
 
@@ -210,7 +212,7 @@ export class ProjectileSystem {
         if (hs) dmg *= WEAPONS.longarc.headMult;
         dmg = Math.round(dmg * 10) / 10;
         const lethal = victim.takeDamage(dmg, hs);
-        ctx.pushEvent(evHit(projectile.ownerId, victim.id, dmg, hs, [x, y, z]));
+        ctx.pushEvent(evHit(projectile.ownerId, victim.id, dmg, hs, [x, y, z], victim.lastDamage));
         if (lethal) ctx.killPlayer(victim, projectile.owner, WEAPONS.longarc.id, hs, {});
         this._fizzleBolt(projectile, ctx);
         return true;
@@ -295,11 +297,11 @@ export class ProjectileSystem {
   }
 
   /** Release-edge throw. `typeIndex` selects the grenade; `cookMs` shortens a timed fuse. */
-  throw(player, ctx, charge = 0.5, typeIndex = 0, cookMs = 0) {
+  throw(player, ctx, charge = 0.5, typeIndex = 0, cookMs = 0, aim = null) {
     if (this.active.size >= 192) return null;
     const index = clampGrenadeType(typeIndex);
     const type = GRENADE_TYPES[GRENADE_TYPE_IDS[index]];
-    const direction = fwdFromYawPitch(player.yaw, player.pitch);
+    const direction = fwdFromYawPitch(aim?.yaw ?? player.yaw, aim?.pitch ?? player.pitch);
     const launch = grenadeLaunch({
       x: player.x, y: player.y, z: player.z, eyeY: player.eyeY,
       vx: player.vx, vy: player.vy, vz: player.vz,
@@ -604,7 +606,7 @@ export class ProjectileSystem {
       let lethal = false;
       if (damageEnabled && damage > 0) {
         lethal = victim.takeDamage(damage, false);
-        ctx.pushEvent(evHit(owner?.id || '', victim.id, damage, false, target));
+        ctx.pushEvent(evHit(owner?.id || '', victim.id, damage, false, target, victim.lastDamage));
       }
       const strength = isSelf && Number.isFinite(rules.selfKnockback)
         ? rules.selfKnockback

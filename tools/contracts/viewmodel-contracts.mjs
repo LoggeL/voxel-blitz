@@ -746,7 +746,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
     ok(magnitude(scoped) > magnitude(hip) * 2 && magnitude(scopedHeld) < magnitude(hip),
       'a 5x optic magnifies idle sway and holding breath still beats hip sway');
 
-    const { WeaponState, RELOAD_ACK_GRACE_MS } = await import('../../public/js/guns/weapon-state.js');
+    const { WeaponState } = await import('../../public/js/guns/weapon-state.js');
     const rigCalls = [];
     const weaponState = new WeaponState({
       rig: {
@@ -803,9 +803,10 @@ export async function runViewmodelContracts(ok, installGlobals) {
         && rigCalls[0][2] === 'tube' && rigCalls[0][3]?.rounds === 5,
     'client tube reload mirrors the authority: staged seating, snapshot grace, and fire interrupt');
     weaponState.startReload(3000);
-    weaponState.reconcileServer({ reloading: false, alive: true }, 3000 + RELOAD_ACK_GRACE_MS + 1);
+    weaponState.reconcileServer({ reloading: true, alive: true }, 3100);
+    weaponState.reconcileServer({ reloading: false, alive: true }, 3200);
     ok(!weaponState.isReloading,
-      'after the acknowledgement grace an authoritative not-reloading snapshot clears the reload');
+      'an authoritative not-reloading snapshot clears a previously acknowledged reload');
     weaponState.resetToLoadout();
     weaponState.forceWeapon(WEAPON_IDS.indexOf('rifle'), { mode: 'gungame', now: 0 });
     weaponState._ammo.rifle.mag = 0;

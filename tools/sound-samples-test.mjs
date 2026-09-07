@@ -62,6 +62,19 @@ function sampledCue(play, slot) {
 
 try {
   await sfx.init();
+  for (const headshot of [false, true]) {
+    for (const [method, slot] of [
+      ['hitmark', `ui.hitmark.${headshot ? 'head' : 'body'}`],
+      ['killConfirm', `ui.kill.${headshot ? 'head' : 'body'}`],
+    ]) {
+      const before = ctx.nodes.length;
+      sampledCue(() => sfx[method](headshot), slot);
+      assert.equal(ctx.nodes.slice(before).filter((node) =>
+        node.kind === 'source' || node.kind === 'oscillator').length, 1,
+      'a loaded hit confirmation has one recording and no synthetic clap or chirp layer');
+    }
+  }
+  sampledCue(() => sfx.impact('flesh', 0.45), 'impact.flesh');
   for (const type of ['frag', 'limpet', 'pulse', 'rocket']) {
     assert.ok(BUILTIN_SAMPLE_MANIFEST[`grenades.${type}.explosion`]);
     const source = sampledCue(() => sfx.explosion([0, 0, 0], type), `grenades.${type}.explosion`);
@@ -105,6 +118,18 @@ try {
 
   globalThis.fetch = async () => ({ ok: false });
   await sfx.init();
+  for (const headshot of [false, true]) {
+    for (const method of ['hitmark', 'killConfirm']) {
+      const before = ctx.nodes.length;
+      sfx[method](headshot);
+      const voices = ctx.nodes.slice(before).filter((node) => ['source', 'oscillator'].includes(node.kind));
+      assert.equal(voices.length, 2, 'missing hit recording uses one soft noise and one rounded tone');
+      assert.ok(voices.filter((node) => node.kind === 'oscillator').every((node) => node.type === 'triangle'),
+        'fallback hit cues do not contain square-wave or delayed melodic chirps');
+      assert.ok(voices.every((node) => node.stoppedAt - node.startedAt < 0.11),
+        'fallback confirmations cannot ring across several automatic-fire hits');
+    }
+  }
   for (const type of ['frag', 'limpet', 'pulse', 'rocket']) sfx.explosion([0, 0, 0], type);
   sfx.grenadePin();
   sfx.grenadeThrow(1);
