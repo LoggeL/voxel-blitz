@@ -4,6 +4,7 @@ import { PRONE, stepProne, stanceEye } from '../../shared/player-stance.js';
 import { EYE_HEIGHT } from '../../shared/combatmath.js';
 import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
 import { getBlock, ladderContact } from '../../shared/worlddata.js';
+import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 
 const { walk: WALK, sprint: SPRINT, crouch: CROUCH, jump: JUMP_VEL,
   accelGround: GROUND_ACCEL, accelAir: AIR_ACCEL, gravity: GRAVITY } = PHYSICS;
@@ -39,8 +40,10 @@ export class PlayerPhysics {
     return solidBelow(this._solidAt, x, y, z);
   }
 
-  moveAxis(axis, amount) {
-    const collided = slidePlayerAxis(this.pos, axis, amount, this._solidAt);
+  moveAxis(axis, amount, canStep = false) {
+    const collided = canStep
+      ? slideTerrainAxis(this.pos, axis, amount, this._solidAt, this.mapMeta, true)
+      : slidePlayerAxis(this.pos, axis, amount, this._solidAt);
     if (collided) this.vel[axis] = 0;
     return collided;
   }
@@ -93,8 +96,9 @@ export class PlayerPhysics {
     if (ladderVy !== 0) this.vel.y = ladderVy;
     else this.vel.y = Math.max(TERMINAL_VY, this.vel.y - GRAVITY * dt);
 
-    this.moveAxis('x', this.vel.x * dt);
-    this.moveAxis('z', this.vel.z * dt);
+    const canStepTerrain = this.grounded && !wantJump && !this.vault && !onLadder && this.vel.y <= 0.01;
+    this.moveAxis('x', this.vel.x * dt, canStepTerrain);
+    this.moveAxis('z', this.vel.z * dt, canStepTerrain);
     const descending = this.vel.y < 0;
     let hitY = false;
     if (ladderVy > 0) {

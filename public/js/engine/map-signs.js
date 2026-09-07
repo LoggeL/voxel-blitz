@@ -30,10 +30,10 @@ const SIGNS = {
     ['02', 'ATOMIC AVENUE', 67.5, 19.5, 35, 2.4, 0.8, '+z'],
   ],
   dust2: [
-    ['A SITE', 'LONG / SHORT', 104, 21, 10, 7, 1.8, '+z'],
-    ['B SITE', 'KASBAH / TUNNELS', 26.5, 20.5, 10, 7, 1.8, '+z'],
-    ['MID DOORS', 'CT SPAWN', 59.5, 23.1, 32, 8, 1.4, '+z'],
-    ['T SPAWN', 'MID / LONG / TUNNELS', 65.5, 20.5, 90, 8, 1.8, '-z'],
+    ['A SITE', 'HOTEL AURORE', 87, 20, 11, 5.6, 1.6, '+z'],
+    ['B SITE', 'KASBAH / TUNNELS', 33, 19, 9, 5.6, 1.6, '+z'],
+    ['MID DOORS', 'CT SPAWN', 63, 18, 37, 3.6, 1.6, '+z'],
+    ['T SPAWN', 'MID / LONG / TUNNELS', 44, 21, 91, 5.6, 1.6, '-z'],
   ],
   killhouse: [
     ['LIVE FIRE', 'KEEP DOWNRANGE CLEAR', 64, 18.5, 58, 15, 2, '+z'],

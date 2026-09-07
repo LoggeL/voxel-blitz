@@ -117,8 +117,11 @@ def triangle(vertices, mat):
 def solid(brush):
     sides = brush.get('side', [])
     mats = [material(s.get('material', '')) for s in sides]
+    # NODRAW brushes still define real structural collision behind model skins.
     if not any(mats):
-        return
+        if not all(s.get('material', '').upper() == 'TOOLS/TOOLSNODRAW' for s in sides):
+            return
+        mats = [PLASTER] * len(sides)
     planes = np.array([numbers(s['plane']).reshape(3, 3) for s in sides])
     normals = -np.cross(planes[:, 1] - planes[:, 0], planes[:, 2] - planes[:, 0])
     lengths = np.linalg.norm(normals, axis=1)

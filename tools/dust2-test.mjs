@@ -10,6 +10,7 @@ import { findPowerupSites, isPowerupSiteSupported } from '../shared/powerup-site
 import {
   boxCollides, solidBelow, slidePlayerAxis, findVault, stepVault, VAULT_SECONDS, PHYSICS,
 } from '../shared/player-movement.js';
+import { DUST2_NAV_FLOORS } from '../shared/world/dust2-layout.js';
 import { DEFAULT_BLOCK_TILES, TILE_PAINTERS } from '../public/js/engine/atlas.js';
 
 const world = createMapState('dust2');
@@ -119,11 +120,11 @@ function reachableFrom(spawn, { collision = solidAt, within = () => true } = {})
   for (let i = 0; i < queue.length; i++) {
     const point = queue[i];
     for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-      for (const dy of [0, 1, -1]) {
+      for (const dy of [0, 1, -1, 2, -2]) {
         const next = { x: point.x + dx, y: point.y + dy, z: point.z + dz };
         if (next.x < bounds.minX || next.x > bounds.maxX
           || next.z < bounds.minZ || next.z > bounds.maxZ
-          || next.y < GROUND + 1 || next.y >= SY - 2 || !within(next) || seen.has(key(next))
+          || next.y < bounds.minY || next.y >= SY - 2 || !within(next) || seen.has(key(next))
           || !walkable(next, collision) || !connects(point, next, dx ? 'x' : 'z', collision)) continue;
         seen.add(key(next));
         queue.push(next);
@@ -133,14 +134,22 @@ function reachableFrom(spawn, { collision = solidAt, within = () => true } = {})
   return seen;
 }
 
+const navPositions = [];
+const navKeys = new Set();
+for (let i = 0; i < DUST2_NAV_FLOORS.length; i += 3) {
+  const [x, z, floorY] = DUST2_NAV_FLOORS.slice(i, i + 3);
+  const point = { x: x + 0.5, y: floorY + 1, z: z + 0.5 };
+  navPositions.push(point);
+  navKeys.add(key(point));
+}
 const pools = [world.meta.spawns.fun, world.meta.spawns.tdm.alpha, world.meta.spawns.tdm.bravo,
   world.meta.spawns.snd.attackers, world.meta.spawns.snd.defenders];
 for (const pool of pools) {
   assert.ok(pool.length >= 4, 'every combat spawn pool accommodates several players');
   assert.equal(new Set(pool.map(key)).size, pool.length, 'authored spawn positions are unique');
   for (const point of pool) {
-    assert.ok(inside(point), `authored spawn remains inside the arena: ${JSON.stringify(point)}`);
-    assert.ok(walkable(point), `authored spawn has ground and full body clearance: ${JSON.stringify(point)}`);
+    assert.ok(inside(point) && navKeys.has(key(point)), `spawn uses an original navigation floor: ${key(point)}`);
+    assert.ok(walkable(point), `spawn has ground and full body clearance: ${key(point)}`);
   }
 }
 const teamA = new Set(world.meta.spawns.tdm.alpha.map(key));
@@ -150,128 +159,165 @@ assert.ok(world.meta.spawns.snd.defenders.every(point => !attack.has(key(point))
 const seen = reachableFrom(world.meta.spawns.snd.attackers[0]);
 const defendersSeen = reachableFrom(world.meta.spawns.snd.defenders[0]);
 for (const point of pools.flat()) {
-  assert.ok(seen.has(key(point)) && defendersSeen.has(key(point)),
-    `both teams can reach spawn ${JSON.stringify(point)}`);
+  assert.ok(seen.has(key(point)) && defendersSeen.has(key(point)), `both teams can reach spawn ${key(point)}`);
 }
 
-// Check recognizable route destinations at their playable floor, including
-// covered tunnels and the raised Short/A route independently of roof height.
-const routes = [
-  ['T spawn', 65, 15, 84], ['Top Mid', 64, 15, 64], ['Mid', 59, 15, 40],
-  ['Mid Doors', 59, 15, 30], ['Short A', 76, 18, 35], ['Catwalk', 72, 18, 47],
-  ['A site', 99, 18, 23], ['Long A', 112, 15, 46], ['Long Doors', 99, 15, 64],
-  ['Upper Tunnels', 24, 15, 61], ['Lower Tunnels', 42, 15, 50],
-  ['B site', 26, 15, 23], ['B Doors', 43, 15, 24], ['CT spawn', 65, 15, 15],
-];
-for (const [name, x, y, z] of routes) {
-  const point = { x: x + 0.5, y, z: z + 0.5 };
-  assert.ok(seen.has(key(point)) && defendersSeen.has(key(point)), `${name} connects to both teams' routes`);
-}
-assert.deepEqual(new Set(world.meta.sites.map(site => site.id)), new Set(['A', 'B']));
-for (const site of world.meta.sites) {
-  for (let x = site.minX; x < site.maxX; x++) for (let z = site.minZ; z < site.maxZ; z++) {
-    const point = { x: x + 0.5, y: site.y, z: z + 0.5 };
-    assert.ok(walkable(point), `site ${site.id} has a clear planting floor at ${x},${z}`);
-    assert.ok(seen.has(key(point)) && defendersSeen.has(key(point)),
-      `site ${site.id} is accessible to both sides at ${x},${z}`);
+// These independent reference samples come from the original 2018 NAV areas,
+// not from the generated map metadata. Source X/Y are horizontal and Z is up.
+// Select a standing cell within one voxel of the measured point, keeping its
+// expected elevation fixed; the raster grid can place a sample on a wall edge.
+function sourcePoint(name, [sourceX, sourceY, sourceZ]) {
+  const x = 64 + (sourceX + 212.5) / 48;
+  const z = 48 - (sourceY - 975) / 48;
+  const y = Math.round(15 + sourceZ / 48);
+  const nearby = [];
+  for (let dx = -1; dx <= 1; dx++) for (let dz = -1; dz <= 1; dz++) {
+    const point = { x: Math.floor(x) + dx + 0.5, y, z: Math.floor(z) + dz + 0.5 };
+    if (navKeys.has(key(point)) && walkable(point)) nearby.push(point);
   }
+  nearby.sort((a, b) => Math.hypot(a.x - x, a.z - z) - Math.hypot(b.x - x, b.z - z));
+  assert.ok(nearby.length, `${name} retains its measured position and elevation (${x.toFixed(2)},${y},${z.toFixed(2)})`);
+  return nearby[0];
 }
-assert.ok(world.meta.sites.find(site => site.id === 'A').y
-  > world.meta.sites.find(site => site.id === 'B').y, 'A retains its raised platform');
-const powerups = findPowerupSites(world);
-assert.ok(powerups.length >= 4, 'the arena provides four usable exposed powerup pads');
-for (const point of powerups) {
-  assert.ok(isPowerupSiteSupported(world, point) && walkable(point), 'powerup pad supports a standing player');
-  assert.ok(seen.has(key(point)) && defendersSeen.has(key(point)), 'both sides can reach every powerup');
+const references = {
+  tSpawn: [-1587.5, -887.5, 128.285], tRamp: [-1925, -387.5, 68.148],
+  outsideTunnel: [-1775, 325, 5.963], upperTunnel: [-2125, 1137.5, 32.031],
+  tunnelStairs: [-1087.5, 1275, -103.969], lowerTunnel: [-662.5, 1425, -111.969],
+  bSite: [-1875, 2112.5, 0.162], bDoors: [-875, 2212.5, -81.035],
+  bWindow: [-1375, 2700, 127.531], ctSpawn: [225, 2437.5, -119.969],
+  topMid: [-387.5, 437.5, 0.031], mid: [-350, 1175, -97.425],
+  midDoors: [-662.5, 2225, -117.806], catwalk: [162.5, 1437.5, 0.031],
+  shortStairs: [337.5, 1462.5, -0.624], short: [287.5, 2125, 96.031],
+  extendedA: [412.5, 2287.5, 96.031], aSite: [1150, 2937.5, 125.590],
+  underA: [675, 2175, -77.721], aRamp: [1475, 2387.5, 18.199],
+  longA: [1525, 1962.5, -10.849], longDoors: [1100, 487.5, 7.25],
+  outsideLong: [487.5, -250, 1.794], pit: [1512.5, 262.5, -188.191],
+  pitSide: [1687.5, 425, 56.078],
+};
+const points = Object.fromEntries(Object.entries(references).map(([name, source]) => [name, sourcePoint(name, source)]));
+for (const [name, point] of Object.entries(points)) {
+  assert.ok(seen.has(key(point)) && defendersSeen.has(key(point)), `${name} connects to both teams through body-sized passages`);
 }
-console.log(`Dust 2: deterministic geometry, materials and ${seen.size} connected player-sized standing positions verified.`);
+assert.ok(points.upperTunnel.y - points.lowerTunnel.y >= 3, 'upper and lower tunnels retain their separate floors');
+assert.ok(points.aSite.y - points.ctSpawn.y >= 5, 'A remains above CT spawn');
+assert.ok(points.longA.y - points.pit.y >= 4, 'Pit descends below Long A');
+assert.ok(points.short.y - points.catwalk.y >= 2, 'Short stairs rise after the level Catwalk');
+assert.ok(points.tSpawn.y > points.topMid.y, 'the T spawn ramp descends toward top mid');
+assert.ok(points.topMid.y > points.midDoors.y, 'mid descends toward its double doors');
 
-// Connectivity alone could pass through a different lane. Restrict local
-// crossings to their named corridor, then close its actual portal and prove
-// that the local passage stops. The rest of the map keeps its alternate routes.
-const pointAt = (x, y, z) => ({ x: x + 0.5, y, z: z + 0.5 });
+// An actual stacked column proves CT runs under the Short/A bridge. Testing
+// only a max-height map would accidentally replace the covered lower route.
+const underBridge = { x: 75.5, y: 12, z: 21.5 };
+const onBridge = { x: 75.5, y: 17, z: 21.5 };
+assert.ok(walkable(underBridge) && walkable(onBridge), 'CT and the A approach both stand at the same horizontal position');
+assert.ok(seen.has(key(underBridge)) && seen.has(key(onBridge)), 'both stacked levels have a usable route');
+assert.ok(solidAt(75, 16, 21), 'a solid bridge separates the two playable levels');
+
 const inRegion = ([minX, maxX, minZ, maxZ, minY, maxY]) => point =>
   point.x >= minX && point.x < maxX + 1 && point.z >= minZ && point.z < maxZ + 1
   && point.y >= minY && point.y <= maxY;
 const closePortal = ([minX, maxX, minZ, maxZ, minY, maxY]) => (x, y, z) =>
   (x >= minX && x <= maxX && z >= minZ && z <= maxZ && y >= minY && y <= maxY)
   || solidAt(x, y, z);
+const at = (x, y, z) => ({ x: x + 0.5, y, z: z + 0.5 });
+// Local bounds exclude alternative lanes, so a global detour cannot hide a
+// blocked tunnel, staircase or door. The corridor sizes follow the reference.
 const crossings = [
-  {
-    name: 'Mid Doors', from: [59, 15, 40], to: [59, 15, 20],
-    region: [51, 67, 18, 43, 15, 15], portal: [55, 62, 29, 31, 15, 21],
-  },
-  {
-    name: 'B tunnel arch', from: [24, 15, 61], to: [26, 15, 23],
-    region: [16, 35, 20, 68, 15, 15], portal: [20, 27, 31, 33, 15, 21],
-  },
-  {
-    name: 'B Doors', from: [48, 15, 24], to: [26, 15, 24],
-    region: [23, 53, 20, 28, 15, 15], portal: [40, 42, 21, 26, 15, 21],
-  },
-  {
-    name: 'Catwalk to Short A', from: [72, 15, 67], to: [90, 18, 30],
-    region: [68, 93, 29, 69, 15, 18], portal: [68, 76, 47, 48, 18, 21],
-  },
-  {
-    name: 'B window vault', from: [46, 15, 16], to: [35, 15, 16],
-    region: [35, 48, 13, 18, 15, 16], portal: [39, 42, 14, 17, 16, 19],
-  },
+  { name: 'Mid Doors', from: points.topMid, to: points.midDoors,
+    region: [54, 66, 20, 61, 11, 16], portal: [54, 66, 33, 34, 11, 20] },
+  { name: 'B tunnel exit', from: points.upperTunnel, to: points.bSite,
+    region: [22, 40, 23, 46, 14, 18], portal: [22, 40, 31, 32, 14, 22] },
+  { name: 'B Doors', from: points.bDoors, to: points.bSite,
+    region: [27, 53, 19, 27, 11, 18], portal: [40, 41, 19, 27, 11, 22] },
+  { name: 'Catwalk and Short stairs', from: points.catwalk, to: points.short,
+    region: [65, 81, 23, 40, 14, 18], portal: [65, 81, 32, 33, 14, 22] },
+  { name: 'Long double-door passage', from: points.outsideLong, to: at(99, 15, 49),
+    region: [73, 106, 48, 79, 14, 17], portal: [73, 106, 62, 63, 14, 22] },
+  { name: 'Upper-to-lower tunnel stairs', from: at(34, 16, 45), to: points.lowerTunnel,
+    region: [33, 57, 36, 48, 12, 17] },
+  { name: 'B window', from: at(35, 15, 13), to: at(45, 16, 14),
+    region: [34, 49, 9, 18, 14, 18] },
 ];
 for (const crossing of crossings) {
-  const from = pointAt(...crossing.from), to = pointAt(...crossing.to);
   const within = inRegion(crossing.region);
-  assert.ok(reachableFrom(from, { within }).has(key(to)), `${crossing.name} works independently of other lanes`);
-  assert.ok(reachableFrom(to, { within }).has(key(from)), `${crossing.name} is usable in both directions`);
-  assert.equal(reachableFrom(from, { within, collision: closePortal(crossing.portal) }).has(key(to)), false,
-    `${crossing.name} crosses its intended opening without a local bypass`);
+  assert.ok(reachableFrom(crossing.from, { within }).has(key(crossing.to)), `${crossing.name} works without another lane`);
+  assert.ok(reachableFrom(crossing.to, { within }).has(key(crossing.from)), `${crossing.name} works in both directions`);
+  if (crossing.portal) {
+    assert.equal(reachableFrom(crossing.from, { within, collision: closePortal(crossing.portal) }).has(key(crossing.to)), false,
+      `${crossing.name} crosses its intended opening`);
+  }
 }
-const tSpawn = pointAt(65, 15, 84), longA = pointAt(112, 15, 46);
-const groundOnly = point => point.y === GROUND + 1;
-assert.ok(reachableFrom(tSpawn, { within: groundOnly }).has(key(longA)), 'T spawn reaches Long A at ground level');
-const longClosed = reachableFrom(tSpawn, { within: groundOnly,
-  collision: closePortal([97, 99, 61, 66, 15, 21]) });
-assert.equal(longClosed.has(key(longA)), false, 'Long Doors are required for the ground route from T into Long A');
-for (const destination of [pointAt(59, 15, 40), pointAt(24, 15, 61)]) {
-  assert.ok(longClosed.has(key(destination)), 'closing Long Doors preserves the independent Mid and tunnel lanes');
-}
-console.log('Dust 2: independent Mid/B/Catwalk crossings and required Long Doors ground passage verified.');
 
-const engine = new GameEngine({ world });
-const selector = engine.spawnSelector;
+assert.deepEqual(new Set(world.meta.sites.map(site => site.id)), new Set(['A', 'B']));
+for (const site of world.meta.sites) {
+  const plantCells = [];
+  for (let x = Math.floor(site.minX); x <= Math.floor(site.maxX); x++) {
+    for (let z = Math.floor(site.minZ); z <= Math.floor(site.maxZ); z++) {
+      const point = at(x, Math.floor(site.y), z);
+      if (point.x < site.minX || point.x > site.maxX || point.z < site.minZ || point.z > site.maxZ) continue;
+      if (walkable(point)) plantCells.push(point);
+    }
+  }
+  assert.ok(plantCells.length >= 6, `site ${site.id} offers several standing planting positions around its cover`);
+  assert.ok(plantCells.every(point => seen.has(key(point)) && defendersSeen.has(key(point))),
+    `both sides reach the clear planting cells on site ${site.id}`);
+}
+const powerups = findPowerupSites(world);
+assert.equal(powerups.length, 4, 'four exposed powerup pads pass the live eligibility checks');
+for (const point of powerups) {
+  assert.ok(isPowerupSiteSupported(world, point) && walkable(point), 'powerup pad supports a standing player');
+  assert.ok(seen.has(key(point)) && defendersSeen.has(key(point)), 'both teams can reach every powerup');
+}
+
+const selector = new GameEngine({ world }).spawnSelector;
 for (const pool of pools) {
   const expanded = selector.expand(pool);
   assert.ok(expanded.length > pool.length, 'spawn expansion provides additional valid positions');
   for (const point of expanded) {
-    assert.ok(inside(point), `expanded spawn stays inside bounds: ${JSON.stringify(point)}`);
-    assert.ok(walkable(point) && seen.has(key(point)),
-      `expanded spawn has a playable exit: ${JSON.stringify(point)}`);
+    assert.ok(inside(point) && navKeys.has(key(point)) && walkable(point) && seen.has(key(point)),
+      `expanded spawn stays on an accessible original floor: ${key(point)}`);
   }
   const selected = new Set();
   for (let i = 0; i < 40; i++) {
     selector.setNow(i * 100);
     const point = selector.pick(expanded, null, -1, { variety: true });
-    assert.ok(inside(point) && walkable(point) && seen.has(key(point)));
+    assert.ok(inside(point) && navKeys.has(key(point)) && walkable(point) && seen.has(key(point)));
     selected.add(key(point));
   }
   assert.ok(selected.size > 1, 'repeated respawns use more than one valid location');
 }
-const outside = { x: bounds.minX - 3, y: GROUND + 1, z: bounds.minZ + 6 };
+for (const point of navPositions) {
+  if (selector.walkable(point)) assert.ok(seen.has(key(point)), `allowed recovery floor has an exit: ${key(point)}`);
+}
+let rejectedDecorativeSurface = false;
+for (let x = 3; x < SX - 3 && !rejectedDecorativeSurface; x++) {
+  for (let z = 3; z < SZ - 3 && !rejectedDecorativeSurface; z++) {
+    for (let y = bounds.minY; y <= bounds.maxY; y++) {
+      const point = at(x, y, z);
+      if (inside(point) && walkable(point) && !navKeys.has(key(point))) {
+        assert.equal(selector.walkable(point), false, 'decorative roofs and ledges cannot become recovery spawns');
+        rejectedDecorativeSurface = true;
+        break;
+      }
+    }
+  }
+}
+assert.ok(rejectedDecorativeSurface, 'the regression exercises a real decorative standing surface');
+const outside = { x: bounds.minX - 3, y: bounds.minY, z: bounds.minZ + 6 };
 assert.equal(selector.walkable(outside), false, 'outside positions cannot become fallback spawns');
 for (const pool of [[], [outside]]) {
   const point = selector.pick(pool);
-  assert.ok(inside(point) && walkable(point) && seen.has(key(point)), 'empty/outside pools recover on a playable floor');
+  assert.ok(inside(point) && navKeys.has(key(point)) && walkable(point) && seen.has(key(point)),
+    'empty and outside pools recover on connected original floors');
 }
-
 const damaged = createMapState('dust2');
-for (const point of pools.flat()) {
-  damaged.setBlock(Math.floor(point.x), Math.floor(point.y) - 1, Math.floor(point.z), AIR);
-}
+for (const point of pools.flat()) damaged.setBlock(Math.floor(point.x), Math.floor(point.y) - 1, Math.floor(point.z), AIR);
 const damagedSelector = new GameEngine({ world: damaged }).spawnSelector;
 assert.ok(pools.flat().every(point => !damagedSelector.walkable(point)), 'destruction removes authored spawn support');
 for (const pool of pools) {
   const point = damagedSelector.pick(pool);
-  assert.ok(inside(point) && damagedSelector.walkable(point) && seen.has(key(point)),
-    'destroyed authored pools recover inside the arena on surviving playable ground');
+  assert.ok(inside(point) && navKeys.has(key(point)) && damagedSelector.walkable(point) && seen.has(key(point)),
+    'destroyed spawn pools recover on surviving original floors with a route');
 }
-console.log('Dust 2: team pools, plant floors, expanded/repeated respawns and terrain-destruction recovery verified.');
+console.log(`Dust 2: ${Object.keys(points).length} measured landmarks, ${crossings.length} local corridors, stacked floors, plant sites, four powerups and ${seen.size} connected standing cells verified.`);
+console.log('Dust 2: deterministic generation, materials, wire round trips and safe respawn recovery verified.');

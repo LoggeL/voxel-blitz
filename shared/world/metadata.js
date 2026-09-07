@@ -262,6 +262,8 @@ export function createMapMetadata(id, world) {
       minX: 22.5, maxX: 105.5, minZ: 3.5, maxZ: 92.5,
       minY: 11, maxY: 18.1,
       surfaces: DUST2_NAV_FLOORS,
+      // Two isolated source NAV pockets have no player-sized route into them.
+      excludedSurfaces: [82, 10, 16, 87, 25, 13],
     } } : {}),
     modes: MAP_MODE_COMPATIBILITY[id],
     spawns: {

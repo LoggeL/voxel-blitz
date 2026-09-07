@@ -5,6 +5,7 @@ import { CONDITION_RULES } from '../../shared/combatmath.js';
 import { ladderContact } from '../../shared/worlddata.js';
 import { clamp01 } from './player.js';
 import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
+import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 
 const WALK_SPEED = PHYSICS.walk;
 const SPRINT_SPEED = PHYSICS.sprint;
@@ -100,8 +101,10 @@ export function updateCondition(p, dt) {
   p.exhaustion = clamp01(p.exhaustion + exhaustionRate * dt);
 }
 
-function slideAxis(player, axis, amount, solidAt) {
-  const collided = slidePlayerAxis(player, axis, amount, solidAt);
+function slideAxis(player, axis, amount, solidAt, mapMeta = null, canStep = false) {
+  const collided = canStep
+    ? slideTerrainAxis(player, axis, amount, solidAt, mapMeta, true)
+    : slidePlayerAxis(player, axis, amount, solidAt);
   if (collided) player[`v${axis}`] = 0;
   return collided;
 }
@@ -217,8 +220,9 @@ export function stepMovement(p, dt, ctx) {
   // X and Z always collide. Upward travel crosses the solid tower deck.
   // Downward travel bypasses only while its destination remains in-volume,
   // so the ordinary collision path catches the floor at the ladder foot.
-  slideAxis(p, 'x', p.vx * dt, ctx.solidAt);
-  slideAxis(p, 'z', p.vz * dt, ctx.solidAt);
+  const canStepTerrain = p.grounded && !kf.jump && !p.vault && !ladderDirected && p.vy <= 0.01;
+  slideAxis(p, 'x', p.vx * dt, ctx.solidAt, ctx.mapMeta, canStepTerrain);
+  slideAxis(p, 'z', p.vz * dt, ctx.solidAt, ctx.mapMeta, canStepTerrain);
   const dy = p.vy * dt;
   const ladderBypass = ladderUp
     || (ladderDown && ladderContact(ctx.mapMeta, p.x, p.y + dy, p.z));

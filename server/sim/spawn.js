@@ -32,6 +32,10 @@ export class SpawnSelector {
       const [x, z, floorY] = spawnBounds.surfaces.slice(i, i + 3);
       this.spawnSurfaces.add(`${x},${floorY + 1},${z}`);
     }
+    for (let i = 0; i < (spawnBounds?.excludedSurfaces?.length || 0); i += 3) {
+      const [x, z, floorY] = spawnBounds.excludedSurfaces.slice(i, i + 3);
+      this.spawnSurfaces?.delete(`${x},${floorY + 1},${z}`);
+    }
     this.now = now;
     this.spawnUseTimes = new Map();
     this.expandedPools = new WeakMap();
