@@ -74,11 +74,15 @@ async function main() {
       hint: document.getElementById('play-btn')?.parentNode?.querySelector('.vb-action-hint')?.textContent.trim(),
       create: document.getElementById('create-lobby-btn')?.textContent.trim(),
       join: document.getElementById('join-lobby-btn')?.textContent.trim(),
+      joinInBrowser: document.getElementById('join-code-input')?.closest('dialog')?.id === 'lobby-browser',
+      browserClosed: !document.getElementById('lobby-browser')?.open,
     }))()`);
     requireCondition(menu.quick === 'QUICK PLAY' && menu.create === 'CREATE LOBBY' && menu.join === 'JOIN',
       'browser renders the complete first menu step');
     requireCondition(/AUTO ARENA/.test(menu.hint),
       'Quick Play truthfully advertises automatic arena rotation');
+    requireCondition(menu.joinInBrowser && menu.browserClosed,
+      'room code entry belongs to Find a Lobby and is hidden from the main menu');
 
     await clickElement(page, 'menu-music-toggle');
     requireCondition(await page.evaluate(`localStorage.getItem('vb-menu-music') === '0' &&
@@ -97,9 +101,15 @@ async function main() {
       try {
         const response = await fetch(DEFAULT_MENU_TRACK);
         const buffer = await ctx.decodeAudioData(await response.arrayBuffer());
-        return buffer.duration > 63 && buffer.duration < 65 && buffer.numberOfChannels === 2;
+        const data = buffer.getChannelData(0);
+        const edgeSamples = Math.round(buffer.sampleRate * 0.25);
+        const edgeRms = (start) => Math.sqrt(data.slice(start, start + edgeSamples)
+          .reduce((sum, sample) => sum + sample * sample, 0) / edgeSamples);
+        return response.ok && buffer.duration > 45 && buffer.duration < 90 &&
+          buffer.numberOfChannels === 2 && edgeRms(0) > 0.001 &&
+          edgeRms(data.length - edgeSamples) > 0.001;
       } finally { await ctx.close(); }
-    })()`), 'new industrial menu track loads and decodes as a 64-second stereo loop');
+    })()`), 'menu soundtrack loads as a stereo loop with active audio at both boundaries');
 
     await page.send('Emulation.setDeviceMetricsOverride', {
       width: LIVE_WIDTH, height: LIVE_HEIGHT, deviceScaleFactor: 1, mobile: false,
@@ -118,14 +128,40 @@ async function main() {
     await clickElement(page, 'browse-lobbies-btn');
     await page.waitFor(`document.querySelector('.vb-browser-status')?.textContent.includes('No lobbies yet')`,
       { label: 'empty lobby browser' });
+    requireCondition(await page.evaluate(`document.activeElement.id === 'join-code-input'`),
+      'Find a Lobby focuses the room code field');
+    await clickElement(page, 'join-lobby-btn');
+    requireCondition(await page.evaluate(`document.getElementById('lobby-browser').open &&
+      document.getElementById('lobby-browser-join-status').textContent.includes('ENTER 5-CHARACTER')`),
+      'empty room codes display validation inside Find a Lobby');
+    await page.evaluate(`document.getElementById('join-code-input').value = 'AB'`);
+    await clickElement(page, 'join-lobby-btn');
+    requireCondition(await page.evaluate(`document.getElementById('lobby-browser-join-status').textContent.includes('MUST BE 5')`),
+      'short room codes stay in the dialog for correction');
     await pressEscape(page);
-    requireCondition(await page.evaluate(`!document.getElementById('lobby-browser').open`),
-      'Escape closes the lobby browser');
+    await page.waitFor(`document.activeElement.id === 'browse-lobbies-btn'`, { label: 'Escape restores browse focus' });
+    requireCondition(await page.evaluate(`!document.getElementById('lobby-browser').open &&
+      document.activeElement.id === 'browse-lobbies-btn'`),
+      'Escape closes the lobby browser and returns focus to Find a Lobby');
+    await page.send('Page.navigate', { url: url + '&lobby=abcde' });
+    await page.waitFor(`document.getElementById('lobby-browser')?.open &&
+      document.getElementById('join-code-input')?.value === 'ABCDE' &&
+      document.activeElement.id === 'join-code-input'`, { label: 'invitation opens code entry' });
+    requireCondition(true, 'invitation links open Find a Lobby with the normalized room code focused');
+    await clickElement(page, 'lobby-browser-close');
+    await page.waitFor(`document.activeElement.id === 'browse-lobbies-btn'`, { label: 'Back restores browse focus' });
+    requireCondition(await page.evaluate(`!document.getElementById('lobby-browser').open &&
+      document.activeElement.id === 'browse-lobbies-btn'`),
+      'Back closes the invitation and returns focus to Find a Lobby');
+    await page.evaluate(`history.replaceState(null, '', ${JSON.stringify(url)})`);
     await page.evaluate(`new Promise((resolve, reject) => {
       const ws = window.__directoryHost = new WebSocket('ws://' + location.host);
       ws.onopen = () => ws.send(JSON.stringify({ t: 'create', name: 'DirectoryHost', bots: 0, password: 'test room' }));
       ws.onmessage = (event) => {
-        if (typeof event.data === 'string' && JSON.parse(event.data).t === 'lobbyState') resolve(true);
+        if (typeof event.data === 'string') {
+          const frame = JSON.parse(event.data);
+          if (frame.t === 'lobbyState') { window.__directoryCode = frame.code; resolve(true); }
+        }
       };
       ws.onerror = reject;
     })`);
@@ -135,13 +171,50 @@ async function main() {
       && document.querySelector('.vb-browser-room').textContent.includes('Password required')
       && document.getElementById('lobby-browser').scrollWidth <= document.getElementById('lobby-browser').clientWidth`),
       'directory shows protected rooms without horizontal overflow');
+    if (process.env.BROWSER_SMOKE_SCREENSHOT) {
+      const screenshot = await page.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
+      await writeFile(path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT).replace(/\.png$/, '-find-lobby.png'),
+        Buffer.from(screenshot.data, 'base64'));
+    }
+    await page.evaluate(`(() => {
+      document.getElementById('join-code-input').value = window.__directoryCode.toLowerCase();
+      document.getElementById('join-code-input').dispatchEvent(new Event('input', { bubbles: true }));
+    })()`);
+    await clickElement(page, 'join-lobby-btn');
+    await page.waitFor(`document.getElementById('lobby-browser')?.open &&
+      document.getElementById('lobby-browser-join-status')?.textContent.includes('password')`,
+      { label: 'manual code admission error stays in Find a Lobby' });
+    requireCondition(await page.evaluate(`document.getElementById('join-code-input').value === window.__directoryCode &&
+      document.getElementById('join-password-input').value === ''`),
+      'manual admission failures preserve the normalized code without storing a password');
+    await page.evaluate(`(() => {
+      document.getElementById('join-password-input').closest('details').open = true;
+      const password = document.getElementById('join-password-input');
+      password.value = 'test room'; password.focus();
+    })()`);
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, text: '\r' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    await page.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false'`,
+      { label: 'manual protected room join' });
+    requireCondition(await page.evaluate(`document.getElementById('lobby-code-val').textContent === window.__directoryCode &&
+      !document.getElementById('lobby-browser').open`),
+      'Enter from the optional password joins the requested protected room');
+    await clickElement(page, 'lobby-leave-btn');
+    await page.waitFor(`document.getElementById('menu')?.getAttribute('aria-hidden') === 'false'`,
+      { label: 'leave manually joined room' });
+    await clickElement(page, 'browse-lobbies-btn');
+    await page.waitFor(`document.querySelector('.vb-browser-room input')`, { label: 'directory password entry' });
     await page.evaluate(`(() => {
       document.querySelector('.vb-browser-room input').value = 'wrong';
       document.querySelector('.vb-browser-room').requestSubmit();
     })()`);
-    await page.waitFor(`document.getElementById('join-status')?.textContent.includes('Incorrect lobby password')`,
+    await page.waitFor(`document.getElementById('lobby-browser')?.open &&
+      document.getElementById('lobby-browser-join-status')?.textContent.includes('Incorrect lobby password')`,
       { label: 'wrong lobby password feedback' });
-    await clickElement(page, 'browse-lobbies-btn');
+    requireCondition(await page.evaluate(`document.getElementById('join-code-input').value === window.__directoryCode &&
+      document.getElementById('join-password-input').closest('details').open &&
+      document.getElementById('join-password-input').value === ''`),
+      'directory admission errors reopen Find a Lobby with the attempted room and password option');
     await page.waitFor(`document.querySelector('.vb-browser-room input')`, { label: 'password retry' });
     await page.evaluate(`(() => {
       document.querySelector('.vb-browser-room input').value = 'test room';
@@ -231,9 +304,12 @@ async function main() {
       const name = document.getElementById('name-input');
       name.value = 'BrowserQA';
       name.dispatchEvent(new Event('input', { bubbles: true }));
+      document.getElementById('join-code-input').value = 'ABCDE';
+      name.focus();
       return true;
     })()`);
-    await clickElement(page, 'play-btn');
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13 });
     await page.waitFor(`window.__vb?.stats?.running === true &&
       window.__vb.stats.ringLen > 0 && window.__vb.stats.avatars >= 5`, {
       timeoutMs: 30_000,
@@ -241,7 +317,7 @@ async function main() {
     });
     const live = await page.evaluate(`window.__vb.stats`);
     requireCondition(live.alive && live.running && live.avatars >= 5,
-      'Quick Play reaches live play with at least five replacement-capable bots');
+      'Enter from player name starts Quick Play with five bots despite a stale hidden room code');
     requireCondition(live.lastSnapAgeMs < 1_000 && live.ping >= 0,
       'browser receives fresh authoritative snapshots');
     requireCondition(live.shader?.enabled === true && live.shader.frames > 0 &&

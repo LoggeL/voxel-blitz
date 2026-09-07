@@ -52,6 +52,9 @@ export class MenuLobbyController {
   }
 
   buildMenu(onAction, { musicEnabled = true, onMusicToggle = NOOP } = {}) {
+    const previousMenu = document.getElementById('menu');
+    const isInitialMenu = !this.browser;
+    const retry = previousMenu?.getAttribute('aria-hidden') === 'false' ? this.browser?.retry : null;
     this.browser?.dispose();
     this.onMenuAction = typeof onAction === 'function' ? onAction : NOOP;
     this.hideLobby();
@@ -140,26 +143,8 @@ export class MenuLobbyController {
     browseButton.type = 'button';
     browseButton.textContent = 'FIND A LOBBY';
     browseButton.setAttribute('aria-haspopup', 'dialog');
-    el('div', 'vb-action-hint', browseBox).textContent = 'EXPLORE OPEN ROOMS';
+    el('div', 'vb-action-hint', browseBox).textContent = 'BROWSE ROOMS OR ENTER A CODE';
     const createPassword = passwordOption(actionsBox, 'create-password-input', 'Set a lobby password');
-
-    const joinSection = el('div', 'vb-join-section', primaryBody);
-    const joinLabel = el('label', 'vb-label', joinSection);
-    joinLabel.textContent = 'HAVE A ROOM CODE?';
-    joinLabel.htmlFor = 'join-code-input';
-
-    const joinRow = el('div', 'vb-join-row', joinSection);
-    const joinInput = el('input', 'vb-join-input', joinRow, 'join-code-input');
-    joinInput.maxLength = 5;
-    joinInput.autocomplete = 'off';
-    joinInput.spellcheck = false;
-    joinInput.placeholder = 'CODE';
-
-    const joinButton = el('button', 'vb-btn vb-join-btn', joinRow, 'join-lobby-btn');
-    joinButton.type = 'button';
-    joinButton.textContent = 'JOIN';
-    const joinPassword = passwordOption(joinSection, 'join-password-input', 'This lobby has a password');
-    joinPassword.placeholder = 'Enter the lobby password';
 
     this.joinStatus = el('div', 'vb-status', primaryBody, 'join-status');
     this.joinStatus.setAttribute('role', 'status');
@@ -208,32 +193,10 @@ export class MenuLobbyController {
         code: '', password: createPassword.value, ...getIdentity() });
     };
 
-    const triggerJoin = () => {
-      if (joinButton.disabled) return;
-      const raw = joinInput.value.trim();
-      const cleaned = cleanCode(raw);
-      if (!cleaned) {
-        this.showJoinState('ENTER 5-CHARACTER ROOM CODE', 'err');
-        joinInput.focus();
-        return;
-      }
-      if (cleaned.length !== 5) {
-        this.showJoinState('ROOM CODE MUST BE 5 CHARACTERS', 'err');
-        joinInput.focus();
-        return;
-      }
-      this.showJoinState('');
-      this.onMenuAction({ mode: 'join', gameMode: 'fun', map: 'foundry', bots: 0,
-        code: cleaned, password: joinPassword.value, ...getIdentity() });
-    };
-
     this.browser = new LobbyBrowser(root, (code, password) => {
       this.onMenuAction({ mode: 'join', code, password, ...getIdentity() });
     });
-    browseButton.addEventListener('click', () => this.browser.show());
-    joinPassword.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') { event.preventDefault(); triggerJoin(); }
-    });
+    browseButton.addEventListener('click', () => this.browser.show({}, browseButton));
     createPassword.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') { event.preventDefault(); triggerCreate(); }
     });
@@ -245,25 +208,11 @@ export class MenuLobbyController {
     });
     quickPlayButton.addEventListener('click', triggerQuick);
     createLobbyButton.addEventListener('click', triggerCreate);
-    joinButton.addEventListener('click', triggerJoin);
-
-    joinInput.addEventListener('input', () => {
-      joinInput.value = cleanCode(joinInput.value);
-    });
-
-    joinInput.addEventListener('keydown', (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        triggerJoin();
-      }
-    });
 
     nameInput.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
         event.preventDefault();
-        const cleaned = cleanCode(joinInput.value.trim());
-        if (cleaned.length === 5) triggerJoin();
-        else triggerQuick();
+        triggerQuick();
       }
     });
 
@@ -274,17 +223,10 @@ export class MenuLobbyController {
       if (paramCode) prefillCode = cleanCode(paramCode);
     } catch (_) {}
 
-    if (prefillCode) {
-      joinInput.value = prefillCode;
-      this.showJoinState(`INVITE CODE DETECTED: ${prefillCode}`, 'ok');
-      this.support.defer(() => {
-        try {
-          if (document.getElementById('join-code-input') === joinInput) {
-            joinInput.focus();
-            joinInput.select();
-          }
-        } catch (_) {}
-      });
+    if (prefillCode) this.browser.codeInput.value = prefillCode;
+    if (retry || (isInitialMenu && prefillCode)) {
+      this.browser.show(retry || { code: prefillCode }, browseButton);
+      if (!retry) this.showJoinState(`INVITE CODE DETECTED: ${prefillCode}`, 'ok');
     } else {
       this.support.defer(() => {
         try {
@@ -298,6 +240,10 @@ export class MenuLobbyController {
   }
 
   showJoinState(message, tone = '') {
+    if (this.browser?.dialog.open) {
+      this.browser.showJoinState(message, tone);
+      return;
+    }
     const status = document.getElementById('join-status') || this.joinStatus;
     if (status) {
       status.textContent = message || '';

@@ -1,15 +1,62 @@
-import { el, MAP_LABELS, MODE_LABELS } from './hud-support.js';
+import { cleanCode, el, MAP_LABELS, MODE_LABELS } from './hud-support.js';
 
-/** A read-only room directory. Admission and password checks remain server-owned. */
+/** Code entry and a read-only room directory. Admission remains server-owned. */
 export class LobbyBrowser {
   constructor(parent, onJoin) {
     this.onJoin = onJoin;
     this.request = null;
+    this.retry = null;
+    this.returnFocus = null;
     this.dialog = el('dialog', 'vb-lobby-browser', parent, 'lobby-browser');
     this.dialog.setAttribute('aria-labelledby', 'lobby-browser-title');
     const header = el('div', 'vb-browser-header', this.dialog);
     el('h2', '', header, 'lobby-browser-title').textContent = 'FIND A LOBBY';
-    this.refresh = el('button', 'vb-btn', header, 'lobby-browser-refresh');
+
+    const codeForm = el('form', 'vb-browser-code-form', this.dialog);
+    const codeLabel = el('label', 'vb-label', codeForm);
+    codeLabel.textContent = 'JOIN WITH CODE';
+    codeLabel.htmlFor = 'join-code-input';
+    const codeRow = el('div', 'vb-browser-code-row', codeForm);
+    this.codeInput = el('input', '', codeRow, 'join-code-input');
+    this.codeInput.maxLength = 5;
+    this.codeInput.autocomplete = 'off';
+    this.codeInput.autocapitalize = 'characters';
+    this.codeInput.spellcheck = false;
+    this.codeInput.placeholder = 'ROOM CODE';
+    this.codeInput.setAttribute('aria-describedby', 'lobby-browser-join-status');
+    this.codeInput.addEventListener('input', () => {
+      this.codeInput.value = cleanCode(this.codeInput.value);
+      this.showJoinState('');
+    });
+    const codeJoin = el('button', 'vb-btn vb-browser-code-join', codeRow, 'join-lobby-btn');
+    codeJoin.type = 'submit';
+    codeJoin.textContent = 'JOIN';
+    this.passwordOption = el('details', 'vb-password-option', codeForm);
+    el('summary', '', this.passwordOption).textContent = 'This lobby has a password';
+    const passwordLabel = el('label', '', this.passwordOption);
+    el('span', '', passwordLabel).textContent = 'LOBBY PASSWORD';
+    this.codePassword = el('input', '', passwordLabel, 'join-password-input');
+    this.codePassword.type = 'password';
+    this.codePassword.maxLength = 64;
+    this.codePassword.autocomplete = 'off';
+    this.codePassword.placeholder = 'Enter the lobby password';
+    codeForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const code = cleanCode(this.codeInput.value);
+      if (code.length !== 5) {
+        this.showJoinState(code ? 'ROOM CODE MUST BE 5 CHARACTERS' : 'ENTER 5-CHARACTER ROOM CODE', 'err');
+        this.codeInput.focus();
+        return;
+      }
+      this.join(code, this.codePassword.value, this.passwordOption.open);
+    });
+    this.joinStatus = el('div', 'vb-status vb-browser-join-status', this.dialog, 'lobby-browser-join-status');
+    this.joinStatus.setAttribute('role', 'status');
+    this.joinStatus.setAttribute('aria-live', 'polite');
+
+    const directoryHeader = el('div', 'vb-browser-directory-header', this.dialog);
+    el('h3', '', directoryHeader).textContent = 'OR BROWSE LOBBIES';
+    this.refresh = el('button', 'vb-btn', directoryHeader, 'lobby-browser-refresh');
     this.refresh.type = 'button';
     this.refresh.textContent = 'REFRESH';
     this.refresh.addEventListener('click', () => void this.load());
@@ -21,14 +68,39 @@ export class LobbyBrowser {
     close.textContent = 'BACK';
     close.addEventListener('click', () => this.dialog.close());
     this.dialog.addEventListener('close', () => {
+      if (this.dialog.open) return; // A queued close event must not cancel a newly reopened directory.
       this.request?.abort();
       this.rows.replaceChildren(); // Discard any password as soon as the dialog closes.
+      this.codePassword.value = '';
+      if (this.returnFocus?.isConnected) this.returnFocus.focus();
     });
   }
 
-  show() {
+  show({ code, passwordRequired = false } = {}, returnFocus = document.activeElement) {
+    this.retry = null;
+    this.returnFocus = returnFocus;
+    this.showJoinState('');
+    if (code) this.codeInput.value = cleanCode(code);
+    this.codePassword.value = '';
+    this.passwordOption.open = passwordRequired;
     this.dialog.showModal();
+    this.codeInput.focus();
+    if (this.codeInput.value) this.codeInput.select();
     void this.load();
+  }
+
+  showJoinState(message, tone = '') {
+    this.joinStatus.textContent = message || '';
+    this.joinStatus.classList.toggle('ok', tone === 'ok');
+    this.joinStatus.classList.toggle('err', tone === 'err');
+    this.codeInput.setAttribute('aria-invalid', String(tone === 'err'));
+  }
+
+  join(code, password, passwordRequired) {
+    // Admission rebuilds the menu on failure. Keep the room for a retry, never its secret.
+    this.retry = { code, passwordRequired };
+    this.dialog.close();
+    this.onJoin(code, password);
   }
 
   async load() {
@@ -85,8 +157,7 @@ export class LobbyBrowser {
       event.preventDefault();
       if (join.disabled) return;
       const secret = password?.value || '';
-      this.dialog.close();
-      this.onJoin(lobby.code, secret);
+      this.join(lobby.code, secret, lobby.passwordRequired);
     });
   }
 

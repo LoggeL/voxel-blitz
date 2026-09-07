@@ -27,12 +27,27 @@ origin and license of every bundled recording remain auditable.
 
 ## Menu music
 
+- Track: **Foundry Assault** (`music/menu-foundry-assault.ogg`).
+- Generated from an original project prompt with Google Lyria 3.5 in Google AI Studio on
+  2026-09-08 (Europe/Berlin), then prepared as the menu and lobby loop.
+- This generated recording is separate from the CC0 assets above. Google
+  account/service terms govern its use; no CC0 license is asserted.
+- `music/menu-foundry-assault.prompt.txt` preserves the exact generation prompt.
+  `music/menu-foundry-assault.sources.json` records original and shipped hashes,
+  the source location, processing commands and decoded measurements.
+- 57.600 seconds decoded, stereo 48 kHz Opus at 160 kbit/s VBR. The generated
+  ending taper and silence are removed, and an 80 ms circular overlap connects
+  the final phrase to the opening. Linear normalization gives -17.00 LUFS and
+  -4.03 dBTP. The main menu's music switch saves its state locally.
+
+### Legacy procedural menu music
+
 - Track: **Foundry Aftermath** (`music/menu-industrial.ogg`)
 - Original procedural composition for this project; no external samples.
 - Source: `tools/generate-menu-music.mjs` (deterministic synthesis).
 - 120 BPM, 32 bars, 64 seconds, stereo Opus at 128 kbit/s.
 - Regenerate from the repository root with `node tools/generate-menu-music.mjs` (requires ffmpeg with libopus).
-- Used as the menu and lobby loop; the main menu's music switch saves its state locally.
+- Retained with its deterministic generator as the earlier menu track.
 
 ## Generated grenades, handling and continuous weapons
 
