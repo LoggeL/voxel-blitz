@@ -1,0 +1,18 @@
+{
+  "generator": "Built-in image_gen",
+  "date": "2026-09-08",
+  "useCase": "stylized-concept",
+  "references": {
+    "minigun": "Text specification based on the existing procedural model; no image reference in the final generation.",
+    "flamethrower": "flamethrower.png"
+  },
+  "outputs": {
+    "minigun": "minigun-illustrated.png",
+    "flamethrower": "flamethrower-illustrated.png"
+  },
+  "processing": "Resampled to 640px-wide PNGs with transparency retained using macOS sips.",
+  "prompts": {
+    "minigun": "Create a PNG CUTOUT with TRANSPARENT BACKGROUND and a genuine alpha channel. A single minigun inventory icon for a voxel game: six long steel barrels facing right, two barrel support collars, compact olive green electric motor housing on left, a black top carrying handle, rear pistol grip, one large olive ammunition drum below the receiver, a brass ammunition belt, small orange heat lamps. Polished blocky 3D illustration with bright silver beveled edges, readable olive green panels and detailed voxel textures. Full side view with slight three-quarter depth, entire weapon centered in a landscape 2:1 frame, enough transparent padding on all sides. This is an isolated item asset with transparent pixels all around it AND through the gaps between barrels, behind the grips and through the handle. No background pattern of any kind, no white rectangles, no checkerboard, no floor, no scene, no text, no watermark, no muzzle flash.",
+    "flamethrower": "Use case: stylized-concept. Asset type: transparent weapon inventory illustration for a voxel arena shooter, shown at 48 pixels high on a dark charcoal shop panel. Primary request: redraw the reference weapon as a crisp, polished detailed voxel 3D game inventory illustration. Preserve the recognizable mechanism, body proportions, materials and silhouette from the reference, while strongly improving lighting and readability. Full weapon centered in wide landscape 2:1 composition, muzzle pointing RIGHT. Slight three-quarter angle so forms are clear, still predominantly side profile. Bright studio key and rim lighting, silver steel highlights, midtone surfaces; every barrel and component must clearly separate from a dark UI background. Crisp beveled edges and restrained pixelated material texture matching premium voxel inventory art. Actual transparent alpha background, no scene, no floor, no shadow outside the object, no text, labels, logos, hands, people, watermark or detached loose items. Generous empty padding, entire silhouette inside frame. Subject: F-4 FIRESTORM industrial sci-fi flamethrower, compact pressure tool. Orange and ivory stepped receiver on left, black pistol grip, black front grip, large short burner nozzle and broad open octagonal protective cage pointing right with eight alternating ivory and steel longitudinal rails and orange rim bands. One transverse red cylindrical fuel reservoir under the receiver, black flexible hoses to brass fittings, a round pressure gauge at the back, tiny blue pilot flame beside the nozzle. Lit warm silver and copper nozzle metal, bright readable red tank, no large flame plume."
+  }
+}

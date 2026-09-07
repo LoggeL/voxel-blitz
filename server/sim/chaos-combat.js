@@ -1,5 +1,6 @@
 import { chaosLevel } from '../../shared/chaos.js';
 import { WEAPONS } from '../../shared/combatmath.js';
+import { FLAME_RULES } from '../../shared/flame-rules.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { evHit, evShoot } from '../protocol/events.js';
 
@@ -12,6 +13,20 @@ function fan(p, ctx, dir, count, rocket = false, circle = false) {
     d.x /= length; d.y /= length; d.z /= length;
     if (rocket) ctx.launchRocket?.(p, d);
     else ctx.launchBolt?.(p, d, 1);
+  }
+}
+
+function flameJets(p, ctx, dir) {
+  if (!ctx.flames) return;
+  const origin = [p.x, p.eyeY, p.z];
+  for (const angle of [-0.2, 0.2]) {
+    // The normal center packet launches after this hook. Reserve its slot.
+    if (ctx.flames.active?.length >= FLAME_RULES.maxProjectiles - 1) break;
+    const d = { x: dir.x * Math.cos(angle) - dir.z * Math.sin(angle),
+      y: dir.y, z: dir.x * Math.sin(angle) + dir.z * Math.cos(angle) };
+    ctx.flames.launch(p, origin, d, ctx);
+    const direction = [d.x, d.y, d.z];
+    ctx.pushEvent?.({ ...evShoot(p.id, origin, direction, 'flamethrower', direction), chaosFlame: true });
   }
 }
 
@@ -29,6 +44,20 @@ export function chaosShot(p, ctx, dir) {
   }
   if (id === 'sniper' && level >= 3) fan(p, ctx, { ...dir, y: Math.min(0.8, dir.y + 0.22) }, 3, true);
   if (id === 'lmg' && p.shotSeq % (level >= 2 ? 3 : 5) === 0) fan(p, ctx, dir, level >= 3 ? 3 : 1, true);
+  if (id === 'minigun') {
+    if (level >= 2 && p.shotSeq % 10 === 0) fan(p, ctx, dir, 3);
+    if (level >= 3 && p.shotSeq % 20 === 0) fan(p, ctx, dir, 8, false, true);
+  }
+  if (id === 'flamethrower') {
+    flameJets(p, ctx, dir);
+    if (level >= 2 && p.shotSeq % 10 === 0) {
+      // Keep the backdraft on the shooter's side of cover, just like the fire.
+      const wall = raycastVoxels(ctx.solidAt, p.x, p.eyeY, p.z, dir.x, dir.y, dir.z, 6);
+      const reach = wall ? Math.max(0, wall.t - 0.1) : 6;
+      ctx.chaosBlast?.(p, [p.x + dir.x * reach, p.eyeY + dir.y * reach, p.z + dir.z * reach], 'pulse', 4, 18, 20);
+    }
+    if (level >= 3 && p.shotSeq % 20 === 0) fan(p, ctx, dir, 1, true);
+  }
   if (id === 'revolver' && level >= 3) fan(p, ctx, dir, 6, false, true);
   if (id === 'lance' && level >= 3) fan(p, ctx, dir, 8, false, true);
   if (id === 'knife') {

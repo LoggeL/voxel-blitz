@@ -8,6 +8,7 @@ import {
   THROWABLE_NAMES,
   WEAPON_CLASSES,
   WEAPON_BUY_ORDER,
+  weaponImagePath,
 } from './hud-support.js';
 
 /**
@@ -124,13 +125,12 @@ export class BuyMenuController {
         classEl.textContent = ['frag', 'limpet', 'pulse'].includes(wid) ? 'GRENADE EXPERIMENTS' : 'WEAPON EXPERIMENTS';
         classEl.remove();
         statsEl.remove();
-        if (WEAPONS[wid]) {
-          const image = el('img', 'vb-chaos-weapon-image', cardBody);
-          image.src = `./assets/weapons/hud/${wid}.png`;
-          image.alt = '';
-          image.draggable = false;
-          cardBody.insertBefore(image, nameEl);
-        }
+        const isWeapon = Boolean(WEAPONS[wid]);
+        const image = el('img', `vb-chaos-weapon-image${isWeapon ? '' : ' vb-chaos-grenade-image'}`, cardBody);
+        image.src = isWeapon ? weaponImagePath(wid) : `./assets/grenades/hud/${wid}.png`;
+        image.alt = '';
+        image.draggable = false;
+        cardBody.insertBefore(image, nameEl);
         const ladder = el('ol', 'vb-chaos-ladder', cardBody);
         CHAOS_UPGRADES[wid].forEach((upgrade) => {
           const stage = el('li', 'vb-chaos-stage', ladder);
@@ -163,7 +163,7 @@ export class BuyMenuController {
 
     const footer = el('div', 'vb-buy-footer', panel);
     const hint = el('span', 'vb-buy-footer-hint', footer);
-    hint.textContent = mode === 'chaos' ? '[1-9, 0] WEAPONS · CLICK GRENADES · [ESC] CLOSE' : 'PRESS [1-8] TO BUY · [ESC] TO CLOSE · UI UPDATES ON SERVER CONFIRMATION';
+    hint.textContent = mode === 'chaos' ? '[1-9, 0] FIRST 10 ITEMS · CLICK OR TAB + ENTER FOR ALL · [ESC] CLOSE' : 'PRESS [1-8] TO BUY · [ESC] TO CLOSE · UI UPDATES ON SERVER CONFIRMATION';
 
     this.buyDom = {
       root,

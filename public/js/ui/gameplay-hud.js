@@ -7,6 +7,7 @@ import {
   resolveKey,
   spreadFromCone,
   beamReticleRadiusPx,
+  weaponImagePath,
 } from './hud-support.js';
 import { Scoreboard } from './scoreboard.js';
 import { MatchHud } from './match-hud.js';
@@ -296,7 +297,7 @@ export class GameplayHud {
       const tint = WEAPON_IDS.includes(key) ? `vb-w-${key}` : '';
       d.wname.className = tint;
       d.ammo.className = tint;
-      if (key) d.weaponIcon.src = `./assets/weapons/hud/${key}.png`;
+      if (key) d.weaponIcon.src = weaponImagePath(key);
       this.lastWepKey = key;
     }
     const melee = WEAPONS[key]?.mode === 'melee';

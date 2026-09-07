@@ -1,4 +1,5 @@
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
+import { CHAOS_KILL_CREDITS, CHAOS_UPGRADES } from '../../../shared/chaos.js';
 
 export const GLYPH = Object.freeze({
   rifle: 'R',
@@ -30,6 +31,11 @@ export const WEAPON_NAMES = Object.freeze({
   knife: 'PIXEL PICK',
   flamethrower: 'F-4 FIRESTORM',
 });
+
+export function weaponImagePath(weaponId) {
+  const suffix = weaponId === 'minigun' || weaponId === 'flamethrower' ? '-illustrated' : '';
+  return `./assets/weapons/hud/${weaponId}${suffix}.png`;
+}
 
 /** Kill-feed / recap names for explosives that are not weapon slots. */
 export const THROWABLE_NAMES = Object.freeze({
@@ -79,7 +85,7 @@ export const MODE_LABELS = Object.freeze({
 });
 
 export const MODE_DESCRIPTIONS = Object.freeze({
-  chaos: 'Kills pay $300 · 39 stacking upgrades · Open the lab with B · No balance, just chaos',
+  chaos: `Kills pay $${CHAOS_KILL_CREDITS} · ${Object.values(CHAOS_UPGRADES).reduce((total, upgrades) => total + upgrades.length, 0)} stacking upgrades · Open the lab with B · No balance, just chaos`,
   fun: 'Shared instant skirmish · 8-gun full loadout · Rapid respawn',
   tdm: 'Alpha vs Bravo · First team to 40 kills wins · Team spawns',
   snd: 'Attackers vs Defenders · Buy phase economy · First to 7 round wins',

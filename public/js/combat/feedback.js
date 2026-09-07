@@ -156,6 +156,8 @@ export class CombatFeedback {
       }
       case 'shoot': {
         if (ev.chaosArc) { this.effects.railBeams?.shoot(ev); break; }
+        // Extra Chaos jets are authoritative and have no local prediction.
+        if (ev.chaosFlame) { this.effects.shoot(ev); break; }
         const local = ev.id === myId;
         if (!local) {
           this.effects.shoot(ev);

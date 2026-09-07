@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { WeaponState } from '../public/js/guns/weapon-state.js';
 import { ViewmodelRig } from '../public/js/guns/viewmodel.js';
+import { CombatFeedback } from '../public/js/combat/feedback.js';
 import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
 
 function setup() {
@@ -82,3 +83,23 @@ console.log('Continuous flame client: 30/60/144fps cadence, eight-second fuel, n
   rig.dispose();
 }
 console.log('Flame deploy respects elapsed time on slow render frames without uncapping springs.');
+
+{
+  const visuals = [], sounds = [];
+  const feedback = new CombatFeedback({
+    effects: { shoot: event => visuals.push(event) },
+    sfx: { fire: (...args) => sounds.push(args) },
+    isRunning: () => true, getMyId: () => 1,
+  });
+  const shot = { kind: 'shoot', w: 'flamethrower', o: [0, 2, 0], d: [0, 0, -1] };
+  feedback.handleEvent({ ...shot, id: 1 });
+  assert.equal(visuals.length, 0, 'ordinary local jet remains locally predicted');
+  for (const id of [1, 2]) {
+    const jet = { ...shot, id, chaosFlame: true, d: [0.2, 0, -0.98] };
+    feedback.handleEvent(jet);
+    assert.equal(visuals.at(-1), jet, 'authoritative side-jet direction reaches the flame renderer');
+  }
+  assert.equal(visuals.length, 2, 'local and remote Chaos side jets are rendered');
+  assert.equal(sounds.length, 0, 'side jets do not multiply the continuous firing audio');
+}
+console.log('Chaos side flames render for local and remote shooters without replaying firing audio.');

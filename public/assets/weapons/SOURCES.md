@@ -1,5 +1,18 @@
 # Weapon model references
 
+## Heavy weapon inventory illustrations
+
+`hud/minigun-illustrated.png` and `hud/flamethrower-illustrated.png` were generated
+with the built-in Imagegen tool on 2026-09-08, using the existing procedural side
+renders as references. Brighter lighting and metal edge highlights make the weapons
+readable on dark inventory panels. The original model renders remain alongside them.
+
+The Chaos shop, weapon wheel, HUD and kill feed use these illustrations through
+`weaponImagePath()` in `public/js/ui/hud-support.js`. The exact prompts are stored in
+[`hud/heavy-imagegen-prompts.json`](./hud/heavy-imagegen-prompts.json).
+
+## Model reference images
+
 The eight HUD illustrations in [`hud/`](./hud/) are the canonical visual
 references for the procedural weapon models:
 

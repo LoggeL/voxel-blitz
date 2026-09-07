@@ -8,6 +8,7 @@ import {
   el,
   clamp01,
   resolveKey,
+  weaponImagePath,
 } from './hud-support.js';
 import { DamageNumberPool } from './damage-numbers.js';
 import { DeathTreatment } from './death-treatment.js';
@@ -138,7 +139,7 @@ export class CombatHudController {
     const weapon = el('span', `kf-weapon kf-weapon-${weaponKey || 'world'}`, row);
     if (weaponKey && WEAPON_NAMES[weaponKey]) {
       const icon = el('img', 'kf-weapon-icon', weapon);
-      icon.src = `./assets/weapons/hud/${weaponKey}.png`;
+      icon.src = weaponImagePath(weaponKey);
       icon.alt = '';
       icon.setAttribute('aria-hidden', 'true');
     } else {

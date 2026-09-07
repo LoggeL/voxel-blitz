@@ -14,6 +14,8 @@ export const CHAOS_UPGRADES = Object.freeze({
   rocket: ladder(['Family size', 'Giant rockets carve larger craters and blast a wider area.'], ['Bad GPS', 'Rockets steer toward visible enemies ahead.'], ['Custody battle', 'Detonations scatter six live cluster grenades.']),
   lance: ladder(['Tunnel licence', 'Charged rails punch through up to 24 blocks and 16 bodies.'], ['Tesla tunnel', 'Hits arc to 4 nearby enemies.'], ['Public transport', 'Each shot adds a ring of 8 ricocheting bolts.']),
   knife: ladder(['Air guitar', 'Every pickaxe swing launches a forward shockwave.'], ['Beyblade permit', 'The shockwave surrounds you and throws enemies skyward.'], ['Excavator tantrum', 'Swings also launch three bouncing energy bolts.']),
+  minigun: ladder(['Queue shredder', 'Rounds punch through 3 bodies, losing 20% damage per body.'], ['Spin cycle', 'Every tenth round also fires 3 ricocheting bolts.'], ['Rotor riot', 'Every twentieth round also throws 8 bolts in a full circle.']),
+  flamethrower: ladder(['Three-alarm fire', 'Two extra travelling flame jets widen every burst.'], ['Backdraft', 'Every tenth burst also erupts in a forward shockwave.'], ['Dragon breath', 'Every twentieth burst also launches a rocket.']),
   frag: ladder(['Kinder surprise', 'Detonation scatters 6 live mini-frags.'], ['Extended family', '12 mini-frags scatter over a wider area.'], ['Popcorn ceiling', 'Mini-frags erupt with extra launch force and larger craters.']),
   limpet: ladder(['Group hug', 'The flying charge steers toward visible enemies.'], ['Clingy friends', 'Detonation scatters 5 sticky charges.'], ['Separation anxiety', 'Sticky children home in too, then explode with a larger blast.']),
   pulse: ladder(['Reverse sneeze', 'The grenade pulls nearby enemies inward before impact.'], ['Space programme', 'Impact launches players high into the air.'], ['Afterparty', 'Impact scatters 8 bouncing pulse bombs with a delayed second launch.']),
@@ -34,6 +36,8 @@ export function chaosWeaponDef(p, base) {
   const level = chaosLevel(p, base.id);
   if (!level) return base;
   if (base.id === 'shotgun') return { ...base, pellets: base.pellets * 2 };
+  if (base.id === 'minigun') return { ...base,
+    pierce: { players: 3, walls: 0, minWalls: 0, playerFalloff: 0.8, wallFalloff: 1 } };
   if (base.id === 'sniper' || base.id === 'lance') return { ...base,
     pierce: { players: base.id === 'lance' ? 16 : 4, walls: base.id === 'lance' ? 24 : 3,
       minWalls: base.id === 'lance' ? 3 : 3, playerFalloff: 1, wallFalloff: 1 } };

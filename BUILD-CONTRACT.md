@@ -418,6 +418,13 @@ and exposes `quickPlay(meta,name,bots?)`,
   live play. Both display authoritative prices, ownership/upgrades, and
   affordability. Closing or pausing preserves the current economy; session
   reset clears it. Closed shops retain incoming state and repaint when opened.
+- Chaos Lab provides three cumulative upgrade tiers for every weapon and grenade.
+  Minigun tiers add body piercing and periodic ricochet salvos; flamethrower tiers
+  add travelling side jets, backdraft shockwaves and rockets. Extra jets reserve
+  a fire-packet slot for the center stream and emit `shoot` events with
+  `chaosFlame: true`; clients render them for local and remote shooters without
+  replaying firing audio. `weaponImagePath()` supplies shared weapon artwork to
+  the shop, wheel, HUD and kill feed; grenade shop artwork uses its own roster.
 - `setupWeaponWheel({onPick,onCancel})`,
   `setWeaponWheelState({open,entries,x,y,step,highlight,setHighlight,
   pointerInteractive})`, `isWeaponWheelOpen()`, `requestWheelCancel()` (a

@@ -14,13 +14,13 @@ Fast rounds. Destructible arenas. Straight into your browser.
 
 ![VOXEL BLITZ main menu with Quick Play, custom lobbies and the Killhouse practice range](docs/screenshots/main-menu.png)
 
-A multiplayer voxel arena shooter with destructible cover, ten weapons and bots that keep the action moving. Jump into Quick Play, invite friends to a custom lobby, or work on your aim in the Killhouse.
+A multiplayer voxel arena shooter with destructible cover, twelve weapons and bots that keep the action moving. Jump into Quick Play, invite friends to a custom lobby, or work on your aim in the Killhouse.
 
 ## Inside the arena
 
 - **Break through cover.** Block destruction changes the arena as you fight.
 - **Risk a supply run.** Armor, Medkits and Ammo appear on exposed ground in Fun, Team Deathmatch and Chaos Lab. Walk over one to collect it.
-- **Find your weapon.** Rifles, a shotgun, a revolver, a sniper, an LMG, rockets, melee, ricocheting LONGARC bolts and the piercing VOLTLANCE. Add cookable frags, sticky charges and pulse shocks.
+- **Find your weapon.** Rifles, a shotgun, a revolver, a sniper, an LMG, a minigun, a flamethrower, rockets, melee, ricocheting LONGARC bolts and the piercing VOLTLANCE. Add cookable frags, sticky charges and pulse shocks.
 - **Play with friends or bots.** Up to eight human players per room, lobby discovery, invite links, QR codes and optional lobby passwords.
 - **Feel every shot.** Procedural weapon models, recoil, aiming down sights, staged reloads, tracers, hit feedback and layered audio.
 - **Play on desktop or touch.** Mouse and keyboard controls, a radial weapon wheel and mobile touch controls.
@@ -28,6 +28,7 @@ A multiplayer voxel arena shooter with destructible cover, ten weapons and bots 
 | Mode | What you play |
 | --- | --- |
 | Fun | Free-for-all with the full arsenal and fast respawns. Quick Play drops you into a live room. |
+| Chaos Lab | Kills earn credits for 45 cumulative upgrades across all twelve weapons and three grenade types. Open the lab with B; upgrades survive death. |
 | Team Deathmatch | Two teams race to 40 kills. |
 | Search and Destroy | Plant or defuse the bomb, buy your loadout and make each life count. |
 | Gun Game | Every kill advances your weapon. Finish the ladder to win. |
@@ -81,7 +82,7 @@ PORT=8080 npm start
 | `1–9`, `0` or scroll wheel | Switch weapons |
 | Hold `Q`, release to equip | Weapon wheel |
 | Hold and release `G` / press `H` | Throw / change throwable |
-| `E` / `B` | Objective interaction / S&D buy menu |
+| `E` / `B` | Objective interaction / S&D buy menu or Chaos Lab |
 | `Tab` / `Escape` | Scoreboard / settings and pause menu |
 
 See the [full controls](docs/development.md#controls) for charge weapons, sniper zoom, ladders and spectator controls.

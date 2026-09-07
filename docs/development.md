@@ -36,7 +36,7 @@ Run `npm run powerups:test` for simulation and protocol checks, and
 
 Create a lobby, select **CHAOS LAB**, ready up and start. The full weapon roster is available.
 Start with $600, earn $300 per kill, and open the upgrade shop with **B** (or the touch
-BUY button / gamepad D-pad right). The original ten weapons and three grenades each have
+BUY button / gamepad D-pad right). All twelve weapons and three grenades each have
 three cumulative upgrades costing $300, $600 and $900. Money and upgrades survive
 respawns for the current match; joining a new room starts fresh. Kills also restore
 one grenade of each type, up to five. The shop does not pause combat. Bots buy upgrades too.
@@ -45,10 +45,13 @@ Experiments include Tesla chain hits, shotgun bowling bolts, wall-piercing explo
 sniper rounds, rocket-fed LMG salvos, revolver pinball rings, eight-bounce LONGARC
 multiball with explosive bumpers, homing cluster rockets, tunnel rails, pickaxe
 shockwaves, frag offspring, homing sticky offspring and vacuum-to-launch pulse bombs.
-The shop describes all 39 stages before purchase. Cluster children cannot reproduce;
+The shop describes all 45 stages before purchase, with artwork for every weapon and
+grenade. Cluster children cannot reproduce;
 rooms cap live projectiles at 192 and clients retain at most 96 blast visuals.
 
-Minigun and flamethrower use their base mechanics in Chaos Lab without upgrade ladders.
+Flamethrower upgrades add side jets, periodic forward backdraft shockwaves and rockets.
+Minigun upgrades add body piercing, periodic ricochet fans and ring salvos. These
+effects stack while fuel consumption, spin-up and heat still follow the base weapons.
 
 Validate with `npm run chaos:test` and `node tools/chaos-browser-smoke.mjs`.
 

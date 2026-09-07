@@ -1,5 +1,5 @@
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
-import { WEAPON_NAMES, WEAPON_CLASSES } from '../ui/hud-support.js';
+import { WEAPON_NAMES, WEAPON_CLASSES, weaponImagePath } from '../ui/hud-support.js';
 
 /** Coordinates wheel input, ownership, and HUD presentation for one live session. */
 export class WeaponWheelController {
@@ -28,7 +28,7 @@ export class WeaponWheelController {
         id,
         name: WEAPON_NAMES[id] || id.toUpperCase(),
         cls: WEAPON_CLASSES[id] || '',
-        icon: `./assets/weapons/hud/${id}.png`,
+        icon: weaponImagePath(id),
         key: slot < 10 ? `[${(slot + 1) % 10}]` : '[WHEEL]',
         ammo: locked ? '—' : (WEAPONS[id].mode === 'melee' ? '∞' : `${ammo?.mag || 0} / ${context.match?.mode === 'gungame' ? '∞' : ammo?.reserve || 0}`),
         owned: !locked,
