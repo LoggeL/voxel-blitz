@@ -1,10 +1,26 @@
 # M-6 FURNACE
 
 The playable weapon uses six rotating barrels and a 300-round drum at 1200 RPM, with four spare drums.
-The rotor needs 0.7 seconds to reach firing speed. Each shot adds 1.35% heat.
+Its lowered olive and graphite motor armor leaves the steel rotor exposed. Open
+barrel collars, an amber index tooth, a bowed brass feed belt, and a large drum
+make the rotating assembly readable. A rear-facing five-cell temperature strip
+shows heat directly on the weapon.
+
+The rotor needs 0.7 seconds to reach firing speed. Hold aim (right mouse button)
+to pre-spin it while keeping the trigger released. Pre-spin consumes no rounds,
+adds no heat, and cools at the normal 20 percentage points per second. Once the
+rotor reaches full speed, pressing fire starts shooting immediately. Aim can
+stay held during trigger pauses to keep the rotor ready.
+
+Each shot adds 1.35% heat below the sweet spot and 0.81% once it reaches 65%.
 Damage increases with heat, reaching +65% at 65% heat. The bonus plateaus there,
 so short pauses can hold the sweet spot without forcing an overheat.
+The slower heat gain gives roughly 2.2 seconds of continuous fire from the
+sweet-spot threshold to overheat. The rotor coasts down over 1.2 seconds; a
+0.2-second trigger pause needs only about 0.12 seconds to recover full speed.
 At 100% heat the gun locks until it cools to 30%, then needs to spin up again.
+Pre-spin respects this lock and the same reload, draw, vault, ammunition, and
+round-state gates as firing.
 Heat survives switching weapons; a new life resets it.
 
 Reduced recoil and a tighter spread keep sustained bursts controllable.
@@ -13,7 +29,8 @@ The HUD marks the 65% threshold and shows the current damage bonus or cooling lo
 The server owns the thermal state and damage; the client predicts local feedback.
 Remote avatars receive the same rotor and heat state through snapshots.
 
-`npm run minigun:test` checks the thermal lifecycle and model animation.
+`npm run minigun:test` checks aim pre-spin, immediate trigger response, ammunition,
+cooling, eligibility gates, the thermal lifecycle, and model animation.
 
 ## Visual reference
 

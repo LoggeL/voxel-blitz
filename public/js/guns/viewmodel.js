@@ -3,6 +3,7 @@
 import { weaponSwapProfile } from '../../../shared/weapon-swap.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import * as THREE from '../vendor/three.module.js';
+import { animateHeavyWeapon } from './heavy-weapon-animation.js';
 import { BOB, DEPLOY, TIMERS } from './defs.js';
 import { buildGun, disposeGunModels } from './assemble.js';
 import { WeaponActions } from './actions.js';
@@ -130,6 +131,8 @@ export class ViewmodelRig {
     this._surge.p = this._surge.v = 0;
     this._nadeWind = 0; this._nadeThrowT = 0;
     this._chargeT = 0;
+    this._flameActive = false;
+    this._flameFuel = 1;
     this._fallSpeed = 0;
     this._queue.length = 0;
     this._lockUntil = this._now; this._stallUntil = Infinity;
@@ -150,7 +153,9 @@ export class ViewmodelRig {
     const cur = this._cur; if (!cur || this._swap || (this._swapDraw && this._depT < 1)) return false;
     const T = cur.T;
     const now = this._now;
-    if (this.isBusy(now)) return false;
+    // Rotary cadence is metered by WeaponState, like the continuous nozzle.
+    // A second frame-rounded rate gate would turn 1200 RPM into 900 at 30fps.
+    if (this._id === 'minigun' ? this._actions.cycling || this._actions.reloading : this.isBusy(now)) return false;
     // The weapon state meters continuous fuel. Heating the nozzle does not cycle
     // a bolt or repeatedly kick/flash like individual firearm discharges.
     if (T.continuous) {
@@ -180,7 +185,7 @@ export class ViewmodelRig {
     // round leaves and sustained fire visibly wallows instead of buzzing.
     this._spr.pitch.v += pr * wn * 0.9;
     this._spr.yaw.v += yr * wn * 0.9;
-    this._spr.push.v += (0.35 + pr * 1.1) * Math.sqrt(mass);         // m/s rearward surge
+    this._spr.push.v += ((this._id === 'minigun' ? 0.10 : 0.35) + pr * 1.1) * Math.sqrt(mass);
 
     this._uniSet(1, Math.min(1, cur.uni.uHeat.value + 0.5)); // burst heat accumulator, capped
     this.revealFlash();
@@ -192,6 +197,9 @@ export class ViewmodelRig {
       // Mode owns rechambering (rig.pumpAnim()/boltAnim()); deadline prevents a lost event wedging
       // the busy gate forever. The pause document (bursts[0][0]) informs pacing, drives nothing.
       this._stallUntil = now + cycMs / 1000 + 0.15;
+    } else if (this._id === 'minigun') {
+      // The rotary feed ejects steadily; it has no reciprocating rifle bolt.
+      if (T.ejectOnFire) this._enqueue(0.025, () => this._emitShell());
     } else {
       this._enqueue(0.010, () => { if (this.onBoltClack) this.onBoltClack(1); }); // rack back
       this._enqueue(0.014, () => {
@@ -217,6 +225,11 @@ export class ViewmodelRig {
    * glow floor and a slight rearward squeeze; presentation only, it never gates fire.
    */
   setMinigun(state) { this._minigunState = { ...state }; }
+
+  setFlame(active, fuel = 1) {
+    this._flameActive = !!active;
+    this._flameFuel = Math.max(0, Math.min(1, fuel));
+  }
 
   setCharge(t01) {
     this._chargeT = Math.max(0, Math.min(1, Number(t01) || 0));
@@ -323,17 +336,8 @@ export class ViewmodelRig {
       }
     }
     const cur = this._cur;
-    const rotor = cur?.body.getObjectByName('minigun_rotor');
-    if (rotor) {
-      const state = this._minigunState || { spin: 0, heat: 0 };
-      rotor.rotation.z += dt * state.spin * 42;
-      rotor.traverse(o => {
-        if (o.material?.userData.thermal) {
-          o.material.emissive.setHex(0xff3808);
-          o.material.emissiveIntensity = state.heat * state.heat * 1.8;
-        }
-      });
-    }
+    if (cur) animateHeavyWeapon(cur.body, { dt: elapsed, time: this._now,
+      minigun: this._minigunState, flameActive: this._flameActive, fuel: this._flameFuel });
     const speed = ctx.speed || 0, grounded = ctx.grounded !== false;
     const verticalVelocity = Number.isFinite(ctx.verticalVelocity) ? ctx.verticalVelocity : 0;
     const lateralSpeed = Number.isFinite(ctx.lateralSpeed) ? ctx.lateralSpeed : 0;
@@ -488,12 +492,15 @@ export class ViewmodelRig {
     const roll = bobX / (BOB.walkHorz || 1) * BOB.counterRoll * (1 - adsE * 0.5)
       + turn.roll
       + this._lean.p * BOB.leanRollPerMeter;
+    const motor = this._id === 'minigun' ? (this._minigunState?.spin || 0) : 0;
+    const pressure = this._id === 'flamethrower' && this._flameActive ? 1 : 0;
+    const machineTremor = Math.sin(this._now * (35 + motor * 55)) * motor * 0.0012;
 
     /* ---------- compose transforms (condition offsets never touch the authoritative camera) ---------- */
     this.posG.position.set(
-      turn.x + this._lean.p + bobX + tremorX,
-      turn.y + bobY + this._air.p + breathe + exhaustedBreath + tremorY,
-      this._spr.push.p + this._surge.p
+      turn.x + this._lean.p + bobX + tremorX + machineTremor,
+      turn.y + bobY + this._air.p + breathe + exhaustedBreath + tremorY + Math.sin(this._now * 43) * pressure * 0.0008,
+      this._spr.push.p + this._surge.p + pressure * 0.006
     );
     this.pivot.rotation.set(
       this._spr.pitch.p + turn.pitch + this._air.p * BOB.airPitchPerMeter + conditionPitch,

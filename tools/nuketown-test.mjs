@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { GameEngine } from '../server/game.js';
 import { createMapState, GROUND, AIR } from '../shared/worlddata.js';
 import { DEFAULT_BLOCK_TILES, TILE_PAINTERS } from '../public/js/engine/atlas.js';
 import { MINING_HITS, GRENADE_RESISTANCE } from '../shared/world/blocks.js';
@@ -42,3 +43,29 @@ for(const site of world.meta.sites) for(let x=site.minX;x<=site.maxX;x++) for(le
   assert.ok(seen.has(key(x,15,z)), `site ${site.id} floor remains clear ${x},${z}`);
 }
 console.log(`Nuketown: serialization, materials and ${seen.size} connected standing positions verified.`);
+
+// Exercise the actual server selector, including procedural expansion and the
+// fallback used after destruction removes all authored spawn floors.
+const engine = new GameEngine({ world });
+const selector = engine.spawnSelector;
+const inside = point => point.x >= 22.5 && point.x <= 104.5
+  && point.z >= 6.5 && point.z <= 88.5 && point.y >= 15 && point.y <= 15.1;
+for (const pool of [world.meta.spawns.fun, world.meta.spawns.tdm.alpha,
+  world.meta.spawns.tdm.bravo, world.meta.spawns.snd.attackers, world.meta.spawns.snd.defenders]) {
+  const expanded = selector.expand(pool);
+  assert.ok(expanded.length > pool.length, 'spawn variety remains available');
+  for (const point of expanded) {
+    assert.ok(inside(point), 'expanded spawn stays inside the outer wall');
+    assert.ok(seen.has(key(Math.floor(point.x), Math.floor(point.y), Math.floor(point.z))),
+      `expanded spawn connects to the playable map: ${JSON.stringify(point)}`);
+  }
+  for (let i = 0; i < 40; i++) {
+    selector.setNow(i * 100);
+    assert.ok(inside(selector.pick(expanded, null, -1, { variety: true })));
+  }
+}
+assert.equal(selector.walkable({ x: 19.5, y: 15, z: 40.5 }), false);
+assert.ok(inside(selector.pick([{ x: 19.5, y: 15, z: 40.5 }])),
+  'an outside-only pool recovers inside the wall');
+assert.ok(inside(selector.pick([])), 'destroyed spawn pools recover inside the wall');
+console.log('Nuketown: expanded, repeated and fallback server spawns stay inside the wall.');

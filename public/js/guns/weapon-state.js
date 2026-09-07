@@ -167,9 +167,14 @@ export class WeaponState {
       heat01: def.id === 'minigun' ? this._minigun.heat : null,
       spin01: this._minigun.spin,
       minigunSpinningUp: def.id === 'minigun' && this._minigun.spin > 0 && this._minigun.spin < 1 &&
-        !this._minigun.overheated && this._allowFire && !!this._pendingShotIntent?.held,
+        !this._minigun.overheated && this._allowFire && (!!this._pendingShotIntent?.held || this._wantAds),
+      minigunPrimed: def.id === 'minigun' && this._minigun.spin >= 1 && !this._minigun.overheated &&
+        this._wantAds && !this._pendingShotIntent?.held,
       overheated: this._minigun.overheated,
       heatDamageMult: minigunDamageMult(this._minigun),
+      fuel01: def.flame ? ammo.mag / def.magSize : null,
+      fuelSeconds: def.flame ? ammo.mag * 60 / def.rpm : null,
+      flameFiring: this.flameFiring,
       charge01: def.mode === 'charge'
         ? (this._chargeStart === null ? 0 : chargeFromHold(def, now - this._chargeStart))
         : null,
@@ -237,7 +242,7 @@ export class WeaponState {
     }
 
     this._stopFlame();
-    if (this.def.id === 'minigun') this._audio.weaponCharge?.(0, false);
+    this._audio.minigunMotor?.(0, 0, false);
     this._minigun.spin = 0;
     this._lastSlot = this._slot;
     this._slot = slot;
@@ -323,6 +328,7 @@ export class WeaponState {
   }
 
   _stopFlame() {
+    this._rig.setFlame?.(false, 0);
     if (!this._flameActive) return;
     this._flameActive = false;
     this._audio.stopFlame?.();
@@ -330,6 +336,7 @@ export class WeaponState {
 
   clearIntents() {
     this._stopFlame();
+    this._audio.minigunMotor?.(0, 0, false);
     this._pendingShotIntent = null;
     this._fireTapLatched = false;
     this._wantAds = false;
@@ -347,6 +354,7 @@ export class WeaponState {
     if (!ammo || ammo.mag >= def.magSize || ammo.reserve <= 0) return false;
 
     this._stopFlame();
+    this._audio.minigunMotor?.(0, 0, false);
     const plan = reloadPlan(def, ammo.mag);
     const dur = plan.seconds * 1000;
     const type = plan.staged ? 'tube' : 'magswap';
@@ -474,6 +482,7 @@ export class WeaponState {
   /** Call at the original rig-update point, after camera/body updates. */
   syncRigAds() {
     this._rig.ads(this._adsT);
+    this._rig.setFlame?.(this.flameFiring, this.def.flame ? this.ammoOf(this.def.id).mag / this.def.magSize : 0);
   }
 
   /** Direct fire transition for callers that keep the former split tick/fire frame order. */
@@ -485,13 +494,15 @@ export class WeaponState {
   _tryFire(now) {
     const thermalDt = this._thermalAt === null ? 0 : Math.max(0, (now - this._thermalAt) / 1000);
     this._thermalAt = now;
-    const driving = this.def.id === 'minigun' && this._allowFire && this._alive &&
-      this._pendingShotIntent?.held && !this._reloadState && !this._completedReloadWeapon &&
+    const canSpin = this.def.id === 'minigun' && this._allowFire && this._alive &&
+      !this._reloadState && !this._completedReloadWeapon &&
       now >= this._deployUntil && this._ammo.minigun?.mag > 0;
-    const ready = stepMinigun(this._minigun, thermalDt, driving);
+    const driving = canSpin && !!(this._pendingShotIntent?.held || this._pendingShotIntent?.tap);
+    const ready = stepMinigun(this._minigun, thermalDt, driving, canSpin && this._wantAds);
     this._rig.setMinigun?.(this._minigun);
     if (this.def.id === 'minigun') {
-      this._audio.weaponCharge?.(this._minigun.spin * 0.3, driving && !this._minigun.overheated);
+      this._audio.minigunMotor?.(this._minigun.spin, this._minigun.heat,
+        canSpin, this._minigun.overheated);
     }
     // Authority is deliberately the first gate.
     if (!this._allowFire) {
@@ -601,9 +612,9 @@ export class WeaponState {
     if (weaponId === 'minigun') heatMinigun(this._minigun);
     ammo.mag -= 1;
     const period = 60000 / def.rpm;
-    // Preserve the fuel cadence across frame boundaries without catching up
+    // Preserve continuous fuel/rotary cadence across frame boundaries without catching up
     // missed shots after a pause or a stalled frame.
-    this._nextFireAt = def.flame && now - this._nextFireAt < period
+    this._nextFireAt = (def.flame || weaponId === 'minigun') && now - this._nextFireAt < period
       ? this._nextFireAt + period : now + period;
 
     // Every direction uses the pre-shot bloom and exhaustion values.
@@ -641,7 +652,10 @@ export class WeaponState {
       charge: mode === 'charge' ? charge : undefined,
     }, { local: true });
 
-    if (def.flame) { this._flameActive = true; this._flameLastShotAt = now; }
+    if (def.flame) {
+      this._flameActive = true; this._flameLastShotAt = now;
+      this._rig.setFlame?.(true, ammo.mag / def.magSize);
+    }
     this._audio.fire(weaponId, mode === 'charge' ? { charge } : undefined);
     this.shakeView(def, now, mode === 'charge' ? 0.45 + 0.55 * charge : 1);
     if (mode === 'pump') this._rig.pumpAnim();
@@ -771,6 +785,7 @@ export class WeaponState {
 
   menuReset() {
     this._stopFlame();
+    this._audio.minigunMotor?.(0, 0, false);
     if (this._emptyReloadTimer !== null) {
       this._clearTimer(this._emptyReloadTimer);
       this._emptyReloadTimer = null;

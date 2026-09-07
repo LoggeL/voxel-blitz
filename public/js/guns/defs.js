@@ -171,10 +171,10 @@ export const TIMERS = {
     anglesRad: [0.0012, -0.0017, 0.0021],
     interval: 0,
     clip: 12,
-    muzzle: [0.0, 0.055, -0.820],
+    muzzle: [0.0, 0.055, -0.880],
     portY: 0.17,
     ejectRight: -0.075,
-    barrelLen: 0.38,
+    barrelLen: 0.53,
     heatLen: [0.30, 0.94],
     boltTravel: 0.075,
     rechargeDur: 0.055,
@@ -336,6 +336,10 @@ TIMERS.flamethrower = {
   rof: WEAPONS.flamethrower.rpm, adsTime: WEAPONS.flamethrower.adsTime,
   deployTime: WEAPONS.flamethrower.deployTime, weightKg: WEAPONS.flamethrower.weightKg,
   viewKick: { pitchDeg: WEAPONS.flamethrower.recoil.pitch, yawDeg: WEAPONS.flamethrower.recoil.yaw },
+  muzzle: [0, 0.065, -0.655],
+  barrelLen: 0.435,
+  heatLen: [0.50, 0.95],
+  adsOffset: { x: 0, y: -0.158, z: -0.62 },
   boltTravel: 0.01, rechargeDur: 0.2,
 };
 

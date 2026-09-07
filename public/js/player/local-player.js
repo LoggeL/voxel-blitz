@@ -4,6 +4,7 @@ import { hashInt } from '../util/hash.js';
 import { clamp01, clampPitch, easeOut, nowMs, smooth01 } from '../util/math.js';
 import { adsLookScale } from '../input-settings.js';
 import { grenadeLaunch } from '../../../shared/grenade-rules.js';
+import { flamePanicFloor } from '../../../shared/flame-rules.js';
 import { fwdFromAngles } from '../util/look.js';
 import { AimSway } from './aim-sway.js';
 import { resetFirstPersonBody, updateFirstPersonBody } from './first-person-body.js';
@@ -684,7 +685,7 @@ export class LocalPlayer {
     const hp01 = clamp01((Number.isFinite(this._hp) ? this._hp : 100) / 100);
     const missingHealth = 1 - hp01;
     this.burning = Math.max(0, this.burning - dt);
-    const panicFloor = Math.max(this.burning > 0 ? WEAPONS.flamethrower.flame.panicFloor : 0, missingHealth * CONDITION_RULES.panicLowHpFloor);
+    const panicFloor = Math.max(flamePanicFloor(this.burning), missingHealth * CONDITION_RULES.panicLowHpFloor);
     this.panic = clamp01(Math.max(
       panicFloor,
       this.panic - CONDITION_RULES.panicDecayPerS * dt,

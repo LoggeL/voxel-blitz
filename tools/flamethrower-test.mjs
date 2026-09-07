@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { fireOneShot } from '../server/sim/combat.js';
-import { FlameSystem, updateBurn } from '../server/sim/fire.js';
+import { FlameSystem, fireFlame, updateBurn } from '../server/sim/fire.js';
 import { PlayerEntity } from '../server/sim/player.js';
-import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
+import { WEAPONS, WEAPON_IDS, damageAtDistance } from '../shared/combatmath.js';
+import { FLAME_RULES, FLAME_BURN, flamePanicFloor } from '../shared/flame-rules.js';
 
 const spawn = { x: 0.5, y: 1, z: 8.5, index: 0 };
 function setup() {
@@ -21,11 +22,12 @@ function setup() {
   const { owner, victim, ctx } = setup();
   fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
   const direct = 100 - victim.hp;
-  assert.ok(direct >= 2 && direct <= 2.25, 'direct flame damage');
-  assert.equal(victim.burning, 4);
-  assert.ok(victim.panic >= 0.95);
-  for (let i = 0; i < 201; i++) updateBurn(victim, 0.02, ctx);
-  assert.ok(Math.abs(victim.hp - (100 - direct - 28)) < 1e-8, '4 seconds of 7 DPS');
+  assert.equal(direct, 4, 'close contact deals four immediate damage');
+  assert.equal(victim.burning, 0.75, 'one graze produces a short afterburn');
+  assert.equal(victim.panic, flamePanicFloor(0.75));
+  assert.ok(victim.panic < 0.5, 'a graze does not impose maximum panic');
+  for (let i = 0; i < 51; i++) updateBurn(victim, 0.02, ctx);
+  assert.ok(Math.abs(victim.hp - (100 - direct - 6)) < 1e-8, 'one graze adds six afterburn damage at eight DPS');
   assert.equal(victim.burning, 0); assert.equal(victim.burn, null);
   const hp = victim.hp; updateBurn(victim, 2, ctx); assert.equal(victim.hp, hp);
 }
@@ -35,10 +37,48 @@ function setup() {
   fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
   const hp = victim.hp;
   updateBurn(victim, 0.25, ctx);
-  assert.ok(Math.abs(hp - victim.hp - 3.5) < 1e-8, 'refresh never stacks or discards pending damage');
-  assert.equal(victim.burning, 3.75);
+  assert.ok(Math.abs(hp - victim.hp - 4) < 1e-8, 'new contact never stacks or discards pending burn damage');
+  assert.equal(victim.burning, 0.5, 'a spaced graze renews only the short burn');
   victim.applySpawn(spawn); updateBurn(victim, 1, ctx);
   assert.equal(victim.hp, 100); assert.equal(victim.burning, 0);
+}
+{
+  const { owner, victim, ctx } = setup();
+  victim.hp = 1000;
+  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+  for (let i = 0; i < 6; i++) {
+    updateBurn(victim, FLAME_RULES.cadence, ctx);
+    fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+  }
+  assert.ok(victim.burning > 1.3 && victim.burning < 1.5, 'short tracking builds a medium afterburn');
+  for (let i = 0; i < 24; i++) {
+    updateBurn(victim, FLAME_RULES.cadence, ctx);
+    fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+  }
+  assert.equal(victim.burning, 3, 'sustained tracking caps one afterburn at three seconds');
+  assert.ok(victim.panic >= FLAME_BURN.panicFloor);
+  const pendingDamage = victim.burn.elapsed * FLAME_BURN.damagePerS;
+  const hp = victim.hp;
+  updateBurn(victim, 4, ctx);
+  assert.ok(Math.abs(hp - victim.hp - pendingDamage - 24) < 1e-8, 'fully built afterburn remains eight DPS on a long tick');
+  assert.equal(victim.burn, null);
+}
+{
+  const directDps = distance => {
+    const { owner, victim, ctx } = setup();
+    victim.z = owner.z - distance;
+    victim.hp = 1000;
+    for (let i = 0; i < 20; i++) { fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx); }
+    return 1000 - victim.hp;
+  };
+  const nearDps = directDps(3), farDps = directDps(17);
+  assert.equal(nearDps, 80, 'twenty close-range packets deliver eighty direct DPS');
+  assert.ok(farDps >= 25 && farDps < 40, 'distant flame contact loses most of its direct damage');
+  assert.ok(nearDps > farDps * 2, 'close tracking has a clear damage advantage');
+  assert.equal(damageAtDistance(WEAPONS.flamethrower, 5) / FLAME_RULES.cadence, 80);
+  assert.equal(damageAtDistance(WEAPONS.flamethrower, 18) / FLAME_RULES.cadence, 25);
+  assert.equal(flamePanicFloor(0), 0);
+  assert.equal(flamePanicFloor(FLAME_BURN.duration), FLAME_BURN.panicFloor);
 }
 for (const blocked of ['wall', 'friendly', 'range', 'behind']) {
   const { owner, victim, ctx } = setup();
@@ -63,7 +103,31 @@ for (const blocked of ['wall', 'friendly', 'range', 'behind']) {
   const hp = victim.hp; updateBurn(victim, 1, ctx);
   assert.equal(victim.hp, hp); assert.equal(victim.burning, 0);
 }
-console.log('Flamethrower: direct damage, burn duration, panic, refresh, respawn, occlusion, teams, reach and kill credit passed.');
+{
+  const { owner, victim, ctx, kills } = setup();
+  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx); updateBurn(victim, 0.25, ctx);
+  const nextOwner = new PlayerEntity('next-owner', 'Next Owner', spawn, false);
+  ctx.entities.delete(owner.id); ctx.entities.set(nextOwner.id, nextOwner);
+  fireFlame(nextOwner, [nextOwner.x, nextOwner.eyeY, nextOwner.z], { x: 0, y: 0, z: -1 }, ctx);
+  ctx.flames.step(0.6, ctx);
+  assert.equal(victim.burn.owner, nextOwner, 'most recent contact owns the single afterburn');
+  assert.equal(victim.burn.elapsed, 0.25, 'owner handoff preserves pending burn time');
+  victim.hp = 3;
+  updateBurn(victim, 0.25, ctx);
+  assert.equal(kills.length, 1);
+  assert.equal(kills[0].killer, nextOwner, 'burn kill credit follows the most recent contact');
+  assert.equal(victim.burn, null);
+}
+{
+  const { owner, victim, ctx } = setup();
+  const behind = new PlayerEntity('behind', 'Behind', { ...spawn, z: 2.5 }, false);
+  ctx.entities.set(behind.id, behind);
+  fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
+  assert.equal(victim.hp, 96, 'front body receives the packet');
+  assert.equal(behind.hp, 100, 'one packet cannot pass through a body into a second victim');
+  assert.equal(behind.burn, null);
+}
+console.log('Flamethrower: close-range DPS, graze and sustained burn buildup, proportional panic, non-stacking refresh, respawn, occlusion, teams, reach and owner credit passed.');
 
 // The actual snapshot and interpolation seam preserves burn status and clears it on a new life.
 const { makeSnapshot } = await import('../server/protocol/snapshot.js');
@@ -72,16 +136,17 @@ const { LocalPlayer } = await import('../public/js/player/local-player.js');
 {
   const { owner, victim, ctx } = setup(); fireOneShot(owner, ctx); ctx.flames.step(0.6, ctx);
   const row = makeSnapshot([victim], [], [], 100).players[0];
-  assert.equal(row.burning, 4); assert.ok(row.panic >= 0.95);
+  assert.equal(row.burning, 0.75); assert.ok(row.panic >= 0.46 && row.panic < 0.5);
   const net = new NetClient();
   net.latestSnapshots.push({ now: 100, players: [row], events: [], blocks: [] });
   const interpolated = net.interpolate(100, 0).players.get(victim.id);
-  assert.equal(interpolated.burning, 4);
+  assert.equal(interpolated.burning, 0.75);
   const local = new LocalPlayer({ input: { consumeDelta: () => ({x:0,y:0}), getKeys: () => ({}), setGameplayEnabled() {}, consumeBuyMenuRequest() {} } });
   local.respawn(row); local.reconcile(row, 1);
-  assert.equal(local.burning, 4);
+  assert.equal(local.burning, 0.75);
   local._updateConditionEstimates(0.1, false);
-  assert.ok(local.panic >= 0.95); assert.equal(local.burning, 3.9);
+  assert.ok(local.panic >= flamePanicFloor(0.65) && local.panic < 0.5);
+  assert.equal(local.burning, 0.65);
   local.die(owner.id); assert.equal(local.burning, 0);
   local.respawn(row); assert.equal(local.burning, 0);
   local.burning = 2; local.resetForMenu(); assert.equal(local.burning, 0);
@@ -110,7 +175,8 @@ const { GameEngine } = await import('../server/game.js');
   for (let i = 0; i < 35; i++) engine.step(20);
   assert.ok(victim.hp < hp, 'real simulation advances burn damage');
   const row = frames.at(-1).players.find(p => p.id === victim.id);
-  assert.ok(row.burning > 3 && row.panic >= 0.95, 'real tick broadcasts burn and panic');
+  assert.ok(row.burning > 0 && row.burning < 0.75 && row.panic > 0.3 && row.panic < 0.6,
+    'real tick broadcasts the decaying short burn and proportionate panic');
   assert.equal(frames.flatMap(s => s.events).filter(e => e.kind === 'hit').length, 2);
 }
 console.log('Authoritative game loop applies burning and broadcasts its status and hit events.');

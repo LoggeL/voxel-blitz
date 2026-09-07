@@ -23,7 +23,7 @@ function scenario({ victimAt = [10.5, 0.5, 8.5], prone = false, aim = null, soli
 }
 function hit(result, label) {
   assert.ok(result.victim.hp < 100, label);
-  assert.equal(result.victim.burning, 4, label);
+  assert.equal(result.victim.burning, 0.75, label);
   assert.equal(result.events.length, 1, 'one hit per victim, irrespective of sampled volumes');
 }
 hit(scenario(), 'point-blank level aim hits the head');

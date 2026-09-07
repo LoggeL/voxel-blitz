@@ -2,7 +2,7 @@
 // Both server (combat resolve / anticheat) and client (recoil & spray feel) import this.
 // THERE IS ONE SOURCE OF TRUTH for every gun number in the game.
 
-import { FLAME_RULES } from './flame-rules.js';
+import { FLAME_RULES, FLAME_BURN } from './flame-rules.js';
 
 export const GRAVITY = 24;
 export const PLAYER_HALF = { x: 0.32, h: 0.95 };   // movement collider half-width, half-height
@@ -282,9 +282,9 @@ export const WEAPONS = {
   flamethrower: {
     id: 'flamethrower', name: 'F-4 FIRESTORM', mode: 'auto',
     weightKg: 5.8, rpm: 60 / FLAME_RULES.cadence, magSize: 160, spareMags: 5,
-    damage: [2.25, 1.25, FLAME_RULES.range], falloffStart: 6, range: FLAME_RULES.range,
+    damage: [4, 1.25, FLAME_RULES.range], falloffStart: 5, range: FLAME_RULES.range,
     headMult: 1, pellets: 1,
-    flame: { coneDeg: FLAME_RULES.coneDeg, duration: 4, damagePerS: 7, panicFloor: 0.95 },
+    flame: { coneDeg: FLAME_RULES.coneDeg, ...FLAME_BURN },
     spreadDeg: { hip: 0, ads: 0 }, bloomDeg: 0, bloomMaxDeg: 0,
     bloomRecover: 5, moveSpreadDeg: 0, crouchSpreadMult: 1,
     recoil: { pitch: 0.03, pitchRamp: 0, maxPitchRamp: 0, yaw: 0.02,

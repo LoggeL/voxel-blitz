@@ -1,6 +1,6 @@
 // Authoritative travelling fire packets. Every packet can hit one body once.
 import { WEAPONS, damageAtDistance } from '../../shared/combatmath.js';
-import { FLAME_RULES } from '../../shared/flame-rules.js';
+import { FLAME_RULES, flamePanicFloor } from '../../shared/flame-rules.js';
 import { playerHitboxes, rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { evHit } from '../protocol.js';
@@ -63,9 +63,11 @@ export class FlameSystem {
           ctx.pushEvent(evHit(packet.owner.id, victim.id, damage, false, point));
           if (lethal) ctx.killPlayer(victim, packet.owner, def.id, false);
           else {
-            victim.burn = { owner: packet.owner, remaining: def.flame.duration, elapsed: victim.burn?.elapsed || 0 };
-            victim.burning = def.flame.duration;
-            victim.panic = Math.max(victim.panic, def.flame.panicFloor);
+            const remaining = Math.min(def.flame.duration,
+              Math.max(def.flame.minDuration, (victim.burn?.remaining || 0) + def.flame.buildupPerHit));
+            victim.burn = { owner: packet.owner, remaining, elapsed: victim.burn?.elapsed || 0 };
+            victim.burning = remaining;
+            victim.panic = Math.max(victim.panic, flamePanicFloor(remaining));
           }
           ended = true;
         } else if (wall) ended = true;
@@ -98,7 +100,7 @@ export function updateBurn(victim, dt, ctx) {
   burn.remaining = Math.max(0, burn.remaining - elapsed);
   burn.elapsed += elapsed;
   victim.burning = burn.remaining;
-  victim.panic = Math.max(victim.panic, rules.panicFloor);
+  victim.panic = Math.max(victim.panic, flamePanicFloor(burn.remaining));
   // Half-second hit events keep damage feedback and network traffic bounded.
   if (burn.elapsed >= 0.5 - 1e-9 || burn.remaining <= 0) {
     const damage = rules.damagePerS * burn.elapsed;

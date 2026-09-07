@@ -4267,3 +4267,9 @@ h1.vb-title::after {
 #charge-meter.is-thermal .vb-charge-label { color: #ffd06b; font-size: 9px; text-shadow: none; }
 #charge-meter.is-overheated .vb-charge-label { color: #ff6960; }
 #charge-meter.is-overheated .vb-charge-track { border-color: #ff6960; }
+#charge-meter.is-critical .vb-charge-label { color: #ff8170; }
+#charge-meter.is-critical .vb-charge-track { border-color: #ff8170; }
+#charge-meter.is-fuel { width: 210px; }
+#charge-meter.is-fuel .vb-charge-label { color: #ffc18f; font-size: 9px; text-shadow: none; }
+#charge-meter.is-fuel .vb-charge-track { height: 7px; border-color: #a9693e; box-shadow: none; }
+#charge-meter.is-fuel .vb-charge-track i { box-shadow: 0 0 8px #ff8c42; }

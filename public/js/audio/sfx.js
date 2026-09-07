@@ -4,6 +4,7 @@
 import { AudioEngine } from './engine.js';
 import { VoicePool } from './voices.js';
 import { FlameLoops } from './flame-loop.js';
+import { MinigunMotor, MINIGUN_REPORT, renderMinigunReport } from './minigun-motor.js';
 import { createVoices } from './primitives.js';
 import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from './samples.js';
 import { MenuMusicLoop } from './music.js';
@@ -38,6 +39,7 @@ let panSide = 1;
 let heartbeatAt = -Infinity;
 let chargeLoop = null;
 let flameLoops = null;
+let minigunMotor = null;
 
 /** Blast voice per explosive type: gain, low weight, and crack brightness. */
 const EXPLOSION_PROFILES = Object.freeze({
@@ -108,6 +110,7 @@ function ensureAudioModules() {
   if (!engine.ctx || engine.ctx.state === 'closed') return false;
   if (!pool) pool = new VoicePool(engine);
   if (!flameLoops) flameLoops = new FlameLoops(engine, pool);
+  if (!minigunMotor) minigunMotor = new MinigunMotor(engine, pool);
   if (!primitives) primitives = createVoices(engine);
   if (!samples) {
     samples = new LocalSampleBank({
@@ -168,6 +171,8 @@ export const sfx = {
     disposeChargeLoop();
     flameLoops?.dispose();
     flameLoops = null;
+    minigunMotor?.dispose();
+    minigunMotor = null;
     menuMusic?.dispose();
     menuMusic = null;
     pool = null;
@@ -202,7 +207,6 @@ export const sfx = {
   },
 
   fire(key, options) {
-    if (key === 'minigun') key = 'lmg';
     const deferred = copyOptions(options);
     if (key === 'flamethrower') {
       if (!engine.ensure()) return;
@@ -212,6 +216,16 @@ export const sfx = {
       return;
     }
     run('fire', () => {
+      if (key === 'minigun') {
+        // Share the six-output rapid-fire budget; the rotary report has its own
+        // recording rate, gain and short transient so it stays clear at 1200 RPM.
+        const output = pool.acquireFire('lmg', outputOptions(deferred), MINIGUN_REPORT.lifetime);
+        const sampled = samples.play('weapons.minigun.fire', output, MINIGUN_REPORT)
+          || samples.play('weapons.lmg.fire', output, MINIGUN_REPORT);
+        const reportOutput = sampled ? createReportLayer(output, MINIGUN_REPORT.layerGain) : output;
+        renderMinigunReport(reportOutput, primitives);
+        return;
+      }
       const profile = fireReportProfile(key);
       const charge = deferred && !Array.isArray(deferred) && Number.isFinite(deferred.charge)
         ? deferred.charge : 1;
@@ -235,6 +249,17 @@ export const sfx = {
 
   stopFlames() {
     flameLoops?.dispose();
+  },
+
+  /** Refresh local rotary drive/thermal audio; inactive calls fade it immediately. */
+  minigunMotor(spin01, heat01, active = true, overheated = false) {
+    if (!active) return minigunMotor?.refresh(spin01, heat01, false, overheated) || false;
+    if (!engine.ctx || engine.ctx.state !== 'running') {
+      minigunMotor?.stop();
+      return false;
+    }
+    ensureAudioModules();
+    return minigunMotor.refresh(spin01, heat01, true, overheated);
   },
 
   /**

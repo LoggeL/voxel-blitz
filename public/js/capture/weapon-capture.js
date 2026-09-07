@@ -3,6 +3,7 @@ import { WEAPONS } from '../../../shared/combatmath.js';
 import { findWeaponCaptureShot } from '../../../shared/weapon-capture-shots.js';
 import { ImpactFX } from '../weapons/impacts.js';
 import { RailBeamFX } from '../weapons/rail-beam.js';
+import { FlameFX } from '../weapons/flame.js';
 import { ViewmodelRig } from '../guns/viewmodel.js';
 import { createSniperScope } from '../ui/sniper-scope.js';
 
@@ -145,10 +146,23 @@ if (state.startsWith('reload-')) {
 }
 
 if (state === 'firing') {
+  if (weapon === 'minigun') rig.setMinigun({ heat: 0.82, spin: 1, overheated: false });
+  if (weapon === 'flamethrower') rig.setFlame(true, 0.7);
   if (!rig.fire()) throw new Error(`weapon capture could not fire: ${weapon}`);
   if (WEAPONS[weapon].mode === 'pump') rig.pumpAnim();
   if (WEAPONS[weapon].mode === 'bolt') rig.boltAnim();
   rig.update(1 / 60, stablePose);
+  if (weapon === 'flamethrower') {
+    const flame = new FlameFX(scene, (_x, _y, z) => z <= -16 ? 3 : 0);
+    flame.muzzleProvider = out => rig.getMuzzleWorldPos(out);
+    for (let frame = 0; frame < 72; frame++) {
+      rig.update(1 / 120, stablePose);
+      scene.updateMatrixWorld(true);
+      if (frame % 6 === 0) flame.shoot({ o: [0, 1.62, 0], d: [0, 0, -1] }, { local: true });
+      flame.setLocalStream(true, [0, 0, -1], [0, 1.62, 0]);
+      flame.update(1 / 120);
+    }
+  }
   if (weapon === 'lance') {
     const beam = new RailBeamFX(scene, (_x, _y, z) => z <= -16 ? 3 : 0);
     scene.updateMatrixWorld(true);

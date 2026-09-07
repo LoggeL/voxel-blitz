@@ -1,4 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
+import { animateHeavyWeapon } from '../guns/heavy-weapon-animation.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { buildGun, disposeGunModels } from '../guns/assemble.js';
 import { HANDS } from '../guns/defs.js';
@@ -133,25 +134,20 @@ export class AvatarWeaponModel {
     this.setWeapon(weapon);
     if (!this._model) return;
     const frameDt = Math.max(0, Number(dt) || 0);
-    const rotor = this._model.body.getObjectByName('minigun_rotor');
-    if (rotor) {
-      rotor.rotation.z += frameDt * (minigun?.spin ?? (firing ? 1 : 0)) * 42;
-      rotor.traverse(o => {
-        if (o.material?.userData.thermal) {
-          o.material.emissive.setHex(0xff3808);
-          o.material.emissiveIntensity = (minigun?.heat || 0) ** 2 * 1.8;
-        }
-      });
-    }
+    this._machineTime = (this._machineTime || 0) + frameDt;
+    animateHeavyWeapon(this._model.body, { dt: frameDt, time: this._machineTime,
+      minigun: minigun || { spin: firing ? 1 : 0, heat: 0 },
+      flameActive: this._weaponId === 'flamethrower' && !!firing });
     // Melee (T.melee): the firing pulse drives a forward stab, not a recoil shove, and
     // the assembled flash stub stays dark — a blade neither flashes nor kicks.
     const melee = this._model.T.melee === true;
+    const continuous = this._model.T.continuous === true;
     const weight = WEAPONS[this._weaponId]?.weightKg || 3.4;
     // Heavier guns kick their carrier harder and settle slower, as in first person.
     const kickScale = Math.max(0.7, Math.min(1.5, Math.pow(weight / 3.4, 0.35)));
     const blend = 1 - Math.exp(-frameDt * (firing ? 28 : 16 / Math.sqrt(kickScale)));
-    this._recoil += ((firing && !melee ? 1 : 0) - this._recoil) * blend;
-    this._flash = melee ? 0 : (firing ? 1 : Math.max(0, this._flash - frameDt / 0.065));
+    this._recoil += ((firing && !melee ? continuous ? 0.12 : 1 : 0) - this._recoil) * blend;
+    this._flash = melee || continuous ? 0 : (firing ? 1 : Math.max(0, this._flash - frameDt / 0.065));
     // Stab envelope mirrors the recoil pulse: fast exp attack (full lunge over ~0.12s of
     // held firing), slower exp settle once the swing flag drops.
     const stabBlend = 1 - Math.exp(-frameDt * (firing ? 22 : 10));
@@ -188,7 +184,7 @@ export class AvatarWeaponModel {
     );
     this._model.root.position.y = -raise * 0.14;
     this._model.root.rotation.x = -raise * 0.5;
-    this._model.bolt.position.z = recoil * this._model.T.boltTravel * 0.55;
+    this._model.bolt.position.z = continuous || this._weaponId === 'minigun' ? 0 : recoil * this._model.T.boltTravel * 0.55;
     this._model.triggerGroup.rotation.x = recoil * 0.18;
     if (this._model.mag) {
       this._model.mag.position.y = -0.05 * reloadPulse * this._reload;

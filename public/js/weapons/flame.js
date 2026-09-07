@@ -63,7 +63,8 @@ export class FlameFX {
           float edge = max(0.0, 1.0 - radius);
           float ripple = 0.88 + 0.12 * sin(p.y * 17.0 + p.x * 11.0);
           float alpha = edge * edge * ripple * flameTint.a;
-          vec3 hot = mix(flameTint.rgb, vec3(1.0, 0.93, 0.55), pow(edge, 4.0) * 0.8);
+          vec3 core = mix(vec3(1.0, 0.86, 0.34), vec3(0.55, 0.81, 1.0), step(0.2, flameTint.b));
+          vec3 hot = mix(flameTint.rgb, core, pow(edge, 4.0) * 0.65);
           gl_FragColor = vec4(hot, alpha);
         }
       `,
@@ -159,11 +160,15 @@ export class FlameFX {
     for (const puff of this.puffs) {
       if (puff.age >= puff.life) continue;
       const distance = puff.age * FLAME_RULES.speed;
-      const size = puff.ember ? 0.035 + distance * 0.004 : 0.32 + distance * 0.11;
+      const size = puff.ember ? 0.035 + distance * 0.004 : 0.30 + distance * 0.075;
       const fade = Math.min(1, (puff.life - puff.age) / 0.10);
       this.centers.setXYZ(count, puff.position.x, puff.position.y, puff.position.z);
       this.shapes.setXYZ(count, size, size * (puff.ember ? 2.5 : 1.3), puff.rotation + puff.age * 1.5);
-      this.colors.setXYZW(count, 1, Math.max(0.14, 0.67 - distance * 0.027), 0.015, fade * (puff.ember ? 1 : 0.94));
+      // Blue pressure core opens into orange tongues without whitening the whole aim lane.
+      const core = puff.ember ? 0 : Math.max(0, 1 - distance / 1.1);
+      this.colors.setXYZW(count, 1 - core * 0.72,
+        Math.max(0.14, 0.58 - distance * 0.025) + core * 0.08,
+        0.015 + core * 0.985, fade * (puff.ember ? 1 : 0.66));
       count++;
     }
     this.geometry.instanceCount = count;

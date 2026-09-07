@@ -782,10 +782,28 @@ export async function runHudContracts(ok, installGlobals) {
       hud.setState({ charge01: null, heat01: 0.75, spin01: 1, overheated: false, heatDamageMult: 1.65 });
       ok(hud.dom.chargeMeterLabel.textContent === 'SWEET SPOT 75% · +65% DMG'
         && hud.dom.chargeMeterFill.style.transform === 'scaleX(0.75)', 'minigun HUD shows heat sweet spot and damage bonus');
+      hud.setState({ charge01: null, heat01: 0.75, spin01: 0.85, minigunSpinningUp: false,
+        overheated: false, heatDamageMult: 1.65 });
+      ok(hud.dom.chargeMeterLabel.textContent === 'SWEET SPOT 75% · +65% DMG',
+        'coasting rotor keeps the sweet spot visible during trigger pauses');
+      hud.setState({ charge01: null, heat01: 0.75, spin01: 0.85, minigunSpinningUp: true,
+        overheated: false, heatDamageMult: 1.65 });
+      ok(hud.dom.chargeMeterLabel.textContent === 'SPIN UP · 85%', 'held trigger displays actual spin-up');
       hud.setState({ charge01: null, heat01: 0.8, spin01: 0, overheated: true });
       ok(hud.dom.chargeMeterLabel.textContent === 'OVERHEATED · COOLING', 'minigun HUD keeps the lock visible while cooling');
+      hud.setState({ heat01: 0.1, spin01: 1, overheated: false, minigunSpinningUp: false, minigunPrimed: true });
+      ok(hud.dom.chargeMeterLabel.textContent === 'ROTOR READY · PULL TRIGGER', 'pre-spun rotor has a ready cue');
+      hud.setState({ heat01: 0.94, minigunPrimed: false });
+      ok(hud.dom.chargeMeterLabel.textContent.includes('RELEASE TO COOL')
+        && hud.dom.chargeMeter.classList.contains('is-critical'), 'critical heat gives an actionable warning');
       hud.setState({ charge01: null, heat01: null });
       ok(!hud.dom.chargeMeter.classList.contains('is-visible'), 'switching away hides the thermal meter');
+      hud.setState({ fuel01: 0.5, fuelSeconds: 4, flameFiring: true });
+      ok(hud.dom.chargeMeterLabel.textContent === 'FUEL 4.0s · IGNITING'
+        && hud.dom.chargeMeterFill.style.transform === 'scaleX(0.5)', 'flame tank shows remaining firing time');
+      hud.setState({ fuel01: null, flameFiring: false });
+      ok(!hud.dom.chargeMeter.classList.contains('is-visible')
+        && !hud.dom.chargeMeter.classList.contains('is-fuel'), 'switching away clears the tank meter');
       hud.setState({ wid: 'knife', wname: 'K-7 RIPPER', mag: 0, reserve: 0 });
       const meleeAmmo = hud.dom.mag.textContent === '∞'
         && hud.dom.sep.style.display === 'none'

@@ -45,13 +45,13 @@ export const WEAPON_CLASSES = Object.freeze({
   shotgun: 'TACTICAL SHOTGUN · PUMP',
   rifle: 'ASSAULT RIFLE · FULL AUTO',
   lmg: 'HEAVY MACHINE GUN · AUTO',
-  minigun: 'SPIN UP · HEAT BOOST · OVERHEAT LOCK',
+  minigun: 'AIM TO PRE-SPIN · HEAT BOOST',
   sniper: 'PRECISION SNIPER · 5× OPTIC',
   longarc: 'CHARGE COILGUN · ARC BOLTS ×3 BOUNCE',
   rocket: 'ROCKET LAUNCHER · SPLASH & ROCKET JUMP',
   lance: 'SIEGE LANCE · LINE PIERCE ×6',
   knife: 'PICKAXE · HOLD TO MINE',
-  flamethrower: 'FLAMETHROWER · CONTINUOUS JET · 18m',
+  flamethrower: 'CLOSE-RANGE JET · BUILD AFTERBURN · 18m',
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([

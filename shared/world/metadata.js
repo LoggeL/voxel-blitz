@@ -240,6 +240,11 @@ export function createMapMetadata(id, world) {
   const metadata = {
     id,
     name: MAP_NAMES[id],
+    // Keep procedural and terrain-recovery spawns inside the test-town wall.
+    ...(id === 'nuketown' ? { spawnBounds: {
+      minX: 22.5, maxX: 104.5, minZ: 6.5, maxZ: 88.5,
+      minY: GROUND + 1, maxY: GROUND + 1.1,
+    } } : {}),
     modes: MAP_MODE_COMPATIBILITY[id],
     spawns: {
       fun: resolveSpawnPool(world, anchors.fun, floorY),

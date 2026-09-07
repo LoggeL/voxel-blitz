@@ -534,6 +534,92 @@ async function main() {
       && stream.before - stream.samples.at(-1).fuel >= 15 && stream.released && stream.drained,
       'live held flamethrower consumes fuel continuously, keeps its jet visible, stops on release and drains particles');
 
+    // Observe real server ticks alongside the visible HUD. Inputs still enter
+    // through the live wheel/touch controls; no weapon state is injected.
+    await page.evaluate(`(() => {
+      window.__heavyAuthority = null;
+      window.__heavyWatchers = [];
+      for (const socket of window.__testSockets.filter(socket => socket.readyState === WebSocket.OPEN)) {
+        const observe = event => {
+          if (typeof event.data !== 'string') return;
+          const tick = JSON.parse(event.data);
+          if (tick.t !== 'tick') return;
+          const self = tick.players?.find(row => row.id === window.__vb.stats.localId);
+          if (self) window.__heavyAuthority = {
+            weapon: self.weapon, mag: self.mag[${WEAPON_IDS.indexOf('minigun')}],
+            spin: self.minigun?.spin, heat: self.minigun?.heat,
+            overheated: self.minigun?.overheated, ads: self.ads, firing: self.firing,
+          };
+        };
+        socket.addEventListener('message', observe);
+        window.__heavyWatchers.push({ socket, observe });
+      }
+      window.__heavyRead = () => ({
+        authority: window.__heavyAuthority,
+        ammo: Number(document.getElementById('ammocount').textContent),
+        label: document.querySelector('#charge-meter .vb-charge-label').textContent,
+        adsT: window.__vb.stats.adsT,
+      });
+      window.__heavyPointer = (action, type, pointerId) =>
+        document.getElementById('touch-' + action).dispatchEvent(new PointerEvent(type,
+          { bubbles: true, pointerId, pointerType: 'touch', clientX: 0, clientY: 0 }));
+    })()`);
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ' });
+    await page.waitFor('window.__vb.wheelOpen', { label: 'minigun wheel selection' });
+    const minigunPick = await page.evaluate(`(() => {
+      const rect = document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${WEAPON_IDS.indexOf('minigun')}].getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    })()`);
+    await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...minigunPick });
+    await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${WEAPON_IDS.indexOf('minigun')}].classList.contains('is-hl')`,
+      { label: 'minigun highlighted' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
+    await page.waitFor(`!window.__vb.wheelOpen && window.__vb.stats.weapon === 'minigun' &&
+      window.__heavyAuthority?.weapon === ${WEAPON_IDS.indexOf('minigun')} &&
+      window.__heavyRead().ammo === window.__heavyAuthority.mag`, { label: 'minigun authority and HUD equipped' });
+    const minigunBefore = await page.evaluate('window.__heavyRead()');
+    await page.evaluate(`window.__heavyPointer('ads', 'pointerdown', 82)`);
+    await page.waitFor(`window.__heavyAuthority?.spin === 1 && window.__heavyAuthority.ads &&
+      window.__heavyRead().label.includes('ROTOR READY')`, { label: 'ADS-only minigun reaches firing speed', timeoutMs: 5000 });
+    const minigunPrimed = await page.evaluate('window.__heavyRead()');
+    requireCondition(minigunPrimed.authority.mag === minigunBefore.authority.mag
+      && minigunPrimed.ammo === minigunBefore.ammo && minigunPrimed.authority.heat === 0
+      && !minigunPrimed.authority.firing && minigunPrimed.adsT > 0.9,
+    'live ADS-only minigun reaches rotor ready without ammunition use, heat or authoritative shots');
+    await page.evaluate(`window.__heavyPointer('fire', 'pointerdown', 83)`);
+    await page.waitFor(`window.__heavyAuthority?.mag <= ${minigunPrimed.authority.mag - 16} &&
+      window.__heavyAuthority.heat > 0.15 && window.__heavyRead().ammo < ${minigunPrimed.ammo}`,
+      { label: 'pre-spun minigun fires live rounds', timeoutMs: 5000 });
+    const minigunFiring = await page.evaluate('window.__heavyRead()');
+    await page.evaluate(`window.__heavyPointer('fire', 'pointerup', 83)`);
+    await page.waitFor(`!window.__heavyAuthority?.firing && window.__heavyRead().label.includes('ROTOR READY') &&
+      window.__heavyRead().ammo === window.__heavyAuthority.mag`, { label: 'minigun trigger released while ADS remains held', timeoutMs: 3000 });
+    const minigunPause = await page.evaluate('window.__heavyRead()');
+    await page.waitFor(`window.__heavyAuthority?.heat < ${minigunPause.authority.heat - 0.04}`,
+      { label: 'ADS-held minigun cools between bursts', timeoutMs: 3000 });
+    const minigunCooled = await page.evaluate('window.__heavyRead()');
+    requireCondition(minigunFiring.authority.mag < minigunPrimed.authority.mag
+      && minigunFiring.authority.heat > 0.15 && minigunCooled.authority.spin === 1
+      && minigunCooled.authority.ads && !minigunCooled.authority.firing
+      && minigunCooled.authority.mag === minigunPause.authority.mag
+      && minigunCooled.ammo === minigunPause.ammo && minigunCooled.label.includes('ROTOR READY'),
+    'live trigger uses minigun ammunition and heat, then ADS preserves a ready rotor while cooling without firing');
+    await page.evaluate(`window.__heavyPointer('ads', 'pointerup', 82)`);
+    await page.waitFor(`window.__heavyAuthority?.spin === 0 && !window.__heavyAuthority.ads &&
+      window.__heavyRead().label.includes('AIM TO PRE-SPIN')`, { label: 'released minigun coasts to a complete stop', timeoutMs: 5000 });
+    const minigunReleased = await page.evaluate('window.__heavyRead()');
+    requireCondition(!minigunReleased.authority.firing && minigunReleased.authority.mag === minigunCooled.authority.mag,
+      'releasing ADS stops the minigun rotor without spending further ammunition');
+    console.log('live minigun lifecycle:', JSON.stringify({
+      before: minigunBefore, primed: minigunPrimed, firing: minigunFiring,
+      pause: minigunPause, cooled: minigunCooled, released: minigunReleased,
+    }));
+    await page.evaluate(`(() => {
+      for (const { socket, observe } of window.__heavyWatchers) socket.removeEventListener('message', observe);
+      delete window.__heavyWatchers; delete window.__heavyAuthority;
+      delete window.__heavyRead; delete window.__heavyPointer;
+    })()`);
+
     await pressEscape(page);
     await page.waitFor(`window.__vb.stats.settingsOpen`, { label: 'Training pause' });
     requireCondition(await page.evaluate(`(() => {

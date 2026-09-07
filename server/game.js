@@ -87,6 +87,7 @@ export class GameEngine {
       entities: this.entities,
       isEnemy: (left, right) => this.mode.isEnemy(left, right),
       solidAt: this.solidAt,
+      spawnBounds: this.mapMeta?.spawnBounds,
       now: this.now,
     });
     // Retain the established observable map while ownership lives in SpawnSelector.

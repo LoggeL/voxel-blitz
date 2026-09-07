@@ -91,10 +91,11 @@ export function canFire(p, fireEdge, ctx) {
 export function resolveWeaponIntent(p, _dt, ctx) {
   const inp = p.input;
   p.minigun ??= createMinigunState();
-  const minigunHeld = p.def.id === 'minigun' && inp?.wantFire &&
+  const minigunEnabled = p.def.id === 'minigun' && inp &&
     (inp.switchTo == null || inp.switchTo === p.weapon) && !inp.reload &&
     ctx.canFire(p) && !p.vault && !p.reloading && p.deployT <= 0 && p.mag[p.weapon] > 0;
-  const minigunReady = stepMinigun(p.minigun, _dt, minigunHeld);
+  const minigunReady = stepMinigun(p.minigun, _dt,
+    !!(minigunEnabled && (inp.wantFire || p.fireEdgeQueued)), !!(minigunEnabled && inp.wantAds));
   if (!inp?.wantFire && !p.fireEdgeQueued) p.mining = null;
   if (!inp) { p.triggerPrev = false; p.reloadPrev = false; return; }
   const reloadEdge = !!inp.reload && !p.reloadPrev;

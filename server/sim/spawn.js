@@ -22,10 +22,11 @@ function spawnPointKey(point) {
  * seam. Call setNow once per simulation step before choosing spawns.
  */
 export class SpawnSelector {
-  constructor({ entities, isEnemy, solidAt, now }) {
+  constructor({ entities, isEnemy, solidAt, now, spawnBounds = null }) {
     this.entities = entities;
     this.isEnemy = isEnemy;
     this.solidAt = solidAt;
+    this.spawnBounds = spawnBounds;
     this.now = now;
     this.spawnUseTimes = new Map();
     this.expandedPools = new WeakMap();
@@ -75,6 +76,10 @@ export class SpawnSelector {
   }
 
   walkable(point) {
+    const bounds = this.spawnBounds;
+    if (bounds && (point.x < bounds.minX || point.x > bounds.maxX
+      || point.z < bounds.minZ || point.z > bounds.maxZ
+      || point.y < bounds.minY || point.y > bounds.maxY)) return false;
     return !boxCollides(this.solidAt, point.x, point.y, point.z)
       && solidBelow(this.solidAt, point.x, point.y, point.z);
   }

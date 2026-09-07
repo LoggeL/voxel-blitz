@@ -342,17 +342,30 @@ export class GameplayHud {
 
     if (s.charge01 !== undefined) {
       const thermal = Number.isFinite(s.heat01);
+      const fuel = Number.isFinite(s.fuel01);
       d.chargeMeter.classList.toggle('is-thermal', thermal);
+      d.chargeMeter.classList.toggle('is-fuel', fuel);
+      d.chargeMeter.classList.toggle('is-critical', thermal && s.heat01 >= 0.9 && !s.overheated);
       d.chargeMeter.classList.toggle('is-overheated', thermal && !!s.overheated);
-      const chargeVisible = thermal || s.charge01 !== null && Number.isFinite(s.charge01);
+      const chargeVisible = thermal || fuel || s.charge01 !== null && Number.isFinite(s.charge01);
       d.chargeMeter.classList.toggle('is-visible', chargeVisible);
       if (chargeVisible) {
-        const charge01 = clamp01(thermal ? s.heat01 : s.charge01);
-        d.chargeMeterFill.style.background = thermal ? (s.overheated ? "#ff3838" : s.heat01 >= 0.65 ? "#ff9f32" : "#ffd06b") : "";
+        const charge01 = clamp01(thermal ? s.heat01 : fuel ? s.fuel01 : s.charge01);
+        d.chargeMeterFill.style.background = thermal ? (s.overheated || s.heat01 >= 0.9 ? '#ff5750' : s.heat01 >= 0.65 ? '#ff9f32' : '#ffd06b') : fuel ? '#ff9f54' : '';
         d.chargeMeterFill.style.transform = `scaleX(${charge01})`;
         d.chargeMeter.classList.toggle('is-charging', charge01 > 0);
         d.chargeMeter.classList.toggle('is-full', charge01 >= 1);
-        const label = thermal ? (s.overheated ? 'OVERHEATED · COOLING' : s.spin01 > 0 && s.spin01 < 1 ? `SPIN UP · ${Math.round(s.spin01 * 100)}%` : `${s.heat01 >= 0.65 ? 'SWEET SPOT' : 'HEAT'} ${Math.round(s.heat01 * 100)}% · +${Math.round((s.heatDamageMult - 1) * 100)}% DMG`) : charge01 >= 1 ? 'CHARGED' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE';
+        let label;
+        if (thermal) {
+          if (s.overheated) label = 'OVERHEATED · COOLING';
+          else if (s.minigunSpinningUp) label = `SPIN UP · ${Math.round(s.spin01 * 100)}%`;
+          else if (s.heat01 >= 0.9) label = `HEAT ${Math.round(s.heat01 * 100)}% · RELEASE TO COOL`;
+          else if (s.minigunPrimed && s.heat01 < 0.65) label = 'ROTOR READY · PULL TRIGGER';
+          else if (s.heat01 <= 0 && s.spin01 <= 0) label = 'AIM TO PRE-SPIN';
+          else label = `${s.heat01 >= 0.65 ? 'SWEET SPOT' : 'HEAT'} ${Math.round(s.heat01 * 100)}% · +${Math.round((s.heatDamageMult - 1) * 100)}% DMG`;
+        } else if (fuel) {
+          label = `FUEL ${Math.max(0, s.fuelSeconds || 0).toFixed(1)}s · ${s.flameFiring ? 'IGNITING' : '18m JET'}`;
+        } else label = charge01 >= 1 ? 'CHARGED' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE';
         if (d.chargeMeterLabel.textContent !== label) d.chargeMeterLabel.textContent = label;
       }
     }
