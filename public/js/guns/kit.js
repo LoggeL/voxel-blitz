@@ -244,6 +244,8 @@ export function makeFlash() {
   group.add(first);
   group.add(second);
   const light = new THREE.PointLight(COL.flash, 0, 6);
+  // Illumination is copied into the fixed scene pool; this source never renders.
+  light.visible = false;
   group.add(light);
   group.visible = false;
   return { grp: group, mats: [first.material, second.material], light };

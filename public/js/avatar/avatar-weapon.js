@@ -73,6 +73,8 @@ export class AvatarWeaponModel {
     return this._deployDur > 0 ? 1 - this._deployT / this._deployDur : 1;
   }
 
+  get flashLight() { return this._model?.flash.light || null; }
+
   get id() { return this._weaponId; }
   get modelRoot() { return this._model?.root || null; }
   get handPose() { return this._profile?.hands || HANDS.rifle; }

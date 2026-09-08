@@ -1,3 +1,5 @@
+import * as THREE from '../vendor/three.module.js';
+import { isTeamMode } from '../../../shared/modes.js';
 import { AvatarDebugView } from './debug-view.js';
 import { nowMs, smooth01 } from '../util/math.js';
 import { boundedMapSet } from '../util/bounded-map.js';
@@ -22,6 +24,8 @@ const PENDING_HIT_TTL_MS = 650;
 export class AvatarRoster {
   constructor({ scene, gore = null, getMyId = () => null, now = nowMs }) {
     this._scene = scene;
+    this._labelTarget = new THREE.Vector3();
+    this._labelDirection = new THREE.Vector3();
     this._debugView = new AvatarDebugView(scene);
     this._gore = gore;
     this._getMyId = getMyId;
@@ -41,6 +45,10 @@ export class AvatarRoster {
       get runningAvatars() { return counters.runningAvatars; },
       get maxAvatarSpeed() { return counters.maxAvatarSpeed; },
     });
+  }
+
+  updateMuzzleLights(pool, local, camera) {
+    pool.update(local, this._avatars, camera);
   }
 
   get size() {
@@ -257,6 +265,25 @@ export class AvatarRoster {
       }
     }
     this._debugView.sync(remotes, this._avatars, myId);
+  }
+
+  /** Test the player's head, so a tag above cover cannot reveal a hidden enemy. */
+  updateLabels(camera, raycast, mode, ownTeam) {
+    for (const avatar of this._avatars.values()) {
+      const friendly = isTeamMode(mode) && ownTeam != null && avatar.team === ownTeam;
+      avatar.tag.material.color.setHex(friendly ? 0x69cfff : 0xff4055);
+      let visible = avatar.alive && avatar.group.visible;
+      if (visible) {
+        avatar.head.getWorldPosition(this._labelTarget);
+        this._labelDirection.copy(this._labelTarget).sub(camera.position);
+        const distance = this._labelDirection.length();
+        this._labelDirection.multiplyScalar(1 / Math.max(distance, 0.0001));
+        const hit = raycast(camera.position, this._labelDirection, distance);
+        visible = !hit || hit.t >= distance;
+      }
+      avatar.tag.visible = visible;
+      avatar.hpSpr.visible = visible;
+    }
   }
 
   dispose() {

@@ -1,6 +1,7 @@
 // Voxel Blitz browser composition root. Mutable gameplay ownership lives in
 // Session, LocalPlayer, WeaponState, AvatarRoster, and CombatFeedback.
 import * as THREE from './vendor/three.module.js';
+import { MuzzleLights } from './engine/muzzle-lights.js';
 import { WEAPONS, WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
 import { VAULT_SECONDS } from '../../shared/player-movement.js';
 import { deserializeWorld, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
@@ -202,6 +203,7 @@ class Game {
       else if (cue === 'ignite') sfx.molotovIgnite();
       else if (cue === 'draw') sfx.grenadeDraw();
     };
+    this.muzzleLights = new MuzzleLights(this.worldview.scene);
     this.roster = new AvatarRoster({
       scene: this.worldview.scene,
       gore: (event, options) => this.effects?.gore(event, options),
@@ -603,6 +605,9 @@ class Game {
         || view?.players;
       if (presentedPlayers) this.roster.sync(presentedPlayers, dt, now);
       this.spectator?.update(presentedPlayers, dt);
+      this.roster.updateLabels(this.camera,
+        (origin, direction, distance) => this.worldview.pickCameraRay(origin, direction, distance),
+        this.matchState?.mode, this.selfRow?.team);
     } catch (error) { this.phaseError('net/interp', error); }
 
     const spectating = this.spectator?.active === true;
@@ -660,6 +665,8 @@ class Game {
     this._postFrame.panic = this.player.panic;
     this._postFrame.pain = this.player.pain;
     this._postFrame.scopeActive = !!this.weapon?.scopeActive;
+    this.roster.updateMuzzleLights(this.muzzleLights,
+      this.rig.root.visible ? this.rig.flashLight : null, this.camera);
     this.post.render(this.worldview.scene, this.camera, this._postFrame);
   }
 
@@ -671,6 +678,8 @@ class Game {
   }
 
   disposeLiveResources() {
+    this.muzzleLights?.dispose();
+    this.muzzleLights = null;
     this._loopGeneration++;
     if (this._rafId) cancelAnimationFrame(this._rafId);
     this._rafId = 0;

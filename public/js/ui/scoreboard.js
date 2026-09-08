@@ -24,7 +24,7 @@ export class Scoreboard {
     const mode = match?.mode || 'fun';
     const roster = (players || []).filter((p) => p && !isTrainingDummyId(p.id));
     const signature = JSON.stringify([mode, match?.map, match?.scores, match?.attackers, selfId,
-      roster.map((p) => [p.id, p.name, p.team, p.kills, p.deaths, p.score, p.state, p.bomb, p.local])]);
+      roster.map((p) => [p.id, p.name, p.team, p.kills, p.deaths, p.score, p.state, p.bomb, p.local, p.ping])]);
     if (signature === this.signature) return;
     this.signature = signature;
     this.root.dataset.mode = mode;
@@ -54,6 +54,7 @@ export class Scoreboard {
         : mode === 'snd' ? ['PLAYER', 'K', 'D', 'STATUS']
           : mode === 'tdm' ? ['PLAYER', 'KILLS', 'DEATHS']
             : ['#', 'PLAYER', 'KILLS', 'DEATHS'];
+    columns.push('PING');
     for (const column of columns) {
       const th = el('th', '', head);
       th.scope = 'col';
@@ -82,6 +83,8 @@ export class Scoreboard {
         el('td', 'vb-sb-number', tr).textContent = String(player.deaths | 0);
         if (mode === 'snd') el('td', 'vb-sb-state', tr).textContent = dead ? 'OUT' : 'ALIVE';
       }
+      el('td', 'vb-sb-number', tr).textContent = Number.isFinite(player.ping)
+        ? `${Math.max(0, Math.round(player.ping))} ms` : '—';
     }
   }
 

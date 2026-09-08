@@ -41,7 +41,9 @@
     "prone:test": "node tools/prone-test.mjs",
     "projectiles:test": "node tools/projectile-server-performance-test.mjs && node tools/projectile-performance-test.mjs",
     "refactor:test": "node tools/hitbox-refactor-test.mjs && node tools/server-refactor-test.mjs && node tools/client-refactor-test.mjs",
-    "browser:ui": "node tools/session-refactor-test.mjs"
+    "browser:ui": "node tools/session-refactor-test.mjs",
+    "feedback:test": "node tools/player-feedback-test.mjs",
+    "profile:gameplay": "node tools/profile-gameplay.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"

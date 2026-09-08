@@ -609,6 +609,8 @@ export class ViewmodelRig {
     this._queue = keep;
   }
 
+  get flashLight() { return this._cur?.flash.light || null; }
+
   _uniSet(glow, heat) {
     if (!this._cur) return;
     this._cur.uni.uGlow.value = glow; this._cur.uni.uHeat.value = heat;
