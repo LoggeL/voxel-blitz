@@ -19,7 +19,7 @@ export const CHAOS_UPGRADES = Object.freeze({
   frag: ladder(['Kinder surprise', 'Detonation scatters 6 live mini-frags.'], ['Extended family', '12 mini-frags scatter over a wider area.'], ['Popcorn ceiling', 'Mini-frags erupt with extra launch force and larger craters.']),
   limpet: ladder(['Group hug', 'The flying charge steers toward visible enemies.'], ['Clingy friends', 'Detonation scatters 5 sticky charges.'], ['Separation anxiety', 'Sticky children home in too, then explode with a larger blast.']),
   pulse: ladder(['Reverse sneeze', 'The grenade pulls nearby enemies inward before impact.'], ['Space programme', 'Impact launches players high into the air.'], ['Afterparty', 'Impact scatters 8 bouncing pulse bombs with a delayed second launch.']),
-  molotov: ladder(['Spill zone', 'Ground fire spreads to a 4.2 metre radius.'], ['Closing time', 'The wider ground fire lasts 9 seconds.'], ['Heat complaint', 'The wider, longer fire deals 32 damage per second.']),
+  molotov: ladder(['Spill zone', 'Ground fire spreads to a 4.2 metre radius.'], ['Closing time', 'The wider ground fire lasts 10 seconds.'], ['Heat complaint', 'The wider, longer fire deals 40 damage per second.']),
 });
 function isChaosItem(id) { return typeof id === 'string' && Object.hasOwn(CHAOS_UPGRADES, id); }
 export function chaosLevel(player, id) {

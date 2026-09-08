@@ -5,6 +5,7 @@ import { CHAOS_START_CREDITS, CHAOS_KILL_CREDITS, CHAOS_UPGRADES, chaosLevel, pa
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import {
   DEFAULT_MODE_ID,
+  DUEL_WEAPONS,
   MODE_RULES,
   isModeMapCompatible,
   normalizeModeId,
@@ -188,6 +189,32 @@ class FunPolicy {
   }
 }
 
+class DuelPolicy extends FunPolicy {
+  constructor(context) { super(context); this.mode = 'duel'; }
+
+  canUseWeapon(player, weapon) {
+    const id = typeof weapon === 'string' ? weapon : WEAPON_IDS[Math.trunc(weapon)];
+    return DUEL_WEAPONS.includes(id);
+  }
+
+  _syncPlayer(entity) {
+    super._syncPlayer(entity);
+    entity.owned = [...DUEL_WEAPONS];
+    if (!this.canUseWeapon(entity, entity.weapon)) entity.weapon = WEAPON_IDS.indexOf('rifle');
+    for (let i = 0; i < WEAPON_IDS.length; i++) {
+      if (!DUEL_WEAPONS.includes(WEAPON_IDS[i])) {
+        entity.mag[i] = 0;
+        entity.reserve[i] = 0;
+      }
+    }
+    entity.grenades = entity.grenades.map(() => 0);
+  }
+
+  playerSnapshot(player) {
+    return { ...super.playerSnapshot(player), owned: [...DUEL_WEAPONS] };
+  }
+}
+
 class ChaosPolicy extends FunPolicy {
   constructor(context) { super(context); this.mode = 'chaos'; }
   _syncPlayer(entity) {
@@ -271,7 +298,8 @@ export class ModeController {
       },
     };
 
-    if (modeId === 'chaos') this.policy = new ChaosPolicy(context);
+    if (modeId === 'duel') this.policy = new DuelPolicy(context);
+    else if (modeId === 'chaos') this.policy = new ChaosPolicy(context);
     else if (modeId === 'snd') this.policy = new SndPolicy(context);
     else if (modeId === 'tdm') this.policy = new TdmPolicy(context);
     else if (modeId === 'gungame') this.policy = new GunGamePolicy(context);

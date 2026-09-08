@@ -123,6 +123,14 @@ export class MenuLobbyController {
     );
     createLobbyButton.type = 'button';
     createLobbyButton.textContent = 'CREATE LOBBY';
+    const duelButton = el('button', 'vb-btn', createBox, 'create-duel-btn');
+    duelButton.type = 'button';
+    duelButton.textContent = 'INVITE TO 1V1';
+    duelButton.addEventListener('click', () => {
+      if (duelButton.disabled) return;
+      this.onMenuAction({ mode: 'create', gameMode: 'duel', map: 'depot', bots: 0,
+        code: '', password: createPassword.value, ...getIdentity() });
+    });
     const createHint = el('div', 'vb-action-hint', createBox);
     createHint.textContent = 'YOUR RULES. YOUR ARENA.';
 
@@ -189,7 +197,7 @@ export class MenuLobbyController {
       const gameMode = normalizeModeId(loadPref('vb-mode', 'fun'), 'fun');
       this.onMenuAction({ mode: 'create', gameMode,
         map: mapForMode(gameMode, loadPref('vb-map', 'foundry')),
-        bots: gameMode === 'training' ? 0 : Math.round(loadPrefNum('vb-bots', 3, 0, 7)),
+        bots: ['training', 'duel'].includes(gameMode) ? 0 : Math.round(loadPrefNum('vb-bots', 3, 0, 7)),
         code: '', password: createPassword.value, ...getIdentity() });
     };
 
@@ -497,10 +505,11 @@ export class MenuLobbyController {
     const humans = members.filter((member) => !member.bot);
     const readyHumans = humans.filter((member) => !!member.ready).length;
     const totalHumans = humans.length;
-    const allHumansReady = totalHumans > 0 && readyHumans === totalHumans;
+    const allHumansReady = totalHumans > 0 && readyHumans === totalHumans
+      && (gameMode !== 'duel' || totalHumans === 2);
 
     if (dom.readyCount) {
-      dom.readyCount.textContent = `${members.length}/8 OPERATORS · ${readyHumans}/${totalHumans} READY`;
+      dom.readyCount.textContent = `${members.length}/${gameMode === 'duel' ? 2 : 8} OPERATORS · ${readyHumans}/${totalHumans} READY`;
     }
 
     if (dom.readyBtn) {

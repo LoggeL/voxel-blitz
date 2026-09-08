@@ -77,6 +77,7 @@ export const WEAPON_BUY_ORDER = Object.freeze([
 ]);
 
 export const MODE_LABELS = Object.freeze({
+  duel: '1V1 DUEL',
   chaos: 'CHAOS LAB',
   fun: 'FUN · FREE FOR ALL',
   tdm: 'TEAM DEATHMATCH',

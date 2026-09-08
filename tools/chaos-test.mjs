@@ -153,8 +153,8 @@ function projectileFixture(type, level) {
   return { system, p, ctx, events, projectile };
 }
 // Upgraded bottles carry their purchased profile through throw, impact, and snapshot.
-for (const [level, radius, durationMs, dps] of [[0, 3.2, 6500, 24], [1, 4.2, 6500, 24],
-  [2, 4.2, 9000, 24], [3, 4.2, 9000, 32]]) {
+for (const [level, radius, durationMs, dps] of [[0, 3.2, 7500, 30], [1, 4.2, 7500, 30],
+  [2, 4.2, 10000, 30], [3, 4.2, 10000, 40]]) {
   const f = projectileFixture('molotov', level);
   f.ctx.getBlock = (_x, y) => y === 0 ? 1 : 0;
   f.projectile.y = 1.16;

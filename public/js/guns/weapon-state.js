@@ -27,7 +27,7 @@ export function shouldShowViewmodel({ spectating = false, scopeActive = false } 
 }
 
 function usesAuthoritativeOwnedWeapons(mode) {
-  return mode === 'snd' || mode === 'gungame';
+  return mode === 'snd' || mode === 'gungame' || mode === 'duel';
 }
 
 function clamp01(value) {

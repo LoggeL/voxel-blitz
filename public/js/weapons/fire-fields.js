@@ -1,4 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
+import { createFireAtlas, FIRE_SPRITE_GLSL } from './fire-sprite.js';
 import { MOLOTOV_FIRE } from '../../../shared/molotov-rules.js';
 
 const MAX_FIELDS = MOLOTOV_FIRE.maxFields;
@@ -25,7 +26,7 @@ export class FireFieldFX {
     this.geometry.instanceCount = 0;
     this.material = new THREE.ShaderMaterial({
       transparent: true, depthWrite: false, toneMapped: false,
-      uniforms: { time: { value: 0 } },
+      uniforms: { time: { value: 0 }, fireAtlas: { value: createFireAtlas() } },
       vertexShader: `
         attribute vec3 center;
         attribute vec4 shape;
@@ -40,20 +41,13 @@ export class FireFieldFX {
         }
       `,
       fragmentShader: `
+        ${FIRE_SPRITE_GLSL}
         uniform float time;
         varying vec2 fireUv;
         varying vec2 fireLife;
         void main() {
-          float y = fireUv.y;
-          float sway = sin(y * 9.0 - time * 8.0 + fireLife.x) * y * 0.10;
-          float x = abs(fireUv.x - 0.5 + sway);
-          float width = 0.46 * pow(1.0 - y, 0.7);
-          float edge = 1.0 - smoothstep(width * 0.45, width, x);
-          float alpha = edge * smoothstep(0.0, 0.10, y) * (1.0 - y * y) * fireLife.y;
-          if (alpha < 0.01) discard;
-          float core = (1.0 - y) * (1.0 - smoothstep(0.0, width, x));
-          vec3 tint = mix(vec3(0.95, 0.12, 0.015), vec3(1.0, 0.82, 0.22), core);
-          gl_FragColor = vec4(tint, alpha * 0.92);
+          vec4 sprite = fireSprite(fireUv, time * 16.0 + fireLife.x);
+          gl_FragColor = vec4(sprite.rgb, sprite.a * fireLife.y * 0.92);
         }
       `,
     });
@@ -106,6 +100,7 @@ export class FireFieldFX {
     this.fields.clear();
     this.mesh.removeFromParent();
     this.geometry.dispose();
+    this.material.uniforms.fireAtlas.value.dispose();
     this.material.dispose();
   }
 }

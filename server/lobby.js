@@ -23,6 +23,7 @@ import { createMapState, getMapMeta } from '../shared/worlddata.js';
 
 const derivePassword = promisify(scrypt);
 const MAX_HUMANS = 8;
+const capacity = (room) => room.gameMode === 'duel' ? 2 : MAX_HUMANS;
 const MAX_ROOMS = 16;
 const MAX_BOTS = 7;
 const QUICK_MIN_BOTS = 5;
@@ -152,7 +153,7 @@ export class LobbyManager {
       return this._reject(meta, 'Incorrect lobby password', 4003, 'incorrect password');
     }
     if (!this._validAdmission(meta, name) || this.stopped) return false;
-    if (room.members.size >= MAX_HUMANS) {
+    if (room.members.size >= capacity(room)) {
       return this._reject(meta, `Lobby ${code} is full`, CLOSE_FULL, 'lobby full');
     }
 
@@ -174,7 +175,7 @@ export class LobbyManager {
         map: room.map,
         phase: room.phase,
         players: room.members.size,
-        capacity: MAX_HUMANS,
+        capacity: capacity(room),
         passwordRequired: !!room.passwordHash,
       }));
   }
@@ -198,6 +199,7 @@ export class LobbyManager {
     const { room, member } = found;
     if (room.phase !== 'waiting') return this._error(meta, 'Lobby has already started');
     if (room.host !== member.id) return this._error(meta, 'Only the host can start the lobby');
+    if (room.gameMode === 'duel' && room.members.size !== 2) return this._error(meta, '1v1 needs two players');
     for (const human of room.members.values()) {
       if (!human.ready) return this._error(meta, 'Every player must be ready before starting');
     }
@@ -220,7 +222,8 @@ export class LobbyManager {
     if (!this._validModeMap(gameMode, map) || !validBotCount(bots)) {
       return this._error(meta, 'Invalid lobby settings');
     }
-    bots = gameMode === 'training' ? 0 : bots;
+    if (gameMode === 'duel' && room.members.size > 2) return this._error(meta, '1v1 allows only two players');
+    bots = ['training', 'duel'].includes(gameMode) ? 0 : bots;
     const arenaChanged = gameMode !== room.gameMode || map !== room.map;
     if (!arenaChanged && bots === room.bots) return true;
     if (arenaChanged) {
@@ -356,7 +359,7 @@ export class LobbyManager {
       gameMode,
       map,
       phase: 'waiting',
-      bots,
+      bots: gameMode === 'duel' ? 0 : bots,
       quickPopulation: quick ? bots + 1 : null,
       host: '',
       members: new Map(),
@@ -377,7 +380,7 @@ export class LobbyManager {
 
   _admit(room, meta, name, startRoom) {
     const id = memberId(meta);
-    if (!id || room.destroyed || room.members.has(id) || room.members.size >= MAX_HUMANS) {
+    if (!id || room.destroyed || room.members.has(id) || room.members.size >= capacity(room)) {
       return this._reject(meta, 'Lobby is full or unavailable', CLOSE_FULL, 'lobby full');
     }
 

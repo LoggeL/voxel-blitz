@@ -1,4 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
+import { createFireAtlas, FIRE_SPRITE_GLSL } from './fire-sprite.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { FLAME_RULES } from '../../../shared/flame-rules.js';
 
@@ -42,16 +43,19 @@ export class FlameFX {
     this.geometry.setAttribute('tint', this.colors);
     this.geometry.instanceCount = 0;
     this.material = new THREE.ShaderMaterial({
-      transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+      transparent: true, depthWrite: false, toneMapped: false,
+      uniforms: { time: { value: 0 }, fireAtlas: { value: createFireAtlas() } },
       vertexShader: `
         attribute vec3 center;
         attribute vec3 shape;
         attribute vec4 tint;
         varying vec2 flameUv;
         varying vec4 flameTint;
+        varying float flamePhase;
         void main() {
           flameUv = uv;
           flameTint = tint;
+          flamePhase = shape.z * 3.0;
           float c = cos(shape.z), s = sin(shape.z);
           vec2 local = position.xy * shape.xy;
           local = mat2(c, -s, s, c) * local;
@@ -61,18 +65,14 @@ export class FlameFX {
         }
       `,
       fragmentShader: `
+        ${FIRE_SPRITE_GLSL}
+        uniform float time;
         varying vec2 flameUv;
         varying vec4 flameTint;
+        varying float flamePhase;
         void main() {
-          vec2 p = flameUv * 2.0 - 1.0;
-          float width = 0.72 - p.y * 0.2;
-          float radius = length(vec2(p.x / width, p.y));
-          float edge = max(0.0, 1.0 - radius);
-          float ripple = 0.88 + 0.12 * sin(p.y * 17.0 + p.x * 11.0);
-          float alpha = edge * edge * ripple * flameTint.a;
-          vec3 core = mix(vec3(1.0, 0.86, 0.34), vec3(0.55, 0.81, 1.0), step(0.2, flameTint.b));
-          vec3 hot = mix(flameTint.rgb, core, pow(edge, 4.0) * 0.65);
-          gl_FragColor = vec4(hot, alpha);
+          vec4 sprite = fireSprite(flameUv, time * 20.0 + flamePhase);
+          gl_FragColor = vec4(sprite.rgb, sprite.a * flameTint.a);
         }
       `,
     });
@@ -149,6 +149,7 @@ export class FlameFX {
 
   update(dt) {
     const delta = Math.max(0, dt);
+    this.material.uniforms.time.value = (this.material.uniforms.time.value + delta) % 1000;
     // Advance previously emitted particles once. New subframe samples below already
     // include their own travel time and must not receive the full frame delta.
     for (const puff of this.puffs) {
@@ -190,6 +191,7 @@ export class FlameFX {
   dispose() {
     this.mesh.removeFromParent();
     this.geometry.dispose();
+    this.material.uniforms.fireAtlas.value.dispose();
     this.material.dispose();
   }
 }

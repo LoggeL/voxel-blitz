@@ -23,7 +23,7 @@ export class LobbySettings {
         const settings = {
           gameMode: this.controls.gameMode.value,
           map: this.controls.map.value,
-          bots: this.controls.gameMode.value === 'training' ? 0 : Number(this.controls.bots.value),
+          bots: ['training', 'duel'].includes(this.controls.gameMode.value) ? 0 : Number(this.controls.bots.value),
         };
         savePref('vb-mode', settings.gameMode);
         savePref('vb-map', settings.map);
@@ -33,6 +33,7 @@ export class LobbySettings {
     }
     this.options(this.controls.gameMode, MODE_IDS, MODE_LABELS);
     this.options(this.controls.bots, Array.from({ length: 8 }, (_, i) => String(i)), {});
+    this.loadout = el('div', 'vb-field-desc', this.root, 'lobby-weapon-set');
     this.hint = el('div', 'vb-field-desc', this.root);
   }
 
@@ -53,11 +54,14 @@ export class LobbySettings {
   update(state, isHost) {
     this.controls.gameMode.value = state.gameMode;
     this.syncMaps(state.gameMode, state.map);
-    this.controls.bots.value = String(state.gameMode === 'training' ? 0 : state.bots);
+    this.controls.bots.value = String(['training', 'duel'].includes(state.gameMode) ? 0 : state.bots);
     for (const [key, select] of Object.entries(this.controls)) {
-      select.disabled = !isHost || state.phase !== 'waiting' || (key === 'bots' && state.gameMode === 'training');
+      select.disabled = !isHost || state.phase !== 'waiting' || (key === 'bots' && ['training', 'duel'].includes(state.gameMode));
     }
-    this.hint.textContent = isHost
+    this.loadout.textContent = state.gameMode === 'duel'
+      ? 'BASE 1V1 WEAPON SET: Rifle · Shotgun · Sniper · Revolver · Pixel Pick. No throwables.' : '';
+    this.hint.textContent = state.gameMode === 'duel'
+      ? 'Share the invite link. Two players, no bots. Both players must be ready.' : isHost
       ? 'Invite friends now. Changes reset readiness. Bots fill available slots.'
       : 'The host can change settings while everyone joins.';
   }

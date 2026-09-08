@@ -79,7 +79,7 @@ function effectFacade(scene) {
     assert.equal(fx.geometry.instanceCount, 0, 'a long suspended frame retires expired fire');
     assert(fx.material.uniforms.time.value < 1, 'animation time remains bounded after long runtime');
 
-    fx.sync(authoritative.fireFields, EPOCH + 6000);
+    fx.sync(authoritative.fireFields, EPOCH + MOLOTOV_FIRE.durationMs - 500);
     assert(fx.geometry.instanceCount > 0, 'late sync restores still-live fire from the snapshot alone');
     assert(fx.shapes.getW(0) > 0 && fx.shapes.getW(0) < 1, 'last half-second fades visibly');
     fx.update(0.5);
@@ -176,8 +176,8 @@ function effectFacade(scene) {
     assert.equal(game.effects.fireFields.fields.size, 1,
       'reconnecting recovers fire from a new sequence without an explosion event');
     const remoteClock = game.effects.fireFields.now;
-    game.effects.update(0.05, 7);
-    near(game.effects.fireFields.now - remoteClock, 7000, 'effects forwards real elapsed time during a suspended frame');
+    game.effects.update(0.05, 8);
+    near(game.effects.fireFields.now - remoteClock, 8000, 'effects forwards real elapsed time during a suspended frame');
     assert.equal(game.effects.fireFields.fields.size, 0, 'clock expiry works if the connection stops delivering');
   } finally { game.effects?.dispose(); }
 }
