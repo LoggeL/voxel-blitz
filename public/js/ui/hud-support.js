@@ -112,7 +112,7 @@ export const MAP_DESCRIPTIONS = Object.freeze({
   solstice: 'Desert solar observatory with a glass biodome, turbine hall, and compact linked lanes (All Modes)',
   caldera: 'Volcanic caldera with a west obsidian gate and elevated east ember refinery (All Modes)',
   nuketown: 'Classic test-town: furnished two-storey houses, school bus, moving truck and backyard routes (All Modes)',
-  dust2: 'Sandstone streets with Long A, Catwalk, Mid Doors and B Tunnels',
+  dust2: 'Long A, sunken Pit, raised Catwalk and two-level B Tunnels',
   killhouse: 'Covered firing bays and four numbered rooms. Practice on respawning targets or race the course.',
 });
 

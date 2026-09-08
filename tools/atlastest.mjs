@@ -358,7 +358,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     solstice: '7f03eaad',
     caldera: 'aa81f327',
     nuketown: '10f21fd4',
-    dust2: '188927b1',
+    dust2: '575d4f29',
     killhouse: '5f8a8d45',
   };
   const expectedSpawnCounts = {

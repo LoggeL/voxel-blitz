@@ -220,6 +220,17 @@ def props(entities):
         if 'crate_style' in name and dimensions and dimensions[3]:
             x,y,z = map(int, dimensions.groups())
             box([-x/2,-y/2,0], [x/2,y/2,z], CRATE)
+        elif 'dust_crate_assembly_100x100' in name:
+            # B's central timber box; model origin/yaw come from the VMF.
+            box([-50,-50,0], [50,50,100], CRATE)
+        elif 'dust_kasbah_formwork_bombsite_tall_02' in name:
+            # The tall shuttered stack beside B window. Its separate brick
+            # and panel entities share an origin, so one proxy is sufficient.
+            if name.endswith('tall_02.mdl'):
+                box([-64,-48,0], [64,48,160], WOOD)
+                box([-58,-42,160], [58,42,184], SANDSTONE)
+            else:
+                continue
         elif ('window' in name or 'dust_door_' in name or 'rollupdoor' in name) and dimensions:
             x,z = int(dimensions[1]),int(dimensions[2])
             box([-5,-x/2,0],[5,x/2,z], WOOD if 'wood' in name or 'door' in name else TILE)

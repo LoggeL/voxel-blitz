@@ -27,8 +27,9 @@ worldY = 15 + sourceZ / 48
 Floor voxels use `round(worldY) - 1`. The measured walkable footprint spans about
 84 x 90 voxels, leaving room for surrounding buildings within the existing world.
 This preserves the map's proportions. Integer voxels quantize slopes, arches and
-angles, and props use the game's materials, so this is not an unquantized copy of
-the original collision mesh or artwork.
+angles. Static models use voxel proxies at their original positions and angles,
+with eight purpose-made voxel materials. Their small details and dimensions are
+approximations; the original model meshes and artwork are not included.
 
 ## Routes and elevation
 
@@ -88,3 +89,26 @@ npm run powerups:test
 npm run maps:browser
 npm run maps:capture -- --map dust2
 ```
+
+## Rebuilding the geometry
+
+The checked-in `shared/world/dust2-reference-data.js` is a compact deterministic
+run-length encoding. No downloads, Python or external services are needed to play.
+For authoring, extract the referenced VMF and run:
+
+```sh
+python3 -m venv .artifacts/dust2-python
+.artifacts/dust2-python/bin/pip install numpy
+.artifacts/dust2-python/bin/python tools/compile-dust2-reference.py path/to/de_dust2_custom.vmf
+```
+
+The compiler requires the source SHA-256
+`5e692292eb59b5ad73e3036bfa074527acf4dab6157d50b822efbac5415090a1`.
+It imports 9,234 world/detail brushes, their displaced surfaces and 471 positioned
+voxel props. Runtime generation restores the matching NAV floor clearance and
+removes disconnected fragments created by voxel rounding. Walking steps apply
+only to adjacent reference terrain levels, on both client and server; crates
+and other maps retain their usual collision behavior.
+
+`node tools/dust2-movement-test.mjs` additionally checks actual ramp ascents,
+low-ceiling rejection and ordinary-collision behavior.

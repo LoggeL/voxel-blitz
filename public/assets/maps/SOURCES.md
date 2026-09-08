@@ -14,7 +14,7 @@ external assets, compositing or retouching is included in these previews.
 | solstice | `solstice-concept.webp` | `.artifacts/map-rich-pass/solstice-solar-receiver.png` |
 | caldera | `caldera-concept.webp` | `.artifacts/map-rich-pass/caldera-reactor-deck.png` |
 | nuketown | `nuketown.webp` | `.artifacts/map-rich-pass/nuketown-hero.png` |
-| dust2 | `dust2.webp` | `.artifacts/map-renders/dust2-b-site.png` |
+| dust2 | `dust2.webp` | `.artifacts/map-renders/dust2-hero.png` |
 | killhouse | `killhouse-range.webp` | `.artifacts/map-rich-pass/killhouse-control-yard.png` |
 
 Capture command:

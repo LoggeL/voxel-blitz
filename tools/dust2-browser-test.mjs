@@ -3,6 +3,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { launchCdpSession } from './lib/cdp-session.mjs';
 import { startServer, stopServer, waitForHttp } from './lib/server-process.mjs';
+import { createMapState } from '../shared/worlddata.js';
+import { slideTerrainAxis } from '../shared/terrain-steps.js';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const output = new URL('../.artifacts/dust2-browser/', import.meta.url);
@@ -80,15 +82,31 @@ try {
   { timeoutMs: 30_000, label: 'Dust 2 live match with bots' });
   const before = await page.evaluate('window.__vb.stats');
   assert.ok(before.alive && before.lastSnapAgeMs < 1000, 'player has a live server spawn');
-  assert.ok(before.feet.x >= 7.5 && before.feet.x <= 120.5 &&
-    before.feet.z >= 7.5 && before.feet.z <= 88.5, 'live spawn stays inside Dust 2');
-  await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'w', code: 'KeyW', windowsVirtualKeyCode: 87 });
+  const world = createMapState('dust2');
+  const bounds = world.meta.spawnBounds;
+  assert.ok(before.feet.x >= bounds.minX && before.feet.x <= bounds.maxX &&
+    before.feet.z >= bounds.minZ && before.feet.z <= bounds.maxZ, 'live spawn stays inside Dust 2');
+  // Respawn scoring may choose any original courtyard edge. Test movement
+  // through an open exit instead of assuming that looking at map center is clear.
+  const yaw = before.yaw, sin = Math.sin(yaw), cos = Math.cos(yaw);
+  const directions = [['w', -sin, -cos], ['d', cos, -sin], ['s', sin, cos], ['a', -cos, sin]];
+  const exits = directions.map(([key, dx, dz]) => {
+    const point = { ...before.feet };
+    for (let i = 0; i < 24; i++) {
+      slideTerrainAxis(point, 'x', dx * .1, (x,y,z) => world.getBlock(x,y,z) !== 0, world.meta, true);
+      slideTerrainAxis(point, 'z', dz * .1, (x,y,z) => world.getBlock(x,y,z) !== 0, world.meta, true);
+    }
+    return { key, distance: Math.hypot(point.x - before.feet.x, point.z - before.feet.z) };
+  }).sort((a,b) => b.distance - a.distance);
+  assert.ok(exits[0].distance > 1, 'spawn has an open movement exit');
+  const key = exits[0].key, code = `Key${key.toUpperCase()}`, windowsVirtualKeyCode = key.toUpperCase().charCodeAt(0);
+  await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code, windowsVirtualKeyCode });
   try {
     await page.waitFor(`Math.hypot(window.__vb.stats.feet.x - ${before.feet.x},
       window.__vb.stats.feet.z - ${before.feet.z}) > 1`,
     { timeoutMs: 5000, label: 'actual movement out of Dust 2 spawn' });
   } finally {
-    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'w', code: 'KeyW', windowsVirtualKeyCode: 87 });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key, code, windowsVirtualKeyCode });
   }
   await capture(page, 'live-match.png');
   assert.ok(await page.evaluate('window.__vb.stats.lastSnapAgeMs < 1000'),

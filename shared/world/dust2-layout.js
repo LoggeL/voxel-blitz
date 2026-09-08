@@ -1,6 +1,6 @@
 // Original Dust II navigation, spawn and bomb-trigger coordinates, uniformly
 // quantized at 48 Source units per voxel. Derived from Valve CS:GO SDK files:
-// de_dust2_custom.nav and de_dust2_custom.vmf (see docs/maps/dust2-reference.md).
+// de_dust2_custom.nav and de_dust2_custom.vmf (see docs/maps/dust2.md).
 // NAV SHA256: 249ee8f015df045b3ce883ec88b7c04df87f497fe007466e1e8c2809620f79f9
 // Entries preserve stacked walkable levels instead of choosing the top roof.
 
