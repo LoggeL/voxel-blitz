@@ -12,6 +12,10 @@ const sampleFileSlots = {
   'weapons.minigun.fire.2': `${SLOT_ROOT}/weapons/minigun/fire-2.ogg`,
   'weapons.minigun.fire.3': `${SLOT_ROOT}/weapons/minigun/fire-3.ogg`,
   'weapons.knife.fire': `${SLOT_ROOT}/weapons/knife/fire.ogg`,
+  // Separate air movement and contact recordings keep missed swings impact-free.
+  'weapons.knife.fire.2': `${SLOT_ROOT}/weapons/knife/fire-2.ogg`,
+  'pickaxe.impact': `${SLOT_ROOT}/weapons/knife/impact.ogg`,
+  'pickaxe.impact.2': `${SLOT_ROOT}/weapons/knife/impact-2.ogg`,
   'weapons.flamethrower.loop': `${SLOT_ROOT}/weapons/flamethrower/loop.ogg`,
   'weapons.revolver.fire': `${SLOT_ROOT}/weapons/revolver/fire.ogg`,
   'weapons.longarc.fire': `${SLOT_ROOT}/weapons/longarc/fire.ogg`,
@@ -77,6 +81,9 @@ export const BUILTIN_SAMPLE_MANIFEST = Object.freeze({
   'weapons.minigun.fire.2': SAMPLE_FILE_SLOTS['weapons.minigun.fire.2'],
   'weapons.minigun.fire.3': SAMPLE_FILE_SLOTS['weapons.minigun.fire.3'],
   'weapons.knife.fire': SAMPLE_FILE_SLOTS['weapons.knife.fire'],
+  'weapons.knife.fire.2': SAMPLE_FILE_SLOTS['weapons.knife.fire.2'],
+  'pickaxe.impact': SAMPLE_FILE_SLOTS['pickaxe.impact'],
+  'pickaxe.impact.2': SAMPLE_FILE_SLOTS['pickaxe.impact.2'],
   'weapons.flamethrower.loop': SAMPLE_FILE_SLOTS['weapons.flamethrower.loop'],
   'weapons.revolver.fire': SAMPLE_FILE_SLOTS['weapons.revolver.fire'],
   'weapons.longarc.fire': SAMPLE_FILE_SLOTS['weapons.longarc.fire'],
@@ -132,7 +139,7 @@ export class LocalSampleBank {
     return this._buffers.get(slot) || null;
   }
 
-  play(slot, output, { gain = 1, rate = 1 } = {}) {
+  play(slot, output, { gain = 1, rate = 1, cleanupOwner = output } = {}) {
     const ctx = this._getContext();
     const buffer = this.getBuffer(slot);
     if (!ctx || !buffer || !output) return false;
@@ -151,7 +158,7 @@ export class LocalSampleBank {
       try { level.disconnect(); } catch (_) {}
     };
     source.onended = cleanup;
-    this._addCleanup?.(output, cleanup);
+    this._addCleanup?.(cleanupOwner, cleanup);
     source.start(ctx.currentTime);
     return true;
   }

@@ -59,6 +59,7 @@ def main():
     if args.analyze:
         analyze()
     records, plots = [], []
+    shared_attack = None
     for recipe in RECIPES:
         stem = f'minigun-{recipe["candidate"]}'
         source = WORK / recipe['family'] / 'source' / f'{stem}.wav'
@@ -72,8 +73,15 @@ def main():
         data = subprocess.check_output(['ffmpeg', '-v', 'error', '-f', 'f32le', '-ar', str(RATE),
             '-ac', '1', '-i', '-', '-af', filters, '-f', 'f32le', '-'], input=x.astype('<f4').tobytes())
         x = np.frombuffer(data, dtype='<f4').astype(np.float64)
+        x /= np.sqrt(np.mean(x[:720] * x[:720]))
+        if shared_attack is None:
+            shared_attack = x.copy()
+        anchor = np.pad(shared_attack, (0, max(0, len(x) - len(shared_attack))))[:len(x)]
+        # A consistent leading contact prevents three timbres from reading as
+        # one slower repeating beat. Keep variation mainly in the quiet tail.
+        x = .85 * anchor + .15 * x
         t = np.arange(len(x)) / RATE
-        x *= np.exp(-np.maximum(0, t - .018) / .10)
+        x *= np.exp(-np.maximum(0, t - .012) / .025)
         x[:24] *= np.linspace(0, 1, 24)
         x[-1200:] *= np.linspace(1, 0, 1200)
         x *= .135 / np.sqrt(np.mean(x * x))
@@ -90,12 +98,14 @@ def main():
             gain *= correction
         assert m['clipping_samples_at_0_999'] == 0 and m['peak'] <= .705
         assert m['onset_seconds_2pct_peak'] < .005
-        assert .13 <= m['rms'] <= .14
+        assert .07 <= m['rms'] <= .14
+        assert m['energy_seconds']['90'] < .05, 'each report must resolve before the next 1200 RPM shot'
         assert m['energy_band_percent']['120-1000Hz'] >= 25
         assert m['energy_band_percent']['5000-24001Hz'] < 2
         record = dict(recipe, output=str(output.relative_to(ROOT)), output_sha256=digest(output),
             final_metrics=m, filters=filters, trim_start_seconds=0, fade_in_seconds=.0005,
-            fade_out_seconds=.025, decay_after_seconds=.018, decay_time_constant_seconds=.10,
+            fade_out_seconds=.025, decay_after_seconds=.012, decay_time_constant_seconds=.025,
+            shared_attack='85% filtered cannon candidate 1, 15% selected variant; equal first-15ms RMS before mixing',
             saturation='tanh(1.5*x)/1.5 after RMS normalization to 0.135', normalization_gain=float(gain),
             sample_rate_hz=RATE, mono='arithmetic mean of source channels', codec='Opus', bitrate='96k',
             generation={key: receipt[key] for key in ['created_at', 'request_body', 'output_format',

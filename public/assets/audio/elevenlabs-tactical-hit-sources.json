@@ -1,0 +1,305 @@
+{
+  "service": "ElevenLabs Sound Effects",
+  "generated": "2026-09-08",
+  "candidates": 6,
+  "credits": 30,
+  "selections": [
+    {
+      "id": "hit-body",
+      "source": "hitbody-2.wav",
+      "trim": [
+        0,
+        0.105
+      ],
+      "highpass": 95,
+      "lowpass": 5500,
+      "peak": 0.4,
+      "fade_out": 0.02,
+      "output": "public/assets/audio/ui/hitmark-body.ogg",
+      "reason": "Candidate 2 has one immediate dense vest/body thud, followed by fine fabric texture. Candidate 1 has a more pronounced bass oscillation; candidate 3 is dominated by prolonged sub-bass. Preserve the physical low mids and broadband slap instead of reducing the source to a UI tick.",
+      "mono": "0.5L + 0.5R",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "fade_in_seconds": 0.0006,
+      "normalization_gain": 0.9494370447574972,
+      "final_metrics": {
+        "duration_seconds": 0.105,
+        "peak": 0.39873015880584717,
+        "rms": 0.07869436938949001,
+        "peak_dbfs": -7.986418286119676,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.00033256695998864144,
+        "onset_seconds_2pct_peak": 8.333333333333333e-05,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.075,
+        "rms_5ms_peak": 0.19889638585989997,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.010666666666666666,
+          "90": 0.021145833333333332,
+          "95": 0.0335625,
+          "99": 0.06597916666666667
+        },
+        "spectral_centroid_hz": 301.89781999498643,
+        "energy_band_percent": {
+          "0-120Hz": 41.96669078396,
+          "120-1000Hz": 52.95336152403629,
+          "1000-5000Hz": 4.431047862570065,
+          "5000-24001Hz": 0.6488998294336705
+        },
+        "boundary_step": 0.0035861358628608286,
+        "sample_step_99pct": 0.02770598221570253,
+        "first_20ms_rms": 0.16319605659136407,
+        "last_20ms_rms": 0.009720926219393711,
+        "rms_5ms_coefficient_of_variation": 1.1089609808384018
+      },
+      "output_sha256": "b7cc5833de673c593f9175e001d754645410ccf2a4e7477abc70507b5a65153a",
+      "source_full_scale_samples": 0,
+      "previous_output_sha256": "8e9591c6e66ac9a78f87f4cddba8cb16b6e6dcbb0a17b84312fb5a7ae2f6b069",
+      "previous_metrics": {
+        "duration_seconds": 0.08,
+        "peak": 0.23750391602516174,
+        "rms": 0.04291599552717191,
+        "peak_dbfs": -12.486584504437214,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -8.186084986879412e-05,
+        "onset_seconds_2pct_peak": 0.000125,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.07,
+        "rms_5ms_peak": 0.09452357835340916,
+        "rms_5ms_peak_at_seconds": 0.01,
+        "energy_seconds": {
+          "50": 0.017145833333333332,
+          "90": 0.03960416666666667,
+          "95": 0.04625,
+          "99": 0.058770833333333335
+        },
+        "spectral_centroid_hz": 755.4519900236409,
+        "energy_band_percent": {
+          "0-120Hz": 33.16351397942373,
+          "120-1000Hz": 35.86501471633627,
+          "1000-5000Hz": 30.42274575293769,
+          "5000-24001Hz": 0.5487255513023164
+        },
+        "boundary_step": 0.0010872170896618627,
+        "sample_step_99pct": 0.031029841518029563,
+        "first_20ms_rms": 0.0651607720678401,
+        "last_20ms_rms": 0.0070377881633991056,
+        "rms_5ms_coefficient_of_variation": 0.7378498109494767
+      },
+      "generation": {
+        "created_at": "2026-09-07T23:18:11.572148+00:00",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "One bullet striking a thick cloth ballistic vest over a body: a dry compact meaty THWAP, firm low-mid thud with a sharp leathery slap and tiny fabric crack. Close realistic tactical shooter impact foley, forceful immediate onset, rapid natural 100 ms decay. One single impact only. No firearm discharge, no UI tick, no musical tone, no beep, no wooden knock, no metal ringing, no echo, no voice, no music.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "a8e09a588a8a65fe94894fa4bf3efa5824c4a73683fb494ec0746bafa6898107",
+        "decoded_sha256": "9ca36c15e156ff064f29f48e79c9ec77e8357342872be76475345b93ea40b701"
+      }
+    },
+    {
+      "id": "hit-head",
+      "source": "hithead-2.wav",
+      "trim": [
+        0,
+        0.115
+      ],
+      "highpass": 150,
+      "lowpass": 8500,
+      "peak": 0.58,
+      "fade_out": 0.025,
+      "output": "public/assets/audio/ui/hitmark-head.ogg",
+      "reason": "Candidate 2 has a dense early broadband crack and short crunchy decay. Candidate 1 contains separated weak ticks; candidate 3 is almost entirely low-frequency/DC noise. One source sample reaches full scale, with no clipped plateau; filtering and level reduction retain the transient and the final recording has no full-scale samples.",
+      "mono": "0.5L + 0.5R",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "fade_in_seconds": 0.0006,
+      "normalization_gain": 0.559861980131279,
+      "final_metrics": {
+        "duration_seconds": 0.115,
+        "peak": 0.5783814787864685,
+        "rms": 0.08196221878752565,
+        "peak_dbfs": -4.755712453607391,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.0002719910302851925,
+        "onset_seconds_2pct_peak": 6.25e-05,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.07,
+        "rms_5ms_peak": 0.2120502457687195,
+        "rms_5ms_peak_at_seconds": 0.035,
+        "energy_seconds": {
+          "50": 0.035208333333333335,
+          "90": 0.043958333333333335,
+          "95": 0.04747916666666667,
+          "99": 0.0600625
+        },
+        "spectral_centroid_hz": 2639.706679465181,
+        "energy_band_percent": {
+          "0-120Hz": 3.756741721852617,
+          "120-1000Hz": 29.65895823788727,
+          "1000-5000Hz": 47.00521374846089,
+          "5000-24001Hz": 19.579086291799218
+        },
+        "boundary_step": 0.0016320213762810454,
+        "sample_step_99pct": 0.13745232507586433,
+        "first_20ms_rms": 0.10979618061410075,
+        "last_20ms_rms": 0.002220563935754799,
+        "rms_5ms_coefficient_of_variation": 1.0082227348996278
+      },
+      "output_sha256": "cc1817fbd65387a83e975c6ce7fb212467cd7fb09c9b52f589956da82a990978",
+      "source_full_scale_samples": 1,
+      "previous_output_sha256": "f7aed4dc80696379f328357288d3e169389c353beb0a9cde15f6299d828a22f5",
+      "previous_metrics": {
+        "duration_seconds": 0.075,
+        "peak": 0.2759392559528351,
+        "rms": 0.03627611598199945,
+        "peak_dbfs": -11.183730221591004,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 1.4843234913162936e-05,
+        "onset_seconds_2pct_peak": 0.00014583333333333335,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.035,
+        "rms_5ms_peak": 0.0991710124184931,
+        "rms_5ms_peak_at_seconds": 0.0,
+        "energy_seconds": {
+          "50": 0.005020833333333334,
+          "90": 0.011375,
+          "95": 0.0161875,
+          "99": 0.03
+        },
+        "spectral_centroid_hz": 3105.6315915382397,
+        "energy_band_percent": {
+          "0-120Hz": 0.018275166140165108,
+          "120-1000Hz": 3.367733535683871,
+          "1000-5000Hz": 71.70310860654607,
+          "5000-24001Hz": 24.910882691629897
+        },
+        "boundary_step": 0.0027093819153378718,
+        "sample_step_99pct": 0.07457324981689452,
+        "first_20ms_rms": 0.06902203045622494,
+        "last_20ms_rms": 0.002047624309794665,
+        "rms_5ms_coefficient_of_variation": 1.4224199719092752
+      },
+      "generation": {
+        "created_at": "2026-09-07T23:18:22.468996+00:00",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "One hard bullet head impact for a realistic tactical shooter: a sharp close fleshy CRACK with a tight crunchy bone snap, dense short lower thump underneath and dry gritty high-frequency splatter. Forceful single compact impact, immediate attack and natural 120 ms decay. Real physical contact foley. No gun firing, no UI chirp, no beep, no music, no ringing bell, no metallic ricochet, no voice, no echo, no repeated impacts.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "1b84de744555e7d925a8d50e1a43860e98bcc8bec77efa7b645dd3ad114fdf34",
+        "decoded_sha256": "254e8795c2624e83c5c33444792bd51051969b960483466c59c52751627cf6a0"
+      }
+    },
+    {
+      "id": "flesh",
+      "source": "hitbody-1.wav",
+      "trim": [
+        0,
+        0.125
+      ],
+      "highpass": 85,
+      "lowpass": 2800,
+      "peak": 0.38,
+      "fade_out": 0.025,
+      "output": "public/assets/audio/impacts/flesh.ogg",
+      "reason": "Candidate 1 supplies a separate rounded incoming body thud with a short physical attack. The narrower upper range and existing damage-scaled flesh cap keep this impact underneath the victim pain voice.",
+      "mono": "0.5L + 0.5R",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "fade_in_seconds": 0.0006,
+      "normalization_gain": 0.5654553283303184,
+      "final_metrics": {
+        "duration_seconds": 0.125,
+        "peak": 0.37691640853881836,
+        "rms": 0.039234074877953905,
+        "peak_dbfs": -8.475099114486312,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.00014194749226286755,
+        "onset_seconds_2pct_peak": 8.333333333333333e-05,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.07,
+        "rms_5ms_peak": 0.12673064871963374,
+        "rms_5ms_peak_at_seconds": 0.01,
+        "energy_seconds": {
+          "50": 0.0149375,
+          "90": 0.0203125,
+          "95": 0.03025,
+          "99": 0.06414583333333333
+        },
+        "spectral_centroid_hz": 415.79398987525605,
+        "energy_band_percent": {
+          "0-120Hz": 17.773188908436328,
+          "120-1000Hz": 77.6104862373094,
+          "1000-5000Hz": 4.535511337502208,
+          "5000-24001Hz": 0.08081351675204446
+        },
+        "boundary_step": 0.0014875354172545485,
+        "sample_step_99pct": 0.014647039920091604,
+        "first_20ms_rms": 0.09268830067542581,
+        "last_20ms_rms": 0.0014427372720601985,
+        "rms_5ms_coefficient_of_variation": 1.461339057312644
+      },
+      "output_sha256": "4c2f9cde1a8ae11cc1f70fc89e1e873b9a000c23c29514c870ee7f79c11577da",
+      "source_full_scale_samples": 0,
+      "previous_output_sha256": "50d99a12130efa40bd82c2168a27b8ee71c133ea76855c06c79cfaced5739bce",
+      "previous_metrics": {
+        "duration_seconds": 0.124,
+        "peak": 0.3198917508125305,
+        "rms": 0.045024741727721064,
+        "peak_dbfs": -9.89993918223724,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 7.232933488870579e-05,
+        "onset_seconds_2pct_peak": 0.0004375,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.08,
+        "rms_5ms_peak": 0.1285291826915781,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.015583333333333333,
+          "90": 0.035041666666666665,
+          "95": 0.041604166666666664,
+          "99": 0.073125
+        },
+        "spectral_centroid_hz": 237.51100606704077,
+        "energy_band_percent": {
+          "0-120Hz": 47.507082366592364,
+          "120-1000Hz": 47.40529262899954,
+          "1000-5000Hz": 5.075498559091365,
+          "5000-24001Hz": 0.012126445316767855
+        },
+        "boundary_step": 8.937462325775414e-05,
+        "sample_step_99pct": 0.010673394426703453,
+        "first_20ms_rms": 0.09073003119873783,
+        "last_20ms_rms": 0.0029095938622447416,
+        "rms_5ms_coefficient_of_variation": 1.0947306051848658
+      },
+      "generation": {
+        "created_at": "2026-09-07T23:18:09.634352+00:00",
+        "output_format": "mp3_44100_128",
+        "source_codec": "mp3",
+        "request_body": {
+          "text": "One bullet striking a thick cloth ballistic vest over a body: a dry compact meaty THWAP, firm low-mid thud with a sharp leathery slap and tiny fabric crack. Close realistic tactical shooter impact foley, forceful immediate onset, rapid natural 100 ms decay. One single impact only. No firearm discharge, no UI tick, no musical tone, no beep, no wooden knock, no metal ringing, no echo, no voice, no music.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "4a717e1161ab2d9e0b5acd8b915a24b920b2724aa6936fe29055e117509964b5",
+        "decoded_sha256": "fddb5fc61d231d46d6777e57ee4f9aab915faff925909d80f40eabdd0afedc34"
+      }
+    }
+  ],
+  "review_basis": "Candidate waveform, 5 ms RMS and spectrogram review; decoded Opus level, onset, energy and spectral measurements. Listening is not asserted.",
+  "rebuild": "python tools/prepare-tactical-hit-audio.py",
+  "source_note": "Original generated physical impact foley; no game recordings or third-party samples used. API MP3 responses, decoded WAV files and request receipts are retained locally."
+}

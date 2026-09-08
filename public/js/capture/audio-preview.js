@@ -13,7 +13,7 @@ let loading;
 let generation = 0;
 let waveformCount = 0;
 let waveformFailures = 0;
-const featuredCueCount = 16;
+const featuredCueCount = 19;
 
 for (const [control, suffix, factor] of [[volume, '%', 100], [distance, ' m', 1], [charge, '%', 100]]) {
   control.addEventListener('input', () => {
@@ -148,6 +148,7 @@ function minigunCycle(fireSeconds = 0) {
 function card(container, title, description, slot, buttons) {
   const article = document.createElement('article');
   if (slot === 'weapons.minigun.fire') article.id = 'minigun';
+  if (slot === 'weapons.knife.fire') article.id = 'pickaxe';
   const heading = document.createElement('h3'); heading.textContent = title;
   const paragraph = document.createElement('p'); paragraph.textContent = description;
   const actions = document.createElement('div'); actions.className = 'actions'; actions.append(...buttons);
@@ -222,7 +223,7 @@ async function waveform(url, canvas, caption) {
 const hitFeedback = document.getElementById('hit-feedback');
 for (const headshot of [false, true]) {
   const label = headshot ? 'Headshot' : 'Body';
-  card(hitFeedback, `${label} hit`, 'A short dry confirmation that stays soft during repeated hits.',
+  card(hitFeedback, `${label} hit`, headshot ? 'A compact, crisp physical head impact.' : 'A dry body impact with low-mid weight.',
     `ui.hitmark.${headshot ? 'head' : 'body'}`, [
       button(`${label} hit`, () => { sfx.hitmark(headshot); status.textContent = `${label} hit: game mix`; }),
       button(`${label} hit burst`, () => {
@@ -276,9 +277,30 @@ card(newCues, 'Grenade pin', 'The pin pull at the start of a held throw.', 'comb
 card(newCues, 'Grenade throw', 'A short arm swing. The strength control changes its gain.', 'combat.grenadeThrow', [
   button('Throw', () => { sfx.grenadeThrow(Number(charge.value)); status.textContent = `Grenade throw: ${Math.round(Number(charge.value) * 100)}% strength`; }),
 ]);
-card(newCues, WEAPONS.knife.name, 'A compact swing for the pickaxe.', 'weapons.knife.fire', [
+function pickaxeStrike(broken = false) {
+  sfx.fire('knife');
+  sfx.mine(3, broken, [0, 0, -Number(distance.value)]);
+  status.textContent = broken ? 'Pickaxe: stone contact and loose fragments' : 'Pickaxe: swing and stone contact';
+}
+card(newCues, WEAPONS.knife.name, 'A weighty air swing. Stone contact and fragments follow accepted mining hits.', 'weapons.knife.fire', [
   button('Swing', () => playWeapon('knife')),
+  button('Stone strike', () => pickaxeStrike()),
+  button('Break stone', () => pickaxeStrike(true)),
+  button('Four-second mining', () => {
+    stopLoops(); const token = generation;
+    for (let i = 0; i < 8; i++) later(() => {
+      if (generation === token) pickaxeStrike(i === 5);
+    }, i * 500);
+    later(() => {
+      if (generation === token) status.textContent = 'Pickaxe: eight swings at 120 RPM; stone broke on the sixth hit.';
+    }, 4000);
+    status.textContent = 'Pickaxe: four seconds of mining at game cadence';
+  }, true),
 ]);
+card(newCues, 'Pickaxe swing, variation 2', 'Alternate air movement used during repeated swings.', 'weapons.knife.fire.2', []);
+for (let variant = 1; variant <= 2; variant++) card(newCues, `Pickaxe stone contact, variation ${variant}`,
+  'Dry steel contact and stone grit. The game uses one recording per accepted hit.',
+  variant === 1 ? 'pickaxe.impact' : 'pickaxe.impact.2', []);
 card(newCues, WEAPONS.minigun.name, 'Three dry, weighty discharge variations, with a low mechanical rotor texture.', 'weapons.minigun.fire', [
   button('One shot', () => playWeapon('minigun')),
   button('Rotor only', () => minigunCycle(), true),

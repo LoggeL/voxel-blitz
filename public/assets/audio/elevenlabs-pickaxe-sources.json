@@ -1,0 +1,252 @@
+{
+  "service": "ElevenLabs Sound Effects",
+  "generated": "2026-09-08",
+  "candidates": 10,
+  "credits": 60,
+  "selections": [
+    {
+      "source": "swoosh/knife-2",
+      "trim": [
+        0.04,
+        0.32
+      ],
+      "tempo": 1,
+      "output": "public/assets/audio/weapons/knife/fire.ogg",
+      "rms": 0.13,
+      "peak": 0.6,
+      "filters": "highpass=f=110,lowpass=f=5000,equalizer=f=800:t=q:w=0.7:g=5,atempo=1",
+      "output_sha256": "238e009a6fdcc62464fcb0099a2efbb6f79cc7e524ca41bf97358fd87a646143",
+      "generation": {
+        "created_at": "2026-09-07T23:20:00.194696+00:00",
+        "request_body": {
+          "text": "One close heavy pickaxe swing through air, a fast broad rushing swoosh with wooden handle creak and cloth friction. A strong downward chop, dry and compact. No impact, no ringing, no voice, no music.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "b06754c5186acb86401d978c41a585e6daba6f39d460c2612f47a561603ff718",
+        "decoded_sha256": "fd749e98467a6d96b27722043bb4fb57333d338f27f74bc8233a7791a7ed94dc"
+      },
+      "source_sha256": "fd749e98467a6d96b27722043bb4fb57333d338f27f74bc8233a7791a7ed94dc",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "body_layer": null,
+      "final_metrics": {
+        "duration_seconds": 0.27339583333333334,
+        "peak": 0.6020526885986328,
+        "rms": 0.11299146460416985,
+        "peak_dbfs": -4.407309996559727,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.00010959693819121733,
+        "onset_seconds_2pct_peak": 0.015083333333333334,
+        "onset_seconds_8pct_rms": 0.04,
+        "last_active_seconds_8pct_rms": 0.21,
+        "rms_5ms_peak": 0.35818720620829675,
+        "rms_5ms_peak_at_seconds": 0.12,
+        "energy_seconds": {
+          "50": 0.12629166666666666,
+          "90": 0.146375,
+          "95": 0.16185416666666666,
+          "99": 0.18810416666666666
+        },
+        "spectral_centroid_hz": 361.47025179449076,
+        "energy_band_percent": {
+          "0-120Hz": 0.13016725202933968,
+          "120-1000Hz": 96.81260700371426,
+          "1000-5000Hz": 3.032111751039884,
+          "5000-24001Hz": 0.025113993216515182
+        },
+        "boundary_step": 1.0622343097566045e-05,
+        "sample_step_99pct": 0.025831415560096486,
+        "first_20ms_rms": 0.006926073621416604,
+        "last_20ms_rms": 0.000911241730586652,
+        "rms_5ms_coefficient_of_variation": 1.1051752593260302
+      }
+    },
+    {
+      "source": "swing/knife-1",
+      "trim": [
+        0,
+        0.22
+      ],
+      "tempo": 0.8,
+      "output": "public/assets/audio/weapons/knife/fire-2.ogg",
+      "rms": 0.13,
+      "peak": 0.6,
+      "filters": "highpass=f=110,lowpass=f=5000,equalizer=f=800:t=q:w=0.7:g=5,atempo=0.8",
+      "output_sha256": "f5bec15c7c850f20f86de87d449998227286a357e2c381905dfa1fe01153cfcb",
+      "generation": {
+        "created_at": "2026-09-07T23:17:53.048554+00:00",
+        "request_body": {
+          "text": "One forceful swing of a heavy pickaxe through air. Thick close rushing whoosh, fast downward chop, coarse wooden handle grip and restrained cloth friction. Starts moving immediately, strongest air rush after 90 ms, ends within 240 ms. Dry tactile melee foley, strong low-mid weight. No impact, no metallic ring, no whistle, no laser, no voices, music or ambience. One swing only.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "951af56a9d2697a4866a16c0313c2624aefefc7f777dcf20df54e0c183c24831",
+        "decoded_sha256": "1c149d9306d9dd9187fe9ae48952167bfbff25bde5f5274bcfce88ebc6a01dfb"
+      },
+      "source_sha256": "1c149d9306d9dd9187fe9ae48952167bfbff25bde5f5274bcfce88ebc6a01dfb",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "body_layer": null,
+      "final_metrics": {
+        "duration_seconds": 0.25427083333333333,
+        "peak": 0.6014344692230225,
+        "rms": 0.09873949138581223,
+        "peak_dbfs": -4.416233707471119,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.0002252441714192554,
+        "onset_seconds_2pct_peak": 0.0008125,
+        "onset_seconds_8pct_rms": 0.005,
+        "last_active_seconds_8pct_rms": 0.17,
+        "rms_5ms_peak": 0.27210858620989764,
+        "rms_5ms_peak_at_seconds": 0.08,
+        "energy_seconds": {
+          "50": 0.07429166666666667,
+          "90": 0.1019375,
+          "95": 0.12289583333333333,
+          "99": 0.1586875
+        },
+        "spectral_centroid_hz": 382.28448202120575,
+        "energy_band_percent": {
+          "0-120Hz": 1.5826328143309638,
+          "120-1000Hz": 91.03128923260215,
+          "1000-5000Hz": 7.0813253484479795,
+          "5000-24001Hz": 0.3047526046188945
+        },
+        "boundary_step": 0.0009627844374335837,
+        "sample_step_99pct": 0.03303841263055801,
+        "first_20ms_rms": 0.032775168991470274,
+        "last_20ms_rms": 0.0016814273943320207,
+        "rms_5ms_coefficient_of_variation": 1.055354124049477
+      }
+    },
+    {
+      "source": "rock/pickaxeimpact-2",
+      "trim": [
+        0.012,
+        0.242
+      ],
+      "tempo": 1,
+      "output": "public/assets/audio/weapons/knife/impact.ogg",
+      "rms": 0.13,
+      "peak": 0.65,
+      "filters": "highpass=f=100,lowpass=f=6000,equalizer=f=1800:t=q:w=0.7:g=4,atempo=1",
+      "output_sha256": "055d99dc99f5a3bce772eb4025f7247fd5f597f5f55ef9ae2e3c97c173e2257d",
+      "generation": {
+        "created_at": "2026-09-07T23:19:56.163640+00:00",
+        "request_body": {
+          "text": "A single loud pickaxe strike against solid rock: a sharp steel-on-stone clack over a chunky deep thud, followed by dry gritty stone chips. Close isolated foley, short natural decay. No swing, no second strike, no ringing, no voice, no music.",
+          "duration_seconds": 1.0,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "24274d2099a2afea660254158b3bd7ce99a716b08cc867747fb84c2bf864e4f8",
+        "decoded_sha256": "75b2a9786b6446a4a78bf8805a3c4faaabe3493903dfecc6f82e2061581739a2"
+      },
+      "source_sha256": "75b2a9786b6446a4a78bf8805a3c4faaabe3493903dfecc6f82e2061581739a2",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "body_layer": "Damped 145/237/391 Hz contact resonances",
+      "final_metrics": {
+        "duration_seconds": 0.23,
+        "peak": 0.6429334878921509,
+        "rms": 0.07592724051026147,
+        "peak_dbfs": -3.836679058949512,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.0002707424575305106,
+        "onset_seconds_2pct_peak": 0.00020833333333333335,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.20500000000000002,
+        "rms_5ms_peak": 0.22604159676580812,
+        "rms_5ms_peak_at_seconds": 0.02,
+        "energy_seconds": {
+          "50": 0.021479166666666667,
+          "90": 0.0423125,
+          "95": 0.0529375,
+          "99": 0.10570833333333333
+        },
+        "spectral_centroid_hz": 3076.992728656855,
+        "energy_band_percent": {
+          "0-120Hz": 1.2407352528595859,
+          "120-1000Hz": 46.26484312427721,
+          "1000-5000Hz": 7.415135720148978,
+          "5000-24001Hz": 45.07928590271424
+        },
+        "boundary_step": 0.0022209421076695435,
+        "sample_step_99pct": 0.19268305599689486,
+        "first_20ms_rms": 0.1694032476744475,
+        "last_20ms_rms": 0.004262183845056922,
+        "rms_5ms_coefficient_of_variation": 1.3725187390967641
+      }
+    },
+    {
+      "source": "rock/pickaxeimpact-1",
+      "trim": [
+        0.718,
+        0.948
+      ],
+      "tempo": 1,
+      "output": "public/assets/audio/weapons/knife/impact-2.ogg",
+      "rms": 0.13,
+      "peak": 0.65,
+      "filters": "highpass=f=100,lowpass=f=6000,equalizer=f=1800:t=q:w=0.7:g=4,atempo=1",
+      "output_sha256": "453cbb6277422751bbc42302933dbd8a3e5f9bbf4b5a7a3f542d7b1af60e573f",
+      "generation": {
+        "created_at": "2026-09-07T23:19:54.214854+00:00",
+        "request_body": {
+          "text": "A single loud pickaxe strike against solid rock: a sharp steel-on-stone clack over a chunky deep thud, followed by dry gritty stone chips. Close isolated foley, short natural decay. No swing, no second strike, no ringing, no voice, no music.",
+          "duration_seconds": 1.0,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "raw_sha256": "485191e823e1347959053893915c26e3210dfca478427fc5e34bbda60e5553f5",
+        "decoded_sha256": "76ba58509664ade30474442dbbbcebd9d3c2a2c9044a5f943c681eb0e1fd34b9"
+      },
+      "source_sha256": "76ba58509664ade30474442dbbbcebd9d3c2a2c9044a5f943c681eb0e1fd34b9",
+      "sample_rate_hz": 48000,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "body_layer": "Damped 145/237/391 Hz contact resonances",
+      "final_metrics": {
+        "duration_seconds": 0.23,
+        "peak": 0.6424163579940796,
+        "rms": 0.07558437798153034,
+        "peak_dbfs": -3.843668180984918,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 6.7938590173705474e-06,
+        "onset_seconds_2pct_peak": 0.0003958333333333333,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.1,
+        "rms_5ms_peak": 0.20330003336687705,
+        "rms_5ms_peak_at_seconds": 0.01,
+        "energy_seconds": {
+          "50": 0.021416666666666667,
+          "90": 0.052833333333333336,
+          "95": 0.058125,
+          "99": 0.08933333333333333
+        },
+        "spectral_centroid_hz": 2469.065267776712,
+        "energy_band_percent": {
+          "0-120Hz": 2.272165382143508,
+          "120-1000Hz": 46.14182439693542,
+          "1000-5000Hz": 33.21459037088392,
+          "5000-24001Hz": 18.37141985003714
+        },
+        "boundary_step": 0.0035853265781042865,
+        "sample_step_99pct": 0.15705361381173213,
+        "first_20ms_rms": 0.17716948466388602,
+        "last_20ms_rms": 0.00030002489801822014,
+        "rms_5ms_coefficient_of_variation": 1.3474181861821122
+      }
+    }
+  ],
+  "rebuild": "python tools/prepare-pickaxe-audio.py",
+  "source_note": "Original API responses and receipts retained in ignored artifacts. No game recordings used.",
+  "rejected": "Initial impact candidates had insufficient contact texture; three swing candidates were dominated by sub-bass. Rock candidate 1 contains several contacts, so only the final isolated strike is retained.",
+  "review_basis": "Waveform and spectral inspection, decoded levels and onset, native game-mix rendering. No subjective listening claim."
+}

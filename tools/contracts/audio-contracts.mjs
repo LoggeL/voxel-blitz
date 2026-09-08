@@ -298,8 +298,10 @@ export async function runAudioContracts(ok, installGlobals) {
         sfx.cycleClick(2, 'sniper');
       }) === 4, 'pump and bolt contacts each start one aligned two-layer voice');
 
-      // The flamethrower owns a sustained procedural stream, not a sampled shot.
-      const fireWeapons = WEAPON_IDS.filter((weapon) => weapon !== 'flamethrower');
+      // The flamethrower owns a sustained procedural stream, not a sampled shot,
+      // and the pickaxe swing is one bare recording checked on its own below.
+      const fireWeapons = WEAPON_IDS.filter((weapon) =>
+        weapon !== 'flamethrower' && weapon !== 'knife');
       const sampleLoad = await sfx.loadSamples(Object.fromEntries(
         fireWeapons.map((weapon) => [
           `weapons.${weapon}.fire`,
@@ -324,6 +326,29 @@ export async function runAudioContracts(ok, installGlobals) {
             && gain >= 0.4 && gain <= 1.5 && rate >= 0.8 && rate <= 1.2)
           && new Set(sampleProfiles.map(({ gain, rate }) => `${gain}/${rate}`)).size >= 4,
       'all sampled weapons use bounded distinct profiles and retain synthetic report layers');
+
+      // The recorded swing carries the whole melee cue: no report layer rides along.
+      const knifeLoad = await sfx.loadSamples(
+        { 'weapons.knife.fire': '/assets/audio/weapons/knife/fire.ogg' },
+        async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }),
+      );
+      const knifeMark = audio.nodes.length;
+      const knifeSources = startedBy(() => sfx.fire('knife'));
+      const knifeSample = audio.nodes.slice(knifeMark).find((node) =>
+        node.kind === 'buffer-source' && node.buffer?.decoded);
+      ok(knifeLoad.loaded === 1 && knifeLoad.failed === 0
+          && knifeSources === 1 && knifeSample
+          && knifeSample.connections[0]?.gain.value >= 0.4
+          && knifeSample.connections[0]?.gain.value <= 1.5
+          && knifeSample.playbackRate.value >= 0.8
+          && knifeSample.playbackRate.value <= 1.2,
+      'the pickaxe swing plays exactly one bounded recording with no report layer');
+      // A swing whose variant slot never loaded still reaches the shipped recording.
+      const variantMark = audio.nodes.length;
+      sfx.fire('knife');
+      ok(audio.nodes.slice(variantMark).some((node) =>
+        node.kind === 'buffer-source' && node.buffer?.decoded),
+      'an unloaded swing variant falls back to the shipped recording');
       for (const weapon of ['longarc', 'lance']) {
         const gains = [0, 0.5, 1].map((charge) => {
           const mark = audio.nodes.length;

@@ -14,7 +14,7 @@
       "lowpass": 2400,
       "peak": 0.24,
       "fade_out": 0.012,
-      "output": "public/assets/audio/ui/hitmark-body.ogg",
+      "output": ".artifacts/elevenlabs-hit-audio-2026-09-08/legacy-output/ui/hitmark-body.ogg",
       "reason": "Candidate 2 has an immediate contained tick and short decay. Candidates 1 and 3 have later main impacts; candidate 4 contains weaker separated pulses. Remove sub-bass and bright ringing so rapid hits stay soft.",
       "mono": "0.5L + 0.5R",
       "sample_rate_hz": 48000,
@@ -66,7 +66,8 @@
         },
         "raw_sha256": "2882f1f5a13c92f21d2defbc370a55098ed76e9e2d58631da65b390124b3180d",
         "decoded_sha256": "8544ba6ce098291ce188cf478dbc8883cd8a5c03310b219f225ffe12da658e38"
-      }
+      },
+      "replaced_by": "public/assets/audio/elevenlabs-tactical-hit-sources.json"
     },
     {
       "id": "hit-head",
@@ -79,7 +80,7 @@
       "lowpass": 3800,
       "peak": 0.28,
       "fade_out": 0.012,
-      "output": "public/assets/audio/ui/hitmark-head.ogg",
+      "output": ".artifacts/elevenlabs-hit-audio-2026-09-08/legacy-output/ui/hitmark-head.ogg",
       "reason": "Candidate 3 is the clean immediate snap. Candidate 1 reaches full scale with a 284 ms delay; candidates 2 and 4 are nearly silent low-frequency artifacts. A broader midrange and slightly higher level distinguish precision hits without pitched tones.",
       "mono": "0.5L + 0.5R",
       "sample_rate_hz": 48000,
@@ -131,7 +132,8 @@
         },
         "raw_sha256": "d3ca85a100166beeb9e06e9cd5e3bd53d1e1433937ff4d9ab6480738559ffda8",
         "decoded_sha256": "2e7093eb5c29ffd2627d11d64d69480a3a8ef546f79c63fecbc29d9a56607222"
-      }
+      },
+      "replaced_by": "public/assets/audio/elevenlabs-tactical-hit-sources.json"
     },
     {
       "id": "kill-body",
@@ -274,7 +276,7 @@
       "lowpass": 1250,
       "peak": 0.32,
       "fade_out": 0.025,
-      "output": "public/assets/audio/impacts/flesh.ogg",
+      "output": ".artifacts/elevenlabs-hit-audio-2026-09-08/legacy-output/impacts/flesh.ogg",
       "reason": "Use the rounded knock as a muted incoming body impact. Low-pass filtering removes the UI snap, and the existing damage gain and flesh cap keep it secondary to the victim pain cue.",
       "mono": "0.5L + 0.5R",
       "sample_rate_hz": 48000,
@@ -326,7 +328,8 @@
         },
         "raw_sha256": "b7069f3aac100b3ee66a86183bc07909fd69958e7486283463396afaf1829a10",
         "decoded_sha256": "c46ae77946ad234a9754e8ae09006328faefdef66cfbe08f3daeb7d282f439b7"
-      }
+      },
+      "replaced_by": "public/assets/audio/elevenlabs-tactical-hit-sources.json"
     }
   ],
   "review_basis": "Waveform, 5 ms RMS, spectrogram and decoded-output analysis. Listening is not asserted.",

@@ -5,6 +5,7 @@ import { SX, SY, SZ } from '../../../shared/worlddata.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { blockSoundFor } from '../weapons/effects.js';
 import { THROWABLE_NAMES, WEAPON_NAMES } from '../ui/hud-support.js';
+import { WEAPONS } from '../../../shared/combatmath.js';
 
 /**
  * Screen-space bearing (degrees, 0 = ahead, 90 = right) from the viewer at `from`
@@ -143,12 +144,17 @@ export class CombatFeedback {
 
     this._disposed = false;
     this._presentedDeaths = new WeakSet();
+    this._minedBreak = null;
   }
 
   handleEvent(ev) {
     if (this._disposed || (!this.isRunning() && ev.t !== 'tick')) return;
 
     const myId = this.getMyId();
+    // A completed mine is immediately followed by its authoritative block
+    // mutation. Its contact already includes debris; consume only that pair.
+    const minedBreak = this._minedBreak;
+    this._minedBreak = null;
     switch (ev.kind) {
       case 'powerup': {
         if (ev.id === myId) this.hud.powerup(ev);
@@ -164,7 +170,9 @@ export class CombatFeedback {
           this.sfx.fire(ev.w, ev.w === 'flamethrower'
             ? { pos: ev.o, shooterId: ev.id } : { pos: ev.o });
           const d = this.distanceToRay(ev.o, ev.spread || ev.d);
-          if (ev.w !== 'flamethrower' && d < 2.2) this.sfx.bulletWhiz(Math.max(0.15, 1 - d / 2.2));
+          if (ev.w !== 'flamethrower' && WEAPONS[ev.w]?.mode !== 'melee' && d < 2.2) {
+            this.sfx.bulletWhiz(Math.max(0.15, 1 - d / 2.2));
+          }
         }
         break;
       }
@@ -213,6 +221,7 @@ export class CombatFeedback {
       case 'mine': {
         this.effects.impacts.mine(ev);
         this.sfx.mine(ev.from, ev.progress >= 1, [ev.x + 0.5, ev.y + 0.5, ev.z + 0.5]);
+        if (ev.progress >= 1) this._minedBreak = { x: ev.x, y: ev.y, z: ev.z };
         break;
       }
       case 'blockDamage': {
@@ -228,7 +237,9 @@ export class CombatFeedback {
         }
         if (nextType === 0 && fromType !== 0) {
           this.effects.explodeBlock(ev.x, ev.y, ev.z, fromType);
-          this.sfx.impact(this.blockSound(fromType), 0.8, [ev.x, ev.y, ev.z]);
+          if (!minedBreak || minedBreak.x !== ev.x || minedBreak.y !== ev.y || minedBreak.z !== ev.z) {
+            this.sfx.impact(this.blockSound(fromType), 0.8, [ev.x, ev.y, ev.z]);
+          }
         }
         break;
       }

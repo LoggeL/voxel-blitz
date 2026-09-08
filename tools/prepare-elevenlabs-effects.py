@@ -159,6 +159,10 @@ def process():
             recipe = dict(recipe,
                 output=".artifacts/elevenlabs-effects-2026-09-07/legacy-output/minigun-fire.ogg",
                 replaced_by="public/assets/audio/elevenlabs-minigun-sources.json")
+        if recipe["id"] == "knife":
+            recipe = dict(recipe,
+                output=".artifacts/elevenlabs-effects-2026-09-07/legacy-output/knife-fire.ogg",
+                replaced_by="public/assets/audio/elevenlabs-pickaxe-sources.json")
         source = WORK / "source" / recipe["source"]
         x = decode(source)
         source_energy = float(np.sum(x * x))

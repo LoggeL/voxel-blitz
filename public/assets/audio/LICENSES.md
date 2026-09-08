@@ -53,8 +53,8 @@ origin and license of every bundled recording remain auditable.
 
 - Source: ElevenLabs Sound Effects, generated in the user's account on 2026-09-07.
 - Used for frag, limpet, pulse and rocket explosions, grenade pin and throw cues,
-  pickaxe swing (`weapons/knife/fire.ogg`) and flamethrower loop. The original
-  minigun report is superseded by the three variants below.
+  pickaxe swing and flamethrower loop. The original minigun and pickaxe recordings
+  are superseded by the variants below.
 - The four explosion groups were generated in the browser. The other five groups
   were generated through the ElevenLabs API; their original MP3 responses and
   receipts are retained locally in `.artifacts/elevenlabs-effects-2026-09-07/api-source/`.
@@ -83,6 +83,9 @@ origin and license of every bundled recording remain auditable.
 - Three reports selected from eight candidates replace the earlier 55 ms shot.
   They last 160-180 ms, with equal decoded RMS levels, low-mid body and controlled
   high-frequency energy. The game alternates the recordings at natural speed.
+  A shared leading attack and a 25 ms decay constant keep each shot distinct at
+  1200 RPM; 90% of each report's energy resolves within the 50 ms shot interval.
+  Rotor modulation follows the same 20 Hz cadence at full speed.
 - `elevenlabs-minigun-sources.json` records prompts, selected original/decoded
   hashes, processing recipes, final Opus hashes and measurements.
 - Rebuild with `python tools/prepare-minigun-audio.py`; `--analyze` also regenerates
@@ -95,8 +98,9 @@ origin and license of every bundled recording remain auditable.
 
 - Source: ElevenLabs Sound Effects API, generated in the user's account on 2026-09-08.
 - Eight candidates produced separate body/head hit confirmations, body/head kill
-  confirmations and a muted flesh impact. Hit cues last 75-80 ms; kill cues last
-  139-144 ms. The recordings replace the corresponding procedural cue when loaded.
+  confirmations and a muted flesh impact. The 139-144 ms kill cues remain active;
+  the hit and flesh cues are superseded by the physical foley below. Their old
+  rebuild recipes now write into the local artifact directory's `legacy-output`.
 - Account/service terms govern these generated assets; no CC0 license is asserted.
 - `elevenlabs-hit-sources.json` records selected sources, API prompts, original and
   decoded hashes, processing recipes and actual decoded Opus measurements.
@@ -118,3 +122,26 @@ origin and license of every bundled recording remain auditable.
   `.artifacts/elevenlabs-audio/`. The shipped files are mono 48 kHz Opus, 96 kbit/s.
 - LONGARC and VOLTLANCE sample gain follows charge; procedural reports remain
   a quiet layer and the fallback if sample loading fails.
+
+## Pickaxe swing and mining contacts
+
+- Source: ten ElevenLabs API candidates generated on 2026-09-08 (60 credits).
+- Two air swings and two stone contact recordings replace the previous swing and
+  synthetic mining chirps. Contact files include original damped resonance synthesis
+  for low-mid weight. Material filtering and debris are applied by the game.
+- `elevenlabs-pickaxe-sources.json` contains source hashes, prompts, selection,
+  processing and final measurements. Rebuild with `python tools/prepare-pickaxe-audio.py`
+  using retained sources in `.artifacts/elevenlabs-pickaxe-2026-09-08/`.
+- Mono 48 kHz Opus at 96 kbit/s. Account/service terms govern generated recordings;
+  no CC0 license is asserted. Historical swing rebuilding writes to `legacy-output`.
+
+## Physical hit foley
+
+- Source: six original ElevenLabs API candidates generated on 2026-09-08 (30 credits).
+- Body/head confirmations and incoming flesh impact use new physical foley. These
+  are original generated sounds, not copied Counter-Strike or other game recordings.
+- `elevenlabs-tactical-hit-sources.json` records sources, prompts, processing,
+  hashes and decoded measurements. Rebuild with `python tools/prepare-tactical-hit-audio.py`
+  using retained sources in `.artifacts/elevenlabs-hits-2026-09-08/`.
+- Mono 48 kHz Opus at 96 kbit/s. Account/service terms govern their use;
+  no CC0 license is asserted. Existing kill confirmations remain active.

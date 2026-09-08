@@ -71,10 +71,16 @@ CUES = {
     },
     'knife': {
         'duration_seconds': 0.5,
-        'text': ('One fast first-person melee pickaxe swing through air: a short weighty '
-                 'whoosh with a subtle steel edge swish and light grip movement, immediate '
-                 'onset and quick decay. Clean isolated game action, one swing only. '
-                 'No strike, no impact, no debris, no voices, no music, no ambience.'),
+        'text': ('One close heavy pickaxe swing through air, a fast broad rushing swoosh '
+                 'with wooden handle creak and cloth friction. A strong downward chop, '
+                 'dry and compact. No impact, no ringing, no voice, no music.'),
+    },
+    'pickaxeimpact': {
+        'duration_seconds': 1.0,
+        'text': ('A single loud pickaxe strike against solid rock: a sharp steel-on-stone '
+                 'clack over a chunky deep thud, followed by dry gritty stone chips. '
+                 'Close isolated foley, short natural decay. No swing, no second strike, '
+                 'no ringing, no voice, no music.'),
     },
     'flame': {
         'duration_seconds': 2.0,

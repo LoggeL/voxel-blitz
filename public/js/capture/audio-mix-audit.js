@@ -3,6 +3,7 @@ import { sfx } from '../audio/sfx.js';
 import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from '../audio/samples.js';
 import { VoicePool } from '../audio/voices.js';
 import { MINIGUN_REPORT_SLOTS } from '../audio/minigun-motor.js';
+import { PICKAXE_SWING_SLOTS, PICKAXE_IMPACT_SLOTS } from '../audio/pickaxe.js';
 import { auditBufferPeak, recordedTailComplete } from './audio-source-audit.js';
 
 const RATE = 48_000;
@@ -263,6 +264,36 @@ async function main() {
     const result = await renderScenario(name, events); cues[name] = result.metrics;
     audible(result, name, onset); return result;
   };
+  const pickaxeSwingUrls = PICKAXE_SWING_SLOTS.map((slot) => BUILTIN_SAMPLE_MANIFEST[slot]);
+  const pickaxeImpactUrls = PICKAXE_IMPACT_SLOTS.map((slot) => BUILTIN_SAMPLE_MANIFEST[slot]);
+  check(weaponResults.knife.trace.sources.length === 1
+    && pickaxeSwingUrls.includes(weaponResults.knife.trace.sources[0].sample),
+  'A missed pickaxe swing has one air recording and no impact or synthetic tick');
+  for (const [type, material] of [[3, 'stone'], [5, 'wood'], [8, 'metal']]) {
+    const strike = await cue(`Pickaxe ${material} contact`, [[0, () => sfx.mine(type, false, [0, 0, -2])]]);
+    check(strike.trace.sources.filter((source) => pickaxeImpactUrls.includes(source.sample)).length === 1,
+      `Pickaxe ${material} contact starts one recorded impact`);
+    check(strike.trace.acquisitions.every((entry) => entry.positional),
+      `Pickaxe ${material} contact retains its world position`);
+  }
+  const pickaxeBreak = await cue('Pickaxe stone break', [[0, () => sfx.mine(3, true, [0, 0, -2])]]);
+  check(pickaxeBreak.trace.sources.filter((source) => pickaxeImpactUrls.includes(source.sample)).length === 1
+    && pickaxeBreak.trace.sources.filter((source) => source.sample === 'procedural noise').length === 3,
+  'A mined block breaks with one recorded contact and three bounded debris grains');
+  const miningName = 'Pickaxe, four-second mining at 120 RPM';
+  const mining = await renderScenario(miningName, Array.from({ length: 8 }, (_, index) => [index * 0.5, () => {
+    sfx.fire('knife'); sfx.mine(3, index === 5, [0, 0, -2]);
+  }]), 4.6);
+  cues[miningName] = mining.metrics;
+  audible(mining, miningName, 55);
+  check(pickaxeSwingUrls.every((url) => mining.trace.sources.filter((source) => source.sample === url).length === 4)
+    && pickaxeImpactUrls.every((url) => mining.trace.sources.filter((source) => source.sample === url).length === 4),
+  'Four seconds of mining plays eight swings and eight contacts across both variations');
+  check(mining.trace.sources.filter((source) => source.sample !== 'procedural noise')
+    .every((source) => source.rate >= 0.98 && source.rate <= 1.02 && recordedTailComplete(source, RATE)),
+  'Mining variations keep natural pitch and finish every recorded tail');
+  check(regionRms(mining.data, 4.1, 4.55) < 0.00001,
+    'Mining reaches silence after the last contact without a hanging tail');
   for (const headshot of [false, true]) {
     const label = headshot ? 'Headshot' : 'Body';
     const suffix = headshot ? 'head' : 'body';
@@ -353,6 +384,15 @@ async function main() {
   cues[sustainedName] = sustained.metrics;
   audible(sustained, sustainedName, 250);
   const sustainedShots = sustained.trace.sources.filter(isRotary);
+  const cadenceRatios = sustainedShots.map((source) =>
+    regionRms(sustained.data, source.at + .006, source.at + .024)
+    / Math.max(1e-9, regionRms(sustained.data, source.at + .034, source.at + .049)));
+  document.documentElement.dataset.minigunCadence = JSON.stringify({
+    shots: sustainedShots.length, minimumAttackToTail: Math.min(...cadenceRatios),
+    meanAttackToTail: cadenceRatios.reduce((a, b) => a + b, 0) / cadenceRatios.length,
+  });
+  check(cadenceRatios.length === 80 && cadenceRatios.every((ratio) => ratio > 1.3),
+    'Every 1200 RPM shot has a distinct attack above its trailing energy');
   check(sustainedShots.length === 80 && rotarySamples.every((url) =>
     sustainedShots.filter((source) => source.sample === url).length >= 26),
   'Four-second fire retains all 80 reports across the three variations');

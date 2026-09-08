@@ -1,5 +1,6 @@
 // Local rotary drive and thermal feedback. One pooled graph is refreshed on the
 // audio clock; a missing game frame expires it without depending on JS timers.
+import { WEAPONS } from '../../../shared/combatmath.js';
 const HOLD = 0.12;
 const FADE = 0.06;
 const ATTACK = 0.025;
@@ -61,7 +62,7 @@ export class MinigunMotor {
       ? hot * (0.012 + 0.007 * Math.sin(at * 16)) : 0;
     // Rotating mass and feed chatter are broadband, pulsed textures. A rising
     // audible sawtooth made the old drive resemble a small electric drill.
-    tune(voice.rotorPulse.frequency, 6 + spin * 26, at);
+    tune(voice.rotorPulse.frequency, 6 + spin * (WEAPONS.minigun.rpm / 60 - 6), at);
     tune(voice.motor.filter.frequency, 105 + spin * 115, at);
     tune(voice.teeth.filter.frequency, 260 + spin * 430, at);
     tune(voice.warning.filter.frequency, 360 + hot * 220, at);

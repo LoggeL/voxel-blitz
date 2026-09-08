@@ -64,7 +64,8 @@ def main():
         fade = round(recipe['fade_out'] * RATE)
         x[-fade:] *= np.linspace(1, 0, fade)
         gain = recipe['peak'] / np.max(np.abs(x))
-        output = ROOT / 'public/assets/audio' / recipe['output']
+        replaced = recipe['id'] in ('hit-body', 'hit-head', 'flesh')
+        output = (WORK / 'legacy-output' if replaced else ROOT / 'public/assets/audio') / recipe['output']
         for _ in range(5):
             fx.encode(x * gain, output)
             decoded = fx.decode(output)
@@ -78,10 +79,12 @@ def main():
         assert metrics['onset_seconds_2pct_peak'] < .005
         record = dict(recipe, mono='0.5L + 0.5R', sample_rate_hz=RATE, codec='Opus', bitrate='96k',
             fade_in_seconds=.001, normalization_gain=float(gain), final_metrics=metrics,
-            output='public/assets/audio/' + recipe['output'],
+            output=str(output.relative_to(ROOT)),
             output_sha256=hashlib.sha256(output.read_bytes()).hexdigest(),
             generation={key: receipt[key] for key in ['created_at', 'output_format', 'source_codec',
                 'request_body', 'raw_sha256', 'decoded_sha256']})
+        if replaced:
+            record['replaced_by'] = 'public/assets/audio/elevenlabs-tactical-hit-sources.json'
         records.append(record)
         plots.append((recipe['id'], decoded, metrics))
     manifest = dict(service='ElevenLabs Sound Effects', generated='2026-09-08',

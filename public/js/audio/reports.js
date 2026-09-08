@@ -50,7 +50,7 @@ const FIRE_REPORT_PROFILES = Object.freeze({
     lifetime: 1.0, sampleGain: 1.05, sampleRate: 1.04, layerGain: 0.12,
   }),
   knife: Object.freeze({
-    lifetime: 0.5, sampleGain: 0.9, sampleRate: 1.12, layerGain: 0.18,
+    lifetime: 0.4, sampleGain: 0.82, sampleRate: 1, layerGain: 0,
   }),
   flamethrower: Object.freeze({ lifetime: 0.5, sampleGain: 1, sampleRate: 1, layerGain: 1 }),
   rocket: Object.freeze({
@@ -280,16 +280,13 @@ export function shotLance(out, primitives, charge = 1) {
 }
 
 /**
- * Pickaxe swing: a short wooden swish and low retro transient. Deliberately short and echo-free; melee needs no report.
+ * Air-only fallback. A missed swing never contains an impact or an attack tick.
  */
 export function shotKnife(out, primitives) {
   const t0 = primitives.nowT();
   primitives.hiss(out, {
-    t0, filter: 'bandpass', f: 1200, sweepTo: 280, sweepMs: 0.12,
-    q: 0.6, dec: 0.12, g: 0.2,
+    t0, filter: 'bandpass', f: 900, q: 0.55, att: 0.045, dec: 0.15, g: 0.27,
   });
-  primitives.hiss(out, { t0: t0 + 0.025, filter: 'lowpass', f: 420, dec: 0.06, g: 0.07 });
-  primitives.tone(out, { t0, type: 'triangle', f0: 160, f1: 70, dec: 0.045, g: 0.025 });
 }
 
 /** Render the weapon-specific synthetic transient and mechanical tail. */

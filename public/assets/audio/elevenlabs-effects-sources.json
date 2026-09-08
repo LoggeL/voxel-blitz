@@ -503,7 +503,7 @@
       "fade_out_seconds": 0.025,
       "peak_target": 0.68,
       "max_duration_seconds": 0.4,
-      "output": "public/assets/audio/weapons/knife/fire.ogg",
+      "output": ".artifacts/elevenlabs-effects-2026-09-07/legacy-output/knife-fire.ogg",
       "selection_rationale": "Candidate 3 has one compact broadband swish, an immediate onset and no near-full-scale samples. Its visible energy body resolves by about 150 ms. Candidate 1 reaches full scale and builds late, candidate 2 has two broad swells, and candidate 4 has a 38 ms delay and heavier bass. This sound accompanies the pickaxe swing; impact material sounds remain a separate game event.",
       "source_sha256": "3abcf5b045718fa4174673a3d858673f6d864a86c633cfde8cee51ac882d30d8",
       "trim_energy_retained_percent": 99.99993463084085,
@@ -564,7 +564,8 @@
         "method": "ElevenLabs API",
         "raw_source": "knife-3.mp3",
         "conversion_note": "API MP3 decoded to 48 kHz PCM WAV for analysis; the WAV conversion preserves the decoded MP3 signal, not the uncompressed generated original."
-      }
+      },
+      "replaced_by": "public/assets/audio/elevenlabs-pickaxe-sources.json"
     },
     {
       "id": "flame",

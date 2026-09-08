@@ -6,11 +6,11 @@ import { WEAPON_IDS } from '../shared/combatmath.js';
 
 function setup() {
   let now = 0, clacks = 0;
-  const shots = [], motor = [];
+  const shots = [], motor = [], reports = [];
   const rig = new ViewmodelRig(new THREE.PerspectiveCamera(75, 2, 0.01, 100));
   rig.onBoltClack = () => clacks++;
   const state = new WeaponState({ rig,
-    audio: { draw() {}, reloadClick() {}, fire() {}, minigunMotor: (...args) => motor.push(args) },
+    audio: { draw() {}, reloadClick() {}, fire: () => reports.push(now), minigunMotor: (...args) => motor.push(args) },
     effects: { shoot: () => shots.push(now) }, feedback: { addExhaustion() {}, addRecoil() {} },
     network: { isCurrentGeneration: () => true, isRunning: () => true },
     now: () => now, setTimer: () => 0, clearTimer() {}, random: () => 0.5 });
@@ -25,7 +25,7 @@ function setup() {
     state.syncRigAds(); rig.update(dt);
     return fired;
   };
-  return { state, rig, shots, motor, context, frame, get clacks() { return clacks; },
+  return { state, rig, shots, reports, motor, context, frame, get clacks() { return clacks; },
     dispose() { state.dispose(); rig.dispose(); } };
 }
 
@@ -39,6 +39,7 @@ for (const fps of [30, 60, 144]) {
     assert.equal(s.state.readModel().heat01, 0);
     for (let i = 0; i < fps * 2; i++) s.frame(3100 + i * 1000 / fps, true);
     assert.equal(s.shots.length, 40, `${fps}fps keeps 1200RPM through the actual rig`);
+    assert.deepEqual(s.reports, s.shots, `${fps}fps emits one sound at every actual shot`);
     assert.equal(s.shots[0], 3100, 'primed rotor fires on first trigger frame');
     assert.equal(s.clacks, 0, 'rotating barrels do not rack a rifle bolt');
     assert.ok(s.motor.some(([spin,, active]) => spin === 1 && active));

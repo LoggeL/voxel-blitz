@@ -63,7 +63,7 @@ try {
   assert.equal(ctx.nodes.length, count, 'five seconds of rotor/heat updates reuse all sources and nodes');
   assert.equal(pool._byOutput.get(voice.output).timer, timer, 'no cleanup timer per frame');
   assert.ok(voice.rotorPulse.frequency.events.at(-1)[1] > initialPitch * 2, 'mechanical pulse rate tracks speed');
-  assert.equal(voice.rotorPulse.frequency.events.at(-1)[1], 32);
+  assert.equal(voice.rotorPulse.frequency.events.at(-1)[1], 20);
   assert.ok(voice.teeth.filter.frequency.events.at(-1)[1] < 800,
     'feed rattle stays below the old piercing motor harmonics');
   assert.ok(voice.warning.target > 0 && voice.warning.target <= 0.019, 'high heat has a restrained warning');

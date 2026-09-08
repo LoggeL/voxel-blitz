@@ -5,6 +5,7 @@ import { AudioEngine } from './engine.js';
 import { VoicePool } from './voices.js';
 import { FlameLoops } from './flame-loop.js';
 import { MinigunMotor, MINIGUN_REPORT, minigunReportChoice, renderMinigunReport } from './minigun-motor.js';
+import { pickaxeSampleChoice, pickaxeMaterial, renderPickaxeContact } from './pickaxe.js';
 import { createVoices } from './primitives.js';
 import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from './samples.js';
 import { MenuMusicLoop } from './music.js';
@@ -41,6 +42,8 @@ let chargeLoop = null;
 let flameLoops = null;
 let minigunMotor = null;
 let minigunReportIndex = 0;
+let pickaxeSwingIndex = 0;
+let pickaxeImpactIndex = 0;
 
 /** Blast voice per explosive type: gain, low weight, and crack brightness. */
 const EXPLOSION_PROFILES = Object.freeze({
@@ -178,6 +181,8 @@ export const sfx = {
     minigunMotor?.dispose();
     minigunMotor = null;
     minigunReportIndex = 0;
+    pickaxeSwingIndex = 0;
+    pickaxeImpactIndex = 0;
     menuMusic?.dispose();
     menuMusic = null;
     pool = null;
@@ -242,6 +247,13 @@ export const sfx = {
       const charge = deferred && !Array.isArray(deferred) && Number.isFinite(deferred.charge)
         ? deferred.charge : 1;
       const output = pool.acquireFire(key, outputOptions(deferred), profile.lifetime);
+      if (key === 'knife') {
+        const choice = { ...pickaxeSampleChoice(pickaxeSwingIndex++), gain: profile.sampleGain };
+        if (samples.play(choice.slot, output, choice)
+          || (choice.slot !== 'weapons.knife.fire' && samples.play('weapons.knife.fire', output, choice))) return;
+        renderFireReport(key, output, primitives, engine.echoIn, addCleanup, output);
+        return;
+      }
       const sampled = samples.play(`weapons.${key}.fire`, output, fireSampleProfile(key, charge));
       const reportOutput = sampled
         ? createReportLayer(output, profile.layerGain)
@@ -337,17 +349,21 @@ export const sfx = {
   },
 
   mine(type, broken, pos) {
+    const deferred = copyOptions(pos);
     run('impact', () => {
-      const output = pool.acquire({ pos }, 0.4);
-      const at = primitives.nowT();
-      const soft = [1, 2, 4, 5, 6, 10].includes(type);
-      const pitch = (soft ? 150 : type === 11 ? 950 : 330) * (0.9 + Math.random() * 0.2);
-      for (let i = 0; i < (broken ? 4 : 2); i++) {
-        primitives.hiss(output, { t0: at + i * 0.028, filter: 'bandpass',
-          f: pitch * 4, q: 0.7, dec: 0.045, g: broken ? 0.3 : 0.18 });
-        primitives.tone(output, { t0: at + i * 0.028, type: 'square',
-          f0: pitch, f1: pitch * 0.45, att: 0.001, dec: 0.035, g: 0.055 });
+      const material = pickaxeMaterial(type);
+      const output = pool.acquire(outputOptions(deferred), 0.4);
+      let contact = output;
+      if (material === 'soft') {
+        contact = primitives.biquad('lowpass', 1700, 0.6);
+        contact.connect(output);
+        addCleanup(output, () => contact.disconnect());
       }
+      const choice = { ...pickaxeSampleChoice(pickaxeImpactIndex++, true),
+        gain: material === 'soft' ? 0.76 : 0.92, cleanupOwner: output };
+      const sampled = samples.play(choice.slot, contact, choice)
+        || (choice.slot !== 'pickaxe.impact' && samples.play('pickaxe.impact', contact, choice));
+      renderPickaxeContact(contact, primitives, material, { sampled, broken: !!broken });
     });
   },
 
@@ -368,7 +384,7 @@ export const sfx = {
 
   hitmark(headshot) {
     run('hitmark', () => {
-      const output = pool.acquire(null, headshot ? 0.14 : 0.10);
+      const output = pool.acquire(null, headshot ? 0.14 : 0.125);
       if (samples.play(headshot ? 'ui.hitmark.head' : 'ui.hitmark.body', output)) return;
       const at = primitives.nowT();
       primitives.hiss(output, {

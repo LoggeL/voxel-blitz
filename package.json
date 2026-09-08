@@ -29,7 +29,7 @@
     "browser:smoke": "node tools/browser-flow-smoke.mjs",
     "audio:mix": "node tools/audio-mix-smoke.mjs",
     "audio:audit": "node tools/analyze-weapon-audio.mjs",
-    "audio:test": "node tools/audio-contract-test.mjs && node tools/sound-samples-test.mjs && node tools/explosion-audio-test.mjs && node tools/grenade-feedback-audio-test.mjs && node tools/flamethrower-audio-test.mjs && node tools/minigun-audio-test.mjs && node tools/audio-preview-test.mjs",
+    "audio:test": "node tools/audio-contract-test.mjs && node tools/sound-samples-test.mjs && node tools/explosion-audio-test.mjs && node tools/grenade-feedback-audio-test.mjs && node tools/flamethrower-audio-test.mjs && node tools/minigun-audio-test.mjs && node tools/pickaxe-audio-test.mjs && node tools/audio-preview-test.mjs",
     "brand:render": "node tools/render-brand-card.mjs",
     "chaos:test": "node tools/chaos-test.mjs",
     "flamethrower:test": "node tools/flamethrower-test.mjs && node tools/flamethrower-hitbox-test.mjs && node tools/flamethrower-client-test.mjs && node tools/flamethrower-audio-test.mjs",
