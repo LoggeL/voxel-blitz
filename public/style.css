@@ -4347,3 +4347,30 @@ h1.vb-title::after {
 #charge-meter.is-fuel .vb-charge-label { color: #ffc18f; font-size: 9px; text-shadow: none; }
 #charge-meter.is-fuel .vb-charge-track { height: 7px; border-color: #a9693e; box-shadow: none; }
 #charge-meter.is-fuel .vb-charge-track i { box-shadow: 0 0 8px #ff8c42; }
+
+/* Optional condition readouts share the health panel's responsive placement. */
+.vb-condition-meter {
+  --condition-color: #ff856f;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px;
+  margin-top: 10px;
+  font: 700 10px var(--font-ui, sans-serif);
+  letter-spacing: 0.06em;
+  color: #eef4fa;
+}
+.vb-condition-meter[hidden] { display: none; }
+.vb-condition-panic { --condition-color: #ffc76b; }
+.vb-condition-meter > b { color: var(--condition-color); font-variant-numeric: tabular-nums; }
+.vb-condition-track { grid-column: 1 / -1; height: 4px; background: rgba(255,255,255,0.15); overflow: hidden; }
+.vb-condition-track > i {
+  display: block;
+  height: 100%;
+  background: var(--condition-color);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 100ms linear;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vb-condition-track > i { transition: none; }
+}

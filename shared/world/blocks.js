@@ -27,9 +27,16 @@ export const DUST_TRIM = 25;
 export const DUST_TILE = 26;
 export const DUST_CRATE = 27;
 export const DUST_WOOD = 28;
+export const BEDROCK = 29;
 
 /** Damage points required to break each destructible block type. */
 export const BLOCK_HP = {
+  [GRASS]: 100, [DIRT]: 100, [SAND]: 70, [WOOD]: 120,
+  [STONE]: 320, [CONCRETE]: 420, [METAL]: 600, [PALE]: 320,
+  [RUST]: 360, [BRICK]: 220, [ASPHALT]: 300, [ROOF]: 180,
+  [BUS_YELLOW]: 420, [TRUCK_RED]: 420,
+  [DUST_SANDSTONE]: 280, [DUST_PLASTER]: 220, [DUST_ROCK]: 380,
+  [DUST_FLOOR]: 340, [DUST_TRIM]: 280, [DUST_TILE]: 200,
   [YELLOW_SIDING]: 45, [TEAL_SIDING]: 45,
   [GLASS]: 6,
   [LEAVES]: 10,
@@ -39,8 +46,22 @@ export const BLOCK_HP = {
   [DUST_WOOD]: 85,
 };
 
+/** Penetration power spent crossing one voxel at normal incidence. */
+export const BLOCK_HARDNESS = Object.freeze({
+  [BEDROCK]: Infinity,
+  [GRASS]: 24, [DIRT]: 24, [STONE]: 90, [SAND]: 16,
+  [WOOD]: 32, [LEAVES]: 2, [CONCRETE]: 110, [METAL]: 150,
+  [ACCENT]: 28, [PLANK]: 18, [GLASS]: 5, [PALE]: 90,
+  [RUST]: 105, [BRICK]: 65, [YELLOW_SIDING]: 22, [TEAL_SIDING]: 22,
+  [ASPHALT]: 85, [ROOF]: 50, [BUS_YELLOW]: 120, [TRUCK_RED]: 120,
+  [DUST_SANDSTONE]: 75, [DUST_PLASTER]: 60, [DUST_ROCK]: 100,
+  [DUST_FLOOR]: 95, [DUST_TRIM]: 75, [DUST_TILE]: 55,
+  [DUST_CRATE]: 25, [DUST_WOOD]: 32,
+});
+
 /** Blast resistance. Finite entries can be removed by a close grenade blast. */
 export const GRENADE_RESISTANCE = Object.freeze({
+  [BEDROCK]: Infinity,
   [YELLOW_SIDING]: 52, [TEAL_SIDING]: 52, [ASPHALT]: 112,
   [ROOF]: 82, [BUS_YELLOW]: 160, [TRUCK_RED]: 160,
   [GRASS]: 20,

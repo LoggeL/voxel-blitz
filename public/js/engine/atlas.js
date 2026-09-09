@@ -5,7 +5,7 @@
 
 import * as THREE from '../vendor/three.module.js';
 import {
-  AIR, GRASS, DIRT, STONE, SAND, WOOD, LEAVES,
+  AIR, BEDROCK, GRASS, DIRT, STONE, SAND, WOOD, LEAVES,
   CONCRETE, METAL, ACCENT, PLANK, GLASS, PALE, RUST, BRICK,
   YELLOW_SIDING, TEAL_SIDING, ASPHALT, ROOF, BUS_YELLOW, TRUCK_RED,
   DUST_SANDSTONE, DUST_PLASTER, DUST_ROCK, DUST_FLOOR,
@@ -19,6 +19,7 @@ export const GRID = ATLAS_SIZE / TILE_PX;
 /** Stable slot indices on the sheet. Face maps elsewhere reference these names. */
 export const TILE = {
   YELLOW_SIDING: 17, TEAL_SIDING: 18, ASPHALT: 19, ROOF: 20, BUS_YELLOW: 21, TRUCK_RED: 22,
+  BEDROCK: 31,
   AIR_DEBUG: 0, GRASS_TOP: 1, GRASS_SIDE: 2, DIRT: 3, STONE: 4, SAND: 5,
   WOOD_BARK: 6, WOOD_RINGS: 7, LEAVES: 8, CONCRETE: 9, METAL: 10,
   ACCENT: 11, PLANK: 12, GLASS: 13, PALE: 14, RUST: 15, BRICK: 16,
@@ -79,6 +80,15 @@ function stone(x, y) {
   if (wob(x, 0, 10, 23) < 2) v -= 12;        // faint vertical banding
   if (wob(x, y, 9, 191) === 0) v -= 34;      // hairline cracks
   return [v, v + 2, v + 5, 255];
+}
+
+// Dense charcoal strata with pale mineral seams distinguish the world foundation.
+function bedrock(x, y) {
+  const band = (y + ((x >> 2) & 1)) % 6;
+  const grain = wob(x, y, 93, 19);
+  const seam = band === 0;
+  const value = seam ? 78 + grain : 28 + grain + (band === 1 ? 10 : 0);
+  return [value, value + 5, value + 12, 255];
 }
 
 function sand(x, y) {
@@ -356,6 +366,7 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.DUST_TILE]: dustTile,
   [TILE.DUST_CRATE]: dustCrate,
   [TILE.DUST_WOOD]: dustWood,
+  [TILE.BEDROCK]: bedrock,
 });
 
 // ------------------------------------------------------------- face mapping
@@ -391,6 +402,7 @@ export const DEFAULT_BLOCK_TILES = Object.freeze({
   [DUST_TILE]: { all: TILE.DUST_TILE },
   [DUST_CRATE]: { all: TILE.DUST_CRATE },
   [DUST_WOOD]: { all: TILE.DUST_WOOD },
+  [BEDROCK]: { all: TILE.BEDROCK },
 });
 
 /**

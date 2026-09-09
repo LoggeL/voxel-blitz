@@ -14,7 +14,7 @@
     "modes:bots": "node tools/bot-mode-smoke.mjs",
     "maps:test": "node tools/nuketown-test.mjs && node tools/nuketown-lobby-test.mjs && node tools/dust2-test.mjs && node tools/dust2-movement-test.mjs && node tools/dust2-lobby-test.mjs",
     "maps:browser": "node tools/dust2-browser-test.mjs",
-    "blocks:test": "node tools/block-damage-sync-test.mjs && node tools/block-damage-geometry-test.mjs",
+    "blocks:test": "node tools/bullet-material-test.mjs && node tools/block-damage-sync-test.mjs && node tools/block-damage-geometry-test.mjs",
     "blocks:browser": "node tools/block-damage-browser-test.mjs",
     "powerups:test": "node tools/armor-test.mjs && node tools/powerup-test.mjs",
     "powerups:browser": "node tools/powerup-browser-test.mjs",

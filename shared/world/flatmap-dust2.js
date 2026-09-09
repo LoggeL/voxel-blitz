@@ -1,4 +1,4 @@
-import { AIR, DUST_FLOOR, DUST_ROCK, DUST_WOOD, SX, SY, SZ, idx } from './blocks.js';
+import { AIR, BEDROCK, DUST_FLOOR, DUST_ROCK, DUST_WOOD, SX, SY, SZ, idx } from './blocks.js';
 import { DUST2_REFERENCE_RLE } from './dust2-reference-data.js';
 import { DUST2_NAV_FLOORS, dust2SourceToWorld } from './dust2-layout.js';
 
@@ -46,6 +46,7 @@ export function generateDust2Into(world, blocks, heights) {
     blocks[idx(x,y,z)] = DUST_FLOOR;
   }
   removeFloatingFragments(blocks);
+  blocks.fill(BEDROCK, 0, SX * SZ);
   // Heights are rebuilt by templates after every generated map.
   heights.fill(0);
 

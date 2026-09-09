@@ -1,6 +1,8 @@
 /** Shared local display preferences. Debug views are deliberately opt-in. */
 export const DISPLAY_OPTIONS = Object.freeze([
   { key: 'showPing', label: 'PING', section: 'HUD & NETWORK' },
+  { key: 'showPainMeter', label: 'PAIN METER' },
+  { key: 'showPanicMeter', label: 'PANIC METER' },
   { key: 'showFps', label: 'FPS' },
   { key: 'showNetwork', label: 'NETWORK GRAPH · JITTER · BUFFER' },
   { key: 'showHitboxes', label: 'HITBOXES', section: 'DEBUG VIEWS' },

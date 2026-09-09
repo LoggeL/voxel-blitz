@@ -12,6 +12,7 @@ import {
 import { Scoreboard } from './scoreboard.js';
 import { MatchHud } from './match-hud.js';
 import { createSniperScope } from './sniper-scope.js';
+import { displaySettings } from './display-settings.js';
 import { NetworkHud } from './network-hud.js';
 import { PowerupHud } from './powerup-hud.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS, clampGrenadeType } from '../../../shared/grenade-rules.js';
@@ -137,6 +138,19 @@ export class GameplayHud {
     d.track = el('div', 'hp-track', d.hb);
     d.hpf = el('div', '', d.track, 'hpfill');
     this.powerups.build(hud, d.hb);
+    d.conditionMeters = ['pain', 'panic'].map(key => {
+      const root = el('div', `vb-condition-meter vb-condition-${key}`, d.hb, `${key}-meter`);
+      root.hidden = true;
+      root.setAttribute('role', 'meter');
+      root.setAttribute('aria-label', key === 'pain' ? 'Pain' : 'Panic');
+      root.setAttribute('aria-valuemin', '0');
+      root.setAttribute('aria-valuemax', '100');
+      el('span', '', root).textContent = key.toUpperCase();
+      const value = el('b', '', root);
+      const track = el('div', 'vb-condition-track', root);
+      const fill = el('i', '', track);
+      return { key, root, value, fill, percent: -1 };
+    });
 
     d.ammo = el('div', '', hud, 'ammo');
     d.weaponIcon = el('img', 'vb-weapon-icon', d.ammo, 'weapon-icon');
@@ -454,10 +468,26 @@ export class GameplayHud {
     this.setScope(wantScope);
     this.setScopeZoom(s.scopeZoom);
     this.setBreath(s, alive, adsT);
+    this.setConditionMeters(s, alive);
     this.hideCrosshairForAds(!alive || adsT > 0.35);
     if (alive !== painted.alive) {
       painted.alive = alive;
       d.ch.classList.toggle('vb-dead', !alive);
+    }
+  }
+
+  setConditionMeters(state, alive) {
+    const settings = displaySettings();
+    for (const meter of this.dom.conditionMeters || []) {
+      const enabled = settings[meter.key === 'pain' ? 'showPainMeter' : 'showPanicMeter'];
+      meter.root.hidden = !alive || !enabled;
+      if (meter.root.hidden) continue;
+      const percent = Math.round(clamp01(Number(state[meter.key]) || 0) * 100);
+      if (percent === meter.percent) continue;
+      meter.percent = percent;
+      meter.value.textContent = `${percent}%`;
+      meter.fill.style.transform = `scaleX(${percent / 100})`;
+      meter.root.setAttribute('aria-valuenow', String(percent));
     }
   }
 

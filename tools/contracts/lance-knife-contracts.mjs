@@ -1,3 +1,4 @@
+import { bulletPower } from '../../shared/bullet-material.js';
 // Charge scaling and melee math; roster, prices, firing and reload lifecycle
 // are covered by the shared-mode, server-combat and viewmodel contracts.
 
@@ -7,7 +8,7 @@ export async function runLanceKnifeContracts(ok) {
   const lance = WEAPONS.lance;
   const tap = chargeShotProfile(lance, 0), half = chargeShotProfile(lance, 0.5);
   const full = chargeShotProfile(lance, 1);
-  ok(tap.walls === 1 && half.walls === 4 && full.walls === 8
+  ok(bulletPower(lance, 0) < bulletPower(lance, 0.5) && bulletPower(lance, 0.5) < bulletPower(lance, 1)
       && tap.hitRadius < half.hitRadius && half.hitRadius < full.hitRadius
       && tap.size < half.size && half.size < full.size
       && Math.round(chargeDamageMult(lance, 0.5) * 300) === 93,

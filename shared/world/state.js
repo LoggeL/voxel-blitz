@@ -1,4 +1,4 @@
-import { AIR, GROUND, METAL, SX, SY, SZ, idx } from './blocks.js';
+import { AIR, BEDROCK, GROUND, METAL, SX, SY, SZ, idx } from './blocks.js';
 import { MAP_SPAWN_ANCHORS } from './metadata.js';
 import { rebuildHeights, serializeBlocks } from './serialize.js';
 
@@ -19,7 +19,7 @@ export function createStateApi(
       x |= 0;
       y |= 0;
       z |= 0;
-      if (y < 0) return METAL;
+      if (y < 0) return BEDROCK;
       if (y >= SY) return AIR;
       if (x < 0 || z < 0 || x >= SX || z >= SZ) return METAL;
       return blocks[idx(x, y, z)];

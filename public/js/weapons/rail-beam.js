@@ -1,5 +1,7 @@
 import * as THREE from '../vendor/three.module.js';
-import { WEAPONS, HITSCAN_REACH, chargeShotProfile } from '../../../shared/combatmath.js';
+import { WEAPONS, HITSCAN_REACH, chargeShotProfile, chargeDamageMult, damageAtDistance } from '../../../shared/combatmath.js';
+import { BLOCK_HP } from '../../../shared/world/blocks.js';
+import { BULLET_RULES, bulletPower, bulletMaterialImpact, voxelExitDistance } from '../../../shared/bullet-material.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { SX, SY, SZ } from '../../../shared/worlddata.js';
 
@@ -57,6 +59,20 @@ export class RailBeamFX {
   }
 
   shoot(event, { local = false } = {}) {
+    if (Array.isArray(event.paths)) {
+      for (const path of event.paths) {
+        let origin = path[0]?.o;
+        for (let i = 0; i < path.length; i++) {
+          const segment = path[i];
+          if (segment.action !== 'ricochet' && i < path.length - 1) continue;
+          const d = segment.end.map((value, axis) => value - origin[axis]);
+          if (Math.hypot(...d) > 0.001) this.shoot({ ...event, paths: undefined,
+            o: origin, d, spread: d, resolvedEnd: segment.end }, { local: false });
+          origin = path[i + 1]?.o;
+        }
+      }
+      return;
+    }
     const charge = Math.max(0, Math.min(1, event.charge ?? 1));
     const raw = event.spread || event.d;
     const direction = Array.isArray(raw) ? new THREE.Vector3(...raw) : new THREE.Vector3(raw.x, raw.y, raw.z);
@@ -69,24 +85,35 @@ export class RailBeamFX {
     let length = chaosArc ? Math.max(0.1, Math.min(9, event.reach)) : Math.hypot(SX, SY, SZ);
     const traceReach = chaosArc ? length : HITSCAN_REACH;
     const pierced = new Set();
-    for (let wall = 0; wall <= profile.walls; wall++) {
+    let power = bulletPower(WEAPONS.lance, charge);
+    let damageScale = chargeDamageMult(WEAPONS.lance, charge);
+    for (let wall = 0; !event.resolvedEnd && wall < BULLET_RULES.maxContacts; wall++) {
       const hit = raycastVoxels((x, y, z) =>
         !pierced.has(`${x},${y},${z}`) && this.getBlock(x, y, z),
         eye.x, eye.y, eye.z, direction.x, direction.y, direction.z, traceReach);
       if (!hit) break;
-      if (wall === profile.walls) {
-        length = hit.t;
-        break;
-      }
+      length = hit.t;
+      if (hit.y <= 0) break;
+      const type = this.getBlock(hit.x, hit.y, hit.z);
+      const exit = voxelExitDistance(event.o, direction, hit);
+      const result = bulletMaterialImpact({ type, power, hp: BLOCK_HP[type],
+        damage: damageAtDistance(WEAPONS.lance, hit.t) * damageScale,
+        incidence: Math.abs(direction.x * hit.nx + direction.y * hit.ny + direction.z * hit.nz),
+        thickness: exit - hit.t });
+      if (result.action !== 'penetrate') break;
+      power = result.power;
+      damageScale *= result.damageScale;
+      length = Math.max(length, exit + 20);
       pierced.add(`${hit.x},${hit.y},${hit.z}`);
     }
-    const endpoint = eye.clone().addScaledVector(direction, length);
+    const endpoint = event.resolvedEnd ? new THREE.Vector3(...event.resolvedEnd) : eye.clone().addScaledVector(direction, length);
     const beam = this.pool[this.cursor++ % POOL_SIZE];
     beam.group.position.copy(eye);
     if (local && this.muzzleProvider) this.muzzleProvider(beam.group.position);
     direction.copy(endpoint).sub(beam.group.position);
     beam.length = direction.length();
     beam.group.quaternion.setFromUnitVectors(AXIS, direction.normalize());
+    beam.local = local;
     beam.age = 0;
     beam.life = 0.18 + charge * 0.3;
     beam.charge = charge;

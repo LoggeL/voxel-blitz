@@ -286,10 +286,10 @@ for (const level of [0, 1, 2, 3]) {
 }
 {
   const { game, shooter, victims } = heavyWeaponFixture('minigun', 3, [[47, 40.5], [53, 40.5]]);
-  game.world.getBlock = x => x === 50 ? 1 : 0;
+  game.world.getBlock = x => x === 50 ? 8 : 0;
   fireOneShot(shooter, game.contexts.combat);
   assert(victims[0].hp < 1000);
-  assert.equal(victims[1].hp, 1000, 'Chaos minigun body piercing does not grant wall piercing');
+  assert.equal(victims[1].hp, 1000, 'Chaos minigun rounds still stop at hard metal cover');
 }
 
 // Side jets are real packets: they need flight time, burn off-axis targets and

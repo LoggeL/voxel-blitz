@@ -1,7 +1,7 @@
 import { generateNuketownInto } from './flatmap-nuketown.js';
 import { generateDust2Into } from './flatmap-dust2.js';
 import { MAP_IDS } from '../modes.js';
-import { SX, SY, SZ } from './blocks.js';
+import { BEDROCK, SX, SY, SZ } from './blocks.js';
 import { generateDepotInto } from './flatmap-depot.js';
 import { generateCitadelInto } from './flatmap-citadel.js';
 import { generateSolsticeInto } from './flatmap-solstice.js';
@@ -44,6 +44,7 @@ function buildPristineTemplate(id) {
   else if (id === 'killhouse') generateKillhouseInto(world, blocks, heights);
   else generateSolsticeInto(world, blocks, heights);
 
+  blocks.fill(BEDROCK, 0, SX * SZ);
   rebuildHeights(blocks, heights);
   return Object.freeze({
     blocks,
@@ -95,6 +96,7 @@ export function rebuildHeightMap() {
 /** Rebuild the process-global legacy singleton as Foundry. */
 export function generateWorld() {
   generateFoundryInto(defaultWorld, data, heightMap);
+  data.fill(BEDROCK, 0, SX * SZ);
   defaultWorld.rebuildHeightMap();
 }
 

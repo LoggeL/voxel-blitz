@@ -60,21 +60,22 @@ export const CONDITION_RULES = Object.freeze({
  * @property {number} reloadTime    full magazine reload seconds
  * @property {number} tacTime       fast tactical reload seconds (round still chambered)
  * @property {number} deployTime    equip raise seconds
+ * @property {number} [penetration]  initial bullet power, spent on material contacts
  * @property {?{color:string,width:number,len:number}} tracer  visual spec, hex + px + world units; `null` for weapons with no projectile line (melee)
  * @property {number} weightKg      carried weapon mass; drives viewmodel inertia only
  * @property {string} sfx           bank key for the audio engine
  * @property {{reach:number,coneDeg:number,backstabMult:number,backstabDot:number}} [melee] melee profile: swing hits enemies within `reach` meters inside a `coneDeg` arc; damage multiplies by `backstabMult` when the swing direction aligns with the victim's facing beyond `backstabDot`
  * @property {'rocket'|'bolt'} [projectile]  when set, the shot launches an authoritative projectile (shared/rocket-rules.js, shared/bolt-rules.js) instead of firing hitscan rays
- * @property {{ms:number,holdMaxMs:number,minDamageMult:number,damageExponent?:number,wallPierceAt?:number}} [charge]  charge-fire profile; `wallPierceAt` is the charge needed before terrain pierces (terrain penetration grows with charge)
+ * @property {{ms:number,holdMaxMs:number,minDamageMult:number,damageExponent?:number}} [charge]  charge-fire profile
  * @property {number} [hitRadius] outer radius around a body reached by the rail corona
  * @property {number} [coreRadius] full-damage radius around a body inside the rail core
- * @property {{players:number,walls:number,minWalls?:number,playerFalloff:number,wallFalloff:number}} [pierce]  rail pierce profile: victims the slug passes through, walls it crosses, and the multiplicative damage falloff per crossing
+ * @property {{players:number,playerFalloff:number}} [pierce]  body penetration count and damage retained per victim
  */
 
 /** The ten-weapon roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
 export const WEAPONS = {
   rifle: {
-    id: 'rifle', name: 'VK-77 RAPTOR', mode: 'auto',
+    id: 'rifle', penetration: 55, name: 'VK-77 RAPTOR', mode: 'auto',
     weightKg: 3.4,
     rpm: 660, magSize: 30, spareMags: 6,
     damage: [25, 15, 65], headMult: 1.85, pellets: 1,
@@ -92,7 +93,7 @@ export const WEAPONS = {
     sfx: 'rifle',
   },
   smg: {
-    id: 'smg', name: 'HORNET SMG', mode: 'auto',
+    id: 'smg', penetration: 24, name: 'HORNET SMG', mode: 'auto',
     weightKg: 2.3,
     rpm: 900, magSize: 36, spareMags: 6,
     damage: [19, 10, 42], headMult: 1.7, pellets: 1,
@@ -110,7 +111,7 @@ export const WEAPONS = {
     sfx: 'smg',
   },
   shotgun: {
-    id: 'shotgun', name: 'M-DOCK 12', mode: 'pump',
+    id: 'shotgun', penetration: 20, name: 'M-DOCK 12', mode: 'pump',
     weightKg: 3.6,
     rpm: 90, magSize: 7, spareRounds: 42,
     damage: [14.5, 5, 50], falloffStart: 12,
@@ -131,7 +132,7 @@ export const WEAPONS = {
     sfx: 'shotgun',
   },
   sniper: {
-    id: 'sniper', name: 'LONGSHOT MK-II', mode: 'bolt',
+    id: 'sniper', penetration: 180, name: 'LONGSHOT MK-II', mode: 'bolt',
     weightKg: 5.2,
     rpm: 42, magSize: 5, spareMags: 6,
     damage: [95, 68, 120], headMult: 2.1, pellets: 1,
@@ -149,7 +150,7 @@ export const WEAPONS = {
     sfx: 'sniper',
   },
   lmg: {
-    id: 'lmg', name: 'BASTION LMG', mode: 'auto',
+    id: 'lmg', penetration: 70, name: 'BASTION LMG', mode: 'auto',
     weightKg: 8.4,
     rpm: 720, magSize: 60, spareMags: 4,
     damage: [22, 14, 75], headMult: 1.7, pellets: 1,
@@ -171,7 +172,7 @@ export const WEAPONS = {
     sfx: 'lmg',
   },
   minigun: {
-    id: 'minigun', name: 'M-6 FURNACE', mode: 'auto',
+    id: 'minigun', penetration: 65, name: 'M-6 FURNACE', mode: 'auto',
     weightKg: 11.8,
     rpm: 1200, magSize: 300, spareMags: 4,
     damage: [12, 8, 70], headMult: 1.7, pellets: 1,
@@ -193,7 +194,7 @@ export const WEAPONS = {
     sfx: 'lmg',
   },
   revolver: {
-    id: 'revolver', name: 'IRONCLAD .44', mode: 'semi',
+    id: 'revolver', penetration: 75, name: 'IRONCLAD .44', mode: 'semi',
     weightKg: 1.4,
     rpm: 300, magSize: 6, spareMags: 8,
     damage: [54, 35, 80], headMult: 1.9, pellets: 1,
@@ -232,7 +233,7 @@ export const WEAPONS = {
   },
   lance: {
     // Single-cell rail shot: release at any charge, then reload.
-    id: 'lance', name: 'CL-9 VOLTLANCE', mode: 'charge',
+    id: 'lance', penetration: 1400, name: 'CL-9 VOLTLANCE', mode: 'charge',
     weightKg: 3.8,
     rpm: 100, magSize: 1, spareMags: 5,
     damage: [300, 220, 95], falloffStart: 45, headMult: 2.0, pellets: 1,
@@ -253,11 +254,10 @@ export const WEAPONS = {
       holdMaxMs: 2800,    // cell vents: the shot fires itself at this hold
       minDamageMult: 0.08,
       damageExponent: 2,
-      wallPierceAt: 0,      // every shot penetrates; charging increases the block budget
     },
     hitRadius: 1.6,
     coreRadius: 0.3,
-    pierce: { players: 6, walls: 8, minWalls: 1, playerFalloff: 0.9, wallFalloff: 0.9 },
+    pierce: { players: 6, playerFalloff: 0.9 },
   },
   knife: {
     // PIXEL PICK: fighting knife. No magazine and no reload — every swing is free
@@ -329,7 +329,6 @@ export function chargeProfile(def) {
     ms: Number.isFinite(charge?.ms) ? charge.ms : 850,
     holdMaxMs: Number.isFinite(charge?.holdMaxMs) ? charge.holdMaxMs : 2200,
     minDamageMult: Number.isFinite(charge?.minDamageMult) ? charge.minDamageMult : 1,
-    wallPierceAt: Number.isFinite(charge?.wallPierceAt) ? charge.wallPierceAt : 0,
   };
 }
 
@@ -347,16 +346,14 @@ export function chargeDamageMult(def, charge01) {
   return profile.minDamageMult + (1 - profile.minDamageMult) * t ** profile.damageExponent;
 }
 
-/** Shared beam size and terrain penetration for prediction and authority. */
+/** Shared beam size for prediction and authority. */
 export function chargeShotProfile(def, charge01 = 1) {
   const t = def?.mode === 'charge' ? Math.max(0, Math.min(1, Number.isFinite(charge01) ? charge01 : 1)) : 1;
   const size = def?.mode === 'charge' ? 0.15 + 0.85 * t * t : 1;
-  const threshold = chargeProfile(def).wallPierceAt;
   return {
     size,
     hitRadius: (def?.hitRadius || 0) * (def?.mode === 'charge' ? 0.4 + 0.6 * t * t : 1),
     coreRadius: (def?.coreRadius || 0) * (def?.mode === 'charge' ? 0.4 + 0.6 * t * t : 1),
-    walls: t < threshold ? 0 : Math.max(def?.pierce?.minWalls || 0, Math.floor((def?.pierce?.walls || 0) * t)),
   };
 }
 /** Full damage in the rail core, smoothly fading to zero at its outer radius. */

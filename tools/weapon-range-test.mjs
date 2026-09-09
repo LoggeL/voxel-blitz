@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { WEAPONS, WEAPON_IDS, HITSCAN_REACH, damageAtDistance } from '../shared/combatmath.js';
+import { METAL } from '../shared/world/blocks.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { PlayerEntity } from '../server/sim/player.js';
 import { fireOneShot } from '../server/sim/combat.js';
@@ -14,10 +15,12 @@ function shotAt(weapon, distance, wallX = null) {
   shooter.yaw = -Math.PI / 2;
   victim.hp = 10000;
   const events = [];
-  const solidAt = x => wallX !== null && x === wallX;
+  const removed = new Set();
+  const solidAt = (x, y, z) => wallX !== null && (x === wallX || x === wallX + 1) && !removed.has(`${x},${y},${z}`);
   const ctx = {
     now: 1000, entities: new Map([[shooter.id, shooter], [victim.id, victim]]),
-    blockHp: new Map(), solidAt, getBlock: () => 0,
+    blockHp: new Map(), solidAt, getBlock: (x,y,z) => solidAt(x,y,z) ? METAL : 0,
+    setBlock: (x,y,z) => removed.add(`${x},${y},${z}`), pushBlockDelta() {},
     computeConeDeg: () => 0, canDamage: () => true,
     pushEvent: event => events.push(event), killPlayer() {},
   };

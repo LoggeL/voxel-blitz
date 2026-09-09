@@ -4,7 +4,7 @@ import { AIR, GROUND, METAL, SX, SY, SZ, createMapState } from '../shared/worldd
 import { isModeMapCompatible } from '../shared/modes.js';
 import { generateDust2Into } from '../shared/world/flatmap-dust2.js';
 import { createStateApi } from '../shared/world/state.js';
-import { MINING_HITS, GRENADE_RESISTANCE } from '../shared/world/blocks.js';
+import { BEDROCK, MINING_HITS, GRENADE_RESISTANCE } from '../shared/world/blocks.js';
 import { MAP_HEADER_BYTES } from '../shared/world/serialize.js';
 import { findPowerupSites, isPowerupSiteSupported } from '../shared/powerup-sites.js';
 import {
@@ -54,7 +54,7 @@ for (const type of new Set(bytes.subarray(MAP_HEADER_BYTES))) {
   assert.ok(DEFAULT_BLOCK_TILES[type], `texture mapping for block ${type}`);
   for (const tile of Object.values(DEFAULT_BLOCK_TILES[type])) assert.ok(TILE_PAINTERS[tile]);
   if (type !== AIR) {
-    assert.ok(MINING_HITS[type] > 0, `mining resistance for block ${type}`);
+    assert.ok(type === BEDROCK ? MINING_HITS[type] === undefined : MINING_HITS[type] > 0, `mining resistance for block ${type}`);
     assert.ok(GRENADE_RESISTANCE[type] > 0, `blast resistance for block ${type}`);
   }
 }

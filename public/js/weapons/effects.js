@@ -102,6 +102,16 @@ export class Effects {
     }
   }
 
+  confirmShot(event) {
+    if (this._disposed || !Array.isArray(event.paths)) return;
+    this.tracers.resolvedShot(event, { continuationsOnly: true });
+    if (event.w === 'lance') {
+      // Replace the short-lived predicted rail with its authoritative terrain path.
+      for (const beam of this.railBeams.pool) if (beam.local) beam.group.visible = false;
+      this.railBeams.shoot(event);
+    }
+  }
+
   impact(event) {
     if (!this._disposed) this.impacts.impact(event);
   }

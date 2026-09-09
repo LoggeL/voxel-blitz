@@ -8,7 +8,7 @@ Select **Nuketown** when creating a lobby. Supports FFA, Chaos, Team Deathmatch,
 
 - Yellow and teal houses have furnished living rooms, kitchens, bedrooms, garages, internal voxel stairs, rear balconies and external voxel stairs. Ascend stairs using the game's jump/vault controls.
 - A school bus and open moving truck split the street. Cars, moving crates, garden sheds, picnic furniture, planting beds, mailboxes and trees provide additional detail and cover.
-- Six block materials: yellow siding, teal siding, asphalt, roof shingles, bus yellow and truck red. All have atlas textures, mining costs and blast resistance; siding also supports bullet destruction.
+- Six block materials: yellow siding, teal siding, asphalt, roof shingles, bus yellow and truck red. All have atlas textures, mining costs and blast resistance; all six support persistent bullet damage and destruction.
 - Antennas, slim balcony rails, mannequins and sign lettering are non-blocking client decoration. The neighbouring houses, desert and distant mesas are scenery outside the playable voxel world.
 - Gameplay geometry is generated in `shared/world/flatmap-nuketown.js` and serialized by the existing world protocol. Decorative meshes are released by WorldView disposal.
 

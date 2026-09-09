@@ -2,14 +2,14 @@ import assert from 'node:assert/strict';
 import { GameEngine } from '../server/game.js';
 import { createMapState, GROUND, AIR } from '../shared/worlddata.js';
 import { DEFAULT_BLOCK_TILES, TILE_PAINTERS } from '../public/js/engine/atlas.js';
-import { MINING_HITS, GRENADE_RESISTANCE } from '../shared/world/blocks.js';
+import { BEDROCK, MINING_HITS, GRENADE_RESISTANCE } from '../shared/world/blocks.js';
 const world = createMapState('nuketown');
 const bytes = world.serializeWorld();
 assert.deepEqual(createMapState('nuketown', bytes).serializeWorld(), bytes);
 for (const type of new Set(bytes.subarray(6))) {
   assert.ok(DEFAULT_BLOCK_TILES[type], `texture for ${type}`);
   if(type!==AIR) {
-    assert.ok(MINING_HITS[type]>0, `mining for ${type}`);
+    assert.ok(type === BEDROCK ? MINING_HITS[type] === undefined : MINING_HITS[type]>0, `mining for ${type}`);
     assert.ok(GRENADE_RESISTANCE[type]>0, `blast resistance for ${type}`);
   }
   for(const tile of Object.values(DEFAULT_BLOCK_TILES[type])) assert.ok(TILE_PAINTERS[tile]);

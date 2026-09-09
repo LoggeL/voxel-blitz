@@ -1,5 +1,6 @@
 import { isScopeActive, nextScopeZoom } from '../guns/scope-state.js';
-import { CONDITION_RULES } from '../../../shared/combatmath.js';
+import { EYE_HEIGHT, CONDITION_RULES } from '../../../shared/combatmath.js';
+import { stanceEye } from '../../../shared/player-stance.js';
 import { PlayerPhysics, moveSpeedFor } from '../player-physics.js';
 import { hashInt } from '../util/hash.js';
 import { clamp01, clampPitch, easeOut, nowMs, smooth01 } from '../util/math.js';
@@ -14,6 +15,8 @@ import { resetFirstPersonBody, updateFirstPersonBody } from './first-person-body
 
 const DEFAULT_SEND_HZ = 60;
 const DEFAULT_FOV = 75;
+// Reach 95% of the crouched camera height in about 0.2 seconds.
+const CROUCH_CAMERA_FOLLOW = 15;
 const EMPTY_RECONCILE = Object.freeze({ applied: false, transition: null });
 
 // Camera recoil is a critically-ish damped spring driven by velocity impulses rather
@@ -143,6 +146,7 @@ export class LocalPlayer {
     this._reconcileOffset = { x: 0, y: 0, z: 0, decay: RECONCILE_OFFSET_DECAY };
     this._lookScale = 1;
     this._scopeZoom = 0;
+    this._cameraCrouch = 0;
     this._localGrenadeThrow = null;
     this.recoilPitch = 0;
     this.recoilYaw = 0;
@@ -259,6 +263,7 @@ export class LocalPlayer {
     this._localGrenadeThrow = null;
     this.wantAds = false;
     this.physics._crouching = false;
+    this._cameraCrouch = 0;
     this.physics.proneT = 0;
     this.physics.wantProne = false;
   }
@@ -278,6 +283,7 @@ export class LocalPlayer {
     this.physics.jumpWasHeld = false;
     this.physics.lastImpulseSeq = 0;
     this.physics._crouching = false;
+    this._cameraCrouch = 0;
     this.physics.proneT = 0;
     this.physics.wantProne = false;
     return true;
@@ -289,6 +295,7 @@ export class LocalPlayer {
       throw new TypeError('resetForMenu requires a PlayerPhysics-compatible adapter');
     }
     this.physics = physics;
+    this._cameraCrouch = 0;
     this.setGameplayInputEnabled(false);
     this.body = body;
     this.baseFov = Number.isFinite(baseFov) ? baseFov : DEFAULT_FOV;
@@ -706,6 +713,7 @@ export class LocalPlayer {
     this.physics.vault = null;
     this.physics.jumpGroundY = null;
     this.physics._crouching = false;
+    this._cameraCrouch = 0;
     this.physics.proneT = 0;
     this.physics.wantProne = false;
   }
@@ -962,7 +970,14 @@ export class LocalPlayer {
     this._stepReconcileOffset(dt);
     const pos = this.physics.pos;
     const offset = this._reconcileOffset;
-    camera.position.set(pos.x + offset.x, this.physics.eyeY() + offset.y, pos.z + offset.z);
+    const crouchTarget = this.physics._crouching ? 1 : 0;
+    this._cameraCrouch += (crouchTarget - this._cameraCrouch) *
+      (1 - Math.exp(-CROUCH_CAMERA_FOLLOW * Math.max(0, dt)));
+    // Smooth only the visual crouch offset so jumps, stairs and prone keep their timing.
+    const crouchDrop = stanceEye(EYE_HEIGHT, false, this.physics.proneT) -
+      stanceEye(EYE_HEIGHT, true, this.physics.proneT);
+    const cameraEyeY = this.physics.eyeY() + (crouchTarget - this._cameraCrouch) * crouchDrop;
+    camera.position.set(pos.x + offset.x, cameraEyeY + offset.y, pos.z + offset.z);
     if (this._alive) {
       this.deathElapsed = 0;
       this.deathRoll = 0;

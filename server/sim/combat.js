@@ -6,9 +6,10 @@ import { chaosShot, chaosHit } from './chaos-combat.js';
 // The caller owns world/entity state and exposes only the narrow operations
 // needed by this hot path through `ctx`.
 
+import { BULLET_RULES, bulletPower, bulletMaterialImpact, voxelExitDistance } from '../../shared/bullet-material.js';
 import { MINING_HITS } from '../../shared/world/blocks.js';
 import { weaponSwapProfile } from '../../shared/weapon-swap.js';
-import { AIR, GLASS, LEAVES, BLOCK_HP } from '../../shared/worlddata.js';
+import { AIR, BEDROCK, GLASS, LEAVES, BLOCK_HP } from '../../shared/worlddata.js';
 import {
   CONDITION_RULES,
   SNIPER_SCOPE_ADS_THRESHOLD,
@@ -36,7 +37,6 @@ import {
 
 const LONG_RANGE_KILL_DISTANCE = 40;
 const NO_SCOPE_ADS_THRESHOLD = SNIPER_SCOPE_ADS_THRESHOLD;
-const BLOCK_MIN_DMG = 12;
 const HISTORY_WINDOW_MS = 500;
 
 export function computeConeDeg(p) {
@@ -352,6 +352,7 @@ export function blockKey(x, y, z) {
 export function destroyBlockDirect(x, y, z, key, ctx) {
   const damageKey = key || blockKey(x, y, z);
   const from = ctx.getBlock(x, y, z);
+  if (from === BEDROCK) return false;
   if (from === AIR) {
     ctx.blockHp.delete(damageKey);
     ctx.blockMining?.delete(damageKey);
@@ -377,7 +378,7 @@ export function destroyBlock(x, y, z, key, ctx) {
 }
 
 export function damageBlock(x, y, z, type, dmg, ctx) {
-  if (!(dmg > 0) || !Number.isFinite(dmg) || !BLOCK_HP[type] || ctx.getBlock(x, y, z) !== type) return;
+  if (y <= 0 || !(dmg > 0) || !Number.isFinite(dmg) || !BLOCK_HP[type] || ctx.getBlock(x, y, z) !== type) return;
   const key = blockKey(x, y, z);
   const previousProgress = blockDamageProgress(key, type, ctx);
   let hp = ctx.blockHp.get(key) ?? BLOCK_HP[type];
@@ -459,134 +460,80 @@ export function fireOneShot(p, ctx, charge = 1) {
     return;
   }
   if (def.flame) { ctx.flames.launch(p, oEye, fwd, ctx); return; }
-  const pierce = def.pierce;
-  const piercePlayers = Number.isFinite(pierce?.players) ? Math.max(0, Math.trunc(pierce.players)) : 0;
   const shotProfile = chargeShotProfile(def, charge01);
-  const pierceWalls = shotProfile.walls;
-  const playerFalloff = Number.isFinite(pierce?.playerFalloff) ? pierce.playerFalloff : 1;
-  const wallFalloff = Number.isFinite(pierce?.wallFalloff) ? pierce.wallFalloff : 1;
-  const piercing = piercePlayers > 0 || pierceWalls > 0;
+  const playerLimit = Math.max(1, Math.trunc(def.pierce?.players || 1));
+  const playerFalloff = def.pierce?.playerFalloff ?? 1;
+  // Publish the resolved polyline with the shot so clients never guess a bounce.
+  shootEvent.paths = [];
   for (let pellet = 0; pellet < def.pellets; pellet++) {
-    const d = pellet === 0
-      ? firstDir
-      : samplePelletDirection(def, fwd, rng, coneDeg, pellet);
-
-    if (!piercing) {
-      const hit = raycastVoxels(
-        ctx.solidAt,
-        oEye[0], oEye[1], oEye[2],
-        d.x, d.y, d.z,
-        shotReach,
-      );
-      const wallT = hit ? hit.t : shotReach;
-
-      const tgt = nearestVictim(p, oEye, d, wallT, ctx);
-      if (tgt) {
-        const ix = oEye[0] + d.x * tgt.t;
-        const iy = oEye[1] + d.y * tgt.t;
-        const iz = oEye[2] + d.z * tgt.t;
-        const hs = tgt.zone === 'head';
-        let dmg = damageAtDistance(def, tgt.t) * (hs ? def.headMult : 1) * chargeMult;
-        dmg = Math.round(dmg * 10) / 10;
-        const lethal = tgt.victim.takeDamage(dmg, hs);
-        ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, [ix, iy, iz], tgt.victim.lastDamage));
-        if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
-          longRange: tgt.t >= LONG_RANGE_KILL_DISTANCE,
-          noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
-        });
-        chaosHit(p, tgt.victim, [ix, iy, iz], ctx);
-      } else if (hit) {
-        const type = ctx.getBlock(hit.x, hit.y, hit.z);
-        if (BLOCK_HP[type] != null) {
-          const dmgB = Math.max(BLOCK_MIN_DMG, Math.round(damageAtDistance(def, hit.t)));
-          damageBlock(hit.x, hit.y, hit.z, type, dmgB, ctx);
-        }
-        // Indestructible types simply terminate the tracer here.
-      }
-      continue;
-    }
-
-    // Rail slug: one ray per pellet that keeps going through players and walls.
-    // State resets per pellet; distances stay absolute from the eye for falloff.
-    let ox = oEye[0], oy = oEye[1], oz = oEye[2];
-    let traveled = 0;
-    let dmgMult = chargeMult;
-    let playersLeft = piercePlayers;
-    let wallsLeft = pierceWalls;
+    let d = pellet === 0 ? { ...firstDir } : samplePelletDirection(def, fwd, rng, coneDeg, pellet);
+    let origin = [...oEye];
+    let traveled = 0, damageScale = chargeMult, power = bulletPower(def, charge01), bounces = 0;
+    let playersLeft = playerLimit;
     const hitVictims = new Set();
-    for (;;) {
+    const path = [];
+    shootEvent.paths.push(path);
+    for (let contact = 0; contact < BULLET_RULES.maxContacts; contact++) {
       const reach = shotReach - traveled;
-      if (!(reach > 0)) break;
-      const o = [ox, oy, oz];
-      const hit = raycastVoxels(
-        ctx.solidAt,
-        ox, oy, oz,
-        d.x, d.y, d.z,
-        reach,
-      );
-      const wallSegT = hit ? hit.t : reach;
-      let minT = 0;
-      let stoppedInFlesh = false;
+      if (!(reach > 0) || damageScale < 0.001) break;
+      const hit = raycastVoxels(ctx.solidAt, ...origin, d.x, d.y, d.z, reach);
+      const wallT = hit ? hit.t : reach;
+      let minT = 0, stopped = false;
       for (;;) {
-        const tgt = nearestVictim(p, o, d, wallSegT, ctx, minT, shotProfile.hitRadius, hitVictims);
+        const tgt = nearestVictim(p, origin, d, wallT, ctx, minT, shotProfile.hitRadius, hitVictims);
         if (!tgt) break;
-        // `pierce.players` caps the victims the slug damages; the next body in
-        // line stops it (the lance pierces up to 6 players and, on a full charge,
-        // crosses up to 8 voxels, including solid stone and metal; LONGARC is a bouncing bolt and never
-        // reaches this path).
-        if (playersLeft <= 0) { stoppedInFlesh = true; break; }
+        const point = origin.map((value, i) => value + d[['x', 'y', 'z'][i]] * tgt.t);
+        if (playersLeft <= 0) { path.push({ o: origin, end: point }); stopped = true; break; }
         const dist = traveled + tgt.t;
-        const ix = ox + d.x * tgt.t;
-        const iy = oy + d.y * tgt.t;
-        const iz = oz + d.z * tgt.t;
-        const hs = tgt.coreHit && tgt.zone === 'head';
-        let dmg = railDamageMult(shotProfile, tgt.radialDistance) * damageAtDistance(def, dist) * (hs ? def.headMult : 1) * dmgMult;
-        dmg = Math.round(dmg * 10) / 10;
+        const hs = !!tgt.coreHit && tgt.zone === 'head';
+        const radialScale = shotProfile.hitRadius > 0 ? railDamageMult(shotProfile, tgt.radialDistance) : 1;
+        const dmg = Math.round(radialScale * damageAtDistance(def, dist) * (hs ? def.headMult : 1) * damageScale * 10) / 10;
         const lethal = tgt.victim.takeDamage(dmg, hs);
-        ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, [ix, iy, iz], tgt.victim.lastDamage));
+        ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, point, tgt.victim.lastDamage));
         if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
           longRange: dist >= LONG_RANGE_KILL_DISTANCE,
           noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
         });
-        chaosHit(p, tgt.victim, [ix, iy, iz], ctx);
+        chaosHit(p, tgt.victim, point, ctx);
         hitVictims.add(tgt.victim);
-        playersLeft -= 1;
-        dmgMult *= playerFalloff;
-        minT = tgt.t + 0.1;
+        playersLeft--;
+        if (!def.pierce?.players) { path.push({ o: origin, end: point }); stopped = true; break; }
+        damageScale *= playerFalloff;
+        power *= playerFalloff;
+        minT = tgt.t + 0.001;
       }
-      if (stoppedInFlesh) break;
+      if (stopped) break;
+      // Keep empty-sky presentation finite without limiting the damage ray.
+      const endT = hit ? hit.t : Math.min(reach, 180);
+      const point = origin.map((value, i) => value + d[['x', 'y', 'z'][i]] * endT);
+      const segment = { o: origin, end: point };
+      path.push(segment);
       if (!hit) break;
-      const wallType = ctx.getBlock(hit.x, hit.y, hit.z);
-      if (wallsLeft <= 0) {
-        if (BLOCK_HP[wallType] != null) {
-          const dmgB = Math.max(BLOCK_MIN_DMG, Math.round(damageAtDistance(def, traveled + hit.t) * dmgMult));
-          damageBlock(hit.x, hit.y, hit.z, wallType, dmgB, ctx);
-        }
-        // Indestructible types simply terminate the tracer here.
-        break;
+      segment.hit = { x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz };
+      if (hit.y <= 0) break;
+      const type = ctx.getBlock(hit.x, hit.y, hit.z);
+      const exit = voxelExitDistance(origin, d, hit);
+      const dot = d.x * hit.nx + d.y * hit.ny + d.z * hit.nz;
+      const result = bulletMaterialImpact({ type, power,
+        damage: damageAtDistance(def, traveled + hit.t) * damageScale,
+        hp: ctx.blockHp.get(blockKey(hit.x, hit.y, hit.z)) ?? BLOCK_HP[type],
+        incidence: hit.nx || hit.ny || hit.nz ? Math.abs(dot) : 1,
+        thickness: exit - hit.t, bounces });
+      damageBlock(hit.x, hit.y, hit.z, type, result.damage, ctx);
+      segment.action = result.action;
+      power = result.power;
+      damageScale *= result.damageScale;
+      if (result.action === 'stop') break;
+      if (result.action === 'ricochet') {
+        bounces++;
+        d = { x: d.x - 2 * dot * hit.nx, y: d.y - 2 * dot * hit.ny, z: d.z - 2 * dot * hit.nz };
+        origin = point.map((value, i) => value + d[['x', 'y', 'z'][i]] * BULLET_RULES.epsilon);
+        traveled += hit.t + BULLET_RULES.epsilon;
+      } else {
+        const step = exit + BULLET_RULES.epsilon;
+        origin = origin.map((value, i) => value + d[['x', 'y', 'z'][i]] * step);
+        traveled += step;
       }
-      if (BLOCK_HP[wallType] != null) {
-        damageBlock(hit.x, hit.y, hit.z, wallType,
-          Math.max(BLOCK_MIN_DMG, Math.round(damageAtDistance(def, traveled + hit.t) * dmgMult)), ctx);
-      }
-      // Damage the pierced voxel and resume past its far face. The DDA reports
-      // an origin voxel immediately, so entry + 0.05 would re-hit this same wall;
-      // stepping to the far face + 0.05 carries the identical 0.05 epsilon.
-      wallsLeft -= 1;
-      dmgMult *= wallFalloff;
-      let tExit = Infinity;
-      if (d.x > 0) tExit = Math.min(tExit, (hit.x + 1 - ox) / d.x);
-      else if (d.x < 0) tExit = Math.min(tExit, (hit.x - ox) / d.x);
-      if (d.y > 0) tExit = Math.min(tExit, (hit.y + 1 - oy) / d.y);
-      else if (d.y < 0) tExit = Math.min(tExit, (hit.y - oy) / d.y);
-      if (d.z > 0) tExit = Math.min(tExit, (hit.z + 1 - oz) / d.z);
-      else if (d.z < 0) tExit = Math.min(tExit, (hit.z - oz) / d.z);
-      if (!Number.isFinite(tExit) || tExit < hit.t) tExit = hit.t;
-      const step = tExit + 0.05;
-      ox += d.x * step;
-      oy += d.y * step;
-      oz += d.z * step;
-      traveled += step;
     }
   }
 }

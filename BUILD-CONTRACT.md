@@ -297,14 +297,11 @@ splash (96 @ 4.8 radius, 0.55 self), knockback (11, 15.5 self), and the carve
 reload, deploy, tracer, mass, and SFX fields are read from `WEAPONS`; do not
 duplicate them.
 
-The VOLTLANCE (`lance`) is the second `charge` mode: it charges over
-`charge.ms` (1150), vents itself at `charge.holdMaxMs` (2400), and taps for
-`minDamageMult` (0.35). Its pierce profile is 6 players / 2 walls with
-`playerFalloff` 0.9 and `wallFalloff` 0.72 — a charged lance spears up to six
-enemies on the line, and only a FULL charge (`charge.wallPierceAt` 1) crosses
-up to two walls. Weapon chains are deleted from the game: the lance carries no
-`chain` profile and no unreachable sentinels — `chargeProfile` for both charge
-weapons exposes only `ms`, `holdMaxMs`, `minDamageMult`, and `wallPierceAt`.
+The VOLTLANCE (`lance`) charges over 2800 ms and taps for a damage multiplier
+of 0.08. Charge increases damage, beam radius and penetration power. It can hit
+six bodies with `playerFalloff` 0.9. Terrain uses the material energy rules below,
+so wall count depends on hardness, remaining health, impact angle and charge.
+`chargeProfile` exposes `ms`, `holdMaxMs`, `minDamageMult` and `damageExponent`.
 
 The RIPPER (`knife`) is the `melee` mode: `magSize` 0 and `spareMags` 0 mean a
 swing consumes no ammunition and the reload path never engages (`reloadPlan`
@@ -846,6 +843,22 @@ step listener with the room.
 - **Worlds:** Foundry, Depot, Citadel, Solstice, and Caldera are deterministic 128×40×96 templates.
   Every room mutates an independent clone of its selected map. Block damage and
   serialized late-join state remain local to that room.
+- **Bullet materials:** `BLOCK_HP` and `BLOCK_HARDNESS` in `shared/world/blocks.js`
+  cover all 28 destructible materials. The distinct `BEDROCK` material fills
+  every generated map at `y = 0`, has infinite resistance, and cannot be destroyed. Hitscan weapon definitions carry `penetration`.
+  `shared/bullet-material.js` computes damage and energy loss from current power,
+  material hardness, voxel path thickness and impact angle. Weak rounds chip cover;
+  a breaking hit pays for the remaining fracture and continues if energy remains.
+  Every penetration reduces subsequent damage and power. Hard surfaces (hardness
+  at least 50) can reflect impacts below about 17 degrees from the surface when
+  normal penetration is insufficient. Ricochets lose power and damage, with at
+  most two reflections and 48 contacts per pellet. The bottom boundary (`y <= 0`)
+  stops bullets and cannot take bullet damage. Rockets, flames and bouncing energy
+  bolts retain their own projectile rules.
+  Server `shoot.paths` contains per-pellet `{o,end,hit?,action?}` segments for
+  authoritative penetration and ricochet presentation. Local ordinary tracers
+  predict the first contact; confirmation adds continuations. Rails predict with
+  shared material rules and replace their prediction with the confirmed path.
 - **Block damage:** partial bullet damage and accepted mining swings leave a
   persistent shared state until the block is destroyed or replaced. Mining
   retains the per-material swing counts in `MINING_HITS`; bullet HP and mining

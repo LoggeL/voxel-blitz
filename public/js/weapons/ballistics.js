@@ -107,6 +107,7 @@ export class TracerFX {
 
     if (!local) this.spawnFlash(event.o, event.d);
     if (definition && !definition.tracer) return;
+    if (Array.isArray(event.paths)) { this.resolvedShot(event); return; }
 
     for (let i = 0; i < limit; i++) {
       const rawDirection = usePellets
@@ -126,10 +127,8 @@ export class TracerFX {
       );
       if (hit) {
         if (i === 0 && this.onWallImpact) this.onWallImpact(hit, local);
-        // Piercing rail slugs pass through: keep the full-length tracer and
-        // only clip non-piercing reports at the first terrain hit.
-        const piercesWalls = Boolean(definition && definition.pierce && chargeShotProfile(definition, event.charge ?? 1).walls > 0);
-        if (!piercesWalls) length = Math.max(0.1, Math.min(length, hit.t) - 0.35);
+        // Prediction stops at the first contact; authority supplies continuation paths.
+        length = Math.max(0.1, Math.min(length, hit.t) - 0.35);
       }
       // Local shots anchor to the live rig muzzle and converge on this eye-ray
       // endpoint; remote shots keep the server's presentation origin.
@@ -140,7 +139,26 @@ export class TracerFX {
     }
   }
 
-  spawnTracer(origin, direction, length, definition, endpoint = null, charge = 1) {
+  /** Server-resolved segments include penetration exits and reflected directions. */
+  resolvedShot(event, { continuationsOnly = false } = {}) {
+    const definition = WEAPONS[event.w];
+    if (!definition?.tracer) return;
+    for (const path of event.paths || []) {
+      for (let i = continuationsOnly ? 1 : 0; i < path.length; i++) {
+        const segment = path[i];
+        const direction = this._direction.set(
+          segment.end[0] - segment.o[0], segment.end[1] - segment.o[1], segment.end[2] - segment.o[2]);
+        const distance = direction.length();
+        if (distance > 0.001) {
+          direction.multiplyScalar(1 / distance);
+          this.spawnTracer(segment.o, direction, Math.min(distance, definition.tracer.len), definition, null, event.charge ?? 1, 0);
+        }
+        if (segment.hit && this.onWallImpact) this.onWallImpact(segment.hit, false);
+      }
+    }
+  }
+
+  spawnTracer(origin, direction, length, definition, endpoint = null, charge = 1, muzzleOffset = 0.35) {
     if (definition && !definition.tracer) return;
     let index = -1;
     for (let i = 0; i < this.tracers.length; i++) {
@@ -182,9 +200,9 @@ export class TracerFX {
 
     this._position.set(dirX, dirY, dirZ).normalize();
     this._rotation.setFromUnitVectors(NEG_Z, this._position);
-    const px = tracer.anchored ? this._muzzle.x : origin[0] + direction.x * 0.35;
-    const py = tracer.anchored ? this._muzzle.y : origin[1] + direction.y * 0.35;
-    const pz = tracer.anchored ? this._muzzle.z : origin[2] + direction.z * 0.35;
+    const px = tracer.anchored ? this._muzzle.x : origin[0] + direction.x * muzzleOffset;
+    const py = tracer.anchored ? this._muzzle.y : origin[1] + direction.y * muzzleOffset;
+    const pz = tracer.anchored ? this._muzzle.z : origin[2] + direction.z * muzzleOffset;
     this._scale.set(tracer.w, tracer.w, length);
     this._matrix.compose(
       this._position.set(px, py, pz),
@@ -226,9 +244,9 @@ export class TracerFX {
     flash.life = 0.045;
     flash.spr.visible = true;
     flash.spr.position.set(
-      origin[0] + direction.x * 0.35,
-      origin[1] + direction.y * 0.35,
-      origin[2] + direction.z * 0.35,
+      origin[0] + direction.x * muzzleOffset,
+      origin[1] + direction.y * muzzleOffset,
+      origin[2] + direction.z * muzzleOffset,
     );
     flash.spr.material.rotation = Math.random() * TAU;
     flash.spr.scale.setScalar(0.45 + Math.random() * 0.3);

@@ -1,6 +1,6 @@
 import { GameEngine } from '../../server/game.js';
 import { fireOneShot } from '../../server/sim/combat.js';
-import { AIR, STONE, METAL } from '../../shared/worlddata.js';
+import { AIR, STONE, METAL, PLANK } from '../../shared/worlddata.js';
 import { WEAPONS, WEAPON_IDS, PLAYER_HALF, chargeShotProfile } from '../../shared/combatmath.js';
 import { beamReticleRadiusPx } from '../../public/js/ui/hud-support.js';
 
@@ -29,13 +29,14 @@ export function runRailPenetrationContracts(ok) {
   }
   const clear = shoot();
   const covered = shoot([STONE, METAL]);
-  ok(covered.hits.length === 1 && Math.abs(covered.damage - clear.damage * 0.81) < 0.11
-    && covered.blocks[0] === STONE && covered.blocks[1] === METAL,
-    'rail penetrates stone and metal, loses ten percent per block, and leaves solid cover intact');
-  ok(shoot(Array(8).fill(STONE)).hits.length === 1 && shoot(Array(9).fill(STONE)).hits.length === 0,
-    'a full charge crosses eight blocks but the ninth stops it');
-  ok(shoot([METAL], 0, 0).hits.length === 1 && shoot([METAL, METAL], 0, 0).hits.length === 0,
-    'an uncharged rail can penetrate one solid block');
+  ok(covered.hits.length === 1 && covered.damage > 0 && covered.damage < clear.damage
+    && covered.blocks[0] === AIR,
+    'rail spends power on stone and metal, breaks weaker cover, and loses damage');
+  ok(shoot(Array(3).fill(METAL)).damage > shoot(Array(6).fill(METAL)).damage
+    && shoot(Array(12).fill(METAL), 0, 1, 60).hits.length === 0,
+    'successive hard layers attenuate and eventually stop a full rail');
+  ok(shoot([PLANK], 0, 0).hits.length === 1 && shoot([METAL], 0, 0).hits.length === 0,
+    'a tapped rail crosses soft wood but stops at hard metal');
   ok(shoot([], PLAYER_HALF.x + 0.4).hits.length === 1
     && shoot([], 0.6 + 1.7).hits.length === 0,
     'wide rail collision catches a clear graze and rejects targets outside its 1.6-meter radius');

@@ -12,7 +12,7 @@ export const CHAOS_UPGRADES = Object.freeze({
   revolver: ladder(['Debt collector', 'Hits chain to 2 nearby enemies.'], ['Six feet under', 'Body hits also explode.'], ['High noon everywhere', 'Each shot spits 6 bolts in a full circle.']),
   longarc: ladder(['Pinball wizard', 'Bolts ricochet 8 times.'], ['Multiball', 'Fire three bolts per shot, each with 8 bounces.'], ['Bumper bombs', 'Every wall bounce emits an explosive shockwave.']),
   rocket: ladder(['Family size', 'Giant rockets carve larger craters and blast a wider area.'], ['Bad GPS', 'Rockets steer toward visible enemies ahead.'], ['Custody battle', 'Detonations scatter six live cluster grenades.']),
-  lance: ladder(['Tunnel licence', 'Charged rails punch through up to 24 blocks and 16 bodies.'], ['Tesla tunnel', 'Hits arc to 4 nearby enemies.'], ['Public transport', 'Each shot adds a ring of 8 ricocheting bolts.']),
+  lance: ladder(['Tunnel licence', 'Triple rail penetration power and pierce up to 16 bodies.'], ['Tesla tunnel', 'Hits arc to 4 nearby enemies.'], ['Public transport', 'Each shot adds a ring of 8 ricocheting bolts.']),
   knife: ladder(['Air guitar', 'Every pickaxe swing launches a forward shockwave.'], ['Beyblade permit', 'The shockwave surrounds you and throws enemies skyward.'], ['Excavator tantrum', 'Swings also launch three bouncing energy bolts.']),
   minigun: ladder(['Queue shredder', 'Rounds punch through 3 bodies, losing 20% damage per body.'], ['Spin cycle', 'Every tenth round also fires 3 ricocheting bolts.'], ['Rotor riot', 'Every twentieth round also throws 8 bolts in a full circle.']),
   flamethrower: ladder(['Three-alarm fire', 'Two extra travelling flame jets widen every burst.'], ['Backdraft', 'Every tenth burst also erupts in a forward shockwave.'], ['Dragon breath', 'Every twentieth burst also launches a rocket.']),
@@ -38,9 +38,8 @@ export function chaosWeaponDef(p, base) {
   if (!level) return base;
   if (base.id === 'shotgun') return { ...base, pellets: base.pellets * 2 };
   if (base.id === 'minigun') return { ...base,
-    pierce: { players: 3, walls: 0, minWalls: 0, playerFalloff: 0.8, wallFalloff: 1 } };
-  if (base.id === 'sniper' || base.id === 'lance') return { ...base,
-    pierce: { players: base.id === 'lance' ? 16 : 4, walls: base.id === 'lance' ? 24 : 3,
-      minWalls: base.id === 'lance' ? 3 : 3, playerFalloff: 1, wallFalloff: 1 } };
+    pierce: { players: 3, playerFalloff: 0.8 } };
+  if (base.id === 'sniper' || base.id === 'lance') return { ...base, penetration: base.penetration * 3,
+    pierce: { players: base.id === 'lance' ? 16 : 4, playerFalloff: 1 } };
   return base;
 }
