@@ -26,7 +26,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
       stationary: true, grounded: true, crouching: true,
     });
     const held = new AimSway().update(0.05, {
-      stationary: true, grounded: true, shift: true,
+      stationary: true, grounded: true, shift: true, ads: 1,
     });
     const magnitude = (value) => Math.hypot(value.yaw, value.pitch);
     ok(magnitude(idle) > 0 && magnitude(crouched) < magnitude(idle)
@@ -37,7 +37,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
       const sway = new AimSway();
       let frames = 0;
       while (frames < 80 && sway.update(0.05, {
-        stationary: true, grounded: true, shift: true, panic, pain,
+        stationary: true, grounded: true, shift: true, ads: 1, panic, pain,
       }).holdingBreath) frames++;
       return frames;
     };
@@ -736,7 +736,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
     const restored = zooming.cycleScopeZoom(sniper);
     ok(fullZoom === sniper.zoom && stepped === sniper.zoom / 2 && restored === sniper.zoom
         && Math.abs(fovForZoom(sniper.zoom, 75) - 17.5) < 0.5 && halfFov > 30 && halfFov < 36
-        && zooming.cycleScopeZoom(rifle) === sniper.zoom,
+        && zooming.cycleScopeZoom(rifle) === 0,
     'scope zoom steps alternate between full and half magnification and only the sniper has them');
 
     const { AimSway } = await import('../../public/js/player/aim-sway.js');
@@ -799,7 +799,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
     const survivedStaleSnapshot = weaponState.isReloading && weaponState.ammoOf('shotgun').mag === 2;
     weaponState.tickReload(1000 + (stages.start + stages.perRound * 2 + 0.02) * 1000);
     const twoSeated = weaponState.ammoOf('shotgun').mag === 4
-      && weaponState.ammoOf('shotgun').reserve === WEAPONS.shotgun.spareMags - 1;
+      && weaponState.ammoOf('shotgun').reserve === WEAPONS.shotgun.spareRounds - 2;
     weaponState.applyIntents({ fireTap: true }, 2000, { allowFire: true, alive: true });
     const fired = weaponState.tryFire(2000, {
       allowFire: true, alive: true, generation: 0,

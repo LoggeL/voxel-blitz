@@ -52,6 +52,7 @@ export class MatchHud {
     alphaRole.textContent = '';
     const alphaScore = el('div', 'vb-team-score', alphaBlock, 'match-alpha-score');
     alphaScore.textContent = '0';
+    m.alphaName = alphaName;
     m.alphaBlock = alphaBlock;
     m.alphaRole = alphaRole;
     m.alphaScore = alphaScore;
@@ -87,6 +88,7 @@ export class MatchHud {
     bravoName.textContent = 'BRAVO';
     const bravoRole = el('div', 'vb-team-role', bravoRight, 'match-bravo-role');
     bravoRole.textContent = '';
+    m.bravoName = bravoName;
     m.bravoBlock = bravoBlock;
     m.bravoRole = bravoRole;
     m.bravoScore = bravoScore;
@@ -179,6 +181,8 @@ export class MatchHud {
       if (curMode === 'snd') {
         const status = phase === 'prep' ? 'BUY' : phase === 'post' ? 'ROUND OVER' : '';
         m.phaseLabel.textContent = `R${match?.round || 1}${status ? ` · ${status}` : ''}`;
+      } else if (curMode === 'duel') {
+        m.phaseLabel.textContent = `FIRST TO ${match?.killLimit ?? MODE_RULES.duel.killLimit} KILLS`;
       } else if (curMode === 'tdm') {
         m.phaseLabel.textContent = `FIRST TO ${MODE_RULES.tdm.scoreLimit}`;
       } else if (curMode === 'gungame') {
@@ -193,7 +197,19 @@ export class MatchHud {
       m.phaseLabel.dataset.compact = m.phaseLabel.textContent;
     }
 
-    if (isTeamMode) {
+    if (curMode === 'duel') {
+      const players = this._latestPlayers.filter(p => !p.bot)
+        .slice().sort((a, b) => String(a.id).localeCompare(String(b.id))).slice(0, 2);
+      for (const [index, side] of ['alpha', 'bravo'].entries()) {
+        const player = players[index];
+        m[`${side}Block`].style.display = 'flex';
+        m[`${side}Name`].textContent = player?.name || 'WAITING';
+        m[`${side}Role`].textContent = player && String(player.id) === String(selfRow?.id) ? 'YOU' : '';
+        m[`${side}Score`].textContent = String(player ? match?.scores?.[player.id] ?? player.kills ?? 0 : 0);
+      }
+    } else if (isTeamMode) {
+      m.alphaName.textContent = 'ALPHA';
+      m.bravoName.textContent = 'BRAVO';
       if (m.alphaBlock) m.alphaBlock.style.display = 'flex';
       if (m.bravoBlock) m.bravoBlock.style.display = 'flex';
 

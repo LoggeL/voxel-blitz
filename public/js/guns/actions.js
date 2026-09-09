@@ -63,6 +63,8 @@ export class WeaponActions {
   /** Start magazine, belt, tube, stripper, or cylinder choreography. */
   startReload(now, dur, type, T, stages = null) {
     if (this._disposed || !(dur > 0) || !T || T.melee) return false;
+    this._cycle = null;
+    this._jerk = null;
     const profileType = T.magTimeline.type || 'mag';
     const effectiveType = !type || type === 'magswap' ? profileType : type;
     this._reload = {

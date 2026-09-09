@@ -1,7 +1,7 @@
+import { isScopeActive } from '../guns/scope-state.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import {
   CARDINAL,
-  SCOPE_MS,
   clamp01,
   el,
   resolveKey,
@@ -122,7 +122,7 @@ export class GameplayHud {
     d.ringHint.textContent = 'RELOADING';
     d.ringHint.style.display = 'none';
     // Breath meter: only while aiming, shows the hold-breath window draining.
-    d.breath = el('div', 'vb-breath-meter', d.ch, 'breath-meter');
+    d.breath = el('div', 'vb-breath-meter', hud, 'breath-meter');
     d.breathFill = el('i', '', d.breath);
     d.breathHint = el('span', 'vb-breath-hint', d.breath);
     d.breathHint.textContent = 'SHIFT · HOLD BREATH';
@@ -299,6 +299,8 @@ export class GameplayHud {
       d.wname.className = tint;
       d.ammo.className = tint;
       if (key) d.weaponIcon.src = weaponImagePath(key);
+      d.res.title = WEAPONS[key]?.spareRounds != null ? 'Spare shells' : 'Spare magazines';
+      d.res.setAttribute('aria-label', d.res.title);
       this.lastWepKey = key;
     }
     const melee = WEAPONS[key]?.mode === 'melee';
@@ -448,7 +450,7 @@ export class GameplayHud {
     if (s.yawDeg != null) this.updateCompass(s.yawDeg);
 
     const adsT = Number(s.adsT01) || 0;
-    const wantScope = key === 'sniper' && adsT >= 0.72 && alive;
+    const wantScope = alive && (s.scopeActive ?? isScopeActive({ weapon: key, ads: adsT, alive }));
     this.setScope(wantScope);
     this.setScopeZoom(s.scopeZoom);
     this.setBreath(s, alive, adsT);
@@ -459,26 +461,29 @@ export class GameplayHud {
     }
   }
 
-  /** Breath meter lives on the crosshair; the scope overlay mirrors it via the same state. */
+  /** Keep breath feedback visible independently of the hidden ADS crosshair. */
   setBreath(s, alive, adsT) {
     const d = this.dom;
     if (!d.breath) return;
     const holding = !!s.holdingBreath;
     const breath = s.breath01 == null ? 1 : clamp01(s.breath01);
     const canHold = alive && adsT > 0.5 && s.canHoldBreath !== false;
-    const show = canHold && (holding || breath < 1);
+    const show = canHold;
     const display = show ? 'block' : 'none';
     if (d.breath.style.display !== display) d.breath.style.display = display;
     if (!show) return;
     const fill = breath.toFixed(3);
-    if (fill !== this._painted.breathFill || holding !== this._painted.holdingBreath) {
+    const exhausted = !!s.breathExhausted;
+    if (fill !== this._painted.breathFill || holding !== this._painted.holdingBreath ||
+        exhausted !== this._painted.breathExhausted) {
+      this._painted.breathExhausted = exhausted;
       this._painted.breathFill = fill;
       this._painted.holdingBreath = holding;
       d.breathFill.style.transform = `scaleX(${fill})`;
       d.breath.classList.toggle('is-holding', holding);
-      d.breath.classList.toggle('is-spent', breath <= 0.001);
+      d.breath.classList.toggle('is-spent', exhausted);
     }
-    const hint = holding ? 'HOLDING' : (breath <= 0.001 ? 'WINDED' : 'SHIFT · HOLD BREATH');
+    const hint = holding ? 'HOLDING' : (s.breathExhausted ? 'RECOVERING' : 'SHIFT · HOLD BREATH');
     if (d.breathHint.textContent !== hint) d.breathHint.textContent = hint;
   }
 
@@ -645,76 +650,18 @@ export class GameplayHud {
 
   setScope(on) {
     if (!this.built) return;
-    if (on === this.scopeShown
-      && (this.scopeRAF !== 0 || (on ? this.scopeProgress >= 1 : this.scopeProgress <= 0))) {
-      return;
-    }
     const scope = on ? this.ensureScope() : this.dom.scope;
     if (!scope) return;
-
     this.scopeShown = !!on;
-    if (this.scopeRAF) {
-      cancelAnimationFrame(this.scopeRAF);
-      this.scopeRAF = 0;
-    }
-
-    if (this.scopeShown) {
-      scope.classList.add('active');
-      scope.classList.remove('exiting');
-    } else {
-      scope.classList.remove('active');
-      if (this.scopeProgress > 0) scope.classList.add('exiting');
-    }
-
-    if (this.scopeShown && this.scopeProgress >= 1) {
-      scope.style.opacity = '1';
-      scope.style.transform = 'scale(1)';
-      return;
-    }
-    if (!this.scopeShown && this.scopeProgress <= 0) {
-      scope.classList.remove('exiting', 'active');
-      scope.style.opacity = '';
-      scope.style.transform = '';
-      return;
-    }
-
-    let lastT = performance.now();
-    const rate = 1 / (SCOPE_MS / 1000);
-    const tick = () => {
-      const now = performance.now();
-      const dt = Math.min(0.05, (now - lastT) / 1000);
-      lastT = now;
-
-      if (this.scopeShown) {
-        this.scopeProgress = Math.min(1, this.scopeProgress + dt * rate);
-      } else {
-        this.scopeProgress = Math.max(0, this.scopeProgress - dt * rate);
-      }
-
-      const p = this.scopeProgress;
-      const k = 1 - Math.pow(1 - p, 3);
-      const scale = 0.94 + 0.06 * k;
-      scope.style.opacity = p.toFixed(4);
-      scope.style.transform = `scale(${scale.toFixed(4)})`;
-
-      if (this.scopeShown && p >= 1) {
-        this.scopeRAF = 0;
-        scope.classList.remove('exiting');
-        scope.classList.add('active');
-        scope.style.opacity = '1';
-        scope.style.transform = 'scale(1)';
-      } else if (!this.scopeShown && p <= 0) {
-        this.scopeRAF = 0;
-        scope.classList.remove('exiting', 'active');
-        scope.style.opacity = '';
-        scope.style.transform = '';
-      } else {
-        this.scopeRAF = requestAnimationFrame(tick);
-      }
-    };
-
-    this.scopeRAF = requestAnimationFrame(tick);
+    this.scopeProgress = on ? 1 : 0;
+    if (this.scopeRAF) cancelAnimationFrame(this.scopeRAF);
+    this.scopeRAF = 0;
+    scope.classList.toggle('active', !!on);
+    scope.classList.remove('exiting');
+    scope.style.opacity = on ? '1' : '';
+    scope.style.transform = '';
   }
+
   resetScope() {
     this.scopeShown = false;
     this.scopeProgress = 0;

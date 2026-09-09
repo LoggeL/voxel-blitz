@@ -1,3 +1,4 @@
+import { renderBreath } from './breath.js';
 // Public procedural-audio facade. AudioEngine owns the one AudioContext and
 // master graph; VoicePool owns every bounded output graph; synthesis modules
 // are pure graph builders.
@@ -419,6 +420,11 @@ export const sfx = {
    * Low-health heartbeat. Call every frame with the 0..1 danger level; the pulse
    * rate and weight rise with it and nothing plays at zero.
    */
+  breath(event) {
+    if (!['inhale', 'exhale', 'gasp'].includes(event)) return;
+    run('breath', () => renderBreath(pool.acquire(null, 0.9), primitives, event));
+  },
+
   lowHealthPulse(level01, now = Date.now()) {
     const level = Math.max(0, Math.min(1, Number(level01) || 0));
     if (level <= 0) {

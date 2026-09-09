@@ -36,7 +36,7 @@ export function applyPowerup(player, type) {
     const def = slot === player.weapon && player.def?.id === id
       ? player.def : chaosWeaponDef(player, base);
     if (def.mode === 'melee') continue;
-    const maximum = Math.max(0, Math.trunc(def.spareMags || 0));
+    const maximum = Math.max(0, Math.trunc((def.spareRounds ?? def.spareMags) || 0));
     const current = Number.isFinite(player.reserve[slot])
       ? Math.max(0, player.reserve[slot]) : 0;
     const restored = Math.max(0, maximum - current);

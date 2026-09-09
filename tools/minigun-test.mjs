@@ -72,7 +72,7 @@ assert.ok(hotState.overheated && hotShots >= 40 && hotShots < 50,
 
 const slot = WEAPON_IDS.indexOf('minigun');
 const p = { id: 'thermal-test', def: WEAPONS.minigun, weapon: slot,
-  mag: WEAPON_IDS.map(id => WEAPONS[id].magSize), reserve: WEAPON_IDS.map(id => WEAPONS[id].spareMags),
+  mag: WEAPON_IDS.map(id => WEAPONS[id].magSize), reserve: WEAPON_IDS.map(id => (WEAPONS[id].spareRounds ?? WEAPONS[id].spareMags)),
   input: { wantFire: true }, cooldown: 0, deployT: 0, shotSeq: 0,
   x: 0, eyeY: 2, z: 0, yaw: 0, pitch: 0, vx: 0, vz: 0,
   adsT: 0, panic: 0, pain: 0, exhaustion: 0, bloom: 0 };

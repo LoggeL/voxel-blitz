@@ -342,6 +342,8 @@ class Game {
         owned: self.owned,
         weapon: self.weapon,
         reloading: self.reloading,
+        reloadAck: self.reloadAck,
+        reloadState: self.reloadState,
         alive: this.player.alive,
       });
     }
@@ -549,7 +551,8 @@ class Game {
       sendInput: (input) => this.net?.sendInput(input) || false,
       getNetworkWeaponState: () => ({
         slot: this.weapon.slot,
-        reloading: this.weapon.isReloading,
+        reloading: this.weapon.reloadRequested,
+        reloadId: this.weapon.reloadId,
       }),
     });
     this.weapon.settleFrame(dt, { vaulting: !!this.player.physics.vault });
@@ -561,7 +564,7 @@ class Game {
       for (let i = 0; i < Math.abs(zoomSteps); i++) this.player.cycleScopeZoom(def);
     }
     this.input.setScopeZoomMode(!!this.weapon.scopeActive);
-    this.player.updateCamera(dt, this.camera, def, this.weapon.adsT, this.session.baseFov);
+    this.player.updateCamera(dt, this.camera, def, this.weapon.adsT, this.session.baseFov, this.weapon.scopeActive);
     const blastShake = this.effects.currentShakeXY;
     this.camera.rotation.x += blastShake.y;
     this.camera.rotation.y += blastShake.x;
@@ -649,9 +652,11 @@ class Game {
       grenadeCookLeftMs: this._grenadeCookLeftMs,
       holdingBreath: !!this.player.aimMotion?.holdingBreath,
       breath01: this.player.aimMotion?.breathRemaining01 ?? 1,
-      canHoldBreath: this.player.speedXZ < 0.18 && this.player.physics.grounded,
+      canHoldBreath: !!this.player.aimMotion?.canHoldBreath,
+      breathExhausted: !!this.player.aimMotion?.breathExhausted,
       scopeZoom: this.player.scopeZoom,
     });
+    sfx.breath(this.player.aimMotion?.breathEvent);
     this.hud.setTelemetry(frameDt, this.net?.networkStats, now);
     const hp = this.player.hp;
     sfx.lowHealthPulse(this.player.alive && hp < 35 ? (35 - hp) / 35 : 0, now);

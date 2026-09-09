@@ -13,6 +13,8 @@ import {
 } from './protocol/admission.js';
 import { makeLobbyState, makeWelcome } from './protocol/welcome.js';
 import {
+  DUEL_KILL_LIMITS,
+  DEFAULT_DUEL_KILL_LIMIT,
   mapForMode,
   DEFAULT_MODE_ID,
   isMapId,
@@ -213,7 +215,7 @@ export class LobbyManager {
     return true;
   }
 
-  configure(meta, { gameMode, map, bots } = {}) {
+  configure(meta, { gameMode, map, bots, duelKillLimit } = {}) {
     const found = this._memberFor(meta);
     if (!found) return this._error(meta, 'Not in a lobby');
     const { room, member } = found;
@@ -223,9 +225,11 @@ export class LobbyManager {
       return this._error(meta, 'Invalid lobby settings');
     }
     if (gameMode === 'duel' && room.members.size > 2) return this._error(meta, '1v1 allows only two players');
+    duelKillLimit ??= room.duelKillLimit;
+    if (!DUEL_KILL_LIMITS.includes(duelKillLimit)) return this._error(meta, 'Invalid 1v1 kill target');
     bots = ['training', 'duel'].includes(gameMode) ? 0 : bots;
     const arenaChanged = gameMode !== room.gameMode || map !== room.map;
-    if (!arenaChanged && bots === room.bots) return true;
+    if (!arenaChanged && bots === room.bots && duelKillLimit === room.duelKillLimit) return true;
     if (arenaChanged) {
       // Build the replacement before changing the shared room. Sockets, ids and
       // the invite code stay attached to the same room throughout configuration.
@@ -257,6 +261,8 @@ export class LobbyManager {
         this.sendFrame(human.meta, bytes);
       }
     }
+    room.duelKillLimit = duelKillLimit;
+    if (gameMode === 'duel') room.engine.mode.rules.killLimit = duelKillLimit;
     room.bots = bots;
     for (const human of room.members.values()) human.ready = false;
     this._broadcastLobbyState(room);
@@ -359,6 +365,7 @@ export class LobbyManager {
       gameMode,
       map,
       phase: 'waiting',
+      duelKillLimit: DEFAULT_DUEL_KILL_LIMIT,
       bots: gameMode === 'duel' ? 0 : bots,
       quickPopulation: quick ? bots + 1 : null,
       host: '',
@@ -487,10 +494,15 @@ export class LobbyManager {
     return member && member.meta === meta ? { room, member } : null;
   }
 
+  updatePing(meta) {
+    const found = this._memberFor(meta);
+    if (found?.room.phase === 'waiting') this._broadcastLobbyState(found.room);
+  }
+
   _stateFor(room) {
     const members = [];
     for (const member of room.members.values()) {
-      members.push({ id: member.id, name: member.name, ready: member.ready, bot: false });
+      members.push({ id: member.id, name: member.name, ready: member.ready, bot: false, ping: member.meta.ping });
     }
     if (room.phase === 'live') {
       for (const entity of room.engine.entities.values()) {
@@ -503,6 +515,7 @@ export class LobbyManager {
       phase: room.phase,
       bots: room.bots,
       members,
+      duelKillLimit: room.duelKillLimit,
       gameMode: room.gameMode,
       map: room.map,
     });

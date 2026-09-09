@@ -1,3 +1,4 @@
+import { beginReload, reloadPhase } from '../../shared/reload.js';
 import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../../shared/minigun.js';
 import { rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { chaosShot, chaosHit } from './chaos-combat.js';
@@ -14,7 +15,6 @@ import {
   HITSCAN_REACH,
   PLAYER_HALF,
   damageAtDistance,
-  reloadPlan,
   samplePelletDirection,
   computeSpreadConeDeg,
   chargeProfile,
@@ -108,7 +108,9 @@ export function resolveWeaponIntent(p, _dt, ctx) {
     !!(minigunEnabled && (inp.wantFire || p.fireEdgeQueued)), !!(minigunEnabled && inp.wantAds));
   if (!inp?.wantFire && !p.fireEdgeQueued) p.mining = null;
   if (!inp) { p.triggerPrev = false; p.reloadPrev = false; return; }
-  const reloadEdge = !!inp.reload && !p.reloadPrev;
+  const identifiedReload = Number.isSafeInteger(inp.reloadId) && inp.reloadId > 0;
+  const reloadEdge = !!inp.reload && (identifiedReload
+    ? inp.reloadId > (p.reloadAck || 0) : !p.reloadPrev);
   p.reloadPrev = !!inp.reload;
 
   // A new selection interrupts the current draw and starts the selected
@@ -125,23 +127,21 @@ export function resolveWeaponIntent(p, _dt, ctx) {
   if (reloadEdge && (p.vault || p.deployT > 0)) p.reloadPrev = false;
   if (p.vault) { cancelCharge(p); p.triggerPrev = !!inp.wantFire; return; }
   const def = p.def;
-  if (reloadEdge && ctx.canUseWeapon(p, p.weapon) &&
-      !p.reloading && p.deployT <= 0 &&
-      p.mag[p.weapon] < def.magSize && p.reserve[p.weapon] > 0) {
-    const plan = reloadPlan(def, p.mag[p.weapon]);
-    cancelCharge(p);
-    p.reloading = true;
-    if (plan.staged) {
-      // Tube: rounds seat one by one and the chambered rounds stay usable.
-      p.reloadStage = 'start';
-      p.reloadLoose = 0;
-      p.reloadT = plan.startSeconds;
-    } else {
-      p.reloadStage = null;
-      p.reloadT = plan.seconds;
-      // Dropping a magazine is irreversible, even if the reload is interrupted.
-      // The replacement spare is consumed only when it is seated successfully.
-      p.mag[p.weapon] = 0;
+  if (reloadEdge && p.deployT <= 0) {
+    // Acknowledge accepted and permanently rejected requests. Draw/vault locks
+    // defer acknowledgment so the client keeps sending the same request.
+    if (identifiedReload) p.reloadAck = inp.reloadId;
+    if (ctx.canUseWeapon(p, p.weapon) && !p.reloading) {
+      const ammo = { mag: p.mag[p.weapon], reserve: p.reserve[p.weapon] };
+      const reload = beginReload(def, ammo, p.infiniteMagazines);
+      if (reload) {
+        cancelCharge(p);
+        p.reloadState = reload;
+        p.reloading = true;
+        p.reloadStage = reloadPhase(reload);
+        p.reloadT = reload.seconds;
+        p.mag[p.weapon] = ammo.mag;
+      }
     }
   }
 

@@ -190,7 +190,44 @@ class FunPolicy {
 }
 
 class DuelPolicy extends FunPolicy {
-  constructor(context) { super(context); this.mode = 'duel'; }
+  constructor(context) {
+    super(context);
+    this.mode = 'duel';
+    this._emit = context.emit;
+  }
+
+  canFire(player) { return this.phase === 'live' && super.canFire(player); }
+  canDamage(attacker, target) { return this.phase === 'live' && super.canDamage(attacker, target); }
+  canRespawn(player) { return this.phase === 'live' && super.canRespawn(player); }
+
+  onPlayerDeath(victim, killer) {
+    if (this.phase !== 'live' || !super.onPlayerDeath(victim)) return false;
+    if (killer && this.isEnemy(killer, victim) && killer.kills >= this.rules.killLimit) {
+      this.phase = 'post';
+      this.matchWinner = String(killer.id);
+      this.phaseEndsAt = this.now + this.rules.postMs;
+      this._emit('match_end', { mode: this.mode, winner: this.matchWinner });
+    }
+    return true;
+  }
+
+  tick() {
+    if (this.phase !== 'post' || this.now < this.phaseEndsAt) return;
+    this.phase = 'live';
+    this.phaseEndsAt = null;
+    this.matchWinner = null;
+    for (const entity of this._entities.values()) {
+      entity.kills = entity.deaths = entity.score = 0;
+      this._respawn(entity);
+    }
+    this._emit('match_start', { mode: this.mode });
+  }
+
+  matchSnapshot() {
+    return { ...super.matchSnapshot(), killLimit: this.rules.killLimit,
+      phaseEndsAt: this.phaseEndsAt, winner: this.matchWinner,
+      scores: Object.fromEntries([...this._entities.values()].map(p => [p.id, p.kills])) };
+  }
 
   canUseWeapon(player, weapon) {
     const id = typeof weapon === 'string' ? weapon : WEAPON_IDS[Math.trunc(weapon)];
@@ -271,7 +308,7 @@ export class ModeController {
     }
 
     const context = {
-      rules: MODE_RULES[modeId],
+      rules: { ...MODE_RULES[modeId] },
       mapMeta: selectedMeta,
       entities: engine.entities,
       now: () => engine.now,

@@ -122,3 +122,22 @@ try {
   action.dispose();
 } finally { disposeGunModels(models, cache); }
 console.log('Reload presentation: real frustum clearance, distinct replacement paths, support hands, shell seating, open sniper bolt, rear-loaded rocket and exact cancellation passed.');
+
+// Recovery seeks the rig's seconds-based clock, and reload takes ownership of
+// moving parts previously animated by a pump/bolt cycle.
+{
+  const recovered = new ViewmodelRig(camera);
+  recovered.setWeapon('rifle');
+  recovered.reload(2, 'magswap', null, 1);
+  assert.equal(recovered._actions._reload.t0, recovered._now - 1);
+  recovered.update(0.01);
+  assert(recovered._actions._reload.lastFrac > 0.5);
+  recovered.dispose();
+  const actions = new WeaponActions();
+  actions._cycle = { kind: 'pump' };
+  actions._jerk = { t: 0 };
+  actions.startReload(0, 2, 'magswap', { magTimeline: { type: 'mag' } });
+  assert.equal(actions._cycle, null);
+  assert.equal(actions._jerk, null);
+  actions.dispose();
+}

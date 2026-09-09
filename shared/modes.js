@@ -1,3 +1,5 @@
+export const DUEL_KILL_LIMITS = Object.freeze([5, 10, 15, 20, 30]);
+export const DEFAULT_DUEL_KILL_LIMIT = 5;
 // Fixed mode, team, map, Gun Game progression, and Search and Destroy economy contract.
 // This module is dependency-free so the browser and authoritative server share it directly.
 
@@ -53,7 +55,7 @@ export const MODE_RULES = Object.freeze({
     friendlyFire: true,
     respawnMs: 1500,
   }),
-  duel: Object.freeze({ teams: false, friendlyFire: true, respawnMs: 1500 }),
+  duel: Object.freeze({ teams: false, friendlyFire: true, respawnMs: 1500, killLimit: DEFAULT_DUEL_KILL_LIMIT, postMs: 8000 }),
   chaos: Object.freeze({ teams: false, friendlyFire: true, respawnMs: 1500 }),
   tdm: Object.freeze({
     teams: true,

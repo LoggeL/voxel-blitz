@@ -117,7 +117,7 @@ export function drainEventsWithDedupe(snapshotList, upTo, state) {
 /** Newest-row fields retained alongside interpolated transforms. */
 const PASSTHROUGH_FIELDS = [
   'name', 'hp', 'armor', 'team', 'weapon', 'score', 'kills', 'deaths', 'ping',
-  'state', 'firing', 'ads', 'crouch', 'grounded', 'vaulting', 'proneT', 'moveSpeed', 'mag', 'reserve', 'reloading',
+  'state', 'firing', 'ads', 'crouch', 'grounded', 'vaulting', 'proneT', 'moveSpeed', 'mag', 'reserve', 'reloading', 'reloadAck', 'reloadState',
   'burning', 'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt',
   'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
   'grenades', 'charge', 'minigun', 'impulse',
@@ -464,6 +464,7 @@ export class NetClient {
       wantFire: !!input.wantFire,
       wantAds: !!input.wantAds,
       reload: !!input.reload,
+      reloadId: input.reloadId || 0,
       viewAge: Math.round(this._timing.interpolationDelayMs + this._timing.rttMs),
     };
     if (input.grenadeHandling) msg.grenadeHandling = true;
@@ -497,10 +498,10 @@ export class NetClient {
     }
   }
 
-  configureLobby({ gameMode, map, bots }) {
+  configureLobby({ gameMode, map, bots, duelKillLimit }) {
     if (!this.isOpen()) return false;
     try {
-      this.ws.send(JSON.stringify({ t: 'configure', gameMode, map, bots }));
+      this.ws.send(JSON.stringify({ t: 'configure', gameMode, map, bots, duelKillLimit }));
       return true;
     } catch { return false; }
   }
@@ -669,6 +670,7 @@ export class NetClient {
           host: msg.host,
           phase: msg.phase,
           bots: msg.bots,
+          duelKillLimit: msg.duelKillLimit,
           gameMode: msg.gameMode,
           map: msg.map,
           members,

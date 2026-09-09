@@ -5,7 +5,7 @@ import { clamp01 } from '../util/math.js';
 import { hashHue, hashInt } from '../util/hash.js';
 import { AvatarWeaponModel } from './avatar-weapon.js';
 import { AvatarMotion } from './avatar-motion.js';
-import { buildOperator, poseOperatorArm } from './operator-model.js';
+import { buildOperator, poseOperatorArm, poseOperatorLeg } from './operator-model.js';
 
 export const TEAM_AVATAR_COLORS = Object.freeze({
   alpha: Object.freeze({ suit: 0x38bdf8, dark: 0x0c4a6e }),
@@ -136,6 +136,8 @@ export function updateAvatarStancePose(av, {
     part.position.z = z * prone;
     if (tilt !== null) part.rotation.x = part.rotation.x * (1 - prone) + tilt * prone;
   }
+  poseOperatorLeg(av.lLeg, prone, swing, stride);
+  poseOperatorLeg(av.rLeg, prone, -swing, stride);
 }
 
 export function resetAvatarPose(av) {
@@ -174,6 +176,8 @@ export function resetAvatarPose(av) {
   av.rLeg.position.set(0.16, 0.73, 0);
   av.rLeg.scale.set(1, 1, 1);
   av.rLeg.rotation.set(0, 0, 0);
+  poseOperatorLeg(av.lLeg, 0, 0, 0);
+  poseOperatorLeg(av.rLeg, 0, 0, 0);
   av.lArm.position.set(-0.41, 1.45, 0);
   av.lArm.rotation.set(0, 0, -0.08);
   av.rArm.position.set(0.41, 1.45, 0);

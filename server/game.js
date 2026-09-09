@@ -288,6 +288,7 @@ export class GameEngine {
       wantFire: !!msg.wantFire,
       wantAds: !!msg.wantAds,
       reload: !!msg.reload,
+      reloadId: Number.isSafeInteger(msg.reloadId) && msg.reloadId > 0 ? msg.reloadId : 0,
       throwGrenade: !!msg.throwGrenade,
       grenadeHandling: !!msg.grenadeHandling || !!msg.throwGrenade,
       grenadeCharge: clampGrenadeCharge(msg.grenadeCharge),

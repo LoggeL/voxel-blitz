@@ -185,10 +185,10 @@ function assertLobbyState(
     ready,
     bot: false,
   }));
-  pass(JSON.stringify(rows) === JSON.stringify(expected),
+  pass(JSON.stringify(rows.map(({ ping, ...row }) => row)) === JSON.stringify(expected),
     `${label} carries the exact human roster`,
     `received ${JSON.stringify(rows)}`);
-  pass(state.members.every((member) => Object.keys(member).sort().join(',') === 'bot,id,name,ready'),
+  pass(state.members.every((member) => Object.keys(member).sort().join(',') === 'bot,id,name,ping,ready'),
     `${label} member rows are complete replacements`);
   if (botRows !== null) {
     const actualBots = state.members.filter((member) => member.bot);
@@ -462,6 +462,10 @@ async function runContracts(server, signal) {
 
   // Configure an already joinable room while peers are connected.
   const editor = await admit(makeClient(port, 'Editor'), { t: 'create', name: 'Editor', bots: 3 }, signal);
+  const pingMark = editor.mark();
+  editor.send({ t: 'ping', nonce: 1 });
+  const pingState = await nextLobbyState(editor, pingMark, editor.welcome.lobby.code, signal, (msg) => msg.members?.some((member) => Number.isFinite(member.ping)));
+  pass(pingState.members.some((member) => member.id === editor.welcome.id && member.ping >= 0), 'waiting lobby broadcasts measured player ping');
   const editCode = editor.welcome.lobby.code;
   const peer = await admit(makeClient(port, 'Editing-Peer'), { t: 'join', name: 'Editing-Peer', lobby: editCode }, signal);
   let editMark = peer.mark();

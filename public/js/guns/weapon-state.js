@@ -1,10 +1,11 @@
+import { beginReload, advanceReload } from '../../../shared/reload.js';
+import { isScopeActive } from './scope-state.js';
 import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../../../shared/minigun.js';
 import { chaosWeaponDef } from '../../../shared/chaos.js';
 // Client weapon state machine. The composition root owns frame order; this module owns
 // every weapon transition and receives only narrow adapters for its side effects.
 import {
   CONDITION_RULES,
-  SNIPER_SCOPE_ADS_THRESHOLD,
   WEAPONS,
   WEAPON_IDS,
   computeRecoilKickDeg,
@@ -107,6 +108,8 @@ export class WeaponState {
   get adsT() { return this._adsT; }
   get wantAds() { return this._wantAds; }
   get scopeActive() { return this._scopeActive; }
+  get reloadId() { return this._reloadId || 0; }
+  get reloadRequested() { return this.isReloading || this._completedReloadWeapon !== null; }
   get isReloading() { return this._reloadState !== null; }
   get flameFiring() {
     // Presentation reads one simulation decision even when rendering takes longer
@@ -142,8 +145,8 @@ export class WeaponState {
   _reloadProgress(now) {
     const reload = this._reloadState;
     return reload
-      ? (now - (reload.until - reload.dur)) / reload.dur
-      : null;
+      ? clamp01((now - reload.startedAt) / reload.dur)
+      : (this._completedReloadWeapon ? 1 : null);
   }
 
   /** Weapon-owned portion of the exact HUD read model. */
@@ -161,6 +164,7 @@ export class WeaponState {
       reloading01: this._reloadProgress(now),
       reloadStaged: !!this._reloadState?.staged,
       adsT01: this._adsT,
+      scopeActive: this._scopeActive,
       zoom: def.zoom,
       heat01: def.id === 'minigun' ? this._minigun.heat : null,
       spin01: this._minigun.spin,
@@ -196,7 +200,7 @@ export class WeaponState {
     this._thermalAt = null;
     for (const weaponId of WEAPON_IDS) {
       const def = WEAPONS[weaponId];
-      this._ammo[weaponId] = { mag: def.magSize, reserve: def.spareMags };
+      this._ammo[weaponId] = { mag: def.magSize, reserve: (def.spareRounds ?? def.spareMags) };
     }
   }
 
@@ -208,7 +212,7 @@ export class WeaponState {
       let ammo = this._ammo[weaponId];
       if (!ammo) {
         const def = WEAPONS[weaponId];
-        ammo = this._ammo[weaponId] = { mag: def.magSize, reserve: def.spareMags };
+        ammo = this._ammo[weaponId] = { mag: def.magSize, reserve: (def.spareRounds ?? def.spareMags) };
       }
       if (Number.isFinite(mag[index])) ammo.mag = mag[index];
       if (Number.isFinite(reserve[index])) ammo.reserve = reserve[index];
@@ -239,6 +243,7 @@ export class WeaponState {
       return false;
     }
 
+    this._cancelEmptyReload();
     this._stopFlame();
     this._audio.minigunMotor?.(0, 0, false);
     this._minigun.spin = 0;
@@ -246,6 +251,7 @@ export class WeaponState {
     this._slot = slot;
     this.cancelCharge();
     this._resetRecoilPattern();
+    this.cancelReload();
     this._reloadState = null;
     this._completedReloadWeapon = null;
     this._deployUntil = now + weaponSwapProfile(this.def).total * 1000;
@@ -327,7 +333,10 @@ export class WeaponState {
     if (slot !== null) this.forceWeapon(slot, { now });
     if (lastWeapon) this.forceWeapon(this._lastSlot, { now });
     // Melee never reloads: a manual request with a no-magazine weapon drawn is a no-op.
-    if (reload && this._alive && this.def.mode !== 'melee') this.startReload(now);
+    if (reload && this._alive && this.def.mode !== 'melee') {
+      this._queuedReload = now < this._deployUntil;
+      if (!this._queuedReload) this.startReload(now);
+    }
 
     if (fireTap && this._allowFire) this._fireTapLatched = true;
     if (!this._allowFire) this._fireTapLatched = false;
@@ -359,37 +368,28 @@ export class WeaponState {
     this.cancelCharge();
   }
 
-  startReload(now) {
+  startReload(now = this._now()) {
     if (this._grenadeHandling || this._reloadState || this._completedReloadWeapon === this.def.id || !this._alive || now < this._deployUntil) return false;
     const def = this.def;
     if (def.mode === 'melee') return false; // a knife has no magazine to refill
     const ammo = this._ammo[def.id];
-    if (!ammo || ammo.mag >= def.magSize || ammo.reserve <= 0) return false;
+    if (!ammo || ammo.mag >= def.magSize || (this._mode !== 'gungame' && ammo.reserve <= 0)) return false;
 
     this._stopFlame();
     this._audio.minigunMotor?.(0, 0, false);
-    const plan = reloadPlan(def, ammo.mag);
+    this._cancelEmptyReload();
+    const predictedAmmo = { ...ammo };
+    const plan = beginReload(def, predictedAmmo, this._mode === 'gungame');
+    if (!plan) return false;
+    this._reloadId = (this._reloadId || 0) + 1;
     const dur = plan.seconds * 1000;
     const type = plan.staged ? 'tube' : 'magswap';
     this._reloadState = {
-      startedAt: now,
-      acknowledged: false,
-      until: now + dur,
-      dur,
-      type,
-      weapon: def.id,
-      staged: plan.staged,
-      stage: plan.staged ? 'start' : null,
-      stageAt: now + plan.startSeconds * 1000,
-      perRoundMs: plan.perRoundSeconds * 1000,
-      endMs: plan.endSeconds * 1000,
-      loose: 0,
+      startedAt: now, acknowledged: false, until: now + dur, dur,
+      type, weapon: def.id, staged: plan.staged,
+      simulation: plan, predictedAmmo, def,
     };
-    if (!plan.staged) {
-      // Mirror the authority: once reload starts, the partial magazine is gone.
-      // A replacement spare is consumed only after the reload completes.
-      ammo.mag = 0;
-    }
+    Object.assign(ammo, predictedAmmo);
     this.cancelCharge();
     this._resetRecoilPattern();
     this._rig.reload(dur / 1000, type, plan.staged ? {
@@ -403,7 +403,8 @@ export class WeaponState {
   /** Staged (tube) reloads seat rounds as the authority does; a shot interrupts them. */
   cancelReload() {
     const reload = this._reloadState;
-    if (!reload) return false;
+    if (!reload && !this._completedReloadWeapon) return false;
+    this._cancelledReloadId = this.reloadId;
     this._reloadState = null;
     this._completedReloadWeapon = null;
     this._rig.cancelReload?.();
@@ -411,55 +412,24 @@ export class WeaponState {
   }
 
   tickReload(now) {
+    if (this._queuedReload && now >= this._deployUntil && !this._grenadeHandling) {
+      this._queuedReload = false;
+      this.startReload(now);
+    }
     const reload = this._reloadState;
     if (!reload) return false;
-    const def = WEAPONS[reload.weapon];
-    const ammo = this._ammo[reload.weapon];
-
-    if (reload.staged) {
-      let advanced = false;
-      while (reload.stage && now >= reload.stageAt) {
-        advanced = true;
-        if (reload.stage === 'start') {
-          if (!def || !ammo || ammo.reserve <= 0 || ammo.mag >= def.magSize) {
-            reload.stage = null;
-            break;
-          }
-          if (this._mode !== 'gungame') ammo.reserve -= 1;
-          reload.loose = def.magSize;
-          reload.stage = 'round';
-          reload.stageAt += reload.perRoundMs;
-        } else if (reload.stage === 'round') {
-          if (reload.loose > 0 && ammo.mag < def.magSize) {
-            ammo.mag += 1;
-            reload.loose -= 1;
-          }
-          if (reload.loose > 0 && ammo.mag < def.magSize) {
-            reload.stageAt += reload.perRoundMs;
-          } else {
-            reload.stage = 'end';
-            reload.stageAt += reload.endMs;
-          }
-        } else {
-          reload.stage = null;
-        }
-      }
-      if (reload.stage === null || now >= reload.until) {
-        this._reloadState = null;
-        this._completedReloadWeapon = reload.weapon;
-        return true;
-      }
-      return advanced;
+    const elapsed = Math.max(0, (now - reload.startedAt) / 1000);
+    let advanced = false;
+    if (reload.simulation) {
+      advanced = advanceReload(reload.simulation, reload.def, reload.predictedAmmo,
+        elapsed - reload.simulation.elapsed, this._mode === 'gungame');
+      // Snapshot ammo is authoritative once the request is acknowledged. Before
+      // then, simulate against an isolated copy so stale snapshots cannot cause
+      // duplicate insertions or reserve consumption.
+      if (!reload.acknowledged) Object.assign(this._ammo[reload.weapon], reload.predictedAmmo);
     }
-
-    if (now < reload.until) return false;
-    if (def && ammo && ammo.reserve > 0) {
-      if (this._mode !== 'gungame') ammo.reserve -= 1;
-      ammo.mag = def.magSize;
-    }
+    if (now < reload.until) return advanced;
     this._reloadState = null;
-    // Wait for the authoritative completion before accepting another shot/reload.
-    // A late in-progress snapshot must not replay the full animation.
     this._completedReloadWeapon = reload.weapon;
     return true;
   }
@@ -483,11 +453,12 @@ export class WeaponState {
     const def = this.def;
     this._bloomDeg = Math.max(0, this._bloomDeg - def.bloomRecover * dt);
     this._adsT += (
-      (this._wantAds && this._alive && !vaulting && !this._grenadeHandling && !this._reloadState && this._now() >= this._deployUntil) ? 1 : -1
+      (this._wantAds && this._alive && !vaulting && !this._grenadeHandling && !this.reloadRequested && this._now() >= this._deployUntil) ? 1 : -1
     ) * dt / Math.max(0.08, def.adsTime);
     this._adsT = Math.max(0, Math.min(1, this._adsT));
-    this._scopeActive = this._alive && !vaulting && !this._grenadeHandling && def.id === 'sniper' &&
-      this._adsT >= SNIPER_SCOPE_ADS_THRESHOLD;
+    this._scopeActive = isScopeActive({ weapon: def.id, ads: this._adsT,
+      alive: this._alive, vaulting, grenadeHandling: this._grenadeHandling,
+      reloading: this.reloadRequested, deploying: this._now() < this._deployUntil });
     if (this._rig.root) {
       this._rig.root.visible = shouldShowViewmodel({ scopeActive: this._scopeActive });
     }
@@ -709,6 +680,8 @@ export class WeaponState {
     minigun,
     weapon,
     reloading,
+    reloadAck,
+    reloadState: serverReload,
     alive = this._alive,
   }, now = this._now()) {
     this._alive = !!alive;
@@ -731,42 +704,45 @@ export class WeaponState {
       this.forceWeapon(weapon, { now });
     }
 
+    if (!this._alive) { this.cancelReload(); return; }
     // A late snapshot for the previous weapon says nothing about this request.
     if (typeof reloading !== 'boolean' ||
         (Number.isInteger(weapon) && weapon !== this._slot)) return;
+    const identified = Number.isSafeInteger(reloadAck);
+    if (identified && reloadAck < this.reloadId) {
+      if (this._reloadState?.predictedAmmo) {
+        Object.assign(this._ammo[this._reloadState.weapon], this._reloadState.predictedAmmo);
+      }
+      return;
+    }
+    if (identified && reloading && reloadAck === this._cancelledReloadId) return;
     if (!reloading) {
+      if (identified || this._reloadState?.acknowledged) this.cancelReload();
       this._completedReloadWeapon = null;
-      const reload = this._reloadState;
-      // Until the authority acknowledges this reload, false may predate the
-      // request or reflect a temporary draw/vault lock. An elapsed-time guess
-      // used to cancel and restart empty-mag reloads every 400ms.
-      if (reload?.acknowledged) this.cancelReload();
     } else if (this._reloadState) {
       this._reloadState.acknowledged = true;
-    } else if (this._completedReloadWeapon !== this.def.id && this._alive) {
+    } else if (this._completedReloadWeapon !== this.def.id) {
       const def = this.def;
       const ammo = this._ammo[def.id];
-      const plan = reloadPlan(def, ammo ? ammo.mag : 0);
-      const dur = (plan.staged ? plan.seconds : def.reloadTime) * 1000;
+      const plan = serverReload || reloadPlan(def, ammo?.mag || 0, ammo?.reserve);
+      const elapsed = serverReload?.elapsed || 0;
+      const dur = plan.seconds * 1000;
       this._reloadState = {
-        startedAt: now,
-        acknowledged: true,
-        until: now + dur,
-        dur,
-        type: plan.staged ? 'tube' : 'magswap',
-        weapon: def.id,
-        // Authority already owns the ammo counts here; the client only animates.
-        staged: false,
-        stage: null,
+        startedAt: now - elapsed * 1000, acknowledged: true,
+        until: now + Math.max(0, plan.seconds - elapsed) * 1000,
+        dur, type: plan.staged ? 'tube' : 'magswap', weapon: def.id,
+        staged: plan.staged,
       };
       this._resetRecoilPattern();
-      this._rig.reload(dur / 1000, plan.staged ? 'tube' : 'magswap');
+      this._rig.reload(plan.seconds, this._reloadState.type, plan.staged ? plan : null, elapsed);
     }
   }
 
   deathReset() {
+    this._cancelEmptyReload();
     this._alive = false;
     this.cancelCharge();
+    this.cancelReload();
     this._reloadState = null;
     this._completedReloadWeapon = null;
     this._adsT = 0;
@@ -777,10 +753,12 @@ export class WeaponState {
   }
 
   respawn({ mode = this._mode, weapon, now = this._now() } = {}) {
+    this._cancelEmptyReload();
     this._alive = true;
     this._minigun = createMinigunState();
     this._thermalAt = null;
     this._mode = mode;
+    this.cancelReload();
     this._reloadState = null;
     this._completedReloadWeapon = null;
     this._adsT = 0;
@@ -805,10 +783,7 @@ export class WeaponState {
   menuReset() {
     this._stopFlame();
     this._audio.minigunMotor?.(0, 0, false);
-    if (this._emptyReloadTimer !== null) {
-      this._clearTimer(this._emptyReloadTimer);
-      this._emptyReloadTimer = null;
-    }
+    this._cancelEmptyReload();
     this._slot = 0;
     this._lastSlot = 1;
     this._ammo = Object.create(null);
@@ -816,6 +791,7 @@ export class WeaponState {
     this._thermalAt = null;
     this._nextFireAt = 0;
     this._deployUntil = 0;
+    this.cancelReload();
     this._reloadState = null;
     this._completedReloadWeapon = null;
     this._bloomDeg = 0;
@@ -848,12 +824,10 @@ export class WeaponState {
 
   dispose() {
     if (this._disposed) return;
-    if (this._emptyReloadTimer !== null) {
-      this._clearTimer(this._emptyReloadTimer);
-      this._emptyReloadTimer = null;
-    }
+    this._cancelEmptyReload();
     this._disposed = true;
     this._alive = false;
+    this.cancelReload();
     this._reloadState = null;
     this._completedReloadWeapon = null;
     this.clearIntents();
@@ -892,13 +866,20 @@ export class WeaponState {
     this._generation = generation;
   }
 
+  _cancelEmptyReload() {
+    this._queuedReload = false;
+    if (this._emptyReloadTimer !== null) this._clearTimer(this._emptyReloadTimer);
+    this._emptyReloadTimer = null;
+  }
+
   _scheduleEmptyReload(weaponId, generation) {
+    this._cancelEmptyReload();
     this._emptyReloadTimer = this._setTimer(() => {
       this._emptyReloadTimer = null;
       if (
         this._network.isCurrentGeneration(generation) &&
         this._network.isRunning() &&
-        this._alive &&
+        this._alive && this._ammo[weaponId]?.mag === 0 &&
         WEAPON_IDS[this._slot] === weaponId
       ) {
         this.startReload(this._now());

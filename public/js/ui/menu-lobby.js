@@ -546,6 +546,11 @@ export class MenuLobbyController {
         }
 
         const rightColumn = el('div', 'vb-roster-right', item);
+        if (!isBot) {
+          const ping = el('span', 'vb-roster-ping', rightColumn);
+          ping.textContent = Number.isFinite(member.ping) ? `${member.ping} ms` : 'Measuring…';
+          ping.setAttribute('aria-label', Number.isFinite(member.ping) ? `Ping: ${member.ping} milliseconds` : 'Measuring ping');
+        }
         const readyPill = el('span', 'vb-ready-pill', rightColumn);
         if (isBot) {
           readyPill.classList.add('bot');

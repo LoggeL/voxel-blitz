@@ -1,8 +1,6 @@
 import { clamp01 } from '../util/math.js';
 
-const BASE_BREATH_SECONDS = 2.4;
-const MIN_BREATH_SECONDS = 0.7;
-const RELEASE_RECOVERY_SECONDS = 0.35;
+import { BreathHold } from './breath-hold.js';
 
 /**
  * Owns deterministic idle aim motion and the complete hold-breath lifecycle.
@@ -11,15 +9,16 @@ const RELEASE_RECOVERY_SECONDS = 0.35;
 export class AimSway {
   constructor() {
     this._time = 0;
-    this._heldFor = 0;
-    this._releasedFor = RELEASE_RECOVERY_SECONDS;
-    this._spent = false;
+    this.breath = new BreathHold();
     this._idleWeight = 0;
     this._rigMotionScale = 1;
     this._readModel = {
       yaw: 0,
       pitch: 0,
       holdingBreath: false,
+      breathEvent: null,
+      breathExhausted: false,
+      canHoldBreath: false,
       breathRemaining01: 1,
       rigMotionScale: 1,
     };
@@ -29,15 +28,16 @@ export class AimSway {
 
   reset() {
     this._time = 0;
-    this._heldFor = 0;
-    this._releasedFor = RELEASE_RECOVERY_SECONDS;
-    this._spent = false;
+    this.breath.reset();
     this._idleWeight = 0;
     this._rigMotionScale = 1;
     Object.assign(this._readModel, {
       yaw: 0,
       pitch: 0,
       holdingBreath: false,
+      breathEvent: null,
+      breathExhausted: false,
+      canHoldBreath: false,
       breathRemaining01: 1,
       rigMotionScale: 1,
     });
@@ -54,6 +54,7 @@ export class AimSway {
     pain = 0,
     ads = 0,
     zoom = 1,
+    handlingAllowed = true,
   } = {}) {
     const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
     // Magnified optics make the same wander visible: sway grows with the zoom you
@@ -65,27 +66,11 @@ export class AimSway {
     const panic01 = clamp01(panic);
     const pain01 = clamp01(pain);
     const eligible = !!(alive && grounded && stationary);
-    const maxBreath = Math.max(
-      MIN_BREATH_SECONDS,
-      BASE_BREATH_SECONDS - panic01 * 1.05 - pain01 * 0.8,
-    );
-
-    if (eligible && shift) {
-      this._releasedFor = 0;
-      if (!this._spent) {
-        this._heldFor += step;
-        if (this._heldFor >= maxBreath) this._spent = true;
-      }
-    } else {
-      this._heldFor = 0;
-      this._releasedFor += step;
-      if (this._releasedFor >= RELEASE_RECOVERY_SECONDS) this._spent = false;
-    }
-
-    const holdingBreath = eligible && shift && !this._spent;
-    const breathRemaining01 = holdingBreath
-      ? clamp01(1 - this._heldFor / maxBreath)
-      : (this._spent ? 0 : 1);
+    const breath = this.breath.update(dt, {
+      eligible: eligible && handlingAllowed && ads01 > 0.5,
+      pressed: shift, panic: panic01, pain: pain01,
+    });
+    const { holdingBreath } = breath;
     const conditionScale = 1 + panic01 * 1.35 + pain01 * 1.65;
     const crouchScale = crouching ? 0.55 : 1;
     const breathScale = holdingBreath ? 0.12 : 1;
@@ -108,8 +93,7 @@ export class AimSway {
     Object.assign(this._readModel, {
       yaw,
       pitch,
-      holdingBreath,
-      breathRemaining01,
+      ...breath,
       rigMotionScale: this._rigMotionScale,
     });
     return this._readModel;

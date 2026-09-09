@@ -1,3 +1,4 @@
+import { DEFAULT_DUEL_KILL_LIMIT } from '../../shared/modes.js';
 // Welcome and full lobby-state replacement factories. Returned frames retain no
 // caller-owned objects or arrays.
 import { copyBlockDamage } from './block-damage.js';
@@ -62,6 +63,7 @@ export function makeLobbyState({
   phase,
   bots,
   members,
+  duelKillLimit = DEFAULT_DUEL_KILL_LIMIT,
   gameMode,
   map,
 } = {}) {
@@ -69,6 +71,7 @@ export function makeLobbyState({
   const rows = Array.isArray(members) ? members : [];
   return {
     t: 'lobbyState',
+    ...(selected.gameMode === 'duel' ? { duelKillLimit } : {}),
     code: normalizeLobbyCode(code),
     host: typeof host === 'string' || Number.isFinite(host) ? host : '',
     phase: phase === 'live' ? 'live' : 'waiting',
@@ -80,6 +83,7 @@ export function makeLobbyState({
       return {
         id: typeof source.id === 'string' || Number.isFinite(source.id) ? source.id : '',
         name: typeof source.name === 'string' ? source.name : '',
+        ping: Number.isFinite(source.ping) ? Math.max(0, Math.round(source.ping)) : null,
         ready: typeof source.ready === 'boolean' ? source.ready : false,
         bot: typeof source.bot === 'boolean' ? source.bot : false,
       };

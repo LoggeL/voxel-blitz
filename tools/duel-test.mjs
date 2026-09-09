@@ -25,9 +25,46 @@ try {
     room.engine.mode.onPlayerRespawn(entity);
     assert.deepEqual(entity.owned, DUEL_WEAPONS);
   }
+  assert.equal(room.engine.mode.rules.killLimit, 5);
+  const settings = { gameMode: 'duel', map: 'depot', bots: 0, duelKillLimit: 10 };
+  assert.equal(manager.configure(guest, settings), false, 'only host can set target');
+  for (const value of [0, -1, 7, 5.5, '5', 1000]) {
+    assert.equal(manager.configure(host, { ...settings, duelKillLimit: value }), false);
+  }
+  assert.equal(manager.configure(host, settings), true);
+  assert.equal(room.engine.mode.rules.killLimit, 10);
+  assert.ok([...room.members.values()].every(m => !m.ready));
+  assert.equal(messages.filter(m => m.t === 'lobbyState').at(-1).duelKillLimit, 10);
+  assert.equal(manager.configure(host, { ...settings, duelKillLimit: 5 }), true);
+  manager.ready(host, true);
   manager.ready(guest, true);
   assert.equal(manager.start(host), true);
   assert.equal(room.engine.mode.mode, 'duel');
+  assert.equal(manager.configure(host, settings), false, 'target is locked during play');
+  const killer = room.engine.entities.get(host.id);
+  const victim = room.engine.entities.get(guest.id);
+  room.engine.killPlayer(victim, null, 'world', false);
+  assert.equal(killer.kills, 0, 'environmental deaths do not advance target');
+  for (let kill = 1; kill <= 5; kill++) {
+    room.engine.respawnPlayer(victim);
+    room.engine.killPlayer(victim, killer, 'rifle', false);
+    assert.equal(room.engine.mode.phase, kill === 5 ? 'post' : 'live');
+  }
+  const result = room.engine.mode.matchSnapshot();
+  assert.equal(result.winner, host.id);
+  assert.equal(result.scores[host.id], 5);
+  assert.equal(result.killLimit, 5);
+  assert.equal(room.engine.mode.canFire(killer), false);
+  assert.equal(room.engine.mode.canDamage(killer, victim), false);
+  assert.equal(room.engine.mode.canRespawn(victim), false);
+  room.engine.now = result.phaseEndsAt;
+  room.engine.mode.tick();
+  assert.equal(room.engine.mode.phase, 'live');
+  assert.equal(killer.kills, 0);
+  assert.equal(victim.deaths, 0);
+  assert.equal(room.engine.mode.matchSnapshot().winner, null);
+  assert.equal(room.engine.mode.rules.killLimit, 5);
+
   assert.equal(await manager.join({ id: 'late' }, 'Late', room.code), false);
   const a = { id: 'a' }, b = { id: 'b' }, c = { id: 'c' };
   await manager.create(a, 'A', 0, 'fun', 'depot');

@@ -151,7 +151,7 @@ function runDirectContracts() {
       && ['auto', 'semi', 'pump', 'bolt', 'charge', 'melee'].includes(def.mode)
       && Number.isFinite(def.rpm) && def.rpm > 0
       && Number.isInteger(def.magSize) && def.magSize >= 0
-      && Number.isInteger(def.spareMags) && def.spareMags >= 0
+      && Number.isInteger(def.spareRounds ?? def.spareMags) && (def.spareRounds ?? def.spareMags) >= 0
       && Array.isArray(def.damage) && def.damage.length === 3 && def.damage.every(Number.isFinite)
       && (def.falloffStart === undefined || Number.isFinite(def.falloffStart))
       && Number.isFinite(def.headMult) && Number.isInteger(def.pellets)
@@ -738,7 +738,7 @@ function runDirectContracts() {
     const ticksToSecondShell = Math.ceil((stages.start + stages.perRound * 2 + 0.02) * 1000 / TICK_MS);
     for (let i = 0; i < ticksToSecondShell; i++) fireEngine.step(TICK_MS);
     const twoSeated = firing.reloading === true && firing.mag[shotgunSlot] === 4
-      && firing.reserve[shotgunSlot] === sparesBefore - 1;
+      && firing.reserve[shotgunSlot] === sparesBefore - 2;
     fireEngine.applyInput('cadence', {
       ...tapInput, seq: 5, pitch: 1.2, weapon: shotgunSlot, wantFire: true, reload: false,
     });
@@ -760,8 +760,8 @@ function runDirectContracts() {
       * 1000 / TICK_MS);
     for (let i = 0; i < fullTicks; i++) fireEngine.step(TICK_MS);
     ok(firing.reloading === false && firing.mag[shotgunSlot] === shotgun.magSize
-      && firing.reserve[shotgunSlot] === sparesBeforeFull - 1,
-    'an uninterrupted tube reload fills the tube from exactly one spare');
+      && firing.reserve[shotgunSlot] === sparesBeforeFull - missing,
+    'an uninterrupted tube reload consumes exactly the number of inserted shells');
   }
 
   const revolverSlot = WEAPON_IDS.indexOf('revolver');
@@ -1028,7 +1028,7 @@ function runDirectContracts() {
   );
   const respawnRow = respawnSnapshot?.players.find((row) => row.id === 'timed-respawn');
   const freshMags = WEAPON_IDS.map((id) => WEAPONS[id].magSize);
-  const freshReserve = WEAPON_IDS.map((id) => WEAPONS[id].spareMags);
+  const freshReserve = WEAPON_IDS.map((id) => (WEAPONS[id].spareRounds ?? WEAPONS[id].spareMags));
   ok(noEarlyRespawn
     && respawnEvent
     && respawnSnapshot.now >= respawnDueAt
@@ -1374,7 +1374,7 @@ function runDirectContracts() {
   const sndDefenderRow = playerRow(sndPrepTick, sndDefenderId);
   const revolverOnlyMag = WEAPON_IDS.map((id) => id === 'revolver' ? WEAPONS[id].magSize : 0);
   const revolverOnlyReserve = WEAPON_IDS.map(
-    (id) => id === 'revolver' ? WEAPONS[id].spareMags : 0
+    (id) => id === 'revolver' ? (WEAPONS[id].spareRounds ?? WEAPONS[id].spareMags) : 0
   );
   ok(sndPrepTick.match.mode === 'snd'
     && sndPrepTick.match.map === 'foundry'

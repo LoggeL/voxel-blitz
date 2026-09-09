@@ -89,12 +89,26 @@ export function buildOperator({ suit, dark, armor, visor, skin, variant }) {
   if (variant === 1) plate(head, armor, [0.12, 0.055, 0.08], [0, 0.20, -0.06]);
   const legs = [-1, 1].map((side) => {
     const leg = new THREE.Group();
-    plate(leg, dark, [0.19, 0.35, 0.23], [0, -0.16, 0]);
-    plate(leg, suit, [0.17, 0.20, 0.06], [0, -0.18, -0.13]);
-    plate(leg, dark, [0.16, 0.30, 0.19], [0, -0.48, 0]);
-    plate(leg, armor, [0.18, 0.145, 0.075], [0, -0.35, -0.12]);
-    plate(leg, armor, [0.21, 0.135, 0.32], [0, -0.65, -0.045]);
-    plate(leg, armor, [0.07, 0.19, 0.19], [side * 0.12, -0.16, 0]);
+    const skeleton = new THREE.Group();
+    const thigh = new THREE.Group();
+    const knee = new THREE.Group();
+    const boot = new THREE.Group();
+    thigh.name = 'operator_thigh';
+    knee.name = 'operator_knee';
+    boot.name = 'operator_boot';
+    leg.add(skeleton);
+    skeleton.add(thigh);
+    thigh.add(knee);
+    knee.add(boot);
+    knee.position.y = -0.325;
+    boot.position.y = -0.325;
+    plate(thigh, dark, [0.19, 0.35, 0.23], [0, -0.16, 0]);
+    plate(thigh, suit, [0.17, 0.20, 0.06], [0, -0.18, -0.13]);
+    plate(knee, dark, [0.16, 0.30, 0.19], [0, -0.155, 0]);
+    plate(knee, armor, [0.18, 0.145, 0.075], [0, -0.025, -0.12]);
+    plate(boot, armor, [0.21, 0.135, 0.32], [0, 0, -0.045]);
+    plate(thigh, armor, [0.07, 0.19, 0.19], [side * 0.12, -0.16, 0]);
+    leg.userData.joints = { skeleton, thigh, knee, boot };
     return leg;
   });
   const arms = [-1, 1].map(() => {
@@ -177,4 +191,33 @@ export function poseOperatorArm(av, side, anchor, reload = 0) {
   const rootRotation = av.group.getWorldQuaternion(new THREE.Quaternion());
   handRotation.premultiply(rootRotation.invert());
   hand.quaternion.copy(foreRotation).invert().multiply(handRotation);
+}
+
+/** Fold equal-length segments while retaining the stance's existing ankle height.
+ * The carrier scale still describes the combat envelope; cancel it on the visual
+ * skeleton so crouching bends rigid limbs instead of shrinking the character.
+ */
+export function poseOperatorLeg(leg, prone, swing, stride) {
+  const { skeleton, thigh, knee, boot } = leg.userData.joints;
+  const compression = Math.max(0.5, Math.min(1, leg.scale.y));
+  const crouchBend = Math.acos(compression);
+  // Opposite swing values alternate the knee recovery on left and right sides.
+  // A small resting bend keeps prone from looking like a rigid standing model.
+  const recovery = Math.max(0, Math.min(1, swing * 5)) * Math.min(1, stride * 5);
+  const crawlBend = 0.12 + recovery * 0.48;
+  // Fold before lowering the hips so the feet never pass through the floor.
+  const vertical = Math.max(0.001, Math.cos(leg.rotation.x));
+  const floorBend = Math.acos(Math.max(0, Math.min(1,
+    (leg.position.y - 0.075) / (0.65 * vertical))));
+  const tuck = Math.max(floorBend,
+    crouchBend * (1 - prone) + Math.sin(Math.PI * prone) * 0.65);
+  // Once the thighs are nearly horizontal, extend back into the crawl.
+  // This depends only on progress, including when a transition reverses.
+  const releaseT = Math.max(0, Math.min(1, (prone - 0.65) / 0.35));
+  const release = releaseT * releaseT * (3 - 2 * releaseT);
+  const bend = tuck * (1 - release) - crawlBend * release;
+  skeleton.scale.y = 1 / compression;
+  thigh.rotation.x = bend;
+  knee.rotation.x = -2 * bend;
+  boot.rotation.x = bend;
 }

@@ -765,8 +765,16 @@ h1.vb-title::after {
   border: 1px solid var(--line-dim);
 }
 
+.vb-roster-ping {
+  color: var(--sub);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 .vb-roster-right {
   display: flex;
+  gap: 8px;
   align-items: center;
   flex-shrink: 0;
 }
@@ -2177,9 +2185,10 @@ h1.vb-title::after {
   box-shadow: 0 0 14px rgba(255, 51, 85, 1), 0 0 4px rgba(255, 255, 255, 0.9);
 }
 
-/* ---------- breath meter (crosshair-anchored, ADS only) ---------- */
+/* ---------- breath meter (independent of hidden ADS crosshair) ---------- */
 
 .vb-breath-meter {
+  z-index: calc(var(--z-scope) + 1);
   position: absolute;
   left: 50%;
   top: calc(50% + 34px);

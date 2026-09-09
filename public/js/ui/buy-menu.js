@@ -117,8 +117,8 @@ export class BuyMenuController {
       const damage = Array.isArray(def.damage) ? def.damage[0] : (def.damage || 0);
       const rpm = def.rpm || 0;
       const mag = def.magSize || 0;
-      const spareMags = def.spareMags || 0;
-      statsEl.textContent = `DMG ${damage} · ${rpm ? `${rpm} RPM · ` : ''}${mag} RDS · ${spareMags} MAGS`;
+      const spareMags = (def.spareRounds ?? def.spareMags) || 0;
+      statsEl.textContent = `DMG ${damage} · ${rpm ? `${rpm} RPM · ` : ''}${mag} RDS · ${spareMags} ${def.spareRounds != null ? 'SHELLS' : 'MAGS'}`;
 
       const stages = [];
       if (mode === 'chaos') {

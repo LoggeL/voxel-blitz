@@ -1,4 +1,5 @@
-import { CONDITION_RULES, SNIPER_SCOPE_ADS_THRESHOLD } from '../../../shared/combatmath.js';
+import { isScopeActive, nextScopeZoom } from '../guns/scope-state.js';
+import { CONDITION_RULES } from '../../../shared/combatmath.js';
 import { PlayerPhysics, moveSpeedFor } from '../player-physics.js';
 import { hashInt } from '../util/hash.js';
 import { clamp01, clampPitch, easeOut, nowMs, smooth01 } from '../util/math.js';
@@ -504,10 +505,7 @@ export class LocalPlayer {
 
   /** Scope zoom step: alternate between the optic's full and half magnification. */
   cycleScopeZoom(weaponDef) {
-    const full = Number(weaponDef?.zoom) || 0;
-    if (!weaponDef || weaponDef.id !== 'sniper' || full <= 1) return this._scopeZoom;
-    const half = Math.max(1.5, full / 2);
-    this._scopeZoom = this._scopeZoom > 0 && Math.abs(this._scopeZoom - full) < 1e-6 ? half : full;
+    this._scopeZoom = nextScopeZoom(weaponDef, this._scopeZoom);
     return this._scopeZoom;
   }
 
@@ -782,6 +780,7 @@ export class LocalPlayer {
       weapon: weaponSlot,
       wantAds: this._gameplayInputEnabled && this.wantAds,
       reload: this._gameplayInputEnabled && reloading,
+      reloadId: networkState?.reloadId || 0,
       throwGrenade: !!(this._gameplayInputEnabled && this.grenadeThrowLatched),
       grenadeHandling: this._gameplayInputEnabled && this.grenadeHandling,
       grenadeCharge: this._gameplayInputEnabled ? (this.grenadeThrowLatched?.charge ?? 0) : 0,
@@ -828,7 +827,9 @@ export class LocalPlayer {
       crouching: !!this.physics._crouching,
       panic: this.panic,
       pain: this.pain,
-      ads: this.adsT,
+      ads: intents.weapon?.adsT ?? this.adsT,
+      handlingAllowed: this._gameplayInputEnabled && !this.grenadeHandling &&
+        !this.physics.vault && !intents.weapon?.isReloading && this.wantAds,
       zoom: this._scopeZoom > 0 ? this._scopeZoom : (Number(intents.weapon?.def?.zoom) || 1),
     });
     const aimWeapon = intents.weapon?.def;
@@ -955,7 +956,7 @@ export class LocalPlayer {
   }
 
   /** Update camera, scope visibility and the first-person body in that order. */
-  updateCamera(dt, camera, weaponDef, adsT = this.adsT, baseFov = this.baseFov) {
+  updateCamera(dt, camera, weaponDef, adsT = this.adsT, baseFov = this.baseFov, scopeActive = null) {
     if (!camera || !weaponDef) return this.scopeActive;
     this.adsT = Number.isFinite(adsT) ? adsT : 0;
     this._stepReconcileOffset(dt);
@@ -976,10 +977,12 @@ export class LocalPlayer {
       this.deathRoll = this.deathSide * (0.26 * impactT + 1.12 * collapseT);
     }
 
+    this.scopeActive = scopeActive ?? isScopeActive({ weapon: weaponDef.id, ads: this.adsT,
+      alive: this._alive, vaulting: !!this.physics.vault, grenadeHandling: this.grenadeHandling });
     camera.rotation.order = 'YXZ';
     camera.rotation.set(
-      this.aimPitch + this.recoilPitch + this.deathPitch,
-      this.aimYaw + this.recoilYaw,
+      (this.scopeActive ? this.shotPitch : this.aimPitch + this.recoilPitch) + this.deathPitch,
+      this.scopeActive ? this.shotYaw : this.aimYaw + this.recoilYaw,
       this.deathRoll + this.recoilRoll,
     );
     this._lookScale = adsLookScale(camera.fov, baseFov);
@@ -992,8 +995,6 @@ export class LocalPlayer {
     camera.fov += (targetFov - camera.fov) * Math.min(1, dt * 14);
     camera.updateProjectionMatrix();
 
-    this.scopeActive = this._alive && !this.physics.vault && !this.grenadeHandling && weaponDef.id === 'sniper' &&
-      this.adsT >= SNIPER_SCOPE_ADS_THRESHOLD;
     updateFirstPersonBody(
       this.body,
       dt,

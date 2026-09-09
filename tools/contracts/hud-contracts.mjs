@@ -589,12 +589,12 @@ export async function runHudContracts(ok, installGlobals) {
       flushRaf();
       ok(document.getElementById('sniper-scope').style.opacity === '1'
         && !document.getElementById('sniper-scope').classList.contains('exiting'),
-      'sniper scope RAF reaches its fully active live state');
+      'sniper scope is fully active without a second animation clock');
 
       hud.setState({ adsT01: 0.7199 });
       ok(!document.getElementById('sniper-scope').classList.contains('active')
-        && document.getElementById('sniper-scope').classList.contains('exiting'),
-      'dropping below the threshold begins the scope exit transition');
+        && !document.getElementById('sniper-scope').classList.contains('exiting'),
+      'dropping below the threshold removes the scope immediately');
       flushRaf();
       ok(!document.getElementById('sniper-scope').classList.contains('active')
         && !document.getElementById('sniper-scope').classList.contains('exiting')
@@ -661,10 +661,11 @@ export async function runHudContracts(ok, installGlobals) {
         && document.getElementById('breath-meter').classList.contains('is-holding')
         && document.getElementById('breath-meter').children[0].style.transform === 'scaleX(0.500)';
       hud.setState({ holdingBreath: false, breath01: 1 });
-      const breathHidden = document.getElementById('breath-meter').style.display === 'none';
+      const breathReady = document.getElementById('breath-meter').style.display === 'block'
+        && document.getElementById('breath-meter').parentElement.id !== 'crosshair';
       hud.setState({ adsT01: 0, holdingBreath: true, breath01: 0.4 });
-      ok(breathHolding && breathHidden && document.getElementById('breath-meter').style.display === 'none',
-        'breath meter appears only while aiming and the window is draining or spent');
+      ok(breathHolding && breathReady && document.getElementById('breath-meter').style.display === 'none',
+        'breath meter remains visible while aiming, including ready state, outside the hidden crosshair');
 
       hud.setState({ wid: 'sniper', adsT01: 0.9, alive: true, scopeZoom: 2.5 });
       const zoomLabel = document.getElementById('sniper-scope')?.querySelector('#scope-zoom-label');

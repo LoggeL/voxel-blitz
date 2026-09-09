@@ -56,10 +56,10 @@ export class MatchResultOverlay {
       : (outcome === 'defeat' ? 'DEFEAT' : 'RESULT');
     this.dom.detail.textContent = teamMode
       ? `${winnerName} SECURED THE MATCH`
-      : `${winnerName} COMPLETED THE ARSENAL`;
+      : mode === 'duel' ? `${winnerName} WON THE DUEL` : `${winnerName} COMPLETED THE ARSENAL`;
     this.dom.score.textContent = teamMode
       ? `${match?.scores?.alpha ?? 0}  —  ${match?.scores?.bravo ?? 0}`
-      : 'GUN GAME WINNER';
+      : mode === 'duel' ? `FIRST TO ${match.killLimit} KILLS` : 'GUN GAME WINNER';
 
     const now = Number.isFinite(serverNow) ? serverNow : Date.now();
     const remaining = Number.isFinite(match.phaseEndsAt)

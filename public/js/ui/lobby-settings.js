@@ -1,4 +1,4 @@
-import { MAP_IDS, MODE_IDS, isModeMapCompatible, mapForMode } from '../../../shared/modes.js';
+import { DUEL_KILL_LIMITS, DEFAULT_DUEL_KILL_LIMIT, MAP_IDS, MODE_IDS, isModeMapCompatible, mapForMode } from '../../../shared/modes.js';
 import { el, MAP_LABELS, MODE_LABELS, savePref } from './hud-support.js';
 
 /** Host controls edit the authoritative waiting room, never a draft lobby. */
@@ -10,6 +10,7 @@ export class LobbySettings {
       ['gameMode', 'GAME MODE', 'game-mode-select'],
       ['map', 'ARENA MAP', 'map-select'],
       ['bots', 'BOTS', 'bot-count'],
+      ['duelKillLimit', '1V1 WIN CONDITION', 'duel-kill-limit'],
     ]) {
       const field = el('div', 'vb-menu-field-group', this.root);
       const caption = el('label', 'vb-label', field);
@@ -22,6 +23,7 @@ export class LobbySettings {
         if (key === 'gameMode') this.syncMaps(select.value, this.controls.map.value);
         const settings = {
           gameMode: this.controls.gameMode.value,
+          duelKillLimit: Number(this.controls.duelKillLimit.value),
           map: this.controls.map.value,
           bots: ['training', 'duel'].includes(this.controls.gameMode.value) ? 0 : Number(this.controls.bots.value),
         };
@@ -33,6 +35,9 @@ export class LobbySettings {
     }
     this.options(this.controls.gameMode, MODE_IDS, MODE_LABELS);
     this.options(this.controls.bots, Array.from({ length: 8 }, (_, i) => String(i)), {});
+    this.options(this.controls.duelKillLimit, DUEL_KILL_LIMITS.map(String),
+      Object.fromEntries(DUEL_KILL_LIMITS.map(n => [n, `First to ${n} kills`])));
+    this.controls.duelKillLimit.value = String(DEFAULT_DUEL_KILL_LIMIT);
     this.loadout = el('div', 'vb-field-desc', this.root, 'lobby-weapon-set');
     this.hint = el('div', 'vb-field-desc', this.root);
   }
@@ -52,6 +57,8 @@ export class LobbySettings {
   }
 
   update(state, isHost) {
+    this.controls.duelKillLimit.value = String(state.duelKillLimit ?? DEFAULT_DUEL_KILL_LIMIT);
+    this.controls.duelKillLimit.parentNode.hidden = state.gameMode !== 'duel';
     this.controls.gameMode.value = state.gameMode;
     this.syncMaps(state.gameMode, state.map);
     this.controls.bots.value = String(['training', 'duel'].includes(state.gameMode) ? 0 : state.bots);

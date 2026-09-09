@@ -147,7 +147,9 @@ async function main() {
       meta.alive = true;
       if (meta.pingSentAt != null) {
         const player = meta.room?.engine?.entities.get(meta.id);
-        if (player) player.ping = Math.max(0, Math.round(performance.now() - meta.pingSentAt));
+        meta.ping = Math.max(0, Math.round(performance.now() - meta.pingSentAt));
+        if (player) player.ping = meta.ping;
+        manager.updatePing(meta);
         meta.pingSentAt = null;
       }
     });

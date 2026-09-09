@@ -146,6 +146,8 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       reserve: ammoCopy(p.reserve),
       minigun: p.minigun ? { ...p.minigun } : undefined,
       reloading: !!p.reloading,
+      reloadAck: p.reloadAck || 0,
+      reloadState: p.reloading && p.reloadState ? { ...p.reloadState } : null,
       team: isTeamId(p.team) ? p.team : null,
       credits: Number.isFinite(p.credits)
         ? Math.max(0, Math.min(MAX_CREDITS, Math.trunc(p.credits)))

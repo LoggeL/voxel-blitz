@@ -39,6 +39,7 @@ export const CONDITION_RULES = Object.freeze({
  *                                  swings consume no ammunition and never reload (see `melee`)
  * @property {number} rpm           rounds per minute cap
  * @property {number} magSize       magazine capacity
+ * @property {number} [spareRounds] loose reserve shells for tube reloads
  * @property {number} spareMags    full spare magazines carried on spawn
  * @property {[number,number,number]} damage  [close, far, falloffEnd] units; linear close->far between falloffStart and falloffEnd
  * @property {number} [falloffStart=20] distance before damage begins falling
@@ -111,7 +112,7 @@ export const WEAPONS = {
   shotgun: {
     id: 'shotgun', name: 'M-DOCK 12', mode: 'pump',
     weightKg: 3.6,
-    rpm: 90, magSize: 7, spareMags: 6,
+    rpm: 90, magSize: 7, spareRounds: 42,
     damage: [14.5, 5, 50], falloffStart: 12,
     headMult: 1.35, pellets: 9, centerPellet: true,
     spreadDeg: { hip: 3.6, ads: 1.45 }, bloomDeg: 0.25, bloomMaxDeg: 4.2,
@@ -388,7 +389,7 @@ export function computeRecoilKickDeg(def, shotIndex, adsT = 0, random01 = 0.5) {
  * rounds are missing and the reload can be interrupted with every seated round kept.
  * @returns {{staged:boolean,rounds:number,seconds:number,startSeconds:number,perRoundSeconds:number,endSeconds:number}}
  */
-export function reloadPlan(def, mag) {
+export function reloadPlan(def, mag, reserve = Infinity) {
   const inMag = Math.max(0, Math.min(def.magSize, Number.isFinite(mag) ? Math.trunc(mag) : 0));
   const stages = def.reloadStages;
   if (!stages) {
@@ -401,7 +402,7 @@ export function reloadPlan(def, mag) {
       endSeconds: 0,
     };
   }
-  const rounds = Math.max(0, def.magSize - inMag);
+  const rounds = Math.max(0, Math.min(def.magSize - inMag, reserve));
   return {
     staged: true,
     rounds,

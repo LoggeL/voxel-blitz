@@ -140,9 +140,9 @@ for (const mode of ['snd', 'gungame', 'training', 'unknown']) {
   const before = { mag: p.mag.slice(), reloading: p.reloading, reloadT: p.reloadT,
     reloadStage: p.reloadStage, reloadLoose: p.reloadLoose };
   Object.defineProperty(p, 'def', { value: { ...WEAPONS.rifle, spareMags: 9 } });
-  assert.equal(applyPowerup(p, 'ammo'), 9 + WEAPONS.shotgun.spareMags);
+  assert.equal(applyPowerup(p, 'ammo'), 9 + WEAPONS.shotgun.spareRounds);
   assert.equal(p.reserve[0], 9);
-  assert.equal(p.reserve[WEAPON_IDS.indexOf('shotgun')], WEAPONS.shotgun.spareMags);
+  assert.equal(p.reserve[WEAPON_IDS.indexOf('shotgun')], WEAPONS.shotgun.spareRounds);
   assert.equal(p.reserve[WEAPON_IDS.indexOf('smg')], 0, 'unowned weapon remains empty');
   assert.equal(p.reserve[WEAPON_IDS.indexOf('knife')], 0);
   for (const [key, value] of Object.entries(before)) assert.deepEqual(p[key], value, key);

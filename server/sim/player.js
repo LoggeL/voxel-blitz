@@ -63,8 +63,8 @@ function freshLoadout() {
   return {
     mag: WEAPON_IDS.map((key) => WEAPONS[key].magSize),
     // Kept as `reserve` on the wire for compatibility; each value is a count
-    // of full spare magazines, never a loose-round pool.
-    reserve: WEAPON_IDS.map((key) => WEAPONS[key].spareMags),
+    // of spare shells for tube weapons, or full spare magazines otherwise.
+    reserve: WEAPON_IDS.map((key) => (WEAPONS[key].spareRounds ?? WEAPONS[key].spareMags)),
   };
 }
 
@@ -113,6 +113,8 @@ export class PlayerEntity {
     this.infiniteMagazines = false;
     this.impulseSeq = 0;
     this.reloading = false;
+    this.reloadState = null;
+    this.reloadAck ??= 0;
     this.reloadT = 0;
     this.reloadPrev = false;
     this.vault = null;
