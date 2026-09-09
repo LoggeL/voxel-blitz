@@ -567,6 +567,44 @@ strictly capped extrapolation through short packet gaps. Server tick time is
 mapped onto the page clock, and bounded hit rewind follows the target age the
 client actually presented.
 
+## Connection diagnostics
+
+In a live match, open **Settings > Connection > Check connection**. The check
+records for 60 seconds and continues when settings close. Resume playing to
+capture the affected situation, then return to copy the report. Stop saves a
+partial report; a disconnected socket also ends recording with a partial report.
+Reports remain in memory until the next check or page reload. Nothing is uploaded
+automatically. The copied report includes UTC time, host, room code, mode, map,
+browser version, server package version, measurements and per-probe samples.
+
+The existing 1.5-second WebSocket echo requests opt into diagnostics only while
+recording. Browser RTT uses uncapped timestamps instead of the smoothed HUD value.
+Server RTT uses separate, payload-matched WebSocket control frames; stale or
+duplicate server measurements are excluded from the RTT summary. Servers without
+diagnostic support still provide browser RTT and frame measurements. Missing
+server values are shown as unavailable, never zero.
+
+Frame times use actual frame timestamps rather than the simulation's capped
+delta. Hidden-tab intervals are excluded from frame statistics and reported
+separately; settings-closed frames have their own summary. The report also records
+snapshot arrival jitter, interpolation buffer, client/server send queues, room
+tick duration and interval maxima over overlapping two-second windows, plus
+process CPU and event-loop delay over approximately one-second windows. The
+event-loop monitor has 20 ms sampling resolution, so its normal baseline is
+around 20 ms. Process CPU uses one full core as 100%. Window percentiles are not
+percentiles of all individual ticks. Both RTTs include processing delays.
+
+Unanswered echoes over five seconds, late replies, and replies still in flight
+at the end are counted separately. They are **not packet-loss percentages**:
+WebSockets use TCP, which retransmits lost packets. No route trace is performed.
+For persistent issues, compare LAN/WLAN, paused uploads and another connection,
+then run `pathping -n HOST` on Windows or TCP MTR to the game's HTTPS port while
+the issue occurs. If a proxy fronts the host, that trace reaches the proxy;
+operators need separate evidence for the path from the proxy to the game server.
+
+`npm run connection:test` checks recording lifecycle, missing/late measurements,
+background timing, uncapped frame/RTT values and the real WebSocket protocol.
+
 ## Container deployment
 
 Voxel Blitz needs one Node.js 20+ process and one HTTP port. A Dockerfile or

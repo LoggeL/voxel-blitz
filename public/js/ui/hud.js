@@ -3,6 +3,7 @@ import { BuyMenuController } from './buy-menu.js';
 import { CombatHudController } from './combat-hud.js';
 import { GameplayHud } from './gameplay-hud.js';
 import { MenuLobbyController } from './menu-lobby.js';
+import { MenuHistory } from './menu-history.js';
 import { SettingsController } from './settings-panel.js';
 import { SpectatorHud } from './spectator-hud.js';
 import { WeaponWheelController } from './weapon-wheel.js';
@@ -10,6 +11,7 @@ import { WeaponWheelController } from './weapon-wheel.js';
 export class HUD {
   constructor() {
     this._disposed = false;
+    this.menuHistory = new MenuHistory();
     const readModel = {};
     Object.defineProperties(readModel, {
       dead: { enumerable: true, get: () => this.combat?.dead || false },
@@ -23,7 +25,7 @@ export class HUD {
       isBuyMenuOpen: () => this.isBuyMenuOpen(),
       isSettingsOpen: () => this.settingsOpen,
       getSensitivity: () => this.settings._settingsConfig.sensitivity,
-    });
+    }, this.menuHistory);
 
     this.settings = new SettingsController(
       {
@@ -35,6 +37,7 @@ export class HUD {
         }),
       },
       () => this.buy.closeBuyMenuDirect(),
+      this.menuHistory,
     );
     this.buy = new BuyMenuController(
       {
@@ -44,6 +47,7 @@ export class HUD {
         isLobbyOpen: () => this.menu.isLobbyOpen(),
       },
       () => this.closeSettings(),
+      this.menuHistory,
     );
 
     this.gameplay = new GameplayHud({
@@ -131,6 +135,7 @@ export class HUD {
   setState(state) { return this.gameplay.setState(state); }
   setScoreboard(visible) { return this.gameplay.setScoreboard(visible); }
   setTelemetry(frameDt, stats, atMs) {
+    this.settings.connection.frame(atMs, this.settingsOpen);
     return this.gameplay.setTelemetry(frameDt, stats, atMs);
   }
   setScope(visible) { return this.gameplay.setScope(visible); }
@@ -151,6 +156,7 @@ export class HUD {
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
+    this.menuHistory.dispose();
     this.combat.dispose();
     this.gameplay.dispose();
     this.buy.dispose();

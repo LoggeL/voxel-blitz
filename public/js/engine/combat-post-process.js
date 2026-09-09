@@ -4,6 +4,7 @@
 // rendering, so shader support can never prevent a match from being visible.
 
 import * as THREE from '../vendor/three.module.js';
+import { SMOKE_GLSL, smokeUniforms, updateSmokeUniforms } from './smoke-volume.js';
 
 export const POST_PROCESS_PROFILE = Object.freeze({
   maxPixelRatio: 1.35,
@@ -28,6 +29,8 @@ uniform float burning;
 uniform float pain;
 uniform float scopeActive;
 uniform float motion;
+uniform float grading;
+${SMOKE_GLSL}
 
 varying vec2 vUv;
 
@@ -78,6 +81,8 @@ void main() {
     + (1.0 - smoothstep(0.015, 0.11, border)) * 0.4;
   float hot = 0.7 + 0.3 * sin(vUv.x * 32.0 + vUv.y * 21.0 - flameTime * 4.0);
   color = mix(color, vec3(1.0, 0.16 + hot * 0.32, 0.015), clamp(fire * burning * 0.62, 0.0, 0.72));
+  color = mix(center, color, grading);
+  color = smokeColor(color, vUv, time * motion);
   gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
   #include <colorspace_fragment>
 }`;
@@ -145,11 +150,14 @@ export class CombatPostProcess {
       depthBuffer: true,
       stencilBuffer: false,
     });
+    this.target.depthTexture = new THREE.DepthTexture(1, 1, THREE.UnsignedIntType);
     this.target.texture.name = 'combat-post-process';
     this.target.texture.colorSpace = THREE.LinearSRGBColorSpace;
     this.target.texture.generateMipmaps = false;
 
     this.uniforms = {
+      ...smokeUniforms(this.target.depthTexture),
+      grading: { value: 1 },
       sceneTexture: { value: this.target.texture },
       resolution: { value: new THREE.Vector2(1, 1) },
       time: { value: 0 },
@@ -190,13 +198,15 @@ export class CombatPostProcess {
   render(scene, camera, state = {}) {
     if (this._disposed) return false;
     this.renderer.info?.reset?.();
-    if (!this.enabled) {
+    const smokeCount = updateSmokeUniforms(this.uniforms, state.smokeFields, state.smokeNow, camera);
+    if (!this.enabled && !smokeCount) {
       this.renderer.render(scene, camera);
       return false;
     }
 
     // Keep the hot path allocation-free; normalizePostProcessState() remains the
     // public pure helper for contracts and non-frame callers.
+    this.uniforms.grading.value = this.enabled ? 1 : 0;
     this.uniforms.time.value = Math.max(0, Number(state.time) || 0);
     this.uniforms.panic.value = clamp01(state.panic);
     this.uniforms.burning.value = clamp01(state.burning);

@@ -267,7 +267,7 @@ export class AvatarRoster {
   }
 
   /** Test the player's head, so a tag above cover cannot reveal a hidden enemy. */
-  updateLabels(camera, raycast, mode, ownTeam) {
+  updateLabels(camera, raycast, mode, ownTeam, obscured = null) {
     for (const avatar of this._avatars.values()) {
       const friendly = isTeamMode(mode) && ownTeam != null && avatar.team === ownTeam;
       avatar.tag.material.color.setHex(friendly ? 0x69cfff : 0xff4055);
@@ -278,10 +278,17 @@ export class AvatarRoster {
         const distance = this._labelDirection.length();
         this._labelDirection.multiplyScalar(1 / Math.max(distance, 0.0001));
         const hit = raycast(camera.position, this._labelDirection, distance);
-        visible = !hit || hit.t >= distance;
+        visible = (!hit || hit.t >= distance) && !obscured?.(camera.position, this._labelTarget);
       }
       avatar.tag.visible = visible;
       avatar.hpSpr.visible = visible;
+    }
+  }
+
+  hideLabels() {
+    for (const avatar of this._avatars.values()) {
+      avatar.tag.visible = false;
+      avatar.hpSpr.visible = false;
     }
   }
 

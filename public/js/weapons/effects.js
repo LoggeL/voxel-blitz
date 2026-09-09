@@ -146,6 +146,7 @@ export class Effects {
   projectileExplode(event) {
     if (this._disposed) return;
     this.projectiles.explode(event);
+    if (event?.type === 'smoke') return;
     const style = BLAST_PARTICLES[event?.type] || BLAST_PARTICLES.frag;
     this.impacts.spawnParticles(
       Number(event.x), Number(event.y), Number(event.z),

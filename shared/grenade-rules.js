@@ -1,5 +1,5 @@
 /**
- * Shared client/server contract for the throwable roster: four throwable types with
+ * Shared client/server contract for the throwable roster: five throwable types with
  * one inventory, one charge/cook hold model, and one physics integrator.
  *
  * - `frag`   M-4 FRAG      timed fuse that starts at the pin pull (cookable), bounces.
@@ -9,7 +9,7 @@
  *                          concussion that slows and panics whoever it lands on.
  * - `molotov`             shatters on impact and leaves a persistent ground fire.
  */
-export const GRENADE_TYPE_IDS = Object.freeze(['frag', 'limpet', 'pulse', 'molotov']);
+export const GRENADE_TYPE_IDS = Object.freeze(['frag', 'limpet', 'pulse', 'molotov', 'smoke']);
 
 /** Hold time (ms) that reaches full throw strength. Cooking continues beyond it. */
 export const GRENADE_CHARGE_MS = 1200;
@@ -29,6 +29,14 @@ const FRAG_PHYSICS = Object.freeze({
 });
 
 export const GRENADE_TYPES = Object.freeze({
+  smoke: Object.freeze({
+    id: 'smoke', name: 'M-18 SMOKE', short: 'SMK', perLife: 1,
+    fuseMs: 1800, cook: false, impact: false, sticky: false,
+    damage: 0, damageRadius: 4, selfDamage: 0, knockback: 0,
+    terrainRadius: 0, terrainPower: 0, maxDestroyedBlocks: 0,
+    concussMs: 0, concussPanic: 0, color: '#c7d9db',
+    physics: Object.freeze({ ...FRAG_PHYSICS, bounce: 0.24, floorFriction: 0.65 }),
+  }),
   frag: Object.freeze({
     id: 'frag',
     name: 'M-4 FRAG',

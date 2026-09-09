@@ -3323,6 +3323,45 @@ h1.vb-title::after {
 
 .vb-spectator.is-killcam .vb-spectator-label { color: var(--danger); }
 
+.vb-grenade-type-smoke .vb-grenade-icon {
+  border-radius: 3px;
+  background: linear-gradient(to bottom, #c7d9db 35%, #536568 35%, #536568 60%, #c7d9db 60%);
+}
+.vb-killcam {
+  position: fixed; inset: 0; z-index: 50; pointer-events: none;
+  color: #f6eee7; font-family: var(--font-mono, monospace);
+  box-shadow: inset 0 0 0 3px #ff6549;
+}
+.vb-killcam-top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 18px 28px; background: linear-gradient(#201413ed, #20141300);
+  letter-spacing: .14em; font-size: 12px;
+}
+.vb-killcam-top b { color: #ff8768; font-size: 18px; }
+.vb-killcam-bottom {
+  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+  width: min(440px, calc(100vw - 36px)); padding: 16px 20px;
+  background: #171d24ed; border: 1px solid #ff654975;
+  display: grid; grid-template-columns: 1fr auto; gap: 8px 16px;
+}
+.vb-killcam-name { font-size: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vb-killcam-weapon { grid-column: 1; font-size: 11px; color: #b6c1c9; }
+.vb-killcam button {
+  grid-row: 1 / 3; grid-column: 2; pointer-events: auto; cursor: pointer;
+  background: #2e3943; color: #fff; border: 1px solid #617481; padding: 8px 12px;
+  font: inherit; font-size: 11px;
+}
+.vb-killcam button small { display: block; margin-top: 5px; color: #adc0ca; }
+.vb-killcam button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.vb-killcam-progress { grid-column: 1 / -1; height: 3px; margin-top: 6px; background: #48525b; }
+.vb-killcam-progress i { display: block; height: 100%; background: #ff8768; transform-origin: left; }
+body.is-replaying #hud, body.is-replaying .vb-touch-controls { visibility: hidden; }
+@media (max-width: 600px) {
+  .vb-killcam-top { padding: 14px 16px; }
+  .vb-killcam-bottom { bottom: 16px; }
+  .vb-killcam-name { font-size: 16px; }
+}
+
 #deathnote {
   display: none;
   position: absolute;

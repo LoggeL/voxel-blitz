@@ -17,8 +17,9 @@ import {
  * isLobbyOpen(). Closing settings is injected separately from those queries.
  */
 export class BuyMenuController {
-  constructor(host = {}, dismissSettings = null) {
+  constructor(host = {}, dismissSettings = null, navigation = null) {
     this.host = host;
+    this.navigation = navigation;
     this.dismissSettings = typeof dismissSettings === 'function' ? dismissSettings : () => {};
 
     this._buyMenuCallbacks = null;
@@ -122,12 +123,12 @@ export class BuyMenuController {
 
       const stages = [];
       if (mode === 'chaos') {
-        classEl.textContent = ['frag', 'limpet', 'pulse'].includes(wid) ? 'GRENADE EXPERIMENTS' : 'WEAPON EXPERIMENTS';
+        classEl.textContent = ['frag', 'limpet', 'pulse', 'molotov', 'smoke'].includes(wid) ? 'GRENADE EXPERIMENTS' : 'WEAPON EXPERIMENTS';
         classEl.remove();
         statsEl.remove();
         const isWeapon = Boolean(WEAPONS[wid]);
         const image = el('img', `vb-chaos-weapon-image${isWeapon ? '' : ' vb-chaos-grenade-image'}`, cardBody);
-        image.src = isWeapon ? weaponImagePath(wid) : `./assets/grenades/hud/${wid}.png`;
+        image.src = isWeapon ? weaponImagePath(wid) : `./assets/grenades/hud/${wid}.${wid === 'smoke' ? 'svg' : 'png'}`;
         image.alt = '';
         image.draggable = false;
         cardBody.insertBefore(image, nameEl);
@@ -269,6 +270,7 @@ export class BuyMenuController {
 
       this.dismissSettings();
       this._buyMenuOpen = true;
+      this.navigation?.open(this, () => this.toggleBuyMenu(false));
       const root = this.buyDom.root;
       if (root) {
         root.classList.remove('hidden');
@@ -306,6 +308,7 @@ export class BuyMenuController {
 
   closeBuyMenuDirect() {
     this._buyMenuOpen = false;
+    this.navigation?.close(this);
     const root = this.buyDom.root;
     if (root) {
       root.classList.add('hidden');

@@ -23,6 +23,8 @@ import { sfx } from './audio/sfx.js';
 import { Session } from './session/session.js';
 import { aimAssistStrength } from './player/aim-assist.js';
 import { LocalPlayer } from './player/local-player.js';
+import { smokeBlocksSight, copySmokeFields } from '../../shared/smoke-rules.js';
+import { Killcam } from './player/killcam.js';
 import { SpectatorCamera } from './player/spectator-camera.js';
 import { AvatarRoster } from './avatar/avatar-roster.js';
 import { CombatFeedback, applySnapshotBlocks, isWorldPointVisible } from './combat/feedback.js';
@@ -106,7 +108,11 @@ class Game {
       callbacks: {
         onEnterLive: (payload) => this.bootLive(payload),
         onDisconnect: () => this.disposeLiveResources(),
-        onGameplayEvent: (event) => this.feedback?.handleEvent(event),
+        onGameplayEvent: (event) => {
+          if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileStick',
+            'projectileExplode', 'blockDamage'].includes(event.kind)) return;
+          this.feedback?.handleEvent(event);
+        },
         onRunEvent: (event) => this.runHud?.handleEvent(event),
         onTick: (snapshot, phase) => this.handleTick(snapshot, phase),
         onGameplayInputDisabled: () => {
@@ -158,7 +164,10 @@ class Game {
     if (!net.isOpen()) return this.session.handleDisconnect();
     this.worldview.setGameMode(welcome.gameMode);
 
-    this.effects = new Effects(this.worldview.scene, this.camera, getBlock, {
+    this.liveEffectsGroup = new THREE.Group();
+    this.liveAvatarsGroup = new THREE.Group();
+    this.worldview.scene.add(this.liveEffectsGroup, this.liveAvatarsGroup);
+    this.effects = new Effects(this.liveEffectsGroup, this.camera, getBlock, {
       // Stuck limpets ride their carrier: the local body or a presented remote avatar.
       getEntityPosition: (id) => {
         if (id === this.myId) {
@@ -207,10 +216,11 @@ class Game {
     this.muzzleLights = new MuzzleLights(this.worldview.scene);
     this.roster = new AvatarRoster({
       getBlock,
-      scene: this.worldview.scene,
+      scene: this.liveAvatarsGroup,
       gore: (event, options) => this.effects?.gore(event, options),
       getMyId: () => this.myId,
     });
+    this.killcam = new Killcam({ scene: this.worldview.scene, getBlock, audio: sfx, now: nowMs });
     this.spectator = new SpectatorCamera({
       camera: this.camera,
       raycast: (origin, direction, distance) => (
@@ -239,7 +249,7 @@ class Game {
       onLocalDeath: (_transition, killerId) => {
         this.weapon?.deathReset();
         this.session.syncGameplayInput();
-        // Kill cam: the spectator camera opens on the killer before rotating.
+        // Fallback chase view if there is not enough recorded history.
         if (killerId && killerId !== this.myId) this.spectator?.focusKiller(killerId);
       },
     });
@@ -294,6 +304,7 @@ class Game {
         snapshot.snapSeq <= this._lastConsumedSnapSeq) return;
     if (Number.isFinite(snapshot.snapSeq)) this._lastConsumedSnapSeq = snapshot.snapSeq;
 
+    this.killcam?.history.record(snapshot);
     const players = Array.isArray(snapshot.players) ? snapshot.players : [];
     const presented = Object.freeze(players.map((row) => Object.freeze({
       ...row,
@@ -304,9 +315,12 @@ class Game {
     this.matchState = match;
     this.worldview?.setPowerups(snapshot.powerups);
     this.selfRow = self;
+    if (self?.state !== 'dead') this.killcam?.stop();
     this.playersCache = presented;
     this.serverNow = Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : null;
     this.effects?.syncFireFields?.(snapshot.fireFields, this.serverNow);
+    this.smokeFields = copySmokeFields(snapshot.smokeFields);
+    this.smokeObservedAt = nowMs();
     this.spectator?.sync({ self, players: presented, match, serverNow: this.serverNow });
 
     const events = Array.isArray(snapshot.events) ? snapshot.events : [];
@@ -325,6 +339,7 @@ class Game {
       id: this.myId,
     });
     if (reconciled.transition?.kind === 'death') {
+      if (deathEvent?.kind === 'kill') this.killcam?.start(deathEvent, match?.mode);
       this.feedback?.presentLocalDeath(
         deathEvent?.killer || null,
         reconciled.transition,
@@ -483,7 +498,8 @@ class Game {
       mode: this.matchState?.mode,
       eye: this.camera.position,
       forward: fwdFromAngles(this.player.shotYaw, this.player.shotPitch),
-      isVisible: (point) => isWorldPointVisible(this._world, this.camera, point, 0.6),
+      isVisible: (point) => !this.smokeObscures(this.camera.position, { x: point[0], y: point[1], z: point[2] })
+        && isWorldPointVisible(this._world, this.camera, point, 0.6),
     }));
   }
 
@@ -494,6 +510,11 @@ class Game {
     if (key === this._deviceKey) return;
     this._deviceKey = key;
     this.hud.setDeviceInfo(info);
+  }
+
+  smokeObscures(from, to) {
+    return smokeBlocksSight(this.smokeFields, [from.x, from.y, from.z], [to.x, to.y, to.z],
+      (this.serverNow || 0) + Math.max(0, nowMs() - (this.smokeObservedAt || nowMs())));
   }
 
   weaponFrameContext() {
@@ -618,7 +639,7 @@ class Game {
       this.spectator?.update(presentedPlayers, dt);
       this.roster.updateLabels(this.camera,
         (origin, direction, distance) => this.worldview.pickCameraRay(origin, direction, distance),
-        this.matchState?.mode, this.selfRow?.team);
+        this.matchState?.mode, this.selfRow?.team, (from, to) => this.smokeObscures(from, to));
     } catch (error) { this.phaseError('net/interp', error); }
 
     const spectating = this.spectator?.active === true;
@@ -677,6 +698,8 @@ class Game {
       fwd: [forward.x, forward.y, forward.z],
       pos: [this.camera.position.x, this.camera.position.y, this.camera.position.z],
     });
+    this._postFrame.smokeFields = this.smokeFields;
+    this._postFrame.smokeNow = (this.serverNow || 0) + Math.max(0, now - (this.smokeObservedAt || now));
     this._postFrame.time = now / 1000;
     this._postFrame.burning = this.player.alive ? Math.min(1, this.player.burning * 2) : 0;
     this.post.reducedMotion = displaySettings().reducedMotion;
@@ -685,7 +708,17 @@ class Game {
     this._postFrame.scopeActive = !!this.weapon?.scopeActive;
     this.roster.updateMuzzleLights(this.muzzleLights,
       this.rig.root.visible ? this.rig.flashLight : null, this.camera);
-    this.post.render(this.worldview.scene, this.camera, this._postFrame);
+    const replaying = this.killcam?.update(frameDt, this.camera.aspect, this.session.baseFov);
+    this.liveEffectsGroup.visible = !replaying;
+    this.liveAvatarsGroup.visible = !replaying;
+    this.worldview.powerups.group.visible = !replaying;
+    if (replaying) {
+      this._postFrame.smokeFields = this.killcam.sample.smokeFields;
+      this._postFrame.smokeNow = this.killcam.sample.time;
+      this._postFrame.panic = this._postFrame.pain = this._postFrame.burning = 0;
+      this._postFrame.scopeActive = false;
+      this.post.render(this.worldview.scene, this.killcam.camera, this._postFrame);
+    } else this.post.render(this.worldview.scene, this.camera, this._postFrame);
   }
 
   phaseError(phase, error) {
@@ -707,6 +740,8 @@ class Game {
     this._lastConsumedSnapSeq = null;
     this.feedback?.dispose();
     this.runHud?.dispose();
+    this.killcam?.dispose();
+    this.killcam = null;
     this.spectator?.dispose();
     this.roster?.dispose();
     this.weapon?.dispose();
@@ -722,8 +757,10 @@ class Game {
     this.feedback = this.spectator = this.roster = this.weapon = this.ownBody = null;
     this.runHud = null;
     this.rig = this.effects = this.worldview = this.mapMeta = null;
+    this.liveEffectsGroup = this.liveAvatarsGroup = null;
     this.playersCache = Object.freeze([]);
     this.matchState = this.selfRow = this.serverNow = null;
+    this.smokeFields = [];
     this.player.resetForMenu({ baseFov: this.session.baseFov });
   }
 
@@ -785,6 +822,9 @@ window.__vb = {
         armed: !!game.rig?._throwableHands._armed,
       },
       fireFields: game.effects?.fireFields.fields.size || 0,
+      smokeFields: game.smokeFields?.length || 0,
+      killcam: { active: !!game.killcam?.active, frames: game.killcam?.history.frames.length || 0,
+        killer: game.killcam?.clip?.killer || null, time: game.killcam?.sample?.time ?? null },
       adsT: game.weapon?.adsT ?? null,
       rigAdsT: game.rig?.currentAdsT01 ?? null,
       cameraFov: game.camera?.fov ?? null,

@@ -63,7 +63,7 @@ function serverLaunch(wire, laterInput = null) {
   return [...system.active.values()][0];
 }
 
-for (const [typeIndex, type] of ['frag', 'limpet', 'pulse', 'molotov'].entries()) {
+for (const [typeIndex, type] of ['frag', 'limpet', 'pulse', 'molotov', 'smoke'].entries()) {
   const run = client();
   run.release(typeIndex);
   let releaseAim;

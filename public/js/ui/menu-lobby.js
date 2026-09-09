@@ -28,8 +28,9 @@ const NOOP = () => {};
 const QUICK_PLAY_BOTS = 5;
 
 export class MenuLobbyController {
-  constructor(host) {
+  constructor(host, navigation = null) {
     this.host = host;
+    this.navigation = navigation;
     this.support = new HudSupport();
 
     this.onMenuAction = null;
@@ -213,7 +214,7 @@ export class MenuLobbyController {
 
     this.browser = new LobbyBrowser(root, (code, password) => {
       this.onMenuAction({ mode: 'join', code, password, ...getIdentity() });
-    }, triggerCreate);
+    }, triggerCreate, this.navigation);
     browseButton.addEventListener('click', () => this.browser.show({}, browseButton));
     createPassword.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') { event.preventDefault(); triggerCreate(); }
@@ -345,7 +346,7 @@ export class MenuLobbyController {
       void this.copyInviteLink(inviteInput.value);
     });
 
-    const qr = new LobbyInviteQr(root);
+    const qr = new LobbyInviteQr(root, this.navigation);
     const qrButton = el('button', 'vb-btn-copy', inviteRow, 'lobby-qr-btn');
     qrButton.type = 'button';
     qrButton.textContent = 'QR CODE';
@@ -458,6 +459,7 @@ export class MenuLobbyController {
     else this.host.closeBuyMenuDirect();
 
     this._lobbyCallbacks = { onReady, onStart, onLeave, onConfigure };
+    this.navigation?.open(this, () => this._lobbyCallbacks?.onLeave?.());
     const menu = document.getElementById('menu');
     if (menu) {
       menu.classList.add('hidden');
@@ -606,6 +608,7 @@ export class MenuLobbyController {
 
   hideLobby() {
     this.lobbyDom.qr?.close();
+    this.navigation?.close(this);
     const root = document.getElementById('lobby');
     if (root) {
       root.classList.add('hidden');

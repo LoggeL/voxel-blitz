@@ -1,4 +1,5 @@
 import { DISPLAY_OPTIONS, displaySettings, setDisplaySetting } from './display-settings.js';
+import { ConnectionSettings } from './connection-settings.js';
 import { MAP_LABELS, MODE_LABELS, el, loadPref, loadPrefNum, savePref } from './hud-support.js';
 import {
   ADS_MODES,
@@ -40,8 +41,9 @@ function readChoicePref(key, choices, fallback) {
  * admission cannot mutate or retain facade state.
  */
 export class SettingsController {
-  constructor(host = {}, dismissBuyMenu = null) {
+  constructor(host = {}, dismissBuyMenu = null, navigation = null) {
     this.host = host;
+    this.navigation = navigation;
     this.dismissBuyMenu = typeof dismissBuyMenu === 'function' ? dismissBuyMenu : () => {};
 
     this._settingsOpen = false;
@@ -72,6 +74,7 @@ export class SettingsController {
     this._isClosingSettings = false;
     this._deferredTimers = new Set();
     this.settingsDom = {};
+    this.connection = new ConnectionSettings();
   }
 
   get isOpen() {
@@ -79,8 +82,9 @@ export class SettingsController {
   }
 
   setupSettings({
-    sensitivity, volume, fov, options, device, onChange, onResume, onLeave,
+    sensitivity, volume, fov, options, device, onChange, onResume, onLeave, connection,
   } = {}) {
+    if (connection) this.connection.configure(connection);
     if (options && typeof options === 'object') this._adoptOptions(options);
     if (device && typeof device === 'object') this.setDeviceInfo(device);
     if (sensitivity != null && Number.isFinite(+sensitivity)) {
@@ -152,7 +156,9 @@ export class SettingsController {
     this.ensureSettings();
     this.syncSettingsUI();
     this._settingsPreviousFocus = document.activeElement;
+    this.connection.update(true);
     this._settingsOpen = true;
+    this.navigation?.open(this, () => this.resume());
 
     const { root } = this.settingsDom;
     if (root) {
@@ -172,6 +178,7 @@ export class SettingsController {
 
   closeSettings() {
     this._settingsOpen = false;
+    this.navigation?.close(this);
     const root = this.settingsDom.root;
     if (root) {
       root.classList.add('hidden');
@@ -187,6 +194,17 @@ export class SettingsController {
       && typeof previousFocus.focus === 'function'
     ) {
       try { previousFocus.focus(); } catch (_) {}
+    }
+  }
+
+  resume() {
+    if (this._isClosingSettings) return;
+    this._isClosingSettings = true;
+    try {
+      this.closeSettings();
+      this._settingsOnResume?.();
+    } finally {
+      this._isClosingSettings = false;
     }
   }
 
@@ -339,6 +357,7 @@ export class SettingsController {
     debugHint.textContent = 'HITBOXES: cyan body, orange headshot zone. Uses server dimensions at interpolated player positions, not the server rewind. Walls still occlude these views.';
 
     groups.debug.push(debugHint);
+    groups.connection = [this.connection.mount(controls)];
     const tabButtons = [];
     const activate = (key) => {
       for (const [group, nodes] of Object.entries(groups)) for (const node of nodes) node.hidden = group !== key;
@@ -359,7 +378,8 @@ export class SettingsController {
         if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
         event.preventDefault();
         const index = tabButtons.indexOf(button);
-        const next = event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (index + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
+        const count = tabButtons.length;
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? count - 1 : (index + (event.key === 'ArrowRight' ? 1 : count - 1)) % count;
         tabButtons[next].click(); tabButtons[next].focus();
       });
       tabButtons.push(button);
@@ -461,18 +481,7 @@ export class SettingsController {
       select.addEventListener('change', onSliderChange);
     }
 
-    const doResume = () => {
-      if (this._isClosingSettings) return;
-      this._isClosingSettings = true;
-      try {
-        this.closeSettings();
-        if (typeof this._settingsOnResume === 'function') {
-          this._settingsOnResume();
-        }
-      } finally {
-        this._isClosingSettings = false;
-      }
-    };
+    const doResume = () => this.resume();
 
     resumeBtn.addEventListener('click', doResume);
     leaveBtn.addEventListener('click', () => {
@@ -574,6 +583,7 @@ export class SettingsController {
   }
 
   dispose() {
+    this.connection.dispose();
     for (const timer of this._deferredTimers) clearTimeout(timer);
     this._deferredTimers.clear();
 

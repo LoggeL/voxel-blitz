@@ -637,6 +637,16 @@ export class Session {
       onChange: (settings) => this.applySettings(settings),
       onResume: () => this.resumeFromSettings(),
       onLeave: () => this.leaveMatch(),
+      connection: {
+        getNet: () => this.net,
+        getContext: () => ({
+          host: this._location?.host || null,
+          room: this.net?.welcome?.lobby?.code || null,
+          mode: this._gameplay.matchState?.mode || this.net?.welcome?.gameMode || null,
+          map: this._gameplay.matchState?.map || this.net?.welcome?.map || null,
+          browser: this._window?.navigator?.userAgent || null,
+        }),
+      },
     });
     this.hud.setupBuyMenu({
       onBuy: (weapon) => this.purchaseWeapon(weapon),

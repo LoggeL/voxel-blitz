@@ -9,6 +9,7 @@ import {
 import { isRecord } from './admission.js';
 import { copyBlockDamage } from './block-damage.js';
 import { POWERUP_RULES, POWERUP_TYPES } from '../../shared/powerups.js';
+import { copySmokeFields } from '../../shared/smoke-rules.js';
 import { MOLOTOV_FIRE } from '../../shared/molotov-rules.js';
 
 const D2 = 100, D3 = 1000;
@@ -98,12 +99,13 @@ function defaultMatchSnapshot() {
  * Player rows carry the exact contracted field set; positions are 2-decimal,
  * angles 3-decimal so payloads stay small and floats stay finite.
  */
-export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = undefined, blockDamage = [], powerups = [], fireFields = []) {
+export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = undefined, blockDamage = [], powerups = [], fireFields = [], smokeFields = []) {
   const matchSnapshot = match === undefined
     ? defaultMatchSnapshot()
     : (isRecord(match) ? wireCopy(match) : defaultMatchSnapshot());
   return {
     t: 'tick',
+    smokeFields: copySmokeFields(smokeFields),
     now: round(nowMs, 1),
     match: matchSnapshot,
     players: (playersArr || []).map((p) => ({

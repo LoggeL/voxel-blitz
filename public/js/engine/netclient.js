@@ -160,11 +160,14 @@ export class NetClient {
     this._snapSeq = 1;           // monotonic id for received snapshots
     this._drainState = { seen: new Set(), seq: -1, snapSeq: -1 };
     this._pingTimer = null;
+    this._diagnosticsEnabled = false;
   }
 
   /** Backward-compatible measured round-trip time in milliseconds. */
   get ping() { return this._timing.rttMs; }
   get networkStats() { return this._timing.readModel; }
+
+  setDiagnosticsEnabled(enabled) { this._diagnosticsEnabled = enabled === true; }
 
   getBlockDamage(x, y, z) {
     return this.blockDamage.get(`${x},${y},${z}`)?.progress || 0;
@@ -230,6 +233,7 @@ export class NetClient {
   /** Clear all socket-owned state without touching caller-owned listeners. */
   _resetSessionState(dirty) {
     this._stopPing();
+    this._diagnosticsEnabled = false;
     this._pendingLobbyConfig = null;
     this.welcome = null;
     this.id = null;
@@ -687,9 +691,15 @@ export class NetClient {
       case 'tick':
         this._onTick(msg);
         break;
-      case 'pong':
-        this._timing.resolvePong(msg.nonce, now());
+      case 'pong': {
+        const atMs = now();
+        const rttMs = this._timing.resolvePong(msg.nonce, atMs);
+        if (rttMs !== null || this._diagnosticsEnabled) this._emit('latency', {
+          nonce: msg.nonce, atMs, rttMs,
+          server: msg.diagnostics ? immutableWireCopy(msg.diagnostics) : null,
+        });
         break;
+      }
       case 'chat':
         this._emit('chat', immutableWireCopy({
           id: msg.id,
@@ -767,7 +777,8 @@ export class NetClient {
         const nonce = ++this._pingNonce;
         const sentAt = now();
         this._timing.beginPing(nonce, sentAt);
-        ws.send(JSON.stringify({ t: 'ping', nonce }));
+        ws.send(JSON.stringify({ t: 'ping', nonce, ...(this._diagnosticsEnabled ? { diagnostics: true } : {}) }));
+        if (this._diagnosticsEnabled) this._emit('diagnosticProbe', { nonce, atMs: sentAt });
       } catch { /* socket raced shut; next session re-arms */ }
     };
     sendPing();

@@ -2,8 +2,9 @@ import { el } from './hud-support.js';
 
 /** A local QR preview; the invite URL is never sent to a QR service. */
 export class LobbyInviteQr {
-  constructor(parent) {
+  constructor(parent, navigation = null) {
     this.parent = parent;
+    this.navigation = navigation;
     this.dialog = null;
     this.generation = 0;
   }
@@ -56,10 +57,12 @@ export class LobbyInviteQr {
     this.link.textContent = url;
     this.trigger = trigger;
     if (!this.dialog.open) this.dialog.showModal();
+    this.navigation?.open(this, () => this.close());
   }
 
   close() {
     ++this.generation;
+    this.navigation?.close(this);
     if (this.dialog?.open) {
       this.dialog.close();
       this.trigger?.focus();

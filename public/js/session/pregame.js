@@ -284,7 +284,7 @@ export class PregameFlow {
       if (attempt.mode === 'create' && this._location?.href && this._history?.replaceState) {
         const url = new URL(this._location.href);
         url.searchParams.set('lobby', state.code);
-        this._history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+        this._history.replaceState(this._history.state, '', `${url.pathname}${url.search}${url.hash}`);
       }
     } catch (_) {}
     if (attempt.lobbyShown) {

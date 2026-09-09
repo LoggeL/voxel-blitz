@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Rauch, Killcam und Bastion | Voxel Blitz</title>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    body { margin:0; overflow:auto; background:#111820; color:#edf1f2; font:15px system-ui,sans-serif; text-transform:none; letter-spacing:normal; }
+    .preview-shell { min-height:100vh; display:grid; grid-template-columns:minmax(0,1fr) 340px; }
+    .preview-main { min-width:0; display:flex; flex-direction:column; }
+    .preview-header { padding:25px 30px; border-bottom:1px solid #35434e; display:flex; justify-content:space-between; gap:20px; }
+    .preview-header b { color:#ffbe62; letter-spacing:.12em; font-size:13px; }
+    .preview-header h1 { font-size:27px; margin:8px 0 0; }
+    .preview-header a { color:#c9dbdf; font-size:12px; align-self:center; }
+    .preview-stage { position:relative; flex:1; min-height:320px; }
+    .preview-stage canvas { display:block; width:100%; height:100%; position:absolute; inset:0; }
+    .preview-tag { position:absolute; top:20px; left:24px; z-index:2; font:11px monospace; letter-spacing:.1em; color:#b7cbcf; }
+    .preview-controls { padding:20px 26px 26px; border-top:1px solid #35434e; }
+    .preview-buttons { display:flex; gap:10px; flex-wrap:wrap; }
+    .preview-buttons button { border:1px solid #586773; background:#273542; color:#fff; padding:12px 16px; cursor:pointer; font:600 13px system-ui; }
+    .preview-buttons button:first-child { color:#112228; background:#bad2d2; border-color:#bad2d2; }
+    .preview-buttons button:focus-visible { outline:2px solid #ffbe62; outline-offset:3px; }
+    .preview-status { margin:14px 0 5px; color:#d1dedf; font:12px monospace; }
+    .preview-note { margin:0; color:#8fa4ad; font-size:12px; line-height:1.6; }
+    .pve-sketch { padding:30px 25px; border-left:1px solid #35434e; background:#18232d; }
+    .pve-sketch .eyebrow { color:#d1a971; font:11px monospace; letter-spacing:.15em; }
+    .pve-sketch h2 { font-size:37px; line-height:1; margin:16px 0 12px; letter-spacing:-.04em; }
+    .pve-sketch p { color:#b8c8cf; line-height:1.65; }
+    .pve-sketch svg { width:100%; margin:14px 0; border:1px solid #3c4d58; background:#101a23; }
+    .pve-sketch ol { padding-left:20px; font-size:13px; color:#e2e8e9; line-height:1.75; }
+    .pve-sketch li { padding:5px 0; }
+    .pve-sketch .scope { border-top:1px solid #3c4d58; padding-top:16px; font-size:12px; }
+    .preview-status[data-error] { color:#ff8173; }
+    @media(max-width:900px) { .preview-shell { grid-template-columns:1fr; } .preview-stage { min-height:380px; } .pve-sketch { border-left:0; border-top:1px solid #35434e; } .pve-sketch svg { max-width:360px; } }
+    @media(max-width:500px) { .preview-header { padding:20px; } .preview-header h1 { font-size:22px; } .preview-header a { display:none; } .preview-controls { padding:18px; } .preview-buttons button { flex:1 1 40%; } }
+  </style>
+</head>
+<body>
+<main class="preview-shell">
+  <section class="preview-main" aria-label="Feature-Vorschau">
+    <header class="preview-header"><div><b>VOXEL BLITZ / FEATURE LAB</b><h1>Sicht nehmen. Den Treffer verstehen.</h1></div><a href="/">Zum Spiel</a></header>
+    <div class="preview-stage" id="preview-stage"><span class="preview-tag">RAUCH & KILLCAM / INTERAKTIVE VORSCHAU</span></div>
+    <div class="preview-controls">
+      <div class="preview-buttons"><button id="preview-throw">Rauch werfen</button><button id="preview-inside">In den Rauch</button><button id="preview-replay">Killcam ansehen</button><button id="preview-reset">Zurücksetzen</button></div>
+      <p class="preview-status" id="preview-status" role="status">Vorschau wird geladen.</p>
+      <p class="preview-note">Rauch und Killcam verwenden die Spielmodule. Die Szene und die Replay-Positionen sind Testdaten. Im Spiel: H wählt Rauch, G wirft.</p>
+    </div>
+  </section>
+  <aside class="pve-sketch" aria-label="PvE-Modusentwurf">
+    <span class="eyebrow">PvE / KONZEPT, NOCH NICHT SPIELBAR</span>
+    <h2>BASTION</h2><p>1 bis 4 Spieler. Ein Energiekern.<br>Acht Wellen, immer weniger Deckung.</p>
+    <svg viewBox="0 0 288 216" role="img" aria-label="Drei Angriffsrichtungen führen auf einen von vier Spielern verteidigten Kern zu.">
+      <defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M0 0 10 5 0 10" fill="#eb9761"/></marker></defs>
+      <g stroke="#21333f"><path d="M0 36H288M0 72H288M0 108H288M0 144H288M0 180H288M36 0V216M72 0V216M108 0V216M144 0V216M180 0V216M216 0V216M252 0V216"/></g>
+      <g fill="#566574"><rect x="50" y="78" width="60" height="12"/><rect x="178" y="78" width="60" height="12"/><rect x="80" y="151" width="42" height="12"/><rect x="168" y="151" width="40" height="12"/></g>
+      <g stroke="#eb9761" fill="none" stroke-width="2" stroke-dasharray="5 4" marker-end="url(#arrow)"><path d="M144 20V76"/><path d="M18 116H87"/><path d="M270 116H203"/></g>
+      <circle cx="144" cy="117" r="31" fill="#539c9b22" stroke="#6bb7b0"/><path d="M144 99 159 108 159 126 144 135 129 126 129 108Z" fill="#89d1c3"/>
+      <g fill="#98bde4" stroke="#14212a" stroke-width="2"><circle cx="118" cy="106" r="6"/><circle cx="168" cy="104" r="6"/><circle cx="124" cy="139" r="6"/><circle cx="164" cy="139" r="6"/></g>
+      <g font-family="monospace" font-size="9" fill="#b6cad1"><text x="96" y="194">KERN VERTEIDIGEN</text><text x="114" y="13">ANGRIFF</text></g>
+    </svg>
+    <ol><li><b>Vorbereiten:</b> Waffen und Nachschub wählen.</li><li><b>Verteidigen:</b> Läufer und Sprenger stoppen.</li><li><b>Reparieren:</b> Teamkasse für den Kern einsetzen.</li></ol>
+    <p>Rauch deckt Reparaturen und Positionswechsel. Sprenger öffnen neue Wege durch die Voxel-Deckung.</p>
+    <p class="scope">Erster spielbarer Umfang: Foundry, ein Kern, drei Wellen und zwei Gegnertypen. Tote kommen zwischen Wellen zurück. Kern zerstört oder alle tot: Runde verloren.</p>
+  </aside>
+</main>
+<script type="module" src="/js/feature-preview.js"></script>
+</body>
+</html>

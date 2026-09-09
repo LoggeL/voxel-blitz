@@ -60,7 +60,7 @@ try {
     await writeFile(`.artifacts/${name}.png`, Buffer.from(image.data, 'base64'));
   }
   await capture('grenade-hold');
-  for (const type of ['frag', 'limpet', 'pulse', 'molotov']) {
+  for (const type of ['frag', 'limpet', 'pulse', 'molotov', 'smoke']) {
     const pin = await page.evaluate(`window.throwableCheck.show('${type}',.32)`);
     assert.equal(pin.visible, true);
     assert.ok(pin.cues.includes(type === 'molotov' ? 'ignite' : 'pin'));
@@ -102,7 +102,7 @@ try {
   await page.evaluate(`document.getElementById('lobby-ready-btn').click()`);
   await page.waitFor(`!document.getElementById('lobby-start-btn').disabled`);
   await page.evaluate(`document.getElementById('lobby-start-btn').click()`);
-  await page.waitFor(`window.__vb.stats.running && window.__vb.stats.throwable.counts.length === 4`, { timeoutMs: 30000 });
+  await page.waitFor(`window.__vb.stats.running && window.__vb.stats.throwable.counts.length === 5`, { timeoutMs: 30000 });
   async function key(type, name, code, keyCode) {
     await page.send('Input.dispatchKeyEvent', { type, key: name, code, windowsVirtualKeyCode: keyCode });
   }

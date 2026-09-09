@@ -205,7 +205,7 @@ export async function runNetClientContracts(ok, installGlobals) {
         viewAge: 80,
         throwGrenade: true,
         grenadeCharge: 0.625,
-        grenadeType: 3,
+        grenadeType: 4,
         grenadeCook: 0,
       }),
       'NetClient sends the exact nested held-interaction and clamped grenade charge/type/cook frame');

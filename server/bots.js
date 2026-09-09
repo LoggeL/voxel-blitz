@@ -282,6 +282,7 @@ class BotManager {
     const held = heldId ? this.game.entities.get(heldId) : null;
     if (held && held.state === 'alive' && this.game.mode.isEnemy(p, held)
         && dist3(eye[0], eye[1], eye[2], held.x, held.y + CHEST_Y, held.z) < ENGAGE_RANGE
+        && !this.game.projectiles.smoke.blocksSight(eye, eyeOf(held), this.game.now)
         && losClear(this.solidAt, eye, eyeOf(held))) {
       return held;
     }
@@ -290,7 +291,8 @@ class BotManager {
     for (const o of this.game.entities.values()) {
       if (o.state !== 'alive' || !this.game.mode.isEnemy(p, o)) continue;
       const d = dist3(eye[0], eye[1], eye[2], o.x, o.y + CHEST_Y, o.z);
-      if (d < bestD && losClear(this.solidAt, eye, eyeOf(o))) { best = o; bestD = d; }
+      if (d < bestD && !this.game.projectiles.smoke.blocksSight(eye, eyeOf(o), this.game.now)
+          && losClear(this.solidAt, eye, eyeOf(o))) { best = o; bestD = d; }
     }
     if (best && br) br.enemyId = best.id;
     return best;

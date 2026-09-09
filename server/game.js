@@ -13,6 +13,8 @@ import {
 import { DEFAULT_MAP_ID } from '../shared/modes.js';
 import { NETWORK_PRESENTATION } from '../shared/networking.js';
 import { TICK_MS } from './protocol/admission.js';
+import { TickTiming } from './diagnostics.js';
+import { KILLCAM, supportsKillcam } from '../shared/killcam-rules.js';
 import { makeSnapshot } from './protocol/snapshot.js';
 import { evKill, evRespawn, evDie } from './protocol/events.js';
 import { ModeController } from './modes.js';
@@ -59,6 +61,7 @@ export class GameEngine {
     this.intervalMs = TICK_MS;
     this.running = false;
     this.timer = null;
+    this.tickTiming = new TickTiming();
     this.blockHp = new Map();
     this.blockMining = new Map();
     this.blockDamage = new Map();
@@ -91,7 +94,15 @@ export class GameEngine {
     if (this.running) return this;
     this.intervalMs = tickRateMs;
     this.running = true;
-    this.timer = setInterval(() => this.step(this.intervalMs), tickRateMs);
+    let previous = performance.now();
+    this.timer = setInterval(() => {
+      const at = performance.now();
+      try { this.step(this.intervalMs); } finally {
+        const finished = performance.now();
+        this.tickTiming.record(finished, finished - at, at - previous);
+        previous = at;
+      }
+    }, tickRateMs);
     return this;
   }
 
@@ -150,9 +161,10 @@ export class GameEngine {
     if (this.mode.phase !== 'live') {
       this.powerups.clear();
       this.projectiles.fire.clear();
+      this.projectiles.smoke.clear();
     }
     this.mode.tick();
-    if (this.mode.phase !== 'live') this.projectiles.fire.clear();
+    if (this.mode.phase !== 'live') { this.projectiles.fire.clear(); this.projectiles.smoke.clear(); }
     this.processRespawns();
     this.powerups.step({
       now: this.now, mode: this.mode.mode, phase: this.mode.phase, round: this.mode.round,
@@ -170,6 +182,7 @@ export class GameEngine {
       Array.from(this.tickBlockDamage.values()),
       this.powerups.snapshot(),
       this.projectiles.fire.snapshot(),
+      this.projectiles.smoke.snapshot(),
     );
 
     this.tickBlocks.length = 0;
@@ -410,6 +423,11 @@ export class GameEngine {
       killer.score += this.mode.killScoreDelta(victim, killer, modeContext);
     }
     this.mode.onPlayerDeath(victim, killer, modeContext);
+    // Human replay time is authoritative; bots and world deaths keep mode pacing.
+    if (!victim.bot && killer && killer.id !== victim.id && supportsKillcam(this.mode.mode)
+        && Number.isFinite(victim.respawnAt)) {
+      victim.respawnAt = Math.max(victim.respawnAt, this.now + KILLCAM.respawnMs);
+    }
     this.tickEvents.push(evDie(victim.id, damage));
     this.tickEvents.push(evKill(
       killer ? killer.id : '',

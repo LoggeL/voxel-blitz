@@ -8,7 +8,7 @@ const events = [];
 const root = new THREE.Group();
 const hands = new ThrowableHands(root, event => events.push(event));
 try {
-  for (const [index, type] of ['frag', 'limpet', 'pulse', 'molotov'].entries()) {
+  for (const [index, type] of ['frag', 'limpet', 'pulse', 'molotov', 'smoke'].entries()) {
     hands.cancel();
     events.length = 0;
     hands.setCharge(0, index, 0, true);

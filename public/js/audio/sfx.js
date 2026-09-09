@@ -626,6 +626,14 @@ export const sfx = {
     const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
     // Bolt expiry shares the projectile event channel, but has no blast radius.
     if (type === 'bolt') return this.arcZap(deferredPos);
+    if (type === 'smoke') {
+      run('smokeRelease', () => {
+        const output = pool.acquire({ pos: deferredPos, priority: 2 }, 2.2);
+        primitives.hiss(output, { t0: primitives.nowT(), filter: 'lowpass', f: 2200,
+          sweepTo: 600, sweepMs: 1.5, q: 0.6, att: 0.04, dec: 2, g: 0.35 });
+      });
+      return;
+    }
     if (type === 'molotov') {
       run('molotovBreak', () => {
         const output = pool.acquire({ pos: deferredPos, priority: 2 }, 1.5);

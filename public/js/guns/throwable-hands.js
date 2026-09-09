@@ -2,10 +2,10 @@ import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 
 export const THROWABLE_TIMING = Object.freeze({ draw: 0.18, arm: 0.24, ready: 0.48, throw: 0.36, return: 0.20 });
-const IDS = ['frag', 'limpet', 'pulse', 'molotov'];
+import { GRENADE_TYPE_IDS as IDS } from '../../../shared/grenade-rules.js';
 const clamp = value => Math.max(0, Math.min(1, Number(value) || 0));
 const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
-const typeId = type => IDS.includes(type) ? type : IDS[Math.max(0, Math.min(3, Math.trunc(Number(type) || 0)))];
+const typeId = type => IDS.includes(type) ? type : IDS[Math.max(0, Math.min(IDS.length - 1, Math.trunc(Number(type) || 0)))];
 
 /** Independent camera-local hands. The firearm can be holstered without moving the aiming camera. */
 export class ThrowableHands {
@@ -108,6 +108,10 @@ export class ThrowableHands {
           ring.rotation.set(i * Math.PI / 3, Math.PI / 2, 0);
         }
         box(model, steel, [0.037, 0.035, 0.042], [0, 0.075, 0]);
+      } else if (id === 'smoke') {
+        mesh(model, new THREE.CylinderGeometry(0.057, 0.057, 0.16, 10), steel);
+        mesh(model, new THREE.CylinderGeometry(0.059, 0.059, 0.045, 10), mat(0xc7e3de));
+        box(model, dark, [0.041, 0.012, 0.006], [0, 0, 0.058]);
       } else {
         const glass = mat(0x365c2c, { roughness: 0.25, metalness: 0.16 });
         const label = mat(0xd9bc7d);

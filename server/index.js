@@ -4,6 +4,7 @@ import http from 'node:http';
 import { WebSocketServer, WebSocket } from 'ws';
 import { staticHandler } from './static.js';
 import { LobbyManager } from './lobby.js';
+import { ServerDiagnostics } from './diagnostics.js';
 import { TICK_MS, parseAdmissionFrame, parseBuyFrame } from './protocol/admission.js';
 
 const MAX_CONNECTIONS = 32;
@@ -40,6 +41,7 @@ async function main() {
   const port = resolvePort();
 
   const clients = new Map();   // id -> connection metadata
+  const diagnostics = new ServerDiagnostics();
   let connCounter = 0;
 
   function terminateClient(c) {
@@ -143,11 +145,13 @@ async function main() {
     };
     clients.set(id, meta);
 
-    ws.on('pong', () => {
+    ws.on('pong', (payload) => {
       meta.alive = true;
-      if (meta.pingSentAt != null) {
+      if (meta.pingSentAt != null && payload.toString() === meta.pingPayload) {
         const player = meta.room?.engine?.entities.get(meta.id);
         meta.ping = Math.max(0, Math.round(performance.now() - meta.pingSentAt));
+        meta.pingMeasuredAt = performance.now();
+        meta.pingSequence = (meta.pingSequence || 0) + 1;
         if (player) player.ping = meta.ping;
         manager.updatePing(meta);
         meta.pingSentAt = null;
@@ -240,10 +244,17 @@ async function main() {
       try {
         if (msg.t === 'ping') {
           if (Number.isSafeInteger(msg.nonce)) {
-            sendJson(meta, { t: 'pong', nonce: msg.nonce });
+            const pong = { t: 'pong', nonce: msg.nonce };
+            const at = performance.now();
+            if (msg.diagnostics === true && (meta.lastDiagnosticsAt == null || at - meta.lastDiagnosticsAt >= 1000)) {
+              pong.diagnostics = diagnostics.read(meta, at);
+              meta.lastDiagnosticsAt = at;
+            }
+            sendJson(meta, pong);
             if (meta.pingSentAt == null) {
               meta.pingSentAt = performance.now();
-              ws.ping();
+              meta.pingPayload = String(msg.nonce);
+              ws.ping(meta.pingPayload);
             }
           }
           return;
@@ -313,6 +324,7 @@ async function main() {
     shuttingDown = true;
     console.log(`\n[voxel-blitz] ${sig} received, shutting down`);
     clearInterval(heartbeat);
+    diagnostics.dispose();
     try { manager.stop(); } catch (err) { console.error('[voxel-blitz] lobby stop:', err.message); }
     for (const c of clients.values()) {
       try { c.ws.close(1001, 'server shutdown'); } catch { /* gone */ }

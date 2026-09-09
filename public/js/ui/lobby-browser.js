@@ -2,7 +2,8 @@ import { cleanCode, el, MAP_LABELS, MAP_PREVIEWS, MODE_LABELS } from './hud-supp
 
 /** Code entry and a read-only room directory. Admission remains server-owned. */
 export class LobbyBrowser {
-  constructor(parent, onJoin, onCreate) {
+  constructor(parent, onJoin, onCreate, navigation = null) {
+    this.navigation = navigation;
     this.onJoin = onJoin;
     this.lobbies = [];
     this.loaded = false;
@@ -18,7 +19,8 @@ export class LobbyBrowser {
     const close = el('button', 'vb-btn', topbar, 'lobby-browser-close');
     close.type = 'button';
     close.textContent = '← MAIN MENU';
-    close.addEventListener('click', () => this.dialog.close());
+    close.addEventListener('click', () => this.close());
+    this.dialog.addEventListener('cancel', (event) => { event.preventDefault(); this.close(); });
     const header = el('div', 'vb-browser-header', this.dialog);
     el('span', 'vb-step-kicker', header).textContent = 'MULTIPLAYER / ROOM DIRECTORY';
     el('h2', '', header, 'lobby-browser-title').textContent = 'FIND A LOBBY';
@@ -78,7 +80,7 @@ export class LobbyBrowser {
     const create = el('button', 'vb-btn', hostCard, 'browser-create-lobby-btn');
     create.type = 'button';
     create.textContent = 'CREATE LOBBY';
-    create.addEventListener('click', () => { this.dialog.close(); onCreate?.(); });
+    create.addEventListener('click', () => { this.close(); onCreate?.(); });
     const directoryHeader = el('div', 'vb-browser-directory-header', directory);
     el('h3', '', directoryHeader).textContent = 'AVAILABLE LOBBIES';
     this.refresh = el('button', 'vb-btn', directoryHeader, 'lobby-browser-refresh');
@@ -109,6 +111,7 @@ export class LobbyBrowser {
     this.rows = el('div', 'vb-browser-rows', directory, 'lobby-browser-rows');
     this.dialog.addEventListener('close', () => {
       if (this.dialog.open) return; // A queued close event must not cancel a newly reopened directory.
+      this.navigation?.close(this);
       this.request?.abort();
       this.rows.replaceChildren(); // Discard any password as soon as the dialog closes.
       this.codePassword.value = '';
@@ -124,6 +127,7 @@ export class LobbyBrowser {
     this.codePassword.value = '';
     this.passwordOption.open = passwordRequired;
     this.dialog.showModal();
+    this.navigation?.open(this, () => this.close());
     if (code) { this.codeInput.focus(); this.codeInput.select(); }
     else this.search.focus();
     void this.load();
@@ -139,8 +143,13 @@ export class LobbyBrowser {
   join(code, password, passwordRequired) {
     // Admission rebuilds the menu on failure. Keep the room for a retry, never its secret.
     this.retry = { code, passwordRequired };
-    this.dialog.close();
+    this.close();
     this.onJoin(code, password);
+  }
+
+  close() {
+    this.navigation?.close(this);
+    if (this.dialog.open) this.dialog.close();
   }
 
   async load() {
@@ -241,7 +250,7 @@ export class LobbyBrowser {
 
   dispose() {
     this.request?.abort();
-    if (this.dialog.open) this.dialog.close();
+    this.close();
     this.dialog.remove();
   }
 }

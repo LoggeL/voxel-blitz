@@ -29,8 +29,9 @@ const mainSource = readFileSync(new URL('../public/js/main.js', import.meta.url)
 const classStart = mainSource.indexOf('class Game {');
 const classEnd = mainSource.indexOf('\nconst debugParams =', classStart);
 assert(classStart >= 0 && classEnd > classStart, 'composition root class can be isolated from browser startup');
-const Game = new Function('WEAPON_IDS', 'applySnapshotBlocks',
-  `return (${mainSource.slice(classStart, classEnd)});`)(WEAPON_IDS, applySnapshotBlocks);
+const { copySmokeFields } = await import('../shared/smoke-rules.js');
+const Game = new Function('WEAPON_IDS', 'applySnapshotBlocks', 'copySmokeFields', 'nowMs',
+  `return (${mainSource.slice(classStart, classEnd)});`)(WEAPON_IDS, applySnapshotBlocks, copySmokeFields, () => performance.now());
 
 function effectFacade(scene) {
   const effects = Object.create(Effects.prototype);

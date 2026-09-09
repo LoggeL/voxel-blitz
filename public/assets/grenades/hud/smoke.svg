@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs><linearGradient id="metal"><stop stop-color="#53656d"/><stop offset=".4" stop-color="#dce6e7"/><stop offset=".7" stop-color="#99adaf"/><stop offset="1" stop-color="#485c64"/></linearGradient></defs>
+  <g transform="rotate(22 128 128)">
+    <rect x="91" y="60" width="74" height="151" rx="13" fill="url(#metal)" stroke="#23353c" stroke-width="4"/>
+    <ellipse cx="128" cy="67" rx="35" ry="9" fill="#d1e0e0"/>
+    <path d="M93 113h70v48H93z" fill="#426c69"/><path d="M101 121h55v31h-55z" fill="#9cbfb9"/>
+    <text x="128" y="142" text-anchor="middle" font-family="monospace" font-size="17" font-weight="bold" fill="#233d3c">SMK</text>
+    <rect x="112" y="44" width="32" height="18" rx="3" fill="#8b9e9d"/>
+    <path d="M116 48h42l16 112-10 2-18-101h-30z" fill="#d3dfde" stroke="#30454b" stroke-width="3"/>
+    <circle cx="102" cy="38" r="18" fill="none" stroke="#b6c9c7" stroke-width="5"/>
+    <path d="M112 50l14 6" stroke="#b6c9c7" stroke-width="5"/>
+  </g>
+</svg>

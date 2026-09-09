@@ -205,6 +205,12 @@ export class ProjectileFX {
       exhaust.position.z = 0.45;
       group.add(body, nose, exhaust);
       group.userData.exhaust = exhaust;
+    } else if (type === 'smoke') {
+      capMaterial = new THREE.MeshStandardMaterial({ color: 0xc7d9db, metalness: 0.45, roughness: 0.6 });
+      const body = new THREE.Mesh(this.bottleGeometry, capMaterial);
+      const band = new THREE.Mesh(this.bottleGeometry, this.fragMaterial);
+      band.scale.set(1.02, 0.22, 1.02);
+      group.add(body, band);
     } else if (type === 'molotov') {
       const body = new THREE.Mesh(this.bottleGeometry, this.bottleMaterial);
       const neck = new THREE.Mesh(this.bottleNeckGeometry, this.bottleMaterial);
@@ -461,6 +467,7 @@ export class ProjectileFX {
     this._removeProjectile(id);
     const x = Number(event?.x), y = Number(event?.y), z = Number(event?.z);
     if (![x, y, z].every(Number.isFinite)) return false;
+    if (type === 'smoke') return true;
     const style = styleFor(type);
     this._spawnBlast(x, y, z, style, Number(event.radius) || style.grow * 12);
     return true;

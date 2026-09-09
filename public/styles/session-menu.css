@@ -69,6 +69,29 @@
 .vb-settings-tabs { display: flex; gap: 8px; border-bottom: 1px solid #87929e; }
 .vb-settings-tab { flex: 1; min-width: 0; min-height: 44px; padding: 10px; border: 1px solid #7e8c9970; background: #0e161d; color: #dbe1e7; font: 600 14px/1.3 'Helvetica Neue',Arial,sans-serif; cursor: pointer; }
 .vb-settings-tab[aria-selected='true'] { color: #15100b; background: linear-gradient(120deg,#ffcb57,#e8a025); border-color: #ffdc81; }
+.vb-connection-check { color: #e2e8ee; font: 400 15px/1.5 'Helvetica Neue',Arial,sans-serif; letter-spacing: 0; text-transform: none; }
+.vb-connection-check h3 { margin: 6px 0 10px; font-size: 19px; }
+.vb-connection-intro { max-width: 65ch; color: #c1cbd4; }
+.vb-connection-status { min-height: 24px; color: #ffcb61; }
+.vb-connection-check progress { display: block; width: 100%; height: 9px; margin-bottom: 16px; accent-color: #ffbc42; }
+.vb-connection-actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0; }
+.vb-connection-actions .vb-btn { width: auto; min-height: 44px; padding: 10px 16px; font: 600 13px/1.4 'Helvetica Neue',Arial,sans-serif; letter-spacing: .03em; }
+.vb-connection-actions .vb-btn:disabled { opacity: .5; cursor: default; }
+.vb-connection-metrics { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.vb-connection-metrics > div { min-width: 0; padding: 14px; border: 1px solid #8593a050; background: #0b1218; }
+.vb-connection-metrics dt { color: #b9c3cc; font-size: 11px; }
+.vb-connection-metrics dd { margin: 5px 0 0; font: 600 22px/1.3 var(--font-mono); overflow-wrap: anywhere; }
+.vb-connection-caption { color: #b9c3cc; font-size: 12px; }
+.vb-connection-findings { padding-left: 20px; }
+.vb-connection-findings li { margin: 8px 0; }
+.vb-connection-report summary { cursor: pointer; padding: 10px 0; }
+.vb-connection-report textarea { box-sizing: border-box; width: 100%; resize: vertical; padding: 12px; color: #e2e8ee; background: #0b1218; border: 1px solid #8593a080; font: 12px/1.5 var(--font-mono); }
+.vb-connection-check :is(textarea,summary):focus-visible { outline: 2px solid #ffdb84; outline-offset: 3px; }
+@media (max-width: 460px) {
+  .vb-settings-tabs { flex-wrap: wrap; }
+  .vb-settings-tab { flex-basis: calc(50% - 8px); }
+  .vb-connection-metrics dd { font-size: 18px; }
+}
 #settings-overlay .vb-settings-controls { display: block; margin: 14px 0; }
 #settings-overlay .vb-setting-row { display: grid; grid-template-columns: 42% minmax(0,1fr); align-items: center; gap: 16px; min-height: 48px; padding: 8px 0; border-top: 0; border-bottom: 1px solid #ffffff16; }
 #settings-overlay .vb-settings-controls [hidden] { display: none; }

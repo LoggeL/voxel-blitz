@@ -41,6 +41,7 @@ import {
 import { ROCKET_RULES, rocketLaunch, stepRocket } from '../../shared/rocket-rules.js';
 import { BOLT_RULES, boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
 import { sweepPlayers } from './projectile-contact.js';
+import { SmokeSystem } from './smoke.js';
 import { MolotovFireSystem } from './molotov-fire.js';
 
 const P_HEIGHT = PLAYER_HALF.h * 2;
@@ -57,6 +58,7 @@ export const PROJECTILE_RULES = Object.freeze({
   limpet: GRENADE_TYPES.limpet,
   pulse: GRENADE_TYPES.pulse,
   molotov: GRENADE_TYPES.molotov,
+  smoke: GRENADE_TYPES.smoke,
   rocket: Object.freeze({
     id: 'rocket',
     name: 'RX-8 HAVOC',
@@ -110,6 +112,7 @@ export class ProjectileSystem {
   constructor() {
     this.active = new Map();
     this.fire = new MolotovFireSystem();
+    this.smoke = new SmokeSystem();
     this._nextId = 1;
     this._homingCandidates = [];
     this._stepping = [];
@@ -118,10 +121,12 @@ export class ProjectileSystem {
   clear() {
     this.active.clear();
     this.fire.clear();
+    this.smoke.clear();
   }
 
   step(dt, ctx) {
     this.fire.step(dt, ctx);
+    this.smoke.step(ctx);
     for (const player of ctx.entities.values()) {
       if (!player.grenadeEdgeQueued) continue;
       player.grenadeEdgeQueued = false;
@@ -576,6 +581,10 @@ export class ProjectileSystem {
       rules.damageRadius,
     ));
     if (typeof ctx.canAffectWorld === 'function' && !ctx.canAffectWorld()) return true;
+    if (projectile.type === 'smoke') {
+      this.smoke.deploy(projectile, ctx);
+      return true;
+    }
     if (projectile.type === 'molotov') {
       this.fire.ignite(projectile, ctx);
       return true;

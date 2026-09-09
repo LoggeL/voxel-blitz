@@ -44,6 +44,7 @@ export const THROWABLE_NAMES = Object.freeze({
   limpet: 'LIMPET CHARGE',
   pulse: 'PULSE SHOCK',
   molotov: 'MOLOTOV COCKTAIL',
+  smoke: 'M-18 SMOKE',
 });
 
 export const WEAPON_CLASSES = Object.freeze({
