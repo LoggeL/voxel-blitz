@@ -285,17 +285,17 @@ export class MenuLobbyController {
 
     root.innerHTML = '';
     setMenuBackdrop(root, 'foundry');
-    const { stage } = buildMenuShell(root, { context: 'MAIN MENU' });
+    const { stage } = buildMenuShell(root, { context: 'LOBBY' });
     const panel = el('div', 'vb-lobby-panel', stage);
 
     const title = el('h2', 'vb-title', panel, 'lobby-title');
     title.textContent = 'SQUAD BRIEFING';
     const sub = el('div', 'vb-sub', panel);
-    sub.textContent = 'tactical deployment staging';
+    sub.textContent = 'Choose your arena. Get your squad ready.';
 
     const metaCard = el('div', 'vb-lobby-card vb-lobby-meta-card', panel);
     const metaHeader = el('div', 'vb-lobby-meta-header', metaCard);
-    el('span', 'vb-label', metaHeader).textContent = 'MISSION';
+    el('span', 'vb-label', metaHeader).textContent = 'MISSION SETUP';
 
     const missionPreview = el('img', 'vb-lobby-mission-image', metaCard, 'lobby-map-preview');
     missionPreview.width = 720;
@@ -320,6 +320,7 @@ export class MenuLobbyController {
     el('span', '', missionStatus).textContent = 'WAITING FOR OPERATORS';
 
     const inviteCard = el('div', 'vb-lobby-card vb-lobby-invite-card', panel);
+    el('h3', 'vb-lobby-section-title', inviteCard).textContent = 'INVITE YOUR SQUAD';
     const codeHeader = el('div', 'vb-lobby-code-row', inviteCard);
     el('span', 'vb-label', codeHeader).textContent = 'ROOM CODE';
     const codeValue = el('span', 'vb-lobby-code-val', codeHeader, 'lobby-code-val');
@@ -538,6 +539,8 @@ export class MenuLobbyController {
         const item = el('div', `vb-roster-item${isSelf ? ' is-self' : ''}`, dom.rosterList);
         item.setAttribute('role', 'listitem');
 
+        const portrait = el('span', `vb-operator-icon${isBot ? ' is-bot' : ''}`, item);
+        portrait.setAttribute('aria-hidden', 'true');
         const leftColumn = el('div', 'vb-roster-left', item);
         const name = el('span', 'vb-roster-name', leftColumn);
         name.textContent = member.name || (isBot ? 'TACTICAL BOT' : 'OPERATOR');

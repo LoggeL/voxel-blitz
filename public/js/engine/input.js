@@ -1017,7 +1017,16 @@ export class Input {
       case 'KeyS': this.keys.back = true; break;
       case 'KeyA': this.keys.left = true; break;
       case 'KeyD': this.keys.right = true; break;
-      case 'Space': this.keys.jump = true; break;
+      case 'Space':
+        if (e.repeat) break;
+        // Consume this press to get up; jumping requires a fresh press.
+        if (this.keys.prone) {
+          this.keys.prone = false;
+          this.keys.jump = false;
+        } else {
+          this.keys.jump = true;
+        }
+        break;
       case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = true; break;
       case 'ControlLeft': case 'ControlRight': case 'KeyC': this.keys.crouch = true; break;
       case 'KeyE': if (!this._wheelOpen) this.keys.interact = true; break;

@@ -202,8 +202,9 @@ export class SettingsController {
 
     const shell = el('div', 'vb-pause-shell', root);
     const nav = el('aside', 'vb-pause-rail', shell);
+    el('div', 'vb-pause-brand', nav).textContent = 'VOXEL BLITZ';
     const title = el('h2', 'vb-title', nav, 'settings-title');
-    title.textContent = 'MATCH PAUSED';
+    title.textContent = 'IN-GAME MENU';
     const sub = el('div', 'vb-sub vb-pause-match-name', nav);
     sub.textContent = 'LIVE MATCH';
 
@@ -220,9 +221,14 @@ export class SettingsController {
 
     const hint = el('div', 'vb-settings-hint', nav);
     hint.textContent = 'ESC · RESUME';
+    el('p', 'vb-pause-notice', nav).textContent = 'Multiplayer continues while this menu is open.';
 
     const panel = el('section', 'vb-settings-panel', shell);
-    el('span', 'vb-step-kicker', panel).textContent = 'CONTROLS';
+    el('h2', 'vb-settings-heading', panel).textContent = 'SETTINGS';
+    el('p', 'vb-settings-subtitle', panel).textContent = 'Make it feel right.';
+    const tabs = el('div', 'vb-settings-tabs', panel);
+    tabs.setAttribute('role', 'tablist');
+    tabs.setAttribute('aria-label', 'Settings category');
     const controls = el('div', 'vb-settings-controls', panel);
 
     const sensRow = el('div', 'vb-setting-row', controls);
@@ -312,9 +318,12 @@ export class SettingsController {
     const touchSize = choiceRow('settings-touch-size', 'TOUCH CONTROL SIZE', TOUCH_SIZES, TOUCH_SIZE_LABELS);
     const touchHand = choiceRow('settings-touch-hand', 'TOUCH LAYOUT', TOUCH_HANDS, TOUCH_HAND_LABELS);
 
+    const groups = { controls: [...controls.children], display: [], debug: [] };
+    let category = 'display';
     const displaySelects = {};
     for (const option of DISPLAY_OPTIONS) {
-      if (option.section) el('h3', 'vb-step-kicker', controls).textContent = option.section;
+      if (option.section?.toLowerCase().includes('debug')) category = 'debug';
+      const before = controls.children.length;
       const control = choiceRow(`settings-${option.key}`, option.label, ['0', '1'], { 0: 'OFF', 1: 'ON' });
       control.select.value = displaySettings()[option.key] ? '1' : '0';
       control.select.addEventListener('change', () => {
@@ -324,9 +333,38 @@ export class SettingsController {
       if (option.key === 'reducedMotion') {
         el('p', 'vb-settings-hint', controls).textContent = 'Defaults to your system preference. Reduces cosmetic breathing, weapon bob, flashes and camera shake. Shot direction and aiming sway stay the same.';
       }
+      groups[category].push(...Array.from(controls.children).slice(before));
     }
     const debugHint = el('p', 'vb-settings-hint', controls);
     debugHint.textContent = 'HITBOXES: cyan body, orange headshot zone. Uses server dimensions at interpolated player positions, not the server rewind. Walls still occlude these views.';
+
+    groups.debug.push(debugHint);
+    const tabButtons = [];
+    const activate = (key) => {
+      for (const [group, nodes] of Object.entries(groups)) for (const node of nodes) node.hidden = group !== key;
+      for (const button of tabButtons) {
+        button.setAttribute('aria-selected', String(button.dataset.group === key));
+        button.tabIndex = button.dataset.group === key ? 0 : -1;
+      }
+      controls.setAttribute('aria-labelledby', `settings-tab-${key}`);
+    };
+    controls.id = 'settings-category-panel';
+    controls.setAttribute('role', 'tabpanel');
+    for (const key of Object.keys(groups)) {
+      const button = el('button', 'vb-settings-tab', tabs, `settings-tab-${key}`);
+      button.type = 'button'; button.textContent = key.toUpperCase(); button.dataset.group = key;
+      button.setAttribute('role', 'tab'); button.setAttribute('aria-controls', controls.id);
+      button.addEventListener('click', () => activate(key));
+      button.addEventListener('keydown', (event) => {
+        if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        const index = tabButtons.indexOf(button);
+        const next = event.key === 'Home' ? 0 : event.key === 'End' ? 2 : (index + (event.key === 'ArrowRight' ? 1 : 2)) % 3;
+        tabButtons[next].click(); tabButtons[next].focus();
+      });
+      tabButtons.push(button);
+    }
+    activate('controls');
 
     const matchCard = el('aside', 'vb-pause-match-card', panel);
     el('span', 'vb-label', matchCard).textContent = 'CURRENT MATCH';

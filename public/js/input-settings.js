@@ -79,12 +79,12 @@ export const TOUCH_SENSITIVITY = Object.freeze({
 /**
  * Wheel-to-weapon-switch policy. Mouse wheels arrive as discrete notches (line mode or
  * ±100/120 px); trackpads stream many tiny pixel deltas, which used to cycle through
- * several weapons per swipe. Pixel deltas now accumulate to a notch and switches are
- * rate limited, so one two-finger flick is one weapon step on every device.
+ * several weapons per swipe. Pixel deltas accumulate to a small notch and switches
+ * are rate limited to keep light scrolls responsive without rapid accidental cycling.
  */
 export const WHEEL_SWITCH = Object.freeze({
-  notchPx: 48,
-  cooldownMs: 120,
+  notchPx: 24,
+  cooldownMs: 80,
   /** Pixel-mode deltas at or below this magnitude are trackpad evidence. */
   trackpadDeltaPx: 40,
   /** Wheel events needed before a trackpad is assumed (auto pointer mode). */
@@ -122,7 +122,7 @@ export function wheelSwitchStep(state, { deltaY = 0, deltaMode = 0 } = {}, now =
   if (Math.sign(state.acc) !== sign) state.acc = 0;
   state.acc += pixelMode ? delta : sign;
   if (Math.abs(state.acc) < notch) return 0;
-  if (now - (state.lastAt || -Infinity) < WHEEL_SWITCH.cooldownMs) {
+  if (now - (state.lastAt ?? -Infinity) < WHEEL_SWITCH.cooldownMs) {
     // Inside the cooldown the accumulated travel is spent, not banked.
     state.acc = 0;
     return 0;

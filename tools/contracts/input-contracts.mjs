@@ -81,6 +81,19 @@ export async function runInputContracts(ok, installGlobals) {
         preventDefault() {},
       });
 
+      input._onKeyDown(key('KeyX'));
+      ok(input.getKeys().prone, 'X enters prone');
+      input._onKeyDown(key('Space'));
+      ok(!input.getKeys().prone && !input.getKeys().jump,
+        'Space exits prone without also jumping');
+      input._onKeyDown(key('Space', true));
+      ok(!input.getKeys().jump, 'holding Space after getting up does not queue a jump');
+      input._onKeyUp(key('Space'));
+      input._onKeyDown(key('Space'));
+      ok(input.getKeys().jump, 'a fresh Space press jumps after getting up');
+      input._onKeyUp(key('Space'));
+      ok(!input.getKeys().jump, 'releasing Space clears the jump intent');
+
       input._onMouseDown({ button: 1 });
       input._onMouseUp({ button: 1 });
       ok(input.takeWheelOpenRequest() && !input.takeWheelRelease(),
@@ -650,10 +663,15 @@ export async function runInputContracts(ok, installGlobals) {
     const wheelState = { acc: 0, lastAt: -Infinity };
     let steps = 0;
     for (let i = 0; i < 20; i++) steps += wheelSwitchStep(wheelState, { deltaY: 5, deltaMode: 0 }, i * 10);
-    const reversal = { acc: 30, lastAt: -Infinity };
-    const reversed = wheelSwitchStep(reversal, { deltaY: -30, deltaMode: 0 }, 1000);
-    ok(steps === 1 && reversed === 0 && reversal.acc === -30,
-      'pixel wheel deltas accumulate to one notch per burst and a reversal resets the bank');
+    const reversal = { acc: 18, lastAt: -Infinity };
+    const reversed = wheelSwitchStep(reversal, { deltaY: -18, deltaMode: 0 }, 1000);
+    ok(steps === 2 && reversed === 0 && reversal.acc === -18,
+      'sustained pixel scrolling steps responsively and a reversal resets the bank');
+    const lightScroll = { acc: 0, lastAt: -Infinity };
+    ok(wheelSwitchStep(lightScroll, { deltaY: 24 }, 0) === 1
+        && wheelSwitchStep(lightScroll, { deltaY: 24 }, 30) === 0
+        && wheelSwitchStep(lightScroll, { deltaY: 24 }, 80) === 1,
+      'light scrolls swap immediately, suppress burst repeats, and allow another swap after 80 ms');
 
     const none = visibleTouchActions(null);
     const dead2 = visibleTouchActions({ alive: false, canFire: true, grenades: 2 });
