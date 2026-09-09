@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
-import { POWERUP_TYPES } from '../../../shared/powerups.js';
+import { POWERUP_TYPES, MAX_WORLD_PICKUPS } from '../../../shared/powerups.js';
 
 function box(parent, material, x, y, z, sx, sy, sz) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
@@ -24,7 +24,7 @@ function labelTexture(text, color) {
   return texture;
 }
 
-/** At most three small, depth-tested world pickups; snapshots own their lifetime. */
+/** Bounded, small, depth-tested world pickups; snapshots own their lifetime. */
 export class PowerupView {
   constructor() {
     this.group = new THREE.Group();
@@ -35,7 +35,7 @@ export class PowerupView {
 
   sync(rows = []) {
     const retained = new Set();
-    for (const row of Array.isArray(rows) ? rows.slice(0, 3) : []) {
+    for (const row of Array.isArray(rows) ? rows.slice(0, MAX_WORLD_PICKUPS) : []) {
       if (!row || !Object.hasOwn(POWERUP_TYPES, row.type) ||
           ![row.x, row.y, row.z].every(Number.isFinite) || typeof row.id !== 'string') continue;
       retained.add(row.id);
@@ -65,7 +65,14 @@ export class PowerupView {
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.68, 0.76, 32), glow);
     ring.rotation.x = -Math.PI / 2; ring.position.y = 0.025; root.add(ring);
     const body = new THREE.Group(); root.add(body);
-    if (type === 'armor') {
+    if (type === 'cash') {
+      for (let i = 0; i < 3; i++) {
+        box(body, shell, (i % 2) * 0.07, i * 0.14, 0, 0.72, 0.11, 0.36);
+        box(body, bright, (i % 2) * 0.07, i * 0.14, 0, 0.14, 0.12, 0.38);
+      }
+      base.visible = ring.visible = false;
+      shell.emissiveIntensity = 0.12;
+    } else if (type === 'armor') {
       box(body, shell, 0, 0, 0, 0.68, 0.62, 0.30);
       box(body, shell, 0, -0.36, 0, 0.38, 0.14, 0.30);
       box(body, dark, 0, 0.27, 0, 0.25, 0.16, 0.32);
@@ -92,13 +99,14 @@ export class PowerupView {
     const labelMaterial = new THREE.SpriteMaterial({ map: texture, depthTest: true, depthWrite: false });
     const label = new THREE.Sprite(labelMaterial);
     label.position.y = 2.05; label.scale.set(1.9, 0.40, 1); root.add(label);
+    if (type === 'cash') { beam.visible = false; label.position.y = 0.8; label.scale.set(1.1, 0.23, 1); }
     return { root, body, ring, glow, type, texture, materials: [shell, dark, bright, glow, beamMaterial, labelMaterial] };
   }
 
   update(dt) {
     this.time += Math.max(0, Math.min(dt || 0, 0.1));
     for (const item of this.items.values()) {
-      item.body.position.y = 0.96 + Math.sin(this.time * 2.4) * 0.1;
+      item.body.position.y = (item.type === 'cash' ? 0.24 : 0.96) + Math.sin(this.time * 2.4) * 0.1;
       item.body.rotation.y = this.time * 0.7;
       item.glow.opacity = 0.48 + Math.sin(this.time * 3) * 0.15;
     }

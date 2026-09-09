@@ -1,14 +1,14 @@
 // Authoritative travelling fire packets. Every packet can hit one body once.
 import { WEAPONS, damageAtDistance } from '../../shared/combatmath.js';
 import { FLAME_RULES, flamePanicFloor } from '../../shared/flame-rules.js';
-import { playerHitboxes, rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
+import { combatHitboxes, rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { evHit } from '../protocol/events.js';
 
 // Expanded body volumes must never pull damage across cover. Find a real body
 // point inside the packet and require an unobstructed line from its launch eye.
 function visibleContact(center, victim, radius, origin, solidAt) {
-  for (const box of playerHitboxes(victim)) {
+  for (const box of combatHitboxes(victim)) {
     const offset = center.map((v, i) => v - box.center[i]);
     const local = box.basis.map(axis => axis.reduce((sum, v, i) => sum + v * offset[i], 0));
     const clamped = local.map((v, i) => Math.max(-box.half[i], Math.min(box.half[i], v)));
@@ -46,7 +46,7 @@ export class FlameSystem {
         const limit = wall ? wall.t : travel;
         const radius = FLAME_RULES.radius + (packet.distance + limit) * FLAME_RULES.radiusGrowth;
         let nearest = null;
-        for (const victim of ctx.entities.values()) {
+        for (const victim of (ctx.targets || ctx.entities).values()) {
           if (victim === packet.owner || victim.state !== 'alive' || !ctx.canDamage(packet.owner, victim)) continue;
           if (Math.hypot(victim.x - origin[0], victim.y - origin[1], victim.z - origin[2]) > 3 + radius + limit) continue;
           const hit = rayPlayerHitboxes(origin, dir, victim, limit, { radius });

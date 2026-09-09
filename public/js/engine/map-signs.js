@@ -4,6 +4,10 @@ import { AIR, GLASS } from '../../../shared/world/blocks.js';
 // Signs are flush paint on solid voxel faces. Every backing cell is tracked so
 // destruction removes the paint with its wall, including on a late join.
 const SIGNS = {
+  reactor: [
+    ['REACTOR / 09', 'TURBINE CONTROL', 36.5, 21, 28, 18, 1.5, '+z'],
+    ['SERVICE BAY', 'RESUPPLY / REPAIR', 64, 18, 85, 12, 1.3, '-z'],
+  ],
   foundry: [
     ['NORTH FORGE', 'CASTING / 01', 60.5, 18.5, 31, 7, 0.8, '+z'],
     ['FOUNDRY', 'HEAVY LIFT', 65.5, 24.5, 47, 7, 0.8, '+z'],

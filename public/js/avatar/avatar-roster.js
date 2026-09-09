@@ -1,5 +1,9 @@
+import { updateBastionAvatar } from './bastion-avatar.js';
+import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import * as THREE from '../vendor/three.module.js';
 import { isTeamMode } from '../../../shared/modes.js';
+import { WEAPON_IDS } from '../../../shared/combatmath.js';
+import { QUICK_MELEE_SECONDS } from '../../../shared/quick-melee.js';
 import { AvatarDebugView } from './debug-view.js';
 import { nowMs, smooth01 } from '../util/math.js';
 import { boundedMapSet } from '../util/bounded-map.js';
@@ -35,6 +39,7 @@ export class AvatarRoster {
     this._pendingHits = new Map();
     this._remoteImpacts = new Map();
     this._pendingDeaths = new Map();
+    this._pickaxeSwings = new Map();
     this._counters = {
       dyingAvatars: 0,
       runningAvatars: 0,
@@ -58,6 +63,11 @@ export class AvatarRoster {
 
   get counters() {
     return this._counterView;
+  }
+
+  swingPickaxe(id) {
+    if (id === this._getMyId()) return;
+    boundedMapSet(this._pickaxeSwings, id, this._now() + QUICK_MELEE_SECONDS * 1000);
   }
 
   hit(id, ev) {
@@ -97,6 +107,7 @@ export class AvatarRoster {
   }
 
   respawn(id, ev) {
+    this._pickaxeSwings.delete(id);
     this._pendingHits.delete(id);
     this._pendingDeaths.delete(id);
     this._remoteImpacts.delete(id);
@@ -122,6 +133,9 @@ export class AvatarRoster {
   }
 
   sync(remotes, dt, now) {
+    for (const [id, until] of this._pickaxeSwings) {
+      if (now >= until || !remotes.has(id)) this._pickaxeSwings.delete(id);
+    }
     const counters = this._counters;
     counters.dyingAvatars = 0;
     counters.runningAvatars = 0;
@@ -161,6 +175,7 @@ export class AvatarRoster {
         this._avatars.set(remote.id, avatar);
       }
       setAvatarTeam(avatar, remote.team);
+      updateBastionAvatar(avatar,remote);
 
       const pendingHit = this._pendingHits.get(remote.id);
       if (pendingHit) {
@@ -229,12 +244,13 @@ export class AvatarRoster {
       const flinch = avatar.hitSide * hit01 * 0.2;
 
       avatar.group.position.set(remote.x, remote.y + cadence * stride * 0.025 * (1 - avatar.motion.air), remote.z);
+      const pickaxe = this._pickaxeSwings.has(remote.id);
       updateAvatarWeaponPose(avatar, {
-        weapon: remote.weapon,
+        weapon: pickaxe ? WEAPON_IDS.indexOf('knife') : remote.weapon,
         pitch: remote.pitch,
-        firing: remote.firing,
-        ads: remote.ads,
-        reloading: remote.reloading,
+        firing: pickaxe || remote.firing,
+        ads: !pickaxe && remote.ads,
+        reloading: !pickaxe && remote.reloading,
         crouching: remote.crouch,
         proneT: remote.proneT,
         stride,
@@ -260,7 +276,7 @@ export class AvatarRoster {
 
       if (remote.hp != null && remote.hp !== avatar.lastHp) {
         avatar.lastHp = remote.hp;
-        avatar.updateHealth(remote.hp / 100);
+        avatar.updateHealth(remote.hp / (BASTION_ENEMIES[remote.npcRole]?.hp || 100));
       }
     }
     this._debugView.sync(remotes, this._avatars, myId);
@@ -302,6 +318,7 @@ export class AvatarRoster {
     this._pendingHits.clear();
     this._remoteImpacts.clear();
     this._pendingDeaths.clear();
+    this._pickaxeSwings.clear();
     this._counters.dyingAvatars = 0;
     this._counters.runningAvatars = 0;
     this._counters.maxAvatarSpeed = 0;

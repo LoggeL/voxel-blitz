@@ -338,6 +338,7 @@ export class SettingsController {
     const touchSize = choiceRow('settings-touch-size', 'TOUCH CONTROL SIZE', TOUCH_SIZES, TOUCH_SIZE_LABELS);
     const touchHand = choiceRow('settings-touch-hand', 'TOUCH LAYOUT', TOUCH_HANDS, TOUCH_HAND_LABELS);
 
+    el('p', 'vb-settings-hint', controls).textContent = 'V: quick pickaxe hit for melee or mining. Your current weapon returns after the swing.';
     const groups = { controls: [...controls.children], display: [], debug: [] };
     groups.display.push(this.frameRate.mount(controls));
     let category = 'display';

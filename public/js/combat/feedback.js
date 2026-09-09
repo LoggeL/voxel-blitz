@@ -171,6 +171,7 @@ export class CombatFeedback {
         const local = ev.id === myId;
         if (local) this.effects.confirmShot?.(ev);
         if (!local) {
+          if (ev.w === 'knife') this.roster?.swingPickaxe?.(ev.id);
           this.effects.shoot(ev);
           this.sfx.fire(ev.w, ev.w === 'flamethrower'
             ? { pos: ev.o, shooterId: ev.id } : { pos: ev.o });

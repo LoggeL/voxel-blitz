@@ -323,12 +323,12 @@ export class ProjectileSystem {
   }
 
   _sweepVictim(from, to, radius, ctx, projectile, ignoreOwner = false) {
-    return sweepPlayers(from, to, radius, ctx.entities,
+    return sweepPlayers(from, to, radius, ctx.targets || ctx.entities,
       (victim) => this._canContact(victim, projectile, ctx, ignoreOwner));
   }
 
   _contactVictim(point, radius, ctx, projectile = point, ignoreOwner = false) {
-    for (const victim of ctx.entities.values()) {
+    for (const victim of (ctx.targets || ctx.entities).values()) {
       if (!this._canContact(victim, projectile, ctx, ignoreOwner)) continue;
       if (touchesPlayer(point, radius, victim)) return victim;
     }
@@ -669,7 +669,7 @@ export class ProjectileSystem {
     const damageEnabled = ctx.grenadeDamage !== false || projectile.type === 'rocket';
     if (!damageEnabled && projectile.type !== 'pulse') return;
     const weaponKey = projectile.type;
-    for (const victim of ctx.entities.values()) {
+    for (const victim of (ctx.targets || ctx.entities).values()) {
       if (victim.state !== 'alive') continue;
       if (Number.isFinite(victim.spawnProtectedUntil) &&
           victim.spawnProtectedUntil > ctx.now) continue;
@@ -688,14 +688,17 @@ export class ProjectileSystem {
         : Math.pow(1 - distance / rules.damageRadius, 1.22);
       let damage = rules.damage * falloff;
       if (direct && Number.isFinite(rules.directDamage)) damage += rules.directDamage;
+      // NPC rockets retain the real flight/blast/terrain simulation, with a
+      // readable 70-damage attack instead of the player rocket's lethal impact.
+      if (owner?.npcRole === 'breacher' && projectile.type === 'rocket') damage = 70 * falloff;
       damage = Math.round(damage * (isSelf ? rules.selfDamage : 1) * 10) / 10;
       let lethal = false;
       if (damageEnabled && damage > 0) {
         hitVictims.add(victim);
-        lethal = victim.takeDamage(damage, false);
+        lethal = victim.takeDamage(damage, false, owner);
         ctx.pushEvent(evHit(owner?.id || '', victim.id, damage, false, target, victim.lastDamage));
       }
-      const strength = isSelf && Number.isFinite(rules.selfKnockback)
+      const strength = victim.objective ? 0 : isSelf && Number.isFinite(rules.selfKnockback)
         ? rules.selfKnockback
         : rules.knockback;
       // Pressure falls off more gently than damage for displacement-focused blasts.

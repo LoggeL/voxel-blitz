@@ -123,6 +123,12 @@ try {
   assert.ok(meshes.every((mesh, i) => mesh.instanceMatrix.version > spawnedVersions[i]),
     'every populated effect still uploads animated transforms');
   fx.update(60);
+  fx.shoot({ w: 'flamethrower', o: [0, 2, 0], d: [0, 0, -1] }, { local: true });
+  fx.projectiles.launch({ pid: 'bastion-reset', type: 'rocket', o: [0, 2, 0], v: [0, 0, -10] });
+  assert.equal(fx.projectiles.projectiles.size, 1);
+  fx.clearCombatHazards();
+  assert.equal(fx.projectiles.projectiles.size, 0, 'Bastion transition clears airborne projectiles');
+  assert.equal(fx.flames.puffs.some(puff => puff.life > 0), false, 'Bastion transition clears active flame particles');
   const expiredVersions = attributes.map(attribute => attribute.version);
   for (let frame = 0; frame < 120; frame++) fx.update(1 / 60);
   assert.deepEqual(attributes.map(attribute => attribute.version), expiredVersions,

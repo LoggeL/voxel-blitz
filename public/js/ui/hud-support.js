@@ -78,6 +78,7 @@ export const WEAPON_BUY_ORDER = Object.freeze([
 ]);
 
 export const MODE_LABELS = Object.freeze({
+  bastion: 'BASTION · CO-OP PVE',
   duel: '1V1 DUEL',
   chaos: 'CHAOS LAB',
   fun: 'FUN · FREE FOR ALL',
@@ -88,6 +89,7 @@ export const MODE_LABELS = Object.freeze({
 });
 
 export const MODE_DESCRIPTIONS = Object.freeze({
+  bastion: '1–4 defenders · 8 finite waves · Protect the reactor · Team upgrades between waves',
   chaos: `Kills pay $${CHAOS_KILL_CREDITS} · ${Object.values(CHAOS_UPGRADES).reduce((total, upgrades) => total + upgrades.length, 0)} stacking upgrades · Open the lab with B · No balance, just chaos`,
   fun: 'Shared instant skirmish · 8-gun full loadout · Rapid respawn',
   tdm: 'Alpha vs Bravo · First team to 40 kills wins · Team spawns',
@@ -97,6 +99,7 @@ export const MODE_DESCRIPTIONS = Object.freeze({
 });
 
 export const MAP_LABELS = Object.freeze({
+  reactor: 'REACTOR 9',
   foundry: 'FOUNDRY',
   depot: 'DEPOT',
   citadel: 'CITADEL',
@@ -108,6 +111,7 @@ export const MAP_LABELS = Object.freeze({
 });
 
 export const MAP_DESCRIPTIONS = Object.freeze({
+  reactor: 'Dedicated core-defense courtyard with three entrances, turbine halls and destructible cover.',
   foundry: 'Industrial foundry with multi-level catwalks and mid-lane cover (All Modes)',
   depot: 'Point-symmetric cargo depot with mirrored containers & central plaza (Fun / TDM / Gun Game)',
   citadel: 'Urban fortress with Courtyard A and Compound B tactical bomb sites (All Modes)',
@@ -119,6 +123,7 @@ export const MAP_DESCRIPTIONS = Object.freeze({
 });
 
 export const MAP_PREVIEWS = Object.freeze({
+  reactor: './assets/maps/reactor-preview.png',
   foundry: './assets/maps/foundry-concept.webp',
   depot: './assets/maps/depot-concept.webp',
   citadel: './assets/maps/citadel-concept.webp',

@@ -338,6 +338,19 @@ export const sfx = {
     });
   },
 
+  bastionCue(kind, pos = null) {
+    run('bastion', () => {
+      const output = pool.acquire(pos ? { pos } : null, 1.2);
+      const at = primitives.nowT();
+      const alarm = kind === 'bastion_alarm' || kind === 'bastion_charge';
+      for (let i = 0; i < 3; i++) primitives.tone(output, {
+        t0: at + i * 0.19, type: alarm ? 'triangle' : 'sine',
+        f0: alarm ? 420 + i * 180 : 600 + i * 200,
+        f1: alarm ? 240 : 720 + i * 200, dec: 0.16, g: 0.065,
+      });
+    });
+  },
+
   cycleClick(step, weapon) {
     run('cycle', () => {
       const output = pool.acquire(null, 0.24);

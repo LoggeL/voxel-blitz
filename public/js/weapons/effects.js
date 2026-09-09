@@ -197,6 +197,14 @@ export class Effects {
     };
   }
 
+  clearCombatHazards() {
+    this.projectiles.clear();
+    this.flames.localActive = false; this.flames.localEvent = null;
+    for (const puff of this.flames.puffs) puff.life = 0;
+    this.flames.geometry.instanceCount = 0;
+    this.fireFields.sync([], 0);
+  }
+
   dispose() {
     if (this._disposed) return;
     this._disposed = true;

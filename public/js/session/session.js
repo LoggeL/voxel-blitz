@@ -24,6 +24,7 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
   'respawn',
   'die',
   'powerup',
+  'bastion_clear', 'bastion_wave', 'bastion_supply', 'bastion_alarm', 'bastion_charge', 'bastion_lane', 'bastion_buy', 'bastion_pickup',
 ]);
 
 /** Training run course events emitted by the server's training policy. */

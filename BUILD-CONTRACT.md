@@ -959,3 +959,29 @@ mode objectives retain navigation priority, and respawn clears combat memory.
 Implementations use the exact wire shapes, room boundaries, module names, and
 observable behavior above. Contract changes update the relevant harness and
 this document in the same change.
+
+
+### Bastion cooperative defense
+
+- `bastion` supports `reactor` only. Create/configure normalizes friendly bots to
+  zero and permits at most four human members. NPCs are held in `GameEngine.npcs`;
+  objectives in `objectives`. Combat target iteration includes the core, while
+  movement, player lifecycle and avatar snapshots exclude objectives.
+- `shared/bastion.js` owns eight waves, scaling, bounded active populations,
+  purchase parsing, repair eligibility and mode-specific weapon adjustments.
+  The policy lives in `server/modes/bastion.js`, with navigation and enemy AI in
+  `server/modes/bastion/`. Phases are `prep`, `live`, `supply`, `post`.
+- `match.bastion` is a complete replacement: run/prep epochs, wave, core, alive and
+  queued counts, team credits/upgrades, readiness, lanes, service point and solo
+  return state. NPC rows carry `npcRole` and `npcAttack`; defender rows carry
+  `bastion`, `bastionUpgrades` and owned weapons.
+- Supply actions use the existing buy frame with
+  `bastion:<run>:<prep>:<request>:<action>[:item]`. The server rejects stale or
+  repeated requests before mutation. Repairs reserve credits until completion.
+  `bastion_clear` clears client combat hazards at phase boundaries.
+- `reactorDefenderSolid` is shared by authority and prediction for ingress shields
+  and reactor collision. The deterministic map has no random pickup sites.
+- `npm run bastion:test` covers lifecycle through all eight waves, normal damage,
+  enemy perception and navigation, purchases, repair reservations, input release,
+  late joins and an actual WebSocket lobby. See `docs/pve-bastion.md` for rules and
+  the boundary between automated checks and pending human balance playtests.

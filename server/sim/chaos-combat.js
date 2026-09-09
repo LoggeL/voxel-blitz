@@ -30,8 +30,8 @@ function flameJets(p, ctx, dir) {
   }
 }
 
-export function chaosShot(p, ctx, dir) {
-  const id = WEAPONS[p.def.id].id, level = chaosLevel(p, id);
+export function chaosShot(p, ctx, dir, def = p.def) {
+  const id = WEAPONS[def.id].id, level = chaosLevel(p, id);
   if (!level) return;
   if (id === 'rifle' && level >= 3 && p.shotSeq % 3 === 0) fan(p, ctx, dir, 1);
   if (id === 'smg') {

@@ -218,6 +218,7 @@ export class SpectatorCamera {
 
   _respawnText() {
     if (this.phase === 'post' && this.mode !== 'snd') return 'MATCH OVER';
+    if (this.mode === 'bastion') return 'RETURN AT NEXT SUPPLY';
     if (this.mode === 'snd') return this.phase === 'prep' ? 'ROUND STARTING' : 'RESPAWN NEXT ROUND';
     const estimated = this._estimatedServerNow();
     if (estimated === null || this.respawnAt === null) return 'RESPAWNING';

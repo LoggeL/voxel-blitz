@@ -25,7 +25,7 @@ export class LobbySettings {
           gameMode: this.controls.gameMode.value,
           duelKillLimit: Number(this.controls.duelKillLimit.value),
           map: this.controls.map.value,
-          bots: ['training', 'duel'].includes(this.controls.gameMode.value) ? 0 : Number(this.controls.bots.value),
+          bots: ['training', 'duel', 'bastion'].includes(this.controls.gameMode.value) ? 0 : Number(this.controls.bots.value),
         };
         savePref('vb-mode', settings.gameMode);
         savePref('vb-map', settings.map);
@@ -61,13 +61,14 @@ export class LobbySettings {
     this.controls.duelKillLimit.parentNode.hidden = state.gameMode !== 'duel';
     this.controls.gameMode.value = state.gameMode;
     this.syncMaps(state.gameMode, state.map);
-    this.controls.bots.value = String(['training', 'duel'].includes(state.gameMode) ? 0 : state.bots);
+    this.controls.bots.value = String(['training', 'duel', 'bastion'].includes(state.gameMode) ? 0 : state.bots);
     for (const [key, select] of Object.entries(this.controls)) {
-      select.disabled = !isHost || state.phase !== 'waiting' || (key === 'bots' && ['training', 'duel'].includes(state.gameMode));
+      select.disabled = !isHost || state.phase !== 'waiting' || (key === 'bots' && ['training', 'duel', 'bastion'].includes(state.gameMode));
     }
     this.loadout.textContent = state.gameMode === 'duel'
       ? 'BASE 1V1 WEAPON SET: Rifle · Shotgun · Sniper · Revolver · Pixel Pick. No throwables.' : '';
-    this.hint.textContent = state.gameMode === 'duel'
+    this.hint.textContent = state.gameMode === 'bastion'
+      ? '1–4 players defend Reactor 9 through 8 waves. Enemy waves are automatic. No friendly bots.' : state.gameMode === 'duel'
       ? 'Share the invite link. Two players, no bots. Both players must be ready.' : isHost
       ? 'Invite friends now. Changes reset readiness. Bots fill available slots.'
       : 'The host can change settings while everyone joins.';

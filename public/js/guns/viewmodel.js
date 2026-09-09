@@ -14,6 +14,7 @@ import { WeaponTurnInertia } from './turn-inertia.js';
 import { SPRINT_AIM_DIP } from './weapon-aim.js';
 import { VaultHands } from './vault-hands.js';
 import { ThrowableHands } from './throwable-hands.js';
+import { QUICK_MELEE_SECONDS } from '../../../shared/quick-melee.js';
 import { PICKAXE_SWING_SECONDS as SWING_S, PICKAXE_CARRY_YAW, PICKAXE_CARRY_ROLL, pickaxeSwingPose } from './pickaxe-swing.js';
 
 
@@ -120,6 +121,7 @@ export class ViewmodelRig {
   }
 
   setWeapon(id) {
+    this._quickMelee = null;
     this._swap = null;
     this._swapDraw = false;
     const key = TIMERS[id] ? id : 'rifle';                           // forgiving: bad key stays playable
@@ -157,6 +159,22 @@ export class ViewmodelRig {
     this.flashOff(true);
     this._depT = 0;                                                  // replay DEPLOY raise/settle curve
     this._applyBasePose();                                           // snap content pose immediately
+  }
+
+  quickMelee() {
+    if (!this._cur || this.grenadeActive || this._swap || this._quickMelee) return false;
+    const weapon = this._id;
+    this.setWeapon('knife');
+    this._depT = 1;
+    if (!this.fire()) { this.setWeapon(weapon); this._depT = 1; return false; }
+    this._quickMelee = { weapon, remaining: QUICK_MELEE_SECONDS };
+    return true;
+  }
+
+  cancelQuickMelee() {
+    if (!this._quickMelee) return;
+    this.setWeapon(this._quickMelee.weapon);
+    this._depT = 1;
   }
 
   /** Only accepted local contacts add the wrist rebound; misses follow through. */
@@ -354,6 +372,10 @@ export class ViewmodelRig {
     if (!(dt > 0)) return;
     const elapsed = Math.min(dt, 0.25);
     let drawElapsed = elapsed;
+    if (this._quickMelee) {
+      this._quickMelee.remaining -= elapsed;
+      if (this._quickMelee.remaining <= 1e-6) this.cancelQuickMelee();
+    }
     dt = Math.min(dt, 0.033);
     if (this._swap) {
       this._swap.elapsed += elapsed;
@@ -519,7 +541,7 @@ export class ViewmodelRig {
     // The pickaxe carries at a side angle and chops inward around the palm.
     let swingX = 0, swingY = 0, swingZ = 0, swingRx = 0, swingRy = 0, swingRz = 0;
     if (this._swingT > 0) {
-      this._swingT = Math.max(0, this._swingT - dt);
+      this._swingT = Math.max(0, this._swingT - elapsed);
       const pose = pickaxeSwingPose(1 - this._swingT / SWING_S, this._swingContact);
       swingX = pose.x; swingY = pose.y; swingZ = pose.z;
       swingRx = pose.rx; swingRy = pose.ry; swingRz = pose.rz;

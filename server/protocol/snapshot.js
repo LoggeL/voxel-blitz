@@ -54,7 +54,7 @@ function ownedWeapons(values) {
 }
 
 function interactionCopy(value) {
-  if (!isRecord(value) || (value.kind !== 'plant' && value.kind !== 'defuse')) return null;
+  if (!isRecord(value) || !['plant', 'defuse', 'repair'].includes(value.kind)) return null;
   return {
     kind: value.kind,
     site: typeof value.site === 'string' ? value.site : null,
@@ -160,6 +160,8 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
         : 0,
       owned: ownedWeapons(p.owned),
       ...(p.chaosUpgrades ? { chaosUpgrades: { ...p.chaosUpgrades } } : {}),
+      ...(p.bastion ? { bastion: { ...p.bastion }, bastionUpgrades: { ...p.bastionUpgrades } } : {}),
+      ...(p.npcRole ? { npcRole: p.npcRole, npcAttack: p.npcAttack } : {}),
       bomb: !!p.bomb,
       interaction: interactionCopy(p.interaction),
       grenades: grenadeCopy(p.grenades),

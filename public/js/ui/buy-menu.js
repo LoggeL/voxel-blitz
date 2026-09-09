@@ -1,3 +1,4 @@
+import { buildBastionArmory, syncBastionArmory, bastionPurchaseId } from './bastion-armory.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { CHAOS_UPGRADES, chaosLevel, chaosPurchaseId } from '../../../shared/chaos.js';
 import { WEAPON_PRICES } from '../../../shared/modes.js';
@@ -39,7 +40,7 @@ export class BuyMenuController {
   }
 
   ensureBuyMenu() {
-    const mode = this._isChaosMode() ? 'chaos' : 'snd';
+    const mode = this._shopMode();
     if (this.buyDom.root && this.buyDom.mode === mode) return this.buyDom.root;
 
     let root = document.getElementById('buy-menu');
@@ -53,6 +54,18 @@ export class BuyMenuController {
     }
 
     root.innerHTML = '';
+    if (mode === 'bastion') {
+      root.style.display = 'none';
+      this.buyDom = buildBastionArmory(root, (action,item) => {
+        if (!this._isAdmitted()) return;
+        const state = this._buyMenuState;
+        this._bastionRequest = Math.max(this._bastionRequest || 0,state.bastionSelf?.request || 0)+1;
+        this._buyMenuCallbacks?.onBuy?.(bastionPurchaseId(state.bastion,this._bastionRequest,action,item));
+      }, () => this.toggleBuyMenu(false));
+      this._paintedState = null;
+      this.syncBuyMenuUI();
+      return root;
+    }
     this._paintedState = null;
     root.classList.toggle('vb-chaos-shop', mode === 'chaos');
     root.style.display = 'none';
@@ -64,7 +77,7 @@ export class BuyMenuController {
     const title = el('h2', 'vb-title', titlesBox, 'buy-title');
     title.textContent = mode === 'chaos' ? 'CHAOS LAB' : 'ARMORY REQUISITION';
     const sub = el('div', 'vb-sub', titlesBox);
-    sub.textContent = mode === 'chaos' ? 'Upgrades stack and survive death. The fight stays live.' : 'Tactical weapons procurement · Prep phase only';
+    sub.textContent = mode === 'chaos' ? 'Find hidden cash or earn credits from kills. Upgrades survive death.' : 'Tactical weapons procurement · Prep phase only';
 
     const metaBox = el('div', 'vb-buy-meta-row', header);
 
@@ -234,7 +247,9 @@ export class BuyMenuController {
     this.ensureBuyMenu();
   }
 
-  setBuyMenuState({ open, phase, credits, owned, chaosUpgrades } = {}) {
+  setBuyMenuState({ open, phase, credits, owned, chaosUpgrades, bastion, bastionSelf } = {}) {
+    if (bastion !== undefined) this._buyMenuState.bastion = bastion;
+    if (bastionSelf !== undefined) this._buyMenuState.bastionSelf = bastionSelf;
     if (phase !== undefined) this._buyMenuState.phase = phase;
     if (credits !== undefined) this._buyMenuState.credits = Number(credits) || 0;
     if (owned !== undefined) {
@@ -242,7 +257,7 @@ export class BuyMenuController {
     }
 
     if (chaosUpgrades !== undefined) this._buyMenuState.chaosUpgrades = { ...chaosUpgrades };
-    if (this.buyDom.root && this.buyDom.mode !== (this._isChaosMode() ? 'chaos' : 'snd')) {
+    if (this.buyDom.root && this.buyDom.mode !== this._shopMode()) {
       this.closeBuyMenuDirect();
       this.ensureBuyMenu();
     }
@@ -361,9 +376,10 @@ export class BuyMenuController {
     // contain the same authoritative economy.
     const state = this._buyMenuState;
     const painted = JSON.stringify([dom.mode, this._isAdmitted(), this._isAlive(),
-      state.phase, state.credits, state.owned, state.chaosUpgrades]);
+      state.phase, state.credits, state.owned, state.chaosUpgrades, state.bastion, state.bastionSelf]);
     if (painted === this._paintedState) return;
     this._paintedState = painted;
+    if (dom.mode === 'bastion') { syncBastionArmory(dom,state); return; }
 
     if (this._isChaosMode()) {
       this._syncChaosUI();
@@ -496,11 +512,14 @@ export class BuyMenuController {
 
   _isAdmitted() {
     return ((this._isSndMode() && this._buyMenuState.phase === 'prep')
-      || (this._isChaosMode() && this._buyMenuState.phase === 'live'))
+      || (this._isChaosMode() && this._buyMenuState.phase === 'live')
+      || (this.host.mode?.() === 'bastion' && ['prep','supply'].includes(this._buyMenuState.phase)))
       && this._isAlive()
       && !this.host.settingsOpen?.()
       && !this.host.isLobbyOpen?.();
   }
+
+  _shopMode() { return this.host.mode?.() === 'bastion' ? 'bastion' : this._isChaosMode() ? 'chaos' : 'snd'; }
 
   _isChaosMode() {
     return this.host.mode?.() === 'chaos';

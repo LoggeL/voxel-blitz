@@ -25,7 +25,7 @@ import { createMapState, getMapMeta } from '../shared/worlddata.js';
 
 const derivePassword = promisify(scrypt);
 const MAX_HUMANS = 8;
-const capacity = (room) => room.gameMode === 'duel' ? 2 : MAX_HUMANS;
+const capacity = (room) => room.gameMode === 'duel' ? 2 : room.gameMode === 'bastion' ? 4 : MAX_HUMANS;
 const MAX_ROOMS = 16;
 const MAX_BOTS = 7;
 const QUICK_MIN_BOTS = 5;
@@ -225,9 +225,10 @@ export class LobbyManager {
       return this._error(meta, 'Invalid lobby settings');
     }
     if (gameMode === 'duel' && room.members.size > 2) return this._error(meta, '1v1 allows only two players');
+    if (gameMode === 'bastion' && room.members.size > 4) return this._error(meta, 'Bastion allows up to four players');
     duelKillLimit ??= room.duelKillLimit;
     if (!DUEL_KILL_LIMITS.includes(duelKillLimit)) return this._error(meta, 'Invalid 1v1 kill target');
-    bots = ['training', 'duel'].includes(gameMode) ? 0 : bots;
+    bots = ['training', 'duel', 'bastion'].includes(gameMode) ? 0 : bots;
     const arenaChanged = gameMode !== room.gameMode || map !== room.map;
     if (!arenaChanged && bots === room.bots && duelKillLimit === room.duelKillLimit) return true;
     if (arenaChanged) {
@@ -366,7 +367,7 @@ export class LobbyManager {
       map,
       phase: 'waiting',
       duelKillLimit: DEFAULT_DUEL_KILL_LIMIT,
-      bots: gameMode === 'duel' ? 0 : bots,
+      bots: ['duel','bastion'].includes(gameMode) ? 0 : bots,
       quickPopulation: quick ? bots + 1 : null,
       host: '',
       members: new Map(),
@@ -447,7 +448,7 @@ export class LobbyManager {
 
     let manager = null;
     try {
-      if (room.gameMode === 'training') {
+      if (['training','bastion'].includes(room.gameMode)) {
         // Training is self-populating: dummy targets are engine bots, so the
         // lobby never attaches a combat-bot manager.
         room.botManager = null;

@@ -522,7 +522,7 @@ export class MenuLobbyController {
       && (gameMode !== 'duel' || totalHumans === 2);
 
     if (dom.readyCount) {
-      dom.readyCount.textContent = `${members.length}/${gameMode === 'duel' ? 2 : 8} OPERATORS · ${readyHumans}/${totalHumans} READY`;
+      dom.readyCount.textContent = `${members.length}/${gameMode === 'duel' ? 2 : gameMode === 'bastion' ? 4 : 8} OPERATORS · ${readyHumans}/${totalHumans} READY`;
     }
 
     if (dom.readyBtn) {

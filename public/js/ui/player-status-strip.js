@@ -4,7 +4,7 @@ function isAlive(player) {
   return player?.state !== 'dead' && player?.dead !== true && Number(player?.hp ?? 1) > 0;
 }
 
-/** S&D remaining lives. Respawn modes do not need a permanent roster. */
+/** Remaining lives in elimination rounds and cooperative waves. */
 export class PlayerStatusStrip {
   constructor() { this.root = null; this._signature = ''; }
 
@@ -18,9 +18,9 @@ export class PlayerStatusStrip {
   update(players, mode, selfId) {
     const root = this.root;
     if (!root) return;
-    const display = mode === 'snd' ? 'flex' : 'none';
+    const display = mode === 'snd' || mode === 'bastion' ? 'flex' : 'none';
     if (root.style.display !== display) root.style.display = display;
-    if (mode !== 'snd') {
+    if (mode !== 'snd' && mode !== 'bastion') {
       if (this._signature) root.innerHTML = '';
       this._signature = '';
       return;
@@ -31,7 +31,7 @@ export class PlayerStatusStrip {
     if (signature === this._signature) return;
     this._signature = signature;
     root.innerHTML = '';
-    for (const team of ['alpha', 'bravo']) {
+    for (const team of mode === 'bastion' ? ['alpha'] : ['alpha', 'bravo']) {
       const members = roster.filter((p) => p.team === team);
       const group = el('div', `vb-player-status-group vb-player-team-${team}`, root);
       const aliveCount = members.reduce((total, player) => total + Number(isAlive(player)), 0);

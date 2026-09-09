@@ -280,6 +280,17 @@ Malformed admission closes with code `4002`, an unknown invite with `4004`,
 and a full room or 16-room exhaustion with `4005`; the server sends a JSON
 `{t:'error',msg}` first.
 
+## Bastion
+
+Bastion (`bastion`) is cooperative defense for one to four humans on the dedicated
+Reactor 9 (`reactor`) map. It has eight finite waves, a 1,000 HP objective, three NPC
+roles, free loadout selection, team upgrades, repair and a wave supply station.
+Human admission stays separate from NPC simulation and snapshots. Late joins wait
+for supply, and solo has one emergency return. The active enemy cap is five solo
+and eight in co-op. See [the rules and implementation](pve-bastion.md).
+
+Run `npm run bastion:test` for directed simulation and real WebSocket coverage.
+
 ## Game modes and maps
 
 ### Fun
@@ -356,6 +367,7 @@ the attempt. Death or disconnect releases the course for the next runner.
 
 | map id | modes | identity |
 |---|---|---|
+| `reactor` | Bastion | three shielded ingress chambers, destructible courtyard cover, reactor ring and Service Bay |
 | `foundry` | Fun, TDM, S&D, Gun Game | industrial Foundry with A/B sites |
 | `depot` | Fun, TDM, Gun Game | point-symmetric cargo Depot |
 | `citadel` | Fun, TDM, S&D, Gun Game | Citadel with Courtyard A and elevated Compound B |
@@ -578,7 +590,7 @@ instanced batch; idle effect pools skip GPU uploads. The HUD and shop update DOM
 properties only when their displayed values change, while timed effects keep
 animating. `refactor:test` and `browser:ui` protect these behavior and cost limits.
 
-Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2 and Killhouse are deterministic templates. Every room receives a
+Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2, Killhouse and Reactor 9 are deterministic templates. Every room receives a
 fresh mutable clone of its selected map. The current room map is serialized in
 the single binary admission frame; subsequent block destruction is room-scoped
 and streams as index deltas inside immutable client snapshots. Each tick also

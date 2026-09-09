@@ -1,3 +1,5 @@
+import { bastionWeaponDef } from '../../../shared/bastion.js';
+import { QUICK_MELEE_SECONDS } from '../../../shared/quick-melee.js';
 import { beginReload, advanceReload } from '../../../shared/reload.js';
 import { isScopeActive } from './scope-state.js';
 import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../../../shared/minigun.js';
@@ -28,7 +30,7 @@ export function shouldShowViewmodel({ spectating = false, scopeActive = false } 
 }
 
 function usesAuthoritativeOwnedWeapons(mode) {
-  return mode === 'snd' || mode === 'gungame' || mode === 'duel';
+  return mode === 'bastion' || mode === 'snd' || mode === 'gungame' || mode === 'duel';
 }
 
 function clamp01(value) {
@@ -102,7 +104,10 @@ export class WeaponState {
     this.menuReset();
   }
 
-  get def() { return chaosWeaponDef({ chaosUpgrades: this._mode === 'chaos' ? this._chaosUpgrades : null }, WEAPONS[WEAPON_IDS[this._slot]]); }
+  get def() { return bastionWeaponDef({ bastionUpgrades: this._mode === 'bastion' ? this._bastionUpgrades : null }, chaosWeaponDef({ chaosUpgrades: this._mode === 'chaos' ? this._chaosUpgrades : null }, WEAPONS[WEAPON_IDS[this._slot]])); }
+  get quickMeleeActive() { return this._now() < this._quickMeleeUntil; }
+  get quickMeleeRequest() { return this._quickMeleeRequest; }
+  acknowledgeQuickMelee() { this._quickMeleeRequest = null; }
   get slot() { return this._slot; }
   get bloomDeg() { return this._bloomDeg; }
   get adsT() { return this._adsT; }
@@ -236,6 +241,7 @@ export class WeaponState {
   /** Select a weapon, enforcing mode-owned loadouts such as S&D and Gun Game. */
   forceWeapon(slot, { mode, owned, now = this._now() } = {}) {
     this._setAuthority(mode, owned);
+    if (now < this._quickMeleeUntil) return false;
     if (!Number.isInteger(slot) || slot < 0 || slot >= WEAPON_IDS.length || slot === this._slot) {
       return false;
     }
@@ -303,6 +309,7 @@ export class WeaponState {
     slot = null,
     lastWeapon = false,
     reload = false,
+    quickMelee = false,
     fireTap = false,
     fireHeld = false,
     wantAds = false,
@@ -317,7 +324,8 @@ export class WeaponState {
     this._allowFire = !!allowFire;
     this._grenadeHandling = !!grenadeHandling;
     this._setAuthority(mode, owned);
-    this._wantAds = !!wantAds && !this._grenadeHandling;
+    this._quickMeleePending = !!quickMelee && this._alive && this._allowFire && !this._grenadeHandling;
+    this._wantAds = !!wantAds && !this._grenadeHandling && !this.quickMeleeActive;
     if (!fireHeld || !this._alive || !this._allowFire) this._stopFlame();
 
     if (this._grenadeHandling) {
@@ -334,7 +342,7 @@ export class WeaponState {
     if (slot !== null) this.forceWeapon(slot, { now });
     if (lastWeapon) this.forceWeapon(this._lastSlot, { now });
     // Melee never reloads: a manual request with a no-magazine weapon drawn is a no-op.
-    if (reload && this._alive && this.def.mode !== 'melee') {
+    if (reload && !quickMelee && !this.quickMeleeActive && this._alive && this.def.mode !== 'melee') {
       this._queuedReload = now < this._deployUntil;
       if (!this._queuedReload) this.startReload(now);
     }
@@ -357,6 +365,8 @@ export class WeaponState {
   }
 
   clearIntents() {
+    this._quickMeleePending = false;
+    this._quickMeleeRequest = null;
     this._stopFlame();
     this._audio.minigunMotor?.(0, 0, false);
     this._pendingShotIntent = null;
@@ -370,7 +380,7 @@ export class WeaponState {
   }
 
   startReload(now = this._now()) {
-    if (this._grenadeHandling || this._reloadState || this._completedReloadWeapon === this.def.id || !this._alive || now < this._deployUntil) return false;
+    if (this.quickMeleeActive || this._grenadeHandling || this._reloadState || this._completedReloadWeapon === this.def.id || !this._alive || now < this._deployUntil) return false;
     const def = this.def;
     if (def.mode === 'melee') return false; // a knife has no magazine to refill
     const ammo = this._ammo[def.id];
@@ -454,7 +464,7 @@ export class WeaponState {
     const def = this.def;
     this._bloomDeg = Math.max(0, this._bloomDeg - def.bloomRecover * dt);
     this._adsT += (
-      (this._wantAds && this._alive && !vaulting && !this._grenadeHandling && !this.reloadRequested && this._now() >= this._deployUntil) ? 1 : -1
+      (this._wantAds && this._alive && !vaulting && !this.quickMeleeActive && !this._grenadeHandling && !this.reloadRequested && this._now() >= this._deployUntil) ? 1 : -1
     ) * dt / Math.max(0.08, def.adsTime);
     this._adsT = Math.max(0, Math.min(1, this._adsT));
     this._scopeActive = isScopeActive({ weapon: def.id, ads: this._adsT,
@@ -478,6 +488,27 @@ export class WeaponState {
   }
 
   _tryFire(now) {
+    if (now >= this._quickMeleeUntil) this._rig.cancelQuickMelee?.();
+    const quickMelee = this._quickMeleePending;
+    this._quickMeleePending = false;
+    if (quickMelee && this._allowFire && this._alive && !this._grenadeHandling &&
+        now >= this._deployUntil && now >= this._quickMeleeUntil &&
+        (this.def.mode !== 'melee' || now >= this._nextFireAt) && this._rig.quickMelee?.()) {
+      this._cancelEmptyReload();
+      this.cancelReload();
+      this.cancelCharge();
+      this._stopFlame();
+      this._minigun.spin = 0;
+      this._audio.minigunMotor?.(0, 0, false);
+      this._adsT = 0;
+      this._scopeActive = false;
+      this._wantAds = false;
+      this._quickMeleeUntil = now + QUICK_MELEE_SECONDS * 1000;
+      this._nextFireAt = Math.max(this._nextFireAt, this._quickMeleeUntil);
+      this._quickMeleeRequest = { yaw: this._yaw, pitch: this._pitch };
+      this._audio.fire('knife');
+    }
+    if (now < this._quickMeleeUntil) return false;
     this._flameFrameAt = now;
     const thermalDt = this._thermalAt === null ? 0 : Math.max(0, (now - this._thermalAt) / 1000);
     this._thermalAt = now;
@@ -672,7 +703,7 @@ export class WeaponState {
   }
 
   /** Ammo -> authoritative mode switch -> reload synchronization. */
-  reconcileServer({
+  reconcileServer({ bastionUpgrades,
     mag,
     reserve,
     mode,
@@ -695,6 +726,7 @@ export class WeaponState {
       if (this.def.id !== 'minigun' || now < this._deployUntil) this._minigun.spin = 0;
       this._thermalAt = now;
     }
+    this._bastionUpgrades = bastionUpgrades || {};
     this._setAuthority(mode, owned);
 
     if (
@@ -740,6 +772,8 @@ export class WeaponState {
   }
 
   deathReset() {
+    this._rig.cancelQuickMelee?.();
+    this._quickMeleeUntil = -Infinity;
     this._cancelEmptyReload();
     this._alive = false;
     this.cancelCharge();
@@ -756,6 +790,7 @@ export class WeaponState {
   respawn({ mode = this._mode, weapon, now = this._now() } = {}) {
     this._cancelEmptyReload();
     this._alive = true;
+    this._quickMeleeUntil = -Infinity;
     this._minigun = createMinigunState();
     this._thermalAt = null;
     this._mode = mode;
@@ -782,6 +817,9 @@ export class WeaponState {
   }
 
   menuReset() {
+    this._quickMeleeUntil = -Infinity;
+    this._quickMeleeRequest = null;
+    this._quickMeleePending = false;
     this._stopFlame();
     this._audio.minigunMotor?.(0, 0, false);
     this._cancelEmptyReload();

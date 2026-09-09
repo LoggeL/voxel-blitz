@@ -751,12 +751,12 @@ export async function runHudContracts(ok, installGlobals) {
         && !document.getElementById('grenade-count').classList.contains('is-full')
         && document.querySelector('.vb-grenade-charge').children[0].style.transform === 'scaleX(0.5)',
       'grenade HUD renders one chip per throwable with remaining pips, the selection, and live hold charge');
-      hud.setState({ grenades: [1, 1, 0], grenadeType: 1, grenadeCharge: 1 });
+      hud.setState({ grenades: [1, 1, 0, 1, 0], grenadeType: 3, grenadeCharge: 1 });
       const fullState = document.getElementById('grenade-count').classList.contains('is-full')
         && document.querySelector('.vb-grenade-hint').textContent === 'MAX · RELEASE'
-        && document.getElementById('grenade-count').dataset.type === 'limpet'
-        && document.querySelectorAll('.vb-grenade-type')[1].classList.contains('is-selected')
-        && document.querySelector('.vb-grenade-name').textContent === 'CLAYMORE';
+        && document.getElementById('grenade-count').dataset.type === 'molotov'
+        && document.querySelectorAll('.vb-grenade-type')[3].classList.contains('is-selected')
+        && document.querySelector('.vb-grenade-name').textContent === 'MOLOTOV COCKTAIL';
       hud.setState({ grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 0, grenadeCharging: true });
       const heldState = document.getElementById('grenade-count').classList.contains('is-charging')
         && document.querySelector('.vb-grenade-hint').textContent === 'HOLD · RELEASE';

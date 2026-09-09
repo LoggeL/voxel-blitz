@@ -123,9 +123,16 @@ function distanceSqAt(o, d, at, half) {
 }
 const ZERO = [0, 0, 0];
 
+/** Static objectives opt into an explicit box; combatants keep their body zones. */
+export function combatHitboxes(p) {
+  if (!p.combatBox) return playerHitboxes(p);
+  return [{ zone: 'object', center: [p.x, p.y + p.combatBox[1], p.z],
+    half: p.combatBox, basis: IDENTITY_BASIS }];
+}
+
 export function pointPlayerDistance(point, p) {
   let nearest = Infinity;
-  for (const box of playerHitboxes(p)) {
+  for (const box of combatHitboxes(p)) {
     const { o } = localRay(point, ZERO, box);
     nearest = Math.min(nearest, distanceSqAt(o, ZERO, 0, box.half));
     if (nearest === 0) return 0;
@@ -137,7 +144,7 @@ export function pointPlayerDistance(point, p) {
 export function rayPlayerHitboxes(origin, direction, p, limit, { minT = 0, radius = 0, preferCore = false } = {}) {
   let best = null, core = null;
   const ray = [direction.x, direction.y, direction.z];
-  for (const box of playerHitboxes(p)) {
+  for (const box of combatHitboxes(p)) {
     const { o, d } = localRay(origin, ray, box);
     const direct = interval(o, d, box.half, 0, minT, limit);
     if (direct && (!core || direct[0] < core.t)) core = { t: direct[0], zone: box.zone, coreHit: true, radialDistance: 0 };

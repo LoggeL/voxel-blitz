@@ -2,6 +2,7 @@ import { SUPPRESSION_RULES } from '../../shared/suppression-rules.js';
 import { BreathHold } from '../../shared/conditions.js';
 import { stanceEye } from '../../shared/player-stance.js';
 import { chaosWeaponDef } from '../../shared/chaos.js';
+import { bastionWeaponDef } from '../../shared/bastion.js';
 // Authoritative combatant state, loadouts, and aim helpers.
 
 import { SX, SZ } from '../../shared/worlddata.js';
@@ -137,6 +138,8 @@ export class PlayerEntity {
     this.triggerPrev = false;
     this.fireEdgeQueued = false;
     this.fireAimQueued = null;
+    this.quickMeleeQueued = null;
+    this.quickMeleeT = 0;
     this.grenadeHandlingQueued = false;
     this.grenadeEdgeQueued = false;
     this.grenadeChargeQueued = 0;
@@ -163,7 +166,7 @@ export class PlayerEntity {
     this.lastSpawnZ = spawn.z;
   }
 
-  get def() { return chaosWeaponDef(this, WEAPONS[WEAPON_IDS[this.weapon]]); }
+  get def() { return bastionWeaponDef(this, chaosWeaponDef(this, WEAPONS[WEAPON_IDS[this.weapon]])); }
   get eyeY() { return this.y + stanceEye(PHYSICS.eye, this.crouch, this.proneT); }
 
   /** Return true when the hit is lethal. */

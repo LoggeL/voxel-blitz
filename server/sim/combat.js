@@ -3,6 +3,8 @@ import { beginReload, reloadPhase } from '../../shared/reload.js';
 import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../../shared/minigun.js';
 import { rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { chaosShot, chaosHit } from './chaos-combat.js';
+import { chaosWeaponDef } from '../../shared/chaos.js';
+import { QUICK_MELEE_SECONDS } from '../../shared/quick-melee.js';
 // Authoritative weapon intent, ballistics, and destructible-block damage.
 // The caller owns world/entity state and exposes only the narrow operations
 // needed by this hot path through `ctx`.
@@ -13,6 +15,7 @@ import { weaponSwapProfile } from '../../shared/weapon-swap.js';
 import { AIR, BEDROCK, GLASS, LEAVES, BLOCK_HP } from '../../shared/worlddata.js';
 import {
   CONDITION_RULES,
+  WEAPONS,
   SNIPER_SCOPE_ADS_THRESHOLD,
   HITSCAN_REACH,
   PLAYER_HALF,
@@ -92,6 +95,7 @@ export function resolveWeaponIntent(p, _dt, ctx) {
   const inp = p.input;
   p.minigun ??= createMinigunState();
   if (inp?.grenadeHandling || p.grenadeHandlingQueued) {
+    p.quickMeleeQueued = null;
     p.grenadeHandlingQueued = false;
     p.fireEdgeQueued = false;
     p.fireAimQueued = null;
@@ -101,6 +105,25 @@ export function resolveWeaponIntent(p, _dt, ctx) {
     p.ads = false;
     cancelCharge(p);
     stepMinigun(p.minigun, _dt, false, false);
+    return;
+  }
+  const quickAim = p.quickMeleeQueued;
+  p.quickMeleeQueued = null;
+  if (quickAim && ctx.canFire(p) && !p.vault && p.deployT <= 0 && !(p.quickMeleeT > 0)
+    && (p.def.mode !== 'melee' || p.cooldown <= 0)) {
+    clearReload(p);
+    cancelCharge(p);
+    p.minigun.spin = 0;
+    p.ads = false;
+    p.adsT = 0;
+    p.quickMeleeT = QUICK_MELEE_SECONDS;
+    p.cooldown = Math.max(p.cooldown, QUICK_MELEE_SECONDS);
+    meleeSwing(p, ctx, chaosWeaponDef(p, WEAPONS.knife), quickAim);
+  }
+  if (p.quickMeleeT > 0) {
+    p.fireEdgeQueued = false;
+    p.fireAimQueued = null;
+    p.triggerPrev = !!inp?.wantFire;
     return;
   }
   const minigunEnabled = p.def.id === 'minigun' && inp &&
@@ -219,14 +242,13 @@ function resolveMeleeIntent(p, inp, fireEdge, ctx) {
  * Damage flows through the same body-hit event path as `fireOneShot` — kill
  * credit included. Swings without an unobstructed victim mine the aimed block.
  */
-function meleeSwing(p, ctx) {
-  const def = p.def;
+function meleeSwing(p, ctx, def = p.def, aim = p) {
   const melee = def.melee;
   p.spawnProtectedUntil = 0;
   p.spawnProtected = false;
   p.shotSeq++;
   p.firing = true;
-  const fwd = fwdFromYawPitch(p.yaw, p.pitch);
+  const fwd = fwdFromYawPitch(aim.yaw, aim.pitch);
   const oEye = [p.x, p.eyeY, p.z];
   // Same presentation origin as fireOneShot so client FX share one contract.
   const muzzle = [
@@ -238,12 +260,12 @@ function meleeSwing(p, ctx) {
     p.id, muzzle, [fwd.x, fwd.y, fwd.z], def.id, [fwd.x, fwd.y, fwd.z],
   ));
 
-  chaosShot(p, ctx, fwd);
+  chaosShot(p, ctx, fwd, def);
   const cosHalf = Math.cos(melee.coneDeg * Math.PI / 360);
   let best = null;
   let bestDot = -Infinity;
   let bestDist = Infinity;
-  for (const v of ctx.entities.values()) {
+  for (const v of (ctx.targets || ctx.entities).values()) {
     if (v === p || v.state !== 'alive') continue;
     if (!ctx.canDamage(p, v)) continue;
     const dx = v.x - oEye[0];
@@ -261,7 +283,7 @@ function meleeSwing(p, ctx) {
     bestDist = dist;
     best = { victim: v, dx, dy, dz, dist };
   }
-  const mine = () => mineBlock(p, oEye, fwd, ctx);
+  const mine = () => mineBlock(p, oEye, fwd, ctx, def.melee.reach);
   if (!best) { mine(); return; }
 
   // Voxel line of sight: a wall between the blade and the body stops the swing.
@@ -280,14 +302,14 @@ function meleeSwing(p, ctx) {
   const vFwd = fwdFromYawPitch(victim.yaw, victim.pitch);
   const backstab = vFwd.x * dirX + vFwd.y * dirY + vFwd.z * dirZ > melee.backstabDot;
   const dmg = Math.round(def.damage[0] * (backstab ? melee.backstabMult : 1) * 10) / 10;
-  const lethal = victim.takeDamage(dmg, false);
+  const lethal = victim.takeDamage(dmg, false, p);
   ctx.pushEvent(evHit(p.id, victim.id, dmg, false, [victim.x, victim.eyeY, victim.z], victim.lastDamage));
   if (lethal) ctx.killPlayer(victim, p, def.id, false);
 }
 
 /** Accepted swings leave shared damage on the block until it is replaced. */
-function mineBlock(p, eye, fwd, ctx) {
-  const hit = raycastVoxels(ctx.solidAt, ...eye, fwd.x, fwd.y, fwd.z, p.def.melee.reach);
+function mineBlock(p, eye, fwd, ctx, reach) {
+  const hit = raycastVoxels(ctx.solidAt, ...eye, fwd.x, fwd.y, fwd.z, reach);
   if (!hit || hit.y <= 0) { p.mining = null; return; }
   const type = ctx.getBlock(hit.x, hit.y, hit.z);
   const required = MINING_HITS[type];
@@ -334,7 +356,7 @@ function rewindVictim(v, now, viewAgeMs = NETWORK_PRESENTATION.defaultViewAgeMs)
 export function nearestVictim(shooter, o, d, limit, ctx, minT = 0, radius = 0, hitVictims = null) {
   let best = null, bestT = limit;
   const rewoundByShooter = !shooter.bot;
-  for (const v of ctx.entities.values()) {
+  for (const v of (ctx.targets || ctx.entities).values()) {
     if (v === shooter || v.state !== 'alive' || hitVictims?.has(v)) continue;
     if (!ctx.canDamage(shooter, v)) continue;
     const pos = rewoundByShooter ? rewindVictim(v, ctx.now, shooter.input?.viewAge) : v;
@@ -494,7 +516,7 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
         const hs = !!tgt.coreHit && tgt.zone === 'head';
         const radialScale = shotProfile.hitRadius > 0 ? railDamageMult(shotProfile, tgt.radialDistance) : 1;
         const dmg = Math.round(radialScale * damageAtDistance(def, dist) * (hs ? def.headMult : 1) * damageScale * 10) / 10;
-        const lethal = tgt.victim.takeDamage(dmg, hs);
+        const lethal = tgt.victim.takeDamage(dmg, hs, p);
         ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, point, tgt.victim.lastDamage));
         if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
           longRange: dist >= LONG_RANGE_KILL_DISTANCE,

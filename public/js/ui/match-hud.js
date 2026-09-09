@@ -1,3 +1,4 @@
+import { updateBastionHud } from './bastion-hud.js';
 import { GUN_GAME_WEAPON_ORDER, MODE_RULES } from '../../../shared/modes.js';
 import {
   MAP_LABELS,
@@ -135,7 +136,7 @@ export class MatchHud {
   setMatchState(match, selfRow, players, serverNow) {
     this._latestMatch = match || null;
     this._latestSelfRow = selfRow || null;
-    this._latestPlayers = Array.isArray(players) ? players : [];
+    this._latestPlayers = Array.isArray(players) ? players.filter(p => !p.npcRole) : [];
 
     const m = this.dom;
     if (!m.header) return;
@@ -147,6 +148,7 @@ export class MatchHud {
     m.mapBadge.style.display = 'none';
     m.clock.style.display = curMode === 'snd' ? 'block' : 'none';
     const curMap = match?.map || 'foundry';
+    if (m.coreBar) m.coreBar.hidden = curMode !== 'bastion';
     const phase = match?.phase || 'live';
     const isTeamMode = curMode === 'tdm' || curMode === 'snd';
     this.playerStatus.update(this._latestPlayers, curMode, selfRow?.id);
@@ -308,6 +310,7 @@ export class MatchHud {
         credits: selfRow.credits || 0,
         owned: selfRow.owned || [],
         chaosUpgrades: selfRow.chaosUpgrades || {},
+        bastion: match?.bastion, bastionSelf: selfRow.bastion,
       });
     } else {
       if (m.creditsBox) m.creditsBox.style.display = 'none';
@@ -321,6 +324,8 @@ export class MatchHud {
         chaosUpgrades: {},
       });
     }
+
+    if (curMode === 'bastion') updateBastionHud(m,match,selfRow,sNow);
 
     if (this._latestPlayers) {
       this.onPlayers(this._latestPlayers, match, selfRow);

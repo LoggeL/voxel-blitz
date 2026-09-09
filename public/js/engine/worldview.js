@@ -1,3 +1,4 @@
+import { BastionWorld } from './bastion-world.js';
 // WorldView: composition root for the client's visual world. Owns the THREE.Scene,
 // lighting rig, texture atlas, chunk mesher, sky and voxel picking. Fed a live
 // store reference ({ getBlock }) whose closure always reflects the latest netcode
@@ -92,6 +93,7 @@ export class WorldView {
     const palette = mapAtmosphere(meta?.id);
 
     this.scene = new THREE.Scene();
+    this.bastion = meta?.id === 'reactor' ? new BastionWorld(this.scene) : null;
     this.scene.fog = new THREE.FogExp2(palette.fog, palette.density);
 
     const hemi = new THREE.HemisphereLight(palette.skyLight, palette.groundLight, palette.ambient);
@@ -154,6 +156,8 @@ export class WorldView {
     );
   }
 
+  setMatch(match) { this.bastion?.sync(match); }
+
   setGameMode(mode) {
     this.siteMarkers.setMode(mode);
   }
@@ -173,6 +177,7 @@ export class WorldView {
     if (this._disposed) return;
     this._disposed = true;
     this.chunkStore.dispose();
+    this.bastion?.dispose();
     if (this.ladderVisuals) {
       this.scene.remove(this.ladderVisuals.group);
       this.ladderVisuals.mesh.dispose();

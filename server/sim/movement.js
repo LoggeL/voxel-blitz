@@ -27,6 +27,7 @@ const IDLE_KEYS = Object.freeze({});
 
 /** Advance weapon, deploy, coyote, bloom, and reload timers. */
 export function updateTimers(p, dt) {
+  if (p.quickMeleeT > 0) p.quickMeleeT = Math.max(0, p.quickMeleeT - dt);
   p.cooldown = Math.max(-dt, p.cooldown - dt);
   if (p.deployT > 0) p.deployT = Math.max(0, p.deployT - dt);
   if (p.coyote > 0) p.coyote -= dt;
@@ -103,7 +104,7 @@ export function stepMovement(p, dt, ctx) {
   }
 
   if (inp) { p.yaw = inp.yaw; p.pitch = inp.pitch; }
-  p.ads = !!inp?.wantAds && !inp?.grenadeHandling && !p.grenadeHandlingQueued && p.deployT <= 0;
+  p.ads = !!inp?.wantAds && !inp?.grenadeHandling && !p.grenadeHandlingQueued && !(p.quickMeleeT > 0) && p.deployT <= 0;
   const previousAdsT = p.adsT;
   const adsStep = dt / Math.max(0.001, p.def.adsTime);
   p.adsT = Math.max(0, Math.min(1, p.adsT + (p.ads ? adsStep : -adsStep)));
@@ -163,6 +164,7 @@ export function stepMovement(p, dt, ctx) {
     return;
   }
   let speed = low ? PRONE.speed : p.crouch ? CROUCH_SPEED : (p.sprint ? SPRINT_SPEED : WALK_SPEED);
+  if (p.npcRole) speed *= p.npcSpeed || 1;
   // A pulse concussion drags the legs: 60% speed until the deadline passes.
   if (Number.isFinite(p.concussedUntil) && p.concussedUntil > ctx.now) speed *= CONCUSSED_SPEED_MULT;
   const accel = 1 - Math.exp(-(p.grounded ? ACCEL_GROUND : ACCEL_AIR) * dt);

@@ -1,10 +1,11 @@
 import { WEAPON_IDS, WEAPONS } from '../../shared/combatmath.js';
 import { chaosWeaponDef } from '../../shared/chaos.js';
 import { SX, SY, SZ } from '../../shared/worlddata.js';
-import { POWERUP_RULES, POWERUP_TYPES } from '../../shared/powerups.js';
+import { POWERUP_RULES, CHAOS_CASH_RULES } from '../../shared/powerups.js';
+import { MAX_CREDITS } from '../../shared/modes.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 
-const TYPES = Object.keys(POWERUP_TYPES);
+const TYPES = ['armor', 'health', 'ammo'];
 
 /** Floor support and clearance are checked again after every terrain update. */
 export function validPowerupSite(site, solidAt) {
@@ -17,6 +18,12 @@ export function validPowerupSite(site, solidAt) {
 /** Return the actual benefit; zero leaves the pickup available to others. */
 export function applyPowerup(player, type) {
   if (player?.state !== 'alive') return 0;
+  if (type === 'cash') {
+    if (!player.chaosUpgrades || !Number.isFinite(player.credits)) return 0;
+    const amount = Math.max(0, Math.min(CHAOS_CASH_RULES.amount, MAX_CREDITS - player.credits));
+    player.credits += amount;
+    return amount;
+  }
   if (type === 'armor' || type === 'health') {
     const key = type === 'armor' ? 'armor' : 'hp';
     const maximum = type === 'armor' ? POWERUP_RULES.maxArmor : POWERUP_RULES.maxHealth;
@@ -48,13 +55,17 @@ export function applyPowerup(player, type) {
 
 /** Room-owned pickups. Time, RNG, terrain and candidate selection are injectable. */
 export class PowerupSystem {
-  constructor({ solidAt, findSites, isSupported, rng = Math.random, now = 0 }) {
+  constructor({ solidAt, findSites, isSupported, rng = Math.random, now = 0,
+    rules = POWERUP_RULES, types = TYPES, prefix = 'powerup' }) {
+    this.rules = rules;
+    this.types = types;
+    this.prefix = prefix;
     this.solidAt = solidAt;
     this.findSites = findSites;
     this.isSupported = isSupported || ((site) => validPowerupSite(site, solidAt));
     this.rng = rng;
     this.active = new Map();
-    this.nextSpawnAt = now + POWERUP_RULES.firstSpawnMs;
+    this.nextSpawnAt = now + rules.firstSpawnMs;
     this.epoch = null;
     this.sequence = 0;
     this.lastSite = null;
@@ -78,14 +89,15 @@ export class PowerupSystem {
   }
 
   step({ now, mode, phase, round = null, entities, pushEvent }) {
-    if (!POWERUP_RULES.modes.includes(mode) || phase !== 'live') {
+    const rules = this.rules;
+    if (!rules.modes.includes(mode) || phase !== 'live') {
       this.clear();
       return;
     }
     const epoch = `${mode}:${round ?? ''}`;
     if (this.epoch !== null && this.epoch !== epoch) this.clear();
     this.epoch = epoch;
-    this.nextSpawnAt ??= now + POWERUP_RULES.firstSpawnMs;
+    this.nextSpawnAt ??= now + rules.firstSpawnMs;
 
     for (const [id, pickup] of this.active) {
       if (now >= pickup.expiresAt || !this.isSupported(pickup)) {
@@ -114,9 +126,9 @@ export class PowerupSystem {
 
     if (now < this.nextSpawnAt) return;
     // Long/paused ticks never create a burst of overdue pickups.
-    this.nextSpawnAt = now + POWERUP_RULES.spawnMinMs
-      + this.random() * (POWERUP_RULES.spawnMaxMs - POWERUP_RULES.spawnMinMs);
-    if (this.active.size >= POWERUP_RULES.maxActive) return;
+    this.nextSpawnAt = now + rules.spawnMinMs
+      + this.random() * (rules.spawnMaxMs - rules.spawnMinMs);
+    if (this.active.size >= rules.maxActive) return;
     const candidates = this.findSites().filter((site) => this.isSupported(site)
       && !Array.from(this.active.values()).some((pickup) =>
         Math.hypot(pickup.x - site.x, pickup.z - site.z) < POWERUP_RULES.minimumSeparation));
@@ -125,10 +137,10 @@ export class PowerupSystem {
     const pool = alternatives.length ? alternatives : candidates;
     if (!pool.length) return;
     const site = pool[Math.floor(this.random() * pool.length)];
-    const type = this.lastSite ? TYPES[Math.floor(this.random() * TYPES.length)] : 'armor';
-    const id = `powerup-${++this.sequence}`;
+    const type = this.lastSite ? this.types[Math.floor(this.random() * this.types.length)] : this.types[0];
+    const id = `${this.prefix}-${++this.sequence}`;
     this.active.set(id, { id, type, x: site.x, y: site.y, z: site.z,
-      expiresAt: now + POWERUP_RULES.lifetimeMs });
+      expiresAt: now + rules.lifetimeMs });
     this.lastSite = { ...site };
   }
 }

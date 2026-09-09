@@ -61,6 +61,12 @@ export class MatchResultOverlay {
       ? `${match?.scores?.alpha ?? 0}  —  ${match?.scores?.bravo ?? 0}`
       : mode === 'duel' ? `FIRST TO ${match.killLimit} KILLS` : 'GUN GAME WINNER';
 
+    if (mode === 'bastion') {
+      this.dom.eyebrow.textContent = 'BASTION · REACTOR 9';
+      this.dom.detail.textContent = victory ? 'REACTOR SECURED' : match.bastion?.reason === 'core' ? 'REACTOR DESTROYED' : 'DEFENDERS ELIMINATED';
+      this.dom.score.textContent = `WAVE ${match.bastion?.wave || 1} / 8 · CORE ${Math.ceil(match.bastion?.core?.hp || 0)} HP`;
+    }
+
     const now = Number.isFinite(serverNow) ? serverNow : Date.now();
     const remaining = Number.isFinite(match.phaseEndsAt)
       ? Math.max(0, (match.phaseEndsAt - now) / 1000)

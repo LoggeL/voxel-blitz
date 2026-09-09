@@ -594,6 +594,7 @@ export class LocalPlayer {
     weaponIntents.switchDelta = 0;
     weaponIntents.slot = null;
     weaponIntents.lastWeapon = false;
+    weaponIntents.quickMelee = false;
     weaponIntents.reload = false;
     weaponIntents.reloadAt = now;
     weaponIntents.shot = this.pendingShotIntent;
@@ -647,6 +648,7 @@ export class LocalPlayer {
       weaponIntents.lastWeapon = false;
       weaponIntents.reload = false;
     }
+    weaponIntents.quickMelee = !!input.consumeQuickMelee?.() && weaponHandling && fireAllowed && this._alive;
     const fireTap = input.consumeFireTap() && weaponHandling;
     const fireHeld = !!input.wantFireHeld && weaponHandling;
     if (fireTap && fireAllowed) this.fireTapLatched = true;
@@ -749,10 +751,16 @@ export class LocalPlayer {
     const interactAllowed = isAllowed(intents.interactAllowed);
     const discrete = ['semi', 'bolt', 'pump'].includes(intents.weapon?.def?.mode);
     const predictedDiscrete = discrete && this._discretePrediction;
+    const quickMelee = intents.weapon?.quickMeleeRequest;
+    const handling = fireAllowed && !intents.weapon?.quickMeleeActive;
+    if (!handling) {
+      this.fireTapLatched = false;
+      this._acceptedFireSlot = null;
+    }
     const wantFire = predictedDiscrete
-      ? fireAllowed && this._acceptedFireSlot === intents.weapon?.slot
+      ? handling && this._acceptedFireSlot === intents.weapon?.slot
       : !!(
-      fireAllowed && this.pendingShotIntent &&
+      handling && this.pendingShotIntent &&
       (this.pendingShotIntent.held || this.fireTapLatched)
     );
     const weapon = intents.weapon || null;
@@ -782,8 +790,10 @@ export class LocalPlayer {
       pitch: this._pendingShotAim?.pitch ?? this.shotPitch,
       viewYaw: this.view.yaw,
       wantFire,
+      quickMelee: !!(fireAllowed && this._gameplayInputEnabled && quickMelee),
+      meleeAim: quickMelee,
       weapon: weaponSlot,
-      wantAds: this._gameplayInputEnabled && this.wantAds,
+      wantAds: this._gameplayInputEnabled && handling && this.wantAds,
       reload: this._gameplayInputEnabled && reloading,
       reloadId: networkState?.reloadId || 0,
       throwGrenade: !!(this._gameplayInputEnabled && this.grenadeThrowLatched),
@@ -797,6 +807,7 @@ export class LocalPlayer {
       ? !!intents.sendInput(payload)
       : false;
     if (sent) this._pendingShotAim = null;
+    if (sent && payload.quickMelee) weapon.acknowledgeQuickMelee();
     if (sent && wantFire) {
       this.fireTapLatched = false;
       this._acceptedFireSlot = null;

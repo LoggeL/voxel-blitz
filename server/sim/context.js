@@ -6,9 +6,17 @@ import { computeConeDeg, damageBlock, destroyBlockDirect } from './combat.js';
  * retained context current when the clock, mode, or engine state changes.
  */
 export function createSimulationContexts(engine) {
+  // Objectives participate in damage queries, never player movement, firing,
+  // suppression, lobby counts or avatar snapshots. Iterate live collections.
+  const targets = {
+    *values() { yield* (engine.combatants || engine.entities).values(); if (engine.objectives) yield* engine.objectives.values(); },
+    get(id) { return (engine.combatants || engine.entities).get(id) || engine.objectives?.get(id); },
+    has(id) { return (engine.combatants || engine.entities).has(id) || engine.objectives?.has(id) === true; },
+  };
   const combat = {
+    targets,
     get now() { return engine.now; },
-    get entities() { return engine.entities; },
+    get entities() { return engine.combatants || engine.entities; },
     get blockHp() { return engine.blockHp; },
     get blockMining() { return engine.blockMining; },
     get flames() { return engine.flames; },
@@ -33,8 +41,9 @@ export function createSimulationContexts(engine) {
     launchBolt: (player, dir, charge) => engine.projectiles.launchBolt(player, projectiles, dir, charge),
   };
   const projectiles = {
+    targets,
     get now() { return engine.now; },
-    get entities() { return engine.entities; },
+    get entities() { return engine.combatants || engine.entities; },
     get grenadeDamage() { return engine.mode.mode !== 'gungame'; },
     solidAt: combat.solidAt,
     getBlock: combat.getBlock,

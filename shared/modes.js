@@ -3,10 +3,10 @@ export const DEFAULT_DUEL_KILL_LIMIT = 5;
 // Fixed mode, team, map, Gun Game progression, and Search and Destroy economy contract.
 // This module is dependency-free so the browser and authoritative server share it directly.
 
-export const MODE_IDS = Object.freeze(['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'training']);
+export const MODE_IDS = Object.freeze(['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training']);
 export const DUEL_WEAPONS = Object.freeze(['rifle', 'shotgun', 'sniper', 'revolver', 'knife']);
 export const TEAM_IDS = Object.freeze(['alpha', 'bravo']);
-export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'killhouse']);
+export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse']);
 
 export const DEFAULT_MODE_ID = MODE_IDS[0];
 export const DEFAULT_TEAM_ID = TEAM_IDS[0];
@@ -50,6 +50,7 @@ export const WEAPON_PRICES = Object.freeze({
 });
 
 export const MODE_RULES = Object.freeze({
+  bastion: Object.freeze({ teams: true, friendlyFire: false, respawnMs: Infinity }),
   fun: Object.freeze({
     teams: false,
     friendlyFire: true,
@@ -102,6 +103,7 @@ const COMBAT_MODE_IDS = Object.freeze(['fun', 'duel', 'chaos', 'tdm', 'snd', 'gu
 const DEPOT_MODE_IDS = Object.freeze(['fun', 'duel', 'chaos', 'tdm', 'gungame']);
 
 export const MAP_MODE_COMPATIBILITY = Object.freeze({
+  reactor: Object.freeze(['bastion']),
   foundry: COMBAT_MODE_IDS,
   depot: DEPOT_MODE_IDS,
   citadel: COMBAT_MODE_IDS,

@@ -28,10 +28,11 @@ A multiplayer voxel arena shooter with destructible cover, twelve weapons and bo
 | Mode | What you play |
 | --- | --- |
 | Fun | Free-for-all with the full arsenal and fast respawns. Quick Play drops you into a live room. |
-| Chaos Lab | Kills earn credits for 51 cumulative upgrades across all twelve weapons and five throwables. Open the lab with B; upgrades survive death. |
+| Chaos Lab | Kills and hidden $300 cash bundles earn credits for 51 cumulative upgrades across all twelve weapons and five throwables. Open the lab with B; upgrades survive death. |
 | Team Deathmatch | Two teams race to 40 kills. |
 | Search and Destroy | Plant or defuse the bomb, buy your loadout and make each life count. |
 | Gun Game | Every kill advances your weapon. Finish the ladder to win. |
+| Bastion | Cooperative defense for 1–4 players on Reactor 9: eight waves, three enemy roles, a shared bank and reactor repairs. |
 | Training | Respawning range targets and a timed four-stage Killhouse course. |
 
 ## Screenshots
@@ -47,7 +48,7 @@ Actual browser captures from the game. Arena shots use the built-in fixed-camera
 
 The Killhouse firing line. Practice here, then head into the timed course.
 
-Eight maps ship with the game: Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2 and Killhouse. [Dust 2](docs/maps/dust2.md) brings Long A, Short/Catwalk, Mid Doors and B Tunnels to the destructible voxel world. Select it in a custom lobby for Fun, Chaos Lab, Team Deathmatch, Search and Destroy or Gun Game. See the [map compatibility table](docs/development.md#map-compatibility) for supported modes.
+Nine maps ship with the game: Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2, Killhouse and Reactor 9. [Bastion](docs/pve-bastion.md) uses Reactor 9 exclusively. Create a custom Bastion lobby, ready up and start; B opens supplies and E repairs the core between waves. [Dust 2](docs/maps/dust2.md) brings Long A, Short/Catwalk, Mid Doors and B Tunnels to the destructible voxel world. Select it in a custom lobby for Fun, Chaos Lab, Team Deathmatch, Search and Destroy or Gun Game. See the [map compatibility table](docs/development.md#map-compatibility) for supported modes.
 
 ## Get started
 
@@ -79,10 +80,11 @@ PORT=8080 npm start
 | `Space` again in midair | Grab a reachable ledge and pull up, even after releasing movement keys |
 | Left / right mouse | Fire / aim down sights |
 | `R` | Reload |
+| `V` | Quick pickaxe hit for melee or block mining; returns to your weapon |
 | `1–9`, `0` or scroll wheel | Switch weapons |
 | Hold `Q`; hover a weapon and release, or move past the outer ring | Weapon wheel |
 | Hold and release `G` / press `H` | Throw / change throwable |
-| `E` / `B` | Objective interaction / S&D buy menu or Chaos Lab |
+| `E` / `B` | Objective interaction / S&D buy menu, Chaos Lab or Bastion supplies |
 | `Tab` / `Escape` | Scoreboard / settings and pause menu |
 
 See the [full controls](docs/development.md#controls) for charge weapons, sniper zoom, ladders and spectator controls.

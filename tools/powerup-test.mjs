@@ -176,11 +176,11 @@ for (const scenario of ['dead', 'far', 'above', 'wall', 'floor', 'ceiling']) {
   assert.equal(h.system.active.size, ['floor', 'ceiling'].includes(scenario) ? 0 : 1, scenario);
 }
 
-// Every combat map has live exposed locations, and candidates remain on real
-// geometry. The training facility deliberately has no pickup sites.
+// PvP maps have exposed pickups on real geometry. Training has none; Bastion
+// owns its authored wave supply point instead of the random pickup scheduler.
 for (const mapId of MAP_IDS) {
   const world = createMapState(mapId), mapSites = findPowerupSites(world, world.meta);
-  if (mapId === 'killhouse') assert.equal(mapSites.length, 0);
+  if (mapId === 'killhouse' || mapId === 'reactor') assert.equal(mapSites.length, 0);
   else assert.ok(mapSites.length >= 3, `${mapId}: enough exposed contest points`);
   assert.ok(mapSites.every((site) => validPowerupSite(site, (x, y, z) => world.getBlock(x, y, z) !== 0)));
 }

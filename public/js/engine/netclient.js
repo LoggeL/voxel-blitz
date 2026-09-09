@@ -1,3 +1,4 @@
+import { parseBastionPurchase } from '../../../shared/bastion.js';
 import { parseChaosPurchase } from '../../../shared/chaos.js';
 import { SX, SY, SZ } from '../../../shared/world/blocks.js';
 import {
@@ -122,6 +123,7 @@ const PASSTHROUGH_FIELDS = [
   'breathReserve', 'breathExhausted', 'breathReleasedFor',
   'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
   'grenades', 'charge', 'minigun', 'impulse',
+  'npcRole', 'npcAttack', 'bastion', 'bastionUpgrades',
 ];
 
 export class NetClient {
@@ -472,6 +474,12 @@ export class NetClient {
       reloadId: input.reloadId || 0,
       viewAge: Math.round(this._timing.interpolationDelayMs + this._timing.rttMs),
     };
+    if (input.quickMelee) {
+      msg.quickMelee = true;
+      if (Number.isFinite(input.meleeAim?.yaw) && Number.isFinite(input.meleeAim?.pitch)) {
+        msg.meleeAim = { yaw: input.meleeAim.yaw, pitch: input.meleeAim.pitch };
+      }
+    }
     if (input.grenadeHandling) msg.grenadeHandling = true;
     if (input.throwGrenade) {
       msg.throwGrenade = true;
@@ -513,7 +521,7 @@ export class NetClient {
 
   /** Buy one exact shared-contract weapon id. */
   buyWeapon(id) {
-    if ((!isWeaponId(id) && !parseChaosPurchase(id)) || !this.isOpen()) return false;
+    if ((!isWeaponId(id) && !parseChaosPurchase(id) && !parseBastionPurchase(id)) || !this.isOpen()) return false;
     try {
       this.ws.send(JSON.stringify({ t: 'buy', weapon: id }));
       return true;

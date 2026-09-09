@@ -70,7 +70,7 @@ function writePref(key, value) {
 // Escape is deliberately excluded so the browser always offers its normal exit.
 const GAME_KEY_CODES = [
   'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyC', 'KeyX', 'KeyE', 'KeyR', 'KeyF',
-  'KeyZ', 'KeyG', 'KeyH', 'KeyQ', 'KeyB', 'Space', 'Tab',
+  'KeyV', 'KeyZ', 'KeyG', 'KeyH', 'KeyQ', 'KeyB', 'Space', 'Tab',
   'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight',
   ...Array.from({ length: 10 }, (_, i) => `Digit${i}`),
 ];
@@ -121,6 +121,7 @@ export class Input {
     this._adsLatched = false; // toggle-mode ADS latch (mouse/keyboard)
     this._fireTapQueued = false;
     this._reloadQueued = false;
+    this._quickMeleeQueued = false;
     this._grenadeThrowQueued = null; // {charge, cookMs, type} released this frame
     this._grenadeHeld = false;
     this._grenadeHoldStartedAt = 0;
@@ -445,6 +446,7 @@ export class Input {
       this._mouseAds = false;
       this._adsLatched = false;
       this._reloadQueued = false;
+      this._quickMeleeQueued = false;
       // Cancel a held grenade without throwing it.
       this._grenadeHeld = false;
       this._grenadeHoldStartedAt = 0;
@@ -670,6 +672,13 @@ export class Input {
     return { dx, dy };
   }
 
+  /** One quick chop per physical V press. */
+  consumeQuickMelee() {
+    const requested = this._quickMeleeQueued;
+    this._quickMeleeQueued = false;
+    return this._canReadGameplay() && !this._wheelOpen && requested;
+  }
+
   /** Consumes one queued LMB tap (semi-auto / single-action shots). */
   consumeFireTap() {
     const q = this._fireTapQueued;
@@ -866,6 +875,7 @@ export class Input {
     this._adsLatched = false;
     this._fireTapQueued = false;
     this._reloadQueued = false;
+    this._quickMeleeQueued = false;
     this._grenadeThrowQueued = null;
     this._grenadeHeld = false;
     this._grenadeHoldStartedAt = 0;
@@ -1030,6 +1040,7 @@ export class Input {
       case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = true; break;
       case 'ControlLeft': case 'ControlRight': case 'KeyC': this.keys.crouch = true; break;
       case 'KeyE': if (!this._wheelOpen) this.keys.interact = true; break;
+      case 'KeyV': if (!e.repeat && !this._wheelOpen) this._quickMeleeQueued = true; break;
       case 'KeyR': if (!e.repeat && !this._wheelOpen) this._reloadQueued = true; break;
       case 'KeyF': if (!e.repeat && !this._wheelOpen) this._toggleAds(true); break;   // ADS without a second button
       case 'KeyZ': if (!e.repeat && !this._wheelOpen) this._zoomStepQueue += 1; break;

@@ -34,7 +34,9 @@ export class PowerupHud {
   collected(event) {
     if (!this.toast || !Object.hasOwn(POWERUP_TYPES, event?.type)) return;
     const type = POWERUP_TYPES[event.type];
-    this.toast.textContent = event.type === 'ammo'
+    this.toast.textContent = event.type === 'cash'
+      ? `CASH +$${Math.round(Number(event.amount) || 0)}`
+      : event.type === 'ammo'
       ? 'AMMO · RESERVES REFILLED'
       : `${type.label.toUpperCase()} +${Math.round(Number(event.amount) || 0)}`;
     this.toast.style.setProperty('--pickup-color', `#${type.color.toString(16).padStart(6, '0')}`);

@@ -25,7 +25,7 @@ for (const rows of Object.values(CHAOS_UPGRADES)) {
   assert.equal(new Set(rows.map(r => r.name)).size, 3);
   assert(rows.every(r => r.description.length > 10));
 }
-for (const map of MAP_IDS) assert.equal(isModeMapCompatible('chaos', map), map !== 'killhouse');
+for (const map of MAP_IDS) assert.equal(isModeMapCompatible('chaos', map), !['killhouse','reactor'].includes(map));
 assert.equal(mapForMode('chaos', 'killhouse'), 'foundry');
 
 const engine = new GameEngine({ mode: 'chaos' });

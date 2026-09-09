@@ -205,8 +205,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
 // ---------------------------------------------- mode + map foundation contract
 {
-  ok(sameValue(MODE_IDS, ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'training'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'killhouse'])
+  ok(sameValue(MODE_IDS, ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -226,6 +226,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     'every S&D-compatible map exposes dedicated A/B marker render-validation shots');
 
   const expectedRules = {
+    bastion: { teams: true, friendlyFire: false, respawnMs: Infinity },
     duel: { teams: false, friendlyFire: true, respawnMs: 1500, killLimit: 5, postMs: 8000 },
     chaos: { teams: false, friendlyFire: true, respawnMs: 1500 },
     fun: {
@@ -310,6 +311,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   'Search and Destroy prices and credit economy are exact immutable values');
 
   const expectedCompatibility = {
+    reactor: ['bastion'],
     foundry: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
     depot: ['fun', 'duel', 'chaos', 'tdm', 'gungame'],
     citadel: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
@@ -343,6 +345,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   'shared normalizers preserve canonical ids and apply validated/default fallbacks');
 
   const expectedMapNames = {
+    reactor: 'Reactor 9',
     foundry: 'Foundry',
     depot: 'Depot',
     citadel: 'Citadel',
@@ -353,6 +356,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     killhouse: 'Killhouse',
   };
   const expectedMapHashes = {
+    reactor: '32534739',
     foundry: 'db04cb71',
     depot: '41bc3abe',
     citadel: '2848ff82',
@@ -363,6 +367,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     killhouse: '395d8d45',
   };
   const expectedSpawnCounts = {
+    reactor: { fun: 4, tdmAlpha: 0, tdmBravo: 0, sndAttackers: 0, sndDefenders: 0 },
     foundry: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 5, sndDefenders: 5 },
     depot: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 0, sndDefenders: 0 },
     citadel: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },

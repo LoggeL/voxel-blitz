@@ -1,12 +1,14 @@
 import { AIR, GROUND, METAL, SX, SY, SZ } from './blocks.js';
 import { MAP_MODE_COMPATIBILITY } from '../modes.js';
 import { foundryLadderVolumes } from './terrain-foundry.js';
+import { REACTOR_LAYOUT } from './reactor-layout.js';
 import {
   DUST2_NAV_FLOORS, DUST2_SPAWN_ANCHORS, DUST2_SITES, DUST2_LANDMARKS,
   dust2FloorsAt,
 } from './dust2-layout.js';
 
 const MAP_NAMES = Object.freeze({
+  reactor: 'Reactor 9',
   foundry: 'Foundry',
   depot: 'Depot',
   citadel: 'Citadel',
@@ -18,6 +20,8 @@ const MAP_NAMES = Object.freeze({
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
+  reactor: { fun: REACTOR_LAYOUT.defenders.map(p => [p.x, p.z]),
+    tdm: { alpha: [], bravo: [] }, snd: { attackers: [], defenders: [] } },
   dust2: DUST2_SPAWN_ANCHORS,
   nuketown: {
     fun: [[43,12],[56,12],[73,12],[86,12],[43,83],[56,83],[73,83],[86,83],[28,40],[99,55],[35,59],[92,39]],
@@ -87,6 +91,7 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
 });
 
 const MAP_SITE_LAYOUTS = Object.freeze({
+  reactor: [],
   dust2: DUST2_SITES,
   nuketown: [
     { id: 'A', minX: 32, maxX: 39, minZ: 43, maxZ: 51, y: GROUND + 1.02 },
@@ -113,6 +118,8 @@ const MAP_SITE_LAYOUTS = Object.freeze({
 });
 
 const MAP_LANDMARKS = Object.freeze({
+  reactor: [ { id: 'core', name: 'Reactor Core', x: 64, z: 54, floorY: GROUND },
+    { id: 'supply', name: 'Service Bay', x: 64, z: 78, floorY: GROUND } ],
   dust2: DUST2_LANDMARKS,
   nuketown: [
     { id: 'yellow-house', name: 'Yellow House', x: 59, z: 67 },
@@ -249,10 +256,13 @@ function resolveSpawnPool(world, anchors, floorY = null) {
 export function createMapMetadata(id, world) {
   const anchors = MAP_SPAWN_ANCHORS[id];
   // Training uses one authored floor; Dust II anchors carry individual NAV levels.
-  const floorY = id === 'killhouse' ? GROUND : null;
+  const floorY = id === 'killhouse' || id === 'reactor' ? GROUND : null;
   const metadata = {
     id,
     name: MAP_NAMES[id],
+    ...(id === 'reactor' ? { bastion: structuredClone(REACTOR_LAYOUT), spawnBounds: {
+      minX: 51, maxX: 76, minZ: 43, maxZ: 67, minY: GROUND + 1, maxY: GROUND + 1.1,
+    } } : {}),
     // Keep procedural and terrain-recovery spawns inside the test-town wall.
     ...(id === 'nuketown' ? { spawnBounds: {
       minX: 22.5, maxX: 104.5, minZ: 6.5, maxZ: 88.5,

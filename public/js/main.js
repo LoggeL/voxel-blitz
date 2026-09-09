@@ -1,4 +1,5 @@
 import { claymoreProfile } from '../../shared/claymore-rules.js';
+import { bastionRepairAvailable } from '../../shared/bastion.js';
 // Voxel Blitz browser composition root. Mutable gameplay ownership lives in
 // Session, LocalPlayer, WeaponState, AvatarRoster, and CombatFeedback.
 import * as THREE from './vendor/three.module.js';
@@ -114,6 +115,11 @@ class Game {
         onEnterLive: (payload) => this.bootLive(payload),
         onDisconnect: () => this.disposeLiveResources(),
         onGameplayEvent: (event) => {
+          if (event.kind === 'bastion_clear') { this.effects?.clearCombatHazards(); return; }
+          if (event.kind.startsWith('bastion_')) {
+            sfx.bastionCue(event.kind, event.pos);
+            return;
+          }
           if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileStick',
             'projectileExplode', 'blockDamage'].includes(event.kind)) return;
           this.feedback?.handleEvent(event);
@@ -318,6 +324,7 @@ class Game {
     const self = players.find((row) => row.id === this.myId) || null;
     const match = snapshot.match && typeof snapshot.match === 'object' ? snapshot.match : null;
     this.matchState = match;
+    this.worldview?.setMatch(match);
     this.worldview?.setPowerups(snapshot.powerups);
     this.selfRow = self;
     if (self?.state !== 'dead') this.killcam?.stop();
@@ -362,6 +369,7 @@ class Game {
         mag: self.mag,
         reserve: self.reserve,
         chaosUpgrades: self.chaosUpgrades,
+        bastionUpgrades: self.bastionUpgrades,
         mode: match?.mode,
         owned: self.owned,
         weapon: self.weapon,
@@ -395,14 +403,16 @@ class Game {
         this.selfRow?.state !== 'alive' || this.weaponWheel.open || this.player.physics.vault) return false;
     if (this.matchState?.mode === 'fun' || this.matchState?.mode === 'training') return true;
     return (this.matchState?.mode === 'duel' || this.matchState?.mode === 'chaos' || this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
-      this.matchState?.mode === 'gungame') &&
+      this.matchState?.mode === 'gungame' || this.matchState?.mode === 'bastion') &&
       this.matchState.phase === 'live';
   }
 
   isAuthoritativeInteractAllowed() {
+    const match = this.matchState;
+    const objective = match?.mode === 'snd' && match.phase === 'live';
+    const repair = bastionRepairAvailable(match,this.selfRow);
     return !!(this.session.gameplayInputEnabled && this.player.alive &&
-      this.matchState?.mode === 'snd' && this.matchState.phase === 'live' &&
-      this.selfRow?.state === 'alive' && !this.weaponWheel.open);
+      (objective || repair) && this.selfRow?.state === 'alive' && !this.weaponWheel.open);
   }
 
   isAuthoritativeMovementAllowed() {

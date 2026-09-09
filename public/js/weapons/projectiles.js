@@ -736,6 +736,12 @@ export class ProjectileFX {
     return true;
   }
 
+  clear() {
+    for (const id of this.projectiles.keys()) this._removeProjectile(id);
+    for (const mesh of this._rocketBatches) mesh.count = 0;
+    for (const light of this._lights) light.intensity = 0;
+  }
+
   dispose() {
     for (const mesh of this._rocketBatches) { this.scene.remove(mesh); mesh.dispose(); }
     for (const light of this._lights) this.scene.remove(light);

@@ -153,7 +153,8 @@ export class GameplayUiFlow {
   _isBuyPhase() {
     const match = this._gameplay.matchState;
     return (match?.mode === 'snd' && match.phase === 'prep')
-      || (match?.mode === 'chaos' && match.phase === 'live');
+      || (match?.mode === 'chaos' && match.phase === 'live')
+      || (match?.mode === 'bastion' && ['prep','supply'].includes(match.phase));
   }
 
   canOpenBuyMenu() {
@@ -218,7 +219,7 @@ export class GameplayUiFlow {
     }
     if (!this._getNet()?.buyWeapon(weapon)) return false;
 
-    if (this._gameplay.matchState.mode === 'chaos') return true;
+    if (['chaos','bastion'].includes(this._gameplay.matchState.mode)) return true;
     this._pendingPurchase = { weapon, until: this._now() + 1500 };
     return true;
   }

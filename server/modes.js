@@ -13,6 +13,7 @@ import {
 import { SndPolicy } from './modes/snd.js';
 import { TdmPolicy } from './modes/tdm.js';
 import { GunGamePolicy } from './modes/gungame.js';
+import { BastionPolicy } from './modes/bastion.js';
 import { TrainingPolicy } from './modes/training.js';
 
 class FunPolicy {
@@ -335,7 +336,8 @@ export class ModeController {
       },
     };
 
-    if (modeId === 'duel') this.policy = new DuelPolicy(context);
+    if (modeId === 'bastion') this.policy = new BastionPolicy(context, engine);
+    else if (modeId === 'duel') this.policy = new DuelPolicy(context);
     else if (modeId === 'chaos') this.policy = new ChaosPolicy(context);
     else if (modeId === 'snd') this.policy = new SndPolicy(context);
     else if (modeId === 'tdm') this.policy = new TdmPolicy(context);
@@ -357,6 +359,7 @@ export class ModeController {
   get defenders() { return this.policy.defenders ?? null; }
   get bomb() { return this.policy.bomb ?? null; }
 
+  beforeTick(dt) { return this.policy.beforeTick?.(dt); }
   tick() { return this.policy.tick(); }
   teamFor(player) { return this.policy.teamFor(player); }
   roleFor(player) { return this.policy.roleFor?.(player) ?? null; }

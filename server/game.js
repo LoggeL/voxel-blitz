@@ -1,3 +1,4 @@
+import { reactorDefenderSolid } from '../shared/world/reactor-layout.js';
 import { FlameSystem, updateBurn } from './sim/fire.js';
 // Authoritative fixed-step simulation facade. Transport, room management and
 // map delivery stay outside; focused simulation modules own player state,
@@ -28,6 +29,8 @@ import { resolveWeaponIntent } from './sim/combat.js';
 import { SpawnSelector } from './sim/spawn.js';
 import { ProjectileSystem } from './sim/projectiles.js';
 import { createSimulationContexts } from './sim/context.js';
+import { CHAOS_CASH_RULES } from '../shared/powerups.js';
+import { findChaosCashSites } from '../shared/chaos-cash-sites.js';
 import { PowerupSystem } from './sim/powerups.js';
 import { findPowerupSites, isPowerupSiteSupported } from '../shared/powerup-sites.js';
 import {
@@ -50,7 +53,18 @@ export class GameEngine {
     this.mapMeta = callbacks.mapMeta || this.world.meta || getMapMeta(fallbackMapId);
     this.solidAt = (x, y, z) => this.world.getBlock(x, y, z) !== AIR;
 
+    this.defenderSolidAt = (x,y,z) => this.solidAt(x,y,z) || reactorDefenderSolid(x,y,z);
+
     this.entities = new Map();
+    this.npcs = new Map();
+    this.combatants = {
+      *values() { yield* this.humans.values(); yield* this.npcs.values(); },
+      humans: this.entities, npcs: this.npcs,
+      get(id) { return this.humans.get(id) || this.npcs.get(id); },
+      has(id) { return this.humans.has(id) || this.npcs.has(id); },
+    };
+    this.objectives = new Map();
+    this.changedBlocks = new Set();
     const genericSpawns = Array.isArray(this.mapMeta?.spawns?.fun)
       ? this.mapMeta.spawns.fun
       : [];
@@ -79,6 +93,14 @@ export class GameEngine {
       isSupported: (site) => isPowerupSiteSupported(this.world, site),
       rng: callbacks.powerupRng,
       now: this.now,
+    });
+    let cashSites;
+    this.cash = new PowerupSystem({
+      solidAt: this.solidAt,
+      findSites: () => cashSites ??= findChaosCashSites(this.world, this.mapMeta),
+      isSupported: (site) => isPowerupSiteSupported(this.world, site),
+      rng: callbacks.powerupRng, now: this.now,
+      rules: CHAOS_CASH_RULES, types: ['cash'], prefix: 'cash',
     });
     this.contexts = createSimulationContexts(this);
     this.spawnSelector = new SpawnSelector({
@@ -111,6 +133,7 @@ export class GameEngine {
     this.projectiles.clear();
     this.flames.clear();
     this.powerups.clear();
+    this.cash.clear();
     if (this.timer !== null) {
       clearInterval(this.timer);
       this.timer = null;
@@ -138,40 +161,43 @@ export class GameEngine {
     this.now += intervalMs;
     this.spawnSelector.setNow(this.now);
 
+    this.mode.beforeTick(dt);
+
     for (let i = 0; i < this.tickHooks.length; i++) {
       try { this.tickHooks[i](dt); } catch { /* a broken hook never kills the sim */ }
     }
 
-    for (const player of this.entities.values()) updateTimers(player, dt);
-    for (const player of this.entities.values()) {
+    for (const player of this.combatants.values()) updateTimers(player, dt);
+    for (const player of this.combatants.values()) {
       if (player.state === 'alive') this.integrate(player, dt);
     }
-    for (const player of this.entities.values()) {
+    for (const player of this.combatants.values()) {
       if (player.state === 'alive') updateCondition(player, dt);
     }
     const combat = this.contexts.combat;
-    for (const player of this.entities.values()) updateBurn(player, dt, combat);
+    for (const player of this.combatants.values()) updateBurn(player, dt, combat);
     this.flames.step(dt, combat);
     this.projectiles.step(dt, this.contexts.projectiles);
-    for (const player of this.entities.values()) {
+    for (const player of this.combatants.values()) {
       player.firing = false;
       if (player.state === 'alive') resolveWeaponIntent(player, dt, combat);
     }
     // Clear ended rounds before a policy can reset directly into live play.
     if (this.mode.phase !== 'live') {
       this.powerups.clear();
+      this.cash.clear();
       this.projectiles.fire.clear();
       this.projectiles.smoke.clear();
     }
     this.mode.tick();
     if (this.mode.phase !== 'live') { this.projectiles.fire.clear(); this.projectiles.smoke.clear(); }
     this.processRespawns();
-    this.powerups.step({
+    for (const pickups of [this.powerups, this.cash]) pickups.step({
       now: this.now, mode: this.mode.mode, phase: this.mode.phase, round: this.mode.round,
       entities: this.entities, pushEvent: (event) => this.tickEvents.push(event),
     });
 
-    const players = Array.from(this.entities.values());
+    const players = Array.from(this.combatants.values());
     for (const player of players) Object.assign(player, this.mode.playerSnapshot(player));
     const snapshot = makeSnapshot(
       players,
@@ -180,7 +206,7 @@ export class GameEngine {
       this.now,
       this.mode.matchSnapshot(),
       Array.from(this.tickBlockDamage.values()),
-      this.powerups.snapshot(),
+      [...this.powerups.snapshot(), ...this.cash.snapshot()],
       this.projectiles.fire.snapshot(),
       this.projectiles.smoke.snapshot(),
       this.projectiles.mineSnapshot(this.now),
@@ -228,6 +254,35 @@ export class GameEngine {
     return this.spawnInfoFor(player);
   }
 
+  /** NPC ownership stays with the mode, separate from lobby/pseudo-client bots. */
+  addNpc(id, profile, spawn, role) {
+    if (this.entities.has(id)) return this.entities.get(id);
+    const npc = new PlayerEntity(id, profile.name, spawn, true);
+    npc.npcRole = role;
+    npc.npcSpeed = profile.speed;
+    npc.hp = profile.hp;
+    npc.armor = profile.armor;
+    npc.team = 'bravo';
+    this.entities.set(id, npc);
+    return npc;
+  }
+
+  restoreWorld() {
+    const pristine = createMapState(this.mapMeta.id);
+    for (const i of [...this.changedBlocks]) {
+      const x = i % SX, z = Math.floor(i / SX) % SZ, y = Math.floor(i / (SX * SZ));
+      const value = pristine.getBlock(x, y, z);
+      this.world.setBlock(x, y, z, value);
+      this.pushBlockDelta(x, y, z, value);
+    }
+    this.changedBlocks.clear();
+    // Damage that never removed a voxel must also reset between runs.
+    for (const row of this.blockDamage.values()) {
+      this.tickBlockDamage.set(`${row.x},${row.y},${row.z}`, { ...row, progress: 0 });
+    }
+    this.blockDamage.clear(); this.blockHp.clear(); this.blockMining.clear();
+  }
+
   /** Transfer one live bot entity to a human without resetting its sim state. */
   takeoverBot(botId, humanId, name) {
     const priorId = String(botId);
@@ -245,6 +300,7 @@ export class GameEngine {
     player.triggerPrev = false;
     player.fireEdgeQueued = false;
     player.fireAimQueued = null;
+    player.quickMeleeQueued = null;
     player.grenadeHandlingQueued = false;
     player.grenadeEdgeQueued = false;
     player.grenadeChargeQueued = 0;
@@ -301,6 +357,7 @@ export class GameEngine {
         interact: !!keys.interact,
       },
       wantFire: !!msg.wantFire,
+      quickMelee: !!msg.quickMelee,
       wantAds: !!msg.wantAds,
       reload: !!msg.reload,
       reloadId: Number.isSafeInteger(msg.reloadId) && msg.reloadId > 0 ? msg.reloadId : 0,
@@ -328,7 +385,13 @@ export class GameEngine {
     input.viewYaw = Number.isFinite(msg.viewYaw) ? wrapAngle(msg.viewYaw) : input.yaw;
     const requestedWeapon = msg.switchTo != null ? msg.switchTo : msg.weapon;
     if (Number.isFinite(requestedWeapon)) input.switchTo = clampWeaponSlot(requestedWeapon);
+    if (player.bastionRelease) {
+      if (!input.wantFire && !input.throwGrenade && !input.grenadeHandling && !input.quickMelee) player.bastionRelease = false;
+      input.wantFire = input.throwGrenade = input.grenadeHandling = input.quickMelee = false;
+    }
     if (input.grenadeHandling) {
+      input.quickMelee = false;
+      player.quickMeleeQueued = null;
       input.wantFire = false;
       input.wantAds = false;
       input.reload = false;
@@ -337,6 +400,12 @@ export class GameEngine {
       player.fireAimQueued = null;
       // Preserve the interruption if a later input arrives before the next tick.
       player.grenadeHandlingQueued = true;
+    }
+    if (input.quickMelee && !previous?.quickMelee) {
+      const aim = msg.meleeAim;
+      player.quickMeleeQueued = Number.isFinite(aim?.yaw) && Number.isFinite(aim?.pitch)
+        ? { yaw: wrapAngle(aim.yaw), pitch: Math.max(-MAX_PITCH, Math.min(MAX_PITCH, aim.pitch)) }
+        : { yaw: input.yaw, pitch: input.pitch };
     }
     if (input.wantFire && !(previous && previous.wantFire)) {
       player.fireEdgeQueued = true;
@@ -359,6 +428,7 @@ export class GameEngine {
 
   integrate(player, dt) {
     const ctx = this.contexts.movement;
+    ctx.solidAt = this.mode.mode === 'bastion' && !player.npcRole ? this.defenderSolidAt : this.solidAt;
     ctx.movementLocked = !this.mode.canMove(player);
     return stepMovement(player, dt, ctx);
   }
@@ -380,7 +450,9 @@ export class GameEngine {
     if (this.blockDamage.delete(key)) {
       this.tickBlockDamage.set(key, { x, y, z, v: value, progress: 0 });
     }
-    this.tickBlocks.push({ i: ((y * SZ) + z) * SX + x, v: value });
+    const i = ((y * SZ) + z) * SX + x;
+    this.changedBlocks.add(i);
+    this.tickBlocks.push({ i, v: value });
   }
 
   pushBlockDamage(x, y, z, value, progress) {
@@ -392,6 +464,11 @@ export class GameEngine {
 
   killPlayer(victim, killer, weaponKey, headshot, markers = null) {
     if (victim.state !== 'alive') return;
+    if (victim.objective) {
+      victim.hp = 0;
+      victim.state = 'dead';
+      return;
+    }
     const damage = victim.hp <= 0 && victim.lastDamage?.lethal ? victim.lastDamage : null;
     victim.hp = 0;
     victim.armor = 0;

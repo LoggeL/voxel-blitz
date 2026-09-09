@@ -98,7 +98,7 @@ export class MolotovFireSystem {
       if (!field.cells.length || field.expiresAt <= ctx.now - dt * 1000) this.active.delete(id);
     }
     if (ctx.grenadeDamage === false) this.pending.clear();
-    else for (const victim of ctx.entities.values()) {
+    else for (const victim of (ctx.targets || ctx.entities).values()) {
       // A fire kill can end the round while this loop is still running.
       if (ctx.canAffectWorld?.() === false) { this.clear(); return; }
       if (victim.state !== 'alive' || victim.spawnProtectedUntil > ctx.now) {
