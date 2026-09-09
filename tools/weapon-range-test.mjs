@@ -75,6 +75,27 @@ try {
     assert.equal(impacts[0]?.x, 350, 'distant terrain receives impact feedback');
     assert.ok(tracers.tracers[0].len <= WEAPONS.rifle.tracer.len,
       'a visible tracer streak keeps finite geometry without limiting the hit');
+    const muzzle = new THREE.Vector3(0.8, 2.2, 0.7);
+    tracers.setMuzzleProvider(out => out.copy(muzzle));
+    tracers.shoot({ w: 'sniper', o: [0.5, 2.5, 0.5], d: [1, 0, 0] }, { local: true });
+    const tracer = tracers.tracers[1];
+    const direction = new THREE.Vector3(0, 0, -1).applyQuaternion(
+      new THREE.Quaternion(tracer.qx, tracer.qy, tracer.qz, tracer.qw));
+    const expected = new THREE.Vector3(350, 2.5, 0.5).sub(muzzle).normalize();
+    assert.ok(direction.distanceTo(expected) < 1e-10,
+      'Incoming sniper tracer converges on the real impact, not its shortened streak endpoint');
+    assert.ok(tracer.len <= WEAPONS.sniper.tracer.len, 'Far convergence keeps streak geometry bounded');
+    const firedAt = muzzle.clone();
+    muzzle.set(2, 4, 1);
+    tracers.updateTracers(0.01);
+    const matrix = new THREE.Matrix4();
+    tracers.tracerMesh.getMatrixAt(1, matrix);
+    assert.ok(new THREE.Vector3().setFromMatrixPosition(matrix).distanceTo(firedAt) < 1e-6,
+      'Recoil cannot drag the fired incoming tracer away from its ricochet path');
+    assert.doesNotThrow(() => tracers.shoot({ w: 'sniper', o: [0.5, 2.5, 0.5], d: [1, 0, 0],
+      paths: [[{ o: [0.5, 2.5, 0.5], end: [350, 2.5, 0.5] }]] }),
+    'Remote muzzle flash must not prevent authoritative ricochet paths from rendering');
+
   } finally { tracers.dispose(); }
 } finally {
   if (previousDocument === undefined) delete globalThis.document;

@@ -130,6 +130,7 @@ export class PlayerEntity {
     this.hist = [];
     this.triggerPrev = false;
     this.fireEdgeQueued = false;
+    this.fireAimQueued = null;
     this.grenadeHandlingQueued = false;
     this.grenadeEdgeQueued = false;
     this.grenadeChargeQueued = 0;

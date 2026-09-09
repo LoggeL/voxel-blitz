@@ -44,7 +44,7 @@ async function renderGallery(page) {
     const chunks = new ChunkStore(scene,atlas,
       (x,y,z) => atBlock(x,y,z) ? block : AIR,
       (x,y,z) => atBlock(x,y,z) ? damage : 0);
-    const stages = [0,.1,.3,.5,.7,.9];
+    const stages = [0,.2,.4,.6,.8,.95];
     const materials = [['Stone',STONE],['Wood',WOOD],['Brick',BRICK]];
     document.body.replaceChildren();
     document.head.insertAdjacentHTML('beforeend','<style>body{margin:0;padding:24px 30px;background:#0c121b;color:#e8eef6;font:14px system-ui;box-sizing:border-box}h1{margin:0 0 5px;font-size:22px;font-weight:650}p{margin:0 0 22px;color:#98a7b9}.gallery{display:grid;grid-template-columns:repeat(6,1fr);gap:10px}.card{border:1px solid #293648;border-radius:8px;overflow:hidden;background:#17202b}.card img{display:block;width:100%;height:auto}.label{padding:9px 12px;background:#111a26;display:flex;justify-content:space-between}.label span{color:#8eafcc}</style>');

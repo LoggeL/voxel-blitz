@@ -84,7 +84,7 @@ export class TracerFX {
     this._disposed = false;
   }
 
-  /** Live muzzle anchor for local tracers; null restores the fixed camera-space spawn. */
+  /** Shot-time muzzle origin for local tracers; null restores the fixed camera-space spawn. */
   setMuzzleProvider(fn) {
     this.muzzleProvider = typeof fn === 'function' ? fn : null;
   }
@@ -132,8 +132,9 @@ export class TracerFX {
       }
       // Local shots anchor to the live rig muzzle and converge on this eye-ray
       // endpoint; remote shots keep the server's presentation origin.
+      const aimDistance = hit ? hit.t : 180;
       const endpoint = local && this.muzzleProvider
-        ? [ox + direction.x * length, oy + direction.y * length, oz + direction.z * length]
+        ? [ox + direction.x * aimDistance, oy + direction.y * aimDistance, oz + direction.z * aimDistance]
         : null;
       this.spawnTracer(event.o, direction, length, definition, endpoint, event.charge ?? 1);
     }
@@ -173,7 +174,7 @@ export class TracerFX {
     tracer.active = true;
     tracer.t = 0;
     tracer.anchored = false;
-    // Anchored (local) shots rebase the beam on the live rig muzzle and aim it at the
+    // Local shots snapshot the rig muzzle and aim toward the
     // eye-ray endpoint, so the streak starts at the visible barrel tip and converges
     // on the crosshair impact. A degenerate muzzle-on-target falls back to the eye ray.
     let dirX = direction.x;
@@ -189,7 +190,7 @@ export class TracerFX {
         dirX = ex / beam;
         dirY = ey / beam;
         dirZ = ez / beam;
-        length = beam;
+        length = Math.min(length, beam);
         tracer.anchored = true;
       }
     }
@@ -224,7 +225,7 @@ export class TracerFX {
     }
   }
 
-  spawnFlash(origin, rawDirection) {
+  spawnFlash(origin, rawDirection, muzzleOffset = 0.35) {
     let flash = null;
     for (let i = 0; i < this.flashes.length; i++) {
       if (!this.flashes[i].spr.visible) {
@@ -266,12 +267,8 @@ export class TracerFX {
         continue;
       }
       const remaining = 1 - tracer.t / tracer.life;
-      if (tracer.anchored && this.muzzleProvider) {
-        const m = this.muzzleProvider(this._muzzle);
-        this._position.set(m.x, m.y, m.z);
-      } else {
-        this._position.set(tracer.px, tracer.py, tracer.pz);
-      }
+      // A fired streak stays in world space while the barrel recoils or turns.
+      this._position.set(tracer.px, tracer.py, tracer.pz);
       this._scale.set(tracer.w, tracer.w, tracer.len * remaining);
       this._rotation.set(tracer.qx, tracer.qy, tracer.qz, tracer.qw);
       this._matrix.compose(this._position, this._rotation, this._scale);

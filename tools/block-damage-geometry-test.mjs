@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { ChunkStore } from '../public/js/engine/chunks.js';
 import {
-  DAMAGE_GRID, damageStage, damageCells, removedDamageCells,
+  DAMAGE_GRID, DAMAGE_THRESHOLDS, damageStage, damageCells, removedDamageCells,
 } from '../public/js/engine/block-damage-geometry.js';
 import { AIR, STONE, LEAVES, GLASS } from '../shared/worlddata.js';
 
@@ -17,9 +17,13 @@ const atlas = {
 };
 
 assert.equal(damageStage(0), 0);
-assert.equal(damageStage(0.001), 1, 'the first hit visibly chips a block');
+assert.equal(damageStage(0.001), 0, 'tiny hits retain the intact model');
 assert.equal(damageStage(0.2), 1);
-assert.equal(damageStage(0.201), 2);
+assert.equal(damageStage(0.201), 1);
+for (const [index, threshold] of DAMAGE_THRESHOLDS.entries()) {
+  assert.equal(damageStage(threshold - 0.000001), index, 'shape waits until the threshold');
+  assert.equal(damageStage(threshold), index + 1);
+}
 assert.equal(damageStage(1), 5);
 assert.equal(damageStage(2), 5);
 for (const invalid of [-1, NaN, Infinity, undefined]) assert.equal(damageStage(invalid), 0);
@@ -58,16 +62,17 @@ for (let position = 0; position < 96; position++) {
       for (let z = 0; z < 4; z++) for (let y = 0; y < 4; y++) for (let x = 0; x < 4; x++) {
         if ([x, y, z][axis] === face && !cells[cellIndex(x, y, z)]) missing++;
       }
-      assert.ok(missing > 0, 'first hit is visible on every exposed face, including wall blocks');
+      assert.ok(missing > 0, 'first damage stage is visible on every exposed face, including wall blocks');
     }
     if (stage === 3) distinct.add(cells.join(''));
   }
 }
 assert.ok(distinct.size > 20, 'block positions have varied fracture shapes');
-assert.equal(removedDamageCells(8, 8, 8, 0, 0.1).length, 5);
-assert.equal(removedDamageCells(8, 8, 8, 0.1, 0.15).length, 0, 'same stage produces no detached chips');
-assert.equal(removedDamageCells(8, 8, 8, 0.1, 0.5).length, 18);
-assert.equal(removedDamageCells(8, 8, 8, 0.5, 0.1).length, 0, 'repair produces no detached chips');
+assert.equal(removedDamageCells(8, 8, 8, 0, 0.199).length, 0, 'small hits detach no geometry');
+assert.equal(removedDamageCells(8, 8, 8, 0.199, 0.2).length, 5);
+assert.equal(removedDamageCells(8, 8, 8, 0.2, 0.3).length, 0, 'same stage produces no detached chips');
+assert.equal(removedDamageCells(8, 8, 8, 0.2, 0.6).length, 18);
+assert.equal(removedDamageCells(8, 8, 8, 0.6, 0.2).length, 0, 'repair produces no detached chips');
 
 function faceKey(axis, sign, plane, u, v) { return `${axis}:${sign}:${plane}:${u}:${v}`; }
 
@@ -138,10 +143,12 @@ function fixture(entries, damageEntries = []) {
   return { store, blocks, damage };
 }
 
-for (const progress of [0, 0.1, 0.3, 0.5, 0.7, 0.9]) {
+for (const progress of [0, 0.001, 0.199, ...DAMAGE_THRESHOLDS]) {
   const f = fixture([[[8, 8, 8]]], [[[8, 8, 8], progress]]);
   checkSurface(f.store, f.blocks, f.damage);
   assert.equal(f.store.stats.meshes, 1, 'damage keeps the existing single material draw call');
+  if (progress < 0.2) assert.equal(f.store.group.children[0].geometry.attributes.position.count, 24,
+    'sub-threshold damage still renders the intact cube');
   f.store.dispose();
 }
 

@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import { GameEngine } from '../server/game.js';
+import { PlayerEntity } from '../server/sim/player.js';
+import { resolveWeaponIntent } from '../server/sim/combat.js';
+import { stepMovement } from '../server/sim/movement.js';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { BreathHold } from '../public/js/player/breath-hold.js';
 import { AimSway } from '../public/js/player/aim-sway.js';
@@ -83,3 +87,45 @@ try {
   assert.equal(rig.root.visible, true);
 } finally { weapon.dispose(); rig.dispose(); player.dispose(); }
 console.log('Sniper: breath lifecycle at 30/60/144 Hz, eligibility, zoom, scope gates, reticle alignment, bolt cadence and reload passed.');
+
+// Two 60 Hz inputs can arrive before one authoritative tick. The second packet
+// carries recoil/look motion, but the queued trigger still belongs to the first.
+for (const held of [false, true]) {
+  const shooter = new PlayerEntity('shooter', 'Shooter', { x: 0.5, y: 2, z: 0.5 });
+  const victim = new PlayerEntity('victim', 'Victim', { x: 100.5, y: 2.5, z: 0.5 });
+  shooter.weapon = WEAPON_IDS.indexOf('sniper');
+  shooter.deployT = 0;
+  shooter.adsT = 1;
+  victim.hp = 10000;
+  const entities = new Map([[shooter.id, shooter], [victim.id, victim]]);
+  const host = { entities };
+  const events = [];
+  const ctx = {
+    now: 1000, entities, blockHp: new Map(), solidAt: () => false,
+    getBlock: () => 0, setBlock() {}, pushBlockDelta() {},
+    computeConeDeg: () => 0, canDamage: () => true,
+    canFire: () => true, canUseWeapon: () => true,
+    pushEvent: event => events.push(event), killPlayer() {},
+  };
+  const input = { keys: {}, weapon: shooter.weapon, wantAds: true,
+    wantFire: true, yaw: -Math.PI / 2, pitch: 0 };
+  GameEngine.prototype.applyInput.call(host, shooter.id, input);
+  GameEngine.prototype.applyInput.call(host, shooter.id,
+    { ...input, wantFire: held, yaw: -1.2, pitch: 0.12 });
+  stepMovement(shooter, 1 / 60, { ...ctx, mapMeta: {}, onFall() {} });
+  resolveWeaponIntent(shooter, 1 / 60, ctx);
+  assert.ok(victim.hp < 10000, 'Queued sniper click hits its original target after a later aim packet');
+  assert.equal(shooter.yaw, -1.2, 'Shot preservation does not rewind live player look');
+  assert.equal(shooter.pitch, 0.12);
+  assert.equal(shooter.fireAimQueued, null, 'The queued aim is consumed with the trigger');
+  assert.equal(events.filter(event => event.kind === 'shoot').length, 1);
+  // A subsequent click must use its own new direction, never the consumed ray.
+  const hp = victim.hp;
+  shooter.cooldown = 0;
+  GameEngine.prototype.applyInput.call(host, shooter.id, { ...input, wantFire: false });
+  GameEngine.prototype.applyInput.call(host, shooter.id, { ...input, yaw: 0 });
+  stepMovement(shooter, 1 / 60, { ...ctx, mapMeta: {}, onFall() {} });
+  resolveWeaponIntent(shooter, 1 / 60, ctx);
+  assert.equal(victim.hp, hp, 'A later click uses the new direction');
+}
+console.log('Sniper: queued shots retain click aim across release/held packets and consume it once.');

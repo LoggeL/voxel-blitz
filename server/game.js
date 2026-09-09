@@ -230,6 +230,7 @@ export class GameEngine {
     player.input = null;
     player.triggerPrev = false;
     player.fireEdgeQueued = false;
+    player.fireAimQueued = null;
     player.grenadeHandlingQueued = false;
     player.grenadeEdgeQueued = false;
     player.grenadeChargeQueued = 0;
@@ -319,10 +320,15 @@ export class GameEngine {
       input.reload = false;
       input.switchTo = undefined;
       player.fireEdgeQueued = false;
+      player.fireAimQueued = null;
       // Preserve the interruption if a later input arrives before the next tick.
       player.grenadeHandlingQueued = true;
     }
-    if (input.wantFire && !(previous && previous.wantFire)) player.fireEdgeQueued = true;
+    if (input.wantFire && !(previous && previous.wantFire)) {
+      player.fireEdgeQueued = true;
+      // Later look/recoil packets must not redirect a click waiting for a tick.
+      player.fireAimQueued = { yaw: input.yaw, pitch: input.pitch };
+    }
     if (input.throwGrenade && !(previous && previous.throwGrenade)) {
       player.grenadeEdgeQueued = true;
       player.grenadeChargeQueued = input.grenadeCharge;

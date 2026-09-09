@@ -2,13 +2,17 @@
 // until destruction; these little cells describe only the visible remainder.
 export const DAMAGE_GRID = 4;
 const CELL_COUNT = DAMAGE_GRID ** 3;
+export const DAMAGE_THRESHOLDS = Object.freeze([0.2, 0.4, 0.6, 0.8, 0.95]);
 const REMOVED_COUNTS = [0, 5, 13, 23, 35, 46];
 const VARIANT_COUNT = 64;
 const shapes = new Map();
 
 export function damageStage(progress) {
-  return Number.isFinite(progress) && progress > 0
-    ? Math.min(REMOVED_COUNTS.length - 1, Math.ceil(progress * 5)) : 0;
+  if (!Number.isFinite(progress)) return 0;
+  // Small hits retain the intact silhouette; erosion follows accumulated damage.
+  let stage = 0;
+  while (stage < DAMAGE_THRESHOLDS.length && progress >= DAMAGE_THRESHOLDS[stage]) stage++;
+  return stage;
 }
 
 function hash(value) {
@@ -43,7 +47,7 @@ function makeStages(variant) {
   }
   shell.sort((a, b) => b.score - a.score || a.index - b.index);
   // Two opposite corners touch all six faces, so even a block buried in a
-  // wall shows a missing piece on its first hit, whichever face is exposed.
+  // wall shows a missing piece at its first damage stage, whichever face is exposed.
   const first = shell[0];
   const oppositeIndex = CELL_COUNT - 1 - first.index;
   const order = [first, shell.find((cell) => cell.index === oppositeIndex),

@@ -93,6 +93,7 @@ export function resolveWeaponIntent(p, _dt, ctx) {
   if (inp?.grenadeHandling || p.grenadeHandlingQueued) {
     p.grenadeHandlingQueued = false;
     p.fireEdgeQueued = false;
+    p.fireAimQueued = null;
     p.triggerPrev = false;
     p.reloadPrev = false;
     p.mining = null;
@@ -146,7 +147,9 @@ export function resolveWeaponIntent(p, _dt, ctx) {
   }
 
   const fireEdge = p.fireEdgeQueued;
+  const fireAim = fireEdge ? p.fireAimQueued : null;
   p.fireEdgeQueued = false;
+  p.fireAimQueued = null;
   if (def.mode === 'charge') {
     resolveChargeIntent(p, _dt, inp, fireEdge, ctx);
     p.triggerPrev = inp.wantFire;
@@ -165,7 +168,7 @@ export function resolveWeaponIntent(p, _dt, ctx) {
     p.triggerPrev = inp.wantFire;
     return;
   }
-  if (wantsShot && canFire(p, fireEdge, ctx)) fireOneShot(p, ctx);
+  if (wantsShot && canFire(p, fireEdge, ctx)) fireOneShot(p, ctx, 1, fireAim);
   p.triggerPrev = inp.wantFire;
 }
 
@@ -411,7 +414,7 @@ function publishBlockDamage(x, y, z, type, previousProgress, ctx) {
  * `charge` (0..1) only applies to `charge` weapons and scales damage (and the
  * lance's wall piercing); hitscan guns pass the default full charge.
  */
-export function fireOneShot(p, ctx, charge = 1) {
+export function fireOneShot(p, ctx, charge = 1, aim = null) {
   const def = p.def;
   const shotReach = HITSCAN_REACH;
   p.spawnProtectedUntil = 0;
@@ -425,7 +428,7 @@ export function fireOneShot(p, ctx, charge = 1) {
   const chargeMult = charged ? chargeDamageMult(def, charge01) : def.id === 'minigun' ? minigunDamageMult(p.minigun) : 1;
   if (def.id === 'minigun') heatMinigun(p.minigun);
   const rng = shotRng(p);
-  const fwd = fwdFromYawPitch(p.yaw, p.pitch);
+  const fwd = fwdFromYawPitch(aim?.yaw ?? p.yaw, aim?.pitch ?? p.pitch);
   const coneDeg = typeof ctx.computeConeDeg === 'function'
     ? ctx.computeConeDeg(p)
     : computeConeDeg(p);
