@@ -486,12 +486,23 @@ export async function runViewmodelContracts(ok, installGlobals) {
           rig.update(1 / 60, { grounded: true, aimSwayScale: 0 });
         }
         rig.content.updateWorldMatrix(true, true);
+        // Check the model's forward axis, independent of its carried world rotation.
         const tip = new THREE.Box3();
+        const inverseBody = model.body.matrixWorld.clone().invert();
+        const point = new THREE.Vector3();
         for (const child of model.body.children) {
-          if (child !== model.flash.grp && child !== model.muzzleMarker) tip.expandByObject(child);
+          if (child === model.flash.grp || child === model.muzzleMarker) continue;
+          child.traverse((part) => {
+            const vertices = part.geometry?.getAttribute('position');
+            if (!vertices) return;
+            const toBody = inverseBody.clone().multiply(part.matrixWorld);
+            for (let i = 0; i < vertices.count; i++) {
+              tip.expandByPoint(point.fromBufferAttribute(vertices, i).applyMatrix4(toBody));
+            }
+          });
         }
-        return Math.abs(tip.min.z
-          - model.muzzleMarker.getWorldPosition(new THREE.Vector3()).z) < 1e-4;
+        const marker = model.muzzleMarker.getWorldPosition(new THREE.Vector3()).applyMatrix4(inverseBody);
+        return Math.abs(tip.min.z - marker.z) < 1e-4;
       };
       ok(muzzleProbe('lance'), 'lance emitter tip lands exactly on its T.muzzle anchor');
       ok(muzzleProbe('knife'), 'knife point lands exactly on its T.muzzle anchor');

@@ -882,13 +882,13 @@ async function runContracts(server, signal) {
     blockTick.players.some((row) => row.id === roomBHost.welcome.id && row.firing) &&
     spreadAngle <= 0.0015,
   'the deployed ADS input produces the authoritative sniper shot and bounded wire spread');
-  pass(blockTick.blocks.length === 1 &&
-    peerBlockTick.blocks.length === 1 &&
-    blockTick.blocks[0].i === target.index &&
-    blockTick.blocks[0].v === 0 &&
-    peerBlockTick.blocks[0].i === target.index &&
-    peerBlockTick.blocks[0].v === 0,
-  'exactly one target voxel mutation broadcasts to both Room B sockets');
+  // Penetrating sniper rounds can also break material behind the first target.
+  // Every resulting delta must reach both peers, and the selected target appears once.
+  const orderedDeltas = (tick) => [...tick.blocks].sort((a, b) => a.i - b.i);
+  pass(blockTick.blocks.filter((block) => block.i === target.index && block.v === 0).length === 1 &&
+    peerBlockTick.blocks.filter((block) => block.i === target.index && block.v === 0).length === 1 &&
+    JSON.stringify(orderedDeltas(blockTick)) === JSON.stringify(orderedDeltas(peerBlockTick)),
+  'target and penetration voxel mutations broadcast identically to both Room B sockets');
 
   const cHostFenceMark = roomCHost.mark();
   const cGuestFenceMark = roomCGuest.mark();
@@ -943,9 +943,9 @@ async function runContracts(server, signal) {
   }
   pass(lateC.welcome.phase === 'live' &&
     lateC.map[MAP_HEADER_BYTES + target.index] === target.value &&
-    divergentVoxels.length === 1 &&
-    divergentVoxels[0] === target.index,
-  'late-join binary maps diverge at exactly the Room B target voxel');
+    JSON.stringify(divergentVoxels) === JSON.stringify(orderedDeltas(blockTick).map((block) => block.i)) &&
+    blockTick.blocks.every((block) => lateB.map[MAP_HEADER_BYTES + block.i] === block.v),
+  'late-join binary maps diverge exactly at the broadcast Room B mutations');
   pass(lateB.frames.filter((frame) => frame.kind === 'binary').length === 1 &&
     lateC.frames.filter((frame) => frame.kind === 'binary').length === 1,
   'each live late join receives exactly one binary map frame');

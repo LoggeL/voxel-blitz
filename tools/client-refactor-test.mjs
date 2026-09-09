@@ -91,8 +91,15 @@ const disposals = resource => {
   brass.dispose();
 }
 
-// The only browser surface needed to construct remote muzzle sprites is Canvas2D.
+// Exercise GPU resource ownership without browser image decoding or network I/O.
 const previousDocument = globalThis.document;
+const previousTextureLoad = THREE.TextureLoader.prototype.load;
+const loadedTextures = [];
+THREE.TextureLoader.prototype.load = function (url) {
+  const texture = new THREE.Texture();
+  loadedTextures.push({ url, texture, disposed: disposals(texture) });
+  return texture;
+};
 const context = new Proxy({ createRadialGradient: () => ({ addColorStop() {} }) },
   { get: (target, key) => target[key] ?? (() => {}) });
 globalThis.document = { createElement: () => ({ getContext: () => context }) };
@@ -124,7 +131,12 @@ try {
   fx.dispose(); fx.dispose();
   assert.equal(scene.children.length, 0, 'all effect resources leave the scene');
   assert.ok(meshDisposals.every(events => events.count === 1), 'all instanced effects release GPU buffers once');
+  assert.ok(loadedTextures.some(({ url }) => url === '/assets/fx/fire-atlas.png'),
+    'fire effects request the sprite atlas');
+  assert.ok(loadedTextures.every(({ disposed }) => disposed.count === 1),
+    'loaded effect textures dispose exactly once');
 } finally {
+  THREE.TextureLoader.prototype.load = previousTextureLoad;
   if (previousDocument === undefined) delete globalThis.document;
   else globalThis.document = previousDocument;
 }

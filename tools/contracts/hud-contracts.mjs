@@ -309,6 +309,11 @@ export async function runHudContracts(ok, installGlobals) {
         this.activeElement = null;
         this.body = new FakeElement(this, 'body');
       }
+      createElementNS(namespace, tagName) {
+        const element = this.createElement(tagName);
+        element.namespaceURI = namespace;
+        return element;
+      }
       createElement(tagName) {
         return new FakeElement(this, tagName);
       }
@@ -904,21 +909,21 @@ export async function runHudContracts(ok, installGlobals) {
           && !visible(document.getElementById('player-status-strip')),
         `${mode} never shows an irrelevant clock or permanent roster`);
         if (mode === 'fun') {
-          ok(headers.join(',') === '#,PLAYER,KILLS,DEATHS'
+          ok(headers.join(',') === '#,PLAYER,KILLS,DEATHS,PING'
             && document.getElementById('match-phase-label').textContent === '#1 · 5 KILLS'
             && document.getElementById('scores').querySelectorAll('.vb-sb-bomb-badge').length === 0,
           'FFA shows local rank and kills with a ranked K/D table and no objective baggage');
         } else if (mode === 'tdm') {
-          ok(headers.join(',') === 'PLAYER,KILLS,DEATHS,PLAYER,KILLS,DEATHS'
+          ok(headers.join(',') === 'PLAYER,KILLS,DEATHS,PING,PLAYER,KILLS,DEATHS,PING'
             && document.getElementById('scores').querySelectorAll('.vb-scoreboard-team').length === 2,
           'TDM groups players into two team tables with only relevant combat stats');
         } else if (mode === 'gungame') {
-          ok(headers.join(',') === '#,PLAYER,WEAPON'
+          ok(headers.join(',') === '#,PLAYER,WEAPON,PING'
             && /12 \/ 12/.test(document.getElementById('match-phase-label').textContent)
             && /12\/12/.test(document.getElementById('scores').textContent),
           'Gun Game clamps authoritative weapon progression to the final weapon');
         } else {
-          ok(!visible(document.getElementById('match-header')) && headers.join(',') === 'PLAYER',
+          ok(!visible(document.getElementById('match-header')) && headers.join(',') === 'PLAYER,PING',
           'Training has a participant list without competitive counters or a match header');
         }
       }
