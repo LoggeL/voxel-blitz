@@ -126,6 +126,7 @@ export class PregameFlow {
     };
 
     this._attempt = attempt;
+    this.clearInviteQuery();
     this._setPhase('connecting');
     this._writeName(name);
     this._hud.showJoinState('connecting…');
@@ -191,7 +192,7 @@ export class PregameFlow {
       if (connected || token !== this._recoveryGeneration) return;
     }
     if (!this._isTornDown() && token === this._recoveryGeneration) {
-      this._enterMenu('Could not reconnect. Your room code is still in the link.');
+      this._enterMenu(`Could not reconnect. Join again with room code ${action.code}.`);
     }
   }
 
@@ -233,7 +234,7 @@ export class PregameFlow {
       const url = new URL(this._location.href);
       if (!url.searchParams.has('lobby')) return;
       url.searchParams.delete('lobby');
-      this._history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
+      this._history.replaceState(this._history.state, '', `${url.pathname}${url.search}${url.hash}`);
     } catch (_) {}
   }
 
@@ -245,6 +246,7 @@ export class PregameFlow {
     if (!isLive || !attempt.welcome || attempt.mapBytes == null) return false;
 
     attempt.liveStarted = true;
+    this.clearInviteQuery();
     this._setPhase('booting');
     this.showBootStatus(attempt, 'streaming arena…', 'ok');
     this.detachListeners();
@@ -279,7 +281,7 @@ export class PregameFlow {
     if (!this.isActive(attempt) || attempt.liveStarted) return;
     this._setPhase('lobby');
     try {
-      if (this._location?.href && this._history?.replaceState) {
+      if (attempt.mode === 'create' && this._location?.href && this._history?.replaceState) {
         const url = new URL(this._location.href);
         url.searchParams.set('lobby', state.code);
         this._history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);

@@ -282,7 +282,7 @@ async function main() {
       window.__interruptedSocket = window.__testSockets.at(-1);
       const peer = window.__recoveryPeer = new WebSocket(location.origin.replace(/^http/, 'ws'));
       peer.onopen = () => peer.send(JSON.stringify({t: 'join', name: 'RecoveryWitness',
-        lobby: new URL(location.href).searchParams.get('lobby'), password: 'host password'}));
+        lobby: document.getElementById('lobby-code-val').textContent, password: 'host password'}));
       peer.onmessage = (event) => {
         if (typeof event.data === 'string' && JSON.parse(event.data).t === 'lobbyState') resolve(true);
       };
@@ -513,11 +513,13 @@ async function main() {
       label: 'Training live handoff', timeoutMs: 30_000,
     });
     requireCondition(true, 'Training starts with exactly 17 targets and its run overlay after a previous match');
+    requireCondition(await page.evaluate(`!new URL(location.href).searchParams.has('lobby')`),
+      'entering live play removes the invite code from the address bar');
     await page.evaluate(`new Promise((resolve, reject) => {
       window.__interruptedSocket = window.__testSockets.at(-1);
       const peer = window.__recoveryPeer = new WebSocket(location.origin.replace(/^http/, 'ws'));
       peer.onopen = () => peer.send(JSON.stringify({t: 'join', name: 'LiveWitness',
-        lobby: new URL(location.href).searchParams.get('lobby'), password: 'host password'}));
+        lobby: document.getElementById('lobby-code-val').textContent, password: 'host password'}));
       peer.onmessage = (event) => {
         if (typeof event.data === 'string' && JSON.parse(event.data).t === 'lobbyState') resolve(true);
       };
