@@ -82,12 +82,11 @@ for (const dmg of [undefined, null, -1, NaN, Infinity, -Infinity, 'invalid']) {
   assert.ok(Number.isFinite(invalid.healthDamage));
 }
 
-// Keep the hit's incoming-damage feedback useful even when armor reduces the
-// actual aim impulse; this change does not re-balance pain sounds or the HUD.
+// Armor retains a brief impact cue but prevents the stronger injury sting.
 const absorbed = sample({ dmg: 20, healthDamage: 0 });
 assert.equal(absorbed.damage, 20);
 assert.equal(absorbed.severity, calm.severity);
-assert.equal(absorbed.painImpulse, calm.painImpulse);
+assert.ok(absorbed.painImpulse > 0 && absorbed.painImpulse < calm.painImpulse);
 
 // Exercise the real authoritative damage metadata and the following outgoing
 // shot. The crosshair/camera and server must retain the same resulting direction.

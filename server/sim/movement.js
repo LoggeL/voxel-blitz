@@ -1,3 +1,4 @@
+import { BreathHold, recoverConditions, steadyEligible } from '../../shared/conditions.js';
 import { advanceReload, reloadPhase } from '../../shared/reload.js';
 // Authoritative movement, collision, timers, and hidden-condition integration.
 
@@ -55,15 +56,21 @@ export function clearReload(p) {
 
 /** Advance pain, panic, and exhaustion after movement for this tick. */
 export function updateCondition(p, dt) {
-  const missingHealth = 1 - clamp01(p.hp / 100);
-  const panicFloor = missingHealth * CONDITION_RULES.panicLowHpFloor;
-  const painFloor = missingHealth * CONDITION_RULES.painLowHpFloor;
-  p.panic = clamp01(Math.max(panicFloor, p.panic - CONDITION_RULES.panicDecayPerS * dt));
-  p.pain = clamp01(Math.max(painFloor, p.pain - CONDITION_RULES.painDecayPerS * dt));
-  const exhaustionRate = p.sprint
-    ? CONDITION_RULES.exhaustionSprintPerS
-    : -CONDITION_RULES.exhaustionRecoverPerS;
-  p.exhaustion = clamp01(p.exhaustion + exhaustionRate * dt);
+  const keys = p.input?.keys || IDLE_KEYS;
+  p.breath ??= new BreathHold();
+  const breath = p.breath.update(dt, {
+    pressed: !!keys.sprint,
+    eligible: steadyEligible({
+      alive: p.state === 'alive', grounded: p.grounded,
+      stationary: Math.hypot(p.vx, p.vz) < 0.18 && !keys.f && !keys.b && !keys.l && !keys.r && !keys.jump,
+      ads: p.adsT,
+      handlingAllowed: p.ads && !p.reloading && !p.vault && p.deployT <= 0 &&
+        !p.input?.grenadeHandling && !p.grenadeHandlingQueued && !p.input?.reload &&
+        (!Number.isInteger(p.input?.switchTo) || p.input.switchTo === p.weapon),
+    }),
+  });
+  recoverConditions(p, dt, { hp: p.hp, burning: p.burning, sprinting: p.sprint,
+    holdingBreath: breath.holdingBreath, crouching: p.crouch || p.proneT > 0 });
 }
 
 function slideAxis(player, axis, amount, solidAt, mapMeta = null, canStep = false) {

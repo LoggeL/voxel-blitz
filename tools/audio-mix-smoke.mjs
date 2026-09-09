@@ -44,6 +44,7 @@ async function main() {
       && result.report.failures.length === 0,
     'actual game-facade scenarios pass every audible, timing and lifecycle check');
     const requiredCues = [
+      'Bullet flyby, left ear', 'Bullet flyby, right ear',
       'Grenade pin', 'Grenade throw, light', 'Grenade throw, full charge',
       ...['frag', 'limpet', 'pulse', 'rocket'].map((type) => `${type} explosion, 4 m`),
       'Frag explosion, 35 m', 'Frag explosion plus 32 block impacts',

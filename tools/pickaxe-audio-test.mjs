@@ -111,16 +111,20 @@ const { CombatFeedback } = await import('../public/js/combat/feedback.js');
 const played = [];
 const feedback = Object.assign(Object.create(CombatFeedback.prototype), {
   _disposed: false, _minedBreak: null, isRunning: () => true, getMyId: () => 'self',
-  distanceToRay: () => 0.5, blockSound: () => 'stone',
+  _lastBulletFlybyAt: -Infinity, blockSound: () => 'stone',
+  player: { alive: true }, camera: { position: { x: 0.5, y: 2, z: 5 } },
   effects: { shoot() {}, impacts: { mine() {}, chipBlock() {} }, explodeBlock() {} },
   sfx: Object.fromEntries(['fire', 'bulletWhiz', 'mine', 'impact'].map(name =>
     [name, (...args) => played.push({ name, args })])),
   world: { getBlock: () => 0, setBlock() {}, applyDeltas() {} },
 });
-feedback.handleEvent({ kind: 'shoot', id: 'other', w: 'knife', o: [0,0,0], d: [0,0,1] });
+const nearPass = { kind: 'shoot', id: 'other', o: [0,2,0], d: [0,0,1],
+  paths: [[{ o: [0,2,0], end: [0,2,10] }]] };
+feedback.handleEvent({ ...nearPass, w: 'knife' });
 assert.deepEqual(played.map(x => x.name), ['fire'], 'remote melee has a swing without a bullet fly-by');
-feedback.handleEvent({ kind: 'shoot', id: 'other', w: 'rifle', o: [0,0,0], d: [0,0,1] });
+feedback.handleEvent({ ...nearPass, w: 'rifle' });
 assert.equal(played.at(-1).name, 'bulletWhiz', 'nearby bullets retain fly-by feedback');
+assert.deepEqual(played.at(-1).args[1].pos, [0,2,5], 'the pass plays beside the listener on the resolved segment');
 played.length = 0;
 feedback.handleEvent({ kind: 'mine', from: STONE, x: 1, y: 2, z: 3, progress: 1 });
 feedback.handleEvent({ kind: 'block', from: STONE, v: 0, x: 1, y: 2, z: 3 });

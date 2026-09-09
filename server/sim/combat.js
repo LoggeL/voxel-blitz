@@ -1,3 +1,4 @@
+import { collectNearMisses, applyNearMisses } from './suppression.js';
 import { beginReload, reloadPhase } from '../../shared/reload.js';
 import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../../shared/minigun.js';
 import { rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
@@ -468,6 +469,8 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
   const playerFalloff = def.pierce?.playerFalloff ?? 1;
   // Publish the resolved polyline with the shot so clients never guess a bounce.
   shootEvent.paths = [];
+  const nearMisses = new Map();
+  const shotHitVictims = new Set();
   for (let pellet = 0; pellet < def.pellets; pellet++) {
     let d = pellet === 0 ? { ...firstDir } : samplePelletDirection(def, fwd, rng, coneDeg, pellet);
     let origin = [...oEye];
@@ -499,18 +502,31 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
         });
         chaosHit(p, tgt.victim, point, ctx);
         hitVictims.add(tgt.victim);
+        shotHitVictims.add(tgt.victim);
         playersLeft--;
         if (!def.pierce?.players) { path.push({ o: origin, end: point }); stopped = true; break; }
         damageScale *= playerFalloff;
         power *= playerFalloff;
         minT = tgt.t + 0.001;
       }
-      if (stopped) break;
+      if (stopped) {
+        collectNearMisses(p, origin, path[path.length - 1].end, ctx, nearMisses);
+        break;
+      }
       // Keep empty-sky presentation finite without limiting the damage ray.
       const endT = hit ? hit.t : Math.min(reach, 180);
       const point = origin.map((value, i) => value + d[['x', 'y', 'z'][i]] * endT);
       const segment = { o: origin, end: point };
       path.push(segment);
+      // Damage reach may be infinite. Bound the suppression segment by the
+      // furthest current player, rather than the shorter tracer presentation.
+      let suppressionReach = hit ? hit.t : 0;
+      if (!hit) for (const v of ctx.entities.values()) {
+        suppressionReach = Math.max(suppressionReach,
+          Math.hypot(v.x - origin[0], v.y + 1.05 - origin[1], v.z - origin[2]) + 2);
+      }
+      collectNearMisses(p, origin, origin.map((v, i) =>
+        v + d[['x', 'y', 'z'][i]] * Math.min(reach, suppressionReach)), ctx, nearMisses);
       if (!hit) break;
       segment.hit = { x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz };
       if (hit.y <= 0) break;
@@ -539,4 +555,7 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
       }
     }
   }
+  // Presentation suppresses a flyby when this shot already supplies hit audio.
+  if (shotHitVictims.size) shootEvent.hitVictims = [...shotHitVictims].map((victim) => victim.id);
+  applyNearMisses(nearMisses, shotHitVictims, ctx);
 }

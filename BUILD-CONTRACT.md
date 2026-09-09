@@ -137,9 +137,11 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   `prep|'live'|'post'`. Gun Game's winner is a player id. Bomb state is
   `'carried'|'dropped'|'planted'|'defused'|'exploded'`.
 - Each player row has exactly
-  `{id,name,x,y,z,yaw,pitch,hp,armor,panic,pain,exhaustion,spawnProtected,weapon,
-  score,kills,deaths,state,respawnAt,firing,ads,crouch,mag,reserve,reloading,
-  team,credits,owned,bomb,interaction,grenades,charge}`.
+  `{id,name,x,y,z,yaw,pitch,hp,armor,burning,panic,pain,exhaustion,
+  breathReserve,breathExhausted,breathReleasedFor,spawnProtected,weapon,
+  score,kills,deaths,ping,impulse,state,respawnAt,firing,ads,crouch,grounded,
+  vaulting,proneT,moveSpeed,mag,reserve,reloading,reloadAck,reloadState,
+  team,credits,owned,bomb,interaction,grenades,charge,minigun}`.
   `team` is `'alpha'|'bravo'|null`; `owned` is an array of weapon ids;
   `grenades` is the remaining per-type count array in `GRENADE_TYPE_IDS` order;
   `charge` is the normalized `0–1` capacitor charge of a held `charge`-mode
@@ -148,8 +150,10 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   marks the carrier. `state` is `'alive'|'dead'`; `respawnAt` is the finite
   authoritative server deadline for an automatic respawn and otherwise
   `null`. `reserve` is a count of full spare magazines, not loose bullets.
-  Panic, pain, and exhaustion are authoritative normalized values and are not
-  HUD meters.
+  Panic, pain, and exhaustion are authoritative normalized values. Pain and
+  panic meters are optional display settings. Breath reserve is normalized,
+  exhaustion is boolean, and breath release age is clamped to 0–1 seconds;
+  these fields reconcile the local finite steady-action budget.
 - `armor` is 0 through 100 and absorbs incoming combat damage before HP,
   including fire and blasts. Death and respawn reset it. Successful collection
   emits `{t:'ev',kind:'powerup',id,pickupId,type,amount}` in `tick.events`;
@@ -258,7 +262,7 @@ Exports `WEAPONS`, `WEAPON_IDS`, `CONDITION_RULES`, `GRAVITY`, `PLAYER_HALF`,
 crouching=false,pain=0)`.
 `CONDITION_RULES` is the single source for panic/pain/exhaustion gain, decay, and
 recovery. The condition penalty is exactly
-`(panic*0.85 + exhaustion*1.15 + pain*1.65) * (1 - adsT*0.45)` degrees;
+`(panic*0.10 + exhaustion*0.35 + pain*0.12) * (1 - adsT*0.45)` degrees;
 crouching also applies each weapon's `crouchSpreadMult` to base spread/bloom.
 
 The slot roster is exactly
@@ -608,8 +612,10 @@ late join whose welcome/state is already live also proceeds directly.
 - `new AimSway()` exposes `update(dt,{alive,grounded,stationary,shift,
   crouching,panic,pain})`, `reset()`, and its stable `readModel`. It applies
   deterministic stationary sway; crouching reduces it, while holding Shift
-  when stationary suppresses it until the pain/panic-limited breath budget is
-  spent.
+  while stationary and aiming suppresses it for a finite 2.4-second budget
+  and accelerates panic recovery. Shared `conditions.js` owns eligibility,
+  breath reserve, and recovery for prediction and authority. Releasing and
+  recovering is required after exhaustion; movement and weapon handling cancel it.
 
 ### Audio
 `sfx` exports:
@@ -765,7 +771,8 @@ step listener with the room.
   arms a 1500 ms fuse on contact (3500 ms flight cap), a stuck player takes the
   full 140 @ 4.2 blast, carve radius 4.6 / power 200 / 160 blocks. `pulse`
   (PULSE SHOCK): detonates on impact, 38 @ 6.5, knockback 17, no carve, and a
-  1600 ms concussion that slows the victim to 60% speed and adds 0.55 panic.
+  1600 ms concussion that slows the victim to 60% speed. Damage builds panic;
+  uninjured nearby enemies receive the bounded ambient suppression response.
   Every blast sympathetically detonates other live explosives within 80% of
   its radius with line of sight. Metal is blast-proof.
 - **Rockets:** the RX-8 HAVOC fires one authoritative rocket per tube (shot
@@ -826,16 +833,36 @@ step listener with the room.
   the original jump does not extend the automatic reach. Shared vault
   geometry checks landing support, body clearance, and the entire 0.48 s
   lift and pull path on both client and server; new obstructions cancel it.
-- **Hidden conditions:** panic gains `damage*0.012 + (headshot ? 0.22 : 0)`,
-  clamps to `0–1`, and decays at `0.20/s` toward the low-health floor
-  `0.45*(1-hp/100)`. Exhaustion gains `0.24/s` while sprinting, `0.14` per
-  accepted jump, and `0.025` per accepted shot; otherwise it recovers at
-  `0.18/s`. Pain gains `damage*0.016 + (headshot ? 0.28 : 0)`, decays at
-  `0.65/s` toward `0.60*(1-hp/100)`, and clamps to `0–1`. All three reset on
-  death/respawn, add deterministic tremor/breathing and shot-cone penalty, and
-  remain snapshot-only—not HUD meters. Stationary Shift hold suppresses sway
-  for 2.4 seconds when calm, falling as low as 0.7 seconds with pain/panic;
-  crouching scales sway to 55%.
+- **Conditions:** panic gains `incomingDamage*0.012 + (headshot ? 0.22 : 0)`,
+  clamps to `0–1`, and decays at `0.20/s` to zero regardless of health.
+  Active fire retains its danger floor. Pain gains `healthDamage*0.012`,
+  plus `0.12*(healthDamage/incomingDamage)` for a headshot. It decays
+  at `0.65/s` toward `0.12*(1-hp/100)`. Fully absorbed hits create impact
+  feedback and panic without injury pain. Exhaustion gains `0.24/s` while
+  sprinting, `0.14` per accepted jump, and `0.025` per accepted shot;
+  otherwise it recovers at `0.18/s`.
+  Stationary grounded ADS + Shift suppresses sway and adds `0.32/s` panic
+  recovery for a finite 2.4 seconds, including when wounded. Crouching scales
+  sway to 55% and panic recovery by 1.35. Movement, jumps, reloads, weapon
+  deployment, and grenade handling cancel steadying. Breath refills after
+  0.35 seconds released, at one full reserve per 2.4 seconds; exhaustion
+  requires at least 35% reserve before reuse. Respawn resets conditions,
+  breath, and suppression budgets.
+- **Suppression:** enemy hitscan and bolt misses within 1.5 units add up to
+  0.12 panic. Resolved shot segments and lateral voxel LOS prevent suppression
+  through cover; pellets contribute at most one closest miss per shot.
+  Explosions reach 1.6 times their damage radius for ambient panic, with
+  distance falloff and LOS before terrain destruction. Direct-hit victims
+  receive damage panic only. Self, teammates, protected and dead players are
+  excluded. Ambient panic cannot raise panic above 0.35, shares a 450 ms
+  cooldown and 0.30 budget, and refills at 0.025/s. Sustained misses therefore
+  cannot replenish panic faster than normal recovery.
+- **Condition feedback:** panic drives breathing, weapon restlessness, and a
+  subtle peripheral pulse. Injury produces a short directional sting and grunt.
+  Crosshair position has no cosmetic condition jitter; central shader pixels
+  have no condition distortion. Reduced motion defaults to the OS preference
+  and can be overridden in settings (`vb-display-reducedMotion`); it reduces
+  cosmetic movement without changing actual aim sway or shot rules.
 - **Weapon lag:** the procedural gun owns a separate angular orientation that
   follows the immediate camera with weight-limited speed and acceleration.
   Heavier weapons trail farther and settle more slowly; camera/authority aim is

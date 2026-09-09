@@ -362,7 +362,7 @@ roster cards are omitted; S&D keeps a compact remaining-lives strip on desktop.
 | input | action |
 |---|---|
 | `WASD` | move (`Shift` sprint); `W` / `S` climb up / down while touching a ladder |
-| `Shift` while stationary | hold breath until the pain/panic-limited budget is spent |
+| `Shift` while stationary | steady yourself while aiming until the finite breath budget is spent |
 | `Space` | jump; press again in midair to grab a reachable ledge; climb up while touching a ladder |
 | `Ctrl` / `C` | crouch; climb down while touching a ladder |
 | `X` | toggle prone: 0.65 s to lie down, 0.8 s to stand up; crawl at 1.15 m/s; no jumping or sprinting until upright |
@@ -456,13 +456,26 @@ farther during a turn and settle more slowly after the mouse has stopped.
 
 Sprinting has a stronger but deliberately slower leg-driven run cycle than
 ordinary walking. Jumping and landing move only the carried weapon through a
-damped vertical spring while aim stays immediate. Damage builds panic and pain,
-while sprinting, jumping, and firing build exhaustion. Those authoritative,
-normalized conditions subtly add deterministic tremor/breathing and widen the
-shot cone, but are deliberately hidden rather than exposed as HUD meters. They
-reset on respawn. Crouching reduces stationary sway; standing still and holding
-Shift holds breath for 2.4 seconds when calm, with pain and panic reducing that
-budget as low as 0.7 seconds.
+damped vertical spring while aim stays immediate. Incoming hits and nearby
+unobstructed enemy shots or explosions build panic; health damage builds pain.
+Armor absorbs wounds while retaining a smaller impact cue. Panic recovers fully
+at any health, and the pain floor is only 9% at 25 HP. Shared condition rules
+keep prediction and authority consistent, with smaller condition spread penalties.
+Panic mainly appears as breathing sway and a peripheral pulse; pain produces a
+brief directional sting and grunt. The center view and crosshair remain clear.
+
+While grounded and stationary, aim and hold Shift to steady yourself for up to
+2.4 seconds and recover panic faster. Crouching improves recovery further.
+Movement, jumping, reloading, deployment, and grenade handling cancel the action.
+Exhausted breath needs release and recovery before reuse. The server owns the
+reserve and sends it with snapshots so the local budget stays synchronized.
+Pain and panic meters can be enabled in settings. Reduced motion defaults to the
+OS preference, can be overridden in the accessibility settings, and persists as
+`vb-display-reducedMotion`. It changes cosmetic motion without changing aim rules.
+
+Near misses are capped and rate-limited, with a slowly replenishing shared
+suppression budget. Repeated fire cannot permanently lock panic. Solid cover
+blocks suppression, and direct hits do not also receive near-miss panic.
 
 The sniper alone enters its circular full-screen optic at 72% ADS. The outside
 mask is opaque and the reticle includes crosshairs, mildots, and range ticks;

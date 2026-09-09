@@ -15,6 +15,7 @@ import { ViewmodelRig } from './guns/viewmodel.js';
 import { WeaponState, shouldShowViewmodel } from './guns/weapon-state.js';
 import { Effects, attachMuzzleBridge } from './weapons/effects.js';
 import { HUD } from './ui/hud.js';
+import { displaySettings } from './ui/display-settings.js';
 import { projectAimReticle } from './ui/aim-reticle.js';
 import { WeaponWheelController } from './session/weapon-wheel-controller.js';
 import { RunHud } from './ui/run-hud.js';
@@ -41,7 +42,7 @@ class Game {
     this.post = new CombatPostProcess(this.renderer, {
       enabled: !shaderDisabled,
       maxPixelRatio: recommendedPostProcessPixelRatio(Number(navigator.deviceMemory)),
-      reducedMotion: matchMedia('(prefers-reduced-motion: reduce)').matches,
+      reducedMotion: displaySettings().reducedMotion,
     });
     this.post.setSize(innerWidth, innerHeight, devicePixelRatio);
     this.camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 400);
@@ -566,8 +567,8 @@ class Game {
     this.input.setScopeZoomMode(!!this.weapon.scopeActive);
     this.player.updateCamera(dt, this.camera, def, this.weapon.adsT, this.session.baseFov, this.weapon.scopeActive);
     const blastShake = this.effects.currentShakeXY;
-    this.camera.rotation.x += blastShake.y;
-    this.camera.rotation.y += blastShake.x;
+    this.camera.rotation.x += blastShake.y * (displaySettings().reducedMotion ? 0.15 : 1);
+    this.camera.rotation.y += blastShake.x * (displaySettings().reducedMotion ? 0.15 : 1);
     try {
       // Body velocity in the camera frame: +x strafing right, +z backing up. The rig uses
       // it for a lagged lateral lean so the carried gun swings against direction changes.
@@ -590,6 +591,7 @@ class Game {
         exhaustion: this.player.exhaustion,
         pain: this.player.pain,
         aimSwayScale: this.player.aimMotion?.rigMotionScale,
+        reducedMotion: displaySettings().reducedMotion,
         weaponAim: this.player.weaponAim,
         shotYaw: this.player.shotYaw,
         shotPitch: this.player.shotPitch,
@@ -657,6 +659,10 @@ class Game {
       scopeZoom: this.player.scopeZoom,
     });
     sfx.breath(this.player.aimMotion?.breathEvent);
+    sfx.panicBreath(this.player.panic, now, {
+      active: this.player.alive && !spectating && !document.hidden && !this.hud.settingsOpen,
+      holding: !!this.player.aimMotion?.holdingBreath,
+    });
     this.hud.setTelemetry(frameDt, this.net?.networkStats, now);
     const hp = this.player.hp;
     sfx.lowHealthPulse(this.player.alive && hp < 35 ? (35 - hp) / 35 : 0, now);
@@ -667,8 +673,9 @@ class Game {
     });
     this._postFrame.time = now / 1000;
     this._postFrame.burning = this.player.alive ? Math.min(1, this.player.burning * 2) : 0;
-    this._postFrame.panic = this.player.panic;
-    this._postFrame.pain = this.player.pain;
+    this.post.reducedMotion = displaySettings().reducedMotion;
+    this._postFrame.panic = this.player.alive ? this.player.panic : 0;
+    this._postFrame.pain = this.player.alive ? this.player.pain : 0;
     this._postFrame.scopeActive = !!this.weapon?.scopeActive;
     this.roster.updateMuzzleLights(this.muzzleLights,
       this.rig.root.visible ? this.rig.flashLight : null, this.camera);

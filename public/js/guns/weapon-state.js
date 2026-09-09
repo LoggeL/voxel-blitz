@@ -110,6 +110,7 @@ export class WeaponState {
   get scopeActive() { return this._scopeActive; }
   get reloadId() { return this._reloadId || 0; }
   get reloadRequested() { return this.isReloading || this._completedReloadWeapon !== null; }
+  get isDeploying() { return this._now() < this._deployUntil; }
   get isReloading() { return this._reloadState !== null; }
   get flameFiring() {
     // Presentation reads one simulation decision even when rendering takes longer

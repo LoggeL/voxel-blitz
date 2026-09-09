@@ -1,3 +1,4 @@
+import { PanicBreathCadence } from './panic-breath.js';
 import { renderBreath } from './breath.js';
 // Public procedural-audio facade. AudioEngine owns the one AudioContext and
 // master graph; VoicePool owns every bounded output graph; synthesis modules
@@ -39,12 +40,14 @@ let builtInSamplesPromise = null;
 let menuMusic = null;
 let panSide = 1;
 let heartbeatAt = -Infinity;
+const panicBreaths = new PanicBreathCadence();
 let chargeLoop = null;
 let flameLoops = null;
 let minigunMotor = null;
 let minigunReportIndex = 0;
 let pickaxeSwingIndex = 0;
 let pickaxeImpactIndex = 0;
+let bulletWhizIndex = 0;
 
 /** Blast voice per explosive type: gain, low weight, and crack brightness. */
 const EXPLOSION_PROFILES = Object.freeze({
@@ -193,6 +196,7 @@ export const sfx = {
     builtInSamplesPromise = null;
     panSide = 1;
     heartbeatAt = -Infinity;
+    panicBreaths.reset();
     await engine.dispose();
   },
 
@@ -416,15 +420,24 @@ export const sfx = {
     });
   },
 
-  /**
-   * Low-health heartbeat. Call every frame with the 0..1 danger level; the pulse
-   * rate and weight rise with it and nothing plays at zero.
-   */
+  /** Deliberate breath-hold transition cues. */
   breath(event) {
     if (!['inhale', 'exhale', 'gasp'].includes(event)) return;
     run('breath', () => renderBreath(pool.acquire(null, 0.9), primitives, event));
   },
 
+  panicBreath(level, now, options = {}) {
+    // Ambient cues must never queue behind the browser's audio unlock boundary.
+    const active = options.active !== false && engine.ctx?.state === 'running';
+    const cue = panicBreaths.update(level, now, { ...options, active });
+    if (!cue || !ensureAudioModules()) return false;
+    const output = pool.acquire(null, 0.6);
+    output.gain.value = cue.gain;
+    renderBreath(output, primitives, cue.event);
+    return true;
+  },
+
+  /** Frame-driven low-health heartbeat; silent at zero danger. */
   lowHealthPulse(level01, now = Date.now()) {
     const level = Math.max(0, Math.min(1, Number(level01) || 0));
     if (level <= 0) {
@@ -533,14 +546,17 @@ export const sfx = {
     });
   },
 
-  bulletWhiz(volume = 0.5) {
+  bulletWhiz(volume = 0.5, options = null) {
     run('bulletWhiz', () => {
-      const output = pool.acquire(null, 0.4);
-      if (samples.play('combat.bulletWhiz', output, { gain: volume })) return;
+      const output = pool.acquire(outputOptions(options), 1.15);
+      const variant = bulletWhizIndex++ % 3;
+      const slot = variant ? `combat.bulletWhiz.${variant + 1}` : 'combat.bulletWhiz';
+      if (samples.play(slot, output, { gain: volume })
+        || (variant && samples.play('combat.bulletWhiz', output, { gain: volume }))) return;
       primitives.hiss(output, {
         filter: 'bandpass', f: 3000, sweepTo: 1400,
         sweepMs: 0.16, q: 5, dec: 0.16, g: 0.32 * volume,
-        pan: (Math.random() < 0.5 ? -1 : 1) * primitives.rnd(0.6, 0.95),
+        pan: positionOf(options) ? 0 : (Math.random() < 0.5 ? -1 : 1) * primitives.rnd(0.6, 0.95),
       });
     });
   },

@@ -6,6 +6,7 @@ import { raycastVoxels } from '../../../shared/raycast.js';
 import { blockSoundFor } from '../weapons/effects.js';
 import { THROWABLE_NAMES, WEAPON_NAMES } from '../ui/hud-support.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
+import { closestBulletFlyby, BULLET_FLYBY_COOLDOWN_MS } from './bullet-flyby.js';
 
 /**
  * Screen-space bearing (degrees, 0 = ahead, 90 = right) from the viewer at `from`
@@ -145,6 +146,7 @@ export class CombatFeedback {
     this._disposed = false;
     this._presentedDeaths = new WeakSet();
     this._minedBreak = null;
+    this._lastBulletFlybyAt = -Infinity;
   }
 
   handleEvent(ev) {
@@ -170,9 +172,17 @@ export class CombatFeedback {
           this.effects.shoot(ev);
           this.sfx.fire(ev.w, ev.w === 'flamethrower'
             ? { pos: ev.o, shooterId: ev.id } : { pos: ev.o });
-          const d = this.distanceToRay(ev.o, ev.spread || ev.d);
-          if (ev.w !== 'flamethrower' && WEAPONS[ev.w]?.mode !== 'melee' && d < 2.2) {
-            this.sfx.bulletWhiz(Math.max(0.15, 1 - d / 2.2));
+          const definition = WEAPONS[ev.w];
+          if (this.player?.alive && definition && !definition.flame &&
+              !definition.projectile && definition.mode !== 'melee' &&
+              !ev.hitVictims?.includes(myId)) {
+            const now = performance.now();
+            const pass = closestBulletFlyby(ev.paths, this.camera?.position);
+            if (pass && now - this._lastBulletFlybyAt >= BULLET_FLYBY_COOLDOWN_MS &&
+                isWorldPointVisible(this.world, this.camera, pass.pos)) {
+              this._lastBulletFlybyAt = now;
+              this.sfx.bulletWhiz(pass.volume, { pos: pass.pos });
+            }
           }
         }
         break;
@@ -333,15 +343,20 @@ export class CombatFeedback {
     this.hud.setPainImpulse(angleDeg == null
       ? hit.painImpulse
       : { intensity: hit.painImpulse, angleDeg });
-    this.effects.gore(ev, { lethal: false, local: true });
-    this.sfx.impact('flesh', Math.min(0.5, hit.damage / 60), null);
-    this.sfx.pain({
-      damage: hit.damage,
-      headshot: ev.hs,
-      lethal: false,
-      pos: impactPosition(ev),
-      local: true,
-    });
+    const healthDamage = Number.isFinite(hit.healthDamage) ? hit.healthDamage : hit.damage;
+    if (healthDamage > 0) {
+      this.effects.gore(ev, { lethal: false, local: true });
+      this.sfx.impact('flesh', Math.min(0.5, healthDamage / 60), null);
+      this.sfx.pain({
+        damage: healthDamage,
+        headshot: ev.hs,
+        lethal: false,
+        pos: impactPosition(ev),
+        local: true,
+      });
+    } else {
+      this.sfx.impact('metal', Math.min(0.35, hit.damage / 80), null);
+    }
     return true;
   }
 

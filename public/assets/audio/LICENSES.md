@@ -145,3 +145,18 @@ origin and license of every bundled recording remain auditable.
   using retained sources in `.artifacts/elevenlabs-hits-2026-09-08/`.
 - Mono 48 kHz Opus at 96 kbit/s. Account/service terms govern their use;
   no CC0 license is asserted. Existing kill confirmations remain active.
+
+## Close bullet flyby
+
+- Source: [Auto Bullets Flyby - Short - Free Sound Effects](https://www.youtube.com/watch?v=8hVB1kChbvA), uploaded by Free SFX.
+- The uploader description states the effects are free to use and royalty-free.
+  This records the uploader's permission statement; no CC0 license is asserted.
+- Three excerpts from the user-selected video replace the generated candidates:
+  `combat/bullet-whiz.ogg` (1.80–2.34 s), `combat/bullet-whiz-2.ogg`
+  (2.34–2.78 s), and `combat/bullet-whiz-3.ogg` (2.78–3.80 s).
+- The excerpts contain overlapping flyby groups. Mono 48 kHz Opus, original
+  speed, pitch, level and tonal balance, with 2 ms entrance/20 ms exit fades.
+- `video-flyby-sources.json` retains attribution, source and output hashes,
+  exact cuts, processing and uploader permission wording. Rebuild with
+  `python3 tools/prepare-video-flyby.py` using the retained source in
+  `.artifacts/elevenlabs-remaining-2026-09-09/reference/`.

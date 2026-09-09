@@ -286,6 +286,9 @@ export async function runNetClientContracts(ok, installGlobals) {
           panic: 0.2,
           exhaustion: 0.3,
           pain: 0.4,
+          breathReserve: 0.23,
+          breathExhausted: true,
+          breathReleasedFor: 0.15,
           spawnProtected: true,
           respawnAt: null,
           credits: 1900,
@@ -370,6 +373,9 @@ export async function runNetClientContracts(ok, installGlobals) {
         && rival.panic === 0.2
         && rival.exhaustion === 0.3
         && rival.pain === 0.4
+        && rival.breathReserve === 0.23
+        && rival.breathExhausted === true
+        && rival.breathReleasedFor === 0.15
         && rival.spawnProtected === true
         && rival.respawnAt === null
         && rival.credits === 1900

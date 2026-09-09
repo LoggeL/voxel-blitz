@@ -1,3 +1,4 @@
+import { collectNearMisses, applyNearMisses, suppressExplosion } from './suppression.js';
 import { pointPlayerDistance } from '../../shared/player-hitboxes.js';
 import { chaosLevel } from '../../shared/chaos.js';
 // Room-scoped authoritative projectile simulation: four throwable types, the
@@ -27,7 +28,7 @@ import {
   evProjectileUpdate,
   evProjectileStick,
 } from '../protocol/events.js';
-import { fwdFromYawPitch, clamp01 } from './player.js';
+import { fwdFromYawPitch } from './player.js';
 import {
   GRENADE_TYPES,
   GRENADE_TYPE_IDS,
@@ -207,6 +208,10 @@ export class ProjectileSystem {
     stepBolt(projectile, seconds, projectile.raycast, {
       onTravel: (from, to) => {
         const contact = this._sweepVictim(from, to, BOLT_RULES.radius, ctx, projectile, true);
+        const end = contact || to;
+        applyNearMisses(collectNearMisses(projectile.owner,
+          [from.x, from.y, from.z], [end.x, end.y, end.z], ctx),
+          contact ? new Set([contact.victim]) : null, ctx);
         if (!contact) return false;
         const { victim, x, y, z } = contact;
         const traveled = (projectile.traveled || 0) + Math.hypot(x - from.x, y - from.y, z - from.z);
@@ -575,7 +580,11 @@ export class ProjectileSystem {
       this.fire.ignite(projectile, ctx);
       return true;
     }
-    this._damagePlayers(owner, origin, rules, projectile, ctx);
+    const hitVictims = new Set();
+    this._damagePlayers(owner, origin, rules, projectile, ctx, hitVictims);
+    if (ctx.grenadeDamage !== false || projectile.type === 'rocket' || projectile.type === 'pulse') {
+      suppressExplosion(owner, origin, rules.damageRadius, hitVictims, ctx);
+    }
     if (rules.terrainRadius > 0) this._destroyTerrain(origin, rules, ctx);
     this._chainDetonate(projectile, origin, rules, ctx);
     if (!projectile.child) {
@@ -588,7 +597,7 @@ export class ProjectileSystem {
     return true;
   }
 
-  _damagePlayers(owner, origin, rules, projectile, ctx) {
+  _damagePlayers(owner, origin, rules, projectile, ctx, hitVictims = new Set()) {
     const damageEnabled = ctx.grenadeDamage !== false || projectile.type === 'rocket';
     if (!damageEnabled && projectile.type !== 'pulse') return;
     const weaponKey = projectile.type;
@@ -614,6 +623,7 @@ export class ProjectileSystem {
       damage = Math.round(damage * (isSelf ? rules.selfDamage : 1) * 10) / 10;
       let lethal = false;
       if (damageEnabled && damage > 0) {
+        hitVictims.add(victim);
         lethal = victim.takeDamage(damage, false);
         ctx.pushEvent(evHit(owner?.id || '', victim.id, damage, false, target, victim.lastDamage));
       }
@@ -639,7 +649,8 @@ export class ProjectileSystem {
       if (projectile.type === 'pulse' && projectile.chaosLevel >= 2 && impulse > 0) victim.vy = Math.max(victim.vy, impulse);
       if (rules.concussMs > 0 && !isSelf) {
         victim.concussedUntil = Math.max(victim.concussedUntil || 0, ctx.now + rules.concussMs);
-        victim.panic = clamp01(victim.panic + rules.concussPanic * falloff);
+        // The ambient blast pass provides bounded panic for uninjured targets.
+        // Injured targets already receive panic through takeDamage.
       }
       if (lethal) ctx.killPlayer(victim, owner, weaponKey, false, null);
     }

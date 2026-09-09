@@ -1,6 +1,6 @@
 import { clamp01 } from '../util/math.js';
 
-import { BreathHold } from './breath-hold.js';
+import { BreathHold, steadyEligible } from '../../../shared/conditions.js';
 
 /**
  * Owns deterministic idle aim motion and the complete hold-breath lifecycle.
@@ -67,11 +67,11 @@ export class AimSway {
     const pain01 = clamp01(pain);
     const eligible = !!(alive && grounded && stationary);
     const breath = this.breath.update(dt, {
-      eligible: eligible && handlingAllowed && ads01 > 0.5,
+      eligible: steadyEligible({ alive, grounded, stationary, handlingAllowed, ads: ads01 }),
       pressed: shift, panic: panic01, pain: pain01,
     });
     const { holdingBreath } = breath;
-    const conditionScale = 1 + panic01 * 1.35 + pain01 * 1.65;
+    const conditionScale = 1 + panic01 * 1.65 + pain01 * 0.25;
     const crouchScale = crouching ? 0.55 : 1;
     const breathScale = holdingBreath ? 0.12 : 1;
     this._idleWeight += ((eligible ? 1 : 0) - this._idleWeight) * Math.min(1, step * 7);

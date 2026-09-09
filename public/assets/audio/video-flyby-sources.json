@@ -1,0 +1,29 @@
+{
+  "source_url": "https://www.youtube.com/watch?v=8hVB1kChbvA",
+  "title": "Auto Bullets Flyby - Short - Free Sound Effects",
+  "uploader": "Free SFX",
+  "license_statement": "Free download: Go to https://ytvidtomp3.com/ and paste the url of the video (Converts YouTube video to mp3).\n\nAll the sound effects are free for you to use them and they are all royalty-free!\n\nSubscribe and like for more free sound effects :)",
+  "source_sha256": "59377d9a7e800fa202f72905033f2de5e0587fdb1e5c2a5092189c539292d34a",
+  "processing": "Mono 48 kHz Opus. 2 ms entrance and 20 ms exit fades; original speed, pitch, level and tonal balance. Excerpts may contain overlapping passes.",
+  "clips": [
+    {
+      "file": "combat/bullet-whiz.ogg",
+      "start_seconds": 1.8,
+      "end_seconds": 2.34,
+      "sha256": "6984dc921cee467d8af2f2d68f1e0ba9ec7bc385c4a29de5aceb344bf3ebde13"
+    },
+    {
+      "file": "combat/bullet-whiz-2.ogg",
+      "start_seconds": 2.34,
+      "end_seconds": 2.78,
+      "sha256": "18cee1cf2836e8d02647551425973d70ed01cab6db07a41f3fbd069eecef7ded"
+    },
+    {
+      "file": "combat/bullet-whiz-3.ogg",
+      "start_seconds": 2.78,
+      "end_seconds": 3.8,
+      "sha256": "c21c10cf14a4ff730af4608d656241962b9fc4362cff51c414a278c2f8aee2dc"
+    }
+  ],
+  "user_acceptance": "All three excerpts explicitly approved by user for in-game variety."
+}

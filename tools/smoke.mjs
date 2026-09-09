@@ -223,7 +223,7 @@ function runDirectContracts() {
   const spreadConditioned = computeSpreadConeDeg(
     spreadDef, bloom, speed, adsT, panic, exhaustion
   );
-  const conditionPenalty = (panic * 0.85 + exhaustion * 1.15) * (1 - adsT * 0.45);
+  const conditionPenalty = (panic * 0.10 + exhaustion * 0.35) * (1 - adsT * 0.45);
   ok(Math.abs(spreadConditioned - spreadBase - conditionPenalty) < 1e-12,
     'panic and exhaustion add the exact shared ADS-scaled cone penalty');
   ok(computeSpreadConeDeg(spreadDef, bloom, speed, adsT, 0, 0) === spreadBase,
@@ -232,11 +232,13 @@ function runDirectContracts() {
     panicDamageGain: 0.012,
     panicHeadshotGain: 0.22,
     panicDecayPerS: 0.2,
-    panicLowHpFloor: 0.45,
-    painDamageGain: 0.016,
-    painHeadshotGain: 0.28,
+    panicLowHpFloor: 0,
+    painDamageGain: 0.012,
+    painHeadshotGain: 0.12,
     painDecayPerS: 0.65,
-    painLowHpFloor: 0.6,
+    painLowHpFloor: 0.12,
+    steadyPanicRecoverPerS: 0.32,
+    crouchPanicRecoverMult: 1.35,
     exhaustionSprintPerS: 0.24,
     exhaustionRecoverPerS: 0.18,
     exhaustionJumpGain: 0.14,

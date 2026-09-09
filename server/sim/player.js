@@ -1,3 +1,5 @@
+import { SUPPRESSION_RULES } from '../../shared/suppression-rules.js';
+import { BreathHold } from '../../shared/conditions.js';
 import { stanceEye } from '../../shared/player-stance.js';
 import { chaosWeaponDef } from '../../shared/chaos.js';
 // Authoritative combatant state, loadouts, and aim helpers.
@@ -97,6 +99,10 @@ export class PlayerEntity {
     this.armor = 0;
     this.lastDamage = null;
     this.panic = 0;
+    this.breath = new BreathHold();
+    this.suppressionBudget = SUPPRESSION_RULES.budget;
+    this.suppressionAt = null;
+    this.suppressionGainAt = null;
     this.burn = null;
     this.burning = 0;
     this.molotovBurning = 0;
@@ -178,8 +184,8 @@ export class PlayerEntity {
     // Armor prevents wounds, while the incoming impact still shakes the player.
     this.panic = clamp01(this.panic + amount * CONDITION_RULES.panicDamageGain +
       (headshot ? CONDITION_RULES.panicHeadshotGain : 0));
-    this.pain = clamp01(this.pain + amount * CONDITION_RULES.painDamageGain +
-      (headshot ? CONDITION_RULES.painHeadshotGain : 0));
+    this.pain = clamp01(this.pain + healthDamage * CONDITION_RULES.painDamageGain +
+      (headshot && healthDamage > 0 ? CONDITION_RULES.painHeadshotGain * (healthDamage / amount) : 0));
     if (this.hp <= 0) { this.hp = 0; return true; }
     return false;
   }

@@ -6,7 +6,7 @@ import { hashInt } from '../util/hash.js';
 import { clamp01, clampPitch, easeOut, nowMs, smooth01 } from '../util/math.js';
 import { adsLookScale } from '../input-settings.js';
 import { grenadeLaunch } from '../../../shared/grenade-rules.js';
-import { flamePanicFloor } from '../../../shared/flame-rules.js';
+import { recoverConditions } from '../../../shared/conditions.js';
 import { fwdFromAngles } from '../util/look.js';
 import { withGoreDamage } from '../weapons/gore-profile.js';
 import { AimSway } from './aim-sway.js';
@@ -421,7 +421,8 @@ export class LocalPlayer {
     const damage = Number.isFinite(rawDamage) ? Math.max(0, rawDamage) : 0;
     const healthDamage = Number.isFinite(ev.healthDamage) ? Math.max(0, ev.healthDamage) : damage;
     const severity = clamp01(damage / 55);
-    const painLevel = Math.max(this.pain, severity);
+    const injurySeverity = clamp01(healthDamage / 55);
+    const painLevel = injurySeverity;
     const headshot = !!ev.hs;
     // Only this hit's post-armor damage moves the aim. Headshots already carry
     // their damage multiplier; old wounds must not amplify a small new hit.
@@ -438,7 +439,7 @@ export class LocalPlayer {
       headshot,
       trauma,
       side,
-      painImpulse: clamp01(0.18 + severity * 0.72 + painLevel * 0.35),
+      painImpulse: clamp01(severity * 0.12 + injurySeverity * 0.78),
       impact: ev,
     };
   }
@@ -673,7 +674,6 @@ export class LocalPlayer {
       )
       : false;
     this.currentSpeedXZ = Math.hypot(this.physics.vel.x, this.physics.vel.z);
-    this._updateConditionEstimates(dt, jumped);
     return jumped;
   }
 
@@ -723,27 +723,16 @@ export class LocalPlayer {
     if (jumped) {
       this.exhaustion = clamp01(this.exhaustion + CONDITION_RULES.exhaustionJumpGain);
     }
-    const hp01 = clamp01((Number.isFinite(this._hp) ? this._hp : 100) / 100);
-    const missingHealth = 1 - hp01;
     this.burning = Math.max(0, this.burning - dt);
-    const panicFloor = Math.max(flamePanicFloor(this.burning), missingHealth * CONDITION_RULES.panicLowHpFloor);
-    this.panic = clamp01(Math.max(
-      panicFloor,
-      this.panic - CONDITION_RULES.panicDecayPerS * dt,
-    ));
-    const painFloor = missingHealth * CONDITION_RULES.painLowHpFloor;
-    this.pain = clamp01(Math.max(
-      painFloor,
-      this.pain - CONDITION_RULES.painDecayPerS * dt,
-    ));
     const sprinting = !!(
       this.keys.sprint && this.keys.forward && !this.keys.back &&
       !this.keys.crouch && !this.keys.prone && !this.physics.proneT && !this.wantAds
     );
-    const exhaustionRate = sprinting
-      ? CONDITION_RULES.exhaustionSprintPerS
-      : -CONDITION_RULES.exhaustionRecoverPerS;
-    this.exhaustion = clamp01(this.exhaustion + exhaustionRate * dt);
+    recoverConditions(this, dt, {
+      hp: Number.isFinite(this._hp) ? this._hp : 100, burning: this.burning,
+      sprinting, holdingBreath: !!this._aim?.holdingBreath,
+      crouching: !!this.physics._crouching || this.physics.proneT > 0,
+    });
   }
 
   _sendInputMaybe(dt, intents) {
@@ -830,16 +819,19 @@ export class LocalPlayer {
     this._aim = this.aimSway.update(dt, {
       alive: this._alive,
       grounded: this.physics.grounded,
-      stationary: this.currentSpeedXZ < 0.18,
+      stationary: this.currentSpeedXZ < 0.18 && !this.keys.forward && !this.keys.back &&
+        !this.keys.left && !this.keys.right && !this.keys.jump,
       shift: !!this.keys.sprint,
       crouching: !!this.physics._crouching,
       panic: this.panic,
       pain: this.pain,
       ads: intents.weapon?.adsT ?? this.adsT,
       handlingAllowed: this._gameplayInputEnabled && !this.grenadeHandling &&
-        !this.physics.vault && !intents.weapon?.isReloading && this.wantAds,
+        !this.physics.vault && !intents.weapon?.isReloading && !intents.weapon?.reloadRequested &&
+        !intents.weapon?.isDeploying && this.wantAds,
       zoom: this._scopeZoom > 0 ? this._scopeZoom : (Number(intents.weapon?.def?.zoom) || 1),
     });
+    this._updateConditionEstimates(dt, jumped);
     const aimWeapon = intents.weapon?.def;
     this._weaponAim.update(dt, {
       weapon: aimWeapon?.id,
@@ -889,6 +881,11 @@ export class LocalPlayer {
 
     const hp = Number.isFinite(me.hp) ? me.hp : this._hp;
     this.burning = Math.max(0, Number(me.burning) || 0);
+    if (this.aimSway.breath && Number.isFinite(me.breathReserve)) {
+      this.aimSway.breath.reserve = clamp01(me.breathReserve);
+      this.aimSway.breath.exhausted = !!me.breathExhausted;
+      this.aimSway.breath.releasedFor = Math.max(0, Number(me.breathReleasedFor) || 0);
+    }
     if (Number.isFinite(me.panic)) this.panic = clamp01(me.panic);
     if (Number.isFinite(me.exhaustion)) this.exhaustion = clamp01(me.exhaustion);
     if (Number.isFinite(me.pain)) this.pain = clamp01(me.pain);

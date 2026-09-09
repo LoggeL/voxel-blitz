@@ -64,8 +64,8 @@ async function cachedFetch(url) {
 /** Exercise the production facade, voice pool, loops and limiter in a native
  * OfflineAudioContext. Only lifecycle state/resume are adapted. Scheduled
  * suspends advance the native audio clock before gameplay refreshes run. */
-async function renderScenario(label, events, seconds = SECONDS, missingHitSamples = false) {
-  const context = new OfflineAudioContext(1, Math.ceil(RATE * seconds), RATE);
+async function renderScenario(label, events, seconds = SECONDS, missingHitSamples = false, channels = 1) {
+  const context = new OfflineAudioContext(channels, Math.ceil(RATE * seconds), RATE);
   const original = Object.getOwnPropertyDescriptor(window, 'AudioContext');
   const originalRandom = Math.random;
   const originalAcquire = VoicePool.prototype.acquire;
@@ -165,12 +165,14 @@ async function renderScenario(label, events, seconds = SECONDS, missingHitSample
     }
     const rendered = context.startRendering();
     await Promise.all(scheduled);
-    const data = (await rendered).getChannelData(0).slice();
+    const renderedBuffer = await rendered;
+    const data = renderedBuffer.getChannelData(0).slice();
+    const rightData = channels > 1 ? renderedBuffer.getChannelData(1).slice() : null;
     const metrics = metricsFor(data);
     const capturedTrace = JSON.parse(JSON.stringify(trace));
     traces[label] = capturedTrace;
     displayScenario(label, data, metrics, capturedTrace);
-    return { data, metrics, trace: capturedTrace };
+    return { data, rightData, metrics, trace: capturedTrace };
   } finally {
     await sfx.dispose();
     Math.random = originalRandom;
@@ -325,6 +327,32 @@ async function main() {
     check(regionRms(fallback.data, 1.25, 2) < 0.00001, `${label} fallback burst has no delayed chirp tail`);
   }
   await cue('Incoming flesh impact', [[0, () => sfx.impact('flesh', 0.45)]]);
+  for (let pass = 0; pass < 6; pass++) {
+    const side = pass % 2 ? 'right' : 'left';
+    const x = pass % 2 ? 0.7 : -0.7;
+    const name = `Bullet flyby, ${side} ear${pass < 2 ? '' : `, rotation ${pass + 1}`}`;
+    const result = await renderScenario(name,
+      [[0, () => sfx.bulletWhiz(0.5, { pos: [x, 0, 0] })]], 1.2, false, 2);
+    const rightMetrics = metricsFor(result.rightData);
+    cues[name] = { ...result.metrics, leftRms: result.metrics.rms, rightRms: rightMetrics.rms };
+    const source = result.trace.sources[0];
+    check(result.trace.sources.length === 1 && source?.sample === BUILTIN_SAMPLE_MANIFEST[pass % 3 ? `combat.bulletWhiz.${pass % 3 + 1}` : 'combat.bulletWhiz'],
+      `${name}: cycles through the video recordings without synthetic doubling`);
+    check(result.trace.acquisitions.length === 1 && result.trace.acquisitions[0].positional,
+      `${name}: uses the production positional voice`);
+    const near = side === 'left' ? result.metrics : rightMetrics;
+    const far = side === 'left' ? rightMetrics : result.metrics;
+    check(near.rms > far.rms * 1.2 && near.rms > 0.001,
+      `${name}: HRTF places greater energy in the correct ear (${near.rms} / ${far.rms})`);
+    check(near.onsetMs < 300 && near.audibleTailMs > 40 && near.audibleTailMs < 1100,
+      `${name}: retains the source onset and complete tail`);
+    check(source && source.rate === 1 &&
+      source.duration <= 1.15 && recordedTailComplete(source, RATE),
+      `${name}: original speed fits the voice lifetime without cutting the recording`);
+    check(near.clippedRatio === 0 && regionRms(result.data, 1.1, 1.2) < 0.00001 &&
+      regionRms(result.rightData, 1.1, 1.2) < 0.00001,
+      `${name}: stays unclipped and returns both ears to silence`);
+  }
   await cue('Grenade pin', [[0, () => sfx.grenadePin()]], 75);
   const weakThrow = await cue('Grenade throw, light', [[0, () => sfx.grenadeThrow(0)]], 75);
   const fullThrow = await cue('Grenade throw, full charge', [[0, () => sfx.grenadeThrow(1)]], 75);

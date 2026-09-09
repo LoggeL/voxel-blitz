@@ -4374,3 +4374,8 @@ h1.vb-title::after {
 @media (prefers-reduced-motion: reduce) {
   .vb-condition-track > i { transition: none; }
 }
+
+/* The in-game preference also works independently of the operating system. */
+html[data-reduced-motion="true"] #hitflash { filter: opacity(0.55); }
+html[data-reduced-motion="true"] #hitflash::before { display: none; }
+html[data-reduced-motion="true"] .vb-condition-track > i { transition: none; }

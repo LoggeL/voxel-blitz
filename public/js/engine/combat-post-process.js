@@ -37,16 +37,11 @@ float hash21(vec2 point) {
 
 void main() {
   vec2 texel = 1.0 / max(resolution, vec2(1.0));
-  float injury = clamp(max(pain, panic * 0.55), 0.0, 1.0);
-  float channelOffset = injury * texel.x * 0.85;
-
+  // Keep the center optically clear; all condition grading stays peripheral.
+  vec2 vignetteUv = (vUv - 0.5) * 2.0;
+  vignetteUv.x *= min(resolution.x / max(resolution.y, 1.0), 1.75) * 0.72;
+  float edge = smoothstep(0.55, 1.34, length(vignetteUv));
   vec3 center = texture2D(sceneTexture, vUv).rgb;
-  center.r = mix(center.r,
-    texture2D(sceneTexture, vUv + vec2(channelOffset, 0.0)).r,
-    injury * 0.24);
-  center.b = mix(center.b,
-    texture2D(sceneTexture, vUv - vec2(channelOffset, 0.0)).b,
-    injury * 0.18);
 
   vec3 crossBlur = (
     texture2D(sceneTexture, vUv + vec2(texel.x, 0.0)).rgb +
@@ -57,7 +52,7 @@ void main() {
   vec3 color = clamp(center + (center - crossBlur) * 0.10, 0.0, 1.0);
 
   float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
-  float saturation = 1.055 - injury * 0.25;
+  float saturation = 1.055 - edge * pain * 0.08;
   color = mix(vec3(luminance), color, saturation);
 
   float shadow = 1.0 - smoothstep(0.08, 0.58, luminance);
@@ -65,18 +60,15 @@ void main() {
   color += shadow * vec3(-0.006, 0.007, 0.018);
   color += highlight * vec3(0.014, 0.006, -0.004);
 
-  vec2 vignetteUv = (vUv - 0.5) * 2.0;
-  vignetteUv.x *= min(resolution.x / max(resolution.y, 1.0), 1.75) * 0.72;
-  float edge = smoothstep(0.55, 1.34, length(vignetteUv));
-  float vignette = mix(0.095, 0.022, scopeActive) + pain * 0.17;
+  float breathingPulse = 0.65 + sin(time * (2.6 + panic * 3.0)) * 0.35 * motion;
+  float vignette = mix(0.095, 0.022, scopeActive) + panic * breathingPulse * 0.085;
   color *= 1.0 - edge * vignette;
-
-  float pulse = 0.72 + sin(time * 6.0) * 0.28 * motion;
-  color += vec3(0.13, -0.018, -0.022) * edge * pain * pulse;
+  // Injury leaves only a faint static tint; the HUD owns the brief directional sting.
+  color += vec3(0.035, -0.006, -0.008) * edge * pain;
 
   float grainFrame = floor(time * 30.0 * motion);
   float grain = hash21(gl_FragCoord.xy + grainFrame) - 0.5;
-  color += grain * (0.005 + panic * 0.004);
+  color += grain * 0.005;
 
   float flameTime = time * motion;
   float tongues = 0.08 + 0.055 * sin(vUv.x * 43.0 + sin(vUv.x * 19.0 - flameTime * 2.0) * 2.0)

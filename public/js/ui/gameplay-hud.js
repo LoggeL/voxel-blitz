@@ -126,7 +126,7 @@ export class GameplayHud {
     d.breath = el('div', 'vb-breath-meter', hud, 'breath-meter');
     d.breathFill = el('i', '', d.breath);
     d.breathHint = el('span', 'vb-breath-hint', d.breath);
-    d.breathHint.textContent = 'SHIFT · HOLD BREATH';
+    d.breathHint.textContent = 'SHIFT · STEADY YOURSELF';
     d.breath.style.display = 'none';
     if (this.st.crosshairConeDeg != null) {
       this.setSpread(spreadFromCone(this.st.crosshairConeDeg));
@@ -480,7 +480,8 @@ export class GameplayHud {
     const settings = displaySettings();
     for (const meter of this.dom.conditionMeters || []) {
       const enabled = settings[meter.key === 'pain' ? 'showPainMeter' : 'showPanicMeter'];
-      meter.root.hidden = !alive || !enabled;
+      const hidden = !alive || !enabled;
+      if (meter.root.hidden !== hidden) meter.root.hidden = hidden;
       if (meter.root.hidden) continue;
       const percent = Math.round(clamp01(Number(state[meter.key]) || 0) * 100);
       if (percent === meter.percent) continue;
@@ -513,7 +514,7 @@ export class GameplayHud {
       d.breath.classList.toggle('is-holding', holding);
       d.breath.classList.toggle('is-spent', exhausted);
     }
-    const hint = holding ? 'HOLDING' : (s.breathExhausted ? 'RECOVERING' : 'SHIFT · HOLD BREATH');
+    const hint = holding ? 'STEADYING' : (s.breathExhausted ? 'RECOVERING' : 'SHIFT · STEADY YOURSELF');
     if (d.breathHint.textContent !== hint) d.breathHint.textContent = hint;
   }
 
@@ -563,18 +564,15 @@ export class GameplayHud {
     const pain = clamp01(painValue);
     const painImpulse = Number(this.readModel.painImpulse) || 0;
     const stress = alive ? Math.min(1, panic * 0.72 + pain * 0.82 + painImpulse * 0.48) : 0;
-    if (stress === 0 && this._painted.stress === 0) return;
+    if (stress === this._painted.stress) return;
     this._painted.stress = stress;
-    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const amplitude = stress * (0.45 + painImpulse * 1.35);
-    const jx = amplitude * Math.sin(now * 0.041 + pain * 5.1);
-    const jy = amplitude * Math.sin(now * 0.053 + panic * 4.3 + 1.7);
-    const pulse = stress * (0.5 + 0.5 * Math.sin(now * 0.019));
-    ch.style.setProperty('--ch-jx', `${jx.toFixed(2)}px`);
-    ch.style.setProperty('--ch-jy', `${jy.toFixed(2)}px`);
-    ch.style.setProperty('--ch-rot', `${(jx * 0.85).toFixed(2)}deg`);
-    ch.style.setProperty('--ch-arm-opacity', (0.78 + pulse * 0.22).toFixed(3));
-    ch.style.setProperty('--ch-glow', `${(4 + stress * 7).toFixed(2)}px`);
+    // The reticle tracks actual shot direction. Cosmetic jitter falsely implies
+    // an additional aiming penalty, so conditions only change its static glow.
+    ch.style.setProperty('--ch-jx', '0px');
+    ch.style.setProperty('--ch-jy', '0px');
+    ch.style.setProperty('--ch-rot', '0deg');
+    ch.style.setProperty('--ch-arm-opacity', '1');
+    ch.style.setProperty('--ch-glow', `${(4 + stress * 2).toFixed(2)}px`);
   }
 
   hideCrosshairForAds(hidden) {

@@ -19,11 +19,13 @@ export const CONDITION_RULES = Object.freeze({
   panicDamageGain: 0.012,
   panicHeadshotGain: 0.22,
   panicDecayPerS: 0.2,
-  panicLowHpFloor: 0.45,
-  painDamageGain: 0.016,
-  painHeadshotGain: 0.28,
+  panicLowHpFloor: 0,
+  painDamageGain: 0.012,
+  painHeadshotGain: 0.12,
   painDecayPerS: 0.65,
-  painLowHpFloor: 0.6,
+  painLowHpFloor: 0.12,
+  steadyPanicRecoverPerS: 0.32,
+  crouchPanicRecoverMult: 1.35,
   exhaustionSprintPerS: 0.24,
   exhaustionRecoverPerS: 0.18,
   exhaustionJumpGain: 0.14,
@@ -438,7 +440,7 @@ export function computeSpreadConeDeg(
   const stanceMult = crouching
     ? Math.max(0, Math.min(1, Number.isFinite(def.crouchSpreadMult) ? def.crouchSpreadMult : 1))
     : 1;
-  const conditionPenalty = (panic01 * 0.85 + exhaustion01 * 1.15 + pain01 * 1.65)
+  const conditionPenalty = (panic01 * 0.10 + exhaustion01 * 0.35 + pain01 * 0.12)
     * (1 - t * 0.45);
   return (base + bloomDeg * (1 - t * 0.75)) * stanceMult + conditionPenalty;
 }

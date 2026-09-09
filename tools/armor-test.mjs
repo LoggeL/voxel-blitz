@@ -21,8 +21,7 @@ const close = (actual, expected, message) => assert.ok(Math.abs(actual - expecte
   assert.equal(p.hp, 100, 'armor absorbs a complete hit');
   close(p.panic, 20 * CONDITION_RULES.panicDamageGain + CONDITION_RULES.panicHeadshotGain,
     'an armored headshot retains incoming-hit panic');
-  close(p.pain, 20 * CONDITION_RULES.painDamageGain + CONDITION_RULES.painHeadshotGain,
-    'an armored headshot retains incoming-hit pain feedback');
+  close(p.pain, 0, 'fully absorbed headshots cause impact panic without injury pain');
   assert.equal(p.takeDamage(45), false);
   assert.equal(p.armor, 0);
   assert.equal(p.hp, 85, 'only damage beyond remaining armor reaches health');

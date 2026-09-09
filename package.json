@@ -31,12 +31,12 @@
     "browser:smoke": "node tools/browser-flow-smoke.mjs",
     "audio:mix": "node tools/audio-mix-smoke.mjs",
     "audio:audit": "node tools/analyze-weapon-audio.mjs",
-    "audio:test": "node tools/audio-contract-test.mjs && node tools/sound-samples-test.mjs && node tools/explosion-audio-test.mjs && node tools/grenade-feedback-audio-test.mjs && node tools/flamethrower-audio-test.mjs && node tools/minigun-audio-test.mjs && node tools/pickaxe-audio-test.mjs && node tools/audio-preview-test.mjs",
+    "audio:test": "node tools/audio-contract-test.mjs && node tools/bullet-flyby-test.mjs && node tools/sound-samples-test.mjs && node tools/explosion-audio-test.mjs && node tools/grenade-feedback-audio-test.mjs && node tools/flamethrower-audio-test.mjs && node tools/minigun-audio-test.mjs && node tools/pickaxe-audio-test.mjs && node tools/audio-preview-test.mjs",
     "brand:render": "node tools/render-brand-card.mjs",
     "chaos:test": "node tools/chaos-test.mjs",
     "flamethrower:test": "node tools/flamethrower-test.mjs && node tools/flamethrower-hitbox-test.mjs && node tools/flamethrower-client-test.mjs && node tools/flamethrower-audio-test.mjs",
     "minigun:test": "node tools/minigun-test.mjs && node tools/minigun-client-test.mjs && node tools/minigun-audio-test.mjs && node tools/heavy-weapon-model-test.mjs",
-    "test": "npm run refactor:test && npm run animations:test && npm run weapons:feel:test && npm run gore:test && npm run audio:test && npm run flamethrower:test && npm run minigun:test && npm run projectiles:test && npm run blocks:test && npm run powerups:test && node tools/chaos-test.mjs && node tools/atlastest.mjs && npm run maps:test && node tools/pickaxe-test.mjs && node tools/weapon-swap-test.mjs && node tools/revolver-smoke.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run duel:test && npm run modes:lobby && npm run modes:bots",
+    "test": "npm run conditions:test && npm run refactor:test && npm run animations:test && npm run weapons:feel:test && npm run gore:test && npm run audio:test && npm run flamethrower:test && npm run minigun:test && npm run projectiles:test && npm run blocks:test && npm run powerups:test && node tools/chaos-test.mjs && node tools/atlastest.mjs && npm run maps:test && node tools/pickaxe-test.mjs && node tools/weapon-swap-test.mjs && node tools/revolver-smoke.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run duel:test && npm run modes:lobby && npm run modes:bots",
     "avatars:test": "node tools/avatar-pose-test.mjs",
     "animations:test": "node tools/movement-animation-test.mjs && node tools/avatar-motion-test.mjs && node tools/stance-animation-test.mjs && node tools/avatar-pose-test.mjs && npm run throwables:test",
     "animations:browser": "node tools/movement-animation-browser-test.mjs && node tools/stance-animation-browser-test.mjs",
@@ -46,7 +46,9 @@
     "browser:ui": "node tools/session-refactor-test.mjs",
     "feedback:test": "node tools/player-feedback-test.mjs",
     "profile:gameplay": "node tools/profile-gameplay.mjs",
-    "weapons:reload:test": "node tools/reload-state-test.mjs && node tools/reload-network-test.mjs && node tools/reload-animation-test.mjs && node tools/reload-presentation-test.mjs"
+    "weapons:reload:test": "node tools/reload-state-test.mjs && node tools/reload-network-test.mjs && node tools/reload-animation-test.mjs && node tools/reload-presentation-test.mjs",
+    "conditions:test": "node tools/condition-recovery-test.mjs && node tools/condition-wire-test.mjs && node tools/suppression-test.mjs && node tools/condition-presentation-test.mjs",
+    "conditions:browser": "node tools/condition-browser-test.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"

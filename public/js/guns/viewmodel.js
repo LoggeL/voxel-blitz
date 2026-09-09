@@ -452,8 +452,8 @@ export class ViewmodelRig {
     const freq = BOB.walkFreq + (BOB.sprintFreq - BOB.walkFreq) * this._sprint;
     this._phase += elapsed * freq * spdN;
     const bp = this._phase * Math.PI * 2;
-    const bobX = Math.sin(bp * 0.5) * BOB.walkHorz * ampMul * spdN;   // figure-8: lazy infinity loop
-    const bobY = Math.cos(bp) * BOB.walkVert * ampMul * spdN * (0.8 + this._sprint * 0.2);
+    const bobX = Math.sin(bp * 0.5) * BOB.walkHorz * ampMul * spdN * (ctx.reducedMotion ? 0.15 : 1);   // figure-8: lazy infinity loop
+    const bobY = Math.cos(bp) * BOB.walkVert * ampMul * spdN * (0.8 + this._sprint * 0.2) * (ctx.reducedMotion ? 0.15 : 1);
     this._bobVal = Math.min(1, Math.abs(bobY) / (BOB.walkVert * BOB.sprintAmpMul) +
                                 Math.abs(bobX) / (BOB.walkHorz * BOB.sprintAmpMul));
 
@@ -468,23 +468,23 @@ export class ViewmodelRig {
     /* Baseline idle life plus hidden condition motion. Both are deterministic rig-clock functions. */
     const panic = Math.max(0, Math.min(1, Number(ctx.panic) || 0));
     const exhaustion = Math.max(0, Math.min(1, Number(ctx.exhaustion) || 0));
-    const pain = Math.max(0, Math.min(1, Number(ctx.pain) || 0));
-    const distress = Math.min(1.6, panic + pain * 0.9);
+    const cosmeticMotion = ctx.reducedMotion ? 0 : 1;
+    const distress = panic * cosmeticMotion;
     const aimSwayScale = Number.isFinite(ctx.aimSwayScale)
       ? Math.max(0, Math.min(2, ctx.aimSwayScale))
       : 1;
     const condDamp = 1 - adsE * 0.35;
     const phase = cur.conditionPhase;
-    const breathe = Math.sin(this._now * BOB.idleFreq * Math.PI * 2) * BOB.idleAmp *
-      (1 - adsE * 0.6) * aimSwayScale;
+    const breathe = Math.sin(this._now * (BOB.idleFreq + panic * 0.45) * Math.PI * 2) * BOB.idleAmp *
+      (1 - adsE * 0.6) * aimSwayScale * (1 + panic * 0.7) * cosmeticMotion;
     const exhaustedBreath = Math.sin(this._now * (3.2 + exhaustion * 0.9) + phase) *
-      BOB.idleAmp * 1.8 * exhaustion * condDamp * aimSwayScale;
-    const tremorX = (Math.sin(this._now * 41 + phase) * 0.00045 +
-      Math.sin(this._now * 67 + phase * 1.7) * 0.00025) * distress * condDamp * aimSwayScale;
-    const tremorY = (Math.sin(this._now * 47 + phase * 0.7) * 0.00040 +
-      Math.sin(this._now * 73 + phase * 1.3) * 0.00020) * distress * condDamp * aimSwayScale;
+      BOB.idleAmp * 1.8 * exhaustion * condDamp * aimSwayScale * cosmeticMotion;
+    const tremorX = (Math.sin(this._now * 7 + phase) * 0.00045 +
+      Math.sin(this._now * 11 + phase * 1.7) * 0.00025) * distress * condDamp * aimSwayScale;
+    const tremorY = (Math.sin(this._now * 8 + phase * 0.7) * 0.00040 +
+      Math.sin(this._now * 12 + phase * 1.3) * 0.00020) * distress * condDamp * aimSwayScale;
     const conditionPitch = (Math.sin(this._now * 13 + phase) * 0.0015 * distress +
-      Math.sin(this._now * 3.4 + phase) * 0.0030 * exhaustion) * condDamp * aimSwayScale;
+      Math.sin(this._now * 3.4 + phase) * 0.0030 * exhaustion) * condDamp * aimSwayScale * cosmeticMotion;
     const conditionYaw = Math.sin(this._now * 19 + phase * 0.8) * 0.0012 *
       distress * condDamp * aimSwayScale;
 

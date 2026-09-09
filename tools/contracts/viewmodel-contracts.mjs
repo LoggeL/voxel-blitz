@@ -41,8 +41,8 @@ export async function runViewmodelContracts(ok, installGlobals) {
       }).holdingBreath) frames++;
       return frames;
     };
-    ok(holdFrames(0.9, 0.9) < holdFrames(0, 0),
-      'pain and panic shorten the finite hold-breath window');
+    ok(holdFrames(0.9, 0.9) === holdFrames(0, 0),
+      'pain and panic preserve the finite recovery opportunity');
 
     const calm = new AimSway().update(0.05, { stationary: true, grounded: true });
     const distressed = new AimSway().update(0.05, {

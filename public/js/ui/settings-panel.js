@@ -321,6 +321,9 @@ export class SettingsController {
         setDisplaySetting(option.key, control.select.value === '1');
       });
       displaySelects[option.key] = control.select;
+      if (option.key === 'reducedMotion') {
+        el('p', 'vb-settings-hint', controls).textContent = 'Defaults to your system preference. Reduces cosmetic breathing, weapon bob, flashes and camera shake. Shot direction and aiming sway stay the same.';
+      }
     }
     const debugHint = el('p', 'vb-settings-hint', controls);
     debugHint.textContent = 'HITBOXES: cyan body, orange headshot zone. Uses server dimensions at interpolated player positions, not the server rewind. Walls still occlude these views.';
