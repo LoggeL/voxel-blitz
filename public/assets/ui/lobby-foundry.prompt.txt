@@ -1,0 +1,8 @@
+Generated with the built-in image_gen tool.
+
+Use case: stylized-concept
+Asset type: atmospheric banner for the Voxel Blitz multiplayer lobby browser
+Primary request: wide cinematic voxel industrial arena establishing shot, block-built foundry rooftops, steel catwalks, distant smokestacks and warm lit doorways at blue hour. Match a gritty voxel arena shooter with chunky cubic geometry and sophisticated atmospheric lighting.
+Composition: panoramic environment, no characters, strong depth, quiet dark left side with the foundry concentrated toward the right; usable as a shallow cropped banner behind HTML headings.
+Color palette: charcoal navy, muted steel blue, amber furnace light.
+Constraints: no text, no logos, no UI, no watermark. Landscape 1536x1024.

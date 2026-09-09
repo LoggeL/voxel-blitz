@@ -359,13 +359,18 @@ export const sfx = {
       const material = pickaxeMaterial(type);
       const output = pool.acquire(outputOptions(deferred), 0.4);
       let contact = output;
-      if (material === 'soft') {
-        contact = primitives.biquad('lowpass', 1700, 0.6);
+      if (material === 'soft' || material === 'glass') {
+        contact = primitives.biquad(material === 'soft' ? 'lowpass' : 'highpass',
+          material === 'soft' ? 1250 : 900, 0.6);
         contact.connect(output);
         addCleanup(output, () => contact.disconnect());
       }
-      const choice = { ...pickaxeSampleChoice(pickaxeImpactIndex++, true),
-        gain: material === 'soft' ? 0.76 : 0.92, cleanupOwner: output };
+      const variation = pickaxeSampleChoice(pickaxeImpactIndex++, true);
+      const choice = { ...variation,
+        rate: variation.rate
+          * (material === 'soft' ? 0.86 : material === 'glass' ? 1.18 : material === 'metal' ? 0.94 : 0.97),
+        gain: (material === 'soft' ? 0.82 : material === 'glass' ? 0.7 : 0.92)
+          * (broken ? 1 : 0.58), cleanupOwner: output };
       const sampled = samples.play(choice.slot, contact, choice)
         || (choice.slot !== 'pickaxe.impact' && samples.play('pickaxe.impact', contact, choice));
       renderPickaxeContact(contact, primitives, material, { sampled, broken: !!broken });

@@ -206,6 +206,7 @@ class Game {
     };
     this.muzzleLights = new MuzzleLights(this.worldview.scene);
     this.roster = new AvatarRoster({
+      getBlock,
       scene: this.worldview.scene,
       gore: (event, options) => this.effects?.gore(event, options),
       getMyId: () => this.myId,
@@ -234,6 +235,7 @@ class Game {
       camera: this.camera,
       world: this._world,
       respawnLocal: (row) => this.respawnLocal(row),
+      onLocalMine: () => this.rig?.pickaxeContact(),
       onLocalDeath: (_transition, killerId) => {
         this.weapon?.deathReset();
         this.session.syncGameplayInput();

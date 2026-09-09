@@ -228,14 +228,13 @@ export class AvatarWeaponModel {
     }
   }
 
-  setDeathPose(t, side) {
-    const amount = Math.max(0, Math.min(1, Number(t) || 0));
-    this.root.position.set(
-      (this._profile?.hip.x ?? BASE_POSITION.x) + side * amount * 0.16,
-      (this._profile?.hip.y ?? BASE_POSITION.y) - amount * 0.62,
-      (this._profile?.hip.z ?? BASE_POSITION.z) + amount * 0.08,
-    );
-    this.root.rotation.set(amount * 0.92, side * amount * 0.38, -side * amount * 0.62);
+  stopDeathEffects() {
+    this._flash = 0;
+    if (!this._model) return;
+    this._model.flash.grp.visible = false;
+    this._model.flash.light.intensity = 0;
+    for (const material of this._model.flash.mats) material.opacity = 0;
+    this._model.uni.uGlow.value = 0;
   }
 
   dispose() {

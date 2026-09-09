@@ -50,7 +50,7 @@ const FIRE_REPORT_PROFILES = Object.freeze({
     lifetime: 1.0, sampleGain: 1.05, sampleRate: 1.04, layerGain: 0.12,
   }),
   knife: Object.freeze({
-    lifetime: 0.4, sampleGain: 0.82, sampleRate: 1, layerGain: 0,
+    lifetime: 0.4, sampleGain: 0.55, sampleRate: 1, layerGain: 0,
   }),
   flamethrower: Object.freeze({ lifetime: 0.5, sampleGain: 1, sampleRate: 1, layerGain: 1 }),
   rocket: Object.freeze({

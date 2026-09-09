@@ -1,20 +1,38 @@
-import { cleanCode, el, MAP_LABELS, MODE_LABELS } from './hud-support.js';
+import { cleanCode, el, MAP_LABELS, MAP_PREVIEWS, MODE_LABELS } from './hud-support.js';
 
 /** Code entry and a read-only room directory. Admission remains server-owned. */
 export class LobbyBrowser {
-  constructor(parent, onJoin) {
+  constructor(parent, onJoin, onCreate) {
     this.onJoin = onJoin;
+    this.lobbies = [];
+    this.loaded = false;
     this.request = null;
     this.retry = null;
     this.returnFocus = null;
     this.dialog = el('dialog', 'vb-lobby-browser', parent, 'lobby-browser');
     this.dialog.setAttribute('aria-labelledby', 'lobby-browser-title');
+    const topbar = el('div', 'vb-browser-topbar', this.dialog);
+    const brand = el('span', 'vb-brand-lockup', topbar);
+    el('span', 'vb-brand-voxel', brand).textContent = 'VOXEL';
+    el('span', 'vb-brand-blitz', brand).textContent = 'BLITZ';
+    const close = el('button', 'vb-btn', topbar, 'lobby-browser-close');
+    close.type = 'button';
+    close.textContent = '← MAIN MENU';
+    close.addEventListener('click', () => this.dialog.close());
     const header = el('div', 'vb-browser-header', this.dialog);
+    el('span', 'vb-step-kicker', header).textContent = 'MULTIPLAYER / ROOM DIRECTORY';
     el('h2', '', header, 'lobby-browser-title').textContent = 'FIND A LOBBY';
 
-    const codeForm = el('form', 'vb-browser-code-form', this.dialog);
+    el('p', '', header).textContent = 'Find your arena. Join the fight.';
+    const content = el('div', 'vb-browser-content', this.dialog);
+    const directory = el('section', 'vb-browser-directory', content);
+    directory.setAttribute('aria-label', 'Available lobbies');
+    const sidebar = el('aside', 'vb-browser-sidebar', content);
+    const codeForm = el('form', 'vb-browser-code-form', sidebar);
+    el('h3', '', codeForm).textContent = 'JOIN WITH CODE';
+    el('p', 'vb-browser-aside-copy', codeForm).textContent = 'Have an invite? Enter your 5-character room code.';
     const codeLabel = el('label', 'vb-label', codeForm);
-    codeLabel.textContent = 'JOIN WITH CODE';
+    codeLabel.textContent = 'ROOM CODE';
     codeLabel.htmlFor = 'join-code-input';
     const codeRow = el('div', 'vb-browser-code-row', codeForm);
     this.codeInput = el('input', '', codeRow, 'join-code-input');
@@ -50,23 +68,45 @@ export class LobbyBrowser {
       }
       this.join(code, this.codePassword.value, this.passwordOption.open);
     });
-    this.joinStatus = el('div', 'vb-status vb-browser-join-status', this.dialog, 'lobby-browser-join-status');
+    this.joinStatus = el('div', 'vb-status vb-browser-join-status', sidebar, 'lobby-browser-join-status');
     this.joinStatus.setAttribute('role', 'status');
     this.joinStatus.setAttribute('aria-live', 'polite');
 
-    const directoryHeader = el('div', 'vb-browser-directory-header', this.dialog);
-    el('h3', '', directoryHeader).textContent = 'OR BROWSE LOBBIES';
+    const hostCard = el('div', 'vb-browser-host-card', sidebar);
+    el('h3', '', hostCard).textContent = 'YOUR ARENA. YOUR RULES.';
+    el('p', '', hostCard).textContent = 'Choose a map and mode, then bring your friends.';
+    const create = el('button', 'vb-btn', hostCard, 'browser-create-lobby-btn');
+    create.type = 'button';
+    create.textContent = 'CREATE LOBBY';
+    create.addEventListener('click', () => { this.dialog.close(); onCreate?.(); });
+    const directoryHeader = el('div', 'vb-browser-directory-header', directory);
+    el('h3', '', directoryHeader).textContent = 'AVAILABLE LOBBIES';
     this.refresh = el('button', 'vb-btn', directoryHeader, 'lobby-browser-refresh');
     this.refresh.type = 'button';
     this.refresh.textContent = 'REFRESH';
     this.refresh.addEventListener('click', () => void this.load());
-    this.status = el('p', 'vb-browser-status', this.dialog);
+    const filters = el('div', 'vb-browser-filters', directory);
+    const searchLabel = el('label', '', filters);
+    searchLabel.textContent = 'SEARCH';
+    this.search = el('input', '', searchLabel, 'lobby-search-input');
+    this.search.type = 'search';
+    this.search.placeholder = 'Host, map or room code';
+    const modeLabel = el('label', '', filters);
+    modeLabel.textContent = 'GAME MODE';
+    this.mode = el('select', '', modeLabel, 'lobby-mode-filter');
+    for (const [value, text] of [['', 'All modes'], ...Object.entries(MODE_LABELS)]) {
+      const option = el('option', '', this.mode); option.value = value; option.textContent = text;
+    }
+    const availableLabel = el('label', 'vb-browser-available', filters);
+    this.available = el('input', '', availableLabel, 'lobby-available-filter');
+    this.available.type = 'checkbox';
+    el('span', '', availableLabel).textContent = 'Hide full rooms';
+    this.search.addEventListener('input', () => this.renderResults());
+    this.mode.addEventListener('change', () => this.renderResults());
+    this.available.addEventListener('change', () => this.renderResults());
+    this.status = el('p', 'vb-browser-status', directory);
     this.status.setAttribute('role', 'status');
-    this.rows = el('div', 'vb-browser-rows', this.dialog, 'lobby-browser-rows');
-    const close = el('button', 'vb-btn', this.dialog, 'lobby-browser-close');
-    close.type = 'button';
-    close.textContent = 'BACK';
-    close.addEventListener('click', () => this.dialog.close());
+    this.rows = el('div', 'vb-browser-rows', directory, 'lobby-browser-rows');
     this.dialog.addEventListener('close', () => {
       if (this.dialog.open) return; // A queued close event must not cancel a newly reopened directory.
       this.request?.abort();
@@ -84,8 +124,8 @@ export class LobbyBrowser {
     this.codePassword.value = '';
     this.passwordOption.open = passwordRequired;
     this.dialog.showModal();
-    this.codeInput.focus();
-    if (this.codeInput.value) this.codeInput.select();
+    if (code) { this.codeInput.focus(); this.codeInput.select(); }
+    else this.search.focus();
     void this.load();
   }
 
@@ -108,6 +148,7 @@ export class LobbyBrowser {
     const request = new AbortController();
     this.request = request;
     const timeout = setTimeout(() => request.abort(), 8000);
+    this.loaded = false;
     this.refresh.disabled = true;
     this.rows.replaceChildren();
     this.status.textContent = 'Looking for lobbies…';
@@ -117,10 +158,9 @@ export class LobbyBrowser {
       const { lobbies } = await response.json();
       if (!Array.isArray(lobbies)) throw new Error('Invalid directory');
       if (this.request !== request || !this.dialog.open) return;
-      this.status.textContent = lobbies.length
-        ? `${lobbies.length} ${lobbies.length === 1 ? 'lobby' : 'lobbies'} · No room code needed`
-        : 'No lobbies yet. Create one and invite your friends.';
-      for (const lobby of lobbies) this.renderLobby(lobby);
+      this.lobbies = lobbies;
+      this.loaded = true;
+      this.renderResults();
     } catch (_) {
       if (this.request === request && this.dialog.open) {
         this.status.textContent = 'Could not load lobbies. Try refreshing.';
@@ -131,13 +171,51 @@ export class LobbyBrowser {
     }
   }
 
+  renderResults() {
+    if (!this.loaded) return;
+    const query = this.search.value.trim().toLowerCase();
+    const rooms = this.lobbies.filter((room) =>
+      (!this.mode.value || room.gameMode === this.mode.value)
+      && (!this.available.checked || room.players < room.capacity)
+      && [room.host, room.code, MAP_LABELS[room.map] || room.map, MODE_LABELS[room.gameMode] || room.gameMode]
+        .some((value) => String(value).toLowerCase().includes(query)));
+    rooms.sort((a, b) => Number(a.players >= a.capacity) - Number(b.players >= b.capacity) || b.players - a.players);
+    this.rows.replaceChildren();
+    this.status.textContent = this.lobbies.length
+      ? `${rooms.length} of ${this.lobbies.length} lobbies · Join a room below`
+      : 'No lobbies yet. Create one and invite your friends.';
+    if (!rooms.length) {
+      const empty = el('div', 'vb-browser-empty', this.rows);
+      el('span', 'vb-browser-empty-mark', empty).textContent = '⌕';
+      el('h3', '', empty).textContent = this.lobbies.length ? 'NO MATCHING LOBBIES' : 'THE ARENA IS YOURS';
+      el('p', '', empty).textContent = this.lobbies.length
+        ? 'Try another search or change your filters.' : 'Start a lobby, share the code, and get a match going.';
+      const action = el('button', 'vb-btn', empty);
+      action.type = 'button';
+      action.textContent = this.lobbies.length ? 'CLEAR FILTERS' : 'CREATE LOBBY';
+      action.addEventListener('click', () => {
+        if (!this.lobbies.length) { this.dialog.querySelector('#browser-create-lobby-btn').click(); return; }
+        this.search.value = ''; this.mode.value = ''; this.available.checked = false; this.renderResults();
+      });
+    }
+    for (const room of rooms) this.renderLobby(room);
+  }
+
   renderLobby(lobby) {
     const row = el('form', 'vb-browser-room', this.rows);
+    const preview = el('img', 'vb-browser-map', row);
+    preview.src = MAP_PREVIEWS[lobby.map] || MAP_PREVIEWS.foundry;
+    preview.alt = MAP_LABELS[lobby.map] || 'Arena';
+    preview.loading = 'lazy';
     const info = el('div', 'vb-browser-room-info', row);
     el('h3', '', info).textContent = `${lobby.host}'s lobby`;
     el('p', '', info).textContent = `${MODE_LABELS[lobby.gameMode] || lobby.gameMode} · ${MAP_LABELS[lobby.map] || lobby.map}`;
-    el('p', 'vb-browser-room-meta', info).textContent =
-      `${lobby.players}/${lobby.capacity} players · ${lobby.phase === 'live' ? 'In progress' : 'Waiting'} · ${lobby.passwordRequired ? 'Password required' : 'Open'}`;
+    const meta = el('p', 'vb-browser-room-meta', info);
+    el('span', '', meta).textContent = `${lobby.players}/${lobby.capacity} players`;
+    const phase = el('span', 'vb-browser-phase', meta);
+    phase.dataset.phase = lobby.phase;
+    phase.textContent = lobby.phase === 'live' ? 'In progress' : 'Waiting';
+    el('span', '', meta).textContent = lobby.passwordRequired ? 'Password required' : 'Open';
     let password = null;
     if (lobby.passwordRequired) {
       const label = el('label', 'vb-browser-password', row);

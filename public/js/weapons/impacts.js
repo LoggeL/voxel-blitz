@@ -1,4 +1,5 @@
 // Bounded hit confirmations, material-aware voxel debris, and block shatter FX.
+import { pickaxeMaterial } from '../audio/pickaxe.js';
 import { removedDamageCells } from '../engine/block-damage-geometry.js';
 import * as THREE from '../vendor/three.module.js';
 import { freeOldestIndex, hideInstance, makeImpactCrossGeometry } from './instancing.js';
@@ -233,9 +234,20 @@ export class ImpactFX {
   }
 
   mine(ev) {
-    this.spawnParticles(ev.x + 0.5 + ev.nx * 0.53, ev.y + 0.5 + ev.ny * 0.53,
-      ev.z + 0.5 + ev.nz * 0.53, ev.progress >= 1 ? 18 : 5,
-      BLOCK_TINTS[ev.from] || 0x999999, DUST_PARTICLES);
+    if (this._disposed) return;
+    const material = pickaxeMaterial(ev.from);
+    const x = ev.x + 0.5 + ev.nx * 0.53;
+    const y = ev.y + 0.5 + ev.ny * 0.53;
+    const z = ev.z + 0.5 + ev.nz * 0.53;
+    const outward = [ev.nx * 0.3, ev.ny * 0.3, ev.nz * 0.3];
+    const particles = material === 'metal' ? METAL_PARTICLES
+      : material === 'glass' ? GLASS_PARTICLES : DUST_PARTICLES;
+    this.spawnParticles(x, y, z, ev.progress >= 1 ? 18 : 5,
+      material === 'metal' ? 0xffd78a : BLOCK_TINTS[ev.from] || 0x999999,
+      { ...particles, outward, softness: material === 'soft' });
+    if (material === 'glass' || material === 'metal') {
+      this.spawnParticles(x, y, z, 2, 0xfff1cf, GLINT_PARTICLES);
+    }
   }
 
   /** Debris follows exactly the cells removed by the persistent chunk mesh. */

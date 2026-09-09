@@ -53,8 +53,8 @@ const THREE = await import('../public/js/vendor/three.module.js');
 const { pickaxeSwingPose } = await import('../public/js/guns/pickaxe-swing.js');
 const lift = pickaxeSwingPose(0.34), strike = pickaxeSwingPose(0.6);
 assert.ok(lift.rx > 0.9 && strike.rx < -0.4 && lift.y + 0.4 * Math.sin(lift.rx) > strike.y + 0.4 * Math.sin(strike.rx));
-assert.equal(lift.ry, 0); assert.equal(strike.ry, 0);
-assert.ok(Math.abs(lift.rz) < 0.04 && Math.abs(strike.rz) < 0.04);
+assert.ok(lift.ry > 0 && strike.ry < 0, 'the lift turns into an inward chop');
+assert.ok(Math.abs(lift.rz) < 0.15 && Math.abs(strike.rz) < 0.15, 'wrist roll stays modest');
 assert.ok(Math.abs(pickaxeSwingPose(1).rx) < 1e-9);
 const { ImpactFX } = await import('../public/js/weapons/impacts.js');
 const scene = new THREE.Scene();
@@ -78,4 +78,28 @@ assert.equal(fx.particlesSpawned, spawned, 'no duplicate stage chips or stale ma
 fx.update(2);
 assert.equal(fx.parts.filter(p => p.active).length, 0, 'transient debris expires');
 fx.dispose(); assert.equal(scene.children.length, 0);
-console.log('Pickaxe presentation: vertical chop, matching voxel shards and debris cleanup passed.');
+console.log('Pickaxe presentation: diagonal chop, matching voxel shards and debris cleanup passed.');
+
+// Contact rebounds after the chop; missed swings keep their follow-through.
+for (let i = 0; i <= 100; i++) {
+  const t = i / 100;
+  assert.ok(Object.values(pickaxeSwingPose(t, true)).every(Number.isFinite));
+}
+assert.ok(pickaxeSwingPose(0.67, true).rx > pickaxeSwingPose(0.67).rx);
+assert.deepEqual(pickaxeSwingPose(1, true), pickaxeSwingPose(1));
+const { ViewmodelRig } = await import('../public/js/guns/viewmodel.js');
+const rig = new ViewmodelRig(new THREE.PerspectiveCamera());
+rig.setWeapon('knife');
+for (let i = 0; i < 180; i++) rig.update(1 / 60, { grounded: true });
+assert.equal(rig.fire(), true);
+rig.pickaxeContact();
+assert.equal(rig._swingContact, true);
+rig.setWeapon('rifle'); rig.pickaxeContact();
+assert.equal(rig._swingContact, false, 'swapping clears contact recoil');
+rig.dispose();
+const materialFx = new ImpactFX(new THREE.Scene(), new THREE.PerspectiveCamera());
+materialFx.mine({ ...event, from: 8 });
+assert.equal(materialFx.particlesSpawned, 7, 'metal chips include two contact glints');
+assert.equal(materialFx.parts[5].glint, true);
+materialFx.dispose();
+console.log('Pickaxe contact: rebound, weapon swap reset and material glints passed.');

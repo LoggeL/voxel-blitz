@@ -22,8 +22,9 @@ const IMPACT_TTL_MS = 2200;
 const PENDING_HIT_TTL_MS = 650;
 
 export class AvatarRoster {
-  constructor({ scene, gore = null, getMyId = () => null, now = nowMs }) {
+  constructor({ scene, getBlock = null, gore = null, getMyId = () => null, now = nowMs }) {
     this._scene = scene;
+    this._solidAt = getBlock ? (x, y, z) => !!getBlock(x, y, z) : null;
     this._labelTarget = new THREE.Vector3();
     this._labelDirection = new THREE.Vector3();
     this._debugView = new AvatarDebugView(scene);
@@ -116,7 +117,7 @@ export class AvatarRoster {
   positionOf(id) {
     const avatar = this._avatars.get(String(id));
     if (!avatar) return null;
-    const position = avatar.group.position;
+    const position = avatar.alive ? avatar.group.position : avatar.hips.position;
     return { x: position.x, y: position.y, z: position.z };
   }
 
@@ -179,10 +180,8 @@ export class AvatarRoster {
         avatar.group.visible = avatar.deathT < 2.7;
         if (avatar.group.visible) {
           counters.dyingAvatars++;
-          updateAvatarDeath(avatar, dt, t);
+          updateAvatarDeath(avatar, dt, t, this._solidAt);
         }
-        avatar.group.position.set(remote.x, remote.y, remote.z);
-        avatar.group.rotation.set(0, remote.yaw, 0);
         setAvatarOpacity(avatar, fade);
         continue;
       }
@@ -301,6 +300,7 @@ export class AvatarRoster {
     this._counters.maxAvatarSpeed = 0;
     this._scene = null;
     this._gore = null;
+    this._solidAt = null;
     this._getMyId = null;
     this._now = null;
   }

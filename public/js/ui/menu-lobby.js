@@ -13,6 +13,7 @@ import {
   saveName,
 } from './hud-support.js';
 import { LobbyInviteQr } from './lobby-invite-qr.js';
+import { addMenuIcon } from './menu-icons.js';
 import { LobbyBrowser } from './lobby-browser.js';
 import { LobbySettings } from './lobby-settings.js';
 import { normalizeModeId, mapForMode } from '../../../shared/modes.js';
@@ -123,9 +124,11 @@ export class MenuLobbyController {
     );
     createLobbyButton.type = 'button';
     createLobbyButton.textContent = 'CREATE LOBBY';
-    const duelButton = el('button', 'vb-btn', createBox, 'create-duel-btn');
+    const duelBox = el('div', 'vb-duel-box', actionsBox);
+    const duelButton = el('button', 'vb-btn', duelBox, 'create-duel-btn');
     duelButton.type = 'button';
     duelButton.textContent = 'INVITE TO 1V1';
+    el('div', 'vb-action-hint', duelBox).textContent = 'A PRIVATE DUEL WITH A FRIEND';
     duelButton.addEventListener('click', () => {
       if (duelButton.disabled) return;
       this.onMenuAction({ mode: 'create', gameMode: 'duel', map: 'depot', bots: 0,
@@ -152,6 +155,13 @@ export class MenuLobbyController {
     browseButton.textContent = 'FIND A LOBBY';
     browseButton.setAttribute('aria-haspopup', 'dialog');
     el('div', 'vb-action-hint', browseBox).textContent = 'BROWSE ROOMS OR ENTER A CODE';
+    actionsBox.insertBefore(browseBox, createBox);
+    for (const button of [quickPlayButton, browseButton, createLobbyButton, duelButton]) {
+      const text = button.textContent;
+      button.textContent = '';
+      el('span', 'vb-action-title', button).textContent = text;
+    }
+    for (const [box, icon] of [[quickBox, 'arrows'], [browseBox, 'globe'], [createBox, 'squad'], [duelBox, 'duel']]) addMenuIcon(box, icon);
     const createPassword = passwordOption(actionsBox, 'create-password-input', 'Set a lobby password');
 
     this.joinStatus = el('div', 'vb-status', primaryBody, 'join-status');
@@ -203,7 +213,7 @@ export class MenuLobbyController {
 
     this.browser = new LobbyBrowser(root, (code, password) => {
       this.onMenuAction({ mode: 'join', code, password, ...getIdentity() });
-    });
+    }, triggerCreate);
     browseButton.addEventListener('click', () => this.browser.show({}, browseButton));
     createPassword.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') { event.preventDefault(); triggerCreate(); }

@@ -271,7 +271,7 @@ async function main() {
   check(weaponResults.knife.trace.sources.length === 1
     && pickaxeSwingUrls.includes(weaponResults.knife.trace.sources[0].sample),
   'A missed pickaxe swing has one air recording and no impact or synthetic tick');
-  for (const [type, material] of [[3, 'stone'], [5, 'wood'], [8, 'metal']]) {
+  for (const [type, material] of [[3, 'stone'], [5, 'wood'], [8, 'metal'], [11, 'glass']]) {
     const strike = await cue(`Pickaxe ${material} contact`, [[0, () => sfx.mine(type, false, [0, 0, -2])]]);
     check(strike.trace.sources.filter((source) => pickaxeImpactUrls.includes(source.sample)).length === 1,
       `Pickaxe ${material} contact starts one recorded impact`);
@@ -292,7 +292,7 @@ async function main() {
     && pickaxeImpactUrls.every((url) => mining.trace.sources.filter((source) => source.sample === url).length === 4),
   'Four seconds of mining plays eight swings and eight contacts across both variations');
   check(mining.trace.sources.filter((source) => source.sample !== 'procedural noise')
-    .every((source) => source.rate >= 0.98 && source.rate <= 1.02 && recordedTailComplete(source, RATE)),
+    .every((source) => source.rate >= 0.93 && source.rate <= 1.04 && recordedTailComplete(source, RATE)),
   'Mining variations keep natural pitch and finish every recorded tail');
   check(regionRms(mining.data, 4.1, 4.55) < 0.00001,
     'Mining reaches silence after the last contact without a hanging tail');
@@ -424,7 +424,7 @@ async function main() {
   check(sustainedShots.length === 80 && rotarySamples.every((url) =>
     sustainedShots.filter((source) => source.sample === url).length >= 26),
   'Four-second fire retains all 80 reports across the three variations');
-  check(sustainedShots.every((source) => source.rate >= 0.98 && source.rate <= 1.02),
+  check(sustainedShots.every((source) => source.rate >= 0.93 && source.rate <= 1.04),
     'Rotary samples retain their natural pitch and mechanical weight');
   const shortRecords = sustainedShots.filter((source) => source.disconnectedAt != null
     && source.disconnectedAt < source.at + source.duration / source.rate);

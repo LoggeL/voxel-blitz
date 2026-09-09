@@ -127,6 +127,7 @@ export class CombatFeedback {
     viewport = globalThis,
     respawnLocal,
     onLocalDeath,
+    onLocalMine,
   }) {
     this.effects = effects;
     this.sfx = sfx;
@@ -142,6 +143,7 @@ export class CombatFeedback {
     this.viewport = viewport;
     this.respawnLocal = respawnLocal;
     this.onLocalDeath = onLocalDeath;
+    this.onLocalMine = onLocalMine;
 
     this._disposed = false;
     this._presentedDeaths = new WeakSet();
@@ -230,6 +232,7 @@ export class CombatFeedback {
         break;
       }
       case 'mine': {
+        if (ev.id === this.getMyId()) this.onLocalMine?.(ev);
         this.effects.impacts.mine(ev);
         this.sfx.mine(ev.from, ev.progress >= 1, [ev.x + 0.5, ev.y + 0.5, ev.z + 0.5]);
         if (ev.progress >= 1) this._minedBreak = { x: ev.x, y: ev.y, z: ev.z };

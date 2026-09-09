@@ -1,0 +1,174 @@
+/* The room directory is a full destination, with native dialog focus handling. */
+#lobby-browser {
+  position: fixed; inset: 0; width: 100%; height: 100dvh; max-width: none; max-height: none;
+  margin: 0; padding: 0; border: 0; border-radius: 0; background: #0b1118;
+  color: #eef1f4; font-family: var(--font-ui); overflow-y: auto;
+}
+.vb-browser-topbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px clamp(20px, 5vw, 80px); border-bottom: 1px solid #ffffff20; }
+.vb-browser-topbar .vb-brand-lockup { color: #ffb04b; }
+#lobby-browser .vb-browser-header { display: block; padding: 36px clamp(20px, 5vw, 80px); background: linear-gradient(90deg, #0b1118ee, #0b111850), url('/assets/ui/lobby-foundry.webp') center 53% / cover; border-bottom: 1px solid #ffffff20; }
+.vb-browser-header .vb-step-kicker { color: #ffb04b; font: 500 10px/1.4 var(--font-mono); letter-spacing: .16em; }
+#lobby-browser .vb-browser-header h2 { margin: 12px 0; font: italic 900 clamp(32px, 4vw, 58px)/1 Impact, 'Arial Narrow', sans-serif; letter-spacing: .015em; }
+.vb-browser-header p { margin: 0; font-size: 14px; color: #c1ccd5; }
+.vb-browser-content { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 30px; max-width: 1600px; margin: auto; padding: 28px clamp(20px, 5vw, 80px) 48px; }
+.vb-browser-directory, .vb-browser-sidebar { min-width: 0; }
+#lobby-browser .vb-browser-directory-header { margin: 0 0 20px; padding: 0; border: 0; }
+#lobby-browser .vb-browser-directory-header h3 { color: #edf1f4; font-weight: 700; letter-spacing: .12em; }
+.vb-browser-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(160px, .7fr); gap: 12px; }
+.vb-browser-filters label { display: grid; gap: 8px; color: #aab8c5; font: 500 10px/1.4 var(--font-mono); letter-spacing: .06em; }
+#lobby-browser .vb-browser-filters :is(input, select) { width: 100%; min-width: 0; margin: 0; min-height: 44px; padding: 10px 12px; font: 400 13px/1.4 var(--font-ui); letter-spacing: 0; color: #eef1f4; background: #121d28; border: 1px solid #ffffff30; border-radius: 3px; box-sizing: border-box; }
+#lobby-browser .vb-browser-available { display: flex; align-items: center; gap: 9px; grid-column: 1 / -1; min-height: 30px; font: 400 12px/1.4 var(--font-ui); letter-spacing: 0; }
+#lobby-browser .vb-browser-available input { width: 16px; min-height: 16px; height: 16px; accent-color: #ffb04b; }
+#lobby-browser .vb-browser-code-form { margin: 0; padding: 22px; border-radius: 4px; border-top: 2px solid #ffb04b; background: #141e28; }
+.vb-browser-aside-copy { margin: 0 0 6px; color: #afbdc9; font: 400 13px/1.6 var(--font-ui); }
+#lobby-browser .vb-browser-code-row { grid-template-columns: minmax(0, 1fr) 70px; gap: 8px; }
+#lobby-browser .vb-browser-code-row .vb-btn { padding-inline: 12px; }
+.vb-browser-host-card { margin-top: 22px; padding: 22px; border: 1px solid #ffffff20; border-radius: 4px; }
+.vb-browser-host-card h3 { margin: 0; font-size: 13px; }
+.vb-browser-host-card p { color: #afbdc9; font-size: 13px; line-height: 1.6; }
+#lobby-browser .vb-browser-host-card .vb-btn { width: 100%; }
+#lobby-browser .vb-browser-room { gap: 16px; padding: 14px; border-color: #ffffff24; background: #111c26; border-radius: 4px; }
+#lobby-browser .vb-browser-room:hover { border-color: #ffb04b88; }
+.vb-browser-map { width: 112px; height: 78px; object-fit: cover; border-radius: 2px; }
+#lobby-browser .vb-browser-room-info { flex-basis: 190px; }
+#lobby-browser .vb-browser-room h3 { font-size: 16px; }
+#lobby-browser .vb-browser-room .vb-btn { border-color: #ffb04b88; color: #ffd08e; }
+#lobby-browser .vb-browser-room .vb-btn:disabled { color: #9caab6; border-color: #ffffff30; }
+#lobby-browser .vb-browser-password { flex-basis: 100%; grid-template-columns: 120px minmax(0, 1fr); align-items: center; }
+#lobby-browser .vb-browser-password input { margin: 0; }
+.vb-browser-empty { min-height: 220px; display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 28px; text-align: center; border: 1px dashed #ffffff28; background: linear-gradient(135deg, #15223080, #0b1118); }
+.vb-browser-empty-mark { font: 44px/1 var(--font-ui); color: #ffb04b; }
+.vb-browser-empty h3 { margin: 14px 0 0; font-size: 17px; letter-spacing: .08em; }
+.vb-browser-empty p { max-width: 320px; color: #afbdc9; font-size: 13px; line-height: 1.6; }
+#lobby-browser .vb-btn { border-radius: 3px; font-weight: 600; letter-spacing: .06em; }
+#lobby-browser .vb-btn:hover { background: #263442; }
+#lobby-browser .vb-browser-code-join:hover { background: #ffc473; }
+@media (max-width: 900px) {
+  .vb-browser-content { grid-template-columns: minmax(0, 1fr) 260px; gap: 20px; padding-inline: 24px; }
+}
+@media (max-width: 700px) {
+  .vb-browser-content { grid-template-columns: minmax(0, 1fr); padding: 20px; }
+  #lobby-browser .vb-browser-header { padding-block: 26px; }
+  .vb-browser-sidebar { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .vb-browser-host-card { margin: 0; }
+  .vb-browser-map { width: 86px; height: 64px; }
+  #lobby-browser .vb-browser-room-info { flex: 1 1 140px; }
+  .vb-browser-filters { grid-template-columns: minmax(0, 1fr); }
+  .vb-browser-topbar .vb-brand-lockup { font-size: 14px; }
+}
+
+/* Panel proportions and heading hierarchy from docs/design/lobby-search-reference.png. */
+.vb-browser-topbar .vb-brand-lockup { font-size: 24px; font-style: italic; }
+#lobby-browser .vb-browser-header { padding-top: clamp(32px, 9vh, 100px); padding-bottom: 28px; }
+.vb-browser-content { grid-template-columns: minmax(0, 2fr) minmax(290px, 1fr); gap: 22px; padding: 22px clamp(20px, 3vw, 48px) 40px; }
+.vb-browser-directory { padding: 18px; border: 1px solid #ffffff26; border-radius: 3px; background: linear-gradient(130deg, #1b2731a0, #10192280); align-self: start; }
+#lobby-browser .vb-browser-directory-header { padding-bottom: 14px; border-bottom: 1px solid #ffffff20; }
+#lobby-browser .vb-browser-directory-header h3,
+#lobby-browser .vb-browser-code-form h3,
+.vb-browser-host-card h3 { font-family: Impact, 'Arial Narrow', sans-serif; font-weight: 500; font-size: clamp(20px, 2.2vw, 29px); letter-spacing: .05em; }
+#lobby-browser .vb-browser-code-form h3 { margin: 0 0 4px; }
+#lobby-browser .vb-browser-code-form { gap: 16px; }
+#lobby-browser .vb-browser-code-form > .vb-label { color: #afbdc9; }
+#lobby-browser .vb-browser-host-card { background: linear-gradient(90deg, #111c26, #111c26d9), url('/assets/ui/lobby-foundry.webp') center / cover; }
+#lobby-browser .vb-browser-host-card .vb-btn { color: #171717; border-color: #ffc570; background: linear-gradient(110deg, #ffbd62, #e99c28); }
+#lobby-browser .vb-browser-room .vb-btn { min-width: 90px; }
+@media (min-width: 1250px) {
+  .vb-browser-filters { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto; align-items: end; }
+  #lobby-browser .vb-browser-available { grid-column: auto; min-height: 44px; }
+  .vb-browser-map { width: 160px; height: 86px; }
+}
+@media (max-width: 800px) {
+  .vb-browser-content { grid-template-columns: minmax(0, 1fr); }
+}
+
+#lobby-browser { text-transform: none; letter-spacing: normal; }
+#lobby-browser :is(input, select) { text-transform: none; box-shadow: none; }
+#lobby-browser .vb-btn { background: #111c26; color: #e0e8ef; border: 1px solid #7d95a8; box-shadow: none; }
+#lobby-browser .vb-browser-code-join { background: #ffb04b; color: #171717; border-color: #ffc570; }
+#lobby-browser .vb-browser-room { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; }
+.vb-browser-map { grid-column: 1; grid-row: 1; }
+#lobby-browser .vb-browser-room-info { grid-column: 2; grid-row: 1; }
+#lobby-browser .vb-browser-room > .vb-btn { grid-column: 3; grid-row: 1; color: #ffba58; border-color: #ffb04b; }
+#lobby-browser .vb-browser-password { grid-column: 2 / -1; grid-row: 2; }
+#lobby-browser .vb-browser-room .vb-btn:disabled { color: #82919d; background: #18222c; border-color: #556471; }
+#lobby-browser .vb-browser-room-meta { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; }
+.vb-browser-phase::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 7px; background: #64c98a; }
+.vb-browser-phase[data-phase='live']::before { background: #ffb04b; }
+#lobby-browser .vb-browser-header p { text-transform: none; }
+@media (max-width: 600px) {
+  #lobby-browser .vb-browser-room { grid-template-columns: 70px minmax(0, 1fr); gap: 12px; }
+  .vb-browser-map { width: 70px; height: 68px; }
+  #lobby-browser .vb-browser-room > .vb-btn { grid-column: 1 / -1; grid-row: 3; width: 100%; }
+  #lobby-browser .vb-browser-password { grid-column: 1 / -1; grid-template-columns: minmax(0, 1fr); }
+  #lobby-browser .vb-browser-directory-header { gap: 8px; }
+  #lobby-browser .vb-browser-directory-header h3 { font-size: 19px; }
+  #lobby-browser .vb-browser-directory-header .vb-btn { padding-inline: 10px; }
+}
+
+/* Match the reference's readable scale rather than inheriting the compact HUD font. */
+#lobby-browser { font-family: 'Helvetica Neue', Arial, sans-serif; background: radial-gradient(ellipse at 50% 30%,#1b2730,#0b1218 80%); }
+#lobby-browser .vb-browser-topbar { min-height: 56px; padding: 10px 2.5%; }
+#lobby-browser .vb-browser-topbar .vb-brand-lockup { font: 900 30px/1 Arial,sans-serif; letter-spacing: .02em; gap: 12px; }
+#lobby-browser .vb-browser-header { min-height: 310px; display: flex; flex-direction: column; justify-content: flex-end; padding: 30px 3%; background: linear-gradient(90deg,#060b10bb,transparent 70%),url('/assets/ui/lobby-foundry.webp') center 36% / cover; }
+#lobby-browser .vb-browser-header h2 { font-size: clamp(44px,4.4vw,72px); margin: 6px 0 8px; }
+#lobby-browser .vb-browser-header p { font: 400 20px/1.4 'Helvetica Neue',Arial,sans-serif; color: #dce3e8; }
+#lobby-browser .vb-browser-header .vb-step-kicker { color: #c4d0da; font-size: 13px; letter-spacing: .16em; }
+#lobby-browser .vb-browser-content { grid-template-columns: minmax(0,2fr) minmax(0,1fr); max-width: none; padding: 16px 1.8% 40px; gap: 20px; }
+#lobby-browser .vb-browser-directory { padding: 16px; }
+#lobby-browser .vb-browser-directory-header h3,#lobby-browser .vb-browser-code-form h3 { font-size: 32px; }
+#lobby-browser .vb-browser-filters label { font-size: 12px; }
+#lobby-browser .vb-browser-filters :is(input,select) { font: 400 15px/1.4 'Helvetica Neue',Arial,sans-serif; padding: 10px 14px; background: #0b141c; border-color: #617584; }
+#lobby-browser .vb-browser-available { font: 400 13px/1.4 'Helvetica Neue',Arial,sans-serif; }
+#lobby-browser .vb-browser-status { font-size: 14px; margin: 16px 0 12px; }
+#lobby-browser .vb-browser-rows { gap: 10px; margin: 0; }
+#lobby-browser .vb-browser-room { padding: 5px; gap: 20px; background: linear-gradient(120deg,#25323c90,#18222b90); }
+#lobby-browser .vb-browser-map { width: clamp(120px,17.5vw,270px); height: 96px; border: 1px solid #526475; }
+#lobby-browser .vb-browser-room-info h3 { font: 500 23px/1.2 Impact,'Arial Narrow',sans-serif; letter-spacing: .03em; margin: 0 0 8px; }
+#lobby-browser .vb-browser-room-info > p { font: 400 12px/1.4 'Helvetica Neue',Arial,sans-serif; letter-spacing: .05em; }
+#lobby-browser .vb-browser-room-info .vb-browser-room-meta { font-size: 13px; letter-spacing: 0; gap: 8px 18px; color: #c4ced6; margin-top: 14px; }
+#lobby-browser .vb-browser-room > .vb-btn { min-width: 125px; margin-right: 8px; font: 500 20px/1 Impact,'Arial Narrow',sans-serif; letter-spacing: .08em; }
+#lobby-browser .vb-browser-password { padding: 6px 8px 10px 0; font-size: 13px; }
+#lobby-browser .vb-browser-code-form { padding: 26px 24px 20px; gap: 20px; border-top-width: 5px; background: linear-gradient(135deg,#202c3680,#111a2280); }
+#lobby-browser .vb-browser-aside-copy { font: 400 15px/1.6 'Helvetica Neue',Arial,sans-serif; margin: -4px 0 6px; }
+#lobby-browser .vb-browser-code-form > .vb-label { font-size: 12px; letter-spacing: .12em; }
+#lobby-browser .vb-browser-code-row { grid-template-columns: minmax(0,1fr) 36%; gap: 18px; margin-top: -12px; }
+#lobby-browser #join-code-input { height: 50px; text-align: left; font-size: 16px; font-weight: 400; letter-spacing: .08em; border: 1px solid #617584; background: #101921; }
+#lobby-browser .vb-browser-code-join { font: 500 23px/1 Impact,sans-serif; background: linear-gradient(120deg,#ffc450,#dc9726); border-color: #ffd078; }
+#lobby-browser .vb-password-option { font: 400 14px/1.4 'Helvetica Neue',Arial,sans-serif; border: 1px solid #52647580; padding: 6px 12px; border-radius: 3px; }
+#lobby-browser .vb-password-option summary { min-height: 34px; padding: 8px 0; }
+#lobby-browser .vb-browser-host-card { padding: 26px 24px; margin-top: 16px; }
+#lobby-browser .vb-browser-host-card h3 { font-size: 27px; letter-spacing: .02em; }
+#lobby-browser .vb-browser-host-card p { font: 400 15px/1.6 'Helvetica Neue',Arial,sans-serif; }
+#lobby-browser .vb-browser-host-card .vb-btn { width: auto; min-height: 64px; padding: 16px 24px; font: 500 21px/1 Impact,sans-serif; }
+#lobby-browser .vb-browser-host-card .vb-btn::before { content: '+'; font: 32px/1 Arial,sans-serif; margin-right: 20px; vertical-align: middle; }
+#lobby-browser .vb-btn { font-family: var(--font-mono); }
+@media (max-width: 1250px) and (min-width: 801px) {
+  #lobby-browser .vb-browser-room { gap: 12px; }
+  #lobby-browser .vb-browser-map { width: 110px; height: 90px; }
+  #lobby-browser .vb-browser-room > .vb-btn { min-width: 70px; }
+  #lobby-browser .vb-browser-room-info h3 { font-size: 20px; }
+  #lobby-browser .vb-browser-directory-header h3,#lobby-browser .vb-browser-code-form h3 { font-size: 26px; }
+  #lobby-browser .vb-browser-header { min-height: 240px; }
+  #lobby-browser .vb-browser-code-row { gap: 8px; }
+}
+@media (max-width: 800px) {
+  #lobby-browser .vb-browser-content { grid-template-columns: minmax(0,1fr); padding: 16px; }
+  #lobby-browser .vb-browser-header { min-height: 220px; padding: 24px; }
+  #lobby-browser .vb-browser-header p { font-size: 16px; }
+  #lobby-browser .vb-browser-topbar .vb-brand-lockup { font-size: 21px; }
+  #lobby-browser .vb-browser-room-info h3 { font-size: 21px; }
+  #lobby-browser .vb-browser-map { width: 100px; height: 84px; }
+}
+@media (max-width: 600px) {
+  #lobby-browser .vb-browser-directory-header h3 { font-size: 23px; }
+  #lobby-browser .vb-browser-room { grid-template-columns: 86px minmax(0,1fr); padding: 10px; gap: 12px; }
+  #lobby-browser .vb-browser-map { width: 86px; }
+  #lobby-browser .vb-browser-room > .vb-btn { margin: 0; }
+  #lobby-browser .vb-browser-password { padding: 0; }
+  #lobby-browser .vb-browser-header h2 { font-size: 42px; }
+  #lobby-browser .vb-browser-header .vb-step-kicker { font-size: 10px; }
+}
+#lobby-browser .vb-browser-header { align-items: flex-start; gap: 0; }
+#lobby-browser .vb-browser-header h2 { transform: scaleX(1.15); transform-origin: left; }
+#lobby-browser .vb-browser-code-join { font-family: Impact,'Arial Narrow',sans-serif; }
+@media (max-width: 600px) { #lobby-browser .vb-browser-header h2 { transform: none; } }

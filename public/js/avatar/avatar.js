@@ -4,6 +4,7 @@ import { disposeObjectTree } from '../engine/dispose.js';
 import { clamp01 } from '../util/math.js';
 import { hashHue, hashInt } from '../util/hash.js';
 import { AvatarWeaponModel } from './avatar-weapon.js';
+import { prepareDeathPart, stepDeathPart } from './death-physics.js';
 import { AvatarMotion } from './avatar-motion.js';
 import { buildOperator, poseOperatorArm, poseOperatorLeg } from './operator-model.js';
 
@@ -141,6 +142,11 @@ export function updateAvatarStancePose(av, {
 }
 
 export function resetAvatarPose(av) {
+  for (const limb of av.limbStates || []) {
+    limb.object.position.copy(limb.basePosition);
+    limb.object.rotation.copy(limb.baseRotation);
+    limb.object.scale.copy(limb.baseScale);
+  }
   av.alive = true;
   av.deathT = 0;
   av.deathForcedUntil = 0;
@@ -193,8 +199,6 @@ export function resetAvatarPose(av) {
   if (av.hpSpr) av.hpSpr.visible = true;
   for (const limb of av.limbStates || []) {
     limb.object.visible = true;
-    limb.object.position.copy(limb.basePosition);
-    limb.object.rotation.copy(limb.baseRotation);
     limb.velocity.set(0, 0, 0);
     limb.angular.set(0, 0, 0);
   }
@@ -213,6 +217,15 @@ export function beginAvatarDeath(av, now, impact = null) {
   av.deathForcedUntil = Math.max(av.deathForcedUntil, now + 1420);
   if (av.tag) av.tag.visible = false;
   if (av.hpSpr) av.hpSpr.visible = false;
+  // Bake the death location/yaw into the pieces so later snapshots cannot drag them.
+  av.weaponModel?.stopDeathEffects();
+  av.group.updateMatrixWorld(true);
+  for (const limb of av.limbStates) {
+    limb.object.matrixWorld.decompose(limb.object.position, limb.object.quaternion, limb.object.scale);
+  }
+  av.group.position.set(0, 0, 0);
+  av.group.rotation.set(0, 0, 0);
+  av.group.scale.set(1, 1, 1);
   const headshot = !!impact?.hs;
   for (let i = 0; i < av.limbStates.length; i++) {
     const limb = av.limbStates[i];
@@ -220,8 +233,7 @@ export function beginAvatarDeath(av, now, impact = null) {
     const angle = (seed / 0xffffffff) * Math.PI * 2;
     const radial = 5.8 + ((seed >>> 8) & 255) / 255 * 4.2;
     const boost = headshot && i === 0 ? 1.55 : 1;
-    limb.object.position.copy(limb.basePosition);
-    limb.object.rotation.copy(limb.baseRotation);
+    prepareDeathPart(limb);
     limb.velocity.set(
       Math.cos(angle) * radial * boost,
       (6.2 + ((seed >>> 16) & 255) / 255 * 3.8) * boost,
@@ -237,23 +249,8 @@ export function beginAvatarDeath(av, now, impact = null) {
   return true;
 }
 
-export function updateAvatarDeath(av, dt, t) {
-  av.weaponModel?.setDeathPose(t, av.deathSide);
-  for (const limb of av.limbStates) {
-    limb.velocity.y -= 11.8 * dt;
-    limb.object.position.x += limb.velocity.x * dt;
-    limb.object.position.y += limb.velocity.y * dt;
-    limb.object.position.z += limb.velocity.z * dt;
-    if (limb.object.position.y < limb.floorY) {
-      limb.object.position.y = limb.floorY;
-      if (limb.velocity.y < 0) limb.velocity.y *= -0.58;
-      limb.velocity.x *= Math.max(0, 1 - dt * 7);
-      limb.velocity.z *= Math.max(0, 1 - dt * 7);
-    }
-    limb.object.rotation.x += limb.angular.x * dt;
-    limb.object.rotation.y += limb.angular.y * dt;
-    limb.object.rotation.z += limb.angular.z * dt;
-  }
+export function updateAvatarDeath(av, dt, t, solidAt = null) {
+  for (const limb of av.limbStates) stepDeathPart(limb, Math.max(0, Math.min(dt, 0.1)), solidAt);
 }
 
 export function makeAvatar(id, name, team = null) {
@@ -372,17 +369,19 @@ export function makeAvatar(id, name, team = null) {
   };
   resetAvatarPose(avatar);
   avatar.limbStates = [
-    { object: head, floorY: 0.18 },
-    { object: lArm, floorY: 0.86 },
-    { object: rArm, floorY: 0.86 },
-    { object: lLeg, floorY: 0.72 },
-    { object: rLeg, floorY: 0.72 },
-    { object: torso, floorY: 0.28 },
-    { object: hips, floorY: 0.18 },
+    { object: head },
+    { object: lArm },
+    { object: rArm },
+    { object: lLeg },
+    { object: rLeg },
+    { object: torso },
+    { object: hips },
+    { object: weaponModel.root },
   ].map((limb) => ({
     ...limb,
     basePosition: limb.object.position.clone(),
     baseRotation: limb.object.rotation.clone(),
+    baseScale: limb.object.scale.clone(),
     velocity: new THREE.Vector3(),
     angular: new THREE.Vector3(),
   }));

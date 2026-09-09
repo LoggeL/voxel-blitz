@@ -5,7 +5,7 @@ import {
 
 export const PICKAXE_SWING_SLOTS = Object.freeze(['weapons.knife.fire', 'weapons.knife.fire.2']);
 export const PICKAXE_IMPACT_SLOTS = Object.freeze(['pickaxe.impact', 'pickaxe.impact.2']);
-const RATES = Object.freeze([1, 0.985, 1.015, 0.995]);
+const RATES = Object.freeze([1, 0.965, 1.035, 0.985]);
 
 export function pickaxeSampleChoice(index, impact = false) {
   const slots = impact ? PICKAXE_IMPACT_SLOTS : PICKAXE_SWING_SLOTS;
@@ -28,16 +28,16 @@ export function renderPickaxeContact(out, primitives, material, { sampled, broke
       att: 0.004, dec: 0.06, g: 0.11 });
   }
   if (material === 'metal') {
-    for (const hz of [720, 1135]) primitives.tone(out, {
-      t0: at + 0.003, type: 'sine', f0: hz, att: 0.003, dec: 0.07, g: 0.018,
+    for (const hz of [640, 1547]) primitives.tone(out, {
+      t0: at + 0.003, type: 'sine', f0: hz, att: 0.003, dec: hz < 1000 ? 0.16 : 0.095, g: 0.028,
     });
   }
   if (broken) {
     // Loose fragments follow the one impact. No second attack or tonal chirp.
     const frequency = material === 'soft' ? 600 : material === 'glass' ? 3800 : 1500;
     for (let i = 0; i < 3; i++) primitives.hiss(out, {
-      t0: at + 0.025 + i * 0.038, filter: 'bandpass', f: frequency * (1 - i * 0.1),
-      q: 0.6, att: 0.006, dec: 0.075 - i * 0.01, g: 0.13 - i * 0.027,
+      t0: at + 0.025 + i * 0.048, filter: 'bandpass', f: frequency * (1 - i * 0.1),
+      q: 0.6, att: 0.006, dec: 0.075 - i * 0.01, g: 0.16 - i * 0.035,
     });
   }
 }

@@ -132,3 +132,9 @@ assert.deepEqual(played.map(x => x.name), ['mine'], 'mined break does not double
 feedback.handleEvent({ kind: 'block', from: STONE, v: 0, x: 1, y: 2, z: 4 });
 assert.equal(played.at(-1).name, 'impact', 'other block destruction retains its sound');
 console.log('Pickaxe event feedback: melee fly-by exclusion and mined-break deduplication passed.');
+
+let localContacts = 0;
+feedback.onLocalMine = () => localContacts++;
+feedback.handleEvent({ kind: 'mine', id: 'other', from: STONE, x: 1, y: 2, z: 3, progress: 0.2 });
+feedback.handleEvent({ kind: 'mine', id: 'self', from: STONE, x: 1, y: 2, z: 3, progress: 0.2 });
+assert.equal(localContacts, 1, 'only the local accepted strike rebounds the held pickaxe');

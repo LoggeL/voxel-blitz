@@ -128,8 +128,8 @@ async function main() {
     await clickElement(page, 'browse-lobbies-btn');
     await page.waitFor(`document.querySelector('.vb-browser-status')?.textContent.includes('No lobbies yet')`,
       { label: 'empty lobby browser' });
-    requireCondition(await page.evaluate(`document.activeElement.id === 'join-code-input'`),
-      'Find a Lobby focuses the room code field');
+    requireCondition(await page.evaluate(`document.activeElement.id === 'lobby-search-input'`),
+      'Find a Lobby focuses room search');
     await clickElement(page, 'join-lobby-btn');
     requireCondition(await page.evaluate(`document.getElementById('lobby-browser').open &&
       document.getElementById('lobby-browser-join-status').textContent.includes('ENTER 5-CHARACTER')`),

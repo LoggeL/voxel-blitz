@@ -14,7 +14,7 @@ import { WeaponTurnInertia } from './turn-inertia.js';
 import { SPRINT_AIM_DIP } from './weapon-aim.js';
 import { VaultHands } from './vault-hands.js';
 import { ThrowableHands } from './throwable-hands.js';
-import { PICKAXE_SWING_SECONDS as SWING_S, pickaxeSwingPose } from './pickaxe-swing.js';
+import { PICKAXE_SWING_SECONDS as SWING_S, PICKAXE_CARRY_YAW, PICKAXE_CARRY_ROLL, pickaxeSwingPose } from './pickaxe-swing.js';
 
 
 export class ViewmodelRig {
@@ -62,8 +62,8 @@ export class ViewmodelRig {
     this._turn = new WeaponTurnInertia(); // camera-independent, weight-limited weapon orientation
     this._air = { p: 0, v: 0 };         // damped vertical inertia across takeoff/landing
     this._nadeThrowT = 0;               // seconds left in the throw lunge
-    this._swingT = 0;                   // seconds left in the knife slash arc (T.melee only)
-    this._swingParity = false;          // flips per swing; alternates mirrored left/right slashes
+    this._swingT = 0;                   // seconds left in the pickaxe chop (T.melee only)
+    this._swingContact = false;          // accepted contact for this swing
     this._chargeT = 0;                  // held capacitor charge 0..1 (coil glow floor + squeeze)
     this._lean = { p: 0, v: 0 };        // lagged lateral lean (m) from strafing, mass-scaled
     this._surge = { p: 0, v: 0 };       // lagged fore/aft surge (m) from acceleration
@@ -141,7 +141,7 @@ export class ViewmodelRig {
     this._spr.pitch = { p: 0, v: 0 }; this._spr.yaw = { p: 0, v: 0 }; this._spr.push = { p: 0, v: 0 };
     this._turn.reset(this.camera?.rotation?.y, this.camera?.rotation?.x);
     this._nadeWind = 0; this._nadeThrowT = 0;
-    this._swingT = 0; this._swingParity = false;                     // no mid-swap slash residue
+    this._swingT = 0; this._swingContact = false;                     // no mid-swap slash residue
     this._lean.p = this._lean.v = 0;
     this._surge.p = this._surge.v = 0;
     this._nadeWind = 0; this._nadeThrowT = 0;
@@ -157,6 +157,11 @@ export class ViewmodelRig {
     this.flashOff(true);
     this._depT = 0;                                                  // replay DEPLOY raise/settle curve
     this._applyBasePose();                                           // snap content pose immediately
+  }
+
+  /** Only accepted local contacts add the wrist rebound; misses follow through. */
+  pickaxeContact() {
+    if (this._id === 'knife' && this._swingT > 0) this._swingContact = true;
   }
 
   /**
@@ -177,12 +182,10 @@ export class ViewmodelRig {
       this._uniSet(1, Math.min(1, cur.uni.uHeat.value + 0.12));
       return true;
     }
-    // K-7 RIPPER (T.melee): a slash, not a shot. The generic kick/heat/flash path is
-    // bypassed wholesale — a blade carries no recoil impulse, no barrel heat, and no
-    // muzzle event (the assembled flash stub stays inert); the swing pose composed in
-    // update() is the entire visual. Only the rof cap paces the swings.
+    // Melee uses the hand-pivot chop and contact rebound instead of gun recoil.
+    // The rate cap paces swings; muzzle flash and barrel heat remain inactive.
     if (T.melee) {
-      this._swingParity = !this._swingParity;   // alternate mirrored slashes
+      this._swingContact = false;
       this._swingT = SWING_S;
       this._lockUntil = Math.max(this._lockUntil, now + 60000 / T.rof / 1000);
       return true;
@@ -513,11 +516,11 @@ export class ViewmodelRig {
     const nadeRx = -0.14 * wind - 0.16 * lunge + Math.sin(this._now * 53) * 0.018 * strain;
     const nadeRz = 0.20 * wind + 0.08 * lunge;
 
-    // A pickaxe chops vertically around the palm, with no alternating knife slash.
+    // The pickaxe carries at a side angle and chops inward around the palm.
     let swingX = 0, swingY = 0, swingZ = 0, swingRx = 0, swingRy = 0, swingRz = 0;
     if (this._swingT > 0) {
       this._swingT = Math.max(0, this._swingT - dt);
-      const pose = pickaxeSwingPose(1 - this._swingT / SWING_S);
+      const pose = pickaxeSwingPose(1 - this._swingT / SWING_S, this._swingContact);
       swingX = pose.x; swingY = pose.y; swingZ = pose.z;
       swingRx = pose.rx; swingRy = pose.ry; swingRz = pose.rz;
     }
@@ -565,8 +568,8 @@ export class ViewmodelRig {
       HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0)
     );
     this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22,
-      swingRy + (dep.ry || 0) + (actionMotion.yaw || 0),
-      swingRz + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0));
+      swingRy + (this._id === 'knife' ? PICKAXE_CARRY_YAW : 0) + (dep.ry || 0) + (actionMotion.yaw || 0),
+      swingRz + (this._id === 'knife' ? PICKAXE_CARRY_ROLL : 0) + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0));
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
     this._decayFx(dt, cur);
