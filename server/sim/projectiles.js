@@ -527,7 +527,7 @@ export class ProjectileSystem {
         stickOffset: null, hitSolid: false, directVictim: null, chained: false,
         x: source.x, y: source.y + 0.2, z: source.z,
         vx: Math.cos(angle) * (count > 6 ? 10 : 7), vy: 8 + i % 3, vz: Math.sin(angle) * (count > 6 ? 10 : 7),
-        launchedAt: ctx.now, explodeAt: ctx.now + 700 + i * 65,
+        launchedAt: ctx.now, explodeAt: ctx.now + (type === 'frag' ? 1500 : 700) + i * 65,
         chaosHoming: type === 'limpet' && source.chaosLevel >= 3,
         isSolid: (x, y, z) => solid(ctx, x, y, z),
       };

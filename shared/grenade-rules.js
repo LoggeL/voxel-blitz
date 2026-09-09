@@ -13,8 +13,8 @@ export const GRENADE_TYPE_IDS = Object.freeze(['frag', 'limpet', 'pulse', 'molot
 
 /** Hold time (ms) that reaches full throw strength. Cooking continues beyond it. */
 export const GRENADE_CHARGE_MS = 1200;
-export const GRENADE_MIN_THROW_SPEED = 7;
-export const GRENADE_MAX_THROW_SPEED = 16;
+export const GRENADE_MIN_THROW_SPEED = 10;
+export const GRENADE_MAX_THROW_SPEED = 24;
 export const GRENADE_MIN_LIFT = 2.1;
 export const GRENADE_MAX_LIFT = 3.5;
 /** A cooked fuse never gets shorter than this once the grenade leaves the hand. */
