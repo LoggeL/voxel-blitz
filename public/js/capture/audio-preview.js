@@ -13,7 +13,7 @@ let loading;
 let generation = 0;
 let waveformCount = 0;
 let waveformFailures = 0;
-const featuredCueCount = 19;
+const featuredCueCount = 28;
 
 for (const [control, suffix, factor] of [[volume, '%', 100], [distance, ' m', 1], [charge, '%', 100]]) {
   control.addEventListener('input', () => {
@@ -243,6 +243,12 @@ for (const [level, label] of [[0.2, 'Mild pain'], [0.55, 'Moderate pain'], [1, '
     tick(); status.textContent = `${label}: 20 seconds at a steady pain level.`;
   }));
   painPreview.append(article);
+}
+for (const [tier, label] of [['light', 'Mild pain'], ['medium', 'Moderate pain'], ['heavy', 'Severe pain']]) {
+  for (let variant = 1; variant <= 3; variant++) {
+    card(painPreview, `${label}, variation ${variant}`, 'Isolated ElevenLabs vocal used by the game.',
+      `human.pain.${tier}${variant === 1 ? '' : `.${variant}`}`, []);
+  }
 }
 
 const hitFeedback = document.getElementById('hit-feedback');

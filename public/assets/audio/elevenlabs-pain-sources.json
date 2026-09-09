@@ -1,0 +1,894 @@
+{
+  "service": "ElevenLabs Sound Effects",
+  "model": "eleven_text_to_sound_v2",
+  "generated": "2026-09-09",
+  "candidates": 9,
+  "credits": 126,
+  "review_basis": "Decoded waveform, 5 ms RMS, spectrogram, source hashes, clipping and runtime mix checks. No listening approval is asserted.",
+  "source_note": "Original generated vocal effects; no third-party recordings or reference voices supplied. Use governed by the generating ElevenLabs account terms.",
+  "rebuild": "python3 tools/prepare-pain-audio.py",
+  "selections": [
+    {
+      "tier": "light",
+      "variant": 1,
+      "slot": "human.pain.light",
+      "output": "public/assets/audio/human/pain-light.ogg",
+      "output_sha256": "978c04a67c6cd265c24639647fa6fbaa08468bd86d41f4bbbcfffea1bef3af6d",
+      "source": ".artifacts/elevenlabs-pain-2026-09-09/source/pain-light-1.wav",
+      "source_sha256": "a94da4e3e8f49b937bc2cae91c81e61e299a194bbd36aff7e531d3c0cd86014b",
+      "raw_source": ".artifacts/elevenlabs-pain-2026-09-09/api-source/pain-light-1.mp3",
+      "raw_sha256": "f0d0b524c7b0fd169d92c98e1bcdd5fe4510d44371dd43e31bcde949d0ece449",
+      "trim_seconds": [
+        0.0,
+        0.73
+      ],
+      "fade_in_seconds": 0.006,
+      "fade_out_seconds": 0.04,
+      "highpass_hz": 75,
+      "lowpass_hz": 8000,
+      "normalization_gain": 1.6527172638968517,
+      "target_peak": 0.35,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "64k",
+      "original_metrics": {
+        "duration_seconds": 1.0,
+        "peak": 0.21429502964019775,
+        "rms": 0.05475882217350004,
+        "peak_dbfs": -13.379758037387251,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 1.76639457543691e-05,
+        "onset_seconds_2pct_peak": 0.0,
+        "onset_seconds_8pct_rms": 0.09,
+        "last_active_seconds_8pct_rms": 0.63,
+        "rms_5ms_peak": 0.12469736308590425,
+        "rms_5ms_peak_at_seconds": 0.265,
+        "energy_seconds": {
+          "50": 0.30741666666666667,
+          "90": 0.43020833333333336,
+          "95": 0.462875,
+          "99": 0.5656041666666667
+        },
+        "spectral_centroid_hz": 313.93846446923084,
+        "energy_band_percent": {
+          "0-120Hz": 4.425384796760036,
+          "120-1000Hz": 93.25670246352679,
+          "1000-5000Hz": 1.634486509377999,
+          "5000-24001Hz": 0.6834262303351816
+        },
+        "boundary_step": 0.004402339458465576,
+        "sample_step_99pct": 0.022445636987686115,
+        "first_20ms_rms": 0.005872577993200592,
+        "last_20ms_rms": 7.015582003256138e-05,
+        "rms_5ms_coefficient_of_variation": 1.118159480834808
+      },
+      "final_metrics": {
+        "duration_seconds": 0.73,
+        "peak": 0.3487231135368347,
+        "rms": 0.10401190998450961,
+        "peak_dbfs": -9.150385328429262,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.00023153870062417108,
+        "onset_seconds_2pct_peak": 0.0031041666666666665,
+        "onset_seconds_8pct_rms": 0.09,
+        "last_active_seconds_8pct_rms": 0.63,
+        "rms_5ms_peak": 0.20752333278924842,
+        "rms_5ms_peak_at_seconds": 0.265,
+        "energy_seconds": {
+          "50": 0.3057916666666667,
+          "90": 0.426375,
+          "95": 0.4515,
+          "99": 0.5601041666666666
+        },
+        "spectral_centroid_hz": 271.5716577429717,
+        "energy_band_percent": {
+          "0-120Hz": 3.488625221460881,
+          "120-1000Hz": 94.58943686514203,
+          "1000-5000Hz": 1.6618291714798956,
+          "5000-24001Hz": 0.2601087419171907
+        },
+        "boundary_step": 5.092334049550118e-05,
+        "sample_step_99pct": 0.023674454912543313,
+        "first_20ms_rms": 0.0075088463069699005,
+        "last_20ms_rms": 0.0002955366190684169,
+        "rms_5ms_coefficient_of_variation": 0.836949386897322
+      },
+      "generation": {
+        "created_at": "2026-09-09T20:26:27.447762+00:00",
+        "request_body": {
+          "text": "One adult male game character giving a single quiet pain grunt through a clenched jaw, a low gravelly human uhn with a soft breath release. Mild injury, restrained and weary, not a shout. About half a second of vocal effort then silence. Dry close studio voice, natural pitch. No words, no music, no impacts, no ambience, no reverb, no other voices.",
+          "duration_seconds": 1.0,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "character_cost": "10",
+        "request_id": null
+      }
+    },
+    {
+      "tier": "light",
+      "variant": 2,
+      "slot": "human.pain.light.2",
+      "output": "public/assets/audio/human/pain-light-2.ogg",
+      "output_sha256": "c07be61365fa542ab5bc67705a96694e6a9a77e658a80b31e9c8f6f4aee68a91",
+      "source": ".artifacts/elevenlabs-pain-2026-09-09/source/pain-light-2.wav",
+      "source_sha256": "0cd883ce3866f205d160e4068a55dbbe14db712f48292d94f83fa533c2f40dc3",
+      "raw_source": ".artifacts/elevenlabs-pain-2026-09-09/api-source/pain-light-2.mp3",
+      "raw_sha256": "72ea909f9ba15b9cb99b7e8f592e78e8b9db29ab1cac947581f296ce2c6e3855",
+      "trim_seconds": [
+        0.0,
+        0.7749791666666667
+      ],
+      "fade_in_seconds": 0.006,
+      "fade_out_seconds": 0.04,
+      "highpass_hz": 75,
+      "lowpass_hz": 8000,
+      "normalization_gain": 0.7886440585659674,
+      "target_peak": 0.35,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "64k",
+      "original_metrics": {
+        "duration_seconds": 1.0,
+        "peak": 0.4446234107017517,
+        "rms": 0.04680406229819433,
+        "peak_dbfs": -7.040153483621401,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 2.2249360879262288e-05,
+        "onset_seconds_2pct_peak": 0.0,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.68,
+        "rms_5ms_peak": 0.20202753701655882,
+        "rms_5ms_peak_at_seconds": 0.35000000000000003,
+        "energy_seconds": {
+          "50": 0.35329166666666667,
+          "90": 0.4272916666666667,
+          "95": 0.4729791666666667,
+          "99": 0.6183541666666666
+        },
+        "spectral_centroid_hz": 1681.9011006279786,
+        "energy_band_percent": {
+          "0-120Hz": 0.2851006907094822,
+          "120-1000Hz": 11.380797570846479,
+          "1000-5000Hz": 86.9307204834393,
+          "5000-24001Hz": 1.4033812550047426
+        },
+        "boundary_step": 0.05085253715515137,
+        "sample_step_99pct": 0.0466548061370848,
+        "first_20ms_rms": 0.030529058218191556,
+        "last_20ms_rms": 0.00018421386036337372,
+        "rms_5ms_coefficient_of_variation": 1.1562381166433369
+      },
+      "final_metrics": {
+        "duration_seconds": 0.7749791666666667,
+        "peak": 0.3406580090522766,
+        "rms": 0.041307146763800394,
+        "peak_dbfs": -9.35362792217284,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -6.35336020803511e-06,
+        "onset_seconds_2pct_peak": 0.0021666666666666666,
+        "onset_seconds_8pct_rms": 0.005,
+        "last_active_seconds_8pct_rms": 0.68,
+        "rms_5ms_peak": 0.1626362248121785,
+        "rms_5ms_peak_at_seconds": 0.35000000000000003,
+        "energy_seconds": {
+          "50": 0.3533541666666667,
+          "90": 0.4269791666666667,
+          "95": 0.458,
+          "99": 0.6137708333333334
+        },
+        "spectral_centroid_hz": 1578.214328415638,
+        "energy_band_percent": {
+          "0-120Hz": 0.1431282342318083,
+          "120-1000Hz": 11.319651802973354,
+          "1000-5000Hz": 88.19195058215266,
+          "5000-24001Hz": 0.345269380642181
+        },
+        "boundary_step": 0.001443180135993316,
+        "sample_step_99pct": 0.03906973727047442,
+        "first_20ms_rms": 0.021099809813561635,
+        "last_20ms_rms": 0.00018583518183237343,
+        "rms_5ms_coefficient_of_variation": 0.9416362324889823
+      },
+      "generation": {
+        "created_at": "2026-09-09T20:26:29.799066+00:00",
+        "request_body": {
+          "text": "One adult male game character giving a single quiet pain grunt through a clenched jaw, a low gravelly human uhn with a soft breath release. Mild injury, restrained and weary, not a shout. About half a second of vocal effort then silence. Dry close studio voice, natural pitch. No words, no music, no impacts, no ambience, no reverb, no other voices.",
+          "duration_seconds": 1.0,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "character_cost": "10",
+        "request_id": null
+      }
+    },
+    {
+      "tier": "light",
+      "variant": 3,
+      "slot": "human.pain.light.3",
+      "output": "public/assets/audio/human/pain-light-3.ogg",
+      "output_sha256": "c69dec07c068c6dc57efdf569e338658039fd9e1c6514317b67a3b206c77dacf",
+      "source": ".artifacts/elevenlabs-pain-2026-09-09/source/pain-light-3.wav",
+      "source_sha256": "80c8ddca236e115e22ff41f9f6d228276304e9a3ecbe7906af6a261ef9794f7a",
+      "raw_source": ".artifacts/elevenlabs-pain-2026-09-09/api-source/pain-light-3.mp3",
+      "raw_sha256": "a99d71644c6a190ef10b44c2e9b69cf921e24bbc68f746acec3c11a71ed90203",
+      "trim_seconds": [
+        0.0,
+        0.7849791666666667
+      ],
+      "fade_in_seconds": 0.006,
+      "fade_out_seconds": 0.04,
+      "highpass_hz": 75,
+      "lowpass_hz": 8000,
+      "normalization_gain": 0.7327348787781436,
+      "target_peak": 0.35,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "64k",
+      "original_metrics": {
+        "duration_seconds": 1.0,
+        "peak": 0.46332526206970215,
+        "rms": 0.06415552595190276,
+        "peak_dbfs": -6.682280398769846,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -5.224478120605151e-05,
+        "onset_seconds_2pct_peak": 0.004020833333333334,
+        "onset_seconds_8pct_rms": 0.005,
+        "last_active_seconds_8pct_rms": 0.52,
+        "rms_5ms_peak": 0.17391494543920277,
+        "rms_5ms_peak_at_seconds": 0.225,
+        "energy_seconds": {
+          "50": 0.20314583333333333,
+          "90": 0.317875,
+          "95": 0.34489583333333335,
+          "99": 0.40729166666666666
+        },
+        "spectral_centroid_hz": 817.6262545562657,
+        "energy_band_percent": {
+          "0-120Hz": 0.3917260758222906,
+          "120-1000Hz": 73.38581435554426,
+          "1000-5000Hz": 25.75940916912632,
+          "5000-24001Hz": 0.4630503995071391
+        },
+        "boundary_step": 0.002068042755126953,
+        "sample_step_99pct": 0.035002372264862046,
+        "first_20ms_rms": 0.029473309115781266,
+        "last_20ms_rms": 0.0004145688411607668,
+        "rms_5ms_coefficient_of_variation": 1.1930612361303727
+      },
+      "final_metrics": {
+        "duration_seconds": 0.7849791666666667,
+        "peak": 0.34878841042518616,
+        "rms": 0.05279847098657844,
+        "peak_dbfs": -9.14875908556989,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -2.9135293531124233e-05,
+        "onset_seconds_2pct_peak": 0.004583333333333333,
+        "onset_seconds_8pct_rms": 0.005,
+        "last_active_seconds_8pct_rms": 0.52,
+        "rms_5ms_peak": 0.1274715185976179,
+        "rms_5ms_peak_at_seconds": 0.225,
+        "energy_seconds": {
+          "50": 0.201125,
+          "90": 0.3176875,
+          "95": 0.3439375,
+          "99": 0.39766666666666667
+        },
+        "spectral_centroid_hz": 797.8166983680467,
+        "energy_band_percent": {
+          "0-120Hz": 0.30257923136143483,
+          "120-1000Hz": 73.65397995684316,
+          "1000-5000Hz": 25.813022253356326,
+          "5000-24001Hz": 0.2304185584390938
+        },
+        "boundary_step": 6.735736587870633e-05,
+        "sample_step_99pct": 0.025459827482700387,
+        "first_20ms_rms": 0.021486902231964786,
+        "last_20ms_rms": 0.00042864238212950986,
+        "rms_5ms_coefficient_of_variation": 0.9759053587689283
+      },
+      "generation": {
+        "created_at": "2026-09-09T20:26:31.817766+00:00",
+        "request_body": {
+          "text": "One adult male game character giving a single quiet pain grunt through a clenched jaw, a low gravelly human uhn with a soft breath release. Mild injury, restrained and weary, not a shout. About half a second of vocal effort then silence. Dry close studio voice, natural pitch. No words, no music, no impacts, no ambience, no reverb, no other voices.",
+          "duration_seconds": 1.0,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "character_cost": "10",
+        "request_id": null
+      }
+    },
+    {
+      "tier": "medium",
+      "variant": 1,
+      "slot": "human.pain.medium",
+      "output": "public/assets/audio/human/pain-medium.ogg",
+      "output_sha256": "758d3994c0444e91c21f8cee6b6312575f4529ef9c06023f2de025e53221a5f1",
+      "source": ".artifacts/elevenlabs-pain-2026-09-09/source/pain-medium-1.wav",
+      "source_sha256": "aafee7349437c383ef35c09124bb36272f9a810549d3fa764b7b0157f10df489",
+      "raw_source": ".artifacts/elevenlabs-pain-2026-09-09/api-source/pain-medium-1.mp3",
+      "raw_sha256": "04e1fdc1c093d211e011c677b6a55c6c6c0af6ac2bd78d9dbf5341a24e15f126",
+      "trim_seconds": [
+        0.0,
+        1.32
+      ],
+      "fade_in_seconds": 0.006,
+      "fade_out_seconds": 0.04,
+      "highpass_hz": 75,
+      "lowpass_hz": 8000,
+      "normalization_gain": 1.0503301744769438,
+      "target_peak": 0.48,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "64k",
+      "original_metrics": {
+        "duration_seconds": 1.36,
+        "peak": 0.45514214038848877,
+        "rms": 0.10139422106310968,
+        "peak_dbfs": -6.837059049444811,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 2.5855065962555363e-05,
+        "onset_seconds_2pct_peak": 0.0,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 1.23,
+        "rms_5ms_peak": 0.1936864512374776,
+        "rms_5ms_peak_at_seconds": 0.1,
+        "energy_seconds": {
+          "50": 0.3455625,
+          "90": 0.8625,
+          "95": 0.9335833333333333,
+          "99": 1.1178958333333333
+        },
+        "spectral_centroid_hz": 1060.5321101876864,
+        "energy_band_percent": {
+          "0-120Hz": 0.02696910799953032,
+          "120-1000Hz": 32.2276893317023,
+          "1000-5000Hz": 67.39974250376405,
+          "5000-24001Hz": 0.3455990565341246
+        },
+        "boundary_step": 0.03470253944396973,
+        "sample_step_99pct": 0.04731855392456055,
+        "first_20ms_rms": 0.1398071093378693,
+        "last_20ms_rms": 0.0001883787874333173,
+        "rms_5ms_coefficient_of_variation": 0.5331561245364526
+      },
+      "final_metrics": {
+        "duration_seconds": 1.32,
+        "peak": 0.4786074161529541,
+        "rms": 0.10748741084680213,
+        "peak_dbfs": -6.400411523170758,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -9.372459912704076e-06,
+        "onset_seconds_2pct_peak": 0.00047916666666666664,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 1.23,
+        "rms_5ms_peak": 0.20408703580399593,
+        "rms_5ms_peak_at_seconds": 0.08,
+        "energy_seconds": {
+          "50": 0.34641666666666665,
+          "90": 0.8623958333333334,
+          "95": 0.9336458333333333,
+          "99": 1.1201666666666668
+        },
+        "spectral_centroid_hz": 1035.0863575906467,
+        "energy_band_percent": {
+          "0-120Hz": 0.012351421196020815,
+          "120-1000Hz": 32.35245706327066,
+          "1000-5000Hz": 67.54418971804745,
+          "5000-24001Hz": 0.09100179748590459
+        },
+        "boundary_step": 0.0014630722225774662,
+        "sample_step_99pct": 0.044857672154903404,
+        "first_20ms_rms": 0.13279396029669122,
+        "last_20ms_rms": 7.381715630837125e-05,
+        "rms_5ms_coefficient_of_variation": 0.49812075115938137
+      },
+      "generation": {
+        "created_at": "2026-09-09T20:26:33.724744+00:00",
+        "request_body": {
+          "text": "One adult male game character giving a single strained pain groan, a low gravelly human uughh with a breathy falling-pitch release. Moderate injury and aching effort, not a scream. About 0.8 seconds of vocal effort then silence. Dry close studio voice, natural pitch. No words, no music, no impacts, no ambience, no reverb, no other voices.",
+          "duration_seconds": 1.4,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "character_cost": "14",
+        "request_id": null
+      }
+    },
+    {
+      "tier": "medium",
+      "variant": 2,
+      "slot": "human.pain.medium.2",
+      "output": "public/assets/audio/human/pain-medium-2.ogg",
+      "output_sha256": "ae642f692bd865c3f5602b486bc77dc880b36e4f413421fd403b7cf841f0501d",
+      "source": ".artifacts/elevenlabs-pain-2026-09-09/source/pain-medium-2.wav",
+      "source_sha256": "37311fbd76caed02265c46acfbbbd1b9054ee9aed0156166fcc8fde795e842f4",
+      "raw_source": ".artifacts/elevenlabs-pain-2026-09-09/api-source/pain-medium-2.mp3",
+      "raw_sha256": "9a4182aa22ddb8c3e5fa4429e62868e4e7d3609414402b00b5f0a856b29b7032",
+      "trim_seconds": [
+        0.0,
+        1.08
+      ],
+      "fade_in_seconds": 0.006,
+      "fade_out_seconds": 0.04,
+      "highpass_hz": 75,
+      "lowpass_hz": 8000,
+      "normalization_gain": 0.5092565116084651,
+      "target_peak": 0.48,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "64k",
+      "original_metrics": {
+        "duration_seconds": 1.36,
+        "peak": 0.9593803286552429,
+        "rms": 0.18468236495305235,
+        "peak_dbfs": -0.36018381296350055,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.0008310789625872583,
+        "onset_seconds_2pct_peak": 0.008083333333333333,
+        "onset_seconds_8pct_rms": 0.025,
+        "last_active_seconds_8pct_rms": 0.9550000000000001,
+        "rms_5ms_peak": 0.43180918680781016,
+        "rms_5ms_peak_at_seconds": 0.41000000000000003,
+        "energy_seconds": {
+          "50": 0.3329375,
+          "90": 0.5530625,
+          "95": 0.6781041666666666,
+          "99": 0.8305208333333334
+        },
+        "spectral_centroid_hz": 1074.6553578527307,
+        "energy_band_percent": {
+          "0-120Hz": 0.040217231064160724,
+          "120-1000Hz": 66.20822452812756,
+          "1000-5000Hz": 33.37484424575255,
+          "5000-24001Hz": 0.37671399505570524
+        },
+        "boundary_step": 0.003757655620574951,
+        "sample_step_99pct": 0.10058296084403995,
+        "first_20ms_rms": 0.01571148053337838,
+        "last_20ms_rms": 0.0001606726204629053,
+        "rms_5ms_coefficient_of_variation": 0.9132860476442737
+      },
+      "final_metrics": {
+        "duration_seconds": 1.08,
+        "peak": 0.4716739058494568,
+        "rms": 0.10554930898961615,
+        "peak_dbfs": -6.52716298638794,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -9.505116234186387e-06,
+        "onset_seconds_2pct_peak": 0.008104166666666668,
+        "onset_seconds_8pct_rms": 0.025,
+        "last_active_seconds_8pct_rms": 0.9550000000000001,
+        "rms_5ms_peak": 0.21803151722259884,
+        "rms_5ms_peak_at_seconds": 0.41000000000000003,
+        "energy_seconds": {
+          "50": 0.33339583333333334,
+          "90": 0.5511666666666667,
+          "95": 0.6772916666666666,
+          "99": 0.8252708333333333
+        },
+        "spectral_centroid_hz": 1047.8685081243939,
+        "energy_band_percent": {
+          "0-120Hz": 0.010915610882402003,
+          "120-1000Hz": 66.7915819257728,
+          "1000-5000Hz": 33.057712196586294,
+          "5000-24001Hz": 0.1397902667585034
+        },
+        "boundary_step": 0.0005571170804614667,
+        "sample_step_99pct": 0.0488847106695176,
+        "first_20ms_rms": 0.007882981959406564,
+        "last_20ms_rms": 0.001300088227015818,
+        "rms_5ms_coefficient_of_variation": 0.6934507755014182
+      },
+      "generation": {
+        "created_at": "2026-09-09T20:26:35.749717+00:00",
+        "request_body": {
+          "text": "One adult male game character giving a single strained pain groan, a low gravelly human uughh with a breathy falling-pitch release. Moderate injury and aching effort, not a scream. About 0.8 seconds of vocal effort then silence. Dry close studio voice, natural pitch. No words, no music, no impacts, no ambience, no reverb, no other voices.",
+          "duration_seconds": 1.4,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "character_cost": "14",
+        "request_id": null
+      }
+    },
+    {
+      "tier": "medium",
+      "variant": 3,
+      "slot": "human.pain.medium.3",
+      "output": "public/assets/audio/human/pain-medium-3.ogg",
+      "output_sha256": "9f8db74aeb4596977d3c0948bac886ffd1edd9e57de306d9d227839500fcadd0",
+      "source": ".artifacts/elevenlabs-pain-2026-09-09/source/pain-medium-3.wav",
+      "source_sha256": "da6bb5d2b050a2a9a60b6e51568a5f0c7c8c76dd67e85db19d64e860b3d1ce89",
+      "raw_source": ".artifacts/elevenlabs-pain-2026-09-09/api-source/pain-medium-3.mp3",
+      "raw_sha256": "10e0a15f170b9097336a227dfedac4fd7caf200f796fc46afc82a89a2cc12ecb",
+      "trim_seconds": [
+        0.0,
+        1.085
+      ],
+      "fade_in_seconds": 0.006,
+      "fade_out_seconds": 0.04,
+      "highpass_hz": 75,
+      "lowpass_hz": 8000,
+      "normalization_gain": 0.48366255705407657,
+      "target_peak": 0.48,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "64k",
+      "original_metrics": {
+        "duration_seconds": 1.36,
+        "peak": 0.9557814598083496,
+        "rms": 0.16673122607993365,
+        "peak_dbfs": -0.39282796303858086,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -2.897378678123156e-05,
+        "onset_seconds_2pct_peak": 0.0,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.755,
+        "rms_5ms_peak": 0.3901944532107983,
+        "rms_5ms_peak_at_seconds": 0.185,
+        "energy_seconds": {
+          "50": 0.21772916666666667,
+          "90": 0.38977083333333334,
+          "95": 0.4246875,
+          "99": 0.5713333333333334
+        },
+        "spectral_centroid_hz": 1210.6183106669707,
+        "energy_band_percent": {
+          "0-120Hz": 0.23390799671451876,
+          "120-1000Hz": 19.200590879871815,
+          "1000-5000Hz": 80.28462622624318,
+          "5000-24001Hz": 0.2808748971704767
+        },
+        "boundary_step": 0.23320025205612183,
+        "sample_step_99pct": 0.10721731424331668,
+        "first_20ms_rms": 0.3442333663174813,
+        "last_20ms_rms": 0.00031783048300800025,
+        "rms_5ms_coefficient_of_variation": 1.1777189599184528
+      },
+      "final_metrics": {
+        "duration_seconds": 1.085,
+        "peak": 0.4799495041370392,
+        "rms": 0.08957167031781364,
+        "peak_dbfs": -6.376089053665027,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -2.3587643260322456e-05,
+        "onset_seconds_2pct_peak": 0.0002708333333333333,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.755,
+        "rms_5ms_peak": 0.1922908553732341,
+        "rms_5ms_peak_at_seconds": 0.015,
+        "energy_seconds": {
+          "50": 0.21908333333333332,
+          "90": 0.38816666666666666,
+          "95": 0.4195833333333333,
+          "99": 0.5552083333333333
+        },
+        "spectral_centroid_hz": 1195.0015602208323,
+        "energy_band_percent": {
+          "0-120Hz": 0.16069183472544368,
+          "120-1000Hz": 18.80489694629239,
+          "1000-5000Hz": 80.94513099342959,
+          "5000-24001Hz": 0.0892802255525716
+        },
+        "boundary_step": 0.005923795570197399,
+        "sample_step_99pct": 0.05311094328761102,
+        "first_20ms_rms": 0.14861803122364461,
+        "last_20ms_rms": 0.0007343693169849533,
+        "rms_5ms_coefficient_of_variation": 0.9671402655036996
+      },
+      "generation": {
+        "created_at": "2026-09-09T20:26:37.793542+00:00",
+        "request_body": {
+          "text": "One adult male game character giving a single strained pain groan, a low gravelly human uughh with a breathy falling-pitch release. Moderate injury and aching effort, not a scream. About 0.8 seconds of vocal effort then silence. Dry close studio voice, natural pitch. No words, no music, no impacts, no ambience, no reverb, no other voices.",
+          "duration_seconds": 1.4,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "character_cost": "14",
+        "request_id": null
+      }
+    },
+    {
+      "tier": "heavy",
+      "variant": 1,
+      "slot": "human.pain.heavy",
+      "output": "public/assets/audio/human/pain-heavy.ogg",
+      "output_sha256": "9afd2384e11c05682642eca33b433f95949beeea0b67098b781f68ae776ef4ca",
+      "source": ".artifacts/elevenlabs-pain-2026-09-09/source/pain-heavy-1.wav",
+      "source_sha256": "3748320dd14a300705bb764264a196e84cb571fa4e314d6dd2a13856f0b2b758",
+      "raw_source": ".artifacts/elevenlabs-pain-2026-09-09/api-source/pain-heavy-1.mp3",
+      "raw_sha256": "b9843f92bc0979df45e1c33c8774d5a9f904a8576943b152d474c30421e8c3b5",
+      "trim_seconds": [
+        0.0,
+        1.235
+      ],
+      "fade_in_seconds": 0.006,
+      "fade_out_seconds": 0.04,
+      "highpass_hz": 75,
+      "lowpass_hz": 8000,
+      "normalization_gain": 0.8611400402010099,
+      "target_peak": 0.64,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "64k",
+      "original_metrics": {
+        "duration_seconds": 1.76,
+        "peak": 0.7461256384849548,
+        "rms": 0.09412781372315425,
+        "peak_dbfs": -2.5437607291925453,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -3.030102163779013e-05,
+        "onset_seconds_2pct_peak": 0.0,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 1.08,
+        "rms_5ms_peak": 0.35483191553605137,
+        "rms_5ms_peak_at_seconds": 0.05,
+        "energy_seconds": {
+          "50": 0.0916875,
+          "90": 0.22608333333333333,
+          "95": 0.31585416666666666,
+          "99": 0.9214166666666667
+        },
+        "spectral_centroid_hz": 955.316521275238,
+        "energy_band_percent": {
+          "0-120Hz": 0.025801084956650084,
+          "120-1000Hz": 71.93509076542553,
+          "1000-5000Hz": 27.815252739692326,
+          "5000-24001Hz": 0.22385540992548436
+        },
+        "boundary_step": 0.3091883063316345,
+        "sample_step_99pct": 0.060192837715148995,
+        "first_20ms_rms": 0.2172980649345712,
+        "last_20ms_rms": 0.0007007053811765955,
+        "rms_5ms_coefficient_of_variation": 1.5661110160025111
+      },
+      "final_metrics": {
+        "duration_seconds": 1.235,
+        "peak": 0.6230224370956421,
+        "rms": 0.09578914236357228,
+        "peak_dbfs": -4.1099262536107375,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -9.972988572298938e-07,
+        "onset_seconds_2pct_peak": 0.0,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 1.08,
+        "rms_5ms_peak": 0.3040842485975188,
+        "rms_5ms_peak_at_seconds": 0.055,
+        "energy_seconds": {
+          "50": 0.09245833333333334,
+          "90": 0.22691666666666666,
+          "95": 0.3159375,
+          "99": 0.9064166666666666
+        },
+        "spectral_centroid_hz": 947.7521153769688,
+        "energy_band_percent": {
+          "0-120Hz": 0.00926149291889968,
+          "120-1000Hz": 72.01003049837156,
+          "1000-5000Hz": 27.84916783904347,
+          "5000-24001Hz": 0.13154016966603818
+        },
+        "boundary_step": 0.01391909499943722,
+        "sample_step_99pct": 0.0551971432566643,
+        "first_20ms_rms": 0.16804005804045477,
+        "last_20ms_rms": 0.001726932938488012,
+        "rms_5ms_coefficient_of_variation": 1.2496950716045356
+      },
+      "generation": {
+        "created_at": "2026-09-09T20:26:39.732368+00:00",
+        "request_body": {
+          "text": "One adult male game character giving a single deep aching pain moan, a low gravelly human aaagh-ughh, strained with a slight break in the voice and an exhausted exhale. Severe injury, about one second long, then silence. A wounded fighter still alive, not a death scream. Dry close studio voice. No words, music, impacts, ambience or reverb.",
+          "duration_seconds": 1.8,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "character_cost": "18",
+        "request_id": null
+      }
+    },
+    {
+      "tier": "heavy",
+      "variant": 2,
+      "slot": "human.pain.heavy.2",
+      "output": "public/assets/audio/human/pain-heavy-2.ogg",
+      "output_sha256": "6fbf17f42f431e73ed1620cd325ea3ad43f804d9745f78e27ecbd613e048e5de",
+      "source": ".artifacts/elevenlabs-pain-2026-09-09/source/pain-heavy-2.wav",
+      "source_sha256": "36528b594aeddc966e5f40ed8abd352563854021f115b54f74b2c6027f59fd26",
+      "raw_source": ".artifacts/elevenlabs-pain-2026-09-09/api-source/pain-heavy-2.mp3",
+      "raw_sha256": "482ea3cac58af776a96e489aba4569aa4fd4cc66f638d65c5f494cc05f1fefb6",
+      "trim_seconds": [
+        0.0,
+        1.445
+      ],
+      "fade_in_seconds": 0.006,
+      "fade_out_seconds": 0.04,
+      "highpass_hz": 75,
+      "lowpass_hz": 8000,
+      "normalization_gain": 0.646569823950518,
+      "target_peak": 0.64,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "64k",
+      "original_metrics": {
+        "duration_seconds": 1.76,
+        "peak": 0.9701947569847107,
+        "rms": 0.17713730004930756,
+        "peak_dbfs": -0.262821533361365,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -7.082360486189524e-05,
+        "onset_seconds_2pct_peak": 0.0,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 1.31,
+        "rms_5ms_peak": 0.4526917536072647,
+        "rms_5ms_peak_at_seconds": 0.035,
+        "energy_seconds": {
+          "50": 0.4097708333333333,
+          "90": 0.9709375,
+          "95": 1.0444791666666666,
+          "99": 1.17225
+        },
+        "spectral_centroid_hz": 1047.3446774616802,
+        "energy_band_percent": {
+          "0-120Hz": 0.026994463875533923,
+          "120-1000Hz": 51.067045052702326,
+          "1000-5000Hz": 48.44269945966651,
+          "5000-24001Hz": 0.46326102375564865
+        },
+        "boundary_step": 0.08397257328033447,
+        "sample_step_99pct": 0.09771822690963747,
+        "first_20ms_rms": 0.37795165171814876,
+        "last_20ms_rms": 0.00037995665540694267,
+        "rms_5ms_coefficient_of_variation": 0.7683816719479001
+      },
+      "final_metrics": {
+        "duration_seconds": 1.445,
+        "peak": 0.6219719052314758,
+        "rms": 0.12559810066761998,
+        "peak_dbfs": -4.124584643113139,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -1.876433372928764e-05,
+        "onset_seconds_2pct_peak": 0.0002708333333333333,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 1.32,
+        "rms_5ms_peak": 0.28636437847043056,
+        "rms_5ms_peak_at_seconds": 0.035,
+        "energy_seconds": {
+          "50": 0.413125,
+          "90": 0.9705208333333334,
+          "95": 1.0446458333333333,
+          "99": 1.1728125
+        },
+        "spectral_centroid_hz": 1024.2919128781036,
+        "energy_band_percent": {
+          "0-120Hz": 0.018040669350131714,
+          "120-1000Hz": 51.21725088879968,
+          "1000-5000Hz": 48.51141480423697,
+          "5000-24001Hz": 0.2532936376132023
+        },
+        "boundary_step": 0.008938639857660746,
+        "sample_step_99pct": 0.06010337233543389,
+        "first_20ms_rms": 0.22653050237618744,
+        "last_20ms_rms": 0.001587144636671237,
+        "rms_5ms_coefficient_of_variation": 0.5588709387213773
+      },
+      "generation": {
+        "created_at": "2026-09-09T20:26:41.793155+00:00",
+        "request_body": {
+          "text": "One adult male game character giving a single deep aching pain moan, a low gravelly human aaagh-ughh, strained with a slight break in the voice and an exhausted exhale. Severe injury, about one second long, then silence. A wounded fighter still alive, not a death scream. Dry close studio voice. No words, music, impacts, ambience or reverb.",
+          "duration_seconds": 1.8,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "character_cost": "18",
+        "request_id": null
+      }
+    },
+    {
+      "tier": "heavy",
+      "variant": 3,
+      "slot": "human.pain.heavy.3",
+      "output": "public/assets/audio/human/pain-heavy-3.ogg",
+      "output_sha256": "7560342e50451406a695d441f77781333747da1072563e31513abe62d12a1432",
+      "source": ".artifacts/elevenlabs-pain-2026-09-09/source/pain-heavy-3.wav",
+      "source_sha256": "513fda6af2eac1f35f7378de61a6b50e8e185026d7b06dd31ec41f777ce081d9",
+      "raw_source": ".artifacts/elevenlabs-pain-2026-09-09/api-source/pain-heavy-3.mp3",
+      "raw_sha256": "f3493cefaa059fe3732eb1ccc99345ba0453398cab91c7dcd864de4d9cd139a8",
+      "trim_seconds": [
+        0.0,
+        1.54
+      ],
+      "fade_in_seconds": 0.006,
+      "fade_out_seconds": 0.04,
+      "highpass_hz": 75,
+      "lowpass_hz": 8000,
+      "normalization_gain": 0.5943559806438314,
+      "target_peak": 0.64,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "64k",
+      "original_metrics": {
+        "duration_seconds": 1.76,
+        "peak": 0.9987387657165527,
+        "rms": 0.17912507456692622,
+        "peak_dbfs": -0.01096185598206771,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -5.2607826408789016e-05,
+        "onset_seconds_2pct_peak": 2.0833333333333333e-05,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 1.335,
+        "rms_5ms_peak": 0.48508028440791234,
+        "rms_5ms_peak_at_seconds": 0.835,
+        "energy_seconds": {
+          "50": 0.8197916666666667,
+          "90": 1.0675,
+          "95": 1.1189375,
+          "99": 1.1883125
+        },
+        "spectral_centroid_hz": 867.400428016772,
+        "energy_band_percent": {
+          "0-120Hz": 0.09192866077870941,
+          "120-1000Hz": 75.32750664282736,
+          "1000-5000Hz": 24.23499793743284,
+          "5000-24001Hz": 0.3455667589611033
+        },
+        "boundary_step": 0.016022682189941406,
+        "sample_step_99pct": 0.08562461256980901,
+        "first_20ms_rms": 0.08897054265941279,
+        "last_20ms_rms": 0.00020742335158573062,
+        "rms_5ms_coefficient_of_variation": 0.9633797884228471
+      },
+      "final_metrics": {
+        "duration_seconds": 1.54,
+        "peak": 0.6281003355979919,
+        "rms": 0.11370314877435785,
+        "peak_dbfs": -4.039419490991389,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -1.2241078896509953e-05,
+        "onset_seconds_2pct_peak": 0.0025833333333333333,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 1.335,
+        "rms_5ms_peak": 0.2894551006859118,
+        "rms_5ms_peak_at_seconds": 0.835,
+        "energy_seconds": {
+          "50": 0.8215,
+          "90": 1.0694583333333334,
+          "95": 1.1166875,
+          "99": 1.185125
+        },
+        "spectral_centroid_hz": 858.6499695038133,
+        "energy_band_percent": {
+          "0-120Hz": 0.06350419577588719,
+          "120-1000Hz": 75.32633965395006,
+          "1000-5000Hz": 24.3906077899265,
+          "5000-24001Hz": 0.21954836034752503
+        },
+        "boundary_step": 0.00015742011328256922,
+        "sample_step_99pct": 0.050862534865736754,
+        "first_20ms_rms": 0.04938283943334986,
+        "last_20ms_rms": 0.0012198131317125173,
+        "rms_5ms_coefficient_of_variation": 0.8371833239482132
+      },
+      "generation": {
+        "created_at": "2026-09-09T20:26:43.838194+00:00",
+        "request_body": {
+          "text": "One adult male game character giving a single deep aching pain moan, a low gravelly human aaagh-ughh, strained with a slight break in the voice and an exhausted exhale. Severe injury, about one second long, then silence. A wounded fighter still alive, not a death scream. Dry close studio voice. No words, music, impacts, ambience or reverb.",
+          "duration_seconds": 1.8,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "character_cost": "18",
+        "request_id": null
+      }
+    }
+  ]
+}

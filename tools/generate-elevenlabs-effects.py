@@ -30,6 +30,30 @@ KEYCHAIN_SERVICE = 'voxel-blitz.elevenlabs'
 KEYCHAIN_ACCOUNT = 'sound-effects'
 
 CUES = {
+    'pain-light': {
+        'duration_seconds': 1.0,
+        'text': ('One adult male game character giving a single quiet pain grunt through '
+                 'a clenched jaw, a low gravelly human uhn with a soft breath release. '
+                 'Mild injury, restrained and weary, not a shout. About half a second '
+                 'of vocal effort then silence. Dry close studio voice, natural pitch. '
+                 'No words, no music, no impacts, no ambience, no reverb, no other voices.'),
+    },
+    'pain-medium': {
+        'duration_seconds': 1.4,
+        'text': ('One adult male game character giving a single strained pain groan, '
+                 'a low gravelly human uughh with a breathy falling-pitch release. '
+                 'Moderate injury and aching effort, not a scream. About 0.8 seconds '
+                 'of vocal effort then silence. Dry close studio voice, natural pitch. '
+                 'No words, no music, no impacts, no ambience, no reverb, no other voices.'),
+    },
+    'pain-heavy': {
+        'duration_seconds': 1.8,
+        'text': ('One adult male game character giving a single deep aching pain moan, '
+                 'a low gravelly human aaagh-ughh, strained with a slight break in the '
+                 'voice and an exhausted exhale. Severe injury, about one second long, '
+                 'then silence. A wounded fighter still alive, not a death scream. '
+                 'Dry close studio voice. No words, music, impacts, ambience or reverb.'),
+    },
     'hitbody': {
         'duration_seconds': 0.5,
         'text': ('One subtle dry FPS hit-confirmation tick, immediate onset: a soft tight '

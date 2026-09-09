@@ -3,6 +3,15 @@ import { vocalBurst } from './human.js';
 export const PAIN_MOAN_THRESHOLD = 0.1;
 const clamp01 = value => Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
 
+export const PAIN_SAMPLE_SLOTS = Object.freeze(['light', 'medium', 'heavy'].flatMap(tier =>
+  ['', '.2', '.3'].map(suffix => `human.pain.${tier}${suffix}`)));
+
+export function painSampleChoice(pain, variant) {
+  const tier = pain >= 0.7 ? 'heavy' : pain >= 0.35 ? 'medium' : 'light';
+  return { slot: `human.pain.${tier}${variant ? `.${variant + 1}` : ''}`,
+    rate: 0.97 + Math.random() * 0.06 };
+}
+
 /** Occasional local wound reactions, driven by pain rather than frame rate. */
 export class PainMoanCadence {
   constructor(random = () => Math.random()) {

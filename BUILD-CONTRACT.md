@@ -654,8 +654,11 @@ and `dispose()` closes the owned context and clears voices/timers. Fire and
 impact support HRTF positions; the engine caps 48 voices total and 16
 positional voices.
 `painMoan(pain01,nowMs,{active,holding}?)` drives occasional local wound
-vocals above 10% pain. Three procedural vocal shapes do not repeat consecutively;
-pain increases their gain, duration, and frequency, with randomized spacing.
+vocals at 10% pain or higher. Nine ElevenLabs recordings provide three variants
+per severity: light below 35%, medium below 70%, and heavy at 70% or higher.
+Variants do not repeat consecutively; pain increases gain and frequency, with
+randomized spacing and subtle pitch variation. Missing recordings use three
+procedural vocal shapes. Voice lifetimes preserve each recording's full tail.
 Moans never queue on audio unlock. Recovery, breath holding, death, settings,
 spectating, and match teardown stop them through `stopPainMoans()`; fresh local
 hit reactions take priority and panic breathing yields during a moan.

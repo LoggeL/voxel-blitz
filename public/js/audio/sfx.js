@@ -1,5 +1,5 @@
 import { PanicBreathCadence } from './panic-breath.js';
-import { PainMoanCadence, PAIN_MOAN_THRESHOLD, renderPainMoan } from './pain-moans.js';
+import { PainMoanCadence, PAIN_MOAN_THRESHOLD, painSampleChoice, renderPainMoan } from './pain-moans.js';
 import { renderBreath } from './breath.js';
 // Public procedural-audio facade. AudioEngine owns the one AudioContext and
 // master graph; VoicePool owns every bounded output graph; synthesis modules
@@ -45,6 +45,7 @@ const panicBreaths = new PanicBreathCadence();
 const painMoans = new PainMoanCadence();
 let painMoanVoice = null;
 let localVocalUntil = 0;
+let painHitVariant = -1;
 let chargeLoop = null;
 let flameLoops = null;
 let minigunMotor = null;
@@ -185,6 +186,7 @@ export const sfx = {
   async dispose() {
     this.stopPainMoans();
     localVocalUntil = 0;
+    painHitVariant = -1;
     disposeChargeLoop();
     flameLoops?.dispose();
     flameLoops = null;
@@ -453,10 +455,12 @@ export const sfx = {
     });
     if (!cue || !ensureAudioModules()) return false;
     if (painMoanVoice) pool.release(painMoanVoice.output);
-    const output = pool.acquireHuman(null, cue.duration + 0.15);
+    const choice = painSampleChoice(cue.pain, cue.variant);
+    const duration = samples.getBuffer(choice.slot)?.duration / choice.rate || cue.duration;
+    const output = pool.acquireHuman(null, duration + 0.15);
     output.gain.value = cue.gain;
-    painMoanVoice = { output, until: engine.now + cue.duration + 0.15 };
-    renderPainMoan(output, primitives, addCleanup, cue);
+    painMoanVoice = { output, until: engine.now + duration + 0.15 };
+    if (!samples.play(choice.slot, output, choice)) renderPainMoan(output, primitives, addCleanup, cue);
     return true;
   },
 
@@ -508,7 +512,12 @@ export const sfx = {
     run('pain', () => {
       const numeric = Number(damage);
       const hitDamage = Number.isFinite(numeric) ? Math.min(100, Math.max(0, numeric)) : 0;
-      const lifetime = lethal ? 1.45 : headshot ? 1.05 : hitDamage >= 35 ? 0.95 : 0.7;
+      painHitVariant = painHitVariant < 0 ? Math.floor(Math.random() * 3)
+        : (painHitVariant + 1 + Math.floor(Math.random() * 2)) % 3;
+      const choice = painSampleChoice(headshot ? 1 : hitDamage / 55, painHitVariant);
+      const sampleDuration = lethal ? 0 : (samples.getBuffer(choice.slot)?.duration || 0) / choice.rate;
+      const lifetime = Math.max(lethal ? 1.45 : headshot ? 1.05 : hitDamage >= 35 ? 0.95 : 0.7,
+        sampleDuration + 0.1);
       if (local) {
         this.stopPainMoans();
         localVocalUntil = engine.now + lifetime;
@@ -522,6 +531,7 @@ export const sfx = {
           : hitDamage >= 35
             ? 'human.pain.heavy'
             : 'human.pain.light';
+      if (!lethal && samples.play(choice.slot, output, choice)) return;
       if (samples.play(slot, output)) return;
       synthPainVoice(output, primitives, addCleanup, {
         damage: hitDamage,

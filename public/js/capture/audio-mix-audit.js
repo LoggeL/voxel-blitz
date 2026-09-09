@@ -4,6 +4,7 @@ import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from '../audio/samples.js';
 import { VoicePool } from '../audio/voices.js';
 import { MINIGUN_REPORT_SLOTS } from '../audio/minigun-motor.js';
 import { PICKAXE_SWING_SLOTS, PICKAXE_IMPACT_SLOTS } from '../audio/pickaxe.js';
+import { PAIN_SAMPLE_SLOTS } from '../audio/pain-moans.js';
 import { auditBufferPeak, recordedTailComplete } from './audio-source-audit.js';
 
 const RATE = 48_000;
@@ -267,7 +268,9 @@ async function main() {
     audible(result, name, onset); return result;
   };
   const moans = [];
-  for (const [level, label] of [[0.2, 'Mild pain moan'], [1, 'Severe pain moan']]) {
+  for (const [level, tier, label] of [
+    [0.2, 'light', 'Mild pain moan'], [0.55, 'medium', 'Moderate pain moan'], [1, 'heavy', 'Severe pain moan'],
+  ]) {
     const events = Array.from({ length: 51 }, (_, frame) => {
       const at = frame * 0.05;
       return [at, () => sfx.painMoan(level, at * 1000)];
@@ -276,10 +279,16 @@ async function main() {
     moans.push(result);
     check(result.trace.acquisitions.length === 1 && !result.trace.acquisitions[0].positional,
       `${label}: one local vocal output`);
+    const urls = PAIN_SAMPLE_SLOTS.filter(slot => slot.startsWith(`human.pain.${tier}`))
+      .map(slot => BUILTIN_SAMPLE_MANIFEST[slot]);
+    check(result.trace.sources.length === 1 && urls.includes(result.trace.sources[0].sample),
+      `${label}: one generated recording from the matching severity`);
+    check(result.trace.sources.length === 1 && recordedTailComplete(result.trace.sources[0], RATE),
+      `${label}: the recorded vocal tail finishes naturally`);
     check(regionRms(result.data, 0, 0.4) === 0 && regionRms(result.data, 2.5, 3.1) < 0.00001,
       `${label}: quiet lead-in and completed tail`);
   }
-  check(moans[1].metrics.rms > moans[0].metrics.rms * 1.4,
+  check(moans[2].metrics.rms > moans[0].metrics.rms * 1.4,
     'Severe pain is audibly stronger than mild pain');
   const stoppedMoan = await renderScenario('Pain moan interrupted by recovery', [
     ...Array.from({ length: 19 }, (_, frame) => [frame * 0.05,
@@ -288,6 +297,15 @@ async function main() {
   ]);
   check(stoppedMoan.trace.acquisitions.length === 1 && regionRms(stoppedMoan.data, 1.2, 3.1) < 0.00001,
     'Recovery stops an audible moan without a lingering voice');
+  for (const local of [true, false]) {
+    const label = `${local ? 'Local' : 'Remote'} severe wound reaction`;
+    const result = await cue(label, [[0, () => sfx.pain({ damage: 50, local, pos: [0, 0, -2] })]]);
+    const source = result.trace.sources[0];
+    check(result.trace.sources.length === 1 && source.sample.includes('/human/pain-heavy')
+      && recordedTailComplete(source, RATE), `${label}: one complete generated pain vocal`);
+    check(result.trace.acquisitions.length === 1 && result.trace.acquisitions[0].positional === !local,
+      `${label}: preserves local or world audio routing`);
+  }
   const pickaxeSwingUrls = PICKAXE_SWING_SLOTS.map((slot) => BUILTIN_SAMPLE_MANIFEST[slot]);
   const pickaxeImpactUrls = PICKAXE_IMPACT_SLOTS.map((slot) => BUILTIN_SAMPLE_MANIFEST[slot]);
   check(weaponResults.knife.trace.sources.length === 1
