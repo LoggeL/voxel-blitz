@@ -419,7 +419,10 @@ class Game {
     if (!canThrow && !this.player.alive) this.rig?.cancelGrenade();
     else this.rig?.grenadeCharge(charge, typeIndex, heldMs, charging);
     this.effects?.projectilePreview(
-      charging ? this.player.grenadeLaunchState(charge, type.id) : null,
+      charging ? { ...this.player.grenadeLaunchState(charge, type.id),
+        fuseMs: type.cook ? grenadeFuseAfterCook(heldMs, type)
+          : (type.sticky ? type.flightMaxMs : type.fuseMs),
+      } : null,
     );
 
     const thrown = this.player.consumeLocalGrenadeThrow();
@@ -546,9 +549,10 @@ class Game {
       beforeSend: (_frame, at) => {
         this.weapon.tickReload(at);
         try {
-          this.weapon.tryFire(at, this.weaponFrameContext());
+          return this.weapon.tryFire(at, this.weaponFrameContext());
         } catch (error) {
           this.phaseError('tryFire', error);
+          return false;
         }
       },
       sendInput: (input) => this.net?.sendInput(input) || false,

@@ -42,11 +42,24 @@ const SKY_FRAG = /* glsl */ `
 uniform vec3 topColor;
 uniform vec3 horizonColor;
 uniform vec3 sunDir;
+uniform sampler2D panorama;
+uniform bool panoramaReady;
 varying vec3 vDir;
 void main() {
   vec3 d = normalize(vDir);
   float h = pow(max(d.y, 0.0), 0.65);
   vec3 col = mix(horizonColor, topColor, h);
+  if (panoramaReady) {
+    vec2 uv = vec2(atan(d.z, d.x) / 6.28318530718 + 0.5,
+      asin(clamp(d.y, -1.0, 1.0)) / 3.14159265359 + 0.5);
+    vec3 imageColor = texture2D(panorama, uv).rgb;
+    // Blend the wrap locally and quiet the poles for generated panoramas.
+    float seam = smoothstep(0.0, 0.025, min(uv.x, 1.0 - uv.x));
+    vec3 edge = mix(texture2D(panorama, vec2(0.001, uv.y)).rgb,
+      texture2D(panorama, vec2(0.999, uv.y)).rgb, 0.5);
+    imageColor = mix(edge, imageColor, seam);
+    col = mix(col, imageColor, 1.0 - smoothstep(0.94, 1.0, abs(d.y)));
+  }
   float sd = max(dot(d, sunDir), 0.0);
   // soft warm disc (~1.8 deg) + two additive halo lobes
   col += vec3(1.00, 0.96, 0.86) * smoothstep(0.99930, 0.99976, sd) * 0.95;
@@ -61,7 +74,7 @@ const _tmpVec = new THREE.Vector3();
 
 /**
  * Adds sky dome + clouds to the scene.
- * @returns {((dt:number)=>void) & {dispose:()=>void}} cloud updater with owned-resource cleanup.
+ * @returns {((dt:number)=>void) & {ready:Promise<void>, dispose:()=>void}} cloud updater with owned-resource cleanup.
  */
 export function installSky(scene, palette = {}) {
   const group = new THREE.Group();
@@ -74,6 +87,8 @@ export function installSky(scene, palette = {}) {
         topColor: { value: new THREE.Color(palette.skyTop || SKY_TOP_HEX) },
         horizonColor: { value: new THREE.Color(palette.skyHorizon || SKY_HORIZON_HEX) },
         sunDir: { value: SUN_DIR.clone() },
+        panorama: { value: null },
+        panoramaReady: { value: false },
       },
       vertexShader: SKY_VERT,
       fragmentShader: SKY_FRAG,
@@ -116,6 +131,21 @@ export function installSky(scene, palette = {}) {
   scene.add(group);
 
   let disposed = false;
+  let panorama = null;
+  let finishLoading;
+  const ready = new Promise(resolve => { finishLoading = resolve; });
+  if (palette.skybox && typeof document !== 'undefined' && typeof document.createElementNS === 'function') {
+    new THREE.TextureLoader().load(palette.skybox, texture => {
+      if (disposed) { texture.dispose(); finishLoading(); return; }
+      panorama = texture;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      texture.wrapS = THREE.RepeatWrapping;
+      dome.material.uniforms.panorama.value = texture;
+      dome.material.uniforms.panoramaReady.value = true;
+      for (const cloud of clouds) cloud.visible = false;
+      finishLoading();
+    }, undefined, () => { finishLoading(); });
+  } else finishLoading();
   const update = function update(dt) {
     if (disposed || !(dt > 0)) return;
     const dx = CLOUD_SPEED * dt;
@@ -126,12 +156,15 @@ export function installSky(scene, palette = {}) {
       if (c.position.x > maxX) c.position.x -= span;
     }
   };
+  update.ready = ready;
   update.dispose = () => {
     if (disposed) return;
     disposed = true;
+    finishLoading();
     group.removeFromParent();
     dome.geometry.dispose();
     dome.material.dispose();
+    panorama?.dispose();
     for (const cloud of clouds) cloud.geometry.dispose();
     cloudMat.dispose();
     group.clear();

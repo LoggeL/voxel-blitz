@@ -312,7 +312,7 @@ export function predictGrenadePath(launch, isSolid, {
   const stride = Math.max(1, Math.ceil(steps / (maxPoints - 1)));
   let contact = false;
   for (let i = 1; i <= steps; i++) {
-    stepGrenade(grenade, stepSeconds, isSolid);
+    stepGrenade(grenade, Math.min(stepSeconds, horizon / 1000 - (i - 1) * stepSeconds), isSolid);
     if ((profile.sticky || profile.impact) && grenade.hitSolid) {
       contact = true;
       points.push([grenade.x, grenade.y, grenade.z]);

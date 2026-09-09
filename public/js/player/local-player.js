@@ -161,6 +161,7 @@ export class LocalPlayer {
     this.sendAccum = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
+    this._acceptedFireSlot = null;
     this._pendingShotAim = null;
     this.grenadeThrowLatched = null; // {charge, cookMs, type, at, grenadeAim} awaiting a network send
     this.grenadeHandling = false;
@@ -257,6 +258,7 @@ export class LocalPlayer {
     this._weaponAim.reset(this.aimYaw, this.aimPitch);
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
+    this._acceptedFireSlot = null;
     this._pendingShotAim = null;
     this.grenadeThrowLatched = null;
     this.grenadeHandling = false;
@@ -325,6 +327,7 @@ export class LocalPlayer {
     this.sendAccum = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
+    this._acceptedFireSlot = null;
     this._pendingShotAim = null;
     this.grenadeThrowLatched = null;
     this.grenadeHandling = false;
@@ -358,6 +361,7 @@ export class LocalPlayer {
     this.currentSpeedXZ = 0;
     this.scopeActive = false;
     this.fireTapLatched = false;
+    this._acceptedFireSlot = null;
     this._pendingShotAim = null;
     this.pendingShotIntent = null;
     this.grenadeThrowLatched = null;
@@ -743,7 +747,11 @@ export class LocalPlayer {
 
     const fireAllowed = isAllowed(intents.fireAllowed);
     const interactAllowed = isAllowed(intents.interactAllowed);
-    const wantFire = !!(
+    const discrete = ['semi', 'bolt', 'pump'].includes(intents.weapon?.def?.mode);
+    const predictedDiscrete = discrete && this._discretePrediction;
+    const wantFire = predictedDiscrete
+      ? fireAllowed && this._acceptedFireSlot === intents.weapon?.slot
+      : !!(
       fireAllowed && this.pendingShotIntent &&
       (this.pendingShotIntent.held || this.fireTapLatched)
     );
@@ -789,7 +797,10 @@ export class LocalPlayer {
       ? !!intents.sendInput(payload)
       : false;
     if (sent) this._pendingShotAim = null;
-    if (sent && wantFire) this.fireTapLatched = false;
+    if (sent && wantFire) {
+      this.fireTapLatched = false;
+      this._acceptedFireSlot = null;
+    }
     if (sent && payload.throwGrenade) this.grenadeThrowLatched = null;
     this._frame.inputPayload = payload;
     return sent;
@@ -798,7 +809,8 @@ export class LocalPlayer {
   /**
    * Runs the frozen player-frame order. `onWeaponIntents` executes after all
    * input edges are consumed but before prediction; `beforeSend` is the seam
-   * for reload/fire work that must precede the 60 Hz network send.
+   * for reload/fire work that must precede the 60 Hz network send. Return a
+   * boolean shot result there to send only accepted discrete shots.
    */
   update(dt, now = nowMs(), intents = {}) {
     if (this._disposed) return this._frame;
@@ -851,7 +863,16 @@ export class LocalPlayer {
       this.grenadeThrowLatched.grenadeAim = { yaw: this.shotYaw, pitch: this.shotPitch };
       this._localGrenadeThrow = { ...this.grenadeThrowLatched };
     }
-    if (typeof intents.beforeSend === 'function') intents.beforeSend(this._frame, now);
+    const fired = typeof intents.beforeSend === 'function'
+      ? intents.beforeSend(this._frame, now) : undefined;
+    // A rejected local click must not become a silent server-only shot when
+    // the render clock, bolt cycle, or reload readiness differs from authority.
+    this._discretePrediction = typeof fired === 'boolean';
+    if (!this._alive || !isAllowed(intents.fireAllowed) || this.grenadeHandling ||
+        this._acceptedFireSlot !== intents.weapon?.slot) this._acceptedFireSlot = null;
+    if (fired === true && ['semi', 'bolt', 'pump'].includes(intents.weapon?.def?.mode)) {
+      this._acceptedFireSlot = intents.weapon.slot;
+    }
     this._frame.inputSent = this._sendInputMaybe(dt, intents);
     this._stepRecoilRecovery(dt, now);
     stepRecoilSpring(this._recoilSpring.pitch, this._recoilOmega, dt);

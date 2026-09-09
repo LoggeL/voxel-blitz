@@ -433,7 +433,7 @@ export class ProjectileFX {
       this.previewMaterial.color.copy(color);
       this.landingMaterial.color.copy(color);
     }
-    const prediction = predictGrenadePath(launch, this.isSolid, { maxPoints: PREVIEW_MAX_POINTS });
+    const prediction = predictGrenadePath(launch, this.isSolid, { maxPoints: PREVIEW_MAX_POINTS, fuseMs: launch.fuseMs });
     const count = Math.min(PREVIEW_MAX_POINTS, prediction.points.length);
     for (let i = 0; i < count; i++) {
       const p = prediction.points[i];

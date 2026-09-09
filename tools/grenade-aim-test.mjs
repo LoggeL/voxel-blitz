@@ -150,3 +150,33 @@ for (const reset of [player => player.setGameplayInputEnabled(false),
 }
 
 console.log('Grenade aim: quick-throw firing suppression, all grenade types, delayed/failed sends, later server input, lifecycle cancellation, legacy fallback and sanitization passed.');
+
+// The displayed arc must stop when the cooked fuse expires, including a partial step.
+{
+  const { predictGrenadePath, stepGrenade, grenadeFuseAfterCook } = await import('../shared/grenade-rules.js');
+  const { ProjectileFX } = await import('../public/js/weapons/projectiles.js');
+  const THREE = await import('../public/js/vendor/three.module.js');
+  const fx = new ProjectileFX(new THREE.Scene(), () => 0);
+  try {
+    for (const heldMs of [0, 1200, 2193, 2500]) {
+      const launch = grenadeLaunch({ x: 4, y: 1, z: 4, eyeY: 2.62,
+        dir: fwdFromAngles(0.3, 0.2), charge: Math.min(1, heldMs / 1200), type: 'frag' });
+      const fuseMs = grenadeFuseAfterCook(heldMs, 'frag');
+      const actual = fx.setPreview({ ...launch, fuseMs });
+      const expected = { ...launch };
+      for (let elapsed = 0; elapsed < fuseMs; elapsed += 25) {
+        stepGrenade(expected, Math.min(25, fuseMs - elapsed) / 1000, () => false);
+      }
+      for (const [i, axis] of ['x', 'y', 'z'].entries()) close(actual.landing[i], expected[axis], `cooked preview ${heldMs} ${axis}`);
+      assert.equal(fx.previewLine.geometry.drawRange.count, actual.points.length);
+      if (heldMs > 0) {
+        const full = predictGrenadePath(launch, () => false);
+        assert.ok(Math.hypot(...full.landing.map((v, i) => v - actual.landing[i])) > 1,
+          'fixture exposes the old full-fuse preview error');
+      }
+    }
+    fx.setPreview(null);
+    assert.equal(fx.previewLine.visible, false);
+  } finally { fx.dispose(); }
+}
+console.log('Grenade preview: cooked fuse, partial final step, rendered path length and release cleanup passed.');
