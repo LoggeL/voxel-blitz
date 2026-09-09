@@ -2462,8 +2462,9 @@ h1.vb-title::after {
 }
 
 .vb-grenade-type-limpet .vb-grenade-icon {
-  height: 7px;
-  border-radius: 40%;
+  width: 13px;
+  height: 8px;
+  border-radius: 2px;
 }
 
 .vb-grenade-type-pulse .vb-grenade-icon {
@@ -2651,6 +2652,13 @@ h1.vb-title::after {
   justify-content: space-between;
   font: 700 10px/1 var(--font-mono);
   letter-spacing: 0.08em;
+}
+
+.vb-net-limit {
+  margin-top: 5px;
+  font: 500 8px/1.3 var(--font-mono);
+  letter-spacing: 0.03em;
+  color: var(--sub);
 }
 
 .vb-net-history {

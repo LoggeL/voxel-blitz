@@ -128,7 +128,7 @@ export class BuyMenuController {
         statsEl.remove();
         const isWeapon = Boolean(WEAPONS[wid]);
         const image = el('img', `vb-chaos-weapon-image${isWeapon ? '' : ' vb-chaos-grenade-image'}`, cardBody);
-        image.src = isWeapon ? weaponImagePath(wid) : `./assets/grenades/hud/${wid}.${wid === 'smoke' ? 'svg' : 'png'}`;
+        image.src = isWeapon ? weaponImagePath(wid) : `./assets/grenades/hud/${wid}.${['smoke', 'limpet'].includes(wid) ? 'svg' : 'png'}`;
         image.alt = '';
         image.draggable = false;
         cardBody.insertBefore(image, nameEl);

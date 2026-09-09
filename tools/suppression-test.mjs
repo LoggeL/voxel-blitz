@@ -4,6 +4,7 @@ import { fireOneShot } from '../server/sim/combat.js';
 import { ProjectileSystem } from '../server/sim/projectiles.js';
 import { collectNearMisses, applyNearMisses, suppressExplosion } from '../server/sim/suppression.js';
 import { SUPPRESSION_RULES, applySuppression } from '../shared/suppression-rules.js';
+import { recoverConditions } from '../shared/conditions.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 
 function fixture() {
@@ -65,7 +66,7 @@ for (const excluded of ['team', 'protected', 'dead']) {
   const { target } = fixture();
   let gained = 0;
   for (let now = 0; now <= 30000; now += 50) {
-    target.panic = Math.max(0, target.panic - 0.2 * 0.05);
+    recoverConditions(target, 0.05, { hp: target.hp });
     gained += applySuppression(target, 1, now);
     assert.ok(target.panic <= SUPPRESSION_RULES.panicCap);
   }

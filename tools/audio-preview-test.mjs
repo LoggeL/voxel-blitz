@@ -66,6 +66,8 @@ Object.assign(sfx, {
   unlock: async () => true,
   loadSamples: () => loadPromise,
   setMasterVolume() {}, setListener() {}, minigunMotor() {},
+  painMoan: (level) => calls.push(`moan:${level}`),
+  stopPainMoans: () => calls.push('stop-moans'),
   grenadePin: () => calls.push('pin'),
   hitmark: (headshot) => calls.push(`hit:${headshot}`),
   killConfirm: (headshot) => calls.push(`kill:${headshot}`),
@@ -98,17 +100,23 @@ try {
   assert.equal(calls.at(-1), 'flamethrower');
   assert.equal(timers.size, 1, 'held flame refreshes on one pending timer');
   await hold.dispatch('pointerup');
-  assert.equal(calls.at(-1), 'fade', 'releasing a held flame uses the game release envelope');
+  assert.ok(calls.slice(-2).includes('fade'), 'releasing a held flame uses the game release envelope');
   assert.equal(timers.size, 0, 'release cancels further source refreshes');
   assert.equal(hold.attributes.get('aria-pressed'), 'false');
 
   await findButton('Two-second flame').dispatch('click');
   assert.equal(calls.at(-1), 'flamethrower');
   await elements.find((element) => element.tagName === 'audio').dispatch('play');
-  assert.equal(calls.at(-1), 'fade', 'isolated sample playback fades the live flame');
+  assert.ok(calls.slice(-2).includes('fade'), 'isolated sample playback fades the live flame');
   assert.equal(timers.size, 0, 'isolated playback cancels the timed demonstration');
   await globals.window.dispatch('blur');
-  assert.equal(calls.at(-1), 'fade', 'window blur also uses the release envelope');
+  assert.ok(calls.slice(-2).includes('fade'), 'window blur also uses the release envelope');
+  await findButton('Severe pain: 20 seconds').dispatch('click');
+  assert.equal(calls.at(-1), 'moan:1', 'pain preview uses the real pain level interface');
+  assert.equal(timers.size, 1, 'pain preview has a single bounded update timer');
+  await document.getElementById('stop-loops').dispatch('click');
+  assert.equal(calls.at(-1), 'stop-moans');
+  assert.equal(timers.size, 0, 'Stop cancels the cadence and current moan');
 } finally {
   Object.assign(sfx, previousSfx);
   for (const [key, descriptor] of savedGlobals) {

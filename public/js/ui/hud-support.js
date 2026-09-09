@@ -41,7 +41,7 @@ export function weaponImagePath(weaponId) {
 export const THROWABLE_NAMES = Object.freeze({
   grenade: 'GRENADE',
   frag: 'M-4 FRAG',
-  limpet: 'LIMPET CHARGE',
+  limpet: 'CLAYMORE',
   pulse: 'PULSE SHOCK',
   molotov: 'MOLOTOV COCKTAIL',
   smoke: 'M-18 SMOKE',

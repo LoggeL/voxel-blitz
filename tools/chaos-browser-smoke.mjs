@@ -71,7 +71,7 @@ async function main() {
     check(await page.evaluate(`(() => {const ids=${JSON.stringify(expectedItems)};return document.querySelectorAll('#buy-grid .vb-buy-card').length===ids.length && ids.every(id=>{const descriptions=[...document.querySelectorAll('#buy-card-'+id+' .vb-chaos-stage span')];return descriptions.length===3&&descriptions.every(el=>el.textContent.length>10);});})()`),`all ${expectedItems.length} items and ${expectedItems.length * 3} upgrade descriptions render`);
     await page.waitFor(`(() => {const images=[...document.querySelectorAll('#buy-grid .vb-chaos-weapon-image')];return images.length===${expectedItems.length}&&images.every(image=>image.complete&&image.naturalWidth>0&&image.naturalHeight>0);})()`,{label:'all weapon and grenade artwork loads'});
     check(await page.evaluate(`['flamethrower','minigun'].every(id=>document.querySelector('#buy-card-'+id+' img').getAttribute('src')==='./assets/weapons/hud/'+id+'-illustrated.png')`),'both heavy weapons use their illustrated artwork');
-    check(await page.evaluate(`['frag','limpet','pulse'].every(id=>document.querySelector('#buy-card-'+id+' img').getAttribute('src')==='./assets/grenades/hud/'+id+'.png')`),'grenade cards show their distinct artwork');
+    check(await page.evaluate(`['frag','limpet','pulse'].every(id=>document.querySelector('#buy-card-'+id+' img').getAttribute('src')==='./assets/grenades/hud/'+id+(id==='limpet'?'.svg':'.png'))`),'grenade cards show their distinct artwork');
     check(await page.evaluate(`document.getElementById('buy-credits-val').textContent==='$ 600'`),'starting balance is $600');
     const focused=[];
     for(let index=0;index<=expectedItems.length;index++) {

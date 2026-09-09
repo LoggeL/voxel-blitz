@@ -756,7 +756,7 @@ export async function runHudContracts(ok, installGlobals) {
         && document.querySelector('.vb-grenade-hint').textContent === 'MAX · RELEASE'
         && document.getElementById('grenade-count').dataset.type === 'limpet'
         && document.querySelectorAll('.vb-grenade-type')[1].classList.contains('is-selected')
-        && document.querySelector('.vb-grenade-name').textContent === 'LIMPET CHARGE';
+        && document.querySelector('.vb-grenade-name').textContent === 'CLAYMORE';
       hud.setState({ grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 0, grenadeCharging: true });
       const heldState = document.getElementById('grenade-count').classList.contains('is-charging')
         && document.querySelector('.vb-grenade-hint').textContent === 'HOLD · RELEASE';

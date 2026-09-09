@@ -543,7 +543,7 @@ export class LocalPlayer {
     return grenadeLaunch({
       x: pos.x, y: pos.y, z: pos.z, eyeY: this.physics.eyeY(),
       vx: vel.x, vy: vel.y, vz: vel.z,
-      dir, charge, type,
+      dir, charge, type, solidAt: this.physics._solidAt,
     });
   }
 

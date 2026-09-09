@@ -24,6 +24,30 @@ still grab a ledge in the air. Reloads have weapon-specific hand and ammunition
 motions, with exchange magazines leaving the view before a replacement enters.
 Use `/weapon-feel-preview.html` to inspect reload phases and throwable handling.
 
+## Frame rate
+
+In the in-game menu, open Display to select 30, 60, 90, 120, 144, 165, 240,
+or 360 FPS, or Display sync (no game cap, the default). The local preference
+persists as `vb-fps-mode`. Caps skip WebGL renders while input, prediction,
+animations, and network processing continue on each browser callback.
+
+The FPS toggle shows actual rendered frames per second and a short limit
+explanation. The Display panel adds measured browser callback cadence, mean
+CPU callback time, and render submission time. Measurements reset after a
+mode change, visibility change, a long suspension, and a new match. At least
+one second of fresh timing is required before reporting a limit.
+
+The selected cap is known; frame-work pressure is a heuristic. Browser pacing
+is observed timing, not detected monitor Hz. The browser normally synchronizes
+callbacks to display refresh and may suspend them in hidden tabs
+([MDN requestAnimationFrame](https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame)).
+GPU execution time is unavailable, so the panel cannot isolate GPU, display,
+power-management, and browser-scheduling limits. Non-divisible caps can have
+uneven frame spacing. No mode overrides browser synchronization.
+
+Run `npm run fps:test` for pacing across callback cadences, measured render
+counts, limit explanations, persistence, and lifecycle resets.
+
 ## Map power-ups
 
 Fun, Team Deathmatch and Chaos Lab have pickups on exposed ground across all six
@@ -594,6 +618,16 @@ event-loop monitor has 20 ms sampling resolution, so its normal baseline is
 around 20 ms. Process CPU uses one full core as 100%. Window percentiles are not
 percentiles of all individual ticks. Both RTTs include processing delays.
 
+Each snapshot also records its relative client reception time, original server
+timestamp, reception gap and consecutive server-clock step. These clocks have
+different origins: compare consecutive steps, not absolute client/server times.
+Foreground summaries exclude intervals crossing a visibility change. Raw history
+is capped at 2,400 snapshots, with an explicit omitted count. The report compares
+arrival gaps with the advertised tick interval and flags burst delivery, larger
+server-clock steps, and a buffer staying within 10 ms of its 180 ms maximum in
+at least half of ten or more probes. These are observations, not proof of a
+specific network fault; browser scheduling can also compress deliveries.
+
 Unanswered echoes over five seconds, late replies, and replies still in flight
 at the end are counted separately. They are **not packet-loss percentages**:
 WebSockets use TCP, which retransmits lost packets. No route trace is performed.
@@ -604,6 +638,20 @@ operators need separate evidence for the path from the proxy to the game server.
 
 `npm run connection:test` checks recording lifecycle, missing/late measurements,
 background timing, uncapped frame/RTT values and the real WebSocket protocol.
+
+For an operator comparison, establish a loopback-only SSH forward to the running
+game container, then run:
+
+```sh
+node tools/connection-route-check.mjs --public wss://GAME_HOST --direct ws://127.0.0.1:TUNNEL_PORT --output .artifacts/connection-routes.json
+```
+
+This creates a temporary password-protected room with two protocol clients and
+records both routes simultaneously for 60 seconds after warmup. It saves raw
+reports, then closes both clients. No DNS or public port change is needed. The
+direct route includes SSH overhead, and Node clients do not measure rendering
+or browser frame stalls. A difference narrows the issue to the differing routes;
+it does not isolate Cloudflare, the ISP, TLS, or another individual hop.
 
 ## Container deployment
 

@@ -145,7 +145,7 @@ function projectileFixture(type, level) {
     yaw: 0, pitch: 0, def: WEAPONS[type === 'bolt' ? 'longarc' : 'rocket'], grenades: GRENADE_TYPE_IDS.map(() => 5),
     chaosUpgrades: { [type === 'bolt' ? 'longarc' : type]: level } };
   const events = [];
-  const ctx = { now: 0, entities: new Map(), getBlock: () => 0, canDamage: () => true,
+  const ctx = { now: 0, entities: new Map(), getBlock: (_x, _y, z) => type === 'limpet' && z === 18 ? 1 : 0, canDamage: () => true,
     canAffectWorld: () => true, pushEvent: e => events.push(e), destroyBlock: () => {}, damageBlock: () => {}, killPlayer: () => {} };
   const projectile = type === 'rocket' ? system.launchRocket(p, ctx, { x: 0, y: 0, z: -1 })
     : type === 'bolt' ? system.launchBolt(p, ctx, { x: 0, y: 0, z: -1 })
@@ -175,7 +175,7 @@ for (const [level, radius, durationMs, dps] of [[0, 3.2, 7500, 30], [1, 4.2, 750
   assert.equal(wire.fireFields[0].cells.length, field.cells.length);
   assert.equal(molotovFireProfile(level).damagePerSecond, dps);
 }
-for (const [type, level, expected] of [['frag', 1, 6], ['frag', 2, 12], ['frag', 3, 12], ['rocket', 3, 6], ['limpet', 2, 5], ['limpet', 3, 5], ['pulse', 3, 8]]) {
+for (const [type, level, expected] of [['frag', 1, 6], ['frag', 2, 12], ['frag', 3, 12], ['rocket', 3, 6], ['limpet', 2, 0], ['limpet', 3, 0], ['pulse', 3, 8]]) {
   const f = projectileFixture(type, level);
   assert.equal(f.system.explode(f.projectile, f.ctx), true);
   assert.equal(f.system.active.size, expected, `${type} ${level} scatters ${expected} children`);

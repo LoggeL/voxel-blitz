@@ -43,6 +43,7 @@ import { BOLT_RULES, boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
 import { sweepPlayers } from './projectile-contact.js';
 import { SmokeSystem } from './smoke.js';
 import { MolotovFireSystem } from './molotov-fire.js';
+import { CLAYMORE_RULES, placeClaymore, claymoreProfile, claymoreBeam, crossesClaymore } from '../../shared/claymore-rules.js';
 
 const P_HEIGHT = PLAYER_HALF.h * 2;
 /** A sticky/impact projectile ignores its own thrower for this long after release. */
@@ -116,12 +117,14 @@ export class ProjectileSystem {
     this._nextId = 1;
     this._homingCandidates = [];
     this._stepping = [];
+    this._previousPlayers = new Map();
   }
 
   clear() {
     this.active.clear();
     this.fire.clear();
     this.smoke.clear();
+    this._previousPlayers.clear();
   }
 
   step(dt, ctx) {
@@ -157,6 +160,10 @@ export class ProjectileSystem {
     for (const projectile of this.active.values()) stepping.push(projectile);
     for (const projectile of stepping) {
       if (!this.active.has(projectile.id)) continue;
+      if (projectile.type === 'limpet') {
+        this._stepClaymore(projectile, ctx);
+        continue;
+      }
       if (projectile.chaosHoming && !projectile.stuck) this._home(projectile, dt, ctx);
       if (projectile.type === 'pulse' && projectile.chaosLevel >= 1 && !projectile.child) this._pull(projectile, dt, ctx);
       if (projectile.stuckTo) this._followCarrier(projectile, ctx);
@@ -173,6 +180,58 @@ export class ProjectileSystem {
       if (ctx.now >= projectile.explodeAt || outsideWorld(projectile)) this.explode(projectile, ctx);
     }
     stepping.length = 0;
+    this._previousPlayers.clear();
+    for (const p of ctx.entities.values()) {
+      if (p.state === 'alive') this._previousPlayers.set(p.id, { x: p.x, y: p.y, z: p.z, now: ctx.now });
+    }
+  }
+
+  _stepClaymore(mine, ctx) {
+    if (ctx.now >= mine.explodeAt) return this.explode(mine, ctx);
+    if (!mine.mount || ctx.getBlock(...mine.mount) === AIR) {
+      this.active.delete(mine.id);
+      return;
+    }
+    if (ctx.now < mine.armedAt || (ctx.canAffectWorld && !ctx.canAffectWorld())) return;
+    const beam = claymoreBeam(mine, ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR));
+    for (const victim of ctx.entities.values()) {
+      if (victim === mine.owner || victim.state !== 'alive' || victim.spawnProtectedUntil > ctx.now
+        || !ctx.canDamage(mine.owner, victim)) continue;
+      const previous = this._previousPlayers.get(victim.id);
+      if (crossesClaymore(beam, victim, previous?.now >= mine.armedAt ? previous : null)) {
+        return this.explode(mine, ctx);
+      }
+    }
+  }
+
+  _placeClaymore(player, ctx, direction, index) {
+    const placement = placeClaymore({ x: player.x, eyeY: player.eyeY, z: player.z, dir: direction },
+      ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR));
+    if (!placement || !(player.grenades[index] > 0)) return null;
+    const owned = [...this.active.values()].filter(p => p.type === 'limpet' && p.ownerId === String(player.id));
+    if (owned.length >= CLAYMORE_RULES.maxPerOwner) this.active.delete(owned[0].id);
+    const level = chaosLevel(player, 'limpet');
+    const profile = claymoreProfile(level);
+    const mine = { ...placement, id: `g${this._nextId++}`, ownerId: String(player.id), owner: player,
+      stuck: true, launchedAt: ctx.now, armedAt: ctx.now + profile.armMs,
+      explodeAt: Infinity, laserRange: profile.laserRange, chaosLevel: level };
+    player.grenades[index]--;
+    player.spawnProtectedUntil = 0;
+    player.spawnProtected = false;
+    this.active.set(mine.id, mine);
+    ctx.pushEvent(this._claymoreRow(mine, ctx.now));
+    return mine;
+  }
+
+  _claymoreRow(mine, now) {
+    return { ...evProjectileLaunch(mine.ownerId, mine.id, 'limpet', [mine.x, mine.y, mine.z], [0, 0, 0], 0),
+      n: [...mine.n], armMs: Math.max(0, mine.armedAt - now), laserRange: mine.laserRange, chaos: mine.chaosLevel };
+  }
+
+  /** Full persistent mine state also reaches players who join after placement. */
+  mineSnapshot(now) {
+    return [...this.active.values()].filter(p => p.type === 'limpet' && p.mount)
+      .map(p => this._claymoreRow(p, now));
   }
 
   _flyGrenade(projectile, stepSeconds, substeps, ctx) {
@@ -317,6 +376,7 @@ export class ProjectileSystem {
     const index = clampGrenadeType(typeIndex);
     const type = GRENADE_TYPES[GRENADE_TYPE_IDS[index]];
     const direction = fwdFromYawPitch(aim?.yaw ?? player.yaw, aim?.pitch ?? player.pitch);
+    if (type.wallMine) return this._placeClaymore(player, ctx, direction, index);
     const launch = grenadeLaunch({
       x: player.x, y: player.y, z: player.z, eyeY: player.eyeY,
       vx: player.vx, vy: player.vy, vz: player.vz,
@@ -481,8 +541,7 @@ export class ProjectileSystem {
     }
     projectile.chaosHoming = (projectile.type === 'rocket' && (projectile.chaosLevel >= 2
       || chaosLevel(p, 'smg') >= 3 && p.def.id === 'smg'
-      || chaosLevel(p, 'lmg') >= 3 && p.def.id === 'lmg'))
-      || projectile.type === 'limpet' && projectile.chaosLevel >= 1;
+      || chaosLevel(p, 'lmg') >= 3 && p.def.id === 'lmg'));
     if (projectile.chaosHoming) projectile.chaosLevel = Math.max(1, projectile.chaosLevel);
   }
 
@@ -538,7 +597,7 @@ export class ProjectileSystem {
         x: source.x, y: source.y + 0.2, z: source.z,
         vx: Math.cos(angle) * (count > 6 ? 10 : 7), vy: 8 + i % 3, vz: Math.sin(angle) * (count > 6 ? 10 : 7),
         launchedAt: ctx.now, explodeAt: ctx.now + (type === 'frag' ? 1500 : 700) + i * 65,
-        chaosHoming: type === 'limpet' && source.chaosLevel >= 3,
+        chaosHoming: false,
         isSolid: (x, y, z) => solid(ctx, x, y, z),
       };
       this.active.set(id, child);
@@ -565,7 +624,8 @@ export class ProjectileSystem {
     const level = projectile.chaosLevel || 0;
     const giant = projectile.type === 'rocket' && level >= 1;
     const rules = projectile.blastRules || { ...baseRules,
-      damageRadius: baseRules.damageRadius * (giant ? 1.8 : projectile.child && level >= 3 ? 1.3 : 1),
+      damageRadius: baseRules.damageRadius * (giant ? 1.8 : projectile.type === 'limpet' && level >= 3 ? 1.3 : projectile.child && level >= 3 ? 1.3 : 1),
+      damage: baseRules.damage * (projectile.type === 'limpet' && level >= 3 ? 1.3 : 1),
       terrainRadius: Math.min(7, baseRules.terrainRadius * (giant ? 1.7 : level >= 3 ? 1.4 : 1)),
       selfKnockback: projectile.type === 'pulse' && level >= 2 ? 64 : baseRules.selfKnockback,
       knockback: projectile.type === 'pulse' && level >= 2 ? 64 : baseRules.knockback * (level >= 3 ? 1.8 : 1),
@@ -599,7 +659,6 @@ export class ProjectileSystem {
     if (!projectile.child) {
       const count = projectile.type === 'frag' && level >= 1 ? (level >= 2 ? 12 : 6)
         : projectile.type === 'rocket' && level >= 3 ? 6
-        : projectile.type === 'limpet' && level >= 2 ? 5
         : projectile.type === 'pulse' && level >= 3 ? 8 : 0;
       if (count) this._scatter(projectile, count, ctx);
     }

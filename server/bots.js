@@ -3,7 +3,8 @@
 // pipeline humans use, so balance is identical. No sockets anywhere.
 //
 // Behavior: waypoint-free roaming to random surface spots, knee-high obstacle
-// hopping via forward voxel probe, target acquisition with sparse voxel LOS,
+// hopping via forward voxel probe, limited-field stance-aware voxel LOS,
+// delayed recognition and a brief search of the last observed position,
 // burst-fire combat (3-5 shots then a 300 ms breath), shrinking aim error as
 // engagement time ramps skill, perpendicular strafing while fighting, panic
 // retreat to a side-on cover spot under 30 hp, dry-mid-fight weapon cycling,
@@ -12,16 +13,19 @@
 import {
   AIR, SX, SZ, GROUND,
 } from '../shared/worlddata.js';
-import { WEAPON_IDS, EYE_HEIGHT } from '../shared/combatmath.js';
+import { WEAPON_IDS } from '../shared/combatmath.js';
 import { DEFAULT_WEAPON_ID, WEAPON_PRICES } from '../shared/modes.js';
 import { mulberry32 } from '../shared/noise.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { DUST2_NAV_FLOORS, dust2FloorsAt } from '../shared/world/dust2-layout.js';
+import { observeBotTarget } from './bot-perception.js';
+import { cancelCharge } from './sim/combat.js';
 
 const TAU = Math.PI * 2;
 const TURN_RATE = 3.0;            // rad/s steering cap
 const PITCH_TURN_RATE = 4.0;      // rad/s vertical tracking cap
-const ENGAGE_RANGE = 60;          // max acquire/hold distance
+const SEARCH_MS = 2400;          // remember only the last observed position
+const AIM_TOLERANCE = 0.075;      // turn onto a target before pulling the trigger
 const ARRIVE_DIST = 2.0;          // roam target reached
 const ROAM_TIMEOUT_MS = 8000;     // forced re-target
 const BURST_PAUSE_MS = 300;       // breath between bursts
@@ -34,8 +38,6 @@ const PROBE_AHEAD = 0.6;          // obstacle probe reach
 const JUMP_CD_MS = 650;           // between hops
 const STUCK_WINDOW_MS = 1000;     // displacement sample window
 const STUCK_DIST = 0.35;          // less than this over the window == wedged
-const CHEST_Y = 1.15;             // aim point above enemy feet
-const CROUCH_EYE = EYE_HEIGHT * 0.58;
 const BOT_SEED = 0x00B0755;
 const DEFAULT_WEAPON_SLOT = WEAPON_IDS.indexOf(DEFAULT_WEAPON_ID);
 const BUY_PRIORITY = Object.freeze(['sniper', 'lmg', 'rocket', 'longarc', 'lance', 'rifle', 'shotgun', 'smg']);
@@ -109,21 +111,6 @@ function eyeOf(p) {
   return [p.x, p.eyeY, p.z];
 }
 
-/** Sparse 1-unit voxel LOS between two points. */
-function losClear(solidAt, a, b) {
-  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
-  const len = Math.hypot(dx, dy, dz);
-  if (len < 1e-6) return true;
-  const steps = Math.ceil(len);
-  for (let i = 1; i < steps; i++) {
-    const t = i / steps;
-    if (solidAt(Math.floor(a[0] + dx * t), Math.floor(a[1] + dy * t), Math.floor(a[2] + dz * t))) {
-      return false;
-    }
-  }
-  return true;
-}
-
 function goalPoint(goal) {
   const target = goal?.target;
   return target
@@ -148,10 +135,15 @@ class Brain {
     this.rng = rng;
     this.seq = 0;
     this.skill = 0.25 + rng() * 0.3;   // ramps toward 1 while fighting
-    this.state = 'roam';               // 'roam' | 'fight' | 'retreat'
+    this.state = 'roam';               // 'roam' | 'fight' | 'search' | 'retreat'
     this.roamTarget = null;
     this.roamDeadline = 0;
-    this.enemyId = null;               // held-target cache lives on the manager
+    this.enemyId = null;
+    this.sighting = null;
+    this.noticeId = null;
+    this.noticeProgress = 0;
+    this.reactionScale = 0.9 + rng() * 0.2;
+    this.lastSeen = null;
     this.engagedMs = 0;
     this.strafePhase = rng() * TAU;
     this.jumpCdUntil = 0;
@@ -176,11 +168,15 @@ class Brain {
   /** Drop combat memory but keep navigation/skill continuity. */
   resetCombat() {
     this.enemyId = null;
+    this.sighting = null;
+    this.noticeId = null;
+    this.noticeProgress = 0;
+    this.lastSeen = null;
     this.inBurst = false;
     this.burstEnd = 0;
     this.pauseUntil = 0;
     this.engagedMs = 0;
-    if (this.state === 'fight') this.state = 'roam';
+    if (this.state === 'fight' || this.state === 'search') this.state = 'roam';
   }
 }
 
@@ -275,26 +271,29 @@ class BotManager {
     }
   }
 
-  /** Nearest live enemy that currently has eye-line; holds per-bot targets. */
+  /** Nearest visible enemy; a held target must pass every sight check again. */
   pickTarget(p, br = null) {
-    const eye = eyeOf(p);
     const heldId = br?.enemyId;
     const held = heldId ? this.game.entities.get(heldId) : null;
-    if (held && held.state === 'alive' && this.game.mode.isEnemy(p, held)
-        && dist3(eye[0], eye[1], eye[2], held.x, held.y + CHEST_Y, held.z) < ENGAGE_RANGE
-        && !this.game.projectiles.smoke.blocksSight(eye, eyeOf(held), this.game.now)
-        && losClear(this.solidAt, eye, eyeOf(held))) {
-      return held;
+    const observe = target => observeBotTarget(p, target, this.solidAt,
+      this.game.projectiles.smoke, this.game.now, target.id === heldId && br?.noticeProgress >= 1);
+    if (held && held.state === 'alive' && this.game.mode.isEnemy(p, held)) {
+      const sighting = observe(held);
+      if (sighting) {
+        br.sighting = sighting;
+        return held;
+      }
     }
-    if (br) br.enemyId = null;
-    let best = null, bestD = ENGAGE_RANGE;
+    if (br) { br.enemyId = null; br.sighting = null; }
+    let best = null, bestSighting = null, bestD = Infinity;
     for (const o of this.game.entities.values()) {
-      if (o.state !== 'alive' || !this.game.mode.isEnemy(p, o)) continue;
-      const d = dist3(eye[0], eye[1], eye[2], o.x, o.y + CHEST_Y, o.z);
-      if (d < bestD && !this.game.projectiles.smoke.blocksSight(eye, eyeOf(o), this.game.now)
-          && losClear(this.solidAt, eye, eyeOf(o))) { best = o; bestD = d; }
+      if (o === held || o.state !== 'alive' || !this.game.mode.isEnemy(p, o)) continue;
+      const sighting = observe(o);
+      if (sighting && sighting.distance < bestD) {
+        best = o; bestSighting = sighting; bestD = sighting.distance;
+      }
     }
-    if (best && br) br.enemyId = best.id;
+    if (best && br) { br.enemyId = best.id; br.sighting = bestSighting; }
     return best;
   }
 
@@ -404,7 +403,33 @@ class BotManager {
     const objectiveUrgent = !!objective && URGENT_GOALS.has(goal.kind);
     const combatAllowed = this.game.mode.canFire(p);
     const eye = eyeOf(p);
+    if (!combatAllowed) br.resetCombat();
     const enemy = combatAllowed ? this.pickTarget(p, br) : null;
+
+    if (enemy) {
+      if (br.noticeId !== enemy.id) {
+        br.noticeId = enemy.id;
+        br.noticeProgress = 0;
+        br.engagedMs = 0;
+        br.inBurst = false;
+      }
+      br.noticeProgress = Math.min(1, br.noticeProgress
+        + dtS * 1000 / (br.sighting.recognitionMs * br.reactionScale));
+      if (br.noticeProgress >= 1) {
+        br.lastSeen = { id: enemy.id, lives: enemy.lives, until: now + SEARCH_MS,
+          position: { x: enemy.x, y: enemy.y, z: enemy.z } };
+      }
+    } else {
+      br.noticeId = null;
+      br.noticeProgress = 0;
+      br.inBurst = false;
+      br.engagedMs = 0;
+    }
+    const remembered = br.lastSeen && this.game.entities.get(br.lastSeen.id);
+    if (br.lastSeen && (now >= br.lastSeen.until || remembered?.state !== 'alive'
+        || remembered.lives !== br.lastSeen.lives || !this.game.mode.isEnemy(p, remembered))) {
+      br.lastSeen = null;
+    }
 
     // ----- state selection -------------------------------------------------
     const retreating = now < br.retreatUntil && !objectiveUrgent;
@@ -413,8 +438,8 @@ class BotManager {
     if (enemy) {
       if (br.state !== 'fight') { br.state = 'fight'; br.strafePhase = br.rng() * TAU; }
       engageMsDelta = dtS * 1000;
-    } else if (!retreating && br.state === 'fight') {
-      br.resetCombat();
+    } else if (!retreating) {
+      br.state = br.lastSeen ? 'search' : 'roam';
     }
 
     // Skill ramps during fights, cools off when alone.
@@ -454,7 +479,9 @@ class BotManager {
       br.roamTarget = randSpot(this.game.world, br.rng);
       br.roamDeadline = now + ROAM_TIMEOUT_MS;
     }
-    const nav = objective && !takingDetour ? objective : br.roamTarget;
+    const searching = br.state === 'search' && br.lastSeen && !objective;
+    const nav = searching ? br.lastSeen.position
+      : objective && !takingDetour ? objective : br.roamTarget;
     const ndx = nav.x - p.x, ndz = nav.z - p.z;
     const navDist = Math.hypot(ndx, ndz) || 1;
 
@@ -476,11 +503,15 @@ class BotManager {
       else if (d < 6) inp.keys.b = true;
       moving = true;
       sprint = false;
+    } else if (searching && navDist <= ARRIVE_DIST) {
+      // Check around the remembered spot. Do not turn toward hidden movement.
+      const scanYaw = Math.atan2(-ndx, -ndz) + Math.sin(now / 350 + br.strafePhase) * 0.9;
+      inp.yaw = approachAngle(p.yaw, scanYaw, TURN_RATE * dtS);
     } else if (!objectiveArrived || takingDetour) {
       moveYaw = Math.atan2(-ndx, -ndz);
       inp.keys.f = true;
       moving = true;
-      sprint = navDist > 25 && !retreating;
+      sprint = navDist > 25 && !retreating && !searching;
       inp.pitch = approachAngle(inp.pitch, Math.atan2((nav.y + 1) - eye[1], navDist), PITCH_TURN_RATE * dtS);
     }
     inp.keys.sprint = !!sprint;
@@ -488,13 +519,15 @@ class BotManager {
     // Aim error shrinks as the fight wears on.
     const errFactor = Math.max(0.55, 1 - br.engagedMs / 4000);
 
+    let canShoot = false;
     if (combatMovement) {
       br.engagedMs += engageMsDelta;
 
-      // Aim at the enemy chest with a shrinking error cone.
-      const yawT = Math.atan2(-(enemy.x - p.x), -(enemy.z - p.z));
-      const flat = Math.hypot(enemy.x - p.x, enemy.z - p.z) || 1;
-      const pitchT = Math.atan2(enemy.y + CHEST_Y - eye[1], flat);
+      // Aim at an actually exposed part of the current stance.
+      const aim = br.sighting.aimPoint;
+      const yawT = Math.atan2(-(aim[0] - p.x), -(aim[2] - p.z));
+      const flat = Math.hypot(aim[0] - p.x, aim[2] - p.z) || 1;
+      const pitchT = Math.atan2(aim[1] - eye[1], flat);
       const sigmaDeg = (2.2 - 1.6 * br.skill) * errFactor + 0.3;
       const sigmaRad = sigmaDeg * Math.PI / 180;
       inp.yaw = approachAngle(p.yaw, wrapAngle(yawT + gaussish(br.rng) * sigmaRad), TURN_RATE * dtS);
@@ -515,7 +548,14 @@ class BotManager {
       }
 
       // Burst discipline: 3-5 shots, then a breath.
-      if (combatAllowed && p.mag[p.weapon] > 0 && flat < ENGAGE_RANGE) {
+      const aimDistance = Math.hypot(flat, aim[1] - eye[1]);
+      canShoot = br.noticeProgress >= 1
+        && Math.abs(wrapAngle(inp.yaw - yawT)) < AIM_TOLERANCE
+        && Math.abs(inp.pitch - pitchT) < AIM_TOLERANCE
+        && !raycastVoxels(this.solidAt, ...eye,
+          -Math.sin(inp.yaw) * Math.cos(inp.pitch), Math.sin(inp.pitch),
+          -Math.cos(inp.yaw) * Math.cos(inp.pitch), aimDistance);
+      if (combatAllowed && canShoot && p.mag[p.weapon] > 0) {
         if (now >= br.pauseUntil) {
           if (!br.inBurst) {
             const shots = 3 + Math.floor(br.rng() * 3); // 3..5
@@ -537,6 +577,10 @@ class BotManager {
     } else {
       br.engagedMs = 0;
     }
+
+    // Releasing an obscured charge would still shoot through cover. Discard
+    // the capacitor through the combat system when visual fire permission ends.
+    if (p.charging && !canShoot) cancelCharge(p);
 
     // ----- shared locomotion steering ---------------------------------------
     if (moving) {

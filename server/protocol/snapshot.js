@@ -99,12 +99,13 @@ function defaultMatchSnapshot() {
  * Player rows carry the exact contracted field set; positions are 2-decimal,
  * angles 3-decimal so payloads stay small and floats stay finite.
  */
-export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = undefined, blockDamage = [], powerups = [], fireFields = [], smokeFields = []) {
+export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = undefined, blockDamage = [], powerups = [], fireFields = [], smokeFields = [], mines = []) {
   const matchSnapshot = match === undefined
     ? defaultMatchSnapshot()
     : (isRecord(match) ? wireCopy(match) : defaultMatchSnapshot());
   return {
     t: 'tick',
+    mines: wireCopy(mines),
     smokeFields: copySmokeFields(smokeFields),
     now: round(nowMs, 1),
     match: matchSnapshot,

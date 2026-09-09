@@ -1,7 +1,9 @@
+import { claymoreProfile } from '../../shared/claymore-rules.js';
 // Voxel Blitz browser composition root. Mutable gameplay ownership lives in
 // Session, LocalPlayer, WeaponState, AvatarRoster, and CombatFeedback.
 import * as THREE from './vendor/three.module.js';
 import { MuzzleLights } from './engine/muzzle-lights.js';
+import { FrameRateController } from './engine/frame-rate.js';
 import { WEAPONS, WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
 import { VAULT_SECONDS } from '../../shared/player-movement.js';
 import { deserializeWorld, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
@@ -49,6 +51,9 @@ class Game {
     this.post.setSize(innerWidth, innerHeight, devicePixelRatio);
     this.camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 400);
     this.clock = new THREE.Clock();
+    this.frameRate = new FrameRateController();
+    this._onFrameVisibility = () => this.frameRate.reset(undefined, document.hidden);
+    document.addEventListener('visibilitychange', this._onFrameVisibility);
     this.player = new LocalPlayer({ input: this.input });
     this.worldview = null;
     this.effects = null;
@@ -256,7 +261,7 @@ class Game {
     this.runHud = new RunHud({ getMyId: () => this.myId });
 
     complete({
-      activateLive: () => { this.running = true; this.clock.start(); },
+      activateLive: () => { this.running = true; this.clock.start(); this.frameRate.reset(); },
       flushQueuedSnapshots: () => this.flushPendingAuthoritativeSnapshots(),
       consumeLatestAuthoritativeState: () => this.consumeLatestAuthoritativeState(),
       startLoop: () => {
@@ -319,6 +324,7 @@ class Game {
     this.playersCache = presented;
     this.serverNow = Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : null;
     this.effects?.syncFireFields?.(snapshot.fireFields, this.serverNow);
+    this.effects?.syncMines?.(snapshot.mines, this.myId);
     this.smokeFields = copySmokeFields(snapshot.smokeFields);
     this.smokeObservedAt = nowMs();
     this.spectator?.sync({ self, players: presented, match, serverNow: this.serverNow });
@@ -433,12 +439,13 @@ class Game {
     if (charging && type.cook && heldMs >= type.fuseMs) input.forceGrenadeRelease(now);
     if (!canThrow && !this.player.alive) this.rig?.cancelGrenade();
     else this.rig?.grenadeCharge(charge, typeIndex, heldMs, charging);
-    this.effects?.projectilePreview(
-      charging ? { ...this.player.grenadeLaunchState(charge, type.id),
-        fuseMs: type.cook ? grenadeFuseAfterCook(heldMs, type)
-          : (type.sticky ? type.flightMaxMs : type.fuseMs),
-      } : null,
-    );
+    const preview = charging ? this.player.grenadeLaunchState(charge, type.id) : null;
+    this._claymorePlacementValid = type.wallMine && !!preview;
+    const mineProfile = claymoreProfile(this.selfRow?.chaosUpgrades?.limpet || 0);
+    this.effects?.projectilePreview(preview ? { ...preview,
+      ...(type.wallMine ? mineProfile : {}),
+      fuseMs: type.cook ? grenadeFuseAfterCook(heldMs, type) : type.fuseMs,
+    } : null);
 
     const thrown = this.player.consumeLocalGrenadeThrow();
     if (!thrown || !canThrow) return;
@@ -449,8 +456,13 @@ class Game {
       return;
     }
     const launch = this.player.grenadeLaunchState(thrown.charge, thrownType.id, thrown.grenadeAim);
+    if (!launch) {
+      this.rig?.cancelGrenade();
+      return;
+    }
     this.effects?.projectileLaunch({
       type: thrownType.id,
+      ...(thrownType.wallMine ? { n: launch.n, ...mineProfile } : {}),
       o: [launch.x, launch.y, launch.z],
       v: [launch.vx, launch.vy, launch.vz],
       fuse: thrownType.cook
@@ -458,7 +470,8 @@ class Game {
         : (thrownType.sticky ? thrownType.flightMaxMs : thrownType.fuseMs),
     }, { local: true });
     this.rig?.grenadeThrow(thrown.charge, thrown.type);
-    sfx.grenadeThrow(thrown.charge);
+    if (thrownType.wallMine) sfx.grenadeDraw();
+    else sfx.grenadeThrow(thrown.charge);
   }
 
   /**
@@ -537,9 +550,11 @@ class Game {
     };
   }
 
-  loop(generation) {
+  loop(generation, frameAt = performance.now()) {
     if (!this.running || generation !== this._loopGeneration) return;
-    this._rafId = requestAnimationFrame(() => { this._rafId = 0; this.loop(generation); });
+    this._rafId = requestAnimationFrame(at => { this._rafId = 0; this.loop(generation, at); });
+    const cpuStart = performance.now();
+    const renderFrame = this.frameRate.begin(frameAt, document.hidden);
     const frameDt = Math.min(0.25, this.clock.getDelta());
     const dt = Math.min(0.05, frameDt);
     const now = nowMs();
@@ -677,6 +692,7 @@ class Game {
       grenadeType: this.input.getGrenadeType(),
       grenadeCharge: this.player.input.getGrenadeCharge(now),
       grenadeCharging: this._grenadeCharging,
+      claymorePlacementValid: this._claymorePlacementValid,
       grenadeCook01: this._grenadeCook01,
       grenadeCookLeftMs: this._grenadeCookLeftMs,
       holdingBreath: !!this.player.aimMotion?.holdingBreath,
@@ -686,11 +702,14 @@ class Game {
       scopeZoom: this.player.scopeZoom,
     });
     sfx.breath(this.player.aimMotion?.breathEvent);
+    sfx.painMoan(this.player.pain, now, {
+      active: this.player.alive && !spectating && !document.hidden && !this.hud.settingsOpen,
+      holding: !!this.player.aimMotion?.holdingBreath,
+    });
     sfx.panicBreath(this.player.panic, now, {
       active: this.player.alive && !spectating && !document.hidden && !this.hud.settingsOpen,
       holding: !!this.player.aimMotion?.holdingBreath,
     });
-    this.hud.setTelemetry(frameDt, this.net?.networkStats, now);
     const hp = this.player.hp;
     sfx.lowHealthPulse(this.player.alive && hp < 35 ? (35 - hp) / 35 : 0, now);
     const forward = fwdFromAngles(this.player.aimYaw, this.player.aimPitch);
@@ -712,13 +731,17 @@ class Game {
     this.liveEffectsGroup.visible = !replaying;
     this.liveAvatarsGroup.visible = !replaying;
     this.worldview.powerups.group.visible = !replaying;
-    if (replaying) {
+    const renderStart = performance.now();
+    if (renderFrame && replaying) {
       this._postFrame.smokeFields = this.killcam.sample.smokeFields;
       this._postFrame.smokeNow = this.killcam.sample.time;
       this._postFrame.panic = this._postFrame.pain = this._postFrame.burning = 0;
       this._postFrame.scopeActive = false;
       this.post.render(this.worldview.scene, this.killcam.camera, this._postFrame);
-    } else this.post.render(this.worldview.scene, this.camera, this._postFrame);
+    } else if (renderFrame) this.post.render(this.worldview.scene, this.camera, this._postFrame);
+    const cpuEnd = performance.now();
+    const frameStats = this.frameRate.end(cpuEnd - cpuStart, renderFrame ? cpuEnd - renderStart : 0);
+    this.hud.setTelemetry(frameDt, this.net?.networkStats, now, frameStats);
   }
 
   phaseError(phase, error) {
@@ -736,6 +759,8 @@ class Game {
     this._rafId = 0;
     this.running = false;
     this.clock.stop();
+    this.frameRate.reset();
+    sfx.stopPainMoans();
     this._pendingAuthoritativeSnapshots = [];
     this._lastConsumedSnapSeq = null;
     this.feedback?.dispose();
@@ -769,6 +794,7 @@ class Game {
     this._disposed = true;
     if (this._debugInterval) clearInterval(this._debugInterval);
     if (this._onDebugError) window.removeEventListener('error', this._onDebugError, true);
+    document.removeEventListener('visibilitychange', this._onFrameVisibility);
     this.player.dispose();
     this.post?.dispose();
     this.post = null;
@@ -801,6 +827,7 @@ window.__vb = {
       localId: game.myId,
       alive: game.player.alive,
       running: game.running,
+      frameRate: game.frameRate.snapshot,
       hp: game.player.hp,
       feet: [pos.x, pos.y, pos.z].every(Number.isFinite) ? { x: pos.x, y: pos.y, z: pos.z } : null,
       crouching: game.player.crouchBool,

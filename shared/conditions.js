@@ -60,8 +60,10 @@ export function recoverConditions(state, dt, { hp = 100, burning = 0, sprinting 
     (holdingBreath ? CONDITION_RULES.steadyPanicRecoverPerS : 0)) *
     (crouching && !sprinting ? CONDITION_RULES.crouchPanicRecoverMult : 1);
   state.panic = clamp01(Math.max(flamePanicFloor(burning), state.panic - recovery * step));
-  state.pain = clamp01(Math.max(missingHealth * CONDITION_RULES.painLowHpFloor,
-    state.pain - CONDITION_RULES.painDecayPerS * step));
+  const painFloor = missingHealth * CONDITION_RULES.painLowHpFloor;
+  // Decay the injury spike toward its floor with the same half-life at any tick rate.
+  state.pain = clamp01(painFloor + Math.max(0, state.pain - painFloor) *
+    2 ** (-step / CONDITION_RULES.painHalfLifeS));
   state.exhaustion = clamp01(state.exhaustion + (sprinting
     ? CONDITION_RULES.exhaustionSprintPerS : -CONDITION_RULES.exhaustionRecoverPerS) * step);
 }

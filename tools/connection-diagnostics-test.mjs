@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
 import WebSocket from 'ws';
-import { ConnectionDiagnostics, formatConnectionReport, summarize } from '../public/js/engine/connection-diagnostics.js';
+import { ConnectionDiagnostics, connectionFindings, formatConnectionReport, summarize } from '../public/js/engine/connection-diagnostics.js';
 import { TickTiming } from '../server/diagnostics.js';
 import { NetClient } from '../public/js/engine/netclient.js';
 import { ConnectionSettings } from '../public/js/ui/connection-settings.js';
@@ -152,6 +152,57 @@ assert.equal(summarize([10, 50]).median, 30);
   assert.equal(f.check.report.metrics.serverRtt.count, 1, 'duplicate and stale server samples ignored');
 }
 {
+  const f = fixture();
+  f.net.welcome = { tickRate: 20 };
+  f.net.networkStats = { jitterMs: 50, bufferMs: 180 };
+  f.check.start(f.net);
+  // Regular server steps delivered in pairs: 100 ms pause, then a burst.
+  for (let i = 0; i < 80; i++) {
+    const at = 200 + Math.floor(i / 2) * 100;
+    f.at(at);
+    f.net.emit('tick', { recvLocalMs: at, serverNow: 10_000 + i * 50 });
+    if (i % 4 === 0) {
+      f.net.emit('diagnosticProbe', { nonce: i, atMs: at });
+      f.net.emit('latency', { nonce: i, atMs: at + 40 });
+    }
+  }
+  f.at(4200);
+  const report = f.check.finish();
+  assert.equal(report.snapshotTiming.samples.length, 80);
+  assert.equal(report.snapshotTiming.samples[0].arrivalGapMs, null);
+  assert.equal(report.snapshotTiming.samples[0].serverAtMs, 10_000);
+  assert.equal(report.metrics.snapshotServerStep.median, 50);
+  assert.equal(report.metrics.snapshotArrivalGap.p95, 100);
+  assert.equal(report.metrics.snapshotArrivalGap.min, 0, 'same-turn deliveries remain visible');
+  assert.ok(report.metrics.snapshotCompressedPercent > 50);
+  assert.equal(report.metrics.bufferNearMaxPercent, 100);
+  assert.ok(report.findings.some((s) => s.includes('180 ms limit')));
+  assert.ok(report.findings.some((s) => s.includes('bursts')));
+  assert.ok(!report.findings.some((s) => s.includes('advertised snapshot interval')));
+  assert.match(formatConnectionReport(report), /Snapshot server-clock step/);
+  assert.match(formatConnectionReport(report), /"arrivalGapMs": 0/);
+  const slow = structuredClone(report);
+  slow.metrics.snapshotServerStep.median = 100;
+  assert.ok(connectionFindings(slow).some((s) => s.includes('advertised snapshot interval')));
+  const old = structuredClone(report);
+  delete old.snapshotTiming;
+  delete old.metrics.bufferNearMaxPercent;
+  assert.ok(connectionFindings(old).some((s) => s.includes('180 ms limit')), 'old high-buffer reports also receive a finding');
+  f.at(5000); f.check.start(f.net);
+  assert.equal(f.check.snapshots.length, 0, 'new checks reset snapshot history');
+  f.net.emit('tick', { recvLocalMs: 5100, serverNow: null });
+  f.net.emit('tick', { recvLocalMs: 5150, serverNow: 50 });
+  assert.equal(f.check.snapshots[1].serverStepMs, null, 'missing server timestamps stay missing');
+  f.at(5200); f.check.visibility(true);
+  f.at(5300); f.check.visibility(false);
+  f.net.emit('tick', { recvLocalMs: 5400, serverNow: 100 });
+  assert.equal(f.check.snapshots[2].foregroundInterval, false, 'visibility changes between packets exclude the interval');
+  for (let i = 0; i < 3000; i++) f.net.emit('tick', { recvLocalMs: 5500 + i, serverNow: 150 + i * 50 });
+  f.at(8500); f.check.finish();
+  assert.equal(f.check.report.snapshotTiming.samples.length, 2400);
+  assert.equal(f.check.report.snapshotTiming.dropped, 603, 'recording has a hard memory bound');
+}
+{
   const ticks = new TickTiming();
   ticks.record(100, 125, 160);
   for (let i = 1; i < 20; i++) ticks.record(100 + i * 50, 2, 50);
@@ -178,6 +229,9 @@ try {
   assert.ok(report.metrics.serverEventLoopP95?.count >= 2);
   assert.equal(report.serverVersion, '0.1.0');
   assert.equal(report.metrics.clientQueuedBytes.min, 0);
+  assert.ok(report.snapshotTiming.samples.length > 50);
+  assert.equal(report.snapshotTiming.expectedIntervalMs, 50);
+  assert.equal(report.metrics.snapshotServerStep.median, 50);
   const normal = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('no regular pong after diagnostics stopped')), 2500);
     const off = net.on('latency', (s) => { clearTimeout(timer); off(); resolve(s); });

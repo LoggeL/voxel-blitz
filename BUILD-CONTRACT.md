@@ -99,8 +99,10 @@ After admission:
   is clamped by authority to `50–450 ms` before hit rewind.
   Weapon slots clamp to `0–9`; keyboard digits are `1–9` with `0` for the
   tenth slot.
-- `{t:'ping',nonce:safe-integer}` receives `{t:'pong',nonce}` from the same
-  socket so the client can measure application-level round-trip time.
+- `{t:'ping',nonce:safe-integer,diagnostics?:true}` receives `{t:'pong',nonce}`
+  from the same socket so the client can measure application-level round-trip
+  time. An opted-in reply also carries `diagnostics` with server RTT freshness,
+  tick/process timing and queued bytes; ordinary replies omit this telemetry.
 - `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'}` requests
   an S&D prep-phase purchase.
 - `{t:'chat',text:string}` broadcasts at most 120 trimmed characters only to
@@ -396,6 +398,19 @@ and exposes `quickPlay(meta,name,bots?)`,
   time is mapped onto the local clock with bounded drift correction so packet
   bursts cannot compress authoritative movement into a speed spike.
 
+### ConnectionDiagnostics
+- Settings > Connection records one 60-second check, continuing after settings
+  close. Stop or disconnect saves a partial report; copying is explicit.
+- Browser echoes use raw RTT. Server RTT samples are separate and reject stale
+  or repeated sequences. Missing measurements remain unavailable.
+- Raw snapshots record client reception time, original server timestamp and
+  consecutive gaps, capped at 2,400 rows with an omitted count. Foreground gap
+  summaries exclude visibility transitions. Absolute client and server clocks
+  are not subtracted to claim one-way latency.
+- Findings flag a persistently near-maximum interpolation buffer, burst arrivals
+  and server-clock steps above the advertised interval. They do not attribute
+  those observations to a particular proxy or measure packet-loss percentages.
+
 ### HUD
 - `buildMenu(onAction)` builds Quick Play/Create/Join and a Killhouse shortcut, and calls
   `onAction({mode:'quick'|'create'|'join',gameMode,map,name,bots,sensitivity,
@@ -455,8 +470,12 @@ and exposes `quickPlay(meta,name,bots?)`,
   compass yaw, ADS/scope zoom, breath, grenade selection/charge/cook, and weapon
   charge/heat/fuel values. Unchanged display values skip DOM writes; timed
   feedback continues until it finishes. `setScoreboard(boolean)`,
-  `setScope(boolean)`, and `setTelemetry(frameDt,stats,atMs)` control the
-  scoreboard, scope transition, and measured network/frame telemetry.
+  `setScope(boolean)`, and `setTelemetry(frameDt,stats,atMs,frameStats?)` control the
+  scoreboard, scope transition, and measured network/frame telemetry. Optional
+  frame stats count rendered frames separately from browser callbacks and include
+  the selected render cap and a qualified limit explanation. Display settings
+  persist the cap as `vb-fps-mode` (native, 30, 60, 90, 120, 144, 165, 240, 360).
+  Render caps leave input, prediction, and network processing on every callback.
 - `killfeed(event)` resolves player names from the latest match roster.
   `hitmark(headshot|'body'|'head'|'kill'|'killHead')` keeps a visible kill mark
   from being downgraded by a trailing hit.
@@ -634,6 +653,12 @@ idempotent, every voice routes through the clamped master volume and limiter,
 and `dispose()` closes the owned context and clears voices/timers. Fire and
 impact support HRTF positions; the engine caps 48 voices total and 16
 positional voices.
+`painMoan(pain01,nowMs,{active,holding}?)` drives occasional local wound
+vocals above 10% pain. Three procedural vocal shapes do not repeat consecutively;
+pain increases their gain, duration, and frequency, with randomized spacing.
+Moans never queue on audio unlock. Recovery, breath holding, death, settings,
+spectating, and match teardown stop them through `stopPainMoans()`; fresh local
+hit reactions take priority and panic breathing yields during a moan.
 `BUILTIN_SAMPLE_MANIFEST` is the exact licensed local fire/reload asset set.
 Sample decode/fetch failures retain procedural fallbacks. The menu uses the
 licensed local loop through the same master bus; the offline audit inventories
@@ -650,6 +675,16 @@ their room is live. They obey target eligibility and friendly-fire rules, use
 mode-specific spawn pools, avoid fire during S&D prep, buy affordable S&D
 weapons, recover/escort/plant/guard/defuse the bomb, and dispose their engine
 step listener with the room.
+Combat vision uses exact room-voxel rays to stance-aware torso, head, hip and
+torso-edge samples, with smoke checked on each ray. New targets must be inside
+a 110-degree horizontal / 100-degree vertical view cone and within 38 meters
+(42 meters and a 130-degree horizontal cone while tracking). Partial cover and
+low stances reduce detection range and increase recognition time; even an
+exposed nearby target takes about 0.3 seconds to recognize. Fire requires a
+recognized target, aligned aim, and a clear firing ray. Losing sight immediately
+stops fire and cancels an active capacitor charge. Bots may search the last
+confirmed position for 2.4 seconds without updating it from hidden movement;
+mode objectives retain navigation priority, and respawn clears combat memory.
 
 ## Runtime gameplay contracts
 - **Map power-ups:** Fun, TDM and Chaos Lab spawn Armor (+50, cap 100), Medkit
@@ -834,14 +869,19 @@ step listener with the room.
   geometry checks landing support, body clearance, and the entire 0.48 s
   lift and pull path on both client and server; new obstructions cancel it.
 - **Conditions:** panic gains `incomingDamage*0.012 + (headshot ? 0.22 : 0)`,
-  clamps to `0–1`, and decays at `0.20/s` to zero regardless of health.
+  clamps to `0–1`, and decays at `0.06/s` to zero regardless of health.
   Active fire retains its danger floor. Pain gains `healthDamage*0.012`,
-  plus `0.12*(healthDamage/incomingDamage)` for a headshot. It decays
-  at `0.65/s` toward `0.12*(1-hp/100)`. Fully absorbed hits create impact
+  plus `0.12*(healthDamage/incomingDamage)` for a headshot. Pain above the
+  residual floor `0.12*(1-hp/100)` decays exponentially with a 2-second
+  half-life: `pain = floor + max(0,pain-floor)*2^(-dt/2)`. From full health
+  and calm, a 25-damage unarmored body hit leaves pain at `0.165` after
+  2 seconds and `0.0975` after 4 seconds, approaching its `0.03` floor.
+  Panic clears in 5 seconds when standing without holding breath.
+  Fully absorbed hits create impact
   feedback and panic without injury pain. Exhaustion gains `0.24/s` while
   sprinting, `0.14` per accepted jump, and `0.025` per accepted shot;
   otherwise it recovers at `0.18/s`.
-  Stationary grounded ADS + Shift suppresses sway and adds `0.32/s` panic
+  Stationary grounded ADS + Shift suppresses sway and adds `0.12/s` panic
   recovery for a finite 2.4 seconds, including when wounded. Crouching scales
   sway to 55% and panic recovery by 1.35. Movement, jumps, reloads, weapon
   deployment, and grenade handling cancel steadying. Breath refills after

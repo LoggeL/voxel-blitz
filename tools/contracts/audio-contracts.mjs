@@ -281,6 +281,46 @@ export async function runAudioContracts(ok, installGlobals) {
         fn();
         return audio.starts.length - before;
       };
+      const nextMoan = (options = {}) => {
+        for (let frame = 0; frame < 150; frame++) {
+          audio.currentTime += 0.02;
+          if (sfx.painMoan(1, audio.currentTime * 1000, options)) return true;
+        }
+        return false;
+      };
+      const moanNodesAt = audio.nodes.length;
+      ok(nextMoan(), 'persistent pain starts an ambient moan');
+      const moanOutput = audio.nodes.slice(moanNodesAt).find((node) =>
+        node.kind === 'gain' && node.connections.includes(master));
+      ok(moanOutput && !moanOutput.disconnected,
+        'pain moans use the local master bus with no world panner');
+      ok(!sfx.panicBreath(1, 0) && !sfx.panicBreath(1, 300),
+        'panic breathing yields while a moan is audible');
+      sfx.pain({ damage: 40, local: true });
+      ok(moanOutput.disconnected, 'an immediate local hit cancels the ambient moan');
+      ok(startedBy(() => {
+        for (let i = 0; i < 40; i++) {
+          audio.currentTime += 0.02;
+          sfx.painMoan(1, audio.currentTime * 1000);
+        }
+      }) === 0, 'moans cannot compete with a fresh local hit voice');
+      ok(nextMoan(), 'ambient moans resume after the hit reaction');
+      const currentMoan = audio.nodes.findLast((node) =>
+        node.kind === 'gain' && node.connections.includes(master) && !node.disconnected);
+      sfx.painMoan(1, audio.currentTime * 1000, { holding: true });
+      ok(currentMoan.disconnected && !nextMoan({ holding: true }),
+        'holding breath stops an active moan and prevents new ones');
+      ok(nextMoan(), 'releasing breath restores the pain cadence');
+      sfx.deathSelf();
+      const afterDeath = audio.starts.length;
+      ok(!nextMoan({ active: false }) && audio.starts.length === afterDeath,
+        'dead, spectating and paused players do not produce ambient moans');
+      audio.state = 'suspended';
+      ok(!nextMoan(), 'suspended audio does not enqueue ambient moans');
+      audio.state = 'running';
+      ok(startedBy(() => sfx.painMoan(1, audio.currentTime * 1000)) === 0,
+        'unlock starts with a quiet lead-in instead of replaying old moans');
+      sfx.stopPainMoans();
       ok(startedBy(() => sfx.fire('lmg')) >= 4,
         'LMG fire starts its layered procedural voice');
       ok(startedBy(() => sfx.fire('revolver')) >= 4,

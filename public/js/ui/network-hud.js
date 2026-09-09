@@ -10,6 +10,7 @@ export class NetworkHud {
     this.root = null;
     this.ping = null;
     this.fps = null;
+    this.limit = null;
     this.buffer = null;
     this.bars = [];
     this.fpsEma = 0;
@@ -31,6 +32,8 @@ export class NetworkHud {
     this.fps.className = 'vb-net-fps';
     this.fps.textContent = 'FPS --';
     values.append(this.ping, this.fps);
+    this.limit = document.createElement('span');
+    this.limit.className = 'vb-net-limit';
     const history = document.createElement('div');
     history.className = 'vb-net-history';
     history.setAttribute('aria-hidden', 'true');
@@ -42,7 +45,7 @@ export class NetworkHud {
     this.buffer = document.createElement('span');
     this.buffer.className = 'vb-net-buffer';
     this.buffer.textContent = 'BUFFER --';
-    root.append(values, history, this.buffer);
+    root.append(values, this.limit, history, this.buffer);
     parent.appendChild(root);
     this.root = root;
     this.applyVisibility();
@@ -55,11 +58,12 @@ export class NetworkHud {
     this.root.style.display = showPing || showFps || showNetwork ? 'block' : 'none';
     this.ping.style.display = showPing ? '' : 'none';
     this.fps.style.display = showFps ? '' : 'none';
+    this.limit.style.display = showFps ? 'block' : 'none';
     this.buffer.style.display = showNetwork ? 'block' : 'none';
     this.root.querySelector('.vb-net-history').style.display = showNetwork ? 'flex' : 'none';
   }
 
-  update(frameDt, stats = null, atMs = performance.now()) {
+  update(frameDt, stats = null, atMs = performance.now(), frameStats = null) {
     if (Number.isFinite(frameDt) && frameDt > 0 && frameDt < 1) {
       const instant = clamp(1 / frameDt, 1, 360);
       this.fpsEma = this.fpsEma === 0 ? instant : this.fpsEma * 0.9 + instant * 0.1;
@@ -72,12 +76,18 @@ export class NetworkHud {
     const pingMs = Math.max(0, Number(stats?.pingMs) || 0);
     const jitterMs = Math.max(0, Number(stats?.jitterMs) || 0);
     const bufferMs = Math.max(0, Number(stats?.bufferMs) || 0);
-    const fps = Math.round(this.fpsEma);
+    const fps = frameStats ? (frameStats.ready ? Math.round(frameStats.renderedFps) : 0) : Math.round(this.fpsEma);
     this.ping.textContent = pingMs > 0 ? `PING ${Math.round(pingMs)} MS` : 'PING --';
     this.fps.textContent = fps > 0 ? `FPS ${fps}` : 'FPS --';
+    this.limit.textContent = frameStats?.limit.label || '';
+    this.limit.title = frameStats?.limit.detail || '';
     this.buffer.textContent = `JIT ${Math.round(jitterMs)} · BUF ${Math.round(bufferMs)} MS`;
-    this.root.classList.toggle('vb-net-warn', pingMs >= 85 || fps < 45);
-    this.root.classList.toggle('vb-net-bad', pingMs >= 150 || (fps > 0 && fps < 28));
+    const { showPing, showNetwork, showFps } = displaySettings();
+    const expectedFps = frameStats?.targetFps || 60;
+    const lowFps = showFps && fps > 0 && fps < Math.min(45, expectedFps * 0.75);
+    const badFps = showFps && fps > 0 && fps < Math.min(28, expectedFps * 0.5);
+    this.root.classList.toggle('vb-net-warn', ((showPing || showNetwork) && pingMs >= 85) || lowFps);
+    this.root.classList.toggle('vb-net-bad', ((showPing || showNetwork) && pingMs >= 150) || badFps);
 
     const samples = Array.isArray(stats?.pingHistory) ? stats.pingHistory : [];
     const visible = samples.slice(-BAR_COUNT);
@@ -96,6 +106,7 @@ export class NetworkHud {
     this.lastPaintAt = -Infinity;
     if (this.ping) this.ping.textContent = 'PING --';
     if (this.fps) this.fps.textContent = 'FPS --';
+    if (this.limit) { this.limit.textContent = ''; this.limit.title = ''; }
     if (this.buffer) this.buffer.textContent = 'BUFFER --';
     for (const bar of this.bars) {
       bar.style.height = '2px';
@@ -105,8 +116,7 @@ export class NetworkHud {
 
   dispose() {
     this.root?.remove();
-    this.root = this.ping = this.fps = this.buffer = null;
+    this.root = this.ping = this.fps = this.limit = this.buffer = null;
     this.bars = [];
   }
 }
-

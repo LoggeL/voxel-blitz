@@ -1,10 +1,10 @@
+import { placeClaymore } from './claymore-rules.js';
 /**
  * Shared client/server contract for the throwable roster: five throwable types with
  * one inventory, one charge/cook hold model, and one physics integrator.
  *
  * - `frag`   M-4 FRAG      timed fuse that starts at the pin pull (cookable), bounces.
- * - `limpet` LIMPET CHARGE sticks to the first wall or player it touches, then arms a
- *                          short fuse; breaching blast with the deepest terrain carve.
+ * - `limpet` CLAYMORE mounts on a nearby wall and detonates when its laser is crossed.
  * - `pulse`  PULSE SHOCK   detonates on impact; light damage, huge knockback, and a
  *                          concussion that slows and panics whoever it lands on.
  * - `molotov`             shatters on impact and leaves a persistent ground fire.
@@ -60,16 +60,14 @@ export const GRENADE_TYPES = Object.freeze({
   }),
   limpet: Object.freeze({
     id: 'limpet',
-    name: 'LIMPET CHARGE',
-    short: 'LMP',
+    name: 'CLAYMORE',
+    short: 'CLAY',
     perLife: 1,
-    /** Fuse that starts the moment the charge sticks. */
-    fuseMs: 1500,
-    /** A limpet that never lands still detonates after this long in the air. */
-    flightMaxMs: 3500,
+    wallMine: true,
+    fuseMs: 0,
     cook: false,
     impact: false,
-    sticky: true,
+    sticky: false,
     damage: 175,
     damageRadius: 5.0,
     selfDamage: 0.72,
@@ -207,7 +205,8 @@ export function grenadeThrowProfile(value) {
  * inherits part of the thrower's body velocity. `dir` is the unit look vector.
  * Returns plain numbers so both the server entity and client prediction can copy them.
  */
-export function grenadeLaunch({ x, y, z, eyeY, vx = 0, vy = 0, vz = 0, dir, charge, type = 'frag' }) {
+export function grenadeLaunch({ x, y, z, eyeY, vx = 0, vy = 0, vz = 0, dir, charge, type = 'frag', solidAt = null }) {
+  if (type === 'limpet') return placeClaymore({ x, eyeY, z, dir }, solidAt);
   const profile = grenadeThrowProfile(charge);
   const d = dir || { x: 0, y: 0, z: -1 };
   const typeId = GRENADE_TYPES[type] ? type : 'frag';
@@ -267,7 +266,7 @@ export function stepGrenade(grenade, dt, isSolid) {
   const physics = physicsFor(grenade);
   grenade.hitFloor = false;
   grenade.hitSolid = false;
-  if (grenade.stuck || duration === 0) return grenade;
+  if (grenade.type === 'limpet' || grenade.stuck || duration === 0) return grenade;
   // Small swept steps prevent fast throws from skipping thin voxel walls.
   const speed = Math.hypot(grenade.vx, grenade.vy, grenade.vz) + physics.gravity * duration;
   const count = Math.max(1, Math.ceil(Math.max(duration * 120, speed * duration / physics.radius)));

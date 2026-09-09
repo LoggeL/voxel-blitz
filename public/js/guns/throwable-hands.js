@@ -96,11 +96,11 @@ export class ThrowableHands {
         }
         box(model, orange, [0.075, 0.009, 0.083], [0, 0.066, 0]);
       } else if (id === 'limpet') {
-        const housing = mat(0xb34d35, { metalness: 0.35 });
-        mesh(model, new THREE.CylinderGeometry(0.078, 0.078, 0.055, 10), dark, [0, -0.017, 0]);
-        mesh(model, new THREE.CylinderGeometry(0.055, 0.075, 0.095, 8), housing, [0, 0.016, 0]);
-        for (const side of [-1, 1]) box(model, steel, [0.018, 0.070, 0.055], [side * 0.069, 0.003, 0]);
-        box(model, orange, [0.025, 0.03, 0.007], [0, 0.026, 0.073]);
+        const housing = mat(0x526442, { metalness: 0.35 });
+        box(model, housing, [0.20, 0.13, 0.065], [0, 0.014, 0]);
+        for (const side of [-1, 1]) box(model, dark, [0.024, 0.11, 0.074], [side * 0.083, 0.014, 0]);
+        box(model, steel, [0.05, 0.024, 0.017], [0, 0.016, 0.037]);
+        box(model, orange, [0.018, 0.018, 0.01], [0, 0.016, 0.047]);
       } else if (id === 'pulse') {
         mesh(model, new THREE.IcosahedronGeometry(0.081, 1), dark);
         for (let i = 0; i < 3; i++) {
@@ -222,7 +222,7 @@ export class ThrowableHands {
   _poseHeld() {
     const draw = smooth(this.elapsed / THROWABLE_TIMING.draw);
     const pull = smooth((this.elapsed - THROWABLE_TIMING.arm) / 0.16);
-    const cock = smooth((this.elapsed - 0.40) / 0.26) * (0.45 + this.charge * 0.55);
+    const cock = this.type === 'limpet' ? 0 : smooth((this.elapsed - 0.40) / 0.26) * (0.45 + this.charge * 0.55);
     const bob = Math.sin(this._clock * 3.1) * 0.004;
     this.right.position.set(0.22 + cock * 0.085, -0.60 + draw * 0.36 - cock * 0.008 + bob, -0.38 - draw * 0.15 + cock * 0.022);
     this.right.rotation.set(-0.42 + draw * 0.34 + cock * 0.14, -0.17 - cock * 0.10, -0.27 + draw * 0.12 + cock * 0.10);
@@ -276,9 +276,10 @@ export class ThrowableHands {
       const lower = smooth((t - 0.38) / 0.62);
       this.right.position.copy(this._throwPosition);
       this.right.position.x -= 0.18 * swing;
-      this.right.position.y += 0.19 * swing - 0.64 * lower;
-      this.right.position.z -= (0.20 + this.charge * 0.14) * swing;
-      this.right.rotation.set(this._throwRotation.x - 0.80 * swing + lower * 0.3, -0.10, this._throwRotation.z - 0.20 * swing);
+      const placing = this.type === 'limpet';
+      this.right.position.y += (placing ? 0.04 : 0.19) * swing - 0.64 * lower;
+      this.right.position.z -= (placing ? 0.30 : 0.20 + this.charge * 0.14) * swing;
+      this.right.rotation.set(this._throwRotation.x - (placing ? 0.12 : 0.80) * swing + lower * 0.3, -0.10, this._throwRotation.z - 0.20 * swing);
       this.left.visible = false;
       this.pin.visible = false;
       this.blend = 1 - smooth((t - 0.50) / 0.50);

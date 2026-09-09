@@ -54,7 +54,7 @@ export function computeConeDeg(p) {
 }
 
 /** Drop a capacitor charge without firing (switch, reload, death, blocked mode). */
-function cancelCharge(p) {
+export function cancelCharge(p) {
   p.charging = false;
   p.chargeT = 0;
   p.charge = 0;

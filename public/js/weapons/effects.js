@@ -164,6 +164,10 @@ export class Effects {
     }
   }
 
+  syncMines(rows, selfId) {
+    if (!this._disposed) this.projectiles.syncMines?.(rows, selfId);
+  }
+
   syncFireFields(rows, serverNow) {
     if (!this._disposed) this.fireFields.sync(rows, serverNow);
   }

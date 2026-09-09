@@ -53,6 +53,7 @@ function stopLoops() {
   for (const button of document.querySelectorAll('[aria-pressed]')) button.setAttribute('aria-pressed', 'false');
   sfx.stopFlame();
   sfx.minigunMotor(0, 0, false);
+  sfx.stopPainMoans();
   for (const audio of document.querySelectorAll('audio')) audio.pause();
 }
 
@@ -178,6 +179,7 @@ function stopContinuous() {
   generation++;
   for (const timer of timers) clearTimeout(timer);
   timers.clear(); holding.clear(); sfx.stopFlame(); sfx.minigunMotor(0, 0, false);
+  sfx.stopPainMoans();
   for (const button of document.querySelectorAll('[aria-pressed]')) button.setAttribute('aria-pressed', 'false');
 }
 
@@ -218,6 +220,29 @@ async function waveform(url, canvas, caption) {
     }
   }
   return available;
+}
+
+const painPreview = document.getElementById('pain-moans');
+for (const [level, label] of [[0.2, 'Mild pain'], [0.55, 'Moderate pain'], [1, 'Severe pain']]) {
+  const article = document.createElement('article');
+  const heading = document.createElement('h3'); heading.textContent = label;
+  const description = document.createElement('p');
+  description.textContent = `${Math.round(level * 100)}% pain, with three varied groans and natural pauses.`;
+  article.append(heading, description, button(`${label}: 20 seconds`, () => {
+    stopLoops();
+    const token = generation, started = performance.now();
+    const tick = () => {
+      if (token !== generation) return;
+      const now = performance.now();
+      if (now - started >= 20000) {
+        sfx.stopPainMoans(); status.textContent = `${label}: preview finished.`; return;
+      }
+      sfx.painMoan(level, now);
+      later(tick, 50);
+    };
+    tick(); status.textContent = `${label}: 20 seconds at a steady pain level.`;
+  }));
+  painPreview.append(article);
 }
 
 const hitFeedback = document.getElementById('hit-feedback');

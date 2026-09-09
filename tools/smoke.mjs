@@ -231,13 +231,13 @@ function runDirectContracts() {
   ok(JSON.stringify(CONDITION_RULES) === JSON.stringify({
     panicDamageGain: 0.012,
     panicHeadshotGain: 0.22,
-    panicDecayPerS: 0.2,
+    panicDecayPerS: 0.06,
     panicLowHpFloor: 0,
     painDamageGain: 0.012,
     painHeadshotGain: 0.12,
-    painDecayPerS: 0.65,
+    painHalfLifeS: 2,
     painLowHpFloor: 0.12,
-    steadyPanicRecoverPerS: 0.32,
+    steadyPanicRecoverPerS: 0.12,
     crouchPanicRecoverMult: 1.35,
     exhaustionSprintPerS: 0.24,
     exhaustionRecoverPerS: 0.18,
@@ -344,24 +344,21 @@ function runDirectContracts() {
     }
   }
   Object.assign(limpetOwner, { x: 40.5, y: 20, z: 50.5, yaw: -Math.PI / 2, pitch: 0, vx: 0, vy: 0, vz: 0 });
-  Object.assign(limpetVictim, { x: 46.5, y: 20, z: 50.5, hp: 100, vx: 0, vy: 0, vz: 0 });
+  Object.assign(limpetVictim, { x: 40.5, y: 20, z: 52.5, hp: 100, spawnProtectedUntil: 0, vx: 0, vy: 0, vz: 0 });
+  limpetEngine.world.setBlock(42, 21, 50, 1);
   const limpetIndex = GRENADE_TYPE_IDS.indexOf('limpet');
   const limpet = limpetEngine.projectiles.throw(limpetOwner, limpetEngine.contexts.projectiles, 1, limpetIndex);
-  Object.assign(limpet, { x: 46.2, y: 21.0, z: 50.5, vx: 12, vy: 0, vz: 0 });
-  limpetEngine.now += 300;
+  limpetOwner.z = 54.5;
+  limpetEngine.now += 1000;
   limpetEngine.projectiles.step(0.05, limpetEngine.contexts.projectiles);
-  const stickEvent = limpetEngine.tickEvents.find((event) => event.kind === 'projectileStick');
-  limpetVictim.x = 50.5;
-  limpetEngine.projectiles.step(0.05, limpetEngine.contexts.projectiles);
-  const rideX = limpet.x;
-  limpetEngine.now += GRENADE_TYPES.limpet.fuseMs + 50;
+  ok(limpet?.stuck && limpetEngine.projectiles.active.size === 1, 'Claymore remains mounted after arming');
+  limpetVictim.x = 41.5;
+  limpetVictim.z = 50.5;
   limpetEngine.projectiles.step(0.05, limpetEngine.contexts.projectiles);
   const limpetKill = limpetEngine.tickEvents.find((event) => event.kind === 'kill' && event.victim === 'limpet-victim');
-  ok(limpetOwner.grenades[limpetIndex] === 0
-    && stickEvent?.to === 'limpet-victim' && limpet.stuckTo === limpetVictim
-    && Math.abs(rideX - (50.5 + limpet.stickOffset.x)) < 1e-9
+  ok(limpetOwner.grenades[limpetIndex] === 0 && limpetEngine.projectiles.active.size === 0
     && limpetKill?.w === 'limpet' && limpetVictim.state === 'dead',
-  'a limpet sticks to the first player it touches, rides that carrier, and its short fuse kills with a direct blast');
+  'a wall-mounted Claymore detonates when an enemy crosses its laser');
 
   const pulseEngine = new GameEngine();
   pulseEngine.addBot('pulse-owner', 'Pulse Owner');
@@ -860,12 +857,12 @@ function runDirectContracts() {
   Object.assign(conditionTarget, {
     hp: 25, panic: 0.1, pain: 0.1, exhaustion: 0, sprint: false,
   });
-  updateCondition(conditionTarget, 0.5);
+  updateCondition(conditionTarget, 2);
   ok(nearly(decayedPanic, 0.8 - CONDITION_RULES.panicDecayPerS * 0.5)
-    && nearly(decayedPain, 0.8 - CONDITION_RULES.painDecayPerS * 0.5)
+    && nearly(decayedPain, 0.8 * 2 ** (-0.5 / CONDITION_RULES.painHalfLifeS))
     && nearly(conditionTarget.panic, 0.75 * CONDITION_RULES.panicLowHpFloor)
-    && nearly(conditionTarget.pain, 0.75 * CONDITION_RULES.painLowHpFloor),
-  'panic and pain decay at their exact rates without crossing their low-health floors');
+    && nearly(conditionTarget.pain, 0.095),
+  'panic decays linearly and excess pain halves in two seconds without crossing its injury floor');
 
   Object.assign(conditionTarget, {
     hp: 100, panic: 0.99, pain: 0.99, exhaustion: 0.99, sprint: true, state: 'alive',
@@ -880,9 +877,9 @@ function runDirectContracts() {
   });
   updateCondition(conditionTarget, 1);
   ok(upperPanic === 1 && upperPain === 1 && upperExhaustion === 1
-    && conditionTarget.panic === 0 && conditionTarget.pain === 0
+    && conditionTarget.panic === 0 && nearly(conditionTarget.pain, 0.01 * Math.SQRT1_2)
     && conditionTarget.exhaustion === 0,
-  'panic, pain, and exhaustion clamp exactly to their normalized upper and lower bounds');
+  'conditions stay normalized while pain retains its exponential recovery tail');
 
   Object.assign(conditionShooter, {
     x: 60, y: 70, z: 60, yaw: 0, pitch: 0.04, weapon: 0,

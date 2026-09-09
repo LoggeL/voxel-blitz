@@ -266,6 +266,28 @@ async function main() {
     const result = await renderScenario(name, events); cues[name] = result.metrics;
     audible(result, name, onset); return result;
   };
+  const moans = [];
+  for (const [level, label] of [[0.2, 'Mild pain moan'], [1, 'Severe pain moan']]) {
+    const events = Array.from({ length: 51 }, (_, frame) => {
+      const at = frame * 0.05;
+      return [at, () => sfx.painMoan(level, at * 1000)];
+    });
+    const result = await cue(label, events, 1500);
+    moans.push(result);
+    check(result.trace.acquisitions.length === 1 && !result.trace.acquisitions[0].positional,
+      `${label}: one local vocal output`);
+    check(regionRms(result.data, 0, 0.4) === 0 && regionRms(result.data, 2.5, 3.1) < 0.00001,
+      `${label}: quiet lead-in and completed tail`);
+  }
+  check(moans[1].metrics.rms > moans[0].metrics.rms * 1.4,
+    'Severe pain is audibly stronger than mild pain');
+  const stoppedMoan = await renderScenario('Pain moan interrupted by recovery', [
+    ...Array.from({ length: 19 }, (_, frame) => [frame * 0.05,
+      () => sfx.painMoan(1, frame * 50)]),
+    [0.95, () => sfx.painMoan(0, 950)],
+  ]);
+  check(stoppedMoan.trace.acquisitions.length === 1 && regionRms(stoppedMoan.data, 1.2, 3.1) < 0.00001,
+    'Recovery stops an audible moan without a lingering voice');
   const pickaxeSwingUrls = PICKAXE_SWING_SLOTS.map((slot) => BUILTIN_SAMPLE_MANIFEST[slot]);
   const pickaxeImpactUrls = PICKAXE_IMPACT_SLOTS.map((slot) => BUILTIN_SAMPLE_MANIFEST[slot]);
   check(weaponResults.knife.trace.sources.length === 1

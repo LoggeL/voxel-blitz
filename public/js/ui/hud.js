@@ -134,9 +134,10 @@ export class HUD {
   }
   setState(state) { return this.gameplay.setState(state); }
   setScoreboard(visible) { return this.gameplay.setScoreboard(visible); }
-  setTelemetry(frameDt, stats, atMs) {
+  setTelemetry(frameDt, stats, atMs, frameStats = null) {
     this.settings.connection.frame(atMs, this.settingsOpen);
-    return this.gameplay.setTelemetry(frameDt, stats, atMs);
+    if (this.settingsOpen) this.settings.frameRate.update(frameStats);
+    return this.gameplay.setTelemetry(frameDt, stats, atMs, frameStats);
   }
   setScope(visible) { return this.gameplay.setScope(visible); }
 

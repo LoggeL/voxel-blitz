@@ -6,7 +6,7 @@ import { LocalPlayer } from '../public/js/player/local-player.js';
 import { WeaponState } from '../public/js/guns/weapon-state.js';
 import { AimSway } from '../public/js/player/aim-sway.js';
 import { BreathHold, recoverConditions } from '../shared/conditions.js';
-import { WEAPONS, computeSpreadConeDeg } from '../shared/combatmath.js';
+import { CONDITION_RULES, WEAPONS, computeSpreadConeDeg } from '../shared/combatmath.js';
 
 const spawn = { x: 4, y: 1, z: 4, index: 0 };
 const close = (a, b) => assert.ok(Math.abs(a - b) < 1e-9, `${a} != ${b}`);
@@ -22,8 +22,14 @@ for (const hz of [30, 60, 144]) {
     for (const p of [resting, steady, crouched]) updateCondition(p, 1 / hz);
   }
   assert.ok(crouched.panic < steady.panic && steady.panic < resting.panic);
-  for (let i = 0; i < hz * 6; i++) updateCondition(resting, 1 / hz);
-  close(resting.panic, 0); close(resting.pain, 0.09);
+  for (let i = 0; i < hz; i++) updateCondition(resting, 1 / hz);
+  close(resting.panic, 0.88); close(resting.pain, 0.545);
+  for (let i = 0; i < hz * 2; i++) updateCondition(resting, 1 / hz);
+  close(resting.panic, 0.76); close(resting.pain, 0.3175);
+  for (let i = 0; i < hz * 16; i++) updateCondition(resting, 1 / hz);
+  close(resting.panic, 0);
+  assert.ok(resting.pain > 0.09 && resting.pain < 0.091,
+    'pain approaches its injury floor without crossing it');
   for (let i = 0; i < hz * 5; i++) updateCondition(steady, 1 / hz);
   assert.equal(steady.breath.exhausted, true);
   assert.equal(steady.breath.holding, false);
@@ -95,7 +101,7 @@ assert.equal(deployGetter.call({ _now: () => 100, _deployUntil: 100 }), false);
   engine.step(20);
   assert.equal(p.breath.holding, false, 'pending normalized switch cancels same tick');
   close(p.breath.reserve, reserve);
-  close(p.panic, panic - .2 * .02);
+  close(p.panic, panic - CONDITION_RULES.panicDecayPerS * .02);
 }
 
 console.log('Conditions: low-health recovery, finite steady action, crouch, authority/prediction parity, eligibility, armor wounds and bounded spread passed.');

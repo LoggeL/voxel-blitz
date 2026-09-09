@@ -183,6 +183,7 @@ export class GameEngine {
       this.powerups.snapshot(),
       this.projectiles.fire.snapshot(),
       this.projectiles.smoke.snapshot(),
+      this.projectiles.mineSnapshot(this.now),
     );
 
     this.tickBlocks.length = 0;

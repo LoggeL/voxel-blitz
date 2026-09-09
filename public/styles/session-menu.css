@@ -158,6 +158,12 @@
 #settings-overlay .vb-pause-rail .vb-title { font-size: 64px; }
 #settings-overlay .vb-setting-header .vb-label { font-size: 14px; }
 #settings-overlay .vb-setting-row { min-height: 62px; }
+#settings-overlay .vb-frame-settings { min-width: 0; }
+#settings-overlay .vb-frame-settings p { text-transform: none; letter-spacing: normal; }
+#settings-overlay .vb-frame-help { color: var(--sub); font-size: 12px; line-height: 1.5; margin: 10px 0; }
+#settings-overlay .vb-frame-diagnostics { padding: 14px; margin: 14px 0; border: 1px solid #ffffff25; background: #070b1090; font-size: 13px; line-height: 1.5; }
+#settings-overlay .vb-frame-diagnostics strong { color: var(--ok); font: 700 12px/1.4 var(--font-mono); }
+#settings-overlay .vb-frame-metrics { font: 500 11px/1.7 var(--font-mono); color: var(--sub); }
 #settings-overlay .vb-setting-val { font-size: 12px; }
 #settings-overlay .vb-settings-subtitle,#settings-overlay .vb-pause-notice { text-transform: none; letter-spacing: .01em; }
 #settings-overlay .vb-pause-match-card { align-self: stretch; width: 100%; }

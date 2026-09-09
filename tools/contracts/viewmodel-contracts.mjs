@@ -344,20 +344,20 @@ export async function runViewmodelContracts(ok, installGlobals) {
       'frag grenades settle flush on the floor without endless micro-bounces');
 
     const limpetLaunch = grenadeLaunch({
-      x: 10, y: 20, z: 10, eyeY: 21.62, dir: { x: 0, y: -0.3, z: -0.95 }, charge: 1, type: 'limpet',
+      x: 10, y: 20, z: 10, eyeY: 21.62, dir: { x: 0, y: 0, z: -1 }, charge: 1, type: 'limpet',
+      solidAt: (_x, _y, z) => z === 8,
     });
-    const limpetPath = predictGrenadePath(limpetLaunch, floor);
     const limpetReplay = { ...limpetLaunch };
     for (let i = 0; i < 80; i++) stepGrenade(limpetReplay, 1 / 40, floor);
     const pulseLaunch = grenadeLaunch({
       x: 10, y: 20, z: 10, eyeY: 21.62, dir: { x: 0, y: -0.3, z: -0.95 }, charge: 1, type: 'pulse',
     });
     const pulsePath = predictGrenadePath(pulseLaunch, floor);
-    ok(limpetLaunch.type === 'limpet' && limpetPath.rests && limpetPath.landing[1] > 19.9
+    ok(limpetLaunch.type === 'limpet' && limpetReplay.z === limpetLaunch.z
         && Math.abs(limpetReplay.vx) < 1e-9 && Math.abs(limpetReplay.vz) < 1e-9
         && pulsePath.rests && pulsePath.points.length < strong.points.length
-        && GRENADE_TYPES.pulse.impact && GRENADE_TYPES.limpet.sticky,
-    'sticky and impact throwables stop at their first contact in prediction and integration');
+        && GRENADE_TYPES.pulse.impact && GRENADE_TYPES.limpet.wallMine,
+    'wall mines remain fixed while impact throwables stop at first contact');
 
     const rocket = rocketLaunch({ x: 10, y: 21.62, z: 10, dir: { x: 0, y: 0, z: -1 } });
     const flight = { ...rocket };
@@ -404,14 +404,13 @@ export async function runViewmodelContracts(ok, installGlobals) {
       ok(!fx.projectiles.has('g1') && fx.blasts.length === 1,
         'explosion removes the adopted projectile and spawns one blast');
 
-      fx.launch({ pid: 'l1', type: 'limpet', o, v, fuse: 3500 });
-      fx.stick({ pid: 'l1', x: 30.2, y: 21, z: 30.1, to: 'p9', fuse: 1500 });
+      fx.launch({ pid: 'l1', type: 'limpet', o: [30.2, 21, 30.1], v: [0, 0, 0], n: [1, 0, 0], armMs: 0 });
       carriers.set('p9', { x: 34, y: 20, z: 30 });
       fx.update(0.05);
       const limpet = fx.projectiles.get('l1');
-      ok(limpet?.stuck && limpet.stuckTo === 'p9' && Math.abs(limpet.x - 34.2) < 1e-6
-          && Math.abs(limpet.fuse - (limpet.age + 1.5 - 0.05)) < 1e-6,
-        'a limpet stuck to a player rides that carrier and re-arms its fuse from the stick event');
+      ok(limpet?.stuck && !limpet.stuckTo && limpet.x === 30.2 && limpet.fuse === Infinity
+          && limpet.group.userData.laser.visible,
+        'a Claymore stays fixed on its wall and displays an armed laser without a timed fuse');
 
       fx.launch({ pid: 'r1', type: 'rocket', o: [rocket.x, rocket.y, rocket.z], v: [rocket.vx, rocket.vy, rocket.vz], fuse: 4000 }, { fromSelf: false });
       const rocketBefore = fx.projectiles.get('r1').z;

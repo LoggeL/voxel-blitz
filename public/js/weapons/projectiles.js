@@ -1,4 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
+import { CLAYMORE_RULES, claymoreBeam } from '../../../shared/claymore-rules.js';
 import {
   GRENADE_TYPES,
   predictGrenadePath,
@@ -70,7 +71,10 @@ export class ProjectileFX {
     this.grenadeRibGeometry = new THREE.BoxGeometry(0.29, 0.035, 0.29);
     this.grenadeBandGeometry = new THREE.TorusGeometry(0.19, 0.018, 4, 16);
     this.capGeometry = new THREE.BoxGeometry(0.1, 0.08, 0.13);
-    this.limpetGeometry = new THREE.CylinderGeometry(0.17, 0.17, 0.09, 10);
+    this.limpetGeometry = new THREE.BoxGeometry(0.44, 0.28, 0.14);
+    this.claymoreLaserGeometry = new THREE.BoxGeometry(1, 1, 1);
+    this.claymoreLaserMaterial = new THREE.MeshBasicMaterial({ color: 0xff3428,
+      transparent: true, opacity: 0.65, depthWrite: false, toneMapped: false });
     this.pulseGeometry = new THREE.IcosahedronGeometry(0.17, 1);
     this.bottleGeometry = new THREE.CylinderGeometry(0.11, 0.12, 0.34, 8);
     this.bottleNeckGeometry = new THREE.CylinderGeometry(0.042, 0.085, 0.19, 8);
@@ -87,7 +91,7 @@ export class ProjectileFX {
       color: 0x20242a, roughness: 0.48, metalness: 0.78,
     });
     this.limpetMaterial = new THREE.MeshStandardMaterial({
-      color: 0x3b2a22, roughness: 0.6, metalness: 0.55,
+      color: 0x526442, roughness: 0.6, metalness: 0.35,
     });
     this.pulseMaterial = new THREE.MeshStandardMaterial({
       color: 0x0f2a33, roughness: 0.3, metalness: 0.85,
@@ -154,6 +158,9 @@ export class ProjectileFX {
     this.scene.add(this.previewLine, this.landingRing);
     this.preview = null;
     this._previewType = '';
+    this.minePreview = this._buildVisual('limpet');
+    this.minePreview.group.visible = false;
+    this.scene.add(this.minePreview.group);
   }
 
   _createRocketBatches(capacity) {
@@ -227,22 +234,28 @@ export class ProjectileFX {
       group.add(body, neck, label, cloth, flame);
       group.userData.flame = flame;
     } else if (type === 'limpet') {
-      const disc = new THREE.Mesh(this.limpetGeometry, this.limpetMaterial);
+      const housing = new THREE.Mesh(this.limpetGeometry, this.limpetMaterial);
       capMaterial = new THREE.MeshBasicMaterial({ color: 0xff5a3c, toneMapped: false });
       const led = new THREE.Mesh(this.capGeometry, capMaterial);
-      led.scale.set(0.7, 0.7, 0.7);
-      led.position.set(0, 0.07, 0);
-      group.add(disc, led);
-      for (let i = 0; i < 4; i++) {
-        const foot = new THREE.Mesh(this.capGeometry, this.fragMaterial);
-        const angle = i * Math.PI / 2;
-        foot.position.set(Math.cos(angle) * 0.17, -0.015, Math.sin(angle) * 0.17);
-        foot.rotation.y = -angle;
-        group.add(foot);
+      led.scale.set(0.28, 0.35, 0.22);
+      led.position.set(0, 0, 0.084);
+      group.add(housing, led);
+      for (const side of [-1, 1]) {
+        const bracket = new THREE.Mesh(this.capGeometry, this.fragMaterial);
+        bracket.scale.set(0.5, 2.8, 1.25);
+        bracket.position.set(side * 0.185, 0, -0.012);
+        group.add(bracket);
       }
-      const rim = new THREE.Mesh(this.grenadeBandGeometry, capMaterial);
-      rim.rotation.x = Math.PI / 2;
-      group.add(rim);
+      const laser = new THREE.Mesh(this.claymoreLaserGeometry, this.claymoreLaserMaterial);
+      laser.name = 'claymore-laser';
+      laser.visible = false;
+      const dot = new THREE.Mesh(this.capGeometry, capMaterial);
+      dot.name = 'claymore-laser-dot';
+      dot.scale.set(0.32, 0.4, 0.05);
+      dot.visible = false;
+      group.add(laser, dot);
+      group.userData.laser = laser;
+      group.userData.laserDot = dot;
     } else if (type === 'pulse') {
       const core = new THREE.Mesh(this.pulseGeometry, this.pulseMaterial);
       capMaterial = new THREE.MeshBasicMaterial({
@@ -298,11 +311,15 @@ export class ProjectileFX {
     const type = event.type === 'rocket' || event.type === 'bolt' || GRENADE_TYPES[event.type]
       ? event.type
       : 'frag';
+    if (type === 'limpet' && (!Array.isArray(event.n) || event.n.length !== 3
+      || event.n[1] !== 0 || Math.abs(event.n[0]) + Math.abs(event.n[2]) !== 1)) return false;
+    if (type === 'limpet' && !local && this._mineIds && !this._mineIds.has(String(event.pid))) return false;
     const fallbackFuse = type === 'rocket'
       ? ROCKET_RULES.lifetimeMs
       : type === 'bolt' ? BOLT_RULES.lifetimeMs : GRENADE_TYPES[type].fuseMs;
     const fuseMs = Number(event.fuse);
-    const fuse = Math.max(0.05, (Number.isFinite(fuseMs) && fuseMs > 0 ? fuseMs : fallbackFuse) / 1000);
+    const fuse = type === 'limpet' ? Infinity
+      : Math.max(0.05, (Number.isFinite(fuseMs) && fuseMs > 0 ? fuseMs : fallbackFuse) / 1000);
     // Reflection budget: authority events carry `bn`; local spawns may pass `charge`.
     const bn = Number(event.bn);
     const bouncesLeft = type === 'bolt'
@@ -315,6 +332,7 @@ export class ProjectileFX {
         const adopted = this.projectiles.get(String(event.pid));
         adopted.bouncesLeft = bouncesLeft;
         adopted.chaos = event.chaos || 0;
+        if (type === 'limpet') this._configureMine(adopted, event);
         if (type === 'rocket' && event.chaos) adopted.group.scale.setScalar(2.2);
         return true;
       }
@@ -337,11 +355,12 @@ export class ProjectileFX {
       chaos: event.chaos || 0,
       child: !!event.child,
       local,
-      stuck: false,
+      stuck: type === 'limpet',
       stuckTo: null,
       stickOffset: null,
       trailAt: 0,
     });
+    if (type === 'limpet') this._configureMine(this.projectiles.get(id), event);
     if (type === 'rocket' || type === 'bolt') this._orientRocket(this.projectiles.get(id));
     return true;
   }
@@ -424,6 +443,7 @@ export class ProjectileFX {
    * `{type?,x,y,z,vx,vy,vz}`. Returns the prediction so HUD/audio glue can read the landing.
    */
   setPreview(launch) {
+    this.minePreview.group.visible = false;
     if (!launch) {
       if (this.preview) {
         this.preview = null;
@@ -433,6 +453,13 @@ export class ProjectileFX {
       return null;
     }
     const type = GRENADE_TYPES[launch.type] ? launch.type : 'frag';
+    if (type === 'limpet') {
+      this.previewLine.visible = this.landingRing.visible = false;
+      this._poseMine(this.minePreview.group, launch, true);
+      this.minePreview.group.visible = true;
+      this.preview = { rests: true, landing: [launch.x, launch.y, launch.z] };
+      return this.preview;
+    }
     if (type !== this._previewType) {
       this._previewType = type;
       const color = new THREE.Color(GRENADE_TYPES[type].color);
@@ -458,6 +485,47 @@ export class ProjectileFX {
     this.landingMaterial.opacity = prediction.rests ? 0.75 : 0.35;
     this.preview = prediction;
     return prediction;
+  }
+
+  _configureMine(mine, event) {
+    [mine.x, mine.y, mine.z] = event.o;
+    mine.n = [...event.n];
+    mine.laserRange = Number.isFinite(event.laserRange) ? event.laserRange : CLAYMORE_RULES.laserRange;
+    mine.armedAge = mine.age + Math.max(0, event.armMs ?? CLAYMORE_RULES.armMs) / 1000;
+    mine.stuck = true;
+    mine.fuse = Infinity;
+    this._poseMine(mine.group, mine, mine.age >= mine.armedAge);
+  }
+
+  _poseMine(group, mine, armed) {
+    group.position.set(mine.x, mine.y, mine.z);
+    group.lookAt(mine.x + mine.n[0], mine.y, mine.z + mine.n[2]);
+    const beam = claymoreBeam(mine, this.isSolid);
+    const length = Math.max(0, beam.length - 0.10);
+    const laser = group.userData.laser;
+    laser.position.set(0, 0, 0.10 + length / 2);
+    laser.scale.set(0.012, 0.012, length);
+    laser.visible = armed && length > 0;
+    const dot = group.userData.laserDot;
+    dot.position.set(0, 0, Math.max(0.10, beam.length - 0.008));
+    dot.visible = laser.visible && beam.length < (mine.laserRange ?? CLAYMORE_RULES.laserRange);
+  }
+
+  syncMines(rows, selfId) {
+    if (!Array.isArray(rows)) return;
+    this._mineIds = new Set(rows.map(row => String(row.pid)));
+    const active = new Set();
+    for (const row of rows) {
+      const id = String(row.pid);
+      this.launch(row, { fromSelf: String(row.id) === String(selfId) });
+      const mine = this.projectiles.get(id);
+      if (mine?.type !== 'limpet') continue;
+      this._configureMine(mine, row);
+      active.add(id);
+    }
+    for (const [id, p] of this.projectiles) {
+      if (p.type === 'limpet' && !p.local && !active.has(id)) this._removeProjectile(id);
+    }
   }
 
   explode(event) {
@@ -536,7 +604,9 @@ export class ProjectileFX {
     this._trailTokens = Math.min(ROCKET_TRAIL_BURST, this._trailTokens + step * ROCKET_TRAILS_PER_SECOND);
     for (const [id, projectile] of this.projectiles) {
       projectile.age += step;
-      if (projectile.stuckTo && this.getEntityPosition) {
+      if (projectile.type === 'limpet') {
+        this._poseMine(projectile.group, projectile, projectile.age >= projectile.armedAge);
+      } else if (projectile.stuckTo && this.getEntityPosition) {
         const carrier = this.getEntityPosition(projectile.stuckTo);
         if (carrier && projectile.stickOffset) {
           projectile.x = carrier.x + projectile.stickOffset.x;
@@ -583,7 +653,7 @@ export class ProjectileFX {
           projectile.capMaterial.opacity = lit ? 0.6 : 0.25;
           projectile.group.userData.halo.scale.setScalar(1.4 + Math.sin(projectile.age * 14) * 0.2);
         } else if (projectile.type === 'limpet') {
-          projectile.capMaterial.color.setHex(lit ? 0xff5a3c : 0x3a0f08);
+          projectile.capMaterial.color.setHex(projectile.age >= projectile.armedAge ? 0xff3428 : 0xe5ac42);
         } else if (projectile.type === 'molotov') {
           projectile.capMaterial.color.setHex(0xffac30);
           projectile.group.userData.flame.scale.setScalar(0.9 + Math.sin(projectile.age * 35) * 0.18);
@@ -682,6 +752,10 @@ export class ProjectileFX {
     }
     this.blasts.length = 0;
     this.scene.remove(this.previewLine, this.landingRing);
+    this.scene.remove(this.minePreview.group);
+    this.minePreview.capMaterial.dispose();
+    this.claymoreLaserGeometry.dispose();
+    this.claymoreLaserMaterial.dispose();
     this.previewLine.geometry.dispose();
     this.previewMaterial.dispose();
     this.landingRing.geometry.dispose();

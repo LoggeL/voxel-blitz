@@ -4,6 +4,8 @@ import * as THREE from '../public/js/vendor/three.module.js';
 import { FireFieldFX } from '../public/js/weapons/fire-fields.js';
 import { Effects } from '../public/js/weapons/effects.js';
 import { NetClient } from '../public/js/engine/netclient.js';
+import { FrameRateController } from '../public/js/engine/frame-rate.js';
+import { sfx } from '../public/js/audio/sfx.js';
 import { GameplayUiFlow } from '../public/js/session/gameplay-ui.js';
 import { applySnapshotBlocks } from '../public/js/combat/feedback.js';
 import { MolotovFireSystem } from '../server/sim/molotov-fire.js';
@@ -30,8 +32,8 @@ const classStart = mainSource.indexOf('class Game {');
 const classEnd = mainSource.indexOf('\nconst debugParams =', classStart);
 assert(classStart >= 0 && classEnd > classStart, 'composition root class can be isolated from browser startup');
 const { copySmokeFields } = await import('../shared/smoke-rules.js');
-const Game = new Function('WEAPON_IDS', 'applySnapshotBlocks', 'copySmokeFields', 'nowMs',
-  `return (${mainSource.slice(classStart, classEnd)});`)(WEAPON_IDS, applySnapshotBlocks, copySmokeFields, () => performance.now());
+const Game = new Function('WEAPON_IDS', 'applySnapshotBlocks', 'copySmokeFields', 'nowMs', 'sfx',
+  `return (${mainSource.slice(classStart, classEnd)});`)(WEAPON_IDS, applySnapshotBlocks, copySmokeFields, () => performance.now(), sfx);
 
 function effectFacade(scene) {
   const effects = Object.create(Effects.prototype);
@@ -125,7 +127,7 @@ function effectFacade(scene) {
     toggleBuyMenu() {}, setMatchState() {} };
   Object.assign(game, { running: true, _loopGeneration: 0, _rafId: 0,
     _lastConsumedSnapSeq: null, _pendingAuthoritativeSnapshots: [], hud,
-    clock: { stop() {} }, weaponWheel: { reset() {} }, _world: {},
+    clock: { stop() {} }, frameRate: new FrameRateController(), weaponWheel: { reset() {} }, _world: {},
     player: { alive: true, reconcile: () => ({}), resetForMenu() {} },
     effects: effectFacade(scene),
     session: { net, myId: 'self', phase: 'booting', baseFov: 75, confirmPurchase: () => null,
@@ -161,7 +163,12 @@ function effectFacade(scene) {
     let geometryDisposals = 0, materialDisposals = 0;
     oldFx.geometry.addEventListener('dispose', () => geometryDisposals++);
     oldFx.material.addEventListener('dispose', () => materialDisposals++);
+    for (let i = 0; i <= 120; i++) {
+      game.frameRate.begin(i * 1000 / 60); game.frameRate.end(2);
+    }
+    assert.equal(game.frameRate.snapshot.ready, true);
     game.disposeLiveResources();
+    assert.equal(game.frameRate.snapshot.ready, false, 'teardown discards the previous match frame timings');
     assert.equal(oldFx.fields.size, 0); assert.equal(oldFx.mesh.parent, null);
     assert.equal(geometryDisposals, 1); assert.equal(materialDisposals, 1);
     assert.equal(game._lastConsumedSnapSeq, null, 'new connection may restart snapshot sequence numbers');

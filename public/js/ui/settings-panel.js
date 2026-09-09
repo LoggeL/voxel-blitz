@@ -1,5 +1,6 @@
 import { DISPLAY_OPTIONS, displaySettings, setDisplaySetting } from './display-settings.js';
 import { ConnectionSettings } from './connection-settings.js';
+import { FrameRateSettings } from './frame-rate-settings.js';
 import { MAP_LABELS, MODE_LABELS, el, loadPref, loadPrefNum, savePref } from './hud-support.js';
 import {
   ADS_MODES,
@@ -75,6 +76,7 @@ export class SettingsController {
     this._deferredTimers = new Set();
     this.settingsDom = {};
     this.connection = new ConnectionSettings();
+    this.frameRate = new FrameRateSettings();
   }
 
   get isOpen() {
@@ -337,6 +339,7 @@ export class SettingsController {
     const touchHand = choiceRow('settings-touch-hand', 'TOUCH LAYOUT', TOUCH_HANDS, TOUCH_HAND_LABELS);
 
     const groups = { controls: [...controls.children], display: [], debug: [] };
+    groups.display.push(this.frameRate.mount(controls));
     let category = 'display';
     const displaySelects = {};
     for (const option of DISPLAY_OPTIONS) {

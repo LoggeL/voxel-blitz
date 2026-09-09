@@ -22,6 +22,7 @@ function client(sendHz = 60) {
   const physics = {
     pos: { x: 4, y: 1, z: 4 }, vel: { x: 0, y: 0, z: 0 }, grounded: true,
     _crouching: false, step: () => false, eyeY: () => 2.62, setMapMeta() {},
+    _solidAt: (_x, _y, z) => z === 2,
   };
   const player = new LocalPlayer({ input, physics, sendHz, aimSway: {
     readModel: { yaw: 0, pitch: 0 }, reset: () => ({ yaw: 0, pitch: 0 }),
@@ -57,7 +58,7 @@ function serverLaunch(wire, laterInput = null) {
   const system = new ProjectileSystem();
   const events = [];
   system.step(0, { entities: host.entities, now: 0, canThrow: () => true,
-    canDamage: () => false, getBlock: () => 0, pushEvent: event => events.push(event) });
+    canDamage: () => false, getBlock: (_x, _y, z) => z === 2 ? 1 : 0, pushEvent: event => events.push(event) });
   assert.equal(events.filter(event => event.kind === 'projectileLaunch').length, 1);
   assert.equal(authority.grenadeEdgeQueued, false);
   return [...system.active.values()][0];

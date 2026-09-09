@@ -249,13 +249,20 @@ function proveTdmTargeting() {
     setPosition(teammate, 20.5, 16.5);
     setPosition(enemy, 30.5, 20.5);
     setPosition(otherEnemy, 110.5, 80.5);
+    self.yaw = -1; // enemy is inside the forward view cone, teammate is closer
 
     engine.step(TICK_MS);
 
     const decision = latestCall(calls, self.id).input;
-    assert.ok(decision.yaw < -0.1,
+    assert.ok(decision.yaw < -1.1,
       'TDM bot excludes its nearer teammate and aims toward the selected enemy');
-    assert.equal(decision.wantFire, true, 'TDM bot attacks its visible enemy');
+    assert.equal(decision.wantFire, false, 'TDM bot takes time to recognize its visible enemy');
+    let reacted = false;
+    for (let tick = 0; tick < 30; tick++) {
+      engine.step(TICK_MS);
+      if (latestCall(calls, self.id).input.wantFire) { reacted = true; break; }
+    }
+    assert.equal(reacted, true, 'TDM bot attacks after recognizing and turning onto its enemy');
     assert.ok(engine.world.stats.blockReads > 0, 'bot LOS reads the engine room world');
   } finally {
     try {

@@ -1,4 +1,5 @@
 import { PanicBreathCadence } from './panic-breath.js';
+import { PainMoanCadence, PAIN_MOAN_THRESHOLD, renderPainMoan } from './pain-moans.js';
 import { renderBreath } from './breath.js';
 // Public procedural-audio facade. AudioEngine owns the one AudioContext and
 // master graph; VoicePool owns every bounded output graph; synthesis modules
@@ -41,6 +42,9 @@ let menuMusic = null;
 let panSide = 1;
 let heartbeatAt = -Infinity;
 const panicBreaths = new PanicBreathCadence();
+const painMoans = new PainMoanCadence();
+let painMoanVoice = null;
+let localVocalUntil = 0;
 let chargeLoop = null;
 let flameLoops = null;
 let minigunMotor = null;
@@ -179,6 +183,8 @@ export const sfx = {
   },
 
   async dispose() {
+    this.stopPainMoans();
+    localVocalUntil = 0;
     disposeChargeLoop();
     flameLoops?.dispose();
     flameLoops = null;
@@ -428,12 +434,42 @@ export const sfx = {
   /** Deliberate breath-hold transition cues. */
   breath(event) {
     if (!['inhale', 'exhale', 'gasp'].includes(event)) return;
-    run('breath', () => renderBreath(pool.acquire(null, 0.9), primitives, event));
+    run('breath', () => {
+      this.stopPainMoans();
+      localVocalUntil = engine.now + 0.9;
+      renderBreath(pool.acquire(null, 0.9), primitives, event);
+    });
+  },
+
+  /** Ambient pain is local, bounded to one voice, and never queued on unlock. */
+  painMoan(level, now, options = {}) {
+    const active = options.active !== false && engine.ctx?.state === 'running';
+    if (!active || options.holding || !Number.isFinite(level) || level < PAIN_MOAN_THRESHOLD) {
+      this.stopPainMoans();
+      return false;
+    }
+    const cue = painMoans.update(level, now, {
+      ...options, active: engine.now >= localVocalUntil,
+    });
+    if (!cue || !ensureAudioModules()) return false;
+    if (painMoanVoice) pool.release(painMoanVoice.output);
+    const output = pool.acquireHuman(null, cue.duration + 0.15);
+    output.gain.value = cue.gain;
+    painMoanVoice = { output, until: engine.now + cue.duration + 0.15 };
+    renderPainMoan(output, primitives, addCleanup, cue);
+    return true;
+  },
+
+  stopPainMoans() {
+    painMoans.reset();
+    if (painMoanVoice) pool?.release(painMoanVoice.output);
+    painMoanVoice = null;
   },
 
   panicBreath(level, now, options = {}) {
     // Ambient cues must never queue behind the browser's audio unlock boundary.
-    const active = options.active !== false && engine.ctx?.state === 'running';
+    const active = options.active !== false && engine.ctx?.state === 'running'
+      && !(painMoanVoice && engine.now < painMoanVoice.until);
     const cue = panicBreaths.update(level, now, { ...options, active });
     if (!cue || !ensureAudioModules()) return false;
     const output = pool.acquire(null, 0.6);
@@ -473,6 +509,10 @@ export const sfx = {
       const numeric = Number(damage);
       const hitDamage = Number.isFinite(numeric) ? Math.min(100, Math.max(0, numeric)) : 0;
       const lifetime = lethal ? 1.45 : headshot ? 1.05 : hitDamage >= 35 ? 0.95 : 0.7;
+      if (local) {
+        this.stopPainMoans();
+        localVocalUntil = engine.now + lifetime;
+      }
       const output = pool.acquireHuman({ pos: local ? null : positionOf(deferredPos) }, lifetime);
       output.gain.value = local ? 0.96 : 0.82;
       const slot = lethal
@@ -493,6 +533,7 @@ export const sfx = {
   },
 
   deathSelf({ headshot = false } = {}) {
+    this.stopPainMoans();
     run('deathSelf', () => {
       const output = pool.acquireHuman(null, 1.75);
       output.gain.value = 0.94;

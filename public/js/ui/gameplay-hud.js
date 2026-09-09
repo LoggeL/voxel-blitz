@@ -369,7 +369,8 @@ export class GameplayHud {
       }
       if (changed) d.grenades.setAttribute('aria-label', `${total} grenades remaining`);
     }
-    const grenadeCharge = clamp01(s.grenadeCharge);
+    const wallMine = GRENADE_TYPES[GRENADE_TYPE_IDS[this._grenadeType]]?.wallMine;
+    const grenadeCharge = wallMine ? 0 : clamp01(s.grenadeCharge);
     const charging = grenadeCharge > 0 || !!s.grenadeCharging;
     const cook01 = clamp01(s.grenadeCook01);
     const grenadeFlags = Number(charging) | (Number(grenadeCharge >= 1) << 1)
@@ -381,13 +382,16 @@ export class GameplayHud {
       d.grenades.classList.toggle('is-cooking', charging && cook01 > 0);
       d.grenades.classList.toggle('is-critical', charging && cook01 >= 0.7);
     }
-    const grenadeFill = charging && cook01 > 0 ? 1 - cook01 : grenadeCharge;
+    const grenadeFill = wallMine ? Number(charging && s.claymorePlacementValid)
+      : charging && cook01 > 0 ? 1 - cook01 : grenadeCharge;
     if (grenadeFill !== painted.grenadeFill) {
       painted.grenadeFill = grenadeFill;
       d.grenadeChargeFill.style.transform = `scaleX(${grenadeFill})`;
     }
     let hint = 'HOLD · RELEASE';
-    if (charging && cook01 > 0 && Number.isFinite(s.grenadeCookLeftMs)) {
+    if (wallMine) {
+      hint = charging ? (s.claymorePlacementValid ? 'RELEASE · MOUNT' : 'AIM AT A WALL · MAX 2.2m') : 'HOLD G · AIM AT WALL';
+    } else if (charging && cook01 > 0 && Number.isFinite(s.grenadeCookLeftMs)) {
       hint = `COOKING · ${(Math.max(0, s.grenadeCookLeftMs) / 1000).toFixed(1)}s`;
     } else if (grenadeCharge >= 1) {
       hint = 'MAX · RELEASE';
@@ -658,8 +662,8 @@ export class GameplayHud {
     sb.style.display = on ? 'block' : 'none';
   }
 
-  setTelemetry(frameDt, stats, atMs) {
-    this.network.update(frameDt, stats, atMs);
+  setTelemetry(frameDt, stats, atMs, frameStats = null) {
+    this.network.update(frameDt, stats, atMs, frameStats);
   }
 
   setPlayers(players, match = this.scoreboardMatch, selfRow = null) {

@@ -16,3 +16,5 @@ resampled from the generated original while retaining its alpha channel.
 `hud/molotov.png` is a transparent 480 by 480 pixel render of the game's own
 procedural Molotov bottle, generated on 2026-09-08 by
 `node tools/render-molotov-icon.mjs`. It uses no external image source.
+
+- `hud/limpet.svg`: hand-authored vector icon of the wall-mounted Claymore, used by the shop.
