@@ -80,7 +80,7 @@ export function canFire(p, fireEdge, ctx) {
   // Melee swings are free: no magazine and no semi-auto lock — the rpm cadence
   // is the only rate limiter, so a held trigger keeps swinging.
   const semi = mode !== 'auto' && mode !== 'melee';
-  return ctx.canFire(p) && !p.vault && !p.reloading && p.deployT <= 0 &&
+  return ctx.canFire(p) && !p.medkit?.active && !p.vault && !p.reloading && p.deployT <= 0 &&
     p.cooldown <= 0 && (mode === 'melee' || p.mag[p.weapon] > 0) &&
     !(semi && p.triggerPrev && !fireEdge);
 }
@@ -94,7 +94,7 @@ export function canFire(p, fireEdge, ctx) {
 export function resolveWeaponIntent(p, _dt, ctx) {
   const inp = p.input;
   p.minigun ??= createMinigunState();
-  if (inp?.grenadeHandling || p.grenadeHandlingQueued) {
+  if (p.medkit?.active || inp?.grenadeHandling || p.grenadeHandlingQueued) {
     p.quickMeleeQueued = null;
     p.grenadeHandlingQueued = false;
     p.fireEdgeQueued = false;

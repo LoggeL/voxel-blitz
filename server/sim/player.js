@@ -14,6 +14,7 @@ import {
 import { mulberry32 } from '../../shared/noise.js';
 import { freshGrenadeLoadout } from '../../shared/grenade-rules.js';
 import { POWERUP_RULES } from '../../shared/powerups.js';
+import { interruptMedkit } from './medkit.js';
 
 import { PHYSICS } from '../../shared/player-movement.js';
 
@@ -97,6 +98,8 @@ export class PlayerEntity {
     );
     this.yaw = centerAim.yaw; this.pitch = 0;
     this.hp = 100;
+    this.medkit = { remaining: 1, active: false, elapsed: 0, ack: this.medkit?.ack || 0, interrupted: false };
+    this.medkitRequest = 0;
     this.armor = 0;
     this.lastDamage = null;
     this.panic = 0;
@@ -173,6 +176,7 @@ export class PlayerEntity {
   takeDamage(dmg, headshot = false) {
     if (this.state !== 'alive') return false;
     if (!Number.isFinite(dmg) || dmg <= 0) return false;
+    interruptMedkit(this);
     const amount = dmg;
     const armor = Math.max(0, Math.min(POWERUP_RULES.maxArmor,
       Number.isFinite(this.armor) ? this.armor : 0));

@@ -1,4 +1,5 @@
 import { WEAPON_IDS } from '../../shared/combatmath.js';
+import { MEDKIT_SECONDS } from '../../shared/medkit.js';
 import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
 import {
   DEFAULT_MODE_ID,
@@ -118,6 +119,12 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       yaw: round(p.yaw, D3),
       pitch: round(p.pitch, D3),
       hp: round(p.hp, 1),
+      medkit: {
+        remaining: p.medkit?.remaining === 1 ? 1 : 0,
+        active: !!p.medkit?.active,
+        progress: round(Math.max(0, Math.min(1, (p.medkit?.elapsed || 0) / MEDKIT_SECONDS)), D3),
+        ack: Number.isSafeInteger(p.medkit?.ack) ? p.medkit.ack : 0,
+      },
       armor: round(Math.max(0, Math.min(POWERUP_RULES.maxArmor, Number.isFinite(p.armor) ? p.armor : 0)), 1),
       burning: round(Math.max(0, p.burning || 0, p.molotovBurning || 0), D3),
       panic: round(Math.max(0, Math.min(1, Number.isFinite(p.panic) ? p.panic : 0)), D3),

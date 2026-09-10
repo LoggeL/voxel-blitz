@@ -15,6 +15,7 @@ import { createSniperScope } from './sniper-scope.js';
 import { displaySettings } from './display-settings.js';
 import { NetworkHud } from './network-hud.js';
 import { PowerupHud } from './powerup-hud.js';
+import { MedkitHud } from './medkit-hud.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS, clampGrenadeType } from '../../../shared/grenade-rules.js';
 import { FLAME_RULES } from '../../../shared/flame-rules.js';
 
@@ -80,6 +81,7 @@ export class GameplayHud {
     this.matchDom = this.match.dom;
     this.network = new NetworkHud();
     this.powerups = new PowerupHud();
+    this.medkit = new MedkitHud();
   }
 
   buildHUD() {
@@ -138,6 +140,7 @@ export class GameplayHud {
     d.track = el('div', 'hp-track', d.hb);
     d.hpf = el('div', '', d.track, 'hpfill');
     this.powerups.build(hud, d.hb);
+    this.medkit.build(hud, d.hb);
     d.conditionMeters = ['pain', 'panic'].map(key => {
       const root = el('div', `vb-condition-meter vb-condition-${key}`, d.hb, `${key}-meter`);
       root.hidden = true;
@@ -290,6 +293,7 @@ export class GameplayHud {
     const painted = this._painted;
     const key = resolveKey(s.wid);
     this.powerups.update(s.armor, alive);
+    this.medkit.update(s.medkit, alive, s.hp);
 
     if (s.hp != null) {
       const hp = Math.min(100, Math.max(0, Number(s.hp)));
@@ -772,6 +776,7 @@ export class GameplayHud {
     this.scoreboard.dispose();
     this.network.dispose();
     this.powerups.dispose();
+    this.medkit.dispose();
     const hud = doc ? doc.getElementById('hud') : null;
     if (this._ownedHudRoot) {
       this._ownedHudRoot.remove();

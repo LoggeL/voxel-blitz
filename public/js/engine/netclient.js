@@ -472,6 +472,8 @@ export class NetClient {
       wantAds: !!input.wantAds,
       reload: !!input.reload,
       reloadId: input.reloadId || 0,
+      medkitId: input.medkitId || 0,
+      cancelMedkit: !!input.cancelMedkit,
       viewAge: Math.round(this._timing.interpolationDelayMs + this._timing.rttMs),
     };
     if (input.quickMelee) {
@@ -515,6 +517,14 @@ export class NetClient {
     if (!this.isOpen()) return false;
     try {
       this.ws.send(JSON.stringify({ t: 'configure', gameMode, map, bots, duelKillLimit }));
+      return true;
+    } catch { return false; }
+  }
+
+  setLobbyTeam(id, team) {
+    if (!this.isOpen()) return false;
+    try {
+      this.ws.send(JSON.stringify({ t: 'team', id: String(id), team }));
       return true;
     } catch { return false; }
   }

@@ -25,6 +25,8 @@ room/client interfaces below; do not fork their logic into a second convention.
 - `npm start` runs `node server/index.js` on `PORT` or `8070`.
 - `npm run smoke` runs `tools/smoke.mjs` for the base gameplay protocol.
 - `npm run lobby` runs `tools/lobby-smoke.mjs` for room and lobby behavior.
+- `npm run medkit:test` covers timed healing, interruption, inventory, input/wire prediction and first-person hands.
+- `npm run teams:test` covers host-only assignments, readiness, spawns, bomb ownership, bot balance and WebSocket launch.
 - `npm run modes:lobby` runs `tools/mode-lobby-smoke.mjs` for selected
   mode/map lobby, wire, isolation, and lifecycle behavior.
 - `npm run modes:bots` runs `tools/bot-mode-smoke.mjs` for deterministic bot
@@ -71,6 +73,12 @@ The first non-binary frame is exactly one admission shape:
 Names are sanitized to at most 16 characters after admission validation.
 
 After admission:
+- `{t:'team',id,team:'alpha'|'bravo'}` is accepted only from the current host
+  in a waiting TDM or S&D lobby, for an existing human member. It updates the
+  policy and entity team, chooses a team spawn and resets human readiness.
+  S&D reassigns the bomb to an eligible attacker. Map changes and TDM/S&D
+  switches preserve human teams. Bots balance at launch. Live changes and
+  non-host requests (including self changes) are rejected.
 - `{t:'configure',gameMode,map,bots}` changes a waiting room for its host only.
   Compatible mode/map and integer bots `0..7` are required. Changes reset all
   human readiness; training uses zero combat bots.
@@ -123,8 +131,9 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   The client replaces its pending gameplay spawn/map without replacing its socket.
 - Room members receive full replacements
   `{t:'lobbyState',code,host,phase:'waiting'|'live',bots,gameMode,map,
-  members:[{id,name,ready,bot}]}` after create/join, readiness changes, start,
+  members:[{id,name,ready,bot,ping,team}]}` after create/join, readiness changes, start,
   leave, settings changes, and host migration. Bot rows appear only after the room is live.
+  `team` is `alpha`, `bravo` or null. Only the current host sees team controls.
 - At 20 Hz a live room sends
   `{t:'tick',now,match,players:[...],blocks:[{i,v}],powerups:[...],events:[...]}`.
   `powerups` is a full replacement array of active
@@ -985,3 +994,23 @@ this document in the same change.
   enemy perception and navigation, purchases, repair reservations, input release,
   late joins and an actual WebSocket lobby. See `docs/pve-bastion.md` for rules and
   the boundary between automated checks and pending human balance playtests.
+
+## Personal medkit
+
+- Each fresh `PlayerEntity.applySpawn` supplies one kit. `J` (or the contextual
+  touch HEAL button) starts bandaging; another press cancels. The player must
+  remain upright, grounded and still for `MEDKIT_SECONDS = 4`. Health becomes
+  100 and pain becomes 0 only on completion; the kit is consumed at that point.
+- Movement, crouch/prone, jump, sprint, damage (including armor absorption),
+  firing, ADS, weapon changes, reload, quick melee, grenades, objective use,
+  pause, death and a non-live phase interrupt without consumption.
+- Inputs carry a positive safe-integer `medkitId` until acknowledged and a
+  `cancelMedkit` flag for explicit cancellation. Authority retains request and
+  interruption edges between ticks. The acknowledgement survives respawn to
+  prevent replaying an old request. Damage for the entire tick resolves before
+  healing can complete.
+- Every player snapshot has `medkit:{remaining,active,progress,ack}`. Clients
+  predict only the hands/handling state; health, consumption and progress come
+  from authority. Canceled actions cannot be revived by older acknowledgements.
+- `MedkitHands` replaces the first-person weapon while bandaging. `MedkitHud`
+  shows inventory, remaining time and a progress bar without idle DOM writes.

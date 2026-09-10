@@ -20,6 +20,7 @@ import {
   isMapId,
   isModeId,
   isModeMapCompatible,
+  isTeamId,
 } from '../shared/modes.js';
 import { createMapState, getMapMeta } from '../shared/worlddata.js';
 
@@ -194,6 +195,25 @@ export class LobbyManager {
     return true;
   }
 
+  setTeam(meta, id, team) {
+    const found = this._memberFor(meta);
+    if (!found) return this._error(meta, 'Not in a lobby');
+    const { room, member } = found;
+    if (room.phase !== 'waiting') return this._error(meta, 'Lobby has already started');
+    if (!['tdm', 'snd'].includes(room.gameMode)) return this._error(meta, 'This mode has no team selection');
+    if (typeof id !== 'string' || !room.members.has(id) || !isTeamId(team)) {
+      return this._error(meta, 'Invalid team selection');
+    }
+    if (room.host !== member.id) {
+      return this._error(meta, 'Only the host can assign teams');
+    }
+    if (room.engine.mode.teamFor(id) === team) return true;
+    if (!room.engine.mode.setLobbyTeam(id, team)) return this._error(meta, 'Unable to change team');
+    for (const human of room.members.values()) human.ready = false;
+    this._broadcastLobbyState(room);
+    return true;
+  }
+
   start(meta) {
     const found = this._memberFor(meta);
     if (!found) return this._error(meta, 'Not in a lobby');
@@ -242,6 +262,12 @@ export class LobbyManager {
       try {
         for (const human of room.members.values()) {
           spawns.set(human.id, engine.addClient(human.id, human.name));
+        }
+        const preserveTeams = ['tdm', 'snd'].includes(room.gameMode) && ['tdm', 'snd'].includes(gameMode);
+        for (const human of room.members.values()) {
+          const team = room.engine.mode.teamFor(human.id);
+          if (preserveTeams && isTeamId(team)) engine.mode.setLobbyTeam(human.id, team);
+          spawns.set(human.id, engine.spawnInfoFor(engine.entities.get(human.id)));
         }
       } catch (error) { engine.stop(); throw error; }
       room.engine.stop();
@@ -458,6 +484,18 @@ export class LobbyManager {
         manager = attachBots(room.engine, room.bots);
         room.botManager = manager;
       }
+      // Only final lobby assignments may reach the first gameplay tick.
+      const assignments = new Set();
+      for (let i = room.engine.tickEvents.length - 1; i >= 0; i--) {
+        const event = room.engine.tickEvents[i];
+        if (event.kind !== 'team_assigned' && event.kind !== 'bomb_assigned') continue;
+        const key = event.kind === 'team_assigned' ? `team:${event.id}` : 'bomb';
+        const current = event.kind === 'team_assigned'
+          ? room.engine.mode.teamFor(event.id) === event.team
+          : room.engine.mode.bomb?.carrierId === event.id;
+        if (!current || assignments.has(key)) room.engine.tickEvents.splice(i, 1);
+        else assignments.add(key);
+      }
       room.engine.start(this.tickMs);
       room.phase = 'live';
     } catch (err) {
@@ -503,11 +541,13 @@ export class LobbyManager {
   _stateFor(room) {
     const members = [];
     for (const member of room.members.values()) {
-      members.push({ id: member.id, name: member.name, ready: member.ready, bot: false, ping: member.meta.ping });
+      members.push({ id: member.id, name: member.name, ready: member.ready, bot: false, ping: member.meta.ping,
+        team: room.engine.mode.teamFor(member.id) });
     }
     if (room.phase === 'live') {
       for (const entity of room.engine.entities.values()) {
-        if (entity.bot) members.push({ id: entity.id, name: entity.name, ready: false, bot: true });
+        if (entity.bot) members.push({ id: entity.id, name: entity.name, ready: false, bot: true,
+          team: room.engine.mode.teamFor(entity) });
       }
     }
     return makeLobbyState({

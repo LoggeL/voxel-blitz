@@ -17,6 +17,8 @@ import { TICK_MS } from './protocol/admission.js';
 import { TickTiming } from './diagnostics.js';
 import { KILLCAM, supportsKillcam } from '../shared/killcam-rules.js';
 import { makeSnapshot } from './protocol/snapshot.js';
+import { medkitMovement, medkitCombat } from '../shared/medkit.js';
+import { interruptMedkit, updateMedkit } from './sim/medkit.js';
 import { evKill, evRespawn, evDie } from './protocol/events.js';
 import { ModeController } from './modes.js';
 import {
@@ -181,6 +183,9 @@ export class GameEngine {
     for (const player of this.combatants.values()) {
       player.firing = false;
       if (player.state === 'alive') resolveWeaponIntent(player, dt, combat);
+    }
+    for (const player of this.combatants.values()) {
+      updateMedkit(player, dt, this.mode.phase === 'live');
     }
     // Clear ended rounds before a policy can reset directly into live play.
     if (this.mode.phase !== 'live') {
@@ -360,6 +365,7 @@ export class GameEngine {
       quickMelee: !!msg.quickMelee,
       wantAds: !!msg.wantAds,
       reload: !!msg.reload,
+      cancelMedkit: !!msg.cancelMedkit,
       reloadId: Number.isSafeInteger(msg.reloadId) && msg.reloadId > 0 ? msg.reloadId : 0,
       throwGrenade: !!msg.throwGrenade,
       grenadeHandling: !!msg.grenadeHandling || !!msg.throwGrenade,
@@ -423,6 +429,12 @@ export class GameEngine {
         ? { yaw: wrapAngle(msg.grenadeAim.yaw), pitch: Math.max(-MAX_PITCH, Math.min(MAX_PITCH, msg.grenadeAim.pitch)) }
         : { yaw: input.yaw, pitch: input.pitch };
     }
+    if (Number.isSafeInteger(msg.medkitId) && msg.medkitId > player.medkit.ack) {
+      player.medkitRequest = Math.max(player.medkitRequest, msg.medkitId);
+    }
+    if (input.cancelMedkit || medkitMovement(input.keys) || medkitCombat(input, player.weapon)) {
+      if (player.medkit.active || player.medkitRequest) interruptMedkit(player);
+    }
     player.input = input;
   }
 
@@ -472,6 +484,7 @@ export class GameEngine {
     const damage = victim.hp <= 0 && victim.lastDamage?.lethal ? victim.lastDamage : null;
     victim.hp = 0;
     victim.armor = 0;
+    interruptMedkit(victim);
     victim.state = 'dead';
     victim.burn = null;
     victim.burning = 0;

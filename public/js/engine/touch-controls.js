@@ -63,7 +63,7 @@ export function shouldEnableTouchControls({
 
 /** Every contextual button; the pause button is always available. */
 export const TOUCH_ACTIONS = Object.freeze([
-  'fire', 'ads', 'jump', 'reload', 'interact', 'weapon', 'buy',
+  'fire', 'ads', 'jump', 'reload', 'interact', 'weapon', 'buy', 'medkit',
 ]);
 
 /**
@@ -81,6 +81,7 @@ export function visibleTouchActions(context) {
     visible.add('ads');
   }
   if (context.canReload) visible.add('reload');
+  if (context.canMedkit) visible.add('medkit');
   if (context.canInteract) visible.add('interact');
   if ((context.weaponCount ?? 2) > 1) visible.add('weapon');
   if (context.canBuy) visible.add('buy');
@@ -217,6 +218,7 @@ export class TouchControls {
     d.ads = this._button(root, 'ads', 'AIM', 'Aim down sights (tap to toggle, hold to hold)');
     d.jump = this._button(root, 'jump', 'JUMP', 'Jump');
     d.reload = this._button(root, 'reload', 'LOAD', 'Reload');
+    d.medkit = this._button(root, 'medkit', 'HEAL', 'Use medkit or cancel healing');
     d.interact = this._button(root, 'interact', 'USE', 'Interact');
     d.weapon = this._button(root, 'weapon', '⇄', 'Next weapon');
     d.buy = this._button(root, 'buy', 'BUY', 'Open armory');
@@ -228,6 +230,7 @@ export class TouchControls {
     this._bindHold(d.jump, 'jump');
     this._bindHold(d.interact, 'interact');
     this._bindPulse(d.reload, 'reload');
+    this._bindPulse(d.medkit, 'medkit');
     this._bindPulse(d.weapon, 'weapon');
     this._bindPulse(d.buy, 'buy');
     this._bindPulse(d.pause, 'pause');

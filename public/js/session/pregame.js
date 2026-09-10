@@ -294,6 +294,9 @@ export class PregameFlow {
 
     attempt.lobbyShown = true;
     this._hud.showLobby(state, {
+      onTeam: (id, team) => {
+        if (this.isActive(attempt) && this._getPhase() === 'lobby') attempt.net.setLobbyTeam(id, team);
+      },
       onConfigure: (settings) => {
         if (this.isActive(attempt) && this._getPhase() === 'lobby') attempt.net.configureLobby(settings);
       },

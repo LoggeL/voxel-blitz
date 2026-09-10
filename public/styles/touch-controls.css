@@ -88,6 +88,7 @@
 .vb-touch-ads { --touch-column: calc(var(--touch-fire) + 12px); }
 .vb-touch-jump { --touch-row: calc(var(--touch-fire) + 12px); }
 .vb-touch-reload { --touch-column: calc(var(--touch-fire) + 12px); --touch-row: calc(var(--touch-fire) + 12px); }
+.vb-touch-medkit { --touch-column: calc(var(--touch-fire) + 12px); --touch-row: calc(var(--touch-fire) + var(--touch-button) + 24px); color: #a1edc0; }
 .vb-touch-interact,
 .vb-touch-buy { --touch-row: calc(var(--touch-fire) + var(--touch-button) + 24px); width: 64px; border-radius: 8px; }
 .vb-touch-pause { top: max(10px, env(safe-area-inset-top)); bottom: auto; left: var(--touch-edge-x); right: auto; width: 44px; height: 44px; border-radius: 8px; font-size: 18px; }
@@ -107,7 +108,7 @@
 }
 .vb-touch-controls.is-left-handed .vb-touch-move-zone { left: auto; right: 0; }
 .vb-touch-controls.is-left-handed .vb-touch-stick-base { left: auto; right: var(--touch-edge-r); }
-.vb-touch-controls.is-left-handed :is(.vb-touch-fire, .vb-touch-ads, .vb-touch-jump, .vb-touch-reload, .vb-touch-interact, .vb-touch-buy) {
+.vb-touch-controls.is-left-handed :is(.vb-touch-fire, .vb-touch-ads, .vb-touch-jump, .vb-touch-reload, .vb-touch-interact, .vb-touch-buy, .vb-touch-medkit) {
   right: auto;
   left: calc(var(--touch-edge-x) + var(--touch-column));
 }

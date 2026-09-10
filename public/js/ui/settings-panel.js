@@ -339,6 +339,7 @@ export class SettingsController {
     const touchHand = choiceRow('settings-touch-hand', 'TOUCH LAYOUT', TOUCH_HANDS, TOUCH_HAND_LABELS);
 
     el('p', 'vb-settings-hint', controls).textContent = 'V: quick pickaxe hit for melee or mining. Your current weapon returns after the swing.';
+    el('p', 'vb-settings-hint', controls).textContent = 'J: use your medkit. Stand still for 4 seconds to fully heal. Moving, taking damage, or using a weapon cancels it. One kit per life, spent only after healing. Press J again to cancel.';
     const groups = { controls: [...controls.children], display: [], debug: [] };
     groups.display.push(this.frameRate.mount(controls));
     let category = 'display';

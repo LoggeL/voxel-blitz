@@ -1,0 +1,12 @@
+.vb-medkit-inventory { margin-top: 8px; color: #a5edc2; font: 600 11px/1.4 'Helvetica Neue',Arial,sans-serif; letter-spacing: .04em; }
+.vb-medkit-inventory.is-spent { color: #94a09b; }
+.vb-medkit-progress { position: absolute; left: 50%; top: 62%; transform: translateX(-50%); width: min(290px,80vw); box-sizing: border-box; padding: 15px 18px; border: 1px solid #8bc4a78c; border-radius: 6px; background: #0b201bf2; color: #e1ffed; font: 13px/1.5 'Helvetica Neue',Arial,sans-serif; box-shadow: 0 8px 32px #0006; }
+.vb-medkit-progress[hidden], .vb-medkit-inventory[hidden] { display: none; }
+.vb-medkit-progress strong { letter-spacing: .09em; }
+.vb-medkit-progress > span { float: right; font-variant-numeric: tabular-nums; }
+.vb-medkit-progress small { display: block; margin-top: 7px; color: #bbd7c8; text-align: center; font-size: 10px; letter-spacing: .06em; }
+.vb-medkit-track { margin-top: 10px; height: 5px; background: #ffffff24; overflow: hidden; border-radius: 3px; }
+.vb-medkit-track i { display: block; height: 100%; background: #92ecc0; transition: width 80ms linear; }
+.vb-touch-mode .vb-medkit-progress small { font-size: 0; }
+.vb-touch-mode .vb-medkit-progress small::after { content: 'STAY STILL · HEAL TO CANCEL'; font-size: 10px; }
+@media (prefers-reduced-motion: reduce) { .vb-medkit-track i { transition: none; } }

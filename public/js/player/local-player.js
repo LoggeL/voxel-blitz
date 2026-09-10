@@ -6,6 +6,8 @@ import { hashInt } from '../util/hash.js';
 import { clamp01, clampPitch, easeOut, nowMs, smooth01 } from '../util/math.js';
 import { adsLookScale } from '../input-settings.js';
 import { grenadeLaunch } from '../../../shared/grenade-rules.js';
+import { medkitMovement } from '../../../shared/medkit.js';
+import { MedkitState } from './medkit-state.js';
 import { recoverConditions } from '../../../shared/conditions.js';
 import { fwdFromAngles } from '../util/look.js';
 import { withGoreDamage } from '../weapons/gore-profile.js';
@@ -130,6 +132,7 @@ export class LocalPlayer {
     this.wishDir = { x: 0, z: 0 };
     this._alive = true;
     this._hp = 100;
+    this.medkit = new MedkitState();
     this.panic = 0;
     this.burning = 0;
     this.exhaustion = 0;
@@ -252,6 +255,7 @@ export class LocalPlayer {
       this.input.consumeBuyMenuRequest();
       return;
     }
+    this.medkit.cancel();
     this.keys = {};
     this.wishDir.x = 0;
     this.wishDir.z = 0;
@@ -293,6 +297,7 @@ export class LocalPlayer {
 
   /** Reset all player-owned state when returning to the menu. */
   resetForMenu({ physics = new PlayerPhysics(), body = null, baseFov = this.baseFov } = {}) {
+    this.medkit = new MedkitState();
     if (!physics || typeof physics.step !== 'function' || typeof physics.eyeY !== 'function') {
       throw new TypeError('resetForMenu requires a PlayerPhysics-compatible adapter');
     }
@@ -420,6 +425,7 @@ export class LocalPlayer {
   /** Apply only the player-state/view half of a non-lethal local hit. */
   applyHit(ev) {
     if (!this._alive || !ev) return null;
+    if (ev.dmg > 0) this.medkit.cancel();
     this._lastLocalImpact = ev;
     const rawDamage = Number(ev.dmg);
     const damage = Number.isFinite(rawDamage) ? Math.max(0, rawDamage) : 0;
@@ -635,21 +641,39 @@ export class LocalPlayer {
     const externalHandling = intents.weaponHandlingAllowed == null || isAllowed(intents.weaponHandlingAllowed);
     this.grenadeHandling = this._alive && fireAllowed && (!externalHandling || !!this.grenadeThrowLatched);
     weaponIntents.grenadeHandling = this.grenadeHandling;
-    const weaponHandling = !this.grenadeHandling;
+    let weaponHandling = !this.grenadeHandling;
     this.wantAds = !!input.wantAdsHeld && weaponHandling;
     weaponIntents.wantAds = this.wantAds;
     weaponIntents.switchDelta = input.consumeWeaponSwitch();
     weaponIntents.slot = input.consumeWeaponSlot();
     weaponIntents.lastWeapon = input.consumeLastWeaponRequest();
     weaponIntents.reload = !!(this.keys.reload && this._alive);
+    const quickMelee = !!input.consumeQuickMelee?.();
+    const rawFireTap = input.consumeFireTap();
+    const medkitPressed = !!input.consumeMedkit?.();
+    const conflicts = medkitMovement(this.keys) || this.keys.interact ||
+      rawFireTap || input.wantFireHeld || input.wantAdsHeld || quickMelee || weaponIntents.reload ||
+      weaponIntents.switchDelta || weaponIntents.slot != null || weaponIntents.lastWeapon ||
+      this.grenadeHandling || input.isGrenadeCharging?.() || input.isWeaponWheelOpen?.() ||
+      !this._alive || !this._gameplayInputEnabled || !fireAllowed ||
+      !this.physics.grounded || this.physics.vault || this.physics.proneT > 0;
+    if (conflicts || (medkitPressed && this.medkit.active)) this.medkit.cancel();
+    else if (medkitPressed && this._hp < 100 && !intents.weapon?.reloadRequested &&
+      !intents.weapon?.isReloading && !intents.weapon?.quickMeleeActive &&
+      Math.hypot(this.physics.vel.x, this.physics.vel.z) <= 0.18 && !this.burning) this.medkit.begin();
+    if (this.medkit.active) {
+      weaponHandling = false;
+      this.wantAds = weaponIntents.wantAds = false;
+    }
+    weaponIntents.medkitActive = this.medkit.active;
     if (!weaponHandling) {
       weaponIntents.switchDelta = 0;
       weaponIntents.slot = null;
       weaponIntents.lastWeapon = false;
       weaponIntents.reload = false;
     }
-    weaponIntents.quickMelee = !!input.consumeQuickMelee?.() && weaponHandling && fireAllowed && this._alive;
-    const fireTap = input.consumeFireTap() && weaponHandling;
+    weaponIntents.quickMelee = quickMelee && weaponHandling && fireAllowed && this._alive;
+    const fireTap = rawFireTap && weaponHandling;
     const fireHeld = !!input.wantFireHeld && weaponHandling;
     if (fireTap && fireAllowed) this.fireTapLatched = true;
     if (!fireAllowed || !weaponHandling) this.fireTapLatched = false;
@@ -752,7 +776,7 @@ export class LocalPlayer {
     const discrete = ['semi', 'bolt', 'pump'].includes(intents.weapon?.def?.mode);
     const predictedDiscrete = discrete && this._discretePrediction;
     const quickMelee = intents.weapon?.quickMeleeRequest;
-    const handling = fireAllowed && !intents.weapon?.quickMeleeActive;
+    const handling = fireAllowed && !this.medkit.active && !intents.weapon?.quickMeleeActive;
     if (!handling) {
       this.fireTapLatched = false;
       this._acceptedFireSlot = null;
@@ -790,6 +814,8 @@ export class LocalPlayer {
       pitch: this._pendingShotAim?.pitch ?? this.shotPitch,
       viewYaw: this.view.yaw,
       wantFire,
+      medkitId: this._gameplayInputEnabled ? this.medkit.pendingId : 0,
+      cancelMedkit: this.medkit.cancelQueued || !this._gameplayInputEnabled,
       quickMelee: !!(fireAllowed && this._gameplayInputEnabled && quickMelee),
       meleeAim: quickMelee,
       weapon: weaponSlot,
@@ -807,6 +833,7 @@ export class LocalPlayer {
       ? !!intents.sendInput(payload)
       : false;
     if (sent) this._pendingShotAim = null;
+    if (sent) this.medkit.cancelQueued = false;
     if (sent && payload.quickMelee) weapon.acknowledgeQuickMelee();
     if (sent && wantFire) {
       this.fireTapLatched = false;
@@ -849,7 +876,7 @@ export class LocalPlayer {
       panic: this.panic,
       pain: this.pain,
       ads: intents.weapon?.adsT ?? this.adsT,
-      handlingAllowed: this._gameplayInputEnabled && !this.grenadeHandling &&
+      handlingAllowed: this._gameplayInputEnabled && !this.medkit.active && !this.grenadeHandling &&
         !this.physics.vault && !intents.weapon?.isReloading && !intents.weapon?.reloadRequested &&
         !intents.weapon?.isDeploying && this.wantAds,
       zoom: this._scopeZoom > 0 ? this._scopeZoom : (Number(intents.weapon?.def?.zoom) || 1),
@@ -940,6 +967,8 @@ export class LocalPlayer {
       });
     }
     this._hp = hp;
+    this.medkit.reconcile(me.medkit);
+    if (!authoritativeAlive) this.medkit.cancel();
     if (authoritativeAlive && me.impulse) this.physics.adoptImpulse(me.impulse);
 
     if ([me.x, me.y, me.z].every(Number.isFinite)) {

@@ -100,7 +100,7 @@ function assertLobbyShape(state, selection, label) {
   pass(state?.t === 'lobbyState' &&
     Object.keys(state).sort().join(',') === 'bots,code,gameMode,host,map,members,phase,t' &&
     Array.isArray(state.members) &&
-    state.members.every((member) => Object.keys(member).sort().join(',') === 'bot,id,name,ping,ready'),
+    state.members.every((member) => Object.keys(member).sort().join(',') === 'bot,id,name,ping,ready,team'),
   `${label} is a complete lobby replacement`);
   pass(state.gameMode === selection.gameMode && state.map === selection.map,
     `${label} retains ${selection.gameMode} on ${selection.map}`,
@@ -162,7 +162,7 @@ function assertLobbyState(
   const expected = expectedRoster(members, ready);
   const humans = state.members.filter((member) => !member.bot);
   const botRows = state.members.filter((member) => member.bot);
-  pass(JSON.stringify(humans.map(({ ping, ...row }) => row)) === JSON.stringify(expected)
+  pass(JSON.stringify(humans.map(({ ping, team, ...row }) => row)) === JSON.stringify(expected)
     && botRows.length === bots
     && botRows.every((member) => member.ready === false),
     `${label} carries the exact ordered human roster`,
@@ -919,7 +919,7 @@ async function runTrainingKillhouse(port, signal) {
     hostInitial.phase === 'waiting' && hostInitial.bots === 3,
     'Training host initial state carries exact room identity, waiting phase, and the echoed bot slider',
     `received ${JSON.stringify({ code: hostInitial.code, host: hostInitial.host, phase: hostInitial.phase, bots: hostInitial.bots })}`);
-  pass(JSON.stringify(hostInitial.members.map(({ ping, ...row }) => row)) === JSON.stringify(expectedRoster([host])) &&
+  pass(JSON.stringify(hostInitial.members.map(({ ping, team, ...row }) => row)) === JSON.stringify(expectedRoster([host])) &&
     !hostInitial.members.some((member) => member.bot),
     'Training host initial state carries the exact ordered human roster with zero bot rows',
     `received ${JSON.stringify(hostInitial.members)}`);
@@ -938,7 +938,7 @@ async function runTrainingKillhouse(port, signal) {
     guestInitial.phase === 'waiting' && guestInitial.bots === 3,
     'Training invite inherited state carries exact room identity, waiting phase, and the echoed bot slider',
     `received ${JSON.stringify({ code: guestInitial.code, host: guestInitial.host, phase: guestInitial.phase, bots: guestInitial.bots })}`);
-  pass(JSON.stringify(guestInitial.members.map(({ ping, ...row }) => row)) === JSON.stringify(expectedRoster(members)) &&
+  pass(JSON.stringify(guestInitial.members.map(({ ping, team, ...row }) => row)) === JSON.stringify(expectedRoster(members)) &&
     !guestInitial.members.some((member) => member.bot),
     'Training invite inherited state carries the exact ordered human roster with zero bot rows',
     `received ${JSON.stringify(guestInitial.members)}`);
@@ -974,7 +974,7 @@ async function runTrainingKillhouse(port, signal) {
       readyState.phase === 'waiting' && readyState.bots === 3,
       `${members[i].label} all-ready state carries exact room identity, waiting phase, and the echoed bot slider`,
       `received ${JSON.stringify({ code: readyState.code, host: readyState.host, phase: readyState.phase, bots: readyState.bots })}`);
-    pass(JSON.stringify(readyState.members.map(({ ping, ...row }) => row)) === JSON.stringify(expectedRoster(members, readySet)) &&
+    pass(JSON.stringify(readyState.members.map(({ ping, team, ...row }) => row)) === JSON.stringify(expectedRoster(members, readySet)) &&
       !readyState.members.some((member) => member.bot),
       `${members[i].label} all-ready state carries the exact ordered human roster with zero bot rows`,
       `received ${JSON.stringify(readyState.members)}`);

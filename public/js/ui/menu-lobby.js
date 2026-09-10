@@ -366,6 +366,7 @@ export class MenuLobbyController {
 
     const rosterList = el('div', 'vb-roster-list', rosterCard, 'lobby-roster');
     rosterList.setAttribute('role', 'list');
+    const teamHint = el('p', 'vb-lobby-team-hint', rosterCard);
 
     const actionsRow = el('div', 'vb-lobby-actions', panel);
 
@@ -427,6 +428,7 @@ export class MenuLobbyController {
       qr,
       readyCount,
       rosterList,
+      teamHint,
       leaveBtn: leaveButton,
       readyBtn: readyButton,
       startBtn: startButton,
@@ -453,12 +455,12 @@ export class MenuLobbyController {
     return root;
   }
 
-  showLobby(state, { onReady, onStart, onLeave, onConfigure } = {}) {
+  showLobby(state, { onReady, onStart, onLeave, onConfigure, onTeam } = {}) {
     this.host.closeSettings();
     if (this.host.isBuyMenuOpen()) this.host.toggleBuyMenu(false);
     else this.host.closeBuyMenuDirect();
 
-    this._lobbyCallbacks = { onReady, onStart, onLeave, onConfigure };
+    this._lobbyCallbacks = { onReady, onStart, onLeave, onConfigure, onTeam };
     this.navigation?.open(this, () => this._lobbyCallbacks?.onLeave?.());
     const menu = document.getElementById('menu');
     if (menu) {
@@ -493,6 +495,12 @@ export class MenuLobbyController {
     if (!dom || !dom.root) return;
 
     const gameMode = state.gameMode || 'fun';
+    const teamSelection = gameMode === 'tdm' || gameMode === 'snd';
+    const selfIsHost = state.selfId != null && String(state.selfId) === String(state.host);
+    dom.teamHint.hidden = !teamSelection;
+    dom.teamHint.textContent = selfIsHost
+      ? 'Choose teams for your squad. Bots balance the teams at launch. Team changes reset ready status.'
+      : 'The host assigns teams. Team changes reset ready status.';
     const map = state.map || 'foundry';
     setMenuBackdrop(dom.root, map);
     if (dom.modeVal) dom.modeVal.textContent = MODE_LABELS[gameMode] || gameMode.toUpperCase();
@@ -531,7 +539,11 @@ export class MenuLobbyController {
       dom.readyBtn.textContent = 'MARK READY';
     }
 
-    if (dom.rosterList) {
+    // Ping updates must not destroy a select while someone is choosing a team.
+    const rosterSignature = JSON.stringify([gameMode, state.phase, state.selfId, state.host,
+      members.map(({ id, name, bot, ready, team }) => [id, name, bot, ready, team])]);
+    if (dom.rosterList && this._rosterSignature !== rosterSignature) {
+      this._rosterSignature = rosterSignature;
       dom.rosterList.innerHTML = '';
       for (const member of members) {
         const isSelf = state.selfId != null && String(member.id) === String(state.selfId);
@@ -561,8 +573,27 @@ export class MenuLobbyController {
         }
 
         const rightColumn = el('div', 'vb-roster-right', item);
+        if (teamSelection) {
+          if (!isBot && state.phase === 'waiting' && selfIsHost) {
+            const select = el('select', 'vb-team-select', rightColumn);
+            select.setAttribute('aria-label', `Team for ${member.name || 'OPERATOR'}`);
+            for (const team of ['alpha', 'bravo']) {
+              const option = el('option', '', select);
+              option.value = team;
+              option.textContent = team.toUpperCase();
+            }
+            select.value = member.team || 'alpha';
+            select.dataset.team = select.value;
+            select.addEventListener('change', () => this._lobbyCallbacks?.onTeam?.(member.id, select.value));
+          } else {
+            const label = el('span', 'vb-team-label', rightColumn);
+            label.dataset.team = member.team || '';
+            label.textContent = member.team?.toUpperCase() || 'AUTO TEAM';
+          }
+        }
         if (!isBot) {
           const ping = el('span', 'vb-roster-ping', rightColumn);
+          ping.dataset.memberId = String(member.id);
           ping.textContent = Number.isFinite(member.ping) ? `${member.ping} ms` : 'Measuring…';
           ping.setAttribute('aria-label', Number.isFinite(member.ping) ? `Ping: ${member.ping} milliseconds` : 'Measuring ping');
         }
@@ -586,6 +617,15 @@ export class MenuLobbyController {
         }
       }
     }
+    for (const ping of dom.rosterList.querySelectorAll('.vb-roster-ping')) {
+      const member = members.find(row => String(row.id) === ping.dataset.memberId);
+      ping.textContent = Number.isFinite(member?.ping) ? `${member.ping} ms` : 'Measuring…';
+      ping.setAttribute('aria-label', Number.isFinite(member?.ping) ? `Ping: ${member.ping} milliseconds` : 'Measuring ping');
+    }
+    const selfReady = !!humans.find(member => String(member.id) === String(state.selfId))?.ready;
+    dom.readyBtn.classList.toggle('is-ready', selfReady);
+    dom.readyBtn.setAttribute('aria-pressed', String(selfReady));
+    dom.readyBtn.textContent = selfReady ? 'CANCEL READY' : 'MARK READY';
 
     const isHost =
       state.selfId != null
@@ -657,5 +697,6 @@ export class MenuLobbyController {
     this._lobbyCallbacks = null;
     this.joinStatus = null;
     this.lobbyDom = {};
+    this._rosterSignature = null;
   }
 }

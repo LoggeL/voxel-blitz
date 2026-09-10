@@ -502,6 +502,7 @@ class Game {
     ctx.canInteract = this.isAuthoritativeInteractAllowed();
     ctx.weaponCount = Array.isArray(owned) ? owned.length : WEAPON_IDS.length;
     ctx.canBuy = this.session.canOpenBuyMenu();
+    ctx.canMedkit = this.player.medkit.active || (this.player.medkit.remaining === 1 && this.player.hp < 100);
     ctx.wheelOpen = this.weaponWheel.open;
     this.input.setTouchContext(ctx);
   }
@@ -544,7 +545,7 @@ class Game {
     const position = this.camera.position;
     return {
       allowFire: this.isAuthoritativeFireAllowed(),
-      grenadeHandling: this.player.grenadeHandling,
+      grenadeHandling: this.player.grenadeHandling || this.player.medkit.active,
       alive: this.player.alive,
       crouching: this.player.crouchBool,
       speedXZ: this.player.speedXZ,
@@ -629,6 +630,8 @@ class Game {
       const lateralSpeed = vel.x * Math.cos(yaw) - vel.z * Math.sin(yaw);
       const forwardSpeed = -(vel.x * Math.sin(yaw) + vel.z * Math.cos(yaw));
       this.rig.update(frameDt, {
+        medkitActive: this.player.alive && this.player.medkit.active,
+        medkitProgress: this.player.medkit.progress,
         speed: this.player.speedXZ,
         lateralSpeed,
         forwardSpeed,
@@ -690,6 +693,7 @@ class Game {
       crosshairFov: this.camera.fov,
       crosshairHeight: innerHeight,
       hp: this.player.hp,
+      medkit: this.player.medkit,
       armor: this.selfRow?.armor ?? 0,
       ...this.weapon.readModel(now),
       panic: this.player.panic,

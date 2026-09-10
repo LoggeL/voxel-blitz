@@ -362,6 +362,7 @@ export class ModeController {
   beforeTick(dt) { return this.policy.beforeTick?.(dt); }
   tick() { return this.policy.tick(); }
   teamFor(player) { return this.policy.teamFor(player); }
+  setLobbyTeam(player, team) { return this.policy.setLobbyTeam?.(player, team) === true; }
   roleFor(player) { return this.policy.roleFor?.(player) ?? null; }
   isEnemy(a, b) { return this.policy.isEnemy(a, b); }
   canDamage(attacker, target) { return this.policy.canDamage(attacker, target); }

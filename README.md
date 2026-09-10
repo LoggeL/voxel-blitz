@@ -65,6 +65,8 @@ Open [localhost:8070](http://localhost:8070), enter a name and choose **Quick Pl
 
 For a match with friends, choose **Create Lobby**, share the invite link or QR code, then have everyone ready up. The host starts the match. Remote players need access to the same running server.
 
+In Team Deathmatch and Search and Destroy, only the lobby host assigns players to Alpha or Bravo. Assignments survive map changes; changing a team resets everyone's ready status. Bots balance the teams when the match starts.
+
 To use a different port:
 
 ```bash
@@ -81,6 +83,7 @@ PORT=8080 npm start
 | Left / right mouse | Fire / aim down sights |
 | `R` | Reload |
 | `V` | Quick pickaxe hit for melee or block mining; returns to your weapon |
+| `J` | Use or cancel your medkit: stand still for four seconds to fully heal. One per life, consumed only on completion. Movement, damage and combat actions interrupt it. |
 | `1–9`, `0` or scroll wheel | Switch weapons |
 | Hold `Q`; hover a weapon and release, or move past the outer ring | Weapon wheel |
 | Hold and release `G` / press `H` | Throw / change throwable |

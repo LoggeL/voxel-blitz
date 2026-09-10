@@ -314,6 +314,7 @@ export class WeaponState {
     fireHeld = false,
     wantAds = false,
     grenadeHandling = false,
+    medkitActive = false,
   }, now, {
     allowFire = false,
     alive = this._alive,
@@ -322,7 +323,7 @@ export class WeaponState {
   } = {}) {
     this._alive = !!alive;
     this._allowFire = !!allowFire;
-    this._grenadeHandling = !!grenadeHandling;
+    this._grenadeHandling = !!grenadeHandling || !!medkitActive;
     this._setAuthority(mode, owned);
     this._quickMeleePending = !!quickMelee && this._alive && this._allowFire && !this._grenadeHandling;
     this._wantAds = !!wantAds && !this._grenadeHandling && !this.quickMeleeActive;

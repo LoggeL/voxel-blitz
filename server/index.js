@@ -263,6 +263,10 @@ async function main() {
           manager.configure(meta, msg);
           return;
         }
+        if (msg.t === 'team') {
+          manager.setTeam(meta, msg.id, msg.team);
+          return;
+        }
         if (msg.t === 'ready') {
           manager.ready(meta, msg.value);
           return;

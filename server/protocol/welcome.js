@@ -1,4 +1,4 @@
-import { DEFAULT_DUEL_KILL_LIMIT } from '../../shared/modes.js';
+import { DEFAULT_DUEL_KILL_LIMIT, isTeamId } from '../../shared/modes.js';
 // Welcome and full lobby-state replacement factories. Returned frames retain no
 // caller-owned objects or arrays.
 import { copyBlockDamage } from './block-damage.js';
@@ -86,6 +86,7 @@ export function makeLobbyState({
         ping: Number.isFinite(source.ping) ? Math.max(0, Math.round(source.ping)) : null,
         ready: typeof source.ready === 'boolean' ? source.ready : false,
         bot: typeof source.bot === 'boolean' ? source.bot : false,
+        team: isTeamId(source.team) ? source.team : null,
       };
     }),
   };

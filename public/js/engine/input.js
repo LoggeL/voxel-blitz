@@ -70,7 +70,7 @@ function writePref(key, value) {
 // Escape is deliberately excluded so the browser always offers its normal exit.
 const GAME_KEY_CODES = [
   'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyC', 'KeyX', 'KeyE', 'KeyR', 'KeyF',
-  'KeyV', 'KeyZ', 'KeyG', 'KeyH', 'KeyQ', 'KeyB', 'Space', 'Tab',
+  'KeyV', 'KeyZ', 'KeyG', 'KeyH', 'KeyJ', 'KeyQ', 'KeyB', 'Space', 'Tab',
   'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight',
   ...Array.from({ length: 10 }, (_, i) => `Digit${i}`),
 ];
@@ -122,6 +122,7 @@ export class Input {
     this._fireTapQueued = false;
     this._reloadQueued = false;
     this._quickMeleeQueued = false;
+    this._medkitQueued = false;
     this._grenadeThrowQueued = null; // {charge, cookMs, type} released this frame
     this._grenadeHeld = false;
     this._grenadeHoldStartedAt = 0;
@@ -447,6 +448,7 @@ export class Input {
       this._adsLatched = false;
       this._reloadQueued = false;
       this._quickMeleeQueued = false;
+      this._medkitQueued = false;
       // Cancel a held grenade without throwing it.
       this._grenadeHeld = false;
       this._grenadeHoldStartedAt = 0;
@@ -679,6 +681,12 @@ export class Input {
     return this._canReadGameplay() && !this._wheelOpen && requested;
   }
 
+  consumeMedkit() {
+    const requested = this._medkitQueued;
+    this._medkitQueued = false;
+    return this._canReadGameplay() && !this._wheelOpen && requested;
+  }
+
   /** Consumes one queued LMB tap (semi-auto / single-action shots). */
   consumeFireTap() {
     const q = this._fireTapQueued;
@@ -876,6 +884,7 @@ export class Input {
     this._fireTapQueued = false;
     this._reloadQueued = false;
     this._quickMeleeQueued = false;
+    this._medkitQueued = false;
     this._grenadeThrowQueued = null;
     this._grenadeHeld = false;
     this._grenadeHoldStartedAt = 0;
@@ -996,6 +1005,7 @@ export class Input {
   _onTouchPulse(action) {
     if (!this._gameplayEnabled || this._wheelOpen) return;
     if (action === 'reload') this._reloadQueued = true;
+    else if (action === 'medkit') this._medkitQueued = true;
     else if (action === 'weapon') this._switchQueue += 1;
     else if (action === 'buy') this._buyMenuQueued = true;
   }
@@ -1041,6 +1051,7 @@ export class Input {
       case 'ControlLeft': case 'ControlRight': case 'KeyC': this.keys.crouch = true; break;
       case 'KeyE': if (!this._wheelOpen) this.keys.interact = true; break;
       case 'KeyV': if (!e.repeat && !this._wheelOpen) this._quickMeleeQueued = true; break;
+      case 'KeyJ': if (!e.repeat && !this._wheelOpen) this._medkitQueued = true; break;
       case 'KeyR': if (!e.repeat && !this._wheelOpen) this._reloadQueued = true; break;
       case 'KeyF': if (!e.repeat && !this._wheelOpen) this._toggleAds(true); break;   // ADS without a second button
       case 'KeyZ': if (!e.repeat && !this._wheelOpen) this._zoomStepQueue += 1; break;

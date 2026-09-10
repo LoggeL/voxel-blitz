@@ -38,6 +38,12 @@
 #lobby .vb-roster-left { flex-wrap: wrap; gap: 6px; min-width: 0; }
 #lobby .vb-roster-name { font: 500 21px/1.2 Impact,sans-serif; overflow-wrap: anywhere; }
 #lobby .vb-roster-right { gap: 8px; }
+#lobby .vb-roster-right { flex-wrap: wrap; }
+#lobby .vb-team-select { min-height: 34px; max-width: 110px; padding: 5px 8px; border: 1px solid #8398aa; border-radius: 4px; background: #101c28; color: #e4effa; font: inherit; font-size: 12px; }
+#lobby [data-team="alpha"] { color: #89c9ff; }
+#lobby [data-team="bravo"] { color: #ffae96; }
+#lobby .vb-team-label { font-size: 11px; white-space: nowrap; }
+#lobby .vb-lobby-team-hint { color: #c3ccd7; font: 12px/1.5 'Helvetica Neue',Arial,sans-serif; margin: 12px 0 0; }
 #lobby .vb-ready-pill { border-radius: 2px; padding: 8px; font-size: 12px; }
 #lobby .vb-ready-pill.ready { color: #8be44b; border-color: #6dc72c; background: #16321588; }
 .vb-operator-icon { width: 34px; height: 40px; background: linear-gradient(#66804b 0 27%,#233023 27% 38%,#cfa879 38% 70%,#3c5134 70%); clip-path: polygon(15% 0,85% 0,85% 16%,100% 16%,100% 60%,82% 60%,82% 78%,100% 78%,100% 100%,0 100%,0 78%,18% 78%,18% 60%,0 60%,0 16%,15% 16%); border: 2px solid #94a378; box-shadow: inset 8px 0 #0003; }

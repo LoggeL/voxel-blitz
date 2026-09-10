@@ -153,6 +153,22 @@ export class SndPolicy {
     return true;
   }
 
+  /** Waiting-lobby changes also move the bomb to an eligible attacker. */
+  setLobbyTeam(player, team) {
+    const entity = this._entity(player);
+    const state = this._state(entity);
+    if (!state || !TEAM_SET.has(team) || this.phase !== 'prep') return false;
+    if (state.team === team) return true;
+    state.team = team;
+    this._objective.clearInteraction(String(entity.id), true);
+    this._syncPlayer(entity, state);
+    this._respawn(entity, { emitEvent: false });
+    this._objective.resetBomb();
+    this._syncAllPlayers();
+    this._objective.assignBomb();
+    return true;
+  }
+
   onPlayerDeath(victim, killer = null) {
     const dead = this._entity(victim);
     if (!dead) return false;

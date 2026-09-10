@@ -14,6 +14,7 @@ import { WeaponTurnInertia } from './turn-inertia.js';
 import { SPRINT_AIM_DIP } from './weapon-aim.js';
 import { VaultHands } from './vault-hands.js';
 import { ThrowableHands } from './throwable-hands.js';
+import { MedkitHands } from './medkit-hands.js';
 import { QUICK_MELEE_SECONDS } from '../../../shared/quick-melee.js';
 import { PICKAXE_SWING_SECONDS as SWING_S, PICKAXE_CARRY_YAW, PICKAXE_CARRY_ROLL, pickaxeSwingPose } from './pickaxe-swing.js';
 
@@ -35,6 +36,7 @@ export class ViewmodelRig {
     this.root.add(this.posG); this.posG.add(this.pivot);
     this.pivot.add(this.comp); this.comp.add(this.content);
     this._vaultHands = new VaultHands(this.root);
+    this._medkitHands = new MedkitHands(this.root);
     this._throwableHands = new ThrowableHands(this.root, (event) => this.onGrenadeCue?.(event));
 
     this._disposed = false;
@@ -343,6 +345,7 @@ export class ViewmodelRig {
     this._disposed = true;
     this.camera.remove(this.root);
     this._vaultHands.dispose();
+    this._medkitHands.dispose();
     this._throwableHands.dispose();
 
     this._chargeOrb.removeFromParent();
@@ -398,7 +401,9 @@ export class ViewmodelRig {
     const vaulting = !!ctx.vaulting;
     const vaultBlend = this._vaultHands.update(elapsed, vaulting, ctx.vaultProgress);
     const throwableBlend = this._throwableHands.update(elapsed, { suppressed: vaulting });
-    this.content.visible = throwableBlend < 0.92;
+    const healing = !!ctx.medkitActive && !vaulting;
+    const medkitBlend = this._medkitHands.update(elapsed, healing, ctx.medkitProgress, ctx.reducedMotion);
+    this.content.visible = throwableBlend < 0.92 && !healing && medkitBlend < 0.05;
     this._now += elapsed;
     this._drainQueue();
 
