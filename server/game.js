@@ -6,8 +6,7 @@ import { FlameSystem, updateBurn } from './sim/fire.js';
 
 import {
   AIR,
-  SX,
-  SZ,
+  worldDimensions,
   createMapState,
   getMapMeta,
 } from '../shared/worlddata.js';
@@ -110,6 +109,7 @@ export class GameEngine {
       isEnemy: (left, right) => this.mode.isEnemy(left, right),
       solidAt: this.solidAt,
       spawnBounds: this.mapMeta?.spawnBounds,
+      dimensions: this.world.dimensions,
       now: this.now,
     });
   }
@@ -215,6 +215,7 @@ export class GameEngine {
       this.projectiles.fire.snapshot(),
       this.projectiles.smoke.snapshot(),
       this.projectiles.mineSnapshot(this.now),
+      this.world.dimensions,
     );
 
     this.tickBlocks.length = 0;
@@ -240,7 +241,7 @@ export class GameEngine {
     if (!existing) {
       const normalizedName = String(name || '').trim().slice(0, 24)
         || 'Player-' + pid.slice(-4);
-      const player = new PlayerEntity(pid, normalizedName, this.nextSpawnFor(null, -1), false);
+      const player = new PlayerEntity(pid, normalizedName, this.nextSpawnFor(null, -1), false, this.world.dimensions);
       this.entities.set(pid, player);
       this.mode.onPlayerAdd(player);
     }
@@ -253,7 +254,7 @@ export class GameEngine {
     const existing = this.entities.get(pid);
     if (existing) return this.spawnInfoFor(existing);
     if (!normalizedName) normalizedName = 'BOT-' + pid.replace(/[^0-9]/g, '');
-    const player = new PlayerEntity(pid, normalizedName, this.nextSpawnFor(null, -1), true);
+    const player = new PlayerEntity(pid, normalizedName, this.nextSpawnFor(null, -1), true, this.world.dimensions);
     this.entities.set(pid, player);
     this.mode.onPlayerAdd(player);
     return this.spawnInfoFor(player);
@@ -262,7 +263,7 @@ export class GameEngine {
   /** NPC ownership stays with the mode, separate from lobby/pseudo-client bots. */
   addNpc(id, profile, spawn, role) {
     if (this.entities.has(id)) return this.entities.get(id);
-    const npc = new PlayerEntity(id, profile.name, spawn, true);
+    const npc = new PlayerEntity(id, profile.name, spawn, true, this.world.dimensions);
     npc.npcRole = role;
     npc.npcSpeed = profile.speed;
     npc.hp = profile.hp;
@@ -273,6 +274,7 @@ export class GameEngine {
   }
 
   restoreWorld() {
+    const { sx: SX, sz: SZ } = worldDimensions(this.world);
     const pristine = createMapState(this.mapMeta.id);
     for (const i of [...this.changedBlocks]) {
       const x = i % SX, z = Math.floor(i / SX) % SZ, y = Math.floor(i / (SX * SZ));
@@ -462,6 +464,7 @@ export class GameEngine {
     if (this.blockDamage.delete(key)) {
       this.tickBlockDamage.set(key, { x, y, z, v: value, progress: 0 });
     }
+    const { sx: SX, sz: SZ } = worldDimensions(this.world);
     const i = ((y * SZ) + z) * SX + x;
     this.changedBlocks.add(i);
     this.tickBlocks.push({ i, v: value });

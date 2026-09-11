@@ -326,24 +326,27 @@ async function main() {
 
     const touchControls = await page.evaluate(`(() => ({
       active: document.getElementById('touch-controls')?.classList.contains('is-active'),
-      buttons: document.querySelectorAll('#touch-controls .vb-touch-button').length,
-      visible: document.querySelectorAll('#touch-controls .vb-touch-button:not(.is-hidden)').length,
+      actions: [...document.querySelectorAll('#touch-controls .vb-touch-button')].map(button => button.dataset.action).sort(),
+      visible: [...document.querySelectorAll('#touch-controls .vb-touch-button:not(.is-hidden)')].map(button => button.dataset.action),
       fire: !!document.querySelector('#touch-controls .vb-touch-fire:not(.is-hidden)'),
       weapon: !!document.querySelector('#touch-controls .vb-touch-weapon:not(.is-hidden)'),
       move: !!document.getElementById('touch-move-zone'),
       look: !!document.getElementById('touch-look-zone'),
       coarseClass: document.documentElement.classList.contains('vb-touch-mode'),
     }))()`);
-    requireCondition(touchControls.active && touchControls.buttons === 8 &&
-      touchControls.visible >= 5 && touchControls.visible <= 6 && touchControls.fire && touchControls.weapon &&
+    const expectedTouchActions = ['ads', 'buy', 'fire', 'interact', 'jump', 'medkit', 'pause', 'reload', 'weapon'];
+    const arenaTouchActions = ['ads', 'fire', 'jump', 'medkit', 'pause', 'reload', 'weapon'];
+    requireCondition(touchControls.active && touchControls.actions.join(',') === expectedTouchActions.join(',') &&
+      touchControls.visible.length >= 5 && touchControls.visible.length <= 7 &&
+      touchControls.visible.every(action => arenaTouchActions.includes(action)) && touchControls.fire && touchControls.weapon &&
       touchControls.move && touchControls.look && touchControls.coarseClass,
-    'mobile live play exposes only core touch actions during arena play');
+    'mobile live play exposes core touch actions with contextual reload and medkit: ' + touchControls.visible.join(', '));
 
     const mobileLayout = await page.evaluate(`(async () => {
       const { TouchControls } = await import('/js/engine/touch-controls.js');
       const fixture = new TouchControls();
       fixture.mount();
-      fixture.setContext({ alive: true, canFire: true, canReload: true, weaponCount: 2, canInteract: true });
+      fixture.setContext({ alive: true, canFire: true, canReload: true, canMedkit: true, weaponCount: 2, canInteract: true });
       fixture.setEnabled(true);
       const errors = [];
       try {

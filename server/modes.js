@@ -320,7 +320,7 @@ export class ModeController {
       respawn: (entity, spawn, options) => engine.respawnPlayer(entity, spawn, options),
       chooseSpawn: (pool, entity, excludeIndex) => {
         if (Array.isArray(pool) && pool.length) {
-          const candidates = ['fun', 'chaos', 'tdm', 'gungame'].includes(modeId)
+          const candidates = ['fun', 'chaos', 'tdm', 'snd', 'gungame'].includes(modeId)
             ? engine.spawnSelector.expand(pool) : pool;
           return engine.selectSafestSpawn(candidates, entity, excludeIndex);
         }

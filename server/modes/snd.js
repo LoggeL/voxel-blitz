@@ -153,6 +153,24 @@ export class SndPolicy {
     return true;
   }
 
+  /** Preserve a bot slot's team, round eligibility, inventory and bomb ownership. */
+  onPlayerTakeover(player, nextId) {
+    const entity = this._entity(player);
+    const priorId = entity ? String(entity.id) : '';
+    const id = String(nextId ?? '');
+    const state = this._players.get(priorId);
+    if (!state || !id || this._players.has(id)) return false;
+    this._objective.clearInteraction(priorId, false);
+    this._players.delete(priorId);
+    this._players.set(id, state);
+    if (this.bomb.carrierId === priorId) {
+      this.bomb.carrierId = id;
+      this._emit('bomb_assigned', { id, round: this.round });
+    }
+    this._emit('team_assigned', { id, team: state.team });
+    return true;
+  }
+
   /** Waiting-lobby changes also move the bomb to an eligible attacker. */
   setLobbyTeam(player, team) {
     const entity = this._entity(player);

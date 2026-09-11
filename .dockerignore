@@ -11,6 +11,7 @@ pnpm-debug.log*
 
 coverage
 .nyc_output
+data
 
 test
 tests

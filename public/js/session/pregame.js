@@ -1,3 +1,5 @@
+import { MAX_BOTS } from '../../../shared/lobby-limits.js';
+
 /**
  * Owns admission attempts, their NetClient, and lobby presentation.
  * The Session facade supplies the small set of lifecycle transitions that cross
@@ -102,7 +104,7 @@ export class PregameFlow {
     const requestedBots = Number(action.bots);
     const fallbackBots = mode === 'quick' ? 5 : 3;
     const normalizedBots = Number.isFinite(requestedBots)
-      ? Math.max(0, Math.min(7, Math.round(requestedBots)))
+      ? Math.max(0, Math.min(MAX_BOTS, Math.round(requestedBots)))
       : fallbackBots;
     const bots = mode === 'quick' ? Math.max(5, normalizedBots) : normalizedBots;
     const sensitivity = Number(action.sensitivity);

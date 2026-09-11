@@ -6,7 +6,7 @@ export const DEFAULT_DUEL_KILL_LIMIT = 5;
 export const MODE_IDS = Object.freeze(['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training']);
 export const DUEL_WEAPONS = Object.freeze(['rifle', 'shotgun', 'sniper', 'revolver', 'knife']);
 export const TEAM_IDS = Object.freeze(['alpha', 'bravo']);
-export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse']);
+export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon']);
 
 export const DEFAULT_MODE_ID = MODE_IDS[0];
 export const DEFAULT_TEAM_ID = TEAM_IDS[0];
@@ -105,6 +105,8 @@ const DEPOT_MODE_IDS = Object.freeze(['fun', 'duel', 'chaos', 'tdm', 'gungame'])
 export const MAP_MODE_COMPATIBILITY = Object.freeze({
   reactor: Object.freeze(['bastion']),
   foundry: COMBAT_MODE_IDS,
+  harbor: COMBAT_MODE_IDS,
+  canyon: COMBAT_MODE_IDS,
   depot: DEPOT_MODE_IDS,
   citadel: COMBAT_MODE_IDS,
   solstice: COMBAT_MODE_IDS,

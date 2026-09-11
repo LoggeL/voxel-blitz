@@ -1,3 +1,4 @@
+import { DEFAULT_DIMENSIONS } from '../../../shared/world/dimensions.js';
 // Sky assembly: gradient dome with an in-shader sun disc/halo, plus a fleet of
 // deterministically-seeded blocky clouds drifting across the arena.
 //
@@ -12,7 +13,7 @@
 
 import * as THREE from '../vendor/three.module.js';
 import { mulberry32 } from '../../../shared/noise.js';
-import { SEED, SX, SZ } from '../../../shared/worlddata.js';
+import { SEED } from '../../../shared/worlddata.js';
 
 /** Canonical sunlight direction (matches WorldView's DirectionalLight placement). */
 export const SUN_DIR = new THREE.Vector3(60, 90, 20).normalize();
@@ -25,9 +26,6 @@ const CLOUD_COUNT = 14;
 const CLOUD_Y = 46;
 const CLOUD_SPEED = 1.6;        // units/s along +x
 const CLOUD_SPAN = 240;         // drift wrap bounds: map center +/- span
-
-const MAP_CX = SX / 2;
-const MAP_CZ = SZ / 2;
 
 const SKY_VERT = /* glsl */ `
 varying vec3 vDir;
@@ -76,7 +74,8 @@ const _tmpVec = new THREE.Vector3();
  * Adds sky dome + clouds to the scene.
  * @returns {((dt:number)=>void) & {ready:Promise<void>, dispose:()=>void}} cloud updater with owned-resource cleanup.
  */
-export function installSky(scene, palette = {}) {
+export function installSky(scene, palette = {}, dimensions = DEFAULT_DIMENSIONS) {
+  const MAP_CX = dimensions.sx / 2, MAP_CZ = dimensions.sz / 2;
   const group = new THREE.Group();
   group.name = 'sky';
 

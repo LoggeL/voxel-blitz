@@ -1,5 +1,6 @@
 import { DUEL_KILL_LIMITS, DEFAULT_DUEL_KILL_LIMIT, MAP_IDS, MODE_IDS, isModeMapCompatible, mapForMode } from '../../../shared/modes.js';
 import { el, MAP_LABELS, MODE_LABELS, savePref } from './hud-support.js';
+import { MAX_BOTS, lobbyCapacity } from '../../../shared/lobby-limits.js';
 
 /** Host controls edit the authoritative waiting room, never a draft lobby. */
 export class LobbySettings {
@@ -34,7 +35,7 @@ export class LobbySettings {
       });
     }
     this.options(this.controls.gameMode, MODE_IDS, MODE_LABELS);
-    this.options(this.controls.bots, Array.from({ length: 8 }, (_, i) => String(i)), {});
+    this.options(this.controls.bots, Array.from({ length: MAX_BOTS + 1 }, (_, i) => String(i)), {});
     this.options(this.controls.duelKillLimit, DUEL_KILL_LIMITS.map(String),
       Object.fromEntries(DUEL_KILL_LIMITS.map(n => [n, `First to ${n} kills`])));
     this.controls.duelKillLimit.value = String(DEFAULT_DUEL_KILL_LIMIT);
@@ -62,6 +63,10 @@ export class LobbySettings {
     this.controls.gameMode.value = state.gameMode;
     this.syncMaps(state.gameMode, state.map);
     this.controls.bots.value = String(['training', 'duel', 'bastion'].includes(state.gameMode) ? 0 : state.bots);
+    const humanCount = state.members?.filter(member => !member.bot).length || 1;
+    for (const option of this.controls.bots.options) {
+      option.disabled = Number(option.value) > lobbyCapacity(state.gameMode) - humanCount;
+    }
     for (const [key, select] of Object.entries(this.controls)) {
       select.disabled = !isHost || state.phase !== 'waiting' || (key === 'bots' && ['training', 'duel', 'bastion'].includes(state.gameMode));
     }
@@ -70,7 +75,7 @@ export class LobbySettings {
     this.hint.textContent = state.gameMode === 'bastion'
       ? '1–4 players defend Reactor 9 through 8 waves. Enemy waves are automatic. No friendly bots.' : state.gameMode === 'duel'
       ? 'Share the invite link. Two players, no bots. Both players must be ready.' : isHost
-      ? 'Invite friends now. Changes reset readiness. Bots fill available slots.'
+      ? 'Up to 32 players including bots, with up to 16 per team. Changes reset readiness. Joining friends replace bots when full.'
       : 'The host can change settings while everyone joins.';
   }
 }

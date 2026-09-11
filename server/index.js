@@ -1,16 +1,18 @@
 // voxel-blitz entrypoint: one HTTP port serving /public statically and hosting
 // the authoritative game WebSocket. `node server/index.js` (PORT env, default 8070).
 import http from 'node:http';
+import { CareerService } from './career.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import { staticHandler } from './static.js';
 import { LobbyManager } from './lobby.js';
 import { ServerDiagnostics } from './diagnostics.js';
 import { TICK_MS, parseAdmissionFrame, parseBuyFrame } from './protocol/admission.js';
 
-const MAX_CONNECTIONS = 32;
+const MAX_CONNECTIONS = 256;
 const MAX_MESSAGE_BYTES = 64 * 1024;
 const MAX_MESSAGES_PER_SECOND = 180;
-const MAX_QUEUED_BYTES = 2 * 1024 * 1024;
+// Allow two complete large-map replacements plus snapshots during host edits.
+const MAX_QUEUED_BYTES = 4 * 1024 * 1024;
 
 // One flaky socket must never take the arena down: log and keep serving.
 process.on('uncaughtException', (err) => {
@@ -42,6 +44,7 @@ async function main() {
 
   const clients = new Map();   // id -> connection metadata
   const diagnostics = new ServerDiagnostics();
+  const career = new CareerService();
   let connCounter = 0;
 
   function terminateClient(c) {
@@ -75,6 +78,11 @@ async function main() {
   }
 
   function sendJson(c, obj) {
+    try { career.observe(c, obj); } catch (error) {
+      // Storage trouble must never interrupt the simulation's outgoing frames.
+      if (!c.careerErrorLogged) console.error('[career] reward failed:', error.message);
+      c.careerErrorLogged = true;
+    }
     let payload;
     try { payload = JSON.stringify(obj); } catch { return false; }
     return sendFrame(c, payload);
@@ -96,6 +104,7 @@ async function main() {
         res.end(JSON.stringify({ t: 'error', msg: 'bad request' }));
         return;
       }
+      if (await career.handleHttp(req, res)) return;
       if ((req.url || '').split('?')[0] === '/api/lobbies' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
         res.end(JSON.stringify({ lobbies: manager.list() }));
@@ -124,7 +133,7 @@ async function main() {
       accept(true);
     },
   });
-  wss.on('connection', (ws) => {
+  wss.on('connection', (ws, req) => {
     // Defense in depth for custom WebSocketServer implementations that skip
     // verifyClient; reject before allocating arena metadata or a player id.
     if (clients.size >= MAX_CONNECTIONS) {
@@ -138,6 +147,7 @@ async function main() {
       id,
       ws,
       joined: false,
+      profileId: career.identity(req),
       alive: true,
       messageTokens: MAX_MESSAGES_PER_SECOND,
       messageRefillAt: Date.now(),
@@ -329,6 +339,7 @@ async function main() {
     console.log(`\n[voxel-blitz] ${sig} received, shutting down`);
     clearInterval(heartbeat);
     diagnostics.dispose();
+    try { career.dispose(); } catch (error) { console.error('[career] save failed:', error.message); }
     try { manager.stop(); } catch (err) { console.error('[voxel-blitz] lobby stop:', err.message); }
     for (const c of clients.values()) {
       try { c.ws.close(1001, 'server shutdown'); } catch { /* gone */ }

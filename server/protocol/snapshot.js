@@ -100,7 +100,7 @@ function defaultMatchSnapshot() {
  * Player rows carry the exact contracted field set; positions are 2-decimal,
  * angles 3-decimal so payloads stay small and floats stay finite.
  */
-export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = undefined, blockDamage = [], powerups = [], fireFields = [], smokeFields = [], mines = []) {
+export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = undefined, blockDamage = [], powerups = [], fireFields = [], smokeFields = [], mines = [], dimensions = undefined) {
   const matchSnapshot = match === undefined
     ? defaultMatchSnapshot()
     : (isRecord(match) ? wireCopy(match) : defaultMatchSnapshot());
@@ -177,7 +177,7 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
     // Engines clear these scratch arrays after broadcasting, so snapshots must
     // not retain either source array.
     blocks: (blockDeltas || []).map((b) => ({ i: b.i | 0, v: b.v | 0 })),
-    blockDamage: copyBlockDamage(blockDamage),
+    blockDamage: copyBlockDamage(blockDamage, dimensions),
     powerups: (Array.isArray(powerups) ? powerups : []).filter((pickup) =>
       pickup && typeof pickup.id === 'string' && Object.hasOwn(POWERUP_TYPES, pickup.type)
         && [pickup.x, pickup.y, pickup.z, pickup.expiresAt].every(Number.isFinite))

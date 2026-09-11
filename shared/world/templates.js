@@ -1,3 +1,5 @@
+import { getMapDimensions } from './dimensions.js';
+import { generateHarborInto, generateCanyonInto } from './flatmap-large.js';
 import { generateNuketownInto } from './flatmap-nuketown.js';
 import { generateDust2Into } from './flatmap-dust2.js';
 import { generateReactorInto } from './flatmap-reactor.js';
@@ -9,7 +11,6 @@ import { generateSolsticeInto } from './flatmap-solstice.js';
 import { generateCalderaInto } from './flatmap-caldera.js';
 import { createMapMetadata } from './metadata.js';
 import {
-  MAP_BYTES,
   MAP_HEADER_BYTES,
   rebuildHeights,
   validateSerializedWorld,
@@ -20,9 +21,9 @@ import { generateFoundryInto } from './terrain-foundry.js';
 
 export { MAP_IDS };
 
-const data = new Uint8Array(SX * SY * SZ);
-const heightMap = new Int16Array(SX * SZ);
-const defaultWorld = createStateApi(data, heightMap);
+let data = new Uint8Array(SX * SY * SZ);
+let heightMap = new Int16Array(SX * SZ);
+let defaultWorld = createStateApi(data, heightMap);
 
 function requireMapId(id) {
   if (typeof id !== 'string' || !MAP_IDS.includes(id)) {
@@ -32,11 +33,15 @@ function requireMapId(id) {
 }
 
 function buildPristineTemplate(id) {
+  const dimensions = getMapDimensions(id);
+  const { sx: SX, sy: SY, sz: SZ } = dimensions;
   const blocks = new Uint8Array(SX * SY * SZ);
-  const heights = new Int16Array(SX * SZ);
+  const heights = new Int16Array(dimensions.sx * dimensions.sz);
   const world = createStateApi(blocks, heights, null, id);
 
-  if (id === 'foundry') generateFoundryInto(world, blocks, heights);
+  if (id === 'harbor') generateHarborInto(world, blocks, heights);
+  else if (id === 'canyon') generateCanyonInto(world, blocks, heights);
+  else if (id === 'foundry') generateFoundryInto(world, blocks, heights);
   else if (id === 'depot') generateDepotInto(world, blocks, heights);
   else if (id === 'citadel') generateCitadelInto(world, blocks, heights);
   else if (id === 'caldera') generateCalderaInto(world, blocks, heights);
@@ -47,7 +52,7 @@ function buildPristineTemplate(id) {
   else generateSolsticeInto(world, blocks, heights);
 
   blocks.fill(BEDROCK, 0, SX * SZ);
-  rebuildHeights(blocks, heights);
+  rebuildHeights(blocks, heights, dimensions);
   return Object.freeze({
     blocks,
     heights,
@@ -86,8 +91,10 @@ export function serializeWorld() {
 }
 
 export function deserializeWorld(buf) {
-  validateSerializedWorld(buf);
-  data.set(buf.subarray(MAP_HEADER_BYTES, MAP_BYTES));
+  const dimensions = validateSerializedWorld(buf);
+  data = buf.slice(MAP_HEADER_BYTES);
+  heightMap = new Int16Array(dimensions.sx * dimensions.sz);
+  defaultWorld = createStateApi(data, heightMap, null, 'foundry', null, dimensions);
   defaultWorld.rebuildHeightMap();
 }
 
@@ -97,6 +104,9 @@ export function rebuildHeightMap() {
 
 /** Rebuild the process-global legacy singleton as Foundry. */
 export function generateWorld() {
+  data = new Uint8Array(SX * SY * SZ);
+  heightMap = new Int16Array(SX * SZ);
+  defaultWorld = createStateApi(data, heightMap);
   generateFoundryInto(defaultWorld, data, heightMap);
   data.fill(BEDROCK, 0, SX * SZ);
   defaultWorld.rebuildHeightMap();
@@ -108,17 +118,18 @@ export function getMapMeta(id) {
 
 export function createMapState(id, serializedBytes) {
   const template = pristineTemplates.get(requireMapId(id));
+  const dimensions = getMapDimensions(id);
   let blocks;
   let heights;
   if (serializedBytes === undefined) {
     blocks = template.blocks.slice();
     heights = template.heights.slice();
   } else {
-    validateSerializedWorld(serializedBytes);
+    validateSerializedWorld(serializedBytes, dimensions);
     blocks = new Uint8Array(template.blocks.length);
-    blocks.set(serializedBytes.subarray(MAP_HEADER_BYTES, MAP_BYTES));
-    heights = new Int16Array(SX * SZ);
-    rebuildHeights(blocks, heights);
+    blocks.set(serializedBytes.subarray(MAP_HEADER_BYTES));
+    heights = new Int16Array(dimensions.sx * dimensions.sz);
+    rebuildHeights(blocks, heights, dimensions);
   }
   return createStateApi(blocks, heights, template.meta.spawns.fun, id, template.meta);
 }

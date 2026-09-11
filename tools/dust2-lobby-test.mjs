@@ -32,8 +32,9 @@ async function configure(host, members, mapId, mode) {
     assert.equal(state.gameMode, mode);
     assert.equal(state.phase, 'waiting');
     assert.equal(state.bots, 2);
-    assert.equal(state.members.length, members.length);
-    assert.ok(state.members.every(member => !member.ready), 'map changes clear every human readiness');
+    assert.equal(state.members.filter(member => !member.bot).length, members.length);
+    assert.equal(state.members.filter(member => member.bot).length, 2);
+    assert.ok(state.members.filter(member => !member.bot).every(member => !member.ready), 'map changes clear every human readiness');
   }));
 }
 
@@ -60,15 +61,15 @@ try {
     const readyMark = host.mark();
     host.send({ t: 'ready', value: true });
     guest.send({ t: 'ready', value: true });
-    await host.waitForJson(m => m.t === 'lobbyState' && m.members.length === 2
-      && m.members.every(member => member.ready), 'ready players', readyMark);
+    await host.waitForJson(m => m.t === 'lobbyState' && m.members.filter(member => !member.bot).length === 2
+      && m.members.filter(member => !member.bot).every(member => member.ready), 'ready players', readyMark);
     await configure(host, [host, guest], 'foundry', mode);
     await configure(host, [host, guest], 'dust2', mode);
 
     const startMarks = [host.mark(), guest.mark()];
     host.send({ t: 'ready', value: true });
     guest.send({ t: 'ready', value: true });
-    await host.waitForJson(m => m.t === 'lobbyState' && m.members.every(member => member.ready),
+    await host.waitForJson(m => m.t === 'lobbyState' && m.members.filter(member => !member.bot).every(member => member.ready),
       'ready after map change', startMarks[0]);
     host.send({ t: 'start' });
     await Promise.all([host, guest].map(async (client, i) => {

@@ -1,6 +1,6 @@
 import { WEAPON_IDS, WEAPONS } from '../../shared/combatmath.js';
 import { chaosWeaponDef } from '../../shared/chaos.js';
-import { SX, SY, SZ } from '../../shared/worlddata.js';
+import { worldDimensions } from '../../shared/worlddata.js';
 import { POWERUP_RULES, CHAOS_CASH_RULES } from '../../shared/powerups.js';
 import { MAX_CREDITS } from '../../shared/modes.js';
 import { raycastVoxels } from '../../shared/raycast.js';
@@ -8,7 +8,8 @@ import { raycastVoxels } from '../../shared/raycast.js';
 const TYPES = ['armor', 'health', 'ammo'];
 
 /** Floor support and clearance are checked again after every terrain update. */
-export function validPowerupSite(site, solidAt) {
+export function validPowerupSite(site, solidAt, dimensions = worldDimensions()) {
+  const { sx: SX, sy: SY, sz: SZ } = dimensions;
   if (!site || ![site.x, site.y, site.z].every(Number.isFinite)) return false;
   const x = Math.floor(site.x), y = Math.floor(site.y), z = Math.floor(site.z);
   return x > 0 && x < SX - 1 && z > 0 && z < SZ - 1 && y > 0 && y < SY - 1
@@ -56,13 +57,13 @@ export function applyPowerup(player, type) {
 /** Room-owned pickups. Time, RNG, terrain and candidate selection are injectable. */
 export class PowerupSystem {
   constructor({ solidAt, findSites, isSupported, rng = Math.random, now = 0,
-    rules = POWERUP_RULES, types = TYPES, prefix = 'powerup' }) {
+    rules = POWERUP_RULES, types = TYPES, prefix = 'powerup', dimensions = worldDimensions() }) {
     this.rules = rules;
     this.types = types;
     this.prefix = prefix;
     this.solidAt = solidAt;
     this.findSites = findSites;
-    this.isSupported = isSupported || ((site) => validPowerupSite(site, solidAt));
+    this.isSupported = isSupported || ((site) => validPowerupSite(site, solidAt, dimensions));
     this.rng = rng;
     this.active = new Map();
     this.nextSpawnAt = now + rules.firstSpawnMs;

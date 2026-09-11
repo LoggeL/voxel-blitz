@@ -1,3 +1,4 @@
+import { DEFAULT_DIMENSIONS } from '../../../shared/world/dimensions.js';
 // Column-chunk mesher: 16 x SY x 16 world slices -> one BufferGeometry per
 // material bucket (opaque / cutout / glass). Vertex colours bake classic
 // 4-sample ambient occlusion plus fixed per-face directional shading, so the
@@ -65,7 +66,10 @@ export class ChunkStore {
    *        neighbours resolve exactly across chunk seams.
    * @param getBlockDamage optional live visual damage getter (x,y,z)->0..1
    */
-  constructor(scene, atlas, getBlockFn, getBlockDamage = () => 0) {
+  constructor(scene, atlas, getBlockFn, getBlockDamage = () => 0, dimensions = DEFAULT_DIMENSIONS) {
+    this.dimensions = dimensions;
+    this.width = Math.ceil(dimensions.sx / CHUNK_X);
+    this.depth = Math.ceil(dimensions.sz / CHUNK_Z);
     this.scene = scene;
     this.atlas = atlas;
     this.getBlock = getBlockFn;
@@ -97,8 +101,8 @@ export class ChunkStore {
 
   /** Synchronous initial build of every chunk column. */
   buildAll() {
-    for (let cz = 0; cz < CHUNKS_H; cz++) {
-      for (let cx = 0; cx < CHUNKS_W; cx++) {
+    for (let cz = 0; cz < this.depth; cz++) {
+      for (let cx = 0; cx < this.width; cx++) {
         this.rebuildChunk(cx, cz);
       }
     }
@@ -110,6 +114,7 @@ export class ChunkStore {
    * neighbour when the changed voxel touches a chunk border.
    */
   applyBlockDelta(x, y, z, v) {
+    const { sx: SX, sy: SY, sz: SZ } = this.dimensions;
     if (x < 0 || z < 0 || x >= SX || z >= SZ || y < 0 || y >= SY) return;
     const cx = x >> 4, cz = z >> 4;
     this.markDirty(cx, cz);
@@ -125,7 +130,7 @@ export class ChunkStore {
   }
 
   markDirty(cx, cz) {
-    if (cx < 0 || cz < 0 || cx >= CHUNKS_W || cz >= CHUNKS_H) return;
+    if (cx < 0 || cz < 0 || cx >= this.width || cz >= this.depth) return;
     const key = this.chunkKey(cx, cz);
     if (!this.chunks.has(key) || this.queued.has(key)) return;
     this.queued.add(key);
@@ -171,7 +176,8 @@ export class ChunkStore {
   }
 
   rebuildChunk(cx, cz) {
-    if (cx < 0 || cz < 0 || cx >= CHUNKS_W || cz >= CHUNKS_H) return;
+    const { sy: SY } = this.dimensions;
+    if (cx < 0 || cz < 0 || cx >= this.width || cz >= this.depth) return;
     const key = this.chunkKey(cx, cz);
     let rec = this.chunks.get(key);
     if (rec === undefined) {

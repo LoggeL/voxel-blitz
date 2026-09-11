@@ -1,3 +1,4 @@
+import { bindingLabel } from '../keybindings.js';
 import { el } from './hud-support.js';
 
 /** Presentation-only spectator and respawn overlay. */
@@ -21,11 +22,11 @@ export class SpectatorHud {
     const controls = el('div', 'vb-spectator-controls', root);
     const previous = el('button', 'vb-spectator-cycle', controls, 'spectator-previous');
     previous.type = 'button';
-    previous.textContent = '‹ Q';
+    previous.textContent = `‹ ${bindingLabel('spectatePrevious')}`;
     previous.setAttribute('aria-label', 'Spectate previous player');
     const next = el('button', 'vb-spectator-cycle', controls, 'spectator-next');
     next.type = 'button';
-    next.textContent = 'E ›';
+    next.textContent = `${bindingLabel('spectateNext')} ›`;
     next.setAttribute('aria-label', 'Spectate next player');
     previous.addEventListener('click', () => this.onCycle?.(-1));
     next.addEventListener('click', () => this.onCycle?.(1));
@@ -48,10 +49,12 @@ export class SpectatorHud {
     if (dom.label) dom.label.textContent = state.killCam ? 'KILL CAM' : 'SPECTATING';
     dom.target.textContent = state.hasTarget ? String(state.targetName || 'OPERATOR') : 'NO LIVING PLAYERS';
     dom.hint.textContent = state.killCam
-      ? 'YOUR KILLER · Q / E TO SPECTATE OTHERS'
+      ? `YOUR KILLER · ${bindingLabel('spectatePrevious')} / ${bindingLabel('spectateNext')} TO SPECTATE OTHERS`
       : state.hasTarget
         ? (state.teamOnly ? 'FOLLOWING LIVING TEAMMATE' : 'FOLLOWING LIVING PLAYER')
         : (state.teamOnly ? 'NO LIVING TEAMMATES' : 'WAITING FOR A LIVING PLAYER');
+    dom.previous.textContent = `‹ ${bindingLabel('spectatePrevious')}`;
+    dom.next.textContent = `${bindingLabel('spectateNext')} ›`;
     dom.controls.style.display = state.canCycle ? 'flex' : 'none';
   }
 

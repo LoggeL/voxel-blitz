@@ -1,3 +1,4 @@
+import { navigationWaypoint } from './bot-navigation.js';
 // Direct-injection bots. They register with a GameEngine as pseudo-clients
 // ('bot-<i>') and drive the exact same applyInput -> integrate -> fire
 // pipeline humans use, so balance is identical. No sockets anywhere.
@@ -11,10 +12,11 @@
 // and a stuck watchdog that reroutes anything wedged on geometry.
 
 import {
-  AIR, SX, SZ, GROUND,
+  AIR, worldDimensions, GROUND,
 } from '../shared/worlddata.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { DEFAULT_WEAPON_ID, WEAPON_PRICES } from '../shared/modes.js';
+import { MAX_BOTS } from '../shared/lobby-limits.js';
 import { mulberry32 } from '../shared/noise.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { DUST2_NAV_FLOORS, dust2FloorsAt } from '../shared/world/dust2-layout.js';
@@ -82,7 +84,7 @@ function standable(world, x, z, preferredY = null) {
     }
     return null;
   }
-  const h = world.heightAt(x, z);
+  const h = world.meta?.navigationFloor ?? world.heightAt(x, z);
   if (h < GROUND - 1 || h > GROUND + 9) return null;
   if (world.getBlock(x, h, z) === AIR) return null;
   if (world.getBlock(x, h + 1, z) !== AIR || world.getBlock(x, h + 2, z) !== AIR) return null;
@@ -90,6 +92,7 @@ function standable(world, x, z, preferredY = null) {
 }
 
 function randSpot(world, rng) {
+  const { sx: SX, sz: SZ } = worldDimensions(world);
   if (world.mapId === 'dust2') {
     const count = DUST2_NAV_FLOORS.length / 3;
     const start = Math.floor(rng() * count);
@@ -215,7 +218,7 @@ class BotManager {
    *  entity id 'bot-<i>', so repeated resizes can never duplicate or multiply
    *  entities. Stale bot entities from an earlier manager are pruned first. */
   setCount(n) {
-    n = Math.max(0, Math.min(7, n | 0));
+    n = Math.max(0, Math.min(MAX_BOTS, n | 0));
     const owned = new Set(this.brains.map((b) => b.id));
     for (const pid of Array.from(this.game.entities.keys())) {
       if (/^bot-\d+$/.test(pid) && !owned.has(pid)) this.game.removeClient(pid);
@@ -482,8 +485,9 @@ class BotManager {
     const searching = br.state === 'search' && br.lastSeen && !objective;
     const nav = searching ? br.lastSeen.position
       : objective && !takingDetour ? objective : br.roamTarget;
-    const ndx = nav.x - p.x, ndz = nav.z - p.z;
-    const navDist = Math.hypot(ndx, ndz) || 1;
+    const waypoint = navigationWaypoint(this.game.world, p, nav, br, now);
+    const ndx = waypoint.x - p.x, ndz = waypoint.z - p.z;
+    const navDist = Math.hypot(nav.x - p.x, nav.z - p.z) || 1;
 
     let moveYaw = p.yaw;
     let moving = false;
@@ -512,7 +516,7 @@ class BotManager {
       inp.keys.f = true;
       moving = true;
       sprint = navDist > 25 && !retreating && !searching;
-      inp.pitch = approachAngle(inp.pitch, Math.atan2((nav.y + 1) - eye[1], navDist), PITCH_TURN_RATE * dtS);
+      inp.pitch = approachAngle(inp.pitch, Math.atan2((waypoint.y + 1) - eye[1], navDist), PITCH_TURN_RATE * dtS);
     }
     inp.keys.sprint = !!sprint;
 

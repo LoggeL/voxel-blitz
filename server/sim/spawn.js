@@ -1,6 +1,6 @@
 // Safest-spawn selection with bounded recent-use tracking.
 
-import { SX, SZ, SY } from '../../shared/worlddata.js';
+import { worldDimensions } from '../../shared/worlddata.js';
 import { EYE_HEIGHT } from '../../shared/combatmath.js';
 import { boxCollides, solidBelow } from '../../shared/player-movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
@@ -22,7 +22,8 @@ function spawnPointKey(point) {
  * seam. Call setNow once per simulation step before choosing spawns.
  */
 export class SpawnSelector {
-  constructor({ entities, isEnemy, solidAt, now, spawnBounds = null }) {
+  constructor({ entities, isEnemy, solidAt, now, spawnBounds = null, dimensions = null }) {
+    this.dimensions = dimensions || worldDimensions();
     this.entities = entities;
     this.isEnemy = isEnemy;
     this.solidAt = solidAt;
@@ -59,6 +60,7 @@ export class SpawnSelector {
   }
 
   expand(pool) {
+    const { sx: SX, sy: SY, sz: SZ } = this.dimensions;
     if (this.expandedPools.has(pool)) return this.expandedPools.get(pool);
     const expanded = pool.map((point) => ({ ...point }));
     const seen = new Set(expanded.map(spawnPointKey));
@@ -111,6 +113,7 @@ export class SpawnSelector {
   }
 
   pick(pool, player = null, excludeIndex = -1, { variety = false } = {}) {
+    const { sx: SX, sy: SY, sz: SZ } = this.dimensions;
     const candidates = [];
     for (let i = 0; i < pool.length; i++) {
       const source = pool[i];
@@ -182,7 +185,9 @@ export class SpawnSelector {
       const occupied = [...this.entities.values()].some((entity) => entity !== player
         && entity.state === 'alive' && Math.hypot(candidate.x - entity.x,
           candidate.y - entity.y, candidate.z - entity.z) < 2.5);
-      const safety = !variety ? 0 : occupied ? -1 : nearest >= 12 && visibleEnemies === 0 ? 2 : nearest >= 8 ? 1 : 0;
+      // Every mode needs a free body-sized slot. Deterministic modes still
+      // score safety normally once occupied positions have been excluded.
+      const safety = occupied ? -1 : !variety ? 0 : nearest >= 12 && visibleEnemies === 0 ? 2 : nearest >= 8 ? 1 : 0;
       const score = nearest - visibleEnemies * SPAWN_LOS_PENALTY - recentPenalty - (variety && isPriorSpawn(candidate) ? 12 : 0) + (variety ? Math.random() * 6 : 0);
       if (safety > bestSafety || (safety === bestSafety && score > bestScore)) {
         bestSafety = safety;

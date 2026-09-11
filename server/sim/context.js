@@ -42,6 +42,7 @@ export function createSimulationContexts(engine) {
   };
   const projectiles = {
     targets,
+    get dimensions() { return engine.world.dimensions; },
     get now() { return engine.now; },
     get entities() { return engine.combatants || engine.entities; },
     get grenadeDamage() { return engine.mode.mode !== 'gungame'; },

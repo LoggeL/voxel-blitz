@@ -1,4 +1,6 @@
 import { DISPLAY_OPTIONS, displaySettings, setDisplaySetting } from './display-settings.js';
+import { KeyboardSettings } from './keyboard-settings.js';
+import { bindingLabel, subscribeKeybindings } from '../keybindings.js';
 import { ConnectionSettings } from './connection-settings.js';
 import { FrameRateSettings } from './frame-rate-settings.js';
 import { MAP_LABELS, MODE_LABELS, el, loadPref, loadPrefNum, savePref } from './hud-support.js';
@@ -77,6 +79,8 @@ export class SettingsController {
     this.settingsDom = {};
     this.connection = new ConnectionSettings();
     this.frameRate = new FrameRateSettings();
+    this.keyboard = new KeyboardSettings();
+    this._unsubscribeBindings = subscribeKeybindings(() => this._syncKeyHints());
   }
 
   get isOpen() {
@@ -179,6 +183,7 @@ export class SettingsController {
   }
 
   closeSettings() {
+    this.keyboard.cancel();
     this._settingsOpen = false;
     this.navigation?.close(this);
     const root = this.settingsDom.root;
@@ -338,9 +343,9 @@ export class SettingsController {
     const touchSize = choiceRow('settings-touch-size', 'TOUCH CONTROL SIZE', TOUCH_SIZES, TOUCH_SIZE_LABELS);
     const touchHand = choiceRow('settings-touch-hand', 'TOUCH LAYOUT', TOUCH_HANDS, TOUCH_HAND_LABELS);
 
-    el('p', 'vb-settings-hint', controls).textContent = 'V: quick pickaxe hit for melee or mining. Your current weapon returns after the swing.';
-    el('p', 'vb-settings-hint', controls).textContent = 'J: use your medkit. Stand still for 4 seconds to fully heal. Moving, taking damage, or using a weapon cancels it. One kit per life, spent only after healing. Press J again to cancel.';
-    const groups = { controls: [...controls.children], display: [], debug: [] };
+    const meleeHint = el('p', 'vb-settings-hint', controls);
+    const medkitHint = el('p', 'vb-settings-hint', controls);
+    const groups = { controls: [...controls.children], keyboard: [this.keyboard.mount(controls)], display: [], debug: [] };
     groups.display.push(this.frameRate.mount(controls));
     let category = 'display';
     const displaySelects = {};
@@ -365,6 +370,7 @@ export class SettingsController {
     groups.connection = [this.connection.mount(controls)];
     const tabButtons = [];
     const activate = (key) => {
+      this.keyboard.cancel();
       for (const [group, nodes] of Object.entries(groups)) for (const node of nodes) node.hidden = group !== key;
       for (const button of tabButtons) {
         button.setAttribute('aria-selected', String(button.dataset.group === key));
@@ -401,6 +407,8 @@ export class SettingsController {
       shell,
       panel,
       displaySelects,
+      meleeHint,
+      medkitHint,
       matchSub: sub,
       matchPlayers,
       sensSlider,
@@ -534,6 +542,7 @@ export class SettingsController {
       select.value = displaySettings()[key] ? '1' : '0';
     }
     this._syncDeviceRows();
+    this._syncKeyHints();
 
     const summary = this.host.getMatchSummary?.() || {};
     const mode = MODE_LABELS[summary.mode] || String(summary.mode || 'LIVE MATCH').toUpperCase();
@@ -576,7 +585,7 @@ export class SettingsController {
       : POINTER_MODE_LABELS[config.pointerMode];
     dom.adsModeHint.textContent = config.adsMode
       ? ''
-      : (effectivePointer === 'trackpad' ? 'TOGGLE · F OR RIGHT CLICK' : 'HOLD · F OR RIGHT CLICK');
+      : `${effectivePointer === 'trackpad' ? 'TOGGLE' : 'HOLD'} · ${bindingLabel('ads')} OR RIGHT CLICK`;
 
     show(dom.pointerModeRow, !device.touch);
     show(dom.adsModeRow, !device.touch);
@@ -587,7 +596,16 @@ export class SettingsController {
     show(dom.touchHandRow, device.touch);
   }
 
+  _syncKeyHints() {
+    const dom = this.settingsDom;
+    if (dom.meleeHint) dom.meleeHint.textContent = `${bindingLabel('quickMelee')}: quick pickaxe hit for melee or mining. Your current weapon returns after the swing.`;
+    if (dom.medkitHint) dom.medkitHint.textContent = `${bindingLabel('medkit')}: use your medkit. Stand still for 4 seconds to fully heal. Moving, taking damage, or using a weapon cancels it. One kit per life, spent only after healing. Press again to cancel.`;
+    this._syncDeviceRows();
+  }
+
   dispose() {
+    this._unsubscribeBindings?.();
+    this.keyboard.dispose();
     this.connection.dispose();
     for (const timer of this._deferredTimers) clearTimeout(timer);
     this._deferredTimers.clear();

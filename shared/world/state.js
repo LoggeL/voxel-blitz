@@ -1,4 +1,5 @@
-import { AIR, BEDROCK, GROUND, METAL, SX, SY, SZ, idx } from './blocks.js';
+import { AIR, BEDROCK, GROUND, METAL } from './blocks.js';
+import { getMapDimensions, worldDimensions } from './dimensions.js';
 import { MAP_SPAWN_ANCHORS } from './metadata.js';
 import { rebuildHeights, serializeBlocks } from './serialize.js';
 
@@ -10,8 +11,12 @@ export function createStateApi(
   spawnPool = null,
   mapId = 'foundry',
   meta = null,
+  dimensions = getMapDimensions(mapId),
 ) {
+  const { sx: SX, sy: SY, sz: SZ } = dimensions;
+  const idx = (x, y, z) => (y * SZ + z) * SX + x;
   const world = {
+    dimensions,
     mapId,
     meta,
 
@@ -51,11 +56,11 @@ export function createStateApi(
     },
 
     serializeWorld() {
-      return serializeBlocks(blocks);
+      return serializeBlocks(blocks, dimensions);
     },
 
     rebuildHeightMap() {
-      rebuildHeights(blocks, heights);
+      rebuildHeights(blocks, heights, dimensions);
     },
   };
   return world;
@@ -76,6 +81,7 @@ function findSpawnsFor(world, n) {
 
 function freeSpotNear(world, px, pz) {
   const { getBlock, heightAt } = world;
+  const { sx: SX, sz: SZ } = worldDimensions(world);
   for (let r = 0; r < 12; r++) {
     for (let dz = -r; dz <= r; dz++) {
       for (let dx = -r; dx <= r; dx++) {

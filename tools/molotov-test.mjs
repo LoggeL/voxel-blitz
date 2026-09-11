@@ -1,3 +1,4 @@
+import { combatDamage } from '../shared/combat-balance.js';
 import assert from 'node:assert/strict';
 import { ProjectileSystem } from '../server/sim/projectiles.js';
 import { PlayerEntity } from '../server/sim/player.js';
@@ -38,19 +39,19 @@ for (const [level, radius, duration, dps] of [[0, 3.2, 7.5, 30], [1, 4.2, 7.5, 3
   const field = f.ignite({ chaosLevel: level });
   assert.equal(field.radius, radius);
   f.step(0.5);
-  assert.equal(f.victim.hp, 1000 - dps * 0.5, `tier ${level} deals its actual per-second damage`);
+  assert.equal(f.victim.hp, 1000 - combatDamage(dps * 0.5), `tier ${level} deals its actual per-second damage`);
   f.step(duration - 0.5);
-  assert(Math.abs(f.victim.hp - (1000 - dps * duration)) < 1e-7);
+  assert(Math.abs(f.victim.hp - (1000 - combatDamage(dps * duration))) < 1e-7);
   assert.equal(f.system.fire.active.size, 0, `tier ${level} expires after exactly ${duration} seconds`);
 }
 {
   const f = fixture(); f.ignite(); f.ignite({ chaosLevel: 3 }); f.step(0.5);
-  assert.equal(f.victim.hp, 80, 'hotter overlapping fire wins regardless of insertion order without stacking damage');
+  assert.equal(f.victim.hp, 84, 'hotter overlapping fire wins regardless of insertion order without stacking damage');
 }
 for (const level of [0, 1]) {
   const f = fixture(); f.ignite({ chaosLevel: level });
   f.victim.x += 4.5; f.step(0.5);
-  assert.equal(f.victim.hp, level ? 85 : 100, 'wider tier actually damages the visible outer ring');
+  assert.equal(f.victim.hp, level ? 88 : 100, 'wider tier actually damages the visible outer ring');
 }
 // Every supported site in the wider circle survives the shared cap at varied impact offsets.
 for (const offsetX of [0, 0.13, 0.5, 0.87]) for (const offsetZ of [0, 0.13, 0.5, 0.87]) {
@@ -92,9 +93,9 @@ for (const offsetX of [0, 0.13, 0.5, 0.87]) for (const offsetZ of [0, 0.13, 0.5,
   assert.equal(f.victim.molotovBurning, 0.5, 'visible contact drives the existing burning feedback');
   assert.equal(f.victim.burn, null, 'ground fire does not add a second afterburn source');
   assert.equal(makeSnapshot([f.victim], [], [], f.ctx.now).players[0].burning, 0.5);
-  f.step(0.15); assert.equal(f.victim.hp, 92.5, 'overlap still deals 30 DPS');
+  f.step(0.15); assert.equal(f.victim.hp, 94, 'overlap still deals 24 DPS');
   f.step(0.1); f.victim.x += 10; f.step(0.1);
-  assert(Math.abs(f.victim.hp - 89.5) < 1e-8, 'exit flushes only actual accumulated exposure');
+  assert(Math.abs(f.victim.hp - 91.6) < 1e-8, 'exit flushes only actual accumulated exposure');
   assert.equal(f.victim.molotovBurning, 0, 'leaving clears fire feedback immediately');
   const hp = f.victim.hp;
   f.step(0.5); assert.equal(f.victim.hp, hp, 'no invisible damage follows a player out');
@@ -105,13 +106,13 @@ for (const offsetX of [0, 0.13, 0.5, 0.87]) for (const offsetZ of [0, 0.13, 0.5,
   const f = fixture();
   f.ignite({ owner: f.victim, ownerId: f.victim.id });
   f.ignite(); f.step(0.5);
-  assert.equal(f.victim.hp, 85, 'self-fire cannot reduce damage from an overlapping enemy field');
+  assert.equal(f.victim.hp, 88, 'self-fire cannot reduce damage from an overlapping enemy field');
 }
 for (const chunks of [[7.5], Array(75).fill(0.1)]) {
   const f = fixture(); f.victim.hp = 1000;
   f.ignite();
   for (const dt of chunks) f.step(dt);
-  assert(Math.abs(f.victim.hp - (1000 - 30 * 7.5)) < 1e-7);
+  assert(Math.abs(f.victim.hp - (1000 - combatDamage(30 * 7.5))) < 1e-7);
   assert.equal(f.system.fire.active.size, 0);
   const hp = f.victim.hp; f.step(2); assert.equal(f.victim.hp, hp);
 }
@@ -122,13 +123,13 @@ for (const chunks of [[7.5], Array(75).fill(0.1)]) {
   f.ctx.canDamage = () => false;
   f.ignite(); f.step(0.5);
   assert.equal(f.victim.hp, 100, 'friendly player is protected by mode policy');
-  assert(Math.abs(f.owner.hp - (100 - 15 * 0.72)) < 1e-8, 'owner keeps existing throwable self-damage rules');
+  assert(Math.abs(f.owner.hp - (100 - combatDamage(15 * 0.72))) < 1e-8, 'owner keeps existing throwable self-damage rules');
 }
 {
   const f = fixture(); f.victim.spawnProtectedUntil = 1000;
   f.ignite(); f.step(0.5); assert.equal(f.victim.hp, 100);
   f.victim.spawnProtectedUntil = 0; f.victim.armor = 20;
-  f.step(0.5); assert.equal(f.victim.hp, 100); assert.equal(f.victim.armor, 5);
+  f.step(0.5); assert.equal(f.victim.hp, 100); assert.equal(f.victim.armor, 8);
 }
 {
   const f = fixture(); f.ignite(); f.ctx.grenadeDamage = false;
@@ -209,4 +210,4 @@ for (const chunks of [[7.5], Array(75).fill(0.1)]) {
   assert.equal(game.projectiles.active.size, 0);
 }
 
-console.log('Molotov: impact, visible ground cells, 30 DPS, overlap, duration, cover, modes, protection, ownership, snapshots and lifecycle passed.');
+console.log('Molotov: impact, visible ground cells, 24 DPS, overlap, duration, cover, modes, protection, ownership, snapshots and lifecycle passed.');

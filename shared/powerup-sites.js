@@ -1,4 +1,5 @@
-import { AIR, SX, SY, SZ } from './world/blocks.js';
+import { AIR } from './world/blocks.js';
+import { worldDimensions } from './world/dimensions.js';
 
 export const POWERUP_SITE_MIN_SPAWN_DISTANCE = 12;
 
@@ -6,6 +7,8 @@ export const POWERUP_SITE_MIN_SPAWN_DISTANCE = 12;
 // the original floor level avoids moving rewards onto roofs or into craters
 // when the mutable map changes. Every anchor has a walkable route from spawns.
 const ANCHORS = Object.freeze({
+  harbor: [[35, 14, 71], [155, 14, 71], [96, 14, 46], [96, 14, 97]],
+  canyon: [[35, 14, 71], [155, 14, 71], [95, 14, 42], [95, 14, 102]],
   foundry: [[29, 12, 33], [80, 16, 43], [53, 14, 71], [72, 17, 69]],
   depot: [[63, 14, 24], [63, 14, 41], [64, 14, 54], [64, 14, 71]],
   citadel: [[25, 14, 50], [63, 14, 24], [84, 14, 21], [64, 14, 72]],
@@ -20,6 +23,7 @@ export function isPowerupSiteSupported(world, site) {
   if (!world || typeof world.getBlock !== 'function' || !site
     || !Number.isFinite(site.x) || !Number.isFinite(site.y)
     || !Number.isFinite(site.z)) return false;
+  const { sx: SX, sy: SY, sz: SZ } = worldDimensions(world);
   const x = Math.floor(site.x);
   const y = Math.floor(site.y);
   const z = Math.floor(site.z);
@@ -38,6 +42,7 @@ export function isPowerupSiteSupported(world, site) {
 }
 
 function isExposed(world, site) {
+  const { sx: SX, sy: SY, sz: SZ } = worldDimensions(world);
   const x = Math.floor(site.x);
   const feetY = Math.floor(site.y);
   const z = Math.floor(site.z);

@@ -1,3 +1,4 @@
+import { combatDamage } from '../shared/combat-balance.js';
 import { computeConeDeg, fireOneShot, nearestVictim, resolveWeaponIntent } from '../server/sim/combat.js';
 import { updateCondition } from '../server/sim/movement.js';
 import { weaponSwapProfile } from '../shared/weapon-swap.js';
@@ -603,7 +604,7 @@ function runDirectContracts() {
     && coilTapLaunch && coilTapLaunch.bn === boltBounces(midCharge)
     && coilTapLaunch.bn === BOLT_RULES.bouncesTap
     && coilTapLaunch.fuse === BOLT_RULES.lifetimeMs && coilTapLaunch.v[0] > 45
-    && coilTapHit && coilTapHit.dmg > 0 && coilTapHit.dmg === WEAPONS.longarc.damage[0]
+    && coilTapHit && coilTapHit.dmg > 0 && coilTapHit.dmg === Math.round(combatDamage(WEAPONS.longarc.damage[0]))
     && tapFizzle && tapFizzle.radius === 0.5 && Math.abs(tapFizzle.x - 48.5) < 1
     && !coilEngine.tickEvents.some((event) => event.kind === 'arc'),
   'a short LONGARC trigger tap launches a one-bounce bolt (bn 1) that lands full damage and fizzles in a small pop at the victim with no arc events');
@@ -627,9 +628,9 @@ function runDirectContracts() {
   }
   const fullHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-first');
   ok(fullCharge === 0 && fullShot && fullShot.charge === undefined && fullLaunch?.bn === boltBounces(1)
-    && fullHit && fullHit.dmg === WEAPONS.longarc.damage[0]
-    && Math.abs(coilFirst.hp - (100 - WEAPONS.longarc.damage[0])) < 0.2,
-  'holding LONGARC launches a one-bounce bolt that lands its full 88 damage on a direct body hit');
+    && fullHit && fullHit.dmg === Math.round(combatDamage(WEAPONS.longarc.damage[0]))
+    && Math.abs(coilFirst.hp - (100 - combatDamage(WEAPONS.longarc.damage[0]))) < 0.2,
+  'holding LONGARC launches a one-bounce bolt that lands its 70.4 damage on a direct body hit');
 
   // Ricochet exhaustion: with both victims parked off the flight line, a full
   // charge (bn 3) bounces between the two end walls, ignores its owner, and
@@ -818,9 +819,9 @@ function runDirectContracts() {
   const botManager = attachBots(botEngine, WEAPON_IDS.length);
   for (let i = 0; i < 20; i++) botEngine.step(TICK_MS);
   const botSlots = [...botEngine.entities.values()].map((player) => player.weapon).sort((a, b) => a - b);
-  ok(botSlots.length === 7
-    && JSON.stringify(botSlots) === JSON.stringify(WEAPON_IDS.slice(0, 7).map((_, i) => i)),
-    'authoritative bots (capped at seven) deploy across distinct roster slots');
+  ok(botSlots.length === WEAPON_IDS.length
+    && JSON.stringify(botSlots) === JSON.stringify(WEAPON_IDS.map((_, i) => i)),
+    'authoritative bots deploy across distinct roster slots');
   botManager.dispose();
 
   const conditionSnapshots = [];
@@ -1532,7 +1533,7 @@ function runDirectContracts() {
     )
     && sndCombatLiveTick.match.phase === 'live'
     && sndCombatShot?.w === 'revolver'
-    && sndCombatHit?.dmg === sndCombatDamage
+    && sndCombatHit?.dmg === Math.round(sndCombatDamage)
     && sndCombatDamage > 0,
   'S&D prep is damage-immune while live enemy fire deals authoritative damage in clear Citadel geometry');
 

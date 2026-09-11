@@ -1,3 +1,4 @@
+import { bindingLabel, matchesBinding } from '../keybindings.js';
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 import { BASTION_SHOP, bastionPurchaseId } from '../../../shared/bastion.js';
@@ -10,7 +11,7 @@ export function buildBastionArmory(root, purchase, close) {
   el('h2','vb-title',titles,'buy-title').textContent = 'BASTION SUPPLY';
   el('div','vb-sub',titles).textContent = 'Prepare together. Every purchase uses the team bank.';
   const credVal = el('span','vb-buy-credits-val',header);
-  const closeBtn = el('button','vb-buy-close-btn',header); closeBtn.textContent = 'CLOSE [B / ESC]';
+  const closeBtn = el('button','vb-buy-close-btn',header); closeBtn.textContent = `CLOSE [${bindingLabel('buy')} / ESC]`;
   closeBtn.onclick = close;
   const info = el('p','vb-bastion-info',panel);
   const fields = el('div','vb-bastion-loadout',panel);
@@ -25,7 +26,7 @@ export function buildBastionArmory(root, purchase, close) {
     for(const id of values) { const option = el('option','',select); option.value=id; option.textContent=names[id]||id; }
     select.onchange = ()=>purchase(key,select.value); selectors[key]=select;
   }
-  el('p','vb-bastion-info',panel).textContent = 'Revolver + Pixel Pick + one smoke included. Hold E next to the core for 4 seconds to repair 200 HP ($150, twice per break).';
+  el('p','vb-bastion-info',panel).textContent = `Revolver + Pixel Pick + one smoke included. Hold ${bindingLabel('interact')} next to the core for 4 seconds to repair 200 HP ($150, twice per break).`;
   const grid = el('div','vb-bastion-upgrades',panel), cards = {};
   for(const [id,item] of Object.entries(BASTION_SHOP)) {
     const card = el('div','vb-buy-card',grid);
@@ -36,7 +37,7 @@ export function buildBastionArmory(root, purchase, close) {
   }
   const ready = el('button','vb-bastion-ready',panel); ready.onclick=()=>purchase('ready');
   root.addEventListener('keydown',event=>{
-    if (event.key==='Escape' || event.code==='KeyB') { event.preventDefault();event.stopPropagation();close(); }
+    if (event.key==='Escape' || matchesBinding(event, 'buy')) { event.preventDefault();event.stopPropagation();if(!event.repeat)close(); }
     if(event.key==='Tab') {
       const list=[...root.querySelectorAll('button:not(:disabled),select:not(:disabled)')];
       const i=list.indexOf(document.activeElement); event.preventDefault();

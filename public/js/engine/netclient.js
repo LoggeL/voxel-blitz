@@ -1,6 +1,6 @@
 import { parseBastionPurchase } from '../../../shared/bastion.js';
 import { parseChaosPurchase } from '../../../shared/chaos.js';
-import { SX, SY, SZ } from '../../../shared/world/blocks.js';
+import { getMapDimensions } from '../../../shared/world/dimensions.js';
 import {
   mapForMode,
   isWeaponId,
@@ -176,6 +176,7 @@ export class NetClient {
   }
 
   _applyBlockDamage(rows, replace = false) {
+    const { sx: SX, sy: SY, sz: SZ } = getMapDimensions(this.welcome?.map);
     if (replace) this.blockDamage.clear();
     if (!Array.isArray(rows)) return;
     for (const row of rows) {
@@ -768,6 +769,7 @@ export class NetClient {
       snapSeq: this._snapSeq++,
     });
     this.latestMatch = snapshot.match;
+    const { sx: SX, sy: SY, sz: SZ } = getMapDimensions(this.welcome?.map);
     // Terrain replacements invalidate old damage even when a peer omits the
     // corresponding zero row. Apply newer damage after replacements.
     for (const delta of Array.isArray(snapshot.blocks) ? snapshot.blocks : []) {

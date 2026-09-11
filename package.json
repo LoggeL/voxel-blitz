@@ -12,7 +12,7 @@
     "duel:test": "node tools/duel-test.mjs",
     "modes:lobby": "node tools/mode-lobby-smoke.mjs",
     "modes:bots": "node tools/bot-perception-test.mjs && node tools/bot-mode-smoke.mjs",
-    "maps:test": "node tools/nuketown-test.mjs && node tools/nuketown-lobby-test.mjs && node tools/dust2-test.mjs && node tools/dust2-movement-test.mjs && node tools/dust2-lobby-test.mjs",
+    "maps:test": "node tools/nuketown-test.mjs && node tools/nuketown-lobby-test.mjs && node tools/dust2-test.mjs && node tools/dust2-movement-test.mjs && node tools/dust2-lobby-test.mjs && node tools/large-maps-test.mjs && node tools/large-maps-lobby-test.mjs",
     "maps:browser": "node tools/dust2-browser-test.mjs",
     "blocks:test": "node tools/bullet-material-test.mjs && node tools/block-damage-sync-test.mjs && node tools/block-damage-geometry-test.mjs",
     "blocks:browser": "node tools/block-damage-browser-test.mjs",
@@ -39,7 +39,7 @@
     "minigun:test": "node tools/minigun-test.mjs && node tools/minigun-client-test.mjs && node tools/minigun-audio-test.mjs && node tools/heavy-weapon-model-test.mjs",
     "weapons:quick-melee:test": "node tools/quick-melee-test.mjs",
     "killcam:test": "node tools/killcam-test.mjs",
-    "test": "npm run medkit:test && npm run teams:test && npm run fps:test && npm run connection:test && npm run killcam:test && npm run conditions:test && npm run refactor:test && npm run animations:test && npm run weapons:feel:test && npm run gore:test && npm run audio:test && npm run flamethrower:test && npm run minigun:test && npm run projectiles:test && npm run blocks:test && npm run powerups:test && npm run chaos:test && npm run bastion:test && node tools/atlastest.mjs && npm run maps:test && node tools/pickaxe-test.mjs && npm run weapons:quick-melee:test && node tools/weapon-swap-test.mjs && node tools/revolver-smoke.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run duel:test && npm run modes:lobby && npm run modes:bots",
+    "test": "npm run balance:test && npm run career:test && npm run keybindings:test && npm run lobby:large:test && npm run medkit:test && npm run teams:test && npm run fps:test && npm run connection:test && npm run killcam:test && npm run conditions:test && npm run refactor:test && npm run animations:test && npm run weapons:feel:test && npm run gore:test && npm run audio:test && npm run flamethrower:test && npm run minigun:test && npm run projectiles:test && npm run blocks:test && npm run powerups:test && npm run chaos:test && npm run bastion:test && node tools/atlastest.mjs && npm run maps:test && node tools/pickaxe-test.mjs && npm run weapons:quick-melee:test && node tools/weapon-swap-test.mjs && node tools/revolver-smoke.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run duel:test && npm run modes:lobby && npm run modes:bots",
     "avatars:test": "node tools/avatar-pose-test.mjs",
     "animations:test": "node tools/movement-animation-test.mjs && node tools/avatar-motion-test.mjs && node tools/stance-animation-test.mjs && node tools/avatar-pose-test.mjs && npm run throwables:test",
     "animations:browser": "node tools/movement-animation-browser-test.mjs && node tools/stance-animation-browser-test.mjs",
@@ -56,7 +56,14 @@
     "conditions:test": "node tools/condition-recovery-test.mjs && node tools/condition-wire-test.mjs && node tools/suppression-test.mjs && node tools/condition-presentation-test.mjs",
     "conditions:browser": "node tools/condition-browser-test.mjs",
     "medkit:test": "node tools/medkit-test.mjs",
-    "teams:test": "node tools/team-selection-test.mjs"
+    "teams:test": "node tools/team-selection-test.mjs",
+    "balance:test": "node tools/combat-balance-test.mjs",
+    "career:test": "node tools/career-test.mjs",
+    "career:browser": "node tools/career-browser-test.mjs",
+    "keybindings:test": "node tools/keybindings-test.mjs",
+    "keybindings:browser": "node tools/keybindings-test.mjs --browser",
+    "lobby:large:test": "node tools/large-lobby-test.mjs",
+    "lobby:large:browser": "node tools/large-lobby-browser-test.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"

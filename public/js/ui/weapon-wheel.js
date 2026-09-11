@@ -1,3 +1,4 @@
+import { bindingLabel } from '../keybindings.js';
 // Radial weapon wheel overlay. The pure geometry helpers are shared with the
 // input seam; the controller owns the #weapon-wheel dialog and mirrors the
 // buy-menu lifecycle: a body-level fixed-id root that starts hidden, an
@@ -434,7 +435,7 @@ export class WeaponWheelController {
       if (item.icon.getAttribute('src') !== icon) item.icon.setAttribute('src', icon);
       _setText(item.name, (entry && entry.name) || '');
       item.node.setAttribute('aria-label', `${entry?.name || ''}, ${entry?.owned ? entry.ammo : 'locked'}${entry?.current ? ', equipped' : ''}`);
-      _setText(item.key, (entry && entry.key) || '');
+      _setText(item.key, entry && index < 10 ? `[${bindingLabel(`slot${index + 1}`)}]` : (entry && entry.key) || '');
       _setText(item.ammo, (entry && entry.ammo) || '');
       item.node.classList.toggle('is-current', !!(entry && entry.current));
       item.node.classList.toggle('is-locked', !(entry && entry.owned));
@@ -473,13 +474,13 @@ export class WeaponWheelController {
     if (!entry) {
       _setText(dom.hubName, 'MOVE TO SELECT');
       _setText(dom.hubCls, 'ESC CANCEL');
-      _setText(dom.hubHint, 'OUTER RING / RELEASE Q');
+      _setText(dom.hubHint, `OUTER RING / RELEASE ${bindingLabel('weaponWheel')}`);
       return;
     }
     const locked = !entry.owned;
     _setText(dom.hubName, entry.name || '');
     _setText(dom.hubCls, locked ? 'LOCKED · NOT OWNED' : entry.cls || '');
-    _setText(dom.hubHint, locked ? 'ESC CANCEL' : 'OUTER RING / RELEASE Q · CLICK / RT');
+    _setText(dom.hubHint, locked ? 'ESC CANCEL' : `OUTER RING / RELEASE ${bindingLabel('weaponWheel')} · CLICK / RT`);
   }
 
   /** Re-measures the ring radius used to normalize pointer deltas. @private */

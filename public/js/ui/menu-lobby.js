@@ -17,6 +17,7 @@ import { addMenuIcon } from './menu-icons.js';
 import { LobbyBrowser } from './lobby-browser.js';
 import { LobbySettings } from './lobby-settings.js';
 import { normalizeModeId, mapForMode } from '../../../shared/modes.js';
+import { MAX_BOTS, MAX_TEAM_PLAYERS, lobbyCapacity } from '../../../shared/lobby-limits.js';
 import {
   clampMouseSensitivity,
   MOUSE_SENSITIVITY,
@@ -208,7 +209,7 @@ export class MenuLobbyController {
       const gameMode = normalizeModeId(loadPref('vb-mode', 'fun'), 'fun');
       this.onMenuAction({ mode: 'create', gameMode,
         map: mapForMode(gameMode, loadPref('vb-map', 'foundry')),
-        bots: ['training', 'duel'].includes(gameMode) ? 0 : Math.round(loadPrefNum('vb-bots', 3, 0, 7)),
+        bots: ['training', 'duel'].includes(gameMode) ? 0 : Math.round(loadPrefNum('vb-bots', 3, 0, MAX_BOTS)),
         code: '', password: createPassword.value, ...getIdentity() });
     };
 
@@ -499,7 +500,7 @@ export class MenuLobbyController {
     const selfIsHost = state.selfId != null && String(state.selfId) === String(state.host);
     dom.teamHint.hidden = !teamSelection;
     dom.teamHint.textContent = selfIsHost
-      ? 'Choose teams for your squad. Bots balance the teams at launch. Team changes reset ready status.'
+      ? 'Assign players and bots to either team, including uneven matches. Up to 16 per team. Changes reset ready status.'
       : 'The host assigns teams. Team changes reset ready status.';
     const map = state.map || 'foundry';
     setMenuBackdrop(dom.root, map);
@@ -519,10 +520,8 @@ export class MenuLobbyController {
     }
 
     const members = Array.isArray(state.members) ? [...state.members] : [];
-    if (state.phase === 'waiting' && gameMode !== 'training') {
-      const count = Math.min(state.bots || 0, 8 - members.length);
-      for (let i = 0; i < count; i++) members.push({ id: `planned-bot-${i}`, name: `TACTICAL BOT ${i + 1}`, bot: true });
-    }
+    const teamCounts = { alpha: 0, bravo: 0 };
+    for (const member of members) if (member.team in teamCounts) teamCounts[member.team]++;
     const humans = members.filter((member) => !member.bot);
     const readyHumans = humans.filter((member) => !!member.ready).length;
     const totalHumans = humans.length;
@@ -530,7 +529,8 @@ export class MenuLobbyController {
       && (gameMode !== 'duel' || totalHumans === 2);
 
     if (dom.readyCount) {
-      dom.readyCount.textContent = `${members.length}/${gameMode === 'duel' ? 2 : gameMode === 'bastion' ? 4 : 8} OPERATORS · ${readyHumans}/${totalHumans} READY`;
+      const teams = teamSelection ? ` · ALPHA ${teamCounts.alpha} : ${teamCounts.bravo} BRAVO` : '';
+      dom.readyCount.textContent = `${members.length}/${lobbyCapacity(gameMode)} OPERATORS · ${readyHumans}/${totalHumans} READY${teams}`;
     }
 
     if (dom.readyBtn) {
@@ -574,13 +574,14 @@ export class MenuLobbyController {
 
         const rightColumn = el('div', 'vb-roster-right', item);
         if (teamSelection) {
-          if (!isBot && state.phase === 'waiting' && selfIsHost) {
+          if (state.phase === 'waiting' && selfIsHost) {
             const select = el('select', 'vb-team-select', rightColumn);
             select.setAttribute('aria-label', `Team for ${member.name || 'OPERATOR'}`);
             for (const team of ['alpha', 'bravo']) {
               const option = el('option', '', select);
               option.value = team;
               option.textContent = team.toUpperCase();
+              option.disabled = member.team !== team && teamCounts[team] >= MAX_TEAM_PLAYERS;
             }
             select.value = member.team || 'alpha';
             select.dataset.team = select.value;

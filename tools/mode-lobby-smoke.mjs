@@ -916,8 +916,8 @@ async function runTrainingKillhouse(port, signal) {
   const hostInitial = host.initialState;
   assertLobbyShape(hostInitial, selection, 'Training host initial state');
   pass(hostInitial.code === host.welcome.lobby.code && hostInitial.host === host.welcome.id &&
-    hostInitial.phase === 'waiting' && hostInitial.bots === 3,
-    'Training host initial state carries exact room identity, waiting phase, and the echoed bot slider',
+    hostInitial.phase === 'waiting' && hostInitial.bots === 0,
+    'Training host initial state carries exact room identity, waiting phase, and zero combat bots',
     `received ${JSON.stringify({ code: hostInitial.code, host: hostInitial.host, phase: hostInitial.phase, bots: hostInitial.bots })}`);
   pass(JSON.stringify(hostInitial.members.map(({ ping, team, ...row }) => row)) === JSON.stringify(expectedRoster([host])) &&
     !hostInitial.members.some((member) => member.bot),
@@ -935,8 +935,8 @@ async function runTrainingKillhouse(port, signal) {
   const guestInitial = guest.initialState;
   assertLobbyShape(guestInitial, selection, 'Training invite inherited state');
   pass(guestInitial.code === host.welcome.lobby.code && guestInitial.host === host.welcome.id &&
-    guestInitial.phase === 'waiting' && guestInitial.bots === 3,
-    'Training invite inherited state carries exact room identity, waiting phase, and the echoed bot slider',
+    guestInitial.phase === 'waiting' && guestInitial.bots === 0,
+    'Training invite inherited state carries exact room identity, waiting phase, and zero combat bots',
     `received ${JSON.stringify({ code: guestInitial.code, host: guestInitial.host, phase: guestInitial.phase, bots: guestInitial.bots })}`);
   pass(JSON.stringify(guestInitial.members.map(({ ping, team, ...row }) => row)) === JSON.stringify(expectedRoster(members)) &&
     !guestInitial.members.some((member) => member.bot),
@@ -947,13 +947,8 @@ async function runTrainingKillhouse(port, signal) {
   pass(host.map.length === expectedBytes.length && Buffer.compare(host.map, expectedBytes) === 0,
     'Killhouse map payload equals the locally built pristine template bytes');
 
-  // The live room carries the training bot-slider contract: the requested 3
-  // combat bots are dropped (the live state pins bots === 0), leaving only
-  // humans plus the mode's own dummy targets on the wire. The start sequence
-  // mirrors readyAndStart, but the waiting assertion is training-specific:
-  // the state echoes the requested slider (bots === 3) while carrying an
-  // all-human roster, which assertLobbyState's fixed bot-row expectation
-  // cannot express.
+  // Training always reports zero combat bots; its own dummy targets only
+  // appear in the live simulation and never consume waiting-room bot slots.
   const code = host.welcome.lobby.code;
   const readyMarks = new Map(members.map((client) => [client, client.mark()]));
   for (const member of members) member.send({ t: 'ready', value: true });
@@ -971,8 +966,8 @@ async function runTrainingKillhouse(port, signal) {
     const readyState = readyStates[i];
     assertLobbyShape(readyState, selection, `${members[i].label} all-ready state`);
     pass(readyState.code === code && readyState.host === host.welcome.id &&
-      readyState.phase === 'waiting' && readyState.bots === 3,
-      `${members[i].label} all-ready state carries exact room identity, waiting phase, and the echoed bot slider`,
+      readyState.phase === 'waiting' && readyState.bots === 0,
+      `${members[i].label} all-ready state carries exact room identity, waiting phase, and zero combat bots`,
       `received ${JSON.stringify({ code: readyState.code, host: readyState.host, phase: readyState.phase, bots: readyState.bots })}`);
     pass(JSON.stringify(readyState.members.map(({ ping, team, ...row }) => row)) === JSON.stringify(expectedRoster(members, readySet)) &&
       !readyState.members.some((member) => member.bot),
@@ -1352,12 +1347,20 @@ async function runSndCitadel(port, depotBytes, signal) {
     client: guest,
     weapon: REVOLVER_SLOT,
   }, signal);
-  const roundEnd = secondShotFrame.value;
+  pass(playerRow(secondShotFrame.value, guest)?.state === 'alive',
+    'reduced combat damage keeps the enemy alive after two revolver body shots');
+  const thirdCooldown = await nextTick(host, host.mark(),
+    tick => tick.now >= secondShotFrame.value.now + 250,
+    'S&D third revolver shot cooldown', signal);
+  const thirdShotFrame = await fireOne(host, 105, {
+    tick: thirdCooldown, client: guest, weapon: REVOLVER_SLOT,
+  }, signal);
+  const roundEnd = thirdShotFrame.value;
   pass(roundEnd.events.some((event) => event?.kind === 'hit' &&
     event.attacker === host.welcome.id && event.victim === guest.welcome.id) &&
     roundEnd.events.some((event) => event?.kind === 'kill' &&
       event.killer === host.welcome.id && event.victim === guest.welcome.id && event.w === 'revolver'),
-  'second live revolver shot exposes the enemy elimination');
+  'third live revolver shot exposes the enemy elimination');
   pass(roundEnd.match.phase === 'post' && roundEnd.match.round === 1 &&
     roundEnd.match.roundWinner === 'alpha' && roundEnd.match.winner === null &&
     roundEnd.events.some((event) => event?.kind === 'round_end' &&

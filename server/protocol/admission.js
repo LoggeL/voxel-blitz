@@ -1,5 +1,6 @@
 import { parseBastionPurchase } from '../../shared/bastion.js';
 import { parseChaosPurchase } from '../../shared/chaos.js';
+import { MAX_BOTS } from '../../shared/lobby-limits.js';
 // Wire protocol constants and strict client-frame parsers. Pure data
 // functions only — no engine state or world access.
 
@@ -47,7 +48,7 @@ export function validLobbyPassword(value) {
 }
 
 export function validBotCount(value) {
-  return Number.isInteger(value) && value >= 0 && value <= 7;
+  return Number.isInteger(value) && value >= 0 && value <= MAX_BOTS;
 }
 
 export function resolveModeMap(gameMode, map) {

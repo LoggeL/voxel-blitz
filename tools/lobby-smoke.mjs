@@ -439,7 +439,7 @@ async function runContracts(server, signal) {
   const listing = await directory();
   const listed = listing.lobbies.find((room) => room.code === protectedCode);
   pass(listed?.passwordRequired === true && listed.players === 1 && listed.host === 'Protected-Host'
-    && listed.phase === 'waiting' && listed.capacity === 8, 'directory exposes joinable room metadata');
+    && listed.phase === 'waiting' && listed.capacity === 32, 'directory exposes joinable room metadata');
   pass(!JSON.stringify(listing).includes(secret) && !JSON.stringify(protectedHost.initialState).includes(secret)
     && Object.keys(listed).sort().join(',') === 'capacity,code,gameMode,host,map,passwordRequired,phase,players',
     'directory and lobby frames never expose password material');
@@ -487,8 +487,9 @@ async function runContracts(server, signal) {
     const replacement = await nextLobbyState(client, from, editCode, signal, (state) => state.map === 'depot');
     pass(header.seq < bytes.seq && validMap(bytes.value, header.value.mapBytes)
       && header.value.map === 'depot' && replacement.gameMode === 'tdm'
-      && replacement.host === editor.welcome.id && replacement.members.length === 2
-      && replacement.members.every((row) => !row.ready),
+      && replacement.host === editor.welcome.id && humanRows(replacement).length === 2
+      && replacement.members.filter(row => row.bot).length === 7
+      && humanRows(replacement).every((row) => !row.ready),
       `${client.label} keeps code and roster, replaces arena and resets readiness`);
   }
   const editingLate = await admit(makeClient(port, 'Editing-Late'),
@@ -500,13 +501,13 @@ async function runContracts(server, signal) {
     await nextLobbyState(editor, readyMark, editCode, signal);
   }
   editor.send({ t: 'start' });
-  await nextTick(editor, editorConfigMark, (tick) => tick.players.length === 8, 'configured match caps bots to open slots', signal);
+  await nextTick(editor, editorConfigMark, (tick) => tick.players.length === 10, 'configured match keeps seven bots alongside three humans', signal);
   const afterStartMark = editor.mark();
   editor.send({ t: 'configure', gameMode: 'fun', map: 'foundry', bots: 0 });
   await editor.waitForJson((msg) => msg.t === 'error' && /started/i.test(msg.msg), 'live edit rejection', afterStartMark, FRAME_TIMEOUT_MS, signal);
   const liveLate = await admit(makeClient(port, 'Live-Editing-Late'),
     { t: 'join', name: 'Live-Editing-Late', lobby: editCode }, signal, { gameMode: 'tdm', map: 'depot' });
-  pass(liveLate.initialState.members.length === 8 && liveLate.initialState.bots === 4,
+  pass(liveLate.initialState.members.length === 10 && liveLate.initialState.bots === 6,
     'late private-match join takes a bot slot without increasing match population');
   await Promise.all([peer.close(), editingLate.close(), liveLate.close()]);
   await nextLobbyState(editor, afterStartMark, editCode, signal, (state) => humanRows(state).length === 1);
@@ -976,10 +977,10 @@ async function runContracts(server, signal) {
   }, 'host-migration replacement');
   pass(migrated.host === roomBGuest.welcome.id, 'host disconnect promotes the earliest remaining human');
 
-  // Fill Room B to its eight-human cap while the process remains far below the
-  // independent 32-socket global cap, then require the room-specific close.
+  // Fill Room B to its 32-human cap and require the room-specific close
+  // while other active rooms continue on the same server.
   const roomBMembers = [roomBGuest, lateB];
-  while (roomBMembers.length < 8) {
+  while (roomBMembers.length < 32) {
     const number = roomBMembers.length + 1;
     const joinMark = roomBGuest.mark();
     const member = await admit(
@@ -999,15 +1000,15 @@ async function runContracts(server, signal) {
   assertRoomScoped(roomCHost, roomCCode, allBIds, 'full Room C roster');
   assertRoomScoped(roomCGuest, roomCCode, allBIds, 'Room C guest after late joins');
   assertRoomScoped(lateC, roomCCode, allBIds, 'Room C late join');
-  const activeBeforeNinth = socketTracker.openSocketCount();
-  pass(activeBeforeNinth < 32, `room-cap scenario remains under global socket cap (${activeBeforeNinth} open)`);
-  const ninth = await expectRejected(
-    makeClient(port, 'Room-B-Ninth'),
-    { t: 'join', name: 'Room-B-Ninth', lobby: roomBCode },
+  const activeBeforeOverflow = socketTracker.openSocketCount();
+  pass(activeBeforeOverflow < 256, `room-cap scenario remains under global socket cap (${activeBeforeOverflow} open)`);
+  const overflow = await expectRejected(
+    makeClient(port, 'Room-B-Overflow'),
+    { t: 'join', name: 'Room-B-Overflow', lobby: roomBCode },
     4005,
     signal,
   );
-  pass(/full/i.test(ninth.error.msg), 'the ninth human receives the room-full behavior error');
+  pass(/full/i.test(overflow.error.msg), 'the thirty-third human receives the room-full behavior error');
 
   const malformed = await expectRejected(
     makeClient(port, 'Malformed-Code'),

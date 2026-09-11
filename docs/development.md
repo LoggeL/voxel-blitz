@@ -141,7 +141,7 @@ The main menu offers Quick Play, a lobby browser, custom lobbies, room codes, an
   directly without typing a code; full rooms are disabled. Quick Play and
   Training rooms are not listed.
 - **Create Lobby** immediately creates a joinable waiting room and puts its code
-  in the browser URL. The host can change mode, compatible map and `0–7` bots
+  in the browser URL. The host can change mode, compatible map and `0–31` bots
   while friends join. Changes reset everyone's readiness. Every human, including the host, marks ready;
   the host starts the match after all humans are ready. Expand "Set a lobby
   password" before creating to protect the room, or leave it empty for open access.
@@ -273,8 +273,10 @@ the waiting UI.
   controller, optional `BotManager`, and room-scoped broadcasts. Damage, chat,
   ticks, mode events, block deltas, and world mutations never cross room
   boundaries.
-- Capacity is eight humans per room, 16 active rooms per server process, and 32
-  WebSocket connections globally. Bots do not consume human slots.
+- Capacity is 32 participants per room (at most 16 per team), 16 active rooms
+  per server process, and 256 WebSocket connections globally. Bots share room
+  capacity and can be replaced by humans joining a live match. Duel remains
+  limited to two humans and Bastion to four.
 
 Malformed admission closes with code `4002`, an unknown invite with `4004`,
 and a full room or 16-room exhaustion with `4005`; the server sends a JSON
@@ -365,8 +367,12 @@ the attempt. Death or disconnect releases the course for the next runner.
 
 ### Map compatibility
 
+Harbor and Canyon are 192 × 144 × 40 voxels. Existing maps retain 128 × 96 × 40 dimensions. Binary world headers carry each map's actual dimensions; voxel indices, chunk counts, projectile bounds and spawn pools use those dimensions.
+
 | map id | modes | identity |
 |---|---|---|
+| `harbor` | Fun, Chaos, TDM, S&D, Gun Game | large cargo dock with permeable warehouses, container lanes and a central crane |
+| `canyon` | Fun, Chaos, TDM, S&D, Gun Game | large dry river arena with mesas, ruins and aqueduct arches |
 | `reactor` | Bastion | three shielded ingress chambers, destructible courtyard cover, reactor ring and Service Bay |
 | `foundry` | Fun, TDM, S&D, Gun Game | industrial Foundry with A/B sites |
 | `depot` | Fun, TDM, Gun Game | point-symmetric cargo Depot |
@@ -677,3 +683,25 @@ TLS, health checks, and public URLs remain platform configuration rather than
 repository constants.
 
 Weapon scrolling also works while scoped. Switching stows the old weapon before drawing the new one (0.96–1.42 seconds); firing and aiming resume after the swap finishes.
+
+
+## Career persistence and combat balance
+
+`server/career.js` owns XP, career credits, purchases and equipment. Gameplay snapshots provide kill and objective rewards; active input accumulates play time. Final matches award a completion bonus after at least ten seconds of active participation. Intermediate S&D rounds, training, suicides and idle connections do not award completion bonuses. Career credits are separate from S&D, Chaos and Bastion match currencies.
+
+Profiles are linked to a random HttpOnly, SameSite browser cookie, with no account login or cross-device sync. The server writes private JSON profiles atomically under `VB_DATA_DIR` (default `./data`). Purchases flush immediately; earned rewards flush every second and during graceful shutdown. An abrupt process termination can lose at most the unflushed reward batch. Retain this directory across deploys. The container exposes `/app/data` as a writable volume; mount a named volume or bind directory there.
+
+The server applies `shared/combat-balance.js` once at entity impact: rifle and other hitscan shots, melee, bolts, explosions, flame contact, afterburn, ground fire and Chaos chain hits all use a 0.8 damage factor before armor. Terrain destruction and mining retain their own damage rules.
+
+Additional checks:
+
+```bash
+npm run balance:test
+npm run career:test
+npm run career:browser
+npm run keybindings:test
+npm run keybindings:browser
+npm run lobby:large:test
+npm run lobby:large:browser
+npm run maps:test
+```

@@ -1,3 +1,4 @@
+import { getMapDimensions } from '../../../shared/world/dimensions.js';
 import { BastionWorld } from './bastion-world.js';
 // WorldView: composition root for the client's visual world. Owns the THREE.Scene,
 // lighting rig, texture atlas, chunk mesher, sky and voxel picking. Fed a live
@@ -108,14 +109,14 @@ export class WorldView {
     this.sun = sun;
 
     this.atlas = buildAtlas();
-    this.chunkStore = new ChunkStore(this.scene, this.atlas, storeRef.getBlock, storeRef.getBlockDamage);
+    this.chunkStore = new ChunkStore(this.scene, this.atlas, storeRef.getBlock, storeRef.getBlockDamage, getMapDimensions(meta?.id));
 
     this.mapDetails = (mapMeta || storeRef.meta)?.id === 'nuketown' ? buildNuketownDetails() : null;
     if (this.mapDetails) this.scene.add(this.mapDetails.group);
     this.mapSigns = buildMapSigns(meta?.id, storeRef.getBlock);
     this.scene.add(this.mapSigns.group);
 
-    this.skyUpdate = installSky(this.scene, palette);
+    this.skyUpdate = installSky(this.scene, palette, getMapDimensions(meta?.id));
 
     this.ladderVisuals = buildLadderVisuals(mapMeta || storeRef.meta || null);
     if (this.ladderVisuals) this.scene.add(this.ladderVisuals.group);

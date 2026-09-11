@@ -5,7 +5,7 @@ import { chaosWeaponDef } from '../../shared/chaos.js';
 import { bastionWeaponDef } from '../../shared/bastion.js';
 // Authoritative combatant state, loadouts, and aim helpers.
 
-import { SX, SZ } from '../../shared/worlddata.js';
+import { worldDimensions } from '../../shared/worlddata.js';
 import {
   WEAPONS,
   WEAPON_IDS,
@@ -74,7 +74,8 @@ function freshLoadout() {
 
 /** One combatant. Humans and bots share the same simulation state. */
 export class PlayerEntity {
-  constructor(id, name, spawn, isBot) {
+  constructor(id, name, spawn, isBot, dimensions = null) {
+    this.dimensions = dimensions || worldDimensions();
     this.id = id;
     this.name = name;
     this.bot = !!isBot;
@@ -90,6 +91,7 @@ export class PlayerEntity {
 
   /** Full reset onto a spawn point (fresh life). */
   applySpawn(spawn) {
+    const { sx: SX, sz: SZ } = this.dimensions;
     this.x = spawn.x; this.y = spawn.y; this.z = spawn.z;
     this.vx = 0; this.vy = 0; this.vz = 0;
     const centerAim = aimAngles(

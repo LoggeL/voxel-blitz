@@ -1,3 +1,4 @@
+import { bindingLabel, matchesBinding, isTypingTarget } from '../keybindings.js';
 import * as THREE from '../vendor/three.module.js';
 import { KillcamHistory, sampleKillcam } from './killcam-history.js';
 import { AvatarRoster } from '../avatar/avatar-roster.js';
@@ -37,7 +38,7 @@ export class Killcam {
     this.progress = this.root.querySelector('.vb-killcam-progress i');
     this.root.querySelector('button').addEventListener('click', () => this.stop());
     this._onKey = event => {
-      if (this.active && event.code === 'Space') { event.preventDefault(); this.stop(); }
+      if (this.active && !event.defaultPrevented && !isTypingTarget(event.target) && matchesBinding(event, 'skipReplay')) { event.preventDefault(); this.stop(); }
     };
     document.addEventListener('keydown', this._onKey);
   }
@@ -53,6 +54,7 @@ export class Killcam {
     this.active = true;
     this.group.visible = true;
     this.root.classList.remove('hidden');
+    this.root.querySelector('#killcam-skip small').textContent = `${bindingLabel('skipReplay')} / A`;
     document.body.classList.add('is-replaying');
     this.root.querySelector('.vb-killcam-name').textContent = clip.name;
     this.root.querySelector('.vb-killcam-weapon').textContent =

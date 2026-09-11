@@ -1,4 +1,5 @@
-import { AIR, SX, SY, SZ } from '../../shared/worlddata.js';
+import { combatDamage } from '../../shared/combat-balance.js';
+import { AIR, worldDimensions } from '../../shared/worlddata.js';
 import { PLAYER_HALF } from '../../shared/combatmath.js';
 import { MOLOTOV_FIRE, molotovFireProfile } from '../../shared/molotov-rules.js';
 import { raycastVoxels } from '../../shared/raycast.js';
@@ -15,6 +16,7 @@ function visible(ctx, from, to) {
 
 /** First exposed supporting surface below a point, never through a floor. */
 function groundAt(ctx, x, startY, z, minY = 0) {
+  const { sx: SX, sy: SY, sz: SZ } = worldDimensions(ctx);
   if (x < 0 || x >= SX || z < 0 || z >= SZ || startY < 0) return null;
   for (let y = Math.min(SY - 1, Math.floor(startY)); y >= Math.max(0, Math.floor(minY)); y--) {
     if (!solid(ctx, x, y, z)) continue;
@@ -137,6 +139,7 @@ export class MolotovFireSystem {
       }
       if (pending.elapsed + 1e-9 < MOLOTOV_FIRE.damageInterval && contact && contact.expiresAt > ctx.now) continue;
       this.pending.delete(victim.id);
+      pending.damage = combatDamage(pending.damage);
       const lethal = victim.takeDamage(pending.damage, false);
       ctx.pushEvent(evHit(pending.owner?.id || '', victim.id, pending.damage, false,
         [victim.x, victim.y + 0.22, victim.z], victim.lastDamage));

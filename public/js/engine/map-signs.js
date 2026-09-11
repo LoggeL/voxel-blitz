@@ -4,6 +4,13 @@ import { AIR, GLASS } from '../../../shared/world/blocks.js';
 // Signs are flush paint on solid voxel faces. Every backing cell is tracked so
 // destruction removes the paint with its wall, including on a late join.
 const SIGNS = {
+  harbor: [
+    ['HARBOR / A', 'FREIGHT TERMINAL', 44, 21, 48, 20, 1, '+z'],
+    ['HARBOR / B', 'EAST LOADING', 148, 21, 48, 20, 1, '+z'],
+  ],
+  canyon: [
+    ['CANYON', 'DRY RIVER CROSSING', 94, 23, 71, 24, 1, '+z'],
+  ],
   reactor: [
     ['REACTOR / 09', 'TURBINE CONTROL', 36.5, 21, 28, 18, 1.5, '+z'],
     ['SERVICE BAY', 'RESUPPLY / REPAIR', 64, 18, 85, 12, 1.3, '-z'],

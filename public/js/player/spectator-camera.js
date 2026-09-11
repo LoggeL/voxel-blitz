@@ -1,3 +1,4 @@
+import { matchesBinding, isTypingTarget } from '../keybindings.js';
 import * as THREE from '../vendor/three.module.js';
 import { isTeamMode } from '../../../shared/modes.js';
 
@@ -52,11 +53,11 @@ export class SpectatorCamera {
     this._direction = new THREE.Vector3();
 
     this._onKeyDown = (event) => {
-      if (!this.active || event.repeat) return;
-      if (event.code === 'ArrowLeft' || event.code === 'KeyQ') {
+      if (!this.active || event.repeat || event.defaultPrevented || isTypingTarget(event.target)) return;
+      if (matchesBinding(event, 'spectatePrevious')) {
         event.preventDefault();
         this.cycle(-1);
-      } else if (event.code === 'ArrowRight' || event.code === 'KeyE') {
+      } else if (matchesBinding(event, 'spectateNext')) {
         event.preventDefault();
         this.cycle(1);
       }

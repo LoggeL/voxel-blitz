@@ -1,7 +1,7 @@
 // Combat event routing and presentation. Simulation and resource ownership stay
 // with the injected player, roster, world, effects, HUD, and audio collaborators.
 import * as THREE from '../vendor/three.module.js';
-import { SX, SY, SZ } from '../../../shared/worlddata.js';
+import { worldDimensions } from '../../../shared/worlddata.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { blockSoundFor } from '../weapons/effects.js';
 import { THROWABLE_NAMES, WEAPON_NAMES } from '../ui/hud-support.js';
@@ -86,6 +86,7 @@ export function isWorldPointVisible(world, camera, point, endMargin = 0.12) {
 
 /** Apply authoritative block deltas before consuming the rest of a snapshot. */
 export function applySnapshotBlocks(msg, world) {
+  const { sx: SX, sy: SY, sz: SZ } = worldDimensions(world);
   const deltas = Array.isArray(msg?.blocks) ? msg.blocks : [];
   const touched = [];
   for (const d of deltas) {

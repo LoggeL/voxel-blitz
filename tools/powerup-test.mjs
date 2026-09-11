@@ -182,7 +182,7 @@ for (const mapId of MAP_IDS) {
   const world = createMapState(mapId), mapSites = findPowerupSites(world, world.meta);
   if (mapId === 'killhouse' || mapId === 'reactor') assert.equal(mapSites.length, 0);
   else assert.ok(mapSites.length >= 3, `${mapId}: enough exposed contest points`);
-  assert.ok(mapSites.every((site) => validPowerupSite(site, (x, y, z) => world.getBlock(x, y, z) !== 0)));
+  assert.ok(mapSites.every((site) => validPowerupSite(site, (x, y, z) => world.getBlock(x, y, z) !== 0, world.dimensions)));
 }
 
 // Snapshots own pickup rows, contain the full current state for a late join,

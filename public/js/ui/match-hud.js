@@ -1,3 +1,4 @@
+import { bindingLabel, subscribeKeybindings } from '../keybindings.js';
 import { updateBastionHud } from './bastion-hud.js';
 import { GUN_GAME_WEAPON_ORDER, MODE_RULES } from '../../../shared/modes.js';
 import {
@@ -103,7 +104,9 @@ export class MatchHud {
     const interactTrack = el('div', 'vb-interaction-track', interactBar);
     const interactFill = el('div', 'vb-interaction-fill', interactTrack, 'interaction-fill');
     const interactHint = el('div', 'vb-interaction-hint', interactBar);
-    interactHint.textContent = 'HOLD [E]';
+    this._unsubscribeBindings?.();
+    this._unsubscribeBindings = subscribeKeybindings(() => { interactHint.textContent = `HOLD [${bindingLabel('interact')}]`; });
+    interactHint.textContent = `HOLD [${bindingLabel('interact')}]`;
 
     m.interactBar = interactBar;
     m.interactLabel = interactLabel;
@@ -120,7 +123,7 @@ export class MatchHud {
     carrierBadge.style.display = 'none';
 
     const buyPrompt = el('div', 'vb-buy-prompt', econCluster, 'hud-buy-prompt');
-    buyPrompt.textContent = '[B] ARMORY OPEN';
+    buyPrompt.textContent = `[${bindingLabel('buy')}] ARMORY OPEN`;
     buyPrompt.style.display = 'none';
 
     m.creditsBox = creditsBox;
@@ -301,7 +304,7 @@ export class MatchHud {
           && this.readModel.dead !== true
           && selfRow.hp > 0
           && selfRow.state !== 'dead';
-        m.buyPrompt.textContent = curMode === 'chaos' ? '[B] CHAOS LAB · BUY UPGRADES' : '[B] ARMORY OPEN';
+        m.buyPrompt.textContent = curMode === 'chaos' ? `[${bindingLabel('buy')}] CHAOS LAB · BUY UPGRADES` : `[${bindingLabel('buy')}] ARMORY OPEN`;
         m.buyPrompt.style.display = canBuy ? 'block' : 'none';
       }
 
@@ -337,6 +340,7 @@ export class MatchHud {
   }
 
   dispose() {
+    this._unsubscribeBindings?.();
     this.result.dispose();
     this.playerStatus.dispose();
     this._removeDom();

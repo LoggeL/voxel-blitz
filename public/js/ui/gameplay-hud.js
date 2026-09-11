@@ -1,3 +1,4 @@
+import { bindingLabel, matchesBinding, isTypingTarget, subscribeKeybindings } from '../keybindings.js';
 import { isScopeActive } from '../guns/scope-state.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import {
@@ -128,7 +129,7 @@ export class GameplayHud {
     d.breath = el('div', 'vb-breath-meter', hud, 'breath-meter');
     d.breathFill = el('i', '', d.breath);
     d.breathHint = el('span', 'vb-breath-hint', d.breath);
-    d.breathHint.textContent = 'SHIFT · STEADY YOURSELF';
+    d.breathHint.textContent = `${bindingLabel('sprint')} · STEADY YOURSELF`;
     d.breath.style.display = 'none';
     if (this.st.crosshairConeDeg != null) {
       this.setSpread(spreadFromCone(this.st.crosshairConeDeg));
@@ -163,10 +164,10 @@ export class GameplayHud {
     // absolutely positioned descendants above its bounds.
     d.grenades = el('div', 'vb-grenade-count', hud, 'grenade-count');
     d.grenadeKey = el('span', 'vb-grenade-key', d.grenades);
-    d.grenadeKey.textContent = 'G';
+    d.grenadeKey.textContent = bindingLabel('grenade');
     d.grenadeSwitch = el('span', 'vb-grenade-switch', d.grenades);
-    d.grenadeSwitch.textContent = 'H · SWITCH';
-    d.grenadeSwitch.title = 'Switch grenade type (H)';
+    d.grenadeSwitch.textContent = `${bindingLabel('grenadeType')} · SWITCH`;
+    d.grenadeSwitch.title = `Switch grenade type (${bindingLabel('grenadeType')})`;
     d.grenadeTypes = el('span', 'vb-grenade-types', d.grenades);
     d.grenadeTypeChips = [];
     for (const typeId of GRENADE_TYPE_IDS) {
@@ -248,13 +249,13 @@ export class GameplayHud {
     if (!this.tabBound) {
       this.tabBound = true;
       this.onKD = (event) => {
-        if (event.code === 'Tab') {
+        if (!event.defaultPrevented && !isTypingTarget(event.target) && !event.target?.closest?.('#settings-overlay') && matchesBinding(event, 'scoreboard')) {
           event.preventDefault();
           this.setScoreboard(true);
         }
       };
       this.onKU = (event) => {
-        if (event.code === 'Tab') {
+        if (matchesBinding(event, 'scoreboard')) {
           event.preventDefault();
           this.setScoreboard(false);
         }
@@ -264,6 +265,13 @@ export class GameplayHud {
       window.addEventListener('resize', this._onWindowResize);
     }
 
+    this._unsubscribeBindings?.();
+    this._unsubscribeBindings = subscribeKeybindings(() => {
+      this.setScoreboard(false);
+      d.grenadeKey.textContent = bindingLabel('grenade');
+      d.grenadeSwitch.textContent = `${bindingLabel('grenadeType')} · SWITCH`;
+      d.grenadeSwitch.title = `Switch grenade type (${bindingLabel('grenadeType')})`;
+    });
     this.apply();
   }
 
@@ -394,7 +402,7 @@ export class GameplayHud {
     }
     let hint = 'HOLD · RELEASE';
     if (wallMine) {
-      hint = charging ? (s.claymorePlacementValid ? 'RELEASE · MOUNT' : 'AIM AT A WALL · MAX 2.2m') : 'HOLD G · AIM AT WALL';
+      hint = charging ? (s.claymorePlacementValid ? 'RELEASE · MOUNT' : 'AIM AT A WALL · MAX 2.2m') : `HOLD ${bindingLabel('grenade')} · AIM AT WALL`;
     } else if (charging && cook01 > 0 && Number.isFinite(s.grenadeCookLeftMs)) {
       hint = `COOKING · ${(Math.max(0, s.grenadeCookLeftMs) / 1000).toFixed(1)}s`;
     } else if (grenadeCharge >= 1) {
@@ -522,7 +530,7 @@ export class GameplayHud {
       d.breath.classList.toggle('is-holding', holding);
       d.breath.classList.toggle('is-spent', exhausted);
     }
-    const hint = holding ? 'STEADYING' : (s.breathExhausted ? 'RECOVERING' : 'SHIFT · STEADY YOURSELF');
+    const hint = holding ? 'STEADYING' : (s.breathExhausted ? 'RECOVERING' : `${bindingLabel('sprint')} · STEADY YOURSELF`);
     if (d.breathHint.textContent !== hint) d.breathHint.textContent = hint;
   }
 
@@ -752,6 +760,7 @@ export class GameplayHud {
   }
 
   dispose() {
+    this._unsubscribeBindings?.();
     if (this.scopeRAF) {
       cancelAnimationFrame(this.scopeRAF);
       this.scopeRAF = 0;

@@ -1,6 +1,8 @@
 import { el } from './hud-support.js';
 
 const MENU_BACKDROPS = Object.freeze({
+  harbor: '/assets/maps/harbor.png',
+  canyon: '/assets/maps/canyon.png',
   foundry: '/assets/ui/menu-foundry-dusk.webp',
   depot: '/assets/maps/depot-concept.webp',
   citadel: '/assets/maps/citadel-concept.webp',

@@ -48,3 +48,5 @@ export {
   createMapState,
   createWorldState,
 } from './world/templates.js';
+
+export { getMapDimensions, worldDimensions } from './world/dimensions.js';

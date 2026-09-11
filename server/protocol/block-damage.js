@@ -1,7 +1,8 @@
-import { SX, SY, SZ } from '../../shared/world/blocks.js';
+import { DEFAULT_DIMENSIONS } from '../../shared/world/dimensions.js';
 
 /** Owned wire rows; zero progress clears an existing damaged block. */
-export function copyBlockDamage(rows) {
+export function copyBlockDamage(rows, dimensions = DEFAULT_DIMENSIONS) {
+  const { sx: SX, sy: SY, sz: SZ } = dimensions;
   if (!Array.isArray(rows)) return [];
   return rows.filter((row) => row &&
     Number.isInteger(row.x) && row.x >= 0 && row.x < SX &&

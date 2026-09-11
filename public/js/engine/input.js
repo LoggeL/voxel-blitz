@@ -34,6 +34,7 @@ import {
 } from '../../../shared/grenade-rules.js';
 import { TouchControls, shouldEnableTouchControls } from './touch-controls.js';
 import { GamepadInput } from './gamepad.js';
+import { readKeybindings, subscribeKeybindings, isTypingTarget } from '../keybindings.js';
 
 // Touch drags travel far fewer pixels than a mouse, so thumb-look runs hotter than
 // the mouse scale (default 0.003 rad/px × 1.4 ≈ 0.0042 rad/px, about 72° per 300 px).
@@ -67,15 +68,6 @@ function writePref(key, value) {
   } catch (_) {}
 }
 
-// Escape is deliberately excluded so the browser always offers its normal exit.
-const GAME_KEY_CODES = [
-  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyC', 'KeyX', 'KeyE', 'KeyR', 'KeyF',
-  'KeyV', 'KeyZ', 'KeyG', 'KeyH', 'KeyJ', 'KeyQ', 'KeyB', 'Space', 'Tab',
-  'ShiftLeft', 'ShiftRight', 'ControlLeft', 'ControlRight',
-  ...Array.from({ length: 10 }, (_, i) => `Digit${i}`),
-];
-const GAME_KEYS = new Set(GAME_KEY_CODES);
-
 const MOVEMENT_KEYS = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'crouch', 'prone', 'interact'];
 
 export class Input {
@@ -107,6 +99,15 @@ export class Input {
     };
 
     // Internal edge/accumulator state.
+    this._bindings = readKeybindings();
+    this._keyboardHeld = new Set();
+    this._keyboardFire = false;
+    this._keyboardAds = false;
+    this._unsubscribeBindings = subscribeKeybindings(bindings => {
+      this._bindings = bindings;
+      this.clearTransient();
+      this._syncKeyboardLock();
+    });
     this._bound = false;
     this._locked = false;
     this._gameplayEnabled = true;
@@ -198,10 +199,10 @@ export class Input {
   /* ----------------------------------------------------------- held intents */
 
   /** LMB / RT / touch fire held; reads false while the weapon wheel is open. */
-  get wantFireHeld() { return !this._wheelOpen && (this._mouseFire || this._padFire); }
+  get wantFireHeld() { return !this._wheelOpen && (this._mouseFire || this._keyboardFire || this._padFire); }
 
   /** RMB / F / LT / touch ADS held or latched; reads false while the weapon wheel is open. */
-  get wantAdsHeld() { return !this._wheelOpen && (this._mouseAds || this._adsLatched || this._padAds); }
+  get wantAdsHeld() { return !this._wheelOpen && (this._mouseAds || this._keyboardAds || this._adsLatched || this._padAds); }
   set wantAdsHeld(value) {
     this._mouseAds = !!value;
     if (!value) this._adsLatched = false;
@@ -294,7 +295,7 @@ export class Input {
       && typeof document !== 'undefined'
       && document.fullscreenElement === document.documentElement;
     try {
-      if (active) keyboard.lock?.(GAME_KEY_CODES)?.catch?.(() => {});
+      if (active) keyboard.lock?.([...new Set(Object.values(this._bindings).flat())])?.catch?.(() => {});
       else keyboard.unlock?.();
     } catch (_) {}
   }
@@ -442,6 +443,8 @@ export class Input {
       this._accDX = 0;
       this._accDY = 0;
       this._mouseFire = false;
+      this._keyboardFire = false;
+      this._keyboardAds = false;
       this._fireTapQueued = false;
       this._padFire = false;
       this._mouseAds = false;
@@ -875,6 +878,9 @@ export class Input {
 
   /** Clears all held keys/taps/intents/queues (window blur, tab hide, etc). */
   clearTransient() {
+    this._keyboardHeld.clear();
+    this._keyboardFire = false;
+    this._keyboardAds = false;
     const k = this.keys;
     k.forward = k.back = k.left = k.right = false;
     k.jump = k.sprint = k.crouch = k.prone = k.interact = false;
@@ -918,6 +924,7 @@ export class Input {
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
+    this._unsubscribeBindings?.();
     this._syncKeyboardLock();
     this._gameplayEnabled = false;
     this.clearTransient();
@@ -1022,45 +1029,70 @@ export class Input {
     this._mouseAds = down;
   }
 
+  _keyboardAction(code) {
+    // Spectator/replay actions have their own context and listeners.
+    return Object.keys(this._bindings).find(action => !action.startsWith('spectate')
+      && action !== 'skipReplay' && this._bindings[action].includes(code));
+  }
+
+  _actionHeld(action) {
+    return this._bindings[action].some(code => this._keyboardHeld.has(code));
+  }
+
   _onKeyDown(e) {
-    if (this._disposed) return;
-    if (this._canReadGameplay() && GAME_KEYS.has(e.code)) e.preventDefault();
-    if (e.code === 'KeyB') {
+    if (this._disposed || e.defaultPrevented || isTypingTarget(e.target) || e.target?.closest?.('#settings-overlay')) return;
+    const action = this._keyboardAction(e.code);
+    if (this._canReadGameplay() && action) e.preventDefault();
+    if (action === 'buy') {
+      e.preventDefault();
       if (!e.repeat && !this._buyMenuHeld && !this._wheelOpen) this._buyMenuQueued = true;
       this._buyMenuHeld = true;
       return;
     }
     if (!this._canReadGameplay()) return;
-    switch (e.code) {
-      case 'KeyX': if (!e.repeat && !this._wheelOpen) this.keys.prone = !this.keys.prone; break;
-      case 'KeyW': this.keys.forward = true; break;
-      case 'KeyS': this.keys.back = true; break;
-      case 'KeyA': this.keys.left = true; break;
-      case 'KeyD': this.keys.right = true; break;
-      case 'Space':
+    this._keyboardHeld.add(e.code);
+    switch (action || e.code) {
+      case 'prone': if (!e.repeat && !this._wheelOpen) this.keys.prone = !this.keys.prone; break;
+      case 'forward': case 'back': case 'left': case 'right': case 'sprint': case 'crouch':
+        this.keys[action] = true;
+        break;
+      case 'jump':
         if (e.repeat) break;
         // Consume this press to get up; jumping requires a fresh press.
         if (this.keys.prone) {
           this.keys.prone = false;
           this.keys.jump = false;
-        } else {
-          this.keys.jump = true;
+        } else this.keys.jump = true;
+        break;
+      case 'interact': if (!this._wheelOpen) this.keys.interact = true; break;
+      case 'fire':
+        if (!this._wheelOpen) {
+          if (!this._keyboardFire && !e.repeat) this._fireTapQueued = true;
+          this._keyboardFire = true;
         }
         break;
-      case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = true; break;
-      case 'ControlLeft': case 'ControlRight': case 'KeyC': this.keys.crouch = true; break;
-      case 'KeyE': if (!this._wheelOpen) this.keys.interact = true; break;
-      case 'KeyV': if (!e.repeat && !this._wheelOpen) this._quickMeleeQueued = true; break;
-      case 'KeyJ': if (!e.repeat && !this._wheelOpen) this._medkitQueued = true; break;
-      case 'KeyR': if (!e.repeat && !this._wheelOpen) this._reloadQueued = true; break;
-      case 'KeyF': if (!e.repeat && !this._wheelOpen) this._toggleAds(true); break;   // ADS without a second button
-      case 'KeyZ': if (!e.repeat && !this._wheelOpen) this._zoomStepQueue += 1; break;
-      case 'KeyG':
+      case 'quickMelee': if (!e.repeat && !this._wheelOpen) this._quickMeleeQueued = true; break;
+      case 'medkit': if (!e.repeat && !this._wheelOpen) this._medkitQueued = true; break;
+      case 'reload': if (!e.repeat && !this._wheelOpen) this._reloadQueued = true; break;
+      case 'ads':
+        if (!e.repeat && !this._wheelOpen) {
+          if (this.adsMode() === 'toggle') this._toggleAds(true);
+          else this._keyboardAds = true;
+        }
+        break;
+      case 'zoom': if (!e.repeat && !this._wheelOpen) this._zoomStepQueue += 1; break;
+      case 'grenade':
         if (!e.repeat && !this._wheelOpen && !this._grenadeHeld) this._beginGrenadeHold(eventTime(e));
         break;
-      case 'KeyH': if (!e.repeat && !this._wheelOpen) this.cycleGrenadeType(1); break;
-      // A physical Q hold opens once; closing after a flick must not rearm it.
-      case 'KeyQ':
+      case 'grenadeType': if (!e.repeat && !this._wheelOpen) this.cycleGrenadeType(1); break;
+      case 'previousWeapon': case 'nextWeapon':
+        if (!e.repeat) {
+          const step = action === 'previousWeapon' ? -1 : 1;
+          if (this._wheelOpen) this._wheelStepQueue += step;
+          else this._switchQueue += step;
+        }
+        break;
+      case 'weaponWheel':
         if (!e.repeat && !this._wheelQHeld) {
           this._wheelQHeld = true;
           if (!this._wheelOpen) this._wheelOpenQueued = true;
@@ -1072,48 +1104,39 @@ export class Input {
           e.preventDefault();
         }
         break;
-      case 'Digit1': case 'Digit2': case 'Digit3': case 'Digit4': case 'Digit5':
-      case 'Digit6': case 'Digit7': case 'Digit8': case 'Digit9': case 'Digit0':
-        if (!e.repeat) {
-          // Digit0 trails Digit9 as the tenth slot key.
-          const digit = e.code === 'Digit0' ? 10 : Number(e.code.slice(-1));
-          if (this._wheelOpen) this._pendingWheelSlot = digit - 1;
-          else this._pendingSlot = digit - 1;
+      default:
+        if (action?.startsWith('slot') && !e.repeat) {
+          const slot = Number(action.slice(4)) - 1;
+          if (this._wheelOpen) this._pendingWheelSlot = slot;
+          else this._pendingSlot = slot;
         }
         break;
-      default: break;
     }
   }
 
   _onKeyUp(e) {
-    if (!this._disposed && this._canReadGameplay() && GAME_KEYS.has(e.code)) e.preventDefault();
-    if (e.code === 'KeyB') {
-      this._buyMenuHeld = false;
-      return;
-    }
-    if (e.code === 'KeyQ') {
+    const action = this._keyboardAction(e.code);
+    this._keyboardHeld.delete(e.code);
+    if (!this._disposed && this._canReadGameplay() && action) e.preventDefault();
+    if (action === 'buy') { this._buyMenuHeld = false; return; }
+    if (action === 'weaponWheel') {
       if (!this._disposed && this._canReadGameplay() && this._wheelQHeld
-          && (this._wheelOpen || this._wheelOpenQueued)) {
+          && (this._wheelOpen || this._wheelOpenQueued) && !this._actionHeld(action)) {
         this._wheelReleaseQueued = true;
       }
-      // A physical release always rearms Q, even if gameplay became unavailable
-      // before pointer-lock loss or another lifecycle reset reaches us.
-      this._wheelQHeld = false;
+      this._wheelQHeld = this._actionHeld(action);
       return;
     }
     if (this._disposed || !this._canReadGameplay()) return;
-    switch (e.code) {
-      case 'KeyW': this.keys.forward = false; break;
-      case 'KeyS': this.keys.back = false; break;
-      case 'KeyA': this.keys.left = false; break;
-      case 'KeyD': this.keys.right = false; break;
-      case 'Space': this.keys.jump = false; break;
-      case 'ShiftLeft': case 'ShiftRight': this.keys.sprint = false; break;
-      case 'ControlLeft': case 'ControlRight': case 'KeyC': this.keys.crouch = false; break;
-      case 'KeyE': this.keys.interact = false; break;
-      case 'KeyF': if (this.adsMode() === 'hold') this._mouseAds = false; break;
-      case 'KeyG':
-        if (this._grenadeHeld) this._releaseGrenade(eventTime(e));
+    switch (action) {
+      case 'forward': case 'back': case 'left': case 'right': case 'jump':
+      case 'sprint': case 'crouch': case 'interact':
+        this.keys[action] = this._actionHeld(action);
+        break;
+      case 'fire': this._keyboardFire = this._actionHeld(action); break;
+      case 'ads': this._keyboardAds = this._actionHeld(action); break;
+      case 'grenade':
+        if (this._grenadeHeld && !this._actionHeld(action)) this._releaseGrenade(eventTime(e));
         break;
       default: break;
     }

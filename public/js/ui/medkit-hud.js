@@ -1,3 +1,4 @@
+import { bindingLabel } from '../keybindings.js';
 import { MEDKIT_SECONDS } from '../../../shared/medkit.js';
 import { el } from './hud-support.js';
 
@@ -17,7 +18,8 @@ export class MedkitHud {
     this.bar.setAttribute('aria-valuemin', '0');
     this.bar.setAttribute('aria-valuemax', '100');
     this.fill = el('i', '', this.bar);
-    el('small', '', this.root).textContent = 'STAY STILL · J TO CANCEL';
+    this.hint = el('small', '', this.root);
+    this.hint.textContent = `STAY STILL · ${bindingLabel('medkit')} TO CANCEL`;
   }
 
   update(kit, alive, hp) {
@@ -25,11 +27,13 @@ export class MedkitHud {
     const active = alive && !!kit?.active;
     const remaining = kit?.remaining === 1 ? 1 : 0;
     const progress = active ? Math.max(0, Math.min(1, kit.progress || 0)) : 0;
-    const signature = `${alive}|${active}|${remaining}|${hp >= 100}|${progress}`;
+    const key = bindingLabel('medkit');
+    const signature = `${key}|${alive}|${active}|${remaining}|${hp >= 100}|${progress}`;
     if (signature === this.signature) return;
     this.signature = signature;
     this.inventory.hidden = !alive;
-    this.inventory.textContent = remaining ? `J · MEDKIT ×1${hp >= 100 ? ' · FULL HEALTH' : ''}` : 'MEDKIT USED';
+    this.hint.textContent = `STAY STILL · ${key} TO CANCEL`;
+    this.inventory.textContent = remaining ? `${key} · MEDKIT ×1${hp >= 100 ? ' · FULL HEALTH' : ''}` : 'MEDKIT USED';
     this.inventory.classList.toggle('is-spent', !remaining);
     this.root.hidden = !active;
     if (!active) return;

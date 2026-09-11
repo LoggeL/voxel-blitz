@@ -14,6 +14,7 @@ export function paintFloor(world, x0, z0, x1, z1, y, type) {
 }
 
 export function generateFlatBase(world, blocks, heights) {
+  const { sx: SX, sy: SY, sz: SZ } = world.dimensions;
   blocks.fill(AIR);
   for (let z = 0; z < SZ; z++) {
     for (let x = 0; x < SX; x++) {
@@ -31,6 +32,7 @@ export function generateFlatBase(world, blocks, heights) {
 
 /** Place a box and its exact 180-degree rotated counterpart. */
 export function mirroredBox(world, x0, y0, z0, x1, y1, z1, type) {
+  const { sx: SX, sz: SZ } = world.dimensions;
   fillBox(world, x0, y0, z0, x1, y1, z1, type);
   fillBox(world, SX - 1 - x1, y0, SZ - 1 - z1, SX - 1 - x0, y1, SZ - 1 - z0, type);
 }

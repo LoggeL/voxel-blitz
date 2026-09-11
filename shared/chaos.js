@@ -20,7 +20,7 @@ export const CHAOS_UPGRADES = Object.freeze({
   limpet: ladder(['Long wire', 'The wall mine laser reaches 7 metres.'], ['Quick setup', 'The mine arms in 0.45 seconds.'], ['Heavy charge', 'A stronger blast reaches farther and hits harder.']),
   pulse: ladder(['Reverse sneeze', 'The grenade pulls nearby enemies inward before impact.'], ['Space programme', 'Impact launches players high into the air.'], ['Afterparty', 'Impact scatters 8 bouncing pulse bombs with a delayed second launch.']),
   smoke: ladder(['Cloud cover', 'Smoke grows to a 5 metre radius.'], ['Long forecast', 'Smoke lasts 16 seconds.'], ['Fog bank', 'Smoke grows to a 6 metre radius.']),
-  molotov: ladder(['Spill zone', 'Ground fire spreads to a 4.2 metre radius.'], ['Closing time', 'The wider ground fire lasts 10 seconds.'], ['Heat complaint', 'The wider, longer fire deals 40 damage per second.']),
+  molotov: ladder(['Spill zone', 'Ground fire spreads to a 4.2 metre radius.'], ['Closing time', 'The wider ground fire lasts 10 seconds.'], ['Heat complaint', 'The wider, longer fire deals 32 damage per second.']),
 });
 function isChaosItem(id) { return typeof id === 'string' && Object.hasOwn(CHAOS_UPGRADES, id); }
 export function chaosLevel(player, id) {

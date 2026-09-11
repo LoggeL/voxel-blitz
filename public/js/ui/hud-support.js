@@ -99,6 +99,8 @@ export const MODE_DESCRIPTIONS = Object.freeze({
 });
 
 export const MAP_LABELS = Object.freeze({
+  harbor: 'HARBOR · LARGE',
+  canyon: 'CANYON · LARGE',
   reactor: 'REACTOR 9',
   foundry: 'FOUNDRY',
   depot: 'DEPOT',
@@ -111,6 +113,8 @@ export const MAP_LABELS = Object.freeze({
 });
 
 export const MAP_DESCRIPTIONS = Object.freeze({
+  harbor: '192 × 144 freight terminal for up to 16 vs 16. Cargo lanes, four warehouses and two dock sites.',
+  canyon: '192 × 144 desert battlefield for up to 16 vs 16. Braided canyon routes, ruins and a dry river.',
   reactor: 'Dedicated core-defense courtyard with three entrances, turbine halls and destructible cover.',
   foundry: 'Industrial foundry with multi-level catwalks and mid-lane cover (All Modes)',
   depot: 'Point-symmetric cargo depot with mirrored containers & central plaza (Fun / TDM / Gun Game)',
@@ -123,6 +127,8 @@ export const MAP_DESCRIPTIONS = Object.freeze({
 });
 
 export const MAP_PREVIEWS = Object.freeze({
+  harbor: './assets/maps/harbor.png',
+  canyon: './assets/maps/canyon.png',
   reactor: './assets/maps/reactor-preview.png',
   foundry: './assets/maps/foundry-concept.webp',
   depot: './assets/maps/depot-concept.webp',

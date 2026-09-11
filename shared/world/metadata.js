@@ -1,3 +1,5 @@
+import { LARGE_SPAWN_ANCHORS, LARGE_SITES, LARGE_LANDMARKS } from './large-layout.js';
+import { worldDimensions } from './dimensions.js';
 import { AIR, GROUND, METAL, SX, SY, SZ } from './blocks.js';
 import { MAP_MODE_COMPATIBILITY } from '../modes.js';
 import { foundryLadderVolumes } from './terrain-foundry.js';
@@ -8,6 +10,8 @@ import {
 } from './dust2-layout.js';
 
 const MAP_NAMES = Object.freeze({
+  harbor: 'Harbor',
+  canyon: 'Canyon',
   reactor: 'Reactor 9',
   foundry: 'Foundry',
   depot: 'Depot',
@@ -20,6 +24,8 @@ const MAP_NAMES = Object.freeze({
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
+  harbor: LARGE_SPAWN_ANCHORS,
+  canyon: LARGE_SPAWN_ANCHORS,
   reactor: { fun: REACTOR_LAYOUT.defenders.map(p => [p.x, p.z]),
     tdm: { alpha: [], bravo: [] }, snd: { attackers: [], defenders: [] } },
   dust2: DUST2_SPAWN_ANCHORS,
@@ -91,6 +97,8 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
 });
 
 const MAP_SITE_LAYOUTS = Object.freeze({
+  harbor: LARGE_SITES,
+  canyon: LARGE_SITES,
   reactor: [],
   dust2: DUST2_SITES,
   nuketown: [
@@ -118,6 +126,7 @@ const MAP_SITE_LAYOUTS = Object.freeze({
 });
 
 const MAP_LANDMARKS = Object.freeze({
+  ...LARGE_LANDMARKS,
   reactor: [ { id: 'core', name: 'Reactor Core', x: 64, z: 54, floorY: GROUND },
     { id: 'supply', name: 'Service Bay', x: 64, z: 78, floorY: GROUND } ],
   dust2: DUST2_LANDMARKS,
@@ -209,6 +218,7 @@ function deepFreeze(value) {
 }
 
 function spawnIsWalkable(world, spawn) {
+  const { sx: SX, sy: SY, sz: SZ } = worldDimensions(world);
   const x = Math.floor(spawn.x);
   const z = Math.floor(spawn.z);
   const feetY = Math.floor(spawn.y);
@@ -220,6 +230,7 @@ function spawnIsWalkable(world, spawn) {
 }
 
 function resolveSpawnPool(world, anchors, floorY = null) {
+  const { sx: SX, sz: SZ } = worldDimensions(world);
   const out = [];
   const occupied = new Set();
   for (const [px, pz, anchorFloorY] of anchors) {
@@ -260,6 +271,10 @@ export function createMapMetadata(id, world) {
   const metadata = {
     id,
     name: MAP_NAMES[id],
+    dimensions: world.dimensions,
+    ...(['harbor', 'canyon'].includes(id) ? { navigationFloor: GROUND, spawnBounds: {
+      minX: 4, maxX: 187, minZ: 4, maxZ: 139, minY: GROUND + 1, maxY: GROUND + 1.1,
+    } } : {}),
     ...(id === 'reactor' ? { bastion: structuredClone(REACTOR_LAYOUT), spawnBounds: {
       minX: 51, maxX: 76, minZ: 43, maxZ: 67, minY: GROUND + 1, maxY: GROUND + 1.1,
     } } : {}),

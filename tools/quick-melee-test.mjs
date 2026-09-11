@@ -1,3 +1,4 @@
+import { combatDamage } from '../shared/combat-balance.js';
 import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { Input } from '../public/js/engine/input.js';
@@ -128,10 +129,10 @@ for (const blocked of ['vault', 'deploy', 'dead', 'grenade', 'mode']) {
   const h = harness(); h.engine.addClient('victim', 'Victim');
   const v = h.engine.entities.get('victim');
   Object.assign(v, { x: h.p.x, y: h.p.y, z: h.p.z - 1.3, yaw: Math.PI, pitch: 0 });
-  h.tap(); assert.equal(v.hp, 100 - WEAPONS.knife.damage[0], 'nearby enemy takes pickaxe damage');
+  h.tap(); assert.equal(v.hp, 100 - combatDamage(WEAPONS.knife.damage[0]), 'nearby enemy takes pickaxe damage');
   assert.equal(h.events.some(e => e.kind === 'mine'), false, 'enemy hit takes priority over mining');
   updateTimers(h.p, 0.61); h.blocks.set('20,16,22', STONE); h.tap();
-  assert.equal(v.hp, 42, 'wall blocks melee damage');
+  assert.equal(v.hp, 100 - combatDamage(WEAPONS.knife.damage[0]), 'wall blocks melee damage');
 }
 {
   const h = harness(); h.p.chaosUpgrades = { knife: 1, rifle: 3 };

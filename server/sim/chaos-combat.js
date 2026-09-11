@@ -1,3 +1,4 @@
+import { combatDamage } from '../../shared/combat-balance.js';
 import { chaosLevel } from '../../shared/chaos.js';
 import { WEAPONS } from '../../shared/combatmath.js';
 import { FLAME_RULES } from '../../shared/flame-rules.js';
@@ -85,8 +86,9 @@ export function chaosHit(p, victim, point, ctx) {
     const dir = [(v.x - point[0]) / d, (v.eyeY - point[1]) / d, (v.z - point[2]) / d];
     if (raycastVoxels(ctx.solidAt, ...point, ...dir, d - 0.1)) continue;
     ctx.pushEvent({ ...evShoot(p.id, point, dir, 'lance', dir), chaosArc: true, reach: d, charge: 0.35 });
-    const lethal = v.takeDamage(28, false);
-    ctx.pushEvent(evHit(p.id, v.id, 28, false, [v.x, v.eyeY, v.z], v.lastDamage));
+    const damage = combatDamage(28);
+    const lethal = v.takeDamage(damage, false);
+    ctx.pushEvent(evHit(p.id, v.id, damage, false, [v.x, v.eyeY, v.z], v.lastDamage));
     if (lethal) ctx.killPlayer(v, p, id, false);
     else if (id === 'rifle' && level >= 2) { v.vy = Math.max(v.vy, 12); v.grounded = false; v.vault = null; v.impulseSeq = (v.impulseSeq || 0) + 1; }
     if (++hit >= count) break;

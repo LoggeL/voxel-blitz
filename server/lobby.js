@@ -10,6 +10,7 @@ import {
   TICK_MS,
   normalizeLobbyCode,
   validLobbyPassword,
+  validBotCount,
 } from './protocol/admission.js';
 import { makeLobbyState, makeWelcome } from './protocol/welcome.js';
 import {
@@ -23,12 +24,11 @@ import {
   isTeamId,
 } from '../shared/modes.js';
 import { createMapState, getMapMeta } from '../shared/worlddata.js';
+import { MAX_BOTS, MAX_PLAYERS, MAX_TEAM_PLAYERS, lobbyCapacity, hasLobbyTeams } from '../shared/lobby-limits.js';
 
 const derivePassword = promisify(scrypt);
-const MAX_HUMANS = 8;
-const capacity = (room) => room.gameMode === 'duel' ? 2 : room.gameMode === 'bastion' ? 4 : MAX_HUMANS;
+const capacity = (room) => lobbyCapacity(room.gameMode);
 const MAX_ROOMS = 16;
-const MAX_BOTS = 7;
 const QUICK_MIN_BOTS = 5;
 
 const QUICK_MAPS = Object.freeze(['foundry', 'depot', 'solstice', 'caldera']);
@@ -36,10 +36,6 @@ const QUICK_MAPS = Object.freeze(['foundry', 'depot', 'solstice', 'caldera']);
 const CLOSE_MALFORMED = 4002;
 const CLOSE_UNKNOWN = 4004;
 const CLOSE_FULL = 4005;
-
-function validBotCount(value) {
-  return Number.isInteger(value) && value >= 0 && value <= MAX_BOTS;
-}
 
 function memberId(meta) {
   if (!meta || (typeof meta.id !== 'string' && !Number.isFinite(meta.id))) return null;
@@ -83,7 +79,7 @@ export class LobbyManager {
           candidate.phase === 'live' &&
           candidate.gameMode === DEFAULT_MODE_ID &&
           QUICK_MAPS.includes(candidate.map) &&
-          candidate.members.size < MAX_HUMANS) {
+          candidate.members.size < MAX_PLAYERS) {
         room = candidate;
         break;
       }
@@ -200,15 +196,20 @@ export class LobbyManager {
     if (!found) return this._error(meta, 'Not in a lobby');
     const { room, member } = found;
     if (room.phase !== 'waiting') return this._error(meta, 'Lobby has already started');
-    if (!['tdm', 'snd'].includes(room.gameMode)) return this._error(meta, 'This mode has no team selection');
-    if (typeof id !== 'string' || !room.members.has(id) || !isTeamId(team)) {
+    if (!hasLobbyTeams(room.gameMode)) return this._error(meta, 'This mode has no team selection');
+    if (typeof id !== 'string' || (!room.members.has(id) && !room.botTeams.has(id)) || !isTeamId(team)) {
       return this._error(meta, 'Invalid team selection');
     }
     if (room.host !== member.id) {
       return this._error(meta, 'Only the host can assign teams');
     }
-    if (room.engine.mode.teamFor(id) === team) return true;
-    if (!room.engine.mode.setLobbyTeam(id, team)) return this._error(meta, 'Unable to change team');
+    const isBot = room.botTeams.has(id);
+    if ((isBot ? room.botTeams.get(id) : room.engine.mode.teamFor(id)) === team) return true;
+    if (this._teamCounts(room)[team] >= MAX_TEAM_PLAYERS) {
+      return this._error(meta, `Each team allows up to ${MAX_TEAM_PLAYERS} players`);
+    }
+    if (isBot) room.botTeams.set(id, team);
+    else if (!room.engine.mode.setLobbyTeam(id, team)) return this._error(meta, 'Unable to change team');
     for (const human of room.members.values()) human.ready = false;
     this._broadcastLobbyState(room);
     return true;
@@ -249,6 +250,9 @@ export class LobbyManager {
     duelKillLimit ??= room.duelKillLimit;
     if (!DUEL_KILL_LIMITS.includes(duelKillLimit)) return this._error(meta, 'Invalid 1v1 kill target');
     bots = ['training', 'duel', 'bastion'].includes(gameMode) ? 0 : bots;
+    if (bots + room.members.size > lobbyCapacity(gameMode)) {
+      return this._error(meta, `This lobby allows up to ${lobbyCapacity(gameMode)} players and bots in total`);
+    }
     const arenaChanged = gameMode !== room.gameMode || map !== room.map;
     if (!arenaChanged && bots === room.bots && duelKillLimit === room.duelKillLimit) return true;
     if (arenaChanged) {
@@ -291,6 +295,7 @@ export class LobbyManager {
     room.duelKillLimit = duelKillLimit;
     if (gameMode === 'duel') room.engine.mode.rules.killLimit = duelKillLimit;
     room.bots = bots;
+    this._syncWaitingBots(room);
     for (const human of room.members.values()) human.ready = false;
     this._broadcastLobbyState(room);
     return true;
@@ -393,7 +398,8 @@ export class LobbyManager {
       map,
       phase: 'waiting',
       duelKillLimit: DEFAULT_DUEL_KILL_LIMIT,
-      bots: ['duel','bastion'].includes(gameMode) ? 0 : bots,
+      bots: ['training','duel','bastion'].includes(gameMode) ? 0 : bots,
+      botTeams: new Map(),
       quickPopulation: quick ? bots + 1 : null,
       host: '',
       members: new Map(),
@@ -423,12 +429,17 @@ export class LobbyManager {
     const member = { id, name, ready: false, meta };
     let added = false;
     try {
-      const spawnInfo = room.phase === 'live' && room.botManager
+      let spawnInfo = room.phase === 'live' && room.botManager
         ? (room.botManager.takeover(id, name) || room.engine.addClient(id, name))
         : room.engine.addClient(id, name);
       added = true;
       room.members.set(id, member);
       if (!room.host) room.host = id;
+
+      if (room.phase === 'waiting') {
+        this._syncWaitingBots(room, id);
+        spawnInfo = room.engine.spawnInfoFor(room.engine.entities.get(id));
+      }
 
       meta.room = room;
       meta.joined = true;
@@ -480,9 +491,13 @@ export class LobbyManager {
         room.botManager = null;
         room.bots = 0;
       } else {
-        room.bots = Math.min(room.bots, MAX_HUMANS - room.members.size);
+        this._syncWaitingBots(room);
+        room.bots = Math.min(room.bots, capacity(room) - room.members.size);
         manager = attachBots(room.engine, room.bots);
         room.botManager = manager;
+        if (hasLobbyTeams(room.gameMode)) {
+          for (const [id, team] of room.botTeams) room.engine.mode.setLobbyTeam(id, team);
+        }
       }
       // Only final lobby assignments may reach the first gameplay tick.
       const assignments = new Set();
@@ -509,9 +524,11 @@ export class LobbyManager {
   }
 
   _syncBots(room) {
-    if (!room || room.phase !== 'live' || !room.botManager) return;
+    if (!room) return;
+    if (room.phase === 'waiting') return this._syncWaitingBots(room);
+    if (!room.botManager) return;
     if (!room.quick) {
-      room.bots = Math.min(room.botManager.brains.length, MAX_HUMANS - room.members.size);
+      room.bots = Math.min(room.botManager.brains.length, capacity(room) - room.members.size);
       room.botManager.setCount(room.bots);
       return;
     }
@@ -521,6 +538,40 @@ export class LobbyManager {
     const desired = Math.max(0, Math.min(MAX_BOTS, targetPopulation - room.members.size));
     room.botManager.setCount(desired);
     room.bots = desired;
+  }
+
+  _teamCounts(room, excludeId = null) {
+    const counts = { alpha: 0, bravo: 0 };
+    for (const human of room.members.values()) {
+      const team = room.engine.mode.teamFor(human.id);
+      if (human.id !== excludeId && isTeamId(team)) counts[team]++;
+    }
+    for (const [id, team] of room.botTeams) {
+      if (id !== excludeId && isTeamId(team)) counts[team]++;
+    }
+    return counts;
+  }
+
+  /** Planned bot ids match the live manager, so host assignments survive launch. */
+  _syncWaitingBots(room, joiningId = null) {
+    room.bots = Math.min(room.bots, capacity(room) - room.members.size);
+    const ids = new Set(Array.from({ length: room.bots }, (_, i) => `bot-${i}`));
+    for (const id of room.botTeams.keys()) {
+      if (!ids.has(id) || !hasLobbyTeams(room.gameMode)) room.botTeams.delete(id);
+    }
+    if (!hasLobbyTeams(room.gameMode)) return;
+    if (joiningId && room.botTeams.size) {
+      const counts = this._teamCounts(room, joiningId);
+      const team = counts.alpha <= counts.bravo ? 'alpha' : 'bravo';
+      room.engine.mode.setLobbyTeam(joiningId, team);
+    }
+    const counts = this._teamCounts(room);
+    for (const id of ids) {
+      if (room.botTeams.has(id)) continue;
+      const team = counts.alpha <= counts.bravo ? 'alpha' : 'bravo';
+      room.botTeams.set(id, team);
+      counts[team]++;
+    }
   }
 
   _memberFor(meta) {
@@ -548,6 +599,12 @@ export class LobbyManager {
       for (const entity of room.engine.entities.values()) {
         if (entity.bot) members.push({ id: entity.id, name: entity.name, ready: false, bot: true,
           team: room.engine.mode.teamFor(entity) });
+      }
+    } else {
+      for (let i = 0; i < room.bots; i++) {
+        const id = `bot-${i}`;
+        members.push({ id, name: `TACTICAL BOT ${i + 1}`, ready: true, bot: true,
+          team: room.botTeams.get(id) || null });
       }
     }
     return makeLobbyState({

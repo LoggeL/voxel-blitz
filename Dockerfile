@@ -14,6 +14,9 @@ ENV PORT=8070
 
 EXPOSE 8070
 
+RUN mkdir -p /app/data && chown node:node /app/data
+VOLUME ["/app/data"]
+
 USER node
 
 CMD ["node", "server/index.js"]

@@ -1,3 +1,4 @@
+import { combatDamage } from '../shared/combat-balance.js';
 import assert from 'node:assert/strict';
 import { fireOneShot } from '../server/sim/combat.js';
 import { FlameSystem, updateBurn } from '../server/sim/fire.js';
@@ -23,12 +24,12 @@ function setup() {
   const { owner, victim, ctx } = setup();
   fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   const direct = 100 - victim.hp;
-  assert.equal(direct, 4, 'close contact deals four immediate damage');
+  assert.ok(Math.abs(direct - 3.2) < 1e-8, 'close contact deals 3.2 immediate damage');
   assert.equal(victim.burning, 0.75, 'one graze produces a short afterburn');
   assert.equal(victim.panic, flamePanicFloor(0.75));
   assert.ok(victim.panic < 0.5, 'a graze does not impose maximum panic');
   for (let i = 0; i < 51; i++) updateBurn(victim, 0.02, ctx);
-  assert.ok(Math.abs(victim.hp - (100 - direct - 6)) < 1e-8, 'one graze adds six afterburn damage at eight DPS');
+  assert.ok(Math.abs(victim.hp - (100 - direct - combatDamage(6))) < 1e-8, 'one graze adds 4.8 afterburn damage at 6.4 DPS');
   assert.equal(victim.burning, 0); assert.equal(victim.burn, null);
   const hp = victim.hp; updateBurn(victim, 2, ctx); assert.equal(victim.hp, hp);
 }
@@ -38,7 +39,7 @@ function setup() {
   fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   const hp = victim.hp;
   updateBurn(victim, 0.25, ctx);
-  assert.ok(Math.abs(hp - victim.hp - 4) < 1e-8, 'new contact never stacks or discards pending burn damage');
+  assert.ok(Math.abs(hp - victim.hp - combatDamage(4)) < 1e-8, 'new contact never stacks or discards pending burn damage');
   assert.equal(victim.burning, 0.5, 'a spaced graze renews only the short burn');
   victim.applySpawn(spawn); updateBurn(victim, 1, ctx);
   assert.equal(victim.hp, 100); assert.equal(victim.burning, 0);
@@ -58,10 +59,10 @@ function setup() {
   }
   assert.equal(victim.burning, 3, 'sustained tracking caps one afterburn at three seconds');
   assert.ok(victim.panic >= FLAME_BURN.panicFloor);
-  const pendingDamage = victim.burn.elapsed * FLAME_BURN.damagePerS;
+  const pendingDamage = combatDamage(victim.burn.elapsed * FLAME_BURN.damagePerS);
   const hp = victim.hp;
   updateBurn(victim, 4, ctx);
-  assert.ok(Math.abs(hp - victim.hp - pendingDamage - 24) < 1e-8, 'fully built afterburn remains eight DPS on a long tick');
+  assert.ok(Math.abs(hp - victim.hp - pendingDamage - combatDamage(24)) < 1e-8, 'fully built afterburn remains 6.4 DPS on a long tick');
   assert.equal(victim.burn, null);
 }
 {
@@ -73,8 +74,8 @@ function setup() {
     return 1000 - victim.hp;
   };
   const nearDps = directDps(3), farDps = directDps(27);
-  assert.equal(nearDps, 80, 'twenty close-range packets deliver eighty direct DPS');
-  assert.ok(farDps >= 25 && farDps < 40, 'distant flame contact loses most of its direct damage');
+  assert.ok(Math.abs(nearDps - 64) < 1e-8, 'twenty close-range packets deliver 64 direct DPS');
+  assert.ok(farDps >= 20 && farDps < 32, 'distant flame contact loses most of its direct damage');
   assert.ok(nearDps > farDps * 2, 'close tracking has a clear damage advantage');
   assert.equal(damageAtDistance(WEAPONS.flamethrower, 5) / FLAME_RULES.cadence, 80);
   assert.equal(damageAtDistance(WEAPONS.flamethrower, 28) / FLAME_RULES.cadence, 25);
@@ -124,7 +125,7 @@ for (const blocked of ['wall', 'friendly', 'range', 'behind']) {
   const behind = new PlayerEntity('behind', 'Behind', { ...spawn, z: 2.5 }, false);
   ctx.entities.set(behind.id, behind);
   fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
-  assert.equal(victim.hp, 96, 'front body receives the packet');
+  assert.equal(victim.hp, 96.8, 'front body receives the packet');
   assert.equal(behind.hp, 100, 'one packet cannot pass through a body into a second victim');
   assert.equal(behind.burn, null);
 }

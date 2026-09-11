@@ -3,7 +3,7 @@ import { WEAPONS, HITSCAN_REACH, chargeShotProfile, chargeDamageMult, damageAtDi
 import { BLOCK_HP } from '../../../shared/world/blocks.js';
 import { BULLET_RULES, bulletPower, bulletMaterialImpact, voxelExitDistance } from '../../../shared/bullet-material.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
-import { SX, SY, SZ } from '../../../shared/worlddata.js';
+import { LARGE_DIMENSIONS } from '../../../shared/world/dimensions.js';
 
 const AXIS = new THREE.Vector3(0, 0, -1);
 const POOL_SIZE = 12;
@@ -82,7 +82,7 @@ export class RailBeamFX {
     const chaosArc = event.chaosArc && Number.isFinite(event.reach);
     // Empty-sky beams need finite geometry, but a terrain hit can be as distant
     // as the world permits. This fallback does not constrain authoritative hits.
-    let length = chaosArc ? Math.max(0.1, Math.min(9, event.reach)) : Math.hypot(SX, SY, SZ);
+    let length = chaosArc ? Math.max(0.1, Math.min(9, event.reach)) : Math.hypot(LARGE_DIMENSIONS.sx, LARGE_DIMENSIONS.sy, LARGE_DIMENSIONS.sz);
     const traceReach = chaosArc ? length : HITSCAN_REACH;
     const pierced = new Set();
     let power = bulletPower(WEAPONS.lance, charge);

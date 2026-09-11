@@ -206,7 +206,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 // ---------------------------------------------- mode + map foundation contract
 {
   ok(sameValue(MODE_IDS, ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -311,6 +311,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   'Search and Destroy prices and credit economy are exact immutable values');
 
   const expectedCompatibility = {
+    harbor: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
+    canyon: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
     reactor: ['bastion'],
     foundry: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
     depot: ['fun', 'duel', 'chaos', 'tdm', 'gungame'],
@@ -345,6 +347,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   'shared normalizers preserve canonical ids and apply validated/default fallbacks');
 
   const expectedMapNames = {
+    harbor: 'Harbor', canyon: 'Canyon',
     reactor: 'Reactor 9',
     foundry: 'Foundry',
     depot: 'Depot',
@@ -356,6 +359,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     killhouse: 'Killhouse',
   };
   const expectedMapHashes = {
+    harbor: '62e9a356', canyon: '55640cd5',
     reactor: '32534739',
     foundry: 'db04cb71',
     depot: '41bc3abe',
@@ -367,6 +371,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     killhouse: '395d8d45',
   };
   const expectedSpawnCounts = {
+    harbor: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
+    canyon: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
     reactor: { fun: 4, tdmAlpha: 0, tdmBravo: 0, sndAttackers: 0, sndDefenders: 0 },
     foundry: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 5, sndDefenders: 5 },
     depot: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 0, sndDefenders: 0 },
@@ -382,6 +388,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   for (const mapId of MAP_IDS) {
     const roomA = createMapState(mapId);
     const roomB = createMapState(mapId);
+    const { sx: SX, sy: SY, sz: SZ } = roomA.dimensions;
     const bytes = roomA.serializeWorld();
     pristineBytes.set(mapId, bytes);
     ok(bytes.length === 6 + SX * SY * SZ
@@ -584,7 +591,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   ok(eventsOf('shoot').length === 1 && eventsOf('shoot')[0].w === 'knife'
     && bestHits.length === 1
     && bestHits[0].attacker === 'm-hero' && bestHits[0].victim === 'm-ahead'
-    && bestHits[0].dmg === 58 && bestHits[0].hs === false
+    && bestHits[0].dmg === 46 && bestHits[0].hs === false
     && hero.mag[KNIFE] === 0 && hero.reserve[KNIFE] === 0
     && engine.entities.get('m-angled').hp === 100,
   'knife swing hits the best-angle victim inside the reach cone and consumes no ammo');
@@ -599,6 +606,9 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     'held knife trigger swings again once the cadence elapses');
 
   // (a3) Backstab: swinging from behind the victim's facing multiplies 2.5x.
+  // The lower combat damage leaves the cadence target alive after two swings.
+  // Remove it from this independent lane scenario.
+  engine.entities.get('m-ahead').state = 'dead';
   engine.tickEvents.length = 0;
   const bHero = seat('b-hero', 60, 48, 62, KNIFE);
   seat('b-back', 62, 48, 70, KNIFE); // faces the same way the swing travels
@@ -606,7 +616,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   resolveWeaponIntent(bHero, 0.016, engine.contexts.combat);
   const backHits = eventsOf('hit');
   const backKills = eventsOf('kill');
-  ok(backHits.length === 1 && backHits[0].dmg === 145 && backHits[0].hs === false
+  ok(backHits.length === 1 && backHits[0].dmg === 116 && backHits[0].hs === false
     && backKills.length === 1 && backKills[0].w === 'knife'
     && backKills[0].killer === 'b-hero' && backKills[0].victim === 'b-back'
     && backKills[0].hs === false && backKills[0].lr === false,
@@ -619,8 +629,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   engine.applyInput('f-hero', { wantFire: true });
   resolveWeaponIntent(fHero, 0.016, engine.contexts.combat);
   const faceHits = eventsOf('hit');
-  ok(faceHits.length === 1 && faceHits[0].dmg === 58
-    && engine.entities.get('f-face').hp === 42,
+  ok(faceHits.length === 1 && faceHits[0].dmg === 46
+    && Math.abs(engine.entities.get('f-face').hp - 53.6) < 1e-8,
   'frontal knife swing deals base damage with no backstab multiplier');
 
   // (a5) A wall between blade and body voids the swing and takes no damage.
@@ -669,12 +679,12 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   ok(lanceShots.length === 1 && lanceShots[0].w === 'lance'
     && lanceShots[0].charge === 1
     && lanceHits.length === 6
-    && lanceHits[0].victim === 'l-v1' && lanceHits[0].dmg === 300
-    && lanceHits[1].victim === 'l-v2' && lanceHits[1].dmg === 270
-    && lanceHits[2].victim === 'l-v3' && lanceHits[2].dmg === 243
-    && lanceHits[3].victim === 'l-v4' && lanceHits[3].dmg === 219
-    && lanceHits[4].victim === 'l-v5' && lanceHits[4].dmg === 197
-    && lanceHits[5].victim === 'l-v6' && lanceHits[5].dmg === 177
+    && lanceHits[0].victim === 'l-v1' && lanceHits[0].dmg === 240
+    && lanceHits[1].victim === 'l-v2' && lanceHits[1].dmg === 216
+    && lanceHits[2].victim === 'l-v3' && lanceHits[2].dmg === 194
+    && lanceHits[3].victim === 'l-v4' && lanceHits[3].dmg === 175
+    && lanceHits[4].victim === 'l-v5' && lanceHits[4].dmg === 157
+    && lanceHits[5].victim === 'l-v6' && lanceHits[5].dmg === 142
     && lanceHits.every((hit) => !hit.hs)
     && lanceKills.length === 6
     && lanceKills.every((kill) => kill.w === 'lance' && kill.killer === 'l-hero')
@@ -699,7 +709,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   const wallHits = eventsOf('hit');
   ok(eventsOf('shoot').length === 1 && eventsOf('shoot')[0].charge === 1
     && wallHits.length === 2 && wallHits[0].victim === 'lw-v1'
-    && wallHits[0].dmg > 200 && wallHits[0].dmg < 300 && wallHits[0].hs === false
+    && wallHits[0].dmg > 160 && wallHits[0].dmg < 240 && wallHits[0].hs === false
     && world.getBlock(62, 16, 42) === AIR
     && world.getBlock(64, 16, 42) === AIR
     && world.getBlock(68, 16, 42) === AIR
@@ -1051,7 +1061,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   const cornerBoom = eventsOf('projectileExplode')[0];
   ok(cornerLaunch && cornerLaunch.type === 'bolt' && cornerLaunch.bn === 1
     && cornerHits.length === 1 && cornerHits[0].victim === 'e-vic'
-    && cornerHits[0].attacker === 'e-hero' && cornerHits[0].dmg === 88
+    && cornerHits[0].attacker === 'e-hero' && cornerHits[0].dmg === 70
     && cornerHits[0].hs === false
     && cornerKills.length === 1 && cornerKills[0].w === 'longarc'
     && cornerKills[0].killer === 'e-hero' && cornerKills[0].victim === 'e-vic'

@@ -1,4 +1,5 @@
-import { AIR, SX, SY, SZ } from './world/blocks.js';
+import { AIR } from './world/blocks.js';
+import { worldDimensions } from './world/dimensions.js';
 import { isPowerupSiteSupported } from './powerup-sites.js';
 
 const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
@@ -8,6 +9,7 @@ const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
  * Current terrain support is checked again by the pickup system before spawning.
  */
 export function findChaosCashSites(world, meta = world.meta) {
+  const { sx: SX, sy: SY, sz: SZ } = worldDimensions(world);
   const spawns = meta?.spawns?.fun || [];
   const solid = (x, y, z) => world.getBlock(x, y, z) !== AIR;
   const walkable = (x, y, z) => x > 3 && x < SX - 4 && z > 3 && z < SZ - 4

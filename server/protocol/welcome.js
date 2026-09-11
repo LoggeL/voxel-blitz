@@ -1,3 +1,4 @@
+import { getMapDimensions } from '../../shared/world/dimensions.js';
 import { DEFAULT_DUEL_KILL_LIMIT, isTeamId } from '../../shared/modes.js';
 // Welcome and full lobby-state replacement factories. Returned frames retain no
 // caller-owned objects or arrays.
@@ -48,7 +49,7 @@ export function makeWelcome({
     phase: phase === 'live' ? 'live' : 'waiting',
     gameMode: selected.gameMode,
     map: selected.map,
-    blockDamage: copyBlockDamage(blockDamage),
+    blockDamage: copyBlockDamage(blockDamage, getMapDimensions(selected.map)),
   };
 }
 

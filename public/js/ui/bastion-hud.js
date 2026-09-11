@@ -1,3 +1,4 @@
+import { bindingLabel } from '../keybindings.js';
 import { REACTOR_LAYOUT as L } from '../../../shared/world/reactor-layout.js';
 import { el } from './hud-support.js';
 
@@ -19,7 +20,7 @@ export function updateBastionHud(m,match,self,now) {
     :`${b.ready}/${b.defenders} READY${nearCore&&b.core.hp<b.core.maxHp?' · HOLD E TO REPAIR ($150)':' · B: LOADOUT & TEAM UPGRADES'}`;
   m.bombBanner.className='vb-match-bomb-banner vb-bastion-banner';
   m.creditsBox.style.display='flex';m.creditsVal.textContent=`$ ${b.credits}`;
-  m.buyPrompt.textContent='[B] SUPPLY · LOADOUT / UPGRADES / READY';
+  m.buyPrompt.textContent=`[${bindingLabel('buy')}] SUPPLY · LOADOUT / UPGRADES / READY`;
   m.buyPrompt.style.display=(phase==='prep'||phase==='supply')&&self?.state==='alive'?'block':'none';
   const repair=self?.interaction?.kind==='repair';m.interactBar.style.display=repair?'block':'none';
   m.interactLabel.textContent='REPAIRING REACTOR';m.interactFill.style.width=`${Math.round((self?.interaction?.progress||0)*100)}%`;

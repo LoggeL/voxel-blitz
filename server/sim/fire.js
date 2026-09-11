@@ -1,3 +1,4 @@
+import { combatDamage } from '../../shared/combat-balance.js';
 // Authoritative travelling fire packets. Every packet can hit one body once.
 import { WEAPONS, damageAtDistance } from '../../shared/combatmath.js';
 import { FLAME_RULES, flamePanicFloor } from '../../shared/flame-rules.js';
@@ -58,7 +59,7 @@ export class FlameSystem {
         if (nearest) {
           const { victim, point, t } = nearest;
           const def = WEAPONS.flamethrower;
-          const damage = damageAtDistance(def, packet.distance + t);
+          const damage = combatDamage(damageAtDistance(def, packet.distance + t));
           const lethal = victim.takeDamage(damage, false);
           ctx.pushEvent(evHit(packet.owner.id, victim.id, damage, false, point, victim.lastDamage));
           if (lethal) ctx.killPlayer(victim, packet.owner, def.id, false);
@@ -99,7 +100,7 @@ export function updateBurn(victim, dt, ctx) {
   victim.panic = Math.max(victim.panic, flamePanicFloor(burn.remaining));
   // Half-second hit events keep damage feedback and network traffic bounded.
   if (burn.elapsed >= 0.5 - 1e-9 || burn.remaining <= 0) {
-    const damage = rules.damagePerS * burn.elapsed;
+    const damage = combatDamage(rules.damagePerS * burn.elapsed);
     burn.elapsed = 0;
     const lethal = victim.takeDamage(damage, false);
     ctx.pushEvent(evHit(burn.owner.id, victim.id, damage, false,

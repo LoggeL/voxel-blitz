@@ -116,6 +116,19 @@ export class TdmPolicy {
     return true;
   }
 
+  /** A joining human inherits the bot's selected team and current life. */
+  onPlayerTakeover(player, nextId) {
+    const entity = this._entity(player);
+    const priorId = entity ? String(entity.id) : '';
+    const id = String(nextId ?? '');
+    const state = this._players.get(priorId);
+    if (!state || !id || this._players.has(id)) return false;
+    this._players.delete(priorId);
+    this._players.set(id, state);
+    this._emit('team_assigned', { id, team: state.team });
+    return true;
+  }
+
   /** Called by the lobby before the simulation starts. */
   setLobbyTeam(player, team) {
     const entity = this._entity(player);

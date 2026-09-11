@@ -1,3 +1,4 @@
+import { combatDamage } from '../../shared/combat-balance.js';
 import { collectNearMisses, applyNearMisses, suppressExplosion } from './suppression.js';
 import { pointPlayerDistance } from '../../shared/player-hitboxes.js';
 import { chaosLevel } from '../../shared/chaos.js';
@@ -10,9 +11,7 @@ import {
   AIR,
   BLOCK_HP,
   GRENADE_RESISTANCE,
-  SX,
-  SY,
-  SZ,
+  worldDimensions,
 } from '../../shared/worlddata.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import {
@@ -99,7 +98,8 @@ function visibleTo(ctx, origin, target, endMargin = 0.18) {
   );
 }
 
-function outsideWorld(p) {
+function outsideWorld(p, ctx) {
+  const { sx: SX, sz: SZ } = worldDimensions(ctx);
   return !finitePoint(p.x, p.y, p.z) ||
     p.y < -2 || p.x < -2 || p.z < -2 || p.x > SX + 2 || p.z > SZ + 2;
 }
@@ -177,7 +177,7 @@ export class ProjectileSystem {
           [projectile.x, projectile.y, projectile.z],
           [projectile.vx, projectile.vy, projectile.vz], projectile.bouncesLeft));
       }
-      if (ctx.now >= projectile.explodeAt || outsideWorld(projectile)) this.explode(projectile, ctx);
+      if (ctx.now >= projectile.explodeAt || outsideWorld(projectile, ctx)) this.explode(projectile, ctx);
     }
     stepping.length = 0;
     this._previousPlayers.clear();
@@ -284,7 +284,7 @@ export class ProjectileSystem {
         let dmg = damageAtDistance(WEAPONS.longarc, traveled)
           * chargeDamageMult(WEAPONS.longarc, projectile.charge01);
         if (hs) dmg *= WEAPONS.longarc.headMult;
-        dmg = Math.round(dmg * 10) / 10;
+        dmg = combatDamage(Math.round(dmg * 10) / 10);
         const lethal = victim.takeDamage(dmg, hs);
         ctx.pushEvent(evHit(projectile.ownerId, victim.id, dmg, hs, [x, y, z], victim.lastDamage));
         if (lethal) ctx.killPlayer(victim, projectile.owner, WEAPONS.longarc.id, hs, {});
@@ -301,7 +301,7 @@ export class ProjectileSystem {
       },
     });
     if (!this.active.has(projectile.id)) return true;
-    if (projectile.hit || ctx.now >= projectile.explodeAt || outsideWorld(projectile)) {
+    if (projectile.hit || ctx.now >= projectile.explodeAt || outsideWorld(projectile, ctx)) {
       return this._fizzleBolt(projectile, ctx);
     }
     return false;
@@ -695,6 +695,7 @@ export class ProjectileSystem {
       let lethal = false;
       if (damageEnabled && damage > 0) {
         hitVictims.add(victim);
+        damage = combatDamage(damage);
         lethal = victim.takeDamage(damage, false, owner);
         ctx.pushEvent(evHit(owner?.id || '', victim.id, damage, false, target, victim.lastDamage));
       }
@@ -728,6 +729,7 @@ export class ProjectileSystem {
   }
 
   _destroyTerrain(origin, rules, ctx) {
+    const { sx: SX, sy: SY, sz: SZ } = worldDimensions(ctx);
     const radius = rules.terrainRadius;
     const radiusSquared = radius * radius;
     const candidates = [];

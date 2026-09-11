@@ -1,3 +1,5 @@
+import { matchesBinding } from '../keybindings.js';
+import { combatDamage } from '../../../shared/combat-balance.js';
 import { buildBastionArmory, syncBastionArmory, bastionPurchaseId } from './bastion-armory.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { CHAOS_UPGRADES, chaosLevel, chaosPurchaseId } from '../../../shared/chaos.js';
@@ -128,7 +130,7 @@ export class BuyMenuController {
       classEl.textContent = WEAPON_CLASSES[wid] || 'TACTICAL WEAPON';
 
       const statsEl = el('div', 'vb-buy-wstats', cardBody);
-      const damage = Array.isArray(def.damage) ? def.damage[0] : (def.damage || 0);
+      const damage = Number(combatDamage(Array.isArray(def.damage) ? def.damage[0] : (def.damage || 0)).toFixed(1));
       const rpm = def.rpm || 0;
       const mag = def.magSize || 0;
       const spareMags = (def.spareRounds ?? def.spareMags) || 0;
@@ -206,6 +208,8 @@ export class BuyMenuController {
           return;
         }
 
+        // The shared Input controller owns the buy-key toggle, including custom digits/Tab.
+        if (matchesBinding(event, 'buy')) return;
         if (event.key === 'Tab') {
           const buttons = [...this.buyDom.root.querySelectorAll('button:not(:disabled)')];
           if (buttons.length) {

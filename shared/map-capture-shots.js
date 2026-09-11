@@ -9,6 +9,14 @@ const shot = (map, id, position, target, fov = 75, mode = null) => Object.freeze
 
 /** Stable, collision-independent cameras for truthful map-design captures. */
 export const MAP_CAPTURE_SHOTS = Object.freeze([
+  shot('harbor', 'hero', [174, 80, 136], [94, 18, 68], 64),
+  shot('harbor', 'cargo-lanes', [75, 19, 104], [98, 25, 61], 78),
+  shot('harbor', 'snd-site-a', [35, 27, 90], [35, 15, 71], 72, 'snd'),
+  shot('harbor', 'snd-site-b', [155, 27, 90], [155, 15, 71], 72, 'snd'),
+  shot('canyon', 'hero', [176, 92, 138], [96, 18, 70], 64),
+  shot('canyon', 'dry-river', [98, 19, 112], [94, 24, 65], 78),
+  shot('canyon', 'snd-site-a', [35, 27, 90], [35, 15, 71], 72, 'snd'),
+  shot('canyon', 'snd-site-b', [155, 27, 90], [155, 15, 71], 72, 'snd'),
   shot('reactor', 'hero', [90, 38, 80], [64, 17, 46], 68, 'bastion'),
   shot('reactor', 'core', [67, 18, 68], [64, 18, 51], 75, 'bastion'),
   shot('nuketown', 'snd-site-a', [36, 21, 58], [36, 15, 47], 72, 'snd'),
