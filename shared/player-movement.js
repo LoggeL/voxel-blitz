@@ -1,4 +1,5 @@
 import { EYE_HEIGHT, GRAVITY, PLAYER_HALF } from './combatmath.js';
+import { stepProne } from './player-stance.js';
 
 /** Movement and collision geometry shared by prediction and authority. */
 export const PHYSICS = Object.freeze({
@@ -15,9 +16,9 @@ const EPS = 1e-3;
 const SHRINK = 1e-4;
 const MAX_STEP = 0.45;
 
-export function boxCollides(solidAt, px, py, pz) {
+export function boxCollides(solidAt, px, py, pz, height = P_HEIGHT) {
   const x0 = Math.floor(px - HALF_W + SHRINK), x1 = Math.floor(px + HALF_W - SHRINK);
-  const y0 = Math.floor(py + SHRINK), y1 = Math.floor(py + P_HEIGHT - SHRINK);
+  const y0 = Math.floor(py + SHRINK), y1 = Math.floor(py + height - SHRINK);
   const z0 = Math.floor(pz - HALF_W + SHRINK), z1 = Math.floor(pz + HALF_W - SHRINK);
   for (let y = y0; y <= y1; y++) {
     for (let z = z0; z <= z1; z++) {
@@ -27,6 +28,18 @@ export function boxCollides(solidAt, px, py, pz) {
     }
   }
   return false;
+}
+
+/** Stay low until the entire standing body fits, including at tunnel edges. */
+export function stepPlayerProne(value = 0, target, dt, solidAt, position) {
+  const blocked = value > 0 && !target && boxCollides(solidAt, position.x, position.y, position.z);
+  return stepProne(value, target || blocked, dt);
+}
+
+/** Both ledge grabs and ladder movement need the player's hands. */
+export function canClimb({ reloading = false, grenadeHandling = false, quickMelee = false,
+  deploying = false, healing = false } = {}) {
+  return !reloading && !grenadeHandling && !quickMelee && !deploying && !healing;
 }
 
 /** Grounded probe: any solid within a hair below the feet. */
@@ -48,7 +61,7 @@ export function solidBelow(solidAt, px, py, pz) {
  * Move along one axis in <=MAX_STEP sub-steps, sliding flush against the
  * first obstructing voxel face. Returns true when a collision occurred.
  */
-export function slidePlayerAxis(position, axis, amount, solidAt) {
+export function slidePlayerAxis(position, axis, amount, solidAt, height = P_HEIGHT) {
   if (!Number.isFinite(amount) || amount === 0) return false;
   const sign = amount < 0 ? -1 : 1;
   let remaining = Math.abs(amount);
@@ -57,15 +70,15 @@ export function slidePlayerAxis(position, axis, amount, solidAt) {
     remaining -= Math.abs(delta);
     const before = position[axis];
     position[axis] += delta;
-    if (!boxCollides(solidAt, position.x, position.y, position.z)) continue;
+    if (!boxCollides(solidAt, position.x, position.y, position.z, height)) continue;
     if (axis === 'y') {
-      const cell = Math.floor(sign > 0 ? position.y + P_HEIGHT : position.y);
-      position.y = sign > 0 ? cell - P_HEIGHT - EPS : cell + 1;
+      const cell = Math.floor(sign > 0 ? position.y + height : position.y);
+      position.y = sign > 0 ? cell - height - EPS : cell + 1;
     } else {
       const wall = Math.floor(position[axis] + sign * HALF_W);
       position[axis] = sign > 0 ? wall - HALF_W - EPS : wall + 1 + HALF_W + EPS;
     }
-    if (boxCollides(solidAt, position.x, position.y, position.z)) position[axis] = before;
+    if (boxCollides(solidAt, position.x, position.y, position.z, height)) position[axis] = before;
     return true;
   }
   return false;

@@ -155,7 +155,7 @@ try {
     console.log(`${map}: real 20 Hz TDM, 32 players/31 bots, 60 seconds: ${JSON.stringify(matchMetrics)}`);
   }
 } finally { Math.random = random; }
-for (const map of ['foundry', 'depot', 'dust2', 'solstice', 'caldera']) {
+for (const map of ['foundry', 'dust2', 'solstice', 'caldera']) {
   const world = createMapState(map), target = { x: 20, y: 15, z: 20 };
   assert.equal(groundNavigation(world), null);
   assert.equal(navigationWaypoint(world, { x: 10, y: 15, z: 10 }, target, {}, 0), target,

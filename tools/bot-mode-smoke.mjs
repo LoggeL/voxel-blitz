@@ -470,6 +470,8 @@ function proveGunGameProgression() {
     );
     assert.equal(finalKill?.w, 'knife', 'final Gun Game kill reports its required weapon');
 
+    killer.bot = false; // A human approves the otherwise bot-driven match.
+    engine.mode.approveContinuation(killer.id, engine.mode.matchSnapshot().continuation.id);
     engine.now = engine.mode.phaseEndsAt;
     engine.step(0);
     assert.equal(engine.mode.phase, 'live', 'Gun Game post phase resets to live');
@@ -514,6 +516,8 @@ function proveSndEconomyAndPrepSafety() {
     }
     engine.step(0);
     assert.equal(engine.mode.phase, 'post', 'elimination reaches post phase without timers');
+    engine.addClient('approver', 'Approver');
+    engine.mode.approveContinuation('approver', engine.mode.matchSnapshot().continuation.id);
     engine.now = engine.mode.phaseEndsAt;
     engine.step(0);
     assert.equal(engine.mode.phase, 'prep', 'fixed clock step reaches the next buy phase');

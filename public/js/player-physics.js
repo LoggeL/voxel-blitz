@@ -1,9 +1,9 @@
 import { reactorDefenderSolid } from '../../shared/world/reactor-layout.js';
 // Client-side predicted player movement. Mirrors the server constants
 // (see BUILD-CONTRACT) so prediction tracks authority closely.
-import { PRONE, stepProne, stanceEye } from '../../shared/player-stance.js';
+import { PRONE, stanceEye, stanceHeight } from '../../shared/player-stance.js';
 import { EYE_HEIGHT } from '../../shared/combatmath.js';
-import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
+import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow, stepPlayerProne, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
 import { getBlock, ladderContact } from '../../shared/worlddata.js';
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 
@@ -25,6 +25,7 @@ export class PlayerPhysics {
     this._crouching = false;
     this.proneT = 0;
     this.wantProne = false;
+    this.climbBlocked = false;
     this.mapMeta = null;
     this._solidAt = (x, y, z) => this.solid(x, y, z);
     this.setMapMeta(mapMeta);
@@ -43,9 +44,10 @@ export class PlayerPhysics {
   }
 
   moveAxis(axis, amount, canStep = false) {
+    const height = stanceHeight(PHYSICS.height, this.proneT);
     const collided = canStep
-      ? slideTerrainAxis(this.pos, axis, amount, this._solidAt, this.mapMeta, true)
-      : slidePlayerAxis(this.pos, axis, amount, this._solidAt);
+      ? slideTerrainAxis(this.pos, axis, amount, this._solidAt, this.mapMeta, true, height)
+      : slidePlayerAxis(this.pos, axis, amount, this._solidAt, height);
     if (collided) this.vel[axis] = 0;
     return collided;
   }
@@ -58,14 +60,16 @@ export class PlayerPhysics {
     const jumpPressed = !!wantJump && !this.jumpWasHeld;
     this.jumpWasHeld = !!wantJump;
     const onLadderNow = ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z);
-    this.proneT = stepProne(this.proneT, this.wantProne && !this.vault && !onLadderNow, dt);
+    if (this.climbBlocked) this.vault = null;
+    this.proneT = stepPlayerProne(this.proneT, this.wantProne && !this.vault && !onLadderNow,
+      dt, this._solidAt, this.pos);
     const low = this.wantProne || this.proneT > 0;
     if (low) { speedTarget = Math.min(speedTarget, PRONE.speed); wantJump = false; }
     if (this.coyote > 0) this.coyote = Math.max(0, this.coyote - dt);
 
     if (this.grounded) this.jumpGroundY = this.pos.y;
     const deliberateGrab = !this.grounded && jumpPressed && !low;
-    if (!this.vault && canStartVault(this.grounded, this.grounded ? wantJump : deliberateGrab, climbAxis,
+    if (!this.climbBlocked && !this.vault && canStartVault(this.grounded, this.grounded ? wantJump : deliberateGrab, climbAxis,
         this._crouching || low, this.pos.y, this.jumpGroundY)) {
       this.vault = findVault(this._solidAt, this.pos, wish,
         deliberateGrab ? this.pos.y : this.jumpGroundY, yaw, deliberateGrab ? 0 : 1);
@@ -78,7 +82,7 @@ export class PlayerPhysics {
       if (!active) this.vault = null;
       return false;
     }
-    const onLadder = !low && onLadderNow;
+    const onLadder = !this.climbBlocked && !low && onLadderNow;
     let ladderVy = 0;
     if (onLadder && (wantJump || climbAxis > 0)) ladderVy = LADDER_UP_SPEED;
     else if (onLadder && (this._crouching || climbAxis < 0)) ladderVy = LADDER_DOWN_SPEED;

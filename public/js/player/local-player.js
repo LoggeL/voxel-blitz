@@ -1,6 +1,7 @@
 import { isScopeActive, nextScopeZoom } from '../guns/scope-state.js';
 import { EYE_HEIGHT, CONDITION_RULES } from '../../../shared/combatmath.js';
 import { stanceEye } from '../../../shared/player-stance.js';
+import { canClimb } from '../../../shared/player-movement.js';
 import { PlayerPhysics, moveSpeedFor } from '../player-physics.js';
 import { hashInt } from '../util/hash.js';
 import { clamp01, clampPitch, easeOut, nowMs, smooth01 } from '../util/math.js';
@@ -754,7 +755,6 @@ export class LocalPlayer {
     this.physics.jumpGroundY = null;
     this.physics._crouching = false;
     this._cameraCrouch = 0;
-    this.physics.proneT = 0;
     this.physics.wantProne = false;
   }
 
@@ -874,6 +874,13 @@ export class LocalPlayer {
     if (!weaponIntents.blockedByBuyMenu && typeof intents.onWeaponIntents === 'function') {
       intents.onWeaponIntents(weaponIntents, now);
     }
+    this.physics.climbBlocked = !canClimb({
+      reloading: intents.weapon?.reloadRequested || intents.weapon?.isReloading,
+      grenadeHandling: this.grenadeHandling,
+      quickMelee: intents.weapon?.quickMeleeActive || weaponIntents.quickMelee,
+      deploying: intents.weapon?.isDeploying,
+      healing: this.medkit.active,
+    });
     const jumped = this._stepPrediction(dt);
     this._frame.jumped = jumped;
     this._aim = this.aimSway.update(dt, {

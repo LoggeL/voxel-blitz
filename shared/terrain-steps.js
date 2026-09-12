@@ -28,7 +28,7 @@ function supportCells(position, feetY, solidAt, surfaces) {
   return result;
 }
 
-function stepOntoNav(position, axis, destination, solidAt, surfaces) {
+function stepOntoNav(position, axis, destination, solidAt, surfaces, height) {
   const feetY = Math.round(position.y);
   if (Math.abs(position.y - feetY) > 0.06) return false;
   const sourceCells = supportCells(position, feetY, solidAt, surfaces);
@@ -37,14 +37,14 @@ function stepOntoNav(position, axis, destination, solidAt, surfaces) {
   const targetCells = supportCells(target, target.y, solidAt, surfaces);
   if (!targetCells.some(([tx, tz]) => sourceCells.some(([sx, sz]) =>
     Math.abs(tx - sx) + Math.abs(tz - sz) === 1))) return false;
-  if (boxCollides(solidAt, target.x, target.y, target.z)
+  if (boxCollides(solidAt, target.x, target.y, target.z, height)
     || !solidBelow(solidAt, target.x, target.y, target.z)) return false;
 
   // Lift at the point where ordinary collision stopped us, then sweep the
   // remaining horizontal distance. A low ceiling can reject either segment.
   const swept = { x: position.x, y: position.y, z: position.z };
-  if (slidePlayerAxis(swept, 'y', target.y - swept.y, solidAt)
-    || slidePlayerAxis(swept, axis, destination - swept[axis], solidAt)) return false;
+  if (slidePlayerAxis(swept, 'y', target.y - swept.y, solidAt, height)
+    || slidePlayerAxis(swept, axis, destination - swept[axis], solidAt, height)) return false;
   Object.assign(position, target);
   return true;
 }
@@ -55,10 +55,10 @@ function stepOntoNav(position, axis, destination, solidAt, surfaces) {
  * jumping, climbing a ladder nor vaulting. Crates added above a NAV floor
  * cannot become steps, and every decision uses the current damaged geometry.
  */
-export function slideTerrainAxis(position, axis, amount, solidAt, mapMeta, canStep = false) {
+export function slideTerrainAxis(position, axis, amount, solidAt, mapMeta, canStep = false, height = PHYSICS.height) {
   const surfaces = canStep && axis !== 'y' ? navSurfaces(mapMeta) : null;
   if (!surfaces || !Number.isFinite(amount) || amount === 0) {
-    return slidePlayerAxis(position, axis, amount, solidAt);
+    return slidePlayerAxis(position, axis, amount, solidAt, height);
   }
   const sign = Math.sign(amount);
   let remaining = Math.abs(amount);
@@ -66,8 +66,8 @@ export function slideTerrainAxis(position, axis, amount, solidAt, mapMeta, canSt
     const delta = Math.min(STEP_SLICE, remaining) * sign;
     remaining -= Math.abs(delta);
     const destination = position[axis] + delta;
-    if (slidePlayerAxis(position, axis, delta, solidAt)
-      && !stepOntoNav(position, axis, destination, solidAt, surfaces)) return true;
+    if (slidePlayerAxis(position, axis, delta, solidAt, height)
+      && !stepOntoNav(position, axis, destination, solidAt, surfaces, height)) return true;
   }
   return false;
 }

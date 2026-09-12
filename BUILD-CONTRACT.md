@@ -739,10 +739,15 @@ requires recognition, aligned aim and a clear firing ray. Losing sight stops
 fire immediately, cancels active charges and leaves only the last confirmed
 position for 3/4/5 seconds. Respawn clears recognition and routes.
 
-Harbor/Canyon use a shared room-local ground graph with swept body clearance,
+Depot/Harbor/Canyon use a shared room-local ground graph with swept body clearance,
 safe goal connections and visible waypoint lookahead. Ground-level geometry
 changes invalidate it. Bots turn toward nearby corners before moving and only
 sprint when the next safe waypoint is sufficiently far away.
+Roaming targets must be reachable on this graph. Depot spawns stay on the
+courtyard floor, including beneath loading-bay roofs. Ground routes walk around
+cover; bots on other terrain only jump toward a supported landing with enough
+body/head clearance, using the actual movement direction. Stuck detection uses
+horizontal progress so jumping in place cannot hide a blocked route.
 
 `npm run modes:bots` covers perception, seeded probability/cover controls,
 difficulty authority, objective behavior and combat. `npm run

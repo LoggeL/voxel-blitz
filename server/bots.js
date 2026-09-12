@@ -1,11 +1,12 @@
 import { weaponTurnProfile } from '../shared/weapon-handling.js';
-import { navigationWaypoint } from './bot-navigation.js';
+import { groundRoute, navigationWaypoint } from './bot-navigation.js';
+import { canHopObstacle } from './bot-locomotion.js';
 // Direct-injection bots. They register with a GameEngine as pseudo-clients
 // ('bot-<i>') and drive the exact same applyInput -> integrate -> fire
 // pipeline humans use, so balance is identical. No sockets anywhere.
 //
-// Behavior: waypoint-free roaming to random surface spots, knee-high obstacle
-// hopping via forward voxel probe, limited-field stance-aware voxel LOS,
+// Behavior: roaming to surface spots with ground routes on supported maps,
+// clearance-checked obstacle hops elsewhere, limited-field stance-aware voxel LOS,
 // delayed recognition and a brief search of the last observed position,
 // burst-fire combat (3-5 shots then a 300 ms breath), shrinking aim error as
 // engagement time ramps skill, perpendicular strafing while fighting, panic
@@ -34,8 +35,6 @@ const RETREAT_HP = 30;            // coward line
 const RETREAT_MS = 4000;          // how long a retreat lasts
 const RETREAT_COOLDOWN_MS = 2500; // before the next panic
 const STRAFE_HZ = 1.5;            // perpendicular wobble while fighting
-const KNEE_Y = 0.6;               // obstacle probe height above feet
-const PROBE_AHEAD = 0.6;          // obstacle probe reach
 const JUMP_CD_MS = 650;           // between hops
 const STUCK_WINDOW_MS = 1000;     // displacement sample window
 const STUCK_DIST = 0.35;          // less than this over the window == wedged
@@ -90,7 +89,7 @@ function standable(world, x, z, preferredY = null) {
   return { x: x + 0.5, y: h + 1.02, z: z + 0.5 };
 }
 
-function randSpot(world, rng) {
+function randSpot(world, rng, from) {
   const { sx: SX, sz: SZ } = worldDimensions(world);
   if (world.mapId === 'dust2') {
     const count = DUST2_NAV_FLOORS.length / 3;
@@ -104,8 +103,9 @@ function randSpot(world, rng) {
   }
   for (let i = 0; i < 14; i++) {
     const s = standable(world, (8 + rng() * (SX - 16)) | 0, (8 + rng() * (SZ - 16)) | 0);
-    if (s) return s;
+    if (s && (!Number.isFinite(world.meta?.navigationFloor) || groundRoute(world, from, s).length)) return s;
   }
+  if (Number.isFinite(world.meta?.navigationFloor)) return { x: from.x, y: from.y, z: from.z };
   return { x: SX / 2, y: GROUND + 1.02, z: SZ / 2 };
 }
 
@@ -167,7 +167,6 @@ class Brain {
     this.intendsMove = false;
     this.stuckSince = 0;
     this.watchX = null;
-    this.watchY = 0;
     this.watchZ = 0;
   }
 
@@ -257,26 +256,27 @@ class BotManager {
   watchStuck(br, p, now) {
     if (p.state !== 'alive' || !br.intendsMove) {
       br.stuckSince = 0;
-      br.watchX = p.x; br.watchY = p.y; br.watchZ = p.z;
+      br.watchX = p.x; br.watchZ = p.z;
       return;
     }
     if (br.watchX === null) {
-      br.watchX = p.x; br.watchY = p.y; br.watchZ = p.z;
+      br.watchX = p.x; br.watchZ = p.z;
       return;
     }
-    const moved = dist3(p.x, p.y, p.z, br.watchX, br.watchY, br.watchZ);
+    // Jumping in place is not progress toward a route around an obstacle.
+    const moved = Math.hypot(p.x - br.watchX, p.z - br.watchZ);
     if (moved >= STUCK_DIST) {
-      br.watchX = p.x; br.watchY = p.y; br.watchZ = p.z;
+      br.watchX = p.x; br.watchZ = p.z;
       br.stuckSince = 0;
       return;
     }
     if (!br.stuckSince) { br.stuckSince = now; return; }
     if (now - br.stuckSince >= STUCK_WINDOW_MS) {
-      // Wedged: new destination + immediate hop eligibility.
-      br.roamTarget = randSpot(this.game.world, br.rng);
+      // Replan from the current position without restarting a failed hop.
+      br.roamTarget = randSpot(this.game.world, br.rng, p);
       br.roamDeadline = now + ROAM_TIMEOUT_MS;
       br.detourUntil = now + OBJECTIVE_DETOUR_MS;
-      br.jumpCdUntil = 0;
+      br.jumpCdUntil = now + JUMP_CD_MS;
       br.groundRoute = null;
       br.stuckSince = now;
     }
@@ -482,8 +482,8 @@ class BotManager {
       const cB = standable(this.game.world, (p.x - px * 8) | 0, (p.z - pz * 8) | 0, p.y);
       const farthest = (s) => (s ? dist3(s.x, s.y, s.z, enemy.x, enemy.y, enemy.z) : -1);
       br.roamTarget = farthest(cA) >= farthest(cB)
-        ? (cA || cB || randSpot(this.game.world, br.rng))
-        : (cB || cA || randSpot(this.game.world, br.rng));
+        ? (cA || cB || randSpot(this.game.world, br.rng, p))
+        : (cB || cA || randSpot(this.game.world, br.rng, p));
       br.roamDeadline = now + RETREAT_MS;
       br.retreatUntil = now + RETREAT_MS;
       br.retreatReadyAt = now + RETREAT_MS + RETREAT_COOLDOWN_MS;
@@ -504,7 +504,7 @@ class BotManager {
         && (!br.roamTarget
           || now >= br.roamDeadline
           || dist3(p.x, p.y, p.z, br.roamTarget.x, br.roamTarget.y, br.roamTarget.z) < ARRIVE_DIST)) {
-      br.roamTarget = randSpot(this.game.world, br.rng);
+      br.roamTarget = randSpot(this.game.world, br.rng, p);
       br.roamDeadline = now + ROAM_TIMEOUT_MS;
     }
     const searching = br.state === 'search' && br.lastSeen && !objective;
@@ -617,18 +617,12 @@ class BotManager {
     // ----- shared locomotion steering ---------------------------------------
     if (moving) {
       inp.yaw = approachAngle(p.yaw, combatMovement ? inp.yaw : moveYaw, turnRate * dtS);
-      // Hop knee-high obstacles in our path.
-      if (p.grounded && now >= br.jumpCdUntil) {
-        const sy = Math.sin(inp.yaw), cy = Math.cos(inp.yaw);
-        const fx = -sy, fz = -cy;
-        const sx = p.x + fx * (PROBE_AHEAD * 0.57);
-        const sz = p.z + fz * (PROBE_AHEAD * 0.57);
-        const fl = Math.hypot(fx, fz) || 1;
-        const hitProbe = raycastVoxels(this.solidAt, sx, p.y + KNEE_Y, sz, fx / fl, 0, fz / fl, PROBE_AHEAD + 0.25);
-        if (hitProbe) {
-          inp.keys.jump = true;
-          br.jumpCdUntil = now + JUMP_CD_MS;
-        }
+      // Ground routes go around cover. Legacy terrain routes may hop only
+      // toward a supported, body-clear landing in the actual input direction.
+      if (!Number.isFinite(this.game.world.meta?.navigationFloor)
+          && p.grounded && now >= br.jumpCdUntil && canHopObstacle(this.solidAt, p, inp)) {
+        inp.keys.jump = true;
+        br.jumpCdUntil = now + JUMP_CD_MS;
       }
     } else if (br.state === 'retreat') {
       inp.keys.crouch = true; // hold low at the cover spot

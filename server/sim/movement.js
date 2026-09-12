@@ -2,11 +2,11 @@ import { BreathHold, recoverConditions, steadyEligible } from '../../shared/cond
 import { advanceReload, reloadPhase } from '../../shared/reload.js';
 // Authoritative movement, collision, timers, and hidden-condition integration.
 
-import { PRONE, stepProne } from '../../shared/player-stance.js';
+import { PRONE, stanceHeight } from '../../shared/player-stance.js';
 import { CONDITION_RULES } from '../../shared/combatmath.js';
 import { ladderContact } from '../../shared/worlddata.js';
 import { clamp01 } from './player.js';
-import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
+import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow, stepPlayerProne, canClimb, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 
 const WALK_SPEED = PHYSICS.walk;
@@ -75,9 +75,10 @@ export function updateCondition(p, dt) {
 }
 
 function slideAxis(player, axis, amount, solidAt, mapMeta = null, canStep = false) {
+  const height = stanceHeight(PHYSICS.height, player.proneT);
   const collided = canStep
-    ? slideTerrainAxis(player, axis, amount, solidAt, mapMeta, true)
-    : slidePlayerAxis(player, axis, amount, solidAt);
+    ? slideTerrainAxis(player, axis, amount, solidAt, mapMeta, true, height)
+    : slidePlayerAxis(player, axis, amount, solidAt, height);
   if (collided) player[`v${axis}`] = 0;
   return collided;
 }
@@ -116,7 +117,7 @@ export function stepMovement(p, dt, ctx) {
     p.vy = 0;
     p.vz = 0;
     p.crouch = false;
-    p.proneT = 0;
+    p.proneT = stepPlayerProne(p.proneT, false, dt, ctx.solidAt, p);
     p.sprint = false;
     p.coyote = 0;
     p.grounded = solidBelow(ctx.solidAt, p.x, p.y, p.z);
@@ -130,7 +131,18 @@ export function stepMovement(p, dt, ctx) {
   const fwdAmt = (kf.f ? 1 : 0) - (kf.b ? 1 : 0);
   const strafe = (kf.r ? 1 : 0) - (kf.l ? 1 : 0);
   const ladderHere = ladderContact(ctx.mapMeta, p.x, p.y, p.z);
-  p.proneT = stepProne(p.proneT, !!kf.prone && !p.vault && !ladderHere, dt);
+  // Movement precedes weapon intents. Reserve hands for a valid new reload
+  // immediately, but do not keep blocking on an already acknowledged request.
+  const reloadEdge = inp?.reload && (Number.isSafeInteger(inp.reloadId) && inp.reloadId > 0
+    ? inp.reloadId > (p.reloadAck || 0) : !p.reloadPrev);
+  const pendingReload = reloadEdge && p.def.mode !== 'melee' &&
+    p.mag?.[p.weapon] < p.def.magSize && (p.infiniteMagazines || p.reserve?.[p.weapon] > 0);
+  const handsFree = canClimb({ reloading: p.reloading || pendingReload,
+    grenadeHandling: inp?.grenadeHandling || p.grenadeHandlingQueued,
+    quickMelee: p.quickMeleeT > 0 || !!p.quickMeleeQueued,
+    deploying: p.deployT > 0, healing: p.medkit?.active });
+  if (!handsFree) p.vault = null;
+  p.proneT = stepPlayerProne(p.proneT, !!kf.prone && !p.vault && !ladderHere, dt, ctx.solidAt, p);
   const low = !!kf.prone || p.proneT > 0;
   p.crouch = !!kf.crouch;
   p.sprint = !!kf.sprint && fwdAmt > 0 && !p.crouch && !low && !p.ads;
@@ -147,7 +159,7 @@ export function stepMovement(p, dt, ctx) {
   }
   if (p.grounded) p.jumpGroundY = p.y;
   const deliberateGrab = !p.grounded && jumpPressed && !low;
-  if (!p.vault && canStartVault(p.grounded, p.grounded ? kf.jump : deliberateGrab,
+  if (handsFree && !p.vault && canStartVault(p.grounded, p.grounded ? kf.jump : deliberateGrab,
       fwdAmt, p.crouch || low, p.y, p.jumpGroundY)) {
     p.vault = findVault(ctx.solidAt, p, { x: wx, z: wz },
       deliberateGrab ? p.y : p.jumpGroundY, movementYaw, deliberateGrab ? 0 : 1);
@@ -171,7 +183,7 @@ export function stepMovement(p, dt, ctx) {
   p.vx += (wx * speed - p.vx) * accel;
   p.vz += (wz * speed - p.vz) * accel;
 
-  const onLadder = !low && ladderHere;
+  const onLadder = handsFree && !low && ladderHere;
   const ladderUp = onLadder && (kf.jump || (kf.f && !kf.b));
   const ladderDown = onLadder && !ladderUp && (kf.crouch || (kf.b && !kf.f));
   const ladderDirected = ladderUp || ladderDown;

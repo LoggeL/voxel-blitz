@@ -11,7 +11,7 @@
     "lobby": "node tools/lobby-smoke.mjs",
     "duel:test": "node tools/duel-test.mjs",
     "modes:lobby": "node tools/mode-lobby-smoke.mjs",
-    "modes:bots": "node tools/bot-perception-test.mjs && node tools/bot-difficulty-test.mjs && node tools/bot-mode-smoke.mjs",
+    "modes:bots": "node tools/bot-navigation-test.mjs && node tools/bot-perception-test.mjs && node tools/bot-difficulty-test.mjs && node tools/bot-mode-smoke.mjs",
     "maps:test": "node tools/nuketown-test.mjs && node tools/nuketown-lobby-test.mjs && node tools/dust2-test.mjs && node tools/dust2-movement-test.mjs && node tools/dust2-lobby-test.mjs && node tools/large-maps-test.mjs && node tools/large-maps-lobby-test.mjs && node tools/large-map-navigation-test.mjs && node tools/large-map-light-test.mjs",
     "maps:browser": "node tools/dust2-browser-test.mjs",
     "blocks:test": "node tools/bullet-material-test.mjs && node tools/block-damage-sync-test.mjs && node tools/block-damage-geometry-test.mjs",
@@ -42,9 +42,9 @@
     "killcam:browser": "node tools/killcam-browser-test.mjs",
     "test": "npm run accounts:test && npm run music:test && npm run balance:test && npm run career:test && npm run keybindings:test && npm run lobby:large:test && npm run medkit:test && npm run teams:test && npm run fps:test && npm run connection:test && npm run killcam:test && npm run conditions:test && npm run refactor:test && npm run animations:test && npm run weapons:feel:test && npm run gore:test && npm run audio:test && npm run flamethrower:test && npm run minigun:test && npm run projectiles:test && npm run blocks:test && npm run powerups:test && npm run chaos:test && npm run bastion:test && node tools/atlastest.mjs && npm run maps:test && node tools/pickaxe-test.mjs && npm run weapons:quick-melee:test && node tools/weapon-swap-test.mjs && node tools/revolver-smoke.mjs && node tools/smoke.mjs && node tools/lobby-smoke.mjs && npm run duel:test && npm run modes:lobby && npm run modes:bots",
     "avatars:test": "node tools/avatar-pose-test.mjs",
-    "animations:test": "node tools/movement-animation-test.mjs && node tools/avatar-motion-test.mjs && node tools/stance-animation-test.mjs && node tools/avatar-pose-test.mjs && npm run throwables:test",
+    "animations:test": "npm run prone:test && node tools/movement-animation-test.mjs && node tools/avatar-motion-test.mjs && node tools/stance-animation-test.mjs && node tools/avatar-pose-test.mjs && npm run throwables:test",
     "animations:browser": "node tools/movement-animation-browser-test.mjs && node tools/stance-animation-browser-test.mjs",
-    "prone:test": "node tools/prone-test.mjs",
+    "prone:test": "node tools/prone-test.mjs && node tools/traversal-test.mjs",
     "projectiles:test": "node tools/projectile-server-performance-test.mjs && node tools/projectile-performance-test.mjs",
     "refactor:test": "node tools/hitbox-refactor-test.mjs && node tools/server-refactor-test.mjs && node tools/client-refactor-test.mjs",
     "browser:ui": "node tools/session-refactor-test.mjs",
@@ -80,7 +80,8 @@
     "bots:difficulty:browser": "node tools/bot-difficulty-browser-test.mjs",
     "maps:lights:browser": "node tools/large-map-light-browser-test.mjs",
     "weapons:handling:test": "node tools/weapon-handling-test.mjs && node tools/weapon-customization-test.mjs",
-    "accounts:email:postgres": "node tools/email-recovery-test.mjs --postgres"
+    "accounts:email:postgres": "node tools/email-recovery-test.mjs --postgres",
+    "prone:browser": "node tools/traversal-browser-test.mjs"
   },
   "dependencies": {
     "pg": "^8.23.0",

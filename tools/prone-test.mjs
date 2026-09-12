@@ -4,9 +4,8 @@ import { playerHitboxes } from '../shared/player-hitboxes.js';
 import { Input } from '../public/js/engine/input.js';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { makeAvatar, updateAvatarWeaponPose, updateAvatarStancePose, resetAvatarPose, disposeAvatar } from '../public/js/avatar/avatar.js';
-const input = Object.assign(Object.create(Input.prototype), {
-  keys: {}, _gameplayEnabled: true, _locked: true,
-});
+const input = new Input({});
+input.fallback = true;
 const event = (repeat = false) => ({ code: 'KeyX', repeat, preventDefault() {} });
 input._onKeyDown(event());
 assert.equal(input.keys.prone, true);

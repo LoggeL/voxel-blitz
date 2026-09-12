@@ -266,14 +266,17 @@ function resolveSpawnPool(world, anchors, floorY = null) {
 
 export function createMapMetadata(id, world) {
   const anchors = MAP_SPAWN_ANCHORS[id];
-  // Training uses one authored floor; Dust II anchors carry individual NAV levels.
-  const floorY = id === 'killhouse' || id === 'reactor' ? GROUND : null;
+  // Courtyard/training spawns stay below roofs; Dust II anchors carry NAV levels.
+  const floorY = ['killhouse', 'reactor', 'depot'].includes(id) ? GROUND : null;
   const metadata = {
     id,
     name: MAP_NAMES[id],
     dimensions: world.dimensions,
     ...(['harbor', 'canyon'].includes(id) ? { navigationFloor: GROUND, spawnBounds: {
       minX: 4, maxX: 187, minZ: 4, maxZ: 139, minY: GROUND + 1, maxY: GROUND + 1.1,
+    } } : {}),
+    ...(id === 'depot' ? { navigationFloor: GROUND, spawnBounds: {
+      minX: 4, maxX: 123, minZ: 4, maxZ: 91, minY: GROUND + 1, maxY: GROUND + 1.1,
     } } : {}),
     ...(id === 'reactor' ? { bastion: structuredClone(REACTOR_LAYOUT), spawnBounds: {
       minX: 51, maxX: 76, minZ: 43, maxZ: 67, minY: GROUND + 1, maxY: GROUND + 1.1,
