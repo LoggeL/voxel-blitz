@@ -4,6 +4,7 @@ import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { launchCdpSession } from './lib/cdp-session.mjs';
+import { FLAME_RULES } from '../shared/flame-rules.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const server = createServer(async (req, res) => {
@@ -78,7 +79,7 @@ try {
       const releasedCursor = stream.cursor;
       stream.update(1/fps);
       const immediateRelease = stream.cursor===releasedCursor;
-      stream.update(1);
+      stream.update(FLAME_RULES.range / FLAME_RULES.speed);
       const drained = stream.geometry.instanceCount===0;
       continuity.push({fps,maxGap,maxNear,worstPair,behindMuzzle,immediateRelease,drained});
       stream.dispose();
@@ -138,8 +139,12 @@ try {
     return {continuity,active,minimumActive,farthest,nearMuzzle,drawCalls,requiresShot,keepaliveExpired,closeWallBlocked,wallClipped,followsMuzzle,remoteOrigin,bounded,stalledExpired,cursorAtRelease,glError,programs};
   })()`);
   assert.ok(result.active > 40); assert.ok(result.minimumActive > 40); assert.ok(result.farthest > 16); assert.ok(result.nearMuzzle < .4);
+  // Wider off-axis samples advance slightly less along Z. Bound that geometric
+  // difference plus the emission interval instead of assuming a narrow jet.
+  const maxLongitudinalGap = FLAME_RULES.speed * FLAME_RULES.cadence / 6 +
+    FLAME_RULES.range * (1 - Math.cos(FLAME_RULES.coneDeg * Math.PI / 360 * 0.65));
   for (const sample of result.continuity) {
-    assert.ok(sample.maxGap < .31, 'Continuous particle spacing at '+sample.fps+' fps: '+sample.maxGap);
+    assert.ok(sample.maxGap < maxLongitudinalGap + 0.01, 'Continuous particle spacing at '+sample.fps+' fps: '+sample.maxGap);
     assert.ok(sample.maxNear <= .3, 'Muzzle continuity at '+sample.fps+' fps');
     assert.equal(sample.behindMuzzle,false);
     assert.equal(sample.immediateRelease,true);
@@ -153,7 +158,7 @@ try {
   await writeFile(path.join(root,'.artifacts/flamethrower-stream.png'),Buffer.from(capture.data,'base64'));
   const release = await browser.page.evaluate(`(() => {
     const fx = window.flameSmoke;
-    for (let i=0;i<90;i++) fx.update(1/120);
+    fx.update(2);
     const result = {active:fx.geometry.instanceCount,cursor:fx.cursor};
     fx.dispose();
     return result;

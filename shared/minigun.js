@@ -1,6 +1,6 @@
 // Shared thermal state: heat survives holstering; only a fresh life resets it.
 export const MINIGUN = Object.freeze({ spinUp: 0.7, spinDown: 1.2, heatPerShot: 0.0135, sweetHeatGainMult: 0.6,
-  cooling: 0.2, unlockHeat: 0.3, sweetHeat: 0.65, maxDamageBonus: 0.65 });
+  cooling: 0.2, unlockHeat: 0.3, sweetHeat: 0.65, maxDamageBonus: 0.30 });
 export function createMinigunState() { return { heat: 0, spin: 0, overheated: false }; }
 export function stepMinigun(state, dt, held, preSpin = false) {
   dt = Math.max(0, Number.isFinite(dt) ? dt : 0);

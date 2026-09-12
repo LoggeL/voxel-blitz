@@ -25,9 +25,9 @@ try {
     const camera = new THREE.PerspectiveCamera(75, 320/180, 0.1, 100);
     const post = new CombatPostProcess(renderer); post.setSize(320, 180);
     const gl = renderer.getContext();
-    const render = (panic, pain, time, reducedMotion) => {
+    const render = (panic, pain, time, reducedMotion, burning = 0) => {
       post.reducedMotion = reducedMotion;
-      const success = post.render(scene, camera, { panic, pain, time });
+      const success = post.render(scene, camera, { panic, pain, time, burning });
       const bytes = new Uint8Array(320 * 180 * 4);
       gl.readPixels(0, 0, 320, 180, gl.RGBA, gl.UNSIGNED_BYTE, bytes);
       if (!success || gl.getError() !== gl.NO_ERROR) throw new Error('Condition shader failed');
@@ -48,12 +48,25 @@ try {
     const pulseA = render(1,1,1,displaySettings().reducedMotion);
     const pulseB = render(1,1,2,displaySettings().reducedMotion);
     const pulseEnabled = pulseA.some((byte,index) => byte !== pulseB[index]);
+    const fireA = render(1,0,1,false,1), fireB = render(1,0,2,false,1);
+    const fireAnimated = fireA.some((byte,index) => byte !== fireB[index]);
+    const burningCenterHaze = pixel(calm,160,90).join() !== pixel(fireA,160,90).join();
+    const burningEdgeStrong = pixel(fireA,5,5)[0] > pixel(calm,5,5)[0] + 30;
+    const fireStillA = render(1,0,1,true,1), fireStillB = render(1,0,2,true,1);
+    const fireReducedStill = fireStillA.every((byte,index) => byte === fireStillB[index]);
+    const cleared = render(0,0,1,false,0);
+    const fireClears = calm.every((byte,index) => byte === cleared[index]);
+    post.enabled = false;
+    const ungradedFire = render(1,0,1,false,1);
+    const fireSurvivesGradingOff = post.uniforms.grading.value === 0 &&
+      pixel(ungradedFire,5,5)[0] > pixel(calm,5,5)[0] + 30;
     post.dispose(); renderer.dispose(); hud.dispose();
-    return { persisted, settingsEnabled, clearCenter, edgeChanged, reducedStill, pulseEnabled };
+    return { persisted, settingsEnabled, clearCenter, edgeChanged, reducedStill, pulseEnabled,
+      fireAnimated, burningCenterHaze, burningEdgeStrong, fireReducedStill, fireClears, fireSurvivesGradingOff };
   })()`);
   for (const [check, passed] of Object.entries(result)) assert.equal(passed, true, check);
   assert.deepEqual(browser.page.errors, []);
-  console.log('ok - live WebGL shader, unchanged center pixels, peripheral feedback, settings persistence and reduced-motion freeze');
+  console.log('ok - WebGL panic/pain, burning flames and haze, reduced-motion freeze, extinguishing and grading-off parity');
 } finally {
   if (browser) await browser.close();
   await stopServer(server);

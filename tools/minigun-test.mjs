@@ -9,7 +9,7 @@ assert.equal(stepMinigun(thermal, 0.69, true), false);
 assert.equal(stepMinigun(thermal, 0.02, true), true);
 assert.equal(minigunDamageMult(thermal), 1);
 for (let i = 0; i < Math.ceil(MINIGUN.sweetHeat / MINIGUN.heatPerShot); i++) heatMinigun(thermal);
-assert.equal(minigunDamageMult(thermal), 1.65);
+assert.equal(minigunDamageMult(thermal), 1.30);
 while (!thermal.overheated) heatMinigun(thermal);
 assert.equal(stepMinigun(thermal, 3, true), false);
 assert.ok(thermal.overheated);

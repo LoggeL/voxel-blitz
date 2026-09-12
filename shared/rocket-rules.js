@@ -12,11 +12,15 @@ export const ROCKET_RULES = Object.freeze({
   /** Direct body hit: flat damage before the splash is added. */
   directDamage: 100,
   splashDamage: 96,
-  damageRadius: 4.8,
+  damageRadius: 6,
+  /** Mild power curve: (1 - distance / radius)^exponent, zero at the edge. */
+  damageFalloffExponent: 1.15,
   selfDamage: 0.55,
   /** Rocket jumps: the owner is launched harder than bystanders. */
   knockback: 34,
   selfKnockback: 44,
+  /** Pressure keeps its own reach so splash tuning does not alter rocket jumps. */
+  knockbackRadius: 4.8,
   knockbackFalloff: 0.65,
   terrainRadius: 4.4,
   terrainPower: 210,

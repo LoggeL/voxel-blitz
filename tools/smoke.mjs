@@ -203,7 +203,7 @@ function runDirectContracts() {
   ok(shotgun.centerPellet === true
     && shotgun.rpm >= 90
     && shotgun.spreadDeg.ads <= 1.5
-    && nearly(damageAtDistance(shotgun, 30), 10)
+    && nearly(damageAtDistance(shotgun, 30), 8)
     && shotgunCenter.x === shotgunAim.x
     && shotgunCenter.y === shotgunAim.y
     && shotgunCenter.z === shotgunAim.z

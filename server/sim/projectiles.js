@@ -65,9 +65,11 @@ export const PROJECTILE_RULES = Object.freeze({
     fuseMs: ROCKET_RULES.lifetimeMs,
     damage: ROCKET_RULES.splashDamage,
     damageRadius: ROCKET_RULES.damageRadius,
+    damageFalloffExponent: ROCKET_RULES.damageFalloffExponent,
     selfDamage: ROCKET_RULES.selfDamage,
     knockback: ROCKET_RULES.knockback,
     selfKnockback: ROCKET_RULES.selfKnockback,
+    knockbackRadius: ROCKET_RULES.knockbackRadius,
     knockbackFalloff: ROCKET_RULES.knockbackFalloff,
     terrainRadius: ROCKET_RULES.terrainRadius,
     terrainPower: ROCKET_RULES.terrainPower,
@@ -623,8 +625,10 @@ export class ProjectileSystem {
     const baseRules = PROJECTILE_RULES[projectile.type] || PROJECTILE_RULES.frag;
     const level = projectile.chaosLevel || 0;
     const giant = projectile.type === 'rocket' && level >= 1;
+    const radiusScale = giant ? 1.8 : projectile.type === 'limpet' && level >= 3 ? 1.3 : projectile.child && level >= 3 ? 1.3 : 1;
     const rules = projectile.blastRules || { ...baseRules,
-      damageRadius: baseRules.damageRadius * (giant ? 1.8 : projectile.type === 'limpet' && level >= 3 ? 1.3 : projectile.child && level >= 3 ? 1.3 : 1),
+      damageRadius: baseRules.damageRadius * radiusScale,
+      knockbackRadius: (baseRules.knockbackRadius ?? baseRules.damageRadius) * radiusScale,
       damage: baseRules.damage * (projectile.type === 'limpet' && level >= 3 ? 1.3 : 1),
       terrainRadius: Math.min(7, baseRules.terrainRadius * (giant ? 1.7 : level >= 3 ? 1.4 : 1)),
       selfKnockback: projectile.type === 'pulse' && level >= 2 ? 64 : baseRules.selfKnockback,
@@ -685,7 +689,7 @@ export class ProjectileSystem {
       if (!direct && (distance >= rules.damageRadius || !visibleTo(ctx, origin, target))) continue;
       const falloff = direct
         ? 1
-        : Math.pow(1 - distance / rules.damageRadius, 1.22);
+        : Math.pow(1 - distance / rules.damageRadius, rules.damageFalloffExponent ?? 1.22);
       let damage = rules.damage * falloff;
       if (direct && Number.isFinite(rules.directDamage)) damage += rules.directDamage;
       // NPC rockets retain the real flight/blast/terrain simulation, with a
@@ -703,7 +707,7 @@ export class ProjectileSystem {
         ? rules.selfKnockback
         : rules.knockback;
       // Pressure falls off more gently than damage for displacement-focused blasts.
-      const pressure = direct ? 1 : Math.pow(Math.max(0, 1 - distance / rules.damageRadius),
+      const pressure = direct ? 1 : Math.pow(Math.max(0, 1 - distance / (rules.knockbackRadius ?? rules.damageRadius)),
         rules.knockbackFalloff ?? 1.22);
       const impulse = Math.max(0, strength * pressure);
       const invDistance = distance > 0.01 ? 1 / distance : 0;

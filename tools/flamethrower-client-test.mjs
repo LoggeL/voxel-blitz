@@ -112,12 +112,12 @@ console.log('Chaos side flames render for local and remote shooters without repl
     flame.shoot({ o: [0, 2, 0], d: [0, 0, -1] });
     const puff = flame.puffs[0];
     assert.equal(puff.life, FLAME_RULES.range / FLAME_RULES.speed,
-      'visual lifetime follows the same twenty-eight-metre flight as the server');
+      'visual lifetime follows the same thirty-two-metre flight as the server');
     flame.update(0.8);
     assert.ok(puff.position.length() > 23 && puff.age < puff.life,
       'flame visuals visibly travel beyond the previous eighteen-metre reach');
-    flame.update(0.2);
+    flame.update(FLAME_RULES.range / FLAME_RULES.speed);
     assert.equal(flame.geometry.instanceCount, 0, 'extended flight still expires');
   } finally { flame.dispose(); }
 }
-console.log('Flame particles match the extended twenty-eight-metre server flight.');
+console.log('Flame particles match the extended thirty-two-metre server flight.');

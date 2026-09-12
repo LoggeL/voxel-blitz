@@ -38,9 +38,25 @@ float hash21(vec2 point) {
   return fract(sin(dot(point, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
+float fireNoise(vec2 p) {
+  vec2 cell = floor(p), f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash21(cell), hash21(cell + vec2(1.0, 0.0)), f.x),
+    mix(hash21(cell + vec2(0.0, 1.0)), hash21(cell + vec2(1.0)), f.x), f.y);
+}
+
+// A tapered, rising field with broad tongues and smaller holes. Pixel snapping
+// makes the silhouette belong to the voxel world without adding sprite objects.
+float fireBand(vec2 p, float t) {
+  float bend = sin(p.y * 8.0 - t * 1.7) * p.y * 0.7;
+  float broad = fireNoise(vec2(p.x * 8.0 + bend, p.y * 3.0 - t * 1.6));
+  float detail = fireNoise(vec2(p.x * 21.0 - bend, p.y * 9.0 - t * 2.7));
+  return clamp((0.24 - p.y * 0.85 + broad * 0.82 + detail * 0.38) * 1.35, 0.0, 1.0);
+}
+
 void main() {
   vec2 texel = 1.0 / max(resolution, vec2(1.0));
-  // Keep the center optically clear; all condition grading stays peripheral.
+  // Panic/pain stay peripheral. Burning adds a separate visibility penalty.
   vec2 vignetteUv = (vUv - 0.5) * 2.0;
   vignetteUv.x *= min(resolution.x / max(resolution.y, 1.0), 1.75) * 0.72;
   float edge = smoothstep(0.55, 1.34, length(vignetteUv));
@@ -73,15 +89,39 @@ void main() {
   float grain = hash21(gl_FragCoord.xy + grainFrame) - 0.5;
   color += grain * 0.005;
 
-  float flameTime = time * motion;
-  float tongues = 0.08 + 0.055 * sin(vUv.x * 43.0 + sin(vUv.x * 19.0 - flameTime * 2.0) * 2.0)
-    + 0.035 * sin(vUv.x * 81.0 + flameTime * 3.0);
-  float border = min(vUv.x, 1.0 - vUv.x);
-  float fire = (1.0 - smoothstep(tongues, tongues + 0.15, vUv.y))
-    + (1.0 - smoothstep(0.015, 0.11, border)) * 0.4;
-  float hot = 0.7 + 0.3 * sin(vUv.x * 32.0 + vUv.y * 21.0 - flameTime * 4.0);
-  color = mix(color, vec3(1.0, 0.16 + hot * 0.32, 0.015), clamp(fire * burning * 0.62, 0.0, 0.72));
   color = mix(center, color, grading);
+  // Gameplay visibility survives disabling decorative grading, just like smoke.
+  if (burning > 0.0) {
+    float flameTime = time * motion;
+    float border = min(vUv.x, 1.0 - vUv.x);
+    float periphery = max(1.0 - smoothstep(0.08, 0.34, border),
+      1.0 - smoothstep(0.12, 0.46, vUv.y));
+    vec2 heat = vec2(sin(vUv.y * 37.0 - flameTime * 3.0),
+      sin(vUv.x * 31.0 + flameTime * 2.1)) * 0.004 * periphery * burning * motion;
+    vec2 blur = texel * (1.5 + periphery * 6.0) * burning;
+    vec2 sampleUv = clamp(vUv + heat, vec2(0.0), vec2(1.0));
+    vec3 haze = (texture2D(sceneTexture, sampleUv + vec2(blur.x, 0.0)).rgb
+      + texture2D(sceneTexture, sampleUv - vec2(blur.x, 0.0)).rgb
+      + texture2D(sceneTexture, sampleUv + vec2(0.0, blur.y)).rgb
+      + texture2D(sceneTexture, sampleUv - vec2(0.0, blur.y)).rgb) * 0.25;
+    color = mix(color, haze, burning * (0.12 + periphery * 0.55));
+    color = mix(color, vec3(0.72, 0.17, 0.025), burning * (0.09 + periphery * 0.20));
+
+    vec2 grid = max(vec2(96.0), resolution / 5.0);
+    vec2 pixelUv = (floor(vUv * grid) + 0.5) / grid;
+    float bottom = fireBand(vec2(pixelUv.x * 1.5, pixelUv.y / 0.29), flameTime);
+    float left = fireBand(vec2(pixelUv.y + 4.0, pixelUv.x / 0.19), flameTime + 3.0);
+    float right = fireBand(vec2(pixelUv.y + 9.0, (1.0 - pixelUv.x) / 0.19), flameTime + 7.0);
+    float fire = max(bottom, max(left, right));
+    vec3 fireColor = mix(vec3(0.38, 0.014, 0.002), vec3(1.0, 0.12, 0.003), smoothstep(0.08, 0.58, fire));
+    fireColor = mix(fireColor, vec3(1.0, 0.66, 0.035), smoothstep(0.72, 1.0, fire));
+    color = mix(color, fireColor, smoothstep(0.0, 0.32, fire) * burning * 0.87);
+
+    vec2 emberUv = vec2(vUv.x, vUv.y - flameTime * 0.13) * vec2(42.0, 24.0);
+    vec2 emberCell = floor(emberUv), emberPoint = abs(fract(emberUv) - 0.5);
+    float ember = step(0.974, hash21(emberCell)) * (1.0 - smoothstep(0.05, 0.16, max(emberPoint.x, emberPoint.y)));
+    color = mix(color, vec3(1.0, 0.55, 0.025), ember * periphery * burning * 0.85);
+  }
   color = smokeColor(color, vUv, time * motion);
   gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
   #include <colorspace_fragment>
@@ -199,7 +239,8 @@ export class CombatPostProcess {
     if (this._disposed) return false;
     this.renderer.info?.reset?.();
     const smokeCount = updateSmokeUniforms(this.uniforms, state.smokeFields, state.smokeNow, camera);
-    if (!this.enabled && !smokeCount) {
+    const burning = clamp01(state.burning);
+    if (!this.enabled && !smokeCount && !burning) {
       this.renderer.render(scene, camera);
       return false;
     }
@@ -209,7 +250,7 @@ export class CombatPostProcess {
     this.uniforms.grading.value = this.enabled ? 1 : 0;
     this.uniforms.time.value = Math.max(0, Number(state.time) || 0);
     this.uniforms.panic.value = clamp01(state.panic);
-    this.uniforms.burning.value = clamp01(state.burning);
+    this.uniforms.burning.value = burning;
     this.uniforms.pain.value = clamp01(state.pain);
     this.uniforms.scopeActive.value = state.scopeActive ? 1 : 0;
     this.uniforms.motion.value = this.reducedMotion ? 0 : 1;

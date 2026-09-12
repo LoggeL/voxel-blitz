@@ -71,13 +71,15 @@ export class AimSway {
       pressed: shift, panic: panic01, pain: pain01,
     });
     const { holdingBreath } = breath;
-    const conditionScale = 1 + panic01 * 1.65 + pain01 * 0.25;
+    const conditionSway = alive ? panic01 * 1.65 : 0;
     const crouchScale = crouching ? 0.55 : 1;
     const breathScale = holdingBreath ? 0.12 : 1;
     this._idleWeight += ((eligible ? 1 : 0) - this._idleWeight) * (1 - Math.exp(-step * 7));
     const targetRigScale = eligible ? crouchScale * breathScale : 1;
     this._rigMotionScale += (targetRigScale - this._rigMotionScale) * (1 - Math.exp(-step * 9));
-    const idleScale = conditionScale * this._rigMotionScale * this._idleWeight;
+    // Panic affects the real shot direction even while moving. Ordinary idle
+    // sway and pain retain their stationary behavior; crouch/steady still help.
+    const idleScale = ((1 + pain01 * 0.25) * this._idleWeight + conditionSway) * this._rigMotionScale;
 
     // Two incommensurate waves avoid a mechanical circular orbit while staying
     // deterministic and allocation-free.

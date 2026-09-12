@@ -13,7 +13,7 @@ rotor reaches full speed, pressing fire starts shooting immediately. Aim can
 stay held during trigger pauses to keep the rotor ready.
 
 Each shot adds 1.35% heat below the sweet spot and 0.81% once it reaches 65%.
-Damage increases with heat, reaching +65% at 65% heat. The bonus plateaus there,
+Damage increases with heat, reaching +30% at 65% heat. The bonus plateaus there,
 so short pauses can hold the sweet spot without forcing an overheat.
 The slower heat gain gives roughly 2.2 seconds of continuous fire from the
 sweet-spot threshold to overheat. The rotor coasts down over 1.2 seconds; a
