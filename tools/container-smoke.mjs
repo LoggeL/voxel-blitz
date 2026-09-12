@@ -91,7 +91,7 @@ function validateLobby(message, playerId, expectedMap) {
     `lobby identity is ${JSON.stringify({ mode: message.gameMode, map: message.map })}`);
   requireCondition(Array.isArray(message.members), 'lobby members is not an array');
   requireCondition(message.members.every((member) =>
-    hasExactKeys(member, ['bot', 'id', 'name', 'ping', 'ready', 'team'])),
+    hasExactKeys(member, ['bot', ...(member.bot ? ['difficulty'] : []), 'id', 'name', 'ping', 'ready', 'team'])),
   'lobby contains an incomplete member');
   requireCondition(message.members.some((member) =>
     member.id === playerId && member.name === 'ContainerSmoke' && member.bot === false),

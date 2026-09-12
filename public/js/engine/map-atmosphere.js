@@ -6,8 +6,10 @@ const DEFAULT = Object.freeze({
   ambient: 0.78, sunlight: 1.35, cloud: '#ffffff',
 });
 const PALETTES = {
-  harbor: { skyTop: '#467d99', skyHorizon: '#bedbe8', groundLight: '#727c83', density: 0.0025 },
-  canyon: { skybox: '/assets/skyboxes/desert-daylight.png', groundLight: '#a88c61', sun: '#fff3dc', density: 0.0023 },
+  harbor: { skyTop: '#467d99', skyHorizon: '#bedbe8', fog: '#bbd7e2',
+    groundLight: '#66858c', skyLight: '#d3eafa', sun: '#fff6e5', ambient: 0.86, sunlight: 1.42, density: 0.0018 },
+  canyon: { skybox: '/assets/skyboxes/desert-daylight.png', fog: '#dfd3b9', groundLight: '#b49872',
+    skyLight: '#dde9f1', sun: '#fff0d6', ambient: 0.86, sunlight: 1.48, density: 0.0018 },
   foundry: { skyTop: '#367ab9', skyHorizon: '#b7dced', groundLight: '#697660' },
   depot: { skyTop: '#477fb8', skyHorizon: '#c6e0f1', groundLight: '#737b80' },
   citadel: { skyTop: '#377fc1', skyHorizon: '#bcdef2', groundLight: '#6d7b60' },

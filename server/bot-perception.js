@@ -1,20 +1,20 @@
 import { playerHitboxes } from '../shared/player-hitboxes.js';
 import { pronePose } from '../shared/player-stance.js';
+import { botDifficulty } from '../shared/bot-difficulty.js';
 import { raycastVoxels } from '../shared/raycast.js';
 
-const SIGHT_RANGE = 38;
-const TRACK_RANGE = 42;
 const HALF_FOV = 55 * Math.PI / 180;
 const TRACK_HALF_FOV = 65 * Math.PI / 180;
 const HALF_VERTICAL_FOV = 50 * Math.PI / 180;
 
 /** Current visual evidence only. Hidden positions never enter combat memory. */
-export function observeBotTarget(observer, target, solidAt, smoke, now, tracking = false) {
+export function observeBotTarget(observer, target, solidAt, smoke, now, tracking = false, difficulty = undefined) {
+  const profile = botDifficulty(difficulty);
   const origin = [observer.x, observer.eyeY, observer.z];
   const dx = target.x - origin[0], dz = target.z - origin[2];
   const flat = Math.hypot(dx, dz);
   const distance = Math.hypot(flat, target.eyeY - origin[1]);
-  const maxRange = tracking ? TRACK_RANGE : SIGHT_RANGE;
+  const maxRange = profile.sightRange + (tracking ? 12 : 0);
   if (distance > maxRange) return null;
 
   const yaw = Math.atan2(-dx, -dz);
@@ -50,12 +50,29 @@ export function observeBotTarget(observer, target, solidAt, smoke, now, tracking
   if (!aimPoint) return null;
 
   const low = Math.max(target.crouch ? 0.45 : 0, pronePose(target.proneT));
-  const visibleRange = maxRange * (0.55 + 0.45 * exposure) * (1 - 0.2 * low);
-  if (distance > visibleRange) return null;
+  // Approximate projected body area with the three core combat volumes.
+  // Their face projections can overlap, so this is a salience estimate, not
+  // a pixel-perfect silhouette. Occluded samples reduce the visible fraction.
+  const direction = [dx / (distance || 1), (target.eyeY - origin[1]) / (distance || 1), dz / (distance || 1)];
+  const dot = axis => Math.abs(axis.reduce((sum, value, i) => sum + value * direction[i], 0));
+  let bodyArea = 0;
+  for (const box of [torso, head, hips]) {
+    const [x, y, z] = box.half;
+    bodyArea += 4 * (y * z * dot(box.basis[0]) + x * z * dot(box.basis[1]) + x * y * dot(box.basis[2]));
+  }
+  const visibleArea = bodyArea * exposure * (1 - 0.35 * low);
+  const angularArea = visibleArea / Math.max(4, distance * distance);
+  const peripheral = 1 - 0.55 * (offAxis / halfFov) ** 2;
+  // Hazard per second. The square root compresses the distance falloff so a
+  // visible player across a large arena is discoverable, with a longer wait.
+  const detectionRate = Math.max(0.08, Math.min(5, 4 * Math.sqrt(angularArea / 0.001)))
+    * peripheral * profile.recognition;
+  const recognitionMs = profile.reactionMs + 1000 / detectionRate;
+  return { aimPoint, exposure, distance, visibleArea, angularArea, detectionRate,
+    reactionMs: profile.reactionMs, recognitionMs };
+}
 
-  // Integrate evidence over time: distant, peripheral or mostly covered
-  // players take longer to recognize. Even a close, exposed target gets a beat.
-  const recognitionMs = 320 + 500 * (distance / SIGHT_RANGE) ** 2
-    + 650 * (1 - exposure) + 180 * low + 220 * (offAxis / halfFov) ** 2;
-  return { aimPoint, exposure, distance, recognitionMs };
+/** One exponential evidence threshold per sighting, independent of tick rate. */
+export function recognitionThreshold(random) {
+  return -Math.log(Math.max(1e-9, 1 - Math.max(0, Math.min(1 - 1e-9, random))));
 }

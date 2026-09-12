@@ -26,7 +26,12 @@ target.z = 40.5;
 assert.equal(see(), null, 'no acquisition behind the bot');
 assert.equal(see(() => false, true), null, 'held targets do not grant rear vision');
 target.z = -14.5;
-assert.equal(see(), null, 'open 45-meter sightline does not trigger cross-map acquisition');
+assert(see(), 'open 45-meter sightline provides evidence on large maps');
+target.z = -69.5;
+const longRange = see();
+assert(longRange && longRange.recognitionMs > exposed.recognitionMs * 2, '100-meter target is detectable with slower recognition');
+target.z = -80;
+assert.equal(see(), null, 'acquisition remains bounded beyond the configured sight range');
 target.z = 0.5;
 const distant = see();
 assert(distant && distant.recognitionMs > exposed.recognitionMs,
@@ -58,8 +63,9 @@ assert.deepEqual(crouched.aimPoint, playerHitboxes(target).find(box => box.zone 
   'bot aims at the exposed head instead of firing into the covered torso');
 target.z = 0.5;
 assert(see(), 'uncovered crouched player can be seen at 30 meters');
-assert.equal(see((_x, y, z) => z === 1 && y === 1), null,
-  'the same distant player is concealed when only their head peeks over cover');
+const distantPeek = see((_x, y, z) => z === 1 && y === 1);
+assert(distantPeek && distantPeek.recognitionMs > distant.recognitionMs,
+  'a distant visible head gives weak evidence instead of an arbitrary range cutoff');
 target.z = 20.5;
 target.proneT = 1;
 assert.equal(see(lowWall), null, 'prone body is fully concealed behind a low wall');
@@ -174,7 +180,7 @@ function fixture() {
     assert.equal(f.bots.pickTarget(f.bot, f.brain), null, 'manager rejects an enemy behind it');
     f.bot.yaw = Math.PI;
     assert.equal(f.bots.pickTarget(f.bot, f.brain), f.human, 'turning toward the enemy permits detection');
-    f.human.z = -20;
+    f.human.z = -100;
     f.bot.yaw = 0;
     assert.equal(f.bots.pickTarget(f.bot, f.brain), null, 'manager drops a distant held target');
     f.human.z = 20.5;

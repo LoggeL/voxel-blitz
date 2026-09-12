@@ -34,12 +34,12 @@
 #lobby .vb-btn-copy { width: auto; min-height: 44px; margin: 0; padding: 10px; font: 600 11px/1.2 Arial,sans-serif; border: 1px solid #8294a5; background: #18212b; color: #eef1f5; }
 #lobby .vb-ready-count { color: #ffce64; font-size: 16px; }
 #lobby .vb-roster-list { max-height: 330px; margin-top: 14px; gap: 8px; }
-#lobby .vb-roster-item { min-height: 68px; padding: 10px; display: grid; grid-template-columns: 42px minmax(0,1fr) auto; gap: 12px; border: 1px solid #63717e70; background: #0a1119b3; }
+#lobby .vb-roster-item { min-height: 68px; flex-shrink: 0; padding: 10px; display: grid; grid-template-columns: 42px minmax(0,1fr) auto; gap: 12px; border: 1px solid #63717e70; background: #0a1119b3; }
 #lobby .vb-roster-left { flex-wrap: wrap; gap: 6px; min-width: 0; }
 #lobby .vb-roster-name { font: 500 21px/1.2 Impact,sans-serif; overflow-wrap: anywhere; }
 #lobby .vb-roster-right { gap: 8px; }
 #lobby .vb-roster-right { flex-wrap: wrap; }
-#lobby .vb-team-select { min-height: 34px; max-width: 110px; padding: 5px 8px; border: 1px solid #8398aa; border-radius: 4px; background: #101c28; color: #e4effa; font: inherit; font-size: 12px; }
+#lobby .vb-team-select, #lobby .vb-bot-difficulty { min-height: 34px; max-width: 110px; padding: 5px 8px; border: 1px solid #8398aa; border-radius: 4px; background: #101c28; color: #e4effa; font: inherit; font-size: 12px; }
 #lobby [data-team="alpha"] { color: #89c9ff; }
 #lobby [data-team="bravo"] { color: #ffae96; }
 #lobby .vb-team-label { font-size: 11px; white-space: nowrap; }
@@ -120,6 +120,8 @@
   #lobby .vb-roster-right { grid-column: 2; }
 }
 @media (max-width: 760px) {
+  #lobby .vb-brand-rail { flex-wrap: wrap; gap: 14px; }
+  #lobby .vb-brand-rail > .vb-music-control { margin-left: auto; }
   #lobby .vb-menu-stage { padding: 20px 14px; }
   #lobby .vb-lobby-panel { grid-template-columns: minmax(0,1fr); grid-template-areas:'title' 'subtitle' 'mission' 'invite' 'roster' 'actions' 'status'; }
   #lobby .vb-lobby-panel > :is(.vb-title,.vb-sub) { margin-left: 0; }
@@ -191,3 +193,5 @@
   #settings-overlay .vb-setting-row { min-height: 44px; }
   #lobby .vb-lobby-mission-image { aspect-ratio: 3.6; }
 }
+
+#lobby .vb-bot-difficulty-label { color: #f7c76e; font-size: 12px; }

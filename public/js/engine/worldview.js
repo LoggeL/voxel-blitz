@@ -12,6 +12,7 @@ import { installSky } from './sky.js';
 import { buildNuketownDetails } from './nuketown-details.js';
 import { mapAtmosphere } from './map-atmosphere.js';
 import { buildMapSigns } from './map-signs.js';
+import { buildMapLights } from './map-lights.js';
 import { SiteMarkers } from './site-markers.js';
 import { PowerupView } from './powerup-view.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
@@ -115,6 +116,8 @@ export class WorldView {
     if (this.mapDetails) this.scene.add(this.mapDetails.group);
     this.mapSigns = buildMapSigns(meta?.id, storeRef.getBlock);
     this.scene.add(this.mapSigns.group);
+    this.mapLights = buildMapLights(meta?.id, storeRef.getBlock);
+    this.scene.add(this.mapLights.group);
 
     this.skyUpdate = installSky(this.scene, palette, getMapDimensions(meta?.id));
 
@@ -141,7 +144,10 @@ export class WorldView {
       const d = deltas[i];
       this.chunkStore.applyBlockDelta(d.x, d.y, d.z, d.v);
     }
-    if (deltas.length) this.mapSigns.refresh();
+    if (deltas.length) {
+      this.mapSigns.refresh();
+      this.mapLights.refresh();
+    }
   }
 
   /**
@@ -195,6 +201,7 @@ export class WorldView {
     this.siteMarkers.dispose();
     this.powerups.dispose();
     this.mapSigns.dispose();
+    this.mapLights.dispose();
     this.skyUpdate.dispose();
     this.atlas.dispose();
   }

@@ -1,3 +1,4 @@
+import { BOT_DIFFICULTIES, botDifficulty, DEFAULT_BOT_DIFFICULTY } from '../../../shared/bot-difficulty.js';
 import {
   HudSupport,
   MAP_LABELS,
@@ -453,12 +454,12 @@ export class MenuLobbyController {
     return root;
   }
 
-  showLobby(state, { onReady, onStart, onLeave, onConfigure, onTeam } = {}) {
+  showLobby(state, { onReady, onStart, onLeave, onConfigure, onTeam, onBotDifficulty } = {}) {
     this.host.closeSettings();
     if (this.host.isBuyMenuOpen()) this.host.toggleBuyMenu(false);
     else this.host.closeBuyMenuDirect();
 
-    this._lobbyCallbacks = { onReady, onStart, onLeave, onConfigure, onTeam };
+    this._lobbyCallbacks = { onReady, onStart, onLeave, onConfigure, onTeam, onBotDifficulty };
     this.navigation?.open(this, () => this._lobbyCallbacks?.onLeave?.());
     const menu = document.getElementById('menu');
     if (menu) {
@@ -538,7 +539,7 @@ export class MenuLobbyController {
 
     // Ping updates must not destroy a select while someone is choosing a team.
     const rosterSignature = JSON.stringify([gameMode, state.phase, state.selfId, state.host,
-      members.map(({ id, name, bot, ready, team }) => [id, name, bot, ready, team])]);
+      members.map(({ id, name, bot, ready, team, difficulty }) => [id, name, bot, ready, team, difficulty])]);
     if (dom.rosterList && this._rosterSignature !== rosterSignature) {
       this._rosterSignature = rosterSignature;
       dom.rosterList.innerHTML = '';
@@ -570,6 +571,22 @@ export class MenuLobbyController {
         }
 
         const rightColumn = el('div', 'vb-roster-right', item);
+        if (isBot) {
+          if (state.phase === 'waiting' && selfIsHost) {
+            const select = el('select', 'vb-bot-difficulty', rightColumn);
+            select.setAttribute('aria-label', `Difficulty for ${member.name || 'BOT'}`);
+            select.dataset.botId = String(member.id);
+            for (const [id, profile] of Object.entries(BOT_DIFFICULTIES)) {
+              const option = el('option', '', select);
+              option.value = id; option.textContent = profile.label;
+            }
+            select.value = member.difficulty || DEFAULT_BOT_DIFFICULTY;
+            select.addEventListener('change', () => this._lobbyCallbacks?.onBotDifficulty?.(member.id, select.value));
+          } else {
+            const badge = el('span', 'vb-bot-difficulty-label', rightColumn);
+            badge.textContent = botDifficulty(member.difficulty).label;
+          }
+        }
         if (teamSelection) {
           if (state.phase === 'waiting' && selfIsHost) {
             const select = el('select', 'vb-team-select', rightColumn);

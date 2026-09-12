@@ -522,6 +522,14 @@ export class NetClient {
     } catch { return false; }
   }
 
+  setBotDifficulty(id, difficulty) {
+    if (!this.isOpen()) return false;
+    try {
+      this.ws.send(JSON.stringify({ t: 'botDifficulty', id: String(id), difficulty }));
+      return true;
+    } catch { return false; }
+  }
+
   setLobbyTeam(id, team) {
     if (!this.isOpen()) return false;
     try {

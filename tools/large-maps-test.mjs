@@ -4,7 +4,7 @@ import * as THREE from '../public/js/vendor/three.module.js';
 import { AIR, WOOD, GROUND, createMapState, deserializeWorld, getBlock, generateWorld } from '../shared/worlddata.js';
 import { LARGE_DIMENSIONS } from '../shared/world/dimensions.js';
 import { boxCollides, solidBelow } from '../shared/player-movement.js';
-import { groundRoute, groundNavigation } from '../server/bot-navigation.js';
+import { groundRoute, groundNavigation, groundSegmentClear } from '../server/bot-navigation.js';
 import { GameEngine } from '../server/game.js';
 import { attachBots } from '../server/bots.js';
 import { makeWelcome } from '../server/protocol/welcome.js';
@@ -40,7 +40,12 @@ for (const id of ['harbor', 'canyon']) {
         const target = { x: (site.minX + site.maxX) / 2, y: site.y, z: (site.minZ + site.maxZ) / 2 };
         const path = groundRoute(world, spawn, target);
         assert.ok(path.length > 0, `${id}: every spawn reaches both objective sites`);
-        for (const waypoint of path) assert.equal(boxCollides(solid, waypoint.x, waypoint.y, waypoint.z), false);
+        let previous = spawn;
+        for (const waypoint of path) {
+          assert.equal(boxCollides(solid, waypoint.x, waypoint.y, waypoint.z), false);
+          assert.equal(groundSegmentClear(world, previous, waypoint), true, `${id}: complete route edges stay clear`);
+          previous = waypoint;
+        }
         const last = path.at(-1);
         assert.ok(last.x >= site.minX && last.x <= site.maxX && last.z >= site.minZ && last.z <= site.maxZ);
       }

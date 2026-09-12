@@ -788,3 +788,25 @@ npm run lobby:large:test
 npm run lobby:large:browser
 npm run maps:test
 ```
+
+
+## Bot difficulty and distant perception
+
+The lobby host chooses Easy, Normal or Hard separately for each bot. Easy remains
+the default. The server validates slot ids and levels, rejects changes after
+launch, resets readiness on edits and preserves choices for retained slots across
+map and mode changes. Player health, weapon damage and movement physics are shared
+with humans on every difficulty.
+
+Sight acquisition limits are 104, 120 and 140 metres. Recognition is probabilistic:
+stance-aware voxel/smoke rays estimate exposed body area, and its projected angular
+area decreases with squared distance. An exponential evidence threshold is sampled
+once per new sighting, then accumulated after the difficulty's minimum reaction
+time. This is a game salience model rather than an exact rendered silhouette.
+Full cover blocks detection, partial cover delays it, and hidden positions never
+refresh a bot's last-seen memory. Difficulty also controls aim error, turn speed,
+burst pauses and memory duration.
+
+Run `npm run bots:difficulty:test` for probability, authority and real WebSocket
+checks; `npm run bots:difficulty:browser` covers host/member controls, mobile
+layout, map changes and a live match start.

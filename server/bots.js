@@ -20,17 +20,15 @@ import { MAX_BOTS } from '../shared/lobby-limits.js';
 import { mulberry32 } from '../shared/noise.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { DUST2_NAV_FLOORS, dust2FloorsAt } from '../shared/world/dust2-layout.js';
-import { observeBotTarget } from './bot-perception.js';
+import { observeBotTarget, recognitionThreshold } from './bot-perception.js';
+import { botDifficulty, DEFAULT_BOT_DIFFICULTY, isBotDifficulty } from '../shared/bot-difficulty.js';
 import { cancelCharge } from './sim/combat.js';
 
 const TAU = Math.PI * 2;
-const TURN_RATE = 3.0;            // rad/s steering cap
 const PITCH_TURN_RATE = 4.0;      // rad/s vertical tracking cap
-const SEARCH_MS = 2400;          // remember only the last observed position
 const AIM_TOLERANCE = 0.075;      // turn onto a target before pulling the trigger
 const ARRIVE_DIST = 2.0;          // roam target reached
 const ROAM_TIMEOUT_MS = 8000;     // forced re-target
-const BURST_PAUSE_MS = 300;       // breath between bursts
 const RETREAT_HP = 30;            // coward line
 const RETREAT_MS = 4000;          // how long a retreat lasts
 const RETREAT_COOLDOWN_MS = 2500; // before the next panic
@@ -132,7 +130,8 @@ function goalArrivalDist(kind) {
 }
 
 class Brain {
-  constructor(id, index, rng) {
+  constructor(id, index, rng, difficulty = DEFAULT_BOT_DIFFICULTY) {
+    this.difficulty = isBotDifficulty(difficulty) ? difficulty : DEFAULT_BOT_DIFFICULTY;
     this.id = id;
     this.index = index;
     this.rng = rng;
@@ -145,6 +144,9 @@ class Brain {
     this.sighting = null;
     this.noticeId = null;
     this.noticeProgress = 0;
+    this.noticeElapsed = 0;
+    this.noticeEvidence = 0;
+    this.noticeThreshold = 1;
     this.reactionScale = 0.9 + rng() * 0.2;
     this.lastSeen = null;
     this.engagedMs = 0;
@@ -174,6 +176,9 @@ class Brain {
     this.sighting = null;
     this.noticeId = null;
     this.noticeProgress = 0;
+    this.noticeElapsed = 0;
+    this.noticeEvidence = 0;
+    this.noticeThreshold = 1;
     this.lastSeen = null;
     this.inBurst = false;
     this.burstEnd = 0;
@@ -189,7 +194,8 @@ class BotManager {
    *        now/registerTickHook/removeClient)
    * @param {number} n bot count
    */
-  constructor(game, n) {
+  constructor(game, n, { difficulties = new Map() } = {}) {
+    this.difficulties = new Map(difficulties);
     this.game = game;
     this.solidAt = (x, y, z) => this.game.world.getBlock(x, y, z) !== AIR;
     this.brains = [];
@@ -231,7 +237,7 @@ class BotManager {
     for (let i = this.brains.length; i < n; i++) {
       const pid = 'bot-' + i;
       this.game.addBot(pid);
-      this.brains.push(new Brain(pid, i, mulberry32((BOT_SEED ^ Math.imul(i + 1, 2654435761)) >>> 0)));
+      this.brains.push(new Brain(pid, i, mulberry32((BOT_SEED ^ Math.imul(i + 1, 2654435761)) >>> 0), this.difficulties.get(pid)));
     }
   }
   tick(dtMs) {
@@ -270,6 +276,7 @@ class BotManager {
       br.roamDeadline = now + ROAM_TIMEOUT_MS;
       br.detourUntil = now + OBJECTIVE_DETOUR_MS;
       br.jumpCdUntil = 0;
+      br.groundRoute = null;
       br.stuckSince = now;
     }
   }
@@ -279,7 +286,7 @@ class BotManager {
     const heldId = br?.enemyId;
     const held = heldId ? this.game.entities.get(heldId) : null;
     const observe = target => observeBotTarget(p, target, this.solidAt,
-      this.game.projectiles.smoke, this.game.now, target.id === heldId && br?.noticeProgress >= 1);
+      this.game.projectiles.smoke, this.game.now, target.id === heldId && br?.noticeProgress >= 1, br?.difficulty);
     if (held && held.state === 'alive' && this.game.mode.isEnemy(p, held)) {
       const sighting = observe(held);
       if (sighting) {
@@ -340,12 +347,15 @@ class BotManager {
   }
 
   think(br, p, now, dtS) {
+    const profile = botDifficulty(br.difficulty);
+    const turnRate = profile.turnRate;
     // Respawn bookkeeping: a fresh life drops stale targeting/navigation.
     if (br.lastLives !== p.lives) {
       br.lastLives = p.lives;
       br.spawnSwitchPending = true;
       br.resetCombat();
       br.roamTarget = null;
+      br.groundRoute = null;
       br.retreatUntil = 0;
       br.stuckSince = 0;
     }
@@ -413,18 +423,30 @@ class BotManager {
       if (br.noticeId !== enemy.id) {
         br.noticeId = enemy.id;
         br.noticeProgress = 0;
+        br.noticeElapsed = 0;
+        br.noticeEvidence = 0;
+        br.noticeThreshold = recognitionThreshold(br.rng());
         br.engagedMs = 0;
         br.inBurst = false;
       }
-      br.noticeProgress = Math.min(1, br.noticeProgress
-        + dtS * 1000 / (br.sighting.recognitionMs * br.reactionScale));
+      const previousElapsed = br.noticeElapsed;
+      br.noticeElapsed += dtS * 1000;
+      const reactionMs = br.sighting.reactionMs * br.reactionScale;
+      if (br.noticeElapsed >= reactionMs) {
+        const observedSeconds = (Math.max(0, br.noticeElapsed - reactionMs)
+          - Math.max(0, previousElapsed - reactionMs)) / 1000;
+        br.noticeEvidence += observedSeconds * br.sighting.detectionRate;
+        br.noticeProgress = Math.min(1, br.noticeEvidence / Math.max(1e-9, br.noticeThreshold));
+      }
       if (br.noticeProgress >= 1) {
-        br.lastSeen = { id: enemy.id, lives: enemy.lives, until: now + SEARCH_MS,
+        br.lastSeen = { id: enemy.id, lives: enemy.lives, until: now + profile.searchMs,
           position: { x: enemy.x, y: enemy.y, z: enemy.z } };
       }
     } else {
       br.noticeId = null;
       br.noticeProgress = 0;
+      br.noticeElapsed = 0;
+      br.noticeEvidence = 0;
       br.inBurst = false;
       br.engagedMs = 0;
     }
@@ -446,7 +468,7 @@ class BotManager {
     }
 
     // Skill ramps during fights, cools off when alone.
-    br.skill = Math.max(0.2, Math.min(1, br.skill + (enemy ? dtS * 0.09 : -dtS * 0.03)));
+    br.skill = Math.max(0.2, Math.min(profile.skillCeiling, br.skill + (enemy ? dtS * 0.09 : -dtS * 0.03)));
 
     // ----- panic retreat ---------------------------------------------------
     if (enemy && !objectiveUrgent && p.hp <= RETREAT_HP && now >= br.retreatReadyAt && !retreating) {
@@ -510,12 +532,15 @@ class BotManager {
     } else if (searching && navDist <= ARRIVE_DIST) {
       // Check around the remembered spot. Do not turn toward hidden movement.
       const scanYaw = Math.atan2(-ndx, -ndz) + Math.sin(now / 350 + br.strafePhase) * 0.9;
-      inp.yaw = approachAngle(p.yaw, scanYaw, TURN_RATE * dtS);
+      inp.yaw = approachAngle(p.yaw, scanYaw, turnRate * dtS);
     } else if (!objectiveArrived || takingDetour) {
       moveYaw = Math.atan2(-ndx, -ndz);
-      inp.keys.f = true;
+      // Turn before walking into a nearby graph corner. Sprinting toward a
+      // two-metre waypoint while still turning produces tight endless circles.
+      const turnError = Math.abs(wrapAngle(moveYaw - p.yaw));
+      inp.keys.f = turnError < 0.6 && Math.hypot(ndx, ndz) > 0.35;
       moving = true;
-      sprint = navDist > 25 && !retreating && !searching;
+      sprint = Math.hypot(ndx, ndz) > 7 && turnError < 0.3 && !retreating && !searching;
       inp.pitch = approachAngle(inp.pitch, Math.atan2((waypoint.y + 1) - eye[1], navDist), PITCH_TURN_RATE * dtS);
     }
     inp.keys.sprint = !!sprint;
@@ -532,9 +557,9 @@ class BotManager {
       const yawT = Math.atan2(-(aim[0] - p.x), -(aim[2] - p.z));
       const flat = Math.hypot(aim[0] - p.x, aim[2] - p.z) || 1;
       const pitchT = Math.atan2(aim[1] - eye[1], flat);
-      const sigmaDeg = (2.2 - 1.6 * br.skill) * errFactor + 0.3;
+      const sigmaDeg = ((2.2 - 1.6 * br.skill) * errFactor + 0.3) * profile.aimError;
       const sigmaRad = sigmaDeg * Math.PI / 180;
-      inp.yaw = approachAngle(p.yaw, wrapAngle(yawT + gaussish(br.rng) * sigmaRad), TURN_RATE * dtS);
+      inp.yaw = approachAngle(p.yaw, wrapAngle(yawT + gaussish(br.rng) * sigmaRad), turnRate * dtS);
       inp.pitch = approachAngle(p.pitch, Math.max(-1.4, Math.min(1.4, pitchT + gaussish(br.rng) * sigmaRad * 0.6)), PITCH_TURN_RATE * dtS);
       inp.wantAds = flat > 28 && p.def.id === 'sniper';
 
@@ -575,7 +600,7 @@ class BotManager {
               inp.wantFire = p.def.mode === 'auto' || !p.triggerPrev;
             }
           }
-          else { br.inBurst = false; br.pauseUntil = now + BURST_PAUSE_MS; }
+          else { br.inBurst = false; br.pauseUntil = now + profile.burstPauseMs; }
         }
       }
     } else {
@@ -588,7 +613,7 @@ class BotManager {
 
     // ----- shared locomotion steering ---------------------------------------
     if (moving) {
-      inp.yaw = approachAngle(p.yaw, combatMovement ? inp.yaw : moveYaw, TURN_RATE * dtS);
+      inp.yaw = approachAngle(p.yaw, combatMovement ? inp.yaw : moveYaw, turnRate * dtS);
       // Hop knee-high obstacles in our path.
       if (p.grounded && now >= br.jumpCdUntil) {
         const sy = Math.sin(inp.yaw), cy = Math.cos(inp.yaw);
@@ -606,7 +631,7 @@ class BotManager {
       inp.keys.crouch = true; // hold low at the cover spot
     }
 
-    br.intendsMove = moving;
+    br.intendsMove = moving && (inp.keys.f || inp.keys.b || inp.keys.l || inp.keys.r);
 
     return inp;
   }
@@ -616,6 +641,6 @@ class BotManager {
  * Wire n bots straight into an engine room. Bots self-register on the engine's
  * tick loop.
  */
-export function attachBots(engine, n) {
-  return new BotManager(engine, n);
+export function attachBots(engine, n, options) {
+  return new BotManager(engine, n, options);
 }

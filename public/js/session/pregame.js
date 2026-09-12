@@ -296,6 +296,9 @@ export class PregameFlow {
 
     attempt.lobbyShown = true;
     this._hud.showLobby(state, {
+      onBotDifficulty: (id, difficulty) => {
+        if (this.isActive(attempt) && this._getPhase() === 'lobby') attempt.net.setBotDifficulty(id, difficulty);
+      },
       onTeam: (id, team) => {
         if (this.isActive(attempt) && this._getPhase() === 'lobby') attempt.net.setLobbyTeam(id, team);
       },

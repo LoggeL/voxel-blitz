@@ -15,10 +15,18 @@ export function createStateApi(
 ) {
   const { sx: SX, sy: SY, sz: SZ } = dimensions;
   const idx = (x, y, z) => (y * SZ + z) * SX + x;
+  let navigationRevision = 0;
+  const navigationChanges = [];
   const world = {
     dimensions,
     mapId,
     meta,
+    get navigationRevision() { return navigationRevision; },
+    navigationChangesSince(revision) {
+      if (revision === navigationRevision) return [];
+      if (!navigationChanges.length || revision < navigationChanges[0].revision - 1) return null;
+      return navigationChanges.filter(change => change.revision > revision);
+    },
 
     getBlock(x, y, z) {
       x |= 0;
@@ -35,7 +43,15 @@ export function createStateApi(
       y |= 0;
       z |= 0;
       if (x < 0 || z < 0 || x >= SX || z >= SZ || y < 0 || y >= SY) return false;
-      blocks[idx(x, y, z)] = value;
+      const index = idx(x, y, z);
+      if (blocks[index] === value) return true;
+      const wasAir = blocks[index] === AIR;
+      blocks[index] = value;
+      const floor = meta?.navigationFloor;
+      if (Number.isFinite(floor) && wasAir !== (value === AIR) && y >= floor && y <= floor + 2) {
+        navigationChanges.push({ revision: ++navigationRevision, x, z });
+        if (navigationChanges.length > 256) navigationChanges.shift();
+      }
       return true;
     },
 

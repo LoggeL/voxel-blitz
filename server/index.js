@@ -322,6 +322,10 @@ async function main() {
           manager.configure(meta, msg);
           return;
         }
+        if (msg.t === 'botDifficulty') {
+          manager.setBotDifficulty(meta, msg.id, msg.difficulty);
+          return;
+        }
         if (msg.t === 'team') {
           manager.setTeam(meta, msg.id, msg.team);
           return;

@@ -1,3 +1,4 @@
+import { DEFAULT_BOT_DIFFICULTY, isBotDifficulty } from '../../shared/bot-difficulty.js';
 import { getMapDimensions } from '../../shared/world/dimensions.js';
 import { DEFAULT_DUEL_KILL_LIMIT, isTeamId } from '../../shared/modes.js';
 // Welcome and full lobby-state replacement factories. Returned frames retain no
@@ -87,6 +88,7 @@ export function makeLobbyState({
         ping: Number.isFinite(source.ping) ? Math.max(0, Math.round(source.ping)) : null,
         ready: typeof source.ready === 'boolean' ? source.ready : false,
         bot: typeof source.bot === 'boolean' ? source.bot : false,
+        ...(source.bot === true ? { difficulty: isBotDifficulty(source.difficulty) ? source.difficulty : DEFAULT_BOT_DIFFICULTY } : {}),
         team: isTeamId(source.team) ? source.team : null,
       };
     }),

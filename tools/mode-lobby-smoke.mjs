@@ -100,7 +100,7 @@ function assertLobbyShape(state, selection, label) {
   pass(state?.t === 'lobbyState' &&
     Object.keys(state).sort().join(',') === 'bots,code,gameMode,host,map,members,phase,t' &&
     Array.isArray(state.members) &&
-    state.members.every((member) => Object.keys(member).sort().join(',') === 'bot,id,name,ping,ready,team'),
+    state.members.every((member) => Object.keys(member).sort().join(',') === (member.bot ? 'bot,difficulty,id,name,ping,ready,team' : 'bot,id,name,ping,ready,team')),
   `${label} is a complete lobby replacement`);
   pass(state.gameMode === selection.gameMode && state.map === selection.map,
     `${label} retains ${selection.gameMode} on ${selection.map}`,

@@ -681,22 +681,46 @@ master/echo module and asserts onset, limiter behavior, RMS, tail, and weapon
 weight ordering.
 
 ### Server bots
-`attachBots(engine,n)` returns a `BotManager`. Bots are direct engine entities,
-submit through `applyInput`, do not consume human capacity, and exist only while
-their room is live. They obey target eligibility and friendly-fire rules, use
-mode-specific spawn pools, avoid fire during S&D prep, buy affordable S&D
-weapons, recover/escort/plant/guard/defuse the bomb, and dispose their engine
-step listener with the room.
-Combat vision uses exact room-voxel rays to stance-aware torso, head, hip and
-torso-edge samples, with smoke checked on each ray. New targets must be inside
-a 110-degree horizontal / 100-degree vertical view cone and within 38 meters
-(42 meters and a 130-degree horizontal cone while tracking). Partial cover and
-low stances reduce detection range and increase recognition time; even an
-exposed nearby target takes about 0.3 seconds to recognize. Fire requires a
-recognized target, aligned aim, and a clear firing ray. Losing sight immediately
-stops fire and cancels an active capacitor charge. Bots may search the last
-confirmed position for 2.4 seconds without updating it from hidden movement;
-mode objectives retain navigation priority, and respawn clears combat memory.
+`attachBots(engine,n,{difficulties})` returns a `BotManager`; optional difficulties
+is a map from stable bot slot ids to `easy`, `normal` or `hard`. Bots submit
+through the same `applyInput` and combat pipeline as humans, count toward room
+capacity, and exist only while their room is live. They obey enemy eligibility,
+friendly fire, weapon damage, ammo, reloads, spawn protection and mode objectives.
+
+Hosts select each bot's difficulty in a waiting lobby using
+`{t:'botDifficulty',id,difficulty}`. Invalid ids/levels, non-host requests and
+live changes are rejected. Changes reset human readiness, survive map/mode
+changes for retained slots and reach the actual live brains. Removing a slot
+clears its choice. Bot lobby rows add `difficulty`; human rows omit it. Easy is
+the default. The shared choices in `shared/bot-difficulty.js` set recognition,
+aim error, turn speed, maximum skill, burst pauses and search duration.
+
+Combat vision traces exact room-voxel rays to stance-aware torso, head, hips
+and torso edges, checking smoke on each ray. New targets need a 110-degree
+horizontal/100-degree vertical view cone; tracking uses 130 degrees horizontally.
+Easy/Normal/Hard acquire up to 104/120/140 metres, with 12 additional tracking
+metres. These are eligibility limits, not guaranteed detection distances.
+
+Recognition uses visible projected body area divided by squared distance,
+reduced by occlusion, stance and peripheral position. The core hitbox face
+projections approximate a silhouette; they are not a pixel-accurate visibility
+buffer. Each new sighting draws one exponential evidence threshold from that
+bot's seeded RNG, then integrates visual evidence over time after a minimum
+reaction delay (320/230/160ms by difficulty, with small per-bot variation).
+Larger/closer/exposed targets are usually recognized faster; a distant head
+can still be noticed. Hidden targets never contribute evidence. Fire still
+requires recognition, aligned aim and a clear firing ray. Losing sight stops
+fire immediately, cancels active charges and leaves only the last confirmed
+position for 3/4/5 seconds. Respawn clears recognition and routes.
+
+Harbor/Canyon use a shared room-local ground graph with swept body clearance,
+safe goal connections and visible waypoint lookahead. Ground-level geometry
+changes invalidate it. Bots turn toward nearby corners before moving and only
+sprint when the next safe waypoint is sufficiently far away.
+
+`npm run modes:bots` covers perception, seeded probability/cover controls,
+difficulty authority, objective behavior and combat. `npm run
+bots:difficulty:browser` checks real host/member controls and match launch.
 
 ## Runtime gameplay contracts
 - **Map power-ups:** Fun, TDM and Chaos Lab spawn Armor (+50, cap 100), Medkit

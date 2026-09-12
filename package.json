@@ -11,8 +11,8 @@
     "lobby": "node tools/lobby-smoke.mjs",
     "duel:test": "node tools/duel-test.mjs",
     "modes:lobby": "node tools/mode-lobby-smoke.mjs",
-    "modes:bots": "node tools/bot-perception-test.mjs && node tools/bot-mode-smoke.mjs",
-    "maps:test": "node tools/nuketown-test.mjs && node tools/nuketown-lobby-test.mjs && node tools/dust2-test.mjs && node tools/dust2-movement-test.mjs && node tools/dust2-lobby-test.mjs && node tools/large-maps-test.mjs && node tools/large-maps-lobby-test.mjs",
+    "modes:bots": "node tools/bot-perception-test.mjs && node tools/bot-difficulty-test.mjs && node tools/bot-mode-smoke.mjs",
+    "maps:test": "node tools/nuketown-test.mjs && node tools/nuketown-lobby-test.mjs && node tools/dust2-test.mjs && node tools/dust2-movement-test.mjs && node tools/dust2-lobby-test.mjs && node tools/large-maps-test.mjs && node tools/large-maps-lobby-test.mjs && node tools/large-map-navigation-test.mjs && node tools/large-map-light-test.mjs",
     "maps:browser": "node tools/dust2-browser-test.mjs",
     "blocks:test": "node tools/bullet-material-test.mjs && node tools/block-damage-sync-test.mjs && node tools/block-damage-geometry-test.mjs",
     "blocks:browser": "node tools/block-damage-browser-test.mjs",
@@ -74,7 +74,10 @@
     "music:test": "node tools/music-volume-test.mjs",
     "music:browser": "node tools/music-volume-browser-test.mjs",
     "armory:browser": "node tools/armory-browser-test.mjs",
-    "postgres:browser": "node tools/postgres-browser-test.mjs"
+    "postgres:browser": "node tools/postgres-browser-test.mjs",
+    "bots:difficulty:test": "node tools/bot-difficulty-test.mjs",
+    "bots:difficulty:browser": "node tools/bot-difficulty-browser-test.mjs",
+    "maps:lights:browser": "node tools/large-map-light-browser-test.mjs"
   },
   "dependencies": {
     "pg": "^8.23.0",

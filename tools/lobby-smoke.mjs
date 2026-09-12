@@ -189,7 +189,7 @@ function assertLobbyState(
   pass(JSON.stringify(rows.map(({ ping, ...row }) => row)) === JSON.stringify(expected),
     `${label} carries the exact human roster`,
     `received ${JSON.stringify(rows)}`);
-  pass(state.members.every((member) => Object.keys(member).sort().join(',') === 'bot,id,name,ping,ready,team'),
+  pass(state.members.every((member) => Object.keys(member).sort().join(',') === (member.bot ? 'bot,difficulty,id,name,ping,ready,team' : 'bot,id,name,ping,ready,team')),
     `${label} member rows are complete replacements`);
   if (botRows !== null) {
     const actualBots = state.members.filter((member) => member.bot);

@@ -359,7 +359,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     killhouse: 'Killhouse',
   };
   const expectedMapHashes = {
-    harbor: '62e9a356', canyon: '55640cd5',
+    harbor: 'eeb64538', canyon: 'b8e254a7',
     reactor: '32534739',
     foundry: 'db04cb71',
     depot: '41bc3abe',

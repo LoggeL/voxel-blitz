@@ -1,15 +1,21 @@
 import * as THREE from '../vendor/three.module.js';
 import { AIR, GLASS } from '../../../shared/world/blocks.js';
 
-// Signs are flush paint on solid voxel faces. Every backing cell is tracked so
-// destruction removes the paint with its wall, including on a late join.
+const groundedPosts = (xs, z, top) => xs.flatMap(x =>
+  Array.from({ length: top - 13 }, (_, index) => [x, 14 + index, z]));
+
+// Signs sit flush on solid voxel faces. Their backing and authored mounts are
+// tracked so destruction removes the face with its support, including on late joins.
 const SIGNS = {
   harbor: [
-    ['HARBOR / A', 'FREIGHT TERMINAL', 44, 21, 48, 20, 1, '+z'],
-    ['HARBOR / B', 'EAST LOADING', 148, 21, 48, 20, 1, '+z'],
+    ['HARBOR / A', 'NORTH FREIGHT', 44.5, 24.5, 48, 12.6, 2.6, '+z', 'cyan', groundedPosts([37, 51], 47, 25)],
+    ['HARBOR / B', 'EAST LOADING', 148.5, 24.5, 48, 12.6, 2.6, '+z', 'amber', groundedPosts([141, 155], 47, 25)],
+    ['HARBOR / C', 'WEST LOADING', 44.5, 24.5, 96, 12.6, 2.6, '-z', 'amber', groundedPosts([37, 51], 96, 25)],
+    ['HARBOR / D', 'SOUTH FREIGHT', 148.5, 24.5, 96, 12.6, 2.6, '-z', 'cyan', groundedPosts([141, 155], 96, 25)],
   ],
   canyon: [
-    ['CANYON', 'DRY RIVER CROSSING', 94, 23, 71, 24, 1, '+z'],
+    ['WEST CAMP', 'SURVEY / A', 30.5, 19.5, 62, 4.8, 1.8, '+z', 'warm', groundedPosts([27, 33], 61, 20)],
+    ['EAST CAMP', 'SURVEY / B', 161.5, 19.5, 82, 4.8, 1.8, '-z', 'warm', groundedPosts([158, 164], 82, 20)],
   ],
   reactor: [
     ['REACTOR / 09', 'TURBINE CONTROL', 36.5, 21, 28, 18, 1.5, '+z'],
@@ -53,6 +59,7 @@ const SIGNS = {
   ],
 };
 const COLORS = {
+  harbor: ['#173239', '#b9f4ff'], canyon: ['#265452', '#f8deb1'],
   foundry: ['#273b39', '#f0c97b'], depot: ['#253744', '#ffce75'],
   citadel: ['#753c36', '#f7dfaf'], solstice: ['#25555a', '#f5e5b6'],
   caldera: ['#433b40', '#ffd1a0'], nuketown: ['#427268', '#fff0cd'],
@@ -66,7 +73,7 @@ export function buildMapSigns(mapId, getBlock) {
   group.name = 'map-signs';
   const signs = [];
   const [paper, ink] = COLORS[mapId] || COLORS.foundry;
-  for (const [title, subtitle, x, y, z, width, height, face] of SIGNS[mapId] || []) {
+  for (const [title, subtitle, x, y, z, width, height, face, luminous, mounts = []] of SIGNS[mapId] || []) {
     const outward = face === '+z' ? 1 : -1;
     const supports = new Map();
     for (let dx = -width / 2 + 0.01; dx <= width / 2; dx += 0.25) {
@@ -78,16 +85,24 @@ export function buildMapSigns(mapId, getBlock) {
     const backing = [...supports.values()];
     const exposed = backing.map(([bx, by, bz]) => [bx, by, bz + outward]);
     // Never stretch an opaque label across a doorway, window, or destroyed wall.
-    const intact = () => backing.every(cell => supportsPaint(getBlock(...cell)))
+    const intact = () => mounts.every(cell => supportsPaint(getBlock(...cell)))
+      && backing.every(cell => supportsPaint(getBlock(...cell)))
       && exposed.every(cell => getBlock(...cell) === AIR);
     if (!intact()) continue;
     const canvas = document.createElement('canvas');
     canvas.width = 1024;
     canvas.height = 256;
     const ctx = canvas.getContext('2d');
-    ctx.fillStyle = paper;
+    const glow = luminous === 'cyan' ? '#b9f4ff' : '#ffda94';
+    ctx.fillStyle = luminous ? '#16272b' : paper;
     ctx.fillRect(0, 0, 1024, 256);
-    ctx.fillStyle = ink;
+    if (luminous) {
+      ctx.fillStyle = glow;
+      ctx.fillRect(14, 14, 996, 228);
+      ctx.fillStyle = '#173139';
+      ctx.fillRect(25, 25, 974, 206);
+    }
+    ctx.fillStyle = luminous ? glow : ink;
     ctx.fillRect(20, 20, 8, 216);
     ctx.fillRect(44, 218, 940, 3);
     ctx.textAlign = 'center';
@@ -98,7 +113,9 @@ export function buildMapSigns(mapId, getBlock) {
     ctx.fillText(subtitle, 518, 183, 890);
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
-    const material = new THREE.MeshLambertMaterial({ map: texture, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+    const material = luminous
+      ? new THREE.MeshBasicMaterial({ map: texture, toneMapped: false })
+      : new THREE.MeshLambertMaterial({ map: texture, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
     const geometry = new THREE.PlaneGeometry(width, height);
     const mesh = new THREE.Mesh(geometry, material);
     mesh.name = title;

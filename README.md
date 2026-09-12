@@ -71,6 +71,8 @@ For a match with friends, choose **Create Lobby**, share the invite link or QR c
 
 In Team Deathmatch and Search and Destroy, the lobby host assigns humans and bots to Alpha or Bravo before starting. Asymmetric matches such as 2 vs 6 are supported, with a maximum of 16 per team. Assignments survive map changes and match launch; changing a team resets everyone's ready status. Humans joining a full live room replace a bot on its existing team.
 
+The host can also choose **Easy**, **Normal** or **Hard** for each bot in the lobby. Difficulty affects awareness, reaction time, aiming and burst pauses. Choices survive map changes and reset readiness when edited. Bots can notice distant players in clear sight; small silhouettes and partial cover take longer to recognize.
+
 To use a different port:
 
 ```bash

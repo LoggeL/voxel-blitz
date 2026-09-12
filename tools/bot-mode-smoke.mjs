@@ -580,6 +580,7 @@ function provePlantAndDefuseBehavior() {
     assert.equal(escortGoal.kind, 'escortCarrier', 'attacking teammate receives the escort goal');
     assertPoint(escortGoal.target, { x: carrier.x, y: carrier.y, z: carrier.z }, 'escort');
 
+    carrier.yaw = escort.yaw = -Math.PI / 2;
     engine.step(TICK_MS);
     const carrierRoute = latestCall(calls, carrier.id).input;
     const escortRoute = latestCall(calls, escort.id).input;
@@ -610,6 +611,7 @@ function provePlantAndDefuseBehavior() {
     const defuseGoal = engine.mode.botGoal(defuser);
     assert.equal(defuseGoal.kind, 'defuse', 'planted bomb gives a defender the defuse goal');
     assertPoint(defuseGoal.target, { x: planted.x, y: planted.y, z: planted.z }, 'defuse');
+    defuser.yaw = Math.PI / 2;
     engine.step(TICK_MS);
     const defuseRoute = latestCall(calls, defuser.id).input;
     assert.equal(defuseRoute.keys.f, true, 'defender routes toward the planted bomb');
@@ -662,6 +664,8 @@ function proveDroppedBombRecoveryAndGuard() {
     assertPoint(recoveryGoal.target, { x: dropped.x, y: dropped.y, z: dropped.z }, 'recovery');
     assertPoint(guardGoal.target, { x: dropped.x, y: dropped.y, z: dropped.z }, 'guard');
 
+    recoverer.yaw = -Math.PI / 2;
+    guards[0].yaw = Math.PI / 2;
     engine.step(TICK_MS);
     const recovery = latestCall(calls, recoverer.id).input;
     const guard = latestCall(calls, guards[0].id).input;
