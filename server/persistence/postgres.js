@@ -77,7 +77,7 @@ export class PostgresStore {
 
   async migrate() {
     // Version 1 remains immutable: existing installations verify its original checksum.
-    const migrations = await Promise.all(['schema.sql', 'schema-cosmetics.sql'].map(async (name, index) => {
+    const migrations = await Promise.all(['schema.sql', 'schema-cosmetics.sql', 'schema-email-recovery.sql'].map(async (name, index) => {
       const sql = await readFile(new URL(name, import.meta.url), 'utf8');
       return { version: index + 1, sql, checksum: createHash('sha256').update(sql).digest('hex') };
     }));
@@ -113,6 +113,7 @@ export class PostgresStore {
       return accounts.rows.map(row => ({ version: 1, id: row.id, username: row.username,
         password: row.password, recoveryHash: row.recovery_hash, authVersion: Number(row.auth_version),
         createdAt: Number(row.created_at_ms), updatedAt: Number(row.updated_at_ms), sessions: byAccount.get(row.id) || [],
+        ...(row.email_recovery == null ? {} : { emailRecovery: row.email_recovery }),
         ...(row.registration_context === null ? {} : { registrationContext: row.registration_context.value }) }));
     });
   }
@@ -120,13 +121,14 @@ export class PostgresStore {
   async writeAccount(client, record, creating = false) {
     const values = [record.id, record.username, JSON.stringify(record.password), record.recoveryHash,
       record.authVersion, record.createdAt, record.updatedAt,
-      Object.hasOwn(record, 'registrationContext') ? JSON.stringify({ value: record.registrationContext }) : null];
+      Object.hasOwn(record, 'registrationContext') ? JSON.stringify({ value: record.registrationContext }) : null,
+      record.emailRecovery ? JSON.stringify(record.emailRecovery) : null];
     if (creating) {
-      await client.query(`INSERT INTO vb_accounts(id, username, password, recovery_hash, auth_version, created_at_ms, updated_at_ms, registration_context)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`, values);
+      await client.query(`INSERT INTO vb_accounts(id, username, password, recovery_hash, auth_version, created_at_ms, updated_at_ms, registration_context, email_recovery)
+        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`, values);
     } else {
       const result = await client.query(`UPDATE vb_accounts SET username=$2, password=$3, recovery_hash=$4,
-        auth_version=$5, created_at_ms=$6, updated_at_ms=$7, registration_context=$8 WHERE id=$1`, values);
+        auth_version=$5, created_at_ms=$6, updated_at_ms=$7, registration_context=$8, email_recovery=$9 WHERE id=$1`, values);
       if (result.rowCount !== 1) throw new Error('Account disappeared from database');
     }
     await client.query('DELETE FROM vb_sessions WHERE account_id=$1', [record.id]);

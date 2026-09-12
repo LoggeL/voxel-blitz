@@ -37,6 +37,16 @@ try {
   globalThis.fetch = async () => response({ user: { id: 'u1', username: 'Player' } });
   await AccountMenu.prototype.request.call(account);
   assert.equal(account.warning, '', 'resolved warning clears without changing identity');
+  globalThis.fetch = async () => response({ message: 'Check your inbox.' });
+  const resetRequest = await AccountMenu.prototype.request.call(account, 'forgot-password', { email: 'pilot@example.com' });
+  assert.equal(resetRequest.message, 'Check your inbox.');
+  assert.equal(account.user.id, 'u1', 'public reset request does not clear a signed-in identity');
+  let refreshed = 0;
+  const emailView = { busy: false, disposed: false, mode: 'reset', user: null, emailRecovery: { enabled: false }, dialog: { open: true },
+    async request() { this.emailRecovery = { enabled: true }; return { user: this.user }; }, render() { refreshed++; }, focusFirst() {} };
+  await AccountMenu.prototype.refresh.call(emailView);
+  assert.equal(refreshed, 1, 'late mail availability updates an open form');
+  assert.equal(emailView.mode, 'reset', 'refresh cannot replace the reset-link form');
 
   const pending = [];
   globalThis.fetch = () => new Promise((resolve, reject) => pending.push({ resolve, reject }));

@@ -8,6 +8,8 @@ services:
       PORT: "8070"
       DATABASE_URL: "postgresql://voxel:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/voxel"
       VB_PUBLIC_ORIGIN: "${VB_PUBLIC_ORIGIN:-}"
+      RESEND_API_KEY: "${RESEND_API_KEY:-}"
+      VB_EMAIL_FROM: "${VB_EMAIL_FROM:-}"
     ports:
       - "${BIND_ADDRESS:-127.0.0.1}:${PORT:-8070}:8070"
     depends_on:

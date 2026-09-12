@@ -177,7 +177,7 @@ try {
       await admin.query('INSERT INTO vb_careers(id,xp,credits,kills,matches,owned,equipped) VALUES($1,$2,$3,$4,$5,$6,$7)',
         [pgGuest, legacy.xp, legacy.credits, legacy.kills, legacy.matches, JSON.stringify(legacy.owned), JSON.stringify(legacy.equipped)]);
       store = await PostgresStore.open({ connectionString: fixture.connectionString });
-      assert.deepEqual((await admin.query('SELECT version FROM vb_schema_migrations ORDER BY version')).rows.map(row => row.version), [1, 2]);
+      assert.deepEqual((await admin.query('SELECT version FROM vb_schema_migrations ORDER BY version')).rows.map(row => row.version), [1, 2, 3]);
       assert.deepEqual(await store.readProfile(pgGuest), validateProfile(legacy), 'PostgreSQL upgrades preserve old profiles and grant level rewards');
       const delta = { pvpKills: 250, mastery: { rifle: { kills: 250, headshots: 51 }, revolver: { kills: 5, headshots: 0 } }, wins: 4 };
       const receipt = randomUUID();
@@ -198,7 +198,7 @@ try {
       assert.equal(await store.readProfile(pgGuest), null);
       const cleared = await store.purchase(pgAccount, 'standard', true, () => true, { slot: 'weaponSkin', weapon: 'rifle' });
       assert.deepEqual(cleared.equipped.weaponSkins, {});
-      console.log('Cosmetics PostgreSQL: real v1-to-v2 migration, durable automatic grants, mastery receipts, equip/reset, guest transfer and restart passed.');
+      console.log('Cosmetics PostgreSQL: real schema upgrades, durable automatic grants, mastery receipts, equip/reset, guest transfer and restart passed.');
     } finally {
       await store?.close();
       await admin?.end();

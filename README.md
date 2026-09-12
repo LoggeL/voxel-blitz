@@ -85,7 +85,7 @@ Open **Career & Shop** in the main menu to see your level, XP and career credits
 
 You can play immediately as a guest. Use **Create Account** in the main menu or **Save your career** in the shop to create an optional account. Registration transfers this browser's guest XP, credits and cosmetics to the new account once. **Log in** on another device loads that account's career; it does not merge that device's guest progress.
 
-Accounts use a username and a password with 12 to 128 characters. Save the private recovery code shown after registration: it lets you reset a forgotten password and is replaced after use. Account settings also let you change your password or log out. Your account username becomes your player name.
+Accounts use a username and a password with 12 to 128 characters. Save the private recovery code shown after registration: it lets you reset a forgotten password and is replaced after use. When email recovery is configured, add and confirm an email at registration or in account settings. Use **Forgot password? Email a reset link** to request a link that expires in 30 minutes. Resetting the password signs out all existing sessions. Account settings also let you change your password or log out. Your account username becomes your player name.
 
 Guest progress stays linked to this browser through a cookie, so clearing cookies loses access to it. Account progress survives cookie clearing and is available after logging in again on the same game server. The recommended container stack stores accounts and careers in PostgreSQL; retain and back up its database volume. Existing JSON deployments keep their `/app/data` volume until they complete the [documented migration](docs/development.md#import-existing-json-data).
 

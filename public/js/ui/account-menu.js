@@ -9,6 +9,7 @@ const element = (tag, parent, text = '', className = '') => {
 };
 
 const USERNAME = /^[A-Za-z0-9_-]{3,20}$/;
+const EMAIL_MODES = ['forgot', 'reset', 'verify', 'email'];
 const safeAccount = payload => ({ user: payload?.user ? {
   id: String(payload.user.id), username: String(payload.user.username),
 } : null });
@@ -26,6 +27,8 @@ export class AccountMenu {
     try { this.guestName = localStorage.getItem('vb-guest-name'); } catch (_) { this.guestName = null; }
     this.mode = 'login';
     this.warning = '';
+    this.emailRecovery = { enabled: false, email: null, pendingEmail: null };
+    this.emailToken = null;
     this.strip = null;
     this.dialog = element('dialog', document.body, '', 'vb-account-dialog');
     this.dialog.id = 'account-dialog';
@@ -43,6 +46,8 @@ export class AccountMenu {
     });
     this.onPagehide = event => { if (!event.persisted) this.dispose(); };
     window.addEventListener('pagehide', this.onPagehide);
+    this.onHashchange = () => this.consumeEmailLink();
+    window.addEventListener('hashchange', this.onHashchange);
     this.render();
   }
 
@@ -57,6 +62,15 @@ export class AccountMenu {
     }
     try { await this.refresh(); }
     catch (_) { this.loaded = true; this.mount(); }
+    this.consumeEmailLink();
+  }
+
+  consumeEmailLink() {
+    const match = /^#account-(reset|verify)=(.*)$/.exec(window.location.hash);
+    if (!match || this.disposed || this.busy) return;
+    this.emailToken = match[2];
+    window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search);
+    this.open(match[1]);
   }
 
   mount() {
@@ -156,7 +170,7 @@ export class AccountMenu {
     if (this.disposed || this.busy) return;
     if (this.onOpen?.() === false) return;
     this.returnFocus = document.activeElement;
-    this.mode = this.user ? 'account' : (['login', 'register', 'recover'].includes(mode) ? mode : 'login');
+    this.mode = EMAIL_MODES.includes(mode) ? mode : this.user ? 'account' : (['login', 'register', 'recover'].includes(mode) ? mode : 'login');
     this.message = ''; this.recoveryCode = null;
     this.render();
     if (!this.dialog.open) this.dialog.showModal();
@@ -183,10 +197,14 @@ export class AccountMenu {
       try { payload = await response.json(); } catch (_) { throw new Error('Account service unavailable. Try again.'); }
       if (version !== this.requestVersion || this.disposed) return null;
       if (!response.ok) throw new Error(payload.error || 'Account request failed. Try again.');
+      // Public reset requests carry no identity. Keep the current session intact.
+      if (!Object.hasOwn(payload, 'user')) return { message: String(payload.message || '') };
       const account = safeAccount(payload);
       const previousId = this.user?.id || null;
       if (!account.user && (previousId || (!this.loaded && this.guestName != null))) this.restoreGuest = true;
       this.user = account.user;
+      if (payload.emailRecovery) this.emailRecovery = payload.emailRecovery;
+      else if (!account.user) this.emailRecovery = { ...this.emailRecovery, email: null, pendingEmail: null };
       this.loaded = true;
       this.warning = typeof payload.warning === 'string' ? payload.warning : '';
       this.mount();
@@ -196,6 +214,7 @@ export class AccountMenu {
         window.dispatchEvent(new CustomEvent('vb-account-change', { detail: account }));
       }
       return { ...account, ...(payload.recoveryCode ? { recoveryCode: String(payload.recoveryCode) } : {}),
+        ...(payload.message ? { message: String(payload.message) } : {}),
         ...(this.warning ? { warning: this.warning } : {}) };
     } catch (error) {
       if (version !== this.requestVersion || this.disposed) return null;
@@ -207,9 +226,11 @@ export class AccountMenu {
   async refresh() {
     if (this.busy || this.disposed) return null;
     const previousUser = this.user?.id || null;
+    const previousEmail = JSON.stringify(this.emailRecovery);
     const account = await this.request();
-    if (account && previousUser !== (this.user?.id || null) && this.dialog.open) {
-      this.mode = this.user ? 'account' : 'login';
+    const identityChanged = previousUser !== (this.user?.id || null);
+    if (account && this.dialog.open && (identityChanged || previousEmail !== JSON.stringify(this.emailRecovery))) {
+      if (identityChanged && !EMAIL_MODES.includes(this.mode)) this.mode = this.user ? 'account' : 'login';
       this.render(); this.focusFirst();
     }
     return account;
@@ -237,7 +258,7 @@ export class AccountMenu {
   setBusy(value) {
     this.busy = value;
     this.dialog.setAttribute('aria-busy', String(value));
-    for (const control of this.dialog.querySelectorAll('button:not(#account-close), #account-form input')) control.disabled = value;
+    for (const control of this.dialog.querySelectorAll('button:not(#account-close), #account-form input')) control.disabled = value || control.dataset.unavailable === 'true';
     this.mount();
   }
 
@@ -246,8 +267,9 @@ export class AccountMenu {
     if (['register', 'login', 'recover'].includes(action) && !USERNAME.test(body.username || '')) {
       this.setStatus('Use 3–20 letters, numbers, underscores or hyphens for your username.', true); return;
     }
-    const password = action === 'password' || action === 'recover' ? body.newPassword : body.password;
-    if (action !== 'logout' && (typeof password !== 'string' || [...password].length < 12 || [...password].length > 128)) {
+    const password = ['password', 'recover', 'reset-password'].includes(action) ? body.newPassword
+      : action === 'email' ? body.currentPassword : body.password;
+    if (!['logout', 'forgot-password', 'verify-email'].includes(action) && (typeof password !== 'string' || [...password].length < 12 || [...password].length > 128)) {
       this.setStatus('Your password must contain 12–128 characters.', true); return;
     }
     this.setBusy(true);
@@ -255,12 +277,13 @@ export class AccountMenu {
     try {
       const result = await this.request(action, body);
       if (!result) return;
-      this.mode = result.user ? 'account' : 'login';
+      this.mode = action === 'forgot-password' ? 'forgot' : this.user ? 'account' : 'login';
+      if (['reset-password', 'verify-email'].includes(action)) this.emailToken = null;
       this.recoveryCode = result.recoveryCode || null;
-      this.message = action === 'logout' ? 'Logged out. You can keep playing as a guest.'
+      this.message = result.message || (action === 'logout' ? 'Logged out. You can keep playing as a guest.'
         : action === 'password' ? 'Password changed.'
         : action === 'recover' ? 'Password reset. Save your new recovery code.'
-        : `Signed in as ${result.user?.username || 'player'}.`;
+        : `Signed in as ${result.user?.username || 'player'}.`);
       if (!this.dialog.open && this.recoveryCode) this.dialog.showModal();
       this.render(); this.focusFirst();
     } catch (error) { this.setStatus(error.message || 'Account service unavailable. Try again.', true); }
@@ -275,7 +298,8 @@ export class AccountMenu {
     element('span', header, 'VOXEL BLITZ / PLAYER ACCOUNT', 'vb-account-kicker');
     const close = element('button', header, 'BACK', 'vb-account-button');
     close.id = 'account-close'; close.type = 'button'; close.addEventListener('click', () => this.close());
-    const titles = { login: 'Log in', register: 'Create an account', recover: 'Recover your account', account: 'Your account' };
+    const titles = { login: 'Log in', register: 'Create an account', recover: 'Use a recovery code', account: 'Your account',
+      forgot: 'Forgot your password?', reset: 'Set a new password', verify: 'Confirm your email', email: 'Recovery email' };
     element('h2', header, this.recoveryCode ? 'Save your recovery code' : titles[this.mode]).id = 'account-title';
     element('p', dialog, this.user ? `Signed in as ${this.user.username}. Your career is saved to this account.`
       : 'Accounts keep your XP, levels and purchases across devices. You can always play as a guest.').id = 'account-description';
@@ -284,7 +308,7 @@ export class AccountMenu {
     this.syncWarning();
 
     if (this.recoveryCode) { this.renderRecovery(); mountMusicControl(dialog); return; }
-    if (!this.user) {
+    if (!this.user && !EMAIL_MODES.includes(this.mode)) {
       const tabs = element('nav', dialog, '', 'vb-account-tabs');
       tabs.setAttribute('aria-label', 'Account action');
       for (const [mode, title] of [['login', 'LOG IN'], ['register', 'REGISTER'], ['recover', 'RECOVER']]) {
@@ -296,11 +320,11 @@ export class AccountMenu {
     }
     const form = element('form', dialog, '', 'vb-account-form');
     form.id = 'account-form';
-    const field = (name, label, { autocomplete, type = 'text', minLength, maxLength, value, hint } = {}) => {
+    const field = (name, label, { autocomplete, type = 'text', minLength, maxLength, value, hint, required = true } = {}) => {
       const wrap = element('div', form, '', 'vb-account-field');
       const labelNode = element('label', wrap, label); labelNode.htmlFor = `account-${name}`;
       const input = element('input', wrap); input.id = `account-${name}`; input.name = name;
-      input.type = type; input.required = true; input.autocomplete = autocomplete || 'off';
+      input.type = type; input.required = required; input.autocomplete = autocomplete || 'off';
       if (minLength) input.minLength = minLength;
       if (maxLength) input.maxLength = maxLength;
       if (value) input.value = value;
@@ -309,6 +333,11 @@ export class AccountMenu {
       if (hint) { const note = element('small', wrap, hint); note.id = `${input.id}-hint`; input.setAttribute('aria-describedby', note.id); }
       return input;
     };
+    if (EMAIL_MODES.includes(this.mode)) {
+      this.renderEmailForm(form, field);
+      mountMusicControl(dialog);
+      return;
+    }
     if (!this.user) {
       field('username', 'Username', { autocomplete: 'username', minLength: 3, maxLength: 20, hint: '3–20 letters, numbers, underscores or hyphens.' });
     } else {
@@ -316,6 +345,9 @@ export class AccountMenu {
       username.autocomplete = 'username'; username.type = 'text'; username.hidden = true;
     }
     if (this.mode === 'recover') field('recoveryCode', 'Recovery code', { maxLength: 128, hint: 'Enter the recovery code you saved when creating your account.' });
+    if (this.mode === 'register' && this.emailRecovery.enabled) field('email', 'Recovery email (optional)', {
+      type: 'email', autocomplete: 'email', maxLength: 254, required: false, hint: 'Confirm this address to reset a forgotten password by email.',
+    });
     if (this.mode === 'account') field('currentPassword', 'Current password', { type: 'password', autocomplete: 'current-password', maxLength: 256 });
     const changing = this.mode === 'account' || this.mode === 'recover';
     field(changing ? 'newPassword' : 'password', changing ? 'New password' : 'Password', {
@@ -333,22 +365,76 @@ export class AccountMenu {
       const password = data.newPassword || data.password;
       if (this.mode !== 'login' && data.confirmPassword !== password) { this.setStatus('The passwords do not match.', true); return; }
       delete data.confirmPassword;
+      if (this.mode === 'register' && !data.email) delete data.email;
       if (this.mode === 'account') delete data.username;
       this.submit(this.mode === 'account' ? 'password' : this.mode, data);
     });
     if (this.user) {
+      const recovery = this.emailRecovery;
+      element('p', dialog, recovery.email ? `Recovery email: ${recovery.email}` : 'No recovery email added.');
+      if (recovery.pendingEmail) element('p', dialog, `Awaiting confirmation: ${recovery.pendingEmail}`);
+      if (recovery.enabled) {
+        const email = element('button', dialog, 'MANAGE RECOVERY EMAIL', 'vb-account-button');
+        email.type = 'button'; email.addEventListener('click', () => this.open('email'));
+      }
       const logout = element('button', dialog, 'LOG OUT', 'vb-account-button');
       logout.type = 'button'; logout.id = 'account-logout';
       logout.addEventListener('click', () => this.submit('logout', {}));
     } else {
+      const forgot = element('button', dialog, 'FORGOT PASSWORD? EMAIL A RESET LINK', 'vb-account-button');
+      forgot.type = 'button'; forgot.id = 'account-forgot'; forgot.addEventListener('click', () => this.open('forgot'));
       const guest = element('button', dialog, 'CONTINUE AS GUEST', 'vb-account-button');
       guest.type = 'button'; guest.id = 'account-guest'; guest.addEventListener('click', () => this.close());
     }
     mountMusicControl(dialog);
   }
 
+  renderEmailForm(form, field) {
+    const mode = this.mode;
+    const recovery = this.emailRecovery;
+    const descriptions = {
+      forgot: 'Enter the email address you confirmed for your account. We will send a link valid for 30 minutes.',
+      reset: 'Choose a new password. All existing sessions will be signed out.',
+      verify: 'Confirm this email address for account recovery. Opening the link alone makes no changes.',
+      email: 'Confirm your current password to add or replace your recovery email. Your existing email stays active until you confirm the new address.',
+    };
+    element('p', form, descriptions[mode]);
+    const unavailable = ['forgot', 'email'].includes(mode) && !recovery.enabled;
+    if (unavailable) element('p', form, 'Email recovery is currently unavailable. You can still use your private recovery code.', 'vb-account-warning');
+    if (mode === 'forgot' || mode === 'email') field('email', 'Email address', { type: 'email', autocomplete: 'email', maxLength: 254,
+      value: mode === 'email' ? recovery.pendingEmail || recovery.email || '' : '' });
+    if (mode === 'email') field('currentPassword', 'Current password', { type: 'password', autocomplete: 'current-password', maxLength: 256 });
+    if (mode === 'reset') {
+      field('newPassword', 'New password', { type: 'password', autocomplete: 'new-password', minLength: 12, maxLength: 256, hint: '12–128 characters.' });
+      field('confirmPassword', 'Confirm password', { type: 'password', autocomplete: 'new-password', minLength: 12, maxLength: 256 });
+    }
+    const labels = { forgot: 'SEND RESET LINK', reset: 'RESET PASSWORD', verify: 'CONFIRM EMAIL', email: 'SEND CONFIRMATION LINK' };
+    const submit = element('button', form, labels[mode], 'vb-account-button is-primary');
+    submit.type = 'submit'; submit.id = 'account-submit'; submit.disabled = unavailable;
+    if (unavailable) submit.dataset.unavailable = 'true';
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if (this.busy || unavailable) return;
+      const data = Object.fromEntries(new FormData(form));
+      if (mode === 'reset' && data.newPassword !== data.confirmPassword) { this.setStatus('The passwords do not match.', true); return; }
+      delete data.confirmPassword;
+      if (mode === 'reset' || mode === 'verify') data.token = this.emailToken || '';
+      this.submit({ forgot: 'forgot-password', reset: 'reset-password', verify: 'verify-email', email: 'email' }[mode], data);
+    });
+    const back = element('button', this.dialog, this.user ? 'BACK TO ACCOUNT' : 'BACK TO LOG IN', 'vb-account-button');
+    back.type = 'button'; back.addEventListener('click', () => this.open());
+    if (!this.user) {
+      const code = element('button', this.dialog, 'USE A RECOVERY CODE', 'vb-account-button');
+      code.type = 'button'; code.addEventListener('click', () => this.open('recover'));
+    }
+    if (mode === 'reset') {
+      const retry = element('button', this.dialog, 'REQUEST A NEW RESET LINK', 'vb-account-button');
+      retry.type = 'button'; retry.addEventListener('click', () => this.open('forgot'));
+    }
+  }
+
   renderRecovery() {
-    element('p', this.dialog, 'Save this code somewhere private now. It is shown only once and is the only way to reset your password without knowing the current one. Each recovery uses the code once and replaces it.', 'vb-account-recovery-note');
+    element('p', this.dialog, 'Save this code somewhere private now. It is shown only once and lets you reset your password even without access to a verified recovery email. Each recovery uses the code once and replaces it.', 'vb-account-recovery-note');
     const code = element('output', this.dialog, this.recoveryCode, 'vb-account-recovery-code');
     code.id = 'account-recovery-code'; code.setAttribute('aria-label', 'Private recovery code');
     const actions = element('div', this.dialog, '', 'vb-account-recovery-actions');
@@ -375,6 +461,8 @@ export class AccountMenu {
   dispose() {
     if (this.disposed) return;
     this.disposed = true; this.requestVersion++;
+    this.emailToken = null;
+    window.removeEventListener('hashchange', this.onHashchange);
     this.observer?.disconnect();
     window.removeEventListener('pagehide', this.onPagehide);
     this.recoveryCode = null;

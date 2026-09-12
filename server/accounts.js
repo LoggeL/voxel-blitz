@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { closeSync, fsyncSync, linkSync, mkdirSync, openSync, readFileSync, readdirSync,
   renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { AccountEmail, normalizeEmail, validateEmailRecovery } from './account-email.js';
 import { ACCOUNT_COOKIE, SESSION_LIFETIME_MS, PASSWORD_COST, AccountError, AccountRateLimits,
   PasswordHasher, equalHash, exactObject, freshRecoveryCode, freshSession, readAccountJson,
   recoveryHash, sameOriginWrite, secureRequest, sessionHash, validPassword, validUsername } from './account-security.js';
@@ -18,6 +19,10 @@ const safeTime = value => Number.isSafeInteger(value) && value >= 0;
 export function validateAccountRecord(record, filename) {
   const password = record?.password;
   const keys = ['version', 'id', 'username', 'password', 'recoveryHash', 'authVersion', 'createdAt', 'updatedAt', 'sessions'];
+  if (record && Object.hasOwn(record, 'emailRecovery')) {
+    keys.push('emailRecovery');
+    validateEmailRecovery(record.emailRecovery);
+  }
   if (record && Object.hasOwn(record, 'registrationContext')) {
     keys.push('registrationContext');
     if (Buffer.byteLength(JSON.stringify(record.registrationContext)) > MAX_REGISTRATION_CONTEXT_BYTES) throw new Error('Invalid registration context');
@@ -58,7 +63,7 @@ export class AccountService {
 
   constructor({ directory = path.join(process.env.VB_DATA_DIR || './data', 'accounts'), now = Date.now,
     sessionLifetimeMs = SESSION_LIFETIME_MS, rateLimits = {}, hashLimits = {}, bodyTimeoutMs = 5000,
-    onRegistering = null, onRegistered = null, publicOrigin = process.env.VB_PUBLIC_ORIGIN || null, maxAccounts = 10000, store = null } = {}) {
+    onRegistering = null, onRegistered = null, publicOrigin = process.env.VB_PUBLIC_ORIGIN || null, maxAccounts = 10000, store = null, mailer } = {}) {
     if (typeof now !== 'function' || !Number.isSafeInteger(sessionLifetimeMs) || sessionLifetimeMs < 1000
       || sessionLifetimeMs > SESSION_LIFETIME_MS || !Number.isSafeInteger(bodyTimeoutMs) || bodyTimeoutMs < 1
       || !Number.isSafeInteger(maxAccounts) || maxAccounts < 1) throw new TypeError('Invalid account settings');
@@ -80,6 +85,7 @@ export class AccountService {
     this.sessions = new Map();
     this.hasher = new PasswordHasher(hashLimits);
     this.limits = new AccountRateLimits({ ...rateLimits, now });
+    this.email = new AccountEmail(this, mailer);
     this.closed = false;
     this.unavailable = false;
     this.store = store;
@@ -249,7 +255,11 @@ export class AccountService {
   }
 
   async _register(req, res, data) {
-    this._credentials(data);
+    const withEmail = Object.hasOwn(data || {}, 'email');
+    this._credentials(data, withEmail ? ['username', 'password', 'email'] : ['username', 'password']);
+    const email = withEmail ? normalizeEmail(data.email) : null;
+    if (withEmail && !email) throw new AccountError(400, 'Enter a valid email address.');
+    if (withEmail) { this.email.available(); this.email.throttle(req, email); }
     const normalized = data.username.toLowerCase();
     this.limits.consume('username', normalized);
     if (this.usernames.has(normalized)) throw new AccountError(409, 'That username is already taken');
@@ -272,7 +282,12 @@ export class AccountService {
     const user = publicUser(record);
     const transferred = await this._finishRegistration(req, id);
     this._cookie(req, res, session.token);
-    return { status: 201, payload: { user, recoveryCode: code, ...(!transferred ? { warning: TRANSFER_WARNING } : {}) } };
+    const warnings = transferred ? [] : [TRANSFER_WARNING];
+    if (email) {
+      try { await this.email.prepareEmail(this.records.get(id), email); }
+      catch { warnings.push('Your account was created, but the confirmation email could not be sent. Retry in account settings.'); }
+    }
+    return { status: 201, payload: { user, recoveryCode: code, ...(warnings.length ? { warning: warnings.join(' ') } : {}) } };
   }
 
   async _login(req, res, data) {
@@ -363,11 +378,13 @@ export class AccountService {
           this._available();
           const user = this.identity(req);
           const transferred = !user || await this._finishRegistration(req, user.id);
-          return reply(200, { user: this.identity(req), ...(!transferred ? { warning: TRANSFER_WARNING } : {}) });
+          return reply(200, { user: this.identity(req), ...this.email.view(req), ...(!transferred ? { warning: TRANSFER_WARNING } : {}) });
         });
       }
       const action = { '/api/account/register': '_register', '/api/account/login': '_login',
-        '/api/account/logout': '_logout', '/api/account/password': '_password', '/api/account/recover': '_recover' }[route];
+        '/api/account/logout': '_logout', '/api/account/password': '_password', '/api/account/recover': '_recover',
+        '/api/account/email': 'setEmail', '/api/account/verify-email': 'verify',
+        '/api/account/forgot-password': 'forgot', '/api/account/reset-password': 'reset' }[route];
       if (!action) return reply(404, { error: 'Account endpoint not found' });
       if (req.method !== 'POST') return reply(405, { error: 'Method not allowed' });
       if (!sameOriginWrite(req, this.publicOrigin)) throw new AccountError(403, 'Open account settings from the game', { close: true });
@@ -375,8 +392,12 @@ export class AccountService {
       this.limits.consume('ip', req.socket?.remoteAddress || 'unknown');
       const data = await readAccountJson(req, { timeoutMs: this.bodyTimeoutMs });
       this._available();
-      const result = await this._serialize(() => { this._available(); return this[action](req, res, data); });
-      return reply(result.status || 200, result.payload);
+      const result = await this._serialize(() => {
+        this._available();
+        return action.startsWith('_') ? this[action](req, res, data) : this.email[action](req, res, data);
+      });
+      return reply(result.status || 200, { ...result.payload,
+        ...(Object.hasOwn(result.payload, 'user') ? this.email.view(req, result.payload.user) : {}) });
     } catch (error) {
       if (error instanceof AccountError) return reply(error.status, { error: error.message }, error);
       console.error('[accounts] account operation failed');

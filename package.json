@@ -65,7 +65,7 @@
     "keybindings:browser": "node tools/keybindings-test.mjs --browser",
     "lobby:large:test": "node tools/map-capacity-test.mjs && node tools/large-lobby-test.mjs",
     "lobby:large:browser": "node tools/large-lobby-browser-test.mjs",
-    "accounts:test": "node tools/accounts-test.mjs && node tools/accounts-ui-test.mjs && node tools/account-career-test.mjs",
+    "accounts:test": "node tools/accounts-test.mjs && node tools/accounts-ui-test.mjs && node tools/email-recovery-test.mjs && node tools/account-career-test.mjs",
     "accounts:ui:test": "node tools/accounts-ui-test.mjs",
     "accounts:browser": "node tools/accounts-browser-test.mjs",
     "db:migrate": "node server/persistence/cli.js migrate",
@@ -79,7 +79,8 @@
     "bots:difficulty:test": "node tools/bot-difficulty-test.mjs",
     "bots:difficulty:browser": "node tools/bot-difficulty-browser-test.mjs",
     "maps:lights:browser": "node tools/large-map-light-browser-test.mjs",
-    "weapons:handling:test": "node tools/weapon-handling-test.mjs && node tools/weapon-customization-test.mjs"
+    "weapons:handling:test": "node tools/weapon-handling-test.mjs && node tools/weapon-customization-test.mjs",
+    "accounts:email:postgres": "node tools/email-recovery-test.mjs --postgres"
   },
   "dependencies": {
     "pg": "^8.23.0",
