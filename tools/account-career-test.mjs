@@ -6,6 +6,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import WebSocket from 'ws';
 import { startServer, stopServer } from './lib/server-process.mjs';
+import { validateProfile } from '../server/persistence/career-profile.js';
 import { CareerClaims } from '../server/career-identity.js';
 
 const directory = mkdtempSync(path.join(tmpdir(), 'vb-account-career-'));
@@ -172,7 +173,7 @@ async function pendingClaimStorage(restartPending) {
   }
   const recovered = await repaired.career();
   for (const key of ['xp', 'credits', 'kills', 'matches', 'owned', 'equipped']) {
-    assert.deepEqual(recovered[key], seed[key], `${restartPending ? 'restart' : 'live repair'} recovers original ${key}`);
+    assert.deepEqual(recovered[key], validateProfile(seed)[key], `${restartPending ? 'restart' : 'live repair'} recovers original ${key}`);
   }
   assert.equal((await new Browser(`vb-career=${guest}`).career()).xp, 0, 'repaired transfer now owns its guest source exactly once');
   await repaired.account();
@@ -227,7 +228,7 @@ try {
   assert.ok(typeof recoveryCode === 'string' && recoveryCode.length >= 16, 'registration returns a usable recovery secret');
   assert.equal(registration.user.username.toLowerCase(), user.toLowerCase());
   const adopted = await primary.career();
-  for (const key of ['xp', 'credits', 'kills', 'matches', 'owned', 'equipped']) assert.deepEqual(adopted[key], seed[key], `adopt ${key}`);
+  for (const key of ['xp', 'credits', 'kills', 'matches', 'owned', 'equipped']) assert.deepEqual(adopted[key], validateProfile(seed)[key], `adopt ${key}`);
   assert.equal(adopted.level, 4);
 
   const oldGuest = new Browser(`vb-career=${token}`);

@@ -2,13 +2,14 @@ import { Client } from 'pg';
 import { readFile } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import { AccountError } from '../account-security.js';
-import { CAREER_CATALOG, careerView } from '../../shared/career.js';
-import { CAREER_ID, emptyProfile, validateProfile } from './career-profile.js';
+import { CAREER_CATALOG, careerView, careerItemState, equipCareerItem, reconcileCareerUnlocks } from '../../shared/career.js';
+import { CAREER_ID, emptyProfile, validateProfile, normalizeCareerProgress, applyCareerProgress } from './career-profile.js';
 
 const LOCK = [1447185492, 1];
 const RETRYABLE = new Set(['57014', '40001', '40P01', '55P03']);
 const profileFromRow = row => validateProfile({ xp: Number(row.xp), credits: Number(row.credits),
-  kills: Number(row.kills), matches: Number(row.matches), owned: row.owned, equipped: row.equipped });
+  kills: Number(row.kills), matches: Number(row.matches), pvpKills: Number(row.pvp_kills ?? 0), wins: Number(row.wins ?? 0),
+  mastery: row.mastery ?? {}, owned: row.owned, equipped: row.equipped });
 
 /** One connection owns both the writer lease and serialized transactions.
  * Losing it invalidates the auth/claim cache; a new process must reload it.
@@ -75,15 +76,19 @@ export class PostgresStore {
   }
 
   async migrate() {
-    const sql = await readFile(new URL('./schema.sql', import.meta.url), 'utf8');
-    const checksum = createHash('sha256').update(sql).digest('hex');
+    // Version 1 remains immutable: existing installations verify its original checksum.
+    const migrations = await Promise.all(['schema.sql', 'schema-cosmetics.sql'].map(async (name, index) => {
+      const sql = await readFile(new URL(name, import.meta.url), 'utf8');
+      return { version: index + 1, sql, checksum: createHash('sha256').update(sql).digest('hex') };
+    }));
     await this.transaction(async client => {
       await client.query('CREATE TABLE IF NOT EXISTS vb_schema_migrations (version integer PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())');
       const applied = await client.query('SELECT version, checksum FROM vb_schema_migrations ORDER BY version');
-      if (applied.rows.some(row => row.version !== 1 || row.checksum !== checksum)) throw new Error('Unsupported or modified database schema migration');
-      if (!applied.rowCount) {
-        await client.query(sql);
-        await client.query('INSERT INTO vb_schema_migrations(version, checksum) VALUES (1, $1)', [checksum]);
+      if (applied.rows.some((row, index) => row.version !== index + 1 || migrations[index]?.checksum !== row.checksum))
+        throw new Error('Unsupported or modified database schema migration');
+      for (const migration of migrations.slice(applied.rowCount)) {
+        await client.query(migration.sql);
+        await client.query('INSERT INTO vb_schema_migrations(version, checksum) VALUES ($1, $2)', [migration.version, migration.checksum]);
       }
     });
   }
@@ -149,11 +154,12 @@ export class PostgresStore {
   async writeProfile(client, id, profile) {
     if (!CAREER_ID.test(id || '')) throw new Error('Invalid career identity');
     profile = validateProfile(profile);
-    await client.query(`INSERT INTO vb_careers(id, account_id, xp, credits, kills, matches, owned, equipped)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO UPDATE SET
+    await client.query(`INSERT INTO vb_careers(id, account_id, xp, credits, kills, matches, owned, equipped, pvp_kills, wins, mastery)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (id) DO UPDATE SET
       xp=EXCLUDED.xp, credits=EXCLUDED.credits, kills=EXCLUDED.kills, matches=EXCLUDED.matches,
-      owned=EXCLUDED.owned, equipped=EXCLUDED.equipped`, [id, id.startsWith('account:') ? id.slice(8) : null,
-      profile.xp, profile.credits, profile.kills, profile.matches, JSON.stringify(profile.owned), JSON.stringify(profile.equipped)]);
+      owned=EXCLUDED.owned, equipped=EXCLUDED.equipped, pvp_kills=EXCLUDED.pvp_kills, wins=EXCLUDED.wins, mastery=EXCLUDED.mastery`, [id, id.startsWith('account:') ? id.slice(8) : null,
+      profile.xp, profile.credits, profile.kills, profile.matches, JSON.stringify(profile.owned), JSON.stringify(profile.equipped),
+      profile.pvpKills, profile.wins, JSON.stringify(profile.mastery)]);
   }
 
   async lockedProfile(client, id) {
@@ -163,7 +169,11 @@ export class PostgresStore {
       if (claim.rowCount) return null;
     }
     const rows = await client.query('SELECT * FROM vb_careers WHERE id=$1 FOR UPDATE', [id]);
-    if (rows.rowCount) return profileFromRow(rows.rows[0]);
+    if (rows.rowCount) {
+      const profile = profileFromRow(rows.rows[0]);
+      if (profile.owned.length !== rows.rows[0].owned.length) await this.writeProfile(client, id, profile);
+      return profile;
+    }
     const profile = emptyProfile();
     await this.writeProfile(client, id, profile);
     return profile;
@@ -172,39 +182,43 @@ export class PostgresStore {
   readProfile(id) { return this.transaction(client => this.lockedProfile(client, id)); }
 
   applyProgress(id, delta, { operationId = randomUUID() } = {}) {
-    const changes = Object.fromEntries(['xp', 'credits', 'kills', 'matches'].map(key => [key, delta[key] || 0]));
-    if (!CAREER_ID.test(id || '') || !Object.values(changes).every(value => Number.isSafeInteger(value) && value >= 0))
-      return Promise.reject(new Error('Invalid career reward'));
+    let changes;
+    try { changes = normalizeCareerProgress(delta); } catch (error) { return Promise.reject(error); }
+    if (!CAREER_ID.test(id || '')) return Promise.reject(new Error('Invalid career reward'));
     return this.transaction(async client => {
       const receipt = await client.query('INSERT INTO vb_reward_receipts(id, profile_id, delta) VALUES ($1,$2,$3) ON CONFLICT (id) DO NOTHING RETURNING id',
         [operationId, id, JSON.stringify(changes)]);
       if (!receipt.rowCount) {
         const previous = (await client.query('SELECT profile_id, delta FROM vb_reward_receipts WHERE id=$1', [operationId])).rows[0];
-        if (previous.profile_id !== id || Object.keys(changes).some(key => previous.delta[key] !== changes[key]))
+        if (previous.profile_id !== id || JSON.stringify(normalizeCareerProgress(previous.delta)) !== JSON.stringify(changes))
           throw new Error('Reward receipt was reused for a different reward');
         return this.lockedProfile(client, id);
       }
       const profile = await this.lockedProfile(client, id);
       if (!profile) return null;
-      for (const key of ['xp', 'credits', 'kills', 'matches']) profile[key] += changes[key];
+      applyCareerProgress(profile, changes);
       await this.writeProfile(client, id, profile);
       return profile;
     }, { retryReward: true }).catch(error => { this.rewardError = error; throw error; });
   }
 
-  purchase(id, itemId, equipOnly, authorized = () => true) {
+  purchase(id, itemId, equipOnly, authorized = () => true, selection = {}) {
     return this.transaction(async client => {
       if (!authorized()) throw new Error('Your session changed. Reopen the shop before purchasing.');
-      const profile = await this.lockedProfile(client, id), item = CAREER_CATALOG.find(item => item.id === itemId);
+      const profile = await this.lockedProfile(client, id);
+      const item = itemId === 'standard' ? { id: 'standard', kind: selection.slot, weapon: selection.weapon } : CAREER_CATALOG.find(item => item.id === itemId);
       if (!profile || !item) throw new Error('Unknown item');
-      if (!profile.owned.includes(item.id)) {
+      reconcileCareerUnlocks(profile);
+      if (item.id !== 'standard' && !profile.owned.includes(item.id)) {
+        if (item.unlock === 'earned') throw new Error('Complete all requirements to earn this cosmetic');
         if (equipOnly) throw new Error('Buy this item first');
-        if (careerView(profile).level < item.level) throw new Error(`Requires level ${item.level}`);
+        if (careerItemState(profile, item).locked) throw new Error(`Requires level ${item.level}`);
         if (profile.credits < item.price) throw new Error('Not enough credits');
         profile.credits -= item.price;
         profile.owned.push(item.id);
       }
-      profile.equipped[item.kind] = item.id;
+      if (!authorized()) throw new Error('Your session changed. Reopen the shop before purchasing.');
+      equipCareerItem(profile, item);
       await this.writeProfile(client, id, profile);
       return careerView(profile);
     });

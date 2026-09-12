@@ -1,3 +1,4 @@
+import { applyGunCosmetics } from '../cosmetics/skins.js';
 import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from '../guns/heavy-weapon-animation.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
@@ -90,6 +91,11 @@ export class AvatarWeaponModel {
       .applyMatrix4(this._model.root.matrixWorld);
   }
 
+  setCosmetics(loadout) {
+    this._cosmetics = loadout;
+    if (this._model) applyGunCosmetics(this._model, this._weaponId, loadout);
+  }
+
   setWeapon(value) {
     const nextId = weaponId(value);
     if (this._disposed || nextId === this._weaponId) return false;
@@ -98,6 +104,7 @@ export class AvatarWeaponModel {
     this._cache = new MaterialCache();
     this._model = buildGun(nextId, this._cache);
     this._weaponId = nextId;
+    applyGunCosmetics(this._model, nextId, this._cosmetics);
     this._model.root.traverse((object) => {
       if (object.name === 'hand_r' || object.name === 'hand_l') object.visible = false;
     });

@@ -166,3 +166,139 @@ body:has(#hud:not(.hidden)) .vb-career-badge { display: block; }
 @media (min-width: 1051px) {
   .vb-career-profile { position: sticky; top: 64px; align-self: start; max-height: calc(100dvh - 98px); overflow: auto; box-sizing: border-box; min-height: min(740px,calc(100dvh - 98px)); }
 }
+
+/* Earned collection: dedicated renders, visible requirements and loadout slots. */
+.vb-career { --collection-muted: #a8bbca; }
+.vb-career-feature { position: relative; display: grid; grid-template-columns: minmax(0,1.05fr) minmax(0,1fr); min-height: 290px; overflow: hidden; border-color: color-mix(in srgb,var(--item-color) 45%,#243643); background: radial-gradient(ellipse at 15% 55%,color-mix(in srgb,var(--item-color) 15%,transparent),transparent 68%),#0c141e; }
+.vb-career-feature-art { min-width: 0; display: grid; place-items: center; background: linear-gradient(130deg,transparent 45%,#9aafbe08 45%,#9aafbe08 46%,transparent 46%); }
+.vb-career-feature-art > .vb-cosmetic-art { width: 155px; }
+.vb-career-feature-body { box-sizing: border-box; width: auto; min-width: 0; justify-content: center; padding: 26px 28px 26px 0; background: transparent; }
+.vb-career-feature .vb-career-kicker { color: var(--item-color); }
+.vb-career-feature h3 { font-size: clamp(26px,3vw,40px); font-style: normal; overflow-wrap: anywhere; }
+.vb-career-feature p { margin-top: 9px; font-size: 12px; line-height: 1.55; }
+.vb-career-feature small { color: #c0ced8; }
+.vb-career-feature .vb-btn { min-height: 36px; margin-top: 13px; color: var(--item-color); border-color: color-mix(in srgb,var(--item-color) 50%,#243643); background: #142330; }
+.vb-career-feature .vb-btn:disabled { color: #a8bbca; border-color: #394b59; }
+.vb-cosmetic-reward-art { position: relative; display: grid; place-items: center; width: 100%; height: 190px; overflow: hidden; isolation: isolate; }
+.vb-cosmetic-reward-art::before { content: ''; position: absolute; z-index: -1; inset: 14%; background: radial-gradient(ellipse,color-mix(in srgb,var(--item-color) 17%,transparent),transparent 70%); }
+.vb-cosmetic-render { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 14px 12px #0009); }
+.vb-cosmetic-render[hidden] { display: none; }
+.vb-career-feature-art > .vb-cosmetic-reward-art { height: 285px; }
+.vb-career-feature-art .vb-cosmetic-render { width: 108%; height: 108%; }
+.vb-cosmetic-art-unavailable { padding: 24px; text-align: center; color: #92a8ba; font: 11px/1.5 var(--font-mono); }
+.vb-career-catalog-header { flex-direction: column; align-items: flex-start; gap: 12px; margin: 25px 0 8px; }
+.vb-career-filters { flex-wrap: wrap; width: 100%; gap: 6px; }
+.vb-career-filter { flex: 1; min-width: fit-content; font-size: 9px; padding: 10px 9px; }
+.vb-career-collection-summary { margin: 10px 0; color: #a7b9c8; font: 10px/1.6 var(--font-mono); }
+.vb-career-loadout { display: flex; gap: 6px 12px; flex-wrap: wrap; margin: 8px 0 16px; }
+.vb-career-loadout[hidden] { display: none; }
+.vb-career-reset { margin: 0; border: 0; border-bottom: 1px solid #61788a; padding: 4px 0; background: transparent; color: #c9d7e0; font: 9px/1.4 var(--font-mono); cursor: pointer; text-transform: uppercase; }
+.vb-career-reset:disabled { border-bottom-color: #314656; color: #7e95a7; cursor: default; }
+.vb-career-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 14px; }
+.vb-career-item { display: flex; flex-direction: column; border-top: 2px solid var(--item-color); background: #14202b; }
+.vb-career-item[data-state=locked] { border-top-color: var(--item-color); }
+.vb-career-item[data-rarity=legendary], .vb-career-feature[data-rarity=legendary] { --rarity-color: #f4bc5f; }
+.vb-career-item[data-rarity=epic], .vb-career-feature[data-rarity=epic] { --rarity-color: #c69aff; }
+.vb-career-item[data-rarity=rare], .vb-career-feature[data-rarity=rare] { --rarity-color: #80c3ff; }
+.vb-career-item[data-rarity=uncommon] { --rarity-color: #8adaab; }
+.vb-career-preview { height: 190px; overflow: hidden; background: radial-gradient(ellipse at center,#253746,transparent 72%),#0b141e; }
+.vb-career-preview > .vb-cosmetic-art { position: absolute; left: 50%; top: 50%; width: 138px; transform: translate(-50%,-50%); }
+.vb-career-item-state { top: 10px; right: 10px; font-size: 9px; padding: 4px 7px; background: #09121ce8; }
+.vb-career-item-body { display: flex; flex-direction: column; flex: 1; padding: 15px; }
+.vb-career-item-body > small { font-size: 8px; line-height: 1.5; }
+.vb-career-item h3 { margin: 5px 0; font-size: 20px; }
+.vb-career-item-metadata { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px 9px; margin: 1px 0 10px; color: #a4b7c6; font: 9px/1.4 var(--font-mono); }
+.vb-career-rarity { color: var(--rarity-color,#9fbdce); letter-spacing: .06em; font-size: 8px; }
+.vb-career-item p { min-height: 32px; margin-bottom: 12px; font-size: 11px; line-height: 1.55; }
+.vb-career-requirements { width: 100%; margin: 6px 0 13px; }
+.vb-career-requirement + .vb-career-requirement { margin-top: 10px; }
+.vb-career-requirement > div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 3px 7px; color: #adc0ce; font: 9px/1.5 var(--font-mono); }
+.vb-career-requirement strong { color: #e0e9ef; font-weight: 500; }
+.vb-career-requirement[data-complete=true] strong { color: #98dcb3; }
+.vb-career-requirement progress { height: 4px; margin: 5px 0 0; }
+.vb-career-requirement progress::-webkit-progress-value { background: var(--item-color); }
+.vb-career-unlock-note { display: block; margin-top: 10px; color: #93a9ba; font-size: 9px; }
+.vb-career-inspect { align-self: flex-start; margin: auto 0 10px; padding: 5px 0; border: 0; background: transparent; color: #cbdae5; font: 700 9px/1.2 var(--font-mono); letter-spacing: .08em; cursor: pointer; }
+.vb-career-inspect::after { content: ' ↗'; color: var(--item-color); }
+.vb-career-item .vb-btn { min-height: 36px; font-size: 9px; padding: 9px 5px; }
+.vb-career-item-body > .vb-btn { margin-top: auto; }
+.vb-signature-preview { position: relative; box-sizing: border-box; width: 84%; padding: 20px 45px 17px 16px; border: 1px solid color-mix(in srgb,var(--item-color) 65%,transparent); border-left: 4px solid var(--item-color); background: linear-gradient(120deg,#101f2ef2,#0e162af2); box-shadow: 0 13px 20px #0007,inset 0 0 26px color-mix(in srgb,var(--item-color) 7%,transparent); transform: perspective(500px) rotateY(-7deg) rotateZ(-3deg); }
+.vb-signature-preview::after { content: ''; position: absolute; left: 16px; bottom: 8px; width: 24px; height: 2px; background: var(--item-color); box-shadow: 29px 0 var(--item-color),58px 0 var(--item-color); }
+.vb-signature-caption { display: block; color: #9fb3c5; font: 7px/1.5 var(--font-mono); letter-spacing: .1em; }
+.vb-signature-preview strong { display: block; margin: 6px 0; color: #f1f5f8; font: 800 12px/1.2 Arial,sans-serif; white-space: nowrap; }
+.vb-signature-name { color: var(--item-color); font: 8px/1.3 var(--font-mono); text-transform: uppercase; }
+.vb-signature-insignia { position: absolute; right: 12px; top: 31%; width: 30px; height: 30px; fill: var(--item-color); filter: drop-shadow(0 0 8px color-mix(in srgb,var(--item-color) 30%,transparent)); }
+.vb-cosmetic-reward-art[data-design*=circuit] .vb-signature-preview { background: repeating-linear-gradient(90deg,#0c202aee 0 18px,#21596666 19px 20px),#102733; border-radius: 2px 22px 2px 2px; }
+.vb-cosmetic-reward-art[data-design*=sovereign] .vb-signature-preview { border: 1px solid var(--item-color); border-top: 3px double var(--item-color); background: linear-gradient(140deg,#3d2919,#171b29 65%); }
+.vb-cosmetic-reward-art[data-design*=ignition] .vb-signature-preview { background: repeating-linear-gradient(135deg,transparent 0 30px,#fb7c2c16 31px 33px),#261e1a; }
+.vb-career-feature-art .vb-signature-preview { max-width: 330px; padding-block: 31px; }
+.vb-career-feature-art .vb-signature-preview strong { font-size: clamp(12px,1.4vw,19px); }
+.vb-sound-record { position: absolute; left: 10%; top: 18%; display: grid; place-items: center; width: 106px; height: 106px; border-radius: 50%; border: 1px solid #415265; background: repeating-radial-gradient(circle,#111c26 0 2px,#263443 3px 4px); box-shadow: 8px 13px 16px #0009; }
+.vb-sound-record > span { display: grid; place-items: center; width: 40px; height: 40px; border: 3px solid #0b1723; border-radius: 50%; background: var(--item-color); color: #111c25; font: 900 13px/1 Arial,sans-serif; }
+.vb-sound-wave { position: absolute; display: flex; align-items: center; justify-content: space-between; gap: 4px; width: 46%; height: 72px; left: 43%; top: 29%; transform: rotate(-6deg); }
+.vb-sound-wave > i { width: 5px; height: var(--bar-height); background: var(--item-color); box-shadow: 0 0 14px color-mix(in srgb,var(--item-color) 35%,transparent); }
+.vb-sound-title { position: absolute; bottom: 14px; right: 17px; color: #dce8f1; font: 600 9px/1.4 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+.vb-career-feature-art .vb-sound-record { width: 154px; height: 154px; top: 17%; }
+.vb-career-feature-art .vb-sound-wave { top: 34%; height: 86px; }
+.vb-career-auditions { display: flex; gap: 5px; width: 100%; margin: 0 0 13px; }
+.vb-career-auditions .vb-btn { flex: 1; min-width: 0; min-height: 32px; padding: 8px 3px; margin: 0; font-size: 8px; }
+.vb-career-auditions .vb-btn[aria-pressed=true] { border-color: var(--item-color); color: var(--item-color); background: #1b3446; }
+.vb-career-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.vb-career-section-heading > span { color: #97afc1; font-size: 10px; }
+.vb-career-journey, .vb-career-mastery { padding: 20px; margin-top: 22px; border: 1px solid #354c5f; background: #101d29; }
+.vb-career-section-heading h3 { margin: 0; font: 700 11px/1.4 Arial,sans-serif; letter-spacing: .1em; }
+.vb-career-milestones { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 14px; margin-top: 18px; }
+.vb-career-milestone { margin: 0; padding: 12px 0; border: 0; border-top: 2px solid #3c5264; background: transparent; text-align: left; cursor: pointer; }
+.vb-career-milestone strong { font-size: 10px; }
+.vb-career-milestone .vb-career-milestone-rewards { margin: 7px 0 9px; color: #d0dce5; font-size: 11px; line-height: 1.6; }
+.vb-career-milestone small { color: #91a9bc; font: 8px/1.6 var(--font-mono); }
+.vb-career-milestone:hover { border-top-color: #ffd18a; }
+.vb-career-mastery select { max-width: 45%; min-width: 0; padding: 8px 9px; border: 1px solid #465e71; border-radius: 0; color: #d8e6ef; background: #162534; font: 11px/1.4 Arial,sans-serif; }
+.vb-career-mastery-record { margin: 15px 0; color: #b5c9d8; font: 10px/1.5 var(--font-mono); }
+.vb-career-mastery-track { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 16px; margin: 14px 0; }
+.vb-career-mastery-tier span { display: block; color: #9ab0c1; font: 8px/1.4 var(--font-mono); }
+.vb-career-mastery-tier strong { display: block; margin-top: 7px; color: #c6d6e2; font: 700 20px/1.3 Arial,sans-serif; }
+.vb-career-mastery-tier[data-complete=true] strong { color: #ffd293; }
+.vb-career-audio-settings { margin-top: 22px; padding: 16px 20px; border: 1px solid #354c5f; background: #101d29; }
+.vb-career-audio-settings summary { color: #dce6ee; cursor: pointer; font: 700 10px/1.6 var(--font-mono); letter-spacing: .06em; }
+.vb-career-audio-settings p { margin: 12px 0; color: #a7bdcd; font-size: 11px; }
+.vb-career-audio-setting { display: grid; grid-template-columns: 145px minmax(50px,1fr) 50px 68px; align-items: center; gap: 12px; padding: 8px 0; }
+.vb-career-audio-setting label { color: #d1e0ea; font-size: 11px; }
+.vb-career-audio-setting input { min-width: 0; width: 100%; margin: 0; accent-color: #e9b664; }
+.vb-career-audio-setting output { color: #9fb5c6; text-align: right; font: 9px/1.3 var(--font-mono); }
+.vb-career-audio-setting .vb-btn { min-height: 30px; padding: 6px; font-size: 9px; }
+.vb-career :is(select,.vb-career-feature):focus-visible { outline: 2px solid #ffd38d; outline-offset: 3px; }
+@media (max-width: 1050px) {
+  .vb-career-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .vb-career-feature { grid-template-columns: minmax(0,1fr); }
+  .vb-career-feature-art > .vb-cosmetic-reward-art { height: 230px; }
+  .vb-career-feature-body { padding: 0 22px 22px; }
+  .vb-career-feature-art > .vb-cosmetic-art { width: 130px; }
+  .vb-career-feature-art .vb-cosmetic-render { width: 100%; height: 100%; }
+  .vb-career-milestones { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .vb-career-section-heading { align-items: flex-start; flex-wrap: wrap; }
+  .vb-career-audio-setting { grid-template-columns: minmax(50px,1fr) 50px 62px; }
+  .vb-career-audio-setting label { grid-column: 1/-1; }
+}
+@media (max-width: 640px) {
+  .vb-career-record { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .vb-career-grid { grid-template-columns: minmax(0,1fr); }
+  .vb-career-filter { flex: 1 0 28%; font-size: 9px; }
+  .vb-career-preview, .vb-cosmetic-reward-art { height: 200px; }
+  .vb-career-item-body { padding: 17px; }
+  .vb-career-feature-body { padding: 0 18px 20px; }
+  .vb-career-feature h3 { font-size: 32px; }
+  .vb-career-feature .vb-career-kicker { font-size: 8px; }
+  .vb-career-feature p { font-size: 12px; }
+  .vb-career-feature small { font-size: 9px; }
+  .vb-career-feature .vb-btn { font-size: 10px; }
+  .vb-career-feature .vb-career-audition { font-size: 9px; }
+  .vb-career-journey, .vb-career-mastery, .vb-career-audio-settings { padding: 16px; }
+  .vb-career-mastery-track { gap: 10px; }
+  .vb-career-mastery-tier strong { font-size: 17px; }
+  .vb-career-mastery-tier span { font-size: 7px; }
+  .vb-career-mastery select { max-width: 100%; }
+  .vb-career-milestone strong { font-size: 10px; }
+  .vb-career-milestone .vb-career-milestone-rewards { font-size: 10px; }
+  .vb-career-signature-preview strong { font-size: 14px; }
+}

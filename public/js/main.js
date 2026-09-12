@@ -55,7 +55,10 @@ class Game {
     this.camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 400);
     this.clock = new THREE.Clock();
     this.frameRate = new FrameRateController();
-    this._onFrameVisibility = () => this.frameRate.reset(undefined, document.hidden);
+    this._onFrameVisibility = () => {
+      this.frameRate.reset(undefined, document.hidden);
+      if (document.hidden) sfx.stopCosmetics();
+    };
     document.addEventListener('visibilitychange', this._onFrameVisibility);
     this.player = new LocalPlayer({ input: this.input });
     this.worldview = null;
@@ -328,10 +331,13 @@ class Game {
     })));
     const self = players.find((row) => row.id === this.myId) || null;
     const match = snapshot.match && typeof snapshot.match === 'object' ? snapshot.match : null;
+    const previousMatch = this.matchState;
     this.matchState = match;
     this.worldview?.setMatch(match);
     this.worldview?.setPowerups(snapshot.powerups);
     this.selfRow = self;
+    this.rig?.setCosmetics(self?.cosmetics);
+    this.ownBody?.setCosmetics(self?.cosmetics);
     if (self?.state !== 'dead') this.killcam?.stop();
     this.playersCache = presented;
     this.serverNow = Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : null;
@@ -392,6 +398,14 @@ class Game {
     this.hud.setMatchState(match, self, presented, this.serverNow);
     this.runHud?.setMatch(match);
     this.session.syncBuyMenuState();
+    if (previousMatch && previousMatch.phase !== 'post' && match?.phase === 'post' && match.winner != null) {
+      const winner = players.find(row => row.id === match.winner) ||
+        players.filter(row => row.team === match.winner && !row.bot)
+          .sort((a, b) => (b.kills || 0) - (a.kills || 0) || String(a.id).localeCompare(String(b.id)))[0];
+      sfx.playCosmetic(winner?.cosmetics?.sound, 'victory');
+    } else if (previousMatch?.phase === 'post' && match?.phase !== 'post') sfx.stopCosmetics();
+
+
   }
 
   respawnLocal(row) {
@@ -771,6 +785,7 @@ class Game {
   }
 
   disposeLiveResources() {
+    sfx.stopCosmetics();
     this.muzzleLights?.dispose();
     this.muzzleLights = null;
     this._loopGeneration++;

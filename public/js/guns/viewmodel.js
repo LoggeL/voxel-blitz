@@ -1,3 +1,4 @@
+import { applyGunCosmetics } from '../cosmetics/skins.js';
 // First-person viewmodel facade: public gunfeel API plus one rig-owned
 // material cache and one action-state owner.
 import { weaponSwapProfile } from '../../../shared/weapon-swap.js';
@@ -122,6 +123,11 @@ export class ViewmodelRig {
     this.flashOff(true);
   }
 
+  setCosmetics(loadout) {
+    this._cosmetics = loadout;
+    for (const [weapon, model] of Object.entries(this._models)) applyGunCosmetics(model, weapon, loadout);
+  }
+
   setWeapon(id) {
     this._quickMelee = null;
     this._swap = null;
@@ -132,6 +138,7 @@ export class ViewmodelRig {
       this._models[key] = model;
     }
     const next = this._models[key];
+    applyGunCosmetics(next, key, this._cosmetics);
     this._actions.reset(this._cur);
     this._actions.reset(next);
     if (this._cur && this._cur !== next) this.content.remove(this._cur.root);

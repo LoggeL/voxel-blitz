@@ -1,0 +1,172 @@
+{
+  "schema_version": 1,
+  "kit": "overdrive",
+  "title": "Overdrive",
+  "authorship": "Original commissioned AI-generated sound effects; no supplied recordings or sampled songs.",
+  "recipe": "tools/generate-cosmetic-overdrive.py",
+  "api_reference": "https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert",
+  "assets": [
+    {
+      "cue": "kill",
+      "file": "kill.ogg",
+      "sha256": "752c863d7686767be9a8653d3ccb9e88d23339245208bb16af553f632a084205",
+      "bytes": 6187,
+      "format": "Ogg Opus",
+      "sample_rate": 48000,
+      "channels": 1,
+      "bitrate_target": 112000,
+      "source": {
+        "provider": "ElevenLabs Sound Effects",
+        "model_id": "eleven_text_to_sound_v2",
+        "request": {
+          "text": "One original cybernetic shooter kill confirmation, immediate compact synth bass thump layered with two very quick ascending glassy FM notes and a tiny voltage snap. Violet and cyan neon, precise expensive electronic texture, restrained treble, satisfying tight punch. All action and natural decay finish within 0.35 seconds, then silence. Dry clean isolated UI asset. No voices, gunshots, harsh noise, long echo, repeated events or existing melody.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "candidate": 1,
+        "raw_sha256": "a57b667a5d349091003446346fde32f0567a241082ea1d2ac53fe103b29b39a3",
+        "decoded_sha256": "2aa6165854af9d11a329d83c6e1e8a3551bf137529d3060776a55a29ef1b1238",
+        "receipt": ".artifacts/cosmetics/overdrive/api-source/kill-1.json",
+        "http_status": 200,
+        "request_id": null,
+        "character_cost": "5",
+        "created_at": "2026-09-12T10:03:56.986897+00:00"
+      },
+      "processing": {
+        "trim_start_seconds": 0,
+        "trim_end_seconds": 0.411604,
+        "gain": 1.60873686,
+        "fade_in_seconds": 0.003,
+        "tempo": 1.02901042,
+        "pitch_preserved": true,
+        "highpass_hz": 55,
+        "lowpass_hz": 11000,
+        "fade_out_seconds": 0.03,
+        "filter": "atrim=start=0.000000:end=0.411604,asetpts=PTS-STARTPTS,atempo=1.02901042,highpass=f=55,lowpass=f=11000,afade=t=in:d=0.003,afade=t=out:st=0.370000:d=0.030000",
+        "target_rms_dbfs": -20,
+        "maximum_decoded_peak": 0.75
+      },
+      "metrics": {
+        "decoded_duration_seconds": 0.405813,
+        "sample_peak": 0.36477,
+        "sample_peak_dbfs": -8.76,
+        "rms_dbfs": -20.013,
+        "clipped_samples": 0
+      },
+      "qa": {
+        "waveform": ".artifacts/cosmetics/overdrive/kill-waveform.png",
+        "human_or_model_audio_audition": false,
+        "note": "Signal metrics and waveform inspected; no listening capability available."
+      }
+    },
+    {
+      "cue": "death",
+      "file": "death.ogg",
+      "sha256": "d22887b5b9fa69d4f3e538711a8f05c3556d2ada4f01d33ac7dbacc095735590",
+      "bytes": 13372,
+      "format": "Ogg Opus",
+      "sample_rate": 48000,
+      "channels": 1,
+      "bitrate_target": 112000,
+      "source": {
+        "provider": "ElevenLabs Sound Effects",
+        "model_id": "eleven_text_to_sound_v2",
+        "request": {
+          "text": "Original 0.85 second cybernetic player-signature jingle. Tight rounded synth bass impact followed by three distinctive ascending glassy FM notes and a silky voltage discharge resolving into a dark warm chord. Confident violet and cyan futuristic identity, intricate but concise, crisp controlled treble. Immediate onset and complete short natural decay, then silence. No voices, gunshots, harsh noise, long reverb, loops or recognizable melody.",
+          "duration_seconds": 1.0,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "candidate": 1,
+        "raw_sha256": "d855fdfce63eb3fe5751175cf69e8fedb41c055fbcb9dcb84ebcf0b8c9f2567c",
+        "decoded_sha256": "aeb9b1228baac64da44a3431b1174dbc0aa5ecb1f6882e6d51641ec03931292c",
+        "receipt": ".artifacts/cosmetics/overdrive/api-source/death-1.json",
+        "http_status": 200,
+        "request_id": null,
+        "character_cost": "10",
+        "created_at": "2026-09-12T10:03:59.057093+00:00"
+      },
+      "processing": {
+        "trim_start_seconds": 0,
+        "trim_end_seconds": 1.0,
+        "gain": 0.6231961,
+        "fade_in_seconds": 0.003,
+        "tempo": 1.05263158,
+        "pitch_preserved": true,
+        "highpass_hz": 55,
+        "lowpass_hz": 11000,
+        "fade_out_seconds": 0.065,
+        "filter": "atrim=start=0.000000:end=1.000000,asetpts=PTS-STARTPTS,atempo=1.05263158,highpass=f=55,lowpass=f=11000,afade=t=in:d=0.003,afade=t=out:st=0.885000:d=0.065000",
+        "target_rms_dbfs": -20,
+        "maximum_decoded_peak": 0.75
+      },
+      "metrics": {
+        "decoded_duration_seconds": 0.935771,
+        "sample_peak": 0.658757,
+        "sample_peak_dbfs": -3.625,
+        "rms_dbfs": -22.188,
+        "clipped_samples": 0
+      },
+      "qa": {
+        "waveform": ".artifacts/cosmetics/overdrive/death-waveform.png",
+        "human_or_model_audio_audition": false,
+        "note": "Signal metrics and waveform inspected; no listening capability available."
+      }
+    },
+    {
+      "cue": "victory",
+      "file": "victory.ogg",
+      "sha256": "b381e2969a427d2b9a22b76bb2fe5e979ca77c9c5682ec302c3308feb69e8525",
+      "bytes": 66107,
+      "format": "Ogg Opus",
+      "sample_rate": 48000,
+      "channels": 1,
+      "bitrate_target": 112000,
+      "source": {
+        "provider": "ElevenLabs Sound Effects",
+        "model_id": "eleven_text_to_sound_v2",
+        "request": {
+          "text": "Original four-second electronic victory jingle. Bold warm synth bass pulse, three rising glassy FM notes become a confident melodic hook over a tight syncopated electro beat and soft violet neon chords. Intricate digital accents, polished punchy but controlled, triumphant futuristic champion mood. One complete musical phrase, resolved final chord by 3.5 seconds with clean decay. No voices, harsh noise, loops or recognizable existing melody.",
+          "duration_seconds": 4.0,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "candidate": 1,
+        "raw_sha256": "dd0e6dd87356fd51368ffa0248d980404284b07501cc2786ea7fdeea2595d6e5",
+        "decoded_sha256": "575a76921b155077485064f18e340ae11eea1627c3450085c87fd67557a265ea",
+        "receipt": ".artifacts/cosmetics/overdrive/api-source/victory-1.json",
+        "http_status": 200,
+        "request_id": null,
+        "character_cost": "40",
+        "created_at": "2026-09-12T10:04:01.142918+00:00"
+      },
+      "processing": {
+        "trim_start_seconds": 0,
+        "trim_end_seconds": 3.939458,
+        "gain": 0.39247711,
+        "fade_in_seconds": 0.003,
+        "tempo": 1.0,
+        "pitch_preserved": true,
+        "highpass_hz": 55,
+        "lowpass_hz": 11000,
+        "fade_out_seconds": 0.14,
+        "filter": "atrim=start=0.000000:end=3.939458,asetpts=PTS-STARTPTS,atempo=1.00000000,highpass=f=55,lowpass=f=11000,afade=t=in:d=0.003,afade=t=out:st=3.799458:d=0.140000",
+        "target_rms_dbfs": -20,
+        "maximum_decoded_peak": 0.75
+      },
+      "metrics": {
+        "decoded_duration_seconds": 3.93575,
+        "sample_peak": 0.277672,
+        "sample_peak_dbfs": -11.129,
+        "rms_dbfs": -20.014,
+        "clipped_samples": 0
+      },
+      "qa": {
+        "waveform": ".artifacts/cosmetics/overdrive/victory-waveform.png",
+        "human_or_model_audio_audition": false,
+        "note": "Signal metrics and waveform inspected; no listening capability available."
+      }
+    }
+  ]
+}

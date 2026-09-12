@@ -1,3 +1,4 @@
+import { CosmeticAudio } from './cosmetics.js';
 import { PanicBreathCadence } from './panic-breath.js';
 import { PainMoanCadence, PAIN_MOAN_THRESHOLD, painSampleChoice, renderPainMoan } from './pain-moans.js';
 import { renderBreath } from './breath.js';
@@ -34,6 +35,7 @@ import {
 } from './reports.js';
 
 const engine = new AudioEngine();
+const cosmeticAudio = new CosmeticAudio(engine);
 let pool = null;
 let primitives = null;
 let samples = null;
@@ -176,6 +178,7 @@ export const sfx = {
   init() {
     if (!engine.ensure()) return Promise.resolve(this);
     ensureAudioModules();
+    void cosmeticAudio.preload();
     return Promise.all([engine.resume(), loadBuiltInSamples()]).then(() => this);
   },
 
@@ -185,7 +188,12 @@ export const sfx = {
     return engine.resume();
   },
 
+  preloadCosmetics() { return cosmeticAudio.preload(); },
+  playCosmetic(id, cue) { return cosmeticAudio.play(id, cue); },
+  stopCosmetics(cue) { cosmeticAudio.stop(cue); },
+
   async dispose() {
+    cosmeticAudio.clear();
     this.stopPainMoans();
     localVocalUntil = 0;
     painHitVariant = -1;

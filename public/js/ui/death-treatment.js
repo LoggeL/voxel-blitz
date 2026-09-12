@@ -1,3 +1,4 @@
+import { createDeathSignature } from '../cosmetics/signature.js';
 import { clamp01, el } from './hud-support.js';
 
 const DEATH_IMPACT_MS = 420;
@@ -44,11 +45,14 @@ export class DeathTreatment {
     return recap;
   }
 
-  showNote(killerName, recapText = '') {
+  showNote(killerName, recapText = '', cosmetics = null) {
     const note = this.ensureNote();
     if (!note) return;
     note.textContent = killerName ? `eliminated by ${killerName}` : 'eliminated';
     note.style.display = 'block';
+    this._signature?.remove();
+    this._signature = cosmetics?.signature ? createDeathSignature(cosmetics.signature) : null;
+    if (this._signature) note.append(this._signature);
     const recap = this.ensureRecap();
     if (recap) {
       recap.textContent = recapText || '';
@@ -57,6 +61,8 @@ export class DeathTreatment {
   }
 
   hideNote() {
+    this._signature?.remove();
+    this._signature = null;
     const note = this._getDom().deathnote || this._ownedNote;
     if (note) note.style.display = 'none';
     const recap = this._getDom().deathrecap || this._ownedRecap;

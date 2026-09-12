@@ -1,3 +1,4 @@
+import { applyBodyCosmetics } from '../cosmetics/skins.js';
 import { pronePose } from '../../../shared/player-stance.js';
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
@@ -50,6 +51,7 @@ export function makeFirstPersonBody() {
   group.add(hips, torso, left.leg, right.leg);
   const body = {
     group,
+    setCosmetics(loadout) { applyBodyCosmetics(body, loadout); },
     hips,
     torso,
     left,
@@ -183,6 +185,7 @@ export function updateFirstPersonBody(
 export function disposeFirstPersonBody(body) {
   if (!body || body.disposed) return;
   body.disposed = true;
+  body._skinLayer?.clear();
   body.group.removeFromParent();
   disposeObjectTree(body.group);
   body.group.clear();

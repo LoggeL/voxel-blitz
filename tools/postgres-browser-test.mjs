@@ -51,7 +51,8 @@ try {
   const account = (await inspection.query('SELECT id FROM vb_accounts WHERE username=$1', [username])).rows[0];
   const persisted = (await inspection.query('SELECT xp,credits,kills,matches,owned,equipped FROM vb_careers WHERE account_id=$1', [account.id])).rows[0];
   assert.equal(Number(persisted.xp), 900); assert.equal(Number(persisted.credits), 950);
-  assert.deepEqual(persisted.equipped, { theme: 'arctic', title: 'pathfinder' });
+  assert.equal(persisted.equipped.theme, 'arctic');
+  assert.equal(persisted.equipped.title, 'pathfinder');
   assert.equal((await inspection.query('SELECT account_id FROM vb_career_claims WHERE guest_id=$1', [guest])).rows[0].account_id, account.id);
   await inspection.end(); inspection = null;
   await browser.close(); browser = null;

@@ -1,3 +1,4 @@
+import { normalizeCosmeticLoadout } from '../../shared/career.js';
 import { WEAPON_IDS } from '../../shared/combatmath.js';
 import { MEDKIT_SECONDS } from '../../shared/medkit.js';
 import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
@@ -113,6 +114,7 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
     players: (playersArr || []).map((p) => ({
       id: String(p.id),
       name: String(p.name),
+      cosmetics: normalizeCosmeticLoadout(p.cosmetics),
       x: round(p.x, D2),
       y: round(p.y, D2),
       z: round(p.z, D2),

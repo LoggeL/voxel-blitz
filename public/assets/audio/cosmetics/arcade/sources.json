@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "kit": "arcade",
+  "title": "Arcade",
+  "authorship": "Original commissioned AI-generated sound effects; no supplied recordings or sampled songs.",
+  "recipe": "tools/generate-cosmetic-arcade.py",
+  "api_reference": "https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert",
+  "assets": [
+    {
+      "cue": "kill",
+      "file": "kill.ogg",
+      "sha256": "f8d027eb4d149d250a906632bc715df458dd783b87b1954aca35b26daae29d3a",
+      "bytes": 6000,
+      "format": "Ogg Opus",
+      "sample_rate": 48000,
+      "channels": 1,
+      "bitrate_target": 112000,
+      "source": {
+        "provider": "ElevenLabs Sound Effects",
+        "model_id": "eleven_text_to_sound_v2",
+        "request": {
+          "text": "One original arcade shooter kill-confirmation sound. Bright rounded 8-bit pulse synth, tiny tactile click then two quick rising notes in a major sixth. Compact joyful pip-CHIP, instant attack, all action finished within 0.30 seconds followed by silence. Warm triangle bass accent, crisp controlled treble. Dry clean isolated game UI asset. No voices, gunshots, ambience, noise bed, echo, repeated events or recognizable existing melody.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "candidate": 2,
+        "raw_sha256": "babf628e98233c991b0f9b74d2454d0429fa67426ee85b9aa67c8e20bbdd6824",
+        "decoded_sha256": "1ad286811ad9fe4c6734118a29222c8dc6b9d943409c531ae54f436719e1dc2f",
+        "receipt": ".artifacts/cosmetics/arcade/api-source/kill-2.json",
+        "http_status": 200,
+        "request_id": null,
+        "character_cost": "5",
+        "created_at": "2026-09-12T09:48:18.667507+00:00"
+      },
+      "processing": {
+        "trim_start_seconds": 0,
+        "trim_end_seconds": 0.335083,
+        "gain": 0.83874072,
+        "fade_in_seconds": 0.003,
+        "tempo": 1.0,
+        "pitch_preserved": true,
+        "fade_out_seconds": 0.02,
+        "filter": "atrim=start=0.000000:end=0.335083,asetpts=PTS-STARTPTS,atempo=1.00,volume=0.83874072,afade=t=in:d=0.003,afade=t=out:st=0.315083:d=0.020000",
+        "target_rms_dbfs": -20,
+        "maximum_decoded_peak": 0.75
+      },
+      "metrics": {
+        "decoded_duration_seconds": 0.334125,
+        "sample_peak": 0.678732,
+        "sample_peak_dbfs": -3.366,
+        "rms_dbfs": -20.433,
+        "clipped_samples": 0
+      },
+      "qa": {
+        "waveform": ".artifacts/cosmetics/arcade/kill-waveform.png",
+        "human_or_model_audio_audition": false,
+        "note": "Signal metrics and waveform inspected; no listening capability available."
+      }
+    },
+    {
+      "cue": "death",
+      "file": "death.ogg",
+      "sha256": "951cf6f4d083afd30d9285cf0fa124c32407239c14a71740a41aacd025251d0e",
+      "bytes": 9534,
+      "format": "Ogg Opus",
+      "sample_rate": 48000,
+      "channels": 1,
+      "bitrate_target": 112000,
+      "source": {
+        "provider": "ElevenLabs Sound Effects",
+        "model_id": "eleven_text_to_sound_v2",
+        "request": {
+          "text": "Original arcade player-signature jingle, a cheerful confident four-note melody lasting 0.75 seconds then clean decay. Rounded bright 8-bit pulse lead jumps up a major sixth then lands on a warm resolved major chord; soft triangle bass and one tiny digital sparkle. Playful and satisfying, restrained treble. Immediate attack, dry game UI audio. No voices, gunshots, ambience, repeats, reverb or recognizable melody from an existing game.",
+          "duration_seconds": 1.0,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "candidate": 1,
+        "raw_sha256": "14ed94f8a80af1cfaf44ab1b218a481366c7b49b34848d93f4730e3752b307fe",
+        "decoded_sha256": "845dd016bd47117cbb16c0fef3587a64a57b413154ca5e4887bcf60d92f812ee",
+        "receipt": ".artifacts/cosmetics/arcade/api-source/death-1.json",
+        "http_status": 200,
+        "request_id": null,
+        "character_cost": "10",
+        "created_at": "2026-09-12T09:48:43.486857+00:00"
+      },
+      "processing": {
+        "trim_start_seconds": 0,
+        "trim_end_seconds": 0.570021,
+        "gain": 0.38236604,
+        "fade_in_seconds": 0.003,
+        "tempo": 1.0,
+        "pitch_preserved": true,
+        "fade_out_seconds": 0.04,
+        "filter": "atrim=start=0.000000:end=0.570021,asetpts=PTS-STARTPTS,atempo=1.00,volume=0.38236604,afade=t=in:d=0.003,afade=t=out:st=0.530021:d=0.040000",
+        "target_rms_dbfs": -20,
+        "maximum_decoded_peak": 0.75
+      },
+      "metrics": {
+        "decoded_duration_seconds": 0.570021,
+        "sample_peak": 0.545192,
+        "sample_peak_dbfs": -5.269,
+        "rms_dbfs": -20.041,
+        "clipped_samples": 0
+      },
+      "qa": {
+        "waveform": ".artifacts/cosmetics/arcade/death-waveform.png",
+        "human_or_model_audio_audition": false,
+        "note": "Signal metrics and waveform inspected; no listening capability available."
+      }
+    },
+    {
+      "cue": "victory",
+      "file": "victory.ogg",
+      "sha256": "60d579a0d7497869f78be0044b2813549e3ed71c1123ee8b0e603c9c598d86a7",
+      "bytes": 50755,
+      "format": "Ogg Opus",
+      "sample_rate": 48000,
+      "channels": 1,
+      "bitrate_target": 112000,
+      "source": {
+        "provider": "ElevenLabs Sound Effects",
+        "model_id": "eleven_text_to_sound_v2",
+        "request": {
+          "text": "Original 3.5 second arcade victory fanfare. Rounded bright 8-bit pulse lead opens with a bold rising major sixth, develops into a short joyful melody over warm triangle bass, tight electronic snare and sparkling arpeggio. Champion mood, playful elegant chiptune production. One phrase with satisfying resolved major final chord and short clean tail, ends by 3.3 seconds. No voices, ambience, repeated loops or recognizable existing game melody.",
+          "duration_seconds": 3.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "candidate": 1,
+        "raw_sha256": "a8233b3564fcbc8605a23ffc76a5510c8b679730d2953a35e09cf1e06047f9b7",
+        "decoded_sha256": "c277eff675c1503c87ff9d8074ef98066ff8193ba23df9bdb38ed7db4c08a22e",
+        "receipt": ".artifacts/cosmetics/arcade/api-source/victory-1.json",
+        "http_status": 200,
+        "request_id": null,
+        "character_cost": "35",
+        "created_at": "2026-09-12T09:48:45.540722+00:00"
+      },
+      "processing": {
+        "trim_start_seconds": 0,
+        "trim_end_seconds": 2.850125,
+        "gain": 0.37286102,
+        "fade_in_seconds": 0.003,
+        "tempo": 0.9,
+        "pitch_preserved": true,
+        "fade_out_seconds": 0.1,
+        "filter": "atrim=start=0.000000:end=2.850125,asetpts=PTS-STARTPTS,atempo=0.90,volume=0.37286102,afade=t=in:d=0.003,afade=t=out:st=3.066806:d=0.100000",
+        "target_rms_dbfs": -20,
+        "maximum_decoded_peak": 0.75
+      },
+      "metrics": {
+        "decoded_duration_seconds": 3.157917,
+        "sample_peak": 0.490246,
+        "sample_peak_dbfs": -6.192,
+        "rms_dbfs": -20.063,
+        "clipped_samples": 0
+      },
+      "qa": {
+        "waveform": ".artifacts/cosmetics/arcade/victory-waveform.png",
+        "human_or_model_audio_audition": false,
+        "note": "Signal metrics and waveform inspected; no listening capability available."
+      }
+    }
+  ]
+}

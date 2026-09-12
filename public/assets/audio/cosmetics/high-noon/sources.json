@@ -1,0 +1,187 @@
+{
+  "schema_version": 1,
+  "kit": "high-noon",
+  "title": "High Noon",
+  "authorship": "Original commissioned AI-generated sound effects; no supplied recordings or sampled songs.",
+  "recipe": "tools/generate-cosmetic-high-noon.py",
+  "api_reference": "https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert",
+  "assets": [
+    {
+      "cue": "kill",
+      "file": "kill.ogg",
+      "sha256": "7b27467c392171b110c8debfd853cbabc7156fdf3cf5b914b2b7094ff5dc3964",
+      "bytes": 7596,
+      "format": "Ogg Opus",
+      "sample_rate": 48000,
+      "channels": 1,
+      "bitrate_target": 112000,
+      "source": {
+        "provider": "ElevenLabs Sound Effects",
+        "model_id": "eleven_text_to_sound_v2",
+        "request": {
+          "text": "One original western duel kill confirmation. Immediate dry metallic spur tick layered with a warm muted steel guitar harmonic, two tightly plucked notes rising a perfect fourth. Confident compact CHINK-ding, rounded upper mids, restrained treble. Entire event and natural decay finish within 0.35 seconds then silence. Clean isolated game UI sound. No voices, gunshots, ambience, loops, echo or existing melody.",
+          "duration_seconds": 0.5,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "candidate": 1,
+        "raw_sha256": "49d85ece724dbe8a85adbf1a784c074407ec59a45608257d379b52dcb42ed186",
+        "decoded_sha256": "1994ab193f9ef8183025ff08654458a80cc9ace3985ccd0fe98c6fea35c31cfc",
+        "receipt": ".artifacts/cosmetics/high-noon/api-source/kill-1.json",
+        "http_status": 200,
+        "request_id": null,
+        "character_cost": "5",
+        "created_at": "2026-09-12T10:03:21.225292+00:00"
+      },
+      "processing": {
+        "trim_start_seconds": 0,
+        "trim_end_seconds": 0.421063,
+        "gain": 0.75652597,
+        "fade_in_seconds": 0.003,
+        "tempo": 1.0,
+        "pitch_preserved": true,
+        "fade_out_seconds": 0.025,
+        "filter": "aformat=channel_layouts=mono,atrim=start=0.000000:end=0.421063,asetpts=PTS-STARTPTS,atempo=1.00,volume=0.75652597,alimiter=limit=0.68:attack=1:release=35:level=0:latency=1,afade=t=in:d=0.003,afade=t=out:st=0.396062:d=0.025000",
+        "target_rms_dbfs": -20,
+        "maximum_decoded_peak": 0.75,
+        "limiter": {
+          "limit": 0.68,
+          "attack_ms": 1,
+          "release_ms": 35,
+          "automatic_makeup_gain": false,
+          "latency_compensated": true
+        }
+      },
+      "metrics": {
+        "decoded_duration_seconds": 0.421063,
+        "sample_peak": 0.67145,
+        "sample_peak_dbfs": -3.46,
+        "rms_dbfs": -20.096,
+        "clipped_samples": 0
+      },
+      "qa": {
+        "waveform": ".artifacts/cosmetics/high-noon/kill-waveform.png",
+        "human_or_model_audio_audition": false,
+        "note": "Signal metrics and waveform inspected; no listening capability available."
+      }
+    },
+    {
+      "cue": "death",
+      "file": "death.ogg",
+      "sha256": "c4ff5bdbef74f0f57db3b1f5fde89be9a330d58c6ff413154b6223bfb3d058db",
+      "bytes": 10725,
+      "format": "Ogg Opus",
+      "sample_rate": 48000,
+      "channels": 1,
+      "bitrate_target": 112000,
+      "source": {
+        "provider": "ElevenLabs Sound Effects",
+        "model_id": "eleven_text_to_sound_v2",
+        "request": {
+          "text": "Original western gunslinger signature lasting 0.8 seconds with a clean short tail. Dry steel guitar harmonic jumps up a perfect fourth, then a warm low twang resolves confidently. One delicate metallic spur tick marks the attack. Dusty cinematic duel attitude, intimate string texture, restrained treble, no long reverb. One compact memorable musical gesture. No voices, gunshots, ambience, repeated loop or existing melody.",
+          "duration_seconds": 1.0,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "candidate": 1,
+        "raw_sha256": "3f7be097dd268aa74d97c75b9bbe77c34a0fe9591686f7a0a8323639f9dd36d6",
+        "decoded_sha256": "aaa321b922b3d26dad01c6a08f7381c1f66a027fabada3e0001e97add41f7a1d",
+        "receipt": ".artifacts/cosmetics/high-noon/api-source/death-1.json",
+        "http_status": 200,
+        "request_id": null,
+        "character_cost": "10",
+        "created_at": "2026-09-12T10:03:23.383895+00:00"
+      },
+      "processing": {
+        "trim_start_seconds": 0,
+        "trim_end_seconds": 0.646229,
+        "gain": 0.46988956,
+        "fade_in_seconds": 0.003,
+        "tempo": 1.0,
+        "pitch_preserved": true,
+        "fade_out_seconds": 0.05,
+        "filter": "aformat=channel_layouts=mono,atrim=start=0.000000:end=0.646229,asetpts=PTS-STARTPTS,atempo=1.00,volume=0.46988956,alimiter=limit=0.68:attack=1:release=35:level=0:latency=1,afade=t=in:d=0.003,afade=t=out:st=0.596229:d=0.050000",
+        "target_rms_dbfs": -20,
+        "maximum_decoded_peak": 0.75,
+        "limiter": {
+          "limit": 0.68,
+          "attack_ms": 1,
+          "release_ms": 35,
+          "automatic_makeup_gain": false,
+          "latency_compensated": true
+        }
+      },
+      "metrics": {
+        "decoded_duration_seconds": 0.64625,
+        "sample_peak": 0.384395,
+        "sample_peak_dbfs": -8.304,
+        "rms_dbfs": -20.079,
+        "clipped_samples": 0
+      },
+      "qa": {
+        "waveform": ".artifacts/cosmetics/high-noon/death-waveform.png",
+        "human_or_model_audio_audition": false,
+        "note": "Signal metrics and waveform inspected; no listening capability available."
+      }
+    },
+    {
+      "cue": "victory",
+      "file": "victory.ogg",
+      "sha256": "d3645e88c64c24f04581442fa9ed5730e59e330074bc6092832a74fe64f4d269",
+      "bytes": 56662,
+      "format": "Ogg Opus",
+      "sample_rate": 48000,
+      "channels": 1,
+      "bitrate_target": 112000,
+      "source": {
+        "provider": "ElevenLabs Sound Effects",
+        "model_id": "eleven_text_to_sound_v2",
+        "request": {
+          "text": "A complete original four second WESTERN MUSIC victory phrase, played throughout the clip. Four rhythmic baritone guitar plucks in the first second, a steel guitar melody answers in seconds two and three, rising a perfect fourth then resolving to a warm final chord at 3.4 seconds. Quiet galloping brushes and upright bass continue under the melody. Confident duel swagger, dry studio recording. No speech or existing tune.",
+          "duration_seconds": 4.0,
+          "prompt_influence": 0.3,
+          "model_id": "eleven_text_to_sound_v2"
+        },
+        "candidate": 2,
+        "raw_sha256": "898c164aee5498e534aadbffd85207de561c294b7c8951bffd31f1f242b315cf",
+        "decoded_sha256": "1737dbd016bf54f296501370e0e1b84de524b2842c329e46540e1c557c37b81b",
+        "receipt": ".artifacts/cosmetics/high-noon/api-source/victory-2.json",
+        "http_status": 200,
+        "request_id": null,
+        "character_cost": "40",
+        "created_at": "2026-09-12T10:04:09.380597+00:00"
+      },
+      "processing": {
+        "trim_start_seconds": 0,
+        "trim_end_seconds": 4.0,
+        "gain": 1.28888364,
+        "fade_in_seconds": 0.003,
+        "tempo": 1.0,
+        "pitch_preserved": true,
+        "fade_out_seconds": 0.12,
+        "filter": "aformat=channel_layouts=mono,atrim=start=0.000000:end=4.000000,asetpts=PTS-STARTPTS,atempo=1.00,volume=1.28888364,alimiter=limit=0.68:attack=1:release=35:level=0:latency=1,afade=t=in:d=0.003,afade=t=out:st=3.880000:d=0.120000",
+        "target_rms_dbfs": -20,
+        "maximum_decoded_peak": 0.75,
+        "limiter": {
+          "limit": 0.68,
+          "attack_ms": 1,
+          "release_ms": 35,
+          "automatic_makeup_gain": false,
+          "latency_compensated": true
+        }
+      },
+      "metrics": {
+        "decoded_duration_seconds": 3.993438,
+        "sample_peak": 0.704107,
+        "sample_peak_dbfs": -3.047,
+        "rms_dbfs": -20.4,
+        "clipped_samples": 0
+      },
+      "qa": {
+        "waveform": ".artifacts/cosmetics/high-noon/victory-waveform.png",
+        "human_or_model_audio_audition": false,
+        "note": "Signal metrics and waveform inspected; no listening capability available."
+      }
+    }
+  ]
+}

@@ -14,6 +14,7 @@ export const TEAM_AVATAR_COLORS = Object.freeze({
 });
 
 export function disposeAvatar(av) {
+  av._skinLayer?.clear();
   av.weaponModel?.dispose();
   disposeObjectTree(av.group);
 }
@@ -363,6 +364,9 @@ export function makeAvatar(id, name, team = null) {
     team: undefined,
     suitMaterial: suit,
     darkMaterial: dark,
+    armorMaterial: armor,
+    visorMaterial: visorMat,
+    skinMaterial: skin,
     fadeMaterials: [suit, dark, armor, skin, visorMat, tagMat, hpMat],
     flashMaterials: [suit, dark, armor, skin],
     updateHealth,

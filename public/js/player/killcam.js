@@ -98,6 +98,7 @@ export class Killcam {
     if (this.camera.aspect !== aspect || this.camera.fov !== fov) {
       this.camera.aspect = aspect; this.camera.fov = fov; this.camera.updateProjectionMatrix();
     }
+    this.rig.setCosmetics(target.cosmetics);
     const weapon = WEAPON_IDS[target.weapon] || 'rifle';
     if (weapon !== this.weapon) { this.rig.setWeapon(weapon); this.weapon = weapon; }
     this.rig.ads(target.ads ? 1 : 0);

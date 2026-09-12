@@ -149,7 +149,7 @@ export class HUD {
   clearDamage() { return this.combat.clearDamage(); }
   hideDeathNote() { return this.combat.hideDeathNote(); }
   setDeathBrutality(value) { return this.combat.setDeathBrutality(value); }
-  setDead(dead, killer = '', recap = '') { return this.combat.setDead(dead, killer, recap); }
+  setDead(dead, killer = '', recap = '', cosmetics = null) { return this.combat.setDead(dead, killer, recap, cosmetics); }
   spawnDamage(amount, x, y, visible = true, headshot = false, stackKey = null) {
     return this.combat.spawnDamage(amount, x, y, visible, headshot, stackKey);
   }

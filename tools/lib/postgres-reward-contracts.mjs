@@ -41,7 +41,7 @@ export async function testRewardDurability(connectionString) {
     assert.equal((await queuedRead).xp, 25, 'later reads cannot overtake a delayed reward');
     assert.equal(career.observe(client, snapshot), undefined, 'duplicate snapshot stays deduplicated');
     const receipt = (await blocker.query('SELECT id FROM vb_reward_receipts WHERE profile_id=$1', [guest])).rows[0].id;
-    const delta = { ...CAREER_REWARDS.kill, kills: 1, matches: 0 };
+    const delta = { ...CAREER_REWARDS.kill, kills: 1, matches: 0, pvpKills: 1 };
     await Promise.all(Array.from({ length: 6 }, () => store.applyProgress(guest, delta, { operationId: receipt })));
     assert.equal((await store.readProfile(guest)).xp, 25, 'persisted receipt rejects repeated award attempts');
     await career.observe(client, { ...snapshot, now: 200 });

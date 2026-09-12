@@ -1,3 +1,4 @@
+import { normalizeCosmeticLoadout } from '../../../shared/career.js';
 import { KILLCAM, supportsKillcam } from '../../../shared/killcam-rules.js';
 import { copySmokeFields } from '../../../shared/smoke-rules.js';
 
@@ -21,7 +22,7 @@ export class KillcamHistory {
     let effects = 0;
     this.frames.push({ time,
       players: (snapshot.players || []).filter(p => p && [p.x, p.y, p.z, p.yaw, p.pitch].every(Number.isFinite))
-        .map(p => Object.fromEntries(POSE_FIELDS.map(key => [key, p[key]]))),
+        .map(p => ({ ...Object.fromEntries(POSE_FIELDS.map(key => [key, p[key]])), cosmetics: normalizeCosmeticLoadout(p.cosmetics) })),
       // Large explosions must not crowd out the killer's confirmed hits.
       events: structuredClone((snapshot.events || []).filter(e => EVENT_KINDS.has(e?.kind)
         && (e.kind === 'hit' || e.kind === 'kill' || effects++ < 256))),

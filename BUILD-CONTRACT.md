@@ -21,6 +21,32 @@ room/client interfaces below; do not fork their logic into a second convention.
   `BotManager`, and room-scoped transports. The server remains authoritative at
   20 Hz.
 
+## Career cosmetics
+
+- `shared/career.js` owns the cosmetic catalog, combined level/mastery gates,
+  automatic earned grants and normalized equipment. Weapon skins are keyed by
+  weapon ID; character skin, death signature and sound kit each have one slot.
+  Standard resets remove that slot's cosmetic. All Gun Game weapons remain
+  available and keep their existing handling, damage and hitboxes.
+- Authority records PvP kills and per-weapon mastery from accepted kill events,
+  using the weapon that made the kill before Gun Game advances. Bot, training,
+  self and teammate kills cannot advance mastery. Existing XP is preserved;
+  historical mastery starts at zero. PostgreSQL migration 2 adds the new
+  profile fields while preserving the original migration checksum.
+- Player snapshots carry `cosmetics:{weaponSkins,characterSkin,signature,sound}`
+  with server-validated catalog IDs; kill events carry the killer's cosmetics.
+  Online equipment refreshes after profile reads, rewards, equip/reset and
+  session revocation. Local weapons, remote avatars and killcam snapshots use
+  the same reversible skin modules and retain team identification.
+- Cosmetic kill, death and victory audio has separate saved volume controls,
+  bounded cue lengths and no delayed replay after a loading miss. The match
+  winner's kit supplies victory music; team wins use the highest-kill human
+  winner, with player ID breaking ties. Late death feedback preserves it.
+- `npm run career:test` covers career authority, persistence, unlock boundaries,
+  UI state, material isolation, audio lifecycle and shipped asset provenance.
+  `node tools/cosmetics-career-test.mjs --postgres` checks migration/restart in
+  isolated PostgreSQL. See `docs/cosmetics.md` for the full reward table.
+
 ## Run and contract harnesses
 - `npm start` runs `node server/index.js` on `PORT` or `8070`.
 - `npm run smoke` runs `tools/smoke.mjs` for the base gameplay protocol.

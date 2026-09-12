@@ -1,9 +1,11 @@
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import path from 'node:path';
-import { CAREER_CATALOG, CAREER_REWARDS, careerView } from '../shared/career.js';
+import { CAREER_CATALOG, CAREER_REWARDS, careerView, careerItemState, equipCareerItem, reconcileCareerUnlocks, cosmeticLoadout, normalizeCosmeticLoadout } from '../shared/career.js';
 import { CareerClaims, DatabaseCareerClaims, GUEST_TOKEN, careerProfilePath, guestCookie } from './career-identity.js';
-import { emptyProfile, validateProfile } from './persistence/career-profile.js';
+import { emptyProfile, validateProfile, normalizeCareerProgress, applyCareerProgress } from './persistence/career-profile.js';
+
+import { WEAPON_IDS } from '../shared/combatmath.js';
 
 const COOKIE = 'vb-career';
 
@@ -21,6 +23,8 @@ export class CareerService {
     this.store = store;
     this.claims = store ? new DatabaseCareerClaims(store) : new CareerClaims(this.directory);
     this.profiles = new Map();
+    this.loadouts = new Map();
+    this.decoratedSnapshots = new WeakMap();
     this.dirty = new Set();
     this.sessions = new WeakMap();
     this.pendingRewards = new Set();
@@ -51,6 +55,8 @@ export class CareerService {
     if (this.store) return this.store.claimGuest(guest, account, profile).then(claim => {
       if (!claim) return false;
       this.claims.remember(claim);
+      this.loadouts.delete(guest);
+      this.cacheLoadout(account, claim.profile);
       return true;
     });
     if (!GUEST_TOKEN.test(guest || '') || !careerProfilePath(this.directory, account)
@@ -60,6 +66,7 @@ export class CareerService {
     // current device's guest profile. The exclusive claim remains single-use.
     if (!this.claims.claim(guest, account, profile)) return false;
     this.profiles.delete(guest);
+    this.loadouts.delete(guest);
     this.dirty.delete(guest);
     this.profile(account);
     this.dirty.add(account);
@@ -73,15 +80,22 @@ export class CareerService {
     if (!file || this.claims.hasGuest(id)) return null;
     if (id.startsWith('account:') && this.accounts?.registrationPending?.(id.slice(8)) && !this.claims.forAccount(id))
       throw new Error('Your guest career transfer is pending. Please try again shortly.');
-    if (this.profiles.has(id)) return this.profiles.get(id);
+    if (this.profiles.has(id)) {
+      const profile = this.profiles.get(id);
+      if (reconcileCareerUnlocks(profile).length) this.dirty.add(id);
+      this.cacheLoadout(id, profile);
+      return profile;
+    }
     let profile;
     try {
       profile = validateProfile(JSON.parse(readFileSync(file, 'utf8')));
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
-      profile = this.claims.forAccount(id) || emptyProfile();
+      profile = validateProfile(this.claims.forAccount(id) || emptyProfile());
     }
     this.profiles.set(id, profile);
+    this.dirty.add(id);
+    this.cacheLoadout(id, profile);
     return profile;
   }
 
@@ -89,7 +103,51 @@ export class CareerService {
     if (!this.store) return this.profile(id);
     if (id.startsWith('account:') && this.accounts?.registrationPending?.(id.slice(8)) && !this.claims.forAccount(id))
       throw new Error('Your guest career transfer is pending. Please try again shortly.');
-    return this.store.readProfile(id);
+    return this.store.readProfile(id).then(profile => {
+      this.cacheLoadout(id, profile);
+      return profile;
+    }, error => { this.loadouts.delete(id); throw error; });
+  }
+
+  cacheLoadout(id, profile) {
+    if (id && profile) this.loadouts.set(id, cosmeticLoadout(profile));
+    else this.loadouts.delete(id);
+  }
+
+  /** Authentication is checked in memory; snapshots never read persistence. */
+  clientLoadout(client) {
+    if (!client) return normalizeCosmeticLoadout(null);
+    try {
+      if (client.authRequest) {
+        const current = this.identity(client.authRequest);
+        client.profileId = current === client.admittedProfileId ? current : null;
+      }
+      return normalizeCosmeticLoadout(client.profileId ? this.loadouts.get(client.profileId) : null);
+    } catch {
+      client.profileId = null;
+      return normalizeCosmeticLoadout(null);
+    }
+  }
+
+  /** Preserve a kill's presentation if its owner disconnects before broadcasting. */
+  detachClient(client) {
+    const loadout = this.clientLoadout(client);
+    for (const event of client.room?.engine?.tickEvents || []) {
+      if (event.kind === 'kill' && event.killer === client.id) event.cosmetics = loadout;
+    }
+  }
+
+  decorateSnapshot(snapshot, clients) {
+    if (snapshot.t !== 'tick') return snapshot;
+    if (this.decoratedSnapshots.has(snapshot)) return this.decoratedSnapshots.get(snapshot);
+    const loadouts = new Map((snapshot.players || []).map(player => [player.id, this.clientLoadout(clients.get(player.id))]));
+    const decorated = { ...snapshot,
+      players: (snapshot.players || []).map(player => ({ ...player, cosmetics: loadouts.get(player.id) })),
+      events: (snapshot.events || []).map(event => event.kind !== 'kill' ? event : ({ ...event,
+        cosmetics: normalizeCosmeticLoadout(loadouts.get(event.killer) || event.cosmetics || this.clientLoadout(clients.get(event.killer))) })),
+    };
+    this.decoratedSnapshots.set(snapshot, decorated);
+    return decorated;
   }
 
   flush(ids = this.dirty) {
@@ -116,8 +174,12 @@ export class CareerService {
   }
 
   applyProgress(id, delta) {
+    const changes = normalizeCareerProgress(delta);
     if (this.store) {
-      const saving = this.store.applyProgress(id, delta);
+      const saving = this.store.applyProgress(id, changes).then(profile => {
+        this.cacheLoadout(id, profile);
+        return profile;
+      }, error => { this.loadouts.delete(id); throw error; });
       this.pendingRewards.add(saving);
       saving.then(() => this.pendingRewards.delete(saving), error => {
         this.pendingRewards.delete(saving);
@@ -127,8 +189,10 @@ export class CareerService {
     }
     const profile = this.profile(id);
     if (!profile) return;
-    for (const key of ['xp', 'credits', 'kills', 'matches']) profile[key] += delta[key] || 0;
+    applyCareerProgress(profile, changes);
     this.dirty.add(id);
+    this.cacheLoadout(id, profile);
+    return profile;
   }
 
   /** Called only with authoritative snapshots, once per connection and tick. */
@@ -146,7 +210,7 @@ export class CareerService {
     if (snapshot.now <= state.now) return;
     const delta = state.now < 0 ? 0 : Math.min(1000, snapshot.now - state.now);
     state.now = snapshot.now;
-    const reward = { xp: 0, credits: 0, kills: 0, matches: 0 };
+    const reward = { xp: 0, credits: 0, kills: 0, matches: 0, pvpKills: 0, wins: 0, mastery: {} };
     const addReward = delta => { reward.xp += delta.xp; reward.credits += delta.credits; };
     for (const event of snapshot.events || []) {
       if (event.kind === 'kill' && event.killer === client.id && event.victim !== client.id) {
@@ -154,6 +218,16 @@ export class CareerService {
         if (!victim || (self.team && victim.team === self.team)) continue;
         addReward(victim.bot ? CAREER_REWARDS.botKill : CAREER_REWARDS.kill);
         reward.kills++;
+        if (!victim.bot) {
+          reward.pvpKills++;
+          // The accepted kill weapon matters in Gun Game: self.weapon already
+          // points at the next weapon after a successful stage transition.
+          if (WEAPON_IDS.includes(event.w)) {
+            const mastery = reward.mastery[event.w] ||= { kills: 0, headshots: 0 };
+            mastery.kills++;
+            if (event.hs === true) mastery.headshots++;
+          }
+        }
       }
       if (['bomb_plant', 'bomb_defuse'].includes(event.kind) && event.id === client.id)
         addReward(CAREER_REWARDS.objective);
@@ -175,31 +249,39 @@ export class CareerService {
       if (state.participated >= 10000) {
         addReward(CAREER_REWARDS.match);
         reward.matches++;
-        if (match.winner === self.id || (self.team && match.winner === self.team))
+        if (match.winner === self.id || (self.team && match.winner === self.team)) {
           addReward(CAREER_REWARDS.victory);
+          reward.wins++;
+        }
       }
       state.post = true;
       state.participated = 0;
     } else if (match.phase !== 'post') state.post = false;
     // The 20 Hz observation path is synchronous and makes no database calls
     // until an authoritative event actually earns a nonzero reward.
-    if (Object.values(reward).some(Boolean)) return this.applyProgress(client.profileId, reward);
+    if (['xp', 'credits', 'kills', 'matches', 'pvpKills', 'wins'].some(key => reward[key] > 0)) return this.applyProgress(client.profileId, reward);
   }
 
-  purchase(id, itemId, equipOnly = false, authorized = () => true) {
-    if (this.store) return this.store.purchase(id, itemId, equipOnly, authorized);
-    const profile = this.profile(id), item = CAREER_CATALOG.find(item => item.id === itemId);
+  purchase(id, itemId, equipOnly = false, authorized = () => true, selection = {}) {
+    if (this.store) return this.store.purchase(id, itemId, equipOnly, authorized, selection).then(profile => {
+      this.cacheLoadout(id, profile);
+      return profile;
+    });
+    if (!authorized()) throw new Error('Your session changed. Reopen the shop before purchasing.');
+    const profile = this.profile(id);
+    const item = itemId === 'standard' ? { id: 'standard', kind: selection.slot, weapon: selection.weapon } : CAREER_CATALOG.find(item => item.id === itemId);
     if (!profile || !item) throw new Error('Unknown item');
-    const previous = { ...profile, owned: [...profile.owned], equipped: { ...profile.equipped } };
+    const previous = validateProfile(profile);
     const wasDirty = this.dirty.has(id);
-    if (!profile.owned.includes(item.id)) {
+    if (item.id !== 'standard' && !profile.owned.includes(item.id)) {
+      if (item.unlock === 'earned') throw new Error('Complete all requirements to earn this cosmetic');
       if (equipOnly) throw new Error('Buy this item first');
-      if (careerView(profile).level < item.level) throw new Error(`Requires level ${item.level}`);
+      if (careerItemState(profile, item).locked) throw new Error(`Requires level ${item.level}`);
       if (profile.credits < item.price) throw new Error('Not enough credits');
       profile.credits -= item.price;
       profile.owned.push(item.id);
     }
-    profile.equipped[item.kind] = item.id;
+    equipCareerItem(profile, item);
     this.dirty.add(id);
     try { this.flush([id]); }
     catch (error) {
@@ -210,6 +292,7 @@ export class CareerService {
       else this.dirty.delete(id);
       throw error;
     }
+    this.cacheLoadout(id, profile);
     return careerView(profile);
   }
 
@@ -247,7 +330,7 @@ export class CareerService {
       const data = JSON.parse(body);
       if (!data || typeof data.item !== 'string') return reply(400, { error: 'Choose an item' });
       if (this.identity(req) !== id) return reply(401, { error: 'Your session changed. Reopen the shop before purchasing.' });
-      return reply(200, await this.purchase(id, data.item, data.equipOnly === true, () => this.identity(req) === id));
+      return reply(200, await this.purchase(id, data.item, data.equipOnly === true, () => this.identity(req) === id, { slot: data.slot, weapon: data.weapon }));
     } catch (error) { return reply(400, { error: error.message }); }
   }
 }

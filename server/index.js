@@ -98,6 +98,7 @@ async function main() {
         const current = career.identity(c.authRequest);
         c.profileId = current === c.admittedProfileId ? current : null;
       }
+      obj = career.decorateSnapshot(obj, clients);
       const saving = career.observe(c, obj);
       saving?.catch(error => {
         if (!c.careerErrorLogged) console.error('[career] reward save failed:', error.message);
@@ -203,6 +204,12 @@ async function main() {
       rateLimited: false,
     };
     clients.set(id, meta);
+    // Load once on admission; HTTP equipment changes and accepted rewards keep
+    // the server-owned cosmetic cache fresh without database reads in ticks.
+    if (admittedProfileId) Promise.resolve().then(() => career.readProfile(admittedProfileId)).catch(error => {
+      career.loadouts.delete(admittedProfileId);
+      console.error('[career] cosmetic profile unavailable:', error.message);
+    });
 
     ws.on('pong', (payload) => {
       meta.alive = true;
@@ -357,6 +364,7 @@ async function main() {
       meta.closed = true;
       clearTimeout(joinTimer);
       try {
+        career.detachClient(meta);
         manager.leave(meta, { reconnectable: code === 1006 || code === 1001 });
       } catch (err) {
         console.error('[voxel-blitz] lobby leave:', err.message);

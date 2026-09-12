@@ -1,3 +1,4 @@
+import { clearGunCosmetics } from '../cosmetics/skins.js';
 // Ten-model registry and shared first-person gun composition root.
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTrees } from '../engine/dispose.js';
@@ -175,6 +176,7 @@ export function buildGun(id, cache) {
 /** Dispose one rig owner's built gun bundles without releasing shared materials twice. */
 export function disposeGunModels(models, cache) {
   const bundles = Array.isArray(models) ? models : Object.values(models || {});
+  for (const bundle of bundles) if (bundle) clearGunCosmetics(bundle);
   disposeObjectTrees(bundles.map(bundle => bundle?.root), { excludedMaterials: cache?.sharedMaterials });
   for (const bundle of bundles) {
     bundle?.root?.removeFromParent();

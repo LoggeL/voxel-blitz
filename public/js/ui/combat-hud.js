@@ -333,7 +333,7 @@ export class CombatHudController {
     this._deathTreatment.setBrutality(value);
   }
 
-  setDead(dead, killerName = '', recap = '') {
+  setDead(dead, killerName = '', recap = '', cosmetics = null) {
     if (this._disposed) return;
     this.dead = !!dead;
     if (!this.dead) this._deathTreatment.reset();
@@ -362,7 +362,7 @@ export class CombatHudController {
       this.clearOwnDamage();
       if (d.lowhp) d.lowhp.style.opacity = '0';
       this._deathTreatment.activate();
-      this._deathTreatment.showNote(killerName, recap);
+      this._deathTreatment.showNote(killerName, recap, cosmetics);
     } else {
       this.hideDeathNote();
       const state = this.st;

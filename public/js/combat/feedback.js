@@ -228,7 +228,7 @@ export class CombatFeedback {
           if (ev.killer === myId) {
             // Kill confirmation outranks the body/head mark of the lethal hit.
             this.hud.hitmark(ev.hs ? 'killHead' : 'kill');
-            this.sfx.killConfirm?.(!!ev.hs);
+            if (!this.sfx.playCosmetic?.(this.getSelfRow()?.cosmetics?.sound, 'kill')) this.sfx.killConfirm?.(!!ev.hs);
           }
         }
         break;
@@ -391,7 +391,12 @@ export class CombatFeedback {
     this.hud.setDeathBrutality(headshot ? 1 : 0.82);
     this.effects?.gore(transition.goreImpact, { lethal: true, local: true });
     this.sfx.deathSelf({ headshot });
-    this.hud.setDead(true, killerId ? this.nameOf(killerId) : '', this.deathRecap(killerId, event, headshot));
+    const killer = killerId && killerId !== this.getMyId() ? this.getPlayersCache().find(row => row.id === killerId) : null;
+    const cosmetics = killerId && killerId !== this.getMyId() ? event?.cosmetics || killer?.cosmetics : null;
+    this.sfx.stopCosmetics?.('kill');
+    this.sfx.stopCosmetics?.('death');
+    this.sfx.playCosmetic?.(cosmetics?.sound, 'death');
+    this.hud.setDead(true, killerId ? this.nameOf(killerId) : '', this.deathRecap(killerId, event, headshot), cosmetics);
     return true;
   }
 
@@ -412,6 +417,8 @@ export class CombatFeedback {
   }
 
   presentLocalRespawn() {
+    this.sfx.stopCosmetics?.('kill');
+    this.sfx.stopCosmetics?.('death');
     if (this._disposed) return;
     this._presentedDeaths = new WeakSet();
     this.hud.setPainImpulse(0);

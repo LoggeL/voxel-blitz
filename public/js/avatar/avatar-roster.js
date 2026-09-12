@@ -1,3 +1,4 @@
+import { applyAvatarCosmetics } from '../cosmetics/skins.js';
 import { updateBastionAvatar } from './bastion-avatar.js';
 import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import * as THREE from '../vendor/three.module.js';
@@ -175,6 +176,7 @@ export class AvatarRoster {
         this._avatars.set(remote.id, avatar);
       }
       setAvatarTeam(avatar, remote.team);
+      applyAvatarCosmetics(avatar, remote.cosmetics);
       updateBastionAvatar(avatar,remote);
 
       const pendingHit = this._pendingHits.get(remote.id);
