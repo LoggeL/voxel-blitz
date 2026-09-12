@@ -306,7 +306,7 @@ rooms with join in progress and no ready gate.
 Team Deathmatch assigns each player to the lower-population `alpha` or `bravo`
 team, disables friendly fire, provides the complete ten-weapon loadout, and
 uses team-specific spawn pools. Enemy kills increment the team score. The first
-team to **40** wins; a **5000 ms** post-match phase follows, then team and player
+team to **40** wins; the result approval phase follows, then team and player
 scores reset and everyone respawns. Deaths respawn after **3000 ms** during the
 live phase.
 
@@ -315,9 +315,20 @@ live phase.
 Search and Destroy assigns persistent `alpha`/`bravo` teams to attacker and
 defender roles and disables friendly fire. Roles swap after **6 completed
 rounds**; the first persistent team to **7 round wins** wins the match. Each
-round is **10000 ms prep**, **90000 ms live**, and **5000 ms post**. Players do
+round is **10000 ms prep**, **90000 ms live**, followed by the result approval phase. Players do
 not respawn during a round; late joins during live spectate until the next
 round.
+
+After a round or match ends in Duel, TDM, Gun Game, S&D, or Bastion, the result
+screen shows the final scoreboard and a **Continue** button. At least **40%**
+of connected human players must approve, rounded up, before a **five-second**
+server countdown starts. Bots do not count. Each player can approve once per
+result, including dead players and spectators. Joins and disconnects update
+the required count; if approval falls below it, the countdown is cancelled
+and restarts with five seconds once enough players approve. Results preserve
+players and scores from the round end even if someone leaves. The client sends
+`{t: "continue", roundId}` using the token in `match.continuation`; the server
+identifies the voter from the admitted socket and rejects old round tokens.
 
 One attacker carries the bomb. An attacker holds **E** inside A or B for
 **3000 ms** to plant. A defender holds **E** within 2 world units for **5000 ms**

@@ -872,7 +872,7 @@ export async function runHudContracts(ok, installGlobals) {
       ok(visible(resultScreen)
         && resultScreen.classList.contains('is-victory')
         && document.getElementById('match-result-title').textContent === 'VICTORY'
-        && document.getElementById('match-result-score').textContent.replace(/\s/g, '') === '7—4'
+        && document.getElementById('match-result-score').textContent.replace(/\s/g, '') === '7:4'
         && document.getElementById('match-result-countdown').textContent.endsWith('0:03'),
       'final team winner snapshot renders a server-clocked victory screen');
 

@@ -46,8 +46,10 @@ assert.deepEqual(bastionWave(4,4).counts,[31,5,3]);
 {
   const h=make(),{e,m,p}=h;m.startWave();e.killPlayer(p,null,'world',false);assert(m.returnAt);advance(e,R.returnMs);assert.equal(p.state,'alive');assert.equal(p.armor,0);
   e.killPlayer(p,null,'world',false);e.step();assert.equal(m.phase,'post');assert.equal(m.reason,'team');
-  advance(e,R.postMs);assert.equal(m.phase,'prep');assert.equal(m.wave,0);assert.equal(m.credits,400);assert.equal(m.soloUsed,false);e.stop();
-  console.log('ok: one solo return, defeat, automatic fresh run');
+  advance(e,R.postMs);assert.equal(m.phase,'post');
+  e.mode.approveContinuation(p.id,e.mode.matchSnapshot().continuation.id);
+  advance(e,5000);assert.equal(m.phase,'prep');assert.equal(m.wave,0);assert.equal(m.credits,400);assert.equal(m.soloUsed,false);e.stop();
+  console.log('ok: one solo return, defeat, approved fresh run');
 }
 {
   const {e,m,p}=make();m.startWave();m.core.hp=0;m.queue=[];e.npcs.clear();e.step();assert.equal(m.reason,'core');assert.equal(m.matchWinner,'bravo');e.stop();
@@ -67,7 +69,7 @@ assert.deepEqual(bastionWave(4,4).counts,[31,5,3]);
     e.step(50);
   }
   assert.equal(m.phase,'post');assert.equal(m.wave,8);assert.equal(m.matchWinner,'alpha');assert.equal(m.credits,3900);assert(peak<=8);
-  const run=m.run;advance(e,R.postMs);assert.notEqual(m.run,run);assert.equal(e.world.getBlock(...block),old);assert.equal(e.changedBlocks.size,0);e.stop();
+  const run=m.run;e.mode.approveContinuation(p.id,e.mode.matchSnapshot().continuation.id);advance(e,5000);assert.notEqual(m.run,run);assert.equal(e.world.getBlock(...block),old);assert.equal(e.changedBlocks.size,0);e.stop();
   console.log('ok: all 8 finite waves, exact team rewards, bounded population, victory and map restoration');
 }
 {

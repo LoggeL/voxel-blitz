@@ -1,0 +1,43 @@
+Use case: ui-mockup. Redesign the attached selected Voxel Blitz result-screen concept specifically for a LARGE match: exactly 30 human players plus 6 AI bots. Preserve its visual language and quality: dark charcoal industrial panels over a dim real-looking voxel arena, condensed crisp white UI type, green VICTORY, cyan ALPHA, warm orange BRAVO, a solid amber CONTINUE button. This is a new large-roster variant of that concept, not a generic dashboard. Create one high-resolution landscape desktop screenshot, approximately 1920x1200, flat straight-on UI, no device frame, no montage.
+
+Layout: use a near-full-width centered results panel with SMALL compact header taking no more than 15% of its height, two equally wide team tables side by side taking around 65%, and a permanently visible bottom approval strip taking the remaining area. Far more space for player rows than the reference. Both teams must be visible at once. Tables have sticky-looking headings and thin internal scrollbars, so the result header and voting footer will never scroll away. Show all 15 HUMAN rows in each team at once at this desktop size, tightly spaced yet readable; rows are simple aligned text, not big cards. Below each human table, place a separate collapsed neutral BOT group row, exactly "3 BOTS · SHOW" with a muted "NO VOTE" badge. Bots remain in the scoreboard through that group, but can never vote and are completely excluded from the voting denominator. Never render vote buttons, checkboxes, progress circles, or approval icons on BOT groups.
+
+Header text verbatim: "MATCH COMPLETE", "VICTORY", "ALPHA SECURED THE MATCH", "TEAM DEATHMATCH", "FOUNDRY", "30 PLAYERS + 6 BOTS". The match score is large "40 : 28" with 40 cyan, 28 orange. Team table headings: "ALPHA" with "15 PLAYERS + 3 BOTS", and "BRAVO" with "15 PLAYERS + 3 BOTS". Column headings: "#", "PLAYER", "K", "D", "PING", "VOTE". Keep player name wide and numeric columns right aligned.
+
+ALPHA humans in order, with K/D/ping:
+1 LOGGY 7/3/24 (add YOU badge and highlighted current-player row)
+2 NOVA 5/3/32
+3 RIFT 4/2/41
+4 PIXEL 4/2/18
+5 AXIS 3/2/29
+6 FLINT 3/2/37
+7 ONYX 2/2/44
+8 FROST 2/2/21
+9 KODA 2/1/35
+10 LUMEN 1/1/27
+11 SPARK 1/1/40
+12 JUNO 1/1/22
+13 VALE 1/1/31
+14 REEF 0/1/46
+15 WISP 0/1/25.
+BRAVO humans in order:
+1 ECHO 6/4/28
+2 VEX 4/3/36
+3 RAZE 3/3/20
+4 GHOST 2/3/33
+5 EMBER 2/3/42
+6 NEXUS 2/2/26
+7 BOLT 1/2/38
+8 ORBIT 1/2/30
+9 VIPER 1/2/23
+10 TRACE 1/2/39
+11 SHADE 1/2/34
+12 MOSS 1/2/43
+13 DUSK 0/1/19
+14 KITE 0/1/45
+15 ASH 0/1/47.
+The six hidden bots account for the remaining team kills/deaths; do not invent other totals.
+
+There are exactly NINE human approvals. Show a small green check only in the VOTE column of NOVA, RIFT, PIXEL, FLINT, FROST, ECHO, VEX, RAZE, EMBER. All other human rows show a muted dash. LOGGY has not approved, so CONTINUE is enabled.
+
+Persistent bottom strip: clear main count exactly "9 / 30 PLAYERS APPROVED"; nearby exactly "12 REQUIRED (40%)" and "3 MORE NEEDED". A horizontal approval meter is precisely 30% filled, with its target tick at 40%. Supplemental copy exactly "BOTS CANNOT VOTE" and "5-second countdown starts at 40%". Prominent amber "CONTINUE" action at right with "WAITING FOR APPROVALS" underneath. Do NOT show a running countdown because nine votes have not reached twelve. Do NOT use 36 as the eligible count. Do NOT display 30 avatar chips, 30 vote tiles or other visual clutter. No XP/rewards, no invented controls, no unrelated navigation. Typography must stay readable and all counts, tables, bot badges, and voting semantics must be internally consistent.

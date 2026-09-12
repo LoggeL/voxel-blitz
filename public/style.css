@@ -2837,7 +2837,7 @@ h1.vb-title::after {
 
 /* ---------- scoreboard ---------- */
 
-#scoreboard {
+:is(#scoreboard, #match-result-scoreboard) {
   position: absolute;
   left: 50%;
   top: 48%;
@@ -2861,7 +2861,7 @@ h1.vb-title::after {
   z-index: var(--z-feed);
 }
 
-#scoreboard::before {
+:is(#scoreboard, #match-result-scoreboard)::before {
   content: 'TACTICAL SCOREBOARD';
   display: block;
   margin-bottom: 12px;
@@ -2871,12 +2871,12 @@ h1.vb-title::after {
   color: var(--sub);
 }
 
-#scoreboard table {
+:is(#scoreboard, #match-result-scoreboard) table {
   width: 100%;
   border-collapse: collapse;
 }
 
-#scoreboard th {
+:is(#scoreboard, #match-result-scoreboard) th {
   padding: 6px 10px 8px;
   font-size: 10px;
   font-weight: 600;
@@ -2886,13 +2886,13 @@ h1.vb-title::after {
   border-bottom: 1px solid var(--line);
 }
 
-#scoreboard th:not(:first-child):not(:last-child),
-#scoreboard td:not(:first-child):not(:last-child) { text-align: right; }
+:is(#scoreboard, #match-result-scoreboard) th:not(:first-child):not(:last-child),
+:is(#scoreboard, #match-result-scoreboard) td:not(:first-child):not(:last-child) { text-align: right; }
 
-#scoreboard th:last-child,
-#scoreboard td:last-child { text-align: left; padding-left: 14px; }
+:is(#scoreboard, #match-result-scoreboard) th:last-child,
+:is(#scoreboard, #match-result-scoreboard) td:last-child { text-align: left; padding-left: 14px; }
 
-#scoreboard td {
+:is(#scoreboard, #match-result-scoreboard) td {
   padding: 7px 10px;
   font-size: 13px;
   font-weight: 500;
@@ -2901,33 +2901,33 @@ h1.vb-title::after {
   border-bottom: 1px solid rgba(58, 66, 80, 0.28);
 }
 
-#scoreboard tr:last-child td { border-bottom: none; }
+:is(#scoreboard, #match-result-scoreboard) tr:last-child td { border-bottom: none; }
 
-#scoreboard tr.vb-me td:first-child {
+:is(#scoreboard, #match-result-scoreboard) tr.vb-me td:first-child {
   box-shadow: inset 3px 0 0 var(--amber);
 }
 
-#scoreboard tr.vb-me {
+:is(#scoreboard, #match-result-scoreboard) tr.vb-me {
   background: rgba(255, 255, 255, 0.05);
 }
 
-#scoreboard tr.vb-team-alpha {
+:is(#scoreboard, #match-result-scoreboard) tr.vb-team-alpha {
   background: rgba(56, 189, 248, 0.04);
 }
 
-#scoreboard tr.vb-team-alpha td:first-child {
+:is(#scoreboard, #match-result-scoreboard) tr.vb-team-alpha td:first-child {
   box-shadow: inset 3px 0 0 var(--team-alpha);
 }
 
-#scoreboard tr.vb-team-bravo {
+:is(#scoreboard, #match-result-scoreboard) tr.vb-team-bravo {
   background: rgba(251, 146, 60, 0.04);
 }
 
-#scoreboard tr.vb-team-bravo td:first-child {
+:is(#scoreboard, #match-result-scoreboard) tr.vb-team-bravo td:first-child {
   box-shadow: inset 3px 0 0 var(--team-bravo);
 }
 
-#scoreboard tr.dead td { color: var(--sub); opacity: 0.65; }
+:is(#scoreboard, #match-result-scoreboard) tr.dead td { color: var(--sub); opacity: 0.65; }
 
 .vb-sb-team-badge {
   display: inline-block;
@@ -3734,7 +3734,7 @@ body.is-replaying #hud, body.is-replaying .vb-touch-controls { visibility: hidde
     justify-content: space-between;
   }
 
-  #scoreboard {
+  :is(#scoreboard, #match-result-scoreboard) {
     min-width: calc(100vw - 20px);
     padding: 12px 14px;
   }

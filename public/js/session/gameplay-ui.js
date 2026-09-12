@@ -37,6 +37,8 @@ export class GameplayUiFlow {
     this._onInputDisabled = onInputDisabled;
     this._inputEnabled = false;
     this._pendingPurchase = null;
+    this._postRound = false;
+    this._hud.setupMatchContinuation?.((roundId) => this._getNet()?.approveContinuation(roundId));
   }
 
   get inputEnabled() { return this._inputEnabled; }
@@ -82,7 +84,10 @@ export class GameplayUiFlow {
 
   /** Keyboard fallback for browsers that do not expose pointer lock (including headless QA). */
   pauseFromKeyboard() {
-    if (!this.canUseInput()) return false;
+    const atResult = this._gameplay.matchState?.phase === 'post' && this._gameplay.running
+      && this._lifecycle.liveActive && this._lifecycle.phase === 'live'
+      && !this._lifecycle.disconnected && !this._lifecycle.tornDown && !this._hud.settingsOpen;
+    if (!this.canUseInput() && !atResult) return false;
     this.setInputEnabled(false);
     this._hud.openSettings();
     return true;
@@ -107,6 +112,7 @@ export class GameplayUiFlow {
       this._lifecycle.phase === 'live' &&
       this._gameplay.alive &&
       !this._lifecycle.disconnected &&
+      this._gameplay.matchState?.phase !== 'post' &&
       !this._hud.isBuyMenuOpen()
     ) {
       this._hud.openSettings();
@@ -121,6 +127,7 @@ export class GameplayUiFlow {
       this._gameplay.alive &&
       !this._lifecycle.disconnected &&
       !this._lifecycle.tornDown &&
+      this._gameplay.matchState?.phase !== 'post' &&
       !this._hud.settingsOpen &&
       !this._hud.isBuyMenuOpen()
     );
@@ -186,6 +193,15 @@ export class GameplayUiFlow {
   // MatchHud supplies the authoritative economy; this flow only arbitrates
   // dialog admission and the corresponding input transition.
   syncBuyMenuState() {
+    const postRound = this._gameplay.matchState?.phase === 'post';
+    if (postRound && !this._postRound) {
+      this._hud.closeSettings();
+      this.closeBuyMenu();
+      this.setInputEnabled(false);
+      this._input.exit();
+    }
+    const resumed = this._postRound && !postRound;
+    this._postRound = postRound;
     const self = this._gameplay.selfRow;
     const admitted = !!(
       this._gameplay.running &&
@@ -203,6 +219,7 @@ export class GameplayUiFlow {
       open = false;
     }
     if (!open) this.syncInput();
+    if (resumed && this._inputEnabled) this._input.requestLock();
   }
 
   purchaseWeapon(weapon) {

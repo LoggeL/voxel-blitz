@@ -1345,6 +1345,8 @@ function runDirectContracts() {
     if (score < 40) tdm.engine.forceRespawn(tdmEnemy);
   }
   const tdmPostAt = tdm.engine.now;
+  tdmShooter.bot = false;
+  tdm.engine.mode.approveContinuation(tdmShooter.id, tdm.engine.mode.matchSnapshot().continuation.id);
   const tdmPostEndsAt = tdm.engine.mode.matchSnapshot().phaseEndsAt;
   const tdmPostTick = stepModeAt(tdm, tdmPostAt);
   const tdmBeforeReset = stepModeAt(tdm, tdmPostEndsAt - 1);
@@ -1363,7 +1365,7 @@ function runDirectContracts() {
       row.state === 'alive' && row.score === 0 && row.kills === 0 && row.deaths === 0)
     && tdmResetTick.events.filter((event) => event.kind === 'respawn').length === 4
     && tdmResetTick.events.filter((event) => event.kind === 'match_start').length === 1,
-  'TDM posts at score 40 for exactly 5000ms, then resets scores and every player once');
+  'TDM waits 5000ms after approval, then resets scores and every player once');
 
   const sndClock = createModeEngine('snd');
   sndClock.engine.addBot('snd-clock-a', 'SND Clock A');
@@ -1601,7 +1603,9 @@ function runDirectContracts() {
   const sndKillCredits = sndEconomy.engine.mode.playerSnapshot(sndBuyer).credits;
   const sndNoRespawnAt = sndLoser.respawnAt;
   const sndEconomyRoundTick = stepModeAt(sndEconomy, sndEconomy.engine.now);
-  const sndEconomyPostEndsAt = sndEconomyRoundTick.match.phaseEndsAt;
+  sndBuyer.bot = false;
+  sndEconomy.engine.mode.approveContinuation(sndBuyer.id, sndEconomyRoundTick.match.continuation.id);
+  const sndEconomyPostEndsAt = sndEconomy.engine.mode.phaseEndsAt;
   const sndEconomyBeforeRound = stepModeAt(sndEconomy, sndEconomyPostEndsAt - 1);
   const sndEconomyBuyTick = stepModeAt(sndEconomy, sndEconomyPostEndsAt);
   const creditsBeforeBuys = sndEconomy.engine.mode.playerSnapshot(sndBuyer).credits;
@@ -1801,7 +1805,9 @@ function runDirectContracts() {
       && alphaRow?.credits === alphaCreditsByRound[round - 1]
       && bravoRow?.credits === bravoCreditsByRound[round - 1]
       && roundTick.events.filter((event) => event.kind === 'round_end').length === 1;
-    const postEndsAt = roundTick.match.phaseEndsAt;
+    lifeAlpha.bot = false;
+    sndLifecycle.engine.mode.approveContinuation(lifeAlpha.id, roundTick.match.continuation.id);
+    const postEndsAt = sndLifecycle.engine.mode.phaseEndsAt;
     const beforeNextRound = stepModeAt(sndLifecycle, postEndsAt - 1);
     const nextRound = stepModeAt(sndLifecycle, postEndsAt);
     firstHalfLifecycle = firstHalfLifecycle
@@ -1837,7 +1843,8 @@ function runDirectContracts() {
   );
   sndLifecycle.engine.killPlayer(lifeBravo, lifeAlpha, 'revolver', false);
   const matchWonTick = stepModeAt(sndLifecycle, sndLifecycle.engine.now);
-  const matchResetAt = matchWonTick.match.phaseEndsAt;
+  sndLifecycle.engine.mode.approveContinuation(lifeAlpha.id, matchWonTick.match.continuation.id);
+  const matchResetAt = sndLifecycle.engine.mode.phaseEndsAt;
   const beforeMatchReset = stepModeAt(sndLifecycle, matchResetAt - 1);
   const matchResetTick = stepModeAt(sndLifecycle, matchResetAt);
   ok(roundSevenLive.match.phase === 'live'

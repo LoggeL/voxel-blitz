@@ -15,6 +15,7 @@ import { TdmPolicy } from './modes/tdm.js';
 import { GunGamePolicy } from './modes/gungame.js';
 import { BastionPolicy } from './modes/bastion.js';
 import { TrainingPolicy } from './modes/training.js';
+import { RoundContinuation } from './modes/round-continuation.js';
 
 class FunPolicy {
   constructor({ rules, mapMeta, entities, now, respawn, chooseSpawn }) {
@@ -301,6 +302,7 @@ export class ModeController {
       throw new TypeError('ModeController requires an engine');
     }
     this.engine = engine;
+    this.continuation = new RoundContinuation(engine.entities, () => engine.now);
     const modeId = normalizeModeId(mode);
     const selectedMeta = mapMeta && typeof mapMeta === 'object' ? mapMeta : null;
     if (typeof selectedMeta?.id === 'string'
@@ -314,6 +316,8 @@ export class ModeController {
       entities: engine.entities,
       now: () => engine.now,
       emit: (kind, fields = {}) => {
+        this._syncContinuation();
+        if (kind === 'phase' && fields.phase === 'post') fields = { ...fields, endsAt: this.phaseEndsAt };
         if (!Array.isArray(engine.tickEvents)) engine.tickEvents = [];
         engine.tickEvents.push({ t: 'ev', kind, at: engine.now, ...fields });
       },
@@ -360,15 +364,37 @@ export class ModeController {
   get bomb() { return this.policy.bomb ?? null; }
 
   beforeTick(dt) { return this.policy.beforeTick?.(dt); }
-  tick() { return this.policy.tick(); }
+  tick() {
+    this._syncContinuation();
+    if (this.phase === 'post' && (this.phaseEndsAt === null || this.engine.now < this.phaseEndsAt)) return;
+    this.policy.tick();
+    this._syncContinuation();
+  }
+
+  _syncContinuation() {
+    if (this.policy?.phase !== 'post') {
+      if (this.continuation.id) this.continuation.clear();
+      return;
+    }
+    if (!this.continuation.id) this.continuation.begin();
+    this.continuation.sync();
+    this.policy.phaseEndsAt = this.continuation.endsAt;
+  }
+
+  approveContinuation(playerId, roundId) {
+    this._syncContinuation();
+    if (this.phase !== 'post' || !this.continuation.approve(playerId, roundId)) return false;
+    this._syncContinuation();
+    return true;
+  }
   teamFor(player) { return this.policy.teamFor(player); }
   setLobbyTeam(player, team) { return this.policy.setLobbyTeam?.(player, team) === true; }
   roleFor(player) { return this.policy.roleFor?.(player) ?? null; }
   isEnemy(a, b) { return this.policy.isEnemy(a, b); }
-  canDamage(attacker, target) { return this.policy.canDamage(attacker, target); }
+  canDamage(attacker, target) { return this.phase !== 'post' && this.policy.canDamage(attacker, target); }
   canUseWeapon(player, weapon) { return this.policy.canUseWeapon(player, weapon); }
   canFire(player) { return this.policy.canFire(player); }
-  canMove(player) { return this.policy.canMove?.(player) !== false; }
+  canMove(player) { return this.phase !== 'post' && this.policy.canMove?.(player) !== false; }
   onPlayerAdd(player) { return this.policy.onPlayerAdd(player); }
   onPlayerRemove(player) { return this.policy.onPlayerRemove(player); }
   onPlayerDeath(victim, killer, context) {
@@ -387,7 +413,12 @@ export class ModeController {
   canTimedRespawn(player) { return this.policy.canTimedRespawn(player); }
   chooseSpawn(player, excludeIndex) { return this.policy.chooseSpawn(player, excludeIndex); }
   purchase(player, weapon) { return this.policy.buy(player, weapon); }
-  matchSnapshot() { return this.policy.matchSnapshot(); }
+  matchSnapshot() {
+    this._syncContinuation();
+    const match = this.policy.matchSnapshot();
+    if (this.phase !== 'post') return match;
+    return { ...match, continuation: this.continuation.snapshot(), results: this.continuation.results };
+  }
   playerSnapshot(player) { return this.policy.playerSnapshot(player); }
   botGoal(player) { return this.policy.botGoal(player); }
   dispose() { return this.policy.dispose?.(); }

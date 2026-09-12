@@ -337,6 +337,12 @@ export class LobbyManager {
     }
   }
 
+  approveContinuation(meta, roundId) {
+    const found = this._memberFor(meta);
+    if (!found || found.room.phase !== 'live' || typeof roundId !== 'string') return false;
+    return found.room.engine.mode.approveContinuation(found.member.id, roundId);
+  }
+
   buy(meta, weapon) {
     const found = this._memberFor(meta);
     if (!found || found.room.phase !== 'live') {

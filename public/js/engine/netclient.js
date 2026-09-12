@@ -514,6 +514,16 @@ export class NetClient {
     }
   }
 
+  approveContinuation(roundId) {
+    if (!this.isOpen() || typeof roundId !== 'string') return false;
+    try {
+      this.ws.send(JSON.stringify({ t: 'continue', roundId }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   configureLobby({ gameMode, map, bots, duelKillLimit }) {
     if (!this.isOpen()) return false;
     try {

@@ -1375,6 +1375,20 @@ async function runSndCitadel(port, depotBytes, signal) {
     'late spectator post-round tick',
     signal,
   );
+  const approvalId = roundEnd.match.continuation.id;
+  pass(roundEnd.match.phaseEndsAt === null && roundEnd.match.continuation.required === 2,
+    'three connected humans need two approvals before the countdown starts');
+  const approvalMark = host.mark();
+  host.send({ t: 'continue', roundId: approvalId });
+  host.send({ t: 'continue', roundId: approvalId });
+  const oneApproval = await nextTick(host, approvalMark,
+    tick => tick.match?.continuation?.approved.length === 1, 'first round approval', signal);
+  pass(oneApproval.match.phaseEndsAt === null, 'duplicate host votes do not satisfy the quorum');
+  guest.send({ t: 'continue', roundId: approvalId });
+  const approved = await nextTick(host, host.mark(),
+    tick => tick.match?.continuation?.approved.length === 2, 'second round approval', signal);
+  pass(approved.match.phaseEndsAt > approved.now && approved.match.phaseEndsAt - approved.now <= 5000,
+    'the dead guest approval starts the server countdown');
   const nextRoundFrame = await nextTickFrame(
     late,
     latePostFrame.seq,

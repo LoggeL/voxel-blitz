@@ -57,7 +57,9 @@ try {
   assert.equal(room.engine.mode.canFire(killer), false);
   assert.equal(room.engine.mode.canDamage(killer, victim), false);
   assert.equal(room.engine.mode.canRespawn(victim), false);
-  room.engine.now = result.phaseEndsAt;
+  assert.equal(result.phaseEndsAt, null, 'results wait for approval');
+  assert.equal(manager.approveContinuation(guest, result.continuation.id), true);
+  room.engine.now = room.engine.mode.phaseEndsAt;
   room.engine.mode.tick();
   assert.equal(room.engine.mode.phase, 'live');
   assert.equal(killer.kills, 0);

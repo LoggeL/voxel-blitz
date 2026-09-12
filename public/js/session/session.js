@@ -267,7 +267,7 @@ export class Session {
       if (
         this._phase !== 'live' ||
         !this._gameplay.running ||
-        !this._gameplay.alive ||
+        (!this._gameplay.alive && this._gameplay.matchState?.phase !== 'post') ||
         this.hud.settingsOpen ||
         this.hud.isBuyMenuOpen()
       ) {

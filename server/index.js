@@ -354,6 +354,10 @@ async function main() {
           manager.start(meta);
           return;
         }
+        if (msg.t === 'continue') {
+          manager.approveContinuation(meta, msg.roundId);
+          return;
+        }
         if (msg.t === 'input') {
           manager.input(meta, msg);
           return;

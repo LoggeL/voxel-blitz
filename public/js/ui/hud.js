@@ -83,6 +83,8 @@ export class HUD {
 
   get settingsOpen() { return this.settings.isOpen; }
 
+  setupMatchContinuation(onContinue) { this.gameplay.match.result.onContinue = onContinue; }
+
   buildMenu(callback, options) { return this.menu.buildMenu(callback, options); }
   showJoinState(message, tone = '') { return this.menu.showJoinState(message, tone); }
   showLobby(state, callbacks = {}) { return this.menu.showLobby(state, callbacks); }
