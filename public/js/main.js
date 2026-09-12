@@ -1,5 +1,6 @@
 import { claymoreProfile } from '../../shared/claymore-rules.js';
 import { CareerShop } from './ui/career-shop.js';
+import { AccountMenu } from './ui/account-menu.js';
 import { bastionRepairAvailable } from '../../shared/bastion.js';
 // Voxel Blitz browser composition root. Mutable gameplay ownership lives in
 // Session, LocalPlayer, WeaponState, AvatarRoster, and CombatFeedback.
@@ -950,6 +951,8 @@ if (debugMode) {
   window.addEventListener('error', game._onDebugError, true);
 }
 
-const career = new CareerShop();
+const accounts = new AccountMenu({ onOpen: () => { if (career.dialog.open) career.dialog.close(); } });
+const career = new CareerShop({ accounts });
+await accounts.start();
 await career.start();
 game.session.start();

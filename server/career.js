@@ -2,16 +2,18 @@ import { randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import path from 'node:path';
 import { CAREER_CATALOG, CAREER_REWARDS, careerView } from '../shared/career.js';
+import { CareerClaims, GUEST_TOKEN, careerProfilePath, guestCookie } from './career-identity.js';
 
 const COOKIE = 'vb-career';
-const TOKEN = /^[a-f0-9]{64}$/;
 const emptyProfile = () => ({ xp: 0, credits: 0, kills: 0, matches: 0,
   owned: ['amber', 'rookie'], equipped: { theme: 'amber', title: 'rookie' } });
 
-/** One server-owned profile per browser cookie. No client-supplied XP or prices. */
+/** Server-owned careers, with account profiles isolated from guest cookies. */
 export class CareerService {
-  constructor({ directory = process.env.VB_DATA_DIR || './data' } = {}) {
+  constructor({ directory = process.env.VB_DATA_DIR || './data', accounts = null } = {}) {
     this.directory = path.resolve(directory);
+    this.accounts = accounts;
+    this.claims = new CareerClaims(this.directory);
     this.profiles = new Map();
     this.dirty = new Set();
     this.sessions = new WeakMap();
@@ -22,22 +24,49 @@ export class CareerService {
   }
 
   identity(req) {
-    const value = String(req.headers?.cookie || '').split(';').map(v => v.trim())
-      .find(v => v.startsWith(COOKIE + '='))?.slice(COOKIE.length + 1);
-    return TOKEN.test(value || '') ? value : null;
+    const user = this.accounts?.identity(req);
+    if (user) return `account:${user.id}`;
+    const guest = guestCookie(req);
+    return guest && !this.claims.hasGuest(guest) ? guest : null;
+  }
+
+  prepareGuest(req) {
+    const guest = guestCookie(req);
+    if (!guest || this.claims.hasGuest(guest)) return null;
+    return { guest, profile: JSON.parse(JSON.stringify(this.profile(guest))) };
+  }
+
+  adoptGuest(req, user, context = this.prepareGuest(req)) {
+    if (!context) return false;
+    const { guest, profile } = context, account = `account:${user.id}`;
+    if (!GUEST_TOKEN.test(guest || '') || !careerProfilePath(this.directory, account)
+      || !profile || !['xp', 'credits', 'kills', 'matches'].every(key => Number.isSafeInteger(profile[key]) && profile[key] >= 0)
+      || !Array.isArray(profile.owned) || !profile.equipped) throw new Error('Invalid guest career transfer');
+    // Retried logins use only the original registration snapshot, never the
+    // current device's guest profile. The exclusive claim remains single-use.
+    if (!this.claims.claim(guest, account, profile)) return false;
+    this.profiles.delete(guest);
+    this.dirty.delete(guest);
+    this.profile(account);
+    this.dirty.add(account);
+    this.flush([account]);
+    return true;
   }
 
   profile(id) {
-    if (!TOKEN.test(id || '')) return null;
+    const file = careerProfilePath(this.directory, id);
+    if (!file || this.claims.hasGuest(id)) return null;
+    if (id.startsWith('account:') && this.accounts?.registrationPending?.(id.slice(8)) && !this.claims.forAccount(id))
+      throw new Error('Your guest career transfer is pending. Please try again shortly.');
     if (this.profiles.has(id)) return this.profiles.get(id);
     let profile;
     try {
-      profile = JSON.parse(readFileSync(path.join(this.directory, id + '.json'), 'utf8'));
+      profile = JSON.parse(readFileSync(file, 'utf8'));
       if (!['xp', 'credits', 'kills', 'matches'].every(k => Number.isSafeInteger(profile[k]) && profile[k] >= 0)
           || !Array.isArray(profile.owned) || !profile.equipped) throw new Error('Invalid career data');
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
-      profile = emptyProfile();
+      profile = this.claims.forAccount(id) || emptyProfile();
     }
     this.profiles.set(id, profile);
     return profile;
@@ -47,7 +76,9 @@ export class CareerService {
     if (!this.dirty.size) return;
     mkdirSync(this.directory, { recursive: true, mode: 0o700 });
     for (const id of ids) {
-      const file = path.join(this.directory, id + '.json');
+      const file = careerProfilePath(this.directory, id);
+      if (!file || this.claims.hasGuest(id)) { this.dirty.delete(id); continue; }
+      mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
       writeFileSync(file + '.tmp', JSON.stringify(this.profiles.get(id)), { mode: 0o600 });
       renameSync(file + '.tmp', file);
       this.dirty.delete(id);
@@ -80,6 +111,7 @@ export class CareerService {
     const delta = state.now < 0 ? 0 : Math.min(1000, snapshot.now - state.now);
     state.now = snapshot.now;
     const profile = this.profile(client.profileId);
+    if (!profile) return;
     for (const event of snapshot.events || []) {
       if (event.kind === 'kill' && event.killer === client.id && event.victim !== client.id) {
         const victim = client.room.engine.entities.get(event.victim) || client.room.engine.combatants?.get(event.victim);
@@ -154,14 +186,18 @@ export class CareerService {
     // A custom header plus same-origin requests prevents ambient-cookie purchases.
     if (!isRead && (req.headers['x-vb-career'] !== '1' || req.headers['sec-fetch-site'] === 'cross-site'))
       return reply(403, { error: 'Open the shop from the game' });
-    let id = this.identity(req);
-    if (!id && !isRead) return reply(401, { error: 'Open your career first' });
-    if (!id) {
-      id = randomBytes(32).toString('hex');
-      const secure = req.socket.encrypted || req.headers['x-forwarded-proto'] === 'https';
-      res.setHeader('Set-Cookie', `${COOKIE}=${id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure ? '; Secure' : ''}`);
-    }
-    if (isRead) return reply(200, careerView(this.profile(id)));
+    let id;
+    try {
+      id = this.identity(req);
+      if (!id && !isRead) return reply(401, { error: 'Open your career first' });
+      if (!id) {
+        id = randomBytes(32).toString('hex');
+        const secure = req.socket.encrypted || req.headers['x-forwarded-proto'] === 'https';
+        res.setHeader('Set-Cookie', `${COOKIE}=${id}; HttpOnly; SameSite=Strict; Path=/; Max-Age=31536000${secure ? '; Secure' : ''}`);
+      }
+      const profile = this.profile(id);
+      if (isRead) return reply(200, careerView(profile));
+    } catch { return reply(503, { error: 'Your career is temporarily unavailable. Please try again shortly.' }); }
     let body = '';
     try {
       for await (const chunk of req) {
@@ -170,6 +206,7 @@ export class CareerService {
       }
       const data = JSON.parse(body);
       if (!data || typeof data.item !== 'string') return reply(400, { error: 'Choose an item' });
+      if (this.identity(req) !== id) return reply(401, { error: 'Your session changed. Reopen the shop before purchasing.' });
       return reply(200, this.purchase(id, data.item, data.equipOnly === true));
     } catch (error) { return reply(400, { error: error.message }); }
   }

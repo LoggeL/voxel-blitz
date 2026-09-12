@@ -1,0 +1,74 @@
+import assert from 'node:assert/strict';
+import { AccountMenu } from '../public/js/ui/account-menu.js';
+
+const originalFetch = globalThis.fetch;
+const originalWindow = globalThis.window;
+const calls = [];
+const events = [];
+globalThis.window = { dispatchEvent: event => events.push(event) };
+const response = (payload, ok = true) => ({ ok, json: async () => payload });
+const account = { user: null, requestVersion: 0, disposed: false, mount() {}, onChange: value => calls.push(value) };
+try {
+  let request;
+  globalThis.fetch = async (url, options) => { request = { url, options }; return response({ user: { id: 'u1', username: 'Player' }, recoveryCode: 'one-time-code' }); };
+  const created = await AccountMenu.prototype.request.call(account, 'register', { username: 'Player', password: 'long password' });
+  assert.equal(request.url, '/api/account/register');
+  assert.equal(request.options.credentials, 'same-origin');
+  assert.equal(request.options.headers['X-VB-Account'], '1');
+  assert.deepEqual(JSON.parse(request.options.body), { username: 'Player', password: 'long password' });
+  assert.equal(created.recoveryCode, 'one-time-code');
+  assert.deepEqual(calls[0], { user: { id: 'u1', username: 'Player' } });
+  assert.equal(events[0].type, 'vb-account-change');
+  assert.equal('recoveryCode' in events[0].detail, false, 'recovery secrets never reach global account-change events');
+  await AccountMenu.prototype.request.call(account);
+  assert.equal(events.length, 1, 'unchanged identity refresh emits no event');
+  globalThis.fetch = async () => response({ user: null });
+  await AccountMenu.prototype.request.call(account);
+  assert.equal(events.at(-1).detail.user, null, 'session expiry discovered by GET emits an account change');
+  assert.equal(account.restoreGuest, true, 'logout/expiry requests guest callsign restoration');
+  const storageWarning = 'Your account is ready. Guest progress transfer will be retried.';
+  globalThis.fetch = async () => response({ user: { id: 'u1', username: 'Player' }, recoveryCode: 'keep-this-code', warning: storageWarning });
+  const warned = await AccountMenu.prototype.request.call(account, 'register');
+  assert.equal(warned.warning, storageWarning);
+  assert.equal(warned.recoveryCode, 'keep-this-code', 'storage warning never discards the one-time recovery code');
+  assert.equal(account.warning, storageWarning);
+  globalThis.fetch = async () => response({ user: { id: 'u1', username: 'Player' }, warning: storageWarning });
+  assert.equal((await AccountMenu.prototype.request.call(account)).warning, storageWarning, 'pending migration warning survives GET refresh');
+  globalThis.fetch = async () => response({ user: { id: 'u1', username: 'Player' } });
+  await AccountMenu.prototype.request.call(account);
+  assert.equal(account.warning, '', 'resolved warning clears without changing identity');
+
+  const pending = [];
+  globalThis.fetch = () => new Promise((resolve, reject) => pending.push({ resolve, reject }));
+  const beforeLogout = AccountMenu.prototype.request.call(account);
+  const logout = AccountMenu.prototype.request.call(account, 'logout');
+  pending[1].resolve(response({ user: null })); await logout;
+  pending[0].resolve(response({ user: { id: 'u1', username: 'Player' } }));
+  assert.equal(await beforeLogout, null);
+  assert.equal(account.user, null, 'a stale identity refresh cannot undo logout');
+  const staleError = AccountMenu.prototype.request.call(account);
+  const newestRead = AccountMenu.prototype.request.call(account);
+  pending[3].resolve(response({ user: { id: 'u2', username: 'Next' } })); await newestRead;
+  pending[2].reject(new Error('older request failed'));
+  assert.equal(await staleError, null, 'stale failures cannot overwrite the latest success message');
+
+  globalThis.fetch = async () => response({ error: 'Invalid username or password' }, false);
+  await assert.rejects(AccountMenu.prototype.request.call(account, 'login'), /Invalid username or password/);
+  assert.equal(account.user.id, 'u2', 'failed login keeps the existing account state');
+  const invalid = { ...account, message: '', busy: false, setStatus(message) { this.message = message; } };
+  await AccountMenu.prototype.submit.call(invalid, 'register', { username: 'x', password: 'valid long password' });
+  assert.match(invalid.message, /username/);
+  await AccountMenu.prototype.submit.call(invalid, 'register', { username: 'Valid_User', password: 'short' });
+  assert.match(invalid.message, /12/);
+  assert.equal(invalid.busy, false);
+  let accepted = 0;
+  const unicode = { ...invalid, setBusy(value) { this.busy = value; }, async request() { accepted++; return null; } };
+  for (const count of [12, 128]) await AccountMenu.prototype.submit.call(unicode, 'register', { username: 'Valid_User', password: '😀'.repeat(count) });
+  assert.equal(accepted, 2, 'valid astral passwords count characters instead of UTF-16 units');
+  for (const count of [11, 129]) await AccountMenu.prototype.submit.call(unicode, 'register', { username: 'Valid_User', password: '😀'.repeat(count) });
+  assert.equal(accepted, 2, 'the same Unicode bounds are enforced as the server');
+  console.log('Accounts UI: API contract, private recovery events, latest-response wins, stale failure suppression and Unicode-aware validation passed.');
+} finally {
+  globalThis.fetch = originalFetch;
+  globalThis.window = originalWindow;
+}

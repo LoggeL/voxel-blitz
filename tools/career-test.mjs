@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { randomBytes } from 'node:crypto';
+import { PassThrough } from 'node:stream';
 import { CareerService } from '../server/career.js';
 import { GameEngine } from '../server/game.js';
 import { careerLevel } from '../shared/career.js';
@@ -137,6 +138,30 @@ try {
     await poll;
     assert.equal(shop.profile.equipped.theme, 'arctic', 'older background refresh cannot overwrite a completed purchase');
   } finally { globalThis.fetch = originalFetch; }
+  // A request can start while signed in and finish after logout. Authority must
+  // still be valid when credits are spent, after the asynchronous body read.
+  let authenticated = { id: randomBytes(16).toString('hex'), username: 'ShopTest' };
+  const accountId = `account:${authenticated.id}`;
+  service.accounts = { identity: () => authenticated };
+  service.award(accountId, { xp: 900, credits: 1200 });
+  const delayedPurchase = () => {
+    const request = new PassThrough();
+    Object.assign(request, { method: 'POST', url: '/api/career/purchase', headers: { 'x-vb-career': '1' } });
+    const response = { status: null, writeHead(status) { this.status = status; }, end(body) { this.body = JSON.parse(body); } };
+    return { request, response, complete: service.handleHttp(request, response) };
+  };
+  const control = delayedPurchase();
+  control.request.end(JSON.stringify({ item: 'arctic' }));
+  await control.complete;
+  assert.equal(control.response.status, 200, 'authenticated in-flight purchase succeeds');
+  assert.equal(service.profile(accountId).credits, 1100);
+  const revoked = delayedPurchase();
+  authenticated = null;
+  revoked.request.end(JSON.stringify({ item: 'orchid' }));
+  await revoked.complete;
+  assert.equal(revoked.response.status, 401, 'logout before the body finishes invalidates an in-flight purchase');
+  assert.equal(service.profile(accountId).credits, 1100, 'revoked purchase cannot spend old account credits');
+  assert.equal(service.profile(accountId).owned.includes('orchid'), false);
   console.log('Career: authoritative kills/objectives, active play, match rewards, dedupe, purchases, persistence and HTTP authorization passed.');
 } finally {
   await stopServer(server);

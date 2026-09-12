@@ -677,8 +677,8 @@ Voxel Blitz needs one Node.js 20+ process and one HTTP port. A Dockerfile or
 Dokploy service uses `npm start`, passes the runtime `PORT`, and routes both HTTP
 and WebSocket upgrade traffic to that same internal port. There is no frontend
 build step and no second service. Rooms, maps, scores, and invite codes live in
-process memory, so a container restart clears active matches; no persistent
-volume is part of the current runtime contract. Deployment-specific hostnames,
+process memory, so a container restart clears active matches. Accounts and
+careers require the persistent `/app/data` volume. Deployment-specific hostnames,
 TLS, health checks, and public URLs remain platform configuration rather than
 repository constants.
 
@@ -689,7 +689,15 @@ Weapon scrolling also works while scoped. Switching stows the old weapon before 
 
 `server/career.js` owns XP, career credits, purchases and equipment. Gameplay snapshots provide kill and objective rewards; active input accumulates play time. Final matches award a completion bonus after at least ten seconds of active participation. Intermediate S&D rounds, training, suicides and idle connections do not award completion bonuses. Career credits are separate from S&D, Chaos and Bastion match currencies.
 
-Profiles are linked to a random HttpOnly, SameSite browser cookie, with no account login or cross-device sync. The server writes private JSON profiles atomically under `VB_DATA_DIR` (default `./data`). Purchases flush immediately; earned rewards flush every second and during graceful shutdown. An abrupt process termination can lose at most the unflushed reward batch. Retain this directory across deploys. The container exposes `/app/data` as a writable volume; mount a named volume or bind directory there.
+Guest profiles use a random HttpOnly, SameSite browser cookie. Signed-in profiles use the server-resolved account identity, so the same account shares XP, credits and cosmetics across devices. Only registration transfers the current guest profile, once. Logging in never merges guest profiles. The original guest snapshot is first stored privately with the account, then an exclusive claim invalidates the old guest token. If transfer storage is unavailable, the account response carries a visible warning and the career returns 503 until the transfer can finish. Later account reads or logins retry the original snapshot, including after a restart. A persisted claim also recovers an interrupted first account-profile save. Existing gameplay sockets revalidate their original identity before awarding XP; logout, session expiry, password changes and recovery stop rewards on revoked sessions without interrupting play.
+
+The server writes private JSON profiles atomically under `VB_DATA_DIR` (default `./data`): guest profiles at the root, account profiles under `account-careers/`, transfer records under `career-claims/`, and credentials under `accounts/`. Purchases flush immediately; earned rewards flush every second and during graceful shutdown. An abrupt process termination can lose the unflushed reward batch. Retain and back up the whole directory together across deploys. The container exposes `/app/data` as a writable volume; mount a named volume or bind directory there. This store supports one Node process, as does the in-memory lobby runtime.
+
+`server/accounts.js` provides `GET /api/account` and JSON POST endpoints `/api/account/register`, `/login`, `/logout`, `/password` and `/recover`. Usernames contain 3 to 20 ASCII letters, numbers, underscores or hyphens and are unique without case distinctions. Passwords contain 12 to 128 Unicode code points. Registration and recovery return a private recovery code once; only its hash is stored. There is no email or external identity provider dependency.
+
+Credentials use asynchronous scrypt with `N=131072`, `r=8`, `p=1` and a random salt, following the [OWASP scrypt baseline](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html). [Node's scrypt API](https://nodejs.org/api/crypto.html#cryptoscryptpassword-salt-keylen-options-callback) runs behind a bounded queue (two active jobs and eight queued). Each account keeps up to ten random sessions, stored as hashes with a 30-day expiry. Password changes and recovery revoke all previous sessions. Cookies are HttpOnly, SameSite=Strict and Secure on HTTPS. Account writes require same-origin JSON requests and `X-VB-Account: 1`, with bounded bodies, timeouts, and IP/username attempt limits. Browser WebSockets reject foreign origins. Corrupt credential storage disables account operations without requiring an account to play.
+
+For a TLS reverse proxy, preserve the public `Host` and set `X-Forwarded-Proto: https`; optionally set `VB_PUBLIC_ORIGIN=https://your-game.example` to pin the expected account request origin. Serve production accounts over HTTPS. The limiter uses the socket address rather than trusting a forwarded client IP, so users behind one reverse proxy share its IP limit (60 account writes per ten minutes). Each username also has a 12-attempt limit per ten minutes.
 
 The server applies `shared/combat-balance.js` once at entity impact: rifle and other hitscan shots, melee, bolts, explosions, flame contact, afterburn, ground fire and Chaos chain hits all use a 0.8 damage factor before armor. Terrain destruction and mining retain their own damage rules.
 
@@ -699,6 +707,8 @@ Additional checks:
 npm run balance:test
 npm run career:test
 npm run career:browser
+npm run accounts:test
+npm run accounts:browser
 npm run keybindings:test
 npm run keybindings:browser
 npm run lobby:large:test

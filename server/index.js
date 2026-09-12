@@ -2,6 +2,7 @@
 // the authoritative game WebSocket. `node server/index.js` (PORT env, default 8070).
 import http from 'node:http';
 import { CareerService } from './career.js';
+import { AccountService } from './accounts.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import { staticHandler } from './static.js';
 import { LobbyManager } from './lobby.js';
@@ -44,7 +45,11 @@ async function main() {
 
   const clients = new Map();   // id -> connection metadata
   const diagnostics = new ServerDiagnostics();
-  const career = new CareerService();
+  const accounts = new AccountService({
+    onRegistering(req) { return career.prepareGuest(req); },
+    onRegistered(req, user, context) { career.adoptGuest(req, user, context); },
+  });
+  const career = new CareerService({ accounts });
   let connCounter = 0;
 
   function terminateClient(c) {
@@ -78,7 +83,15 @@ async function main() {
   }
 
   function sendJson(c, obj) {
-    try { career.observe(c, obj); } catch (error) {
+    try {
+      // Session revocation affects existing sockets immediately. A guest can
+      // keep playing, but an old login or claimed guest token earns no XP.
+      if (c.authRequest) {
+        const current = career.identity(c.authRequest);
+        c.profileId = current === c.admittedProfileId ? current : null;
+      }
+      career.observe(c, obj);
+    } catch (error) {
       // Storage trouble must never interrupt the simulation's outgoing frames.
       if (!c.careerErrorLogged) console.error('[career] reward failed:', error.message);
       c.careerErrorLogged = true;
@@ -104,6 +117,7 @@ async function main() {
         res.end(JSON.stringify({ t: 'error', msg: 'bad request' }));
         return;
       }
+      if (await accounts.handleHttp(req, res)) return;
       if (await career.handleHttp(req, res)) return;
       if ((req.url || '').split('?')[0] === '/api/lobbies' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
@@ -125,7 +139,18 @@ async function main() {
   const wss = new WebSocketServer({
     server,
     maxPayload: MAX_MESSAGE_BYTES,
-    verifyClient: (_info, accept) => {
+    verifyClient: (info, accept) => {
+      // Browser sockets share account cookies, so only our own page may open
+      // them. Headless protocol clients without an Origin remain supported.
+      const origin = info.req.headers.origin;
+      if (origin) {
+        try {
+          const source = new URL(origin);
+          if (!['http:', 'https:'].includes(source.protocol) || source.host !== info.req.headers.host) {
+            accept(false, 403, 'Origin not allowed'); return;
+          }
+        } catch { accept(false, 403, 'Origin not allowed'); return; }
+      }
       if (wss.clients.size >= MAX_CONNECTIONS) {
         accept(false, 503, 'Arena full');
         return;
@@ -143,11 +168,16 @@ async function main() {
 
     const n = ++connCounter;
     const id = 'p' + n + '_' + Math.random().toString(36).slice(2, 8);
+    let admittedProfileId = null;
+    try { admittedProfileId = career.identity(req); }
+    catch (error) { console.error('[career] player profile unavailable:', error.message); }
     const meta = {
       id,
       ws,
       joined: false,
-      profileId: career.identity(req),
+      authRequest: { headers: { cookie: req.headers.cookie } },
+      admittedProfileId,
+      profileId: admittedProfileId,
       alive: true,
       messageTokens: MAX_MESSAGES_PER_SECOND,
       messageRefillAt: Date.now(),
@@ -215,7 +245,7 @@ async function main() {
           return;
         }
 
-        const name = sanitizeName(admission.name, n);
+        const name = accounts.identity(req)?.username || sanitizeName(admission.name, n);
         let admitted = false;
         meta.admitting = true;
         try {
@@ -340,6 +370,7 @@ async function main() {
     clearInterval(heartbeat);
     diagnostics.dispose();
     try { career.dispose(); } catch (error) { console.error('[career] save failed:', error.message); }
+    try { accounts.dispose(); } catch (error) { console.error('[accounts] save failed:', error.message); }
     try { manager.stop(); } catch (err) { console.error('[voxel-blitz] lobby stop:', err.message); }
     for (const c of clients.values()) {
       try { c.ws.close(1001, 'server shutdown'); } catch { /* gone */ }

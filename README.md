@@ -79,7 +79,11 @@ PORT=8080 npm start
 
 Open **Career & Shop** in the main menu to see your level, XP and career credits. Kills, objectives, active play and completed matches earn rewards. Buy and equip reticle themes and callsigns; these cosmetics do not change combat stats. Training grants no career rewards.
 
-Progress is stored by the server and linked to this browser through a cookie. It survives reconnects and server restarts; clearing cookies starts a new career. Container hosts must retain the `/app/data` volume when replacing a deployment.
+You can play immediately as a guest. Use **Log in / Register** in the main menu or **Save your career** in the shop to create an optional account. Registration transfers this browser's guest XP, credits and cosmetics to the new account once. Logging in on another device loads that account's career; it does not merge that device's guest progress.
+
+Accounts use a username and a password with 12 to 128 characters. Save the private recovery code shown after registration: it lets you reset a forgotten password and is replaced after use. Account settings also let you change your password or log out. Your account username becomes your player name.
+
+Guest progress stays linked to this browser through a cookie, so clearing cookies loses access to it. Account progress survives cookie clearing and is available after logging in again on the same game server. Container hosts must retain the `/app/data` volume when replacing a deployment.
 
 ## Controls
 

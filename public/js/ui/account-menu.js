@@ -1,0 +1,345 @@
+const element = (tag, parent, text = '', className = '') => {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (text) node.textContent = text;
+  parent.append(node);
+  return node;
+};
+
+const USERNAME = /^[A-Za-z0-9_-]{3,20}$/;
+const safeAccount = payload => ({ user: payload?.user ? {
+  id: String(payload.user.id), username: String(payload.user.username),
+} : null });
+
+/** Optional account controls. Guest play never depends on this dialog. */
+export class AccountMenu {
+  constructor({ onChange = () => {}, onOpen = () => {} } = {}) {
+    this.onChange = onChange;
+    this.onOpen = onOpen;
+    this.user = null;
+    this.busy = false;
+    this.loaded = false;
+    this.disposed = false;
+    this.requestVersion = 0;
+    try { this.guestName = localStorage.getItem('vb-guest-name'); } catch (_) { this.guestName = null; }
+    this.mode = 'login';
+    this.warning = '';
+    this.strip = null;
+    this.dialog = element('dialog', document.body, '', 'vb-account-dialog');
+    this.dialog.id = 'account-dialog';
+    this.dialog.setAttribute('aria-labelledby', 'account-title');
+    this.dialog.setAttribute('aria-describedby', 'account-description');
+    this.dialog.setAttribute('aria-busy', 'false');
+    this.dialog.addEventListener('keydown', event => event.stopPropagation());
+    this.dialog.addEventListener('close', () => {
+      this.recoveryCode = null;
+      for (const input of this.dialog.querySelectorAll('input')) input.value = '';
+      const recovery = this.dialog.querySelector('#account-recovery-code');
+      if (recovery) recovery.textContent = '';
+      if (this.returnFocus?.isConnected && this.returnFocus.getClientRects().length) this.returnFocus.focus();
+      else document.getElementById('account-open')?.focus();
+    });
+    this.onPagehide = event => { if (!event.persisted) this.dispose(); };
+    window.addEventListener('pagehide', this.onPagehide);
+    this.render();
+  }
+
+  async start() {
+    if (this.started || this.disposed) return;
+    this.started = true;
+    this.mount();
+    const menu = document.getElementById('menu');
+    if (menu) {
+      this.observer = new MutationObserver(() => this.mount());
+      this.observer.observe(menu, { childList: true, subtree: true });
+    }
+    try { await this.refresh(); }
+    catch (_) { this.loaded = true; this.mount(); }
+  }
+
+  mount() {
+    if (this.disposed) return;
+    const footer = document.querySelector('#menu .vb-menu-footer');
+    if (!footer) return;
+    let strip = document.getElementById('account-strip');
+    if (!strip) {
+      strip = document.createElement('section');
+      strip.className = 'vb-account-strip'; strip.id = 'account-strip';
+      strip.setAttribute('aria-label', 'Optional player account');
+      footer.before(strip);
+      const identity = element('div', strip);
+      element('strong', identity).id = 'account-status';
+      element('p', identity).id = 'account-summary';
+      const button = element('button', strip, '', 'vb-account-button');
+      button.id = 'account-open'; button.type = 'button';
+      button.setAttribute('aria-haspopup', 'dialog');
+      button.addEventListener('click', () => this.open());
+    }
+    this.strip = strip;
+    const setText = (id, value) => {
+      const target = document.getElementById(id);
+      if (target && target.textContent !== value) target.textContent = value;
+    };
+    setText('account-status', this.user ? `SIGNED IN AS ${this.user.username}` : 'PLAY AS GUEST');
+    setText('account-summary', this.user ? 'Your XP, level and purchases follow this account.' : 'Quick Play is ready. An account lets you keep your career across devices.');
+    setText('account-open', this.user ? 'ACCOUNT' : 'LOG IN / REGISTER');
+    const button = document.getElementById('account-open');
+    if (button) button.disabled = this.busy;
+    const nameInput = document.getElementById('name-input');
+    if (nameInput) {
+      if (!nameInput.dataset.accountWatched) {
+        nameInput.dataset.accountWatched = 'true';
+        nameInput.addEventListener('input', () => { if (!this.user) this.rememberGuest(); });
+      }
+      if (this.user) {
+        if (this.guestName == null) this.rememberGuest();
+        nameInput.value = this.user.username;
+        nameInput.readOnly = true;
+        nameInput.dataset.accountIdentity = 'true';
+        nameInput.title = 'Your account username is your player name.';
+      } else if (nameInput.dataset.accountIdentity || this.restoreGuest) {
+        nameInput.readOnly = false;
+        nameInput.value = this.guestName || '';
+        delete nameInput.dataset.accountIdentity;
+        nameInput.removeAttribute('title');
+        this.restoreGuest = false;
+        try { localStorage.setItem('vb-name', nameInput.value); } catch (_) {}
+      }
+    }
+  }
+
+  rememberGuest() {
+    const nameInput = typeof document === 'undefined' ? null : document.getElementById('name-input');
+    if (!nameInput || nameInput.readOnly) return;
+    this.guestName = nameInput.value;
+    try { localStorage.setItem('vb-guest-name', this.guestName); } catch (_) {}
+  }
+
+  open(mode = 'login') {
+    if (this.disposed || this.busy) return;
+    if (this.onOpen?.() === false) return;
+    this.returnFocus = document.activeElement;
+    this.mode = this.user ? 'account' : (['login', 'register', 'recover'].includes(mode) ? mode : 'login');
+    this.message = ''; this.recoveryCode = null;
+    this.render();
+    if (!this.dialog.open) this.dialog.showModal();
+    this.focusFirst();
+    this.refresh().catch(error => this.setStatus(error.message, true));
+  }
+
+  close() { this.dialog.close(); }
+
+  focusFirst() {
+    (this.dialog.querySelector('input:not([type=hidden])') || this.dialog.querySelector('#account-close'))?.focus();
+  }
+
+  async request(action = null, body = null) {
+    const version = ++this.requestVersion;
+    if (!this.user && (action === 'login' || action === 'register')) this.rememberGuest?.();
+    try {
+      const response = await fetch(action ? `/api/account/${action}` : '/api/account', {
+        method: action ? 'POST' : 'GET', credentials: 'same-origin',
+        ...(action ? { headers: { 'Content-Type': 'application/json', 'X-VB-Account': '1' }, body: JSON.stringify(body || {}) } : {}),
+        signal: AbortSignal.timeout(8000),
+      });
+      let payload;
+      try { payload = await response.json(); } catch (_) { throw new Error('Account service unavailable. Try again.'); }
+      if (version !== this.requestVersion || this.disposed) return null;
+      if (!response.ok) throw new Error(payload.error || 'Account request failed. Try again.');
+      const account = safeAccount(payload);
+      const previousId = this.user?.id || null;
+      if (!account.user && (previousId || (!this.loaded && this.guestName != null))) this.restoreGuest = true;
+      this.user = account.user;
+      this.loaded = true;
+      this.warning = typeof payload.warning === 'string' ? payload.warning : '';
+      this.mount();
+      this.syncWarning?.();
+      if (previousId !== (account.user?.id || null)) {
+        this.onChange?.(account);
+        window.dispatchEvent(new CustomEvent('vb-account-change', { detail: account }));
+      }
+      return { ...account, ...(payload.recoveryCode ? { recoveryCode: String(payload.recoveryCode) } : {}),
+        ...(this.warning ? { warning: this.warning } : {}) };
+    } catch (error) {
+      if (version !== this.requestVersion || this.disposed) return null;
+      if (error.name === 'TimeoutError') throw new Error('Account request timed out. Try again.');
+      throw error;
+    }
+  }
+
+  async refresh() {
+    if (this.busy || this.disposed) return null;
+    const previousUser = this.user?.id || null;
+    const account = await this.request();
+    if (account && previousUser !== (this.user?.id || null) && this.dialog.open) {
+      this.mode = this.user ? 'account' : 'login';
+      this.render(); this.focusFirst();
+    }
+    return account;
+  }
+
+  setStatus(text, error = false) {
+    this.message = String(text || '');
+    const status = this.dialog.querySelector('#account-feedback');
+    if (status) { status.textContent = this.message; status.classList.toggle('is-error', error); }
+  }
+
+  syncWarning() {
+    let warning = this.dialog.querySelector('#account-warning');
+    if (!this.warning) { warning?.remove(); return; }
+    if (!warning) {
+      warning = element('p', this.dialog, '', 'vb-account-warning');
+      warning.id = 'account-warning';
+      warning.setAttribute('role', 'status');
+      warning.setAttribute('aria-live', 'polite');
+      this.dialog.querySelector('#account-feedback')?.after(warning);
+    }
+    warning.textContent = this.warning;
+  }
+
+  setBusy(value) {
+    this.busy = value;
+    this.dialog.setAttribute('aria-busy', String(value));
+    for (const control of this.dialog.querySelectorAll('button:not(#account-close), input')) control.disabled = value;
+    this.mount();
+  }
+
+  async submit(action, body) {
+    if (this.busy || this.disposed) return;
+    if (['register', 'login', 'recover'].includes(action) && !USERNAME.test(body.username || '')) {
+      this.setStatus('Use 3–20 letters, numbers, underscores or hyphens for your username.', true); return;
+    }
+    const password = action === 'password' || action === 'recover' ? body.newPassword : body.password;
+    if (action !== 'logout' && (typeof password !== 'string' || [...password].length < 12 || [...password].length > 128)) {
+      this.setStatus('Your password must contain 12–128 characters.', true); return;
+    }
+    this.setBusy(true);
+    this.setStatus('Please wait…');
+    try {
+      const result = await this.request(action, body);
+      if (!result) return;
+      this.mode = result.user ? 'account' : 'login';
+      this.recoveryCode = result.recoveryCode || null;
+      this.message = action === 'logout' ? 'Logged out. You can keep playing as a guest.'
+        : action === 'password' ? 'Password changed.'
+        : action === 'recover' ? 'Password reset. Save your new recovery code.'
+        : `Signed in as ${result.user?.username || 'player'}.`;
+      if (!this.dialog.open && this.recoveryCode) this.dialog.showModal();
+      this.render(); this.focusFirst();
+    } catch (error) { this.setStatus(error.message || 'Account service unavailable. Try again.', true); }
+    finally { this.setBusy(false); }
+  }
+
+  render() {
+    if (this.disposed) return;
+    const dialog = this.dialog;
+    dialog.replaceChildren();
+    const header = element('header', dialog);
+    element('span', header, 'OPTIONAL PLAYER ACCOUNT', 'vb-account-kicker');
+    const close = element('button', header, 'BACK', 'vb-account-button');
+    close.id = 'account-close'; close.type = 'button'; close.addEventListener('click', () => this.close());
+    const titles = { login: 'Log in', register: 'Create an account', recover: 'Recover your account', account: 'Your account' };
+    element('h2', header, this.recoveryCode ? 'Save your recovery code' : titles[this.mode]).id = 'account-title';
+    element('p', dialog, this.user ? `Signed in as ${this.user.username}. Your career is saved to this account.`
+      : 'Accounts keep your XP, levels and purchases across devices. You can always play as a guest.').id = 'account-description';
+    const feedback = element('p', dialog, this.message || '', 'vb-account-feedback');
+    feedback.id = 'account-feedback'; feedback.setAttribute('role', 'status'); feedback.setAttribute('aria-live', 'polite');
+    this.syncWarning();
+
+    if (this.recoveryCode) { this.renderRecovery(); return; }
+    if (!this.user) {
+      const tabs = element('nav', dialog, '', 'vb-account-tabs');
+      tabs.setAttribute('aria-label', 'Account action');
+      for (const [mode, title] of [['login', 'LOG IN'], ['register', 'REGISTER'], ['recover', 'RECOVER']]) {
+        const tab = element('button', tabs, title, 'vb-account-button');
+        tab.type = 'button'; tab.id = `account-tab-${mode}`;
+        tab.setAttribute('aria-pressed', String(mode === this.mode));
+        tab.addEventListener('click', () => { if (this.busy) return; this.mode = mode; this.message = ''; this.render(); this.focusFirst(); });
+      }
+    }
+    const form = element('form', dialog, '', 'vb-account-form');
+    form.id = 'account-form';
+    const field = (name, label, { autocomplete, type = 'text', minLength, maxLength, value, hint } = {}) => {
+      const wrap = element('div', form, '', 'vb-account-field');
+      const labelNode = element('label', wrap, label); labelNode.htmlFor = `account-${name}`;
+      const input = element('input', wrap); input.id = `account-${name}`; input.name = name;
+      input.type = type; input.required = true; input.autocomplete = autocomplete || 'off';
+      if (minLength) input.minLength = minLength;
+      if (maxLength) input.maxLength = maxLength;
+      if (value) input.value = value;
+      if (name === 'username') { input.pattern = '[A-Za-z0-9_\\-]{3,20}'; input.autocapitalize = 'none'; input.spellcheck = false; }
+      if (name === 'recoveryCode') { input.autocapitalize = 'none'; input.spellcheck = false; }
+      if (hint) { const note = element('small', wrap, hint); note.id = `${input.id}-hint`; input.setAttribute('aria-describedby', note.id); }
+      return input;
+    };
+    if (!this.user) {
+      field('username', 'Username', { autocomplete: 'username', minLength: 3, maxLength: 20, hint: '3–20 letters, numbers, underscores or hyphens.' });
+    } else {
+      const username = element('input', form); username.name = 'username'; username.value = this.user.username;
+      username.autocomplete = 'username'; username.type = 'text'; username.hidden = true;
+    }
+    if (this.mode === 'recover') field('recoveryCode', 'Recovery code', { maxLength: 128, hint: 'Enter the recovery code you saved when creating your account.' });
+    if (this.mode === 'account') field('currentPassword', 'Current password', { type: 'password', autocomplete: 'current-password', maxLength: 256 });
+    const changing = this.mode === 'account' || this.mode === 'recover';
+    field(changing ? 'newPassword' : 'password', changing ? 'New password' : 'Password', {
+      type: 'password', autocomplete: this.mode === 'login' ? 'current-password' : 'new-password', minLength: 12, maxLength: 256,
+      hint: '12–128 characters.',
+    });
+    if (this.mode !== 'login') field('confirmPassword', 'Confirm password', { type: 'password', autocomplete: 'new-password', minLength: 12, maxLength: 256 });
+    const labels = { login: 'LOG IN', register: 'CREATE ACCOUNT', recover: 'RESET PASSWORD', account: 'CHANGE PASSWORD' };
+    const submit = element('button', form, labels[this.mode], 'vb-account-button is-primary');
+    submit.id = 'account-submit'; submit.type = 'submit';
+    form.addEventListener('submit', event => {
+      event.preventDefault();
+      if (this.busy) return;
+      const data = Object.fromEntries(new FormData(form));
+      const password = data.newPassword || data.password;
+      if (this.mode !== 'login' && data.confirmPassword !== password) { this.setStatus('The passwords do not match.', true); return; }
+      delete data.confirmPassword;
+      if (this.mode === 'account') delete data.username;
+      this.submit(this.mode === 'account' ? 'password' : this.mode, data);
+    });
+    if (this.user) {
+      const logout = element('button', dialog, 'LOG OUT', 'vb-account-button');
+      logout.type = 'button'; logout.id = 'account-logout';
+      logout.addEventListener('click', () => this.submit('logout', {}));
+    } else {
+      const guest = element('button', dialog, 'CONTINUE AS GUEST', 'vb-account-button');
+      guest.type = 'button'; guest.id = 'account-guest'; guest.addEventListener('click', () => this.close());
+    }
+  }
+
+  renderRecovery() {
+    element('p', this.dialog, 'Save this code somewhere private now. It is shown only once and is the only way to reset your password without knowing the current one. Each recovery uses the code once and replaces it.', 'vb-account-recovery-note');
+    const code = element('output', this.dialog, this.recoveryCode, 'vb-account-recovery-code');
+    code.id = 'account-recovery-code'; code.setAttribute('aria-label', 'Private recovery code');
+    const actions = element('div', this.dialog, '', 'vb-account-recovery-actions');
+    const copy = element('button', actions, 'COPY CODE', 'vb-account-button');
+    copy.type = 'button'; copy.id = 'account-copy-code';
+    copy.addEventListener('click', async () => {
+      try { await navigator.clipboard.writeText(this.recoveryCode); this.setStatus('Recovery code copied. Save it somewhere private.'); }
+      catch (_) { this.setStatus('Select the code and copy it manually.', true); }
+    });
+    const download = element('button', actions, 'SAVE FILE', 'vb-account-button');
+    download.type = 'button'; download.id = 'account-save-code';
+    download.addEventListener('click', () => {
+      const text = `Voxel Blitz recovery code\nUsername: ${this.user?.username || ''}\nServer: ${location.origin}\nRecovery code: ${this.recoveryCode}\n\nKeep this file private. Using this code once replaces it.\n`;
+      const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+      const link = document.createElement('a'); link.href = url; link.download = 'voxel-blitz-recovery-code.txt';
+      link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+      this.setStatus('Recovery file downloaded. Keep it private.');
+    });
+    const done = element('button', this.dialog, 'I SAVED THE CODE', 'vb-account-button is-primary');
+    done.id = 'account-code-done'; done.type = 'button';
+    done.addEventListener('click', () => { this.recoveryCode = null; this.render(); this.focusFirst(); });
+  }
+
+  dispose() {
+    if (this.disposed) return;
+    this.disposed = true; this.requestVersion++;
+    this.observer?.disconnect();
+    window.removeEventListener('pagehide', this.onPagehide);
+    this.recoveryCode = null;
+    this.dialog.remove(); this.strip?.remove(); this.strip = null;
+  }
+}
