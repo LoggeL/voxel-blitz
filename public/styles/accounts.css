@@ -5,10 +5,8 @@
 #menu .vb-account-strip > .vb-account-button { width: 100%; min-height: 54px; border: 1px solid #ffe2a0; color: #211607; background: linear-gradient(110deg,#ffd080,#ffb12d 60%,#e68c18); font: italic 500 25px/1 Impact,'Arial Black',sans-serif; letter-spacing: .03em; clip-path: polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px); }
 #menu .vb-account-guest-link { display: block; min-height: 32px; margin: 10px auto -6px; padding: 8px 10px; border: 0; background: transparent; color: #b9c8d2; font: 700 9px/1.3 Arial,sans-serif; letter-spacing: .06em; cursor: pointer; }
 #menu .vb-account-guest-link:hover { color: #fff; }
-#menu .vb-account-strip.is-signed-in { border-top-color: var(--career-accent); padding: 20px 24px; }
-#menu .vb-account-strip.is-signed-in strong { font-size: 29px; }
-#menu .vb-account-strip.is-signed-in > .vb-account-button { min-height: 44px; font: 700 11px/1.3 Arial,sans-serif; background: #17232e; border-color: #9b805c; color: #ffce84; clip-path: none; }
-#menu .vb-account-strip [hidden] { display: none; }
+#menu .vb-account-strip[hidden], #menu .vb-account-strip [hidden] { display: none; }
+#menu #account-nav-open.is-signed-in { display: block; max-width: min(40vw,240px); padding-inline: 8px; overflow: hidden; text-overflow: ellipsis; border-color: transparent; text-transform: none; letter-spacing: normal; }
 .vb-account-button { box-sizing: border-box; min-height: 44px; margin: 0; padding: 10px 14px; border: 1px solid #71808d; border-radius: 1px; background: #19242d; color: #eef3f6; font: 700 12px/1.4 'Helvetica Neue',Arial,sans-serif; text-align: center; cursor: pointer; }
 
 .vb-account-button:hover { border-color: #ffce77; background: #2a3742; }

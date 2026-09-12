@@ -39,7 +39,7 @@ export class AccountMenu {
       const recovery = this.dialog.querySelector('#account-recovery-code');
       if (recovery) recovery.textContent = '';
       if (this.returnFocus?.isConnected && this.returnFocus.getClientRects().length) this.returnFocus.focus();
-      else document.getElementById('account-open')?.focus();
+      else document.getElementById('account-nav-open')?.focus();
     });
     this.onPagehide = event => { if (!event.persisted) this.dispose(); };
     window.addEventListener('pagehide', this.onPagehide);
@@ -102,7 +102,7 @@ export class AccountMenu {
     }
     const mobilePrompt = document.getElementById('account-mobile-prompt');
     if (mobilePrompt) mobilePrompt.hidden = Boolean(this.user);
-    strip.classList.toggle('is-signed-in', Boolean(this.user));
+    strip.hidden = Boolean(this.user);
     const guest = document.getElementById('menu-continue-guest');
     if (guest) guest.hidden = Boolean(this.user);
 
@@ -110,10 +110,16 @@ export class AccountMenu {
       const target = document.getElementById(id);
       if (target && target.textContent !== value) target.textContent = value;
     };
-    setText('account-status', this.user ? `WELCOME BACK, ${this.user.username}` : 'MAKE EVERY MATCH COUNT');
-    setText('account-summary', this.user ? 'Your career is saved. Pick up where you left off.' : 'Save your XP. Unlock your style. Keep your career across devices.');
-    setText('account-open', this.user ? 'MANAGE ACCOUNT' : 'CREATE ACCOUNT');
-    setText('account-nav-open', this.user ? 'ACCOUNT' : 'LOG IN');
+    setText('account-status', 'MAKE EVERY MATCH COUNT');
+    setText('account-summary', 'Save your XP. Unlock your style. Keep your career across devices.');
+    setText('account-open', 'CREATE ACCOUNT');
+    setText('account-nav-open', this.user ? this.user.username : 'LOG IN');
+    const navButton = document.getElementById('account-nav-open');
+    if (navButton) {
+      navButton.classList.toggle('is-signed-in', Boolean(this.user));
+      navButton.setAttribute('aria-label', this.user ? `${this.user.username}, manage account` : 'LOG IN');
+      navButton.title = this.user ? this.user.username : 'LOG IN';
+    }
     const button = document.getElementById('account-open');
     if (button) button.disabled = this.busy;
     const nameInput = document.getElementById('name-input');
