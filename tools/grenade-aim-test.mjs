@@ -87,15 +87,16 @@ for (const [typeIndex, type] of ['frag', 'limpet', 'pulse', 'molotov', 'smoke'].
 }
 
 {
-  const run = client(20);
+  const run = client(5);
   run.release(0);
   run.frame(0);
   assert.equal(run.wires.length, 0, 'release can occur before the next network send');
   const thrown = run.player.consumeLocalGrenadeThrow();
   const predicted = run.player.grenadeLaunchState(thrown.charge, 'frag', thrown.grenadeAim);
   run.look(-0.7, -0.3);
-  run.frame(1000 / 60);
-  run.frame(2000 / 60, () => run.player.addRecoil(0.05, 0.01, 3.4, WEAPONS.rifle.recoil, 2000 / 60));
+  // Give the bounded weapon follower time to move before the queued send.
+  for (let frame = 1; frame < 12; frame++) run.frame(frame * 1000 / 60);
+  run.frame(12000 / 60, () => run.player.addRecoil(0.05, 0.01, 3.4, WEAPONS.rifle.recoil, 12000 / 60));
   const wire = run.wires.at(-1);
   assert.equal(run.wires.length, 1);
   assert.ok(Math.abs(wire.yaw - thrown.grenadeAim.yaw) > 0.1, 'fixture moves gun aim before sending');

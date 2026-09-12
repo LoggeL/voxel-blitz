@@ -1,11 +1,12 @@
 import { WeaponTurnInertia } from './turn-inertia.js';
+import { WEAPON_HANDLING_PROFILES } from '../../../shared/weapon-handling.js';
 
 const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
 export const SPRINT_AIM_DIP = 0.11;
 
 /** One carried-weapon direction for prediction, the wire, the rig and the reticle.
  * Camera look remains immediate. Sprint lowers the muzzle by about six degrees;
- * ADS settles both the carry and angular lag back onto the sight line. */
+ * ADS raises the carry pose; the weapon still has to turn onto the sight line. */
 export class WeaponAimMotion {
   constructor() {
     this.turn = new WeaponTurnInertia();
@@ -21,6 +22,7 @@ export class WeaponAimMotion {
   }
 
   update(dt, { weapon = null, yaw = 0, pitch = 0, weightKg = 3.4, ads = 0,
+    handling = WEAPON_HANDLING_PROFILES[weapon] || WEAPON_HANDLING_PROFILES.rifle,
     sprinting = false, grounded = true, crouching = false, vaulting = false,
     enabled = true } = {}) {
     const out = this.readModel;
@@ -34,9 +36,9 @@ export class WeaponAimMotion {
     const follow = 1 - Math.exp(-12 * Math.max(0, Math.min(0.25, Number(dt) || 0)));
     const target = sprinting && grounded && !crouching && !vaulting ? 1 : 0;
     out.sprint += (target - out.sprint) * follow;
-    const turn = this.turn.update(dt, { yaw, pitch, weightKg, ads: ads01 });
-    out.yaw = turn.yaw * (1 - sight);
-    out.pitch = (turn.pitch - SPRINT_AIM_DIP * out.sprint) * (1 - sight);
+    const turn = this.turn.update(dt, { yaw, pitch, weightKg, ads: ads01, handling });
+    out.yaw = turn.yaw;
+    out.pitch = turn.pitch - SPRINT_AIM_DIP * out.sprint * (1 - sight);
     return out;
   }
 }

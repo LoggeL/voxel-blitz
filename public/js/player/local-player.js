@@ -77,8 +77,11 @@ function impulseGainFor(omega, zeta) {
 function stepRecoilSpring(spring, omega, dt) {
   const k = omega * omega;
   const c = 2 * RECOIL_DAMPING_RATIO * omega;
-  const steps = 4;
-  const h = dt / steps;
+  // Preserve normal-frame response, but keep large custom recoil impulses stable
+  // during a render hitch by bounding each integration step to 1/240 second.
+  const elapsed = Number.isFinite(dt) ? Math.max(0, Math.min(1, dt)) : 0;
+  const steps = Math.max(4, Math.ceil(elapsed * 240));
+  const h = elapsed / steps;
   for (let i = 0; i < steps; i++) {
     spring.v += (-k * spring.p - c * spring.v) * h;
     spring.p += spring.v * h;
@@ -880,14 +883,16 @@ export class LocalPlayer {
         !this.physics.vault && !intents.weapon?.isReloading && !intents.weapon?.reloadRequested &&
         !intents.weapon?.isDeploying && this.wantAds,
       zoom: this._scopeZoom > 0 ? this._scopeZoom : (Number(intents.weapon?.def?.zoom) || 1),
+      handling: intents.weapon?.def?.handling,
     });
     this._updateConditionEstimates(dt, jumped);
     const aimWeapon = intents.weapon?.def;
     this._weaponAim.update(dt, {
       weapon: aimWeapon?.id,
-      yaw: this.aimYaw + this.recoilYaw,
-      pitch: this.aimPitch + this.recoilPitch,
+      yaw: this.view.yaw,
+      pitch: this.view.pitch,
       weightKg: aimWeapon?.weightKg,
+      handling: aimWeapon?.handling,
       ads: intents.weapon?.adsT ?? this.adsT,
       sprinting: !this.wantAds && this.keys.sprint && this.currentSpeedXZ > 4.6,
       grounded: this.physics.grounded,

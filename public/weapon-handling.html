@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="de">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Voxel Blitz · Waffenhandling</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#11191f;color:#e8eef2;font:14px system-ui}main{display:grid;grid-template-columns:330px 1fr;min-height:100vh}aside{padding:24px;background:#18232b;border-right:1px solid #344651;height:100vh;overflow:auto}h1{font-size:23px;margin:6px 0 12px}h2{font-size:14px;margin:0 0 12px}p{color:#bac7d0;line-height:1.55}small{color:#aebec9;line-height:1.5}a{color:#ffc078}button,select,input{font:inherit}select,button{padding:9px 11px;border-radius:5px;border:1px solid #4e6474;background:#263945;color:#f0f4f7}select{width:100%;margin:5px 0 14px}button{cursor:pointer}button:hover{border-color:#ffb25e}button[aria-pressed=true]{background:#755027;border-color:#ffc078}button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #ffd29d;outline-offset:3px}label{display:block}.metric{margin-top:16px;padding:14px;border:1px solid #344b5a;border-radius:7px;background:#1d2c37}.row{display:flex;justify-content:space-between;gap:10px;align-items:baseline}output{font-variant-numeric:tabular-nums;color:#ffd09a}input[type=range]{width:100%;accent-color:#ffb366;margin:12px 0}input[type=number]{width:80px;background:#13232d;color:#fff;border:1px solid #587083;padding:5px;border-radius:4px}.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}#stage{position:relative;min-width:0;height:100vh;overflow:hidden;background:#263c52}canvas{display:block;width:100%;height:100%;touch-action:none}#toolbar{position:absolute;top:20px;left:20px;right:20px;display:flex;gap:8px;flex-wrap:wrap}#readout{position:absolute;bottom:24px;left:24px;right:24px;max-width:640px;padding:18px;background:#101a22ec;border:1px solid #476171;border-radius:8px;pointer-events:none;line-height:1.65}#readout strong{font-size:18px}#crosshair,#look-point{position:absolute;transform:translate(-50%,-50%);pointer-events:none}#crosshair{width:15px;height:15px;border:2px solid #ffc078;border-radius:50%;filter:drop-shadow(0 0 2px #000)}#look-point{left:50%;top:50%;width:3px;height:3px;background:#fff;border-radius:50%}#warning{color:#ffd09a}#measurements{font-variant-numeric:tabular-nums}#presets{display:flex;gap:8px;flex-wrap:wrap}#presets button{flex:1;font-size:12px}.eyebrow{font-size:11px;letter-spacing:.14em;color:#ffbe78}#status{font-size:12px;min-height:18px;color:#bdd6e6}@media(max-width:760px){main{display:flex;flex-direction:column-reverse}aside{height:auto;border-right:0}#stage{height:55vh;min-height:400px}#toolbar{top:10px;left:10px;right:10px}#readout{bottom:12px;left:12px;right:12px;padding:12px}h1{font-size:20px}}
+</style>
+<main>
+<aside>
+<div class="eyebrow">VOXEL BLITZ / HANDLING</div>
+<h1>Jede Waffe hat Gewicht.</h1>
+<p>Profile und Extremwerte direkt vergleichen. Ziehe im Bild zum Zielen oder starte einen festen Blickschwenk.</p>
+<label for="weapon">Waffe</label><select id="weapon"></select>
+<div id="presets"><button id="standard">Waffenstandard</button><button id="heavy">Extrem träge</button><button id="nimble">Extrem handlich</button></div>
+<section class="metric"><div class="row"><h2>Ergonomie</h2><output id="ergo-value"></output></div><input aria-label="Ergonomie" id="ergonomics" type="range" min="0" max="100" step="1"><small id="turn-limit"></small></section>
+<section class="metric"><h2>Sway</h2><div class="row"><label for="amplitude">Auslenkung</label><output id="amplitude-value"></output></div><input id="amplitude" type="range" min="0" max="1.5" step="0.01"><div class="row"><label for="frequency">Geschwindigkeit</label><output id="frequency-value"></output></div><input id="frequency" type="range" min="0.05" max="2" step="0.01"><small>Auslenkung in Grad, Grundfrequenz in Hz. Ein langsames Pendeln kann trotzdem weit ausschlagen.</small></section>
+<section class="metric"><div class="row"><h2>Vertikaler Rückstoß</h2><output id="vertical-value"></output></div><input aria-label="Vertikaler Rückstoß" id="vertical" type="range" min="0" max="8" step="0.01"></section>
+<section class="metric"><div class="row"><h2>Horizontaler Rückstoß</h2><output id="horizontal-value"></output></div><input aria-label="Horizontaler Rückstoß" id="horizontal" type="range" min="0" max="4" step="0.01"><small>Basisimpulse. Anschlag, Serienmuster und Erholung wirken wie im Spiel.</small></section>
+<p><small>Änderungen gelten im Prüfstand. Mit Waffenstandard lädst du die Werte aus dem Spiel. <a href="/weapon-feel-preview.html">Haltungs- und Nachladeprüfung</a></small></p>
+</aside>
+<section id="stage" aria-label="Interaktiver Waffenprüfstand">
+<canvas id="scene" tabindex="0" aria-label="Ziehen zum Zielen"></canvas>
+<div id="look-point"></div><div id="crosshair"></div>
+<div id="toolbar"><button id="turn">90° schwenken</button><button id="reverse">180° umdrehen</button><button id="ads" aria-pressed="false">Visier</button><button id="crouch" aria-pressed="false">Hocken</button><button id="breath" aria-pressed="false">Atem halten</button><button id="fire">Schuss</button><button id="burst" aria-pressed="false">Schussserie</button><button id="reset">Ziel zurücksetzen</button></div>
+<div id="readout"><strong id="name">Lädt …</strong><div id="measurements"></div><div id="warning"></div><div id="status" role="status"></div><small>Weißer Punkt: Blickrichtung. Goldener Ring: tatsächliche Waffenrichtung.</small></div>
+</section>
+</main>
+<script type="module" src="/js/capture/weapon-handling.js"></script>
+</html>

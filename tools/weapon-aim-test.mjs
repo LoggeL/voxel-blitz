@@ -33,8 +33,10 @@ for (const fov of [50, 75, 100]) {
 model.update(1 / 60, { weapon: 'rifle', yaw: 0.3, pitch: 0.15 });
 assert.ok(model.readModel.yaw < 0 && model.readModel.pitch < 0, 'The reticle follows carried-weapon turn lag');
 model.update(1 / 60, { weapon: 'rifle', yaw: 0.3, pitch: 0.15, ads: 1, sprinting: true });
-close(model.readModel.yaw, 0, 'ADS returns horizontal aim to the sight');
-close(model.readModel.pitch, 0, 'ADS returns vertical aim to the sight');
+assert.ok(model.readModel.yaw < 0 && model.readModel.pitch < 0, 'ADS preserves real turn lag');
+for (let i = 0; i < 240; i++) model.update(1 / 60, { weapon: 'rifle', yaw: 0.3, pitch: 0.15, ads: 1, sprinting: true });
+close(model.readModel.yaw, 0, 'ADS settles horizontal aim onto the sight');
+close(model.readModel.pitch, 0, 'ADS raises sprint carry and settles vertical aim');
 model.update(1 / 60, { weapon: 'sniper', yaw: -2, pitch: -0.8 });
 close(model.readModel.yaw, 0, 'Weapon swap clears stale angular lag');
 

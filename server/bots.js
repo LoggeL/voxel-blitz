@@ -1,3 +1,4 @@
+import { weaponTurnProfile } from '../shared/weapon-handling.js';
 import { navigationWaypoint } from './bot-navigation.js';
 // Direct-injection bots. They register with a GameEngine as pseudo-clients
 // ('bot-<i>') and drive the exact same applyInput -> integrate -> fire
@@ -348,7 +349,9 @@ class BotManager {
 
   think(br, p, now, dtS) {
     const profile = botDifficulty(br.difficulty);
-    const turnRate = profile.turnRate;
+    const weaponTurnRate = weaponTurnProfile(p.def.handling).maxSpeed;
+    const turnRate = Math.min(profile.turnRate, weaponTurnRate);
+    const pitchTurnRate = Math.min(PITCH_TURN_RATE, weaponTurnRate);
     // Respawn bookkeeping: a fresh life drops stale targeting/navigation.
     if (br.lastLives !== p.lives) {
       br.lastLives = p.lives;
@@ -541,7 +544,7 @@ class BotManager {
       inp.keys.f = turnError < 0.6 && Math.hypot(ndx, ndz) > 0.35;
       moving = true;
       sprint = Math.hypot(ndx, ndz) > 7 && turnError < 0.3 && !retreating && !searching;
-      inp.pitch = approachAngle(inp.pitch, Math.atan2((waypoint.y + 1) - eye[1], navDist), PITCH_TURN_RATE * dtS);
+      inp.pitch = approachAngle(inp.pitch, Math.atan2((waypoint.y + 1) - eye[1], navDist), pitchTurnRate * dtS);
     }
     inp.keys.sprint = !!sprint;
 
@@ -560,7 +563,7 @@ class BotManager {
       const sigmaDeg = ((2.2 - 1.6 * br.skill) * errFactor + 0.3) * profile.aimError;
       const sigmaRad = sigmaDeg * Math.PI / 180;
       inp.yaw = approachAngle(p.yaw, wrapAngle(yawT + gaussish(br.rng) * sigmaRad), turnRate * dtS);
-      inp.pitch = approachAngle(p.pitch, Math.max(-1.4, Math.min(1.4, pitchT + gaussish(br.rng) * sigmaRad * 0.6)), PITCH_TURN_RATE * dtS);
+      inp.pitch = approachAngle(p.pitch, Math.max(-1.4, Math.min(1.4, pitchT + gaussish(br.rng) * sigmaRad * 0.6)), pitchTurnRate * dtS);
       inp.wantAds = flat > 28 && p.def.id === 'sniper';
 
       // Ammo logistics mid-fight: reload, else cycle to any loaded slot.

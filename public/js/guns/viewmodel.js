@@ -196,7 +196,7 @@ export class ViewmodelRig {
    * into TIMERS by defs.js), glow+heat shader spikes, 60ms billboard flash + 80ms muzzle light,
    * timer-driven choreography enqueues, rof lockout, callback dispatch. Returns false when busy.
    */
-  fire() {
+  fire(def = WEAPONS[this._id]) {
     const cur = this._cur; if (!cur || this.grenadeActive || this._swap || (this._swapDraw && this._depT < 1)) return false;
     const T = cur.T;
     const now = this._now;
@@ -223,8 +223,8 @@ export class ViewmodelRig {
     const wn = Math.sqrt(T.kick.stiffness * mass);
     const flip = (this._yawFlip = -this._yawFlip);
     const jitter = 0.8 + this._rng() * 0.4;                          // seeded wobble multiplier
-    const pr = T.viewKick.pitchDeg * D2R;
-    const yr = T.viewKick.yawDeg * D2R * T.kick.yawWobble * jitter * flip;
+    const pr = (def?.recoil?.pitch ?? T.viewKick.pitchDeg) * D2R;
+    const yr = (def?.recoil?.yaw ?? T.viewKick.yawDeg) * D2R * T.kick.yawWobble * jitter * flip;
     // Velocity kicks scaled by sqrt(k): a light gun snaps up and back fast, a heavy one
     // lifts less but on a slower spring, so the muzzle is still climbing when the next
     // round leaves and sustained fire visibly wallows instead of buzzing.
@@ -464,6 +464,7 @@ export class ViewmodelRig {
       yaw: this.camera?.rotation?.y,
       pitch: this.camera?.rotation?.x,
       weightKg: T.weightKg,
+      handling: ctx.weaponDef?.handling || WEAPONS[this._id]?.handling,
       ads: this._adsSmooth,
     });
 
@@ -563,8 +564,8 @@ export class ViewmodelRig {
     const proneMotion = Math.sin(Math.PI * Math.max(0, Math.min(1, ctx.proneT || 0)));
     this._vaultDip = vaultBlend;
     const carry = this._sprint * (1 - adsE) * (1 - vaultBlend);
-    const aimYaw = ctx.weaponAim?.yaw ?? turn.yaw * (1 - adsE);
-    const aimPitch = ctx.weaponAim?.pitch ?? (turn.pitch - SPRINT_AIM_DIP * this._sprint) * (1 - adsE);
+    const aimYaw = ctx.weaponAim?.yaw ?? turn.yaw;
+    const aimPitch = ctx.weaponAim?.pitch ?? turn.pitch - SPRINT_AIM_DIP * this._sprint * (1 - adsE);
     const cant = BOB.sprintTiltZ * carry;
     const roll = bobX / (BOB.walkHorz || 1) * BOB.counterRoll * (1 - adsE * 0.5)
       + turn.roll

@@ -3,6 +3,7 @@
 // THERE IS ONE SOURCE OF TRUTH for every gun number in the game.
 
 import { FLAME_RULES, FLAME_BURN } from './flame-rules.js';
+import { withWeaponHandling } from './weapon-handling.js';
 
 export const GRAVITY = 24;
 export const PLAYER_HALF = { x: 0.32, h: 0.95 };   // movement collider half-width, half-height
@@ -64,7 +65,8 @@ export const CONDITION_RULES = Object.freeze({
  * @property {number} deployTime    equip raise seconds
  * @property {number} [penetration]  initial bullet power, spent on material contacts
  * @property {?{color:string,width:number,len:number}} tracer  visual spec, hex + px + world units; `null` for weapons with no projectile line (melee)
- * @property {number} weightKg      carried weapon mass; drives viewmodel inertia only
+ * @property {number} weightKg      carried mass for cosmetic body/recoil springs
+ * @property {object} handling      ergonomics, sway amplitude/rate, vertical/horizontal recoil
  * @property {string} sfx           bank key for the audio engine
  * @property {{reach:number,coneDeg:number,backstabMult:number,backstabDot:number}} [melee] melee profile: swing hits enemies within `reach` meters inside a `coneDeg` arc; damage multiplies by `backstabMult` when the swing direction aligns with the victim's facing beyond `backstabDot`
  * @property {'rocket'|'bolt'} [projectile]  when set, the shot launches an authoritative projectile (shared/rocket-rules.js, shared/bolt-rules.js) instead of firing hitscan rays
@@ -320,6 +322,9 @@ export const WEAPONS = {
     projectile: 'rocket',
   },
 };
+
+// Attach immutable handling profiles without duplicating the baseline recoil numbers.
+for (const [id, def] of Object.entries(WEAPONS)) WEAPONS[id] = withWeaponHandling(def);
 
 export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower'];
 

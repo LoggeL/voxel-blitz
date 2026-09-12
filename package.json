@@ -22,7 +22,7 @@
     "weapons:capture": "node tools/render-weapon-scenes.mjs",
     "weapons:icons": "node tools/render-hud-icon.mjs --all",
     "sniper:test": "node tools/sniper-test.mjs && node tools/discrete-shot-network-test.mjs && node tools/sniper-browser-test.mjs",
-    "weapons:feel:test": "node tools/sniper-test.mjs && node tools/discrete-shot-network-test.mjs && node tools/aim-punch-test.mjs && node tools/weapon-aim-test.mjs && node tools/weapon-range-test.mjs && node tools/grenade-aim-test.mjs && npm run weapons:reload:test",
+    "weapons:feel:test": "node tools/sniper-test.mjs && node tools/discrete-shot-network-test.mjs && node tools/aim-punch-test.mjs && node tools/weapon-aim-test.mjs && node tools/weapon-range-test.mjs && node tools/grenade-aim-test.mjs && npm run weapons:reload:test && npm run weapons:handling:test",
     "weapons:reload:browser": "node tools/reload-browser-test.mjs",
     "throwables:test": "node tools/claymore-test.mjs && node tools/smoke-grenade-test.mjs && node tools/throwable-animation-test.mjs && node tools/molotov-test.mjs && node tools/throwable-client-test.mjs && node tools/grenade-handling-test.mjs",
     "throwables:browser": "node tools/throwable-browser-test.mjs",
@@ -78,7 +78,8 @@
     "postgres:browser": "node tools/postgres-browser-test.mjs",
     "bots:difficulty:test": "node tools/bot-difficulty-test.mjs",
     "bots:difficulty:browser": "node tools/bot-difficulty-browser-test.mjs",
-    "maps:lights:browser": "node tools/large-map-light-browser-test.mjs"
+    "maps:lights:browser": "node tools/large-map-light-browser-test.mjs",
+    "weapons:handling:test": "node tools/weapon-handling-test.mjs"
   },
   "dependencies": {
     "pg": "^8.23.0",

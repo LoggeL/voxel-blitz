@@ -430,7 +430,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
 
   // Viewmodel: every canonical weapon must build and survive a real update.
   // The generic magswap request resolves into the weapon's physical reload
-  // profile, and the camera-independent turn follower respects weapon mass.
+  // profile, and the camera-independent turn follower respects weapon ergonomics.
   {
     const { ViewmodelRig } = await import('../../public/js/guns/viewmodel.js');
     const camera = new THREE.PerspectiveCamera(75, 1, 0.01, 100);
@@ -552,8 +552,8 @@ export async function runViewmodelContracts(ok, installGlobals) {
       }
       ok(blockedRevolverFrames === 0,
         `revolver ADS hammer stays clear throughout moving distressed aim (${blockedRevolverFrames} blocked frames)`);
-      const byWeight = [...WEAPON_IDS].sort(
-        (a, b) => WEAPONS[a].weightKg - WEAPONS[b].weightKg
+      const byErgonomics = [...WEAPON_IDS].sort(
+        (a, b) => WEAPONS[b].handling.ergonomics - WEAPONS[a].handling.ergonomics
       );
       camera.rotation.set(0, 0, 0);
       rig.setWeapon('lmg');
@@ -565,18 +565,18 @@ export async function runViewmodelContracts(ok, installGlobals) {
         lmgPeakSpeed = Math.max(lmgPeakSpeed, rig.turnLag.speed);
       }
       const lmgReleaseLag = Math.abs(rig.turnLag.yaw);
-      for (let frame = 0; frame < 90; frame++) {
+      for (let frame = 0; frame < 240; frame++) {
         rig.update(1 / 60, { grounded: true });
       }
-      ok(byWeight.every((id, i) => i === 0 || (
-        lagByWeapon.get(byWeight[i - 1]) <= lagByWeapon.get(id)
-        && maxSpeedByWeapon.get(byWeight[i - 1]) >= maxSpeedByWeapon.get(id)
+      ok(byErgonomics.every((id, i) => i === 0 || (
+        lagByWeapon.get(byErgonomics[i - 1]) <= lagByWeapon.get(id)
+        && maxSpeedByWeapon.get(byErgonomics[i - 1]) >= maxSpeedByWeapon.get(id)
       ))
         && lmgPeakSpeed <= rig.turnLag.maxSpeed + 1e-9
         && lmgPeakSpeed > rig.turnLag.maxSpeed * 0.95
         && lmgReleaseLag > 0.05
         && Math.abs(rig.turnLag.yaw) < 0.001,
-      'viewmodel turn follower caps angular speed by weight, trails a flick, and settles');
+      'viewmodel turn follower caps angular speed by ergonomics, trails a flick, and settles');
 
       camera.rotation.set(0, 0, 0);
       rig.setWeapon('rifle');
@@ -607,8 +607,8 @@ export async function runViewmodelContracts(ok, installGlobals) {
       };
       const hipLag = flickLag(0);
       const adsLag = flickLag(1);
-      ok(hipLag > 0.1 && adsLag < hipLag * 0.4 && Number.isFinite(rig.turnLag.roll),
-        'aiming down sights tightens the weapon follower to a fraction of its hip-fire lag');
+      ok(hipLag > 0.1 && adsLag < hipLag && adsLag > hipLag * 0.6 && Number.isFinite(rig.turnLag.roll),
+        'aiming down sights improves settling while preserving meaningful weapon lag');
 
       camera.rotation.set(0, 0, 0);
       rig.setWeapon('lmg');
@@ -647,7 +647,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
   }
 
   {
-    // Recoil recovery, reconciliation smoothing, scope zoom steps, and optic-scaled sway.
+    // Recoil recovery, reconciliation smoothing, scope zoom steps, and angular sway.
     const stubInput = () => new Proxy({
       wantAdsHeld: false,
       wantFireHeld: false,
@@ -760,8 +760,16 @@ export async function runViewmodelContracts(ok, installGlobals) {
     const scoped = settle({ ads: 1, zoom: 5 });
     const scopedHeld = settle({ ads: 1, zoom: 5, shift: true });
     const magnitude = (value) => Math.hypot(value.yaw, value.pitch);
-    ok(magnitude(scoped) > magnitude(hip) * 2 && magnitude(scopedHeld) < magnitude(hip),
-      'a 5x optic magnifies idle sway and holding breath still beats hip sway');
+    const { projectAimReticle } = await import('../../public/js/ui/aim-reticle.js');
+    const swayCamera = new THREE.PerspectiveCamera(75, 1, 0.01, 100);
+    const hipPoint = projectAimReticle(swayCamera, hip.yaw, hip.pitch);
+    swayCamera.fov = fovForZoom(5, 75); swayCamera.updateProjectionMatrix();
+    const scopedPoint = projectAimReticle(swayCamera, scoped.yaw, scoped.pitch);
+    const excursion = point => Math.hypot(point.x - 0.5, point.y - 0.5);
+    ok(Math.abs(magnitude(scoped) - magnitude(hip)) < 1e-9
+        && excursion(scopedPoint) > excursion(hipPoint) * 4.9
+        && magnitude(scopedHeld) < magnitude(hip) * 0.25,
+      'a 5x optic magnifies the same world sway once; breath hold reduces the angular sway');
 
     const { WeaponState } = await import('../../public/js/guns/weapon-state.js');
     const rigCalls = [];

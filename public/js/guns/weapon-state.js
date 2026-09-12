@@ -616,7 +616,7 @@ export class WeaponState {
     if (!input || (!input.tap && !input.held)) return false;
     if (now < this._nextFireAt || now < this._deployUntil) return false;
     if (this._reloadState) return false;
-    if (!this._rig.fire()) return false;
+    if (!this._rig.fire(def)) return false;
     this._nextFireAt = now + 60000 / def.rpm;
     this._audio.fire(weaponId);
     this.shakeView(def, now, 1);
@@ -626,7 +626,7 @@ export class WeaponState {
   /** The accepted local shot: ammo, prediction, tracer/rocket FX, report, and recoil. */
   _commitShot(now, def, weaponId, ammo, charge = 1) {
     const mode = def.mode;
-    if (!this._rig.fire()) return false;
+    if (!this._rig.fire(def)) return false;
 
     if (weaponId === 'minigun') heatMinigun(this._minigun);
     ammo.mag -= 1;
