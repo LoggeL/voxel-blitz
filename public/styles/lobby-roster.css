@@ -1,0 +1,116 @@
+/* Reference: docs/design/lobby-roster/overview-reference.png. */
+#lobby { isolation: isolate; background: #0b1014; }
+.vb-lobby-backdrop { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: -1; }
+.vb-lobby-backdrop img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.vb-lobby-backdrop::after { content: ''; position: absolute; inset: 0; background: linear-gradient(#060a1060, #060a10d9); }
+.vb-crossfade-incoming { will-change: opacity, transform; }
+#lobby .vb-menu-stage { padding: 18px 3%; }
+#lobby .vb-lobby-panel { max-width: 1640px; grid-template-columns: minmax(270px,.9fr) minmax(0,2.5fr); grid-template-areas: 'title title' 'subtitle subtitle' 'mission roster' 'invite roster' 'actions actions' 'status status'; grid-template-rows: auto auto auto 1fr auto auto; gap: 12px 18px; }
+#lobby .vb-lobby-panel > .vb-title { margin: 0; font-size: clamp(28px,3vw,42px); }
+#lobby .vb-lobby-panel > .vb-sub { margin: -4px 0 4px; font-size: 14px; }
+#lobby .vb-lobby-card { padding: 16px; margin: 0; }
+#lobby .vb-lobby-meta-header { padding-bottom: 10px; }
+#lobby .vb-lobby-meta-header .vb-label, #lobby .vb-roster-header .vb-label, #lobby .vb-lobby-section-title { font-size: 25px; }
+#lobby .vb-lobby-mission-frame { position: relative; aspect-ratio: 2; overflow: hidden; margin: 12px 0 16px; border: 1px solid #8593a060; background: #0a1119; }
+#lobby .vb-lobby-mission-frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; margin: 0; border: 0; }
+#lobby .vb-lobby-settings { grid-template-columns: minmax(0,1fr); gap: 10px; margin: 10px 0; }
+#lobby .vb-label { margin: 0 0 5px; font-size: 11px; }
+#lobby .vb-select { min-height: 42px; padding: 10px 30px 10px 10px; font-size: 13px; margin: 0; }
+#lobby .vb-map-capacity { padding: 9px 10px; border-left: 2px solid #ffbc42; background: #ffbc420c; color: #ffce64; font: 600 12px/1.3 'Helvetica Neue',Arial,sans-serif; letter-spacing: .03em; }
+#lobby .vb-field-desc { font-size: 12px; }
+#lobby .vb-lobby-mission-status { margin-top: 12px; }
+#lobby .vb-lobby-section-title { margin: 0 0 10px; padding-bottom: 10px; }
+#lobby .vb-lobby-code-val { font-size: 30px; padding: 4px 10px; }
+#lobby .vb-invite-row { margin-top: 10px; grid-template-columns: 1fr 1fr; }
+#lobby .vb-invite-input { grid-column: 1/-1; min-height: 36px; }
+#lobby .vb-roster-card { min-width: 0; display: flex; flex-direction: column; }
+#lobby .vb-roster-header { flex-wrap: wrap; gap: 8px; margin: 0; padding-bottom: 10px; }
+#lobby .vb-ready-count { font-size: 11px; letter-spacing: .035em; line-height: 1.5; }
+#lobby .vb-roster-summary { color: #a8b9c9; font: 500 11px/1.4 'Helvetica Neue',Arial,sans-serif; letter-spacing: .04em; margin: 8px 0 10px; }
+#lobby .vb-roster-toolbar { display: flex; flex-wrap: wrap; gap: 10px; }
+#lobby .vb-roster-views { display: flex; flex: 1 1 240px; }
+#lobby .vb-roster-view, #lobby .vb-roster-filters button { min-height: 40px; padding: 8px 12px; border: 1px solid #697f9170; background: #09111b; color: #c6d2dd; font: 600 11px/1.2 'Helvetica Neue',Arial,sans-serif; letter-spacing: .04em; cursor: pointer; }
+#lobby .vb-roster-view { flex: 1; }
+#lobby .vb-roster-view[aria-pressed='true'] { background: linear-gradient(120deg,#ffd154,#eda10e); color: #16120a; border-color: #ffcf6a; }
+#lobby .vb-roster-view:disabled { opacity: .4; cursor: default; }
+#lobby .vb-roster-search { flex: 1 1 180px; min-width: 0; width: 100%; min-height: 40px; padding: 10px; margin: 0; border: 1px solid #697f9190; border-radius: 0; background: #09111b; color: #e8edf2; font: 13px/1.3 'Helvetica Neue',Arial,sans-serif; letter-spacing: 0; }
+#lobby .vb-roster-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 10px 0 0; }
+#lobby .vb-roster-filters button { font-size: 10px; min-height: 32px; padding: 6px 10px; }
+#lobby .vb-roster-filters button[aria-pressed='true'] { border-color: #ffc34c; color: #ffc34c; background: #ffbe2f0d; }
+#lobby .vb-roster-results { margin-left: auto; color: #b0bfca; font: 11px/1.4 'Helvetica Neue',Arial,sans-serif; }
+#lobby .vb-roster-list { display: grid; grid-template-columns: minmax(0,1fr); align-content: start; max-height: 590px; min-height: 160px; gap: 6px; padding: 3px; margin-top: 12px; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #8c9dad #0b131c; }
+#lobby .vb-roster-item { position: relative; grid-template-columns: 28px minmax(0,1fr) auto; min-height: 50px; padding: 8px; gap: 8px; border-radius: 2px; }
+#lobby .vb-roster-item.is-self { border-color: #e6ae46; background: #bd842811; }
+#lobby .vb-roster-item:focus { outline: 2px solid #ffcf6a; outline-offset: 1px; }
+#lobby .vb-operator-icon { width: 24px; height: 29px; }
+#lobby .vb-roster-left { gap: 4px; }
+#lobby .vb-roster-name { width: 100%; font: 600 13px/1.3 'Helvetica Neue',Arial,sans-serif; letter-spacing: .01em; white-space: nowrap; }
+#lobby .vb-badge { padding: 1px 3px; font-size: 8px; letter-spacing: .03em; }
+#lobby .vb-roster-right { grid-column: auto; gap: 5px; justify-content: flex-end; }
+#lobby .vb-ready-pill { padding: 5px; font-size: 9px; letter-spacing: .02em; white-space: nowrap; }
+#lobby .vb-roster-ping { font-size: 10px; }
+#lobby .vb-team-select, #lobby .vb-bot-difficulty { font: 11px/1.2 'Helvetica Neue',Arial,sans-serif; max-width: 88px; padding: 5px; }
+#lobby .vb-roster-compact, #lobby .vb-roster-inspect { display: none; }
+#lobby [data-view='overview'] .vb-roster-list { grid-template-columns: repeat(4,minmax(0,1fr)); }
+#lobby [data-view='overview'] .vb-roster-item { grid-template-columns: 24px minmax(0,1fr); grid-template-rows: auto auto; gap: 4px 7px; min-height: 60px; padding: 7px; }
+#lobby [data-view='overview'] .vb-operator-icon { grid-row: 1/3; }
+#lobby [data-view='overview'] .vb-roster-name { font-size: 11px; }
+#lobby [data-view='overview'] .vb-roster-right, #lobby [data-view='overview'] .vb-badge-bot { display: none; }
+#lobby [data-view='overview'] .vb-roster-compact { display: flex; grid-column: 2; align-items: center; flex-wrap: wrap; gap: 4px 6px; font: 9px/1.25 'Helvetica Neue',Arial,sans-serif; color: #a5b6c7; }
+#lobby .vb-roster-compact .vb-team-label { font-size: 9px; }
+#lobby .vb-compact-status { margin-left: auto; font-size: 8px; letter-spacing: .02em; }
+#lobby .vb-compact-status.waiting { color: #ffcd65; }
+#lobby .vb-compact-status.ready { color: #9adf80; }
+#lobby [data-view='overview'] .vb-roster-inspect { display: block; position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: transparent; cursor: pointer; }
+#lobby [data-view='overview'] .vb-roster-inspect:hover { background: #ffffff08; }
+#lobby [data-view='teams'] .vb-roster-list { grid-template-columns: repeat(2,minmax(0,1fr)); }
+#lobby .vb-roster-team { min-width: 0; color: #e2e8ee; }
+#lobby .vb-roster-team h4 { position: sticky; top: -3px; z-index: 1; margin: 0 0 6px; padding: 10px; background: #153449; border-left: 3px solid #77c1ed; color: #a4dbff; font: 600 13px/1.2 'Helvetica Neue',Arial,sans-serif; }
+#lobby .vb-roster-team[data-team='bravo'] h4 { background: #452822; color: #ffb193; border-color: #e99272; }
+#lobby .vb-roster-team-list { display: grid; gap: 3px; }
+#lobby [data-view='teams'] .vb-roster-item { grid-template-columns: 18px minmax(0,1fr) auto; min-height: 30px; padding: 2px; gap: 5px; }
+#lobby [data-view='teams'] .vb-roster-right { grid-column: auto; justify-content: flex-end; flex-wrap: nowrap; gap: 3px; }
+#lobby [data-view='teams'] .vb-badge { display: none; }
+#lobby [data-view='teams'] .vb-operator-icon { width: 18px; height: 22px; }
+#lobby [data-view='teams'] .vb-roster-name { font-size: 10px; }
+#lobby [data-view='teams'] .vb-ready-pill { font-size: 8px; padding: 3px; }
+#lobby [data-view='teams'] .vb-team-select, #lobby [data-view='teams'] .vb-bot-difficulty { min-height: 24px; max-width: 65px; padding: 2px; font-size: 10px; }
+#lobby .vb-roster-empty { color: #bcc8d3; grid-column: 1/-1; padding: 20px 8px; font: 13px/1.5 'Helvetica Neue',Arial,sans-serif; }
+#lobby .vb-lobby-team-hint { margin-top: 12px; font-size: 11px; text-transform: none; letter-spacing: 0; }
+#lobby .vb-lobby-actions { padding: 12px; gap: 12px; }
+#lobby .vb-lobby-actions .vb-btn { min-height: 48px; padding: 12px 22px; font-size: 22px; margin-top: 0; }
+#lobby .vb-lobby-actions .vb-btn-start { min-width: 220px; }
+#lobby #lobby-status:empty { display: none; }
+@media (max-width: 1200px) {
+  #lobby .vb-lobby-panel { grid-template-columns: 280px minmax(0,1fr); }
+  #lobby [data-view='overview'] .vb-roster-list { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  #lobby .vb-roster-item { grid-template-columns: 24px minmax(0,1fr); }
+  #lobby .vb-roster-right { grid-column: 2; justify-content: flex-start; }
+}
+@media (max-width: 900px) {
+  #lobby [data-view='overview'] .vb-roster-list { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #lobby [data-view='teams'] .vb-roster-list { grid-template-columns: minmax(0,1fr); }
+}
+@media (max-width: 760px) {
+  #lobby .vb-menu-stage { padding: 14px 10px; }
+  #lobby .vb-lobby-panel { grid-template-columns: minmax(0,1fr); grid-template-areas: 'title' 'subtitle' 'mission' 'roster' 'invite' 'actions' 'status'; }
+  #lobby .vb-lobby-card { padding: 12px; }
+  #lobby .vb-lobby-settings { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  #lobby .vb-lobby-settings .vb-field-desc, #lobby .vb-map-capacity { grid-column: 1/-1; }
+  #lobby .vb-lobby-mission-frame { aspect-ratio: 3; }
+  #lobby .vb-roster-list { max-height: 460px; }
+  #lobby .vb-roster-views { flex-basis: 100%; }
+  #lobby .vb-roster-filters button { min-height: 40px; }
+  #lobby .vb-lobby-actions { position: sticky; bottom: 0; z-index: 2; flex-wrap: wrap; gap: 8px; background: #101820fa; clip-path: none; }
+  #lobby .vb-lobby-actions .vb-btn { min-width: 0; flex: 1 1 0; padding: 10px 8px; font-size: 17px; }
+  #lobby .vb-lobby-actions .vb-btn-start { min-width: 0; }
+  #lobby .vb-roster-name { font-size: 12px; }
+  #lobby .vb-team-select, #lobby .vb-bot-difficulty { min-height: 40px; }
+  #lobby [data-view='teams'] .vb-roster-item { grid-template-columns: 24px minmax(0,1fr); padding: 8px; }
+  #lobby [data-view='teams'] .vb-roster-right { grid-column: 2; justify-content: flex-start; flex-wrap: wrap; }
+  #lobby [data-view='teams'] .vb-roster-name { font-size: 12px; }
+  #lobby [data-view='teams'] .vb-team-select, #lobby [data-view='teams'] .vb-bot-difficulty { min-height: 40px; max-width: 88px; font-size: 11px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #lobby .vb-crossfade-incoming { will-change: auto; }
+}

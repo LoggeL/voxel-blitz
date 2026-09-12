@@ -25,10 +25,10 @@ import {
   isTeamId,
 } from '../shared/modes.js';
 import { createMapState, getMapMeta } from '../shared/worlddata.js';
-import { MAX_BOTS, MAX_PLAYERS, MAX_TEAM_PLAYERS, lobbyCapacity, hasLobbyTeams } from '../shared/lobby-limits.js';
+import { MAX_BOTS, MAX_TEAM_PLAYERS, lobbyCapacity, hasLobbyTeams } from '../shared/lobby-limits.js';
 
 const derivePassword = promisify(scrypt);
-const capacity = (room) => lobbyCapacity(room.gameMode);
+const capacity = (room) => lobbyCapacity(room.gameMode, room.map);
 const MAX_ROOMS = 16;
 const QUICK_MIN_BOTS = 5;
 
@@ -80,7 +80,7 @@ export class LobbyManager {
           candidate.phase === 'live' &&
           candidate.gameMode === DEFAULT_MODE_ID &&
           QUICK_MAPS.includes(candidate.map) &&
-          candidate.members.size < MAX_PLAYERS) {
+          candidate.members.size < capacity(candidate)) {
         room = candidate;
         break;
       }
@@ -266,8 +266,16 @@ export class LobbyManager {
     duelKillLimit ??= room.duelKillLimit;
     if (!DUEL_KILL_LIMITS.includes(duelKillLimit)) return this._error(meta, 'Invalid 1v1 kill target');
     bots = ['training', 'duel', 'bastion'].includes(gameMode) ? 0 : bots;
-    if (bots + room.members.size > lobbyCapacity(gameMode)) {
-      return this._error(meta, `This lobby allows up to ${lobbyCapacity(gameMode)} players and bots in total`);
+    const limit = lobbyCapacity(gameMode, map);
+    if (room.members.size > limit) {
+      return this._error(meta, `This map allows up to ${limit} players. There are ${room.members.size} human players in the lobby.`);
+    }
+    // Smaller arenas keep all humans and trim only planned bots. A bot-only
+    // configuration above the current arena's limit remains an invalid request.
+    if (map !== room.map || gameMode !== room.gameMode) {
+      bots = Math.min(bots, limit - room.members.size);
+    } else if (bots + room.members.size > limit) {
+      return this._error(meta, `This lobby allows up to ${limit} players and bots in total`);
     }
     const arenaChanged = gameMode !== room.gameMode || map !== room.map;
     if (!arenaChanged && bots === room.bots && duelKillLimit === room.duelKillLimit) return true;
@@ -414,10 +422,10 @@ export class LobbyManager {
       map,
       phase: 'waiting',
       duelKillLimit: DEFAULT_DUEL_KILL_LIMIT,
-      bots: ['training','duel','bastion'].includes(gameMode) ? 0 : bots,
+      bots: ['training','duel','bastion'].includes(gameMode) ? 0 : Math.min(bots, lobbyCapacity(gameMode, map) - 1),
       botTeams: new Map(),
       botDifficulties: new Map(),
-      quickPopulation: quick ? bots + 1 : null,
+      quickPopulation: quick ? Math.min(bots + 1, lobbyCapacity(gameMode, map)) : null,
       host: '',
       members: new Map(),
       engine: null,
@@ -552,7 +560,7 @@ export class LobbyManager {
     const targetPopulation = Number.isFinite(room.quickPopulation)
       ? room.quickPopulation
       : QUICK_MIN_BOTS + 1;
-    const desired = Math.max(0, Math.min(MAX_BOTS, targetPopulation - room.members.size));
+    const desired = Math.max(0, Math.min(MAX_BOTS, capacity(room) - room.members.size, targetPopulation - room.members.size));
     room.botManager.setCount(desired);
     room.bots = desired;
   }

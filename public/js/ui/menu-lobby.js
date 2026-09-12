@@ -1,4 +1,3 @@
-import { BOT_DIFFICULTIES, botDifficulty, DEFAULT_BOT_DIFFICULTY } from '../../../shared/bot-difficulty.js';
 import {
   HudSupport,
   MAP_LABELS,
@@ -18,13 +17,15 @@ import { addMenuIcon } from './menu-icons.js';
 import { LobbyBrowser } from './lobby-browser.js';
 import { LobbySettings } from './lobby-settings.js';
 import { normalizeModeId, mapForMode } from '../../../shared/modes.js';
-import { MAX_BOTS, MAX_TEAM_PLAYERS, lobbyCapacity } from '../../../shared/lobby-limits.js';
+import { MAX_BOTS } from '../../../shared/lobby-limits.js';
+import { LobbyRoster } from './lobby-roster.js';
+import { CrossfadeImage } from './crossfade-image.js';
 import {
   clampMouseSensitivity,
   MOUSE_SENSITIVITY,
   SENSITIVITY_PREF_KEY,
 } from '../input-settings.js';
-import { buildMenuShell, setMenuBackdrop } from './menu-chrome.js';
+import { buildMenuShell, setMenuBackdrop, disposeMenuBackdrop } from './menu-chrome.js';
 
 const NOOP = () => {};
 const QUICK_PLAY_BOTS = 5;
@@ -297,7 +298,9 @@ export class MenuLobbyController {
     const metaHeader = el('div', 'vb-lobby-meta-header', metaCard);
     el('span', 'vb-label', metaHeader).textContent = 'MISSION SETUP';
 
-    const missionPreview = el('img', 'vb-lobby-mission-image', metaCard, 'lobby-map-preview');
+    const missionFrame = el('div', 'vb-lobby-mission-frame', metaCard);
+    const missionPreview = el('img', 'vb-lobby-mission-image', missionFrame, 'lobby-map-preview');
+    const missionFade = new CrossfadeImage(missionFrame, missionPreview);
     missionPreview.width = 720;
     missionPreview.height = 360;
 
@@ -358,14 +361,10 @@ export class MenuLobbyController {
     });
 
     const rosterCard = el('div', 'vb-lobby-card vb-roster-card', panel);
-    const rosterHeader = el('div', 'vb-roster-header', rosterCard);
-    el('span', 'vb-label', rosterHeader).textContent = 'OPERATORS';
-    const readyCount = el('span', 'vb-ready-count', rosterHeader, 'lobby-ready-count');
-    readyCount.textContent = '0 / 0 READY';
-
-    const rosterList = el('div', 'vb-roster-list', rosterCard, 'lobby-roster');
-    rosterList.setAttribute('role', 'list');
-    const teamHint = el('p', 'vb-lobby-team-hint', rosterCard);
+    const roster = new LobbyRoster(rosterCard, {
+      onTeam: (id, team) => this._lobbyCallbacks?.onTeam?.(id, team),
+      onBotDifficulty: (id, difficulty) => this._lobbyCallbacks?.onBotDifficulty?.(id, difficulty),
+    });
 
     const actionsRow = el('div', 'vb-lobby-actions', panel);
 
@@ -420,14 +419,13 @@ export class MenuLobbyController {
       modeVal: modeValue,
       mapVal: mapValue,
       missionPreview,
+      missionFade,
       settings,
       codeVal: codeValue,
       inviteInput,
       copyBtn: copyButton,
       qr,
-      readyCount,
-      rosterList,
-      teamHint,
+      roster,
       leaveBtn: leaveButton,
       readyBtn: readyButton,
       startBtn: startButton,
@@ -494,20 +492,11 @@ export class MenuLobbyController {
     if (!dom || !dom.root) return;
 
     const gameMode = state.gameMode || 'fun';
-    const teamSelection = gameMode === 'tdm' || gameMode === 'snd';
-    const selfIsHost = state.selfId != null && String(state.selfId) === String(state.host);
-    dom.teamHint.hidden = !teamSelection;
-    dom.teamHint.textContent = selfIsHost
-      ? 'Assign players and bots to either team, including uneven matches. Up to 16 per team. Changes reset ready status.'
-      : 'The host assigns teams. Team changes reset ready status.';
     const map = state.map || 'foundry';
     setMenuBackdrop(dom.root, map);
     if (dom.modeVal) dom.modeVal.textContent = MODE_LABELS[gameMode] || gameMode.toUpperCase();
     if (dom.mapVal) dom.mapVal.textContent = MAP_LABELS[map] || map.toUpperCase();
-    if (dom.missionPreview) {
-      dom.missionPreview.src = MAP_PREVIEWS[map] || MAP_PREVIEWS.foundry;
-      dom.missionPreview.alt = `${MAP_LABELS[map] || map} arena preview`;
-    }
+    dom.missionFade.set(MAP_PREVIEWS[map] || MAP_PREVIEWS.foundry, `${MAP_LABELS[map] || map} arena preview`);
 
     const code = cleanCode(state.code) || state.code || '-----';
     if (dom.codeVal) dom.codeVal.textContent = code;
@@ -518,125 +507,13 @@ export class MenuLobbyController {
     }
 
     const members = Array.isArray(state.members) ? [...state.members] : [];
-    const teamCounts = { alpha: 0, bravo: 0 };
-    for (const member of members) if (member.team in teamCounts) teamCounts[member.team]++;
     const humans = members.filter((member) => !member.bot);
     const readyHumans = humans.filter((member) => !!member.ready).length;
     const totalHumans = humans.length;
     const allHumansReady = totalHumans > 0 && readyHumans === totalHumans
       && (gameMode !== 'duel' || totalHumans === 2);
 
-    if (dom.readyCount) {
-      const teams = teamSelection ? ` · ALPHA ${teamCounts.alpha} : ${teamCounts.bravo} BRAVO` : '';
-      dom.readyCount.textContent = `${members.length}/${lobbyCapacity(gameMode)} OPERATORS · ${readyHumans}/${totalHumans} READY${teams}`;
-    }
-
-    if (dom.readyBtn) {
-      dom.readyBtn.classList.remove('is-ready');
-      dom.readyBtn.setAttribute('aria-pressed', 'false');
-      dom.readyBtn.textContent = 'MARK READY';
-    }
-
-    // Ping updates must not destroy a select while someone is choosing a team.
-    const rosterSignature = JSON.stringify([gameMode, state.phase, state.selfId, state.host,
-      members.map(({ id, name, bot, ready, team, difficulty }) => [id, name, bot, ready, team, difficulty])]);
-    if (dom.rosterList && this._rosterSignature !== rosterSignature) {
-      this._rosterSignature = rosterSignature;
-      dom.rosterList.innerHTML = '';
-      for (const member of members) {
-        const isSelf = state.selfId != null && String(member.id) === String(state.selfId);
-        const isHost = state.host != null && String(member.id) === String(state.host);
-        const isBot = !!member.bot;
-
-        const item = el('div', `vb-roster-item${isSelf ? ' is-self' : ''}`, dom.rosterList);
-        item.setAttribute('role', 'listitem');
-
-        const portrait = el('span', `vb-operator-icon${isBot ? ' is-bot' : ''}`, item);
-        portrait.setAttribute('aria-hidden', 'true');
-        const leftColumn = el('div', 'vb-roster-left', item);
-        const name = el('span', 'vb-roster-name', leftColumn);
-        name.textContent = member.name || (isBot ? 'TACTICAL BOT' : 'OPERATOR');
-
-        if (isSelf) {
-          const badge = el('span', 'vb-badge vb-badge-you', leftColumn);
-          badge.textContent = 'YOU';
-        }
-        if (isHost) {
-          const badge = el('span', 'vb-badge vb-badge-host', leftColumn);
-          badge.textContent = 'HOST';
-        }
-        if (isBot) {
-          const badge = el('span', 'vb-badge vb-badge-bot', leftColumn);
-          badge.textContent = 'BOT';
-        }
-
-        const rightColumn = el('div', 'vb-roster-right', item);
-        if (isBot) {
-          if (state.phase === 'waiting' && selfIsHost) {
-            const select = el('select', 'vb-bot-difficulty', rightColumn);
-            select.setAttribute('aria-label', `Difficulty for ${member.name || 'BOT'}`);
-            select.dataset.botId = String(member.id);
-            for (const [id, profile] of Object.entries(BOT_DIFFICULTIES)) {
-              const option = el('option', '', select);
-              option.value = id; option.textContent = profile.label;
-            }
-            select.value = member.difficulty || DEFAULT_BOT_DIFFICULTY;
-            select.addEventListener('change', () => this._lobbyCallbacks?.onBotDifficulty?.(member.id, select.value));
-          } else {
-            const badge = el('span', 'vb-bot-difficulty-label', rightColumn);
-            badge.textContent = botDifficulty(member.difficulty).label;
-          }
-        }
-        if (teamSelection) {
-          if (state.phase === 'waiting' && selfIsHost) {
-            const select = el('select', 'vb-team-select', rightColumn);
-            select.setAttribute('aria-label', `Team for ${member.name || 'OPERATOR'}`);
-            for (const team of ['alpha', 'bravo']) {
-              const option = el('option', '', select);
-              option.value = team;
-              option.textContent = team.toUpperCase();
-              option.disabled = member.team !== team && teamCounts[team] >= MAX_TEAM_PLAYERS;
-            }
-            select.value = member.team || 'alpha';
-            select.dataset.team = select.value;
-            select.addEventListener('change', () => this._lobbyCallbacks?.onTeam?.(member.id, select.value));
-          } else {
-            const label = el('span', 'vb-team-label', rightColumn);
-            label.dataset.team = member.team || '';
-            label.textContent = member.team?.toUpperCase() || 'AUTO TEAM';
-          }
-        }
-        if (!isBot) {
-          const ping = el('span', 'vb-roster-ping', rightColumn);
-          ping.dataset.memberId = String(member.id);
-          ping.textContent = Number.isFinite(member.ping) ? `${member.ping} ms` : 'Measuring…';
-          ping.setAttribute('aria-label', Number.isFinite(member.ping) ? `Ping: ${member.ping} milliseconds` : 'Measuring ping');
-        }
-        const readyPill = el('span', 'vb-ready-pill', rightColumn);
-        if (isBot) {
-          readyPill.classList.add('bot');
-          readyPill.textContent = 'AUTO-READY';
-        } else if (member.ready) {
-          readyPill.classList.add('ready');
-          readyPill.textContent = 'READY';
-        } else {
-          readyPill.classList.add('not-ready');
-          readyPill.textContent = 'WAITING';
-        }
-
-        if (isSelf && dom.readyBtn) {
-          const isReady = !!member.ready;
-          dom.readyBtn.classList.toggle('is-ready', isReady);
-          dom.readyBtn.setAttribute('aria-pressed', isReady ? 'true' : 'false');
-          dom.readyBtn.textContent = isReady ? 'CANCEL READY' : 'MARK READY';
-        }
-      }
-    }
-    for (const ping of dom.rosterList.querySelectorAll('.vb-roster-ping')) {
-      const member = members.find(row => String(row.id) === ping.dataset.memberId);
-      ping.textContent = Number.isFinite(member?.ping) ? `${member.ping} ms` : 'Measuring…';
-      ping.setAttribute('aria-label', Number.isFinite(member?.ping) ? `Ping: ${member.ping} milliseconds` : 'Measuring ping');
-    }
+    dom.roster.update(state);
     const selfReady = !!humans.find(member => String(member.id) === String(state.selfId))?.ready;
     dom.readyBtn.classList.toggle('is-ready', selfReady);
     dom.readyBtn.setAttribute('aria-pressed', String(selfReady));
@@ -707,11 +584,12 @@ export class MenuLobbyController {
     if (doc) this.hideLobby();
     else this._lobbyCallbacks = null;
 
+    this.lobbyDom.missionFade?.dispose();
+    if (this.lobbyDom.root) disposeMenuBackdrop(this.lobbyDom.root);
     this.support.dispose();
     this.onMenuAction = null;
     this._lobbyCallbacks = null;
     this.joinStatus = null;
     this.lobbyDom = {};
-    this._rosterSignature = null;
   }
 }

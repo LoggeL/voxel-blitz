@@ -439,7 +439,7 @@ async function runContracts(server, signal) {
   const listing = await directory();
   const listed = listing.lobbies.find((room) => room.code === protectedCode);
   pass(listed?.passwordRequired === true && listed.players === 1 && listed.host === 'Protected-Host'
-    && listed.phase === 'waiting' && listed.capacity === 32, 'directory exposes joinable room metadata');
+    && listed.phase === 'waiting' && listed.capacity === 16, 'directory exposes joinable room metadata');
   pass(!JSON.stringify(listing).includes(secret) && !JSON.stringify(protectedHost.initialState).includes(secret)
     && Object.keys(listed).sort().join(',') === 'capacity,code,gameMode,host,map,passwordRequired,phase,players',
     'directory and lobby frames never expose password material');
@@ -488,26 +488,26 @@ async function runContracts(server, signal) {
     pass(header.seq < bytes.seq && validMap(bytes.value, header.value.mapBytes)
       && header.value.map === 'depot' && replacement.gameMode === 'tdm'
       && replacement.host === editor.welcome.id && humanRows(replacement).length === 2
-      && replacement.members.filter(row => row.bot).length === 7
+      && replacement.members.filter(row => row.bot).length === 6
       && humanRows(replacement).every((row) => !row.ready),
       `${client.label} keeps code and roster, replaces arena and resets readiness`);
   }
   const editingLate = await admit(makeClient(port, 'Editing-Late'),
     { t: 'join', name: 'Editing-Late', lobby: editCode }, signal, { gameMode: 'tdm', map: 'depot' });
-  pass(editingLate.initialState.bots === 7, 'new arrivals receive current settings while the host configures');
+  pass(editingLate.initialState.bots === 5, 'new arrivals receive current settings while the host configures');
   for (const client of [editor, peer, editingLate]) {
     const readyMark = editor.mark();
     client.send({ t: 'ready', value: true });
     await nextLobbyState(editor, readyMark, editCode, signal);
   }
   editor.send({ t: 'start' });
-  await nextTick(editor, editorConfigMark, (tick) => tick.players.length === 10, 'configured match keeps seven bots alongside three humans', signal);
+  await nextTick(editor, editorConfigMark, (tick) => tick.players.length === 8, 'configured Depot match keeps five bots alongside three humans', signal);
   const afterStartMark = editor.mark();
   editor.send({ t: 'configure', gameMode: 'fun', map: 'foundry', bots: 0 });
   await editor.waitForJson((msg) => msg.t === 'error' && /started/i.test(msg.msg), 'live edit rejection', afterStartMark, FRAME_TIMEOUT_MS, signal);
   const liveLate = await admit(makeClient(port, 'Live-Editing-Late'),
     { t: 'join', name: 'Live-Editing-Late', lobby: editCode }, signal, { gameMode: 'tdm', map: 'depot' });
-  pass(liveLate.initialState.members.length === 10 && liveLate.initialState.bots === 6,
+  pass(liveLate.initialState.members.length === 8 && liveLate.initialState.bots === 4,
     'late private-match join takes a bot slot without increasing match population');
   await Promise.all([peer.close(), editingLate.close(), liveLate.close()]);
   await nextLobbyState(editor, afterStartMark, editCode, signal, (state) => humanRows(state).length === 1);
@@ -977,10 +977,10 @@ async function runContracts(server, signal) {
   }, 'host-migration replacement');
   pass(migrated.host === roomBGuest.welcome.id, 'host disconnect promotes the earliest remaining human');
 
-  // Fill Room B to its 32-human cap and require the room-specific close
+  // Fill Room B to its 16-human Foundry cap and require the room-specific close
   // while other active rooms continue on the same server.
   const roomBMembers = [roomBGuest, lateB];
-  while (roomBMembers.length < 32) {
+  while (roomBMembers.length < 16) {
     const number = roomBMembers.length + 1;
     const joinMark = roomBGuest.mark();
     const member = await admit(

@@ -63,7 +63,7 @@
     "career:browser": "node tools/career-browser-test.mjs",
     "keybindings:test": "node tools/keybindings-test.mjs",
     "keybindings:browser": "node tools/keybindings-test.mjs --browser",
-    "lobby:large:test": "node tools/large-lobby-test.mjs",
+    "lobby:large:test": "node tools/map-capacity-test.mjs && node tools/large-lobby-test.mjs",
     "lobby:large:browser": "node tools/large-lobby-browser-test.mjs",
     "accounts:test": "node tools/accounts-test.mjs && node tools/accounts-ui-test.mjs && node tools/account-career-test.mjs",
     "accounts:ui:test": "node tools/accounts-ui-test.mjs",

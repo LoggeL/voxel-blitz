@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { lobbyCapacity } from '../shared/lobby-limits.js';
 import { LobbyManager } from '../server/lobby.js';
 import { parseAdmissionFrame } from '../server/protocol/admission.js';
 import { startServer, stopServer } from './lib/server-process.mjs';
@@ -24,23 +25,23 @@ try {
       const engine = fullHost.room.engine;
       engine.stop();
       const players = [...engine.entities.values()];
-      assert.equal(players.length, 32);
+      assert.equal(players.length, lobbyCapacity(gameMode, map));
       for (let i = 0; i < players.length; i++) for (let j = i + 1; j < players.length; j++) {
         assert.ok(Math.hypot(players[i].x - players[j].x, players[i].y - players[j].y,
-          players[i].z - players[j].z) >= 1.0, `${map} ${gameMode}: all 32 players have separate spawn positions`);
+          players[i].z - players[j].z) >= 1.0, `${map} ${gameMode}: all admitted players have separate spawn positions`);
       }
       manager.leave(fullHost);
     }
   }
   const host = { id: 'host' }, guest = { id: 'guest' };
-  assert.equal(await manager.create(host, 'Host', 31, 'tdm', 'foundry'), true);
+  assert.equal(await manager.create(host, 'Host', 31, 'tdm', 'harbor'), true);
   assert.deepEqual(teamCounts(manager._stateFor(host.room).members), { alpha: 16, bravo: 16 });
   assert.equal(manager.setTeam(host, 'bot-0', 'alpha'), false, 'a full team rejects a seventeenth member');
   assert.equal(await manager.join(guest, 'Guest', host.room.code), true);
   assert.equal(host.room.bots, 30);
   assert.equal(manager._stateFor(host.room).members.length, 32);
   assert.deepEqual(teamCounts(manager._stateFor(host.room).members), { alpha: 16, bravo: 16 });
-  assert.equal(manager.configure(host, { gameMode: 'tdm', map: 'foundry', bots: 31 }), false);
+  assert.equal(manager.configure(host, { gameMode: 'tdm', map: 'harbor', bots: 31 }), false);
 
   const bombHost = { id: 'bomb-host' }, replacement = { id: 'bomb-replacement' };
   assert.equal(await manager.create(bombHost, 'Bomb host', 1, 'snd', 'foundry'), true);
@@ -66,7 +67,7 @@ try {
     return result;
   }
   const mapHost = client('rapid map host'), mapGuest = client('rapid map guest');
-  const mapWelcome = await mapHost.join({ firstFrame: { t: 'create', name: 'Map host', bots: 31, gameMode: 'snd', map: 'foundry' } });
+  const mapWelcome = await mapHost.join({ firstFrame: { t: 'create', name: 'Map host', bots: 31, gameMode: 'snd', map: 'canyon' } });
   await mapGuest.join({ firstFrame: { t: 'join', name: 'Map guest', lobby: mapWelcome.lobby.code } });
   const mapMarks = [mapHost.mark(), mapGuest.mark()];
   mapHost.send({ t: 'configure', gameMode: 'snd', map: 'harbor', bots: 30 });
@@ -115,7 +116,7 @@ try {
     console.log(`${mode}: 2 humans vs 6 assigned bots launches intact after map change`);
 
     const full = client(`${mode} 16 vs 16`);
-    await full.join({ firstFrame: { t: 'create', name: 'Host', bots: 31, gameMode: mode, map: 'foundry' } });
+    await full.join({ firstFrame: { t: 'create', name: 'Host', bots: 31, gameMode: mode, map: 'harbor' } });
     const planned = await full.waitForJson(m => m.t === 'lobbyState' && m.members.length === 32, '32 operator waiting roster');
     assert.deepEqual(teamCounts(planned.members), { alpha: 16, bravo: 16 });
     const rejected = full.mark();
@@ -138,7 +139,7 @@ try {
   // Thirty-two independent sockets receive admission and full authoritative frames.
   const humans = [];
   const host = client('capacity host'); humans.push(host);
-  const welcome = await host.join({ firstFrame: { t: 'create', name: 'Host', bots: 0, gameMode: 'tdm', map: 'foundry' } });
+  const welcome = await host.join({ firstFrame: { t: 'create', name: 'Host', bots: 0, gameMode: 'tdm', map: 'harbor' } });
   for (let i = 1; i < 32; i++) {
     const human = client(`human ${i}`); humans.push(human);
     await human.join({ firstFrame: { t: 'join', name: `Human ${i}`, lobby: welcome.lobby.code } });
