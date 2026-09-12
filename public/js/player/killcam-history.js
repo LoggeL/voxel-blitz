@@ -3,23 +3,30 @@ import { copySmokeFields } from '../../../shared/smoke-rules.js';
 
 const POSE_FIELDS = ['id', 'name', 'x', 'y', 'z', 'yaw', 'pitch', 'state', 'hp',
   'weapon', 'firing', 'ads', 'crouch', 'proneT', 'grounded', 'vaulting', 'moveSpeed', 'team', 'charge'];
-const EVENT_KINDS = new Set(['shoot', 'projectileLaunch', 'projectileStick', 'projectileExplode']);
+const EVENT_KINDS = new Set(['shoot', 'hit', 'kill', 'mine', 'block', 'blockDamage',
+  'projectileLaunch', 'projectileUpdate', 'projectileStick', 'projectileExplode']);
 const lerp = (a, b, t) => a + (b - a) * t;
 const angle = (a, b, t) => a + Math.atan2(Math.sin(b - a), Math.cos(b - a)) * t;
 
 /** Bounded presentation data, separate from prediction and the live event cursor. */
 export class KillcamHistory {
-  constructor() { this.frames = []; }
+  constructor(terrain = null) { this.frames = []; this.terrain = terrain; }
   clear() { this.frames.length = 0; }
   record(snapshot) {
     const time = snapshot?.serverNow;
     if (!Number.isFinite(time)) return;
+    // Boot can flush snapshots already represented by the initial terrain copy.
+    if (this.terrain && time <= this.terrain.time) return;
     if (this.frames.length && time <= this.frames.at(-1).time) return;
+    let effects = 0;
     this.frames.push({ time,
       players: (snapshot.players || []).filter(p => p && [p.x, p.y, p.z, p.yaw, p.pitch].every(Number.isFinite))
         .map(p => Object.fromEntries(POSE_FIELDS.map(key => [key, p[key]]))),
-      events: structuredClone((snapshot.events || []).filter(e => EVENT_KINDS.has(e?.kind)).slice(0, 256)),
+      // Large explosions must not crowd out the killer's confirmed hits.
+      events: structuredClone((snapshot.events || []).filter(e => EVENT_KINDS.has(e?.kind)
+        && (e.kind === 'hit' || e.kind === 'kill' || effects++ < 256))),
       smokeFields: copySmokeFields(snapshot.smokeFields),
+      terrain: this.terrain?.record(snapshot) || [],
     });
     while (this.frames.length > KILLCAM.maxFrames || (this.frames.length > 2
       && this.frames[1].time < time - KILLCAM.historyMs)) this.frames.shift();
@@ -35,6 +42,7 @@ export class KillcamHistory {
     frames = frames.slice(start + 1);
     if (frames.length < 2 || end - frames[0].time < 250) return null;
     return { killer, victim, weapon: w, frames, start: frames[0].time, end,
+      terrain: this.terrain?.clip(frames) || null,
       name: frames.at(-1).players.find(p => p.id === killer)?.name || 'OPERATOR' };
   }
 }
@@ -57,6 +65,27 @@ export function sampleKillcam(clip, time, previousTime = -Infinity) {
     }
     return [p.id, row];
   }));
+  const crossed = frames.filter(f => f.time > previousTime && f.time <= at);
   return { time: at, players, smokeFields: a.smokeFields,
-    events: frames.filter(f => f.time > previousTime && f.time <= at).flatMap(f => f.events) };
+    // The terrain copy already includes the first frame.
+    terrain: crossed.filter(f => f.time > clip.start).flatMap(f => f.terrain),
+    events: crossed.flatMap(f => f.events),
+    hitmark: sampleHitmark(clip, Math.max(clip.start, time)) };
+}
+
+function sampleHitmark(clip, time) {
+  let mark = null;
+  for (const frame of clip.frames) {
+    if (frame.time > time) break;
+    if (frame.time < time - 520) continue;
+    for (const event of frame.events) {
+      const kill = event.kind === 'kill' && event.killer === clip.killer;
+      const hit = event.kind === 'hit' && event.attacker === clip.killer;
+      if ((!kill && !hit) || event.victim === clip.killer) continue;
+      if (mark?.kill && frame.time < mark.until && !kill) continue;
+      mark = { kind: kill ? (event.hs ? 'killHead' : 'kill') : (event.hs ? 'head' : 'body'),
+        kill, time: frame.time, until: frame.time + (kill ? 520 : 210) };
+    }
+  }
+  return mark && time < mark.until ? mark : null;
 }

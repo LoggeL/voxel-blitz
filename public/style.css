@@ -2118,7 +2118,7 @@ h1.vb-title::after {
 
 /* ---------- hitmarker ---------- */
 
-#hitmarker {
+:is(#hitmarker, .vb-killcam-hitmarker) {
   position: absolute;
   left: 50%;
   top: 50%;
@@ -2130,8 +2130,8 @@ h1.vb-title::after {
   transition: opacity 80ms linear, transform 80ms ease-out;
 }
 
-#hitmarker::before,
-#hitmarker::after {
+:is(#hitmarker, .vb-killcam-hitmarker)::before,
+:is(#hitmarker, .vb-killcam-hitmarker)::after {
   content: '';
   position: absolute;
   left: 50%;
@@ -2140,48 +2140,48 @@ h1.vb-title::after {
   box-shadow: 0 0 4px rgba(255, 255, 255, 0.8);
 }
 
-#hitmarker::before {
+:is(#hitmarker, .vb-killcam-hitmarker)::before {
   width: 14px;
   height: 2px;
   transform: translate(-50%, -50%) rotate(45deg);
 }
 
-#hitmarker::after {
+:is(#hitmarker, .vb-killcam-hitmarker)::after {
   width: 14px;
   height: 2px;
   transform: translate(-50%, -50%) rotate(-45deg);
 }
 
-#hitmarker.vb-show,
-#hitmarker.show {
+:is(#hitmarker, .vb-killcam-hitmarker).vb-show,
+:is(#hitmarker, .vb-killcam-hitmarker).show {
   opacity: 1;
   transform: translate(-50%, -50%) scale(1.15);
 }
 
-#hitmarker.vb-hs::before,
-#hitmarker.vb-hs::after,
-#hitmarker.hs::before,
-#hitmarker.hs::after {
+:is(#hitmarker, .vb-killcam-hitmarker).vb-hs::before,
+:is(#hitmarker, .vb-killcam-hitmarker).vb-hs::after,
+:is(#hitmarker, .vb-killcam-hitmarker).hs::before,
+:is(#hitmarker, .vb-killcam-hitmarker).hs::after {
   background: var(--danger);
   box-shadow: 0 0 8px rgba(255, 51, 85, 0.9);
 }
 
 /* Kill confirmation: a heavier red X that blooms outward and holds longer. */
-#hitmarker.vb-kill {
+:is(#hitmarker, .vb-killcam-hitmarker).vb-kill {
   transform: translate(-50%, -50%) scale(1.55);
   transition: opacity 120ms linear, transform 180ms cubic-bezier(0.2, 1.4, 0.4, 1);
 }
 
-#hitmarker.vb-kill::before,
-#hitmarker.vb-kill::after {
+:is(#hitmarker, .vb-killcam-hitmarker).vb-kill::before,
+:is(#hitmarker, .vb-killcam-hitmarker).vb-kill::after {
   width: 18px;
   height: 3px;
   background: var(--danger);
   box-shadow: 0 0 12px rgba(255, 51, 85, 1), 0 0 3px #fff;
 }
 
-#hitmarker.vb-kill.vb-hs::before,
-#hitmarker.vb-kill.vb-hs::after {
+:is(#hitmarker, .vb-killcam-hitmarker).vb-kill.vb-hs::before,
+:is(#hitmarker, .vb-killcam-hitmarker).vb-kill.vb-hs::after {
   background: #fff;
   box-shadow: 0 0 14px rgba(255, 51, 85, 1), 0 0 4px rgba(255, 255, 255, 0.9);
 }

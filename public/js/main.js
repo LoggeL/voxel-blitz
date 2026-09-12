@@ -9,7 +9,7 @@ import { MuzzleLights } from './engine/muzzle-lights.js';
 import { FrameRateController } from './engine/frame-rate.js';
 import { WEAPONS, WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
 import { VAULT_SECONDS } from '../../shared/player-movement.js';
-import { deserializeWorld, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
+import { deserializeWorld, serializeWorld, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
 import { Input } from './engine/input.js';
 import {
   CombatPostProcess,
@@ -123,8 +123,8 @@ class Game {
             sfx.bastionCue(event.kind, event.pos);
             return;
           }
-          if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileStick',
-            'projectileExplode', 'blockDamage'].includes(event.kind)) return;
+          if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileUpdate', 'projectileStick',
+            'projectileExplode', 'blockDamage', 'block', 'mine'].includes(event.kind)) return;
           this.feedback?.handleEvent(event);
         },
         onRunEvent: (event) => this.runHud?.handleEvent(event),
@@ -234,7 +234,9 @@ class Game {
       gore: (event, options) => this.effects?.gore(event, options),
       getMyId: () => this.myId,
     });
-    this.killcam = new Killcam({ scene: this.worldview.scene, getBlock, audio: sfx, now: nowMs });
+    this.killcam = new Killcam({ scene: this.worldview.scene, getBlock, worldview: this.worldview,
+      mapBytes: serializeWorld(), blockDamage: [...net.blockDamage.values()],
+      terrainTime: net.latestSnapshots.at(-1)?.serverNow ?? -Infinity, audio: sfx, now: nowMs });
     this.spectator = new SpectatorCamera({
       camera: this.camera,
       raycast: (origin, direction, distance) => (

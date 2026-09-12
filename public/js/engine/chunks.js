@@ -138,9 +138,9 @@ export class ChunkStore {
   }
 
   /** Drain the rebuild queue up to MAX_REBUILDS_PER_FRAME entries per frame. */
-  update() {
+  update(maxRebuilds = MAX_REBUILDS_PER_FRAME) {
     let n = 0;
-    while (this.dirtyQueue.length > 0 && n < MAX_REBUILDS_PER_FRAME) {
+    while (this.dirtyQueue.length > 0 && n < maxRebuilds) {
       const key = this.dirtyQueue.shift();
       this.queued.delete(key);
       const c = this.chunks.get(key);

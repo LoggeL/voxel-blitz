@@ -91,6 +91,10 @@ export class WorldView {
       throw new TypeError('WorldView requires { getBlock }');
     }
     this.store = storeRef;
+    this.replayTerrain = null;
+    this.replayTouched = new Map();
+    const visualBlock = (x, y, z) => (this.replayTerrain || this.store).getBlock(x, y, z);
+    const visualDamage = (x, y, z) => (this.replayTerrain || this.store).getBlockDamage?.(x, y, z) || 0;
     const meta = mapMeta || storeRef.meta;
     const palette = mapAtmosphere(meta?.id);
 
@@ -110,13 +114,13 @@ export class WorldView {
     this.sun = sun;
 
     this.atlas = buildAtlas();
-    this.chunkStore = new ChunkStore(this.scene, this.atlas, storeRef.getBlock, storeRef.getBlockDamage, getMapDimensions(meta?.id));
+    this.chunkStore = new ChunkStore(this.scene, this.atlas, visualBlock, visualDamage, getMapDimensions(meta?.id));
 
     this.mapDetails = (mapMeta || storeRef.meta)?.id === 'nuketown' ? buildNuketownDetails() : null;
     if (this.mapDetails) this.scene.add(this.mapDetails.group);
-    this.mapSigns = buildMapSigns(meta?.id, storeRef.getBlock);
+    this.mapSigns = buildMapSigns(meta?.id, visualBlock);
     this.scene.add(this.mapSigns.group);
-    this.mapLights = buildMapLights(meta?.id, storeRef.getBlock);
+    this.mapLights = buildMapLights(meta?.id, visualBlock);
     this.scene.add(this.mapLights.group);
 
     this.skyUpdate = installSky(this.scene, palette, getMapDimensions(meta?.id));
@@ -140,6 +144,14 @@ export class WorldView {
    * Each entry is {x,y,z,v}; dirty chunks remesh within the per-frame budget.
    */
   applyDeltas(deltas) {
+    if (this.replayTerrain) {
+      this.rememberReplayDeltas(deltas);
+      return;
+    }
+    this.rebuildDeltas(deltas);
+  }
+
+  rebuildDeltas(deltas) {
     for (let i = 0; i < deltas.length; i++) {
       const d = deltas[i];
       this.chunkStore.applyBlockDelta(d.x, d.y, d.z, d.v);
@@ -148,6 +160,27 @@ export class WorldView {
       this.mapSigns.refresh();
       this.mapLights.refresh();
     }
+  }
+
+  rememberReplayDeltas(deltas) {
+    for (const d of deltas) this.replayTouched.set(`${d.x},${d.y},${d.z}`, d);
+  }
+
+  setReplayTerrain(terrain) {
+    if (terrain === this.replayTerrain) return;
+    this.replayTerrain = terrain;
+    this.rememberReplayDeltas(terrain?.changed || []);
+    this.rebuildDeltas([...this.replayTouched.values()]);
+    // A replay frame must show the recorded state before it is rendered.
+    this.chunkStore.update(Infinity);
+    if (!terrain) this.replayTouched.clear();
+  }
+
+  updateReplayTerrain(deltas) {
+    if (!this.replayTerrain || !deltas.length) return;
+    this.rememberReplayDeltas(deltas);
+    this.rebuildDeltas(deltas);
+    this.chunkStore.update(Infinity);
   }
 
   /**
