@@ -1,4 +1,5 @@
 import WebSocket from 'ws';
+import { isModeMapCompatible } from '../shared/modes.js';
 import {
   MATCH_KEYS as MATCH_KEY_LIST,
   PLAYER_KEYS as PLAYER_KEY_LIST,
@@ -9,13 +10,13 @@ const HARD_TIMEOUT_MS = 15_000;
 const PLAYER_KEYS = PLAYER_KEY_LIST.split(',');
 const MATCH_KEYS = MATCH_KEY_LIST.split(',');
 const WELCOME_KEYS = [
-  'gameMode', 'id', 'lobby', 'map', 'mapBytes', 'phase', 'spawn', 't',
+  'blockDamage', 'gameMode', 'id', 'lobby', 'map', 'mapBytes', 'phase', 'spawn', 't',
   'tickRate',
 ];
 const LOBBY_KEYS = [
   'bots', 'code', 'gameMode', 'host', 'map', 'members', 'phase', 't',
 ];
-const TICK_KEYS = ['blocks', 'events', 'match', 'now', 'players', 't'];
+const TICK_KEYS = ['blockDamage', 'blocks', 'events', 'fireFields', 'match', 'mines', 'now', 'players', 'powerups', 'smokeFields', 't'];
 
 function requireCondition(condition, message) {
   if (!condition) throw new Error(message);
@@ -76,7 +77,7 @@ async function checkHttp(baseUrl, signal) {
 
 function validateWelcome(message) {
   requireCondition(hasExactKeys(message, WELCOME_KEYS), 'welcome frame is incomplete');
-  requireCondition(message.gameMode === 'fun' && ['foundry', 'depot', 'solstice', 'caldera'].includes(message.map),
+  requireCondition(message.gameMode === 'fun' && isModeMapCompatible('fun', message.map),
     `welcome identity is ${JSON.stringify({ mode: message.gameMode, map: message.map })}`);
   requireCondition(typeof message.id === 'string' && message.id.length > 0,
     'welcome has no player id');
@@ -90,7 +91,7 @@ function validateLobby(message, playerId, expectedMap) {
     `lobby identity is ${JSON.stringify({ mode: message.gameMode, map: message.map })}`);
   requireCondition(Array.isArray(message.members), 'lobby members is not an array');
   requireCondition(message.members.every((member) =>
-    hasExactKeys(member, ['bot', 'id', 'name', 'ready'])),
+    hasExactKeys(member, ['bot', 'id', 'name', 'ping', 'ready', 'team'])),
   'lobby contains an incomplete member');
   requireCondition(message.members.some((member) =>
     member.id === playerId && member.name === 'ContainerSmoke' && member.bot === false),

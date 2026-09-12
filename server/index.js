@@ -3,6 +3,7 @@
 import http from 'node:http';
 import { CareerService } from './career.js';
 import { AccountService } from './accounts.js';
+import { PostgresStore } from './persistence/postgres.js';
 import { WebSocketServer, WebSocket } from 'ws';
 import { staticHandler } from './static.js';
 import { LobbyManager } from './lobby.js';
@@ -45,11 +46,18 @@ async function main() {
 
   const clients = new Map();   // id -> connection metadata
   const diagnostics = new ServerDiagnostics();
-  const accounts = new AccountService({
+  const persistence = process.env.VB_PERSISTENCE || (process.env.DATABASE_URL ? 'postgres' : 'file');
+  if (!['postgres', 'file'].includes(persistence)) throw new Error('VB_PERSISTENCE must be postgres or file');
+  if (persistence === 'file') console.warn('[persistence] legacy JSON storage active; configure PostgreSQL and run db:import-json to migrate existing progress');
+  const store = persistence === 'postgres' ? await PostgresStore.open({ onLost() {
+    console.error('[persistence] database connection and writer lease lost; restart required');
+    process.exit(1);
+  } }) : null;
+  const accounts = await AccountService.create({ store,
     onRegistering(req) { return career.prepareGuest(req); },
-    onRegistered(req, user, context) { career.adoptGuest(req, user, context); },
+    onRegistered(req, user, context) { return career.adoptGuest(req, user, context); },
   });
-  const career = new CareerService({ accounts });
+  const career = await CareerService.create({ accounts, store });
   let connCounter = 0;
 
   function terminateClient(c) {
@@ -90,7 +98,11 @@ async function main() {
         const current = career.identity(c.authRequest);
         c.profileId = current === c.admittedProfileId ? current : null;
       }
-      career.observe(c, obj);
+      const saving = career.observe(c, obj);
+      saving?.catch(error => {
+        if (!c.careerErrorLogged) console.error('[career] reward save failed:', error.message);
+        c.careerErrorLogged = true;
+      });
     } catch (error) {
       // Storage trouble must never interrupt the simulation's outgoing frames.
       if (!c.careerErrorLogged) console.error('[career] reward failed:', error.message);
@@ -119,6 +131,13 @@ async function main() {
       }
       if (await accounts.handleHttp(req, res)) return;
       if (await career.handleHttp(req, res)) return;
+      if ((req.url || '').split('?')[0] === '/healthz' && req.method === 'GET') {
+        store?.assertAvailable();
+        const healthy = !store || store.healthy;
+        res.writeHead(healthy ? 200 : 503, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+        res.end(JSON.stringify({ status: healthy ? 'ok' : 'saving delayed', persistence }));
+        return;
+      }
       if ((req.url || '').split('?')[0] === '/api/lobbies' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
         res.end(JSON.stringify({ lobbies: manager.list() }));
@@ -363,21 +382,28 @@ async function main() {
   });
 
   let shuttingDown = false;
-  const shutdown = (sig) => {
+  const shutdown = async (sig) => {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`\n[voxel-blitz] ${sig} received, shutting down`);
     clearInterval(heartbeat);
     diagnostics.dispose();
-    try { career.dispose(); } catch (error) { console.error('[career] save failed:', error.message); }
-    try { accounts.dispose(); } catch (error) { console.error('[accounts] save failed:', error.message); }
     try { manager.stop(); } catch (err) { console.error('[voxel-blitz] lobby stop:', err.message); }
     for (const c of clients.values()) {
       try { c.ws.close(1001, 'server shutdown'); } catch { /* gone */ }
     }
     wss.close(() => {});
-    server.close(() => process.exit(0));
-    setTimeout(() => process.exit(0), 1500).unref();
+    const stopped = new Promise(resolve => server.close(resolve));
+    const deadline = setTimeout(() => { console.error('[persistence] shutdown timed out'); process.exit(1); }, 10000);
+    deadline.unref();
+    try {
+      await accounts.dispose();
+      await career.dispose();
+      await store?.close();
+      await stopped;
+      clearTimeout(deadline);
+      process.exit(0);
+    } catch { console.error('[persistence] shutdown save failed'); process.exit(1); }
   };
   process.once('SIGINT', () => shutdown('SIGINT'));
   process.once('SIGTERM', () => shutdown('SIGTERM'));

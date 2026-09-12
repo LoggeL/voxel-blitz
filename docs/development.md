@@ -673,14 +673,77 @@ it does not isolate Cloudflare, the ISP, TLS, or another individual hop.
 
 ## Container deployment
 
-Voxel Blitz needs one Node.js 20+ process and one HTTP port. A Dockerfile or
-Dokploy service uses `npm start`, passes the runtime `PORT`, and routes both HTTP
-and WebSocket upgrade traffic to that same internal port. There is no frontend
-build step and no second service. Rooms, maps, scores, and invite codes live in
-process memory, so a container restart clears active matches. Accounts and
-careers require the persistent `/app/data` volume. Deployment-specific hostnames,
-TLS, health checks, and public URLs remain platform configuration rather than
-repository constants.
+The recommended stack is one Node.js game container and one PostgreSQL 18
+container. `compose.yaml` connects PostgreSQL only to an internal network, exposes
+only the game port, waits for database health, and retains database files in the
+named `postgres-data` volume. The game runs as the unprivileged `node` user. HTTP
+and WebSocket traffic use the same port; there is no frontend build step. Rooms,
+maps, scores, and invite codes remain in memory and reset on a game restart.
+
+Copy `.env.example` to `.env`, set `POSTGRES_PASSWORD` to a generated hexadecimal
+password (for example, `openssl rand -hex 32`), and start the stack:
+
+```bash
+docker compose up -d --build
+docker compose ps
+curl --fail http://127.0.0.1:8070/healthz
+```
+
+The health response identifies `persistence: "postgres"`. Compose binds the game
+to localhost by default; configure `BIND_ADDRESS`, `PORT`, and the HTTPS reverse
+proxy for the host. PostgreSQL has no published port. Set `VB_PUBLIC_ORIGIN` to the
+public HTTPS origin and preserve `Host` and `X-Forwarded-Proto` through the proxy.
+The `.env` file is ignored by Git. PostgreSQL 18 stores its data beneath the
+mounted `/var/lib/postgresql` directory, following the [official image's volume
+layout](https://hub.docker.com/_/postgres).
+
+Outside Compose, set `DATABASE_URL` and run `npm start`. Schema migration runs
+before the HTTP server starts; `npm run db:migrate` also checks/applies it while
+the game is stopped. `DATABASE_URL` or `VB_PERSISTENCE=postgres` selects the real
+database store. A database connection failure never falls back to JSON. For an
+existing deployment without either setting, the legacy JSON store remains
+available and logs a migration notice once at startup. This compatibility path
+and the Dockerfile's `/app/data` volume preserve existing installations until
+their host configuration and data are migrated. Local test fixtures explicitly
+use `VB_PERSISTENCE=file`.
+
+Back up PostgreSQL with `docker compose exec -T db pg_dump -U voxel -d voxel -Fc >
+voxel-backup.dump`. Keep that private backup outside the repository and verify
+restoration on a separate database. A named volume is persistent storage, not a
+backup. Do not use `docker compose down -v` on the deployed stack when retaining
+accounts and progress.
+
+### Import existing JSON data
+
+Stop the old game writer and take an unchanged backup of its complete data
+directory before switching the deployment. The importer accepts guest files,
+`accounts/`, `account-careers/`, and `career-claims/`. Point it at the backup and
+the new database, while the new game remains stopped:
+
+```bash
+docker compose up -d db
+docker compose run --rm --no-deps --volume /absolute/backup/data:/legacy:ro game \
+  npm run db:import-json -- /legacy
+docker compose up -d game
+```
+
+For a Node process outside Compose, use `DATABASE_URL=... npm run db:import-json
+-- /absolute/backup/data`. Credentials, hashed sessions, recovery codes, careers
+and claims retain their existing identities. The importer validates every source
+file before a single transaction imports the batch. A checksum manifest makes
+an unchanged repeat import a no-op, even when gameplay has since advanced. A
+changed previously imported file, malformed profile, duplicate identity or
+conflicting target row fails the import. Source files are never modified or
+deleted. A legacy claim whose first account-profile write was interrupted
+recovers that profile from its saved snapshot. Verify account login, career
+totals and equipped cosmetics before completing the host cutover.
+
+`npm run postgres:test` starts its own PostgreSQL container and named volume for
+real SQL/HTTP, migration, rollback, timeout, concurrency and restart checks.
+`npm run postgres:container` builds the actual Compose stack, checks HTTP/WS,
+private database networking and restart persistence. Both harnesses remove only
+their own randomly named resources. The dedicated PostgreSQL CI job runs both
+commands; ordinary direct simulation fixtures keep their explicit file adapter.
 
 Weapon scrolling also works while scoped. Switching stows the old weapon before drawing the new one (0.96–1.42 seconds); firing and aiming resume after the swap finishes.
 
@@ -689,9 +752,13 @@ Weapon scrolling also works while scoped. Switching stows the old weapon before 
 
 `server/career.js` owns XP, career credits, purchases and equipment. Gameplay snapshots provide kill and objective rewards; active input accumulates play time. Final matches award a completion bonus after at least ten seconds of active participation. Intermediate S&D rounds, training, suicides and idle connections do not award completion bonuses. Career credits are separate from S&D, Chaos and Bastion match currencies.
 
-Guest profiles use a random HttpOnly, SameSite browser cookie. Signed-in profiles use the server-resolved account identity, so the same account shares XP, credits and cosmetics across devices. Only registration transfers the current guest profile, once. Logging in never merges guest profiles. The original guest snapshot is first stored privately with the account, then an exclusive claim invalidates the old guest token. If transfer storage is unavailable, the account response carries a visible warning and the career returns 503 until the transfer can finish. Later account reads or logins retry the original snapshot, including after a restart. A persisted claim also recovers an interrupted first account-profile save. Existing gameplay sockets revalidate their original identity before awarding XP; logout, session expiry, password changes and recovery stop rewards on revoked sessions without interrupting play.
+Guest profiles use a random HttpOnly, SameSite browser cookie. Signed-in profiles use the server-resolved account identity, so the same account shares XP, credits and cosmetics across devices. Only registration transfers the current guest profile, once. Logging in never merges guest profiles. Registration keeps the original guest identity and recovery snapshot privately with the account. PostgreSQL atomically copies the latest committed guest profile into the account and publishes a unique claim, which invalidates the old guest token. If transfer storage is unavailable, the account response carries a visible warning and the career returns 503 until the transfer can finish. Later account reads or logins retry the same transfer, including after a restart. Existing gameplay sockets revalidate their original identity before awarding XP; logout, session expiry, password changes and recovery stop rewards on revoked sessions without interrupting play.
 
-The server writes private JSON profiles atomically under `VB_DATA_DIR` (default `./data`): guest profiles at the root, account profiles under `account-careers/`, transfer records under `career-claims/`, and credentials under `accounts/`. Purchases flush immediately; earned rewards flush every second and during graceful shutdown. An abrupt process termination can lose the unflushed reward batch. Retain and back up the whole directory together across deploys. The container exposes `/app/data` as a writable volume; mount a named volume or bind directory there. This store supports one Node process, as does the in-memory lobby runtime.
+`server/persistence/postgres.js` stores accounts, separate hashed sessions, careers, unique guest claims and reward receipts in PostgreSQL. Auth responses wait for the commit before issuing a cookie or changing the account cache. Purchases serialize balance and ownership checks with their update in one transaction. Gameplay observation stays synchronous at 20 Hz and writes only actual reward deltas. Each reward has a persistent receipt so retries cannot award twice. Transient transaction timeouts, lock conflicts and serialization failures retry the same queued reward before later writes proceed; health reports 503 while it is delayed. Graceful shutdown waits for outstanding writes and reports failure if it cannot finish. Data already committed remains durable across process and database restarts; an abrupt termination can still interrupt work that has not committed.
+
+This runtime supports one game writer per database. A session-level PostgreSQL advisory lock protects the account and claim caches; a second game process or importer is rejected. All transaction statements use the same dedicated connection, as required by [node-postgres](https://node-postgres.com/features/transactions). Losing that connection releases the lease and terminates the game process with a failure exit code. Compose's restart policy starts a new process, acquires the lock and reloads persisted identities. It does not rely on Docker health checks alone to restart the process. A permanent reward error makes persistence unavailable and fails shutdown instead of silently dropping progress.
+
+The compatibility file adapter writes JSON under `VB_DATA_DIR` (default `./data`): guest files at the root, account profiles under `account-careers/`, claims under `career-claims/`, and credentials under `accounts/`. Its purchases flush immediately and rewards flush every second and on graceful shutdown. Preserve the entire directory while using that adapter; unflushed legacy rewards can be lost on abrupt termination.
 
 `server/accounts.js` provides `GET /api/account` and JSON POST endpoints `/api/account/register`, `/login`, `/logout`, `/password` and `/recover`. Usernames contain 3 to 20 ASCII letters, numbers, underscores or hyphens and are unique without case distinctions. Passwords contain 12 to 128 Unicode code points. Registration and recovery return a private recovery code once; only its hash is stored. There is no email or external identity provider dependency.
 

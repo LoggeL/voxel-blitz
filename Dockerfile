@@ -14,6 +14,7 @@ ENV PORT=8070
 
 EXPOSE 8070
 
+# Retain the legacy data mount until existing deployments complete migration.
 RUN mkdir -p /app/data && chown node:node /app/data
 VOLUME ["/app/data"]
 

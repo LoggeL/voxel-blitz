@@ -71,3 +71,15 @@ export class CareerClaims {
     return true;
   }
 }
+
+/** Claim cache is valid only while the single PostgreSQL writer lease is held. */
+export class DatabaseCareerClaims {
+  constructor(store) { this.store = store; this.guests = new Map(); this.accounts = new Map(); }
+  async load() { for (const claim of await this.store.loadClaims()) this.remember(claim); }
+  remember(claim) {
+    this.guests.set(claim.guest, claim);
+    this.accounts.set(claim.account, claim);
+  }
+  hasGuest(id) { this.store.assertAvailable(); return this.guests.has(id); }
+  forAccount(id) { this.store.assertAvailable(); return copy(this.accounts.get(id)?.profile ?? null); }
+}

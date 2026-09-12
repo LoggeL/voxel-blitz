@@ -15,7 +15,7 @@ const TRANSFER_WARNING = 'Your account is ready. Your previous progress is still
 const publicUser = record => ({ id: record.id, username: record.username });
 const safeTime = value => Number.isSafeInteger(value) && value >= 0;
 
-function validateRecord(record, filename) {
+export function validateAccountRecord(record, filename) {
   const password = record?.password;
   const keys = ['version', 'id', 'username', 'password', 'recoveryHash', 'authVersion', 'createdAt', 'updatedAt', 'sessions'];
   if (record && Object.hasOwn(record, 'registrationContext')) {
@@ -44,9 +44,21 @@ function validateRecord(record, filename) {
 
 /** Optional local accounts; hashed credentials and sessions stay outside static roots. */
 export class AccountService {
+  static async create(options = {}) {
+    const service = new AccountService(options);
+    if (service.store) {
+      for (const record of await service.store.loadAccounts()) {
+        validateAccountRecord(record, `${record.username.toLowerCase()}.json`);
+        if (service.records.size >= service.maxAccounts) throw new Error('Account store exceeds configured limit');
+        service._remember(record);
+      }
+    }
+    return service;
+  }
+
   constructor({ directory = path.join(process.env.VB_DATA_DIR || './data', 'accounts'), now = Date.now,
     sessionLifetimeMs = SESSION_LIFETIME_MS, rateLimits = {}, hashLimits = {}, bodyTimeoutMs = 5000,
-    onRegistering = null, onRegistered = null, publicOrigin = process.env.VB_PUBLIC_ORIGIN || null, maxAccounts = 10000 } = {}) {
+    onRegistering = null, onRegistered = null, publicOrigin = process.env.VB_PUBLIC_ORIGIN || null, maxAccounts = 10000, store = null } = {}) {
     if (typeof now !== 'function' || !Number.isSafeInteger(sessionLifetimeMs) || sessionLifetimeMs < 1000
       || sessionLifetimeMs > SESSION_LIFETIME_MS || !Number.isSafeInteger(bodyTimeoutMs) || bodyTimeoutMs < 1
       || !Number.isSafeInteger(maxAccounts) || maxAccounts < 1) throw new TypeError('Invalid account settings');
@@ -70,6 +82,9 @@ export class AccountService {
     this.limits = new AccountRateLimits({ ...rateLimits, now });
     this.closed = false;
     this.unavailable = false;
+    this.store = store;
+    this.operations = Promise.resolve();
+    if (store) return;
     try {
       mkdirSync(this.directory, { recursive: true, mode: 0o700 });
       for (const filename of readdirSync(this.directory)) {
@@ -77,7 +92,7 @@ export class AccountService {
         if (!/^[a-z0-9_-]{3,20}\.json$/.test(filename) || this.records.size >= maxAccounts) throw new Error('Invalid account store');
         const file = path.join(this.directory, filename);
         if (!statSync(file).isFile() || statSync(file).size > MAX_RECORD_BYTES) throw new Error('Invalid account file');
-        const record = validateRecord(JSON.parse(readFileSync(file, 'utf8')), filename);
+        const record = validateAccountRecord(JSON.parse(readFileSync(file, 'utf8')), filename);
         if (this.records.has(record.id) || this.usernames.has(record.username.toLowerCase())) throw new Error('Duplicate account');
         for (const session of record.sessions) if (this.sessions.has(session.hash)) throw new Error('Duplicate session');
         this._remember(record);
@@ -90,7 +105,7 @@ export class AccountService {
   }
 
   sessionIdentity(req) {
-    if (this.closed || this.unavailable) return null;
+    if (this.closed || this.unavailable || (this.store && !this.store.active)) return null;
     const hash = sessionHash(req);
     const session = hash && this.sessions.get(hash);
     if (!session || session.expiresAt <= this.now()) return null;
@@ -117,7 +132,7 @@ export class AccountService {
         await this.onRegistered(req, publicUser(record), structuredClone(record.registrationContext));
         const current = { ...this.records.get(userId) };
         delete current.registrationContext;
-        this._save(current);
+        await this._save(current);
         return true;
       } catch {
         console.error('[accounts] registration follow-up will be retried');
@@ -129,10 +144,21 @@ export class AccountService {
     finally { this.registrationJobs.delete(userId); }
   }
 
-  dispose() { this.closed = true; this.hasher.dispose(); }
+  dispose() {
+    if (this.store) return this.operations.then(() => { this.closed = true; this.hasher.dispose(); });
+    this.closed = true; this.hasher.dispose();
+  }
+
+  _serialize(operation) {
+    if (!this.store) return operation();
+    const result = this.operations.then(operation);
+    this.operations = result.catch(() => {});
+    return result;
+  }
 
   _available() {
     if (this.closed || this.unavailable) throw new AccountError(503, 'Accounts are temporarily unavailable');
+    this.store?.assertAvailable();
   }
 
   _remember(record) {
@@ -142,10 +168,15 @@ export class AccountService {
     for (const session of record.sessions) this.sessions.set(session.hash, { userId: record.id, expiresAt: session.expiresAt });
   }
 
-  _save(record, creating = false) {
+  async _save(record, creating = false) {
     this._available();
     const filename = `${record.username.toLowerCase()}.json`;
-    validateRecord(record, filename);
+    validateAccountRecord(record, filename);
+    if (this.store) {
+      await this.store.saveAccount(record, creating);
+      this._remember(record);
+      return;
+    }
     const file = path.join(this.directory, filename);
     const temporary = path.join(this.directory, `.${record.id}.${randomBytes(8).toString('hex')}.tmp`);
     let descriptor;
@@ -182,11 +213,33 @@ export class AccountService {
     res.setHeader('Set-Cookie', existing ? [...(Array.isArray(existing) ? existing : [existing]), value] : value);
   }
 
-  _revokePresentedSession(req) {
+  async _revokePresentedSession(req) {
     const identity = this.sessionIdentity(req);
     if (!identity) return;
     const record = this.records.get(identity.user.id);
-    this._save({ ...record, updatedAt: this.now(), sessions: record.sessions.filter(session => session.hash !== identity.sessionId) });
+    await this._save({ ...record, updatedAt: this.now(), sessions: record.sessions.filter(session => session.hash !== identity.sessionId) });
+  }
+
+  async _saveSessionRotation(record, creating, req) {
+    if (!this.store) {
+      await this._save(record, creating);
+      await this._revokePresentedSession(req);
+      return;
+    }
+    const identity = this.sessionIdentity(req);
+    let previous = null;
+    if (identity) {
+      record = { ...record, sessions: record.sessions.filter(session => session.hash !== identity.sessionId) };
+      if (identity.user.id !== record.id) {
+        const old = this.records.get(identity.user.id);
+        previous = { ...old, updatedAt: this.now(), sessions: old.sessions.filter(session => session.hash !== identity.sessionId) };
+      }
+    }
+    validateAccountRecord(record, `${record.username.toLowerCase()}.json`);
+    if (previous) validateAccountRecord(previous, `${previous.username.toLowerCase()}.json`);
+    await this.store.saveAccount(record, creating, previous);
+    this._remember(record);
+    if (previous) this._remember(previous);
   }
 
   _credentials(data, keys = ['username', 'password']) {
@@ -215,8 +268,7 @@ export class AccountService {
       if (Buffer.byteLength(serialized) > MAX_REGISTRATION_CONTEXT_BYTES) throw new AccountError(503, 'Accounts are temporarily unavailable');
       record.registrationContext = JSON.parse(serialized);
     }
-    this._save(record, true);
-    this._revokePresentedSession(req);
+    await this._saveSessionRotation(record, true, req);
     const user = publicUser(record);
     const transferred = await this._finishRegistration(req, id);
     this._cookie(req, res, session.token);
@@ -234,19 +286,18 @@ export class AccountService {
     if (!valid || !current || current.authVersion !== record.authVersion)
       throw new AccountError(401, 'Username or password is incorrect');
     const session = freshSession();
-    this._save(this._withSession(current, session));
-    this._revokePresentedSession(req);
+    await this._saveSessionRotation(this._withSession(current, session), false, req);
     const transferred = await this._finishRegistration(req, current.id);
     this._cookie(req, res, session.token);
     return { payload: { user: publicUser(current), ...(!transferred ? { warning: TRANSFER_WARNING } : {}) } };
   }
 
-  _logout(req, res, data) {
+  async _logout(req, res, data) {
     if (!exactObject(data, [])) throw new AccountError(400, 'Invalid account request');
     const identity = this.sessionIdentity(req);
     if (identity) {
       const record = this.records.get(identity.user.id);
-      this._save({ ...record, updatedAt: this.now(), sessions: record.sessions.filter(session => session.hash !== identity.sessionId) });
+      await this._save({ ...record, updatedAt: this.now(), sessions: record.sessions.filter(session => session.hash !== identity.sessionId) });
     }
     this._cookie(req, res);
     return { payload: { user: null } };
@@ -267,7 +318,7 @@ export class AccountService {
     if (current.authVersion !== record.authVersion || this.sessionIdentity(req)?.sessionId !== identity.sessionId)
       throw new AccountError(401, 'Sign in again before changing your password');
     const session = freshSession();
-    this._save(this._withSession({ ...current, password, authVersion: current.authVersion + 1 }, session, true));
+    await this._save(this._withSession({ ...current, password, authVersion: current.authVersion + 1 }, session, true));
     this._cookie(req, res, session.token);
     return { payload: { user: publicUser(current) } };
   }
@@ -287,7 +338,7 @@ export class AccountService {
     if (current.authVersion !== record.authVersion || current.recoveryHash !== record.recoveryHash)
       throw new AccountError(401, 'Recovery details are incorrect');
     const code = freshRecoveryCode(), session = freshSession();
-    this._save(this._withSession({ ...current, password, recoveryHash: recoveryHash(current.id, code),
+    await this._save(this._withSession({ ...current, password, recoveryHash: recoveryHash(current.id, code),
       authVersion: current.authVersion + 1 }, session, true));
     this._cookie(req, res, session.token);
     return { payload: { user: publicUser(current), recoveryCode: code } };
@@ -308,9 +359,12 @@ export class AccountService {
       this._available();
       if (route === '/api/account') {
         if (req.method !== 'GET') return reply(405, { error: 'Method not allowed' });
-        const user = this.identity(req);
-        const transferred = !user || await this._finishRegistration(req, user.id);
-        return reply(200, { user: this.identity(req), ...(!transferred ? { warning: TRANSFER_WARNING } : {}) });
+        return await this._serialize(async () => {
+          this._available();
+          const user = this.identity(req);
+          const transferred = !user || await this._finishRegistration(req, user.id);
+          return reply(200, { user: this.identity(req), ...(!transferred ? { warning: TRANSFER_WARNING } : {}) });
+        });
       }
       const action = { '/api/account/register': '_register', '/api/account/login': '_login',
         '/api/account/logout': '_logout', '/api/account/password': '_password', '/api/account/recover': '_recover' }[route];
@@ -321,7 +375,7 @@ export class AccountService {
       this.limits.consume('ip', req.socket?.remoteAddress || 'unknown');
       const data = await readAccountJson(req, { timeoutMs: this.bodyTimeoutMs });
       this._available();
-      const result = await this[action](req, res, data);
+      const result = await this._serialize(() => { this._available(); return this[action](req, res, data); });
       return reply(result.status || 200, result.payload);
     } catch (error) {
       if (error instanceof AccountError) return reply(error.status, { error: error.message }, error);

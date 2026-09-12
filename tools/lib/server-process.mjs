@@ -59,7 +59,9 @@ export function startServer({
   const parsePort = portMatcher(portPattern);
   const child = spawn(command, args ?? [entry], {
     cwd,
-    env: { ...process.env, ...env, PORT: '0' },
+    env: { ...process.env, NODE_ENV: 'test',
+      VB_PERSISTENCE: (env.DATABASE_URL ?? process.env.DATABASE_URL) ? 'postgres' : 'file',
+      ...env, PORT: '0' },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
   const server = {

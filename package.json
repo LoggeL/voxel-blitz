@@ -66,9 +66,14 @@
     "lobby:large:browser": "node tools/large-lobby-browser-test.mjs",
     "accounts:test": "node tools/accounts-test.mjs && node tools/accounts-ui-test.mjs && node tools/account-career-test.mjs",
     "accounts:ui:test": "node tools/accounts-ui-test.mjs",
-    "accounts:browser": "node tools/accounts-browser-test.mjs"
+    "accounts:browser": "node tools/accounts-browser-test.mjs",
+    "db:migrate": "node server/persistence/cli.js migrate",
+    "db:import-json": "node server/persistence/cli.js import-json",
+    "postgres:test": "node tools/postgres-test.mjs",
+    "postgres:container": "node tools/postgres-container-test.mjs"
   },
   "dependencies": {
+    "pg": "^8.23.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
