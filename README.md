@@ -12,7 +12,7 @@ Fast rounds. Destructible arenas. Straight into your browser.
 
 </div>
 
-![VOXEL BLITZ main menu with Quick Play, custom lobbies and the Killhouse practice range](docs/screenshots/main-menu.png)
+![VOXEL BLITZ main menu with Quick Play, account creation and a career preview](docs/screenshots/main-menu.png)
 
 A multiplayer voxel arena shooter with destructible cover, twelve weapons and bots that keep the action moving. Jump into Quick Play, invite friends to a custom lobby, or work on your aim in the Killhouse.
 
@@ -65,6 +65,8 @@ npm start
 
 Open [localhost:8070](http://localhost:8070), enter a name and choose **Quick Play**. A fresh quick room starts with at least five bots, so you can play on your own immediately.
 
+For persistent hosting, use the [PostgreSQL container stack](docs/development.md#container-deployment): copy `.env.example` to `.env`, set its database password, then run `docker compose up -d --build`. Plain `npm start` without database configuration keeps the local JSON store.
+
 For a match with friends, choose **Create Lobby**, share the invite link or QR code, then have everyone ready up. The host starts the match. Remote players need access to the same running server.
 
 In Team Deathmatch and Search and Destroy, the lobby host assigns humans and bots to Alpha or Bravo before starting. Asymmetric matches such as 2 vs 6 are supported, with a maximum of 16 per team. Assignments survive map changes and match launch; changing a team resets everyone's ready status. Humans joining a full live room replace a bot on its existing team.
@@ -79,11 +81,17 @@ PORT=8080 npm start
 
 Open **Career & Shop** in the main menu to see your level, XP and career credits. Kills, objectives, active play and completed matches earn rewards. Buy and equip reticle themes and callsigns; these cosmetics do not change combat stats. Training grants no career rewards.
 
-You can play immediately as a guest. Use **Log in / Register** in the main menu or **Save your career** in the shop to create an optional account. Registration transfers this browser's guest XP, credits and cosmetics to the new account once. Logging in on another device loads that account's career; it does not merge that device's guest progress.
+You can play immediately as a guest. Use **Create Account** in the main menu or **Save your career** in the shop to create an optional account. Registration transfers this browser's guest XP, credits and cosmetics to the new account once. **Log in** on another device loads that account's career; it does not merge that device's guest progress.
 
 Accounts use a username and a password with 12 to 128 characters. Save the private recovery code shown after registration: it lets you reset a forgotten password and is replaced after use. Account settings also let you change your password or log out. Your account username becomes your player name.
 
-Guest progress stays linked to this browser through a cookie, so clearing cookies loses access to it. Account progress survives cookie clearing and is available after logging in again on the same game server. Container hosts must retain the `/app/data` volume when replacing a deployment.
+Guest progress stays linked to this browser through a cookie, so clearing cookies loses access to it. Account progress survives cookie clearing and is available after logging in again on the same game server. The recommended container stack stores accounts and careers in PostgreSQL; retain and back up its database volume. Existing JSON deployments keep their `/app/data` volume until they complete the [documented migration](docs/development.md#import-existing-json-data).
+
+![Career and shop with a PostgreSQL test profile, equipped cosmetics and level progress](docs/screenshots/career-shop.png)
+
+The shop groups HUD themes and callsigns into illustrated cards with level requirements, prices and equipped states. This browser capture uses a test profile after registration, purchases and a PostgreSQL restart.
+
+The **Music** slider is available in the main menu, lobby, lobby browser, account, career and settings screens. Its 0–100% setting stays synchronized between screens and is saved in this browser, independently of game effects volume.
 
 ## Controls
 
@@ -131,3 +139,5 @@ For hosting, forward HTTP and WebSocket traffic to the same port. Match state li
 ## Asset credits
 
 Audio sources and usage terms are recorded in [audio credits](public/assets/audio/LICENSES.md). The bundled QR generator includes its [license notice](public/js/vendor/qrcode-generator-2.0.4.LICENSE.txt). Generated audio has separate usage terms from the CC0 recordings.
+
+Menu and shop layouts were built from [ImageGen screen references](docs/design/armory/README.md). The generated artwork, exact prompts and source manifest are in [the armory asset directory](public/assets/ui/armory/).

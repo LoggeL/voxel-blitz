@@ -1,0 +1,6 @@
+Use case: stylized-concept
+Asset type: standalone decorative featured cosmetic banner artwork for Voxel Blitz Career & Shop.
+Reference image role: visual style reference ONLY, match its Arctic featured item. Generate ART ONLY, not a UI screenshot. Wide landscape16:9.
+Scene: quiet frozen ruins built entirely of blocky voxel stone, midnight blue winter haze and subtle snowy particles. On the LEFT forty-five percent, a large floating beautifully rendered icy cyan targeting reticle crest, a four-direction cuboid geometric crosshair made of translucent ice and brushed blue metal, gentle cyan glow, like a premium collectible HUD-theme emblem. It has the same visual family as the ARCTIC crest in the reference.
+On the RIGHT fifty-five percent, quieter dark blue ruins and atmospheric negative space with very low visual complexity for real HTML text/buttons to overlay. Keep the emblem fully visible with generous safety margins. Sharp, tactile voxel geometry, cinematic but restrained contrast, appealing depth, professional shooter game collectible art.
+Constraints: no text, no logo, no UI controls, no price, no character, no weapon, no rounded blobs, no cyberpunk signage.

@@ -1,4 +1,5 @@
 import { cleanCode, el, MAP_LABELS, MAP_PREVIEWS, MODE_LABELS } from './hud-support.js';
+import { mountMusicControl } from './music-control.js';
 
 /** Code entry and a read-only room directory. Admission remains server-owned. */
 export class LobbyBrowser {
@@ -20,6 +21,7 @@ export class LobbyBrowser {
     close.type = 'button';
     close.textContent = '← MAIN MENU';
     close.addEventListener('click', () => this.close());
+    mountMusicControl(topbar);
     this.dialog.addEventListener('cancel', (event) => { event.preventDefault(); this.close(); });
     const header = el('div', 'vb-browser-header', this.dialog);
     el('span', 'vb-step-kicker', header).textContent = 'MULTIPLAYER / ROOM DIRECTORY';

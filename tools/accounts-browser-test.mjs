@@ -79,7 +79,7 @@ try {
   const remote = other.page;
   await remote.waitFor(`document.getElementById('account-open') && document.getElementById('play-btn')`);
   await assertGuest(remote);
-  await open(remote); await fill(remote, { username, password }); await submit(remote);
+  await remote.evaluate(`document.getElementById('account-nav-open').click()`); await fill(remote, { username, password }); await submit(remote);
   await remote.waitFor(`document.getElementById('name-input').readOnly && getComputedStyle(document.documentElement).getPropertyValue('--career-accent').trim() === '#72e6ff'`);
   assert.equal(await remote.evaluate(`document.querySelector('.vb-career-stats').textContent.includes('50 CREDITS')`), true, 'purchased career follows login on a different device');
   await fill(remote, { currentPassword: 'incorrect existing password', newPassword: secondPassword, confirmPassword: secondPassword });

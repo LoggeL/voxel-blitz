@@ -745,6 +745,12 @@ private database networking and restart persistence. Both harnesses remove only
 their own randomly named resources. The dedicated PostgreSQL CI job runs both
 commands; ordinary direct simulation fixtures keep their explicit file adapter.
 
+`npm run postgres:browser` checks registration, guest transfer, purchases, SQL
+read-back, database/game restart and another browser's login against a real
+PostgreSQL container. `npm run armory:browser` checks the responsive menu and
+shop, filters, account entry points and purchases. `npm run music:browser`
+checks the slider across all six menu screens and measures the actual audio gain.
+
 Weapon scrolling also works while scoped. Switching stows the old weapon before drawing the new one (0.96–1.42 seconds); firing and aiming resume after the swap finishes.
 
 

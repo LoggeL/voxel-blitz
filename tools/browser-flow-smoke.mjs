@@ -84,16 +84,20 @@ async function main() {
     requireCondition(menu.joinInBrowser && menu.browserClosed,
       'room code entry belongs to Find a Lobby and is hidden from the main menu');
 
-    await clickElement(page, 'menu-music-toggle');
-    requireCondition(await page.evaluate(`localStorage.getItem('vb-menu-music') === '0' &&
-      document.getElementById('menu-music-toggle').getAttribute('aria-pressed') === 'false'`),
+    await page.evaluate(`document.querySelector('#menu [data-music-volume]').focus()`);
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Home', code: 'Home', windowsVirtualKeyCode: 36 });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Home', code: 'Home', windowsVirtualKeyCode: 36 });
+    requireCondition(await page.evaluate(`localStorage.getItem('vb-music-volume') === '0' &&
+      document.querySelector('#menu [data-music-volume]').value === '0'`),
     'menu music can be disabled independently and persists its preference');
     await page.send('Page.reload');
-    await page.waitFor(`document.getElementById('menu-music-toggle')?.getAttribute('aria-pressed') === 'false'`,
+    await page.waitFor(`document.querySelector('#menu [data-music-volume]')?.value === '0'`,
       { label: 'muted music after reload' });
-    await clickElement(page, 'menu-music-toggle');
-    requireCondition(await page.evaluate(`localStorage.getItem('vb-menu-music') === '1' &&
-      document.getElementById('menu-music-toggle').getAttribute('aria-pressed') === 'true'`),
+    await page.evaluate(`document.querySelector('#menu [data-music-volume]').focus()`);
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'End', code: 'End', windowsVirtualKeyCode: 35 });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'End', code: 'End', windowsVirtualKeyCode: 35 });
+    requireCondition(await page.evaluate(`localStorage.getItem('vb-music-volume') === '100' &&
+      document.querySelector('#menu [data-music-volume]').value === '100'`),
     'menu music can be re-enabled from a user gesture');
     requireCondition(await page.evaluate(`(async () => {
       const { DEFAULT_MENU_TRACK } = await import('/js/audio/music.js');

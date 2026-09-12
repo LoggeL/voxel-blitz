@@ -2,10 +2,11 @@ export const DEFAULT_MENU_TRACK = '/assets/audio/music/menu-foundry-assault.ogg'
 export const MENU_GAIN = 0.16;
 const FADE_IN_SECONDS = 0.65;
 const FADE_OUT_SECONDS = 0.55;
+const VOLUME_RAMP_SECONDS = 0.04;
 
 /** Owns one decoded, restartable menu loop outside the bounded SFX voice pool. */
 export class MenuMusicLoop {
-  constructor({ getContext, getDestination, url = DEFAULT_MENU_TRACK } = {}) {
+  constructor({ getContext, getDestination, url = DEFAULT_MENU_TRACK, volume = 0.8 } = {}) {
     if (typeof getContext !== 'function' || typeof getDestination !== 'function') {
       throw new TypeError('MenuMusicLoop requires audio context and destination getters');
     }
@@ -18,6 +19,7 @@ export class MenuMusicLoop {
     this._retiringVoices = new Set();
     this._wanted = false;
     this._generation = 0;
+    this._volume = Math.max(0, Math.min(1, Number(volume) || 0));
   }
 
   async start(fetchImpl = globalThis.fetch) {
@@ -31,18 +33,48 @@ export class MenuMusicLoop {
     const destination = this._getDestination();
     if (!ctx || ctx.state === 'closed' || !destination) return false;
 
+    // An immediate return to a menu must never layer a new loop over a fade-out.
+    for (const retiring of this._retiringVoices) {
+      try { retiring.source.stop(ctx.currentTime); } catch (_) {}
+      this._cleanupVoice(retiring);
+    }
+
     const source = ctx.createBufferSource();
     const gain = ctx.createGain();
     source.buffer = buffer;
     source.loop = true;
     gain.gain.setValueAtTime(0, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(MENU_GAIN, ctx.currentTime + FADE_IN_SECONDS);
+    gain.gain.linearRampToValueAtTime(MENU_GAIN * this._volume, ctx.currentTime + FADE_IN_SECONDS);
     source.connect(gain).connect(destination);
     const voice = { source, gain };
     this._voice = voice;
     source.onended = () => this._cleanupVoice(voice);
     source.start(ctx.currentTime);
     return true;
+  }
+
+  setVolume(value) {
+    const next = Number(value);
+    if (Number.isFinite(next)) this._volume = Math.max(0, Math.min(1, next));
+    const ctx = this._getContext();
+    if (!ctx || ctx.state === 'closed') return this._volume;
+    if (this._voice) {
+      const gain = this._voice.gain.gain;
+      const now = ctx.currentTime;
+      if (typeof gain.cancelAndHoldAtTime === 'function') gain.cancelAndHoldAtTime(now);
+      else {
+        gain.cancelScheduledValues(now);
+        gain.setValueAtTime(gain.value, now);
+      }
+      gain.linearRampToValueAtTime(MENU_GAIN * this._volume, now + VOLUME_RAMP_SECONDS);
+    }
+    if (this._volume === 0) {
+      for (const retiring of this._retiringVoices) {
+        try { retiring.source.stop(ctx.currentTime); } catch (_) {}
+        this._cleanupVoice(retiring);
+      }
+    }
+    return this._volume;
   }
 
   stop(fadeSeconds = FADE_OUT_SECONDS) {

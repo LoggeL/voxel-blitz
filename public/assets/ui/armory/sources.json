@@ -1,0 +1,40 @@
+{
+  "created": "2026-09-12",
+  "tool": "Built-in OpenAI imagegen",
+  "purpose": "Voxel Blitz account, career and shop redesign",
+  "processing": "Generated PNG assets converted to WebP with cwebp quality 90. No compositional changes.",
+  "assets": [
+    {
+      "file": "menu-hero.webp",
+      "prompt": "menu-hero.prompt.txt",
+      "reference": "../../../../docs/design/armory/main-menu-reference.png",
+      "sha256": "b0eb16e12956cbff0f83491bce0576b1ce1f2e0c5ae33abb6d71ea0e5e2c9cfa"
+    },
+    {
+      "file": "arctic-feature.webp",
+      "prompt": "arctic-feature.prompt.txt",
+      "reference": "../../../../docs/design/armory/career-shop-reference.png",
+      "sha256": "b4398e17949d44abcb463f1d09df07ad909193ec5e918e4d4e49834ab697e4ab"
+    },
+    {
+      "file": "cosmetics-atlas.webp",
+      "prompt": "cosmetics-atlas.prompt.txt",
+      "reference": "../../../../docs/design/armory/career-shop-reference.png",
+      "sha256": "e2ca055b51ffda17f6fbc6a9949530b3be457fe72c599bd109891626a7baa1d2",
+      "width": 1536,
+      "height": 1024,
+      "columns": 4,
+      "rows": 2,
+      "order": [
+        "amber",
+        "arctic",
+        "orchid",
+        "mint",
+        "rookie",
+        "pathfinder",
+        "vanguard",
+        "veteran"
+      ]
+    }
+  ]
+}

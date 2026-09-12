@@ -54,7 +54,7 @@ export class MenuLobbyController {
     );
   }
 
-  buildMenu(onAction, { musicEnabled = true, onMusicToggle = NOOP } = {}) {
+  buildMenu(onAction, _options = {}) {
     const previousMenu = document.getElementById('menu');
     const isInitialMenu = !this.browser;
     const retry = previousMenu?.getAttribute('aria-hidden') === 'false' ? this.browser?.retry : null;
@@ -72,28 +72,23 @@ export class MenuLobbyController {
     setMenuBackdrop(root, 'foundry');
 
     const { stage, rail } = buildMenuShell(root, { context: 'MAIN MENU' });
-    const musicButton = el('button', 'vb-btn vb-music-toggle', rail, 'menu-music-toggle');
-    musicButton.type = 'button';
-    musicButton.setAttribute('aria-label', 'Menu music');
-    const syncMusic = () => {
-      musicButton.textContent = `MUSIC: ${musicEnabled ? 'ON' : 'OFF'}`;
-      musicButton.setAttribute('aria-pressed', String(musicEnabled));
-    };
-    syncMusic();
-    musicButton.addEventListener('click', () => {
-      musicEnabled = !musicEnabled;
-      syncMusic();
-      onMusicToggle(musicEnabled);
-    });
+    const navigation = el('nav', 'vb-main-nav', rail);
+    navigation.setAttribute('aria-label', 'Main menu');
+    const playTab = el('span', 'vb-main-nav-current', navigation);
+    playTab.textContent = 'PLAY';
+    playTab.setAttribute('aria-current', 'page');
+    rail.insertBefore(navigation, rail.querySelector('.vb-music-control'));
+    el('div', 'vb-main-account-nav', rail);
     const panel = el('div', 'vb-panel vb-main-menu-panel', stage);
 
     const primary = el('section', 'vb-menu-primary', panel, 'menu-primary-step');
     primary.setAttribute('aria-labelledby', 'menu-title');
-    const primaryBody = el('div', 'vb-menu-primary-body', primary);
-    el('div', 'vb-menu-eyebrow', primaryBody).textContent = 'DESTRUCTIBLE MULTIPLAYER ARENA';
+    const deployment = el('div', 'vb-menu-deployment', primary);
+    const primaryBody = el('div', 'vb-menu-primary-body', deployment);
+    el('div', 'vb-menu-eyebrow', primaryBody).textContent = 'DEPLOYMENT';
     const title = el('h1', 'vb-title vb-deployment-title', primaryBody, 'menu-title');
-    el('span', '', title).textContent = 'VOXEL';
-    el('span', '', title).textContent = ' BLITZ';
+    el('span', '', title).textContent = 'DROP INTO';
+    el('span', '', title).textContent = 'THE ACTION';
     const sub = el('div', 'vb-sub', primaryBody);
     sub.textContent = 'Fast rounds. Destructible arenas.';
 
@@ -170,7 +165,7 @@ export class MenuLobbyController {
     this.joinStatus.setAttribute('role', 'status');
     this.joinStatus.setAttribute('aria-live', 'polite');
 
-    const training = el('section', 'vb-training-card', primary);
+    const training = el('section', 'vb-training-card', deployment);
     const trainingImage = el('img', 'vb-training-image', training);
     trainingImage.src = '/assets/maps/killhouse-range.webp';
     trainingImage.alt = 'Covered firing bays in the Killhouse training facility';
@@ -182,7 +177,9 @@ export class MenuLobbyController {
     el('p', '', trainingInfo).textContent = 'Find your aim. Beat your time.';
     const trainingButton = el('button', 'vb-btn vb-training-btn', trainingInfo, 'training-btn');
     trainingButton.type = 'button';
-    trainingButton.textContent = 'ENTER KILLHOUSE';
+    trainingButton.textContent = 'TRAINING';
+
+    el('aside', 'vb-menu-showcase', primary).setAttribute('aria-label', 'Your account and career');
 
     const menuFooter = el('div', 'vb-menu-footer', panel);
     el('span', '', menuFooter).textContent = 'MOVE FAST. BREAK EVERYTHING.';

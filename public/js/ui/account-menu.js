@@ -1,3 +1,5 @@
+import { mountMusicControl } from './music-control.js';
+
 const element = (tag, parent, text = '', className = '') => {
   const node = document.createElement(tag);
   node.className = className;
@@ -33,7 +35,7 @@ export class AccountMenu {
     this.dialog.addEventListener('keydown', event => event.stopPropagation());
     this.dialog.addEventListener('close', () => {
       this.recoveryCode = null;
-      for (const input of this.dialog.querySelectorAll('input')) input.value = '';
+      for (const input of this.dialog.querySelectorAll('#account-form input')) input.value = '';
       const recovery = this.dialog.querySelector('#account-recovery-code');
       if (recovery) recovery.textContent = '';
       if (this.returnFocus?.isConnected && this.returnFocus.getClientRects().length) this.returnFocus.focus();
@@ -59,30 +61,59 @@ export class AccountMenu {
 
   mount() {
     if (this.disposed) return;
-    const footer = document.querySelector('#menu .vb-menu-footer');
-    if (!footer) return;
+    const showcase = document.querySelector('#menu .vb-menu-showcase');
+    if (!showcase) return;
     let strip = document.getElementById('account-strip');
     if (!strip) {
       strip = document.createElement('section');
       strip.className = 'vb-account-strip'; strip.id = 'account-strip';
       strip.setAttribute('aria-label', 'Optional player account');
-      footer.before(strip);
+      showcase.prepend(strip);
+      element('span', strip, 'YOUR NEXT CHAPTER', 'vb-account-callout-kicker');
       const identity = element('div', strip);
       element('strong', identity).id = 'account-status';
       element('p', identity).id = 'account-summary';
       const button = element('button', strip, '', 'vb-account-button');
       button.id = 'account-open'; button.type = 'button';
       button.setAttribute('aria-haspopup', 'dialog');
-      button.addEventListener('click', () => this.open());
+      button.addEventListener('click', () => this.open(this.user ? 'account' : 'register'));
+      const guest = element('button', strip, 'CONTINUE AS GUEST  ›', 'vb-account-guest-link');
+      guest.id = 'menu-continue-guest'; guest.type = 'button';
+      guest.addEventListener('click', () => document.getElementById('play-btn')?.click());
     }
     this.strip = strip;
+    const accountNavigation = document.querySelector('#menu .vb-main-account-nav');
+    if (accountNavigation && !document.getElementById('account-nav-open')) {
+      const navButton = element('button', accountNavigation, '', 'vb-main-nav-button');
+      this.navButton = navButton;
+      navButton.id = 'account-nav-open'; navButton.type = 'button';
+      navButton.setAttribute('aria-haspopup', 'dialog');
+      navButton.addEventListener('click', () => this.open());
+    }
+    const playerIdentity = document.querySelector('#menu .vb-player-identity');
+    if (playerIdentity && !document.getElementById('account-mobile-prompt')) {
+      this.mobilePrompt = document.createElement('div');
+      this.mobilePrompt.id = 'account-mobile-prompt'; this.mobilePrompt.className = 'vb-account-mobile-prompt';
+      element('span', this.mobilePrompt, 'SAVE YOUR XP');
+      const register = element('button', this.mobilePrompt, 'CREATE ACCOUNT', 'vb-account-button');
+      register.id = 'account-mobile-open'; register.type = 'button'; register.setAttribute('aria-haspopup', 'dialog');
+      register.addEventListener('click', () => this.open('register'));
+      playerIdentity.before(this.mobilePrompt);
+    }
+    const mobilePrompt = document.getElementById('account-mobile-prompt');
+    if (mobilePrompt) mobilePrompt.hidden = Boolean(this.user);
+    strip.classList.toggle('is-signed-in', Boolean(this.user));
+    const guest = document.getElementById('menu-continue-guest');
+    if (guest) guest.hidden = Boolean(this.user);
+
     const setText = (id, value) => {
       const target = document.getElementById(id);
       if (target && target.textContent !== value) target.textContent = value;
     };
-    setText('account-status', this.user ? `SIGNED IN AS ${this.user.username}` : 'PLAY AS GUEST');
-    setText('account-summary', this.user ? 'Your XP, level and purchases follow this account.' : 'Quick Play is ready. An account lets you keep your career across devices.');
-    setText('account-open', this.user ? 'ACCOUNT' : 'LOG IN / REGISTER');
+    setText('account-status', this.user ? `WELCOME BACK, ${this.user.username}` : 'MAKE EVERY MATCH COUNT');
+    setText('account-summary', this.user ? 'Your career is saved. Pick up where you left off.' : 'Save your XP. Unlock your style. Keep your career across devices.');
+    setText('account-open', this.user ? 'MANAGE ACCOUNT' : 'CREATE ACCOUNT');
+    setText('account-nav-open', this.user ? 'ACCOUNT' : 'LOG IN');
     const button = document.getElementById('account-open');
     if (button) button.disabled = this.busy;
     const nameInput = document.getElementById('name-input');
@@ -130,7 +161,7 @@ export class AccountMenu {
   close() { this.dialog.close(); }
 
   focusFirst() {
-    (this.dialog.querySelector('input:not([type=hidden])') || this.dialog.querySelector('#account-close'))?.focus();
+    (this.dialog.querySelector('#account-form input:not([hidden])') || this.dialog.querySelector('#account-close'))?.focus();
   }
 
   async request(action = null, body = null) {
@@ -200,7 +231,7 @@ export class AccountMenu {
   setBusy(value) {
     this.busy = value;
     this.dialog.setAttribute('aria-busy', String(value));
-    for (const control of this.dialog.querySelectorAll('button:not(#account-close), input')) control.disabled = value;
+    for (const control of this.dialog.querySelectorAll('button:not(#account-close), #account-form input')) control.disabled = value;
     this.mount();
   }
 
@@ -235,7 +266,7 @@ export class AccountMenu {
     const dialog = this.dialog;
     dialog.replaceChildren();
     const header = element('header', dialog);
-    element('span', header, 'OPTIONAL PLAYER ACCOUNT', 'vb-account-kicker');
+    element('span', header, 'VOXEL BLITZ / PLAYER ACCOUNT', 'vb-account-kicker');
     const close = element('button', header, 'BACK', 'vb-account-button');
     close.id = 'account-close'; close.type = 'button'; close.addEventListener('click', () => this.close());
     const titles = { login: 'Log in', register: 'Create an account', recover: 'Recover your account', account: 'Your account' };
@@ -246,7 +277,7 @@ export class AccountMenu {
     feedback.id = 'account-feedback'; feedback.setAttribute('role', 'status'); feedback.setAttribute('aria-live', 'polite');
     this.syncWarning();
 
-    if (this.recoveryCode) { this.renderRecovery(); return; }
+    if (this.recoveryCode) { this.renderRecovery(); mountMusicControl(dialog); return; }
     if (!this.user) {
       const tabs = element('nav', dialog, '', 'vb-account-tabs');
       tabs.setAttribute('aria-label', 'Account action');
@@ -307,6 +338,7 @@ export class AccountMenu {
       const guest = element('button', dialog, 'CONTINUE AS GUEST', 'vb-account-button');
       guest.type = 'button'; guest.id = 'account-guest'; guest.addEventListener('click', () => this.close());
     }
+    mountMusicControl(dialog);
   }
 
   renderRecovery() {
@@ -341,5 +373,6 @@ export class AccountMenu {
     window.removeEventListener('pagehide', this.onPagehide);
     this.recoveryCode = null;
     this.dialog.remove(); this.strip?.remove(); this.strip = null;
+    this.navButton?.remove(); this.mobilePrompt?.remove();
   }
 }

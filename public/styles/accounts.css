@@ -1,18 +1,25 @@
-#menu .vb-account-strip { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 14px 0; border-top: 1px solid #a9b2ba50; color: #e3e9ed; font: 12px/1.4 'Helvetica Neue',Arial,sans-serif; letter-spacing: 0; }
-.vb-account-strip > div { min-width: 0; }
-.vb-account-strip strong { display: block; color: var(--career-accent,#ffb347); font-size: 12px; overflow-wrap: anywhere; }
-.vb-account-strip p { margin: 4px 0 0; color: #bcc7d0; font-size: 12px; }
-.vb-account-button { box-sizing: border-box; min-height: 44px; margin: 0; padding: 10px 14px; border: 1px solid #71808d; border-radius: 4px; background: #19242d; color: #eef3f6; font: 700 12px/1.4 'Helvetica Neue',Arial,sans-serif; text-align: center; cursor: pointer; }
-.vb-account-strip > .vb-account-button { flex-shrink: 0; }
+#menu .vb-account-strip { box-sizing: border-box; padding: 24px; border: 1px solid #d4ab718f; border-top: 3px solid #ffb53b; background: linear-gradient(115deg,#111921e8,#11151bed); box-shadow: 0 14px 30px #0004; color: #f5f1e9; }
+#menu .vb-account-callout-kicker { display: block; margin-bottom: 12px; color: #ffce7e; font: 600 9px/1.3 var(--font-mono); letter-spacing: .16em; }
+#menu .vb-account-strip strong { display: block; max-width: 350px; color: #f4f2ed; font: italic 500 clamp(28px,3vw,42px)/1.04 Impact,'Arial Black',sans-serif; letter-spacing: .01em; overflow-wrap: anywhere; }
+#menu .vb-account-strip p { max-width: 340px; margin: 12px 0 18px; color: #bac6ce; font: 400 13px/1.6 Arial,sans-serif; }
+#menu .vb-account-strip > .vb-account-button { width: 100%; min-height: 54px; border: 1px solid #ffe2a0; color: #211607; background: linear-gradient(110deg,#ffd080,#ffb12d 60%,#e68c18); font: italic 500 25px/1 Impact,'Arial Black',sans-serif; letter-spacing: .03em; clip-path: polygon(7px 0,100% 0,100% calc(100% - 7px),calc(100% - 7px) 100%,0 100%,0 7px); }
+#menu .vb-account-guest-link { display: block; min-height: 32px; margin: 10px auto -6px; padding: 8px 10px; border: 0; background: transparent; color: #b9c8d2; font: 700 9px/1.3 Arial,sans-serif; letter-spacing: .06em; cursor: pointer; }
+#menu .vb-account-guest-link:hover { color: #fff; }
+#menu .vb-account-strip.is-signed-in { border-top-color: var(--career-accent); padding: 20px 24px; }
+#menu .vb-account-strip.is-signed-in strong { font-size: 29px; }
+#menu .vb-account-strip.is-signed-in > .vb-account-button { min-height: 44px; font: 700 11px/1.3 Arial,sans-serif; background: #17232e; border-color: #9b805c; color: #ffce84; clip-path: none; }
+#menu .vb-account-strip [hidden] { display: none; }
+.vb-account-button { box-sizing: border-box; min-height: 44px; margin: 0; padding: 10px 14px; border: 1px solid #71808d; border-radius: 1px; background: #19242d; color: #eef3f6; font: 700 12px/1.4 'Helvetica Neue',Arial,sans-serif; text-align: center; cursor: pointer; }
+
 .vb-account-button:hover { border-color: #ffce77; background: #2a3742; }
 .vb-account-button.is-primary,.vb-account-button[aria-pressed=true] { background: #ffbc43; border-color: #ffda8a; color: #1b1407; }
 .vb-account-button:disabled { cursor: wait; opacity: .55; }
 .vb-account-button:focus-visible,.vb-account-dialog input:focus-visible { outline: 2px solid #ffda8a; outline-offset: 3px; }
-.vb-account-dialog { box-sizing: border-box; width: min(520px,calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 24px; color: #f1f5f8; background: #151d25; border: 1px solid #9aabba; border-radius: 8px; font: 14px/1.5 'Helvetica Neue',Arial,sans-serif; }
+.vb-account-dialog { box-sizing: border-box; width: min(520px,calc(100vw - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 24px; color: #f1f5f8; background: linear-gradient(145deg,#1a2935,#0e171f); border: 1px solid #9aabba; border-radius: 2px; font: 14px/1.5 'Helvetica Neue',Arial,sans-serif; }
 .vb-account-dialog::backdrop { background: #060a0ee6; }
 .vb-account-dialog header { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 8px; align-items: center; }
 .vb-account-kicker { font-size: 10px; letter-spacing: .1em; color: #ffce77; }
-.vb-account-dialog h2 { grid-column: 1/-1; font-size: 28px; line-height: 1.15; margin: 8px 0; }
+.vb-account-dialog h2 { grid-column: 1/-1; font: italic 500 36px/1.1 Impact,'Arial Black',sans-serif; text-transform: uppercase; margin: 14px 0 8px; }
 .vb-account-dialog p { overflow-wrap: anywhere; }
 .vb-account-dialog #account-description { margin: 6px 0 12px; color: #c3cfd7; }
 .vb-account-feedback { min-height: 1.5em; margin: 12px 0; color: #a9eaca; font-size: 13px; }
@@ -24,11 +31,25 @@
 .vb-account-form { display: grid; gap: 16px; margin: 18px 0; }
 .vb-account-field { min-width: 0; }
 .vb-account-field label { display: block; margin-bottom: 6px; font-weight: 700; }
-.vb-account-field input { box-sizing: border-box; width: 100%; min-height: 44px; margin: 0; padding: 10px 12px; border: 1px solid #7c8e9d; border-radius: 4px; background: #0a121a; color: #fff; font: 16px/1.4 'Helvetica Neue',Arial,sans-serif; }
+.vb-account-field input { box-sizing: border-box; width: 100%; min-height: 44px; margin: 0; padding: 10px 12px; border: 1px solid #7c8e9d; border-radius: 1px; background: #0a121a; color: #fff; font: 16px/1.4 'Helvetica Neue',Arial,sans-serif; }
 .vb-account-field small { display: block; margin-top: 5px; color: #adbdc9; font-size: 12px; }
 .vb-account-dialog > .vb-account-button { width: 100%; margin-top: 8px; }
 .vb-account-recovery-note { padding: 12px; border-left: 3px solid #ffce77; background: #392d16; color: #ffe7b4; }
-.vb-account-recovery-code { display: block; box-sizing: border-box; width: 100%; padding: 16px; border: 1px solid #8496a4; border-radius: 4px; background: #080f16; color: #f1f5f8; font: 16px/1.6 ui-monospace,monospace; overflow-wrap: anywhere; user-select: all; }
+.vb-account-recovery-code { display: block; box-sizing: border-box; width: 100%; padding: 16px; border: 1px solid #8496a4; border-radius: 1px; background: #080f16; color: #f1f5f8; font: 16px/1.6 ui-monospace,monospace; overflow-wrap: anywhere; user-select: all; }
 .vb-account-recovery-actions { display: flex; gap: 8px; margin: 16px 0; }
 .vb-account-recovery-actions .vb-account-button { flex: 1; min-width: 0; }
-@media (max-width: 520px) { #menu .vb-account-strip { align-items: stretch; flex-direction: column; gap: 10px; } .vb-account-dialog { padding: 16px; } .vb-account-dialog h2 { font-size: 25px; } }
+@media (max-width: 520px) { .vb-account-dialog { padding: 18px; } .vb-account-dialog h2 { font-size: 30px; } }
+
+.vb-account-dialog > .vb-music-control { box-sizing: border-box; width: 100%; margin-top: 20px; border-width: 1px 0 0; padding: 14px 0 0; background: transparent; grid-template-columns: auto auto minmax(80px,1fr); align-items: center; }
+.vb-account-dialog > .vb-music-control input[type=range] { grid-column: 3; grid-row: 1; }
+@media (max-height: 760px) and (min-width: 761px) { #menu .vb-account-strip { padding: 20px; } #menu .vb-account-strip strong { font-size: 34px; } #menu .vb-account-strip p { margin: 10px 0 14px; } }
+@media (max-width: 760px) { #menu .vb-account-strip { padding: 22px; } #menu .vb-account-strip strong { font-size: 34px; } #menu .vb-account-strip p { font-size: 12px; } }
+#menu .vb-account-strip p { text-transform: none; letter-spacing: normal; }
+.vb-account-dialog p, .vb-account-field small { text-transform: none; letter-spacing: normal; }
+
+#menu .vb-account-mobile-prompt { display: none; }
+@media (max-width: 760px) {
+  #menu .vb-account-mobile-prompt:not([hidden]) { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; padding: 10px 0; border-block: 1px solid #ac844962; }
+  #menu .vb-account-mobile-prompt > span { color: #c0ced8; font: 600 9px/1.4 Arial,sans-serif; letter-spacing: .08em; }
+  #menu .vb-account-mobile-prompt .vb-account-button { min-height: 36px; padding: 9px 12px; color: #1b1407; background: #ffbd52; border-color: #ffdb93; font-size: 10px; }
+}

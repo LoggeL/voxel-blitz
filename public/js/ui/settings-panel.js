@@ -1,4 +1,5 @@
 import { DISPLAY_OPTIONS, displaySettings, setDisplaySetting } from './display-settings.js';
+import { mountMusicControl } from './music-control.js';
 import { KeyboardSettings } from './keyboard-settings.js';
 import { bindingLabel, subscribeKeybindings } from '../keybindings.js';
 import { ConnectionSettings } from './connection-settings.js';
@@ -247,6 +248,7 @@ export class SettingsController {
     const hint = el('div', 'vb-settings-hint', nav);
     hint.textContent = 'ESC · RESUME';
     el('p', 'vb-pause-notice', nav).textContent = 'Multiplayer continues while this menu is open.';
+    mountMusicControl(nav);
 
     const panel = el('section', 'vb-settings-panel', shell);
     el('h2', 'vb-settings-heading', panel).textContent = 'SETTINGS';
@@ -274,7 +276,7 @@ export class SettingsController {
     const volRow = el('div', 'vb-setting-row', controls);
     const volHeader = el('div', 'vb-setting-header', volRow);
     const volLabel = el('label', 'vb-label', volHeader);
-    volLabel.textContent = 'MASTER VOLUME';
+    volLabel.textContent = 'SOUND EFFECTS';
     volLabel.htmlFor = 'settings-vol-slider';
     const volVal = el('span', 'vb-setting-val', volHeader, 'settings-vol-val');
     const volSlider = el('input', 'vb-slider', volRow, 'settings-vol-slider');
@@ -282,7 +284,7 @@ export class SettingsController {
     volSlider.min = '0';
     volSlider.max = '1';
     volSlider.step = '0.01';
-    volSlider.setAttribute('aria-label', 'Master Volume');
+    volSlider.setAttribute('aria-label', 'Sound effects volume');
     volSlider.setAttribute('aria-valuemin', '0');
     volSlider.setAttribute('aria-valuemax', '1');
 

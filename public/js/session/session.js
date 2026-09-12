@@ -3,6 +3,7 @@ import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 import { NetClient } from '../engine/netclient.js';
 import { GameplayUiFlow } from './gameplay-ui.js';
 import { PregameFlow } from './pregame.js';
+import { musicVolume } from '../audio/music-volume.js';
 
 const DEFAULT_PERSIST = Object.freeze({
   name: 'vb-name',
@@ -131,7 +132,16 @@ export class Session {
     this._storage = Object.hasOwn(browser, 'storage')
       ? browser.storage
       : (typeof localStorage !== 'undefined' ? localStorage : null);
-    this._menuMusicEnabled = readStoredNumber(this._storage, 'vb-menu-music', 1, 0, 1) !== 0;
+    this._menuMusicActive = false;
+    musicVolume.configure(this._storage);
+    this._unsubscribeMusicVolume = musicVolume.subscribe((value, { gesture }) => {
+      this.audio.setMenuMusicVolume?.(value / 100);
+      if (gesture) void this.unlockAudioFromGesture();
+      if (this._menuMusicActive && value > 0) {
+        Promise.resolve(this.audio.startMenuMusic?.()).catch(() => {});
+      }
+    });
+    this.audio.setMenuMusicVolume?.(musicVolume.value / 100);
     this._now = typeof browser.now === 'function' ? browser.now : nowMs;
 
     const hooks = callbacks && typeof callbacks === 'object' ? callbacks : {};
@@ -336,21 +346,11 @@ export class Session {
     this._pregame.replaceNet();
     this.hud.buildMenu((action) => {
       void this.begin(action);
-    }, {
-      musicEnabled: this._menuMusicEnabled,
-      onMusicToggle: (enabled) => {
-        this._menuMusicEnabled = enabled;
-        this._writePreference('vb-menu-music', enabled ? 1 : 0);
-        if (enabled) {
-          void this.unlockAudioFromGesture();
-          Promise.resolve(this.audio.startMenuMusic?.()).catch(() => {});
-        } else {
-          this.audio.stopMenuMusic?.();
-        }
-      },
     });
+    this._menuMusicActive = true;
     try {
-      if (this._menuMusicEnabled) Promise.resolve(this.audio.startMenuMusic?.()).catch(() => {});
+      this.audio.setMenuMusicVolume?.(musicVolume.value / 100);
+      if (musicVolume.value > 0) Promise.resolve(this.audio.startMenuMusic?.()).catch(() => {});
     } catch (_) {}
     if (message) this.hud.showJoinState(message, 'err');
     return true;
@@ -475,6 +475,8 @@ export class Session {
     if (this._tornDown) return false;
 
     this._tornDown = true;
+    this._menuMusicActive = false;
+    this._unsubscribeMusicVolume?.();
     this._phase = 'torn-down';
     this._pregame.invalidate();
     this._disconnected = true;
@@ -661,6 +663,7 @@ export class Session {
       chaosUpgrades: {},
     });
     this.hud.hideLobby();
+    this._menuMusicActive = false;
     this.audio.stopMenuMusic?.();
     this.hud.menuDone();
 

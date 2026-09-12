@@ -1,0 +1,71 @@
+.vb-music-control {
+  --music-level: 80%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 14px;
+  width: 188px;
+  max-width: 100%;
+  min-width: 120px;
+  padding: 12px 14px 9px;
+  border: 1px solid rgba(217, 226, 218, .19);
+  border-radius: 3px;
+  background: rgba(10, 15, 16, .68);
+  color: #dce1db;
+  font: 600 10px/1.25 var(--vb-font-ui, monospace);
+  letter-spacing: .12em;
+}
+.vb-music-control output {
+  color: var(--vb-accent, #ffba61);
+  letter-spacing: .04em;
+  font-variant-numeric: tabular-nums;
+}
+.vb-music-control input[type="range"] {
+  grid-column: 1 / -1;
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  min-width: 0;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  cursor: pointer;
+  touch-action: pan-y;
+  outline-offset: 4px;
+  accent-color: var(--vb-accent, #ffba61);
+}
+.vb-music-control input[type="range"]::-webkit-slider-runnable-track {
+  height: 3px;
+  background: linear-gradient(to right, var(--vb-accent, #ffba61) var(--music-level), #626c6b var(--music-level));
+}
+.vb-music-control input[type="range"]::-moz-range-track { height: 3px; background: #626c6b; }
+.vb-music-control input[type="range"]::-moz-range-progress { height: 3px; background: var(--vb-accent, #ffba61); }
+.vb-music-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 12px;
+  height: 16px;
+  margin-top: -6px;
+  border: 1px solid #fff0cc;
+  border-radius: 2px;
+  background: var(--vb-accent, #ffba61);
+}
+.vb-music-control input[type="range"]::-moz-range-thumb {
+  width: 10px;
+  height: 14px;
+  border: 1px solid #fff0cc;
+  border-radius: 2px;
+  background: var(--vb-accent, #ffba61);
+}
+.vb-music-control input[type="range"]:focus-visible { outline: 2px solid var(--vb-accent, #ffba61); }
+.vb-brand-rail > .vb-music-control { margin-top: auto; }
+.vb-pause-rail > .vb-music-control { width: 100%; box-sizing: border-box; margin-top: auto; }
+.vb-browser-topbar > .vb-music-control { margin-left: auto; flex-shrink: 0; }
+@media (max-width: 600px) {
+  .vb-music-control { width: 156px; padding: 8px 10px 5px; }
+  .vb-browser-topbar { flex-wrap: wrap; }
+  .vb-browser-topbar > .vb-music-control { width: 100%; box-sizing: border-box; order: 3; }
+  .vb-brand-rail > .vb-music-control { margin-top: 0; }
+}

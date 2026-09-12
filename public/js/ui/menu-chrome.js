@@ -1,4 +1,5 @@
 import { el } from './hud-support.js';
+import { mountMusicControl } from './music-control.js';
 
 const MENU_BACKDROPS = Object.freeze({
   harbor: '/assets/maps/harbor.png',
@@ -35,6 +36,7 @@ function buildBrandRail(parent, { context = 'DEPLOYMENT', titleId = '' } = {}) {
 export function buildMenuShell(root, options = {}) {
   const shell = el('div', 'vb-menu-shell', root);
   const rail = buildBrandRail(shell, options);
+  mountMusicControl(rail);
   const stage = el('main', 'vb-menu-stage', shell);
   return { shell, rail, stage };
 }

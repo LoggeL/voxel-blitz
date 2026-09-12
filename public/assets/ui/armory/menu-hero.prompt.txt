@@ -1,0 +1,4 @@
+Use case: background-extraction
+Asset type: standalone 16:9 cinematic background artwork for the redesigned Voxel Blitz main menu.
+Edit target: generated main menu reference. Extract and expand ONLY its cinematic background artwork into a clean full image. Remove ALL UI, headings, buttons, frames, letters, numbers, logos, rank badges, overlays and menus. Keep the blocky voxel soldier and angular weapon rendered in the same style, lit by the orange foundry blast. Keep the soldier mainly in the center-right to right two-thirds. The left35% should be an atmospheric quiet, dark graphite industrial foundry so actual HTML controls can sit above it. Right bottom can also be subtly darkened by natural smoke for a readable account panel overlay.
+Style: gorgeous chunky cubic voxel forms, detailed but recognizably stylized, amber furnace light, dark steel, a few embers, cinematic depth and warm smoke. High fidelity 16:9 landscape game key art. No words or UI anywhere.

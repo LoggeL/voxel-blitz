@@ -434,15 +434,34 @@ export async function runAudioContracts(ok, installGlobals) {
       ok(menuStarted === true
           && menuSource?.starts.length === 1
           && menuGain?.kind === 'gain'
-          && menuGain.connections.includes(master)
+          && menuGain.connections.includes(limiter)
+          && !menuGain.connections.includes(master)
           && menuGain.gain.events.some((event) =>
-            event[0] === 'linear' && event[1] === 0.16),
-      'menu music decodes once, loops, fades in, and shares the master bus');
+            event[0] === 'linear' && event[1] === 0.128),
+      'menu music loops through the limiter at its independent default volume');
+      const musicStartCount = audio.starts.length;
+      sfx.setMenuMusicVolume(0.25);
+      sfx.setMasterVolume(0);
+      ok(menuGain.gain.value === 0.04 && master.gain.value === 0,
+        'music changes live while muting sound effects leaves music gain intact');
+      sfx.setMasterVolume(0.35);
+      sfx.setMenuMusicVolume(0);
+      ok(menuGain.gain.value === 0, 'zero music volume is silent');
+      sfx.setMenuMusicVolume(1);
+      await sfx.startMenuMusic();
+      ok(menuGain.gain.value === 0.16 && audio.starts.length === musicStartCount,
+        'unmuting and repeated starts retain exactly one menu source');
       ok(sfx.stopMenuMusic(0.55) === true
           && menuSource.stops.length === 1
           && menuGain.gain.events.some((event) =>
             event[0] === 'linear' && event[1] === 0),
       'menu music fades out through its owned voice');
+      await sfx.startMenuMusic();
+      ok(menuSource.disconnected && menuGain.disconnected
+          && audio.nodes.filter(node => node.kind === 'buffer-source'
+            && node.loop && !node.disconnected
+            && node.connections[0]?.connections.includes(limiter)).length === 1,
+        'reopening a menu retires its old fade before starting a new loop');
 
       await sfx.dispose();
       ok(audio.state === 'closed'

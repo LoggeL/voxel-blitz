@@ -85,6 +85,7 @@ export class AudioEngine {
 
   get ctx() { return this._ctx; }
   get bus() { return this._bus; }
+  get musicDestination() { return this._masterLimiter; }
   get noiseBuffer() { return this._noiseBuffer; }
   get echoIn() { return this._echo?.in || null; }
   get now() { return this._ctx?.currentTime || 0; }

@@ -151,6 +151,7 @@ export async function launchCdpSession(url, {
   height = 720,
   headless = true,
   softwareRendering = true,
+  autoplayPolicy = 'no-user-gesture-required',
 } = {}) {
   const browser = await executableBrowser(explicitBrowser);
   const profileDir = await createBrowserProfile('voxel-blitz-cdp-');
@@ -161,7 +162,7 @@ export async function launchCdpSession(url, {
     '--disable-background-networking',
     '--disable-component-update',
     ...(softwareRendering ? ['--ignore-gpu-blocklist', '--use-angle=swiftshader'] : []),
-    '--autoplay-policy=no-user-gesture-required',
+    `--autoplay-policy=${autoplayPolicy}`,
     '--remote-debugging-address=127.0.0.1',
     '--remote-debugging-port=0',
     `--user-data-dir=${profileDir}`,

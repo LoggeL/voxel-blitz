@@ -39,6 +39,7 @@ let primitives = null;
 let samples = null;
 let builtInSamplesPromise = null;
 let menuMusic = null;
+let menuMusicVolume = 0.8;
 let panSide = 1;
 let heartbeatAt = -Infinity;
 const panicBreaths = new PanicBreathCadence();
@@ -137,7 +138,8 @@ function ensureAudioModules() {
   if (!menuMusic) {
     menuMusic = new MenuMusicLoop({
       getContext: () => engine.ctx,
-      getDestination: () => engine.bus,
+      getDestination: () => engine.musicDestination,
+      volume: menuMusicVolume,
     });
   }
   return true;
@@ -210,6 +212,12 @@ export const sfx = {
 
   setMasterVolume(value) {
     engine.setMasterVolume(value);
+  },
+
+  setMenuMusicVolume(value) {
+    const next = Number(value);
+    if (Number.isFinite(next)) menuMusicVolume = Math.max(0, Math.min(1, next));
+    menuMusic?.setVolume(menuMusicVolume);
   },
 
   startMenuMusic(fetchImpl) {
