@@ -817,7 +817,11 @@ function runDirectContracts() {
 
   const botEngine = new GameEngine();
   const botManager = attachBots(botEngine, WEAPON_IDS.length);
-  for (let i = 0; i < 20; i++) botEngine.step(TICK_MS);
+  ok([...botEngine.entities.values()].every((player) => player.weapon === 0),
+    'bots start on the default slot before authoritative loadout selection');
+  // Isolate spawn loadouts from combat's empty-magazine weapon cycling.
+  botEngine.mode.canFire = () => false;
+  botEngine.step(TICK_MS);
   const botSlots = [...botEngine.entities.values()].map((player) => player.weapon).sort((a, b) => a - b);
   ok(botSlots.length === WEAPON_IDS.length
     && JSON.stringify(botSlots) === JSON.stringify(WEAPON_IDS.map((_, i) => i)),
