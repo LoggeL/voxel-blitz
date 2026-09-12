@@ -34,6 +34,12 @@ Each skin is an individual module under `public/js/cosmetics/skins/`. `SkinLayer
 
 The local gun, third-person carried gun and killcam use the same skin modules. Character palettes also affect local gun gloves and the visible local body. Added character details participate in normal death fades. The inventory images are rendered from these actual models, not separate illustrations.
 
+The collection's featured weapon and character skins use an interactive 3D viewer. Choose **INSPECT IN 3D**, drag horizontally or vertically to rotate, and scroll or pinch to zoom. Zoom buttons and **RESET VIEW** are also available. With the canvas focused, arrow keys rotate, plus/minus zoom, and Home or R resets the camera. **SHOW STANDARD** compares the original model while preserving the inspection angle and weapon attachments. Locked skins can be inspected without granting or equipping them.
+
+The Armory uses the same viewer for all twelve weapons, including the equipped skin and the current attachment draft. Model geometry, materials and attachments come from the gameplay builders. The viewer owns its camera and skin layers, renders only on interaction/resize, and releases its WebGL context when closed. Collection cards keep their static thumbnails, and the featured preview falls back to artwork if WebGL is unavailable.
+
+`npm run models:browser` checks actual models, mouse/touch/keyboard interaction, standard comparison, saved and draft attachments, locked preview without inventory writes, responsive framing, context restoration and close/reopen cleanup. References, prompts and browser captures are recorded in [the viewer design note](design/model-viewer/README.md).
+
 `/cosmetic-preview.html` provides an inspection view, standard comparison, first-person weapon view, character rear view and PNG export. This page only previews models; it cannot grant or equip inventory.
 
 ## Audio

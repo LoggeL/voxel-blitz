@@ -101,6 +101,7 @@ export class CareerShop {
     this.dialog.addEventListener('keydown', event => event.stopPropagation());
     this.dialog.addEventListener('close', () => {
       this.audition.stop();
+      this.disposeModelPreview();
       if (this.returnFocus?.isConnected && this.returnFocus.getClientRects().length) this.returnFocus.focus();
       else document.getElementById('career-open')?.focus();
     });
@@ -109,6 +110,7 @@ export class CareerShop {
       this.requestVersion = (this.requestVersion || 0) + 1;
       this.profile = null;
       this.audition.stop();
+      this.disposeModelPreview();
       announceProfile(null);
       this.grid.replaceChildren();
       this.rank.replaceChildren();
@@ -387,7 +389,7 @@ export class CareerShop {
       this.requirements(body, item, state);
       this.soundButtons(body, item);
       if (state.earned) {
-        const inspect = node('button', body, 'INSPECT', 'vb-career-inspect');
+        const inspect = node('button', body, ['weaponSkin', 'characterSkin'].includes(item.kind) ? 'INSPECT IN 3D' : 'INSPECT', 'vb-career-inspect');
         inspect.type = 'button'; inspect.dataset.inspect = item.id;
         inspect.setAttribute('aria-label', `Inspect ${item.name}`);
         inspect.addEventListener('click', () => {
@@ -401,6 +403,7 @@ export class CareerShop {
   }
 
   renderFeature() {
+    const version = this.previewVersion = (this.previewVersion || 0) + 1;
     const item = CAREER_CATALOG.find(entry => entry.id === this.featuredId) || CAREER_CATALOG[0];
     const state = this.itemState(item);
     this.feature.replaceChildren();
@@ -409,7 +412,15 @@ export class CareerShop {
     this.feature.dataset.kind = item.kind;
     this.feature.dataset.rarity = item.rarity || 'common';
     this.feature.style.setProperty('--item-color', item.color || '#ffc568');
-    artwork(this.feature, item, 'vb-career-feature-art');
+    if (this.dialog.open && ['weaponSkin', 'characterSkin'].includes(item.kind)) {
+      const host = node('div', this.feature, '', 'vb-career-model-host');
+      if (this.modelPreview) host.append(this.modelPreview.element);
+      else artwork(host, item, 'vb-career-feature-art');
+      this.renderModelPreview(item, host, version);
+    } else {
+      this.disposeModelPreview();
+      artwork(this.feature, item, 'vb-career-feature-art');
+    }
     const body = node('div', this.feature, '', 'vb-career-feature-body');
     node('span', body, item.collection ? `${item.collection.toUpperCase()} COLLECTION / ${KIND_LABELS[item.kind]}` : KIND_LABELS[item.kind], 'vb-career-kicker');
     node('h3', body, item.name.toUpperCase());
@@ -418,6 +429,30 @@ export class CareerShop {
     this.requirements(body, item, state);
     this.soundButtons(body, item);
     this.purchaseButton(body, item, true);
+  }
+
+  async renderModelPreview(item, host, version) {
+    try {
+      const { ModelViewer } = await import('./model-viewer.js');
+      if (version !== this.previewVersion || this.disposed || !this.dialog.open) return;
+      this.modelPreview ||= new ModelViewer(host);
+      host.replaceChildren(this.modelPreview.element);
+      const loadout = item.weapon ? { weaponSkins: { [item.weapon]: item.id } } : { characterSkin: item.id };
+      this.modelPreview.show({ weapon: item.weapon || null, loadout,
+        attachments: this.profile?.equipped?.weaponAttachments?.[item.weapon], label: item.name });
+    } catch {
+      if (version !== this.previewVersion) return;
+      this.disposeModelPreview();
+      host.replaceChildren();
+      artwork(host, item, 'vb-career-feature-art');
+      node('p', host, '3D preview unavailable on this device. Showing artwork.', 'vb-career-model-fallback');
+    }
+  }
+
+  disposeModelPreview() {
+    this.previewVersion = (this.previewVersion || 0) + 1;
+    this.modelPreview?.dispose();
+    this.modelPreview = null;
   }
 
   renderJourney() {
@@ -510,6 +545,7 @@ export class CareerShop {
 
   dispose() {
     this.disposed = true;
+    this.disposeModelPreview();
     this.requestVersion = (this.requestVersion || 0) + 1;
     this.audition.stop();
     clearInterval(this.timer);

@@ -2,6 +2,7 @@ import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { OPTICS, GRIPS, ATTACHMENT_SLOTS, normalizeAttachments, normalizeWeaponLoadout, weaponWithAttachments } from '../../../shared/weapon-attachments.js';
 import { weaponTurnProfile } from '../../../shared/weapon-handling.js';
 import { WeaponPreview } from './weapon-preview.js';
+import { normalizeCosmeticLoadout } from '../../../shared/career.js';
 
 const el = (tag,parent,text='',className='') => {
   const n = document.createElement(tag); n.textContent = text; n.className = className; parent.append(n); return n;
@@ -33,7 +34,6 @@ export class WeaponCustomization {
     const title = el('div',center,'','vb-workshop-caption');
     this.name = el('h3',title); this.summary = el('p',title);
     this.previewHost = el('div',center,'','vb-workshop-preview');
-    el('p',center,'DRAG TO INSPECT','vb-workshop-drag');
     this.stats = el('section',layout,'','vb-workshop-stats'); this.stats.setAttribute('aria-label','Weapon handling values');
     this.slots = el('div',layout,'','vb-workshop-slots');
     const footer = el('footer',this.dialog,'','vb-workshop-footer');
@@ -44,10 +44,16 @@ export class WeaponCustomization {
     this.dialog.addEventListener('keydown',e=>e.stopPropagation());
     this.dialog.addEventListener('close',()=>{this.preview?.dispose();this.preview=null;document.getElementById('workshop-open')?.focus();});
     this.onAccountChange = () => {
+      this.cosmetics = normalizeCosmeticLoadout();
       this.version++; this.ready=false; this.saved={};this.drafts={}; this.busy=false;
       if (this.dialog.open) this.refresh();
     };
     window.addEventListener('vb-account-change',this.onAccountChange);
+    this.onCareerChange = event => {
+      this.cosmetics = normalizeCosmeticLoadout(event.detail?.equipped);
+      if (this.dialog.open) this.render();
+    };
+    window.addEventListener('vb-career-change',this.onCareerChange);
     this.observer = new MutationObserver(()=>this.mount());
     this.observer.observe(document.getElementById('menu'),{childList:true,subtree:true}); this.mount();
   }
@@ -60,7 +66,9 @@ export class WeaponCustomization {
   }
   async open() {
     if (!this.dialog.open) this.dialog.showModal();
-    try { this.preview ||= new WeaponPreview(this.previewHost); } catch { this.previewHost.textContent='3D preview unavailable on this device.'; }
+    try {
+      if (!this.preview) { this.previewHost.replaceChildren(); this.preview = new WeaponPreview(this.previewHost); }
+    } catch { this.previewHost.textContent='3D preview unavailable on this device.'; }
     this.render(); await this.refresh();
   }
   async refresh() {
@@ -70,6 +78,7 @@ export class WeaponCustomization {
       const profile = await response.json();
       if (version !== this.version) return;
       if (!response.ok) throw new Error(profile.error || 'Could not load your setups.');
+      this.cosmetics=normalizeCosmeticLoadout(profile.equipped);
       this.saved=normalizeWeaponLoadout(profile.equipped?.weaponAttachments); this.drafts={}; this.ready=true;
       this.render();
     } catch(error) { if(version===this.version)this.render(error.message); }
@@ -88,7 +97,7 @@ export class WeaponCustomization {
     this.identity.textContent=this.accounts?.user ? `SETUPS FOR ${this.accounts.user.username}` : 'GUEST SETUPS · SAVED IN THIS BROWSER';
     this.summary.textContent=`${this.weapon.toUpperCase()} / ${OPTICS[selection.optic].name} / ${GRIPS[selection.grip].name}`;
     for(const n of this.weapons.children) n.setAttribute('aria-pressed',String(n.dataset.weapon===this.weapon));
-    this.preview?.show(this.weapon,selection);
+    this.preview?.show(this.weapon,selection,this.cosmetics);
     this.stats.replaceChildren(); el('h3',this.stats,'WEAPON HANDLING');
     const metrics=[['ERGONOMICS',h.ergonomics,base.handling.ergonomics,'',100,true,'Higher values let you turn faster.'],
       ['SWAY',h.sway.amplitudeDeg,base.handling.sway.amplitudeDeg,'°',1.5,false,`${number(h.sway.frequencyHz)} Hz · slower motion at lower rates.`],
@@ -129,10 +138,11 @@ export class WeaponCustomization {
         headers:{'Content-Type':'application/json','X-VB-Career':'1'},body:JSON.stringify({weapon,attachments}),signal:AbortSignal.timeout(5000)});
       const profile=await response.json(); if(version!==this.version)return;
       if(!response.ok)throw new Error(profile.error || 'Could not save. Try again.');
+      this.cosmetics=normalizeCosmeticLoadout(profile.equipped);
       this.saved=normalizeWeaponLoadout(profile.equipped?.weaponAttachments);delete this.drafts[weapon];
       this.render(`${WEAPONS[weapon].name}: setup saved.`);
     } catch(error){if(version===this.version)this.render(error.message);}
     finally{if(version===this.version){this.busy=false;this.controls();}}
   }
-  dispose(){this.version++;this.preview?.dispose();this.observer.disconnect();window.removeEventListener('vb-account-change',this.onAccountChange);this.dialog.remove();}
+  dispose(){this.version++;this.preview?.dispose();this.observer.disconnect();window.removeEventListener('vb-account-change',this.onAccountChange);window.removeEventListener('vb-career-change',this.onCareerChange);this.dialog.remove();}
 }

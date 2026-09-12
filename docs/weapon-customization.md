@@ -2,6 +2,8 @@
 
 The main menu's **ARMORY** equips an optic and grip for each compatible weapon. The workshop shows the actual game model, four handling metrics and differences from the factory setup. Changes are saved per weapon, then applied on the next match or training admission. Factory setup resets that weapon without changing the others.
 
+The 3D viewer includes the equipped weapon skin and current attachment choices. Drag to rotate in both axes, scroll or pinch to zoom, or use the on-screen zoom and reset controls. Arrow keys, plus/minus and Home work when the viewer is focused. **SHOW STANDARD** compares the unskinned weapon without changing the attachment draft or saved equipment. The collection uses this same viewer for weapon and character skins, including locked items. See [the viewer design and checks](design/model-viewer/README.md).
+
 ## Attachments
 
 The catalogs and compatibility rules live in `shared/weapon-attachments.js`. Base weapon definitions are never mutated. Client prediction and server combat resolve the same definition; Chaos and Bastion modifiers apply afterwards.
