@@ -2,6 +2,7 @@
 // the authoritative game WebSocket. `node server/index.js` (PORT env, default 8070).
 import http from 'node:http';
 import { CareerService } from './career.js';
+import { normalizeWeaponLoadout } from '../shared/weapon-attachments.js';
 import { AccountService } from './accounts.js';
 import { PostgresStore } from './persistence/postgres.js';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -275,6 +276,14 @@ async function main() {
         let admitted = false;
         meta.admitting = true;
         try {
+          // Career outages must not prevent gameplay; both peers receive factory gear.
+          let profile = null;
+          try {
+            const profileId = career.identity(req);
+            if (profileId) profile = await career.readProfile(profileId);
+            if (career.identity(req) !== profileId) profile = null;
+          } catch { profile = null; }
+          meta.weaponLoadout = normalizeWeaponLoadout(profile?.equipped?.weaponAttachments);
           if (admission.kind === 'quick') {
             admitted = manager.quickPlay(meta, name, admission.bots);
           } else if (admission.kind === 'create') {

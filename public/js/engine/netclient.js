@@ -119,7 +119,7 @@ export function drainEventsWithDedupe(snapshotList, upTo, state) {
 const PASSTHROUGH_FIELDS = [
   'name', 'hp', 'armor', 'team', 'weapon', 'score', 'kills', 'deaths', 'ping',
   'state', 'firing', 'ads', 'crouch', 'grounded', 'vaulting', 'proneT', 'moveSpeed', 'mag', 'reserve', 'reloading', 'reloadAck', 'reloadState',
-  'burning', 'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt', 'cosmetics',
+  'burning', 'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt', 'cosmetics', 'attachments',
   'breathReserve', 'breathExhausted', 'breathReleasedFor',
   'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
   'grenades', 'charge', 'minigun', 'impulse',
@@ -669,6 +669,7 @@ export class NetClient {
           id: msg.id,
           name: msg.name,
           mapBytes: msg.mapBytes,
+          weaponLoadout: msg.weaponLoadout || {},
           tickRate: msg.tickRate,
           spawn: msg.spawn && typeof msg.spawn === 'object' ? msg.spawn : null,
           lobby: msg.lobby && typeof msg.lobby === 'object' ? msg.lobby : null,

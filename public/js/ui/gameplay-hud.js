@@ -483,6 +483,9 @@ export class GameplayHud {
     const wantScope = alive && (s.scopeActive ?? isScopeActive({ weapon: key, ads: adsT, alive }));
     this.setScope(wantScope);
     this.setScopeZoom(s.scopeZoom);
+    const opticLabel = this.dom.scope?.querySelector?.(".scope-model-label");
+    const opticText = `${s.wname || WEAPONS[key]?.name || ""} · ${s.opticName || "Factory optic"}`;
+    if (opticLabel && opticLabel.textContent !== opticText) opticLabel.textContent = opticText;
     this.setBreath(s, alive, adsT);
     this.setConditionMeters(s, alive);
     this.hideCrosshairForAds(!alive || adsT > 0.35);

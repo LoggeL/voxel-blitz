@@ -141,6 +141,8 @@ export function makeKit(cache) {
     accent = COL.amber,
   }) {
     parent.userData.sightHeight = height;
+    const sights = new THREE.Group(); sights.name = "factory-optic";
+    parent.add(sights); parent = sights;
     const earWidth = Math.max(0.008, (width - gap) / 2);
     const earX = gap / 2 + earWidth / 2;
     const earHeight = 0.032;

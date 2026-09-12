@@ -57,6 +57,6 @@ export function createSniperScope(hud) {
 
   const zoomVal = Number(WEAPONS.sniper && WEAPONS.sniper.zoom) || 5;
   el('div', '', scope, 'scope-zoom-label').textContent = `${zoomVal.toFixed(1)}×`;
-  el('div', 'scope-model-label', scope).textContent = 'LONGSHOT MK-II · OPTIC 5×42';
+  el('div', 'scope-model-label', scope).textContent = 'FACTORY OPTIC';
   return scope;
 }

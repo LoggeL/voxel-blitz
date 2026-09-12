@@ -142,25 +142,26 @@ export function build({ kit, T, groups }) {
   cylZ(body, 0.023, 0.010, 0, barrelY, T.muzzle[2] + 0.005, COL.amber,
     { seg: 12, rg: 0.55, mt: 0.50 });
 
+  const sight = new THREE.Group(); sight.name = "factory-optic"; body.add(sight);
   // Large 5x optic. Rings and feet are separate so the scope reads in both FPS and avatar views.
   body.userData.sightHeight = 0.205;
   for (const z of [-0.118, -0.330]) {
-    bodyBox(0.070, 0.074, 0.030, 0, 0.153, z, COL.polyDark);
-    bodyBox(0.092, 0.018, 0.054, 0, 0.111, z, COL.gunmetal);
-    cylZ(body, 0.036, 0.018, 0, 0.205, z, COL.gunmetal,
+    kit.box(sight, 0.070, 0.074, 0.030, 0, 0.153, z, COL.polyDark);
+    kit.box(sight, 0.092, 0.018, 0.054, 0, 0.111, z, COL.gunmetal);
+    cylZ(sight, 0.036, 0.018, 0, 0.205, z, COL.gunmetal,
       { seg: 14, rg: 0.45, mt: 0.65 });
   }
-  cylZ(body, 0.029, 0.345, 0, 0.205, -0.215, COL.polyDark,
+  cylZ(sight, 0.029, 0.345, 0, 0.205, -0.215, COL.polyDark,
     { seg: 16, rg: 0.43, mt: 0.55 });
-  cylZ(body, 0.043, 0.090, 0, 0.205, 0.002, COL.polymer,
+  cylZ(sight, 0.043, 0.090, 0, 0.205, 0.002, COL.polymer,
     { rTop: 0.046, rBot: 0.030, seg: 16, rg: 0.65, mt: 0.35 });
-  cylZ(body, 0.034, 0.103, 0, 0.205, -0.447, COL.polymer,
+  cylZ(sight, 0.034, 0.103, 0, 0.205, -0.447, COL.polymer,
     { rTop: 0.031, rBot: 0.057, seg: 16, rg: 0.55, mt: 0.45 });
-  cylZ(body, 0.048, 0.014, 0, 0.205, 0.054, COL.amber,
+  cylZ(sight, 0.048, 0.014, 0, 0.205, 0.054, COL.amber,
     { seg: 16, rg: 0.52, mt: 0.48 });
-  cylZ(body, 0.059, 0.014, 0, 0.205, -0.505, COL.amber,
+  cylZ(sight, 0.059, 0.014, 0, 0.205, -0.505, COL.amber,
     { seg: 16, rg: 0.52, mt: 0.48 });
-  cylZ(body, 0.046, 0.018, 0, 0.205, 0.067, COL.polyDark, { seg: 16 });
+  cylZ(sight, 0.046, 0.018, 0, 0.205, 0.067, COL.polyDark, { seg: 16 });
 
   // Elevation and windage turrets with an amber index line.
   const elevation = new THREE.Mesh(
@@ -168,11 +169,11 @@ export function build({ kit, T, groups }) {
     mat(COL.gunmetal, 0.45, 0.65),
   );
   elevation.position.set(0, 0.254, -0.237);
-  body.add(elevation);
-  cylZ(body, 0.021, 0.048, -0.047, 0.205, -0.237, COL.gunmetal,
+  sight.add(elevation);
+  cylZ(sight, 0.021, 0.048, -0.047, 0.205, -0.237, COL.gunmetal,
     { seg: 12, rg: 0.45, mt: 0.65 });
-  bodyBox(0.022, 0.006, 0.042, 0, 0.282, -0.237, COL.amber);
-  bodyBox(0.006, 0.030, 0.034, -0.071, 0.205, -0.237, COL.amber);
+  kit.box(sight, 0.022, 0.006, 0.042, 0, 0.282, -0.237, COL.amber);
+  kit.box(sight, 0.006, 0.030, 0.034, -0.071, 0.205, -0.237, COL.amber);
 
   const glass = new THREE.Mesh(
     new THREE.CircleGeometry(0.052, 24),
@@ -185,7 +186,7 @@ export function build({ kit, T, groups }) {
     }),
   );
   glass.position.set(0, 0.205, -0.513);
-  body.add(glass);
+  sight.add(glass);
 
   const reticleTexture = makeReticleTexture();
   const reticle = new THREE.Mesh(
@@ -207,7 +208,7 @@ export function build({ kit, T, groups }) {
       }),
   );
   reticle.position.set(0, 0.205, -0.512);
-  body.add(reticle);
+  sight.add(reticle);
 
   // Benchrest rail under the fore-end.
   bodyBox(0.070, 0.020, 0.200, 0, -0.055, -0.465, COL.polyDark);

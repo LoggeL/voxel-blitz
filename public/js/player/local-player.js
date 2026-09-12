@@ -580,11 +580,18 @@ export class LocalPlayer {
     this._reconcileOffset.decay = RECONCILE_OFFSET_DECAY;
   }
 
-  _readLook() {
+  _readLook(dt, weapon) {
     const delta = this.input.consumeDelta();
     if (!this._alive) return;
-    const dx = delta.dx * this._lookScale;
-    const dy = delta.dy * this._lookScale;
+    let dx = delta.dx * this._lookScale;
+    let dy = delta.dy * this._lookScale;
+    if (this._gameplayInputEnabled && weapon?.def) {
+      const look = this._weaponAim.constrainLook(dt, { weapon: weapon.def.id,
+        previousYaw: this.view.yaw, previousPitch: this.view.pitch,
+        yaw: this.view.yaw - dx, pitch: this.view.pitch - dy,
+        handling: weapon.def.handling, ads: weapon.adsT ?? this.adsT });
+      dx = this.view.yaw - look.yaw; dy = this.view.pitch - look.pitch;
+    }
     this.view.yaw -= dx;
     this.view.pitch -= dy;
     this.view.pitch = clampPitch(this.view.pitch);
@@ -857,7 +864,7 @@ export class LocalPlayer {
     if (this._disposed) return this._frame;
     this._frame.inputSent = false;
     this._frame.inputPayload = null;
-    this._readLook();
+    this._readLook(dt, intents.weapon);
     const weaponIntents = this._sampleMovement(now, intents);
     const movementAllowed = intents.movementAllowed == null
       ? true
@@ -1055,7 +1062,7 @@ export class LocalPlayer {
       this.deathRoll = this.deathSide * (0.26 * impactT + 1.12 * collapseT);
     }
 
-    this.scopeActive = scopeActive ?? isScopeActive({ weapon: weaponDef.id, ads: this.adsT,
+    this.scopeActive = scopeActive ?? isScopeActive({ weapon: weaponDef.id, scoped: weaponDef.scoped, ads: this.adsT,
       alive: this._alive, vaulting: !!this.physics.vault, grenadeHandling: this.grenadeHandling });
     camera.rotation.order = 'YXZ';
     camera.rotation.set(
@@ -1064,7 +1071,9 @@ export class LocalPlayer {
       this.deathRoll + this.recoilRoll,
     );
     this._lookScale = adsLookScale(camera.fov, baseFov);
-    if (weaponDef.id === 'sniper') {
+    const scopeKey = `${weaponDef.id}/${weaponDef.attachments?.optic || 'standard'}/${weaponDef.zoom || 0}`;
+    if (this._scopeKey !== scopeKey) { this._scopeKey = scopeKey; this._scopeZoom = 0; }
+    if (weaponDef.scoped ?? weaponDef.id === 'sniper') {
       if (!(this._scopeZoom > 0)) this._scopeZoom = Number(weaponDef.zoom) || 1;
     } else this._scopeZoom = 0;
     const adsFov = this._scopeZoom > 0 ? fovForZoom(this._scopeZoom, baseFov) : weaponDef.adsFov;

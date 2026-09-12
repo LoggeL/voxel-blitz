@@ -1,4 +1,5 @@
 import { normalizeCosmeticLoadout } from '../../shared/career.js';
+import { normalizeAttachments } from '../../shared/weapon-attachments.js';
 import { WEAPON_IDS } from '../../shared/combatmath.js';
 import { MEDKIT_SECONDS } from '../../shared/medkit.js';
 import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
@@ -137,6 +138,7 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       breathReleasedFor: round(Math.max(0, Math.min(1, Number.isFinite(p.breath?.releasedFor) ? p.breath.releasedFor : 0)), D3),
       spawnProtected: !!p.spawnProtected,
       weapon: weaponSlot(p.weapon),
+      ...(p.weaponLoadout ? { attachments: normalizeAttachments(WEAPON_IDS[weaponSlot(p.weapon)], p.weaponLoadout[WEAPON_IDS[weaponSlot(p.weapon)]]) } : {}),
       score: p.score | 0,
       kills: p.kills | 0,
       deaths: p.deaths | 0,

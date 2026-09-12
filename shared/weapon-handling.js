@@ -59,7 +59,7 @@ export function weaponTurnProfile(handling = DEFAULT_HANDLING, ads = 0) {
   const d2r = Math.PI / 180;
   return { maxSpeed: (45 + 675 * e ** 1.6) * d2r,
     maxAcceleration: (180 + 5220 * e ** 1.6) * d2r,
-    frequency: (5 + 17 * e) * (1 + aim * 0.12), dampingRatio: 1 };
+    frequency: (8 + 60 * e) * (1 + aim * 0.12), dampingRatio: 1 };
 }
 /** Smooth bounded wander, independent of camera FOV. */
 export function sampleWeaponSway(sway, seconds, out = {}) {

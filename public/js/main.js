@@ -1,3 +1,4 @@
+import { WeaponCustomization } from './ui/weapon-customization.js';
 import { claymoreProfile } from '../../shared/claymore-rules.js';
 import { CareerShop } from './ui/career-shop.js';
 import { AccountMenu } from './ui/account-menu.js';
@@ -218,6 +219,7 @@ class Game {
       },
     });
     this.weapon.resetToLoadout();
+    this.weapon.setLoadout(welcome.weaponLoadout);
     this.hud.setupWeaponWheel({
       onPick: (slot) => this.weaponWheel.commit(slot),
       onCancel: () => this.weaponWheel.close(),
@@ -376,7 +378,7 @@ class Game {
     }
     if (self && this.weapon) {
       this.weapon.reconcileServer({
-        minigun: self.minigun,
+        minigun: self.minigun, attachments: self.attachments,
         mag: self.mag,
         reserve: self.reserve,
         chaosUpgrades: self.chaosUpgrades,
@@ -667,6 +669,7 @@ class Game {
         aimSwayScale: this.player.aimMotion?.rigMotionScale,
         reducedMotion: displaySettings().reducedMotion,
         weaponAim: this.player.weaponAim,
+        weaponDef: this.weapon.def,
         shotYaw: this.player.shotYaw,
         shotPitch: this.player.shotPitch,
       });
@@ -852,9 +855,9 @@ window.__vb = {
       for (const child of game.worldview.scene.children) hist[child.type] = (hist[child.type] || 0) + 1;
     }
     const snapshots = game.net?.latestSnapshots || [];
-    const turn = game.rig?.turnLag;
+    const turn = game.player?.weaponAim?.turn || game.rig?.turnLag;
     const weapon = game.weapon ? WEAPON_IDS[game.weapon.slot] : null;
-    const def = weapon ? WEAPONS[weapon] : null;
+    const def = game.weapon?.def;
     const counters = game.roster?.counters || {};
     const pos = game.player.pos;
     return {
@@ -868,6 +871,8 @@ window.__vb = {
       pitch: game.player.view.pitch,
       yaw: game.player.view.yaw,
       weapon,
+      weaponAttachments: def?.attachments || { optic: "standard", grip: "standard" },
+      weaponHandling: def?.handling || null,
       weaponWeightKg: Number.isFinite(def?.weightKg) ? def.weightKg : null,
       flameStream: {
         active: !!game.weapon?.flameFiring,
@@ -968,8 +973,9 @@ if (debugMode) {
   window.addEventListener('error', game._onDebugError, true);
 }
 
-const accounts = new AccountMenu({ onOpen: () => { if (career.dialog.open) career.dialog.close(); } });
+const accounts = new AccountMenu({ onOpen: () => { if (career.dialog.open) career.dialog.close(); if (customization.dialog.open) customization.dialog.close(); } });
 const career = new CareerShop({ accounts });
+const customization = new WeaponCustomization({ accounts });
 await accounts.start();
 await career.start();
 game.session.start();

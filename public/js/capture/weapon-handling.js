@@ -83,7 +83,7 @@ for (const key of ['heavy', 'nimble']) $(key).addEventListener('click', () => {
   const { ergonomics, sway } = HANDLING_EXTREMES[key]; def = withWeaponHandling(WEAPONS[id], { ergonomics, sway }); syncControls(); resetAim();
 });
 function turn(degrees) {
-  player.view.yaw += degrees / DEG; measurement = { started: elapsed, degrees };
+  measurement = { started: elapsed, degrees, target: player.view.yaw + degrees / DEG };
   $('status').textContent = `${degrees}°-Schwenk läuft …`;
 }
 $('turn').addEventListener('click', () => turn(90)); $('reverse').addEventListener('click', () => turn(180));
@@ -114,6 +114,7 @@ function resize() { const r = stage.getBoundingClientRect(); renderer.setSize(r.
 new ResizeObserver(resize).observe(stage); resize(); syncControls(); resetAim();
 function frame(now) {
   const dt = Math.min(0.25, Math.max(0, (now - last) / 1000)); last = now; elapsed += dt;
+  if (measurement) dx -= Math.max(-20 * dt, Math.min(20 * dt, measurement.target - player.view.yaw));
   adsT = Math.max(0, Math.min(1, adsT + (aiming ? 1 : -1) * dt / def.adsTime));
   player.update(dt, elapsed * 1000, { weapon: { def, slot: WEAPON_IDS.indexOf(id), adsT, isReloading: false },
     movementAllowed: true, fireAllowed: true, beforeSend: shot, sendInput: () => true });
@@ -128,7 +129,7 @@ function frame(now) {
   const error = Math.hypot(player.weaponAim.yaw, player.weaponAim.pitch) * DEG;
   $('measurements').textContent = `Nachführfehler ${error.toFixed(1)}° · Drehgeschwindigkeit ${(player.weaponAim.turn.speed * DEG).toFixed(1)}°/s`;
   $('warning').textContent = aim.x < 0 || aim.x > 1 || aim.y < 0 || aim.y > 1 ? 'Die Waffe zeigt noch außerhalb des Bildes.' : '';
-  if (measurement && error <= 1) {
+  if (measurement && Math.abs(measurement.target - player.view.yaw) * DEG <= 1 && error <= 1) {
     $('status').textContent = `${measurement.degrees}° erreicht in ${(elapsed - measurement.started).toFixed(2)} s (bis auf 1°).`; measurement = null;
   }
   if (trace && elapsed >= traceUntil) { scene.remove(trace); trace.geometry.dispose(); trace.material.dispose(); trace = null; }

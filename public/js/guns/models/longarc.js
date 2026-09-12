@@ -1,3 +1,4 @@
+import * as THREE from '../../vendor/three.module.js';
 import { COL, GLOW_ACCENT } from '../kit.js';
 import { BOLT_HOME, BREACH_Z, TRIGGER_Z } from './common.js';
 
@@ -111,8 +112,9 @@ export function build({ kit, T, groups }) {
     cylZ(body, radius + 0.001, 0.006, muzzleX, muzzleY, z + 0.018, COL.amber, { seg: 14, rg: 0.4, mt: 0.7 });
   }
 
+  const sight = new THREE.Group(); sight.name = "factory-optic"; body.add(sight);
   // Rail optic: shared sight line, then a housing that frames (never moves) it.
-  ironSights(body, {
+  ironSights(sight, {
     rearZ: 0.088,
     frontZ: -0.60,
     height: 0.155,
@@ -121,16 +123,18 @@ export function build({ kit, T, groups }) {
     color: COL.polyDark,
     accent: CYAN,
   });
-  box(body, 0.006, 0.045, 0.052, 0.024, 0.140, 0.088, COL.gunmetal);
-  box(body, 0.006, 0.045, 0.052, -0.024, 0.140, 0.088, COL.gunmetal);
-  box(body, 0.054, 0.006, 0.052, 0, 0.166, 0.088, COL.polyDark);
-  box(body, 0.006, 0.006, 0.003, 0, 0.147, 0.088, CYAN);
-  box(body, 0.058, 0.008, 0.024, 0, 0.126, 0.088, COL.steel);
-  box(body, 0.058, 0.008, 0.024, 0, 0.126, -0.60, COL.steel);
+  box(sight, 0.006, 0.045, 0.052, 0.024, 0.140, 0.088, COL.gunmetal);
+  box(sight, 0.006, 0.045, 0.052, -0.024, 0.140, 0.088, COL.gunmetal);
+  box(sight, 0.054, 0.006, 0.052, 0, 0.166, 0.088, COL.polyDark);
+  box(sight, 0.006, 0.006, 0.003, 0, 0.147, 0.088, CYAN);
+  box(sight, 0.058, 0.008, 0.024, 0, 0.126, 0.088, COL.steel);
+  box(sight, 0.058, 0.008, 0.024, 0, 0.126, -0.60, COL.steel);
   // Riser posts join both steel crossbars down to the stock tube / bore so the tall
   // 0.155 sight line never floats in side-profile HUD renders. Sight line untouched.
-  box(body, 0.040, 0.070, 0.030, 0, 0.087, 0.088, COL.polyDark);
-  box(body, 0.024, 0.055, 0.020, 0, 0.094, -0.60, COL.polyDark);
+  box(sight, 0.040, 0.070, 0.030, 0, 0.087, 0.088, COL.polyDark);
+  box(sight, 0.024, 0.055, 0.020, 0, 0.094, -0.60, COL.polyDark);
+
+  body.userData.sightHeight = sight.userData.sightHeight;
 
   // Power cables snaking receiver -> handguard, with brass connector blocks.
   for (const side of [-1, 1]) {

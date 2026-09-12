@@ -6,6 +6,8 @@ import { CareerClaims, DatabaseCareerClaims, GUEST_TOKEN, careerProfilePath, gue
 import { emptyProfile, validateProfile, normalizeCareerProgress, applyCareerProgress } from './persistence/career-profile.js';
 
 import { WEAPON_IDS } from '../shared/combatmath.js';
+import { setProfileAttachments, saveStoredAttachments } from './weapon-loadouts.js';
+import { validateAttachments } from '../shared/weapon-attachments.js';
 
 const COOKIE = 'vb-career';
 
@@ -296,16 +298,38 @@ export class CareerService {
     return careerView(profile);
   }
 
+  async saveAttachments(id, weapon, selection, authorized = () => true) {
+    validateAttachments(weapon, selection);
+    if (this.store) {
+      const profile = await saveStoredAttachments(this.store, id, weapon, selection, authorized);
+      this.cacheLoadout(id, profile);
+      return careerView(profile);
+    }
+    if (!authorized()) throw new Error('Your session changed. Reopen the armory.');
+    const profile = this.profile(id);
+    if (!profile) throw new Error('Career unavailable.');
+    const previous = profile.equipped, wasDirty = this.dirty.has(id);
+    setProfileAttachments(profile, weapon, selection);
+    this.dirty.add(id);
+    try { this.flush([id]); }
+    catch (error) {
+      profile.equipped = previous;
+      if (!wasDirty) this.dirty.delete(id);
+      throw error;
+    }
+    return careerView(profile);
+  }
+
   async handleHttp(req, res) {
     const route = (req.url || '').split('?')[0];
-    if (!['/api/career', '/api/career/purchase'].includes(route)) return false;
+    if (!['/api/career', '/api/career/purchase', '/api/career/attachments'].includes(route)) return false;
     const reply = (status, payload) => {
       res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify(payload));
       return true;
     };
     const isRead = route === '/api/career' && req.method === 'GET';
-    if (!isRead && (route !== '/api/career/purchase' || req.method !== 'POST')) return reply(405, { error: 'Method not allowed' });
+    if (!isRead && (!['/api/career/purchase', '/api/career/attachments'].includes(route) || req.method !== 'POST')) return reply(405, { error: 'Method not allowed' });
     // A custom header plus same-origin requests prevents ambient-cookie purchases.
     if (!isRead && (req.headers['x-vb-career'] !== '1' || req.headers['sec-fetch-site'] === 'cross-site'))
       return reply(403, { error: 'Open the shop from the game' });
@@ -328,6 +352,10 @@ export class CareerService {
         if (body.length > 2048) return reply(413, { error: 'Request too large' });
       }
       const data = JSON.parse(body);
+      if (route === '/api/career/attachments') {
+        if (this.identity(req) !== id) return reply(401, { error: 'Your session changed. Reopen the armory.' });
+        return reply(200, await this.saveAttachments(id, data?.weapon, data?.attachments, () => this.identity(req) === id));
+      }
       if (!data || typeof data.item !== 'string') return reply(400, { error: 'Choose an item' });
       if (this.identity(req) !== id) return reply(401, { error: 'Your session changed. Reopen the shop before purchasing.' });
       return reply(200, await this.purchase(id, data.item, data.equipOnly === true, () => this.identity(req) === id, { slot: data.slot, weapon: data.weapon }));

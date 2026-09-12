@@ -248,6 +248,7 @@ export class AvatarRoster {
       avatar.group.position.set(remote.x, remote.y + cadence * stride * 0.025 * (1 - avatar.motion.air), remote.z);
       const pickaxe = this._pickaxeSwings.has(remote.id);
       updateAvatarWeaponPose(avatar, {
+        attachments: remote.attachments,
         weapon: pickaxe ? WEAPON_IDS.indexOf('knife') : remote.weapon,
         pitch: remote.pitch,
         firing: pickaxe || remote.firing,

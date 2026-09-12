@@ -1,11 +1,12 @@
 import { WeaponTurnInertia } from './turn-inertia.js';
 import { WEAPON_HANDLING_PROFILES } from '../../../shared/weapon-handling.js';
+import { constrainWeaponLook } from '../../../shared/weapon-look.js';
 
 const clamp01 = (value) => Math.max(0, Math.min(1, Number(value) || 0));
 export const SPRINT_AIM_DIP = 0.11;
 
 /** One carried-weapon direction for prediction, the wire, the rig and the reticle.
- * Camera look remains immediate. Sprint lowers the muzzle by about six degrees;
+ * Camera look is bounded by the weapon's carry envelope. Sprint lowers the muzzle;
  * ADS raises the carry pose; the weapon still has to turn onto the sight line. */
 export class WeaponAimMotion {
   constructor() {
@@ -19,6 +20,16 @@ export class WeaponAimMotion {
     Object.assign(this.readModel, { yaw: 0, pitch: 0, sprint: 0 });
     this._weapon = null;
     return this.readModel;
+  }
+
+  constrainLook(dt, options) {
+    if (options.weapon !== this._weapon) {
+      this.reset(options.previousYaw, options.previousPitch);
+      this._weapon = options.weapon;
+    }
+    return constrainWeaponLook(dt, { ...options, weaponYaw: this.turn.readModel.weaponYaw,
+      weaponPitch: this.turn.readModel.weaponPitch, yawVelocity: this.turn.readModel.yawVelocity,
+      pitchVelocity: this.turn.readModel.pitchVelocity });
   }
 
   update(dt, { weapon = null, yaw = 0, pitch = 0, weightKg = 3.4, ads = 0,

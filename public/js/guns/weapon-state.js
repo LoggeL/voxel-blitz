@@ -1,6 +1,7 @@
 import { bastionWeaponDef } from '../../../shared/bastion.js';
 import { QUICK_MELEE_SECONDS } from '../../../shared/quick-melee.js';
 import { beginReload, advanceReload } from '../../../shared/reload.js';
+import { OPTICS, configuredWeapon, normalizeAttachments, normalizeWeaponLoadout } from '../../../shared/weapon-attachments.js';
 import { isScopeActive } from './scope-state.js';
 import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../../../shared/minigun.js';
 import { chaosWeaponDef } from '../../../shared/chaos.js';
@@ -104,7 +105,8 @@ export class WeaponState {
     this.menuReset();
   }
 
-  get def() { return bastionWeaponDef({ bastionUpgrades: this._mode === 'bastion' ? this._bastionUpgrades : null }, chaosWeaponDef({ chaosUpgrades: this._mode === 'chaos' ? this._chaosUpgrades : null }, WEAPONS[WEAPON_IDS[this._slot]])); }
+  get def() { return bastionWeaponDef({ bastionUpgrades: this._mode === 'bastion' ? this._bastionUpgrades : null }, chaosWeaponDef({ chaosUpgrades: this._mode === 'chaos' ? this._chaosUpgrades : null }, configuredWeapon(WEAPON_IDS[this._slot], this._weaponLoadout))); }
+  setLoadout(value) { this._weaponLoadout = normalizeWeaponLoadout(value); }
   get quickMeleeActive() { return this._now() < this._quickMeleeUntil; }
   get quickMeleeRequest() { return this._quickMeleeRequest; }
   acknowledgeQuickMelee() { this._quickMeleeRequest = null; }
@@ -172,6 +174,7 @@ export class WeaponState {
       adsT01: this._adsT,
       scopeActive: this._scopeActive,
       zoom: def.zoom,
+      opticName: OPTICS[def.attachments?.optic || "standard"].name,
       heat01: def.id === 'minigun' ? this._minigun.heat : null,
       spin01: this._minigun.spin,
       minigunSpinningUp: def.id === 'minigun' && this._minigun.spin > 0 && this._minigun.spin < 1 &&
@@ -468,7 +471,7 @@ export class WeaponState {
       (this._wantAds && this._alive && !vaulting && !this.quickMeleeActive && !this._grenadeHandling && !this.reloadRequested && this._now() >= this._deployUntil) ? 1 : -1
     ) * dt / Math.max(0.08, def.adsTime);
     this._adsT = Math.max(0, Math.min(1, this._adsT));
-    this._scopeActive = isScopeActive({ weapon: def.id, ads: this._adsT,
+    this._scopeActive = isScopeActive({ weapon: def.id, scoped: def.scoped, ads: this._adsT,
       alive: this._alive, vaulting, grenadeHandling: this._grenadeHandling,
       reloading: this.reloadRequested, deploying: this._now() < this._deployUntil });
     if (this._rig.root) {
@@ -712,11 +715,13 @@ export class WeaponState {
     chaosUpgrades,
     minigun,
     weapon,
+    attachments,
     reloading,
     reloadAck,
     reloadState: serverReload,
     alive = this._alive,
   }, now = this._now()) {
+    if (WEAPON_IDS[weapon] && attachments) this._weaponLoadout = { ...this._weaponLoadout, [WEAPON_IDS[weapon]]: normalizeAttachments(WEAPON_IDS[weapon], attachments) };
     this._alive = !!alive;
     this._chaosUpgrades = chaosUpgrades ? { ...chaosUpgrades } : null;
     this.adoptServerAmmo(mag, reserve);
@@ -818,6 +823,7 @@ export class WeaponState {
   }
 
   menuReset() {
+    this._weaponLoadout = {};
     this._quickMeleeUntil = -Infinity;
     this._quickMeleeRequest = null;
     this._quickMeleePending = false;

@@ -3,6 +3,7 @@ import { BreathHold } from '../../shared/conditions.js';
 import { stanceEye } from '../../shared/player-stance.js';
 import { chaosWeaponDef } from '../../shared/chaos.js';
 import { bastionWeaponDef } from '../../shared/bastion.js';
+import { configuredWeapon } from '../../shared/weapon-attachments.js';
 // Authoritative combatant state, loadouts, and aim helpers.
 
 import { worldDimensions } from '../../shared/worlddata.js';
@@ -171,7 +172,7 @@ export class PlayerEntity {
     this.lastSpawnZ = spawn.z;
   }
 
-  get def() { return bastionWeaponDef(this, chaosWeaponDef(this, WEAPONS[WEAPON_IDS[this.weapon]])); }
+  get def() { return bastionWeaponDef(this, chaosWeaponDef(this, configuredWeapon(WEAPON_IDS[this.weapon], this.weaponLoadout))); }
   get eyeY() { return this.y + stanceEye(PHYSICS.eye, this.crouch, this.proneT); }
 
   /** Return true when the hit is lethal. */

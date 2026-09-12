@@ -61,6 +61,7 @@ export function updateAvatarWeaponPose(av, {
   blend = 1,
   charge = 0,
   minigun,
+  attachments,
   movement,
 } = {}) {
   const poseBlend = Math.max(0, Math.min(1, Number(blend) || 0));
@@ -81,6 +82,7 @@ export function updateAvatarWeaponPose(av, {
     dt,
     charge,
     minigun,
+    attachments,
   });
   // Add the tiny carrier motion before solving the arms so palms stay on the gun.
   const upright = 1 - av.pronePose;

@@ -290,6 +290,7 @@ export class LobbyManager {
       try {
         for (const human of room.members.values()) {
           spawns.set(human.id, engine.addClient(human.id, human.name));
+          engine.entities.get(human.id).weaponLoadout = human.meta.weaponLoadout;
         }
         const preserveTeams = ['tdm', 'snd'].includes(room.gameMode) && ['tdm', 'snd'].includes(gameMode);
         for (const human of room.members.values()) {
@@ -309,7 +310,7 @@ export class LobbyManager {
           ...makeWelcome({ id: human.id, mapBytes: bytes.byteLength,
             tickRate: Math.round(1000 / this.tickMs), spawn: spawn.spawn || spawn,
             lobby: { code: room.code, role: room.host === human.id ? 'host' : 'member' },
-            phase: 'waiting', gameMode, map,
+            phase: 'waiting', gameMode, map, weaponLoadout: human.meta.weaponLoadout,
             blockDamage: Array.from(engine.blockDamage.values()) }),
           t: 'lobbyConfig',
         });
@@ -458,6 +459,7 @@ export class LobbyManager {
         ? (room.botManager.takeover(id, name) || room.engine.addClient(id, name))
         : room.engine.addClient(id, name);
       added = true;
+      room.engine.entities.get(id).weaponLoadout = meta.weaponLoadout;
       room.members.set(id, member);
       if (!room.host) room.host = id;
 
@@ -484,6 +486,7 @@ export class LobbyManager {
         gameMode: room.gameMode,
         map: room.map,
         blockDamage: Array.from(room.engine.blockDamage.values()),
+        weaponLoadout: meta.weaponLoadout,
       });
 
       if (this.sendJson(meta, welcome) === false) throw new Error('welcome send failed');

@@ -4,6 +4,7 @@ import { DEFAULT_DUEL_KILL_LIMIT, isTeamId } from '../../shared/modes.js';
 // Welcome and full lobby-state replacement factories. Returned frames retain no
 // caller-owned objects or arrays.
 import { copyBlockDamage } from './block-damage.js';
+import { normalizeWeaponLoadout } from '../../shared/weapon-attachments.js';
 
 import {
   TICK_RATE_HZ,
@@ -28,6 +29,7 @@ export function makeWelcome({
   gameMode,
   map,
   blockDamage,
+  weaponLoadout,
 } = {}) {
   const selected = resolveModeMap(gameMode, map);
   const sourceSpawn = isRecord(spawn) ? spawn : {};
@@ -51,6 +53,7 @@ export function makeWelcome({
     gameMode: selected.gameMode,
     map: selected.map,
     blockDamage: copyBlockDamage(blockDamage, getMapDimensions(selected.map)),
+    ...(weaponLoadout ? { weaponLoadout: normalizeWeaponLoadout(weaponLoadout) } : {}),
   };
 }
 

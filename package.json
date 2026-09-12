@@ -79,7 +79,7 @@
     "bots:difficulty:test": "node tools/bot-difficulty-test.mjs",
     "bots:difficulty:browser": "node tools/bot-difficulty-browser-test.mjs",
     "maps:lights:browser": "node tools/large-map-light-browser-test.mjs",
-    "weapons:handling:test": "node tools/weapon-handling-test.mjs"
+    "weapons:handling:test": "node tools/weapon-handling-test.mjs && node tools/weapon-customization-test.mjs"
   },
   "dependencies": {
     "pg": "^8.23.0",

@@ -52,7 +52,8 @@ function turnTrial(handling, fps, ads = 0, target = Math.PI / 2) {
     // The fixed-step output may cover ceil(240/fps) substeps on a high-Hz frame.
     assert.ok(speed <= state.maxSpeed * Math.ceil(240 / fps) * fps / 240 + 1e-8);
     previous = state.weaponYaw; peak = Math.max(peak, state.speed * DEG);
-    if (acquired === null && Math.abs(state.yaw) * DEG <= 1) acquired = i / fps;
+    if (Math.abs(state.yaw) * DEG > 1) acquired = null;
+    else if (acquired === null) acquired = i / fps;
   }
   assert.notEqual(acquired, null, 'Even the slowest supported profile settles');
   close(turn.readModel.yaw, 0, 0.001);
@@ -145,7 +146,7 @@ for (const ads of [0, 1]) {
         if (frame === 5) local.addRecoil(0.01, 0.005, def.weightKg, def.recoil, frame * 1000 / 60);
       }, sendInput: payload => net.sendInput(payload) });
     close(wire.yaw, predicted.yaw); close(wire.pitch, predicted.pitch);
-    assert.ok(Math.abs(wrap(wire.viewYaw - wire.yaw)) > 2.5);
+    assert.ok(Math.abs(wrap(wire.viewYaw - wire.yaw)) < 25 / DEG, 'Player view stays within the heavy carry envelope');
     GameEngine.prototype.applyInput.call({ entities: new Map([['handling', authority]]) }, 'handling', wire);
     stepMovement(authority, 1 / 60, { solidAt: (_x, y) => y < 1, mapMeta: {}, now: frame, onFall() {} });
     close(authority.yaw, wire.yaw); close(authority.pitch, wire.pitch);

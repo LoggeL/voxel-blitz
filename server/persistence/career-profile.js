@@ -1,5 +1,6 @@
 import { CAREER_CATALOG, defaultCosmeticLoadout, reconcileCareerUnlocks } from '../../shared/career.js';
 import { WEAPON_IDS } from '../../shared/combatmath.js';
+import { normalizeWeaponLoadout } from '../../shared/weapon-attachments.js';
 
 export const CAREER_ID = /^(?:[a-f0-9]{64}|account:[a-f0-9]{32})$/;
 export const CAREER_COUNTERS = ['xp', 'credits', 'kills', 'matches', 'pvpKills', 'wins'];
@@ -26,6 +27,7 @@ export function validateProfile(profile) {
       profile.owned.includes(profile.equipped[kind]) && CAREER_CATALOG.some(item =>
         item.id === profile.equipped[kind] && item.kind === kind))) throw new Error('Invalid career data');
   const equipped = { ...defaultCosmeticLoadout(), ...profile.equipped, weaponSkins: { ...profile.equipped.weaponSkins } };
+  equipped.weaponAttachments = normalizeWeaponLoadout(profile.equipped.weaponAttachments);
   if (profile.equipped.weaponSkins !== undefined && !record(profile.equipped.weaponSkins)) throw new Error('Invalid career cosmetics');
   const validSlot = (id, kind, weapon) => id === 'standard' || profile.owned.includes(id)
     && CAREER_CATALOG.some(item => item.id === id && item.kind === kind && (kind !== 'weaponSkin' || item.weapon === weapon));

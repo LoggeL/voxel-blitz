@@ -607,7 +607,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
       };
       const hipLag = flickLag(0);
       const adsLag = flickLag(1);
-      ok(hipLag > 0.1 && adsLag < hipLag && adsLag > hipLag * 0.6 && Number.isFinite(rig.turnLag.roll),
+      ok(hipLag > 0.05 && adsLag < hipLag && adsLag > hipLag * 0.6 && Number.isFinite(rig.turnLag.roll),
         'aiming down sights improves settling while preserving meaningful weapon lag');
 
       camera.rotation.set(0, 0, 0);

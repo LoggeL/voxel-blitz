@@ -1,3 +1,4 @@
+import * as THREE from '../../vendor/three.module.js';
 import { COL, GLOW_ACCENT } from '../kit.js';
 import { BOLT_HOME, BREACH_Z, TRIGGER_Z } from './common.js';
 
@@ -128,9 +129,10 @@ export function build({ kit, T, groups }) {
     box(body, 0.010, 0.016, 0.022, side * 0.056, 0.026, -0.330, COL.brass, { rg: 0.42, mt: 0.7 });
   }
 
+  const sight = new THREE.Group(); sight.name = "factory-optic"; body.add(sight);
   // Rail optic around the shared 0.155 sight line, with risers tying it down so the tall
   // line never floats in side-profile HUD renders. Sight line untouched.
-  ironSights(body, {
+  ironSights(sight, {
     rearZ: 0.082,
     frontZ: -0.635,
     height: 0.155,
@@ -139,14 +141,16 @@ export function build({ kit, T, groups }) {
     color: COL.polyDark,
     accent: VIOLET,
   });
-  box(body, 0.006, 0.042, 0.050, 0.022, 0.136, 0.082, COL.gunmetal);
-  box(body, 0.006, 0.042, 0.050, -0.022, 0.136, 0.082, COL.gunmetal);
-  box(body, 0.052, 0.006, 0.050, 0, 0.160, 0.082, COL.polyDark);
-  box(body, 0.006, 0.006, 0.003, 0, 0.144, 0.082, VIOLET);
-  box(body, 0.056, 0.008, 0.022, 0, 0.124, 0.082, COL.steel);
-  box(body, 0.056, 0.008, 0.022, 0, 0.124, -0.635, COL.steel);
-  box(body, 0.038, 0.072, 0.028, 0, 0.090, 0.082, COL.polyDark);
-  box(body, 0.024, 0.064, 0.018, 0, 0.096, -0.635, COL.polyDark);
+  box(sight, 0.006, 0.042, 0.050, 0.022, 0.136, 0.082, COL.gunmetal);
+  box(sight, 0.006, 0.042, 0.050, -0.022, 0.136, 0.082, COL.gunmetal);
+  box(sight, 0.052, 0.006, 0.050, 0, 0.160, 0.082, COL.polyDark);
+  box(sight, 0.006, 0.006, 0.003, 0, 0.144, 0.082, VIOLET);
+  box(sight, 0.056, 0.008, 0.022, 0, 0.124, 0.082, COL.steel);
+  box(sight, 0.056, 0.008, 0.022, 0, 0.124, -0.635, COL.steel);
+  box(sight, 0.038, 0.072, 0.028, 0, 0.090, 0.082, COL.polyDark);
+  box(sight, 0.024, 0.064, 0.018, 0, 0.096, -0.635, COL.polyDark);
+
+  body.userData.sightHeight = sight.userData.sightHeight;
 
   // Lance-cell magazine seated directly under the receiver frame (behind the trigger
   // guard): the stock 'mag' reload timeline slides this group.

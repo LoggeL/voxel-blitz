@@ -1,3 +1,4 @@
+import { applyAttachmentModel } from './attachment-model.js';
 import { applyGunCosmetics } from '../cosmetics/skins.js';
 // First-person viewmodel facade: public gunfeel API plus one rig-owned
 // material cache and one action-state owner.
@@ -398,6 +399,7 @@ export class ViewmodelRig {
       }
     }
     const cur = this._cur;
+    if (cur) applyAttachmentModel(cur, this._id, ctx.weaponDef?.attachments);
     if (cur) animateHeavyWeapon(cur.body, { dt: elapsed, time: this._now,
       minigun: this._minigunState, flameActive: this._flameActive, fuel: this._flameFuel });
     const speed = ctx.speed || 0, grounded = ctx.grounded !== false;
@@ -599,7 +601,7 @@ export class ViewmodelRig {
     const dep = this._deployOffset();
     this.content.position.set(
       HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0),
-      HIP.y + (T.adsOffset.y - HIP.y) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065,
+      HIP.y + (T.adsOffset.y - HIP.y - (cur.attachmentSightOffset || 0)) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065,
       HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0)
     );
     this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22,

@@ -1,3 +1,4 @@
+import { applyAttachmentModel } from '../guns/attachment-model.js';
 import { applyGunCosmetics } from '../cosmetics/skins.js';
 import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from '../guns/heavy-weapon-animation.js';
@@ -128,6 +129,7 @@ export class AvatarWeaponModel {
 
   update({
     weapon,
+    attachments,
     pitch = 0,
     firing = false,
     ads = false,
@@ -142,6 +144,7 @@ export class AvatarWeaponModel {
   } = {}) {
     this.setWeapon(weapon);
     if (!this._model) return;
+    applyAttachmentModel(this._model, this._weaponId, attachments);
     const frameDt = Math.max(0, Number(dt) || 0);
     this._machineTime = (this._machineTime || 0) + frameDt;
     animateHeavyWeapon(this._model.body, { dt: frameDt, time: this._machineTime,

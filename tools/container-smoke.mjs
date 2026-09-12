@@ -11,7 +11,7 @@ const PLAYER_KEYS = PLAYER_KEY_LIST.split(',');
 const MATCH_KEYS = MATCH_KEY_LIST.split(',');
 const WELCOME_KEYS = [
   'blockDamage', 'gameMode', 'id', 'lobby', 'map', 'mapBytes', 'phase', 'spawn', 't',
-  'tickRate',
+  'tickRate', 'weaponLoadout',
 ];
 const LOBBY_KEYS = [
   'bots', 'code', 'gameMode', 'host', 'map', 'members', 'phase', 't',
@@ -105,7 +105,7 @@ function validateTick(message, playerId, expectedMap) {
     `tick identity is ${JSON.stringify({ mode: message.match.mode, map: message.match.map })}`);
   requireCondition(Array.isArray(message.players) && message.players.length > 0,
     'tick has no players');
-  requireCondition(message.players.every((player) => hasExactKeys(player, PLAYER_KEYS)),
+  requireCondition(message.players.every((player) => hasExactKeys(player, Object.hasOwn(player, 'attachments') ? [...PLAYER_KEYS, 'attachments'].sort() : PLAYER_KEYS)),
     'tick contains an incomplete player');
   requireCondition(message.players.some((player) =>
     player.id === playerId && player.name === 'ContainerSmoke'),
