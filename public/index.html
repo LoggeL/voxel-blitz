@@ -28,6 +28,7 @@
 <meta name="twitter:image" content="https://voxel.logge.top/assets/brand/voxel-blitz-og.png">
 <meta name="twitter:image:alt" content="VOXEL BLITZ combat in the Foundry arena">
 <link rel="stylesheet" href="./style.css">
+<link rel="stylesheet" href="./styles/loading-screen.css">
 <link rel="stylesheet" href="./styles/menu-shell.css">
 <link rel="stylesheet" href="./styles/main-menu.css">
 <link rel="stylesheet" href="./styles/lobby-browser.css">
@@ -39,16 +40,32 @@
 <link rel="stylesheet" href="./styles/chaos.css">
 <link rel="stylesheet" href="./styles/career.css">
 <link rel="stylesheet" href="./styles/weapon-customization.css">
+<link rel="stylesheet" href="./styles/model-viewer.css">
 <link rel="stylesheet" href="./styles/cosmetics.css">
 <link rel="stylesheet" href="./styles/accounts.css">
 <link rel="stylesheet" href="./styles/music-controls.css">
 </head>
 <body>
+<dialog id="loading-screen" open aria-labelledby="loading-title" aria-describedby="loading-status" aria-busy="true" data-stage="boot">
+  <div class="vb-loading-top"><span>VOXEL BLITZ</span><span>DESTRUCTIBLE ARENAS. FAST ROUNDS.</span></div>
+  <div class="vb-loading-body">
+    <div class="vb-loading-brand" aria-hidden="true"><span>VOXEL</span><span>BLITZ</span></div>
+    <div id="loading-context">WELCOME TO VOXEL BLITZ</div>
+    <h1 id="loading-title">GEARING UP</h1>
+    <p id="loading-status" role="status" aria-live="polite">Loading game systems…</p>
+  </div>
+  <div class="vb-loading-footer">
+    <div class="vb-loading-meter"><progress max="1" aria-label="Loading progress"></progress><span id="loading-count" aria-hidden="true"></span></div>
+    <p class="vb-loading-tip"><span>FIELD NOTES</span>Tune your scopes and grips in the Armory before deploying.</p>
+    <button id="loading-action" type="button" hidden>CANCEL</button>
+  </div>
+  <noscript>Enable JavaScript to play Voxel Blitz.</noscript>
+</dialog>
 <canvas id="game"></canvas>
 <div id="hud" class="hidden"></div>
 <div id="menu" role="dialog" aria-modal="true" aria-labelledby="menu-title"></div>
 <div id="lobby" class="hidden" role="dialog" aria-modal="true" aria-labelledby="lobby-title" aria-hidden="true"></div>
 <div id="buy-menu" class="hidden" role="dialog" aria-modal="true" aria-labelledby="buy-title" aria-hidden="true"></div>
-<script type="module" src="./js/main.js"></script>
+<script type="module" src="./js/boot.js"></script>
 </body>
 </html>

@@ -50,7 +50,7 @@
     "browser:ui": "node tools/session-refactor-test.mjs",
     "menus:browser": "node tools/menu-history-browser-test.mjs",
     "feedback:test": "node tools/player-feedback-test.mjs",
-    "connection:test": "node tools/connection-diagnostics-test.mjs",
+    "connection:test": "node tools/connection-diagnostics-test.mjs && node tools/loading-screen-test.mjs",
     "profile:gameplay": "node tools/profile-gameplay.mjs",
     "fps:test": "node tools/frame-rate-test.mjs",
     "weapons:reload:test": "node tools/reload-state-test.mjs && node tools/reload-network-test.mjs && node tools/reload-animation-test.mjs && node tools/reload-presentation-test.mjs",

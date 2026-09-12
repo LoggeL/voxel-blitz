@@ -1,0 +1,57 @@
+/* Variant A, docs/design/loading-screens. Existing game art stays native. */
+#loading-screen {
+  position: fixed; inset: 0; z-index: 10000; box-sizing: border-box;
+  width: 100%; height: 100%; max-width: none; max-height: none; margin: 0;
+  padding: max(30px, env(safe-area-inset-top)) clamp(24px, 5vw, 80px) max(30px, env(safe-area-inset-bottom));
+  border: 0; color: #f3f1e9; overflow: auto;
+  background: linear-gradient(90deg, #080d12f5, #080d1290 48%, #080d1238), linear-gradient(0deg, #080d12f5, transparent 65%), var(--loading-image, url('/assets/ui/armory/menu-hero.webp')) center / cover;
+  font-family: Arial, sans-serif;
+}
+#loading-screen[open] { display: flex; flex-direction: column; }
+#loading-screen::backdrop { background: #080d12; }
+#loading-screen::before {
+  content: ''; position: absolute; top: 24px; left: 24px; width: 30px; height: 22px;
+  border-top: 2px solid #ffb32d; border-left: 2px solid #ffb32d; pointer-events: none;
+}
+.vb-loading-top { display: flex; justify-content: space-between; gap: 20px; margin: 12px 0 24px; color: #abb5bd; font: 10px/1.5 var(--font-mono); letter-spacing: .17em; }
+.vb-loading-top span:last-child { color: #ffb32d; }
+.vb-loading-body { margin-top: auto; padding: 40px 0 34px; }
+.vb-loading-brand { width: fit-content; margin: 0 0 28px; font: italic 900 clamp(64px, 8.6vw, 132px)/.85 Impact, 'Arial Black', sans-serif; letter-spacing: -.025em; }
+.vb-loading-brand span { display: block; }
+.vb-loading-brand span:last-child { color: #ffb32d; }
+#loading-context { color: #ffbd50; font: 600 11px/1.6 var(--font-mono); letter-spacing: .16em; overflow-wrap: anywhere; }
+#loading-title { margin: 9px 0 12px; max-width: 800px; font: italic 500 clamp(30px, 4vw, 56px)/1.05 Impact, 'Arial Black', sans-serif; letter-spacing: .01em; }
+#loading-status { margin: 0; color: #c5cdd2; font-size: 15px; line-height: 1.6; max-width: 650px; overflow-wrap: anywhere; }
+.vb-loading-footer { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(190px, .8fr) auto; align-items: center; gap: 28px; padding-top: 20px; border-top: 1px solid #83939c45; }
+.vb-loading-meter { min-width: 0; }
+#loading-screen progress { display: block; appearance: none; width: 100%; height: 6px; border: 0; background: #56616b44; accent-color: #ffb32d; overflow: hidden; }
+#loading-screen progress::-webkit-progress-bar { background: #56616b44; }
+#loading-screen progress::-webkit-progress-value { background: #ffb32d; }
+#loading-screen progress::-moz-progress-bar { background: #ffb32d; }
+#loading-screen progress:indeterminate { background: linear-gradient(90deg, transparent, #ffb32d, transparent) -100% 0 / 50% 100% no-repeat, #56616b44; animation: vb-loading-scan 1.4s ease-in-out infinite; }
+#loading-screen progress:indeterminate::-webkit-progress-bar { background: transparent; }
+#loading-count { display: block; min-height: 16px; margin-top: 10px; color: #a8b7c0; font: 10px/1.6 var(--font-mono); letter-spacing: .08em; }
+.vb-loading-tip { margin: 0; color: #d6dce0; font-size: 12px; line-height: 1.7; }
+.vb-loading-tip span { color: #ffb32d; font: 10px/1.7 var(--font-mono); letter-spacing: .1em; display: block; }
+#loading-action { min-width: 140px; min-height: 48px; padding: 12px 24px; border: 1px solid #d3a653; background: #10171edb; color: #f4f1e9; font: 700 11px/1.3 Arial, sans-serif; letter-spacing: .12em; cursor: pointer; }
+#loading-action:hover { background: #29303a; }
+#loading-action:focus-visible { outline: 2px solid #ffb32d; outline-offset: 4px; }
+#loading-screen [hidden] { display: none; }
+#loading-screen[data-stage='error'] .vb-loading-meter { display: none; }
+@keyframes vb-loading-scan { to { background-position: 300% 0; } }
+@media (prefers-reduced-motion: reduce) { #loading-screen progress:indeterminate { animation: none; background-position: 50% 0; } }
+@media (max-width: 600px) {
+  #loading-screen { background-position: 60% center; }
+  .vb-loading-top { font-size: 9px; }
+  .vb-loading-top span:last-child { display: none; }
+  .vb-loading-body { padding: 30px 0; }
+  .vb-loading-footer { grid-template-columns: 1fr; gap: 16px; }
+  #loading-action { width: 100%; }
+}
+@media (max-height: 500px) and (min-width: 601px) {
+  #loading-screen { padding-top: 16px; padding-bottom: 16px; }
+  .vb-loading-top { margin: 0 0 12px; }
+  .vb-loading-body { padding: 8px 0 16px; }
+  .vb-loading-brand { font-size: 48px; margin-bottom: 14px; }
+  #loading-title { font-size: 28px; }
+}

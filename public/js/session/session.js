@@ -88,6 +88,7 @@ export class Session {
     input,
     audio,
     gameplay,
+    loading = null,
     makeNet = () => new NetClient(),
     persist = null,
     platform = null,
@@ -103,6 +104,7 @@ export class Session {
       throw new TypeError('Session makeNet must be a function');
     }
 
+    this.loading = loading;
     this.hud = hud;
     this.input = input;
     this.audio = audio;
@@ -188,6 +190,7 @@ export class Session {
     );
 
     this._pregame = new PregameFlow({
+      loading,
       hud: this.hud,
       makeNet: this._makeNet,
       getPhase: () => this._phase,
@@ -200,6 +203,7 @@ export class Session {
       enterMenu: (message) => this.enterMenu(message),
       detachGameplay: () => this._detachGameplayListeners(),
       enterLive: (attempt) => this._beginLiveBoot(attempt),
+      cancelBoot: () => this.leaveMatch(),
       location: this._location,
       history: this._history,
     });
@@ -298,6 +302,7 @@ export class Session {
   enterMenu(message = '') {
     if (this._tornDown) return false;
 
+    this.loading?.hide();
     this._phase = 'menu';
     this._disconnected = false;
     this._liveActive = false;
@@ -474,6 +479,7 @@ export class Session {
   teardown() {
     if (this._tornDown) return false;
 
+    this.loading?.hide();
     this._tornDown = true;
     this._menuMusicActive = false;
     this._unsubscribeMusicVolume?.();
@@ -583,6 +589,9 @@ export class Session {
           this._pregame.showBootStatus(attempt, message, tone);
           return true;
         },
+        showProgress: (done, total) => {
+          if (this._isActiveBootAttempt(attempt)) this.loading?.advance(done, total);
+        },
         complete: (ordering) => this._completeLiveBoot(attempt, ordering),
       });
       const result = handoff(payload);
@@ -679,6 +688,7 @@ export class Session {
     consumeLatestAuthoritativeState();
     if (!this._isCurrentLiveNet(attempt.net)) return false;
 
+    this.loading?.hide();
     this.syncGameplayInput();
     if (this.gameplayInputEnabled) this.input.requestLock();
     if (!this._isCurrentLiveNet(attempt.net)) return false;
@@ -709,6 +719,7 @@ export class Session {
       this._pregame.showBootStatus(attempt, message, 'err');
     } catch (_) {}
     this.teardown();
+    this.loading?.fail('The arena could not be prepared. Reload the game to try again.');
   }
 
   _releaseLiveResources() {

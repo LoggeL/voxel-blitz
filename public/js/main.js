@@ -1,3 +1,4 @@
+import { loadingScreen } from './ui/loading-screen.js';
 import { WeaponCustomization } from './ui/weapon-customization.js';
 import { claymoreProfile } from '../../shared/claymore-rules.js';
 import { CareerShop } from './ui/career-shop.js';
@@ -114,6 +115,7 @@ class Game {
       applyDeltas: (deltas) => this.worldview?.applyDeltas(deltas),
     });
     this.session = new Session({
+      loading: loadingScreen,
       hud: this.hud,
       input: this.input,
       audio: sfx,
@@ -158,7 +160,9 @@ class Game {
   }
 
   async bootLive(payload) {
-    const { net, welcome, mapBytes, mapMeta, isActive, showStatus, complete } = payload;
+    const { net, welcome, mapBytes, mapMeta, isActive, showStatus, showProgress, complete } = payload;
+    // Let the deployment screen paint before decoding the arena.
+    await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
     if (!isActive()) return;
     this.mapMeta = mapMeta || getMapMeta(welcome.map);
     this.player.setMapMeta(this.mapMeta);
@@ -177,11 +181,14 @@ class Game {
       getBlock,
       getBlockDamage: (x, y, z) => net.getBlockDamage(x, y, z),
     }, this.mapMeta);
-    await this.worldview.ready();
+    await this.worldview.ready({ isActive, onProgress: showProgress,
+      yieldControl: () => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))),
+    });
     if (!isActive()) return;
     if (!net.isOpen()) return this.session.handleDisconnect();
     this.worldview.setGameMode(welcome.gameMode);
 
+    showStatus('preparing your loadout…', 'ok');
     this.liveEffectsGroup = new THREE.Group();
     this.liveAvatarsGroup = new THREE.Group();
     this.worldview.scene.add(this.liveEffectsGroup, this.liveAvatarsGroup);
@@ -976,6 +983,8 @@ if (debugMode) {
 const accounts = new AccountMenu({ onOpen: () => { if (career.dialog.open) career.dialog.close(); if (customization.dialog.open) customization.dialog.close(); } });
 const career = new CareerShop({ accounts });
 const customization = new WeaponCustomization({ accounts });
+loadingScreen?.update('Loading your account…');
 await accounts.start();
+loadingScreen?.update('Loading your career and equipment…');
 await career.start();
 game.session.start();

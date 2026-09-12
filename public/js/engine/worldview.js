@@ -8,6 +8,7 @@ import { BastionWorld } from './bastion-world.js';
 import * as THREE from '../vendor/three.module.js';
 import { buildAtlas } from './atlas.js';
 import { ChunkStore } from './chunks.js';
+import { buildInitialMesh } from './initial-mesh.js';
 import { installSky } from './sky.js';
 import { buildNuketownDetails } from './nuketown-details.js';
 import { mapAtmosphere } from './map-atmosphere.js';
@@ -134,8 +135,9 @@ export class WorldView {
   }
 
   /** Builds every initial chunk column; resolves when the world is renderable. */
-  async ready() {
-    this.chunkStore.buildAll();
+  async ready(options) {
+    if (options) await buildInitialMesh(this.chunkStore, options);
+    else this.chunkStore.buildAll();
     return this;
   }
 

@@ -1,3 +1,4 @@
+import { MAP_LABELS, MAP_PREVIEWS, MODE_LABELS } from '../ui/hud-support.js';
 import { MAX_BOTS } from '../../../shared/lobby-limits.js';
 
 /**
@@ -8,6 +9,7 @@ import { MAX_BOTS } from '../../../shared/lobby-limits.js';
 export class PregameFlow {
   constructor({
     hud,
+    loading = null,
     makeNet,
     getPhase,
     setPhase,
@@ -19,9 +21,11 @@ export class PregameFlow {
     enterMenu,
     detachGameplay,
     enterLive,
+    cancelBoot = () => {},
     location = null,
     history = null,
   } = {}) {
+    this._loading = loading;
     this._hud = hud;
     this._makeNet = makeNet;
     this._getPhase = getPhase;
@@ -34,6 +38,7 @@ export class PregameFlow {
     this._enterMenu = enterMenu;
     this._detachGameplay = detachGameplay;
     this._enterLive = enterLive;
+    this._cancelBoot = cancelBoot;
     this._location = location;
     this._history = history;
 
@@ -132,6 +137,14 @@ export class PregameFlow {
     this._setPhase('connecting');
     this._writeName(name);
     this._hud.showJoinState('connecting…');
+    this._loading?.show('connect', { title: 'FINDING YOUR ARENA', status: 'Connecting to the server…',
+      onCancel: () => {
+        if (!this.isActive(attempt)) return;
+        this._recoveryGeneration++;
+        this._rejoin = null;
+        this._enterMenu();
+      },
+    });
 
     net.onMap = (bytes) => {
       if (!this.isActive(attempt)) return;
@@ -160,6 +173,7 @@ export class PregameFlow {
         return;
       }
       attempt.welcome = welcome;
+      this._loading?.update('Receiving arena data…');
       attempt.recoveryToken = null;
       this._rejoin = { mode: mode === 'quick' ? 'quick' : 'join', code: welcome.lobby?.code, name, sensitivity, bots, password };
       if (net.latestLobbyState) attempt.lobbyState = net.latestLobbyState;
@@ -250,6 +264,19 @@ export class PregameFlow {
     attempt.liveStarted = true;
     this.clearInviteQuery();
     this._setPhase('booting');
+    const map = attempt.welcome.map;
+    this._loading?.show('arena', {
+      title: MAP_LABELS[map] || 'PREPARING ARENA',
+      context: `${MODE_LABELS[attempt.welcome.gameMode] || 'DEPLOYMENT'} / ARENA PREPARATION`,
+      status: 'Preparing the battlefield…', image: MAP_PREVIEWS[map],
+      onCancel: () => {
+        if (!this.isActive(attempt)) return;
+        this._recoveryGeneration++;
+        this._rejoin = null;
+        // The session owns any partially built world and releases it here.
+        this._cancelBoot();
+      },
+    });
     this.showBootStatus(attempt, 'streaming arena…', 'ok');
     this.detachListeners();
     attempt.net.onMap = null;
@@ -262,6 +289,7 @@ export class PregameFlow {
   }
 
   showBootStatus(attempt, message, tone = '') {
+    this._loading?.update(message);
     if (attempt.lobbyShown) this._hud.showLobbyStatus(message, tone);
     else this._hud.showJoinState(message, tone);
   }
@@ -281,6 +309,7 @@ export class PregameFlow {
 
   _presentLobby(attempt, state) {
     if (!this.isActive(attempt) || attempt.liveStarted) return;
+    this._loading?.hide();
     this._setPhase('lobby');
     try {
       if (attempt.mode === 'create' && this._location?.href && this._history?.replaceState) {
@@ -295,6 +324,7 @@ export class PregameFlow {
     }
 
     attempt.lobbyShown = true;
+    this._hud.showLobbyStatus('', '');
     this._hud.showLobby(state, {
       onBotDifficulty: (id, difficulty) => {
         if (this.isActive(attempt) && this._getPhase() === 'lobby') attempt.net.setBotDifficulty(id, difficulty);
