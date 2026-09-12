@@ -28,7 +28,9 @@ try {
   assert.equal(purchased.equipped.theme, 'arctic');
   const gameId = await stack.compose('ps', '-q', 'game'), dbId = await stack.compose('ps', '-q', 'db');
   const db = JSON.parse(await docker('inspect', dbId))[0];
-  assert.equal(db.NetworkSettings.Ports['5432/tcp'], null, 'database port is not published');
+  // Docker versions report an unpublished exposed port as null or omit it.
+  assert.equal(db.NetworkSettings.Ports['5432/tcp'] == null, true, 'database port is not published');
+  assert.deepEqual(db.HostConfig.PortBindings ?? {}, {}, 'database has no configured published ports');
   assert.equal(Object.keys(db.NetworkSettings.Networks).length, 1, 'database joins only the private network');
   const network = JSON.parse(await docker('network', 'inspect', `${stack.project}_database`))[0];
   assert.equal(network.Internal, true);
