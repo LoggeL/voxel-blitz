@@ -183,3 +183,28 @@ for (const level of [0, 1, 2, 3]) {
   assert.equal(scene.children.length, 0, 'mine, laser and preview clean up');
 }
 console.log('Claymore: wall-only placement, inventory, arming, laser occlusion, swept crossing, teams, damage, Chaos, snapshots and rendering passed.');
+
+// Real rifle shots hit the housing before its mounting wall, but not through cover.
+{
+  const {GameEngine} = await import('../server/game.js');
+  const {fireOneShot} = await import('../server/sim/combat.js');
+  const {WEAPON_IDS} = await import('../shared/combatmath.js');
+  const {BEDROCK} = await import('../shared/worlddata.js');
+  for (const covered of [false,true]) {
+    const game=new GameEngine({mode:'fun'});
+    game.addClient('shooter','Shooter');
+    const shooter=game.entities.get('shooter');
+    Object.assign(shooter,{x:8.5,y:20,z:10.5,yaw:-Math.PI/2,pitch:0,weapon:WEAPON_IDS.indexOf('rifle')});
+    for(let x=7;x<=13;x++)for(let y=20;y<=23;y++)for(let z=9;z<=11;z++)game.world.setBlock(x,y,z,0);
+    game.world.setBlock(12,21,10,BEDROCK);
+    if(covered)game.world.setBlock(10,21,10,BEDROCK);
+    const mine={id:'shot-mine',type:'limpet',x:11.91,y:shooter.eyeY,z:10.5,n:[-1,0,0],
+      mount:[12,21,10],owner:shooter,ownerId:shooter.id,armedAt:999999,explodeAt:Infinity};
+    game.projectiles.active.set(mine.id,mine);
+    fireOneShot(shooter,{...game.contexts.combat,computeConeDeg:()=>0});
+    assert.equal(game.projectiles.active.has(mine.id),covered);
+    assert.equal(game.tickEvents.filter(e=>e.kind==='projectileExplode'&&e.pid===mine.id).length,covered?0:1);
+    if(!covered) assert.ok(shooter.hp<100 || shooter.state==='dead','shooting the mine causes real blast damage');
+  }
+}
+console.log('Claymore gunfire: direct housing hit detonates once before arming; solid cover blocks the shot.');

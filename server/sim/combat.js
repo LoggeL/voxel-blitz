@@ -510,6 +510,13 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
       let minT = 0, stopped = false;
       for (;;) {
         const tgt = nearestVictim(p, origin, d, wallT, ctx, minT, shotProfile.hitRadius, hitVictims);
+        const mine = ctx.nearestClaymore?.(origin, d, tgt?.t ?? wallT, minT, shotProfile.hitRadius);
+        if (mine) {
+          path.push({o:origin,end:origin.map((v,i)=>v+d[['x','y','z'][i]]*mine.t)});
+          ctx.shootClaymore(mine.mine);
+          stopped = true;
+          break;
+        }
         if (!tgt) break;
         const point = origin.map((value, i) => value + d[['x', 'y', 'z'][i]] * tgt.t);
         if (playersLeft <= 0) { path.push({ o: origin, end: point }); stopped = true; break; }

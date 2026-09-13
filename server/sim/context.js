@@ -23,6 +23,8 @@ export function createSimulationContexts(engine) {
     solidAt: engine.solidAt,
     getBlock: (x, y, z) => engine.world.getBlock(x, y, z),
     setBlock: (x, y, z, value) => engine.world.setBlock(x, y, z, value),
+    nearestClaymore: (...args) => engine.projectiles.nearestClaymore(...args),
+    shootClaymore: mine => engine.projectiles.explode(mine, projectiles),
     canFire: (player) => engine.mode.canFire(player),
     canMelee: (player) => engine.mode.canMelee(player),
     canBurn: () => engine.mode.phase === 'live',

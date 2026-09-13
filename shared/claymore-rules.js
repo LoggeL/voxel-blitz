@@ -64,3 +64,21 @@ export function crossesClaymore(beam, player, previous = null) {
   }
   return false;
 }
+
+/** Housing hitbox matches the rendered 0.44 × 0.28 × 0.14 wall-mounted box. */
+export function rayClaymore(mine, origin, direction, limit, minT = 0, radius = 0) {
+  const half = mine.n?.[0] ? [0.07, 0.14, 0.22] : [0.22, 0.14, 0.07];
+  let near = minT, far = limit;
+  for (const [i, axis] of ['x', 'y', 'z'].entries()) {
+    const extent = half[i] + radius, delta = mine[axis] - origin[i], d = direction[axis];
+    if (Math.abs(d) < 1e-10) {
+      if (Math.abs(delta) > extent) return null;
+      continue;
+    }
+    const a = (delta - extent) / d, b = (delta + extent) / d;
+    near = Math.max(near, Math.min(a, b));
+    far = Math.min(far, Math.max(a, b));
+    if (near > far) return null;
+  }
+  return near < limit ? near : null;
+}

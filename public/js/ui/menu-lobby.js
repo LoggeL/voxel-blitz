@@ -87,12 +87,8 @@ export class MenuLobbyController {
     primary.setAttribute('aria-labelledby', 'menu-title');
     const deployment = el('div', 'vb-menu-deployment', primary);
     const primaryBody = el('div', 'vb-menu-primary-body', deployment);
-    el('div', 'vb-menu-eyebrow', primaryBody).textContent = 'DEPLOYMENT';
     const title = el('h1', 'vb-title vb-deployment-title', primaryBody, 'menu-title');
-    el('span', '', title).textContent = 'DROP INTO';
-    el('span', '', title).textContent = 'THE ACTION';
-    const sub = el('div', 'vb-sub', primaryBody);
-    sub.textContent = 'Fast rounds. Destructible arenas.';
+    title.textContent = 'PLAY';
 
     const playerIdentity = el('div', 'vb-player-identity', primaryBody);
     const callsignLabel = el('label', 'vb-label', playerIdentity);
@@ -112,7 +108,7 @@ export class MenuLobbyController {
     quickPlayButton.type = 'button';
     quickPlayButton.textContent = 'QUICK PLAY';
     const quickHint = el('div', 'vb-action-hint', quickBox);
-    quickHint.textContent = '5+ BOTS · AUTO ARENA · INSTANT ACTION';
+    quickHint.textContent = '5+ BOTS · AUTO ARENA';
 
     const createBox = el('div', 'vb-create-box', actionsBox);
     const createLobbyButton = el(
@@ -133,8 +129,6 @@ export class MenuLobbyController {
       this.onMenuAction({ mode: 'create', gameMode: 'duel', map: 'depot', bots: 0,
         code: '', password: createPassword.value, ...getIdentity() });
     });
-    const createHint = el('div', 'vb-action-hint', createBox);
-    createHint.textContent = 'YOUR RULES. YOUR ARENA.';
 
     const passwordOption = (parent, id, title) => {
       const details = el('details', 'vb-password-option', parent);
@@ -176,16 +170,12 @@ export class MenuLobbyController {
     const trainingInfo = el('div', 'vb-training-info', training);
     el('span', 'vb-step-kicker', trainingInfo).textContent = 'WARM UP';
     el('h2', '', trainingInfo).textContent = 'KILLHOUSE';
-    el('p', '', trainingInfo).textContent = 'Find your aim. Beat your time.';
     const trainingButton = el('button', 'vb-btn vb-training-btn', trainingInfo, 'training-btn');
     trainingButton.type = 'button';
     trainingButton.textContent = 'TRAINING';
 
     el('aside', 'vb-menu-showcase', primary).setAttribute('aria-label', 'Your account and career');
 
-    const menuFooter = el('div', 'vb-menu-footer', panel);
-    el('span', '', menuFooter).textContent = 'MOVE FAST. BREAK EVERYTHING.';
-    el('span', '', menuFooter).textContent = 'MULTIPLAYER · DESTRUCTIBLE ARENAS';
 
     const getIdentity = () => {
       const name = nameInput.value.trim().slice(0, 16) || 'PLAYER';

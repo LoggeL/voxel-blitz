@@ -42,7 +42,7 @@ import { BOLT_RULES, boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
 import { sweepPlayers } from './projectile-contact.js';
 import { SmokeSystem } from './smoke.js';
 import { MolotovFireSystem } from './molotov-fire.js';
-import { CLAYMORE_RULES, placeClaymore, claymoreProfile, claymoreBeam, crossesClaymore } from '../../shared/claymore-rules.js';
+import { CLAYMORE_RULES, rayClaymore, placeClaymore, claymoreProfile, claymoreBeam, crossesClaymore } from '../../shared/claymore-rules.js';
 
 const P_HEIGHT = PLAYER_HALF.h * 2;
 /** A sticky/impact projectile ignores its own thrower for this long after release. */
@@ -188,6 +188,16 @@ export class ProjectileSystem {
     }
   }
 
+  nearestClaymore(origin, direction, limit, minT = 0, radius = 0) {
+    let best = null;
+    for (const mine of this.active.values()) {
+      if (mine.type !== 'limpet') continue;
+      const t = rayClaymore(mine, origin, direction, best?.t ?? limit, minT, radius);
+      if (t !== null) best = {mine, t};
+    }
+    return best;
+  }
+
   _stepClaymore(mine, ctx) {
     if (ctx.now >= mine.explodeAt) return this.explode(mine, ctx);
     if (!mine.mount || ctx.getBlock(...mine.mount) === AIR) {
@@ -274,6 +284,15 @@ export class ProjectileSystem {
     stepBolt(projectile, seconds, projectile.raycast, {
       onTravel: (from, to) => {
         const contact = this._sweepVictim(from, to, BOLT_RULES.radius, ctx, projectile, true);
+        const length = Math.hypot(to.x-from.x, to.y-from.y, to.z-from.z);
+        const dir = length > 0 ? {x:(to.x-from.x)/length,y:(to.y-from.y)/length,z:(to.z-from.z)/length} : null;
+        const mine = dir && this.nearestClaymore([from.x,from.y,from.z],dir,
+          contact ? Math.hypot(contact.x-from.x,contact.y-from.y,contact.z-from.z) : length, 0, BOLT_RULES.radius);
+        if (mine) {
+          this.explode(mine.mine,ctx);
+          this._fizzleBolt(projectile,ctx);
+          return true;
+        }
         const end = contact || to;
         applyNearMisses(collectNearMisses(projectile.owner,
           [from.x, from.y, from.z], [end.x, end.y, end.z], ctx),
