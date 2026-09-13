@@ -630,8 +630,9 @@ export class LocalPlayer {
     }
 
     const fireAllowed = isAllowed(intents.fireAllowed);
+    const grenadeAllowed = intents.grenadeAllowed == null ? fireAllowed : isAllowed(intents.grenadeAllowed);
     const grenadeThrow = input.consumeGrenadeThrow();
-    if (grenadeThrow && fireAllowed && this._alive) {
+    if (grenadeThrow && grenadeAllowed && this._alive) {
       this.grenadeThrowLatched = {
         charge: grenadeThrow.charge,
         cookMs: grenadeThrow.cookMs,
@@ -639,13 +640,13 @@ export class LocalPlayer {
         at: now,
       };
     }
-    if (!fireAllowed || !this._alive) {
+    if (!grenadeAllowed || !this._alive) {
       this.grenadeThrowLatched = null;
       this._localGrenadeThrow = null;
     }
     weaponIntents.throwGrenade = this.grenadeThrowLatched;
     const externalHandling = intents.weaponHandlingAllowed == null || isAllowed(intents.weaponHandlingAllowed);
-    this.grenadeHandling = this._alive && fireAllowed && (!externalHandling || !!this.grenadeThrowLatched);
+    this.grenadeHandling = this._alive && grenadeAllowed && (!externalHandling || !!this.grenadeThrowLatched);
     weaponIntents.grenadeHandling = this.grenadeHandling;
     let weaponHandling = !this.grenadeHandling;
     this.wantAds = !!input.wantAdsHeld && weaponHandling;

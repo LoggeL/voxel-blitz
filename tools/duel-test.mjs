@@ -83,8 +83,8 @@ try {
 
 // Exercise the actual composition-root gate without starting the WebGL app.
 const source = readFileSync(new URL('../public/js/main.js', import.meta.url), 'utf8');
-const body = source.match(/  isAuthoritativeFireAllowed\(\) \{([\s\S]*?)\n  \}/)[1];
-const gate = new Function(body);
+const body = source.match(/  isAuthoritativeFireAllowed\([^)]*\) \{([\s\S]*?)\n  \}/)[1];
+const gate = new Function('grenade = false', body);
 const context = {
   session: { gameplayInputEnabled: true }, player: { alive: true, physics: {} },
   selfRow: { state: 'alive' }, weaponWheel: { open: false },

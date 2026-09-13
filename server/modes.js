@@ -224,6 +224,7 @@ export class ModeController {
   canDamage(attacker, target) { return this.phase !== 'post' && this.policy.canDamage(attacker, target); }
   canUseWeapon(player, weapon) { return this.policy.canUseWeapon(player, weapon); }
   canFire(player) { return this.policy.canFire(player); }
+  canThrow(player) { return this.policy.canThrow?.(player) ?? this.canFire(player); }
   canMove(player) { return this.phase !== 'post' && this.policy.canMove?.(player) !== false; }
   onPlayerAdd(player) { return this.policy.onPlayerAdd(player); }
   onPlayerRemove(player) { return this.policy.onPlayerRemove(player); }

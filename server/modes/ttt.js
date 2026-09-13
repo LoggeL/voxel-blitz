@@ -1,12 +1,13 @@
 import { randomInt } from 'node:crypto';
 import { FunPolicy } from './fun.js';
 import { WEAPON_IDS, WEAPONS } from '../../shared/combatmath.js';
-import { TTT_WEAPONS, TTT_EQUIPMENT_ACTIONS } from '../../shared/ttt.js';
+import { TTT_WEAPONS, TTT_GRENADES, TTT_GRENADE_CAP, TTT_EQUIPMENT_ACTIONS } from '../../shared/ttt.js';
+import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
 import { isPowerupSiteSupported } from '../../shared/powerup-sites.js';
 import { TttEquipment } from './ttt-equipment.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 
-/** Roles never enter public player rows or public events. */
+/** Roles stay private until a body is identified or the round ends. */
 export class TttPolicy extends FunPolicy {
   constructor(context, engine) {
     super(context);
@@ -18,6 +19,8 @@ export class TttPolicy extends FunPolicy {
     this.roles = new Map();
     this.wallets = new Map();
     this.pickups = new Map();
+    this.corpses = new Map();
+    this.participants = new Map();
     this.serial = 0;
     this.equipment = new TttEquipment(this, engine);
   }
@@ -56,10 +59,15 @@ export class TttPolicy extends FunPolicy {
       this.pickups.set(String(++this.serial), { id: String(this.serial), ...site, weapon,
         mag: def.magSize, reserve: def.spareRounds ?? def.spareMags ?? 0 });
     }
+    for (let i=0;i<16&&sites.length;i++) {
+      const site=sites.splice(randomInt(sites.length),1)[0],id=String(++this.serial);
+      this.pickups.set(id,{id,...site,grenade:TTT_GRENADES[i%TTT_GRENADES.length]});
+    }
   }
   canRespawn() { return false; }
   canTimedRespawn() { return false; }
   canFire(p) { return this.phase === 'live' && super.canFire(p); }
+  canThrow(p) { return this.phase === 'live' && p?.state === 'alive' && this._players.has(String(p.id)); }
   canDamage(a, b) { return this.phase === 'live' && super.canDamage(a, b); }
   canUseWeapon(player, weapon) {
     const p = this._entity(player);
@@ -72,7 +80,11 @@ export class TttPolicy extends FunPolicy {
   }
   privateState(id) {
     const role = this.roles.get(String(id)) ?? null;
+    const viewer=this._entities.get(String(id));
     return { ...this.equipment.privateState(id), role, credits: this.wallets.get(String(id)) ?? 0,
+      allyPositions:role==='traitor'&&viewer?.state==='alive'&&this.phase==='live'
+        ? [...this._entities.values()].filter(p=>p!==viewer&&p.state==='alive'&&this.roles.get(String(p.id))==='traitor')
+          .map(p=>({id:p.id,name:p.name,x:p.x,y:p.y+1,z:p.z,ally:true,live:true})):[],
       allies: role === 'traitor' ? [...this.roles].filter(([,r]) => r === 'traitor').map(([id]) => id) : [] };
   }
   drop(p) {
@@ -80,7 +92,8 @@ export class TttPolicy extends FunPolicy {
     const weapon = p.owned[0], slot = WEAPON_IDS.indexOf(weapon);
     this.pickups.set(String(++this.serial), { id: String(this.serial), x: p.x, y: p.y, z: p.z,
       weapon, mag: p.mag[slot], reserve: p.reserve[slot] });
-    this._syncPlayer(p);
+    p.owned=[];p.weapon=WEAPON_IDS.indexOf('knife');p.mag.fill(0);p.reserve.fill(0);
+    p.reloading=false;p.reloadState=null;
     return true;
   }
   buy(player, request) {
@@ -88,11 +101,27 @@ export class TttPolicy extends FunPolicy {
     if (!p || !this._players.has(String(p.id)) || p.state !== 'alive' || !['prep','live'].includes(this.phase)) return false;
     if (request === 'ttt:drop') return this.drop(p);
     if (typeof request !== 'string') return false;
+    if (request.startsWith('ttt:inspect:')) {
+      if (this.phase !== 'live') return false;
+      const body = this.corpses.get(request.slice(12));
+      if (!body) return false;
+      const dx=body.x-p.x, dy=body.y+.35-(p.y+.65), dz=body.z-p.z;
+      const distance=Math.hypot(dx,dy,dz);
+      if (distance>2.4 || (distance>.05 && raycastVoxels(this.engine.solidAt,
+        p.x,p.y+.65,p.z,dx/distance,dy/distance,dz/distance,distance))) return false;
+      body.identified = true;
+      return true;
+    }
     if (request.startsWith('ttt:pickup:')) {
       const item = this.pickups.get(request.slice(11));
-      if (!item || p.owned.length || Math.hypot(p.x-item.x, p.y-item.y, p.z-item.z) > 2.4) return false;
+      if (!item || (!item.grenade&&p.owned.length) || Math.hypot(p.x-item.x, p.y-item.y, p.z-item.z) > 2.4) return false;
       const dx=item.x-p.x, dy=item.y-p.y, dz=item.z-p.z, distance=Math.hypot(dx,dy,dz);
       if (distance > .05 && raycastVoxels(this.engine.solidAt,p.x,p.y+.65,p.z,dx/distance,dy/distance,dz/distance,distance)) return false;
+      if (item.grenade) {
+        const index=GRENADE_TYPE_IDS.indexOf(item.grenade);
+        if(index<0||p.grenades[index]>=TTT_GRENADE_CAP)return false;
+        p.grenades[index]++;this.pickups.delete(item.id);return true;
+      }
       const slot = WEAPON_IDS.indexOf(item.weapon);
       this.pickups.delete(item.id);
       p.owned = [item.weapon]; p.weapon = slot; p.mag[slot] = item.mag; p.reserve[slot] = item.reserve;
@@ -104,9 +133,15 @@ export class TttPolicy extends FunPolicy {
       ? this.equipment.action(p, item) : this.equipment.buy(p, item);
   }
 
-  onPlayerDeath(victim) {
+  onPlayerDeath(victim, killer, context = {}) {
     const p = this._entity(victim);
     if (!p) return false;
+    if (this.phase === 'live' && this.roles.has(String(p.id)) &&
+        ![...this.corpses.values()].some(body=>body.playerId===String(p.id))) {
+      const id=String(++this.serial);
+      this.corpses.set(id,{id,playerId:String(p.id),name:p.name,role:this.roles.get(String(p.id)),
+        x:p.x,y:p.y,z:p.z,yaw:p.yaw,weapon:context.weapon||'',diedAt:this.now,identified:false});
+    }
     this.equipment.remove(p.id);
     this.drop(p); p.respawnAt = Infinity;
     return true;
@@ -122,17 +157,21 @@ export class TttPolicy extends FunPolicy {
     this.equipment.takeover(old, nextId);
     if (this.roles.has(old)) { this.roles.set(String(nextId),this.roles.get(old)); this.roles.delete(old); }
     if (this.wallets.has(old)) { this.wallets.set(String(nextId),this.wallets.get(old)); this.wallets.delete(old); }
+    if (this.participants.has(old)) {
+      this.participants.set(String(nextId),this.participants.get(old)); this.participants.delete(old);
+    }
     return true;
   }
   tick() {
-    for (const item of this.pickups.values()) {
+    for (const item of [...this.pickups.values(),...this.corpses.values()]) {
       const floor = Math.floor(item.y);
       if (this.engine.solidAt(Math.floor(item.x), floor - 1, Math.floor(item.z))) item.y = floor + .02;
       else item.y = Math.max(1.02, item.y - .5);
     }
     if (this.phase === 'post') {
       this.phase = 'prep'; this.phaseEndsAt = this.now + this.rules.prepMs;
-      this.matchWinner = null; this.roles.clear(); this.wallets.clear(); this.equipment.clear(); this.round++;
+      this.matchWinner = null; this.roles.clear(); this.wallets.clear(); this.equipment.clear();
+      this.corpses.clear(); this.participants.clear(); this.round++;
       for (const p of this._entities.values()) { p.kills=p.deaths=p.score=0; this._respawn(p); }
       this.seedWeapons();
       return;
@@ -142,7 +181,8 @@ export class TttPolicy extends FunPolicy {
       if (players.length < 2) return;
       for (let i=players.length-1;i>0;i--) { const j=randomInt(i+1); [players[i],players[j]]=[players[j],players[i]]; }
       players.forEach((p,i) => { const role=i<Math.max(1,Math.floor(players.length/4))?'traitor':'innocent';
-        this.roles.set(String(p.id),role); this.wallets.set(String(p.id),role==='traitor'?2:0); });
+        this.roles.set(String(p.id),role); this.participants.set(String(p.id),p.name);
+        this.wallets.set(String(p.id),role==='traitor'?2:0); });
       this.phase = 'live'; this.phaseEndsAt = this.now + this.rules.liveMs;
     }
     if (this.phase !== 'live') return;
@@ -157,7 +197,11 @@ export class TttPolicy extends FunPolicy {
   matchSnapshot() {
     return { ...super.matchSnapshot(), phaseEndsAt: this.phaseEndsAt, round: this.round, winner: this.matchWinner,
       weaponPickups: [...this.pickups.values()].map(({mag,reserve,...item})=>item),
-      ...(this.phase==='post'?{ revealedRoles: Object.fromEntries(this.roles) }: {}) };
+      c4: this.equipment.bombSnapshot(),
+      corpses: [...this.corpses.values()].map(body=>({id:body.id,x:body.x,y:body.y,z:body.z,yaw:body.yaw,identified:body.identified,
+        ...(body.identified||this.phase==='post'?{name:body.name,role:body.role,weapon:body.weapon,diedAt:body.diedAt}: {})})),
+      ...(this.phase==='post'?{ revealedRoles: Object.fromEntries(this.roles),
+        roleRoster:[...this.roles].map(([id,role])=>({id,role,name:this.participants.get(id)||id})) }: {}) };
   }
   botGoal(player) {
     const p=this._entity(player);

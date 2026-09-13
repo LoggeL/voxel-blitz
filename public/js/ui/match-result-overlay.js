@@ -31,6 +31,8 @@ export class MatchResultOverlay {
     const title = el('div', 'vb-match-result-title', intro, 'match-result-title');
     const rule = el('div', 'vb-match-result-rule', intro);
     const detail = el('div', 'vb-match-result-detail', intro, 'match-result-detail');
+    const traitors = el('div', 'vb-match-result-detail', intro, 'match-result-traitors');
+    traitors.hidden = true;
     const summary = el('div', 'vb-match-result-summary', hero);
     const modeLabel = el('div', 'vb-match-result-mode', summary);
     const score = el('div', 'vb-match-result-score', summary, 'match-result-score');
@@ -64,7 +66,7 @@ export class MatchResultOverlay {
     });
     const countdown = el('div', 'vb-match-result-countdown', action, 'match-result-countdown');
 
-    this.dom = { root, scan, panel, eyebrow, title, rule, detail, score, modeLabel, mapLabel, rosterCount,
+    this.dom = { root, scan, panel, eyebrow, title, rule, detail, traitors, score, modeLabel, mapLabel, rosterCount,
       scoreboard, approvals, needed, meter, threshold, votingHint, countdownHint, approve, countdown };
     this.hide();
     return this.dom;
@@ -117,7 +119,10 @@ export class MatchResultOverlay {
     if (mode === 'ttt') {
       this.dom.detail.textContent = `${winner === 'traitor' ? 'TRAITORS' : 'INNOCENTS'} GEWINNEN`;
       this.dom.score.textContent = `RUNDE ${match.round}`;
+      const roster = match.roleRoster || results.map(p=>({...p,role:match.revealedRoles?.[p.id]}));
+      this.dom.traitors.textContent = `TRAITORS: ${roster.filter(p=>p.role==='traitor').map(p=>p.name).join(', ') || 'Keine'}`;
     }
+    this.dom.traitors.hidden = mode !== 'ttt';
     if (mode === 'bastion') {
       this.dom.eyebrow.textContent = 'BASTION · REACTOR 9';
       this.dom.detail.textContent = victory ? 'REACTOR SECURED' : match.bastion?.reason === 'core' ? 'REACTOR DESTROYED' : 'DEFENDERS ELIMINATED';

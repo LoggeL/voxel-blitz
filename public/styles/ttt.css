@@ -20,3 +20,7 @@
 @media(max-width:700px){.vb-ttt-shop{padding:16px!important}.vb-ttt-shop .vb-buy-header{flex-wrap:wrap;gap:12px}.vb-ttt-shop .vb-title{font-size:21px}.vb-ttt-credit{font-size:16px}.vb-ttt-catalog{grid-template-columns:1fr;gap:12px;margin-top:12px}.vb-ttt-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.vb-ttt-item{padding:8px 3px}.vb-ttt-item-name{font-size:11px}.vb-ttt-icon{width:30px;height:30px}.vb-ttt-item-type{display:none}.vb-ttt-detail{padding:14px}.vb-ttt-illustration{display:none}.vb-ttt-description{min-height:0;margin:10px 0;font-size:13px}.vb-ttt-equipment{margin-top:12px;padding-top:12px}.vb-ttt-controls{top:190px;left:10px;max-width:calc(100vw - 20px);font-size:11px;padding:8px}.vb-ttt-radar-panel{top:350px;width:124px;right:10px;padding:6px}.vb-ttt-radar-panel canvas{width:108px!important;height:108px!important}.vb-ttt-radar-panel .vb-ttt-eyebrow{font-size:8px}}
 
 .vb-ttt-description,.vb-ttt-status,.vb-ttt-gear-status{text-transform:none}
+
+.vb-ttt-role-badge{display:inline-block;margin-left:8px;font:700 10px monospace;color:#8cdeba;white-space:nowrap}.vb-ttt-role-badge[data-role=traitor]{color:#ff7972}.vb-ttt-body-report{max-width:340px;white-space:normal;text-transform:none;color:#efd8a7}#match-result-traitors{white-space:normal;overflow-wrap:anywhere;color:#ff7972}#killfeed[hidden]{display:none!important}
+
+.vb-ttt-contact{max-width:160px;overflow:hidden;text-overflow:ellipsis}.vb-ttt-radar-panel[hidden]{display:none!important}

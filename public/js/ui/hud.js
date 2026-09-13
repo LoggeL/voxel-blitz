@@ -132,6 +132,10 @@ export class HUD {
 
   menuDone() { return this.gameplay.menuDone(); }
   setMatchState(match, selfRow, players, serverNow) {
+    if (match?.mode === 'ttt' && !this._tttKillfeedHidden) this.combat.clearKillfeed();
+    this._tttKillfeedHidden = match?.mode === 'ttt';
+    const feed = this.combat.dom.kf;
+    if (feed) feed.hidden = this._tttKillfeedHidden;
     return this.gameplay.match.setMatchState(match, selfRow, players, serverNow);
   }
   setState(state) { return this.gameplay.setState(state); }
@@ -143,7 +147,7 @@ export class HUD {
   }
   setScope(visible) { return this.gameplay.setScope(visible); }
 
-  killfeed(event) { return this.combat.killfeed(event); }
+  killfeed(event) { if (!this._tttKillfeedHidden) return this.combat.killfeed(event); }
   hitmark(headshot) { return this.combat.hitmark(headshot); }
   powerup(event) { return this.gameplay.powerups.collected(event); }
   clearPowerups() { return this.gameplay.powerups.reset(); }

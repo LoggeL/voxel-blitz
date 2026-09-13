@@ -49,7 +49,7 @@ export function createSimulationContexts(engine) {
     solidAt: combat.solidAt,
     getBlock: combat.getBlock,
     canAffectWorld: combat.canBurn,
-    canThrow: (player) => !player.vault && engine.mode.canFire(player),
+    canThrow: (player) => !player.vault && (engine.mode.canThrow?.(player) ?? engine.mode.canFire(player)),
     canDamage: combat.canDamage,
     killPlayer: combat.killPlayer,
     pushEvent: combat.pushEvent,

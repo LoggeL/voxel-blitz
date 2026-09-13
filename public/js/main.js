@@ -430,10 +430,10 @@ class Game {
     return transition;
   }
 
-  isAuthoritativeFireAllowed() {
+  isAuthoritativeFireAllowed(grenade = false) {
     if (!this.session.gameplayInputEnabled || !this.player.alive ||
         this.selfRow?.state !== 'alive' || this.weaponWheel.open || this.player.physics.vault) return false;
-    if (this.matchState?.mode === 'ttt') return this.matchState.phase === 'live' && !!this.selfRow?.owned?.length;
+    if (this.matchState?.mode === 'ttt') return this.matchState.phase === 'live' && (grenade || !!this.selfRow?.owned?.length);
     if (this.matchState?.mode === 'fun' || this.matchState?.mode === 'training') return true;
     return (this.matchState?.mode === 'duel' || this.matchState?.mode === 'chaos' || this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
       this.matchState?.mode === 'gungame' || this.matchState?.mode === 'bastion') &&
@@ -472,7 +472,7 @@ class Game {
     const typeIndex = input.getGrenadeType();
     const type = GRENADE_TYPES[GRENADE_TYPE_IDS[typeIndex]];
     const canThrow = this.player.alive && this.selectedGrenadeCount() > 0
-      && this.isAuthoritativeFireAllowed();
+      && this.isAuthoritativeFireAllowed(true);
     const charging = !!input.isGrenadeCharging?.() && canThrow;
     const charge = charging ? input.getGrenadeCharge(now) : 0;
     const heldMs = charging ? input.getGrenadeHoldMs(now) : 0;
@@ -613,6 +613,7 @@ class Game {
       weapon: this.weapon,
       movementAllowed: () => this.isAuthoritativeMovementAllowed(),
       fireAllowed: () => this.isAuthoritativeFireAllowed(),
+      grenadeAllowed: () => this.isAuthoritativeFireAllowed(true),
       weaponHandlingAllowed: () => !(this.rig?.grenadeActive ||
         (this.input.isGrenadeCharging() && this.selectedGrenadeCount() > 0)),
       interactAllowed: () => this.isAuthoritativeInteractAllowed(),
@@ -698,7 +699,7 @@ class Game {
       const view = this.net?.interpolate(performance.now());
       const presentedPlayers = this.spectator?.ensureTargetPresent(view?.players)
         || view?.players;
-      if (presentedPlayers) this.roster.sync(presentedPlayers, dt, now);
+      if (presentedPlayers) this.roster.sync(presentedPlayers, dt, now, this.matchState?.mode === 'ttt');
       this.spectator?.update(presentedPlayers, dt);
       this.roster.updateLabels(this.camera,
         (origin, direction, distance) => this.worldview.pickCameraRay(origin, direction, distance),

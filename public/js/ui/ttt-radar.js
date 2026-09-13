@@ -18,16 +18,18 @@ export class TttRadar {
   update(game) {
     const scan = game.selfRow?.ttt?.radar;
     const active = game.running && game.matchState?.mode === 'ttt' && game.matchState.phase === 'live'
-      && game.selfRow?.state === 'alive' && game.selfRow.ttt.role === 'traitor' && scan
+      && game.selfRow?.state === 'alive' && game.selfRow.ttt.role === 'traitor'
       && !game.hud.isBuyMenuOpen() && game.session.gameplayInputEnabled;
     this.root.hidden = !active;
     if (!active) return;
+    this.panel.hidden=!scan;
     const elapsed = Math.max(0, performance.now() - (game._tttSnapshotAt || performance.now()));
     const now = (game.serverNow || 0) + elapsed;
-    const remaining = Math.max(0, Math.ceil((scan.nextScanAt - now) / 1000));
-    const contacts = scan.contacts || [];
+    const remaining = Math.max(0, Math.ceil(((scan?.nextScanAt ?? now) - now) / 1000));
+    const contacts = [...(scan?.contacts || []).filter(c=>!c.ally), ...(game.selfRow.ttt.allyPositions || []),
+      ...(game.matchState.c4||[]).map(b=>({...b,bomb:true,ally:true,name:`C4 · ${Math.max(0,Math.ceil((b.explodeAt-now)/1000))} s`}))];
     this.status.textContent = `${contacts.length} KONTAKTE · SCAN IN ${remaining} S`;
-    this.root.dataset.scannedAt = String(scan.scannedAt);
+    this.root.dataset.scannedAt = String(scan?.scannedAt ?? 0);
     const ctx = this.canvas.getContext('2d'), center = 80, radius = 68;
     ctx.clearRect(0, 0, 160, 160);
     ctx.strokeStyle = '#63778266'; ctx.lineWidth = 1;
@@ -48,7 +50,7 @@ export class TttRadar {
       ctx.fillStyle=color;ctx.beginPath();ctx.arc(80+rx*scale,80-forward*scale,3,0,Math.PI*2);ctx.fill();
       let marker = this.markers[i];
       if (!marker) { marker=el('div','vb-ttt-contact',this.root);this.markers.push(marker); }
-      marker.hidden=false;marker.dataset.ally=String(c.ally);
+      marker.hidden=false;marker.dataset.ally=String(c.ally);marker.dataset.live=String(!!c.live);marker.dataset.bomb=String(!!c.bomb);
       this.point.set(c.x,c.y,c.z);
       this.local.copy(this.point).applyMatrix4(game.camera.matrixWorldInverse);
       this.point.project(game.camera);
@@ -56,11 +58,11 @@ export class TttRadar {
       let sx = (this.point.x*.5+.5)*width, sy=(-this.point.y*.5+.5)*height;
       if (behind) { sx=rx>=0?width-44:44;sy=height*.5; }
       const edge = behind || sx<44 || sx>width-44 || sy<90 || sy>height-100;
-      sx = Math.max(44,Math.min(width-44,sx));
+      sx = Math.max(88,Math.min(width-88,sx));
       sy = Math.max(90,Math.min(height-100,sy));
-      if (sx > panelRect.left-30 && sy > panelRect.top-15 && sy < panelRect.bottom+15) sy=panelRect.bottom+20;
+      if (scan && sx > panelRect.left-30 && sy > panelRect.top-15 && sy < panelRect.bottom+15) sy=panelRect.bottom+20;
       for (let attempt=0;attempt<contacts.length;attempt++) {
-        if (!occupied.some(p=>Math.abs(p.x-sx)<80&&Math.abs(p.y-sy)<23)) break;
+        if (!occupied.some(p=>Math.abs(p.x-sx)<170&&Math.abs(p.y-sy)<23)) break;
         sy += 24;
         if (sy>height-100) sy=90;
       }
@@ -68,8 +70,8 @@ export class TttRadar {
       marker.style.left = `${sx}px`;
       marker.style.top = `${sy}px`;
       marker.style.color=color;
-      marker.textContent=`${edge ? (rx >= 0 ? '›' : '‹') : '◇'} ${Math.round(Math.hypot(dx,c.y-y,dz))} m`;
-      marker.title=c.ally?'Mit-Traitor · Letzter Scan':'Lebenszeichen · Letzter Scan';
+      marker.textContent=`${edge ? (rx >= 0 ? '›' : '‹') : '◇'} ${c.name?c.name+' · ':''}${Math.round(Math.hypot(dx,c.y-y,dz))} m`;
+      marker.title=c.bomb?c.name:c.live?`${c.name} · Mit-Traitor`:c.ally?'Mit-Traitor · Letzter Scan':'Lebenszeichen · Letzter Scan';
     }
     for (let i=contacts.length;i<this.markers.length;i++)this.markers[i].hidden=true;
   }

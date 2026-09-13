@@ -25,9 +25,10 @@ export class Scoreboard {
     if (!this.root) return;
     match ??= {};
     const mode = match?.mode || 'fun';
-    const roster = (players || []).filter((p) => p && !isTrainingDummyId(p.id));
+    const roster = (players || []).filter((p) => p && !isTrainingDummyId(p.id))
+      .map(p=>mode==='ttt'&&match.phase==='post'?{...p,tttRole:match.revealedRoles?.[p.id]}:p);
     const signature = JSON.stringify([mode, match?.map, match?.scores, match?.attackers, selfId, match.continuation?.id,
-      roster.map((p) => [p.id, p.name, p.team, p.bot, p.kills, p.deaths, p.score, p.state, p.bomb, p.local, p.ping])]);
+      roster.map((p) => [p.id, p.name, p.team, p.bot, p.kills, p.deaths, p.score, p.state, p.bomb, p.local, p.ping, p.tttRole])]);
     if (signature === this.signature) {
       this.updateVotes(match.continuation);
       return;
@@ -131,6 +132,10 @@ export class Scoreboard {
       if (this.resultPresentation || (!isTeamMode(mode) && mode !== 'training')) el('td', 'vb-sb-rank', tr).textContent = String(index + 1);
       const name = el('td', 'vb-sb-name', tr);
       name.textContent = String(player.name || 'PLAYER');
+      if (mode==='ttt' && player.tttRole) {
+        const badge=el('span','vb-ttt-role-badge',name);
+        badge.dataset.role=player.tttRole;badge.textContent=player.tttRole.toUpperCase();
+      }
       if (self) el('span', 'vb-sb-you', name).textContent = 'YOU';
       if (mode === 'snd' && player.bomb) el('span', 'vb-sb-bomb-badge', name).textContent = 'BOMB';
       if (mode === 'gungame') {

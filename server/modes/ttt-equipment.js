@@ -1,4 +1,4 @@
-import { TTT_GADGET_RULES, TTT_SHOP } from '../../shared/ttt.js';
+import { TTT_GADGET_RULES, TTT_SHOP, TTT_C4 } from '../../shared/ttt.js';
 import { boxCollides, PHYSICS, solidBelow } from '../../shared/player-movement.js';
 import { applyPowerup } from '../sim/powerups.js';
 
@@ -9,8 +9,10 @@ export class TttEquipment {
     this.engine = engine;
     this.players = new Map();
     this.teleportSerial = 0;
+    this.bombs = new Map();this.bombSerial=0;
   }
-  clear() { this.players.clear(); }
+  clear() { this.players.clear();this.bombs.clear(); }
+  bombSnapshot() { return [...this.bombs.values()].map(({id,x,y,z,explodeAt})=>({id,x,y,z,explodeAt})); }
   remove(id) { this.players.delete(String(id)); }
   takeover(oldId, newId) {
     const gear = this.players.get(oldId);
@@ -35,6 +37,7 @@ export class TttEquipment {
     if (item === 'radar') gear.radar = this.scan(player);
     if (item === 'disguiser') gear.disguised = true;
     if (item === 'teleporter') gear.teleporter = { mark: null, uses: TTT_GADGET_RULES.teleportUses, readyAt: 0 };
+    if (item === 'c4') gear.c4 = 1;
     if (def.permanent) gear.owned.push(item);
     this.policy.wallets.set(id, credits - def.price);
     return true;
@@ -47,6 +50,12 @@ export class TttEquipment {
         .map(p => ({ x: p.x, y: p.y + 1, z: p.z, ally: this.policy.roles.get(String(p.id)) === 'traitor' })) };
   }
   tick() {
+    for (const [id,bomb] of this.bombs) if(this.engine.now>=bomb.explodeAt) {
+      this.bombs.delete(id);
+      const projectile={...bomb,type:'c4',blastRules:TTT_C4};
+      this.engine.projectiles.active.set(id,projectile);
+      this.engine.projectiles.explode(projectile,this.engine.contexts.projectiles);
+    }
     for (const [id, gear] of this.players) {
       const player = this.engine.entities.get(id);
       if (!this.admitted(player)) continue;
@@ -66,6 +75,12 @@ export class TttEquipment {
     if (!this.admitted(player)) return false;
     const gear = this.players.get(String(player.id));
     if (!gear) return false;
+    if (action === 'c4-place') {
+      if(!gear.c4||!player.grounded||player.vault||!solidBelow(this.engine.solidAt,player.x,player.y,player.z))return false;
+      const id=`ttt-c4-${++this.bombSerial}`;
+      this.bombs.set(id,{id,ownerId:String(player.id),owner:player,x:player.x,y:player.y+.2,z:player.z,explodeAt:this.engine.now+TTT_C4.fuseMs});
+      gear.c4=0;return true;
+    }
     if (action === 'disguise-on' || action === 'disguise-off') {
       if (!gear.owned.includes('disguiser')) return false;
       gear.disguised = action === 'disguise-on';
@@ -100,6 +115,7 @@ export class TttEquipment {
     const now = this.engine.now;
     return {
       equipment: gear?.owned.slice() ?? [], disguised: gear?.disguised ?? false,
+      c4:gear?.c4??0,
       radar: gear?.radar ? { ...gear.radar, contacts: gear.radar.contacts.map(p => ({ ...p })) } : null,
       teleporter: gear?.teleporter ? { ...gear.teleporter, mark: gear.teleporter.mark ? { ...gear.teleporter.mark } : null,
         cooldown: Math.max(0, Math.ceil((gear.teleporter.readyAt - now) / 1000)) } : null,

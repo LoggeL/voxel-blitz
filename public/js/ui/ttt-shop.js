@@ -3,6 +3,7 @@ import { el } from './hud-support.js';
 import { matchesBinding } from '../keybindings.js';
 
 const ICONS = {
+  c4: '<rect x="6" y="14" width="36" height="27" rx="3"/><path d="M15 14V8h19v6M13 30h22M24 22v16"/><rect x="15" y="18" width="18" height="7"/>',
   radar: '<circle cx="24" cy="24" r="19"/><circle cx="24" cy="24" r="11"/><path d="M24 5v19l14-12M24 21v6m-3-3h6"/><circle cx="12" cy="30" r="2"/><circle cx="34" cy="31" r="2"/>',
   disguiser: '<path d="M8 10q16-8 32 0v13c0 10-9 17-16 21C17 40 8 33 8 23Z"/><path d="M13 20q5-5 10 0-5 6-10 0Zm12 0q5-5 10 0-5 6-10 0Z"/>',
   teleporter: '<ellipse cx="24" cy="37" rx="19" ry="7"/><path d="M18 31V5m-7 7 7-7 7 7M30 8v26m-7-7 7 7 7-7"/>',
@@ -37,11 +38,12 @@ export function buildTttShop(root, purchase, close) {
   const gearStatus = el('p', 'vb-ttt-gear-status', equipment);
   const actionBar = el('div', 'vb-ttt-actions', equipment);
   const disguise = el('button', 'vb-ttt-action', actionBar, 'ttt-disguise');
+  const c4 = el('button','vb-ttt-action',actionBar,'ttt-c4');c4.textContent='C4 PLATZIEREN · 45 S';c4.onclick=()=>purchase('c4-place');
   const mark = el('button', 'vb-ttt-action', actionBar, 'ttt-mark'); mark.textContent = 'PUNKT MERKEN';
   const recall = el('button', 'vb-ttt-action', actionBar, 'ttt-recall');
   const dom = { root, mode: 'ttt', closeBtn, credVal, cards: {}, itemOrder: [], tttCards: cards,
     selected: 'radar', category, detailTitle, illustration, description, status, buyButton,
-    gearStatus, disguise, mark, recall, state: {} };
+    gearStatus, disguise, mark, recall, c4, state: {} };
   for (const [id, item] of Object.entries(TTT_SHOP)) {
     const card = el('button', 'vb-ttt-item', grid); card.dataset.tttItem = id;
     icon(card, id);
@@ -88,6 +90,8 @@ export function syncTttShop(dom, state) {
   dom.status.textContent = hasItem ? 'Für diese Runde ausgerüstet.' : item.permanent ? 'Einmal kaufen · Bis zum Rundenende' : 'Sofort nutzbar · Bei Bedarf nachkaufen';
   dom.buyButton.textContent = hasItem ? 'AUSGERÜSTET' : `KAUFEN · ${item.price} CREDIT`;
   dom.buyButton.disabled = hasItem || (ttt.credits ?? 0) < item.price;
+  dom.c4.hidden=!owned.includes('c4');dom.c4.disabled=!ttt.c4;
+  dom.c4.textContent=ttt.c4?'C4 PLATZIEREN · 45 S':'C4 BEREITS PLATZIERT';
   dom.disguise.hidden = !owned.includes('disguiser');
   dom.disguise.textContent = ttt.disguised ? 'TARNUNG AUSSCHALTEN' : 'TARNUNG EINSCHALTEN';
   dom.disguise.setAttribute('aria-pressed', String(!!ttt.disguised));
@@ -99,6 +103,7 @@ export function syncTttShop(dom, state) {
   const info = [];
   if (owned.includes('radar')) info.push('Radar scannt automatisch');
   if (owned.includes('disguiser')) info.push(ttt.disguised ? 'Identität verborgen' : 'Identität sichtbar');
+  if(owned.includes('c4'))info.push(ttt.c4?'C4: bereit zum Platzieren':'C4: Ladung verbraucht');
   if (tele) info.push(tele.mark ? 'Rückkehrpunkt gespeichert' : 'Teleporter: Bodenpunkt merken');
   dom.gearStatus.textContent = info.join(' · ') || 'Wähle deine Ausrüstung. Zwei Credits pro Runde.';
 }

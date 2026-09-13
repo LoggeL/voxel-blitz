@@ -22,6 +22,27 @@ process.on('message',({requestId,command})=>{
     policy.roles.set(p.id,'traitor');policy.wallets.set(p.id,2);
    }
    process.send({requestId,result:true});
+  } else if(command==='grenade') {
+   const item=[...policy.pickups.values()].find(item=>item.grenade==='smoke');
+   Object.assign(p,{x:item.x,y:item.y,z:item.z,input:null,vx:0,vy:0,vz:0});
+   process.send({requestId,result:item});
+  } else if(command==='ally') {
+   const ally=[...engine.entities.values()].find(p=>p.bot);
+   policy.roles.set(ally.id,'traitor');
+   const dx=p.x>50?-12:12;
+   Object.assign(ally,{x:p.x+dx,y:p.y,z:p.z,input:null,vx:0,vy:0,vz:0});
+   for(let y=Math.floor(p.y);y<Math.floor(p.y)+4;y++)engine.world.setBlock(Math.floor(p.x+dx/2),y,Math.floor(p.z),1);
+   process.send({requestId,result:{name:ally.name,id:ally.id}});
+  } else if(command==='corpse') {
+   const victim=[...engine.entities.values()].find(p=>p.bot);
+   policy.roles.set(victim.id,'traitor');
+   Object.assign(victim,{x:p.x+1,y:p.y,z:p.z,vx:0,vy:0,vz:0});
+   engine.killPlayer(victim,p,'rifle',false);
+   process.send({requestId,result:{name:victim.name,id:victim.id}});
+  } else if(command==='finish') {
+   for(const victim of engine.entities.values())if(victim.state==='alive'&&policy.roles.get(victim.id)==='innocent')engine.killPlayer(victim,p,'rifle',false);
+   engine.mode.tick();
+   process.send({requestId,result:true});
   } else if(command==='radar-target-move') {
    const target=[...engine.entities.values()].find(p=>p.bot);
    target.x+=5;

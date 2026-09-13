@@ -133,7 +133,7 @@ export class AvatarRoster {
     return { x: position.x, y: position.y, z: position.z };
   }
 
-  sync(remotes, dt, now) {
+  sync(remotes, dt, now, persistentCorpses = false) {
     for (const [id, until] of this._pickaxeSwings) {
       if (now >= until || !remotes.has(id)) this._pickaxeSwings.delete(id);
     }
@@ -192,6 +192,7 @@ export class AvatarRoster {
       const alive = rowAlive && now >= avatar.deathForcedUntil;
       if (!alive) {
         if (avatar.alive) this.death(remote.id, now);
+        if (persistentCorpses) { avatar.group.visible=false; continue; }
         avatar.deathT = Math.min(2.8, avatar.deathT + dt);
         const t = smooth01(avatar.deathT / 2.7);
         const fade = 1 - smooth01((t - 0.72) / 0.28);

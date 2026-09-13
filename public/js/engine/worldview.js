@@ -1,3 +1,5 @@
+import { TttSupplyView } from './ttt-supplies.js';
+import { TttCorpseView } from './ttt-corpses.js';
 import { TttWeaponView } from './ttt-weapons.js';
 import { getMapDimensions } from '../../../shared/world/dimensions.js';
 import { BastionWorld } from './bastion-world.js';
@@ -131,6 +133,10 @@ export class WorldView {
     if (this.ladderVisuals) this.scene.add(this.ladderVisuals.group);
     this.siteMarkers = new SiteMarkers((mapMeta || storeRef.meta || null)?.sites);
     this.scene.add(this.siteMarkers.group);
+    this.tttSupplies = new TttSupplyView();
+    this.scene.add(this.tttSupplies.group);
+    this.tttCorpses = new TttCorpseView();
+    this.scene.add(this.tttCorpses.group);
     this.tttWeapons = new TttWeaponView();
     this.scene.add(this.tttWeapons.group);
     this.powerups = new PowerupView();
@@ -201,7 +207,7 @@ export class WorldView {
     );
   }
 
-  setMatch(match) { this.bastion?.sync(match); this.tttWeapons.sync(match?.weaponPickups || []); }
+  setMatch(match) { this.bastion?.sync(match); this.tttWeapons.sync(match?.weaponPickups || []); this.tttCorpses.sync(match?.corpses || []); this.tttSupplies.sync([...(match?.weaponPickups||[]).filter(p=>p.grenade),...(match?.c4||[])]); }
 
   setGameMode(mode) {
     this.siteMarkers.setMode(mode);
@@ -239,6 +245,8 @@ export class WorldView {
     this.siteMarkers.dispose();
     this.powerups.dispose();
     this.tttWeapons.dispose();
+    this.tttCorpses.dispose();
+    this.tttSupplies.dispose();
     this.mapSigns.dispose();
     this.mapLights.dispose();
     this.skyUpdate.dispose();
