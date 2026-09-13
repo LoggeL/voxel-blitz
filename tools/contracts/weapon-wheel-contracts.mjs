@@ -65,9 +65,9 @@ export async function runWeaponWheelContracts(ok) {
   for (const mode of ['ttt', 'bastion', 'snd', 'gungame', 'duel']) {
     context.match.mode = mode;
     context.self.owned = [];
-    ok(controller.entries().every(entry => !entry.owned), `${mode}: an empty authoritative inventory locks every wheel slot`);
+    ok(controller.entries().every(entry => entry.owned === (mode === 'ttt' && entry.id === 'knife')), `${mode}: an empty authoritative inventory keeps only the TTT knife available`);
     context.self.owned = ['rifle'];
-    ok(controller.entries().filter(entry => entry.owned).map(entry => entry.id).join() === 'rifle',
+    ok(controller.entries().filter(entry => entry.owned).map(entry => entry.id).join() === (mode === 'ttt' ? 'rifle,knife' : 'rifle'),
       `${mode}: only the carried weapon is selectable`);
   }
   for (const mode of ['fun', 'chaos', 'tdm', 'training']) {

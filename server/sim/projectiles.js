@@ -287,7 +287,7 @@ export class ProjectileSystem {
           * chargeDamageMult(WEAPONS.longarc, projectile.charge01);
         if (hs) dmg *= WEAPONS.longarc.headMult;
         dmg = combatDamage(Math.round(dmg * 10) / 10);
-        const lethal = victim.takeDamage(dmg, hs);
+        const lethal = victim.takeDamage(dmg, hs, projectile.owner, 'longarc');
         ctx.pushEvent(evHit(projectile.ownerId, victim.id, dmg, hs, [x, y, z], victim.lastDamage));
         if (lethal) ctx.killPlayer(victim, projectile.owner, WEAPONS.longarc.id, hs, {});
         this._fizzleBolt(projectile, ctx);
@@ -700,7 +700,7 @@ export class ProjectileSystem {
       if (damageEnabled && damage > 0) {
         hitVictims.add(victim);
         damage = combatDamage(damage);
-        lethal = victim.takeDamage(damage, false, owner);
+        lethal = victim.takeDamage(damage, false, owner, projectile.type);
         ctx.pushEvent(evHit(owner?.id || '', victim.id, damage, false, target, victim.lastDamage));
       }
       const strength = victim.objective ? 0 : isSelf && Number.isFinite(rules.selfKnockback)

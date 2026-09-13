@@ -110,7 +110,7 @@ export function resolveWeaponIntent(p, _dt, ctx) {
   }
   const quickAim = p.quickMeleeQueued;
   p.quickMeleeQueued = null;
-  if (quickAim && ctx.canFire(p) && !p.vault && p.deployT <= 0 && !(p.quickMeleeT > 0)
+  if (quickAim && (ctx.canMelee?.(p) ?? ctx.canFire(p)) && !p.vault && p.deployT <= 0 && !(p.quickMeleeT > 0)
     && (p.def.mode !== 'melee' || p.cooldown <= 0)) {
     clearReload(p);
     cancelCharge(p);
@@ -303,7 +303,7 @@ function meleeSwing(p, ctx, def = p.def, aim = p) {
   const vFwd = fwdFromYawPitch(victim.yaw, victim.pitch);
   const backstab = vFwd.x * dirX + vFwd.y * dirY + vFwd.z * dirZ > melee.backstabDot;
   const dmg = combatDamage(Math.round(def.damage[0] * (backstab ? melee.backstabMult : 1) * 10) / 10);
-  const lethal = victim.takeDamage(dmg, false, p);
+  const lethal = victim.takeDamage(dmg, false, p, def.id);
   ctx.pushEvent(evHit(p.id, victim.id, dmg, false, [victim.x, victim.eyeY, victim.z], victim.lastDamage));
   if (lethal) ctx.killPlayer(victim, p, def.id, false);
 }
@@ -517,7 +517,7 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
         const hs = !!tgt.coreHit && tgt.zone === 'head';
         const radialScale = shotProfile.hitRadius > 0 ? railDamageMult(shotProfile, tgt.radialDistance) : 1;
         const dmg = combatDamage(Math.round(radialScale * damageAtDistance(def, dist) * (hs ? def.headMult : 1) * damageScale * 10) / 10);
-        const lethal = tgt.victim.takeDamage(dmg, hs, p);
+        const lethal = tgt.victim.takeDamage(dmg, hs, p, def.id);
         ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, point, tgt.victim.lastDamage));
         if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
           longRange: dist >= LONG_RANGE_KILL_DISTANCE,

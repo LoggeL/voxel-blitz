@@ -433,7 +433,10 @@ class Game {
   isAuthoritativeFireAllowed(grenade = false) {
     if (!this.session.gameplayInputEnabled || !this.player.alive ||
         this.selfRow?.state !== 'alive' || this.weaponWheel.open || this.player.physics.vault) return false;
-    if (this.matchState?.mode === 'ttt') return this.matchState.phase === 'live' && (grenade || !!this.selfRow?.owned?.length);
+    if (this.matchState?.mode === 'ttt') {
+      const melee = grenade === 'melee' || (!grenade && this.weapon.def.mode === 'melee');
+      return this.matchState.phase === 'live' || (this.matchState.phase === 'prep' && melee);
+    }
     if (this.matchState?.mode === 'fun' || this.matchState?.mode === 'training') return true;
     return (this.matchState?.mode === 'duel' || this.matchState?.mode === 'chaos' || this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
       this.matchState?.mode === 'gungame' || this.matchState?.mode === 'bastion') &&
@@ -533,7 +536,7 @@ class Game {
     ctx.canReload = !!(ammo && def && ammo.mag < def.magSize && ammo.reserve > 0
       && !this.weapon.isReloading);
     ctx.canInteract = this.isAuthoritativeInteractAllowed();
-    ctx.weaponCount = Array.isArray(owned) ? owned.length : WEAPON_IDS.length;
+    ctx.weaponCount = Array.isArray(owned) ? owned.length + (this.matchState?.mode === 'ttt' ? 1 : 0) : WEAPON_IDS.length;
     ctx.canBuy = this.session.canOpenBuyMenu();
     ctx.canMedkit = this.player.medkit.active || (this.player.medkit.remaining === 1 && this.player.hp < 100);
     ctx.wheelOpen = this.weaponWheel.open;
@@ -578,6 +581,7 @@ class Game {
     const position = this.camera.position;
     return {
       allowFire: this.isAuthoritativeFireAllowed(),
+      allowMelee: this.isAuthoritativeFireAllowed('melee'),
       grenadeHandling: this.player.grenadeHandling || this.player.medkit.active,
       alive: this.player.alive,
       crouching: this.player.crouchBool,
@@ -613,6 +617,7 @@ class Game {
       weapon: this.weapon,
       movementAllowed: () => this.isAuthoritativeMovementAllowed(),
       fireAllowed: () => this.isAuthoritativeFireAllowed(),
+      meleeAllowed: () => this.isAuthoritativeFireAllowed('melee'),
       grenadeAllowed: () => this.isAuthoritativeFireAllowed(true),
       weaponHandlingAllowed: () => !(this.rig?.grenadeActive ||
         (this.input.isGrenadeCharging() && this.selectedGrenadeCount() > 0)),
@@ -623,6 +628,7 @@ class Game {
       },
       onWeaponIntents: (intents, at) => this.weapon.applyIntents(intents, at, {
         allowFire: this.isAuthoritativeFireAllowed(),
+        allowMelee: this.isAuthoritativeFireAllowed('melee'),
         alive: this.player.alive,
         mode: this.matchState?.mode,
         owned: this.selfRow?.owned,
@@ -686,7 +692,6 @@ class Game {
         shotYaw: this.player.shotYaw,
         shotPitch: this.player.shotPitch,
       });
-      if (this.matchState?.mode === 'ttt' && !this.selfRow?.owned?.length) this.rig.content.visible = false;
       this.weapon.syncRigAds();
       const flameDirection = fwdFromAngles(this.player.shotYaw, this.player.shotPitch);
       this.effects.flames?.setLocalStream(this.weapon.flameFiring,

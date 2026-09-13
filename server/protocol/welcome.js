@@ -1,3 +1,4 @@
+import { DEFAULT_TRAITOR_PERCENT, tttTraitorCount } from '../../shared/ttt.js';
 import { DEFAULT_BOT_DIFFICULTY, isBotDifficulty } from '../../shared/bot-difficulty.js';
 import { getMapDimensions } from '../../shared/world/dimensions.js';
 import { DEFAULT_DUEL_KILL_LIMIT, isTeamId } from '../../shared/modes.js';
@@ -69,6 +70,7 @@ export function makeLobbyState({
   bots,
   members,
   duelKillLimit = DEFAULT_DUEL_KILL_LIMIT,
+  traitorPercent = DEFAULT_TRAITOR_PERCENT,
   gameMode,
   map,
 } = {}) {
@@ -76,6 +78,7 @@ export function makeLobbyState({
   const rows = Array.isArray(members) ? members : [];
   return {
     t: 'lobbyState',
+    ...(selected.gameMode === 'ttt' ? { traitorPercent, traitorCount: tttTraitorCount(rows.length, traitorPercent) } : {}),
     ...(selected.gameMode === 'duel' ? { duelKillLimit } : {}),
     code: normalizeLobbyCode(code),
     host: typeof host === 'string' || Number.isFinite(host) ? host : '',

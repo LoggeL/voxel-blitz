@@ -1,3 +1,9 @@
+export const DEFAULT_TRAITOR_PERCENT = 25;
+export const TTT_TRAITOR_PERCENTS = Object.freeze([10, 15, 20, 25, 30, 35, 40, 45, 50]);
+export function tttTraitorCount(players, percent = DEFAULT_TRAITOR_PERCENT) {
+  if (players < 2) return 0;
+  return Math.min(players - 1, Math.max(1, Math.floor(players * percent / 100)));
+}
 export const TTT_WEAPONS = Object.freeze(['rifle', 'smg', 'shotgun', 'sniper', 'revolver', 'lmg']);
 export const TTT_GRENADES = Object.freeze(['frag', 'smoke', 'molotov']);
 export const TTT_GRENADE_CAP = 2;

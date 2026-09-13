@@ -272,7 +272,7 @@ export class AvatarRoster {
           turnSpeed,
         },
       });
-      if (Array.isArray(remote.owned) && remote.owned.length === 0) avatar.weaponModel.root.visible = false;
+      if (!persistentCorpses && Array.isArray(remote.owned) && remote.owned.length === 0) avatar.weaponModel.root.visible = false;
       updateAvatarStancePose(avatar, { stride, swing, blend: poseBlend });
       avatar.torso.rotation.z += ((-swing * stride * 0.055) + flinch - avatar.torso.rotation.z) * poseBlend;
       avatar.hips.rotation.z += (swing * stride * 0.045 - avatar.hips.rotation.z) * poseBlend;

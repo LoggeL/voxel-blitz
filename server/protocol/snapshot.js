@@ -170,6 +170,7 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
         ? Math.max(0, Math.min(MAX_CREDITS, Math.trunc(p.credits)))
         : 0,
       owned: ownedWeapons(p.owned),
+      ...(p.tttKarma ? { karma: Math.round(p.tttKarma.base) } : {}),
       ...(p.chaosUpgrades ? { chaosUpgrades: { ...p.chaosUpgrades } } : {}),
       ...(p.bastion ? { bastion: { ...p.bastion }, bastionUpgrades: { ...p.bastionUpgrades } } : {}),
       ...(p.npcRole ? { npcRole: p.npcRole, npcAttack: p.npcAttack } : {}),

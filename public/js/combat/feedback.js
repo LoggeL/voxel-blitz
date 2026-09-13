@@ -219,6 +219,10 @@ export class CombatFeedback {
         if (localVictim && this.player.alive) this.applyLocalHit(ev);
         break;
       }
+      case 'body_identified': {
+        this.hud.bodyIdentified(ev);
+        break;
+      }
       case 'kill': {
         this.hud.killfeed(ev);
         if (ev.victim === myId) {

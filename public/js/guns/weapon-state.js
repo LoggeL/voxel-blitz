@@ -235,6 +235,7 @@ export class WeaponState {
       this._owned = null;
       return;
     }
+    if (this._mode === 'ttt' && !owned.includes('knife')) owned = [...owned, 'knife'];
     const unchanged = Array.isArray(this._owned) &&
       this._owned.length === owned.length &&
       this._owned.every((weaponId, index) => weaponId === owned[index]);
@@ -320,15 +321,17 @@ export class WeaponState {
     medkitActive = false,
   }, now, {
     allowFire = false,
+    allowMelee = allowFire,
     alive = this._alive,
     mode,
     owned,
   } = {}) {
     this._alive = !!alive;
     this._allowFire = !!allowFire;
+    this._allowMelee = !!allowMelee;
     this._grenadeHandling = !!grenadeHandling || !!medkitActive;
     this._setAuthority(mode, owned);
-    this._quickMeleePending = this._mode !== 'ttt' && !!quickMelee && this._alive && this._allowFire && !this._grenadeHandling;
+    this._quickMeleePending = !!quickMelee && this._alive && this._allowMelee && !this._grenadeHandling;
     this._wantAds = !!wantAds && !this._grenadeHandling && !this.quickMeleeActive;
     if (!fireHeld || !this._alive || !this._allowFire) this._stopFlame();
 
@@ -495,7 +498,7 @@ export class WeaponState {
     if (now >= this._quickMeleeUntil) this._rig.cancelQuickMelee?.();
     const quickMelee = this._quickMeleePending;
     this._quickMeleePending = false;
-    if (quickMelee && this._allowFire && this._alive && !this._grenadeHandling &&
+    if (quickMelee && this._allowMelee && this._alive && !this._grenadeHandling &&
         now >= this._deployUntil && now >= this._quickMeleeUntil &&
         (this.def.mode !== 'melee' || now >= this._nextFireAt) && this._rig.quickMelee?.()) {
       this._cancelEmptyReload();
@@ -733,11 +736,13 @@ export class WeaponState {
       this._thermalAt = now;
     }
     this._bastionUpgrades = bastionUpgrades || {};
+    const tttPickup = mode === 'ttt' && Array.isArray(owned) &&
+      owned.some(id => !this._owned?.includes(id));
     this._setAuthority(mode, owned);
 
     if (
       usesAuthoritativeOwnedWeapons(this._mode) && Array.isArray(this._owned) &&
-      !this._owned.includes(WEAPON_IDS[this._slot]) &&
+      (!this._owned.includes(WEAPON_IDS[this._slot]) || tttPickup) &&
       Number.isInteger(weapon) && WEAPON_IDS[weapon]
     ) {
       this.forceWeapon(weapon, { now });
@@ -881,6 +886,7 @@ export class WeaponState {
 
   _acceptFrameContext({
     allowFire = false,
+    allowMelee = allowFire,
     grenadeHandling = this._grenadeHandling,
     alive = this._alive,
     crouching = false,
@@ -896,6 +902,7 @@ export class WeaponState {
     generation = this._generation,
   } = {}) {
     this._allowFire = !!allowFire;
+    this._allowMelee = !!allowMelee;
     this._grenadeHandling = !!grenadeHandling;
     this._alive = !!alive;
     if (!this._alive || !this._allowFire) this._stopFlame();

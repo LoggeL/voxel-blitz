@@ -176,9 +176,10 @@ export class PlayerEntity {
   get eyeY() { return this.y + stanceEye(PHYSICS.eye, this.crouch, this.proneT); }
 
   /** Return true when the hit is lethal. */
-  takeDamage(dmg, headshot = false) {
+  takeDamage(dmg, headshot = false, attacker = null, weapon = '') {
     if (this.state !== 'alive') return false;
     if (!Number.isFinite(dmg) || dmg <= 0) return false;
+    dmg = this.beforeDamage?.(dmg, attacker, weapon) ?? dmg;
     interruptMedkit(this);
     const amount = dmg;
     const armor = Math.max(0, Math.min(POWERUP_RULES.maxArmor,

@@ -25,10 +25,16 @@ export class Scoreboard {
     if (!this.root) return;
     match ??= {};
     const mode = match?.mode || 'fun';
+    const identified = new Map((match.corpses || []).filter(body => body.identified && body.playerId != null)
+      .map(body => [String(body.playerId), body]));
     const roster = (players || []).filter((p) => p && !isTrainingDummyId(p.id))
-      .map(p=>mode==='ttt'&&match.phase==='post'?{...p,tttRole:match.revealedRoles?.[p.id]}:p);
+      .map(p => mode === 'ttt' ? {...p,
+        tttDead: identified.has(String(p.id)) || (match.phase === 'post' && p.state === 'dead'),
+        tttRole: match.phase === 'post' ? match.revealedRoles?.[p.id] : identified.get(String(p.id))?.role,
+        tttPost: match.phase === 'post',
+      } : p);
     const signature = JSON.stringify([mode, match?.map, match?.scores, match?.attackers, selfId, match.continuation?.id,
-      roster.map((p) => [p.id, p.name, p.team, p.bot, p.kills, p.deaths, p.score, p.state, p.bomb, p.local, p.ping, p.tttRole])]);
+      roster.map((p) => [p.id, p.name, p.team, p.bot, p.kills, p.deaths, p.score, p.state, p.bomb, p.local, p.ping, p.tttRole, p.tttDead, p.tttPost, p.karma])]);
     if (signature === this.signature) {
       this.updateVotes(match.continuation);
       return;
@@ -113,6 +119,7 @@ export class Scoreboard {
         : mode === 'snd' ? ['PLAYER', 'K', 'D', 'STATUS']
           : mode === 'tdm' ? ['PLAYER', 'KILLS', 'DEATHS']
             : ['#', 'PLAYER', 'KILLS', 'DEATHS'];
+    if (mode === 'ttt') columns.push('STATUS', 'KARMA');
     columns.push('PING');
     if (this.resultPresentation) columns.push('VOTE');
     for (const column of columns) {
@@ -125,7 +132,7 @@ export class Scoreboard {
     for (const [index, player] of players.entries()) {
       const team = isTeamMode(mode) ? player.team : null;
       const self = player.local === true || (selfId != null && String(player.id) === String(selfId));
-      const dead = mode === 'snd' && player.state === 'dead';
+      const dead = (mode === 'snd' && player.state === 'dead') || (mode === 'ttt' && player.tttDead);
       const tr = el('tr', [self ? 'vb-me' : '', dead ? 'dead' : '', team ? `vb-team-${team}` : ''].filter(Boolean).join(' '), body);
       tr.dataset.pid = String(player.id);
       if (this.resultPresentation) tr.dataset.bot = String(!!player.bot);
@@ -147,6 +154,10 @@ export class Scoreboard {
         el('td', 'vb-sb-number', tr).textContent = String(player.kills | 0);
         el('td', 'vb-sb-number', tr).textContent = String(player.deaths | 0);
         if (mode === 'snd') el('td', 'vb-sb-state', tr).textContent = dead ? 'OUT' : 'ALIVE';
+      }
+      if (mode === 'ttt') {
+        el('td', 'vb-sb-state', tr).textContent = dead ? 'TOT' : player.tttPost ? 'LEBT' : 'UNBEKANNT';
+        el('td', 'vb-sb-number', tr).textContent = String(player.karma ?? 1000);
       }
       el('td', 'vb-sb-number vb-sb-ping', tr).textContent = Number.isFinite(player.ping) && !player.bot
         ? `${Math.max(0, Math.round(player.ping))} ms` : '—';

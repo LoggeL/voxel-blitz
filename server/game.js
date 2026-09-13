@@ -364,7 +364,7 @@ export class GameEngine {
         interact: !!keys.interact,
       },
       wantFire: !!msg.wantFire,
-      quickMelee: this.mode?.mode !== 'ttt' && !!msg.quickMelee,
+      quickMelee: !!msg.quickMelee,
       wantAds: !!msg.wantAds,
       reload: !!msg.reload,
       cancelMedkit: !!msg.cancelMedkit,

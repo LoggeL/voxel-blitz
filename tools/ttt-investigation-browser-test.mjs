@@ -119,7 +119,7 @@ try {
  await page.waitFor(`document.getElementById('ttt-controls').textContent.includes('TRAITOR')`);
  const victim=await fixture.request('corpse');
  await page.waitFor(`document.getElementById('ttt-inspect')&&!document.getElementById('ttt-inspect').hidden`);
- assert.equal(await page.evaluate(`document.getElementById('killfeed').hidden`),true);
+ assert.equal(await page.evaluate(`document.getElementById('killfeed').hidden`),false);
  assert.equal(await page.evaluate(`document.querySelectorAll('#killfeed .kf-row').length`),0);
  assert.ok(await page.evaluate(`document.getElementById('ttt-inspect').textContent.includes('Unbekannte Leiche')`));
  assert.equal(await page.evaluate(`window.__tttMessages.filter(m=>m.t==='tick').at(-1).match.corpses[0].role`),undefined);
@@ -131,6 +131,11 @@ try {
  assert.ok((await page.evaluate(`document.getElementById('ttt-body-report').textContent`)).includes(victim.name));
  await page.evaluate(`document.dispatchEvent(new MouseEvent('mousemove',{movementX:524,movementY:320,bubbles:true}))`);
  await page.evaluate(`new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`);
+ await page.waitFor(`document.querySelector('#killfeed .kf-body-found')`);
+ assert.ok((await page.evaluate(`document.querySelector('#killfeed .kf-body-found').textContent`)).includes(victim.name));
+ await page.waitFor(`document.querySelector('#scores tr[data-pid="${victim.id}"] .vb-sb-state')?.textContent === 'TOT'`);
+ assert.equal(await page.evaluate(`document.querySelectorAll('#killfeed .kf-row').length`),1);
+ assert.equal(await page.evaluate(`document.querySelector('#killfeed .kf-body-found').getBoundingClientRect().width > 0`),true);
  await screenshot(page,'identified-desktop.png');
  await fixture.request('finish');
  await page.waitFor(`document.getElementById('match-result-screen').getAttribute('aria-hidden')==='false'`);
@@ -144,5 +149,5 @@ try {
   await screenshot(page,`post-${name}.png`);
  }
  assert.deepEqual(page.errors,[]);
- console.log('TTT browser: persistent body, E inspection, hidden identity, no killfeed and desktop/mobile post-match traitor reveal passed.');
+ console.log('TTT browser: persistent body, E inspection, hidden identity, body announcement, confirmed death in scoreboard and desktop/mobile post-match traitor reveal passed.');
 }finally{await browser?.close();await fixture.close();}

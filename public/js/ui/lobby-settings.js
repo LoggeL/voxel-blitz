@@ -1,3 +1,4 @@
+import { DEFAULT_TRAITOR_PERCENT, TTT_TRAITOR_PERCENTS } from '../../../shared/ttt.js';
 import { DUEL_KILL_LIMITS, DEFAULT_DUEL_KILL_LIMIT, MAP_IDS, MODE_IDS, isModeMapCompatible, mapForMode } from '../../../shared/modes.js';
 import { el, MAP_LABELS, MODE_LABELS, savePref } from './hud-support.js';
 import { MAX_BOTS, lobbyCapacity } from '../../../shared/lobby-limits.js';
@@ -12,6 +13,7 @@ export class LobbySettings {
       ['map', 'ARENA MAP', 'map-select'],
       ['bots', 'BOTS', 'bot-count'],
       ['duelKillLimit', '1V1 WIN CONDITION', 'duel-kill-limit'],
+      ['traitorPercent', 'TRAITOR SHARE', 'traitor-percent'],
     ]) {
       const field = el('div', 'vb-menu-field-group', this.root);
       const caption = el('label', 'vb-label', field);
@@ -26,6 +28,7 @@ export class LobbySettings {
         const settings = {
           gameMode: this.controls.gameMode.value,
           duelKillLimit: Number(this.controls.duelKillLimit.value),
+          traitorPercent: Number(this.controls.traitorPercent.value),
           map: this.controls.map.value,
           bots: ['training', 'duel', 'bastion'].includes(this.controls.gameMode.value) ? 0 : Math.max(0, Math.min(Number(this.controls.bots.value), limit - this.humanCount)),
         };
@@ -42,6 +45,11 @@ export class LobbySettings {
     this.options(this.controls.duelKillLimit, DUEL_KILL_LIMITS.map(String),
       Object.fromEntries(DUEL_KILL_LIMITS.map(n => [n, `First to ${n} kills`])));
     this.controls.duelKillLimit.value = String(DEFAULT_DUEL_KILL_LIMIT);
+    this.options(this.controls.traitorPercent, TTT_TRAITOR_PERCENTS.map(String),
+      Object.fromEntries(TTT_TRAITOR_PERCENTS.map(n => [n, `${n}%`])));
+    this.controls.traitorPercent.value = String(DEFAULT_TRAITOR_PERCENT);
+    this.traitorCount = el('div', 'vb-field-desc', this.controls.traitorPercent.parentNode, 'lobby-traitor-count');
+    this.traitorCount.setAttribute('role', 'status');
     this.loadout = el('div', 'vb-field-desc', this.root, 'lobby-weapon-set');
     this.capacity = el('div', 'vb-map-capacity', this.root, 'lobby-map-capacity');
     this.capacity.setAttribute('role', 'status');
@@ -72,6 +80,9 @@ export class LobbySettings {
     this.humanCount = state.members?.filter(member => !member.bot).length || 1;
     this.controls.duelKillLimit.value = String(state.duelKillLimit ?? DEFAULT_DUEL_KILL_LIMIT);
     this.controls.duelKillLimit.parentNode.hidden = state.gameMode !== 'duel';
+    this.controls.traitorPercent.value = String(state.traitorPercent ?? DEFAULT_TRAITOR_PERCENT);
+    this.controls.traitorPercent.parentNode.hidden = state.gameMode !== 'ttt';
+    this.traitorCount.textContent = `${state.traitorCount ?? 0} TRAITORS / ${state.members?.length || 0} PLAYERS (including bots). Rounded down, at least one per side. Roles after 60 seconds.`;
     this.controls.gameMode.value = state.gameMode;
     this.syncMaps(state.gameMode, state.map);
     this.controls.bots.value = String(['training', 'duel', 'bastion'].includes(state.gameMode) ? 0 : state.bots);

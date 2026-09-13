@@ -24,3 +24,7 @@
 .vb-ttt-role-badge{display:inline-block;margin-left:8px;font:700 10px monospace;color:#8cdeba;white-space:nowrap}.vb-ttt-role-badge[data-role=traitor]{color:#ff7972}.vb-ttt-body-report{max-width:340px;white-space:normal;text-transform:none;color:#efd8a7}#match-result-traitors{white-space:normal;overflow-wrap:anywhere;color:#ff7972}#killfeed[hidden]{display:none!important}
 
 .vb-ttt-contact{max-width:160px;overflow:hidden;text-overflow:ellipsis}.vb-ttt-radar-panel[hidden]{display:none!important}
+
+.kf-body-found{flex-wrap:wrap;max-width:min(480px,calc(100vw - 24px));white-space:normal;overflow-wrap:anywhere}.kf-body-found .vb-ttt-role-badge{margin-left:0}
+
+.vb-touch-mode #killfeed[data-ttt=true]{display:flex!important;max-width:calc(100vw - 36px)}

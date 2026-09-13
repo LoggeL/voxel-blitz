@@ -1,3 +1,5 @@
+import { karmaBanRemaining } from './modes/ttt-karma.js';
+import { DEFAULT_TRAITOR_PERCENT, TTT_TRAITOR_PERCENTS } from '../shared/ttt.js';
 import { DEFAULT_BOT_DIFFICULTY, isBotDifficulty } from '../shared/bot-difficulty.js';
 import { randomInt, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 
@@ -187,6 +189,10 @@ export class LobbyManager {
 
     const { room, member } = found;
     if (room.phase !== 'waiting') return this._error(meta, 'Lobby has already started');
+    if (member.ready === value) return true;
+    const now = performance.now();
+    if (now < (meta.readyChangeAllowedAt ?? 0)) return this._error(meta, 'Please wait 2 seconds before changing ready status');
+    meta.readyChangeAllowedAt = now + 2000;
     member.ready = value;
     this._broadcastLobbyState(room);
     return true;
@@ -252,7 +258,7 @@ export class LobbyManager {
     return true;
   }
 
-  configure(meta, { gameMode, map, bots, duelKillLimit } = {}) {
+  configure(meta, { gameMode, map, bots, duelKillLimit, traitorPercent } = {}) {
     const found = this._memberFor(meta);
     if (!found) return this._error(meta, 'Not in a lobby');
     const { room, member } = found;
@@ -263,6 +269,8 @@ export class LobbyManager {
     }
     if (gameMode === 'duel' && room.members.size > 2) return this._error(meta, '1v1 allows only two players');
     if (gameMode === 'bastion' && room.members.size > 4) return this._error(meta, 'Bastion allows up to four players');
+    traitorPercent ??= room.traitorPercent;
+    if (!TTT_TRAITOR_PERCENTS.includes(traitorPercent)) return this._error(meta, 'Invalid traitor percentage');
     duelKillLimit ??= room.duelKillLimit;
     if (!DUEL_KILL_LIMITS.includes(duelKillLimit)) return this._error(meta, 'Invalid 1v1 kill target');
     bots = ['training', 'duel', 'bastion'].includes(gameMode) ? 0 : bots;
@@ -278,7 +286,7 @@ export class LobbyManager {
       return this._error(meta, `This lobby allows up to ${limit} players and bots in total`);
     }
     const arenaChanged = gameMode !== room.gameMode || map !== room.map;
-    if (!arenaChanged && bots === room.bots && duelKillLimit === room.duelKillLimit) return true;
+    if (!arenaChanged && bots === room.bots && duelKillLimit === room.duelKillLimit && traitorPercent === room.traitorPercent) return true;
     if (arenaChanged) {
       // Build the replacement before changing the shared room. Sockets, ids and
       // the invite code stay attached to the same room throughout configuration.
@@ -291,6 +299,7 @@ export class LobbyManager {
         for (const human of room.members.values()) {
           spawns.set(human.id, engine.addClient(human.id, human.name));
           engine.entities.get(human.id).weaponLoadout = human.meta.weaponLoadout;
+          this._bindKarma(engine, human.meta, human.id);
         }
         const preserveTeams = ['tdm', 'snd'].includes(room.gameMode) && ['tdm', 'snd'].includes(gameMode);
         for (const human of room.members.values()) {
@@ -317,6 +326,8 @@ export class LobbyManager {
         this.sendFrame(human.meta, bytes);
       }
     }
+    room.traitorPercent = traitorPercent;
+    if (gameMode === 'ttt') room.engine.mode.rules.traitorPercent = traitorPercent;
     room.duelKillLimit = duelKillLimit;
     if (gameMode === 'duel') room.engine.mode.rules.killLimit = duelKillLimit;
     room.bots = bots;
@@ -429,6 +440,7 @@ export class LobbyManager {
       map,
       phase: 'waiting',
       duelKillLimit: DEFAULT_DUEL_KILL_LIMIT,
+      traitorPercent: DEFAULT_TRAITOR_PERCENT,
       bots: ['training','duel','bastion'].includes(gameMode) ? 0 : Math.min(bots, lobbyCapacity(gameMode, map) - 1),
       botTeams: new Map(),
       botDifficulties: new Map(),
@@ -450,7 +462,17 @@ export class LobbyManager {
     return room;
   }
 
+  _bindKarma(engine, meta, id) {
+    engine.mode.policy.karma?.bind(engine.entities.get(id), meta.admittedProfileId || meta.id, () => {
+      this.sendJson(meta, {t:'error', msg:'Karma too low (450 or below). Banned for 60 minutes.'});
+      this.closeClient(meta, 4003, 'Karma too low: 60 minute ban');
+    });
+  }
+
   _admit(room, meta, name, startRoom) {
+    if (karmaBanRemaining(meta.admittedProfileId || meta.id) > 0) {
+      return this._reject(meta, 'Karma ban active. Try again after 60 minutes.', 4003, 'karma ban');
+    }
     const id = memberId(meta);
     if (!id || room.destroyed || room.members.has(id) || room.members.size >= capacity(room)) {
       return this._reject(meta, 'Lobby is full or unavailable', CLOSE_FULL, 'lobby full');
@@ -466,6 +488,7 @@ export class LobbyManager {
         : room.engine.addClient(id, name);
       added = true;
       room.engine.entities.get(id).weaponLoadout = meta.weaponLoadout;
+      this._bindKarma(room.engine, meta, id);
       room.members.set(id, member);
       if (!room.host) room.host = id;
 
@@ -652,6 +675,7 @@ export class LobbyManager {
       bots: room.bots,
       members,
       duelKillLimit: room.duelKillLimit,
+      traitorPercent: room.traitorPercent,
       gameMode: room.gameMode,
       map: room.map,
     });

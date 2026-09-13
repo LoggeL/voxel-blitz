@@ -47,7 +47,7 @@ export class TttControls {
     const allies=self?.ttt?.allies?.filter(id=>id!==self.id).map(id=>players.find(p=>p.id===id)?.name).filter(Boolean);
     this.info.textContent=self?.state==='dead'?'ZUSCHAUER · Nächste Runde abwarten':match.phase==='prep'?(players.filter(p=>p.state==='alive').length<2?'Waffen suchen. Mindestens 2 Spieler für die Rollenvergabe.':'Waffen suchen. Noch keine Rollen, noch kein Schaden.'):
       self?.ttt?.role==='traitor'?`TRAITOR · Eliminiere die Innocents. ${self.ttt.credits} Credits.${allies?.length?' Verbündete: '+allies.join(', '):''}`:'INNOCENT · Finde und stoppe die Traitors.';
-    const gear=[];
+    const gear=[`Karma: ${self?.karma ?? 1000} · Schaden: ${Math.round((self?.ttt?.damageFactor ?? 1) * 100)} %`];
     if(self?.ttt?.c4)gear.push(`C4 bereit · ${bindingLabel('buy')} zum Platzieren`);
     if(self?.ttt?.equipment?.includes('disguiser'))gear.push(self.ttt.disguised?'Identität verborgen':'Identität sichtbar');
     if(self?.ttt?.teleporter)gear.push(`Teleporter: ${self.ttt.teleporter.uses} Ladungen · ${bindingLabel('buy')} für Steuerung`);

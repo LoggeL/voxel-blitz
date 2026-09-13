@@ -162,6 +162,24 @@ export class CombatHudController {
     const victim = el('span', '', row);
     victim.textContent = this.nameFor(ev.victim);
 
+    this._appendFeedRow(row);
+  }
+
+  bodyIdentified(ev) {
+    if (!this.dom.kf || !ev || this._disposed) return;
+    const row = el('div', 'kf-row kf-body-found');
+    el('b', '', row).textContent = ev.inspectorName || 'PLAYER';
+    el('span', '', row).textContent = 'untersuchte die Leiche von';
+    el('b', '', row).textContent = ev.name || 'PLAYER';
+    const role = el('span', 'vb-ttt-role-badge', row);
+    role.dataset.role = ev.role;
+    role.textContent = ev.role === 'traitor' ? 'TRAITOR' : 'INNOCENT';
+    row.setAttribute('role', 'status');
+    this._appendFeedRow(row);
+  }
+
+  _appendFeedRow(row) {
+    const kf = this.dom.kf;
     kf.insertBefore(row, kf.firstChild);
 
     this._killfeedRows.set(row, 0);

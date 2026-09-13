@@ -19,7 +19,7 @@ a.grenades[0]=1;
 game.now=policy.phaseEndsAt;game.mode.tick();
 for(const p of [a,b])policy.roles.set(p.id,'traitor');for(const p of [c,d])policy.roles.set(p.id,'innocent');
 policy.wallets.set('a',2);policy.wallets.set('c',2);
-assert.equal(policy.canFire(a),false);assert.equal(policy.canThrow(a),true,'grenades work without a gun');
+assert.equal(policy.canFire(a),true,'knife remains available without a gun');assert.equal(policy.canThrow(a),true,'grenades work without a gun');
 a.deployT=0;game.applyInput('a',{throwGrenade:true,grenadeType:GRENADE_TYPE_IDS.indexOf('frag'),grenadeCharge:0,yaw:0,pitch:0});
 game.projectiles.step(.05,game.contexts.projectiles);assert.equal(a.grenades[0],0);game.projectiles.clear();
 assert.equal(policy.privateState('a').allyPositions[0].id,'b');

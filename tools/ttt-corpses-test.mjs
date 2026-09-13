@@ -22,6 +22,9 @@ game.world.setBlock(20,15,20,0);a.x=20.5;
 assert.equal(policy.buy(a,`ttt:inspect:${body.id}`),true);
 assert.equal(policy.buy(a,`ttt:inspect:${body.id}`),true,'repeat inspection is harmless');
 snapshot=policy.matchSnapshot();
+assert.equal(snapshot.corpses[0].playerId,'b');
+assert.equal(game.tickEvents.filter(e=>e.kind==='body_identified').length,1,'repeated inspection announces once');
+assert.equal(game.tickEvents.find(e=>e.kind==='body_identified').inspectorName,'Operator a');
 assert.equal(snapshot.corpses[0].name,'Operator b');assert.equal(snapshot.corpses[0].role,'traitor');
 assert.equal(snapshot.corpses[0].weapon,'rifle');assert.equal(snapshot.revealedRoles,undefined);
 assert.equal(parseBuyFrame({t:'buy',weapon:`ttt:inspect:${body.id}`}),`ttt:inspect:${body.id}`);
@@ -31,6 +34,7 @@ const manager=Object.create(LobbyManager.prototype);const delivered=[];manager.s
 manager._broadcastJson({engine:game,members:new Map([['a',{id:'a',meta:{}}]])},{t:'tick',players:[],events:game.tickEvents});
 assert.ok(game.tickEvents.some(e=>e.kind==='kill'),'internal kill still exists for game bookkeeping');
 assert.ok(!delivered[0].events.some(e=>e.kind==='kill'),'TTT sends no killfeed payload');
+assert.ok(delivered[0].events.some(e=>e.kind==='body_identified'),'body announcements reach clients');
 assert.ok(delivered[0].events.some(e=>e.kind==='die'),'death presentation remains available');
 policy.onPlayerRemove(b);game.entities.delete('b');
 assert.equal(policy.corpses.size,1,'disconnect does not remove a body');

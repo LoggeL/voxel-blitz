@@ -23,7 +23,7 @@ export class WeaponWheelController {
     const authoritative = Array.isArray(context.self?.owned) &&
       ['ttt', 'bastion', 'snd', 'gungame', 'duel'].includes(mode);
     return WEAPON_IDS.map((id, slot) => {
-      const locked = authoritative && !context.self.owned.includes(id);
+      const locked = authoritative && !context.self.owned.includes(id) && !(mode === 'ttt' && id === 'knife');
       const ammo = context.weapon?.ammoOf(id);
       return {
         id,

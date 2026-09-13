@@ -525,10 +525,10 @@ export class NetClient {
     }
   }
 
-  configureLobby({ gameMode, map, bots, duelKillLimit }) {
+  configureLobby({ gameMode, map, bots, duelKillLimit, traitorPercent }) {
     if (!this.isOpen()) return false;
     try {
-      this.ws.send(JSON.stringify({ t: 'configure', gameMode, map, bots, duelKillLimit }));
+      this.ws.send(JSON.stringify({ t: 'configure', gameMode, map, bots, duelKillLimit, traitorPercent }));
       return true;
     } catch { return false; }
   }
@@ -715,6 +715,8 @@ export class NetClient {
           phase: msg.phase,
           bots: msg.bots,
           duelKillLimit: msg.duelKillLimit,
+          traitorPercent: msg.traitorPercent,
+          traitorCount: msg.traitorCount,
           gameMode: msg.gameMode,
           map: msg.map,
           members,

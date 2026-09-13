@@ -140,7 +140,7 @@ export class MolotovFireSystem {
       if (pending.elapsed + 1e-9 < MOLOTOV_FIRE.damageInterval && contact && contact.expiresAt > ctx.now) continue;
       this.pending.delete(victim.id);
       pending.damage = combatDamage(pending.damage);
-      const lethal = victim.takeDamage(pending.damage, false);
+      const lethal = victim.takeDamage(pending.damage, false, pending.owner, 'molotov');
       ctx.pushEvent(evHit(pending.owner?.id || '', victim.id, pending.damage, false,
         [victim.x, victim.y + 0.22, victim.z], victim.lastDamage));
       if (lethal) {

@@ -24,6 +24,7 @@ export function createSimulationContexts(engine) {
     getBlock: (x, y, z) => engine.world.getBlock(x, y, z),
     setBlock: (x, y, z, value) => engine.world.setBlock(x, y, z, value),
     canFire: (player) => engine.mode.canFire(player),
+    canMelee: (player) => engine.mode.canMelee(player),
     canBurn: () => engine.mode.phase === 'live',
     canUseWeapon: (player, weapon) => engine.mode.canUseWeapon(player, weapon),
     canDamage: (attacker, target) => engine.mode.canDamage(attacker, target),

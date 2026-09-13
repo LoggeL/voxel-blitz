@@ -630,6 +630,7 @@ export class LocalPlayer {
     }
 
     const fireAllowed = isAllowed(intents.fireAllowed);
+    const meleeAllowed = intents.meleeAllowed == null ? fireAllowed : isAllowed(intents.meleeAllowed);
     const grenadeAllowed = intents.grenadeAllowed == null ? fireAllowed : isAllowed(intents.grenadeAllowed);
     const grenadeThrow = input.consumeGrenadeThrow();
     if (grenadeThrow && grenadeAllowed && this._alive) {
@@ -679,7 +680,7 @@ export class LocalPlayer {
       weaponIntents.lastWeapon = false;
       weaponIntents.reload = false;
     }
-    weaponIntents.quickMelee = quickMelee && weaponHandling && fireAllowed && this._alive;
+    weaponIntents.quickMelee = quickMelee && weaponHandling && meleeAllowed && this._alive;
     const fireTap = rawFireTap && weaponHandling;
     const fireHeld = !!input.wantFireHeld && weaponHandling;
     if (fireTap && fireAllowed) this.fireTapLatched = true;
@@ -778,6 +779,7 @@ export class LocalPlayer {
     this.sendAccum %= interval;
 
     const fireAllowed = isAllowed(intents.fireAllowed);
+    const meleeAllowed = intents.meleeAllowed == null ? fireAllowed : isAllowed(intents.meleeAllowed);
     const interactAllowed = isAllowed(intents.interactAllowed);
     const discrete = ['semi', 'bolt', 'pump'].includes(intents.weapon?.def?.mode);
     const predictedDiscrete = discrete && this._discretePrediction;
@@ -822,7 +824,7 @@ export class LocalPlayer {
       wantFire,
       medkitId: this._gameplayInputEnabled ? this.medkit.pendingId : 0,
       cancelMedkit: this.medkit.cancelQueued || !this._gameplayInputEnabled,
-      quickMelee: !!(fireAllowed && this._gameplayInputEnabled && quickMelee),
+      quickMelee: !!(meleeAllowed && this._gameplayInputEnabled && quickMelee),
       meleeAim: quickMelee,
       weapon: weaponSlot,
       wantAds: this._gameplayInputEnabled && handling && this.wantAds,
