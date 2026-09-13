@@ -792,7 +792,7 @@ class Game {
       this._postFrame.smokeFields = this.killcam.sample.smokeFields;
       this._postFrame.smokeNow = this.killcam.sample.time;
       this._postFrame.panic = this._postFrame.pain = this._postFrame.burning = 0;
-      this._postFrame.scopeActive = false;
+      this._postFrame.scopeActive = this.killcam.scopeActive;
       this.post.render(this.worldview.scene, this.killcam.camera, this._postFrame);
     } else if (renderFrame) this.post.render(this.worldview.scene, this.camera, this._postFrame);
     const cpuEnd = performance.now();

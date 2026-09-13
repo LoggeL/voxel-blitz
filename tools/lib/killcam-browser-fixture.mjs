@@ -116,6 +116,24 @@ export async function runKillcamBrowserFixture({ preview = false } = {}) {
   time = killcam.started + (killcam.clip.end - killcam.clip.start) + 300;
   killcam.update(.016, 1, 75);
   check(!killcam.active && view.replayTerrain === null, 'Completion restores live world');
+  // A recorded sniper uses the canonical scope, recorded zoom and a hidden viewmodel.
+  const {WEAPON_IDS} = await import('/shared/combatmath.js');
+  killcam.history.clear();
+  const scoped = {...killer, weapon:WEAPON_IDS.indexOf('sniper'),ads:true,adsT:1,scopeZoom:2.5};
+  for(let now=4000;now<=4500;now+=50) killcam.history.record({serverNow:now,players:[scoped,victim],events:[]});
+  check(killcam.start({...death,w:'sniper'},'fun'),'Scoped replay starts');
+  render(200);
+  check(killcam.scopeActive && getComputedStyle(killcam.scope).display==='block','Recorded sniper scope is visible');
+  check(killcam.scope.getBoundingClientRect().width>0 && !killcam.rig.root.visible,'Scope covers viewport and hides weapon');
+  check(killcam.camera.fov<40 && killcam.scope.querySelector('.scope-zoom-label').textContent==='2.5×','Recorded half zoom controls camera and label');
+  const scopedFov=killcam.camera.fov;
+  killcam.history.record({serverNow:4550,players:[{...scoped,x:16,ads:false,adsT:0},victim],events:[]});
+  render(550);
+  check(!killcam.scopeActive && killcam.rig.root.visible && killcam.camera.fov>scopedFov,'Post-kill unscoping restores the view');
+  check(killcam.camera.position.x===16 && killcam.clip.end===5500,'Extra second contains real movement with a fixed deadline');
+  killcam.stop();
+  check(!killcam.scopeActive && !killcam.scope.classList.contains('active'),'Skip clears scope state');
+
   const glError = renderer.getContext().getError();
   check(glError === 0, 'WebGL remains healthy');
   const previewFrames = preview ? killcam.history.frames.slice() : null;

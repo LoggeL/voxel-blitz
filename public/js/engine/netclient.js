@@ -472,6 +472,7 @@ export class NetClient {
       weapon: input.weapon | 0,
       wantFire: !!input.wantFire,
       wantAds: !!input.wantAds,
+      scopeZoom: Number.isFinite(input.scopeZoom) ? input.scopeZoom : 0,
       reload: !!input.reload,
       reloadId: input.reloadId || 0,
       medkitId: input.medkitId || 0,

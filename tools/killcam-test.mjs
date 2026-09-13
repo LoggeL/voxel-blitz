@@ -18,7 +18,7 @@ for (let t = 0; t <= 5000; t += 50) history.record({ serverNow: t,
 assert(history.frames.length <= KILLCAM.maxFrames);
 const death = { killer: 'killer', victim: 'victim', w: 'rifle' };
 const clip = history.clip(death, 'fun');
-assert.equal(clip.end - clip.start, KILLCAM.historyMs);
+assert.equal(clip.end - clip.start, KILLCAM.historyMs + KILLCAM.postKillMs);
 assert.equal(history.clip(death, 'snd'), null, 'S&D gives no attacker replay');
 assert.equal(history.clip(death, 'training'), null);
 assert.equal(history.clip({ ...death, killer: 'victim' }, 'fun'), null);
@@ -30,10 +30,12 @@ assert(Math.abs(wrap) > 3, 'yaw interpolation crosses the short arc at pi');
 assert.equal(sample.events.length, 0, 'killing shot never plays before its recorded time');
 assert.equal(sampleKillcam(clip, 5000, 4999).events.length, 1);
 assert.equal(sampleKillcam(clip, 5000, 5000).events.length, 0, 'events play once during final hold');
-history.record({ serverNow: 5050, players: [pose('killer', 80)], events: [] });
-assert.equal(sampleKillcam(clip, 7000).players.get('killer').x, 5, 'live movement cannot leak into the completed clip');
+history.record({ serverNow: 5050, players: [pose('killer', 5.05)], events: [] });
+assert.equal(sampleKillcam(clip, 5050).players.get('killer').x, 5.05, 'post-kill movement enters the replay');
+history.record({ serverNow: 6050, players: [pose('killer', 80)], events: [] });
+assert.equal(sampleKillcam(clip, 7000).players.get('killer').x, 5.05, 'movement after the extra second stays outside the clip');
 history.clear();
-assert.equal(clip.frames.at(-1).players[0].x, 5, 'history pruning leaves active playback intact');
+assert.equal(clip.frames.at(-1).players[0].x, 5.05, 'history pruning leaves active playback intact');
 assert.equal(history.clip(death, 'fun'), null);
 
 // Damage at admission, chipping, destruction, replacement and same-type repair
@@ -126,3 +128,23 @@ for (const mode of ['fun', 'duel', 'chaos', 'tdm', 'gungame']) {
   engine.stop();
 }
 console.log('Killcam: bounded history, pose interpolation, frozen terrain, damage/destruction/repair timing, killer hitmarkers, exclusions and authoritative human respawn passed.');
+
+// Scope magnification survives the real client serializer and authoritative snapshot.
+{
+  const {NetClient} = await import('../public/js/engine/netclient.js');
+  const {WEAPON_IDS} = await import('../shared/combatmath.js');
+  const net = new NetClient();
+  let wire, snapshot;
+  net.ws={readyState:1,send:text=>{wire=JSON.parse(text);}};
+  net.sendInput({weapon:WEAPON_IDS.indexOf('sniper'),wantAds:true,scopeZoom:2.5,yaw:0,pitch:0});
+  assert.equal(wire.scopeZoom,2.5);
+  const game=new GameEngine({mode:'fun',broadcast:value=>{snapshot=value;}});
+  game.addClient('scope','Scope');
+  const player=game.entities.get('scope');
+  player.weapon=WEAPON_IDS.indexOf('sniper');player.deployT=0;
+  game.applyInput('scope',wire);game.step(50);
+  assert.equal(snapshot.players[0].scopeZoom,2.5);
+  assert.ok(snapshot.players[0].adsT>0);
+  assert.equal(snapshot.players[0].ads,true);
+}
+console.log('Killcam scope: selected magnification survives client input, server authority and snapshot.');

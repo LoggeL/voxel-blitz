@@ -366,6 +366,7 @@ export class GameEngine {
       wantFire: !!msg.wantFire,
       quickMelee: !!msg.quickMelee,
       wantAds: !!msg.wantAds,
+      scopeZoom: Number.isFinite(msg.scopeZoom) ? Math.max(0, Math.min(16, msg.scopeZoom)) : 0,
       reload: !!msg.reload,
       cancelMedkit: !!msg.cancelMedkit,
       reloadId: Number.isSafeInteger(msg.reloadId) && msg.reloadId > 0 ? msg.reloadId : 0,

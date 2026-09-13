@@ -3,7 +3,7 @@ import { KILLCAM, supportsKillcam } from '../../../shared/killcam-rules.js';
 import { copySmokeFields } from '../../../shared/smoke-rules.js';
 
 const POSE_FIELDS = ['id', 'name', 'x', 'y', 'z', 'yaw', 'pitch', 'state', 'hp',
-  'weapon', 'firing', 'ads', 'crouch', 'proneT', 'grounded', 'vaulting', 'moveSpeed', 'team', 'charge'];
+  'weapon', 'firing', 'ads', 'adsT', 'scopeZoom', 'attachments', 'reloading', 'deploying', 'grenadeHandling', 'crouch', 'proneT', 'grounded', 'vaulting', 'moveSpeed', 'team', 'charge'];
 const EVENT_KINDS = new Set(['shoot', 'hit', 'kill', 'mine', 'block', 'blockDamage',
   'projectileLaunch', 'projectileUpdate', 'projectileStick', 'projectileExplode']);
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -29,20 +29,25 @@ export class KillcamHistory {
       smokeFields: copySmokeFields(snapshot.smokeFields),
       terrain: this.terrain?.record(snapshot) || [],
     });
+    const clip = this.activeClip;
+    if (clip && time > clip.killTime && time <= clip.end &&
+        clip.frames.at(-1).players.some(p => p.id === clip.killer && p.state === 'alive')) {
+      clip.frames.push(this.frames.at(-1));
+    }
     while (this.frames.length > KILLCAM.maxFrames || (this.frames.length > 2
       && this.frames[1].time < time - KILLCAM.historyMs)) this.frames.shift();
   }
   clip({ killer, victim, w }, mode) {
     if (!supportsKillcam(mode) || !killer || killer === victim) return null;
     const end = this.frames.at(-1)?.time;
-    // Never replay a previous life of the attacker or include post-kill movement.
+    // Never replay a previous life; append only the bounded post-kill window.
     let frames = this.frames.filter(f => f.time >= end - KILLCAM.historyMs);
     let start = frames.length - 1;
     while (start >= 0 && frames[start].players.some(p => p.id === killer
       && (p.state === 'alive' || start === frames.length - 1))) start--;
     frames = frames.slice(start + 1);
     if (frames.length < 2 || end - frames[0].time < 250) return null;
-    return { killer, victim, weapon: w, frames, start: frames[0].time, end,
+    return this.activeClip = { killer, victim, weapon: w, frames, start: frames[0].time, killTime: end, end: end + KILLCAM.postKillMs,
       terrain: this.terrain?.clip(frames) || null,
       name: frames.at(-1).players.find(p => p.id === killer)?.name || 'OPERATOR' };
   }
@@ -63,6 +68,7 @@ export function sampleKillcam(clip, time, previousTime = -Infinity) {
     if (q && p.state === q.state && Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z) < 8) {
       for (const key of ['x', 'y', 'z', 'pitch']) row[key] = lerp(p[key], q[key], t);
       row.yaw = angle(p.yaw, q.yaw, t);
+      if (Number.isFinite(p.adsT) && Number.isFinite(q.adsT)) row.adsT = lerp(p.adsT, q.adsT, t);
     }
     return [p.id, row];
   }));

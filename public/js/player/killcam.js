@@ -1,3 +1,7 @@
+import { createSniperScope } from '../ui/sniper-scope.js';
+import { isScopeActive } from '../guns/scope-state.js';
+import { configuredWeapon } from '../../../shared/weapon-attachments.js';
+import { fovForZoom } from './local-player.js';
 import { bindingLabel, matchesBinding, isTypingTarget } from '../keybindings.js';
 import * as THREE from '../vendor/three.module.js';
 import { KillcamHistory, sampleKillcam } from './killcam-history.js';
@@ -39,6 +43,8 @@ export class Killcam {
       <div class="vb-killcam-bottom"><span class="vb-killcam-name"></span><span class="vb-killcam-weapon"></span>
       <button type="button" id="killcam-skip">SKIP REPLAY <small>SPACE / A</small></button>
       <div class="vb-killcam-progress"><i></i></div></div>`;
+    this.scope = createSniperScope(this.root, 'killcam-');
+    this.scopeActive = false;
     document.body.append(this.root);
     this.timeLabel = this.root.querySelector('.vb-killcam-time');
     this.hitmarker = this.root.querySelector('.vb-killcam-hitmarker');
@@ -55,6 +61,7 @@ export class Killcam {
     if (!clip) return false;
     this.stop();
     this.clip = clip;
+    this.history.activeClip = clip;
     this.worldview?.setReplayTerrain(clip.terrain);
     this.previousTime = clip.start - 1;
     this.sample = null;
@@ -95,15 +102,28 @@ export class Killcam {
     if (!target) { this.stop(); return false; }
     this.camera.position.set(target.x, target.y + stanceEye(EYE_HEIGHT, target.crouch, target.proneT), target.z);
     this.camera.rotation.set(target.pitch, target.yaw, 0, 'YXZ');
-    if (this.camera.aspect !== aspect || this.camera.fov !== fov) {
-      this.camera.aspect = aspect; this.camera.fov = fov; this.camera.updateProjectionMatrix();
+    const weaponId = WEAPON_IDS[target.weapon] || 'rifle';
+    const def = configuredWeapon(weaponId, {[weaponId]:target.attachments});
+    const ads = target.adsT ?? (target.ads ? 1 : 0);
+    this.scopeActive = isScopeActive({weapon:weaponId, scoped:def.scoped, ads,
+      alive:target.state === 'alive', vaulting:target.vaulting,
+      reloading:target.reloading, deploying:target.deploying, grenadeHandling:target.grenadeHandling});
+    const zoom = Math.abs(target.scopeZoom - Math.max(1.5, def.zoom / 2)) < 1e-6
+      ? Math.max(1.5, def.zoom / 2) : def.zoom;
+    const adsFov = (def.scoped ?? weaponId === 'sniper') ? fovForZoom(zoom, fov) : def.adsFov;
+    const replayFov = fov + (adsFov - fov) * (1 - (1 - ads) ** 3);
+    if (this.camera.aspect !== aspect || this.camera.fov !== replayFov) {
+      this.camera.aspect = aspect; this.camera.fov = replayFov; this.camera.updateProjectionMatrix();
     }
+    this.scope.classList.toggle('active', this.scopeActive);
+    this.scope.querySelector('.scope-zoom-label').textContent = `${zoom.toFixed(1)}×`;
     this.rig.setCosmetics(target.cosmetics);
     const weapon = WEAPON_IDS[target.weapon] || 'rifle';
     if (weapon !== this.weapon) { this.rig.setWeapon(weapon); this.weapon = weapon; }
-    this.rig.ads(target.ads ? 1 : 0);
+    this.rig.ads(ads);
     this.rig.update(dt, { speed: target.moveSpeed, crouch: target.crouch, proneT: target.proneT,
       grounded: target.grounded, shotYaw: target.yaw, shotPitch: target.pitch });
+    this.rig.root.visible = !this.scopeActive;
     this.audio?.setListener({ pos: [target.x, this.camera.position.y, target.z],
       fwd: [-Math.sin(target.yaw) * Math.cos(target.pitch), Math.sin(target.pitch), -Math.cos(target.yaw) * Math.cos(target.pitch)] });
     for (const event of sample.events) {
@@ -151,6 +171,9 @@ export class Killcam {
   stop() {
     if (this.active) this.worldview?.setReplayTerrain(null);
     this.active = false;
+    this.history.activeClip = null;
+    this.scopeActive = false;
+    this.scope.classList.remove('active');
     this.group.visible = false;
     this.root.classList.add('hidden');
     document.body.classList.remove('is-replaying');

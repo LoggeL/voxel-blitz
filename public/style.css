@@ -3006,7 +3006,7 @@ h1.vb-title::after {
 
 /* ---------- sniper scope ---------- */
 
-#sniper-scope {
+.sniper-scope {
   display: none;
   position: fixed;
   inset: 0;
@@ -3015,22 +3015,22 @@ h1.vb-title::after {
   overflow: hidden;
 }
 
-#sniper-scope.active,
-#sniper-scope.exiting { display: block; }
+.sniper-scope.active,
+.sniper-scope.exiting { display: block; }
 
-#scope-reticle-window,
-#scope-reticle {
+.scope-reticle-window,
+.scope-reticle {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
-#scope-reticle-window { clip-path: circle(33.4vmin at 50% 50%); }
-#scope-reticle {
+.scope-reticle-window { clip-path: circle(33.4vmin at 50% 50%); }
+.scope-reticle {
   transform: translate(var(--scope-aim-x, 0px), var(--scope-aim-y, 0px));
 }
 
-#scope-vignette {
+.scope-vignette {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -3042,8 +3042,8 @@ h1.vb-title::after {
   );
 }
 
-#scope-vignette::before,
-#scope-vignette::after {
+.scope-vignette::before,
+.scope-vignette::after {
   content: '';
   position: absolute;
   left: 50%;
@@ -3053,14 +3053,14 @@ h1.vb-title::after {
   pointer-events: none;
 }
 
-#scope-vignette::before {
+.scope-vignette::before {
   width: calc(67.2vmin + 4px);
   height: calc(67.2vmin + 4px);
   border: 3px solid #06080b;
   box-shadow: 0 0 40px rgba(0, 0, 0, 0.95);
 }
 
-#scope-vignette::after {
+.scope-vignette::after {
   width: 66.8vmin;
   height: 66.8vmin;
   border: 1px solid rgba(160, 185, 210, 0.45);
@@ -3131,7 +3131,7 @@ h1.vb-title::after {
   margin-left: -1.5px;
 }
 
-#scope-zoom-label {
+.scope-zoom-label {
   position: absolute;
   right: calc(50% - 21vmin);
   bottom: calc(50% - 21vmin);
@@ -4439,3 +4439,7 @@ body.is-replaying #hud, body.is-replaying .vb-touch-controls { visibility: hidde
 html[data-reduced-motion="true"] #hitflash { filter: opacity(0.55); }
 html[data-reduced-motion="true"] #hitflash::before { display: none; }
 html[data-reduced-motion="true"] .vb-condition-track > i { transition: none; }
+
+.vb-killcam > .sniper-scope{z-index:0}
+.vb-killcam-top{position:relative;z-index:1}
+.vb-killcam-bottom{z-index:1}

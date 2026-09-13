@@ -828,6 +828,7 @@ export class LocalPlayer {
       meleeAim: quickMelee,
       weapon: weaponSlot,
       wantAds: this._gameplayInputEnabled && handling && this.wantAds,
+      scopeZoom: this._scopeZoom || 0,
       reload: this._gameplayInputEnabled && reloading,
       reloadId: networkState?.reloadId || 0,
       throwGrenade: !!(this._gameplayInputEnabled && this.grenadeThrowLatched),

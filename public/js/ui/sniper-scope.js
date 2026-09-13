@@ -2,13 +2,13 @@ import { WEAPONS } from '../../../shared/combatmath.js';
 import { el } from './hud-support.js';
 
 /** Build the canonical sniper overlay inside a HUD root. */
-export function createSniperScope(hud) {
-  const scope = el('div', '', hud, 'sniper-scope');
+export function createSniperScope(hud, prefix = '') {
+  const scope = el('div', 'sniper-scope', hud, prefix + 'sniper-scope');
   scope.style.pointerEvents = 'none';
 
-  el('div', '', scope, 'scope-vignette');
-  const window = el('div', '', scope, 'scope-reticle-window');
-  const reticle = el('div', '', window, 'scope-reticle');
+  el('div', 'scope-vignette', scope, prefix + 'scope-vignette');
+  const window = el('div', 'scope-reticle-window', scope, prefix + 'scope-reticle-window');
+  const reticle = el('div', 'scope-reticle', window, prefix + 'scope-reticle');
   el('div', 'scope-line h', reticle);
   el('div', 'scope-line v', reticle);
   el('div', 'scope-duplex scope-duplex-left', reticle);
@@ -58,7 +58,7 @@ export function createSniperScope(hud) {
   }
 
   const zoomVal = Number(WEAPONS.sniper && WEAPONS.sniper.zoom) || 5;
-  el('div', '', scope, 'scope-zoom-label').textContent = `${zoomVal.toFixed(1)}×`;
+  el('div', 'scope-zoom-label', scope, prefix + 'scope-zoom-label').textContent = `${zoomVal.toFixed(1)}×`;
   el('div', 'scope-model-label', scope).textContent = 'FACTORY OPTIC';
   return scope;
 }
