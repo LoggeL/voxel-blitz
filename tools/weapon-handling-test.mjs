@@ -135,7 +135,12 @@ for (const ads of [0, 1]) {
   net.ws = { readyState: 1, send: json => { wire = JSON.parse(json); } };
   const def = withWeaponHandling(WEAPONS.minigun, { sway: { amplitudeDeg: 0 } });
   const weapon = { def, slot: WEAPON_IDS.indexOf('minigun'), adsT: ads };
-  local.update(0, 0, { weapon }); local.view.yaw = Math.PI;
+  local.update(0, 0, { weapon });
+  let flick = true;
+  local.input.consumeDelta = () => {
+    const dx = flick ? -Math.PI : 0; flick = false; return { dx, dy: 0 };
+  };
+  local.input.getKeys = () => ({ forward: true });
   const authority = new PlayerEntity('handling', 'Test', { x: 4, y: 1, z: 4 }, false);
   authority.deployT = 0;
   for (let frame = 1; frame <= 10; frame++) {
@@ -146,10 +151,13 @@ for (const ads of [0, 1]) {
         if (frame === 5) local.addRecoil(0.01, 0.005, def.weightKg, def.recoil, frame * 1000 / 60);
       }, sendInput: payload => net.sendInput(payload) });
     close(wire.yaw, predicted.yaw); close(wire.pitch, predicted.pitch);
-    assert.ok(Math.abs(wrap(wire.viewYaw - wire.yaw)) < 25 / DEG, 'Player view stays within the heavy carry envelope');
+    assert.ok(wire.viewYaw > 3, 'The full mouse flick turns the player immediately');
+    assert.ok(Math.abs(wrap(wire.viewYaw - wire.yaw)) > 2.5, 'Weapon and shot lag behind the free player view');
+    assert.ok(local.wishDir.z > 0.99, 'Local movement follows the flick while the weapon catches up');
     GameEngine.prototype.applyInput.call({ entities: new Map([['handling', authority]]) }, 'handling', wire);
     stepMovement(authority, 1 / 60, { solidAt: (_x, y) => y < 1, mapMeta: {}, now: frame, onFall() {} });
     close(authority.yaw, wire.yaw); close(authority.pitch, wire.pitch);
+    assert.ok(authority.z > 4, 'Authoritative movement follows the free view, not the lagging weapon');
   }
   local.dispose();
 }

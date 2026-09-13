@@ -482,6 +482,12 @@ export class GameplayHud {
     const adsT = Number(s.adsT01) || 0;
     const wantScope = alive && (s.scopeActive ?? isScopeActive({ weapon: key, ads: adsT, alive }));
     this.setScope(wantScope);
+    if (wantScope) {
+      // Scope marks follow the same shot ray as the ordinary crosshair while
+      // the camera remains free to turn ahead of the weapon.
+      this.dom.scope.style.setProperty('--scope-aim-x', `${aimX - 50}vw`);
+      this.dom.scope.style.setProperty('--scope-aim-y', `${aimY - 50}vh`);
+    }
     this.setScopeZoom(s.scopeZoom);
     const opticLabel = this.dom.scope?.querySelector?.(".scope-model-label");
     const opticText = `${s.wname || WEAPONS[key]?.name || ""} · ${s.opticName || "Factory optic"}`;

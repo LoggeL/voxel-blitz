@@ -84,7 +84,7 @@ export class MatchResultOverlay {
     this.dom.mapLabel.textContent = MAP_LABELS[match.map] || '';
     const teamMode = isTeamMode(mode);
     const selfId = selfRow?.id == null ? null : String(selfRow.id);
-    const victory = teamMode
+    const victory = mode === 'ttt' ? selfRow?.ttt?.role === winner : teamMode
       ? !!selfRow?.team && String(selfRow.team) === String(winner)
       : selfId !== null && selfId === String(winner);
     const outcome = selfRow && winner != null ? (victory ? 'victory' : 'defeat') : 'complete';
@@ -114,6 +114,10 @@ export class MatchResultOverlay {
       el('span', 'vb-result-bravo-score', this.dom.score).textContent = match?.scores?.bravo ?? 0;
     }
 
+    if (mode === 'ttt') {
+      this.dom.detail.textContent = `${winner === 'traitor' ? 'TRAITORS' : 'INNOCENTS'} GEWINNEN`;
+      this.dom.score.textContent = `RUNDE ${match.round}`;
+    }
     if (mode === 'bastion') {
       this.dom.eyebrow.textContent = 'BASTION · REACTOR 9';
       this.dom.detail.textContent = victory ? 'REACTOR SECURED' : match.bastion?.reason === 'core' ? 'REACTOR DESTROYED' : 'DEFENDERS ELIMINATED';

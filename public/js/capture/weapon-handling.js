@@ -118,8 +118,7 @@ function frame(now) {
   adsT = Math.max(0, Math.min(1, adsT + (aiming ? 1 : -1) * dt / def.adsTime));
   player.update(dt, elapsed * 1000, { weapon: { def, slot: WEAPON_IDS.indexOf(id), adsT, isReloading: false },
     movementAllowed: true, fireAllowed: true, beforeSend: shot, sendInput: () => true });
-  // The range keeps the camera on the player's look even for scopes, making lag
-  // inspectable. The live game uses its existing through-scope camera behavior.
+  // Keep the weapon visible in the range, including when testing scoped ADS.
   player.updateCamera(dt, camera, def, adsT, 75, false);
   rig.ads(adsT); rig.update(dt, { grounded: true, crouch: crouching, weaponDef: def,
     weaponAim: player.weaponAim, shotYaw: player.shotYaw, shotPitch: player.shotPitch,

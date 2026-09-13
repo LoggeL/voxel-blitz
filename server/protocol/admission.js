@@ -1,3 +1,4 @@
+import { isTttRequest } from '../../shared/ttt.js';
 import { parseBastionPurchase } from '../../shared/bastion.js';
 import { parseChaosPurchase } from '../../shared/chaos.js';
 import { MAX_BOTS } from '../../shared/lobby-limits.js';
@@ -138,7 +139,7 @@ export function parseBuyFrame(raw) {
   return isRecord(raw) &&
     hasExactKeys(raw, ['t', 'weapon']) &&
     raw.t === 'buy' &&
-    (isWeaponId(raw.weapon) || parseChaosPurchase(raw.weapon) || parseBastionPurchase(raw.weapon))
+    (isTttRequest(raw.weapon) || isWeaponId(raw.weapon) || parseChaosPurchase(raw.weapon) || parseBastionPurchase(raw.weapon))
     ? raw.weapon
     : null;
 }

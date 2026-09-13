@@ -31,7 +31,7 @@ export function shouldShowViewmodel({ spectating = false, scopeActive = false } 
 }
 
 function usesAuthoritativeOwnedWeapons(mode) {
-  return mode === 'bastion' || mode === 'snd' || mode === 'gungame' || mode === 'duel';
+  return mode === 'ttt' || mode === 'bastion' || mode === 'snd' || mode === 'gungame' || mode === 'duel';
 }
 
 function clamp01(value) {
@@ -328,7 +328,7 @@ export class WeaponState {
     this._allowFire = !!allowFire;
     this._grenadeHandling = !!grenadeHandling || !!medkitActive;
     this._setAuthority(mode, owned);
-    this._quickMeleePending = !!quickMelee && this._alive && this._allowFire && !this._grenadeHandling;
+    this._quickMeleePending = this._mode !== 'ttt' && !!quickMelee && this._alive && this._allowFire && !this._grenadeHandling;
     this._wantAds = !!wantAds && !this._grenadeHandling && !this.quickMeleeActive;
     if (!fireHeld || !this._alive || !this._allowFire) this._stopFlame();
 

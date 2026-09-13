@@ -1,3 +1,4 @@
+import { isTttRequest } from '../../../shared/ttt.js';
 import { parseBastionPurchase } from '../../../shared/bastion.js';
 import { parseChaosPurchase } from '../../../shared/chaos.js';
 import { getMapDimensions } from '../../../shared/world/dimensions.js';
@@ -550,7 +551,7 @@ export class NetClient {
 
   /** Buy one exact shared-contract weapon id. */
   buyWeapon(id) {
-    if ((!isWeaponId(id) && !parseChaosPurchase(id) && !parseBastionPurchase(id)) || !this.isOpen()) return false;
+    if ((!isTttRequest(id) && !isWeaponId(id) && !parseChaosPurchase(id) && !parseBastionPurchase(id)) || !this.isOpen()) return false;
     try {
       this.ws.send(JSON.stringify({ t: 'buy', weapon: id }));
       return true;

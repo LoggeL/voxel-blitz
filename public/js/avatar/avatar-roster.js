@@ -187,6 +187,7 @@ export class AvatarRoster {
       const pendingDeath = this._pendingDeaths.get(remote.id);
       if (pendingDeath?.until >= now && avatar.alive) this.death(remote.id, now, pendingDeath.damageEvent);
 
+      avatar.disguised = remote.disguised === true;
       const rowAlive = remote.state === 'alive';
       const alive = rowAlive && now >= avatar.deathForcedUntil;
       if (!alive) {
@@ -270,6 +271,7 @@ export class AvatarRoster {
           turnSpeed,
         },
       });
+      if (Array.isArray(remote.owned) && remote.owned.length === 0) avatar.weaponModel.root.visible = false;
       updateAvatarStancePose(avatar, { stride, swing, blend: poseBlend });
       avatar.torso.rotation.z += ((-swing * stride * 0.055) + flinch - avatar.torso.rotation.z) * poseBlend;
       avatar.hips.rotation.z += (swing * stride * 0.045 - avatar.hips.rotation.z) * poseBlend;
@@ -290,7 +292,7 @@ export class AvatarRoster {
     for (const avatar of this._avatars.values()) {
       const friendly = isTeamMode(mode) && ownTeam != null && avatar.team === ownTeam;
       avatar.tag.material.color.setHex(friendly ? 0x69cfff : 0xff4055);
-      let visible = avatar.alive && avatar.group.visible;
+      let visible = avatar.alive && avatar.group.visible && !avatar.disguised;
       if (visible) {
         avatar.head.getWorldPosition(this._labelTarget);
         this._labelDirection.copy(this._labelTarget).sub(camera.position);

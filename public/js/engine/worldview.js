@@ -1,3 +1,4 @@
+import { TttWeaponView } from './ttt-weapons.js';
 import { getMapDimensions } from '../../../shared/world/dimensions.js';
 import { BastionWorld } from './bastion-world.js';
 // WorldView: composition root for the client's visual world. Owns the THREE.Scene,
@@ -130,6 +131,8 @@ export class WorldView {
     if (this.ladderVisuals) this.scene.add(this.ladderVisuals.group);
     this.siteMarkers = new SiteMarkers((mapMeta || storeRef.meta || null)?.sites);
     this.scene.add(this.siteMarkers.group);
+    this.tttWeapons = new TttWeaponView();
+    this.scene.add(this.tttWeapons.group);
     this.powerups = new PowerupView();
     this.scene.add(this.powerups.group);
   }
@@ -198,7 +201,7 @@ export class WorldView {
     );
   }
 
-  setMatch(match) { this.bastion?.sync(match); }
+  setMatch(match) { this.bastion?.sync(match); this.tttWeapons.sync(match?.weaponPickups || []); }
 
   setGameMode(mode) {
     this.siteMarkers.setMode(mode);
@@ -235,6 +238,7 @@ export class WorldView {
     }
     this.siteMarkers.dispose();
     this.powerups.dispose();
+    this.tttWeapons.dispose();
     this.mapSigns.dispose();
     this.mapLights.dispose();
     this.skyUpdate.dispose();

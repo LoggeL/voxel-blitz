@@ -5,9 +5,8 @@ import path from 'node:path';
 import WebSocket from 'ws';
 import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
 import { OPTICS, GRIPS, ATTACHMENT_SLOTS, normalizeWeaponLoadout, weaponWithAttachments } from '../shared/weapon-attachments.js';
-import { WeaponTurnInertia } from '../shared/weapon-turn.js';
-import { constrainWeaponLook } from '../shared/weapon-look.js';
 import { LocalPlayer } from '../public/js/player/local-player.js';
+import { clampPitch } from '../public/js/util/math.js';
 import { PlayerEntity } from '../server/sim/player.js';
 import { WeaponState } from '../public/js/guns/weapon-state.js';
 import { isScopeActive, nextScopeZoom } from '../public/js/guns/scope-state.js';
@@ -50,43 +49,59 @@ assert.deepEqual(client.def,entity.def,'Client prediction and server combat use 
 client.reconcileServer({weapon:0,attachments:{optic:'standard',grip:'standard'}});assert.equal(client.def,WEAPONS.rifle);client.dispose();
 
 const measurements=[];
-for(const id of ['smg','rifle','lmg','minigun']) for(const fps of [30,60,144]) {
-  const turn=new WeaponTurnInertia();turn.reset(0,0);let yaw=0,pitch=0,peakLag=0,acquired=null;
-  for(let i=1;i<=fps*10;i++) {
-    const look=constrainWeaponLook(1/fps,{yaw:yaw+Math.min(Math.PI-yaw,20/fps),pitch,previousYaw:yaw,previousPitch:pitch,
-      weaponYaw:turn.readModel.weaponYaw,weaponPitch:turn.readModel.weaponPitch,yawVelocity:turn.readModel.yawVelocity,pitchVelocity:turn.readModel.pitchVelocity,handling:WEAPONS[id].handling});
-    assert.ok(Math.abs(look.yaw-yaw)<=look.maxSpeed/fps+1e-7);
-    yaw=look.yaw;pitch=look.pitch;
-    const motion=turn.update(1/fps,{yaw,pitch,handling:WEAPONS[id].handling});
-    const lag=Math.abs(Math.atan2(Math.sin(yaw-motion.weaponYaw),Math.cos(yaw-motion.weaponYaw)));
-    assert.ok(lag<25*Math.PI/180);peakLag=Math.max(peakLag,lag*180/Math.PI);
-    if(acquired===null && yaw>=Math.PI-0.001) acquired=i/fps;
+// A real mouse delta must reach view and movement immediately, regardless of
+// weapon ergonomics, ADS or render rate. Only the weapon takes time to catch up.
+for (const id of WEAPON_IDS) for (const fps of [30, 60, 144]) for (const ads of [0, 1]) {
+  let delta = { dx: 0, dy: 0 };
+  const input = new Proxy({
+    consumeDelta: () => { const value = delta; delta = { dx: 0, dy: 0 }; return value; },
+    getKeys: () => ({ forward: true }), setGameplayEnabled: noop,
+    wantAdsHeld: !!ads, wantFireHeld: false,
+  }, { get: (o, k) => o[k] ?? (() => false) });
+  const physics = { pos: { x: 1, y: 1, z: 1 }, vel: { x: 0, y: 0, z: 0 },
+    grounded: true, _crouching: false, step: () => false, eyeY: () => 2.62, setMapMeta: noop };
+  const player = new LocalPlayer({ input, physics }); player.setGameplayInputEnabled(true);
+  const weapon = { def: WEAPONS[id], slot: WEAPON_IDS.indexOf(id), adsT: ads };
+  player.update(0, 0, { weapon });
+  const scale = ads ? 0.4 : 1;
+  player._lookScale = scale;
+  delta = { dx: -Math.PI / scale, dy: -0.5 / scale };
+  player.update(1 / fps, 1000 / fps, { weapon });
+  assert.equal(player.view.yaw, Math.PI, `${id}: entire 180-degree flick is accepted in one frame`);
+  assert.equal(player.view.pitch, 0.5, `${id}: diagonal look is independent of weapon speed`);
+  assert.ok(Math.abs(player.wishDir.x) < 1e-8 && player.wishDir.z > 0.999,
+    `${id}: forward immediately follows the new view`);
+  const initialLag = Math.abs(player.weaponAim.yaw);
+  assert.ok(initialLag > 2.8, `${id}: the weapon remains behind after the flick`);
+  let acquired = null;
+  for (let i = 2; i <= fps * 8; i++) {
+    player.update(1 / fps, i * 1000 / fps, { weapon });
+    assert.equal(player.view.yaw, Math.PI, 'The weapon cannot rotate the player after mouse release');
+    assert.equal(player.view.pitch, 0.5);
+    if (Math.hypot(player.weaponAim.yaw, player.weaponAim.pitch) >= Math.PI / 180) acquired = null;
+    else if (acquired === null) acquired = i / fps;
   }
-  assert.ok(acquired);measurements.push({weapon:id,fps,turn180Seconds:acquired,maxLagDeg:peakLag});
+  assert.ok(acquired, `${id}: weapon catches up to the freely chosen view`);
+  measurements.push({ weapon: id, fps, ads, view180Frames: 1, weaponAcquireSeconds: acquired });
+  // Pitch still stops at the anatomical limit; yaw is free even on a hitch or
+  // a frame with no weapon simulation time.
+  for (const dt of [0, 0.2]) for (const sign of [-1, 1]) {
+    const before = player.view.yaw;
+    delta = { dx: sign * 100 / scale, dy: sign * 100 / scale };
+    player.update(dt, 9000, { weapon });
+    assert.ok(Math.abs(player.view.yaw - (before - sign * 100)) < 1e-8);
+    assert.equal(player.view.pitch, clampPitch(-sign * 100));
+    assert.equal(Math.sign(player.view.pitch), -sign);
+  }
+  player.dispose();
 }
-assert.ok(measurements.find(x=>x.weapon==='minigun').turn180Seconds>measurements.find(x=>x.weapon==='smg').turn180Seconds*4);
-for(const id of ['smg','rifle','lmg','minigun']) {
-  const results=measurements.filter(x=>x.weapon===id).map(x=>x.turn180Seconds);
-  assert.ok(Math.max(...results)-Math.min(...results)<0.1,'Turn time remains consistent across frame rates');
-}
-// Real input path: a one-frame 180-degree flick is clipped and never replayed later.
-for(const fps of [30,60,144]) {
-  let dx=0;
-  const input=new Proxy({consumeDelta:()=>{const value=dx;dx=0;return{dx:value,dy:0};},getKeys:()=>({}),setGameplayEnabled:noop,wantAdsHeld:false,wantFireHeld:false},{get:(o,k)=>o[k]??(()=>false)});
-  const physics={pos:{x:1,y:1,z:1},vel:{x:0,y:0,z:0},grounded:true,_crouching:false,step:()=>false,eyeY:()=>2.62,setMapMeta:noop};
-  const player=new LocalPlayer({input,physics});player.setGameplayInputEnabled(true);
-  const weapon={def:WEAPONS.minigun,slot:10,adsT:0};player.update(0,0,{weapon});dx=-Math.PI;
-  player.update(1/fps,1000/fps,{weapon});const accepted=player.view.yaw;
-  assert.ok(accepted>0 && accepted<0.05);
-  for(let i=2;i<fps*2;i++)player.update(1/fps,i*1000/fps,{weapon});
-  assert.ok(Math.abs(player.view.yaw-accepted)<1e-8,'No queued turn after mouse release');player.dispose();
-}
-
-for (const sign of [-1,1]) for (const dt of [0, -1, 0.2, 1]) {
-  const look = constrainWeaponLook(dt,{yaw:sign*100,pitch:sign*100,previousYaw:0,previousPitch:0,
-    weaponYaw:0,weaponPitch:0,yawVelocity:sign*10,pitchVelocity:sign*10,handling:WEAPONS.smg.handling});
-  assert.ok(Math.hypot(look.yaw,look.pitch)<=35*Math.PI/180+1e-8,'A hitch cannot expose the back of the weapon');
-  assert.ok(Math.abs(look.pitch)<=1.56);
+for (const ads of [0, 1]) {
+  const sample = (id, fps) => measurements.find(x => x.weapon === id && x.fps === fps && x.ads === ads);
+  assert.ok(sample('minigun', 60).weaponAcquireSeconds > sample('smg', 60).weaponAcquireSeconds * 3);
+  for (const id of WEAPON_IDS) {
+    const times = [30, 60, 144].map(fps => sample(id, fps).weaponAcquireSeconds);
+    assert.ok(Math.max(...times) - Math.min(...times) < 0.1, `${id}, ADS ${ads}: settling differs across frame rates: ${times}`);
+  }
 }
 
 const directory=await mkdtemp(path.join(tmpdir(),'vb-customization-'));let server;const sockets=[];
@@ -123,5 +138,5 @@ try {
   persisted.flush=flush;persisted.dispose();
 } finally {for(const ws of sockets)ws.terminate();if(server)await stopServer(server);await rm(directory,{recursive:true,force:true});}
 await mkdir('.artifacts/weapon-customization',{recursive:true});await writeFile('.artifacts/weapon-customization/measurements.json',JSON.stringify(measurements,null,2));
-console.log('Weapon customization: compatible combinations, scope switching, client/server parity, 30/60/144 Hz turning, no delayed rotation, HTTP validation, profile isolation, join authority and persistence rollback passed.');
-console.table(measurements);
+console.log('Weapon customization: compatible combinations, scope switching, client/server parity, free look and weapon lag at 30/60/144 Hz, no delayed player rotation, HTTP validation, profile isolation, join authority and persistence rollback passed.');
+console.table(measurements.filter(row => row.fps === 60));

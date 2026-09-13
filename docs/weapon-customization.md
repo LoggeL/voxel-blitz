@@ -1,4 +1,4 @@
-# Weapon customization and carry limits
+# Weapon customization and handling
 
 The main menu's **ARMORY** equips an optic and grip for each compatible weapon. The workshop shows the actual game model, four handling metrics and differences from the factory setup. Changes are saved per weapon, then applied on the next match or training admission. Factory setup resets that weapon without changing the others.
 
@@ -29,20 +29,13 @@ Arrowhead's [customization release](https://arrowhead.zendesk.com/hc/en-us/artic
 
 ## Player turning
 
-`shared/weapon-look.js` limits the accepted combined yaw/pitch input using the weapon's ergonomics and its current orientation. The normal carry envelope ranges from 12° to 24°, reduced in ADS. A 35° hard cap covers render hitches. Excess input is discarded, so releasing the mouse never leaves a queued 180° turn. Walking speed is unchanged; the movement direction turns with the limited player view.
+`LocalPlayer` applies the full mouse, touch or controller look delta to the player view, with the configured sensitivity and ADS zoom scale. Weapon ergonomics never limit camera speed or the accepted turn angle. Forward and strafe directions use this view immediately in both local prediction and server movement (`viewYaw`). Pitch retains its normal vertical limit.
 
-Weapon motion remains a separate fixed-step simulation. Its settling rate is increased for ergonomic weapons so the smaller carry envelope does not make light guns sluggish. Motion prediction within the current frame prevents low-frame-rate players from receiving an extra frame of turning delay.
+`shared/weapon-turn.js` independently moves the weapon toward the view using the weapon's ergonomics, angular acceleration and speed limits. A fast 180° flick can leave a heavy weapon pointing outside the screen until it catches up. Releasing the mouse leaves the player view where it was aimed. Weapon motion does not pull it back or queue more player rotation.
 
-A sustained maximum-speed input produces these **player-view** 180° times:
+The rendered muzzle, aiming marker, predicted shot and network shot all use the delayed weapon direction. Scoped ADS also keeps the camera free; the scope reticle follows the projected shot ray within the scope aperture. ADS sensitivity, recoil, weapon sway and weapon-specific settling remain active.
 
-| Weapon | 30 FPS | 60 FPS | 144 FPS |
-| --- | --- | --- | --- |
-| SMG | 0.367 s | 0.367 s | 0.389 s |
-| Rifle | 0.467 s | 0.467 s | 0.458 s |
-| LMG | 1.500 s | 1.483 s | 1.479 s |
-| Minigun | 2.900 s | 2.883 s | 2.882 s |
-
-The live browser handling range measured 0.41 s for the SMG and 3.38 s for the minigun **including the weapon settling within 1°**. These are two different measurements. The range's 90°/180° buttons now drive the real constrained input path.
+The handling range's 90°/180° buttons feed the same player input path. Its completion time measures weapon settling within 1°, rather than player turning speed.
 
 ## Persistence and authority
 
@@ -52,7 +45,7 @@ The server reads the profile at admission, freezes that match's setup and sends 
 
 ## Validation
 
-`npm run weapons:handling:test` covers every compatible model/configuration, immutable base definitions, client/server values, scope switching, HTTP rejection, player isolation, persistence/restart, rollback, frame-rate parity, hard carry limits and discarded flick input. The complete `npm test` suite covers existing combat, reload, conditions, accounts, modes, maps and networking.
+`npm run weapons:handling:test` covers every compatible model/configuration, immutable base definitions, client/server values, scope switching, HTTP rejection, player isolation, persistence/restart, rollback, frame-rate parity, immediate full flick input, independent movement and weapon settling. The complete `npm test` suite covers existing combat, reload, conditions, accounts, modes, maps and networking.
 
 Browser checks covered:
 

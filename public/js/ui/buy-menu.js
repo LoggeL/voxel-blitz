@@ -1,3 +1,4 @@
+import { buildTttShop, syncTttShop } from './ttt-shop.js';
 import { matchesBinding } from '../keybindings.js';
 import { combatDamage } from '../../../shared/combat-balance.js';
 import { buildBastionArmory, syncBastionArmory, bastionPurchaseId } from './bastion-armory.js';
@@ -56,6 +57,12 @@ export class BuyMenuController {
     }
 
     root.innerHTML = '';
+    if (mode === 'ttt') {
+      root.style.display = 'none';
+      this.buyDom = buildTttShop(root, item => { if (this._isAdmitted()) this._buyMenuCallbacks?.onBuy?.(`ttt:${item}`); }, () => this.toggleBuyMenu(false));
+      this._paintedState = null;
+      return root;
+    }
     if (mode === 'bastion') {
       root.style.display = 'none';
       this.buyDom = buildBastionArmory(root, (action,item) => {
@@ -251,7 +258,8 @@ export class BuyMenuController {
     this.ensureBuyMenu();
   }
 
-  setBuyMenuState({ open, phase, credits, owned, chaosUpgrades, bastion, bastionSelf } = {}) {
+  setBuyMenuState({ ttt, open, phase, credits, owned, chaosUpgrades, bastion, bastionSelf } = {}) {
+    if (ttt !== undefined) this._buyMenuState.ttt = ttt;
     if (bastion !== undefined) this._buyMenuState.bastion = bastion;
     if (bastionSelf !== undefined) this._buyMenuState.bastionSelf = bastionSelf;
     if (phase !== undefined) this._buyMenuState.phase = phase;
@@ -380,9 +388,10 @@ export class BuyMenuController {
     // contain the same authoritative economy.
     const state = this._buyMenuState;
     const painted = JSON.stringify([dom.mode, this._isAdmitted(), this._isAlive(),
-      state.phase, state.credits, state.owned, state.chaosUpgrades, state.bastion, state.bastionSelf]);
+      state.phase, state.credits, state.owned, state.ttt, state.chaosUpgrades, state.bastion, state.bastionSelf]);
     if (painted === this._paintedState) return;
     this._paintedState = painted;
+    if (dom.mode === 'ttt') { syncTttShop(dom,state); return; }
     if (dom.mode === 'bastion') { syncBastionArmory(dom,state); return; }
 
     if (this._isChaosMode()) {
@@ -515,7 +524,8 @@ export class BuyMenuController {
   }
 
   _isAdmitted() {
-    return ((this._isSndMode() && this._buyMenuState.phase === 'prep')
+    return ((this.host.mode?.() === 'ttt' && this._buyMenuState.phase === 'live' && this._buyMenuState.ttt?.role === 'traitor')
+      || (this._isSndMode() && this._buyMenuState.phase === 'prep')
       || (this._isChaosMode() && this._buyMenuState.phase === 'live')
       || (this.host.mode?.() === 'bastion' && ['prep','supply'].includes(this._buyMenuState.phase)))
       && this._isAlive()
@@ -523,7 +533,7 @@ export class BuyMenuController {
       && !this.host.isLobbyOpen?.();
   }
 
-  _shopMode() { return this.host.mode?.() === 'bastion' ? 'bastion' : this._isChaosMode() ? 'chaos' : 'snd'; }
+  _shopMode() { return this.host.mode?.() === 'ttt' ? 'ttt' : this.host.mode?.() === 'bastion' ? 'bastion' : this._isChaosMode() ? 'chaos' : 'snd'; }
 
   _isChaosMode() {
     return this.host.mode?.() === 'chaos';

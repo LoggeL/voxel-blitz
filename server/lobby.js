@@ -665,7 +665,8 @@ export class LobbyManager {
     if (room.destroyed) return;
     for (const member of Array.from(room.members.values())) {
       if (room.destroyed || room.members.get(member.id) !== member) continue;
-      try { this.sendJson(member.meta, obj); } catch { /* socket cleanup owns failures */ }
+      try { this.sendJson(member.meta, obj.t === 'tick' && room.engine?.mode.mode === 'ttt'
+        ? { ...obj, players: obj.players.map(p => p.id === member.id ? { ...p, ttt: room.engine.mode.policy.privateState(member.id) } : { ...p, disguised: room.engine.mode.policy.equipment.isDisguised(p.id) }) } : obj); } catch { /* socket cleanup owns failures */ }
     }
   }
 

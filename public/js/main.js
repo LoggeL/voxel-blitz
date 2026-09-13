@@ -1,3 +1,4 @@
+import { TttControls } from './ui/ttt-controls.js';
 import { loadingScreen } from './ui/loading-screen.js';
 import { WeaponCustomization } from './ui/weapon-customization.js';
 import { claymoreProfile } from '../../shared/claymore-rules.js';
@@ -345,10 +346,13 @@ class Game {
     this.worldview?.setMatch(match);
     this.worldview?.setPowerups(snapshot.powerups);
     this.selfRow = self;
+    if (match?.mode === 'ttt') this.tttControls ??= new TttControls(this);
+    this.tttControls?.sync(match,self,players);
     this.rig?.setCosmetics(self?.cosmetics);
     this.ownBody?.setCosmetics(self?.cosmetics);
     if (self?.state !== 'dead') this.killcam?.stop();
     this.playersCache = presented;
+    this._tttSnapshotAt = performance.now();
     this.serverNow = Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : null;
     this.effects?.syncFireFields?.(snapshot.fireFields, this.serverNow);
     this.effects?.syncMines?.(snapshot.mines, this.myId);
@@ -429,6 +433,7 @@ class Game {
   isAuthoritativeFireAllowed() {
     if (!this.session.gameplayInputEnabled || !this.player.alive ||
         this.selfRow?.state !== 'alive' || this.weaponWheel.open || this.player.physics.vault) return false;
+    if (this.matchState?.mode === 'ttt') return this.matchState.phase === 'live' && !!this.selfRow?.owned?.length;
     if (this.matchState?.mode === 'fun' || this.matchState?.mode === 'training') return true;
     return (this.matchState?.mode === 'duel' || this.matchState?.mode === 'chaos' || this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
       this.matchState?.mode === 'gungame' || this.matchState?.mode === 'bastion') &&
@@ -680,6 +685,7 @@ class Game {
         shotYaw: this.player.shotYaw,
         shotPitch: this.player.shotPitch,
       });
+      if (this.matchState?.mode === 'ttt' && !this.selfRow?.owned?.length) this.rig.content.visible = false;
       this.weapon.syncRigAds();
       const flameDirection = fwdFromAngles(this.player.shotYaw, this.player.shotPitch);
       this.effects.flames?.setLocalStream(this.weapon.flameFiring,
@@ -700,6 +706,7 @@ class Game {
     } catch (error) { this.phaseError('net/interp', error); }
 
     const spectating = this.spectator?.active === true;
+    this.tttControls?.update();
     this.syncTouchContext();
     this.syncAimAssist(now);
     this.syncDeviceInfo(now);
@@ -809,6 +816,7 @@ class Game {
     this._lastConsumedSnapSeq = null;
     this.feedback?.dispose();
     this.runHud?.dispose();
+    this.tttControls?.dispose();this.tttControls=null;
     this.killcam?.dispose();
     this.killcam = null;
     this.spectator?.dispose();

@@ -65,14 +65,17 @@ try {
   weapon.applyIntents({ wantAds: true }, now, context);
   for (let i = 0; i < 60; i++) weapon.settleFrame(1 / 60);
   assert.equal(weapon.scopeActive, true);
-  // Residual carry motion during scope entry must still land on the fixed reticle.
+  // Scope camera remains with the player's view; the projected reticle follows
+  // residual weapon lag instead of slowing the view to keep a fixed reticle.
   player._weaponAim.readModel.yaw = 0.02;
   player._weaponAim.readModel.pitch = -0.01;
   for (const pitch of [-1, 0, 1]) {
     player.view.pitch = pitch;
     player.updateCamera(1 / 60, camera, weapon.def, 0.73, 75, weapon.scopeActive);
     const point = projectAimReticle(camera, player.shotYaw, player.shotPitch);
-    assert.ok(Math.abs(point.x - 0.5) < 1e-6 && Math.abs(point.y - 0.5) < 1e-6);
+    assert.equal(camera.rotation.y, player.aimYaw + player.recoilYaw);
+    assert.equal(camera.rotation.x, player.aimPitch + player.recoilPitch);
+    assert.ok(Math.abs(point.x - 0.5) > 0.001 && Math.abs(point.y - 0.5) > 0.001);
   }
   weapon.applyIntents({ wantAds: true, fireTap: true }, now, context);
   assert.equal(weapon.tryFire(now, context), true);

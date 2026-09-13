@@ -1,6 +1,7 @@
 import { GUN_GAME_WEAPON_ORDER } from '../../../shared/modes.js';
 
 export const MODE_TITLES = Object.freeze({
+  ttt: 'TROUBLE IN TERRORIST TOWN',
   chaos: 'CHAOS LAB',
   duel: '1V1 DUEL', bastion: 'BASTION',
   fun: 'FREE FOR ALL', tdm: 'TEAM DEATHMATCH', snd: 'SEARCH & DESTROY',

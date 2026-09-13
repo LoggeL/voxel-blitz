@@ -9,6 +9,7 @@ export const KEYBINDING_ACTIONS = Object.freeze([
   ['prone', 'Prone (toggle)', ['KeyX']], ['interact', 'Interact / plant / defuse / repair', ['KeyE']],
   ['fire', 'Fire (keyboard alternative)', []], ['ads', 'Aim down sights', ['KeyF']],
   ['reload', 'Reload', ['KeyR']], ['quickMelee', 'Quick pickaxe hit', ['KeyV']],
+  ['dropWeapon', 'Drop weapon (TTT)', ['KeyL']],
   ['medkit', 'Medkit / cancel healing', ['KeyJ']], ['grenade', 'Throw grenade (hold / release)', ['KeyG']],
   ['grenadeType', 'Next grenade type', ['KeyH']], ['zoom', 'Scope zoom', ['KeyZ']],
   ['weaponWheel', 'Weapon wheel (hold)', ['KeyQ']], ['buy', 'Buy menu / armory', ['KeyB']],

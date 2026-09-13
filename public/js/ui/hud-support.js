@@ -80,6 +80,7 @@ export const WEAPON_BUY_ORDER = Object.freeze([
 export const MODE_LABELS = Object.freeze({
   bastion: 'BASTION · CO-OP PVE',
   duel: '1V1 DUEL',
+  ttt: 'TROUBLE IN TERRORIST TOWN',
   chaos: 'CHAOS LAB',
   fun: 'FUN · FREE FOR ALL',
   tdm: 'TEAM DEATHMATCH',
@@ -89,6 +90,7 @@ export const MODE_LABELS = Object.freeze({
 });
 
 export const MODE_DESCRIPTIONS = Object.freeze({
+  ttt: '60 Sekunden Waffen suchen · Geheime Rollen · Ein Leben · Traitor-Shop',
   bastion: '1–4 defenders · 8 finite waves · Protect the reactor · Team upgrades between waves',
   chaos: `Kills pay $${CHAOS_KILL_CREDITS} · ${Object.values(CHAOS_UPGRADES).reduce((total, upgrades) => total + upgrades.length, 0)} stacking upgrades · Open the lab with B · No balance, just chaos`,
   fun: 'Shared instant skirmish · 8-gun full loadout · Rapid respawn',

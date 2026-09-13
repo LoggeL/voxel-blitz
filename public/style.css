@@ -3018,6 +3018,18 @@ h1.vb-title::after {
 #sniper-scope.active,
 #sniper-scope.exiting { display: block; }
 
+#scope-reticle-window,
+#scope-reticle {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+#scope-reticle-window { clip-path: circle(33.4vmin at 50% 50%); }
+#scope-reticle {
+  transform: translate(var(--scope-aim-x, 0px), var(--scope-aim-y, 0px));
+}
+
 #scope-vignette {
   position: absolute;
   inset: 0;

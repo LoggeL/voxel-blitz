@@ -581,18 +581,13 @@ export class LocalPlayer {
     this._reconcileOffset.decay = RECONCILE_OFFSET_DECAY;
   }
 
-  _readLook(dt, weapon) {
+  _readLook() {
     const delta = this.input.consumeDelta();
     if (!this._alive) return;
-    let dx = delta.dx * this._lookScale;
-    let dy = delta.dy * this._lookScale;
-    if (this._gameplayInputEnabled && weapon?.def) {
-      const look = this._weaponAim.constrainLook(dt, { weapon: weapon.def.id,
-        previousYaw: this.view.yaw, previousPitch: this.view.pitch,
-        yaw: this.view.yaw - dx, pitch: this.view.pitch - dy,
-        handling: weapon.def.handling, ads: weapon.adsT ?? this.adsT });
-      dx = this.view.yaw - look.yaw; dy = this.view.pitch - look.pitch;
-    }
+    // Look and movement consume the full input. Carry inertia follows this view
+    // later in the frame and only changes the weapon/shot direction.
+    const dx = delta.dx * this._lookScale;
+    const dy = delta.dy * this._lookScale;
     this.view.yaw -= dx;
     this.view.pitch -= dy;
     this.view.pitch = clampPitch(this.view.pitch);
@@ -864,7 +859,7 @@ export class LocalPlayer {
     if (this._disposed) return this._frame;
     this._frame.inputSent = false;
     this._frame.inputPayload = null;
-    this._readLook(dt, intents.weapon);
+    this._readLook();
     const weaponIntents = this._sampleMovement(now, intents);
     const movementAllowed = intents.movementAllowed == null
       ? true
@@ -990,6 +985,13 @@ export class LocalPlayer {
     if (!authoritativeAlive) this.medkit.cancel();
     if (authoritativeAlive && me.impulse) this.physics.adoptImpulse(me.impulse);
 
+    const teleportSeq = me.ttt?.teleport?.seq ?? null;
+    if (authoritativeAlive && teleportSeq !== null && teleportSeq !== this._tttTeleportSeq) {
+      this.spawnAt(me.x, me.y, me.z);
+      this._resetReconcileOffset();
+      this.physics.lastImpulseSeq = me.impulse?.seq || 0;
+    }
+    this._tttTeleportSeq = teleportSeq;
     if ([me.x, me.y, me.z].every(Number.isFinite)) {
       const pos = this.physics.pos;
       const dx = me.x - pos.x;
@@ -1073,8 +1075,8 @@ export class LocalPlayer {
       alive: this._alive, vaulting: !!this.physics.vault, grenadeHandling: this.grenadeHandling });
     camera.rotation.order = 'YXZ';
     camera.rotation.set(
-      (this.scopeActive ? this.shotPitch : this.aimPitch + this.recoilPitch) + this.deathPitch,
-      this.scopeActive ? this.shotYaw : this.aimYaw + this.recoilYaw,
+      this.aimPitch + this.recoilPitch + this.deathPitch,
+      this.aimYaw + this.recoilYaw,
       this.deathRoll + this.recoilRoll,
     );
     this._lookScale = adsLookScale(camera.fov, baseFov);

@@ -311,7 +311,7 @@ class BotManager {
   /** Buy one durable S&D primary when needed and expose only legal slots. */
   prepareLoadout(br, p) {
     const mode = this.game.mode;
-    if (mode.mode === 'gungame') {
+    if (mode.mode === 'gungame' || mode.mode === 'ttt') {
       const owned = mode.playerSnapshot(p).owned;
       const slots = owned.map((id) => WEAPON_IDS.indexOf(id)).filter((slot) => slot >= 0);
       return slots.length ? slots : [DEFAULT_WEAPON_SLOT];

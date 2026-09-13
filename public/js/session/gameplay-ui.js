@@ -159,7 +159,8 @@ export class GameplayUiFlow {
 
   _isBuyPhase() {
     const match = this._gameplay.matchState;
-    return (match?.mode === 'snd' && match.phase === 'prep')
+    return (match?.mode === 'ttt' && match.phase === 'live' && this._gameplay.selfRow?.ttt?.role === 'traitor')
+      || (match?.mode === 'snd' && match.phase === 'prep')
       || (match?.mode === 'chaos' && match.phase === 'live')
       || (match?.mode === 'bastion' && ['prep','supply'].includes(match.phase));
   }
@@ -236,7 +237,7 @@ export class GameplayUiFlow {
     }
     if (!this._getNet()?.buyWeapon(weapon)) return false;
 
-    if (['chaos','bastion'].includes(this._gameplay.matchState.mode)) return true;
+    if (['ttt','chaos','bastion'].includes(this._gameplay.matchState.mode)) return true;
     this._pendingPurchase = { weapon, until: this._now() + 1500 };
     return true;
   }

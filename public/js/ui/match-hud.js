@@ -147,9 +147,10 @@ export class MatchHud {
     const curMode = match?.mode || 'fun';
     m.header.dataset.mode = curMode;
     m.header.parentNode.dataset.mode = curMode;
+    m.header.parentNode.dataset.tttUnarmed = String(curMode === 'ttt' && !selfRow?.owned?.length);
     m.header.style.display = curMode === 'training' ? 'none' : 'flex';
     m.mapBadge.style.display = 'none';
-    m.clock.style.display = curMode === 'snd' ? 'block' : 'none';
+    m.clock.style.display = ['snd','ttt'].includes(curMode) ? 'block' : 'none';
     const curMap = match?.map || 'foundry';
     if (m.coreBar) m.coreBar.hidden = curMode !== 'bastion';
     const phase = match?.phase || 'live';
@@ -172,7 +173,7 @@ export class MatchHud {
       const fuseRemSec = Math.max(0, (match.bomb.explodeAt - sNow) / 1000);
       clockText = `${fuseRemSec.toFixed(1)}s`;
       isUrgentBomb = true;
-    } else if (curMode === 'snd' && Number.isFinite(match?.phaseEndsAt)) {
+    } else if (['snd','ttt'].includes(curMode) && Number.isFinite(match?.phaseEndsAt)) {
       const remSec = Math.max(0, (match.phaseEndsAt - sNow) / 1000);
       clockText = formatClock(remSec);
     }
@@ -183,7 +184,9 @@ export class MatchHud {
     }
 
     if (m.phaseLabel) {
-      if (curMode === 'snd') {
+      if (curMode === 'ttt') {
+        m.phaseLabel.textContent = phase === 'prep' ? 'VORBEREITUNG · WAFFEN SUCHEN' : phase === 'post' ? 'RUNDE BEENDET' : (selfRow?.ttt?.role || 'ZUSCHAUER').toUpperCase();
+      } else if (curMode === 'snd') {
         const status = phase === 'prep' ? 'BUY' : phase === 'post' ? 'ROUND OVER' : '';
         m.phaseLabel.textContent = `R${match?.round || 1}${status ? ` · ${status}` : ''}`;
       } else if (curMode === 'duel') {
@@ -300,15 +303,16 @@ export class MatchHud {
         m.carrierBadge.style.display = (curMode === 'snd' && selfRow.bomb) ? 'inline-block' : 'none';
       }
       if (m.buyPrompt) {
-        const canBuy = ((curMode === 'snd' && phase === 'prep') || (curMode === 'chaos' && phase === 'live'))
+        const canBuy = ((curMode === 'ttt' && phase === 'live' && selfRow?.ttt?.role === 'traitor') || (curMode === 'snd' && phase === 'prep') || (curMode === 'chaos' && phase === 'live'))
           && this.readModel.dead !== true
           && selfRow.hp > 0
           && selfRow.state !== 'dead';
-        m.buyPrompt.textContent = curMode === 'chaos' ? `[${bindingLabel('buy')}] CHAOS LAB · BUY UPGRADES` : `[${bindingLabel('buy')}] ARMORY OPEN`;
+        m.buyPrompt.textContent = curMode === 'ttt' ? `[${bindingLabel('buy')}] TRAITOR-SHOP` : curMode === 'chaos' ? `[${bindingLabel('buy')}] CHAOS LAB · BUY UPGRADES` : `[${bindingLabel('buy')}] ARMORY OPEN`;
         m.buyPrompt.style.display = canBuy ? 'block' : 'none';
       }
 
       this.onBuyMenuState({
+        ttt: selfRow?.ttt || null,
         phase: match?.phase || 'live',
         credits: selfRow.credits || 0,
         owned: selfRow.owned || [],
@@ -321,6 +325,7 @@ export class MatchHud {
       if (m.buyPrompt) m.buyPrompt.style.display = 'none';
       this.onBuyMenuState({
         open: false,
+        ttt: selfRow?.ttt || null,
         phase: match?.phase || 'live',
         credits: 0,
         owned: [],

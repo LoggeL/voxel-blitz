@@ -7,14 +7,16 @@ export function createSniperScope(hud) {
   scope.style.pointerEvents = 'none';
 
   el('div', '', scope, 'scope-vignette');
-  el('div', 'scope-line h', scope);
-  el('div', 'scope-line v', scope);
-  el('div', 'scope-duplex scope-duplex-left', scope);
-  el('div', 'scope-duplex scope-duplex-right', scope);
-  el('div', 'scope-duplex scope-duplex-top', scope);
-  el('div', 'scope-duplex scope-duplex-bottom', scope);
+  const window = el('div', '', scope, 'scope-reticle-window');
+  const reticle = el('div', '', window, 'scope-reticle');
+  el('div', 'scope-line h', reticle);
+  el('div', 'scope-line v', reticle);
+  el('div', 'scope-duplex scope-duplex-left', reticle);
+  el('div', 'scope-duplex scope-duplex-right', reticle);
+  el('div', 'scope-duplex scope-duplex-top', reticle);
+  el('div', 'scope-duplex scope-duplex-bottom', reticle);
 
-  const rings = el('div', '', scope);
+  const rings = el('div', '', reticle);
   rings.style.position = 'absolute';
   rings.style.inset = '0';
   rings.style.pointerEvents = 'none';
