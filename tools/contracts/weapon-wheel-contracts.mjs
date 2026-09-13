@@ -62,6 +62,20 @@ export async function runWeaponWheelContracts(ok) {
   ok(!controller.open && picks.length === 1 && picks[0] === 9,
     'wheel confirmation ignores locked slots and equips an owned selection once');
 
+  for (const mode of ['ttt', 'bastion', 'snd', 'gungame', 'duel']) {
+    context.match.mode = mode;
+    context.self.owned = [];
+    ok(controller.entries().every(entry => !entry.owned), `${mode}: an empty authoritative inventory locks every wheel slot`);
+    context.self.owned = ['rifle'];
+    ok(controller.entries().filter(entry => entry.owned).map(entry => entry.id).join() === 'rifle',
+      `${mode}: only the carried weapon is selectable`);
+  }
+  for (const mode of ['fun', 'chaos', 'tdm', 'training']) {
+    context.match.mode = mode;
+    ok(controller.entries().every(entry => entry.owned), `${mode}: the wheel opens without restricting the loadout`);
+  }
+  context.match.mode = 'snd'; context.self.owned = ['revolver', 'knife'];
+
   const { WHEEL_COMMIT_RADIUS } = await import('../../public/js/ui/weapon-wheel.js');
   // The facade uses the real sector math; queued input represents one frame's
   // complete gesture, including motion and release arriving before it opens.

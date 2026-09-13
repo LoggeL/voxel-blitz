@@ -205,7 +205,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
 // ---------------------------------------------- mode + map foundation contract
 {
-  ok(sameValue(MODE_IDS, ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training'])
+  ok(sameValue(MODE_IDS, ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training'])
     && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
@@ -226,6 +226,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     'every S&D-compatible map exposes dedicated A/B marker render-validation shots');
 
   const expectedRules = {
+    ttt: { teams: false, friendlyFire: true, respawnMs: Infinity, prepMs: 60000, liveMs: 300000 },
     bastion: { teams: true, friendlyFire: false, respawnMs: Infinity },
     duel: { teams: false, friendlyFire: true, respawnMs: 1500, killLimit: 5, postMs: 8000 },
     chaos: { teams: false, friendlyFire: true, respawnMs: 1500 },
@@ -311,16 +312,16 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   'Search and Destroy prices and credit economy are exact immutable values');
 
   const expectedCompatibility = {
-    harbor: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
-    canyon: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
+    harbor: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
+    canyon: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
     reactor: ['bastion'],
-    foundry: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
-    depot: ['fun', 'duel', 'chaos', 'tdm', 'gungame'],
-    citadel: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
-    solstice: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
-    caldera: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
-    nuketown: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
-    dust2: ['fun', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
+    foundry: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
+    depot: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame'],
+    citadel: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
+    solstice: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
+    caldera: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
+    nuketown: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
+    dust2: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
     killhouse: ['training'],
   };
   ok(sameValue(MAP_MODE_COMPATIBILITY, expectedCompatibility)

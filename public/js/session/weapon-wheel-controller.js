@@ -15,12 +15,13 @@ export class WeaponWheelController {
   /**
    * Wheel entries for every weapon slot: display name/class from the HUD support
    * tables, live ammo, and per-slot ownership. Ownership is only authoritative in
-   * snd/gungame when the server sent an owned list; otherwise every slot is usable.
+   * inventory-based modes when the server sent an owned list; otherwise every slot is usable.
    */
   entries() {
     const context = this.getContext();
+    const mode = context.match?.mode;
     const authoritative = Array.isArray(context.self?.owned) &&
-      (context.match?.mode === 'ttt' || mode === 'bastion' || context.match?.mode === 'snd' || context.match?.mode === 'gungame' || context.match?.mode === 'duel');
+      ['ttt', 'bastion', 'snd', 'gungame', 'duel'].includes(mode);
     return WEAPON_IDS.map((id, slot) => {
       const locked = authoritative && !context.self.owned.includes(id);
       const ammo = context.weapon?.ammoOf(id);
