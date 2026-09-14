@@ -819,8 +819,10 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     return cells;
   };
   const gates = course.gates.map(gateCells);
+  // Training windows are counted in 50 ms steps below, independent of the
+  // live simulation rate; the mode only compares authoritative times.
   const stepOnce = () => {
-    engine.step(engine.intervalMs);
+    engine.step(50);
     return frames[frames.length - 1];
   };
   const eventsOf = (frame, kind) => (frame.events || []).filter((e) => e.kind === kind);

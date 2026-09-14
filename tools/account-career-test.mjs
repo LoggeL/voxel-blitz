@@ -15,7 +15,7 @@ const directory = mkdtempSync(path.join(tmpdir(), 'vb-account-career-'));
 // logout/reset regression tests take several real minutes.
 const bootstrap = path.join(directory, 'accelerated-ticks.mjs');
 writeFileSync(bootstrap, `const interval = globalThis.setInterval;
-globalThis.setInterval = (callback, ms, ...args) => interval(callback, ms === 50 ? 1 : ms, ...args);\n`);
+globalThis.setInterval = (callback, ms, ...args) => interval(callback, Math.abs(ms - 1000 / 60) < 0.01 ? 1 : ms, ...args);\n`);
 let server;
 let base;
 const sockets = new Set();

@@ -227,7 +227,8 @@ assert.ok(lavaCell);
 Object.assign(player, { x: lavaCell[0] + 0.5, y: 2.2, z: lavaCell[1] + 0.5, vx: 0, vy: 0, vz: 0 });
 engine.applyInput('swimmer', { keys: {} });
 const hpBefore = player.hp;
-for (let i = 0; i < 12; i++) engine.step(engine.intervalMs);
+// Lava ticks every 250 ms of authoritative time regardless of the step size.
+for (let i = 0; i < Math.ceil(300 / engine.intervalMs); i++) engine.step(engine.intervalMs);
 assert.ok(player.hp < hpBefore, 'standing in lava burns');
 const snapshotEvents = engine.tickEvents.length;
 assert.ok(snapshotEvents >= 0);

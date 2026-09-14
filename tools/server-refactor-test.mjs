@@ -32,23 +32,24 @@ import { raycastVoxels } from '../shared/raycast.js';
   const player = new PlayerEntity('p', 'Player', { x: 10, y: 10, z: 10 });
   const ctx = { now: 0, solidAt: () => false, mapMeta: null, movementLocked: true,
     onFall: (_p, reason) => { throw new Error(reason); } };
-  for (let tick = 0; tick < 24; tick++) {
+  // 32 samples cover the 450 ms rewind window at 60 Hz with headroom.
+  for (let tick = 0; tick < 40; tick++) {
     ctx.now += 50;
     player.x = 10 + tick;
     stepMovement(player, 0.05, ctx);
   }
-  assert.equal(player.hist.length, 16);
+  assert.equal(player.hist.length, 32);
   assert.equal(player.hist[0].t, 450);
-  assert.equal(player.hist.at(-1).t, 1200);
+  assert.equal(player.hist.at(-1).t, 2000);
   assert.equal(player.hist[0].x, 18);
-  assert.equal(player.hist.at(-1).x, 33);
+  assert.equal(player.hist.at(-1).x, 49);
   const pose = player.hist.at(-1);
-  player.x = 34;
-  assert.equal(pose.x, 33);
+  player.x = 50;
+  assert.equal(pose.x, 49);
   ctx.movementLocked = false;
   ctx.now += 50;
   stepMovement(player, 0.05, ctx);
-  assert.equal(player.hist.at(-1).t, 1250);
+  assert.equal(player.hist.at(-1).t, 2050);
   assert(Number.isFinite(player.y));
   player.x = '34';
   assert.throws(() => stepMovement(player, 0.05, ctx), /invalid/);

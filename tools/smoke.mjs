@@ -682,7 +682,8 @@ function runDirectContracts() {
   fireEngine.applyInput('cadence', {
     ...tapInput, seq: 1, pitch: 1.2, weapon: lmgSlot, wantFire: true,
   });
-  for (let i = 0; i < 41; i++) fireEngine.step(TICK_MS);
+  // Two seconds of held fire, independent of the simulation rate.
+  for (let i = 0; i < Math.round(2050 / TICK_MS); i++) fireEngine.step(TICK_MS);
   const lmgShots = [];
   let firstShoot = null;
   for (const tick of snapshots) {

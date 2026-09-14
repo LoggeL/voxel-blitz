@@ -122,7 +122,7 @@ class Bot {
     this.skill = opts.skill;
 
     this.id = null;
-    this.tickRate = 20;
+    this.tickRate = 60;
     this.welcomed = false;
     this.hasMap = false;
     this.pendingBinary = null; // map frame stashed pre-welcome (arrival-order robustness)
@@ -221,7 +221,7 @@ class Bot {
 
   onWelcome(msg) {
     this.id = msg.id;
-    this.tickRate = msg.tickRate || 20;
+    this.tickRate = msg.tickRate || 60;
     this.welcomed = true;
     const s = msg.spawn || {};
     this.myPos = [s.x || 0, s.y || 0, s.z || 0];

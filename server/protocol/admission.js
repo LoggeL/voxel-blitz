@@ -15,8 +15,8 @@ import {
 } from '../../shared/modes.js';
 
 /** Authoritative simulation rate. */
-export const TICK_RATE_HZ = 20;
-/** Milliseconds per fixed step (50). */
+export const TICK_RATE_HZ = 60;
+/** Milliseconds per fixed step (16.67). */
 export const TICK_MS = 1000 / TICK_RATE_HZ;
 
 /** Invite-code alphabet excludes ambiguous glyphs (I, L, O, 0 and 1). */

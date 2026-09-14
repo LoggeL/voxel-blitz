@@ -1,7 +1,7 @@
 # VOXEL BLITZ
 
 Browser multiplayer voxel arena shooter. One Node process serves the game **and**
-runs the authoritative 20 Hz simulation over WebSockets; clients are plain
+runs the authoritative 60 Hz simulation over WebSockets; clients are plain
 three.js ES modules (no bundler). Ten hand-tuned weapons with a full "gun UX"
 stack: procedural viewmodels, staged timer-driven animations, bloom/recoil,
 ADS, tracers, shell ejects, muzzle flash + barrel heat shader, block-shatter,
@@ -259,7 +259,7 @@ the waiting UI.
   host—must mark ready; bots never participate in readiness. Only the host can
   start, and Start remains gated until all humans are ready.
 - Starting changes the room to `live`, attaches its bots, and starts its
-  authoritative 20 Hz engine. A human may join a live public room later and
+  authoritative 60 Hz engine. A human may join a live public room later and
   receives that room's current, already-mutated map before gameplay begins.
   Combat bots fill at most eight total slots; late joins take an available bot
   when the mode permits takeover.
@@ -585,7 +585,7 @@ reloads never stutter on a slow link.
 
 ```
 shared/    mode/map rules, movement/collision, world generation, raycasts, weapon/projectile rules
-server/    HTTP/ws host, room manager, authoritative 20 Hz sim, modes, bots
+server/    HTTP/ws host, room manager, authoritative 60 Hz sim, modes, bots
 public/js/
   engine/  input, snapshots, timing/smoothing, chunk mesher, sky, combat shader
   guns/    defs (feel tables) + viewmodel rig (procedural models, staged anims)
@@ -619,10 +619,24 @@ carries authoritative `match` state and player `team`, `credits`, `owned`,
 `bomb`, and interaction fields. Mode and combat events remain attached to their
 owning snapshots and are dispatched once by the interpolation/event drain.
 Measured RTT pings are independent of tick-arrival jitter. Remote transforms
-use an adaptive 65–180 ms presentation buffer, shortest-arc interpolation, and
+use an adaptive 30–180 ms presentation buffer, shortest-arc interpolation, and
 strictly capped extrapolation through short packet gaps. Server tick time is
 mapped onto the page clock, and bounded hit rewind follows the target age the
-client actually presented.
+client actually presented. Hit markers and kills the local player caused
+bypass that buffer and surface the frame their snapshot arrives; remote
+bodies, gore and everything else keep their delayed, ordered presentation.
+
+Each room serializes a tick snapshot once and hands the same string to every
+member, so broadcast cost grows with room size instead of its square. The
+server offers `permessage-deflate` with context takeover for frames above
+1 KB: consecutive snapshots repeat almost every byte, so a 16-player tick
+shrinks from about 20 KB to roughly 1.3 KB on the wire (1.2 MB/s to under
+80 KB/s per member at 60 Hz). That headroom is what keeps home and mobile links from
+queueing snapshots behind each other, which players otherwise see as rising
+ping. Pings, pongs and lobby state stay below the threshold and never wait on
+zlib. Clients that decline the extension receive identical plain frames.
+`node tools/network-transport-test.mjs` (part of `connection:test`) protects
+both properties against a real server.
 
 ## Connection diagnostics
 
@@ -775,7 +789,7 @@ Weapon scrolling also works while scoped. Switching stows the old weapon before 
 
 Guest profiles use a random HttpOnly, SameSite browser cookie. Signed-in profiles use the server-resolved account identity, so the same account shares XP, credits and cosmetics across devices. Only registration transfers the current guest profile, once. Logging in never merges guest profiles. Registration keeps the original guest identity and recovery snapshot privately with the account. PostgreSQL atomically copies the latest committed guest profile into the account and publishes a unique claim, which invalidates the old guest token. If transfer storage is unavailable, the account response carries a visible warning and the career returns 503 until the transfer can finish. Later account reads or logins retry the same transfer, including after a restart. Existing gameplay sockets revalidate their original identity before awarding XP; logout, session expiry, password changes and recovery stop rewards on revoked sessions without interrupting play.
 
-`server/persistence/postgres.js` stores accounts, separate hashed sessions, careers, unique guest claims and reward receipts in PostgreSQL. Auth responses wait for the commit before issuing a cookie or changing the account cache. Purchases serialize balance and ownership checks with their update in one transaction. Gameplay observation stays synchronous at 20 Hz and writes only actual reward deltas. Each reward has a persistent receipt so retries cannot award twice. Transient transaction timeouts, lock conflicts and serialization failures retry the same queued reward before later writes proceed; health reports 503 while it is delayed. Graceful shutdown waits for outstanding writes and reports failure if it cannot finish. Data already committed remains durable across process and database restarts; an abrupt termination can still interrupt work that has not committed.
+`server/persistence/postgres.js` stores accounts, separate hashed sessions, careers, unique guest claims and reward receipts in PostgreSQL. Auth responses wait for the commit before issuing a cookie or changing the account cache. Purchases serialize balance and ownership checks with their update in one transaction. Gameplay observation stays synchronous at 60 Hz and writes only actual reward deltas. Each reward has a persistent receipt so retries cannot award twice. Transient transaction timeouts, lock conflicts and serialization failures retry the same queued reward before later writes proceed; health reports 503 while it is delayed. Graceful shutdown waits for outstanding writes and reports failure if it cannot finish. Data already committed remains durable across process and database restarts; an abrupt termination can still interrupt work that has not committed.
 
 This runtime supports one game writer per database. A session-level PostgreSQL advisory lock protects the account and claim caches; a second game process or importer is rejected. All transaction statements use the same dedicated connection, as required by [node-postgres](https://node-postgres.com/features/transactions). Losing that connection releases the lease and terminates the game process with a failure exit code. Compose's restart policy starts a new process, acquires the lock and reloads persisted identities. It does not rely on Docker health checks alone to restart the process. A permanent reward error makes persistence unavailable and fails shutdown instead of silently dropping progress.
 

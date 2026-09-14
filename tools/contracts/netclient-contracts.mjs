@@ -208,7 +208,8 @@ export async function runNetClientContracts(ok, installGlobals) {
         reloadId: 7,
         medkitId: 0,
         cancelMedkit: false,
-        viewAge: 80,
+        // Presentation age reported before any RTT sample: the default buffer.
+        viewAge: 40,
         throwGrenade: true,
         grenadeCharge: 0.625,
         grenadeType: 4,

@@ -118,7 +118,7 @@ See the [full controls](docs/development.md#controls) for charge weapons, sniper
 
 ## Run and develop
 
-One Node.js process serves the client and runs an authoritative 20 Hz simulation over WebSockets. The client uses three.js and native JavaScript modules. There is no frontend build step.
+One Node.js process serves the client and runs an authoritative 60 Hz simulation over WebSockets. The client uses three.js and native JavaScript modules. There is no frontend build step.
 
 ```bash
 npm test                  # Core contracts and gameplay/protocol checks

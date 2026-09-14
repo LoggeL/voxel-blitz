@@ -19,7 +19,7 @@ room/client interfaces below; do not fork their logic into a second convention.
   shared bolt launch/flight/ricochet contract.
 - One room owns one map clone, `GameEngine`, `ModeController`, optional
   `BotManager`, and room-scoped transports. The server remains authoritative at
-  20 Hz.
+  60 Hz.
 
 ## Career cosmetics
 
@@ -140,7 +140,7 @@ After admission:
   `wantFire` held on a `charge`-mode weapon (LONGARC, VOLTLANCE) charges the
   capacitor and the shot leaves on release or when the hold reaches `holdMaxMs`.
   `viewAge` is the client's current presentation buffer plus measured RTT and
-  is clamped by authority to `50–450 ms` before hit rewind.
+  is clamped by authority to `25–450 ms` before hit rewind.
   Weapon slots clamp to `0–9`; keyboard digits are `1–9` with `0` for the
   tenth slot.
 - `{t:'ping',nonce:safe-integer,diagnostics?:true}` receives `{t:'pong',nonce}`
@@ -170,7 +170,7 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   members:[{id,name,ready,bot,ping,team}]}` after create/join, readiness changes, start,
   leave, settings changes, and host migration. Bot rows appear only after the room is live.
   `team` is `alpha`, `bravo` or null. Only the current host sees team controls.
-- At 20 Hz a live room sends
+- At 60 Hz a live room sends
   `{t:'tick',now,match,players:[...],blocks:[{i,v}],powerups:[...],events:[...]}`.
   `powerups` is a full replacement array of active
   `{id,type:'armor'|'health'|'ammo',x,y,z,expiresAt}` rows. Coordinates use the
@@ -252,8 +252,8 @@ never accepts client damage claims.
 ## Module APIs (exact)
 ### shared/networking.js
 Exports the frozen `NETWORK_PRESENTATION` bounds used by both client smoothing
-and server rewind: buffer `65–180 ms` (default `80`), extrapolation at most
-`75 ms`, and reported view age `50–450 ms` (legacy default `100`).
+and server rewind: buffer `30–180 ms` (default `40`), extrapolation at most
+`75 ms`, and reported view age `25–450 ms` (legacy default `60`).
 
 ### shared/worlddata.js
 Exports block ids `AIR` through `PALE`, `BLOCK_HP`, `GRENADE_RESISTANCE`, `SX`,
@@ -437,8 +437,10 @@ and exposes `quickPlay(meta,name,bots?)`,
 - `interpolate(renderNowMs,delayMs?)` returns
   `{players:Map<id,row>,events,match}`. It excludes the local row, shortest-arc
   interpolates yaw, selects authoritative match state, and emits/drains each
-  visible event once. With no override it uses the measured arrival jitter to
-  adapt within a bounded 65–180 ms buffer and extrapolates at most 75 ms at a
+  visible event once. `hit` events the local player dealt and `kill` events
+  the local player scored are drained the frame their snapshot arrives, ahead
+  of the presentation delay; every other event waits for it. With no override it uses the measured arrival jitter to
+  adapt within a bounded 30–180 ms buffer and extrapolates at most 75 ms at a
   capped remote speed; state discontinuities snap to authority. Server tick
   time is mapped onto the local clock with bounded drift correction so packet
   bursts cannot compress authoritative movement into a speed spike.
@@ -879,7 +881,7 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   distant deaths, footsteps, draws, bullet whizzes, echo, music, and positional
   listener updates all route through `sfx` and the terminal limiter.
 - **Authority:** one room engine simulates movement, ammo, reloads, spread,
-  hits, grenades, rockets, destruction, death, score, and respawn at 20 Hz. The client
+  hits, grenades, rockets, destruction, death, score, and respawn at 60 Hz. The client
   predicts feel/FX but accepted shots and all damage are server decisions.
   Shooter-side rewind uses the client's bounded `viewAge` within a 500 ms
   history window so hit authority matches the target state actually rendered.

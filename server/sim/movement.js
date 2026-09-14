@@ -9,6 +9,10 @@ import { clamp01 } from './player.js';
 import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity, slidePlayerAxis, solidBelow, stepPlayerProne, canClimb, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 
+// Shooter-side rewind reads up to maxViewAgeMs (450 ms) back; at 60 Hz that
+// needs 27 samples, so 32 keeps a full window plus headroom.
+const HISTORY_SAMPLES = 32;
+
 const WALK_SPEED = PHYSICS.walk;
 const SPRINT_SPEED = PHYSICS.sprint;
 const CROUCH_SPEED = PHYSICS.crouch;
@@ -87,7 +91,7 @@ function recordPose(p, now) {
   p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
     crouch: p.crouch, proneT: p.proneT, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
     vx: p.vx, vz: p.vz, t: now });
-  if (p.hist.length > 16) p.hist.shift();
+  if (p.hist.length > HISTORY_SAMPLES) p.hist.shift();
 }
 
 /**
@@ -235,7 +239,7 @@ export function stepMovement(p, dt, ctx) {
     p.grounded = false;
   }
 
-  // Keep the 16-sample authoritative trail used by shooter-side rewind.
+  // Keep the authoritative trail used by shooter-side rewind.
   recordPose(p, ctx.now);
 
   if (p.y < DEAD_FALL_Y) ctx.onFall(p, 'void');

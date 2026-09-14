@@ -116,6 +116,48 @@ export function drainEventsWithDedupe(snapshotList, upTo, state) {
   return out;
 }
 
+/** Feedback the local player caused: it never has to wait for remote presentation. */
+export function isOwnFeedbackEvent(ev, selfId) {
+  if (!ev || selfId == null) return false;
+  if (ev.kind === 'hit') return ev.attacker === selfId && ev.victim !== selfId;
+  if (ev.kind === 'kill') return ev.killer === selfId && ev.victim !== selfId;
+  return false;
+}
+
+/**
+ * Drain the local player's own hit and kill feedback from every received
+ * snapshot immediately, ahead of the presentation delay the world view uses.
+ * Shares the dedupe set with drainEventsWithDedupe (so each event is still
+ * emitted exactly once) without touching its snapshot watermark, which keeps
+ * the delayed pass free to deliver the remaining events of the same snapshots.
+ */
+export function drainOwnEventsEarly(snapshotList, selfId, state) {
+  const out = [];
+  if (!Array.isArray(snapshotList) || !state || selfId == null) return out;
+  const seen = state.seen instanceof Set ? state.seen : (state.seen = new Set());
+  const snapWatermark = Number.isFinite(state.snapSeq) ? state.snapSeq : -1;
+  for (let si = 0; si < snapshotList.length; si++) {
+    const snap = snapshotList[si];
+    if (!snap || typeof snap.now !== 'number') continue;
+    const ownedSnapSeq = Number.isFinite(snap.snapSeq) ? snap.snapSeq : null;
+    if (ownedSnapSeq !== null && ownedSnapSeq <= snapWatermark) continue;
+    const events = Array.isArray(snap.events) ? snap.events : [];
+    const baseId = ownedSnapSeq !== null
+      ? ownedSnapSeq * INTERP_SPAN
+      : Math.floor(Math.abs(snap.now)) * INTERP_SPAN;
+    for (let ei = 0; ei < events.length; ei++) {
+      const ev = events[ei];
+      if (!isOwnFeedbackEvent(ev, selfId)) continue;
+      const hasEventSeq = Number.isFinite(ev.seq);
+      const key = (hasEventSeq ? 's' : 'f') + (hasEventSeq ? ev.seq : baseId + ei);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(ev);
+    }
+  }
+  return out;
+}
+
 /** Newest-row fields retained alongside interpolated transforms. */
 const PASSTHROUGH_FIELDS = [
   'name', 'hp', 'armor', 'team', 'weapon', 'score', 'kills', 'deaths', 'ping',
@@ -136,7 +178,7 @@ export class NetClient {
     this.welcome = null;         // frozen welcome payload (also connect()'s resolve value)
     this.id = null;
     this.mapBytes = 0;
-    this.tickRate = 20;
+    this.tickRate = 60;
     this.spawn = null;
     this.dirty = false;          // true once the connection died post-welcome
     this._timing = new NetworkTiming({ tickRate: this.tickRate });
@@ -242,7 +284,7 @@ export class NetClient {
     this.welcome = null;
     this.id = null;
     this.mapBytes = 0;
-    this.tickRate = 20;
+    this.tickRate = 60;
     this.spawn = null;
     this.latestLobbyState = null;
     this.latestMatch = null;
@@ -653,9 +695,11 @@ export class NetClient {
     }
 
     // Effect events have one authoritative source: their owning tick snapshot.
-    const events = Object.freeze(
-      drainEventsWithDedupe(this.latestSnapshots, target, this._drainState),
-    );
+    // The local player's own hit markers and kills surface the moment their
+    // snapshot arrives; everything else waits for the presentation delay.
+    const own = drainOwnEventsEarly(this.latestSnapshots, this.id, this._drainState);
+    const delayed = drainEventsWithDedupe(this.latestSnapshots, target, this._drainState);
+    const events = Object.freeze(own.length ? own.concat(delayed) : delayed);
     this.latestEvents = events;
     for (let i = 0; i < events.length; i++) {
       const ev = events[i];
@@ -694,7 +738,7 @@ export class NetClient {
         this.welcome = w;
         this.id = w.id;
         this.mapBytes = w.mapBytes || 0;
-        this.tickRate = w.tickRate || 20;
+        this.tickRate = w.tickRate || 60;
         this._timing.reset(this.tickRate);
         this.spawn = w.spawn;
         this._applyBlockDamage(w.blockDamage, true);

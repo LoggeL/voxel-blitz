@@ -17,6 +17,19 @@ const MAX_MESSAGE_BYTES = 64 * 1024;
 const MAX_MESSAGES_PER_SECOND = 180;
 // Allow two complete large-map replacements plus snapshots during host edits.
 const MAX_QUEUED_BYTES = 4 * 1024 * 1024;
+// Consecutive snapshots repeat almost every byte, so a per-connection deflate
+// context (window >= one full 20 kB snapshot) shrinks them 20-40x. Less data on
+// the wire keeps home and mobile uplinks free of queueing delay, which is what
+// players see as ping. Small frames (pings, lobby state) skip zlib entirely.
+const COMPRESSION = {
+  threshold: 1024,
+  serverNoContextTakeover: false,
+  clientNoContextTakeover: false,
+  serverMaxWindowBits: 15,
+  zlibDeflateOptions: { level: 1, memLevel: 8 },
+  zlibInflateOptions: { chunkSize: 16 * 1024 },
+  concurrencyLimit: 16,
+};
 
 // One flaky socket must never take the arena down: log and keep serving.
 process.on('uncaughtException', (err) => {
@@ -92,6 +105,9 @@ async function main() {
     }
   }
 
+  // One tick snapshot reaches every member of a room; serialize it once.
+  const payloadCache = new WeakMap();
+
   function sendJson(c, obj) {
     try {
       // Session revocation affects existing sockets immediately. A guest can
@@ -112,8 +128,11 @@ async function main() {
       if (!c.careerErrorLogged) console.error('[career] reward failed:', error.message);
       c.careerErrorLogged = true;
     }
-    let payload;
-    try { payload = JSON.stringify(obj); } catch { return false; }
+    let payload = payloadCache.get(obj);
+    if (payload === undefined) {
+      try { payload = JSON.stringify(obj); } catch { return false; }
+      if (obj.t === 'tick') payloadCache.set(obj, payload);
+    }
     return sendFrame(c, payload);
   }
 
@@ -162,6 +181,7 @@ async function main() {
   const wss = new WebSocketServer({
     server,
     maxPayload: MAX_MESSAGE_BYTES,
+    perMessageDeflate: COMPRESSION,
     verifyClient: (info, accept) => {
       // Browser sockets share account cookies, so only our own page may open
       // them. Headless protocol clients without an Origin remain supported.

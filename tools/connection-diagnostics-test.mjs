@@ -6,6 +6,7 @@ import { TickTiming } from '../server/diagnostics.js';
 import { NetClient } from '../public/js/engine/netclient.js';
 import { ConnectionSettings } from '../public/js/ui/connection-settings.js';
 import { startServer, stopServer } from './lib/server-process.mjs';
+import { TICK_MS } from '../server/protocol/admission.js';
 
 class FakeNet {
   constructor() { this.listeners = new Map(); this.ws = { bufferedAmount: 0 }; this.networkStats = { jitterMs: 4, bufferMs: 80 }; }
@@ -230,8 +231,9 @@ try {
   assert.equal(report.serverVersion, '0.1.0');
   assert.equal(report.metrics.clientQueuedBytes.min, 0);
   assert.ok(report.snapshotTiming.samples.length > 50);
-  assert.equal(report.snapshotTiming.expectedIntervalMs, 50);
-  assert.equal(report.metrics.snapshotServerStep.median, 50);
+  assert.ok(Math.abs(report.snapshotTiming.expectedIntervalMs - TICK_MS) < 0.01);
+  // Snapshot clocks are published at 0.1 ms resolution and the report rounds steps.
+  assert.ok(Math.abs(report.metrics.snapshotServerStep.median - TICK_MS) <= 0.5);
   const normal = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error('no regular pong after diagnostics stopped')), 2500);
     const off = net.on('latency', (s) => { clearTimeout(timer); off(); resolve(s); });

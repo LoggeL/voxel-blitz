@@ -1,6 +1,6 @@
 import { NETWORK_PRESENTATION } from '../../../shared/networking.js';
 
-const DEFAULT_TICK_RATE = 20;
+const DEFAULT_TICK_RATE = 60;
 const ARRIVAL_HISTORY = 48;
 const PING_HISTORY = 60;
 const MAX_CLOCK_ADJUST_PER_TICK_MS = 2;
