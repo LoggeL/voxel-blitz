@@ -7,7 +7,7 @@ const server = startServer({ failureContext: 'spectator camera browser regressio
 let browser;
 try {
   const port = await server.port;
-  browser = await launchCdpSession(`http://127.0.0.1:${port}/shared/worlddata.js`, {
+  browser = await launchCdpSession('about:blank', {
     headless: process.env.SPECTATOR_HEADED !== '1',
   });
   const { page } = browser;

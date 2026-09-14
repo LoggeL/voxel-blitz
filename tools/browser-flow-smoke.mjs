@@ -681,9 +681,12 @@ async function main() {
       window.__heavyRead().ammo === window.__heavyAuthority.mag`, { label: 'minigun authority and HUD equipped' });
     const minigunBefore = await page.evaluate('window.__heavyRead()');
     await page.evaluate(`window.__heavyPointer('ads', 'pointerdown', 82)`);
+    // The authoritative rotor can be ready before the rendered ADS blend.
     await page.waitFor(`window.__heavyAuthority?.spin === 1 && window.__heavyAuthority.ads &&
-      window.__heavyRead().label.includes('ROTOR READY')`, { label: 'ADS-only minigun reaches firing speed', timeoutMs: 5000 });
+      window.__heavyRead().label.includes('ROTOR READY') && window.__heavyRead().adsT > 0.9`,
+      { label: 'ADS-only minigun reaches firing speed and rendered aim' });
     const minigunPrimed = await page.evaluate('window.__heavyRead()');
+    console.log('live minigun ready:', JSON.stringify({ before: minigunBefore, primed: minigunPrimed }));
     requireCondition(minigunPrimed.authority.mag === minigunBefore.authority.mag
       && minigunPrimed.ammo === minigunBefore.ammo && minigunPrimed.authority.heat === 0
       && !minigunPrimed.authority.firing && minigunPrimed.adsT > 0.9,
@@ -691,14 +694,14 @@ async function main() {
     await page.evaluate(`window.__heavyPointer('fire', 'pointerdown', 83)`);
     await page.waitFor(`window.__heavyAuthority?.mag <= ${minigunPrimed.authority.mag - 16} &&
       window.__heavyAuthority.heat > 0.15 && window.__heavyRead().ammo < ${minigunPrimed.ammo}`,
-      { label: 'pre-spun minigun fires live rounds', timeoutMs: 5000 });
+      { label: 'pre-spun minigun fires live rounds' });
     const minigunFiring = await page.evaluate('window.__heavyRead()');
     await page.evaluate(`window.__heavyPointer('fire', 'pointerup', 83)`);
     await page.waitFor(`!window.__heavyAuthority?.firing && window.__heavyRead().label.includes('ROTOR READY') &&
-      window.__heavyRead().ammo === window.__heavyAuthority.mag`, { label: 'minigun trigger released while ADS remains held', timeoutMs: 3000 });
+      window.__heavyRead().ammo === window.__heavyAuthority.mag`, { label: 'minigun trigger released while ADS remains held' });
     const minigunPause = await page.evaluate('window.__heavyRead()');
     await page.waitFor(`window.__heavyAuthority?.heat < ${minigunPause.authority.heat - 0.04}`,
-      { label: 'ADS-held minigun cools between bursts', timeoutMs: 3000 });
+      { label: 'ADS-held minigun cools between bursts' });
     const minigunCooled = await page.evaluate('window.__heavyRead()');
     requireCondition(minigunFiring.authority.mag < minigunPrimed.authority.mag
       && minigunFiring.authority.heat > 0.15 && minigunCooled.authority.spin === 1
@@ -708,7 +711,7 @@ async function main() {
     'live trigger uses minigun ammunition and heat, then ADS preserves a ready rotor while cooling without firing');
     await page.evaluate(`window.__heavyPointer('ads', 'pointerup', 82)`);
     await page.waitFor(`window.__heavyAuthority?.spin === 0 && !window.__heavyAuthority.ads &&
-      window.__heavyRead().label.includes('AIM TO PRE-SPIN')`, { label: 'released minigun coasts to a complete stop', timeoutMs: 5000 });
+      window.__heavyRead().label.includes('AIM TO PRE-SPIN')`, { label: 'released minigun coasts to a complete stop' });
     const minigunReleased = await page.evaluate('window.__heavyRead()');
     requireCondition(!minigunReleased.authority.firing && minigunReleased.authority.mag === minigunCooled.authority.mag,
       'releasing ADS stops the minigun rotor without spending further ammunition');
