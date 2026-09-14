@@ -36,3 +36,15 @@ texture files requested once instead of once per model, palette textures
 re-encoded, skyboxes and large previews as WebP); a warm start revalidates
 with weak ETags and transfers only what changed. The `.artifacts` screenshots
 of these stages are refreshed by `tools/boot-profile.mjs`.
+
+## Menu first (2026-09-15)
+
+The startup screen now covers only the menu's own module graph plus the account
+and career requests; the Blender library, three.js, the match systems and the
+sample bank load in the background after the menu is interactive, listed in a
+small "PREPARING ASSETS n / 5" line in the menu corner. Joining a match while
+something is still pending shows those tasks as stages of the arena screen
+ahead of the mesh sectors, using the same stage list and rail. Measured with
+`npm run boot:profile`: menu interactive after about 120 ms and 0.7 MB on a
+cold start (previously 645 ms and 9.2 MB), total unchanged at about 9.7 MB.
+`npm run boot:test` proves the menu responds while those requests are held.

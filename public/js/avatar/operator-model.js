@@ -157,6 +157,11 @@ export function poseOperatorArm(av, side, anchor, reload = 0) {
   const elbow = side < 0 ? av.lElbow : av.rElbow;
   const hand = side < 0 ? av.lHand : av.rHand;
   arm.position.set(side * 0.32, 1.43 - av.crouchPose * 0.29 * (1 - (av.pronePose || 0)) - (av.pronePose || 0) * 1.08, (av.pronePose || 0) * 0.14);
+  // The shoulders follow the pitched torso top while swimming, by half the
+  // torso's lever so the upper arms stay inside their zone margins.
+  const swimPitch = av.swimLean || 0;
+  arm.position.y -= 0.08 * (1 - Math.cos(swimPitch));
+  arm.position.z -= 0.08 * Math.sin(swimPitch);
   if (anchor) {
     target.set(anchor.x, anchor.y, anchor.z);
     av.weaponModel.modelRoot.localToWorld(target);
@@ -200,7 +205,7 @@ export function poseOperatorArm(av, side, anchor, reload = 0) {
  * The carrier scale still describes the combat envelope; cancel it on the visual
  * skeleton so crouching bends rigid limbs instead of shrinking the character.
  */
-export function poseOperatorLeg(leg, prone, swing, stride) {
+export function poseOperatorLeg(leg, prone, swing, stride, swim = null) {
   const { skeleton, thigh, knee, boot } = leg.userData.joints;
   const compression = Math.max(0.5, Math.min(1, leg.scale.y));
   const crouchBend = Math.acos(compression);
@@ -220,7 +225,11 @@ export function poseOperatorLeg(leg, prone, swing, stride) {
   const release = releaseT * releaseT * (3 - 2 * releaseT);
   const bend = tuck * (1 - release) - crawlBend * release;
   skeleton.scale.y = 1 / compression;
-  thigh.rotation.x = bend;
-  knee.rotation.x = -2 * bend;
-  boot.rotation.x = bend;
+  // Swimming replaces the planted fold with a heel lift: the thigh trails with
+  // the leg carrier while the shin flutters behind it (negative knee = heel back).
+  const swimW = swim ? Math.max(0, Math.min(1, swim.weight)) : 0;
+  const flex = swim ? Math.max(0, swim.kneeFlex + swim.kick) : 0;
+  thigh.rotation.x = bend * (1 - swimW);
+  knee.rotation.x = -2 * bend * (1 - swimW) - flex * swimW;
+  boot.rotation.x = bend * (1 - swimW) + flex * 0.35 * swimW;
 }

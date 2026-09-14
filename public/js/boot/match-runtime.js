@@ -1,0 +1,20 @@
+// Everything a live match needs beyond the menu: three.js, the chunk mesher and
+// world view, the weapon and avatar factories (which wait for the Blender
+// library), combat effects, the killcam and the spectator camera. main.js
+// imports this module dynamically through the asset scheduler so none of it
+// sits on the menu's critical path.
+export * as THREE from '../vendor/three.module.js';
+export { MuzzleLights } from '../engine/muzzle-lights.js';
+export { CombatPostProcess, recommendedPostProcessPixelRatio } from '../engine/combat-post-process.js';
+export { WorldView } from '../engine/worldview.js';
+export { ViewmodelRig } from '../guns/viewmodel.js';
+export { WeaponState, shouldShowViewmodel } from '../guns/weapon-state.js';
+export { Effects, attachMuzzleBridge, attachRemoteMuzzleBridge } from '../weapons/effects.js';
+export { projectAimReticle } from '../ui/aim-reticle.js';
+export { TttControls } from '../ui/ttt-controls.js';
+export { LocalPlayer } from '../player/local-player.js';
+export { Killcam } from '../player/killcam.js';
+export { SpectatorCamera } from '../player/spectator-camera.js';
+export { AvatarRoster } from '../avatar/avatar-roster.js';
+export { CombatFeedback, applySnapshotBlocks, isWorldPointVisible } from '../combat/feedback.js';
+export { disposeFirstPersonBody, makeFirstPersonBody } from '../player/first-person-body.js';

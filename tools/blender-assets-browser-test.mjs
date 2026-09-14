@@ -162,6 +162,29 @@ try {
     must(cover.rotation.x === 0 && lmg.bolt.position.z === 0 && lead.visible && lead.position.equals(lead.userData.homePosition), 'belt reload resets every part');
     belt.dispose(lmg);
     disposeGunModels([gun,sniper,lmg],cache);
+    const grenadeParts = createBlenderParts('grenades');
+    must(Object.keys(grenadeParts).join() === 'frag,limpet,pulse,molotov,smoke', 'five authored throwables');
+    for (const [id, part] of Object.entries(grenadeParts)) {
+      must(part.userData.blenderAsset === 'grenades', 'GRENADES tag on '+id);
+      const bounds = new T.Box3().setFromObject(part);
+      must(bounds.min.y > -0.1 && bounds.max.y < 0.32, 'held-frame height '+id);
+      must(Math.abs(bounds.min.x) < 0.11 && bounds.max.x < 0.11, 'held-frame width '+id);
+      must(bounds.min.x < 0 && bounds.max.x > 0 && bounds.min.z < 0 && bounds.max.z > 0, 'held frame spans the origin '+id);
+    }
+    disposeObjectTrees(Object.values(grenadeParts));
+    const { ProjectileFX } = await import('/js/weapons/projectiles.js');
+    const fx = new ProjectileFX(new T.Scene(), () => 0, { camera: new T.PerspectiveCamera() });
+    for (const type of ['frag','limpet','pulse','molotov','smoke']) {
+      const { group, capMaterial } = fx._buildVisual(type);
+      let authored = null;
+      group.traverse(o => { if (o.userData.blenderAsset === 'grenades' && !authored) authored = o; });
+      must(authored, 'thrown '+type+' uses the authored body');
+      must(capMaterial, 'thrown '+type+' keeps its fuse indicator');
+      const size = new T.Box3().setFromObject(authored).getSize(new T.Vector3());
+      must(size.x > 0.14 && size.x < 0.45 && size.y < 0.62, 'thrown '+type+' world scale '+size.toArray());
+      disposeObjectTrees([group]);
+    }
+    fx.dispose();
     const body=makeFirstPersonBody();
     must(body.group.userData.blenderAsset==='rivet','matching local body'); disposeFirstPersonBody(body);
     disposeAvatar(b);
@@ -195,6 +218,45 @@ try {
   assert.equal(checks.training.ownBodyVisible, true);
   const match = await page.send('Page.captureScreenshot', { format: 'png' });
   await writeFile(path.join(out, 'training.png'), Buffer.from(match.data, 'base64'));
+  // GRENADES line-up: the five thrown props as ProjectileFX builds them in world.
+  await page.send('Page.navigate', { url: `${base}/weapon-feel-preview.html` });
+  await page.waitFor(`document.documentElement.dataset.previewReady === 'true'`);
+  await page.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 640, deviceScaleFactor: 1, mobile: false });
+  checks.thrown = await page.evaluate(`(async () => {
+    const T = await import('/js/vendor/three.module.js');
+    const { ProjectileFX } = await import('/js/weapons/projectiles.js');
+    const renderer = new T.WebGLRenderer({ antialias: true }); renderer.setSize(1280, 640);
+    Object.assign(renderer.domElement.style, { position: 'fixed', inset: '0', zIndex: '1000' });
+    document.body.append(renderer.domElement);
+    const scene = new T.Scene(); scene.background = new T.Color(0x2b3a48);
+    const camera = new T.PerspectiveCamera(40, 2, .01, 200); camera.position.set(0, 1.05, 2.3); camera.lookAt(0, 1, 0);
+    scene.add(camera, new T.HemisphereLight(0xd0e7ff, 0x514132, 2.4));
+    const key = new T.DirectionalLight(0xffeed6, 3); key.position.set(-3, 6, 4); scene.add(key);
+    const floor = new T.Mesh(new T.PlaneGeometry(80, 80), new T.MeshStandardMaterial({ color: 0x4a5c6b }));
+    floor.rotation.x = -Math.PI / 2; scene.add(floor);
+    const fx = new ProjectileFX(scene, () => 0, { camera });
+    const types = ['frag', 'limpet', 'pulse', 'molotov', 'smoke'];
+    const sizes = {};
+    types.forEach((type, i) => {
+      fx.launch({ pid: 'p' + i, type, o: [(i - 2) * .55, 1, 0], v: [0, 0, 0], fuse: 5000,
+        n: type === 'limpet' ? [0, 0, 1] : undefined });
+    });
+    fx.update(.001, {});
+    types.forEach((type, i) => {
+      const p = fx.projectiles.get('p' + i);
+      p.group.rotation.set(0, 0, 0); p.group.position.set((i - 2) * .55, 1, 0);
+      let authored = null; p.group.traverse(o => { if (o.userData.blenderAsset === 'grenades' && !authored) authored = o; });
+      sizes[type] = authored ? new T.Box3().setFromObject(authored).getSize(new T.Vector3()).toArray().map(v => +v.toFixed(3)) : null;
+    });
+    renderer.render(scene, camera); renderer.getContext().finish();
+    return { sizes, gl: renderer.getContext().getError() };
+  })()`);
+  assert.equal(checks.thrown.gl, 0);
+  for (const [type, size] of Object.entries(checks.thrown.sizes)) {
+    assert.ok(size && size[0] > 0.14 && size[0] < 0.45 && size[1] < 0.62, `thrown ${type} authored at world scale`);
+  }
+  const lineup = await page.send('Page.captureScreenshot', { format: 'png' });
+  await writeFile(path.join(out, 'grenades-world.png'), Buffer.from(lineup.data, 'base64'));
   assert.equal(page.errors.length, 0, page.errors.join('\n'));
   await writeFile(path.join(out, 'validation.json'), JSON.stringify(checks, null, 2)+'\n');
   console.log('Blender integration:', checks);

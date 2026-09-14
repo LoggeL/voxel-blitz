@@ -856,6 +856,19 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   lava burns 12 HP every 250 ms, and the original ladders climb through
   `meta.ladders` with their wall face. `tools/compile-minecraft-b5-reference.py`
   regenerates `shared/world/minecraft-b5-data.js`; see `docs/maps/minecraft-b5.md`.
+- **Waterworld (`waterworld`):** a block-for-block replica of
+  `ttt_waterworld.bsp` (Leith Waterworld, 32 Source units per voxel) in a
+  200 × 188 × 36 world: the pool hall with its three pools under the deck,
+  the flumes and their tester volumes (`meta.tester`), the cafe mezzanine,
+  changing rooms, traitor room and the glass-roofed foyer. Supports Fun,
+  TTT, 1v1, Chaos Lab, TDM and Gun Game. `shared/world/blocks.js` adds the
+  pool finishes (`POOL_TILE_BLUE`, `POOL_TILE_WHITE`, `POOL_FLOOR`,
+  `POOL_PANEL`, `SLIDE_BLUE`, `SLIDE_YELLOW`); the pools are `MC_WATER`, the
+  traitor room teleport is a map portal, bots navigate the deck through
+  `meta.navigationFloor`, and every door and prop is non-blocking decoration
+  in `public/js/engine/waterworld-details.js`. The roofed hall exposes no
+  power-up pad. `tools/compile-waterworld-reference.py` regenerates
+  `shared/world/waterworld-data.js`; see `docs/maps/waterworld.md`.
 - **Settings:** sensitivity defaults to `0.003` rad/px, clamps to
   `0.0008–0.012`, and persists as `vb-sens-v2` (`SENSITIVITY_PREF_KEY`; the
   old `vb-sens` scale is ignored rather than clamped). Touch look runs at 1.4×

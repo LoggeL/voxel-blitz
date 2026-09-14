@@ -54,6 +54,14 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   shot('minecraft_b5', 'nether', [58.5, 5.5, 44.5], [78, 5, 38], 80),
   shot('minecraft_b5', 'beach', [74.5, 39.6, 91.5], [52, 38.5, 68], 78),
 
+  // ttt_waterworld replica: the pool hall from the cafe mezzanine, the flumes,
+  // the deep end, the glass foyer and the traitor room.
+  shot('waterworld', 'hero', [152, 21, 11], [72, 8, 96], 64),
+  shot('waterworld', 'flumes', [70.5, 12, 110.5], [99, 26, 70], 74),
+  shot('waterworld', 'wave-pool', [150.5, 11.5, 40.5], [60, 8, 70], 76),
+  shot('waterworld', 'foyer', [70.5, 11, 175.5], [70, 10, 138], 74),
+  shot('waterworld', 'traitor-room', [172.5, 12.5, 30.5], [178, 12, 17], 78),
+
   shot('foundry', 'hero', [64.5, 17.64, 82.5], [65, 23, 46]),
   shot('foundry', 'west-lane', [20.5, 13.64, 48.5], [65, 23, 46]),
   shot('foundry', 'north-forge', [64.5, 18.64, 49.5], [60, 21, 26]),

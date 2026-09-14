@@ -17,6 +17,7 @@ external assets, compositing or retouching is included in these previews.
 | dust2 | `dust2.webp` | `.artifacts/map-renders/dust2-hero.png` |
 | killhouse | `killhouse-range.webp` | `.artifacts/map-rich-pass/killhouse-control-yard.png` |
 | minecraft_b5 | `minecraft-b5.webp` | `.artifacts/map-renders/minecraft_b5-hero.png` (2026-09-14, `node tools/render-map-scenes.mjs --map minecraft_b5`) |
+| waterworld | `waterworld.webp` | `.artifacts/map-renders/waterworld-hero.png` (2026-09-15, `node tools/render-map-scenes.mjs --map waterworld`) |
 
 Capture command:
 
@@ -36,4 +37,6 @@ are now production captures.
 the active training preview.
 
 Minecraft B5 is compiled from the original `ttt_minecraft_b5.bsp` (see
-`docs/maps/minecraft-b5.md`); its preview is an in-game capture like the others.
+`docs/maps/minecraft-b5.md`) and Waterworld from the original
+`ttt_waterworld.bsp` (see `docs/maps/waterworld.md`); their previews are
+in-game captures like the others.

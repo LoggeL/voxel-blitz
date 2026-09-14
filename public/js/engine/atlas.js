@@ -15,6 +15,7 @@ import {
   MC_WOOL_RED, MC_IRON, MC_GOLD, MC_DIAMOND, MC_DIAMOND_ORE, MC_COAL_ORE,
   MC_OBSIDIAN, MC_NETHERRACK, MC_GLOWSTONE, MC_CLOUD, MC_CACTUS, MC_CHEST,
   MC_FURNACE, MC_CRAFTING, MC_TNT, MC_WATER, MC_LAVA, MC_PORTAL, MC_GHOST_SOLID,
+  POOL_TILE_BLUE, POOL_TILE_WHITE, POOL_FLOOR, SLIDE_BLUE, SLIDE_YELLOW, POOL_PANEL,
 } from '../../../shared/worlddata.js';
 
 export const ATLAS_SIZE = 256;
@@ -38,6 +39,8 @@ export const TILE = {
   MC_NETHERRACK: 56, MC_GLOWSTONE: 57, MC_CLOUD: 58, MC_CACTUS_SIDE: 59, MC_CACTUS_TOP: 60,
   MC_CHEST_SIDE: 61, MC_CHEST_TOP: 62, MC_FURNACE_SIDE: 63, MC_FURNACE_TOP: 64, MC_CRAFT_SIDE: 65,
   MC_CRAFT_TOP: 66, MC_TNT_SIDE: 67, MC_TNT_TOP: 68, MC_WATER: 69, MC_LAVA: 70, MC_PORTAL: 71,
+  // Leith Waterworld finishes.
+  POOL_TILE_BLUE: 72, POOL_TILE_WHITE: 73, POOL_FLOOR: 74, SLIDE_BLUE: 75, SLIDE_YELLOW: 76, POOL_PANEL: 77,
 };
 
 /** Deterministic integer wobble -> 0..k-1. The atlas' only "randomness". */
@@ -571,6 +574,35 @@ function mcPortal(x, y) {
 }
 
 /** Tile-id -> painter registry. Keys are TILE slot values. */
+// Leith Waterworld: glazed pool tiles, small white deck tiles, beige ceramic
+// floors and the glossy plastic flumes.
+function poolTileBlue(x, y) {
+  const grout = (x & 7) === 7 || (y & 7) === 7;
+  if (grout) return dustColor([196, 210, 220], dustGrain(x, y, 131, 7) - 3);
+  const sheen = (x & 7) === 0 || (y & 7) === 0 ? 14 : 0;
+  return dustColor([84, 158, 214], sheen + dustGrain(x >> 1, y >> 1, 132, 11) - 5);
+}
+function poolTileWhite(x, y) {
+  const grout = (x & 3) === 3 || (y & 3) === 3;
+  if (grout) return dustColor([198, 202, 206], dustGrain(x, y, 133, 5) - 2);
+  return dustColor([233, 236, 238], dustGrain(x >> 2, y >> 2, 134, 9) - 4);
+}
+function poolFloor(x, y) {
+  const grout = (x & 7) === 7 || (y & 7) === 7;
+  if (grout) return dustColor([146, 142, 132], dustGrain(x, y, 135, 7) - 3);
+  return dustColor([194, 184, 166], dustGrain(x >> 1, y >> 1, 136, 13) - 6);
+}
+function poolPanel(x, y) {
+  // Painted steel cladding: wide pale panels, a shadowed seam and a dark foot rail.
+  if (y === 7 || y === 15) return dustColor([118, 128, 138], dustGrain(x, y, 139, 5) - 2);
+  if (x === 0) return dustColor([206, 214, 222], 0);
+  return dustColor([174, 184, 194], (y > 7 ? -6 : 0) + dustGrain(x >> 2, y >> 1, 140, 7) - 3);
+}
+function slidePlastic(base, x, y, salt) {
+  const highlight = y < 2 ? 34 : y === 2 ? 12 : y > 13 ? -26 : 0;
+  return dustColor(base, highlight + dustGrain(x, y >> 2, salt, 5) - 2);
+}
+
 export const TILE_PAINTERS = Object.freeze({
   [TILE.AIR_DEBUG]: airDebug,
   [TILE.GRASS_TOP]: grassTop,
@@ -643,6 +675,12 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.MC_WATER]: mcWater,
   [TILE.MC_LAVA]: mcLava,
   [TILE.MC_PORTAL]: mcPortal,
+  [TILE.POOL_TILE_BLUE]: poolTileBlue,
+  [TILE.POOL_TILE_WHITE]: poolTileWhite,
+  [TILE.POOL_FLOOR]: poolFloor,
+  [TILE.SLIDE_BLUE]: (x, y) => slidePlastic([40, 118, 226], x, y, 137),
+  [TILE.SLIDE_YELLOW]: (x, y) => slidePlastic([244, 198, 42], x, y, 138),
+  [TILE.POOL_PANEL]: poolPanel,
   [TILE.BEDROCK]: bedrock,
 });
 
@@ -716,6 +754,12 @@ export const DEFAULT_BLOCK_TILES = Object.freeze({
   [DUST_CRATE]: { all: TILE.DUST_CRATE },
   [DUST_WOOD]: { all: TILE.DUST_WOOD },
   [BEDROCK]: { all: TILE.BEDROCK },
+  [POOL_TILE_BLUE]: { all: TILE.POOL_TILE_BLUE },
+  [POOL_TILE_WHITE]: { all: TILE.POOL_TILE_WHITE },
+  [POOL_FLOOR]: { all: TILE.POOL_FLOOR },
+  [SLIDE_BLUE]: { all: TILE.SLIDE_BLUE },
+  [SLIDE_YELLOW]: { all: TILE.SLIDE_YELLOW },
+  [POOL_PANEL]: { all: TILE.POOL_PANEL },
   ...MC_BLOCK_TILES,
   // Ghost blocks look exactly like the material they imitate.
   ...Object.fromEntries(Object.entries(MC_GHOST_SOLID).map(([ghost, solid]) => [ghost, MC_BLOCK_TILES[solid]])),

@@ -3,7 +3,7 @@ import { reactorDefenderSolid } from '../../shared/world/reactor-layout.js';
 // (see BUILD-CONTRACT) so prediction tracks authority closely.
 import { PRONE, stanceEye, stanceHeight } from '../../shared/player-stance.js';
 import { EYE_HEIGHT } from '../../shared/combatmath.js';
-import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity, slidePlayerAxis, solidBelow, stepPlayerProne, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
+import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity, slidePlayerAxis, solidBelow, stepPlayerProne, canStartVault, findVault, findSwimExit, stepVault } from '../../shared/player-movement.js';
 import { getBlock, ladderContact, isSolidBlock, FLUID_BLOCKS } from '../../shared/worlddata.js';
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 
@@ -74,7 +74,9 @@ export class PlayerPhysics {
     if (swimming) speedTarget = Math.min(speedTarget, SWIM_RULES.speed);
     if (this.grounded) this.jumpGroundY = this.pos.y;
     const deliberateGrab = !this.grounded && jumpPressed && !low;
-    if (!this.climbBlocked && !this.vault && !swimming && canStartVault(this.grounded, this.grounded ? wantJump : deliberateGrab, climbAxis,
+    if (!this.climbBlocked && !this.vault && swimming) {
+      this.vault = findSwimExit(this._solidAt, this.pos, wish, !!wantJump, this._crouching || low, yaw);
+    } else if (!this.climbBlocked && !this.vault && !swimming && canStartVault(this.grounded, this.grounded ? wantJump : deliberateGrab, climbAxis,
         this._crouching || low, this.pos.y, this.jumpGroundY)) {
       this.vault = findVault(this._solidAt, this.pos, wish,
         deliberateGrab ? this.pos.y : this.jumpGroundY, yaw, deliberateGrab ? 0 : 1);

@@ -76,6 +76,14 @@ export const MC_GHOST_WOOL_RED = 75;
 export const MC_GHOST_BOOKSHELF = 76;
 export const MC_GHOST_DIRT = 77;
 export const MC_GHOST_LOG = 78;
+// LEITH WATERWORLD materials (ttt_waterworld replica, compiled by
+// tools/compile-waterworld-reference.py): pool tiles, deck tiles and the flumes.
+export const POOL_TILE_BLUE = 79;
+export const POOL_TILE_WHITE = 80;
+export const POOL_FLOOR = 81;
+export const SLIDE_BLUE = 82;
+export const SLIDE_YELLOW = 83;
+export const POOL_PANEL = 84;
 
 /** Ghost block -> the solid material it imitates (shared by textures and balance). */
 export const MC_GHOST_SOLID = Object.freeze({
@@ -127,6 +135,8 @@ export const BLOCK_HP = {
   [ACCENT]: 45,
   [DUST_CRATE]: 65,
   [DUST_WOOD]: 85,
+  [POOL_TILE_BLUE]: 200, [POOL_TILE_WHITE]: 200, [POOL_FLOOR]: 240,
+  [SLIDE_BLUE]: 90, [SLIDE_YELLOW]: 90, [POOL_PANEL]: 420,
   ...mcTable(0),
 };
 
@@ -141,6 +151,7 @@ export const BLOCK_HARDNESS = Object.freeze({
   [DUST_SANDSTONE]: 75, [DUST_PLASTER]: 60, [DUST_ROCK]: 100,
   [DUST_FLOOR]: 95, [DUST_TRIM]: 75, [DUST_TILE]: 55,
   [DUST_CRATE]: 25, [DUST_WOOD]: 32,
+  [POOL_TILE_BLUE]: 55, [POOL_TILE_WHITE]: 55, [POOL_FLOOR]: 70, [SLIDE_BLUE]: 22, [SLIDE_YELLOW]: 22, [POOL_PANEL]: 110,
   ...mcTable(1),
   [MC_WATER]: 8, [MC_LAVA]: 8, [MC_PORTAL]: 0,
 });
@@ -172,6 +183,7 @@ export const GRENADE_RESISTANCE = Object.freeze({
   [DUST_TILE]: 94,
   [DUST_CRATE]: 62,
   [DUST_WOOD]: 72,
+  [POOL_TILE_BLUE]: 94, [POOL_TILE_WHITE]: 94, [POOL_FLOOR]: 100, [SLIDE_BLUE]: 40, [SLIDE_YELLOW]: 40, [POOL_PANEL]: 130,
   ...mcTable(2),
   [MC_WATER]: Infinity, [MC_LAVA]: Infinity, [MC_PORTAL]: Infinity,
 });
@@ -195,5 +207,6 @@ export const MINING_HITS = Object.freeze({
   [DUST_SANDSTONE]: 7, [DUST_PLASTER]: 7, [DUST_ROCK]: 8,
   [DUST_FLOOR]: 8, [DUST_TRIM]: 7, [DUST_TILE]: 6,
   [DUST_CRATE]: 5, [DUST_WOOD]: 6,
+  [POOL_TILE_BLUE]: 6, [POOL_TILE_WHITE]: 6, [POOL_FLOOR]: 7, [SLIDE_BLUE]: 3, [SLIDE_YELLOW]: 3, [POOL_PANEL]: 9,
   ...mcTable(3),
 });

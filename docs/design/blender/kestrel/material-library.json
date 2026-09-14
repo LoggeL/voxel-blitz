@@ -3,24 +3,32 @@
   "asset": "kestrel",
   "materials": [
     {
-      "material": "Kestrel | rubber",
-      "texture": "pebbled-rubber"
+      "material": "KESTREL | orange paint",
+      "texture": "orange-paint"
     },
     {
-      "material": "Kestrel | machined steel",
-      "texture": "machined-steel"
+      "material": "KESTREL | brass",
+      "texture": "aged-brass"
     },
     {
-      "material": "Kestrel | ceramic paint",
-      "texture": "ivory-ceramic"
+      "material": "KESTREL | gunmetal",
+      "texture": "phosphated-steel"
     },
     {
-      "material": "Kestrel | petrol paint",
+      "material": "KESTREL | petrol paint",
       "texture": "petrol-paint"
     },
     {
-      "material": "Kestrel | orange paint",
-      "texture": "orange-paint"
+      "material": "KESTREL | polymer",
+      "texture": "molded-polymer"
+    },
+    {
+      "material": "KESTREL | ivory coating",
+      "texture": "ivory-ceramic"
+    },
+    {
+      "material": "KESTREL | rubber",
+      "texture": "pebbled-rubber"
     }
   ]
 }

@@ -15,16 +15,17 @@ for (const id of ['operator-0', 'operator-1', 'operator-2']) {
   for (const weapon of WEAPON_IDS) {
     for (const pitch of [-1.3, 0, 1.3]) {
       for (const ads of [false, true]) {
-        for (const crouching of [false, true]) {
+        for (const crouching of [false, true]) for (const swimming of [false, true]) {
           for (let frame = 0; frame < 30; frame++) {
-            updateAvatarWeaponPose(av, { weapon, pitch, ads, crouching, firing: frame % 3 === 0, dt: 1 / 60 });
-            updateAvatarStancePose(av);
+            updateAvatarWeaponPose(av, { weapon, pitch, ads, crouching, swimming, speed: swimming ? 2.6 : 0,
+              stride: swimming ? 0.45 : 0, firing: frame % 3 === 0, dt: 1 / 60 });
+            updateAvatarStancePose(av, { stride: swimming ? 0.45 : 0 });
             av.group.updateMatrixWorld(true);
             for (const [hand, anchor] of [[av.rHand, av.weaponModel.handPose.grip], [av.lHand, av.weaponModel.handPose.support]]) {
               if (!anchor) continue;
               const expected = av.weaponModel.modelRoot.localToWorld(new THREE.Vector3(anchor.x, anchor.y, anchor.z));
               const error = hand.getWorldPosition(new THREE.Vector3()).distanceTo(expected);
-              assert.ok(error < 1e-6, `${id}/${weapon}/${pitch}/${ads}/${crouching} hand error ${error}`);
+              assert.ok(error < 1e-6, `${id}/${weapon}/${pitch}/${ads}/${crouching}/${swimming} hand error ${error}`);
             }
           }
           poses++;

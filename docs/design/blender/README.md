@@ -8,8 +8,10 @@ modeled after that choice.
 
 - `rivet/rivet.blend`: editable operator, 149 named parts, 20-bone rig.
 - `rivet/rivet.glb`: merged skin mesh with Idle and Walk clips.
-- `kestrel/kestrel.blend`: editable original game carbine and part rig.
-- `kestrel/kestrel.glb`: merged skin mesh, Reload_Study clip, muzzle/grip/support markers.
+- `kestrel/kestrel.blend`: editable VK-77 RAPTOR carbine, revision 2 (part rig, see the
+  KESTREL section below); `kestrel/kestrel-r1.blend` keeps the first study (its GLB lives in
+  git history, see `tools/blender/validate-import.py`).
+- `kestrel/kestrel.glb`: portable GLB with the KESTREL part rig and markers.
 - `peregrine/peregrine.blend`: editable original precision rifle and part rig.
 - `peregrine/peregrine.glb`: portable GLB with the PEREGRINE part rig and markers.
 - `public/assets/blender/peregrine.gltf` and its sibling `peregrine.bin`: browser
@@ -120,11 +122,14 @@ exec(compile(p.read_text(), str(p), 'exec'), {'__file__': str(p)})
 `STUDY` chooses the view; `FORCE_CPU=True` avoids initial Metal compilation.
 These are actual Blender renders, not ImageGen pictures of the finished models.
 
-Build the browser files from the packed study (Blender 5.2):
+Build the browser files from the packed study (Blender 5.2). The root
+`export-game-assets.py` is the revision 1 exporter for the rigged RIVET/KESTREL
+studies (`kestrel-r1.blend`); the delivered `rifle` slot now comes from
+`tools/blender/kestrel/export-game-assets.py` (see the KESTREL section):
 
 ```sh
 blender --background docs/design/blender/kestrel/kestrel.blend \
-  --python tools/blender/export-game-assets.py
+  --python tools/blender/kestrel/export-game-assets.py
 node tools/blender-assets-browser-test.mjs
 npm run models:browser
 npm run avatars:capture -- --weapon rifle --view front
@@ -162,9 +167,11 @@ PEREGRINE); every other weapon still goes through the software rasterizer.
 `validation.json` records a fresh Blender import of both final GLBs. Both pass:
 one imported skin mesh, normalized vertex weights, embedded material images,
 valid UV references and actual evaluated mesh motion for each animation.
-RIVET has 19,320 triangles, 20 bones and six embedded images. KESTREL has 16,488
-triangles, four bones and four embedded images. The clips are isolated to their
-own models: Idle/Walk for the character and Reload_Study for the weapon.
+RIVET has 19,320 triangles, 20 bones and six embedded images. The first KESTREL
+study (`kestrel-r1.glb`) had 16,488 triangles, four bones and four embedded images;
+revision 2 is validated by `tools/blender/kestrel/validate-kestrel.py` instead
+(see its section below). The clips are isolated to their own models: Idle/Walk
+for the character and Reload_Study for the r1 weapon.
 `peregrine/validation.json` records the same fresh-import evidence for the sniper,
 and `peregrine/manifest.json` its study mesh statistics.
 
@@ -247,6 +254,88 @@ reload fractions, and writes `bison-*.png` captures to
 `.artifacts/blender-integration/`. The lmg HUD icon now comes from the
 delivered BISON geometry through the browser renderer.
 
+## KESTREL (rifle slot), revision 2
+
+KESTREL supplies the existing `rifle` slot (VK-77 RAPTOR). Revision 2 replaces
+the first chunky study with a detailed M4-class carbine: a slab upper receiver
+whose right wall carries an open ejection port (the bolt carrier is seen moving
+through it), brass deflector, hanging dust cover and forward assist; a
+full-length top rail with a stowed folding rear sight and the factory reflex
+sight centred on the 0.145 m sight line; a left-side reciprocating charging
+handle with a ribbed knob; a lower receiver with a flared magwell, selector,
+bolt catch and magazine release; an open trigger guard; a raked pistol grip
+with texture ribs, rubber backstrap and amber base plug; an octagonal
+free-float M-LOK handguard with rail slots on every facet, an amber ribbed rail
+cover on the support side and the gas tube inside; a low gas block carrying an
+A-frame front sight post that co-witnesses through the reflex window; the bare
+0.0170 m barrel across the heat band with a six-prong birdcage; a curved
+30-round magazine with witness ribs, a brass round window and an amber
+baseplate; and a six-position collapsible stock on a buffer tube with a cheek
+riser and ribbed rubber butt pad. 200 authored parts, 12,532 triangles, 18
+runtime primitives, eight materials on the shared palette (gunmetal, polymer,
+petrol paint, orange paint, ivory coating, rubber, brass, optic glass).
+Display name, stats, inventory id, hitboxes, `sightHeight` 0.145 and the
+reload/bolt/trigger timings are unchanged.
+
+The study was authored through the live Blender MCP session (protocol 5,
+`execute_blender_code`) with `tools/blender/kestrel/build-kestrel.py`, which
+creates its own scene and saves with `copy=True`; the runtime export,
+validation and renders run headless. `kestrel/mcp-viewport.png` is the live
+viewport read-back.
+
+Part contract (`public/js/guns/models/kestrel.js`, unchanged):
+
+- `body`: receivers, rail, rear sight, grip, stock, handguard, gas block, front
+  sight, barrel and hider, markings.
+- `mag`: the whole magazine; the rifle reload drops it on the `rifle` exit path
+  and brings a fresh one in on the entry path.
+- `bolt`: bolt carrier, bolt head and the charging handle; home at game z
+  -0.035, reciprocates 0.085 m per shot and on the reload rack. The carrier is
+  visible through the ejection port while it moves.
+- `trigger`: amber blade and guard.
+- `factory-optic`: the reflex sight (mount, petrol housing, lens, emitter,
+  battery cap, brightness buttons). `kestrel.js` still adds the emissive dot at
+  game (0, 0.145, -0.187), which lies inside the housing behind the lens; a
+  fitted replacement optic hides the whole group.
+- `extra`: ships empty (no loose rounds for a magazine reload).
+
+Geometry conventions: the bore sits 6 mm left of the receiver centreline
+because the contract muzzle is at x -0.012, while every sight sits on x = 0
+where the ADS camera looks; the ejection port and the charging-handle slot are
+real through-holes in the wall plates (`solid()` with an inner profile), not
+recessed panels.
+
+Build-time gates: muzzle plane, bore axis and the exposed 0.0170 m radius over
+the whole 0.460..0.572 heat band, all four markers, the trigger blade, the
+bolt handle home and its -x protrusion, nothing but the reflex lens and the
+front post/wings on the 0.145 line inside |x| < 0.018, rail furniture behind
+the reflex under z 0.125, the grip flank inboard of the 0.045 palm, the guard
+underside on the support palm, coplanar-face and part-contact audits.
+
+```sh
+# author (headless alternative to the MCP session)
+blender --background --factory-startup --python tools/blender/kestrel/build-kestrel.py
+# browser delivery (also drops foreign scenes from the saved study), fresh-import validation, proof renders
+blender --background docs/design/blender/kestrel/kestrel.blend --python tools/blender/kestrel/export-game-assets.py
+blender --background --factory-startup --python tools/blender/kestrel/validate-kestrel.py
+blender --background --factory-startup docs/design/blender/kestrel/kestrel.blend --python tools/blender/kestrel/render-kestrel.py
+node tools/render-hud-icon.mjs --weapon rifle
+node tools/blender-assets-browser-test.mjs
+npm run weapons:capture -- --weapon rifle --state scoped
+npm run avatars:capture -- --weapon rifle --view front
+```
+
+`docs/design/blender/kestrel/validation.json` records the fresh import (nodes,
+markers, identity transforms, muzzle tip, heat band radius, sight channel,
+lens span, 18 primitives, 10k-30k triangle budget) and the runtime glTF
+contract (node names, `textures/` image URIs, one blend material, buffer URI).
+`render-hero/side/left/ads/rear.png` are the Cycles proof renders and
+`build-report.md` the build record. The r1 scripts
+(`tools/blender/build-weapon.py`, `tools/blender/export-game-assets.py`,
+`tools/blender/render-previews.py`, `tools/blender/validate-import.py`) read
+the rigged first study and now apply to `kestrel-r1.blend` / `kestrel-r1.glb`
+only.
+
 ## HANDS (first-person gloves), revision 2
 
 HANDS supplies the first-person glove hands that `kit.glove()` mounts on every
@@ -296,3 +385,66 @@ BVH contact audit) and neighbouring proximal stalls keep >= 1.5 mm of air.
 `docs/design/blender/hands/render-{grip,support}-{side,rear-quarter,palm}.png`
 are the study stills; `.artifacts/blender-integration/hands-*.png` are the
 in-game captures (rifle, revolver and knife held, revolver cylinder open).
+
+## GRENADES (throwables), revision 1
+
+One study for all five throwables of `shared/grenade-rules.js` — `frag`,
+`limpet`, `pulse`, `molotov`, `smoke` — delivered as five nodes in one asset
+(`public/assets/blender/grenades.gltf`, registered in
+`public/js/engine/blender-assets.js` as `grenades`). Looks follow the shop
+illustrations in `public/assets/grenades/hud`: M-4 FRAG as a dark faceted steel
+body with three bronze rib bands and an amber fuse cap, the CLAYMORE as a
+copper disc on four footed pads with an orange rim and a red sensor lens, PULSE
+SHOCK as a cyan faceted core inside a dark three-meridian cage, M-18 SMOKE as a
+satin steel canister with a pale band, and the molotov as a labelled bottle of
+petrol with a rag plug and a hanging wick. 109 authored parts, 7662 triangles,
+23 runtime primitives, fifteen materials over the same six ImageGen maps — no
+new textures. Ids, timings, damage, physics and the server are untouched.
+
+Every type is authored in the frame the first-person hands already used
+(metres, y up, body centred on the origin): the fuze block sits on top with its
+safety lever on +x and the pin lug at the procedural pin socket
+(-0.024, 0.088, 0.019) for `frag`, `pulse` and `smoke`; the claymore faces +z
+with its magnetic feet on the wall plane z -0.041 and the sensor lens looking
+down the laser, which is what `ProjectileFX._poseMine`'s look-at expects; the
+bottle stands on the origin plane with its wick tip at (-0.037, 0.303, 0),
+where both consumers hang the wick flame.
+
+Both consumers keep their procedural builder as the fallback when the template
+is unavailable. `public/js/guns/throwable-hands.js` mounts the node verbatim.
+`public/js/weapons/projectiles.js` scales it to the footprint of the procedural
+prop it replaces (`AUTHORED_WORLD_SCALE`: frag 1.9, limpet 2.2, pulse 2.0,
+molotov 1.5, smoke 1.85) — the thrown props read larger than life so they stay
+visible mid-flight — and keeps the fuse indicators runtime-owned: the frag and
+smoke fuse-cap material clone is the strobe the update loop tints, the claymore
+keeps its lit lens box and laser, the pulse keeps an additive back-side aura
+around the cage, and the bottle keeps its wick flame.
+
+Build-time gates: the five nodes exist with identity transforms, each type
+spans the origin and stays inside its per-type footprint box, the fuze types
+keep a pin lug and a lever past x 0.050 under a fuze top at y >= 0.095, the
+claymore keeps its wall plane and sensor depth, the bottle keeps its wick tip,
+and the study stays inside 32 primitives and 4k–24k triangles. The validator
+re-imports the GLB into an empty factory scene and then reads the runtime glTF
+as JSON to confirm the same five nodes, the shared texture URIs, the
+glow/glass material extras and the `.bin` length.
+
+`docs/design/blender/grenades/render-<type>-{hero,front,rear}.png` and
+`render-lineup.png` are the study stills, `validation.json` the audit and
+`build-report.md` the record. `.artifacts/blender-integration/grenades-world.png`
+(written by `tools/blender-assets-browser-test.mjs`) shows the five thrown
+props in a WebGL scene; `.artifacts/<type>-prepare.png`
+(from `tools/throwable-browser-test.mjs`) shows each one held.
+
+```sh
+# author (headless alternative to the MCP session)
+blender --background --factory-startup --python tools/blender/grenades/build-grenades.py
+# browser delivery, fresh-import validation, proof renders
+blender --background --factory-startup --python tools/blender/grenades/export-game-assets.py
+blender --background --factory-startup --python tools/blender/grenades/validate-grenades.py
+blender --background --factory-startup docs/design/blender/grenades/grenades.blend \
+    --python tools/blender/grenades/render-grenades.py
+# runtime proof
+node tools/blender-assets-browser-test.mjs
+node tools/throwable-browser-test.mjs
+```

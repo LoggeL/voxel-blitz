@@ -121,7 +121,7 @@ const surfaceSpawns = meta.spawns.fun.filter((s) => s.y > 30);
 const netherSpawns = meta.spawns.fun.filter((s) => s.y <= 30);
 assert.equal(MINECRAFT_B5_ANCHORS.spawns.all.length, 35, 'every original info_player_start is recorded');
 assert.equal(surfaceSpawns.length + netherSpawns.length, MINECRAFT_B5_ANCHORS.spawns.fun.length);
-assert.ok(surfaceSpawns.length >= 12 && netherSpawns.length >= 2, 'free-for-all spawns cover island and Nether');
+assert.ok(surfaceSpawns.length >= 11 && netherSpawns.length >= 2, 'free-for-all spawns cover island and Nether');
 for (const spawn of [...surfaceSpawns, ...meta.spawns.tdm.alpha, ...meta.spawns.tdm.bravo]) {
   assert.ok(surface.has(key(Math.floor(spawn.x), Math.floor(spawn.y), Math.floor(spawn.z))), `spawn ${spawn.x},${spawn.z} connects to the island`);
 }
@@ -281,3 +281,79 @@ for (const pool of [meta.spawns.fun, meta.spawns.tdm.alpha, meta.spawns.tdm.brav
   }
 }
 console.log('Minecraft B5: modes, spawn pools, pads, props and expanded server spawns verified.');
+
+// No spawn touches lava or water: feet, body and floor cells plus the eight
+// horizontal neighbours at feet and floor level are dry, so the spawn push can
+// never shove a fresh body into the lava sea or the village stream. The compile
+// nudges the two Source spawns that broke this; the selector guards the rest.
+const RING = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, 1], [1, -1], [-1, -1]];
+const wetSpawn = (x, y, z) => fluidAt(x, y, z) || fluidAt(x, y + 1, z) || fluidAt(x, y - 1, z)
+  || RING.some(([dx, dz]) => fluidAt(x + dx, y, z + dz) || fluidAt(x + dx, y - 1, z + dz));
+for (const [pool, list] of Object.entries(MINECRAFT_B5_ANCHORS.spawns)) {
+  for (const [x, z, floorY] of list) {
+    assert.ok(isSolidBlock(at(x, floorY, z)) && free(x, floorY + 1, z), `${pool} spawn ${x},${z} stands on a floor`);
+    assert.equal(wetSpawn(x, floorY + 1, z), false, `${pool} spawn ${x},${z},${floorY} is clear of lava and water`);
+  }
+}
+assert.deepEqual(MINECRAFT_B5_ANCHORS.spawns.all.filter(([x, z]) => (x === 48 && z === 28) || (x === 70 && z === 18)),
+  [[70, 18, 41], [48, 28, 2]], 'the stream spawn moved to the bank and the Nether spawn stepped back from the lava shore');
+for (const pool of [meta.spawns.fun, meta.spawns.tdm.alpha, meta.spawns.tdm.bravo]) {
+  for (const point of selector.expand(pool)) {
+    assert.equal(wetSpawn(Math.floor(point.x), Math.floor(point.y), Math.floor(point.z)), false,
+      `expanded spawn ${point.x},${point.y},${point.z} is clear of lava and water`);
+  }
+  for (let i = 0; i < 40; i++) {
+    const picked = selector.pick(selector.expand(pool), null, -1, { variety: i % 2 === 1 });
+    assert.equal(wetSpawn(Math.floor(picked.x), Math.floor(picked.y), Math.floor(picked.z)), false, 'the selector never picks a wet cell');
+  }
+}
+const lavaPool = [{ x: lavaCell[0] + 0.5, y: 2.02, z: lavaCell[1] + 0.5 }, { x: origin.x, y: origin.y, z: origin.z }];
+assert.ok(selector.walkable(lavaPool[0]) && selector.hazardous(lavaPool[0]), 'the lava sea is walkable geometry but hazardous');
+assert.equal(selector.pick(lavaPool).x, origin.x, 'a dry candidate beats a lava candidate whatever the score');
+assert.equal(selector.pick([lavaPool[0]]).x, lavaPool[0].x, 'an entirely wet pool still spawns rather than failing');
+console.log('Minecraft B5: every authored, expanded and selected spawn is clear of lava and water.');
+
+// Climbing out of water: a swimmer holding jump and pushing toward a bank
+// pulls up onto it, whether the bank is flush with the surface, one block
+// higher or capped by an overhang two blocks up. Server and prediction agree.
+const shoreCase = (matches) => {
+  for (let z = 2; z < SZ - 2; z++) for (let x = 2; x < SX - 2; x++) {
+    if (!(at(x, sea - 1, z) === MC_WATER && at(x, sea - 2, z) === MC_WATER && air(x, sea, z) && air(x, sea + 1, z) && air(x, sea + 2, z))) continue;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (matches(x + dx, z + dz)) return [x, z, dx, dz];
+  }
+  return null;
+};
+const air = (x, y, z) => at(x, y, z) === AIR;
+const shores = {
+  'flush bank': [shoreCase((x, z) => solidAt(x, sea - 1, z) && air(x, sea, z) && air(x, sea + 1, z) && air(x, sea + 2, z)), sea],
+  'one-block shore': [shoreCase((x, z) => solidAt(x, sea - 1, z) && solidAt(x, sea, z) && air(x, sea + 1, z) && air(x, sea + 2, z) && air(x, sea + 3, z)), sea + 1],
+  'overhang': [shoreCase((x, z) => solidAt(x, sea - 1, z) && air(x, sea, z) && air(x, sea + 1, z) && solidAt(x, sea + 2, z)), sea],
+};
+const stoodOnShore = (body, [x, z, dx, dz], top) => body.grounded && Math.floor(body.x) === x + dx && Math.floor(body.z) === z + dz && body.y >= top - 0.01;
+for (const [label, [shore, top]] of Object.entries(shores)) {
+  assert.ok(shore, `${label} exists on the map`);
+  const [x, z, dx, dz] = shore;
+  const yaw = Math.atan2(-dx, -dz);
+  const arena = new GameEngine({ world: createMapState('minecraft_b5'), mapMeta: meta });
+  arena.addClient('swimmer', 'Swimmer');
+  const body = arena.entities.get('swimmer');
+  Object.assign(body, { x: x + 0.5, y: sea - 1.5, z: z + 0.5, vx: 0, vy: 0, vz: 0, grounded: false });
+  arena.applyInput('swimmer', { keys: { f: true, jump: true }, yaw, pitch: 0, viewYaw: yaw });
+  let serverOut = false;
+  for (let i = 0; i < 240 && !serverOut; i++) {
+    arena.step(arena.intervalMs);
+    serverOut = stoodOnShore(body, shore, top);
+  }
+  assert.ok(serverOut, `${label}: the authority climbs out of the water at ${x},${z}`);
+  const swimmer = new PlayerPhysics(meta);
+  swimmer.pos = { x: x + 0.5, y: sea - 1.5, z: z + 0.5 };
+  swimmer.vel = { x: 0, y: 0, z: 0 };
+  swimmer.grounded = false;
+  let clientOut = false;
+  for (let i = 0; i < 240 && !clientOut; i++) {
+    swimmer.step(1 / 60, { x: dx, z: dz }, 4.4, true, 1, yaw);
+    clientOut = stoodOnShore({ ...swimmer.pos, grounded: swimmer.grounded }, shore, top);
+  }
+  assert.ok(clientOut, `${label}: prediction climbs out of the water at ${x},${z}`);
+}
+console.log('Minecraft B5: swimmers climb onto flush, raised and overhung banks on the authority and in prediction.');

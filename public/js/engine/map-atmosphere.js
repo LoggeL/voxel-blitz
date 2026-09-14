@@ -19,6 +19,10 @@ const PALETTES = {
   dust2: { skybox: '/assets/skyboxes/desert-daylight.webp', skyTop: '#438fc9', skyHorizon: '#d5e6ec', groundLight: '#9a8668', sun: '#fff3df', density: 0.0028 },
   killhouse: { skyTop: '#4e8dc5', skyHorizon: '#c9e5f5', groundLight: '#78838a', ambient: 0.82 },
   // Bright overworld day; the fog colour matches the map's env_fog_controller (173 199 255).
+  // Bright seaside day over the glass foyer roof; the hall's windows and the
+  // long pool sight lines want thin, cool fog (sky_camera fog 225 242 237).
+  waterworld: { skyTop: '#3d95dc', skyHorizon: '#cfe7f7', fog: '#e1f2ed', groundLight: '#7f929b',
+    skyLight: '#e8f4fc', sun: '#fff8ea', ambient: 0.96, sunlight: 1.3, density: 0.0014 },
   minecraft_b5: { skyTop: '#3d8fe0', skyHorizon: '#c4dcff', fog: '#adc7ff', groundLight: '#6f8a5c', ambient: 0.9, sunlight: 1.36, density: 0.0022 },
 };
 export function mapAtmosphere(mapId) {

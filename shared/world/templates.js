@@ -17,6 +17,7 @@ import {
 } from './serialize.js';
 import { generateKillhouseInto } from './flatmap-killhouse.js';
 import { generateMinecraftB5Into } from './flatmap-minecraft-b5.js';
+import { generateWaterworldInto } from './flatmap-waterworld.js';
 import { createStateApi } from './state.js';
 import { generateFoundryInto } from './terrain-foundry.js';
 
@@ -51,6 +52,7 @@ function buildPristineTemplate(id) {
   else if (id === 'reactor') generateReactorInto(world, blocks, heights);
   else if (id === 'killhouse') generateKillhouseInto(world, blocks, heights);
   else if (id === 'minecraft_b5') generateMinecraftB5Into(world, blocks, heights);
+  else if (id === 'waterworld') generateWaterworldInto(world, blocks, heights);
   else generateSolsticeInto(world, blocks, heights);
 
   blocks.fill(BEDROCK, 0, SX * SZ);

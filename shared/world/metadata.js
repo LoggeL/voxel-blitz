@@ -5,6 +5,7 @@ import { MAP_MODE_COMPATIBILITY } from '../modes.js';
 import { foundryLadderVolumes } from './terrain-foundry.js';
 import { REACTOR_LAYOUT } from './reactor-layout.js';
 import { MINECRAFT_B5_ANCHORS } from './minecraft-b5-data.js';
+import { WATERWORLD_ANCHORS } from './waterworld-data.js';
 import {
   DUST2_NAV_FLOORS, DUST2_SPAWN_ANCHORS, DUST2_SITES, DUST2_LANDMARKS,
   dust2FloorsAt,
@@ -23,6 +24,7 @@ const MAP_NAMES = Object.freeze({
   dust2: 'Dust 2',
   killhouse: 'Killhouse',
   minecraft_b5: 'Minecraft B5',
+  waterworld: 'Waterworld',
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
@@ -103,6 +105,13 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
     tdm: { alpha: MINECRAFT_B5_ANCHORS.spawns.alpha, bravo: MINECRAFT_B5_ANCHORS.spawns.bravo },
     snd: { attackers: [], defenders: [] },
   },
+  // Original info_player_deathmatch entities in the foyer; each anchor carries
+  // the deck floor level so the pools below never catch a spawn.
+  waterworld: {
+    fun: WATERWORLD_ANCHORS.spawns.fun,
+    tdm: { alpha: WATERWORLD_ANCHORS.spawns.alpha, bravo: WATERWORLD_ANCHORS.spawns.bravo },
+    snd: { attackers: [], defenders: [] },
+  },
 });
 
 const MAP_SITE_LAYOUTS = Object.freeze({
@@ -133,6 +142,7 @@ const MAP_SITE_LAYOUTS = Object.freeze({
   ],
   killhouse: [],
   minecraft_b5: [],
+  waterworld: [],
 });
 
 const MAP_LANDMARKS = Object.freeze({
@@ -176,6 +186,7 @@ const MAP_LANDMARKS = Object.freeze({
     { id: 'long-lane', name: 'Long Lane', x: 64, z: 62 },
   ],
   minecraft_b5: MINECRAFT_B5_ANCHORS.landmarks.map(({ id, name, x, z, floorY }) => ({ id, name, x, z, floorY })),
+  waterworld: WATERWORLD_ANCHORS.landmarks.map(({ id, name, x, z, floorY }) => ({ id, name, x, z, floorY })),
 });
 
 /** Dummy-target posts per map, indexed by dummy bot id (dummy-<index>). */
@@ -297,6 +308,18 @@ export function createMapMetadata(id, world) {
       standHeights: [MINECRAFT_B5_ANCHORS.seaLevel - 1, MINECRAFT_B5_ANCHORS.groundLevel + 22],
       portals: MINECRAFT_B5_ANCHORS.portals.map((portal) => ({ ...portal })),
       props: structuredClone(MINECRAFT_B5_ANCHORS.props),
+    } : {}),
+    // The pool deck, the foyer and every stair landing are authored spawn and
+    // route space; bots navigate the deck level under the roof.
+    ...(id === 'waterworld' ? {
+      navigationFloor: WATERWORLD_ANCHORS.groundLevel,
+      spawnBounds: { minX: 4, maxX: 195, minZ: 4, maxZ: 183, minY: 1, maxY: 33 },
+      groundLevel: WATERWORLD_ANCHORS.groundLevel,
+      waterLevel: WATERWORLD_ANCHORS.waterLevel,
+      standHeights: [WATERWORLD_ANCHORS.groundLevel, WATERWORLD_ANCHORS.groundLevel + 24],
+      portals: WATERWORLD_ANCHORS.portals.map((portal) => ({ ...portal })),
+      tester: structuredClone(WATERWORLD_ANCHORS.tester),
+      props: structuredClone(WATERWORLD_ANCHORS.props),
     } : {}),
     ...(id === 'reactor' ? { bastion: structuredClone(REACTOR_LAYOUT), spawnBounds: {
       minX: 51, maxX: 76, minZ: 43, maxZ: 67, minY: GROUND + 1, maxY: GROUND + 1.1,

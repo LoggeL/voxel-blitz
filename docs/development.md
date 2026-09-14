@@ -209,9 +209,9 @@ muzzle flash, and heat shader advanced to a deterministic frame. The complete
 run writes 30 PNGs plus `index.html` and `manifest.json` to
 `.artifacts/weapon-renders/` for side-by-side visual review.
 The avatar flow renders those same canonical models on remote-player bodies in
-front, profile, firing, ADS-profile, and crouched-profile views, plus one
-representative ally-spectator shot. The focused 51-frame matrix is written to
-`.artifacts/avatar-renders/`.
+front, profile, firing, ADS-profile, crouched-profile, prone-profile and
+swim-profile views, plus one representative ally-spectator shot and one
+treading-water shot. The matrix is written to `.artifacts/avatar-renders/`.
 
 The project-owned illustrations in `public/assets/weapons/hud/` are the
 canonical silhouette and material references for all ten procedural models.
@@ -378,7 +378,7 @@ the attempt. Death or disconnect releases the course for the next runner.
 
 ### Map compatibility
 
-Harbor and Canyon are 192 × 144 × 40 voxels; Minecraft B5 is 128 × 96 × 88 so the Nether fits under the island. Existing maps retain 128 × 96 × 40 dimensions. Binary world headers carry each map's actual dimensions; voxel indices, chunk counts, projectile bounds and spawn pools use those dimensions.
+Harbor and Canyon are 192 × 144 × 40 voxels; Minecraft B5 is 128 × 96 × 88 so the Nether fits under the island; Waterworld is 200 × 188 × 36, the whole leisure centre and its foyer at 32 Source units per voxel. Existing maps retain 128 × 96 × 40 dimensions. Binary world headers carry each map's actual dimensions; voxel indices, chunk counts, projectile bounds and spawn pools use those dimensions.
 
 | map id | modes | identity |
 |---|---|---|
@@ -394,6 +394,7 @@ Harbor and Canyon are 192 × 144 × 40 voxels; Minecraft B5 is 128 × 96 × 88 s
 | `dust2` | Fun, Chaos Lab, TDM, S&D, Gun Game | Long A, Short/Catwalk, Mid Doors, B Tunnels and raised A site |
 | `killhouse` | Training | weapon-test firing range with respawning dummies and a timed 4-stage killhouse course |
 | `minecraft_b5` | Fun, TTT, 1v1, Chaos Lab, TDM, Gun Game | block-for-block replica of `ttt_minecraft_b5` (`docs/maps/minecraft-b5.md`): island village, lighthouse, mine rails, swimmable ocean, working Nether portals and the Nether below |
+| `waterworld` | Fun, TTT, 1v1, Chaos Lab, TDM, Gun Game | block-for-block replica of `ttt_waterworld` (`docs/maps/waterworld.md`): Leith Waterworld leisure pools, flumes with the tester volumes, changing rooms, cafe mezzanine, traitor room teleport and the glass foyer |
 
 ## Mode-specific HUD and scoreboards
 
@@ -513,7 +514,25 @@ farther during a turn and settle more slowly after the mouse has stopped.
 
 Sprinting has a stronger but deliberately slower leg-driven run cycle than
 ordinary walking. Jumping and landing move only the carried weapon through a
-damped vertical spring while aim stays immediate. Incoming hits and nearby
+damped vertical spring while aim stays immediate.
+
+Swimming animates from the authoritative `swimming` snapshot flag plus
+`grounded` and `moveSpeed`: floating (swimming without touching the bottom)
+blends over ~0.5 s into a swim pose, while wading in shallow water keeps the
+walk. `shared/player-stance.js` (`SWIM`, `stepSwim`, `swimCycle`) drives both
+bodies. Third-person avatars lean the torso and hips forward, lift the chin,
+trail the legs with an alternating flutter kick whose rate follows the stroke
+effort, and carry the weapon low and canted with both hands; treading water is
+near-upright with a gentle bob and quiet legs, and aiming lifts the gun back to
+the sight line. Crouch (the dive input) and prone keep their hitbox-backed
+stances underneath. Combat hitboxes deliberately stay in the upright stance
+(lag-compensated shots replay poses without the swim flag), so every swim angle
+is sized to the standing zone envelope and `tools/hitbox-model-test.mjs` checks
+the whole stroke cycle against the RIVET geometry. The first-person body uses
+the same cycle with wider angles; `npm run avatars:capture -- --view swim-profile`
+(plus `swim-tread`) renders the poses for review.
+
+Incoming hits and nearby
 unobstructed enemy shots or explosions build panic; health damage builds pain.
 Armor absorbs wounds while retaining a smaller impact cue. Panic recovers fully
 at any health, and the pain floor is only 9% at 25 HP. Shared condition rules
@@ -637,6 +656,53 @@ ping. Pings, pongs and lobby state stay below the threshold and never wait on
 zlib. Clients that decline the extension receive identical plain frames.
 `node tools/network-transport-test.mjs` (part of `connection:test`) protects
 both properties against a real server.
+
+## Client boot and asset loading
+
+`public/index.html` shows the startup screen as plain HTML, then `js/boot.js`
+imports `js/main.js`. The generated `modulepreload` block (`npm run
+preload:build`, checked by `npm run static:test`) lists only that static graph:
+142 modules, about 0.6 MB on the wire, which is the HUD, session and lobby
+code, accounts, career, input, the audio facade and the shared rules. The
+startup stages are game systems, account and career; the screen closes and the
+menu takes input as soon as `career.start()` resolves (`window.__vbBoot.readyMs`).
+
+Everything else loads through the asset scheduler (`js/boot/asset-scheduler.js`)
+after the menu has painted, one task at a time, in the order a match needs it:
+
+1. `models`: `engine/blender-assets.js`, which brings three.js, the glTF loader
+   and the fourteen Blender templates with their shared textures (most of the
+   bytes).
+2. `runtime`: `boot/match-runtime.js`, the world view and chunk mesher, combat
+   effects and post-process, weapon and avatar factories, killcam, spectator
+   camera and TTT controls.
+3. `audio`: the built-in sample bank decoded through `sfx.preloadSamples()`.
+   Menu music and UI cues never wait for it, and the join gesture only waits
+   for the context to resume.
+4. `armory`: the weapon customization dialog. `main.js` mounts the ARMORY menu
+   button at once; a click opens the dialog once the module has arrived.
+5. `art`: HTTP-cache warm-up for the skyboxes and the HUD weapon and throwable
+   icons.
+
+While tasks run the menu shows a small "PREPARING ASSETS n / 5 · stage" line
+(`#asset-status`) that hides when the scheduler is idle or a match is running.
+Joining or creating a match calls `assets.require(['models', 'runtime',
+'audio'])` from `Game.ensureRuntime()`: outstanding tasks become stages of the
+arena screen, followed by the mesh sectors, so no frame renders before the
+Blender templates exist; tasks that already finished add no stage. A failed task
+is retried by the next request. `window.__vbAssets.status` exposes the task
+states. `npm run boot:profile` reports the menu-ready point and the background
+total; `npm run boot:test` (part of `browser:ui`) parks the Blender and sample
+requests at the network layer and proves that the menu responds and that quick
+play waits on the arena screen for exactly those assets.
+
+Measured with `npm run boot:profile` (headless Chromium against the local
+server): a cold start has an interactive menu after about 120 ms with 166
+requests and 0.7 MB on the wire (before: 645 ms with 346 requests and 9.2 MB
+ahead of the menu); the background tasks then bring the page to about 400
+requests and 9.7 MB. A warm start reaches the menu after about 130 ms with
+0.1 MB. Menu music starts after the first paint because `new AudioContext()`
+can block on the previous page's context teardown right after a reload.
 
 ## Connection diagnostics
 

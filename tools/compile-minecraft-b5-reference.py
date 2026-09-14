@@ -515,6 +515,7 @@ def main(argv):
     # Spawns: info_player_start feet positions become [x, z, floorY] anchors.
     # The floor is the first solid voxel under the feet (two lighthouse spawns
     # and one stream spawn stand on illusionary or fluid volumes in Source).
+    # Fluid contact is resolved after the void fill below, once every block is final.
     spawns = []
     for entity in bsp['entities']:
         if entity.get('classname') != 'info_player_start':
@@ -570,6 +571,46 @@ def main(argv):
                 if (v == AIR or v == B['MC_WATER']) and (x, y, z) not in reachable:
                     put(x, y, z, MC_VOID_FILL(y))
                     stats['void-filled'] += 1
+
+    # A spawn never touches fluid: its feet, body and floor cells plus the eight
+    # horizontal neighbours at feet and floor level stay clear of water and lava,
+    # so the spawn push can never drop a fresh body into the lava sea. Source
+    # authored two such spawns (one wading in the village stream, one on the
+    # lava shore of the Nether); each moves to the nearest safe standing cell.
+    # server/sim/spawn.js applies the same rule at runtime as a guard.
+    fluid_types = {B['MC_WATER'], B['MC_LAVA']}
+    ring8 = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (-1, 1), (1, -1), (-1, -1)]
+
+    def spawn_safe(x, z, floor):
+        feet = floor + 1
+        if not (0 < x < SX - 1 and 0 < z < SZ - 1 and 1 <= floor < SY - 3):
+            return False
+        if not solid(x, floor, z) or solid(x, feet, z) or solid(x, feet + 1, z) or (x, feet, z) not in reachable:
+            return False
+        cells = [(x, feet, z), (x, feet + 1, z), (x, floor, z)]
+        cells += [(x + dx, y, z + dz) for dx, dz in ring8 for y in (feet, floor)]
+        return not any(get(*c) in fluid_types for c in cells)
+
+    for spawn in spawns:
+        x, z, floor = spawn
+        if spawn_safe(x, z, floor):
+            continue
+        best = None
+        for dx in range(-4, 5):
+            for dz in range(-4, 5):
+                for dy in (0, 1, -1):
+                    if dx == 0 and dz == 0 and dy == 0:
+                        continue
+                    if not spawn_safe(x + dx, z + dz, floor + dy):
+                        continue
+                    rank = (dx * dx + dz * dz, abs(dy), dz, dx)
+                    if best is None or rank < best[0]:
+                        best = (rank, [x + dx, z + dz, floor + dy])
+        if best is None:
+            stats['spawn-fluid-kept'] += 1
+            continue
+        stats['spawn-fluid-moved'] += 1
+        spawn[:] = best[1]
 
     # Ladders: the climb volume is the air voxel holding the rung slab; the wall
     # face is whichever neighbour along the slab's thin axis is solid.

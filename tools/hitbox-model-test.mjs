@@ -141,6 +141,45 @@ for (const swing of [-1, 1]) {
   }
 }
 
+// Swimming keeps the authoritative upright zones (lag-compensated shots replay
+// poses without the swim flag), so the whole stroke cycle of the visual lean,
+// flutter kick and low weapon carry must stay inside the standing envelope:
+// gaps no larger than the cosmetic gait already allows.
+const SWIM_MIN_INSIDE = { head: 0.95, torso: 0.98, pack: 0.9, pouches: 0.9, hips: 0.9,
+  lThigh: 0.9, rThigh: 0.9, lKnee: 0.9, rKnee: 0.9, lBoot: 0.9, rBoot: 0.9,
+  lArm: 0.35, rArm: 0.9, lElbow: 0.75, rElbow: 0.75, lHand: 0.85, rHand: 0.9 };
+const SWIM_MAX_P98 = { head: 0.10, pack: 0.25, lElbow: 0.06, rElbow: 0.06 };
+let swimChecks = 0;
+for (const weapon of ['rifle', 'sniper', 'lmg', 'knife'].map(id => WEAPON_IDS.indexOf(id))) {
+  for (const moveSpeed of [0, 2.6]) {
+    const p = { x: 3, y: 1, z: -2, yaw: 0.6, weapon, moveSpeed, swimming: true, grounded: false };
+    const stride = Math.min(1, moveSpeed / 5.8);
+    av.group.position.set(p.x, p.y, p.z);
+    av.group.rotation.y = p.yaw;
+    const boxes = playerHitboxes(p);
+    for (let frame = 0; frame < 240; frame++) {
+      updateAvatarWeaponPose(av, { weapon, swimming: true, speed: moveSpeed, stride, dt: 1 / 30, blend: 1 });
+      updateAvatarStancePose(av, { stride, blend: 1 });
+      av.head.rotation.x = av.swimHeadTilt;
+      av.group.updateMatrixWorld(true);
+      if (frame < 60 || frame % 12) continue;
+      assert.ok(av.swimPose > 0.99, 'the swim pose has settled after two seconds');
+      for (const part of Object.keys(parts)) {
+        const { inside, p98 } = coverage(p, part, boxes);
+        const name = `${WEAPON_IDS[weapon]} ${moveSpeed ? 'swimming' : 'treading'} frame ${frame}`;
+        assert.ok(inside >= SWIM_MIN_INSIDE[part], `${name}: ${part} is ${(inside * 100).toFixed(1)}% inside its zones`);
+        assert.ok(p98 <= (SWIM_MAX_P98[part] ?? 0.035), `${name}: ${part} 98th percentile gap ${p98.toFixed(3)}m`);
+        swimChecks++;
+      }
+    }
+    for (let frame = 0; frame < 90; frame++) {
+      updateAvatarWeaponPose(av, { weapon, swimming: false, dt: 1 / 30, blend: 1 });
+      updateAvatarStancePose(av, { blend: 1 });
+    }
+    assert.ok(av.swimPose < 0.01, 'leaving the water restores the dry stance');
+  }
+}
+
 // The zone classification follows the model: face, helmet and headset are head;
 // the belt is hips; the crouched knee cap is a leg, not empty air.
 const standing = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 };
@@ -175,4 +214,4 @@ for (let weapon = 0; weapon < WEAPON_IDS.length; weapon++) {
 }
 assert.ok(worst < 0.03, `glove vertices stay within ${worst.toFixed(3)}m of the arm zones for every weapon`);
 disposeAvatar(av);
-console.log(`hitbox model tests passed: ${checks} part coverages across ${stances.length} stances, running stride, zone probes, ${WEAPON_IDS.length} weapon sight heights`);
+console.log(`hitbox model tests passed: ${checks} part coverages across ${stances.length} stances, running stride, ${swimChecks} swim-cycle coverages, zone probes, ${WEAPON_IDS.length} weapon sight heights`);

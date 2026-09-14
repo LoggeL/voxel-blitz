@@ -66,11 +66,18 @@ ceiling and the sea floor is unbreakable bedrock, as is the world floor.
   from the compiled prop list. The sea and sea bed continue past the voxel
   edge. Clouds are static voxels at their initial `func_tanktrain` position.
 - **Spawns**: all 35 `info_player_start` entities are recorded with their own
-  floor level (six in the Nether, two on the lighthouse). Free-for-all modes
-  use a 15-spawn subset spread at least 14 voxels apart (12 on the island,
-  3 in the Nether) so the shared power-up and Chaos cash rules keep pads away
-  from every spawn; Team Deathmatch uses the eight westernmost and eight
-  easternmost surface spawns.
+  floor level (six in the Nether, two on the lighthouse). A spawn never
+  touches fluid: its feet, body and floor cells and the eight horizontal
+  neighbours at feet and floor level are clear of water and lava, so the spawn
+  push cannot drop a body into the lava sea. Two Source spawns break that rule
+  (one wades in the village stream at 70,15, one stands on the Nether lava
+  shore at 48,27); the compile moves each to the nearest safe cell (70,18 on
+  the bank and 48,28) and `server/sim/spawn.js` applies the same guard at
+  runtime, so an expanded or fallback candidate in lava is skipped whenever a
+  dry one exists. Free-for-all modes use a 14-spawn subset spread at least 14
+  voxels apart (11 on the island, 3 in the Nether) so the shared power-up and
+  Chaos cash rules keep pads away from every spawn; Team Deathmatch uses the
+  eight westernmost and eight easternmost surface spawns.
 
 The island shell is open to the sea along its shores, exactly as in the
 original, so the space under the island is reachable by wading in from the

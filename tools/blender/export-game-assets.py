@@ -1,6 +1,9 @@
 """Export the authored rigid armor into the game's existing pose frames.
 
-blender --background docs/design/blender/kestrel/kestrel.blend --python tools/blender/export-game-assets.py
+blender --background docs/design/blender/kestrel/kestrel-r1.blend --python tools/blender/export-game-assets.py
+Revision 1 exporter: it reads the rigged RIVET/KESTREL studies (KESTREL_Rig).
+KESTREL revision 2 (docs/design/blender/kestrel/kestrel.blend) is a part rig and
+is exported by tools/blender/kestrel/export-game-assets.py instead.
 Produces standard glTF 2.0 with indexed, material-batched geometry and shared
 1024px JPEG delivery copies of the original ImageGen textures. No study file
 is modified. Animation remains owned by the game's stance/IK/reload systems.

@@ -188,6 +188,17 @@ export const sfx = {
     return engine.resume();
   },
 
+  /**
+   * Fetch and decode the built-in sample bank in the background. Decoding does
+   * not need a running context, so the menu can warm the bank before any
+   * gesture; init() and later calls reuse the same one-shot load.
+   */
+  preloadSamples() {
+    if (!engine.ensure()) return Promise.resolve(Object.freeze({ loaded: 0, failed: 0 }));
+    ensureAudioModules();
+    return loadBuiltInSamples();
+  },
+
   preloadCosmetics() { return cosmeticAudio.preload(); },
   playCosmetic(id, cue) { return cosmeticAudio.play(id, cue); },
   stopCosmetics(cue) { cosmeticAudio.stop(cue); },

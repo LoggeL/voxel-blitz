@@ -73,3 +73,16 @@
   #loading-title { font-size: 28px; }
   .vb-loading-steps { margin-top: 8px; gap: 2px; }
 }
+
+/* Background asset progress shown in the menu after startup (main.js scheduler). */
+.vb-asset-status {
+  position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); z-index: 9000;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 10px; max-width: calc(100vw - 32px);
+  padding: 6px 10px; border: 1px solid #83939c45; background: #080d12c0; color: #abb5bd;
+  font: 10px/1.6 var(--font-mono); letter-spacing: .12em; pointer-events: none;
+}
+.vb-asset-status-kicker { color: #ffbd50; }
+#asset-status-count { color: #f3f1e9; }
+#asset-status-detail { color: #7f8b93; }
+.vb-asset-status[hidden] { display: none; }
+@media (max-width: 600px) { #asset-status-detail { display: none; } }

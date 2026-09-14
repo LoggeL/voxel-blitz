@@ -18,6 +18,7 @@ export const MAP_PLAYER_LIMITS = Object.freeze({
   reactor: 4,
   killhouse: 4,
   minecraft_b5: 16,
+  waterworld: 16,
 });
 
 export function lobbyCapacity(gameMode, map = 'foundry') {

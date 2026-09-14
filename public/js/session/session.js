@@ -161,6 +161,7 @@ export class Session {
     this.onGameplayInputEnabled = typeof hooks.onGameplayInputEnabled === 'function'
       ? hooks.onGameplayInputEnabled
       : null;
+    this.onMenuBuilt = typeof hooks.onMenuBuilt === 'function' ? hooks.onMenuBuilt : null;
     this.onResize = typeof hooks.onResize === 'function' ? hooks.onResize : null;
     this.onTeardown = typeof hooks.onTeardown === 'function' ? hooks.onTeardown : null;
 
@@ -353,13 +354,31 @@ export class Session {
     this.hud.buildMenu((action) => {
       void this.begin(action);
     });
+    if (typeof this.onMenuBuilt === 'function') {
+      try { this.onMenuBuilt(); } catch (error) { console.error('[vb] menu hook failed:', error); }
+    }
     this._menuMusicActive = true;
-    try {
-      this.audio.setMenuMusicVolume?.(musicVolume.value / 100);
-      if (musicVolume.value > 0) Promise.resolve(this.audio.startMenuMusic?.()).catch(() => {});
-    } catch (_) {}
+    this._startMenuMusicAfterPaint();
     if (message) this.hud.showJoinState(message, 'err');
     return true;
+  }
+
+  /**
+   * Menu music starts once the menu has painted. Creating the AudioContext is
+   * synchronous and, right after a reload, can wait on the previous page's
+   * context teardown; that wait must never sit in front of the first paint.
+   */
+  _startMenuMusicAfterPaint() {
+    const start = () => {
+      if (this._tornDown || !this._menuMusicActive) return;
+      try {
+        this.audio.setMenuMusicVolume?.(musicVolume.value / 100);
+        if (musicVolume.value > 0) Promise.resolve(this.audio.startMenuMusic?.()).catch(() => {});
+      } catch (_) {}
+    };
+    const raf = this._window?.requestAnimationFrame;
+    if (typeof raf === 'function') raf.call(this._window, () => setTimeout(start, 0));
+    else start();
   }
 
   async begin(action) {
@@ -368,10 +387,15 @@ export class Session {
 
   unlockAudioFromGesture() {
     try {
-      const initializing = this.audio.init();
+      // init() also decodes the sample bank; the gesture only waits for the
+      // context to resume so admission is never gated on sample decoding.
+      // The asset scheduler guarantees the bank before a match starts.
+      Promise.resolve(this.audio.init()).catch((error) => {
+        console.warn('[vb] audio unavailable:', error);
+      });
       this.audio.setMasterVolume(this._masterVolume);
       const unlocking = this.audio.unlock();
-      return Promise.all([initializing, unlocking]).then(
+      return Promise.resolve(unlocking).then(
         () => undefined,
         (error) => {
           console.warn('[vb] audio unavailable:', error);
@@ -524,6 +548,7 @@ export class Session {
     this.onTick = null;
     this.onGameplayInputDisabled = null;
     this.onGameplayInputEnabled = null;
+    this.onMenuBuilt = null;
     this.onResize = null;
     this.onTeardown = null;
     return true;
@@ -591,7 +616,13 @@ export class Session {
           return true;
         },
         showProgress: (done, total) => {
-          if (this._isActiveBootAttempt(attempt)) this.loading?.advance(done, total);
+          if (!this._isActiveBootAttempt(attempt) || !this.loading) return;
+          // With outstanding asset stages on the arena screen the sectors are
+          // its final stage; otherwise the rail shows the sectors directly.
+          if (this.loading.plan?.length && Number.isFinite(done) && Number.isFinite(total) && total > 0) {
+            this.loading.step('world', { status: 'active', done, total,
+              detail: `${Math.min(total, Math.max(0, done))} / ${total} SECTORS` });
+          } else this.loading.advance(done, total);
         },
         complete: (ordering) => this._completeLiveBoot(attempt, ordering),
       });

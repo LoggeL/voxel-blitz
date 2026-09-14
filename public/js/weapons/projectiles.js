@@ -9,6 +9,7 @@ import {
 import { ROCKET_RULES, stepRocket } from '../../../shared/rocket-rules.js';
 import { BOLT_RULES, boltBounces, stepBolt } from '../../../shared/bolt-rules.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
+import { createBlenderParts } from '../engine/blender-assets.js';
 
 /** Unconfirmed local launches are dropped after this long without a matching authority event. */
 const LOCAL_CONFIRM_TIMEOUT_S = 1.0;
@@ -17,6 +18,11 @@ const CAP_LIT = 0xffd27a;
 const CAP_DIM = 0xff5a1c;
 const ROCKET_TRAIL_INTERVAL_S = 0.028;
 const PROJECTILE_LIGHT_LIMIT = 4;
+// GRENADES study -> in-world prop. The authored bodies are held-frame sized
+// (0.06-0.12 m); the thrown props have always read a little larger than life so
+// they stay visible mid-flight, so each type keeps its procedural footprint.
+const AUTHORED_WORLD_SCALE = Object.freeze({ frag: 1.9, limpet: 2.2, pulse: 2.0, molotov: 1.5, smoke: 1.85 });
+const MOLOTOV_WICK_TIP = Object.freeze([-0.037, 0.303, 0]);
 const ROCKET_TRAILS_PER_SECOND = 360;
 const ROCKET_TRAIL_BURST = 12;
 
@@ -202,6 +208,25 @@ export class ProjectileFX {
     }
   }
 
+  /**
+   * Blender-authored throwable body (GRENADES study, `public/assets/blender/grenades.gltf`),
+   * scaled from the authoring/held frame to the in-world prop. Returns null when the
+   * template has not loaded, in which case `_buildVisual` keeps its procedural body.
+   * Every cloned material is tracked so `_removeProjectile` can release it; the geometry
+   * and the shared scans stay page-owned.
+   */
+  _authoredGrenade(type) {
+    const materials = [];
+    const model = createBlenderParts('grenades', {
+      names: [type],
+      materialFor: original => { const clone = original.clone(); materials.push(clone); return clone; },
+    })?.[type];
+    if (!model) return null;
+    model.scale.setScalar(AUTHORED_WORLD_SCALE[type] || 1);
+    const part = name => materials.find(material => material.userData?.partMaterial === name) || null;
+    return { model, materials, part };
+  }
+
   _buildVisual(type) {
     const group = new THREE.Group();
     let capMaterial = null;
@@ -214,12 +239,32 @@ export class ProjectileFX {
       group.add(body, nose, exhaust);
       group.userData.exhaust = exhaust;
     } else if (type === 'smoke') {
-      capMaterial = new THREE.MeshStandardMaterial({ color: 0xc7d9db, metalness: 0.45, roughness: 0.6 });
-      const body = new THREE.Mesh(this.bottleGeometry, capMaterial);
-      const band = new THREE.Mesh(this.bottleGeometry, this.fragMaterial);
-      band.scale.set(1.02, 0.22, 1.02);
-      group.add(body, band);
+      const authored = this._authoredGrenade('smoke');
+      if (authored) {
+        // The authored canister carries its own fuze; the fuse cap is the strobe.
+        capMaterial = authored.part('fuse cap');
+        group.add(authored.model);
+        group.userData.authoredMaterials = authored.materials;
+      } else {
+        capMaterial = new THREE.MeshStandardMaterial({ color: 0xc7d9db, metalness: 0.45, roughness: 0.6 });
+        const body = new THREE.Mesh(this.bottleGeometry, capMaterial);
+        const band = new THREE.Mesh(this.bottleGeometry, this.fragMaterial);
+        band.scale.set(1.02, 0.22, 1.02);
+        group.add(body, band);
+      }
     } else if (type === 'molotov') {
+      const authored = this._authoredGrenade('molotov');
+      capMaterial = new THREE.MeshBasicMaterial({ color: 0xffac30, toneMapped: false });
+      if (authored) {
+        const scale = AUTHORED_WORLD_SCALE.molotov;
+        const wickFlame = new THREE.Mesh(this.bottleFlameGeometry, capMaterial);
+        // The study authors the wick tip on the same anchor the held bottle uses.
+        wickFlame.position.set(MOLOTOV_WICK_TIP[0] * scale, MOLOTOV_WICK_TIP[1] * scale + 0.05, 0);
+        group.add(authored.model, wickFlame);
+        group.userData.flame = wickFlame;
+        group.userData.authoredMaterials = authored.materials;
+        return { group, capMaterial };
+      }
       const body = new THREE.Mesh(this.bottleGeometry, this.bottleMaterial);
       const neck = new THREE.Mesh(this.bottleNeckGeometry, this.bottleMaterial);
       neck.position.y = 0.245;
@@ -229,23 +274,33 @@ export class ProjectileFX {
       cloth.scale.set(0.5, 1.4, 0.42);
       cloth.position.set(0.022, 0.365, 0);
       cloth.rotation.z = -0.4;
-      capMaterial = new THREE.MeshBasicMaterial({ color: 0xffac30, toneMapped: false });
       const flame = new THREE.Mesh(this.bottleFlameGeometry, capMaterial);
       flame.position.set(0.04, 0.47, 0);
       group.add(body, neck, label, cloth, flame);
       group.userData.flame = flame;
     } else if (type === 'limpet') {
-      const housing = new THREE.Mesh(this.limpetGeometry, this.limpetMaterial);
+      const authored = this._authoredGrenade('limpet');
       capMaterial = new THREE.MeshBasicMaterial({ color: 0xff5a3c, toneMapped: false });
       const led = new THREE.Mesh(this.capGeometry, capMaterial);
-      led.scale.set(0.28, 0.35, 0.22);
-      led.position.set(0, 0, 0.084);
-      group.add(housing, led);
-      for (const side of [-1, 1]) {
-        const bracket = new THREE.Mesh(this.capGeometry, this.fragMaterial);
-        bracket.scale.set(0.5, 2.8, 1.25);
-        bracket.position.set(side * 0.185, 0, -0.012);
-        group.add(bracket);
+      if (authored) {
+        // Authored claymore: wall plate at -z, sensor lens at +z, same as the
+        // procedural housing, so `_poseMine`'s look-at keeps working. The lens
+        // itself stays runtime-lit so the arming colour reads at range.
+        led.scale.set(0.45, 0.55, 0.16);
+        led.position.set(0, 0, 0.070);
+        group.add(authored.model, led);
+        group.userData.authoredMaterials = authored.materials;
+      } else {
+        const housing = new THREE.Mesh(this.limpetGeometry, this.limpetMaterial);
+        led.scale.set(0.28, 0.35, 0.22);
+        led.position.set(0, 0, 0.084);
+        group.add(housing, led);
+        for (const side of [-1, 1]) {
+          const bracket = new THREE.Mesh(this.capGeometry, this.fragMaterial);
+          bracket.scale.set(0.5, 2.8, 1.25);
+          bracket.position.set(side * 0.185, 0, -0.012);
+          group.add(bracket);
+        }
       }
       const laser = new THREE.Mesh(this.claymoreLaserGeometry, this.claymoreLaserMaterial);
       laser.name = 'claymore-laser';
@@ -258,18 +313,29 @@ export class ProjectileFX {
       group.userData.laser = laser;
       group.userData.laserDot = dot;
     } else if (type === 'pulse') {
-      const core = new THREE.Mesh(this.pulseGeometry, this.pulseMaterial);
+      const authored = this._authoredGrenade('pulse');
       capMaterial = new THREE.MeshBasicMaterial({
         color: 0x9ff4ff, transparent: true, opacity: 0.5, toneMapped: false,
         blending: THREE.AdditiveBlending, depthWrite: false,
       });
       const halo = new THREE.Mesh(this.pulseGeometry, capMaterial);
       halo.scale.setScalar(1.55);
-      group.add(core, halo);
-      for (let i = 0; i < 2; i++) {
-        const band = new THREE.Mesh(this.grenadeBandGeometry, this.fragMaterial);
-        band.rotation.x = i * Math.PI / 2;
-        group.add(band);
+      if (authored) {
+        // The authored cage already holds the faceted core, so the additive
+        // shell only draws its far side: it reads as an aura around the cage
+        // instead of washing the metalwork out. The strobe stays runtime-owned.
+        capMaterial.side = THREE.BackSide;
+        halo.scale.setScalar(1.12);
+        group.add(authored.model, halo);
+        group.userData.authoredMaterials = authored.materials;
+      } else {
+        const core = new THREE.Mesh(this.pulseGeometry, this.pulseMaterial);
+        group.add(core, halo);
+        for (let i = 0; i < 2; i++) {
+          const band = new THREE.Mesh(this.grenadeBandGeometry, this.fragMaterial);
+          band.rotation.x = i * Math.PI / 2;
+          group.add(band);
+        }
       }
       group.userData.halo = halo;
     } else if (type === 'bolt') {
@@ -280,6 +346,15 @@ export class ProjectileFX {
       glow.scale.setScalar(1.1);
       group.add(core, glow);
     } else {
+      const authored = this._authoredGrenade('frag');
+      if (authored) {
+        // Authored M-4 FRAG: dark steel body, bronze ribs, amber fuse cap. The
+        // cap material is the fuse strobe the update loop tints.
+        capMaterial = authored.part('fuse cap');
+        group.add(authored.model);
+        group.userData.authoredMaterials = authored.materials;
+        return { group, capMaterial };
+      }
       const body = new THREE.Mesh(this.fragGeometry, this.fragMaterial);
       body.rotation.set(0.35, 0.45, 0.12);
       capMaterial = new THREE.MeshBasicMaterial({ color: CAP_LIT, toneMapped: false });
@@ -733,6 +808,7 @@ export class ProjectileFX {
     if (!projectile) return false;
     this.scene.remove(projectile.group);
     projectile.capMaterial?.dispose();
+    for (const material of projectile.group.userData.authoredMaterials || []) material.dispose();
     this.projectiles.delete(id);
     return true;
   }
@@ -761,6 +837,7 @@ export class ProjectileFX {
     this.scene.remove(this.previewLine, this.landingRing);
     this.scene.remove(this.minePreview.group);
     this.minePreview.capMaterial.dispose();
+    for (const material of this.minePreview.group.userData.authoredMaterials || []) material.dispose();
     this.claymoreLaserGeometry.dispose();
     this.claymoreLaserMaterial.dispose();
     this.previewLine.geometry.dispose();

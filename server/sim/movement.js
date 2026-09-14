@@ -6,7 +6,7 @@ import { PRONE, stanceHeight } from '../../shared/player-stance.js';
 import { CONDITION_RULES } from '../../shared/combatmath.js';
 import { ladderContact } from '../../shared/worlddata.js';
 import { clamp01 } from './player.js';
-import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity, slidePlayerAxis, solidBelow, stepPlayerProne, canClimb, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
+import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity, slidePlayerAxis, solidBelow, stepPlayerProne, canClimb, canStartVault, findVault, findSwimExit, stepVault } from '../../shared/player-movement.js';
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 
 // Shooter-side rewind reads up to maxViewAgeMs (450 ms) back; at 60 Hz that
@@ -165,7 +165,9 @@ export function stepMovement(p, dt, ctx) {
   p.swimming = swimming;
   if (p.grounded) p.jumpGroundY = p.y;
   const deliberateGrab = !p.grounded && jumpPressed && !low;
-  if (handsFree && !p.vault && !swimming && canStartVault(p.grounded, p.grounded ? kf.jump : deliberateGrab,
+  if (handsFree && !p.vault && swimming) {
+    p.vault = findSwimExit(ctx.solidAt, p, { x: wx, z: wz }, !!kf.jump, p.crouch || low, movementYaw);
+  } else if (handsFree && !p.vault && !swimming && canStartVault(p.grounded, p.grounded ? kf.jump : deliberateGrab,
       fwdAmt, p.crouch || low, p.y, p.jumpGroundY)) {
     p.vault = findVault(ctx.solidAt, p, { x: wx, z: wz },
       deliberateGrab ? p.y : p.jumpGroundY, movementYaw, deliberateGrab ? 0 : 1);

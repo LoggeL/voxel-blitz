@@ -164,6 +164,49 @@ assert.ok(at30.distanceTo(at120) < 0.012 && at60.distanceTo(at120) < 0.006,
     assert.equal(body.air, 0);
     assert.equal(body.land, 0);
     assert.equal(body.wasGrounded, null, 'respawn clears airborne and landing history');
+    // Swimming: wading walks, floating blends into a lean with trailing legs,
+    // treading keeps a gentle bob, and leaving the water recovers.
+    step({ grounded: true, swimming: true }, 2, false, 60);
+    assert.equal(body.swim, 0, 'wading with the feet on the bottom keeps the walk');
+    step({ grounded: false, swimming: true, verticalVelocity: -1 }, 2.6, false, 1);
+    assert.ok(body.swim > 0.05 && body.swim < 0.2, 'the first-person swim eases in over frames');
+    step({ grounded: false, swimming: true, verticalVelocity: -1 }, 2.6, false, 90);
+    assert.ok(body.swim > 0.95, 'half a second settles the swim');
+    assert.ok(body.torso.rotation.x < -0.25 && body.hips.rotation.x < -0.15, 'the local body leans into the stroke');
+    assert.ok(body.left.leg.rotation.x < -0.2 && body.right.leg.rotation.x < -0.2, 'the local legs trail behind');
+    assert.ok(body.left.knee.rotation.x < -0.1 && body.right.knee.rotation.x < -0.1, 'heels lift for the flutter kick');
+    const swimKicks = [];
+    for (let frame = 0; frame < 120; frame++) {
+      step({ grounded: false, swimming: true, verticalVelocity: -1 }, 2.6, false, 1);
+      swimKicks.push(body.left.leg.rotation.x - body.right.leg.rotation.x);
+      for (const part of [body.hips, body.torso, body.left.leg, body.right.leg, body.left.knee, body.right.knee]) {
+        assert.ok([...part.position.toArray(), part.rotation.x, part.rotation.z].every(Number.isFinite), 'swim pose stays finite');
+      }
+    }
+    assert.ok(Math.max(...swimKicks) > 0.1 && Math.min(...swimKicks) < -0.1, 'the local flutter kick alternates');
+    const hipsBefore = body.hips.position.y;
+    step({ grounded: false, swimming: true, verticalVelocity: -1 }, 0, false, 120);
+    assert.ok(body.torso.rotation.x < -0.05 && body.torso.rotation.x > -0.2, 'treading is nearly upright');
+    const treadHips = [];
+    for (let frame = 0; frame < 180; frame++) {
+      step({ grounded: false, swimming: true, verticalVelocity: -1 }, 0, false, 1);
+      treadHips.push(body.hips.position.y);
+    }
+    assert.ok(Math.max(...treadHips) - Math.min(...treadHips) > 0.02 && Math.max(...treadHips) - Math.min(...treadHips) < 0.08,
+      'treading bobs the local body gently');
+    assert.ok(Number.isFinite(hipsBefore));
+    step({ grounded: false, swimming: true, verticalVelocity: -1 }, 2.6, true, 60);
+    assert.ok(Math.abs(body.torso.rotation.x - (body.crouch * 0.12)) < 0.2 && body.left.leg.rotation.x < -0.5,
+      'crouching (the dive input) shows the crouch under the swim');
+    step({ grounded: true, swimming: false }, 0, false, 1);
+    assert.ok(body.swim < 1 && body.swim > 0.8, 'leaving the water blends out over frames');
+    step({ grounded: true, swimming: false }, 0, false, 120);
+    assert.ok(body.swim < 0.01 && Math.abs(body.torso.rotation.x) < 0.02 && Math.abs(body.left.leg.rotation.x) < 0.02,
+      'the dry stance returns');
+    step({ grounded: false, swimming: true }, 2.6, false, 30);
+    resetFirstPersonBody(body);
+    assert.equal(body.swim, 0);
+    assert.equal(body.swimPhase, 0, 'respawn clears the swim cycle');
   } finally { disposeFirstPersonBody(body); }
 }
-console.log('Movement animations passed: frame rates, sprint/ADS, scoped vault recovery, vault choreography and disposal, directional legs, landing, reset.');
+console.log('Movement animations passed: frame rates, sprint/ADS, scoped vault recovery, vault choreography and disposal, directional legs, landing, first-person swim, reset.');

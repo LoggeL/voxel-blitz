@@ -112,9 +112,30 @@ try {
     sync();
     assert.equal(av.motion.landing, 0, 'respawn clears previous fall and landing motion');
     assert.equal(av.verticalSpeed, 0, 'respawn teleport is not measured as falling');
+    // Wading (swimming flag while grounded) keeps walking; floating swims, with
+    // the head bobbing no further than the gait already moves it.
+    Object.assign(remote, { swimming: true, grounded: true, moveSpeed: 2 });
+    for (let frame = 0; frame < 60; frame++) sync();
+    assert.equal(av.swimPose, 0, 'wading in shallow water never leans into a swim');
+    remote.grounded = false;
+    for (let frame = 0; frame < 120; frame++) sync();
+    assert.ok(av.swimPose > 0.95, 'a floating snapshot row swims');
+    assert.ok(av.head.rotation.x < -0.1, 'the roster lifts the swimmer\'s chin');
+    let worstHead = 0;
+    for (let frame = 0; frame < 180; frame++) {
+      sync();
+      av.group.updateMatrixWorld(true);
+      const head = playerHitboxes({ ...remote, yaw: remote.yaw }).find(box => box.zone === 'head');
+      worstHead = Math.max(worstHead, av.head.getWorldPosition(new THREE.Vector3()).distanceTo(new THREE.Vector3(...head.center)));
+    }
+    assert.ok(worstHead < 0.02, `the swimming head bobs within the helmet zone slack: ${worstHead.toFixed(4)}m`);
+    remote.swimming = false;
+    remote.grounded = true;
+    for (let frame = 0; frame < 120; frame++) sync();
+    assert.ok(av.swimPose < 0.01, 'climbing out of the water returns to the dry stance');
   } finally { roster.dispose(); }
 } finally {
   if (previousDocument === undefined) delete globalThis.document;
   else globalThis.document = previousDocument;
 }
-console.log(`avatar motion tests passed: ${checkedFrames} movement frames, exact hand/head alignment, max arm gap ${worstArmGap.toFixed(4)}m, frame-rate parity and roster traversal/reset`);
+console.log(`avatar motion tests passed: ${checkedFrames} movement frames, exact hand/head alignment, max arm gap ${worstArmGap.toFixed(4)}m, frame-rate parity, roster traversal/reset and wading/floating swim`);

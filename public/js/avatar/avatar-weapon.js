@@ -4,6 +4,7 @@ import { applyGunCosmetics } from '../cosmetics/skins.js';
 import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from '../guns/heavy-weapon-animation.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
+import { SWIM } from '../../../shared/player-stance.js';
 import { buildGun, disposeGunModels } from '../guns/assemble.js';
 import { HANDS } from '../guns/defs.js';
 import { MaterialCache } from '../guns/kit.js';
@@ -148,6 +149,8 @@ export class AvatarWeaponModel {
     dt = 0,
     charge = 0,
     minigun,
+    swim = 0,
+    swimSway = 0,
   } = {}) {
     this.setWeapon(weapon);
     if (!this._model) return;
@@ -192,17 +195,22 @@ export class AvatarWeaponModel {
     const aimed = this._profile.ads;
     const recoil = melee ? 0 : this._recoil * kickScale;
     const stab = melee ? this._stab : 0;
+    // Swimming carries the gun low and canted at the hip; aiming lifts it back
+    // to the sight line, so the arm zones keep covering the settled mount.
+    const carry = clamp01(swim) * (1 - this._ads) * (1 - prone);
     this.root.position.set(
-      THREE.MathUtils.lerp(hip.x, aimed.x, this._ads) - this._reload * 0.02,
+      THREE.MathUtils.lerp(hip.x, aimed.x, this._ads) - this._reload * 0.02 + swimSway * SWIM.sway * carry,
       THREE.MathUtils.lerp(hip.y, aimed.y, this._ads) - crouch * 0.29 - prone * 1.14 +
-        Math.abs(swing) * stride * 0.012 - this._reload * 0.07,
+        Math.abs(swing) * stride * 0.012 - this._reload * 0.07 - SWIM.weaponDip * carry,
       THREE.MathUtils.lerp(hip.z, aimed.z, this._ads) + recoil * 0.035 - stab * 0.15 +
       this._reload * 0.03,
     );
     this.root.rotation.set(
-      aimPitch * (1 - this._reload * 0.6) + recoil * 0.045 - stab * 0.09 - this._reload * 0.42,
+      aimPitch * (1 - this._reload * 0.6) + recoil * 0.045 - stab * 0.09 - this._reload * 0.42 -
+        SWIM.weaponPitch * carry,
       this._reload * 0.18,
-      -swing * stride * 0.025 * (1 - this._ads * 0.72) + this._reload * 0.28,
+      -swing * stride * 0.025 * (1 - this._ads * 0.72) + this._reload * 0.28 +
+        (SWIM.weaponRoll + swimSway * 0.04) * carry,
     );
     this._model.root.position.y = -raise * 0.14;
     this._model.root.rotation.x = -raise * 0.5;

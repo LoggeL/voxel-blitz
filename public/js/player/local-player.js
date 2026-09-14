@@ -1114,7 +1114,7 @@ export class LocalPlayer {
       this.scopeActive,
       this.physics.proneT,
       { grounded: this.physics.grounded, verticalVelocity: this.physics.vel.y,
-        vaulting: !!this.physics.vault,
+        vaulting: !!this.physics.vault, swimming: !!this.physics.swimming,
         forwardSpeed: -(this.physics.vel.x * Math.sin(this.view.yaw) + this.physics.vel.z * Math.cos(this.view.yaw)),
         lateralSpeed: this.physics.vel.x * Math.cos(this.view.yaw) - this.physics.vel.z * Math.sin(this.view.yaw) },
     );

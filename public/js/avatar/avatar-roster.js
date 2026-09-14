@@ -266,7 +266,11 @@ export class AvatarRoster {
       avatar.hitT = Math.max(0, avatar.hitT - dt);
       const flinch = avatar.hitSide * hit01 * 0.2;
 
-      avatar.group.position.set(remote.x, remote.y + cadence * stride * 0.025 * (1 - avatar.motion.air), remote.z);
+      // Floating swimmers bob under a steady head; wading in shallow water keeps walking.
+      const floating = remote.swimming === true && !grounded;
+      avatar.group.position.set(remote.x,
+        remote.y + cadence * stride * 0.025 * (1 - avatar.motion.air) * (1 - (avatar.swimPose || 0)) + (avatar.swimBob || 0),
+        remote.z);
       const pickaxe = this._pickaxeSwings.has(remote.id);
       updateAvatarWeaponPose(avatar, {
         attachments: remote.attachments,
@@ -283,6 +287,8 @@ export class AvatarRoster {
         blend: poseBlend,
         charge: remote.charge,
         minigun: remote.minigun,
+        swimming: floating,
+        speed: avatar.speedEst,
         movement: {
           grounded,
           verticalSpeed: avatar.verticalSpeed,
@@ -295,7 +301,7 @@ export class AvatarRoster {
       updateAvatarStancePose(avatar, { stride, swing, blend: poseBlend });
       avatar.torso.rotation.z += ((-swing * stride * 0.055) + flinch - avatar.torso.rotation.z) * poseBlend;
       avatar.hips.rotation.z += (swing * stride * 0.045 - avatar.hips.rotation.z) * poseBlend;
-      avatar.head.rotation.x += (remote.pitch * 0.7 - hit01 * 0.1 - avatar.head.rotation.x) * poseBlend;
+      avatar.head.rotation.x += (remote.pitch * 0.7 - hit01 * 0.1 + (avatar.swimHeadTilt || 0) - avatar.head.rotation.x) * poseBlend;
       avatar.head.rotation.z += (-flinch * 0.7 - avatar.head.rotation.z) * poseBlend;
       setAvatarFlash(avatar, hit01);
       // Outside-in burning: while the snapshot row burns, feed the shared flame

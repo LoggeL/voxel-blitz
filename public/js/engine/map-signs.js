@@ -63,6 +63,13 @@ const SIGNS = {
     ['NETHER PORTAL', 'OBSIDIAN GATE', 89.5, 51, 23, 2.6, 1.3, '+z'],
     ['VILLAGE', 'EAST HOUSES', 82.5, 56, 30, 2.6, 1.3, '-z'],
   ],
+  // Painted on the hull panels and cubicle partitions of the leisure centre.
+  waterworld: [
+    ['LEITH WATERWORLD', 'POOLSIDE', 109, 12, 116, 3.6, 1.4, '+z'],
+    ['FLUMES', 'TRAITOR TESTER', 105, 12, 65, 3.6, 1.4, '-z'],
+    ['PLANT ROOM', 'STAFF ONLY', 175, 13, 25, 3.6, 1.4, '+z'],
+    ['CHANGING ROOMS', 'LOCKERS', 16, 11, 45, 3.6, 1.4, '-z'],
+  ],
 };
 const COLORS = {
   harbor: ['#173239', '#b9f4ff'], canyon: ['#265452', '#f8deb1'],
@@ -72,6 +79,7 @@ const COLORS = {
   dust2: ['#d9bd86', '#823e2b'],
   killhouse: ['#263848', '#ffcf77'],
   minecraft_b5: ['#6b4a2a', '#f3e6c8'],
+  waterworld: ['#1f4e7a', '#e9f4fb'],
 };
 const supportsPaint = type => type !== AIR && type !== GLASS;
 

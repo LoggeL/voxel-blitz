@@ -6,7 +6,7 @@ export const DEFAULT_DUEL_KILL_LIMIT = 5;
 export const MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training']);
 export const DUEL_WEAPONS = Object.freeze(['rifle', 'shotgun', 'sniper', 'revolver', 'knife']);
 export const TEAM_IDS = Object.freeze(['alpha', 'bravo']);
-export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5']);
+export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld']);
 
 export const DEFAULT_MODE_ID = MODE_IDS[0];
 export const DEFAULT_TEAM_ID = TEAM_IDS[0];
@@ -117,6 +117,8 @@ export const MAP_MODE_COMPATIBILITY = Object.freeze({
   killhouse: Object.freeze(['training']),
   // ttt_minecraft_b5 replica: TTT's home map, plus every non-S&D combat mode.
   minecraft_b5: DEPOT_MODE_IDS,
+  // ttt_waterworld replica: an indoor pool complex with no bomb sites.
+  waterworld: DEPOT_MODE_IDS,
 });
 
 export function isModeId(value) {

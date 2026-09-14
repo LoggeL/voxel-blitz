@@ -1,40 +1,166 @@
 {
   "asset": "KESTREL",
-  "stage": "Blender authoring source with integrated gameplay export",
+  "asset_id": "kestrel",
+  "kind": "original assault carbine (visual game asset, rifle slot)",
+  "revision": 2,
   "blender": "5.2.1 LTS",
-  "editable_parts": 105,
-  "triangles": 16488,
-  "bones": [
+  "authoring_script": "tools/blender/kestrel/build-kestrel.py",
+  "source_parts": 200,
+  "animation_group_nodes": [
     "body",
-    "magazine",
+    "mag",
     "bolt",
-    "trigger"
+    "trigger",
+    "factory-optic",
+    "extra"
   ],
-  "animations": [
-    "Reload_Study"
-  ],
-  "mounts": [
-    "muzzle",
+  "marker_nodes": [
     "grip",
+    "muzzle",
+    "sight",
     "support"
   ],
-  "forward_after_gltf": "-Z",
-  "integration_remaining": [
-    "Optional distance LODs and wider mobile GPU profiling"
+  "batch_nodes": 18,
+  "triangles": 12532,
+  "triangles_per_primitive": {
+    "body | gunmetal": 6992,
+    "body | ivory coating": 568,
+    "body | orange paint": 504,
+    "body | polymer": 424,
+    "body | rubber": 1296,
+    "bolt | gunmetal": 604,
+    "bolt | orange paint": 108,
+    "bolt | rubber": 36,
+    "factory-optic | gunmetal": 396,
+    "factory-optic | optic glass": 12,
+    "factory-optic | orange paint": 24,
+    "factory-optic | petrol paint": 432,
+    "mag | brass": 84,
+    "mag | orange paint": 108,
+    "mag | polymer": 492,
+    "mag | rubber": 120,
+    "trigger | gunmetal": 224,
+    "trigger | orange paint": 108
+  },
+  "materials": [
+    "gunmetal",
+    "polymer",
+    "petrol paint",
+    "orange paint",
+    "ivory coating",
+    "rubber",
+    "brass",
+    "optic glass"
   ],
-  "skin_meshes": 1,
+  "material_textures": {
+    "gunmetal": "worn-gunmetal.jpg",
+    "polymer": "worn-rubber.jpg",
+    "petrol paint": "petrol-ballistic-fabric.jpg",
+    "orange paint": "orange-painted-metal.jpg",
+    "ivory coating": "ivory-armor.jpg",
+    "rubber": "worn-rubber.jpg",
+    "brass": "worn-gunmetal.jpg"
+  },
   "imagegen_textures": [
-    "ivory-armor.png",
-    "orange-painted-metal.png",
-    "worn-gunmetal.png",
-    "worn-rubber.png"
+    "ivory-armor.jpg",
+    "orange-painted-metal.jpg",
+    "petrol-ballistic-fabric.jpg",
+    "worn-gunmetal.jpg",
+    "worn-rubber.jpg"
   ],
-  "glb_bytes": 14229408,
-  "material_note": "ImageGen albedo embedded in GLB. Bump and image-driven roughness are Blender shader estimates; GLB uses scalar roughness.",
+  "texture_source": "public/assets/blender/textures (the delivered 1024px JPEGs, reused byte-identical; originals untouched)",
+  "uv_density_tiles_per_metre": 3.6,
+  "axes": {
+    "authoring": "+Y forward, +Z up, +X right",
+    "after_gltf": "-Z forward, +Y up, +X right",
+    "map": "game_x = x, game_y = z, game_z = -y"
+  },
+  "anchors_game_space": {
+    "muzzle": [
+      -0.012,
+      0.045,
+      -0.598
+    ],
+    "grip": [
+      0.045,
+      0.015,
+      -0.09
+    ],
+    "support": [
+      -0.055,
+      0.005,
+      -0.4
+    ],
+    "sight": [
+      0.0,
+      0.145,
+      -0.187
+    ]
+  },
+  "contract_points": {
+    "breech_y": 0.32,
+    "bore_axis": [
+      -0.012,
+      0.045
+    ],
+    "exposed_bore_radius": 0.017,
+    "exposed_bore": [
+      0.417,
+      0.598
+    ],
+    "heat_band": [
+      -0.572,
+      -0.46
+    ],
+    "sight_height": 0.145,
+    "bolt_home_y": 0.035,
+    "bolt_travel": 0.085,
+    "trigger_y": 0.13
+  },
+  "files": {
+    "blend": "docs/design/blender/kestrel/kestrel.blend",
+    "glb": "docs/design/blender/kestrel/kestrel.glb",
+    "renders": [
+      "render-hero.png",
+      "render-side.png",
+      "render-left.png",
+      "render-ads.png",
+      "render-rear.png"
+    ],
+    "validation": "docs/design/blender/kestrel/validation.json"
+  },
+  "build_time_checks": {
+    "anchor_contract": "muzzle plane, bore axis and exposed 0.0170 radius across the whole heat band, all four markers, the 0.145 sight line, the trigger blade and the bolt handle home position are asserted against the runtime contract every build",
+    "heat_band_clearance": "no vertex other than the bore may enter the heat band",
+    "sight_channel": "nothing but the reflex lens, the front post and its wings touches the 0.145 line inside |x| < 0.018; rail furniture behind the reflex stays under z 0.125",
+    "hand_fit": "the grip flank sits inboard of the 0.045 palm and the guard underside meets the support palm",
+    "coplanar_face_audit": "rejects flush faces between parts, which z-fight once same-material parts merge into one draw call",
+    "part_contact": "every authored part must cross, nearly touch or sit inside another part; a group that only meets the model through empty space is reported as floating and fails the build"
+  },
+  "geometry_audit": {
+    "coplanar_faces": [],
+    "floating_parts": []
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; no mobile GPU profiling.",
+    "The ejection port is an authored opening: the bolt carrier is visible through it and moves with the bolt group, but there is no chamber interior beyond the carrier and the far wall."
+  ],
+  "notes": [
+    "Fresh design: no geometry reused from the first KESTREL study.",
+    "Six-prong birdcage past the heat band; the band itself stays bare metal.",
+    "Markings are modelled geometry, not a texture decal.",
+    "The reflex sight ships as factory-optic; public/js/guns/models/kestrel.js adds the emissive dot at game (0, 0.145, -0.187) inside its housing.",
+    "The bore sits 6 mm left of the receiver centreline (contract muzzle x -0.012); the sights sit on x = 0 where the ADS camera looks."
+  ],
+  "stage": "Blender authoring source with integrated gameplay export",
   "runtime": {
     "path": "public/assets/blender/kestrel.gltf",
-    "exporter": "tools/blender/export-game-assets.py",
+    "exporter": "tools/blender/kestrel/export-game-assets.py",
     "slot": "rifle",
+    "draws": 18,
+    "triangles": 12532,
+    "geometry_bytes": 888880,
     "animation": "Existing gameplay joint and animation controllers"
   }
 }

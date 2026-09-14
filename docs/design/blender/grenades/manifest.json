@@ -1,0 +1,311 @@
+{
+  "asset": "GRENADES",
+  "asset_id": "grenades",
+  "revision": 1,
+  "kind": "five throwable grenade models in one study (visual game asset)",
+  "blender": "5.2.1 LTS",
+  "authoring_script": "tools/blender/grenades/build-grenades.py",
+  "source_parts": 109,
+  "source_parts_per_type": {
+    "frag": 36,
+    "limpet": 17,
+    "pulse": 25,
+    "molotov": 12,
+    "smoke": 19
+  },
+  "part_nodes": [
+    "frag",
+    "limpet",
+    "pulse",
+    "molotov",
+    "smoke"
+  ],
+  "batch_nodes": 23,
+  "triangles": 7662,
+  "triangles_per_type": {
+    "frag": 2164,
+    "limpet": 1164,
+    "pulse": 2148,
+    "molotov": 1046,
+    "smoke": 1140
+  },
+  "triangles_per_primitive": {
+    "frag | bronze": 464,
+    "frag | fuse cap": 396,
+    "frag | grenade steel": 1084,
+    "frag | hardware": 220,
+    "limpet | copper": 312,
+    "limpet | grenade steel": 272,
+    "limpet | hardware": 220,
+    "limpet | orange rim": 92,
+    "limpet | rubber": 176,
+    "limpet | sensor lens": 92,
+    "molotov | fuel": 44,
+    "molotov | glass": 466,
+    "molotov | grenade steel": 88,
+    "molotov | label": 124,
+    "molotov | rag": 324,
+    "pulse | grenade steel": 1336,
+    "pulse | hardware": 484,
+    "pulse | pulse core": 328,
+    "smoke | fuse cap": 44,
+    "smoke | grenade steel": 492,
+    "smoke | hardware": 312,
+    "smoke | smoke band": 200,
+    "smoke | smoke shell": 92
+  },
+  "materials": [
+    "grenade steel",
+    "hardware",
+    "bronze",
+    "copper",
+    "orange rim",
+    "sensor lens",
+    "fuse cap",
+    "pulse core",
+    "smoke shell",
+    "smoke band",
+    "glass",
+    "fuel",
+    "label",
+    "rag",
+    "rubber"
+  ],
+  "material_textures": {
+    "grenade steel": "worn-gunmetal.jpg",
+    "hardware": "ivory-armor.jpg",
+    "bronze": "ivory-armor.jpg",
+    "copper": "ivory-armor.jpg",
+    "orange rim": "orange-painted-metal.jpg",
+    "sensor lens": "ivory-armor.jpg",
+    "fuse cap": "ivory-armor.jpg",
+    "pulse core": "ivory-armor.jpg",
+    "smoke shell": "ivory-armor.jpg",
+    "smoke band": "ivory-armor.jpg",
+    "glass": "ivory-armor.jpg",
+    "fuel": "ivory-armor.jpg",
+    "label": "ivory-armor.jpg",
+    "rag": "tan-webbing.jpg",
+    "rubber": "worn-rubber.jpg"
+  },
+  "material_uv_scale": {
+    "grenade steel": 12.0,
+    "hardware": 12.0,
+    "bronze": 12.0,
+    "copper": 10.0,
+    "orange rim": 12.0,
+    "sensor lens": 12.0,
+    "fuse cap": 12.0,
+    "pulse core": 8.0,
+    "smoke shell": 12.0,
+    "smoke band": 12.0,
+    "glass": 6.0,
+    "fuel": 8.0,
+    "label": 14.0,
+    "rag": 20.0,
+    "rubber": 14.0
+  },
+  "material_emissive": {
+    "orange rim": {
+      "srgb": [
+        1.0,
+        0.3529,
+        0.2353
+      ],
+      "strength": 0.6
+    },
+    "sensor lens": {
+      "srgb": [
+        1.0,
+        0.2039,
+        0.1569
+      ],
+      "strength": 1.5
+    },
+    "fuse cap": {
+      "srgb": [
+        1.0,
+        0.702,
+        0.2784
+      ],
+      "strength": 1.2
+    },
+    "pulse core": {
+      "srgb": [
+        0.349,
+        0.9098,
+        1.0
+      ],
+      "strength": 1.5
+    }
+  },
+  "imagegen_textures": [
+    "ivory-armor.jpg",
+    "orange-painted-metal.jpg",
+    "tan-webbing.jpg",
+    "worn-gunmetal.jpg",
+    "worn-rubber.jpg"
+  ],
+  "texture_source": "public/assets/blender/textures (the delivered 1024px JPEGs, reused byte-identical; originals untouched)",
+  "axes": {
+    "authoring": "held frame: y up, centre of mass at the origin, lever +x, pin lug -x; limpet faces +z with its feet on z = -0.041 (consumed verbatim)",
+    "after_gltf": "held frame (export_yup off)",
+    "map": "game_x = x, game_y = y, game_z = z (identity bake); projectiles.js scales each node to the procedural footprint"
+  },
+  "contract_points": {
+    "pin_socket": [
+      -0.024,
+      0.088,
+      0.019
+    ],
+    "wick_tip": [
+      -0.037,
+      0.303,
+      0.0
+    ],
+    "wall_z": -0.041,
+    "bounds": {
+      "frag": [
+        [
+          -0.085,
+          -0.09,
+          -0.085
+        ],
+        [
+          0.085,
+          0.115,
+          0.085
+        ]
+      ],
+      "limpet": [
+        [
+          -0.105,
+          -0.075,
+          -0.046
+        ],
+        [
+          0.105,
+          0.075,
+          0.036
+        ]
+      ],
+      "pulse": [
+        [
+          -0.095,
+          -0.095,
+          -0.095
+        ],
+        [
+          0.095,
+          0.115,
+          0.095
+        ]
+      ],
+      "smoke": [
+        [
+          -0.07,
+          -0.09,
+          -0.07
+        ],
+        [
+          0.07,
+          0.115,
+          0.07
+        ]
+      ],
+      "molotov": [
+        [
+          -0.06,
+          -0.09,
+          -0.06
+        ],
+        [
+          0.06,
+          0.32,
+          0.06
+        ]
+      ]
+    }
+  },
+  "extents": {
+    "frag": {
+      "min": [
+        -0.075262,
+        -0.085,
+        -0.075262
+      ],
+      "max": [
+        0.075262,
+        0.108,
+        0.075262
+      ]
+    },
+    "limpet": {
+      "min": [
+        -0.093,
+        -0.064672,
+        -0.044
+      ],
+      "max": [
+        0.093,
+        0.065,
+        0.033
+      ]
+    },
+    "pulse": {
+      "min": [
+        -0.0855,
+        -0.0845,
+        -0.088
+      ],
+      "max": [
+        0.0855,
+        0.108,
+        0.088
+      ]
+    },
+    "molotov": {
+      "min": [
+        -0.053609,
+        -0.083,
+        -0.053609
+      ],
+      "max": [
+        0.053609,
+        0.305615,
+        0.0565
+      ]
+    },
+    "smoke": {
+      "min": [
+        -0.05699,
+        -0.082,
+        -0.06
+      ],
+      "max": [
+        0.068261,
+        0.111,
+        0.06
+      ]
+    }
+  },
+  "files": {
+    "blend": "docs/design/blender/grenades/grenades.blend",
+    "glb": "docs/design/blender/grenades/grenades.glb",
+    "validation": "docs/design/blender/grenades/validation.json"
+  },
+  "build_time_checks": {
+    "held_frame_contract": "every type spans the origin inside its footprint; fuze types keep the pin lug on the procedural pin socket, the cap above y 0.100 and the lever on +x; the limpet feet reach the wall plane and the sensor faces +z; the bottle stands on the origin plane with its wick tip on the flame anchor",
+    "part_contact": "every authored part must touch or nearly touch another part of its own type (1 mm BVH audit); a floating group fails the build",
+    "triangle_budget": "4000..24000 total, <= 8000 per type"
+  },
+  "geometry_audit": {
+    "floating_parts": [],
+    "budget": []
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; the same node is scaled for the in-world projectile.",
+    "The safety pin ring, wick flame, pulse halo and claymore laser stay runtime procedural."
+  ]
+}

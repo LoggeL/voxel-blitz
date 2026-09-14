@@ -206,7 +206,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 // ---------------------------------------------- mode + map foundation contract
 {
   ok(sameValue(MODE_IDS, ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -324,6 +324,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     dust2: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
     killhouse: ['training'],
     minecraft_b5: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame'],
+    waterworld: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame'],
   };
   ok(sameValue(MAP_MODE_COMPATIBILITY, expectedCompatibility)
     && deeplyFrozen(MAP_MODE_COMPATIBILITY)
@@ -360,6 +361,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     dust2: 'Dust 2',
     killhouse: 'Killhouse',
     minecraft_b5: 'Minecraft B5',
+    waterworld: 'Waterworld',
   };
   const expectedMapHashes = {
     harbor: 'eeb64538', canyon: 'b8e254a7',
@@ -373,6 +375,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     dust2: '7efc9f29',
     killhouse: '395d8d45',
     minecraft_b5: '3ed61d02',
+    waterworld: '75b0a9be',
   };
   const expectedSpawnCounts = {
     harbor: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
@@ -386,7 +389,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     nuketown: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     dust2: { fun: 10, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     killhouse: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 0, sndDefenders: 0 },
-    minecraft_b5: { fun: 15, tdmAlpha: 8, tdmBravo: 8, sndAttackers: 0, sndDefenders: 0 },
+    minecraft_b5: { fun: 14, tdmAlpha: 8, tdmBravo: 8, sndAttackers: 0, sndDefenders: 0 },
+    waterworld: { fun: 7, tdmAlpha: 8, tdmBravo: 8, sndAttackers: 0, sndDefenders: 0 },
   };
   const pristineBytes = new Map();
 

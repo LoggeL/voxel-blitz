@@ -79,6 +79,7 @@ export class ViewmodelRig {
     this._phase = 0;                   // walk bob figure-8 phase accumulator
     this._bobVal = 0;                  // public bobAmt readback for HUD/audio glue
     this._gait = 0;
+    this._swim = 0;                    // 0..1 floating blend: the carried gun rides low and sways
     this._sprint = 0;
     this._crouchBlend = 0;
     this._groundBlend = 1;
@@ -426,6 +427,10 @@ export class ViewmodelRig {
     if (cur) animateHeavyWeapon(cur.body, { dt: elapsed, time: this._now,
       minigun: this._minigunState, flameActive: this._flameActive, fuel: this._flameFuel });
     const speed = ctx.speed || 0, grounded = ctx.grounded !== false;
+    // Floating swimmers are never grounded, so the jump/land springs and the
+    // airborne dampen must not fire; the shared stance rule is swimming && !grounded.
+    const swimming = !!ctx.swimming && !grounded;
+    const airborne = !grounded && !swimming;
     const verticalVelocity = Number.isFinite(ctx.verticalVelocity) ? ctx.verticalVelocity : 0;
     const lateralSpeed = Number.isFinite(ctx.lateralSpeed) ? ctx.lateralSpeed : 0;
     const forwardSpeed = Number.isFinite(ctx.forwardSpeed) ? ctx.forwardSpeed : 0;
@@ -460,18 +465,18 @@ export class ViewmodelRig {
     }
 
     /* vertical inertia: camera follows physics immediately, the carried gun trails on a damped spring */
-    if (!grounded) this._fallSpeed = Math.max(this._fallSpeed, -verticalVelocity);
-    if (grounded !== this._wasGrounded) {
-      if (!grounded && verticalVelocity > 0.5) {
+    if (airborne) this._fallSpeed = Math.max(this._fallSpeed, -verticalVelocity);
+    if (!airborne !== this._wasGrounded) {
+      if (airborne && verticalVelocity > 0.5) {
         this._air.v -= BOB.jumpTakeoffImpulse;
-      } else if (grounded && this._fallSpeed > 1.5) {
+      } else if (!airborne && this._fallSpeed > 1.5 && !swimming) {
         const impact = Math.max(0.35, Math.min(1, this._fallSpeed / 8));
         this._air.v -= BOB.landImpactImpulse * impact;
       }
-      if (grounded) this._fallSpeed = 0;
-      this._wasGrounded = grounded;
+      if (!airborne) this._fallSpeed = 0;
+      this._wasGrounded = !airborne;
     }
-    const airTarget = grounded ? 0 : Math.max(
+    const airTarget = !airborne ? 0 : Math.max(
       -BOB.airOffsetClamp,
       Math.min(BOB.airOffsetClamp, -verticalVelocity * BOB.airVelocityLag),
     );
@@ -504,15 +509,17 @@ export class ViewmodelRig {
 
     /* walk bob figure-8 (freq scales with speed; sprint lifts freq+amp+cant; crouch dampens) */
     const follow = 1 - Math.exp(-12 * elapsed);
-    this._gait += ((vaulting ? 0 : Math.min(1, speed / 4.4)) - this._gait) * follow;
+    this._swim += ((swimming ? 1 : 0) - this._swim) * follow;
+    this._gait += ((vaulting ? 0 : Math.min(1, speed / (swimming ? 2.6 : 4.4))) - this._gait) * follow;
     this._sprint += ((sprinting && grounded && !crouching && !vaulting ? 1 : 0) - this._sprint) * follow;
     this._crouchBlend += ((crouching ? 1 : 0) - this._crouchBlend) * follow;
-    this._groundBlend += ((grounded ? 1 : 0) - this._groundBlend) * follow;
+    this._groundBlend += ((airborne ? 0 : 1) - this._groundBlend) * follow;
     const spdN = this._gait;
     const ampMul = (1 + (BOB.sprintAmpMul - 1) * this._sprint)
       * (BOB.airDampen + (1 - BOB.airDampen) * this._groundBlend)
       * (1 + (BOB.crouchDampen - 1) * this._crouchBlend) * (1 - vaultBlend);
-    const freq = BOB.walkFreq + (BOB.sprintFreq - BOB.walkFreq) * this._sprint;
+    // Swimming strokes run at about half the walking cadence.
+    const freq = (BOB.walkFreq + (BOB.sprintFreq - BOB.walkFreq) * this._sprint) * (1 - 0.5 * this._swim);
     this._phase += elapsed * freq * spdN;
     const bp = this._phase * Math.PI * 2;
     const bobX = Math.sin(bp * 0.5) * BOB.walkHorz * ampMul * spdN * (ctx.reducedMotion ? 0.15 : 1);   // figure-8: lazy infinity loop
@@ -630,14 +637,17 @@ export class ViewmodelRig {
 
     /* base hip pose eased toward adsOffset absolute pose; dips layered on top */
     const dep = this._deployOffset();
+    // Floating: the gun rides 5 cm lower with a slow lateral scull; ADS lifts it back.
+    const swimCarry = this._swim * (1 - adsE);
+    const swimSway = Math.sin(this._now * 2.4) * 0.01 * swimCarry;
     this.content.position.set(
-      HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0),
-      HIP.y + (T.adsOffset.y - HIP.y - (cur.attachmentSightOffset || 0)) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065,
+      HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0) + swimSway,
+      HIP.y + (T.adsOffset.y - HIP.y - (cur.attachmentSightOffset || 0)) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065 - swimCarry * 0.05,
       HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0)
     );
     this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22,
       swingRy + (this._id === 'knife' ? PICKAXE_CARRY_YAW : 0) + (dep.ry || 0) + (actionMotion.yaw || 0),
-      swingRz + (this._id === 'knife' ? PICKAXE_CARRY_ROLL : 0) + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0));
+      swingRz + (this._id === 'knife' ? PICKAXE_CARRY_ROLL : 0) + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0) + swimCarry * 0.06);
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
     this._decayFx(dt, cur);

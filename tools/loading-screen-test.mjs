@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { buildInitialMesh } from '../public/js/engine/initial-mesh.js';
 import { LoadingScreen } from '../public/js/ui/loading-screen.js';
 import { PregameFlow } from '../public/js/session/pregame.js';
+import { AssetScheduler } from '../public/js/boot/asset-scheduler.js';
 
 // Completed sectors, yielding and cancellation use actual work, not elapsed time.
 let now = 0, yielded = 0;
@@ -97,4 +98,74 @@ flow.attempt.mapBytes = new Uint8Array(1);
 flow._handleLobbyState(net, { phase: 'live' });
 assert.equal(root.dataset.stage, 'arena'); assert.equal(booted, 1);
 loading.onCancel(); assert.equal(root.open, false);
-console.log('ok - loading progress, modal lifecycle, keyboard cancel, stale admission, waiting lobby and arena cancellation');
+
+// Background asset scheduler: tasks load one at a time in definition order,
+// require() promotes exactly what a match needs and mirrors the outstanding
+// tasks as stages of the arena screen, failures retry on the next request.
+{
+  const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+  const gates = {};
+  const gate = (id) => new Promise((resolve, reject) => { gates[id] = { resolve, reject }; });
+  let clock = 0;
+  const changes = [];
+  const scheduler = new AssetScheduler({ now: () => clock, warn() {}, onChange: (status) => changes.push(status.active?.id || null) });
+  for (const id of ['models', 'runtime', 'audio', 'art']) {
+    scheduler.define(id, { label: id.toUpperCase(), weight: id === 'models' ? 3 : 1,
+      load: (report) => { report({ detail: `${id} started` }); return gate(id); } });
+  }
+  assert.throws(() => scheduler.define('models', { load: () => {} }), /already defined/);
+  assert.deepEqual(scheduler.outstanding(['models', 'audio']), ['models', 'audio']);
+  assert.equal(scheduler.status.idle, false);
+  const background = scheduler.startAll();
+  assert.equal(scheduler.startAll(), background, 'the background queue starts once');
+  await tick();
+  assert.equal(scheduler.status.active.id, 'models');
+  assert.equal(scheduler.status.tasks.runtime, 'pending', 'the background queue loads one task at a time');
+  assert.equal(scheduler.status.active.detail, 'models started');
+
+  loading.show('arena');
+  const required = scheduler.require(['models', 'audio'], { loading, trailing: [{ id: 'world', label: 'ARENA GEOMETRY', weight: 1 }] });
+  await tick();
+  assert.deepEqual(loading.plan.map(step => step.id), ['models', 'audio', 'world'], 'only outstanding assets become stages, then the sectors');
+  assert.equal(loading.plan[0].status, 'active');
+  assert.equal(loading.count.textContent, 'models started', 'task detail reaches the active stage');
+  assert.equal(scheduler.status.tasks.audio, 'pending', 'required tasks wait for each other in order');
+  clock = 120;
+  gates.models.resolve('templates');
+  await tick();
+  assert.equal(loading.plan[0].status, 'done');
+  assert.equal(scheduler.status.tasks.audio, 'active', 'require() promotes a task ahead of the background queue');
+  assert.equal(scheduler.status.tasks.runtime, 'active', 'the background queue moved on to the next task');
+  assert.equal(scheduler.status.timings.models, 120);
+  gates.audio.resolve('bank');
+  await tick();
+  assert.deepEqual(await required, { models: 'templates', audio: 'bank' });
+  assert.equal(loading.plan[1].status, 'done');
+  assert.equal(loading.plan[2].status, 'pending', 'the sectors stage waits for the mesher');
+  loading.step('world', { status: 'active', done: 1, total: 4, detail: '1 / 4 SECTORS' });
+  assert.equal(loading.progress.value, (3 + 1 + 0.25) / 5, 'sector progress is the weighted tail of the plan');
+  assert.equal(loading.count.textContent, '1 / 4 SECTORS');
+
+  loading.show('arena');
+  assert.deepEqual(await scheduler.require(['models', 'audio'], { loading }), { models: 'templates', audio: 'bank' });
+  assert.equal(loading.plan.length, 0, 'loaded assets add no stages, the rail stays with the sectors');
+
+  gates.runtime.reject(new Error('offline'));
+  await tick();
+  assert.equal(scheduler.status.tasks.runtime, 'failed');
+  assert.equal(scheduler.status.tasks.art, 'active', 'a failed task never stops the background queue');
+  const retry = scheduler.require(['runtime']);
+  await tick();
+  assert.equal(scheduler.status.tasks.runtime, 'active', 'a failed task is retried by the next request');
+  gates.runtime.resolve('systems');
+  gates.art.resolve(4);
+  assert.deepEqual(await retry, { runtime: 'systems' });
+  await background;
+  assert.equal(scheduler.status.idle, true);
+  assert.deepEqual(scheduler.status.tasks, { models: 'done', runtime: 'done', audio: 'done', art: 'done' });
+  assert.ok(changes.includes('models') && changes.includes('art') && changes.at(-1) === null, 'status listeners observe each transition');
+  await assert.rejects(scheduler.require(['missing']), /unknown asset task/);
+  loading.hide();
+}
+
+console.log('ok - loading progress, modal lifecycle, keyboard cancel, stale admission, waiting lobby, arena cancellation and background asset scheduling');

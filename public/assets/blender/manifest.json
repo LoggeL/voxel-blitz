@@ -15,6 +15,13 @@
       "geometry_bytes": 795984
     },
     {
+      "asset": "grenades",
+      "source_parts": 109,
+      "draws": 23,
+      "triangles": 7672,
+      "geometry_bytes": 586272
+    },
+    {
       "asset": "halo",
       "source_parts": 123,
       "draws": 20,
@@ -44,10 +51,10 @@
     },
     {
       "asset": "kestrel",
-      "source_parts": 105,
-      "draws": 15,
-      "triangles": 16488,
-      "geometry_bytes": 690848
+      "source_parts": 200,
+      "draws": 18,
+      "triangles": 12532,
+      "geometry_bytes": 888880
     },
     {
       "asset": "mastiff",

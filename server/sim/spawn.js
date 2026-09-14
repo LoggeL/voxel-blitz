@@ -6,6 +6,7 @@ import { boxCollides, solidBelow } from '../../shared/player-movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 
 const SPAWN_RECENT_MS = 8000;
+const NEIGHBOURS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
 const SPAWN_LOS_PENALTY = 36;
 const SPAWN_RECENT_PENALTY = 24;
 export const MAX_TRACKED_SPAWNS = 256;
@@ -17,16 +18,18 @@ function spawnPointKey(point) {
 /**
  * Authoritative spawn scorer.
  *
- * `entities` is the authoritative Map in insertion order. `isEnemy` and
- * `solidAt` are injected policy/world operations; no engine object crosses the
- * seam. Call setNow once per simulation step before choosing spawns.
+ * `entities` is the authoritative Map in insertion order. `isEnemy`, `solidAt`
+ * and the optional `fluidAt` are injected policy/world operations; no engine
+ * object crosses the seam. Call setNow once per simulation step before
+ * choosing spawns.
  */
 export class SpawnSelector {
-  constructor({ entities, isEnemy, solidAt, now, spawnBounds = null, dimensions = null }) {
+  constructor({ entities, isEnemy, solidAt, fluidAt = null, now, spawnBounds = null, dimensions = null }) {
     this.dimensions = dimensions || worldDimensions();
     this.entities = entities;
     this.isEnemy = isEnemy;
     this.solidAt = solidAt;
+    this.fluidAt = typeof fluidAt === 'function' ? fluidAt : null;
     this.spawnBounds = spawnBounds;
     this.spawnSurfaces = spawnBounds?.surfaces ? new Set() : null;
     for (let i = 0; i < (spawnBounds?.surfaces?.length || 0); i += 3) {
@@ -55,6 +58,7 @@ export class SpawnSelector {
     this.entities = null;
     this.isEnemy = null;
     this.solidAt = null;
+    this.fluidAt = null;
     this.spawnSurfaces = null;
     this.now = 0;
   }
@@ -72,7 +76,7 @@ export class SpawnSelector {
         for (const dy of [0, -1, 1, -2, 2]) {
           const y = Math.floor(seed.y) + dy;
           const point = { x, y, z, index: expanded.length };
-          if (y < 1 || y > SY - 3 || !this.walkable(point) || seen.has(spawnPointKey(point))) continue;
+          if (y < 1 || y > SY - 3 || !this.walkable(point) || this.hazardous(point) || seen.has(spawnPointKey(point))) continue;
           const exits = [[1,0],[-1,0],[0,1],[0,-1]].filter(([ex, ez]) =>
             !boxCollides(this.solidAt, x + ex, y, z + ez)
             && solidBelow(this.solidAt, x + ex, y, z + ez));
@@ -99,6 +103,22 @@ export class SpawnSelector {
       && solidBelow(this.solidAt, point.x, point.y, point.z);
   }
 
+  /**
+   * Lava or water at the feet, body or floor cell, or in any of the eight
+   * horizontal neighbours at feet or floor level: the spawn push can shove a
+   * fresh body one cell sideways, and a fluid floor drops it into the pool.
+   */
+  hazardous(point) {
+    const fluidAt = this.fluidAt;
+    if (!fluidAt) return false;
+    const x = Math.floor(point.x), y = Math.floor(point.y), z = Math.floor(point.z);
+    if (fluidAt(x, y, z) || fluidAt(x, y + 1, z) || fluidAt(x, y - 1, z)) return true;
+    for (const [dx, dz] of NEIGHBOURS) {
+      if (fluidAt(x + dx, y, z + dz) || fluidAt(x + dx, y - 1, z + dz)) return true;
+    }
+    return false;
+  }
+
   enemyHasSpawnLos(enemy, point) {
     const ox = enemy.x;
     const oy = Number.isFinite(enemy.eyeY) ? enemy.eyeY : enemy.y + EYE_HEIGHT;
@@ -114,7 +134,7 @@ export class SpawnSelector {
 
   pick(pool, player = null, excludeIndex = -1, { variety = false } = {}) {
     const { sx: SX, sy: SY, sz: SZ } = this.dimensions;
-    const candidates = [];
+    let candidates = [];
     for (let i = 0; i < pool.length; i++) {
       const source = pool[i];
       if (!source || ![source.x, source.y, source.z].every(Number.isFinite)) continue;
@@ -136,12 +156,19 @@ export class SpawnSelector {
         for (let z = 4; z < SZ - 4; z += 8) for (let x = 4; x < SX - 4; x += 8) {
           for (let y = 1; y < SY - 2; y++) {
             const point = { x: x + 0.5, y, z: z + 0.5, index: candidates.length };
-            if (this.walkable(point)) { candidates.push(point); break; }
+            if (!this.walkable(point)) continue;
+            candidates.push(point);
+            // A fluid floor (the lava sea) is walkable; keep climbing to find dry ground.
+            if (!this.hazardous(point)) break;
           }
         }
       }
       if (!candidates.length) throw new Error('World has no walkable spawn surface');
     }
+    // Never spawn in or beside lava or water while any dry candidate exists;
+    // a pool that is entirely wet keeps the ordinary scoring rather than failing.
+    const dry = candidates.filter((candidate) => !this.hazardous(candidate));
+    if (dry.length) candidates = dry;
 
     const hasPriorPoint = player &&
       [player.lastSpawnX, player.lastSpawnY, player.lastSpawnZ].every(Number.isFinite);

@@ -28,11 +28,14 @@ const cameraByView = {
   'ads-profile': [4.25, 1.48, -0.15],
   'prone-profile': [4.25, 1.18, -0.15],
   'crouched-profile': [4.25, 1.18, -0.15],
+  'swim-profile': [3.9, 1.5, -1.9],
+  'swim-tread': [4.25, 1.44, -0.15],
   spectator: [3.4, 2.45, 3.4],
 };
 camera.position.fromArray(cameraByView[view]);
 camera.lookAt(0, view === 'crouched-profile' ? 0.92 : view === 'spectator' ? 1.35 : 1.12,
   view === 'spectator' ? -0.8 : -0.12);
+if (view === 'swim-profile') camera.lookAt(0, 1.1, 0.05);
 camera.updateProjectionMatrix();
 
 const scene = new THREE.Scene();
@@ -74,8 +77,10 @@ avatar.group.traverse((object) => {
 });
 scene.add(avatar.group);
 
-const { firing, ads, crouching, proneT = 0 } = shot;
-for (let frame = 0; frame < 30; frame++) {
+const { firing, ads, crouching, proneT = 0, swimming = false, moveSpeed = 0 } = shot;
+// Swimming settles over ~0.5 s and is captured a quarter of the way into a stroke.
+const stride = Math.min(1, moveSpeed / 5.8);
+for (let frame = 0; frame < (swimming ? 120 : 30); frame++) {
   updateAvatarWeaponPose(avatar, {
     weapon,
     pitch: firing ? -0.06 : ads ? -0.1 : 0,
@@ -83,11 +88,16 @@ for (let frame = 0; frame < 30; frame++) {
     ads,
     crouching,
     proneT,
+    swimming,
+    speed: moveSpeed,
+    stride,
     dt: 1 / 60,
     blend: 1,
   });
-  updateAvatarStancePose(avatar, { blend: 1 });
+  updateAvatarStancePose(avatar, { blend: 1, stride });
+  avatar.head.rotation.x = avatar.swimHeadTilt || 0;
 }
+if (swimming) avatar.group.position.y = avatar.swimBob || 0;
 
 renderer.render(scene, camera);
 renderer.render(scene, camera);
@@ -123,5 +133,5 @@ document.documentElement.dataset.captureReady = 'true';
 document.documentElement.dataset.captureWeapon = weapon;
 document.documentElement.dataset.captureView = view;
 document.documentElement.dataset.capturePose = shot.pose;
-window.__vbAvatarCapture = Object.freeze({ weapon, view, ads, crouching, ...captureMetrics });
+window.__vbAvatarCapture = Object.freeze({ weapon, view, ads, crouching, swimming, swimPose: avatar.swimPose, ...captureMetrics });
 window.addEventListener('pagehide', () => disposeAvatar(avatar), { once: true });

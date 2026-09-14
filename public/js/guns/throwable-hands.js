@@ -1,4 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
+import { createBlenderParts } from '../engine/blender-assets.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 
 export const THROWABLE_TIMING = Object.freeze({ draw: 0.18, arm: 0.24, ready: 0.48, throw: 0.36, return: 0.20 });
@@ -76,12 +77,35 @@ export class ThrowableHands {
     this.grip.position.set(0, 0.062, -0.025);
     this.right.add(this.grip);
     this.models = {};
+    // The bottle's wick flame is runtime-owned whichever model carries it: the
+    // GRENADES study authors its wick tip on this same anchor.
+    const buildWickFlame = (model) => {
+      this.wickFlame = new THREE.Group();
+      this.wickFlame.name = 'molotov-wick-flame';
+      this.wickFlame.position.set(-0.037, 0.303, 0);
+      model.add(this.wickFlame);
+      const flameMat = new THREE.MeshBasicMaterial({ color: 0xff831f, transparent: true, opacity: 0.9, toneMapped: false, depthWrite: false });
+      mesh(this.wickFlame, new THREE.ConeGeometry(0.023, 0.105, 5), flameMat, [0, 0.042, 0]);
+      mesh(this.wickFlame, new THREE.ConeGeometry(0.012, 0.061, 5), new THREE.MeshBasicMaterial({ color: 0xfff2a2, toneMapped: false }), [0, 0.019, 0.008]);
+      this.wickFlame.visible = false;
+    };
     for (const id of IDS) {
       const model = new THREE.Group();
       model.name = `held-${id}`;
       model.visible = id === this.type;
       this.grip.add(model);
       this.models[id] = model;
+      const authored = createBlenderParts('grenades', { names: [id] })?.[id];
+      if (authored) {
+        // Blender-authored grenade (GRENADES study): the held frame is the
+        // authoring frame, so the per-owner meshes mount verbatim, fuze and
+        // lever included. The procedural builders below stay as the offline
+        // fallback when the template is unavailable.
+        model.userData.blenderAsset = 'grenades';
+        model.add(...authored.children);
+        if (id === 'molotov') buildWickFlame(model);
+        continue;
+      }
       if (id === 'frag') {
         const shell = mat(0x526c3f, { metalness: 0.18 });
         mesh(model, new THREE.SphereGeometry(0.067, 10, 7), dark, [0, 0, 0], [1, 1.18, 1]);
@@ -125,14 +149,7 @@ export class ThrowableHands {
         box(model, cloth, [0.029, 0.032, 0.033], [0, 0.246, 0]);
         const wick = box(model, cloth, [0.021, 0.084, 0.018], [-0.017, 0.273, 0]);
         wick.rotation.z = 0.43;
-        this.wickFlame = new THREE.Group();
-        this.wickFlame.name = 'molotov-wick-flame';
-        this.wickFlame.position.set(-0.037, 0.303, 0);
-        model.add(this.wickFlame);
-        const flameMat = new THREE.MeshBasicMaterial({ color: 0xff831f, transparent: true, opacity: 0.9, toneMapped: false, depthWrite: false });
-        mesh(this.wickFlame, new THREE.ConeGeometry(0.023, 0.105, 5), flameMat, [0, 0.042, 0]);
-        mesh(this.wickFlame, new THREE.ConeGeometry(0.012, 0.061, 5), new THREE.MeshBasicMaterial({ color: 0xfff2a2, toneMapped: false }), [0, 0.019, 0.008]);
-        this.wickFlame.visible = false;
+        buildWickFlame(model);
       }
       if (id !== 'molotov') {
         box(model, steel, [0.040, 0.032, 0.032], [0, 0.083, 0]);

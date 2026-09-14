@@ -1,19 +1,21 @@
 import { loadingScreen, formatBytes } from './ui/loading-screen.js';
 
-// Startup stages weighted by their share of a cold load: the module graph,
-// the Blender weapon/operator library (most of the bytes), then the two
-// account requests. Every stage reports real requests, never elapsed time.
+// Startup stages weighted by their share of a cold menu load: the menu's
+// module graph, then the two account requests. Every stage reports real
+// requests, never elapsed time. three.js, the Blender weapon/operator library,
+// the sound samples and the match systems load in the background after the
+// menu is interactive (see the asset scheduler in main.js); readyMs is the
+// time to an interactive menu.
 const startedAt = performance.now();
 const moduleCount = Number(document.querySelector('meta[name="vb-module-count"]')?.content) || 0;
-const boot = { startedAt, readyMs: 0, phases: {}, modules: { done: 0, total: moduleCount, bytes: 0 } };
+const boot = { startedAt, readyMs: 0, menuReadyMs: 0, phases: {}, modules: { done: 0, total: moduleCount, bytes: 0 } };
 window.__vbBoot = boot;
 
 loadingScreen?.show('boot', { status: 'Loading game systems…' });
 loadingScreen?.setPlan([
-  { id: 'modules', label: 'GAME SYSTEMS', weight: 25 },
-  { id: 'models', label: 'WEAPON & OPERATOR MODELS', weight: 55 },
-  { id: 'account', label: 'ACCOUNT', weight: 8 },
-  { id: 'career', label: 'CAREER & EQUIPMENT', weight: 12 },
+  { id: 'modules', label: 'GAME SYSTEMS', weight: 70 },
+  { id: 'account', label: 'ACCOUNT', weight: 12 },
+  { id: 'career', label: 'CAREER & EQUIPMENT', weight: 18 },
 ], { startedAt });
 loadingScreen?.step('modules', { status: 'active', done: 0, total: moduleCount });
 
@@ -40,7 +42,7 @@ try {
   await import('./main.js');
   observer?.disconnect();
   boot.phases.modules = boot.phases.modules ?? Math.round(performance.now() - startedAt);
-  boot.readyMs = Math.round(performance.now() - startedAt);
+  boot.readyMs = boot.menuReadyMs = Math.round(performance.now() - startedAt);
   loadingScreen?.hide();
 } catch (error) {
   observer?.disconnect();

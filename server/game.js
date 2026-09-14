@@ -116,6 +116,7 @@ export class GameEngine {
       entities: this.entities,
       isEnemy: (left, right) => this.mode.isEnemy(left, right),
       solidAt: this.solidAt,
+      fluidAt: this.fluidAt,
       spawnBounds: this.mapMeta?.spawnBounds,
       dimensions: this.world.dimensions,
       now: this.now,

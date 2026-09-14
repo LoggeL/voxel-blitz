@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Regenerate the <link rel="modulepreload"> block in public/index.html from the
 // static import graph behind public/js/boot.js (plus its dynamic main.js).
-// Without it the browser discovers the 260-module graph level by level;
-// with it every module is requested as soon as the HTML arrives.
+// That graph is the menu's critical path only; the match runtime, three.js and
+// the Blender library are imported later by the asset scheduler and are not
+// preloaded. Without the block the browser discovers the graph level by level;
+// with it every critical module is requested as soon as the HTML arrives.
 // Usage: node tools/build-module-preload.mjs [--check]
 import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';

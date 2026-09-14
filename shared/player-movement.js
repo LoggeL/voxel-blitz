@@ -152,6 +152,19 @@ export function findVault(solidAt, position, wish, reachY = position.y, yaw = nu
   return null;
 }
 
+/**
+ * Swimmers pull themselves onto a bank. Buoyancy alone never lifts the feet
+ * above the water surface (surfaceLift peaks about 0.1 below the block top)
+ * and the airborne vault anchors its reach to the last dry ground, so a body
+ * at the surface must be allowed to grab any ledge within arm's reach of its
+ * current height: a held jump plus a horizontal wish (or the facing when the
+ * keys are released) starts an ordinary vault with no minimum rise.
+ */
+export function findSwimExit(solidAt, position, wish, wantUp, crouching, yaw = null) {
+  if (!wantUp || crouching) return null;
+  return findVault(solidAt, position, wish, position.y, yaw, 0);
+}
+
 function vaultPoint(vault, t) {
   const smooth = (v) => v * v * (3 - 2 * v);
   const lift = smooth(Math.min(1, t / 0.58));

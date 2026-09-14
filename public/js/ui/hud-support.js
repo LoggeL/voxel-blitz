@@ -113,6 +113,7 @@ export const MAP_LABELS = Object.freeze({
   dust2: 'DUST 2',
   killhouse: 'KILLHOUSE',
   minecraft_b5: 'MINECRAFT B5',
+  waterworld: 'WATERWORLD',
 });
 
 export const MAP_DESCRIPTIONS = Object.freeze({
@@ -128,6 +129,7 @@ export const MAP_DESCRIPTIONS = Object.freeze({
   dust2: 'Long A, sunken Pit, raised Catwalk and two-level B Tunnels',
   killhouse: 'Covered firing bays and four numbered rooms. Practice on respawning targets or race the course.',
   minecraft_b5: 'Block-for-block ttt_minecraft_b5: island village, lighthouse, mine rails, the Nether below and swimmable ocean (Fun / TTT / Duel / Chaos / TDM / Gun Game)',
+  waterworld: 'Block-for-block ttt_waterworld: Leith Waterworld leisure pools, flumes, changing rooms, glass foyer and the traitor room (Fun / TTT / Duel / Chaos / TDM / Gun Game)',
 });
 
 export const MAP_PREVIEWS = Object.freeze({
@@ -143,6 +145,7 @@ export const MAP_PREVIEWS = Object.freeze({
   dust2: './assets/maps/dust2.webp',
   killhouse: './assets/maps/killhouse-range.webp',
   minecraft_b5: './assets/maps/minecraft-b5.webp',
+  waterworld: './assets/maps/waterworld.webp',
 });
 
 export const CARDINAL = Object.freeze({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' });

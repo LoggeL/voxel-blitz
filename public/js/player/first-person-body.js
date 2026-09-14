@@ -1,5 +1,5 @@
 import { applyBodyCosmetics } from '../cosmetics/skins.js';
-import { pronePose } from '../../../shared/player-stance.js';
+import { pronePose, stepSwim, swimCycle, swimEffort } from '../../../shared/player-stance.js';
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 import { smooth01 } from '../util/math.js';
@@ -112,6 +112,9 @@ export function resetFirstPersonBody(body) {
   body.forward = 1;
   body.lateral = 0;
   body.clock = 0;
+  body.swim = 0;
+  body.swimEffort = 0;
+  body.swimPhase = 0;
   body.group.visible = true;
   body.group.rotation.set(0, 0, 0);
   body.group.scale.set(1, 1, 1);
@@ -161,6 +164,13 @@ export function updateFirstPersonBody(
   }
   if (motion.vaulting) body.fallSpeed = 0;
   body.wasGrounded = grounded;
+  // Floating (swimming, not touching the bottom) leans the body into the water;
+  // wading in shallow water keeps the walk. The lean fades under crouch (the
+  // dive input) and prone, which keep their own stances.
+  const floating = alive && motion.swimming === true && motion.grounded === false && !motion.vaulting;
+  body.swim = stepSwim(body.swim || 0, floating, seconds);
+  body.swimEffort = (body.swimEffort || 0) + (swimEffort(speed) - (body.swimEffort || 0)) * follow;
+  if (body.swim > 0.01) body.swimPhase = (body.swimPhase || 0) + seconds * (2.4 + 3.4 * body.swimEffort);
   const forward = speed > 0.1 && Number.isFinite(motion.forwardSpeed) ? motion.forwardSpeed / speed : 1;
   const lateral = speed > 0.1 && Number.isFinite(motion.lateralSpeed) ? motion.lateralSpeed / speed : 0;
   body.forward += (forward - body.forward) * follow;
@@ -187,22 +197,31 @@ export function updateFirstPersonBody(
     return;
   }
 
+  // The local body has no hitbox to honour, so its swim lean and flutter kick
+  // are wider than the third-person avatar's; the airborne tuck yields to them.
+  const cycle = swimCycle(body.swimPhase || 0, body.swimEffort, body.swim * (1 - crouch));
+  const swim = cycle.weight;
+  const dry = 1 - swim;
   body.group.rotation.set(0, yaw, 0);
-  body.hips.position.y = BODY_POSE.hipsY - crouch * 0.28 + bounce - compression;
-  body.torso.position.y = BODY_POSE.torsoY - crouch * 0.34 + bounce - compression + breathing;
-  body.torso.rotation.x = crouch * 0.12 + body.land * 0.08;
-  body.hips.rotation.x = 0;
-  body.hips.rotation.z = swing * stride * 0.045;
-  body.left.leg.position.y = BODY_POSE.legY - crouch * 0.24;
-  body.right.leg.position.y = BODY_POSE.legY - crouch * 0.24;
-  body.left.leg.rotation.x = swing * 0.72 * body.forward - crouch * 0.58 - body.air * 0.42 - body.land * 0.2;
-  body.right.leg.rotation.x = -swing * 0.72 * body.forward - crouch * 0.58 - body.air * 0.28 - body.land * 0.2;
+  body.hips.position.y = BODY_POSE.hipsY - crouch * 0.28 + bounce - compression + cycle.bob * 1.5;
+  body.torso.position.y = BODY_POSE.torsoY - crouch * 0.34 + bounce - compression + breathing + cycle.bob * 1.5;
+  body.torso.rotation.x = crouch * 0.12 + body.land * 0.08 - cycle.torsoPitch * 1.4;
+  body.hips.rotation.x = -cycle.hipsPitch * 1.4;
+  body.hips.rotation.z = swing * stride * 0.045 + cycle.sway * 0.03 * swim;
+  body.left.leg.position.y = BODY_POSE.legY - crouch * 0.24 + cycle.bob * 1.5;
+  body.right.leg.position.y = BODY_POSE.legY - crouch * 0.24 + cycle.bob * 1.5;
+  body.left.leg.rotation.x = swing * 0.72 * body.forward - crouch * 0.58 - (body.air * 0.42 + body.land * 0.2) * dry -
+    (cycle.legTrail + cycle.kick) * 2;
+  body.right.leg.rotation.x = -swing * 0.72 * body.forward - crouch * 0.58 - (body.air * 0.28 + body.land * 0.2) * dry -
+    (cycle.legTrail - cycle.kick) * 2;
   body.left.leg.rotation.z = swing * 0.42 * body.lateral;
   body.right.leg.rotation.z = -swing * 0.42 * body.lateral;
-  body.left.knee.rotation.x = crouch * 1.02 + Math.max(0, -swing) * 0.32 + body.air * 0.72 + body.land * 0.36;
-  body.right.knee.rotation.x = crouch * 1.02 + Math.max(0, swing) * 0.32 + body.air * 0.55 + body.land * 0.36;
-  body.left.boot.rotation.x = -body.air * 0.14 - Math.max(0, swing) * 0.12;
-  body.right.boot.rotation.x = -body.air * 0.10 - Math.max(0, -swing) * 0.12;
+  body.left.knee.rotation.x = crouch * 1.02 + Math.max(0, -swing) * 0.32 + (body.air * 0.72 + body.land * 0.36) * dry -
+    (cycle.kneeFlex + Math.max(0, cycle.kick)) * 2.2;
+  body.right.knee.rotation.x = crouch * 1.02 + Math.max(0, swing) * 0.32 + (body.air * 0.55 + body.land * 0.36) * dry -
+    (cycle.kneeFlex + Math.max(0, -cycle.kick)) * 2.2;
+  body.left.boot.rotation.x = -body.air * 0.14 * dry - Math.max(0, swing) * 0.12 + cycle.kneeFlex * 2;
+  body.right.boot.rotation.x = -body.air * 0.10 * dry - Math.max(0, -swing) * 0.12 + cycle.kneeFlex * 2;
   const prone = pronePose(proneT);
   for (const [part, y, z] of [[body.hips, 0.25, 0.8], [body.torso, 0.3, 0.4],
     [body.left.leg, 0.25, 0.85], [body.right.leg, 0.25, 0.85]]) {

@@ -1,4 +1,4 @@
-import { pronePose } from '../../../shared/player-stance.js';
+import { pronePose, stepSwim, swimCycle, swimEffort } from '../../../shared/player-stance.js';
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 import { clamp01 } from '../util/math.js';
@@ -63,12 +63,28 @@ export function updateAvatarWeaponPose(av, {
   minigun,
   attachments,
   movement,
+  swimming = false,
+  speed,
 } = {}) {
   const poseBlend = Math.max(0, Math.min(1, Number(blend) || 0));
   const stanceBlend = dt > 0 ? 1 - Math.exp(-dt * 12) : poseBlend;
   av.pronePose = pronePose(proneT);
   av.crouchPose += ((crouching ? 1 : 0) - av.crouchPose) * stanceBlend;
   av.motion.update(dt, { stride, swing, ...movement });
+  // Floating (swimming while not grounded) eases into the swim pose; wading
+  // keeps walking. Crouch (the dive input) and prone keep their hitbox-backed
+  // stances, so the lean fades out underneath them.
+  av.swimPose = stepSwim(av.swimPose || 0, !!swimming, dt);
+  const effortBlend = dt > 0 ? 1 - Math.exp(-dt * 8) : 1;
+  av.swimEffort = (av.swimEffort || 0) +
+    (swimEffort(Number.isFinite(speed) ? speed : stride * 5.8) - (av.swimEffort || 0)) * effortBlend;
+  if (av.swimPose > 0.01) av.swimPhase = (av.swimPhase || 0) + Math.max(0, dt) * (2.4 + 3.4 * av.swimEffort);
+  const cycle = swimCycle(av.swimPhase || 0, av.swimEffort,
+    av.swimPose * (1 - av.pronePose) * (1 - clamp01(av.crouchPose)));
+  av.swimCycle = cycle;
+  av.swimLean = cycle.torsoPitch;
+  av.swimHeadTilt = -cycle.headTilt;
+  av.swimBob = cycle.bob;
   av.weaponModel.update({
     weapon,
     pitch,
@@ -83,6 +99,8 @@ export function updateAvatarWeaponPose(av, {
     charge,
     minigun,
     attachments,
+    swim: cycle.weight,
+    swimSway: cycle.sway * cycle.stroke,
   });
   // Add the tiny carrier motion before solving the arms so palms stay on the gun.
   const upright = 1 - av.pronePose;
@@ -112,23 +130,27 @@ export function updateAvatarStancePose(av, {
   av.rLeg.position.y += ((0.73 - crouch * 0.26 - settle * 0.008) - av.rLeg.position.y) * poseBlend;
   av.lLeg.scale.y += (legScale - av.lLeg.scale.y) * poseBlend;
   av.rLeg.scale.y += (legScale - av.rLeg.scale.y) * poseBlend;
-  const gait = swing * 0.78 * (1 - crouch * 0.6) * (1 - motion.air * 0.9);
+  // Swimming: the walk gait gives way to a flutter kick behind a leaning torso.
+  // Every angle stays inside the standing hitbox envelope (see SWIM).
+  const cycle = av.swimCycle || swimCycle(0, 0, 0);
+  const swim = cycle.weight;
+  const gait = swing * 0.78 * (1 - crouch * 0.6) * (1 - motion.air * 0.9) * (1 - swim);
   // A small asymmetric foot tuck fits inside the standing combat leg envelopes.
-  av.lLeg.rotation.x += (gait - motion.air * 0.02 * upright -
+  av.lLeg.rotation.x += (gait - motion.air * 0.02 * upright * (1 - swim) - cycle.legTrail - cycle.kick -
     av.lLeg.rotation.x) * poseBlend;
-  av.rLeg.rotation.x += (-gait - motion.air * 0.08 * upright -
+  av.rLeg.rotation.x += (-gait - motion.air * 0.08 * upright * (1 - swim) - cycle.legTrail + cycle.kick -
     av.rLeg.rotation.x) * poseBlend;
   av.torso.position.y += ((1.18 - crouch * 0.27 - settle * 0.012) - av.torso.position.y) * poseBlend;
   av.hips.position.y += ((0.84 - crouch * 0.20 - settle * 0.008) - av.hips.position.y) * poseBlend;
   av.head.position.y += ((1.66 - crouch * 0.34) - av.head.position.y) * poseBlend;
-  av.torso.rotation.x += (stride * 0.16 + crouch * 0.12 -
+  av.torso.rotation.x += (stride * 0.16 * (1 - swim) + crouch * 0.12 - cycle.torsoPitch -
     av.torso.rotation.x) * poseBlend;
   av.torso.rotation.y = (motion.turn * 0.018 - motion.side * 0.008) * upright;
   av.torso.scale.set(1 + motion.breath * 0.004 * upright,
     1 + motion.breath * 0.006 * upright, 1 + motion.breath * 0.01 * upright);
   av.pack.rotation.set(motion.gearPitch * upright, 0, motion.gearRoll * upright);
   av.pouches.rotation.set(-motion.gearPitch * 0.7 * upright, 0, -motion.gearRoll * 0.45 * upright);
-  av.hips.rotation.x = 0;
+  av.hips.rotation.x = -cycle.hipsPitch;
   const prone = av.pronePose || 0;
   for (const [part, y, z, tilt] of [
     [av.head, 0.48, 0, null], [av.torso, 0.3, 0.4, -Math.PI / 2],
@@ -140,8 +162,8 @@ export function updateAvatarStancePose(av, {
     part.position.z = z * prone;
     if (tilt !== null) part.rotation.x = part.rotation.x * (1 - prone) + tilt * prone;
   }
-  poseOperatorLeg(av.lLeg, prone, swing, stride);
-  poseOperatorLeg(av.rLeg, prone, -swing, stride);
+  poseOperatorLeg(av.lLeg, prone, swing, stride, { weight: swim, kneeFlex: cycle.kneeFlex, kick: cycle.kick * 0.8 });
+  poseOperatorLeg(av.rLeg, prone, -swing, stride, { weight: swim, kneeFlex: cycle.kneeFlex, kick: -cycle.kick * 0.8 });
 }
 
 export function resetAvatarPose(av) {
@@ -159,6 +181,13 @@ export function resetAvatarPose(av) {
   av.reloadPhase = 0;
   av.crouchPose = 0;
   av.pronePose = 0;
+  av.swimPose = 0;
+  av.swimEffort = 0;
+  av.swimPhase = 0;
+  av.swimCycle = null;
+  av.swimLean = 0;
+  av.swimHeadTilt = 0;
+  av.swimBob = 0;
   for (const part of [av.head, av.torso, av.hips, av.lLeg, av.rLeg]) part.position.z = 0;
   av.lastImpact = null;
   av.motionSeeded = false;
@@ -352,6 +381,13 @@ export function makeAvatar(id, name, team = null) {
     speedEst: 0,
     runPhase: 0,
     crouchPose: 0,
+    swimPose: 0,
+    swimEffort: 0,
+    swimPhase: 0,
+    swimCycle: null,
+    swimLean: 0,
+    swimHeadTilt: 0,
+    swimBob: 0,
     px: 0,
     pz: 0,
     motionSeeded: false,

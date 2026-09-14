@@ -1,70 +1,66 @@
+// Voxel Blitz browser composition root. Mutable gameplay ownership lives in
+// Session, LocalPlayer, WeaponState, AvatarRoster, and CombatFeedback.
+//
+// Boot order: this module keeps only what the main menu needs on its static
+// import graph (HUD, session, accounts, career, input, audio facade and the
+// shared rules). three.js, the chunk mesher, the weapon/avatar factories and
+// the Blender library arrive through the asset scheduler after the menu is
+// interactive; joining a match waits for exactly the tasks in MATCH_ASSETS.
 import { AccountKeybindings } from './account-keybindings.js';
-import { TttControls } from './ui/ttt-controls.js';
 import { loadingScreen } from './ui/loading-screen.js';
-import { WeaponCustomization } from './ui/weapon-customization.js';
 import { claymoreProfile } from '../../shared/claymore-rules.js';
 import { CareerShop } from './ui/career-shop.js';
 import { AccountMenu } from './ui/account-menu.js';
 import { bastionRepairAvailable } from '../../shared/bastion.js';
-// Voxel Blitz browser composition root. Mutable gameplay ownership lives in
-// Session, LocalPlayer, WeaponState, AvatarRoster, and CombatFeedback.
-import * as THREE from './vendor/three.module.js';
-import { MuzzleLights } from './engine/muzzle-lights.js';
 import { FrameRateController } from './engine/frame-rate.js';
-import { WEAPONS, WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
+import { WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
 import { VAULT_SECONDS } from '../../shared/player-movement.js';
 import { deserializeWorld, serializeWorld, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
 import { Input } from './engine/input.js';
-import {
-  CombatPostProcess,
-  recommendedPostProcessPixelRatio,
-} from './engine/combat-post-process.js';
-import { WorldView } from './engine/worldview.js';
-import { ViewmodelRig } from './guns/viewmodel.js';
-import { WeaponState, shouldShowViewmodel } from './guns/weapon-state.js';
-import { Effects, attachMuzzleBridge, attachRemoteMuzzleBridge } from './weapons/effects.js';
 import { HUD } from './ui/hud.js';
 import { displaySettings } from './ui/display-settings.js';
-import { projectAimReticle } from './ui/aim-reticle.js';
+import { MAP_LABELS, weaponImagePath } from './ui/hud-support.js';
+import { mapAtmosphere } from './engine/map-atmosphere.js';
 import { WeaponWheelController } from './session/weapon-wheel-controller.js';
 import { RunHud } from './ui/run-hud.js';
 import { sfx } from './audio/sfx.js';
 import { Session } from './session/session.js';
 import { aimAssistStrength } from './player/aim-assist.js';
-import { LocalPlayer } from './player/local-player.js';
 import { smokeBlocksSight, copySmokeFields } from '../../shared/smoke-rules.js';
-import { Killcam } from './player/killcam.js';
-import { SpectatorCamera } from './player/spectator-camera.js';
-import { AvatarRoster } from './avatar/avatar-roster.js';
-import { CombatFeedback, applySnapshotBlocks, isWorldPointVisible } from './combat/feedback.js';
-import { disposeFirstPersonBody, makeFirstPersonBody } from './player/first-person-body.js';
 import { fwdFromAngles } from './util/look.js';
 import { nowMs } from './util/math.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS, grenadeFuseAfterCook } from '../../shared/grenade-rules.js';
+import { AssetScheduler } from './boot/asset-scheduler.js';
+
+window.__vbBoot?.phases && (window.__vbBoot.phases.modules ??= Math.round(performance.now() - window.__vbBoot.startedAt));
+
+/** Match runtime namespace (see boot/match-runtime.js) once its task has loaded. */
+let runtime = null;
+/** Free identifier for Game.handleTick; assigned with the runtime, injected by Node tests. */
+let applySnapshotBlocks = null;
+/** Asset tasks a live match waits for, in loading order. */
+const MATCH_ASSETS = Object.freeze(['models', 'runtime', 'audio']);
+const assets = new AssetScheduler({ onChange: () => renderAssetStatus() });
 
 class Game {
   constructor() {
     const canvas = document.getElementById('game');
     this.input = new Input(canvas);
     this.hud = new HUD();
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    this.renderer.setSize(innerWidth, innerHeight);
-    this.post = new CombatPostProcess(this.renderer, {
-      enabled: !shaderDisabled,
-      maxPixelRatio: recommendedPostProcessPixelRatio(Number(navigator.deviceMemory)),
-      reducedMotion: displaySettings().reducedMotion,
-    });
-    this.post.setSize(innerWidth, innerHeight, devicePixelRatio);
-    this.camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 400);
-    this.clock = new THREE.Clock();
+    // The WebGL renderer, camera, clock, post-process chain and local player
+    // belong to the match runtime and are created by ensureRuntime().
+    this.rt = null;
+    this.renderer = null;
+    this.post = null;
+    this.camera = null;
+    this.clock = null;
+    this.player = null;
     this.frameRate = new FrameRateController();
     this._onFrameVisibility = () => {
       this.frameRate.reset(undefined, document.hidden);
       if (document.hidden) sfx.stopCosmetics();
     };
     document.addEventListener('visibilitychange', this._onFrameVisibility);
-    this.player = new LocalPlayer({ input: this.input });
     this.worldview = null;
     this.effects = null;
     this.rig = null;
@@ -98,7 +94,7 @@ class Game {
       forceOpen: debugUi === 'wheel',
       getContext: () => ({
         weapon: this.weapon, self: this.selfRow, match: this.matchState,
-        enabled: this.session?.gameplayInputEnabled, alive: this.player.alive,
+        enabled: this.session?.gameplayInputEnabled, alive: !!this.player?.alive,
         spectating: this.spectator?.active === true,
       }),
     });
@@ -106,7 +102,7 @@ class Game {
     const game = this;
     this._gameplay = Object.freeze({
       get running() { return game.running; },
-      get alive() { return game.player.alive; },
+      get alive() { return !!game.player?.alive; },
       get spectating() { return game.spectator?.active === true && !game.killcam?.active; },
       get matchState() { return game.matchState; },
       get selfRow() { return game.selfRow; },
@@ -140,16 +136,18 @@ class Game {
         onRunEvent: (event) => this.runHud?.handleEvent(event),
         onTick: (snapshot, phase) => this.handleTick(snapshot, phase),
         onGameplayInputDisabled: () => {
-          this.player.setGameplayInputEnabled(false);
+          this.player?.setGameplayInputEnabled(false);
           this.weapon?.clearIntents();
         },
-        onGameplayInputEnabled: () => this.player.setGameplayInputEnabled(true),
+        onGameplayInputEnabled: () => this.player?.setGameplayInputEnabled(true),
+        onMenuBuilt: () => {
+          mountArmoryButton();
+          renderAssetStatus();
+        },
         onResize: () => this.resize(),
         onTeardown: () => this.disposeTerminalResources(),
       },
     });
-    this.camera.fov = this.session.baseFov;
-    this.camera.updateProjectionMatrix();
   }
 
   get net() { return this.session.net; }
@@ -163,8 +161,42 @@ class Game {
     this.camera.updateProjectionMatrix();
   }
 
+  /**
+   * Wait for the match assets (the arena screen lists whatever is still
+   * outstanding, followed by the mesh sectors) and build the renderer, camera
+   * and local player once. Weapon and avatar templates are guaranteed to be
+   * present before the first frame: the Blender library is one of the tasks.
+   */
+  async ensureRuntime() {
+    await assets.require(MATCH_ASSETS, { loading: loadingScreen,
+      trailing: [{ id: 'world', label: 'ARENA GEOMETRY', weight: 30 }] });
+    if (this.rt || this._disposed) return this.rt;
+    const rt = this.rt = runtime;
+    const canvas = this.input.canvas;
+    this.renderer = new rt.THREE.WebGLRenderer({ canvas, antialias: true });
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    this.renderer.setSize(innerWidth, innerHeight);
+    this.post = new rt.CombatPostProcess(this.renderer, {
+      enabled: !shaderDisabled,
+      maxPixelRatio: rt.recommendedPostProcessPixelRatio(Number(navigator.deviceMemory)),
+      reducedMotion: displaySettings().reducedMotion,
+    });
+    this.post.setSize(innerWidth, innerHeight, devicePixelRatio);
+    this.camera = new rt.THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 400);
+    this.camera.fov = this.session.baseFov;
+    this.camera.updateProjectionMatrix();
+    this.clock = new rt.THREE.Clock();
+    this.player = new rt.LocalPlayer({ input: this.input });
+    this.player.setGameplayInputEnabled(this.session.gameplayInputEnabled);
+    return rt;
+  }
+
   async bootLive(payload) {
     const { net, welcome, mapBytes, mapMeta, isActive, showStatus, showProgress, complete } = payload;
+    await this.ensureRuntime();
+    if (!isActive()) return;
+    if (!net.isOpen()) return this.session.handleDisconnect();
+    const rt = this.rt;
     // Let the deployment screen paint before decoding the arena.
     await new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0)));
     if (!isActive()) return;
@@ -181,7 +213,7 @@ class Game {
     if (!net.isOpen()) return this.session.handleDisconnect();
 
     showStatus('building voxel mesh…', 'ok');
-    this.worldview = new WorldView({
+    this.worldview = new rt.WorldView({
       getBlock,
       getBlockDamage: (x, y, z) => net.getBlockDamage(x, y, z),
     }, this.mapMeta);
@@ -193,10 +225,10 @@ class Game {
     this.worldview.setGameMode(welcome.gameMode);
 
     showStatus('preparing your loadout…', 'ok');
-    this.liveEffectsGroup = new THREE.Group();
-    this.liveAvatarsGroup = new THREE.Group();
+    this.liveEffectsGroup = new rt.THREE.Group();
+    this.liveAvatarsGroup = new rt.THREE.Group();
     this.worldview.scene.add(this.liveEffectsGroup, this.liveAvatarsGroup);
-    this.effects = new Effects(this.liveEffectsGroup, this.camera, getBlock, {
+    this.effects = new rt.Effects(this.liveEffectsGroup, this.camera, getBlock, {
       // Stuck limpets ride their carrier: the local body or a presented remote avatar.
       getEntityPosition: (id) => {
         if (id === this.myId) {
@@ -209,14 +241,14 @@ class Game {
       onBounce: (x, y, z) => sfx.arcZap?.([x, y, z]),
     });
     this.worldview.scene.add(this.camera);
-    this.ownBody = makeFirstPersonBody();
+    this.ownBody = rt.makeFirstPersonBody();
     this.worldview.scene.add(this.ownBody.group);
     this.player.setFirstPersonBody(this.ownBody);
-    this.rig = new ViewmodelRig(this.camera);
+    this.rig = new rt.ViewmodelRig(this.camera);
     const effects = this.effects;
     this.rig.onShellEject = ({ pos, vel }) => effects.spawnBrass(pos, vel);
-    attachMuzzleBridge(this.effects, this.rig);
-    this.weapon = new WeaponState({
+    rt.attachMuzzleBridge(this.effects, this.rig);
+    this.weapon = new rt.WeaponState({
       rig: this.rig,
       audio: sfx,
       effects: this.effects,
@@ -244,19 +276,19 @@ class Game {
       else if (cue === 'ignite') sfx.molotovIgnite();
       else if (cue === 'draw') sfx.grenadeDraw();
     };
-    this.muzzleLights = new MuzzleLights(this.worldview.scene);
-    this.roster = new AvatarRoster({
+    this.muzzleLights = new rt.MuzzleLights(this.worldview.scene);
+    this.roster = new rt.AvatarRoster({
       getBlock,
       scene: this.liveAvatarsGroup,
       gore: (event, options) => this.effects?.gore(event, options),
       getMyId: () => this.myId,
     });
-    attachRemoteMuzzleBridge(this.effects, () => this.roster);
+    rt.attachRemoteMuzzleBridge(this.effects, () => this.roster);
     this.roster.setBurnFX(this.effects.flames);
-    this.killcam = new Killcam({ scene: this.worldview.scene, getBlock, worldview: this.worldview,
+    this.killcam = new rt.Killcam({ scene: this.worldview.scene, getBlock, worldview: this.worldview,
       mapBytes: serializeWorld(), blockDamage: [...net.blockDamage.values()],
       terrainTime: net.latestSnapshots.at(-1)?.serverNow ?? -Infinity, audio: sfx, now: nowMs });
-    this.spectator = new SpectatorCamera({
+    this.spectator = new rt.SpectatorCamera({
       camera: this.camera,
       raycast: (origin, direction, distance) => (
         this.worldview?.pickCameraRay(origin, direction, distance)
@@ -267,7 +299,7 @@ class Game {
     this.hud.setupSpectator({
       onCycle: (direction) => this.spectator?.cycle(direction),
     });
-    this.feedback = new CombatFeedback({
+    this.feedback = new rt.CombatFeedback({
       effects: this.effects,
       sfx,
       hud: this.hud,
@@ -291,7 +323,7 @@ class Game {
     this.runHud = new RunHud({ getMyId: () => this.myId });
 
     complete({
-      activateLive: () => { this.running = true; this.clock.start(); this.frameRate.reset(); },
+      activateLive: () => { this.running = true; this.clock.start(); this.frameRate.reset(); renderAssetStatus(); },
       flushQueuedSnapshots: () => this.flushPendingAuthoritativeSnapshots(),
       consumeLatestAuthoritativeState: () => this.consumeLatestAuthoritativeState(),
       startLoop: () => {
@@ -320,7 +352,9 @@ class Game {
   }
 
   handleTick(snapshot, phase = this.session.phase) {
-    applySnapshotBlocks(snapshot, this._world);
+    // Before the runtime arrives there is no world to patch; bootLive replays
+    // net.latestSnapshots after deserializing the arena.
+    applySnapshotBlocks?.(snapshot, this._world);
     if (phase === 'booting') this.queueAuthoritativeSnapshot(snapshot);
     else if (this.running && phase === 'live') this.consumeAuthoritativeSnapshot(snapshot);
   }
@@ -361,7 +395,7 @@ class Game {
     this.worldview?.setMatch(match);
     this.worldview?.setPowerups(snapshot.powerups);
     this.selfRow = self;
-    if (match?.mode === 'ttt') this.tttControls ??= new TttControls(this);
+    if (match?.mode === 'ttt') this.tttControls ??= new this.rt.TttControls(this);
     this.tttControls?.sync(match,self,players);
     this.rig?.setCosmetics(self?.cosmetics);
     this.ownBody?.setCosmetics(self?.cosmetics);
@@ -574,7 +608,7 @@ class Game {
       eye: this.camera.position,
       forward: fwdFromAngles(this.player.shotYaw, this.player.shotPitch),
       isVisible: (point) => !this.smokeObscures(this.camera.position, { x: point[0], y: point[1], z: point[2] })
-        && isWorldPointVisible(this._world, this.camera, point, 0.6),
+        && this.rt.isWorldPointVisible(this._world, this.camera, point, 0.6),
     }));
   }
 
@@ -700,6 +734,7 @@ class Game {
         lateralSpeed,
         forwardSpeed,
         grounded: this.player.physics.grounded,
+        swimming: !!this.player.physics.swimming,
         vaulting: !!this.player.physics.vault,
         vaultProgress: this.player.physics.vault ? this.player.physics.vault.elapsed / VAULT_SECONDS : 0,
         verticalVelocity: this.player.physics.vel.y,
@@ -741,7 +776,7 @@ class Game {
     this.syncAimAssist(now);
     this.syncDeviceInfo(now);
     if (this.rig?.root) {
-      this.rig.root.visible = shouldShowViewmodel({
+      this.rig.root.visible = this.rt.shouldShowViewmodel({
         spectating,
         scopeActive: this.weapon?.scopeActive,
       });
@@ -751,7 +786,7 @@ class Game {
     const beamAim = this.weapon.def.id === 'lance'
       ? this.worldview.pickCameraRay(this.camera.position, fwdFromAngles(this.player.shotYaw, this.player.shotPitch), HITSCAN_REACH)
       : null;
-    const reticle = projectAimReticle(this.camera, this.player.shotYaw, this.player.shotPitch);
+    const reticle = this.rt.projectAimReticle(this.camera, this.player.shotYaw, this.player.shotPitch);
     this.hud.setState({
       crosshairX: reticle.x,
       crosshairY: reticle.y,
@@ -839,7 +874,7 @@ class Game {
     if (this._rafId) cancelAnimationFrame(this._rafId);
     this._rafId = 0;
     this.running = false;
-    this.clock.stop();
+    this.clock?.stop();
     this.frameRate.reset();
     sfx.stopPainMoans();
     this._pendingAuthoritativeSnapshots = [];
@@ -854,7 +889,7 @@ class Game {
     this.weapon?.dispose();
     if (this.ownBody) {
       this.worldview?.scene.remove(this.ownBody.group);
-      disposeFirstPersonBody(this.ownBody);
+      this.rt.disposeFirstPersonBody(this.ownBody);
     }
     if (this.rig) this.rig.onReloadClick = null;
     this.rig?.dispose();
@@ -868,7 +903,7 @@ class Game {
     this.playersCache = Object.freeze([]);
     this.matchState = this.selfRow = this.serverNow = null;
     this.smokeFields = [];
-    this.player.resetForMenu({ baseFov: this.session.baseFov });
+    this.player?.resetForMenu({ baseFov: this.session.baseFov });
   }
 
   disposeTerminalResources() {
@@ -877,10 +912,10 @@ class Game {
     if (this._debugInterval) clearInterval(this._debugInterval);
     if (this._onDebugError) window.removeEventListener('error', this._onDebugError, true);
     document.removeEventListener('visibilitychange', this._onFrameVisibility);
-    this.player.dispose();
+    this.player?.dispose();
     this.post?.dispose();
     this.post = null;
-    this.renderer.dispose();
+    this.renderer?.dispose();
   }
 }
 
@@ -894,7 +929,8 @@ const game = new Game();
 
 window.__vb = {
   get stats() {
-    const info = game.renderer.info;
+    const info = game.renderer?.info || { memory: {}, render: {} };
+    const player = game.player;
     const hist = {};
     if (game.worldview) {
       for (const child of game.worldview.scene.children) hist[child.type] = (hist[child.type] || 0) + 1;
@@ -904,17 +940,18 @@ window.__vb = {
     const weapon = game.weapon ? WEAPON_IDS[game.weapon.slot] : null;
     const def = game.weapon?.def;
     const counters = game.roster?.counters || {};
-    const pos = game.player.pos;
+    const pos = player?.pos;
     return {
       localId: game.myId,
-      alive: game.player.alive,
+      alive: !!player?.alive,
       running: game.running,
+      assets: assets.status,
       frameRate: game.frameRate.snapshot,
-      hp: game.player.hp,
-      feet: [pos.x, pos.y, pos.z].every(Number.isFinite) ? { x: pos.x, y: pos.y, z: pos.z } : null,
-      crouching: game.player.crouchBool,
-      pitch: game.player.view.pitch,
-      yaw: game.player.view.yaw,
+      hp: player?.hp ?? 100,
+      feet: pos && [pos.x, pos.y, pos.z].every(Number.isFinite) ? { x: pos.x, y: pos.y, z: pos.z } : null,
+      crouching: !!player?.crouchBool,
+      pitch: player?.view.pitch ?? 0,
+      yaw: player?.view.yaw ?? 0,
       weapon,
       weaponAttachments: def?.attachments || { optic: "standard", grip: "standard" },
       weaponHandling: def?.handling || null,
@@ -948,27 +985,27 @@ window.__vb = {
       settingsOpen: !!game.hud.settingsOpen,
       volume: game.session.masterVolume,
       fov: game.session.baseFov,
-      panic: game.player.panic,
-      exhaustion: game.player.exhaustion,
-      pain: game.player.pain,
-      spawnProtected: game.player.spawnProtected,
+      panic: player?.panic ?? 0,
+      exhaustion: player?.exhaustion ?? 0,
+      pain: player?.pain ?? 0,
+      spawnProtected: !!player?.spawnProtected,
       ownBodyVisible: !!game.ownBody?.group.visible,
       dyingAvatars: counters.dyingAvatars || 0,
       runningAvatars: counters.runningAvatars || 0,
       maxAvatarSpeed: counters.maxAvatarSpeed || 0,
       scopeActive: !!game.weapon?.scopeActive,
-      scopeZoom: game.player.scopeZoom,
-      recoilClimb: { ...game.player.recoilClimb },
-      reconcileOffset: Math.hypot(
-        game.player.reconcileOffset.x,
-        game.player.reconcileOffset.y,
-        game.player.reconcileOffset.z,
-      ),
+      scopeZoom: player?.scopeZoom ?? 1,
+      recoilClimb: { ...(player?.recoilClimb || {}) },
+      reconcileOffset: player ? Math.hypot(
+        player.reconcileOffset.x,
+        player.reconcileOffset.y,
+        player.reconcileOffset.z,
+      ) : 0,
       device: game.input.deviceInfo(),
       shader: game.post?.stats || null,
-      geometries: info.memory.geometries,
-      textures: info.memory.textures,
-      drawCalls: info.render.calls,
+      geometries: info.memory.geometries ?? 0,
+      textures: info.memory.textures ?? 0,
+      drawCalls: info.render.calls ?? 0,
       sceneObjects: game.worldview?.scene.children.length || 0,
       hist,
       ringLen: snapshots.length,
@@ -1020,16 +1057,129 @@ if (debugMode) {
 
 const accountKeybindings = new AccountKeybindings();
 window.addEventListener('vb-account-change', event => accountKeybindings.setAccount(event.detail.user?.id || null));
-const accounts = new AccountMenu({ onOpen: () => { if (career.dialog.open) career.dialog.close(); if (customization.dialog.open) customization.dialog.close(); } });
+let customization = null;
+const accounts = new AccountMenu({ onOpen: () => { if (career.dialog.open) career.dialog.close(); if (customization?.dialog.open) customization.dialog.close(); } });
 const career = new CareerShop({ accounts });
-const customization = new WeaponCustomization({ accounts });
+
+// Background tasks in the order a match needs them. Each loader reports the
+// real responses it observes; nothing is timed.
+assets.define('models', { label: 'WEAPON & OPERATOR MODELS', weight: 55,
+  load: (report) => observeResources(/\/assets\/blender\//, report, () => import('./engine/blender-assets.js')) });
+assets.define('runtime', { label: 'ARENA & COMBAT SYSTEMS', weight: 20,
+  load: (report) => observeResources(/\.js(\?|$)/, report, async () => {
+    runtime = await import('./boot/match-runtime.js');
+    applySnapshotBlocks = runtime.applySnapshotBlocks;
+    return runtime;
+  }) });
+assets.define('audio', { label: 'SOUND SAMPLES', weight: 10,
+  load: (report) => observeResources(/\/assets\/audio\//, report, () => sfx.preloadSamples()) });
+assets.define('armory', { label: 'ARMORY', weight: 5, load: async () => {
+  const { WeaponCustomization } = await import('./ui/weapon-customization.js');
+  customization ??= new WeaponCustomization({ accounts });
+  return customization;
+} });
+assets.define('art', { label: 'SKYBOXES & HUD ART', weight: 5, load: (report) => prefetchArt(report) });
+
+/** Count matching resource responses while `run` is pending; detail is files and bytes. */
+function observeResources(pattern, report, run) {
+  let files = 0, bytes = 0, observer = null;
+  const note = (entries) => {
+    for (const entry of entries) {
+      if (!pattern.test(entry.name)) continue;
+      files++;
+      bytes += entry.transferSize || entry.encodedBodySize || 0;
+    }
+    const size = bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : bytes > 0 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : '';
+    report({ detail: `${files} FILES${size ? ` · ${size}` : ''}` });
+  };
+  try {
+    observer = new PerformanceObserver((list) => note(list.getEntries()));
+    observer.observe({ type: 'resource', buffered: false });
+  } catch { /* the detail line is optional */ }
+  return Promise.resolve().then(run).finally(() => observer?.disconnect());
+}
+
+/** Warm the HTTP cache for the skyboxes and HUD icons the first match will request. */
+async function prefetchArt(report) {
+  const grenadeIcon = (id) => `./assets/grenades/hud/${id}.${['smoke', 'limpet'].includes(id) ? 'svg' : 'png'}`;
+  const urls = [...new Set([
+    ...Object.keys(MAP_LABELS).map((map) => mapAtmosphere(map)?.skybox).filter(Boolean),
+    ...WEAPON_IDS.map(weaponImagePath),
+    ...GRENADE_TYPE_IDS.map(grenadeIcon),
+  ])];
+  let done = 0;
+  await Promise.allSettled(urls.map(async (url) => {
+    try { await fetch(url, { priority: 'low' }); } catch { /* optional warm-up */ }
+    done++;
+    report({ done, total: urls.length, detail: `${done} / ${urls.length} FILES` });
+  }));
+  return urls.length;
+}
+
+// Small "preparing assets 2 / 5" line in the menu; hidden once idle or in a match.
+const assetStatusDom = {
+  root: document.getElementById('asset-status'),
+  count: document.getElementById('asset-status-count'),
+  label: document.getElementById('asset-status-label'),
+  detail: document.getElementById('asset-status-detail'),
+};
+function renderAssetStatus() {
+  const { root, count, label, detail } = assetStatusDom;
+  if (!root) return;
+  const status = assets.status;
+  const inMatch = document.getElementById('hud')?.classList.contains('hidden') === false;
+  root.hidden = status.idle || inMatch;
+  if (root.hidden) return;
+  const countText = `${status.done} / ${status.total}`;
+  if (count.textContent !== countText) count.textContent = countText;
+  const labelText = status.active?.label || '';
+  if (label.textContent !== labelText) label.textContent = labelText;
+  const detailText = status.active?.detail || '';
+  if (detail.textContent !== detailText) detail.textContent = detailText;
+}
+
+// The ARMORY entry is part of the menu from the first paint; its dialog module
+// (weapon previews need three.js and the Blender library) opens once loaded.
+function mountArmoryButton() {
+  const nav = document.querySelector('#menu .vb-main-nav');
+  if (!nav || document.getElementById('workshop-open')) return;
+  const open = document.createElement('button');
+  open.type = 'button';
+  open.id = 'workshop-open';
+  open.className = 'vb-main-nav-button';
+  open.textContent = 'ARMORY';
+  open.setAttribute('aria-haspopup', 'dialog');
+  open.addEventListener('click', () => {
+    open.setAttribute('aria-busy', 'true');
+    assets.require(['armory']).then(({ armory }) => {
+      if (open.isConnected && document.getElementById('hud')?.classList.contains('hidden')) armory.open();
+    }).catch(() => {}).finally(() => open.removeAttribute('aria-busy'));
+  });
+  const careerButton = document.getElementById('career-open');
+  if (careerButton) nav.insertBefore(open, careerButton);
+  else nav.append(open);
+}
+
+window.__vbAssets = Object.freeze({
+  get status() { return assets.status; },
+  get idle() { return assets.status.idle; },
+  require: (ids) => assets.require(ids),
+});
+
 loadingScreen?.update('Loading your account…');
 loadingScreen?.step('account', { status: 'active' });
-window.__vbBoot?.phases && (window.__vbBoot.phases.models = Math.round(performance.now() - window.__vbBoot.startedAt));
 await accounts.start();
+window.__vbBoot?.phases && (window.__vbBoot.phases.account = Math.round(performance.now() - window.__vbBoot.startedAt));
 loadingScreen?.step('account', { status: 'done' });
 loadingScreen?.update('Loading your career and equipment…');
 loadingScreen?.step('career', { status: 'active' });
 await career.start();
+window.__vbBoot?.phases && (window.__vbBoot.phases.career = Math.round(performance.now() - window.__vbBoot.startedAt));
 loadingScreen?.step('career', { status: 'done' });
 game.session.start();
+window.__vbBoot?.phases && (window.__vbBoot.phases.menu = Math.round(performance.now() - window.__vbBoot.startedAt));
+
+// The menu is interactive now. Let it paint, then load the rest in the background.
+const startBackgroundLoads = () => { void assets.startAll(); };
+requestAnimationFrame(() => setTimeout(startBackgroundLoads, 0));
+setTimeout(startBackgroundLoads, 1000);
