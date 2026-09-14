@@ -73,7 +73,12 @@ try {
   mapHost.send({ t: 'configure', gameMode: 'snd', map: 'harbor', bots: 30 });
   mapHost.send({ t: 'configure', gameMode: 'snd', map: 'canyon', bots: 30 });
   for (const [index, observer] of [mapHost, mapGuest].entries()) {
-    const changed = await observer.waitForJson(m => m.t === 'lobbyState' && m.map === 'canyon', 'consecutive large map replacements', mapMarks[index]);
+    const first = await observer.waitForJsonFrame(m => m.t === 'lobbyConfig' && m.map === 'harbor',
+      'first large map replacement', mapMarks[index]);
+    const second = await observer.waitForJsonFrame(m => m.t === 'lobbyConfig' && m.map === 'canyon',
+      'second large map replacement', first.seq);
+    await observer.waitForFrame(frame => frame.kind === 'binary', 'second complete large map', second.seq);
+    const changed = await observer.waitForJson(m => m.t === 'lobbyState' && m.map === 'canyon', 'consecutive large map replacements', second.seq);
     assert.equal(changed.members.length, 32);
     assert.deepEqual(teamCounts(changed.members), { alpha: 16, bravo: 16 });
     assert.equal(observer.framesAfter(mapMarks[index]).filter(frame => frame.kind === 'binary').length, 2);

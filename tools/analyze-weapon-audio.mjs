@@ -6,6 +6,8 @@ import { WEAPON_IDS } from '../shared/combatmath.js';
 import { BUILTIN_SAMPLE_MANIFEST } from '../public/js/audio/samples.js';
 import { DEFAULT_MENU_TRACK, MENU_GAIN } from '../public/js/audio/music.js';
 import { fireSampleProfile } from '../public/js/audio/reports.js';
+import { CAREER_CATALOG } from '../shared/career.js';
+import { COSMETIC_AUDIO_CHANNELS, cosmeticSoundUrl } from '../public/js/audio/cosmetics.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SAMPLE_RATE = 48_000;
@@ -49,6 +51,17 @@ function bundledAssets() {
     gain: MENU_GAIN,
     rate: 1,
   }));
+  // Kept as a shipped legacy asset in menu-foundry-assault.sources.json.
+  assets.push(Object.freeze({ slot: 'music.menu.legacy',
+    url: '/assets/audio/music/menu-industrial.ogg', kind: 'music', weapon: null,
+    gain: MENU_GAIN, rate: 1 }));
+  for (const item of CAREER_CATALOG.filter(item => item.kind === 'sound')) {
+    for (const cue of Object.keys(COSMETIC_AUDIO_CHANNELS)) {
+      assets.push(Object.freeze({ slot: `cosmetics.${item.id}.${cue}`,
+        url: cosmeticSoundUrl(item.id, cue), kind: 'cosmetic', weapon: null,
+        gain: 0.65, rate: 1 }));
+    }
+  }
   return Object.freeze(assets);
 }
 

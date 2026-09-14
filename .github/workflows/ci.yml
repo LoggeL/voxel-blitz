@@ -15,6 +15,8 @@ jobs:
   contracts:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      VB_BROWSER: /usr/bin/google-chrome
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -23,6 +25,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      - run: node tools/sniper-redesign-browser-test.mjs
 
   postgres:
     runs-on: ubuntu-latest

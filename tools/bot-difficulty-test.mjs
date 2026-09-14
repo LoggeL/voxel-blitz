@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { setTimeout as delay } from 'node:timers/promises';
 import { BOT_DIFFICULTIES, DEFAULT_BOT_DIFFICULTY } from '../shared/bot-difficulty.js';
 import { observeBotTarget, recognitionThreshold } from '../server/bot-perception.js';
 import { mulberry32 } from '../shared/noise.js';
@@ -51,7 +52,11 @@ try {
     assert.ok([...room.members.values()].every(member => !member.ready), 'changes invalidate readiness');
     assert.equal(manager.configure(host, { gameMode, map: 'canyon', bots: 3 }), true);
     assert.deepEqual([...room.botDifficulties.values()], ['hard', 'normal', 'easy'], 'map change keeps eachbot');
-    manager.ready(host, true); manager.ready(guest, true); manager.start(host); room.engine.stop();
+    await delay(Math.max(0, Math.ceil(Math.max(host.readyChangeAllowedAt, guest.readyChangeAllowedAt) - performance.now())));
+    assert.equal(manager.ready(host, true), true);
+    assert.equal(manager.ready(guest, true), true);
+    assert.equal(manager.start(host), true);
+    room.engine.stop();
     assert.deepEqual(room.botManager.brains.map(brain => brain.difficulty), ['hard', 'normal', 'easy'], 'live brains receive individualprofiles');
     assert.equal(manager.setBotDifficulty(host, 'bot-0', 'easy'), false, 'live roster islocked');
     manager.leave(host); manager.leave(guest);

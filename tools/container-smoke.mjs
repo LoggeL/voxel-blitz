@@ -10,7 +10,7 @@ const HARD_TIMEOUT_MS = 15_000;
 const PLAYER_KEYS = PLAYER_KEY_LIST.split(',');
 const MATCH_KEYS = MATCH_KEY_LIST.split(',');
 const WELCOME_KEYS = [
-  'blockDamage', 'gameMode', 'id', 'lobby', 'map', 'mapBytes', 'phase', 'spawn', 't',
+  'blockDamage', 'gameMode', 'id', 'lobby', 'map', 'mapBytes', 'mastery', 'phase', 'spawn', 't',
   'tickRate', 'weaponLoadout',
 ];
 const LOBBY_KEYS = [

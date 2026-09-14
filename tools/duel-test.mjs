@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { setTimeout as delay } from 'node:timers/promises';
 import { readFileSync } from 'node:fs';
 import { WeaponState } from '../public/js/guns/weapon-state.js';
 import { LobbyManager } from '../server/lobby.js';
@@ -36,6 +37,7 @@ try {
   assert.ok([...room.members.values()].every(m => !m.ready));
   assert.equal(messages.filter(m => m.t === 'lobbyState').at(-1).duelKillLimit, 10);
   assert.equal(manager.configure(host, { ...settings, duelKillLimit: 5 }), true);
+  await delay(Math.max(0, Math.ceil(host.readyChangeAllowedAt - performance.now())));
   manager.ready(host, true);
   manager.ready(guest, true);
   assert.equal(manager.start(host), true);

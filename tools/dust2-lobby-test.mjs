@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { setTimeout as delay } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import { createMapState } from '../shared/worlddata.js';
 import { boxCollides } from '../shared/player-movement.js';
@@ -67,6 +68,7 @@ try {
     await configure(host, [host, guest], 'dust2', mode);
 
     const startMarks = [host.mark(), guest.mark()];
+    await delay(2000);
     host.send({ t: 'ready', value: true });
     guest.send({ t: 'ready', value: true });
     await host.waitForJson(m => m.t === 'lobbyState' && m.members.filter(member => !member.bot).every(member => member.ready),

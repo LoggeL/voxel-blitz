@@ -171,6 +171,15 @@ export async function launchCdpSession(url, {
     url,
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
+  // Drain both pipes so browser diagnostics cannot block Chromium startup.
+  let browserDiagnostics = '';
+  let launchError = null;
+  child.stdout.resume();
+  child.stderr.on('data', chunk => {
+    browserDiagnostics = (browserDiagnostics + chunk).slice(-8_000);
+  });
+  child.on('error', error => { launchError = error; });
+
   let connection = null;
   try {
     const port = await readDebugPort(profileDir, child);
@@ -207,6 +216,6 @@ export async function launchCdpSession(url, {
       try { child.kill('SIGKILL'); } catch {}
     }
     await removeBrowserProfile(profileDir);
-    throw error;
+    throw new Error(`${launchError?.message || error.message}${browserDiagnostics ? `\n${browserDiagnostics}` : ''}`, { cause: error });
   }
 }

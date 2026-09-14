@@ -116,7 +116,7 @@ function assertWelcome(welcome, { gameMode = DEFAULT_GAME_MODE, map = DEFAULT_MA
   const lobbyKeys = Object.keys(welcome?.lobby || {}).sort().join(',');
   const spawnKeys = Object.keys(welcome?.spawn || {}).sort().join(',');
   pass(welcome?.t === 'welcome' &&
-    topKeys === 'blockDamage,gameMode,id,lobby,map,mapBytes,phase,spawn,t,tickRate,weaponLoadout' &&
+    topKeys === 'blockDamage,gameMode,id,lobby,map,mapBytes,mastery,phase,spawn,t,tickRate,weaponLoadout' &&
     Array.isArray(welcome.blockDamage) &&
     lobbyKeys === 'code,role' &&
     spawnKeys === 'x,y,z',
@@ -495,6 +495,7 @@ async function runContracts(server, signal) {
   const editingLate = await admit(makeClient(port, 'Editing-Late'),
     { t: 'join', name: 'Editing-Late', lobby: editCode }, signal, { gameMode: 'tdm', map: 'depot' });
   pass(editingLate.initialState.bots === 5, 'new arrivals receive current settings while the host configures');
+  await sleep(2000, signal); // Settings reset readiness, not the anti-spam timer.
   for (const client of [editor, peer, editingLate]) {
     const readyMark = editor.mark();
     client.send({ t: 'ready', value: true });
@@ -690,11 +691,13 @@ async function runContracts(server, signal) {
   pass(/only the host/i.test(nonHostError.msg) && gateGuest.ws.readyState === WebSocket.OPEN,
     'nonhost start is rejected without disconnect');
   mark = gateHost.mark();
+  await sleep(2000, signal);
   gateGuest.send({ t: 'ready', value: false });
   state = await nextLobbyState(gateHost, mark, gateCode, signal);
   pass(humanRows(state).find((row) => row.id === gateGuest.welcome.id)?.ready === false,
     'a rejected nonhost can still update readiness');
   mark = gateHost.mark();
+  await sleep(2000, signal);
   gateGuest.send({ t: 'ready', value: true });
   await nextLobbyState(gateHost, mark, gateCode, signal);
 

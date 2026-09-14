@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { access, mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { access, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -47,7 +47,8 @@ async function installedHeadlessShells() {
   return candidates;
 }
 
-export async function executableBrowser(explicitPath) {
+export async function executableBrowser(explicitPath = process.env.VB_BROWSER) {
+  explicitPath ||= process.env.VB_BROWSER;
   const candidates = explicitPath
     ? [explicitPath]
     : [...await installedHeadlessShells(), ...DEFAULT_BROWSER_PATHS];
@@ -144,4 +145,22 @@ export async function captureBrowserPage({
     }
   }
   throw lastError;
+}
+
+/** Asset-backed captures wait for decoded textures and a completed render.
+ * A virtual-time dump can finish before ImageBitmap decoding resolves.
+ */
+export async function captureReadyBrowserPage({ browser, url, output, dimensions, readyMarkers, minBytes = 10_000 }) {
+  const { launchCdpSession } = await import('./cdp-session.mjs');
+  const session = await launchCdpSession(url, { browser, ...dimensions });
+  try {
+    await session.page.waitFor(`${JSON.stringify(readyMarkers)}.every(marker => document.documentElement.outerHTML.includes(marker))`,
+      { timeoutMs: 30000, label: 'asset capture ready' });
+    if (session.page.errors.length) throw new Error(session.page.errors.join('\n'));
+    const shot = await session.page.send('Page.captureScreenshot', { format: 'png' });
+    const bytes = Buffer.from(shot.data, 'base64');
+    if (bytes.length < minBytes) throw new Error(`invalid screenshot output: ${output}`);
+    await writeFile(output, bytes);
+    return bytes.length;
+  } finally { await session.close(); }
 }

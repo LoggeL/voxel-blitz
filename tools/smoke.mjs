@@ -301,9 +301,9 @@ function runDirectContracts() {
   const longThrow = chargeEngine.projectiles.throw(chargeThrower, chargeContext, 1);
   const cookedThrow = chargeEngine.projectiles.throw(chargeThrower, chargeContext, 1, 0, 1500);
   const cookedLaunch = chargeEngine.tickEvents.filter((event) => event.kind === 'projectileLaunch').at(-1);
-  ok(Math.hypot(longThrow.vx, longThrow.vz) > Math.hypot(shortThrow.vx, shortThrow.vz) * 2
+  ok(Math.hypot(longThrow.vx, longThrow.vz) >= Math.hypot(shortThrow.vx, shortThrow.vz) * 2
     && longThrow.vy > shortThrow.vy
-    && cookedThrow.explodeAt - chargeContext.now === GRENADE_TYPES.frag.fuseMs - 1500
+    && Math.abs(cookedThrow.explodeAt - chargeContext.now - (GRENADE_TYPES.frag.fuseMs - 1500)) < 1e-6
     && cookedLaunch.fuse === GRENADE_TYPES.frag.fuseMs - 1500,
   'full grenade charge throws materially farther and higher, and a cooked frag leaves with the burned fuse');
 

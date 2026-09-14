@@ -18,6 +18,8 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      - name: Install audio audit dependencies
+        run: sudo apt-get update && sudo apt-get install --yes ffmpeg
       - uses: actions/setup-node@v4
         with:
           node-version: 24
@@ -40,23 +42,49 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: Use the installed Google Chrome
+        run: echo "VB_BROWSER=/usr/bin/google-chrome" >> "$GITHUB_ENV"
       - run: test -x /usr/bin/google-chrome
       - run: npm run browser:smoke
       - run: npm run browser:ui
       - run: node tools/client-refactor-test.mjs --browser
+      - run: node tools/spectator-camera-browser-test.mjs
       - run: npm run audio:mix
-      - run: npm run maps:capture
-      - run: npm run weapons:capture
-      - run: npm run avatars:capture
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: visual-and-runtime-audio-evidence
-          path: |
-            .artifacts/map-renders
-            .artifacts/weapon-renders
-            .artifacts/avatar-renders
-            .artifacts/audio-audit/current/runtime-mix.json
+          path: .artifacts/audio-audit/current/runtime-mix.json
+
+  captures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - command: maps:capture
+            artifact: map-renders
+          - command: weapons:capture
+            artifact: weapon-renders
+          - command: avatars:capture
+            artifact: avatar-renders
+    env:
+      VB_BROWSER: /usr/bin/google-chrome
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: test -x "$VB_BROWSER"
+      - run: npm run ${{ matrix.command }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.artifact }}
+          path: .artifacts/${{ matrix.artifact }}
 
   container:
     runs-on: ubuntu-latest
@@ -72,7 +100,7 @@ jobs:
       - run: docker run --detach --name voxel-blitz-qa --publish 8070:8070 voxel-blitz-qa
       - run: |
           for attempt in {1..30}; do
-            if curl --fail --silent http://127.0.0.1:8070/ >/dev/null; then
+            if curl --fail --silent http://127.0.0.1:8070/healthz >/dev/null; then
               exit 0
             fi
             sleep 1

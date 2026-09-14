@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { setTimeout as delay } from 'node:timers/promises';
 import { LobbyManager } from '../server/lobby.js';
 import { startServer, stopServer } from './lib/server-process.mjs';
 import { Client } from './lib/ws-client.mjs';
@@ -37,7 +38,11 @@ for (const gameMode of ['tdm', 'snd']) {
     assert.ok(distance(pool) < distance(room.engine.mode.policy.spawnPoolFor(enemy)),
       'safe spawn stays closer to the selected team area');
   }
-  manager.ready(host, true); manager.ready(guest, true);
+  // Configuration clears readiness but retains each player's anti-spam timer.
+  const readyDelay = Math.max(host.readyChangeAllowedAt, guest.readyChangeAllowedAt) - performance.now();
+  if (readyDelay > 0) await delay(Math.ceil(readyDelay));
+  assert.equal(manager.ready(host, true), true);
+  assert.equal(manager.ready(guest, true), true);
   assert.equal(manager.start(host), true);
   room.engine.stop();
   assert.equal(room.engine.mode.teamFor(host.id), 'bravo', 'launch keeps human selections');

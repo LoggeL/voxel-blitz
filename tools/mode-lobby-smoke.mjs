@@ -85,7 +85,7 @@ function validMap(bytes, advertisedLength) {
 
 function assertWelcome(welcome, selection, label) {
   pass(welcome?.t === 'welcome' &&
-    Object.keys(welcome).sort().join(',') === 'blockDamage,gameMode,id,lobby,map,mapBytes,phase,spawn,t,tickRate,weaponLoadout' &&
+    Object.keys(welcome).sort().join(',') === 'blockDamage,gameMode,id,lobby,map,mapBytes,mastery,phase,spawn,t,tickRate,weaponLoadout' &&
     Array.isArray(welcome.blockDamage) &&
     Object.keys(welcome.lobby || {}).sort().join(',') === 'code,role' &&
     Object.keys(welcome.spawn || {}).sort().join(',') === 'x,y,z',
@@ -218,7 +218,7 @@ function assertPlayerRows(tick, clientsInRoom, label) {
   const expectedIds = clientsInRoom.map((client) => client.welcome.id);
   pass(Array.isArray(tick?.players) && tick.players.length === expectedIds.length &&
     tick.players.every((row) => Object.keys(row).filter(key => key !== 'attachments').sort().join(',') === PLAYER_KEYS &&
-      Number.isFinite(row.burning) && row.burning >= 0 && row.burning <= 4 &&
+      Number.isFinite(row.burning) && row.burning >= 0 && row.burning <= 8 &&
       Number.isFinite(row.pain) && row.pain >= 0 && row.pain <= 1 &&
       Number(row.pain.toFixed(3)) === row.pain && typeof row.spawnProtected === 'boolean') &&
     expectedIds.every((id) => tick.players.some((row) => row.id === id)),

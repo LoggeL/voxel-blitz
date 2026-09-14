@@ -80,7 +80,8 @@ try {
   const round = rocket.extra.userData.reloadRounds;
   const gate = rocket.extra.userData.rocketReload.gate;
   action.update(0.35, 0, rocket, rocket.T);
-  assert.ok(Math.abs(gate.rotation.y) > 1.2, 'rocket has a fully open rear breech');
+  assert.ok(gate.position.z > rocket.extra.userData.rocketReload.rearZ + 0.1
+    && gate.rotation.x > 0.9, 'rocket breech slides clear of the tube and flips open');
   action.update(0.50, 0, rocket, rocket.T);
   assert.equal(round.visible, true, 'a complete new rocket is drawn');
   action.update(0.68, 0, rocket, rocket.T);
@@ -91,10 +92,11 @@ try {
   assert.ok(round.position.z < alignedZ - 0.4, 'rocket is inserted forward along the bore axis');
   action.update(0.94, 0, rocket, rocket.T);
   assert.equal(round.visible, false, 'seated rocket is inside the tube');
-  assert.ok(Math.abs(gate.rotation.y) < 1e-9, 'rear breech latches closed');
+  assert.ok(Math.abs(gate.rotation.x) < 1e-9, 'rear breech latches closed');
   action.cancelReload(rocket);
   assert.equal(round.visible, false);
-  assert.equal(gate.rotation.y, 0);
+  assert.equal(gate.rotation.x, 0);
+  assert.equal(gate.position.z, rocket.extra.userData.rocketReload.rearZ);
 
   const shotgun = modelFor('shotgun');
   const stage = WEAPONS.shotgun.reloadStages;
@@ -115,7 +117,8 @@ try {
   action.startReload(0, 1, 'magswap', sniper.T);
   action.update(0.5, 0, sniper, sniper.T);
   assert.ok(sniper.bolt.position.z > 0.15, 'sniper bolt stays open while loading rounds');
-  assert.ok(sniper.extra.userData.cartridges.some(cartridge => cartridge.visible));
+  // PEREGRINE has no procedural cartridges. Actual loaded rounds and their
+  // visibility are covered by sniper-redesign-browser-test.mjs in CI.
   action.cancelReload(sniper);
   assert.equal(sniper.bolt.position.length(), 0);
   assert.equal(action.startReload(0, 1, 'magswap', modelFor('knife').T), false, 'melee never receives a reload animation');

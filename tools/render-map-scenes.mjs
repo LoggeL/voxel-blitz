@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MAP_CAPTURE_SHOTS } from '../shared/map-capture-shots.js';
-import { captureBrowserPage } from './lib/browser-capture.mjs';
+import { captureReadyBrowserPage as captureBrowserPage } from './lib/browser-capture.mjs';
 import { parseCaptureArgs, runCaptureFlow } from './lib/capture-flow.mjs';
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
