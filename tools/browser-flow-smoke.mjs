@@ -596,27 +596,43 @@ async function main() {
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
     await page.waitFor(`!window.__vb.wheelOpen && window.__vb.stats.weapon === 'flamethrower'`,
       { label: 'flamethrower equipped' });
-    const stream = await page.evaluate(`(async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+    await page.evaluate(`(() => {
       const fire = document.getElementById('touch-fire');
       const dispatch = type => fire.dispatchEvent(new PointerEvent(type,
         { bubbles: true, pointerId: 81, pointerType: 'touch', clientX: 0, clientY: 0 }));
-      const before = window.__vb.stats.flameStream.fuel;
+      const result = window.__flameCheck = {
+        before: window.__vb.stats.flameStream.fuel, samples: [], released: false, drained: false,
+      };
+      let started = null;
+      let releasing = false;
+      // Sample completed render frames. On software-rendered CI a 100 ms timer
+      // can read the same frame repeatedly, before held/released input is drawn.
+      const sample = now => {
+        const state = window.__vb.stats.flameStream;
+        if (!releasing) {
+          if (started === null && state.active && state.particles > 0) started = now;
+          if (started !== null) {
+            result.samples.push(state);
+            if (now - started >= 1000 && result.samples.length >= 3) {
+              dispatch('pointerup');
+              releasing = true;
+            }
+          }
+        } else {
+          result.released ||= !state.active;
+          result.drained = result.released && state.particles === 0;
+          if (result.drained) return;
+        }
+        requestAnimationFrame(sample);
+      };
       dispatch('pointerdown');
-      const samples = [];
-      for (let i = 0; i < 12; i++) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        samples.push(window.__vb.stats.flameStream);
-      }
-      dispatch('pointerup');
-      await new Promise(resolve => setTimeout(resolve, 100));
-      const released = !window.__vb.stats.flameStream.active;
-      const { FLAME_RULES } = await import('/shared/flame-rules.js');
-      await new Promise(resolve => setTimeout(resolve, FLAME_RULES.range / FLAME_RULES.speed * 1000 + 350));
-      return { before, samples, released, drained: window.__vb.stats.flameStream.particles === 0 };
+      requestAnimationFrame(sample);
     })()`);
+    await page.waitFor('window.__flameCheck.drained', { timeoutMs: 30000,
+      label: 'flamethrower activation, held frames, release and particle drain' });
+    const stream = await page.evaluate('window.__flameCheck');
     console.log('live flame stream samples:', JSON.stringify(stream));
-    requireCondition(stream.samples.slice(2).every(s => s.active && s.particles > 0)
+    requireCondition(stream.samples.length >= 3 && stream.samples.every(s => s.active && s.particles > 0)
       && stream.before - stream.samples.at(-1).fuel >= 15 && stream.released && stream.drained,
       'live held flamethrower consumes fuel continuously, keeps its jet visible, stops on release and drains particles');
 

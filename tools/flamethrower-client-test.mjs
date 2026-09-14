@@ -109,12 +109,15 @@ console.log('Chaos side flames render for local and remote shooters without repl
 {
   const flame = new FlameFX(new THREE.Scene(), () => 0);
   try {
-    flame.shoot({ o: [0, 2, 0], d: [0, 0, -1] });
+    // The raycaster treats y < 0 as solid even with an empty block getter.
+    // Keep every randomly spread particle above that floor for the full flight.
+    const origin = new THREE.Vector3(0, FLAME_RULES.range + 2, 0);
+    flame.shoot({ o: origin.toArray(), d: [0, 0, -1] });
     const puff = flame.puffs[0];
     assert.equal(puff.life, FLAME_RULES.range / FLAME_RULES.speed,
       'visual lifetime follows the same thirty-two-metre flight as the server');
     flame.update(0.8);
-    assert.ok(puff.position.length() > 23 && puff.age < puff.life,
+    assert.ok(puff.position.distanceTo(origin) > 23 && puff.age < puff.life,
       'flame visuals visibly travel beyond the previous eighteen-metre reach');
     flame.update(FLAME_RULES.range / FLAME_RULES.speed);
     assert.equal(flame.geometry.instanceCount, 0, 'extended flight still expires');
