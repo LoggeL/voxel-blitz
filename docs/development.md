@@ -378,7 +378,7 @@ the attempt. Death or disconnect releases the course for the next runner.
 
 ### Map compatibility
 
-Harbor and Canyon are 192 × 144 × 40 voxels. Existing maps retain 128 × 96 × 40 dimensions. Binary world headers carry each map's actual dimensions; voxel indices, chunk counts, projectile bounds and spawn pools use those dimensions.
+Harbor and Canyon are 192 × 144 × 40 voxels; Minecraft B5 is 128 × 96 × 88 so the Nether fits under the island. Existing maps retain 128 × 96 × 40 dimensions. Binary world headers carry each map's actual dimensions; voxel indices, chunk counts, projectile bounds and spawn pools use those dimensions.
 
 | map id | modes | identity |
 |---|---|---|
@@ -393,7 +393,7 @@ Harbor and Canyon are 192 × 144 × 40 voxels. Existing maps retain 128 × 96 ×
 | `nuketown` | Fun, Chaos Lab, TDM, S&D, Gun Game | furnished houses, school bus, moving truck and backyard routes |
 | `dust2` | Fun, Chaos Lab, TDM, S&D, Gun Game | Long A, Short/Catwalk, Mid Doors, B Tunnels and raised A site |
 | `killhouse` | Training | weapon-test firing range with respawning dummies and a timed 4-stage killhouse course |
-| `substation` | Fun, TTT, 1v1, Chaos Lab, TDM, Gun Game, Training | Blender-authored electrical switchyard (`docs/design/blender/substation/`): control house roof perch, four transformer bays, workshop, reactor pad and ten range dummies |
+| `minecraft_b5` | Fun, TTT, 1v1, Chaos Lab, TDM, Gun Game | block-for-block replica of `ttt_minecraft_b5` (`docs/maps/minecraft-b5.md`): island village, lighthouse, mine rails, swimmable ocean, working Nether portals and the Nether below |
 
 ## Mode-specific HUD and scoreboards
 

@@ -57,10 +57,11 @@ const SIGNS = {
     ['THE COURSE', 'ENTRY', 15, 20.5, 50, 6.7, 0.85, '+z'],
     ['RANGE RULES', 'KEEP MUZZLE DOWNRANGE', 54, 20.5, 90, 12, 1, '-z'],
   ],
-  substation: [
-    ['CONTROL HOUSE', 'SWITCHYARD 04', 64, 19.5, 36, 8, 1, '-z'],
-    ['WORKSHOP', 'MAINTENANCE / 02', 16, 19.5, 38, 6, 1, '-z'],
-    ['DANGER 230 kV', 'AUTHORISED ONLY', 64, 19.5, 60, 8, 1, '+z'],
+  // Painted on original wool, stone and log walls of the replica.
+  minecraft_b5: [
+    ['LIGHTHOUSE', 'WEST SHORE', 27.5, 60, 25, 2.6, 1.3, '+z'],
+    ['NETHER PORTAL', 'OBSIDIAN GATE', 89.5, 51, 23, 2.6, 1.3, '+z'],
+    ['VILLAGE', 'EAST HOUSES', 82.5, 56, 30, 2.6, 1.3, '-z'],
   ],
 };
 const COLORS = {
@@ -70,7 +71,7 @@ const COLORS = {
   caldera: ['#433b40', '#ffd1a0'], nuketown: ['#427268', '#fff0cd'],
   dust2: ['#d9bd86', '#823e2b'],
   killhouse: ['#263848', '#ffcf77'],
-  substation: ['#22303a', '#ffd34d'],
+  minecraft_b5: ['#6b4a2a', '#f3e6c8'],
 };
 const supportsPaint = type => type !== AIR && type !== GLASS;
 

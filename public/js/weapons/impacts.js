@@ -29,6 +29,12 @@ const BLOCK_TINTS = Object.freeze({
   18: 0x716052,
   19: 0xe5b537,
   20: 0xb74538,
+  // Minecraft B5 materials.
+  36: 0x689e42, 37: 0x79583c, 38: 0x7d7d7d, 39: 0x848484, 40: 0x6b8a52, 41: 0xdbd2a0,
+  42: 0x847e7c, 43: 0x9ea4b0, 44: 0x685232, 45: 0x2e6e20, 46: 0xad8a54, 47: 0xb6d4e4,
+  48: 0x96483a, 49: 0xad8a54, 50: 0xe4e4e4, 51: 0xb02e28, 52: 0xd6d6d6, 53: 0xf6ce3e,
+  54: 0x60ded6, 55: 0x7d7d7d, 56: 0x5a5a5a, 57: 0x180e24, 58: 0x743430, 59: 0xe8be5c,
+  60: 0xf6f8fc, 61: 0x5e9436, 62: 0x986a34, 63: 0x848484, 64: 0x846240, 65: 0xc42e28,
 });
 
 const NORMAL_IMPACT_PARTICLES = Object.freeze({
@@ -54,9 +60,10 @@ const SHARD_PARTICLES = Object.freeze({
 });
 
 export function blockSoundFor(type) {
-  if (type === 11) return 'glass';
-  if (type === 10 || type === 6 || type === 5) return 'wood';
-  if (type === 9 || type === 8 || type === 13 || type === 14) return 'metal';
+  if (type === 11 || type === 47) return 'glass';
+  if (type === 10 || type === 6 || type === 5 || type === 44 || type === 45 || type === 46
+    || type === 49 || type === 62 || type === 64) return 'wood';
+  if (type === 9 || type === 8 || type === 13 || type === 14 || type === 52 || type === 53 || type === 54) return 'metal';
   return 'stone';
 }
 

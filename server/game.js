@@ -6,6 +6,10 @@ import { FlameSystem, updateBurn } from './sim/fire.js';
 
 import {
   AIR,
+  MC_LAVA,
+  FLUID_BLOCKS,
+  isSolidBlock,
+  portalAt,
   worldDimensions,
   createMapState,
   getMapMeta,
@@ -18,7 +22,7 @@ import { KILLCAM, supportsKillcam } from '../shared/killcam-rules.js';
 import { makeSnapshot } from './protocol/snapshot.js';
 import { medkitMovement, medkitCombat } from '../shared/medkit.js';
 import { interruptMedkit, updateMedkit } from './sim/medkit.js';
-import { evKill, evRespawn, evDie } from './protocol/events.js';
+import { evKill, evRespawn, evDie, evHit } from './protocol/events.js';
 import { ModeController } from './modes.js';
 import {
   PlayerEntity,
@@ -42,6 +46,8 @@ import {
 } from '../shared/grenade-rules.js';
 
 const MAX_PITCH = (80 * Math.PI) / 180;
+const LAVA_DAMAGE = 12;
+const LAVA_DAMAGE_INTERVAL_S = 0.25;
 const SPAWN_PROTECTION_MS = 1500;
 
 export class GameEngine {
@@ -52,7 +58,9 @@ export class GameEngine {
       : DEFAULT_MAP_ID;
     this.world = callbacks.world || createMapState(fallbackMapId);
     this.mapMeta = callbacks.mapMeta || this.world.meta || getMapMeta(fallbackMapId);
-    this.solidAt = (x, y, z) => this.world.getBlock(x, y, z) !== AIR;
+    this.solidAt = (x, y, z) => isSolidBlock(this.world.getBlock(x, y, z));
+    this.fluidAt = (x, y, z) => FLUID_BLOCKS.has(this.world.getBlock(x, y, z));
+    this.teleportSerial = 0;
 
     this.defenderSolidAt = (x,y,z) => this.solidAt(x,y,z) || reactorDefenderSolid(x,y,z);
 
@@ -445,7 +453,31 @@ export class GameEngine {
     const ctx = this.contexts.movement;
     ctx.solidAt = this.mode.mode === 'bastion' && !player.npcRole ? this.defenderSolidAt : this.solidAt;
     ctx.movementLocked = !this.mode.canMove(player);
-    return stepMovement(player, dt, ctx);
+    const result = stepMovement(player, dt, ctx);
+    if (player.state === 'alive') this.applyMapVolumes(player, dt);
+    return result;
+  }
+
+  /** Authored portals move the body at once; lava burns anyone standing in it. */
+  applyMapVolumes(player, dt) {
+    const portal = portalAt(this.mapMeta, player.x, player.y + 0.5, player.z);
+    if (portal) {
+      Object.assign(player, { x: portal.x, y: portal.y, z: portal.z, yaw: portal.yaw,
+        vx: 0, vy: 0, vz: 0, vault: null, jumpGroundY: null, coyote: 0, grounded: false });
+      player.hist = [];
+      player.teleportSeq = ++this.teleportSerial;
+      return;
+    }
+    const feet = this.world.getBlock(Math.floor(player.x), Math.floor(player.y + 0.1), Math.floor(player.z));
+    const body = this.world.getBlock(Math.floor(player.x), Math.floor(player.y + 0.9), Math.floor(player.z));
+    if (feet !== MC_LAVA && body !== MC_LAVA) { player.lavaT = 0; return; }
+    player.lavaT = (player.lavaT || 0) + dt;
+    if (player.lavaT < LAVA_DAMAGE_INTERVAL_S) return;
+    player.lavaT -= LAVA_DAMAGE_INTERVAL_S;
+    const lethal = player.takeDamage(LAVA_DAMAGE, false, null, 'lava');
+    this.tickEvents.push(evHit('', player.id, LAVA_DAMAGE, false,
+      [player.x, player.y + 0.22, player.z], player.lastDamage));
+    if (lethal) this.killPlayer(player, null, 'lava', false, null);
   }
 
   forceRespawn(player) {

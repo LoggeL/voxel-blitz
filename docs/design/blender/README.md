@@ -247,92 +247,52 @@ reload fractions, and writes `bison-*.png` captures to
 `.artifacts/blender-integration/`. The lmg HUD icon now comes from the
 delivered BISON geometry through the browser renderer.
 
-## SUBSTATION: the first Blender-authored map
+## HANDS (first-person gloves), revision 2
 
-SUBSTATION (`substation`, "Substation" in the lobby) is a compact 128 × 96 × 40
-electrical switchyard: a two-storey control house with a roof perch reached by
-an external stair, four transformer bays behind concrete firewalls in the
-corners, a maintenance workshop with an open bay door in the west, a
-shunt-reactor pad and cable duct in the east, steel gantries with hanging
-insulators over the north and south lanes, rows of switchgear cabinets as mid
-cover and hazard-striped bollards at the road crossings. It offers Fun, TTT,
-1v1, Chaos Lab, TDM, Gun Game and Training (ten respawning range dummies on
-hazard markers; there is no timed course). Killhouse stays the default training
-map because it precedes Substation in `MAP_IDS`.
+HANDS supplies the first-person glove hands that `kit.glove()` mounts on every
+weapon's `hand_r` / `hand_l` group (the procedural box mitt remains the offline
+fallback). Two right-hand poses, `grip` (fist wrapped around a pistol grip,
+thumb laid across the index and middle stalls) and `support` (open cradle with
+relaxed fingers and an extended thumb); the support glove is the same geometry
+mirrored in x. Revision 2 replaces the first study, whose fingers left the palm
+without flexing at the base knuckle, wore ball joints that read as warts and
+whose 3.6 tiles/m webbing cuff looked like wicker at first-person size. The hand
+now matches RIVET: graphite half-finger gloves with bare middle and distal
+phalanges, an orange knuckle plate with four ribs, an ivory tendon plate and
+finger armor, a sand webbing wrist strap with buckle, the petrol suit sleeve
+widening toward the elbow and the ivory forearm bracer with its orange inset.
+88 authored parts, 14,912 triangles, 14 runtime primitives (one per pose and
+material), six shared ImageGen maps, each material at its own texture density
+(`uv_scale`, 4 to 15 tiles/m).
 
-### Files
+Glove-local frame (consumed verbatim, `GAME` is the identity): palm centre at
+the origin, back of the hand +y, knuckles -z, thumb -x, wrist, strap, sleeve
+and bracer at z > 0.018, nothing beyond a 0.25 m radius. Base knuckle line at
+z -0.040 (pinky) to -0.049 (middle); thumb root at (-0.036, -0.004, 0.012).
 
-- `substation/substation.blend`: editable study, six textures packed, own scene
-  `SUBSTATION | Voxel Blitz map study` with a `SUBSTATION study` collection and
-  a `SUBSTATION anchors` child collection of empties (spawns, dummy posts,
-  landmarks, power-up pads).
-- `substation/substation.glb`: portable GLB with JPEG maps, design reference only.
-- `substation/manifest.json`: parts, triangles, voxel histogram, anchors,
-  texture SHA-256 sums and the data-module hash.
-- `substation/textures/*.png` and `substation/imagegen-prompts.json`: the six
-  original Codex ImageGen materials with their prompts, source paths and sums.
-- `substation/render-hero.png`, `render-yard.png`, `render-control.png`,
-  `render-preview.png`: Cycles CPU renders (40 samples) of the study;
-  `mcp-viewport.png` is the live MCP viewport.
-- `shared/world/substation-data.js`: generated runtime data (voxel RLE,
-  anchors, 16 px atlas tiles); `shared/world/flatmap-substation.js` decodes it.
-- `public/assets/maps/substation.webp`: lobby preview, converted from
-  `render-preview.png`.
-- `tools/blender/substation/build-substation.py` and `render-substation.py`.
-- `tools/substation-test.mjs` and `tools/substation-lobby-test.mjs`
-  (part of `npm run maps:test`).
+Runtime placement (`public/js/guns/kit.js`, `BLENDER_HAND_FRAMES`): each pose
+takes a gun-space basis from a back-of-hand direction and a wrist-to-knuckle
+direction plus a palm-centre nudge from the shared anchor sheet. The fist sits
+0.085 m under the rifle-class grip anchor with its palm face on the grip's
+right side, so the fingertips and thumb come round the grip's left face; the
+support cradle sits under the handguard's left edge with the forearm running
+down and back. `BLENDER_HAND_OFFSETS` holds the revolver and knife nudges.
+The delivered materials are kept as exported: `assemble.js` skips its glove
+re-texture pass for `userData.blenderAsset === 'hands'`, and `glove()` attaches
+the character-skin palette key per material name (`glove leather` 0x22252a,
+`ceramic armor` 0x15171a, `webbing` 0xb09a72) so skins recolour exactly the
+parts the mitt exposed. Reload choreography moves `hand_l` by position and adds
+its small pitch on top of the pose quaternion, unchanged.
 
-### Integration decision
+Rebuild (headless, about 20 s including six Cycles stills):
 
-The map is delivered as voxels, not as a glTF backdrop. Chunk meshing, bullet
-penetration, block damage, grenades, spawn selection, bot navigation and the
-killcam all consume the authoritative voxel bytes; a glTF scene would be
-invisible to every one of them and would need a second collision
-representation that could drift from the picture. The build script therefore
-authors the map on the 1 m grid in Blender's axes (X = voxel x, Y = voxel z,
-Z = voxel y) and voxelises the evaluated meshes at cell centres: axis-aligned
-boxes by extent, cylinders (bushings, conservators, insulators, shunt
-reactors, vent stacks) by BVH ray parity. The result is written as the same
-run-length-encoded y/z/x bytes Dust 2 uses, and `generateSubstationInto`
-overlays it on `generateFlatBase`, whose stone sub-floor and METAL containment
-shell the Blender scene reproduces exactly (the build asserts this).
+    blender --background --factory-startup --python tools/blender/hands/build-hands.py
+    blender --background --factory-startup --python tools/blender/hands/export-game-assets.py
+    node tools/blender-assets-browser-test.mjs
 
-The six ImageGen textures drive both representations. Blender samples them
-through box-projected object coordinates at 2 to 3 m per tile. For the browser,
-the build box-filters each scan to a 16 × 16 tile (mild contrast boost) and
-embeds it in the data module; `atlas.js` registers six new block types
-(`SUB_CONCRETE`, `SUB_STEEL`, `SUB_GRAVEL`, `SUB_ENAMEL`, `SUB_HAZARD`,
-`SUB_CLADDING`, ids 30 to 35, atlas slots 32 to 37) whose painters are pure
-lookups into those tiles, so the atlas stays deterministic and headless
-testable. The pixel accessor was verified to return raw sRGB bytes (a
-pure-Python PNG decode of the concrete scan gives the same mean). Windows use
-the existing GLASS block and the shell the existing METAL block.
-
-### Rebuilding
-
-Textures were generated with the Codex CLI, one non-interactive call per
-material, and copied into the workspace by Codex itself:
-
-```sh
-codex exec --skip-git-repo-check -C "$PWD" -s workspace-write --color never \
-  -o last-message.txt "Use the imagegen skill ... save it to $PWD/docs/design/blender/substation/textures/<name>.png"
-```
-
-Build and render through the live MCP session (Blender 5.2.1 with the add-on
-on 127.0.0.1:9876), or headless:
-
-```sh
-MCP_PYTHON="$HOME/Library/Application Support/VoxelBlitz/blender-mcp/.venv/bin/python"
-"$MCP_PYTHON" tools/blender/mcp-client.py execute_blender_code --code-file run-build.py
-blender --background --factory-startup --python tools/blender/substation/build-substation.py
-SUBSTATION_VIEWS=hero,yard,control,preview blender --background \
-  docs/design/blender/substation/substation.blend --python tools/blender/substation/render-substation.py
-cwebp -q 88 docs/design/blender/substation/render-preview.png -o public/assets/maps/substation.webp
-node tools/substation-test.mjs && node tools/substation-lobby-test.mjs && node tools/atlastest.mjs
-```
-
-`run-build.py` is the two-line `exec(compile(...), {'__file__': ...})` wrapper
-shown under Rebuilding above. The build takes about one second and is
-deterministic: the map fingerprint pinned in `tools/atlastest.mjs`
-(`substation: '7ba7ca3c'`) must be updated whenever the study changes.
-Cameras in `render-substation.py` are given in game voxel coordinates.
+Build gates: palm spans the origin, cuff parts stay past z 0.018, 0.25 m reach,
+every finger ends in a bare distal phalanx, every part touches its pose (1 mm
+BVH contact audit) and neighbouring proximal stalls keep >= 1.5 mm of air.
+`docs/design/blender/hands/render-{grip,support}-{side,rear-quarter,palm}.png`
+are the study stills; `.artifacts/blender-integration/hands-*.png` are the
+in-game captures (rifle, revolver and knife held, revolver cylinder open).

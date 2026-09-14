@@ -145,6 +145,9 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       impulse: p.impulseSeq > 0 && [p.vx, p.vy, p.vz].every(Number.isFinite)
         ? { seq: p.impulseSeq, velocity: [round(p.vx, D2), round(p.vy, D2), round(p.vz, D2)] }
         : null,
+      // Map portals move the authoritative body; prediction snaps on a new sequence.
+      teleport: Number.isSafeInteger(p.teleportSeq) && p.teleportSeq > 0 ? p.teleportSeq : 0,
+      swimming: !!p.swimming,
       ping: Number.isFinite(p.ping) ? Math.max(0, Math.round(p.ping)) : null,
       state: p.state === 'dead' ? 'dead' : 'alive',
       // Only dead players with an automatic respawn publish a deadline.

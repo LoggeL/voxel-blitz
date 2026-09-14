@@ -3,8 +3,8 @@ import { reactorDefenderSolid } from '../../shared/world/reactor-layout.js';
 // (see BUILD-CONTRACT) so prediction tracks authority closely.
 import { PRONE, stanceEye, stanceHeight } from '../../shared/player-stance.js';
 import { EYE_HEIGHT } from '../../shared/combatmath.js';
-import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow, stepPlayerProne, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
-import { getBlock, ladderContact } from '../../shared/worlddata.js';
+import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity, slidePlayerAxis, solidBelow, stepPlayerProne, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
+import { getBlock, ladderContact, isSolidBlock, FLUID_BLOCKS } from '../../shared/worlddata.js';
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 
 const { walk: WALK, sprint: SPRINT, crouch: CROUCH, jump: JUMP_VEL,
@@ -28,6 +28,8 @@ export class PlayerPhysics {
     this.climbBlocked = false;
     this.mapMeta = null;
     this._solidAt = (x, y, z) => this.solid(x, y, z);
+    this._fluidAt = (x, y, z) => FLUID_BLOCKS.has(getBlock(x, y, z));
+    this.swimming = false;
     this.setMapMeta(mapMeta);
   }
 
@@ -36,7 +38,7 @@ export class PlayerPhysics {
     return this;
   }
 
-  solid(x, y, z) { return getBlock(x, y, z) !== 0
+  solid(x, y, z) { return isSolidBlock(getBlock(x, y, z))
     || (this.mapMeta?.id === 'reactor' && reactorDefenderSolid(x,y,z)); }
 
   solidBelow(x, y, z) {
@@ -67,9 +69,12 @@ export class PlayerPhysics {
     if (low) { speedTarget = Math.min(speedTarget, PRONE.speed); wantJump = false; }
     if (this.coyote > 0) this.coyote = Math.max(0, this.coyote - dt);
 
+    const swimming = fluidContact(this._fluidAt, this.pos.x, this.pos.y, this.pos.z);
+    this.swimming = swimming;
+    if (swimming) speedTarget = Math.min(speedTarget, SWIM_RULES.speed);
     if (this.grounded) this.jumpGroundY = this.pos.y;
     const deliberateGrab = !this.grounded && jumpPressed && !low;
-    if (!this.climbBlocked && !this.vault && canStartVault(this.grounded, this.grounded ? wantJump : deliberateGrab, climbAxis,
+    if (!this.climbBlocked && !this.vault && !swimming && canStartVault(this.grounded, this.grounded ? wantJump : deliberateGrab, climbAxis,
         this._crouching || low, this.pos.y, this.jumpGroundY)) {
       this.vault = findVault(this._solidAt, this.pos, wish,
         deliberateGrab ? this.pos.y : this.jumpGroundY, yaw, deliberateGrab ? 0 : 1);
@@ -93,14 +98,18 @@ export class PlayerPhysics {
     this.vel.z += (wish.z * speedTarget - this.vel.z) * blend;
     let jumpAccepted = false;
 
-    if (!onLadder && wantJump && (this.grounded || this.coyote > 0) && this.vel.y <= 0.01) {
+    if (!onLadder && !swimming && wantJump && (this.grounded || this.coyote > 0) && this.vel.y <= 0.01) {
       this.vel.y = JUMP_VEL;
       this.grounded = false;
       this.coyote = 0;
       jumpAccepted = true;
     }
     if (ladderVy !== 0) this.vel.y = ladderVy;
-    else this.vel.y = Math.max(TERMINAL_VY, this.vel.y - GRAVITY * dt);
+    else if (swimming) {
+      this.vel.y = swimVerticalVelocity(this.vel.y, !!wantJump, !!this._crouching, dt, this._fluidAt,
+        this.pos.x, this.pos.y, this.pos.z);
+      this.coyote = 0;
+    } else this.vel.y = Math.max(TERMINAL_VY, this.vel.y - GRAVITY * dt);
 
     const canStepTerrain = this.grounded && !wantJump && !this.vault && !onLadder && this.vel.y <= 0.01;
     this.moveAxis('x', this.vel.x * dt, canStepTerrain);

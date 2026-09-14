@@ -989,13 +989,19 @@ export class LocalPlayer {
     if (!authoritativeAlive) this.medkit.cancel();
     if (authoritativeAlive && me.impulse) this.physics.adoptImpulse(me.impulse);
 
-    const teleportSeq = me.ttt?.teleport?.seq ?? null;
+    // TTT teleporter returns and map portals both restart prediction at the
+    // authoritative body; a portal arrival also adopts the authored heading.
+    const tttSeq = me.ttt?.teleport?.seq ?? null;
+    const portalSeq = Number.isSafeInteger(me.teleport) && me.teleport > 0 ? me.teleport : null;
+    const teleportSeq = tttSeq === null && portalSeq === null ? null : `${tttSeq}:${portalSeq}`;
     if (authoritativeAlive && teleportSeq !== null && teleportSeq !== this._tttTeleportSeq) {
       this.spawnAt(me.x, me.y, me.z);
       this._resetReconcileOffset();
       this.physics.lastImpulseSeq = me.impulse?.seq || 0;
+      if (portalSeq !== null && portalSeq !== this._portalSeq && Number.isFinite(me.yaw)) this.view.yaw = me.yaw;
     }
     this._tttTeleportSeq = teleportSeq;
+    this._portalSeq = portalSeq;
     if ([me.x, me.y, me.z].every(Number.isFinite)) {
       const pos = this.physics.pos;
       const dx = me.x - pos.x;

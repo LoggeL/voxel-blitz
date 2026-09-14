@@ -138,3 +138,14 @@ function ladderAt(mapMeta, x, y, z, margin = 0) {
 export function ladderContact(mapMeta, x, y, z, margin = 0) {
   return ladderAt(mapMeta, x, y, z, margin) !== null;
 }
+
+/** The authored teleport portal whose trigger volume holds a world-space point, if any. */
+export function portalAt(mapMeta, x, y, z) {
+  if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return null;
+  const portals = Array.isArray(mapMeta?.portals) ? mapMeta.portals : [];
+  for (const portal of portals) {
+    if (x >= portal.minX && x <= portal.maxX && y >= portal.minY && y <= portal.maxY
+      && z >= portal.minZ && z <= portal.maxZ) return portal;
+  }
+  return null;
+}

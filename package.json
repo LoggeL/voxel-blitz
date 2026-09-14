@@ -16,7 +16,7 @@
     "duel:test": "node tools/duel-test.mjs",
     "modes:lobby": "node tools/mode-lobby-smoke.mjs",
     "modes:bots": "node tools/bot-navigation-test.mjs && node tools/bot-perception-test.mjs && node tools/bot-difficulty-test.mjs && node tools/bot-mode-smoke.mjs",
-    "maps:test": "node tools/nuketown-test.mjs && node tools/nuketown-lobby-test.mjs && node tools/dust2-test.mjs && node tools/dust2-movement-test.mjs && node tools/dust2-lobby-test.mjs && node tools/large-maps-test.mjs && node tools/large-maps-lobby-test.mjs && node tools/large-map-navigation-test.mjs && node tools/large-map-light-test.mjs && node tools/substation-test.mjs && node tools/substation-lobby-test.mjs",
+    "maps:test": "node tools/nuketown-test.mjs && node tools/nuketown-lobby-test.mjs && node tools/dust2-test.mjs && node tools/dust2-movement-test.mjs && node tools/dust2-lobby-test.mjs && node tools/large-maps-test.mjs && node tools/large-maps-lobby-test.mjs && node tools/large-map-navigation-test.mjs && node tools/large-map-light-test.mjs && node tools/minecraft-b5-test.mjs && node tools/minecraft-b5-lobby-test.mjs",
     "maps:browser": "node tools/dust2-browser-test.mjs",
     "blocks:test": "node tools/bullet-material-test.mjs && node tools/block-damage-sync-test.mjs && node tools/block-damage-geometry-test.mjs",
     "blocks:browser": "node tools/block-damage-browser-test.mjs",

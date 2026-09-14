@@ -1,10 +1,10 @@
 import { LARGE_SPAWN_ANCHORS, LARGE_SITES, LARGE_LANDMARKS } from './large-layout.js';
 import { worldDimensions } from './dimensions.js';
-import { AIR, GROUND, METAL, SX, SY, SZ } from './blocks.js';
+import { AIR, GROUND, METAL, SX, SY, SZ, isSolidBlock } from './blocks.js';
 import { MAP_MODE_COMPATIBILITY } from '../modes.js';
 import { foundryLadderVolumes } from './terrain-foundry.js';
 import { REACTOR_LAYOUT } from './reactor-layout.js';
-import { SUBSTATION_ANCHORS } from './substation-data.js';
+import { MINECRAFT_B5_ANCHORS } from './minecraft-b5-data.js';
 import {
   DUST2_NAV_FLOORS, DUST2_SPAWN_ANCHORS, DUST2_SITES, DUST2_LANDMARKS,
   dust2FloorsAt,
@@ -22,7 +22,7 @@ const MAP_NAMES = Object.freeze({
   nuketown: 'Nuketown',
   dust2: 'Dust 2',
   killhouse: 'Killhouse',
-  substation: 'Substation',
+  minecraft_b5: 'Minecraft B5',
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
@@ -96,10 +96,11 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
     },
     snd: { attackers: [], defenders: [] },
   },
-  // Authored as empties in the Blender study and exported with the voxels.
-  substation: {
-    fun: SUBSTATION_ANCHORS.spawns.fun,
-    tdm: { alpha: SUBSTATION_ANCHORS.spawns.alpha, bravo: SUBSTATION_ANCHORS.spawns.bravo },
+  // Original info_player_start entities, each carrying its own floor level so
+  // the Nether spawns resolve below the island instead of on top of it.
+  minecraft_b5: {
+    fun: MINECRAFT_B5_ANCHORS.spawns.fun,
+    tdm: { alpha: MINECRAFT_B5_ANCHORS.spawns.alpha, bravo: MINECRAFT_B5_ANCHORS.spawns.bravo },
     snd: { attackers: [], defenders: [] },
   },
 });
@@ -131,7 +132,7 @@ const MAP_SITE_LAYOUTS = Object.freeze({
     { id: 'B', minX: 96, maxX: 109, minZ: 41, maxZ: 54, y: GROUND + 4.02 },
   ],
   killhouse: [],
-  substation: [],
+  minecraft_b5: [],
 });
 
 const MAP_LANDMARKS = Object.freeze({
@@ -174,12 +175,11 @@ const MAP_LANDMARKS = Object.freeze({
     { id: 'killhouse-yard', name: 'Killhouse Yard', x: 14, z: 50 },
     { id: 'long-lane', name: 'Long Lane', x: 64, z: 62 },
   ],
-  substation: SUBSTATION_ANCHORS.landmarks.map(({ id, name, x, z }) => ({ id, name, x, z })),
+  minecraft_b5: MINECRAFT_B5_ANCHORS.landmarks.map(({ id, name, x, z, floorY }) => ({ id, name, x, z, floorY })),
 });
 
 /** Dummy-target posts per map, indexed by dummy bot id (dummy-<index>). */
 export const MAP_DUMMY_POSTS = Object.freeze({
-  substation: Object.freeze(SUBSTATION_ANCHORS.dummyPosts.map((post) => Object.freeze({ ...post }))),
   killhouse: Object.freeze([
     { kind: 'range', x: 18, z: 74 },
     { kind: 'range', x: 34, z: 74 },
@@ -235,9 +235,9 @@ function spawnIsWalkable(world, spawn) {
   const feetY = Math.floor(spawn.y);
   return x >= 3 && z >= 3 && x < SX - 3 && z < SZ - 3
     && feetY > 0 && feetY < SY - 1
-    && world.getBlock(x, feetY - 1, z) !== AIR
-    && world.getBlock(x, feetY, z) === AIR
-    && world.getBlock(x, feetY + 1, z) === AIR;
+    && isSolidBlock(world.getBlock(x, feetY - 1, z))
+    && !isSolidBlock(world.getBlock(x, feetY, z))
+    && !isSolidBlock(world.getBlock(x, feetY + 1, z));
 }
 
 function resolveSpawnPool(world, anchors, floorY = null) {
@@ -278,7 +278,7 @@ function resolveSpawnPool(world, anchors, floorY = null) {
 export function createMapMetadata(id, world) {
   const anchors = MAP_SPAWN_ANCHORS[id];
   // Courtyard/training spawns stay below roofs; Dust II anchors carry NAV levels.
-  const floorY = ['killhouse', 'reactor', 'depot', 'substation'].includes(id) ? GROUND : null;
+  const floorY = ['killhouse', 'reactor', 'depot'].includes(id) ? GROUND : null;
   const metadata = {
     id,
     name: MAP_NAMES[id],
@@ -286,9 +286,18 @@ export function createMapMetadata(id, world) {
     ...(['harbor', 'canyon'].includes(id) ? { navigationFloor: GROUND, spawnBounds: {
       minX: 4, maxX: 187, minZ: 4, maxZ: 139, minY: GROUND + 1, maxY: GROUND + 1.1,
     } } : {}),
-    ...(id === 'depot' || id === 'substation' ? { navigationFloor: GROUND, spawnBounds: {
+    ...(id === 'depot' ? { navigationFloor: GROUND, spawnBounds: {
       minX: 4, maxX: 123, minZ: 4, maxZ: 91, minY: GROUND + 1, maxY: GROUND + 1.1,
     } } : {}),
+    // Island, Nether and lighthouse levels are all authored spawn/route space.
+    ...(id === 'minecraft_b5' ? {
+      spawnBounds: { minX: 4, maxX: 123, minZ: 4, maxZ: 91, minY: 1, maxY: 84 },
+      groundLevel: MINECRAFT_B5_ANCHORS.groundLevel,
+      seaLevel: MINECRAFT_B5_ANCHORS.seaLevel,
+      standHeights: [MINECRAFT_B5_ANCHORS.seaLevel - 1, MINECRAFT_B5_ANCHORS.groundLevel + 22],
+      portals: MINECRAFT_B5_ANCHORS.portals.map((portal) => ({ ...portal })),
+      props: structuredClone(MINECRAFT_B5_ANCHORS.props),
+    } : {}),
     ...(id === 'reactor' ? { bastion: structuredClone(REACTOR_LAYOUT), spawnBounds: {
       minX: 51, maxX: 76, minZ: 43, maxZ: 67, minY: GROUND + 1, maxY: GROUND + 1.1,
     } } : {}),
@@ -316,7 +325,8 @@ export function createMapMetadata(id, world) {
         defenders: resolveSpawnPool(world, anchors.snd.defenders, floorY),
       },
     },
-    ladders: id === 'foundry' ? foundryLadderVolumes() : [],
+    ladders: id === 'foundry' ? foundryLadderVolumes()
+      : id === 'minecraft_b5' ? MINECRAFT_B5_ANCHORS.ladders.map((ladder) => ({ ...ladder })) : [],
     sites: MAP_SITE_LAYOUTS[id].map((site) => ({ ...site })),
     landmarks: MAP_LANDMARKS[id].map(({ floorY: landmarkFloorY, ...landmark }) => ({
       ...landmark,

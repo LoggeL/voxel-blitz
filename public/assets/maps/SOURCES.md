@@ -1,6 +1,6 @@
 # Map preview sources
 
-The eight active map previews are direct captures of the playable voxel maps.
+The active map previews are direct captures of the playable voxel maps.
 Seven were refreshed on 2026-09-07 after the expanded structures and props pass;
 Dust 2 was added on 2026-09-08. They use the same world
 generation, lighting, sky and landmark signs as gameplay. No generated scenery,
@@ -16,7 +16,7 @@ external assets, compositing or retouching is included in these previews.
 | nuketown | `nuketown.webp` | `.artifacts/map-rich-pass/nuketown-hero.png` |
 | dust2 | `dust2.webp` | `.artifacts/map-renders/dust2-hero.png` |
 | killhouse | `killhouse-range.webp` | `.artifacts/map-rich-pass/killhouse-control-yard.png` |
-| substation | `substation.webp` | `.artifacts/map-renders/substation-switchyard.png` (2026-09-14, `node tools/render-map-scenes.mjs --map substation`) |
+| minecraft_b5 | `minecraft-b5.webp` | `.artifacts/map-renders/minecraft_b5-hero.png` (2026-09-14, `node tools/render-map-scenes.mjs --map minecraft_b5`) |
 
 Capture command:
 
@@ -33,7 +33,5 @@ are now production captures.
 `killhouse-concept.webp` is retained as an earlier design reference and is not
 the active training preview.
 
-Substation is the first Blender-authored map (`docs/design/blender/substation/`).
-Its preview is an in-game capture like the others; the Cycles renders beside the
-study (`render-hero.png`, `render-yard.png`, `render-control.png`,
-`render-preview.png`) are design reference, not lobby artwork.
+Minecraft B5 is compiled from the original `ttt_minecraft_b5.bsp` (see
+`docs/maps/minecraft-b5.md`); its preview is an in-game capture like the others.

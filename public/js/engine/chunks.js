@@ -5,7 +5,7 @@ import { DEFAULT_DIMENSIONS } from '../../../shared/world/dimensions.js';
 // whole terrain renders as cheap Lambert surfaces with crisp voxel lighting.
 
 import * as THREE from '../vendor/three.module.js';
-import { AIR, GRASS, DIRT, LEAVES, GLASS, SX, SZ, SY } from '../../../shared/worlddata.js';
+import { AIR, GRASS, DIRT, LEAVES, GLASS, MC_GRASS, MC_GLASS, MC_LEAVES, MC_WATER, MC_PORTAL, MC_GHOST_GRASS, SX, SZ, SY } from '../../../shared/worlddata.js';
 import { DAMAGE_GRID, damageStage, damageCells } from './block-damage-geometry.js';
 
 export const CHUNK_X = 16;
@@ -50,7 +50,12 @@ const FACES = [
 ];
 const CORNER_UV = [[0, 0], [1, 0], [1, 1], [0, 1]];
 
-const isSeeThrough = (v) => v === LEAVES || v === GLASS;
+const CUTOUT = new Set([LEAVES, MC_LEAVES]);
+const TRANSLUCENT = new Set([GLASS, MC_GLASS, MC_WATER, MC_PORTAL]);
+const isSeeThrough = (v) => CUTOUT.has(v) || TRANSLUCENT.has(v);
+/** Fluids and the portal film never darken neighbouring faces. */
+const NO_OCCLUDE = new Set([AIR, MC_WATER, MC_PORTAL]);
+const GRASS_TOPS = new Set([GRASS, MC_GRASS, MC_GHOST_GRASS]);
 
 /** Per-position hash jitter source for tint code paths -> 0..100. */
 function posJitter(x, y, z) {
@@ -213,8 +218,8 @@ export class ChunkStore {
           const wx = x0 + lx;
           const id = gb(wx, ly, wz);
           if (id === AIR) continue;
-          const bucket = id === GLASS ? buckets.glass
-            : id === LEAVES ? buckets.cutout : buckets.opaque;
+          const bucket = TRANSLUCENT.has(id) ? buckets.glass
+            : CUTOUT.has(id) ? buckets.cutout : buckets.opaque;
           const shape = shapeAt(wx, ly, wz);
           if (shape) {
             emitDamagedBlock(bucket, wx, ly, wz, id, shape, rectOf, resolveTile, gb, shapeAt);
@@ -307,7 +312,7 @@ function emitCellFace(bucket, wx, wy, wz, x, y, z, f, id, tileRectFn, resolveTil
   const textureId = isCut && id === GRASS ? DIRT : id;
   const rect = tileRectFn(resolveTile(textureId, f));
   const base = bucket.verts;
-  const grassTop = id === GRASS && f === 2 && !isCut;
+  const grassTop = GRASS_TOPS.has(id) && f === 2 && !isCut;
   const shade = FACE_SHADE[f] * (isCut ? 0.82 : 1)
     * (1 + (grassTop ? (posJitter(wx, wy, wz) - 50) * 0.0006 : 0));
   const outer = [wx * DAMAGE_GRID + x + fd.n[0], wy * DAMAGE_GRID + y + fd.n[1],
@@ -357,7 +362,7 @@ function emitFace(bucket, wx, wy, wz, f, id, tileRectFn, resolveTile, gb) {
   const vx = fd.v[0], vy = fd.v[1], vz = fd.v[2];
 
   const shade = FACE_SHADE[f];
-  const grassTopFace = id === GRASS && f === 2;
+  const grassTopFace = GRASS_TOPS.has(id) && f === 2;
   const warmR = grassTopFace ? 1.02 : 1;
   const warmG = grassTopFace ? 1.0 : 1;
   const warmB = grassTopFace ? 0.94 : 1;
@@ -397,7 +402,7 @@ function emitFace(bucket, wx, wy, wz, f, id, tileRectFn, resolveTile, gb) {
 }
 
 function occ(gb, x, y, z) {
-  return gb(x, y, z) !== AIR ? 1 : 0;
+  return NO_OCCLUDE.has(gb(x, y, z)) ? 0 : 1;
 }
 
 function buildMesh(b, material) {

@@ -6,7 +6,7 @@ import { PRONE, stanceHeight } from '../../shared/player-stance.js';
 import { CONDITION_RULES } from '../../shared/combatmath.js';
 import { ladderContact } from '../../shared/worlddata.js';
 import { clamp01 } from './player.js';
-import { PHYSICS, MOVEMENT_RULES, slidePlayerAxis, solidBelow, stepPlayerProne, canClimb, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
+import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity, slidePlayerAxis, solidBelow, stepPlayerProne, canClimb, canStartVault, findVault, stepVault } from '../../shared/player-movement.js';
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 
 const WALK_SPEED = PHYSICS.walk;
@@ -93,7 +93,7 @@ function recordPose(p, now) {
 /**
  * Integrate one living entity for one fixed simulation step.
  *
- * ctx = { solidAt(x,y,z), mapMeta, now, movementLocked, onFall(entity) }
+ * ctx = { solidAt(x,y,z), fluidAt?(x,y,z), mapMeta, now, movementLocked, onFall(entity) }
  */
 export function stepMovement(p, dt, ctx) {
   const inp = p.input;
@@ -157,9 +157,11 @@ export function stepMovement(p, dt, ctx) {
     const length = Math.hypot(wx, wz);
     wx /= length; wz /= length;
   }
+  const swimming = fluidContact(ctx.fluidAt, p.x, p.y, p.z);
+  p.swimming = swimming;
   if (p.grounded) p.jumpGroundY = p.y;
   const deliberateGrab = !p.grounded && jumpPressed && !low;
-  if (handsFree && !p.vault && canStartVault(p.grounded, p.grounded ? kf.jump : deliberateGrab,
+  if (handsFree && !p.vault && !swimming && canStartVault(p.grounded, p.grounded ? kf.jump : deliberateGrab,
       fwdAmt, p.crouch || low, p.y, p.jumpGroundY)) {
     p.vault = findVault(ctx.solidAt, p, { x: wx, z: wz },
       deliberateGrab ? p.y : p.jumpGroundY, movementYaw, deliberateGrab ? 0 : 1);
@@ -176,6 +178,7 @@ export function stepMovement(p, dt, ctx) {
     return;
   }
   let speed = low ? PRONE.speed : p.crouch ? CROUCH_SPEED : (p.sprint ? SPRINT_SPEED : WALK_SPEED);
+  if (swimming) speed = Math.min(speed, SWIM_RULES.speed);
   if (p.npcRole) speed *= p.npcSpeed || 1;
   // A pulse concussion drags the legs: 60% speed until the deadline passes.
   if (Number.isFinite(p.concussedUntil) && p.concussedUntil > ctx.now) speed *= CONCUSSED_SPEED_MULT;
@@ -191,6 +194,9 @@ export function stepMovement(p, dt, ctx) {
   if (ladderDirected) {
     p.vy = ladderUp ? LADDER_UP_SPEED : -LADDER_DOWN_SPEED;
     p.grounded = false;
+    p.coyote = 0;
+  } else if (swimming) {
+    p.vy = swimVerticalVelocity(p.vy, !!kf.jump, !!kf.crouch, dt, ctx.fluidAt, p.x, p.y, p.z);
     p.coyote = 0;
   } else {
     // Jump with a short coyote window.

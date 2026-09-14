@@ -1,3 +1,4 @@
+import { isSolidBlock } from '../../../shared/world/blocks.js';
 import * as THREE from '../vendor/three.module.js';
 import { CLAYMORE_RULES, claymoreBeam } from '../../../shared/claymore-rules.js';
 import {
@@ -62,9 +63,9 @@ export class ProjectileFX {
       return light;
     });
     this._localSeq = 0;
-    this.isSolid = (x, y, z) => this.getBlock(Math.floor(x), Math.floor(y), Math.floor(z)) !== 0;
+    this.isSolid = (x, y, z) => isSolidBlock(this.getBlock(Math.floor(x), Math.floor(y), Math.floor(z)));
     this.raycast = (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
-      (x, y, z) => this.getBlock(x, y, z) !== 0, ox, oy, oz, dx, dy, dz, max,
+      (x, y, z) => isSolidBlock(this.getBlock(x, y, z)), ox, oy, oz, dx, dy, dz, max,
     );
 
     this.fragGeometry = new THREE.BoxGeometry(0.26, 0.26, 0.26);

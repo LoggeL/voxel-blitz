@@ -10,6 +10,33 @@ export const PHYSICS = Object.freeze({
 export const MOVEMENT_RULES = Object.freeze({
   coyoteS: 0.08, terminalVy: -60, ladderUp: 3.4, ladderDown: 2.4,
 });
+/** Shared swimming contract for fluid voxels (Minecraft B5 ocean, streams and lava). */
+export const SWIM_RULES = Object.freeze({
+  speed: 2.6, up: 3.1, down: -3.1, sink: -1.4, drag: 7, surfaceLift: 4.6,
+});
+
+/** True while the body centre of a player at feet position (px,py,pz) is inside a fluid voxel. */
+export function fluidContact(fluidAt, px, py, pz) {
+  if (typeof fluidAt !== 'function') return false;
+  return !!fluidAt(Math.floor(px), Math.floor(py + 0.55), Math.floor(pz));
+}
+
+/**
+ * Vertical swim velocity: held jump climbs, crouch dives, otherwise the body
+ * settles into a slow sink. Near the surface a climb gets extra lift so a
+ * player can pull out of the water onto a bank one block up.
+ */
+export function swimVerticalVelocity(vy, wantUp, wantDown, dt, fluidAt, px, py, pz) {
+  const blend = 1 - Math.exp(-SWIM_RULES.drag * dt);
+  let target = SWIM_RULES.sink;
+  if (wantUp) {
+    const headInFluid = !!fluidAt(Math.floor(px), Math.floor(py + 1.35), Math.floor(pz));
+    target = headInFluid ? SWIM_RULES.up : SWIM_RULES.surfaceLift;
+  } else if (wantDown) {
+    target = SWIM_RULES.down;
+  }
+  return vy + (target - vy) * blend;
+}
 const HALF_W = PHYSICS.halfW;
 const P_HEIGHT = PHYSICS.height;
 const EPS = 1e-3;

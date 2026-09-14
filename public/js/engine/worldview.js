@@ -14,6 +14,7 @@ import { ChunkStore } from './chunks.js';
 import { buildInitialMesh } from './initial-mesh.js';
 import { installSky } from './sky.js';
 import { buildNuketownDetails } from './nuketown-details.js';
+import { buildMinecraftB5Details } from './minecraft-b5-details.js';
 import { mapAtmosphere } from './map-atmosphere.js';
 import { buildMapSigns } from './map-signs.js';
 import { buildMapLights } from './map-lights.js';
@@ -42,15 +43,19 @@ function buildLadderVisuals(mapMeta) {
   for (const ladder of ladders) instanceCount += ladderRungCount(ladder);
 
   const geometry = new THREE.BoxGeometry(1, 1, 1);
-  const material = new THREE.MeshStandardMaterial({
-    color: 0xffd21f,
-    emissive: 0x6b2d00,
-    emissiveIntensity: 0.9,
-    metalness: 0.35,
-    roughness: 0.42,
-  });
+  // Authored wall faces mark wooden block ladders; the foundry towers keep their steel.
+  const wooden = ladders.some((ladder) => typeof ladder.face === 'string');
+  const material = wooden
+    ? new THREE.MeshStandardMaterial({ color: 0x8a6438, metalness: 0, roughness: 0.85 })
+    : new THREE.MeshStandardMaterial({
+      color: 0xffd21f,
+      emissive: 0x6b2d00,
+      emissiveIntensity: 0.9,
+      metalness: 0.35,
+      roughness: 0.42,
+    });
   const mesh = new THREE.InstancedMesh(geometry, material, instanceCount);
-  mesh.name = 'foundry-ladders';
+  mesh.name = wooden ? 'block-ladders' : 'foundry-ladders';
   const matrix = new THREE.Matrix4();
   let instance = 0;
 
@@ -61,19 +66,27 @@ function buildLadderVisuals(mapMeta) {
   };
 
   for (const ladder of ladders) {
-    const z = ladder.minZ + 0.055;
-    const railLeft = ladder.minX + 0.15;
-    const railRight = ladder.maxX - 0.15;
+    // Rails run along the wall the ladder hangs on: -Z by default (foundry).
+    const face = ladder.face || 'z-';
+    const alongX = face === 'z-' || face === 'z+';
+    const wall = face === 'z-' ? ladder.minZ + 0.055 : face === 'z+' ? ladder.maxZ - 0.055
+      : face === 'x-' ? ladder.minX + 0.055 : ladder.maxX - 0.055;
+    const inward = face === 'z-' || face === 'x-' ? 1 : -1;
+    const low = (alongX ? ladder.minX : ladder.minZ) + 0.15;
+    const high = (alongX ? ladder.maxX : ladder.maxZ) - 0.15;
     const railHeight = ladder.maxY - ladder.minY;
     const railY = ladder.minY + railHeight * 0.5;
-    setBox(railLeft, railY, z, 0.075, railHeight, 0.075);
-    setBox(railRight, railY, z, 0.075, railHeight, 0.075);
+    const place = (along, y, out, sizeAlong, sizeY, sizeOut) => (alongX
+      ? setBox(along, y, out, sizeAlong, sizeY, sizeOut)
+      : setBox(out, y, along, sizeOut, sizeY, sizeAlong));
+    place(low, railY, wall, 0.075, railHeight, 0.075);
+    place(high, railY, wall, 0.075, railHeight, 0.075);
 
     const rungCount = ladderRungCount(ladder);
-    const rungWidth = railRight - railLeft + 0.075;
+    const rungWidth = high - low + 0.075;
     for (let i = 0; i < rungCount; i++) {
       const y = ladder.minY + LADDER_RUNG_BOTTOM_INSET + i * LADDER_RUNG_SPACING;
-      setBox((railLeft + railRight) * 0.5, y, z + 0.008, rungWidth, 0.065, 0.085);
+      place((low + high) * 0.5, y, wall + inward * 0.008, rungWidth, 0.065, 0.085);
     }
   }
 
@@ -120,7 +133,8 @@ export class WorldView {
     this.atlas = buildAtlas();
     this.chunkStore = new ChunkStore(this.scene, this.atlas, visualBlock, visualDamage, getMapDimensions(meta?.id));
 
-    this.mapDetails = (mapMeta || storeRef.meta)?.id === 'nuketown' ? buildNuketownDetails() : null;
+    this.mapDetails = meta?.id === 'nuketown' ? buildNuketownDetails()
+      : meta?.id === 'minecraft_b5' ? buildMinecraftB5Details(meta) : null;
     if (this.mapDetails) this.scene.add(this.mapDetails.group);
     this.mapSigns = buildMapSigns(meta?.id, visualBlock);
     this.scene.add(this.mapSigns.group);

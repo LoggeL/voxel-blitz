@@ -83,7 +83,8 @@ function standable(world, x, z, preferredY = null) {
     return null;
   }
   const h = world.meta?.navigationFloor ?? world.heightAt(x, z);
-  if (h < GROUND - 1 || h > GROUND + 9) return null;
+  const [lowest, highest] = world.meta?.standHeights || [GROUND - 1, GROUND + 9];
+  if (h < lowest || h > highest) return null;
   if (world.getBlock(x, h, z) === AIR) return null;
   if (world.getBlock(x, h + 1, z) !== AIR || world.getBlock(x, h + 2, z) !== AIR) return null;
   return { x: x + 0.5, y: h + 1.02, z: z + 0.5 };
@@ -106,7 +107,7 @@ function randSpot(world, rng, from) {
     if (s && (!Number.isFinite(world.meta?.navigationFloor) || groundRoute(world, from, s).length)) return s;
   }
   if (Number.isFinite(world.meta?.navigationFloor)) return { x: from.x, y: from.y, z: from.z };
-  return { x: SX / 2, y: GROUND + 1.02, z: SZ / 2 };
+  return { x: SX / 2, y: (world.meta?.groundLevel ?? GROUND) + 1.02, z: SZ / 2 };
 }
 
 function eyeOf(p) {
@@ -197,7 +198,7 @@ class BotManager {
   constructor(game, n, { difficulties = new Map() } = {}) {
     this.difficulties = new Map(difficulties);
     this.game = game;
-    this.solidAt = (x, y, z) => this.game.world.getBlock(x, y, z) !== AIR;
+    this.solidAt = this.game.solidAt;
     this.brains = [];
     this._unhook = game.registerTickHook((dt) => this.tick(dt * 1000));
     this.setCount(n | 0);

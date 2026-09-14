@@ -832,6 +832,18 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   clear of cover, and four exposed power-up pads follow the common pickup rules.
   `npm run maps:test` covers route connectivity, spawns and live map admission;
   `npm run maps:capture -- --map dust2` renders overview, route and site views.
+- **Minecraft B5 (`minecraft_b5`):** a block-for-block replica of
+  `ttt_minecraft_b5.bsp` (one 32-unit Source block per voxel) in a
+  128 × 96 × 88 world: the island, its ocean, the clouds and the Nether below.
+  Supports Fun, TTT, 1v1, Chaos Lab, TDM and Gun Game. `shared/world/blocks.js`
+  adds the Minecraft materials, walk-through ghost blocks (`MC_GHOST_*`), water
+  and lava (`FLUID_BLOCKS`) and the portal film; `isSolidBlock` is the single
+  solidity rule for movement, bots, spawns and every raycast. Players swim in
+  fluid voxels (`SWIM_RULES`), map portals (`meta.portals`) move the
+  authoritative body and publish `teleport` on the wire so prediction snaps,
+  lava burns 12 HP every 250 ms, and the original ladders climb through
+  `meta.ladders` with their wall face. `tools/compile-minecraft-b5-reference.py`
+  regenerates `shared/world/minecraft-b5-data.js`; see `docs/maps/minecraft-b5.md`.
 - **Settings:** sensitivity defaults to `0.003` rad/px, clamps to
   `0.0008–0.012`, and persists as `vb-sens-v2` (`SENSITIVITY_PREF_KEY`; the
   old `vb-sens` scale is ignored rather than clamped). Touch look runs at 1.4×

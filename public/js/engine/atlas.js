@@ -10,9 +10,12 @@ import {
   YELLOW_SIDING, TEAL_SIDING, ASPHALT, ROOF, BUS_YELLOW, TRUCK_RED,
   DUST_SANDSTONE, DUST_PLASTER, DUST_ROCK, DUST_FLOOR,
   DUST_TRIM, DUST_TILE, DUST_CRATE, DUST_WOOD,
-  SUB_CONCRETE, SUB_STEEL, SUB_GRAVEL, SUB_ENAMEL, SUB_HAZARD, SUB_CLADDING,
+  MC_GRASS, MC_DIRT, MC_STONE, MC_COBBLE, MC_MOSSY, MC_SAND, MC_GRAVEL, MC_CLAY,
+  MC_LOG, MC_LEAVES, MC_PLANKS, MC_GLASS, MC_BRICK, MC_BOOKSHELF, MC_WOOL_WHITE,
+  MC_WOOL_RED, MC_IRON, MC_GOLD, MC_DIAMOND, MC_DIAMOND_ORE, MC_COAL_ORE,
+  MC_OBSIDIAN, MC_NETHERRACK, MC_GLOWSTONE, MC_CLOUD, MC_CACTUS, MC_CHEST,
+  MC_FURNACE, MC_CRAFTING, MC_TNT, MC_WATER, MC_LAVA, MC_PORTAL, MC_GHOST_SOLID,
 } from '../../../shared/worlddata.js';
-import { SUBSTATION_TILES } from '../../../shared/world/substation-data.js';
 
 export const ATLAS_SIZE = 256;
 export const TILE_PX = 16;
@@ -27,7 +30,14 @@ export const TILE = {
   ACCENT: 11, PLANK: 12, GLASS: 13, PALE: 14, RUST: 15, BRICK: 16,
   DUST_SANDSTONE: 23, DUST_PLASTER: 24, DUST_ROCK: 25, DUST_FLOOR: 26,
   DUST_TRIM: 27, DUST_TILE: 28, DUST_CRATE: 29, DUST_WOOD: 30,
-  SUB_CONCRETE: 32, SUB_STEEL: 33, SUB_GRAVEL: 34, SUB_ENAMEL: 35, SUB_HAZARD: 36, SUB_CLADDING: 37,
+  // Minecraft B5 block faces (slots 32 to 37 belonged to the retired Substation).
+  MC_GRASS_TOP: 32, MC_GRASS_SIDE: 33, MC_DIRT: 34, MC_STONE: 35, MC_COBBLE: 36, MC_MOSSY: 37,
+  MC_SAND: 38, MC_GRAVEL: 39, MC_CLAY: 40, MC_LOG_SIDE: 41, MC_LOG_TOP: 42, MC_LEAVES: 43,
+  MC_PLANKS: 44, MC_GLASS: 45, MC_BRICK: 46, MC_BOOKSHELF: 47, MC_WOOL_WHITE: 48, MC_WOOL_RED: 49,
+  MC_IRON: 50, MC_GOLD: 51, MC_DIAMOND: 52, MC_DIAMOND_ORE: 53, MC_COAL_ORE: 54, MC_OBSIDIAN: 55,
+  MC_NETHERRACK: 56, MC_GLOWSTONE: 57, MC_CLOUD: 58, MC_CACTUS_SIDE: 59, MC_CACTUS_TOP: 60,
+  MC_CHEST_SIDE: 61, MC_CHEST_TOP: 62, MC_FURNACE_SIDE: 63, MC_FURNACE_TOP: 64, MC_CRAFT_SIDE: 65,
+  MC_CRAFT_TOP: 66, MC_TNT_SIDE: 67, MC_TNT_TOP: 68, MC_WATER: 69, MC_LAVA: 70, MC_PORTAL: 71,
 };
 
 /** Deterministic integer wobble -> 0..k-1. The atlas' only "randomness". */
@@ -336,18 +346,228 @@ function dustWood(x, y) {
   return dustColor([91, 73, 49], grain + seam + scratch);
 }
 
-// SUBSTATION tiles are 16px box filters of the six Codex ImageGen textures that
-// dress the Blender study, baked by tools/blender/substation/build-substation.py.
-// Each is decoded once so the painter stays a pure, deterministic lookup.
-function bakedTile(key) {
-  const encoded = atob(SUBSTATION_TILES[key]);
-  if (encoded.length !== TILE_PX * TILE_PX * 3) throw new Error(`substation tile ${key} is not ${TILE_PX}px RGB`);
-  const data = new Uint8Array(encoded.length);
-  for (let i = 0; i < encoded.length; i++) data[i] = encoded.charCodeAt(i);
-  return (x, y) => {
-    const i = (y * TILE_PX + x) * 3;
-    return [data[i], data[i + 1], data[i + 2], 255];
-  };
+// MINECRAFT B5 tiles: flat 16px pixel-art materials in the spirit of the
+// original block set, drawn from the same deterministic grain as Dust II so
+// the sheet stays bit-identical without any texture download.
+function mcNoise(base, x, y, salt, range) {
+  return dustColor(base, dustGrain(x, y, salt, range) - (range >> 1));
+}
+
+function mcGrassTop(x, y) {
+  const shade = dustGrain(x, y, 70, 25) - 12 + (dustGrain(x >> 1, y >> 1, 71, 9) - 4);
+  return dustColor([104, 158, 66], shade);
+}
+
+function mcDirt(x, y) {
+  const pebble = dustGrain(x, y, 72, 23) === 0 ? 18 : 0;
+  return dustColor([121, 88, 60], dustGrain(x, y, 73, 21) - 10 + pebble);
+}
+
+function mcGrassSide(x, y) {
+  const fringe = 3 + dustGrain(x, 0, 74, 3);
+  if (y < fringe - 1) return mcGrassTop(x, y);
+  if (y < fringe) return dustGrain(x, 0, 75, 2) ? mcGrassTop(x, y) : mcDirt(x, y);
+  return mcDirt(x, y);
+}
+
+function mcStone(x, y) {
+  const patch = dustGrain(x >> 1, y >> 1, 76, 13) - 6;
+  return dustColor([125, 125, 125], dustGrain(x, y, 77, 11) - 5 + patch);
+}
+
+function mcCobble(x, y) {
+  // Rounded stones separated by a dark mortar web.
+  const cx = (x + (y >> 3) * 4) & 7, cy = y & 7;
+  const rim = cx === 0 || cy === 0 || (cx === 7 && cy > 3) || (cy === 7 && cx > 3);
+  if (rim) return dustColor([74, 74, 74], dustGrain(x, y, 78, 9) - 4);
+  return dustColor([132, 132, 132], dustGrain(x, y, 79, 19) - 9 + (cx === 1 || cy === 1 ? 10 : 0));
+}
+
+function mcMossy(x, y) {
+  const moss = dustGrain(x >> 1, y >> 1, 80, 7) < 3;
+  const base = mcCobble(x, y);
+  if (!moss) return base;
+  return [base[0] * 0.55 | 0, base[1] * 0.85 | 0, base[2] * 0.4 | 0, 255];
+}
+
+function mcSand(x, y) {
+  return dustColor([219, 210, 160], dustGrain(x, y, 81, 15) - 7 + (dustGrain(x >> 2, y >> 2, 82, 7) - 3));
+}
+
+function mcGravel(x, y) {
+  const pebble = dustGrain(x >> 1, y >> 1, 83, 5);
+  return dustColor([132, 126, 124], pebble * 9 - 18 + dustGrain(x, y, 84, 9) - 4);
+}
+
+function mcClay(x, y) {
+  return dustColor([158, 164, 176], dustGrain(x >> 1, y >> 1, 85, 11) - 5);
+}
+
+function mcLogSide(x, y) {
+  const streak = dustGrain(x, 0, 86, 7) - 3;
+  const knot = dustGrain(x, y, 87, 53) === 0 ? -18 : 0;
+  return dustColor([104, 82, 50], streak * 4 + (dustGrain(x, y >> 2, 88, 7) - 3) + knot);
+}
+
+function mcLogTop(x, y) {
+  const dx = x - 7.5, dy = y - 7.5;
+  const ring = Math.sqrt(dx * dx + dy * dy) * 1.5 | 0;
+  if (x === 0 || y === 0 || x === 15 || y === 15) return dustColor([104, 82, 50], dustGrain(x, y, 89, 9) - 4);
+  return dustColor(ring & 1 ? [168, 138, 84] : [190, 158, 100], dustGrain(x, y, 90, 7) - 3);
+}
+
+function mcLeaves(x, y) {
+  let grain = x + y * 16;
+  grain ^= grain >> 4;
+  grain = (grain * 173) & 255;
+  grain ^= grain >> 3;
+  grain = (grain * 97) & 255;
+  if (grain < 44) return [0, 0, 0, 0];
+  return dustColor([46, 110, 32], (grain % 21) - 10);
+}
+
+function mcPlanks(x, y) {
+  const board = (y >> 2) & 3;
+  const seam = (y & 3) === 3 || ((x + board * 5) & 15) === 0;
+  if (seam) return dustColor([96, 72, 42], dustGrain(x, y, 91, 7) - 3);
+  return dustColor([173, 138, 84], dustGrain(x, y >> 1, 92, 13) - 6 + (board & 1 ? -6 : 0));
+}
+
+function mcGlass(x, y) {
+  if (x === 0 || x === 15 || y === 0 || y === 15) return [220, 236, 244, 240];
+  const streak = ((x + y) & 15) < 2 || ((x + y + 8) & 15) < 1;
+  return streak ? [232, 244, 250, 190] : [182, 212, 228, 88];
+}
+
+function mcBrick(x, y) {
+  const course = y >> 2;
+  const mortar = (y & 3) === 3 || ((x + (course & 1) * 4) & 7) === 7;
+  if (mortar) return dustColor([170, 168, 160], dustGrain(x, y, 93, 7) - 3);
+  return dustColor([150, 72, 58], dustGrain(x >> 2, course, 94, 15) - 7 + dustGrain(x, y, 95, 5) - 2);
+}
+
+function mcBookshelf(x, y) {
+  if (y < 2 || y > 13 || (y > 5 && y < 10)) return mcPlanks(x, y);
+  const slot = (x + (y > 7 ? 3 : 0)) % 5;
+  const palette = [[168, 48, 44], [58, 92, 160], [72, 134, 70], [190, 160, 70], [120, 76, 130]];
+  const spine = x % 3 === 0 ? -22 : 0;
+  return dustColor(palette[slot], spine + dustGrain(x, y, 96, 9) - 4);
+}
+
+function mcWool(base, x, y) {
+  const weave = ((x + y) & 3) === 0 ? -10 : ((x - y) & 3) === 0 ? 6 : 0;
+  return dustColor(base, weave + dustGrain(x >> 1, y >> 1, 97, 7) - 3);
+}
+
+function mcMetal(base, x, y, salt) {
+  if (x === 0 || y === 0) return dustColor(base, 34);
+  if (x === 15 || y === 15) return dustColor(base, -42);
+  const panel = (x > 2 && x < 13 && y > 2 && y < 13) ? 0 : -12;
+  return dustColor(base, panel + dustGrain(x, y, salt, 9) - 4);
+}
+
+function mcOre(gem, x, y, salt) {
+  // Four small crystals embedded in stone.
+  const cx = x & 7, cy = y & 7, cluster = ((x >> 3) + (y >> 3) * 2 + salt) & 3;
+  const ox = 2 + (cluster & 1) * 2, oy = 2 + (cluster >> 1) * 2;
+  if (cx >= ox && cx < ox + 3 && cy >= oy && cy < oy + 3 && !(cx === ox && cy === oy) && !(cx === ox + 2 && cy === oy + 2)) {
+    return dustColor(gem, (cx - ox) * 12 - 12);
+  }
+  return mcStone(x, y);
+}
+
+function mcObsidian(x, y) {
+  return dustColor([24, 14, 36], dustGrain(x >> 1, y >> 1, 98, 13) - 6 + (dustGrain(x, y, 99, 41) === 0 ? 14 : 0));
+}
+
+function mcNetherrack(x, y) {
+  const vein = dustGrain(x >> 1, y >> 1, 100, 9) < 3 ? -22 : 0;
+  return dustColor([116, 52, 48], vein + dustGrain(x, y, 101, 13) - 6);
+}
+
+function mcGlowstone(x, y) {
+  const cell = dustGrain(x >> 2, y >> 2, 102, 11) - 5;
+  const spark = dustGrain(x, y, 103, 13) < 3 ? 26 : 0;
+  return dustColor([232, 190, 92], cell * 3 + spark);
+}
+
+function mcCloud(x, y) {
+  return dustColor([246, 248, 252], dustGrain(x >> 2, y >> 2, 104, 5) - 2);
+}
+
+function mcCactusSide(x, y) {
+  if (x === 0 || x === 15) return dustColor([82, 128, 46], -8);
+  const spine = (x & 3) === 1 && (y & 3) === 2 ? -40 : 0;
+  return dustColor([94, 148, 54], spine + dustGrain(x, y >> 1, 105, 9) - 4);
+}
+
+function mcCactusTop(x, y) {
+  if (x === 0 || x === 15 || y === 0 || y === 15) return dustColor([82, 128, 46], -8);
+  return dustColor([132, 176, 78], dustGrain(x, y, 106, 9) - 4 + (((x ^ y) & 3) === 0 ? -10 : 0));
+}
+
+function mcChestSide(x, y) {
+  if (x === 0 || x === 15 || y === 0 || y === 15) return dustColor([62, 44, 24], 0);
+  if (y === 6 || y === 7) return dustColor([54, 38, 20], dustGrain(x, 0, 107, 5) - 2);
+  if (x >= 6 && x <= 9 && y >= 5 && y <= 9) return dustColor([170, 170, 178], (x === 6 || y === 5) ? 20 : -14);
+  return dustColor([152, 106, 52], dustGrain(x, y >> 1, 108, 9) - 4);
+}
+
+function mcChestTop(x, y) {
+  if (x === 0 || x === 15 || y === 0 || y === 15) return dustColor([62, 44, 24], 0);
+  return dustColor([152, 106, 52], dustGrain(x, y >> 1, 109, 9) - 4);
+}
+
+function mcFurnaceSide(x, y) {
+  return mcCobble(x, y);
+}
+
+function mcFurnaceTop(x, y) {
+  if (x >= 4 && x <= 11 && y >= 8 && y <= 13) return y === 8 ? dustColor([40, 40, 40], 0) : dustColor([18, 18, 18], dustGrain(x, y, 110, 7));
+  return mcCobble(x, y);
+}
+
+function mcCraftTop(x, y) {
+  if (x === 7 || x === 8 || y === 7 || y === 8) return dustColor([84, 62, 40], 0);
+  return dustColor([132, 100, 62], dustGrain(x, y, 111, 11) - 5);
+}
+
+function mcCraftSide(x, y) {
+  if (y >= 8) return mcPlanks(x, y);
+  if ((x > 1 && x < 6 && y > 1 && y < 6) || (x > 9 && x < 14 && y > 1 && y < 6)) return dustColor([168, 172, 176], (x & 1) ? 12 : -8);
+  return dustColor([150, 112, 66], dustGrain(x, y, 112, 9) - 4);
+}
+
+function mcTntSide(x, y) {
+  if (y < 3 || y > 12) return dustColor([196, 46, 40], dustGrain(x, y, 113, 11) - 5);
+  if (y >= 6 && y <= 9) {
+    const letter = (x >= 2 && x <= 4 && (y === 6 || x === 3)) || (x >= 6 && x <= 9 && (x === 6 || x === 9 || y === 6))
+      || (x >= 11 && x <= 13 && (y === 6 || x === 12));
+    return letter ? [24, 20, 18, 255] : dustColor([224, 220, 208], 0);
+  }
+  return dustColor([224, 220, 208], dustGrain(x, y, 114, 7) - 3);
+}
+
+function mcTntTop(x, y) {
+  const fuse = (x & 3) === 1 && (y & 3) === 1;
+  return fuse ? [40, 34, 30, 255] : dustColor([196, 46, 40], dustGrain(x, y, 115, 11) - 5);
+}
+
+function mcWater(x, y) {
+  const ripple = ((x + (y << 1)) & 7) < 2 ? 18 : 0;
+  const [r, g, b] = dustColor([46, 88, 190], ripple + dustGrain(x >> 1, y >> 1, 116, 11) - 5);
+  return [r, g, b, 176];
+}
+
+function mcLava(x, y) {
+  const crust = dustGrain(x >> 1, y >> 1, 117, 9) < 3;
+  return crust ? dustColor([176, 62, 18], dustGrain(x, y, 118, 9) - 4) : dustColor([242, 150, 36], dustGrain(x, y, 119, 21) - 10);
+}
+
+function mcPortal(x, y) {
+  const swirl = (x * 3 + y * 5 + (dustGrain(x, y, 120, 5))) & 7;
+  const [r, g, b] = dustColor([112, 42, 186], swirl < 2 ? 40 : swirl > 5 ? -30 : 0);
+  return [r, g, b, 196];
 }
 
 /** Tile-id -> painter registry. Keys are TILE slot values. */
@@ -383,16 +603,86 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.DUST_TILE]: dustTile,
   [TILE.DUST_CRATE]: dustCrate,
   [TILE.DUST_WOOD]: dustWood,
-  [TILE.SUB_CONCRETE]: bakedTile('concrete'),
-  [TILE.SUB_STEEL]: bakedTile('steel'),
-  [TILE.SUB_GRAVEL]: bakedTile('gravel'),
-  [TILE.SUB_ENAMEL]: bakedTile('enamel'),
-  [TILE.SUB_HAZARD]: bakedTile('hazard'),
-  [TILE.SUB_CLADDING]: bakedTile('cladding'),
+  [TILE.MC_GRASS_TOP]: mcGrassTop,
+  [TILE.MC_GRASS_SIDE]: mcGrassSide,
+  [TILE.MC_DIRT]: mcDirt,
+  [TILE.MC_STONE]: mcStone,
+  [TILE.MC_COBBLE]: mcCobble,
+  [TILE.MC_MOSSY]: mcMossy,
+  [TILE.MC_SAND]: mcSand,
+  [TILE.MC_GRAVEL]: mcGravel,
+  [TILE.MC_CLAY]: mcClay,
+  [TILE.MC_LOG_SIDE]: mcLogSide,
+  [TILE.MC_LOG_TOP]: mcLogTop,
+  [TILE.MC_LEAVES]: mcLeaves,
+  [TILE.MC_PLANKS]: mcPlanks,
+  [TILE.MC_GLASS]: mcGlass,
+  [TILE.MC_BRICK]: mcBrick,
+  [TILE.MC_BOOKSHELF]: mcBookshelf,
+  [TILE.MC_WOOL_WHITE]: (x, y) => mcWool([228, 228, 228], x, y),
+  [TILE.MC_WOOL_RED]: (x, y) => mcWool([176, 46, 40], x, y),
+  [TILE.MC_IRON]: (x, y) => mcMetal([214, 214, 214], x, y, 121),
+  [TILE.MC_GOLD]: (x, y) => mcMetal([246, 206, 62], x, y, 122),
+  [TILE.MC_DIAMOND]: (x, y) => mcMetal([96, 222, 214], x, y, 123),
+  [TILE.MC_DIAMOND_ORE]: (x, y) => mcOre([98, 226, 220], x, y, 1),
+  [TILE.MC_COAL_ORE]: (x, y) => mcOre([34, 34, 34], x, y, 2),
+  [TILE.MC_OBSIDIAN]: mcObsidian,
+  [TILE.MC_NETHERRACK]: mcNetherrack,
+  [TILE.MC_GLOWSTONE]: mcGlowstone,
+  [TILE.MC_CLOUD]: mcCloud,
+  [TILE.MC_CACTUS_SIDE]: mcCactusSide,
+  [TILE.MC_CACTUS_TOP]: mcCactusTop,
+  [TILE.MC_CHEST_SIDE]: mcChestSide,
+  [TILE.MC_CHEST_TOP]: mcChestTop,
+  [TILE.MC_FURNACE_SIDE]: mcFurnaceSide,
+  [TILE.MC_FURNACE_TOP]: mcFurnaceTop,
+  [TILE.MC_CRAFT_SIDE]: mcCraftSide,
+  [TILE.MC_CRAFT_TOP]: mcCraftTop,
+  [TILE.MC_TNT_SIDE]: mcTntSide,
+  [TILE.MC_TNT_TOP]: mcTntTop,
+  [TILE.MC_WATER]: mcWater,
+  [TILE.MC_LAVA]: mcLava,
+  [TILE.MC_PORTAL]: mcPortal,
   [TILE.BEDROCK]: bedrock,
 });
 
 // ------------------------------------------------------------- face mapping
+
+const MC_BLOCK_TILES = Object.freeze({
+  [MC_GRASS]: { top: TILE.MC_GRASS_TOP, bottom: TILE.MC_DIRT, side: TILE.MC_GRASS_SIDE },
+  [MC_DIRT]: { all: TILE.MC_DIRT },
+  [MC_STONE]: { all: TILE.MC_STONE },
+  [MC_COBBLE]: { all: TILE.MC_COBBLE },
+  [MC_MOSSY]: { all: TILE.MC_MOSSY },
+  [MC_SAND]: { all: TILE.MC_SAND },
+  [MC_GRAVEL]: { all: TILE.MC_GRAVEL },
+  [MC_CLAY]: { all: TILE.MC_CLAY },
+  [MC_LOG]: { top: TILE.MC_LOG_TOP, bottom: TILE.MC_LOG_TOP, side: TILE.MC_LOG_SIDE },
+  [MC_LEAVES]: { all: TILE.MC_LEAVES },
+  [MC_PLANKS]: { all: TILE.MC_PLANKS },
+  [MC_GLASS]: { all: TILE.MC_GLASS },
+  [MC_BRICK]: { all: TILE.MC_BRICK },
+  [MC_BOOKSHELF]: { top: TILE.MC_PLANKS, bottom: TILE.MC_PLANKS, side: TILE.MC_BOOKSHELF },
+  [MC_WOOL_WHITE]: { all: TILE.MC_WOOL_WHITE },
+  [MC_WOOL_RED]: { all: TILE.MC_WOOL_RED },
+  [MC_IRON]: { all: TILE.MC_IRON },
+  [MC_GOLD]: { all: TILE.MC_GOLD },
+  [MC_DIAMOND]: { all: TILE.MC_DIAMOND },
+  [MC_DIAMOND_ORE]: { all: TILE.MC_DIAMOND_ORE },
+  [MC_COAL_ORE]: { all: TILE.MC_COAL_ORE },
+  [MC_OBSIDIAN]: { all: TILE.MC_OBSIDIAN },
+  [MC_NETHERRACK]: { all: TILE.MC_NETHERRACK },
+  [MC_GLOWSTONE]: { all: TILE.MC_GLOWSTONE },
+  [MC_CLOUD]: { all: TILE.MC_CLOUD },
+  [MC_CACTUS]: { top: TILE.MC_CACTUS_TOP, bottom: TILE.MC_CACTUS_TOP, side: TILE.MC_CACTUS_SIDE },
+  [MC_CHEST]: { top: TILE.MC_CHEST_TOP, bottom: TILE.MC_CHEST_TOP, side: TILE.MC_CHEST_SIDE },
+  [MC_FURNACE]: { top: TILE.MC_FURNACE_TOP, bottom: TILE.MC_FURNACE_SIDE, side: TILE.MC_FURNACE_SIDE },
+  [MC_CRAFTING]: { top: TILE.MC_CRAFT_TOP, bottom: TILE.MC_PLANKS, side: TILE.MC_CRAFT_SIDE },
+  [MC_TNT]: { top: TILE.MC_TNT_TOP, bottom: TILE.MC_TNT_TOP, side: TILE.MC_TNT_SIDE },
+  [MC_WATER]: { all: TILE.MC_WATER },
+  [MC_LAVA]: { all: TILE.MC_LAVA },
+  [MC_PORTAL]: { all: TILE.MC_PORTAL },
+});
 
 /** Default blockId -> face-tile table. chunks.js consumes this exact table. */
 export const DEFAULT_BLOCK_TILES = Object.freeze({
@@ -425,13 +715,10 @@ export const DEFAULT_BLOCK_TILES = Object.freeze({
   [DUST_TILE]: { all: TILE.DUST_TILE },
   [DUST_CRATE]: { all: TILE.DUST_CRATE },
   [DUST_WOOD]: { all: TILE.DUST_WOOD },
-  [SUB_CONCRETE]: { all: TILE.SUB_CONCRETE },
-  [SUB_STEEL]: { all: TILE.SUB_STEEL },
-  [SUB_GRAVEL]: { all: TILE.SUB_GRAVEL },
-  [SUB_ENAMEL]: { all: TILE.SUB_ENAMEL },
-  [SUB_HAZARD]: { all: TILE.SUB_HAZARD },
-  [SUB_CLADDING]: { all: TILE.SUB_CLADDING },
   [BEDROCK]: { all: TILE.BEDROCK },
+  ...MC_BLOCK_TILES,
+  // Ghost blocks look exactly like the material they imitate.
+  ...Object.fromEntries(Object.entries(MC_GHOST_SOLID).map(([ghost, solid]) => [ghost, MC_BLOCK_TILES[solid]])),
 });
 
 /**
@@ -477,7 +764,7 @@ const NO_RING_DARKEN = new Set([
   TILE.AIR_DEBUG, TILE.GLASS,
   TILE.DUST_SANDSTONE, TILE.DUST_PLASTER, TILE.DUST_ROCK, TILE.DUST_FLOOR,
   TILE.DUST_TRIM, TILE.DUST_TILE, TILE.DUST_CRATE, TILE.DUST_WOOD,
-  TILE.SUB_CONCRETE, TILE.SUB_STEEL, TILE.SUB_GRAVEL, TILE.SUB_ENAMEL, TILE.SUB_HAZARD, TILE.SUB_CLADDING,
+  ...Object.entries(TILE).filter(([name]) => name.startsWith('MC_')).map(([, slot]) => slot),
 ]);
 const RING_DARKEN = 0.78;
 

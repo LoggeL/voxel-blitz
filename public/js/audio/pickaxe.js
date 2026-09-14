@@ -1,7 +1,9 @@
 import {
   GRASS, DIRT, SAND, WOOD, LEAVES, PLANK, DUST_CRATE, DUST_WOOD,
   METAL, ACCENT, RUST, BUS_YELLOW, TRUCK_RED, GLASS,
-  SUB_STEEL, SUB_ENAMEL, SUB_HAZARD, SUB_CLADDING,
+  MC_GRASS, MC_DIRT, MC_SAND, MC_GRAVEL, MC_CLAY, MC_LOG, MC_LEAVES, MC_PLANKS,
+  MC_BOOKSHELF, MC_WOOL_WHITE, MC_WOOL_RED, MC_CACTUS, MC_CHEST, MC_CRAFTING, MC_TNT,
+  MC_CLOUD, MC_GLASS, MC_IRON, MC_GOLD, MC_DIAMOND, MC_GHOST_SOLID,
 } from '../../../shared/world/blocks.js';
 
 export const PICKAXE_SWING_SLOTS = Object.freeze(['weapons.knife.fire', 'weapons.knife.fire.2']);
@@ -13,10 +15,16 @@ export function pickaxeSampleChoice(index, impact = false) {
   return { slot: slots[index % slots.length], rate: RATES[index % RATES.length] };
 }
 
+const SOFT = new Set([GRASS, DIRT, SAND, WOOD, LEAVES, PLANK, DUST_CRATE, DUST_WOOD,
+  MC_GRASS, MC_DIRT, MC_SAND, MC_GRAVEL, MC_CLAY, MC_LOG, MC_LEAVES, MC_PLANKS, MC_BOOKSHELF,
+  MC_WOOL_WHITE, MC_WOOL_RED, MC_CACTUS, MC_CHEST, MC_CRAFTING, MC_TNT, MC_CLOUD]);
+const HARD_METAL = new Set([METAL, ACCENT, RUST, BUS_YELLOW, TRUCK_RED, MC_IRON, MC_GOLD, MC_DIAMOND]);
+
 export function pickaxeMaterial(type) {
-  if ([GRASS, DIRT, SAND, WOOD, LEAVES, PLANK, DUST_CRATE, DUST_WOOD].includes(type)) return 'soft';
-  if ([METAL, ACCENT, RUST, BUS_YELLOW, TRUCK_RED, SUB_STEEL, SUB_ENAMEL, SUB_HAZARD, SUB_CLADDING].includes(type)) return 'metal';
-  return type === GLASS ? 'glass' : 'stone';
+  type = MC_GHOST_SOLID[type] ?? type;
+  if (SOFT.has(type)) return 'soft';
+  if (HARD_METAL.has(type)) return 'metal';
+  return type === GLASS || type === MC_GLASS ? 'glass' : 'stone';
 }
 
 /** Short physical contact fallback; the recording already supplies the strike. */

@@ -1,4 +1,4 @@
-import { AIR } from './world/blocks.js';
+import { isSolidBlock } from './world/blocks.js';
 import { worldDimensions } from './world/dimensions.js';
 import { isPowerupSiteSupported } from './powerup-sites.js';
 
@@ -11,7 +11,7 @@ const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 export function findChaosCashSites(world, meta = world.meta) {
   const { sx: SX, sy: SY, sz: SZ } = worldDimensions(world);
   const spawns = meta?.spawns?.fun || [];
-  const solid = (x, y, z) => world.getBlock(x, y, z) !== AIR;
+  const solid = (x, y, z) => isSolidBlock(world.getBlock(x, y, z));
   const walkable = (x, y, z) => x > 3 && x < SX - 4 && z > 3 && z < SZ - 4
     && y > 0 && y < SY - 2 && solid(x, y - 1, z)
     && !solid(x, y, z) && !solid(x, y + 1, z);

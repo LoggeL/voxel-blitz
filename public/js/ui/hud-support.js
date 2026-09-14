@@ -112,7 +112,7 @@ export const MAP_LABELS = Object.freeze({
   nuketown: 'NUKETOWN',
   dust2: 'DUST 2',
   killhouse: 'KILLHOUSE',
-  substation: 'SUBSTATION',
+  minecraft_b5: 'MINECRAFT B5',
 });
 
 export const MAP_DESCRIPTIONS = Object.freeze({
@@ -127,7 +127,7 @@ export const MAP_DESCRIPTIONS = Object.freeze({
   nuketown: 'Classic test-town: furnished two-storey houses, school bus, moving truck and backyard routes (All Modes)',
   dust2: 'Long A, sunken Pit, raised Catwalk and two-level B Tunnels',
   killhouse: 'Covered firing bays and four numbered rooms. Practice on respawning targets or race the course.',
-  substation: 'Blender-built switchyard: control house roof perch, four transformer bays, workshop and reactor pad (Fun / TTT / Duel / Chaos / TDM / Gun Game / Training)',
+  minecraft_b5: 'Block-for-block ttt_minecraft_b5: island village, lighthouse, mine rails, the Nether below and swimmable ocean (Fun / TTT / Duel / Chaos / TDM / Gun Game)',
 });
 
 export const MAP_PREVIEWS = Object.freeze({
@@ -142,7 +142,7 @@ export const MAP_PREVIEWS = Object.freeze({
   nuketown: './assets/maps/nuketown.webp',
   dust2: './assets/maps/dust2.webp',
   killhouse: './assets/maps/killhouse-range.webp',
-  substation: './assets/maps/substation.webp',
+  minecraft_b5: './assets/maps/minecraft-b5.webp',
 });
 
 export const CARDINAL = Object.freeze({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' });

@@ -63,6 +63,7 @@ export function createSimulationContexts(engine) {
     get now() { return engine.now; },
     get mapMeta() { return engine.mapMeta; },
     solidAt: combat.solidAt,
+    fluidAt: engine.fluidAt,
     movementLocked: false,
     onFall: (entity, reason) => {
       if (reason === 'invalid') engine.forceRespawn(entity);
