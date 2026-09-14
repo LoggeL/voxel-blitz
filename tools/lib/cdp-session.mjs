@@ -61,7 +61,7 @@ class CdpConnection {
     this.pending.clear();
   }
 
-  send(method, params = {}, timeoutMs = 5_000) {
+  send(method, params = {}, timeoutMs = 30_000) {
     if (this.closed || this.socket.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error('CDP socket is not open'));
     }
@@ -111,7 +111,7 @@ class CdpConnection {
   }
 }
 
-async function readDebugPort(profileDir, child, timeoutMs = 10_000) {
+async function readDebugPort(profileDir, child, timeoutMs = 30_000) {
   const activePort = path.join(profileDir, 'DevToolsActivePort');
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
@@ -128,7 +128,7 @@ async function readDebugPort(profileDir, child, timeoutMs = 10_000) {
   throw timeoutError('browser debugging port', timeoutMs);
 }
 
-async function pageTarget(port, expectedUrl, timeoutMs = 10_000) {
+async function pageTarget(port, expectedUrl, timeoutMs = 30_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
