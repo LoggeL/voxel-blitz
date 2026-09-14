@@ -9,8 +9,7 @@ modeled after that choice.
 - `rivet/rivet.blend`: editable operator, 149 named parts, 20-bone rig.
 - `rivet/rivet.glb`: merged skin mesh with Idle and Walk clips.
 - `kestrel/kestrel.blend`: editable VK-77 RAPTOR carbine, revision 2 (part rig, see the
-  KESTREL section below); `kestrel/kestrel-r1.blend` keeps the first study (its GLB lives in
-  git history, see `tools/blender/validate-import.py`).
+  KESTREL section below). The rigged first study was removed and lives only in git history.
 - `kestrel/kestrel.glb`: portable GLB with the KESTREL part rig and markers.
 - `peregrine/peregrine.blend`: editable original precision rifle and part rig.
 - `peregrine/peregrine.glb`: portable GLB with the PEREGRINE part rig and markers.
@@ -107,8 +106,8 @@ MCP_PYTHON="$HOME/Library/Application Support/VoxelBlitz/blender-mcp/.venv/bin/p
 
 ## Rebuilding
 
-Run `tools/blender/build-character.py`, then `tools/blender/build-weapon.py`,
-then `tools/blender/texture-and-export.py` inside Blender. Each build script
+Run `tools/blender/build-character.py`, then `tools/blender/texture-and-export.py`
+inside Blender for RIVET; the rifle has its own scripts under `tools/blender/kestrel/`. Each build script
 creates its own scene and preserves existing scenes. For a clean rebuild, start
 in a fresh Blender file. These scripts expect `__file__` to point at the script:
 
@@ -123,9 +122,9 @@ exec(compile(p.read_text(), str(p), 'exec'), {'__file__': str(p)})
 These are actual Blender renders, not ImageGen pictures of the finished models.
 
 Build the browser files from the packed study (Blender 5.2). The root
-`export-game-assets.py` is the revision 1 exporter for the rigged RIVET/KESTREL
-studies (`kestrel-r1.blend`); the delivered `rifle` slot now comes from
-`tools/blender/kestrel/export-game-assets.py` (see the KESTREL section):
+`export-game-assets.py` exports the rigged RIVET study; the delivered `rifle`
+slot comes from `tools/blender/kestrel/export-game-assets.py` (see the KESTREL
+section):
 
 ```sh
 blender --background docs/design/blender/kestrel/kestrel.blend \
@@ -164,14 +163,12 @@ PEREGRINE); every other weapon still goes through the software rasterizer.
 
 ## Verification
 
-`validation.json` records a fresh Blender import of both final GLBs. Both pass:
-one imported skin mesh, normalized vertex weights, embedded material images,
-valid UV references and actual evaluated mesh motion for each animation.
-RIVET has 19,320 triangles, 20 bones and six embedded images. The first KESTREL
-study (`kestrel-r1.glb`) had 16,488 triangles, four bones and four embedded images;
-revision 2 is validated by `tools/blender/kestrel/validate-kestrel.py` instead
-(see its section below). The clips are isolated to their own models: Idle/Walk
-for the character and Reload_Study for the r1 weapon.
+`validation.json` records a fresh Blender import of the RIVET GLB: one imported
+skin mesh, normalized vertex weights, embedded material images, valid UV
+references and actual evaluated mesh motion for each animation. RIVET has
+19,320 triangles, 20 bones and six embedded images, with the Idle/Walk clips
+isolated to the character. KESTREL revision 2 is validated by
+`tools/blender/kestrel/validate-kestrel.py` (see its section below).
 `peregrine/validation.json` records the same fresh-import evidence for the sniper,
 and `peregrine/manifest.json` its study mesh statistics.
 
@@ -330,11 +327,9 @@ markers, identity transforms, muzzle tip, heat band radius, sight channel,
 lens span, 18 primitives, 10k-30k triangle budget) and the runtime glTF
 contract (node names, `textures/` image URIs, one blend material, buffer URI).
 `render-hero/side/left/ads/rear.png` are the Cycles proof renders and
-`build-report.md` the build record. The r1 scripts
-(`tools/blender/build-weapon.py`, `tools/blender/export-game-assets.py`,
-`tools/blender/render-previews.py`, `tools/blender/validate-import.py`) read
-the rigged first study and now apply to `kestrel-r1.blend` / `kestrel-r1.glb`
-only.
+`build-report.md` the build record. The rigged first study and its authoring
+script were removed; the root `export-game-assets.py`, `render-previews.py`
+and `validate-import.py` now serve RIVET only.
 
 ## HANDS (first-person gloves), revision 2
 

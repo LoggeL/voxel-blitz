@@ -1,6 +1,6 @@
 """Render one study or a character detail in the current Blender session.
 
-Set STUDY to 'rivet', 'kestrel', 'rivet-detail' or 'rivet-back' in the exec scope.
+Set STUDY to 'rivet', 'rivet-detail' or 'rivet-back' in the exec scope.
 """
 import bpy
 from pathlib import Path
@@ -8,7 +8,7 @@ from mathutils import Vector
 
 BASE=Path(__file__).resolve().parents[2]/'docs/design/blender'
 study=globals().get('STUDY','rivet')
-prefix='KESTREL' if study=='kestrel' else 'RIVET'
+prefix='RIVET'
 scene=next(s for s in bpy.data.scenes if s.name.startswith(prefix+' |'))
 bpy.context.window.scene=scene
 scene.frame_set(1)
@@ -25,7 +25,7 @@ elif study=='rivet-back':
     camera.location=(-3,-5,2.7)
     camera.rotation_euler=(Vector((0,0,1.04))-camera.location).to_track_quat('-Z','Y').to_euler()
     camera.data.ortho_scale=2.48
-scene.render.filepath=str(BASE/('kestrel' if study=='kestrel' else 'rivet')/
+scene.render.filepath=str(BASE/'rivet'/
                           (study+'.png' if study!='rivet' else 'rivet-front.png'))
 scene.cycles.samples=32
 bpy.ops.render.render(write_still=True)

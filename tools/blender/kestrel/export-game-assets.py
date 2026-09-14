@@ -22,8 +22,8 @@ scene that is not the KESTREL study is removed here and the .blend is
 re-saved, so the delivered source holds exactly one scene. This runs in a
 background process and never touches the live session.
 
-The revision 1 exporter (tools/blender/export-game-assets.py) read the rigged
-r1 study; it no longer applies to this file.
+The root tools/blender/export-game-assets.py exports the rigged RIVET study
+only; it does not apply to this file.
 
 No study texture is written, re-encoded or copied over.
 """

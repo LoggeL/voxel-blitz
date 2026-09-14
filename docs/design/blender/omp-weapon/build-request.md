@@ -32,7 +32,7 @@ into the editable .blend and exported GLB. No additional image API spending.
 
 Read these references before working:
 - docs/design/blender/README.md
-- tools/blender/build-weapon.py and export-game-assets.py (technique only)
+- tools/blender/kestrel/build-kestrel.py and export-game-assets.py (technique only)
 - public/js/guns/defs.js, shared/avatar-hands.js
 - public/js/guns/models/common.js, public/js/guns/attachment-model.js
 

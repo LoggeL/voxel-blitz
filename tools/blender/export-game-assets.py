@@ -1,9 +1,8 @@
 """Export the authored rigid armor into the game's existing pose frames.
 
-blender --background docs/design/blender/kestrel/kestrel-r1.blend --python tools/blender/export-game-assets.py
-Revision 1 exporter: it reads the rigged RIVET/KESTREL studies (KESTREL_Rig).
-KESTREL revision 2 (docs/design/blender/kestrel/kestrel.blend) is a part rig and
-is exported by tools/blender/kestrel/export-game-assets.py instead.
+blender --background docs/design/blender/rivet/rivet.blend --python tools/blender/export-game-assets.py
+Exports the rigged RIVET study (RIVET_Rig). The rifle (KESTREL) is a part rig
+exported by tools/blender/kestrel/export-game-assets.py instead.
 Produces standard glTF 2.0 with indexed, material-batched geometry and shared
 1024px JPEG delivery copies of the original ImageGen textures. No study file
 is modified. Animation remains owned by the game's stance/IK/reload systems.
@@ -90,12 +89,6 @@ def material_desc(material, slug, team=False):
          'roughnessFactor':material.get('gltf_roughness',shader.inputs['Roughness'].default_value)}
     if tex:pbr['baseColorTexture']={'index':textures.index(tex)}
     result={'name':name+(' | team' if team else ''),'pbrMetallicRoughness':pbr,'extras':extras}
-    if slug=='kestrel' and 'optic glass' in name:
-        pbr['baseColorFactor']=[.18,.58,.65,.12]
-        pbr['metallicFactor']=0
-        result['alphaMode']='BLEND'
-        result['doubleSided']=True
-        extras['glass']=True
     strength=shader.inputs['Emission Strength'].default_value
     if strength:
         result['emissiveFactor']=[min(1,v*strength) for v in shader.inputs['Emission Color'].default_value[:3]]
@@ -104,7 +97,7 @@ def material_desc(material, slug, team=False):
 
 
 stats=[]
-for slug,prefix in [('rivet','RIVET'),('kestrel','KESTREL')]:
+for slug,prefix in [('rivet','RIVET')]:
     rig=bpy.data.objects[prefix+'_Rig']
     rig.data.pose_position='REST'
     # Only the independently authored parts, never the merged export duplicate.
@@ -121,13 +114,7 @@ for slug,prefix in [('rivet','RIVET'),('kestrel','KESTREL')]:
         root_matrix=Matrix.LocRotScale(rig.location,rig.rotation_euler.to_quaternion(),rig.scale)
         world=root_matrix@obj.matrix_parent_inverse@Matrix.LocRotScale(
             obj.location,obj.rotation_euler.to_quaternion(),obj.scale)
-        part,linear,offset=char_frame(obj,rig) if slug=='rivet' else (
-            {'magazine':'mag','trigger':'trigger','bolt':'bolt'}.get(obj['rig_bone'],'body'),
-            Matrix.Diagonal((.691,.62,.691)),Vector((-.012,.045-.079*.62,-.598+.58*.691)))
-        if slug=='kestrel' and any(s in obj.name.lower() for s in ['optic','reflex sight']):
-            part='factory-optic'
-            offset.x=0
-            offset.y=.145-.248*.62
+        part,linear,offset=char_frame(obj,rig)
         normal_matrix=(linear@C@world.to_3x3()).inverted().transposed()
         team=slug=='rivet' and any(s in obj.name.lower() for s in
             ['upper chest armor','helmet orange crown','headset orange cap','thigh frontal panel'])
@@ -209,6 +196,5 @@ manifest['textures_bytes']=sum(p.stat().st_size for p in (OUT/'textures').glob('
 manifest_path.write_text(json.dumps(manifest,indent=2)+'\n')
 print(json.dumps(stats,indent=2))
 
-# Final weapon palette; the character keeps its existing material system.
-import runpy
-runpy.run_path(str(ROOT / 'tools/blender/material-library.py'))['finish_asset']('kestrel')
+# The character keeps its existing material system; weapon palettes are
+# finished by each weapon's own export script.

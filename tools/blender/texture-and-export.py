@@ -1,4 +1,4 @@
-"""Apply generated material scans to both studies and export clean GLB assets.
+"""Apply generated material scans to the RIVET study and export a clean GLB asset.
 
 The texture pixels are unmodified ImageGen outputs. Rest-space planar UVs
 give a consistent material scale. Roughness and bump are artistic estimates.
@@ -76,30 +76,6 @@ for material in bpy.data.materials:
     material['gltf_roughness']=base_roughness
 
 
-def merge_weapon(scene,rig):
-    if scene.objects.get('KESTREL_SkinnedMesh'):return
-    source=bpy.data.collections.new('KESTREL SOURCE | individually editable parts')
-    export=bpy.data.collections.new('KESTREL EXPORT | rig and merged skin')
-    scene.collection.children.link(source)
-    scene.collection.children.link(export)
-    duplicates=[]
-    for obj in list(rig.children):
-        if obj.type!='MESH':continue
-        for c in list(obj.users_collection):c.objects.unlink(obj)
-        source.objects.link(obj)
-        duplicate=obj.copy()
-        duplicate.data=obj.data.copy()
-        export.objects.link(duplicate)
-        duplicates.append(duplicate)
-    bpy.ops.object.select_all(action='DESELECT')
-    for obj in duplicates:obj.select_set(True)
-    bpy.context.view_layer.objects.active=duplicates[0]
-    bpy.ops.object.join()
-    bpy.context.object.name='KESTREL_SkinnedMesh'
-    source.hide_viewport=True
-    source.hide_render=True
-
-
 def uv_map(obj):
     layer=obj.data.uv_layers.active
     if layer is None:
@@ -117,12 +93,11 @@ def uv_map(obj):
 
 
 results=[]
-for prefix,slug,rig_name in [('RIVET','rivet','RIVET_Rig'),('KESTREL','kestrel','KESTREL_Rig')]:
+for prefix,slug,rig_name in [('RIVET','rivet','RIVET_Rig')]:
     scene=next(s for s in bpy.data.scenes if s.name.startswith(prefix+' |'))
     bpy.context.window.scene=scene
     rig=scene.objects[rig_name]
     scene.frame_set(1)
-    if prefix=='KESTREL':merge_weapon(scene,rig)
     for obj in list(scene.objects):
         if obj.type=='MESH' and obj.parent==rig:uv_map(obj)
     bpy.ops.object.select_all(action='DESELECT')
@@ -157,10 +132,8 @@ for prefix,slug,rig_name in [('RIVET','rivet','RIVET_Rig'),('KESTREL','kestrel',
         if material and 'imagegen_texture' in material})
     manifest['glb_bytes']=(BASE/slug/(slug+'.glb')).stat().st_size
     manifest['material_note']='ImageGen albedo embedded in GLB. Bump and image-driven roughness are Blender shader estimates; GLB uses scalar roughness.'
-    if prefix=='KESTREL':
-        manifest['integration_remaining'][0]='Browser draw-call and animation budget'
     manifest_path.write_text(json.dumps(manifest,indent=2)+'\n')
-    scene.render.filepath=str(BASE/slug/('rivet-front.png' if slug=='rivet' else 'kestrel.png'))
+    scene.render.filepath=str(BASE/slug/'rivet-front.png')
     # Enable Metal Cycles when supported; CPU remains the deterministic fallback.
     prefs=bpy.context.preferences.addons['cycles'].preferences
     try:

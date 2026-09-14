@@ -1,8 +1,7 @@
 """Author KESTREL revision 2, the VK-77 RAPTOR carbine for Voxel Blitz.
 
 Second study revision of the `rifle` slot asset. Fresh geometry built from
-scratch: no mesh or file from the first study (tools/blender/build-weapon.py,
-docs/design/blender/kestrel/kestrel-r1.blend) is loaded. Only the low-level
+scratch: no mesh or file from the removed first study is loaded. Only the low-level
 authoring technique (closed convex primitives, analytic planar UVs, the six
 shared ImageGen maps) and the frozen runtime interface (anchors, part nodes,
 markers) carry over, because the game slot demands them.

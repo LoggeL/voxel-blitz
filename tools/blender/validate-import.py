@@ -10,13 +10,10 @@ from pathlib import Path
 
 BASE=Path(__file__).resolve().parents[2]/'docs/design/blender'
 reports=[]
-# KESTREL revision 2 is a part rig without skin or clips: it is validated by
-# tools/blender/kestrel/validate-kestrel.py. The rigged first study's GLB is not
-# committed (16.8 MB); restore it from history before running this check:
-#   git show 538f7d8:docs/design/blender/kestrel/kestrel.glb > docs/design/blender/kestrel/kestrel-r1.glb
-FILES={'kestrel':'kestrel-r1.glb'}
-for slug,bone_count,clips,image_count in [('rivet',20,{'Idle','Walk'},6),
-                                        ('kestrel',4,{'Reload_Study'},4)]:
+# The rifle (KESTREL) is a part rig without skin or clips: it is validated by
+# tools/blender/kestrel/validate-kestrel.py.
+FILES={}
+for slug,bone_count,clips,image_count in [('rivet',20,{'Idle','Walk'},6)]:
     scene=bpy.data.scenes.new('Import validation '+slug)
     bpy.context.window.scene=scene
     path=BASE/slug/FILES.get(slug,slug+'.glb')

@@ -1,6 +1,6 @@
 # KESTREL Revision 2 (VK-77 RAPTOR)
 
-Der Karabiner des `rifle`-Slots wurde über die laufende Blender-MCP-Sitzung (Protokoll 5, `execute_blender_code`) mit `tools/blender/kestrel/build-kestrel.py` komplett neu aufgebaut. Das Skript legt eine eigene Szene `KESTREL | Voxel Blitz rifle study` an, prüft beim Bau den eingefrorenen Laufzeitvertrag und speichert mit `copy=True`, so dass die parallele Granaten-Studie in derselben Sitzung unberührt bleibt. Der erste Entwurf (`build-weapon.py`, gerigged mit Reload_Study-Clip) liegt weiter als `kestrel-r1.blend` und `kestrel-r1.glb` daneben.
+Der Karabiner des `rifle`-Slots wurde über die laufende Blender-MCP-Sitzung (Protokoll 5, `execute_blender_code`) mit `tools/blender/kestrel/build-kestrel.py` komplett neu aufgebaut. Das Skript legt eine eigene Szene `KESTREL | Voxel Blitz rifle study` an, prüft beim Bau den eingefrorenen Laufzeitvertrag und speichert mit `copy=True`, so dass die parallele Granaten-Studie in derselben Sitzung unberührt bleibt. Der erste Entwurf (gerigged mit Reload_Study-Clip) wurde entfernt und liegt nur noch in der Git-Historie.
 
 Die Form ist ein moderner M4-Karabiner: geschlossener Oberreceiver mit offenem Auswurffenster (der Verschlussträger ist darin sichtbar und läuft mit der `bolt`-Gruppe mit), Hülsenabweiser, offen hängender Staubdeckel und Forward Assist; durchgehende Picatinny-Schiene mit umgeklapptem Klappvisier und dem werkseitigen Reflexvisier auf der 0,145-m-Ziellinie; linksseitiger, mitlaufender Durchladehebel; Unterreceiver mit ausgestelltem Magazinschacht, Sicherungshebel, Verschlussfang und Magazinlöser; offener Abzugsbügel; geneigter Pistolengriff mit Griffrippen, Gummirücken und bernsteinfarbener Bodenkappe; achteckiger M-LOK-Handschutz mit Schlitzen auf allen Facetten, bernsteinfarbener Rippen-Abdeckung auf der Stützhandseite und innenliegendem Gasrohr; Gasblock mit A-Rahmen-Korn, das durch das Reflexfenster mitgezielt wird; blanker Lauf mit 0,0170 m Radius über das Hitzeband und sechszinkiger Mündungsfeuerdämpfer; gebogenes 30-Schuss-Magazin mit Sichtrippen, Messing-Patronenfenster und bernsteinfarbener Bodenplatte; sechsstufiger Schiebeschaft auf dem Pufferrohr mit Wangenauflage und geriffelter Gummi-Schaftkappe.
 
@@ -15,7 +15,6 @@ Die acht Oberflächen verwenden die gemeinsame ImageGen-Palette (phosphatierter 
 - `mcp-viewport.png`: Viewport-Rücklesung aus der laufenden MCP-Sitzung.
 - `validation.json`: Neuimport in einer frischen Blender-Instanz plus Prüfung der Laufzeit-glTF.
 - `manifest.json`: Teile, Dreiecke, Anker und Bauprüfungen; `material-library.json`: Palettenzuordnung.
-- `kestrel-r1.blend`, `kestrel-r1.glb`, `kestrel.png`, `viewport-untextured.png`: Stand der ersten Fassung, kein Nachweis für diesen Neuaufbau.
 
 ## Geprüfter Stand
 

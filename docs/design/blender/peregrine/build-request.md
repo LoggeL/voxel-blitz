@@ -17,7 +17,7 @@ existing `rifle` slot.
 - Blender 5.2.1 LTS at `/Applications/Blender.app` is running with its MCP add-on
   (protocol 5) listening on `127.0.0.1:9876`. Verified connected.
 - `tools/blender/mcp-client.py` drives that server through the MCP Python SDK.
-- KESTREL is the working precedent: `tools/blender/build-weapon.py` (authoring),
+- KESTREL is the working precedent: `tools/blender/kestrel/build-kestrel.py` (authoring),
   `tools/blender/export-game-assets.py` (runtime glTF writer),
   `public/js/engine/blender-assets.js` (loader),
   `public/js/guns/models/kestrel.js` (runtime part wiring),
