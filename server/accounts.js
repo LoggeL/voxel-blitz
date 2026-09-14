@@ -1,3 +1,4 @@
+import { normalizeKeybindings } from '../public/js/keybindings.js';
 import { randomBytes } from 'node:crypto';
 import { closeSync, fsyncSync, linkSync, mkdirSync, openSync, readFileSync, readdirSync,
   renameSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
@@ -19,6 +20,13 @@ const safeTime = value => Number.isSafeInteger(value) && value >= 0;
 export function validateAccountRecord(record, filename) {
   const password = record?.password;
   const keys = ['version', 'id', 'username', 'password', 'recoveryHash', 'authVersion', 'createdAt', 'updatedAt', 'sessions'];
+  if (record && Object.hasOwn(record, 'keybindings')) {
+    keys.push('keybindings');
+    const normalized = normalizeKeybindings(record.keybindings);
+    if (!exactObject(record.keybindings, Object.keys(normalized))
+      || Object.keys(normalized).some(key => JSON.stringify(record.keybindings[key]) !== JSON.stringify(normalized[key])))
+      throw new Error('Invalid keybindings');
+  }
   if (record && Object.hasOwn(record, 'emailRecovery')) {
     keys.push('emailRecovery');
     validateEmailRecovery(record.emailRecovery);
@@ -307,6 +315,17 @@ export class AccountService {
     return { payload: { user: publicUser(current), ...(!transferred ? { warning: TRANSFER_WARNING } : {}) } };
   }
 
+  async _keybindings(req, res, data) {
+    const user = this.identity(req);
+    if (!user) throw new AccountError(401, 'Sign in to save keybindings');
+    if (!exactObject(data, ['userId', 'keybindings']) || data.userId !== user.id
+      || !data.keybindings || typeof data.keybindings !== 'object' || Array.isArray(data.keybindings))
+      throw new AccountError(400, 'Invalid keybindings request');
+    const keybindings = normalizeKeybindings(data.keybindings);
+    await this._save({ ...this.records.get(user.id), updatedAt: this.now(), keybindings });
+    return { payload: { userId: user.id, keybindings } };
+  }
+
   async _logout(req, res, data) {
     if (!exactObject(data, [])) throw new AccountError(400, 'Invalid account request');
     const identity = this.sessionIdentity(req);
@@ -381,7 +400,15 @@ export class AccountService {
           return reply(200, { user: this.identity(req), ...this.email.view(req), ...(!transferred ? { warning: TRANSFER_WARNING } : {}) });
         });
       }
-      const action = { '/api/account/register': '_register', '/api/account/login': '_login',
+      if (route === '/api/account/keybindings' && req.method === 'GET') {
+        return await this._serialize(() => {
+          this._available();
+          const user = this.identity(req);
+          if (!user) throw new AccountError(401, 'Sign in to load keybindings');
+          return reply(200, { userId: user.id, keybindings: this.records.get(user.id).keybindings ?? null });
+        });
+      }
+      const action = { '/api/account/keybindings': '_keybindings', '/api/account/register': '_register', '/api/account/login': '_login',
         '/api/account/logout': '_logout', '/api/account/password': '_password', '/api/account/recover': '_recover',
         '/api/account/email': 'setEmail', '/api/account/verify-email': 'verify',
         '/api/account/forgot-password': 'forgot', '/api/account/reset-password': 'reset' }[route];

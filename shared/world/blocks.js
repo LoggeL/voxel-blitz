@@ -28,6 +28,14 @@ export const DUST_TILE = 26;
 export const DUST_CRATE = 27;
 export const DUST_WOOD = 28;
 export const BEDROCK = 29;
+// SUBSTATION materials, textured from the Codex ImageGen scans that dress the
+// Blender study (docs/design/blender/substation/textures/).
+export const SUB_CONCRETE = 30;
+export const SUB_STEEL = 31;
+export const SUB_GRAVEL = 32;
+export const SUB_ENAMEL = 33;
+export const SUB_HAZARD = 34;
+export const SUB_CLADDING = 35;
 
 /** Damage points required to break each destructible block type. */
 export const BLOCK_HP = {
@@ -44,6 +52,8 @@ export const BLOCK_HP = {
   [ACCENT]: 45,
   [DUST_CRATE]: 65,
   [DUST_WOOD]: 85,
+  [SUB_CONCRETE]: 420, [SUB_STEEL]: 520, [SUB_GRAVEL]: 260,
+  [SUB_ENAMEL]: 480, [SUB_HAZARD]: 300, [SUB_CLADDING]: 140,
 };
 
 /** Penetration power spent crossing one voxel at normal incidence. */
@@ -57,6 +67,8 @@ export const BLOCK_HARDNESS = Object.freeze({
   [DUST_SANDSTONE]: 75, [DUST_PLASTER]: 60, [DUST_ROCK]: 100,
   [DUST_FLOOR]: 95, [DUST_TRIM]: 75, [DUST_TILE]: 55,
   [DUST_CRATE]: 25, [DUST_WOOD]: 32,
+  [SUB_CONCRETE]: 110, [SUB_STEEL]: 140, [SUB_GRAVEL]: 60,
+  [SUB_ENAMEL]: 125, [SUB_HAZARD]: 90, [SUB_CLADDING]: 40,
 });
 
 /** Blast resistance. Finite entries can be removed by a close grenade blast. */
@@ -86,6 +98,8 @@ export const GRENADE_RESISTANCE = Object.freeze({
   [DUST_TILE]: 94,
   [DUST_CRATE]: 62,
   [DUST_WOOD]: 72,
+  [SUB_CONCRETE]: 112, [SUB_STEEL]: 150, [SUB_GRAVEL]: 60,
+  [SUB_ENAMEL]: 130, [SUB_HAZARD]: 90, [SUB_CLADDING]: 58,
 });
 
 export const SX = 128;
@@ -107,4 +121,6 @@ export const MINING_HITS = Object.freeze({
   [DUST_SANDSTONE]: 7, [DUST_PLASTER]: 7, [DUST_ROCK]: 8,
   [DUST_FLOOR]: 8, [DUST_TRIM]: 7, [DUST_TILE]: 6,
   [DUST_CRATE]: 5, [DUST_WOOD]: 6,
+  [SUB_CONCRETE]: 8, [SUB_STEEL]: 11, [SUB_GRAVEL]: 4,
+  [SUB_ENAMEL]: 10, [SUB_HAZARD]: 7, [SUB_CLADDING]: 5,
 });

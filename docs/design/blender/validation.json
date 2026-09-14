@@ -1,0 +1,47 @@
+[
+  {
+    "asset": "rivet",
+    "glb_bytes": 21113872,
+    "imported_meshes": 1,
+    "bones": 20,
+    "triangles": 19320,
+    "embedded_images": 6,
+    "weighted_vertices": 17276,
+    "animation_motion": {
+      "Idle": {
+        "frame_range": [
+          1.0,
+          73.0
+        ],
+        "max_vertex_motion_m": 0.016904
+      },
+      "Walk": {
+        "frame_range": [
+          1.0,
+          25.0
+        ],
+        "max_vertex_motion_m": 0.449832
+      }
+    },
+    "result": "PASS"
+  },
+  {
+    "asset": "kestrel",
+    "glb_bytes": 14229408,
+    "imported_meshes": 1,
+    "bones": 4,
+    "triangles": 16488,
+    "embedded_images": 4,
+    "weighted_vertices": 15751,
+    "animation_motion": {
+      "Reload_Study": {
+        "frame_range": [
+          1.0,
+          60.0
+        ],
+        "max_vertex_motion_m": 0.24
+      }
+    },
+    "result": "PASS"
+  }
+]

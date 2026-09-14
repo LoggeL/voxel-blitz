@@ -516,6 +516,7 @@ export class LobbyManager {
         map: room.map,
         blockDamage: Array.from(room.engine.blockDamage.values()),
         weaponLoadout: meta.weaponLoadout,
+        mastery: meta.mastery,
       });
 
       if (this.sendJson(meta, welcome) === false) throw new Error('welcome send failed');

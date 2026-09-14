@@ -225,3 +225,13 @@ export function attachMuzzleBridge(effects, rig) {
   if (effects.railBeams) effects.railBeams.muzzleProvider = (out) => rig.getMuzzleWorldPos(out);
   effects.tracers.setMuzzleProvider((out) => rig.getMuzzleWorldPos(out));
 }
+
+/** Wire the avatar roster's barrel tips into remote shot presentation. Hits
+ *  stay authoritative; only tracer/flash/flame/beam origins move to the
+ *  rendered muzzle. Safe to call before the roster exists (lazy lookup). */
+export function attachRemoteMuzzleBridge(effects, getRoster) {
+  const provider = (id, out) => getRoster()?.muzzleWorldPos?.(id, out) ?? null;
+  if (effects.flames) effects.flames.remoteMuzzleProvider = provider;
+  if (effects.railBeams) effects.railBeams.remoteMuzzleProvider = provider;
+  if (effects.tracers) effects.tracers.remoteMuzzleProvider = provider;
+}

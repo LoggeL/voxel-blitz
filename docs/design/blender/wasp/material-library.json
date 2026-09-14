@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "asset": "wasp",
+  "materials": [
+    {
+      "material": "WASP | gunmetal",
+      "texture": "phosphated-steel"
+    },
+    {
+      "material": "WASP | petrol fabric",
+      "texture": "petrol-fabric"
+    },
+    {
+      "material": "WASP | olive drab",
+      "texture": "olive-paint"
+    },
+    {
+      "material": "WASP | orange paint",
+      "texture": "orange-paint"
+    },
+    {
+      "material": "WASP | tan webbing",
+      "texture": "tan-webbing"
+    },
+    {
+      "material": "WASP | rubber",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "WASP | ivory coating",
+      "texture": "ivory-ceramic"
+    }
+  ]
+}

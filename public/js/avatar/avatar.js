@@ -373,6 +373,16 @@ export function makeAvatar(id, name, team = null) {
     flashMaterials: [suit, dark, armor, skin],
     updateHealth,
   };
+  // Imported materials, including straps and rubber, share the same hit/fade
+  // lifecycle as the procedural palette even before a cosmetic is equipped.
+  const fades = new Set([tagMat, hpMat]), flashes = new Set();
+  for (const part of [torso, hips, head, lLeg, rLeg, lArm, rArm]) part.traverse(object => {
+    for (const material of [].concat(object.material || [])) {
+      fades.add(material);
+      if (material.emissive && !material.userData.cosmeticGlow) flashes.add(material);
+    }
+  });
+  avatar.fadeMaterials = [...fades]; avatar.flashMaterials = [...flashes];
   resetAvatarPose(avatar);
   avatar.limbStates = [
     { object: head },

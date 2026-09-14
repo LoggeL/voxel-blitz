@@ -682,6 +682,7 @@ export class NetClient {
           name: msg.name,
           mapBytes: msg.mapBytes,
           weaponLoadout: msg.weaponLoadout || {},
+          mastery: msg.mastery && typeof msg.mastery === 'object' ? msg.mastery : {},
           tickRate: msg.tickRate,
           spawn: msg.spawn && typeof msg.spawn === 'object' ? msg.spawn : null,
           lobby: msg.lobby && typeof msg.lobby === 'object' ? msg.lobby : null,

@@ -261,7 +261,7 @@ export class SettingsController {
     const sensRow = el('div', 'vb-setting-row', controls);
     const sensHeader = el('div', 'vb-setting-header', sensRow);
     const sensLabel = el('label', 'vb-label', sensHeader);
-    sensLabel.textContent = 'MOUSE SENSITIVITY';
+    sensLabel.textContent = 'LOOK SENSITIVITY';
     sensLabel.htmlFor = 'settings-sens-slider';
     const sensVal = el('span', 'vb-setting-val', sensHeader, 'settings-sens-val');
     const sensSlider = el('input', 'vb-slider', sensRow, 'settings-sens-slider');
@@ -269,9 +269,12 @@ export class SettingsController {
     sensSlider.min = String(MOUSE_SENSITIVITY.min);
     sensSlider.max = String(MOUSE_SENSITIVITY.max);
     sensSlider.step = String(MOUSE_SENSITIVITY.step);
-    sensSlider.setAttribute('aria-label', 'Mouse Sensitivity');
+    sensSlider.setAttribute('aria-label', 'Look Sensitivity');
     sensSlider.setAttribute('aria-valuemin', String(MOUSE_SENSITIVITY.min));
     sensSlider.setAttribute('aria-valuemax', String(MOUSE_SENSITIVITY.max));
+    const sensHint = el('div', 'vb-field-desc', sensRow, 'settings-sens-hint');
+    sensHint.textContent = 'Applies to mouse, controller and touch look.';
+    sensSlider.setAttribute('aria-describedby', 'settings-sens-hint');
 
     const volRow = el('div', 'vb-setting-row', controls);
     const volHeader = el('div', 'vb-setting-header', volRow);
@@ -339,7 +342,7 @@ export class SettingsController {
 
     const adsMode = choiceRow('settings-ads-mode', 'AIM DOWN SIGHTS', ['', ...ADS_MODES], ADS_MODE_LABELS);
     const pointerMode = choiceRow('settings-pointer-mode', 'POINTING DEVICE', POINTER_MODES, POINTER_MODE_LABELS);
-    const padSens = sliderRow('settings-pad-sens', 'GAMEPAD SENSITIVITY', PAD_SENSITIVITY);
+    const padSens = sliderRow('settings-pad-sens', 'GAMEPAD BASE SPEED', PAD_SENSITIVITY);
     const aimAssist = choiceRow('settings-aim-assist', 'AIM ASSIST (PAD · TOUCH)', ['1', '0'], { 1: 'ON', 0: 'OFF' });
     const touchSens = sliderRow('settings-touch-sens', 'TOUCH LOOK SENSITIVITY', TOUCH_SENSITIVITY);
     const touchSize = choiceRow('settings-touch-size', 'TOUCH CONTROL SIZE', TOUCH_SIZES, TOUCH_SIZE_LABELS);

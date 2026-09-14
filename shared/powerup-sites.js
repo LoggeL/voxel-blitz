@@ -1,5 +1,6 @@
 import { AIR } from './world/blocks.js';
 import { worldDimensions } from './world/dimensions.js';
+import { SUBSTATION_ANCHORS } from './world/substation-data.js';
 
 export const POWERUP_SITE_MIN_SPAWN_DISTANCE = 12;
 
@@ -16,6 +17,7 @@ const ANCHORS = Object.freeze({
   caldera: [[56, 14, 34], [72, 14, 25], [53, 14, 67], [73, 14, 70]],
   nuketown: [[43, 14, 37], [79, 14, 40], [49, 14, 56], [84, 14, 59]],
   dust2: [[25, 14, 27], [28, 16, 78], [74, 14, 77], [64, 15, 91]],
+  substation: SUBSTATION_ANCHORS.powerups,
 });
 
 /** Cheap live check for active pickups; a mined or blocked pad is invalid. */

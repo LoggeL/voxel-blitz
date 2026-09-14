@@ -5,6 +5,7 @@ import { normalizeAttachments } from '../../../shared/weapon-attachments.js';
 import { MaterialCache } from '../guns/kit.js';
 import { buildGun, disposeGunModels } from '../guns/assemble.js';
 import { applyAttachmentModel } from '../guns/attachment-model.js';
+import { applyStattrakModule } from '../guns/stattrak-module.js';
 import { makeAvatar, disposeAvatar } from '../avatar/avatar.js';
 import { applyGunCosmetics, applyAvatarCosmetics } from '../cosmetics/skins.js';
 
@@ -128,17 +129,22 @@ export class ModelViewer {
     return Math.hypot(a.x - b.x, a.y - b.y);
   }
 
-  show({ weapon = null, loadout = {}, attachments, label = 'Character' } = {}) {
+  show({ weapon = null, loadout = {}, attachments, label = 'Character', mastery = {} } = {}) {
     if (this.disposed) return;
     if (weapon && !WEAPONS[weapon]) throw new Error('Unknown preview weapon');
     const cosmetics = normalizeCosmeticLoadout(loadout);
     const skin = weapon ? cosmetics.weaponSkins[weapon] || 'standard' : cosmetics.characterSkin;
     const config = weapon ? normalizeAttachments(weapon, attachments) : null;
-    const key = JSON.stringify([weapon, skin, config]);
+    const rawKills = weapon ? mastery?.[weapon]?.kills : undefined;
+    // The armory must preview the plate even before the first confirmed kill:
+    // unknown counts render nothing, so preview an honest zero. Real counts
+    // pass through untouched everywhere else.
+    const kills = weapon && config?.counter === 'stattrak' && !Number.isSafeInteger(rawKills) ? 0 : rawKills;
+    const key = JSON.stringify([weapon, skin, config, kills]);
     this.canvas.setAttribute('aria-label', `${label}. 3D preview. Drag or use arrow keys to rotate. Scroll, pinch or use plus and minus to zoom. Home resets the view.`);
     if (key === this.key) { this.render(); return; }
     const changedItem = weapon !== this.weapon || skin !== this.skin;
-    Object.assign(this, { key, weapon, skin, config, cosmetics });
+    Object.assign(this, { key, weapon, skin, config, cosmetics, mastery, previewKills: kills });
     if (changedItem) { this.standard = false; this.reset(false); }
     this.build();
   }
@@ -157,6 +163,7 @@ export class ModelViewer {
       this.gun = buildGun(this.weapon, this.cache);
       applyGunCosmetics(this.gun, this.weapon, loadout);
       applyAttachmentModel(this.gun, this.weapon, this.config);
+      applyStattrakModule(this.gun, this.weapon, this.config, this.previewKills);
       this.root = this.gun.root;
       this.root.traverse(object => { if (object.name === 'hand_l' || object.name === 'hand_r') object.visible = false; });
       this.gun.flash.grp.visible = false;

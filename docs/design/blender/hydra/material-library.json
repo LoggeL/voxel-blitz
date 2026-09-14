@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "asset": "hydra",
+  "materials": [
+    {
+      "material": "HYDRA | olive drab",
+      "texture": "olive-paint"
+    },
+    {
+      "material": "HYDRA | rubber",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "HYDRA | ivory coating",
+      "texture": "ivory-ceramic"
+    },
+    {
+      "material": "HYDRA | tan webbing",
+      "texture": "tan-webbing"
+    },
+    {
+      "material": "HYDRA | gunmetal",
+      "texture": "phosphated-steel"
+    },
+    {
+      "material": "HYDRA | orange paint",
+      "texture": "orange-paint"
+    },
+    {
+      "material": "HYDRA | dark steel",
+      "texture": "blued-steel"
+    }
+  ]
+}

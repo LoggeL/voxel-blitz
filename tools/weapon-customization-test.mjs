@@ -28,7 +28,7 @@ for(const id of WEAPON_IDS) {
   disposeGunModels([model],cache);
 }
 
-const base = JSON.stringify(WEAPONS), selection = {optic:'scope4',grip:'vertical'};
+const base = JSON.stringify(WEAPONS), selection = {optic:'scope4',grip:'vertical',counter:'standard'};
 for(const id of WEAPON_IDS) for(const optic of ATTACHMENT_SLOTS[id].optics) for(const grip of ATTACHMENT_SLOTS[id].grips) {
   const def = weaponWithAttachments(WEAPONS[id],{optic,grip});
   assert.ok(Number.isFinite(def.handling.ergonomics));

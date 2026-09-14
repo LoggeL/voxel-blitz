@@ -1,6 +1,7 @@
 import * as THREE from '../../vendor/three.module.js';
 import { COL } from '../kit.js';
 import { TRIGGER_Z } from './common.js';
+import { buildFang } from './fang.js';
 
 // Extrude a reference-profile polygon across local X. This keeps the unmistakable stepped
 // side silhouette while still giving the remote-avatar model real thickness and lighting.
@@ -32,6 +33,7 @@ function cylX(parent, radius, length, x, y, z, material, segments = 10) {
 
 /** Build the IRONCLAD .44 as a six-shot, swing-out-cylinder revolver. */
 export function build({ kit, T, groups }) {
+  if (buildFang({ groups })) return;
   const { box, cylZ, ironSights, mat } = kit;
   const { body, mag, bolt, trigger, extra } = groups;
   const metal = mat(COL.gunmetal, 0.50, 0.68);

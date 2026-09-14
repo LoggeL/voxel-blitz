@@ -7,6 +7,7 @@ import { DEFAULT_DUEL_KILL_LIMIT, isTeamId } from '../../shared/modes.js';
 import { copyBlockDamage } from './block-damage.js';
 import { normalizeWeaponLoadout } from '../../shared/weapon-attachments.js';
 
+import { masteryView } from '../persistence/career-profile.js';
 import {
   TICK_RATE_HZ,
   isRecord,
@@ -31,6 +32,7 @@ export function makeWelcome({
   map,
   blockDamage,
   weaponLoadout,
+  mastery,
 } = {}) {
   const selected = resolveModeMap(gameMode, map);
   const sourceSpawn = isRecord(spawn) ? spawn : {};
@@ -55,6 +57,9 @@ export function makeWelcome({
     map: selected.map,
     blockDamage: copyBlockDamage(blockDamage, getMapDimensions(selected.map)),
     ...(weaponLoadout ? { weaponLoadout: normalizeWeaponLoadout(weaponLoadout) } : {}),
+    // The game client renders the StatTrak LED from these admission-time counts and
+    // bumps them from its own counted kill events; the next admission refreshes authority.
+    ...(mastery ? { mastery: masteryView(mastery) } : {}),
   };
 }
 

@@ -1,0 +1,178 @@
+{
+  "asset": "BISON",
+  "asset_id": "bison",
+  "kind": "original belt-fed squad support prop (visual game asset)",
+  "revision": 2,
+  "blender": "5.2.1 LTS",
+  "authoring_script": "tools/blender/bison/build-bison.py",
+  "source_parts": 213,
+  "animation_group_nodes": [
+    "body",
+    "mag",
+    "bolt",
+    "trigger",
+    "extra"
+  ],
+  "marker_nodes": [
+    "grip",
+    "muzzle",
+    "sight",
+    "support"
+  ],
+  "batch_nodes": 18,
+  "round_nodes": [
+    "Belt lead",
+    "Belt lead links"
+  ],
+  "cover_hinge_authoring": [
+    0.0,
+    0.206,
+    0.145
+  ],
+  "cover_hinge_game": [
+    0.0,
+    0.145,
+    -0.206
+  ],
+  "belt_lead_home_game": [
+    -0.01,
+    0.13,
+    -0.105
+  ],
+  "triangles": 17928,
+  "triangles_per_primitive": {
+    "body | gunmetal": 10316,
+    "body | ivory coating": 600,
+    "body | olive drab": 1268,
+    "body | orange paint": 696,
+    "body | rubber": 948,
+    "bolt | gunmetal": 1316,
+    "bolt | rubber": 240,
+    "extra | gunmetal": 276,
+    "extra | orange paint": 108,
+    "mag | brass": 140,
+    "mag | gunmetal": 708,
+    "mag | ivory coating": 120,
+    "mag | olive drab": 108,
+    "mag | orange paint": 108,
+    "mag | petrol fabric": 108,
+    "mag | tan webbing": 216,
+    "trigger | gunmetal": 224,
+    "trigger | orange paint": 216,
+    "extra | Belt lead": 140,
+    "extra | Belt lead links": 72
+  },
+  "materials": [
+    "gunmetal",
+    "olive drab",
+    "orange paint",
+    "ivory coating",
+    "petrol fabric",
+    "tan webbing",
+    "brass",
+    "rubber"
+  ],
+  "material_textures": {
+    "gunmetal": "worn-gunmetal.jpg",
+    "olive drab": "worn-gunmetal.jpg",
+    "orange paint": "orange-painted-metal.jpg",
+    "ivory coating": "ivory-armor.jpg",
+    "petrol fabric": "petrol-ballistic-fabric.jpg",
+    "tan webbing": "tan-webbing.jpg",
+    "brass": "worn-gunmetal.jpg",
+    "rubber": "worn-rubber.jpg"
+  },
+  "imagegen_textures": [
+    "worn-gunmetal.jpg",
+    "worn-gunmetal.jpg",
+    "orange-painted-metal.jpg",
+    "ivory-armor.jpg",
+    "petrol-ballistic-fabric.jpg",
+    "tan-webbing.jpg",
+    "worn-gunmetal.jpg",
+    "worn-rubber.jpg"
+  ],
+  "texture_source": "public/assets/blender/textures (the delivered 1024px JPEGs, reused byte-identical; originals untouched)",
+  "uv_density_tiles_per_metre": 3.6,
+  "axes": {
+    "authoring": "+Y forward, +Z up, +X right",
+    "after_gltf": "-Z forward, +Y up, +X right",
+    "map": "game_x = x, game_y = z, game_z = -y"
+  },
+  "anchors_game_space": {
+    "muzzle": [
+      0.0,
+      0.055,
+      -0.72
+    ],
+    "grip": [
+      0.05,
+      0.0,
+      -0.1
+    ],
+    "support": [
+      -0.06,
+      -0.012,
+      -0.47
+    ],
+    "sight": [
+      0.0,
+      0.155,
+      0.06
+    ]
+  },
+  "contract_points": {
+    "breech_y": 0.34,
+    "bore_axis": [
+      0.0,
+      0.055
+    ],
+    "exposed_bore_radius": 0.029,
+    "exposed_bore": [
+      0.453,
+      0.72
+    ],
+    "heat_band": [
+      -0.6972,
+      -0.454
+    ],
+    "sight_height": 0.155,
+    "closed_cover_top": 0.15200001001358032
+  },
+  "files": {
+    "blend": "docs/design/blender/bison/bison.blend",
+    "glb": "docs/design/blender/bison/bison.glb",
+    "renders": [
+      "render-hero.png",
+      "render-side.png",
+      "render-left.png",
+      "render-ads.png",
+      "render-rear.png"
+    ],
+    "validation": "docs/design/blender/bison/validation.json"
+  },
+  "build_time_checks": {
+    "anchor_contract": "muzzle plane, bore axis and exposed 0.0290 radius across the whole heat band, all four markers, the 0.155 sight line, the trigger blade and the bolt handle home position are asserted against the runtime contract every build",
+    "heat_band_clearance": "no vertex other than the bore may enter the heat band",
+    "sight_channel": "the closed cover stays under z 0.152 and nothing but the ghost ring and front hood touches the 0.155 line inside |x| < 0.018",
+    "coplanar_face_audit": "rejects flush faces between parts, which z-fight once same-material parts merge into one draw call",
+    "part_contact": "every authored part must cross, nearly touch or sit inside another part; a group that only meets the model through empty space is reported as floating and fails the build"
+  },
+  "geometry_audit": {
+    "coplanar_faces": [],
+    "floating_parts": []
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; no mobile GPU profiling.",
+    "Hand fit is unverified: the grip and support palms sit on the contract points and the geometry is built around them, but no third-person pose test was run."
+  ],
+  "notes": [
+    "Fresh design: no geometry reused from any other study.",
+    "Six-prong birdcage past the heat band; the band itself stays bare metal.",
+    "Markings are modelled geometry, not a texture decal.",
+    "The feed cover leaves ship under extra and are re-hung on the authored hinge pin by public/js/guns/models/bison.js; the belt lead is its own origin-centred node so the reload can lift it out and lay it back in.",
+    "The hanging belt belongs to the mag group and leaves with the spent box.",
+    "Ghost-ring rear sight and hooded front post: the 0.155 line passes through both apertures with visible air around the marker."
+  ]
+}

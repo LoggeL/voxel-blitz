@@ -4,6 +4,7 @@ import { AIR, GROUND, METAL, SX, SY, SZ } from './blocks.js';
 import { MAP_MODE_COMPATIBILITY } from '../modes.js';
 import { foundryLadderVolumes } from './terrain-foundry.js';
 import { REACTOR_LAYOUT } from './reactor-layout.js';
+import { SUBSTATION_ANCHORS } from './substation-data.js';
 import {
   DUST2_NAV_FLOORS, DUST2_SPAWN_ANCHORS, DUST2_SITES, DUST2_LANDMARKS,
   dust2FloorsAt,
@@ -21,6 +22,7 @@ const MAP_NAMES = Object.freeze({
   nuketown: 'Nuketown',
   dust2: 'Dust 2',
   killhouse: 'Killhouse',
+  substation: 'Substation',
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
@@ -94,6 +96,12 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
     },
     snd: { attackers: [], defenders: [] },
   },
+  // Authored as empties in the Blender study and exported with the voxels.
+  substation: {
+    fun: SUBSTATION_ANCHORS.spawns.fun,
+    tdm: { alpha: SUBSTATION_ANCHORS.spawns.alpha, bravo: SUBSTATION_ANCHORS.spawns.bravo },
+    snd: { attackers: [], defenders: [] },
+  },
 });
 
 const MAP_SITE_LAYOUTS = Object.freeze({
@@ -123,6 +131,7 @@ const MAP_SITE_LAYOUTS = Object.freeze({
     { id: 'B', minX: 96, maxX: 109, minZ: 41, maxZ: 54, y: GROUND + 4.02 },
   ],
   killhouse: [],
+  substation: [],
 });
 
 const MAP_LANDMARKS = Object.freeze({
@@ -165,10 +174,12 @@ const MAP_LANDMARKS = Object.freeze({
     { id: 'killhouse-yard', name: 'Killhouse Yard', x: 14, z: 50 },
     { id: 'long-lane', name: 'Long Lane', x: 64, z: 62 },
   ],
+  substation: SUBSTATION_ANCHORS.landmarks.map(({ id, name, x, z }) => ({ id, name, x, z })),
 });
 
-/** Dummy-target posts per map, indexed by dummy bot id (dummy-<index>). Killhouse only. */
+/** Dummy-target posts per map, indexed by dummy bot id (dummy-<index>). */
 export const MAP_DUMMY_POSTS = Object.freeze({
+  substation: Object.freeze(SUBSTATION_ANCHORS.dummyPosts.map((post) => Object.freeze({ ...post }))),
   killhouse: Object.freeze([
     { kind: 'range', x: 18, z: 74 },
     { kind: 'range', x: 34, z: 74 },
@@ -267,7 +278,7 @@ function resolveSpawnPool(world, anchors, floorY = null) {
 export function createMapMetadata(id, world) {
   const anchors = MAP_SPAWN_ANCHORS[id];
   // Courtyard/training spawns stay below roofs; Dust II anchors carry NAV levels.
-  const floorY = ['killhouse', 'reactor', 'depot'].includes(id) ? GROUND : null;
+  const floorY = ['killhouse', 'reactor', 'depot', 'substation'].includes(id) ? GROUND : null;
   const metadata = {
     id,
     name: MAP_NAMES[id],
@@ -275,7 +286,7 @@ export function createMapMetadata(id, world) {
     ...(['harbor', 'canyon'].includes(id) ? { navigationFloor: GROUND, spawnBounds: {
       minX: 4, maxX: 187, minZ: 4, maxZ: 139, minY: GROUND + 1, maxY: GROUND + 1.1,
     } } : {}),
-    ...(id === 'depot' ? { navigationFloor: GROUND, spawnBounds: {
+    ...(id === 'depot' || id === 'substation' ? { navigationFloor: GROUND, spawnBounds: {
       minX: 4, maxX: 123, minZ: 4, maxZ: 91, minY: GROUND + 1, maxY: GROUND + 1.1,
     } } : {}),
     ...(id === 'reactor' ? { bastion: structuredClone(REACTOR_LAYOUT), spawnBounds: {

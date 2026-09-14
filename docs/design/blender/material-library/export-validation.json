@@ -1,0 +1,62 @@
+[
+  {
+    "asset": "bison",
+    "geometryUnchanged": true,
+    "repeatedMaterialStageStable": true
+  },
+  {
+    "asset": "fang",
+    "geometryUnchanged": true,
+    "repeatedMaterialStageStable": true
+  },
+  {
+    "asset": "halo",
+    "geometryUnchanged": true,
+    "repeatedMaterialStageStable": true
+  },
+  {
+    "asset": "hydra",
+    "geometryUnchanged": true,
+    "repeatedMaterialStageStable": true
+  },
+  {
+    "asset": "ifrit",
+    "geometryUnchanged": true,
+    "repeatedMaterialStageStable": true
+  },
+  {
+    "asset": "kestrel",
+    "geometryUnchanged": true,
+    "repeatedMaterialStageStable": true
+  },
+  {
+    "asset": "mastiff",
+    "geometryUnchanged": true,
+    "repeatedMaterialStageStable": true
+  },
+  {
+    "asset": "peregrine",
+    "geometryUnchanged": true,
+    "repeatedMaterialStageStable": true
+  },
+  {
+    "asset": "pike",
+    "geometryUnchanged": true,
+    "repeatedMaterialStageStable": true
+  },
+  {
+    "asset": "talon",
+    "geometryUnchanged": true,
+    "repeatedMaterialStageStable": true
+  },
+  {
+    "asset": "torch",
+    "geometryUnchanged": true,
+    "repeatedMaterialStageStable": true
+  },
+  {
+    "asset": "wasp",
+    "geometryUnchanged": true,
+    "repeatedMaterialStageStable": true
+  }
+]

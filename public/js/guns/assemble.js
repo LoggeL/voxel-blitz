@@ -2,6 +2,7 @@ import { clearGunCosmetics } from '../cosmetics/skins.js';
 // Ten-model registry and shared first-person gun composition root.
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTrees } from '../engine/dispose.js';
+import { imagegenMap } from '../engine/blender-assets.js';
 import { HANDS, timerFor } from './defs.js';
 import { makeFlash, makeFx, makeKit } from './kit.js';
 import {
@@ -148,6 +149,27 @@ export function buildGun(id, cache) {
   root.add(trigger);
   root.add(extra);
   if (pump) root.add(pump);
+  // Register the kit palette before replacing hand materials with owned copies.
+  // This gives even hand-only cached colors an owner that will release them.
+  cache.refModel(root);
+  if (imagegenMap('worn-rubber')) {
+    const gloveMaterials = new Map();
+    for (const name of ['hand_l', 'hand_r']) root.getObjectByName(name)?.traverse(object => {
+      // Blender-authored gloves ship their own maps, tints and palette keys.
+      if (object.userData.blenderAsset === 'hands') return;
+      if (object.parent?.userData.blenderAsset === 'hands') return;
+      const original = object.material;
+      if (!original?.color) return;
+      if (!gloveMaterials.has(original)) {
+        const material = original.clone();
+        material.userData.paletteColor = original.color.getHex();
+        material.map = imagegenMap(material.userData.paletteColor === 0xb09a72 ? 'tan-webbing' : 'worn-rubber');
+        material.color.setHex(0xffffff);
+        gloveMaterials.set(original, material);
+      }
+      object.material = gloveMaterials.get(original);
+    });
+  }
   cache.refModel(root);
 
   return {

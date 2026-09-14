@@ -439,7 +439,7 @@ export class CareerShop {
       host.replaceChildren(this.modelPreview.element);
       const loadout = item.weapon ? { weaponSkins: { [item.weapon]: item.id } } : { characterSkin: item.id };
       this.modelPreview.show({ weapon: item.weapon || null, loadout,
-        attachments: this.profile?.equipped?.weaponAttachments?.[item.weapon], label: item.name });
+        attachments: this.profile?.equipped?.weaponAttachments?.[item.weapon], mastery: this.profile?.mastery, label: item.name });
     } catch {
       if (version !== this.previewVersion) return;
       this.disposeModelPreview();

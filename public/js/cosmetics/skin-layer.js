@@ -1,5 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTrees } from '../engine/dispose.js';
+import { imagegenMap } from '../engine/blender-assets.js';
 
 /** Owns a reversible visual layer. Base geometry, shared materials and animation anchors stay intact. */
 export class SkinLayer {
@@ -29,12 +30,17 @@ export class SkinLayer {
       }
       const replace = original => {
         if (!original.color || original.isShaderMaterial) return original;
-        const hex = original.color.getHex();
+        const hex = original.userData.paletteColor ?? original.color.getHex();
         if (!Object.hasOwn(palette, hex)) return original;
         if (!this.clones.has(original)) {
           const mat = original.clone();
           const paint = palette[hex];
           mat.color.setHex(typeof paint === 'object' ? paint.color : paint);
+          // Use the neutral generated ceramic scan when repainting colored
+          // imported armor; multiplying cyan by an orange photograph turns brown.
+          if (original.userData.paletteColor && original.map && original.metalness > .1) {
+            mat.map = imagegenMap('ivory-armor') || original.map;
+          }
           if (typeof paint === 'object') {
             if (paint.roughness !== undefined) mat.roughness = paint.roughness;
             if (paint.metalness !== undefined) mat.metalness = paint.metalness;

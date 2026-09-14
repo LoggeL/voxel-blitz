@@ -6,7 +6,7 @@ export const FLAME_RULES = Object.freeze({
 
 // One afterburn per victim. Sustained contact builds its duration, never its DPS.
 export const FLAME_BURN = Object.freeze({
-  duration: 3, minDuration: 0.75, buildupPerHit: 0.16,
+  duration: 5, minDuration: 1.5, buildupPerHit: 0.35, maxDuration: 8,
   damagePerS: 8, panicFloor: 1,
 });
 

@@ -1,0 +1,52 @@
+{
+  "triangles": 6400,
+  "portable_triangles": 6400,
+  "degenerate_triangles": 0,
+  "hand_surface_gap_mm": {
+    "grip": 0.0,
+    "support": 0.0
+  },
+  "opaque_optic_blockers": 0,
+  "verified_assembly_contacts": [
+    [
+      "Stock triangular chassis",
+      "Stock rear stanchion"
+    ],
+    [
+      "Stock triangular chassis",
+      "Stock receiver neck"
+    ],
+    [
+      "Continuous teal fore-end",
+      "Ivory handguard collar"
+    ],
+    [
+      "Scope bridge receiver seat",
+      "Scope mounting rail"
+    ],
+    [
+      "Scope bridge receiver seat.001",
+      "Scope mounting rail"
+    ],
+    [
+      "Scope ring foot",
+      "Scope mounting rail"
+    ],
+    [
+      "Scope ring foot.001",
+      "Scope mounting rail"
+    ],
+    [
+      "Ivory scope ring",
+      "Scope main hollow housing"
+    ],
+    [
+      "Ivory scope ring.001",
+      "Scope main hollow housing"
+    ]
+  ],
+  "draw_primitives": 19,
+  "materials": 6,
+  "runtime_bytes": 550048,
+  "reload_rounds": 3
+}

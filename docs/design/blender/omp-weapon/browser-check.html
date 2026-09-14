@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VK-41 SHRIKE delivery check</title>
+<style>body{font:13px/1.5 ui-monospace,Menlo,monospace;background:#12161c;color:#cfe3ea;margin:0;padding:16px}
+pre{white-space:pre-wrap}canvas{display:block;background:#1b2129;border:1px solid #2c3641;max-width:100%}</style>
+</head>
+<body>
+<pre id="out">loading…</pre>
+<canvas id="view" width="1200" height="520"></canvas>
+<script type="module">
+// Delivery check for public/assets/blender/omp-weapon/weapon.glb.
+// Served from the repository root:
+//   python3 -m http.server 8099 --bind 127.0.0.1
+//   open http://127.0.0.1:8099/docs/design/blender/omp-weapon/browser-check.html
+import * as THREE from '/public/js/vendor/three.module.js';
+import { GLTFLoader } from '/public/js/vendor/loaders/GLTFLoader.js';
+
+const report = { url: '/public/assets/blender/omp-weapon/weapon.glb' };
+try {
+  const gltf = await new GLTFLoader().loadAsync(report.url);
+  const scene = gltf.scene;
+  scene.updateMatrixWorld(true);
+  report.topLevelNodes = scene.children.map(o => o.name).sort();
+  const materials = new Set(), textureNames = new Set(), meshesWithoutUV = [];
+  let triangles = 0, meshes = 0, primitives = 0;
+  const box = new THREE.Box3();
+  scene.traverse(o => {
+    if (!o.isMesh) return;
+    meshes += 1;
+    primitives += Array.isArray(o.material) ? o.material.length : 1;
+    const g = o.geometry;
+    triangles += (g.index ? g.index.count : g.attributes.position.count) / 3;
+    if (!g.attributes.uv) meshesWithoutUV.push(o.name);
+    for (const m of [].concat(o.material)) {
+      materials.add(m.name);
+      if (m.map) textureNames.add(m.map.name);
+    }
+    box.union(new THREE.Box3().setFromObject(o));
+  });
+  const size = box.getSize(new THREE.Vector3());
+  report.meshes = meshes;
+  report.drawPrimitives = primitives;
+  report.triangles = triangles;
+  report.materials = [...materials].sort();
+  report.textureNames = [...textureNames].sort();
+  report.meshesWithoutUV = meshesWithoutUV;
+  report.bbox = {
+    min: [box.min.x, box.min.y, box.min.z].map(v => +v.toFixed(4)),
+    max: [box.max.x, box.max.y, box.max.z].map(v => +v.toFixed(4)),
+    size: [size.x, size.y, size.z].map(v => +v.toFixed(4)),
+  };
+  report.markers = ['muzzle', 'grip', 'support', 'sight'].map(name => {
+    const node = scene.getObjectByName(name);
+    return [name, node ? [node.position.x, node.position.y, node.position.z].map(v => +v.toFixed(3)) : null];
+  });
+  const optic = scene.getObjectByName('factory-optic');
+  const glass = optic && optic.children.map(c => c.material).find(m => m.name.includes('glass'));
+  report.glassMaterial = glass
+    ? { transparent: glass.transparent, depthWrite: glass.depthWrite, opacity: glass.opacity, userData: glass.userData }
+    : null;
+
+  // Render the delivered GLB with real three.js materials and lighting.
+  const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('view'), antialias: true });
+  renderer.setPixelRatio(1);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  const renderScene = new THREE.Scene();
+  renderScene.background = new THREE.Color(0x1b2129);
+  renderScene.add(scene);
+  scene.getObjectByName('browser-check-rig')?.removeFromParent();
+  const rig = new THREE.Group();
+  rig.name = 'browser-check-rig';
+  rig.add(new THREE.HemisphereLight(0xdfe9ff, 0x2a3038, 1.6));
+  const key = new THREE.DirectionalLight(0xfff1dd, 2.4);
+  key.position.set(1.4, 2.2, 1.6);
+  rig.add(key);
+  const rim = new THREE.DirectionalLight(0x88bbff, 1.4);
+  rim.position.set(-1.6, 0.8, -1.4);
+  rig.add(rim);
+  renderScene.add(rig);
+  const centre = box.getCenter(new THREE.Vector3());
+  const camera = new THREE.PerspectiveCamera(35, 1200 / 520, 0.01, 50);
+  camera.position.set(centre.x - 0.62, centre.y + 0.34, centre.z - 1.34);
+  camera.lookAt(centre);
+  renderer.render(renderScene, camera);
+  report.rendered = true;
+  report.pixelCheck = (() => {
+    const gl = renderer.getContext();
+    const pixels = new Uint8Array(4 * 1200 * 520);
+    gl.readPixels(0, 0, 1200, 520, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    let lit = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const [r, g, b] = [pixels[i], pixels[i + 1], pixels[i + 2]];
+      if (Math.abs(r - 27) + Math.abs(g - 33) + Math.abs(b - 41) > 24) lit += 1;
+    }
+    return { nonBackgroundPixels: lit, fraction: +(lit / (1200 * 520)).toFixed(4) };
+  })();
+} catch (error) {
+  report.error = String(error && error.stack || error);
+}
+report.ok = Boolean(report.rendered && !report.error);
+document.getElementById('out').textContent = JSON.stringify(report, null, 1);
+window.__report = report;
+</script>
+</body>
+</html>

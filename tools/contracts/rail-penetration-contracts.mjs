@@ -48,7 +48,9 @@ export function runRailPenetrationContracts(ok) {
   ok(core.damage === clear.damage && middle.damage > edge.damage && edge.damage > 0
     && middle.damage < core.damage && core.hits.every(hit => !hit.hs),
     'rail core retains full damage while the corona fades continuously without grazing headshots');
-  ok(shoot([], PLAYER_HALF.x + 0.8, 0).hits.length === 0,
+  // RIVET's elbow bracer reaches 0.56 m from the centre line, so the tap
+  // radius (0.64 m) is probed one metre out where only a full charge grazes.
+  ok(shoot([], PLAYER_HALF.x + 1.0, 0).hits.length === 0 && shoot([], PLAYER_HALF.x + 1.0).hits.length === 1,
     'a tap has a smaller real collision radius than a full charge');
   const tap = chargeShotProfile(WEAPONS.lance, 0).hitRadius;
   const full = chargeShotProfile(WEAPONS.lance, 1).hitRadius;

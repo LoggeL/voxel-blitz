@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "asset": "torch",
+  "materials": [
+    {
+      "material": "TORCH | ivory coating",
+      "texture": "ivory-ceramic"
+    },
+    {
+      "material": "TORCH | polymer",
+      "texture": "molded-polymer"
+    },
+    {
+      "material": "TORCH | orange paint",
+      "texture": "orange-paint"
+    },
+    {
+      "material": "TORCH | rubber",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "TORCH | olive drab",
+      "texture": "olive-paint"
+    },
+    {
+      "material": "TORCH | gunmetal",
+      "texture": "phosphated-steel"
+    }
+  ]
+}

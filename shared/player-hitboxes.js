@@ -12,14 +12,38 @@ const rotate = (v, basis) => [
   v[0] * basis[0][2] + v[1] * basis[1][2] + v[2] * basis[2][2],
 ];
 const IDENTITY_BASIS = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
-const SIGHT_HEIGHT = { rifle: 0.145, smg: 0.112, shotgun: 0.100, sniper: 0.205,
-  minigun: 0.155, lmg: 0.155, revolver: 0.105, longarc: 0.155, rocket: 0.175, lance: 0.155, knife: 0.02 };
+const ZERO = [0, 0, 0];
+export const SIGHT_HEIGHT = { rifle: 0.145, smg: 0.112, shotgun: 0.100, sniper: 0.205, minigun: 0.155, lmg: 0.155,
+  revolver: 0.105, longarc: 0.155, rocket: 0.175, lance: 0.155, knife: 0.02, flamethrower: 0.158 };
+const clamp01 = v => Math.max(0, Math.min(1, v));
 function basisFor(x = 0, y = 0, z = 0) {
   const a = Math.cos(x), b = Math.sin(x), c = Math.cos(y), d = Math.sin(y);
   const e = Math.cos(z), f = Math.sin(z);
   // THREE.Euler's default XYZ order, columns of the rotation matrix.
   return [[c*e, a*f+b*d*e, b*f-a*d*e], [-c*f, a*e-b*d*f, b*e+a*d*f], [d, -b*c, a*c]];
 }
+
+// Zone sizes trace the delivered RIVET operator (public/assets/blender/rivet.gltf)
+// in the avatar's joint frames: helmet with visor and headset, chest with the
+// backpack, the wide pelvis, thigh/shin/boot segments and armored arms.
+// tools/hitbox-model-test.mjs checks them against the exported vertices.
+// The helmet core stays centred on the head joint (the animation target);
+// face, visor and brow peak reach 0.235 m forward of it.
+const HELMET = { size: [0.36, 0.39, 0.37] };
+const FACE = { size: [0.30, 0.36, 0.20], offset: [0, -0.005, -0.14] };
+const HEADSET = { size: [0.42, 0.15, 0.15], offset: [0, -0.012, 0.016] };
+const NECK = { size: [0.19, 0.13, 0.19] };
+const TORSO = { size: [0.50, 0.50, 0.62], offset: [0, 0, 0.035] };
+const HIPS = { size: [0.66, 0.24, 0.37], offset: [0, -0.005, -0.025] };
+const SEGMENT = 0.325;
+// The knee cap rides 0.085 m above the knee joint, on the outside of the fold.
+// `stride` widens each segment for the gait fan the boots sweep while running.
+const THIGH = { size: [0.30, SEGMENT + 0.05, 0.28], offset: [0.014, -SEGMENT / 2, 0], stride: [0, 0, 0.55] };
+const SHIN = { size: [0.22, SEGMENT + 0.12, 0.28], offset: [0, -SEGMENT / 2 + 0.035, -0.025], stride: [0, 0, 1] };
+const BOOT = { size: [0.24, 0.22, 0.34], offset: [0, 0.035, -0.072], stride: [0, 0.5, 1.2], lift: 0.2 };
+// The pauldron rises 0.12 m above the shoulder joint; the glove hangs past the wrist.
+const UPPER_ARM = { width: 0.32, margin: 0.18, shift: -0.05 };
+const FOREARM = { width: 0.27, margin: 0.12, shift: 0.03 };
 
 export function playerHitboxes(p) {
   const prone = pronePose(p.proneT);
@@ -31,36 +55,56 @@ export function playerHitboxes(p) {
   const yaw = basisFor(0, p.yaw || 0, 0);
   const feet = [p.x, p.y, p.z];
   const boxes = [];
-  function box(zone, center, size, basis = IDENTITY_BASIS) {
+  // Each zone box sits at a joint plus an offset in the joint's own frame.
+  function box(zone, joint, { size, offset = ZERO }, basis = IDENTITY_BASIS) {
+    const center = add(joint, rotate(offset, basis));
     boxes.push({ zone, center: add(feet, rotate(center, yaw)),
       half: [size[0] / 2, size[1] / 2, size[2] / 2],
       basis: [rotate(basis[0], yaw), rotate(basis[1], yaw), rotate(basis[2], yaw)] });
   }
   const headBasis = basisFor(pitch * 0.7);
   const head = [0, mix(1.66 - crouch * 0.34, 0.48), 0];
-  box('head', head, [0.34, 0.32, 0.34], headBasis);
-  box('head', add(head, rotate([0, 0.16, 0], headBasis)), [0.38, 0.14, 0.38], headBasis);
-  box('torso', [0, mix(1.18 - crouch * 0.27, 0.3), prone * 0.4], [0.56, 0.56, 0.58], basisFor(mix(crouch * 0.12, -Math.PI / 2)));
-  box('torso', [0, mix(1.48 - crouch * 0.34, 0.4), prone * 0.1], [0.18, 0.12, 0.19]);
-  box('hips', [0, mix(0.84 - crouch * 0.20, 0.25), prone * 0.8], [0.49, 0.22, 0.36], basisFor(-prone * Math.PI / 2));
-  // Stable leg envelopes cover the cosmetic running stride without making the
-  // empty space between the legs a target. Standing legs stay narrow in depth.
+  box('head', head, HELMET, headBasis);
+  box('head', head, FACE, headBasis);
+  box('head', head, HEADSET, headBasis);
+  box('torso', [0, mix(1.18 - crouch * 0.27, 0.3), prone * 0.4], TORSO, basisFor(mix(crouch * 0.12, -Math.PI / 2)));
+  box('torso', [0, mix(1.43 - crouch * 0.34, 0.36), prone * 0.1], NECK);
+  box('hips', [0, mix(0.84 - crouch * 0.20, 0.25), prone * 0.8], HIPS, basisFor(-prone * Math.PI / 2));
+  // Legs fold exactly like poseOperatorLeg for a still stance: crouching bends
+  // the knees forward and prone lays the leg out behind the hips. The cosmetic
+  // running stride only widens each segment's depth, so the empty space between
+  // the legs never becomes a target.
   const speed = Math.min(1, (p.moveSpeed ?? Math.hypot(p.vx || 0, p.vz || 0)) / 5.8);
-  const legHeight = 0.72 * (1 - crouch * 0.35 * (1 - prone));
+  const stride = speed * 0.78 * (1 - crouch * 0.6) * (1 - prone);
+  const legY = mix(0.73 - crouch * 0.26, 0.25), legZ = prone * 0.85;
   const legAngle = -prone * Math.PI / 2;
-  const legBasis = basisFor(legAngle);
+  const compression = 1 - crouch * 0.35 * (1 - prone);
+  const vertical = Math.max(0.001, Math.cos(legAngle));
+  const floorBend = Math.acos(clamp01((legY - 0.075) / (0.65 * vertical)));
+  const tuck = Math.max(floorBend, Math.acos(compression) * (1 - prone) + Math.sin(Math.PI * prone) * 0.65);
+  const releaseT = clamp01((prone - 0.65) / 0.35);
+  const release = releaseT * releaseT * (3 - 2 * releaseT);
+  const bend = tuck * (1 - release) - 0.12 * release;
+  const thighAngle = legAngle + bend, shinAngle = legAngle - bend;
+  const thighBasis = basisFor(thighAngle), shinBasis = basisFor(shinAngle), bootBasis = basisFor(legAngle);
   const ads = p.ads && !p.reloading ? 1 : 0;
   const reload = p.reloading ? 1 : 0;
   const sight = SIGHT_HEIGHT[WEAPON_IDS[p.weapon || 0]] || 0.12;
   const hip = [0.1995 - hands.grip.x * 1.1, 1.3165 - hands.grip.y * 1.1, -0.309 - hands.grip.z * 1.1];
   const mount = [ads ? 0.055 : hip[0], ads ? 1.62 - sight * 1.1 : hip[1], hip[2] - ads * 0.045];
   mount[0] -= reload * 0.02; mount[1] -= armCrouch * 0.29 + prone * 1.14 + reload * 0.07; mount[2] += reload * 0.03;
-  const aim = Math.max(-Math.PI * 0.43, Math.min(Math.PI * 0.43, p.pitch || 0));
+  const aim = Math.max(-(80 * Math.PI) / 180, Math.min((80 * Math.PI) / 180, p.pitch || 0));
   const armBasis = basisFor(aim * (1 - reload * 0.6) - reload * 0.42, reload * 0.18, reload * 0.28);
   for (const side of [-1, 1]) {
-    box('leg', [side * 0.16, mix(0.73 - crouch * 0.26, 0.25) - Math.cos(legAngle) * legHeight / 2,
-      prone * 0.85 - Math.sin(legAngle) * legHeight / 2],
-      [0.24, legHeight + 0.02, 0.40 + speed * 0.78 * (1 - crouch * 0.6) * (1 - prone)], legBasis);
+    const hipJoint = [side * 0.16, legY, legZ];
+    const knee = add(hipJoint, [0, -Math.cos(thighAngle) * SEGMENT, -Math.sin(thighAngle) * SEGMENT]);
+    const ankle = add(knee, [0, -Math.cos(shinAngle) * SEGMENT, -Math.sin(shinAngle) * SEGMENT]);
+    const swept = ({ size, offset, stride: growth, lift = 0 }, mirror = 1) => ({
+      size: size.map((v, i) => v + growth[i] * stride),
+      offset: [offset[0] * mirror, offset[1] + lift * stride, offset[2]] });
+    box('leg', hipJoint, swept(THIGH, side), thighBasis);
+    box('leg', knee, swept(SHIN), shinBasis);
+    box('leg', ankle, swept(BOOT), bootBasis);
     const shoulder = [side * 0.32, 1.43 - armCrouch * 0.29 - prone * 1.08, prone * 0.14];
     const anchor = side < 0 ? hands.support : hands.grip;
     let target = [side * 0.34, 0.82 - armCrouch * 0.29 - prone * 0.5, -0.08];
@@ -80,14 +124,16 @@ export function playerHitboxes(p) {
     const bend = Math.sqrt(Math.max(0, length * length - distance * distance / 4));
     const norm = Math.hypot(...normal) || 1;
     const elbow = shoulder.map((v, i) => v + delta[i] / 2 + normal[i] / norm * bend);
-    for (const [start, end] of [[shoulder, elbow], [elbow, target]]) {
+    for (const [start, end, segment] of [[shoulder, elbow, UPPER_ARM], [elbow, target, FOREARM]]) {
       const axis = end.map((v, i) => (v - start[i]) / length);
       const ref = Math.abs(axis[2]) < 0.9 ? [0, 0, 1] : [1, 0, 0];
       const cross = [axis[1]*ref[2]-axis[2]*ref[1], axis[2]*ref[0]-axis[0]*ref[2], axis[0]*ref[1]-axis[1]*ref[0]];
       const n = Math.hypot(...cross);
       const x = cross.map(v => v / n);
       const z = [x[1]*axis[2]-x[2]*axis[1], x[2]*axis[0]-x[0]*axis[2], x[0]*axis[1]-x[1]*axis[0]];
-      box('arm', start.map((v, i) => (v + end[i]) / 2), [0.23, length + 0.06, 0.23], [x, axis, z]);
+      const shift = segment.shift;
+      box('arm', start.map((v, i) => (v + end[i]) / 2 + axis[i] * shift),
+        { size: [segment.width, length + segment.margin, segment.width] }, [x, axis, z]);
     }
   }
   return boxes;
@@ -121,7 +167,6 @@ function distanceSqAt(o, d, at, half) {
   const z = Math.max(0, Math.abs(o[2] + d[2] * at) - half[2]);
   return x * x + y * y + z * z;
 }
-const ZERO = [0, 0, 0];
 
 /** Static objectives opt into an explicit box; combatants keep their body zones. */
 export function combatHitboxes(p) {

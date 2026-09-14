@@ -1,0 +1,42 @@
+{
+  "asset": "PEREGRINE",
+  "design": "ImageGen concept A",
+  "source_parts": 104,
+  "triangles": 6400,
+  "anchors_blender": {
+    "muzzle": [
+      0,
+      0.76,
+      0.055
+    ],
+    "grip": [
+      0.045,
+      0.13,
+      0.02
+    ],
+    "support": [
+      -0.055,
+      0.48,
+      -0.01
+    ],
+    "sight": [
+      0,
+      0.25,
+      0.205
+    ]
+  },
+  "surface_contacts": {
+    "grip": {
+      "distance_mm": 0.0,
+      "surface": "Pistol grip core"
+    },
+    "support": {
+      "distance_mm": 0.0,
+      "surface": "Continuous teal fore-end"
+    }
+  },
+  "opaque_optic_blockers": [],
+  "reference": "../peregrine-redesign/concepts.png",
+  "source": "peregrine.blend",
+  "portable": "peregrine.glb"
+}

@@ -1,0 +1,129 @@
+{
+  "asset": "HANDS",
+  "asset_id": "hands",
+  "revision": 2,
+  "kind": "original first-person glove hands, two poses (visual game asset)",
+  "blender": "5.2.1 LTS",
+  "authoring_script": "tools/blender/hands/build-hands.py",
+  "source_parts": 88,
+  "animation_group_nodes": [
+    "grip",
+    "support"
+  ],
+  "marker_nodes": [],
+  "batch_nodes": 14,
+  "round_nodes": [],
+  "triangles": 14656,
+  "triangles_per_primitive": {
+    "grip | ceramic armor": 728,
+    "grip | glove leather": 3256,
+    "grip | hardware": 216,
+    "grip | knuckle plate": 648,
+    "grip | skin": 1692,
+    "grip | suit fabric": 632,
+    "grip | webbing": 156,
+    "support | ceramic armor": 728,
+    "support | glove leather": 3256,
+    "support | hardware": 216,
+    "support | knuckle plate": 648,
+    "support | skin": 1692,
+    "support | suit fabric": 632,
+    "support | webbing": 156
+  },
+  "materials": [
+    "glove leather",
+    "ceramic armor",
+    "knuckle plate",
+    "suit fabric",
+    "webbing",
+    "hardware",
+    "skin"
+  ],
+  "material_textures": {
+    "glove leather": "worn-rubber.jpg",
+    "ceramic armor": "ivory-armor.jpg",
+    "knuckle plate": "orange-painted-metal.jpg",
+    "suit fabric": "petrol-ballistic-fabric.jpg",
+    "webbing": "tan-webbing.jpg",
+    "hardware": "worn-gunmetal.jpg",
+    "skin": "ivory-armor.jpg"
+  },
+  "material_uv_scale": {
+    "glove leather": 7.0,
+    "ceramic armor": 4.0,
+    "knuckle plate": 4.0,
+    "suit fabric": 9.0,
+    "webbing": 15.0,
+    "hardware": 6.0,
+    "skin": 5.0
+  },
+  "imagegen_textures": [
+    "ivory-armor.jpg",
+    "orange-painted-metal.jpg",
+    "petrol-ballistic-fabric.jpg",
+    "tan-webbing.jpg",
+    "worn-gunmetal.jpg",
+    "worn-rubber.jpg"
+  ],
+  "texture_source": "public/assets/blender/textures (the delivered 1024px JPEGs, reused byte-identical; originals untouched)",
+  "axes": {
+    "authoring": "glove-local: fingers -z, back of hand +y, thumb -x, cuff +z (consumed verbatim)",
+    "after_gltf": "glove-local (export_yup off)",
+    "map": "game_x = x, game_y = y, game_z = z (identity bake); kit glove() orients the group with a per-pose basis"
+  },
+  "anchors_glove_local": {
+    "palm": "spans the origin in x, y and z",
+    "cuff": "min z +0.0280 m (must stay > 0.018)",
+    "reach": "max 0.25 m from the origin"
+  },
+  "contract_points": {
+    "knuckle_line_z": [
+      -0.046,
+      -0.049,
+      -0.047,
+      -0.04
+    ],
+    "palm_z": [
+      -0.046,
+      0.03
+    ],
+    "cuff_min_z": 0.018,
+    "reach": 0.25,
+    "thumb_base": [
+      -0.036,
+      -0.004,
+      0.012
+    ]
+  },
+  "files": {
+    "blend": "docs/design/blender/hands/hands.blend",
+    "glb": "docs/design/blender/hands/hands.glb",
+    "renders": [
+      "render-grip-side.png",
+      "render-grip-rear-quarter.png",
+      "render-grip-palm.png",
+      "render-support-side.png",
+      "render-support-rear-quarter.png",
+      "render-support-palm.png"
+    ],
+    "validation": "docs/design/blender/hands/validation.json"
+  },
+  "build_time_checks": {
+    "anchor_contract": "each palm spans the origin, every wrist/strap/sleeve/bracer part stays at z > 0.018, no vertex leaves a 0.25 m radius, every finger has a bare distal phalanx",
+    "part_contact": "every authored part must touch or nearly touch another part of its own pose; a group that only meets the model through empty space is reported as floating and fails the build",
+    "finger_gaps": "neighbouring proximal stalls keep >= 1.5 mm of air between them"
+  },
+  "geometry_audit": {
+    "floating_parts": [],
+    "finger_gaps": []
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; no mobile GPU profiling.",
+    "Static poses: deliberately no rig or runtime IK."
+  ],
+  "notes": [
+    "Revision 2: base-knuckle flexion, rounded phalanx joints without ball bumps, half-finger glove with bare middle/distal phalanges, RIVET kit colours.",
+    "The runtime keeps these materials as delivered (no glove-map re-texture) and keys the character-skin palette on the material name."
+  ]
+}

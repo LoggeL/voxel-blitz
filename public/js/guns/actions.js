@@ -158,6 +158,14 @@ export class WeaponActions {
     }
     const cover = model.extra.userData.reloadPart;
     if (cover) cover.rotation.set(0, 0, 0);
+    const lead = model.extra.userData.beltLead;
+    if (lead) {
+      lead.visible = true;
+      lead.position.copy(lead.userData.homePosition);
+      lead.rotation.set(0, 0, 0);
+    }
+    const rocket = model.extra.userData.rocketReload;
+    if (rocket) rocket.gate.position.z = rocket.rearZ;
     const rounds = model.extra.userData.reloadRounds;
     if (rounds) {
       rounds.visible = false;
@@ -376,17 +384,14 @@ export class WeaponActions {
         mag.position.set(path[0] * amount, path[1] * amount, path[2] * amount);
         mag.rotation.set(style.twist[0] * amount, style.twist[1] * amount, style.twist[2] * amount);
         mag.visible = !(frac >= exitEnd && frac < enterStart);
-        this._moveReloadHand(model, style.socket[0] + mag.position.x,
-          style.socket[1] + mag.position.y, style.socket[2] + mag.position.z,
-          this._phase(frac, 0.05, timeline.start) * (1 - this._phase(frac, timeline.home, 0.98)), mag.visible);
+        if (isBelt) {
+          this._updateBeltReload(frac, model, T, timeline, style, out);
+        } else {
+          this._moveReloadHand(model, style.socket[0] + mag.position.x,
+            style.socket[1] + mag.position.y, style.socket[2] + mag.position.z,
+            this._phase(frac, 0.05, timeline.start) * (1 - this._phase(frac, timeline.home, 0.98)), mag.visible);
+        }
       }
-    }
-
-    const cover = model.extra.userData.reloadPart;
-    if (isBelt && cover) {
-      const angle = -1.22 * this._phase(frac, timeline.start, pullEnd) *
-        (1 - this._phase(frac, timeline.home - 0.045, timeline.home + 0.055));
-      cover.rotation[cover.userData.reloadAxis || 'x'] = angle;
     }
 
     const rounds = model.extra.userData.reloadRounds;
@@ -430,6 +435,104 @@ export class WeaponActions {
       this._reload = null;
       this._clearMotion();
     }
+  }
+
+  /**
+   * Belt feed: unlatch and throw the feed cover open before the box drops, lift the
+   * spent belt lead out of the tray with it, seat the fresh box, pull its lead across
+   * the tray, slam the cover on the canonical third click and rack the charging
+   * handle. The box path itself is the shared magazine choreography; this only adds
+   * the cover, lead, handle and the support hand's route between them.
+   */
+  _updateBeltReload(frac, model, T, timeline, style, out) {
+    const { start, home, clickAt } = timeline;
+    const mag = model.mag;
+    const cover = model.extra.userData.reloadPart;
+    const lead = model.extra.userData.beltLead;
+    const exitEnd = start + Math.min(0.20, (home - start) * 0.34);
+    const openStart = Math.max(0.03, start - 0.10);
+    const slamStart = clickAt - 0.05;
+    const rackStart = clickAt + 0.005;
+    const rackBack = rackStart + (1 - rackStart) * 0.45;
+    const rackEnd = 0.985;
+
+    const open = this._phase(frac, openStart, start) * (1 - this._phase(frac, slamStart, clickAt));
+    if (cover) {
+      const slamBounce = 0.06 * this._contact(frac, clickAt, 0.05);
+      cover.rotation[cover.userData.reloadAxis || 'x'] = -1.22 * open - slamBounce;
+    }
+
+    // Charging handle: a firm pull to full travel, then a quick release home.
+    const pull = this._phase(frac, rackStart, rackBack);
+    const release = this._phase(frac, rackBack, rackBack + (rackEnd - rackBack) * 0.5);
+    const rack = pull * (1 - release);
+    model.bolt.position.z = T.boltTravel * rack;
+
+    // Belt lead: the spent lead follows the box out, the fresh one slides in
+    // from the feed port after the box seats and stays down for the slam.
+    const leadOut = this._phase(frac, start, exitEnd);
+    const leadIn = this._phase(frac, home + 0.01, slamStart);
+    let leadX = 0;
+    let leadY = 0;
+    let leadZ = 0;
+    if (lead) {
+      const homePosition = lead.userData.homePosition;
+      if (frac < exitEnd) {
+        leadX = -0.10 * leadOut;
+        leadY = -0.13 * leadOut + 0.05 * Math.sin(Math.PI * leadOut);
+        leadZ = 0.03 * leadOut;
+        lead.visible = leadOut < 0.98;
+        lead.rotation.z = 0.55 * leadOut;
+      } else {
+        leadX = -0.09 * (1 - leadIn);
+        leadY = -0.045 * (1 - leadIn) + 0.012 * Math.sin(Math.PI * leadIn);
+        leadZ = 0;
+        lead.visible = frac >= home + 0.01;
+        lead.rotation.z = 0.35 * (1 - leadIn);
+      }
+      lead.position.set(homePosition.x + leadX, homePosition.y + leadY, homePosition.z + leadZ);
+    }
+
+    // Receiver impulses layered on the shared swap pose: the cover slam and the
+    // handle snapping home both land on the gun as separate contacts.
+    const slam = this._contact(frac, clickAt, 0.06);
+    const pullTug = this._phase(frac, rackStart, rackBack) * (1 - this._phase(frac, rackBack, rackBack + 0.02));
+    const snap = this._contact(frac, rackBack + (rackEnd - rackBack) * 0.5, 0.05);
+    out.dip += 0.012 * slam - 0.010 * pullTug + 0.008 * snap;
+    out.rock += 0.06 * slam + 0.05 * pullTug - 0.04 * snap;
+    out.push += 0.020 * slam + 0.030 * pullTug - 0.025 * snap;
+    out.roll += 0.04 * slam - 0.03 * pullTug;
+
+    // Support hand: latch, box, fresh lead, cover, charging handle, then home.
+    const boxVisible = mag ? mag.visible : true;
+    const socket = [style.socket[0] + (mag ? mag.position.x : 0), style.socket[1] + (mag ? mag.position.y : 0),
+      style.socket[2] + (mag ? mag.position.z : 0)];
+    const latch = [-0.062, 0.150 + 0.19 * open, -0.02 - 0.06 * open];
+    const leadHome = lead ? lead.userData.homePosition : null;
+    const leadHand = leadHome ? [leadHome.x + leadX - 0.035, leadHome.y + leadY + 0.012, leadHome.z + leadZ + 0.02]
+      : [-0.045, 0.142, -0.105];
+    const coverTop = [-0.02, 0.165 + 0.19 * open, -0.03 - 0.05 * open];
+    const handle = [-0.118, 0.06, -0.025 + model.bolt.position.z];
+    let target;
+    let visible = true;
+    if (frac < start) {
+      target = this._blendTargets(latch, socket, this._phase(frac, start - 0.04, start));
+    } else if (frac < home + 0.01) {
+      target = socket;
+      visible = boxVisible;
+    } else if (frac < slamStart) {
+      target = this._blendTargets(socket, leadHand, this._phase(frac, home + 0.01, home + 0.05));
+    } else if (frac < rackStart) {
+      target = this._blendTargets(leadHand, coverTop, this._phase(frac, slamStart, clickAt - 0.02));
+    } else {
+      target = this._blendTargets(coverTop, handle, this._phase(frac, rackStart, rackStart + 0.012));
+    }
+    const blend = this._phase(frac, 0.02, openStart) * (1 - this._phase(frac, rackEnd, 0.995));
+    this._moveReloadHand(model, target[0], target[1], target[2], blend, visible);
+  }
+
+  _blendTargets(from, to, t) {
+    return [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t, from[2] + (to[2] - from[2]) * t];
   }
 
   _updateCylinderReload(frac, model, out) {
@@ -521,9 +624,13 @@ export class WeaponActions {
     out.rock = 0.10 * presented - 0.08 * seat;
     out.x = -0.12 * presented;
     out.push = -0.12 * presented - 0.035 * seat;
-    out.yaw = -0.82 * presented;
-    out.roll = -0.16 * presented + 0.045 * latch;
-    parts.gate.rotation.y = -1.45 * open;
+    // The authored venturi sleeves the tube ahead of the hinge: it travels
+    // straight back clear of the breech, then flips down break-action style so
+    // the rear stands fully open before the round starts to rise. Same for the
+    // procedural cone; rest pose untouched.
+    const slide = this._phase(frac, timeline.start, 0.30) * (1 - this._phase(frac, timeline.home, timeline.clickAt));
+    parts.gate.position.z = parts.rearZ + 0.11 * slide;
+    parts.gate.rotation.x = 0.95 * open * slide;
     const round = model.extra.userData.reloadRounds;
     const raise = this._phase(frac, 0.40, 0.58);
     const align = this._phase(frac, 0.58, 0.68);

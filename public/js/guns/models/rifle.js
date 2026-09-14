@@ -1,10 +1,12 @@
 import * as THREE from '../../vendor/three.module.js';
 import { COL } from '../kit.js';
 import { BOLT_HOME, BREACH_Z, TRIGGER_Z } from './common.js';
+import { buildKestrel } from './kestrel.js';
 
 // VK-77: modular, short-stroke service rifle. The large forms deliberately follow the
 // side-profile HUD reference; shallow overlays keep the silhouette readable without textures.
 export function build({ kit, T, groups }) {
+  if (buildKestrel({ groups })) return;
   const { mat, box, cylZ, brakeRings, ironSights } = kit;
   const { body, mag, bolt, trigger } = groups;
 

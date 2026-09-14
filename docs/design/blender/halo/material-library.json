@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "asset": "halo",
+  "materials": [
+    {
+      "material": "HALO | gunmetal",
+      "texture": "phosphated-steel"
+    },
+    {
+      "material": "HALO | rubber",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "HALO | copper rail",
+      "texture": "aged-copper"
+    },
+    {
+      "material": "HALO | ivory coating",
+      "texture": "ivory-ceramic"
+    },
+    {
+      "material": "HALO | tan webbing",
+      "texture": "tan-webbing"
+    },
+    {
+      "material": "HALO | blued steel",
+      "texture": "blued-steel"
+    },
+    {
+      "material": "HALO | dark polymer",
+      "texture": "molded-polymer"
+    }
+  ]
+}

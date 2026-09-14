@@ -1,0 +1,91 @@
+{
+  "asset": "HANDS",
+  "revision": 2,
+  "glb": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/hands/hands.glb",
+  "passed": true,
+  "failures": [],
+  "advisory": [],
+  "measured": {
+    "extent": {
+      "x": [
+        -0.092391,
+        0.04296
+      ],
+      "y": [
+        -0.059405,
+        0.03691
+      ],
+      "z": [
+        -0.089466,
+        0.17
+      ]
+    },
+    "palm_bounds": {
+      "grip": {
+        "min": [
+          -0.04045,
+          -0.013461,
+          -0.046
+        ],
+        "max": [
+          0.04045,
+          0.013303,
+          0.03
+        ]
+      },
+      "support": {
+        "min": [
+          -0.04045,
+          -0.013461,
+          -0.046
+        ],
+        "max": [
+          0.04045,
+          0.013303,
+          0.03
+        ]
+      }
+    },
+    "cuff_min_z": {
+      "grip": 0.028,
+      "support": 0.028
+    },
+    "glb_nodes": [
+      "grip",
+      "grip | ceramic armor",
+      "grip | glove leather",
+      "grip | hardware",
+      "grip | knuckle plate",
+      "grip | skin",
+      "grip | suit fabric",
+      "grip | webbing",
+      "support",
+      "support | ceramic armor",
+      "support | glove leather",
+      "support | hardware",
+      "support | knuckle plate",
+      "support | skin",
+      "support | suit fabric",
+      "support | webbing"
+    ],
+    "node:grip": "present",
+    "node:support": "present",
+    "triangles": 14656,
+    "triangles_per_primitive": {
+      "grip | ceramic armor": 728,
+      "grip | glove leather": 3256,
+      "grip | hardware": 216,
+      "grip | knuckle plate": 648,
+      "grip | skin": 1692,
+      "grip | suit fabric": 632,
+      "grip | webbing": 156,
+      "support | ceramic armor": 728,
+      "support | glove leather": 3256,
+      "support | hardware": 216,
+      "support | knuckle plate": 648,
+      "support | skin": 1692,
+      "support | suit fabric": 632,
+      "support | webbing": 156
+    }
+  }
+}

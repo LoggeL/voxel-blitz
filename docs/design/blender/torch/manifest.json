@@ -1,0 +1,141 @@
+{
+  "asset": "TORCH",
+  "asset_id": "torch",
+  "kind": "original AT4-style shoulder-fired rocket launcher prop (visual game asset)",
+  "blender": "5.2.1 LTS",
+  "authoring_script": "tools/blender/torch/build-torch.py",
+  "source_parts": 80,
+  "animation_group_nodes": [
+    "body",
+    "mag",
+    "bolt",
+    "trigger",
+    "extra"
+  ],
+  "marker_nodes": [
+    "grip",
+    "muzzle",
+    "sight",
+    "support"
+  ],
+  "batch_nodes": 14,
+  "round_nodes": [],
+  "triangles": 13492,
+  "triangles_per_primitive": {
+    "body | cavity black": 216,
+    "body | gunmetal": 6004,
+    "body | ivory coating": 416,
+    "body | olive drab": 2228,
+    "body | orange paint": 2164,
+    "body | polymer": 728,
+    "body | rubber": 204,
+    "bolt | gunmetal": 492,
+    "bolt | orange paint": 276,
+    "mag | gunmetal": 108,
+    "mag | orange paint": 108,
+    "mag | polymer": 108,
+    "trigger | gunmetal": 332,
+    "trigger | orange paint": 108
+  },
+  "materials": [
+    "gunmetal",
+    "olive drab",
+    "orange paint",
+    "ivory coating",
+    "polymer",
+    "rubber",
+    "cavity black"
+  ],
+  "material_textures": {
+    "gunmetal": "worn-gunmetal.jpg",
+    "olive drab": "worn-gunmetal.jpg",
+    "orange paint": "orange-painted-metal.jpg",
+    "ivory coating": "ivory-armor.jpg",
+    "polymer": "petrol-ballistic-fabric.jpg",
+    "rubber": "worn-rubber.jpg"
+  },
+  "texture_source": "public/assets/blender/textures (the delivered 1024px JPEGs, reused byte-identical; originals untouched)",
+  "uv_density_tiles_per_metre": 3.6,
+  "axes": {
+    "authoring": "+Y forward, +Z up, +X right",
+    "after_gltf": "-Z forward, +Y up, +X right",
+    "map": "game_x = x, game_y = z, game_z = -y"
+  },
+  "anchors_game_space": {
+    "muzzle": [
+      0.0,
+      0.075,
+      -0.78
+    ],
+    "grip": [
+      0.045,
+      -0.02,
+      -0.08
+    ],
+    "support": [
+      -0.06,
+      -0.03,
+      -0.4
+    ],
+    "sight": [
+      0.0,
+      0.175,
+      -0.34
+    ]
+  },
+  "contract_points": {
+    "breech_y": 0.22,
+    "bore_axis": [
+      0.0,
+      0.075
+    ],
+    "exposed_bore_radius": 0.062,
+    "exposed_bore": [
+      0.46,
+      0.78
+    ],
+    "heat_band": [
+      -0.752,
+      -0.528
+    ],
+    "sight_height": 0.175,
+    "sight_posts": [
+      0.02,
+      0.768
+    ]
+  },
+  "files": {
+    "blend": "docs/design/blender/torch/torch.blend",
+    "glb": "docs/design/blender/torch/torch.glb",
+    "renders": [
+      "render-hero.png",
+      "render-side.png",
+      "render-left.png",
+      "render-ads.png",
+      "render-rear.png"
+    ],
+    "validation": "docs/design/blender/torch/validation.json"
+  },
+  "build_time_checks": {
+    "anchor_contract": "muzzle plane, bore axis and exposed 0.0620 radius across the whole heat band, all four markers, the 0.175 sight line, the trigger blade and the arming lever home position are asserted against the runtime contract every build",
+    "heat_band_clearance": "no vertex other than the bore may enter the heat band",
+    "coplanar_face_audit": "rejects flush faces between parts, which z-fight once same-material parts merge into one draw call",
+    "part_contact": "every authored part must cross, nearly touch or sit inside another part; a group that only meets the model through empty space is reported as floating and fails the build"
+  },
+  "geometry_audit": {
+    "coplanar_faces": [],
+    "floating_parts": []
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; no mobile GPU profiling.",
+    "Hand fit is unverified: the grip and support palms sit on the contract points and the geometry is built around them, but no third-person pose test was run."
+  ],
+  "notes": [
+    "Fresh design: an AT4-style disposable-tube launcher; no bayonet lug, no optic.",
+    "Cone muzzle flare with an orange warning cone; the heat band stays bare tube.",
+    "Markings are modelled geometry, not a texture decal.",
+    "No loose rounds: the reload rocket is spawned procedurally by the runtime.",
+    "Flip-up ladder sights bracket the shared 0.175 sight line."
+  ]
+}

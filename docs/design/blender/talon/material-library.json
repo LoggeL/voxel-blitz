@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "asset": "talon",
+  "materials": [
+    {
+      "material": "TALON | polished edge",
+      "texture": "machined-steel"
+    },
+    {
+      "material": "TALON | rubber",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "TALON | blade steel",
+      "texture": "machined-steel"
+    },
+    {
+      "material": "TALON | tan webbing",
+      "texture": "tan-webbing"
+    },
+    {
+      "material": "TALON | ivory coating",
+      "texture": "ivory-ceramic"
+    },
+    {
+      "material": "TALON | blackened",
+      "texture": "blued-steel"
+    },
+    {
+      "material": "TALON | petrol grip",
+      "texture": "petrol-fabric"
+    },
+    {
+      "material": "TALON | orange paint",
+      "texture": "orange-paint"
+    }
+  ]
+}

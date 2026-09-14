@@ -748,7 +748,16 @@ export async function runInputContracts(ok, installGlobals) {
     ok(pulses.length === 2, 'cancelled, hidden, and secondary-finger presses cannot trigger a swap');
     minimal.dispose();
 
-    const restore = installGlobals({ location: { search: '?headless=1' } });
+    // This contract also runs without the keybindings suite's storage fixture.
+    // Own and restore the preferences used to verify a fresh controller session.
+    const padPrefs = new Map();
+    const restore = installGlobals({
+      location: { search: '?headless=1' },
+      localStorage: {
+        getItem: key => padPrefs.get(key) ?? null,
+        setItem: (key, value) => padPrefs.set(key, String(value)),
+      },
+    });
     let pad = null;
     try {
       const { Input, PAD_WHEEL_HOLD_MS, WHEEL_VECTOR_RADIUS_PX } =
@@ -783,6 +792,35 @@ export async function runInputContracts(ok, installGlobals) {
       pad.setOptions({ aimAssist: false });
       ok(Math.abs(assisted - (2.1 / 60) * 0.5) < 1e-9 && !pad.aimAssistEligible(1400),
         'aim assist slows pad look by at most half and can be switched off');
+      pad.setAimAssist(0);
+      fake.axes = [0, -1, 0.6, -0.8];
+      for (const sensitivity of [0.0008, 0.003, 0.006, 0.012]) {
+        pad.setSensitivity(sensitivity);
+        pad.poll(1410, 1 / 60);
+        const delta = pad.consumeDelta();
+        const rate = (2.1 / 60) * (sensitivity / 0.003);
+        ok(Math.abs(delta.dx - 0.6 * rate) < 1e-9 && Math.abs(delta.dy + 0.8 * rate) < 1e-9
+          && pad.getKeys().forward,
+        'main sensitivity scales both controller look axes without changing movement');
+      }
+      pad.setSensitivity(0.006);
+      pad.setOptions({ padSensitivity: 3 });
+      pad.invertY = true;
+      pad.poll(1420, 1 / 60);
+      const tuned = pad.consumeDelta();
+      ok(Math.abs(tuned.dx - 0.06) < 1e-9 && Math.abs(tuned.dy - 0.08) < 1e-9,
+        'controller tuning combines with main sensitivity and preserves inverted pitch');
+      const restored = new Input({});
+      try {
+        restored._pad.navigator = { getGamepads: () => [fake] };
+        restored.poll(1430, 1 / 60);
+        const delta = restored.consumeDelta();
+        ok(Math.abs(delta.dx - 0.06) < 1e-9 && Math.abs(delta.dy + 0.08) < 1e-9,
+          'a new input session restores both sensitivity preferences for controller look');
+      } finally { restored.dispose(); }
+      pad.setSensitivity(0.003);
+      pad.setOptions({ padSensitivity: 2.1 });
+      pad.invertY = false;
       pad._onKeyDown({ code: 'KeyW', preventDefault() {} });
       padButtons[PAD_BUTTONS.fire] = { pressed: false, value: 0 };
       fake.axes = [0, 0, 0, 0];

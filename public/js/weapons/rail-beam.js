@@ -25,6 +25,8 @@ export class RailBeamFX {
     this.glowTexture.minFilter = THREE.LinearFilter;
     this.glowTexture.needsUpdate = true;
     this.muzzleProvider = null;
+    this.remoteMuzzleProvider = null;
+    this._remoteMuzzle = new THREE.Vector3();
     this.geometry = new THREE.CylinderGeometry(1, 1, 1, 12, 1, true);
     this.geometry.rotateX(Math.PI / 2);
     this.geometry.translate(0, 0, -0.5);
@@ -110,6 +112,10 @@ export class RailBeamFX {
     const beam = this.pool[this.cursor++ % POOL_SIZE];
     beam.group.position.copy(eye);
     if (local && this.muzzleProvider) this.muzzleProvider(beam.group.position);
+    if (!local && this.remoteMuzzleProvider) {
+      const m = this.remoteMuzzleProvider(event.id, this._remoteMuzzle);
+      if (m && m.distanceToSquared(eye) < 9) beam.group.position.copy(m);
+    }
     direction.copy(endpoint).sub(beam.group.position);
     beam.length = direction.length();
     beam.group.quaternion.setFromUnitVectors(AXIS, direction.normalize());

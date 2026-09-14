@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "asset": "kestrel",
+  "materials": [
+    {
+      "material": "Kestrel | rubber",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "Kestrel | machined steel",
+      "texture": "machined-steel"
+    },
+    {
+      "material": "Kestrel | ceramic paint",
+      "texture": "ivory-ceramic"
+    },
+    {
+      "material": "Kestrel | petrol paint",
+      "texture": "petrol-paint"
+    },
+    {
+      "material": "Kestrel | orange paint",
+      "texture": "orange-paint"
+    }
+  ]
+}

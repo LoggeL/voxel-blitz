@@ -1,0 +1,111 @@
+{
+  "asset": "VK-41 SHRIKE",
+  "asset_id": "vk41-shrike",
+  "kind": "original compact science-fiction rifle prop (visual game asset)",
+  "blender": "5.2.1 LTS",
+  "authoring_script": "tools/blender/omp-weapon/build-shrike.py",
+  "source_parts": 92,
+  "animation_group_nodes": [
+    "body",
+    "mag",
+    "bolt",
+    "trigger",
+    "factory-optic"
+  ],
+  "marker_nodes": [
+    "grip",
+    "muzzle",
+    "sight",
+    "support"
+  ],
+  "batch_nodes": 17,
+  "triangles": 12832,
+  "materials": [
+    "gunmetal",
+    "orange paint",
+    "ivory coating",
+    "petrol fabric",
+    "tan webbing",
+    "rubber",
+    "optic glass",
+    "indicator"
+  ],
+  "imagegen_textures": [
+    "worn-gunmetal.jpg",
+    "orange-painted-metal.jpg",
+    "ivory-armor.jpg",
+    "petrol-ballistic-fabric.jpg",
+    "tan-webbing.jpg",
+    "worn-rubber.jpg"
+  ],
+  "texture_source": "public/assets/blender/textures (1024px JPEG delivery copies of the original ImageGen PNGs; originals untouched)",
+  "axes": {
+    "authoring": "+Y forward, +Z up, +X right",
+    "after_gltf": "-Z forward, +Y up, +X right",
+    "map": "game_x = x, game_y = z, game_z = -y"
+  },
+  "anchors_game_space": {
+    "muzzle": [
+      -0.012,
+      0.598,
+      0.045
+    ],
+    "grip": [
+      0.045,
+      0.09,
+      0.015
+    ],
+    "support": [
+      -0.055,
+      0.4,
+      0.005
+    ],
+    "sight": [
+      0.0,
+      0.187,
+      0.145
+    ]
+  },
+  "contract_points": {
+    "breech_y": 0.32,
+    "bore_axis": [
+      -0.012,
+      0.045
+    ],
+    "barrel_exposed": [
+      0.52,
+      0.575
+    ]
+  },
+  "files": {
+    "blend": "docs/design/blender/omp-weapon/weapon.blend",
+    "glb": "public/assets/blender/omp-weapon/weapon.glb",
+    "renders": [
+      "render-hero.png",
+      "render-side.png",
+      "render-ads.png",
+      "render-rear.png"
+    ],
+    "validation": "docs/design/blender/omp-weapon/validation.json",
+    "browser_check": "docs/design/blender/omp-weapon/browser-check.html"
+  },
+  "build_time_checks": {
+    "anchor_contract": "muzzle tip, muzzle/grip/support markers and the 0.145 sight line asserted against the runtime contract",
+    "coplanar_face_audit": "rejects flush faces between parts, which z-fight once same-material parts merge into one draw call"
+  },
+  "verification": {
+    "glb_reimport": "validation.json - fresh Blender scene, 17 meshes, 12832 triangles, 8 materials, 6 embedded images, 0 meshes without UVs, all 9 node names present",
+    "browser_loader": "browser-check.html - repository GLTFLoader 0.180.0 loads the GLB and renders it in WebGL",
+    "known_sanity_findings": "indicator and optic glass intentionally carry no base-colour image (emissive readout, tinted glass)"
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; no mobile GPU profiling.",
+    "Render lighting is owned by render-views.py, not this file."
+  ],
+  "notes": [
+    "Markings are modelled geometry, not a texture decal.",
+    "Optic glass is alpha-blended and flagged for depthWrite off.",
+    "World and lighting are owned by the render script, not this file."
+  ]
+}

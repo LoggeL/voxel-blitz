@@ -11,7 +11,7 @@ export function clamp01(v) {
 }
 
 export function clampPitch(value) {
-  const limit = Math.PI / 2 - 0.01;
+  const limit = (80 * Math.PI) / 180;
   return Math.max(-limit, Math.min(limit, Number.isFinite(value) ? value : 0));
 }
 

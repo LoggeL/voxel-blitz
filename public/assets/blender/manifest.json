@@ -1,0 +1,104 @@
+{
+  "assets": [
+    {
+      "asset": "bison",
+      "source_parts": 215,
+      "draws": 26,
+      "triangles": 17928,
+      "geometry_bytes": 1267168
+    },
+    {
+      "asset": "fang",
+      "source_parts": 117,
+      "draws": 18,
+      "triangles": 12516,
+      "geometry_bytes": 795984
+    },
+    {
+      "asset": "halo",
+      "source_parts": 123,
+      "draws": 20,
+      "triangles": 12852,
+      "geometry_bytes": 894256
+    },
+    {
+      "asset": "hands",
+      "source_parts": 94,
+      "draws": 8,
+      "triangles": 14960,
+      "geometry_bytes": 1134656
+    },
+    {
+      "asset": "hydra",
+      "source_parts": 87,
+      "draws": 12,
+      "triangles": 15852,
+      "geometry_bytes": 1049456
+    },
+    {
+      "asset": "ifrit",
+      "source_parts": 76,
+      "draws": 13,
+      "triangles": 10880,
+      "geometry_bytes": 711808
+    },
+    {
+      "asset": "kestrel",
+      "source_parts": 105,
+      "draws": 15,
+      "triangles": 16488,
+      "geometry_bytes": 690848
+    },
+    {
+      "asset": "mastiff",
+      "source_parts": 69,
+      "draws": 17,
+      "triangles": 11200,
+      "geometry_bytes": 758048
+    },
+    {
+      "asset": "peregrine",
+      "source_parts": 104,
+      "draws": 19,
+      "triangles": 6400,
+      "geometry_bytes": 550048
+    },
+    {
+      "asset": "pike",
+      "source_parts": 108,
+      "draws": 19,
+      "triangles": 10904,
+      "geometry_bytes": 755296
+    },
+    {
+      "asset": "rivet",
+      "source_parts": 151,
+      "draws": 76,
+      "triangles": 19536,
+      "geometry_bytes": 784448
+    },
+    {
+      "asset": "talon",
+      "source_parts": 32,
+      "draws": 8,
+      "triangles": 4472,
+      "geometry_bytes": 324576
+    },
+    {
+      "asset": "torch",
+      "source_parts": 80,
+      "draws": 17,
+      "triangles": 13492,
+      "geometry_bytes": 907312
+    },
+    {
+      "asset": "wasp",
+      "source_parts": 79,
+      "draws": 15,
+      "triangles": 10312,
+      "geometry_bytes": 691296
+    }
+  ],
+  "texture_size": 1024,
+  "textures_bytes": 1762868
+}

@@ -10,7 +10,9 @@ import {
   YELLOW_SIDING, TEAL_SIDING, ASPHALT, ROOF, BUS_YELLOW, TRUCK_RED,
   DUST_SANDSTONE, DUST_PLASTER, DUST_ROCK, DUST_FLOOR,
   DUST_TRIM, DUST_TILE, DUST_CRATE, DUST_WOOD,
+  SUB_CONCRETE, SUB_STEEL, SUB_GRAVEL, SUB_ENAMEL, SUB_HAZARD, SUB_CLADDING,
 } from '../../../shared/worlddata.js';
+import { SUBSTATION_TILES } from '../../../shared/world/substation-data.js';
 
 export const ATLAS_SIZE = 256;
 export const TILE_PX = 16;
@@ -25,6 +27,7 @@ export const TILE = {
   ACCENT: 11, PLANK: 12, GLASS: 13, PALE: 14, RUST: 15, BRICK: 16,
   DUST_SANDSTONE: 23, DUST_PLASTER: 24, DUST_ROCK: 25, DUST_FLOOR: 26,
   DUST_TRIM: 27, DUST_TILE: 28, DUST_CRATE: 29, DUST_WOOD: 30,
+  SUB_CONCRETE: 32, SUB_STEEL: 33, SUB_GRAVEL: 34, SUB_ENAMEL: 35, SUB_HAZARD: 36, SUB_CLADDING: 37,
 };
 
 /** Deterministic integer wobble -> 0..k-1. The atlas' only "randomness". */
@@ -333,6 +336,20 @@ function dustWood(x, y) {
   return dustColor([91, 73, 49], grain + seam + scratch);
 }
 
+// SUBSTATION tiles are 16px box filters of the six Codex ImageGen textures that
+// dress the Blender study, baked by tools/blender/substation/build-substation.py.
+// Each is decoded once so the painter stays a pure, deterministic lookup.
+function bakedTile(key) {
+  const encoded = atob(SUBSTATION_TILES[key]);
+  if (encoded.length !== TILE_PX * TILE_PX * 3) throw new Error(`substation tile ${key} is not ${TILE_PX}px RGB`);
+  const data = new Uint8Array(encoded.length);
+  for (let i = 0; i < encoded.length; i++) data[i] = encoded.charCodeAt(i);
+  return (x, y) => {
+    const i = (y * TILE_PX + x) * 3;
+    return [data[i], data[i + 1], data[i + 2], 255];
+  };
+}
+
 /** Tile-id -> painter registry. Keys are TILE slot values. */
 export const TILE_PAINTERS = Object.freeze({
   [TILE.AIR_DEBUG]: airDebug,
@@ -366,6 +383,12 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.DUST_TILE]: dustTile,
   [TILE.DUST_CRATE]: dustCrate,
   [TILE.DUST_WOOD]: dustWood,
+  [TILE.SUB_CONCRETE]: bakedTile('concrete'),
+  [TILE.SUB_STEEL]: bakedTile('steel'),
+  [TILE.SUB_GRAVEL]: bakedTile('gravel'),
+  [TILE.SUB_ENAMEL]: bakedTile('enamel'),
+  [TILE.SUB_HAZARD]: bakedTile('hazard'),
+  [TILE.SUB_CLADDING]: bakedTile('cladding'),
   [TILE.BEDROCK]: bedrock,
 });
 
@@ -402,6 +425,12 @@ export const DEFAULT_BLOCK_TILES = Object.freeze({
   [DUST_TILE]: { all: TILE.DUST_TILE },
   [DUST_CRATE]: { all: TILE.DUST_CRATE },
   [DUST_WOOD]: { all: TILE.DUST_WOOD },
+  [SUB_CONCRETE]: { all: TILE.SUB_CONCRETE },
+  [SUB_STEEL]: { all: TILE.SUB_STEEL },
+  [SUB_GRAVEL]: { all: TILE.SUB_GRAVEL },
+  [SUB_ENAMEL]: { all: TILE.SUB_ENAMEL },
+  [SUB_HAZARD]: { all: TILE.SUB_HAZARD },
+  [SUB_CLADDING]: { all: TILE.SUB_CLADDING },
   [BEDROCK]: { all: TILE.BEDROCK },
 });
 
@@ -448,6 +477,7 @@ const NO_RING_DARKEN = new Set([
   TILE.AIR_DEBUG, TILE.GLASS,
   TILE.DUST_SANDSTONE, TILE.DUST_PLASTER, TILE.DUST_ROCK, TILE.DUST_FLOOR,
   TILE.DUST_TRIM, TILE.DUST_TILE, TILE.DUST_CRATE, TILE.DUST_WOOD,
+  TILE.SUB_CONCRETE, TILE.SUB_STEEL, TILE.SUB_GRAVEL, TILE.SUB_ENAMEL, TILE.SUB_HAZARD, TILE.SUB_CLADDING,
 ]);
 const RING_DARKEN = 0.78;
 

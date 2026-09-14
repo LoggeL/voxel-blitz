@@ -17,6 +17,7 @@ export const MAP_PLAYER_LIMITS = Object.freeze({
   canyon: 32,
   reactor: 4,
   killhouse: 4,
+  substation: 12,
 });
 
 export function lobbyCapacity(gameMode, map = 'foundry') {

@@ -1,6 +1,6 @@
 # Weapon customization and handling
 
-The main menu's **ARMORY** equips an optic and grip for each compatible weapon. The workshop shows the actual game model, four handling metrics and differences from the factory setup. Changes are saved per weapon, then applied on the next match or training admission. Factory setup resets that weapon without changing the others.
+The main menu's **ARMORY** equips an optic, a grip and an optional StatTrak kill counter for each compatible weapon. The workshop shows the actual game model, four handling metrics and differences from the factory setup. Changes are saved per weapon, then applied on the next match or training admission. Factory setup resets that weapon without changing the others.
 
 The 3D viewer includes the equipped weapon skin and current attachment choices. Drag to rotate in both axes, scroll or pinch to zoom, or use the on-screen zoom and reset controls. Arrow keys, plus/minus and Home work when the viewer is focused. **SHOW STANDARD** compares the unskinned weapon without changing the attachment draft or saved equipment. The collection uses this same viewer for weapon and character skins, including locked items. See [the viewer design and checks](design/model-viewer/README.md).
 
@@ -23,7 +23,7 @@ The catalogs and compatibility rules live in `shared/weapon-attachments.js`. Bas
 | Vertical | -4 | ×0.88 | ×0.94 | ×0.75 | ×0.95 |
 | Precision | -7 | ×0.65 | ×0.75 | ×0.95 | ×0.72 |
 
-All 12 weapons have a workshop entry. The pickaxe has fixed mounts; the revolver and heavy special weapons retain their factory grips. Minigun, flamethrower and launcher accept the reflex and 2× optics. Scopes support the existing alternate magnification input and scope/breath/reload visibility rules. Attachment models appear in the workshop, first person and remote players' hands.
+All 12 weapons have a workshop entry. The pickaxe has fixed mounts; the revolver and heavy special weapons retain their factory grips. Minigun, flamethrower and launcher accept the reflex and 2× optics. Scopes support the existing alternate magnification input and scope/breath/reload visibility rules. Attachment models appear in the workshop, first person and remote players' hands. A third slot fits a StatTrak LED counter that displays the weapon's confirmed human kills from career mastery; it changes handling nothing and rides the same save/transport path as optics and grips.
 
 Arrowhead's [customization release](https://arrowhead.zendesk.com/hc/en-us/articles/20039732796956--PATCH-01-003-000) describes sights and underbarrel parts. Its [Into the Unjust patch](https://arrowhead.zendesk.com/hc/en-us/articles/23973732653084--Into-the-Unjust-5-0-0) gives the -1/-2/-4 ergonomics costs for 2×/4×/10× optics. The grip tradeoffs above are Voxel Blitz balancing choices. Progression locks, attachment purchases, magazines and muzzle parts are outside this implementation.
 
@@ -39,9 +39,9 @@ The handling range's 90°/180° buttons feed the same player input path. Its com
 
 ## Persistence and authority
 
-`POST /api/career/attachments` requires the existing career identity and same-origin custom header, and validates both slots against the catalog. The setup is stored in `equipped.weaponAttachments`, using the existing JSON equipment field for file profiles and PostgreSQL row-locked transactions. No schema migration is required.
+`POST /api/career/attachments` requires the existing career identity and same-origin custom header, and validates all three slots against the catalog. The setup is stored in `equipped.weaponAttachments`, using the existing JSON equipment field for file profiles and PostgreSQL row-locked transactions. No schema migration is required. Payloads saved before the counter slot existed omit it and still validate as a factory-counter setup.
 
-The server reads the profile at admission, freezes that match's setup and sends it in `welcome.weaponLoadout`. Current attachment choices are included in player snapshots and retained by the client. Lobby map replacement and respawn preserve the setup. Client-supplied admission loadouts are rejected. A career outage falls back to factory equipment on both peers without preventing guest gameplay. File-write failures roll back the attempted save.
+The server reads the profile at admission, freezes that match's setup and sends it in `welcome.weaponLoadout`, plus the per-weapon kill counts in `welcome.mastery`. Current attachment choices are included in player snapshots and retained by the client. The first-person rig renders the LED from the admission-time counts and bumps them from its own counted kill events (same bot/team/training filter as the server); the next admission refreshes authority. Remote players' mastery never crosses the snapshot wire, so their plates stay off rather than showing a wrong number. Lobby map replacement and respawn preserve the setup. Client-supplied admission loadouts are rejected. A career outage falls back to factory equipment on both peers without preventing guest gameplay. File-write failures roll back the attempted save.
 
 ## Validation
 

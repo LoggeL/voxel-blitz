@@ -90,6 +90,7 @@ switch (state) {
   case 'reload-open':
   case 'reload-eject':
   case 'reload-load':
+  case 'reload-charge':
   case 'charge-low':
   case 'charge-high':
   case 'vaulting':
@@ -143,9 +144,14 @@ if (state.startsWith('charge-')) {
 }
 
 if (state.startsWith('reload-')) {
-  rig.reload(1, 'cylinder');
-  const fraction = { 'reload-open': 0.26, 'reload-eject': 0.40, 'reload-load': 0.64 }[state];
-  for (let frame = 0; frame < Math.round(fraction * 100); frame++) rig.update(0.01, stablePose);
+  // Fractions of the one-second reload: cylinder work for the revolver, the
+  // belt gun's cover-open / box-drop / lead-laid / handle-rack beats for the LMG.
+  const belt = weapon === 'lmg';
+  rig.reload(1, belt ? 'magswap' : 'cylinder');
+  const fraction = belt
+    ? { 'reload-open': 0.14, 'reload-eject': 0.28, 'reload-load': 0.875, 'reload-charge': 0.965 }[state]
+    : { 'reload-open': 0.26, 'reload-eject': 0.40, 'reload-load': 0.64 }[state];
+  for (let frame = 0; frame < Math.round(fraction * 200); frame++) rig.update(0.005, stablePose);
 }
 
 if (state === 'firing') {

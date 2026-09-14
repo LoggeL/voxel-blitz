@@ -23,6 +23,7 @@ export const KEYBINDING_ACTIONS = Object.freeze([
 const ACTIONS = new Map(KEYBINDING_ACTIONS.map(action => [action.id, action]));
 const listeners = new Set();
 const overlaps = (a, b) => a.context === b.context || [a.id, b.id].some(id => id === 'scoreboard' || id === 'buy');
+let storageKey = KEYBINDINGS_PREF_KEY;
 let cachedRaw;
 let cachedBindings;
 
@@ -57,7 +58,7 @@ export function normalizeKeybindings(value) {
 
 export function readKeybindings() {
   let raw = null;
-  try { raw = localStorage.getItem(KEYBINDINGS_PREF_KEY); } catch (_) {}
+  try { raw = localStorage.getItem(storageKey); } catch (_) {}
   if (!cachedBindings || cachedRaw !== raw) {
     let parsed = null;
     try { parsed = JSON.parse(raw); } catch (_) {}
@@ -69,7 +70,7 @@ export function readKeybindings() {
 
 function publish(bindings) {
   const raw = JSON.stringify(bindings);
-  try { localStorage.setItem(KEYBINDINGS_PREF_KEY, raw); cachedRaw = raw; } catch (_) {}
+  try { localStorage.setItem(storageKey, raw); cachedRaw = raw; } catch (_) {}
   cachedBindings = bindings;
   for (const listener of listeners) listener(readKeybindings());
   return readKeybindings();
@@ -108,3 +109,12 @@ export function bindingLabel(actionId, bindings = (cachedBindings || readKeybind
 export function isTypingTarget(target) {
   return !!target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName || '') || target.isContentEditable === true);
 }
+
+// Separate guest and account caches, including on shared browsers.
+export function useKeybindingAccount(userId) {
+  storageKey = userId ? `${KEYBINDINGS_PREF_KEY}:${userId}` : KEYBINDINGS_PREF_KEY;
+  cachedBindings = null;
+  cachedRaw = undefined;
+  for (const listener of listeners) listener(readKeybindings());
+}
+export function replaceKeybindings(value) { return publish(normalizeKeybindings(value)); }

@@ -37,6 +37,7 @@ export class AvatarRoster {
     this._getMyId = getMyId;
     this._now = now;
     this._avatars = new Map();
+    this._burnFX = null;
     this._pendingHits = new Map();
     this._remoteImpacts = new Map();
     this._pendingDeaths = new Map();
@@ -54,8 +55,26 @@ export class AvatarRoster {
     });
   }
 
+  /** Barrel tip of a living remote avatar, or null. Presentation only: hits
+   *  stay authoritative. */
+  muzzleWorldPos(id, out) {
+    if (id === this._getMyId()) return null;
+    const avatar = this._avatars.get(id);
+    if (!avatar?.alive) return null;
+    try {
+      const p = avatar.weaponModel?.getMuzzleWorldPosition?.(out);
+      return p && Number.isFinite(p.x + p.y + p.z) ? p : null;
+    } catch { return null; }
+  }
   updateMuzzleLights(pool, local, camera) {
     pool.update(local, this._avatars, camera);
+  }
+
+  /** Afterburn presentation for burning snapshot rows. The roster owns no pool:
+   *  puffs come from the shared FlameFX batch and expire on their own, so a
+   *  burning character stops smoking the moment its row stops burning. */
+  setBurnFX(flames) {
+    this._burnFX = flames || null;
   }
 
   get size() {
@@ -279,6 +298,22 @@ export class AvatarRoster {
       avatar.head.rotation.x += (remote.pitch * 0.7 - hit01 * 0.1 - avatar.head.rotation.x) * poseBlend;
       avatar.head.rotation.z += (-flinch * 0.7 - avatar.head.rotation.z) * poseBlend;
       setAvatarFlash(avatar, hit01);
+      // Outside-in burning: while the snapshot row burns, feed the shared flame
+      // batch from three staggered body emitters (chest/head/legs) at a bounded
+      // ~30 puffs/second. Numbers only, no allocation; puffs expire on their own
+      // so nothing lingers once burning reaches zero.
+      if (this._burnFX && (Number(remote.burning) || 0) > 0) {
+        avatar.burnAcc = (avatar.burnAcc || 0) + Math.min(Math.max(dt, 0), 0.1) * 30;
+        while (avatar.burnAcc >= 1) {
+          avatar.burnAcc -= 1;
+          const slot = (avatar.burnSlot || 0) % 3;
+          avatar.burnSlot = (avatar.burnSlot || 0) + 1;
+          const bx = avatar.group.position.x, by = avatar.group.position.y, bz = avatar.group.position.z;
+          if (slot === 0) this._burnFX.emitBurn(bx, by + avatar.torso.position.y, bz, 1);
+          else if (slot === 1) this._burnFX.emitBurn(bx, by + avatar.head.position.y, bz, 0.8);
+          else this._burnFX.emitBurn(bx, by + 0.45, bz, 0.9);
+        }
+      } else avatar.burnAcc = 0;
 
       if (remote.hp != null && remote.hp !== avatar.lastHp) {
         avatar.lastHp = remote.hp;

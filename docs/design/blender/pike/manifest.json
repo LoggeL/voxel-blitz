@@ -1,0 +1,155 @@
+{
+  "asset": "PIKE",
+  "asset_id": "pike",
+  "kind": "original twin-rail charge lance prop (visual game asset)",
+  "blender": "5.2.1 LTS",
+  "authoring_script": "tools/blender/pike/build-pike.py",
+  "source_parts": 108,
+  "animation_group_nodes": [
+    "body",
+    "mag",
+    "bolt",
+    "trigger",
+    "factory-optic",
+    "extra"
+  ],
+  "marker_nodes": [
+    "grip",
+    "muzzle",
+    "sight",
+    "support"
+  ],
+  "batch_nodes": 19,
+  "round_nodes": [],
+  "triangles": 10904,
+  "triangles_per_primitive": {
+    "body | arc glow": 640,
+    "body | blued steel": 420,
+    "body | copper rail": 688,
+    "body | dark marking": 520,
+    "body | dark polymer": 804,
+    "body | gunmetal": 3548,
+    "body | rubber": 1948,
+    "bolt | arc glow": 12,
+    "bolt | blued steel": 108,
+    "bolt | copper rail": 216,
+    "bolt | gunmetal": 508,
+    "factory-optic | arc glow": 12,
+    "factory-optic | dark polymer": 108,
+    "factory-optic | gunmetal": 464,
+    "mag | arc glow": 36,
+    "mag | copper rail": 324,
+    "mag | dark polymer": 108,
+    "trigger | copper rail": 108,
+    "trigger | gunmetal": 332
+  },
+  "materials": [
+    "gunmetal",
+    "blued steel",
+    "copper rail",
+    "dark marking",
+    "dark polymer",
+    "rubber",
+    "arc glow"
+  ],
+  "material_textures": {
+    "gunmetal": "worn-gunmetal.jpg",
+    "blued steel": "worn-gunmetal.jpg",
+    "copper rail": "orange-painted-metal.jpg",
+    "dark marking": "ivory-armor.jpg",
+    "dark polymer": "petrol-ballistic-fabric.jpg",
+    "rubber": "worn-rubber.jpg"
+  },
+  "imagegen_textures": [
+    "worn-gunmetal.jpg",
+    "worn-gunmetal.jpg",
+    "orange-painted-metal.jpg",
+    "ivory-armor.jpg",
+    "petrol-ballistic-fabric.jpg",
+    "worn-rubber.jpg"
+  ],
+  "texture_source": "public/assets/blender/textures (the delivered 1024px JPEGs, reused byte-identical; originals untouched)",
+  "uv_density_tiles_per_metre": 3.6,
+  "axes": {
+    "authoring": "+Y forward, +Z up, +X right",
+    "after_gltf": "-Z forward, +Y up, +X right",
+    "map": "game_x = x, game_y = z, game_z = -y"
+  },
+  "anchors_game_space": {
+    "muzzle": [
+      0.0,
+      0.055,
+      -0.72
+    ],
+    "grip": [
+      0.045,
+      0.015,
+      -0.1
+    ],
+    "support": [
+      -0.055,
+      0.005,
+      -0.42
+    ],
+    "sight": [
+      0.0,
+      0.155,
+      -0.1
+    ]
+  },
+  "contract_points": {
+    "breech_y": 0.3,
+    "bore_axis": [
+      0.0,
+      0.055
+    ],
+    "exposed_bore_radius": 0.0195,
+    "exposed_bore": [
+      0.4,
+      0.72
+    ],
+    "heat_band": [
+      -0.678,
+      -0.447
+    ],
+    "sight_height": 0.155,
+    "sight_planes": [
+      -0.06,
+      0.692
+    ]
+  },
+  "files": {
+    "blend": "docs/design/blender/pike/pike.blend",
+    "glb": "docs/design/blender/pike/pike.glb",
+    "renders": [
+      "render-hero.png",
+      "render-side.png",
+      "render-left.png",
+      "render-ads.png",
+      "render-rear.png"
+    ],
+    "validation": "docs/design/blender/pike/validation.json"
+  },
+  "build_time_checks": {
+    "anchor_contract": "muzzle plane, bore axis and exposed 0.0195 radius across the whole heat band, all four markers, the 0.155 sight line, the rear aperture, the front post tip, the trigger blade and the bolt handle home position are asserted against the runtime contract every build",
+    "heat_band_clearance": "no vertex other than the bore may enter the heat band",
+    "coplanar_face_audit": "rejects flush faces between parts, which z-fight once same-material parts merge into one draw call",
+    "part_contact": "every authored part must cross, nearly touch or sit inside another part; a group that only meets the model through empty space is reported as floating and fails the build"
+  },
+  "geometry_audit": {
+    "coplanar_faces": [],
+    "floating_parts": []
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; no mobile GPU profiling.",
+    "Hand fit is unverified: the grip and support palms sit on the contract points and the geometry is built around them, but no third-person pose test was run."
+  ],
+  "notes": [
+    "Fresh design: no geometry reused from the older HALO study.",
+    "Long thin twin conductor rails and a floating violet emissive spine over an open bare-metal rail lane; the heat band stays clear.",
+    "Markings are modelled geometry, not a texture decal.",
+    "The lance reload swaps the lance cell, so `extra` stays an empty identity node for the choreography to own.",
+    "Arc glow is an emission material (violet, strength 2.0) with no map."
+  ]
+}

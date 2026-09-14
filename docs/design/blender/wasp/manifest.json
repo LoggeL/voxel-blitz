@@ -1,0 +1,144 @@
+{
+  "asset": "WASP",
+  "asset_id": "wasp",
+  "kind": "original compact PDW prop, MP7-style (visual game asset)",
+  "blender": "5.2.1 LTS",
+  "authoring_script": "tools/blender/wasp/build-wasp.py",
+  "source_parts": 79,
+  "animation_group_nodes": [
+    "body",
+    "mag",
+    "bolt",
+    "trigger",
+    "extra"
+  ],
+  "marker_nodes": [
+    "grip",
+    "muzzle",
+    "sight"
+  ],
+  "batch_nodes": 15,
+  "round_nodes": [],
+  "triangles": 10312,
+  "triangles_per_primitive": {
+    "body | gunmetal": 4148,
+    "body | ivory coating": 912,
+    "body | olive drab": 2152,
+    "body | optic glass": 12,
+    "body | orange paint": 120,
+    "body | petrol fabric": 108,
+    "body | rubber": 608,
+    "body | tan webbing": 448,
+    "bolt | gunmetal": 608,
+    "mag | gunmetal": 204,
+    "mag | olive drab": 108,
+    "mag | orange paint": 120,
+    "mag | rubber": 324,
+    "trigger | gunmetal": 332,
+    "trigger | orange paint": 108
+  },
+  "materials": [
+    "gunmetal",
+    "olive drab",
+    "orange paint",
+    "ivory coating",
+    "petrol fabric",
+    "tan webbing",
+    "rubber",
+    "optic glass"
+  ],
+  "material_textures": {
+    "gunmetal": "worn-gunmetal.jpg",
+    "olive drab": "worn-gunmetal.jpg",
+    "orange paint": "orange-painted-metal.jpg",
+    "ivory coating": "ivory-armor.jpg",
+    "petrol fabric": "petrol-ballistic-fabric.jpg",
+    "tan webbing": "tan-webbing.jpg",
+    "rubber": "worn-rubber.jpg"
+  },
+  "imagegen_textures": [
+    "worn-gunmetal.jpg",
+    "worn-gunmetal.jpg",
+    "orange-painted-metal.jpg",
+    "ivory-armor.jpg",
+    "petrol-ballistic-fabric.jpg",
+    "tan-webbing.jpg",
+    "worn-rubber.jpg"
+  ],
+  "texture_source": "public/assets/blender/textures (the delivered 1024px JPEGs, reused byte-identical; originals untouched)",
+  "uv_density_tiles_per_metre": 3.6,
+  "axes": {
+    "authoring": "+Y forward, +Z up, +X right",
+    "after_gltf": "-Z forward, +Y up, +X right",
+    "map": "game_x = x, game_y = z, game_z = -y"
+  },
+  "anchors_game_space": {
+    "muzzle": [
+      0.0,
+      0.02,
+      -0.398
+    ],
+    "grip": [
+      0.045,
+      -0.01,
+      -0.06
+    ],
+    "sight": [
+      0.0,
+      0.112,
+      0.005
+    ]
+  },
+  "contract_points": {
+    "breech_y": 0.21,
+    "bore_axis": [
+      0.0,
+      0.02
+    ],
+    "exposed_bore_radius": 0.038,
+    "exposed_bore": [
+      0.3135,
+      0.398
+    ],
+    "heat_band": [
+      -0.3905,
+      -0.3145
+    ],
+    "sight_height": 0.112
+  },
+  "files": {
+    "blend": "docs/design/blender/wasp/wasp.blend",
+    "glb": "docs/design/blender/wasp/wasp.glb",
+    "renders": [
+      "render-hero.png",
+      "render-side.png",
+      "render-left.png",
+      "render-ads.png",
+      "render-rear.png"
+    ],
+    "validation": "docs/design/blender/wasp/validation.json"
+  },
+  "build_time_checks": {
+    "anchor_contract": "muzzle plane, bore axis and exposed 0.0380 radius across the whole heat band, all three markers, the 0.112 sight line and reflex glass centre, the trigger blade and the bolt handle home position are asserted against the runtime contract every build",
+    "heat_band_clearance": "no vertex other than the bore may enter the heat band",
+    "coplanar_face_audit": "rejects flush faces between parts, which z-fight once same-material parts merge into one draw call",
+    "part_contact": "every authored part must cross, nearly touch or sit inside another part; a group that only meets the model through empty space is reported as floating and fails the build"
+  },
+  "geometry_audit": {
+    "coplanar_faces": [],
+    "floating_parts": []
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; no mobile GPU profiling.",
+    "Hand fit is unverified: the grip palm sits on the contract point and the geometry is built around it, but no third-person pose test was run."
+  ],
+  "notes": [
+    "Fresh design: no geometry reused from any older study.",
+    "Tapered flash hider with milled slots; the heat band stays bare metal.",
+    "Markings are modelled geometry, not a texture decal.",
+    "No foregrip: the SMG slot is a single-hand gun (support null).",
+    "The micro reflex sight lives on the body group; its glass centre is exactly on the 0.112 sight line.",
+    "Optic glass is alpha-blended and flagged for depthWrite off."
+  ]
+}

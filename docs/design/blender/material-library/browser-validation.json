@@ -1,0 +1,77 @@
+{
+  "weapons": [
+    {
+      "asset": "bison",
+      "materials": 8,
+      "paletteMaterials": 8,
+      "triangles": 17960
+    },
+    {
+      "asset": "fang",
+      "materials": 7,
+      "paletteMaterials": 7,
+      "triangles": 12536
+    },
+    {
+      "asset": "halo",
+      "materials": 8,
+      "paletteMaterials": 7,
+      "triangles": 12884
+    },
+    {
+      "asset": "hydra",
+      "materials": 7,
+      "paletteMaterials": 7,
+      "triangles": 15884
+    },
+    {
+      "asset": "ifrit",
+      "materials": 8,
+      "paletteMaterials": 7,
+      "triangles": 10912
+    },
+    {
+      "asset": "kestrel",
+      "materials": 8,
+      "paletteMaterials": 5,
+      "triangles": 16636
+    },
+    {
+      "asset": "mastiff",
+      "materials": 7,
+      "paletteMaterials": 7,
+      "triangles": 11232
+    },
+    {
+      "asset": "peregrine",
+      "materials": 6,
+      "paletteMaterials": 6,
+      "triangles": 6110
+    },
+    {
+      "asset": "pike",
+      "materials": 7,
+      "paletteMaterials": 5,
+      "triangles": 10936
+    },
+    {
+      "asset": "talon",
+      "materials": 8,
+      "paletteMaterials": 8,
+      "triangles": 4492
+    },
+    {
+      "asset": "torch",
+      "materials": 7,
+      "paletteMaterials": 6,
+      "triangles": 12412
+    },
+    {
+      "asset": "wasp",
+      "materials": 8,
+      "paletteMaterials": 7,
+      "triangles": 10356
+    }
+  ],
+  "sharedPaletteTextures": 15
+}

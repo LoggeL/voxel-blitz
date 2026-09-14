@@ -27,8 +27,8 @@ export function disposeObjectTrees(roots, { excludedMaterials } = {}) {
       }
     });
   }
-  for (const geometry of geometries) geometry.dispose();
-  for (const texture of textures) texture.dispose();
+  for (const geometry of geometries) if (!geometry.userData.pageOwned) geometry.dispose();
+  for (const texture of textures) if (!texture.userData.pageOwned) texture.dispose();
   for (const material of materials) {
     if (!excludedMaterials?.has(material)) material.dispose();
   }

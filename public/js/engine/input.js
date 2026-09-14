@@ -111,6 +111,7 @@ export class Input {
     this._bound = false;
     this._locked = false;
     this._gameplayEnabled = true;
+    this._spectatorEnabled = false;
     this._disposed = false;
     this._touchMode = shouldEnableTouchControls();
     this._touchControls = null;
@@ -250,7 +251,7 @@ export class Input {
   }
 
   requestLock() {
-    if (this._disposed || !this._gameplayEnabled) return;
+    if (this._disposed || (!this._gameplayEnabled && !this._spectatorEnabled)) return;
     if (this._touchMode) return;
     const canvas = this.canvas;
     if (!canvas || typeof canvas.requestPointerLock !== 'function') return;
@@ -291,7 +292,7 @@ export class Input {
   _syncKeyboardLock() {
     const keyboard = typeof navigator === 'undefined' ? null : navigator.keyboard;
     if (!keyboard) return;
-    const active = !this._disposed && this._gameplayEnabled && this._locked
+    const active = !this._disposed && (this._gameplayEnabled || this._spectatorEnabled) && this._locked
       && typeof document !== 'undefined'
       && document.fullscreenElement === document.documentElement;
     try {
@@ -321,9 +322,18 @@ export class Input {
     if (!next) this.clearTransient();
   }
 
+  /** Spectators can capture mouse look while movement and combat stay disabled. */
+  setSpectatorEnabled(enabled) {
+    const next = !!enabled && !this._disposed;
+    if (next === this._spectatorEnabled) return;
+    this._spectatorEnabled = next;
+    this.clearTransient();
+    this._syncKeyboardLock();
+  }
+
   /**
-   * Sets mouse-look sensitivity (rad per pixel) and persists the choice under
-   * SENSITIVITY_PREF_KEY. Clamped to the MOUSE_SENSITIVITY contract range.
+   * Sets look sensitivity (mouse rad per pixel, controller multiplier relative
+   * to the default) and persists it under SENSITIVITY_PREF_KEY.
    * @param {number} v
    */
   setSensitivity(v) {
@@ -605,7 +615,8 @@ export class Input {
         }
       } else {
         const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
-        const rate = this._options.padSensitivity * this._assistScale() * step;
+        const sensitivityScale = this.sens / MOUSE_SENSITIVITY.default;
+        const rate = this._options.padSensitivity * sensitivityScale * this._assistScale() * step;
         this._accDX += look.x * rate;
         this._accDY += look.y * rate * (this.invertY ? -1 : 1);
       }
@@ -1143,7 +1154,8 @@ export class Input {
   }
 
   _onMouseMove(e) {
-    if (!this._gameplayEnabled || (!this._locked && !this.fallback)) return;
+    if (this._disposed || (!this._gameplayEnabled && !this._spectatorEnabled)
+        || (!this._locked && !this.fallback)) return;
     if (this._wheelOpen || this._wheelOpenQueued) {
       if (!this._locked) return; // Unlocked pointers use the overlay coordinates.
       if (this._wheelReleaseQueued || this._wheelCancelQueued) return;
@@ -1160,11 +1172,12 @@ export class Input {
   }
 
   _onMouseDown(e) {
-    if (!this._gameplayEnabled) return;
+    if (this._disposed || (!this._gameplayEnabled && !this._spectatorEnabled)) return;
     if (!this._locked && !this.fallback) {
       if (e.isTrusted) this.requestLock();
       return;
     }
+    if (!this._gameplayEnabled) return;
     if (this._wheelOpen) {
       // The wheel owns the mouse while it is up: LMB confirms the highlighted
       // slot, RMB cancels; combat clicks never pass through.

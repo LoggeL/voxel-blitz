@@ -63,7 +63,7 @@ function requireFunction(value, name) {
  * Ownership is deliberate: Session owns every NetClient returned by makeNet,
  * and teardown owns the terminal disposal of hud, input, and audio. The
  * gameplay state provider and callbacks are borrowed. They are narrow seams,
- * not a Game instance: gameplay must expose only running, alive, matchState,
+ * not a Game instance: gameplay exposes running, alive, spectating, matchState,
  * and selfRow.
  *
  * onEnterLive receives a one-shot payload. Its implementation builds live
@@ -268,7 +268,7 @@ export class Session {
       if (
         this._phase !== 'live' ||
         !this._gameplay.running ||
-        (!this._gameplay.alive && this._gameplay.matchState?.phase !== 'post') ||
+        (!this._gameplay.alive && !this._gameplay.spectating && this._gameplay.matchState?.phase !== 'post') ||
         this.hud.settingsOpen ||
         this.hud.isBuyMenuOpen()
       ) {

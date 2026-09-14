@@ -11,7 +11,8 @@ const LOCAL_OPTIONS = Object.freeze({ local: true });
 export class FlameFX {
   constructor(scene, getBlock) {
     this.getBlock = getBlock;
-    this.muzzleProvider = null;
+    this.remoteMuzzleProvider = null;
+    this._remoteMuzzle = new THREE.Vector3();
     this.origin = new THREE.Vector3();
     this._forward = new THREE.Vector3();
     this._right = new THREE.Vector3();
@@ -25,7 +26,7 @@ export class FlameFX {
     this.localKeepalive = 0;
     this.localElapsed = 0;
     this.puffs = Array.from({ length: CAPACITY }, () => ({
-      age: 0, life: 0, ember: false, rotation: 0,
+      age: 0, life: 0, ember: false, burn: false, burnSize: 1, rotation: 0,
       position: new THREE.Vector3(), velocity: new THREE.Vector3(),
     }));
     this.geometry = new THREE.InstancedBufferGeometry();
@@ -43,7 +44,7 @@ export class FlameFX {
     this.geometry.setAttribute('tint', this.colors);
     this.geometry.instanceCount = 0;
     this.material = new THREE.ShaderMaterial({
-      transparent: true, depthWrite: false, toneMapped: false,
+      transparent: true, depthTest: true, depthWrite: false, toneMapped: false,
       uniforms: { time: { value: 0 }, fireAtlas: { value: createFireAtlas() } },
       vertexShader: `
         attribute vec3 center;
@@ -78,6 +79,9 @@ export class FlameFX {
     });
     this.mesh = new THREE.Mesh(this.geometry, this.material);
     this.mesh.frustumCulled = false;
+    // Depth-tested billboards occluded by bodies, drawn after opaque avatars
+    // but before additive impact dust (8) and the gore veil (7).
+    this.mesh.renderOrder = 6;
     scene.add(this.mesh);
   }
 
@@ -103,6 +107,12 @@ export class FlameFX {
         event.o.length !== 3 || event.d.length !== 3 ||
         !event.o.every(Number.isFinite) || !event.d.every(Number.isFinite)) return;
     this.origin.fromArray(event.o);
+    // Remote streams start at the rendered barrel tip, not the server eye
+    // approximation. Direction stays authoritative; a desynced tip falls back.
+    if (!options.local && this.remoteMuzzleProvider) {
+      const m = this.remoteMuzzleProvider(event.id, this._remoteMuzzle);
+      if (m && m.distanceToSquared(this.origin) < 9) this.origin.copy(m);
+    }
     const forward = this._forward.fromArray(event.d);
     if (forward.lengthSq() < 0.0001) return;
     forward.normalize();
@@ -140,11 +150,36 @@ export class FlameFX {
       puff.age = stagger ? (i % PARTICLES_PER_SHOT) * FLAME_RULES.cadence / PARTICLES_PER_SHOT : initialAge;
       puff.life = reach / FLAME_RULES.speed;
       puff.ember = ember;
+      puff.burn = false;
       puff.rotation = Math.random() * Math.PI * 2;
       puff.velocity.copy(direction).multiplyScalar(FLAME_RULES.speed);
       puff.position.copy(this.origin).addScaledVector(puff.velocity, puff.age);
     }
     return true;
+  }
+
+  /** One rising afterburn puff on a burning body. Reuses the bounded stream
+   *  pool (no new arrays); callers stagger chest/head/legs emitters and pass
+   *  only numbers, so this allocates nothing. */
+  emitBurn(x, y, z, scale = 1) {
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return;
+    const size = Number.isFinite(scale) && scale > 0 ? Math.min(scale, 2) : 1;
+    const puff = this.puffs[this.cursor++ % CAPACITY];
+    // Surface spawn: tongues start on the burning body's skin, not inside its
+    // volume, so the near side always reads while the far side stays occluded.
+    const angle = Math.random() * Math.PI * 2;
+    const radius = (0.20 + Math.random() * 0.14) * size;
+    puff.age = 0;
+    puff.life = 0.45 + Math.random() * 0.25;
+    puff.ember = false;
+    puff.burn = true;
+    puff.rotation = Math.random() * Math.PI * 2;
+    puff.position.set(
+      x + Math.cos(angle) * radius,
+      y + (Math.random() - 0.5) * 0.3,
+      z + Math.sin(angle) * radius);
+    puff.velocity.set((Math.random() - 0.5) * 0.5, 1.1 + Math.random() * 0.9, (Math.random() - 0.5) * 0.5);
+    puff.burnSize = size;
   }
 
   update(dt) {
@@ -172,10 +207,20 @@ export class FlameFX {
     let count = 0;
     for (const puff of this.puffs) {
       if (puff.age >= puff.life) continue;
-      const distance = puff.age * FLAME_RULES.speed;
-      const size = puff.ember ? 0.035 + distance * 0.004 : 0.30 + distance * 0.075;
       const fade = Math.min(1, (puff.life - puff.age) / 0.10);
       this.centers.setXYZ(count, puff.position.x, puff.position.y, puff.position.z);
+      if (puff.burn) {
+        // Afterburn rides the body surface: bright tongues rising off the torso
+        // that grow as they age. Same instanced draw as the stream, no extra
+        // pool or per-frame allocation.
+        const size = puff.burnSize * (0.5 + puff.age * 1.2);
+        this.shapes.setXYZ(count, size, size * 1.5, puff.rotation + puff.age * 2.5);
+        this.colors.setXYZW(count, 1, Math.max(0.3, 0.62 - puff.age * 0.5), 0.06, fade * 0.88);
+        count++;
+        continue;
+      }
+      const distance = puff.age * FLAME_RULES.speed;
+      const size = puff.ember ? 0.035 + distance * 0.004 : 0.30 + distance * 0.075;
       this.shapes.setXYZ(count, size, size * (puff.ember ? 2.5 : 1.3), puff.rotation + puff.age * 1.5);
       // Blue pressure core opens into orange tongues without whitening the whole aim lane.
       const core = puff.ember ? 0 : Math.max(0, 1 - distance / 1.1);

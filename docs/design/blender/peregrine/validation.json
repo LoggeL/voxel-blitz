@@ -1,0 +1,6144 @@
+{
+  "tool": "tools/blender/peregrine/validate-glb.py",
+  "purpose": "independent fresh-scene reimport check of the PEREGRINE delivery against docs/design/blender/peregrine/build-request.md",
+  "command": "blender --background --factory-startup --python tools/blender/peregrine/validate-glb.py -- ../docs/design/blender/peregrine/peregrine.glb ../public/assets/blender/peregrine.gltf ../docs/design/blender/peregrine/validation.json",
+  "blender_version": "5.2.1 LTS",
+  "blender_version_tuple": [
+    5,
+    2,
+    1
+  ],
+  "gun_local_frame": "-Z forward, +Y up, +X right (game_x = x, game_y = z, game_z = -y)",
+  "tolerances": {
+    "coordinate_m": 1e-05,
+    "identity": 1e-06,
+    "muzzle_face_epsilon_m": 0.0001,
+    "round_size_relative": 0.2
+  },
+  "expectations": {
+    "triangles": 19808,
+    "primitives": 19,
+    "materials": 7,
+    "images": 6,
+    "triangle_budget": [
+      10000,
+      20000
+    ],
+    "primitive_budget": 24,
+    "material_budget": 8
+  },
+  "delivered_files": {
+    "glb": {
+      "path": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/peregrine/peregrine.glb",
+      "byte_size": 3074184,
+      "sha256": "336f8041f903da613f4b895696861f7d5ccbbaaf89d52feddd8de1e6a867d9c6",
+      "mtime": 1789373628.1130514,
+      "unchanged_during_measurement": true
+    },
+    "gltf": {
+      "path": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/peregrine.gltf",
+      "byte_size": 16546,
+      "sha256": "89a1c8741804c8fe36d3599e5d066ed3b65aba4f55aa49ed30c311e9b0d08200",
+      "mtime": 1789373646.2433352,
+      "unchanged_during_measurement": true
+    },
+    "bin": {
+      "path": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/peregrine.bin",
+      "byte_size": 1409024,
+      "sha256": "da9ec9a324d65280ed63784d9ec4c4ed6a15cae2c7456109dff591e530eb5b60",
+      "mtime": 1789373646.2429183,
+      "unchanged_during_measurement": true
+    }
+  },
+  "passed": true,
+  "failure_count": 0,
+  "failures": [],
+  "advisory_findings": [
+    {
+      "target": "glb",
+      "check": "degenerate_triangles_in_source",
+      "expected": {
+        "repeated_index": 0,
+        "zero_area": 0
+      },
+      "measured": {
+        "repeated_index": 0,
+        "zero_area": 124,
+        "duplicate_position_faces": 0
+      }
+    },
+    {
+      "target": "runtime_gltf",
+      "check": "degenerate_triangles_in_source",
+      "expected": {
+        "repeated_index": 0,
+        "zero_area": 0
+      },
+      "measured": {
+        "repeated_index": 316,
+        "zero_area": 320,
+        "duplicate_position_faces": 0
+      }
+    },
+    {
+      "target": "runtime_gltf",
+      "check": "reimport_reproduces_declared_triangles",
+      "expected": 19808,
+      "measured": 19492
+    }
+  ],
+  "advisory_finding_count": 3,
+  "targets": {
+    "glb": {
+      "path": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/peregrine/peregrine.glb",
+      "kind": "glb",
+      "byte_size": 3074184,
+      "sha256": "336f8041f903da613f4b895696861f7d5ccbbaaf89d52feddd8de1e6a867d9c6",
+      "sha256_before_measurement": "336f8041f903da613f4b895696861f7d5ccbbaaf89d52feddd8de1e6a867d9c6",
+      "unchanged_during_measurement": true,
+      "measurement_inputs": {
+        "/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/peregrine/peregrine.glb": "336f8041f903da613f4b895696861f7d5ccbbaaf89d52feddd8de1e6a867d9c6"
+      },
+      "inputs_changed_during_measurement": [],
+      "mtime": 1789373628.1130514,
+      "passed": true,
+      "failure_count": 0,
+      "failures": [],
+      "advisory_findings": [
+        {
+          "target": "glb",
+          "check": "degenerate_triangles_in_source",
+          "expected": {
+            "repeated_index": 0,
+            "zero_area": 0
+          },
+          "measured": {
+            "repeated_index": 0,
+            "zero_area": 124,
+            "duplicate_position_faces": 0
+          }
+        }
+      ],
+      "triangle_accounting": {
+        "declared_in_file": 19808,
+        "imported_after_reimport": 19808,
+        "dropped_by_import": 0,
+        "repeat_index_triangles": 0,
+        "zero_area_triangles": 124,
+        "duplicate_position_faces": 0
+      },
+      "source_declarations": {
+        "kind": "glb",
+        "generator": "Khronos glTF Blender I/O v5.2.40",
+        "gltf_version": "2.0",
+        "scene_name": "PEREGRINE | Voxel Blitz sniper study",
+        "scene_extras": {
+          "asset_id": "peregrine",
+          "asset_name": "PEREGRINE",
+          "game_forward": "-Z after glTF export",
+          "sight_height": 0.205,
+          "bore_radius": 0.021
+        },
+        "node_count": 29,
+        "mesh_count": 19,
+        "top_level_nodes": [
+          {
+            "index": 6,
+            "name": "body",
+            "mesh": null,
+            "children": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            "translation": null,
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 8,
+            "name": "bolt",
+            "mesh": null,
+            "children": [
+              7
+            ],
+            "translation": null,
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 12,
+            "name": "extra",
+            "mesh": null,
+            "children": [
+              9,
+              10,
+              11
+            ],
+            "translation": null,
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 17,
+            "name": "factory-optic",
+            "mesh": null,
+            "children": [
+              13,
+              14,
+              15,
+              16
+            ],
+            "translation": null,
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 18,
+            "name": "grip",
+            "mesh": null,
+            "children": [],
+            "translation": [
+              0.04500000178813934,
+              0.019999999552965164,
+              -0.12999999523162842
+            ],
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 22,
+            "name": "mag",
+            "mesh": null,
+            "children": [
+              19,
+              20,
+              21
+            ],
+            "translation": null,
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 23,
+            "name": "muzzle",
+            "mesh": null,
+            "children": [],
+            "translation": [
+              0,
+              0.054999999701976776,
+              -0.7599999904632568
+            ],
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 24,
+            "name": "sight",
+            "mesh": null,
+            "children": [],
+            "translation": [
+              0,
+              0.20499999821186066,
+              -0.25
+            ],
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 25,
+            "name": "support",
+            "mesh": null,
+            "children": [],
+            "translation": [
+              -0.054999999701976776,
+              -0.009999999776482582,
+              -0.47999998927116394
+            ],
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 28,
+            "name": "trigger",
+            "mesh": null,
+            "children": [
+              26,
+              27
+            ],
+            "translation": null,
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          }
+        ],
+        "top_level_node_names": [
+          "body",
+          "bolt",
+          "extra",
+          "factory-optic",
+          "grip",
+          "mag",
+          "muzzle",
+          "sight",
+          "support",
+          "trigger"
+        ],
+        "expected_top_level_node_names": [
+          "body",
+          "bolt",
+          "extra",
+          "factory-optic",
+          "grip",
+          "mag",
+          "muzzle",
+          "sight",
+          "support",
+          "trigger"
+        ],
+        "tree": [
+          {
+            "name": "body",
+            "primitives": 6,
+            "declared_triangles": 11296,
+            "mesh_names": [
+              "body | tan webbing merged",
+              "body | rubber merged",
+              "body | petrol fabric merged",
+              "body | orange paint merged",
+              "body | ivory coating merged",
+              "body | gunmetal merged"
+            ],
+            "translation": null,
+            "has_matrix": false
+          },
+          {
+            "name": "bolt",
+            "primitives": 1,
+            "declared_triangles": 1460,
+            "mesh_names": [
+              "bolt | gunmetal merged"
+            ],
+            "translation": null,
+            "has_matrix": false
+          },
+          {
+            "name": "extra",
+            "primitives": 3,
+            "declared_triangles": 660,
+            "mesh_names": [
+              "Round 3 shell",
+              "Round 2 shell",
+              "Round 1 shell"
+            ],
+            "translation": null,
+            "has_matrix": false
+          },
+          {
+            "name": "factory-optic",
+            "primitives": 4,
+            "declared_triangles": 5496,
+            "mesh_names": [
+              "factory-optic | petrol fabric merged",
+              "factory-optic | optic glass merged",
+              "factory-optic | ivory coating merged",
+              "factory-optic | gunmetal merged"
+            ],
+            "translation": null,
+            "has_matrix": false
+          },
+          {
+            "name": "grip",
+            "primitives": 0,
+            "declared_triangles": 0,
+            "mesh_names": [],
+            "translation": [
+              0.04500000178813934,
+              0.019999999552965164,
+              -0.12999999523162842
+            ],
+            "has_matrix": false
+          },
+          {
+            "name": "mag",
+            "primitives": 3,
+            "declared_triangles": 456,
+            "mesh_names": [
+              "mag | rubber merged",
+              "mag | orange paint merged",
+              "mag | gunmetal merged"
+            ],
+            "translation": null,
+            "has_matrix": false
+          },
+          {
+            "name": "muzzle",
+            "primitives": 0,
+            "declared_triangles": 0,
+            "mesh_names": [],
+            "translation": [
+              0,
+              0.054999999701976776,
+              -0.7599999904632568
+            ],
+            "has_matrix": false
+          },
+          {
+            "name": "sight",
+            "primitives": 0,
+            "declared_triangles": 0,
+            "mesh_names": [],
+            "translation": [
+              0,
+              0.20499999821186066,
+              -0.25
+            ],
+            "has_matrix": false
+          },
+          {
+            "name": "support",
+            "primitives": 0,
+            "declared_triangles": 0,
+            "mesh_names": [],
+            "translation": [
+              -0.054999999701976776,
+              -0.009999999776482582,
+              -0.47999998927116394
+            ],
+            "has_matrix": false
+          },
+          {
+            "name": "trigger",
+            "primitives": 2,
+            "declared_triangles": 440,
+            "mesh_names": [
+              "trigger | orange paint merged",
+              "trigger | gunmetal merged"
+            ],
+            "translation": null,
+            "has_matrix": false
+          }
+        ],
+        "materials": [
+          {
+            "index": 0,
+            "name": "PEREGRINE | gunmetal",
+            "alpha_mode": "OPAQUE",
+            "base_color_texture_index": 0,
+            "base_color_image_index": 0,
+            "base_color_image": "worn-gunmetal",
+            "base_color_factor": [
+              0.86,
+              0.87,
+              0.89,
+              1
+            ],
+            "metallic_factor": 0.3499999940395355,
+            "roughness_factor": 0.46000000834465027,
+            "double_sided": true
+          },
+          {
+            "index": 1,
+            "name": "PEREGRINE | ivory coating",
+            "alpha_mode": "OPAQUE",
+            "base_color_texture_index": 1,
+            "base_color_image_index": 1,
+            "base_color_image": "ivory-armor",
+            "base_color_factor": [
+              0.96,
+              0.95,
+              0.92,
+              1
+            ],
+            "metallic_factor": 0.03999999910593033,
+            "roughness_factor": 0.5199999809265137,
+            "double_sided": true
+          },
+          {
+            "index": 2,
+            "name": "PEREGRINE | orange paint",
+            "alpha_mode": "OPAQUE",
+            "base_color_texture_index": 2,
+            "base_color_image_index": 2,
+            "base_color_image": "orange-painted-metal",
+            "base_color_factor": [
+              0.95,
+              0.93,
+              0.9,
+              1
+            ],
+            "metallic_factor": 0.11999999731779099,
+            "roughness_factor": 0.5199999809265137,
+            "double_sided": true
+          },
+          {
+            "index": 3,
+            "name": "PEREGRINE | petrol fabric",
+            "alpha_mode": "OPAQUE",
+            "base_color_texture_index": 3,
+            "base_color_image_index": 3,
+            "base_color_image": "petrol-ballistic-fabric",
+            "base_color_factor": [
+              0.9,
+              0.91,
+              0.93,
+              1
+            ],
+            "metallic_factor": 0,
+            "roughness_factor": 0.8199999928474426,
+            "double_sided": true
+          },
+          {
+            "index": 4,
+            "name": "PEREGRINE | rubber",
+            "alpha_mode": "OPAQUE",
+            "base_color_texture_index": 4,
+            "base_color_image_index": 4,
+            "base_color_image": "worn-rubber",
+            "base_color_factor": [
+              0.62,
+              0.63,
+              0.65,
+              1
+            ],
+            "metallic_factor": 0,
+            "roughness_factor": 0.7400000095367432,
+            "double_sided": true
+          },
+          {
+            "index": 5,
+            "name": "PEREGRINE | tan webbing",
+            "alpha_mode": "OPAQUE",
+            "base_color_texture_index": 5,
+            "base_color_image_index": 5,
+            "base_color_image": "tan-webbing",
+            "base_color_factor": [
+              0.94,
+              0.93,
+              0.91,
+              1
+            ],
+            "metallic_factor": 0,
+            "roughness_factor": 0.8799999952316284,
+            "double_sided": true
+          },
+          {
+            "index": 6,
+            "name": "PEREGRINE | optic glass",
+            "alpha_mode": "BLEND",
+            "base_color_texture_index": null,
+            "base_color_image_index": null,
+            "base_color_image": null,
+            "base_color_factor": [
+              0.18000000715255737,
+              0.5799999833106995,
+              0.6499999761581421,
+              0.1599999964237213
+            ],
+            "metallic_factor": 0,
+            "roughness_factor": 0.10000000149011612,
+            "double_sided": true
+          }
+        ],
+        "images": [
+          {
+            "index": 0,
+            "name": "worn-gunmetal",
+            "uri": null,
+            "mime_type": "image/jpeg",
+            "embedded_buffer_view": true,
+            "stem": "worn-gunmetal",
+            "byte_size": 266344
+          },
+          {
+            "index": 1,
+            "name": "ivory-armor",
+            "uri": null,
+            "mime_type": "image/jpeg",
+            "embedded_buffer_view": true,
+            "stem": "ivory-armor",
+            "byte_size": 264247
+          },
+          {
+            "index": 2,
+            "name": "orange-painted-metal",
+            "uri": null,
+            "mime_type": "image/jpeg",
+            "embedded_buffer_view": true,
+            "stem": "orange-painted-metal",
+            "byte_size": 298416
+          },
+          {
+            "index": 3,
+            "name": "petrol-ballistic-fabric",
+            "uri": null,
+            "mime_type": "image/jpeg",
+            "embedded_buffer_view": true,
+            "stem": "petrol-ballistic-fabric",
+            "byte_size": 380454
+          },
+          {
+            "index": 4,
+            "name": "worn-rubber",
+            "uri": null,
+            "mime_type": "image/jpeg",
+            "embedded_buffer_view": true,
+            "stem": "worn-rubber",
+            "byte_size": 270366
+          },
+          {
+            "index": 5,
+            "name": "tan-webbing",
+            "uri": null,
+            "mime_type": "image/jpeg",
+            "embedded_buffer_view": true,
+            "stem": "tan-webbing",
+            "byte_size": 283041
+          }
+        ],
+        "buffers": [
+          {
+            "index": 0,
+            "uri": null,
+            "declared_byte_length": 3053292,
+            "payload_byte_length": 3053292,
+            "embedded": true
+          }
+        ],
+        "geometry": [
+          {
+            "mesh_index": 0,
+            "name": "body | gunmetal merged",
+            "primitives": 1,
+            "declared_triangles": 8348,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 1,
+            "name": "body | ivory coating merged",
+            "primitives": 1,
+            "declared_triangles": 1412,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 2,
+            "name": "body | orange paint merged",
+            "primitives": 1,
+            "declared_triangles": 216,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 3,
+            "name": "body | petrol fabric merged",
+            "primitives": 1,
+            "declared_triangles": 324,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 44,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 4,
+            "name": "body | rubber merged",
+            "primitives": 1,
+            "declared_triangles": 888,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 36,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 5,
+            "name": "body | tan webbing merged",
+            "primitives": 1,
+            "declared_triangles": 108,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 6,
+            "name": "bolt | gunmetal merged",
+            "primitives": 1,
+            "declared_triangles": 1460,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 12,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 7,
+            "name": "Round 1 shell",
+            "primitives": 1,
+            "declared_triangles": 220,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 8,
+            "name": "Round 2 shell",
+            "primitives": 1,
+            "declared_triangles": 220,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 9,
+            "name": "Round 3 shell",
+            "primitives": 1,
+            "declared_triangles": 220,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 10,
+            "name": "factory-optic | gunmetal merged",
+            "primitives": 1,
+            "declared_triangles": 3948,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 11,
+            "name": "factory-optic | ivory coating merged",
+            "primitives": 1,
+            "declared_triangles": 1320,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 8,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 12,
+            "name": "factory-optic | optic glass merged",
+            "primitives": 1,
+            "declared_triangles": 120,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 13,
+            "name": "factory-optic | petrol fabric merged",
+            "primitives": 1,
+            "declared_triangles": 108,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 24,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 14,
+            "name": "mag | gunmetal merged",
+            "primitives": 1,
+            "declared_triangles": 132,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 15,
+            "name": "mag | orange paint merged",
+            "primitives": 1,
+            "declared_triangles": 216,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 16,
+            "name": "mag | rubber merged",
+            "primitives": 1,
+            "declared_triangles": 108,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 17,
+            "name": "trigger | gunmetal merged",
+            "primitives": 1,
+            "declared_triangles": 332,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 18,
+            "name": "trigger | orange paint merged",
+            "primitives": 1,
+            "declared_triangles": 108,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          }
+        ],
+        "declared_triangle_total": 19808,
+        "declared_primitive_total": 19,
+        "declared_degenerate_triangles": {
+          "repeated_index": 0,
+          "zero_area": 124,
+          "duplicate_position_faces": 0
+        },
+        "declared_non_finite_position_components": 0,
+        "declared_meshes_without_uv": [],
+        "glb_binary_chunk_bytes": 3053292
+      },
+      "imported": {
+        "scene": {
+          "object_count": 29,
+          "mesh_object_count": 19,
+          "non_mesh_object_count": 10,
+          "top_level_node_names": [
+            "body",
+            "bolt",
+            "extra",
+            "factory-optic",
+            "grip",
+            "mag",
+            "muzzle",
+            "sight",
+            "support",
+            "trigger"
+          ]
+        },
+        "objects": [
+          {
+            "name": "Round 1",
+            "base_name": "Round 1",
+            "type": "MESH",
+            "parent": "extra",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                -0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 220,
+            "vertices": 360,
+            "polygons": 220,
+            "materials": [
+              "PEREGRINE | orange paint"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.006000000052154064,
+                -0.006000000052154064,
+                -0.02500000037252903
+              ],
+              "max": [
+                0.006000000052154064,
+                0.006000000052154064,
+                0.02500000037252903
+              ],
+              "centre": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "size": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.02000000048428774,
+                0.12350000161677599,
+                -0.054999999701976776
+              ],
+              "max": [
+                -0.00800000037997961,
+                0.13550000172108412,
+                -0.004999998956918716
+              ],
+              "centre": [
+                -0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "size": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ]
+            }
+          },
+          {
+            "name": "Round 2",
+            "base_name": "Round 2",
+            "type": "MESH",
+            "parent": "extra",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 220,
+            "vertices": 360,
+            "polygons": 220,
+            "materials": [
+              "PEREGRINE | orange paint"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.006000000052154064,
+                -0.006000000052154064,
+                -0.02500000037252903
+              ],
+              "max": [
+                0.006000000052154064,
+                0.006000000052154064,
+                0.02500000037252903
+              ],
+              "centre": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "size": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.006000000052154064,
+                0.12350000161677599,
+                -0.054999999701976776
+              ],
+              "max": [
+                0.006000000052154064,
+                0.13550000172108412,
+                -0.004999998956918716
+              ],
+              "centre": [
+                0.0,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "size": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ]
+            }
+          },
+          {
+            "name": "Round 3",
+            "base_name": "Round 3",
+            "type": "MESH",
+            "parent": "extra",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 220,
+            "vertices": 360,
+            "polygons": 220,
+            "materials": [
+              "PEREGRINE | orange paint"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.006000000052154064,
+                -0.006000000052154064,
+                -0.02500000037252903
+              ],
+              "max": [
+                0.006000000052154064,
+                0.006000000052154064,
+                0.02500000037252903
+              ],
+              "centre": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "size": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                0.00800000037997961,
+                0.12350000161677599,
+                -0.054999999701976776
+              ],
+              "max": [
+                0.02000000048428774,
+                0.13550000172108412,
+                -0.004999998956918716
+              ],
+              "centre": [
+                0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "size": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ]
+            }
+          },
+          {
+            "name": "body",
+            "base_name": "body",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [
+              "body | gunmetal",
+              "body | ivory coating",
+              "body | orange paint",
+              "body | petrol fabric",
+              "body | rubber",
+              "body | tan webbing"
+            ],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "body | gunmetal",
+            "base_name": "body | gunmetal",
+            "type": "MESH",
+            "parent": "body",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 8348,
+            "vertices": 15758,
+            "polygons": 8348,
+            "materials": [
+              "PEREGRINE | gunmetal"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.04099999740719795,
+                -0.15508796274662018,
+                -0.7599999904632568
+              ],
+              "max": [
+                0.04099999740719795,
+                0.11100000143051147,
+                0.3504999876022339
+              ],
+              "centre": [
+                0.0,
+                -0.022043980658054352,
+                -0.20475000143051147
+              ],
+              "size": [
+                0.0819999948143959,
+                0.26608796417713165,
+                1.1104999780654907
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.04099999740719795,
+                -0.15508796274662018,
+                -0.7599999904632568
+              ],
+              "max": [
+                0.04099999740719795,
+                0.11100000143051147,
+                0.3504999876022339
+              ],
+              "centre": [
+                0.0,
+                -0.022043980658054352,
+                -0.20475000143051147
+              ],
+              "size": [
+                0.0819999948143959,
+                0.26608796417713165,
+                1.1104999780654907
+              ]
+            }
+          },
+          {
+            "name": "body | ivory coating",
+            "base_name": "body | ivory coating",
+            "type": "MESH",
+            "parent": "body",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 1412,
+            "vertices": 1968,
+            "polygons": 1412,
+            "materials": [
+              "PEREGRINE | ivory coating"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.03879200667142868,
+                -0.017000000923871994,
+                -0.19200000166893005
+              ],
+              "max": [
+                0.039448004215955734,
+                0.05299999937415123,
+                0.004944000393152237
+              ],
+              "centre": [
+                0.0003279987722635269,
+                0.017999999225139618,
+                -0.09352800063788891
+              ],
+              "size": [
+                0.07824001088738441,
+                0.07000000029802322,
+                0.1969440020620823
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.03879200667142868,
+                -0.017000000923871994,
+                -0.19200000166893005
+              ],
+              "max": [
+                0.039448004215955734,
+                0.05299999937415123,
+                0.004944000393152237
+              ],
+              "centre": [
+                0.0003279987722635269,
+                0.017999999225139618,
+                -0.09352800063788891
+              ],
+              "size": [
+                0.07824001088738441,
+                0.07000000029802322,
+                0.1969440020620823
+              ]
+            }
+          },
+          {
+            "name": "body | orange paint",
+            "base_name": "body | orange paint",
+            "type": "MESH",
+            "parent": "body",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 216,
+            "vertices": 432,
+            "polygons": 216,
+            "materials": [
+              "PEREGRINE | orange paint"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.041999999433755875,
+                -0.01900000125169754,
+                -0.23999999463558197
+              ],
+              "max": [
+                0.0429999977350235,
+                0.03500000014901161,
+                -0.08500000089406967
+              ],
+              "centre": [
+                0.000499999150633812,
+                0.007999999448657036,
+                -0.16249999776482582
+              ],
+              "size": [
+                0.08499999716877937,
+                0.05400000140070915,
+                0.1549999937415123
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.041999999433755875,
+                -0.01900000125169754,
+                -0.23999999463558197
+              ],
+              "max": [
+                0.0429999977350235,
+                0.03500000014901161,
+                -0.08500000089406967
+              ],
+              "centre": [
+                0.000499999150633812,
+                0.007999999448657036,
+                -0.16249999776482582
+              ],
+              "size": [
+                0.08499999716877937,
+                0.05400000140070915,
+                0.1549999937415123
+              ]
+            }
+          },
+          {
+            "name": "body | petrol fabric",
+            "base_name": "body | petrol fabric",
+            "type": "MESH",
+            "parent": "body",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 324,
+            "vertices": 612,
+            "polygons": 324,
+            "materials": [
+              "PEREGRINE | petrol fabric"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.03700000047683716,
+                -0.0019999993965029716,
+                -0.23999999463558197
+              ],
+              "max": [
+                0.03700000047683716,
+                0.12000000476837158,
+                0.2849999964237213
+              ],
+              "centre": [
+                0.0,
+                0.059000002685934305,
+                0.02250000089406967
+              ],
+              "size": [
+                0.07400000095367432,
+                0.12200000416487455,
+                0.5249999910593033
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.03700000047683716,
+                -0.0019999993965029716,
+                -0.23999999463558197
+              ],
+              "max": [
+                0.03700000047683716,
+                0.12000000476837158,
+                0.2849999964237213
+              ],
+              "centre": [
+                0.0,
+                0.059000002685934305,
+                0.02250000089406967
+              ],
+              "size": [
+                0.07400000095367432,
+                0.12200000416487455,
+                0.5249999910593033
+              ]
+            }
+          },
+          {
+            "name": "body | rubber",
+            "base_name": "body | rubber",
+            "type": "MESH",
+            "parent": "body",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 888,
+            "vertices": 1752,
+            "polygons": 888,
+            "materials": [
+              "PEREGRINE | rubber"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.03750000149011612,
+                -0.13480156660079956,
+                -0.15289868414402008
+              ],
+              "max": [
+                0.03750000149011612,
+                0.07000000029802322,
+                0.35899999737739563
+              ],
+              "centre": [
+                0.0,
+                -0.03240078315138817,
+                0.10305065661668777
+              ],
+              "size": [
+                0.07500000298023224,
+                0.20480156689882278,
+                0.5118986815214157
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.03750000149011612,
+                -0.13480156660079956,
+                -0.15289868414402008
+              ],
+              "max": [
+                0.03750000149011612,
+                0.07000000029802322,
+                0.35899999737739563
+              ],
+              "centre": [
+                0.0,
+                -0.03240078315138817,
+                0.10305065661668777
+              ],
+              "size": [
+                0.07500000298023224,
+                0.20480156689882278,
+                0.5118986815214157
+              ]
+            }
+          },
+          {
+            "name": "body | tan webbing",
+            "base_name": "body | tan webbing",
+            "type": "MESH",
+            "parent": "body",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 108,
+            "vertices": 216,
+            "polygons": 108,
+            "materials": [
+              "PEREGRINE | tan webbing"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.026000000536441803,
+                0.06799999624490738,
+                0.12700000405311584
+              ],
+              "max": [
+                0.026000000536441803,
+                0.09799999743700027,
+                0.15299999713897705
+              ],
+              "centre": [
+                0.0,
+                0.08299999684095383,
+                0.14000000059604645
+              ],
+              "size": [
+                0.052000001072883606,
+                0.030000001192092896,
+                0.025999993085861206
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.026000000536441803,
+                0.06799999624490738,
+                0.12700000405311584
+              ],
+              "max": [
+                0.026000000536441803,
+                0.09799999743700027,
+                0.15299999713897705
+              ],
+              "centre": [
+                0.0,
+                0.08299999684095383,
+                0.14000000059604645
+              ],
+              "size": [
+                0.052000001072883606,
+                0.030000001192092896,
+                0.025999993085861206
+              ]
+            }
+          },
+          {
+            "name": "bolt",
+            "base_name": "bolt",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [
+              "bolt | gunmetal"
+            ],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "bolt | gunmetal",
+            "base_name": "bolt | gunmetal",
+            "type": "MESH",
+            "parent": "bolt",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 1460,
+            "vertices": 2832,
+            "polygons": 1460,
+            "materials": [
+              "PEREGRINE | gunmetal"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.12999999523162842,
+                0.03799999877810478,
+                -0.17000000178813934
+              ],
+              "max": [
+                0.017000000923871994,
+                0.07321690022945404,
+                0.09999999403953552
+              ],
+              "centre": [
+                -0.05649999715387821,
+                0.05560844950377941,
+                -0.03500000387430191
+              ],
+              "size": [
+                0.1469999961555004,
+                0.03521690145134926,
+                0.26999999582767487
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.12999999523162842,
+                0.03799999877810478,
+                -0.17000000178813934
+              ],
+              "max": [
+                0.017000000923871994,
+                0.07321690022945404,
+                0.09999999403953552
+              ],
+              "centre": [
+                -0.05649999715387821,
+                0.05560844950377941,
+                -0.03500000387430191
+              ],
+              "size": [
+                0.1469999961555004,
+                0.03521690145134926,
+                0.26999999582767487
+              ]
+            }
+          },
+          {
+            "name": "extra",
+            "base_name": "extra",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [
+              "Round 1",
+              "Round 2",
+              "Round 3"
+            ],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "factory-optic",
+            "base_name": "factory-optic",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [
+              "factory-optic | gunmetal",
+              "factory-optic | ivory coating",
+              "factory-optic | optic glass",
+              "factory-optic | petrol fabric"
+            ],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "factory-optic | gunmetal",
+            "base_name": "factory-optic | gunmetal",
+            "type": "MESH",
+            "parent": "factory-optic",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 3948,
+            "vertices": 7300,
+            "polygons": 3948,
+            "materials": [
+              "PEREGRINE | gunmetal"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.052000001072883606,
+                0.10499999672174454,
+                -0.5019999742507935
+              ],
+              "max": [
+                0.052000001072883606,
+                0.25699999928474426,
+                0.029999999329447746
+              ],
+              "centre": [
+                0.0,
+                0.1809999980032444,
+                -0.23599998746067286
+              ],
+              "size": [
+                0.10400000214576721,
+                0.15200000256299973,
+                0.5319999735802412
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.052000001072883606,
+                0.10499999672174454,
+                -0.5019999742507935
+              ],
+              "max": [
+                0.052000001072883606,
+                0.25699999928474426,
+                0.029999999329447746
+              ],
+              "centre": [
+                0.0,
+                0.1809999980032444,
+                -0.23599998746067286
+              ],
+              "size": [
+                0.10400000214576721,
+                0.15200000256299973,
+                0.5319999735802412
+              ]
+            }
+          },
+          {
+            "name": "factory-optic | ivory coating",
+            "base_name": "factory-optic | ivory coating",
+            "type": "MESH",
+            "parent": "factory-optic",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 1320,
+            "vertices": 2576,
+            "polygons": 1320,
+            "materials": [
+              "PEREGRINE | ivory coating"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.02199999988079071,
+                0.09800000488758087,
+                -0.34700000286102295
+              ],
+              "max": [
+                0.02199999988079071,
+                0.25099998712539673,
+                0.03400000184774399
+              ],
+              "centre": [
+                0.0,
+                0.1744999960064888,
+                -0.15650000050663948
+              ],
+              "size": [
+                0.04399999976158142,
+                0.15299998223781586,
+                0.38100000470876694
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.02199999988079071,
+                0.09800000488758087,
+                -0.34700000286102295
+              ],
+              "max": [
+                0.02199999988079071,
+                0.25099998712539673,
+                0.03400000184774399
+              ],
+              "centre": [
+                0.0,
+                0.1744999960064888,
+                -0.15650000050663948
+              ],
+              "size": [
+                0.04399999976158142,
+                0.15299998223781586,
+                0.38100000470876694
+              ]
+            }
+          },
+          {
+            "name": "factory-optic | optic glass",
+            "base_name": "factory-optic | optic glass",
+            "type": "MESH",
+            "parent": "factory-optic",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 120,
+            "vertices": 192,
+            "polygons": 120,
+            "materials": [
+              "PEREGRINE | optic glass"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.04149999842047691,
+                0.16349999606609344,
+                -0.5049999952316284
+              ],
+              "max": [
+                0.04149999842047691,
+                0.24650000035762787,
+                0.005000000353902578
+              ],
+              "centre": [
+                0.0,
+                0.20499999821186066,
+                -0.24999999743886292
+              ],
+              "size": [
+                0.08299999684095383,
+                0.08300000429153442,
+                0.509999995585531
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.04149999842047691,
+                0.16349999606609344,
+                -0.5049999952316284
+              ],
+              "max": [
+                0.04149999842047691,
+                0.24650000035762787,
+                0.005000000353902578
+              ],
+              "centre": [
+                0.0,
+                0.20499999821186066,
+                -0.24999999743886292
+              ],
+              "size": [
+                0.08299999684095383,
+                0.08300000429153442,
+                0.509999995585531
+              ]
+            }
+          },
+          {
+            "name": "factory-optic | petrol fabric",
+            "base_name": "factory-optic | petrol fabric",
+            "type": "MESH",
+            "parent": "factory-optic",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 108,
+            "vertices": 204,
+            "polygons": 108,
+            "materials": [
+              "PEREGRINE | petrol fabric"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.02500000037252903,
+                0.10999999940395355,
+                -0.060999996960163116
+              ],
+              "max": [
+                -0.020999999716877937,
+                0.12199999392032623,
+                0.0010000001639127731
+              ],
+              "centre": [
+                -0.023000000044703484,
+                0.11599999666213989,
+                -0.02999999839812517
+              ],
+              "size": [
+                0.0040000006556510925,
+                0.01199999451637268,
+                0.06199999712407589
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.02500000037252903,
+                0.10999999940395355,
+                -0.060999996960163116
+              ],
+              "max": [
+                -0.020999999716877937,
+                0.12199999392032623,
+                0.0010000001639127731
+              ],
+              "centre": [
+                -0.023000000044703484,
+                0.11599999666213989,
+                -0.02999999839812517
+              ],
+              "size": [
+                0.0040000006556510925,
+                0.01199999451637268,
+                0.06199999712407589
+              ]
+            }
+          },
+          {
+            "name": "grip",
+            "base_name": "grip",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.04500000178813934,
+                0.019999999552965164,
+                -0.12999999523162842
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "mag",
+            "base_name": "mag",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [
+              "mag | gunmetal",
+              "mag | orange paint",
+              "mag | rubber"
+            ],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "mag | gunmetal",
+            "base_name": "mag | gunmetal",
+            "type": "MESH",
+            "parent": "mag",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 132,
+            "vertices": 260,
+            "polygons": 132,
+            "materials": [
+              "PEREGRINE | gunmetal"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.02500000037252903,
+                -0.15166781842708588,
+                -0.27000001072883606
+              ],
+              "max": [
+                0.02500000037252903,
+                0.006000000052154064,
+                -0.21628499031066895
+              ],
+              "centre": [
+                0.0,
+                -0.0728339091874659,
+                -0.2431425005197525
+              ],
+              "size": [
+                0.05000000074505806,
+                0.15766781847923994,
+                0.053715020418167114
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.02500000037252903,
+                -0.15166781842708588,
+                -0.27000001072883606
+              ],
+              "max": [
+                0.02500000037252903,
+                0.006000000052154064,
+                -0.21628499031066895
+              ],
+              "centre": [
+                0.0,
+                -0.0728339091874659,
+                -0.2431425005197525
+              ],
+              "size": [
+                0.05000000074505806,
+                0.15766781847923994,
+                0.053715020418167114
+              ]
+            }
+          },
+          {
+            "name": "mag | orange paint",
+            "base_name": "mag | orange paint",
+            "type": "MESH",
+            "parent": "mag",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 216,
+            "vertices": 432,
+            "polygons": 216,
+            "materials": [
+              "PEREGRINE | orange paint"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.028999999165534973,
+                -0.1659032702445984,
+                -0.2712503671646118
+              ],
+              "max": [
+                0.028999999165534973,
+                -0.055000003427267075,
+                -0.21066847443580627
+              ],
+              "centre": [
+                0.0,
+                -0.11045163683593273,
+                -0.24095942080020905
+              ],
+              "size": [
+                0.057999998331069946,
+                0.11090326681733131,
+                0.06058189272880554
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.028999999165534973,
+                -0.1659032702445984,
+                -0.2712503671646118
+              ],
+              "max": [
+                0.028999999165534973,
+                -0.055000003427267075,
+                -0.21066847443580627
+              ],
+              "centre": [
+                0.0,
+                -0.11045163683593273,
+                -0.24095942080020905
+              ],
+              "size": [
+                0.057999998331069946,
+                0.11090326681733131,
+                0.06058189272880554
+              ]
+            }
+          },
+          {
+            "name": "mag | rubber",
+            "base_name": "mag | rubber",
+            "type": "MESH",
+            "parent": "mag",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 108,
+            "vertices": 216,
+            "polygons": 108,
+            "materials": [
+              "PEREGRINE | rubber"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.019999999552965164,
+                0.0034999996423721313,
+                -0.2639999985694885
+              ],
+              "max": [
+                0.019999999552965164,
+                0.01549999974668026,
+                -0.2240000069141388
+              ],
+              "centre": [
+                0.0,
+                0.009499999694526196,
+                -0.24400000274181366
+              ],
+              "size": [
+                0.03999999910593033,
+                0.012000000104308128,
+                0.03999999165534973
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.019999999552965164,
+                0.0034999996423721313,
+                -0.2639999985694885
+              ],
+              "max": [
+                0.019999999552965164,
+                0.01549999974668026,
+                -0.2240000069141388
+              ],
+              "centre": [
+                0.0,
+                0.009499999694526196,
+                -0.24400000274181366
+              ],
+              "size": [
+                0.03999999910593033,
+                0.012000000104308128,
+                0.03999999165534973
+              ]
+            }
+          },
+          {
+            "name": "muzzle",
+            "base_name": "muzzle",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.054999999701976776,
+                -0.7599999904632568
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "sight",
+            "base_name": "sight",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.20499999821186066,
+                -0.25
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "support",
+            "base_name": "support",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                -0.054999999701976776,
+                -0.009999999776482582,
+                -0.47999998927116394
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "trigger",
+            "base_name": "trigger",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [
+              "trigger | gunmetal",
+              "trigger | orange paint"
+            ],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "trigger | gunmetal",
+            "base_name": "trigger | gunmetal",
+            "type": "MESH",
+            "parent": "trigger",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 332,
+            "vertices": 648,
+            "polygons": 332,
+            "materials": [
+              "PEREGRINE | gunmetal"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.013000000268220901,
+                -0.057999998331069946,
+                -0.20999999344348907
+              ],
+              "max": [
+                0.013000000268220901,
+                0.009999999776482582,
+                -0.12800000607967377
+              ],
+              "centre": [
+                0.0,
+                -0.023999999277293682,
+                -0.16899999976158142
+              ],
+              "size": [
+                0.026000000536441803,
+                0.06799999810755253,
+                0.08199998736381531
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.013000000268220901,
+                -0.057999998331069946,
+                -0.20999999344348907
+              ],
+              "max": [
+                0.013000000268220901,
+                0.009999999776482582,
+                -0.12800000607967377
+              ],
+              "centre": [
+                0.0,
+                -0.023999999277293682,
+                -0.16899999976158142
+              ],
+              "size": [
+                0.026000000536441803,
+                0.06799999810755253,
+                0.08199998736381531
+              ]
+            }
+          },
+          {
+            "name": "trigger | orange paint",
+            "base_name": "trigger | orange paint",
+            "type": "MESH",
+            "parent": "trigger",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 108,
+            "vertices": 216,
+            "polygons": 108,
+            "materials": [
+              "PEREGRINE | orange paint"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.006000000052154064,
+                -0.021327774971723557,
+                -0.1748943030834198
+              ],
+              "max": [
+                0.006000000052154064,
+                -0.006672225426882505,
+                -0.1651057004928589
+              ],
+              "centre": [
+                0.0,
+                -0.014000000199303031,
+                -0.17000000178813934
+              ],
+              "size": [
+                0.012000000104308128,
+                0.014655549544841051,
+                0.009788602590560913
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.006000000052154064,
+                -0.021327774971723557,
+                -0.1748943030834198
+              ],
+              "max": [
+                0.006000000052154064,
+                -0.006672225426882505,
+                -0.1651057004928589
+              ],
+              "centre": [
+                0.0,
+                -0.014000000199303031,
+                -0.17000000178813934
+              ],
+              "size": [
+                0.012000000104308128,
+                0.014655549544841051,
+                0.009788602590560913
+              ]
+            }
+          }
+        ],
+        "nodes": [
+          {
+            "name": "body",
+            "type": "EMPTY",
+            "mesh_names": [
+              "body | gunmetal",
+              "body | ivory coating",
+              "body | orange paint",
+              "body | petrol fabric",
+              "body | rubber",
+              "body | tan webbing"
+            ],
+            "triangles": 11296,
+            "vertices": 20738,
+            "materials": [
+              "PEREGRINE | gunmetal",
+              "PEREGRINE | ivory coating",
+              "PEREGRINE | orange paint",
+              "PEREGRINE | petrol fabric",
+              "PEREGRINE | rubber",
+              "PEREGRINE | tan webbing"
+            ]
+          },
+          {
+            "name": "bolt",
+            "type": "EMPTY",
+            "mesh_names": [
+              "bolt | gunmetal"
+            ],
+            "triangles": 1460,
+            "vertices": 2832,
+            "materials": [
+              "PEREGRINE | gunmetal"
+            ]
+          },
+          {
+            "name": "extra",
+            "type": "EMPTY",
+            "mesh_names": [
+              "Round 1",
+              "Round 2",
+              "Round 3"
+            ],
+            "triangles": 660,
+            "vertices": 1080,
+            "materials": [
+              "PEREGRINE | orange paint"
+            ]
+          },
+          {
+            "name": "factory-optic",
+            "type": "EMPTY",
+            "mesh_names": [
+              "factory-optic | gunmetal",
+              "factory-optic | ivory coating",
+              "factory-optic | optic glass",
+              "factory-optic | petrol fabric"
+            ],
+            "triangles": 5496,
+            "vertices": 10272,
+            "materials": [
+              "PEREGRINE | gunmetal",
+              "PEREGRINE | ivory coating",
+              "PEREGRINE | optic glass",
+              "PEREGRINE | petrol fabric"
+            ]
+          },
+          {
+            "name": "grip",
+            "type": "EMPTY",
+            "mesh_names": [],
+            "triangles": 0,
+            "vertices": 0,
+            "materials": []
+          },
+          {
+            "name": "mag",
+            "type": "EMPTY",
+            "mesh_names": [
+              "mag | gunmetal",
+              "mag | orange paint",
+              "mag | rubber"
+            ],
+            "triangles": 456,
+            "vertices": 908,
+            "materials": [
+              "PEREGRINE | gunmetal",
+              "PEREGRINE | orange paint",
+              "PEREGRINE | rubber"
+            ]
+          },
+          {
+            "name": "muzzle",
+            "type": "EMPTY",
+            "mesh_names": [],
+            "triangles": 0,
+            "vertices": 0,
+            "materials": []
+          },
+          {
+            "name": "sight",
+            "type": "EMPTY",
+            "mesh_names": [],
+            "triangles": 0,
+            "vertices": 0,
+            "materials": []
+          },
+          {
+            "name": "support",
+            "type": "EMPTY",
+            "mesh_names": [],
+            "triangles": 0,
+            "vertices": 0,
+            "materials": []
+          },
+          {
+            "name": "trigger",
+            "type": "EMPTY",
+            "mesh_names": [
+              "trigger | gunmetal",
+              "trigger | orange paint"
+            ],
+            "triangles": 440,
+            "vertices": 864,
+            "materials": [
+              "PEREGRINE | gunmetal",
+              "PEREGRINE | orange paint"
+            ]
+          }
+        ],
+        "materials": [
+          {
+            "name": "PEREGRINE | gunmetal",
+            "has_principled_bsdf": true,
+            "base_color_image": "worn-gunmetal",
+            "base_color_image_stem": "worn-gunmetal",
+            "blend_method": "HASHED",
+            "surface_render_method": "DITHERED",
+            "use_backface_culling": false,
+            "metallic": 0.3499999940395355,
+            "roughness": 0.46000000834465027,
+            "alpha": 1.0
+          },
+          {
+            "name": "PEREGRINE | ivory coating",
+            "has_principled_bsdf": true,
+            "base_color_image": "ivory-armor",
+            "base_color_image_stem": "ivory-armor",
+            "blend_method": "HASHED",
+            "surface_render_method": "DITHERED",
+            "use_backface_culling": false,
+            "metallic": 0.03999999910593033,
+            "roughness": 0.5199999809265137,
+            "alpha": 1.0
+          },
+          {
+            "name": "PEREGRINE | optic glass",
+            "has_principled_bsdf": true,
+            "base_color_image": null,
+            "base_color_image_stem": null,
+            "blend_method": "BLEND",
+            "surface_render_method": "BLENDED",
+            "use_backface_culling": false,
+            "metallic": 0.0,
+            "roughness": 0.10000000149011612,
+            "alpha": 0.1599999964237213
+          },
+          {
+            "name": "PEREGRINE | orange paint",
+            "has_principled_bsdf": true,
+            "base_color_image": "orange-painted-metal",
+            "base_color_image_stem": "orange-painted-metal",
+            "blend_method": "HASHED",
+            "surface_render_method": "DITHERED",
+            "use_backface_culling": false,
+            "metallic": 0.11999999731779099,
+            "roughness": 0.5199999809265137,
+            "alpha": 1.0
+          },
+          {
+            "name": "PEREGRINE | petrol fabric",
+            "has_principled_bsdf": true,
+            "base_color_image": "petrol-ballistic-fabric",
+            "base_color_image_stem": "petrol-ballistic-fabric",
+            "blend_method": "HASHED",
+            "surface_render_method": "DITHERED",
+            "use_backface_culling": false,
+            "metallic": 0.0,
+            "roughness": 0.8199999928474426,
+            "alpha": 1.0
+          },
+          {
+            "name": "PEREGRINE | rubber",
+            "has_principled_bsdf": true,
+            "base_color_image": "worn-rubber",
+            "base_color_image_stem": "worn-rubber",
+            "blend_method": "HASHED",
+            "surface_render_method": "DITHERED",
+            "use_backface_culling": false,
+            "metallic": 0.0,
+            "roughness": 0.7400000095367432,
+            "alpha": 1.0
+          },
+          {
+            "name": "PEREGRINE | tan webbing",
+            "has_principled_bsdf": true,
+            "base_color_image": "tan-webbing",
+            "base_color_image_stem": "tan-webbing",
+            "blend_method": "HASHED",
+            "surface_render_method": "DITHERED",
+            "use_backface_culling": false,
+            "metallic": 0.0,
+            "roughness": 0.8799999952316284,
+            "alpha": 1.0
+          }
+        ],
+        "images": [
+          {
+            "name": "ivory-armor",
+            "stem": "ivory-armor",
+            "storage": "packed",
+            "packed": true,
+            "filepath": "",
+            "byte_size": 264247,
+            "width": 1024,
+            "height": 1024,
+            "source": "FILE"
+          },
+          {
+            "name": "orange-painted-metal",
+            "stem": "orange-painted-metal",
+            "storage": "packed",
+            "packed": true,
+            "filepath": "",
+            "byte_size": 298416,
+            "width": 1024,
+            "height": 1024,
+            "source": "FILE"
+          },
+          {
+            "name": "petrol-ballistic-fabric",
+            "stem": "petrol-ballistic-fabric",
+            "storage": "packed",
+            "packed": true,
+            "filepath": "",
+            "byte_size": 380454,
+            "width": 1024,
+            "height": 1024,
+            "source": "FILE"
+          },
+          {
+            "name": "tan-webbing",
+            "stem": "tan-webbing",
+            "storage": "packed",
+            "packed": true,
+            "filepath": "",
+            "byte_size": 283041,
+            "width": 1024,
+            "height": 1024,
+            "source": "FILE"
+          },
+          {
+            "name": "worn-gunmetal",
+            "stem": "worn-gunmetal",
+            "storage": "packed",
+            "packed": true,
+            "filepath": "",
+            "byte_size": 266344,
+            "width": 1024,
+            "height": 1024,
+            "source": "FILE"
+          },
+          {
+            "name": "worn-rubber",
+            "stem": "worn-rubber",
+            "storage": "packed",
+            "packed": true,
+            "filepath": "",
+            "byte_size": 270366,
+            "width": 1024,
+            "height": 1024,
+            "source": "FILE"
+          }
+        ],
+        "anchors": {
+          "muzzle": {
+            "object": "muzzle",
+            "present": true,
+            "translation_gun_local": [
+              0.0,
+              0.054999999701976776,
+              -0.7599999904632568
+            ],
+            "type": "EMPTY"
+          },
+          "grip": {
+            "object": "grip",
+            "present": true,
+            "translation_gun_local": [
+              0.04500000178813934,
+              0.019999999552965164,
+              -0.12999999523162842
+            ],
+            "type": "EMPTY"
+          },
+          "support": {
+            "object": "support",
+            "present": true,
+            "translation_gun_local": [
+              -0.054999999701976776,
+              -0.009999999776482582,
+              -0.47999998927116394
+            ],
+            "type": "EMPTY"
+          },
+          "sight": {
+            "object": "sight",
+            "present": true,
+            "translation_gun_local": [
+              0.0,
+              0.20499999821186066,
+              -0.25
+            ],
+            "type": "EMPTY"
+          }
+        },
+        "muzzle_face": {
+          "forward_most_z": -0.7599999904632568,
+          "vertex_count": 114,
+          "extent_centre_xy": [
+            0.0,
+            0.054999999701976776
+          ],
+          "centroid_xyz": [
+            0.0,
+            0.05499999989804469,
+            -0.7599999904632568
+          ],
+          "max_radius_from_contract_axis": 0.021000002177610187,
+          "min_radius_from_contract_axis": 0.007999999130784386
+        },
+        "bounds_gun_local": {
+          "min": [
+            -0.12999999523162842,
+            -0.1659032702445984,
+            -0.7599999904632568
+          ],
+          "max": [
+            0.052000001072883606,
+            0.25699999928474426,
+            0.35899999737739563
+          ],
+          "centre": [
+            -0.038999997079372406,
+            0.04554836452007294,
+            -0.2004999965429306
+          ],
+          "size": [
+            0.18199999630451202,
+            0.42290326952934265,
+            1.1189999878406525
+          ]
+        },
+        "extra": {
+          "present": true,
+          "type": "EMPTY",
+          "identity_transform": true,
+          "transform_gun_local": {
+            "translation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "direct_children": [
+            "Round 1",
+            "Round 2",
+            "Round 3"
+          ],
+          "rounds": [
+            {
+              "name": "Round 1",
+              "present": true,
+              "parent": "extra",
+              "declared_primitives": 1,
+              "declared_translation": [
+                -0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "declared_rotation": null,
+              "declared_scale": null,
+              "node_identity_rotation_scale": true,
+              "geometry_centre_own_frame": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "geometry_size_own_frame": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ],
+              "world_translation_gun_local": [
+                -0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "triangles": 220,
+              "uv_layers": [
+                "UVMap"
+              ]
+            },
+            {
+              "name": "Round 2",
+              "present": true,
+              "parent": "extra",
+              "declared_primitives": 1,
+              "declared_translation": [
+                0,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "declared_rotation": null,
+              "declared_scale": null,
+              "node_identity_rotation_scale": true,
+              "geometry_centre_own_frame": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "geometry_size_own_frame": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ],
+              "world_translation_gun_local": [
+                0.0,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "triangles": 220,
+              "uv_layers": [
+                "UVMap"
+              ]
+            },
+            {
+              "name": "Round 3",
+              "present": true,
+              "parent": "extra",
+              "declared_primitives": 1,
+              "declared_translation": [
+                0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "declared_rotation": null,
+              "declared_scale": null,
+              "node_identity_rotation_scale": true,
+              "geometry_centre_own_frame": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "geometry_size_own_frame": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ],
+              "world_translation_gun_local": [
+                0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "triangles": 220,
+              "uv_layers": [
+                "UVMap"
+              ]
+            }
+          ]
+        },
+        "totals": {
+          "triangles": 19808,
+          "vertices": 36694,
+          "mesh_objects": 19,
+          "material_count": 7,
+          "image_count": 6,
+          "uv_less_meshes": [],
+          "non_finite_vertices": 0,
+          "non_positive_scales": []
+        }
+      },
+      "checks": {
+        "top_level_node_names_exact": {
+          "passed": true,
+          "measured": [
+            "body",
+            "bolt",
+            "extra",
+            "factory-optic",
+            "grip",
+            "mag",
+            "muzzle",
+            "sight",
+            "support",
+            "trigger"
+          ],
+          "expected": [
+            "body",
+            "bolt",
+            "extra",
+            "factory-optic",
+            "grip",
+            "mag",
+            "muzzle",
+            "sight",
+            "support",
+            "trigger"
+          ],
+          "note": "body, mag, bolt, trigger, factory-optic, extra + muzzle, grip, support, sight and nothing else"
+        },
+        "no_duplicate_top_level_node_names": {
+          "passed": true,
+          "measured": [],
+          "expected": []
+        },
+        "part_nodes_identity_transform": {
+          "passed": true,
+          "measured": {
+            "declared": {
+              "body": true,
+              "mag": true,
+              "bolt": true,
+              "trigger": true,
+              "factory-optic": true
+            },
+            "imported_after_reimport": {
+              "body": true,
+              "mag": true,
+              "bolt": true,
+              "trigger": true,
+              "factory-optic": true
+            }
+          },
+          "expected": {
+            "body": true,
+            "mag": true,
+            "bolt": true,
+            "trigger": true,
+            "factory-optic": true
+          },
+          "note": "vertices baked into gun-local space: part nodes carry no transform"
+        },
+        "anchor_muzzle": {
+          "passed": true,
+          "measured": [
+            0.0,
+            0.054999999701976776,
+            -0.7599999904632568
+          ],
+          "expected": [
+            0.0,
+            0.055,
+            -0.76
+          ]
+        },
+        "anchor_grip": {
+          "passed": true,
+          "measured": [
+            0.04500000178813934,
+            0.019999999552965164,
+            -0.12999999523162842
+          ],
+          "expected": [
+            0.045,
+            0.02,
+            -0.13
+          ]
+        },
+        "anchor_support": {
+          "passed": true,
+          "measured": [
+            -0.054999999701976776,
+            -0.009999999776482582,
+            -0.47999998927116394
+          ],
+          "expected": [
+            -0.055,
+            -0.01,
+            -0.48
+          ]
+        },
+        "anchor_sight_y": {
+          "passed": true,
+          "measured": 0.20499999821186066,
+          "expected": 0.205
+        },
+        "reimport_agrees_with_declared_translations": {
+          "passed": true,
+          "measured": {
+            "max_abs_delta": 0.0,
+            "node": null
+          },
+          "expected": "<= 1e-05 m",
+          "note": "Blender's importer must reproduce the file's own node translations"
+        },
+        "forward_most_vertex_z": {
+          "passed": true,
+          "measured": -0.7599999904632568,
+          "expected": -0.76,
+          "note": "forward-most vertex of the whole model"
+        },
+        "muzzle_face_centre_on_bore_axis": {
+          "passed": true,
+          "measured": [
+            0.0,
+            0.054999999701976776
+          ],
+          "expected": [
+            0.0,
+            0.055
+          ],
+          "note": "midpoint of the muzzle-face vertex extents"
+        },
+        "muzzle_radius_within_bore_radius": {
+          "passed": true,
+          "measured": 0.021000002177610187,
+          "expected": "<= 0.021",
+          "note": "nothing on the muzzle may exceed the exposed bore radius"
+        },
+        "triangle_budget_10k_to_20k": {
+          "passed": true,
+          "measured": 19808,
+          "expected": [
+            10000,
+            20000
+          ],
+          "note": "triangles declared by the file; 19808 survive reimport"
+        },
+        "expected_triangle_count": {
+          "passed": true,
+          "measured": 19808,
+          "expected": 19808,
+          "note": "19808 survive reimport; the frozen delivered count, agreed by both files"
+        },
+        "primitive_budget_max_24": {
+          "passed": true,
+          "measured": 19,
+          "expected": "<= 24",
+          "note": "glTF draw primitives declared by the file"
+        },
+        "expected_primitive_count": {
+          "passed": true,
+          "measured": 19,
+          "expected": 19
+        },
+        "material_budget_max_8": {
+          "passed": true,
+          "measured": 7,
+          "expected": "<= 8"
+        },
+        "expected_material_count_7": {
+          "passed": true,
+          "measured": 7,
+          "expected": 7
+        },
+        "expected_image_count": {
+          "passed": true,
+          "measured": 6,
+          "expected": 6
+        },
+        "every_mesh_has_uv_layer": {
+          "passed": true,
+          "measured": [],
+          "expected": [],
+          "note": "19 mesh objects inspected"
+        },
+        "no_non_finite_coordinates": {
+          "passed": true,
+          "measured": {
+            "imported": 0,
+            "declared_in_file": 0
+          },
+          "expected": 0
+        },
+        "no_non_positive_or_negative_scales": {
+          "passed": true,
+          "measured": [],
+          "expected": [],
+          "note": "29 objects inspected"
+        },
+        "material_texture_map_exact_declared": {
+          "passed": true,
+          "measured": {
+            "PEREGRINE | gunmetal": "worn-gunmetal",
+            "PEREGRINE | ivory coating": "ivory-armor",
+            "PEREGRINE | orange paint": "orange-painted-metal",
+            "PEREGRINE | petrol fabric": "petrol-ballistic-fabric",
+            "PEREGRINE | rubber": "worn-rubber",
+            "PEREGRINE | tan webbing": "tan-webbing",
+            "PEREGRINE | optic glass": null
+          },
+          "expected": {
+            "PEREGRINE | gunmetal": "worn-gunmetal",
+            "PEREGRINE | orange paint": "orange-painted-metal",
+            "PEREGRINE | ivory coating": "ivory-armor",
+            "PEREGRINE | petrol fabric": "petrol-ballistic-fabric",
+            "PEREGRINE | tan webbing": "tan-webbing",
+            "PEREGRINE | rubber": "worn-rubber",
+            "PEREGRINE | optic glass": null
+          }
+        },
+        "material_texture_map_exact_imported": {
+          "passed": true,
+          "measured": {
+            "PEREGRINE | gunmetal": "worn-gunmetal",
+            "PEREGRINE | ivory coating": "ivory-armor",
+            "PEREGRINE | optic glass": null,
+            "PEREGRINE | orange paint": "orange-painted-metal",
+            "PEREGRINE | petrol fabric": "petrol-ballistic-fabric",
+            "PEREGRINE | rubber": "worn-rubber",
+            "PEREGRINE | tan webbing": "tan-webbing"
+          },
+          "expected": {
+            "PEREGRINE | gunmetal": "worn-gunmetal",
+            "PEREGRINE | orange paint": "orange-painted-metal",
+            "PEREGRINE | ivory coating": "ivory-armor",
+            "PEREGRINE | petrol fabric": "petrol-ballistic-fabric",
+            "PEREGRINE | tan webbing": "tan-webbing",
+            "PEREGRINE | rubber": "worn-rubber",
+            "PEREGRINE | optic glass": null
+          }
+        },
+        "optic_glass_blend_without_texture": {
+          "passed": true,
+          "measured": {
+            "alpha_mode": "BLEND",
+            "base_color_texture_index": null
+          },
+          "expected": {
+            "alpha_mode": "BLEND",
+            "base_color_texture_index": null
+          }
+        },
+        "extra_identity_group_transform": {
+          "passed": true,
+          "measured": {
+            "translation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "expected": "identity"
+        },
+        "extra_three_mesh_children_direct": {
+          "passed": true,
+          "measured": [
+            "Round 1",
+            "Round 2",
+            "Round 3"
+          ],
+          "expected": [
+            "Round 1",
+            "Round 2",
+            "Round 3"
+          ],
+          "note": "direct children of `extra`, no intermediate node"
+        },
+        "extra_rounds_single_primitive": {
+          "passed": true,
+          "measured": {
+            "Round 1": 1,
+            "Round 2": 1,
+            "Round 3": 1
+          },
+          "expected": {
+            "Round 1": 1,
+            "Round 2": 1,
+            "Round 3": 1
+          }
+        },
+        "round_geometry_centred_on_origin": {
+          "passed": true,
+          "measured": {
+            "Round 1": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "Round 2": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "Round 3": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "expected": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "note": "geometry in the round's own frame (placement lives on the node)"
+        },
+        "round_dimensions_about_12x12x50mm": {
+          "passed": true,
+          "measured": {
+            "Round 1": [
+              0.012,
+              0.012,
+              0.05
+            ],
+            "Round 2": [
+              0.012,
+              0.012,
+              0.05
+            ],
+            "Round 3": [
+              0.012,
+              0.012,
+              0.05
+            ]
+          },
+          "expected": [
+            0.012,
+            0.012,
+            0.05
+          ],
+          "note": "gun-frame size, tolerance +/- 20 %"
+        },
+        "round_placement_node_translation": {
+          "passed": true,
+          "measured": {
+            "Round 1": [
+              -0.014,
+              0.1295,
+              -0.03
+            ],
+            "Round 2": [
+              0.0,
+              0.1295,
+              -0.03
+            ],
+            "Round 3": [
+              0.014,
+              0.1295,
+              -0.03
+            ]
+          },
+          "expected": {
+            "Round 1": [
+              -0.014,
+              0.1295,
+              -0.03
+            ],
+            "Round 2": [
+              0.0,
+              0.1295,
+              -0.03
+            ],
+            "Round 3": [
+              0.014,
+              0.1295,
+              -0.03
+            ]
+          }
+        },
+        "round_nodes_identity_rotation_and_scale": {
+          "passed": true,
+          "measured": {
+            "Round 1": true,
+            "Round 2": true,
+            "Round 3": true
+          },
+          "expected": {
+            "Round 1": true,
+            "Round 2": true,
+            "Round 3": true
+          }
+        },
+        "glb_images_embedded_in_buffer": {
+          "passed": true,
+          "measured": [
+            {
+              "name": "worn-gunmetal",
+              "embedded": true,
+              "uri": null,
+              "byte_size": 266344
+            },
+            {
+              "name": "ivory-armor",
+              "embedded": true,
+              "uri": null,
+              "byte_size": 264247
+            },
+            {
+              "name": "orange-painted-metal",
+              "embedded": true,
+              "uri": null,
+              "byte_size": 298416
+            },
+            {
+              "name": "petrol-ballistic-fabric",
+              "embedded": true,
+              "uri": null,
+              "byte_size": 380454
+            },
+            {
+              "name": "worn-rubber",
+              "embedded": true,
+              "uri": null,
+              "byte_size": 270366
+            },
+            {
+              "name": "tan-webbing",
+              "embedded": true,
+              "uri": null,
+              "byte_size": 283041
+            }
+          ],
+          "expected": "6 embedded JPEGs, no external uri"
+        },
+        "glb_single_embedded_buffer": {
+          "passed": true,
+          "measured": [
+            {
+              "index": 0,
+              "uri": null,
+              "declared_byte_length": 3053292,
+              "payload_byte_length": 3053292,
+              "embedded": true
+            }
+          ],
+          "expected": "one embedded BIN chunk matching its byteLength"
+        }
+      },
+      "advisory_checks": {
+        "degenerate_triangles_in_source": {
+          "passed": false,
+          "measured": {
+            "repeated_index": 0,
+            "zero_area": 124,
+            "duplicate_position_faces": 0
+          },
+          "expected": {
+            "repeated_index": 0,
+            "zero_area": 0
+          },
+          "note": "sub-micron sliver triangles collapse to repeated indices once positions/normals/UVs are deduplicated.  The build owner classified these as accepted at freeze: invisible, ~0.9 kB of index buffer, and dropped by Blender's mesh validation on import.  Measured and reported, not counted against the delivery."
+        },
+        "reimport_reproduces_declared_triangles": {
+          "passed": true,
+          "measured": 19808,
+          "expected": 19808,
+          "note": "a strict reimport reproduces every triangle; the shortfall is exactly the degenerate triangles above, which Blender's mesh validation drops"
+        }
+      }
+    },
+    "runtime_gltf": {
+      "path": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/peregrine.gltf",
+      "kind": "gltf",
+      "byte_size": 16546,
+      "sha256": "89a1c8741804c8fe36d3599e5d066ed3b65aba4f55aa49ed30c311e9b0d08200",
+      "sha256_before_measurement": "89a1c8741804c8fe36d3599e5d066ed3b65aba4f55aa49ed30c311e9b0d08200",
+      "unchanged_during_measurement": true,
+      "measurement_inputs": {
+        "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/peregrine.bin": "da9ec9a324d65280ed63784d9ec4c4ed6a15cae2c7456109dff591e530eb5b60",
+        "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/peregrine.gltf": "89a1c8741804c8fe36d3599e5d066ed3b65aba4f55aa49ed30c311e9b0d08200",
+        "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/ivory-armor.jpg": "b72c38bb3de76b31cf836caab8633fb37d6983f086b8b8c35db334c28bda12f3",
+        "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/orange-painted-metal.jpg": "611be1ad9f0406a0a6d19088852b5618c2977d4d77ff4613d51f044acd8fcdfa",
+        "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/petrol-ballistic-fabric.jpg": "a850d02f06be573d090aa0aac0f94482726a8d9935060240e24d09291f0e2d72",
+        "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/tan-webbing.jpg": "347b4bdc9bddba3465868b6f5279f8f8c5e0f96cd244c436bff4ee36b6247f50",
+        "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/worn-gunmetal.jpg": "fea5dfe240c0371e31963c665f2b9d676dcc09074fb2bba8744e34cfe80b2ef4",
+        "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/worn-rubber.jpg": "b4ffdd3a207daff1cff3b0c9577981ee84d2ec3da287c87197dd287de17a6e7c"
+      },
+      "inputs_changed_during_measurement": [],
+      "mtime": 1789373646.2433352,
+      "passed": true,
+      "failure_count": 0,
+      "failures": [],
+      "advisory_findings": [
+        {
+          "target": "runtime_gltf",
+          "check": "degenerate_triangles_in_source",
+          "expected": {
+            "repeated_index": 0,
+            "zero_area": 0
+          },
+          "measured": {
+            "repeated_index": 316,
+            "zero_area": 320,
+            "duplicate_position_faces": 0
+          }
+        },
+        {
+          "target": "runtime_gltf",
+          "check": "reimport_reproduces_declared_triangles",
+          "expected": 19808,
+          "measured": 19492
+        }
+      ],
+      "triangle_accounting": {
+        "declared_in_file": 19808,
+        "imported_after_reimport": 19492,
+        "dropped_by_import": 316,
+        "repeat_index_triangles": 316,
+        "zero_area_triangles": 320,
+        "duplicate_position_faces": 0
+      },
+      "source_declarations": {
+        "kind": "gltf",
+        "generator": "Voxel Blitz Blender runtime export",
+        "gltf_version": "2.0",
+        "scene_name": null,
+        "scene_extras": null,
+        "node_count": 13,
+        "mesh_count": 8,
+        "top_level_nodes": [
+          {
+            "index": 0,
+            "name": "body",
+            "mesh": 0,
+            "children": [],
+            "translation": null,
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 1,
+            "name": "mag",
+            "mesh": 1,
+            "children": [],
+            "translation": null,
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 2,
+            "name": "bolt",
+            "mesh": 2,
+            "children": [],
+            "translation": null,
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 3,
+            "name": "trigger",
+            "mesh": 3,
+            "children": [],
+            "translation": null,
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 4,
+            "name": "factory-optic",
+            "mesh": 4,
+            "children": [],
+            "translation": null,
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 8,
+            "name": "extra",
+            "mesh": null,
+            "children": [
+              5,
+              6,
+              7
+            ],
+            "translation": null,
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 9,
+            "name": "muzzle",
+            "mesh": null,
+            "children": [],
+            "translation": [
+              0.0,
+              0.055,
+              -0.76
+            ],
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 10,
+            "name": "grip",
+            "mesh": null,
+            "children": [],
+            "translation": [
+              0.045,
+              0.02,
+              -0.13
+            ],
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 11,
+            "name": "support",
+            "mesh": null,
+            "children": [],
+            "translation": [
+              -0.055,
+              -0.01,
+              -0.48
+            ],
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          },
+          {
+            "index": 12,
+            "name": "sight",
+            "mesh": null,
+            "children": [],
+            "translation": [
+              0.0,
+              0.205,
+              -0.25
+            ],
+            "rotation": null,
+            "scale": null,
+            "has_matrix": false
+          }
+        ],
+        "top_level_node_names": [
+          "body",
+          "mag",
+          "bolt",
+          "trigger",
+          "factory-optic",
+          "extra",
+          "muzzle",
+          "grip",
+          "support",
+          "sight"
+        ],
+        "expected_top_level_node_names": [
+          "body",
+          "bolt",
+          "extra",
+          "factory-optic",
+          "grip",
+          "mag",
+          "muzzle",
+          "sight",
+          "support",
+          "trigger"
+        ],
+        "tree": [
+          {
+            "name": "body",
+            "primitives": 6,
+            "declared_triangles": 11296,
+            "mesh_names": [
+              "body"
+            ],
+            "translation": null,
+            "has_matrix": false
+          },
+          {
+            "name": "mag",
+            "primitives": 3,
+            "declared_triangles": 456,
+            "mesh_names": [
+              "mag"
+            ],
+            "translation": null,
+            "has_matrix": false
+          },
+          {
+            "name": "bolt",
+            "primitives": 1,
+            "declared_triangles": 1460,
+            "mesh_names": [
+              "bolt"
+            ],
+            "translation": null,
+            "has_matrix": false
+          },
+          {
+            "name": "trigger",
+            "primitives": 2,
+            "declared_triangles": 440,
+            "mesh_names": [
+              "trigger"
+            ],
+            "translation": null,
+            "has_matrix": false
+          },
+          {
+            "name": "factory-optic",
+            "primitives": 4,
+            "declared_triangles": 5496,
+            "mesh_names": [
+              "factory-optic"
+            ],
+            "translation": null,
+            "has_matrix": false
+          },
+          {
+            "name": "extra",
+            "primitives": 3,
+            "declared_triangles": 660,
+            "mesh_names": [
+              "Round 3",
+              "Round 2",
+              "Round 1"
+            ],
+            "translation": null,
+            "has_matrix": false
+          },
+          {
+            "name": "muzzle",
+            "primitives": 0,
+            "declared_triangles": 0,
+            "mesh_names": [],
+            "translation": [
+              0.0,
+              0.055,
+              -0.76
+            ],
+            "has_matrix": false
+          },
+          {
+            "name": "grip",
+            "primitives": 0,
+            "declared_triangles": 0,
+            "mesh_names": [],
+            "translation": [
+              0.045,
+              0.02,
+              -0.13
+            ],
+            "has_matrix": false
+          },
+          {
+            "name": "support",
+            "primitives": 0,
+            "declared_triangles": 0,
+            "mesh_names": [],
+            "translation": [
+              -0.055,
+              -0.01,
+              -0.48
+            ],
+            "has_matrix": false
+          },
+          {
+            "name": "sight",
+            "primitives": 0,
+            "declared_triangles": 0,
+            "mesh_names": [],
+            "translation": [
+              0.0,
+              0.205,
+              -0.25
+            ],
+            "has_matrix": false
+          }
+        ],
+        "materials": [
+          {
+            "index": 0,
+            "name": "PEREGRINE | gunmetal",
+            "alpha_mode": "OPAQUE",
+            "base_color_texture_index": 0,
+            "base_color_image_index": 0,
+            "base_color_image": "worn-gunmetal",
+            "base_color_factor": [
+              0.86,
+              0.87,
+              0.89,
+              1
+            ],
+            "metallic_factor": 0.3499999940395355,
+            "roughness_factor": 0.46000000834465027,
+            "double_sided": false
+          },
+          {
+            "index": 1,
+            "name": "PEREGRINE | petrol fabric",
+            "alpha_mode": "OPAQUE",
+            "base_color_texture_index": 3,
+            "base_color_image_index": 3,
+            "base_color_image": "petrol-ballistic-fabric",
+            "base_color_factor": [
+              0.9,
+              0.91,
+              0.93,
+              1
+            ],
+            "metallic_factor": 0.0,
+            "roughness_factor": 0.8199999928474426,
+            "double_sided": false
+          },
+          {
+            "index": 2,
+            "name": "PEREGRINE | ivory coating",
+            "alpha_mode": "OPAQUE",
+            "base_color_texture_index": 2,
+            "base_color_image_index": 2,
+            "base_color_image": "ivory-armor",
+            "base_color_factor": [
+              0.96,
+              0.95,
+              0.92,
+              1
+            ],
+            "metallic_factor": 0.03999999910593033,
+            "roughness_factor": 0.5199999809265137,
+            "double_sided": false
+          },
+          {
+            "index": 3,
+            "name": "PEREGRINE | rubber",
+            "alpha_mode": "OPAQUE",
+            "base_color_texture_index": 5,
+            "base_color_image_index": 5,
+            "base_color_image": "worn-rubber",
+            "base_color_factor": [
+              0.62,
+              0.63,
+              0.65,
+              1
+            ],
+            "metallic_factor": 0.0,
+            "roughness_factor": 0.7400000095367432,
+            "double_sided": false
+          },
+          {
+            "index": 4,
+            "name": "PEREGRINE | orange paint",
+            "alpha_mode": "OPAQUE",
+            "base_color_texture_index": 1,
+            "base_color_image_index": 1,
+            "base_color_image": "orange-painted-metal",
+            "base_color_factor": [
+              0.95,
+              0.93,
+              0.9,
+              1
+            ],
+            "metallic_factor": 0.11999999731779099,
+            "roughness_factor": 0.5199999809265137,
+            "double_sided": false
+          },
+          {
+            "index": 5,
+            "name": "PEREGRINE | optic glass",
+            "alpha_mode": "BLEND",
+            "base_color_texture_index": null,
+            "base_color_image_index": null,
+            "base_color_image": null,
+            "base_color_factor": [
+              0.18,
+              0.58,
+              0.65,
+              0.16
+            ],
+            "metallic_factor": 0,
+            "roughness_factor": 0.10000000149011612,
+            "double_sided": true
+          },
+          {
+            "index": 6,
+            "name": "PEREGRINE | tan webbing",
+            "alpha_mode": "OPAQUE",
+            "base_color_texture_index": 4,
+            "base_color_image_index": 4,
+            "base_color_image": "tan-webbing",
+            "base_color_factor": [
+              0.94,
+              0.93,
+              0.91,
+              1
+            ],
+            "metallic_factor": 0.0,
+            "roughness_factor": 0.8799999952316284,
+            "double_sided": false
+          }
+        ],
+        "images": [
+          {
+            "index": 0,
+            "name": null,
+            "uri": "textures/worn-gunmetal.jpg",
+            "mime_type": null,
+            "embedded_buffer_view": false,
+            "stem": "worn-gunmetal",
+            "resolved_path": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/worn-gunmetal.jpg",
+            "file_exists": true,
+            "byte_size": 266344
+          },
+          {
+            "index": 1,
+            "name": null,
+            "uri": "textures/orange-painted-metal.jpg",
+            "mime_type": null,
+            "embedded_buffer_view": false,
+            "stem": "orange-painted-metal",
+            "resolved_path": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/orange-painted-metal.jpg",
+            "file_exists": true,
+            "byte_size": 298416
+          },
+          {
+            "index": 2,
+            "name": null,
+            "uri": "textures/ivory-armor.jpg",
+            "mime_type": null,
+            "embedded_buffer_view": false,
+            "stem": "ivory-armor",
+            "resolved_path": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/ivory-armor.jpg",
+            "file_exists": true,
+            "byte_size": 264247
+          },
+          {
+            "index": 3,
+            "name": null,
+            "uri": "textures/petrol-ballistic-fabric.jpg",
+            "mime_type": null,
+            "embedded_buffer_view": false,
+            "stem": "petrol-ballistic-fabric",
+            "resolved_path": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/petrol-ballistic-fabric.jpg",
+            "file_exists": true,
+            "byte_size": 380454
+          },
+          {
+            "index": 4,
+            "name": null,
+            "uri": "textures/tan-webbing.jpg",
+            "mime_type": null,
+            "embedded_buffer_view": false,
+            "stem": "tan-webbing",
+            "resolved_path": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/tan-webbing.jpg",
+            "file_exists": true,
+            "byte_size": 283041
+          },
+          {
+            "index": 5,
+            "name": null,
+            "uri": "textures/worn-rubber.jpg",
+            "mime_type": null,
+            "embedded_buffer_view": false,
+            "stem": "worn-rubber",
+            "resolved_path": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/worn-rubber.jpg",
+            "file_exists": true,
+            "byte_size": 270366
+          }
+        ],
+        "buffers": [
+          {
+            "index": 0,
+            "uri": "peregrine.bin",
+            "declared_byte_length": 1409024,
+            "payload_byte_length": 1409024,
+            "embedded": false,
+            "resolved_path": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/peregrine.bin",
+            "file_exists": true
+          }
+        ],
+        "geometry": [
+          {
+            "mesh_index": 0,
+            "name": "body",
+            "primitives": 6,
+            "declared_triangles": 11296,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 188,
+            "zero_area_triangles": 192,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4,
+              4,
+              4,
+              4,
+              4,
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 1,
+            "name": "mag",
+            "primitives": 3,
+            "declared_triangles": 456,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4,
+              4,
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 2,
+            "name": "bolt",
+            "primitives": 1,
+            "declared_triangles": 1460,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 40,
+            "zero_area_triangles": 40,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 3,
+            "name": "trigger",
+            "primitives": 2,
+            "declared_triangles": 440,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4,
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 4,
+            "name": "factory-optic",
+            "primitives": 4,
+            "declared_triangles": 5496,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 88,
+            "zero_area_triangles": 88,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4,
+              4,
+              4,
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 5,
+            "name": "Round 1",
+            "primitives": 1,
+            "declared_triangles": 220,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 6,
+            "name": "Round 2",
+            "primitives": 1,
+            "declared_triangles": 220,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          },
+          {
+            "mesh_index": 7,
+            "name": "Round 3",
+            "primitives": 1,
+            "declared_triangles": 220,
+            "non_finite_position_components": 0,
+            "repeated_index_triangles": 0,
+            "zero_area_triangles": 0,
+            "duplicate_position_faces": 0,
+            "primitive_modes": [
+              4
+            ],
+            "has_uv": true
+          }
+        ],
+        "declared_triangle_total": 19808,
+        "declared_primitive_total": 19,
+        "declared_degenerate_triangles": {
+          "repeated_index": 316,
+          "zero_area": 320,
+          "duplicate_position_faces": 0
+        },
+        "declared_non_finite_position_components": 0,
+        "declared_meshes_without_uv": [],
+        "glb_binary_chunk_bytes": null
+      },
+      "imported": {
+        "scene": {
+          "object_count": 13,
+          "mesh_object_count": 8,
+          "non_mesh_object_count": 5,
+          "top_level_node_names": [
+            "body",
+            "bolt",
+            "extra",
+            "factory-optic",
+            "grip",
+            "mag",
+            "muzzle",
+            "sight",
+            "support",
+            "trigger"
+          ]
+        },
+        "objects": [
+          {
+            "name": "Round 1",
+            "base_name": "Round 1",
+            "type": "MESH",
+            "parent": "extra",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                -0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 220,
+            "vertices": 360,
+            "polygons": 220,
+            "materials": [
+              "PEREGRINE | orange paint"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.006000000052154064,
+                -0.006000000052154064,
+                -0.02500000037252903
+              ],
+              "max": [
+                0.006000000052154064,
+                0.006000000052154064,
+                0.02500000037252903
+              ],
+              "centre": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "size": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.02000000048428774,
+                0.12350000161677599,
+                -0.054999999701976776
+              ],
+              "max": [
+                -0.00800000037997961,
+                0.13550000172108412,
+                -0.004999998956918716
+              ],
+              "centre": [
+                -0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "size": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ]
+            }
+          },
+          {
+            "name": "Round 2",
+            "base_name": "Round 2",
+            "type": "MESH",
+            "parent": "extra",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 220,
+            "vertices": 360,
+            "polygons": 220,
+            "materials": [
+              "PEREGRINE | orange paint"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.006000000052154064,
+                -0.006000000052154064,
+                -0.02500000037252903
+              ],
+              "max": [
+                0.006000000052154064,
+                0.006000000052154064,
+                0.02500000037252903
+              ],
+              "centre": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "size": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.006000000052154064,
+                0.12350000161677599,
+                -0.054999999701976776
+              ],
+              "max": [
+                0.006000000052154064,
+                0.13550000172108412,
+                -0.004999998956918716
+              ],
+              "centre": [
+                0.0,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "size": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ]
+            }
+          },
+          {
+            "name": "Round 3",
+            "base_name": "Round 3",
+            "type": "MESH",
+            "parent": "extra",
+            "children": [],
+            "top_level": false,
+            "transform_gun_local": {
+              "translation": [
+                0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 220,
+            "vertices": 360,
+            "polygons": 220,
+            "materials": [
+              "PEREGRINE | orange paint"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.006000000052154064,
+                -0.006000000052154064,
+                -0.02500000037252903
+              ],
+              "max": [
+                0.006000000052154064,
+                0.006000000052154064,
+                0.02500000037252903
+              ],
+              "centre": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "size": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                0.00800000037997961,
+                0.12350000161677599,
+                -0.054999999701976776
+              ],
+              "max": [
+                0.02000000048428774,
+                0.13550000172108412,
+                -0.004999998956918716
+              ],
+              "centre": [
+                0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "size": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ]
+            }
+          },
+          {
+            "name": "body",
+            "base_name": "body",
+            "type": "MESH",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 11108,
+            "vertices": 20762,
+            "polygons": 11108,
+            "materials": [
+              "PEREGRINE | gunmetal",
+              "PEREGRINE | petrol fabric",
+              "PEREGRINE | ivory coating",
+              "PEREGRINE | rubber",
+              "PEREGRINE | orange paint",
+              "PEREGRINE | tan webbing"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.041999999433755875,
+                -0.15508800745010376,
+                -0.7599999904632568
+              ],
+              "max": [
+                0.0430000014603138,
+                0.11999999731779099,
+                0.35899999737739563
+              ],
+              "centre": [
+                0.0005000010132789612,
+                -0.017544005066156387,
+                -0.2004999965429306
+              ],
+              "size": [
+                0.08500000089406967,
+                0.27508800476789474,
+                1.1189999878406525
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.041999999433755875,
+                -0.15508800745010376,
+                -0.7599999904632568
+              ],
+              "max": [
+                0.0430000014603138,
+                0.11999999731779099,
+                0.35899999737739563
+              ],
+              "centre": [
+                0.0005000010132789612,
+                -0.017544005066156387,
+                -0.2004999965429306
+              ],
+              "size": [
+                0.08500000089406967,
+                0.27508800476789474,
+                1.1189999878406525
+              ]
+            }
+          },
+          {
+            "name": "bolt",
+            "base_name": "bolt",
+            "type": "MESH",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 1420,
+            "vertices": 2792,
+            "polygons": 1420,
+            "materials": [
+              "PEREGRINE | gunmetal"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.12999999523162842,
+                0.03799999877810478,
+                -0.17000000178813934
+              ],
+              "max": [
+                0.017000000923871994,
+                0.0732169970870018,
+                0.10000000149011612
+              ],
+              "centre": [
+                -0.05649999715387821,
+                0.05560849793255329,
+                -0.03500000014901161
+              ],
+              "size": [
+                0.1469999961555004,
+                0.03521699830889702,
+                0.27000000327825546
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.12999999523162842,
+                0.03799999877810478,
+                -0.17000000178813934
+              ],
+              "max": [
+                0.017000000923871994,
+                0.0732169970870018,
+                0.10000000149011612
+              ],
+              "centre": [
+                -0.05649999715387821,
+                0.05560849793255329,
+                -0.03500000014901161
+              ],
+              "size": [
+                0.1469999961555004,
+                0.03521699830889702,
+                0.27000000327825546
+              ]
+            }
+          },
+          {
+            "name": "extra",
+            "base_name": "extra",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [
+              "Round 1",
+              "Round 2",
+              "Round 3"
+            ],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "factory-optic",
+            "base_name": "factory-optic",
+            "type": "MESH",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 5408,
+            "vertices": 10198,
+            "polygons": 5408,
+            "materials": [
+              "PEREGRINE | gunmetal",
+              "PEREGRINE | petrol fabric",
+              "PEREGRINE | ivory coating",
+              "PEREGRINE | optic glass"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.052000001072883606,
+                0.09799999743700027,
+                -0.5049999952316284
+              ],
+              "max": [
+                0.052000001072883606,
+                0.25699999928474426,
+                0.03400000184774399
+              ],
+              "centre": [
+                0.0,
+                0.17749999836087227,
+                -0.23549999669194221
+              ],
+              "size": [
+                0.10400000214576721,
+                0.159000001847744,
+                0.5389999970793724
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.052000001072883606,
+                0.09799999743700027,
+                -0.5049999952316284
+              ],
+              "max": [
+                0.052000001072883606,
+                0.25699999928474426,
+                0.03400000184774399
+              ],
+              "centre": [
+                0.0,
+                0.17749999836087227,
+                -0.23549999669194221
+              ],
+              "size": [
+                0.10400000214576721,
+                0.159000001847744,
+                0.5389999970793724
+              ]
+            }
+          },
+          {
+            "name": "grip",
+            "base_name": "grip",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.04500000178813934,
+                0.019999999552965164,
+                -0.12999999523162842
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "mag",
+            "base_name": "mag",
+            "type": "MESH",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 456,
+            "vertices": 908,
+            "polygons": 456,
+            "materials": [
+              "PEREGRINE | gunmetal",
+              "PEREGRINE | rubber",
+              "PEREGRINE | orange paint"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.028999999165534973,
+                -0.1659030020236969,
+                -0.27125000953674316
+              ],
+              "max": [
+                0.028999999165534973,
+                0.01549999974668026,
+                -0.21066799759864807
+              ],
+              "centre": [
+                0.0,
+                -0.07520150113850832,
+                -0.24095900356769562
+              ],
+              "size": [
+                0.057999998331069946,
+                0.18140300177037716,
+                0.06058201193809509
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.028999999165534973,
+                -0.1659030020236969,
+                -0.27125000953674316
+              ],
+              "max": [
+                0.028999999165534973,
+                0.01549999974668026,
+                -0.21066799759864807
+              ],
+              "centre": [
+                0.0,
+                -0.07520150113850832,
+                -0.24095900356769562
+              ],
+              "size": [
+                0.057999998331069946,
+                0.18140300177037716,
+                0.06058201193809509
+              ]
+            }
+          },
+          {
+            "name": "muzzle",
+            "base_name": "muzzle",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.054999999701976776,
+                -0.7599999904632568
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "sight",
+            "base_name": "sight",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.20499999821186066,
+                -0.25
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "support",
+            "base_name": "support",
+            "type": "EMPTY",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                -0.054999999701976776,
+                -0.009999999776482582,
+                -0.47999998927116394
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            }
+          },
+          {
+            "name": "trigger",
+            "base_name": "trigger",
+            "type": "MESH",
+            "parent": null,
+            "children": [],
+            "top_level": true,
+            "transform_gun_local": {
+              "translation": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "rotation_quaternion": [
+                1.0,
+                0.0,
+                0.0,
+                0.0
+              ],
+              "scale": [
+                1.0,
+                1.0,
+                1.0
+              ]
+            },
+            "triangles": 440,
+            "vertices": 864,
+            "polygons": 440,
+            "materials": [
+              "PEREGRINE | gunmetal",
+              "PEREGRINE | orange paint"
+            ],
+            "uv_layers": [
+              "UVMap"
+            ],
+            "non_finite_vertices": 0,
+            "geometry_bounds_own_frame": {
+              "min": [
+                -0.013000000268220901,
+                -0.057999998331069946,
+                -0.20999999344348907
+              ],
+              "max": [
+                0.013000000268220901,
+                0.009999999776482582,
+                -0.12800000607967377
+              ],
+              "centre": [
+                0.0,
+                -0.023999999277293682,
+                -0.16899999976158142
+              ],
+              "size": [
+                0.026000000536441803,
+                0.06799999810755253,
+                0.08199998736381531
+              ]
+            },
+            "world_bounds_gun_local": {
+              "min": [
+                -0.013000000268220901,
+                -0.057999998331069946,
+                -0.20999999344348907
+              ],
+              "max": [
+                0.013000000268220901,
+                0.009999999776482582,
+                -0.12800000607967377
+              ],
+              "centre": [
+                0.0,
+                -0.023999999277293682,
+                -0.16899999976158142
+              ],
+              "size": [
+                0.026000000536441803,
+                0.06799999810755253,
+                0.08199998736381531
+              ]
+            }
+          }
+        ],
+        "nodes": [
+          {
+            "name": "body",
+            "type": "MESH",
+            "mesh_names": [
+              "body"
+            ],
+            "triangles": 11108,
+            "vertices": 20762,
+            "materials": [
+              "PEREGRINE | gunmetal",
+              "PEREGRINE | ivory coating",
+              "PEREGRINE | orange paint",
+              "PEREGRINE | petrol fabric",
+              "PEREGRINE | rubber",
+              "PEREGRINE | tan webbing"
+            ]
+          },
+          {
+            "name": "mag",
+            "type": "MESH",
+            "mesh_names": [
+              "mag"
+            ],
+            "triangles": 456,
+            "vertices": 908,
+            "materials": [
+              "PEREGRINE | gunmetal",
+              "PEREGRINE | orange paint",
+              "PEREGRINE | rubber"
+            ]
+          },
+          {
+            "name": "bolt",
+            "type": "MESH",
+            "mesh_names": [
+              "bolt"
+            ],
+            "triangles": 1420,
+            "vertices": 2792,
+            "materials": [
+              "PEREGRINE | gunmetal"
+            ]
+          },
+          {
+            "name": "trigger",
+            "type": "MESH",
+            "mesh_names": [
+              "trigger"
+            ],
+            "triangles": 440,
+            "vertices": 864,
+            "materials": [
+              "PEREGRINE | gunmetal",
+              "PEREGRINE | orange paint"
+            ]
+          },
+          {
+            "name": "factory-optic",
+            "type": "MESH",
+            "mesh_names": [
+              "factory-optic"
+            ],
+            "triangles": 5408,
+            "vertices": 10198,
+            "materials": [
+              "PEREGRINE | gunmetal",
+              "PEREGRINE | ivory coating",
+              "PEREGRINE | optic glass",
+              "PEREGRINE | petrol fabric"
+            ]
+          },
+          {
+            "name": "extra",
+            "type": "EMPTY",
+            "mesh_names": [
+              "Round 1",
+              "Round 2",
+              "Round 3"
+            ],
+            "triangles": 660,
+            "vertices": 1080,
+            "materials": [
+              "PEREGRINE | orange paint"
+            ]
+          },
+          {
+            "name": "muzzle",
+            "type": "EMPTY",
+            "mesh_names": [],
+            "triangles": 0,
+            "vertices": 0,
+            "materials": []
+          },
+          {
+            "name": "grip",
+            "type": "EMPTY",
+            "mesh_names": [],
+            "triangles": 0,
+            "vertices": 0,
+            "materials": []
+          },
+          {
+            "name": "support",
+            "type": "EMPTY",
+            "mesh_names": [],
+            "triangles": 0,
+            "vertices": 0,
+            "materials": []
+          },
+          {
+            "name": "sight",
+            "type": "EMPTY",
+            "mesh_names": [],
+            "triangles": 0,
+            "vertices": 0,
+            "materials": []
+          }
+        ],
+        "materials": [
+          {
+            "name": "PEREGRINE | gunmetal",
+            "has_principled_bsdf": true,
+            "base_color_image": "worn-gunmetal.jpg",
+            "base_color_image_stem": "worn-gunmetal",
+            "blend_method": "HASHED",
+            "surface_render_method": "DITHERED",
+            "use_backface_culling": true,
+            "metallic": 0.3499999940395355,
+            "roughness": 0.46000000834465027,
+            "alpha": 1.0
+          },
+          {
+            "name": "PEREGRINE | ivory coating",
+            "has_principled_bsdf": true,
+            "base_color_image": "ivory-armor.jpg",
+            "base_color_image_stem": "ivory-armor",
+            "blend_method": "HASHED",
+            "surface_render_method": "DITHERED",
+            "use_backface_culling": true,
+            "metallic": 0.03999999910593033,
+            "roughness": 0.5199999809265137,
+            "alpha": 1.0
+          },
+          {
+            "name": "PEREGRINE | optic glass",
+            "has_principled_bsdf": true,
+            "base_color_image": null,
+            "base_color_image_stem": null,
+            "blend_method": "BLEND",
+            "surface_render_method": "BLENDED",
+            "use_backface_culling": false,
+            "metallic": 0.0,
+            "roughness": 0.10000000149011612,
+            "alpha": 0.1599999964237213
+          },
+          {
+            "name": "PEREGRINE | orange paint",
+            "has_principled_bsdf": true,
+            "base_color_image": "orange-painted-metal.jpg",
+            "base_color_image_stem": "orange-painted-metal",
+            "blend_method": "HASHED",
+            "surface_render_method": "DITHERED",
+            "use_backface_culling": true,
+            "metallic": 0.11999999731779099,
+            "roughness": 0.5199999809265137,
+            "alpha": 1.0
+          },
+          {
+            "name": "PEREGRINE | petrol fabric",
+            "has_principled_bsdf": true,
+            "base_color_image": "petrol-ballistic-fabric.jpg",
+            "base_color_image_stem": "petrol-ballistic-fabric",
+            "blend_method": "HASHED",
+            "surface_render_method": "DITHERED",
+            "use_backface_culling": true,
+            "metallic": 0.0,
+            "roughness": 0.8199999928474426,
+            "alpha": 1.0
+          },
+          {
+            "name": "PEREGRINE | rubber",
+            "has_principled_bsdf": true,
+            "base_color_image": "worn-rubber.jpg",
+            "base_color_image_stem": "worn-rubber",
+            "blend_method": "HASHED",
+            "surface_render_method": "DITHERED",
+            "use_backface_culling": true,
+            "metallic": 0.0,
+            "roughness": 0.7400000095367432,
+            "alpha": 1.0
+          },
+          {
+            "name": "PEREGRINE | tan webbing",
+            "has_principled_bsdf": true,
+            "base_color_image": "tan-webbing.jpg",
+            "base_color_image_stem": "tan-webbing",
+            "blend_method": "HASHED",
+            "surface_render_method": "DITHERED",
+            "use_backface_culling": true,
+            "metallic": 0.0,
+            "roughness": 0.8799999952316284,
+            "alpha": 1.0
+          }
+        ],
+        "images": [
+          {
+            "name": "ivory-armor.jpg",
+            "stem": "ivory-armor",
+            "storage": "packed",
+            "packed": true,
+            "filepath": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/ivory-armor.jpg",
+            "byte_size": 264247,
+            "width": 1024,
+            "height": 1024,
+            "source": "FILE"
+          },
+          {
+            "name": "orange-painted-metal.jpg",
+            "stem": "orange-painted-metal",
+            "storage": "packed",
+            "packed": true,
+            "filepath": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/orange-painted-metal.jpg",
+            "byte_size": 298416,
+            "width": 1024,
+            "height": 1024,
+            "source": "FILE"
+          },
+          {
+            "name": "petrol-ballistic-fabric.jpg",
+            "stem": "petrol-ballistic-fabric",
+            "storage": "packed",
+            "packed": true,
+            "filepath": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/petrol-ballistic-fabric.jpg",
+            "byte_size": 380454,
+            "width": 1024,
+            "height": 1024,
+            "source": "FILE"
+          },
+          {
+            "name": "tan-webbing.jpg",
+            "stem": "tan-webbing",
+            "storage": "packed",
+            "packed": true,
+            "filepath": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/tan-webbing.jpg",
+            "byte_size": 283041,
+            "width": 1024,
+            "height": 1024,
+            "source": "FILE"
+          },
+          {
+            "name": "worn-gunmetal.jpg",
+            "stem": "worn-gunmetal",
+            "storage": "packed",
+            "packed": true,
+            "filepath": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/worn-gunmetal.jpg",
+            "byte_size": 266344,
+            "width": 1024,
+            "height": 1024,
+            "source": "FILE"
+          },
+          {
+            "name": "worn-rubber.jpg",
+            "stem": "worn-rubber",
+            "storage": "packed",
+            "packed": true,
+            "filepath": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/textures/worn-rubber.jpg",
+            "byte_size": 270366,
+            "width": 1024,
+            "height": 1024,
+            "source": "FILE"
+          }
+        ],
+        "anchors": {
+          "muzzle": {
+            "object": "muzzle",
+            "present": true,
+            "translation_gun_local": [
+              0.0,
+              0.054999999701976776,
+              -0.7599999904632568
+            ],
+            "type": "EMPTY"
+          },
+          "grip": {
+            "object": "grip",
+            "present": true,
+            "translation_gun_local": [
+              0.04500000178813934,
+              0.019999999552965164,
+              -0.12999999523162842
+            ],
+            "type": "EMPTY"
+          },
+          "support": {
+            "object": "support",
+            "present": true,
+            "translation_gun_local": [
+              -0.054999999701976776,
+              -0.009999999776482582,
+              -0.47999998927116394
+            ],
+            "type": "EMPTY"
+          },
+          "sight": {
+            "object": "sight",
+            "present": true,
+            "translation_gun_local": [
+              0.0,
+              0.20499999821186066,
+              -0.25
+            ],
+            "type": "EMPTY"
+          }
+        },
+        "muzzle_face": {
+          "forward_most_z": -0.7599999904632568,
+          "vertex_count": 124,
+          "extent_centre_xy": [
+            0.0,
+            0.054999999701976776
+          ],
+          "centroid_xyz": [
+            0.0,
+            0.0549999998521901,
+            -0.7599999904632568
+          ],
+          "max_radius_from_contract_axis": 0.021000300781925198,
+          "min_radius_from_contract_axis": 0.007999720050741463
+        },
+        "bounds_gun_local": {
+          "min": [
+            -0.12999999523162842,
+            -0.1659030020236969,
+            -0.7599999904632568
+          ],
+          "max": [
+            0.052000001072883606,
+            0.25699999928474426,
+            0.35899999737739563
+          ],
+          "centre": [
+            -0.038999997079372406,
+            0.04554849863052368,
+            -0.2004999965429306
+          ],
+          "size": [
+            0.18199999630451202,
+            0.42290300130844116,
+            1.1189999878406525
+          ]
+        },
+        "extra": {
+          "present": true,
+          "type": "EMPTY",
+          "identity_transform": true,
+          "transform_gun_local": {
+            "translation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "direct_children": [
+            "Round 1",
+            "Round 2",
+            "Round 3"
+          ],
+          "rounds": [
+            {
+              "name": "Round 1",
+              "present": true,
+              "parent": "extra",
+              "declared_primitives": 1,
+              "declared_translation": [
+                -0.014,
+                0.1295,
+                -0.03
+              ],
+              "declared_rotation": null,
+              "declared_scale": null,
+              "node_identity_rotation_scale": true,
+              "geometry_centre_own_frame": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "geometry_size_own_frame": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ],
+              "world_translation_gun_local": [
+                -0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "triangles": 220,
+              "uv_layers": [
+                "UVMap"
+              ]
+            },
+            {
+              "name": "Round 2",
+              "present": true,
+              "parent": "extra",
+              "declared_primitives": 1,
+              "declared_translation": [
+                0.0,
+                0.1295,
+                -0.03
+              ],
+              "declared_rotation": null,
+              "declared_scale": null,
+              "node_identity_rotation_scale": true,
+              "geometry_centre_own_frame": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "geometry_size_own_frame": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ],
+              "world_translation_gun_local": [
+                0.0,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "triangles": 220,
+              "uv_layers": [
+                "UVMap"
+              ]
+            },
+            {
+              "name": "Round 3",
+              "present": true,
+              "parent": "extra",
+              "declared_primitives": 1,
+              "declared_translation": [
+                0.014,
+                0.1295,
+                -0.03
+              ],
+              "declared_rotation": null,
+              "declared_scale": null,
+              "node_identity_rotation_scale": true,
+              "geometry_centre_own_frame": [
+                0.0,
+                0.0,
+                0.0
+              ],
+              "geometry_size_own_frame": [
+                0.012000000104308128,
+                0.012000000104308128,
+                0.05000000074505806
+              ],
+              "world_translation_gun_local": [
+                0.014000000432133675,
+                0.12950000166893005,
+                -0.029999999329447746
+              ],
+              "triangles": 220,
+              "uv_layers": [
+                "UVMap"
+              ]
+            }
+          ]
+        },
+        "totals": {
+          "triangles": 19492,
+          "vertices": 36604,
+          "mesh_objects": 8,
+          "material_count": 7,
+          "image_count": 6,
+          "uv_less_meshes": [],
+          "non_finite_vertices": 0,
+          "non_positive_scales": []
+        }
+      },
+      "checks": {
+        "top_level_node_names_exact": {
+          "passed": true,
+          "measured": [
+            "body",
+            "bolt",
+            "extra",
+            "factory-optic",
+            "grip",
+            "mag",
+            "muzzle",
+            "sight",
+            "support",
+            "trigger"
+          ],
+          "expected": [
+            "body",
+            "bolt",
+            "extra",
+            "factory-optic",
+            "grip",
+            "mag",
+            "muzzle",
+            "sight",
+            "support",
+            "trigger"
+          ],
+          "note": "body, mag, bolt, trigger, factory-optic, extra + muzzle, grip, support, sight and nothing else"
+        },
+        "no_duplicate_top_level_node_names": {
+          "passed": true,
+          "measured": [],
+          "expected": []
+        },
+        "part_nodes_identity_transform": {
+          "passed": true,
+          "measured": {
+            "declared": {
+              "body": true,
+              "mag": true,
+              "bolt": true,
+              "trigger": true,
+              "factory-optic": true
+            },
+            "imported_after_reimport": {
+              "body": true,
+              "mag": true,
+              "bolt": true,
+              "trigger": true,
+              "factory-optic": true
+            }
+          },
+          "expected": {
+            "body": true,
+            "mag": true,
+            "bolt": true,
+            "trigger": true,
+            "factory-optic": true
+          },
+          "note": "vertices baked into gun-local space: part nodes carry no transform"
+        },
+        "anchor_muzzle": {
+          "passed": true,
+          "measured": [
+            0.0,
+            0.054999999701976776,
+            -0.7599999904632568
+          ],
+          "expected": [
+            0.0,
+            0.055,
+            -0.76
+          ]
+        },
+        "anchor_grip": {
+          "passed": true,
+          "measured": [
+            0.04500000178813934,
+            0.019999999552965164,
+            -0.12999999523162842
+          ],
+          "expected": [
+            0.045,
+            0.02,
+            -0.13
+          ]
+        },
+        "anchor_support": {
+          "passed": true,
+          "measured": [
+            -0.054999999701976776,
+            -0.009999999776482582,
+            -0.47999998927116394
+          ],
+          "expected": [
+            -0.055,
+            -0.01,
+            -0.48
+          ]
+        },
+        "anchor_sight_y": {
+          "passed": true,
+          "measured": 0.20499999821186066,
+          "expected": 0.205
+        },
+        "reimport_agrees_with_declared_translations": {
+          "passed": true,
+          "measured": {
+            "max_abs_delta": 1.0728836041806744e-08,
+            "node": "support"
+          },
+          "expected": "<= 1e-05 m",
+          "note": "Blender's importer must reproduce the file's own node translations"
+        },
+        "forward_most_vertex_z": {
+          "passed": true,
+          "measured": -0.7599999904632568,
+          "expected": -0.76,
+          "note": "forward-most vertex of the whole model"
+        },
+        "muzzle_face_centre_on_bore_axis": {
+          "passed": true,
+          "measured": [
+            0.0,
+            0.054999999701976776
+          ],
+          "expected": [
+            0.0,
+            0.055
+          ],
+          "note": "midpoint of the muzzle-face vertex extents"
+        },
+        "muzzle_radius_within_bore_radius": {
+          "passed": true,
+          "measured": 0.021000300781925198,
+          "expected": "<= 0.021",
+          "note": "nothing on the muzzle may exceed the exposed bore radius"
+        },
+        "triangle_budget_10k_to_20k": {
+          "passed": true,
+          "measured": 19808,
+          "expected": [
+            10000,
+            20000
+          ],
+          "note": "triangles declared by the file; 19492 survive reimport"
+        },
+        "expected_triangle_count": {
+          "passed": true,
+          "measured": 19808,
+          "expected": 19808,
+          "note": "19492 survive reimport; the frozen delivered count, agreed by both files"
+        },
+        "primitive_budget_max_24": {
+          "passed": true,
+          "measured": 19,
+          "expected": "<= 24",
+          "note": "glTF draw primitives declared by the file"
+        },
+        "expected_primitive_count": {
+          "passed": true,
+          "measured": 19,
+          "expected": 19
+        },
+        "material_budget_max_8": {
+          "passed": true,
+          "measured": 7,
+          "expected": "<= 8"
+        },
+        "expected_material_count_7": {
+          "passed": true,
+          "measured": 7,
+          "expected": 7
+        },
+        "expected_image_count": {
+          "passed": true,
+          "measured": 6,
+          "expected": 6
+        },
+        "every_mesh_has_uv_layer": {
+          "passed": true,
+          "measured": [],
+          "expected": [],
+          "note": "8 mesh objects inspected"
+        },
+        "no_non_finite_coordinates": {
+          "passed": true,
+          "measured": {
+            "imported": 0,
+            "declared_in_file": 0
+          },
+          "expected": 0
+        },
+        "no_non_positive_or_negative_scales": {
+          "passed": true,
+          "measured": [],
+          "expected": [],
+          "note": "13 objects inspected"
+        },
+        "material_texture_map_exact_declared": {
+          "passed": true,
+          "measured": {
+            "PEREGRINE | gunmetal": "worn-gunmetal",
+            "PEREGRINE | petrol fabric": "petrol-ballistic-fabric",
+            "PEREGRINE | ivory coating": "ivory-armor",
+            "PEREGRINE | rubber": "worn-rubber",
+            "PEREGRINE | orange paint": "orange-painted-metal",
+            "PEREGRINE | optic glass": null,
+            "PEREGRINE | tan webbing": "tan-webbing"
+          },
+          "expected": {
+            "PEREGRINE | gunmetal": "worn-gunmetal",
+            "PEREGRINE | orange paint": "orange-painted-metal",
+            "PEREGRINE | ivory coating": "ivory-armor",
+            "PEREGRINE | petrol fabric": "petrol-ballistic-fabric",
+            "PEREGRINE | tan webbing": "tan-webbing",
+            "PEREGRINE | rubber": "worn-rubber",
+            "PEREGRINE | optic glass": null
+          }
+        },
+        "material_texture_map_exact_imported": {
+          "passed": true,
+          "measured": {
+            "PEREGRINE | gunmetal": "worn-gunmetal",
+            "PEREGRINE | ivory coating": "ivory-armor",
+            "PEREGRINE | optic glass": null,
+            "PEREGRINE | orange paint": "orange-painted-metal",
+            "PEREGRINE | petrol fabric": "petrol-ballistic-fabric",
+            "PEREGRINE | rubber": "worn-rubber",
+            "PEREGRINE | tan webbing": "tan-webbing"
+          },
+          "expected": {
+            "PEREGRINE | gunmetal": "worn-gunmetal",
+            "PEREGRINE | orange paint": "orange-painted-metal",
+            "PEREGRINE | ivory coating": "ivory-armor",
+            "PEREGRINE | petrol fabric": "petrol-ballistic-fabric",
+            "PEREGRINE | tan webbing": "tan-webbing",
+            "PEREGRINE | rubber": "worn-rubber",
+            "PEREGRINE | optic glass": null
+          }
+        },
+        "optic_glass_blend_without_texture": {
+          "passed": true,
+          "measured": {
+            "alpha_mode": "BLEND",
+            "base_color_texture_index": null
+          },
+          "expected": {
+            "alpha_mode": "BLEND",
+            "base_color_texture_index": null
+          }
+        },
+        "extra_identity_group_transform": {
+          "passed": true,
+          "measured": {
+            "translation": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rotation_quaternion": [
+              1.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "expected": "identity"
+        },
+        "extra_three_mesh_children_direct": {
+          "passed": true,
+          "measured": [
+            "Round 1",
+            "Round 2",
+            "Round 3"
+          ],
+          "expected": [
+            "Round 1",
+            "Round 2",
+            "Round 3"
+          ],
+          "note": "direct children of `extra`, no intermediate node"
+        },
+        "extra_rounds_single_primitive": {
+          "passed": true,
+          "measured": {
+            "Round 1": 1,
+            "Round 2": 1,
+            "Round 3": 1
+          },
+          "expected": {
+            "Round 1": 1,
+            "Round 2": 1,
+            "Round 3": 1
+          }
+        },
+        "round_geometry_centred_on_origin": {
+          "passed": true,
+          "measured": {
+            "Round 1": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "Round 2": [
+              0.0,
+              0.0,
+              0.0
+            ],
+            "Round 3": [
+              0.0,
+              0.0,
+              0.0
+            ]
+          },
+          "expected": [
+            0.0,
+            0.0,
+            0.0
+          ],
+          "note": "geometry in the round's own frame (placement lives on the node)"
+        },
+        "round_dimensions_about_12x12x50mm": {
+          "passed": true,
+          "measured": {
+            "Round 1": [
+              0.012,
+              0.012,
+              0.05
+            ],
+            "Round 2": [
+              0.012,
+              0.012,
+              0.05
+            ],
+            "Round 3": [
+              0.012,
+              0.012,
+              0.05
+            ]
+          },
+          "expected": [
+            0.012,
+            0.012,
+            0.05
+          ],
+          "note": "gun-frame size, tolerance +/- 20 %"
+        },
+        "round_placement_node_translation": {
+          "passed": true,
+          "measured": {
+            "Round 1": [
+              -0.014,
+              0.1295,
+              -0.03
+            ],
+            "Round 2": [
+              0.0,
+              0.1295,
+              -0.03
+            ],
+            "Round 3": [
+              0.014,
+              0.1295,
+              -0.03
+            ]
+          },
+          "expected": {
+            "Round 1": [
+              -0.014,
+              0.1295,
+              -0.03
+            ],
+            "Round 2": [
+              0.0,
+              0.1295,
+              -0.03
+            ],
+            "Round 3": [
+              0.014,
+              0.1295,
+              -0.03
+            ]
+          }
+        },
+        "round_nodes_identity_rotation_and_scale": {
+          "passed": true,
+          "measured": {
+            "Round 1": true,
+            "Round 2": true,
+            "Round 3": true
+          },
+          "expected": {
+            "Round 1": true,
+            "Round 2": true,
+            "Round 3": true
+          }
+        },
+        "runtime_buffer_is_sibling_bin": {
+          "passed": true,
+          "measured": [
+            {
+              "index": 0,
+              "uri": "peregrine.bin",
+              "declared_byte_length": 1409024,
+              "payload_byte_length": 1409024,
+              "embedded": false,
+              "resolved_path": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/peregrine.bin",
+              "file_exists": true
+            }
+          ],
+          "expected": "one buffer, uri 'peregrine.bin', sibling file present"
+        },
+        "runtime_image_uris_textures_stem_jpg": {
+          "passed": true,
+          "measured": [
+            "textures/ivory-armor.jpg",
+            "textures/orange-painted-metal.jpg",
+            "textures/petrol-ballistic-fabric.jpg",
+            "textures/tan-webbing.jpg",
+            "textures/worn-gunmetal.jpg",
+            "textures/worn-rubber.jpg"
+          ],
+          "expected": [
+            "textures/ivory-armor.jpg",
+            "textures/orange-painted-metal.jpg",
+            "textures/petrol-ballistic-fabric.jpg",
+            "textures/tan-webbing.jpg",
+            "textures/worn-gunmetal.jpg",
+            "textures/worn-rubber.jpg"
+          ],
+          "note": "the runtime map cache keys on exactly these uri strings"
+        },
+        "runtime_texture_files_exist": {
+          "passed": true,
+          "measured": {
+            "textures/worn-gunmetal.jpg": true,
+            "textures/orange-painted-metal.jpg": true,
+            "textures/ivory-armor.jpg": true,
+            "textures/petrol-ballistic-fabric.jpg": true,
+            "textures/tan-webbing.jpg": true,
+            "textures/worn-rubber.jpg": true
+          },
+          "expected": {
+            "textures/ivory-armor.jpg": true,
+            "textures/orange-painted-metal.jpg": true,
+            "textures/petrol-ballistic-fabric.jpg": true,
+            "textures/tan-webbing.jpg": true,
+            "textures/worn-gunmetal.jpg": true,
+            "textures/worn-rubber.jpg": true
+          }
+        },
+        "runtime_image_count": {
+          "passed": true,
+          "measured": 6,
+          "expected": 6
+        }
+      },
+      "advisory_checks": {
+        "degenerate_triangles_in_source": {
+          "passed": false,
+          "measured": {
+            "repeated_index": 316,
+            "zero_area": 320,
+            "duplicate_position_faces": 0
+          },
+          "expected": {
+            "repeated_index": 0,
+            "zero_area": 0
+          },
+          "note": "sub-micron sliver triangles collapse to repeated indices once positions/normals/UVs are deduplicated.  The build owner classified these as accepted at freeze: invisible, ~0.9 kB of index buffer, and dropped by Blender's mesh validation on import.  Measured and reported, not counted against the delivery."
+        },
+        "reimport_reproduces_declared_triangles": {
+          "passed": false,
+          "measured": 19492,
+          "expected": 19808,
+          "note": "a strict reimport reproduces every triangle; the shortfall is exactly the degenerate triangles above, which Blender's mesh validation drops"
+        }
+      }
+    }
+  }
+}

@@ -142,6 +142,14 @@ try {
   const owner = candidates[ownerIndex], ownerUser = registrations[ownerIndex].user;
   const otherDevice = new Browser();
   await otherDevice.ok('/api/account/login', { username: ownerUser.username, password });
+  assert.equal((await new Browser().request('/api/account/keybindings')).status, 401);
+  assert.equal((await owner.ok('/api/account/keybindings')).keybindings, null);
+  const savedBindings = await owner.ok('/api/account/keybindings', { userId: ownerUser.id, keybindings: { forward: ['KeyI'], medkit: [] } });
+  assert.deepEqual(savedBindings.keybindings.forward, ['KeyI']);
+  assert.deepEqual(savedBindings.keybindings.medkit, []);
+  assert.deepEqual(await otherDevice.ok('/api/account/keybindings'), savedBindings, 'another device loads account bindings');
+  assert.equal((await candidates[1 - ownerIndex].ok('/api/account/keybindings')).keybindings, null, 'accounts are isolated');
+  assert.equal((await candidates[1 - ownerIndex].request('/api/account/keybindings', { userId: ownerUser.id, keybindings: {} })).status, 400);
   const duplicateBuys = await Promise.all(Array.from({ length: 8 }, (_, index) =>
     (index % 2 ? owner : otherDevice).request('/api/career/purchase', { item: 'arctic' })));
   assert.ok(duplicateBuys.every(response => response.status === 200));
@@ -189,6 +197,7 @@ try {
   await fixture.restart();
   await launch();
   assert.equal((await owner.ok('/api/account')).user.id, ownerUser.id, 'session survives app kill and PostgreSQL restart');
+  assert.deepEqual(await owner.ok('/api/account/keybindings'), savedBindings, 'bindings survive app and database restart');
   assert.deepEqual(await owner.ok('/api/career'), afterWrites, 'committed career and cosmetics survive database restart');
   assert.deepEqual(await otherDevice.ok('/api/career'), afterWrites, 'second-device session also survives restart');
   await otherDevice.ok('/api/account/password', { currentPassword: password, newPassword: password + ' changed' });
@@ -201,6 +210,7 @@ try {
     recoveryCode: registrations[ownerIndex].recoveryCode, newPassword: password + ' recovered' });
   assert.ok(recovered.recoveryCode);
   assert.equal((await otherDevice.ok('/api/account')).user, null);
+  assert.deepEqual(await owner.ok('/api/account/keybindings'), savedBindings, 'bindings survive app and database restart');
   assert.deepEqual(await owner.ok('/api/career'), afterWrites, 'credential recovery preserves career');
   // A broken lease must terminate the cached writer rather than continue with
   // stale sessions or reopen a second connection behind the old process.
@@ -209,6 +219,7 @@ try {
   const lost = await Promise.race([running.exit, new Promise((_, reject) => setTimeout(() => reject(new Error('writer did not stop on DB lease loss')), 5000))]);
   assert.equal(lost.code, 1); server = null;
   await launch();
+  assert.deepEqual(await owner.ok('/api/account/keybindings'), savedBindings, 'bindings survive app and database restart');
   assert.deepEqual(await owner.ok('/api/career'), afterWrites);
   await stopServer(server); server = null;
   store = await PostgresStore.open({ connectionString: fixture.connectionString });

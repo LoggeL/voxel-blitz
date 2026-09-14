@@ -1,4 +1,5 @@
 import * as THREE from '../../vendor/three.module.js';
+import { buildPike } from './pike.js';
 import { COL, GLOW_ACCENT } from '../kit.js';
 import { BOLT_HOME, BREACH_Z, TRIGGER_Z } from './common.js';
 
@@ -12,6 +13,7 @@ import { BOLT_HOME, BREACH_Z, TRIGGER_Z } from './common.js';
 const LANCE_VIOLET = GLOW_ACCENT.lance ?? 0xc9a2ff;
 
 export function build({ kit, T, groups }) {
+  if (buildPike({ groups })) return;
   const { box, cylZ, ironSights } = kit;
   const { body, mag, bolt, trigger } = groups;
   const VIOLET = LANCE_VIOLET;

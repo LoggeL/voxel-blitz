@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "asset": "bison",
+  "materials": [
+    {
+      "material": "BISON | ivory coating.001",
+      "texture": "ivory-ceramic"
+    },
+    {
+      "material": "BISON | orange paint.001",
+      "texture": "orange-paint"
+    },
+    {
+      "material": "BISON | tan webbing.001",
+      "texture": "tan-webbing"
+    },
+    {
+      "material": "BISON | rubber.001",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "BISON | gunmetal.001",
+      "texture": "phosphated-steel"
+    },
+    {
+      "material": "BISON | brass.001",
+      "texture": "aged-brass"
+    },
+    {
+      "material": "BISON | olive drab.001",
+      "texture": "olive-paint"
+    },
+    {
+      "material": "BISON | petrol fabric.001",
+      "texture": "petrol-fabric"
+    }
+  ]
+}

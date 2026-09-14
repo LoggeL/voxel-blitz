@@ -1,0 +1,152 @@
+{
+  "asset": "FANG",
+  "asset_id": "fang",
+  "kind": "original S&W-686-style swing-out-cylinder revolver prop (visual game asset)",
+  "blender": "5.2.1 LTS",
+  "authoring_script": "tools/blender/fang/build-fang.py",
+  "source_parts": 117,
+  "animation_group_nodes": [
+    "body",
+    "mag",
+    "bolt",
+    "trigger",
+    "extra"
+  ],
+  "marker_nodes": [
+    "grip",
+    "muzzle",
+    "sight"
+  ],
+  "batch_nodes": 16,
+  "round_nodes": [],
+  "triangles": 12516,
+  "triangles_per_primitive": {
+    "body | black oxide": 752,
+    "body | blued steel": 6836,
+    "body | ivory coating": 796,
+    "body | rubber": 1044,
+    "body | satin steel": 404,
+    "body | sight orange": 12,
+    "bolt | black oxide": 36,
+    "bolt | satin steel": 268,
+    "mag | black oxide": 264,
+    "mag | blued steel": 724,
+    "mag | brass": 768,
+    "mag | rubber": 72,
+    "mag | satin steel": 184,
+    "trigger | black oxide": 36,
+    "trigger | satin steel": 108,
+    "trigger | sight orange": 212
+  },
+  "materials": [
+    "blued steel",
+    "satin steel",
+    "black oxide",
+    "brass",
+    "sight orange",
+    "ivory coating",
+    "rubber"
+  ],
+  "material_textures": {
+    "blued steel": "worn-gunmetal.jpg",
+    "satin steel": "worn-gunmetal.jpg",
+    "black oxide": "petrol-ballistic-fabric.jpg",
+    "brass": "orange-painted-metal.jpg",
+    "sight orange": "orange-painted-metal.jpg",
+    "ivory coating": "ivory-armor.jpg",
+    "rubber": "worn-rubber.jpg"
+  },
+  "imagegen_textures": [
+    "ivory-armor.jpg",
+    "orange-painted-metal.jpg",
+    "petrol-ballistic-fabric.jpg",
+    "worn-gunmetal.jpg",
+    "worn-rubber.jpg"
+  ],
+  "texture_source": "public/assets/blender/textures (the delivered 1024px JPEGs, reused byte-identical; originals untouched)",
+  "uv_density_tiles_per_metre": 3.6,
+  "axes": {
+    "authoring": "+Y forward, +Z up, +X right",
+    "after_gltf": "-Z forward, +Y up, +X right",
+    "map": "game_x = x, game_y = z, game_z = -y"
+  },
+  "anchors_game_space": {
+    "muzzle": [
+      0.0,
+      0.04,
+      -0.52
+    ],
+    "grip": [
+      0.042,
+      -0.012,
+      -0.055
+    ],
+    "sight": [
+      0.0,
+      0.105,
+      -0.02
+    ]
+  },
+  "contract_points": {
+    "breech_y": 0.16,
+    "bore_axis": [
+      0.0,
+      0.04
+    ],
+    "exposed_bore_radius": 0.018,
+    "exposed_bore": [
+      0.152,
+      0.52
+    ],
+    "heat_band": [
+      -0.4984,
+      -0.3688
+    ],
+    "sight_height": 0.105,
+    "sight_planes": [
+      0.005,
+      0.508
+    ],
+    "cylinder": {
+      "radius": 0.025,
+      "y_span": [
+        0.095,
+        0.148
+      ],
+      "centerline_z": 0.026
+    }
+  },
+  "files": {
+    "blend": "docs/design/blender/fang/fang.blend",
+    "glb": "docs/design/blender/fang/fang.glb",
+    "renders": [
+      "render-hero.png",
+      "render-side.png",
+      "render-ads.png",
+      "render-rear.png"
+    ],
+    "validation": "docs/design/blender/fang/validation.json"
+  },
+  "build_time_checks": {
+    "anchor_contract": "muzzle plane, bore axis and exposed 0.0180 radius across the whole heat band, all three markers, the 0.105 sight line, the trigger blade, the hammer pin home position and the rearward hammer spur are asserted against the runtime contract every build",
+    "heat_band_clearance": "no vertex other than the bore may enter the heat band",
+    "coplanar_face_audit": "rejects flush faces between parts, which z-fight once same-material parts merge into one draw call",
+    "part_contact": "every authored part must cross, nearly touch or sit inside another part; a group that only meets the model through empty space is reported as floating and fails the build"
+  },
+  "geometry_audit": {
+    "coplanar_faces": [],
+    "floating_parts": []
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; no mobile GPU profiling.",
+    "Hand fit is unverified: the grip palm sits on the contract point and the geometry is built around it, but no third-person pose test was run."
+  ],
+  "notes": [
+    "Fresh design: no geometry reused from the older BALLISTA study.",
+    "Fluted swing-out cylinder on the mag node mirrors the runtime crane/cylinder ownership; the spur hammer rides the bolt node.",
+    "Vent rib with genuine slots ends ahead of the heat band, which stays bare metal.",
+    "Markings are modelled geometry, not a texture decal.",
+    "No loose rounds: the revolver reload choreography drives a single speedloader group, never the cartridges array (WASP precedent)."
+  ]
+}

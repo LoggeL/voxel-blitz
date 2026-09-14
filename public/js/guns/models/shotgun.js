@@ -1,8 +1,10 @@
 import { COL } from '../kit.js';
 import { BOLT_HOME, BREACH_Z, PUMP_REST, TRIGGER_Z } from './common.js';
+import { buildMastiff } from './mastiff.js';
 
 /** Build the M-DOCK 12's full-stock, tube-fed pump-action silhouette. */
 export function build({ kit, T, groups }) {
+  if (buildMastiff({ kit, groups })) return;
   const { box, cylZ, brakeRings, ironSights } = kit;
   const { body, mag, bolt, pump, trigger, extra } = groups;
 

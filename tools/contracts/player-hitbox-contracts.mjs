@@ -31,7 +31,8 @@ export function runPlayerHitboxContracts(ok) {
     'swept projectiles hit the nearest body zone regardless of insertion order');
   ok(!sweepPlayers({ x: 0.3, y: 1.8, z: -2 }, { x: 0.3, y: 1.8, z: 2 }, 0.04,
     new Map([['p', player]]), () => true), 'projectile radius does not recreate the old full-width head box');
-  const graze = shot(0.24, 1.8, player, 0.06);
+  // RIVET's helmet is 0.36 m wide; the headset adds 0.03 m per side at ear height.
+  const graze = shot(0.235, 1.66, player, 0.06);
   ok(graze && !graze.coreHit && graze.radialDistance > 0,
     'a genuine grazing radius contact is distinguished from a direct head hit');
   ok(!shot(0.24, 1.94, player, 0.06),

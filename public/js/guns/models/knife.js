@@ -1,5 +1,8 @@
+import { buildTalon } from './talon.js';
+
 // Extruded pixel-art diamond pickaxe. Keep the stable knife slot for loadouts.
 export function build({ kit, groups }) {
+  if (buildTalon({ groups })) return;
   const { box } = kit;
   const { body } = groups;
   const pixels = [

@@ -1,0 +1,26 @@
+{
+  "up_to_date": true,
+  "protocol_version": 5,
+  "expected_protocol_version": 5,
+  "addon_version": [
+    1,
+    6
+  ],
+  "capabilities": [
+    "drain_human_activity",
+    "execute_code",
+    "get_addon_info",
+    "get_object_info",
+    "get_scene_info",
+    "get_telemetry_consent",
+    "get_viewport_screenshot",
+    "get_world_state_snapshot",
+    "set_telemetry_consent"
+  ],
+  "blender_version": "5.2.1 LTS",
+  "source": "native",
+  "warning": null,
+  "telemetry_consent": false,
+  "update_command": "uvx blender-mcp install-addon",
+  "after_install": "If the addon file was updated: in Blender, Preferences \u2192 Add-ons \u2192 disable/enable 'Interface: Blender MCP', or restart Blender, then Start MCP Server."
+}

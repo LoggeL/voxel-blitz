@@ -3,6 +3,7 @@ import { pronePose } from '../../../shared/player-stance.js';
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 import { smooth01 } from '../util/math.js';
+import { createBlenderParts } from '../engine/blender-assets.js';
 
 const BODY_POSE = Object.freeze({
   hipsY: 0.72,
@@ -49,6 +50,41 @@ export function makeFirstPersonBody() {
   const left = makeLeg(-1);
   const right = makeLeg(1);
   group.add(hips, torso, left.leg, right.leg);
+  const rivet = createBlenderParts('rivet', { names: ['torso', 'hips',
+    'lThigh', 'lKnee', 'lBoot', 'rThigh', 'rKnee', 'rBoot'], materialFor(original) {
+    const material = original.clone();
+    if (original.userData.slot === 'dark') material.userData.paletteColor = 0x44515e;
+    else if (original.userData.paletteColor === 0x26323b || original.userData.slot === 'suit') {
+      material.userData.paletteColor = 0x202831;
+    }
+    return material;
+  } });
+  if (rivet) {
+    // Keep the local body's established peripheral pose carriers. Its chest is
+    // compressed below the camera; legs retain the authored armor and boots.
+    const replacements = [[hips, rivet.hips], [torso, rivet.torso]];
+    rivet.torso.scale.y = .4;
+    for (const [side, entry] of [['l', left], ['r', right]]) {
+      const thigh = entry.leg.children.find(object => object.isMesh);
+      const shin = entry.knee.children.find(object => object.isMesh && object !== entry.boot);
+      replacements.push([thigh, rivet[`${side}Thigh`]], [shin, rivet[`${side}Knee`]], [entry.boot, rivet[`${side}Boot`]]);
+      // The delivered limb meshes already contain their offset from the joint.
+      rivet[`${side}Thigh`].position.y = .17;
+      rivet[`${side}Knee`].position.y = .16;
+      rivet[`${side}Boot`].position.set(0, .115, .05);
+    }
+    const oldGeometry = new Set(), oldMaterials = new Set();
+    for (const [carrier, replacement] of replacements) {
+      oldGeometry.add(carrier.geometry); oldMaterials.add(carrier.material);
+      carrier.geometry = new THREE.BufferGeometry();
+      // Empty carriers keep the public body API intact without drawing a box.
+      carrier.material = new THREE.MeshBasicMaterial();
+      carrier.add(replacement);
+    }
+    for (const geometry of oldGeometry) geometry.dispose();
+    for (const material of oldMaterials) material.dispose();
+    group.userData.blenderAsset = 'rivet';
+  }
   const body = {
     group,
     setCosmetics(loadout) { applyBodyCosmetics(body, loadout); },

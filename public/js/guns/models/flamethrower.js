@@ -1,7 +1,10 @@
 import * as THREE from '../../vendor/three.module.js';
 import { COL } from '../kit.js';
+import { buildIfrit } from './ifrit.js';
 
-export function build({ kit, T, groups: { body, mag, bolt, trigger } }) {
+export function build({ kit, T, groups }) {
+  if (buildIfrit({ groups })) return;
+  const { body, mag, bolt, trigger } = groups;
   const { box, cylZ, mat, ironSights } = kit;
   const orange = 0xea6b21;
   const cream = 0xd8c39b;

@@ -1,4 +1,5 @@
 import { applyAttachmentModel } from '../guns/attachment-model.js';
+import { applyStattrakModule } from '../guns/stattrak-module.js';
 import { applyGunCosmetics } from '../cosmetics/skins.js';
 import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from '../guns/heavy-weapon-animation.js';
@@ -12,7 +13,7 @@ const MODEL_SCALE = 1.10;
 const ADS_SIGHT_X = 0.055;
 const ADS_SIGHT_Y = 1.62;
 const ADS_DEPTH_OFFSET = -0.045;
-const MAX_PITCH = Math.PI * 0.43;
+const MAX_PITCH = (80 * Math.PI) / 180;
 const REFERENCE_GRIP_TARGET = new THREE.Vector3(
   BASE_POSITION.x + HANDS.rifle.grip.x * MODEL_SCALE,
   BASE_POSITION.y + HANDS.rifle.grip.y * MODEL_SCALE,
@@ -83,6 +84,12 @@ export class AvatarWeaponModel {
   get twoHanded() { return !!this.handPose.support; }
   get adsT() { return this._ads; }
 
+  /** World-space barrel-tip anchor for remote shot presentation. */
+  getMuzzleWorldPosition(out = new THREE.Vector3()) {
+    if (!this._model?.muzzleMarker) return out.set(NaN, NaN, NaN);
+    return this._model.muzzleMarker.getWorldPosition(out);
+  }
+
   /** World-space sight-line anchor without exposing gun assembly internals. */
   getSightWorldPosition(out = new THREE.Vector3()) {
     if (!this._model) return out.set(NaN, NaN, NaN);
@@ -145,6 +152,9 @@ export class AvatarWeaponModel {
     this.setWeapon(weapon);
     if (!this._model) return;
     applyAttachmentModel(this._model, this._weaponId, attachments);
+    // Remote mastery never crosses the snapshot wire, so their plates stay off
+    // rather than showing a wrong number; the toggle state still flows through.
+    applyStattrakModule(this._model, this._weaponId, attachments);
     const frameDt = Math.max(0, Number(dt) || 0);
     this._machineTime = (this._machineTime || 0) + frameDt;
     animateHeavyWeapon(this._model.body, { dt: frameDt, time: this._machineTime,
@@ -202,6 +212,9 @@ export class AvatarWeaponModel {
       this._model.mag.position.y = -0.05 * reloadPulse * this._reload;
       this._model.mag.rotation.x = 0.3 * reloadPulse * this._reload;
     }
+    // Belt-fed receivers show their feed cover thrown open for the whole swap.
+    const cover = this._model.extra?.userData.reloadPart;
+    if (cover) cover.rotation[cover.userData.reloadAxis || 'x'] = -1.0 * this._reload;
     this._model.flash.grp.visible = this._flash > 0;
     for (const material of this._model.flash.mats) material.opacity = this._flash;
     this._model.flash.light.intensity = this._flash * 1.4;

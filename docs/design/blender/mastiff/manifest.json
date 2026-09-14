@@ -1,0 +1,164 @@
+{
+  "asset": "MASTIFF",
+  "asset_id": "mastiff",
+  "kind": "Mossberg-590-style pump shotgun prop (visual game asset)",
+  "blender": "5.2.1 LTS",
+  "authoring_script": "tools/blender/mastiff/build-mastiff.py",
+  "source_parts": 63,
+  "animation_group_nodes": [
+    "body",
+    "mag",
+    "bolt",
+    "pump",
+    "trigger",
+    "extra"
+  ],
+  "marker_nodes": [
+    "grip",
+    "muzzle",
+    "sight",
+    "support"
+  ],
+  "batch_nodes": 11,
+  "round_nodes": [
+    "Shell 1",
+    "Shell 1 base",
+    "Shell 2",
+    "Shell 2 base",
+    "Shell 3",
+    "Shell 3 base"
+  ],
+  "triangles": 11200,
+  "triangles_per_primitive": {
+    "body | blued steel": 4784,
+    "body | ivory coating": 908,
+    "body | orange paint": 108,
+    "body | polymer": 400,
+    "body | rubber": 1164,
+    "bolt | blued steel": 216,
+    "mag | blued steel": 156,
+    "mag | orange paint": 384,
+    "pump | blued steel": 216,
+    "pump | polymer": 1620,
+    "trigger | blued steel": 440,
+    "extra | Shell 1": 104,
+    "extra | Shell 1 base": 164,
+    "extra | Shell 2": 104,
+    "extra | Shell 2 base": 164,
+    "extra | Shell 3": 104,
+    "extra | Shell 3 base": 164
+  },
+  "materials": [
+    "blued steel",
+    "polymer",
+    "orange paint",
+    "shell red",
+    "brass",
+    "rubber",
+    "ivory coating"
+  ],
+  "material_textures": {
+    "blued steel": "worn-gunmetal.jpg",
+    "polymer": "worn-rubber.jpg",
+    "orange paint": "orange-painted-metal.jpg",
+    "shell red": "orange-painted-metal.jpg",
+    "brass": "orange-painted-metal.jpg",
+    "rubber": "worn-rubber.jpg",
+    "ivory coating": "ivory-armor.jpg"
+  },
+  "imagegen_textures": [
+    "ivory-armor.jpg",
+    "orange-painted-metal.jpg",
+    "worn-gunmetal.jpg",
+    "worn-rubber.jpg"
+  ],
+  "texture_source": "public/assets/blender/textures (the delivered 1024px JPEGs, reused byte-identical; originals untouched)",
+  "uv_density_tiles_per_metre": 3.6,
+  "axes": {
+    "authoring": "+Y forward, +Z up, +X right",
+    "after_gltf": "-Z forward, +Y up, +X right",
+    "map": "game_x = x, game_y = z, game_z = -y"
+  },
+  "anchors_game_space": {
+    "muzzle": [
+      0.0,
+      0.06,
+      -0.668
+    ],
+    "grip": [
+      0.045,
+      0.01,
+      -0.11
+    ],
+    "support": [
+      -0.055,
+      -0.03,
+      -0.33
+    ],
+    "sight": [
+      0.0,
+      0.1,
+      -0.0
+    ]
+  },
+  "contract_points": {
+    "breech_y": 0.11,
+    "bore_axis": [
+      0.0,
+      0.06
+    ],
+    "exposed_bore_radius": 0.02,
+    "exposed_bore": [
+      0.59,
+      0.668
+    ],
+    "heat_band": [
+      -0.53,
+      -0.362
+    ],
+    "sight_height": 0.1,
+    "sight_planes": [
+      0.06,
+      -0.6
+    ],
+    "pump_rest": [
+      0.0,
+      0.3,
+      0.038
+    ]
+  },
+  "files": {
+    "blend": "docs/design/blender/mastiff/mastiff.blend",
+    "glb": "docs/design/blender/mastiff/mastiff.glb",
+    "renders": [
+      "render-hero.png",
+      "render-side.png",
+      "render-left.png",
+      "render-ads.png",
+      "render-rear.png"
+    ],
+    "validation": "docs/design/blender/mastiff/validation.json"
+  },
+  "build_time_checks": {
+    "anchor_contract": "muzzle plane, bore axis and exposed 0.0200 radius across the whole heat band, all four markers, the 0.100 sight line with post top and ghost-ring ear tops, the trigger blade, the bolt home position, the pump slide front and the side-saddle shell reach are asserted against the runtime contract every build",
+    "heat_band_clearance": "no vertex other than the bore may enter the heat band",
+    "coplanar_face_audit": "rejects flush faces between parts, which z-fight once same-material parts merge into one draw call",
+    "part_contact": "every authored part must cross, nearly touch or sit inside another part; a group that only meets the model through empty space is reported as floating and fails the build"
+  },
+  "geometry_audit": {
+    "coplanar_faces": [],
+    "floating_parts": []
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; no mobile GPU profiling.",
+    "Hand fit is unverified: the grip and support palms sit on the contract points and the geometry is built around them, but no third-person pose test was run."
+  ],
+  "notes": [
+    "Fresh design: authored from the weapon-brief shotgun row, not from another study.",
+    "Twin-tube Mossberg-590 profile: bare mid-band barrel over a full-length magazine tube tied by a barrel band.",
+    "The pump slide, action bars and support marker honour PUMP_REST; the slide front ends clear of the heat band.",
+    "Markings are modelled geometry, not a texture decal.",
+    "The side-saddle shells are hidden by the reload choreography; their authored placement is the contract default only."
+  ]
+}

@@ -1,4 +1,5 @@
-// Mouse-look sensitivity contract, radians of yaw/pitch per pointer-lock pixel.
+// Shared look sensitivity: mouse radians per pointer-lock pixel, and controller
+// speed multiplier relative to the default. Touch also applies its own multiplier.
 //
 // The default turns a full 360° in roughly 2100 px of mouse travel (about 0.17°/px),
 // which sits inside the range most shooters ship (0.02–0.4°/px). The previous scale
@@ -49,7 +50,7 @@ export function adsLookScale(liveFovDeg, baseFovDeg) {
 export const INPUT_PREF_KEYS = Object.freeze({
   adsMode: 'vb-ads-mode',           // 'hold' | 'toggle' | '' (auto: toggle on trackpads)
   pointerMode: 'vb-pointer-mode',   // 'auto' | 'mouse' | 'trackpad'
-  padSensitivity: 'vb-pad-sens',    // radians per second at full stick deflection
+  padSensitivity: 'vb-pad-sens',    // full-stick rad/s at the default look sensitivity
   touchSensitivity: 'vb-touch-sens',// multiplier on the touch look scale
   touchSize: 'vb-touch-size',       // 'small' | 'medium' | 'large'
   touchHand: 'vb-touch-hand',       // 'right' | 'left'

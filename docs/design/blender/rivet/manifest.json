@@ -1,0 +1,58 @@
+{
+  "asset": "RIVET",
+  "stage": "Blender authoring source with integrated gameplay export",
+  "blender": "5.2.1 LTS",
+  "meters": true,
+  "forward_after_gltf": "-Z",
+  "editable_parts": 151,
+  "skin_meshes": 1,
+  "materials": 10,
+  "triangles": 19536,
+  "bones": [
+    "root",
+    "pelvis",
+    "spine",
+    "chest",
+    "neck",
+    "head",
+    "clavicle.R",
+    "upper_arm.R",
+    "forearm.R",
+    "hand.R",
+    "thigh.R",
+    "shin.R",
+    "foot.R",
+    "clavicle.L",
+    "upper_arm.L",
+    "forearm.L",
+    "hand.L",
+    "thigh.L",
+    "shin.L",
+    "foot.L"
+  ],
+  "animations": [
+    "Idle",
+    "Walk"
+  ],
+  "rigging": "Rigid armor weights, no facial or finger rig",
+  "authoring_source": "tools/blender/build-character.py",
+  "glb_bytes": 21126688,
+  "integration_remaining": [
+    "Optional distance LODs and wider mobile GPU profiling"
+  ],
+  "imagegen_textures": [
+    "ivory-armor.png",
+    "orange-painted-metal.png",
+    "petrol-ballistic-fabric.png",
+    "tan-webbing.png",
+    "worn-gunmetal.png",
+    "worn-rubber.png"
+  ],
+  "material_note": "ImageGen albedo embedded in GLB. Bump and image-driven roughness are Blender shader estimates; GLB uses scalar roughness.",
+  "runtime": {
+    "path": "public/assets/blender/rivet.gltf",
+    "exporter": "tools/blender/export-game-assets.py",
+    "slot": "standard operator",
+    "animation": "Existing gameplay joint and animation controllers"
+  }
+}

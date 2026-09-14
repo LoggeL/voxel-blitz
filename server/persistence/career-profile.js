@@ -16,6 +16,18 @@ function validateMastery(value) {
   return Object.fromEntries(WEAPON_IDS.filter(weapon => Object.hasOwn(value, weapon))
     .map(weapon => [weapon, { kills: value[weapon].kills, headshots: value[weapon].headshots }]));
 }
+/** Detached per-weapon kill counts for the admission welcome payload. Empty
+ * rows are dropped so matches without mastery history send no extra bytes. */
+export function masteryView(mastery) {
+  if (!record(mastery)) return {};
+  const result = {};
+  for (const weapon of WEAPON_IDS) {
+    const row = mastery[weapon];
+    if (record(row) && counter(row.kills) && counter(row.headshots) && row.headshots <= row.kills
+      && (row.kills > 0 || row.headshots > 0)) result[weapon] = { kills: row.kills, headshots: row.headshots };
+  }
+  return result;
+}
 
 /** Migrate absent new fields; never invent historical PvP or weapon attribution. */
 export function validateProfile(profile) {

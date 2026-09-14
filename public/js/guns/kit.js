@@ -1,6 +1,7 @@
 // Shared procedural gun-building resources. Kept independent of defs.js so its fixed export
 // surface remains private to the viewmodel facade.
 import * as THREE from '../vendor/three.module.js';
+import { createBlenderParts } from '../engine/blender-assets.js';
 
 // Per-silhouette identity palette. These values are part of the visual contract.
 export const COL = {
@@ -24,6 +25,36 @@ const MATERIAL_REFS = new Map();
 const MATERIAL_KEYS = new Map();
 const EMPTY_OPTIONS = Object.freeze({});
 const TEN_SEGMENTS = Object.freeze({ seg: 10 });
+
+// Gun-space placement of the Blender-authored gloves (HANDS study). The
+// geometry is authored glove-local: back of the hand +y, knuckles -z, thumb
+// -x, forearm +z. `back` is where the back of the hand faces in gun space,
+// `fingers` the wrist-to-knuckle direction (orthogonalised against `back`),
+// `offset` a palm-centre nudge from the shared anchor sheet. The support
+// glove is the same right-hand geometry mirrored in x before this frame
+// applies, so its thumb side is +x_local.
+const BLENDER_HAND_FRAMES = Object.freeze({
+  grip: { back: [0.90, 0.25, 0.35], fingers: [0.05, 0.40, -0.91], offset: [-0.030, -0.085, -0.010] },
+  support: { back: [-0.60, -0.62, 0.30], fingers: [0.50, 0.60, -0.62], offset: [0.012, -0.028, 0.0] },
+});
+
+// Character-skin palette keys per HANDS material (see cosmetics/skins.js);
+// the procedural mitt exposes the same three colours through its palette.
+const BLENDER_HAND_PALETTE = Object.freeze({
+  'glove leather': 0x22252a, 'ceramic armor': 0x15171a, webbing: 0xb09a72,
+});
+
+function orientBlenderHand(group, pose) {
+  const frame = BLENDER_HAND_FRAMES[pose];
+  const z = new THREE.Vector3().fromArray(frame.fingers).normalize().negate();
+  const y = new THREE.Vector3().fromArray(frame.back);
+  y.addScaledVector(z, -y.dot(z)).normalize();
+  const x = new THREE.Vector3().crossVectors(y, z);
+  group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
+  group.position.x += frame.offset[0];
+  group.position.y += frame.offset[1];
+  group.position.z += frame.offset[2];
+}
 
 function refMaterial(material, sharedMaterials) {
   if (!MATERIAL_REFS.has(material) || sharedMaterials.has(material)) return;
@@ -163,6 +194,32 @@ export function makeKit(cache) {
       mirror * 0.22,
       kind === 'support' ? 0.15 : 0.05,
     );
+    const pose = kind === 'support' ? 'support' : 'grip';
+    const blenderNode = createBlenderParts('hands', { names: [pose] })?.[pose];
+    if (blenderNode) {
+      // Blender-authored glove hand: the meshes are cloned straight in and the
+      // group takes the pose's own gun-space basis instead of the mitt's
+      // Euler angles. Negative X scale mirrors the right-hand pose for the
+      // left hand (three.js flips frontFace for negative determinants). The
+      // delivered materials stay as exported (their maps and tints are the
+      // design); only the skin-palette key is attached so character skins can
+      // recolour leather, armor and webbing exactly like the mitt. The
+      // procedural body below stays as the offline fallback. The meshes live
+      // inside the hand group, so remote-avatar hiding is unaffected.
+      group.userData.blenderAsset = 'hands';
+      group.userData.handPose = pose;
+      if (mirror < 0) group.scale.x = -1;
+      orientBlenderHand(group, pose);
+      for (const mesh of blenderNode.children) {
+        for (const material of [].concat(mesh.material)) {
+          const key = BLENDER_HAND_PALETTE[material.userData.partMaterial];
+          if (key !== undefined) material.userData.paletteColor = key;
+        }
+      }
+      group.add(...blenderNode.children);
+      parent.add(group);
+      return group;
+    }
     box(group, 0.05, 0.03, 0.06, 0, 0, 0, COL.polyDark, { rg: 0.9, mt: 0.05 });
     for (let i = 0; i < 3; i++) {
       box(
@@ -179,6 +236,21 @@ export function makeKit(cache) {
     }
     box(group, 0.014, 0.012, 0.032, mirror * -0.024, -0.004, 0.012, COL.polymer);
     box(group, 0.052, 0.02, 0.02, 0, 0.004, 0.036, COL.tan, { rg: 0.95, mt: 0.03 });
+    // Forearm: wrist plus a short tapered sleeve from the cuff toward the
+    // elbow (gun-space down-back). The hand group is pitched steeply, so local
+    // +z points skyward — aim a subgroup along the true elbow direction
+    // instead. Lives inside the hand group, so remote avatars (which hide
+    // hand_l/hand_r) are unaffected; the assemble glove-map pass textures it
+    // like the mitt. Static geometry only.
+    const elbow = new THREE.Vector3(0, -0.85, 0.5).normalize()
+      .applyQuaternion(new THREE.Quaternion().setFromEuler(group.rotation).invert());
+    const arm = new THREE.Group();
+    arm.position.set(0, 0.004, 0.036);
+    arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), elbow);
+    box(arm, 0.044, 0.024, 0.04, 0, 0, 0.02, COL.polyDark, { rg: 0.9, mt: 0.05 });
+    box(arm, 0.054, 0.032, 0.11, 0, 0, 0.085, COL.tan, { rg: 0.95, mt: 0.03 });
+    box(arm, 0.056, 0.034, 0.022, 0, 0, 0.145, COL.polyDark, { rg: 0.9, mt: 0.05 });
+    group.add(arm);
     parent.add(group);
     return group;
   }

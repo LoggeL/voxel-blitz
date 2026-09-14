@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "asset": "mastiff",
+  "materials": [
+    {
+      "material": "MASTIFF | blued steel",
+      "texture": "blued-steel"
+    },
+    {
+      "material": "MASTIFF | shell red",
+      "texture": "red-enamel"
+    },
+    {
+      "material": "MASTIFF | rubber",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "MASTIFF | ivory coating",
+      "texture": "ivory-ceramic"
+    },
+    {
+      "material": "MASTIFF | brass",
+      "texture": "aged-brass"
+    },
+    {
+      "material": "MASTIFF | orange paint",
+      "texture": "orange-paint"
+    },
+    {
+      "material": "MASTIFF | polymer",
+      "texture": "molded-polymer"
+    }
+  ]
+}

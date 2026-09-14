@@ -36,6 +36,7 @@ export class GameplayUiFlow {
     this._onInputEnabled = onInputEnabled;
     this._onInputDisabled = onInputDisabled;
     this._inputEnabled = false;
+    this._lookEnabled = false;
     this._pendingPurchase = null;
     this._postRound = false;
     this._hud.setupMatchContinuation?.((roundId) => this._getNet()?.approveContinuation(roundId));
@@ -72,14 +73,14 @@ export class GameplayUiFlow {
     this.closeBuyMenu();
     this.syncInput();
     this._unlockAudio();
-    if (this._inputEnabled) this._input.requestLock();
+    if (this._lookEnabled) this._input.requestLock();
   }
 
   resumeFromBuyMenu() {
     if (this._lifecycle.tornDown) return;
     this.syncInput();
     this._unlockAudio();
-    if (this._inputEnabled) this._input.requestLock();
+    if (this._lookEnabled) this._input.requestLock();
   }
 
   /** Keyboard fallback for browsers that do not expose pointer lock (including headless QA). */
@@ -87,7 +88,7 @@ export class GameplayUiFlow {
     const atResult = this._gameplay.matchState?.phase === 'post' && this._gameplay.running
       && this._lifecycle.liveActive && this._lifecycle.phase === 'live'
       && !this._lifecycle.disconnected && !this._lifecycle.tornDown && !this._hud.settingsOpen;
-    if (!this.canUseInput() && !atResult) return false;
+    if (!this.canUseLook() && !atResult) return false;
     this.setInputEnabled(false);
     this._hud.openSettings();
     return true;
@@ -95,13 +96,13 @@ export class GameplayUiFlow {
 
   onPointerLockChange(locked) {
     if (locked) {
-      if (!this.canUseInput()) {
+      if (!this.canUseLook()) {
         this.setInputEnabled(false);
         this._input.exit();
         return;
       }
       this._hud.closeSettings();
-      this.setInputEnabled(true);
+      this.syncInput();
       this._unlockAudio();
       return;
     }
@@ -110,7 +111,7 @@ export class GameplayUiFlow {
     if (
       this._gameplay.running &&
       this._lifecycle.phase === 'live' &&
-      this._gameplay.alive &&
+      (this._gameplay.alive || this._gameplay.spectating) &&
       !this._lifecycle.disconnected &&
       this._gameplay.matchState?.phase !== 'post' &&
       !this._hud.isBuyMenuOpen()
@@ -120,11 +121,15 @@ export class GameplayUiFlow {
   }
 
   canUseInput() {
+    return !!this._gameplay.alive && this.canUseLook();
+  }
+
+  canUseLook() {
     return !!(
       this._gameplay.running &&
       this._lifecycle.liveActive &&
       this._lifecycle.phase === 'live' &&
-      this._gameplay.alive &&
+      (this._gameplay.alive || this._gameplay.spectating) &&
       !this._lifecycle.disconnected &&
       !this._lifecycle.tornDown &&
       this._gameplay.matchState?.phase !== 'post' &&
@@ -133,9 +138,12 @@ export class GameplayUiFlow {
     );
   }
 
-  setInputEnabled(enabled) {
+  setInputEnabled(enabled, spectating = false) {
     const next = !!enabled && !this._lifecycle.tornDown;
+    const spectator = !!spectating && !next && !this._lifecycle.tornDown;
     this._input.setGameplayEnabled(next);
+    this._input.setSpectatorEnabled?.(spectator);
+    this._lookEnabled = next || spectator;
     if (next === this._inputEnabled) return;
 
     this._inputEnabled = next;
@@ -148,13 +156,13 @@ export class GameplayUiFlow {
   }
 
   syncInput() {
-    this.setInputEnabled(this.canUseInput());
+    this.setInputEnabled(this.canUseInput(), this.canUseLook() && this._gameplay.spectating);
   }
 
   restoreFocus() {
     this.syncInput();
     this._unlockAudio();
-    if (this._inputEnabled) this._input.requestLock();
+    if (this._lookEnabled) this._input.requestLock();
   }
 
   _isBuyPhase() {
@@ -220,7 +228,7 @@ export class GameplayUiFlow {
       open = false;
     }
     if (!open) this.syncInput();
-    if (resumed && this._inputEnabled) this._input.requestLock();
+    if (resumed && this._lookEnabled) this._input.requestLock();
   }
 
   purchaseWeapon(weapon) {

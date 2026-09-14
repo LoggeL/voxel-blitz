@@ -1,0 +1,35 @@
+{
+  "generator": "Built-in ImageGen",
+  "requests": [
+    {
+      "id": "orange-painted-metal",
+      "prompt": "Use case: photorealistic-natural. Asset type: production 3D game asset albedo texture, one square 2048x2048 material scan filling the entire frame, used directly on a Blender character and sci-fi carbine. Orthographic flat surface scan, uniform diffuse lighting, zero perspective, no object silhouette, no rendered plate edges, no directional highlights, no cast shadows, no labels, no symbols, no text, no borders. Fine physically plausible detail, strong realistic material character. Seamlessly repeating surface, avoid recognizable focal motifs. Subject: heavily field-used rescue orange powder-coated alloy. Orange covers about 88 percent of surface. Fine orange-peel enamel microtexture, numerous short silver-grey fine scratches and scuffs, irregular small paint chips exposing dark steel then bare alloy, subtle embedded dust and rubbed grease in tiny crevices. A few slightly longer diagonal scrape clusters. Rich burnt safety orange, mechanically convincing layered chipped paint, no rust wash, no concrete, no large cracks. Flat albedo only.",
+      "source": "/Users/logge/.codex/generated_images/01a09c9f-49c7-7370-a93e-d7af3a13d838/exec-fd6b9b81-0690-41c4-b02f-b9f7e39b07e2.png"
+    },
+    {
+      "id": "ivory-armor",
+      "prompt": "Use case: photorealistic-natural. Asset type: production 3D game asset albedo texture, one square 2048x2048 material scan filling the entire frame, used directly on a Blender character and sci-fi carbine. Orthographic flat surface scan, uniform diffuse lighting, zero perspective, no object silhouette, no rendered plate edges, no directional highlights, no cast shadows, no labels, no symbols, no text, no borders. Fine physically plausible detail, strong realistic material character. Seamlessly repeating surface, avoid recognizable focal motifs. Subject: off-white ceramic-polymer armor coating over dark grey alloy. Warm pale ivory covers 92 percent. Distinct irregular grey scuff marks, dozens of small dark nicks and chips, hairline scratches, slightly yellowed grime inside abrasions, fine matte micrograin. Clear worn manufactured military-industrial surface, restrained scattered wear visible from medium distance, realistic subtle dirt, no giant stains, no rust, no large cracks. Flat albedo only.",
+      "source": "/Users/logge/.codex/generated_images/01a09c9f-49c7-7370-a93e-d7af3a13d838/exec-708d4d29-0813-41df-a0eb-eb6befe5a324.png"
+    },
+    {
+      "id": "petrol-ballistic-fabric",
+      "prompt": "Use case: photorealistic-natural. Asset type: production 3D game asset albedo texture, one square 2048x2048 material scan filling the entire frame, used directly on a Blender character and sci-fi carbine. Orthographic flat surface scan, uniform diffuse lighting, zero perspective, no object silhouette, no rendered plate edges, no directional highlights, no cast shadows, no labels, no symbols, no text, no borders. Fine physically plausible detail, strong realistic material character. Seamlessly repeating surface, avoid recognizable focal motifs. Subject: worn deep petrol blue-green ballistic nylon combat uniform fabric. Dense highly visible woven nylon warp and weft, subtle faded high spots, fine frayed thread filaments, patchy dust and pale wear over the weave. Weave fibers resolved crisply at macro scale without gloss. Fine organic unevenness makes it look photographed rather than computer noise. No stitching or garment folds, no camouflage pattern. Flat albedo only.",
+      "source": "/Users/logge/.codex/generated_images/01a09c9f-49c7-7370-a93e-d7af3a13d838/exec-75416540-566b-4322-b5bb-58dde6bc0149.png"
+    },
+    {
+      "id": "worn-gunmetal",
+      "prompt": "Use case: photorealistic-natural. Asset type: production 3D game asset albedo texture, one square 2048x2048 material scan filling the entire frame, used directly on a Blender character and sci-fi carbine. Orthographic flat surface scan, uniform diffuse lighting, zero perspective, no object silhouette, no rendered plate edges, no directional highlights, no cast shadows, no labels, no symbols, no text, no borders. Fine physically plausible detail, strong realistic material character. Seamlessly repeating surface, avoid recognizable focal motifs. Subject: dark charcoal-grey anodized machined steel of a field-used science-fiction game weapon. Fine linear machining grain, multiple hairline bare-metal scratches and tiny pale chips, localized rubbed smooth patches, scattered grease smears, subtle brown dust, realistic irregular finish. Medium-dark material, retain plenty of detailed grey tonal separation. No mechanism, no actual gun, no holes, no panel outlines, no engraving. Flat albedo only.",
+      "source": "/Users/logge/.codex/generated_images/01a09c9f-49c7-7370-a93e-d7af3a13d838/exec-adfd2591-436b-42ad-b643-6da6b8f8f2bb.png"
+    },
+    {
+      "id": "tan-webbing",
+      "prompt": "Use case: photorealistic-natural. Asset type: 2048x2048 square Blender game material albedo texture. Entire image is one continuous flat surface scan of sand khaki coarse woven nylon equipment webbing. Realistically detailed reinforcing thread pairs, irregular individual fibers, dust, slightly frayed fibers and faded thread high points. Clear robust textile weave. Uniform orthographic front view, perfectly flat diffuse light, no cast shadow, no strong specular reflections, no folds, no seams, no stitching, no buckles or objects, no labels, no text, no borders. Seamlessly repeating, homogeneous material patch. Enough wear and fine imperfections to look like a real photographed material rather than perfect synthetic pattern.",
+      "source": "/Users/logge/.codex/generated_images/01a09c9f-49c7-7370-a93e-d7af3a13d838/exec-4625e7b4-00b2-4f1e-8ed4-004ee21c343f.png"
+    },
+    {
+      "id": "worn-rubber",
+      "prompt": "Use case: photorealistic-natural. Asset type: 2048x2048 square Blender game material albedo texture. Entire frame is a continuous neutral medium-dark charcoal grey molded rubber surface for realistic tactical gloves, boots and game weapon grips. Fine irregular stippled pebble grain, rubbed smooth irregular patches, hairline superficial scuffs, dust caught in micro crevices. Material relief at realistic 0.5 millimeter scale. Orthographic flat evenly lit albedo scan, no lighting gradient, no cast shadows or specular highlights, no large tread pattern, no panels or seams, no objects, no labels, no text, no borders. Seamlessly repeating. Keep grey midtone detail legible, do not crush blacks.",
+      "source": "/Users/logge/.codex/generated_images/01a09c9f-49c7-7370-a93e-d7af3a13d838/exec-fa676cfc-cb41-4ce5-9657-75dad8b30583.png"
+    }
+  ]
+}

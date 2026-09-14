@@ -362,6 +362,10 @@ export function nearestVictim(shooter, o, d, limit, ctx, minT = 0, radius = 0, h
     if (!ctx.canDamage(shooter, v)) continue;
     const pos = rewoundByShooter ? rewindVictim(v, ctx.now, shooter.input?.viewAge) : v;
     const hit = rayPlayerHitboxes(o, d, pos, limit, { minT, radius, preferCore: true });
+    // A corona contact whose closest approach is clipped by the segment end
+    // (the wall this segment stops at) is not a real graze: it would spend the
+    // victim's single hit on near-zero damage. Piercing re-evaluates the body.
+    if (hit && !hit.coreHit && hit.t > limit - 1e-3) continue;
     if (hit && hit.t < bestT) {
       bestT = hit.t;
       best = { victim: v, x: pos.x, y: pos.y, z: pos.z, ...hit };

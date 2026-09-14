@@ -1,9 +1,11 @@
 import * as THREE from '../../vendor/three.module.js';
 import { COL } from '../kit.js';
 import { BREACH_Z, BOLT_HOME, TRIGGER_Z } from './common.js';
+import { buildBison } from './bison.js';
 
 /** Build the belt-fed heavy support gun shown by assets/weapons/hud/lmg.png. */
 export function build({ kit, T, groups }) {
+  if (buildBison({ groups })) return;
   const { mat, box, cylZ, brakeRings } = kit;
   const { body: b, mag: mg, bolt, trigger: tg, extra } = groups;
 

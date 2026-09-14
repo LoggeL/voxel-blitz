@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "asset": "pike",
+  "materials": [
+    {
+      "material": "PIKE | gunmetal",
+      "texture": "phosphated-steel"
+    },
+    {
+      "material": "PIKE | rubber",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "PIKE | blued steel",
+      "texture": "blued-steel"
+    },
+    {
+      "material": "PIKE | copper rail",
+      "texture": "aged-copper"
+    },
+    {
+      "material": "PIKE | dark polymer",
+      "texture": "molded-polymer"
+    }
+  ]
+}

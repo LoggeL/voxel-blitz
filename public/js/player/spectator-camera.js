@@ -2,10 +2,9 @@ import { matchesBinding, isTypingTarget } from '../keybindings.js';
 import * as THREE from '../vendor/three.module.js';
 import { isTeamMode } from '../../../shared/modes.js';
 
-const CAMERA_DISTANCE = 4.2;
-const CAMERA_HEIGHT = 2.45;
-const CAMERA_SHOULDER = 1.35;
-const CAMERA_LOOK_AHEAD = 1.35;
+const CAMERA_DISTANCE = 4.6;
+const CAMERA_PITCH = -0.24;
+const PITCH_LIMIT = 1.2;
 const WALL_MARGIN = 0.28;
 /** How long the kill cam follows the killer before the spectator rotation takes over. */
 export const KILL_CAM_MS = 2600;
@@ -27,7 +26,7 @@ function livingCandidates(players, self, mode) {
     }));
 }
 
-/** Selects legal living targets, presents respawn state, and drives a collision-safe chase camera. */
+/** Selects legal living targets and drives a mouse-controlled third-person orbit. */
 export class SpectatorCamera {
   constructor({ camera, raycast, now, onPresent } = {}) {
     if (!camera) throw new TypeError('SpectatorCamera requires a camera');
@@ -46,10 +45,12 @@ export class SpectatorCamera {
     this.observedAt = 0;
     this.respawnAt = null;
     this._cameraSeeded = false;
+    this._fallbackTarget = null;
+    this._yaw = 0;
+    this._pitch = CAMERA_PITCH;
+    this._distance = CAMERA_DISTANCE;
     this._lastPresentationKey = '';
     this._focus = new THREE.Vector3();
-    this._lookAt = new THREE.Vector3();
-    this._desired = new THREE.Vector3();
     this._direction = new THREE.Vector3();
 
     this._onKeyDown = (event) => {
@@ -78,6 +79,8 @@ export class SpectatorCamera {
       this.targetId = null;
       this.respawnAt = null;
       this._cameraSeeded = false;
+      this._fallbackTarget = null;
+      this.killCam = null;
       this._present();
       return;
     }
@@ -89,6 +92,9 @@ export class SpectatorCamera {
     if (!wasActive) {
       this._cameraSeeded = false;
     }
+    // With nobody alive, keep an orbit at the death position instead of falling
+    // back to the local first-person death camera.
+    this._fallbackTarget = self;
 
     const killCam = this.killCam;
     if (killCam && this.observedAt >= killCam.until) this.killCam = null;
@@ -98,8 +104,11 @@ export class SpectatorCamera {
         this._cameraSeeded = false;
       }
     } else if (!this.candidates.some((candidate) => candidate.id === this.targetId)) {
-      this.targetId = this.candidates[0]?.id || null;
-      this._cameraSeeded = false;
+      const nextId = this.candidates[0]?.id || null;
+      if (this.targetId !== nextId) {
+        this.targetId = nextId;
+        this._cameraSeeded = false;
+      }
     }
     this._present();
   }
@@ -147,48 +156,49 @@ export class SpectatorCamera {
     return presented;
   }
 
-  update(interpolatedPlayers, dt) {
+  update(interpolatedPlayers, dt, look = null) {
     if (!this.active) return false;
     const target = interpolatedPlayers?.get?.(this.targetId)
-      || this.candidates.find((candidate) => candidate.id === this.targetId)?.row;
+      || this.candidates.find((candidate) => candidate.id === this.targetId)?.row
+      || this._fallbackTarget;
     if (!target || ![target.x, target.y, target.z, target.yaw].every(Number.isFinite)) {
       this._present();
       return false;
     }
 
-    const yaw = target.yaw;
-    this._focus.set(target.x, target.y + 1.35, target.z);
-    this._lookAt.set(
-      target.x - Math.sin(yaw) * CAMERA_LOOK_AHEAD,
-      target.y + 1.35,
-      target.z - Math.cos(yaw) * CAMERA_LOOK_AHEAD,
-    );
-    this._desired.set(
-      target.x + Math.sin(yaw) * CAMERA_DISTANCE + Math.cos(yaw) * CAMERA_SHOULDER,
-      target.y + CAMERA_HEIGHT,
-      target.z + Math.cos(yaw) * CAMERA_DISTANCE - Math.sin(yaw) * CAMERA_SHOULDER,
-    );
-    this._direction.copy(this._desired).sub(this._focus);
-    const distance = this._direction.length();
-    if (distance > 0.001) {
-      this._direction.multiplyScalar(1 / distance);
-      const hit = this.raycast(this._focus, this._direction, distance);
-      if (hit && Number.isFinite(hit.t) && hit.t < distance) {
-        this._desired.copy(this._focus).addScaledVector(
-          this._direction,
-          Math.max(0.45, hit.t - WALL_MARGIN),
-        );
-      }
-    }
-
     if (!this._cameraSeeded) {
-      this.camera.position.copy(this._desired);
-      this._cameraSeeded = true;
-    } else {
-      this.camera.position.lerp(this._desired, 1 - Math.exp(-Math.max(0, dt) * 9));
+      this._yaw = target.yaw;
+      this._pitch = CAMERA_PITCH;
+      this._distance = CAMERA_DISTANCE;
     }
+    if (Number.isFinite(look?.dx)) this._yaw -= look.dx;
+    if (Number.isFinite(look?.dy)) {
+      this._pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, this._pitch - look.dy));
+    }
+    const yaw = this._yaw;
+    const pitch = this._pitch;
+    this._focus.set(target.x, target.y + 1.35, target.z);
+    this._direction.set(
+      Math.sin(yaw) * Math.cos(pitch),
+      -Math.sin(pitch),
+      Math.cos(yaw) * Math.cos(pitch),
+    );
+    let distance = CAMERA_DISTANCE;
+    const hit = this.raycast(this._focus, this._direction, distance);
+    if (hit && Number.isFinite(hit.t) && hit.t < distance) {
+      distance = Math.max(0, hit.t - WALL_MARGIN);
+    }
+    // Snap inward before rendering a wall; ease outward as cover clears. The
+    // target already comes from network interpolation, so orbiting stays direct.
+    if (!this._cameraSeeded || distance < this._distance) {
+      this._distance = distance;
+    } else {
+      this._distance += (distance - this._distance) * (1 - Math.exp(-Math.max(0, dt) * 9));
+    }
+    this._cameraSeeded = true;
+    this.camera.position.copy(this._focus).addScaledVector(this._direction, this._distance);
     this.camera.up.set(0, 1, 0);
-    this.camera.lookAt(this._lookAt);
+    this.camera.lookAt(this._focus);
     this._present();
     return true;
   }
@@ -200,6 +210,7 @@ export class SpectatorCamera {
     this.candidates = [];
     this.respawnAt = null;
     this._cameraSeeded = false;
+    this._fallbackTarget = null;
     this._lastPresentationKey = '';
     this._present();
   }

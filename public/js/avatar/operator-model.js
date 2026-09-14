@@ -1,4 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
+import { buildRivet } from './rivet-model.js';
 
 export const UPPER_ARM = 0.34;
 export const FOREARM = 0.34;
@@ -50,6 +51,8 @@ function batchPanels(group) {
 }
 
 export function buildOperator({ suit, dark, armor, visor, skin, variant }) {
+  const rivet = buildRivet({ suit, dark, armor, visor, skin });
+  if (rivet) return rivet;
   const torso = new THREE.Group();
   plate(torso, dark, [0.48, 0.52, 0.29], [0, 0, 0]);
   plate(torso, suit, [0.53, 0.24, 0.32], [0, 0.13, 0]);

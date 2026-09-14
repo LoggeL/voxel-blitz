@@ -1,0 +1,189 @@
+import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { startServer, stopServer } from './lib/server-process.mjs';
+import { launchCdpSession } from './lib/cdp-session.mjs';
+
+const directory = await mkdtemp(path.join(tmpdir(), 'vb-blender-'));
+const out = path.resolve('.artifacts/blender-integration');
+await mkdir(out, { recursive: true });
+const server = startServer({ cwd: process.cwd(), env: { VB_DATA_DIR: directory, VB_PERSISTENCE: 'file' } });
+let browser;
+try {
+  const base = `http://127.0.0.1:${await server.port}`;
+  browser = await launchCdpSession(`${base}/avatar-capture.html?weapon=rifle&view=front`, { width: 1200, height: 1000 });
+  const page = browser.page;
+  const capture = async (route, name) => {
+    await page.send('Page.navigate', { url: base + route });
+    await page.waitFor(`document.documentElement.dataset.captureReady === 'true'`, { timeoutMs: 20000, label: name });
+    const shot = await page.send('Page.captureScreenshot', { format: 'png' });
+    await writeFile(path.join(out, `${name}.png`), Buffer.from(shot.data, 'base64'));
+  };
+  for (const view of ['front', 'profile', 'ads-profile', 'crouched-profile', 'prone-profile']) {
+    await capture(`/avatar-capture.html?weapon=rifle&view=${view}`, `rivet-${view}`);
+    const metrics = await page.evaluate('window.__vbAvatarCapture');
+    assert.ok(metrics.gripError < 1e-6, `${view}: palm on grip`);
+    assert.ok(metrics.weaponInFrame, `${view}: weapon in frame`);
+  }
+  for (const team of ['alpha', 'bravo']) await capture(`/avatar-capture.html?weapon=rifle&view=front&team=${team}`, `rivet-${team}`);
+  for (const state of ['held', 'scoped', 'firing']) await capture(`/weapon-capture.html?weapon=rifle&state=${state}`, `kestrel-${state}`);
+  await capture('/avatar-capture.html?weapon=sniper&view=front', 'rivet-sniper-front');
+  const sniperMetrics = await page.evaluate('window.__vbAvatarCapture');
+  assert.ok(sniperMetrics.gripError < 1e-6, 'sniper front: palm on grip');
+  assert.ok(sniperMetrics.weaponInFrame, 'sniper front: weapon in frame');
+  for (const state of ['held', 'scoped', 'firing']) await capture(`/weapon-capture.html?weapon=sniper&state=${state}`, `peregrine-${state}`);
+  await capture('/avatar-capture.html?weapon=lmg&view=profile', 'rivet-lmg-profile');
+  const lmgMetrics = await page.evaluate('window.__vbAvatarCapture');
+  assert.ok(lmgMetrics.gripError < 1e-6, 'lmg profile: palm on grip');
+  assert.ok(lmgMetrics.weaponInFrame, 'lmg profile: weapon in frame');
+  for (const state of ['held', 'scoped', 'firing', 'reload-open', 'reload-eject', 'reload-load', 'reload-charge']) {
+    await capture(`/weapon-capture.html?weapon=lmg&state=${state}`, `bison-${state}`);
+  }
+  const checks = await page.evaluate(`(async () => {
+    const T = await import('/js/vendor/three.module.js');
+    const { makeAvatar, disposeAvatar, updateAvatarWeaponPose, updateAvatarStancePose,
+      setAvatarTeam, setAvatarOpacity, setAvatarFlash } = await import('/js/avatar/avatar.js');
+    const { buildGun, disposeGunModels } = await import('/js/guns/assemble.js');
+    const { MaterialCache } = await import('/js/guns/kit.js');
+    const { applyAvatarCosmetics, applyGunCosmetics } = await import('/js/cosmetics/skins.js');
+    const { makeFirstPersonBody, disposeFirstPersonBody } = await import('/js/player/first-person-body.js');
+    const { applyAttachmentModel } = await import('/js/guns/attachment-model.js');
+    const { WEAPON_IDS } = await import('/shared/combatmath.js');
+    const { createBlenderParts } = await import('/js/engine/blender-assets.js');
+    const { disposeObjectTrees } = await import('/js/engine/dispose.js');
+    const must = (value, message) => { if (!value) throw new Error(message); };
+    const restParts=createBlenderParts('rivet');
+    must(restParts,'runtime character available');
+    for(const [name,part] of Object.entries(restParts)) {
+      const bounds=new T.Box3().setFromObject(part);
+      must([...bounds.min.toArray(),...bounds.max.toArray()].every(v=>Number.isFinite(v)&&Math.abs(v)<.65), 'local joint bounds '+name);
+    }
+    disposeObjectTrees(Object.values(restParts));
+    const a = makeAvatar('blender-a','A'), b = makeAvatar('blender-b','B');
+    must(a.torso.userData.blenderAsset === 'rivet', 'RIVET loaded, no fallback');
+    must(a.weaponModel._model.body.userData.blenderAsset === 'kestrel', 'KESTREL loaded, no fallback');
+    updateAvatarWeaponPose(a,{weapon:'sniper',blend:1});
+    must(a.weaponModel._model.body.userData.blenderAsset === 'peregrine', 'PEREGRINE loaded, no fallback');
+    must(a.weaponModel._model.body.userData.sightHeight === 0.205, 'PEREGRINE keeps the 0.205 sight line');
+    updateAvatarWeaponPose(a,{weapon:'lmg',blend:1});
+    must(a.weaponModel._model.body.userData.blenderAsset === 'bison', 'BISON loaded, no fallback');
+    updateAvatarWeaponPose(a,{weapon:'lmg',reloading:true,dt:1,blend:1});
+    must(a.weaponModel._model.extra.userData.reloadPart.rotation.x < -0.5, 'third-person belt reload opens the feed cover');
+    updateAvatarWeaponPose(a,{weapon:'rifle',blend:1});
+    must(a.weaponModel._model.body.userData.blenderAsset === 'kestrel', 'rifle slot restored');
+    let poses = 0;
+    for (const weapon of WEAPON_IDS) for (const pitch of [-1.3,0,1.3])
+      for (const ads of [false,true]) for (const proneT of [0,.5,1]) for (const crouching of [false,true]) {
+        updateAvatarWeaponPose(a,{weapon,pitch,ads,proneT,crouching,dt:1/60,blend:1});
+        updateAvatarStancePose(a,{blend:1}); a.group.updateMatrixWorld(true);
+        const anchor = a.weaponModel.handPose.grip;
+        const target = a.weaponModel.modelRoot.localToWorld(new T.Vector3(anchor.x,anchor.y,anchor.z));
+        must(a.rHand.getWorldPosition(new T.Vector3()).distanceTo(target)<1e-6, 'runtime grip '+weapon);
+        must(a.group.matrixWorld.elements.every(Number.isFinite), 'finite pose');
+        poses++;
+      }
+    setAvatarTeam(a,'alpha'); setAvatarTeam(b,'bravo');
+    must(a.suitMaterial.color.getHex()===0x38bdf8 && b.suitMaterial.color.getHex()===0xfb923c,'independent team colors');
+    setAvatarOpacity(a,.2); setAvatarFlash(a,.4);
+    a.torso.traverse(o => { if(o.isMesh) must(o.material.opacity===.2,'all imported material fades'); });
+    b.torso.traverse(o => { if(o.isMesh) must(o.material.opacity===1,'other player opacity intact'); });
+    const geometries = new Set(), maps = new Set();
+    b.group.traverse(o => { if(o.geometry?.userData.pageOwned) geometries.add(o.geometry);
+      for(const m of [].concat(o.material||[])) if(m.map?.userData.pageOwned) maps.add(m.map); });
+    let geometryDisposed=0, textureDisposed=0;
+    for(const g of geometries) g.addEventListener('dispose',()=>geometryDisposed++);
+    for(const t of maps) t.addEventListener('dispose',()=>textureDisposed++);
+    for(let i=0;i<4;i++) { applyAvatarCosmetics(a,{characterSkin:i%2?'standard':'salvager'}); }
+    disposeAvatar(a);
+    must(geometryDisposed===0 && textureDisposed===0,'disposing one avatar preserves shared geometry and maps');
+    const cache = new MaterialCache(), gun = buildGun('rifle',cache);
+    must(gun.body.userData.blenderAsset==='kestrel','first person KESTREL');
+    applyAttachmentModel(gun,'rifle',{optic:'reflex',grip:'vertical'});
+    must(!gun.body.getObjectByName('factory-optic').visible,'replacement optic hides authored sight');
+    applyAttachmentModel(gun,'rifle',{optic:'standard',grip:'standard'});
+    must(gun.body.getObjectByName('factory-optic').visible,'standard optic restored');
+    const mag = new T.Box3().setFromObject(gun.mag).getCenter(new T.Vector3());
+    gun.mag.position.y=-.5; gun.root.updateMatrixWorld(true);
+    must(Math.abs(new T.Box3().setFromObject(gun.mag).getCenter(new T.Vector3()).y-mag.y+.5)<1e-6,'authored magazine moves with reload group');
+    applyGunCosmetics(gun,'rifle',{weaponSkins:{rifle:'rifle-overdrive'}});
+    must(gun.root.userData.skin==='rifle-overdrive','weapon cosmetic attached');
+    const sniper = buildGun('sniper', cache);
+    must(sniper.body.userData.blenderAsset === 'peregrine', 'first person PEREGRINE');
+    must(sniper.body.userData.sightHeight === 0.205, 'sniper sight line at 0.205');
+    const rounds = sniper.extra.userData.cartridges;
+    must(rounds.length === 3, 'three stripper rounds');
+    must(rounds.every(r => r.parent === sniper.extra && r.visible === false), 'stripper rounds hidden under extra');
+    applyAttachmentModel(sniper,'sniper',{optic:'reflex',grip:'vertical'});
+    must(!sniper.body.getObjectByName('factory-optic').visible, 'replacement optic hides authored sight');
+    applyAttachmentModel(sniper,'sniper',{optic:'standard',grip:'standard'});
+    must(sniper.body.getObjectByName('factory-optic').visible,'standard sniper optic restored');
+    const lmg = buildGun('lmg', cache);
+    must(lmg.body.userData.blenderAsset === 'bison', 'first person BISON');
+    must(lmg.body.userData.sightHeight === 0.155, 'lmg sight line at 0.155');
+    const cover = lmg.extra.userData.reloadPart, lead = lmg.extra.userData.beltLead;
+    must(cover && cover.parent === lmg.extra && cover.children.length >= 8, 'feed cover leaves re-hung under extra');
+    must(Math.abs(cover.position.y - 0.145) < 1e-6 && Math.abs(cover.position.z + 0.206) < 1e-6, 'feed cover pivots on the authored hinge pin');
+    const coverTop = new T.Box3().setFromObject(cover).max.y;
+    must(coverTop <= 0.152 + 1e-4, 'closed feed cover stays under the 0.155 sight line');
+    must(lead && lead.parent === lmg.extra && lead.children.length === 2, 'belt lead (cases and links) under extra');
+    must(lead.visible && lead.position.equals(lead.userData.homePosition), 'belt lead rests at its tray home');
+    const leadBounds = new T.Box3().setFromObject(lead);
+    must(leadBounds.max.y <= coverTop && leadBounds.min.y >= 0.12, 'belt lead lies inside the feed tray');
+    const { WeaponActions } = await import('/js/guns/actions.js');
+    const belt = new WeaponActions();
+    belt.startReload(0, 4.2, 'magswap', lmg.T);
+    belt.update(0.45 * 4.2, 0, lmg, lmg.T);
+    must(cover.rotation.x < -1.1 && !lmg.mag.visible && !lead.visible, 'mid reload: cover open, box and spent lead gone');
+    belt.update(0.90 * 4.2, 0, lmg, lmg.T);
+    must(cover.rotation.x < -0.2 && lmg.mag.visible && lead.visible && lead.position.distanceTo(lead.userData.homePosition) < 1e-3, 'fresh lead laid before the cover slams');
+    belt.update(0.955 * 4.2, 0, lmg, lmg.T);
+    must(Math.abs(cover.rotation.x) < 0.07 && lmg.bolt.position.z > 0.05, 'cover shut, charging handle pulled');
+    belt.update(4.2, 0, lmg, lmg.T);
+    must(cover.rotation.x === 0 && lmg.bolt.position.z === 0 && lead.visible && lead.position.equals(lead.userData.homePosition), 'belt reload resets every part');
+    belt.dispose(lmg);
+    disposeGunModels([gun,sniper,lmg],cache);
+    const body=makeFirstPersonBody();
+    must(body.group.userData.blenderAsset==='rivet','matching local body'); disposeFirstPersonBody(body);
+    disposeAvatar(b);
+    return {poses, sharedGeometries:geometries.size, sharedTextures:maps.size};
+  })()`);
+  await page.send('Page.navigate', { url: `${base}/?debug=1&headless=1&weapon=rifle` });
+  await page.waitFor(`window.__vb && document.getElementById('create-lobby-btn')`, { timeoutMs: 20000 });
+  await page.evaluate(`(async () => {
+    const { AvatarRoster } = await import('/js/avatar/avatar-roster.js');
+    const { ViewmodelRig } = await import('/js/guns/viewmodel.js');
+    const sync=AvatarRoster.prototype.sync, setWeapon=ViewmodelRig.prototype.setWeapon;
+    AvatarRoster.prototype.sync=function(...args){window.__assetRoster=this;return sync.apply(this,args);};
+    ViewmodelRig.prototype.setWeapon=function(...args){window.__assetRig=this;return setWeapon.apply(this,args);};
+    document.getElementById('create-lobby-btn').click();
+  })()`);
+  await page.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false'`);
+  await page.evaluate(`(() => { const select=document.getElementById('game-mode-select');
+    select.value='training';select.dispatchEvent(new Event('change',{bubbles:true})); })()`);
+  await page.waitFor(`document.getElementById('map-select').value === 'killhouse'`);
+  await page.evaluate(`document.getElementById('lobby-ready-btn').click()`);
+  await page.waitFor(`document.getElementById('lobby-start-btn').disabled === false`);
+  await page.evaluate(`document.getElementById('lobby-start-btn').click()`);
+  await page.waitFor(`!!(__vb.stats.running && __vb.stats.avatars === 17 && window.__assetRig && window.__assetRoster)`,
+    { timeoutMs: 30000, label: 'training with imported models' });
+  checks.training = await page.evaluate(`({ targets:__assetRoster.size,
+    allRivet:[...__assetRoster._avatars.values()].every(a=>a.torso.userData.blenderAsset==='rivet'),
+    rifle:__assetRig._cur.body.userData.blenderAsset, textures:__vb.stats.textures,
+    drawCalls:__vb.stats.drawCalls, ownBodyVisible:__vb.stats.ownBodyVisible })`);
+  assert.equal(checks.training.allRivet, true);
+  assert.equal(checks.training.rifle, 'kestrel');
+  assert.equal(checks.training.ownBodyVisible, true);
+  const match = await page.send('Page.captureScreenshot', { format: 'png' });
+  await writeFile(path.join(out, 'training.png'), Buffer.from(match.data, 'base64'));
+  assert.equal(page.errors.length, 0, page.errors.join('\n'));
+  await writeFile(path.join(out, 'validation.json'), JSON.stringify(checks, null, 2)+'\n');
+  console.log('Blender integration:', checks);
+} catch (error) {
+  if (browser) console.error('Browser errors:', browser.page.errors);
+  throw error;
+} finally {
+  await browser?.close();
+  await stopServer(server);
+  await rm(directory, { recursive: true, force: true });
+}

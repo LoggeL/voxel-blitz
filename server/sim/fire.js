@@ -64,7 +64,7 @@ export class FlameSystem {
           ctx.pushEvent(evHit(packet.owner.id, victim.id, damage, false, point, victim.lastDamage));
           if (lethal) ctx.killPlayer(victim, packet.owner, def.id, false);
           else {
-            const remaining = Math.min(def.flame.duration,
+            const remaining = Math.min(def.flame.maxDuration ?? 8,
               Math.max(def.flame.minDuration, (victim.burn?.remaining || 0) + def.flame.buildupPerHit));
             victim.burn = { owner: packet.owner, remaining, elapsed: victim.burn?.elapsed || 0 };
             victim.burning = remaining;

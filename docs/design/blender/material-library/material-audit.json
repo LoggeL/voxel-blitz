@@ -1,0 +1,92 @@
+{
+  "weapons": [
+    {
+      "asset": "bison",
+      "materials": 8,
+      "paletteMaterials": 8,
+      "otherMaterials": []
+    },
+    {
+      "asset": "fang",
+      "materials": 7,
+      "paletteMaterials": 7,
+      "otherMaterials": []
+    },
+    {
+      "asset": "halo",
+      "materials": 8,
+      "paletteMaterials": 7,
+      "otherMaterials": [
+        "HALO | coil glow"
+      ]
+    },
+    {
+      "asset": "hydra",
+      "materials": 7,
+      "paletteMaterials": 7,
+      "otherMaterials": []
+    },
+    {
+      "asset": "ifrit",
+      "materials": 8,
+      "paletteMaterials": 7,
+      "otherMaterials": [
+        "IFRIT | pilot light"
+      ]
+    },
+    {
+      "asset": "kestrel",
+      "materials": 8,
+      "paletteMaterials": 5,
+      "otherMaterials": [
+        "Kestrel | ivory marking",
+        "Kestrel | cyan indicator",
+        "Kestrel | optic glass"
+      ]
+    },
+    {
+      "asset": "mastiff",
+      "materials": 7,
+      "paletteMaterials": 7,
+      "otherMaterials": []
+    },
+    {
+      "asset": "peregrine",
+      "materials": 6,
+      "paletteMaterials": 6,
+      "otherMaterials": []
+    },
+    {
+      "asset": "pike",
+      "materials": 7,
+      "paletteMaterials": 5,
+      "otherMaterials": [
+        "PIKE | arc glow",
+        "PIKE | dark marking"
+      ]
+    },
+    {
+      "asset": "talon",
+      "materials": 8,
+      "paletteMaterials": 8,
+      "otherMaterials": []
+    },
+    {
+      "asset": "torch",
+      "materials": 7,
+      "paletteMaterials": 6,
+      "otherMaterials": [
+        "TORCH | cavity black"
+      ]
+    },
+    {
+      "asset": "wasp",
+      "materials": 8,
+      "paletteMaterials": 7,
+      "otherMaterials": [
+        "WASP | optic glass"
+      ]
+    }
+  ],
+  "geometryBytesUnchanged": true
+}

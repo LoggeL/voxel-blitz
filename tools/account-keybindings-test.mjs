@@ -1,0 +1,45 @@
+import assert from 'node:assert/strict';
+import { AccountKeybindings } from '../public/js/account-keybindings.js';
+import { defaultKeybindings, readKeybindings, setKeybinding, resetKeybindings, useKeybindingAccount } from '../public/js/keybindings.js';
+const storage = new Map();
+globalThis.localStorage = { getItem: key => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value) };
+const pending = [];
+const sync = new AccountKeybindings({ retryMs: 5, request: (url, options) => new Promise(resolve => pending.push({ options, resolve })) });
+const reply = async (index, userId, keybindings) => {
+  pending[index].resolve({ ok: true, json: async () => ({ userId, keybindings }) });
+  await new Promise(resolve => setImmediate(resolve));
+};
+try {
+  setKeybinding('forward', 'KeyI');
+  const login = sync.setAccount('a');
+  await reply(0, 'a', null);
+  assert.deepEqual(JSON.parse(pending[1].options.body).keybindings.forward, ['KeyI'], 'first login adopts guest settings');
+  await reply(1, 'a', readKeybindings()); await login;
+  setKeybinding('forward', 'KeyO');
+  setKeybinding('forward', 'KeyP');
+  assert.equal(pending.length, 3, 'only one write in flight');
+  await reply(2, 'a', {});
+  assert.deepEqual(JSON.parse(pending[3].options.body).keybindings.forward, ['KeyP'], 'latest edit follows older write');
+  await reply(3, 'a', {});
+  const switchAccount = sync.setAccount('b');
+  await sync.setAccount(null);
+  await reply(4, 'b', { ...defaultKeybindings(), forward: ['KeyO'] }); await switchAccount;
+  assert.deepEqual(readKeybindings().forward, ['KeyI'], 'stale login cannot overwrite restored guest bindings');
+  const load = sync.setAccount('a');
+  await reply(5, 'a', { ...defaultKeybindings(), forward: ['KeyO'] }); await load;
+  assert.deepEqual(readKeybindings().forward, ['KeyO'], 'server settings override local account cache');
+  resetKeybindings();
+  assert.deepEqual(JSON.parse(pending[6].options.body).keybindings, defaultKeybindings(), 'reset is saved to account');
+  await reply(6, 'a', defaultKeybindings());
+  const loading = sync.setAccount('c');
+  setKeybinding('forward', 'KeyP');
+  await reply(7, 'c', defaultKeybindings());
+  assert.deepEqual(JSON.parse(pending[8].options.body).keybindings.forward, ['KeyP'], 'edit while loading wins');
+  await reply(8, 'c', {}); await loading;
+  setKeybinding('forward', 'KeyO');
+  pending[9].resolve({ ok: false });
+  await new Promise(resolve => setTimeout(resolve, 25));
+  assert.deepEqual(JSON.parse(pending[10].options.body).keybindings.forward, ['KeyO'], 'failed save retries the latest settings');
+  await reply(10, 'c', {});
+  console.log('Account keybindings: adoption, serial saves, account isolation, stale responses, server restore, reset and edits during load passed.');
+} finally { sync.dispose(); useKeybindingAccount(null); delete globalThis.localStorage; }

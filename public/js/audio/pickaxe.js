@@ -1,6 +1,7 @@
 import {
   GRASS, DIRT, SAND, WOOD, LEAVES, PLANK, DUST_CRATE, DUST_WOOD,
   METAL, ACCENT, RUST, BUS_YELLOW, TRUCK_RED, GLASS,
+  SUB_STEEL, SUB_ENAMEL, SUB_HAZARD, SUB_CLADDING,
 } from '../../../shared/world/blocks.js';
 
 export const PICKAXE_SWING_SLOTS = Object.freeze(['weapons.knife.fire', 'weapons.knife.fire.2']);
@@ -14,7 +15,7 @@ export function pickaxeSampleChoice(index, impact = false) {
 
 export function pickaxeMaterial(type) {
   if ([GRASS, DIRT, SAND, WOOD, LEAVES, PLANK, DUST_CRATE, DUST_WOOD].includes(type)) return 'soft';
-  if ([METAL, ACCENT, RUST, BUS_YELLOW, TRUCK_RED].includes(type)) return 'metal';
+  if ([METAL, ACCENT, RUST, BUS_YELLOW, TRUCK_RED, SUB_STEEL, SUB_ENAMEL, SUB_HAZARD, SUB_CLADDING].includes(type)) return 'metal';
   return type === GLASS ? 'glass' : 'stone';
 }
 

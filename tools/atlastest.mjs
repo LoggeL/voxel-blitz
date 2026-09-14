@@ -206,7 +206,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 // ---------------------------------------------- mode + map foundation contract
 {
   ok(sameValue(MODE_IDS, ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'substation'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -323,6 +323,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     nuketown: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
     dust2: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
     killhouse: ['training'],
+    substation: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame', 'training'],
   };
   ok(sameValue(MAP_MODE_COMPATIBILITY, expectedCompatibility)
     && deeplyFrozen(MAP_MODE_COMPATIBILITY)
@@ -358,6 +359,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     nuketown: 'Nuketown',
     dust2: 'Dust 2',
     killhouse: 'Killhouse',
+    substation: 'Substation',
   };
   const expectedMapHashes = {
     harbor: 'eeb64538', canyon: 'b8e254a7',
@@ -370,6 +372,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     nuketown: 'eac51fd4',
     dust2: '7efc9f29',
     killhouse: '395d8d45',
+    substation: '7ba7ca3c',
   };
   const expectedSpawnCounts = {
     harbor: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
@@ -383,6 +386,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     nuketown: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     dust2: { fun: 10, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     killhouse: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 0, sndDefenders: 0 },
+    substation: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 0, sndDefenders: 0 },
   };
   const pristineBytes = new Map();
 

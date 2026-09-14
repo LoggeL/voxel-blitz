@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "asset": "fang",
+  "materials": [
+    {
+      "material": "FANG | sight orange",
+      "texture": "orange-paint"
+    },
+    {
+      "material": "FANG | ivory coating",
+      "texture": "ivory-ceramic"
+    },
+    {
+      "material": "FANG | blued steel",
+      "texture": "blued-steel"
+    },
+    {
+      "material": "FANG | rubber",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "FANG | black oxide",
+      "texture": "blued-steel"
+    },
+    {
+      "material": "FANG | brass",
+      "texture": "aged-brass"
+    },
+    {
+      "material": "FANG | satin steel",
+      "texture": "machined-steel"
+    }
+  ]
+}

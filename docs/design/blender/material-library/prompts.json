@@ -1,0 +1,134 @@
+{
+  "generator": "built-in ImageGen",
+  "userRequest": "erstelle eine große Texturpalette und Rüste die anderen waffen nach wenn sie noch welche benötigen",
+  "materials": [
+    {
+      "key": "phosphated-steel",
+      "desc": "dark neutral charcoal phosphated gunmetal steel, fine machined grain, scattered short silver scuffs and tiny scratches, rubbed high spots, varied mottled dark gray, no rust",
+      "metal": 0.35,
+      "rough": 0.53,
+      "bump": 0.0003,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: dark neutral charcoal phosphated gunmetal steel, fine machined grain, scattered short silver scuffs and tiny scratches, rubbed high spots, varied mottled dark gray, no rust. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "machined-steel",
+      "desc": "cool silver satin machined steel, directional very fine brushing with fine cross scratches and a few softened tool traces, neutral silver gray, no rust",
+      "metal": 0.55,
+      "rough": 0.36,
+      "bump": 0.00018,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: cool silver satin machined steel, directional very fine brushing with fine cross scratches and a few softened tool traces, neutral silver gray, no rust. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "blued-steel",
+      "desc": "deep charcoal blue black oxidized steel, subtle blue oxide variation with rubbed gunmetal flecks, fine linear machining and occasional steel scratches, dark but clearly readable",
+      "metal": 0.4,
+      "rough": 0.46,
+      "bump": 0.00025,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: deep charcoal blue black oxidized steel, subtle blue oxide variation with rubbed gunmetal flecks, fine linear machining and occasional steel scratches, dark but clearly readable. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "petrol-paint",
+      "desc": "muted petrol teal painted metal, satin powder coating with visible granular orange-peel surface, scattered small irregular chips exposing charcoal metal and pale thin scuffs, retain 88 percent teal paint",
+      "metal": 0.16,
+      "rough": 0.58,
+      "bump": 0.00045,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: muted petrol teal painted metal, satin powder coating with visible granular orange-peel surface, scattered small irregular chips exposing charcoal metal and pale thin scuffs, retain 88 percent teal paint. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "ivory-ceramic",
+      "desc": "warm ivory cream ceramic-coated armor metal, lightly porous eggshell finish, small gray scuffs, tiny dark chips, faint grime freckles, clearly cream rather than pure white",
+      "metal": 0.08,
+      "rough": 0.62,
+      "bump": 0.0003,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: warm ivory cream ceramic-coated armor metal, lightly porous eggshell finish, small gray scuffs, tiny dark chips, faint grime freckles, clearly cream rather than pure white. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "orange-paint",
+      "desc": "safety orange industrial enamel painted metal, visible granular finish, irregular small dark gray chips and light scratches, mostly saturated warm orange, limited weathering",
+      "metal": 0.14,
+      "rough": 0.5,
+      "bump": 0.0004,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: safety orange industrial enamel painted metal, visible granular finish, irregular small dark gray chips and light scratches, mostly saturated warm orange, limited weathering. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "pebbled-rubber",
+      "desc": "black charcoal molded rubber grip material with dense small irregular pebbled grain, softened worn pebble tops and shallow tiny creases, matte dark gray with visible texture detail, no large cracks",
+      "metal": 0,
+      "rough": 0.84,
+      "bump": 0.0008,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: black charcoal molded rubber grip material with dense small irregular pebbled grain, softened worn pebble tops and shallow tiny creases, matte dark gray with visible texture detail, no large cracks. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "molded-polymer",
+      "desc": "dark graphite injection-molded hard polymer, fine stippled matte grain with short pale friction scuffs, subdued directional rubbing, no textile weave, no carbon weave, readable charcoal gray",
+      "metal": 0.02,
+      "rough": 0.7,
+      "bump": 0.00055,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: dark graphite injection-molded hard polymer, fine stippled matte grain with short pale friction scuffs, subdued directional rubbing, no textile weave, no carbon weave, readable charcoal gray. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "aged-brass",
+      "desc": "muted warm golden brass metal with fine machining scratches, small brown tarnish freckles and brighter rubbed patches, believable yellow brass rather than orange paint, no green corrosion",
+      "metal": 0.58,
+      "rough": 0.42,
+      "bump": 0.0002,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: muted warm golden brass metal with fine machining scratches, small brown tarnish freckles and brighter rubbed patches, believable yellow brass rather than orange paint, no green corrosion. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "aged-copper",
+      "desc": "warm reddish copper metal with subtle brown oxidation, fine brushing, short scratches and bright rubbed copper flecks, no heavy green patina, clearly copper rather than paint",
+      "metal": 0.58,
+      "rough": 0.43,
+      "bump": 0.0002,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: warm reddish copper metal with subtle brown oxidation, fine brushing, short scratches and bright rubbed copper flecks, no heavy green patina, clearly copper rather than paint. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "olive-paint",
+      "desc": "olive drab military green painted metal, fine grain paint finish, small scattered charcoal chips and short dusty scuffs, muted green olive surface with visible surface wear",
+      "metal": 0.14,
+      "rough": 0.61,
+      "bump": 0.0004,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: olive drab military green painted metal, fine grain paint finish, small scattered charcoal chips and short dusty scuffs, muted green olive surface with visible surface wear. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "red-enamel",
+      "desc": "deep muted red industrial enamel paint over metal, finely pebbled coating, short worn silver-gray scratches and small charcoal chips, keep mostly deep red",
+      "metal": 0.12,
+      "rough": 0.54,
+      "bump": 0.0004,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: deep muted red industrial enamel paint over metal, finely pebbled coating, short worn silver-gray scratches and small charcoal chips, keep mostly deep red. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "tan-webbing",
+      "desc": "tan khaki canvas nylon webbing textile macro surface, tightly woven warp and weft fibers with convincing individual thread detail, subtle worn lighter fiber fuzz and fine dusty discoloration, no seams",
+      "metal": 0,
+      "rough": 0.9,
+      "bump": 0.00065,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: tan khaki canvas nylon webbing textile macro surface, tightly woven warp and weft fibers with convincing individual thread detail, subtle worn lighter fiber fuzz and fine dusty discoloration, no seams. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "heat-wrap",
+      "desc": "charcoal dark gray woven heat-resistant fiber wrap, dense diagonal woven braid texture with visible threads, small ash-gray fiber fuzz and slightly worn patches, no flames no scorch gradients",
+      "metal": 0,
+      "rough": 0.88,
+      "bump": 0.0008,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: charcoal dark gray woven heat-resistant fiber wrap, dense diagonal woven braid texture with visible threads, small ash-gray fiber fuzz and slightly worn patches, no flames no scorch gradients. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "petrol-fabric",
+      "desc": "muted dark petrol teal ballistic nylon woven fabric, fine regular dense basket weave with visible threads, mild fuzz and dusty tiny imperfections, clearly textile not paint, no seams",
+      "metal": 0,
+      "rough": 0.87,
+      "bump": 0.00065,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: muted dark petrol teal ballistic nylon woven fabric, fine regular dense basket weave with visible threads, mild fuzz and dusty tiny imperfections, clearly textile not paint, no seams. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    },
+    {
+      "key": "carbon-fiber",
+      "desc": "dark charcoal carbon fiber composite, small-scale diagonal two-by-two twill weave, subtly different gray bundles, restrained resin finish and short fine scratches, no broad reflections",
+      "metal": 0.12,
+      "rough": 0.44,
+      "bump": 0.00025,
+      "prompt": "Use case: stylized-concept. Asset type: seamless physically based game material BASE COLOR texture for a Voxel Blitz weapon prop. Generate ONE square 2048 by 2048 texture covering the entire image edge to edge. Subject: dark charcoal carbon fiber composite, small-scale diagonal two-by-two twill weave, subtly different gray bundles, restrained resin finish and short fine scratches, no broad reflections. The surface must show convincing tactile detail and believable wear, visible at game distance without excessive noisy destruction. Orthographic flat scan, completely uniform diffuse lighting, no baked highlights, no directional shadows, no vignette, no perspective, no objects, no spheres, no frames, no labels, no letters, no logos, no gradients. Seamlessly tileable on all four edges, uniform feature distribution. This is a usable material map, not a presentation board."
+    }
+  ]
+}

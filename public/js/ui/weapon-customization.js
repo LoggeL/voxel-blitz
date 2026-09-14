@@ -1,5 +1,5 @@
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
-import { OPTICS, GRIPS, ATTACHMENT_SLOTS, normalizeAttachments, normalizeWeaponLoadout, weaponWithAttachments } from '../../../shared/weapon-attachments.js';
+import { OPTICS, GRIPS, COUNTERS, ATTACHMENT_SLOTS, normalizeAttachments, normalizeWeaponLoadout, weaponWithAttachments } from '../../../shared/weapon-attachments.js';
 import { weaponTurnProfile } from '../../../shared/weapon-handling.js';
 import { WeaponPreview } from './weapon-preview.js';
 import { normalizeCosmeticLoadout } from '../../../shared/career.js';
@@ -11,11 +11,11 @@ const button = (parent,text,fn,className='vb-btn') => {
   const n = el('button',parent,text,className); n.type = 'button'; n.addEventListener('click',fn); return n;
 };
 const number = (v,d=2) => Number(v.toFixed(d)).toString();
-const equal = (a,b) => a.optic === b.optic && a.grip === b.grip;
+const equal = (a,b) => a.optic === b.optic && a.grip === b.grip && a.counter === b.counter;
 
 export class WeaponCustomization {
   constructor({accounts} = {}) {
-    this.accounts = accounts; this.weapon = 'rifle'; this.saved = {}; this.drafts = {}; this.version = 0;
+    this.accounts = accounts; this.weapon = 'rifle'; this.saved = {}; this.drafts = {}; this.version = 0; this.mastery = {};
     this.dialog = el('dialog',document.body,'','vb-workshop'); this.dialog.id = 'weapon-customization';
     this.dialog.setAttribute('aria-labelledby','workshop-title');
     const header = el('header',this.dialog,'','vb-workshop-header');
@@ -80,6 +80,7 @@ export class WeaponCustomization {
       if (!response.ok) throw new Error(profile.error || 'Could not load your setups.');
       this.cosmetics=normalizeCosmeticLoadout(profile.equipped);
       this.saved=normalizeWeaponLoadout(profile.equipped?.weaponAttachments); this.drafts={}; this.ready=true;
+      this.mastery = profile.mastery && typeof profile.mastery === 'object' ? profile.mastery : {};
       this.render();
     } catch(error) { if(version===this.version)this.render(error.message); }
     finally { if(version===this.version){this.busy=false;this.controls();} }
@@ -95,9 +96,9 @@ export class WeaponCustomization {
     const base=WEAPONS[this.weapon], selection=this.selection(), def=weaponWithAttachments(base,selection), h=def.handling;
     this.name.textContent=base.name;
     this.identity.textContent=this.accounts?.user ? `SETUPS FOR ${this.accounts.user.username}` : 'GUEST SETUPS · SAVED IN THIS BROWSER';
-    this.summary.textContent=`${this.weapon.toUpperCase()} / ${OPTICS[selection.optic].name} / ${GRIPS[selection.grip].name}`;
+    this.summary.textContent=`${this.weapon.toUpperCase()} / ${OPTICS[selection.optic].name} / ${GRIPS[selection.grip].name} / ${COUNTERS[selection.counter].name}`;
     for(const n of this.weapons.children) n.setAttribute('aria-pressed',String(n.dataset.weapon===this.weapon));
-    this.preview?.show(this.weapon,selection,this.cosmetics);
+    this.preview?.show(this.weapon,selection,this.cosmetics,this.mastery);
     this.stats.replaceChildren(); el('h3',this.stats,'WEAPON HANDLING');
     const metrics=[['ERGONOMICS',h.ergonomics,base.handling.ergonomics,'',100,true,'Higher values let you turn faster.'],
       ['SWAY',h.sway.amplitudeDeg,base.handling.sway.amplitudeDeg,'°',1.5,false,`${number(h.sway.frequencyHz)} Hz · slower motion at lower rates.`],
@@ -113,7 +114,7 @@ export class WeaponCustomization {
     }
     el('p',this.stats,`Turn ceiling: ${Math.round(weaponTurnProfile(h).maxSpeed*180/Math.PI)}°/s. Zoom: ${number(def.zoom || 1)}×.`,'vb-workshop-turn');
     this.slots.replaceChildren();
-    for(const [slot,label,catalog,ids] of [['optic','OPTIC',OPTICS,ATTACHMENT_SLOTS[this.weapon].optics],['grip','GRIP',GRIPS,ATTACHMENT_SLOTS[this.weapon].grips]]) {
+    for(const [slot,label,catalog,ids] of [['optic','OPTIC',OPTICS,ATTACHMENT_SLOTS[this.weapon].optics],['grip','GRIP',GRIPS,ATTACHMENT_SLOTS[this.weapon].grips],['counter','KILL COUNTER',COUNTERS,ATTACHMENT_SLOTS[this.weapon].counter]]) {
       const section=el('section',this.slots); el('h3',section,label);
       const options=el('div',section,'','vb-workshop-options');
       for(const id of ids) {
@@ -122,7 +123,11 @@ export class WeaponCustomization {
         },'vb-workshop-option'); b.dataset[slot]=id;b.setAttribute('aria-pressed',String(selection[slot]===id));
         el('strong',b,item.name); el('small',b,item.detail);
       }
-      if(ids.length===1)el('p',section,'This weapon uses its fixed factory mount.','vb-workshop-fixed');
+      if(slot==='counter') {
+        const record=this.mastery?.[this.weapon] || {};
+        el('p',section,`${record.kills || 0} HUMAN KILLS · ${record.headshots || 0} HEADSHOT KILLS ETCHED ON THIS WEAPON.`,'vb-workshop-fixed');
+      }
+      else if(ids.length===1)el('p',section,'This weapon uses its fixed factory mount.','vb-workshop-fixed');
     }
     const dirty=!equal(selection,normalizeAttachments(this.weapon,this.saved[this.weapon]));
     this.status.textContent=message || (dirty?'Unsaved setup.':'Saved setup equipped.'); this.controls();

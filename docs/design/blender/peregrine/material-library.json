@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "asset": "peregrine",
+  "materials": [
+    {
+      "material": "PEREGRINE | orange paint.002",
+      "texture": "orange-paint"
+    },
+    {
+      "material": "PEREGRINE | petrol coating.002",
+      "texture": "petrol-paint"
+    },
+    {
+      "material": "PEREGRINE | gunmetal.002",
+      "texture": "phosphated-steel"
+    },
+    {
+      "material": "PEREGRINE | rubber.002",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "PEREGRINE | ivory coating.002",
+      "texture": "ivory-ceramic"
+    },
+    {
+      "material": "PEREGRINE | machined metal.002",
+      "texture": "machined-steel"
+    }
+  ]
+}

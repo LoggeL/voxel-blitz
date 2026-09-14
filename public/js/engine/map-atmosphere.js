@@ -18,6 +18,7 @@ const PALETTES = {
   nuketown: { skyTop: '#3987c9', skyHorizon: '#bee6fa', groundLight: '#73805f', density: 0.003 },
   dust2: { skybox: '/assets/skyboxes/desert-daylight.png', skyTop: '#438fc9', skyHorizon: '#d5e6ec', groundLight: '#9a8668', sun: '#fff3df', density: 0.0028 },
   killhouse: { skyTop: '#4e8dc5', skyHorizon: '#c9e5f5', groundLight: '#78838a', ambient: 0.82 },
+  substation: { skyTop: '#4a7fb2', skyHorizon: '#c6d8e4', fog: '#b9c9d3', groundLight: '#7a7f7c', ambient: 0.84, sunlight: 1.3, density: 0.0032 },
 };
 export function mapAtmosphere(mapId) {
   return { ...DEFAULT, ...PALETTES[mapId] };

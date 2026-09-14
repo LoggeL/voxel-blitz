@@ -1,6 +1,7 @@
 import * as THREE from '../../vendor/three.module.js';
 import { COL } from '../kit.js';
 import { BOLT_HOME, BREACH_Z, TRIGGER_Z } from './common.js';
+import { buildWasp } from './wasp.js';
 
 /**
  * Collapse decorative voxel boxes by group and material. The SMG deliberately carries more
@@ -66,6 +67,7 @@ function makeBoxBatcher(kit) {
 }
 
 export function build({ kit, T, groups }) {
+  if (buildWasp({ groups })) return;
   const { box, flush: flushBoxes } = makeBoxBatcher(kit);
   const { cylZ, brakeRings, ironSights } = kit;
   const { body, mag, bolt, trigger } = groups;

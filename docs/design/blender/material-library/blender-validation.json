@@ -1,0 +1,50 @@
+[
+  {
+    "asset": "bison",
+    "packedTexturedMaterials": 8
+  },
+  {
+    "asset": "fang",
+    "packedTexturedMaterials": 7
+  },
+  {
+    "asset": "halo",
+    "packedTexturedMaterials": 7
+  },
+  {
+    "asset": "hydra",
+    "packedTexturedMaterials": 7
+  },
+  {
+    "asset": "ifrit",
+    "packedTexturedMaterials": 7
+  },
+  {
+    "asset": "kestrel",
+    "packedTexturedMaterials": 5
+  },
+  {
+    "asset": "mastiff",
+    "packedTexturedMaterials": 7
+  },
+  {
+    "asset": "peregrine",
+    "packedTexturedMaterials": 6
+  },
+  {
+    "asset": "pike",
+    "packedTexturedMaterials": 5
+  },
+  {
+    "asset": "talon",
+    "packedTexturedMaterials": 8
+  },
+  {
+    "asset": "torch",
+    "packedTexturedMaterials": 6
+  },
+  {
+    "asset": "wasp",
+    "packedTexturedMaterials": 7
+  }
+]

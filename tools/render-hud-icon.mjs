@@ -1,7 +1,9 @@
-// Render the transparent side-profile HUD silhouette for one or more procedural guns into
+// Render the transparent side-profile HUD silhouette for one or more guns into
 // public/assets/weapons/hud/<weapon>.png without a browser: the real gun model is built
 // headlessly (the same assemble.js the viewmodel uses), then flat-shaded and z-buffered by
 // a tiny orthographic software rasterizer and written as an RGBA PNG.
+// The Blender-imported weapons use the browser renderer to preserve their
+// generated maps.
 //
 //   node tools/render-hud-icon.mjs --weapon rocket
 //   node tools/render-hud-icon.mjs --all [--out-dir DIR] [--width 480] [--height 240]
@@ -13,9 +15,16 @@ import * as THREE from '../public/js/vendor/three.module.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { buildGun } from '../public/js/guns/assemble.js';
 import { GLOW_ACCENT, MaterialCache } from '../public/js/guns/kit.js';
+import { renderBlenderHud } from './blender/render-hud.mjs';
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUT_DIR = path.join(PROJECT_ROOT, 'public', 'assets', 'weapons', 'hud');
+/** Slots supplied by a Blender asset: weapon id -> asset id. Every other weapon uses the rasterizer. */
+const BLENDER_HUD_ASSETS = Object.freeze({
+  rifle: 'kestrel', smg: 'wasp', shotgun: 'mastiff', sniper: 'peregrine',
+  lmg: 'bison', revolver: 'fang', rocket: 'torch', longarc: 'halo',
+  lance: 'pike', flamethrower: 'ifrit', minigun: 'hydra', knife: 'talon',
+});
 const SUPERSAMPLE = 3;
 const MARGIN = 1.06;
 /** Key light from the viewer's upper left, matching the existing illustrations. */
@@ -237,7 +246,10 @@ async function main() {
   const weapons = options.all ? WEAPON_IDS.slice() : [options.weapon];
   await mkdir(options.outDir, { recursive: true });
   for (const weapon of weapons) {
-    const { png, triangles } = renderHudIcon(weapon, options);
+    const asset = BLENDER_HUD_ASSETS[weapon];
+    const { png, triangles } = asset
+      ? await renderBlenderHud({ asset, weapon, width: options.width, height: options.height })
+      : renderHudIcon(weapon, options);
     const output = path.join(options.outDir, `${weapon}.png`);
     await writeFile(output, png);
     console.log(`hud icon: ${weapon} -> ${path.relative(PROJECT_ROOT, output)} (${triangles} triangles, ${png.length} bytes)`);

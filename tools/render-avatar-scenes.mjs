@@ -4,7 +4,7 @@ import {
   AVATAR_CAPTURE_SHOTS,
   AVATAR_CAPTURE_VIEWS,
 } from '../shared/avatar-capture-shots.js';
-import { captureBrowserPage } from './lib/browser-capture.mjs';
+import { captureReadyBrowserPage as captureBrowserPage } from './lib/browser-capture.mjs';
 import { parseCaptureArgs, runCaptureFlow } from './lib/capture-flow.mjs';
 import { writeCaptureReport } from './lib/capture-report.mjs';
 

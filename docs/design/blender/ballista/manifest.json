@@ -1,0 +1,161 @@
+{
+  "asset": "BALLISTA",
+  "asset_id": "ballista",
+  "kind": "original high-spine siege rifle prop (visual game asset)",
+  "blender": "5.2.1 LTS",
+  "authoring_script": "tools/blender/ballista/build-ballista.py",
+  "source_parts": 156,
+  "animation_group_nodes": [
+    "body",
+    "mag",
+    "bolt",
+    "trigger",
+    "factory-optic",
+    "extra"
+  ],
+  "marker_nodes": [
+    "grip",
+    "muzzle",
+    "sight",
+    "support"
+  ],
+  "batch_nodes": 16,
+  "round_nodes": [
+    "Round 1",
+    "Round 2",
+    "Round 3"
+  ],
+  "triangles": 18236,
+  "triangles_per_primitive": {
+    "body | gunmetal": 5448,
+    "body | ivory coating": 896,
+    "body | olive drab": 2188,
+    "body | orange paint": 108,
+    "body | rubber": 1308,
+    "body | tan webbing": 216,
+    "bolt | gunmetal": 1332,
+    "factory-optic | gunmetal": 4824,
+    "factory-optic | optic glass": 120,
+    "factory-optic | orange paint": 96,
+    "mag | gunmetal": 156,
+    "mag | olive drab": 120,
+    "mag | orange paint": 216,
+    "mag | rubber": 108,
+    "trigger | gunmetal": 332,
+    "trigger | orange paint": 108,
+    "extra | Round 1": 220,
+    "extra | Round 2": 220,
+    "extra | Round 3": 220
+  },
+  "materials": [
+    "gunmetal",
+    "olive drab",
+    "orange paint",
+    "ivory coating",
+    "petrol fabric",
+    "tan webbing",
+    "rubber",
+    "optic glass"
+  ],
+  "material_textures": {
+    "gunmetal": "worn-gunmetal.jpg",
+    "olive drab": "worn-gunmetal.jpg",
+    "orange paint": "orange-painted-metal.jpg",
+    "ivory coating": "ivory-armor.jpg",
+    "petrol fabric": "petrol-ballistic-fabric.jpg",
+    "tan webbing": "tan-webbing.jpg",
+    "rubber": "worn-rubber.jpg"
+  },
+  "imagegen_textures": [
+    "worn-gunmetal.jpg",
+    "worn-gunmetal.jpg",
+    "orange-painted-metal.jpg",
+    "ivory-armor.jpg",
+    "petrol-ballistic-fabric.jpg",
+    "tan-webbing.jpg",
+    "worn-rubber.jpg"
+  ],
+  "texture_source": "public/assets/blender/textures (the delivered 1024px JPEGs, reused byte-identical; originals untouched)",
+  "uv_density_tiles_per_metre": 3.6,
+  "axes": {
+    "authoring": "+Y forward, +Z up, +X right",
+    "after_gltf": "-Z forward, +Y up, +X right",
+    "map": "game_x = x, game_y = z, game_z = -y"
+  },
+  "anchors_game_space": {
+    "muzzle": [
+      0.0,
+      0.055,
+      -0.76
+    ],
+    "grip": [
+      0.045,
+      0.02,
+      -0.13
+    ],
+    "support": [
+      -0.055,
+      -0.01,
+      -0.48
+    ],
+    "sight": [
+      0.0,
+      0.205,
+      -0.25
+    ]
+  },
+  "contract_points": {
+    "breech_y": 0.26,
+    "bore_axis": [
+      0.0,
+      0.055
+    ],
+    "exposed_bore_radius": 0.021,
+    "exposed_bore": [
+      0.54,
+      0.76
+    ],
+    "heat_band": [
+      -0.72,
+      -0.56
+    ],
+    "sight_height": 0.205,
+    "lens_planes": [
+      0.035,
+      -0.475
+    ]
+  },
+  "files": {
+    "blend": "docs/design/blender/ballista/ballista.blend",
+    "glb": "docs/design/blender/ballista/ballista.glb",
+    "renders": [
+      "render-hero.png",
+      "render-side.png",
+      "render-ads.png",
+      "render-rear.png"
+    ],
+    "validation": "docs/design/blender/ballista/validation.json"
+  },
+  "build_time_checks": {
+    "anchor_contract": "muzzle plane, bore axis and exposed 0.0210 radius across the whole heat band, all four markers, the 0.205 sight line, the trigger blade and the bolt handle home position are asserted against the runtime contract every build",
+    "heat_band_clearance": "no vertex other than the bore may enter the heat band",
+    "coplanar_face_audit": "rejects flush faces between parts, which z-fight once same-material parts merge into one draw call",
+    "part_contact": "every authored part must cross, nearly touch or sit inside another part; a group that only meets the model through empty space is reported as floating and fails the build"
+  },
+  "geometry_audit": {
+    "coplanar_faces": [],
+    "floating_parts": []
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; no mobile GPU profiling.",
+    "Hand fit is unverified: the grip and support palms sit on the contract points and the geometry is built around them, but no third-person pose test was run."
+  ],
+  "notes": [
+    "Fresh design: no geometry reused from the older PEREGRINE study.",
+    "Tapered muzzle with milled brake ports instead of flutes; the heat band stays bare metal.",
+    "Markings are modelled geometry, not a texture decal.",
+    "The stripper rounds are hidden by the reload choreography; their authored placement is the contract default only.",
+    "Optic glass is alpha-blended and flagged for depthWrite off."
+  ]
+}

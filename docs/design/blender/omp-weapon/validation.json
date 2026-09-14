@@ -1,0 +1,1318 @@
+{
+  "source": {
+    "path": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/omp-weapon/weapon.glb",
+    "byte_size": 2640232,
+    "generator": "Khronos glTF Blender I/O v5.2.40",
+    "version": "2.0"
+  },
+  "source_declarations": {
+    "declared_top_level_nodes": [
+      "body",
+      "bolt",
+      "factory-optic",
+      "grip",
+      "mag",
+      "muzzle",
+      "sight",
+      "support",
+      "trigger"
+    ],
+    "declared_node_count": 26,
+    "declared_duplicate_top_level_names": []
+  },
+  "source_geometry": [
+    {
+      "mesh_index": 0,
+      "name": "body | gunmetal merged",
+      "node_names": [
+        "body | gunmetal"
+      ],
+      "primitives": 1,
+      "declared_triangles": 6736,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 1,
+      "name": "body | indicator merged",
+      "node_names": [
+        "body | indicator"
+      ],
+      "primitives": 1,
+      "declared_triangles": 108,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 2,
+      "name": "body | ivory coating merged",
+      "node_names": [
+        "body | ivory coating"
+      ],
+      "primitives": 1,
+      "declared_triangles": 1288,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 3,
+      "name": "body | orange paint merged",
+      "node_names": [
+        "body | orange paint"
+      ],
+      "primitives": 1,
+      "declared_triangles": 600,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 4,
+      "name": "body | petrol fabric merged",
+      "node_names": [
+        "body | petrol fabric"
+      ],
+      "primitives": 1,
+      "declared_triangles": 652,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 5,
+      "name": "body | rubber merged",
+      "node_names": [
+        "body | rubber"
+      ],
+      "primitives": 1,
+      "declared_triangles": 1164,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 6,
+      "name": "body | tan webbing merged",
+      "node_names": [
+        "body | tan webbing"
+      ],
+      "primitives": 1,
+      "declared_triangles": 108,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 7,
+      "name": "bolt | gunmetal merged",
+      "node_names": [
+        "bolt | gunmetal"
+      ],
+      "primitives": 1,
+      "declared_triangles": 436,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 8,
+      "name": "factory-optic | gunmetal merged",
+      "node_names": [
+        "factory-optic | gunmetal"
+      ],
+      "primitives": 1,
+      "declared_triangles": 484,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 9,
+      "name": "factory-optic | indicator merged",
+      "node_names": [
+        "factory-optic | indicator"
+      ],
+      "primitives": 1,
+      "declared_triangles": 108,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 10,
+      "name": "factory-optic | ivory coating merged",
+      "node_names": [
+        "factory-optic | ivory coating"
+      ],
+      "primitives": 1,
+      "declared_triangles": 108,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 11,
+      "name": "factory-optic | optic glass merged",
+      "node_names": [
+        "factory-optic | optic glass"
+      ],
+      "primitives": 1,
+      "declared_triangles": 44,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 12,
+      "name": "mag | gunmetal merged",
+      "node_names": [
+        "mag | gunmetal"
+      ],
+      "primitives": 1,
+      "declared_triangles": 456,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 13,
+      "name": "mag | orange paint merged",
+      "node_names": [
+        "mag | orange paint"
+      ],
+      "primitives": 1,
+      "declared_triangles": 216,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 14,
+      "name": "mag | rubber merged",
+      "node_names": [
+        "mag | rubber"
+      ],
+      "primitives": 1,
+      "declared_triangles": 108,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 15,
+      "name": "trigger | gunmetal merged",
+      "node_names": [
+        "trigger | gunmetal"
+      ],
+      "primitives": 1,
+      "declared_triangles": 108,
+      "non_finite_position_components": 0
+    },
+    {
+      "mesh_index": 16,
+      "name": "trigger | orange paint merged",
+      "node_names": [
+        "trigger | orange paint"
+      ],
+      "primitives": 1,
+      "declared_triangles": 108,
+      "non_finite_position_components": 0
+    }
+  ],
+  "nodes": [
+    {
+      "name": "body",
+      "base_name": "body",
+      "type": "EMPTY",
+      "mesh_count": 7,
+      "triangles": 10656,
+      "materials": [
+        "SHRIKE | gunmetal",
+        "SHRIKE | indicator",
+        "SHRIKE | ivory coating",
+        "SHRIKE | orange paint",
+        "SHRIKE | petrol fabric",
+        "SHRIKE | rubber",
+        "SHRIKE | tan webbing"
+      ],
+      "children": [
+        "body | gunmetal",
+        "body | indicator",
+        "body | ivory coating",
+        "body | orange paint",
+        "body | petrol fabric",
+        "body | rubber",
+        "body | tan webbing"
+      ]
+    },
+    {
+      "name": "bolt",
+      "base_name": "bolt",
+      "type": "EMPTY",
+      "mesh_count": 1,
+      "triangles": 436,
+      "materials": [
+        "SHRIKE | gunmetal"
+      ],
+      "children": [
+        "bolt | gunmetal"
+      ]
+    },
+    {
+      "name": "factory-optic",
+      "base_name": "factory-optic",
+      "type": "EMPTY",
+      "mesh_count": 4,
+      "triangles": 744,
+      "materials": [
+        "SHRIKE | gunmetal",
+        "SHRIKE | indicator",
+        "SHRIKE | ivory coating",
+        "SHRIKE | optic glass"
+      ],
+      "children": [
+        "factory-optic | gunmetal",
+        "factory-optic | indicator",
+        "factory-optic | ivory coating",
+        "factory-optic | optic glass"
+      ]
+    },
+    {
+      "name": "grip",
+      "base_name": "grip",
+      "type": "EMPTY",
+      "mesh_count": 0,
+      "triangles": 0,
+      "materials": [],
+      "children": []
+    },
+    {
+      "name": "mag",
+      "base_name": "mag",
+      "type": "EMPTY",
+      "mesh_count": 3,
+      "triangles": 780,
+      "materials": [
+        "SHRIKE | gunmetal",
+        "SHRIKE | orange paint",
+        "SHRIKE | rubber"
+      ],
+      "children": [
+        "mag | gunmetal",
+        "mag | orange paint",
+        "mag | rubber"
+      ]
+    },
+    {
+      "name": "muzzle",
+      "base_name": "muzzle",
+      "type": "EMPTY",
+      "mesh_count": 0,
+      "triangles": 0,
+      "materials": [],
+      "children": []
+    },
+    {
+      "name": "sight",
+      "base_name": "sight",
+      "type": "EMPTY",
+      "mesh_count": 0,
+      "triangles": 0,
+      "materials": [],
+      "children": []
+    },
+    {
+      "name": "support",
+      "base_name": "support",
+      "type": "EMPTY",
+      "mesh_count": 0,
+      "triangles": 0,
+      "materials": [],
+      "children": []
+    },
+    {
+      "name": "trigger",
+      "base_name": "trigger",
+      "type": "EMPTY",
+      "mesh_count": 2,
+      "triangles": 216,
+      "materials": [
+        "SHRIKE | gunmetal",
+        "SHRIKE | orange paint"
+      ],
+      "children": [
+        "trigger | gunmetal",
+        "trigger | orange paint"
+      ]
+    }
+  ],
+  "duplicate_top_level_names": [],
+  "parts_present": {
+    "body": true,
+    "mag": true,
+    "bolt": true,
+    "trigger": true,
+    "factory-optic": true,
+    "muzzle": true,
+    "grip": true,
+    "support": true,
+    "sight": true
+  },
+  "parts_missing": [],
+  "marker_nodes_without_geometry": [
+    {
+      "name": "grip",
+      "base_name": "grip",
+      "type": "EMPTY",
+      "parent": null,
+      "top_level": true,
+      "child_count": 0,
+      "location_local": [
+        0.04500000178813934,
+        0.09000000357627869,
+        0.014999999664723873
+      ],
+      "location_world": [
+        0.04500000178813934,
+        0.09000000357627869,
+        0.014999999664723873
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "muzzle",
+      "base_name": "muzzle",
+      "type": "EMPTY",
+      "parent": null,
+      "top_level": true,
+      "child_count": 0,
+      "location_local": [
+        -0.012000000104308128,
+        0.5979999899864197,
+        0.04500000178813934
+      ],
+      "location_world": [
+        -0.012000000104308128,
+        0.5979999899864197,
+        0.04500000178813934
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "sight",
+      "base_name": "sight",
+      "type": "EMPTY",
+      "parent": null,
+      "top_level": true,
+      "child_count": 0,
+      "location_local": [
+        0.0,
+        0.18700000643730164,
+        0.14499999582767487
+      ],
+      "location_world": [
+        0.0,
+        0.18700000643730164,
+        0.14499999582767487
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "name": "support",
+      "base_name": "support",
+      "type": "EMPTY",
+      "parent": null,
+      "top_level": true,
+      "child_count": 0,
+      "location_local": [
+        -0.054999999701976776,
+        0.4000000059604645,
+        0.004999999888241291
+      ],
+      "location_world": [
+        -0.054999999701976776,
+        0.4000000059604645,
+        0.004999999888241291
+      ],
+      "scale": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "SHRIKE | gunmetal",
+      "source_name": "SHRIKE | gunmetal",
+      "blend_method": "HASHED",
+      "surface_render_method": "DITHERED",
+      "use_backface_culling": false,
+      "has_principled": true,
+      "has_base_color_image": true,
+      "base_color_image": "worn-gunmetal",
+      "metallic": 0.3499999940395355,
+      "metallic_linked": false,
+      "roughness": 0.5199999809265137,
+      "roughness_linked": false,
+      "alpha": 1.0,
+      "declared": {
+        "index": 0,
+        "baseColorFactor": null,
+        "baseColorTexture": 0,
+        "metallicFactor": 0.3499999940395355,
+        "roughnessFactor": 0.5199999809265137,
+        "alphaMode": "OPAQUE",
+        "doubleSided": true,
+        "has_emissive": false
+      },
+      "base_color_factor_imported": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929,
+        1.0
+      ],
+      "alpha_linked": false
+    },
+    {
+      "name": "SHRIKE | indicator",
+      "source_name": "SHRIKE | indicator",
+      "blend_method": "HASHED",
+      "surface_render_method": "DITHERED",
+      "use_backface_culling": false,
+      "has_principled": true,
+      "has_base_color_image": false,
+      "base_color_image": null,
+      "metallic": 0.10000000149011612,
+      "metallic_linked": false,
+      "roughness": 0.30000001192092896,
+      "roughness_linked": false,
+      "alpha": 1.0,
+      "declared": {
+        "index": 1,
+        "baseColorFactor": [
+          0.05000000074505806,
+          0.6000000238418579,
+          0.7799999713897705,
+          1
+        ],
+        "baseColorTexture": null,
+        "metallicFactor": 0.10000000149011612,
+        "roughnessFactor": 0.30000001192092896,
+        "alphaMode": "OPAQUE",
+        "doubleSided": true,
+        "has_emissive": true
+      },
+      "base_color_factor_imported": [
+        0.05000000074505806,
+        0.6000000238418579,
+        0.7799999713897705,
+        1.0
+      ],
+      "alpha_linked": false
+    },
+    {
+      "name": "SHRIKE | ivory coating",
+      "source_name": "SHRIKE | ivory coating",
+      "blend_method": "HASHED",
+      "surface_render_method": "DITHERED",
+      "use_backface_culling": false,
+      "has_principled": true,
+      "has_base_color_image": true,
+      "base_color_image": "ivory-armor",
+      "metallic": 0.03999999910593033,
+      "metallic_linked": false,
+      "roughness": 0.6000000238418579,
+      "roughness_linked": false,
+      "alpha": 1.0,
+      "declared": {
+        "index": 2,
+        "baseColorFactor": null,
+        "baseColorTexture": 1,
+        "metallicFactor": 0.03999999910593033,
+        "roughnessFactor": 0.6000000238418579,
+        "alphaMode": "OPAQUE",
+        "doubleSided": true,
+        "has_emissive": false
+      },
+      "base_color_factor_imported": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929,
+        1.0
+      ],
+      "alpha_linked": false
+    },
+    {
+      "name": "SHRIKE | optic glass",
+      "source_name": "SHRIKE | optic glass",
+      "blend_method": "BLEND",
+      "surface_render_method": "BLENDED",
+      "use_backface_culling": false,
+      "has_principled": true,
+      "has_base_color_image": false,
+      "base_color_image": null,
+      "metallic": 0.0,
+      "metallic_linked": false,
+      "roughness": 0.10000000149011612,
+      "roughness_linked": false,
+      "alpha": 0.1599999964237213,
+      "declared": {
+        "index": 7,
+        "baseColorFactor": [
+          0.18000000715255737,
+          0.5799999833106995,
+          0.6499999761581421,
+          0.1599999964237213
+        ],
+        "baseColorTexture": null,
+        "metallicFactor": 0,
+        "roughnessFactor": 0.10000000149011612,
+        "alphaMode": "BLEND",
+        "doubleSided": true,
+        "has_emissive": false
+      },
+      "base_color_factor_imported": [
+        0.18000000715255737,
+        0.5799999833106995,
+        0.6499999761581421,
+        1.0
+      ],
+      "alpha_linked": false
+    },
+    {
+      "name": "SHRIKE | orange paint",
+      "source_name": "SHRIKE | orange paint",
+      "blend_method": "HASHED",
+      "surface_render_method": "DITHERED",
+      "use_backface_culling": false,
+      "has_principled": true,
+      "has_base_color_image": true,
+      "base_color_image": "orange-painted-metal",
+      "metallic": 0.11999999731779099,
+      "metallic_linked": false,
+      "roughness": 0.5199999809265137,
+      "roughness_linked": false,
+      "alpha": 1.0,
+      "declared": {
+        "index": 3,
+        "baseColorFactor": null,
+        "baseColorTexture": 2,
+        "metallicFactor": 0.11999999731779099,
+        "roughnessFactor": 0.5199999809265137,
+        "alphaMode": "OPAQUE",
+        "doubleSided": true,
+        "has_emissive": false
+      },
+      "base_color_factor_imported": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929,
+        1.0
+      ],
+      "alpha_linked": false
+    },
+    {
+      "name": "SHRIKE | petrol fabric",
+      "source_name": "SHRIKE | petrol fabric",
+      "blend_method": "HASHED",
+      "surface_render_method": "DITHERED",
+      "use_backface_culling": false,
+      "has_principled": true,
+      "has_base_color_image": true,
+      "base_color_image": "petrol-ballistic-fabric",
+      "metallic": 0.0,
+      "metallic_linked": false,
+      "roughness": 0.8799999952316284,
+      "roughness_linked": false,
+      "alpha": 1.0,
+      "declared": {
+        "index": 4,
+        "baseColorFactor": null,
+        "baseColorTexture": 3,
+        "metallicFactor": 0,
+        "roughnessFactor": 0.8799999952316284,
+        "alphaMode": "OPAQUE",
+        "doubleSided": true,
+        "has_emissive": false
+      },
+      "base_color_factor_imported": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929,
+        1.0
+      ],
+      "alpha_linked": false
+    },
+    {
+      "name": "SHRIKE | rubber",
+      "source_name": "SHRIKE | rubber",
+      "blend_method": "HASHED",
+      "surface_render_method": "DITHERED",
+      "use_backface_culling": false,
+      "has_principled": true,
+      "has_base_color_image": true,
+      "base_color_image": "worn-rubber",
+      "metallic": 0.0,
+      "metallic_linked": false,
+      "roughness": 0.8500000238418579,
+      "roughness_linked": false,
+      "alpha": 1.0,
+      "declared": {
+        "index": 5,
+        "baseColorFactor": null,
+        "baseColorTexture": 4,
+        "metallicFactor": 0,
+        "roughnessFactor": 0.8500000238418579,
+        "alphaMode": "OPAQUE",
+        "doubleSided": true,
+        "has_emissive": false
+      },
+      "base_color_factor_imported": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929,
+        1.0
+      ],
+      "alpha_linked": false
+    },
+    {
+      "name": "SHRIKE | tan webbing",
+      "source_name": "SHRIKE | tan webbing",
+      "blend_method": "HASHED",
+      "surface_render_method": "DITHERED",
+      "use_backface_culling": false,
+      "has_principled": true,
+      "has_base_color_image": true,
+      "base_color_image": "tan-webbing",
+      "metallic": 0.0,
+      "metallic_linked": false,
+      "roughness": 0.8999999761581421,
+      "roughness_linked": false,
+      "alpha": 1.0,
+      "declared": {
+        "index": 6,
+        "baseColorFactor": null,
+        "baseColorTexture": 5,
+        "metallicFactor": 0,
+        "roughnessFactor": 0.8999999761581421,
+        "alphaMode": "OPAQUE",
+        "doubleSided": true,
+        "has_emissive": false
+      },
+      "base_color_factor_imported": [
+        0.800000011920929,
+        0.800000011920929,
+        0.800000011920929,
+        1.0
+      ],
+      "alpha_linked": false
+    }
+  ],
+  "images": [
+    {
+      "name": "ivory-armor",
+      "storage": "packed",
+      "packed": true,
+      "filepath": "",
+      "byte_size": 264247,
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "declared": {
+        "index": 1,
+        "declared_name": "ivory-armor",
+        "declared_mime_type": "image/jpeg",
+        "embedded_in_buffer": true,
+        "declared_uri": null,
+        "uri_is_external": false,
+        "uri_is_data_uri": false,
+        "imported": true,
+        "imported_name": "ivory-armor"
+      }
+    },
+    {
+      "name": "orange-painted-metal",
+      "storage": "packed",
+      "packed": true,
+      "filepath": "",
+      "byte_size": 298416,
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "declared": {
+        "index": 2,
+        "declared_name": "orange-painted-metal",
+        "declared_mime_type": "image/jpeg",
+        "embedded_in_buffer": true,
+        "declared_uri": null,
+        "uri_is_external": false,
+        "uri_is_data_uri": false,
+        "imported": true,
+        "imported_name": "orange-painted-metal"
+      }
+    },
+    {
+      "name": "petrol-ballistic-fabric",
+      "storage": "packed",
+      "packed": true,
+      "filepath": "",
+      "byte_size": 380454,
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "declared": {
+        "index": 3,
+        "declared_name": "petrol-ballistic-fabric",
+        "declared_mime_type": "image/jpeg",
+        "embedded_in_buffer": true,
+        "declared_uri": null,
+        "uri_is_external": false,
+        "uri_is_data_uri": false,
+        "imported": true,
+        "imported_name": "petrol-ballistic-fabric"
+      }
+    },
+    {
+      "name": "tan-webbing",
+      "storage": "packed",
+      "packed": true,
+      "filepath": "",
+      "byte_size": 283041,
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "declared": {
+        "index": 5,
+        "declared_name": "tan-webbing",
+        "declared_mime_type": "image/jpeg",
+        "embedded_in_buffer": true,
+        "declared_uri": null,
+        "uri_is_external": false,
+        "uri_is_data_uri": false,
+        "imported": true,
+        "imported_name": "tan-webbing"
+      }
+    },
+    {
+      "name": "worn-gunmetal",
+      "storage": "packed",
+      "packed": true,
+      "filepath": "",
+      "byte_size": 266344,
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "declared": {
+        "index": 0,
+        "declared_name": "worn-gunmetal",
+        "declared_mime_type": "image/jpeg",
+        "embedded_in_buffer": true,
+        "declared_uri": null,
+        "uri_is_external": false,
+        "uri_is_data_uri": false,
+        "imported": true,
+        "imported_name": "worn-gunmetal"
+      }
+    },
+    {
+      "name": "worn-rubber",
+      "storage": "packed",
+      "packed": true,
+      "filepath": "",
+      "byte_size": 270366,
+      "width": 1024,
+      "height": 1024,
+      "source": "FILE",
+      "declared": {
+        "index": 4,
+        "declared_name": "worn-rubber",
+        "declared_mime_type": "image/jpeg",
+        "embedded_in_buffer": true,
+        "declared_uri": null,
+        "uri_is_external": false,
+        "uri_is_data_uri": false,
+        "imported": true,
+        "imported_name": "worn-rubber"
+      }
+    }
+  ],
+  "source_images": [
+    {
+      "index": 0,
+      "declared_name": "worn-gunmetal",
+      "declared_mime_type": "image/jpeg",
+      "embedded_in_buffer": true,
+      "declared_uri": null,
+      "uri_is_external": false,
+      "uri_is_data_uri": false,
+      "imported": true,
+      "imported_name": "worn-gunmetal"
+    },
+    {
+      "index": 1,
+      "declared_name": "ivory-armor",
+      "declared_mime_type": "image/jpeg",
+      "embedded_in_buffer": true,
+      "declared_uri": null,
+      "uri_is_external": false,
+      "uri_is_data_uri": false,
+      "imported": true,
+      "imported_name": "ivory-armor"
+    },
+    {
+      "index": 2,
+      "declared_name": "orange-painted-metal",
+      "declared_mime_type": "image/jpeg",
+      "embedded_in_buffer": true,
+      "declared_uri": null,
+      "uri_is_external": false,
+      "uri_is_data_uri": false,
+      "imported": true,
+      "imported_name": "orange-painted-metal"
+    },
+    {
+      "index": 3,
+      "declared_name": "petrol-ballistic-fabric",
+      "declared_mime_type": "image/jpeg",
+      "embedded_in_buffer": true,
+      "declared_uri": null,
+      "uri_is_external": false,
+      "uri_is_data_uri": false,
+      "imported": true,
+      "imported_name": "petrol-ballistic-fabric"
+    },
+    {
+      "index": 4,
+      "declared_name": "worn-rubber",
+      "declared_mime_type": "image/jpeg",
+      "embedded_in_buffer": true,
+      "declared_uri": null,
+      "uri_is_external": false,
+      "uri_is_data_uri": false,
+      "imported": true,
+      "imported_name": "worn-rubber"
+    },
+    {
+      "index": 5,
+      "declared_name": "tan-webbing",
+      "declared_mime_type": "image/jpeg",
+      "embedded_in_buffer": true,
+      "declared_uri": null,
+      "uri_is_external": false,
+      "uri_is_data_uri": false,
+      "imported": true,
+      "imported_name": "tan-webbing"
+    }
+  ],
+  "images_summary": {
+    "declared_in_file": 6,
+    "imported_into_scene": 6,
+    "declared_embedded_in_buffer": 6,
+    "declared_external_uri": 0,
+    "declared_but_unreferenced_by_any_material": [],
+    "note": "glTF images unreferenced by any material are dropped by the importer, so `images` can be shorter than `source_images`"
+  },
+  "uv_layers": {
+    "per_mesh": [
+      {
+        "object": "body | gunmetal",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 6736
+      },
+      {
+        "object": "body | indicator",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 108
+      },
+      {
+        "object": "body | ivory coating",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 1288
+      },
+      {
+        "object": "body | orange paint",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 600
+      },
+      {
+        "object": "body | petrol fabric",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 652
+      },
+      {
+        "object": "body | rubber",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 1164
+      },
+      {
+        "object": "body | tan webbing",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 108
+      },
+      {
+        "object": "bolt | gunmetal",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 436
+      },
+      {
+        "object": "factory-optic | gunmetal",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 484
+      },
+      {
+        "object": "factory-optic | indicator",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 108
+      },
+      {
+        "object": "factory-optic | ivory coating",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 108
+      },
+      {
+        "object": "factory-optic | optic glass",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 44
+      },
+      {
+        "object": "mag | gunmetal",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 456
+      },
+      {
+        "object": "mag | orange paint",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 216
+      },
+      {
+        "object": "mag | rubber",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 108
+      },
+      {
+        "object": "trigger | gunmetal",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 108
+      },
+      {
+        "object": "trigger | orange paint",
+        "uv_layers": [
+          "UVMap"
+        ],
+        "triangle_count": 108
+      }
+    ],
+    "layer_usage": {
+      "UVMap": 17
+    },
+    "meshes_without_uv": [],
+    "mesh_count_with_zero_uv_layers": 0
+  },
+  "bounds_world": {
+    "min": [
+      -0.06599999964237213,
+      -0.43587371706962585,
+      -0.2156687080860138
+    ],
+    "max": [
+      0.05000000074505806,
+      0.5980000495910645,
+      0.17599999904632568
+    ],
+    "centre": [
+      -0.007999999448657036,
+      0.0810631662607193,
+      -0.019834354519844055
+    ],
+    "size": [
+      0.11600000038743019,
+      1.0338737666606903,
+      0.3916687071323395
+    ],
+    "per_object": [
+      {
+        "object": "body | gunmetal",
+        "min": [
+          -0.04860372096300125,
+          -0.41529741883277893,
+          -0.1418929249048233
+        ],
+        "max": [
+          0.04600000008940697,
+          0.5980000495910645,
+          0.14000000059604645
+        ]
+      },
+      {
+        "object": "body | indicator",
+        "min": [
+          -0.03849999979138374,
+          0.012999998405575752,
+          0.00950000062584877
+        ],
+        "max": [
+          -0.03449999913573265,
+          0.04699999839067459,
+          0.01850000023841858
+        ]
+      },
+      {
+        "object": "body | ivory coating",
+        "min": [
+          -0.02961149998009205,
+          -0.15000000596046448,
+          -0.0012000000569969416
+        ],
+        "max": [
+          0.029820498079061508,
+          0.0074290004558861256,
+          0.12250000238418579
+        ]
+      },
+      {
+        "object": "body | orange paint",
+        "min": [
+          -0.04104745760560036,
+          -0.42799997329711914,
+          -0.06700000166893005
+        ],
+        "max": [
+          0.05000000074505806,
+          0.5864999890327454,
+          0.0730561688542366
+        ]
+      },
+      {
+        "object": "body | petrol fabric",
+        "min": [
+          -0.04943957179784775,
+          -0.3619999885559082,
+          -0.11311223357915878
+        ],
+        "max": [
+          0.03400000184774399,
+          0.4359999895095825,
+          0.1349189579486847
+        ]
+      },
+      {
+        "object": "body | rubber",
+        "min": [
+          -0.029999999329447746,
+          -0.43587371706962585,
+          -0.13311655819416046
+        ],
+        "max": [
+          0.02800000086426735,
+          0.5975000262260437,
+          0.11553981900215149
+        ]
+      },
+      {
+        "object": "body | tan webbing",
+        "min": [
+          -0.014000000432133675,
+          -0.30000001192092896,
+          -0.04800000041723251
+        ],
+        "max": [
+          0.014000000432133675,
+          -0.27399998903274536,
+          -0.012000000104308128
+        ]
+      },
+      {
+        "object": "bolt | gunmetal",
+        "min": [
+          -0.06599999964237213,
+          0.006000000983476639,
+          0.08856042474508286
+        ],
+        "max": [
+          0.02850000001490116,
+          0.06200000271201134,
+          0.11100000143051147
+        ]
+      },
+      {
+        "object": "factory-optic | gunmetal",
+        "min": [
+          -0.032999999821186066,
+          0.18000000715255737,
+          0.11999999731779099
+        ],
+        "max": [
+          0.02500000037252903,
+          0.1940000057220459,
+          0.17599999904632568
+        ]
+      },
+      {
+        "object": "factory-optic | indicator",
+        "min": [
+          0.023000000044703484,
+          0.18250000476837158,
+          0.14899998903274536
+        ],
+        "max": [
+          0.0279999990016222,
+          0.1915000081062317,
+          0.1550000011920929
+        ]
+      },
+      {
+        "object": "factory-optic | ivory coating",
+        "min": [
+          -0.0279999990016222,
+          0.17400000989437103,
+          0.13099999725818634
+        ],
+        "max": [
+          -0.023000000044703484,
+          0.20000000298023224,
+          0.16099999845027924
+        ]
+      },
+      {
+        "object": "factory-optic | optic glass",
+        "min": [
+          -0.024799998849630356,
+          0.1860000044107437,
+          0.13220000267028809
+        ],
+        "max": [
+          0.0007999995723366737,
+          0.18800000846385956,
+          0.15779998898506165
+        ]
+      },
+      {
+        "object": "mag | gunmetal",
+        "min": [
+          -0.02800000086426735,
+          0.23600000143051147,
+          -0.2071055769920349
+        ],
+        "max": [
+          0.02800000086426735,
+          0.2980000078678131,
+          0.04600000008940697
+        ]
+      },
+      {
+        "object": "mag | orange paint",
+        "min": [
+          -0.03099999949336052,
+          0.2358289361000061,
+          -0.2156687080860138
+        ],
+        "max": [
+          0.03099999949336052,
+          0.29617106914520264,
+          -0.11502411961555481
+        ]
+      },
+      {
+        "object": "mag | rubber",
+        "min": [
+          -0.02199999988079071,
+          0.23899999260902405,
+          0.035999998450279236
+        ],
+        "max": [
+          0.02199999988079071,
+          0.29099997878074646,
+          0.04800000041723251
+        ]
+      },
+      {
+        "object": "trigger | gunmetal",
+        "min": [
+          -0.006000000052154064,
+          0.12678681313991547,
+          -0.09353695064783096
+        ],
+        "max": [
+          0.006000000052154064,
+          0.14921317994594574,
+          -0.046463049948215485
+        ]
+      },
+      {
+        "object": "trigger | orange paint",
+        "min": [
+          -0.004000000189989805,
+          0.1397271305322647,
+          -0.07250916957855225
+        ],
+        "max": [
+          0.004000000189989805,
+          0.15227286517620087,
+          -0.05149083212018013
+        ]
+      }
+    ],
+    "game_coords_y_up": {
+      "note": "labels as-is: game_x = x, game_y = y, game_z = z (axis conversion is the export's responsibility)",
+      "min": [
+        -0.06599999964237213,
+        -0.43587371706962585,
+        -0.2156687080860138
+      ],
+      "max": [
+        0.05000000074505806,
+        0.5980000495910645,
+        0.17599999904632568
+      ],
+      "centre": [
+        -0.007999999448657036,
+        0.0810631662607193,
+        -0.019834354519844055
+      ],
+      "size": [
+        0.11600000038743019,
+        1.0338737666606903,
+        0.3916687071323395
+      ]
+    }
+  },
+  "sanity": [
+    {
+      "check": "material_without_base_texture",
+      "target": "SHRIKE | indicator",
+      "value": "base color image = None"
+    },
+    {
+      "check": "material_without_base_texture",
+      "target": "SHRIKE | optic glass",
+      "value": "base color image = None"
+    }
+  ],
+  "totals": {
+    "object_count": 26,
+    "mesh_object_count": 17,
+    "non_mesh_object_count": 9,
+    "triangle_count": 12832,
+    "material_count": 8,
+    "distinct_image_count": 6,
+    "sanity_problem_count": 2
+  }
+}

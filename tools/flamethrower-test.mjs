@@ -27,11 +27,11 @@ function setup() {
   fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   const direct = 100 - victim.hp;
   assert.ok(Math.abs(direct - 4.8) < 1e-8, 'close contact deals 4.8 immediate damage');
-  assert.equal(victim.burning, 0.75, 'one graze produces a short afterburn');
-  assert.equal(victim.panic, flamePanicFloor(0.75));
+  assert.equal(victim.burning, 1.5, 'one graze produces a short afterburn');
+  assert.equal(victim.panic, flamePanicFloor(1.5));
   assert.equal(victim.panic, 1, 'one graze immediately forces full panic');
-  for (let i = 0; i < 51; i++) updateBurn(victim, 0.02, ctx);
-  assert.ok(Math.abs(victim.hp - (100 - direct - combatDamage(6))) < 1e-8, 'one graze adds 4.8 afterburn damage at 6.4 DPS');
+  for (let i = 0; i < 80; i++) updateBurn(victim, 0.02, ctx);
+  assert.ok(Math.abs(victim.hp - (100 - direct - combatDamage(12))) < 1e-8, 'one graze adds 9.6 afterburn damage at 6.4 DPS');
   assert.equal(victim.burning, 0); assert.equal(victim.burn, null);
   const hp = victim.hp; updateBurn(victim, 2, ctx); assert.equal(victim.hp, hp);
 }
@@ -42,7 +42,7 @@ function setup() {
   const hp = victim.hp;
   updateBurn(victim, 0.25, ctx);
   assert.ok(Math.abs(hp - victim.hp - combatDamage(4)) < 1e-8, 'new contact never stacks or discards pending burn damage');
-  assert.equal(victim.burning, 0.5, 'a spaced graze renews only the short burn');
+  assert.equal(victim.burning, 1.35, 'a spaced graze renews only the short burn');
   victim.applySpawn(spawn); updateBurn(victim, 1, ctx);
   assert.equal(victim.hp, 100); assert.equal(victim.burning, 0);
 }
@@ -54,17 +54,17 @@ function setup() {
     updateBurn(victim, FLAME_RULES.cadence, ctx);
     fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   }
-  assert.ok(victim.burning > 1.3 && victim.burning < 1.5, 'short tracking builds a medium afterburn');
+  assert.ok(victim.burning > 3.2 && victim.burning < 3.4, 'short tracking builds a medium afterburn');
   for (let i = 0; i < 24; i++) {
     updateBurn(victim, FLAME_RULES.cadence, ctx);
     fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   }
-  assert.equal(victim.burning, 3, 'sustained tracking caps one afterburn at three seconds');
+  assert.equal(victim.burning, 8, 'sustained tracking caps one afterburn at eight seconds');
   assert.ok(victim.panic >= FLAME_BURN.panicFloor);
   const pendingDamage = combatDamage(victim.burn.elapsed * FLAME_BURN.damagePerS);
   const hp = victim.hp;
-  updateBurn(victim, 4, ctx);
-  assert.ok(Math.abs(hp - victim.hp - pendingDamage - combatDamage(24)) < 1e-8, 'fully built afterburn remains 6.4 DPS on a long tick');
+  updateBurn(victim, 9, ctx);
+  assert.ok(Math.abs(hp - victim.hp - pendingDamage - combatDamage(64)) < 1e-8, 'fully built afterburn remains 6.4 DPS on a long tick');
   assert.equal(victim.burn, null);
 }
 {
@@ -140,17 +140,17 @@ const { LocalPlayer } = await import('../public/js/player/local-player.js');
 {
   const { owner, victim, ctx } = setup(); fireOneShot(owner, ctx); ctx.flames.step(FLAME_FLIGHT_SECONDS, ctx);
   const row = makeSnapshot([victim], [], [], 100).players[0];
-  assert.equal(row.burning, 0.75); assert.equal(row.panic, 1);
+  assert.equal(row.burning, 1.5); assert.equal(row.panic, 1);
   const net = new NetClient();
   net.latestSnapshots.push({ now: 100, players: [row], events: [], blocks: [] });
   const interpolated = net.interpolate(100, 0).players.get(victim.id);
-  assert.equal(interpolated.burning, 0.75);
+  assert.equal(interpolated.burning, 1.5);
   const local = new LocalPlayer({ input: { consumeDelta: () => ({x:0,y:0}), getKeys: () => ({}), setGameplayEnabled() {}, consumeBuyMenuRequest() {} } });
   local.respawn(row); local.reconcile(row, 1);
-  assert.equal(local.burning, 0.75);
+  assert.equal(local.burning, 1.5);
   local._updateConditionEstimates(0.1, false);
   assert.equal(local.panic, 1);
-  assert.equal(local.burning, 0.65);
+  assert.equal(local.burning, 1.4);
   local.die(owner.id); assert.equal(local.burning, 0);
   local.respawn(row); assert.equal(local.burning, 0);
   local.burning = 2; local.resetForMenu(); assert.equal(local.burning, 0);
@@ -179,7 +179,7 @@ const { GameEngine } = await import('../server/game.js');
   for (let i = 0; i < 35; i++) engine.step(20);
   assert.ok(victim.hp < hp, 'real simulation advances burn damage');
   const row = frames.at(-1).players.find(p => p.id === victim.id);
-  assert.ok(row.burning > 0 && row.burning < 0.75 && row.panic === 1,
+  assert.ok(row.burning > 0 && row.burning < 1.5 && row.panic === 1,
     'real tick broadcasts the decaying short burn and full panic');
   assert.equal(frames.flatMap(s => s.events).filter(e => e.kind === 'hit').length, 2);
 }
@@ -286,7 +286,7 @@ for (const blocked of ['wall', 'friendly']) {
   // Even the fastest voluntary recovery cannot bypass burning suppression.
   recoverConditions(victim, 0.7, { burning: victim.burning, holdingBreath: true, crouching: true });
   assert.equal(victim.panic, 1);
-  updateBurn(victim, 0.75, ctx);
+  updateBurn(victim, 1.5, ctx);
   recoverConditions(victim, 1, { burning: victim.burning });
   assert.ok(victim.panic < 1 && victim.panic > 0.9, 'normal recovery resumes after extinguishing');
 }

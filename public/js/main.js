@@ -1,3 +1,4 @@
+import { AccountKeybindings } from './account-keybindings.js';
 import { TttControls } from './ui/ttt-controls.js';
 import { loadingScreen } from './ui/loading-screen.js';
 import { WeaponCustomization } from './ui/weapon-customization.js';
@@ -21,7 +22,7 @@ import {
 import { WorldView } from './engine/worldview.js';
 import { ViewmodelRig } from './guns/viewmodel.js';
 import { WeaponState, shouldShowViewmodel } from './guns/weapon-state.js';
-import { Effects, attachMuzzleBridge } from './weapons/effects.js';
+import { Effects, attachMuzzleBridge, attachRemoteMuzzleBridge } from './weapons/effects.js';
 import { HUD } from './ui/hud.js';
 import { displaySettings } from './ui/display-settings.js';
 import { projectAimReticle } from './ui/aim-reticle.js';
@@ -106,6 +107,7 @@ class Game {
     this._gameplay = Object.freeze({
       get running() { return game.running; },
       get alive() { return game.player.alive; },
+      get spectating() { return game.spectator?.active === true && !game.killcam?.active; },
       get matchState() { return game.matchState; },
       get selfRow() { return game.selfRow; },
     });
@@ -132,6 +134,7 @@ class Game {
           }
           if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileUpdate', 'projectileStick',
             'projectileExplode', 'blockDamage', 'block', 'mine'].includes(event.kind)) return;
+          if (event.kind === 'kill' && event.killer === this.myId && event.victim !== this.myId) this.bumpStattrak(event);
           this.feedback?.handleEvent(event);
         },
         onRunEvent: (event) => this.runHud?.handleEvent(event),
@@ -228,6 +231,7 @@ class Game {
     });
     this.weapon.resetToLoadout();
     this.weapon.setLoadout(welcome.weaponLoadout);
+    this.rig.setMastery(welcome.mastery);
     this.hud.setupWeaponWheel({
       onPick: (slot) => this.weaponWheel.commit(slot),
       onCancel: () => this.weaponWheel.close(),
@@ -247,6 +251,8 @@ class Game {
       gore: (event, options) => this.effects?.gore(event, options),
       getMyId: () => this.myId,
     });
+    attachRemoteMuzzleBridge(this.effects, () => this.roster);
+    this.roster.setBurnFX(this.effects.flames);
     this.killcam = new Killcam({ scene: this.worldview.scene, getBlock, worldview: this.worldview,
       mapBytes: serializeWorld(), blockDamage: [...net.blockDamage.values()],
       terrainTime: net.latestSnapshots.at(-1)?.serverNow ?? -Infinity, audio: sfx, now: nowMs });
@@ -302,6 +308,15 @@ class Game {
         this.loop(++this._loopGeneration);
       },
     });
+  }
+
+  /** Mirror the server's mastery filter so the LED never shows a kill the career will not count. */
+  bumpStattrak(event) {
+    if (!WEAPON_IDS.includes(event.w) || this.matchState?.mode === 'training') return;
+    const victim = Array.isArray(this.playersCache) ? this.playersCache.find(row => row?.id === event.victim) : null;
+    if (!victim || victim.bot) return;
+    if (this.selfRow?.team && victim.team === this.selfRow.team) return;
+    this.rig?.noteKill?.(event.w, event.hs === true);
   }
 
   handleTick(snapshot, phase = this.session.phase) {
@@ -608,6 +623,8 @@ class Game {
     const now = nowMs();
     this.session.syncGameplayInput();
     this.input.poll(now, dt);
+    // Drain spectator motion before LocalPlayer consumes and discards dead-player look.
+    const spectatorLook = this.spectator?.active ? this.input.consumeDelta() : null;
     this.weaponWheel.sync();
     if (this.input.scoreboardHeld !== this._padScoreboard) {
       this._padScoreboard = this.input.scoreboardHeld;
@@ -658,10 +675,17 @@ class Game {
       for (let i = 0; i < Math.abs(zoomSteps); i++) this.player.cycleScopeZoom(def);
     }
     this.input.setScopeZoomMode(!!this.weapon.scopeActive);
-    this.player.updateCamera(dt, this.camera, def, this.weapon.adsT, this.session.baseFov, this.weapon.scopeActive);
-    const blastShake = this.effects.currentShakeXY;
-    this.camera.rotation.x += blastShake.y * (displaySettings().reducedMotion ? 0.15 : 1);
-    this.camera.rotation.y += blastShake.x * (displaySettings().reducedMotion ? 0.15 : 1);
+    if (this.spectator?.active) {
+      if (this.camera.fov !== this.session.baseFov) {
+        this.camera.fov = this.session.baseFov;
+        this.camera.updateProjectionMatrix();
+      }
+    } else {
+      this.player.updateCamera(dt, this.camera, def, this.weapon.adsT, this.session.baseFov, this.weapon.scopeActive);
+      const blastShake = this.effects.currentShakeXY;
+      this.camera.rotation.x += blastShake.y * (displaySettings().reducedMotion ? 0.15 : 1);
+      this.camera.rotation.y += blastShake.x * (displaySettings().reducedMotion ? 0.15 : 1);
+    }
     try {
       // Body velocity in the camera frame: +x strafing right, +z backing up. The rig uses
       // it for a lagged lateral lean so the carried gun swings against direction changes.
@@ -705,7 +729,7 @@ class Game {
       const presentedPlayers = this.spectator?.ensureTargetPresent(view?.players)
         || view?.players;
       if (presentedPlayers) this.roster.sync(presentedPlayers, dt, now, this.matchState?.mode === 'ttt');
-      this.spectator?.update(presentedPlayers, dt);
+      this.spectator?.update(presentedPlayers, dt, spectatorLook);
       this.roster.updateLabels(this.camera,
         (origin, direction, distance) => this.worldview.pickCameraRay(origin, direction, distance),
         this.matchState?.mode, this.selfRow?.team, (from, to) => this.smokeObscures(from, to));
@@ -994,6 +1018,8 @@ if (debugMode) {
   window.addEventListener('error', game._onDebugError, true);
 }
 
+const accountKeybindings = new AccountKeybindings();
+window.addEventListener('vb-account-change', event => accountKeybindings.setAccount(event.detail.user?.id || null));
 const accounts = new AccountMenu({ onOpen: () => { if (career.dialog.open) career.dialog.close(); if (customization.dialog.open) customization.dialog.close(); } });
 const career = new CareerShop({ accounts });
 const customization = new WeaponCustomization({ accounts });

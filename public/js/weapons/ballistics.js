@@ -28,7 +28,9 @@ export class TracerFX {
     this._scale = new THREE.Vector3();
     this._direction = new THREE.Vector3();
     this._muzzle = new THREE.Vector3();
-    this.muzzleProvider = null;
+    // Optional (ownerId, out) => out|null: remote streaks and flashes anchor to
+    // the shooter's rendered barrel tip instead of the server eye approximation.
+    this.remoteMuzzleProvider = null;
 
     const tracerGeometry = new THREE.BoxGeometry(1, 1, 1);
     tracerGeometry.translate(0, 0, -0.5);
@@ -100,12 +102,19 @@ export class TracerFX {
     const usePellets = pelletDirections && pelletDirections.length > 1;
     const directionCount = usePellets ? pelletDirections.length : 1;
     const limit = Math.min(directionCount, definition ? definition.pellets * (event.chaos && event.w === 'shotgun' ? 2 : 1) : 1);
-    const ox = event.o[0];
-    const oy = event.o[1];
-    const oz = event.o[2];
+    let ox = event.o[0];
+    let oy = event.o[1];
+    let oz = event.o[2];
     const local = !!options.local;
+    if (!local && this.remoteMuzzleProvider) {
+      const m = this.remoteMuzzleProvider(event.id, this._muzzle);
+      // Sanity cap: a desynced avatar never drags a streak across the map.
+      if (m && Math.hypot(m.x - ox, m.y - oy, m.z - oz) < 3) {
+        ox = m.x; oy = m.y; oz = m.z;
+      }
+    }
 
-    if (!local) this.spawnFlash(event.o, event.d);
+    if (!local) this.spawnFlash([ox, oy, oz], event.d);
     if (definition && !definition.tracer) return;
     if (Array.isArray(event.paths)) { this.resolvedShot(event); return; }
 
@@ -131,12 +140,13 @@ export class TracerFX {
         length = Math.max(0.1, Math.min(length, hit.t) - 0.35);
       }
       // Local shots anchor to the live rig muzzle and converge on this eye-ray
-      // endpoint; remote shots keep the server's presentation origin.
+      // endpoint; remote shots start at the shooter's rendered barrel tip when
+      // the roster resolves one, else the server's presentation origin.
       const aimDistance = hit ? hit.t : 180;
       const endpoint = local && this.muzzleProvider
         ? [ox + direction.x * aimDistance, oy + direction.y * aimDistance, oz + direction.z * aimDistance]
         : null;
-      this.spawnTracer(event.o, direction, length, definition, endpoint, event.charge ?? 1);
+      this.spawnTracer([ox, oy, oz], direction, length, definition, endpoint, event.charge ?? 1);
     }
   }
 

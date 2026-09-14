@@ -1,0 +1,40 @@
+{
+  "asset": "KESTREL",
+  "stage": "Blender authoring source with integrated gameplay export",
+  "blender": "5.2.1 LTS",
+  "editable_parts": 105,
+  "triangles": 16488,
+  "bones": [
+    "body",
+    "magazine",
+    "bolt",
+    "trigger"
+  ],
+  "animations": [
+    "Reload_Study"
+  ],
+  "mounts": [
+    "muzzle",
+    "grip",
+    "support"
+  ],
+  "forward_after_gltf": "-Z",
+  "integration_remaining": [
+    "Optional distance LODs and wider mobile GPU profiling"
+  ],
+  "skin_meshes": 1,
+  "imagegen_textures": [
+    "ivory-armor.png",
+    "orange-painted-metal.png",
+    "worn-gunmetal.png",
+    "worn-rubber.png"
+  ],
+  "glb_bytes": 14229408,
+  "material_note": "ImageGen albedo embedded in GLB. Bump and image-driven roughness are Blender shader estimates; GLB uses scalar roughness.",
+  "runtime": {
+    "path": "public/assets/blender/kestrel.gltf",
+    "exporter": "tools/blender/export-game-assets.py",
+    "slot": "rifle",
+    "animation": "Existing gameplay joint and animation controllers"
+  }
+}

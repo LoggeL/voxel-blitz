@@ -1,7 +1,10 @@
 import * as THREE from '../../vendor/three.module.js';
 import { COL } from '../kit.js';
+import { buildHydra } from './hydra.js';
 
-export function build({ kit, T, groups: { body, mag, trigger, extra } }) {
+export function build({ kit, T, groups }) {
+  if (buildHydra({ kit, T, groups })) return;
+  const { body, mag, trigger, extra } = groups;
   const { box, cylZ, mat, ironSights } = kit;
   const axisY = T.muzzle[1];
   const armor = 0x62694a;

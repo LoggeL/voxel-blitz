@@ -16,6 +16,7 @@ import {
   validateSerializedWorld,
 } from './serialize.js';
 import { generateKillhouseInto } from './flatmap-killhouse.js';
+import { generateSubstationInto } from './flatmap-substation.js';
 import { createStateApi } from './state.js';
 import { generateFoundryInto } from './terrain-foundry.js';
 
@@ -49,6 +50,7 @@ function buildPristineTemplate(id) {
   else if (id === 'dust2') generateDust2Into(world, blocks, heights);
   else if (id === 'reactor') generateReactorInto(world, blocks, heights);
   else if (id === 'killhouse') generateKillhouseInto(world, blocks, heights);
+  else if (id === 'substation') generateSubstationInto(world, blocks, heights);
   else generateSolsticeInto(world, blocks, heights);
 
   blocks.fill(BEDROCK, 0, SX * SZ);

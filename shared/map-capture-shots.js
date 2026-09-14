@@ -46,6 +46,12 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   shot('dust2', 'snd-site-a', [102, 25, 28], [88, 15, 15], 78, 'snd'),
   shot('dust2', 'snd-site-b', [24, 24, 29], [33, 15, 16], 78, 'snd'),
 
+  // Blender-authored switchyard; cameras sit outside the shell or on the lanes.
+  shot('substation', 'hero', [124, 50, 112], [58, 16, 44], 56),
+  shot('substation', 'control-house', [64.5, 16.62, 26.5], [64, 19, 40], 78),
+  shot('substation', 'switchyard', [36.5, 17.5, 22.5], [66, 19, 44], 76),
+  shot('substation', 'reactor-pad', [89.5, 17.5, 59.5], [108, 17, 48], 78),
+
   shot('foundry', 'hero', [64.5, 17.64, 82.5], [65, 23, 46]),
   shot('foundry', 'west-lane', [20.5, 13.64, 48.5], [65, 23, 46]),
   shot('foundry', 'north-forge', [64.5, 18.64, 49.5], [60, 21, 26]),

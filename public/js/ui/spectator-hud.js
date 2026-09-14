@@ -51,7 +51,7 @@ export class SpectatorHud {
     dom.hint.textContent = state.killCam
       ? `YOUR KILLER · ${bindingLabel('spectatePrevious')} / ${bindingLabel('spectateNext')} TO SPECTATE OTHERS`
       : state.hasTarget
-        ? (state.teamOnly ? 'FOLLOWING LIVING TEAMMATE' : 'FOLLOWING LIVING PLAYER')
+        ? `${state.teamOnly ? 'FOLLOWING LIVING TEAMMATE' : 'FOLLOWING LIVING PLAYER'} · MOUSE TO ORBIT`
         : (state.teamOnly ? 'NO LIVING TEAMMATES' : 'WAITING FOR A LIVING PLAYER');
     dom.previous.textContent = `‹ ${bindingLabel('spectatePrevious')}`;
     dom.next.textContent = `${bindingLabel('spectateNext')} ›`;

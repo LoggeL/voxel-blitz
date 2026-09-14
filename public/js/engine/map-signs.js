@@ -57,6 +57,11 @@ const SIGNS = {
     ['THE COURSE', 'ENTRY', 15, 20.5, 50, 6.7, 0.85, '+z'],
     ['RANGE RULES', 'KEEP MUZZLE DOWNRANGE', 54, 20.5, 90, 12, 1, '-z'],
   ],
+  substation: [
+    ['CONTROL HOUSE', 'SWITCHYARD 04', 64, 19.5, 36, 8, 1, '-z'],
+    ['WORKSHOP', 'MAINTENANCE / 02', 16, 19.5, 38, 6, 1, '-z'],
+    ['DANGER 230 kV', 'AUTHORISED ONLY', 64, 19.5, 60, 8, 1, '+z'],
+  ],
 };
 const COLORS = {
   harbor: ['#173239', '#b9f4ff'], canyon: ['#265452', '#f8deb1'],
@@ -65,6 +70,7 @@ const COLORS = {
   caldera: ['#433b40', '#ffd1a0'], nuketown: ['#427268', '#fff0cd'],
   dust2: ['#d9bd86', '#823e2b'],
   killhouse: ['#263848', '#ffcf77'],
+  substation: ['#22303a', '#ffd34d'],
 };
 const supportsPaint = type => type !== AIR && type !== GLASS;
 

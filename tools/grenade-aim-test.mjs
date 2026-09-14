@@ -148,7 +148,7 @@ for (const reset of [player => player.setGameplayInputEnabled(false),
     throwGrenade: true, yaw: 0, pitch: 0, grenadeAim: { yaw: Math.PI * 4 + 0.4, pitch: 5 },
   });
   close(authority.grenadeAimQueued.yaw, 0.4, 'authority wraps captured yaw');
-  close(authority.grenadeAimQueued.pitch, 89 * Math.PI / 180, 'authority clamps captured pitch');
+  close(authority.grenadeAimQueued.pitch, 80 * Math.PI / 180, 'authority clamps captured pitch');
 }
 
 console.log('Grenade aim: quick-throw firing suppression, all grenade types, delayed/failed sends, later server input, lifecycle cancellation, legacy fallback and sanitization passed.');

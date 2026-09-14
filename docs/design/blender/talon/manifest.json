@@ -1,0 +1,131 @@
+{
+  "asset": "TALON",
+  "asset_id": "talon",
+  "kind": "original tanto fighting knife prop (visual game asset)",
+  "blender": "5.2.1 LTS",
+  "authoring_script": "tools/blender/talon/build-talon.py",
+  "source_parts": 32,
+  "animation_group_nodes": [
+    "body",
+    "mag",
+    "bolt",
+    "trigger",
+    "extra"
+  ],
+  "marker_nodes": [
+    "grip",
+    "muzzle",
+    "sight"
+  ],
+  "batch_nodes": 8,
+  "round_nodes": [],
+  "triangles": 4472,
+  "triangles_per_primitive": {
+    "body | blackened": 1036,
+    "body | blade steel": 1112,
+    "body | ivory coating": 528,
+    "body | orange paint": 216,
+    "body | petrol grip": 216,
+    "body | polished edge": 116,
+    "body | rubber": 108,
+    "body | tan webbing": 1140
+  },
+  "materials": [
+    "blade steel",
+    "polished edge",
+    "blackened",
+    "orange paint",
+    "ivory coating",
+    "petrol grip",
+    "tan webbing",
+    "rubber"
+  ],
+  "material_textures": {
+    "blade steel": "worn-gunmetal.jpg",
+    "polished edge": "worn-gunmetal.jpg",
+    "blackened": "worn-gunmetal.jpg",
+    "orange paint": "orange-painted-metal.jpg",
+    "ivory coating": "ivory-armor.jpg",
+    "petrol grip": "petrol-ballistic-fabric.jpg",
+    "tan webbing": "tan-webbing.jpg",
+    "rubber": "worn-rubber.jpg"
+  },
+  "imagegen_textures": [
+    "worn-gunmetal.jpg",
+    "worn-gunmetal.jpg",
+    "worn-gunmetal.jpg",
+    "orange-painted-metal.jpg",
+    "ivory-armor.jpg",
+    "petrol-ballistic-fabric.jpg",
+    "tan-webbing.jpg",
+    "worn-rubber.jpg"
+  ],
+  "texture_source": "public/assets/blender/textures (the delivered 1024px JPEGs, reused byte-identical; originals untouched)",
+  "uv_density_tiles_per_metre": 3.6,
+  "axes": {
+    "authoring": "+Y forward, +Z up, +X right",
+    "after_gltf": "-Z forward, +Y up, +X right",
+    "map": "game_x = x, game_y = z, game_z = -y"
+  },
+  "anchors_game_space": {
+    "muzzle": [
+      0.0,
+      0.02,
+      -0.42
+    ],
+    "grip": [
+      0.02,
+      -0.225,
+      -0.035
+    ],
+    "sight": [
+      0.0,
+      0.02,
+      -0.22
+    ]
+  },
+  "contract_points": {
+    "guard_plane_y": 0.02,
+    "blade_tip_y": 0.42,
+    "blade_base_y": 0.008,
+    "spine_z": 0.02,
+    "blade_span_y": [
+      0.02,
+      0.42
+    ],
+    "sight_height": 0.02
+  },
+  "files": {
+    "blend": "docs/design/blender/talon/talon.blend",
+    "glb": "docs/design/blender/talon/talon.glb",
+    "renders": [
+      "render-hero.png",
+      "render-side.png",
+      "render-left.png",
+      "render-ads.png",
+      "render-rear.png"
+    ],
+    "validation": "docs/design/blender/talon/validation.json"
+  },
+  "build_time_checks": {
+    "anchor_contract": "blade tip on the muzzle point, spine top on the 0.02 sight line, blade base buried behind the guard plane, grip marker inside the handle volume, all three markers are asserted against the runtime contract every build",
+    "coplanar_face_audit": "rejects flush faces between parts, which z-fight once same-material parts merge into one draw call",
+    "part_contact": "every authored part must cross, nearly touch or sit inside another part; a group that only meets the model through empty space is reported as floating and fails the build"
+  },
+  "geometry_audit": {
+    "coplanar_faces": [],
+    "floating_parts": []
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; no mobile GPU profiling.",
+    "Hand fit is unverified: the grip palm sits on the contract point and the handle is built around it, but no third-person pose test was run.",
+    "mag / bolt / trigger / extra export as empty identity nodes: the knife slot never reloads, cycles or feeds cartridges."
+  ],
+  "notes": [
+    "Fresh design: no geometry reused from any gun study.",
+    "No bore, no heat band, no glass: a blade carries the muzzle contract.",
+    "Markings are modelled geometry, not a texture decal.",
+    "The fuller is a dark inlay panel 0.3 mm proud, not a boolean groove."
+  ]
+}

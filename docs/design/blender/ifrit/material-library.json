@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "asset": "ifrit",
+  "materials": [
+    {
+      "material": "IFRIT | rubber",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "IFRIT | webbing",
+      "texture": "tan-webbing"
+    },
+    {
+      "material": "IFRIT | cream",
+      "texture": "ivory-ceramic"
+    },
+    {
+      "material": "IFRIT | gunmetal",
+      "texture": "phosphated-steel"
+    },
+    {
+      "material": "IFRIT | heat wrap",
+      "texture": "heat-wrap"
+    },
+    {
+      "material": "IFRIT | fuel red",
+      "texture": "red-enamel"
+    },
+    {
+      "material": "IFRIT | brass",
+      "texture": "aged-brass"
+    }
+  ]
+}

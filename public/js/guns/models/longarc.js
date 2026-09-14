@@ -1,12 +1,14 @@
 import * as THREE from '../../vendor/three.module.js';
 import { COL, GLOW_ACCENT } from '../kit.js';
 import { BOLT_HOME, BREACH_Z, TRIGGER_Z } from './common.js';
+import { buildHalo } from './halo.js';
 
 // LN-03 LONGARC: semi-auto coilgun DMR. Twin copper rails fling a wall/player-piercing
 // rail slug; capacitor coils along the shroud decay cyan after each shot (rechargeDur).
 // Every bore/coil/rail element derives from BREACH_Z.longarc and T.muzzle so the tip
 // lands exactly on T.muzzle; the sight line (0.155) matches the ADS offset.
 export function build({ kit, T, groups }) {
+  if (buildHalo({ groups })) return;
   const { box, cylZ, ironSights } = kit;
   const { body, mag, bolt, trigger } = groups;
   const CYAN = GLOW_ACCENT.longarc;

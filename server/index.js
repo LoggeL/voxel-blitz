@@ -3,6 +3,7 @@
 import http from 'node:http';
 import { CareerService } from './career.js';
 import { normalizeWeaponLoadout } from '../shared/weapon-attachments.js';
+import { masteryView } from './persistence/career-profile.js';
 import { AccountService } from './accounts.js';
 import { PostgresStore } from './persistence/postgres.js';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -284,6 +285,7 @@ async function main() {
             if (career.identity(req) !== profileId) profile = null;
           } catch { profile = null; }
           meta.weaponLoadout = normalizeWeaponLoadout(profile?.equipped?.weaponAttachments);
+          meta.mastery = masteryView(profile?.mastery);
           if (admission.kind === 'quick') {
             admitted = manager.quickPlay(meta, name, admission.bots);
           } else if (admission.kind === 'create') {

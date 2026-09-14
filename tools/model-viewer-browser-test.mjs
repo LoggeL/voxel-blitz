@@ -149,6 +149,10 @@ try {
   await hook();
   await page.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await click('#workshop-open'); await ready('rifle-overdrive');
+  // A mid-session account refresh rebuilds the preview on empty saved setups
+  // before its fetch resolves; the skin gate above does not cover attachments,
+  // so wait for the applied key itself instead of asserting a transient.
+  await page.waitFor(`__viewer.gun.attachmentKey === 'reflex/vertical'`, { label: 'saved attachments applied' });
   assert.equal(await page.evaluate(`__viewer.gun.attachmentKey`), 'reflex/vertical', 'armory uses saved attachments with equipped skin');
   await snapshot('armory-desktop');
   for (const id of WEAPON_IDS) {

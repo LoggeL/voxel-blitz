@@ -1,0 +1,131 @@
+{
+  "version": 1,
+  "assets": [
+    "bison",
+    "fang",
+    "halo",
+    "hydra",
+    "ifrit",
+    "kestrel",
+    "mastiff",
+    "peregrine",
+    "pike",
+    "talon",
+    "torch",
+    "wasp"
+  ],
+  "assignment": {
+    "gunmetal": "phosphated-steel",
+    "blackened": "blued-steel",
+    "blued steel": "blued-steel",
+    "black oxide": "blued-steel",
+    "dark steel": "blued-steel",
+    "machined metal": "machined-steel",
+    "machined steel": "machined-steel",
+    "satin steel": "machined-steel",
+    "blade steel": "machined-steel",
+    "polished edge": "machined-steel",
+    "petrol coating": "petrol-paint",
+    "petrol paint": "petrol-paint",
+    "ivory coating": "ivory-ceramic",
+    "cream": "ivory-ceramic",
+    "ceramic paint": "ivory-ceramic",
+    "orange paint": "orange-paint",
+    "sight orange": "orange-paint",
+    "rubber": "pebbled-rubber",
+    "polymer": "molded-polymer",
+    "dark polymer": "molded-polymer",
+    "brass": "aged-brass",
+    "copper rail": "aged-copper",
+    "olive drab": "olive-paint",
+    "fuel red": "red-enamel",
+    "shell red": "red-enamel",
+    "tan webbing": "tan-webbing",
+    "webbing": "tan-webbing",
+    "heat wrap": "heat-wrap",
+    "petrol fabric": "petrol-fabric",
+    "petrol grip": "petrol-fabric"
+  },
+  "materials": {
+    "phosphated-steel": {
+      "metal": 0.35,
+      "rough": 0.53,
+      "bump": 0.0003
+    },
+    "machined-steel": {
+      "metal": 0.55,
+      "rough": 0.36,
+      "bump": 0.00018
+    },
+    "blued-steel": {
+      "metal": 0.4,
+      "rough": 0.46,
+      "bump": 0.00025
+    },
+    "petrol-paint": {
+      "metal": 0.16,
+      "rough": 0.58,
+      "bump": 0.00045
+    },
+    "ivory-ceramic": {
+      "metal": 0.08,
+      "rough": 0.62,
+      "bump": 0.0003
+    },
+    "orange-paint": {
+      "metal": 0.14,
+      "rough": 0.5,
+      "bump": 0.0004
+    },
+    "pebbled-rubber": {
+      "metal": 0,
+      "rough": 0.84,
+      "bump": 0.0008
+    },
+    "molded-polymer": {
+      "metal": 0.02,
+      "rough": 0.7,
+      "bump": 0.00055
+    },
+    "aged-brass": {
+      "metal": 0.58,
+      "rough": 0.42,
+      "bump": 0.0002
+    },
+    "aged-copper": {
+      "metal": 0.58,
+      "rough": 0.43,
+      "bump": 0.0002
+    },
+    "olive-paint": {
+      "metal": 0.14,
+      "rough": 0.61,
+      "bump": 0.0004
+    },
+    "red-enamel": {
+      "metal": 0.12,
+      "rough": 0.54,
+      "bump": 0.0004
+    },
+    "tan-webbing": {
+      "metal": 0,
+      "rough": 0.9,
+      "bump": 0.00065
+    },
+    "heat-wrap": {
+      "metal": 0,
+      "rough": 0.88,
+      "bump": 0.0008
+    },
+    "petrol-fabric": {
+      "metal": 0,
+      "rough": 0.87,
+      "bump": 0.00065
+    },
+    "carbon-fiber": {
+      "metal": 0.12,
+      "rough": 0.44,
+      "bump": 0.00025
+    }
+  }
+}

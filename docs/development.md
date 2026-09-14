@@ -183,7 +183,7 @@ npm run lobby        # room lifecycle and lobby protocol smoke
 npm run modes:lobby  # selected mode/map lobby and wire contracts
 npm run modes:bots   # deterministic bot behavior in Fun, TDM, S&D, and Gun Game
 npm test             # refactor/weapon/client contracts, gameplay, lobbies, bot modes
-npm run refactor:test # hitbox equivalence, server contexts/terrain, FX budgets/cleanup
+npm run refactor:test # hitbox equivalence and RIVET model fit, server contexts/terrain, FX budgets/cleanup
 npm run container:smoke # HTTP + WebSocket check against BASE_URL or localhost
 npm run browser:smoke   # connected touch-mode menu, play, input, pause, and quit flow
 npm run browser:ui      # HUD/shop DOM mutation budgets and session input lifecycle
@@ -393,6 +393,7 @@ Harbor and Canyon are 192 × 144 × 40 voxels. Existing maps retain 128 × 96 ×
 | `nuketown` | Fun, Chaos Lab, TDM, S&D, Gun Game | furnished houses, school bus, moving truck and backyard routes |
 | `dust2` | Fun, Chaos Lab, TDM, S&D, Gun Game | Long A, Short/Catwalk, Mid Doors, B Tunnels and raised A site |
 | `killhouse` | Training | weapon-test firing range with respawning dummies and a timed 4-stage killhouse course |
+| `substation` | Fun, TTT, 1v1, Chaos Lab, TDM, Gun Game, Training | Blender-authored electrical switchyard (`docs/design/blender/substation/`): control house roof perch, four transformer bays, workshop, reactor pad and ten range dummies |
 
 ## Mode-specific HUD and scoreboards
 
@@ -445,8 +446,11 @@ wheel (d-pad up/down or the right stick highlights a wedge, releasing `Y`
 equips it, `B` cancels), `LB` returns to the previous weapon, `RB` holds a
 grenade charge, `R3` steps scope zoom, the d-pad cycles
 slots (up/down), holds the S&D interaction (left) and opens the armory (right),
-`Back` shows the scoreboard, and `Start` pauses. Pad sensitivity (radians per
-second at full deflection) and aim assist live in the settings panel; aim
+`Back` shows the scoreboard, and `Start` pauses. Look Sensitivity scales mouse,
+controller and touch look together. Gamepad Base Speed sets the full-stick turn rate
+in radians per second at the default Look Sensitivity of 3.0; raising Look
+Sensitivity to 6.0 doubles that rate. Both preferences persist across sessions.
+These controls and aim assist live in the settings panel; aim
 assist only ever slows pad and touch look near a visible enemy and never
 touches a mouse.
 
@@ -829,3 +833,9 @@ burst pauses and memory duration.
 Run `npm run bots:difficulty:test` for probability, authority and real WebSocket
 checks; `npm run bots:difficulty:browser` covers host/member controls, mobile
 layout, map changes and a live match start.
+
+### Account keybindings
+
+Signed-in players load keyboard bindings from `GET /api/account/keybindings`. Changes and resets use authenticated, same-origin `POST` requests with the current `userId` and normalized `keybindings`. PostgreSQL migration 4 adds the nullable `vb_accounts.keybindings` JSONB column. Existing accounts adopt the guest browser bindings on first use; subsequent sign-ins load the saved account settings. Guest and account browser caches are separate. Failed synchronization retries while the page remains open.
+
+`npm run keybindings:test` checks input and account synchronization, including account switches and edits during loading. `npm run postgres:test` verifies account isolation, access checks, cross-device reads and persistence after app/database restart.

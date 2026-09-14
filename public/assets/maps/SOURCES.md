@@ -16,6 +16,7 @@ external assets, compositing or retouching is included in these previews.
 | nuketown | `nuketown.webp` | `.artifacts/map-rich-pass/nuketown-hero.png` |
 | dust2 | `dust2.webp` | `.artifacts/map-renders/dust2-hero.png` |
 | killhouse | `killhouse-range.webp` | `.artifacts/map-rich-pass/killhouse-control-yard.png` |
+| substation | `substation.webp` | `.artifacts/map-renders/substation-switchyard.png` (2026-09-14, `node tools/render-map-scenes.mjs --map substation`) |
 
 Capture command:
 
@@ -31,3 +32,8 @@ are now production captures.
 
 `killhouse-concept.webp` is retained as an earlier design reference and is not
 the active training preview.
+
+Substation is the first Blender-authored map (`docs/design/blender/substation/`).
+Its preview is an in-game capture like the others; the Cycles renders beside the
+study (`render-hero.png`, `render-yard.png`, `render-control.png`,
+`render-preview.png`) are design reference, not lobby artwork.

@@ -1,4 +1,5 @@
 import { applyAttachmentModel } from './attachment-model.js';
+import { applyStattrakModule } from './stattrak-module.js';
 import { applyGunCosmetics } from '../cosmetics/skins.js';
 // First-person viewmodel facade: public gunfeel API plus one rig-owned
 // material cache and one action-state owner.
@@ -44,6 +45,7 @@ export class ViewmodelRig {
     this._disposed = false;
     this._models = {};                 // lazily-built gun cache keyed by weapon id
     this._materials = new MaterialCache();
+    this._mastery = {};                // per-weapon {kills,headshots} from the welcome payload
     this._chargeOrb = new THREE.Group();
     const core = new THREE.Mesh(new THREE.IcosahedronGeometry(0.055, 1),
       new THREE.MeshBasicMaterial({ color: 0xc9a2ff, transparent: true, opacity: 0.8,
@@ -127,6 +129,26 @@ export class ViewmodelRig {
   setCosmetics(loadout) {
     this._cosmetics = loadout;
     for (const [weapon, model] of Object.entries(this._models)) applyGunCosmetics(model, weapon, loadout);
+  }
+
+  /** Admission-time kill counts; a detached copy since the welcome payload is frozen. */
+  setMastery(value) {
+    const next = {};
+    if (value && typeof value === 'object') for (const id of Object.keys(value)) {
+      const row = value[id];
+      if (WEAPONS[id] && row && Number.isSafeInteger(row.kills) && row.kills >= 0
+        && Number.isSafeInteger(row.headshots) && row.headshots >= 0 && row.headshots <= row.kills)
+        next[id] = { kills: row.kills, headshots: row.headshots };
+    }
+    this._mastery = next;
+  }
+
+  /** Optimistic StatTrak bump for a counted kill; the next admission refreshes authority. */
+  noteKill(weapon, headshot) {
+    if (!WEAPONS[weapon]) return;
+    const row = this._mastery[weapon] || (this._mastery[weapon] = { kills: 0, headshots: 0 });
+    row.kills++;
+    if (headshot === true) row.headshots++;
   }
 
   setWeapon(id) {
@@ -400,6 +422,7 @@ export class ViewmodelRig {
     }
     const cur = this._cur;
     if (cur) applyAttachmentModel(cur, this._id, ctx.weaponDef?.attachments);
+    if (cur) applyStattrakModule(cur, this._id, ctx.weaponDef?.attachments, this._mastery?.[this._id]?.kills);
     if (cur) animateHeavyWeapon(cur.body, { dt: elapsed, time: this._now,
       minigun: this._minigunState, flameActive: this._flameActive, fuel: this._flameFuel });
     const speed = ctx.speed || 0, grounded = ctx.grounded !== false;
@@ -527,6 +550,14 @@ export class ViewmodelRig {
       Math.sin(this._now * 3.4 + phase) * 0.0030 * exhaustion) * condDamp * aimSwayScale * cosmeticMotion;
     const conditionYaw = Math.sin(this._now * 19 + phase * 0.8) * 0.0012 *
       distress * condDamp * aimSwayScale;
+    // Grip-shift: slow positional drift as the hold resettles, on periods far
+    // from breathing and tremor so the layers never phase-lock. Positional
+    // only (sub-2mm), damped in ADS, per-weapon phase. Deterministic clock.
+    const shiftScale = (1 - adsE * 0.8) * aimSwayScale * cosmeticMotion;
+    const shiftX = (Math.sin(this._now * (Math.PI * 2 / 11) + phase) * 0.0016 +
+      Math.sin(this._now * (Math.PI * 2 / 7.3) + phase * 1.3) * 0.0009) * shiftScale;
+    const shiftY = (Math.sin(this._now * (Math.PI * 2 / 13) + phase * 0.7) * 0.0013 +
+      Math.sin(this._now * (Math.PI * 2 / 8.1) + phase * 2.1) * 0.0008) * shiftScale;
 
     /* ---------- choreography states ---------- */
     const actionMotion = this._actions.update(this._now, dt, cur, T);
@@ -578,8 +609,8 @@ export class ViewmodelRig {
 
     /* ---------- compose transforms (condition offsets never touch the authoritative camera) ---------- */
     this.posG.position.set(
-      turn.x + this._lean.p + bobX + tremorX + machineTremor,
-      turn.y + bobY + this._air.p + breathe + exhaustedBreath + tremorY + Math.sin(this._now * 43) * pressure * 0.0008,
+      turn.x + this._lean.p + bobX + tremorX + machineTremor + shiftX,
+      turn.y + bobY + this._air.p + breathe + exhaustedBreath + tremorY + Math.sin(this._now * 43) * pressure * 0.0008 + shiftY,
       this._spr.push.p + this._surge.p + pressure * 0.006
     );
     // World-space yaw/pitch offsets are not camera-local Euler offsets when the
@@ -691,6 +722,27 @@ export class ViewmodelRig {
     } else if (this._flashT < 0 && this._lightT < 0) {
       cur.flash.grp.visible = false;
       cur.flash.light.intensity = 0;
+    }
+    // Flagged glow cells (railgun arc coils, cyber-scope rails) idle dim and
+    // brighten with the lance cell. Re-collected when attachments rebuild.
+    if (cur._glowKey !== cur.attachmentKey) {
+      cur._glowKey = cur.attachmentKey;
+      cur._glowMats = [];
+      const seenMats = new Set();
+      cur.body.traverse(o => {
+        const mats = [].concat(o.material || []);
+        for (const m of mats) {
+          if (m?.userData?.chargeGlow && !seenMats.has(m)) {
+            seenMats.add(m);
+            cur._glowMats.push(m);
+          }
+        }
+      });
+    }
+    if (cur._glowMats.length) {
+      const glow = 0.5 + 2.4 * this._chargeT ** 3 +
+        Math.sin(this._now * 36) * 0.12 * this._chargeT;
+      for (const m of cur._glowMats) m.emissiveIntensity = Math.max(0.15, glow);
     }
   }
 

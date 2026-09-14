@@ -41,7 +41,7 @@ import {
   grenadeTypeAt,
 } from '../shared/grenade-rules.js';
 
-const MAX_PITCH = (89 * Math.PI) / 180;
+const MAX_PITCH = (80 * Math.PI) / 180;
 const SPAWN_PROTECTION_MS = 1500;
 
 export class GameEngine {

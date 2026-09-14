@@ -1,5 +1,6 @@
 import { COL, GLOW_ACCENT } from '../kit.js';
 import { BOLT_HOME, BREACH_Z, TRIGGER_Z } from './common.js';
+import { buildTorch } from './torch.js';
 
 // RX-8 HAVOC: shoulder-fired rocket launcher. One fat launch tube with a rear venturi,
 // a pistol grip and a forward handle under the tube, flip-up ladder sights on a top rail,
@@ -8,6 +9,7 @@ import { BOLT_HOME, BREACH_Z, TRIGGER_Z } from './common.js';
 // BREACH_Z.rocket to T.muzzle so the tube mouth lands exactly on T.muzzle; the sight line
 // (0.175) matches the ADS offset.
 export function build({ kit, T, groups }) {
+  if (buildTorch({ kit, T, groups })) return;
   const { box, cylZ, ironSights } = kit;
   const { body, bolt, trigger, extra } = groups;
   const mag = body; // The underslung control canister stays fixed during a rocket reload.
