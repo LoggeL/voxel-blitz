@@ -128,6 +128,7 @@ export function buildGun(id, cache) {
     hands.grip.z,
     'grip',
     1,
+    id,
   );
   rightHand.name = 'hand_r';
   if (hands.support) {
@@ -135,10 +136,10 @@ export function buildGun(id, cache) {
     const lx = hands.support.x - (target === pump ? PUMP_REST.x : 0);
     const ly = hands.support.y - (target === pump ? PUMP_REST.y : 0);
     const lz = hands.support.z - (target === pump ? PUMP_REST.z : 0);
-    const leftHand = kit.glove(target, lx, ly, lz, 'support', -1);
+    const leftHand = kit.glove(target, lx, ly, lz, 'support', -1, id);
     leftHand.name = 'hand_l';
   } else if (!melee) {
-    const leftHand = kit.glove(extra, -0.10, -0.12, -0.14, 'support', -1);
+    const leftHand = kit.glove(extra, -0.10, -0.12, -0.14, 'support', -1, id);
     leftHand.name = 'hand_l';
     leftHand.visible = false;
   }

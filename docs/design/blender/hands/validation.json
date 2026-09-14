@@ -9,15 +9,15 @@
     "extent": {
       "x": [
         -0.092391,
-        0.04296
+        0.044133
       ],
       "y": [
         -0.059405,
-        0.03691
+        0.037909
       ],
       "z": [
         -0.089466,
-        0.17
+        0.24
       ]
     },
     "palm_bounds": {
@@ -70,21 +70,21 @@
     ],
     "node:grip": "present",
     "node:support": "present",
-    "triangles": 14656,
+    "triangles": 14912,
     "triangles_per_primitive": {
       "grip | ceramic armor": 728,
       "grip | glove leather": 3256,
       "grip | hardware": 216,
       "grip | knuckle plate": 648,
       "grip | skin": 1692,
-      "grip | suit fabric": 632,
+      "grip | suit fabric": 760,
       "grip | webbing": 156,
       "support | ceramic armor": 728,
       "support | glove leather": 3256,
       "support | hardware": 216,
       "support | knuckle plate": 648,
       "support | skin": 1692,
-      "support | suit fabric": 632,
+      "support | suit fabric": 760,
       "support | webbing": 156
     }
   }

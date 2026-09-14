@@ -35,7 +35,15 @@ const TEN_SEGMENTS = Object.freeze({ seg: 10 });
 // applies, so its thumb side is +x_local.
 const BLENDER_HAND_FRAMES = Object.freeze({
   grip: { back: [0.90, 0.25, 0.35], fingers: [0.05, 0.40, -0.91], offset: [-0.030, -0.085, -0.010] },
-  support: { back: [-0.60, -0.62, 0.30], fingers: [0.50, 0.60, -0.62], offset: [0.012, -0.028, 0.0] },
+  support: { back: [-0.60, -0.62, 0.30], fingers: [0.42, 0.70, -0.58], offset: [0.012, -0.028, 0.0] },
+});
+
+// Per-weapon palm-centre nudges where the shared anchor sheet was tuned for
+// the old box mitt rather than a wrapped fist: short revolver grip, knife
+// handle held at the anchor itself.
+const BLENDER_HAND_OFFSETS = Object.freeze({
+  revolver: { grip: [-0.025, -0.045, 0.0] },
+  knife: { grip: [-0.015, 0.040, 0.0] },
 });
 
 // Character-skin palette keys per HANDS material (see cosmetics/skins.js);
@@ -44,16 +52,17 @@ const BLENDER_HAND_PALETTE = Object.freeze({
   'glove leather': 0x22252a, 'ceramic armor': 0x15171a, webbing: 0xb09a72,
 });
 
-function orientBlenderHand(group, pose) {
+function orientBlenderHand(group, pose, weaponId) {
   const frame = BLENDER_HAND_FRAMES[pose];
   const z = new THREE.Vector3().fromArray(frame.fingers).normalize().negate();
   const y = new THREE.Vector3().fromArray(frame.back);
   y.addScaledVector(z, -y.dot(z)).normalize();
   const x = new THREE.Vector3().crossVectors(y, z);
   group.quaternion.setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, y, z));
-  group.position.x += frame.offset[0];
-  group.position.y += frame.offset[1];
-  group.position.z += frame.offset[2];
+  const offset = BLENDER_HAND_OFFSETS[weaponId]?.[pose] || frame.offset;
+  group.position.x += offset[0];
+  group.position.y += offset[1];
+  group.position.z += offset[2];
 }
 
 function refMaterial(material, sharedMaterials) {
@@ -185,8 +194,8 @@ export function makeKit(cache) {
     box(parent, 0.008, bladeHeight, 0.014, 0, height - bladeHeight / 2, frontZ, accent);
   }
 
-  /** Static box-mitt pose: deliberately no runtime IK or per-frame work. */
-  function glove(parent, anchorX, anchorY, anchorZ, kind, mirror) {
+  /** Static glove pose: deliberately no runtime IK or per-frame work. */
+  function glove(parent, anchorX, anchorY, anchorZ, kind, mirror, weaponId = null) {
     const group = new THREE.Group();
     group.position.set(anchorX, anchorY, anchorZ);
     group.rotation.set(
@@ -209,7 +218,7 @@ export function makeKit(cache) {
       group.userData.blenderAsset = 'hands';
       group.userData.handPose = pose;
       if (mirror < 0) group.scale.x = -1;
-      orientBlenderHand(group, pose);
+      orientBlenderHand(group, pose, weaponId);
       for (const mesh of blenderNode.children) {
         for (const material of [].concat(mesh.material)) {
           const key = BLENDER_HAND_PALETTE[material.userData.partMaterial];

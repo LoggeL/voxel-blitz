@@ -61,7 +61,7 @@ GROUPS = ['grip', 'support']
 # --- glove-local frame contract (metres, y up, right hand) ------------------
 # Palm spans the origin; knuckles at z ~= -0.045 with fingers running toward
 # -z before they flex; wrist, strap, sleeve and bracer at z > 0. Nothing may
-# leave a 0.25 m radius: the longest reach is the sleeve hem (~0.155 m).
+# leave a 0.25 m radius: the longest reach is the sleeve flare (~0.245 m).
 PALM_Z0, PALM_Z1 = -0.046, 0.030   # knuckle edge .. wrist heel
 KNUCKLE_Y = 0.003                  # finger base height
 CUFF_MIN_Z = 0.018                 # every strap/sleeve part starts past this plane
@@ -209,13 +209,19 @@ def flared_box(hx0, hy0, hx1, hy1, z0, z1, y0=0.0, y1=0.0):
     return verts, faces
 
 
-def octagon_tube(rx, ry, length, z0):
-    """Closed eight-sided prism along +Z from z0 (rounded sleeve section)."""
-    ring = []
+def octagon_tube(rx, ry, length, z0, rx1=None, ry1=None):
+    """Closed eight-sided prism along +Z from z0 (rounded sleeve section).
+
+    `rx1`/`ry1` taper the far ring so a sleeve can widen toward the elbow.
+    """
+    rx1 = rx if rx1 is None else rx1
+    ry1 = ry if ry1 is None else ry1
+    ring, far = [], []
     for i in range(8):
         a = math.pi / 8 + i * math.pi / 4
         ring.append((rx * math.cos(a), ry * math.sin(a)))
-    verts = [(x, y, z0) for (x, y) in ring] + [(x, y, z0 + length) for (x, y) in ring]
+        far.append((rx1 * math.cos(a), ry1 * math.sin(a)))
+    verts = [(x, y, z0) for (x, y) in ring] + [(x, y, z0 + length) for (x, y) in far]
     faces = [tuple(range(7, -1, -1)), tuple(range(8, 16))]
     for i in range(8):
         j = (i + 1) % 8
@@ -334,16 +340,18 @@ def build_common(part, title):
     add(f'{title} strap keeper', part, 'hardware',
         boxv((0.006, 0.006, 0.014)), loc=(0.030, 0.0165, 0.036), bevel=.0012)
     add(f'{title} sleeve hem', part, 'glove leather',
-        octagon_tube(0.0435, 0.0255, 0.012, 0.064), bevel=.003)
+        octagon_tube(0.0395, 0.0245, 0.012, 0.064), bevel=.003)
+    # Forearm: the suit sleeve widens from the wrist toward the elbow and
+    # runs to the 0.25 m reach limit so its end sits well behind the frame.
     add(f'{title} sleeve', part, 'suit fabric',
-        octagon_tube(0.0425, 0.0245, 0.094, 0.062), bevel=.004, segments=3)
+        octagon_tube(0.0385, 0.0235, 0.156, 0.062, 0.0450, 0.0315), bevel=.004, segments=3)
     add(f'{title} sleeve flare', part, 'suit fabric',
-        octagon_tube(0.0465, 0.0285, 0.020, 0.150), bevel=.004, segments=3)
+        octagon_tube(0.0465, 0.0330, 0.026, 0.214, 0.0480, 0.0345), bevel=.004, segments=3)
     # Forearm bracer: ivory plate along the back of the sleeve, orange inset.
     add(f'{title} bracer', part, 'ceramic armor',
-        flared_box(0.027, 0.0065, 0.030, 0.0070, 0.078, 0.150, 0.0235, 0.0270), bevel=.004, segments=3)
+        flared_box(0.026, 0.0065, 0.030, 0.0075, 0.080, 0.190, 0.0225, 0.0290), bevel=.004, segments=3)
     add(f'{title} bracer inset', part, 'knuckle plate',
-        flared_box(0.012, 0.0030, 0.013, 0.0030, 0.090, 0.140, 0.0310, 0.0340), bevel=.0015)
+        flared_box(0.012, 0.0030, 0.013, 0.0030, 0.094, 0.176, 0.0300, 0.0350), bevel=.0015)
     return palm
 
 

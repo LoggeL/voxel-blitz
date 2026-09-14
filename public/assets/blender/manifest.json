@@ -23,10 +23,10 @@
     },
     {
       "asset": "hands",
-      "source_parts": 94,
-      "draws": 8,
-      "triangles": 14960,
-      "geometry_bytes": 1134656
+      "source_parts": 88,
+      "draws": 14,
+      "triangles": 14912,
+      "geometry_bytes": 1146112
     },
     {
       "asset": "hydra",

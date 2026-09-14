@@ -37,6 +37,8 @@ try {
   const lmgMetrics = await page.evaluate('window.__vbAvatarCapture');
   assert.ok(lmgMetrics.gripError < 1e-6, 'lmg profile: palm on grip');
   assert.ok(lmgMetrics.weaponInFrame, 'lmg profile: weapon in frame');
+  for (const weapon of ['rifle', 'revolver', 'knife']) await capture(`/weapon-capture.html?weapon=${weapon}&state=held`, `hands-${weapon}-held`);
+  await capture('/weapon-capture.html?weapon=revolver&state=reload-open', 'hands-revolver-reload-open');
   for (const state of ['held', 'scoped', 'firing', 'reload-open', 'reload-eject', 'reload-load', 'reload-charge']) {
     await capture(`/weapon-capture.html?weapon=lmg&state=${state}`, `bison-${state}`);
   }
@@ -99,6 +101,23 @@ try {
     must(geometryDisposed===0 && textureDisposed===0,'disposing one avatar preserves shared geometry and maps');
     const cache = new MaterialCache(), gun = buildGun('rifle',cache);
     must(gun.body.userData.blenderAsset==='kestrel','first person KESTREL');
+    const handR = gun.root.getObjectByName('hand_r'), handL = gun.root.getObjectByName('hand_l');
+    must(handR?.userData.blenderAsset==='hands' && handL?.userData.blenderAsset==='hands','first person HANDS gloves');
+    must(handR.children.length===7 && handL.children.length===7,'seven material primitives per glove');
+    must(handR.scale.x===1 && handL.scale.x===-1,'support glove is the mirrored right hand');
+    const gloveMaterials = handR.children.map(m=>m.material);
+    const leather = gloveMaterials.find(m=>m.userData.partMaterial==='glove leather');
+    must(leather?.map?.name==='textures/worn-rubber.jpg' && leather.userData.paletteColor===0x22252a,'glove leather keeps its delivered map and skin-palette key');
+    must(gloveMaterials.find(m=>m.userData.partMaterial==='webbing')?.userData.paletteColor===0xb09a72,'wrist strap keyed to the cuff palette');
+    const bare = gloveMaterials.find(m=>m.userData.partMaterial==='skin');
+    must(bare && bare.color.getHex()!==0xffffff && bare.map,'bare fingertips keep their tint and map');
+    gun.root.updateMatrixWorld(true);
+    const palm = handR.getWorldPosition(new T.Vector3());
+    must(palm.y<-0.05 && palm.y>-0.12 && Math.abs(palm.x)<0.03 && palm.z<-0.05 && palm.z>-0.15,'fist wraps the pistol grip');
+    const forearm = new T.Box3().setFromObject(handL);
+    must(forearm.min.y<-0.15 && forearm.max.z>-0.30,'support forearm runs down and back toward the elbow');
+    const fistBox = new T.Box3().setFromObject(handR);
+    must(fistBox.max.y<0.05,'fist stays under the receiver, clear of the sight line');
     applyAttachmentModel(gun,'rifle',{optic:'reflex',grip:'vertical'});
     must(!gun.body.getObjectByName('factory-optic').visible,'replacement optic hides authored sight');
     applyAttachmentModel(gun,'rifle',{optic:'standard',grip:'standard'});
