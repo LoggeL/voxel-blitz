@@ -43,7 +43,8 @@ class CdpConnection {
         this.errors.push(detail?.exception?.description || detail?.text || 'browser exception');
       }
       if (message.method === 'Log.entryAdded' && message.params?.entry?.level === 'error') {
-        this.errors.push(message.params.entry.text || 'browser log error');
+        const entry = message.params.entry;
+        this.errors.push(`${entry.text || 'browser log error'}${entry.url ? ` (${entry.url})` : ''}`);
       }
     });
     const rejectPending = (message) => this._rejectPending(new Error(message));
@@ -170,6 +171,7 @@ export async function launchCdpSession(url, {
     '--force-device-scale-factor=1',
     url,
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const closed = new Promise(resolve => child.once('close', resolve));
 
   // Drain both pipes so browser diagnostics cannot block Chromium startup.
   let browserDiagnostics = '';
@@ -179,6 +181,18 @@ export async function launchCdpSession(url, {
     browserDiagnostics = (browserDiagnostics + chunk).slice(-8_000);
   });
   child.on('error', error => { launchError = error; });
+
+  async function stopBrowser() {
+    if (child.exitCode === null && child.signalCode === null) {
+      try { child.kill('SIGTERM'); } catch {}
+      await Promise.race([closed, sleep(2_000)]);
+    }
+    if (child.exitCode === null && child.signalCode === null) {
+      try { child.kill('SIGKILL'); } catch {}
+      await Promise.race([closed, sleep(2_000)]);
+    }
+    await removeBrowserProfile(profileDir);
+  }
 
   let connection = null;
   try {
@@ -196,26 +210,18 @@ export async function launchCdpSession(url, {
     return {
       page: connection,
       async close() {
+        // Let Chromium shut down its profile writers before removing the profile.
+        if (!connection.closed) {
+          await connection.send('Browser.close', {}, 1_000).catch(() => {});
+          await Promise.race([closed, sleep(2_000)]);
+        }
         connection?.close();
-        if (child.exitCode === null && child.signalCode === null) {
-          try { child.kill('SIGTERM'); } catch {}
-          await Promise.race([
-            new Promise((resolve) => child.once('exit', resolve)),
-            sleep(2_000),
-          ]);
-        }
-        if (child.exitCode === null && child.signalCode === null) {
-          try { child.kill('SIGKILL'); } catch {}
-        }
-        await removeBrowserProfile(profileDir);
+        await stopBrowser();
       },
     };
   } catch (error) {
     connection?.close();
-    if (child.exitCode === null && child.signalCode === null) {
-      try { child.kill('SIGKILL'); } catch {}
-    }
-    await removeBrowserProfile(profileDir);
+    await stopBrowser();
     throw new Error(`${launchError?.message || error.message}${browserDiagnostics ? `\n${browserDiagnostics}` : ''}`, { cause: error });
   }
 }

@@ -102,7 +102,8 @@ async function main() {
       }
       obj = career.decorateSnapshot(obj, clients);
       const saving = career.observe(c, obj);
-      saving?.catch(error => {
+      // File persistence returns the updated profile; PostgreSQL returns a promise.
+      saving?.catch?.(error => {
         if (!c.careerErrorLogged) console.error('[career] reward save failed:', error.message);
         c.careerErrorLogged = true;
       });

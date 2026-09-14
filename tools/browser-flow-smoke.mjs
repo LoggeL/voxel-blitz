@@ -556,8 +556,8 @@ async function main() {
     await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ' });
     await page.waitFor(`window.__vb.wheelOpen`, { label: 'Q opens weapon wheel while held' });
     await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
-    await page.evaluate('new Promise(resolve => setTimeout(resolve, 300))');
-    requireCondition(await page.evaluate('!window.__vb.wheelOpen'), 'Q release closes the weapon wheel');
+    await page.waitFor('!window.__vb.wheelOpen', { label: 'Q release closes the weapon wheel' });
+    requireCondition(true, 'Q release closes the weapon wheel');
     await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ' });
     await page.waitFor('window.__vb.wheelOpen', { label: 'held Q reopens wheel for selection' });
     requireCondition(await page.evaluate(`(() => {

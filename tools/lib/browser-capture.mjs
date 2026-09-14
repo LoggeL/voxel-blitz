@@ -66,7 +66,7 @@ export function createBrowserProfile(prefix = 'voxel-blitz-capture-') {
 }
 
 export function removeBrowserProfile(profileDir) {
-  return rm(profileDir, { recursive: true, force: true });
+  return rm(profileDir, { recursive: true, force: true, maxRetries: 6, retryDelay: 100 });
 }
 
 function run(command, args, timeoutMs = 45_000) {
