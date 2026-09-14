@@ -1024,7 +1024,12 @@ const accounts = new AccountMenu({ onOpen: () => { if (career.dialog.open) caree
 const career = new CareerShop({ accounts });
 const customization = new WeaponCustomization({ accounts });
 loadingScreen?.update('Loading your account…');
+loadingScreen?.step('account', { status: 'active' });
+window.__vbBoot?.phases && (window.__vbBoot.phases.models = Math.round(performance.now() - window.__vbBoot.startedAt));
 await accounts.start();
+loadingScreen?.step('account', { status: 'done' });
 loadingScreen?.update('Loading your career and equipment…');
+loadingScreen?.step('career', { status: 'active' });
 await career.start();
+loadingScreen?.step('career', { status: 'done' });
 game.session.start();

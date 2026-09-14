@@ -131,9 +131,9 @@ export const MAP_DESCRIPTIONS = Object.freeze({
 });
 
 export const MAP_PREVIEWS = Object.freeze({
-  harbor: './assets/maps/harbor.png',
-  canyon: './assets/maps/canyon.png',
-  reactor: './assets/maps/reactor-preview.png',
+  harbor: './assets/maps/harbor.webp',
+  canyon: './assets/maps/canyon.webp',
+  reactor: './assets/maps/reactor-preview.webp',
   foundry: './assets/maps/foundry-concept.webp',
   depot: './assets/maps/depot-concept.webp',
   citadel: './assets/maps/citadel-concept.webp',

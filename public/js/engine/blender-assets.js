@@ -1,5 +1,8 @@
 import * as THREE from '../vendor/three.module.js';
 import { GLTFLoader } from '../vendor/loaders/GLTFLoader.js';
+import { loadingScreen } from '../ui/loading-screen.js';
+
+const ASSET_IDS = Object.freeze(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'talon', 'torch', 'wasp', 'hands']);
 
 // Geometry and decoded ImageGen maps belong to the page, not to a player or a
 // preview. Only materials are cloned, so one skin/fade cannot affect another rig.
@@ -13,8 +16,18 @@ export function imagegenMap(name) {
 
 export function loadBlenderAssets() {
   return loading ??= (async () => {
-    const loader = new GLTFLoader();
-    const results = await Promise.allSettled(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'talon', 'torch', 'wasp', 'hands'].map(async id => {
+    // The fourteen models share 22 texture files. three.js only reuses a
+    // response through its loader cache, so enable it for the library load and
+    // release the raw buffers afterwards (decoded textures stay on the GPU).
+    const cacheWasEnabled = THREE.Cache.enabled;
+    THREE.Cache.enabled = true;
+    const manager = new THREE.LoadingManager();
+    let items = 0;
+    manager.onStart = (url, loaded, total) => { items = Math.max(items, total); report(loaded, total); };
+    manager.onProgress = (url, loaded, total) => { items = Math.max(items, total); report(loaded, total); };
+    const loader = new GLTFLoader(manager);
+    loadingScreen?.step('models', { status: 'active', done: 0, total: 1, detail: 'REQUESTING MODEL LIBRARY' });
+    const results = await Promise.allSettled(ASSET_IDS.map(async id => {
       const gltf = await loader.loadAsync(new URL(`../../assets/blender/${id}.gltf`, import.meta.url).href);
       gltf.scene.traverse(object => {
         if (object.geometry) object.geometry.userData.pageOwned = true;
@@ -40,10 +53,20 @@ export function loadBlenderAssets() {
       });
       templates.set(id, gltf.scene);
     }));
+    let missing = 0;
     for (const result of results) {
-      if (result.status === 'rejected') console.warn('[vb] Blender asset unavailable; using procedural model', result.reason);
+      if (result.status === 'rejected') { missing++; console.warn('[vb] Blender asset unavailable; using procedural model', result.reason); }
     }
+    loadingScreen?.step('models', { status: missing === results.length ? 'failed' : 'done',
+      detail: `${results.length - missing} / ${results.length} MODELS` });
+    THREE.Cache.clear();
+    THREE.Cache.enabled = cacheWasEnabled;
   })();
+}
+
+function report(loaded, total) {
+  if (!Number.isFinite(total) || total <= 0) return;
+  loadingScreen?.step('models', { done: loaded, total, detail: `${loaded} / ${total} FILES` });
 }
 
 /** Select rigid parts in gameplay joint coordinates; every returned material has one owner. */

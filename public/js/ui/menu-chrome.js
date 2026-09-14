@@ -3,8 +3,8 @@ import { mountMusicControl } from './music-control.js';
 import { CrossfadeImage } from './crossfade-image.js';
 
 const MENU_BACKDROPS = Object.freeze({
-  harbor: '/assets/maps/harbor.png',
-  canyon: '/assets/maps/canyon.png',
+  harbor: '/assets/maps/harbor.webp',
+  canyon: '/assets/maps/canyon.webp',
   foundry: '/assets/ui/menu-foundry-dusk.webp',
   depot: '/assets/maps/depot-concept.webp',
   citadel: '/assets/maps/citadel-concept.webp',

@@ -15,6 +15,7 @@ import { buildInitialMesh } from './initial-mesh.js';
 import { installSky } from './sky.js';
 import { buildNuketownDetails } from './nuketown-details.js';
 import { buildMinecraftB5Details } from './minecraft-b5-details.js';
+import { tickFluidMaterials } from './fluid-material.js';
 import { mapAtmosphere } from './map-atmosphere.js';
 import { buildMapSigns } from './map-signs.js';
 import { buildMapLights } from './map-lights.js';
@@ -134,7 +135,7 @@ export class WorldView {
     this.chunkStore = new ChunkStore(this.scene, this.atlas, visualBlock, visualDamage, getMapDimensions(meta?.id));
 
     this.mapDetails = meta?.id === 'nuketown' ? buildNuketownDetails()
-      : meta?.id === 'minecraft_b5' ? buildMinecraftB5Details(meta) : null;
+      : meta?.id === 'minecraft_b5' ? buildMinecraftB5Details(meta, this.atlas) : null;
     if (this.mapDetails) this.scene.add(this.mapDetails.group);
     this.mapSigns = buildMapSigns(meta?.id, visualBlock);
     this.scene.add(this.mapSigns.group);
@@ -234,6 +235,7 @@ export class WorldView {
   /** Per-frame tick: drains the chunk remesh budget and drifts the clouds. */
   update(dt) {
     this.chunkStore.update();
+    tickFluidMaterials(dt);
     this.skyUpdate(dt);
     this.powerups.update(dt);
   }

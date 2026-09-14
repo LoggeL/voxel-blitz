@@ -18,3 +18,21 @@ Validation (2026-09-13):
 - Temporary CPU throttling and request blocking were cleared after QA.
 
 Screenshots: `boot-desktop.png`, `boot-mobile.png`, `connect-desktop.png`, `connect-mobile.png`, `arena-desktop.png`, `arena-mobile.png`, `error-mobile.png`.
+
+## Startup stages and delivery (2026-09-14)
+
+The startup screen now lists its real stages under the status line (game
+systems, weapon and operator models, account, career and equipment) with an
+amber marker per stage, a weighted total on the rail and a percentage. Each
+stage reports actual work: module responses observed through
+`PerformanceObserver` against the `vb-module-count` meta generated with the
+`modulepreload` block, `THREE.LoadingManager` item counts for the Blender
+library, and the two account requests. Nothing is timed.
+
+Delivery changes measured with `npm run boot:profile` (headless Chromium
+against the local server): a cold start moved from 415 requests and 60 MB to
+345 requests and about 9 MB (brotli/gzip for modules and geometry, the shared
+texture files requested once instead of once per model, palette textures
+re-encoded, skyboxes and large previews as WebP); a warm start revalidates
+with weak ETags and transfers only what changed. The `.artifacts` screenshots
+of these stages are refreshed by `tools/boot-profile.mjs`.

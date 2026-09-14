@@ -1,6 +1,6 @@
 /** Clear daylight keeps color in the buildings and props, without a sepia cast. */
 const DEFAULT = Object.freeze({
-  skybox: '/assets/skyboxes/voxel-daylight.png',
+  skybox: '/assets/skyboxes/voxel-daylight.webp',
   fog: '#b4cde1', density: 0.0036, skyTop: '#397fc4', skyHorizon: '#b3ddf5',
   skyLight: '#d2e5fa', groundLight: '#6e7775', sun: '#fff9f0',
   ambient: 0.78, sunlight: 1.35, cloud: '#ffffff',
@@ -8,15 +8,15 @@ const DEFAULT = Object.freeze({
 const PALETTES = {
   harbor: { skyTop: '#467d99', skyHorizon: '#bedbe8', fog: '#bbd7e2',
     groundLight: '#66858c', skyLight: '#d3eafa', sun: '#fff6e5', ambient: 0.86, sunlight: 1.42, density: 0.0018 },
-  canyon: { skybox: '/assets/skyboxes/desert-daylight.png', fog: '#dfd3b9', groundLight: '#b49872',
+  canyon: { skybox: '/assets/skyboxes/desert-daylight.webp', fog: '#dfd3b9', groundLight: '#b49872',
     skyLight: '#dde9f1', sun: '#fff0d6', ambient: 0.86, sunlight: 1.48, density: 0.0018 },
   foundry: { skyTop: '#367ab9', skyHorizon: '#b7dced', groundLight: '#697660' },
   depot: { skyTop: '#477fb8', skyHorizon: '#c6e0f1', groundLight: '#737b80' },
   citadel: { skyTop: '#377fc1', skyHorizon: '#bcdef2', groundLight: '#6d7b60' },
-  solstice: { skybox: '/assets/skyboxes/desert-daylight.png', skyTop: '#378bc9', skyHorizon: '#bce5f7', groundLight: '#817f6b', density: 0.003 },
-  caldera: { skybox: '/assets/skyboxes/volcanic-clouds.png', skyTop: '#5686b4', skyHorizon: '#c1d7e8', groundLight: '#73747e' },
+  solstice: { skybox: '/assets/skyboxes/desert-daylight.webp', skyTop: '#378bc9', skyHorizon: '#bce5f7', groundLight: '#817f6b', density: 0.003 },
+  caldera: { skybox: '/assets/skyboxes/volcanic-clouds.webp', skyTop: '#5686b4', skyHorizon: '#c1d7e8', groundLight: '#73747e' },
   nuketown: { skyTop: '#3987c9', skyHorizon: '#bee6fa', groundLight: '#73805f', density: 0.003 },
-  dust2: { skybox: '/assets/skyboxes/desert-daylight.png', skyTop: '#438fc9', skyHorizon: '#d5e6ec', groundLight: '#9a8668', sun: '#fff3df', density: 0.0028 },
+  dust2: { skybox: '/assets/skyboxes/desert-daylight.webp', skyTop: '#438fc9', skyHorizon: '#d5e6ec', groundLight: '#9a8668', sun: '#fff3df', density: 0.0028 },
   killhouse: { skyTop: '#4e8dc5', skyHorizon: '#c9e5f5', groundLight: '#78838a', ambient: 0.82 },
   // Bright overworld day; the fog colour matches the map's env_fog_controller (173 199 255).
   minecraft_b5: { skyTop: '#3d8fe0', skyHorizon: '#c4dcff', fog: '#adc7ff', groundLight: '#6f8a5c', ambient: 0.9, sunlight: 1.36, density: 0.0022 },

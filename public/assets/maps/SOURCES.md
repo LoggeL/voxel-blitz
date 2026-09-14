@@ -25,7 +25,9 @@ node tools/render-map-scenes.mjs --all --width 1200 --height 650 --out-dir .arti
 node tools/render-map-scenes.mjs --map dust2
 ```
 
-PNGs were converted locally with `cwebp -q 88`. Existing filenames are retained
+PNGs were converted locally with `cwebp -q 88`. Harbor, Canyon and the Reactor 9
+preview were converted the same way on 2026-09-14 (1.6 MB PNG each became about
+240 KB WebP); every active preview is now WebP. Existing basenames are retained
 so the map picker, lobby and training card continue to use the same asset paths.
 The `-concept` suffix on several active filenames is historical; their contents
 are now production captures.

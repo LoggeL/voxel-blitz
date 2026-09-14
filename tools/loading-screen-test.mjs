@@ -52,6 +52,27 @@ loading.show('arena', { image: './assets/maps/killhouse-range.webp' });
 assert.equal(backdrop, 'url("http://example.test/assets/maps/killhouse-range.webp")', 'map artwork resolves against the page, not the CSS directory');
 loading.fail('Test error'); assert.equal(root.dataset.stage, 'error'); assert.equal(loading.action.hidden, false);
 
+// Startup stages: weighted real progress, activation completes earlier stages,
+// and a new screen clears the plan so admission starts indeterminate again.
+loading.show('boot');
+loading.setPlan([{ id: 'modules', label: 'GAME SYSTEMS', weight: 25 }, { id: 'models', label: 'MODELS', weight: 55 },
+  { id: 'account', label: 'ACCOUNT', weight: 20 }], { startedAt: 1000 });
+assert.equal(loading.progress.value, 0, 'a declared plan starts at zero, not indeterminate');
+assert.equal(loading.step('modules', { status: 'active', done: 133, total: 266, detail: '133 / 266 MODULES' }), true);
+assert.equal(loading.progress.value, 0.125);
+assert.equal(loading.count.textContent, '133 / 266 MODULES', 'the active stage owns the counter');
+loading.step('models', { status: 'active', done: 25, total: 100 });
+assert.equal(loading.progress.value, 0.25 + 0.55 * 0.25, 'activating a later stage completes the earlier one');
+loading.step('models', { done: 100, total: 100 });
+loading.step('account', { status: 'done' });
+assert.equal(loading.progress.value, 1);
+assert.equal(loading.step('unknown', { status: 'done' }), false, 'unknown stages are ignored');
+assert.equal(loading.elapsedMs(1500), 500);
+loading.show('connect');
+assert.equal(loading.progress.value, undefined, 'admission has no declared plan');
+assert.equal(loading.plan.length, 0);
+loading.advance(6, 12); assert.equal(loading.progress.value, .5, 'sector progress still works without a plan');
+
 // Late async network completions cannot reopen the loader or start a cancelled boot.
 let phase = 'menu', booted = 0, resolveConnect;
 const net = { on() { return () => {}; }, close() {}, connect() { return new Promise(resolve => { resolveConnect = resolve; }); } };

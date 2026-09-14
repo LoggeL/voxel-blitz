@@ -5,7 +5,8 @@ import { DEFAULT_DIMENSIONS } from '../../../shared/world/dimensions.js';
 // whole terrain renders as cheap Lambert surfaces with crisp voxel lighting.
 
 import * as THREE from '../vendor/three.module.js';
-import { AIR, GRASS, DIRT, LEAVES, GLASS, MC_GRASS, MC_GLASS, MC_LEAVES, MC_WATER, MC_PORTAL, MC_GHOST_GRASS, SX, SZ, SY } from '../../../shared/worlddata.js';
+import { AIR, GRASS, DIRT, LEAVES, GLASS, MC_GRASS, MC_GLASS, MC_LEAVES, MC_WATER, MC_LAVA, MC_PORTAL, MC_GHOST_GRASS, SX, SZ, SY } from '../../../shared/worlddata.js';
+import { createFluidMaterial } from './fluid-material.js';
 import { DAMAGE_GRID, damageStage, damageCells } from './block-damage-geometry.js';
 
 export const CHUNK_X = 16;
@@ -52,7 +53,11 @@ const CORNER_UV = [[0, 0], [1, 0], [1, 1], [0, 1]];
 
 const CUTOUT = new Set([LEAVES, MC_LEAVES]);
 const TRANSLUCENT = new Set([GLASS, MC_GLASS, MC_WATER, MC_PORTAL]);
-const isSeeThrough = (v) => CUTOUT.has(v) || TRANSLUCENT.has(v);
+/** Fluids render through their own animated materials, one bucket each. */
+const FLUID_BUCKETS = Object.freeze({ [MC_WATER]: 'water', [MC_LAVA]: 'lava' });
+// Neighbour faces next to any fluid stay visible: the animated surface dips
+// below the block top, so a culled side would show the sky through the gap.
+const isSeeThrough = (v) => CUTOUT.has(v) || TRANSLUCENT.has(v) || v === MC_LAVA;
 /** Fluids and the portal film never darken neighbouring faces. */
 const NO_OCCLUDE = new Set([AIR, MC_WATER, MC_PORTAL]);
 const GRASS_TOPS = new Set([GRASS, MC_GRASS, MC_GHOST_GRASS]);
@@ -99,6 +104,8 @@ export class ChunkStore {
       glass: new THREE.MeshLambertMaterial({
         map: tex, vertexColors: true, transparent: true, depthWrite: false,
       }),
+      water: createFluidMaterial('water', { map: tex, tileRect: atlas.tileRect(atlas.faceTile(MC_WATER, 2)) }),
+      lava: createFluidMaterial('lava', { map: tex, tileRect: atlas.tileRect(atlas.faceTile(MC_LAVA, 2)) }),
     };
   }
 
@@ -194,7 +201,12 @@ export class ChunkStore {
 
     const buckets = newBuckets();
     const x0 = cx << 4, z0 = cz << 4;
-    const gb = this.getBlock;
+    // Beyond the world edge there is nothing to occlude or hide behind: the
+    // store's out-of-range wall must not darken shoreline AO or cull the
+    // outer faces an outside camera (spectator, captures) can see.
+    const { sx: SX, sz: SZ } = this.dimensions;
+    const inner = this.getBlock;
+    const gb = (x, y, z) => (x < 0 || z < 0 || x >= SX || z >= SZ ? AIR : inner(x, y, z));
     const rectOf = this.atlas.tileRect;
     const resolveTile = this.FACE_MAP.resolveTile;
     // A one-voxel halo includes neighbour visibility and corner AO samples.
@@ -218,8 +230,9 @@ export class ChunkStore {
           const wx = x0 + lx;
           const id = gb(wx, ly, wz);
           if (id === AIR) continue;
-          const bucket = TRANSLUCENT.has(id) ? buckets.glass
-            : CUTOUT.has(id) ? buckets.cutout : buckets.opaque;
+          const bucket = FLUID_BUCKETS[id] ? buckets[FLUID_BUCKETS[id]]
+            : TRANSLUCENT.has(id) ? buckets.glass
+              : CUTOUT.has(id) ? buckets.cutout : buckets.opaque;
           const shape = shapeAt(wx, ly, wz);
           if (shape) {
             emitDamagedBlock(bucket, wx, ly, wz, id, shape, rectOf, resolveTile, gb, shapeAt);
@@ -248,6 +261,7 @@ export class ChunkStore {
       const mesh = buildMesh(b, this.materials[name]);
       mesh.name = name;
       if (name === 'glass') mesh.renderOrder = 2;
+      if (name === 'water') mesh.renderOrder = 3;
       rec.meshes.push(mesh);
       this.group.add(mesh);
     }
@@ -256,7 +270,7 @@ export class ChunkStore {
 
 function newBuckets() {
   const mk = () => ({ pos: [], nrm: [], col: [], uv: [], index: [], verts: 0 });
-  return { opaque: mk(), cutout: mk(), glass: mk() };
+  return { opaque: mk(), cutout: mk(), glass: mk(), water: mk(), lava: mk() };
 }
 
 function cellOccludes(gb, shapeAt, x, y, z, faceBlockId) {

@@ -8,10 +8,15 @@
 // served from the repo-root shared/ directory — public/shared duplicates are
 // gone, so server and browser always run byte-identical code.
 import { createReadStream, existsSync } from 'node:fs';
-import { stat } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { fileURLToPath } from 'node:url';
+import { brotliCompress, constants as zlibConstants, gzip } from 'node:zlib';
+import { promisify } from 'node:util';
+
+const gzipAsync = promisify(gzip);
+const brotliAsync = promisify(brotliCompress);
 
 /** Absolute filesystem root every served path must stay inside. */
 export const PUBLIC_ROOT = fileURLToPath(new URL('../public/', import.meta.url));
@@ -39,6 +44,65 @@ const MIME = {
 
 const INDEX_HTML = 'index.html';
 
+// Text, module and geometry payloads shrink three to five times; images and
+// audio are already compressed. Compressed bodies are cached in memory per
+// (path, size, mtime) so a reload never re-encodes an unchanged file.
+const COMPRESSIBLE = new Set(['.html', '.css', '.js', '.mjs', '.gltf', '.bin', '.json', '.map', '.svg', '.wasm']);
+const COMPRESS_MIN_BYTES = 1024;
+const COMPRESS_MAX_BYTES = 24 * 1024 * 1024;
+const encodedBodies = new Map();
+let encodedBytes = 0;
+const ENCODED_CACHE_LIMIT = 64 * 1024 * 1024;
+
+/** Weak validator from size and mtime: cheap, and stable across restarts. */
+function etagFor(stats) {
+  return `W/"${stats.size.toString(16)}-${Math.trunc(stats.mtimeMs).toString(16)}"`;
+}
+
+function pickEncoding(req) {
+  const accept = String(req.headers?.['accept-encoding'] || '').toLowerCase();
+  if (/\bbr\b/.test(accept)) return 'br';
+  if (/\bgzip\b/.test(accept)) return 'gzip';
+  return null;
+}
+
+async function encodedBody(filePath, stats, encoding) {
+  const key = `${encoding}:${filePath}:${stats.size}:${Math.trunc(stats.mtimeMs)}`;
+  const hit = encodedBodies.get(key);
+  if (hit) return hit;
+  const raw = await readFile(filePath);
+  const body = encoding === 'br'
+    ? await brotliAsync(raw, { params: {
+      [zlibConstants.BROTLI_PARAM_QUALITY]: 5,
+      [zlibConstants.BROTLI_PARAM_SIZE_HINT]: raw.length,
+    } })
+    : await gzipAsync(raw, { level: 6 });
+  // Drop stale encodings of the same file, then bound the cache.
+  for (const existing of encodedBodies.keys()) {
+    if (existing.startsWith(`${encoding}:${filePath}:`)) {
+      encodedBytes -= encodedBodies.get(existing).length;
+      encodedBodies.delete(existing);
+    }
+  }
+  while (encodedBytes + body.length > ENCODED_CACHE_LIMIT && encodedBodies.size) {
+    const oldest = encodedBodies.keys().next().value;
+    encodedBytes -= encodedBodies.get(oldest).length;
+    encodedBodies.delete(oldest);
+  }
+  encodedBodies.set(key, body);
+  encodedBytes += body.length;
+  return body;
+}
+
+function matchesEtag(req, etag) {
+  const header = req.headers?.['if-none-match'];
+  if (!header) return false;
+  return String(header).split(',').some((candidate) => {
+    const value = candidate.trim();
+    return value === etag || value === '*' || value.replace(/^W\//, '') === etag.replace(/^W\//, '');
+  });
+}
+
 /**
  * Serve a GET/HEAD request from public/ (with shared/ fallback), or resolve
  * false when this handler declines the request (wrong method, traversal
@@ -64,13 +128,39 @@ export async function staticHandler(req, res) {
   }
   if (!stats.isFile()) return false;
 
+  const etag = etagFor(stats);
+  const baseHeaders = {
+    'Content-Type': contentType,
+    'Cache-Control': cacheControlFor(filePath),
+    'ETag': etag,
+    'Vary': 'Accept-Encoding',
+  };
+  if (matchesEtag(req, etag)) {
+    if (typeof res.writeHead === 'function') res.writeHead(304, baseHeaders);
+    if (typeof res.end === 'function') res.end();
+    return true;
+  }
+
+  const encoding = COMPRESSIBLE.has(ext) && stats.size >= COMPRESS_MIN_BYTES && stats.size <= COMPRESS_MAX_BYTES
+    ? pickEncoding(req) : null;
+  if (encoding) {
+    let body;
+    try {
+      body = await encodedBody(filePath, stats, encoding);
+    } catch {
+      return false;
+    }
+    if (req.aborted || res.destroyed) return true;
+    if (typeof res.writeHead === 'function') {
+      res.writeHead(200, { ...baseHeaders, 'Content-Encoding': encoding, 'Content-Length': body.length });
+    }
+    if (typeof res.end === 'function') res.end(method === 'HEAD' ? undefined : body);
+    return true;
+  }
+
   if (method === 'HEAD') {
     if (typeof res.writeHead === 'function') {
-      res.writeHead(200, {
-        'Content-Type': contentType,
-        'Content-Length': stats.size,
-        'Cache-Control': cacheControlFor(filePath),
-      });
+      res.writeHead(200, { ...baseHeaders, 'Content-Length': stats.size });
     }
     if (typeof res.end === 'function') res.end();
     return true;
@@ -100,11 +190,7 @@ export async function staticHandler(req, res) {
     return true;
   }
   if (typeof res.writeHead === 'function') {
-    res.writeHead(200, {
-      'Content-Type': contentType,
-      'Content-Length': stats.size,
-      'Cache-Control': cacheControlFor(filePath),
-    });
+    res.writeHead(200, { ...baseHeaders, 'Content-Length': stats.size });
   }
   try {
     await pipeline(body, res);
@@ -160,11 +246,12 @@ function resolveWithinRoot(target) {
   return null;
 }
 
-/** Cache policy: vendored bundles are content-frozen; everything else must
- *  NEVER be stored — stale module bodies silently break iterations. */
+/** Cache policy: vendored bundles are content-frozen. Everything else may be
+ *  kept but must be revalidated on every use (no-cache + ETag), so a changed
+ *  module body is always fetched while an unchanged one costs one 304. */
 function cacheControlFor(filePath) {
   const rel = filePath.slice(PUBLIC_ROOT.length).split(path.sep).join('/');
   const parts = rel.split('/');
   if (parts.includes('vendor')) return 'public, max-age=31536000, immutable';
-  return 'no-store';
+  return 'no-cache';
 }

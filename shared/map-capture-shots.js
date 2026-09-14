@@ -52,6 +52,7 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   shot('minecraft_b5', 'lighthouse', [44.5, 46.5, 46.5], [28, 58, 27], 74),
   shot('minecraft_b5', 'nether-portal', [86.5, 55.5, 34.5], [89, 55, 24], 76),
   shot('minecraft_b5', 'nether', [58.5, 5.5, 44.5], [78, 5, 38], 80),
+  shot('minecraft_b5', 'beach', [74.5, 39.6, 91.5], [52, 38.5, 68], 78),
 
   shot('foundry', 'hero', [64.5, 17.64, 82.5], [65, 23, 46]),
   shot('foundry', 'west-lane', [20.5, 13.64, 48.5], [65, 23, 46]),

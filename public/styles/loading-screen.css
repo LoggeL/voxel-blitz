@@ -22,6 +22,23 @@
 #loading-context { color: #ffbd50; font: 600 11px/1.6 var(--font-mono); letter-spacing: .16em; overflow-wrap: anywhere; }
 #loading-title { margin: 9px 0 12px; max-width: 800px; font: italic 500 clamp(30px, 4vw, 56px)/1.05 Impact, 'Arial Black', sans-serif; letter-spacing: .01em; }
 #loading-status { margin: 0; color: #c5cdd2; font-size: 15px; line-height: 1.6; max-width: 650px; overflow-wrap: anywhere; }
+/* Startup stages: real module, asset and account work, never a timer. */
+.vb-loading-steps { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 6px; max-width: 520px; font: 11px/1.6 var(--font-mono); letter-spacing: .08em; }
+.vb-loading-steps li { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; align-items: center; gap: 12px; color: #7f8b93; }
+.vb-loading-steps li::before { content: ''; width: 8px; height: 8px; margin-left: 2px; border: 1px solid #7f8b93; transform: rotate(45deg); }
+.vb-loading-steps li[data-status='active'] { color: #f3f1e9; }
+.vb-loading-steps li[data-status='active']::before { border-color: #ffb32d; background: #ffb32d; animation: vb-loading-pulse 1s ease-in-out infinite; }
+.vb-loading-steps li[data-status='done'] { color: #abb5bd; }
+.vb-loading-steps li[data-status='done']::before { border-color: #ffb32d; background: #ffb32d; }
+.vb-loading-steps li[data-status='failed'] { color: #e2907a; }
+.vb-loading-steps li[data-status='failed']::before { border-color: #e2907a; }
+.vb-loading-step-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vb-loading-step-detail { color: #ffbd50; white-space: nowrap; }
+.vb-loading-steps li[data-status='done'] .vb-loading-step-detail { color: #7f8b93; }
+.vb-loading-rail { display: flex; align-items: center; gap: 12px; }
+.vb-loading-rail progress { flex: 1; }
+#loading-percent { min-width: 3.2em; text-align: right; color: #ffb32d; font: 700 12px/1 var(--font-mono); letter-spacing: .06em; }
+@keyframes vb-loading-pulse { 50% { opacity: .35; } }
 .vb-loading-footer { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(190px, .8fr) auto; align-items: center; gap: 28px; padding-top: 20px; border-top: 1px solid #83939c45; }
 .vb-loading-meter { min-width: 0; }
 #loading-screen progress { display: block; appearance: none; width: 100%; height: 6px; border: 0; background: #56616b44; accent-color: #ffb32d; overflow: hidden; }
@@ -39,7 +56,7 @@
 #loading-screen [hidden] { display: none; }
 #loading-screen[data-stage='error'] .vb-loading-meter { display: none; }
 @keyframes vb-loading-scan { to { background-position: 300% 0; } }
-@media (prefers-reduced-motion: reduce) { #loading-screen progress:indeterminate { animation: none; background-position: 50% 0; } }
+@media (prefers-reduced-motion: reduce) { #loading-screen progress:indeterminate { animation: none; background-position: 50% 0; } .vb-loading-steps li[data-status='active']::before { animation: none; } }
 @media (max-width: 600px) {
   #loading-screen { background-position: 60% center; }
   .vb-loading-top { font-size: 9px; }
@@ -54,4 +71,5 @@
   .vb-loading-body { padding: 8px 0 16px; }
   .vb-loading-brand { font-size: 48px; margin-bottom: 14px; }
   #loading-title { font-size: 28px; }
+  .vb-loading-steps { margin-top: 8px; gap: 2px; }
 }

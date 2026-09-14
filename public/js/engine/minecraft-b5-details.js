@@ -1,4 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
+import { MC_WATER } from '../../../shared/world/blocks.js';
+import { createFluidMaterial } from './fluid-material.js';
 
 /**
  * Non-blocking set dressing for MINECRAFT B5: torches, flowers, minecart rails
@@ -6,7 +8,7 @@ import * as THREE from '../vendor/three.module.js';
  * Every position comes from the compiled map data (shared/world/minecraft-b5-data.js);
  * gameplay collision lives entirely in the shared voxel bytes.
  */
-export function buildMinecraftB5Details(meta) {
+export function buildMinecraftB5Details(meta, atlas = null) {
   const group = new THREE.Group();
   group.name = 'minecraft-b5-details';
   const props = meta?.props || {};
@@ -117,7 +119,10 @@ export function buildMinecraftB5Details(meta) {
   const sea = Number.isFinite(meta?.seaLevel) ? meta.seaLevel : 37;
   const { sx = 128, sz = 96 } = meta?.dimensions || {};
   const reach = 420;
-  const seaMaterial = new THREE.MeshLambertMaterial({ color: 0x2f5cc0, transparent: true, opacity: 0.72, depthWrite: false });
+  // The same animated water as the voxel sea, so the horizon matches the shore.
+  const seaMaterial = atlas
+    ? createFluidMaterial('water', { map: atlas.texture(), tileRect: atlas.tileRect(atlas.faceTile(MC_WATER, 2)) })
+    : new THREE.MeshLambertMaterial({ color: 0x2f5cc0, transparent: true, opacity: 0.72, depthWrite: false });
   const bedMaterial = new THREE.MeshLambertMaterial({ color: 0x2c2a2e });
   disposables.push(seaMaterial, bedMaterial);
   const ring = [
@@ -127,11 +132,21 @@ export function buildMinecraftB5Details(meta) {
     [sx, sx + reach, 0, sz],
   ];
   for (const [x0, x1, z0, z1] of ring) {
-    for (const [material, y] of [[seaMaterial, sea - 0.02], [bedMaterial, sea - 4]]) {
-      const plane = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), material);
+    for (const [material, y] of [[seaMaterial, sea], [bedMaterial, sea - 4]]) {
+      // Enough vertices near the island for the shader's swell to continue
+      // across the voxel edge; the far reach needs none.
+      const segments = material === seaMaterial ? [Math.min(96, Math.ceil((x1 - x0) / 4)), Math.min(96, Math.ceil((z1 - z0) / 4))] : [1, 1];
+      const geometry = new THREE.PlaneGeometry(x1 - x0, z1 - z0, ...segments);
+      if (material === seaMaterial) {
+        // The fluid shader reads per-vertex shade like the chunk mesher writes it.
+        const shade = new Float32Array(geometry.attributes.position.count * 3).fill(1);
+        geometry.setAttribute('color', new THREE.BufferAttribute(shade, 3));
+      }
+      const plane = new THREE.Mesh(geometry, material);
       plane.rotation.x = -Math.PI / 2;
       plane.position.set((x0 + x1) / 2, y, (z0 + z1) / 2);
       plane.name = material === seaMaterial ? 'sea' : 'sea-bed';
+      if (material === seaMaterial) plane.renderOrder = 3;
       group.add(plane);
       disposables.push(plane.geometry);
     }

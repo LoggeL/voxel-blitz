@@ -41,7 +41,10 @@ ceiling and the sea floor is unbreakable bedrock, as is the world floor.
   half of it, so the 24-unit water surface and the 30-unit cactus keep their
   original height. Non-axis-aligned brushes are sampled at 64 points.
 - **Fluids**: the ocean, the streams and the pond are `MC_WATER`; the Nether's
-  lava sea and the incinerator are `MC_LAVA`. Players swim in fluid voxels
+  lava sea and the incinerator are `MC_LAVA`. Both render through the animated
+  fluid shader (swell, drifting ripples, fresnel transparency and sun glints
+  for water; a glowing, slowly flowing crust for lava); the sea past the voxel
+  edge uses the same material so the horizon matches the shore. Players swim in fluid voxels
   (hold jump to rise, crouch to dive, a climb near the surface lifts onto a
   bank). Lava burns 12 HP every 250 ms. Bullets and projectiles pass through
   fluids.

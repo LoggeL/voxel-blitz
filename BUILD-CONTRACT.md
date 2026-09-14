@@ -77,6 +77,16 @@ room/client interfaces below; do not fork their logic into a second convention.
   fire graph for every weapon in Chromium; and
   `npm run container:smoke` validates HTTP plus WebSocket behavior against
   `BASE_URL` or localhost.
+- `npm run static:test` checks static delivery (gzip/brotli bodies, weak ETag
+  revalidation with `no-cache`, immutable vendor bundles, traversal guard), that
+  the generated `modulepreload` block in `public/index.html` is current
+  (`npm run preload:build` regenerates it after adding or removing a module),
+  the startup screen's weighted stage progress and the fluid surface shader
+  (`public/js/engine/fluid-material.js`: water and lava buckets in the chunk
+  mesher, one shared clock ticked from `WorldView.update`, disposal through the
+  chunk store). `npm run boot:profile`
+  opens the game in headless Chromium and reports the cold and warm boot:
+  request count, bytes on the wire and the stage timings behind `window.__vbBoot`.
 - Push/pull-request CI runs only `npm test`. Scheduled/manual extended QA runs
   audio, visual captures, and the built-container smoke separately so the fast
   contract gate does not accumulate browser/container test bloat.

@@ -23,7 +23,7 @@ der Bot-Regler steht auf null. Über den Raumcode können weitere Spieler beitre
 
 ## Reactor 9
 
-![Reactor 9 mit Kernring und drei Nachschubwegen](../public/assets/maps/reactor-preview.png)
+![Reactor 9 mit Kernring und drei Nachschubwegen](../public/assets/maps/reactor-preview.webp)
 
 Die eigene industrielle Hofkarte hat einen zentralen Kernring, die nördliche
 Turbinenhalle, die westliche Ladezone und den östlichen Kühlungszugang. Deckungen,

@@ -1,6 +1,6 @@
 # Skybox generation
 
-Generated with the built-in ImageGen tool. Original outputs copied unchanged into this directory. The sky shader handles spherical projection, the wrap transition and poles, with procedural fallback while loading or on failure.
+Generated with the built-in ImageGen tool. Original outputs copied unchanged into this directory as PNG (design sources, not loaded by the game). The game loads the `.webp` siblings (`cwebp -q 88`, about 50-80 KB instead of 1.2 MB each; regenerate them from the PNGs after any change). The sky shader handles spherical projection, the wrap transition and poles, with procedural fallback while loading or on failure.
 
 ## voxel-daylight.png
 
