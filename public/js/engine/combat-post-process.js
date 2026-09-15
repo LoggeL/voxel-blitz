@@ -71,7 +71,7 @@ void main() {
   vec3 color = clamp(center + (center - crossBlur) * 0.10, 0.0, 1.0);
 
   float luminance = dot(color, vec3(0.2126, 0.7152, 0.0722));
-  float saturation = 1.055 - edge * pain * 0.08;
+  float saturation = 1.055 - edge * (pain * 0.08 + panic * 0.10);
   color = mix(vec3(luminance), color, saturation);
 
   float shadow = 1.0 - smoothstep(0.08, 0.58, luminance);
@@ -80,8 +80,11 @@ void main() {
   color += highlight * vec3(0.014, 0.006, -0.004);
 
   float breathingPulse = 0.65 + sin(time * (2.6 + panic * 3.0)) * 0.35 * motion;
-  float vignette = mix(0.095, 0.022, scopeActive) + panic * breathingPulse * 0.085;
-  color *= 1.0 - edge * vignette;
+  // Tunnel vision: panic drags the darkness inward and deepens it on the breath
+  // cadence, while the center stays clear for aimed shots.
+  float panicEdge = min(edge * (1.0 + panic * 0.45), 1.0);
+  float vignette = mix(0.095, 0.022, scopeActive) + panic * breathingPulse * 0.30;
+  color *= 1.0 - panicEdge * vignette;
   // Injury leaves only a faint static tint; the HUD owns the brief directional sting.
   color += vec3(0.035, -0.006, -0.008) * edge * pain;
 
