@@ -53,6 +53,7 @@ try {
     const { applyAttachmentModel } = await import('/js/guns/attachment-model.js');
     const { WEAPON_IDS } = await import('/shared/combatmath.js');
     const { createBlenderParts } = await import('/js/engine/blender-assets.js');
+    const { ARM, ViewmodelArms } = await import('/js/guns/viewmodel-arms.js');
     const { disposeObjectTrees } = await import('/js/engine/dispose.js');
     const must = (value, message) => { if (!value) throw new Error(message); };
     const restParts=createBlenderParts('rivet');
@@ -103,7 +104,7 @@ try {
     must(gun.body.userData.blenderAsset==='kestrel','first person KESTREL');
     const handR = gun.root.getObjectByName('hand_r'), handL = gun.root.getObjectByName('hand_l');
     must(handR?.userData.blenderAsset==='hands' && handL?.userData.blenderAsset==='hands','first person HANDS gloves');
-    must(handR.children.length===7 && handL.children.length===7,'seven material primitives per glove');
+    must(handR.children.length===6 && handL.children.length===6,'six material primitives per glove');
     must(handR.scale.x===1 && handL.scale.x===-1,'support glove is the mirrored right hand');
     const gloveMaterials = handR.children.map(m=>m.material);
     const leather = gloveMaterials.find(m=>m.userData.partMaterial==='glove leather');
@@ -114,10 +115,36 @@ try {
     gun.root.updateMatrixWorld(true);
     const palm = handR.getWorldPosition(new T.Vector3());
     must(palm.y<-0.05 && palm.y>-0.12 && Math.abs(palm.x)<0.03 && palm.z<-0.05 && palm.z>-0.15,'fist wraps the pistol grip');
-    const forearm = new T.Box3().setFromObject(handL);
-    must(forearm.min.y<-0.15 && forearm.max.z>-0.30,'support forearm runs down and back toward the elbow');
+    const cuff = new T.Box3().setFromObject(handL);
+    must(cuff.max.z>-0.34,'the support glove ends at its cuff, where the arm takes over');
     const fistBox = new T.Box3().setFromObject(handR);
     must(fistBox.max.y<0.05,'fist stays under the receiver, clear of the sight line');
+    // The arms are delivered geometry too: each segment must arrive in its own
+    // joint frame, or the runtime chain would hang them off the wrong end.
+    const armParts = createBlenderParts('hands',{names:['forearm','upperarm','shoulder']});
+    must(armParts?.forearm && armParts.upperarm && armParts.shoulder,'HANDS delivers the arm segments');
+    const armBox = name => new T.Box3().setFromObject(armParts[name]);
+    const fore = armBox('forearm'), upper = armBox('upperarm'), shoulderPart = armBox('shoulder');
+    must(fore.min.z<0 && fore.max.z>ARM.forearm,'the forearm spans wrist to elbow');
+    must(upper.min.z<0 && upper.max.z>ARM.upperArm,'the upper arm spans elbow to shoulder');
+    must(shoulderPart.min.z<0 && shoulderPart.max.z>0,'the shoulder cap covers its joint');
+    must(Math.max(Math.hypot(fore.min.x,fore.min.y),Math.hypot(fore.max.x,fore.max.y))<0.09,
+      'the forearm stays slim enough to never sweep across the screen');
+    disposeObjectTrees(Object.values(armParts));
+    const armRig = new T.Group(), arms = new ViewmodelArms(armRig);
+    armRig.add(gun.root);
+    arms.update(gun,0,true);
+    must(arms._blenderReady,'the runtime mounts the delivered arm segments, not the offline boxes');
+    for(const side of ['l','r']) for(const part of ['forearm','upperarm','shoulder']) {
+      const node = arms.root.getObjectByName('arm_'+part+'_'+side);
+      must(node?.children[0]?.userData.blenderAsset==='hands','arm_'+part+'_'+side+' is HANDS geometry');
+      must(node.children[0].scale.x===(side==='l'?-1:1),'arm_'+part+'_'+side+' mirrors onto its own side');
+    }
+    const wristGap = arms.root.getObjectByName('arm_forearm_r').getWorldPosition(new T.Vector3())
+      .distanceTo(handR.getWorldPosition(new T.Vector3()));
+    must(wristGap<0.12,'the forearm starts inside the glove cuff, leaving no gap at the wrist');
+    armRig.remove(gun.root);
+    arms.dispose();
     applyAttachmentModel(gun,'rifle',{optic:'reflex',grip:'vertical'});
     must(!gun.body.getObjectByName('factory-optic').visible,'replacement optic hides authored sight');
     applyAttachmentModel(gun,'rifle',{optic:'standard',grip:'standard'});

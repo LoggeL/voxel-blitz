@@ -5,11 +5,18 @@ import { disposeObjectTree } from '../engine/dispose.js';
 import { smooth01 } from '../util/math.js';
 import { createBlenderParts } from '../engine/blender-assets.js';
 
+// The chest reaches from the hips up to the shoulder line the first-person
+// arms hang from (viewmodel-arms.js), so looking down shows a whole upper body
+// instead of a stump. Its front face still stays behind the eye plane, and the
+// crouch drop and squash keep it clear of the lowered camera.
 const BODY_POSE = Object.freeze({
   hipsY: 0.72,
   hipsZ: 0.12,
-  torsoY: 0.91,
-  torsoZ: 0.16,
+  torsoY: 1.08,
+  torsoZ: 0.24,
+  torsoHeight: 0.56,
+  torsoCrouchDrop: 0.46,
+  torsoCrouchSquash: 0.45,
   legX: 0.13,
   legY: 0.66,
 });
@@ -25,7 +32,7 @@ export function makeFirstPersonBody() {
   // the camera. Its upper mass stays below and slightly behind the eye line.
   const hips = new THREE.Mesh(new THREE.BoxGeometry(0.44, 0.18, 0.25), armor);
   hips.position.set(0, BODY_POSE.hipsY, BODY_POSE.hipsZ);
-  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.22, 0.27), cloth);
+  const torso = new THREE.Mesh(new THREE.BoxGeometry(0.48, BODY_POSE.torsoHeight, 0.26), cloth);
   torso.position.set(0, BODY_POSE.torsoY, BODY_POSE.torsoZ);
   const thighGeometry = new THREE.BoxGeometry(0.18, 0.36, 0.21);
   const shinGeometry = new THREE.BoxGeometry(0.16, 0.34, 0.19);
@@ -63,7 +70,9 @@ export function makeFirstPersonBody() {
     // Keep the local body's established peripheral pose carriers. Its chest is
     // compressed below the camera; legs retain the authored armor and boots.
     const replacements = [[hips, rivet.hips], [torso, rivet.torso]];
-    rivet.torso.scale.y = .4;
+    // The authored chest already spans hips to shoulders; only its depth is
+    // trimmed so nothing reaches past the eye plane.
+    rivet.torso.scale.set(1, BODY_POSE.torsoHeight / 0.5, .62);
     for (const [side, entry] of [['l', left], ['r', right]]) {
       const thigh = entry.leg.children.find(object => object.isMesh);
       const shin = entry.knee.children.find(object => object.isMesh && object !== entry.boot);
@@ -122,6 +131,7 @@ export function resetFirstPersonBody(body) {
   body.hips.rotation.set(0, 0, 0);
   body.torso.position.set(0, BODY_POSE.torsoY, BODY_POSE.torsoZ);
   body.torso.rotation.set(0, 0, 0);
+  body.torso.scale.y = 1;
   body.left.leg.position.set(-BODY_POSE.legX, BODY_POSE.legY, 0.04);
   body.right.leg.position.set(BODY_POSE.legX, BODY_POSE.legY, 0.04);
   body.left.leg.rotation.set(0, 0, 0);
@@ -204,7 +214,11 @@ export function updateFirstPersonBody(
   const dry = 1 - swim;
   body.group.rotation.set(0, yaw, 0);
   body.hips.position.y = BODY_POSE.hipsY - crouch * 0.28 + bounce - compression + cycle.bob * 1.5;
-  body.torso.position.y = BODY_POSE.torsoY - crouch * 0.34 + bounce - compression + breathing + cycle.bob * 1.5;
+  // Crouching drops the eye by 0.68 m, so the chest has to give way by more
+  // than the hips do and compress on top of that, or it climbs into the view.
+  body.torso.position.y = BODY_POSE.torsoY - crouch * BODY_POSE.torsoCrouchDrop
+    + bounce - compression + breathing + cycle.bob * 1.5;
+  body.torso.scale.y = 1 - crouch * BODY_POSE.torsoCrouchSquash;
   body.torso.rotation.x = crouch * 0.12 + body.land * 0.08 - cycle.torsoPitch * 1.4;
   body.hips.rotation.x = -cycle.hipsPitch * 1.4;
   body.hips.rotation.z = swing * stride * 0.045 + cycle.sway * 0.03 * swim;

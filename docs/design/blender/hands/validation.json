@@ -1,6 +1,6 @@
 {
   "asset": "HANDS",
-  "revision": 2,
+  "revision": 3,
   "glb": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/hands/hands.glb",
   "passed": true,
   "failures": [],
@@ -9,15 +9,15 @@
     "extent": {
       "x": [
         -0.092391,
-        0.044133
+        0.067806
       ],
       "y": [
         -0.059405,
-        0.037909
+        0.074
       ],
       "z": [
-        -0.089466,
-        0.24
+        -0.108,
+        0.366
       ]
     },
     "palm_bounds": {
@@ -51,41 +51,94 @@
       "support": 0.028
     },
     "glb_nodes": [
+      "forearm",
+      "forearm | ceramic armor",
+      "forearm | glove leather",
+      "forearm | knuckle plate",
+      "forearm | suit fabric",
+      "forearm | webbing",
       "grip",
       "grip | ceramic armor",
       "grip | glove leather",
       "grip | hardware",
       "grip | knuckle plate",
       "grip | skin",
-      "grip | suit fabric",
       "grip | webbing",
+      "shoulder",
+      "shoulder | ceramic armor",
+      "shoulder | hardware",
+      "shoulder | knuckle plate",
+      "shoulder | suit fabric",
       "support",
       "support | ceramic armor",
       "support | glove leather",
       "support | hardware",
       "support | knuckle plate",
       "support | skin",
-      "support | suit fabric",
-      "support | webbing"
+      "support | webbing",
+      "upperarm",
+      "upperarm | ceramic armor",
+      "upperarm | glove leather",
+      "upperarm | knuckle plate",
+      "upperarm | suit fabric",
+      "upperarm | webbing"
     ],
     "node:grip": "present",
     "node:support": "present",
-    "triangles": 14912,
+    "node:forearm": "present",
+    "node:upperarm": "present",
+    "node:shoulder": "present",
+    "arm_bounds": {
+      "forearm": {
+        "z": [
+          -0.01,
+          0.332
+        ],
+        "radius": 0.057899
+      },
+      "upperarm": {
+        "z": [
+          -0.024,
+          0.366
+        ],
+        "radius": 0.06921
+      },
+      "shoulder": {
+        "z": [
+          -0.108,
+          0.046
+        ],
+        "radius": 0.090981
+      }
+    },
+    "triangles": 16416,
     "triangles_per_primitive": {
-      "grip | ceramic armor": 728,
-      "grip | glove leather": 3256,
+      "forearm | ceramic armor": 188,
+      "forearm | glove leather": 408,
+      "forearm | knuckle plate": 108,
+      "forearm | suit fabric": 760,
+      "forearm | webbing": 220,
+      "grip | ceramic armor": 540,
+      "grip | glove leather": 3192,
       "grip | hardware": 216,
-      "grip | knuckle plate": 648,
+      "grip | knuckle plate": 540,
       "grip | skin": 1692,
-      "grip | suit fabric": 760,
       "grip | webbing": 156,
-      "support | ceramic armor": 728,
-      "support | glove leather": 3256,
+      "shoulder | ceramic armor": 108,
+      "shoulder | hardware": 108,
+      "shoulder | knuckle plate": 188,
+      "shoulder | suit fabric": 380,
+      "support | ceramic armor": 540,
+      "support | glove leather": 3192,
       "support | hardware": 216,
-      "support | knuckle plate": 648,
+      "support | knuckle plate": 540,
       "support | skin": 1692,
-      "support | suit fabric": 760,
-      "support | webbing": 156
+      "support | webbing": 156,
+      "upperarm | ceramic armor": 188,
+      "upperarm | glove leather": 380,
+      "upperarm | knuckle plate": 108,
+      "upperarm | suit fabric": 380,
+      "upperarm | webbing": 220
     }
   }
 }

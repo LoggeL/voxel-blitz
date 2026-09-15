@@ -54,9 +54,16 @@ export async function runViewmodelContracts(ok, installGlobals) {
     const { disposeFirstPersonBody, makeFirstPersonBody } =
       await import('../../public/js/player/first-person-body.js');
     const body = makeFirstPersonBody();
-    ok(body.torso.position.z > 0
-        && body.torso.position.y + body.torso.geometry.parameters.height / 2 < 1.1,
-    'first-person torso stays below and behind the straight-ahead eye line');
+    const chest = body.torso.geometry.parameters;
+    // The chest now reaches the shoulder line the arms hang from. What keeps it
+    // out of the way is its whole front face sitting behind the eye plane, not
+    // how low it is, so the contract tests that face rather than the centre.
+    ok(body.torso.position.z - chest.depth / 2 > 0
+        && body.torso.position.y + chest.height / 2 < 1.45,
+    'first-person chest stays behind the eye plane and under the shoulder line');
+    ok(body.torso.position.y - chest.height / 2 <= body.hips.position.y
+        + body.hips.geometry.parameters.height / 2,
+    'the chest meets the hips, so looking down shows one connected body');
     disposeFirstPersonBody(body);
 
     const input = new Proxy({

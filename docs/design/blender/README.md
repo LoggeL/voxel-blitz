@@ -331,7 +331,7 @@ contract (node names, `textures/` image URIs, one blend material, buffer URI).
 script were removed; the root `export-game-assets.py`, `render-previews.py`
 and `validate-import.py` now serve RIVET only.
 
-## HANDS (first-person gloves), revision 2
+## HANDS (first-person gloves and arms), revision 3
 
 HANDS supplies the first-person glove hands that `kit.glove()` mounts on every
 weapon's `hand_r` / `hand_l` group (the procedural box mitt remains the offline
@@ -341,18 +341,31 @@ relaxed fingers and an extended thumb); the support glove is the same geometry
 mirrored in x. Revision 2 replaces the first study, whose fingers left the palm
 without flexing at the base knuckle, wore ball joints that read as warts and
 whose 3.6 tiles/m webbing cuff looked like wicker at first-person size. The hand
-now matches RIVET: graphite half-finger gloves with bare middle and distal
+matches RIVET: graphite half-finger gloves with bare middle and distal
 phalanges, an orange knuckle plate with four ribs, an ivory tendon plate and
-finger armor, a sand webbing wrist strap with buckle, the petrol suit sleeve
-widening toward the elbow and the ivory forearm bracer with its orange inset.
-88 authored parts, 14,912 triangles, 14 runtime primitives (one per pose and
-material), six shared ImageGen maps, each material at its own texture density
-(`uv_scale`, 4 to 15 tiles/m).
+finger armor, and a sand webbing wrist strap with buckle.
+
+Revision 3 takes the sleeve off the glove and adds three rigid arm segments as
+their own nodes, so the first-person hands reach back to the player's own body
+instead of ending at a cut cuff: `forearm` (leather cuff over the glove hem,
+petrol suit sleeve widening toward the elbow, webbing strap, ivory bracer with
+its orange inset, rounded leather elbow pad), `upperarm` (leather elbow cap,
+sleeve, webbing band, ivory plate with orange inset) and `shoulder` (suit cap,
+orange pauldron on an ivory rim, gunmetal rivet). 96 authored parts,
+16,416 triangles, 26 runtime primitives (one per node and material), six
+shared ImageGen maps, each material at its own texture density (`uv_scale`, 4
+to 15 tiles/m).
 
 Glove-local frame (consumed verbatim, `GAME` is the identity): palm centre at
-the origin, back of the hand +y, knuckles -z, thumb -x, wrist, strap, sleeve
-and bracer at z > 0.018, nothing beyond a 0.25 m radius. Base knuckle line at
-z -0.040 (pinky) to -0.049 (middle); thumb root at (-0.036, -0.004, 0.012).
+the origin, back of the hand +y, knuckles -z, thumb -x, wrist and strap at
+z > 0.018, nothing beyond a 0.25 m radius. Base knuckle line at z -0.040
+(pinky) to -0.049 (middle); thumb root at (-0.036, -0.004, 0.012).
+
+Each arm segment is authored in its own joint frame: the proximal joint at the
+origin, the distal joint on +z, +y the back of the forearm and the outer side
+of the upper arm and shoulder. The forearm's wrist joint meets the glove at
+glove-local z 0.070, six millimetres inside the glove's own hem, so the seam
+cannot open. Forearm 0.31 m, upper arm 0.34 m, both inside a 0.08 m radius.
 
 Runtime placement (`public/js/guns/kit.js`, `BLENDER_HAND_FRAMES`): each pose
 takes a gun-space basis from a back-of-hand direction and a wrist-to-knuckle
@@ -368,17 +381,32 @@ the character-skin palette key per material name (`glove leather` 0x22252a,
 parts the mitt exposed. Reload choreography moves `hand_l` by position and adds
 its small pitch on top of the pose quaternion, unchanged.
 
-Rebuild (headless, about 20 s including six Cycles stills):
+The arms are posed by `public/js/guns/viewmodel-arms.js`, which hangs a group
+off the same camera-local, fov-counter-scaled rig root the gun uses, so they
+ride every bob, kick and aim move with it. Each frame it reads the final world
+transform of `hand_r` / `hand_l`, takes the wrist point from it and solves one
+analytic two-bone chain back to a shoulder fixed on the player's body (0.25 m
+out, 0.23 m below and 0.06 m behind the eye, rotating against 70 % of the
+camera pitch so the spine bends rather than the whole body). A viewmodel gun is
+carried further out than a real one, so an out-of-reach hand first pulls the
+shoulder up to 0.25 m toward itself and only then stretches the arm, the
+forearm by at most 1.25x. A hidden or absent support glove (revolver, SMG,
+knife) takes its whole arm with it, and holstering the gun for a grenade or the
+medkit hides both. Segment materials carry the same three palette keys as the
+gloves, so a character skin recolours hands and arms together.
+
+Rebuild (headless, about 30 s including nine Cycles stills):
 
     blender --background --factory-startup --python tools/blender/hands/build-hands.py
     blender --background --factory-startup --python tools/blender/hands/export-game-assets.py
     node tools/blender-assets-browser-test.mjs
 
 Build gates: palm spans the origin, cuff parts stay past z 0.018, 0.25 m reach,
-every finger ends in a bare distal phalanx, every part touches its pose (1 mm
-BVH contact audit) and neighbouring proximal stalls keep >= 1.5 mm of air.
+every finger ends in a bare distal phalanx, each arm segment spans its own two
+joints inside the 0.08 m radius, every part meets its group (surfaces cross, or
+a vertex within 1 mm) and neighbouring proximal stalls keep >= 1.5 mm of air.
 `docs/design/blender/hands/render-{grip,support}-{side,rear-quarter,palm}.png`
-are the study stills; `.artifacts/blender-integration/hands-*.png` are the
+and `render-{forearm,upperarm,shoulder}-side.png` are the study stills; `.artifacts/blender-integration/hands-*.png` are the
 in-game captures (rifle, revolver and knife held, revolver cylinder open).
 
 ## GRENADES (throwables), revision 1

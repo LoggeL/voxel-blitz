@@ -26,6 +26,13 @@ import {
 
 const IMPACT_TTL_MS = 2200;
 const PENDING_HIT_TTL_MS = 650;
+// A killed body stays on the ground for this long. Respawn is far shorter than
+// that in most modes, so the dead avatar is detached from its player the moment
+// it dies: the corpse plays out its own disassembly and fade while the living
+// avatar is rebuilt at the next spawn. One corpse per player id, so the scene
+// holds at most as many bodies as there are players.
+const CORPSE_SECONDS = 10;
+const CORPSE_FADE_SECONDS = 1.2;
 
 export class AvatarRoster {
   constructor({ scene, getBlock = null, gore = null, getMyId = () => null, now = nowMs, footstep = null }) {
@@ -44,6 +51,7 @@ export class AvatarRoster {
     this._remoteImpacts = new Map();
     this._pendingDeaths = new Map();
     this._pickaxeSwings = new Map();
+    this._corpses = new Map();
     this._counters = {
       dyingAvatars: 0,
       runningAvatars: 0,
@@ -154,6 +162,38 @@ export class AvatarRoster {
     return { x: position.x, y: position.y, z: position.z };
   }
 
+  /** Detach a killed avatar from its player; the body finishes on its own. */
+  _retireCorpse(id, avatar) {
+    this._avatars.delete(id);
+    this._dropCorpse(id);
+    this._corpses.set(id, { avatar, elapsed: 0 });
+  }
+
+  _dropCorpse(id) {
+    const corpse = this._corpses.get(id);
+    if (!corpse) return;
+    this._corpses.delete(id);
+    this._scene?.remove(corpse.avatar.group);
+    disposeAvatar(corpse.avatar);
+  }
+
+  /** Loose pieces collide and settle, then rest: a still body costs nothing. */
+  _stepCorpses(dt) {
+    const step = Math.max(0, Math.min(dt, 0.1));
+    for (const [id, corpse] of this._corpses) {
+      corpse.elapsed += step;
+      if (corpse.elapsed >= CORPSE_SECONDS) { this._dropCorpse(id); continue; }
+      this._counters.dyingAvatars++;
+      if (!corpse.settled) {
+        updateAvatarDeath(corpse.avatar, step, corpse.elapsed / CORPSE_SECONDS, this._solidAt);
+        corpse.settled = corpse.avatar.limbStates.every(limb =>
+          limb.velocity.lengthSq() < 1e-4 && limb.angular.lengthSq() < 1e-4);
+      }
+      setAvatarOpacity(corpse.avatar, 1 - smooth01(
+        (corpse.elapsed - (CORPSE_SECONDS - CORPSE_FADE_SECONDS)) / CORPSE_FADE_SECONDS));
+    }
+  }
+
   sync(remotes, dt, now, persistentCorpses = false) {
     for (const [id, until] of this._pickaxeSwings) {
       if (now >= until || !remotes.has(id)) this._pickaxeSwings.delete(id);
@@ -162,6 +202,7 @@ export class AvatarRoster {
     counters.dyingAvatars = 0;
     counters.runningAvatars = 0;
     counters.maxAvatarSpeed = 0;
+    this._stepCorpses(dt);
 
     for (const [id, pending] of this._pendingHits) {
       if (pending.until < now) this._pendingHits.delete(id);
@@ -188,6 +229,9 @@ export class AvatarRoster {
     for (const remote of remotes.values()) {
       if (remote.id === myId) continue;
       let avatar = this._avatars.get(remote.id);
+      // A dead row whose body is already on the ground needs no live avatar:
+      // building one here would only be killed again on the same frame.
+      if (!avatar && remote.state !== 'alive' && this._corpses.has(remote.id)) continue;
       if (!avatar) {
         avatar = makeAvatar(remote.id, remote.name, remote.team);
         avatar.px = remote.x;
@@ -214,15 +258,9 @@ export class AvatarRoster {
       if (!alive) {
         if (avatar.alive) this.death(remote.id, now);
         if (persistentCorpses) { avatar.group.visible=false; continue; }
-        avatar.deathT = Math.min(2.8, avatar.deathT + dt);
-        const t = smooth01(avatar.deathT / 2.7);
-        const fade = 1 - smooth01((t - 0.72) / 0.28);
-        avatar.group.visible = avatar.deathT < 2.7;
-        if (avatar.group.visible) {
-          counters.dyingAvatars++;
-          updateAvatarDeath(avatar, dt, t, this._solidAt);
-        }
-        setAvatarOpacity(avatar, fade);
+        // beginAvatarDeath already baked the world pose into the loose pieces,
+        // so the whole avatar can be handed over to the corpse pool as it is.
+        this._retireCorpse(remote.id, avatar);
         continue;
       }
 
@@ -371,6 +409,7 @@ export class AvatarRoster {
       this._scene?.remove(avatar.group);
       disposeAvatar(avatar);
     }
+    for (const id of [...this._corpses.keys()]) this._dropCorpse(id);
     this._avatars.clear();
     this._pendingHits.clear();
     this._remoteImpacts.clear();

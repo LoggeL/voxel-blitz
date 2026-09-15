@@ -16,6 +16,7 @@ import { kickMassScale } from './defs.js';
 import { WeaponTurnInertia } from './turn-inertia.js';
 import { SPRINT_AIM_DIP } from './weapon-aim.js';
 import { VaultHands } from './vault-hands.js';
+import { ViewmodelArms } from './viewmodel-arms.js';
 import { ThrowableHands } from './throwable-hands.js';
 import { MedkitHands } from './medkit-hands.js';
 import { QUICK_MELEE_SECONDS } from '../../../shared/quick-melee.js';
@@ -41,6 +42,9 @@ export class ViewmodelRig {
     this._vaultHands = new VaultHands(this.root);
     this._medkitHands = new MedkitHands(this.root);
     this._throwableHands = new ThrowableHands(this.root, (event) => this.onGrenadeCue?.(event));
+    // Arms live in the same camera-local, fov-counter-scaled space as the gun,
+    // so they follow the held weapon's gloves through every bob, kick and aim.
+    this._arms = new ViewmodelArms(this.root);
 
     this._disposed = false;
     this._models = {};                 // lazily-built gun cache keyed by weapon id
@@ -131,6 +135,7 @@ export class ViewmodelRig {
   setCosmetics(loadout) {
     this._cosmetics = loadout;
     this._vaultHands.setCosmetics(loadout);
+    this._arms.setCosmetics(loadout);
     for (const [weapon, model] of Object.entries(this._models)) applyGunCosmetics(model, weapon, loadout);
   }
 
@@ -386,6 +391,7 @@ export class ViewmodelRig {
     this._vaultHands.dispose();
     this._medkitHands.dispose();
     this._throwableHands.dispose();
+    this._arms.dispose();
 
     this._chargeOrb.removeFromParent();
     for (const mesh of this._chargeOrb.children) {
@@ -653,6 +659,7 @@ export class ViewmodelRig {
     // into camera space, then layer the short decorative recoil/carry motion.
     this.camera.getWorldQuaternion(this._cameraQ);
     this._aimEuler.setFromQuaternion(this._cameraQ, 'YXZ');
+    const viewPitch = this._aimEuler.x;
     const shotYaw = Number.isFinite(ctx.shotYaw) ? ctx.shotYaw : this._aimEuler.y + aimYaw;
     const shotPitch = Number.isFinite(ctx.shotPitch) ? ctx.shotPitch : this._aimEuler.x + aimPitch;
     this._aimQ.setFromEuler(this._aimEuler.set(shotPitch, shotYaw, 0, 'YXZ'));
@@ -676,6 +683,10 @@ export class ViewmodelRig {
     this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22,
       swingRy + (this._id === 'knife' ? PICKAXE_CARRY_YAW : 0) + (dep.ry || 0) + (actionMotion.yaw || 0),
       swingRz + (this._id === 'knife' ? PICKAXE_CARRY_ROLL : 0) + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0) + swimCarry * 0.06);
+
+    /* arms: two-bone reach from each glove back to the player's own shoulders.
+       Runs after the pose is composed, so it reads the final hand transforms. */
+    this._arms.update(cur, viewPitch, this.content.visible);
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
     this._decayFx(dt, cur);

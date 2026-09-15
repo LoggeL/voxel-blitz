@@ -1,34 +1,49 @@
 {
   "asset": "HANDS",
   "asset_id": "hands",
-  "revision": 2,
-  "kind": "original first-person glove hands, two poses (visual game asset)",
+  "revision": 3,
+  "kind": "original first-person glove hands, two poses, plus rigid arm segments (visual game asset)",
   "blender": "5.2.1 LTS",
   "authoring_script": "tools/blender/hands/build-hands.py",
-  "source_parts": 88,
+  "source_parts": 96,
   "animation_group_nodes": [
     "grip",
-    "support"
+    "support",
+    "forearm",
+    "upperarm",
+    "shoulder"
   ],
   "marker_nodes": [],
-  "batch_nodes": 14,
+  "batch_nodes": 26,
   "round_nodes": [],
-  "triangles": 14912,
+  "triangles": 16416,
   "triangles_per_primitive": {
-    "grip | ceramic armor": 728,
-    "grip | glove leather": 3256,
+    "forearm | ceramic armor": 188,
+    "forearm | glove leather": 408,
+    "forearm | knuckle plate": 108,
+    "forearm | suit fabric": 760,
+    "forearm | webbing": 220,
+    "grip | ceramic armor": 540,
+    "grip | glove leather": 3192,
     "grip | hardware": 216,
-    "grip | knuckle plate": 648,
+    "grip | knuckle plate": 540,
     "grip | skin": 1692,
-    "grip | suit fabric": 760,
     "grip | webbing": 156,
-    "support | ceramic armor": 728,
-    "support | glove leather": 3256,
+    "shoulder | ceramic armor": 108,
+    "shoulder | hardware": 108,
+    "shoulder | knuckle plate": 188,
+    "shoulder | suit fabric": 380,
+    "support | ceramic armor": 540,
+    "support | glove leather": 3192,
     "support | hardware": 216,
-    "support | knuckle plate": 648,
+    "support | knuckle plate": 540,
     "support | skin": 1692,
-    "support | suit fabric": 760,
-    "support | webbing": 156
+    "support | webbing": 156,
+    "upperarm | ceramic armor": 188,
+    "upperarm | glove leather": 380,
+    "upperarm | knuckle plate": 108,
+    "upperarm | suit fabric": 380,
+    "upperarm | webbing": 220
   },
   "materials": [
     "glove leather",
@@ -95,6 +110,37 @@
       0.012
     ]
   },
+  "arm_segments": {
+    "frame": "each part in its own joint frame: proximal joint at the origin, distal joint on +z, +y = back of the forearm / outer side of the upper arm and shoulder; the runtime mirrors x for the left arm and stretches z when the shoulder is out of reach",
+    "wrist_z_glove_local": 0.07,
+    "forearm_length": 0.31,
+    "upper_arm_length": 0.34,
+    "radius_limit": 0.08,
+    "shoulder_reach": 0.16,
+    "measured": {
+      "forearm": {
+        "z": [
+          -0.01,
+          0.332
+        ],
+        "radius": 0.057899
+      },
+      "upperarm": {
+        "z": [
+          -0.024,
+          0.366
+        ],
+        "radius": 0.06921
+      },
+      "shoulder": {
+        "z": [
+          -0.108,
+          0.046
+        ],
+        "radius": 0.090981
+      }
+    }
+  },
   "files": {
     "blend": "docs/design/blender/hands/hands.blend",
     "glb": "docs/design/blender/hands/hands.glb",
@@ -104,13 +150,16 @@
       "render-grip-palm.png",
       "render-support-side.png",
       "render-support-rear-quarter.png",
-      "render-support-palm.png"
+      "render-support-palm.png",
+      "render-forearm-side.png",
+      "render-upperarm-side.png",
+      "render-shoulder-side.png"
     ],
     "validation": "docs/design/blender/hands/validation.json"
   },
   "build_time_checks": {
     "anchor_contract": "each palm spans the origin, every wrist/strap/sleeve/bracer part stays at z > 0.018, no vertex leaves a 0.25 m radius, every finger has a bare distal phalanx",
-    "part_contact": "every authored part must touch or nearly touch another part of its own pose; a group that only meets the model through empty space is reported as floating and fails the build",
+    "part_contact": "every authored part must meet another part of its own group, either by crossing its surface or by placing a vertex within 1 mm of it; a part that only meets the model through empty space is reported as floating and fails the build",
     "finger_gaps": "neighbouring proximal stalls keep >= 1.5 mm of air between them"
   },
   "geometry_audit": {
@@ -124,6 +173,7 @@
   ],
   "notes": [
     "Revision 2: base-knuckle flexion, rounded phalanx joints without ball bumps, half-finger glove with bare middle/distal phalanges, RIVET kit colours.",
+    "Revision 3: the sleeve leaves the glove; forearm, upperarm and shoulder are separate rigid parts that viewmodel-arms.js poses with two-bone IK toward the first-person body, so the hands connect to the character.",
     "The runtime keeps these materials as delivered (no glove-map re-texture) and keys the character-skin palette on the material name."
   ]
 }

@@ -45,7 +45,7 @@ BLEND = DOCS / 'hands.blend'
 SLUG = 'hands'
 SCENE_PREFIX = 'HANDS'
 
-GROUPS = ['grip', 'support']
+GROUPS = ['grip', 'support', 'forearm', 'upperarm', 'shoulder']
 MARKERS = []
 TEXTURES = ['worn-gunmetal', 'orange-painted-metal', 'ivory-armor',
             'petrol-ballistic-fabric', 'tan-webbing', 'worn-rubber']

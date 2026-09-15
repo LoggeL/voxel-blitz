@@ -1,4 +1,4 @@
-"""Author HANDS, original first-person glove hands for Voxel Blitz (revision 2).
+"""Author HANDS, original first-person glove hands for Voxel Blitz (revision 3).
 
 Two right-hand poses in the glove-local frame the runtime consumes directly:
 palm at origin, fingers toward -z, back of the hand toward +y, thumb toward
@@ -7,6 +7,25 @@ grip, thumb laid over the fingers) and `support` (open cradle with relaxed
 fingers and an extended thumb). Both poses live in one study as the two
 top-level part nodes `grip` / `support`; no markers or rounds are needed.
 kit glove() mirrors the same geometry for the left hand.
+
+Revision 3 moves the sleeve off the glove and adds three rigid arm segments
+as their own top-level part nodes so the runtime can pose a two-bone arm from
+each glove back to the shoulder of the first-person body
+(`public/js/guns/viewmodel-arms.js`):
+
+    forearm   wrist joint at the origin, elbow at +z FOREARM_LEN
+              (suit sleeve, webbing strap, ivory bracer with orange inset,
+              leather elbow pad); +y is the back of the forearm and follows
+              the back of the hand
+    upperarm  elbow at the origin, shoulder joint at +z UPPER_LEN
+              (leather elbow cap, suit sleeve, webbing band, ivory plate with
+              orange inset); +y is the outer/upper side
+    shoulder  shoulder joint at the origin, same axes as the upper arm
+              (suit cap, orange pauldron on an ivory rim, gunmetal rivet)
+
+The glove itself ends at the sleeve hem (glove-local z <= 0.076); the forearm
+mounts at WRIST_Z on the glove's +z axis and is stretched along z by the
+runtime when the shoulder is out of reach.
 
 Frame note: gun studies author z-up and rotate into game space on export.
 Hands skip that rotation on purpose: the runtime places the glove group with
@@ -56,7 +75,16 @@ DOCS.mkdir(parents=True, exist_ok=True)
 
 ASSET = 'HANDS'
 SCENE_NAME = f'{ASSET} | Voxel Blitz hands study'
-GROUPS = ['grip', 'support']
+POSES = ['grip', 'support']
+ARM_PARTS = ['forearm', 'upperarm', 'shoulder']
+GROUPS = POSES + ARM_PARTS
+
+# --- arm segment contract (metres, each part in its own joint frame) --------
+FOREARM_LEN = 0.31   # wrist joint (origin) .. elbow along forearm-local +z
+UPPER_LEN = 0.34     # elbow (origin) .. shoulder joint along upper-arm-local +z
+WRIST_Z = 0.070      # glove-local z of the wrist joint the forearm mounts on
+ARM_RADIUS = 0.080   # no arm vertex leaves this radius from its own axis
+SHOULDER_REACH = 0.16
 
 # --- glove-local frame contract (metres, y up, right hand) ------------------
 # Palm spans the origin; knuckles at z ~= -0.045 with fingers running toward
@@ -339,20 +367,64 @@ def build_common(part, title):
         boxv((0.016, 0.005, 0.012)), loc=(-0.004, 0.0195, 0.036), bevel=.0012)
     add(f'{title} strap keeper', part, 'hardware',
         boxv((0.006, 0.006, 0.014)), loc=(0.030, 0.0165, 0.036), bevel=.0012)
+    # The hem hugs the wrist end (its flats cut the wrist box corners) so the
+    # glove stays one connected form now that the sleeve is its own part.
     add(f'{title} sleeve hem', part, 'glove leather',
-        octagon_tube(0.0395, 0.0245, 0.012, 0.064), bevel=.003)
-    # Forearm: the suit sleeve widens from the wrist toward the elbow and
-    # runs to the 0.25 m reach limit so its end sits well behind the frame.
-    add(f'{title} sleeve', part, 'suit fabric',
-        octagon_tube(0.0385, 0.0235, 0.156, 0.062, 0.0450, 0.0315), bevel=.004, segments=3)
-    add(f'{title} sleeve flare', part, 'suit fabric',
-        octagon_tube(0.0465, 0.0330, 0.026, 0.214, 0.0480, 0.0345), bevel=.004, segments=3)
-    # Forearm bracer: ivory plate along the back of the sleeve, orange inset.
-    add(f'{title} bracer', part, 'ceramic armor',
-        flared_box(0.026, 0.0065, 0.030, 0.0075, 0.080, 0.190, 0.0225, 0.0290), bevel=.004, segments=3)
-    add(f'{title} bracer inset', part, 'knuckle plate',
-        flared_box(0.012, 0.0030, 0.013, 0.0030, 0.094, 0.176, 0.0300, 0.0350), bevel=.0015)
+        octagon_tube(0.0360, 0.0170, 0.012, 0.064), bevel=.003)
     return palm
+
+
+def build_forearm(part='forearm', title='Forearm'):
+    """Wrist joint at the origin, elbow at +z FOREARM_LEN; +y = back of the forearm."""
+    # Leather cuff overlapping the glove's sleeve hem (glove-local 0.064..0.076
+    # = forearm-local -0.006..0.006) so the seam never opens under stretch.
+    add(f'{title} cuff', part, 'glove leather',
+        octagon_tube(0.0395, 0.0245, 0.022, -0.010), bevel=.003)
+    # Suit sleeve widening toward the elbow, a webbing strap at mid-length.
+    add(f'{title} sleeve', part, 'suit fabric',
+        octagon_tube(0.0385, 0.0235, 0.215, 0.008, 0.0470, 0.0330), bevel=.004, segments=3)
+    add(f'{title} strap', part, 'webbing',
+        octagon_tube(0.0445, 0.0295, 0.016, 0.118), bevel=.002)
+    add(f'{title} sleeve flare', part, 'suit fabric',
+        octagon_tube(0.0490, 0.0350, 0.060, 0.216, 0.0520, 0.0380), bevel=.004, segments=3)
+    # Rounded leather elbow pad spanning the joint; the upper arm's cap meets it.
+    add(f'{title} elbow pad', part, 'glove leather',
+        boxv((0.096, 0.076, 0.060)), loc=(0, 0.004, FOREARM_LEN - 0.008), bevel=.014, segments=3)
+    # Bracer: ivory plate along the back of the sleeve, orange inset.
+    add(f'{title} bracer', part, 'ceramic armor',
+        flared_box(0.026, 0.0065, 0.032, 0.0080, 0.030, 0.165, 0.0240, 0.0330), bevel=.004, segments=3)
+    add(f'{title} bracer inset', part, 'knuckle plate',
+        flared_box(0.012, 0.0030, 0.014, 0.0030, 0.046, 0.150, 0.0315, 0.0405), bevel=.0015)
+
+
+def build_upperarm(part='upperarm', title='Upper arm'):
+    """Elbow at the origin, shoulder joint at +z UPPER_LEN; +y = outer/upper side.
+
+    The sleeve runs a little past the shoulder joint so the shoulder part
+    always covers the seam, whatever the runtime stretches this segment to.
+    """
+    add(f'{title} elbow cap', part, 'glove leather',
+        octagon_tube(0.0500, 0.0460, 0.048, -0.024), bevel=.005, segments=3)
+    add(f'{title} sleeve', part, 'suit fabric',
+        octagon_tube(0.0470, 0.0430, 0.350, 0.016, 0.0540, 0.0520), bevel=.005, segments=3)
+    add(f'{title} band', part, 'webbing',
+        octagon_tube(0.0510, 0.0470, 0.018, 0.070), bevel=.002)
+    add(f'{title} plate', part, 'ceramic armor',
+        flared_box(0.030, 0.0070, 0.037, 0.0085, 0.100, 0.290, 0.0455, 0.0520), bevel=.004, segments=3)
+    add(f'{title} plate inset', part, 'knuckle plate',
+        flared_box(0.014, 0.0030, 0.017, 0.0030, 0.116, 0.274, 0.0535, 0.0599), bevel=.0015)
+
+
+def build_shoulder(part='shoulder', title='Shoulder'):
+    """Shoulder joint at the origin, axes as the upper arm; the pauldron sits on +y."""
+    add(f'{title} cap', part, 'suit fabric',
+        octagon_tube(0.0560, 0.0540, 0.120, -0.095, 0.0500, 0.0480), bevel=.005, segments=3)
+    add(f'{title} pauldron rim', part, 'ceramic armor',
+        flared_box(0.058, 0.0055, 0.068, 0.0060, -0.108, 0.046, 0.0470, 0.0505), bevel=.003, segments=2)
+    add(f'{title} pauldron', part, 'knuckle plate',
+        flared_box(0.046, 0.011, 0.058, 0.013, -0.100, 0.040, 0.0555, 0.0610), bevel=.006, segments=3)
+    add(f'{title} rivet', part, 'hardware',
+        boxv((0.022, 0.008, 0.022)), loc=(0, 0.070, -0.030), bevel=.0015)
 
 
 def build_finger(part, title, name, x, base_z, lengths, width, thick, angles, yaw):
@@ -429,7 +501,11 @@ build_hand('support', 'Support', {
     'index': -6.0, 'middle': -2.0, 'ring': 2.0, 'pinky': 7.0,
 }, [((-0.72, 0.04, -0.69), 0.040), ((-0.48, 0.02, -0.88), 0.028), ((-0.32, 0.0, -0.95), 0.022)])
 
-for (key, value) in {'asset_id': 'hands', 'revision': 2}.items():
+build_forearm()
+build_upperarm()
+build_shoulder()
+
+for (key, value) in {'asset_id': 'hands', 'revision': 3}.items():
     scene[key] = value
 
 # --- contract assertions ---------------------------------------------------
@@ -474,6 +550,25 @@ for part, title in (('grip', 'Grip'), ('support', 'Support')):
     for (name, _x, _z, _l, _w, _t) in FINGERS:
         CONTRACT.append((f'{part} {name} tip exists', bool(tip_pts[name]), True))
 
+# Arm segments: each spans its own joint-to-joint length along +z (with a few
+# millimetres of overlap past both joints) and stays inside a slim radius so
+# the runtime's stretch and mirror never sweep a vertex into the camera.
+arm_bounds = {}
+for (part, title, length) in (('forearm', 'Forearm', FOREARM_LEN), ('upperarm', 'Upper arm', UPPER_LEN)):
+    owned = [p for (p, n) in points if n.startswith(title + ' ')]
+    z_min = min(p.z for p in owned)
+    z_max = max(p.z for p in owned)
+    radius = max(math.hypot(p.x, p.y) for p in owned)
+    arm_bounds[part] = {'z': [z_min, z_max], 'radius': radius}
+    CONTRACT.append((f'{part} starts at its proximal joint', z_min < 0.0, True))
+    CONTRACT.append((f'{part} reaches its distal joint', z_max > length, True))
+    CONTRACT.append((f'{part} radius within {ARM_RADIUS}m', radius, ARM_RADIUS))
+shoulder_pts = [p for (p, n) in points if n.startswith('Shoulder ')]
+arm_bounds['shoulder'] = {'z': [min(p.z for p in shoulder_pts), max(p.z for p in shoulder_pts)],
+                          'radius': max(math.hypot(p.x, p.y) for p in shoulder_pts)}
+CONTRACT.append((f'shoulder reach within {SHOULDER_REACH}m', max(p.length for p in shoulder_pts), SHOULDER_REACH))
+CONTRACT.append(('shoulder covers the joint', min(p.z for p in shoulder_pts) < -0.05 < 0.03 < max(p.z for p in shoulder_pts), True))
+
 contract_failures = []
 for (name, measured, expected) in CONTRACT:
     if isinstance(expected, bool):
@@ -484,11 +579,14 @@ for (name, measured, expected) in CONTRACT:
 
 print(f'model extent x={extent[0][0]:+.4f}..{extent[0][1]:+.4f} '
       f'y={extent[1][0]:+.4f}..{extent[1][1]:+.4f} z={extent[2][0]:+.4f}..{extent[2][1]:+.4f}')
-for part in GROUPS:
+for part in POSES:
     (mins, maxs) = palm_bounds[part]
     print(f'{part}: palm x={mins[0]:+.4f}..{maxs[0]:+.4f} '
           f'y={mins[1]:+.4f}..{maxs[1]:+.4f} z={mins[2]:+.4f}..{maxs[2]:+.4f}, '
           f'cuff min z={cuff_min_z[part]:+.4f}')
+for part in ARM_PARTS:
+    bounds = arm_bounds[part]
+    print(f'{part}: z={bounds["z"][0]:+.4f}..{bounds["z"][1]:+.4f} radius={bounds["radius"]:.4f}')
 if contract_failures:
     print(f'CONTRACT FAILURES: {len(contract_failures)}')
     for line in contract_failures:
@@ -546,24 +644,28 @@ aim(fill_obj, (-0.34, 0.08, 0.26), FOCUS)
 # 'palm' from below (the fist void and the cradle), 'game' from where the
 # first-person camera sees the back of the hand: above, behind, thumb side.
 SHOTS = [
-    ('grip', 'side', (-0.30, 0.03, -0.01)),
-    ('grip', 'rear-quarter', (-0.20, 0.16, 0.22)),
-    ('grip', 'palm', (-0.10, -0.28, -0.06)),
-    ('support', 'side', (-0.28, 0.08, -0.03)),
-    ('support', 'rear-quarter', (-0.20, 0.16, 0.22)),
-    ('support', 'palm', (0.06, -0.28, -0.06)),
+    ('grip', 'side', (-0.30, 0.03, -0.01), FOCUS),
+    ('grip', 'rear-quarter', (-0.20, 0.16, 0.22), FOCUS),
+    ('grip', 'palm', (-0.10, -0.28, -0.06), FOCUS),
+    ('support', 'side', (-0.28, 0.08, -0.03), FOCUS),
+    ('support', 'rear-quarter', (-0.20, 0.16, 0.22), FOCUS),
+    ('support', 'palm', (0.06, -0.28, -0.06), FOCUS),
+    # Arm segments from the thumb side, slightly above, framed on mid-length.
+    ('forearm', 'side', (-0.62, 0.22, 0.16), (0, 0.0, 0.155)),
+    ('upperarm', 'side', (-0.66, 0.24, 0.17), (0, 0.0, 0.17)),
+    ('shoulder', 'side', (-0.32, 0.14, -0.03), (0, 0.02, -0.03)),
 ]
 RENDER_FILES = []
 POSE_OBJECTS = {group: [PART_GROUP[group]] + [o for (o, p, _m) in PARTS if p == group]
                 for group in GROUPS}
-for (pose, view, location) in SHOTS:
+for (pose, view, location, focus) in SHOTS:
     for group in GROUPS:
         # Render visibility does not inherit from the parent empty, so hide
-        # every object of the other pose explicitly (studio rig stays live).
+        # every object of the other parts explicitly (studio rig stays live).
         for obj in POSE_OBJECTS[group]:
             obj.hide_viewport = obj.hide_render = group != pose
     bpy.context.view_layer.update()
-    aim(camera, location, FOCUS)
+    aim(camera, location, focus)
     bpy.context.view_layer.update()
     scene.render.filepath = str(DOCS / f'render-{pose}-{view}.png')
     bpy.ops.render.render(write_still=True)
@@ -578,7 +680,14 @@ CONTACT_M = 0.0010        # 1 mm still reads as one sculpted form
 
 
 def audit_contact(tolerance=CONTACT_M):
-    """Every authored part must touch or nearly touch another part of its pose."""
+    """Every authored part must meet another part of its own group.
+
+    A part passes when its surface crosses a neighbour's surface, or when one
+    of its vertices lies within `tolerance` of a neighbour's surface. Surface
+    crossing has to be tested directly: a slab that spans a rounded sleeve
+    shares volume with it while every one of its own corners sits out in the
+    open, and a vertex-only test reads that solid joint as a floating part.
+    """
     bpy.context.view_layer.update()
     deps = bpy.context.evaluated_depsgraph_get()
     findings = []
@@ -595,10 +704,11 @@ def audit_contact(tolerance=CONTACT_M):
                 all_triangles=False, epsilon=0.0)
             evaluated.to_mesh_clear()
         for (obj, _m) in owned:
-            nearest = min(
-                trees[other].find_nearest(co)[3]
-                for other in trees if other != obj.name
-                for co in worlds[obj.name])
+            others = [other for other in trees if other != obj.name]
+            if any(trees[obj.name].overlap(trees[other]) for other in others):
+                continue
+            nearest = min(trees[other].find_nearest(co)[3]
+                          for other in others for co in worlds[obj.name])
             if nearest > tolerance:
                 findings.append(f'{part} | {obj.name}: nearest neighbour '
                                 f'{nearest * 1000:.2f} mm away')
@@ -790,8 +900,8 @@ _node_names = sorted(normalize_glb(GLB))
 manifest = {
     'asset': 'HANDS',
     'asset_id': 'hands',
-    'revision': 2,
-    'kind': 'original first-person glove hands, two poses (visual game asset)',
+    'revision': 3,
+    'kind': 'original first-person glove hands, two poses, plus rigid arm segments (visual game asset)',
     'blender': bpy.app.version_string,
     'authoring_script': 'tools/blender/hands/build-hands.py',
     'source_parts': len(PARTS),
@@ -818,6 +928,18 @@ manifest = {
     },
     'contract_points': {'knuckle_line_z': [f[2] for f in FINGERS], 'palm_z': [PALM_Z0, PALM_Z1],
                         'cuff_min_z': CUFF_MIN_Z, 'reach': REACH, 'thumb_base': list(THUMB_BASE)},
+    'arm_segments': {
+        'frame': 'each part in its own joint frame: proximal joint at the origin, distal joint on +z, '
+                 '+y = back of the forearm / outer side of the upper arm and shoulder; the runtime '
+                 'mirrors x for the left arm and stretches z when the shoulder is out of reach',
+        'wrist_z_glove_local': WRIST_Z,
+        'forearm_length': FOREARM_LEN,
+        'upper_arm_length': UPPER_LEN,
+        'radius_limit': ARM_RADIUS,
+        'shoulder_reach': SHOULDER_REACH,
+        'measured': {part: {'z': [round(v, 6) for v in bounds['z']], 'radius': round(bounds['radius'], 6)}
+                     for (part, bounds) in arm_bounds.items()},
+    },
     'files': {'blend': 'docs/design/blender/hands/hands.blend',
               'glb': 'docs/design/blender/hands/hands.glb',
               'renders': RENDER_FILES,
@@ -826,9 +948,10 @@ manifest = {
         'anchor_contract': 'each palm spans the origin, every wrist/strap/sleeve/bracer part '
                            f'stays at z > {CUFF_MIN_Z}, no vertex leaves a 0.25 m radius, '
                            'every finger has a bare distal phalanx',
-        'part_contact': 'every authored part must touch or nearly touch another part of '
-                        'its own pose; a group that only meets the model through empty '
-                        'space is reported as floating and fails the build',
+        'part_contact': 'every authored part must meet another part of its own group, '
+                        'either by crossing its surface or by placing a vertex within 1 mm '
+                        'of it; a part that only meets the model through empty space is '
+                        'reported as floating and fails the build',
         'finger_gaps': 'neighbouring proximal stalls keep >= 1.5 mm of air between them',
     },
     'geometry_audit': {'floating_parts': floaters, 'finger_gaps': finger_gaps},
@@ -839,13 +962,16 @@ manifest = {
     ],
     'notes': ['Revision 2: base-knuckle flexion, rounded phalanx joints without ball bumps, '
               'half-finger glove with bare middle/distal phalanges, RIVET kit colours.',
+              'Revision 3: the sleeve leaves the glove; forearm, upperarm and shoulder are '
+              'separate rigid parts that viewmodel-arms.js poses with two-bone IK toward the '
+              'first-person body, so the hands connect to the character.',
               'The runtime keeps these materials as delivered (no glove-map re-texture) and keys '
               'the character-skin palette on the material name.'],
 }
 (DOCS / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
 validation = {
     'asset': 'HANDS',
-    'revision': 2,
+    'revision': 3,
     'glb': str(GLB),
     'passed': not (contract_failures or floaters or finger_gaps),
     'failures': contract_failures + [f'floating: {line}' for line in floaters]
@@ -858,8 +984,9 @@ validation = {
                         for (part, bounds) in palm_bounds.items()},
         'cuff_min_z': {part: round(v, 6) for (part, v) in cuff_min_z.items()},
         'glb_nodes': _node_names,
-        'node:grip': 'present' if 'grip' in _node_names else 'missing',
-        'node:support': 'present' if 'support' in _node_names else 'missing',
+        **{f'node:{group}': 'present' if group in _node_names else 'missing' for group in GROUPS},
+        'arm_bounds': {part: {'z': [round(v, 6) for v in bounds['z']], 'radius': round(bounds['radius'], 6)}
+                       for (part, bounds) in arm_bounds.items()},
         'triangles': triangles,
         'triangles_per_primitive': per_primitive,
     },
