@@ -507,6 +507,10 @@ export async function runHudContracts(ok, installGlobals) {
       const menuActions = [];
       hud.buildMenu((action) => menuActions.push(action));
       document.getElementById('name-input').value = 'HOST';
+      ok(document.getElementById('play-btn').disabled === true
+        && document.getElementById('menu-load-bar').hidden === false,
+      'menu play actions stay gated behind the asset load bar until the match set is ready');
+      hud.menu.setPlayReady(true);
       document.getElementById('create-lobby-btn').click();
       ok(menuActions.length === 1 && menuActions[0].mode === 'create'
         && menuActions[0].name === 'HOST',
@@ -530,6 +534,7 @@ export async function runHudContracts(ok, installGlobals) {
         'Training configuration selects Killhouse without bots');
       hud.hideLobby();
       hud.buildMenu((action) => menuActions.push(action));
+      hud.menu.setPlayReady(true);
       document.getElementById('play-btn').click();
       ok(menuActions.length === 2 && menuActions[1].mode === 'quick'
         && !Object.hasOwn(menuActions[1], 'gameMode'), 'Quick Play keeps server map rotation');

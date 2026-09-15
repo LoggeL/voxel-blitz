@@ -168,4 +168,26 @@ loading.onCancel(); assert.equal(root.open, false);
   loading.hide();
 }
 
+// Weighted menu fractions: done counts full, active reports its share,
+// failures count empty, unknown ids never gate the menu.
+{
+  const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+  const gates2 = {};
+  const gate2 = (id) => new Promise((resolve, reject) => { gates2[id] = { resolve, reject }; });
+  const weighed = new AssetScheduler({ now: () => 0, warn() {}, onChange() {} });
+  weighed.define('heavy', { weight: 3, load: (report) => { report({ fraction: 0.5 }); return gate2('heavy'); } });
+  weighed.define('light', { weight: 1, load: () => gate2('light') });
+  assert.equal(weighed.fraction(['heavy', 'light']), 0, 'pending tasks weigh nothing');
+  assert.equal(weighed.fraction(['nope']), 1, 'unknown tasks never gate the menu');
+  const wip = weighed.startAll();
+  await tick();
+  assert.equal(weighed.fraction(['heavy', 'light']), 0.375, 'active fractions weight into the menu bar');
+  gates2.heavy.resolve(1);
+  await tick(); await tick();
+  assert.equal(weighed.fraction(['heavy', 'light']), 0.75, 'finished tasks count full while the tail pends');
+  gates2.light.reject(new Error('offline'));
+  await wip;
+  assert.equal(weighed.fraction(['heavy', 'light']), 0.75, 'failed tasks count empty');
+}
+
 console.log('ok - loading progress, modal lifecycle, keyboard cancel, stale admission, waiting lobby, arena cancellation and background asset scheduling');

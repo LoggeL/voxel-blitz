@@ -182,6 +182,11 @@ export class AudioEngine {
     };
     this._applyLastListener();
   }
+  /** Last known listener position for proximity cues (flashbang ring). */
+  listenerPos() {
+    const pos = this._lastListener?.pos;
+    return Array.isArray(pos) ? pos : null;
+  }
 
   // Runs immediately when audio is live; otherwise retains a bounded replay.
   // Context creation and resume both occur before this method returns.

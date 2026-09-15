@@ -785,6 +785,23 @@ export const sfx = {
       });
       sendEcho(output, primitives, profile.echo, engine.echoIn, addCleanup);
     });
+    // Flashbang ring: a close blast leaves a high ringing that fades with
+    // distance. In-head and non-positional, like a stunned ear.
+    const listenerPos = engine.listenerPos?.();
+    if (Array.isArray(deferredPos) && deferredPos.every(Number.isFinite) && Array.isArray(listenerPos)) {
+      const distance = Math.hypot(deferredPos[0] - listenerPos[0],
+        deferredPos[1] - listenerPos[1], deferredPos[2] - listenerPos[2]);
+      const proximity = Math.max(0, Math.min(1, 1 - distance / 18));
+      if (proximity > 0) {
+        run('flashbang', () => {
+          const output = pool.acquire(null, 2.4);
+          primitives.tone(output, {
+            t0: primitives.nowT(), type: 'sine', f0: 3400, f1: 3100,
+            att: 0.005, dec: 0.6 + proximity * 1.4, g: 0.05 + proximity * 0.22,
+          });
+        });
+      }
+    }
   },
 
   /** Legacy alias kept for the frag blast. */

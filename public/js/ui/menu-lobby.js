@@ -155,6 +155,20 @@ export class MenuLobbyController {
       el('span', 'vb-action-title', button).textContent = text;
     }
     for (const [box, icon] of [[quickBox, 'arrows'], [browseBox, 'globe'], [createBox, 'squad'], [duelBox, 'duel']]) addMenuIcon(box, icon);
+    // Match-asset load bar: frosted rail with real scheduler progress. Play
+    // actions stay disabled until the match asset set is ready (see setPlayReady).
+    const loadBar = el('div', 'vb-load-bar', actionsBox, 'menu-load-bar');
+    loadBar.hidden = true;
+    const loadProgress = el('progress', '', loadBar);
+    loadProgress.max = 1;
+    loadProgress.value = 0;
+    loadProgress.setAttribute('aria-label', 'Match asset loading progress');
+    const loadLabel = el('span', 'vb-load-label', loadBar);
+    loadLabel.textContent = 'LOADING MATCH ASSETS…';
+    this._playButtons = [quickPlayButton, browseButton, createLobbyButton, duelButton];
+    this._loadBar = loadBar;
+    this._loadProgress = loadProgress;
+    this._loadLabel = loadLabel;
     const createPassword = passwordOption(actionsBox, 'create-password-input', 'Set a lobby password');
 
     this.joinStatus = el('div', 'vb-status', primaryBody, 'join-status');
@@ -205,7 +219,10 @@ export class MenuLobbyController {
     this.browser = new LobbyBrowser(root, (code, password) => {
       this.onMenuAction({ mode: 'join', code, password, ...getIdentity() });
     }, triggerCreate, this.navigation);
-    browseButton.addEventListener('click', () => this.browser.show({}, browseButton));
+    browseButton.addEventListener('click', () => {
+      if (browseButton.disabled) return;
+      this.browser.show({}, browseButton);
+    });
     createPassword.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') { event.preventDefault(); triggerCreate(); }
     });
@@ -245,6 +262,25 @@ export class MenuLobbyController {
           }
         } catch (_) {}
       });
+    }
+    // The training entry is built with the warm-up card below; register it here
+    // so the gate covers every match entry.
+    if (trainingButton && !this._playButtons.includes(trainingButton)) this._playButtons.push(trainingButton);
+    // Re-apply the latched asset gate: rebuilds start gated until main.js
+    this.setPlayReady(this._playReady === true, this._playProgress);
+  }
+
+  /** Gate every match entry on the background asset set. Progress is only ever
+   * real scheduler fractions; a rebuild re-applies the last pushed state. */
+  setPlayReady(ready, { fraction = 0, label = '' } = {}) {
+    this._playReady = ready === true;
+    this._playProgress = { fraction, label };
+    for (const button of this._playButtons || []) button.disabled = !this._playReady;
+    if (!this._loadBar) return;
+    this._loadBar.hidden = this._playReady;
+    if (!this._playReady) {
+      this._loadProgress.value = Math.max(0, Math.min(1, Number(fraction) || 0));
+      if (label) this._loadLabel.textContent = label;
     }
   }
 

@@ -63,6 +63,19 @@ export class AssetScheduler {
     return ids.filter((id) => this.get(id)?.status !== 'done');
   }
 
+  /** Weighted 0..1 progress across the listed tasks; done counts full, failed counts empty. */
+  fraction(ids) {
+    let total = 0, value = 0;
+    for (const id of ids) {
+      const task = this.get(id);
+      if (!task) continue;
+      total += task.weight;
+      value += task.weight * (task.status === 'done' ? 1
+        : task.status === 'active' ? clamp01(task.fraction) : 0);
+    }
+    return total > 0 ? value / total : 1;
+  }
+
   /** Start one task (idempotent while it runs or after success; a failure is retried). */
   start(id) {
     const task = this._byId.get(id);

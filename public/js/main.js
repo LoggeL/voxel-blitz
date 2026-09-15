@@ -47,6 +47,7 @@ class Game {
     const canvas = document.getElementById('game');
     this.input = new Input(canvas);
     this.hud = new HUD();
+    hudRef = this.hud;
     // The WebGL renderer, camera, clock, post-process chain and local player
     // belong to the match runtime and are created by ensureRuntime().
     this.rt = null;
@@ -1128,6 +1129,7 @@ async function prefetchArt(report) {
 }
 
 // Small "preparing assets 2 / 5" line in the menu; hidden once idle or in a match.
+let hudRef = null;
 const assetStatusDom = {
   root: document.getElementById('asset-status'),
   count: document.getElementById('asset-status-count'),
@@ -1140,13 +1142,22 @@ function renderAssetStatus() {
   const status = assets.status;
   const inMatch = document.getElementById('hud')?.classList.contains('hidden') === false;
   root.hidden = status.idle || inMatch;
-  if (root.hidden) return;
   const countText = `${status.done} / ${status.total}`;
   if (count.textContent !== countText) count.textContent = countText;
   const labelText = status.active?.label || '';
   if (label.textContent !== labelText) label.textContent = labelText;
   const detailText = status.active?.detail || '';
   if (detail.textContent !== detailText) detail.textContent = detailText;
+  // Gate every menu play action until the match set is ready. Failed tasks
+  // count as ready: the join path retries them under the loading screen.
+  const blocked = MATCH_ASSETS.some((id) => {
+    const state = assets.get(id)?.status;
+    return state !== 'done' && state !== 'failed';
+  });
+  hudRef?.menu?.setPlayReady?.(!blocked, {
+    fraction: assets.fraction(MATCH_ASSETS),
+    label: blocked && status.active ? `LOADING ${status.active.label}…` : '',
+  });
 }
 
 // The ARMORY entry is part of the menu from the first paint; its dialog module

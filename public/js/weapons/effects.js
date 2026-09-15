@@ -153,6 +153,15 @@ export class Effects {
       style.count, style.tint,
       { speed: style.speed, gravity: event?.type === 'pulse' ? 2 : 15, size: style.size, life: style.life, sparks: true },
     );
+    if (event?.type === 'frag' || event?.type === 'limpet' || event?.type === 'rocket') {
+      // Dirt burst: the blast throws soil up around the sparks — slower,
+      // longer-lived and soft. Energy blasts (pulse/bolt) throw none.
+      this.impacts.spawnParticles(
+        Number(event.x), Number(event.y), Number(event.z),
+        26, 0x6e5136,
+        { speed: 5.2, gravity: 17, size: 2.3, life: 1.15, softness: true },
+      );
+    }
     const position = this.camera?.position;
     if (position) {
       const distance = Math.hypot(
