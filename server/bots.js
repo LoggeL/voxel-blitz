@@ -1,6 +1,7 @@
 import { weaponTurnProfile } from '../shared/weapon-handling.js';
 import { groundRoute, navigationWaypoint } from './bot-navigation.js';
 import { canHopObstacle } from './bot-locomotion.js';
+import { AimSteering } from './bot-aim.js';
 // Direct-injection bots. They register with a GameEngine as pseudo-clients
 // ('bot-<i>') and drive the exact same applyInput -> integrate -> fire
 // pipeline humans use, so balance is identical. No sockets anywhere.
@@ -9,7 +10,8 @@ import { canHopObstacle } from './bot-locomotion.js';
 // clearance-checked obstacle hops elsewhere, limited-field stance-aware voxel LOS,
 // delayed recognition and a brief search of the last observed position,
 // burst-fire combat (3-5 shots then a 300 ms breath), shrinking aim error as
-// engagement time ramps skill, perpendicular strafing while fighting, panic
+// engagement time ramps skill, velocity-continuous aim curves with
+// time-correlated wander (see bot-aim.js), perpendicular strafing while fighting, panic
 // retreat to a side-on cover spot under 30 hp, dry-mid-fight weapon cycling,
 // and a stuck watchdog that reroutes anything wedged on geometry.
 
@@ -52,18 +54,6 @@ const OBJECTIVE_DETOUR_MS = 1600;
 
 function wrapAngle(a) {
   return Math.atan2(Math.sin(a), Math.cos(a));
-}
-
-function approachAngle(cur, target, maxStep) {
-  let d = wrapAngle(target - cur);
-  if (d > maxStep) d = maxStep;
-  if (d < -maxStep) d = -maxStep;
-  return wrapAngle(cur + d);
-}
-
-/** Cheap centered noise in [-1, 1] standing in for gaussian aim error. */
-function gaussish(rng) {
-  return ((rng() + rng() + rng()) - 1.5) * (2 / 3);
 }
 
 function dist3(ax, ay, az, bx, by, bz) {
@@ -156,6 +146,7 @@ class Brain {
     if (!isBotPersonality(this.personality)) this.personality = DEFAULT_BOT_PERSONALITY;
     this.seq = 0;
     this.skill = 0.25 + rng() * 0.3;   // ramps toward 1 while fighting
+    this.aim = new AimSteering();      // eased yaw/pitch curves + correlated wander
     this.state = 'roam';               // 'roam' | 'fight' | 'search' | 'retreat'
     this.roamTarget = null;
     this.roamDeadline = 0;
@@ -380,6 +371,7 @@ class BotManager {
       br.lastLives = p.lives;
       br.spawnSwitchPending = true;
       br.resetCombat();
+      br.aim.reset();
       br.roamTarget = null;
       br.groundRoute = null;
       br.retreatUntil = 0;
@@ -570,7 +562,7 @@ class BotManager {
     } else if (searching && navDist <= ARRIVE_DIST) {
       // Check around the remembered spot. Do not turn toward hidden movement.
       const scanYaw = Math.atan2(-ndx, -ndz) + Math.sin(now / 350 + br.strafePhase) * 0.9;
-      inp.yaw = approachAngle(p.yaw, scanYaw, turnRate * dtS);
+      inp.yaw = br.aim.steer('yaw', p.yaw, scanYaw, turnRate, dtS);
     } else if (!objectiveArrived || takingDetour) {
       moveYaw = Math.atan2(-ndx, -ndz);
       // Turn before walking into a nearby graph corner. Sprinting toward a
@@ -579,7 +571,7 @@ class BotManager {
       inp.keys.f = turnError < 0.6 && Math.hypot(ndx, ndz) > 0.35;
       moving = true;
       sprint = Math.hypot(ndx, ndz) > 7 && turnError < 0.3 && !retreating && !searching;
-      inp.pitch = approachAngle(inp.pitch, Math.atan2((waypoint.y + 1) - eye[1], navDist), pitchTurnRate * dtS);
+      inp.pitch = br.aim.steer('pitch', p.pitch, Math.atan2((waypoint.y + 1) - eye[1], navDist), pitchTurnRate, dtS);
     }
     inp.keys.sprint = !!sprint;
 
@@ -597,8 +589,11 @@ class BotManager {
       const pitchT = Math.atan2(aim[1] - eye[1], flat);
       const sigmaDeg = ((2.2 - 1.6 * br.skill) * errFactor + 0.3) * profile.aimError * pers.aimError;
       const sigmaRad = sigmaDeg * Math.PI / 180;
-      inp.yaw = approachAngle(p.yaw, wrapAngle(yawT + gaussish(br.rng) * sigmaRad), turnRate * dtS);
-      inp.pitch = approachAngle(p.pitch, Math.max(-1.4, Math.min(1.4, pitchT + gaussish(br.rng) * sigmaRad * 0.6)), pitchTurnRate * dtS);
+      // Correlated wander drifts the intended point; the eased steering
+      // follows it, so the crosshair moves in curves rather than tick jitter.
+      const wander = br.aim.wander(dtS, sigmaRad, 0.6, br.rng);
+      inp.yaw = br.aim.steer('yaw', p.yaw, wrapAngle(yawT + wander.yaw), turnRate, dtS);
+      inp.pitch = br.aim.steer('pitch', p.pitch, Math.max(-1.4, Math.min(1.4, pitchT + wander.pitch)), pitchTurnRate, dtS);
       inp.wantAds = flat > 28 && p.def.id === 'sniper';
 
       // Ammo logistics mid-fight: reload, else cycle to any loaded slot.
@@ -651,7 +646,7 @@ class BotManager {
 
     // ----- shared locomotion steering ---------------------------------------
     if (moving) {
-      inp.yaw = approachAngle(p.yaw, combatMovement ? inp.yaw : moveYaw, turnRate * dtS);
+      if (!combatMovement) inp.yaw = br.aim.steer('yaw', p.yaw, moveYaw, turnRate, dtS);
       // Ground routes go around cover. Legacy terrain routes may hop only
       // toward a supported, body-clear landing in the actual input direction.
       if (!Number.isFinite(this.game.world.meta?.navigationFloor)
