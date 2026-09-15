@@ -23,9 +23,9 @@ try {
   await request('/api/career');
   await stack.compose('exec', '-T', 'db', 'psql', '-U', 'voxel', '-d', 'voxel', '-v', 'ON_ERROR_STOP=1', '-c',
     `UPDATE vb_careers SET xp=900, credits=500 WHERE id='account:${user.id}'`);
-  const purchased = await request('/api/career/purchase', { item: 'arctic' });
-  assert.equal(purchased.credits, 400);
-  assert.equal(purchased.equipped.theme, 'arctic');
+  const equipped = await request('/api/career/equip', { item: 'arctic' });
+  assert.equal(equipped.credits, undefined, 'the career view carries no currency');
+  assert.equal(equipped.equipped.theme, 'arctic');
   const gameId = await stack.compose('ps', '-q', 'game'), dbId = await stack.compose('ps', '-q', 'db');
   const db = JSON.parse(await docker('inspect', dbId))[0];
   // Docker versions report an unpublished exposed port as null or omit it.

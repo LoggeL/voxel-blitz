@@ -46,7 +46,7 @@ export async function testRewardDurability(connectionString) {
     assert.equal((await store.readProfile(guest)).xp, 25, 'persisted receipt rejects repeated award attempts');
     await career.observe(client, { ...snapshot, now: 200 });
     const profile = await store.readProfile(guest);
-    assert.equal(profile.xp, 50); assert.equal(profile.credits, 20); assert.equal(profile.kills, 2);
+    assert.equal(profile.xp, 50); assert.equal(profile.kills, 2);
     assert.equal((await blocker.query('SELECT count(*) FROM vb_reward_receipts WHERE profile_id=$1', [guest])).rows[0].count, '2');
     assert.equal(store.healthy, true);
     await career.dispose(); await store.close(); store = null;

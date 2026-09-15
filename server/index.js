@@ -2,7 +2,7 @@
 // the authoritative game WebSocket. `node server/index.js` (PORT env, default 8070).
 import http from 'node:http';
 import { CareerService } from './career.js';
-import { normalizeWeaponLoadout } from '../shared/weapon-attachments.js';
+import { allowedWeaponLoadout } from './weapon-loadouts.js';
 import { masteryView } from './persistence/career-profile.js';
 import { AccountService } from './accounts.js';
 import { PostgresStore } from './persistence/postgres.js';
@@ -305,7 +305,7 @@ async function main() {
             if (profileId) profile = await career.readProfile(profileId);
             if (career.identity(req) !== profileId) profile = null;
           } catch { profile = null; }
-          meta.weaponLoadout = normalizeWeaponLoadout(profile?.equipped?.weaponAttachments);
+          meta.weaponLoadout = allowedWeaponLoadout(profile);
           meta.mastery = masteryView(profile?.mastery);
           if (admission.kind === 'quick') {
             admitted = manager.quickPlay(meta, name, admission.bots);

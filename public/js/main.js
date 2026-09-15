@@ -9,7 +9,7 @@
 import { AccountKeybindings } from './account-keybindings.js';
 import { loadingScreen } from './ui/loading-screen.js';
 import { claymoreProfile } from '../../shared/claymore-rules.js';
-import { CareerShop } from './ui/career-shop.js';
+import { ProgressionTree } from './ui/progression.js';
 import { AccountMenu } from './ui/account-menu.js';
 import { bastionRepairAvailable } from '../../shared/bastion.js';
 import { FrameRateController } from './engine/frame-rate.js';
@@ -1088,7 +1088,7 @@ const accountKeybindings = new AccountKeybindings();
 window.addEventListener('vb-account-change', event => accountKeybindings.setAccount(event.detail.user?.id || null));
 let customization = null;
 const accounts = new AccountMenu({ onOpen: () => { if (career.dialog.open) career.dialog.close(); if (customization?.dialog.open) customization.dialog.close(); } });
-const career = new CareerShop({ accounts });
+const career = new ProgressionTree({ accounts });
 
 // Background tasks in the order a match needs them. Each loader reports the
 // real responses it observes; nothing is timed.

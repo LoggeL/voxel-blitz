@@ -8,7 +8,7 @@ import { CareerService } from '../server/career.js';
 import { GameEngine } from '../server/game.js';
 import { careerLevel } from '../shared/career.js';
 import { startServer, stopServer } from './lib/server-process.mjs';
-import { CareerShop } from '../public/js/ui/career-shop.js';
+import { ProgressionTree } from '../public/js/ui/progression.js';
 
 const directory = mkdtempSync(path.join(tmpdir(), 'vb-career-test-'));
 const id = randomBytes(32).toString('hex');
@@ -20,14 +20,13 @@ try {
   assert.equal(careerLevel(100), 2);
   assert.equal(careerLevel(400), 3);
   assert.equal(service.identity({ headers: { cookie: 'vb-career=../../etc/passwd' } }), null);
-  assert.throws(() => service.purchase(id, 'arctic'), /level 2/);
-  assert.throws(() => service.purchase(id, 'arctic', true), /Buy/);
+  assert.throws(() => service.equip(id, 'arctic'), /not been unlocked/, 'a tree node cannot be equipped before it opens');
   const brokenId = randomBytes(32).toString('hex');
   writeFileSync(path.join(directory, brokenId + '.json'), '{bad json');
   assert.throws(() => service.profile(brokenId), SyntaxError, 'corrupt progress is not silently replaced with an empty profile');
   assert.equal(service.profiles.has(brokenId), false, 'corrupt profiles are not cached');
   const invalidId = randomBytes(32).toString('hex');
-  writeFileSync(path.join(directory, invalidId + '.json'), JSON.stringify({ xp: -1, credits: 0, kills: 0, matches: 0, owned: [], equipped: {} }));
+  writeFileSync(path.join(directory, invalidId + '.json'), JSON.stringify({ xp: -1, kills: 0, matches: 0, owned: [], equipped: {} }));
   assert.throws(() => service.profile(invalidId), /Invalid career data/);
   const client = { id: 'p1', profileId: id };
   const snapshots = [];
@@ -41,7 +40,6 @@ try {
   engine.killPlayer(enemy, player, 'rifle', false);
   engine.step();
   assert.equal(service.profile(id).xp, 25, 'real engine kill awards XP');
-  assert.equal(service.profile(id).credits, 10);
   service.observe(client, snapshots.at(-1));
   assert.equal(service.profile(id).xp, 25, 'duplicate tick is ignored');
   const next = (patch = {}) => ({ ...snapshots.at(-1), now: (snapshots.at(-1).now += 1000), events: [], ...patch });
@@ -83,27 +81,25 @@ try {
   assert.equal(service.profile(sndId).xp, 150, 'S&D match reward is awarded once');
 
   const failureId = randomBytes(32).toString('hex');
-  service.award(failureId, { xp: 100, credits: 100 });
+  service.award(failureId, { xp: 100 });
   const blockedDirectory = path.join(directory, 'not-a-directory');
   writeFileSync(blockedDirectory, 'blocked');
   service.directory = blockedDirectory;
-  assert.throws(() => service.purchase(failureId, 'arctic'));
-  assert.equal(service.profile(failureId).credits, 100, 'failed disk writes cannot charge a purchase');
-  assert.equal(service.profile(failureId).owned.includes('arctic'), false);
-  assert.equal(service.profile(failureId).equipped.theme, 'amber');
-  assert.equal(service.dirty.has(failureId), true, 'pending play rewards remain dirty after a failed purchase');
+  assert.throws(() => service.equip(failureId, 'arctic'));
+  assert.equal(service.profile(failureId).equipped.theme, 'amber', 'a failed disk write cannot change the saved loadout');
+  assert.equal(service.dirty.has(failureId), true, 'pending play rewards remain dirty after a failed equip');
   service.directory = directory;
   service.flush();
   const persistedFailure = new CareerService({ directory });
-  assert.equal(persistedFailure.profile(failureId).credits, 100);
   assert.equal(persistedFailure.profile(failureId).xp, 100);
   persistedFailure.dispose();
-  const credits = service.profile(id).credits;
-  const purchased = service.purchase(id, 'arctic');
-  assert.equal(purchased.credits, credits - 100);
-  assert.equal(purchased.equipped.theme, 'arctic');
-  service.purchase(id, 'arctic');
-  assert.equal(service.profile(id).credits, credits - 100, 'repeated purchases charge once');
+  assert.equal(careerLevel(service.profile(id).xp), 2);
+  assert.ok(service.profile(id).owned.includes('arctic'), 'reaching level 2 grants the arctic node automatically');
+  const equippedTheme = service.equip(id, 'arctic');
+  assert.equal(equippedTheme.equipped.theme, 'arctic');
+  assert.equal(equippedTheme.credits, undefined, 'the career view carries no currency');
+  service.equip(id, 'arctic');
+  assert.equal(service.profile(id).equipped.theme, 'arctic', 'repeating an equip is idempotent');
   service.dispose(); service = new CareerService({ directory });
   assert.equal(service.profile(id).equipped.theme, 'arctic', 'ownership survives server restart');
   assert.equal(service.profile(id).xp, finalXp);
@@ -120,49 +116,49 @@ try {
   const forged = await fetch(url + '/api/career/purchase', { method: 'POST',
     headers: { Cookie: cookie, 'Content-Type': 'application/json', 'X-VB-Career': '1' },
     body: JSON.stringify({ item: 'veteran', xp: 999999, credits: 999999, price: 0 }) });
-  assert.equal(forged.status, 400, 'client cannot forge progression or item price');
-  const equipped = await fetch(url + '/api/career/purchase', { method: 'POST',
+  assert.equal(forged.status, 400, 'client cannot forge progression, and stray body fields are ignored');
+  // The legacy /purchase path stays routed so a cached client bundle keeps working.
+  const reset = await fetch(url + '/api/career/purchase', { method: 'POST',
     headers: { Cookie: cookie, 'Content-Type': 'application/json', 'X-VB-Career': '1' },
     body: JSON.stringify({ item: 'amber', equipOnly: true }) });
-  assert.equal((await equipped.json()).equipped.theme, 'amber');
+  assert.equal((await reset.json()).equipped.theme, 'amber');
   const originalFetch = globalThis.fetch;
   const pending = [];
   globalThis.fetch = () => new Promise(resolve => pending.push(resolve));
   try {
     const shop = { profile: null, requestVersion: 0, render() {} };
-    const poll = CareerShop.prototype.request.call(shop);
-    const purchase = CareerShop.prototype.request.call(shop, 'arctic');
-    pending[1]({ ok: true, json: async () => ({ credits: 0, equipped: { theme: 'arctic' } }) });
-    await purchase;
-    pending[0]({ ok: true, json: async () => ({ credits: 100, equipped: { theme: 'amber' } }) });
+    const poll = ProgressionTree.prototype.request.call(shop);
+    const equipping = ProgressionTree.prototype.request.call(shop, 'arctic');
+    pending[1]({ ok: true, json: async () => ({ equipped: { theme: 'arctic' } }) });
+    await equipping;
+    pending[0]({ ok: true, json: async () => ({ equipped: { theme: 'amber' } }) });
     await poll;
-    assert.equal(shop.profile.equipped.theme, 'arctic', 'older background refresh cannot overwrite a completed purchase');
+    assert.equal(shop.profile.equipped.theme, 'arctic', 'older background refresh cannot overwrite a completed equip');
   } finally { globalThis.fetch = originalFetch; }
   // A request can start while signed in and finish after logout. Authority must
   // still be valid when credits are spent, after the asynchronous body read.
   let authenticated = { id: randomBytes(16).toString('hex'), username: 'ShopTest' };
   const accountId = `account:${authenticated.id}`;
   service.accounts = { identity: () => authenticated };
-  service.award(accountId, { xp: 900, credits: 1200 });
+  service.award(accountId, { xp: 900 });
   const delayedPurchase = () => {
     const request = new PassThrough();
-    Object.assign(request, { method: 'POST', url: '/api/career/purchase', headers: { 'x-vb-career': '1' } });
+    Object.assign(request, { method: 'POST', url: '/api/career/equip', headers: { 'x-vb-career': '1' } });
     const response = { status: null, writeHead(status) { this.status = status; }, end(body) { this.body = JSON.parse(body); } };
     return { request, response, complete: service.handleHttp(request, response) };
   };
   const control = delayedPurchase();
   control.request.end(JSON.stringify({ item: 'arctic' }));
   await control.complete;
-  assert.equal(control.response.status, 200, 'authenticated in-flight purchase succeeds');
-  assert.equal(service.profile(accountId).credits, 1100);
+  assert.equal(control.response.status, 200, 'authenticated in-flight equip succeeds');
+  assert.equal(service.profile(accountId).equipped.theme, 'arctic');
   const revoked = delayedPurchase();
   authenticated = null;
   revoked.request.end(JSON.stringify({ item: 'orchid' }));
   await revoked.complete;
-  assert.equal(revoked.response.status, 401, 'logout before the body finishes invalidates an in-flight purchase');
-  assert.equal(service.profile(accountId).credits, 1100, 'revoked purchase cannot spend old account credits');
-  assert.equal(service.profile(accountId).owned.includes('orchid'), false);
-  console.log('Career: authoritative kills/objectives, active play, match rewards, dedupe, purchases, persistence and HTTP authorization passed.');
+  assert.equal(revoked.response.status, 401, 'logout before the body finishes invalidates an in-flight equip');
+  assert.equal(service.profile(accountId).equipped.theme, 'arctic', 'a revoked equip cannot change the saved loadout');
+  console.log('Career: authoritative kills/objectives, active play, match rewards, dedupe, tree equips, persistence and HTTP authorization passed.');
 } finally {
   await stopServer(server);
   service.dispose();

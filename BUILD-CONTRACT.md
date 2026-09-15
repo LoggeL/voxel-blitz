@@ -21,31 +21,60 @@ room/client interfaces below; do not fork their logic into a second convention.
   `BotManager`, and room-scoped transports. The server remains authoritative at
   60 Hz.
 
-## Career cosmetics
+## Career progression
 
-- `shared/career.js` owns the cosmetic catalog, combined level/mastery gates,
-  automatic earned grants and normalized equipment. Weapon skins are keyed by
-  weapon ID; character skin, death signature and sound kit each have one slot.
-  Standard resets remove that slot's cosmetic. All Gun Game weapons remain
-  available and keep their existing handling, damage and hitboxes.
+- `shared/career.js` owns one unlock tree, imported unchanged by client and
+  server. A node opens automatically when its own requirements are complete and
+  its parent is already open; nothing is bought and there is no currency.
+  `CAREER_CATALOG` stays exported as the flat pre-order view of the same frozen
+  array. Branches are `weapons`, `character` and `presentation`. Branch spines
+  carry only level gates, so every node with a mastery or PvP gate is a leaf and
+  can never dead-end the nodes behind it.
+- Nodes are declared parent-before-child, which lets `reconcileCareerUnlocks`
+  grant a whole chain in one forward pass; module load throws on an out-of-order
+  node, a child below its parent's level, or a child outside its parent's branch.
+  Grants are permanent: ownership is never revoked, while the requirement gates
+  still apply to owned nodes so a forged `owned` entry cannot equip an unearned
+  reward. Weapon skins are keyed by weapon ID; character skin, death signature,
+  sound kit, reticle and nameplate each have one slot, and a standard reset
+  clears that slot. All Gun Game weapons keep their handling, damage and hitboxes.
+- Career credits are removed from rewards, counters, profiles, HTTP and UI;
+  rewards pay XP only. A legacy `credits` field is accepted on read and dropped.
+  The PostgreSQL `credits` column stays in the schema and is never read or
+  written again, so no new migration is required. In-match economies (S&D, TTT,
+  Chaos, Bastion, `WEAPON_PRICES`) are a separate system and are untouched.
+- Optics, grips and the StatTrak counter are tree nodes. Ownership stays out of
+  `shared/weapon-attachments.js` so server sim and client prediction keep
+  deriving identical definitions and the catalog cache stays finite;
+  `assertUnlockedAttachments` gates the save path and `allowedWeaponLoadout`
+  filters once at admission, feeding `welcome.weaponLoadout` and the server
+  entity from one value. Stored selections are never rewritten on read, and
+  `validateProfile` does not gate attachments.
 - Authority records PvP kills and per-weapon mastery from accepted kill events,
   using the weapon that made the kill before Gun Game advances. Bot, training,
   self and teammate kills cannot advance mastery. Existing XP is preserved;
-  historical mastery starts at zero. PostgreSQL migration 2 adds the new
-  profile fields while preserving the original migration checksum.
-- Player snapshots carry `cosmetics:{weaponSkins,characterSkin,signature,sound}`
-  with server-validated catalog IDs; kill events carry the killer's cosmetics.
-  Online equipment refreshes after profile reads, rewards, equip/reset and
-  session revocation. Local weapons, remote avatars and killcam snapshots use
-  the same reversible skin modules and retain team identification.
+  historical mastery starts at zero. PostgreSQL migration 2 adds the profile
+  fields while preserving the original migration checksum.
+- Player snapshots carry
+  `cosmetics:{weaponSkins,characterSkin,signature,sound,reticle,nameplate}` with
+  server-validated catalog IDs; kill events carry the killer's cosmetics.
+  Reticles are local presentation and never cross the wire. Online equipment
+  refreshes after profile reads, rewards, equip/reset and session revocation.
+  Local weapons, remote avatars and killcam snapshots use the same reversible
+  skin modules and retain team identification.
+- `POST /api/career/equip` equips an owned, unlocked node or resets a slot;
+  `POST /api/career/purchase` stays routed as a compatibility alias for cached
+  client bundles and is removable after one release. An `equipOnly` body field is
+  accepted and ignored. `careerView` carries `unlockedParts` for the armory.
 - Cosmetic kill, death and victory audio has separate saved volume controls,
   bounded cue lengths and no delayed replay after a loading miss. The match
   winner's kit supplies victory music; team wins use the highest-kill human
   winner, with player ID breaking ties. Late death feedback preserves it.
-- `npm run career:test` covers career authority, persistence, unlock boundaries,
+- `npm run career:test` covers tree invariants, single-pass grants, permanent
+  ownership, forgery rejection, attachment gating, career authority, persistence,
   UI state, material isolation, audio lifecycle and shipped asset provenance.
   `node tools/cosmetics-career-test.mjs --postgres` checks migration/restart in
-  isolated PostgreSQL. See `docs/cosmetics.md` for the full reward table.
+  isolated PostgreSQL. See `docs/progression.md` for the full node table.
 
 ## Run and contract harnesses
 - `npm start` runs `node server/index.js` on `PORT` or `8070`.

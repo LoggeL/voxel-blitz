@@ -106,12 +106,23 @@ for (const ads of [0, 1]) {
 
 const directory=await mkdtemp(path.join(tmpdir(),'vb-customization-'));let server;const sockets=[];
 try {
+  const unlockedGuest='c'.repeat(64), lockedGuest='d'.repeat(64);
+  await writeFile(path.join(directory,`${unlockedGuest}.json`),JSON.stringify({xp:(34-1)**2*100,kills:0,matches:0,owned:['amber','rookie'],equipped:{theme:'amber',title:'rookie'}}));
+  await writeFile(path.join(directory,`${lockedGuest}.json`),JSON.stringify({xp:0,kills:0,matches:0,owned:['amber','rookie'],equipped:{theme:'amber',title:'rookie'}}));
   server=startServer({cwd:process.cwd(),env:{VB_PERSISTENCE:'file',VB_DATA_DIR:directory}});let url=`http://127.0.0.1:${await server.port}`;
-  const get=await fetch(url+'/api/career');const cookie=get.headers.get('set-cookie').split(';')[0];await get.json();
+  const cookie=`vb-career=${unlockedGuest}`;
+  assert.deepEqual((await (await fetch(url+'/api/career',{headers:{cookie}})).json()).unlockedParts.optic,
+    ['standard','reflex','scope2','scope4','scope10'],'the career view carries the unlocked parts');
   const post=(weapon,attachments,extra={})=>fetch(url+'/api/career/attachments',{method:'POST',headers:{cookie,'Content-Type':'application/json','X-VB-Career':'1',...extra},body:JSON.stringify({weapon,attachments})});
   assert.equal((await post('rifle',selection,{'X-VB-Career':'0'})).status,403);
   assert.equal((await post('knife',selection)).status,400);
   assert.equal((await post('rifle',{...selection,damage:999})).status,400);
+  // Progression is authority, not a hint: a level-1 career cannot save a scope.
+  const lockedPost=await fetch(url+'/api/career/attachments',{method:'POST',
+    headers:{cookie:`vb-career=${lockedGuest}`,'Content-Type':'application/json','X-VB-Career':'1'},
+    body:JSON.stringify({weapon:'rifle',attachments:selection})});
+  assert.equal(lockedPost.status,400,'a locked attachment cannot be saved');
+  assert.match((await lockedPost.json()).error,/Unlock this attachment/);
   let response=await post('rifle',selection);assert.equal(response.status,200);assert.deepEqual((await response.json()).equipped.weaponAttachments.rifle,selection);
   response=await post('sniper',{optic:'scope10',grip:'precision'});assert.equal(response.status,200);
   assert.deepEqual((await response.json()).equipped.weaponAttachments.rifle,selection,'Saving another weapon preserves the first');

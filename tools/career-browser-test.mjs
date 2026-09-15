@@ -24,13 +24,14 @@ try {
   await page.waitFor(`!!document.getElementById('career-open')`, { label: 'career menu button' });
   assert.equal(await page.evaluate(`document.cookie.includes('vb-career')`), false, 'profile identity is not exposed to JS');
   await page.evaluate(`document.getElementById('career-open').click()`);
-  await page.waitFor(`document.querySelector('.vb-career-stats').textContent.includes('150 CREDITS')`);
-  assert.equal(await page.evaluate(`document.querySelector('[data-item="orchid"]').disabled`), true, 'level-gated item cannot be bought');
+  await page.waitFor(`document.querySelector('.vb-career-stats').textContent.includes('LEVEL 2')`);
+  assert.equal(await page.evaluate(`document.querySelector('[data-node="orchid"]').closest('.vb-tree-item').dataset.state`), 'next', 'a level-gated node shows as still to come');
+  assert.equal(await page.evaluate(`!document.querySelector('[data-item="orchid"]')`), true, 'a locked node offers no action control at all');
   await page.evaluate(`document.querySelector('[data-item="arctic"]').click()`);
   await page.waitFor(`document.querySelector('.vb-career-status').textContent === 'Arctic equipped'`);
-  assert.equal(await page.evaluate(`document.querySelector('.vb-career-stats').textContent.includes('50 CREDITS')`), true);
+  assert.equal(await page.evaluate(`document.querySelector('.vb-career-stats').textContent.includes('LEVEL 2')`), true);
   assert.equal(await page.evaluate(`getComputedStyle(document.documentElement).getPropertyValue('--career-accent').trim()`), '#72e6ff');
-  assert.equal(await page.evaluate(`document.querySelector('[data-item="arctic"]').disabled`), true, 'equipped item prevents duplicate purchase');
+  assert.equal(await page.evaluate(`document.querySelector('[data-item="arctic"]').disabled`), true, 'an equipped node cannot be equipped again');
   await page.send('Page.reload');
   await page.waitFor(`document.getElementById('career-open') && getComputedStyle(document.documentElement).getPropertyValue('--career-accent').trim() === '#72e6ff'`);
   await page.evaluate(`document.getElementById('career-open').click()`);

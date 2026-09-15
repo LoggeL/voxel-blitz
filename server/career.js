@@ -1,12 +1,12 @@
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import path from 'node:path';
-import { CAREER_CATALOG, CAREER_REWARDS, careerView, careerItemState, equipCareerItem, reconcileCareerUnlocks, cosmeticLoadout, normalizeCosmeticLoadout } from '../shared/career.js';
+import { CAREER_CATALOG, CAREER_REWARDS, careerView, equipCareerItem, reconcileCareerUnlocks, cosmeticLoadout, normalizeCosmeticLoadout } from '../shared/career.js';
 import { CareerClaims, DatabaseCareerClaims, GUEST_TOKEN, careerProfilePath, guestCookie } from './career-identity.js';
 import { emptyProfile, validateProfile, normalizeCareerProgress, applyCareerProgress } from './persistence/career-profile.js';
 
 import { WEAPON_IDS } from '../shared/combatmath.js';
-import { setProfileAttachments, saveStoredAttachments } from './weapon-loadouts.js';
+import { setProfileAttachments, saveStoredAttachments, assertUnlockedAttachments } from './weapon-loadouts.js';
 import { validateAttachments } from '../shared/weapon-attachments.js';
 
 const COOKIE = 'vb-career';
@@ -62,7 +62,7 @@ export class CareerService {
       return true;
     });
     if (!GUEST_TOKEN.test(guest || '') || !careerProfilePath(this.directory, account)
-      || !profile || !['xp', 'credits', 'kills', 'matches'].every(key => Number.isSafeInteger(profile[key]) && profile[key] >= 0)
+      || !profile || !['xp', 'kills', 'matches'].every(key => Number.isSafeInteger(profile[key]) && profile[key] >= 0)
       || !Array.isArray(profile.owned) || !profile.equipped) throw new Error('Invalid guest career transfer');
     // Retried logins use only the original registration snapshot, never the
     // current device's guest profile. The exclusive claim remains single-use.
@@ -212,8 +212,8 @@ export class CareerService {
     if (snapshot.now <= state.now) return;
     const delta = state.now < 0 ? 0 : Math.min(1000, snapshot.now - state.now);
     state.now = snapshot.now;
-    const reward = { xp: 0, credits: 0, kills: 0, matches: 0, pvpKills: 0, wins: 0, mastery: {} };
-    const addReward = delta => { reward.xp += delta.xp; reward.credits += delta.credits; };
+    const reward = { xp: 0, kills: 0, matches: 0, pvpKills: 0, wins: 0, mastery: {} };
+    const addReward = delta => { reward.xp += delta.xp; };
     for (const event of snapshot.events || []) {
       if (event.kind === 'kill' && event.killer === client.id && event.victim !== client.id) {
         const victim = client.room.engine.entities.get(event.victim) || client.room.engine.combatants?.get(event.victim);
@@ -261,34 +261,28 @@ export class CareerService {
     } else if (match.phase !== 'post') state.post = false;
     // The 20 Hz observation path is synchronous and makes no database calls
     // until an authoritative event actually earns a nonzero reward.
-    if (['xp', 'credits', 'kills', 'matches', 'pvpKills', 'wins'].some(key => reward[key] > 0)) return this.applyProgress(client.profileId, reward);
+    if (['xp', 'kills', 'matches', 'pvpKills', 'wins'].some(key => reward[key] > 0)) return this.applyProgress(client.profileId, reward);
   }
 
-  purchase(id, itemId, equipOnly = false, authorized = () => true, selection = {}) {
-    if (this.store) return this.store.purchase(id, itemId, equipOnly, authorized, selection).then(profile => {
+  /** Equip only. Unlocks are granted by progression, never bought. */
+  equip(id, itemId, authorized = () => true, selection = {}) {
+    if (this.store) return this.store.equip(id, itemId, authorized, selection).then(profile => {
       this.cacheLoadout(id, profile);
       return profile;
     });
-    if (!authorized()) throw new Error('Your session changed. Reopen the shop before purchasing.');
+    if (!authorized()) throw new Error('Your session changed. Reopen your career before equipping.');
     const profile = this.profile(id);
     const item = itemId === 'standard' ? { id: 'standard', kind: selection.slot, weapon: selection.weapon } : CAREER_CATALOG.find(item => item.id === itemId);
     if (!profile || !item) throw new Error('Unknown item');
     const previous = validateProfile(profile);
     const wasDirty = this.dirty.has(id);
-    if (item.id !== 'standard' && !profile.owned.includes(item.id)) {
-      if (item.unlock === 'earned') throw new Error('Complete all requirements to earn this cosmetic');
-      if (equipOnly) throw new Error('Buy this item first');
-      if (careerItemState(profile, item).locked) throw new Error(`Requires level ${item.level}`);
-      if (profile.credits < item.price) throw new Error('Not enough credits');
-      profile.credits -= item.price;
-      profile.owned.push(item.id);
-    }
+    // equipCareerItem rejects anything the tree has not unlocked for this profile.
     equipCareerItem(profile, item);
     this.dirty.add(id);
     try { this.flush([id]); }
     catch (error) {
-      // A failed purchase must leave the balance and inventory unchanged, while
-      // preserving play rewards that were already waiting to be saved.
+      // A failed equip must leave the saved loadout unchanged, while preserving
+      // play rewards that were already waiting to be saved.
       Object.assign(profile, previous);
       if (wasDirty) this.dirty.add(id);
       else this.dirty.delete(id);
@@ -308,6 +302,7 @@ export class CareerService {
     if (!authorized()) throw new Error('Your session changed. Reopen the armory.');
     const profile = this.profile(id);
     if (!profile) throw new Error('Career unavailable.');
+    assertUnlockedAttachments(profile, weapon, selection);
     const previous = profile.equipped, wasDirty = this.dirty.has(id);
     setProfileAttachments(profile, weapon, selection);
     this.dirty.add(id);
@@ -322,17 +317,17 @@ export class CareerService {
 
   async handleHttp(req, res) {
     const route = (req.url || '').split('?')[0];
-    if (!['/api/career', '/api/career/purchase', '/api/career/attachments'].includes(route)) return false;
+    if (!['/api/career', '/api/career/equip', '/api/career/purchase', '/api/career/attachments'].includes(route)) return false;
     const reply = (status, payload) => {
       res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify(payload));
       return true;
     };
     const isRead = route === '/api/career' && req.method === 'GET';
-    if (!isRead && (!['/api/career/purchase', '/api/career/attachments'].includes(route) || req.method !== 'POST')) return reply(405, { error: 'Method not allowed' });
+    if (!isRead && (!['/api/career/equip', '/api/career/purchase', '/api/career/attachments'].includes(route) || req.method !== 'POST')) return reply(405, { error: 'Method not allowed' });
     // A custom header plus same-origin requests prevents ambient-cookie purchases.
     if (!isRead && (req.headers['x-vb-career'] !== '1' || req.headers['sec-fetch-site'] === 'cross-site'))
-      return reply(403, { error: 'Open the shop from the game' });
+      return reply(403, { error: 'Open your career from the game' });
     let id;
     try {
       id = this.identity(req);
@@ -357,8 +352,9 @@ export class CareerService {
         return reply(200, await this.saveAttachments(id, data?.weapon, data?.attachments, () => this.identity(req) === id));
       }
       if (!data || typeof data.item !== 'string') return reply(400, { error: 'Choose an item' });
-      if (this.identity(req) !== id) return reply(401, { error: 'Your session changed. Reopen the shop before purchasing.' });
-      return reply(200, await this.purchase(id, data.item, data.equipOnly === true, () => this.identity(req) === id, { slot: data.slot, weapon: data.weapon }));
+      if (this.identity(req) !== id) return reply(401, { error: 'Your session changed. Reopen your career before equipping.' });
+      // `equipOnly` is accepted and ignored: an older cached bundle still sends it.
+      return reply(200, await this.equip(id, data.item, () => this.identity(req) === id, { slot: data.slot, weapon: data.weapon }));
     } catch (error) { return reply(400, { error: error.message }); }
   }
 }

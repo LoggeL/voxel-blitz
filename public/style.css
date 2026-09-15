@@ -4444,3 +4444,14 @@ html[data-reduced-motion="true"] .vb-condition-track > i { transition: none; }
 .vb-killcam > .sniper-scope{z-index:0}
 .vb-killcam-top{position:relative;z-index:1}
 .vb-killcam-bottom{z-index:1}
+
+/* ---------- unlockable reticle styles ---------- */
+:root[data-reticle='dot'] .ch-arm { display: none; }
+:root[data-reticle='dot'] #crosshair::after { width: 4px; height: 4px; left: -2px; top: -2px; }
+:root[data-reticle='chevron'] .ch-arm:nth-child(1) { display: none; }
+:root[data-reticle='chevron'] .ch-arm:nth-child(3) { transform: translateX(calc(-1 * var(--gap, 4px) - 100% + var(--ch-jx))) translateY(var(--ch-jy)) rotate(38deg); }
+:root[data-reticle='chevron'] .ch-arm:nth-child(4) { transform: translateX(calc(var(--gap, 4px) + var(--ch-jx))) translateY(var(--ch-jy)) rotate(-38deg); }
+:root[data-reticle='halo'] .ch-arm { display: none; }
+:root[data-reticle='halo'] #crosshair::before {
+  content: ''; position: absolute; left: 50%; top: 50%; width: calc(var(--gap, 4px) * 2 + 10px); height: calc(var(--gap, 4px) * 2 + 10px);
+  transform: translate(-50%, -50%); border: 1px solid var(--career-accent, #fffdd8); border-radius: 50%; opacity: .8; }

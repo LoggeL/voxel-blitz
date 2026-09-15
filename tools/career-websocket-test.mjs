@@ -55,7 +55,6 @@ try {
   });
   const profile = await fetch(`${base}/api/career`, { headers: { Cookie: cookie } }).then(r => r.json());
   assert.equal(profile.xp, CAREER_REWARDS.botKill.xp);
-  assert.equal(profile.credits, CAREER_REWARDS.botKill.credits);
   ws.close();
   await stopServer(server);
   assert.doesNotMatch(server.stderr, /\[career\] reward.*failed/, 'successful file reward must not be logged as a persistence error');

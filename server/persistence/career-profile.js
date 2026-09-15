@@ -1,10 +1,10 @@
-import { CAREER_CATALOG, defaultCosmeticLoadout, reconcileCareerUnlocks } from '../../shared/career.js';
+import { CAREER_CATALOG, EQUIPPABLE_SLOTS, defaultCosmeticLoadout, reconcileCareerUnlocks } from '../../shared/career.js';
 import { WEAPON_IDS } from '../../shared/combatmath.js';
 import { normalizeWeaponLoadout } from '../../shared/weapon-attachments.js';
 
 export const CAREER_ID = /^(?:[a-f0-9]{64}|account:[a-f0-9]{32})$/;
-export const CAREER_COUNTERS = ['xp', 'credits', 'kills', 'matches', 'pvpKills', 'wins'];
-export const emptyProfile = () => ({ xp: 0, credits: 0, kills: 0, matches: 0, pvpKills: 0, wins: 0, mastery: {},
+export const CAREER_COUNTERS = ['xp', 'kills', 'matches', 'pvpKills', 'wins'];
+export const emptyProfile = () => ({ xp: 0, kills: 0, matches: 0, pvpKills: 0, wins: 0, mastery: {},
   owned: ['amber', 'rookie'], equipped: { theme: 'amber', title: 'rookie', ...defaultCosmeticLoadout() } });
 const counter = value => Number.isSafeInteger(value) && value >= 0;
 const record = value => !!value && typeof value === 'object' && !Array.isArray(value);
@@ -31,7 +31,9 @@ export function masteryView(mastery) {
 
 /** Migrate absent new fields; never invent historical PvP or weapon attribution. */
 export function validateProfile(profile) {
-  if (!profile || !['xp', 'credits', 'kills', 'matches'].every(key => counter(profile[key]))
+  // A legacy `credits` field is accepted and dropped: `migrated` is rebuilt from
+  // CAREER_COUNTERS, so the dead currency never survives a read.
+  if (!profile || !['xp', 'kills', 'matches'].every(key => counter(profile[key]))
     || !['pvpKills', 'wins'].every(key => profile[key] === undefined || counter(profile[key]))
     || !Array.isArray(profile.owned) || new Set(profile.owned).size !== profile.owned.length
     || profile.owned.some(id => !CAREER_CATALOG.some(item => item.id === id))
@@ -44,7 +46,7 @@ export function validateProfile(profile) {
   const validSlot = (id, kind, weapon) => id === 'standard' || profile.owned.includes(id)
     && CAREER_CATALOG.some(item => item.id === id && item.kind === kind && (kind !== 'weaponSkin' || item.weapon === weapon));
   if (Object.entries(equipped.weaponSkins).some(([weapon, id]) => !WEAPON_IDS.includes(weapon) || !validSlot(id, 'weaponSkin', weapon))
-    || ['characterSkin', 'signature', 'sound'].some(kind => !validSlot(equipped[kind], kind))) throw new Error('Invalid career cosmetics');
+    || EQUIPPABLE_SLOTS.some(kind => !validSlot(equipped[kind], kind))) throw new Error('Invalid career cosmetics');
   const migrated = { ...Object.fromEntries(CAREER_COUNTERS.map(key => [key, profile[key] ?? 0])),
     mastery: validateMastery(profile.mastery ?? {}), owned: [...profile.owned], equipped };
   reconcileCareerUnlocks(migrated);

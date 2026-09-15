@@ -81,9 +81,9 @@ PORT=8080 npm start
 
 ## Career and shop
 
-Open **Career & Shop** in the main menu to see your level, XP and career credits. Kills, objectives, active play and completed matches earn rewards. Buy and equip reticle themes and callsigns; these cosmetics do not change combat stats. Training grants no career rewards.
+Open **Career** in the main menu to see your level, XP and the unlock tree. Kills, objectives, active play and completed matches earn XP. Every reward -- weapon optics and grips, skins, death signatures, sound kits, HUD themes, callsigns, reticles and nameplates -- opens automatically once its requirements and the node before it are complete. Nothing is bought, and no cosmetic changes combat stats. Training grants no career rewards.
 
-You can play immediately as a guest. Use **Create Account** in the main menu or **Save your career** in the shop to create an optional account. Registration transfers this browser's guest XP, credits and cosmetics to the new account once. **Log in** on another device loads that account's career; it does not merge that device's guest progress.
+You can play immediately as a guest. Use **Create Account** in the main menu or **Save your career** in the career page to create an optional account. Registration transfers this browser's guest XP and unlocks to the new account once. **Log in** on another device loads that account's career; it does not merge that device's guest progress.
 
 Accounts use a username and a password with 12 to 128 characters. Save the private recovery code shown after registration: it lets you reset a forgotten password and is replaced after use. When email recovery is configured, add and confirm an email at registration or in account settings. Use **Forgot password? Email a reset link** to request a link that expires in 30 minutes. Resetting the password signs out all existing sessions. Account settings also let you change your password or log out. Your account username becomes your player name.
 

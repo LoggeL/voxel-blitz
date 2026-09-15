@@ -1,24 +1,25 @@
 import assert from 'node:assert/strict';
 import { CAREER_CATALOG, careerView, defaultCosmeticLoadout, reconcileCareerUnlocks } from '../shared/career.js';
-import { CareerShop, careerActionState } from '../public/js/ui/career-shop.js';
+import { ProgressionTree, progressionActionState } from '../public/js/ui/progression.js';
 import { CosmeticAudition, cosmeticArtwork, cosmeticVolume } from '../public/js/ui/cosmetic-preview.js';
 
 const profile = (extra = {}) => careerView({
-  xp: 19600, credits: 0, kills: 250, pvpKills: 250, wins: 0, matches: 10,
+  xp: 19600, kills: 250, pvpKills: 250, wins: 0, matches: 10,
   owned: ['amber', 'rookie'], equipped: { theme: 'amber', title: 'rookie', ...defaultCosmeticLoadout() },
   mastery: { rifle: { kills: 250, headshots: 20 } }, ...extra,
 });
 const rifle = CAREER_CATALOG.find(item => item.id === 'rifle-overdrive');
 const lowMastery = profile({ mastery: { rifle: { kills: 249 } } });
-assert.equal(careerActionState(lowMastery, rifle).disabled, true, 'level alone cannot equip a mastery reward');
-assert.equal(careerActionState(profile({ xp: 19599 }), rifle).disabled, true, 'mastery alone cannot bypass career level');
+assert.equal(progressionActionState(lowMastery, rifle).disabled, true, 'level alone cannot equip a mastery reward');
+assert.equal(progressionActionState(profile({ xp: 19599 }), rifle).disabled, true, 'mastery alone cannot bypass career level');
 const unlocked = profile();
 reconcileCareerUnlocks(unlocked);
-assert.equal(careerActionState(unlocked, rifle).disabled, false, 'an earned reward equips with zero credits');
-assert.equal(careerActionState(unlocked, rifle).label, 'EQUIP');
+assert.equal(progressionActionState(unlocked, rifle).disabled, false, 'a completed node equips at no cost');
+assert.equal(progressionActionState(unlocked, rifle).label, 'EQUIP');
 unlocked.equipped.weaponSkins.rifle = rifle.id;
-assert.equal(careerActionState(unlocked, rifle).equipped, true, 'weapon skins use their weapon-specific slot');
-assert.equal(careerActionState(unlocked, CAREER_CATALOG.find(item => item.id === 'arctic')).disabled, true, 'legacy purchases still require credits');
+assert.equal(progressionActionState(unlocked, rifle).equipped, true, 'weapon skins use their weapon-specific slot');
+assert.equal(progressionActionState(unlocked, CAREER_CATALOG.find(item => item.id === 'arctic')).disabled, false, 'HUD themes open by level like every other node');
+assert.doesNotMatch(progressionActionState(unlocked, CAREER_CATALOG.find(item => item.id === 'arctic')).label, /credit/i, 'no label mentions a currency');
 
 const saved = Object.fromEntries(['fetch', 'window', 'localStorage', 'Audio', 'document'].map(name => [name, globalThis[name]]));
 const events = [];
@@ -28,8 +29,8 @@ try {
   let sent;
   globalThis.fetch = async (url, options) => { sent = { url, options }; return result(unlocked); };
   const shop = { requestVersion: 0, profile: null, render() {} };
-  await CareerShop.prototype.request.call(shop, 'standard', true, { slot: 'weaponSkin', weapon: 'rifle' });
-  assert.equal(sent.url, '/api/career/purchase');
+  await ProgressionTree.prototype.request.call(shop, 'standard', true, { slot: 'weaponSkin', weapon: 'rifle' });
+  assert.equal(sent.url, '/api/career/equip');
   assert.equal(sent.options.credentials, 'same-origin');
   assert.equal(sent.options.headers['X-VB-Career'], '1');
   assert.deepEqual(JSON.parse(sent.options.body), { item: 'standard', equipOnly: true, slot: 'weaponSkin', weapon: 'rifle' });
@@ -38,27 +39,27 @@ try {
 
   const pending = [];
   globalThis.fetch = () => new Promise(resolve => pending.push(resolve));
-  const older = CareerShop.prototype.request.call(shop);
-  const newest = CareerShop.prototype.request.call(shop, 'rifle-overdrive', true);
+  const older = ProgressionTree.prototype.request.call(shop);
+  const newest = ProgressionTree.prototype.request.call(shop, 'rifle-overdrive', true);
   pending[1](result(unlocked)); await newest;
   const acceptedEvents = events.length;
   pending[0](result(lowMastery));
   assert.equal(await older, null);
   assert.equal(shop.profile, unlocked);
   assert.equal(events.length, acceptedEvents, 'stale profile never emits a cosmetic change');
-  const beforeLogout = CareerShop.prototype.request.call(shop);
+  const beforeLogout = ProgressionTree.prototype.request.call(shop);
   shop.requestVersion++;
   shop.profile = null;
   pending[2](result(unlocked));
   assert.equal(await beforeLogout, null);
   assert.equal(shop.profile, null, 'identity changes invalidate in-flight profile requests');
   assert.equal(events.length, acceptedEvents);
-  const failed = CareerShop.prototype.request.call(shop);
+  const failed = ProgressionTree.prototype.request.call(shop);
   pending[3]({ ok: false, json: async () => ({ error: 'Not earned' }) });
   await assert.rejects(failed, /Not earned/);
   assert.equal(events.length, acceptedEvents, 'rejected equip never changes runtime cosmetics');
   const changed = { ...shop, accounts: { user: { id: 'old' }, async refresh() { this.user = { id: 'new' }; } } };
-  await assert.rejects(CareerShop.prototype.request.call(changed, rifle.id), /session changed/);
+  await assert.rejects(ProgressionTree.prototype.request.call(changed, rifle.id), /session changed/);
   assert.equal(pending.length, 4, 'account switch is detected before an equip POST');
 
   const storage = new Map();
@@ -115,7 +116,7 @@ try {
   assert.equal(preview.style.backgroundPosition, undefined, 'missing new artwork never maps onto the legacy atlas');
   const veteran = cosmeticArtwork(container, CAREER_CATALOG.find(item => item.id === 'veteran'));
   assert.equal(veteran.style.backgroundPosition, '100% 100%', 'legacy atlas artwork remains attached to its original ID');
-  console.log('Cosmetics UI: dual unlock gates, free earned equip, per-weapon reset, session authority, stale response isolation, volume persistence and non-overlapping audio previews passed.');
+  console.log('Progression UI: dual unlock gates, free equip, per-weapon reset, session authority, stale response isolation, volume persistence and non-overlapping audio previews passed.');
 } finally {
   for (const [key, value] of Object.entries(saved)) {
     if (value === undefined) delete globalThis[key];

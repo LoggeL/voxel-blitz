@@ -122,7 +122,6 @@ try {
   await career.flush();
   assert.equal(transactions, 1, 'one real authoritative kill writes one reward transaction');
   assert.equal((await career.readProfile(guest)).xp, 925);
-  assert.equal((await career.readProfile(guest)).credits, 510);
   store.transaction = originalTransaction;
   engine.stop(); await accounts.dispose(); await career.dispose();
   await store.close(); store = null;
@@ -150,19 +149,20 @@ try {
   assert.deepEqual(await otherDevice.ok('/api/account/keybindings'), savedBindings, 'another device loads account bindings');
   assert.equal((await candidates[1 - ownerIndex].ok('/api/account/keybindings')).keybindings, null, 'accounts are isolated');
   assert.equal((await candidates[1 - ownerIndex].request('/api/account/keybindings', { userId: ownerUser.id, keybindings: {} })).status, 400);
-  const duplicateBuys = await Promise.all(Array.from({ length: 8 }, (_, index) =>
-    (index % 2 ? owner : otherDevice).request('/api/career/purchase', { item: 'arctic' })));
-  assert.ok(duplicateBuys.every(response => response.status === 200));
-  assert.equal((await owner.ok('/api/career')).credits, 410, 'concurrent duplicate purchases charge once');
-  const differentBuys = await Promise.all([
-    owner.request('/api/career/purchase', { item: 'orchid' }),
-    otherDevice.request('/api/career/purchase', { item: 'mint' }),
+  const duplicateEquips = await Promise.all(Array.from({ length: 8 }, (_, index) =>
+    (index % 2 ? owner : otherDevice).request('/api/career/equip', { item: 'arctic' })));
+  assert.ok(duplicateEquips.every(response => response.status === 200), 'repeating an equip is idempotent under concurrency');
+  assert.equal((await owner.ok('/api/career')).equipped.theme, 'arctic');
+  const differentEquips = await Promise.all([
+    owner.request('/api/career/equip', { item: 'orchid' }),
+    otherDevice.request('/api/career/equip', { item: 'mint' }),
   ]);
-  assert.deepEqual(differentBuys.map(result => result.status).sort(), [200, 400], 'concurrent purchases cannot overspend shared credits');
-  const purchased = await owner.ok('/api/career');
-  assert.ok([160, 10].includes(purchased.credits));
-  assert.deepEqual(await otherDevice.ok('/api/career'), purchased, 'both devices see committed shared ownership');
-  assert.equal((await new Browser(`vb-career=${guest}`).ok('/api/career')).xp, 0, 'claimed guest cookie cannot access transferred funds');
+  assert.deepEqual(differentEquips.map(result => result.status).sort(), [200, 200], 'row-locked equips both commit');
+  const equipped = await owner.ok('/api/career');
+  assert.ok(['orchid', 'mint'].includes(equipped.equipped.theme), 'one of the two concurrent equips wins cleanly');
+  assert.equal(equipped.credits, undefined, 'the SQL career view carries no currency');
+  assert.deepEqual(await otherDevice.ok('/api/career'), equipped, 'both devices see committed shared ownership');
+  assert.equal((await new Browser(`vb-career=${guest}`).ok('/api/career')).xp, 0, 'claimed guest cookie cannot access a transferred career');
 
   admin = new Client({ connectionString: fixture.connectionString }); await admin.connect();
   const ownerId = `account:${ownerUser.id}`;
@@ -181,7 +181,7 @@ try {
   await admin.query("ALTER TABLE vb_careers ADD CONSTRAINT test_reject_purchase CHECK (equipped->>'theme' <> 'amber') NOT VALID");
   const failedPurchase = await owner.request('/api/career/purchase', { item: 'amber', equipOnly: true });
   assert.notEqual(failedPurchase.status, 200);
-  assert.deepEqual(await owner.ok('/api/career'), beforeFailure, 'failed career write cannot charge or equip an item');
+  assert.deepEqual(await owner.ok('/api/career'), beforeFailure, 'a failed career write cannot equip an item');
   await admin.query('ALTER TABLE vb_careers DROP CONSTRAINT test_reject_purchase');
   await admin.query('UPDATE vb_careers SET owned=$2 WHERE id=$1', [ownerId, '[]']);
   assert.equal((await owner.request('/api/career')).status, 503, 'damaged database profile returns unavailable instead of zero XP');

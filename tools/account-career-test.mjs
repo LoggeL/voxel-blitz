@@ -172,7 +172,7 @@ async function pendingClaimStorage(restartPending) {
     await browser.account(); // GET retries only the pending original registration.
   }
   const recovered = await repaired.career();
-  for (const key of ['xp', 'credits', 'kills', 'matches', 'owned', 'equipped']) {
+  for (const key of ['xp', 'kills', 'matches', 'owned', 'equipped']) {
     assert.deepEqual(recovered[key], validateProfile(seed)[key], `${restartPending ? 'restart' : 'live repair'} recovers original ${key}`);
   }
   assert.equal((await new Browser(`vb-career=${guest}`).career()).xp, 0, 'repaired transfer now owns its guest source exactly once');
@@ -228,7 +228,7 @@ try {
   assert.ok(typeof recoveryCode === 'string' && recoveryCode.length >= 16, 'registration returns a usable recovery secret');
   assert.equal(registration.user.username.toLowerCase(), user.toLowerCase());
   const adopted = await primary.career();
-  for (const key of ['xp', 'credits', 'kills', 'matches', 'owned', 'equipped']) assert.deepEqual(adopted[key], validateProfile(seed)[key], `adopt ${key}`);
+  for (const key of ['xp', 'kills', 'matches', 'owned', 'equipped']) assert.deepEqual(adopted[key], validateProfile(seed)[key], `adopt ${key}`);
   assert.equal(adopted.level, 4);
 
   const oldGuest = new Browser(`vb-career=${token}`);
@@ -245,12 +245,13 @@ try {
   await stolenGuest.post('/api/account/register', { username: 'OtherScout', password: 'Other-account-password!8' });
   assert.equal((await stolenGuest.career()).xp, 0, 'another account cannot claim the same guest snapshot');
 
-  const bought = await primary.post('/api/career/purchase', { item: 'orchid' });
-  assert.equal(bought.credits, 950);
+  const bought = await primary.post('/api/career/equip', { item: 'orchid' });
+  assert.equal(bought.credits, undefined, 'the career view carries no currency');
+  assert.ok(bought.owned.includes('orchid'), 'the tree granted orchid by level');
   assert.equal(bought.equipped.theme, 'orchid');
   await observer.post('/api/account/login', { username: user.toLowerCase(), password });
   assert.equal((await observer.account()).user.id, accountId, 'independent device resolves the same account');
-  assert.deepEqual(await observer.career(), bought, 'XP, credits, inventory and equipment travel across devices');
+  assert.deepEqual(await observer.career(), bought, 'XP, unlocks and equipment travel across devices');
 
   const extraGuestToken = randomBytes(32).toString('hex');
   writeFileSync(path.join(directory, extraGuestToken + '.json'), JSON.stringify({ ...seed, xp: 3600, credits: 2500 }));
@@ -268,7 +269,7 @@ try {
   const forged = await primary.request('/api/career/purchase', { method: 'POST',
     body: { item: 'veteran', credits: 999999, xp: 999999, price: 0 } });
   assert.ok(forged.status >= 400 && forged.status < 500);
-  assert.deepEqual(await primary.career(), bought, 'account progression and prices stay server-owned');
+  assert.deepEqual(await primary.career(), bought, 'account progression stays server-owned');
   assert.equal('passwordHash' in (await primary.account()).user, false);
   assert.equal('recoveryCode' in await primary.account(), false, 'recovery secret is never repeated by account reads');
 

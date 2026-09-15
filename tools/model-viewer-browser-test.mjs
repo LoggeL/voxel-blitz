@@ -114,10 +114,10 @@ try {
   const inspectPosts = page.events.filter(e => e.method === 'Network.requestWillBeSent' && e.params.request.method === 'POST' && e.params.request.url.includes('/api/career'));
   assert.equal(inspectPosts.length, 0, 'inspection and standard comparison never modify inventory');
   assert.equal(await page.evaluate(`__viewers.filter(v => !v.disposed).length`), 1, 'skin selection reuses one WebGL context');
-  await click('[data-filter="sound"]');
+  await click('[data-filter="presentation"]');
   assert.equal(await page.evaluate(`__viewers.every(v => v.disposed)`), true, 'non-model category releases viewer');
   assert.equal(await page.evaluate(`document.querySelectorAll('.vb-model-viewer').length`), 0);
-  await click('[data-filter="characterSkin"]'); await ready('salvager');
+  await click('[data-filter="character"]'); await ready('salvager');
   for (const [width, height] of [[1280, 720], [390, 844], [360, 800]]) {
     await page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
     await page.evaluate(`document.querySelector('.vb-career-feature').scrollIntoView({block:'start'})`);

@@ -33,24 +33,24 @@ try {
   const page = browser.page;
   await page.send('Network.setCookie', { name: 'vb-career', value: guest, url, httpOnly: true, sameSite: 'Strict' });
   await page.send('Page.reload');
-  await page.waitFor(`document.getElementById('career-menu-preview')?.textContent.includes('1,200 CREDITS')`);
+  await page.waitFor(`document.getElementById('career-menu-preview')?.textContent.includes('LEVEL 4')`);
   await page.evaluate(`document.getElementById('account-open').click()`);
   assert.equal(await page.evaluate(`document.getElementById('account-tab-register').getAttribute('aria-pressed')`), 'true');
   await fill(page, { username, password, confirmPassword: password });
   await page.evaluate(`document.getElementById('account-form').requestSubmit()`);
   await page.waitFor(`!!document.getElementById('account-recovery-code')`, { timeoutMs: 20000 });
   await page.evaluate(`document.getElementById('account-code-done').click(); document.getElementById('account-close').click(); document.getElementById('career-open').click()`);
-  await page.waitFor(`document.querySelector('.vb-career-stats')?.textContent.includes('1200 CREDITS')`);
+  await page.waitFor(`document.querySelector('.vb-career-stats')?.textContent.includes('LEVEL 4')`);
   await page.evaluate(`document.querySelector('[data-item="arctic"]').click()`);
   await page.waitFor(`document.querySelector('.vb-career-status').textContent === 'Arctic equipped'`);
   await page.evaluate(`document.querySelector('[data-item="pathfinder"]').click()`);
   await page.waitFor(`document.querySelector('.vb-career-status').textContent === 'Pathfinder equipped'`);
-  assert.equal(await page.evaluate(`document.querySelector('.vb-career-stats').textContent.includes('950 CREDITS')`), true);
+  assert.equal(await page.evaluate(`document.querySelector('.vb-career-stats').textContent.includes('LEVEL 4')`), true);
 
   inspection = new Client({ connectionString: fixture.connectionString }); await inspection.connect();
   const account = (await inspection.query('SELECT id FROM vb_accounts WHERE username=$1', [username])).rows[0];
-  const persisted = (await inspection.query('SELECT xp,credits,kills,matches,owned,equipped FROM vb_careers WHERE account_id=$1', [account.id])).rows[0];
-  assert.equal(Number(persisted.xp), 900); assert.equal(Number(persisted.credits), 950);
+  const persisted = (await inspection.query('SELECT xp,kills,matches,owned,equipped FROM vb_careers WHERE account_id=$1', [account.id])).rows[0];
+  assert.equal(Number(persisted.xp), 900);
   assert.equal(persisted.equipped.theme, 'arctic');
   assert.equal(persisted.equipped.title, 'pathfinder');
   assert.equal((await inspection.query('SELECT account_id FROM vb_career_claims WHERE guest_id=$1', [guest])).rows[0].account_id, account.id);
@@ -66,7 +66,7 @@ try {
   await remote.evaluate(`document.getElementById('account-nav-open').click()`);
   await fill(remote, { username, password });
   await remote.evaluate(`document.getElementById('account-form').requestSubmit()`);
-  await remote.waitFor(`document.getElementById('name-input').readOnly && document.getElementById('career-menu-preview').textContent.includes('950 CREDITS')`, { timeoutMs: 20000 });
+  await remote.waitFor(`document.getElementById('name-input').readOnly && document.getElementById('career-menu-preview').textContent.includes('LEVEL 4')`, { timeoutMs: 20000 });
   await remote.evaluate(`document.getElementById('account-close').click()`);
   await remote.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await remote.waitFor(`Array.from(document.images).every(img => img.complete && img.naturalWidth > 0)`);

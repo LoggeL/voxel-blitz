@@ -2,12 +2,12 @@ import { Client } from 'pg';
 import { readFile } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import { AccountError } from '../account-security.js';
-import { CAREER_CATALOG, careerView, careerItemState, equipCareerItem, reconcileCareerUnlocks } from '../../shared/career.js';
+import { CAREER_CATALOG, careerView, equipCareerItem, reconcileCareerUnlocks } from '../../shared/career.js';
 import { CAREER_ID, emptyProfile, validateProfile, normalizeCareerProgress, applyCareerProgress } from './career-profile.js';
 
 const LOCK = [1447185492, 1];
 const RETRYABLE = new Set(['57014', '40001', '40P01', '55P03']);
-const profileFromRow = row => validateProfile({ xp: Number(row.xp), credits: Number(row.credits),
+const profileFromRow = row => validateProfile({ xp: Number(row.xp),
   kills: Number(row.kills), matches: Number(row.matches), pvpKills: Number(row.pvp_kills ?? 0), wins: Number(row.wins ?? 0),
   mastery: row.mastery ?? {}, owned: row.owned, equipped: row.equipped });
 
@@ -158,11 +158,11 @@ export class PostgresStore {
   async writeProfile(client, id, profile) {
     if (!CAREER_ID.test(id || '')) throw new Error('Invalid career identity');
     profile = validateProfile(profile);
-    await client.query(`INSERT INTO vb_careers(id, account_id, xp, credits, kills, matches, owned, equipped, pvp_kills, wins, mastery)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) ON CONFLICT (id) DO UPDATE SET
-      xp=EXCLUDED.xp, credits=EXCLUDED.credits, kills=EXCLUDED.kills, matches=EXCLUDED.matches,
+    await client.query(`INSERT INTO vb_careers(id, account_id, xp, kills, matches, owned, equipped, pvp_kills, wins, mastery)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (id) DO UPDATE SET
+      xp=EXCLUDED.xp, kills=EXCLUDED.kills, matches=EXCLUDED.matches,
       owned=EXCLUDED.owned, equipped=EXCLUDED.equipped, pvp_kills=EXCLUDED.pvp_kills, wins=EXCLUDED.wins, mastery=EXCLUDED.mastery`, [id, id.startsWith('account:') ? id.slice(8) : null,
-      profile.xp, profile.credits, profile.kills, profile.matches, JSON.stringify(profile.owned), JSON.stringify(profile.equipped),
+      profile.xp, profile.kills, profile.matches, JSON.stringify(profile.owned), JSON.stringify(profile.equipped),
       profile.pvpKills, profile.wins, JSON.stringify(profile.mastery)]);
   }
 
@@ -206,22 +206,15 @@ export class PostgresStore {
     }, { retryReward: true }).catch(error => { this.rewardError = error; throw error; });
   }
 
-  purchase(id, itemId, equipOnly, authorized = () => true, selection = {}) {
+  equip(id, itemId, authorized = () => true, selection = {}) {
     return this.transaction(async client => {
-      if (!authorized()) throw new Error('Your session changed. Reopen the shop before purchasing.');
+      if (!authorized()) throw new Error('Your session changed. Reopen your career before equipping.');
       const profile = await this.lockedProfile(client, id);
       const item = itemId === 'standard' ? { id: 'standard', kind: selection.slot, weapon: selection.weapon } : CAREER_CATALOG.find(item => item.id === itemId);
       if (!profile || !item) throw new Error('Unknown item');
       reconcileCareerUnlocks(profile);
-      if (item.id !== 'standard' && !profile.owned.includes(item.id)) {
-        if (item.unlock === 'earned') throw new Error('Complete all requirements to earn this cosmetic');
-        if (equipOnly) throw new Error('Buy this item first');
-        if (careerItemState(profile, item).locked) throw new Error(`Requires level ${item.level}`);
-        if (profile.credits < item.price) throw new Error('Not enough credits');
-        profile.credits -= item.price;
-        profile.owned.push(item.id);
-      }
-      if (!authorized()) throw new Error('Your session changed. Reopen the shop before purchasing.');
+      // Re-checked after the awaits above: a session can be revoked mid-transaction.
+      if (!authorized()) throw new Error('Your session changed. Reopen your career before equipping.');
       equipCareerItem(profile, item);
       await this.writeProfile(client, id, profile);
       return careerView(profile);

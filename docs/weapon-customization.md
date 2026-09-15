@@ -25,7 +25,17 @@ The catalogs and compatibility rules live in `shared/weapon-attachments.js`. Bas
 
 All 12 weapons have a workshop entry. The pickaxe has fixed mounts; the revolver and heavy special weapons retain their factory grips. Minigun, flamethrower and launcher accept the reflex and 2× optics. Scopes support the existing alternate magnification input and scope/breath/reload visibility rules. Attachment models appear in the workshop, first person and remote players' hands. A third slot fits a StatTrak LED counter that displays the weapon's confirmed human kills from career mastery; it changes handling nothing and rides the same save/transport path as optics and grips.
 
-Arrowhead's [customization release](https://arrowhead.zendesk.com/hc/en-us/articles/20039732796956--PATCH-01-003-000) describes sights and underbarrel parts. Its [Into the Unjust patch](https://arrowhead.zendesk.com/hc/en-us/articles/23973732653084--Into-the-Unjust-5-0-0) gives the -1/-2/-4 ergonomics costs for 2×/4×/10× optics. The grip tradeoffs above are Voxel Blitz balancing choices. Progression locks, attachment purchases, magazines and muzzle parts are outside this implementation.
+Arrowhead's [customization release](https://arrowhead.zendesk.com/hc/en-us/articles/20039732796956--PATCH-01-003-000) describes sights and underbarrel parts. Its [Into the Unjust patch](https://arrowhead.zendesk.com/hc/en-us/articles/23973732653084--Into-the-Unjust-5-0-0) gives the -1/-2/-4 ergonomics costs for 2×/4×/10× optics. The grip tradeoffs above are Voxel Blitz balancing choices. Magazines and muzzle parts are outside this implementation.
+
+## Progression locks
+
+Optics, grips and the StatTrak counter are nodes on the career unlock tree (see [progression](progression.md)). Factory parts are always available. A part opens by career level alone; the tree never gates an attachment behind weapon mastery.
+
+Ownership is authorization and deliberately stays out of `shared/weapon-attachments.js`: `normalizeAttachments` and `weaponWithAttachments` remain profile-free so the server sim and client prediction keep deriving identical definitions from the same selection, and the finite catalog cache stays finite. The gate lives in `server/weapon-loadouts.js` instead -- `assertUnlockedAttachments` on the save path, and `allowedWeaponLoadout` once at admission. Because admission filters a single value that feeds both `welcome.weaponLoadout` and the server entity, authority and prediction can never disagree about a part.
+
+A stored selection is never rewritten on read. A part that is locked is downgraded to factory only at delivery, so the saved setup returns intact once the node opens. `validateProfile` deliberately does not gate attachments: every profile written before this system existed names parts it does not own, and gating there would reject those careers outright.
+
+The armory shows locked parts with their required level and marks them `aria-disabled` rather than `disabled`, so they stay focusable and a screen reader can announce why they are closed. Drafts containing a locked part are sanitized to factory before they can be saved.
 
 ## Player turning
 
@@ -39,7 +49,7 @@ The handling range's 90°/180° buttons feed the same player input path. Its com
 
 ## Persistence and authority
 
-`POST /api/career/attachments` requires the existing career identity and same-origin custom header, and validates all three slots against the catalog. The setup is stored in `equipped.weaponAttachments`, using the existing JSON equipment field for file profiles and PostgreSQL row-locked transactions. No schema migration is required. Payloads saved before the counter slot existed omit it and still validate as a factory-counter setup.
+`POST /api/career/attachments` requires the existing career identity and same-origin custom header, validates all three slots against the catalog and rejects any part the profile has not unlocked. The setup is stored in `equipped.weaponAttachments`, using the existing JSON equipment field for file profiles and PostgreSQL row-locked transactions. No schema migration is required. Payloads saved before the counter slot existed omit it and still validate as a factory-counter setup.
 
 The server reads the profile at admission, freezes that match's setup and sends it in `welcome.weaponLoadout`, plus the per-weapon kill counts in `welcome.mastery`. Current attachment choices are included in player snapshots and retained by the client. The first-person rig renders the LED from the admission-time counts and bumps them from its own counted kill events (same bot/team/training filter as the server); the next admission refreshes authority. Remote players' mastery never crosses the snapshot wire, so their plates stay off rather than showing a wrong number. Lobby map replacement and respawn preserve the setup. Client-supplied admission loadouts are rejected. A career outage falls back to factory equipment on both peers without preventing guest gameplay. File-write failures roll back the attempted save.
 

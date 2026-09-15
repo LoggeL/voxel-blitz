@@ -2,7 +2,7 @@ import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { OPTICS, GRIPS, COUNTERS, ATTACHMENT_SLOTS, normalizeAttachments, normalizeWeaponLoadout, weaponWithAttachments } from '../../../shared/weapon-attachments.js';
 import { weaponTurnProfile } from '../../../shared/weapon-handling.js';
 import { WeaponPreview } from './weapon-preview.js';
-import { normalizeCosmeticLoadout } from '../../../shared/career.js';
+import { normalizeCosmeticLoadout, PROGRESSION_TREE } from '../../../shared/career.js';
 
 const el = (tag,parent,text='',className='') => {
   const n = document.createElement(tag); n.textContent = text; n.className = className; parent.append(n); return n;
@@ -12,10 +12,12 @@ const button = (parent,text,fn,className='vb-btn') => {
 };
 const number = (v,d=2) => Number(v.toFixed(d)).toString();
 const equal = (a,b) => a.optic === b.optic && a.grip === b.grip && a.counter === b.counter;
+const STANDARD_PARTS = {optic:['standard'],grip:['standard'],counter:['standard']};
+const partNode = (slot,part) => PROGRESSION_TREE.find(n => n.kind==='attachment' && n.slot===slot && n.part===part) || null;
 
 export class WeaponCustomization {
   constructor({accounts} = {}) {
-    this.accounts = accounts; this.weapon = 'rifle'; this.saved = {}; this.drafts = {}; this.version = 0; this.mastery = {};
+    this.accounts = accounts; this.weapon = 'rifle'; this.saved = {}; this.drafts = {}; this.version = 0; this.mastery = {}; this.parts = STANDARD_PARTS;
     this.dialog = el('dialog',document.body,'','vb-workshop'); this.dialog.id = 'weapon-customization';
     this.dialog.setAttribute('aria-labelledby','workshop-title');
     const header = el('header',this.dialog,'','vb-workshop-header');
@@ -45,13 +47,18 @@ export class WeaponCustomization {
     this.dialog.addEventListener('close',()=>{this.preview?.dispose();this.preview=null;document.getElementById('workshop-open')?.focus();});
     this.onAccountChange = () => {
       this.cosmetics = normalizeCosmeticLoadout();
-      this.version++; this.ready=false; this.saved={};this.drafts={}; this.busy=false;
+      this.version++; this.ready=false; this.saved={};this.drafts={}; this.busy=false; this.parts=STANDARD_PARTS;
       if (this.dialog.open) this.refresh();
     };
     window.addEventListener('vb-account-change',this.onAccountChange);
     this.onCareerChange = event => {
       this.cosmetics = normalizeCosmeticLoadout(event.detail?.equipped);
-      if (this.dialog.open) this.render();
+      const before = this.parts;
+      this.parts = event.detail?.unlockedParts || STANDARD_PARTS;
+      if (event.detail?.mastery && typeof event.detail.mastery === 'object') this.mastery = event.detail.mastery;
+      const opened = ['optic','grip','counter'].flatMap(slot =>
+        (this.parts[slot]||[]).filter(part => !(before[slot]||[]).includes(part)).map(part => partNode(slot,part)?.name || part));
+      if (this.dialog.open) this.render(opened.length ? `Unlocked: ${opened.join(', ')}.` : undefined);
     };
     window.addEventListener('vb-career-change',this.onCareerChange);
     this.observer = new MutationObserver(()=>this.mount());
@@ -80,12 +87,21 @@ export class WeaponCustomization {
       if (!response.ok) throw new Error(profile.error || 'Could not load your setups.');
       this.cosmetics=normalizeCosmeticLoadout(profile.equipped);
       this.saved=normalizeWeaponLoadout(profile.equipped?.weaponAttachments); this.drafts={}; this.ready=true;
+      this.parts = profile.unlockedParts || STANDARD_PARTS;
       this.mastery = profile.mastery && typeof profile.mastery === 'object' ? profile.mastery : {};
       this.render();
     } catch(error) { if(version===this.version)this.render(error.message); }
     finally { if(version===this.version){this.busy=false;this.controls();} }
   }
-  selection() { return this.drafts[this.weapon] || normalizeAttachments(this.weapon,this.saved[this.weapon]); }
+  unlocked(slot,part) { return (this.parts[slot]||STANDARD_PARTS[slot]).includes(part); }
+  /** A stored setup may name a part that is locked now; show the legal fallback
+   * rather than offering something the server will reject. */
+  sanitize(value) {
+    const out = {...value};
+    for (const slot of ['optic','grip','counter']) if (!this.unlocked(slot,out[slot])) out[slot]='standard';
+    return normalizeAttachments(this.weapon,out);
+  }
+  selection() { return this.sanitize(this.drafts[this.weapon] || normalizeAttachments(this.weapon,this.saved[this.weapon])); }
   controls() {
     this.save.disabled=this.busy || !this.ready || equal(this.selection(),normalizeAttachments(this.weapon,this.saved[this.weapon]));
     this.reset.disabled=this.busy || !this.ready;
@@ -118,10 +134,15 @@ export class WeaponCustomization {
       const section=el('section',this.slots); el('h3',section,label);
       const options=el('div',section,'','vb-workshop-options');
       for(const id of ids) {
-        const item=catalog[id]; const b=button(options,'',()=>{
+        const item=catalog[id], locked=!this.unlocked(slot,id), gate=locked?partNode(slot,id):null;
+        const b=button(options,'',()=>{
+          // aria-disabled, not disabled: a locked part stays focusable so keyboard
+          // and screen-reader users can find it and hear why it is closed.
+          if(locked){this.status.textContent=`${item.name}: unlocks at career level ${gate?.level ?? '?'}.`;return;}
           this.drafts[this.weapon]=normalizeAttachments(this.weapon,{...this.selection(),[slot]:id});this.render();
         },'vb-workshop-option'); b.dataset[slot]=id;b.setAttribute('aria-pressed',String(selection[slot]===id));
-        el('strong',b,item.name); el('small',b,item.detail);
+        if(locked){b.dataset.locked='true';b.setAttribute('aria-disabled','true');}
+        el('strong',b,locked?`${item.name} 🔒`:item.name); el('small',b,locked?`Unlocks at career level ${gate?.level ?? '?'}.`:item.detail);
       }
       if(slot==='counter') {
         const record=this.mastery?.[this.weapon] || {};
@@ -145,6 +166,8 @@ export class WeaponCustomization {
       if(!response.ok)throw new Error(profile.error || 'Could not save. Try again.');
       this.cosmetics=normalizeCosmeticLoadout(profile.equipped);
       this.saved=normalizeWeaponLoadout(profile.equipped?.weaponAttachments);delete this.drafts[weapon];
+      this.parts = profile.unlockedParts || this.parts;
+      window.dispatchEvent(new CustomEvent('vb-career-change',{detail:profile}));
       this.render(`${WEAPONS[weapon].name}: setup saved.`);
     } catch(error){if(version===this.version)this.render(error.message);}
     finally{if(version===this.version){this.busy=false;this.controls();}}

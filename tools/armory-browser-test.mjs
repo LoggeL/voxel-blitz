@@ -18,7 +18,7 @@ try {
   const page = browser.page;
   await page.send('Network.setCookie', { name: 'vb-career', value: guest, url, httpOnly: true, sameSite: 'Strict' });
   await page.send('Page.reload');
-  await page.waitFor(`document.getElementById('career-menu-preview')?.textContent.includes('825 CREDITS')`);
+  await page.waitFor(`document.getElementById('career-menu-preview')?.textContent.includes('LEVEL 4')`);
   await mkdir('.artifacts/armory', { recursive: true });
   const screenshot = async name => {
     const result = await page.send('Page.captureScreenshot', { format: 'png' });
@@ -47,17 +47,17 @@ try {
       await screenshot('main-account-390x844');
     }
     await page.evaluate(`document.getElementById('career-open').click()`);
-    await page.waitFor(`document.getElementById('career-shop').open && document.querySelectorAll('[data-cosmetic]').length === 8`);
+    await page.waitFor(`document.getElementById('career-shop').open && document.querySelectorAll('[data-cosmetic]').length === 34`);
     await page.evaluate(`document.getElementById('career-shop').scrollTop = 0`);
     assert.equal(await page.evaluate(`document.getElementById('career-shop').scrollWidth <= document.getElementById('career-shop').clientWidth`), true, `${width}px career fits`);
     await page.evaluate(`document.activeElement?.blur()`);
     await screenshot(`career-${width}x${height}`);
-    await page.evaluate(`document.querySelector('.vb-career-journey').scrollIntoView({block:'end'})`);
-    assert.equal(await page.evaluate(`(() => {const r = document.querySelector('.vb-career-journey').getBoundingClientRect(); const d = document.getElementById('career-shop').getBoundingClientRect(); return r.top >= d.top && r.bottom <= d.bottom;})()`), true, `${width}px level journey is reachable by scrolling`);
+    await page.evaluate(`document.querySelector('.vb-tree-branch[data-branch="presentation"]').scrollIntoView({block:'end'})`);
+    assert.equal(await page.evaluate(`(() => {const r = document.querySelector('.vb-tree-branch[data-branch="presentation"]').getBoundingClientRect(); const d = document.getElementById('career-shop').getBoundingClientRect(); return r.top >= d.top && r.bottom <= d.bottom;})()`), true, `${width}px unlock tree is reachable by scrolling`);
     assert.equal(await page.evaluate(`(() => {const r=document.getElementById('career-close').getBoundingClientRect(); return r.y > 0 && r.bottom < innerHeight;})()`), true, 'career Back remains visible while scrolling');
-    await screenshot(`career-journey-${width}x${height}`);
+    await screenshot(`career-tree-${width}x${height}`);
     if (width === 390) {
-      await page.evaluate(`document.querySelector('.vb-career-grid').scrollIntoView({block:'start'})`);
+      await page.evaluate(`document.querySelector('.vb-tree').scrollIntoView({block:'start'})`);
       await screenshot('career-catalog-390x844');
     }
     await page.evaluate(`document.getElementById('career-close').click()`);
@@ -65,14 +65,15 @@ try {
   await page.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await page.evaluate(`document.getElementById('career-menu-preview').click()`);
   await page.waitFor(`document.getElementById('career-shop').open`);
-  for (const [kind, count] of [['theme', 4], ['title', 4], ['all', 8]]) {
+  for (const [kind, count] of [['weapons', 12], ['character', 5], ['presentation', 17], ['all', 34]]) {
     await page.evaluate(`document.querySelector('[data-filter="${kind}"]').click()`);
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-cosmetic]').length`), count);
     assert.equal(await page.evaluate(`document.querySelector('[data-filter="${kind}"]').getAttribute('aria-pressed')`), 'true');
   }
   await page.evaluate(`document.querySelector('[data-item="vanguard"]').click()`);
   await page.waitFor(`document.querySelector('.vb-career-status').textContent === 'Vanguard equipped'`);
-  assert.equal(await page.evaluate(`document.querySelector('.vb-career-stats').textContent.includes('475 CREDITS')`), true);
+  assert.equal(await page.evaluate(`document.querySelector('.vb-career-stats').textContent.includes('LEVEL 4')`), true);
+  assert.doesNotMatch(await page.evaluate(`document.getElementById('career-shop').textContent`), /credit/i, 'no currency survives anywhere in the career page');
   assert.equal(await page.evaluate(`document.getElementById('career-menu-preview').textContent.includes('Vanguard')`), true, 'menu preview reflects actual equipped callsign');
   assert.equal(await page.evaluate(`document.querySelector('.vb-career-title-name').textContent.includes('Vanguard')`), true);
   await page.evaluate(`document.getElementById('career-shop').scrollTop=0`);
@@ -86,7 +87,7 @@ try {
   await page.waitFor(`document.getElementById('account-recovery-code') && document.getElementById('account-dialog').getAttribute('aria-busy') === 'false'`, {timeoutMs:20000});
   await page.evaluate(`document.getElementById('account-code-done').click();document.getElementById('account-close').click()`);
   await page.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
-  await page.waitFor(`document.getElementById('career-menu-preview').textContent.includes('475 CREDITS') && document.getElementById('account-status').textContent.includes('ArmoryPilot')`);
+  await page.waitFor(`document.getElementById('career-menu-preview').textContent.includes('LEVEL 4') && document.getElementById('account-status').textContent.includes('ArmoryPilot')`);
   await page.evaluate(`document.getElementById('menu').scrollTop=0;document.activeElement?.blur()`);
   await screenshot('main-signed-in-1440x900');
   await page.evaluate(`document.getElementById('career-open').click()`);

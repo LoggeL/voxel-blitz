@@ -1,4 +1,4 @@
-import { CAREER_CATALOG, careerItemState } from '../../../shared/career.js';
+import { CAREER_CATALOG, PROGRESSION_BRANCHES, PROGRESSION_TREE, careerItemState, treeNode } from '../../../shared/career.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { mountMusicControl } from './music-control.js';
 import { cosmeticArtwork as artwork, CosmeticAudition, COSMETIC_AUDIO, cosmeticVolume } from './cosmetic-preview.js';
@@ -12,22 +12,34 @@ const node = (tag, parent, text, className = '') => {
 };
 
 const format = value => Number(value || 0).toLocaleString('en-US');
-const KIND_LABELS = { weaponSkin: 'WEAPON SKIN', characterSkin: 'CHARACTER SKIN', signature: 'DEATH SIGNATURE', sound: 'SOUND KIT', theme: 'HUD THEME', title: 'CALLSIGN' };
-const FILTERS = [['all', 'ALL'], ['weaponSkin', 'WEAPONS'], ['characterSkin', 'CHARACTERS'], ['signature', 'SIGNATURES'], ['sound', 'SOUND KITS'], ['legacy', 'HUD & CALLSIGNS']];
+const KIND_LABELS = { weaponSkin: 'WEAPON SKIN', characterSkin: 'CHARACTER SKIN', signature: 'DEATH SIGNATURE', sound: 'SOUND KIT',
+  theme: 'HUD THEME', title: 'CALLSIGN', attachment: 'ATTACHMENT', reticle: 'RETICLE', nameplate: 'NAMEPLATE' };
+const EQUIPPABLE = ['weaponSkin', 'characterSkin', 'signature', 'sound', 'theme', 'title', 'reticle', 'nameplate'];
+const FILTERS = [['all', 'ALL'], ...PROGRESSION_BRANCHES.map(branch => [branch.id, branch.name])];
 
-export function careerActionState(profile, item, busy = false) {
+/** The shortfall that keeps a node closed, in the player's words. */
+export function unlockSummary(state, item) {
+  if (state.blockedByParent) return `UNLOCK ${(treeNode(item.parent)?.name || 'THE PREVIOUS NODE').toUpperCase()} FIRST`;
+  const pending = state.requirements.find(requirement => !requirement.complete);
+  if (!pending) return 'UNLOCKS AUTOMATICALLY';
+  return pending.label === 'Career level' ? `LEVEL ${item.level} REQUIRED` : `${format(pending.target)} ${pending.label.toUpperCase()}`;
+}
+
+export function progressionActionState(profile, item, busy = false) {
   const state = careerItemState(profile, item);
-  return { ...state, label: state.equipped ? 'EQUIPPED' : state.owned ? 'EQUIP' : state.locked
-    ? (state.earned ? 'KEEP PLAYING TO UNLOCK' : `LEVEL ${item.level} REQUIRED`)
-    : state.earned ? 'EQUIP' : `${format(item.price)} CREDITS`,
-  disabled: busy || state.equipped || (!state.owned && (state.locked || (!state.earned && profile.credits < item.price))) };
+  const equippable = EQUIPPABLE.includes(item.kind);
+  return { ...state, equippable,
+    label: state.equipped ? 'EQUIPPED'
+      : !state.owned || state.locked ? unlockSummary(state, item)
+      : equippable ? 'EQUIP' : 'OPEN IN ARMORY',
+    disabled: busy || state.equipped || !state.owned || state.locked || !equippable };
 }
 
 function announceProfile(profile) {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('vb-career-change', { detail: profile }));
 }
 
-export class CareerShop {
+export class ProgressionTree {
   constructor({ accounts = null } = {}) {
     this.accounts = accounts;
     this.profile = null;
@@ -41,10 +53,8 @@ export class CareerShop {
     this.dialog.setAttribute('aria-labelledby', 'career-title');
     const header = node('header', this.dialog, '', 'vb-career-header');
     node('span', header, 'VOXEL BLITZ', 'vb-career-brand');
-    node('h2', header, 'CAREER & COLLECTION').id = 'career-title';
+    node('h2', header, 'CAREER & PROGRESSION').id = 'career-title';
     mountMusicControl(header);
-    this.wallet = node('div', header, '', 'vb-career-wallet');
-    this.wallet.setAttribute('aria-label', 'Career credits');
     const close = node('button', header, 'BACK', 'vb-btn');
     close.id = 'career-close'; close.type = 'button';
     close.addEventListener('click', () => this.dialog.close());
@@ -65,37 +75,41 @@ export class CareerShop {
     this.accountButton.id = 'career-account';
     this.accountButton.type = 'button';
     this.accountButton.addEventListener('click', () => this.accounts?.open(this.accounts.user ? 'account' : 'register'));
-    const shop = node('main', layout, '', 'vb-career-store');
-    this.feature = node('section', shop, '', 'vb-career-feature');
-    const catalogHeader = node('div', shop, '', 'vb-career-catalog-header');
-    node('h3', catalogHeader, 'MAKE IT YOURS');
-    this.filters = node('nav', catalogHeader, '', 'vb-career-filters');
-    this.filters.setAttribute('aria-label', 'Cosmetic category');
+    const store = node('main', layout, '', 'vb-career-store');
+    this.feature = node('section', store, '', 'vb-career-feature');
+    const treeHeader = node('div', store, '', 'vb-career-catalog-header');
+    node('h3', treeHeader, 'UNLOCK TREE');
+    this.filters = node('nav', treeHeader, '', 'vb-career-filters');
+    this.filters.setAttribute('aria-label', 'Progression branch');
     for (const [id, label] of FILTERS) {
       const filter = node('button', this.filters, label, 'vb-career-filter');
       filter.type = 'button'; filter.dataset.filter = id;
       filter.setAttribute('aria-pressed', String(id === this.filter));
       filter.addEventListener('click', () => {
         this.audition.stop(); this.filter = id;
-        const first = CAREER_CATALOG.find(item => this.matchesFilter(item));
-        if (first) this.featuredId = first.id;
-        this.renderCatalog(); this.renderFeature();
+        this.renderTree();
       });
     }
-    this.collectionSummary = node('p', shop, '', 'vb-career-collection-summary');
-    this.loadout = node('div', shop, '', 'vb-career-loadout');
-    this.grid = node('div', shop, '', 'vb-career-grid');
-    this.status = node('p', shop, '', 'vb-career-status');
+    this.collectionSummary = node('p', store, '', 'vb-career-collection-summary');
+    this.jump = node('button', store, 'JUMP TO NEXT UNLOCK', 'vb-btn vb-tree-jump');
+    this.jump.type = 'button';
+    this.jump.addEventListener('click', () => {
+      const next = this.tree.querySelector('[aria-current="step"]');
+      if (next) { next.scrollIntoView({ block: 'center', behavior: 'instant' }); next.focus({ preventScroll: true }); }
+    });
+    this.loadout = node('div', store, '', 'vb-career-loadout');
+    this.tree = node('div', store, '', 'vb-tree');
+    this.tree.id = 'progression-tree';
+    this.status = node('p', store, '', 'vb-career-status');
     this.status.setAttribute('role', 'status');
     this.status.setAttribute('aria-live', 'polite');
-    this.journey = node('section', shop, '', 'vb-career-journey');
-    this.mastery = node('section', shop, '', 'vb-career-mastery');
-    this.mountAudioSettings(shop);
-    const rules = node('details', shop, '', 'vb-career-rules');
-    node('summary', rules, 'HOW TO EARN XP & CREDITS');
-    node('p', rules, 'Human kill: 25 XP / 10 credits. Bot kill: 10 / 4. Active minute: 20 / 8. Objectives: 75 / 30. Completed match: 100 / 40, plus 50 / 20 for a win. Training does not award XP.');
-    node('p', rules, 'Earned cosmetics unlock automatically when every listed requirement is complete. Weapon mastery counts human opponents in eligible matches, including Gun Game. Training and bot kills do not count toward mastery.');
-    node('p', shop, 'Cosmetics keep weapon damage, hitboxes and team identification unchanged. All weapons remain available in Gun Game. Career credits are separate from match shop credits.', 'vb-career-note');
+    this.mastery = node('section', store, '', 'vb-career-mastery');
+    this.mountAudioSettings(store);
+    const rules = node('details', store, '', 'vb-career-rules');
+    node('summary', rules, 'HOW TO EARN XP');
+    node('p', rules, 'Human kill: 25 XP. Bot kill: 10 XP. Active minute: 20 XP. Objectives: 75 XP. Completed match: 100 XP, plus 50 XP for a win. Training does not award XP.');
+    node('p', rules, 'Every reward unlocks automatically once its requirements and the node before it are complete. Nothing is bought. Weapon mastery counts human opponents in eligible matches, including Gun Game; training and bot kills do not count.');
+    node('p', store, 'Cosmetics keep weapon damage, hitboxes and team identification unchanged. All weapons remain available in Gun Game.', 'vb-career-note');
     this.badge = node('div', document.body, '', 'vb-career-badge');
     this.badge.id = 'career-badge';
     this.dialog.addEventListener('keydown', event => event.stopPropagation());
@@ -112,16 +126,14 @@ export class CareerShop {
       this.audition.stop();
       this.disposeModelPreview();
       announceProfile(null);
-      this.grid.replaceChildren();
+      this.tree.replaceChildren();
       this.rank.replaceChildren();
       this.feature.replaceChildren();
-      this.journey.replaceChildren();
       this.record.replaceChildren();
       this.mastery.replaceChildren();
       this.loadout.replaceChildren();
       this.collectionSummary.textContent = '';
       this.stats.textContent = 'Loading career...';
-      this.wallet.textContent = '... CREDITS';
       this.titleName.textContent = '';
       this.progress.value = 0;
       this.xpRemaining.textContent = '';
@@ -155,7 +167,7 @@ export class CareerShop {
         throw new Error('Your session changed. Choose the item again after checking your career.');
     }
     const version = this.requestVersion = (this.requestVersion || 0) + 1;
-    const response = await fetch(item ? '/api/career/purchase' : '/api/career', {
+    const response = await fetch(item ? '/api/career/equip' : '/api/career', {
       method: item ? 'POST' : 'GET', credentials: 'same-origin',
       ...(item ? { headers: { 'Content-Type': 'application/json', 'X-VB-Career': '1' },
         body: JSON.stringify({ item, equipOnly, ...reset }) } : {}),
@@ -195,7 +207,7 @@ export class CareerShop {
   mountButton() {
     const navigation = document.querySelector('#menu .vb-main-nav');
     if (navigation && !document.getElementById('career-open')) {
-      const button = node('button', navigation, 'CAREER & SHOP', 'vb-main-nav-button');
+      const button = node('button', navigation, 'CAREER', 'vb-main-nav-button');
       button.id = 'career-open'; button.type = 'button';
       button.setAttribute('aria-haspopup', 'dialog');
       button.addEventListener('click', () => this.open(button));
@@ -208,6 +220,17 @@ export class CareerShop {
       this.menuPreview.addEventListener('click', () => this.open(this.menuPreview));
       this.renderMenuPreview();
     }
+  }
+
+  /** The node the player is closest to opening, across every branch. */
+  nextUnlock() {
+    let best = null;
+    for (const item of PROGRESSION_TREE) {
+      const state = this.itemState(item);
+      if (state.owned || state.blockedByParent) continue;
+      if (!best || state.progress > best.progress) best = { item, progress: state.progress, state };
+    }
+    return best;
   }
 
   renderMenuPreview() {
@@ -224,39 +247,46 @@ export class CareerShop {
     progress.max = profile.nextLevel - profile.levelStart;
     progress.value = profile.xp - profile.levelStart;
     progress.setAttribute('aria-label', 'Progress to next career level');
-    node('span', copy, `${format(profile.xp)} XP · ${format(profile.credits)} CREDITS`, 'vb-career-menu-meta');
-    node('span', this.menuPreview, 'CAREER & SHOP  ›', 'vb-career-menu-link');
+    const next = this.nextUnlock();
+    node('span', copy, next ? `NEXT: ${next.item.name.toUpperCase()} · ${unlockSummary(next.state, next.item)}`
+      : `ALL ${PROGRESSION_TREE.length} UNLOCKS COMPLETE`, 'vb-career-menu-meta');
+    node('span', this.menuPreview, 'CAREER & PROGRESSION  ›', 'vb-career-menu-link');
   }
 
   itemState(item) {
-    return careerActionState(this.profile, item, this.busy);
+    return progressionActionState(this.profile, item, this.busy);
   }
 
-  purchaseButton(parent, item, featured = false) {
+  actionButton(parent, item, featured = false) {
     const state = this.itemState(item);
     const button = node('button', parent, state.label, 'vb-btn');
     button.type = 'button';
     if (featured) button.dataset.featuredItem = item.id;
     else button.dataset.item = item.id;
     button.disabled = state.disabled;
+    if (!state.equippable && state.owned && !state.locked) {
+      button.disabled = false;
+      button.addEventListener('click', () => { this.dialog.close(); document.getElementById('workshop-open')?.click(); });
+      return button;
+    }
     button.addEventListener('click', async () => {
       if (this.busy) return;
       this.busy = true; this.render();
       try {
-        const accepted = await this.request(item.id, state.owned);
+        const accepted = await this.request(item.id, true);
         if (accepted) this.status.textContent = `${item.name} equipped`;
       }
       catch (error) { this.status.textContent = error.message; }
       finally { this.busy = false; this.render(); }
     });
+    return button;
   }
 
   matchesFilter(item) {
-    return this.filter === 'all' || item.kind === this.filter || (this.filter === 'legacy' && ['theme', 'title'].includes(item.kind));
+    return this.filter === 'all' || item.branch === this.filter;
   }
 
   requirements(parent, item, state = this.itemState(item)) {
-    if (!state.earned) return;
     const requirements = node('div', parent, '', 'vb-career-requirements');
     for (const requirement of state.requirements) {
       const row = node('div', requirements, '', 'vb-career-requirement');
@@ -269,7 +299,10 @@ export class CareerShop {
       progress.value = Math.min(requirement.current, requirement.target);
       progress.setAttribute('aria-label', requirement.label);
     }
-    if (!state.owned) node('span', requirements, 'Complete every requirement. Automatically unlocked.', 'vb-career-unlock-note');
+    if (!state.owned) node('span', requirements, state.blockedByParent
+      ? `Unlock ${treeNode(item.parent)?.name || 'the previous node'} first.`
+      : 'Unlocks automatically. Nothing to buy.', 'vb-career-unlock-note');
+    return requirements;
   }
 
   soundButtons(parent, item) {
@@ -339,7 +372,7 @@ export class CareerShop {
     this.loadout.replaceChildren();
     const slots = new Map();
     for (const item of items) {
-      if (!['weaponSkin', 'characterSkin', 'signature', 'sound'].includes(item.kind)) continue;
+      if (!['weaponSkin', 'characterSkin', 'signature', 'sound', 'reticle', 'nameplate'].includes(item.kind)) continue;
       const key = item.kind === 'weaponSkin' ? `weaponSkin:${item.weapon}` : item.kind;
       slots.set(key, { slot: item.kind, ...(item.weapon ? { weapon: item.weapon } : {}) });
     }
@@ -363,42 +396,66 @@ export class CareerShop {
     this.loadout.hidden = slots.size === 0;
   }
 
-  renderCatalog() {
+  renderTree() {
     if (!this.profile) return;
     for (const filter of this.filters.children) filter.setAttribute('aria-pressed', String(filter.dataset.filter === this.filter));
-    this.grid.replaceChildren();
-    const items = CAREER_CATALOG.filter(item => this.matchesFilter(item));
-    this.collectionSummary.textContent = `${items.filter(item => this.itemState(item).owned).length} / ${items.length} COLLECTED${this.filter === 'legacy' ? ' · Spend career credits' : ' · Preview every reward before you unlock it'}`;
-    this.renderLoadout(items);
-    for (const item of items) {
-      const state = this.itemState(item);
-      const card = node('article', this.grid, '', 'vb-career-item');
-      card.dataset.cosmetic = item.id;
-      card.dataset.state = state.equipped ? 'equipped' : state.owned ? 'owned' : state.locked ? 'locked' : 'available';
-      card.style.setProperty('--item-color', item.color || '#ffbc43');
-      card.dataset.rarity = item.rarity || 'common';
-      const preview = artwork(card, item, 'vb-career-preview');
-      node('span', preview, state.equipped ? 'EQUIPPED' : state.owned ? 'OWNED' : `LV ${item.level}`, 'vb-career-item-state');
-      const body = node('div', card, '', 'vb-career-item-body');
-      node('small', body, `${KIND_LABELS[item.kind]}${item.weapon ? ` / ${(WEAPONS[item.weapon]?.name || item.weapon).toUpperCase()}` : ''}`);
-      node('h3', body, item.name);
-      const metadata = node('div', body, '', 'vb-career-item-metadata');
-      node('span', metadata, (item.rarity || 'common').toUpperCase(), 'vb-career-rarity');
-      if (item.collection) node('span', metadata, `${item.collection} collection`);
-      node('p', body, item.detail);
-      this.requirements(body, item, state);
-      this.soundButtons(body, item);
-      if (state.earned) {
-        const inspect = node('button', body, ['weaponSkin', 'characterSkin'].includes(item.kind) ? 'INSPECT IN 3D' : 'INSPECT', 'vb-career-inspect');
-        inspect.type = 'button'; inspect.dataset.inspect = item.id;
-        inspect.setAttribute('aria-label', `Inspect ${item.name}`);
-        inspect.addEventListener('click', () => {
+    this.tree.replaceChildren();
+    const visible = PROGRESSION_TREE.filter(item => this.matchesFilter(item));
+    const owned = visible.filter(item => this.itemState(item).owned).length;
+    this.collectionSummary.textContent = `${owned} / ${visible.length} UNLOCKED · Everything opens through play`;
+    this.renderLoadout(visible);
+    const next = this.nextUnlock();
+    this.jump.hidden = !next;
+    for (const branch of PROGRESSION_BRANCHES) {
+      if (this.filter !== 'all' && this.filter !== branch.id) continue;
+      const items = PROGRESSION_TREE.filter(item => item.branch === branch.id);
+      const section = node('section', this.tree, '', 'vb-tree-branch');
+      section.dataset.branch = branch.id;
+      const heading = node('h3', section, branch.name);
+      heading.id = `tree-branch-${branch.id}`;
+      section.setAttribute('aria-labelledby', heading.id);
+      node('p', section, `${items.filter(item => this.itemState(item).owned).length} of ${items.length} unlocked · ${branch.detail}`, 'vb-tree-branch-progress');
+      const chain = node('ol', section, '', 'vb-tree-chain');
+      for (const item of items) {
+        const state = this.itemState(item);
+        const row = node('li', chain, '', 'vb-tree-item');
+        row.dataset.state = state.owned && !state.locked ? 'unlocked' : state.blockedByParent ? 'locked' : 'next';
+        const button = node('button', row, '', 'vb-tree-node');
+        button.type = 'button';
+        button.dataset.node = item.id;
+        button.dataset.cosmetic = item.id;
+        button.style.setProperty('--item-color', item.color || '#ffbc43');
+        if (next?.item.id === item.id) button.setAttribute('aria-current', 'step');
+        const marker = node('span', button, String(item.level), 'vb-tree-marker');
+        marker.setAttribute('aria-hidden', 'true');
+        node('span', button, `${{ unlocked: 'Unlocked.', next: 'Next up.', locked: 'Locked.' }[row.dataset.state]} `, 'vb-visually-hidden');
+        node('strong', button, item.name);
+        node('small', button, `${KIND_LABELS[item.kind]}${item.weapon ? ` / ${(WEAPONS[item.weapon]?.name || item.weapon).toUpperCase()}` : ''} · LEVEL ${item.level}`);
+        node('span', button, row.dataset.state.toUpperCase(), 'vb-tree-chip');
+        const body = node('div', row, '', 'vb-tree-body');
+        body.id = `req-${item.id}`;
+        button.setAttribute('aria-describedby', body.id);
+        node('p', body, item.detail);
+        // Full progress rows only where they are actionable; a level-75 bar on an
+        // unreachable node is noise that costs a column of height.
+        if (!state.owned || state.locked) this.requirements(body, item, state);
+        if (state.owned && !state.locked) this.actionButton(body, item);
+        else node('p', body, unlockSummary(state, item), 'vb-tree-unlock-note');
+        if (item.masteryKills) {
+          const link = node('button', body, `VIEW ${(WEAPONS[item.weapon]?.name || item.weapon).toUpperCase()} MASTERY`, 'vb-btn vb-tree-mastery-link');
+          link.type = 'button';
+          link.addEventListener('click', () => {
+            this.masteryWeapon = item.weapon; this.renderMastery();
+            this.mastery.scrollIntoView({ block: 'center', behavior: 'instant' });
+            this.mastery.querySelector('select')?.focus();
+          });
+        }
+        button.addEventListener('click', () => {
           this.audition.stop(); this.featuredId = item.id; this.renderFeature();
           this.feature.scrollIntoView({ block: 'center', behavior: 'instant' });
           this.feature.focus({ preventScroll: true });
         });
       }
-      this.purchaseButton(body, item);
     }
   }
 
@@ -425,10 +482,16 @@ export class CareerShop {
     node('span', body, item.collection ? `${item.collection.toUpperCase()} COLLECTION / ${KIND_LABELS[item.kind]}` : KIND_LABELS[item.kind], 'vb-career-kicker');
     node('h3', body, item.name.toUpperCase());
     node('p', body, item.detail);
-    node('small', body, state.earned ? `${(item.rarity || 'rare').toUpperCase()} · EARNED THROUGH PLAY` : `${format(item.price)} CREDITS · LEVEL ${item.level}`);
+    node('small', body, `${(item.rarity || 'standard').toUpperCase()} · ${state.owned && !state.locked ? 'UNLOCKED' : unlockSummary(state, item)}`);
     this.requirements(body, item, state);
     this.soundButtons(body, item);
-    this.purchaseButton(body, item, true);
+    if (['weaponSkin', 'characterSkin'].includes(item.kind)) {
+      const inspect = node('button', body, 'INSPECT IN 3D', 'vb-career-inspect');
+      inspect.type = 'button'; inspect.dataset.inspect = item.id;
+      inspect.setAttribute('aria-label', `Inspect ${item.name}`);
+      inspect.addEventListener('click', () => { this.featuredId = item.id; this.renderFeature(); });
+    }
+    this.actionButton(body, item, true);
   }
 
   async renderModelPreview(item, host, version) {
@@ -453,32 +516,6 @@ export class CareerShop {
     this.previewVersion = (this.previewVersion || 0) + 1;
     this.modelPreview?.dispose();
     this.modelPreview = null;
-  }
-
-  renderJourney() {
-    this.journey.replaceChildren();
-    const heading = node('div', this.journey, '', 'vb-career-section-heading');
-    node('h3', heading, 'THE ROAD TO LEVEL 100');
-    node('span', heading, 'Rare rewards. Long-term goals.');
-    const milestones = node('div', this.journey, '', 'vb-career-milestones');
-    const earned = CAREER_CATALOG.filter(item => item.unlock === 'earned');
-    const levels = [...new Set(earned.map(item => item.level))].sort((a, b) => a - b);
-    for (const level of levels) {
-      const items = earned.filter(item => item.level === level);
-      const completed = items.every(item => this.itemState(item).owned);
-      const milestone = node('button', milestones, '', 'vb-career-milestone');
-      milestone.type = 'button';
-      milestone.dataset.level = String(level);
-      milestone.dataset.state = completed ? 'complete' : level <= this.profile.level ? 'current' : 'next';
-      node('strong', milestone, `LEVEL ${level}`);
-      node('span', milestone, items.map(item => items.some(other => other.id !== item.id && other.name === item.name)
-        ? `${item.name} ${item.kind === 'sound' ? 'sound kit' : 'skin'}` : item.name).join(' / '), 'vb-career-milestone-rewards');
-      node('small', milestone, completed ? 'COLLECTED' : items.some(item => this.itemState(item).requirements.length > 1) ? '+ MASTERY REQUIREMENT' : `${format((level - 1) ** 2 * 100)} XP`);
-      milestone.addEventListener('click', () => {
-        this.audition.stop(); this.featuredId = items.find(item => !this.itemState(item).owned)?.id || items[0].id;
-        this.renderFeature(); this.feature.scrollIntoView({ block: 'center', behavior: 'instant' }); this.feature.focus({ preventScroll: true });
-      });
-    }
   }
 
   renderMastery() {
@@ -507,19 +544,18 @@ export class CareerShop {
       progress.max = target; progress.value = Math.min(kills, target);
       progress.setAttribute('aria-label', `${format(target)} human kills`);
     }
-    const rewards = CAREER_CATALOG.filter(item => item.weapon === this.masteryWeapon && item.unlock === 'earned');
+    const rewards = PROGRESSION_TREE.filter(item => item.weapon === this.masteryWeapon && item.masteryKills);
     node('p', this.mastery, rewards.length
-      ? `Available reward: ${rewards.map(item => `${item.name} (level ${item.level} + listed mastery)`).join(', ')}. See its card for every requirement.`
-      : 'Mastery is tracked for this weapon. No skin reward is assigned to it yet.', 'vb-career-note');
-    node('p', this.mastery, 'Gun Game counts. Bot kills and training do not contribute. Mastery tiers track achievement; only catalog items award cosmetics.', 'vb-career-note');
+      ? `Tree reward: ${rewards.map(item => `${item.name} (level ${item.level} + ${format(item.masteryKills)} kills)`).join(', ')}.`
+      : 'Mastery is tracked for this weapon. No tree reward is assigned to it yet.', 'vb-career-note');
+    node('p', this.mastery, 'Gun Game counts. Bot kills and training do not contribute. Mastery tiers track achievement; only tree nodes award cosmetics.', 'vb-career-note');
   }
 
   render() {
     const profile = this.profile;
     if (!profile) return;
     this.syncAccount();
-    this.stats.textContent = `LEVEL ${profile.level} · ${profile.xp} XP · ${profile.credits} CREDITS`;
-    this.wallet.textContent = `${format(profile.credits)} CREDITS`;
+    this.stats.textContent = `LEVEL ${profile.level} · ${format(profile.xp)} XP`;
     this.progress.max = profile.nextLevel - profile.levelStart;
     this.progress.value = profile.xp - profile.levelStart;
     this.progress.title = `${profile.nextLevel - profile.xp} XP to level ${profile.level + 1}`;
@@ -537,8 +573,7 @@ export class CareerShop {
       node('strong', metric, format(value)); node('span', metric, label);
     }
     this.renderFeature();
-    this.renderCatalog();
-    this.renderJourney();
+    this.renderTree();
     this.renderMastery();
     this.renderMenuPreview();
   }

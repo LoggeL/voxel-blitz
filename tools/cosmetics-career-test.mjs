@@ -19,7 +19,8 @@ try {
   const guest = id();
   writeFileSync(path.join(directory, `${guest}.json`), JSON.stringify(legacy));
   const migrated = career.profile(guest);
-  for (const key of ['xp', 'credits', 'kills', 'matches']) assert.equal(migrated[key], legacy[key]);
+  for (const key of ['xp', 'kills', 'matches']) assert.equal(migrated[key], legacy[key]);
+  assert.equal(migrated.credits, undefined, 'the dead currency never survives a read');
   assert.equal(migrated.equipped.theme, 'arctic');
   assert.deepEqual(migrated.mastery, {}, 'historical kills cannot be invented as weapon attribution');
   assert.equal(migrated.pvpKills, 0);
@@ -27,37 +28,37 @@ try {
   assert.ok(migrated.owned.includes('ignition') && migrated.owned.includes('arcade'), 'old profiles receive earned level rewards');
   assert.ok(!migrated.owned.includes('rifle-overdrive'), 'legacy level alone does not grant mastery rewards');
 
-  for (const item of CAREER_CATALOG.filter(item => item.unlock === 'earned')) {
+  const complete = () => {
     const profile = emptyProfile();
-    profile.xp = (item.level - 1) ** 2 * 100 - 1;
-    if (item.masteryKills) profile.mastery[item.weapon] = { kills: item.masteryKills, headshots: 0 };
-    if (item.pvpKills) profile.pvpKills = item.pvpKills;
+    profile.xp = (100 - 1) ** 2 * 100;
+    profile.pvpKills = 10000;
+    profile.mastery = Object.fromEntries(WEAPON_IDS.map(weapon => [weapon, { kills: 10000, headshots: 0 }]));
+    return profile;
+  };
+  for (const item of CAREER_CATALOG.filter(item => item.masteryKills || item.pvpKills)) {
+    const profile = complete();
+    if (item.masteryKills) profile.mastery[item.weapon] = { kills: item.masteryKills - 1, headshots: 0 };
+    if (item.pvpKills) profile.pvpKills = item.pvpKills - 1;
     reconcileCareerUnlocks(profile);
-    assert.ok(!profile.owned.includes(item.id), `${item.id} needs the exact level boundary`);
-    profile.xp++;
-    if (item.masteryKills) profile.mastery[item.weapon].kills--;
-    if (item.pvpKills) profile.pvpKills--;
-    reconcileCareerUnlocks(profile);
-    if (item.masteryKills || item.pvpKills) assert.ok(!profile.owned.includes(item.id), `${item.id} needs both gates`);
+    assert.ok(!profile.owned.includes(item.id), `${item.id} needs its exact gate`);
     if (item.masteryKills) profile.mastery[item.weapon].kills++;
     if (item.pvpKills) profile.pvpKills++;
     reconcileCareerUnlocks(profile);
     assert.ok(profile.owned.includes(item.id));
     assert.equal(careerItemState(profile, item).eligible, true);
-    assert.equal(profile.credits, 0, 'earned cosmetics never require a credit payment');
+    assert.equal(profile.credits, undefined, 'rewards never involve a currency');
     assert.equal(reconcileCareerUnlocks(profile).length, 0, 'grants are idempotent');
     equipCareerItem(profile, item);
     assert.equal(careerItemState(profile, item).equipped, true);
   }
 
   const rifle = CAREER_CATALOG.find(item => item.id === 'rifle-overdrive');
-  assert.throws(() => career.purchase(guest, rifle.id, true), /requirements/);
+  assert.throws(() => career.equip(guest, rifle.id), /not been unlocked/);
   career.award(guest, { pvpKills: 249, mastery: { rifle: { kills: 249, headshots: 47 } } });
   assert.ok(!career.profile(guest).owned.includes(rifle.id));
   career.award(guest, { pvpKills: 1, mastery: { rifle: { kills: 1, headshots: 1 } } });
   assert.ok(career.profile(guest).owned.includes(rifle.id));
-  const equipped = career.purchase(guest, rifle.id, true);
-  assert.equal(equipped.credits, legacy.credits);
+  const equipped = career.equip(guest, rifle.id);
   assert.equal(equipped.equipped.weaponSkins.rifle, rifle.id);
   equipped.mastery.rifle.kills = 0;
   equipped.equipped.weaponSkins.rifle = 'forged';
@@ -66,7 +67,7 @@ try {
   assert.throws(() => validateProfile({ ...careerView(career.profile(guest)), equipped: { ...career.profile(guest).equipped,
     weaponSkins: { revolver: rifle.id } } }), /cosmetics/, 'wrong weapon slots are rejected in persistence');
   const forged = { ...emptyProfile(), owned: ['amber', 'rookie', rifle.id], equipped: { ...emptyProfile().equipped, weaponSkins: { rifle: rifle.id } } };
-  assert.throws(() => equipCareerItem(forged, rifle), /not been earned/);
+  assert.throws(() => equipCareerItem(forged, rifle), /not been unlocked/);
   assert.deepEqual(cosmeticLoadout(forged), defaultCosmeticLoadout(), 'forged ownership cannot bypass earned gates');
   assert.deepEqual(normalizeCosmeticLoadout({ weaponSkins: { revolver: rifle.id, rifle: 'https://evil/skin' }, sound: 'ignition', signature: 'overdrive' }), defaultCosmeticLoadout());
   const beforeInvalid = careerView(career.profile(guest));
@@ -82,9 +83,9 @@ try {
   career.dispose();
   career = new CareerService({ directory });
   assert.deepEqual(careerView(career.profile(account)), beforeInvalid, 'new fields survive restart');
-  career.purchase(account, 'standard', true, () => true, { slot: 'weaponSkin', weapon: 'rifle' });
+  career.equip(account, 'standard', () => true, { slot: 'weaponSkin', weapon: 'rifle' });
   assert.deepEqual(career.profile(account).equipped.weaponSkins, {});
-  assert.throws(() => career.purchase(account, 'standard', true, () => true, { slot: 'weaponSkin', weapon: '__proto__' }), /valid cosmetic/);
+  assert.throws(() => career.equip(account, 'standard', () => true, { slot: 'weaponSkin', weapon: '__proto__' }), /valid cosmetic/);
 
   const combatId = id(), client = { id: 'p1', profileId: combatId };
   let last;
@@ -127,7 +128,7 @@ try {
   assert.equal(career.profile(matchId).wins, 1);
   assert.equal(career.profile(matchId).matches, 1);
 
-  career.purchase(account, rifle.id, true);
+  career.equip(account, rifle.id);
   let owner = account;
   career.accounts = { identity: () => owner ? { id: owner.slice(8) } : null };
   const meta = { id: 'owner', admittedProfileId: account, profileId: account, authRequest: { headers: {} } };
@@ -136,9 +137,9 @@ try {
   const view = career.decorateSnapshot(frame(), clients);
   assert.equal(view.players[0].cosmetics.weaponSkins.rifle, rifle.id);
   assert.equal(view.events[0].cosmetics.weaponSkins.rifle, rifle.id);
-  career.purchase(account, 'standard', true, () => true, { slot: 'weaponSkin', weapon: 'rifle' });
+  career.equip(account, 'standard', () => true, { slot: 'weaponSkin', weapon: 'rifle' });
   assert.deepEqual(career.decorateSnapshot(frame(), clients).players[0].cosmetics.weaponSkins, {}, 'equipping refreshes existing online snapshots');
-  career.purchase(account, rifle.id, true);
+  career.equip(account, rifle.id);
   const pendingKill = { kind: 'kill', killer: meta.id, victim: 'other' };
   meta.room = { engine: { tickEvents: [pendingKill] } };
   career.detachClient(meta);
@@ -184,10 +185,10 @@ try {
       await store.applyProgress(pgGuest, delta, { operationId: receipt });
       await store.applyProgress(pgGuest, { ...delta, mastery: { revolver: delta.mastery.revolver, rifle: delta.mastery.rifle } }, { operationId: receipt });
       assert.equal((await store.readProfile(pgGuest)).mastery.rifle.kills, 250, 'SQL receipt dedupe covers mastery regardless of JSON key order');
-      const pgView = await store.purchase(pgGuest, rifle.id, true);
+      const pgView = await store.equip(pgGuest, rifle.id);
       assert.equal(pgView.equipped.weaponSkins.rifle, rifle.id);
-      assert.equal(pgView.credits, legacy.credits);
-      await assert.rejects(store.purchase(pgGuest, 'revenant', false), /requirements/);
+      assert.equal(pgView.credits, undefined, 'the SQL view drops the dead currency');
+      await assert.rejects(store.equip(pgGuest, 'revenant'), /not been unlocked/);
       const pgAccount = `account:${randomBytes(16).toString('hex')}`;
       await admin.query('INSERT INTO vb_accounts(id,username,password,recovery_hash,auth_version,created_at_ms,updated_at_ms) VALUES($1,$2,$3,$4,1,1,1)',
         [pgAccount.slice(8), 'CosmeticTester', '{}', 'a'.repeat(64)]);
@@ -196,7 +197,7 @@ try {
       await store.close(); store = await PostgresStore.open({ connectionString: fixture.connectionString });
       assert.deepEqual(careerView(await store.readProfile(pgAccount)), pgView, 'new SQL fields survive restart');
       assert.equal(await store.readProfile(pgGuest), null);
-      const cleared = await store.purchase(pgAccount, 'standard', true, () => true, { slot: 'weaponSkin', weapon: 'rifle' });
+      const cleared = await store.equip(pgAccount, 'standard', () => true, { slot: 'weaponSkin', weapon: 'rifle' });
       assert.deepEqual(cleared.equipped.weaponSkins, {});
       console.log('Cosmetics PostgreSQL: real schema upgrades, durable automatic grants, mastery receipts, equip/reset, guest transfer and restart passed.');
     } finally {

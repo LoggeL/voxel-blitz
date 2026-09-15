@@ -2,6 +2,7 @@ import { el, MAP_LABELS } from './hud-support.js';
 import { GUN_GAME_WEAPON_ORDER, isTeamMode, isTrainingDummyId, MODE_RULES } from '../../../shared/modes.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { gunLevel, MODE_TITLES, rankPlayers } from './mode-presentation.js';
+import { treeNode } from '../../../shared/career.js';
 
 /** Mode-specific tables, separate from the always-visible match summary. */
 export class Scoreboard {
@@ -143,6 +144,12 @@ export class Scoreboard {
       if (mode==='ttt' && player.tttRole) {
         const badge=el('span','vb-ttt-role-badge',name);
         badge.dataset.role=player.tttRole;badge.textContent=player.tttRole.toUpperCase();
+      }
+      const plate = player.cosmetics?.nameplate && player.cosmetics.nameplate !== 'standard' ? treeNode(player.cosmetics.nameplate) : null;
+      if (plate?.kind === 'nameplate') {
+        const badge = el('span', 'vb-sb-nameplate', name);
+        badge.textContent = plate.badge;
+        badge.style.setProperty('--item-color', plate.color || '#9fb6cc');
       }
       if (self) el('span', 'vb-sb-you', name).textContent = 'YOU';
       if (mode === 'snd' && player.bomb) el('span', 'vb-sb-bomb-badge', name).textContent = 'BOMB';
