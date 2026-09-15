@@ -11,8 +11,8 @@ export const ROCKET_RULES = Object.freeze({
   lifetimeMs: 4000,
   /** Direct body hit: flat damage before the splash is added. */
   directDamage: 100,
-  splashDamage: 96,
-  damageRadius: 6,
+  splashDamage: 130,
+  damageRadius: 7.5,
   /** Mild power curve: (1 - distance / radius)^exponent, zero at the edge. */
   damageFalloffExponent: 1.15,
   selfDamage: 0.55,

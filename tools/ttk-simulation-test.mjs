@@ -17,8 +17,8 @@ close(simulateFight({ weapon: 'shotgun', distance: 2 }).firstAttackDamage, 104.4
 assert.equal(simulateFight({ weapon: 'sniper', distance: 120, scenario: 'ideal-head' }).killMs, 0);
 
 const rocket = simulateFight({ weapon: 'rocket', distance: 10 });
-close(rocket.firstAttackDamage, 156.8);
-assert.equal(rocket.killMs, 250);
+close(rocket.firstAttackDamage, 184);
+assert.equal(rocket.killMs, 216.66666666666669);
 assert.equal(rocket.damageWindowMs, 0);
 assert.ok(simulateFight({ weapon: 'rocket', distance: 80 }).killMs > rocket.killMs);
 const bolt = simulateFight({ weapon: 'longarc', distance: 80, scenario: 'ideal-head' });
@@ -30,7 +30,7 @@ const halfRail = simulateFight({ weapon: 'lance', distance: 10, chargeMs: 1400, 
 assert.equal(halfRail.killMs, null);
 assert.equal(halfRail.shots, 1);
 close(halfRail.firstAttackDamage, 74.4);
-assert.equal(simulateFight({ weapon: 'lance', distance: 10 }).killMs, 2800);
+assert.equal(simulateFight({ weapon: 'lance', distance: 10 }).killMs, 2816.666666666667);
 const cold = simulateFight({ weapon: 'minigun', distance: 10 });
 const ready = simulateFight({ weapon: 'minigun', distance: 10, minigun: 'ready' });
 const hot = simulateFight({ weapon: 'minigun', distance: 10, minigun: 'hot' });

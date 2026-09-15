@@ -15,21 +15,21 @@ assert.equal(simulateFight({ weapon: 'minigun', distance: 10, minigun: 'hot' }).
 assert.equal(simulateFight({ weapon: 'flamethrower', distance: 10 }).killMs, 1350);
 
 // Hitpoints come from the actual explosion path, including scaling and rounding.
-close(simulateBlast({ direct: true }).damage, 156.8);
-close(simulateBlast({ distance: 0 }).damage, 76.8);
-close(simulateBlast({ distance: 3 }).damage, 34.64);
-close(simulateBlast({ distance: 5 }).damage, 9.76);
+close(simulateBlast({ direct: true }).damage, 184);
+close(simulateBlast({ distance: 0 }).damage, 104);
+close(simulateBlast({ distance: 3 }).damage, 57.76);
+close(simulateBlast({ distance: 5 }).damage, 29.36);
 assert.equal(simulateBlast({ distance: ROCKET_RULES.damageRadius }).damage, 0);
-assert.equal(simulateBlast({ distance: 7 }).damage, 0);
+assert.equal(simulateBlast({ distance: 8 }).damage, 0);
 assert.equal(simulateBlast({ distance: 3, blocked: true }).damage, 0);
 assert.equal(simulateBlast({ distance: 5 }).impulse, 0, 'added damage reach must not expand pressure');
 assert.equal(ROCKET_RULES.terrainRadius, 4.4);
 assert.ok(simulateBlast({ distance: 2, self: true }).damage < simulateBlast({ distance: 2 }).damage);
 assert.ok(simulateBlast({ distance: 2, self: true }).impulse > simulateBlast({ distance: 2 }).impulse);
 const armored = simulateBlast({ direct: true, armor: 100 });
-close(armored.hpLeft, 43.2);
+close(armored.hpLeft, 16);
 let previous = Infinity;
-for (let distance = 0; distance <= 7; distance += 0.125) {
+for (let distance = 0; distance <= 8; distance += 0.125) {
   const { damage } = simulateBlast({ distance });
   assert.ok(Number.isFinite(damage) && damage >= 0 && damage <= previous, 'splash decreases monotonically');
   previous = damage;
