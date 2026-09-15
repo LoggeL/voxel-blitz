@@ -2,6 +2,7 @@ import { weaponTurnProfile } from '../shared/weapon-handling.js';
 import { groundRoute, navigationWaypoint } from './bot-navigation.js';
 import { canHopObstacle } from './bot-locomotion.js';
 import { AimSteering } from './bot-aim.js';
+import { hearNoise } from './bot-hearing.js';
 // Direct-injection bots. They register with a GameEngine as pseudo-clients
 // ('bot-<i>') and drive the exact same applyInput -> integrate -> fire
 // pipeline humans use, so balance is identical. No sockets anywhere.
@@ -11,14 +12,17 @@ import { AimSteering } from './bot-aim.js';
 // delayed recognition and a brief search of the last observed position,
 // burst-fire combat (3-5 shots then a 300 ms breath), shrinking aim error as
 // engagement time ramps skill, velocity-continuous aim curves with
-// time-correlated wander (see bot-aim.js), perpendicular strafing while fighting, panic
-// retreat to a side-on cover spot under 30 hp, dry-mid-fight weapon cycling,
-// and a stuck watchdog that reroutes anything wedged on geometry.
+// time-correlated wander, skill-scaled lead on moving targets and a simulated
+// view kick the bot pulls against (see bot-aim.js), hearing of gunshots and
+// hurried footsteps that sends an idle bot to investigate (see bot-hearing.js),
+// perpendicular strafing while fighting, panic retreat to a cover spot the
+// enemy cannot see, dry-mid-fight weapon cycling, and a stuck watchdog that
+// reroutes anything wedged on geometry.
 
 import {
   AIR, FLUID_BLOCKS, worldDimensions, GROUND,
 } from '../shared/worlddata.js';
-import { WEAPON_IDS } from '../shared/combatmath.js';
+import { WEAPON_IDS, computeRecoilKickDeg } from '../shared/combatmath.js';
 import { DEFAULT_WEAPON_ID, WEAPON_PRICES } from '../shared/modes.js';
 import { MAX_BOTS } from '../shared/lobby-limits.js';
 import { mulberry32 } from '../shared/noise.js';
@@ -38,6 +42,11 @@ const RETREAT_HP = 30;            // coward line
 const RETREAT_MS = 4000;          // how long a retreat lasts
 const RETREAT_COOLDOWN_MS = 2500; // before the next panic
 const STRAFE_HZ = 1.5;            // perpendicular wobble while fighting
+const LEAD_S = 0.08;              // seconds of target motion a fully skilled bot leads
+const SCAN_EVERY = 2;             // idle bots look for new targets every n ticks
+const LISTEN_EVERY = 3;           // ... and listen every n ticks
+const HEARD_STEP_MS = 2500;       // how long footsteps stay worth a look
+const RECOIL_RESET_DEFAULT_MS = 280;
 const JUMP_CD_MS = 650;           // between hops
 const STUCK_WINDOW_MS = 1000;     // displacement sample window
 const STUCK_DIST = 0.35;          // less than this over the window == wedged
@@ -146,7 +155,11 @@ class Brain {
     if (!isBotPersonality(this.personality)) this.personality = DEFAULT_BOT_PERSONALITY;
     this.seq = 0;
     this.skill = 0.25 + rng() * 0.3;   // ramps toward 1 while fighting
-    this.aim = new AimSteering();      // eased yaw/pitch curves + correlated wander
+    this.aim = new AimSteering();      // eased yaw/pitch curves + correlated wander + kick
+    this.lastShotSeq = -1;
+    this.lastShotAt = 0;
+    this.recoilIndex = 0;
+    this.shotSeqHeard = new Map();     // entity id -> shotSeq at the last listen
     this.state = 'roam';               // 'roam' | 'fight' | 'search' | 'retreat'
     this.roamTarget = null;
     this.roamDeadline = 0;
@@ -212,6 +225,7 @@ class BotManager {
     this.game = game;
     this.solidAt = this.game.solidAt;
     this.brains = [];
+    this.tickIndex = 0;                 // staggers idle scans and listening across bots
     this._unhook = game.registerTickHook((dt) => this.tick(dt * 1000));
     this.setCount(n | 0);
   }
@@ -255,6 +269,7 @@ class BotManager {
   tick(dtMs) {
     const dtS = dtMs / 1000;
     const now = this.game.now;
+    this.tickIndex++;
     for (let i = this.brains.length - 1; i >= 0; i--) {
       const br = this.brains[i];
       const p = this.game.entities.get(br.id);
@@ -309,6 +324,9 @@ class BotManager {
       }
     }
     if (br) { br.enemyId = null; br.sighting = null; }
+    // Nothing held: a fresh sweep costs five raycasts per candidate, so idle
+    // bots take turns. First contact moves by at most one skipped tick.
+    if (br && (this.tickIndex + br.index) % SCAN_EVERY) return null;
     let best = null, bestSighting = null, bestD = Infinity;
     for (const o of this.game.entities.values()) {
       if (o === held || o.state !== 'alive' || !this.game.mode.isEnemy(p, o)) continue;
@@ -318,6 +336,23 @@ class BotManager {
       }
     }
     if (best && br) { br.enemyId = best.id; br.sighting = bestSighting; }
+    return best;
+  }
+
+  /** Loudest enemy noise this bot can hear right now, or null. */
+  listen(br, p, profile) {
+    const rangeScale = profile.sightRange / 120;
+    let best = null;
+    for (const o of this.game.entities.values()) {
+      if (o === p || o.state !== 'alive' || !this.game.mode.isEnemy(p, o)) continue;
+      const seen = br.shotSeqHeard.get(o.id);
+      const fired = seen !== undefined && seen !== o.shotSeq;
+      br.shotSeqHeard.set(o.id, o.shotSeq);
+      const noise = hearNoise(p, o, fired, this.solidAt, rangeScale);
+      if (!noise) continue;
+      const rank = (noise.kind === 'shot' ? 10 : 0) + noise.loudness;
+      if (!best || rank > best.rank) best = { ...noise, rank, id: o.id, lives: o.lives };
+    }
     return best;
   }
 
@@ -468,6 +503,17 @@ class BotManager {
       br.inBurst = false;
       br.engagedMs = 0;
     }
+    // Ears fill in when the eyes have nothing: a heard position becomes a
+    // remembered one. Sight memory of the same body is refreshed, a gunshot
+    // outranks footsteps, and footsteps never overwrite a fresh sighting.
+    if (!enemy && combatAllowed && !objectiveUrgent && (this.tickIndex + br.index) % LISTEN_EVERY === 0) {
+      const heard = this.listen(br, p, profile);
+      if (heard && (!br.lastSeen || br.lastSeen.id === heard.id || br.lastSeen.heard || heard.kind === 'shot')) {
+        br.lastSeen = { id: heard.id, lives: heard.lives, heard: true,
+          until: now + (heard.kind === 'shot' ? profile.searchMs : HEARD_STEP_MS),
+          position: heard.position };
+      }
+    }
     const remembered = br.lastSeen && this.game.entities.get(br.lastSeen.id);
     if (br.lastSeen && (now >= br.lastSeen.until || remembered?.state !== 'alive'
         || remembered.lives !== br.lastSeen.lives || !this.game.mode.isEnemy(p, remembered))) {
@@ -495,8 +541,14 @@ class BotManager {
       const px = -dz / pl, pz = dx / pl;                    // perpendicular
       const cA = standable(this.game.world, (p.x + px * 8) | 0, (p.z + pz * 8) | 0, p.y);
       const cB = standable(this.game.world, (p.x - px * 8) | 0, (p.z - pz * 8) | 0, p.y);
-      const farthest = (s) => (s ? dist3(s.x, s.y, s.z, enemy.x, enemy.y, enemy.z) : -1);
-      br.roamTarget = farthest(cA) >= farthest(cB)
+      // Cover the enemy cannot see wins outright; distance breaks ties.
+      const hidden = (s) => {
+        const dx = s.x - enemy.x, dy = (s.y + 1.2) - enemy.eyeY, dz = s.z - enemy.z;
+        const len = Math.hypot(dx, dy, dz) || 1;
+        return !!raycastVoxels(this.solidAt, enemy.x, enemy.eyeY, enemy.z, dx / len, dy / len, dz / len, len);
+      };
+      const score = (s) => (s ? (hidden(s) ? 1000 : 0) + dist3(s.x, s.y, s.z, enemy.x, enemy.y, enemy.z) : -1);
+      br.roamTarget = score(cA) >= score(cB)
         ? (cA || cB || randSpot(this.game.world, br.rng, p))
         : (cB || cA || randSpot(this.game.world, br.rng, p));
       br.roamDeadline = now + RETREAT_MS;
@@ -578,12 +630,28 @@ class BotManager {
     // Aim error shrinks as the fight wears on.
     const errFactor = Math.max(0.55, 1 - br.engagedMs / 4000);
 
+    // Every accepted shot kicks the view the way the client kicks a human's.
+    if (p.shotSeq !== br.lastShotSeq) {
+      if (br.lastShotSeq >= 0 && p.def.recoil) {
+        if (now - br.lastShotAt > (p.def.recoil.resetMs || RECOIL_RESET_DEFAULT_MS)) br.recoilIndex = 0;
+        const kick = computeRecoilKickDeg(p.def, br.recoilIndex++, p.adsT, br.rng());
+        br.aim.kick(kick.yaw, kick.pitch);
+      }
+      br.lastShotSeq = p.shotSeq;
+      br.lastShotAt = now;
+    }
+    const recoil = br.aim.recoil(dtS, br.skill);
+
     let canShoot = false;
     if (combatMovement) {
       br.engagedMs += engageMsDelta;
 
-      // Aim at an actually exposed part of the current stance.
-      const aim = br.sighting.aimPoint;
+      // Aim at an actually exposed part of the current stance, led by the
+      // target's horizontal motion in proportion to skill so the eased
+      // steering does not trail a strafing enemy.
+      const leadS = LEAD_S * br.skill;
+      const aim = [br.sighting.aimPoint[0] + (enemy.vx || 0) * leadS, br.sighting.aimPoint[1],
+        br.sighting.aimPoint[2] + (enemy.vz || 0) * leadS];
       const yawT = Math.atan2(-(aim[0] - p.x), -(aim[2] - p.z));
       const flat = Math.hypot(aim[0] - p.x, aim[2] - p.z) || 1;
       const pitchT = Math.atan2(aim[1] - eye[1], flat);
@@ -591,9 +659,15 @@ class BotManager {
       const sigmaRad = sigmaDeg * Math.PI / 180;
       // Correlated wander drifts the intended point; the eased steering
       // follows it, so the crosshair moves in curves rather than tick jitter.
+      // The view kick rides on top: strip last tick's residual, steer the
+      // clean aim, add this tick's residual back.
       const wander = br.aim.wander(dtS, sigmaRad, 0.6, br.rng);
-      inp.yaw = br.aim.steer('yaw', p.yaw, wrapAngle(yawT + wander.yaw), turnRate, dtS);
-      inp.pitch = br.aim.steer('pitch', p.pitch, Math.max(-1.4, Math.min(1.4, pitchT + wander.pitch)), pitchTurnRate, dtS);
+      const intendedYaw = wrapAngle(yawT + wander.yaw);
+      const intendedPitch = Math.max(-1.4, Math.min(1.4, pitchT + wander.pitch));
+      const baseYaw = br.aim.steer('yaw', wrapAngle(p.yaw - recoil.prev.yaw), intendedYaw, turnRate, dtS);
+      const basePitch = br.aim.steer('pitch', p.pitch - recoil.prev.pitch, intendedPitch, pitchTurnRate, dtS);
+      inp.yaw = wrapAngle(baseYaw + recoil.yaw);
+      inp.pitch = Math.max(-1.5, Math.min(1.5, basePitch + recoil.pitch));
       inp.wantAds = flat > 28 && p.def.id === 'sniper';
 
       // Ammo logistics mid-fight: reload, else cycle to any loaded slot.
@@ -609,11 +683,13 @@ class BotManager {
         }
       }
 
-      // Burst discipline: 3-5 shots, then a breath.
+      // Burst discipline: 3-5 shots, then a breath. The trigger waits for
+      // the steering to settle on where the bot believes the target is; the
+      // wander and any uncorrected kick then land as misses, not hesitation.
       const aimDistance = Math.hypot(flat, aim[1] - eye[1]);
       canShoot = br.noticeProgress >= 1
-        && Math.abs(wrapAngle(inp.yaw - yawT)) < AIM_TOLERANCE
-        && Math.abs(inp.pitch - pitchT) < AIM_TOLERANCE
+        && Math.abs(wrapAngle(baseYaw - intendedYaw)) < AIM_TOLERANCE
+        && Math.abs(basePitch - intendedPitch) < AIM_TOLERANCE
         && !raycastVoxels(this.solidAt, ...eye,
           -Math.sin(inp.yaw) * Math.cos(inp.pitch), Math.sin(inp.pitch),
           -Math.cos(inp.yaw) * Math.cos(inp.pitch), aimDistance);
@@ -638,6 +714,7 @@ class BotManager {
       }
     } else {
       br.engagedMs = 0;
+      br.aim.dropKick();
     }
 
     // Releasing an obscured charge would still shoot through cover. Discard

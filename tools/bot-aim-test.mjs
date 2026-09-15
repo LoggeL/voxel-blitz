@@ -95,3 +95,31 @@ const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
 }
 
 console.log('ok: bot aim steering eases in/out, tracks, resets on snaps and wanders smoothly');
+
+// Simulated view kick: a shot lifts the view at once; skill decides how fast
+// the shooter pulls it back down.
+{
+  const slow = new AimSteering();
+  const fast = new AimSteering();
+  slow.kick(0.3, 0.7);
+  fast.kick(0.3, 0.7);
+  const kicked = slow.recoil(0, 0.2);
+  assert.ok(Math.abs(kicked.pitch - 0.7 * Math.PI / 180) < 1e-12, 'kick is applied in radians');
+  assert.equal(kicked.prev.pitch, kicked.pitch, 'zero dt neither adds nor removes kick');
+  let slowResidual = 0, fastResidual = 0;
+  for (let tick = 0; tick < 12; tick++) {           // 200 ms
+    slowResidual = slow.recoil(DT, 0.2).pitch;
+    fastResidual = fast.recoil(DT, 1).pitch;
+  }
+  assert.ok(fastResidual < slowResidual * 0.2, `skilled shooters recover much faster (${fastResidual} vs ${slowResidual})`);
+  assert.ok(slowResidual > 0.4 * 0.7 * Math.PI / 180, 'a novice still carries most of the kick after 200 ms');
+  const before = slow.recoil(DT, 0.2);
+  assert.ok(before.prev.pitch > before.pitch, 'the residual before the tick exceeds the one after');
+  slow.dropKick();
+  assert.equal(slow.recoil(DT, 0.2).pitch, 0, 'dropKick clears the residual');
+  fast.kick(0, 1);
+  fast.reset();
+  assert.equal(fast.kickPitch, 0, 'reset clears the residual too');
+}
+
+console.log('ok: bot view kick is applied and recovered by skill');

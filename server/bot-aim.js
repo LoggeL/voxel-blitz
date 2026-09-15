@@ -10,6 +10,11 @@
 //     which jitters the crosshair at tick rate. The wander here is a slow
 //     drift plus a faster tremor, both mean-reverting, with the same
 //     stationary spread as before so hit rates are unchanged.
+//  3. Simulated view kick. Humans see their view jump with every shot and
+//     pull against it; the server only ever receives the corrected angles.
+//     Bots get the same kick applied on top of their steered aim and bleed
+//     it off at a skill-dependent rate, so low-skill bots climb during a
+//     spray and high-skill bots hold the pattern down.
 //
 // No renderer, network or engine dependency; pure state + math.
 
@@ -20,6 +25,9 @@ const DRIFT_TAU_S = 0.45;     // slow wander correlation time
 const TREMOR_TAU_S = 0.12;    // fast wander correlation time
 const TREMOR_WEIGHT = 0.45;   // drift² + tremor² == 1 keeps the stationary spread
 const DRIFT_WEIGHT = Math.sqrt(1 - TREMOR_WEIGHT ** 2);
+const KICK_TAU_SLOW_S = 0.55;  // recoil recovery time constant at skill 0
+const KICK_TAU_FAST_S = 0.08;  // ... and at skill 1
+const DEG = Math.PI / 180;
 
 const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
 
@@ -40,12 +48,41 @@ export class AimSteering {
     this.pitch = { v: 0, last: null };
     this.driftYaw = 0; this.driftPitch = 0;
     this.tremorYaw = 0; this.tremorPitch = 0;
+    this.kickYaw = 0; this.kickPitch = 0;
   }
 
-  /** Drop momentum, e.g. on respawn. Wander state is harmless to keep. */
+  /** Drop momentum and kick, e.g. on respawn. Wander state is harmless to keep. */
   reset() {
     this.yaw.v = 0; this.yaw.last = null;
     this.pitch.v = 0; this.pitch.last = null;
+    this.kickYaw = 0; this.kickPitch = 0;
+  }
+
+  /** Forget any uncorrected kick, e.g. when the fight ends. */
+  dropKick() {
+    this.kickYaw = 0; this.kickPitch = 0;
+  }
+
+  /** One shot's view kick in degrees, as the client would apply it. */
+  kick(yawDeg, pitchDeg) {
+    this.kickYaw += yawDeg * DEG;
+    this.kickPitch += pitchDeg * DEG;
+  }
+
+  /**
+   * Pull against the accumulated kick for one tick. Returns the residual
+   * offset that still sits on the view before and after this tick, so the
+   * caller can strip the old residual off the authoritative angles, steer
+   * the clean aim, and add the new residual back on.
+   */
+  recoil(dt, skill) {
+    const prev = { yaw: this.kickYaw, pitch: this.kickPitch };
+    const s = Math.max(0, Math.min(1, skill));
+    const tau = KICK_TAU_SLOW_S + (KICK_TAU_FAST_S - KICK_TAU_SLOW_S) * s;
+    const keep = dt > 0 ? Math.exp(-dt / tau) : 1;
+    this.kickYaw *= keep;
+    this.kickPitch *= keep;
+    return { prev, yaw: this.kickYaw, pitch: this.kickPitch };
   }
 
   /**
