@@ -165,7 +165,7 @@ const PASSTHROUGH_FIELDS = [
   'burning', 'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt', 'cosmetics', 'attachments',
   'breathReserve', 'breathExhausted', 'breathReleasedFor',
   'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
-  'grenades', 'charge', 'minigun', 'impulse',
+  'grenades', 'charge', 'minigun', 'impulse', 'disguised',
   'npcRole', 'npcAttack', 'bastion', 'bastionUpgrades',
 ];
 

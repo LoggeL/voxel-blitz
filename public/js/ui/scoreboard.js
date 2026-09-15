@@ -25,7 +25,7 @@ export class Scoreboard {
     if (!this.root) return;
     match ??= {};
     const mode = match?.mode || 'fun';
-    const identified = new Map((match.corpses || []).filter(body => body.identified && body.playerId != null)
+    const identified = new Map((match.corpses || []).filter(body => body.identified && body.playerId != null && !body.fake)
       .map(body => [String(body.playerId), body]));
     const roster = (players || []).filter((p) => p && !isTrainingDummyId(p.id))
       .map(p => mode === 'ttt' ? {...p,
@@ -113,11 +113,12 @@ export class Scoreboard {
     const table = el('table', '', parent);
     const head = el('tr', '', el('thead', '', table));
     const columns = this.resultPresentation
-      ? ['#', 'PLAYER', ...(mode === 'gungame' ? ['WEAPON'] : ['K', 'D']), ...(mode === 'snd' ? ['STATUS'] : [])]
+      ? ['#', 'PLAYER', ...(mode === 'gungame' ? ['WEAPON'] : mode === 'ttt' ? [] : ['K', 'D']), ...(mode === 'snd' ? ['STATUS'] : [])]
       : mode === 'training' ? ['PLAYER']
       : mode === 'gungame' ? ['#', 'PLAYER', 'WEAPON']
         : mode === 'snd' ? ['PLAYER', 'K', 'D', 'STATUS']
           : mode === 'tdm' ? ['PLAYER', 'KILLS', 'DEATHS']
+            : mode === 'ttt' ? ['#', 'PLAYER']
             : ['#', 'PLAYER', 'KILLS', 'DEATHS'];
     if (mode === 'ttt') columns.push('STATUS', 'KARMA');
     columns.push('PING');
@@ -150,7 +151,7 @@ export class Scoreboard {
         const cell = el('td', 'vb-sb-progress', tr);
         el('strong', '', cell).textContent = `${level}/${GUN_GAME_WEAPON_ORDER.length}`;
         el('span', '', cell).textContent = WEAPONS[GUN_GAME_WEAPON_ORDER[level - 1]]?.name || '';
-      } else if (mode !== 'training') {
+      } else if (mode !== 'training' && mode !== 'ttt') {
         el('td', 'vb-sb-number', tr).textContent = String(player.kills | 0);
         el('td', 'vb-sb-number', tr).textContent = String(player.deaths | 0);
         if (mode === 'snd') el('td', 'vb-sb-state', tr).textContent = dead ? 'OUT' : 'ALIVE';

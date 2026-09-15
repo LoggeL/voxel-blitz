@@ -16,6 +16,8 @@ export const TTT_SHOP = Object.freeze({
     description: 'Startet sofort. Markiert lebende Spieler mit Entfernung im Sichtfeld. Neue Positionen alle 30 Sekunden; rote Kontakte sind deine Mitstreiter.', price: 1, permanent: true },
   disguiser: { name: 'Disguiser', category: 'Täuschung', detail: 'Verbirg deine Identität',
     description: 'Blendet deinen Namen und deine Gesundheitsanzeige über dem Charakter aus. Du bleibst sichtbar. Nach dem Kauf aktiv; hier jederzeit umschaltbar.', price: 1, permanent: true },
+  fakebody: { name: 'Fake-Leiche', category: 'Täuschung', detail: 'Deine Leiche, ohne zu sterben',
+    description: 'Legt eine täuschend echte Leiche von dir ab. Identifizieren zeigt dich als unschuldig; dein Scoreboard-Status bleibt lebend. Eine Ladung pro Runde.', price: 1, permanent: true },
   teleporter: { name: 'Teleporter', category: 'Flucht', detail: 'Dein geheimer Rückweg',
     description: 'Merke einen sicheren Bodenpunkt und springe bis zu 3-mal zurück. 20 Sekunden Pause pro Sprung. Blockierte oder besetzte Ziele kosten keine Ladung.', price: 1, permanent: true },
   c4: { name:'C4', category:'Sabotage', detail:'Eine Ladung · 45 Sekunden',
@@ -27,7 +29,7 @@ export const TTT_SHOP = Object.freeze({
   ammo: { name: 'Munition', category: 'Versorgung', detail: 'Reservemunition auffüllen',
     description: 'Füllt die Reserve deiner getragenen Waffe auf. Das Magazin musst du selbst nachladen.', price: 1 },
 });
-export const TTT_EQUIPMENT_ACTIONS = Object.freeze(['disguise-on', 'disguise-off', 'teleport-mark', 'teleport-return', 'c4-place']);
+export const TTT_EQUIPMENT_ACTIONS = Object.freeze(['disguise-on', 'disguise-off', 'teleport-mark', 'teleport-return', 'c4-place', 'fakebody-place']);
 export function isTttRequest(value) {
   return typeof value === 'string' && (/^ttt:(pickup|inspect):[0-9]+$/.test(value) || isTrapRequest(value)
     || value === 'ttt:drop' || (value.startsWith('ttt:')

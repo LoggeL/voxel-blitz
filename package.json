@@ -9,7 +9,7 @@
     "smoke": "node tools/smoke.mjs",
     "container:smoke": "node tools/container-smoke.mjs",
     "lobby": "node tools/lobby-smoke.mjs",
-    "ttt:test": "node tools/ttt-test.mjs && node tools/ttt-lobby-share-test.mjs && node tools/ttt-karma-test.mjs && node tools/ttt-equipment-test.mjs && node tools/ttt-corpses-test.mjs && node tools/ttt-explosives-test.mjs && node tools/ttt-traps-test.mjs",
+    "ttt:test": "node tools/ttt-test.mjs && node tools/ttt-lobby-share-test.mjs && node tools/ttt-karma-test.mjs && node tools/ttt-equipment-test.mjs && node tools/ttt-fakebody-test.mjs && node tools/ttt-corpses-test.mjs && node tools/ttt-explosives-test.mjs && node tools/ttt-traps-test.mjs",
     "ttt:browser": "node tools/ttt-browser-test.mjs && node tools/ttt-equipment-browser-test.mjs && node tools/ttt-investigation-browser-test.mjs",
     "rounds:test": "node tools/round-continuation-test.mjs",
     "rounds:browser": "node tools/round-continuation-browser-test.mjs && node tools/round-result-large-browser-test.mjs",

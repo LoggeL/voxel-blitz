@@ -144,9 +144,27 @@ export class TttPolicy extends FunPolicy {
       ? this.equipment.action(p, item) : this.equipment.buy(p, item);
   }
 
+  /** A traitor plants a convincing corpse of themselves. Identifying it reports them as innocent. */
+  placeFakeBody(player) {
+    const p = this._entity(player);
+    if (!p || p.state !== 'alive') return false;
+    for (const [id, body] of this.corpses) {
+      if (body.fake && body.playerId === String(p.id)) this.corpses.delete(id);
+    }
+    const id = String(++this.serial);
+    this.corpses.set(id, { id, playerId: String(p.id), name: p.name, role: 'innocent',
+      x: p.x, y: p.y, z: p.z, yaw: p.yaw, weapon: WEAPON_IDS[p.weapon] ?? '',
+      diedAt: this.now, identified: false, fake: true });
+    return true;
+  }
   onPlayerDeath(victim, killer, context = {}) {
     const p = this._entity(victim);
     if (!p) return false;
+    // A real death replaces the planted fake: otherwise the same-player dedupe
+    // below would suppress the genuine corpse.
+    for (const [id, body] of this.corpses) {
+      if (body.fake && body.playerId === String(p.id)) this.corpses.delete(id);
+    }
     if (this.phase === 'live' && this.roles.has(String(p.id)) &&
         ![...this.corpses.values()].some(body=>body.playerId===String(p.id))) {
       const id=String(++this.serial);
@@ -215,7 +233,8 @@ export class TttPolicy extends FunPolicy {
       weaponPickups: [...this.pickups.values()].map(({mag,reserve,...item})=>item),
       c4: this.equipment.bombSnapshot(),
       corpses: [...this.corpses.values()].map(body=>({id:body.id,x:body.x,y:body.y,z:body.z,yaw:body.yaw,identified:body.identified,
-        ...(body.identified||this.phase==='post'?{playerId:body.playerId,name:body.name,role:body.role,weapon:body.weapon,diedAt:body.diedAt}: {})})),
+        ...(body.identified||this.phase==='post'?{playerId:body.playerId,name:body.name,role:body.role,weapon:body.weapon,diedAt:body.diedAt,
+          ...(body.fake?{fake:true}:{})}: {})})),
       ...(this.phase==='post'?{ revealedRoles: Object.fromEntries(this.roles),
         roleRoster:[...this.roles].map(([id,role])=>({id,role,name:this.participants.get(id)||id})) }: {}) };
   }

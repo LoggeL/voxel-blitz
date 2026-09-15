@@ -36,6 +36,7 @@ export class TttEquipment {
     if (!def.permanent && !applyPowerup(player, item)) return false;
     if (item === 'radar') gear.radar = this.scan(player);
     if (item === 'disguiser') gear.disguised = true;
+    if (item === 'fakebody') gear.fakeBodies = 1;
     if (item === 'teleporter') gear.teleporter = { mark: null, uses: TTT_GADGET_RULES.teleportUses, readyAt: 0 };
     if (item === 'c4') gear.c4 = 1;
     if (def.permanent) gear.owned.push(item);
@@ -81,6 +82,11 @@ export class TttEquipment {
       this.bombs.set(id,{id,ownerId:String(player.id),owner:player,x:player.x,y:player.y+.2,z:player.z,explodeAt:this.engine.now+TTT_C4.fuseMs});
       gear.c4=0;return true;
     }
+    if (action === 'fakebody-place') {
+      if (!gear.fakeBodies || !player.grounded || player.vault || !solidBelow(this.engine.solidAt, player.x, player.y, player.z)) return false;
+      gear.fakeBodies = 0;
+      return this.policy.placeFakeBody(player);
+    }
     if (action === 'disguise-on' || action === 'disguise-off') {
       if (!gear.owned.includes('disguiser')) return false;
       gear.disguised = action === 'disguise-on';
@@ -115,7 +121,7 @@ export class TttEquipment {
     const now = this.engine.now;
     return {
       equipment: gear?.owned.slice() ?? [], disguised: gear?.disguised ?? false,
-      c4:gear?.c4??0,
+      c4:gear?.c4??0, fakeBodies:gear?.fakeBodies??0,
       radar: gear?.radar ? { ...gear.radar, contacts: gear.radar.contacts.map(p => ({ ...p })) } : null,
       teleporter: gear?.teleporter ? { ...gear.teleporter, mark: gear.teleporter.mark ? { ...gear.teleporter.mark } : null,
         cooldown: Math.max(0, Math.ceil((gear.teleporter.readyAt - now) / 1000)) } : null,

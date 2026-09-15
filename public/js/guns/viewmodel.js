@@ -130,6 +130,7 @@ export class ViewmodelRig {
 
   setCosmetics(loadout) {
     this._cosmetics = loadout;
+    this._vaultHands.setCosmetics(loadout);
     for (const [weapon, model] of Object.entries(this._models)) applyGunCosmetics(model, weapon, loadout);
   }
 

@@ -70,6 +70,7 @@ export class TttControls {
       self?.ttt?.role==='traitor'?`TRAITOR · Eliminiere die Innocents. ${self.ttt.credits} Credits.${allies?.length?' Verbündete: '+allies.join(', '):''}`:'INNOCENT · Finde und stoppe die Traitors.';
     const gear=[`Karma: ${self?.karma ?? 1000} · Schaden: ${Math.round((self?.ttt?.damageFactor ?? 1) * 100)} %`];
     if(self?.ttt?.c4)gear.push(`C4 bereit · ${bindingLabel('buy')} zum Platzieren`);
+    if(self?.ttt?.equipment?.includes('fakebody'))gear.push(self.ttt.fakeBodies?`Fake-Leiche bereit · ${bindingLabel('buy')} zum Legen`:'Fake-Leiche gelegt');
     if(self?.ttt?.equipment?.includes('disguiser'))gear.push(self.ttt.disguised?'Identität verborgen':'Identität sichtbar');
     if(self?.ttt?.teleporter)gear.push(`Teleporter: ${self.ttt.teleporter.uses} Ladungen · ${bindingLabel('buy')} für Steuerung`);
     this.gearInfo.textContent=gear.join(' · ');this.gearInfo.hidden=gear.length===0;
