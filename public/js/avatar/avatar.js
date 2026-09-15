@@ -263,18 +263,25 @@ export function beginAvatarDeath(av, now, impact = null) {
     const limb = av.limbStates[i];
     const seed = hashInt(`${av.id}|${i}|${headshot ? 1 : 0}`);
     const angle = (seed / 0xffffffff) * Math.PI * 2;
-    const radial = 5.8 + ((seed >>> 8) & 255) / 255 * 4.2;
-    const boost = headshot && i === 0 ? 1.55 : 1;
+    const radial = 9.5 + ((seed >>> 8) & 255) / 255 * 5.5;
+    const boost = headshot && i === 0 ? 1.9 : 1;
+    // Shove away from the blast: parts on the far side of the impact fly hardest.
+    let bx = 0, by = 0, bz = 0;
+    if (Number.isFinite(impact?.vx) && Number.isFinite(impact?.vy) && Number.isFinite(impact?.vz)) {
+      const dx = limb.object.position.x - impact.vx, dy = limb.object.position.y - impact.vy, dz = limb.object.position.z - impact.vz;
+      const len = Math.hypot(dx, dy, dz) || 1;
+      bx = dx / len * 5; by = dy / len * 5 + 2; bz = dz / len * 5;
+    }
     prepareDeathPart(limb);
     limb.velocity.set(
-      Math.cos(angle) * radial * boost,
-      (6.2 + ((seed >>> 16) & 255) / 255 * 3.8) * boost,
-      Math.sin(angle) * radial * boost,
+      (Math.cos(angle) * radial + bx) * boost,
+      ((9 + ((seed >>> 16) & 255) / 255 * 5) + by) * boost,
+      (Math.sin(angle) * radial + bz) * boost,
     );
     limb.angular.set(
-      (((seed >>> 3) & 15) - 7.5) * 1.5,
-      (((seed >>> 11) & 15) - 7.5) * 1.24,
-      (((seed >>> 19) & 15) - 7.5) * 1.6,
+      (((seed >>> 3) & 15) - 7.5) * 2.6,
+      (((seed >>> 11) & 15) - 7.5) * 2.1,
+      (((seed >>> 19) & 15) - 7.5) * 2.7,
     );
   }
   setAvatarFlash(av, 0);

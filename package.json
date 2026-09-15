@@ -15,7 +15,7 @@
     "rounds:browser": "node tools/round-continuation-browser-test.mjs && node tools/round-result-large-browser-test.mjs",
     "duel:test": "node tools/duel-test.mjs",
     "modes:lobby": "node tools/mode-lobby-smoke.mjs",
-    "modes:bots": "node tools/bot-navigation-test.mjs && node tools/bot-perception-test.mjs && node tools/bot-difficulty-test.mjs && node tools/bot-mode-smoke.mjs",
+    "modes:bots": "node tools/bot-navigation-test.mjs && node tools/bot-perception-test.mjs && node tools/bot-difficulty-test.mjs && node tools/bot-mode-smoke.mjs && node tools/bot-water-test.mjs",
     "maps:test": "node tools/nuketown-test.mjs && node tools/nuketown-lobby-test.mjs && node tools/dust2-test.mjs && node tools/dust2-movement-test.mjs && node tools/dust2-lobby-test.mjs && node tools/large-maps-test.mjs && node tools/large-maps-lobby-test.mjs && node tools/large-map-navigation-test.mjs && node tools/large-map-light-test.mjs && node tools/minecraft-b5-test.mjs && node tools/minecraft-b5-lobby-test.mjs",
     "maps:browser": "node tools/dust2-browser-test.mjs",
     "waterworld:test": "node tools/waterworld-test.mjs && node tools/waterworld-lobby-test.mjs",

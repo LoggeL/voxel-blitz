@@ -1,5 +1,6 @@
 import { worldDimensions } from '../shared/world/dimensions.js';
 import { PHYSICS, boxCollides, solidBelow } from '../shared/player-movement.js';
+import { FLUID_BLOCKS } from '../shared/worlddata.js';
 
 const GRIDS = new WeakMap();
 const CELL = 2;
@@ -54,7 +55,10 @@ export function groundSegmentClear(world, from, to) {
 
 function refreshNode(graph, node) {
   const point = pointAt(graph, node), x = node % graph.width, z = Math.floor(node / graph.width);
+  const wx = Math.floor(point.x), wz = Math.floor(point.z);
+  const wet = [0, 1, 2].some(dy => FLUID_BLOCKS.has(graph.world.getBlock(wx, graph.floor + dy, wz)));
   graph.walk[node] = x >= 1 && z >= 1 && x < graph.width - 1 && z < graph.depth - 1
+    && !wet
     && !boxCollides(graph.solid, point.x, graph.floor, point.z)
     && solidBelow(graph.solid, point.x, graph.floor, point.z) ? 1 : 0;
 }

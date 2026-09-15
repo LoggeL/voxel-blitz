@@ -14,7 +14,7 @@ import { canHopObstacle } from './bot-locomotion.js';
 // and a stuck watchdog that reroutes anything wedged on geometry.
 
 import {
-  AIR, worldDimensions, GROUND,
+  AIR, FLUID_BLOCKS, worldDimensions, GROUND,
 } from '../shared/worlddata.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { DEFAULT_WEAPON_ID, WEAPON_PRICES } from '../shared/modes.js';
@@ -24,6 +24,7 @@ import { raycastVoxels } from '../shared/raycast.js';
 import { DUST2_NAV_FLOORS, dust2FloorsAt } from '../shared/world/dust2-layout.js';
 import { observeBotTarget, recognitionThreshold } from './bot-perception.js';
 import { botDifficulty, DEFAULT_BOT_DIFFICULTY, isBotDifficulty } from '../shared/bot-difficulty.js';
+import { BOT_PERSONALITIES, DEFAULT_BOT_PERSONALITY, isBotPersonality, rollBotPersonality } from '../shared/bot-personality.js';
 import { cancelCharge } from './sim/combat.js';
 
 const TAU = Math.PI * 2;
@@ -75,7 +76,7 @@ function standable(world, x, z, preferredY = null) {
     const floors = [...dust2FloorsAt(x, z)];
     if (preferredY !== null) floors.sort((a, b) => Math.abs(a + 1 - preferredY) - Math.abs(b + 1 - preferredY));
     for (const h of floors) {
-      if (world.getBlock(x, h, z) !== AIR
+      if (world.getBlock(x, h, z) !== AIR && !FLUID_BLOCKS.has(world.getBlock(x, h, z))
         && world.getBlock(x, h + 1, z) === AIR && world.getBlock(x, h + 2, z) === AIR) {
         return { x: x + 0.5, y: h + 1.02, z: z + 0.5 };
       }
@@ -87,6 +88,7 @@ function standable(world, x, z, preferredY = null) {
   if (h < lowest || h > highest) return null;
   if (world.getBlock(x, h, z) === AIR) return null;
   if (world.getBlock(x, h + 1, z) !== AIR || world.getBlock(x, h + 2, z) !== AIR) return null;
+  if (FLUID_BLOCKS.has(world.getBlock(x, h, z))) return null;
   return { x: x + 0.5, y: h + 1.02, z: z + 0.5 };
 }
 
@@ -108,6 +110,17 @@ function randSpot(world, rng, from) {
   }
   if (Number.isFinite(world.meta?.navigationFloor)) return { x: from.x, y: from.y, z: from.z };
   return { x: SX / 2, y: (world.meta?.groundLevel ?? GROUND) + 1.02, z: SZ / 2 };
+}
+/** Spiral out from a swimmer to the closest dry, standable footing. */
+function nearestDry(world, from) {
+  for (let r = 2; r <= 12; r += 2) {
+    for (let k = 0; k < 8; k++) {
+      const a = (k / 8) * Math.PI * 2;
+      const spot = standable(world, from.x + Math.cos(a) * r, from.z + Math.sin(a) * r, from.y);
+      if (spot) return spot;
+    }
+  }
+  return null;
 }
 
 function eyeOf(p) {
@@ -132,11 +145,15 @@ function goalArrivalDist(kind) {
 }
 
 class Brain {
-  constructor(id, index, rng, difficulty = DEFAULT_BOT_DIFFICULTY) {
+  constructor(id, index, rng, difficulty = DEFAULT_BOT_DIFFICULTY, personalitySeed = 0) {
     this.difficulty = isBotDifficulty(difficulty) ? difficulty : DEFAULT_BOT_DIFFICULTY;
     this.id = id;
     this.index = index;
     this.rng = rng;
+    // One roll per slot per game on an isolated stream: gameplay rng stays untouched.
+    const roll = mulberry32(((personalitySeed ^ Math.imul(index + 1, 2654435761)) >>> 0) || 1);
+    this.personality = rollBotPersonality(roll);
+    if (!isBotPersonality(this.personality)) this.personality = DEFAULT_BOT_PERSONALITY;
     this.seq = 0;
     this.skill = 0.25 + rng() * 0.3;   // ramps toward 1 while fighting
     this.state = 'roam';               // 'roam' | 'fight' | 'search' | 'retreat'
@@ -149,7 +166,10 @@ class Brain {
     this.noticeElapsed = 0;
     this.noticeEvidence = 0;
     this.noticeThreshold = 1;
-    this.reactionScale = 0.9 + rng() * 0.2;
+    const pers = BOT_PERSONALITIES[this.personality];
+    this.reactionScale = (0.9 + rng() * 0.2) * pers.reaction;
+    this.hopCdMs = JUMP_CD_MS / pers.hop;
+    this.crouchFight = false;
     this.lastSeen = null;
     this.engagedMs = 0;
     this.strafePhase = rng() * TAU;
@@ -195,15 +215,15 @@ class BotManager {
    *        now/registerTickHook/removeClient)
    * @param {number} n bot count
    */
-  constructor(game, n, { difficulties = new Map() } = {}) {
+  constructor(game, n, { difficulties = new Map(), personalitySeed = 0 } = {}) {
     this.difficulties = new Map(difficulties);
+    this.personalitySeed = personalitySeed >>> 0;
     this.game = game;
     this.solidAt = this.game.solidAt;
     this.brains = [];
     this._unhook = game.registerTickHook((dt) => this.tick(dt * 1000));
     this.setCount(n | 0);
   }
-
   dispose() {
     if (this._unhook) { this._unhook(); this._unhook = null; }
     for (const br of this.brains) this.game.removeClient(br.id);
@@ -238,7 +258,7 @@ class BotManager {
     for (let i = this.brains.length; i < n; i++) {
       const pid = 'bot-' + i;
       this.game.addBot(pid);
-      this.brains.push(new Brain(pid, i, mulberry32((BOT_SEED ^ Math.imul(i + 1, 2654435761)) >>> 0), this.difficulties.get(pid)));
+      this.brains.push(new Brain(pid, i, mulberry32((BOT_SEED ^ Math.imul(i + 1, 2654435761)) >>> 0), this.difficulties.get(pid), this.personalitySeed));
     }
   }
   tick(dtMs) {
@@ -248,6 +268,7 @@ class BotManager {
       const br = this.brains[i];
       const p = this.game.entities.get(br.id);
       if (!p) { this.brains.splice(i, 1); continue; }
+      if (p.personality !== br.personality) p.personality = br.personality;
       this.watchStuck(br, p, now);
       this.game.applyInput(br.id, this.think(br, p, now, dtS));
     }
@@ -350,6 +371,7 @@ class BotManager {
 
   think(br, p, now, dtS) {
     const profile = botDifficulty(br.difficulty);
+    const pers = BOT_PERSONALITIES[br.personality] || BOT_PERSONALITIES[DEFAULT_BOT_PERSONALITY];
     const weaponTurnRate = weaponTurnProfile(p.def.handling).maxSpeed;
     const turnRate = Math.min(profile.turnRate, weaponTurnRate);
     const pitchTurnRate = Math.min(PITCH_TURN_RATE, weaponTurnRate);
@@ -465,7 +487,7 @@ class BotManager {
 
     let engageMsDelta = 0;
     if (enemy) {
-      if (br.state !== 'fight') { br.state = 'fight'; br.strafePhase = br.rng() * TAU; }
+      if (br.state !== 'fight') { br.state = 'fight'; br.strafePhase = br.rng() * TAU; br.crouchFight = br.rng() < pers.crouchFire; }
       engageMsDelta = dtS * 1000;
     } else if (!retreating) {
       br.state = br.lastSeen ? 'search' : 'roam';
@@ -475,7 +497,7 @@ class BotManager {
     br.skill = Math.max(0.2, Math.min(profile.skillCeiling, br.skill + (enemy ? dtS * 0.09 : -dtS * 0.03)));
 
     // ----- panic retreat ---------------------------------------------------
-    if (enemy && !objectiveUrgent && p.hp <= RETREAT_HP && now >= br.retreatReadyAt && !retreating) {
+    if (enemy && !objectiveUrgent && p.hp <= RETREAT_HP * pers.retreatHp && now >= br.retreatReadyAt && !retreating) {
       const dx = enemy.x - p.x, dz = enemy.z - p.z;
       const pl = Math.hypot(dx, dz) || 1;
       const px = -dz / pl, pz = dx / pl;                    // perpendicular
@@ -492,6 +514,12 @@ class BotManager {
     }
     if (now < br.retreatUntil) br.state = 'retreat';
     else if (br.state === 'retreat') br.state = 'roam';
+
+    // Swimmers head for the nearest dry footing instead of treading water.
+    if (this.game.fluidAt(Math.floor(p.x), Math.floor(p.y + 0.55), Math.floor(p.z))) {
+      const dry = nearestDry(this.game.world, p);
+      if (dry) { br.roamTarget = dry; br.roamDeadline = now + 4000; }
+    }
 
     // ----- navigation ------------------------------------------------------
     let takingDetour = !!objective && now < br.detourUntil;
@@ -525,12 +553,18 @@ class BotManager {
       const dx = enemy.x - p.x, dz = enemy.z - p.z;
       const d = Math.hypot(dx, dz) || 1;
       moveYaw = Math.atan2(-dx, -dz);
-      br.strafePhase += dtS * TAU * STRAFE_HZ;
-      const side = Math.sin(br.strafePhase) > 0;
+      br.strafePhase += dtS * TAU * STRAFE_HZ * pers.strafeHz;
+      const fx = -Math.sin(moveYaw), fz = -Math.cos(moveYaw);
+      const wet = (x, z) => this.game.fluidAt(Math.floor(x), Math.floor(p.y + 0.55), Math.floor(z));
+      let side = Math.sin(br.strafePhase) > 0;
+      // Never strafe into open water when the other side is dry.
+      if (wet(p.x + fz * (side ? 1.3 : -1.3), p.z - fx * (side ? 1.3 : -1.3))
+        && !wet(p.x - fz * (side ? 1.3 : -1.3), p.z + fx * (side ? 1.3 : -1.3))) side = !side;
       inp.keys.l = side;
       inp.keys.r = !side;
-      if (d > 22) inp.keys.f = true;
-      else if (d < 6) inp.keys.b = true;
+      if (d > pers.far && !wet(p.x + fx * 1.5, p.z + fz * 1.5)) inp.keys.f = true;
+      else if (d < pers.near && !wet(p.x - fx * 1.5, p.z - fz * 1.5)) inp.keys.b = true;
+      inp.keys.crouch = br.crouchFight && d > 10;
       moving = true;
       sprint = false;
     } else if (searching && navDist <= ARRIVE_DIST) {
@@ -561,7 +595,7 @@ class BotManager {
       const yawT = Math.atan2(-(aim[0] - p.x), -(aim[2] - p.z));
       const flat = Math.hypot(aim[0] - p.x, aim[2] - p.z) || 1;
       const pitchT = Math.atan2(aim[1] - eye[1], flat);
-      const sigmaDeg = ((2.2 - 1.6 * br.skill) * errFactor + 0.3) * profile.aimError;
+      const sigmaDeg = ((2.2 - 1.6 * br.skill) * errFactor + 0.3) * profile.aimError * pers.aimError;
       const sigmaRad = sigmaDeg * Math.PI / 180;
       inp.yaw = approachAngle(p.yaw, wrapAngle(yawT + gaussish(br.rng) * sigmaRad), turnRate * dtS);
       inp.pitch = approachAngle(p.pitch, Math.max(-1.4, Math.min(1.4, pitchT + gaussish(br.rng) * sigmaRad * 0.6)), pitchTurnRate * dtS);
@@ -591,7 +625,7 @@ class BotManager {
       if (combatAllowed && canShoot && p.mag[p.weapon] > 0) {
         if (now >= br.pauseUntil) {
           if (!br.inBurst) {
-            const shots = 3 + Math.floor(br.rng() * 3); // 3..5
+            const shots = pers.burst[0] + Math.floor(br.rng() * (pers.burst[1] - pers.burst[0] + 1));
             br.burstEnd = now + shots * Math.round(60000 / p.def.rpm);
             br.inBurst = true;
           }
@@ -604,7 +638,7 @@ class BotManager {
               inp.wantFire = p.def.mode === 'auto' || !p.triggerPrev;
             }
           }
-          else { br.inBurst = false; br.pauseUntil = now + profile.burstPauseMs; }
+          else { br.inBurst = false; br.pauseUntil = now + profile.burstPauseMs * pers.burstPause; }
         }
       }
     } else {
@@ -623,7 +657,7 @@ class BotManager {
       if (!Number.isFinite(this.game.world.meta?.navigationFloor)
           && p.grounded && now >= br.jumpCdUntil && canHopObstacle(this.solidAt, p, inp)) {
         inp.keys.jump = true;
-        br.jumpCdUntil = now + JUMP_CD_MS;
+        br.jumpCdUntil = now + br.hopCdMs;
       }
     } else if (br.state === 'retreat') {
       inp.keys.crouch = true; // hold low at the cover spot

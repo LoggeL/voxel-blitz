@@ -51,6 +51,10 @@ const LAVA_DAMAGE = 12;
 const LAVA_DAMAGE_INTERVAL_S = 0.25;
 // Seconds a body keeps burning after it leaves lava; water puts it out at once.
 const LAVA_BURN_S = 4;
+// Head-submerged grace before drowning ticks, then damage per interval.
+const DROWN_GRACE_S = 8;
+const DROWN_DAMAGE = 6;
+const DROWN_INTERVAL_S = 0.5;
 const SPAWN_PROTECTION_MS = 1500;
 
 export class GameEngine {
@@ -475,6 +479,21 @@ export class GameEngine {
     const feet = this.world.getBlock(Math.floor(player.x), Math.floor(player.y + 0.1), Math.floor(player.z));
     const body = this.world.getBlock(Math.floor(player.x), Math.floor(player.y + 0.9), Math.floor(player.z));
     const inLava = feet === MC_LAVA || body === MC_LAVA;
+    // Drowning runs independent of lava: a submerged head ticks even in shallow surfs.
+    const head = this.world.getBlock(Math.floor(player.x), Math.floor(player.y + 1.35), Math.floor(player.z));
+    if (head === MC_WATER) {
+      player.drownT = (player.drownT || 0) + dt;
+      if (player.drownT >= DROWN_GRACE_S) {
+        player.drownHold = (player.drownHold || 0) + dt;
+        if (player.drownHold >= DROWN_INTERVAL_S) {
+          player.drownHold -= DROWN_INTERVAL_S;
+          const drowned = player.takeDamage(DROWN_DAMAGE, false, null, 'water');
+          this.tickEvents.push(evHit('', player.id, DROWN_DAMAGE, false,
+            [player.x, player.y + 1.2, player.z], player.lastDamage));
+          if (drowned) this.killPlayer(player, null, 'water', false, null);
+        }
+      }
+    } else player.drownT = 0;
     if (!inLava) {
       player.lavaT = 0;
       if (feet === MC_WATER || body === MC_WATER) extinguish(player);
