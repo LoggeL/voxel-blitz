@@ -2,6 +2,7 @@ import { evShoot } from '../../protocol/events.js';
 import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { REACTOR_LAYOUT } from '../../../shared/world/reactor-layout.js';
+import { GROUND, SX } from '../../../shared/worlddata.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { PlayerEntity, aimAngles, wrapAngle } from '../../sim/player.js';
 import { observeBotTarget } from '../../bot-perception.js';
@@ -9,20 +10,45 @@ import { BastionNavigation } from './navigation.js';
 
 const turn = (a, b, rate) => a + Math.max(-rate, Math.min(rate, wrapAngle(b - a)));
 export class BastionEnemies {
-  constructor(engine, policy) {
-    this.engine = engine; this.policy = policy; this.serial = 0;
+  constructor(engine, policy, rng = Math.random) {
+    this.engine = engine; this.policy = policy; this.rng = rng; this.serial = 0;
     this.nav = new BastionNavigation(engine.world, REACTOR_LAYOUT.core);
   }
   spawn(role, lane, index) {
-    const profile = BASTION_ENEMIES[role], spawn = REACTOR_LAYOUT.lanes[lane].spawns[index % 3];
-    const p = new PlayerEntity(`npc-${this.policy.run}-${++this.serial}`, profile.name, spawn, true);
-    Object.assign(p, { npcRole: role, npcSpeed: profile.speed, team: 'bravo', lane,
+    const profile = BASTION_ENEMIES[role], base = REACTOR_LAYOUT.lanes[lane].spawns[index % 3];
+    const at = { ...base, ...this.jitterSpawn(base) };
+    const p = new PlayerEntity(`npc-${this.policy.run}-${++this.serial}`, profile.name, at, true);
+    Object.assign(p, { npcRole: role, npcSpeed: profile.speed * (0.92 + this.rng() * 0.16), team: 'bravo', lane,
       hp: profile.hp, armor: profile.armor, weapon: WEAPON_IDS.indexOf(profile.weapon),
       infiniteMagazines: true, grenades: p.grenades.map(() => 0),
       ai: { target: null, seenAt: 0, burstStart: 0, burstShots: 0, pauseUntil: 0,
-        windup: 0, lastShot: 0, coreAt: 0, lastMoveAt: this.engine.now, watchX: p.x, watchZ: p.z } });
+        windup: 0, lastShot: 0, coreAt: 0, lastMoveAt: this.engine.now, watchX: p.x, watchZ: p.z,
+        bestDist: Infinity, stallSince: this.engine.now,
+        drift: (this.rng() * 2 - 1) * 1.6 } });
     this.engine.npcs.set(p.id, p);
     return p;
+  }
+  walkable(x, z) {
+    const w = this.engine.world;
+    return !w.getBlock(x, GROUND + 1, z) && !w.getBlock(x, GROUND + 2, z) && !!w.getBlock(x, GROUND - 1, z);
+  }
+  jitterSpawn(base) {
+    const bounds = REACTOR_LAYOUT.bounds, margin = 1;
+    for (let i = 0; i < 8; i++) {
+      const x = Math.min(bounds.maxX - margin, Math.max(bounds.minX + margin, base.x + (this.rng() * 2 - 1) * 3));
+      const z = Math.min(bounds.maxZ - margin, Math.max(bounds.minZ + margin, base.z + (this.rng() * 2 - 1) * 3));
+      if (this.walkable(Math.floor(x), Math.floor(z))) return { x, z };
+    }
+    return { x: base.x, z: base.z };
+  }
+  driftStep(p, next) {
+    const drift = p.ai.drift || 0;
+    if (!drift) return next;
+    const dx = next.x - p.x, dz = next.z - p.z, len = Math.hypot(dx, dz) || 1;
+    const cx = next.x + (-dz / len) * drift, cz = next.z + (dx / len) * drift;
+    if (Math.floor(cx) === Math.floor(p.x) && Math.floor(cz) === Math.floor(p.z)) return next;
+    if ((this.nav.dist?.[Math.floor(cz) * SX + Math.floor(cx)] ?? -1) < 0) return next;
+    return { x: cx, z: cz };
   }
   visible(p, point) {
     const origin = [p.x, p.eyeY, p.z], delta = point.map((n, i) => n - origin[i]);
@@ -66,14 +92,21 @@ export class BastionEnemies {
         ai.target = targetId; ai.seenAt = e.now; ai.windup = 0; ai.burstStart = 0;
       }
       const next = this.nav.next(p);
-      const move = !target && distCore > 2.3 && next;
-      const point = target?.point || (next ? [next.x, p.eyeY, next.z] : corePoint);
+      const step = next ? this.driftStep(p, next) : null;
+      // Runners are melee rushers: they fire on the move instead of duelling at range.
+      const holdGround = target && (p.npcRole !== 'runner' || targetId === core.id);
+      const move = !holdGround && distCore > 2.3 && step;
+      if (move) {
+        if (distCore < ai.bestDist - 0.5) { ai.bestDist = distCore; ai.stallSince = e.now; }
+        else if (ai.drift && e.now - ai.stallSince > 2500) ai.drift = 0;
+      }
+      const point = target?.point || (step ? [step.x, p.eyeY, step.z] : corePoint);
       const angles = aimAngles([p.x, p.eyeY, p.z], point);
       p.yaw = turn(p.yaw, angles.yaw, dt * 3); p.pitch = turn(p.pitch, angles.pitch, dt * 3);
       p.input.yaw = p.yaw; p.input.pitch = p.pitch;
-      if (move) { p.input.keys.f = true; p.input.viewYaw = aimAngles([p.x,0,p.z],[next.x,0,next.z]).yaw; }
+      if (move) { p.input.keys.f = true; p.input.viewYaw = aimAngles([p.x,0,p.z],[step.x,0,step.z]).yaw; }
       p.npcAttack = 'advance';
-      if (p.npcRole === 'runner' && !target && distCore <= 2.5 && this.visible(p, corePoint)) {
+      if (p.npcRole === 'runner' && distCore <= 2.5 && this.visible(p, corePoint)) {
         p.npcAttack = 'strike';
         if (e.now >= ai.coreAt) { core.takeDamage(10, false, p); ai.coreAt = e.now + 1000; p.firing = true; }
       }

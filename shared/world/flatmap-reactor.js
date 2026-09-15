@@ -75,6 +75,30 @@ export function generateReactorInto(world, blocks, heights) {
     for(let i=0;i<3;i++) fillBox(world,x+3,GROUND+1,z+8+i,x+5,GROUND+3-i,z+8+i,CONCRETE);
     fillBox(world,x,GROUND+4,z,x+8,GROUND+4,z,METAL);
   }
+  // Coolant tanks break the long north/east sight lines. Solid shells with
+  // wide bypasses on every side; the accent band reads at a distance.
+  for (const [x,z] of [[50,30],[84,44]]) {
+    fillBox(world,x-1,GROUND+1,z-1,x+1,GROUND+4,z+1,STONE);
+    fillBox(world,x-1,GROUND+5,z-1,x+1,GROUND+5,z+1,METAL);
+    for(let n=-1;n<=1;n++) { world.setBlock(x+n,GROUND+3,z-1,ACCENT); world.setBlock(x+n,GROUND+3,z+1,ACCENT); }
+  }
+  // Breachable ruin walls give breachers extra targets and split bot lanes.
+  for (const [x,z] of [[54,44],[55,44],[57,44],[57,45],[57,46],[70,40],[71,40],[73,40]]) {
+    fillBox(world,x,GROUND+1,z,x,GROUND+2,z,RUST);
+  }
+  // Low pipe gantry across the western approach, legs clear of the route.
+  gantry(world,30,50,38,50,6);
+  // Transformer yard south-east: cabinets block sight without blocking paths.
+  for (const [x,z] of [[100,64],[102,65],[100,66]]) {
+    fillBox(world,x,GROUND+1,z,x,GROUND+3,z,METAL);
+    world.setBlock(x,GROUND+4,z,ACCENT);
+  }
+  // Extra crate stacks near the northern road and the defender line.
+  for (const [x,z] of [[60,28],[70,60]]) {
+    fillBox(world,x,GROUND+1,z,x+3,GROUND+1,z+2,RUST);
+    fillBox(world,x+1,GROUND+2,z,x+2,GROUND+2,z+1,WOOD);
+    world.setBlock(x,GROUND+2,z+2,PALE);
+  }
   // Service alcove for the mid-wave resupply run, south of the core.
   fillBox(world,56,GROUND+1,85,72,GROUND+5,86,RUST);
   fillBox(world,56,GROUND+6,75,72,GROUND+6,86,METAL);
