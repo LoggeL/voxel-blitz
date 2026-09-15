@@ -10,19 +10,25 @@ globalThis.document = { createElement: () => ({ getContext: () => new Proxy({}, 
 }) }) };
 try {
   const steps = [];
-  const roster = new AvatarRoster({ scene: new THREE.Scene(), footstep: (remote, volume) => steps.push({ id: remote.id, x: remote.x, volume }) });
+  const roster = new AvatarRoster({ scene: new THREE.Scene(), footstep: (remote, volume, body) => steps.push({ id: remote.id, x: remote.x, volume, body }) });
   try {
     const remote = { id: 'runner', name: 'Runner', x: 4, y: 2, z: 3, yaw: 0, pitch: 0, weapon: 0,
       state: 'alive', grounded: true, vaulting: false, moveSpeed: 6.2, crouch: false };
     const remotes = new Map([[remote.id, remote]]);
     const run = (frames, mutate = () => {}) => {
-      for (let frame = 0; frame < frames; frame++) { mutate(frame); roster.sync(remotes, 1 / 60, frame * 1000 / 60); }
+      for (let frame = 0; frame < frames; frame++) {
+        mutate(frame);
+        remotes.set(remote.id, { ...remote });
+        roster.sync(remotes, 1 / 60, frame * 1000 / 60);
+      }
     };
     run(120, (frame) => { remote.x = 4 + frame * 6.2 / 60; });
     assert.ok(steps.length >= 6 && steps.length <= 10, `two seconds of sprinting produce a steady cadence (${steps.length})`);
     assert.ok(steps.every((step) => step.id === 'runner'), 'steps carry the body');
     assert.ok(steps.slice(2).every((step) => step.volume > 0.9), 'once the smoothed speed settles, sprint steps are loud');
     assert.ok(steps.at(-1).x > steps[0].x, 'each step reports the current body position');
+    assert.ok(steps[0].body && steps.every((step) => step.body === steps[0].body),
+      'new network snapshot objects keep the same avatar identity for sample variation');
 
     steps.length = 0;
     remote.crouch = true;

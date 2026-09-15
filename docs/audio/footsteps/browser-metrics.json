@@ -1,0 +1,364 @@
+{
+  "environment": "Codex in-app Chromium, native OfflineAudioContext at 48 kHz, production sfx facade and voice pool",
+  "total_checks": 363,
+  "failures": [],
+  "footstep_scenarios": {
+    "Footsteps cloth, nine sprint steps": {
+      "audibleTailMs": 2082.8333333333335,
+      "clippedRatio": 0,
+      "onsetMs": 7.958333333333333,
+      "peak": 0.04590877145528793,
+      "rms": 0.00449170410301116
+    },
+    "Footsteps grass, nine sprint steps": {
+      "audibleTailMs": 2130.3958333333335,
+      "clippedRatio": 0,
+      "onsetMs": 11.958333333333332,
+      "peak": 0.10894446820020676,
+      "rms": 0.006879144123212299
+    },
+    "Footsteps gravel, nine sprint steps": {
+      "audibleTailMs": 2025.4583333333333,
+      "clippedRatio": 0,
+      "onsetMs": 7.270833333333333,
+      "peak": 0.10785622149705888,
+      "rms": 0.006949761509822011
+    },
+    "Footsteps metal, nine sprint steps": {
+      "audibleTailMs": 2015.791666666667,
+      "clippedRatio": 0,
+      "onsetMs": 19.520833333333336,
+      "peak": 0.10513895750045776,
+      "rms": 0.0062025884426680136
+    },
+    "Footsteps metal, remote 35 m": {
+      "audibleTailMs": 181.97916666666663,
+      "clippedRatio": 0,
+      "onsetMs": 25.875,
+      "peak": 0.042685944586992264,
+      "rms": 0.0016006617941848311
+    },
+    "Footsteps metal, remote 4 m": {
+      "audibleTailMs": 221.14583333333337,
+      "clippedRatio": 0,
+      "onsetMs": 15.25,
+      "peak": 0.2219669073820114,
+      "rms": 0.008323441183840785
+    },
+    "Footsteps sand, nine sprint steps": {
+      "audibleTailMs": 2173.1458333333335,
+      "clippedRatio": 0,
+      "onsetMs": 7.8125,
+      "peak": 0.07663772255182266,
+      "rms": 0.009714234276417594
+    },
+    "Footsteps stone, nine sprint steps": {
+      "audibleTailMs": 2151.3125,
+      "clippedRatio": 0,
+      "onsetMs": 9.479166666666668,
+      "peak": 0.1089712381362915,
+      "rms": 0.007324839897616398
+    },
+    "Footsteps wood, nine sprint steps": {
+      "audibleTailMs": 2077.4583333333335,
+      "clippedRatio": 0,
+      "onsetMs": 15.458333333333332,
+      "peak": 0.10789114981889723,
+      "rms": 0.007280093311738415
+    }
+  },
+  "footstep_checks": [
+    {
+      "message": "Footsteps stone, nine sprint steps: audible and limiter-bounded peak",
+      "passed": true
+    },
+    {
+      "message": "Footsteps stone, nine sprint steps: useful RMS",
+      "passed": true
+    },
+    {
+      "message": "Footsteps stone, nine sprint steps: no sustained clipping",
+      "passed": true
+    },
+    {
+      "message": "Footsteps stone, nine sprint steps: onset within 35 ms",
+      "passed": true
+    },
+    {
+      "message": "stone: exactly one material recording per footfall, no synthetic layer",
+      "passed": true
+    },
+    {
+      "message": "stone: all three takes play without consecutive repeats",
+      "passed": true
+    },
+    {
+      "message": "stone: natural pitch and complete tails at sprint cadence",
+      "passed": true
+    },
+    {
+      "message": "stone: own steps stay listener-relative",
+      "passed": true
+    },
+    {
+      "message": "stone: sprint ends in silence",
+      "passed": true
+    },
+    {
+      "message": "Footsteps wood, nine sprint steps: audible and limiter-bounded peak",
+      "passed": true
+    },
+    {
+      "message": "Footsteps wood, nine sprint steps: useful RMS",
+      "passed": true
+    },
+    {
+      "message": "Footsteps wood, nine sprint steps: no sustained clipping",
+      "passed": true
+    },
+    {
+      "message": "Footsteps wood, nine sprint steps: onset within 35 ms",
+      "passed": true
+    },
+    {
+      "message": "wood: exactly one material recording per footfall, no synthetic layer",
+      "passed": true
+    },
+    {
+      "message": "wood: all three takes play without consecutive repeats",
+      "passed": true
+    },
+    {
+      "message": "wood: natural pitch and complete tails at sprint cadence",
+      "passed": true
+    },
+    {
+      "message": "wood: own steps stay listener-relative",
+      "passed": true
+    },
+    {
+      "message": "wood: sprint ends in silence",
+      "passed": true
+    },
+    {
+      "message": "Footsteps metal, nine sprint steps: audible and limiter-bounded peak",
+      "passed": true
+    },
+    {
+      "message": "Footsteps metal, nine sprint steps: useful RMS",
+      "passed": true
+    },
+    {
+      "message": "Footsteps metal, nine sprint steps: no sustained clipping",
+      "passed": true
+    },
+    {
+      "message": "Footsteps metal, nine sprint steps: onset within 35 ms",
+      "passed": true
+    },
+    {
+      "message": "metal: exactly one material recording per footfall, no synthetic layer",
+      "passed": true
+    },
+    {
+      "message": "metal: all three takes play without consecutive repeats",
+      "passed": true
+    },
+    {
+      "message": "metal: natural pitch and complete tails at sprint cadence",
+      "passed": true
+    },
+    {
+      "message": "metal: own steps stay listener-relative",
+      "passed": true
+    },
+    {
+      "message": "metal: sprint ends in silence",
+      "passed": true
+    },
+    {
+      "message": "Footsteps grass, nine sprint steps: audible and limiter-bounded peak",
+      "passed": true
+    },
+    {
+      "message": "Footsteps grass, nine sprint steps: useful RMS",
+      "passed": true
+    },
+    {
+      "message": "Footsteps grass, nine sprint steps: no sustained clipping",
+      "passed": true
+    },
+    {
+      "message": "Footsteps grass, nine sprint steps: onset within 35 ms",
+      "passed": true
+    },
+    {
+      "message": "grass: exactly one material recording per footfall, no synthetic layer",
+      "passed": true
+    },
+    {
+      "message": "grass: all three takes play without consecutive repeats",
+      "passed": true
+    },
+    {
+      "message": "grass: natural pitch and complete tails at sprint cadence",
+      "passed": true
+    },
+    {
+      "message": "grass: own steps stay listener-relative",
+      "passed": true
+    },
+    {
+      "message": "grass: sprint ends in silence",
+      "passed": true
+    },
+    {
+      "message": "Footsteps gravel, nine sprint steps: audible and limiter-bounded peak",
+      "passed": true
+    },
+    {
+      "message": "Footsteps gravel, nine sprint steps: useful RMS",
+      "passed": true
+    },
+    {
+      "message": "Footsteps gravel, nine sprint steps: no sustained clipping",
+      "passed": true
+    },
+    {
+      "message": "Footsteps gravel, nine sprint steps: onset within 35 ms",
+      "passed": true
+    },
+    {
+      "message": "gravel: exactly one material recording per footfall, no synthetic layer",
+      "passed": true
+    },
+    {
+      "message": "gravel: all three takes play without consecutive repeats",
+      "passed": true
+    },
+    {
+      "message": "gravel: natural pitch and complete tails at sprint cadence",
+      "passed": true
+    },
+    {
+      "message": "gravel: own steps stay listener-relative",
+      "passed": true
+    },
+    {
+      "message": "gravel: sprint ends in silence",
+      "passed": true
+    },
+    {
+      "message": "Footsteps sand, nine sprint steps: audible and limiter-bounded peak",
+      "passed": true
+    },
+    {
+      "message": "Footsteps sand, nine sprint steps: useful RMS",
+      "passed": true
+    },
+    {
+      "message": "Footsteps sand, nine sprint steps: no sustained clipping",
+      "passed": true
+    },
+    {
+      "message": "Footsteps sand, nine sprint steps: onset within 35 ms",
+      "passed": true
+    },
+    {
+      "message": "sand: exactly one material recording per footfall, no synthetic layer",
+      "passed": true
+    },
+    {
+      "message": "sand: all three takes play without consecutive repeats",
+      "passed": true
+    },
+    {
+      "message": "sand: natural pitch and complete tails at sprint cadence",
+      "passed": true
+    },
+    {
+      "message": "sand: own steps stay listener-relative",
+      "passed": true
+    },
+    {
+      "message": "sand: sprint ends in silence",
+      "passed": true
+    },
+    {
+      "message": "Footsteps cloth, nine sprint steps: audible and limiter-bounded peak",
+      "passed": true
+    },
+    {
+      "message": "Footsteps cloth, nine sprint steps: useful RMS",
+      "passed": true
+    },
+    {
+      "message": "Footsteps cloth, nine sprint steps: no sustained clipping",
+      "passed": true
+    },
+    {
+      "message": "Footsteps cloth, nine sprint steps: onset within 35 ms",
+      "passed": true
+    },
+    {
+      "message": "cloth: exactly one material recording per footfall, no synthetic layer",
+      "passed": true
+    },
+    {
+      "message": "cloth: all three takes play without consecutive repeats",
+      "passed": true
+    },
+    {
+      "message": "cloth: natural pitch and complete tails at sprint cadence",
+      "passed": true
+    },
+    {
+      "message": "cloth: own steps stay listener-relative",
+      "passed": true
+    },
+    {
+      "message": "cloth: sprint ends in silence",
+      "passed": true
+    },
+    {
+      "message": "Footsteps metal, remote 4 m: audible and limiter-bounded peak",
+      "passed": true
+    },
+    {
+      "message": "Footsteps metal, remote 4 m: useful RMS",
+      "passed": true
+    },
+    {
+      "message": "Footsteps metal, remote 4 m: no sustained clipping",
+      "passed": true
+    },
+    {
+      "message": "Footsteps metal, remote 4 m: onset within 35 ms",
+      "passed": true
+    },
+    {
+      "message": "Footsteps metal, remote 35 m: audible and limiter-bounded peak",
+      "passed": true
+    },
+    {
+      "message": "Footsteps metal, remote 35 m: useful RMS",
+      "passed": true
+    },
+    {
+      "message": "Footsteps metal, remote 35 m: no sustained clipping",
+      "passed": true
+    },
+    {
+      "message": "Footsteps metal, remote 35 m: onset within 35 ms",
+      "passed": true
+    },
+    {
+      "message": "Remote footfalls get quieter with world distance",
+      "passed": true
+    },
+    {
+      "message": "Remote footfalls retain world direction",
+      "passed": true
+    }
+  ]
+}

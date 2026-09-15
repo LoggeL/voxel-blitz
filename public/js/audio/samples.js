@@ -1,4 +1,5 @@
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
+import { FOOTSTEP_SLOTS } from './footsteps.js';
 
 const SLOT_ROOT = '/assets/audio';
 
@@ -65,11 +66,19 @@ for (const weapon of WEAPON_IDS) {
   sampleFileSlots[`weapons.${weapon}.draw`] = `${SLOT_ROOT}/weapons/${weapon}/draw.ogg`;
 }
 
+const footstepManifest = {};
+for (const [surface, slots] of Object.entries(FOOTSTEP_SLOTS)) {
+  slots.forEach((slot, index) => {
+    footstepManifest[slot] = `${SLOT_ROOT}/movement/footstep-${surface}-${index + 1}.ogg`;
+  });
+}
+Object.assign(sampleFileSlots, footstepManifest);
 export const SAMPLE_FILE_SLOTS = Object.freeze(sampleFileSlots);
 
 // Only files that ship with the game belong here. The wider slot catalog stays
 // optional, so one missing sample never turns into a startup fetch waterfall.
 export const BUILTIN_SAMPLE_MANIFEST = Object.freeze({
+  ...footstepManifest,
   'human.pain.light': SAMPLE_FILE_SLOTS['human.pain.light'],
   'human.pain.light.2': SAMPLE_FILE_SLOTS['human.pain.light.2'],
   'human.pain.light.3': SAMPLE_FILE_SLOTS['human.pain.light.3'],

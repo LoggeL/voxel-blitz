@@ -265,7 +265,7 @@ export class AvatarRoster {
         if (this._footstep && strideCrossed(phaseBefore, avatar.runPhase)) {
           const volume = footstepVolume({ speed: avatar.speedEst, grounded,
             crouch: !!remote.crouch || (remote.proneT || 0) > 0.2, swimming: remote.swimming === true });
-          if (volume > 0) this._footstep(remote, volume);
+          if (volume > 0) this._footstep(remote, volume, avatar);
         }
       }
 

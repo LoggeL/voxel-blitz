@@ -13,6 +13,7 @@ import { pickaxeSampleChoice, pickaxeMaterial, renderPickaxeContact } from './pi
 import { createVoices } from './primitives.js';
 import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from './samples.js';
 import { MenuMusicLoop } from './music.js';
+import { FootstepVariations, FOOTSTEP_SLOTS } from './footsteps.js';
 import { bodyImpact, synthPainVoice } from './human.js';
 import { IMPACT_PARAMS, genericImpact, impactGlass, impactMetal } from './impacts.js';
 import {
@@ -42,7 +43,7 @@ let samples = null;
 let builtInSamplesPromise = null;
 let menuMusic = null;
 let menuMusicVolume = 0.8;
-let panSide = 1;
+let footstepVariations = new FootstepVariations();
 let heartbeatAt = -Infinity;
 const panicBreaths = new PanicBreathCadence();
 const painMoans = new PainMoanCadence();
@@ -223,7 +224,7 @@ export const sfx = {
     samples?.clear();
     samples = null;
     builtInSamplesPromise = null;
-    panSide = 1;
+    footstepVariations = new FootstepVariations();
     heartbeatAt = -Infinity;
     panicBreaths.reset();
     await engine.dispose();
@@ -624,16 +625,28 @@ export const sfx = {
    * gently left/right.
    */
   footstep(volume = 0.45, options = null) {
+    if (!Number.isFinite(volume) || volume <= 0) return;
+    volume = Math.min(1, volume);
     const deferred = copyOptions(options);
     run('footstep', () => {
-      panSide = -panSide;
       const positional = !!positionOf(deferred);
-      const output = pool.acquire(outputOptions(deferred), 0.3);
-      if (samples.play('movement.footstep', output, {
-        gain: volume,
-        rate: primitives.rnd(0.93, 1.07),
-      })) return;
-      const pan = positional ? 0 : 0.4 * panSide;
+      const choice = footstepVariations.next(deferred?.surface, deferred?.body);
+      const slot = [choice.slot, ...FOOTSTEP_SLOTS[choice.surface], 'movement.footstep']
+        .find((candidate) => samples.getBuffer(candidate));
+      const lifetime = slot ? samples.getBuffer(slot).duration / choice.rate : 0.3;
+      const output = pool.acquire(outputOptions(deferred), lifetime);
+      if (slot) {
+        let target = output;
+        if (!positional && engine.ctx.createStereoPanner) {
+          target = engine.ctx.createStereoPanner();
+          target.pan.value = choice.pan;
+          target.connect(output);
+          addCleanup(output, () => target.disconnect());
+        }
+        if (samples.play(slot, target, { gain: volume * choice.gain,
+          rate: choice.rate, cleanupOwner: output })) return;
+      }
+      const pan = positional ? 0 : choice.pan;
       // Heel thud plus a short sole scuff.
       primitives.tone(output, {
         type: 'sine', f0: primitives.rnd(120, 150), f1: 58,

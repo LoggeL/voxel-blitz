@@ -6,6 +6,7 @@ import { MINIGUN_REPORT_SLOTS } from '../audio/minigun-motor.js';
 import { PICKAXE_SWING_SLOTS, PICKAXE_IMPACT_SLOTS } from '../audio/pickaxe.js';
 import { PAIN_SAMPLE_SLOTS } from '../audio/pain-moans.js';
 import { auditBufferPeak, recordedTailComplete } from './audio-source-audit.js';
+import { FOOTSTEP_SURFACES, FOOTSTEP_SLOTS, gaitPhaseRate, SPRINT_SPEED } from '../audio/footsteps.js';
 
 const RATE = 48_000;
 const SECONDS = 3.2;
@@ -268,6 +269,32 @@ async function main() {
     audible(result, name, onset); return result;
   };
   const moans = [];
+  const sprintInterval = Math.PI / gaitPhaseRate(SPRINT_SPEED);
+  for (const surface of FOOTSTEP_SURFACES) {
+    const body = {};
+    const label = `Footsteps ${surface}, nine sprint steps`;
+    const steps = await cue(label, Array.from({ length: 9 }, (_, i) =>
+      [i * sprintInterval, () => sfx.footstep(.3, { surface, body })]));
+    const sources = steps.trace.sources;
+    const urls = FOOTSTEP_SLOTS[surface].map((slot) => BUILTIN_SAMPLE_MANIFEST[slot]);
+    check(sources.length === 9 && sources.every((source) => urls.includes(source.sample)),
+      `${surface}: exactly one material recording per footfall, no synthetic layer`);
+    check(sources.every((source, i) => !i || source.sample !== sources[i - 1].sample)
+      && new Set(sources.map((source) => source.sample)).size === 3,
+    `${surface}: all three takes play without consecutive repeats`);
+    check(sources.every((source) => source.rate >= .975 && source.rate <= 1.025
+      && recordedTailComplete(source, RATE)), `${surface}: natural pitch and complete tails at sprint cadence`);
+    check(steps.trace.acquisitions.every((voice) => !voice.positional), `${surface}: own steps stay listener-relative`);
+    check(regionRms(steps.data, 2.6, 3.1) < .00001, `${surface}: sprint ends in silence`);
+  }
+  const nearSteps = await cue('Footsteps metal, remote 4 m', [[0, () =>
+    sfx.footstep(1, { surface: 'metal', body: {}, pos: [0, 0, -4] })]]);
+  const farSteps = await cue('Footsteps metal, remote 35 m', [[0, () =>
+    sfx.footstep(1, { surface: 'metal', body: {}, pos: [0, 0, -35] })]]);
+  check(nearSteps.metrics.rms > farSteps.metrics.rms * 2,
+    'Remote footfalls get quieter with world distance');
+  check(nearSteps.trace.acquisitions.every((voice) => voice.positional),
+    'Remote footfalls retain world direction');
   for (const [level, tier, label] of [
     [0.2, 'light', 'Mild pain moan'], [0.55, 'medium', 'Moderate pain moan'], [1, 'heavy', 'Severe pain moan'],
   ]) {
@@ -408,8 +435,9 @@ async function main() {
     sfx.explosion([0, 0, -4], 'frag');
     for (let i = 0; i < 32; i++) sfx.impact('stone', 0.1, { pos: [i % 3 - 1, 0, -4] });
   }]]);
-  check(debris.trace.acquisitions.length === 33
-    && debris.trace.acquisitions.every((entry) => entry.positional)
+  // The close blast also has a listener-relative ringing voice. Only world
+  // voices count toward the positional cap exercised by this scenario.
+  check(debris.trace.acquisitions.filter((entry) => entry.positional).length === 33
     && debris.trace.cleanups.filter((entry) => entry.early && entry.at === 0).length === 17
     && debris.trace.acquisitions.every((entry) => entry.activePositional <= 16),
   'Debris scenario exercises 33 positional acquisitions and 17 same-frame evictions within the cap');

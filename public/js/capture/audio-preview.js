@@ -1,6 +1,7 @@
 import { sfx } from '../audio/sfx.js';
 import { BUILTIN_SAMPLE_MANIFEST } from '../audio/samples.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
+import { FOOTSTEP_SLOTS, gaitPhaseRate, footstepVolume, SPRINT_SPEED } from '../audio/footsteps.js';
 
 const status = document.getElementById('status');
 const volume = document.getElementById('volume');
@@ -13,7 +14,7 @@ let loading;
 let generation = 0;
 let waveformCount = 0;
 let waveformFailures = 0;
-const featuredCueCount = 28;
+const featuredCueCount = 28 + Object.values(FOOTSTEP_SLOTS).flat().length;
 
 for (const [control, suffix, factor] of [[volume, '%', 100], [distance, ' m', 1], [charge, '%', 100]]) {
   control.addEventListener('input', () => {
@@ -220,6 +221,27 @@ async function waveform(url, canvas, caption) {
     }
   }
   return available;
+}
+
+const footstepPreview = document.getElementById('footstep-sounds');
+for (const [surface, slots] of Object.entries(FOOTSTEP_SLOTS)) {
+  const label = ({ stone: 'Stone / concrete', wood: 'Wood', metal: 'Metal',
+    grass: 'Grass / earth', gravel: 'Gravel', sand: 'Sand', cloth: 'Carpet / wool' })[surface];
+  const playSteps = (speed, remote) => {
+    stopLoops();
+    const token = generation, body = {};
+    const interval = Math.PI / gaitPhaseRate(speed) * 1000;
+    const options = { surface, body, ...(remote ? { pos: [0, 0, -Number(distance.value)] } : {}) };
+    for (let i = 0; i < 8; i++) later(() => {
+      if (generation === token) sfx.footstep(footstepVolume({ speed }) * (remote ? 1 : .3), options);
+    }, i * interval);
+    status.textContent = `${label}: eight ${remote ? 'remote' : 'own'} steps at the ${speed === SPRINT_SPEED ? 'sprint' : 'walk'} cadence`;
+  };
+  slots.forEach((slot, index) => card(footstepPreview, `${label}, variation ${index + 1}`,
+    'One generated footfall. The game varies the take and pitch without repeating the previous take.', slot,
+    index ? [] : [button(`Walk: ${label}`, () => playSteps(4.4, false)),
+      button(`Sprint: ${label}`, () => playSteps(SPRINT_SPEED, false)),
+      button(`Remote: ${label}`, () => playSteps(SPRINT_SPEED, true), true)]));
 }
 
 const painPreview = document.getElementById('pain-moans');

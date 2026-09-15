@@ -1,0 +1,214 @@
+{
+  "body_rms": {
+    "stone": 0.12,
+    "wood": 0.12,
+    "metal": 0.12,
+    "grass": 0.1,
+    "gravel": 0.11,
+    "sand": 0.09,
+    "cloth": 0.07
+  },
+  "surfaces": {
+    "stone": [
+      {
+        "source": "step-stone-3",
+        "trim_seconds": [
+          0.022,
+          0.26
+        ],
+        "reason": "Defined contact; gently reduce sustained scuff after 28 ms to retain a percussive step.",
+        "decay_after_seconds": 0.028,
+        "decay_tau_seconds": 0.06
+      },
+      {
+        "source": "step-stone-4",
+        "trim_seconds": [
+          0.047,
+          0.137
+        ],
+        "reason": "First isolated contact only; later scrape and impacts excluded."
+      },
+      {
+        "source": "step-stone-9",
+        "trim_seconds": [
+          0,
+          0.25
+        ],
+        "reason": "Compact rubber sole contact; infrasonic drift removed."
+      }
+    ],
+    "wood": [
+      {
+        "source": "step-wood-1",
+        "trim_seconds": [
+          0.022,
+          0.23
+        ],
+        "reason": "Single wooden knock, preserve short resonant body."
+      },
+      {
+        "source": "step-wood-2",
+        "trim_seconds": [
+          0,
+          0.2
+        ],
+        "reason": "Immediate wooden contact with a decaying sole texture."
+      },
+      {
+        "source": "step-wood-3",
+        "trim_seconds": [
+          0.024,
+          0.2
+        ],
+        "reason": "Single low wooden contact, trim leading silence."
+      }
+    ],
+    "metal": [
+      {
+        "source": "step-metal-3",
+        "trim_seconds": [
+          0.013,
+          0.25
+        ],
+        "reason": "One defined shoe impact with a short metallic texture."
+      },
+      {
+        "source": "step-metal-4",
+        "trim_seconds": [
+          0.37,
+          0.515
+        ],
+        "reason": "Select the isolated strong contact at 0.39 s; other footfalls excluded."
+      },
+      {
+        "source": "step-metal-6",
+        "trim_seconds": [
+          0.036,
+          0.126
+        ],
+        "reason": "First compact metal contact; shorten and fade before the later taps."
+      }
+    ],
+    "grass": [
+      {
+        "source": "step-grass-1",
+        "trim_seconds": [
+          0,
+          0.27
+        ],
+        "reason": "One initial contact and soft soil texture; remove strong subsonic drift."
+      },
+      {
+        "source": "step-grass-2",
+        "trim_seconds": [
+          0,
+          0.215
+        ],
+        "reason": "Compact leafy contact with naturally diminishing texture."
+      },
+      {
+        "source": "step-grass-3",
+        "trim_seconds": [
+          0.015,
+          0.235
+        ],
+        "reason": "Quiet textured earth contact; level against the other takes."
+      }
+    ],
+    "gravel": [
+      {
+        "source": "step-gravel-1",
+        "trim_seconds": [
+          0,
+          0.24
+        ],
+        "reason": "Immediate crunch with a short pebble tail."
+      },
+      {
+        "source": "step-gravel-2",
+        "trim_seconds": [
+          0.12,
+          0.3
+        ],
+        "reason": "Select main sole contact; remove preceding scrape."
+      },
+      {
+        "source": "step-gravel-3",
+        "trim_seconds": [
+          0.114,
+          0.23
+        ],
+        "reason": "Select final compact contact; preceding pebble impacts excluded."
+      }
+    ],
+    "sand": [
+      {
+        "source": "step-sand-3",
+        "trim_seconds": [
+          0.015,
+          0.285
+        ],
+        "reason": "Single continuous sand compression with short release."
+      },
+      {
+        "source": "step-sand-4",
+        "trim_seconds": [
+          0.17,
+          0.38
+        ],
+        "reason": "Select the sandy pressure peak and its release; later scuff excluded."
+      },
+      {
+        "source": "step-sand-6",
+        "trim_seconds": [
+          0.25,
+          0.5
+        ],
+        "reason": "Compact granular compression and fading release."
+      }
+    ],
+    "cloth": [
+      {
+        "source": "step-cloth-1",
+        "trim_seconds": [
+          0,
+          0.22
+        ],
+        "reason": "Soft single padded contact."
+      },
+      {
+        "source": "step-cloth-3",
+        "trim_seconds": [
+          0.045,
+          0.235
+        ],
+        "reason": "Main padded contact only; low earlier movement excluded."
+      },
+      {
+        "source": "step-cloth-6",
+        "trim_seconds": [
+          0.148,
+          0.325
+        ],
+        "reason": "First defined padded footfall; second brush excluded."
+      }
+    ]
+  },
+  "rejected": {
+    "step-metal-1": "Dominant sub-bass with no defined foot contact.",
+    "step-metal-2": "Rising high-frequency tone instead of a foot contact.",
+    "step-metal-5": "Multiple contacts with a diffuse resonant body; stronger alternatives selected.",
+    "step-stone-1": "Infrasonic drift dominates the contact.",
+    "step-stone-2": "Diffuse scuff and high tonal stripe; stronger contacts selected.",
+    "step-stone-5": "Long scrape envelope rather than compact contact.",
+    "step-stone-6": "Long swelling scrape with weak attack.",
+    "step-stone-7": "Subsonic movement dominates, lacks useful shoe texture.",
+    "step-stone-8": "Subsonic movement dominates, lacks useful shoe texture.",
+    "step-cloth-2": "Slow broad rise, lacks a precise footfall transient.",
+    "step-cloth-4": "Slow swelling noise with several low pulses.",
+    "step-cloth-5": "Secondary late contact and less suitable body than selected takes.",
+    "step-sand-1": "Long noisy lead-in and isolated sharp spike; smoother alternatives selected.",
+    "step-sand-2": "Main energy arrives late without a defined attack.",
+    "step-sand-5": "Two broad movement events; more compact alternatives selected."
+  }
+}

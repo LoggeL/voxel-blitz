@@ -24,6 +24,7 @@ import { mapAtmosphere } from './engine/map-atmosphere.js';
 import { WeaponWheelController } from './session/weapon-wheel-controller.js';
 import { RunHud } from './ui/run-hud.js';
 import { sfx } from './audio/sfx.js';
+import { footstepSurfaceAt } from './audio/footsteps.js';
 import { Session } from './session/session.js';
 import { aimAssistStrength } from './player/aim-assist.js';
 import { smokeBlocksSight, copySmokeFields } from '../../shared/smoke-rules.js';
@@ -292,7 +293,10 @@ class Game {
       scene: this.liveAvatarsGroup,
       gore: (event, options) => this.effects?.gore(event, options),
       getMyId: () => this.myId,
-      footstep: (remote, volume) => sfx.footstep(volume, { pos: [remote.x, remote.y, remote.z] }),
+      footstep: (remote, volume, avatar) => sfx.footstep(volume, {
+        pos: [remote.x, remote.y, remote.z], body: avatar,
+        surface: footstepSurfaceAt(getBlock, remote),
+      }),
     });
     this.footsteps = new rt.FootstepCadence();
     rt.attachRemoteMuzzleBridge(this.effects, () => this.roster);
@@ -720,7 +724,9 @@ class Game {
       speed: this.player.speedXZ, grounded: !!this.player.physics.grounded,
       crouch: this.player.crouchBool, swimming: !!this.player.physics.swimming,
     });
-    if (ownStep > 0 && !this.spectator?.active) sfx.footstep(ownStep * 0.3);
+    if (ownStep > 0 && !this.spectator?.active) sfx.footstep(ownStep * 0.3, {
+      body: this.player.physics, surface: footstepSurfaceAt(getBlock, this.player.physics.pos),
+    });
     this.presentGrenadeHandling(now);
     const def = this.weapon.def;
     // Scope zoom steps (Z, wheel while scoped, R3, touch ZOOM) only while looking through the optic.
