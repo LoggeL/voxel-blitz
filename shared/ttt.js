@@ -1,3 +1,4 @@
+import { isTrapRequest } from './world/traps.js';
 export const DEFAULT_TRAITOR_PERCENT = 25;
 export const TTT_TRAITOR_PERCENTS = Object.freeze([10, 15, 20, 25, 30, 35, 40, 45, 50]);
 export function tttTraitorCount(players, percent = DEFAULT_TRAITOR_PERCENT) {
@@ -28,7 +29,7 @@ export const TTT_SHOP = Object.freeze({
 });
 export const TTT_EQUIPMENT_ACTIONS = Object.freeze(['disguise-on', 'disguise-off', 'teleport-mark', 'teleport-return', 'c4-place']);
 export function isTttRequest(value) {
-  return typeof value === 'string' && (/^ttt:(pickup|inspect):[0-9]+$/.test(value)
+  return typeof value === 'string' && (/^ttt:(pickup|inspect):[0-9]+$/.test(value) || isTrapRequest(value)
     || value === 'ttt:drop' || (value.startsWith('ttt:')
       && (Object.hasOwn(TTT_SHOP, value.slice(4)) || TTT_EQUIPMENT_ACTIONS.includes(value.slice(4)))));
 }

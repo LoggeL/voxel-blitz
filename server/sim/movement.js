@@ -8,6 +8,7 @@ import { ladderContact } from '../../shared/worlddata.js';
 import { clamp01 } from './player.js';
 import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity, slidePlayerAxis, solidBelow, stepPlayerProne, canClimb, canStartVault, findVault, findSwimExit, stepVault } from '../../shared/player-movement.js';
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
+import { slideContact, stepSlideRide } from '../../shared/slide-rules.js';
 
 // Shooter-side rewind reads up to maxViewAgeMs (450 ms) back; at 60 Hz that
 // needs 27 samples, so 32 keeps a full window plus headroom.
@@ -135,6 +136,10 @@ export function stepMovement(p, dt, ctx) {
   const fwdAmt = (kf.f ? 1 : 0) - (kf.b ? 1 : 0);
   const strafe = (kf.r ? 1 : 0) - (kf.l ? 1 : 0);
   const ladderHere = ladderContact(ctx.mapMeta, p.x, p.y, p.z);
+  const swimming = fluidContact(ctx.fluidAt, p.x, p.y, p.z);
+  // A water slide carries the body on rails: a swimmer never starts a ride,
+  // but a rider keeps sliding through the splash lane to the end of the path.
+  const ride = swimming && !p.slide ? null : slideContact(ctx.mapMeta, p.x, p.y, p.z, p.slide);
   // Movement precedes weapon intents. Reserve hands for a valid new reload
   // immediately, but do not keep blocking on an already acknowledged request.
   const reloadEdge = inp?.reload && (Number.isSafeInteger(inp.reloadId) && inp.reloadId > 0
@@ -146,7 +151,7 @@ export function stepMovement(p, dt, ctx) {
     quickMelee: p.quickMeleeT > 0 || !!p.quickMeleeQueued,
     deploying: p.deployT > 0, healing: p.medkit?.active });
   if (!handsFree) p.vault = null;
-  p.proneT = stepPlayerProne(p.proneT, !!kf.prone && !p.vault && !ladderHere, dt, ctx.solidAt, p);
+  p.proneT = stepPlayerProne(p.proneT, !!ride || (!!kf.prone && !p.vault && !ladderHere), dt, ctx.solidAt, p);
   const low = !!kf.prone || p.proneT > 0;
   p.crouch = !!kf.crouch;
   p.sprint = !!kf.sprint && fwdAmt > 0 && !p.crouch && !low && !p.ads;
@@ -161,8 +166,22 @@ export function stepMovement(p, dt, ctx) {
     const length = Math.hypot(wx, wz);
     wx /= length; wz /= length;
   }
-  const swimming = fluidContact(ctx.fluidAt, p.x, p.y, p.z);
   p.swimming = swimming;
+  if (ride) {
+    p.vault = null;
+    const velocity = { x: p.vx, y: p.vy, z: p.vz };
+    p.slide = stepSlideRide(p, velocity, ride, dt, { x: wx, z: wz });
+    p.vx = velocity.x;
+    p.vy = velocity.y;
+    p.vz = velocity.z;
+    p.grounded = false;
+    p.coyote = 0;
+    p.sprint = false;
+    p.jumpGroundY = null;
+    recordPose(p, ctx.now);
+    return;
+  }
+  p.slide = null;
   if (p.grounded) p.jumpGroundY = p.y;
   const deliberateGrab = !p.grounded && jumpPressed && !low;
   if (handsFree && !p.vault && swimming) {

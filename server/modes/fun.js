@@ -105,7 +105,11 @@ export class FunPolicy {
 
   chooseSpawn(player, excludeIndex = -1) {
     const entity = this._entity(player);
-    const pool = Array.isArray(this.mapMeta?.spawns?.fun) ? this.mapMeta.spawns.fun : [];
+    // A map may author a pool for this mode (Waterworld keeps its original
+    // entities for Trouble in Terrorist Town); otherwise the free-for-all pool.
+    const spawns = this.mapMeta?.spawns;
+    const pool = Array.isArray(spawns?.[this.mode]) ? spawns[this.mode]
+      : Array.isArray(spawns?.fun) ? spawns.fun : [];
     return this._chooseSpawn(pool, entity, excludeIndex);
   }
 

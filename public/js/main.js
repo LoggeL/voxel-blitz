@@ -124,6 +124,12 @@ class Game {
         onDisconnect: () => this.disposeLiveResources(),
         onGameplayEvent: (event) => {
           if (event.kind === 'bastion_clear') { this.effects?.clearCombatHazards(); return; }
+          if (event.kind === 'trap') {
+            // Innocents hear the effect only; the button and its user stay private.
+            if (event.effect !== 'explosion') sfx.bastionCue('bastion_alarm', [event.x, event.y, event.z]);
+            this.tttControls?.trapTriggered?.(event);
+            return;
+          }
           if (event.kind.startsWith('bastion_')) {
             sfx.bastionCue(event.kind, event.pos);
             return;
@@ -393,6 +399,7 @@ class Game {
     const previousMatch = this.matchState;
     this.matchState = match;
     this.worldview?.setMatch(match);
+    this.worldview?.tttTraps?.sync(self?.ttt?.traps || []);
     this.worldview?.setPowerups(snapshot.powerups);
     this.selfRow = self;
     if (match?.mode === 'ttt') this.tttControls ??= new this.rt.TttControls(this);

@@ -375,7 +375,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     dust2: '7efc9f29',
     killhouse: '395d8d45',
     minecraft_b5: '3ed61d02',
-    waterworld: '75b0a9be',
+    waterworld: 'dab98505',
   };
   const expectedSpawnCounts = {
     harbor: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
@@ -390,7 +390,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     dust2: { fun: 10, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
     killhouse: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 0, sndDefenders: 0 },
     minecraft_b5: { fun: 14, tdmAlpha: 8, tdmBravo: 8, sndAttackers: 0, sndDefenders: 0 },
-    waterworld: { fun: 7, tdmAlpha: 8, tdmBravo: 8, sndAttackers: 0, sndDefenders: 0 },
+    waterworld: { fun: 24, tdmAlpha: 12, tdmBravo: 12, sndAttackers: 0, sndDefenders: 0 },
   };
   const pristineBytes = new Map();
 

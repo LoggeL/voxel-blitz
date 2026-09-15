@@ -131,6 +131,7 @@ export class PlayerEntity {
     this.reloadT = 0;
     this.reloadPrev = false;
     this.vault = null;
+    this.slide = null;
     this.jumpGroundY = null;
     this.jumpWasHeld = false;
     this.reloadStage = null;

@@ -6,6 +6,7 @@ import { EYE_HEIGHT } from '../../shared/combatmath.js';
 import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity, slidePlayerAxis, solidBelow, stepPlayerProne, canStartVault, findVault, findSwimExit, stepVault } from '../../shared/player-movement.js';
 import { getBlock, ladderContact, isSolidBlock, FLUID_BLOCKS } from '../../shared/worlddata.js';
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
+import { slideContact, stepSlideRide } from '../../shared/slide-rules.js';
 
 const { walk: WALK, sprint: SPRINT, crouch: CROUCH, jump: JUMP_VEL,
   accelGround: GROUND_ACCEL, accelAir: AIR_ACCEL, gravity: GRAVITY } = PHYSICS;
@@ -26,6 +27,7 @@ export class PlayerPhysics {
     this.proneT = 0;
     this.wantProne = false;
     this.climbBlocked = false;
+    this.slide = null;
     this.mapMeta = null;
     this._solidAt = (x, y, z) => this.solid(x, y, z);
     this._fluidAt = (x, y, z) => FLUID_BLOCKS.has(getBlock(x, y, z));
@@ -62,15 +64,32 @@ export class PlayerPhysics {
     const jumpPressed = !!wantJump && !this.jumpWasHeld;
     this.jumpWasHeld = !!wantJump;
     const onLadderNow = ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z);
+    const swimming = fluidContact(this._fluidAt, this.pos.x, this.pos.y, this.pos.z);
+    const ride = swimming && !this.slide ? null
+      : slideContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z, this.slide);
     if (this.climbBlocked) this.vault = null;
-    this.proneT = stepPlayerProne(this.proneT, this.wantProne && !this.vault && !onLadderNow,
+    this.proneT = stepPlayerProne(this.proneT, !!ride || (this.wantProne && !this.vault && !onLadderNow),
       dt, this._solidAt, this.pos);
     const low = this.wantProne || this.proneT > 0;
-    if (low) { speedTarget = Math.min(speedTarget, PRONE.speed); wantJump = false; }
+    if (low) {
+      speedTarget = Math.min(speedTarget, PRONE.speed);
+      // The authority still lets a prone swimmer hold jump to rise (a rider
+      // splashing down from a flume is prone); only dry jumps are refused.
+      if (!swimming) wantJump = false;
+    }
     if (this.coyote > 0) this.coyote = Math.max(0, this.coyote - dt);
 
-    const swimming = fluidContact(this._fluidAt, this.pos.x, this.pos.y, this.pos.z);
     this.swimming = swimming;
+    if (ride) {
+      // On the slide rails: no collision, no jump, the tube sets the pace.
+      this.vault = null;
+      this.slide = stepSlideRide(this.pos, this.vel, ride, dt, wish);
+      this.grounded = false;
+      this.coyote = 0;
+      this.jumpGroundY = null;
+      return false;
+    }
+    this.slide = null;
     if (swimming) speedTarget = Math.min(speedTarget, SWIM_RULES.speed);
     if (this.grounded) this.jumpGroundY = this.pos.y;
     const deliberateGrab = !this.grounded && jumpPressed && !low;

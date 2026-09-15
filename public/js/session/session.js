@@ -25,6 +25,7 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
   'respawn',
   'die',
   'body_identified',
+  'trap',
   'powerup',
   'bastion_clear', 'bastion_wave', 'bastion_supply', 'bastion_alarm', 'bastion_charge', 'bastion_lane', 'bastion_buy', 'bastion_pickup',
 ]);

@@ -464,7 +464,7 @@ export class GameEngine {
     const portal = portalAt(this.mapMeta, player.x, player.y + 0.5, player.z);
     if (portal) {
       Object.assign(player, { x: portal.x, y: portal.y, z: portal.z, yaw: portal.yaw,
-        vx: 0, vy: 0, vz: 0, vault: null, jumpGroundY: null, coyote: 0, grounded: false });
+        vx: 0, vy: 0, vz: 0, vault: null, slide: null, jumpGroundY: null, coyote: 0, grounded: false });
       player.hist = [];
       player.teleportSeq = ++this.teleportSerial;
       return;

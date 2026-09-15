@@ -41,7 +41,10 @@ export function buildTttShop(root, purchase, close) {
   const c4 = el('button','vb-ttt-action',actionBar,'ttt-c4');c4.textContent='C4 PLATZIEREN · 45 S';c4.onclick=()=>purchase('c4-place');
   const mark = el('button', 'vb-ttt-action', actionBar, 'ttt-mark'); mark.textContent = 'PUNKT MERKEN';
   const recall = el('button', 'vb-ttt-action', actionBar, 'ttt-recall');
-  const dom = { root, mode: 'ttt', closeBtn, credVal, cards: {}, itemOrder: [], tttCards: cards,
+  const trapSection = el('div', 'vb-ttt-traps', panel, 'ttt-shop-traps');
+  el('p', 'vb-ttt-eyebrow', trapSection).textContent = 'FALLEN DER KARTE · NUR FÜR TRAITOR';
+  const trapRows = el('div', 'vb-ttt-trap-rows', trapSection);
+  const dom = { trapSection, trapRows, root, mode: 'ttt', closeBtn, credVal, cards: {}, itemOrder: [], tttCards: cards,
     selected: 'radar', category, detailTitle, illustration, description, status, buyButton,
     gearStatus, disguise, mark, recall, c4, state: {} };
   for (const [id, item] of Object.entries(TTT_SHOP)) {
@@ -106,4 +109,15 @@ export function syncTttShop(dom, state) {
   if(owned.includes('c4'))info.push(ttt.c4?'C4: bereit zum Platzieren':'C4: Ladung verbraucht');
   if (tele) info.push(tele.mark ? 'Rückkehrpunkt gespeichert' : 'Teleporter: Bodenpunkt merken');
   dom.gearStatus.textContent = info.join(' · ') || 'Wähle deine Ausrüstung. Zwei Credits pro Runde.';
+  const traps = ttt.traps || [];
+  dom.trapSection.hidden = !traps.length;
+  const rows = traps.map(t => `${t.id}:${t.state}:${t.cooldown}`).join('|');
+  if (dom.trapRowsKey !== rows) {
+    dom.trapRowsKey = rows;
+    dom.trapRows.replaceChildren(...traps.map(t => {
+      const row = el('p', 'vb-ttt-trap-row'); row.dataset.state = t.state;
+      row.textContent = `${t.name} — ${t.detail} · ${t.state === 'ready' ? 'BEREIT' : t.state === 'cooldown' ? `BEREIT IN ${t.cooldown} S` : 'VERBRAUCHT'} · Taste am Schalter`;
+      return row;
+    }));
+  }
 }

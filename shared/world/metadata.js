@@ -1,6 +1,7 @@
 import { LARGE_SPAWN_ANCHORS, LARGE_SITES, LARGE_LANDMARKS } from './large-layout.js';
 import { worldDimensions } from './dimensions.js';
 import { AIR, GROUND, METAL, SX, SY, SZ, isSolidBlock } from './blocks.js';
+import { trapsFor } from './traps.js';
 import { MAP_MODE_COMPATIBILITY } from '../modes.js';
 import { foundryLadderVolumes } from './terrain-foundry.js';
 import { REACTOR_LAYOUT } from './reactor-layout.js';
@@ -105,12 +106,15 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
     tdm: { alpha: MINECRAFT_B5_ANCHORS.spawns.alpha, bravo: MINECRAFT_B5_ANCHORS.spawns.bravo },
     snd: { attackers: [], defenders: [] },
   },
-  // Original info_player_deathmatch entities in the foyer; each anchor carries
-  // the deck floor level so the pools below never catch a spawn.
+  // Generated dry standing cells across the decks, changing rooms, mezzanine
+  // and tower for the free-for-all and team modes; Trouble in Terrorist Town
+  // keeps the 66 original info_player_deathmatch entities in the foyer. Each
+  // anchor carries its floor level so the pools below never catch a spawn.
   waterworld: {
     fun: WATERWORLD_ANCHORS.spawns.fun,
     tdm: { alpha: WATERWORLD_ANCHORS.spawns.alpha, bravo: WATERWORLD_ANCHORS.spawns.bravo },
     snd: { attackers: [], defenders: [] },
+    ttt: WATERWORLD_ANCHORS.spawns.ttt,
   },
 });
 
@@ -319,6 +323,7 @@ export function createMapMetadata(id, world) {
       standHeights: [WATERWORLD_ANCHORS.groundLevel, WATERWORLD_ANCHORS.groundLevel + 24],
       portals: WATERWORLD_ANCHORS.portals.map((portal) => ({ ...portal })),
       tester: structuredClone(WATERWORLD_ANCHORS.tester),
+      slides: structuredClone(WATERWORLD_ANCHORS.slides),
       props: structuredClone(WATERWORLD_ANCHORS.props),
     } : {}),
     ...(id === 'reactor' ? { bastion: structuredClone(REACTOR_LAYOUT), spawnBounds: {
@@ -347,10 +352,13 @@ export function createMapMetadata(id, world) {
         attackers: resolveSpawnPool(world, anchors.snd.attackers, floorY),
         defenders: resolveSpawnPool(world, anchors.snd.defenders, floorY),
       },
+      ...(Array.isArray(anchors.ttt) ? { ttt: resolveSpawnPool(world, anchors.ttt, floorY) } : {}),
     },
     ladders: id === 'foundry' ? foundryLadderVolumes()
       : id === 'minecraft_b5' ? MINECRAFT_B5_ANCHORS.ladders.map((ladder) => ({ ...ladder })) : [],
     sites: MAP_SITE_LAYOUTS[id].map((site) => ({ ...site })),
+    // Traitor-trap buttons (TTT only); authored in shared/world/traps.js.
+    traps: structuredClone(trapsFor(id)),
     landmarks: MAP_LANDMARKS[id].map(({ floorY: landmarkFloorY, ...landmark }) => ({
       ...landmark,
       y: (landmarkFloorY ?? (id === 'killhouse' ? GROUND : world.heightAt(landmark.x, landmark.z))) + 1.02,
@@ -368,6 +376,7 @@ export function createMapMetadata(id, world) {
     metadata.spawns.tdm.bravo,
     metadata.spawns.snd.attackers,
     metadata.spawns.snd.defenders,
+    metadata.spawns.ttt || [],
   ]) {
     for (const spawn of pool) {
       if (!spawnIsWalkable(world, spawn)) throw new Error(`${id} contains an invalid spawn`);

@@ -1,4 +1,5 @@
 import { TTT_GRENADE_CAP } from '../../../shared/ttt.js';
+import { TRAP_RULES } from '../../../shared/world/traps.js';
 import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 import { TttRadar } from './ttt-radar.js';
 import { el, WEAPON_NAMES, THROWABLE_NAMES } from './hud-support.js';
@@ -15,9 +16,16 @@ export class TttControls {
     this.report=el('p','vb-ttt-body-report',this.root,'ttt-body-report');
     this.report.setAttribute('aria-live','polite');
     this.drop=el('button','',this.root,'ttt-drop');this.drop.onclick=()=>this.send('ttt:drop');
+    // Traitor traps: the nearest ready button and the map's trap roster (traitors only).
+    this.trapButton=el('button','',this.root,'ttt-trap');this.trapButton.onclick=()=>this.fire();
+    this.trapInfo=el('p','vb-ttt-trap-list',this.root,'ttt-trap-list');this.trapInfo.setAttribute('aria-live','polite');
     this.key=event=>{
       if(event.repeat||event.target?.closest('input,textarea,select')||!game.session.gameplayInputEnabled||game.hud.isBuyMenuOpen())return;
-      if(matchesBinding(event,'interact')){if(this.body&&!this.inspect.disabled&&(!this.body.identified||this.pickup.disabled))this.examine();else this.take();}
+      if(matchesBinding(event,'interact')){
+        if(this.body&&!this.inspect.disabled&&(!this.body.identified||this.pickup.disabled))this.examine();
+        else if(this.nearest&&!this.pickup.disabled)this.take();
+        else this.fire();
+      }
       if(matchesBinding(event,'dropWeapon'))this.send('ttt:drop');
     };
     document.addEventListener('keydown',this.key);
@@ -28,6 +36,9 @@ export class TttControls {
   }
   examine() { if(this.body&&!this.inspect.disabled)this.send(`ttt:inspect:${this.body.id}`); }
   take() { if(this.nearest&&!this.pickup.disabled)this.send(`ttt:pickup:${this.nearest.id}`); }
+  /** The server also reads the raw interact key; this request is a harmless duplicate. */
+  fire() { if(this.trap&&!this.trapButton.disabled)this.send(`ttt:trap:${this.trap.id}`); }
+  trapTriggered(event) { if(this.game.selfRow?.ttt?.role==='traitor'){this.note=`${event.name} ausgelöst`;this.noteUntil=Date.now()+4000;} }
   sync(match,self,players) {
     this.root.hidden=match?.mode!=='ttt'||match.phase==='post';
     if(this.root.hidden)return;
@@ -42,7 +53,17 @@ export class TttControls {
     this.inspect.disabled=!this.body||self?.state!=='alive'||match.phase!=='live';
     this.inspect.textContent=`[${bindingLabel('interact')}] ${this.body?.identified?this.body.name:'Unbekannte Leiche'} untersuchen`;
     this.report.hidden=!this.body?.identified;
-    this.report.textContent=this.body?.identified?`${this.body.name} · ${this.body.role==='traitor'?'TRAITOR':'INNOCENT'} · Todesursache: ${(this.body.weapon==='c4'?'C4':WEAPON_NAMES[this.body.weapon]||THROWABLE_NAMES[this.body.weapon]||'Umgebung')}`:'';
+    this.report.textContent=this.body?.identified?`${this.body.name} · ${this.body.role==='traitor'?'TRAITOR':'INNOCENT'} · Todesursache: ${(this.body.weapon==='c4'?'C4':this.body.weapon==='trap'?'Falle':WEAPON_NAMES[this.body.weapon]||THROWABLE_NAMES[this.body.weapon]||'Umgebung')}`:'';
+    const traps=self?.ttt?.traps||[];
+    this.trap=self?traps.filter(t=>Math.hypot(t.x+.5-self.x,t.z+.5-self.z)<=TRAP_RULES.useRange&&Math.abs(t.y-self.y)<=1.2)
+      .sort((a,b)=>Math.hypot(a.x+.5-self.x,a.z+.5-self.z)-Math.hypot(b.x+.5-self.x,b.z+.5-self.z))[0]:null;
+    const trapState=t=>t.state==='ready'?'bereit':t.state==='cooldown'?`in ${t.cooldown} s`:'verbraucht';
+    this.trapButton.hidden=!this.trap;
+    this.trapButton.disabled=!this.trap||this.trap.state!=='ready'||self?.state!=='alive'||match.phase!=='live';
+    this.trapButton.textContent=this.trap?`[${bindingLabel('interact')}] Falle: ${this.trap.name} · ${trapState(this.trap)}`:'';
+    const note=this.note&&Date.now()<this.noteUntil?`${this.note} · `:'';
+    this.trapInfo.hidden=!traps.length;
+    this.trapInfo.textContent=traps.length?`${note}Fallen: ${traps.map(t=>`${t.name} ${trapState(t)}`).join(' · ')}`:'';
     const weapon=self?.owned?.[0];
     const allies=self?.ttt?.allies?.filter(id=>id!==self.id).map(id=>players.find(p=>p.id===id)?.name).filter(Boolean);
     this.info.textContent=self?.state==='dead'?'ZUSCHAUER · Nächste Runde abwarten':match.phase==='prep'?(players.filter(p=>p.state==='alive').length<2?'Waffen suchen. Mindestens 2 Spieler für die Rollenvergabe.':'Waffen suchen. Noch keine Rollen, noch kein Schaden.'):

@@ -6,6 +6,7 @@ import { tttTraitorCount, TTT_WEAPONS, TTT_GRENADES, TTT_GRENADE_CAP, TTT_EQUIPM
 import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
 import { isPowerupSiteSupported } from '../../shared/powerup-sites.js';
 import { TttEquipment } from './ttt-equipment.js';
+import { TttTraps } from './ttt-traps.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 
 /** Roles stay private until a body is identified or the round ends. */
@@ -25,6 +26,7 @@ export class TttPolicy extends FunPolicy {
     this.participants = new Map();
     this.serial = 0;
     this.equipment = new TttEquipment(this, engine);
+    this.traps = new TttTraps(this, engine);
   }
   _syncPlayer(p) {
     p.team = null; p.credits = 0; p.bomb = false; p.interaction = null;
@@ -85,7 +87,7 @@ export class TttPolicy extends FunPolicy {
   privateState(id) {
     const role = this.roles.get(String(id)) ?? null;
     const viewer=this._entities.get(String(id));
-    return { ...this.equipment.privateState(id), damageFactor: viewer?.tttKarma?.factor ?? 1, role, credits: this.wallets.get(String(id)) ?? 0,
+    return { ...this.equipment.privateState(id), ...this.traps.privateState(id), damageFactor: viewer?.tttKarma?.factor ?? 1, role, credits: this.wallets.get(String(id)) ?? 0,
       allyPositions:role==='traitor'&&viewer?.state==='alive'&&this.phase==='live'
         ? [...this._entities.values()].filter(p=>p!==viewer&&p.state==='alive'&&this.roles.get(String(p.id))==='traitor')
           .map(p=>({id:p.id,name:p.name,x:p.x,y:p.y+1,z:p.z,ally:true,live:true})):[],
@@ -105,6 +107,7 @@ export class TttPolicy extends FunPolicy {
     if (!p || !this._players.has(String(p.id)) || p.state !== 'alive' || !['prep','live'].includes(this.phase)) return false;
     if (request === 'ttt:drop') return this.drop(p);
     if (typeof request !== 'string') return false;
+    if (request.startsWith('ttt:trap:')) return this.traps.trigger(p, request.slice(9));
     if (request.startsWith('ttt:inspect:')) {
       if (this.phase !== 'live') return false;
       const body = this.corpses.get(request.slice(12));
@@ -151,19 +154,19 @@ export class TttPolicy extends FunPolicy {
         x:p.x,y:p.y,z:p.z,yaw:p.yaw,weapon:context.weapon||'',diedAt:this.now,identified:false});
     }
     this.karma.killed(this._entity(killer), p, context.weapon);
-    this.equipment.remove(p.id);
+    this.equipment.remove(p.id); this.traps.remove(p.id);
     this.drop(p); p.respawnAt = Infinity;
     return true;
   }
   onPlayerRemove(player) {
     const p = this._entity(player);
-    if (p) { this.karma.remember(p); this.drop(p); this.equipment.remove(p.id); }
+    if (p) { this.karma.remember(p); this.drop(p); this.equipment.remove(p.id); this.traps.remove(p.id); }
     return super.onPlayerRemove(player);
   }
   onPlayerTakeover(player, nextId) {
     const p = this._entity(player), old = String(p?.id);
     if (!super.onPlayerTakeover(player, nextId)) return false;
-    this.equipment.takeover(old, nextId);
+    this.equipment.takeover(old, nextId); this.traps.takeover(old, String(nextId));
     if (this.roles.has(old)) { this.roles.set(String(nextId),this.roles.get(old)); this.roles.delete(old); }
     if (this.wallets.has(old)) { this.wallets.set(String(nextId),this.wallets.get(old)); this.wallets.delete(old); }
     if (this.participants.has(old)) {
@@ -179,7 +182,7 @@ export class TttPolicy extends FunPolicy {
     }
     if (this.phase === 'post') {
       this.phase = 'prep'; this.phaseEndsAt = this.now + this.rules.prepMs;
-      this.matchWinner = null; this.roles.clear(); this.wallets.clear(); this.equipment.clear();
+      this.matchWinner = null; this.roles.clear(); this.wallets.clear(); this.equipment.clear(); this.traps.clear();
       this.corpses.clear(); this.participants.clear(); this.round++;
       for (const p of this._entities.values()) { p.kills=p.deaths=p.score=0; this._respawn(p); }
       this.seedWeapons();
@@ -197,12 +200,14 @@ export class TttPolicy extends FunPolicy {
     }
     if (this.phase !== 'live') return;
     this.equipment.tick();
+    this.traps.tick();
     const living=[...this._entities.values()].filter(p=>p.state==='alive' && this.roles.has(String(p.id)));
     const traitors=living.filter(p=>this.roles.get(String(p.id))==='traitor').length;
     if (!traitors || traitors===living.length || this.now>=this.phaseEndsAt) {
       this.matchWinner = !traitors || this.now>=this.phaseEndsAt ? 'innocent' : 'traitor';
       this.karma.end();
       this.phase='post'; this.phaseEndsAt=null;
+      this.traps.clear();
     }
   }
   matchSnapshot() {
@@ -221,6 +226,6 @@ export class TttPolicy extends FunPolicy {
       const item=[...this.pickups.values()].sort((a,b)=>Math.hypot(a.x-p.x,a.z-p.z)-Math.hypot(b.x-p.x,b.z-p.z))[0];
       if (item) { this.buy(p,`ttt:pickup:${item.id}`); return {kind:'move',target:item,interact:false}; }
     }
-    return {kind:this.phase==='prep'?'move':'fight',target:null,interact:false};
+    return this.traps.botGoal(p) ?? {kind:this.phase==='prep'?'move':'fight',target:null,interact:false};
   }
 }

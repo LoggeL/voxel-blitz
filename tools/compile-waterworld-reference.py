@@ -22,6 +22,21 @@ a player keeps its 72-unit proportions) and fills a cell when
     box, as the flume tube panels do) covers 30 % of the cell once every face
     is pushed out by 12 units to voxel thickness.
 
+A water brush thinner than a voxel (the flume splash lane) snaps to the cell
+holding its centre plane like a slab, so the lane stays wet.
+
+The two flumes are rides: the 25 trigger_push volumes that carry riders
+(170 units per second) are chained by following each push direction to the
+next volume, and every chain becomes an authored slide whose path runs from
+the tower mouth through the push-volume centres to the shared splash lane.
+A two-voxel bore is carved along each path and the tube shell closed around
+it, so a rider on the rails always travels through air inside plastic.
+
+Spawns for the free-for-all and team modes are generated: dry standing cells
+with a flat 3 x 3 floor, three voxels of head room and no water beside them,
+spread by farthest-point sampling over the decks, changing rooms, mezzanine
+and tower. Trouble in Terrorist Town keeps the 66 original entities.
+
 The compiled BSP's own solid leaves (the void outside the sealed hull) and
 every air pocket unreachable from the spawns become a backing layer of the
 adjacent material over bedrock, so mining never opens onto an empty shell.
@@ -54,6 +69,20 @@ SHELL_INFLATE = 12.0            # Source units added to every face of a shell be
 SLAB_THRESHOLD = 0.5
 ANGLED_SLAB_THRESHOLD = 0.4     # a tilted panel passes through several cells along its thin axis;
                                 # door-frame posts beside the cubicle doors stay below this
+FLUME_PUSH_SPEED = 150.0        # trigger_push volumes at least this fast (Source units/s) carry flume riders;
+                                # the lazy river (65) and the whirlpool (100) are currents, not rides
+SLIDE_FEET_DROP = 1.1           # a rider's feet sit this far under the tube centreline (shared/slide-rules.js)
+SLIDE_BORE_RADIUS = 1.25        # cells whose centre is this close to the path are cleared for the rider
+SLIDE_BEND_RADIUS = 1.6         # the bore widens to this within a voxel of every bend so a steered rider clears it
+SLIDE_SHELL_RADIUS = 2.0        # cells out to here become tube shell where the voxel tube leaks
+SLIDE_MOUTH_REACH = 4.0         # the mouth waypoint sits this far up the tower from the first push volume
+SLIDE_EXIT_REACH = 2.5          # the ride ends this far past the last push volume, over the splash lane
+SLIDE_CHAIN_REACH = 8.0         # a push volume hands over to the next one whose entry face is this close
+SPAWN_GAP = 9.0                 # least distance (x/z, with height weighted three times) between generated spawns
+FUN_SPAWN_COUNT = 24
+TEAM_SPAWN_COUNT = 12
+ALPHA_MIN_Z = 112               # the foyer and its forecourt lie south of the hall's south wall (z >= 112)
+BRAVO_MAX_Z = 60                # the wave pool, cafe, tower stairs and traitor room lie north of z = 60
 
 # Block ids: must equal shared/world/blocks.js.
 AIR = 0
@@ -249,6 +278,19 @@ def polytope_aabb(planes):
     return [[min(p[i] for p in points), max(p[i] for p in points)] for i in range(3)]
 
 
+def brush_vertices(planes):
+    """Every corner of a convex brush (the intersection points that satisfy all planes)."""
+    points = []
+    n = len(planes)
+    for i in range(n):
+        for j in range(i + 1, n):
+            for k in range(j + 1, n):
+                p = solve3(planes[i], planes[j], planes[k])
+                if p and all(a * p[0] + b * p[1] + c * p[2] <= d + 1e-3 for a, b, c, d in planes):
+                    points.append(p)
+    return points
+
+
 def solve3(p, q, r):
     a = [[p[0], p[1], p[2]], [q[0], q[1], q[2]], [r[0], r[1], r[2]]]
     b = [p[3], q[3], r[3]]
@@ -412,6 +454,7 @@ def main(argv):
     slab = collections.defaultdict(float)       # snapped cross-section coverage per cell
     weight = collections.defaultdict(collections.Counter)
     water = collections.defaultdict(float)
+    shallow = collections.defaultdict(float)     # water layers thinner than a voxel (the splash lane)
     angled = set()                              # cells claimed by tilted panels and bends
     sky_open, sky_wall = set(), set()
 
@@ -432,8 +475,15 @@ def main(argv):
             stats['skybox-brushes'] += 1
             return
         if any('NATURE/WATER' in n for n in names):
-            for cell, frac in coverage(box, planes, axis_aligned):
-                water[cell] += frac
+            # A water layer thinner than a voxel (the flume splash lane holds
+            # twelve units over a thin floor) snaps to the cell holding its
+            # centre plane, or to the cell above when a floor slab owns it.
+            if thin_axis is not None:
+                for cell, frac in coverage(box, planes, axis_aligned, thin_axis):
+                    shallow[cell] += frac
+            else:
+                for cell, frac in coverage(box, planes, axis_aligned):
+                    water[cell] += frac
             stats['water-brushes'] += 1
             return
         block = forced_block if forced_block is not None else material_block(mats)
@@ -495,6 +545,14 @@ def main(argv):
     for cell, frac in water.items():
         if frac + 1e-9 >= SLAB_THRESHOLD:
             put(*cell, MC_WATER, only_air=True)
+    for (x, y, z), frac in shallow.items():
+        if frac + 1e-9 < SLAB_THRESHOLD:
+            continue
+        if get(x, y, z) == AIR:
+            put(x, y, z, MC_WATER)
+        elif get(x, y + 1, z) == AIR:
+            put(x, y + 1, z, MC_WATER)
+            stats['shallow-water-lifted'] += 1
     for cell in sky_wall:
         put(*cell, CONCRETE, only_air=True)
 
@@ -502,6 +560,144 @@ def main(argv):
 
     def solid(x, y, z):
         return get(x, y, z) in solid_types
+
+    def floor_below(wx, wy, wz):
+        x, z = int(wx), int(wz)
+        y = int(wy)
+        while y > 1 and not solid(x, y - 1, z):
+            y -= 1
+        return y - 1
+
+    # Flume rides. The trigger_push volumes that carry riders are chained by
+    # following each push direction to the volume whose entry face lies
+    # nearest to the current exit face; every chain start is a flume mouth on
+    # the tower and both chains end in the shared splash lane. A ride follows
+    # the polyline through the volume centres (shared/slide-rules.js).
+    pushes = []
+    for model, entity in sorted(by_model.items()):
+        if entity.get('classname') != 'trigger_push' or entity.get('StartDisabled') == '1':
+            continue
+        if float(entity.get('speed', 0) or 0) < FLUME_PUSH_SPEED:
+            continue
+        origin = vec(entity.get('origin'))
+        corners = []
+        for brush in bsp['model_brushes'](model):
+            planes, _, _, _ = brush_geometry(bsp['brush_sides'](brush), origin)
+            corners += [world_point(*c) for c in brush_vertices(planes)]
+        if not corners:
+            continue
+        centre = [sum(c[i] for c in corners) / len(corners) for i in range(3)]
+        yaw = math.radians(vec(entity.get('pushdir'))[1])
+        direction = (math.cos(yaw), -math.sin(yaw))
+        reach = max((c[0] - centre[0]) * direction[0] + (c[2] - centre[2]) * direction[1] for c in corners)
+        pushes.append({
+            'model': model, 'centre': centre, 'dir': direction, 'reach': reach,
+            'speed': float(entity['speed']) / UNIT,
+            'entry': (centre[0] - direction[0] * reach, centre[2] - direction[1] * reach),
+            'exit': (centre[0] + direction[0] * reach, centre[2] + direction[1] * reach),
+        })
+    successor = {}
+    for push in pushes:
+        best = None
+        for other in pushes:
+            if other is push or push['dir'][0] * other['dir'][0] + push['dir'][1] * other['dir'][1] < -0.3:
+                continue
+            gap = (math.hypot(push['exit'][0] - other['entry'][0], push['exit'][1] - other['entry'][1])
+                   + abs(push['centre'][1] - other['centre'][1]) * 0.5)
+            if gap < SLIDE_CHAIN_REACH and (best is None or gap < best[0]):
+                best = (gap, other['model'])
+        successor[push['model']] = best[1] if best else None
+    by_push = {push['model']: push for push in pushes}
+    chains = []
+    for push in pushes:
+        if push['model'] in successor.values():
+            continue
+        chain = [push['model']]
+        while successor[chain[-1]] is not None and successor[chain[-1]] not in chain:
+            chain.append(successor[chain[-1]])
+        chains.append(chain)
+    chains.sort(key=lambda chain: sum(by_push[m]['centre'][0] for m in chain) / len(chain))
+    slide_names = ['west-flume', 'east-flume', 'third-flume', 'fourth-flume']
+    shared_pushes = {m for chain in chains for m in chain if sum(m in c for c in chains) > 1}
+    slides = []
+    for name, chain in zip(slide_names, chains):
+        first, second = by_push[chain[0]]['centre'], by_push[chain[1]]['centre']
+        heading = math.hypot(second[0] - first[0], second[2] - first[2])
+        back = ((second[0] - first[0]) / heading, (second[2] - first[2]) / heading)
+        mouth = [first[0] - back[0] * SLIDE_MOUTH_REACH, 0.0, first[2] - back[1] * SLIDE_MOUTH_REACH]
+        mouth[1] = floor_below(mouth[0], first[1] + 3, mouth[2]) + 1 + SLIDE_FEET_DROP
+        path = [mouth]
+        for m in chain:
+            push = by_push[m]
+            if m not in shared_pushes:
+                path.append(list(push['centre']))
+                continue
+            # The splash lane is one wide push volume shared by both flumes,
+            # with a divider between the two channels: keep the rider's lane
+            # by projecting the previous waypoint along the push direction,
+            # and lift the rail onto the voxel lane floor.
+            prev, d = path[-1], push['dir']
+            along = (push['centre'][0] - prev[0]) * d[0] + (push['centre'][2] - prev[2]) * d[1]
+            span = along + push['reach'] + SLIDE_EXIT_REACH
+            end = [prev[0] + d[0] * span, push['centre'][1], prev[2] + d[1] * span]
+            end[1] = max(end[1], floor_below(end[0], end[1] + 1, end[2]) + 1 + SLIDE_FEET_DROP)
+            path.append([prev[0] + d[0] * along, end[1], prev[2] + d[1] * along])
+            path.append(end)
+        if chain[-1] not in shared_pushes:
+            last = by_push[chain[-1]]
+            span = last['reach'] + SLIDE_EXIT_REACH
+            path.append([last['centre'][0] + last['dir'][0] * span, last['centre'][1], last['centre'][2] + last['dir'][1] * span])
+        slides.append({
+            'id': name,
+            'speed': round(sum(by_push[m]['speed'] for m in chain) / len(chain), 3),
+            'pushes': chain,
+            'path': [[round(v, 3) for v in point] for point in path],
+        })
+    stats['flume-pushes'] = len(pushes)
+
+    # Carve a rider-sized bore along every ride and close the tube shell
+    # around it: the 32-unit sampling leaves the tubes one cell wide with
+    # gaps, so the rails alone would drag a body through plastic and out
+    # into the hall. The mouth on the tower and the open splash lane keep
+    # their original shape.
+    bore = set()
+    shell = {}
+    for slide in slides:
+        path = slide['path']
+        travelled = 0.0
+        for index in range(len(path) - 1):
+            a, b = path[index], path[index + 1]
+            length = math.dist(a, b)
+            steps = max(1, int(length / 0.25))
+            for k in range(steps + 1):
+                t = k / steps
+                px, py, pz = [a[j] + (b[j] - a[j]) * t for j in range(3)]
+                feet = int(math.floor(py - SLIDE_FEET_DROP))
+                closed = travelled + length * t > SLIDE_MOUTH_REACH and index < len(path) - 2
+                bend = (index > 0 and length * t < 1.0) or (index < len(path) - 2 and length * (1 - t) < 1.0)
+                radius = SLIDE_BEND_RADIUS if bend else SLIDE_BORE_RADIUS
+                for dx in range(-2, 3):
+                    for dz in range(-2, 3):
+                        cx, cz = int(math.floor(px)) + dx, int(math.floor(pz)) + dz
+                        distance = math.hypot(cx + 0.5 - px, cz + 0.5 - pz)
+                        if distance <= radius:
+                            bore.add((cx, feet, cz))
+                            bore.add((cx, feet + 1, cz))
+                            if closed:
+                                shell[(cx, feet - 1, cz)] = SLIDE_YELLOW
+                                shell.setdefault((cx, feet + 2, cz), SLIDE_BLUE)
+                        elif distance <= SLIDE_SHELL_RADIUS and closed:
+                            shell.setdefault((cx, feet, cz), SLIDE_BLUE)
+                            shell.setdefault((cx, feet + 1, cz), SLIDE_BLUE)
+            travelled += length
+    for cell in sorted(bore):
+        if inside(*cell) and get(*cell) not in (AIR, BEDROCK, MC_WATER):
+            stats['bore-carved:%d' % get(*cell)] += 1
+            put(*cell, AIR)
+    for cell, block in sorted(shell.items()):
+        if cell not in bore:
+            put(*cell, block, only_air=True)
+    stats['bore-cells'] = len(bore)
 
     # Spawns: info_player_deathmatch feet positions become [x, z, floorY].
     spawns = []
@@ -520,7 +716,8 @@ def main(argv):
 
     # The compiled BSP marks everything outside the sealed hull as solid
     # leaves; those cells are void. Sky brushes are exempt so the foyer and the
-    # hall's skylight stay open above.
+    # hall's skylight stay open above, and so is the flume bore where a ride
+    # cuts through the original tube shell.
     CONTENTS_SOLID = 0x1
     for y in range(1, SY):
         for z in range(SZ):
@@ -528,7 +725,7 @@ def main(argv):
                 v = get(x, y, z)
                 if v != AIR and v != MC_WATER:
                     continue
-                if (x, y, z) in sky_open:
+                if (x, y, z) in sky_open or (x, y, z) in bore:
                     continue
                 if bsp['leaf_contents'](*source_point(x + 0.5, y + 0.5, z + 0.5)) & CONTENTS_SOLID:
                     put(x, y, z, VOID)
@@ -588,13 +785,6 @@ def main(argv):
     for z in range(SZ):
         for x in range(SX):
             put(x, 0, z, BEDROCK)
-
-    def floor_below(wx, wy, wz):
-        x, z = int(wx), int(wz)
-        y = int(wy)
-        while y > 1 and not solid(x, y - 1, z):
-            y -= 1
-        return y - 1
 
     # Standing connectivity from the first spawn: one-voxel steps, swimming
     # through water. Landmarks snap to the nearest standing cell so a name never
@@ -735,15 +925,61 @@ def main(argv):
             kind, half = PROP_KINDS[prop['model']]
             prop_box(kind, half, prop['origin'], prop['yaw'])
 
-    # Spawn pools. Every original spawn stands in the foyer; free-for-all
-    # spreads them six voxels apart, teams take the west and east halves.
-    ordered = sorted(spawns, key=lambda s: (s[0], s[1]))
-    alpha = ordered[:8]
-    bravo = ordered[-8:]
+    # Spawn pools. Every original spawn stands in the foyer: Trouble in
+    # Terrorist Town keeps all of them; the six-voxel spread is the fallback
+    # free-for-all pool when the generator finds nothing.
     spread = []
     for spawn in spawns:
         if all(math.hypot(s[0] - spawn[0], s[1] - spawn[1]) >= 6 for s in spread):
             spread.append(spawn)
+
+    # Generated spawns for the free-for-all and team modes: standing cells
+    # reachable from the foyer with a flat, dry 3 x 3 floor, air in the 3 x 3
+    # body space two voxels high, a third voxel of head room, and no flume
+    # bore within reach, thinned to an even lattice and spread by
+    # farthest-point sampling (height counts three times so the mezzanine,
+    # changing rooms and tower landings are chosen next to the decks).
+    def spawn_cell(x, y, z):
+        if (x + z) % 2 or not (8 <= x < SX - 8 and 8 <= z < SZ - 8):
+            return False
+        if get(x, y + 2, z) != AIR:
+            return False
+        for dx in (-1, 0, 1):
+            for dz in (-1, 0, 1):
+                if not solid(x + dx, y - 1, z + dz) or get(x + dx, y - 1, z + dz) in fluid:
+                    return False
+                if get(x + dx, y, z + dz) != AIR or get(x + dx, y + 1, z + dz) != AIR:
+                    return False
+        for dx in range(-2, 3):
+            for dz in range(-2, 3):
+                for dy in range(-3, 4):
+                    if (x + dx, y + dy, z + dz) in bore:
+                        return False
+        return True
+
+    spawn_cells = sorted(c for c in walkable if spawn_cell(*c))
+
+    def spawn_metric(a, b):
+        return math.hypot(a[0] - b[0], a[2] - b[2], 3 * (a[1] - b[1]))
+
+    def spread_points(cells, count, seeds):
+        chosen = []
+        while len(chosen) < count and cells:
+            best = max(cells, key=lambda c: (min(spawn_metric(c, s) for s in seeds + chosen), -c[2], -c[0], -c[1]))
+            if min(spawn_metric(best, s) for s in seeds + chosen) < SPAWN_GAP:
+                break
+            chosen.append(best)
+        return chosen
+
+    foyer_centre = (sum(s[0] for s in spawns) / len(spawns), spawns[0][2] + 1, sum(s[1] for s in spawns) / len(spawns))
+    fun_cells = spread_points(spawn_cells, FUN_SPAWN_COUNT, [foyer_centre])
+    # Alpha grows from the deepest point of the foyer, bravo from the far end of the hall.
+    alpha_cells = spread_points([c for c in spawn_cells if c[2] >= ALPHA_MIN_Z], TEAM_SPAWN_COUNT, [(SX / 2, GROUND_LEVEL + 1, 0)])
+    bravo_cells = spread_points([c for c in spawn_cells if c[2] <= BRAVO_MAX_Z], TEAM_SPAWN_COUNT, [foyer_centre])
+    fun_spawns = [[x, z, y - 1] for (x, y, z) in fun_cells]
+    alpha = [[x, z, y - 1] for (x, y, z) in alpha_cells]
+    bravo = [[x, z, y - 1] for (x, y, z) in bravo_cells]
+    team_gap = min(math.hypot(a[0] - b[0], a[1] - b[1]) for a in alpha for b in bravo)
 
     # Power-up pads: open floor under open sky (the foyer and the skylight),
     # far from spawns and from one another.
@@ -806,7 +1042,8 @@ def main(argv):
     anchors = {
         'groundLevel': GROUND_LEVEL,
         'waterLevel': int(-288 / UNIT - BASE_LAYER),
-        'spawns': {'fun': spread, 'alpha': alpha, 'bravo': bravo, 'all': spawns},
+        'spawns': {'fun': fun_spawns or spread, 'alpha': alpha, 'bravo': bravo, 'ttt': spawns, 'all': spawns},
+        'slides': slides,
         'landmarks': landmarks,
         'powerups': powerups,
         'portals': portals,
@@ -832,7 +1069,12 @@ def main(argv):
         'runs': len(runs), 'bytes': OUT.stat().st_size,
         'blocks': {str(k): v for k, v in sorted(counts.items())},
         'reachable': len(reachable),
-        'spawns': len(spawns), 'funSpawns': len(spread), 'portals': len(portals), 'tester': len(tester),
+        'spawns': len(spawns), 'funSpawns': len(fun_spawns), 'alphaSpawns': len(alpha), 'bravoSpawns': len(bravo),
+        'spawnCells': len(spawn_cells), 'teamGap': round(team_gap, 2),
+        'spawnLevels': sorted({c[1] for c in fun_cells + alpha_cells + bravo_cells}),
+        'slides': [{'id': s['id'], 'pushes': s['pushes'], 'waypoints': len(s['path']),
+                    'mouth': s['path'][0], 'exit': s['path'][-1]} for s in slides],
+        'portals': len(portals), 'tester': len(tester),
         'walkable': len(walkable),
         'testerWalkable': [any(t['minX'] - 1 <= x <= t['maxX'] and t['minY'] - 1 <= y <= t['maxY'] and t['minZ'] - 1 <= z <= t['maxZ']
                                for (x, y, z) in walkable) for t in tester],

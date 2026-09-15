@@ -376,6 +376,68 @@ Other players can use the range while it is occupied, but cannot reset the
 runner's gates or clear their course targets. Returning to the start restarts
 the attempt. Death or disconnect releases the course for the next runner.
 
+### Trouble in Terrorist Town: traitor traps
+
+Traitor traps are Garry's-Mod-style wall buttons that only living traitors
+can press during the live phase. They are pure data in
+`shared/world/traps.js` (`MAP_TRAPS[mapId]`, mirrored as `meta.traps`):
+`{id, name, detail, button:{x,y,z,face}, uses?|cooldownMs?, effect}`. `button`
+is the integer standing cell in front of the wall the plate hangs on (`face`
+is `x-|x+|z-|z+`); a trap with `uses` is spent after that many presses, one
+with `cooldownMs` re-arms after the pause. Effect kinds, all run by
+`server/modes/ttt-traps.js`:
+
+| kind | fields | behaviour |
+|---|---|---|
+| `explosion` | `x,y,z,radius,damage,terrainRadius,terrainPower,maxDestroyedBlocks` | owner-less blast through `ProjectileSystem.explode` (`projectileExplode` event with `type:'trap'`, terrain carving) |
+| `lava` / `flood` | `region,durationMs` | air cells of the inclusive voxel box become `MC_LAVA`/`MC_WATER`, restored after the duration |
+| `door_lock` | `region,durationMs` | air cells become `MC_IRON` (cells a living body occupies are skipped), restored after the duration |
+| `collapse` | `region,durationMs` | solid non-bedrock cells become air, restored when no body stands in them |
+| `electrify` | `regions,durationMs,damage,intervalMs` | feet inside any box take `damage` every `intervalMs` |
+| `gas` | `fields,region,durationMs,damage,intervalMs` | smoke fields (`smoke-trap-N`, authored radius) plus the same damage volume |
+| `fire` | `points,durationMs` | molotov ground fire ignited at each point, expiry stretched to `durationMs` |
+
+Every block change goes through `pushBlockDelta`, so clients receive the
+normal `tick.blocks` deltas and remesh; a round end (`post`) reverts all
+changes at once and re-arms the buttons. Trap damage is world damage: hits,
+kills and corpses carry the weapon key `trap` and never the traitor. A
+traitor within 1.6 m of a button (`TRAP_RULES.useRange`) triggers it with the
+interact key (server-side edge on `keys.interact`) or with the buy request
+`ttt:trap:<id>`; innocents, dead players, other phases, range, cooldown and
+spent uses are refused silently. The traitor's private `ttt.traps` roster
+lists every button with `state` (`ready|cooldown|used`), `cooldown` seconds
+and `uses`; innocents receive no roster. Clients draw a pulsing emissive
+plate on the wall for traitors only (`public/js/engine/ttt-traps.js`), show a
+`[E] Falle: …` prompt in range, list the roster in the TTT controls and in the
+traitor shop, and play the alarm cue at the effect origin for everyone when a
+`trap` event arrives (explosions keep their own blast sound). Traitor bots
+walk to a ready button within 28 m and press it when an innocent stands inside
+its effect (`trapEffectContains`).
+
+Authored traps (button standing cell → effect):
+
+| map | trap | button | effect |
+|---|---|---|---|
+| `minecraft_b5` | TNT (1 use) | 59,43,57 (T room, south wall) | explosion at 45.5,51.2,27.5 (mine station), r 8, 140 dmg |
+| `minecraft_b5` | Lavaflut (1 use) | 59,43,51 (T room, INCINERATOR wall) | lava over the village square x 66–75, z 24–33, y 42 for 8 s |
+| `minecraft_b5` | Lockdown (45 s) | 59,43,56 (T room, west wall) | iron in the corridor gap x 57–58, y 43–44, z 54 for 20 s |
+| `waterworld` | Poolstrom (60 s) | 193,11,10 (traitor hall, east wall) | electrify the east pool x 146–190, y 2–8.5, z 34–66 for 12 s |
+| `waterworld` | Chlorleck (50 s) | 185,11,24 (traitor hall, west wall) | smoke at 156.5/170.5/184.5, 11, 30.5 plus damage on the deck x 146–194, z 26–34 for 14 s |
+| `waterworld` | Tester-Sabotage (40 s) | 183,11,22 (teleport antechamber) | electrify both flume tester volumes for 25 s |
+| `foundry` | Abstich (1 use) | 28,13,77 (South Tower) | lava on the North Forge floor x 56–64, y 14, z 23–29 for 8 s |
+| `foundry` | Kranladung (1 use) | 24,13,76 (South Tower) | explosion at 65.5,14.8,46.5 (Center Crane), r 8, 130 dmg |
+| `foundry` | Turm-Lockdown (45 s) | 28,13,79 (South Tower) | iron in the tower doorway 26, y 12–14, 75 for 20 s |
+| `nuketown` | Busbombe (1 use) | 75,16,50 (moving truck) | explosion inside the school bus at 55.5,17,44.5, r 7, 130 dmg |
+| `nuketown` | Fallout (50 s) | 75,16,54 (moving truck) | smoke at 46.5/64.5/82.5, 15, 39.5 plus damage on the street x 40–89, z 36–41.5 for 14 s |
+| `nuketown` | Gasleitung (40 s) | 85,16,50 (moving truck) | ground fire on the yellow house porch at 60.5,15,58.5 for 12 s |
+
+`node tools/ttt-traps-test.mjs` (part of `npm run ttt:test`) checks every
+button on every map (solid floor, air at feet and body, a solid wall behind
+the plate, connectivity to the spawn set, effects inside the world and off the
+button) and drives a real engine through role, phase and range gating, uses,
+cooldowns, block restore, damage volumes, smoke and fire fields, private
+state, round reset and bot presses.
+
 ### Map compatibility
 
 Harbor and Canyon are 192 × 144 × 40 voxels; Minecraft B5 is 128 × 96 × 88 so the Nether fits under the island; Waterworld is 200 × 188 × 36, the whole leisure centre and its foyer at 32 Source units per voxel. Existing maps retain 128 × 96 × 40 dimensions. Binary world headers carry each map's actual dimensions; voxel indices, chunk counts, projectile bounds and spawn pools use those dimensions.
@@ -394,7 +456,7 @@ Harbor and Canyon are 192 × 144 × 40 voxels; Minecraft B5 is 128 × 96 × 88 s
 | `dust2` | Fun, Chaos Lab, TDM, S&D, Gun Game | Long A, Short/Catwalk, Mid Doors, B Tunnels and raised A site |
 | `killhouse` | Training | weapon-test firing range with respawning dummies and a timed 4-stage killhouse course |
 | `minecraft_b5` | Fun, TTT, 1v1, Chaos Lab, TDM, Gun Game | block-for-block replica of `ttt_minecraft_b5` (`docs/maps/minecraft-b5.md`): island village, lighthouse, mine rails, swimmable ocean, working Nether portals and the Nether below |
-| `waterworld` | Fun, TTT, 1v1, Chaos Lab, TDM, Gun Game | block-for-block replica of `ttt_waterworld` (`docs/maps/waterworld.md`): Leith Waterworld leisure pools, flumes with the tester volumes, changing rooms, cafe mezzanine, traitor room teleport and the glass foyer |
+| `waterworld` | Fun, TTT, 1v1, Chaos Lab, TDM, Gun Game | block-for-block replica of `ttt_waterworld` (`docs/maps/waterworld.md`): Leith Waterworld leisure pools, rideable flumes with the tester volumes, changing rooms, cafe mezzanine, traitor room teleport and the glass foyer |
 
 ## Mode-specific HUD and scoreboards
 

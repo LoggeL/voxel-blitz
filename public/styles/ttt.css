@@ -28,3 +28,7 @@
 .kf-body-found{flex-wrap:wrap;max-width:min(480px,calc(100vw - 24px));white-space:normal;overflow-wrap:anywhere}.kf-body-found .vb-ttt-role-badge{margin-left:0}
 
 .vb-touch-mode #killfeed[data-ttt=true]{display:flex!important;max-width:calc(100vw - 36px)}
+
+.vb-ttt-trap-list{color:#ffb4ad;font-size:12px;text-transform:none;white-space:normal;max-width:340px}.vb-ttt-trap-list[hidden],#ttt-trap[hidden]{display:none!important}
+.vb-ttt-traps{margin-top:16px;padding-top:14px;border-top:1px solid #35434d}.vb-ttt-traps[hidden]{display:none!important}.vb-ttt-trap-rows{display:grid;gap:5px}
+.vb-ttt-trap-row{font:12px/1.5 monospace;color:#e5edf3;margin:0;text-transform:none}.vb-ttt-trap-row[data-state=ready]{color:#ffb4ad}.vb-ttt-trap-row[data-state=used]{opacity:.5}

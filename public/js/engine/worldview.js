@@ -1,6 +1,7 @@
 import { TttSupplyView } from './ttt-supplies.js';
 import { TttCorpseView } from './ttt-corpses.js';
 import { TttWeaponView } from './ttt-weapons.js';
+import { TttTrapView } from './ttt-traps.js';
 import { getMapDimensions } from '../../../shared/world/dimensions.js';
 import { BastionWorld } from './bastion-world.js';
 // WorldView: composition root for the client's visual world. Owns the THREE.Scene,
@@ -156,6 +157,8 @@ export class WorldView {
     this.scene.add(this.tttCorpses.group);
     this.tttWeapons = new TttWeaponView();
     this.scene.add(this.tttWeapons.group);
+    this.tttTraps = new TttTrapView();
+    this.scene.add(this.tttTraps.group);
     this.powerups = new PowerupView();
     this.scene.add(this.powerups.group);
   }
@@ -240,6 +243,7 @@ export class WorldView {
     tickFluidMaterials(dt);
     this.skyUpdate(dt);
     this.powerups.update(dt);
+    this.tttTraps.update(this.tttTrapClock = (this.tttTrapClock || 0) + dt);
   }
 
   dispose() {
@@ -263,6 +267,7 @@ export class WorldView {
     this.siteMarkers.dispose();
     this.powerups.dispose();
     this.tttWeapons.dispose();
+    this.tttTraps.dispose();
     this.tttCorpses.dispose();
     this.tttSupplies.dispose();
     this.mapSigns.dispose();
