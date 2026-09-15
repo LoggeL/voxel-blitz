@@ -79,11 +79,16 @@ ceiling and the sea floor is unbreakable bedrock, as is the world floor.
   Chaos cash rules keep pads away from every spawn; Team Deathmatch uses the
   eight westernmost and eight easternmost surface spawns.
 
-The island shell is open to the sea along its shores, exactly as in the
-original, so the space under the island is reachable by wading in from the
-beach. Sealed pockets that no player could reach (compiled BSP void and cells
-unreachable from the sky, a spawn or a portal arrival) are filled with stone
-or netherrack so mining never opens onto an empty shell.
+The original island is a Source shell: under its grass and stone crust the
+space down to the sea is empty and open along the beaches, which made the
+replica look hollow from the water and through mined holes. The compiler
+therefore fills every air cell above sea level and below a column's lowest
+natural-terrain block (grass, dirt, stone, cobble, sand, gravel) with dirt;
+piers, houses and the clouds are not terrain, so the air under them stays,
+and water, beaches, caves and mines above the crust keep their shape. Sealed
+pockets that no player could reach (compiled BSP void and cells unreachable
+from the sky, a spawn or a portal arrival) are filled with stone or
+netherrack so mining never opens onto an empty shell.
 
 ## What is not reproduced
 

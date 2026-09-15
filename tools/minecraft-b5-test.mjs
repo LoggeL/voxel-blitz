@@ -18,7 +18,7 @@ import { isModeMapCompatible, mapForMode } from '../shared/modes.js';
 import { boxCollides, fluidContact, SWIM_RULES } from '../shared/player-movement.js';
 import { PlayerPhysics } from '../public/js/player-physics.js';
 import { pickaxeMaterial } from '../public/js/audio/pickaxe.js';
-import { deserializeWorld } from '../shared/worlddata.js';
+import { deserializeWorld, setBlock } from '../shared/worlddata.js';
 
 const world = createMapState('minecraft_b5');
 const meta = getMapMeta('minecraft_b5');
@@ -230,6 +230,27 @@ const hpBefore = player.hp;
 // Lava ticks every 250 ms of authoritative time regardless of the step size.
 for (let i = 0; i < Math.ceil(300 / engine.intervalMs); i++) engine.step(engine.intervalMs);
 assert.ok(player.hp < hpBefore, 'standing in lava burns');
+assert.ok(player.burn && player.burn.source === 'lava' && player.burning > 0, 'lava sets the body alight');
+// The fire outlasts the contact: on dry Nether ground it keeps burning and hurting.
+const dryCell = (() => {
+  for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) if (at(x, 2, z) === MC_NETHERRACK && free(x, 3, z) && free(x, 4, z)) return [x, z];
+  return null;
+})();
+assert.ok(dryCell, 'a dry Nether cell exists');
+Object.assign(player, { x: dryCell[0] + 0.5, y: 3.05, z: dryCell[1] + 0.5, vx: 0, vy: 0, vz: 0 });
+const hpOutOfLava = player.hp;
+for (let i = 0; i < Math.ceil(1000 / engine.intervalMs); i++) engine.step(engine.intervalMs);
+assert.ok(player.hp < hpOutOfLava, 'a burning body keeps taking fire damage after leaving the lava');
+assert.ok(player.burning > 0 && player.burning < 4, 'the lava fire burns down over time');
+// Water puts the fire out at once.
+const waterCell = (() => {
+  for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) if (at(x, 35, z) === MC_WATER && at(x, 36, z) === MC_WATER) return [x, z];
+  return null;
+})();
+assert.ok(waterCell, 'a sea cell exists');
+Object.assign(player, { x: waterCell[0] + 0.5, y: 35.2, z: waterCell[1] + 0.5, vx: 0, vy: 0, vz: 0 });
+engine.step(engine.intervalMs);
+assert.ok(!player.burn && player.burning === 0, 'water extinguishes a burning body');
 const snapshotEvents = engine.tickEvents.length;
 assert.ok(snapshotEvents >= 0);
 Object.assign(player, { x: (island.minX + island.maxX) / 2, y: island.minY + 0.5, z: (island.minZ + island.maxZ) / 2, vx: 0, vy: 0, vz: 0, hp: 100 });
@@ -324,17 +345,24 @@ const shoreCase = (matches) => {
   return null;
 };
 const air = (x, y, z) => at(x, y, z) === AIR;
+const flushBank = shoreCase((x, z) => solidAt(x, sea - 1, z) && air(x, sea, z) && air(x, sea + 1, z) && air(x, sea + 2, z));
 const shores = {
-  'flush bank': [shoreCase((x, z) => solidAt(x, sea - 1, z) && air(x, sea, z) && air(x, sea + 1, z) && air(x, sea + 2, z)), sea],
+  'flush bank': [flushBank, sea],
   'one-block shore': [shoreCase((x, z) => solidAt(x, sea - 1, z) && solidAt(x, sea, z) && air(x, sea + 1, z) && air(x, sea + 2, z) && air(x, sea + 3, z)), sea + 1],
-  'overhang': [shoreCase((x, z) => solidAt(x, sea - 1, z) && air(x, sea, z) && air(x, sea + 1, z) && solidAt(x, sea + 2, z)), sea],
+  // The dirt-filled island no longer has a natural overhung beach, so cap a
+  // flush bank two blocks up in both the authority's and the prediction's world.
+  'overhang': [flushBank, sea, true],
 };
 const stoodOnShore = (body, [x, z, dx, dz], top) => body.grounded && Math.floor(body.x) === x + dx && Math.floor(body.z) === z + dz && body.y >= top - 0.01;
-for (const [label, [shore, top]] of Object.entries(shores)) {
+for (const [label, [shore, top, cap]] of Object.entries(shores)) {
   assert.ok(shore, `${label} exists on the map`);
   const [x, z, dx, dz] = shore;
   const yaw = Math.atan2(-dx, -dz);
   const arena = new GameEngine({ world: createMapState('minecraft_b5'), mapMeta: meta });
+  if (cap) {
+    arena.world.setBlock(x + dx, sea + 2, z + dz, MC_STONE);
+    setBlock(x + dx, sea + 2, z + dz, MC_STONE);
+  }
   arena.addClient('swimmer', 'Swimmer');
   const body = arena.entities.get('swimmer');
   Object.assign(body, { x: x + 0.5, y: sea - 1.5, z: z + 0.5, vx: 0, vy: 0, vz: 0, grounded: false });
@@ -355,5 +383,6 @@ for (const [label, [shore, top]] of Object.entries(shores)) {
     clientOut = stoodOnShore({ ...swimmer.pos, grounded: swimmer.grounded }, shore, top);
   }
   assert.ok(clientOut, `${label}: prediction climbs out of the water at ${x},${z}`);
+  if (cap) setBlock(x + dx, sea + 2, z + dz, AIR);
 }
 console.log('Minecraft B5: swimmers climb onto flush, raised and overhung banks on the authority and in prediction.');

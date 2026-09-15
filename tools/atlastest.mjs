@@ -374,7 +374,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     nuketown: 'eac51fd4',
     dust2: '7efc9f29',
     killhouse: '395d8d45',
-    minecraft_b5: '3ed61d02',
+    minecraft_b5: '5516e8c9',
     waterworld: 'dab98505',
   };
   const expectedSpawnCounts = {

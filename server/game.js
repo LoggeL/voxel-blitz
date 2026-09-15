@@ -1,5 +1,5 @@
 import { reactorDefenderSolid } from '../shared/world/reactor-layout.js';
-import { FlameSystem, updateBurn } from './sim/fire.js';
+import { FlameSystem, extinguish, igniteFromLava, updateBurn } from './sim/fire.js';
 // Authoritative fixed-step simulation facade. Transport, room management and
 // map delivery stay outside; focused simulation modules own player state,
 // movement, combat and spawn selection.
@@ -7,6 +7,7 @@ import { FlameSystem, updateBurn } from './sim/fire.js';
 import {
   AIR,
   MC_LAVA,
+  MC_WATER,
   FLUID_BLOCKS,
   isSolidBlock,
   portalAt,
@@ -48,6 +49,8 @@ import {
 const MAX_PITCH = (80 * Math.PI) / 180;
 const LAVA_DAMAGE = 12;
 const LAVA_DAMAGE_INTERVAL_S = 0.25;
+// Seconds a body keeps burning after it leaves lava; water puts it out at once.
+const LAVA_BURN_S = 4;
 const SPAWN_PROTECTION_MS = 1500;
 
 export class GameEngine {
@@ -459,7 +462,7 @@ export class GameEngine {
     return result;
   }
 
-  /** Authored portals move the body at once; lava burns anyone standing in it. */
+  /** Authored portals move the body at once; lava sets anyone in it alight, water puts fires out. */
   applyMapVolumes(player, dt) {
     const portal = portalAt(this.mapMeta, player.x, player.y + 0.5, player.z);
     if (portal) {
@@ -471,7 +474,13 @@ export class GameEngine {
     }
     const feet = this.world.getBlock(Math.floor(player.x), Math.floor(player.y + 0.1), Math.floor(player.z));
     const body = this.world.getBlock(Math.floor(player.x), Math.floor(player.y + 0.9), Math.floor(player.z));
-    if (feet !== MC_LAVA && body !== MC_LAVA) { player.lavaT = 0; return; }
+    const inLava = feet === MC_LAVA || body === MC_LAVA;
+    if (!inLava) {
+      player.lavaT = 0;
+      if (feet === MC_WATER || body === MC_WATER) extinguish(player);
+      return;
+    }
+    igniteFromLava(player, LAVA_BURN_S);
     player.lavaT = (player.lavaT || 0) + dt;
     if (player.lavaT < LAVA_DAMAGE_INTERVAL_S) return;
     player.lavaT -= LAVA_DAMAGE_INTERVAL_S;

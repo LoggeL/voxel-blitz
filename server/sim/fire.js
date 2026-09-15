@@ -84,10 +84,29 @@ export class FlameSystem {
   }
 }
 
+/** Lava sets a body alight with no owner; the flames outlast the contact. */
+export function igniteFromLava(victim, seconds) {
+  const remaining = Math.max(victim.burn?.remaining || 0, seconds);
+  victim.burn = { owner: null, source: 'lava', remaining, elapsed: victim.burn?.elapsed || 0 };
+  victim.burning = remaining;
+  victim.panic = Math.max(victim.panic, flamePanicFloor(remaining));
+}
+
+/** Water puts any fire out at once. */
+export function extinguish(victim) {
+  if (!victim.burn) return false;
+  victim.burn = null;
+  victim.burning = 0;
+  return true;
+}
+
 export function updateBurn(victim, dt, ctx) {
   const burn = victim.burn;
   if (!burn) return;
-  if (victim.state !== 'alive' || ctx.canBurn?.() === false || !ctx.canDamage(burn.owner, victim)) {
+  // World fire (lava) has no owner and needs no damage permission.
+  const owner = burn.owner || null;
+  const source = burn.source || 'flamethrower';
+  if (victim.state !== 'alive' || ctx.canBurn?.() === false || (owner && !ctx.canDamage(owner, victim))) {
     victim.burn = null;
     victim.burning = 0;
     return;
@@ -102,10 +121,10 @@ export function updateBurn(victim, dt, ctx) {
   if (burn.elapsed >= 0.5 - 1e-9 || burn.remaining <= 0) {
     const damage = combatDamage(rules.damagePerS * burn.elapsed);
     burn.elapsed = 0;
-    const lethal = victim.takeDamage(damage, false, burn.owner, 'flamethrower');
-    ctx.pushEvent(evHit(burn.owner.id, victim.id, damage, false,
+    const lethal = victim.takeDamage(damage, false, owner, source);
+    ctx.pushEvent(evHit(owner ? owner.id : '', victim.id, damage, false,
       [victim.x, victim.eyeY, victim.z], victim.lastDamage));
-    if (lethal) ctx.killPlayer(victim, burn.owner, 'flamethrower', false);
+    if (lethal) ctx.killPlayer(victim, owner, source, false);
   }
   if (burn.remaining <= 0 || victim.state !== 'alive') {
     victim.burn = null;

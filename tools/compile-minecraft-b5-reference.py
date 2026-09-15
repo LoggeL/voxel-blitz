@@ -572,6 +572,31 @@ def main(argv):
                     put(x, y, z, MC_VOID_FILL(y))
                     stats['void-filled'] += 1
 
+    # The island is a Source shell: under its grass and stone crust the space
+    # down to the sea is empty air, open to the ocean along the beaches. Seen
+    # from the water or through a mined hole the map looked hollow, so every
+    # air cell above sea level and below a column's lowest natural-terrain block
+    # becomes dirt. Piers, houses and clouds are not terrain, so the air under
+    # them stays; water and the crust itself are untouched, so beaches, caves
+    # and mines above the crust keep their shape.
+    sea_level = SEA_FLOOR_LAYER - BASE_LAYER + 5  # the seaLevel anchor (37)
+    terrain = {B[name] for name in ('MC_GRASS', 'MC_DIRT', 'MC_STONE', 'MC_COBBLE',
+                                     'MC_MOSSY', 'MC_SAND', 'MC_GRAVEL')}
+    crust_ceiling = sea_level + 27  # the hill tops; clouds float far above
+    for z in range(SZ):
+        for x in range(SX):
+            crust = None
+            for y in range(sea_level, crust_ceiling + 1):
+                if solid(x, y, z):
+                    crust = y
+                    break
+            if crust is None or get(x, crust, z) not in terrain:
+                continue
+            for y in range(sea_level, crust):
+                if get(x, y, z) == AIR:
+                    put(x, y, z, B['MC_DIRT'])
+                    stats['under-crust-filled'] += 1
+
     # A spawn never touches fluid: its feet, body and floor cells plus the eight
     # horizontal neighbours at feet and floor level stay clear of water and lava,
     # so the spawn push can never drop a fresh body into the lava sea. Source
