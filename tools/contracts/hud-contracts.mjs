@@ -307,6 +307,7 @@ export async function runHudContracts(ok, installGlobals) {
         this.ids = new Map();
         this.hidden = false;
         this.activeElement = null;
+        this.documentElement = new FakeElement(this, 'html');
         this.body = new FakeElement(this, 'body');
       }
       createElementNS(namespace, tagName) {
