@@ -2746,7 +2746,8 @@ h1.vb-title::after {
 
 #killfeed {
   position: absolute;
-  top: 112px;
+  /* Stacks under the network meter and the career badge whatever readouts are on. */
+  top: max(112px, calc(var(--vb-net-meter-clear, 0px) + 44px));
   right: 18px;
   display: flex;
   flex-direction: column;
@@ -3731,7 +3732,7 @@ body.is-replaying #hud, body.is-replaying .vb-touch-controls { visibility: hidde
     padding: 4px;
   }
 
-  #killfeed { top: 132px; }
+  #killfeed { top: max(132px, calc(var(--vb-net-meter-clear, 0px) + 44px)); }
 
   .vb-buy-grid {
     grid-template-columns: 1fr;

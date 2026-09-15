@@ -1,8 +1,8 @@
 // Proves the menu is interactive before the heavy assets finish. Every Blender
 // file and weapon sample is parked at the network layer (CDP Fetch) while the
-// menu is used; the background scheduler reports what is pending; quick play
-// then waits on the arena screen for exactly those assets before the first
-// frame renders. Usage: node tools/menu-first-boot-test.mjs
+// menu is used; the background scheduler reports what is pending; the match
+// entries stay gated behind the load bar until the match set lands, then quick
+// play goes live. Usage: node tools/menu-first-boot-test.mjs
 import assert from 'node:assert/strict';
 import { launchCdpSession } from './lib/cdp-session.mjs';
 import { startServer, stopServer, waitForHttp } from './lib/server-process.mjs';
@@ -45,27 +45,21 @@ try {
   assert.notEqual(pending.tasks.runtime, 'done');
   assert.notEqual(pending.tasks.audio, 'done');
 
-  // Menu controls respond while those assets are pending.
-  assert.equal(await page.evaluate(`document.getElementById('play-btn').disabled`), false);
-  assert.equal(await page.evaluate(`document.getElementById('create-lobby-btn').disabled`), false);
+  // The menu is interactive while those assets are pending: match entries are
+  // gated behind the frosted load bar with real scheduler progress, while the
+  // armory, career and settings entries are already part of the first paint.
+  assert.equal(await page.evaluate(`document.getElementById('play-btn').disabled`), true, 'quick play waits for the match asset set');
+  assert.equal(await page.evaluate(`document.getElementById('create-lobby-btn').disabled`), true, 'lobby creation waits for the match asset set');
+  const gate = await page.evaluate(`(() => { const bar = document.getElementById('menu-load-bar'); const progress = bar?.querySelector('progress'); return { hidden: bar?.hidden, value: progress?.value, max: progress?.max, label: bar?.textContent }; })()`);
+  assert.equal(gate.hidden, false, 'the load bar is visible while play is gated');
+  assert.ok(gate.value >= 0 && gate.value < gate.max, `load bar carries real progress (${gate.value} / ${gate.max})`);
+  assert.match(gate.label, /LOADING/);
   assert.ok(await page.evaluate(`!!document.getElementById('workshop-open') && !!document.getElementById('career-open')`),
     'armory and career entries are part of the first menu');
-  await page.evaluate(`document.getElementById('browse-lobbies-btn').click()`);
-  await page.waitFor(`document.getElementById('lobby-browser')?.open`, { label: 'lobby browser opens' });
-  await page.evaluate(`document.getElementById('lobby-browser').close()`);
-  await page.waitFor(`!document.getElementById('lobby-browser').open`);
+  assert.equal(await page.evaluate(`document.getElementById('workshop-open').disabled`), false, 'the armory entry responds while assets load');
   const indicator = await page.evaluate(`(() => { const el = document.getElementById('asset-status'); return { hidden: el.hidden, text: el.textContent }; })()`);
   assert.equal(indicator.hidden, false, 'the menu shows the background progress line');
   assert.match(indicator.text, /PREPARING ASSETS\d+ \/ \d+/);
-
-  // Quick play waits on the arena screen for the outstanding assets, then the sectors.
-  await page.evaluate(`document.getElementById('play-btn').click()`);
-  await page.waitFor(`document.getElementById('loading-screen').dataset.stage === 'arena' && !!document.querySelector('#loading-steps li[data-step="models"][data-status="active"]')`,
-    { timeoutMs: 30_000, label: 'arena screen lists the outstanding model library' });
-  const steps = await page.evaluate(`[...document.querySelectorAll('#loading-steps li')].map((li) => li.dataset.step)`);
-  assert.equal(steps[0], 'models');
-  assert.equal(steps.at(-1), 'world', 'mesh sectors follow the outstanding assets');
-  assert.equal(await page.evaluate('!!window.__vb.stats.running'), false, 'no frame renders without the templates');
 
   // Release everything; the boot continues into live play with the assets present.
   for (let round = 0; round < 3; round++) {
@@ -78,12 +72,17 @@ try {
     await sleep(100);
   }
   await page.send('Fetch.disable');
+  // The gate lifts as soon as the match set (models, runtime, audio) is done,
+  // then quick play reaches live play with every template present.
+  await page.waitFor(`document.getElementById('play-btn').disabled === false && document.getElementById('menu-load-bar').hidden === true`,
+    { timeoutMs: 120_000, label: 'play gate lifts once the match assets are ready' });
   await page.waitFor('window.__vbAssets.idle === true', { timeoutMs: 120_000, label: 'background assets idle' });
+  await page.evaluate(`document.getElementById('play-btn').click()`);
   await page.waitFor('window.__vb.stats.running === true', { timeoutMs: 120_000, label: 'live match' });
   assert.equal(await page.evaluate(`document.getElementById('asset-status').hidden`), true, 'the indicator leaves with the menu');
   const errors = page.errors.filter((error) => /ReferenceError|TypeError|SyntaxError|Failed to load resource/.test(error));
   assert.deepEqual(errors, [], 'no browser errors');
-  console.log(`ok - menu interactive after ${readyMs} ms with ${held.size} heavy requests held; quick play waited for ${steps.join(', ')}`);
+  console.log(`ok - menu interactive after ${readyMs} ms with ${held.size} heavy requests held behind the play gate; quick play went live once they landed`);
 } finally {
   await browser?.close();
   await stopServer(server);

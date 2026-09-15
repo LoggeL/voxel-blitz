@@ -72,7 +72,7 @@
 .vb-career-rules p { line-height: 1.6; }
 .vb-career-note { margin: 8px 0 0; color: #8fa4b4; font-size: 10px; line-height: 1.5; }
 .vb-career :is(button,summary,input):focus-visible { outline: 2px solid #ffd38d; outline-offset: 3px; }
-.vb-career-badge { display: none; position: fixed; right: 16px; top: 82px; padding: 5px 9px; border-left: 2px solid var(--career-accent); background: #101820bf; color: var(--career-accent); font: 700 10px/1.4 monospace; letter-spacing: 1px; pointer-events: none; z-index: 5; }
+.vb-career-badge { display: none; position: fixed; right: 16px; top: max(82px, calc(var(--vb-net-meter-clear, 0px) + 10px)); padding: 5px 9px; border-left: 2px solid var(--career-accent); background: #101820bf; color: var(--career-accent); font: 700 10px/1.4 monospace; letter-spacing: 1px; pointer-events: none; z-index: 5; }
 body:has(#hud:not(.hidden)) .vb-career-badge { display: block; }
 #crosshair .ch-arm, #crosshair::after { background: var(--career-accent); }
 #menu .vb-career-menu-preview { display: flex; align-items: center; gap: 12px; box-sizing: border-box; width: 100%; min-height: 108px; padding: 10px 16px 10px 10px; border: 1px solid #82909b; background: #111920e8; color: #f5f1e9; text-align: left; cursor: pointer; }
@@ -135,7 +135,7 @@ body:has(#hud:not(.hidden)) .vb-career-badge { display: block; }
   .vb-career-milestones { gap: 10px; }
   .vb-career-milestone strong { font-size: 8px; }
   .vb-career-milestone span { font-size: 7px; }
-  .vb-career-badge { top: 100px; right: 8px; }
+  .vb-career-badge { top: max(100px, calc(var(--vb-net-meter-clear, 0px) + 10px)); right: 8px; }
   #menu .vb-career-menu-preview { gap: 10px; padding-right: 12px; }
   .vb-career-menu-copy strong { font-size: 13px; }
 }

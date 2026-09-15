@@ -38,6 +38,9 @@ window.__vbBoot?.phases && (window.__vbBoot.phases.modules ??= Math.round(perfor
 let runtime = null;
 /** Free identifier for Game.handleTick; assigned with the runtime, injected by Node tests. */
 let applySnapshotBlocks = null;
+// The menu's play gate needs the HUD before the Game instance exists; a
+// `let` declared below `new Game()` would sit in its temporal dead zone.
+let hudRef = null;
 /** Asset tasks a live match waits for, in loading order. */
 const MATCH_ASSETS = Object.freeze(['models', 'runtime', 'audio']);
 const assets = new AssetScheduler({ onChange: () => renderAssetStatus() });
@@ -1129,7 +1132,6 @@ async function prefetchArt(report) {
 }
 
 // Small "preparing assets 2 / 5" line in the menu; hidden once idle or in a match.
-let hudRef = null;
 const assetStatusDom = {
   root: document.getElementById('asset-status'),
   count: document.getElementById('asset-status-count'),

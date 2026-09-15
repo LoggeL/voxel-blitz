@@ -61,6 +61,22 @@ export class NetworkHud {
     this.limit.style.display = showFps ? 'block' : 'none';
     this.buffer.style.display = showNetwork ? 'block' : 'none';
     this.root.querySelector('.vb-net-history').style.display = showNetwork ? 'flex' : 'none';
+    this.publishClearance();
+  }
+
+  /**
+   * Everything else pinned to the top-right corner (career badge, mode chips)
+   * reads `--vb-net-meter-clear`: the meter's bottom edge in CSS pixels, or 0
+   * when it is hidden. The meter's height depends on which readouts are on.
+   */
+  publishClearance() {
+    if (!this.root || typeof document === 'undefined') return;
+    const clear = this.root.style.display === 'none' || !this.root.isConnected
+      ? 0
+      : Math.ceil(this.root.offsetTop + this.root.offsetHeight);
+    if (clear === this._clearance) return;
+    this._clearance = clear;
+    document.documentElement.style.setProperty('--vb-net-meter-clear', `${clear}px`);
   }
 
   update(frameDt, stats = null, atMs = performance.now(), frameStats = null) {
@@ -88,6 +104,7 @@ export class NetworkHud {
     const badFps = showFps && fps > 0 && fps < Math.min(28, expectedFps * 0.5);
     this.root.classList.toggle('vb-net-warn', ((showPing || showNetwork) && pingMs >= 85) || lowFps);
     this.root.classList.toggle('vb-net-bad', ((showPing || showNetwork) && pingMs >= 150) || badFps);
+    this.publishClearance();
 
     const samples = Array.isArray(stats?.pingHistory) ? stats.pingHistory : [];
     const visible = samples.slice(-BAR_COUNT);
