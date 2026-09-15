@@ -1,4 +1,5 @@
 import { applyAvatarCosmetics } from '../cosmetics/skins.js';
+import { footstepVolume, strideCrossed } from '../audio/footsteps.js';
 import { updateBastionAvatar } from './bastion-avatar.js';
 import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import * as THREE from '../vendor/three.module.js';
@@ -27,7 +28,8 @@ const IMPACT_TTL_MS = 2200;
 const PENDING_HIT_TTL_MS = 650;
 
 export class AvatarRoster {
-  constructor({ scene, getBlock = null, gore = null, getMyId = () => null, now = nowMs }) {
+  constructor({ scene, getBlock = null, gore = null, getMyId = () => null, now = nowMs, footstep = null }) {
+    this._footstep = typeof footstep === 'function' ? footstep : null;
     this._scene = scene;
     this._solidAt = getBlock ? (x, y, z) => !!getBlock(x, y, z) : null;
     this._labelTarget = new THREE.Vector3();
@@ -255,8 +257,16 @@ export class AvatarRoster {
       counters.maxAvatarSpeed = Math.max(counters.maxAvatarSpeed, avatar.speedEst);
       const stride = Math.min(1, avatar.speedEst / 5.8);
       if (stride > 0.03) {
+        const phaseBefore = avatar.runPhase;
         avatar.runPhase += dt * (5.2 + avatar.speedEst * 1.25) * (1 - avatar.motion.air * 0.85);
         counters.runningAvatars++;
+        // A footfall lands with each forward leg extreme; hurried, grounded,
+        // upright bodies are audible so nearby enemies can be heard.
+        if (this._footstep && strideCrossed(phaseBefore, avatar.runPhase)) {
+          const volume = footstepVolume({ speed: avatar.speedEst, grounded,
+            crouch: !!remote.crouch || (remote.proneT || 0) > 0.2, swimming: remote.swimming === true });
+          if (volume > 0) this._footstep(remote, volume);
+        }
       }
 
       const swing = Math.sin(avatar.runPhase) * stride;

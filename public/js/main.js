@@ -292,7 +292,9 @@ class Game {
       scene: this.liveAvatarsGroup,
       gore: (event, options) => this.effects?.gore(event, options),
       getMyId: () => this.myId,
+      footstep: (remote, volume) => sfx.footstep(volume, { pos: [remote.x, remote.y, remote.z] }),
     });
+    this.footsteps = new rt.FootstepCadence();
     rt.attachRemoteMuzzleBridge(this.effects, () => this.roster);
     this.roster.setBurnFX(this.effects.flames);
     this.killcam = new rt.Killcam({ scene: this.worldview.scene, getBlock, worldview: this.worldview,
@@ -713,6 +715,12 @@ class Game {
       }),
     });
     this.weapon.settleFrame(dt, { vaulting: !!this.player.physics.vault });
+    // Own footfalls: quiet, unpositioned, so the player knows how loud they are.
+    const ownStep = this.footsteps.update(dt, {
+      speed: this.player.speedXZ, grounded: !!this.player.physics.grounded,
+      crouch: this.player.crouchBool, swimming: !!this.player.physics.swimming,
+    });
+    if (ownStep > 0 && !this.spectator?.active) sfx.footstep(ownStep * 0.3);
     this.presentGrenadeHandling(now);
     const def = this.weapon.def;
     // Scope zoom steps (Z, wheel while scoped, R3, touch ZOOM) only while looking through the optic.

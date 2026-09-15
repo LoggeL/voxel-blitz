@@ -13,6 +13,7 @@ export { Effects, attachMuzzleBridge, attachRemoteMuzzleBridge } from '../weapon
 export { projectAimReticle } from '../ui/aim-reticle.js';
 export { TttControls } from '../ui/ttt-controls.js';
 export { LocalPlayer } from '../player/local-player.js';
+export { FootstepCadence } from '../audio/footsteps.js';
 export { Killcam } from '../player/killcam.js';
 export { SpectatorCamera } from '../player/spectator-camera.js';
 export { AvatarRoster } from '../avatar/avatar-roster.js';

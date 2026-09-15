@@ -618,18 +618,31 @@ export const sfx = {
     });
   },
 
-  footstep(volume = 0.45) {
+  /**
+   * One footfall. With `pos` the step is placed in the world (another
+   * player's body); without, it is the listener's own step and alternates
+   * gently left/right.
+   */
+  footstep(volume = 0.45, options = null) {
+    const deferred = copyOptions(options);
     run('footstep', () => {
       panSide = -panSide;
-      const output = pool.acquire(null, 0.25);
+      const positional = !!positionOf(deferred);
+      const output = pool.acquire(outputOptions(deferred), 0.3);
       if (samples.play('movement.footstep', output, {
         gain: volume,
         rate: primitives.rnd(0.93, 1.07),
       })) return;
+      const pan = positional ? 0 : 0.4 * panSide;
+      // Heel thud plus a short sole scuff.
+      primitives.tone(output, {
+        type: 'sine', f0: primitives.rnd(120, 150), f1: 58,
+        dec: 0.07, g: 0.22 * volume, att: 0.002, pan,
+      });
       primitives.hiss(output, {
-        filter: 'lowpass', f: 320, q: 0.5,
-        rate: primitives.rnd(0.85, 1.13), dec: 0.08,
-        g: 0.26 * volume, pan: 0.4 * panSide,
+        filter: 'lowpass', f: 420, q: 0.6,
+        rate: primitives.rnd(0.85, 1.13), dec: 0.07,
+        g: 0.2 * volume, pan,
       });
     });
   },

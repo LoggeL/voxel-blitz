@@ -696,7 +696,9 @@ late join whose welcome/state is already live also proceeds directly.
 {muffled?:boolean,pos?:[x,y,z]}|[x,y,z]?)`,
 `reloadClick(step:1|2|3,weaponKey)`, `hitmark(headshot)`,
 `killConfirm(headshot)`, `lowHealthPulse(level01,nowMs)` (rate-limited
-heartbeat; silent at zero), `deathFar(volume?)`, `footstep(volume?)`, `draw(weaponKey)`,
+heartbeat; silent at zero), `deathFar(volume?)`,
+`footstep(volume?,{pos?:[x,y,z]}|[x,y,z]?)` (positional for other bodies,
+gently alternating for the listener's own), `draw(weaponKey)`,
 `bulletWhiz(volume?)`, and `setListener({fwd:[x,y,z],pos:[x,y,z]})`.
 All sound methods are safe before initialization. `init()` and `unlock()` are
 idempotent, every voice routes through the clamped master volume and limiter,
@@ -905,7 +907,11 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   procedural WebAudio layers. Missing or undecodable samples fall back to the
   procedural implementation. Weapon reports, reloads, impacts, hitmarks,
   distant deaths, footsteps, draws, bullet whizzes, echo, music, and positional
-  listener updates all route through `sfx` and the terminal limiter.
+  listener updates all route through `sfx` and the terminal limiter. Footfalls
+  follow the avatar gait phase (`public/js/audio/footsteps.js`): grounded,
+  upright bodies moving at 3.2 m/s or faster are audible, louder when
+  sprinting; crouching, prone, swimming and airborne bodies are silent. Server
+  bots hear the same thresholds plus gunshots (`server/bot-hearing.js`).
 - **Authority:** one room engine simulates movement, ammo, reloads, spread,
   hits, grenades, rockets, destruction, death, score, and respawn at 60 Hz. The client
   predicts feel/FX but accepted shots and all damage are server decisions.
