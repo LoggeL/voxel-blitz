@@ -27,6 +27,7 @@ export const CONDITION_RULES = Object.freeze({
   painLowHpFloor: 0.12,
   steadyPanicRecoverPerS: 0.12,
   crouchPanicRecoverMult: 1.35,
+  reloadPanicSlow: 0.35,
   exhaustionSprintPerS: 0.24,
   exhaustionRecoverPerS: 0.18,
   exhaustionJumpGain: 0.14,
@@ -391,16 +392,23 @@ export function computeRecoilKickDeg(def, shotIndex, adsT = 0, random01 = 0.5) {
  * Reload plan shared by authority and prediction. Magazine weapons swap in one step;
  * tube weapons seat rounds one at a time (`staged`), so the duration depends on how many
  * rounds are missing and the reload can be interrupted with every seated round kept.
+ * Panic fumbles the reload: every stage stretches by up to `reloadPanicSlow`
+ * (full panic ≈ +35%), so tube cadence slows shell-for-shell with the total.
  * @returns {{staged:boolean,rounds:number,seconds:number,startSeconds:number,perRoundSeconds:number,endSeconds:number}}
  */
-export function reloadPlan(def, mag, reserve = Infinity) {
+export function reloadPanicScale(panic01 = 0) {
+  const panic = Math.max(0, Math.min(1, Number(panic01) || 0));
+  return 1 + panic * CONDITION_RULES.reloadPanicSlow;
+}
+export function reloadPlan(def, mag, reserve = Infinity, panic01 = 0) {
   const inMag = Math.max(0, Math.min(def.magSize, Number.isFinite(mag) ? Math.trunc(mag) : 0));
+  const scale = reloadPanicScale(panic01);
   const stages = def.reloadStages;
   if (!stages) {
     return {
       staged: false,
       rounds: def.magSize,
-      seconds: inMag > 0 ? def.tacTime : def.reloadTime,
+      seconds: (inMag > 0 ? def.tacTime : def.reloadTime) * scale,
       startSeconds: 0,
       perRoundSeconds: 0,
       endSeconds: 0,
@@ -410,10 +418,10 @@ export function reloadPlan(def, mag, reserve = Infinity) {
   return {
     staged: true,
     rounds,
-    seconds: stages.start + rounds * stages.perRound + stages.end,
-    startSeconds: stages.start,
-    perRoundSeconds: stages.perRound,
-    endSeconds: stages.end,
+    seconds: (stages.start + rounds * stages.perRound + stages.end) * scale,
+    startSeconds: stages.start * scale,
+    perRoundSeconds: stages.perRound * scale,
+    endSeconds: stages.end * scale,
   };
 }
 
@@ -445,7 +453,7 @@ export function computeSpreadConeDeg(
   const stanceMult = crouching
     ? Math.max(0, Math.min(1, Number.isFinite(def.crouchSpreadMult) ? def.crouchSpreadMult : 1))
     : 1;
-  const conditionPenalty = (panic01 * 0.10 + exhaustion01 * 0.35 + pain01 * 0.12)
+  const conditionPenalty = (panic01 * 0.30 + exhaustion01 * 0.35 + pain01 * 0.12)
     * (1 - t * 0.45);
   return (base + bloomDeg * (1 - t * 0.75)) * stanceMult + conditionPenalty;
 }

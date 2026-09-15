@@ -159,7 +159,7 @@ export function resolveWeaponIntent(p, _dt, ctx) {
     if (identifiedReload) p.reloadAck = inp.reloadId;
     if (ctx.canUseWeapon(p, p.weapon) && !p.reloading) {
       const ammo = { mag: p.mag[p.weapon], reserve: p.reserve[p.weapon] };
-      const reload = beginReload(def, ammo, p.infiniteMagazines);
+      const reload = beginReload(def, ammo, p.infiniteMagazines, p.panic);
       if (reload) {
         cancelCharge(p);
         p.reloadState = reload;

@@ -319,6 +319,7 @@ class Game {
       world: this._world,
       respawnLocal: (row) => this.respawnLocal(row),
       onLocalMine: () => this.rig?.pickaxeContact(),
+      onLocalFlinch: (strength) => this.rig?.flinch(strength),
       onLocalDeath: (_transition, killerId) => {
         this.weapon?.deathReset();
         this.session.syncGameplayInput();
@@ -833,7 +834,10 @@ class Game {
       holding: !!this.player.aimMotion?.holdingBreath,
     });
     const hp = this.player.hp;
-    sfx.lowHealthPulse(this.player.alive && hp < 35 ? (35 - hp) / 35 : 0, now);
+    const hpDanger = this.player.alive && hp < 35 ? (35 - hp) / 35 : 0;
+    // Full panic alone throbs at 60% of near-death intensity: fear you can hear.
+    const panicDanger = this.player.alive ? this.player.panic * 0.6 : 0;
+    sfx.dangerPulse(Math.max(hpDanger, panicDanger), now);
     const forward = fwdFromAngles(this.player.aimYaw, this.player.aimPitch);
     sfx.setListener({
       fwd: [forward.x, forward.y, forward.z],

@@ -69,6 +69,7 @@ export class ViewmodelRig {
     this._turn = new WeaponTurnInertia(); // camera-independent, weight-limited weapon orientation
     this._air = { p: 0, v: 0 };         // damped vertical inertia across takeoff/landing
     this._nadeThrowT = 0;               // seconds left in the throw lunge
+    this._flinchPending = 0;            // latched startle strength, landed in update()
     this._swingT = 0;                   // seconds left in the pickaxe chop (T.melee only)
     this._swingContact = false;          // accepted contact for this swing
     this._chargeT = 0;                  // held capacitor charge 0..1 (coil glow floor + squeeze)
@@ -213,6 +214,12 @@ export class ViewmodelRig {
   /** Only accepted local contacts add the wrist rebound; misses follow through. */
   pickaxeContact() {
     if (this._id === 'knife' && this._swingT > 0) this._swingContact = true;
+  }
+  /** A nearby crack startles the hold. Latched: the impulse lands in update()
+   * under ADS damping and reduced-motion suppression, like every other layer. */
+  flinch(strength = 1) {
+    if (!(strength > 0)) return;
+    this._flinchPending = Math.max(this._flinchPending || 0, Math.min(1, strength));
   }
 
   /**
@@ -565,7 +572,27 @@ export class ViewmodelRig {
       Math.sin(this._now * (Math.PI * 2 / 7.3) + phase * 1.3) * 0.0009) * shiftScale;
     const shiftY = (Math.sin(this._now * (Math.PI * 2 / 13) + phase * 0.7) * 0.0013 +
       Math.sin(this._now * (Math.PI * 2 / 8.1) + phase * 2.1) * 0.0008) * shiftScale;
+    // Fear shake: visible high-frequency shudder on the hold so panic reads at a
+    // glance, damped in ADS so aimed shots stay usable. Periods sit clear of the
+    // breathing, tremor, grip-shift, and charge layers. Deterministic clock.
+    const fearScale = distress * (1 - adsE * 0.75) * aimSwayScale * cosmeticMotion;
+    const fearX = (Math.sin(this._now * 29 + phase * 1.3) * 0.0022 +
+      Math.sin(this._now * 71 + phase * 0.6) * 0.0011) * fearScale;
+    const fearY = (Math.sin(this._now * 37 + phase * 2.1) * 0.0018 +
+      Math.sin(this._now * 59 + phase * 1.1) * 0.0009) * fearScale;
+    const fearPitch = (Math.sin(this._now * 41 + phase * 0.9) * 0.006 +
+      Math.sin(this._now * 67 + phase * 1.9) * 0.003) * fearScale;
+    const fearYaw = (Math.sin(this._now * 31 + phase * 1.7) * 0.005 +
+      Math.sin(this._now * 23 + phase * 0.4) * 0.0025) * fearScale;
 
+    // Startle: a close crack jerks the hold down and in through the recoil
+    // springs, so it reads on the gun without touching authoritative aim.
+    if (this._flinchPending > 0) {
+      const startle = Math.min(1, this._flinchPending) * (1 - adsE * 0.75) * cosmeticMotion;
+      this._spr.pitch.v -= 0.18 * startle;
+      this._spr.push.v += 0.08 * startle;
+      this._flinchPending = 0;
+    }
     /* ---------- choreography states ---------- */
     const actionMotion = this._actions.update(this._now, dt, cur, T);
     const reloadDip = actionMotion.dip;
@@ -616,8 +643,8 @@ export class ViewmodelRig {
 
     /* ---------- compose transforms (condition offsets never touch the authoritative camera) ---------- */
     this.posG.position.set(
-      turn.x + this._lean.p + bobX + tremorX + machineTremor + shiftX,
-      turn.y + bobY + this._air.p + breathe + exhaustedBreath + tremorY + Math.sin(this._now * 43) * pressure * 0.0008 + shiftY,
+      turn.x + this._lean.p + bobX + tremorX + machineTremor + shiftX + fearX,
+      turn.y + bobY + this._air.p + breathe + exhaustedBreath + tremorY + Math.sin(this._now * 43) * pressure * 0.0008 + shiftY + fearY,
       this._spr.push.p + this._surge.p + pressure * 0.006
     );
     // World-space yaw/pitch offsets are not camera-local Euler offsets when the
@@ -630,8 +657,8 @@ export class ViewmodelRig {
     this._aimQ.setFromEuler(this._aimEuler.set(shotPitch, shotYaw, 0, 'YXZ'));
     this._aimQ.premultiply(this._cameraQ.invert());
     this._cosmeticQ.setFromEuler(this._aimEuler.set(
-      this._spr.pitch.p + this._air.p * BOB.airPitchPerMeter + conditionPitch,
-      this._spr.yaw.p + conditionYaw,
+      this._spr.pitch.p + this._air.p * BOB.airPitchPerMeter + conditionPitch + fearPitch,
+      this._spr.yaw.p + conditionYaw + fearYaw,
       roll + cant + nadeRz, 'YXZ'));
     this.pivot.quaternion.copy(this._aimQ).multiply(this._cosmeticQ);
 

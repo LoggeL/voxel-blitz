@@ -71,7 +71,7 @@ export class AimSway {
       pressed: shift, panic: panic01, pain: pain01,
     });
     const { holdingBreath } = breath;
-    const conditionSway = alive ? panic01 * 1.65 : 0;
+    const conditionSway = alive ? panic01 * 2.5 : 0;
     const crouchScale = crouching ? 0.55 : 1;
     const breathScale = holdingBreath ? 0.12 : 1;
     this._idleWeight += ((eligible ? 1 : 0) - this._idleWeight) * (1 - Math.exp(-step * 7));

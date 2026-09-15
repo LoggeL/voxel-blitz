@@ -1,9 +1,10 @@
 import { reloadPlan } from './combatmath.js';
 
-/** Reload simulation in seconds. The caller owns the clock and ammo storage. */
-export function beginReload(def, ammo, infinite = false) {
+/** Reload simulation in seconds. The caller owns the clock and ammo storage.
+ * `panic01` fumbles every stage (authority passes its own, prediction its own). */
+export function beginReload(def, ammo, infinite = false, panic01 = 0) {
   if (def.mode === 'melee' || ammo.mag >= def.magSize || (!infinite && ammo.reserve <= 0)) return null;
-  const plan = reloadPlan(def, ammo.mag, infinite ? Infinity : ammo.reserve);
+  const plan = reloadPlan(def, ammo.mag, infinite ? Infinity : ammo.reserve, panic01);
   if (!plan.staged) ammo.mag = 0;
   return { ...plan, elapsed: 0, inserted: 0, done: false };
 }

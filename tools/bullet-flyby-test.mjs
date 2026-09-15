@@ -30,15 +30,20 @@ assert.deepEqual(closestBulletFlyby([[segment(5), segment(-0.5)]], listener).pos
 assert.equal(closestBulletFlyby([[segment(1.5)], [segment(0.5)]], listener).distance, 0.5, 'closest shotgun pellet wins once');
 assert.equal(closestBulletFlyby([[{ o: [0, 2, 0], end: [0, 2, 0] }, { o: [NaN, 2, 0], end: [1, 2, 0] }]], listener), null);
 
-function harness({ block = 0, alive = true } = {}) {
+function harness({ block = 0, alive = true, yaw = null } = {}) {
   const calls = [];
+  const stings = [];
+  const flinches = [];
   const feedback = new CombatFeedback({
     effects: { shoot() {}, confirmShot() {} },
     sfx: { fire() {}, bulletWhiz: (...args) => calls.push(args) },
+    hud: { setPainImpulse: (value) => stings.push(value) },
+    onLocalFlinch: (strength) => flinches.push(strength),
     getMyId: () => 'local', isRunning: () => true,
-    player: { alive }, camera: { position: listener }, world: { getBlock: () => block },
+    player: { alive, view: yaw == null ? undefined : { yaw } },
+    camera: { position: listener }, world: { getBlock: () => block },
   });
-  return { feedback, calls };
+  return { feedback, calls, stings, flinches };
 }
 const shot = { kind: 'shoot', id: 'remote', w: 'rifle', o: [1, 2, -10], d: [0, 0, 1], paths: [[segment(1)]] };
 const { feedback, calls } = harness();
@@ -50,6 +55,26 @@ assert.equal(calls.length, 1, 'rapid fire is rate limited');
 feedback._lastBulletFlybyAt -= 120;
 feedback.handleEvent({ ...shot, paths: [[segment(-1)]] });
 assert.deepEqual(calls[1][1].pos, [-1, 2, 0], 'next eligible pass moves to the correct side');
+{
+  // A grazing pass startles the hold and flickers the danger edge; the scalar
+  // sting (no view yaw here) still lands alongside the whiz.
+  const h = harness(); h.feedback.handleEvent(shot);
+  assert.equal(h.flinches.length, 1, 'a grazing pass startles the hold once');
+  assert.ok(h.flinches[0] > 0.35 && h.flinches[0] <= 1, 'closer passes startle harder');
+  assert.equal(h.stings.length, 1, 'a grazing pass flickers the danger edge');
+  // Facing -Z, a pass at +X is dead right: the sting points right (+90 deg).
+  const directed = harness({ yaw: 0 }); directed.feedback.handleEvent(shot);
+  assert.equal(directed.stings.length, 1);
+  assert.ok(Math.abs(directed.stings[0].angleDeg - 90) < 1e-9, 'the sting points toward the pass');
+  assert.ok(directed.stings[0].intensity > 0 && directed.stings[0].intensity < 0.5, 'the sting stays a flicker, not a damage flash');
+  // Excluded shots and dead listeners neither whiz nor flinch.
+  for (const ev of [{ ...shot, id: 'local' }, { ...shot, hitVictims: ['local'] }]) {
+    const h2 = harness(); h2.feedback.handleEvent(ev);
+    assert.equal(h2.flinches.length + h2.stings.length, 0, 'excluded shots stay silent');
+  }
+  const dead = harness({ alive: false }); dead.feedback.handleEvent(shot);
+  assert.equal(dead.flinches.length + dead.stings.length, 0, 'dead listeners do not flinch');
+}
 for (const ev of [
   { ...shot, id: 'local' }, { ...shot, hitVictims: ['local'] },
   { ...shot, paths: undefined }, { ...shot, paths: [[segment(1, -10, -1)]] },
@@ -78,4 +103,4 @@ for (const offset of [0, 0.8]) {
   assert.equal(resolved.hitVictims?.includes('local') ?? false, offset === 0,
     'server publishes direct-hit exclusion only when the shot hits');
 }
-console.log('Bullet flybys: finite paths, ricochets, pellets, distance fade, spatial position, cooldown, cover, own shots and hit exclusions passed.');
+console.log('Bullet flybys: finite paths, ricochets, pellets, distance fade, spatial position, cooldown, cover, own shots, hit exclusions, hold startle and directional sting passed.');

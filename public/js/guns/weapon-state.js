@@ -397,7 +397,7 @@ export class WeaponState {
     this._audio.minigunMotor?.(0, 0, false);
     this._cancelEmptyReload();
     const predictedAmmo = { ...ammo };
-    const plan = beginReload(def, predictedAmmo, this._mode === 'gungame');
+    const plan = beginReload(def, predictedAmmo, this._mode === 'gungame', this._panic);
     if (!plan) return false;
     this._reloadId = (this._reloadId || 0) + 1;
     const dur = plan.seconds * 1000;
@@ -768,7 +768,7 @@ export class WeaponState {
     } else if (this._completedReloadWeapon !== this.def.id) {
       const def = this.def;
       const ammo = this._ammo[def.id];
-      const plan = serverReload || reloadPlan(def, ammo?.mag || 0, ammo?.reserve);
+      const plan = serverReload || reloadPlan(def, ammo?.mag || 0, ammo?.reserve, this._panic);
       const elapsed = serverReload?.elapsed || 0;
       const dur = plan.seconds * 1000;
       this._reloadState = {

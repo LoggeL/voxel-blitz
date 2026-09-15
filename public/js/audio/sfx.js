@@ -522,8 +522,8 @@ export const sfx = {
     return true;
   },
 
-  /** Frame-driven low-health heartbeat; silent at zero danger. */
-  lowHealthPulse(level01, now = Date.now()) {
+  /** Frame-driven danger heartbeat; silent at zero danger. */
+  dangerPulse(level01, now = Date.now()) {
     const level = Math.max(0, Math.min(1, Number(level01) || 0));
     if (level <= 0) {
       heartbeatAt = -Infinity;

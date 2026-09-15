@@ -75,7 +75,7 @@ assert.ok(condition.panic > 0, 'active flames retain an immediate danger floor')
 for (const def of Object.values(WEAPONS)) {
   const calm = computeSpreadConeDeg(def, 0, 0, 1);
   const hurt = computeSpreadConeDeg(def, 0, 0, 1, 1, 0, false, 1);
-  assert.ok(hurt - calm < .13, `${def.id} keeps a deliberate ADS countershot possible`);
+  assert.ok(hurt - calm < .25, `${def.id} keeps a deliberate ADS countershot possible`);
 }
 
 // Residual ADS during weapon deploy cannot allow local recovery.

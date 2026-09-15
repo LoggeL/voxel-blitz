@@ -6,7 +6,7 @@ import { raycastVoxels } from '../../../shared/raycast.js';
 import { blockSoundFor } from '../weapons/effects.js';
 import { THROWABLE_NAMES, WEAPON_NAMES } from '../ui/hud-support.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
-import { closestBulletFlyby, BULLET_FLYBY_COOLDOWN_MS } from './bullet-flyby.js';
+import { closestBulletFlyby, BULLET_FLYBY_COOLDOWN_MS, BULLET_FLYBY_RADIUS } from './bullet-flyby.js';
 
 /**
  * Screen-space bearing (degrees, 0 = ahead, 90 = right) from the viewer at `from`
@@ -129,6 +129,7 @@ export class CombatFeedback {
     respawnLocal,
     onLocalDeath,
     onLocalMine,
+    onLocalFlinch,
   }) {
     this.effects = effects;
     this.sfx = sfx;
@@ -145,6 +146,7 @@ export class CombatFeedback {
     this.respawnLocal = respawnLocal;
     this.onLocalDeath = onLocalDeath;
     this.onLocalMine = onLocalMine;
+    this.onLocalFlinch = onLocalFlinch;
 
     this._disposed = false;
     this._presentedDeaths = new WeakSet();
@@ -186,6 +188,15 @@ export class CombatFeedback {
                 isWorldPointVisible(this.world, this.camera, pass.pos)) {
               this._lastBulletFlybyAt = now;
               this.sfx.bulletWhiz(pass.volume, { pos: pass.pos });
+              // Grazing fire startles the hold and flickers the danger edge toward
+              // the pass. Burns no panic itself; the server owns suppression gain.
+              const proximity = Math.max(0, Math.min(1, 1 - pass.distance / BULLET_FLYBY_RADIUS));
+              const angleDeg = bearingDeg(this.camera?.position, this.player?.view?.yaw,
+                { x: pass.pos[0], z: pass.pos[2] });
+              this.hud?.setPainImpulse?.(angleDeg == null
+                ? 0.14 + 0.2 * proximity
+                : { intensity: 0.14 + 0.2 * proximity, angleDeg });
+              this.onLocalFlinch?.(0.35 + 0.65 * proximity);
             }
           }
         }
