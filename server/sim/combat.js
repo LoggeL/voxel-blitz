@@ -18,6 +18,7 @@ import {
   CONDITION_RULES,
   WEAPONS,
   SNIPER_SCOPE_ADS_THRESHOLD,
+  isScopedWeapon,
   HITSCAN_REACH,
   PLAYER_HALF,
   damageAtDistance,
@@ -532,7 +533,7 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
         ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, point, tgt.victim.lastDamage));
         if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
           longRange: dist >= LONG_RANGE_KILL_DISTANCE,
-          noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
+          noScope: isScopedWeapon(def) && p.adsT < NO_SCOPE_ADS_THRESHOLD,
         });
         chaosHit(p, tgt.victim, point, ctx);
         hitVictims.add(tgt.victim);

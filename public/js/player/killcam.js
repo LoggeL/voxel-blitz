@@ -11,7 +11,7 @@ import { TracerFX } from '../weapons/ballistics.js';
 import { ProjectileFX } from '../weapons/projectiles.js';
 import { ImpactFX, blockSoundFor } from '../weapons/impacts.js';
 import { ViewmodelRig } from '../guns/viewmodel.js';
-import { EYE_HEIGHT, WEAPON_IDS } from '../../../shared/combatmath.js';
+import { EYE_HEIGHT, WEAPON_IDS, isScopedWeapon } from '../../../shared/combatmath.js';
 import { stanceEye } from '../../../shared/player-stance.js';
 import { WEAPON_NAMES, THROWABLE_NAMES } from '../ui/hud-support.js';
 
@@ -110,7 +110,7 @@ export class Killcam {
       reloading:target.reloading, deploying:target.deploying, grenadeHandling:target.grenadeHandling});
     const zoom = Math.abs(target.scopeZoom - Math.max(1.5, def.zoom / 2)) < 1e-6
       ? Math.max(1.5, def.zoom / 2) : def.zoom;
-    const adsFov = (def.scoped ?? weaponId === 'sniper') ? fovForZoom(zoom, fov) : def.adsFov;
+    const adsFov = isScopedWeapon(def) ? fovForZoom(zoom, fov) : def.adsFov;
     const replayFov = fov + (adsFov - fov) * (1 - (1 - ads) ** 3);
     if (this.camera.aspect !== aspect || this.camera.fov !== replayFov) {
       this.camera.aspect = aspect; this.camera.fov = replayFov; this.camera.updateProjectionMatrix();

@@ -9,6 +9,8 @@ export const GRAVITY = 24;
 export const PLAYER_HALF = { x: 0.32, h: 0.95 };   // movement collider half-width, half-height
 export const EYE_HEIGHT = 1.62;                    // eye above feet
 export const SNIPER_SCOPE_ADS_THRESHOLD = 0.72;
+/** Scoped optics (attachment-driven, sniper by default) enter the full-screen scope. */
+export const isScopedWeapon = def => !!(def?.scoped ?? def?.id === 'sniper');
 /** Hitscan shots continue until terrain or a body stops them. The voxel walker
  * owns finite world bounds; weapon damage falloff never terminates a shot. */
 export const HITSCAN_REACH = Infinity;
@@ -443,7 +445,7 @@ export function computeSpreadConeDeg(
   crouching = false,
   pain = 0,
 ) {
-  const t = Math.max(0, Math.min(1, def.id === 'sniper'
+  const t = Math.max(0, Math.min(1, isScopedWeapon(def)
     ? adsT / SNIPER_SCOPE_ADS_THRESHOLD : adsT));
   const hip = def.spreadDeg.hip + def.moveSpreadDeg * Math.min(1, speedXZ / 6.2);
   const base = hip + (def.spreadDeg.ads - hip) * t;

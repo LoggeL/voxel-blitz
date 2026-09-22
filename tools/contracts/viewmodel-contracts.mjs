@@ -122,11 +122,20 @@ export async function runViewmodelContracts(ok, installGlobals) {
     ok(recoilPacket.pitch === secondAim.pitch && recoilPacket.yaw === secondAim.yaw
       && secondAim.pitch !== preShot.pitch,
       'a repeated sniper shot uses existing recoil exactly once and never adds its new kick to itself');
-    const { computeSpreadConeDeg, SNIPER_SCOPE_ADS_THRESHOLD } = await import('../../shared/combatmath.js');
+    const { computeSpreadConeDeg, SNIPER_SCOPE_ADS_THRESHOLD, isScopedWeapon } = await import('../../shared/combatmath.js');
     ok(computeSpreadConeDeg(WEAPONS.sniper, 0, 0, SNIPER_SCOPE_ADS_THRESHOLD)
       === computeSpreadConeDeg(WEAPONS.sniper, 0, 0, 1)
       && computeSpreadConeDeg(WEAPONS.sniper, 0.8, 0, 1) > WEAPONS.sniper.spreadDeg.ads,
       'the first visible sniper scope has settled accuracy while residual shot bloom still matters');
+    const { configuredWeapon } = await import('../../shared/weapon-attachments.js');
+    const scopedRifle = configuredWeapon('rifle', { rifle: { optic: 'scope4' } });
+    const reflexSniper = configuredWeapon('sniper', { sniper: { optic: 'reflex' } });
+    ok(isScopedWeapon(scopedRifle) && !isScopedWeapon(reflexSniper)
+      && computeSpreadConeDeg(scopedRifle, 0, 0, SNIPER_SCOPE_ADS_THRESHOLD)
+        === computeSpreadConeDeg(scopedRifle, 0, 0, 1)
+      && computeSpreadConeDeg(reflexSniper, 0, 0, SNIPER_SCOPE_ADS_THRESHOLD)
+        > computeSpreadConeDeg(reflexSniper, 0, 0, 1),
+    'the accuracy ramp follows the fitted optic: any scope settles when its overlay appears, a reflex sniper does not');
     sniper.dispose();
 
     input.getKeys = () => ({

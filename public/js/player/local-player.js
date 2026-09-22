@@ -1,5 +1,5 @@
 import { isScopeActive, nextScopeZoom } from '../guns/scope-state.js';
-import { EYE_HEIGHT, CONDITION_RULES } from '../../../shared/combatmath.js';
+import { EYE_HEIGHT, CONDITION_RULES, isScopedWeapon } from '../../../shared/combatmath.js';
 import { stanceEye } from '../../../shared/player-stance.js';
 import { canClimb } from '../../../shared/player-movement.js';
 import { PlayerPhysics, moveSpeedFor } from '../player-physics.js';
@@ -1092,7 +1092,7 @@ export class LocalPlayer {
     this._lookScale = adsLookScale(camera.fov, baseFov);
     const scopeKey = `${weaponDef.id}/${weaponDef.attachments?.optic || 'standard'}/${weaponDef.zoom || 0}`;
     if (this._scopeKey !== scopeKey) { this._scopeKey = scopeKey; this._scopeZoom = 0; }
-    if (weaponDef.scoped ?? weaponDef.id === 'sniper') {
+    if (isScopedWeapon(weaponDef)) {
       if (!(this._scopeZoom > 0)) this._scopeZoom = Number(weaponDef.zoom) || 1;
     } else this._scopeZoom = 0;
     const adsFov = this._scopeZoom > 0 ? fovForZoom(this._scopeZoom, baseFov) : weaponDef.adsFov;

@@ -629,7 +629,9 @@ Near misses are capped and rate-limited, with a slowly replenishing shared
 suppression budget. Repeated fire cannot permanently lock panic. Solid cover
 blocks suppression, and direct hits do not also receive near-miss panic.
 
-The sniper alone enters its circular full-screen optic at 72% ADS. The outside
+Scoped weapons (the stock sniper, or any 2× or stronger attachment optic) enter
+their circular full-screen optic at 72% ADS, where the spread cone has already
+settled and below which kills count as no-scopes. The outside
 mask is opaque and the reticle includes crosshairs, mildots, and range ticks;
 the first-person weapon hides only while fully scoped. Authoritative death
 state drives a 1.2–1.5 second remote collapse and a deterministic local camera
