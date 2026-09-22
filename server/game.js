@@ -213,9 +213,10 @@ export class GameEngine {
       this.cash.clear();
       this.projectiles.fire.clear();
       this.projectiles.smoke.clear();
+      this.projectiles.clearMines();
     }
     this.mode.tick();
-    if (this.mode.phase !== 'live') { this.projectiles.fire.clear(); this.projectiles.smoke.clear(); }
+    if (this.mode.phase !== 'live') { this.projectiles.fire.clear(); this.projectiles.smoke.clear(); this.projectiles.clearMines(); }
     this.processRespawns();
     for (const pickups of [this.powerups, this.cash]) pickups.step({
       now: this.now, mode: this.mode.mode, phase: this.mode.phase, round: this.mode.round,
@@ -345,6 +346,7 @@ export class GameEngine {
     const pid = String(id);
     const player = this.entities.get(pid);
     if (player) this.mode.onPlayerRemove(player);
+    this.projectiles.clearMines(pid);
     this.entities.delete(pid);
   }
 

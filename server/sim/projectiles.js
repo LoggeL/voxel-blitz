@@ -240,6 +240,17 @@ export class ProjectileSystem {
       n: [...mine.n], armMs: Math.max(0, mine.armedAt - now), laserRange: mine.laserRange, chaos: mine.chaosLevel };
   }
 
+  /**
+   * Drop persistent mines: every one when a round ends, or one owner's when that
+   * player leaves. Clients remove any mine missing from `mineSnapshot`.
+   */
+  clearMines(ownerId = null) {
+    const owner = ownerId == null ? null : String(ownerId);
+    for (const [id, projectile] of this.active) {
+      if (projectile.type === 'limpet' && (owner === null || projectile.ownerId === owner)) this.active.delete(id);
+    }
+  }
+
   /** Full persistent mine state also reaches players who join after placement. */
   mineSnapshot(now) {
     return [...this.active.values()].filter(p => p.type === 'limpet' && p.mount)
