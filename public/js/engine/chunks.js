@@ -5,14 +5,12 @@ import { DEFAULT_DIMENSIONS } from '../../../shared/world/dimensions.js';
 // whole terrain renders as cheap Lambert surfaces with crisp voxel lighting.
 
 import * as THREE from '../vendor/three.module.js';
-import { AIR, GRASS, DIRT, LEAVES, GLASS, MC_GRASS, MC_GLASS, MC_LEAVES, MC_WATER, MC_LAVA, MC_PORTAL, MC_GHOST_GRASS, SX, SZ, SY } from '../../../shared/worlddata.js';
+import { AIR, GRASS, DIRT, LEAVES, GLASS, MC_GRASS, MC_GLASS, MC_LEAVES, MC_WATER, MC_LAVA, MC_PORTAL, MC_GHOST_GRASS } from '../../../shared/worlddata.js';
 import { createFluidMaterial } from './fluid-material.js';
 import { DAMAGE_GRID, damageStage, damageCells } from './block-damage-geometry.js';
 
 export const CHUNK_X = 16;
 export const CHUNK_Z = 16;
-export const CHUNKS_W = SX / CHUNK_X;
-export const CHUNKS_H = SZ / CHUNK_Z;
 /** Frame budget: at most this many chunk rebuilds drained per update() call. */
 export const MAX_REBUILDS_PER_FRAME = 3;
 
@@ -84,10 +82,6 @@ export class ChunkStore {
     this.atlas = atlas;
     this.getBlock = getBlockFn;
     this.getBlockDamage = getBlockDamage;
-    // FACE_MAP aligned with the atlas sheet via the atlas' own registry.
-    this.FACE_MAP = {
-      resolveTile: (id, face) => atlas.faceTile(id, face),
-    };
 
     this.group = new THREE.Group();
     this.group.name = 'chunks';
@@ -123,9 +117,10 @@ export class ChunkStore {
 
   /**
    * Queue-safe block mutation from netcode/events: remeshes own chunk plus any
-   * neighbour when the changed voxel touches a chunk border.
+   * neighbour when the changed voxel touches a chunk border. The new block id
+   * is not needed: rebuilds read the live store through getBlock.
    */
-  applyBlockDelta(x, y, z, v) {
+  applyBlockDelta(x, y, z) {
     const { sx: SX, sy: SY, sz: SZ } = this.dimensions;
     if (x < 0 || z < 0 || x >= SX || z >= SZ || y < 0 || y >= SY) return;
     const cx = x >> 4, cz = z >> 4;
@@ -208,7 +203,7 @@ export class ChunkStore {
     const inner = this.getBlock;
     const gb = (x, y, z) => (x < 0 || z < 0 || x >= SX || z >= SZ ? AIR : inner(x, y, z));
     const rectOf = this.atlas.tileRect;
-    const resolveTile = this.FACE_MAP.resolveTile;
+    const resolveTile = this.atlas.faceTile;
     // A one-voxel halo includes neighbour visibility and corner AO samples.
     // Cache intact results too: each block's live damage is read once per build.
     const strideX = CHUNK_X + 2, strideZ = CHUNK_Z + 2;

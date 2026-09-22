@@ -883,15 +883,6 @@ export function buildAtlas() {
       disposed = true;
       tex.dispose();
     },
-    /**
-     * uvRect(tileIndex) -> sheet rect; uvRect(blockId, face) -> resolved face rect.
-     * chunks.js passes TILE indices through its own FACE_MAP (aliases DEFAULT_BLOCK_TILES).
-     */
-    uvRect(blockIdOrTile, face) {
-      return face === undefined
-        ? tileRect(blockIdOrTile)
-        : tileRect(faceTile(blockIdOrTile, face));
-    },
     tileRect,
     faceTile,
   };
