@@ -183,9 +183,9 @@ export async function runWeaponWheelContracts(ok) {
     state.highlighted = 11; // Absolute mouse hover comes directly from the HUD.
     queue.release = true;
     ok(!state.canMovePointer(),
-      'Q release immediately freezes absolute pointer hover before the next frame');
+      'wheel-key release immediately freezes absolute pointer hover before the next frame');
     wheel.sync();
     ok(!wheel.open && state.picks.join() === '11',
-      'Q release uses the current HUD highlight even without relative mouse movement');
+      'wheel-key release uses the current HUD highlight even without relative mouse movement');
   }
 }

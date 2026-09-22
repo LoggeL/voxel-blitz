@@ -32,15 +32,18 @@ import {
   GRENADE_TYPE_IDS,
   clampGrenadeCharge,
 } from '../../../shared/grenade-rules.js';
-import { TouchControls, shouldEnableTouchControls } from './touch-controls.js';
+import {
+  TOUCH_MOVE_THRESHOLD,
+  TouchControls,
+  shouldEnableTouchControls,
+  touchSprintActive,
+} from './touch-controls.js';
 import { GamepadInput } from './gamepad.js';
 import { readKeybindings, subscribeKeybindings, isTypingTarget } from '../keybindings.js';
 
 // Touch drags travel far fewer pixels than a mouse, so thumb-look runs hotter than
 // the mouse scale (default 0.003 rad/px × 1.4 ≈ 0.0042 rad/px, about 72° per 300 px).
 export const TOUCH_LOOK_SENSITIVITY_SCALE = 1.4;
-const TOUCH_MOVE_THRESHOLD = 0.2;
-const TOUCH_SPRINT_THRESHOLD = 0.86;
 /** Aim assist never removes more than this much of pad/touch look speed near a target. */
 export const AIM_ASSIST_MAX_SLOWDOWN = 0.5;
 /** Quick pad crouch press latches; a longer hold releases with the button. */
@@ -142,8 +145,7 @@ export class Input {
     this._buildToggleQueued = false;
     this._buildRotateQueued = false;
     this._buildExitQueued = false;
-    this._zoomStepQueue = 0;   // scope zoom steps (KeyZ, wheel while scoped, R3)
-    this._scopeZoomMode = false;
+    this._zoomStepQueue = 0;   // scope zoom steps (KeyZ, R3)
     // Radial weapon wheel seam: while open, devices reroute (see setWeaponWheelOpen).
     this._wheelOpen = false;
     this._wheelVecX = 0;       // raw mouse px (pad look scaled) toward full ring deflection
@@ -154,7 +156,6 @@ export class Input {
     this._wheelReleaseQueued = false;
     this._wheelCancelQueued = false;
     this._wheelKeyHeld = false;
-    this._mmbHeld = false;     // physical middle-mouse latch while it opens the wheel
     this._padYHeld = false;    // pad Y tap/hold split: holding Y opens the wheel
     this._padYDownAt = 0;
     this._padYWheelFired = false;
@@ -325,17 +326,26 @@ export class Input {
     if (next === this._gameplayEnabled) return;
     this._gameplayEnabled = next;
     this._syncKeyboardLock();
-    this._touchControls?.setEnabled(next);
+    this._syncTouchControls();
     if (!next) this.clearTransient();
   }
 
-  /** Spectators can capture mouse look while movement and combat stay disabled. */
+  /** Spectators keep mouse, pad and touch look while movement and combat stay disabled. */
   setSpectatorEnabled(enabled) {
     const next = !!enabled && !this._disposed;
     if (next === this._spectatorEnabled) return;
     this._spectatorEnabled = next;
     this.clearTransient();
     this._syncKeyboardLock();
+    this._syncTouchControls();
+  }
+
+  /** Touch controls stay up for spectators, reduced to the look zone and pause. */
+  _syncTouchControls() {
+    const controls = this._touchControls;
+    if (!controls) return;
+    controls.setSpectating(!this._gameplayEnabled && this._spectatorEnabled);
+    controls.setEnabled(this._gameplayEnabled || this._spectatorEnabled);
   }
 
   /**
@@ -427,11 +437,6 @@ export class Input {
 
   _assistScale() {
     return 1 - AIM_ASSIST_MAX_SLOWDOWN * this._aimAssist;
-  }
-
-  /** Wheel steps become zoom steps instead of weapon switches while scoped. */
-  setScopeZoomMode(active) {
-    this._scopeZoomMode = !!active;
   }
 
   /** Per-frame contextual visibility for the touch buttons; cheap when unchanged. */
@@ -571,6 +576,10 @@ export class Input {
     if (!this._gameplayEnabled) {
       if (frame.pressed.pause) this._pauseHandler?.();
       this._clearPadState();
+      // Back mirrors the keyboard scoreboard key, which also works while dead.
+      this._padScoreboard = !!frame.held.scoreboard;
+      // Spectators orbit with the right stick; aim assist has no target to slow toward.
+      if (this._spectatorEnabled && frame.look.magnitude > 0) this._padLook(frame.look, dt, 1);
       return frame;
     }
     const pk = this._padKeys;
@@ -673,14 +682,18 @@ export class Input {
           this._wheelVecY += look.y * WHEEL_VECTOR_RADIUS_PX;
         }
       } else {
-        const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
-        const sensitivityScale = this.sens / MOUSE_SENSITIVITY.default;
-        const rate = this._options.padSensitivity * sensitivityScale * this._assistScale() * step;
-        this._accDX += look.x * rate;
-        this._accDY += look.y * rate * (this.invertY ? -1 : 1);
+        this._padLook(look, dt, this._assistScale());
       }
     }
     return frame;
+  }
+
+  _padLook(look, dt, assistScale) {
+    const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
+    const sensitivityScale = this.sens / MOUSE_SENSITIVITY.default;
+    const rate = this._options.padSensitivity * sensitivityScale * assistScale * step;
+    this._accDX += look.x * rate;
+    this._accDY += look.y * rate * (this.invertY ? -1 : 1);
   }
 
   _clearPadState() {
@@ -803,7 +816,7 @@ export class Input {
     return queued;
   }
 
-  /** Scope zoom steps (Z, wheel while scoped, R3) since the last call. */
+  /** Scope zoom steps (Z / R3) since the last call. */
   consumeZoomStep() {
     const q = this._zoomStepQueue;
     this._zoomStepQueue = 0;
@@ -986,7 +999,6 @@ export class Input {
     this._wheelReleaseQueued = false;
     this._wheelCancelQueued = false;
     this._wheelKeyHeld = false;
-    this._mmbHeld = false;
     this._padYHeld = false;
     this._padYDownAt = 0;
     this._padYWheelFired = false;
@@ -1040,7 +1052,7 @@ export class Input {
       onHold: (action, held) => this._onTouchHold(action, held),
       onPulse: (action) => this._onTouchPulse(action),
       onPause: () => {
-        if (this._gameplayEnabled) this._pauseHandler?.();
+        if (this._gameplayEnabled || this._spectatorEnabled) this._pauseHandler?.();
       },
     });
     this._touchControls.mount(document.body);
@@ -1048,7 +1060,7 @@ export class Input {
       size: this._options.touchSize,
       hand: this._options.touchHand,
     });
-    this._touchControls.setEnabled(this._gameplayEnabled);
+    this._syncTouchControls();
   }
 
   _onTouchMove({ x = 0, y = 0, magnitude = 0 } = {}) {
@@ -1057,13 +1069,13 @@ export class Input {
     this.keys.right = x > TOUCH_MOVE_THRESHOLD;
     this.keys.forward = y < -TOUCH_MOVE_THRESHOLD;
     this.keys.back = y > TOUCH_MOVE_THRESHOLD;
-    this.keys.sprint = this.keys.forward && magnitude >= TOUCH_SPRINT_THRESHOLD;
+    this.keys.sprint = touchSprintActive({ y, magnitude });
   }
 
   _onTouchLook(dx, dy) {
-    if (!this._gameplayEnabled || this._wheelOpen) return;
+    if ((!this._gameplayEnabled && !this._spectatorEnabled) || this._wheelOpen) return;
     const scale = this.sens * TOUCH_LOOK_SENSITIVITY_SCALE *
-      this._options.touchSensitivity * this._assistScale();
+      this._options.touchSensitivity * (this._gameplayEnabled ? this._assistScale() : 1);
     this._accDX += (Number(dx) || 0) * scale;
     this._accDY += (Number(dy) || 0) * scale * (this.invertY ? -1 : 1);
   }
@@ -1276,7 +1288,6 @@ export class Input {
       this._fireTapQueued = true;
     } else if (e.button === 1) {
       this._wheelOpenQueued = true;
-      this._mmbHeld = true;
     } else if (e.button === 2) {
       this._toggleAds(true);
       e.preventDefault();
@@ -1284,10 +1295,7 @@ export class Input {
   }
 
   _onMouseUp(e) {
-    if (e.button === 1) {
-      this._mmbHeld = false;
-      return;
-    }
+    if (e.button === 1) return;
     if (this._wheelOpen) return;
     if (e.button === 0) this._mouseFire = false;
     else if (e.button === 2 && this.adsMode() === 'hold') this._mouseAds = false;

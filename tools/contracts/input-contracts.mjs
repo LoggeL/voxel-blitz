@@ -65,6 +65,7 @@ export async function runInputContracts(ok, installGlobals) {
         joystickVector,
         resolveToggleRelease,
         shouldEnableTouchControls,
+        touchSprintActive,
       } = await import('../../public/js/engine/touch-controls.js');
       ok(resolveToggleRelease(120, false) === true
         && resolveToggleRelease(600, false) === false
@@ -204,11 +205,9 @@ export async function runInputContracts(ok, installGlobals) {
       'trackpad mode scales look up and smooths it over a few frames without losing motion');
       input.setOptions({ pointerMode: 'auto' });
       input._onKeyDown(key('KeyZ'));
-      input.setScopeZoomMode(true);
       input._onWheel(wheel(100, 9000));
       ok(input.consumeZoomStep() === 1 && input.consumeWeaponSwitch() === 1,
         'Z changes scope zoom while scrolling switches weapons even when scoped');
-      input.setScopeZoomMode(false);
 
       input._onKeyDown(key('KeyT'));
       ok(input.getKeys().interact,
@@ -316,6 +315,21 @@ export async function runInputContracts(ok, installGlobals) {
       ok(mobileMove.forward && mobileMove.right && mobileMove.sprint
         && !mobileMove.back && !mobileMove.left,
       'mobile joystick maps diagonals and outer-ring auto sprint onto canonical movement keys');
+      // The stick's sprint cue and the sprint key read one rule, including the
+      // 0.86-0.92 ring and shallow forward diagonals the old cue missed.
+      const sprintProbes = [
+        { x: 0, y: -0.88, magnitude: 0.88 },
+        { x: 0.95, y: -0.3, magnitude: 0.95 },
+        { x: 0, y: -0.8, magnitude: 0.8 },
+        { x: 0.98, y: -0.1, magnitude: 0.98 },
+        { x: 0, y: 0.95, magnitude: 0.95 },
+      ];
+      ok(sprintProbes.every(probe => {
+        touch._onTouchMove(probe);
+        return touch.getKeys().sprint === touchSprintActive(probe);
+      }) && sprintProbes.map(touchSprintActive).join() === 'true,true,false,false,false',
+      'the joystick sprint cue and touch auto-sprint share one threshold rule');
+      touch._onTouchMove({ x: 0.45, y: -0.9, magnitude: 0.92 });
       touch._onTouchLook(10, -5);
       const mobileLook = touch.consumeDelta();
       ok(Math.abs(mobileLook.dx - 0.042) < 1e-12
@@ -325,6 +339,7 @@ export async function runInputContracts(ok, installGlobals) {
       touch._touchControls = {
         reset: () => { touchResetCalls += 1; },
         setEnabled: () => {},
+        setSpectating: () => {},
         dispose: () => {},
       };
       touch.consumeDelta();
@@ -549,17 +564,15 @@ export async function runInputContracts(ok, installGlobals) {
       'unlocked overlay pointer motion is never applied again as relative wheel input');
       input.dispose();
 
-      // Open-wheel scroll steps the wheel and wins over scope zoom.
+      // Open-wheel scroll steps the wheel and never queues a scope zoom step.
       input = new Input({});
       input.setWeaponWheelOpen(true);
       input._onWheel(wheel(100, 1000));
       ok(input.takeWheelSteps() === 1 && input.takeWheelSteps() === 0,
       'an open-wheel scroll queues one slot step and drains');
-      input.setScopeZoomMode(true);
       input._onWheel(wheel(100, 1200));
       ok(input.consumeZoomStep() === 0 && input.takeWheelSteps() === 1,
-      'an open wheel wins over scope zoom: scroll steps the wheel, not the scope');
-      input.setScopeZoomMode(false);
+      'an open-wheel scroll steps the wheel and never queues a scope zoom step');
       input.dispose();
 
       // Digits route to the wheel while open and to the slot seam while closed.
@@ -657,7 +670,7 @@ export async function runInputContracts(ok, installGlobals) {
 
   {
     const { stickCurve, readGamepadFrame, PAD_BUTTONS } = await import('../../public/js/engine/gamepad.js');
-    const { visibleTouchActions, TouchControls } =
+    const { visibleTouchActions, TouchControls, TOUCH_ACTIONS } =
       await import('../../public/js/engine/touch-controls.js');
     const { wheelSwitchStep } = await import('../../public/js/input-settings.js');
 
@@ -773,6 +786,34 @@ export async function runInputContracts(ok, installGlobals) {
     swap.dispatch('pointerup');
     ok(pulses.length === 2, 'cancelled, hidden, and secondary-finger presses cannot trigger a swap');
     minimal.dispose();
+
+    // Spectating keeps only look and pause: a live context cannot bring chips back,
+    // a held joystick lets go, and a fresh stick touch is ignored.
+    const moves = [];
+    const watching = new TouchControls({ documentRef: null, onMove: (vector) => moves.push(vector.magnitude) });
+    const rectTarget = () => Object.assign(target(), {
+      style: {},
+      getBoundingClientRect: () => ({ left: 0, top: 0, right: 240, bottom: 240, width: 96, height: 96 }),
+    });
+    watching.dom.move = rectTarget();
+    watching.dom.moveBase = rectTarget();
+    watching.dom.moveKnob = rectTarget();
+    watching._bindMove();
+    watching.setEnabled(true);
+    watching.dom.move.dispatch('pointerdown', 4);
+    const stickHeld = watching._movePointer === 4;
+    watching.setSpectating(true);
+    watching.setContext({ alive: true, canFire: true, canReload: true, weaponCount: 2 });
+    const stickReleased = watching._movePointer === null && moves.at(-1) === 0;
+    moves.length = 0;
+    watching.dom.move.dispatch('pointerdown', 5);
+    ok(stickHeld && stickReleased && moves.length === 0 && watching._movePointer === null
+        && watching._hidden.size === TOUCH_ACTIONS.length,
+    'spectating touch controls release the joystick, ignore new stick touches, and hide every chip but pause');
+    watching.setSpectating(false);
+    ok(!watching._hidden.has('fire') && !watching._hidden.has('jump'),
+    'leaving spectator mode restores the gameplay context chips');
+    watching.dispose();
 
     // This contract also runs without the keybindings suite's storage fixture.
     // Own and restore the preferences used to verify a fresh controller session.
