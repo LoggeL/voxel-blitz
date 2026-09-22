@@ -17,7 +17,7 @@ import { addMenuIcon } from './menu-icons.js';
 import { LobbyBrowser } from './lobby-browser.js';
 import { LobbySettings } from './lobby-settings.js';
 import { normalizeModeId, mapForMode } from '../../../shared/modes.js';
-import { MAX_BOTS } from '../../../shared/lobby-limits.js';
+import { MAX_BOTS, modeAllowsBots } from '../../../shared/lobby-limits.js';
 import { LobbyRoster } from './lobby-roster.js';
 import { CrossfadeImage } from './crossfade-image.js';
 import {
@@ -212,7 +212,7 @@ export class MenuLobbyController {
       const gameMode = normalizeModeId(loadPref('vb-mode', 'fun'), 'fun');
       this.onMenuAction({ mode: 'create', gameMode,
         map: mapForMode(gameMode, loadPref('vb-map', 'foundry')),
-        bots: ['training', 'duel'].includes(gameMode) ? 0 : Math.round(loadPrefNum('vb-bots', 3, 0, MAX_BOTS)),
+        bots: !modeAllowsBots(gameMode) ? 0 : Math.round(loadPrefNum('vb-bots', 3, 0, MAX_BOTS)),
         code: '', password: createPassword.value, ...getIdentity() });
     };
 

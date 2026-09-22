@@ -27,7 +27,7 @@ import {
   isTeamId,
 } from '../shared/modes.js';
 import { createMapState, getMapMeta } from '../shared/worlddata.js';
-import { MAX_BOTS, MAX_TEAM_PLAYERS, lobbyCapacity, hasLobbyTeams } from '../shared/lobby-limits.js';
+import { MAX_BOTS, MAX_TEAM_PLAYERS, lobbyCapacity, hasLobbyTeams, modeAllowsBots } from '../shared/lobby-limits.js';
 
 const derivePassword = promisify(scrypt);
 const capacity = (room) => lobbyCapacity(room.gameMode, room.map);
@@ -273,7 +273,7 @@ export class LobbyManager {
     if (!TTT_TRAITOR_PERCENTS.includes(traitorPercent)) return this._error(meta, 'Invalid traitor percentage');
     duelKillLimit ??= room.duelKillLimit;
     if (!DUEL_KILL_LIMITS.includes(duelKillLimit)) return this._error(meta, 'Invalid 1v1 kill target');
-    bots = ['training', 'duel', 'bastion'].includes(gameMode) ? 0 : bots;
+    bots = modeAllowsBots(gameMode) ? bots : 0;
     const limit = lobbyCapacity(gameMode, map);
     if (room.members.size > limit) {
       return this._error(meta, `This map allows up to ${limit} players. There are ${room.members.size} human players in the lobby.`);
@@ -441,7 +441,7 @@ export class LobbyManager {
       phase: 'waiting',
       duelKillLimit: DEFAULT_DUEL_KILL_LIMIT,
       traitorPercent: DEFAULT_TRAITOR_PERCENT,
-      bots: ['training','duel','bastion'].includes(gameMode) ? 0 : Math.min(bots, lobbyCapacity(gameMode, map) - 1),
+      bots: !modeAllowsBots(gameMode) ? 0 : Math.min(bots, lobbyCapacity(gameMode, map) - 1),
       botTeams: new Map(),
       botDifficulties: new Map(),
       quickPopulation: quick ? Math.min(bots + 1, lobbyCapacity(gameMode, map)) : null,
