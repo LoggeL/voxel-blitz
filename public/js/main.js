@@ -1249,11 +1249,19 @@ function mountArmoryButton() {
   open.className = 'vb-main-nav-button';
   open.textContent = 'ARMORY';
   open.setAttribute('aria-haspopup', 'dialog');
+  let failed = false;
   open.addEventListener('click', () => {
+    if (open.getAttribute('aria-busy') === 'true') return;
     open.setAttribute('aria-busy', 'true');
     assets.require(['armory']).then(({ armory }) => {
+      if (failed && open.isConnected) hudRef?.showJoinState?.('');
+      failed = false;
       if (open.isConnected && document.getElementById('hud')?.classList.contains('hidden')) armory.open();
-    }).catch(() => {}).finally(() => open.removeAttribute('aria-busy'));
+    }).catch(() => {
+      // The scheduler drops a failed task, so the next click retries it.
+      failed = true;
+      if (open.isConnected) hudRef?.showJoinState?.('Armory could not load. Click ARMORY to retry.', 'err');
+    }).finally(() => open.removeAttribute('aria-busy'));
   });
   const careerButton = document.getElementById('career-open');
   if (careerButton) nav.insertBefore(open, careerButton);
