@@ -1,11 +1,7 @@
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
-import {
-  createBrowserProfile,
-  executableBrowser,
-  removeBrowserProfile,
-} from './browser-capture.mjs';
+import { executableBrowser } from './browser-capture.mjs';
 import { startServer, stopServer, waitForHttp } from './server-process.mjs';
 
 function optionValue(argv, index, option) {
@@ -79,19 +75,17 @@ async function waitForBaseUrl(baseUrl, route) {
   throw new Error(`capture server did not become ready: ${baseUrl}`);
 }
 
-/** Own the browser/profile/static-server lifecycle for a deterministic capture matrix. */
+/** Own the browser/static-server lifecycle for a deterministic capture matrix. */
 export async function runCaptureFlow({
   options,
   projectRoot,
   route,
-  profilePrefix,
   failureContext,
   shots,
   captureShot,
   formatShot,
 }) {
   const browser = await executableBrowser(options.browser);
-  const profileDir = await createBrowserProfile(profilePrefix);
   let server = null;
   let baseUrl = options.baseUrl;
   try {
@@ -114,7 +108,6 @@ export async function runCaptureFlow({
     for (const shot of shots) {
       const capture = captureShot({
         browser,
-        profileDir,
         baseUrl,
         outDir: options.outDir,
         dimensions,
@@ -127,6 +120,5 @@ export async function runCaptureFlow({
     return rendered;
   } finally {
     await stopServer(server);
-    await removeBrowserProfile(profileDir);
   }
 }
