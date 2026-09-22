@@ -1105,7 +1105,8 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   phase, or the purchase request `{t:'buy',weapon:'ttt:trap:<id>'}`
   (`parseBuyFrame` accepts `ttt:trap:[a-z0-9-]{1,32}`). Both paths are refused
   silently for innocents, dead players, other phases, out-of-range presses,
-  cooling or spent traps.
+  cooling or spent traps. The web client uses only the purchase request: it
+  zeroes `keys.interact` in TTT so examine/pickup presses never fire a trap.
 - Server → client: a successful press emits the `trap` mode event (above),
   then the effect's own traffic: `projectileExplode` with `type:'trap'` and
   `id:''` for explosions, `tick.blocks` deltas for lava/flood/door_lock/collapse

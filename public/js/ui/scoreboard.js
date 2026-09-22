@@ -48,15 +48,18 @@ export class Scoreboard {
     this.voteCells.clear();
     const ranked = rankPlayers(roster, mode);
     if (isTeamMode(mode)) {
-      for (const team of ['alpha', 'bravo']) {
+      // Bastion is co-op: every human defends on alpha against unlisted NPCs.
+      const squad = mode === 'bastion';
+      for (const team of squad ? ['alpha'] : ['alpha', 'bravo']) {
         const section = el('section', `vb-scoreboard-team vb-sb-${team}`, this.body);
         const heading = el('h3', `vb-sb-team-heading vb-badge-${team}`, section);
         const role = mode === 'snd' ? (match.attackers === team ? 'ATTACK' : 'DEFEND') : '';
         const teamPlayers = ranked.filter((p) => p.team === team);
-        heading.textContent = this.resultPresentation ? team.toUpperCase() : `${team.toUpperCase()} ${match?.scores?.[team] ?? 0}`;
+        const label = squad ? 'SQUAD' : team.toUpperCase();
+        heading.textContent = this.resultPresentation || squad ? label : `${label} ${match?.scores?.[team] ?? 0}`;
         el('span', '', heading).textContent = this.resultPresentation
-          ? this.playerCounts(teamPlayers) : role || `FIRST TO ${MODE_RULES.tdm.scoreLimit}`;
-        if (this.resultPresentation) this.resultGroup(section, teamPlayers, mode, selfId, team.toUpperCase());
+          ? this.playerCounts(teamPlayers) : role || (mode === 'tdm' ? `FIRST TO ${MODE_RULES.tdm.scoreLimit}` : '');
+        if (this.resultPresentation) this.resultGroup(section, teamPlayers, mode, selfId, label);
         else this.table(section, teamPlayers, mode, selfId);
       }
     } else if (this.resultPresentation) {
@@ -119,7 +122,7 @@ export class Scoreboard {
       : mode === 'gungame' ? ['#', 'PLAYER', 'WEAPON']
         : mode === 'snd' ? ['PLAYER', 'K', 'D', 'STATUS']
           : mode === 'tdm' ? ['PLAYER', 'KILLS', 'DEATHS']
-            : mode === 'ttt' ? ['#', 'PLAYER']
+            : mode === 'ttt' ? ['PLAYER']
             : ['#', 'PLAYER', 'KILLS', 'DEATHS'];
     if (mode === 'ttt') columns.push('STATUS', 'KARMA');
     columns.push('PING');
@@ -138,7 +141,7 @@ export class Scoreboard {
       const tr = el('tr', [self ? 'vb-me' : '', dead ? 'dead' : '', team ? `vb-team-${team}` : ''].filter(Boolean).join(' '), body);
       tr.dataset.pid = String(player.id);
       if (this.resultPresentation) tr.dataset.bot = String(!!player.bot);
-      if (this.resultPresentation || (!isTeamMode(mode) && mode !== 'training')) el('td', 'vb-sb-rank', tr).textContent = String(index + 1);
+      if (this.resultPresentation || (!isTeamMode(mode) && !['training', 'ttt'].includes(mode))) el('td', 'vb-sb-rank', tr).textContent = String(index + 1);
       const name = el('td', 'vb-sb-name', tr);
       name.textContent = String(player.name || 'PLAYER');
       if (mode==='ttt' && player.tttRole) {
