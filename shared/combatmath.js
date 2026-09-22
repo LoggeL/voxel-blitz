@@ -389,18 +389,21 @@ export function computeRecoilKickDeg(def, shotIndex, adsT = 0, random01 = 0.5) {
   };
 }
 
+/** Reload stage stretch for `panic01` (0..1): full panic ≈ +`reloadPanicSlow`. */
+export function reloadPanicScale(panic01 = 0) {
+  const panic = Math.max(0, Math.min(1, Number(panic01) || 0));
+  return 1 + panic * CONDITION_RULES.reloadPanicSlow;
+}
 /**
  * Reload plan shared by authority and prediction. Magazine weapons swap in one step;
  * tube weapons seat rounds one at a time (`staged`), so the duration depends on how many
  * rounds are missing and the reload can be interrupted with every seated round kept.
  * Panic fumbles the reload: every stage stretches by up to `reloadPanicSlow`
  * (full panic ≈ +35%), so tube cadence slows shell-for-shell with the total.
+ * `rounds` is the rounds seated for a staged reload, or the full magazine the swap
+ * delivers for a magazine weapon.
  * @returns {{staged:boolean,rounds:number,seconds:number,startSeconds:number,perRoundSeconds:number,endSeconds:number}}
  */
-export function reloadPanicScale(panic01 = 0) {
-  const panic = Math.max(0, Math.min(1, Number(panic01) || 0));
-  return 1 + panic * CONDITION_RULES.reloadPanicSlow;
-}
 export function reloadPlan(def, mag, reserve = Infinity, panic01 = 0) {
   const inMag = Math.max(0, Math.min(def.magSize, Number.isFinite(mag) ? Math.trunc(mag) : 0));
   const scale = reloadPanicScale(panic01);
