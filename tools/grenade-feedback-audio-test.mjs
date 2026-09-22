@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { CombatFeedback } from '../public/js/combat/feedback.js';
 import { evProjectileLaunch } from '../server/protocol/events.js';
+import { sfx } from '../public/js/audio/sfx.js';
 
 const launches = [];
 const sounds = [];
@@ -37,4 +38,11 @@ running = false;
 feedback.handleEvent(charged);
 assert.equal(sounds.length, beforeOtherProjectiles, 'inactive sessions never replay throw sounds');
 
-console.log('Grenade feedback audio: remote frag/limpet/pulse position, optional charge, local prediction deduplication and weapon exclusions passed.');
+// Quick-draw pouch cues are synthesized facade methods; without an AudioContext
+// (Node, a locked page) they are silent no-ops rather than throwing.
+for (const cue of ['grenadeEmpty', 'grenadeReady', 'grenadePinBack', 'grenadeFuseTick', 'claymoreClamp']) {
+  assert.equal(typeof sfx[cue], 'function', `sfx.${cue} exists`);
+  assert.doesNotThrow(() => sfx[cue](cue === 'grenadeFuseTick' ? 2 : undefined), `sfx.${cue} is safe before audio unlock`);
+}
+
+console.log('Grenade feedback audio: remote frag/limpet/pulse position, optional charge, local prediction deduplication, weapon exclusions and pouch cue facade passed.');

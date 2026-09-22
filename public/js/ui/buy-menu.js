@@ -11,9 +11,11 @@ import {
   THROWABLE_NAMES,
   WEAPON_CLASSES,
   WEAPON_BUY_ORDER,
+  GRENADE_HUD_ICONS,
   weaponImagePath,
   weaponCardStats,
 } from './hud-support.js';
+import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 
 /**
  * Owns the S&D armory dialog and all of its mutable state. The host exposes
@@ -144,12 +146,12 @@ export class BuyMenuController {
 
       const stages = [];
       if (mode === 'chaos') {
-        classEl.textContent = ['frag', 'limpet', 'pulse', 'molotov', 'smoke'].includes(wid) ? 'GRENADE EXPERIMENTS' : 'WEAPON EXPERIMENTS';
+        classEl.textContent = GRENADE_TYPE_IDS.includes(wid) ? 'GRENADE EXPERIMENTS' : 'WEAPON EXPERIMENTS';
         classEl.remove();
         statsEl.remove();
         const isWeapon = Boolean(WEAPONS[wid]);
         const image = el('img', `vb-chaos-weapon-image${isWeapon ? '' : ' vb-chaos-grenade-image'}`, cardBody);
-        image.src = isWeapon ? weaponImagePath(wid) : `./assets/grenades/hud/${wid}.${['smoke', 'limpet'].includes(wid) ? 'svg' : 'png'}`;
+        image.src = isWeapon ? weaponImagePath(wid) : GRENADE_HUD_ICONS[wid] || '';
         image.alt = '';
         image.draggable = false;
         cardBody.insertBefore(image, nameEl);

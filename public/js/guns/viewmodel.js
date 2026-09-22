@@ -379,8 +379,11 @@ export class ViewmodelRig {
   }
 
   /**
+   * `t01` is the selected throw power (a GRENADE_POWER_STEPS value): it sets the
+   * gun wind-up, the hands' cock-back depth and the LOB underhand pose.
    * Explicit active supports the first held frame at zero charge. holdMs advances
    * draw/pin contacts even when a render frame is skipped; numeric-only callers remain valid.
+   * The hands keep the type they drew until the hold ends.
    */
   grenadeCharge(t01, type = 0, holdMs = null, active = Number(t01) > 0) {
     this._nadeTarget = active ? Math.max(0, Math.min(1, Number(t01) || 0)) : 0;
@@ -398,15 +401,23 @@ export class ViewmodelRig {
     this._nadeTarget = 0;
   }
 
-  cancelGrenade() {
-    this._throwableHands.cancel();
-    this._nadeTarget = this._nadeWind = this._nadeThrowT = 0;
+  /**
+   * `{reseat: true}` is the pin back: the hands put the pin back and drop over
+   * THROWABLE_TIMING.reseat while the gun eases back. Without it the throwable
+   * vanishes at once (death, lifecycle).
+   */
+  cancelGrenade(opts = {}) {
+    this._throwableHands.cancel(opts);
+    this._nadeTarget = this._nadeThrowT = 0;
+    if (opts?.reseat && this._throwableHands.reseatElapsed !== null) return;
+    this._nadeWind = 0;
     this.content.visible = true;
   }
 
   get grenadeActive() {
     const hands = this._throwableHands;
-    return hands.held || hands.throwElapsed !== null || hands.returnElapsed !== null;
+    return hands.held || hands.throwElapsed !== null || hands.returnElapsed !== null
+      || hands.reseatElapsed !== null;
   }
 
   /** Manual staged cycles (mode-driven). Ignored when cycling already or gun lacks the linkage. */

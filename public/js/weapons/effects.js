@@ -240,7 +240,11 @@ export class Effects {
     if (!this._disposed) this.projectiles.launch(event, options);
   }
 
-  /** Predicted flight preview for a `{type,x,y,z,vx,vy,vz}` launch, or `null` to hide it. */
+  /**
+   * Predicted flight preview for a `{type,x,y,z,vx,vy,vz,fuseMs?,effectRadius?,chaosLevel?}`
+   * launch, or `null` to hide it. Passed through whole, so the landing zone keeps the
+   * caller's effect radius.
+   */
   projectilePreview(launch) {
     if (this._disposed) return null;
     return this.projectiles.setPreview(launch);

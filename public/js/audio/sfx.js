@@ -1044,6 +1044,70 @@ export const sfx = {
     });
   },
 
+  /** Denied grenade press (empty pouch or throw cooldown): a dry, dead trigger click. */
+  grenadeEmpty() {
+    run('grenadeEmpty', () => {
+      const output = pool.acquire(null, 0.12);
+      const at = primitives.nowT();
+      primitives.hiss(output, { t0: at, filter: 'highpass', f: 5200, dec: 0.012, g: 0.16 });
+      primitives.tone(output, { t0: at, type: 'square', f0: 820, f1: 540, att: 0.001, dec: 0.018, g: 0.05 });
+    });
+  },
+
+  /** The throwable settles in the fingers (the hands' 'ready' cue): a soft spoon click. */
+  grenadeReady() {
+    run('grenadeReady', () => {
+      const output = pool.acquire(null, 0.12);
+      const at = primitives.nowT();
+      primitives.hiss(output, { t0: at, filter: 'bandpass', f: 2300, q: 3, dec: 0.028, g: 0.09, pan: 0.2 });
+      primitives.tone(output, { t0: at + 0.002, type: 'sine', f0: 1350, f1: 1080, dec: 0.04, g: 0.035 });
+    });
+  },
+
+  /** Pin back ('cancel' cue): the ring scrapes into its socket and the spoon seats. */
+  grenadePinBack() {
+    run('grenadePinBack', () => {
+      const output = pool.acquire(null, 0.3);
+      const at = primitives.nowT();
+      primitives.hiss(output, {
+        t0: at, filter: 'bandpass', f: 2600, sweepTo: 4300, sweepMs: 0.08, q: 5, att: 0.01, dec: 0.08, g: 0.1, pan: -0.15,
+      });
+      primitives.tone(output, {
+        t0: at + 0.1, type: 'square', f0: 1900, f1: 2500, att: 0.001, dec: 0.03, g: 0.06,
+      });
+      primitives.hiss(output, { t0: at + 0.1, filter: 'bandpass', f: 3400, q: 6, dec: 0.03, g: 0.14 });
+    });
+  },
+
+  /**
+   * One cook tick while a timed fuse burns in the hand. `rate` > 1 is the
+   * urgent tick near the end of the fuse: higher and a little louder.
+   */
+  grenadeFuseTick(rate = 1) {
+    const urgency = Math.max(0.5, Math.min(2, Number(rate) || 1));
+    run('grenadeFuseTick', () => {
+      const output = pool.acquire(null, 0.08);
+      const at = primitives.nowT();
+      primitives.tone(output, {
+        t0: at, type: 'square', f0: 1500 * urgency, f1: 1200 * urgency, att: 0.001, dec: 0.018,
+        g: 0.03 + 0.015 * (urgency - 1),
+      });
+      primitives.hiss(output, { t0: at, filter: 'highpass', f: 6000, dec: 0.01, g: 0.06 });
+    });
+  },
+
+  /** Claymore placement: the mount bites into the wall and the latch snaps shut. */
+  claymoreClamp() {
+    run('claymoreClamp', () => {
+      const output = pool.acquire(null, 0.3);
+      const at = primitives.nowT();
+      primitives.tone(output, { t0: at, type: 'sine', f0: 190, f1: 85, att: 0.002, dec: 0.09, g: 0.22 });
+      primitives.hiss(output, { t0: at, filter: 'lowpass', f: 900, dec: 0.05, g: 0.14 });
+      primitives.hiss(output, { t0: at + 0.06, filter: 'bandpass', f: 2800, q: 4, dec: 0.035, g: 0.16 });
+      primitives.tone(output, { t0: at + 0.062, type: 'square', f0: 1400, f1: 900, att: 0.001, dec: 0.025, g: 0.045 });
+    });
+  },
+
   /** Release: an arm swing whoosh whose weight scales with the charge. */
   grenadeThrow(charge = 0.5, options) {
     const strength = Math.max(0, Math.min(1, Number(charge) || 0));

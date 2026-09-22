@@ -1,3 +1,5 @@
+import { GRENADE_TYPE_IDS, GRENADE_POWER_STEPS } from '../../../shared/grenade-rules.js';
+
 const DEFAULT_RADIUS = 54;
 const DEFAULT_DEAD_ZONE = 0.14;
 /** Quick press/release on a toggle button latches it instead of acting as a hold. */
@@ -7,6 +9,10 @@ const LOOK_DELTA_CLAMP_PX = 90;
 export const TOUCH_MOVE_THRESHOLD = 0.2;
 /** Forward stick deflection that auto-sprints on the touch joystick. */
 export const TOUCH_SPRINT_THRESHOLD = 0.86;
+/** Slop around the PIN BACK chip so a lift at its edge still cancels. */
+const PIN_BACK_SLOP_PX = 10;
+/** A look-zone lift within this travel counts as a tap (closes the open pouch). */
+const TAP_TRAVEL_PX = 12;
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -73,17 +79,19 @@ export function shouldEnableTouchControls({
 /** Every contextual button; the pause button is always available. */
 export const TOUCH_ACTIONS = Object.freeze([
   'fire', 'ads', 'jump', 'reload', 'interact', 'weapon', 'buy', 'medkit', 'build',
+  'grenade', 'pouch',
 ]);
 
 /**
  * Which touch buttons a gameplay context earns. Null context (menu, dead, spectating)
- * shows nothing but pause; a wheelOpen context keeps only pause while the radial
- * weapon wheel is up. Pure so the rule is contract-testable without DOM.
+ * shows nothing but pause; a wheelOpen or pouchOpen context keeps only pause while a
+ * radial is up (the grenade pouch draws its own slots). Pure so the rule is
+ * contract-testable without DOM.
  */
 export function visibleTouchActions(context) {
   const visible = new Set();
   if (!context || context.alive === false) return visible;
-  if (context.wheelOpen) return visible; // wheel up: every chip but pause hides
+  if (context.wheelOpen || context.pouchOpen) return visible; // radial up: every chip but pause hides
   visible.add('jump');
   if (context.canFire !== false) {
     visible.add('fire');
@@ -95,7 +103,21 @@ export function visibleTouchActions(context) {
   if ((context.weaponCount ?? 2) > 1) visible.add('weapon');
   if (context.canBuy) visible.add('buy');
   if (context.canBuild) visible.add('build');
+  if (context.canThrow && Number(context.grenadeTotal) > 0) {
+    visible.add('grenade');
+    visible.add('pouch');
+  }
   return visible;
+}
+
+/** Face of the grenade button: the ready type id and its count, or nulls when none is ready. */
+export function touchGrenadeFace(context) {
+  const index = Number.isInteger(context?.grenadeReady) ? context.grenadeReady : -1;
+  const type = GRENADE_TYPE_IDS[index] ?? null;
+  const count = type && Array.isArray(context?.grenadeCounts)
+    ? Math.max(0, Number(context.grenadeCounts[index]) || 0)
+    : null;
+  return Object.freeze({ type, count });
 }
 
 function addElement(documentRef, tag, className, parent, text = '') {
@@ -143,6 +165,9 @@ export class TouchControls {
     this._heldSince = new Map();
     this._latched = new Set();
     this._pulsePointers = new Map();
+    this._pinBackArmed = false;
+    this._powerIndex = -1;
+    this._lookTap = null;
     this._context = null;
     this._hidden = new Set();
     this._spectating = false;
@@ -178,6 +203,7 @@ export class TouchControls {
       button.classList.toggle('is-hidden', hide);
       button.setAttribute('aria-hidden', hide ? 'true' : 'false');
     }
+    this._paintGrenade(next);
     return changed;
   }
 
@@ -196,6 +222,33 @@ export class TouchControls {
       this.onMove({ x: 0, y: 0, magnitude: 0 });
     }
     this.setContext(this._context);
+  }
+
+  /** Ready type icon (CSS keyed on data-type) and count, plus the lit power stop. */
+  _paintGrenade(context) {
+    const button = this.dom.grenade;
+    if (!button) return;
+    const face = touchGrenadeFace(context);
+    const type = face.type || 'none';
+    if (button.dataset.type !== type) button.dataset.type = type;
+    const count = face.count === null ? '' : `×${face.count}`;
+    if (this.dom.grenadeCount && this.dom.grenadeCount.textContent !== count) {
+      this.dom.grenadeCount.textContent = count;
+    }
+    const authoritative = Number.isInteger(context?.grenadePowerIndex) ? context.grenadePowerIndex : null;
+    this._paintPower(authoritative ?? this._powerIndex);
+  }
+
+  _paintPower(index) {
+    for (const [i, chip] of (this.dom.grenadePowerChips || []).entries()) {
+      chip.classList.toggle('is-selected', i === index);
+    }
+  }
+
+  /** Touch pick from the grenade pouch radial (its controller owns the slot DOM). */
+  pickPouchSlot(index) {
+    if (!this.enabled || !Number.isInteger(index) || index < 0 || index >= GRENADE_TYPE_IDS.length) return;
+    this.onPulse(`pouchSlot:${index}`);
   }
 
   /** Layout options: stick/button size and the dominant hand (mirrors the layout). */
@@ -218,6 +271,9 @@ export class TouchControls {
     this._latched.delete(action);
     this._pulsePointers.delete(action);
     if (button) this._setPressed(button, action, false);
+    if (action === 'grenade') this._endGrenadeHold();
+    // A grenade whose button vanishes mid-hold is pinned back, never thrown blind.
+    if (wasHeld && action === 'grenade') this.onPulse('grenadeCancel');
     if (wasHeld) this.onHold(action, false, eventTime(null));
   }
 
@@ -253,6 +309,31 @@ export class TouchControls {
     d.weapon = this._button(root, 'weapon', '⇄', 'Next weapon');
     d.buy = this._button(root, 'buy', 'BUY', 'Open armory');
     d.build = this._button(root, 'build', 'BUILD', 'Cycle build blueprint (Bastion)');
+    d.grenade = this._button(root, 'grenade', '',
+      'Throw ready grenade (tap to throw, hold to aim, lift to throw)');
+    d.grenade.dataset.type = 'none';
+    d.grenadeIcon = addElement(this.document, 'span', 'vb-touch-grenade-icon', d.grenade);
+    d.grenadeIcon.setAttribute('aria-hidden', 'true');
+    d.grenadeCount = addElement(this.document, 'span', 'vb-touch-grenade-count', d.grenade);
+    d.pouch = this._button(root, 'pouch', '', 'Open grenade pouch');
+    addElement(this.document, 'span', 'vb-touch-pouch-bag', d.pouch).setAttribute('aria-hidden', 'true');
+    // Held-grenade overlay: the other thumb taps a power stop; the grenade thumb
+    // slides onto PIN BACK and lifts to cancel. Both only show while the hold lasts.
+    d.grenadePower = addElement(this.document, 'div', 'vb-touch-grenade-power', root);
+    d.grenadePower.id = 'touch-grenade-power';
+    d.grenadePower.setAttribute('aria-label', 'Grenade throw power');
+    d.grenadePowerChips = [];
+    for (let i = GRENADE_POWER_STEPS.length - 1; i >= 0; i--) {
+      const label = i === 0 ? 'LOB' : `${Math.round(GRENADE_POWER_STEPS[i] * 100)}`;
+      const chip = addElement(this.document, 'button', 'vb-touch-grenade-power-chip', d.grenadePower, label);
+      chip.type = 'button';
+      chip.dataset.power = String(i);
+      chip.setAttribute('aria-label', `Throw power ${label}`);
+      d.grenadePowerChips[i] = chip;
+    }
+    d.pinBack = addElement(this.document, 'div', 'vb-touch-pin-back', root, 'PIN BACK');
+    d.pinBack.id = 'touch-pin-back';
+    d.pinBack.setAttribute('aria-hidden', 'true');
 
     this._bindMove();
     this._bindLook();
@@ -265,6 +346,9 @@ export class TouchControls {
     this._bindPulse(d.weapon, 'weapon');
     this._bindPulse(d.buy, 'buy');
     this._bindPulse(d.build, 'build');
+    this._bindPulse(d.pouch, 'pouch');
+    this._bindGrenade(d.grenade);
+    d.grenadePowerChips.forEach((chip, i) => this._bindPowerChip(chip, i));
     this._bindPulse(d.pause, 'pause');
     this.setOptions(this._options);
     this.setContext(this._context);
@@ -350,15 +434,23 @@ export class TouchControls {
     const release = (event) => {
       if (event.pointerId !== this._lookPointer) return;
       event.preventDefault();
+      const tap = this._lookTap;
       this._lookPointer = null;
       this._lookPoint = null;
+      this._lookTap = null;
       zone.classList.remove('is-engaged');
+      // Tapping outside the open pouch closes it (the 'pouch' pulse toggles it).
+      if (tap && event.type === 'pointerup' && this.enabled && this._context?.pouchOpen
+          && Math.hypot(event.clientX - tap.x, event.clientY - tap.y) <= TAP_TRAVEL_PX) {
+        this.onPulse('pouch');
+      }
     };
     this._listen(zone, 'pointerdown', (event) => {
       if (!this.enabled || this._lookPointer !== null) return;
       event.preventDefault();
       this._lookPointer = event.pointerId;
       this._lookPoint = { x: event.clientX, y: event.clientY };
+      this._lookTap = this._context?.pouchOpen ? { x: event.clientX, y: event.clientY } : null;
       zone.classList.add('is-engaged');
       this._capture(zone, event);
     });
@@ -441,6 +533,111 @@ export class TouchControls {
     this._listen(button, 'lostpointercapture', release);
   }
 
+  /**
+   * Grenade button: press begins the hold (Input tells a tap from a hold by time),
+   * lift throws. Drag aims like fire; lifting over the PIN BACK chip cancels instead.
+   * A cancelled pointer (system gesture, lost capture) pins back rather than throwing.
+   */
+  _bindGrenade(button) {
+    const action = 'grenade';
+    let lookPoint = null;
+    const release = (event) => {
+      if (this._heldPointers.get(action) !== event.pointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const pinBack = event.type !== 'pointerup' || this._overPinBack(event);
+      this._heldPointers.delete(action);
+      this._heldSince.delete(action);
+      lookPoint = null;
+      this._setPressed(button, action, false);
+      this._endGrenadeHold();
+      // Cancel first so the release that follows has nothing left to throw.
+      if (pinBack) this.onPulse('grenadeCancel');
+      this.onHold(action, false, eventTime(event));
+    };
+    this._listen(button, 'pointerdown', (event) => {
+      if (!this.enabled || this._hidden.has(action) || this._heldPointers.has(action)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this._heldPointers.set(action, event.pointerId);
+      this._heldSince.set(action, eventTime(event));
+      this._capture(button, event);
+      lookPoint = { x: event.clientX, y: event.clientY };
+      this._setPressed(button, action, true);
+      this.root?.classList.add('is-grenade-held');
+      // Input refused the hold (cooldown, empty, build): no strip, no PIN BACK, no power taps.
+      if (this.onHold(action, true, eventTime(event)) === false) {
+        this._heldPointers.delete(action);
+        this._heldSince.delete(action);
+        lookPoint = null;
+        this._setPressed(button, action, false);
+        this._endGrenadeHold();
+      }
+    });
+    this._listen(button, 'pointermove', (event) => {
+      if (!this.enabled || this._heldPointers.get(action) !== event.pointerId || !lookPoint) return;
+      event.preventDefault();
+      const armed = this._overPinBack(event);
+      if (armed !== this._pinBackArmed) {
+        this._pinBackArmed = armed;
+        this.dom.pinBack?.classList.toggle('is-armed', armed);
+      }
+      // Parked on PIN BACK: stop turning the camera while the thumb decides.
+      if (armed) {
+        lookPoint.x = event.clientX;
+        lookPoint.y = event.clientY;
+        return;
+      }
+      this._emitLook(event, lookPoint);
+    });
+    this._listen(button, 'pointerup', release);
+    this._listen(button, 'pointercancel', release);
+    this._listen(button, 'lostpointercapture', release);
+  }
+
+  _overPinBack(event) {
+    const rect = this.dom.pinBack?.getBoundingClientRect?.();
+    if (!rect || !(rect.width > 0 && rect.height > 0)) return false;
+    return event.clientX >= rect.left - PIN_BACK_SLOP_PX && event.clientX <= rect.right + PIN_BACK_SLOP_PX
+      && event.clientY >= rect.top - PIN_BACK_SLOP_PX && event.clientY <= rect.bottom + PIN_BACK_SLOP_PX;
+  }
+
+  _endGrenadeHold() {
+    this._pinBackArmed = false;
+    this._powerIndex = -1;
+    this.root?.classList.remove('is-grenade-held');
+    this.dom.pinBack?.classList.remove('is-armed');
+    for (const chip of this.dom.grenadePowerChips || []) chip.classList.remove('is-held');
+    this._paintGrenade(this._context);
+  }
+
+  /** Power stop: a tap by the free thumb while a grenade is held; no drag-to-dial. */
+  _bindPowerChip(chip, index) {
+    const key = `grenadePower:${index}`;
+    this._listen(chip, 'pointerdown', (event) => {
+      if (!this.enabled || !this._heldPointers.has('grenade') || this._pulsePointers.has(key)) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this._pulsePointers.set(key, event.pointerId);
+      chip.classList.add('is-held');
+      this._capture(chip, event);
+    });
+    const release = (event) => {
+      if (this._pulsePointers.get(key) !== event.pointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      this._pulsePointers.delete(key);
+      chip.classList.remove('is-held');
+      if (!this.enabled || !this._heldPointers.has('grenade') || event.type !== 'pointerup') return;
+      this._powerIndex = index;
+      this._paintGrenade(this._context);
+      this.onPulse(key);
+    };
+    this._listen(chip, 'pointerup', release);
+    this._listen(chip, 'pointercancel', release);
+    this._listen(chip, 'lostpointercapture', release);
+  }
+
   /** One action on release. Cancelled or hidden presses never activate. */
   _bindPulse(button, action) {
     this._listen(button, 'pointerdown', (event) => {
@@ -479,8 +676,11 @@ export class TouchControls {
     if (notify) {
       this.onMove({ x: 0, y: 0, magnitude: 0 });
       const released = new Set([...this._heldPointers.keys(), ...this._latched]);
+      if (released.has('grenade')) this.onPulse('grenadeCancel');
       for (const action of released) this.onHold(action, false, eventTime(null));
     }
+    this._lookTap = null;
+    this._endGrenadeHold();
     this._resetMove();
     this._lookPointer = null;
     this._lookPoint = null;

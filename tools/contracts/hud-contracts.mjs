@@ -4,6 +4,7 @@ import { WEAPONS } from '../../shared/combatmath.js';
 import { combatDamage } from '../../shared/combat-balance.js';
 import { ROCKET_RULES } from '../../shared/rocket-rules.js';
 import { glaiveDiscSlots } from '../../public/js/ui/hud-support.js';
+import { grenadePouchSlotFromVector } from '../../public/js/ui/grenade-pouch.js';
 
 export async function runHudContracts(ok, installGlobals) {
   // HUD: just enough DOM to execute the shipped settings and scope paths.
@@ -771,37 +772,137 @@ export async function runHudContracts(ok, installGlobals) {
         && /0 ALIVE/.test(statusStrip.textContent),
       'S&D status strip shows remaining lives without repeating names and scores');
 
-      hud.setState({ grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 0.5 });
-      const fragChip = document.querySelectorAll('.vb-grenade-type')[0];
-      const pulseChip = document.querySelectorAll('.vb-grenade-type')[2];
-      ok(document.querySelectorAll('.vb-grenade-type').length === 5
-        && fragChip.classList.contains('is-selected')
-        && fragChip.querySelectorAll('.vb-grenade-icon').filter((slot) => !slot.classList.contains('is-spent')).length === 1
-        && pulseChip.classList.contains('is-empty')
-        && document.getElementById('grenade-count').dataset.type === 'frag'
-        && document.getElementById('grenade-count').classList.contains('is-charging')
-        && !document.getElementById('grenade-count').classList.contains('is-full')
-        && document.querySelector('.vb-grenade-charge').children[0].style.transform === 'scaleX(0.5)',
-      'grenade HUD renders one chip per throwable with remaining pips, the selection, and live hold charge');
-      hud.setState({ grenades: [1, 1, 0, 1, 0], grenadeType: 3, grenadeCharge: 1 });
-      const fullState = document.getElementById('grenade-count').classList.contains('is-full')
-        && document.querySelector('.vb-grenade-hint').textContent === 'MAX · RELEASE'
-        && document.getElementById('grenade-count').dataset.type === 'molotov'
-        && document.querySelectorAll('.vb-grenade-type')[3].classList.contains('is-selected')
-        && document.querySelector('.vb-grenade-name').textContent === 'MOLOTOV COCKTAIL';
-      hud.setState({ grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 0, grenadeCharging: true });
-      const heldState = document.getElementById('grenade-count').classList.contains('is-charging')
-        && document.querySelector('.vb-grenade-hint').textContent === 'HOLD · RELEASE';
+      hud.setState({ grenades: [1, 1, 0], grenadeType: 0, grenadeReady: 0, grenadeCharge: 0.5 });
+      const card = document.getElementById('grenade-count');
+      const dots = card.querySelectorAll('.vb-grenade-dot');
+      ok(card.querySelectorAll('.vb-grenade-type').length === 0
+        && dots.length === 5
+        && dots[0].classList.contains('is-stocked') && dots[0].classList.contains('is-ready')
+        && dots[1].classList.contains('is-stocked') && !dots[1].classList.contains('is-ready')
+        && !dots[2].classList.contains('is-stocked')
+        && dots[2].dataset.role === 'tactical' && dots[1].dataset.role === 'gadget' && dots[3].dataset.role === 'lethal'
+        && card.dataset.type === 'frag'
+        && card.querySelector('.vb-grenade-card-icon').src === './assets/grenades/hud/frag.png'
+        && card.querySelector('.vb-grenade-name').textContent === 'M-4 FRAG'
+        && card.querySelector('.vb-grenade-ammo').textContent === '×1'
+        && card.querySelector('.vb-grenade-key').textContent === 'G'
+        && card.querySelector('.vb-grenade-pouch-key').textContent === 'H'
+        && /POUCH/.test(card.querySelector('.vb-grenade-pouch').textContent)
+        && card.classList.contains('is-charging')
+        && !card.classList.contains('is-full')
+        && card.querySelector('.vb-grenade-charge').children[0].style.transform === 'scaleX(0.5)',
+      'grenade Ready Card shows the ready type icon, name, count, role-tinted pouch dots and live power');
+      hud.setDeviceInfo({ padActive: true });
+      const padLabels = card.querySelector('.vb-grenade-key').textContent === 'RB'
+        && card.querySelector('.vb-grenade-pouch-key').textContent === 'D▼';
+      hud.setDeviceInfo({ touch: true });
+      const touchLabels = card.querySelector('.vb-grenade-key').hidden === true
+        && card.querySelector('.vb-grenade-pouch').hidden === true
+        && card.querySelector('.vb-grenade-card-icon').dataset.touchCompact === ''
+        && card.querySelector('.vb-grenade-ammo').dataset.touchCompact === '';
+      hud.setDeviceInfo({});
+      ok(padLabels && touchLabels && card.querySelector('.vb-grenade-key').hidden === false,
+        'setDeviceInfo relabels the card badges for pad and hides them on touch, keeping the compact icon and count');
+      hud.setState({ grenades: [1, 1, 0, 1, 0], grenadeType: 3, grenadeReady: 3, grenadeCharge: 0, grenadeCharging: true, grenadePower: 1, grenadePowerIndex: 4 });
+      const aim = document.getElementById('grenade-aim');
+      const fullState = card.classList.contains('is-full')
+        && card.querySelector('.vb-grenade-hint').textContent === 'RELEASE · THROW'
+        && card.dataset.type === 'molotov'
+        && card.querySelectorAll('.vb-grenade-dot')[3].classList.contains('is-ready')
+        && card.querySelector('.vb-grenade-name').textContent === 'MOLOTOV COCKTAIL'
+        && aim.classList.contains('is-visible') && !aim.classList.contains('is-cook')
+        && aim.querySelectorAll('.vb-aim-notch').length === 5
+        && aim.querySelectorAll('.vb-aim-notch')[4].classList.contains('is-lit')
+        && aim.querySelector('.vb-aim-power-label').textContent === '100%'
+        && aim.querySelector('.vb-aim-hint').textContent === 'RELEASE · THROW   SCROLL · RANGE   R · PIN BACK'
+        && document.getElementById('grenade-readied').classList.contains('is-visible');
+      hud.setState({ grenades: [1, 1, 0], grenadeType: 0, grenadeReady: 0, grenadeCharge: 0, grenadeCharging: true, grenadePower: 0.2, grenadePowerIndex: 0 });
+      const heldState = card.classList.contains('is-charging')
+        && card.querySelector('.vb-grenade-hint').textContent === 'RELEASE · THROW'
+        && aim.querySelector('.vb-aim-power-label').textContent === 'LOB'
+        && aim.classList.contains('is-cook')
+        && aim.querySelector('.vb-aim-fuse-label').textContent === '2.6s';
       hud.setState({
-        grenades: [1, 1, 0], grenadeType: 0, grenadeCharge: 1, grenadeCharging: true,
+        grenades: [1, 1, 0], grenadeType: 0, grenadeReady: 0, grenadeCharge: 1, grenadeCharging: true,
         grenadeCook01: 0.75, grenadeCookLeftMs: 650,
       });
       ok(fullState && heldState
-        && document.getElementById('grenade-count').classList.contains('is-cooking')
-        && document.getElementById('grenade-count').classList.contains('is-critical')
-        && document.querySelector('.vb-grenade-hint').textContent === 'COOKING · 0.7s'
-        && document.querySelector('.vb-grenade-charge').children[0].style.transform === 'scaleX(0.25)',
-      'grenade HUD flags a maxed charge, the held state from the first frame, and a burning cook');
+        && card.classList.contains('is-cooking')
+        && card.classList.contains('is-critical')
+        && card.querySelector('.vb-grenade-hint').textContent === 'COOKING · 0.7s'
+        && card.querySelector('.vb-grenade-charge').children[0].style.transform === 'scaleX(0.25)'
+        && aim.classList.contains('is-critical')
+        && aim.querySelector('.vb-aim-fuse-label').textContent === '0.7s'
+        && aim.querySelector('.vb-aim-fuse-ring').style['--fuse'] === '0.250',
+      'aim reticle shows the lit power step, LOB, and a fuse ring that drains from the pin with the cook left');
+      hud.setState({
+        grenades: [0, 1, 0], grenadeType: 1, grenadeReady: 1, grenadeCharge: 0, grenadeCharging: true,
+        grenadeCook01: 0, grenadeCookLeftMs: null, claymorePlacementValid: false,
+      });
+      const noWall = card.querySelector('.vb-grenade-hint').textContent === 'NO WALL · MAX 2.2m'
+        && aim.classList.contains('is-wallmine')
+        && aim.querySelector('.vb-aim-mount').textContent === '[ NO WALL · 2.2m ]'
+        && aim.querySelector('.vb-aim-hint').textContent === 'RELEASE · MOUNT   R · PIN BACK';
+      hud.setState({ claymorePlacementValid: true });
+      ok(noWall && aim.classList.contains('is-valid')
+        && aim.querySelector('.vb-aim-mount').textContent === '[ MOUNT ]'
+        && card.querySelector('.vb-grenade-hint').textContent === 'RELEASE · MOUNT',
+      'claymore aim shows a MOUNT bracket on a valid wall and NO WALL with the reach otherwise');
+      hud.setState({ grenadeCharging: false, claymorePlacementValid: false, grenades: [0, 0, 0, 0, 0], grenadeReady: -1, grenadeType: 1 });
+      const emptyPouch = card.classList.contains('is-empty-pouch')
+        && card.querySelector('.vb-grenade-name').textContent === 'POUCH EMPTY'
+        && !aim.classList.contains('is-visible')
+        && !document.getElementById('grenade-readied').classList.contains('is-visible');
+      hud.setState({ grenadeDenied: 1 });
+      const denied = card.classList.contains('is-denied');
+      hud.setState({ grenades: [0, 0, 0, 0, 1], grenadeReady: 4, grenadeType: 4, grenadeAdvancedTo: 4, grenadeReadiedAt: performance.now() });
+      ok(emptyPouch && denied
+        && card.classList.contains('is-advanced')
+        && card.querySelector('.vb-grenade-flash').textContent === 'NEXT · M-18 SMOKE'
+        && document.getElementById('grenade-readied').classList.contains('is-visible')
+        && document.getElementById('grenade-readied').textContent.includes('→ M-18 SMOKE')
+        && document.getElementById('grenade-readied').querySelector('img').src === './assets/grenades/hud/smoke.svg',
+      'the card dims for an empty pouch, shakes on a denied press, and flashes NEXT plus the readied tag on auto-advance');
+      hud.setState({ grenades: [0, 1, 0, 0, 1], grenadeReady: 1, grenadeType: 1, grenadePinBackAt: 1, grenadePinBackReason: 'noWall' });
+      const noWallNote = document.getElementById('grenade-readied').textContent.includes('NO WALL')
+        && !document.getElementById('grenade-readied').textContent.includes('PIN BACK');
+      hud.setState({ grenadePinBackAt: 2, grenadePinBackReason: 'pinBack' });
+      ok(noWallNote && document.getElementById('grenade-readied').classList.contains('is-pinback')
+        && document.getElementById('grenade-readied').textContent.includes('PIN BACK'),
+      'a claymore let go off a wall reads NO WALL on the readied tag; a real pin back reads PIN BACK');
+      hud.setState({ grenadePouchOpen: true, grenadePouchHover: 2, grenades: [2, 0, 0, 1, 1], grenadeReady: 0 });
+      const pouch = document.getElementById('grenade-pouch');
+      const pouchSlots = pouch.querySelectorAll('.vb-pouch-slot');
+      const pouchOpen = pouch.getAttribute('aria-hidden') === 'false'
+        && pouchSlots.length === 5
+        && pouchSlots.map((slot) => slot.dataset.type).join(',') === 'frag,limpet,pulse,molotov,smoke'
+        && pouchSlots[0].style['--vb-pouch-angle'] === '270deg'
+        && pouchSlots[1].classList.contains('is-empty') && pouchSlots[2].classList.contains('is-empty')
+        && pouchSlots[0].classList.contains('is-ready')
+        && pouchSlots[0].querySelector('.vb-pouch-count').textContent === '×2'
+        && pouchSlots[3].classList.contains('is-hl') && !pouchSlots[2].classList.contains('is-hl')
+        && pouch.querySelector('.vb-pouch-hub-name').textContent === 'MOLOTOV COCKTAIL'
+        && pouch.querySelector('.vb-pouch-hub-role').textContent === 'Impact · 3.2 m fire';
+      hud.setState({ grenadePouchHover: 0 });
+      const fragRole = pouch.querySelector('.vb-pouch-hub-role').textContent === 'Timed fuse · cookable · 7.5 m blast';
+      hud.setState({ grenadePouchOpen: false });
+      ok(pouchOpen && fragRole && pouch.getAttribute('aria-hidden') === 'true' && !hud.isGrenadePouchOpen(),
+        'pouch radial lays five fixed wedges, snaps hover off empty slots, and generates the role line from the rules');
+      // Down-right points at the empty pulse slot and snaps to molotov; the dead zone picks nothing.
+      ok(grenadePouchSlotFromVector(0, -1, [1, 0, 0, 1, 1]) === 0
+        && grenadePouchSlotFromVector(0.8, 0.6, [1, 0, 0, 1, 1]) === 3
+        && grenadePouchSlotFromVector(0.1, 0, [1, 1, 1, 1, 1]) === -1
+        && grenadePouchSlotFromVector(1, 0, [0, 0, 0, 0, 0]) === -1,
+      'pouch vector picks never land on an empty slot');
+      hud.killfeed({ killer: 'a', victim: 'b', w: 'molotov' });
+      hud.killfeed({ killer: 'a', victim: 'b', w: 'grenade' });
+      const feedIcons = document.getElementById('killfeed').querySelectorAll('.kf-grenade-icon');
+      const feedSources = feedIcons.map((icon) => icon.src);
+      ok(feedSources.includes('./assets/grenades/hud/molotov.png') && feedSources.includes('./assets/grenades/hud/frag.png')
+        && !document.getElementById('killfeed').textContent.includes('◆'),
+      'kill feed throwables use the shared GRENADE_HUD_ICONS artwork');
+      hud.combat.clearKillfeed();
+      hud.setState({ grenadeDenied: undefined, grenadeAdvancedTo: undefined, grenadeReadiedAt: undefined, grenadePinBackAt: undefined, grenadePinBackReason: undefined, grenadePouchOpen: undefined, grenadePouchHover: undefined });
       hud.setState({ charge01: 0.4 });
       const chargingMeter = document.getElementById('charge-meter').classList.contains('is-visible')
         && document.getElementById('charge-meter').classList.contains('is-charging')

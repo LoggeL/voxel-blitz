@@ -94,7 +94,99 @@
 .vb-touch-ads { --touch-column: calc(var(--touch-fire) + 12px); }
 .vb-touch-jump { --touch-row: calc(var(--touch-fire) + 12px); }
 .vb-touch-reload { --touch-column: calc(var(--touch-fire) + 12px); --touch-row: calc(var(--touch-fire) + 12px); }
-.vb-touch-medkit { --touch-column: calc(var(--touch-fire) + 12px); --touch-row: calc(var(--touch-fire) + var(--touch-button) + 24px); color: #a1edc0; }
+.vb-touch-medkit { --touch-column: calc(var(--touch-fire) + 12px); --touch-row: calc(var(--touch-fire) + var(--touch-button) * 2 + 36px); color: #a1edc0; }
+/* Grenade sits above reload; its face is the ready type's icon and count. */
+.vb-touch-grenade {
+  --touch-column: calc(var(--touch-fire) + 12px);
+  --touch-row: calc(var(--touch-fire) + var(--touch-button) + 24px);
+  grid-template-rows: 1fr auto;
+  gap: 0;
+  padding: 5px 0 4px;
+  border-color: #ffc36b99;
+}
+.vb-touch-grenade-icon {
+  width: 60%;
+  height: 100%;
+  min-height: 18px;
+  background: center / contain no-repeat;
+  filter: drop-shadow(0 1px 1px #0009);
+}
+.vb-touch-grenade[data-type="frag"] .vb-touch-grenade-icon { background-image: url('../assets/grenades/hud/frag.png'); }
+.vb-touch-grenade[data-type="limpet"] .vb-touch-grenade-icon { background-image: url('../assets/grenades/hud/limpet.svg'); }
+.vb-touch-grenade[data-type="pulse"] .vb-touch-grenade-icon { background-image: url('../assets/grenades/hud/pulse.png'); }
+.vb-touch-grenade[data-type="molotov"] .vb-touch-grenade-icon { background-image: url('../assets/grenades/hud/molotov.png'); }
+.vb-touch-grenade[data-type="smoke"] .vb-touch-grenade-icon { background-image: url('../assets/grenades/hud/smoke.svg'); }
+.vb-touch-grenade-count { font: 700 10px/1 var(--font-mono, var(--font-ui)); letter-spacing: 0; }
+.vb-touch-grenade.is-held { background: #ffc36b40; border-color: #ffc36b; }
+/* Pouch: a small bag beside the grenade button; tapping opens the radial. */
+.vb-touch-pouch {
+  --touch-column: calc(var(--touch-fire) + var(--touch-button) + 24px);
+  --touch-row: calc(var(--touch-fire) + var(--touch-button) + 24px + (var(--touch-button) - 44px) / 2);
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+}
+.vb-touch-pouch-bag {
+  position: relative;
+  width: 18px;
+  height: 15px;
+  margin-top: 4px;
+  border: 2px solid currentColor;
+  border-radius: 3px 3px 6px 6px;
+}
+.vb-touch-pouch-bag::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 3px;
+  width: 8px;
+  height: 5px;
+  border: 2px solid currentColor;
+  border-bottom: 0;
+  border-radius: 5px 5px 0 0;
+}
+/* Held-grenade overlay: power stops for the free thumb and the PIN BACK slide target. */
+.vb-touch-grenade-power,
+.vb-touch-pin-back { position: absolute; z-index: 3; display: none; }
+.vb-touch-controls.is-grenade-held :is(.vb-touch-grenade-power, .vb-touch-pin-back) { display: flex; }
+.vb-touch-controls.is-grenade-held :is(.vb-touch-pouch, .vb-touch-medkit) { display: none; }
+.vb-touch-grenade-power {
+  right: calc(var(--touch-edge-r) + var(--touch-fire) + var(--touch-button) + 24px);
+  bottom: var(--touch-edge-y);
+  flex-direction: column;
+  gap: 6px;
+  pointer-events: auto;
+}
+.vb-touch-grenade-power-chip {
+  width: 44px;
+  height: 40px;
+  padding: 0;
+  border: 1px solid #ffffff55;
+  border-radius: 8px;
+  background: #0b0e128c;
+  color: #fff;
+  font: 600 10px/1 var(--font-ui);
+  letter-spacing: 0;
+  pointer-events: auto;
+}
+.vb-touch-grenade-power-chip.is-selected { background: #ffc36b; border-color: #ffc36b; color: #14100a; }
+.vb-touch-grenade-power-chip.is-held { background: #ffffff4d; border-color: #fff; }
+.vb-touch-pin-back {
+  right: var(--touch-edge-r);
+  bottom: calc(var(--touch-edge-y) + var(--touch-fire) + var(--touch-button) * 2 + 36px);
+  align-items: center;
+  justify-content: center;
+  width: calc(var(--touch-fire) + var(--touch-button) + 12px);
+  height: 40px;
+  border: 1px solid #ff6b6b;
+  border-radius: 8px;
+  background: #5a141499;
+  color: #ffd5d5;
+  font: 700 10px/1 var(--font-ui);
+  letter-spacing: 0.06em;
+  pointer-events: none; /* hit-tested by the captured grenade pointer, never tapped */
+}
+.vb-touch-pin-back.is-armed { background: #e03a3a; border-color: #fff; color: #fff; }
 .vb-touch-interact,
 .vb-touch-buy { --touch-row: calc(var(--touch-fire) + var(--touch-button) + 24px); width: 64px; border-radius: 8px; }
 .vb-touch-pause { top: max(10px, env(safe-area-inset-top)); bottom: auto; left: var(--touch-edge-x); right: auto; width: 44px; height: 44px; border-radius: 8px; font-size: 18px; }
@@ -114,13 +206,36 @@
 }
 .vb-touch-controls.is-left-handed .vb-touch-move-zone { left: auto; right: 0; }
 .vb-touch-controls.is-left-handed .vb-touch-stick-base { left: auto; right: var(--touch-edge-r); }
-.vb-touch-controls.is-left-handed :is(.vb-touch-fire, .vb-touch-ads, .vb-touch-jump, .vb-touch-reload, .vb-touch-interact, .vb-touch-buy, .vb-touch-medkit) {
+.vb-touch-controls.is-left-handed :is(.vb-touch-fire, .vb-touch-ads, .vb-touch-jump, .vb-touch-reload, .vb-touch-interact, .vb-touch-buy, .vb-touch-medkit, .vb-touch-grenade, .vb-touch-pouch) {
   right: auto;
   left: calc(var(--touch-edge-x) + var(--touch-column));
 }
+.vb-touch-controls.is-left-handed .vb-touch-grenade-power { right: auto; left: calc(var(--touch-edge-x) + var(--touch-fire) + var(--touch-button) + 24px); }
+.vb-touch-controls.is-left-handed .vb-touch-pin-back { right: auto; left: var(--touch-edge-x); }
 
 /* Remove desktop ornaments and keyboard-only hints from mobile play. */
-.vb-touch-mode :is(#compass, #player-status-strip, #grenade-count, #weapon-icon, #killfeed, .vb-breath-hint, .vb-interaction-hint, #hud-buy-prompt, #match-map-chip) { display: none !important; }
+.vb-touch-mode :is(#compass, #player-status-strip, #weapon-icon, #killfeed, .vb-breath-hint, .vb-interaction-hint, #hud-buy-prompt, #match-map-chip) { display: none !important; }
+/* Compact Ready Card: icon plus count only, left of the ammo readout. The HUD marks
+   the parts it keeps with data-touch-compact; key badges, name and pouch dots drop. */
+.vb-touch-mode #grenade-count {
+  top: calc(max(10px, env(safe-area-inset-top)) + 54px);
+  right: calc(max(12px, env(safe-area-inset-right)) + 140px);
+  bottom: auto;
+  left: auto;
+  min-width: 0;
+  width: auto;
+  height: 52px;
+  padding: 6px 8px;
+  gap: 6px;
+  border: 0;
+  border-radius: 8px;
+  clip-path: none;
+  transform: none;
+  box-shadow: none;
+  background: #0b0e1273;
+  pointer-events: none;
+}
+.vb-touch-mode #grenade-count > :not([data-touch-compact]) { display: none !important; }
 .vb-touch-mode #match-header {
   top: max(10px, env(safe-area-inset-top));
   min-width: 0;

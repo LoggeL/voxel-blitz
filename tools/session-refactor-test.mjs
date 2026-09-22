@@ -66,7 +66,8 @@ try {
     const state = {
       hp: 100, alive: true, wid: 'rifle', wname: 'VK-77 RAPTOR',
       mag: 30, reserve: 6, infiniteMagazines: false, grenades: [2, 1, 1],
-      grenadeType: 0, grenadeCharge: 0, grenadeCharging: false, grenadeCook01: 0,
+      grenadeType: 0, grenadeReady: 0, grenadeCharge: 0, grenadeCharging: false, grenadeCook01: 0,
+      grenadePower: 0.6, grenadePowerIndex: 2, grenadePouchOpen: false, grenadePouchHover: -1,
       charge01: null, heat01: null, fuel01: null, reloading01: null,
       crosshairConeDeg: 1.35, crosshairHitRadius: 0, panic: 0, pain: 0,
       yawDeg: 0, adsT01: 0, breath01: 1,
@@ -87,17 +88,20 @@ try {
     });
     const counts = state.grenades;
     counts[0] = 0;
-    hud.setState({ mag: 1, hp: 25, grenades: counts, grenadeType: 1 });
+    hud.setState({ mag: 1, hp: 25, grenades: counts, grenadeType: 1, grenadeReady: 1 });
     const changedState = document.getElementById('ammocount').textContent === '1'
       && document.getElementById('ammocount').classList.contains('vb-low')
       && document.getElementById('hpfill').style.width === '25%'
-      && document.querySelectorAll('.vb-grenade-type')[0].classList.contains('is-empty')
-      && document.querySelectorAll('.vb-grenade-type')[1].classList.contains('is-selected');
-    hud.setState({ ...state, hp: 100, mag: 30, grenadeType: 0 });
+      && !document.querySelectorAll('.vb-grenade-dot')[0].classList.contains('is-stocked')
+      && document.querySelectorAll('.vb-grenade-dot')[1].classList.contains('is-ready')
+      && document.getElementById('grenade-count').dataset.type === 'limpet';
+    counts[0] = 2;
+    hud.setState({ ...state, hp: 100, mag: 30, grenades: counts, grenadeType: 0, grenadeReady: 0 });
     hud.buildHUD();
     const rebuiltState = document.getElementById('ammocount').textContent === '30'
       && document.getElementById('hpfill').style.width === '100%'
-      && document.querySelectorAll('.vb-grenade-type')[0].classList.contains('is-selected');
+      && document.querySelectorAll('.vb-grenade-dot')[0].classList.contains('is-ready')
+      && document.querySelector('.vb-grenade-ammo').textContent === '×2';
 
     const self = { id: 'self', name: 'SELF', hp: 100, state: 'alive', credits: 2000, owned: ['revolver'], team: 'alpha' };
     const match = { mode: 'snd', phase: 'prep', map: 'citadel', scores: { alpha: 0, bravo: 0 } };

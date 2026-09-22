@@ -43,6 +43,10 @@ weitere Spieler beitreten.
   Im Baumodus dreht `R` die Ausrichtung, die linke Maustaste platziert, `Esc`
   verlässt den Modus. Der Geist zeigt grün, wo gebaut werden darf, und rot mit
   Begründung, wo nicht. Bauen geht nur in Vorbereitung und Versorgung.
+  Das Einschalten legt eine gehaltene Granate zurück (Stift wieder drin, nichts
+  verbraucht) und schließt den Granatbeutel; solange der Baumodus an ist,
+  werden `G`, `H` und die Granat-Schnelltasten ignoriert
+  (siehe [grenades.md](grenades.md)).
 - `T` (Interaktion) am beschädigten Ziel halten: vier Sekunden reparieren. Das Menü dafür schließen.
   Das Banner zeigt die Reparatur nur in Reichweite und nennt, wenn die Pausengrenze
   erreicht ist oder das Geld fehlt; dieselbe Prüfung (`bastionRepairStatus`) sperrt die Eingabe.

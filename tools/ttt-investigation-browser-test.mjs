@@ -39,7 +39,9 @@ try {
  await page.waitFor(`document.querySelector('.vb-ttt-contact[data-live=true]:not([hidden])')`);
  assert.equal(await page.evaluate(`document.querySelector('.vb-ttt-radar-panel').hidden`),true,'allies are visible without buying radar');
  assert.ok((await page.evaluate(`document.querySelector('.vb-ttt-contact[data-live=true]').textContent`)).includes(ally.name));
- for(let i=0;i<4;i++)for(const type of ['keyDown','keyUp'])await page.send('Input.dispatchKeyEvent',{type,key:'h',code:'KeyH'});
+ // The picked-up smoke auto-readies when it is the only stock; KeyH taps step stocked types only.
+ for(let i=0;i<5&&await page.evaluate(`window.__vb.stats.throwable.type`)!=='smoke';i++){for(const type of ['keyDown','keyUp'])await page.send('Input.dispatchKeyEvent',{type,key:'h',code:'KeyH'});await page.evaluate(`new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`);}
+ await page.waitFor(`window.__vb.stats.throwable.type==='smoke'`);
  await page.send('Input.dispatchKeyEvent',{type:'keyDown',key:'g',code:'KeyG'});
  await page.evaluate(`new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`);
  await page.send('Input.dispatchKeyEvent',{type:'keyUp',key:'g',code:'KeyG'});

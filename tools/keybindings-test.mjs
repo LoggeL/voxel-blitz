@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { Input } from '../public/js/engine/input.js';
-import { KEYBINDINGS_PREF_KEY, defaultKeybindings, readKeybindings, setKeybinding, resetKeybindings, bindingLabel, normalizeKeybindings } from '../public/js/keybindings.js';
+import { KEYBINDINGS_PREF_KEY, KEYBINDING_ACTIONS, defaultKeybindings, readKeybindings, setKeybinding, resetKeybindings, bindingLabel, normalizeKeybindings } from '../public/js/keybindings.js';
 import { runInputContracts } from './contracts/input-contracts.mjs';
 import { launchCdpSession } from './lib/cdp-session.mjs';
 import { installGlobals } from './lib/install-globals.mjs';
@@ -36,8 +36,28 @@ try {
   assert.equal(input.keys.sprint, false);
   assert.equal(setKeybinding('grenade', 'KeyO').ok, true);
   input._onKeyDown(key('KeyO'));
-  input._onKeyUp(key('KeyO', { timeStamp: 1300 }));
-  assert.equal(input.consumeGrenadeThrow().charge, 1, 'remapped hold/release keeps grenade charge');
+  input._onKeyUp(key('KeyO', { timeStamp: 150 }));
+  assert.equal(input.consumeGrenadeThrow().charge, 0.6, 'a remapped G tap quick-throws at the default power');
+  input._onKeyDown(key('KeyO', { timeStamp: 1000 }));
+  input._onWheel({ deltaY: -100, deltaMode: 0, timeStamp: 1100, preventDefault() {} });
+  input._onWheel({ deltaY: -100, deltaMode: 0, timeStamp: 1300, preventDefault() {} });
+  input._onKeyUp(key('KeyO', { timeStamp: 1500 }));
+  assert.equal(input.consumeGrenadeThrow().charge, 1, 'a remapped hold steps power with the wheel');
+  for (const id of ['grenadeCancel', 'grenadePrevious', 'grenadeFrag', 'grenadeClaymore', 'grenadePulse', 'grenadeMolotov', 'grenadeSmoke']) {
+    assert.deepEqual(defaultKeybindings()[id], [], `${id} ships unbound`);
+  }
+  {
+    const seen = new Map();
+    for (const [id, codes] of Object.entries(defaultKeybindings())) {
+      for (const code of codes) {
+        const other = seen.get(code);
+        assert.ok(!other || id.startsWith('spectate') || id === 'skipReplay' || other.startsWith('spectate') || other === 'skipReplay',
+          `${code} is bound to both ${other} and ${id} by default`);
+        if (!other) seen.set(code, id);
+      }
+    }
+  }
+  assert.equal(setKeybinding('grenadeSmoke', 'KeyO').conflict, 'grenade', 'quick grenade keys conflict-check like other gameplay actions');
   setKeybinding('weaponWheel', 'KeyU');
   input._onKeyDown(key('KeyU'));
   assert.equal(input.takeWheelOpenRequest(), true);
@@ -123,7 +143,7 @@ try {
     return { conflict, saved, noLeakedInput, movement, cancelled, reassigned, reset, scrollableContent, noHorizontalOverflow };
   })()`);
   for (const [name, value] of Object.entries(result)) assert.ok(value, name);
-  assert.equal(result.scrollableContent, 37);
+  assert.equal(result.scrollableContent, KEYBINDING_ACTIONS.length, 'every keyboard action has a settings row');
   const screenshot = await browser.page.send('Page.captureScreenshot', { format: 'png' });
   await writeFile('/tmp/voxel-keyboard-settings-390.png', Buffer.from(screenshot.data, 'base64'));
   await browser.page.evaluate(`(async () => { const { setKeybinding } = await import('/js/keybindings.js'); setKeybinding('forward', 'KeyI'); window.bindingSettingsTest.settings.closeSettings(); })()`);

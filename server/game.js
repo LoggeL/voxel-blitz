@@ -321,6 +321,7 @@ export class GameEngine {
     player.grenadeTypeQueued = 0;
     player.grenadeCookQueued = 0;
     player.grenadeAimQueued = null;
+    player.nextThrowAt = 0;
     player.charging = false;
     player.chargeT = 0;
     player.charge = 0;

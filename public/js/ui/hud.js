@@ -97,7 +97,7 @@ export class HUD {
   openSettings() { return this.settings.openSettings(); }
   closeSettings() { return this.settings.closeSettings(); }
   setDeviceInfo(device = {}) {
-    this.gameplay.syncGrenadeLabels(device);
+    this.gameplay.setDeviceLabels(device);
     return this.settings.setDeviceInfo(device);
   }
 
@@ -125,6 +125,12 @@ export class HUD {
   }
   weaponWheelHighlight() { return this.wheel.highlightedSlot(); }
   weaponWheelRadius() { return this.wheel.radius(); }
+
+  /** Grenade pouch radial; normally painted from setState's grenadePouch* fields. */
+  setupGrenadePouch(config = {}) { return this.gameplay.pouch.setup(config); }
+  setGrenadePouchState(state = {}) { return this.gameplay.pouch.setState(state); }
+  isGrenadePouchOpen() { return this.gameplay.pouch.isOpen(); }
+  grenadePouchRadius() { return this.gameplay.pouch.radius(); }
 
   buildHUD() {
     this.gameplay.buildHUD();

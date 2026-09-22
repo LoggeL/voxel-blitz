@@ -51,6 +51,15 @@ export const THROWABLE_NAMES = Object.freeze({
   smoke: 'M-18 SMOKE',
 });
 
+/** One icon per throwable for the Ready Card, pouch, shop and kill feed. */
+export const GRENADE_HUD_ICONS = Object.freeze({
+  frag: './assets/grenades/hud/frag.png',
+  limpet: './assets/grenades/hud/limpet.svg',
+  pulse: './assets/grenades/hud/pulse.png',
+  molotov: './assets/grenades/hud/molotov.png',
+  smoke: './assets/grenades/hud/smoke.svg',
+});
+
 export const WEAPON_CLASSES = Object.freeze({
   revolver: 'SIDEARM · SEMI-AUTO',
   smg: 'SUBMACHINE GUN · FULL AUTO',
