@@ -7,13 +7,13 @@
 
 import {
   el,
-  formatClock,
   loadPrefNum,
   savePref,
 } from './hud-support.js';
+import { MAP_RUN_COURSE } from '../../../shared/world/metadata.js';
 
 export const RUN_BEST_KEY = 'vb-run-best-killhouse';
-export const RUN_STAGES = 4;
+export const RUN_STAGES = MAP_RUN_COURSE.killhouse.stages.length;
 export const RUN_RESULT_HOLD_MS = 5000;
 export const RUN_SPLIT_FADE_MS = 2600;
 
@@ -226,7 +226,7 @@ export class RunHud {
     const stage = Number(event.stage) | 0;
     const ms = Number(event.ms);
     const seconds = Number.isFinite(ms) ? ms / 1000 : 0;
-    dom.toast.textContent = `STAGE ${stage + 1} CLEARED · ${formatClock(seconds)}`;
+    dom.toast.textContent = `STAGE ${stage + 1} CLEARED · ${formatRunClock(seconds)}`;
     dom.toast.classList.add('is-visible');
     if (this._toastTimer) this._clearTimer(this._toastTimer);
     this._toastTimer = this._setTimer(() => {
