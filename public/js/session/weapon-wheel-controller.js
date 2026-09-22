@@ -1,5 +1,6 @@
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { WEAPON_NAMES, WEAPON_CLASSES, weaponImagePath } from '../ui/hud-support.js';
+import { usesOwnedLoadout } from '../../../shared/modes.js';
 
 /** Coordinates wheel input, ownership, and HUD presentation for one live session. */
 export class WeaponWheelController {
@@ -20,8 +21,7 @@ export class WeaponWheelController {
   entries() {
     const context = this.getContext();
     const mode = context.match?.mode;
-    const authoritative = Array.isArray(context.self?.owned) &&
-      ['ttt', 'bastion', 'snd', 'gungame', 'duel'].includes(mode);
+    const authoritative = Array.isArray(context.self?.owned) && usesOwnedLoadout(mode);
     return WEAPON_IDS.map((id, slot) => {
       const locked = authoritative && !context.self.owned.includes(id) && !(mode === 'ttt' && id === 'knife');
       const ammo = context.weapon?.ammoOf(id);

@@ -1,5 +1,5 @@
 import { bindingLabel } from '../keybindings.js';
-import { BASTION_ENEMIES } from '../../../shared/bastion.js';
+import { BASTION_ENEMIES, bastionBuildPhase } from '../../../shared/bastion.js';
 import { el } from './hud-support.js';
 
 /** Transient banner override (vehicle inbound, tier sighted, breach, structure lost). */
@@ -52,7 +52,7 @@ export function updateBastionHud(m,match,self,now,ctx={}) {
   } else label=`STAGE ${stageNo} / ${stageCount} · ${stageName} · WAVE ${stageWave} / ${waves}`;
   if(!extract||phase!=='live') m.phaseLabel.classList.remove('vb-bastion-urgent');
   m.phaseLabel.textContent=label;m.phaseLabel.dataset.compact=label;
-  m.clock.style.display=phase==='prep'||phase==='supply'?'block':'none';
+  m.clock.style.display=bastionBuildPhase(phase)?'block':'none';
   m.clock.textContent=`${Math.max(0,Math.ceil((match.phaseEndsAt-now)/1000))}s`;
   m.bombBanner.style.display='block';
   const laneName=bastionLaneName(ctx.laneNames,stage?.lane||b.lanes?.[0]);
@@ -67,7 +67,7 @@ export function updateBastionHud(m,match,self,now,ctx={}) {
     :`${b.ready}/${b.defenders} READY · [${bindingLabel('buy')}] SUPPLY · [${bindingLabel('build')}] BUILD`;
   m.bombBanner.className='vb-match-bomb-banner vb-bastion-banner'+(transient?' vb-bastion-banner-alert':'');
   m.creditsBox.style.display='flex';m.creditsVal.textContent=`$ ${b.credits}`;
-  const buildable=(phase==='prep'||phase==='supply')&&self?.state==='alive';
+  const buildable=bastionBuildPhase(phase)&&self?.state==='alive';
   m.buyPrompt.textContent=`[${bindingLabel('buy')}] SUPPLY · LOADOUT / UPGRADES / READY`;
   m.buyPrompt.style.display=buildable?'block':'none';
   if(!m.buildPrompt) m.buildPrompt=el('div','vb-build-prompt',m.buyPrompt.parentNode);

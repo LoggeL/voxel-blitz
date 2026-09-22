@@ -88,10 +88,15 @@ export function bastionWave(rowId, players) {
 
 export function bastionReward(wave) { return 300 + 50 * wave; }
 
+/** Prep and supply are Bastion's buy/build/repair windows; waves run in 'live'. */
+export function bastionBuildPhase(phase) {
+  return phase === 'prep' || phase === 'supply';
+}
+
 // `match.bastion.core` is the current stage objective (alias kept by the policy).
 export function bastionRepairAvailable(match, player) {
   const core = match?.bastion?.core;
-  return match?.mode === 'bastion' && ['prep','supply'].includes(match.phase)
+  return match?.mode === 'bastion' && bastionBuildPhase(match.phase)
     && player?.state === 'alive' && core?.hp < core?.maxHp
     && Math.hypot(player.x-core.x,player.y-core.y,player.z-core.z) <= BASTION_RULES.repairRadius;
 }

@@ -5,6 +5,7 @@ import { buildBastionArmory, syncBastionArmory, bastionPurchaseId } from './bast
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { CHAOS_UPGRADES, chaosLevel, chaosPurchaseId } from '../../../shared/chaos.js';
 import { WEAPON_PRICES } from '../../../shared/modes.js';
+import { bastionBuildPhase } from '../../../shared/bastion.js';
 import {
   el,
   GLYPH,
@@ -556,7 +557,7 @@ export class BuyMenuController {
     return ((this.host.mode?.() === 'ttt' && this._buyMenuState.phase === 'live' && this._buyMenuState.ttt?.role === 'traitor')
       || (this._isSndMode() && this._buyMenuState.phase === 'prep')
       || (this._isChaosMode() && this._buyMenuState.phase === 'live')
-      || (this.host.mode?.() === 'bastion' && ['prep','supply'].includes(this._buyMenuState.phase)))
+      || (this.host.mode?.() === 'bastion' && bastionBuildPhase(this._buyMenuState.phase)))
       && this._isAlive()
       && !this.host.settingsOpen?.()
       && !this.host.isLobbyOpen?.();

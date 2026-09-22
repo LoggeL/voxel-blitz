@@ -553,9 +553,7 @@ class Game {
       return this.matchState.phase === 'live' || (this.matchState.phase === 'prep' && melee);
     }
     if (this.matchState?.mode === 'fun' || this.matchState?.mode === 'training') return true;
-    return (this.matchState?.mode === 'duel' || this.matchState?.mode === 'chaos' || this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
-      this.matchState?.mode === 'gungame' || this.matchState?.mode === 'bastion') &&
-      this.matchState.phase === 'live';
+    return this.matchState?.phase === 'live';
   }
 
   isAuthoritativeInteractAllowed() {

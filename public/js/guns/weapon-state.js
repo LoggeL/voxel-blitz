@@ -5,6 +5,7 @@ import { OPTICS, configuredWeapon, normalizeAttachments, normalizeWeaponLoadout 
 import { isScopeActive } from './scope-state.js';
 import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../../../shared/minigun.js';
 import { chaosWeaponDef } from '../../../shared/chaos.js';
+import { usesOwnedLoadout as usesAuthoritativeOwnedWeapons } from '../../../shared/modes.js';
 // Client weapon state machine. The composition root owns frame order; this module owns
 // every weapon transition and receives only narrow adapters for its side effects.
 import {
@@ -28,10 +29,6 @@ const DEFAULT_MODE = 'fun';
 /** One visibility rule shared by scoped weapon state and spectator presentation. */
 export function shouldShowViewmodel({ spectating = false, scopeActive = false } = {}) {
   return !spectating && !scopeActive;
-}
-
-function usesAuthoritativeOwnedWeapons(mode) {
-  return mode === 'ttt' || mode === 'bastion' || mode === 'snd' || mode === 'gungame' || mode === 'duel';
 }
 
 function clamp01(value) {

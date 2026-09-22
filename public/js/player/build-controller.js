@@ -5,6 +5,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { GROUND } from '../../../shared/world/blocks.js';
 import { BASTION_STRUCTURES, STRUCTURE_KINDS, structureFootprint, canPlaceStructure } from '../../../shared/bastion-build.js';
+import { bastionBuildPhase } from '../../../shared/bastion.js';
 import { fwdFromAngles } from '../util/look.js';
 
 /** HUD copy per `canPlaceStructure` reason; `kind`/`phase`/`alive` hide the ghost instead. */
@@ -64,7 +65,7 @@ export class BuildController {
   /** Bastion, buildable phase, alive defender. */
   available() {
     const match = this.getMatch(), self = this.getSelfRow(), player = this.getPlayer();
-    return !!(match?.mode === 'bastion' && ['prep', 'supply'].includes(match.phase)
+    return !!(match?.mode === 'bastion' && bastionBuildPhase(match.phase)
       && self?.state === 'alive' && player?.alive);
   }
 

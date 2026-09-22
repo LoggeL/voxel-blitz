@@ -1,4 +1,5 @@
 import { MOUSE_SENSITIVITY } from '../input-settings.js';
+import { bastionBuildPhase } from '../../../shared/bastion.js';
 
 function clampNumber(value, min, max, fallback) {
   const number = Number(value);
@@ -170,7 +171,7 @@ export class GameplayUiFlow {
     return (match?.mode === 'ttt' && match.phase === 'live' && this._gameplay.selfRow?.ttt?.role === 'traitor')
       || (match?.mode === 'snd' && match.phase === 'prep')
       || (match?.mode === 'chaos' && match.phase === 'live')
-      || (match?.mode === 'bastion' && ['prep','supply'].includes(match.phase));
+      || (match?.mode === 'bastion' && bastionBuildPhase(match.phase));
   }
 
   canOpenBuyMenu() {
