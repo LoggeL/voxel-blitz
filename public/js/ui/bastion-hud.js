@@ -1,6 +1,6 @@
 import { bindingLabel } from '../keybindings.js';
 import { BASTION_ENEMIES, BASTION_RULES, bastionRepairStatus } from '../../../shared/bastion.js';
-import { buyWindowOpen } from '../../../shared/modes.js';
+import { BASTION_BREAK_PHASES, buyWindowOpen } from '../../../shared/modes.js';
 import { el } from './hud-support.js';
 
 /** Transient banner override (vehicle inbound, tier sighted, breach, structure lost). */
@@ -53,7 +53,7 @@ export function updateBastionHud(m,match,self,now,ctx={}) {
   } else label=`STAGE ${stageNo} / ${stageCount} · ${stageName} · WAVE ${stageWave} / ${waves}`;
   if(!extract||phase!=='live') m.phaseLabel.classList.remove('vb-bastion-urgent');
   m.phaseLabel.textContent=label;m.phaseLabel.dataset.compact=label;
-  m.clock.style.display=phase==='prep'||phase==='supply'?'block':'none';
+  m.clock.style.display=BASTION_BREAK_PHASES.includes(phase)?'block':'none';
   m.clock.textContent=`${Math.max(0,Math.ceil((match.phaseEndsAt-now)/1000))}s`;
   m.bombBanner.style.display='block';
   const laneName=bastionLaneName(ctx.laneNames,stage?.lane||b.lanes?.[0]);

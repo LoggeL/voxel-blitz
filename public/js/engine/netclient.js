@@ -468,13 +468,14 @@ export class NetClient {
     ws.onerror = () => {
       if (isCurrent()) this.dirty = true;
     };
-    ws.onclose = () => {
+    ws.onclose = (event) => {
       if (!isCurrent()) return;
       this.ws = null;
       ++this._sessionGeneration;
       this._detachSocket(ws);
       this._resetSessionState(true);
-      this._emit('close');
+      // The server's close code tells a kick (4002/4003) from a dropped link.
+      this._emit('close', { code: Number(event?.code) || 0, reason: String(event?.reason || '') });
     };
   }
 

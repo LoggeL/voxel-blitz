@@ -269,7 +269,8 @@ the waiting UI.
 - If the host leaves, the earliest remaining human becomes host. When the last
   human leaves normally, the engine stops, bots are disposed, and the room/code
   is released. After an abnormal last-player disconnect, the room stays available
-  for 30 seconds. The client retries connection up to six times. Reconnection is
+  for 30 seconds. The client retries connection up to six times (not after a
+  server kick such as a karma ban, whose reason it shows). Reconnection is
   a fresh admission with the same name and code, so personal score, loadout and
   host ownership are not reserved; Quick Play re-enters matchmaking.
 - Each room owns a fresh map-specific voxel world, `GameEngine`, mode

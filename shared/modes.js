@@ -129,6 +129,13 @@ export function isTeamMode(value) {
   return MODE_RULES[value]?.teams === true;
 }
 
+/** Modes whose server-sent `owned` list is the authoritative weapon inventory. */
+export const OWNED_LOADOUT_MODES = Object.freeze(['ttt', 'bastion', 'snd', 'gungame', 'duel']);
+
+export function usesOwnedLoadout(mode) {
+  return OWNED_LOADOUT_MODES.includes(mode);
+}
+
 /** Training target identity is stable across authority and presentation. */
 export function isTrainingDummyId(value) {
   return typeof value === 'string' && value.startsWith('dummy-');

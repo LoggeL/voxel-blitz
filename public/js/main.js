@@ -7,7 +7,7 @@
 // the Blender library arrive through the asset scheduler after the menu is
 // interactive; joining a match waits for exactly the tasks in MATCH_ASSETS.
 import { AccountKeybindings } from './account-keybindings.js';
-import { loadingScreen } from './ui/loading-screen.js';
+import { loadingScreen, formatBytes } from './ui/loading-screen.js';
 import { claymoreProfile } from '../../shared/claymore-rules.js';
 import { ProgressionTree } from './ui/progression.js';
 import { AccountMenu } from './ui/account-menu.js';
@@ -87,6 +87,7 @@ class Game {
     this.serverNow = null;
     this._lastConsumedSnapSeq = null;
     this._pendingAuthoritativeSnapshots = [];
+    this._bootBlockDeltas = null;
     this._postFrame = { time: 0, panic: 0, pain: 0, scopeActive: false };
     this._padScoreboard = false;
     this._deviceKey = '';
@@ -225,6 +226,7 @@ class Game {
 
   async bootLive(payload) {
     const { net, welcome, mapBytes, mapMeta, isActive, showStatus, showProgress, complete } = payload;
+    this._bootBlockDeltas = [];
     await this.ensureRuntime();
     if (!isActive()) return;
     if (!net.isOpen()) return this.session.handleDisconnect();
@@ -243,6 +245,11 @@ class Game {
       applySnapshotBlocks(snapshot, this._world);
       this.queueAuthoritativeSnapshot(snapshot);
     }
+    // The ring only holds the last RING_LEN ticks; every delta that arrived
+    // while booting is buffered in full and replayed last (latest writer wins).
+    const bootBlocks = this._bootBlockDeltas || [];
+    this._bootBlockDeltas = null;
+    for (const blocks of bootBlocks) applySnapshotBlocks({ blocks }, this._world);
     if (!net.isOpen()) return this.session.handleDisconnect();
 
     showStatus('building voxel mesh…', 'ok');
@@ -400,9 +407,11 @@ class Game {
   }
 
   handleTick(snapshot, phase = this.session.phase) {
-    // Before the runtime arrives there is no world to patch; bootLive replays
-    // net.latestSnapshots after deserializing the arena.
-    applySnapshotBlocks?.(snapshot, this._world);
+    // Until bootLive decodes the arena its terrain deltas are buffered, since
+    // the map bytes would overwrite them; bootLive replays the buffer after.
+    if (this._bootBlockDeltas) {
+      if (snapshot?.blocks?.length) this._bootBlockDeltas.push(snapshot.blocks);
+    } else applySnapshotBlocks?.(snapshot, this._world);
     if (phase === 'booting') this.queueAuthoritativeSnapshot(snapshot);
     else if (this.running && phase === 'live') this.consumeAuthoritativeSnapshot(snapshot);
   }
@@ -536,9 +545,7 @@ class Game {
       return this.matchState.phase === 'live' || (this.matchState.phase === 'prep' && melee);
     }
     if (this.matchState?.mode === 'fun' || this.matchState?.mode === 'training') return true;
-    return (this.matchState?.mode === 'duel' || this.matchState?.mode === 'chaos' || this.matchState?.mode === 'tdm' || this.matchState?.mode === 'snd' ||
-      this.matchState?.mode === 'gungame' || this.matchState?.mode === 'bastion') &&
-      this.matchState.phase === 'live';
+    return this.matchState?.phase === 'live';
   }
 
   isAuthoritativeInteractAllowed() {
@@ -946,6 +953,7 @@ class Game {
     this.frameRate.reset();
     sfx.stopPainMoans();
     this._pendingAuthoritativeSnapshots = [];
+    this._bootBlockDeltas = null;
     this._lastConsumedSnapSeq = null;
     this.feedback?.dispose();
     this.runHud?.dispose();
@@ -1160,7 +1168,7 @@ function observeResources(pattern, report, run) {
       files++;
       bytes += entry.transferSize || entry.encodedBodySize || 0;
     }
-    const size = bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : bytes > 0 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : '';
+    const size = formatBytes(bytes);
     report({ detail: `${files} FILES${size ? ` · ${size}` : ''}` });
   };
   try {
@@ -1229,11 +1237,19 @@ function mountArmoryButton() {
   open.className = 'vb-main-nav-button';
   open.textContent = 'ARMORY';
   open.setAttribute('aria-haspopup', 'dialog');
+  let failed = false;
   open.addEventListener('click', () => {
+    if (open.getAttribute('aria-busy') === 'true') return;
     open.setAttribute('aria-busy', 'true');
     assets.require(['armory']).then(({ armory }) => {
+      if (failed && open.isConnected) hudRef?.showJoinState?.('');
+      failed = false;
       if (open.isConnected && document.getElementById('hud')?.classList.contains('hidden')) armory.open();
-    }).catch(() => {}).finally(() => open.removeAttribute('aria-busy'));
+    }).catch(() => {
+      // The scheduler drops a failed task, so the next click retries it.
+      failed = true;
+      if (open.isConnected) hudRef?.showJoinState?.('Armory could not load. Click ARMORY to retry.', 'err');
+    }).finally(() => open.removeAttribute('aria-busy'));
   });
   const careerButton = document.getElementById('career-open');
   if (careerButton) nav.insertBefore(open, careerButton);
