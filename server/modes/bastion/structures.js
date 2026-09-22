@@ -9,7 +9,7 @@ import { aimAngles, wrapAngle } from '../../sim/player.js';
 
 // The sentry fires the LMG's tracer/sfx identity with its own flat damage curve.
 export const TURRET_DEF = Object.freeze({ ...WEAPONS.lmg, damage: [12, 12, 40], rpm: 360, pellets: 1, headMult: 1,
-  spreadDeg: { ...WEAPONS.lmg.spreadDeg, hip: 1.2 }, bloomPerShot: 0 });
+  spreadDeg: { ...WEAPONS.lmg.spreadDeg, hip: 1.2 }, bloomDeg: 0 });
 const CRATE_TICK_MS = 250;
 const turn = (a, b, rate) => a + Math.max(-rate, Math.min(rate, wrapAngle(b - a)));
 const slot = id => WEAPON_IDS.indexOf(id);

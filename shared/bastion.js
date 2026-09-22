@@ -101,7 +101,7 @@ export function bastionRepairAvailable(match, player) {
 export function bastionWeaponDef(player, base) {
   const enemy = BASTION_ENEMIES[player?.npcRole];
   if (enemy) return { ...base, damage: [enemy.damage, enemy.damage, 80], headMult: 1,
-    rpm: enemy.rpm, bloomPerShot: 0.2, spreadDeg: { ...base.spreadDeg, hip: Math.max(1.6, base.spreadDeg.hip) } };
+    rpm: enemy.rpm, bloomDeg: 0.2, spreadDeg: { ...base.spreadDeg, hip: Math.max(1.6, base.spreadDeg.hip) } };
   if (!player?.bastionUpgrades?.reload) return base;
   return { ...base, reloadTime: base.reloadTime * 0.85, tacTime: base.tacTime * 0.85,
     ...(base.reloadStages ? { reloadStages: Object.fromEntries(

@@ -3,7 +3,8 @@ import { GameEngine } from '../server/game.js';
 import { getMapMeta, createMapState, BARRICADE, AIR } from '../shared/worlddata.js';
 import { GROUND, BEDROCK, isSolidBlock } from '../shared/world/blocks.js';
 import { BASTION_RULES as R, BASTION_ROLES, BASTION_ENEMIES, BASTION_WAVES, BASTION_FACTORS, BASTION_VEHICLE_FACTORS,
-  BASTION_CAPS, bastionWave, bastionReward, bastionPurchaseId, parseBastionPurchase, bastionRepairAvailable } from '../shared/bastion.js';
+  BASTION_CAPS, bastionWave, bastionReward, bastionPurchaseId, parseBastionPurchase, bastionRepairAvailable,
+  bastionWeaponDef } from '../shared/bastion.js';
 import { BASTION_STRUCTURES, canPlaceStructure, structureFootprint } from '../shared/bastion-build.js';
 import { bastionDefenderSolid, bastionPlannedWaves, bastionHoldWaves, bastionStageOfWave } from '../shared/world/bastion-layouts.js';
 import { WEAPONS, WEAPON_IDS, damageAtDistance } from '../shared/combatmath.js';
@@ -11,6 +12,7 @@ import { playerHitboxes } from '../shared/player-hitboxes.js';
 import { parseBuyFrame } from '../server/protocol/admission.js';
 import { fireOneShot } from '../server/sim/combat.js';
 import { aimAngles } from '../server/sim/player.js';
+import { TURRET_DEF } from '../server/modes/bastion/structures.js';
 
 const G = GROUND, PVE = ['reactor', 'causeway'];
 const layoutOf = map => getMapMeta(map).bastion;
@@ -50,6 +52,15 @@ const shooter=(h,peak)=>{const n=h.m.aliveEnemies().length;for(const npc of h.e.
   assert.equal(bastionStageOfWave(layoutOf('reactor'),3).index,1);
   assert.equal(expectedCredits(layoutOf('reactor')),3150);assert.equal(expectedCredits(layoutOf('causeway')),4900);
   console.log('ok: wave table, tier monotonicity and layout registry helpers');
+}
+{
+  // Bloom overrides must use the WeaponDef keys fireOneShot reads.
+  for(const role of BASTION_ROLES){
+    const def=bastionWeaponDef({npcRole:role},WEAPONS[BASTION_ENEMIES[role].weapon]);
+    assert.equal(def.bloomDeg,0.2,`${role} blooms 0.2 degrees per shot`);assert.equal(Object.hasOwn(def,'bloomPerShot'),false);
+  }
+  assert.equal(TURRET_DEF.bloomDeg,0);assert.equal(Object.hasOwn(TURRET_DEF,'bloomPerShot'),false);
+  console.log('ok: NPC and sentry bloom overrides');
 }
 {
   const h=make(2), {e,m,p}=h;
@@ -171,6 +182,7 @@ const shooter=(h,peak)=>{const n=h.m.aliveEnemies().length;for(const npc of h.e.
   for(let i=0;i<400&&runner.state==='alive';i++)e.step(50);
   assert(h.seen('kill').some(ev=>ev.killer===turret.id),'turret kill is credited');
   assert.equal(m.phase,'live');
+  assert.equal(turret.shooter.bloom,0,'the sentry never blooms (its shooter never runs bloom recovery)');
   turret.hp=1;assert.equal(turret.takeDamage(10,false,breacher,'rocket'),true);e.step(50);
   assert(sawStructure(h,turret.id,'turret'),'structure loss event');
   assert.equal(e.objectives.has(turret.id),false);
