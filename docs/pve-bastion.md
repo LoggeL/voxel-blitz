@@ -349,6 +349,9 @@ verpasste Extraktion und Beacon-Verlust, Stufenwechsel, Erreichbarkeit jeder
 Stufe, skalierte Trefferzonen, Layout-Verträge (Zugänge, Routen, Türbreite)
 und die Client-Konstruktion. Der WebSocket-Test prüft Lobby, Kauf, späten
 Beitritt, vier Plätze, getrennte NPC-Snapshots und einen Sandsackbau auf Causeway.
+`tools/bastion-ui-test.mjs` prüft ohne Browser HUD-Beschriftungen und
+Reparaturhinweis, Baubudgets, das gemeinsame Kauffenster (`buyWindowOpen`) und die
+Tab-Reihenfolge der Versorgung nach Wechseln zwischen den Shop-Modi.
 Die Suite ist in `npm test` enthalten.
 
 Balance-Spieltests stehen aus: Ein vollständiger Durchlauf durch menschliche
