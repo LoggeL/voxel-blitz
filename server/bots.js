@@ -32,6 +32,7 @@ import { observeBotTarget, recognitionThreshold } from './bot-perception.js';
 import { botDifficulty, DEFAULT_BOT_DIFFICULTY, isBotDifficulty } from '../shared/bot-difficulty.js';
 import { BOT_PERSONALITIES, DEFAULT_BOT_PERSONALITY, isBotPersonality, rollBotPersonality } from '../shared/bot-personality.js';
 import { cancelCharge } from './sim/combat.js';
+import { wrapAngle } from './sim/player.js';
 
 const TAU = Math.PI * 2;
 const PITCH_TURN_RATE = 4.0;      // rad/s vertical tracking cap
@@ -60,10 +61,6 @@ const DEFUSE_READY_DIST = 1.6;
 const RECOVER_READY_DIST = 0.8;
 const DEFEND_ARRIVE_DIST = 4.0;
 const OBJECTIVE_DETOUR_MS = 1600;
-
-function wrapAngle(a) {
-  return Math.atan2(Math.sin(a), Math.cos(a));
-}
 
 function dist3(ax, ay, az, bx, by, bz) {
   return Math.hypot(bx - ax, by - ay, bz - az);

@@ -54,9 +54,9 @@ try {
 
   const rifle = CAREER_CATALOG.find(item => item.id === 'rifle-overdrive');
   assert.throws(() => career.equip(guest, rifle.id), /not been unlocked/);
-  career.award(guest, { pvpKills: 249, mastery: { rifle: { kills: 249, headshots: 47 } } });
+  career.applyProgress(guest, { pvpKills: 249, mastery: { rifle: { kills: 249, headshots: 47 } } });
   assert.ok(!career.profile(guest).owned.includes(rifle.id));
-  career.award(guest, { pvpKills: 1, mastery: { rifle: { kills: 1, headshots: 1 } } });
+  career.applyProgress(guest, { pvpKills: 1, mastery: { rifle: { kills: 1, headshots: 1 } } });
   assert.ok(career.profile(guest).owned.includes(rifle.id));
   const equipped = career.equip(guest, rifle.id);
   assert.equal(equipped.equipped.weaponSkins.rifle, rifle.id);
@@ -71,8 +71,8 @@ try {
   assert.deepEqual(cosmeticLoadout(forged), defaultCosmeticLoadout(), 'forged ownership cannot bypass earned gates');
   assert.deepEqual(normalizeCosmeticLoadout({ weaponSkins: { revolver: rifle.id, rifle: 'https://evil/skin' }, sound: 'ignition', signature: 'overdrive' }), defaultCosmeticLoadout());
   const beforeInvalid = careerView(career.profile(guest));
-  assert.throws(() => career.award(guest, { mastery: { rifle: { kills: 0, headshots: 1 } } }), /mastery/);
-  assert.throws(() => career.award(guest, { xp: Infinity }), /reward/);
+  assert.throws(() => career.applyProgress(guest, { mastery: { rifle: { kills: 0, headshots: 1 } } }), /mastery/);
+  assert.throws(() => career.applyProgress(guest, { xp: Infinity }), /reward/);
   assert.deepEqual(careerView(career.profile(guest)), beforeInvalid, 'invalid rewards are atomic');
 
   const account = `account:${randomBytes(16).toString('hex')}`;

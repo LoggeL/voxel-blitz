@@ -171,10 +171,6 @@ export class CareerService {
 
   dispose() { clearInterval(this.timer); return this.flush(); }
 
-  award(id, reward) {
-    return this.applyProgress(id, reward);
-  }
-
   applyProgress(id, delta) {
     const changes = normalizeCareerProgress(delta);
     if (this.store) {
