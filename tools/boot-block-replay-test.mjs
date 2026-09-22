@@ -103,4 +103,46 @@ for (let y = 1; solid.length < 90; y++) {
   net.close();
 }
 
+// A runtime constructor that throws must leave nothing half-built, so the
+// session's "Try again" boot rebuilds the renderer and player from scratch.
+{
+  let rendererAttempts = 0;
+  const disposed = [];
+  const fakeRuntime = {
+    THREE: {
+      WebGLRenderer: class {
+        constructor() { if (++rendererAttempts === 1) throw new Error('Error creating WebGL context'); }
+        setPixelRatio() {}
+        setSize() {}
+        dispose() { disposed.push('renderer'); }
+      },
+      PerspectiveCamera: class { updateProjectionMatrix() {} },
+      Clock: class {},
+    },
+    CombatPostProcess: class { setSize() {} dispose() { disposed.push('post'); } },
+    recommendedPostProcessPixelRatio: () => 1,
+    LocalPlayer: class { setGameplayInputEnabled() {} dispose() { disposed.push('player'); } },
+  };
+  const RuntimeGame = new Function('assets', 'loadingScreen', 'MATCH_ASSETS', 'runtime', 'shaderDisabled',
+    'displaySettings', `return (${mainSource.slice(classStart, classEnd)});`)(
+    { require: async () => {} }, null, [], fakeRuntime, false, () => ({ reducedMotion: false }),
+  );
+  Object.assign(globalThis, { devicePixelRatio: 1, innerWidth: 800, innerHeight: 600 });
+  const game = Object.create(RuntimeGame.prototype);
+  Object.assign(game, {
+    rt: null, renderer: null, post: null, camera: null, clock: null, player: null, _disposed: false,
+    input: { canvas: {} },
+    session: { baseFov: 75, gameplayInputEnabled: false },
+  });
+  await assert.rejects(game.ensureRuntime(), /WebGL context/);
+  assert.equal(game.rt, null, 'a failed runtime build is not published');
+  assert.equal(game.renderer, null);
+  assert.equal(game.player, null);
+  const rt = await game.ensureRuntime();
+  assert.equal(rt, fakeRuntime, 'the retry builds the runtime from scratch');
+  assert.equal(rendererAttempts, 2, 'the retry constructs a fresh renderer');
+  assert(game.renderer && game.post && game.camera && game.clock && game.player, 'the retry builds every runtime part');
+  assert.deepEqual(disposed, []);
+}
+
 console.log('boot block replay test passed');

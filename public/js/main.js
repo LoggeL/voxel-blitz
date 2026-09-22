@@ -199,28 +199,39 @@ class Game {
    * outstanding, followed by the mesh sectors) and build the renderer, camera
    * and local player once. Weapon and avatar templates are guaranteed to be
    * present before the first frame: the Blender library is one of the tasks.
+   * `this.rt` is published last, so a constructor that throws (for example a
+   * refused WebGL context) leaves nothing half-built for the retry to reuse.
    */
   async ensureRuntime() {
     await assets.require(MATCH_ASSETS, { loading: loadingScreen,
       trailing: [{ id: 'world', label: 'ARENA GEOMETRY', weight: 30 }] });
     if (this.rt || this._disposed) return this.rt;
-    const rt = this.rt = runtime;
-    const canvas = this.input.canvas;
-    this.renderer = new rt.THREE.WebGLRenderer({ canvas, antialias: true });
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-    this.renderer.setSize(innerWidth, innerHeight);
-    this.post = new rt.CombatPostProcess(this.renderer, {
-      enabled: !shaderDisabled,
-      maxPixelRatio: rt.recommendedPostProcessPixelRatio(Number(navigator.deviceMemory)),
-      reducedMotion: displaySettings().reducedMotion,
-    });
-    this.post.setSize(innerWidth, innerHeight, devicePixelRatio);
-    this.camera = new rt.THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 400);
-    this.camera.fov = this.session.baseFov;
-    this.camera.updateProjectionMatrix();
-    this.clock = new rt.THREE.Clock();
-    this.player = new rt.LocalPlayer({ input: this.input });
-    this.player.setGameplayInputEnabled(this.session.gameplayInputEnabled);
+    const rt = runtime;
+    try {
+      const canvas = this.input.canvas;
+      this.renderer = new rt.THREE.WebGLRenderer({ canvas, antialias: true });
+      this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+      this.renderer.setSize(innerWidth, innerHeight);
+      this.post = new rt.CombatPostProcess(this.renderer, {
+        enabled: !shaderDisabled,
+        maxPixelRatio: rt.recommendedPostProcessPixelRatio(Number(navigator.deviceMemory)),
+        reducedMotion: displaySettings().reducedMotion,
+      });
+      this.post.setSize(innerWidth, innerHeight, devicePixelRatio);
+      this.camera = new rt.THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 400);
+      this.camera.fov = this.session.baseFov;
+      this.camera.updateProjectionMatrix();
+      this.clock = new rt.THREE.Clock();
+      this.player = new rt.LocalPlayer({ input: this.input });
+      this.player.setGameplayInputEnabled(this.session.gameplayInputEnabled);
+    } catch (error) {
+      this.player?.dispose();
+      this.post?.dispose();
+      this.renderer?.dispose();
+      this.player = this.post = this.renderer = this.camera = this.clock = null;
+      throw error;
+    }
+    this.rt = rt;
     return rt;
   }
 
