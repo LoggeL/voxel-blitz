@@ -1230,6 +1230,16 @@ export async function runHudContracts(ok, installGlobals) {
           restoreShop();
         }
       }
+
+      // #weaponname and buy glyphs carry vb-w-<id> for every weapon; each needs a tint.
+      {
+        const { readFileSync } = await import('node:fs');
+        const { WEAPON_IDS } = await import('../../shared/combatmath.js');
+        const css = readFileSync(new URL('../../public/style.css', import.meta.url), 'utf8');
+        const untinted = WEAPON_IDS.filter((id) => !css.includes(`--w-${id}:`)
+          || !css.includes(`.vb-w-${id} `) || !css.includes(`#weaponname.vb-w-${id} `));
+        ok(untinted.length === 0, `every weapon has a HUD tint token and weapon-name colour (${untinted.join(', ') || 'all tinted'})`);
+      }
     } finally {
       hud?.dispose();
       restore();

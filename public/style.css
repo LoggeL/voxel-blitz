@@ -35,6 +35,10 @@
   --w-shotgun:  #ff7a45;
   --w-sniper:   #8fc7ff;
   --w-lmg:      #5ce6b0;
+  --w-longarc:  #48e8ff;
+  --w-rocket:   #e5ff4f;
+  --w-minigun:  #a8b0ff;
+  --w-flamethrower: #ff6a1a;
   --w-revolver: #ff5277;
   --w-lance:    #c9a2ff;
   --w-knife:    #b9c6cf;
@@ -2729,6 +2733,10 @@ h1.vb-title::after {
 .vb-w-shotgun  { --gun-tint: var(--w-shotgun); }
 .vb-w-sniper   { --gun-tint: var(--w-sniper); }
 .vb-w-lmg      { --gun-tint: var(--w-lmg); }
+.vb-w-longarc  { --gun-tint: var(--w-longarc); }
+.vb-w-rocket   { --gun-tint: var(--w-rocket); }
+.vb-w-minigun  { --gun-tint: var(--w-minigun); }
+.vb-w-flamethrower { --gun-tint: var(--w-flamethrower); }
 .vb-w-revolver { --gun-tint: var(--w-revolver); }
 .vb-w-lance    { --gun-tint: var(--w-lance); }
 .vb-w-knife    { --gun-tint: var(--w-knife); }
@@ -2738,6 +2746,10 @@ h1.vb-title::after {
 #ammo.vb-w-shotgun #weaponname, #weaponname.vb-w-shotgun   { color: var(--w-shotgun); }
 #ammo.vb-w-sniper #weaponname, #weaponname.vb-w-sniper     { color: var(--w-sniper); }
 #ammo.vb-w-lmg #weaponname, #weaponname.vb-w-lmg           { color: var(--w-lmg); }
+#ammo.vb-w-longarc #weaponname, #weaponname.vb-w-longarc   { color: var(--w-longarc); }
+#ammo.vb-w-rocket #weaponname, #weaponname.vb-w-rocket     { color: var(--w-rocket); }
+#ammo.vb-w-minigun #weaponname, #weaponname.vb-w-minigun   { color: var(--w-minigun); }
+#ammo.vb-w-flamethrower #weaponname, #weaponname.vb-w-flamethrower { color: var(--w-flamethrower); }
 #ammo.vb-w-revolver #weaponname, #weaponname.vb-w-revolver { color: var(--w-revolver); }
 #ammo.vb-w-lance #weaponname, #weaponname.vb-w-lance       { color: var(--w-lance); }
 #ammo.vb-w-knife #weaponname, #weaponname.vb-w-knife       { color: var(--w-knife); }
