@@ -85,4 +85,9 @@ assert.equal(fp.mag[fp.weapon],30,'prep fire cannot consume ammo');
 fireGame.now=firePolicy.phaseEndsAt;fireGame.mode.tick();
 for(let i=0;i<20;i++)fireGame.step(50);
 assert.ok(fp.mag[fp.weapon]<30,'held pickup weapon really fires in live phase');
-console.log('TTT: preparation deadline, private roles, single-slot pickup/drop, ammo conservation, shop authorization, walls, late join, elimination, continuation passed');
+// Mutual wipe: with every role-holder dead the round still resolves (no traitor left -> innocents).
+const wipeGame=new GameEngine({mode:'ttt'});for(const id of ['a','b','c','d'])wipeGame.addClient(id,id);
+const wipePolicy=wipeGame.mode.policy;wipeGame.now=wipePolicy.phaseEndsAt;wipeGame.mode.tick();assert.equal(wipePolicy.phase,'live');
+for(const p of wipeGame.entities.values()){assert.ok(wipePolicy.roles.has(p.id));p.state='dead';wipeGame.mode.onPlayerDeath(p);}
+wipeGame.mode.tick();assert.equal(wipePolicy.phase,'post','an all-dead round ends');assert.equal(wipePolicy.matchWinner,'innocent');
+console.log('TTT: preparation deadline, private roles, single-slot pickup/drop, ammo conservation, shop authorization, walls, late join, elimination, mutual wipe, continuation passed');
