@@ -501,8 +501,9 @@ Animated parts (runtime model `torch.js`):
 - `extra`: ONLY the breech gate leaves (`gate | gunmetal`, `gate | orange
   paint`, `gate | cavity black`) with hinge-local geometry and node translation
   exactly `[0, 0.075, -0.06]`; the runtime re-parents them under a gate group
-  at the hinge (BISON cover-leaf convention) and reload slides the gate 0.11
-  back while swinging +0.95 rad about game X. No loose reload round ships: the
+  at the hinge (BISON cover-leaf convention) and reload slides the gate 0.13
+  back while swinging +1.05 rad about game X (hinge-stop bounce on the drop,
+  slam at the seat cue). No loose reload round ships: the
   runtime spawns it procedurally.
 
 The launch tube is bare 0.0620 tube across the heat band z [-0.752, -0.528]

@@ -101,6 +101,10 @@ try {
   action.update(0.35, 0, rocket, rocket.T);
   assert.ok(gate.position.z > rocket.extra.userData.rocketReload.rearZ + 0.1
     && gate.rotation.x > 0.9, 'rocket breech slides clear of the tube and flips open');
+  action.update(0.42, 0, rocket, rocket.T);
+  assert.ok(round.visible && round.position.y > rocket.T.muzzle[1] - 0.5
+    && round.position.z > rocket.extra.userData.rocketReload.rearZ + 0.3,
+    'new rocket is staged up at the tube mouth rather than rising from below the frame');
   action.update(0.50, 0, rocket, rocket.T);
   assert.equal(round.visible, true, 'a complete new rocket is drawn');
   action.update(0.68, 0, rocket, rocket.T);
@@ -109,13 +113,31 @@ try {
   const alignedZ = round.position.z;
   action.update(0.81, 0, rocket, rocket.T);
   assert.ok(round.position.z < alignedZ - 0.4, 'rocket is inserted forward along the bore axis');
+  action.update(0.88, 0, rocket, rocket.T);
+  assert.ok(gate.rotation.x < 0.35, 'rocket rear breech slams shut over the seated round');
+  action.update(0.93, 0, rocket, rocket.T);
+  assert.ok(Math.abs(rocket.bolt.rotation.x) < 1e-9, 'rocket arming lever cocks home on the closing cue');
   action.update(0.94, 0, rocket, rocket.T);
   assert.equal(round.visible, false, 'seated rocket is inside the tube');
-  assert.ok(Math.abs(gate.rotation.x) < 1e-9, 'rear breech latches closed');
+  assert.equal(gate.rotation.x, 0, 'rear breech latches closed');
+  assert.equal(gate.position.z, rocket.extra.userData.rocketReload.rearZ,
+    'rocket rear breech returns to the tube mouth');
+  // Cancelling mid-reload, while the round is staged and the breech stands open,
+  // restores the complete rest pose.
   action.cancelReload(rocket);
-  assert.equal(round.visible, false);
-  assert.equal(gate.rotation.x, 0);
-  assert.equal(gate.position.z, rocket.extra.userData.rocketReload.rearZ);
+  action.startReload(0, 1, 'magswap', rocket.T);
+  action.update(0.50, 0, rocket, rocket.T);
+  assert.equal(round.visible, true, 'a complete new rocket is drawn');
+  action.cancelReload(rocket);
+  assert.equal(round.visible, false, 'cancelled rocket reload stows the round');
+  assert.equal(gate.rotation.x, 0, 'cancelled rocket reload closes the rear breech');
+  assert.equal(gate.position.z, rocket.extra.userData.rocketReload.rearZ,
+    'cancelled rocket reload returns the gate to the tube mouth');
+  assert.equal(rocket.bolt.rotation.x, 0, 'cancelled rocket reload homes the arming lever');
+  assert.ok(round.children.every((child) => child.visible),
+    'cancelled rocket reload keeps the round parts visible');
+  assert.ok(round.position.equals(round.userData.homePosition),
+    'cancelled rocket reload returns the round to its home position');
 
   const shotgun = modelFor('shotgun');
   const stage = WEAPONS.shotgun.reloadStages;

@@ -6,9 +6,11 @@ Usage:
         --python tools/blender/torch/pose-torch.py
 
 The transforms mirror the runtime choreography exactly (actions.js
-_updateRocketReload / bolt arming stroke): the breech gate group slides 0.11
-straight back and swings +0.95 rad about game X at the frozen hinge
-(0, 0.075, -0.06); the arming lever rotates +0.5 rad about the gun origin.
+_updateRocketReload / bolt arming stroke): the breech gate group slides 0.13
+straight back and swings +1.05 rad about game X at the frozen hinge
+(0, 0.075, -0.06), with a hinge-stop bounce on the drop and a slam at the
+seat cue; the arming lever rotates +0.55 rad about the gun origin and snaps
+home on the cocking cue.
 """
 import bpy
 import math
@@ -24,9 +26,9 @@ if DOCS is None:
     DOCS = Path(__file__).resolve().parents[3] / 'docs/design/blender/torch'
 
 HINGE = Vector((0.000, 0.060, 0.075))   # authoring-space gate pivot
-GATE_SLIDE = 0.11                        # straight back along the bore (game +z)
-GATE_SWING = 0.95                        # rad about game X (= authoring X)
-LEVER_STROKE = 0.5                       # rad about the gun origin
+GATE_SLIDE = 0.13                        # straight back along the bore (game +z)
+GATE_SWING = 1.05                        # rad about game X (= authoring X)
+LEVER_STROKE = 0.55                      # rad about the gun origin
 
 scene = bpy.context.scene
 scene.render.engine = 'CYCLES'

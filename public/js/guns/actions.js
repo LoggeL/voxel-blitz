@@ -165,12 +165,17 @@ export class WeaponActions {
       lead.rotation.set(0, 0, 0);
     }
     const rocket = model.extra.userData.rocketReload;
-    if (rocket) rocket.gate.position.z = rocket.rearZ;
+    if (rocket) {
+      // The rocket reload drives the gate slide + swing and the round's rotation
+      // (the arming lever rides model.bolt, zeroed above); restore all of it.
+      rocket.gate.position.z = rocket.rearZ;
+      rocket.gate.rotation.x = 0;
+    }
     const rounds = model.extra.userData.reloadRounds;
     if (rounds) {
       rounds.visible = false;
       for (const child of rounds.children) child.visible = true;
-      if (revolver) rounds.rotation.set(0, 0, 0);
+      if (revolver || rocket) rounds.rotation.set(0, 0, 0);
       if (rounds.userData.homePosition) rounds.position.copy(rounds.userData.homePosition);
     }
     const cartridges = model.extra.userData.cartridges;
@@ -612,36 +617,58 @@ export class WeaponActions {
       this._phase(frac, 0.01, 0.10) * (1 - this._phase(frac, 0.92, 1)), loading);
   }
 
+  /**
+   * RX-8 HAVOC reload staging, all six beats under the camera: PRESENT the
+   * breech, DROP the gate with a weighted hinge-stop, LOAD the round up from
+   * lower-right, SEAT it with an accelerating shove, SLAM the gate shut, COCK
+   * the arming lever. Pure function of `frac`; rest pose untouched.
+   */
   _updateRocketReload(frac, model, out) {
     const reload = this._reload;
     const timeline = model.T.magTimeline;
     const parts = model.extra.userData.rocketReload;
-    const presented = this._phase(frac, 0.025, 0.18) * (1 - this._phase(frac, 0.90, 1));
-    const open = this._phase(frac, timeline.start, 0.32) * (1 - this._phase(frac, timeline.home, timeline.clickAt));
+    // PRESENT: roll the breech toward the camera from 0.02 so every later action
+    // happens under the lens, then settle the view before the slam. The seat and
+    // latch contacts keep the two heavy clicks felt in the hands.
+    const presented = this._phase(frac, 0.02, 0.20) * (1 - this._phase(frac, 0.88, 1.00));
     const seat = this._contact(frac, timeline.home, 0.07);
-    out.dip = 0.045 * presented + 0.025 * seat;
-    out.rock = 0.10 * presented - 0.08 * seat;
-    out.x = -0.12 * presented;
-    out.push = -0.12 * presented - 0.035 * seat;
-    // The authored venturi sleeves the tube ahead of the hinge: it travels
-    // straight back clear of the breech, then flips down break-action style so
-    // the rear stands fully open before the round starts to rise. Same for the
-    // procedural cone; rest pose untouched.
-    const slide = this._phase(frac, timeline.start, 0.30) * (1 - this._phase(frac, timeline.home, timeline.clickAt));
-    parts.gate.position.z = parts.rearZ + 0.11 * slide;
-    parts.gate.rotation.x = 0.95 * open * slide;
+    const latch = this._contact(frac, timeline.clickAt, 0.05);
+    out.yaw = -0.22 * presented;
+    out.roll = 0.16 * presented;
+    out.x = -0.10 * presented;
+    out.dip = 0.05 * presented + 0.03 * seat;
+    out.rock = 0.10 * presented - 0.10 * seat - 0.03 * latch;
+    out.push = -0.10 * seat;
+    // DROP: the gate (authored venturi or procedural cone) sleeves straight back
+    // clear of the breech, then flips down break-action style so the rear stands
+    // fully open before the round starts to rise.
+    const slide = this._phase(frac, 0.18, 0.30) * (1 - this._phase(frac, 0.84, 0.90));
+    parts.gate.position.z = parts.rearZ + 0.13 * slide;
+    const open = this._phase(frac, 0.20, 0.32) * (1 - this._phase(frac, 0.85, 0.90));
+    // The hinge-stop bounce at 0.31 lands the drop with weight; SLAM swings the
+    // gate shut from 0.84 and a smaller bounce at 0.895 absorbs the impact. Both
+    // decays end before 0.94 so the rest value is exactly 0.
+    parts.gate.rotation.x = 1.05 * open * slide + 0.07 * this._contact(frac, 0.31, 0.12)
+      - 0.05 * this._contact(frac, 0.895, 0.04);
+    // COCK: the arming lever tips while the breech stands open and snaps home
+    // exactly on cue 3.
+    model.bolt.rotation.x = 0.55 * open * (1 - this._phase(frac, 0.88, timeline.clickAt));
+    // LOAD: the round rises from lower-right close to the camera, yawed across
+    // the bore, then squares onto the tube axis.
     const round = model.extra.userData.reloadRounds;
-    const raise = this._phase(frac, 0.40, 0.58);
-    const align = this._phase(frac, 0.58, 0.68);
-    const insert = this._phase(frac, 0.68, timeline.home);
-    round.visible = frac >= 0.40 && frac < timeline.home;
-    round.position.set(-0.24 * (1 - align), parts.axisY - 1.1 * (1 - raise),
-      parts.rearZ + 0.26 - insert * 0.55);
-    round.rotation.y = 0.32 * (1 - align);
+    const raise = this._phase(frac, 0.36, 0.56);
+    const align = this._phase(frac, 0.56, 0.68);
+    // SEAT: an accelerating shove drives the round home — at insert = 1 its
+    // origin reaches rearZ - 0.29 (game z -0.35), its previous seat — and the
+    // support hand rides it the whole way.
+    const insert = this._phase(frac, 0.70, timeline.home);
+    round.visible = frac >= 0.36 && frac < timeline.home;
+    round.position.set(-0.30 * (1 - align), parts.axisY - 0.55 * (1 - raise),
+      parts.rearZ + 0.42 - 0.71 * insert * insert);
+    round.rotation.y = 0.45 * (1 - align);
     this._moveReloadHand(model, round.position.x - 0.04, round.position.y - 0.04, round.position.z + 0.075,
-      this._phase(frac, 0.20, 0.36) * (1 - this._phase(frac, timeline.home, 0.98)),
+      this._phase(frac, 0.24, 0.38) * (1 - this._phase(frac, timeline.home, 0.98)),
       round.visible || frac >= timeline.home);
-    model.bolt.rotation.x = 0.5 * open * (1 - this._phase(frac, timeline.home, timeline.clickAt));
     for (const [at, click] of [[timeline.start, 1], [timeline.home, 2], [timeline.clickAt, 3]]) {
       if (frac >= at && reload.lastFrac < at) this._callbacks.onReloadClick(click);
     }

@@ -56,19 +56,21 @@ map). Anchors (game space): muzzle `[0, 0.075, -0.78]`, grip
 `[0, 0.175, -0.34]`. Bore axis x 0 / y 0.075, exposed radius 0.0620 from the
 breech z -0.22 to the muzzle plane z -0.78, clear bore radius 0.0555 so the
 runtime reload round (r ≤ 0.046, seats nose at z ≈ -0.58) slides through from
-z +0.20.
+z +0.36.
 
 - `body`: tube core + bore liner, breech block, housing shell, cage, deck,
   sights, grips, shoulder brace, markings and the seated warhead nose.
 - `mag`: the fixed underslung control canister (runtime owner: the group IS
   the canister; the old shoe-only look would read as a missing part).
 - `bolt`: side arming lever at game z -0.040; the runtime rotates the group
-  +0.5 rad about the gun origin.
+  +0.55 rad about the gun origin (tips while the breech is open, snaps home on
+  the cocking cue).
 - `trigger`: blade (tip at z -0.055) + shoe + guard at z -0.11.
 - `extra`: ONLY the breech gate leaves (`gate | gunmetal`, `gate | orange
   paint`, `gate | cavity black`), hinge-local geometry with node translation
-  exactly `[0, 0.075, -0.06]`; the runtime slides the gate 0.11 back and
-  swings +0.95 rad about game X. No loose reload round: the runtime spawns it.
+  exactly `[0, 0.075, -0.06]`; the runtime slides the gate 0.13 back and
+  swings +1.05 rad about game X (hinge-stop bounce on the drop, slam at the
+  seat cue). No loose reload round: the runtime spawns it.
 
 ## Commands
 
@@ -152,8 +154,8 @@ Every run below was executed for this delivery (not assumed):
 
 ## Assumptions (stated, not checked)
 
-- Gate articulation axis: the runtime rotates `gate.rotation.x` (+0.95 rad,
-  with a 0.11 slide) about the frozen hinge; the leaves are shaped for that
+- Gate articulation axis: the runtime rotates `gate.rotation.x` (+1.05 rad,
+  with a 0.13 slide) about the frozen hinge; the leaves are shaped for that
   motion (confirmed with the runtime owner during the redo).
 - Hand fit: the grip and support palms sit on the contract points and the
   furniture is built around them, but no third-person pose test was run.

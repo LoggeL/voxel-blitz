@@ -207,6 +207,10 @@ try {
     actions.update(0.35, 0, rocket, rocket.T);
     must(gate.position.z > rearZ + 0.1 && gate.rotation.x > 0.9,
       'rocket breech slides clear of the tube and flips open');
+    actions.update(0.42, 0, rocket, rocket.T);
+    must(round.visible === true && round.position.y > rocket.T.muzzle[1] - 0.5
+      && round.position.z > rearZ + 0.3,
+      'new rocket is staged up at the tube mouth rather than rising from below the frame');
     actions.update(0.50, 0, rocket, rocket.T);
     must(round.visible === true, 'a complete new rocket is drawn');
     actions.update(0.68, 0, rocket, rocket.T);
@@ -215,11 +219,24 @@ try {
     const alignedZ = round.position.z;
     actions.update(0.81, 0, rocket, rocket.T);
     must(round.position.z < alignedZ - 0.4, 'rocket is inserted forward along the bore axis');
+    actions.update(0.88, 0, rocket, rocket.T);
+    must(gate.rotation.x < 0.35, 'rocket rear breech slams shut over the seated round');
+    actions.update(0.93, 0, rocket, rocket.T);
+    must(Math.abs(rocket.bolt.rotation.x) < 1e-9, 'rocket arming lever cocks home on the closing cue');
     actions.update(0.94, 0, rocket, rocket.T);
     must(round.visible === false, 'seated rocket is inside the tube');
     must(gate.rotation.x === 0 && gate.position.z === rearZ, 'rocket rear breech latches closed');
+    // Cancelling mid-reload, while the round is staged and the breech stands open,
+    // restores the complete rest pose.
     actions.cancelReload(rocket);
-    must(round.visible === false && gate.rotation.x === 0 && gate.position.z === rearZ,
+    actions.startReload(0, 1, 'magswap', rocket.T);
+    actions.update(0.50, 0, rocket, rocket.T);
+    must(round.visible === true, 'a complete new rocket is drawn');
+    actions.cancelReload(rocket);
+    must(round.visible === false && gate.rotation.x === 0 && gate.position.z === rearZ
+      && rocket.bolt.rotation.x === 0
+      && round.children.every((child) => child.visible)
+      && round.position.equals(round.userData.homePosition),
       'cancelled rocket reload restores the TORCH rest pose');
     actions.dispose();
     disposeGunModels([gun,sniper,lmg,rocket],cache);
