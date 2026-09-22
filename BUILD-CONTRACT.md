@@ -956,7 +956,7 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   arms a 1500 ms fuse on contact (3500 ms flight cap), a stuck player takes the
   full 140 @ 4.2 blast, carve radius 4.6 / power 200 / 160 blocks. `pulse`
   (PULSE SHOCK): detonates on impact, 38 @ 6.5, knockback 17, no carve, and a
-  1600 ms concussion that slows the victim to 60% speed. Damage builds panic;
+  2000 ms concussion that slows the victim to 60% speed. Damage builds panic;
   uninjured nearby enemies receive the bounded ambient suppression response.
   Every blast sympathetically detonates other live explosives within 80% of
   its radius with line of sight. Metal is blast-proof.

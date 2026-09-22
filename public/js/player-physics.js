@@ -27,6 +27,9 @@ export class PlayerPhysics {
     this.proneT = 0;
     this.wantProne = false;
     this.climbBlocked = false;
+    // Authoritative speed multiplier (pulse concussion), applied after the
+    // stance and swim caps exactly as the server's stepMovement does.
+    this.speedScale = 1;
     this.slide = null;
     this.mapMeta = null;
     this._solidAt = (x, y, z) => this.solid(x, y, z);
@@ -91,6 +94,7 @@ export class PlayerPhysics {
     }
     this.slide = null;
     if (swimming) speedTarget = Math.min(speedTarget, SWIM_RULES.speed);
+    speedTarget *= this.speedScale;
     if (this.grounded) this.jumpGroundY = this.pos.y;
     const deliberateGrab = !this.grounded && jumpPressed && !low;
     if (!this.climbBlocked && !this.vault && swimming) {
@@ -112,6 +116,7 @@ export class PlayerPhysics {
     let ladderVy = 0;
     if (onLadder && (wantJump || climbAxis > 0)) ladderVy = LADDER_UP_SPEED;
     else if (onLadder && (this._crouching || climbAxis < 0)) ladderVy = LADDER_DOWN_SPEED;
+    const ladderDirected = ladderVy !== 0;
 
     const accel = this.grounded ? GROUND_ACCEL : AIR_ACCEL;
     const blend = 1 - Math.exp(-accel * dt);
@@ -125,35 +130,36 @@ export class PlayerPhysics {
       this.coyote = 0;
       jumpAccepted = true;
     }
-    if (ladderVy !== 0) this.vel.y = ladderVy;
-    else if (swimming) {
+    if (ladderDirected) {
+      // A directed climb is never grounded and never banks coyote time.
+      this.vel.y = ladderVy;
+      this.grounded = false;
+      this.coyote = 0;
+    } else if (swimming) {
       this.vel.y = swimVerticalVelocity(this.vel.y, !!wantJump, !!this._crouching, dt, this._fluidAt,
         this.pos.x, this.pos.y, this.pos.z);
       this.coyote = 0;
     } else this.vel.y = Math.max(TERMINAL_VY, this.vel.y - GRAVITY * dt);
 
-    const canStepTerrain = this.grounded && !wantJump && !this.vault && !onLadder && this.vel.y <= 0.01;
+    const canStepTerrain = this.grounded && !wantJump && !this.vault && !ladderDirected && this.vel.y <= 0.01;
     this.moveAxis('x', this.vel.x * dt, canStepTerrain);
     this.moveAxis('z', this.vel.z * dt, canStepTerrain);
     const descending = this.vel.y < 0;
     let hitY = false;
-    if (ladderVy > 0) {
+    // Climbing crosses the solid deck; descending bypasses only while the
+    // destination stays in-volume, so the foot of the ladder still lands.
+    const ladderBypass = ladderVy > 0
+      || (ladderVy < 0 && ladderContact(this.mapMeta, this.pos.x, this.pos.y + this.vel.y * dt, this.pos.z));
+    if (ladderBypass) {
       this.pos.y += this.vel.y * dt;
-      if (!ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z)) this.vel.y = 0;
-    } else if (ladderVy < 0) {
-      const targetY = this.pos.y + this.vel.y * dt;
-      if (ladderContact(this.mapMeta, this.pos.x, targetY, this.pos.z)) {
-        this.pos.y = targetY;
-      } else {
-        hitY = this.moveAxis('y', this.vel.y * dt);
-      }
+      if (ladderVy > 0 && !ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z)) this.vel.y = 0;
     } else {
       hitY = this.moveAxis('y', this.vel.y * dt);
     }
 
-    if (hitY && descending) {
+    if (!ladderBypass && hitY && descending) {
       this.grounded = true;
-    } else if (this.vel.y <= 0.001 && this.solidBelow(this.pos.x, this.pos.y, this.pos.z)) {
+    } else if (!ladderBypass && this.vel.y <= 0.001 && this.solidBelow(this.pos.x, this.pos.y, this.pos.z)) {
       this.grounded = true;
       this.vel.y = 0;
     } else {

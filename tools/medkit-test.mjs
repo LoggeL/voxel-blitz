@@ -126,7 +126,7 @@ const local = new LocalPlayer({ input, physics: {
   step: () => false, eyeY: () => 1.62, setMapMeta() {},
 } });
 local.setGameplayInputEnabled(true); local._hp = 40;
-const net = { _seq: 0, _timing: { interpolationDelayMs: 100, rttMs: 0 },
+const net = { _seq: 0, _timing: { interpolationDelayMs: 100, rttMs: 0 }, _sendJson: NetClient.prototype._sendJson,
   isOpen: () => connected, ws: { send: value => wire.push(JSON.parse(value)) } };
 const frame = () => local.update(1 / 60, now, { weapon, fireAllowed: true, movementAllowed: true,
   onWeaponIntents: intents => weapon.applyIntents(intents, now, { allowFire: true, alive: true }),

@@ -132,6 +132,8 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       burning: round(Math.max(0, p.burning || 0, p.molotovBurning || 0), D3),
       panic: round(Math.max(0, Math.min(1, Number.isFinite(p.panic) ? p.panic : 0)), D3),
       pain: round(Math.max(0, Math.min(1, Number.isFinite(p.pain) ? p.pain : 0)), D3),
+      // Remaining pulse concussion; prediction scales its speed the way authority does.
+      concussedMs: Number.isFinite(p.concussedUntil) ? Math.max(0, Math.round(p.concussedUntil - nowMs)) : 0,
       exhaustion: round(Math.max(0, Math.min(1, Number.isFinite(p.exhaustion) ? p.exhaustion : 0)), D3),
       breathReserve: round(Math.max(0, Math.min(1, Number.isFinite(p.breath?.reserve) ? p.breath.reserve : 1)), D3),
       breathExhausted: !!p.breath?.exhausted,

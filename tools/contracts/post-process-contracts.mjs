@@ -65,6 +65,16 @@ export function runPostProcessContracts(ok) {
     ok(!rendered && !fallback.stats.enabled && fallback.stats.fallbacks === 1 &&
         fallbackRenderer.renders === 2 && /synthetic/.test(fallback.stats.lastError),
     'combat shader fails open to the direct scene renderer');
+    // Smoke or burning would otherwise re-enter the broken pass every frame.
+    const latched = fallback.render({}, {}, { burning: 1 });
+    ok(!latched && fallback.stats.failed && fallback.stats.fallbacks === 1 &&
+        fallbackRenderer.renders === 3,
+    'a failed combat shader stays on one direct render per frame while smoke or burning is active');
+    fallback.setSize(640, 360, 1);
+    shouldFail = false;
+    const retried = fallback.render({}, {}, { burning: 1 });
+    ok(retried && !fallback.stats.failed && fallback.stats.frames === 1,
+    'a resized buffer retries the combat shader pass');
   } finally {
     fallback.dispose();
   }

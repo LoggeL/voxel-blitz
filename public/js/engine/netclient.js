@@ -161,7 +161,7 @@ export function drainOwnEventsEarly(snapshotList, selfId, state) {
 /** Newest-row fields retained alongside interpolated transforms. */
 const PASSTHROUGH_FIELDS = [
   'name', 'hp', 'armor', 'team', 'weapon', 'score', 'kills', 'deaths', 'ping',
-  'state', 'firing', 'ads', 'crouch', 'grounded', 'vaulting', 'proneT', 'moveSpeed', 'mag', 'reserve', 'reloading', 'reloadAck', 'reloadState',
+  'state', 'firing', 'ads', 'crouch', 'grounded', 'vaulting', 'swimming', 'proneT', 'moveSpeed', 'mag', 'reserve', 'reloading', 'reloadAck', 'reloadState',
   'burning', 'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt', 'cosmetics', 'attachments',
   'breathReserve', 'breathExhausted', 'breathReleasedFor',
   'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
@@ -480,12 +480,11 @@ export class NetClient {
 
   /**
    * Send one input sample at the caller's cadence (~60/s per contract).
-   * Movement accepts short ({f,b,l,r}) or verbose
-   * ({forward,back,left,right}) names and is renamed onto the wire contract.
+   * Movement keys use the verbose caller names ({forward,back,left,right})
+   * and are renamed onto the wire contract's short {f,b,l,r}.
    * Interaction is always the fixed nested keys.interact boolean; switchTo is
    * only wired when integer.
-   * @param {{keys?:{f?:boolean,b?:boolean,l?:boolean,r?:boolean,
-   *          forward?:boolean,back?:boolean,left?:boolean,right?:boolean,
+   * @param {{keys?:{forward?:boolean,back?:boolean,left?:boolean,right?:boolean,
    *          jump?:boolean,sprint?:boolean,crouch?:boolean,interact?:boolean},
    *          yaw:number,pitch:number,weapon:number,wantFire:boolean,
    *          wantAds:boolean,reload:boolean,throwGrenade?:boolean,grenadeCharge?:number,
@@ -499,10 +498,10 @@ export class NetClient {
       t: 'input',
       seq: ++this._seq,
       keys: {
-        f: !!(k.f !== undefined ? k.f : k.forward),
-        b: !!(k.b !== undefined ? k.b : k.back),
-        l: !!(k.l !== undefined ? k.l : k.left),
-        r: !!(k.r !== undefined ? k.r : k.right),
+        f: !!k.forward,
+        b: !!k.back,
+        l: !!k.left,
+        r: !!k.right,
         jump: !!k.jump,
         sprint: !!k.sprint,
         crouch: !!k.crouch,
@@ -539,6 +538,12 @@ export class NetClient {
     }
     if (Number.isInteger(input.switchTo)) msg.switchTo = input.switchTo;
     if (Number.isFinite(input.viewYaw)) msg.viewYaw = input.viewYaw;
+    return this._sendJson(msg);
+  }
+
+  /** Send one JSON frame; true only when the open socket accepted it. */
+  _sendJson(msg) {
+    if (!this.isOpen()) return false;
     try {
       this.ws.send(JSON.stringify(msg));
       return true;
@@ -549,69 +554,35 @@ export class NetClient {
 
   /** Set this human's waiting-lobby readiness. */
   setReady(value) {
-    if (!this.isOpen()) return false;
-    try {
-      this.ws.send(JSON.stringify({ t: 'ready', value: !!value }));
-      return true;
-    } catch {
-      return false;
-    }
+    return this._sendJson({ t: 'ready', value: !!value });
   }
 
   approveContinuation(roundId) {
-    if (!this.isOpen() || typeof roundId !== 'string') return false;
-    try {
-      this.ws.send(JSON.stringify({ t: 'continue', roundId }));
-      return true;
-    } catch {
-      return false;
-    }
+    if (typeof roundId !== 'string') return false;
+    return this._sendJson({ t: 'continue', roundId });
   }
 
   configureLobby({ gameMode, map, bots, duelKillLimit, traitorPercent }) {
-    if (!this.isOpen()) return false;
-    try {
-      this.ws.send(JSON.stringify({ t: 'configure', gameMode, map, bots, duelKillLimit, traitorPercent }));
-      return true;
-    } catch { return false; }
+    return this._sendJson({ t: 'configure', gameMode, map, bots, duelKillLimit, traitorPercent });
   }
 
   setBotDifficulty(id, difficulty) {
-    if (!this.isOpen()) return false;
-    try {
-      this.ws.send(JSON.stringify({ t: 'botDifficulty', id: String(id), difficulty }));
-      return true;
-    } catch { return false; }
+    return this._sendJson({ t: 'botDifficulty', id: String(id), difficulty });
   }
 
   setLobbyTeam(id, team) {
-    if (!this.isOpen()) return false;
-    try {
-      this.ws.send(JSON.stringify({ t: 'team', id: String(id), team }));
-      return true;
-    } catch { return false; }
+    return this._sendJson({ t: 'team', id: String(id), team });
   }
 
   /** Buy one exact shared-contract weapon id. */
   buyWeapon(id) {
-    if ((!isTttRequest(id) && !isWeaponId(id) && !parseChaosPurchase(id) && !parseBastionPurchase(id)) || !this.isOpen()) return false;
-    try {
-      this.ws.send(JSON.stringify({ t: 'buy', weapon: id }));
-      return true;
-    } catch {
-      return false;
-    }
+    if (!isTttRequest(id) && !isWeaponId(id) && !parseChaosPurchase(id) && !parseBastionPurchase(id)) return false;
+    return this._sendJson({ t: 'buy', weapon: id });
   }
 
   /** Ask the server to start this waiting lobby as its host. */
   requestStart() {
-    if (!this.isOpen()) return false;
-    try {
-      this.ws.send(JSON.stringify({ t: 'start' }));
-      return true;
-    } catch {
-      return false;
-    }
+    return this._sendJson({ t: 'start' });
   }
 
   /** Politely disconnects. Idempotent; no auto-reconnect follows. */

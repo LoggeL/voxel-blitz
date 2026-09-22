@@ -1,7 +1,7 @@
 import { isScopeActive, nextScopeZoom } from '../guns/scope-state.js';
 import { EYE_HEIGHT, CONDITION_RULES, isScopedWeapon } from '../../../shared/combatmath.js';
 import { stanceEye } from '../../../shared/player-stance.js';
-import { canClimb } from '../../../shared/player-movement.js';
+import { canClimb, MOVEMENT_RULES } from '../../../shared/player-movement.js';
 import { PlayerPhysics, moveSpeedFor } from '../player-physics.js';
 import { hashInt } from '../util/hash.js';
 import { clamp01, clampPitch, easeOut, nowMs, smooth01 } from '../util/math.js';
@@ -160,6 +160,8 @@ export class LocalPlayer {
     this.recoilRoll = 0;
     this.adsT = 0;
     this.wantAds = false;
+    this._movementAds = false;   // ADS as the server's sprint gate sees it
+    this._concussedS = 0;        // authoritative pulse concussion remaining
     this.scopeActive = false;
     this.deathElapsed = 0;
     this.deathRoll = 0;
@@ -328,6 +330,8 @@ export class LocalPlayer {
     this._scopeZoom = 0;
     this.adsT = 0;
     this.wantAds = false;
+    this._movementAds = false;
+    this._concussedS = 0;
     this.scopeActive = false;
     this.deathElapsed = 0;
     this.deathRoll = 0;
@@ -701,11 +705,13 @@ export class LocalPlayer {
     const climbAxis = this.keys.forward && !this.keys.back
       ? 1
       : (this.keys.back && !this.keys.forward ? -1 : 0);
+    this._concussedS = Math.max(0, this._concussedS - dt);
+    this.physics.speedScale = this._concussedS > 0 ? MOVEMENT_RULES.concussedSpeedMult : 1;
     const jumped = this._alive
       ? this.physics.step(
         dt,
         this.wishDir,
-        moveSpeedFor(this.keys, this.wantAds),
+        moveSpeedFor(this.keys, this._movementAds),
         this.keys.jump,
         climbAxis,
         this.view.yaw,
@@ -880,6 +886,10 @@ export class LocalPlayer {
       deploying: intents.weapon?.isDeploying,
       healing: this.medkit.active,
     });
+    // Authority drops ADS while deploying or mid quick melee and only receives
+    // it when handling is allowed, so sprint prediction reads the same gate.
+    this._movementAds = this.wantAds && this._gameplayInputEnabled && isAllowed(intents.fireAllowed) &&
+      !intents.weapon?.isDeploying && !intents.weapon?.quickMeleeActive;
     const jumped = this._stepPrediction(dt);
     this._frame.jumped = jumped;
     this._aim = this.aimSway.update(dt, {
@@ -966,6 +976,7 @@ export class LocalPlayer {
     if (Number.isFinite(me.panic)) this.panic = clamp01(me.panic);
     if (Number.isFinite(me.exhaustion)) this.exhaustion = clamp01(me.exhaustion);
     if (Number.isFinite(me.pain)) this.pain = clamp01(me.pain);
+    this._concussedS = Number.isFinite(me.concussedMs) ? Math.max(0, me.concussedMs) / 1000 : 0;
     this.spawnProtected = !!me.spawnProtected;
 
     this._reconcileResult.transition = null;

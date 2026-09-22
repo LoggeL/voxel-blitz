@@ -9,6 +9,8 @@ export const PHYSICS = Object.freeze({
 });
 export const MOVEMENT_RULES = Object.freeze({
   coyoteS: 0.08, terminalVy: -60, ladderUp: 3.4, ladderDown: 2.4,
+  // A pulse concussion scales the capped move speed until its deadline.
+  concussedSpeedMult: 0.6,
 });
 /** Shared swimming contract for fluid voxels (Minecraft B5 ocean, streams and lava). */
 export const SWIM_RULES = Object.freeze({

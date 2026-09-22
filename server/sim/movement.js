@@ -23,7 +23,7 @@ const ACCEL_GROUND = PHYSICS.accelGround;
 const ACCEL_AIR = PHYSICS.accelAir;
 
 const COYOTE_S = MOVEMENT_RULES.coyoteS;
-const CONCUSSED_SPEED_MULT = 0.6;
+const CONCUSSED_SPEED_MULT = MOVEMENT_RULES.concussedSpeedMult;
 const LADDER_UP_SPEED = MOVEMENT_RULES.ladderUp;
 const LADDER_DOWN_SPEED = MOVEMENT_RULES.ladderDown;
 const TERMINAL_VY = MOVEMENT_RULES.terminalVy;

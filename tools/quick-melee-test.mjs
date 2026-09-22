@@ -44,7 +44,7 @@ const player = new LocalPlayer({ input, sendHz: 60, physics: {
   step: () => false, eyeY: () => 16.64, setMapMeta() {},
 } });
 player.setGameplayInputEnabled(true);
-const net = { _seq: 0, _timing: { interpolationDelayMs: 100, rttMs: 0 },
+const net = { _seq: 0, _timing: { interpolationDelayMs: 100, rttMs: 0 }, _sendJson: NetClient.prototype._sendJson,
   isOpen: () => connected, ws: { send: value => wires.push(JSON.parse(value)) } };
 const frame = (allow = true) => player.update(1 / 60, now, { weapon,
   fireAllowed: allow, movementAllowed: true,

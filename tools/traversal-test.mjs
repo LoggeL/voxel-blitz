@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { PRONE, stanceHeight } from '../shared/player-stance.js';
-import { PHYSICS, boxCollides, slidePlayerAxis } from '../shared/player-movement.js';
+import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, boxCollides, slidePlayerAxis } from '../shared/player-movement.js';
+import { ladderContact } from '../shared/worlddata.js';
 import { PlayerPhysics } from '../public/js/player-physics.js';
 import { PlayerEntity } from '../server/sim/player.js';
 import { stepMovement, updateTimers } from '../server/sim/movement.js';
 import { resolveWeaponIntent } from '../server/sim/combat.js';
+import { makeSnapshot } from '../server/protocol/snapshot.js';
 import { Input } from '../public/js/engine/input.js';
 import { LocalPlayer } from '../public/js/player/local-player.js';
 import { WeaponState } from '../public/js/guns/weapon-state.js';
@@ -12,20 +14,21 @@ import { WeaponState } from '../public/js/guns/weapon-state.js';
 const start = { x: 19.5, y: 10, z: 24.5 };
 const floor = (_x, y) => y < 10;
 const wall = (x, y) => floor(x, y) || (x >= 20 && x < 23 && y < 12);
-function pair(solid, position = start, mapMeta = null) {
+function pair(solid, position = start, mapMeta = null, fluid = null) {
   const client = new PlayerPhysics(mapMeta);
   client.solid = solid;
+  if (fluid) client._fluidAt = fluid;
   Object.assign(client.pos, position);
   client.grounded = true;
   const server = new PlayerEntity('traversal', 'Traversal', position, false);
   Object.assign(server, { grounded: true, deployT: 0 });
   server.input = { yaw: -Math.PI / 2, pitch: 0, keys: {} };
-  const ctx = { solidAt: solid, mapMeta, now: 0, onFall: () => assert.fail('unexpected fall') };
-  function step(dt, { forward = false, jump = false, prone = false, crouch = false } = {}) {
-    Object.assign(server.input.keys, { f: forward, jump, prone, crouch });
+  const ctx = { solidAt: solid, fluidAt: fluid, mapMeta, now: 0, onFall: () => assert.fail('unexpected fall') };
+  function step(dt, { forward = false, right = false, jump = false, prone = false, crouch = false } = {}) {
+    Object.assign(server.input.keys, { f: forward, r: right, jump, prone, crouch });
     client.wantProne = prone;
     client._crouching = crouch;
-    client.step(dt, { x: forward ? 1 : 0, z: 0 }, crouch ? PHYSICS.crouch : PHYSICS.walk,
+    client.step(dt, { x: forward ? 1 : 0, z: right ? 1 : 0 }, crouch ? PHYSICS.crouch : PHYSICS.walk,
       jump, forward ? 1 : 0, -Math.PI / 2);
     ctx.now += dt * 1000;
     stepMovement(server, dt, ctx);
@@ -34,7 +37,11 @@ function pair(solid, position = start, mapMeta = null) {
       `prediction/authority parity: ${JSON.stringify({ client: client.pos, server: [server.x, server.y, server.z] })}`);
     assert.equal(client.proneT, server.proneT);
     assert.equal(!!client.vault, !!server.vault);
-    assert.equal(boxCollides(solid, server.x, server.y, server.z, stanceHeight(PHYSICS.height, server.proneT)), false);
+    assert.equal(client.grounded, server.grounded, 'prediction/authority grounded parity');
+    // Only a ladder climb may carry the body through a solid deck.
+    if (!ladderContact(mapMeta, server.x, server.y, server.z)) {
+      assert.equal(boxCollides(solid, server.x, server.y, server.z, stanceHeight(PHYSICS.height, server.proneT)), false);
+    }
   }
   return { client, server, ctx, step };
 }
@@ -125,6 +132,92 @@ for (const down of [false, true]) {
   assert.equal(h.server.vy, down ? -2.4 : 3.4, 'ladder movement returns when hands are free');
 }
 
+// A climb through a solid deck tops out airborne on both sides: authority
+// neither grounds a directed climber nor banks coyote time for it.
+{
+  const deck = (x, y) => y < 10 || (x >= 21 && y < 14) || (x >= 15 && y === 14);
+  const h = pair(deck, { x: 20.5, y: 10, z: 24.5 }, ladder);
+  let toppedOut = false;
+  for (let i = 0; i < 150; i++) {
+    h.step(1 / 60, { forward: true });
+    if (h.server.y > 15) {
+      toppedOut = true;
+      assert.equal(h.client.coyote > 0, h.server.coyote > 0, 'ladder top-out coyote parity');
+    }
+  }
+  assert.ok(toppedOut && h.server.y >= 15 && h.server.x > 21, 'the climber tops out onto the deck');
+}
+// Standing in a ladder volume without climbing keeps Dust II terrain steps.
+{
+  const surfaces = [];
+  for (let x = 15; x <= 25; x++) for (let z = 20; z <= 28; z++) surfaces.push(x, z, z >= 25 ? 10 : 9);
+  const meta = { id: 'dust2', spawnBounds: { surfaces }, ladders: ladder.ladders };
+  const h = pair((_x, y, z) => y < 10 || (z >= 25 && y < 11), { x: 20, y: 10, z: 24.2 }, meta);
+  for (let i = 0; i < 30; i++) h.step(1 / 60, { right: true });
+  assert.equal(h.server.y, 11, 'an undirected body inside a ladder volume steps up like prediction');
+}
+
+// A pulse concussion scales speed after the stance and swim caps on both sides.
+for (const swim of [false, true]) {
+  const water = swim ? (_x, y) => y >= 10 && y < 13 : null;
+  const h = pair(floor, start, null, water);
+  h.server.concussedUntil = 1e9;
+  h.client.speedScale = MOVEMENT_RULES.concussedSpeedMult;
+  for (let i = 0; i < 90; i++) h.step(1 / 60, { forward: true });
+  const cap = (swim ? SWIM_RULES.speed : PHYSICS.walk) * MOVEMENT_RULES.concussedSpeedMult;
+  assert.ok(Math.abs(h.server.vx - cap) < 0.05, `concussed ${swim ? 'swim' : 'walk'} speed reaches ${cap}`);
+}
+
+// The concussion deadline reaches prediction as remaining time on the wire.
+{
+  const input = new Input({});
+  input.fallback = true;
+  const h = pair(floor);
+  h.server.concussedUntil = 5500;
+  const row = makeSnapshot([h.server], [], [], 5000).players[0];
+  assert.equal(row.concussedMs, 500);
+  const player = new LocalPlayer({ input, physics: h.client });
+  try {
+    player.reconcile({ ...row, x: undefined });
+    player.update(0.25, 1000, { fireAllowed: true });
+    assert.equal(h.client.speedScale, MOVEMENT_RULES.concussedSpeedMult, 'a concussed self row slows prediction');
+    player.update(0.3, 1300, { fireAllowed: true });
+    assert.equal(h.client.speedScale, 1, 'prediction recovers when the concussion expires');
+    h.server.concussedUntil = 4000;
+    assert.equal(makeSnapshot([h.server], [], [], 5000).players[0].concussedMs, 0);
+  } finally { player.dispose(); input.dispose(); }
+}
+
+// Prediction mirrors authority's sprint gate: deploying and quick melee drop
+// ADS on the server, so a held aim button cannot hold prediction at walk speed.
+for (const busy of ['deploy', 'melee']) {
+  const input = new Input({});
+  input.fallback = true;
+  const h = pair(floor, { ...start, x: 4.5 });
+  if (busy === 'deploy') h.server.deployT = 5;
+  else h.server.quickMeleeT = 5;
+  const weapon = busy === 'deploy' ? { isDeploying: true } : { quickMeleeActive: true };
+  const player = new LocalPlayer({ input, physics: h.client });
+  player.setGameplayInputEnabled(true);
+  player.view.yaw = -Math.PI / 2;
+  const event = code => ({ code, repeat: false, preventDefault() {} });
+  try {
+    for (const code of ['KeyW', 'ShiftLeft']) input._onKeyDown(event(code));
+    input.wantAdsHeld = true;
+    for (let i = 0; i < 90; i++) {
+      player.update(1 / 60, 1000 + i * 17, { weapon, fireAllowed: true, sendInput: (payload) => {
+        const k = payload.keys;
+        h.server.input = { ...payload, keys: { f: k.forward, b: k.back, l: k.left, r: k.right,
+          jump: k.jump, sprint: k.sprint, crouch: k.crouch, prone: k.prone } };
+        return true;
+      } });
+      stepMovement(h.server, 1 / 60, h.ctx);
+    }
+    assert.ok(h.server.sprint && Math.abs(h.server.vx - PHYSICS.sprint) < 0.05, `${busy} lets authority sprint`);
+    assert.ok(Math.abs(player.physics.pos.x - h.server.x) < 0.02, `${busy} sprint prediction parity`);
+  } finally { player.dispose(); input.dispose(); }
+}
+
 // Real R input, LocalPlayer frame order and WeaponState, including the server's
 // movement-before-combat order and its held acknowledged reload request.
 {
@@ -195,4 +288,4 @@ for (const full of [false, true]) {
   stepMovement(h.server, 1 / 60, h.ctx);
   assert.ok(h.server.vault, 'rejected reload requests leave hands available');
 }
-console.log('Traversal passed: one-block tunnels, headroom locks, stance collision, client/server parity, occupied hands, ladders and real reload input/recovery.');
+console.log('Traversal passed: one-block tunnels, headroom locks, stance collision, client/server parity, occupied hands, ladders, concussion, sprint gating and real reload input/recovery.');
