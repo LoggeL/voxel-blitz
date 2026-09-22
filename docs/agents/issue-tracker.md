@@ -54,7 +54,8 @@ evidence belongs to Extended QA.
 | VB-037-A | Redesigned main menu with a clear play action, real Killhouse preview, dedicated Training shortcut, compact identity/join controls, and no fake telemetry | Existing HUD admission contracts and connected desktop/mobile menu, create, play, and Training flows | Verified locally; release pending |
 | VB-037-B | Covered firing gallery, clear floor markings, skylit numbered course rooms, entrance portal, and finish return; no scattered collision debris | Five production camera renders, stable world fingerprint, gate lifecycle and on-foot target reachability contracts | Verified locally; release pending |
 | VB-037-C | Indoor Training spawn and target positions use the floor under roofs | Existing map/headroom contracts and live Training handoff | Verified locally; release pending |
-| VB-038-A | Weapon wheel moves to K and interaction to T so Q and E strafe left/right alongside A and D; wheel press/release contract unchanged | Input and keybinding contracts plus connected browser flows | Verified locally; release pending |
+| VB-038-A | Weapon wheel moves to K and interaction to T, freeing Q and E; wheel press/release contract unchanged | Input and keybinding contracts plus connected browser flows | Verified locally; release pending |
+| VB-038-B | Hold Q/E to lean left/right: the upper body rolls about the hips so head and weapon peek past cover; hitboxes, shot origin, avatars, killcam and camera share one lean contract, and walls clamp the lean | Lean authority/prediction/wall-clamp test, leaned RIVET hitbox coverage, input contracts | Verified locally; release pending |
 
 ## VB-029 release evidence
 

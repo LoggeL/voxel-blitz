@@ -3,6 +3,7 @@ import { advanceReload, reloadPhase } from '../../shared/reload.js';
 // Authoritative movement, collision, timers, and hidden-condition integration.
 
 import { PRONE, stanceHeight } from '../../shared/player-stance.js';
+import { leanBlocked, leanInput, stepBodyLean } from '../../shared/player-lean.js';
 import { CONDITION_RULES } from '../../shared/combatmath.js';
 import { ladderContact } from '../../shared/worlddata.js';
 import { clamp01 } from './player.js';
@@ -90,9 +91,14 @@ function slideAxis(player, axis, amount, solidAt, mapMeta = null, canStep = fals
   return collided;
 }
 
+function stepPlayerLean(p, request, dt, solidAt) {
+  p.leanT = stepBodyLean(p.leanT || 0, request, dt, solidAt,
+    { x: p.x, z: p.z, eyeY: p.uprightEyeY ?? p.eyeY, yaw: p.yaw, crouch: p.crouch, scale: p.bodyScale || 1 });
+}
+
 function recordPose(p, now) {
   p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
-    crouch: p.crouch, proneT: p.proneT, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
+    crouch: p.crouch, proneT: p.proneT, leanT: p.leanT || 0, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
     vx: p.vx, vz: p.vz, bodyScale: p.bodyScale, combatBox: p.combatBox, t: now });
   if (p.hist.length > HISTORY_SAMPLES) p.hist.shift();
 }
@@ -125,6 +131,7 @@ export function stepMovement(p, dt, ctx) {
     p.vz = 0;
     p.crouch = false;
     p.proneT = stepPlayerProne(p.proneT, false, dt, ctx.solidAt, p);
+    stepPlayerLean(p, 0, dt, ctx.solidAt);
     p.sprint = false;
     p.coyote = 0;
     p.grounded = solidBelow(ctx.solidAt, p.x, p.y, p.z);
@@ -158,6 +165,8 @@ export function stepMovement(p, dt, ctx) {
   const low = !!kf.prone || p.proneT > 0;
   p.crouch = !!kf.crouch;
   p.sprint = !!kf.sprint && fwdAmt > 0 && !p.crouch && !low && !p.ads;
+  stepPlayerLean(p, leanBlocked({ sprint: kf.sprint, forward: fwdAmt > 0, crouch: p.crouch, prone: low,
+    swimming, vaulting: !!p.vault, ladder: ladderHere, riding: !!ride }) ? 0 : leanInput(kf), dt, ctx.solidAt);
 
   // Normalized wish direction prevents diagonal movement from gaining speed.
   const movementYaw = Number.isFinite(inp?.viewYaw) ? inp.viewYaw : p.yaw;

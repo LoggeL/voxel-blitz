@@ -1,6 +1,7 @@
 import { SUPPRESSION_RULES } from '../../shared/suppression-rules.js';
 import { BreathHold } from '../../shared/conditions.js';
 import { stanceEye } from '../../shared/player-stance.js';
+import { leanEyeOffset } from '../../shared/player-lean.js';
 import { chaosWeaponDef } from '../../shared/chaos.js';
 import { bastionWeaponDef } from '../../shared/bastion.js';
 import { configuredWeapon } from '../../shared/weapon-attachments.js';
@@ -153,6 +154,7 @@ export class PlayerEntity {
     this.grenadeTypeQueued = 0;
     this.grenadeCookQueued = 0;
     this.grenadeAimQueued = null;
+    this.nextThrowAt = 0;
     this.grenades = freshGrenadeLoadout();
     // Charge-mode weapons (LONGARC): hold time and the normalized wire charge.
     this.charging = false;
@@ -165,6 +167,7 @@ export class PlayerEntity {
     this.coyote = 0;
     this.crouch = false;
     this.proneT = 0;
+    this.leanT = 0;
     this.sprint = false;
     this.lives++;
     this.lastSpawnIndex = spawn.index | 0;
@@ -174,7 +177,13 @@ export class PlayerEntity {
   }
 
   get def() { return bastionWeaponDef(this, chaosWeaponDef(this, configuredWeapon(WEAPON_IDS[this.weapon], this.weaponLoadout))); }
-  get eyeY() { return this.y + stanceEye(PHYSICS.eye, this.crouch, this.proneT) * (this.bodyScale || 1); }
+  /** Eye height without the peek lean: the lean ray and stance checks start here. */
+  get uprightEyeY() { return this.y + stanceEye(PHYSICS.eye, this.crouch, this.proneT) * (this.bodyScale || 1); }
+  /** Shooting eye: the peek lean carries it sideways and slightly down. */
+  get eyeX() { return this.x + (this.leanT ? this._leanEye().x : 0); }
+  get eyeY() { return this.uprightEyeY + (this.leanT ? this._leanEye().y : 0); }
+  get eyeZ() { return this.z + (this.leanT ? this._leanEye().z : 0); }
+  _leanEye() { return leanEyeOffset(this.leanT, this.yaw, this.crouch ? 1 : 0, this.bodyScale || 1); }
 
   /** Return true when the hit is lethal. */
   takeDamage(dmg, headshot = false, attacker = null, weapon = '') {

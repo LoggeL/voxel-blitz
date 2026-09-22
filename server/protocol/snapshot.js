@@ -165,6 +165,7 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       grounded: !!p.grounded,
       vaulting: !!p.vault,
       proneT: p.proneT || 0,
+      leanT: round(p.leanT || 0, D3),
       moveSpeed: round(Math.hypot(p.vx || 0, p.vz || 0), D2),
       mag: ammoCopy(p.mag),
       reserve: ammoCopy(p.reserve),

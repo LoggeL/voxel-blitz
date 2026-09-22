@@ -152,7 +152,8 @@ After admission:
 - `{t:'start'}` starts only for the current host, while waiting, after every
   human member (including the host) is ready.
 - `{t:'input',seq:number,keys:{f:boolean,b:boolean,l:boolean,r:boolean,
-  jump:boolean,sprint:boolean,crouch:boolean,interact:boolean},yaw:number,
+  jump:boolean,sprint:boolean,crouch:boolean,prone:boolean,leanL:boolean,
+  leanR:boolean,interact:boolean},yaw:number,
   pitch:number,weapon:number,wantFire:boolean,wantAds:boolean,reload:boolean,
   viewAge:number,throwGrenade?:boolean,grenadeCharge?:number,grenadeType?:number,
   grenadeCook?:number,grenadeHandling?:boolean,switchTo?:number}`
@@ -216,7 +217,7 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   `{id,name,x,y,z,yaw,pitch,hp,armor,burning,panic,pain,exhaustion,
   breathReserve,breathExhausted,breathReleasedFor,spawnProtected,weapon,
   score,kills,deaths,ping,impulse,state,respawnAt,firing,ads,crouch,grounded,
-  vaulting,proneT,moveSpeed,mag,reserve,reloading,reloadAck,reloadState,
+  vaulting,proneT,leanT,moveSpeed,mag,reserve,reloading,reloadAck,reloadState,
   team,credits,owned,bomb,interaction,grenades,charge,minigun}`.
   `team` is `'alpha'|'bravo'|null`; `owned` is an array of weapon ids;
   `grenades` is the remaining per-type count array in `GRENADE_TYPE_IDS` order;
@@ -330,6 +331,20 @@ The debug overlay consumes these same volumes. Arms follow settled weapon poses;
 small margins and speed-dependent leg envelopes cover cosmetic animation.
 Rewind samples retain pose fields alongside position. Player snapshots publish
 `moveSpeed` so the debug overlay can reproduce the running-leg envelope.
+A signed `leanT` (`-1` left … `1` right, `shared/player-lean.js`) rolls the
+head, neck, torso and arm zones about the hip pivot; hips and legs stay put.
+
+### shared/player-lean.js
+Peek lean: holding `Q`/`E` (`keys.leanL`/`leanR`) steps `leanT` toward ±1 over
+`LEAN.inS` (0.22 s) on the authority and in prediction with identical code
+(`stepBodyLean`). The upper body rolls `LEAN.roll` (0.44 rad) about the hips,
+carrying the eye about 0.30 m sideways standing (0.24 m crouched); the camera
+cants only `LEAN.viewRoll`. A voxel ray from the upright eye clamps the lean so
+the eye keeps `LEAN.headClear` (0.16 m) from walls. A forward sprint, prone,
+swimming, vaulting, ladders and slide rides hold the body square. The server
+player's `eyeX`/`eyeY`/`eyeZ` include the lean, so hitscan, melee, rockets,
+bolts, discs and throwables leave from the leaned eye; snapshots publish
+`leanT` for avatars, killcam replay and rewind.
 
 ### shared/combatmath.js
 Exports `WEAPONS`, `WEAPON_IDS`, `CONDITION_RULES`, `GRAVITY`, `PLAYER_HALF`,
@@ -605,11 +620,11 @@ late join whose welcome/state is already live also proceeds directly.
   presentation release a fuse cooked to the end. `getGrenadeType()`
   and `cycleGrenadeType(dir)` own the selected throwable:
   `H` cycles it, and the wheel (or pad `Y`) cycles it while `G` is held instead
-  of switching weapons. `E` holds interact; `B` toggles the buy menu;
-  `1–9`/`0`/wheel/`Q` select weapons.
-  The radial weapon wheel drains `takeWheelOpenRequest()` (Q held
+  of switching weapons. `Q`/`E` hold `leanLeft`/`leanRight`; `T` holds
+  interact; `B` toggles the buy menu; `1–9`/`0`/wheel/`K` select weapons.
+  The radial weapon wheel drains `takeWheelOpenRequest()` (K held
   `WHEEL_HOLD_MS=180`, a middle-mouse press, pad `Y` held
-  `PAD_WHEEL_HOLD_MS=260`; a quicker Q press still
+  `PAD_WHEEL_HOLD_MS=260`; a quicker K press still
   swaps to the previous weapon and a quicker Y tap still swaps or cycles the
   throwable), `takeWheelRelease()` (the opening control released while open),
   `takeWheelCancelRequest()` (`Esc`, right mouse, or pad `B` while open),

@@ -2,6 +2,7 @@ import { bastionDefenderSolid } from '../../shared/world/bastion-layouts.js';
 // Client-side predicted player movement. Mirrors the server constants
 // (see BUILD-CONTRACT) so prediction tracks authority closely.
 import { PRONE, stanceEye, stanceHeight } from '../../shared/player-stance.js';
+import { leanBlocked, leanEyeOffset, stepBodyLean } from '../../shared/player-lean.js';
 import { EYE_HEIGHT } from '../../shared/combatmath.js';
 import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity, slidePlayerAxis, solidBelow, stepPlayerProne, canStartVault, findVault, findSwimExit, stepVault } from '../../shared/player-movement.js';
 import { getBlock, ladderContact, isSolidBlock, FLUID_BLOCKS } from '../../shared/worlddata.js';
@@ -26,6 +27,9 @@ export class PlayerPhysics {
     this._crouching = false;
     this.proneT = 0;
     this.wantProne = false;
+    this.leanT = 0;
+    this.wantLean = 0;   // signed Q/E request, already cleared while sprinting
+    this.leanYaw = 0;
     this.climbBlocked = false;
     this.slide = null;
     this.mapMeta = null;
@@ -71,6 +75,11 @@ export class PlayerPhysics {
     this.proneT = stepPlayerProne(this.proneT, !!ride || (this.wantProne && !this.vault && !onLadderNow),
       dt, this._solidAt, this.pos);
     const low = this.wantProne || this.proneT > 0;
+    if (Number.isFinite(yaw)) this.leanYaw = yaw;
+    const leanRequest = leanBlocked({ prone: low, swimming, vaulting: !!this.vault, ladder: onLadderNow, riding: !!ride })
+      ? 0 : this.wantLean;
+    this.leanT = stepBodyLean(this.leanT, leanRequest, dt, this._solidAt, { x: this.pos.x, z: this.pos.z,
+      eyeY: this.uprightEyeY(), yaw: this.leanYaw, crouch: this._crouching });
     if (low) {
       speedTarget = Math.min(speedTarget, PRONE.speed);
       // The authority still lets a prone swimmer hold jump to rise (a rider
@@ -179,8 +188,17 @@ export class PlayerPhysics {
     return true;
   }
 
-  eyeY() {
+  uprightEyeY() {
     return this.pos.y + stanceEye(EYE_HEIGHT, this._crouching, this.proneT);
+  }
+
+  /** World offset of the eye from the upright eye while peek-leaning. */
+  leanEyeOffset() {
+    return leanEyeOffset(this.leanT, this.leanYaw, this._crouching ? 1 : 0);
+  }
+
+  eyeY() {
+    return this.uprightEyeY() + (this.leanT ? this.leanEyeOffset().y : 0);
   }
 }
 

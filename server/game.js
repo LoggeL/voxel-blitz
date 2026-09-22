@@ -382,6 +382,8 @@ export class GameEngine {
         sprint: !!keys.sprint,
         crouch: !!keys.crouch,
         prone: !!keys.prone,
+        leanLeft: !!keys.leanL,
+        leanRight: !!keys.leanR,
         interact: !!keys.interact,
       },
       wantFire: !!msg.wantFire,

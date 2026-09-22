@@ -2,7 +2,8 @@
 export const KEYBINDINGS_PREF_KEY = 'vb-keybindings-v1';
 export const KEYBINDING_ACTIONS = Object.freeze([
   ['forward', 'Move forward', ['KeyW']], ['back', 'Move backward', ['KeyS']],
-  ['left', 'Strafe left', ['KeyA', 'KeyQ']], ['right', 'Strafe right', ['KeyD', 'KeyE']],
+  ['left', 'Strafe left', ['KeyA']], ['right', 'Strafe right', ['KeyD']],
+  ['leanLeft', 'Lean left (hold)', ['KeyQ']], ['leanRight', 'Lean right (hold)', ['KeyE']],
   ['jump', 'Jump / vault / stand up', ['Space']],
   ['sprint', 'Sprint / steady aim', ['ShiftLeft', 'ShiftRight']],
   ['crouch', 'Crouch (hold)', ['ControlLeft', 'ControlRight', 'KeyC']],
@@ -38,21 +39,29 @@ export function isBindableCode(code) {
 
 export function normalizeKeybindings(value) {
   const result = defaultKeybindings();
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return result;
-  for (const action of KEYBINDING_ACTIONS) {
-    const codes = value[action.id];
-    if (Array.isArray(codes) && codes.length <= 3 && codes.every(isBindableCode)) {
-      result[action.id] = [...new Set(codes)];
+  const saved = new Set();
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    for (const action of KEYBINDING_ACTIONS) {
+      const codes = value[action.id];
+      if (Array.isArray(codes) && codes.length <= 3 && codes.every(isBindableCode)) {
+        result[action.id] = [...new Set(codes)];
+        saved.add(action.id);
+      }
     }
   }
   // A damaged preference must never make one press trigger two combat actions.
+  // Saved choices claim their keys first, so the default of an action added
+  // after the save (Q/E lean) yields to a key the player already assigned.
   const accepted = [];
-  for (const action of KEYBINDING_ACTIONS) {
-    result[action.id] = result[action.id].filter(code => {
-      if (accepted.some(other => other.code === code && overlaps(action, other.action))) return false;
-      accepted.push({ action, code });
-      return true;
-    });
+  for (const claimSaved of [true, false]) {
+    for (const action of KEYBINDING_ACTIONS) {
+      if (saved.has(action.id) !== claimSaved) continue;
+      result[action.id] = result[action.id].filter(code => {
+        if (accepted.some(other => other.code === code && overlaps(action, other.action))) return false;
+        accepted.push({ action, code });
+        return true;
+      });
+    }
   }
   return result;
 }

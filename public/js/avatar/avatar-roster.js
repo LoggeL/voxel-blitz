@@ -356,6 +356,7 @@ export class AvatarRoster {
         reloading: !pickaxe && remote.reloading,
         crouching: remote.crouch,
         proneT: remote.proneT,
+        leanT: remote.leanT,
         stride,
         swing,
         dt,
@@ -374,10 +375,10 @@ export class AvatarRoster {
       });
       if (!persistentCorpses && Array.isArray(remote.owned) && remote.owned.length === 0) avatar.weaponModel.root.visible = false;
       updateAvatarStancePose(avatar, { stride, swing, blend: poseBlend });
-      avatar.torso.rotation.z += ((-swing * stride * 0.055) + flinch - avatar.torso.rotation.z) * poseBlend;
+      avatar.torso.rotation.z += ((-swing * stride * 0.055) + flinch + (avatar.leanRoll || 0) - avatar.torso.rotation.z) * poseBlend;
       avatar.hips.rotation.z += (swing * stride * 0.045 - avatar.hips.rotation.z) * poseBlend;
       avatar.head.rotation.x += (remote.pitch * 0.7 - hit01 * 0.1 + (avatar.swimHeadTilt || 0) - avatar.head.rotation.x) * poseBlend;
-      avatar.head.rotation.z += (-flinch * 0.7 - avatar.head.rotation.z) * poseBlend;
+      avatar.head.rotation.z += (-flinch * 0.7 + (avatar.leanRoll || 0) - avatar.head.rotation.z) * poseBlend;
       setAvatarFlash(avatar, hit01);
       // The flash owns the emissive channel while it lasts; the tell returns after it.
       if (hit01 === 0 && avatar.bastionSignal) applyBastionSignal(avatar, remote);

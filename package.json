@@ -56,7 +56,7 @@
     "avatars:test": "node tools/avatar-pose-test.mjs",
     "animations:test": "npm run prone:test && node tools/viewmodel-arms-test.mjs && node tools/movement-animation-test.mjs && node tools/avatar-motion-test.mjs && node tools/stance-animation-test.mjs && node tools/avatar-pose-test.mjs && npm run throwables:test",
     "animations:browser": "node tools/movement-animation-browser-test.mjs && node tools/stance-animation-browser-test.mjs",
-    "prone:test": "node tools/prone-test.mjs && node tools/traversal-test.mjs",
+    "prone:test": "node tools/prone-test.mjs && node tools/traversal-test.mjs && node tools/lean-test.mjs",
     "prone:browser": "node tools/traversal-browser-test.mjs",
     "projectiles:test": "node tools/projectile-server-performance-test.mjs && node tools/projectile-performance-test.mjs",
     "refactor:test": "node tools/hitbox-refactor-test.mjs && node tools/hitbox-model-test.mjs && node tools/server-refactor-test.mjs && node tools/client-refactor-test.mjs",

@@ -161,7 +161,7 @@ export function drainOwnEventsEarly(snapshotList, selfId, state) {
 /** Newest-row fields retained alongside interpolated transforms. */
 const PASSTHROUGH_FIELDS = [
   'name', 'hp', 'armor', 'team', 'weapon', 'score', 'kills', 'deaths', 'ping',
-  'state', 'firing', 'ads', 'crouch', 'grounded', 'vaulting', 'proneT', 'moveSpeed', 'mag', 'reserve', 'reloading', 'reloadAck', 'reloadState',
+  'state', 'firing', 'ads', 'crouch', 'grounded', 'vaulting', 'proneT', 'leanT', 'moveSpeed', 'mag', 'reserve', 'reloading', 'reloadAck', 'reloadState',
   'burning', 'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt', 'cosmetics', 'attachments',
   'breathReserve', 'breathExhausted', 'breathReleasedFor',
   'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
@@ -507,6 +507,8 @@ export class NetClient {
         sprint: !!k.sprint,
         crouch: !!k.crouch,
         prone: !!k.prone,
+        leanL: !!k.leanLeft,
+        leanR: !!k.leanRight,
         interact: !!k.interact,
       },
       yaw: input.yaw,
@@ -683,6 +685,7 @@ export class NetClient {
           sampleRemoteTransform(prev, cur, target, a.now, b.now, row);
           const stanceT = Math.max(0, Math.min(1, (target - a.now) / Math.max(1, b.now - a.now)));
           row.proneT = (prev.proneT || 0) + ((cur.proneT || 0) - (prev.proneT || 0)) * stanceT;
+          row.leanT = (prev.leanT || 0) + ((cur.leanT || 0) - (prev.leanT || 0)) * stanceT;
         } else {
           row.x = cur.x;
           row.y = cur.y;

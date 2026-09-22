@@ -196,6 +196,8 @@ export async function runNetClientContracts(ok, installGlobals) {
           sprint: false,
           crouch: false,
           prone: false,
+          leanL: false,
+          leanR: false,
           interact: true,
         },
         yaw: 0.25,

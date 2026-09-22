@@ -22,9 +22,12 @@ export function validateAccountRecord(record, filename) {
   const keys = ['version', 'id', 'username', 'password', 'recoveryHash', 'authVersion', 'createdAt', 'updatedAt', 'sessions'];
   if (record && Object.hasOwn(record, 'keybindings')) {
     keys.push('keybindings');
-    const normalized = normalizeKeybindings(record.keybindings);
-    if (!exactObject(record.keybindings, Object.keys(normalized))
-      || Object.keys(normalized).some(key => JSON.stringify(record.keybindings[key]) !== JSON.stringify(normalized[key])))
+    // Records saved before an action existed simply omit it; it takes its default.
+    const stored = record.keybindings;
+    const normalized = normalizeKeybindings(stored);
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)
+      || Object.keys(stored).some(key => !Object.hasOwn(normalized, key)
+        || JSON.stringify(stored[key]) !== JSON.stringify(normalized[key])))
       throw new Error('Invalid keybindings');
   }
   if (record && Object.hasOwn(record, 'emailRecovery')) {

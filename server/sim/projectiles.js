@@ -259,7 +259,7 @@ export class ProjectileSystem {
   }
 
   _placeClaymore(player, ctx, direction, index) {
-    const placement = placeClaymore({ x: player.x, eyeY: player.eyeY, z: player.z, dir: direction },
+    const placement = placeClaymore({ x: player.eyeX ?? player.x, eyeY: player.eyeY, z: player.eyeZ ?? player.z, dir: direction },
       ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR));
     if (!placement || !(player.grenades[index] > 0)) return null;
     const owned = [...this.active.values()].filter(p => p.type === 'limpet' && p.ownerId === String(player.id));
@@ -721,7 +721,7 @@ export class ProjectileSystem {
     const direction = fwdFromYawPitch(aim?.yaw ?? player.yaw, aim?.pitch ?? player.pitch);
     if (type.wallMine) return this._placeClaymore(player, ctx, direction, index);
     const launch = grenadeLaunch({
-      x: player.x, y: player.y, z: player.z, eyeY: player.eyeY,
+      x: player.eyeX ?? player.x, y: player.y, z: player.eyeZ ?? player.z, eyeY: player.eyeY,
       vx: player.vx, vy: player.vy, vz: player.vz,
       dir: direction, charge, type: type.id,
     });
@@ -771,7 +771,7 @@ export class ProjectileSystem {
       type: type.id,
       ownerId: String(player.id),
       owner: player,
-      x: player.x, y: player.eyeY - 0.2, z: player.z,
+      x: player.eyeX ?? player.x, y: player.eyeY - 0.2, z: player.eyeZ ?? player.z,
       vx: 0, vy: 0, vz: 0,
       charge: 0,
       launchedAt: ctx.now,
@@ -798,7 +798,7 @@ export class ProjectileSystem {
   /** A rocket leaves the tube from the shooter's eye along the spread-sampled `dir`. */
   launchRocket(player, ctx, dir) {
     if (this.active.size >= 192) return null;
-    const launch = rocketLaunch({ x: player.x, y: player.eyeY, z: player.z, dir });
+    const launch = rocketLaunch({ x: player.eyeX ?? player.x, y: player.eyeY, z: player.eyeZ ?? player.z, dir });
     const id = `r${this._nextId++}`;
     const projectile = {
       id,
@@ -833,7 +833,7 @@ export class ProjectileSystem {
   /** A bolt leaves the coil from the shooter's eye along the spread-sampled `dir`. */
   launchBolt(player, ctx, dir, charge01 = 1, satellite = false) {
     if (this.active.size >= 192) return null;
-    const launch = boltLaunch({ x: player.x, y: player.eyeY, z: player.z, dir, charge01 });
+    const launch = boltLaunch({ x: player.eyeX ?? player.x, y: player.eyeY, z: player.eyeZ ?? player.z, dir, charge01 });
     const id = `b${this._nextId++}`;
     const projectile = {
       id,
@@ -881,7 +881,7 @@ export class ProjectileSystem {
   launchGlaive(player, ctx, dir) {
     if (this.active.size >= 192) return null;
     const rules = glaiveDef(player).glaive;
-    const launch = glaiveLaunch({ x: player.x, y: player.eyeY, z: player.z, dir, now: ctx.now, rules });
+    const launch = glaiveLaunch({ x: player.eyeX ?? player.x, y: player.eyeY, z: player.eyeZ ?? player.z, dir, now: ctx.now, rules });
     const id = `d${this._nextId++}`;
     const projectile = {
       ...launch,

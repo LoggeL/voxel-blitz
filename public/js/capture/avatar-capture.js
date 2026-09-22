@@ -31,6 +31,7 @@ const cameraByView = {
   'swim-profile': [3.9, 1.5, -1.9],
   'swim-tread': [4.25, 1.44, -0.15],
   spectator: [3.4, 2.45, 3.4],
+  'lean-front': [0, 1.45, -4.3],
 };
 camera.position.fromArray(cameraByView[view]);
 camera.lookAt(0, view === 'crouched-profile' ? 0.92 : view === 'spectator' ? 1.35 : 1.12,
@@ -77,7 +78,7 @@ avatar.group.traverse((object) => {
 });
 scene.add(avatar.group);
 
-const { firing, ads, crouching, proneT = 0, swimming = false, moveSpeed = 0 } = shot;
+const { firing, ads, crouching, proneT = 0, leanT = 0, swimming = false, moveSpeed = 0 } = shot;
 // Swimming settles over ~0.5 s and is captured a quarter of the way into a stroke.
 const stride = Math.min(1, moveSpeed / 5.8);
 for (let frame = 0; frame < (swimming ? 120 : 30); frame++) {
@@ -88,6 +89,7 @@ for (let frame = 0; frame < (swimming ? 120 : 30); frame++) {
     ads,
     crouching,
     proneT,
+    leanT,
     swimming,
     speed: moveSpeed,
     stride,

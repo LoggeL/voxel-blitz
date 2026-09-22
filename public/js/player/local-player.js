@@ -1,6 +1,7 @@
 import { isScopeActive, nextScopeZoom } from '../guns/scope-state.js';
 import { EYE_HEIGHT, CONDITION_RULES } from '../../../shared/combatmath.js';
 import { stanceEye } from '../../../shared/player-stance.js';
+import { LEAN, leanBlocked, leanInput, leanPose } from '../../../shared/player-lean.js';
 import { canClimb } from '../../../shared/player-movement.js';
 import { PlayerPhysics, moveSpeedFor } from '../player-physics.js';
 import { hashInt } from '../util/hash.js';
@@ -15,6 +16,8 @@ import { withGoreDamage } from '../weapons/gore-profile.js';
 import { AimSway } from './aim-sway.js';
 import { WeaponAimMotion } from '../guns/weapon-aim.js';
 import { resetFirstPersonBody, updateFirstPersonBody } from './first-person-body.js';
+
+const NO_LEAN = Object.freeze({ x: 0, y: 0, z: 0 });
 
 const DEFAULT_SEND_HZ = 60;
 const DEFAULT_FOV = 75;
@@ -276,6 +279,8 @@ export class LocalPlayer {
     this._cameraCrouch = 0;
     this.physics.proneT = 0;
     this.physics.wantProne = false;
+    this.physics.leanT = 0;
+    this.physics.wantLean = 0;
   }
 
   spawnAt(x, y, z) {
@@ -296,6 +301,8 @@ export class LocalPlayer {
     this._cameraCrouch = 0;
     this.physics.proneT = 0;
     this.physics.wantProne = false;
+    this.physics.leanT = 0;
+    this.physics.wantLean = 0;
     return true;
   }
 
@@ -545,13 +552,19 @@ export class LocalPlayer {
     return pending;
   }
 
+  /** Peek-lean eye offset; injected physics without a lean stays upright. */
+  _leanEyeOffset() {
+    return this.physics.leanEyeOffset?.() ?? NO_LEAN;
+  }
+
   /** Launch state for a local throw with the same formula authority applies. */
   grenadeLaunchState(charge, type = 'frag', grenadeAim = null) {
     const dir = fwdFromAngles(grenadeAim?.yaw ?? this.shotYaw, grenadeAim?.pitch ?? this.shotPitch);
     const pos = this.physics.pos;
     const vel = this.physics.vel;
+    const lean = this._leanEyeOffset();
     return grenadeLaunch({
-      x: pos.x, y: pos.y, z: pos.z, eyeY: this.physics.eyeY(),
+      x: pos.x + lean.x, y: pos.y, z: pos.z + lean.z, eyeY: this.physics.eyeY(),
       vx: vel.x, vy: vel.y, vz: vel.z,
       dir, charge, type, solidAt: this.physics._solidAt,
     });
@@ -694,6 +707,8 @@ export class LocalPlayer {
     weaponIntents.fireHeld = fireHeld;
     this.physics.wantProne = !!this.keys.prone;
     this.physics._crouching = !!this.keys.crouch;
+    this.physics.wantLean = leanBlocked({ sprint: this.keys.sprint,
+      forward: this.keys.forward && !this.keys.back, crouch: this.keys.crouch }) ? 0 : leanInput(this.keys);
     return weaponIntents;
   }
 
@@ -740,6 +755,8 @@ export class LocalPlayer {
       sprint: false,
       crouch: false,
       prone: false,
+      leanLeft: false,
+      leanRight: false,
       interact: false,
     };
     this.wishDir.x = 0;
@@ -753,6 +770,7 @@ export class LocalPlayer {
     this.physics._crouching = false;
     this._cameraCrouch = 0;
     this.physics.wantProne = false;
+    this.physics.wantLean = 0;
   }
 
   _updateConditionEstimates(dt, jumped) {
@@ -816,6 +834,8 @@ export class LocalPlayer {
         sprint: !!keys.sprint,
         crouch: !!keys.crouch,
         prone: !!keys.prone,
+        leanLeft: !!keys.leanLeft,
+        leanRight: !!keys.leanRight,
         interact: !!(interactAllowed && keys.interact),
       },
       yaw: this._pendingShotAim?.yaw ?? this.shotYaw,
@@ -1066,7 +1086,10 @@ export class LocalPlayer {
     const crouchDrop = stanceEye(EYE_HEIGHT, false, this.physics.proneT) -
       stanceEye(EYE_HEIGHT, true, this.physics.proneT);
     const cameraEyeY = this.physics.eyeY() + (crouchTarget - this._cameraCrouch) * crouchDrop;
-    camera.position.set(pos.x + offset.x, cameraEyeY + offset.y, pos.z + offset.z);
+    // Peek lean: the eye swings out with the upper body and the view cants slightly.
+    const lean = this._leanEyeOffset();
+    const leanRoll = this._alive ? -leanPose(this.physics.leanT) * LEAN.viewRoll : 0;
+    camera.position.set(pos.x + lean.x + offset.x, cameraEyeY + offset.y, pos.z + lean.z + offset.z);
     if (this._alive) {
       this.deathElapsed = 0;
       this.deathRoll = 0;
@@ -1087,7 +1110,7 @@ export class LocalPlayer {
     camera.rotation.set(
       this.aimPitch + this.recoilPitch + this.deathPitch,
       this.aimYaw + this.recoilYaw,
-      this.deathRoll + this.recoilRoll,
+      this.deathRoll + this.recoilRoll + leanRoll,
     );
     this._lookScale = adsLookScale(camera.fov, baseFov);
     const scopeKey = `${weaponDef.id}/${weaponDef.attachments?.optic || 'standard'}/${weaponDef.zoom || 0}`;
@@ -1114,7 +1137,7 @@ export class LocalPlayer {
       this.scopeActive,
       this.physics.proneT,
       { grounded: this.physics.grounded, verticalVelocity: this.physics.vel.y,
-        vaulting: !!this.physics.vault, swimming: !!this.physics.swimming,
+        vaulting: !!this.physics.vault, swimming: !!this.physics.swimming, leanT: this.physics.leanT,
         forwardSpeed: -(this.physics.vel.x * Math.sin(this.view.yaw) + this.physics.vel.z * Math.cos(this.view.yaw)),
         lateralSpeed: this.physics.vel.x * Math.cos(this.view.yaw) - this.physics.vel.z * Math.sin(this.view.yaw) },
     );

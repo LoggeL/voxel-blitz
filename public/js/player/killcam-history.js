@@ -3,7 +3,7 @@ import { KILLCAM, supportsKillcam } from '../../../shared/killcam-rules.js';
 import { copySmokeFields } from '../../../shared/smoke-rules.js';
 
 const POSE_FIELDS = ['id', 'name', 'x', 'y', 'z', 'yaw', 'pitch', 'state', 'hp',
-  'weapon', 'firing', 'ads', 'adsT', 'scopeZoom', 'attachments', 'reloading', 'deploying', 'grenadeHandling', 'crouch', 'proneT', 'grounded', 'vaulting', 'swimming', 'moveSpeed', 'team', 'charge'];
+  'weapon', 'firing', 'ads', 'adsT', 'scopeZoom', 'attachments', 'reloading', 'deploying', 'grenadeHandling', 'crouch', 'proneT', 'leanT', 'grounded', 'vaulting', 'swimming', 'moveSpeed', 'team', 'charge'];
 const EVENT_KINDS = new Set(['shoot', 'hit', 'kill', 'mine', 'block', 'blockDamage',
   'projectileLaunch', 'projectileUpdate', 'projectileStick', 'projectileExplode']);
 const lerp = (a, b, t) => a + (b - a) * t;
