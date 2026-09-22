@@ -1,6 +1,5 @@
 import { buildTttShop, syncTttShop } from './ttt-shop.js';
 import { matchesBinding } from '../keybindings.js';
-import { combatDamage } from '../../../shared/combat-balance.js';
 import { buildBastionArmory, syncBastionArmory, bastionPurchaseId } from './bastion-armory.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { CHAOS_UPGRADES, chaosLevel, chaosPurchaseId } from '../../../shared/chaos.js';
@@ -13,6 +12,7 @@ import {
   WEAPON_CLASSES,
   WEAPON_BUY_ORDER,
   weaponImagePath,
+  weaponCardStats,
 } from './hud-support.js';
 
 /**
@@ -137,11 +137,7 @@ export class BuyMenuController {
       classEl.textContent = WEAPON_CLASSES[wid] || 'TACTICAL WEAPON';
 
       const statsEl = el('div', 'vb-buy-wstats', cardBody);
-      const damage = Number(combatDamage(Array.isArray(def.damage) ? def.damage[0] : (def.damage || 0)).toFixed(1));
-      const rpm = def.rpm || 0;
-      const mag = def.magSize || 0;
-      const spareMags = (def.spareRounds ?? def.spareMags) || 0;
-      statsEl.textContent = `DMG ${damage} · ${rpm ? `${rpm} RPM · ` : ''}${mag} RDS · ${spareMags} ${def.spareRounds != null ? 'SHELLS' : 'MAGS'}`;
+      statsEl.textContent = weaponCardStats(def);
 
       const stages = [];
       if (mode === 'chaos') {

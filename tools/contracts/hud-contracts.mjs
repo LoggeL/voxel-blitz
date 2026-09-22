@@ -1,5 +1,8 @@
 import { MODE_IDS, GUN_GAME_WEAPON_ORDER } from '../../shared/modes.js';
 import { makeSnapshot } from '../../server/protocol/snapshot.js';
+import { WEAPONS } from '../../shared/combatmath.js';
+import { combatDamage } from '../../shared/combat-balance.js';
+import { ROCKET_RULES } from '../../shared/rocket-rules.js';
 
 export async function runHudContracts(ok, installGlobals) {
   // HUD: just enough DOM to execute the shipped settings and scope paths.
@@ -955,6 +958,12 @@ export async function runHudContracts(ok, installGlobals) {
       const minigunCard = document.getElementById('buy-card-minigun');
       ok(minigunCard.querySelector('.vb-buy-key-badge').textContent !== 'GRENADE',
         'minigun armory card is labelled as a weapon');
+      const cardStats = wid => document.getElementById(`buy-card-${wid}`).querySelector('.vb-buy-wstats').textContent;
+      const cardDamage = amount => Number(combatDamage(amount).toFixed(1));
+      ok(cardStats('rocket').startsWith(`DMG ${cardDamage(ROCKET_RULES.directDamage + ROCKET_RULES.splashDamage)} ·`)
+        && cardStats('shotgun').startsWith(`DMG ${cardDamage(WEAPONS.shotgun.damage[0])}×${WEAPONS.shotgun.pellets} ·`)
+        && cardStats('knife') === `DMG ${cardDamage(WEAPONS.knife.damage[0])} · ${WEAPONS.knife.rpm} RPM`,
+      'armory stats follow the damage rules: rocket direct hit, shotgun pellets, melee without ammunition');
       const smgButton = document.getElementById('buy-btn-smg');
       const sniperButton = document.getElementById('buy-btn-sniper');
       ok(hud.isBuyMenuOpen()

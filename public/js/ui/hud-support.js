@@ -1,4 +1,6 @@
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
+import { combatDamage } from '../../../shared/combat-balance.js';
+import { ROCKET_RULES } from '../../../shared/rocket-rules.js';
 import { CHAOS_KILL_CREDITS, CHAOS_UPGRADES } from '../../../shared/chaos.js';
 
 export const GLYPH = Object.freeze({
@@ -76,6 +78,21 @@ export const WEAPON_BUY_ORDER = Object.freeze([
   'knife',
   'minigun',
 ]);
+
+/**
+ * Armory card stat line from the rules that resolve damage: a rocket shows its
+ * direct hit (impact plus full splash), pellet weapons show per-pellet damage
+ * times the pellet count, and melee weapons carry no ammunition fields.
+ */
+export function weaponCardStats(def) {
+  const close = Array.isArray(def.damage) ? def.damage[0] : (def.damage || 0);
+  const base = def.projectile === 'rocket' ? ROCKET_RULES.directDamage + ROCKET_RULES.splashDamage : close;
+  const pellets = def.pellets > 1 ? `×${def.pellets}` : '';
+  const rpm = def.rpm ? ` · ${def.rpm} RPM` : '';
+  if (def.mode === 'melee') return `DMG ${Number(combatDamage(base).toFixed(1))}${rpm}`;
+  const spare = (def.spareRounds ?? def.spareMags) || 0;
+  return `DMG ${Number(combatDamage(base).toFixed(1))}${pellets}${rpm} · ${def.magSize || 0} RDS · ${spare} ${def.spareRounds != null ? 'SHELLS' : 'MAGS'}`;
+}
 
 export const MODE_LABELS = Object.freeze({
   bastion: 'BASTION · CO-OP PVE',
