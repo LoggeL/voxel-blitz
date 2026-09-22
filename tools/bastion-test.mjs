@@ -3,7 +3,7 @@ import { GameEngine } from '../server/game.js';
 import { getMapMeta, createMapState, BARRICADE, AIR } from '../shared/worlddata.js';
 import { GROUND, BEDROCK, isSolidBlock } from '../shared/world/blocks.js';
 import { BASTION_RULES as R, BASTION_ROLES, BASTION_ENEMIES, BASTION_WAVES, BASTION_FACTORS, BASTION_VEHICLE_FACTORS,
-  BASTION_CAPS, bastionWave, bastionReward, bastionPurchaseId, parseBastionPurchase, bastionRepairAvailable } from '../shared/bastion.js';
+  BASTION_CAPS, BASTION_SHOP, BASTION_RELOAD_MULT, bastionWeaponDef, bastionWave, bastionReward, bastionPurchaseId, parseBastionPurchase, bastionRepairAvailable } from '../shared/bastion.js';
 import { BASTION_STRUCTURES, canPlaceStructure, structureFootprint } from '../shared/bastion-build.js';
 import { bastionDefenderSolid, bastionPlannedWaves, bastionHoldWaves, bastionStageOfWave } from '../shared/world/bastion-layouts.js';
 import { WEAPONS, WEAPON_IDS, damageAtDistance } from '../shared/combatmath.js';
@@ -460,5 +460,19 @@ for(const map of PVE){
     if(typeof view.dispose==='function')view.dispose();
   }
   console.log('ok: client enemy looks, vehicle avatars, shared placement predicate and objective view on both layouts');
+}
+{
+  // FAST RELOAD: the purchase text and every reload stage share one multiplier.
+  const upgraded = { bastionUpgrades: { reload: true } };
+  for (const id of ['rifle', 'shotgun']) {
+    const base = WEAPONS[id], def = bastionWeaponDef(upgraded, base);
+    assert.equal(def.reloadTime, base.reloadTime * BASTION_RELOAD_MULT);
+    assert.equal(def.tacTime, base.tacTime * BASTION_RELOAD_MULT);
+    if (base.reloadStages) for (const [key, seconds] of Object.entries(base.reloadStages))
+      assert.equal(def.reloadStages[key], seconds * BASTION_RELOAD_MULT);
+  }
+  assert.equal(bastionWeaponDef({}, WEAPONS.rifle), WEAPONS.rifle);
+  assert.ok(BASTION_SHOP.reload.description.startsWith(`${Math.round((1 - BASTION_RELOAD_MULT) * 100)}% faster`));
+  console.log('ok: FAST RELOAD text and reload timings share BASTION_RELOAD_MULT');
 }
 console.log('Bastion tests passed');
