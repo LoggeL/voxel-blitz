@@ -385,8 +385,10 @@ opens its gate; crossing the finish records the time and personal best.
 
 The room has one physical course and permits one timed runner at a time.
 Other players can use the range while it is occupied, but cannot reset the
-runner's gates or clear their course targets. Returning to the start restarts
-the attempt. Death or disconnect releases the course for the next runner.
+runner's gates or clear their course targets, and their run overlay reads
+**COURSE IN USE** until it is free. Returning to the start restarts the
+attempt. Death or disconnect releases the course for the next runner. No spawn
+point lies on the start pad, so respawning never starts a run.
 
 ### Trouble in Terrorist Town: traitor traps
 

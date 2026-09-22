@@ -162,6 +162,8 @@ export class TrainingPolicy extends BasePolicy {
       attackers: null,
       defenders: null,
       bomb: null,
+      // One physical course: other players learn it is in use while a run lasts.
+      course: { runner: this.course.active ? String(this.course.active.id) : null },
     };
   }
 

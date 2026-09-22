@@ -36,6 +36,7 @@ import { aimAngles } from '../server/sim/player.js';
 import { resolveModeMap, parseAdmissionFrame } from '../server/protocol/admission.js';
 import { PlayerPhysics } from '../public/js/player-physics.js';
 import { runClientContracts } from './contracts/client-contracts.mjs';
+import { runIdleHint } from '../public/js/ui/run-hud.js';
 import {
   bytesEqual,
   deeplyFrozen,
@@ -779,6 +780,9 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   ok([...meta.spawns.fun, ...meta.spawns.tdm.alpha, ...meta.spawns.tdm.bravo, ...posts]
     .every((point) => Math.floor(point.y) === 15),
   'covered Killhouse spawns and all dummy targets stay on the facility floor, never the roof');
+  ok(meta.spawns.fun.every(({ x, z }) => Math.floor(x) < course.start.minX || Math.floor(x) > course.start.maxX
+    || Math.floor(z) < course.start.minZ || Math.floor(z) > course.start.maxZ),
+  'no Killhouse training spawn sits on the course start pad, so spawning never starts a timed run');
   ok(world.getBlock(16, 22, 86) === METAL && world.getBlock(16, 15, 86) === AIR
     && world.getBlock(14, 15, 47) === AIR && world.getBlock(114, 15, 47) === AIR,
   'Killhouse canopy preserves standing headroom and walkable course entry and return doors');
@@ -920,6 +924,11 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
       && !engine.mode.canDamage('guest', 'dummy-11') && engine.mode.canDamage('runner', 'dummy-11')
       && engine.mode.canDamage('guest', 'dummy-0'),
     'a second player cannot reset an active course or clear its targets, while range practice remains available');
+  ok(stageReviveFrame.match?.course?.runner === null && guestFrame.match?.course?.runner === 'runner'
+      && runIdleHint(guestFrame.match.course.runner, 'guest').includes('COURSE IN USE')
+      && !runIdleHint(guestFrame.match.course.runner, 'runner').includes('COURSE IN USE')
+      && !runIdleHint(null, 'guest').includes('COURSE IN USE'),
+    'the match snapshot names the active runner so everyone else sees the course is in use');
   engine.removeClient('guest');
   engine.killPlayer(dummy('dummy-11'), null, 'world', false);
   for (let i = 0; i < 85; i++) stepOnce();

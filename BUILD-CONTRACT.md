@@ -859,7 +859,9 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   owns one active runner per room, splits, gates, and connection-scoped bests.
   Other humans may use the range but cannot clear that runner's stage targets
   or reset the course. Death/disconnect releases it; returning to the start
-  restarts the active attempt. Dummies have no respawn protection.
+  restarts the active attempt. `match.course.runner` names the active runner
+  (null when free), and no spawn lies on the start pad. Dummies have no
+  respawn protection.
 - **Map compatibility:** `foundry` supports Fun/TDM/S&D/Gun Game; `depot`
   supports Fun/TDM/Gun Game; `citadel`, `solstice`, and `caldera` support
   Fun/TDM/S&D/Gun Game; `killhouse` supports Training only. Foundry has A/B
