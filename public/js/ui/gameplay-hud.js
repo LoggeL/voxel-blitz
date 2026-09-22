@@ -53,9 +53,6 @@ export class GameplayHud {
     this.scoreboardMatch = null;
     this.scoreboardSelfId = null;
 
-    this.scopeShown = false;
-    this.scopeProgress = 0;
-    this.scopeRAF = 0;
     this.compassRAF = 0;
     this.ringOn = false;
     this.compassW = 0;
@@ -89,16 +86,10 @@ export class GameplayHud {
   buildHUD() {
     this.onBeforeBuild();
     this.built = true;
-    if (this.scopeRAF) {
-      cancelAnimationFrame(this.scopeRAF);
-      this.scopeRAF = 0;
-    }
     if (this.compassRAF) {
       cancelAnimationFrame(this.compassRAF);
       this.compassRAF = 0;
     }
-    this.scopeShown = false;
-    this.scopeProgress = 0;
     this.ringOn = false;
     this.compassW = 0;
     this.compassPPD = 2;
@@ -716,10 +707,6 @@ export class GameplayHud {
     if (!this.built) return;
     const scope = on ? this.ensureScope() : this.dom.scope;
     if (!scope) return;
-    this.scopeShown = !!on;
-    this.scopeProgress = on ? 1 : 0;
-    if (this.scopeRAF) cancelAnimationFrame(this.scopeRAF);
-    this.scopeRAF = 0;
     scope.classList.toggle('active', !!on);
     scope.classList.remove('exiting');
     scope.style.opacity = on ? '1' : '';
@@ -727,12 +714,6 @@ export class GameplayHud {
   }
 
   resetScope() {
-    this.scopeShown = false;
-    this.scopeProgress = 0;
-    if (this.scopeRAF) {
-      cancelAnimationFrame(this.scopeRAF);
-      this.scopeRAF = 0;
-    }
     if (this.dom.scope) {
       this.dom.scope.classList.remove('active', 'exiting');
       this.dom.scope.style.opacity = '';
@@ -781,10 +762,6 @@ export class GameplayHud {
 
   dispose() {
     this._unsubscribeBindings?.();
-    if (this.scopeRAF) {
-      cancelAnimationFrame(this.scopeRAF);
-      this.scopeRAF = 0;
-    }
     if (this.compassRAF) {
       cancelAnimationFrame(this.compassRAF);
       this.compassRAF = 0;
@@ -818,8 +795,6 @@ export class GameplayHud {
     clearBag(this.st);
     this._painted = {};
     this._grenadeType = -1;
-    this.scopeShown = false;
-    this.scopeProgress = 0;
     this.ringOn = false;
     this.compassW = 0;
     this.compassPPD = 2;

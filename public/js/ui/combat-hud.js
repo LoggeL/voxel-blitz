@@ -104,7 +104,6 @@ export class CombatHudController {
       s.panic,
       s.pain,
       !this.dead && s.alive !== false,
-      this.painImpulse,
     );
   }
 
