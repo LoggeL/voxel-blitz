@@ -81,6 +81,15 @@ try {
   assert.equal(main.service.identity(accountRequest('vb-account=../../secret')), null);
   assert.equal(main.service.identity(accountRequest('vb-account=' + 'f'.repeat(64))), null);
   assert.equal(sessionHash(accountRequest(`vb-account=${'f'.repeat(64)}; vb-account=${'f'.repeat(64)}`)), null);
+  // Live sockets reuse one request object; its hash is cached per cookie header.
+  const socketRequest = accountRequest('vb-account=' + 'a'.repeat(64));
+  const socketHash = sessionHash(socketRequest);
+  assert.match(socketHash, /^[a-f0-9]{64}$/);
+  assert.equal(sessionHash(socketRequest), socketHash);
+  socketRequest.headers.cookie = 'vb-account=' + 'b'.repeat(64);
+  assert.notEqual(sessionHash(socketRequest), socketHash, 'a changed cookie header is hashed again');
+  socketRequest.headers.cookie = '';
+  assert.equal(sessionHash(socketRequest), null);
 
   const registered = await main.request('register', { username: 'Mixed_Case', password: initialPassword });
   assert.equal(registered.status, 201);
