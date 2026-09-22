@@ -76,24 +76,8 @@ h1.vb-deployment-title::after { display: none; }
 .vb-training-info p { margin: 0 0 24px; color: #c1cbd0; font-size: 14px; }
 .vb-menu-primary .vb-training-btn { width: auto; min-height: 46px; padding: 12px 20px; font-size: 12px; color: #f1f0e9; border: 1px solid #ffffff70; background: #ffffff0c; }
 .vb-menu-primary .vb-training-btn:hover { background: #ffffff20; }
-.vb-create-step, .vb-lobby-card, .vb-settings-panel, .vb-pause-rail { background: #10171eed; border: 1px solid #ffffff26; border-radius: 6px; box-shadow: none; clip-path: none; }
+.vb-lobby-card, .vb-settings-panel, .vb-pause-rail { background: #10171eed; border: 1px solid #ffffff26; border-radius: 6px; box-shadow: none; clip-path: none; }
 .vb-online-dot { width: 6px; height: 6px; border-radius: 50%; background: #ffb04b; }
-
-/* Create lobby */
-
-.vb-create-step { padding: clamp(22px, 3vw, 34px); }
-
-.vb-create-step-header {
-  align-items: center;
-  margin-bottom: 22px;
-}
-
-.vb-create-layout { grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 26px; }
-
-.vb-map-preview { margin-top: 8px; border-color: rgba(112, 129, 151, 0.7); }
-.vb-map-preview-image { aspect-ratio: 16 / 9; }
-.vb-create-roster { background: rgba(7, 11, 17, 0.74); }
-.vb-create-step .vb-create-confirm { min-height: 54px; }
 
 /* Waiting lobby */
 
@@ -266,7 +250,6 @@ h1.vb-deployment-title::after { display: none; }
   .vb-main-menu-panel,
   .vb-lobby-panel { max-height: none; }
   .vb-menu-primary { grid-template-columns: 1fr; }
-  .vb-create-layout { grid-template-columns: 1fr; }
   .vb-lobby-panel {
     display: grid;
     grid-template-columns: 1fr;
@@ -281,17 +264,9 @@ h1.vb-deployment-title::after { display: none; }
 
 @media (max-height: 800px) and (min-width: 761px) {
   .vb-menu-stage { padding-top: 18px; padding-bottom: 18px; }
-  .vb-create-step { padding-top: 20px; padding-bottom: 20px; }
-  .vb-create-step-header { margin-bottom: 12px; padding-bottom: 9px; }
-  .vb-create-layout { gap: 18px; }
-  .vb-create-step .vb-menu-field-group { margin-bottom: 8px; }
-  .vb-create-step .vb-field-desc { margin-bottom: 7px; }
-  .vb-map-preview-image { aspect-ratio: 2 / 1; }
-  .vb-create-step .vb-create-confirm { margin-top: 10px; }
 }
 
 @media (max-width: 520px) {
-  .vb-create-step,
   .vb-settings-panel,
   .vb-pause-rail { padding: 20px 16px; }
   .vb-lobby-actions { flex-wrap: wrap; }

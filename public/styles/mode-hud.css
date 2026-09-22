@@ -24,7 +24,6 @@
 #player-status-strip .vb-player-status-group { flex: 0 1 auto; gap: 5px; }
 #player-status-strip .vb-player-status-summary { padding: 0 4px; background: none; border: 0; font-size: 9px; }
 #player-status-strip .vb-player-status-card { display: flex; min-width: 0; width: 10px; padding: 0; background: none; border: 0; clip-path: none; box-shadow: none; }
-#player-status-strip .vb-player-status-name, #player-status-strip .vb-player-status-score, #player-status-strip .vb-player-status-versus { display: none; }
 #player-status-strip .vb-player-status-dot { font-size: 10px; color: var(--status-team); text-shadow: none; }
 
 :is(#scoreboard, #match-result-scoreboard).vb-mode-scoreboard {
