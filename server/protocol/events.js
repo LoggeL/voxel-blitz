@@ -36,7 +36,7 @@ export function evHit(attacker, victim, dmg, hs, v, damage = null) {
   };
 }
 
-/** Killfeed row with authoritative shot traits. */
+/** Killfeed row with authoritative shot traits; `dist` is the lethal shot length (ray kills only). */
 export function evKill(killer, victim, w, hs, markers = null) {
   return {
     t: 'ev',
@@ -47,6 +47,7 @@ export function evKill(killer, victim, w, hs, markers = null) {
     hs: !!hs,
     lr: !!markers?.longRange,
     ns: !!markers?.noScope,
+    ...(Number.isFinite(markers?.dist) ? { dist: round(markers.dist, 10) } : {}),
     ...damageMetadata(markers?.damage),
   };
 }

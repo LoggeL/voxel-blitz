@@ -352,6 +352,10 @@ Beitritt, vier Plätze, getrennte NPC-Snapshots und einen Sandsackbau auf Causew
 `tools/bastion-ui-test.mjs` prüft ohne Browser HUD-Beschriftungen und
 Reparaturhinweis, Baubudgets, das gemeinsame Kauffenster (`buyWindowOpen`) und die
 Tab-Reihenfolge der Versorgung nach Wechseln zwischen den Shop-Modi.
+Der Fahrzeug-Roster-Test prüft die Client-Darstellung: HP-Balken nach
+Rollen-HP, Motorgeräusch pro Frame und dessen Ende bei Zerstörung, Verlassen
+und Aufräumen, ein Wrack ohne Blut, das nach dem Ausblenden nicht neu entsteht.
+Treffer auf Fahrzeuge klingen metallisch statt nach Schmerzlauten.
 Die Suite ist in `npm test` enthalten.
 
 Balance-Spieltests stehen aus: Ein vollständiger Durchlauf durch menschliche

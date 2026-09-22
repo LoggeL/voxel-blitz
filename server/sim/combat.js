@@ -533,6 +533,7 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
         if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
           longRange: dist >= LONG_RANGE_KILL_DISTANCE,
           noScope: isScopedWeapon(def) && p.adsT < SNIPER_SCOPE_ADS_THRESHOLD,
+          dist,
         });
         chaosHit(p, tgt.victim, point, ctx);
         hitVictims.add(tgt.victim);

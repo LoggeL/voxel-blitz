@@ -71,4 +71,19 @@ for (const [role, look] of Object.entries(ENEMY_LOOKS)) {
   disposeAvatar(av);
 }
 assert.ok(rolePoses > 0, 'ENEMY_LOOKS lists at least one infantry role');
+
+// The name tag pill is 224 px wide; a 24-character name must condense inside it.
+{
+  const drawn = [];
+  const previous = globalThis.document;
+  globalThis.document = { createElement: () => ({ getContext: () => new Proxy({
+    strokeText: (...args) => drawn.push(args), fillText: (...args) => drawn.push(args),
+  }, { get: (object, key) => object[key] ?? (() => {}) }) }) };
+  const av = makeAvatar('long-name', 'WWWWWWWWWWWWWWWWWWWWWWWW', 'alpha');
+  globalThis.document = previous;
+  assert.equal(drawn.length, 2, 'the tag strokes and fills the name once');
+  assert.ok(drawn.every(([, , , maxWidth]) => maxWidth > 0 && maxWidth + 3 <= 224),
+    'long names get a max width that keeps the text and its stroke inside the tag pill');
+  disposeAvatar(av);
+}
 console.log(`avatar pose tests passed: ${poses} poses, every transition frame, translated and rotated avatars, ${rolePoses} scaled enemy-role poses`);

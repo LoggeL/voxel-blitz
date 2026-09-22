@@ -6,6 +6,7 @@ import { raycastVoxels } from '../../../shared/raycast.js';
 import { blockSoundFor } from '../weapons/effects.js';
 import { THROWABLE_NAMES, WEAPON_NAMES } from '../ui/hud-support.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
+import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
 import { closestBulletFlyby, BULLET_FLYBY_COOLDOWN_MS, BULLET_FLYBY_RADIUS } from './bullet-flyby.js';
 
 /**
@@ -42,18 +43,6 @@ function validImpact(ev) {
 
 function impactPosition(ev) {
   return validImpact(ev) ? [Number(ev.vx), Number(ev.vy), Number(ev.vz)] : null;
-}
-
-export function distanceToRay(point, origin, direction) {
-  const px = point.x - origin[0];
-  const py = point.y - origin[1];
-  const pz = point.z - origin[2];
-  const t = Math.max(0, px * direction[0] + py * direction[1] + pz * direction[2]);
-  return Math.hypot(
-    px - direction[0] * t,
-    py - direction[1] * t,
-    pz - direction[2] * t,
-  );
 }
 
 /**
@@ -155,7 +144,7 @@ export class CombatFeedback {
   }
 
   handleEvent(ev) {
-    if (this._disposed || (!this.isRunning() && ev.t !== 'tick')) return;
+    if (this._disposed || !this.isRunning()) return;
 
     const myId = this.getMyId();
     // A completed mine is immediately followed by its authoritative block
@@ -209,8 +198,11 @@ export class CombatFeedback {
           const lethal = ev.lethal ?? (victimRow?.state === 'dead' ||
             (Number.isFinite(victimRow?.hp) && victimRow.hp <= 0));
           this.roster.hit(ev.victim, ev);
-          if (!lethal) this.effects.gore(ev, { lethal: false, local: false });
-          this.sfx.pain({
+          // Bastion vehicles are player rows too: their armour rings instead of bleeding.
+          const vehicle = !!victimRow?.npcVehicle;
+          if (!lethal && !vehicle) this.effects.gore(ev, { lethal: false, local: false });
+          if (vehicle) this.sfx.impact('metal', Math.min(1, (Number(ev.dmg) || 0) / 40 + 0.35), impactPosition(ev));
+          else this.sfx.pain({
             damage: ev.dmg,
             headshot: ev.hs,
             lethal,
@@ -277,7 +269,7 @@ export class CombatFeedback {
       case 'projectileLaunch': {
         const fromSelf = ev.id === myId;
         this.effects.projectileLaunch(ev, { fromSelf });
-        if (!fromSelf && ['frag', 'limpet', 'pulse', 'molotov', 'smoke'].includes(ev.type)) {
+        if (!fromSelf && GRENADE_TYPE_IDS.includes(ev.type)) {
           // The local hand release already played its predicted throw cue.
           this.sfx.grenadeThrow(Number.isFinite(ev.charge) ? ev.charge : 0.5, { pos: ev.o });
         }
@@ -314,17 +306,8 @@ export class CombatFeedback {
     }
   }
 
-  applySnapshotBlocks(msg) {
-    if (this._disposed) return;
-    applySnapshotBlocks(msg, this.world);
-  }
-
   blockSound(type) {
     return blockSoundFor(type);
-  }
-
-  distanceToRay(origin, direction) {
-    return distanceToRay(this.camera.position, origin, direction);
   }
 
   isImpactVisible(ev) {
@@ -413,9 +396,12 @@ export class CombatFeedback {
   deathRecap(killerId, event, headshot) {
     const killer = killerId ? this.getPlayersCache().find((row) => row.id === killerId) : null;
     const pos = this.player?.pos;
-    const distance = killer && pos && [killer.x, killer.z, pos.x, pos.z].every(Number.isFinite)
-      ? Math.hypot(killer.x - pos.x, killer.z - pos.z)
-      : NaN;
+    // The server's shot length (ricochet legs included) decides LONG RANGE, so it
+    // is the range shown; kills without a ray fall back to the 3D row distance.
+    const distance = Number.isFinite(event?.dist) ? event.dist
+      : killer && pos && [killer.x, killer.y, killer.z, pos.x, pos.y, pos.z].every(Number.isFinite)
+        ? Math.hypot(killer.x - pos.x, killer.y - pos.y, killer.z - pos.z)
+        : NaN;
     return deathRecapText({
       weapon: event?.w || null,
       headshot: !!(event?.hs ?? headshot),
@@ -427,9 +413,9 @@ export class CombatFeedback {
   }
 
   presentLocalRespawn() {
+    if (this._disposed) return;
     this.sfx.stopCosmetics?.('kill');
     this.sfx.stopCosmetics?.('death');
-    if (this._disposed) return;
     this._presentedDeaths = new WeakSet();
     this.hud.setPainImpulse(0);
     this.hud.setDeathBrutality(0);
@@ -439,11 +425,6 @@ export class CombatFeedback {
   nameOf(id) {
     const player = this.getPlayersCache().find((row) => row.id === id);
     return player ? player.name : id;
-  }
-
-  reset() {
-    this.sfx.stopFlames?.();
-    this.presentLocalRespawn();
   }
 
   dispose() {

@@ -178,4 +178,32 @@ export function runCombatFeedbackContracts(ok) {
   ok(deaths.at(-1)?.[0] === true && deaths.at(-1)[1] === 'RIVAL'
       && deaths.at(-1)[2] === 'HORNET SMG · 8 M · KILLER AT 41 HP',
   'local death shows who, with what, from how far, and how much health the killer had left');
+  killFeedback.handleEvent({ kind: 'kill', killer: 'rival', victim: 'self', w: 'sniper', hs: false, lr: true, dist: 43.2 });
+  ok(deaths.at(-1)?.[2] === 'LONGSHOT MK-II · LONG RANGE · 43 M · KILLER AT 41 HP',
+    'the death recap shows the authoritative shot length that decided LONG RANGE, not the row distance');
+
+  const vehicleCues = [];
+  const vehicleFeedback = new CombatFeedback({
+    effects: { impact() {}, gore() { vehicleCues.push('gore'); } },
+    sfx: {
+      pain() { vehicleCues.push('pain'); },
+      impact(kind, volume, pos) { vehicleCues.push(`impact:${kind}:${pos?.join(',')}`); },
+    },
+    hud: {},
+    roster: { hit() {} },
+    player: { alive: true },
+    getMyId: () => 'self',
+    getPlayersCache: () => [{ id: 'apc', state: 'alive', hp: 900, npcVehicle: true, npcRole: 'apc' }],
+    getSelfRow: () => null,
+    isRunning: () => true,
+    camera: feedbackCamera,
+    world,
+  });
+  vehicleFeedback.handleEvent({ kind: 'hit', attacker: 'rival', victim: 'apc', dmg: 30, hs: false, vx: 1, vy: 2, vz: 3 });
+  ok(vehicleCues.join('|') === 'impact:metal:1,2,3',
+    'a hit on a Bastion vehicle rings metal at the impact instead of spraying blood and pain vocals');
+  vehicleFeedback.dispose();
+  let lateRespawnError = null;
+  try { vehicleFeedback.presentLocalRespawn(); } catch (error) { lateRespawnError = error; }
+  ok(lateRespawnError === null, 'a disposed feedback ignores a late local respawn instead of touching released audio');
 }

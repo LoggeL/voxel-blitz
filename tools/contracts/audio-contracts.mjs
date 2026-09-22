@@ -251,6 +251,7 @@ export async function runAudioContracts(ok, installGlobals) {
       'repeated suspended recovery arms at most one gesture callback per event');
 
       const startsBeforeSuspendedCue = audio.starts.length;
+      for (let frame = 0; frame < 30; frame++) sfx.vehicleLoop('apc-1', [4, 1, 4], 'apc');
       sfx.fire('rifle');
       await Promise.resolve();
       ok(audio.starts.length === startsBeforeSuspendedCue,
@@ -263,6 +264,9 @@ export async function runAudioContracts(ok, installGlobals) {
           && ['pointerdown', 'touchend', 'keydown'].every((type) =>
             audioDocument.listenerCount(type) === 0),
       'a dispatched recovery gesture resumes audio, flushes the cue, and disarms gesture callbacks');
+      ok(!audio.starts.slice(startsBeforeSuspendedCue).some(({ node }) =>
+        node.type === 'sawtooth' && node.frequency.value === 90),
+      'per-frame vehicle drone refreshes are skipped while suspended, not queued ahead of real cues');
       const master = audio.nodes.find((node) => node.kind === 'gain');
       const limiter = master?.connections[0];
       ok(master?.gain.value === 1

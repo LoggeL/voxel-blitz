@@ -455,7 +455,10 @@ for(const map of PVE){
     updateBastionAvatar(av,{npcRole:role,npcAttack:'advance',npcScale:BASTION_ENEMIES[role].scale});
     assert.equal(av.bodyScale,BASTION_ENEMIES[role].scale,`${role} body scale`);
     const layer=av._roleLayer;assert(layer&&layer.materials.size>0,`${role} role layer`);
-    for(const mat of layer.materials){assert(av.fadeMaterials.includes(mat),`${role} layer material fades`);assert(av.flashMaterials.includes(mat),`${role} layer material flashes`);}
+    const rendered=new Set();for(const group of layer.groups)group.traverse(o=>{for(const mat of [].concat(o.material||[]))rendered.add(mat);});
+    assert(rendered.size>0,`${role} role layer renders meshes`);
+    for(const mat of rendered){assert(layer.materials.has(mat),`${role} renders layer-owned materials`);assert(av.fadeMaterials.includes(mat),`${role} layer material fades`);assert(av.flashMaterials.includes(mat),`${role} layer material flashes`);}
+    assert(av.fadeMaterials.includes(av.tag.material)&&av.fadeMaterials.includes(av.hpSpr.material),`${role} labels still fade with the body`);
     updateBastionAvatar(av,{npcRole:role,npcAttack:'charging'});
     disposeAvatar(av);assert(!av._roleLayer||av._roleLayer.groups.length===0,`${role} layer cleared on dispose`);assert.equal(layer.groups.length,0);assert.equal(layer.materials.size,0);
   }

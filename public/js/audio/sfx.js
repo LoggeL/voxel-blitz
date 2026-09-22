@@ -230,7 +230,6 @@ export const sfx = {
     return loadBuiltInSamples();
   },
 
-  preloadCosmetics() { return cosmeticAudio.preload(); },
   playCosmetic(id, cue) { return cosmeticAudio.play(id, cue); },
   stopCosmetics(cue) { cosmeticAudio.stop(cue); },
 
@@ -455,6 +454,9 @@ export const sfx = {
    * heard. A loop that stops being refreshed fades out on the audio clock.
    */
   vehicleLoop(id, pos, kind = 'buggy') {
+    // Refreshed every frame, so a suspended context skips it instead of filling
+    // the unlock queue with stale drones that would push out real cues.
+    if (!engine.ensure() || engine.ctx.state !== 'running') { void engine.resume(); return; }
     const key = String(id);
     const deferredPos = positionFrom(pos);
     run('vehicleLoop', () => {
@@ -975,11 +977,6 @@ export const sfx = {
         });
       }
     }
-  },
-
-  /** Legacy alias kept for the frag blast. */
-  grenadeExplosion(pos) {
-    return this.explosion(pos, 'frag');
   },
 
   setListener(listener) {

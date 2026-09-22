@@ -296,6 +296,25 @@ export function updateAvatarDeath(av, dt, t, solidAt = null) {
   for (const limb of av.limbStates) stepDeathPart(limb, Math.max(0, Math.min(dt, 0.1)), solidAt);
 }
 
+/**
+ * Rebuild the death-fade and hit-flash lists from every material under the
+ * seven body joints (cosmetic and role layers included) plus the name tag and
+ * hp bar. Cosmetic glow keeps its own emissive, so it never takes the flash.
+ */
+export function refreshAvatarMaterialLists(avatar) {
+  const fades = new Set(), flashes = new Set();
+  for (const part of [avatar.torso, avatar.hips, avatar.head, avatar.lLeg, avatar.rLeg, avatar.lArm, avatar.rArm]) {
+    part.traverse(object => {
+      for (const material of [].concat(object.material || [])) {
+        fades.add(material);
+        if (material.emissive && !material.userData.cosmeticGlow) flashes.add(material);
+      }
+    });
+  }
+  fades.add(avatar.tag.material); fades.add(avatar.hpSpr.material);
+  avatar.fadeMaterials = [...fades]; avatar.flashMaterials = [...flashes];
+}
+
 export function makeAvatar(id, name, team = null) {
   const group = new THREE.Group();
   const hue = hashHue(id);
@@ -336,9 +355,10 @@ export function makeAvatar(id, name, team = null) {
   tc.textBaseline = 'middle';
   tc.lineWidth = 3;
   tc.strokeStyle = '#000';
-  tc.strokeText(name, 128, 33);
+  // Long names condense to fit inside the pill, stroke included.
+  tc.strokeText(name, 128, 33, 212);
   tc.fillStyle = '#fff';
-  tc.fillText(name, 128, 33);
+  tc.fillText(name, 128, 33, 212);
   const tagMat = new THREE.SpriteMaterial({
     map: new THREE.CanvasTexture(tagCv), transparent: true, depthTest: true,
   });
@@ -417,20 +437,13 @@ export function makeAvatar(id, name, team = null) {
     armorMaterial: armor,
     visorMaterial: visorMat,
     skinMaterial: skin,
-    fadeMaterials: [suit, dark, armor, skin, visorMat, tagMat, hpMat],
-    flashMaterials: [suit, dark, armor, skin],
+    fadeMaterials: [],
+    flashMaterials: [],
     updateHealth,
   };
   // Imported materials, including straps and rubber, share the same hit/fade
   // lifecycle as the procedural palette even before a cosmetic is equipped.
-  const fades = new Set([tagMat, hpMat]), flashes = new Set();
-  for (const part of [torso, hips, head, lLeg, rLeg, lArm, rArm]) part.traverse(object => {
-    for (const material of [].concat(object.material || [])) {
-      fades.add(material);
-      if (material.emissive && !material.userData.cosmeticGlow) flashes.add(material);
-    }
-  });
-  avatar.fadeMaterials = [...fades]; avatar.flashMaterials = [...flashes];
+  refreshAvatarMaterialLists(avatar);
   resetAvatarPose(avatar);
   avatar.limbStates = [
     { object: head },

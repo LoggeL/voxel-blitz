@@ -566,6 +566,7 @@ export class GameEngine {
     const shotTraits = {
       longRange: !!markers?.longRange,
       noScope: !!markers?.noScope,
+      dist: markers?.dist,
       damage,
     };
     if (killer && killer !== victim && killer.id !== victim.id) {

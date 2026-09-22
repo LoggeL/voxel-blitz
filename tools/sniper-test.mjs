@@ -132,3 +132,31 @@ for (const held of [false, true]) {
   assert.equal(victim.hp, hp, 'A later click uses the new direction');
 }
 console.log('Sniper: queued shots retain click aim across release/held packets and consume it once.');
+
+// A lethal ray hands its authoritative length to the kill, which the death
+// recap shows next to the LONG RANGE marker that same length decides.
+{
+  const shooter = new PlayerEntity('shooter', 'Shooter', { x: 0.5, y: 2, z: 0.5 });
+  const victim = new PlayerEntity('victim', 'Victim', { x: 60.5, y: 2.5, z: 0.5 });
+  shooter.weapon = WEAPON_IDS.indexOf('sniper');
+  shooter.deployT = 0;
+  shooter.adsT = 1;
+  victim.hp = 1;
+  const entities = new Map([[shooter.id, shooter], [victim.id, victim]]);
+  const kills = [];
+  const ctx = {
+    now: 1000, entities, blockHp: new Map(), solidAt: () => false,
+    getBlock: () => 0, setBlock() {}, pushBlockDelta() {},
+    computeConeDeg: () => 0, canDamage: () => true,
+    canFire: () => true, canUseWeapon: () => true,
+    pushEvent() {}, killPlayer: (_victim, _killer, _weapon, _hs, markers) => kills.push(markers),
+  };
+  GameEngine.prototype.applyInput.call({ entities }, shooter.id, { keys: {}, weapon: shooter.weapon,
+    wantAds: true, wantFire: true, yaw: -Math.PI / 2, pitch: 0 });
+  stepMovement(shooter, 1 / 60, { ...ctx, mapMeta: {}, onFall() {} });
+  resolveWeaponIntent(shooter, 1 / 60, ctx);
+  assert.equal(kills.length, 1, 'the sniper round kills the far target');
+  assert.ok(Math.abs(kills[0].dist - 60) < 1.5, `the kill carries the shot length (${kills[0].dist})`);
+  assert.equal(kills[0].longRange, true, 'the same length marks the kill LONG RANGE');
+}
+console.log('Sniper: lethal rays report the authoritative shot length with the LONG RANGE marker.');
