@@ -50,7 +50,7 @@ export class GunGamePolicy {
   }
 
   tick() {
-    if (this.phase === 'post' && this.now >= this.phaseEndsAt) this.reset();
+    if (this.phase === 'post' && Number.isFinite(this.phaseEndsAt) && this.now >= this.phaseEndsAt) this.reset();
   }
 
   teamFor() { return null; }
@@ -284,7 +284,7 @@ export class GunGamePolicy {
   _finishMatch(winner) {
     if (this.phase !== 'live') return;
     this.phase = 'post';
-    this.phaseEndsAt = this.now + this.rules.postMs;
+    this.phaseEndsAt = null; // ModeController sets it once the continuation vote passes
     this.matchWinner = winner;
     this._emit('match_end', { mode: this.mode, winner });
     this._emit('phase', { mode: this.mode, phase: this.phase, endsAt: this.phaseEndsAt });

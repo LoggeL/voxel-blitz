@@ -92,6 +92,8 @@ for (const mode of ['duel', 'tdm', 'gungame', 'snd', 'bastion']) {
     assert.equal(result.phaseEndsAt, null, mode);
     engine.now += 60000; engine.mode.tick();
     assert.equal(engine.mode.phase, 'post', `${mode} must wait indefinitely for approval`);
+    policy.tick();
+    assert.equal(policy.phase, 'post', `${mode} policy alone never leaves post without a vote deadline`);
     assert.equal(engine.mode.canMove(engine.entities.get('human')), false);
     assert.equal(engine.mode.canDamage(null, engine.entities.get('human')), false);
     assert.equal(engine.mode.approveContinuation('human', result.continuation.id), true);

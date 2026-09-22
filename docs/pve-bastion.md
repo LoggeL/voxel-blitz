@@ -60,7 +60,7 @@ weitere Spieler beitreten.
 | `prep` | 25 Sekunden vor der ersten Welle; Bewegung, Käufe, Bauen, Reparatur und Bereitschaft. Kein Feuer. |
 | `live` | Die Wellenreihen der aktuellen Stufe; endet erst ohne lebende oder ausstehende Gegner. Kein Kauf, kein Bau. |
 | `supply` | 20 Sekunden nach jeder gehaltenen Welle, 30 Sekunden als Rückzug (`transition: 'regroup'`) nach der letzten Welle einer Stufe. Käufe, Bauen und Reparatur. |
-| `post` | 15 Sekunden Ergebnis, dann Bestätigung der Fortsetzung und ein frischer Lauf. |
+| `post` | Ergebnis bis zur Bestätigung der Fortsetzung (Rundenabstimmung), danach fünf Sekunden Countdown und ein frischer Lauf. |
 
 Wenn alle aktiven Spieler bereit sind, endet jede Pause frühestens nach acht
 Sekunden. Übergänge entfernen Geschosse, Feuer und Rauch. Gehaltene

@@ -821,18 +821,18 @@ bots:difficulty:browser` checks real host/member controls and match launch.
 - **Team Deathmatch (`tdm`):** persistent `alpha`/`bravo` assignment chooses the
   lower human+bot population; friendly fire is disabled and every player owns
   the complete ten-weapon loadout. Enemy kills increment the killer's team
-  score. First to `40` enters a `5000 ms` post phase, then team/player scores
+  score. First to `40` enters `post` (40% human approval + `5000 ms`), then team/player scores
   reset and all players respawn. Live deaths respawn after `3000 ms` at the
   player's team spawn pool.
 - **Gun Game (`gungame`):** free-for-all target eligibility and `1500 ms`
   respawn. Players progress through the immutable shared order rifle, SMG,
   shotgun, sniper, LMG, revolver, longarc, rocket, lance, knife; a kill with
-  the RIPPER knife wins. The winner is shown during a `5000 ms` post phase
+  the RIPPER knife wins. The winner is shown during `post` (40% human approval + `5000 ms`)
   before progression and scores reset.
 - **Search and Destroy (`snd`):** persistent `alpha`/`bravo` teams map to
   attackers/defenders, friendly fire is disabled, and roles swap after 6
   completed rounds. First to 7 round wins wins the match. Each round is
-  `prep 10000 ms`, `live 90000 ms`, and `post 5000 ms`; firing is disabled
+  `prep 10000 ms`, `live 90000 ms`, and `post` (40% human approval + `5000 ms`); firing is disabled
   during prep and there is no round respawn. Every participant respawns at
   round start.
 - **S&D objective:** one attacker carries the bomb. A carrier holds interact

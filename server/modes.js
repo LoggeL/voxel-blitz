@@ -36,14 +36,14 @@ class DuelPolicy extends FunPolicy {
     if (killer && this.isEnemy(killer, victim) && killer.kills >= this.rules.killLimit) {
       this.phase = 'post';
       this.matchWinner = String(killer.id);
-      this.phaseEndsAt = this.now + this.rules.postMs;
+      this.phaseEndsAt = null;
       this._emit('match_end', { mode: this.mode, winner: this.matchWinner });
     }
     return true;
   }
 
   tick() {
-    if (this.phase !== 'post' || this.now < this.phaseEndsAt) return;
+    if (this.phase !== 'post' || !Number.isFinite(this.phaseEndsAt) || this.now < this.phaseEndsAt) return;
     this.phase = 'live';
     this.phaseEndsAt = null;
     this.matchWinner = null;
@@ -201,6 +201,10 @@ export class ModeController {
     this._syncContinuation();
   }
 
+  /**
+   * The controller owns every post-phase deadline: policies enter `post` with
+   * phaseEndsAt null and RoundContinuation sets it once enough humans approve.
+   */
   _syncContinuation() {
     if (this.policy?.phase !== 'post') {
       if (this.continuation.id) this.continuation.clear();

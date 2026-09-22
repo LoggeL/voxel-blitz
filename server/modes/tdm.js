@@ -77,7 +77,7 @@ export class TdmPolicy {
 
   tick() {
     this._rememberPositions();
-    if (this.phase === 'post' && this.now >= this.phaseEndsAt) this.reset();
+    if (this.phase === 'post' && Number.isFinite(this.phaseEndsAt) && this.now >= this.phaseEndsAt) this.reset();
   }
 
   onPlayerAdd(player) {
@@ -380,7 +380,7 @@ export class TdmPolicy {
   _finishMatch(winner) {
     if (this.phase !== 'live') return;
     this.phase = 'post';
-    this.phaseEndsAt = this.now + this.rules.postMs;
+    this.phaseEndsAt = null; // ModeController sets it once the continuation vote passes
     this.matchWinner = winner;
     this._emit('match_end', { mode: this.mode, winner, scores: { ...this.scores } });
     this._emit('phase', { mode: this.mode, phase: this.phase, endsAt: this.phaseEndsAt });

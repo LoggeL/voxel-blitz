@@ -64,7 +64,7 @@ export class SndPolicy {
   tick() {
     this._rememberPositions();
     if (this.phase === 'post') {
-      if (this.now >= this.phaseEndsAt) this._startNextRound();
+      if (Number.isFinite(this.phaseEndsAt) && this.now >= this.phaseEndsAt) this._startNextRound();
       return;
     }
 
@@ -535,7 +535,7 @@ export class SndPolicy {
     }
 
     this.phase = 'post';
-    this.phaseEndsAt = this.now + this.rules.postMs;
+    this.phaseEndsAt = null; // ModeController sets it once the continuation vote passes
     this._objective.clearAllInteractions();
     this._emit('round_end', {
       round: this.round,

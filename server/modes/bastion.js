@@ -194,7 +194,7 @@ export class BastionPolicy {
     } });
   }
   tick() {
-    if (this.phase === 'post') { if (this.players.size && this.now >= this.phaseEndsAt) this.reset(); return; }
+    if (this.phase === 'post') { if (this.players.size && Number.isFinite(this.phaseEndsAt) && this.now >= this.phaseEndsAt) this.reset(); return; }
     if (!this.players.size) { this.phaseEndsAt = this.now + R.prepMs; return; }
     if (this.phase !== 'live') {
       this.repairTick();
@@ -297,7 +297,7 @@ export class BastionPolicy {
   }
   finish(won,reason) {
     if (this.phase === 'post') return;
-    this.phase = 'post'; this.phaseEndsAt = this.now+R.postMs; this.matchWinner = won ? 'alpha' : 'bravo';
+    this.phase = 'post'; this.phaseEndsAt = null; this.matchWinner = won ? 'alpha' : 'bravo';
     this.reason = reason; this.repair = null; this.returnAt = null;
     this.clearHazards(); for (const p of this.engine.entities.values()) this.clearInput(p);
     this.emit('match_end',{mode:this.mode,winner:this.matchWinner,reason,wave:this.wave,stage:this.stageIndex});

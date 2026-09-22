@@ -228,7 +228,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   const expectedRules = {
     ttt: { teams: false, friendlyFire: true, respawnMs: Infinity, prepMs: 60000, liveMs: 300000 },
     bastion: { teams: true, friendlyFire: false, respawnMs: Infinity },
-    duel: { teams: false, friendlyFire: true, respawnMs: 1500, killLimit: 5, postMs: 8000 },
+    duel: { teams: false, friendlyFire: true, respawnMs: 1500, killLimit: 5 },
     chaos: { teams: false, friendlyFire: true, respawnMs: 1500 },
     fun: {
       teams: false,
@@ -240,13 +240,11 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
       friendlyFire: false,
       respawnMs: 3000,
       scoreLimit: 40,
-      postMs: 5000,
     },
     gungame: {
       teams: false,
       friendlyFire: true,
       respawnMs: 1500,
-      postMs: 5000,
       weaponOrder: ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'flamethrower', 'rocket', 'longarc', 'lance', 'revolver', 'minigun', 'knife'],
     },
     snd: {
@@ -254,7 +252,6 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
       friendlyFire: false,
       prepMs: 10000,
       liveMs: 90000,
-      postMs: 5000,
       roundsPerHalf: 6,
       roundWins: 7,
       pickupRadius: 1.4,

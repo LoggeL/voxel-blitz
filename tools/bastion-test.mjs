@@ -86,7 +86,7 @@ const shooter=(h,peak)=>{const n=h.m.aliveEnemies().length;for(const npc of h.e.
 {
   const h=make(),{e,m,p}=h;m.startWave();e.killPlayer(p,null,'world',false);assert(m.returnAt);advance(e,R.returnMs);assert.equal(p.state,'alive');assert.equal(p.armor,0);
   e.killPlayer(p,null,'world',false);e.step();assert.equal(m.phase,'post');assert.equal(m.reason,'team');
-  advance(e,R.postMs);assert.equal(m.phase,'post');
+  advance(e,15000);assert.equal(m.phase,'post','post waits for the continuation vote');
   e.mode.approveContinuation(p.id,e.mode.matchSnapshot().continuation.id);
   advance(e,5000);assert.equal(m.phase,'prep');assert.equal(m.wave,0);assert.equal(m.credits,400);assert.equal(m.soloUsed,false);e.stop();
   console.log('ok: one solo return, defeat, approved fresh run');
