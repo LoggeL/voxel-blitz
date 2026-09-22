@@ -32,6 +32,7 @@ import { observeBotTarget, recognitionThreshold } from './bot-perception.js';
 import { botDifficulty, DEFAULT_BOT_DIFFICULTY, isBotDifficulty } from '../shared/bot-difficulty.js';
 import { BOT_PERSONALITIES, DEFAULT_BOT_PERSONALITY, isBotPersonality, rollBotPersonality } from '../shared/bot-personality.js';
 import { cancelCharge } from './sim/combat.js';
+import { wrapAngle } from './sim/player.js';
 
 const TAU = Math.PI * 2;
 const PITCH_TURN_RATE = 4.0;      // rad/s vertical tracking cap
@@ -60,10 +61,6 @@ const DEFUSE_READY_DIST = 1.6;
 const RECOVER_READY_DIST = 0.8;
 const DEFEND_ARRIVE_DIST = 4.0;
 const OBJECTIVE_DETOUR_MS = 1600;
-
-function wrapAngle(a) {
-  return Math.atan2(Math.sin(a), Math.cos(a));
-}
 
 function dist3(ax, ay, az, bx, by, bz) {
   return Math.hypot(bx - ax, by - ay, bz - az);
@@ -160,6 +157,7 @@ class Brain {
     this.lastShotAt = 0;
     this.recoilIndex = 0;
     this.shotSeqHeard = new Map();     // entity id -> shotSeq at the last listen
+    this.lastListenTick = -Infinity;   // manager tick of the last listen
     this.state = 'roam';               // 'roam' | 'fight' | 'search' | 'retreat'
     this.roamTarget = null;
     this.roamDeadline = 0;
@@ -274,7 +272,6 @@ class BotManager {
       const br = this.brains[i];
       const p = this.game.entities.get(br.id);
       if (!p) { this.brains.splice(i, 1); continue; }
-      if (p.personality !== br.personality) p.personality = br.personality;
       this.watchStuck(br, p, now);
       this.game.applyInput(br.id, this.think(br, p, now, dtS));
     }
@@ -342,12 +339,17 @@ class BotManager {
   /** Loudest enemy noise this bot can hear right now, or null. */
   listen(br, p, profile) {
     const rangeScale = profile.sightRange / 120;
+    // Listens skipped while fighting or on an urgent objective leave a stale
+    // shotSeq baseline: re-baseline then instead of hearing those old shots.
+    const fresh = this.tickIndex - br.lastListenTick <= LISTEN_EVERY;
+    br.lastListenTick = this.tickIndex;
     let best = null;
     for (const o of this.game.entities.values()) {
-      if (o === p || o.state !== 'alive' || !this.game.mode.isEnemy(p, o)) continue;
+      if (o === p) continue;
       const seen = br.shotSeqHeard.get(o.id);
-      const fired = seen !== undefined && seen !== o.shotSeq;
       br.shotSeqHeard.set(o.id, o.shotSeq);
+      if (o.state !== 'alive' || !this.game.mode.isEnemy(p, o)) continue;
+      const fired = fresh && seen !== undefined && seen !== o.shotSeq;
       const noise = hearNoise(p, o, fired, this.solidAt, rangeScale);
       if (!noise) continue;
       const rank = (noise.kind === 'shot' ? 10 : 0) + noise.loudness;

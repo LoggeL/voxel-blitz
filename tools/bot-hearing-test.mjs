@@ -107,3 +107,43 @@ import { AIR, CONCRETE, GROUND } from '../shared/worlddata.js';
   } finally { bots.dispose(); engine.stop(); }
 }
 console.log('ok: idle bots investigate shots and nearby footsteps, walls muffle them');
+
+// Shots fired while the bot was not listening (fighting, urgent objective)
+// must not be heard as fresh when listening resumes.
+import { botDifficulty } from '../shared/bot-difficulty.js';
+{
+  const y = GROUND + 1.02;
+  const spawn = { x: 20.5, y, z: 30.5, index: 0 };
+  const world = {
+    meta: { id: 'foundry', spawns: { fun: [spawn] } },
+    getBlock: (_x, by) => by <= GROUND ? CONCRETE : AIR,
+    heightAt: () => GROUND,
+    findSpawns: () => [spawn],
+    setBlock: () => false,
+  };
+  const engine = new GameEngine({ world, mode: 'fun' });
+  const bots = attachBots(engine, 1);
+  engine.addClient('human', 'Human');
+  const bot = engine.entities.get('bot-0');
+  const human = engine.entities.get('human');
+  const brain = bots.brains[0];
+  const profile = botDifficulty(brain.difficulty);
+  Object.assign(bot, { x: 20.5, y, z: 30.5 });
+  Object.assign(human, { x: 20.5, y, z: 20.5, vx: 0, vz: 0, sprint: false });
+  const listenAt = (tick) => { bots.tickIndex = tick; return bots.listen(brain, bot, profile); };
+  try {
+    assert.equal(listenAt(3), null, 'the first listen only sets a baseline');
+    human.shotSeq++;
+    assert.equal(listenAt(6)?.kind, 'shot', 'a shot since the previous listen is heard');
+    human.shotSeq++;
+    assert.equal(listenAt(60), null, 'shots from a skipped listen window are not heard late');
+    human.shotSeq++;
+    assert.equal(listenAt(63)?.kind, 'shot', 'hearing resumes once the baseline is fresh');
+    human.state = 'dead';
+    human.shotSeq++;
+    listenAt(66);
+    human.state = 'alive';
+    assert.equal(listenAt(69), null, 'shots before a respawn are not heard afterwards');
+  } finally { bots.dispose(); engine.stop(); }
+}
+console.log('ok: skipped listens re-baseline instead of hearing stale shots');

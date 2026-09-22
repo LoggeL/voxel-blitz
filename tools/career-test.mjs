@@ -110,7 +110,7 @@ try {
   tttEngine.stop();
 
   const failureId = randomBytes(32).toString('hex');
-  service.award(failureId, { xp: 100 });
+  service.applyProgress(failureId, { xp: 100 });
   const blockedDirectory = path.join(directory, 'not-a-directory');
   writeFileSync(blockedDirectory, 'blocked');
   service.directory = blockedDirectory;
@@ -169,7 +169,7 @@ try {
   let authenticated = { id: randomBytes(16).toString('hex'), username: 'ShopTest' };
   const accountId = `account:${authenticated.id}`;
   service.accounts = { identity: () => authenticated };
-  service.award(accountId, { xp: 900 });
+  service.applyProgress(accountId, { xp: 900 });
   const delayedPurchase = () => {
     const request = new PassThrough();
     Object.assign(request, { method: 'POST', url: '/api/career/equip', headers: { 'x-vb-career': '1' } });

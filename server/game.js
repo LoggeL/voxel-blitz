@@ -5,7 +5,6 @@ import { FlameSystem, extinguish, igniteFromLava, updateBurn } from './sim/fire.
 // movement, combat and spawn selection.
 
 import {
-  AIR,
   MC_LAVA,
   MC_WATER,
   FLUID_BLOCKS,

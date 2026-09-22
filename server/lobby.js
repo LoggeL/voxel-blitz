@@ -77,6 +77,16 @@ function memberId(meta) {
   return id.length > 0 ? id : null;
 }
 
+/** Fixed-length base-N lobby code for an integer in [0, codeSpace). */
+function encodeCode(value) {
+  let code = '';
+  for (let i = 0; i < LOBBY_CODE_LENGTH; i++) {
+    code = LOBBY_CODE_ALPHABET[value % LOBBY_CODE_ALPHABET.length] + code;
+    value = Math.floor(value / LOBBY_CODE_ALPHABET.length);
+  }
+  return code;
+}
+
 /** Owns authoritative rooms and keeps every transport fan-out room-scoped. */
 export class LobbyManager {
   constructor({ sendJson, sendFrame, closeClient, tickMs = TICK_MS } = {}) {
@@ -606,7 +616,9 @@ export class LobbyManager {
       } else {
         this._syncWaitingBots(room);
         room.bots = Math.min(room.bots, capacity(room) - room.members.size);
-        manager = attachBots(room.engine, room.bots, { difficulties: room.botDifficulties });
+        manager = attachBots(room.engine, room.bots, {
+          difficulties: room.botDifficulties, personalitySeed: randomInt(2 ** 32),
+        });
         room.botManager = manager;
         if (hasLobbyTeams(room.gameMode)) {
           for (const [id, team] of room.botTeams) room.engine.mode.setLobbyTeam(id, team);
@@ -800,23 +812,13 @@ export class LobbyManager {
 
   _generateCode() {
     for (let attempt = 0; attempt < 32; attempt++) {
-      let value = randomInt(this.codeSpace);
-      let code = '';
-      for (let i = 0; i < LOBBY_CODE_LENGTH; i++) {
-        code = LOBBY_CODE_ALPHABET[value % LOBBY_CODE_ALPHABET.length] + code;
-        value = Math.floor(value / LOBBY_CODE_ALPHABET.length);
-      }
+      const code = encodeCode(randomInt(this.codeSpace));
       if (!this.rooms.has(code)) return code;
     }
 
     for (let attempt = 0; attempt <= MAX_ROOMS; attempt++) {
-      let value = this.codeCursor;
+      const code = encodeCode(this.codeCursor);
       this.codeCursor = (this.codeCursor + 1) % this.codeSpace;
-      let code = '';
-      for (let i = 0; i < LOBBY_CODE_LENGTH; i++) {
-        code = LOBBY_CODE_ALPHABET[value % LOBBY_CODE_ALPHABET.length] + code;
-        value = Math.floor(value / LOBBY_CODE_ALPHABET.length);
-      }
       if (!this.rooms.has(code)) return code;
     }
     throw new Error('lobby code space exhausted');

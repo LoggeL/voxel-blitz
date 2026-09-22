@@ -37,6 +37,7 @@ assert.ok(BOT_DIFFICULTIES.hard.aimError < BOT_DIFFICULTIES.normal.aimError);
 assert.ok(BOT_DIFFICULTIES.normal.aimError < BOT_DIFFICULTIES.easy.aimError);
 
 const manager = new LobbyManager({ sendJson() {}, sendFrame() {}, closeClient() {} });
+const personalityRosters = [];
 try {
   for (const gameMode of ['fun', 'tdm', 'snd', 'gungame']) {
     const host = { id: `${gameMode}-host` }, guest = { id: `${gameMode}-guest` };
@@ -58,9 +59,12 @@ try {
     assert.equal(manager.start(host), true);
     room.engine.stop();
     assert.deepEqual(room.botManager.brains.map(brain => brain.difficulty), ['hard', 'normal', 'easy'], 'live brains receive individualprofiles');
+    personalityRosters.push(room.botManager.brains.map(brain => brain.personality).join());
     assert.equal(manager.setBotDifficulty(host, 'bot-0', 'easy'), false, 'live roster islocked');
     manager.leave(host); manager.leave(guest);
   }
+  // Each game rolls its own seed; 4 games x 3 slots colliding by chance is ~1e-6.
+  assert.ok(new Set(personalityRosters).size > 1, 'bot personalities are rolled per game, not fixed per slot');
   const host = { id: 'resize' };
   await manager.create(host, 'Host', 3, 'tdm', 'harbor');
   manager.setBotDifficulty(host, 'bot-2', 'hard');
