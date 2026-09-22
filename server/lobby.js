@@ -46,9 +46,11 @@ const CLOSE_FULL = 4005;
 const PASSWORD_JOB_LIMIT = 2;
 const PASSWORD_QUEUE_LIMIT = 16;
 const passwordJobs = { active: 0, queue: [] };
-// Each room tolerates a few typos, then refuses guesses for the rest of the window.
+// Each requester tolerates a few typos per room, then its guesses are refused
+// for the rest of the window; expired entries are pruned once the map grows.
 export const PASSWORD_FAILURE_LIMIT = 8;
 const PASSWORD_FAILURE_WINDOW_MS = 60_000;
+const PASSWORD_FAILURE_ENTRIES = 256;
 // Room chat: a burst of three lines, then one line per second per member.
 const CHAT_BURST = 3;
 const CHAT_REFILL_MS = 1000;
@@ -192,9 +194,12 @@ export class LobbyManager {
       return this._reject(meta, `Unknown lobby ${code}`, CLOSE_UNKNOWN, 'unknown lobby');
     }
     if (room.passwordHash) {
-      const failures = room.passwordFailures;
-      if (failures && failures.until <= performance.now()) room.passwordFailures = null;
-      if (room.passwordFailures?.count >= PASSWORD_FAILURE_LIMIT) {
+      // Wrong guesses are counted per requester so a stranger cannot lock friends out.
+      const guesser = meta.remoteAddress || meta.id;
+      const now = performance.now();
+      const attempts = room.passwordFailures ??= new Map();
+      if (attempts.get(guesser)?.until <= now) attempts.delete(guesser);
+      if (attempts.get(guesser)?.count >= PASSWORD_FAILURE_LIMIT) {
         return this._reject(meta, 'Too many incorrect lobby passwords. Try again in a minute.', 4003, 'password attempts');
       }
       let accepted = false;
@@ -205,8 +210,12 @@ export class LobbyManager {
         return this._reject(meta, 'Unable to join lobby', 1011, 'password check failed');
       }
       if (!accepted) {
-        room.passwordFailures ??= { count: 0, until: performance.now() + PASSWORD_FAILURE_WINDOW_MS };
-        room.passwordFailures.count++;
+        if (attempts.size >= PASSWORD_FAILURE_ENTRIES) {
+          for (const [key, entry] of attempts) if (entry.until <= now) attempts.delete(key);
+        }
+        let failures = attempts.get(guesser);
+        if (!failures) attempts.set(guesser, failures = { count: 0, until: now + PASSWORD_FAILURE_WINDOW_MS });
+        failures.count++;
         return this._reject(meta, 'Incorrect lobby password', 4003, 'incorrect password');
       }
     }

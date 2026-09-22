@@ -207,6 +207,7 @@ async function main() {
       ws,
       joined: false,
       authRequest: { headers: { cookie: req.headers.cookie } },
+      remoteAddress: req.socket?.remoteAddress || 'unknown',
       admittedProfileId,
       profileId: admittedProfileId,
       alive: true,

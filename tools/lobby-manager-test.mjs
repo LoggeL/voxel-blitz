@@ -118,22 +118,27 @@ try {
   assert.equal(lobby.rooms.has(room.code), false, 'expiry destroys the room');
   lobby.leave(outsider);
 
-  // Password rooms allow typos but refuse guessing once the window's limit is hit.
+  // Password rooms allow typos but refuse one requester's guessing once the window's limit is hit.
   const secretHost = { id: 'secret-host' };
   assert.equal(await lobby.create(secretHost, 'Secret', 0, 'fun', 'foundry', 'Room pass 42!'), true);
   const secretRoom = secretHost.room;
-  for (let i = 0; i < 3; i++) assert.equal(await lobby.join({ id: `typo-${i}` }, 'Typo', secretRoom.code, 'wrong'), false);
-  assert.equal(await lobby.join({ id: 'friend' }, 'Friend', secretRoom.code, 'Room pass 42!'), true,
+  const guesser = '203.0.113.7';
+  for (let i = 0; i < 3; i++) {
+    assert.equal(await lobby.join({ id: `typo-${i}`, remoteAddress: guesser }, 'Typo', secretRoom.code, 'wrong'), false);
+  }
+  assert.equal(await lobby.join({ id: 'friend', remoteAddress: guesser }, 'Friend', secretRoom.code, 'Room pass 42!'), true,
     'the correct password still works after a few typos');
   for (let i = 3; i < PASSWORD_FAILURE_LIMIT; i++) {
-    assert.equal(await lobby.join({ id: `typo-${i}` }, 'Typo', secretRoom.code, `guess-${i}`), false);
+    assert.equal(await lobby.join({ id: `typo-${i}`, remoteAddress: guesser }, 'Typo', secretRoom.code, `guess-${i}`), false);
   }
   sent.length = 0;
-  assert.equal(await lobby.join({ id: 'locked' }, 'Locked', secretRoom.code, 'Room pass 42!'), false);
+  assert.equal(await lobby.join({ id: 'locked', remoteAddress: guesser }, 'Locked', secretRoom.code, 'Room pass 42!'), false);
   assert.match(framesFor('locked', 'error')[0].msg, /Too many incorrect lobby passwords/);
   assert.equal(closed.at(-1).code, 4003);
-  secretRoom.passwordFailures.until = 0;
-  assert.equal(await lobby.join({ id: 'after-window' }, 'Later', secretRoom.code, 'Room pass 42!'), true,
+  assert.equal(await lobby.join({ id: 'other-friend', remoteAddress: '198.51.100.4' }, 'Other', secretRoom.code, 'Room pass 42!'), true,
+    "a stranger's wrong guesses never lock other requesters out of the room");
+  secretRoom.passwordFailures.get(guesser).until = 0;
+  assert.equal(await lobby.join({ id: 'after-window', remoteAddress: guesser }, 'Later', secretRoom.code, 'Room pass 42!'), true,
     'the limit resets after its window');
 } finally {
   lobby.stop();
