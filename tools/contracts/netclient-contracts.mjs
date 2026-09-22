@@ -7,11 +7,13 @@ export async function runNetClientContracts(ok, installGlobals) {
       { id: 'ground', grounded: true, vault: null },
       { id: 'climb', grounded: false, vault: { elapsed: 0.2 } },
       { id: 'missing' },
+      { id: 'swim', grounded: false, swimming: true },
     ], [], [], 1000).players;
     ok(rows[0].grounded === true && rows[0].vaulting === false
       && rows[1].grounded === false && rows[1].vaulting === true
-      && rows[2].grounded === false && rows[2].vaulting === false,
-    'snapshots publish grounded and active vault state as explicit booleans');
+      && rows[2].grounded === false && rows[2].vaulting === false
+      && rows[2].swimming === false && rows[3].swimming === true,
+    'snapshots publish grounded, active vault and swimming state as explicit booleans');
   }
 
   // NetClient: admission frames normalize mode-map pairs, inbound state is
@@ -337,6 +339,7 @@ export async function runNetClientContracts(ok, installGlobals) {
           crouch: false,
           grounded: false,
           vaulting: true,
+          swimming: true,
           mag: [5, 29, 8, 20, 50, 5],
           reserve: [4, 3, 3, 3, 3, 3],
           reloading: true,
@@ -439,8 +442,8 @@ export async function runNetClientContracts(ok, installGlobals) {
       const between = joined.client.interpolate((firstSnapshot.now + secondSnapshot.now) / 2, 0).players.get(23);
       const after = joined.client.interpolate(secondSnapshot.now + 25, 0).players.get(23);
       ok(between.x > 2 && between.x < 4
-        && between.grounded === false && between.vaulting === true
-        && after.grounded === false && after.vaulting === true,
+        && between.grounded === false && between.vaulting === true && between.swimming === true
+        && after.grounded === false && after.vaulting === true && after.swimming === true,
       'interpolation and extrapolation retain discrete movement flags from the selected newest row');
 
       const sentBeforeClose = joined.ws.sent.length;

@@ -161,7 +161,7 @@ export function drainOwnEventsEarly(snapshotList, selfId, state) {
 /** Newest-row fields retained alongside interpolated transforms. */
 const PASSTHROUGH_FIELDS = [
   'name', 'hp', 'armor', 'team', 'weapon', 'score', 'kills', 'deaths', 'ping',
-  'state', 'firing', 'ads', 'crouch', 'grounded', 'vaulting', 'proneT', 'moveSpeed', 'mag', 'reserve', 'reloading', 'reloadAck', 'reloadState',
+  'state', 'firing', 'ads', 'crouch', 'grounded', 'vaulting', 'swimming', 'proneT', 'moveSpeed', 'mag', 'reserve', 'reloading', 'reloadAck', 'reloadState',
   'burning', 'panic', 'exhaustion', 'pain', 'spawnProtected', 'respawnAt', 'cosmetics', 'attachments',
   'breathReserve', 'breathExhausted', 'breathReleasedFor',
   'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
