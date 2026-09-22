@@ -65,6 +65,7 @@ export class GameplayHud {
     this.lastWepKey = '';
     this.chGap = undefined;
     this._scopeZoomShown = 0;
+    this._device = null;
 
     this.tabBound = false;
     this.onKD = null;
@@ -164,10 +165,8 @@ export class GameplayHud {
     // absolutely positioned descendants above its bounds.
     d.grenades = el('div', 'vb-grenade-count', hud, 'grenade-count');
     d.grenadeKey = el('span', 'vb-grenade-key', d.grenades);
-    d.grenadeKey.textContent = bindingLabel('grenade');
     d.grenadeSwitch = el('span', 'vb-grenade-switch', d.grenades);
-    d.grenadeSwitch.textContent = `${bindingLabel('grenadeType')} · SWITCH`;
-    d.grenadeSwitch.title = `Switch grenade type (${bindingLabel('grenadeType')})`;
+    this.syncGrenadeLabels();
     d.grenadeTypes = el('span', 'vb-grenade-types', d.grenades);
     d.grenadeTypeChips = [];
     for (const typeId of GRENADE_TYPE_IDS) {
@@ -268,11 +267,23 @@ export class GameplayHud {
     this._unsubscribeBindings?.();
     this._unsubscribeBindings = subscribeKeybindings(() => {
       this.setScoreboard(false);
-      d.grenadeKey.textContent = bindingLabel('grenade');
-      d.grenadeSwitch.textContent = `${bindingLabel('grenadeType')} · SWITCH`;
-      d.grenadeSwitch.title = `Switch grenade type (${bindingLabel('grenadeType')})`;
+      this.syncGrenadeLabels();
     });
     this.apply();
+  }
+
+  /** Grenade key hints follow the last device info and the live keybindings. */
+  syncGrenadeLabels(device = this._device || {}) {
+    this._device = device;
+    const d = this.dom;
+    if (!d.grenadeKey || !d.grenadeSwitch) return;
+    const pad = !!device.padActive;
+    const typeKey = bindingLabel('grenadeType');
+    d.grenadeKey.textContent = pad ? 'RB' : bindingLabel('grenade');
+    d.grenadeKey.style.display = device.touch && !pad ? 'none' : '';
+    d.grenadeSwitch.textContent = pad ? 'RB + Y · SWITCH' : `${typeKey} · SWITCH`;
+    d.grenadeSwitch.hidden = !!device.touch && !pad;
+    d.grenadeSwitch.title = pad ? 'Hold RB and press Y to switch grenade type' : `Switch grenade type (${typeKey})`;
   }
 
   menuDone() {

@@ -592,6 +592,27 @@ export async function runHudContracts(ok, installGlobals) {
       hud.hideLobby();
 
       hud.buildHUD();
+      {
+        // Grenade hints follow custom bindings through device changes, and a
+        // rebind keeps the pad labels while a pad is active.
+        const { setKeybinding, resetKeybindings } = await import('../../public/js/keybindings.js');
+        const grenadeKey = document.querySelector('.vb-grenade-key');
+        const grenadeSwitch = document.querySelector('.vb-grenade-switch');
+        const mouse = { touch: false, pointerKind: 'mouse', trackpadDetected: false, padActive: false };
+        setKeybinding('grenade', 'KeyU');
+        setKeybinding('grenadeType', 'KeyY');
+        hud.setDeviceInfo(mouse);
+        const keyboardLabels = grenadeKey.textContent === 'U'
+          && grenadeSwitch.textContent === 'Y · SWITCH'
+          && grenadeSwitch.title === 'Switch grenade type (Y)';
+        hud.setDeviceInfo({ ...mouse, padActive: true });
+        setKeybinding('grenade', 'KeyI');
+        const padLabels = grenadeKey.textContent === 'RB' && grenadeSwitch.textContent === 'RB + Y · SWITCH';
+        hud.setDeviceInfo(mouse);
+        resetKeybindings();
+        ok(keyboardLabels && padLabels && grenadeKey.textContent === 'G' && grenadeSwitch.textContent === 'H · SWITCH',
+          'grenade key hints follow custom bindings across device changes and keep pad labels on rebind');
+      }
       hud.setState({ wid: 'sniper', adsT01: 0.7199, alive: true, hp: 100 });
       ok(!document.getElementById('sniper-scope'),
         'sniper scope stays absent immediately below the ADS threshold');
