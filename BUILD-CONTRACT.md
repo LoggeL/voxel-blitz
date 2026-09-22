@@ -973,7 +973,8 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   decision; intervening cover suppresses the complete confirmation. A kill by
   the local player promotes the mark to `kill`/`killHead` with `killConfirm`,
   damage numbers stack per victim, local damage carries the attacker bearing
-  (`bearingDeg`), death shows `deathRecapText`, and the spectator camera opens
+  (`bearingDeg`), death shows `deathRecapText` (ray kills show the server shot
+  length `dist` that also decides LONG RANGE), and the spectator camera opens
   on the killer for `KILL_CAM_MS` (2600) before its normal rotation.
 - **Reload:** magazine weapons follow `reloadPlan(def,mag)` in one step.
   `WeaponActions` gives rifle/SMG, belt/drum, energy-cell and fuel-tank weapons
