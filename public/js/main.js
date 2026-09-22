@@ -7,7 +7,7 @@
 // the Blender library arrive through the asset scheduler after the menu is
 // interactive; joining a match waits for exactly the tasks in MATCH_ASSETS.
 import { AccountKeybindings } from './account-keybindings.js';
-import { loadingScreen } from './ui/loading-screen.js';
+import { loadingScreen, formatBytes } from './ui/loading-screen.js';
 import { claymoreProfile } from '../../shared/claymore-rules.js';
 import { ProgressionTree } from './ui/progression.js';
 import { AccountMenu } from './ui/account-menu.js';
@@ -1178,7 +1178,7 @@ function observeResources(pattern, report, run) {
       files++;
       bytes += entry.transferSize || entry.encodedBodySize || 0;
     }
-    const size = bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : bytes > 0 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : '';
+    const size = formatBytes(bytes);
     report({ detail: `${files} FILES${size ? ` · ${size}` : ''}` });
   };
   try {

@@ -19,17 +19,3 @@ export function smooth01(v) {
   const t = clamp01(v);
   return t * t * (3 - 2 * t);
 }
-
-export function clampNumber(value, min, max, fallback) {
-  if (value == null || value === '') return fallback;
-  const n = Number(value);
-  return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : fallback;
-}
-
-export function readStoredNumber(key, fallback, min, max) {
-  try {
-    return clampNumber(localStorage.getItem(key), min, max, fallback);
-  } catch (_) {
-    return fallback;
-  }
-}
