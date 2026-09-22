@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { startServer, stopServer } from './lib/server-process.mjs';
 import { Client } from './lib/ws-client.mjs';
 import { createMapState } from '../shared/worlddata.js';
-const server = startServer({ cwd: new URL('..', import.meta.url).pathname });
+const server = startServer();
 const clients = [];
 const template = createMapState('minecraft_b5').serializeWorld();
 try {

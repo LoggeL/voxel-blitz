@@ -4,7 +4,7 @@ import {
   WEAPON_CAPTURE_SHOTS,
   WEAPON_CAPTURE_STATES,
 } from '../shared/weapon-capture-shots.js';
-import { captureReadyBrowserPage as captureBrowserPage } from './lib/browser-capture.mjs';
+import { captureReadyBrowserPage } from './lib/browser-capture.mjs';
 import { parseCaptureArgs, runCaptureFlow } from './lib/capture-flow.mjs';
 import { writeCaptureReport } from './lib/capture-report.mjs';
 
@@ -33,14 +33,13 @@ function selectedShots(options) {
   return matches;
 }
 
-async function renderShot({ browser, profileDir, baseUrl, outDir, dimensions, shot }) {
+async function renderShot({ browser, baseUrl, outDir, dimensions, shot }) {
   const output = path.join(outDir, `${shot.weapon}-${shot.state}.png`);
   const url = new URL('/weapon-capture.html', baseUrl);
   url.searchParams.set('weapon', shot.weapon);
   url.searchParams.set('state', shot.state);
-  const bytes = await captureBrowserPage({
+  const bytes = await captureReadyBrowserPage({
     browser,
-    profileDir,
     url: url.href,
     output,
     dimensions,
@@ -65,7 +64,6 @@ async function main() {
     options,
     projectRoot: PROJECT_ROOT,
     route: '/weapon-capture.html',
-    profilePrefix: 'voxel-blitz-weapon-capture-',
     failureContext: 'weapon capture',
     shots,
     captureShot: renderShot,

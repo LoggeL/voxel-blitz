@@ -7,25 +7,7 @@ import { runNetClientContracts } from './netclient-contracts.mjs';
 import { runViewmodelContracts } from './viewmodel-contracts.mjs';
 import { runCombatFeedbackContracts } from './combat-feedback-contracts.mjs';
 import { runPostProcessContracts } from './post-process-contracts.mjs';
-
-function installGlobals(values) {
-  const saved = new Map();
-  for (const [name, value] of Object.entries(values)) {
-    saved.set(name, Object.getOwnPropertyDescriptor(globalThis, name));
-    Object.defineProperty(globalThis, name, {
-      configurable: true,
-      enumerable: true,
-      writable: true,
-      value,
-    });
-  }
-  return () => {
-    for (const [name, descriptor] of saved) {
-      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
-      else delete globalThis[name];
-    }
-  };
-}
+import { installGlobals } from '../lib/install-globals.mjs';
 
 export async function runClientContracts(ok) {
   runPostProcessContracts(ok);

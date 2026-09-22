@@ -4,6 +4,7 @@ import { Input } from '../public/js/engine/input.js';
 import { KEYBINDINGS_PREF_KEY, defaultKeybindings, readKeybindings, setKeybinding, resetKeybindings, bindingLabel, normalizeKeybindings } from '../public/js/keybindings.js';
 import { runInputContracts } from './contracts/input-contracts.mjs';
 import { launchCdpSession } from './lib/cdp-session.mjs';
+import { installGlobals } from './lib/install-globals.mjs';
 import { startServer, stopServer, waitForHttp } from './lib/server-process.mjs';
 
 const originalStorage = globalThis.localStorage;
@@ -70,11 +71,6 @@ try {
 } finally { input.dispose(); }
 
 // Existing desktop, trackpad, pad, touch, and wheel input behavior is preserved.
-const installGlobals = values => {
-  const saved = new Map(Object.keys(values).map(name => [name, Object.getOwnPropertyDescriptor(globalThis, name)]));
-  for (const [name, value] of Object.entries(values)) Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
-  return () => { for (const [name, descriptor] of saved) { if (descriptor) Object.defineProperty(globalThis, name, descriptor); else delete globalThis[name]; } };
-};
 let contracts = 0;
 await runInputContracts((value, message) => { assert.ok(value, message); contracts++; }, installGlobals);
 globalThis.localStorage = originalStorage;
@@ -82,7 +78,7 @@ console.log(`Keyboard bindings: persistence, conflicts, holds, combat, slots and
 
 if (!process.argv.includes('--browser')) process.exit(0);
 
-const server = startServer({ cwd: new URL('..', import.meta.url).pathname, failureContext: 'keyboard settings browser test' });
+const server = startServer({ failureContext: 'keyboard settings browser test' });
 let browser;
 try {
   const port = await server.port;

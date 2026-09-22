@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { clickById } from './lib/browser-helpers.mjs';
 import { launchCdpSession } from './lib/cdp-session.mjs';
 import { startServer, stopServer, waitForHttp } from './lib/server-process.mjs';
 import { createMapState } from '../shared/worlddata.js';
@@ -11,21 +12,7 @@ const output = new URL('../.artifacts/dust2-browser/', import.meta.url);
 const server = startServer({ cwd: root, failureContext: 'Dust 2 browser test' });
 let browser;
 
-async function click(page, id) {
-  const point = await page.evaluate(`(() => {
-    const el = document.getElementById(${JSON.stringify(id)});
-    el?.scrollIntoView({ block: 'center', behavior: 'instant' });
-    const r = el?.getBoundingClientRect();
-    return r && r.width > 0 && r.height > 0 && !el.disabled
-      ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : null;
-  })()`);
-  assert.ok(point, `${id} is visible and enabled`);
-  for (const type of ['mousePressed', 'mouseReleased']) {
-    await page.send('Input.dispatchMouseEvent', {
-      type, ...point, button: 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: 1,
-    });
-  }
-}
+const click = (page, id) => clickById(page, id, { requireEnabled: true });
 
 async function select(page, id, value) {
   await page.evaluate(`(() => {

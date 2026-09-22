@@ -172,7 +172,7 @@ console.log('Client refactor: one brass batch, flight/collision/reuse, zero idle
 if (process.argv.includes('--browser')) {
   const { launchCdpSession } = await import('./lib/cdp-session.mjs');
   const { startServer, stopServer, waitForHttp } = await import('./lib/server-process.mjs');
-  const server = startServer({ cwd: new URL('..', import.meta.url).pathname });
+  const server = startServer();
   let browser;
   try {
     const port = await server.port;

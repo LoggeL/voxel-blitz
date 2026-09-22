@@ -4,7 +4,7 @@ import {
   AVATAR_CAPTURE_SHOTS,
   AVATAR_CAPTURE_VIEWS,
 } from '../shared/avatar-capture-shots.js';
-import { captureReadyBrowserPage as captureBrowserPage } from './lib/browser-capture.mjs';
+import { captureReadyBrowserPage } from './lib/browser-capture.mjs';
 import { parseCaptureArgs, runCaptureFlow } from './lib/capture-flow.mjs';
 import { writeCaptureReport } from './lib/capture-report.mjs';
 
@@ -33,16 +33,15 @@ function selectedShots(options) {
   return matches.map(shot => ({ ...shot, avatar: options.avatar, team: options.team }));
 }
 
-async function renderShot({ browser, profileDir, baseUrl, outDir, dimensions, shot }) {
+async function renderShot({ browser, baseUrl, outDir, dimensions, shot }) {
   const output = path.join(outDir, `${shot.weapon}-${shot.view}.png`);
   const url = new URL('/avatar-capture.html', baseUrl);
   url.searchParams.set('weapon', shot.weapon);
   url.searchParams.set('view', shot.view);
   if (shot.avatar) url.searchParams.set('avatar', shot.avatar);
   if (shot.team) url.searchParams.set('team', shot.team);
-  const bytes = await captureBrowserPage({
+  const bytes = await captureReadyBrowserPage({
     browser,
-    profileDir,
     url: url.href,
     output,
     dimensions,
@@ -67,7 +66,6 @@ async function main() {
     options,
     projectRoot: PROJECT_ROOT,
     route: '/avatar-capture.html',
-    profilePrefix: 'voxel-blitz-avatar-capture-',
     failureContext: 'avatar capture',
     shots: selectedShots(options),
     captureShot: renderShot,

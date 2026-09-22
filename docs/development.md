@@ -185,7 +185,7 @@ npm run lobby        # room lifecycle and lobby protocol smoke
 npm run modes:lobby  # selected mode/map lobby and wire contracts
 npm run modes:bots   # deterministic bot behavior in Fun, TDM, S&D, and Gun Game
 npm test             # refactor/weapon/client contracts, gameplay, lobbies, bot modes
-npm run refactor:test # hitbox equivalence and RIVET model fit, server contexts/terrain, FX budgets/cleanup
+npm run refactor:test # hitbox equivalence and RIVET model fit, server contexts/terrain, FX budgets/cleanup, test-server isolation
 npm run menus:test   # menu Back/Forward history, killhouse run overlay, scoreboard reveal rules
 npm run container:smoke # HTTP + WebSocket check against BASE_URL or localhost
 npm run browser:smoke   # connected touch-mode menu, play, input, pause, and quit flow
@@ -884,7 +884,8 @@ existing deployment without either setting, the legacy JSON store remains
 available and logs a migration notice once at startup. This compatibility path
 and the Dockerfile's `/app/data` volume preserve existing installations until
 their host configuration and data are migrated. Local test fixtures explicitly
-use `VB_PERSISTENCE=file`.
+use `VB_PERSISTENCE=file` with a throwaway `VB_DATA_DIR` and ignore an inherited
+`DATABASE_URL`; only tests that pass their own `DATABASE_URL` use PostgreSQL.
 
 Back up PostgreSQL with `docker compose exec -T db pg_dump -U voxel -d voxel -Fc >
 voxel-backup.dump`. Keep that private backup outside the repository and verify

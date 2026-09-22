@@ -1,5 +1,4 @@
-import { spawn } from 'node:child_process';
-import { access, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
@@ -69,92 +68,17 @@ export function removeBrowserProfile(profileDir) {
   return rm(profileDir, { recursive: true, force: true, maxRetries: 6, retryDelay: 100 });
 }
 
-function run(command, args, timeoutMs = 45_000) {
-  return new Promise((resolve, reject) => {
-    const child = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
-    let stdout = '';
-    let stderr = '';
-    let timedOut = false;
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      child.kill('SIGKILL');
-    }, timeoutMs);
-    child.stdout.on('data', (chunk) => { stdout += chunk; });
-    child.stderr.on('data', (chunk) => { stderr += chunk; });
-    child.once('error', (error) => {
-      clearTimeout(timeout);
-      reject(error);
-    });
-    child.once('exit', (code, signal) => {
-      clearTimeout(timeout);
-      if (timedOut) reject(new Error(`${path.basename(command)} timed out after ${timeoutMs}ms`));
-      else if (code === 0) resolve({ stdout, stderr });
-      else reject(new Error(`${path.basename(command)} failed (${code ?? signal}): ${stderr || stdout}`));
-    });
-  });
-}
-
-function chromiumArgs(profileDir, { width, height }) {
-  return [
-    '--headless=new',
-    '--mute-audio',
-    '--no-first-run',
-    '--disable-background-networking',
-    '--disable-component-update',
-    '--hide-scrollbars',
-    '--ignore-gpu-blocklist',
-    '--use-angle=swiftshader',
-    '--run-all-compositor-stages-before-draw',
-    `--user-data-dir=${profileDir}`,
-    `--window-size=${width},${height}`,
-    '--force-device-scale-factor=1',
-    '--virtual-time-budget=3500',
-  ];
-}
-
-/** Capture and verify one page load; readiness markers and PNG share the same Chromium run. */
-export async function captureBrowserPage({
-  browser,
-  profileDir,
-  url,
-  output,
-  dimensions,
-  readyMarkers,
-  minBytes = 10_000,
-  attempts = 2,
-}) {
-  let lastError = null;
-  for (let attempt = 1; attempt <= attempts; attempt++) {
-    try {
-      const capture = await run(browser, [
-        ...chromiumArgs(profileDir, dimensions),
-        '--dump-dom',
-        `--screenshot=${output}`,
-        url,
-      ]);
-      if (!readyMarkers.every((marker) => capture.stdout.includes(marker))) {
-        throw new Error(`capture page did not confirm ready state: ${url}`);
-      }
-      const bytes = await readFile(output);
-      if (bytes.length < minBytes || bytes.toString('ascii', 1, 4) !== 'PNG') {
-        throw new Error(`invalid screenshot output: ${output}`);
-      }
-      return bytes.length;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-  throw lastError;
-}
-
-/** Asset-backed captures wait for decoded textures and a completed render.
- * A virtual-time dump can finish before ImageBitmap decoding resolves.
+/** Capture one page once its readiness markers appear. Asset-backed captures
+ * publish markers after decoded textures and a completed render; waitForLoad
+ * also holds static pages until their images and CSS backgrounds have loaded.
  */
-export async function captureReadyBrowserPage({ browser, url, output, dimensions, readyMarkers, minBytes = 10_000 }) {
+export async function captureReadyBrowserPage({
+  browser, url, output, dimensions, readyMarkers, minBytes = 10_000, waitForLoad = false,
+}) {
   const { launchCdpSession } = await import('./cdp-session.mjs');
   const session = await launchCdpSession(url, { browser, ...dimensions });
   try {
-    await session.page.waitFor(`${JSON.stringify(readyMarkers)}.every(marker => document.documentElement.outerHTML.includes(marker))`,
+    await session.page.waitFor(`${waitForLoad ? "document.readyState === 'complete' && " : ''}${JSON.stringify(readyMarkers)}.every(marker => document.documentElement.outerHTML.includes(marker))`,
       { timeoutMs: 30000, label: 'asset capture ready' });
     if (session.page.errors.length) throw new Error(session.page.errors.join('\n'));
     const shot = await session.page.send('Page.captureScreenshot', { format: 'png' });

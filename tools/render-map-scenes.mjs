@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { MAP_CAPTURE_SHOTS } from '../shared/map-capture-shots.js';
-import { captureReadyBrowserPage as captureBrowserPage } from './lib/browser-capture.mjs';
+import { captureReadyBrowserPage } from './lib/browser-capture.mjs';
 import { parseCaptureArgs, runCaptureFlow } from './lib/capture-flow.mjs';
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -25,7 +25,7 @@ function selectedShots(options) {
   return matches;
 }
 
-async function renderShot({ browser, profileDir, baseUrl, outDir, dimensions, shot }) {
+async function renderShot({ browser, baseUrl, outDir, dimensions, shot }) {
   const output = path.join(outDir, `${shot.map}-${shot.id}.png`);
   const url = new URL('/capture.html', baseUrl);
   url.searchParams.set('map', shot.map);
@@ -35,9 +35,8 @@ async function renderShot({ browser, profileDir, baseUrl, outDir, dimensions, sh
     `data-capture-map="${shot.map}"`,
     `data-capture-shot="${shot.id}"`,
   ];
-  const bytes = await captureBrowserPage({
+  const bytes = await captureReadyBrowserPage({
     browser,
-    profileDir,
     url: url.href,
     output,
     dimensions,
@@ -58,7 +57,6 @@ async function main() {
     options,
     projectRoot: PROJECT_ROOT,
     route: '/capture.html',
-    profilePrefix: 'voxel-blitz-map-capture-',
     failureContext: 'map capture',
     shots,
     captureShot: renderShot,
