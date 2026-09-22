@@ -1,5 +1,6 @@
 import { normalizeCosmeticLoadout } from '../../../shared/career.js';
 import { SkinLayer } from './skin-layer.js';
+import { refreshAvatarMaterialLists } from '../avatar/avatar.js';
 import * as overdrive from './skins/rifle-overdrive.js';
 import * as highNoon from './skins/revolver-high-noon.js';
 import * as foundry from './skins/minigun-foundry.js';
@@ -47,18 +48,8 @@ export function applyAvatarCosmetics(avatar, value) {
   avatar._skinId = loadout.characterSkin;
   avatar.group.userData.skin = loadout.characterSkin;
   // All additions participate in normal death fade and hit feedback. Team cloth remains unchanged.
-  const fades = new Set(), flashes = new Set();
-  for (const root of [avatar.head, avatar.torso, avatar.hips, avatar.lArm, avatar.rArm, avatar.lLeg, avatar.rLeg]) {
-    root.traverse(object => {
-      for (const material of [].concat(object.material || [])) {
-        material.transparent = true;
-        fades.add(material);
-        if (material.emissive && !material.userData.cosmeticGlow) flashes.add(material);
-      }
-    });
-  }
-  fades.add(avatar.tag.material); fades.add(avatar.hpSpr.material);
-  avatar.fadeMaterials = [...fades]; avatar.flashMaterials = [...flashes];
+  refreshAvatarMaterialLists(avatar);
+  for (const material of avatar.fadeMaterials) material.transparent = true;
 }
 
 export function applyBodyCosmetics(body, value) {

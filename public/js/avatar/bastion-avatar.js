@@ -1,6 +1,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import { SkinLayer } from '../cosmetics/skin-layer.js';
+import { refreshAvatarMaterialLists } from './avatar.js';
 
 // Role silhouettes ride on the standard combat body inside its hitbox
 // envelope; the whole body is scaled by `bodyScale` (group scale), which is
@@ -128,11 +129,8 @@ export function updateBastionAvatar(avatar, remote) {
     avatar.bastionSignal = materials.signal;
     look.build(avatar, layer, materials);
     // Every role material fades with the body and takes the hit flash.
-    for (const material of layer.materials) {
-      material.transparent = true;
-      if (!avatar.fadeMaterials.includes(material)) avatar.fadeMaterials.push(material);
-      if (material.emissive && !avatar.flashMaterials.includes(material)) avatar.flashMaterials.push(material);
-    }
+    for (const material of layer.materials) material.transparent = true;
+    refreshAvatarMaterialLists(avatar);
   }
   const scale = Number.isFinite(remote.npcScale) && remote.npcScale > 0 ? remote.npcScale : look.scale ?? 1;
   avatar.bodyScale = scale;
