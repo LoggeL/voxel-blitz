@@ -47,4 +47,4 @@ something is still pending shows those tasks as stages of the arena screen
 ahead of the mesh sectors, using the same stage list and rail. Measured with
 `npm run boot:profile`: menu interactive after about 120 ms and 0.7 MB on a
 cold start (previously 645 ms and 9.2 MB), total unchanged at about 9.7 MB.
-`npm run boot:test` proves the menu responds while those requests are held.
+`npm run boot:browser` proves the menu responds while those requests are held.
