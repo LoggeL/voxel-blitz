@@ -45,6 +45,11 @@ assert.ok(worldEngine.tickEvents.every((event) => event.overkill === undefined),
   'a later world death cannot reuse an unrelated hit as its killing damage');
 assert.equal(evHit('a', 'v', 25, false, [0, 0, 0]).overkill, undefined);
 assert.equal(evKill('a', 'v', 'rifle', false).overkill, undefined);
+assert.equal(evKill('a', 'v', 'rifle', false).dist, undefined, 'kills without a ray carry no shot length');
+const rangedEngine = { tickEvents: [], mode: { onPlayerDeath() {} } };
+GameEngine.prototype.killPlayer.call(rangedEngine, target(), null, 'sniper', false, { longRange: true, dist: 43.27 });
+assert.deepEqual(rangedEngine.tickEvents.filter((event) => event.kind === 'kill').map((event) => [event.lr, event.dist]),
+  [[true, 43.3]], 'the kill event forwards the authoritative shot length with its LONG RANGE marker');
 assert.equal(evDie('v').overkill, undefined, 'legacy event constructors remain valid');
 
 const samples = [0, 5, 30, 100, 200, 1e9].map((overkill) => goreProfile({ overkill }, { lethal: true }));
