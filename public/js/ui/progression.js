@@ -1,4 +1,4 @@
-import { CAREER_CATALOG, PROGRESSION_BRANCHES, PROGRESSION_TREE, careerItemState, treeNode } from '../../../shared/career.js';
+import { CAREER_CATALOG, EQUIPPABLE_SLOTS, PROFILE_SLOTS, PROGRESSION_BRANCHES, PROGRESSION_TREE, careerItemState, treeNode } from '../../../shared/career.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { mountMusicControl } from './music-control.js';
 import { cosmeticArtwork as artwork, CosmeticAudition, COSMETIC_AUDIO, cosmeticVolume } from './cosmetic-preview.js';
@@ -14,7 +14,9 @@ const node = (tag, parent, text, className = '') => {
 const format = value => Number(value || 0).toLocaleString('en-US');
 const KIND_LABELS = { weaponSkin: 'WEAPON SKIN', characterSkin: 'CHARACTER SKIN', signature: 'DEATH SIGNATURE', sound: 'SOUND KIT',
   theme: 'HUD THEME', title: 'CALLSIGN', attachment: 'ATTACHMENT', reticle: 'RETICLE', nameplate: 'NAMEPLATE' };
-const EQUIPPABLE = ['weaponSkin', 'characterSkin', 'signature', 'sound', 'theme', 'title', 'reticle', 'nameplate'];
+// Kinds that reset to 'standard'; profile slots are equippable but never reset.
+const RESETTABLE = ['weaponSkin', ...EQUIPPABLE_SLOTS];
+const EQUIPPABLE = [...RESETTABLE, ...PROFILE_SLOTS];
 const FILTERS = [['all', 'ALL'], ...PROGRESSION_BRANCHES.map(branch => [branch.id, branch.name])];
 
 /** The shortfall that keeps a node closed, in the player's words. */
@@ -372,7 +374,7 @@ export class ProgressionTree {
     this.loadout.replaceChildren();
     const slots = new Map();
     for (const item of items) {
-      if (!['weaponSkin', 'characterSkin', 'signature', 'sound', 'reticle', 'nameplate'].includes(item.kind)) continue;
+      if (!RESETTABLE.includes(item.kind)) continue;
       const key = item.kind === 'weaponSkin' ? `weaponSkin:${item.weapon}` : item.kind;
       slots.set(key, { slot: item.kind, ...(item.weapon ? { weapon: item.weapon } : {}) });
     }

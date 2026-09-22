@@ -102,6 +102,8 @@ export const childrenOf = id => CHILDREN.get(id) || [];
 export const branchRoots = branch => PROGRESSION_TREE.filter(item => item.branch === branch && item.parent === null).map(item => item.id);
 
 export const EQUIPPABLE_SLOTS = Object.freeze(['characterSkin', 'signature', 'sound', 'reticle', 'nameplate']);
+/** Always-owned profile slots: they hold a real item and have no 'standard' value. */
+export const PROFILE_SLOTS = Object.freeze(['theme', 'title']);
 export const CAREER_REWARDS = Object.freeze({
   kill: { xp: 25 }, botKill: { xp: 10 },
   objective: { xp: 75 }, activeMinute: { xp: 20 },
@@ -139,7 +141,7 @@ export function careerItemState(profile, value) {
   const blockedByParent = !owned && item.parent !== null && !profile?.owned?.includes(item.parent);
   const eligible = !blockedByParent && requirements.every(value => value.complete);
   const equipped = item.kind === 'weaponSkin' ? profile?.equipped?.weaponSkins?.[item.weapon] === item.id
-    : EQUIPPABLE_SLOTS.includes(item.kind) || ['theme', 'title'].includes(item.kind) ? profile?.equipped?.[item.kind] === item.id : false;
+    : EQUIPPABLE_SLOTS.includes(item.kind) || PROFILE_SLOTS.includes(item.kind) ? profile?.equipped?.[item.kind] === item.id : false;
   return { owned, equipped, eligible, blockedByParent, locked: !eligible,
     progress: Math.min(...requirements.map(value => Math.min(1, value.current / value.target))), requirements };
 }
@@ -182,6 +184,7 @@ export function equipCareerItem(profile, value) {
   if (value?.id === 'standard') {
     if (value.kind === 'weaponSkin' && WEAPON_IDS.includes(value.weapon)) delete profile.equipped.weaponSkins[value.weapon];
     else if (EQUIPPABLE_SLOTS.includes(value.kind)) profile.equipped[value.kind] = 'standard';
+    // PROFILE_SLOTS (theme/title) have no standard value, so they cannot be reset.
     else throw new Error('Choose a valid cosmetic slot');
     return;
   }

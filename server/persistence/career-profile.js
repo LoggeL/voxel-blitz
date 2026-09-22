@@ -1,4 +1,4 @@
-import { CAREER_CATALOG, EQUIPPABLE_SLOTS, defaultCosmeticLoadout, reconcileCareerUnlocks } from '../../shared/career.js';
+import { CAREER_CATALOG, EQUIPPABLE_SLOTS, PROFILE_SLOTS, defaultCosmeticLoadout, reconcileCareerUnlocks } from '../../shared/career.js';
 import { WEAPON_IDS } from '../../shared/combatmath.js';
 import { normalizeWeaponLoadout } from '../../shared/weapon-attachments.js';
 
@@ -37,7 +37,7 @@ export function validateProfile(profile) {
     || !['pvpKills', 'wins'].every(key => profile[key] === undefined || counter(profile[key]))
     || !Array.isArray(profile.owned) || new Set(profile.owned).size !== profile.owned.length
     || profile.owned.some(id => !CAREER_CATALOG.some(item => item.id === id))
-    || !record(profile.equipped) || !['theme', 'title'].every(kind =>
+    || !record(profile.equipped) || !PROFILE_SLOTS.every(kind =>
       profile.owned.includes(profile.equipped[kind]) && CAREER_CATALOG.some(item =>
         item.id === profile.equipped[kind] && item.kind === kind))) throw new Error('Invalid career data');
   const equipped = { ...defaultCosmeticLoadout(), ...profile.equipped, weaponSkins: { ...profile.equipped.weaponSkins } };

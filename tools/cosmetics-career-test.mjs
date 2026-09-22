@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { CAREER_CATALOG, careerItemState, careerView, cosmeticLoadout, normalizeCosmeticLoadout,
-  equipCareerItem, reconcileCareerUnlocks, defaultCosmeticLoadout } from '../shared/career.js';
+  equipCareerItem, reconcileCareerUnlocks, defaultCosmeticLoadout, EQUIPPABLE_SLOTS, PROFILE_SLOTS } from '../shared/career.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { emptyProfile, validateProfile } from '../server/persistence/career-profile.js';
 import { CareerService } from '../server/career.js';
@@ -86,6 +86,10 @@ try {
   career.equip(account, 'standard', () => true, { slot: 'weaponSkin', weapon: 'rifle' });
   assert.deepEqual(career.profile(account).equipped.weaponSkins, {});
   assert.throws(() => career.equip(account, 'standard', () => true, { slot: 'weaponSkin', weapon: '__proto__' }), /valid cosmetic/);
+  for (const slot of PROFILE_SLOTS) {
+    assert.ok(!EQUIPPABLE_SLOTS.includes(slot) && !(slot in defaultCosmeticLoadout()), `${slot} has no standard default`);
+    assert.throws(() => career.equip(account, 'standard', () => true, { slot }), /valid cosmetic/, `${slot} cannot be reset to standard`);
+  }
 
   const combatId = id(), client = { id: 'p1', profileId: combatId };
   let last;
