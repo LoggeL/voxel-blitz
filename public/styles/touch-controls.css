@@ -87,6 +87,9 @@
 .vb-touch-button.is-held,
 .vb-touch-button.is-latched { background: #ffffff4d; border-color: #fff; }
 .vb-touch-button.is-hidden { display: none; pointer-events: none; }
+/* Spectating: only the look zone and pause stay; the HUD (spectator target cycling) sits above the look zone. */
+.vb-touch-controls.is-spectating .vb-touch-move-zone { display: none; }
+.vb-touch-spectating #hud { z-index: calc(var(--z-menu) - 5); }
 .vb-touch-fire { width: var(--touch-fire); height: var(--touch-fire); border-color: #ffffffaa; font-size: 12px; }
 .vb-touch-ads { --touch-column: calc(var(--touch-fire) + 12px); }
 .vb-touch-jump { --touch-row: calc(var(--touch-fire) + 12px); }

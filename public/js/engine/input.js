@@ -326,17 +326,26 @@ export class Input {
     if (next === this._gameplayEnabled) return;
     this._gameplayEnabled = next;
     this._syncKeyboardLock();
-    this._touchControls?.setEnabled(next);
+    this._syncTouchControls();
     if (!next) this.clearTransient();
   }
 
-  /** Spectators can capture mouse look while movement and combat stay disabled. */
+  /** Spectators keep mouse, pad and touch look while movement and combat stay disabled. */
   setSpectatorEnabled(enabled) {
     const next = !!enabled && !this._disposed;
     if (next === this._spectatorEnabled) return;
     this._spectatorEnabled = next;
     this.clearTransient();
     this._syncKeyboardLock();
+    this._syncTouchControls();
+  }
+
+  /** Touch controls stay up for spectators, reduced to the look zone and pause. */
+  _syncTouchControls() {
+    const controls = this._touchControls;
+    if (!controls) return;
+    controls.setSpectating(!this._gameplayEnabled && this._spectatorEnabled);
+    controls.setEnabled(this._gameplayEnabled || this._spectatorEnabled);
   }
 
   /**
@@ -567,6 +576,10 @@ export class Input {
     if (!this._gameplayEnabled) {
       if (frame.pressed.pause) this._pauseHandler?.();
       this._clearPadState();
+      // Back mirrors the keyboard scoreboard key, which also works while dead.
+      this._padScoreboard = !!frame.held.scoreboard;
+      // Spectators orbit with the right stick; aim assist has no target to slow toward.
+      if (this._spectatorEnabled && frame.look.magnitude > 0) this._padLook(frame.look, dt, 1);
       return frame;
     }
     const pk = this._padKeys;
@@ -669,14 +682,18 @@ export class Input {
           this._wheelVecY += look.y * WHEEL_VECTOR_RADIUS_PX;
         }
       } else {
-        const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
-        const sensitivityScale = this.sens / MOUSE_SENSITIVITY.default;
-        const rate = this._options.padSensitivity * sensitivityScale * this._assistScale() * step;
-        this._accDX += look.x * rate;
-        this._accDY += look.y * rate * (this.invertY ? -1 : 1);
+        this._padLook(look, dt, this._assistScale());
       }
     }
     return frame;
+  }
+
+  _padLook(look, dt, assistScale) {
+    const step = Math.max(0, Math.min(0.05, Number(dt) || 0));
+    const sensitivityScale = this.sens / MOUSE_SENSITIVITY.default;
+    const rate = this._options.padSensitivity * sensitivityScale * assistScale * step;
+    this._accDX += look.x * rate;
+    this._accDY += look.y * rate * (this.invertY ? -1 : 1);
   }
 
   _clearPadState() {
@@ -1035,7 +1052,7 @@ export class Input {
       onHold: (action, held) => this._onTouchHold(action, held),
       onPulse: (action) => this._onTouchPulse(action),
       onPause: () => {
-        if (this._gameplayEnabled) this._pauseHandler?.();
+        if (this._gameplayEnabled || this._spectatorEnabled) this._pauseHandler?.();
       },
     });
     this._touchControls.mount(document.body);
@@ -1043,7 +1060,7 @@ export class Input {
       size: this._options.touchSize,
       hand: this._options.touchHand,
     });
-    this._touchControls.setEnabled(this._gameplayEnabled);
+    this._syncTouchControls();
   }
 
   _onTouchMove({ x = 0, y = 0, magnitude = 0 } = {}) {
@@ -1056,9 +1073,9 @@ export class Input {
   }
 
   _onTouchLook(dx, dy) {
-    if (!this._gameplayEnabled || this._wheelOpen) return;
+    if ((!this._gameplayEnabled && !this._spectatorEnabled) || this._wheelOpen) return;
     const scale = this.sens * TOUCH_LOOK_SENSITIVITY_SCALE *
-      this._options.touchSensitivity * this._assistScale();
+      this._options.touchSensitivity * (this._gameplayEnabled ? this._assistScale() : 1);
     this._accDX += (Number(dx) || 0) * scale;
     this._accDY += (Number(dy) || 0) * scale * (this.invertY ? -1 : 1);
   }

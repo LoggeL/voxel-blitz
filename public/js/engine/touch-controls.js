@@ -145,6 +145,7 @@ export class TouchControls {
     this._pulsePointers = new Map();
     this._context = null;
     this._hidden = new Set();
+    this._spectating = false;
     this._options = { size: 'medium', hand: 'right' };
   }
 
@@ -156,7 +157,7 @@ export class TouchControls {
    */
   setContext(context = null) {
     const next = context && typeof context === 'object' ? context : null;
-    const visible = visibleTouchActions(next);
+    const visible = this._spectating ? new Set() : visibleTouchActions(next);
     const changed = [];
     for (const action of TOUCH_ACTIONS) {
       const hide = !visible.has(action);
@@ -178,6 +179,23 @@ export class TouchControls {
       button.setAttribute('aria-hidden', hide ? 'true' : 'false');
     }
     return changed;
+  }
+
+  /**
+   * Spectating keeps the controls up for camera look and pause only: the joystick
+   * and every action chip hide whatever the gameplay context says.
+   */
+  setSpectating(active) {
+    const next = !!active;
+    if (next === this._spectating) return;
+    this._spectating = next;
+    this.root?.classList.toggle('is-spectating', next);
+    this.document?.documentElement?.classList.toggle('vb-touch-spectating', next);
+    if (next && this._movePointer !== null) {
+      this._resetMove();
+      this.onMove({ x: 0, y: 0, magnitude: 0 });
+    }
+    this.setContext(this._context);
   }
 
   /** Layout options: stick/button size and the dominant hand (mirrors the layout). */
@@ -212,6 +230,8 @@ export class TouchControls {
     root.setAttribute('aria-hidden', 'true');
     this.root = root;
     this.document.documentElement?.classList.add('vb-touch-mode');
+    root.classList.toggle('is-spectating', this._spectating);
+    this.document.documentElement?.classList.toggle('vb-touch-spectating', this._spectating);
 
     d.look = addElement(this.document, 'div', 'vb-touch-look-zone', root);
     d.look.id = 'touch-look-zone';
@@ -298,17 +318,11 @@ export class TouchControls {
     const release = (event) => {
       if (event.pointerId !== this._movePointer) return;
       event.preventDefault();
-      this._movePointer = null;
-      this._moveCenter = null;
-      this.dom.moveKnob.style.transform = 'translate(0px, 0px)';
-      base.style.left = '';
-      base.style.top = '';
-      base.style.bottom = '';
-      zone.classList.remove('is-engaged', 'is-sprinting');
+      this._resetMove();
       this.onMove({ x: 0, y: 0, magnitude: 0 });
     };
     this._listen(zone, 'pointerdown', (event) => {
-      if (!this.enabled || this._movePointer !== null) return;
+      if (!this.enabled || this._spectating || this._movePointer !== null) return;
       event.preventDefault();
       this._movePointer = event.pointerId;
       this._capture(zone, event);
@@ -467,14 +481,24 @@ export class TouchControls {
       const released = new Set([...this._heldPointers.keys(), ...this._latched]);
       for (const action of released) this.onHold(action, false, eventTime(null));
     }
-    this._movePointer = null;
-    this._moveCenter = null;
+    this._resetMove();
     this._lookPointer = null;
     this._lookPoint = null;
     this._heldPointers.clear();
     this._heldSince.clear();
     this._latched.clear();
     this._pulsePointers.clear();
+    this.dom.look?.classList.remove('is-engaged');
+    for (const button of this.root?.querySelectorAll?.('.vb-touch-button') || []) {
+      button.classList.remove('is-held', 'is-latched');
+      button.setAttribute('aria-pressed', 'false');
+    }
+  }
+
+  /** Drops the joystick pointer and re-docks the floating stick. */
+  _resetMove() {
+    this._movePointer = null;
+    this._moveCenter = null;
     if (this.dom.moveKnob) this.dom.moveKnob.style.transform = 'translate(0px, 0px)';
     if (this.dom.moveBase) {
       this.dom.moveBase.style.left = '';
@@ -482,11 +506,6 @@ export class TouchControls {
       this.dom.moveBase.style.bottom = '';
     }
     this.dom.move?.classList.remove('is-engaged', 'is-sprinting');
-    this.dom.look?.classList.remove('is-engaged');
-    for (const button of this.root?.querySelectorAll?.('.vb-touch-button') || []) {
-      button.classList.remove('is-held', 'is-latched');
-      button.setAttribute('aria-pressed', 'false');
-    }
   }
 
   dispose() {
@@ -496,7 +515,7 @@ export class TouchControls {
     }
     this._listeners.length = 0;
     this.root?.remove();
-    this.document?.documentElement?.classList.remove('vb-touch-mode');
+    this.document?.documentElement?.classList.remove('vb-touch-mode', 'vb-touch-spectating');
     this.root = null;
     this.dom = {};
   }

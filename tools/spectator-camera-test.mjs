@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { Input } from '../public/js/engine/input.js';
+import { PAD_BUTTONS } from '../public/js/engine/gamepad.js';
 import { SpectatorCamera } from '../public/js/player/spectator-camera.js';
 import { GameplayUiFlow } from '../public/js/session/gameplay-ui.js';
 
@@ -25,6 +26,18 @@ input.fallback = true;
 input._touchMode = false;
 let locks = 0;
 let settingsOpen = false;
+const padButtons = Array.from({ length: 17 }, () => ({ pressed: false, value: 0 }));
+const pad = { axes: [0, 0, 0, 0], buttons: padButtons };
+input._pad.navigator = { getGamepads: () => [pad] };
+let padNow = 1000;
+const padFrame = (axes = [0, 0, 0, 0]) => {
+  pad.axes = axes;
+  input.poll(padNow += 16, 1 / 60);
+  pad.axes = [0, 0, 0, 0];
+};
+const padLook = () => { padFrame([0, 0, 1, 0.6]); return input.consumeDelta(); };
+const touchLook = () => { input._onTouchLook(30, 12); return input.consumeDelta(); };
+const press = (action, down) => { padButtons[PAD_BUTTONS[action]] = { pressed: down, value: down ? 1 : 0 }; };
 const gameplay = { running: true, alive: false, spectating: true, selfRow: self, matchState: { mode: 'tdm', phase: 'live' } };
 const lifecycle = { liveActive: true, phase: 'live', disconnected: false, tornDown: false };
 const flow = new GameplayUiFlow({ input, gameplay, lifecycle, unlockAudio() {},
@@ -86,6 +99,34 @@ try {
   spectator.update(null, 1 / 60);
   near(camera.position.distanceTo(waiting), 0, 'empty snapshots do not reset the waiting orbit');
 
+  input.consumeDelta();
+  const stick = padLook();
+  const thumb = touchLook();
+  assert.ok(stick.dx > 0 && stick.dy > 0, 'the pad right stick orbits the spectator camera');
+  assert.ok(thumb.dx > 0 && thumb.dy > 0, 'touch look orbits the spectator camera');
+  input.setAimAssist(1);
+  near(padLook().dx, stick.dx, 'aim assist never slows spectator pad look');
+  near(touchLook().dx, thumb.dx, 'aim assist never slows spectator touch look');
+  input.setAimAssist(0);
+  press('scoreboard', true);
+  padFrame();
+  assert.equal(input.scoreboardHeld, true, 'pad Back shows the scoreboard while dead, like Tab');
+  press('scoreboard', false);
+  padFrame();
+  assert.equal(input.scoreboardHeld, false, 'releasing pad Back hides the scoreboard');
+  for (const action of ['fire', 'reload', 'jump', 'ads', 'weapon', 'grenade']) press(action, true);
+  padFrame([0, -1, 0, 0]);
+  for (const action of ['fire', 'reload', 'jump', 'ads', 'weapon', 'grenade']) press(action, false);
+  padFrame();
+  assert.equal(input.wantFireHeld, false, 'pad fire stays blocked for spectators');
+  assert.equal(input.consumeFireTap(), false, 'pad fire queues no shot for spectators');
+  assert.equal(input.wantAdsHeld, false);
+  assert.equal(input.getKeys().forward, false, 'pad movement stays blocked for spectators');
+  assert.equal(input.getKeys().jump, false);
+  assert.equal(input.getKeys().reload, false, 'pad reload stays blocked for spectators');
+  assert.equal(input.consumeWeaponSwitch(), 0);
+  assert.equal(input.consumeGrenadeThrow(), null);
+
   for (const button of [0, 1, 2]) input._onMouseDown({ button, preventDefault() {} });
   for (const code of ['KeyW', 'Space', 'KeyR', 'KeyG', 'KeyK', 'Digit1']) {
     input._onKeyDown({ code, preventDefault() {} });
@@ -108,6 +149,8 @@ try {
   assert.equal(flow.pauseFromKeyboard(), true);
   input._onMouseMove({ movementX: 10, movementY: 10 });
   assert.deepEqual(input.consumeDelta(), { dx: 0, dy: 0 }, 'settings block spectator look');
+  assert.deepEqual(padLook(), { dx: 0, dy: 0 }, 'settings block spectator pad look');
+  assert.deepEqual(touchLook(), { dx: 0, dy: 0 }, 'settings block spectator touch look');
   flow.resumeFromSettings();
   assert.equal(locks, 2, 'resume reacquires pointer lock while dead');
   flow.onPointerLockChange(false);
@@ -122,6 +165,8 @@ try {
     flow.syncInput();
     input._onMouseMove({ movementX: 20, movementY: 20 });
     assert.deepEqual(input.consumeDelta(), { dx: 0, dy: 0 }, `${block} blocks spectator look`);
+    assert.deepEqual(padLook(), { dx: 0, dy: 0 }, `${block} blocks spectator pad look`);
+    assert.deepEqual(touchLook(), { dx: 0, dy: 0 }, `${block} blocks spectator touch look`);
   }
   lifecycle.disconnected = lifecycle.tornDown = false;
   gameplay.alive = true;
@@ -131,7 +176,7 @@ try {
   assert.deepEqual(input.consumeDelta(), { dx: 0, dy: 0 }, 'respawn clears spectator look');
   sync([ally], { ...self, state: 'alive' });
   assert.equal(spectator.update(null, 1 / 60), false, 'respawn releases camera ownership');
-  console.log('Spectator contracts passed: mouse orbit, target changes, walls, no-target fallback, input isolation, pause/resume and respawn.');
+  console.log('Spectator contracts passed: mouse/pad/touch orbit, pad scoreboard, target changes, walls, no-target fallback, input isolation, pause/resume and respawn.');
 } finally {
   spectator.dispose();
   input.dispose();

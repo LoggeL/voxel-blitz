@@ -339,6 +339,7 @@ export async function runInputContracts(ok, installGlobals) {
       touch._touchControls = {
         reset: () => { touchResetCalls += 1; },
         setEnabled: () => {},
+        setSpectating: () => {},
         dispose: () => {},
       };
       touch.consumeDelta();
@@ -669,7 +670,7 @@ export async function runInputContracts(ok, installGlobals) {
 
   {
     const { stickCurve, readGamepadFrame, PAD_BUTTONS } = await import('../../public/js/engine/gamepad.js');
-    const { visibleTouchActions, TouchControls } =
+    const { visibleTouchActions, TouchControls, TOUCH_ACTIONS } =
       await import('../../public/js/engine/touch-controls.js');
     const { wheelSwitchStep } = await import('../../public/js/input-settings.js');
 
@@ -785,6 +786,34 @@ export async function runInputContracts(ok, installGlobals) {
     swap.dispatch('pointerup');
     ok(pulses.length === 2, 'cancelled, hidden, and secondary-finger presses cannot trigger a swap');
     minimal.dispose();
+
+    // Spectating keeps only look and pause: a live context cannot bring chips back,
+    // a held joystick lets go, and a fresh stick touch is ignored.
+    const moves = [];
+    const watching = new TouchControls({ documentRef: null, onMove: (vector) => moves.push(vector.magnitude) });
+    const rectTarget = () => Object.assign(target(), {
+      style: {},
+      getBoundingClientRect: () => ({ left: 0, top: 0, right: 240, bottom: 240, width: 96, height: 96 }),
+    });
+    watching.dom.move = rectTarget();
+    watching.dom.moveBase = rectTarget();
+    watching.dom.moveKnob = rectTarget();
+    watching._bindMove();
+    watching.setEnabled(true);
+    watching.dom.move.dispatch('pointerdown', 4);
+    const stickHeld = watching._movePointer === 4;
+    watching.setSpectating(true);
+    watching.setContext({ alive: true, canFire: true, canReload: true, weaponCount: 2 });
+    const stickReleased = watching._movePointer === null && moves.at(-1) === 0;
+    moves.length = 0;
+    watching.dom.move.dispatch('pointerdown', 5);
+    ok(stickHeld && stickReleased && moves.length === 0 && watching._movePointer === null
+        && watching._hidden.size === TOUCH_ACTIONS.length,
+    'spectating touch controls release the joystick, ignore new stick touches, and hide every chip but pause');
+    watching.setSpectating(false);
+    ok(!watching._hidden.has('fire') && !watching._hidden.has('jump'),
+    'leaving spectator mode restores the gameplay context chips');
+    watching.dispose();
 
     // This contract also runs without the keybindings suite's storage fixture.
     // Own and restore the preferences used to verify a fresh controller session.
