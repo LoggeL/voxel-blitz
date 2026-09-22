@@ -274,7 +274,6 @@ class BotManager {
       const br = this.brains[i];
       const p = this.game.entities.get(br.id);
       if (!p) { this.brains.splice(i, 1); continue; }
-      if (p.personality !== br.personality) p.personality = br.personality;
       this.watchStuck(br, p, now);
       this.game.applyInput(br.id, this.think(br, p, now, dtS));
     }

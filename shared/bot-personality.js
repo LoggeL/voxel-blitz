@@ -14,14 +14,9 @@ export const BOT_PERSONALITIES = Object.freeze({
 export const BOT_PERSONALITY_IDS = Object.freeze(Object.keys(BOT_PERSONALITIES));
 export const DEFAULT_BOT_PERSONALITY = 'skirmisher';
 export const isBotPersonality = (value) => typeof value === 'string' && Object.hasOwn(BOT_PERSONALITIES, value);
-export const botPersonality = (value) => BOT_PERSONALITIES[isBotPersonality(value) ? value : DEFAULT_BOT_PERSONALITY];
 
 /** Uniform roll that never consumes the caller's gameplay rng stream. */
 export function rollBotPersonality(random) {
   const ids = BOT_PERSONALITY_IDS;
   return ids[Math.floor(random() * ids.length) % ids.length];
 }
-
-/** Lobby-wide difficulty presets; mixed rolls per bot. */
-export const BOT_PRESETS = Object.freeze(['easy', 'normal', 'hard', 'mixed']);
-export const isBotPreset = (value) => typeof value === 'string' && BOT_PRESETS.includes(value);

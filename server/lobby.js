@@ -551,7 +551,9 @@ export class LobbyManager {
       } else {
         this._syncWaitingBots(room);
         room.bots = Math.min(room.bots, capacity(room) - room.members.size);
-        manager = attachBots(room.engine, room.bots, { difficulties: room.botDifficulties });
+        manager = attachBots(room.engine, room.bots, {
+          difficulties: room.botDifficulties, personalitySeed: randomInt(2 ** 32),
+        });
         room.botManager = manager;
         if (hasLobbyTeams(room.gameMode)) {
           for (const [id, team] of room.botTeams) room.engine.mode.setLobbyTeam(id, team);

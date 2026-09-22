@@ -753,8 +753,9 @@ master/echo module and asserts onset, limiter behavior, RMS, tail, and weapon
 weight ordering.
 
 ### Server bots
-`attachBots(engine,n,{difficulties})` returns a `BotManager`; optional difficulties
-is a map from stable bot slot ids to `easy`, `normal` or `hard`. Bots submit
+`attachBots(engine,n,{difficulties,personalitySeed})` returns a `BotManager`; optional difficulties
+is a map from stable bot slot ids to `easy`, `normal` or `hard`. Lobbies pass a
+random `personalitySeed` per game (default 0 keeps tools deterministic). Bots submit
 through the same `applyInput` and combat pipeline as humans, count toward room
 capacity, and exist only while their room is live. They obey enemy eligibility,
 friendly fire, weapon damage, ammo, reloads, spawn protection and mode objectives.
