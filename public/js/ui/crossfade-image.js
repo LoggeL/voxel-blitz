@@ -35,7 +35,10 @@ export class CrossfadeImage {
       this.root.dataset.loading = 'true';
       try { await incoming.decode(); } catch {
         if (this.request !== request) continue;
-        break; // A failed asset never replaces the last good image.
+        // A failed asset never replaces the last good image; forgetting the
+        // request lets a later set() with the same source retry the decode.
+        this.request = null;
+        break;
       }
       if (this.disposed) break;
       if (this.request !== request) continue;

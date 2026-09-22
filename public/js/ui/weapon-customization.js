@@ -3,6 +3,7 @@ import { OPTICS, GRIPS, COUNTERS, ATTACHMENT_SLOTS, normalizeAttachments, normal
 import { weaponTurnProfile } from '../../../shared/weapon-handling.js';
 import { WeaponPreview } from './weapon-preview.js';
 import { normalizeCosmeticLoadout, PROGRESSION_TREE } from '../../../shared/career.js';
+import { careerFetch, focusedKey, restoreFocus } from './career-ui-support.js';
 
 const el = (tag,parent,text='',className='') => {
   const n = document.createElement(tag); n.textContent = text; n.className = className; parent.append(n); return n;
@@ -52,13 +53,16 @@ export class WeaponCustomization {
     };
     window.addEventListener('vb-account-change',this.onAccountChange);
     this.onCareerChange = event => {
+      const snapshot = () => JSON.stringify([this.cosmetics,this.parts,this.mastery]), unchanged = snapshot();
       this.cosmetics = normalizeCosmeticLoadout(event.detail?.equipped);
       const before = this.parts;
       this.parts = event.detail?.unlockedParts || STANDARD_PARTS;
       if (event.detail?.mastery && typeof event.detail.mastery === 'object') this.mastery = event.detail.mastery;
       const opened = ['optic','grip','counter'].flatMap(slot =>
         (this.parts[slot]||[]).filter(part => !(before[slot]||[]).includes(part)).map(part => partNode(slot,part)?.name || part));
-      if (this.dialog.open) this.render(opened.length ? `Unlocked: ${opened.join(', ')}.` : undefined);
+      // A repeated profile would only rebuild the options, dropping keyboard focus
+      // and the status line; a busy load or save renders its own result.
+      if (this.dialog.open && !this.busy && snapshot() !== unchanged) this.render(opened.length ? `Unlocked: ${opened.join(', ')}.` : undefined);
     };
     window.addEventListener('vb-career-change',this.onCareerChange);
     this.observer = new MutationObserver(()=>this.mount());
@@ -81,8 +85,7 @@ export class WeaponCustomization {
   async refresh() {
     const version = ++this.version; this.ready=false; this.busy=true; this.render('Loading your saved setups...');
     try {
-      const response = await fetch('/api/career',{credentials:'same-origin',signal:AbortSignal.timeout(5000)});
-      const profile = await response.json();
+      const {response,payload:profile} = await careerFetch('/api/career',{credentials:'same-origin',signal:AbortSignal.timeout(5000)},'Could not load your setups.');
       if (version !== this.version) return;
       if (!response.ok) throw new Error(profile.error || 'Could not load your setups.');
       this.cosmetics=normalizeCosmeticLoadout(profile.equipped);
@@ -129,6 +132,7 @@ export class WeaponCustomization {
       el('p',row,detail);
     }
     el('p',this.stats,`Turn ceiling: ${Math.round(weaponTurnProfile(h).maxSpeed*180/Math.PI)}°/s. Zoom: ${number(def.zoom || 1)}×.`,'vb-workshop-turn');
+    const focus=focusedKey(this.slots,['optic','grip','counter']);
     this.slots.replaceChildren();
     for(const [slot,label,catalog,ids] of [['optic','OPTIC',OPTICS,ATTACHMENT_SLOTS[this.weapon].optics],['grip','GRIP',GRIPS,ATTACHMENT_SLOTS[this.weapon].grips],['counter','KILL COUNTER',COUNTERS,ATTACHMENT_SLOTS[this.weapon].counter]]) {
       const section=el('section',this.slots); el('h3',section,label);
@@ -152,6 +156,7 @@ export class WeaponCustomization {
     }
     const dirty=!equal(selection,normalizeAttachments(this.weapon,this.saved[this.weapon]));
     this.status.textContent=message || (dirty?'Unsaved setup.':'Saved setup equipped.'); this.controls();
+    restoreFocus(this.slots,[focus]);
   }
   async persist() {
     if(this.save.disabled)return;
@@ -160,9 +165,9 @@ export class WeaponCustomization {
     try {
       await this.accounts?.refresh();
       if(version!==this.version || (this.accounts?.user?.id || null)!==account) return;
-      const response=await fetch('/api/career/attachments',{method:'POST',credentials:'same-origin',
-        headers:{'Content-Type':'application/json','X-VB-Career':'1'},body:JSON.stringify({weapon,attachments}),signal:AbortSignal.timeout(5000)});
-      const profile=await response.json(); if(version!==this.version)return;
+      const {response,payload:profile}=await careerFetch('/api/career/attachments',{method:'POST',credentials:'same-origin',
+        headers:{'Content-Type':'application/json','X-VB-Career':'1'},body:JSON.stringify({weapon,attachments}),signal:AbortSignal.timeout(5000)},'Could not save. Try again.');
+      if(version!==this.version)return;
       if(!response.ok)throw new Error(profile.error || 'Could not save. Try again.');
       this.cosmetics=normalizeCosmeticLoadout(profile.equipped);
       this.saved=normalizeWeaponLoadout(profile.equipped?.weaponAttachments);delete this.drafts[weapon];

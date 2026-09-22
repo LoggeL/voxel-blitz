@@ -2,6 +2,7 @@ import { CAREER_CATALOG, CAREER_REWARDS, EQUIPPABLE_SLOTS, PROFILE_SLOTS, PROGRE
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { mountMusicControl } from './music-control.js';
 import { cosmeticArtwork as artwork, CosmeticAudition, COSMETIC_AUDIO, cosmeticVolume } from './cosmetic-preview.js';
+import { careerFetch, focusedKey, restoreFocus } from './career-ui-support.js';
 
 const node = (tag, parent, text, className = '') => {
   const element = document.createElement(tag);
@@ -18,6 +19,8 @@ const KIND_LABELS = { weaponSkin: 'WEAPON SKIN', characterSkin: 'CHARACTER SKIN'
 const RESETTABLE = ['weaponSkin', ...EQUIPPABLE_SLOTS];
 const EQUIPPABLE = [...RESETTABLE, ...PROFILE_SLOTS];
 const FILTERS = [['all', 'ALL'], ...PROGRESSION_BRANCHES.map(branch => [branch.id, branch.name])];
+// Data keys that identify a rebuilt control, most specific first.
+const FOCUS_KEYS = ['node', 'item', 'featuredItem', 'inspect', 'audition', 'reset'];
 
 /** The shortfall that keeps a node closed, in the player's words. */
 export function unlockSummary(state, item) {
@@ -95,10 +98,7 @@ export class ProgressionTree {
     this.collectionSummary = node('p', store, '', 'vb-career-collection-summary');
     this.jump = node('button', store, 'JUMP TO NEXT UNLOCK', 'vb-btn vb-tree-jump');
     this.jump.type = 'button';
-    this.jump.addEventListener('click', () => {
-      const next = this.tree.querySelector('[aria-current="step"]');
-      if (next) { next.scrollIntoView({ block: 'center', behavior: 'instant' }); next.focus({ preventScroll: true }); }
-    });
+    this.jump.addEventListener('click', () => this.jumpToNextUnlock());
     this.loadout = node('div', store, '', 'vb-career-loadout');
     this.tree = node('div', store, '', 'vb-tree');
     this.tree.id = 'progression-tree';
@@ -170,13 +170,12 @@ export class ProgressionTree {
         throw new Error('Your session changed. Choose the item again after checking your career.');
     }
     const version = this.requestVersion = (this.requestVersion || 0) + 1;
-    const response = await fetch(item ? '/api/career/equip' : '/api/career', {
+    const { response, payload } = await careerFetch(item ? '/api/career/equip' : '/api/career', {
       method: item ? 'POST' : 'GET', credentials: 'same-origin',
       ...(item ? { headers: { 'Content-Type': 'application/json', 'X-VB-Career': '1' },
         body: JSON.stringify({ item, equipOnly, ...reset }) } : {}),
       signal: AbortSignal.timeout(5000),
-    });
-    const payload = await response.json();
+    }, 'Career service unavailable. Try again.');
     if (version !== this.requestVersion || this.disposed) return null;
     if (!response.ok) throw new Error(payload.error || 'Career unavailable');
     this.profile = payload;
@@ -193,7 +192,9 @@ export class ProgressionTree {
     const menu = document.getElementById('menu');
     if (menu) this.observer.observe(menu, { childList: true, subtree: true });
     this.timer = setInterval(() => {
-      if (!document.hidden && !this.dialog.open && !this.accounts?.dialog.open) {
+      // An open Armory rebuilds on every career change, so it pauses the poll too.
+      if (!document.hidden && !this.dialog.open && !this.accounts?.dialog.open
+        && !document.getElementById('weapon-customization')?.open) {
         Promise.resolve(this.accounts?.refresh()).then(() => this.request()).catch(() => {});
       }
     }, 15000);
@@ -234,6 +235,15 @@ export class ProgressionTree {
       if (!best || state.progress > best.progress) best = { item, progress: state.progress, state };
     }
     return best;
+  }
+
+  jumpToNextUnlock() {
+    const next = this.profile && this.nextUnlock();
+    if (!next) return;
+    // The next unlock can sit in a branch the filter hides; show that branch.
+    if (!this.matchesFilter(next.item)) { this.filter = next.item.branch; this.renderTree(); }
+    const step = this.tree.querySelector('[aria-current="step"]');
+    if (step) { step.scrollIntoView({ block: 'center', behavior: 'instant' }); step.focus({ preventScroll: true }); }
   }
 
   renderMenuPreview() {
@@ -280,7 +290,13 @@ export class ProgressionTree {
         if (accepted) this.status.textContent = `${item.name} equipped`;
       }
       catch (error) { this.status.textContent = error.message; }
-      finally { this.busy = false; this.render(); }
+      finally {
+        this.busy = false; this.render();
+        // The button was disabled while busy; hand focus to its rebuilt twin, or
+        // to the tree node / preview once it reads EQUIPPED.
+        if (!restoreFocus(this.dialog, featured ? [['featuredItem', item.id]] : [['item', item.id], ['node', item.id]])
+          && featured) this.feature.focus({ preventScroll: true });
+      }
     });
     return button;
   }
@@ -393,7 +409,12 @@ export class ProgressionTree {
           const accepted = await this.request('standard', true, reset);
           if (accepted) this.status.textContent = `Standard ${label.toLowerCase()} equipped`;
         } catch (error) { this.status.textContent = error.message; }
-        finally { this.busy = false; this.render(); }
+        finally {
+          this.busy = false; this.render();
+          // Once standard is restored the reset disables itself; move to a live one.
+          if (!restoreFocus(this.dialog, [['reset', key]]))
+            (this.loadout.querySelector('button:not(:disabled)') || this.tree.querySelector('button'))?.focus({ preventScroll: true });
+        }
       });
     }
     this.loadout.hidden = slots.size === 0;
@@ -557,6 +578,7 @@ export class ProgressionTree {
   render() {
     const profile = this.profile;
     if (!profile) return;
+    const focus = focusedKey(this.dialog, FOCUS_KEYS);
     this.syncAccount();
     this.stats.textContent = `LEVEL ${profile.level} · ${format(profile.xp)} XP`;
     this.progress.max = profile.nextLevel - profile.levelStart;
@@ -579,6 +601,7 @@ export class ProgressionTree {
     this.renderTree();
     this.renderMastery();
     this.renderMenuPreview();
+    restoreFocus(this.dialog, [focus]);
   }
 
   dispose() {
