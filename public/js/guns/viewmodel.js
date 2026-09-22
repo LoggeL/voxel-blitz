@@ -279,7 +279,7 @@ export class ViewmodelRig {
 
     if (T.cycleBack) {
       // Mode owns rechambering (rig.pumpAnim()/boltAnim()); deadline prevents a lost event wedging
-      // the busy gate forever. The pause document (bursts[0][0]) informs pacing, drives nothing.
+      // the busy gate forever. The bolt length itself is T.cycleMs, read by WeaponActions.beginCycle.
       this._stallUntil = now + cycMs / 1000 + 0.15;
     } else if (this._id === 'minigun') {
       // The rotary feed ejects steadily; it has no reciprocating rifle bolt.
