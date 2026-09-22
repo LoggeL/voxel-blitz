@@ -1,4 +1,5 @@
 import { MOUSE_SENSITIVITY } from '../input-settings.js';
+import { buyWindowOpen } from '../../../shared/modes.js';
 
 function clampNumber(value, min, max, fallback) {
   const number = Number(value);
@@ -167,10 +168,7 @@ export class GameplayUiFlow {
 
   _isBuyPhase() {
     const match = this._gameplay.matchState;
-    return (match?.mode === 'ttt' && match.phase === 'live' && this._gameplay.selfRow?.ttt?.role === 'traitor')
-      || (match?.mode === 'snd' && match.phase === 'prep')
-      || (match?.mode === 'chaos' && match.phase === 'live')
-      || (match?.mode === 'bastion' && ['prep','supply'].includes(match.phase));
+    return buyWindowOpen(match?.mode, match?.phase, this._gameplay.selfRow?.ttt?.role);
   }
 
   canOpenBuyMenu() {

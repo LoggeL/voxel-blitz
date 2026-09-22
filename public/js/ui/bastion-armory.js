@@ -1,11 +1,12 @@
 import { bindingLabel, matchesBinding } from '../keybindings.js';
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { GRENADE_TYPE_IDS } from '../../../shared/grenade-rules.js';
-import { BASTION_SHOP, bastionPurchaseId } from '../../../shared/bastion.js';
+import { BASTION_RULES, BASTION_SHOP, bastionPurchaseId } from '../../../shared/bastion.js';
 import { BASTION_STRUCTURES } from '../../../shared/bastion-build.js';
 import { el, WEAPON_NAMES, THROWABLE_NAMES } from './hud-support.js';
 
 const BUDGET_LINE = { sandbag: 'barricadeVoxels', wall: 'barricadeVoxels', turret: 'turrets', crate: 'crates' };
+const TIMES = { 1: 'once', 2: 'twice' };
 
 /** Sections in order: LOADOUT · TEAM UPGRADES · FORTIFICATIONS · READY. */
 export function buildBastionArmory(root, purchase, close, onSelectStructure = null) {
@@ -31,7 +32,7 @@ export function buildBastionArmory(root, purchase, close, onSelectStructure = nu
     for(const id of values) { const option = el('option','',select); option.value=id; option.textContent=names[id]||id; }
     select.onchange = ()=>purchase(key,select.value); selectors[key]=select;
   }
-  el('p','vb-bastion-info',panel).textContent = `Revolver + Pixel Pick + one smoke included. Hold ${bindingLabel('interact')} next to the objective for 4 seconds to repair 200 HP ($150, twice per break).`;
+  el('p','vb-bastion-info',panel).textContent = `Revolver + Pixel Pick + one smoke included. Hold ${bindingLabel('interact')} next to the objective for ${BASTION_RULES.repairMs / 1000} seconds to repair ${BASTION_RULES.repairHp} HP ($${BASTION_RULES.repairPrice}, ${TIMES[BASTION_RULES.repairLimit] ?? `${BASTION_RULES.repairLimit} times`} per break).`;
   el('h3','vb-bastion-section',panel).textContent = 'TEAM UPGRADES';
   const grid = el('div','vb-bastion-upgrades',panel), cards = {};
   for(const [id,item] of Object.entries(BASTION_SHOP)) {

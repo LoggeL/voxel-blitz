@@ -43,7 +43,9 @@ weitere Spieler beitreten.
   Im Baumodus dreht `R` die Ausrichtung, die linke Maustaste platziert, `Esc`
   verlässt den Modus. Der Geist zeigt grün, wo gebaut werden darf, und rot mit
   Begründung, wo nicht. Bauen geht nur in Vorbereitung und Versorgung.
-- `E` am beschädigten Ziel halten: vier Sekunden reparieren. Das Menü dafür schließen.
+- `T` (Interaktion) am beschädigten Ziel halten: vier Sekunden reparieren. Das Menü dafür schließen.
+  Das Banner zeigt die Reparatur nur in Reichweite und nennt, wenn die Pausengrenze
+  erreicht ist oder das Geld fehlt; dieselbe Prüfung (`bastionRepairStatus`) sperrt die Eingabe.
 - Waffenrad: Hauptwaffe, Revolver und Spitzhacke. Eine Rauchgranate ist immer dabei.
 - Touch: Armory-, Use- und Build-Chips erscheinen im passenden Spielzustand;
   der Build-Chip schaltet den Bauplan weiter, der Feuer-Chip platziert.

@@ -4,7 +4,7 @@ import { combatDamage } from '../../../shared/combat-balance.js';
 import { buildBastionArmory, syncBastionArmory, bastionPurchaseId } from './bastion-armory.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { CHAOS_UPGRADES, chaosLevel, chaosPurchaseId } from '../../../shared/chaos.js';
-import { WEAPON_PRICES } from '../../../shared/modes.js';
+import { WEAPON_PRICES, buyWindowOpen } from '../../../shared/modes.js';
 import {
   el,
   GLYPH,
@@ -553,10 +553,7 @@ export class BuyMenuController {
   }
 
   _isAdmitted() {
-    return ((this.host.mode?.() === 'ttt' && this._buyMenuState.phase === 'live' && this._buyMenuState.ttt?.role === 'traitor')
-      || (this._isSndMode() && this._buyMenuState.phase === 'prep')
-      || (this._isChaosMode() && this._buyMenuState.phase === 'live')
-      || (this.host.mode?.() === 'bastion' && ['prep','supply'].includes(this._buyMenuState.phase)))
+    return buyWindowOpen(this.host.mode?.() ?? 'snd', this._buyMenuState.phase, this._buyMenuState.ttt?.role)
       && this._isAlive()
       && !this.host.settingsOpen?.()
       && !this.host.isLobbyOpen?.();
@@ -566,11 +563,6 @@ export class BuyMenuController {
 
   _isChaosMode() {
     return this.host.mode?.() === 'chaos';
-  }
-
-  _isSndMode() {
-    const mode = this.host.mode?.();
-    return mode == null || mode === 'snd';
   }
 
   _isAlive() {

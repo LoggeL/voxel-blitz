@@ -3,7 +3,7 @@ import { GameEngine } from '../server/game.js';
 import { getMapMeta, createMapState, BARRICADE, AIR } from '../shared/worlddata.js';
 import { GROUND, BEDROCK, isSolidBlock } from '../shared/world/blocks.js';
 import { BASTION_RULES as R, BASTION_ROLES, BASTION_ENEMIES, BASTION_WAVES, BASTION_FACTORS, BASTION_VEHICLE_FACTORS,
-  BASTION_CAPS, bastionWave, bastionReward, bastionPurchaseId, parseBastionPurchase, bastionRepairAvailable,
+  BASTION_CAPS, bastionWave, bastionReward, bastionPurchaseId, parseBastionPurchase, bastionRepairAvailable, bastionRepairStatus,
   bastionWeaponDef } from '../shared/bastion.js';
 import { BASTION_STRUCTURES, canPlaceStructure, structureFootprint } from '../shared/bastion-build.js';
 import { bastionDefenderSolid, bastionPlannedWaves, bastionHoldWaves, bastionStageOfWave } from '../shared/world/bastion-layouts.js';
@@ -347,6 +347,14 @@ for(const map of PVE){
   const {e,m,p}=make();m.core.hp=m.core.maxHp-100;Object.assign(p,{x:m.core.x+2,y:m.core.y,z:m.core.z});
   assert(bastionRepairAvailable(m.matchSnapshot(),p),'keyboard and touch expose the same valid repair');
   p.y+=5;assert.equal(bastionRepairAvailable(m.matchSnapshot(),p),false,'cannot repair from roof');p.y-=5;
+  m.repairs=R.repairLimit;assert.equal(bastionRepairStatus(m.matchSnapshot(),p),'limit','server refuses past the break limit');
+  m.repairs=0;m.credits=R.repairPrice-1;assert.equal(bastionRepairStatus(m.matchSnapshot(),p),'credits','server refuses without the price');
+  assert.equal(bastionRepairAvailable(m.matchSnapshot(),p),false);
+  // Snapshot credits exclude the running repair's price; the repairer's own gate must not cancel it.
+  m.credits=R.repairPrice+50;e.applyInput(p.id,{keys:{interact:true}});e.step(50);assert.equal(m.repair?.id,p.id);
+  const repairing={...p,interaction:m.playerSnapshot(p).interaction};
+  assert(m.matchSnapshot().bastion.credits<R.repairPrice&&bastionRepairAvailable(m.matchSnapshot(),repairing),'own repair stays gated open');
+  e.applyInput(p.id,{keys:{interact:false}});e.step(50);assert.equal(m.repair,null);
   m.startWave();assert.equal(bastionRepairAvailable(m.matchSnapshot(),p),false);
   e.applyInput(p.id,{wantFire:true,throwGrenade:true,grenadeHandling:true,quickMelee:true});
   assert.equal(p.input.wantFire,false);assert.equal(p.input.throwGrenade,false);assert.equal(p.quickMeleeQueued,null);
