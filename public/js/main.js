@@ -87,6 +87,7 @@ class Game {
     this.serverNow = null;
     this._lastConsumedSnapSeq = null;
     this._pendingAuthoritativeSnapshots = [];
+    this._bootBlockDeltas = null;
     this._postFrame = { time: 0, panic: 0, pain: 0, scopeActive: false };
     this._padScoreboard = false;
     this._deviceKey = '';
@@ -225,6 +226,7 @@ class Game {
 
   async bootLive(payload) {
     const { net, welcome, mapBytes, mapMeta, isActive, showStatus, showProgress, complete } = payload;
+    this._bootBlockDeltas = [];
     await this.ensureRuntime();
     if (!isActive()) return;
     if (!net.isOpen()) return this.session.handleDisconnect();
@@ -243,6 +245,11 @@ class Game {
       applySnapshotBlocks(snapshot, this._world);
       this.queueAuthoritativeSnapshot(snapshot);
     }
+    // The ring only holds the last RING_LEN ticks; every delta that arrived
+    // while booting is buffered in full and replayed last (latest writer wins).
+    const bootBlocks = this._bootBlockDeltas || [];
+    this._bootBlockDeltas = null;
+    for (const blocks of bootBlocks) applySnapshotBlocks({ blocks }, this._world);
     if (!net.isOpen()) return this.session.handleDisconnect();
 
     showStatus('building voxel mesh…', 'ok');
@@ -408,9 +415,11 @@ class Game {
   }
 
   handleTick(snapshot, phase = this.session.phase) {
-    // Before the runtime arrives there is no world to patch; bootLive replays
-    // net.latestSnapshots after deserializing the arena.
-    applySnapshotBlocks?.(snapshot, this._world);
+    // Until bootLive decodes the arena its terrain deltas are buffered, since
+    // the map bytes would overwrite them; bootLive replays the buffer after.
+    if (this._bootBlockDeltas) {
+      if (snapshot?.blocks?.length) this._bootBlockDeltas.push(snapshot.blocks);
+    } else applySnapshotBlocks?.(snapshot, this._world);
     if (phase === 'booting') this.queueAuthoritativeSnapshot(snapshot);
     else if (this.running && phase === 'live') this.consumeAuthoritativeSnapshot(snapshot);
   }
@@ -956,6 +965,7 @@ class Game {
     this.frameRate.reset();
     sfx.stopPainMoans();
     this._pendingAuthoritativeSnapshots = [];
+    this._bootBlockDeltas = null;
     this._lastConsumedSnapSeq = null;
     this.feedback?.dispose();
     this.runHud?.dispose();
