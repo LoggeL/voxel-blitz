@@ -1,9 +1,16 @@
 import * as THREE from '../vendor/three.module.js';
 import { createBlenderParts } from '../engine/blender-assets.js';
 import { disposeObjectTree } from '../engine/dispose.js';
+import { GRENADE_PIN_MS, GRENADE_POWER_STEPS, GRENADE_TYPE_IDS as IDS } from '../../../shared/grenade-rules.js';
 
-export const THROWABLE_TIMING = Object.freeze({ draw: 0.18, arm: 0.24, ready: 0.48, throw: 0.36, return: 0.20 });
-import { GRENADE_TYPE_IDS as IDS } from '../../../shared/grenade-rules.js';
+// `arm` is the visible pin pull; the shared rules measure the cook from the same instant.
+export const THROWABLE_TIMING = Object.freeze({
+  draw: 0.18, arm: GRENADE_PIN_MS / 1000, ready: 0.48, throw: 0.36, return: 0.20, reseat: 0.22,
+});
+/** A quick tap separates the pin contact from the release whoosh by this much. */
+export const QUICK_THROW_CUE_DELAY = 0.07;
+// The lowest power step (LOB) swings underhand instead of over the shoulder.
+const UNDERHAND_POWER = GRENADE_POWER_STEPS[0] + 1e-6;
 const clamp = value => Math.max(0, Math.min(1, Number(value) || 0));
 const smooth = value => { const t = clamp(value); return t * t * (3 - 2 * t); };
 const typeId = type => IDS.includes(type) ? type : IDS[Math.max(0, Math.min(IDS.length - 1, Math.trunc(Number(type) || 0)))];
@@ -21,12 +28,14 @@ export class ThrowableHands {
     this.elapsed = 0;
     this.throwElapsed = null;
     this.returnElapsed = null;
+    this.reseatElapsed = null;
+    this._throwCueIn = null;
+    this._underhand = false;
     this.type = 'frag';
     this.charge = 0;
     this._armed = false;
     this._ready = false;
     this._holdSeconds = 0;
-    this._holdOffset = 0;
     this._clock = 0;
     this._disposed = false;
 
@@ -174,6 +183,8 @@ export class ThrowableHands {
     this._quat = new THREE.Quaternion();
     this._throwPosition = new THREE.Vector3();
     this._throwRotation = new THREE.Euler();
+    this._reseatPin = new THREE.Vector3();
+    this._reseatLeft = new THREE.Vector3();
   }
 
   _cue(cue) { this.onCue?.({ cue, type: this.type, charge: this.charge }); }
@@ -184,10 +195,12 @@ export class ThrowableHands {
       if (this.held) { this.held = false; this.returnElapsed = 0; }
       return;
     }
-    const id = typeId(type);
     this.charge = clamp(charge);
-    if (!this.held || id !== this.type) {
-      this._holdOffset = this.held && Number.isFinite(holdMs) ? Math.max(0, holdMs / 1000) : 0;
+    // The type is locked for the whole hold (input locks it at key-down); a
+    // different type mid-hold is ignored rather than restarting the draw.
+    if (!this.held) {
+      this._flushThrowCue();
+      const id = typeId(type);
       this.type = id;
       this.elapsed = 0;
       this._holdSeconds = 0;
@@ -195,12 +208,13 @@ export class ThrowableHands {
       this._ready = false;
       this.throwElapsed = null;
       this.returnElapsed = null;
+      this.reseatElapsed = null;
       this.held = true;
       this.grip.visible = true;
       for (const [name, model] of Object.entries(this.models)) model.visible = name === id;
       this._cue('draw');
     }
-    if (Number.isFinite(holdMs)) this._holdSeconds = Math.max(0, holdMs / 1000 - this._holdOffset);
+    if (Number.isFinite(holdMs)) this._holdSeconds = Math.max(0, holdMs / 1000);
   }
 
   throw(charge = this.charge, type = this.type) {
@@ -209,24 +223,65 @@ export class ThrowableHands {
     this.charge = clamp(charge);
     // Quick taps retain the pin/lighter contact and hand follow-through. The object
     // leaves immediately, matching the predicted projectile's authoritative launch.
-    if (!this._armed) { this._armed = true; this._cue(this.type === 'molotov' ? 'ignite' : 'pin'); }
+    // The limpet is planted: its clamp contact replaces both the pin and the whoosh.
+    const placing = this.type === 'limpet';
+    const quick = !this._armed;
+    if (quick) { this._armed = true; if (!placing) this._cue(this.type === 'molotov' ? 'ignite' : 'pin'); }
     this._poseHeld();
     this._throwPosition.copy(this.right.position);
     this._throwRotation.copy(this.right.rotation);
+    this._underhand = !placing && this.charge <= UNDERHAND_POWER;
     this.held = false;
     this.returnElapsed = null;
+    this.reseatElapsed = null;
     this.throwElapsed = 0;
     this.grip.visible = false;
     this.root.visible = true;
     this.blend = 1;
+    // A quick tap would otherwise land the pin and the whoosh in the same frame.
+    if (placing) this._cue('clamp');
+    else if (quick) this._throwCueIn = QUICK_THROW_CUE_DELAY;
+    else this._cue('throw');
+  }
+
+  _flushThrowCue() {
+    if (this._throwCueIn === null) return;
+    this._throwCueIn = null;
     this._cue('throw');
   }
 
-  cancel() {
+  /**
+   * Stow the throwable. `reseat` is the pin back: the arming hand returns the
+   * pin (or snuffs the wick) over THROWABLE_TIMING.reseat before both hands drop,
+   * with a 'cancel' cue. Without it the hands vanish at once (death, lifecycle).
+   */
+  cancel({ reseat = false } = {}) {
+    if (this._disposed) return;
+    // The input may already have released the hold (a plain return started this
+    // frame); the pin back takes that drop over.
+    if (reseat && (this.held || this.returnElapsed !== null)) {
+      this._poseHeld();
+      this._reseatPin.copy(this.pin.position);
+      this._reseatLeft.copy(this.left.position);
+      this.held = false;
+      this.returnElapsed = null;
+      this.throwElapsed = null;
+      this.reseatElapsed = 0;
+      this.wickFlame.visible = false;
+      this.lighterFlame.visible = false;
+      this._cue('cancel');
+      return;
+    }
+    this._reset();
+  }
+
+  _reset() {
     this.held = false;
     this.elapsed = 0;
     this.throwElapsed = null;
     this.returnElapsed = null;
+    this.reseatElapsed = null;
+    this._throwCueIn = null;
     this.blend = 0;
     this.root.visible = false;
     this.grip.visible = false;
@@ -238,14 +293,21 @@ export class ThrowableHands {
 
   _poseHeld() {
     const draw = smooth(this.elapsed / THROWABLE_TIMING.draw);
-    const pull = smooth((this.elapsed - THROWABLE_TIMING.arm) / 0.16);
-    const cock = this.type === 'limpet' ? 0 : smooth((this.elapsed - 0.40) / 0.26) * (0.45 + this.charge * 0.55);
-    const bob = Math.sin(this._clock * 3.1) * 0.004;
-    this.right.position.set(0.22 + cock * 0.085, -0.60 + draw * 0.36 - cock * 0.008 + bob, -0.38 - draw * 0.15 + cock * 0.022);
-    this.right.rotation.set(-0.42 + draw * 0.34 + cock * 0.14, -0.17 - cock * 0.10, -0.27 + draw * 0.12 + cock * 0.10);
-    const reach = smooth((this.elapsed - 0.08) / 0.16);
-    const retreat = smooth((this.elapsed - 0.40) / 0.22);
+    const pull = this.type === 'limpet' ? 0 : smooth((this.elapsed - THROWABLE_TIMING.arm) / 0.16);
+    const limpet = this.type === 'limpet';
     const molotov = this.type === 'molotov';
+    // Cock-back depth follows the selected power; the LOB step dips the hand low
+    // and forward for an underhand pitch instead of drawing it over the shoulder.
+    const wind = limpet ? 0 : smooth((this.elapsed - 0.40) / 0.26);
+    const under = !limpet && this.charge <= UNDERHAND_POWER ? wind : 0;
+    const cock = under ? 0 : wind * (0.45 + this.charge * 0.55);
+    const bob = Math.sin(this._clock * 3.1) * 0.004;
+    this.right.position.set(0.22 + cock * 0.085, -0.60 + draw * 0.36 - cock * 0.008 - under * 0.11 + bob,
+      -0.38 - draw * 0.15 + cock * 0.022 - under * 0.04);
+    this.right.rotation.set(-0.42 + draw * 0.34 + cock * 0.14 + under * 0.38, -0.17 - cock * 0.10, -0.27 + draw * 0.12 + cock * 0.10);
+    // The limpet has no pin: the arming hand never reaches across for it.
+    const reach = limpet ? 0 : smooth((this.elapsed - 0.08) / 0.16);
+    const retreat = smooth((this.elapsed - 0.40) / 0.22);
     this.left.position.set(-0.25 + reach * (molotov ? 0.40 : 0.42) - pull * (molotov ? 0.04 : 0.16) - retreat * 0.22,
       -0.58 + reach * (molotov ? 0.58 : 0.46) - retreat * 0.44 + pull * 0.035,
       -0.31 - reach * 0.20 + retreat * 0.07);
@@ -257,7 +319,7 @@ export class ThrowableHands {
 
     // Until extraction the ring sits in the grenade's top socket. Afterwards it
     // travels with the left hand, so the sound corresponds to a visible separation.
-    this.pin.visible = !molotov && retreat < 0.9;
+    this.pin.visible = !molotov && !limpet && retreat < 0.9;
     const attached = this._point.set(-0.024, 0.088, 0.019);
     this.grip.localToWorld(attached);
     this.root.worldToLocal(attached);
@@ -281,7 +343,7 @@ export class ThrowableHands {
       this.elapsed = Math.max(this.elapsed + seconds, this._holdSeconds);
       if (!this._armed && this.elapsed >= THROWABLE_TIMING.arm) {
         this._armed = true;
-        this._cue(this.type === 'molotov' ? 'ignite' : 'pin');
+        if (this.type !== 'limpet') this._cue(this.type === 'molotov' ? 'ignite' : 'pin');
       }
       if (!this._ready && this.elapsed >= THROWABLE_TIMING.ready) { this._ready = true; this._cue('ready'); }
       this.blend = smooth(this.elapsed / THROWABLE_TIMING.draw);
@@ -294,13 +356,43 @@ export class ThrowableHands {
       this.right.position.copy(this._throwPosition);
       this.right.position.x -= 0.18 * swing;
       const placing = this.type === 'limpet';
-      this.right.position.y += (placing ? 0.04 : 0.19) * swing - 0.64 * lower;
-      this.right.position.z -= (placing ? 0.30 : 0.20 + this.charge * 0.14) * swing;
-      this.right.rotation.set(this._throwRotation.x - (placing ? 0.12 : 0.80) * swing + lower * 0.3, -0.10, this._throwRotation.z - 0.20 * swing);
+      const under = this._underhand;
+      this.right.position.y += (placing ? 0.04 : under ? 0.07 : 0.19) * swing - 0.64 * lower;
+      this.right.position.z -= (placing ? 0.30 : under ? 0.28 : 0.20 + this.charge * 0.14) * swing;
+      this.right.rotation.set(this._throwRotation.x + (placing ? -0.12 : under ? 0.45 : -0.80) * swing + lower * 0.3,
+        -0.10, this._throwRotation.z - 0.20 * swing);
       this.left.visible = false;
       this.pin.visible = false;
       this.blend = 1 - smooth((t - 0.50) / 0.50);
-      if (t >= 1) this.cancel();
+      if (this._throwCueIn !== null && (this._throwCueIn -= seconds) <= 1e-9) this._flushThrowCue();
+      if (t >= 1) this._reset();
+    } else if (this.reseatElapsed !== null) {
+      // Pin back: the arming hand carries the ring back into its socket (or
+      // cups the wick out), then both hands drop together.
+      this.reseatElapsed += seconds;
+      const t = this.reseatElapsed / THROWABLE_TIMING.reseat;
+      const seat = smooth(t / 0.6);
+      const drop = smooth((t - 0.4) / 0.6);
+      this._poseHeld();
+      const limpet = this.type === 'limpet';
+      const socket = this._point.set(-0.024, 0.088, 0.019);
+      this.grip.localToWorld(socket);
+      this.root.worldToLocal(socket);
+      if (!limpet) {
+        this.pin.position.lerpVectors(this._reseatPin, socket, seat);
+        this.pin.rotation.z -= smooth((this.elapsed - THROWABLE_TIMING.arm) / 0.16) * 0.6 * seat;
+        this.left.position.lerpVectors(this._reseatLeft,
+          this._pinTarget.set(socket.x - 0.021, socket.y - 0.055, socket.z + 0.029), seat);
+        this.left.visible = true;
+      }
+      this.pin.visible = this.type !== 'molotov' && !limpet;
+      this.wickFlame.visible = false;
+      this.lighterFlame.visible = false;
+      this.right.position.y -= 0.48 * drop;
+      this.left.position.y -= 0.48 * drop;
+      this.pin.position.y -= 0.48 * drop;
+      this.blend = 1 - drop;
+      if (t >= 1) this._reset();
     } else if (this.returnElapsed !== null) {
       this.returnElapsed += seconds;
       const t = smooth(this.returnElapsed / THROWABLE_TIMING.return);
@@ -309,7 +401,7 @@ export class ThrowableHands {
       this.left.position.y -= 0.48 * t;
       this.pin.position.y -= 0.48 * t;
       this.blend = 1 - t;
-      if (t >= 1) this.cancel();
+      if (t >= 1) this._reset();
     }
     this.root.visible = this.blend > 0 && !suppressed;
     return this.blend;

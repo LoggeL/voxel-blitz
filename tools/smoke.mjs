@@ -40,7 +40,13 @@ import { TICK_MS } from '../server/protocol/admission.js';
 import { evDie, evRespawn } from '../server/protocol/events.js';
 import { makeSnapshot } from '../server/protocol/snapshot.js';
 import { PROJECTILE_RULES } from '../server/sim/projectiles.js';
-import { GRENADE_TYPES, GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
+import {
+  GRENADE_PIN_MS,
+  GRENADE_THROW_COOLDOWN_MS,
+  GRENADE_TYPES,
+  GRENADE_TYPE_IDS,
+  grenadeCookFromHold,
+} from '../shared/grenade-rules.js';
 import { BOLT_RULES, boltBounces } from '../shared/bolt-rules.js';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { ImpactFX } from '../public/js/weapons/impacts.js';
@@ -300,13 +306,18 @@ function runDirectContracts() {
   const chargeContext = chargeEngine.contexts.projectiles;
   const shortThrow = chargeEngine.projectiles.throw(chargeThrower, chargeContext, 0);
   const longThrow = chargeEngine.projectiles.throw(chargeThrower, chargeContext, 1);
-  const cookedThrow = chargeEngine.projectiles.throw(chargeThrower, chargeContext, 1, 0, 1500);
+  // The client derives the cook from the pin pull, so a 1.5 s cook is a hold of
+  // GRENADE_PIN_MS + 1500; the authority burns exactly the cook it receives.
+  const cookMs = grenadeCookFromHold(GRENADE_PIN_MS + 1500, GRENADE_TYPES.frag);
+  const cookedThrow = chargeEngine.projectiles.throw(chargeThrower, chargeContext, 1, 0, cookMs);
   const cookedLaunch = chargeEngine.tickEvents.filter((event) => event.kind === 'projectileLaunch').at(-1);
   ok(Math.hypot(longThrow.vx, longThrow.vz) >= Math.hypot(shortThrow.vx, shortThrow.vz) * 2
     && longThrow.vy > shortThrow.vy
+    && cookMs === 1500
+    && grenadeCookFromHold(GRENADE_PIN_MS, GRENADE_TYPES.frag) === 0
     && Math.abs(cookedThrow.explodeAt - chargeContext.now - (GRENADE_TYPES.frag.fuseMs - 1500)) < 1e-6
     && cookedLaunch.fuse === GRENADE_TYPES.frag.fuseMs - 1500,
-  'full grenade charge throws materially farther and higher, and a cooked frag leaves with the burned fuse');
+  'full grenade charge throws materially farther and higher, and a frag cooked from the pin leaves with the burned fuse');
 
   const forgedEngine = new GameEngine();
   forgedEngine.addBot('forged-thrower', 'Forged Thrower');
@@ -328,12 +339,32 @@ function runDirectContracts() {
   cookOwner.grenadeEdgeQueued = true;
   cookOwner.grenadeChargeQueued = 1;
   cookOwner.grenadeTypeQueued = 0;
-  cookOwner.grenadeCookQueued = GRENADE_TYPES.frag.fuseMs;
+  // The forced release fires after GRENADE_PIN_MS + fuseMs of hold time.
+  cookOwner.grenadeCookQueued = grenadeCookFromHold(GRENADE_PIN_MS + GRENADE_TYPES.frag.fuseMs, GRENADE_TYPES.frag);
+  const fullCook = cookOwner.grenadeCookQueued;
   handEngine.projectiles.step(0.05, handEngine.contexts.projectiles);
-  ok(cookOwner.grenades[0] === 1 && cookOwner.hp < 100
+  ok(fullCook === GRENADE_TYPES.frag.fuseMs && cookOwner.grenades[0] === 1 && cookOwner.hp < 100
     && handEngine.projectiles.active.size === 0
     && handEngine.tickEvents.some((event) => event.kind === 'projectileExplode' && event.type === 'frag'),
-  'a frag cooked to the end of its fuse detonates in the hand and hurts the holder');
+  'a frag held to the end of its fuse after the pin detonates in the hand and hurts the holder');
+
+  const cooldownEngine = new GameEngine();
+  cooldownEngine.addBot('spam-thrower', 'Spam Thrower');
+  const spamThrower = cooldownEngine.entities.get('spam-thrower');
+  Object.assign(spamThrower, { yaw: -Math.PI / 2, pitch: 0, vx: 0, vy: 0, vz: 0 });
+  const cooldownContext = cooldownEngine.contexts.projectiles;
+  const spamFrags = spamThrower.grenades[0];
+  const queueSpamThrow = () => Object.assign(spamThrower,
+    { grenadeEdgeQueued: true, grenadeChargeQueued: 0.6, grenadeTypeQueued: 0, grenadeCookQueued: 0 });
+  queueSpamThrow();
+  cooldownEngine.projectiles.step(0.05, cooldownContext);
+  const cooldownStart = cooldownContext.now;
+  queueSpamThrow();
+  cooldownEngine.projectiles.step(0.05, cooldownContext);
+  ok(cooldownEngine.tickEvents.filter((event) => event.kind === 'projectileLaunch').length === 1
+    && spamThrower.grenades[0] === spamFrags - 1
+    && spamThrower.nextThrowAt === cooldownStart + GRENADE_THROW_COOLDOWN_MS,
+  'the authority throw cooldown drops a second edge without spending the grenade');
 
   const limpetEngine = new GameEngine();
   limpetEngine.addBot('limpet-owner', 'Limpet Owner');

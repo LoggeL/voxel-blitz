@@ -341,6 +341,12 @@ export async function runAudioContracts(ok, installGlobals) {
         sfx.cycleClick(1, 'shotgun');
         sfx.cycleClick(2, 'sniper');
       }) === 4, 'pump and bolt contacts each start one aligned two-layer voice');
+      ok([
+        () => sfx.grenadeEmpty(), () => sfx.grenadeReady(), () => sfx.grenadePinBack(),
+        () => sfx.grenadeFuseTick(), () => sfx.grenadeFuseTick(2), () => sfx.grenadeFuseTick(NaN),
+        () => sfx.claymoreClamp(),
+      ].every((cue) => startedBy(cue) >= 2),
+      'grenade pouch cues (dry click, ready, pin back, fuse tick, claymore clamp) start synthesized voices');
 
       // The flamethrower owns a sustained procedural stream, not a sampled shot,
       // and the pickaxe swing is one bare recording checked on its own below.

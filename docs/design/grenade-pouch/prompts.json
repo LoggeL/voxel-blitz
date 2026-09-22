@@ -1,0 +1,33 @@
+{
+  "feature": "Quick-Draw Pouch grenade HUD",
+  "spec": "docs/design/grenade-pouch/spec.md#7-agentsmd-design-pass",
+  "note": "No image generator was available in this session, so no ImageGen references were produced. The references are muted CDP captures of the implemented UI (tools/lib/cdp-session.mjs, --mute-audio) at 1440x900 and 390x844.",
+  "prompts": [
+    {
+      "id": "variant-a",
+      "style": "rounded industrial panels with amber accents",
+      "chosen": true,
+      "prompt": "First-person voxel arena shooter HUD, 16:9 gameplay screenshot, blocky voxel warehouse interior with crates and a doorway, a chunky voxel assault rifle viewmodel lowered at the bottom right while the right hand holds a green frag grenade with its pin pulled. Centre: a thin crosshair. Just below it, a small readied tag with a frag icon and 'x2'. Lower left of the crosshair, a 5-notch curved power gauge with the third notch lit amber; lower right, a thin circular fuse ring draining red-orange with '1.8s'. Under them, a small hint line in a condensed monospace: 'RELEASE · THROW   SCROLL · RANGE   R · PIN BACK'. In the world, a dashed amber arc runs from the hand through the doorway with three small bounce dots, ending in a translucent amber ground disc about 7 metres wide with a crisp edge ring. Bottom right: the ammo panel, and immediately to its left a compact dark 'ready card' with a 'G' key badge, a detailed frag grenade icon, 'M-4 FRAG ×2', and a row of five small dots (amber, red, cyan, orange, grey-cyan) with one ringed, plus an 'H POUCH' badge. Inset top-right: the same scene showing a compact five-wedge radial pouch around the crosshair, with wedges frag (top), claymore, pulse, molotov, smoke clockwise, each with icon and count, the molotov wedge hatched and greyed as empty, the frag wedge highlighted amber, and the centre reading 'M-4 FRAG · Timed fuse · cookable · 7.5 m blast'. Clean readable tactical UI, 11px-equivalent minimum text, high contrast on dark translucent panels, no clutter, consistent with a stylised voxel game. Variant A: rounded industrial panels with amber accents."
+    },
+    {
+      "id": "variant-b",
+      "style": "angular military stencil",
+      "chosen": false,
+      "prompt": "First-person voxel arena shooter HUD, 16:9 gameplay screenshot, blocky voxel warehouse interior with crates and a doorway, a chunky voxel assault rifle viewmodel lowered at the bottom right while the right hand holds a green frag grenade with its pin pulled. Centre: a thin crosshair. Just below it, a small readied tag with a frag icon and 'x2'. Lower left of the crosshair, a 5-notch curved power gauge with the third notch lit amber; lower right, a thin circular fuse ring draining red-orange with '1.8s'. Under them, a small hint line in a condensed monospace: 'RELEASE · THROW   SCROLL · RANGE   R · PIN BACK'. In the world, a dashed amber arc runs from the hand through the doorway with three small bounce dots, ending in a translucent amber ground disc about 7 metres wide with a crisp edge ring. Bottom right: the ammo panel, and immediately to its left a compact dark 'ready card' with a 'G' key badge, a detailed frag grenade icon, 'M-4 FRAG ×2', and a row of five small dots (amber, red, cyan, orange, grey-cyan) with one ringed, plus an 'H POUCH' badge. Inset top-right: the same scene showing a compact five-wedge radial pouch around the crosshair, with wedges frag (top), claymore, pulse, molotov, smoke clockwise, each with icon and count, the molotov wedge hatched and greyed as empty, the frag wedge highlighted amber, and the centre reading 'M-4 FRAG · Timed fuse · cookable · 7.5 m blast'. Clean readable tactical UI, 11px-equivalent minimum text, high contrast on dark translucent panels, no clutter, consistent with a stylised voxel game. Variant B: angular military stencil."
+    },
+    {
+      "id": "variant-c",
+      "style": "soft glass HUD",
+      "chosen": false,
+      "prompt": "First-person voxel arena shooter HUD, 16:9 gameplay screenshot, blocky voxel warehouse interior with crates and a doorway, a chunky voxel assault rifle viewmodel lowered at the bottom right while the right hand holds a green frag grenade with its pin pulled. Centre: a thin crosshair. Just below it, a small readied tag with a frag icon and 'x2'. Lower left of the crosshair, a 5-notch curved power gauge with the third notch lit amber; lower right, a thin circular fuse ring draining red-orange with '1.8s'. Under them, a small hint line in a condensed monospace: 'RELEASE · THROW   SCROLL · RANGE   R · PIN BACK'. In the world, a dashed amber arc runs from the hand through the doorway with three small bounce dots, ending in a translucent amber ground disc about 7 metres wide with a crisp edge ring. Bottom right: the ammo panel, and immediately to its left a compact dark 'ready card' with a 'G' key badge, a detailed frag grenade icon, 'M-4 FRAG ×2', and a row of five small dots (amber, red, cyan, orange, grey-cyan) with one ringed, plus an 'H POUCH' badge. Inset top-right: the same scene showing a compact five-wedge radial pouch around the crosshair, with wedges frag (top), claymore, pulse, molotov, smoke clockwise, each with icon and count, the molotov wedge hatched and greyed as empty, the frag wedge highlighted amber, and the centre reading 'M-4 FRAG · Timed fuse · cookable · 7.5 m blast'. Clean readable tactical UI, 11px-equivalent minimum text, high contrast on dark translucent panels, no clutter, consistent with a stylised voxel game. Variant C: soft glass HUD."
+    }
+  ],
+  "captures": {
+    "hud-idle-1440x900.png": "Desktop idle: Ready Card left of the ammo panel",
+    "grenade-held-1440x900.png": "Desktop G held: power arc, fuse ring, hint line, arc preview",
+    "pouch-open-1440x900.png": "Desktop H held: five-slot pouch radial",
+    "touch-layout-390x844.png": "Touch idle: compact card, grenade and pouch buttons",
+    "grenade-held-390x844.png": "Touch grenade held: power strip, PIN BACK chip, aim reticle",
+    "pouch-open-390x844.png": "Touch pouch open at screen centre"
+  }
+}

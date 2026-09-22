@@ -1,0 +1,582 @@
+/* ---------- grenade Quick-Draw pouch ----------
+   Ready Card (#grenade-count), readied tag under the crosshair, the aim reticle
+   while a grenade is held, and the five-slot pouch radial. Role tints: lethal
+   amber, tactical cyan, gadget red. The per-type colour arrives as --nade. */
+
+:root {
+  --nade-lethal: #ffb347;
+  --nade-tactical: #59e8ff;
+  --nade-gadget: #ff5a3c;
+}
+
+/* Ready Card. A sibling of #ammo because that panel's clip-path would clip it. */
+#grenade-count {
+  --nade: var(--amber-hi);
+  position: absolute;
+  right: 214px;
+  bottom: 102px;
+  display: grid;
+  grid-template-columns: auto 30px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 7px;
+  row-gap: 4px;
+  min-width: 206px;
+  padding: 6px 9px 8px 7px;
+  color: var(--txt);
+  background: rgba(5, 7, 10, 0.84);
+  border: 1px solid color-mix(in srgb, var(--nade) 45%, transparent);
+  border-radius: 3px;
+  transition: border-color 120ms linear, box-shadow 120ms linear, opacity 160ms linear;
+}
+
+.vb-grenade-key,
+.vb-grenade-pouch-key {
+  display: grid;
+  place-items: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 3px;
+  font: 700 9px/1 var(--font-mono);
+  color: #07090b;
+  background: var(--amber-hi);
+  border-radius: 2px;
+}
+
+.vb-grenade-key {
+  grid-column: 1;
+  grid-row: 1 / 3;
+}
+
+.vb-grenade-key[hidden],
+.vb-grenade-pouch[hidden] { display: none; }
+
+.vb-grenade-card-icon {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8));
+}
+
+.vb-grenade-name {
+  grid-column: 3;
+  grid-row: 1;
+  overflow: hidden;
+  font: 700 11px/1 var(--font-ui);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: var(--nade);
+}
+
+.vb-grenade-ammo {
+  grid-column: 4;
+  grid-row: 1;
+  justify-self: end;
+  font: 700 16px/1 var(--font-mono);
+  color: var(--txt);
+}
+
+.vb-grenade-dots {
+  grid-column: 3;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.vb-grenade-dot {
+  --dot: var(--nade-lethal);
+  width: 7px;
+  height: 7px;
+  box-sizing: border-box;
+  border: 1px solid color-mix(in srgb, var(--dot) 45%, transparent);
+  border-radius: 50%;
+  opacity: 0.55;
+}
+
+.vb-grenade-dot[data-role="tactical"] { --dot: var(--nade-tactical); }
+.vb-grenade-dot[data-role="gadget"] { --dot: var(--nade-gadget); }
+.vb-grenade-dot.is-stocked { background: var(--dot); border-color: var(--dot); opacity: 1; }
+.vb-grenade-dot.is-ready { box-shadow: 0 0 0 1.5px #07090b, 0 0 0 2.5px #f4f6f8; opacity: 1; }
+
+.vb-grenade-pouch {
+  grid-column: 4;
+  grid-row: 2;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font: 700 8px/1 var(--font-mono);
+  letter-spacing: 0.06em;
+  color: var(--sub);
+  white-space: nowrap;
+}
+
+.vb-grenade-pouch-key {
+  min-width: 13px;
+  height: 13px;
+  font-size: 8px;
+  color: var(--txt);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+/* "NEXT · M-18 SMOKE" overlays the name row while an auto-advance lands. */
+.vb-grenade-flash {
+  position: absolute;
+  left: 50px;
+  right: 8px;
+  top: 5px;
+  overflow: hidden;
+  padding: 1px 0;
+  font: 700 10px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  color: #07090b;
+  background: var(--nade);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.vb-grenade-charge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.vb-grenade-charge i {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: scaleX(0);
+  transform-origin: left center;
+  background: linear-gradient(90deg, var(--nade), var(--danger));
+  box-shadow: 0 0 8px var(--nade);
+}
+
+.vb-grenade-hint {
+  position: absolute;
+  right: 0;
+  /* Above the card: below it the hint would sit on the ammo panel's top edge. */
+  bottom: calc(100% + 5px);
+  opacity: 0;
+  font: 700 9px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: var(--amber-hi);
+  transition: opacity 100ms linear;
+}
+
+#grenade-count.is-charging {
+  border-color: var(--nade);
+  box-shadow: 0 0 13px color-mix(in srgb, var(--nade) 30%, transparent);
+}
+
+#grenade-count.is-charging .vb-grenade-hint { opacity: 1; }
+
+#grenade-count.is-full { border-color: var(--danger); }
+#grenade-count.is-cooking .vb-grenade-charge i {
+  transform-origin: right center;
+  background: linear-gradient(90deg, var(--danger), var(--nade));
+}
+
+#grenade-count.is-critical {
+  border-color: var(--danger);
+  animation: vb-grenade-critical 220ms steps(2, end) infinite;
+}
+
+#grenade-count.is-critical .vb-grenade-hint { color: var(--danger); }
+
+@keyframes vb-grenade-critical {
+  from { box-shadow: 0 0 16px rgba(255, 90, 60, 0.7); }
+  to { box-shadow: 0 0 4px rgba(255, 90, 60, 0.2); }
+}
+
+#grenade-count.is-empty-pouch {
+  opacity: 0.55;
+  border-color: var(--line-dim);
+}
+
+#grenade-count.is-empty-pouch .vb-grenade-name { color: var(--sub); }
+#grenade-count.is-empty-pouch .vb-grenade-card-icon { filter: grayscale(1) brightness(0.6); }
+
+#grenade-count.is-denied { animation: vb-grenade-denied 150ms linear; border-color: var(--danger); }
+
+@keyframes vb-grenade-denied {
+  0%, 100% { translate: 0 0; }
+  25% { translate: -4px 0; }
+  50% { translate: 3px 0; }
+  75% { translate: -2px 0; }
+}
+
+#grenade-count.is-advanced .vb-grenade-card-icon { animation: vb-grenade-slide 180ms ease-out; }
+#grenade-count.is-advanced .vb-grenade-flash { animation: vb-grenade-flash 1200ms linear forwards; }
+
+@keyframes vb-grenade-slide {
+  from { translate: 18px 0; opacity: 0; }
+  to { translate: 0 0; opacity: 1; }
+}
+
+@keyframes vb-grenade-flash {
+  0%, 70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+#grenade-count.is-thrown .vb-grenade-ammo { animation: vb-grenade-pop 120ms ease-out; }
+
+@keyframes vb-grenade-pop {
+  50% { scale: 1.35; color: var(--nade); }
+}
+
+/* Readied tag: 14px icon plus count, 30px below the crosshair. */
+#grenade-readied {
+  --nade: var(--amber-hi);
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 30px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 4px;
+  font: 700 10px/1 var(--font-mono);
+  color: var(--txt);
+  background: rgba(5, 7, 10, 0.6);
+  border: 1px solid color-mix(in srgb, var(--nade) 40%, transparent);
+  border-radius: 2px;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 160ms linear;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+#grenade-readied img { width: 14px; height: 14px; object-fit: contain; }
+#grenade-readied.is-visible { opacity: 1; }
+.vb-grenade-readied-note { color: var(--nade); letter-spacing: 0.06em; }
+.vb-grenade-readied-note:empty { display: none; }
+#grenade-readied.is-pinback { border-color: var(--sub); animation: vb-grenade-pinback 700ms ease-out; }
+#grenade-readied.is-pinback .vb-grenade-readied-note { color: var(--sub); }
+
+@keyframes vb-grenade-pinback {
+  0% { box-shadow: 0 0 0 0 rgba(147, 160, 173, 0.6); }
+  100% { box-shadow: 0 0 0 10px rgba(147, 160, 173, 0); }
+}
+
+/* Aim reticle: anchored on the crosshair centre, visible only while held. */
+#grenade-aim {
+  --nade: var(--amber-hi);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  transition: opacity 90ms linear;
+  pointer-events: none;
+}
+
+#grenade-aim.is-visible { opacity: 1; }
+
+/* Power: five notches on a lower-left arc; the lit one is the current step. */
+.vb-aim-power { position: absolute; left: 0; top: 0; }
+#grenade-aim.is-wallmine .vb-aim-power { display: none; }
+
+.vb-aim-notch {
+  position: absolute;
+  left: 0;
+  top: -2px;
+  width: 9px;
+  height: 4px;
+  transform-origin: 0 50%;
+  /* 125deg (LOB, low) to 169deg (full, high): lower left, clear of the crosshair's
+     horizontal arm and of the readied tag under the centre. */
+  transform: rotate(calc(125deg + var(--notch) * 11deg)) translateX(40px);
+  background: rgba(232, 236, 241, 0.45);
+  border-radius: 1px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+.vb-aim-notch.is-lit {
+  width: 12px;
+  background: var(--nade);
+  /* Dark keyline first: the lit notch must survive the same-colour landing disc. */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.7), 0 0 6px var(--nade);
+}
+
+.vb-aim-power-label {
+  position: absolute;
+  right: 50px;
+  top: 32px;
+  font: 700 10px/1 var(--font-mono);
+  letter-spacing: 0.08em;
+  color: var(--nade);
+  text-shadow: 0 0 2px #000, 0 1px 2px #000, 0 0 4px #000;
+  white-space: nowrap;
+}
+
+/* Fuse: a ring to the lower right that drains from the pin pull. */
+.vb-aim-fuse {
+  position: absolute;
+  left: 30px;
+  top: 14px;
+  display: none;
+  align-items: center;
+  gap: 5px;
+}
+
+#grenade-aim.is-cook .vb-aim-fuse { display: flex; }
+
+.vb-aim-fuse-ring {
+  --fuse: 1;
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: conic-gradient(var(--nade) calc(var(--fuse) * 360deg), rgba(232, 236, 241, 0.16) 0);
+  -webkit-mask: radial-gradient(circle, transparent 0 6px, #000 7px);
+  mask: radial-gradient(circle, transparent 0 6px, #000 7px);
+}
+
+.vb-aim-fuse-label {
+  font: 700 10px/1 var(--font-mono);
+  text-transform: none; /* "1.8s", not the HUD's inherited uppercase "1.8S" */
+  color: var(--txt);
+  text-shadow: 0 1px 2px #000;
+}
+
+#grenade-aim.is-critical .vb-aim-fuse-ring { background: conic-gradient(var(--danger) calc(var(--fuse) * 360deg), rgba(255, 51, 85, 0.2) 0); }
+#grenade-aim.is-critical .vb-aim-fuse-label { color: var(--danger); }
+
+.vb-aim-mount {
+  position: absolute;
+  left: 0;
+  top: 52px;
+  transform: translateX(-50%);
+  font: 700 10px/1 var(--font-mono);
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+  color: var(--sub);
+  text-shadow: 0 1px 2px #000;
+}
+
+#grenade-aim.is-valid .vb-aim-mount { color: var(--ok); }
+
+.vb-aim-hint {
+  position: absolute;
+  left: 0;
+  top: 70px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  transform: translateX(-50%);
+  font: 700 10px/1.3 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-align: center;
+  white-space: pre-wrap;
+  color: rgba(232, 236, 241, 0.82);
+  text-shadow: 0 1px 2px #000;
+}
+
+/* Pouch radial: centred on the crosshair; the game keeps running behind it. */
+#grenade-pouch {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-menu) - 2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+#grenade-pouch.hidden { display: none !important; }
+#grenade-pouch.is-touch { pointer-events: auto; touch-action: none; }
+
+.vb-pouch-ring {
+  --pouch-size: 240px;
+  --pouch-r: calc(var(--pouch-size) * 0.35);
+  position: relative;
+  width: var(--pouch-size);
+  height: var(--pouch-size);
+  border-radius: 50%;
+  background:
+    repeating-conic-gradient(from 36deg, rgba(58, 66, 80, 0.9) 0 1deg, transparent 1deg 72deg),
+    radial-gradient(circle, rgba(11, 14, 18, 0.35) 0 29%, rgba(11, 14, 18, 0.72) 30% 70%, transparent 71%);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+}
+
+.vb-pouch-slot {
+  --nade: var(--amber-hi);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 62px;
+  height: 54px;
+  margin: -27px 0 0 -31px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-sizing: border-box;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  /* atan2-space angle (slot 0 = -90deg, up): +90deg maps it onto CSS rotation. */
+  transform:
+    rotate(calc(var(--vb-pouch-angle) + 90deg))
+    translateY(calc(-1 * var(--pouch-r)))
+    rotate(calc(-1 * var(--vb-pouch-angle) - 90deg));
+  transition: transform 120ms ease, border-color 120ms linear, background 120ms linear;
+}
+
+.vb-pouch-icon {
+  width: 34px;
+  height: 28px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8));
+}
+
+.vb-pouch-count {
+  font: 700 11px/1 var(--font-mono);
+  color: var(--txt);
+}
+
+.vb-pouch-key {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  padding: 1px 3px;
+  font: 700 8px/1 var(--font-mono);
+  color: var(--sub);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+}
+
+.vb-pouch-key[hidden] { display: none; }
+
+.vb-pouch-slot.is-hl {
+  border-color: var(--nade);
+  background: color-mix(in srgb, var(--nade) 22%, rgba(11, 14, 18, 0.8));
+  box-shadow: 0 0 14px color-mix(in srgb, var(--nade) 40%, transparent);
+  transform:
+    rotate(calc(var(--vb-pouch-angle) + 90deg))
+    translateY(calc(-1 * var(--pouch-r)))
+    rotate(calc(-1 * var(--vb-pouch-angle) - 90deg))
+    scale(1.08);
+}
+
+.vb-pouch-slot.is-hl .vb-pouch-count { color: var(--nade); }
+
+/* The current ready type carries a small tick above its icon. */
+.vb-pouch-slot.is-ready::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  width: 14px;
+  height: 3px;
+  margin-left: -7px;
+  background: var(--nade);
+  border-radius: 1px;
+}
+
+.vb-pouch-slot.is-empty {
+  opacity: 0.25;
+  background: repeating-linear-gradient(135deg, rgba(232, 236, 241, 0.18) 0 2px, transparent 2px 6px);
+}
+
+.vb-pouch-slot.is-empty .vb-pouch-icon { filter: grayscale(1); }
+
+.vb-pouch-hub {
+  --nade: var(--amber-hi);
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 42%;
+  height: 42%;
+  box-sizing: border-box;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px;
+  text-align: center;
+  /* Opaque like the weapon wheel's hub, so the crosshair does not strike through the text. */
+  border-radius: 50%;
+  background: rgba(11, 14, 18, 0.92);
+  border: 1px solid var(--line);
+}
+
+.vb-pouch-hub-name {
+  font: 700 11px/1.1 var(--font-ui);
+  letter-spacing: 0.08em;
+  color: var(--nade);
+}
+
+.vb-pouch-hub-role {
+  font: 600 9px/1.25 var(--font-mono);
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--sub);
+}
+
+.vb-pouch-hint {
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 8px);
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  transform: translateX(-50%);
+  font: 700 10px/1.3 var(--font-mono);
+  letter-spacing: 0.06em;
+  text-align: center;
+  white-space: pre-wrap;
+  color: rgba(232, 236, 241, 0.82);
+  text-shadow: 0 1px 2px #000;
+}
+
+/* Touch compact card (icon plus count; see touch-controls.css): the grid's
+   empty columns would leave gaps, so it collapses to a row. */
+.vb-touch-mode #grenade-count { display: flex; align-items: center; }
+
+@media (max-width: 520px) {
+  /* Above the weapon name, flush with the ammo panel's right edge. */
+  #grenade-count {
+    right: 10px;
+    bottom: 98px;
+    min-width: 0;
+    width: min(200px, calc(100vw - 20px));
+    grid-template-columns: auto 24px minmax(0, 1fr) auto;
+    column-gap: 5px;
+    padding: 5px 7px 7px 5px;
+  }
+
+  .vb-grenade-card-icon { width: 24px; height: 24px; }
+  .vb-grenade-name { font-size: 10px; }
+  .vb-grenade-ammo { font-size: 14px; }
+  .vb-grenade-dots { gap: 4px; }
+  .vb-grenade-flash { left: 40px; }
+  .vb-grenade-hint { bottom: calc(100% + 4px); }
+
+  .vb-pouch-ring { --pouch-size: 200px; }
+  .vb-pouch-slot { width: 54px; height: 48px; margin: -24px 0 0 -27px; }
+  .vb-pouch-icon { width: 26px; height: 22px; }
+  .vb-pouch-hub { width: 46%; height: 46%; padding: 6px; }
+  .vb-pouch-hub-role { font-size: 8px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #grenade-count.is-denied,
+  #grenade-count.is-critical,
+  #grenade-count.is-advanced .vb-grenade-card-icon,
+  #grenade-count.is-thrown .vb-grenade-ammo,
+  #grenade-readied.is-pinback { animation: none; }
+}

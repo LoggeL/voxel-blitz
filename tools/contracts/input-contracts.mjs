@@ -107,32 +107,35 @@ export async function runInputContracts(ok, installGlobals) {
       input._onKeyDown(key('KeyG', false, 100));
       input._onKeyDown(key('KeyG', true, 400));
       ok(input.consumeGrenadeThrow() === null
-        && input.getGrenadeCharge(700) === 0.5
-        && input.getGrenadeHoldMs(700) === 600,
-      'holding G exposes deterministic charge and cook progress without throwing or repeating');
+        && input.getGrenadeCharge(700) === 0.6
+        && input.getGrenadeHoldMs(700) === 600 && input.getGrenadeCookMs(700) === 360,
+      'holding G exposes the remembered power step and a cook measured from the pin, without throwing or repeating');
       input._onKeyUp(key('KeyG', false, 1300));
-      const fullThrow = input.consumeGrenadeThrow();
-      ok(fullThrow?.charge === 1 && fullThrow.cookMs === 1200 && fullThrow.type === 0
+      const heldThrow = input.consumeGrenadeThrow();
+      ok(heldThrow?.charge === 0.6 && heldThrow.cookMs === 960 && heldThrow.type === 0 && !heldThrow.tap
         && input.consumeGrenadeThrow() === null,
-      'releasing a fully charged G queues exactly one maximum-strength throw with its cook time');
+      'releasing a held G queues exactly one throw at the power step with the cook since the pin');
       input._onKeyDown(key('KeyG', false, 2000));
       input._onKeyUp(key('KeyG', false, 2000));
-      ok(input.consumeGrenadeThrow()?.charge === 0,
-        'a quick G tap remains a valid zero-charge short throw');
+      const tapThrow = input.consumeGrenadeThrow();
+      ok(tapThrow?.charge === 0.6 && tapThrow.cookMs === 0 && tapThrow.tap,
+        'a quick G tap is a quick throw at the default power with no cook');
       const typeInput = new Input({});
-      typeInput._onKeyDown(key('KeyH'));
+      typeInput._onKeyDown(key('KeyH', false, 2900));
+      typeInput._onKeyUp(key('KeyH', false, 2950));
       const cycled = typeInput.getGrenadeType();
       typeInput._onKeyDown(key('KeyG', false, 3000));
-      typeInput._onWheel({ deltaY: 100, deltaMode: 0, timeStamp: 3100, preventDefault() {} });
-      const wheeled = typeInput.getGrenadeType();
+      typeInput._onWheel({ deltaY: -100, deltaMode: 0, timeStamp: 3100, preventDefault() {} });
+      const locked = typeInput.getGrenadeType();
       typeInput._onKeyUp(key('KeyG', false, 3200));
       const typed = typeInput.consumeGrenadeThrow();
-      ok(cycled === 1 && wheeled === 2 && typed?.type === 2
+      ok(cycled === 1 && locked === 1 && typed?.type === 1 && typed.charge === 0.8
         && typeInput.consumeWeaponSwitch() === 0,
-      'H cycles the throwable, the wheel cycles it while G is held instead of switching weapons, and the release carries the type');
+      'an H tap readies the next type, the wheel steps power while G is held instead of switching weapons or types, and the release carries the type');
+      typeInput.selectGrenadeType(0);
       typeInput._onKeyDown(key('KeyG', false, 4000));
-      ok(typeInput.forceGrenadeRelease(6600) && typeInput.consumeGrenadeThrow()?.cookMs === 2600,
-        'a presentation-forced release reports the full cooked hold');
+      ok(typeInput.forceGrenadeRelease(6840) && typeInput.consumeGrenadeThrow()?.cookMs === 2600,
+        'a presentation-forced release reports the cook burned since the pin');
       typeInput.dispose?.();
 
       input._onKeyDown(key('Digit5'));
@@ -632,8 +635,21 @@ export async function runInputContracts(ok, installGlobals) {
       ok(input.isGrenadeCharging(),
       'control: a closed G starts the grenade hold');
       input.setWeaponWheelOpen(true);
-      ok(!input.isGrenadeCharging() && input.consumeGrenadeThrow() === null,
+      ok(!input.isGrenadeCharging() && input.consumeGrenadeThrow() === null
+          && input.consumeGrenadeUiEvents().some(event => event.kind === 'cancel' && event.reason === 'wheel'),
       'opening the wheel cancels a cooking grenade without throwing it');
+      input.setWeaponWheelOpen(false);
+      input.setGrenadeCounts([1, 1, 0, 0, 1]);
+      ok(input.setGrenadePouchOpen(true) && input.isGrenadePouchOpen()
+          && !input.wantFireHeld && !input.wantAdsHeld,
+      'control: the pouch opens off the wheel and blocks fire and ADS like the wheel');
+      input.setWeaponWheelOpen(true);
+      ok(!input.isGrenadePouchOpen() && !input.setGrenadePouchOpen(true),
+      'the pouch and the weapon wheel are exclusive: the wheel closes the pouch and refuses a new one');
+      input.setWeaponWheelOpen(false);
+      input._onWheel(wheel(100, 5000));
+      ok(input.getGrenadeType() === 0 && input.consumeWeaponSwitch() === 1,
+      'the closed scroll switches weapons and never cycles the throwable');
       input.dispose();
 
       // Escape cancels; a transient reset closes the wheel and drains every edge.
@@ -875,9 +891,9 @@ export async function runInputContracts(ok, installGlobals) {
       ok(pad.takeWheelCancelRequest(),
       'pad B while the wheel is up queues the cancel instead of crouch');
       padButtons[PAD_BUTTONS.crouch] = { pressed: false, value: 0 };
-      padButtons[PAD_BUTTONS.slotDown] = { pressed: true, value: 1 };
+      padButtons[PAD_BUTTONS.grenadePouch] = { pressed: true, value: 1 };
       pad.poll(2150, 1 / 60);
-      padButtons[PAD_BUTTONS.slotDown] = { pressed: false, value: 0 };
+      padButtons[PAD_BUTTONS.grenadePouch] = { pressed: false, value: 0 };
       ok(pad.takeWheelSteps() === 1,
       'pad d-pad down steps the open wheel forward');
       padButtons[PAD_BUTTONS.slotUp] = { pressed: true, value: 1 };

@@ -11,8 +11,15 @@ export const KEYBINDING_ACTIONS = Object.freeze([
   ['fire', 'Fire (keyboard alternative)', []], ['ads', 'Aim down sights', ['KeyF']],
   ['reload', 'Reload', ['KeyR']], ['quickMelee', 'Quick pickaxe hit', ['KeyV']],
   ['dropWeapon', 'Drop weapon (TTT)', ['KeyL']],
-  ['medkit', 'Medkit / cancel healing', ['KeyJ']], ['grenade', 'Throw grenade (hold / release)', ['KeyG']],
-  ['grenadeType', 'Next grenade type', ['KeyH']], ['zoom', 'Scope zoom', ['KeyZ']],
+  ['medkit', 'Medkit / cancel healing', ['KeyJ']], ['grenade', 'Throw ready grenade (tap / hold to aim)', ['KeyG']],
+  ['grenadeType', 'Grenade pouch (tap: next / hold: pouch)', ['KeyH']],
+  ['grenadePrevious', 'Previous grenade type', []], ['grenadeCancel', 'Pin back held grenade', []],
+  // Quick keys ready one type and begin the hold. Unbound by default: digits are weapon
+  // slots and keyCodeLabel names the physical code, not the layout's printed key.
+  ['grenadeFrag', 'Quick grenade: frag', []], ['grenadeClaymore', 'Quick grenade: claymore', []],
+  ['grenadePulse', 'Quick grenade: pulse', []], ['grenadeMolotov', 'Quick grenade: molotov', []],
+  ['grenadeSmoke', 'Quick grenade: smoke', []],
+  ['zoom', 'Scope zoom', ['KeyZ']],
   ['weaponWheel', 'Weapon wheel (hold)', ['KeyK']], ['buy', 'Buy menu / armory', ['KeyB']],
   ['build', 'Build mode (Bastion)', ['KeyN']],
   ['scoreboard', 'Scoreboard (hold)', ['Tab']],

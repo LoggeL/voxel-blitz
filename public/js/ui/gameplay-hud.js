@@ -10,6 +10,7 @@ import {
   beamReticleRadiusPx,
   glaiveDiscSlots,
   weaponImagePath,
+  GRENADE_HUD_ICONS,
 } from './hud-support.js';
 import { Scoreboard } from './scoreboard.js';
 import { MatchHud } from './match-hud.js';
@@ -18,10 +19,25 @@ import { displaySettings } from './display-settings.js';
 import { NetworkHud } from './network-hud.js';
 import { PowerupHud } from './powerup-hud.js';
 import { MedkitHud } from './medkit-hud.js';
-import { GRENADE_TYPES, GRENADE_TYPE_IDS, clampGrenadeType } from '../../../shared/grenade-rules.js';
+import {
+  GRENADE_TYPES,
+  GRENADE_TYPE_IDS,
+  GRENADE_ROLES,
+  GRENADE_POWER_STEPS,
+  GRENADE_DEFAULT_POWER_INDEX,
+  clampGrenadeType,
+} from '../../../shared/grenade-rules.js';
+import { CLAYMORE_RULES } from '../../../shared/claymore-rules.js';
+import { GrenadePouchController } from './grenade-pouch.js';
 import { FLAME_RULES } from '../../../shared/flame-rules.js';
 
 const EMPTY_READ_MODEL = Object.freeze({ dead: false, painImpulse: 0 });
+// Grenade HUD pulse windows (ms); the CSS animations run inside them.
+const GRENADE_DENIED_MS = 150;
+const GRENADE_THROWN_MS = 120;
+const GRENADE_ADVANCE_MS = 1200;
+const GRENADE_READIED_MS = 1200;
+const GRENADE_PINBACK_MS = 700;
 const noop = () => {};
 
 function clearBag(bag) {
@@ -84,6 +100,9 @@ export class GameplayHud {
     this.network = new NetworkHud();
     this.powerups = new PowerupHud();
     this.medkit = new MedkitHud();
+    this.pouch = new GrenadePouchController();
+    this._device = {};
+    this._grenadePulse = {};
   }
 
   buildHUD() {
@@ -167,40 +186,59 @@ export class GameplayHud {
     d.weaponIcon.setAttribute('aria-hidden', 'true');
     // Kept outside #ammo because that panel's angular clip-path also clips
     // absolutely positioned descendants above its bounds.
+    // Ready Card: the one grenade G throws, its stock, and five fixed-order
+    // pouch dots (lit = stocked, ringed = ready) tinted by role.
     d.grenades = el('div', 'vb-grenade-count', hud, 'grenade-count');
     d.grenadeKey = el('span', 'vb-grenade-key', d.grenades);
-    d.grenadeKey.textContent = bindingLabel('grenade');
-    d.grenadeSwitch = el('span', 'vb-grenade-switch', d.grenades);
-    d.grenadeSwitch.textContent = `${bindingLabel('grenadeType')} · SWITCH`;
-    d.grenadeSwitch.title = `Switch grenade type (${bindingLabel('grenadeType')})`;
-    d.grenadeTypes = el('span', 'vb-grenade-types', d.grenades);
-    d.grenadeTypeChips = [];
-    for (const typeId of GRENADE_TYPE_IDS) {
-      const type = GRENADE_TYPES[typeId];
-      const chip = el('span', `vb-grenade-type vb-grenade-type-${typeId}`, d.grenadeTypes);
-      chip.dataset.type = typeId;
-      chip.style.setProperty('--nade', type.color);
-      const label = el('b', 'vb-grenade-type-label', chip);
-      label.textContent = type.short;
-      const pips = el('span', 'vb-grenade-icons', chip);
-      chip.pips = [];
-      for (let i = 0; i < type.perLife; i++) {
-        const icon = el('span', 'vb-grenade-icon is-spent', pips);
-        icon.setAttribute('aria-hidden', 'true');
-        chip.pips.push(icon);
-      }
-      d.grenadeTypeChips.push(chip);
-    }
+    d.grenadeIcon = el('img', 'vb-grenade-card-icon', d.grenades);
+    d.grenadeIcon.alt = '';
+    d.grenadeIcon.draggable = false;
+    d.grenadeIcon.setAttribute('aria-hidden', 'true');
     d.grenadeName = el('span', 'vb-grenade-name', d.grenades);
-    d.grenadeName.textContent = GRENADE_TYPES[GRENADE_TYPE_IDS[0]].name;
-    d.grenades.dataset.type = GRENADE_TYPE_IDS[0];
-    d.grenades.style.setProperty('--nade', GRENADE_TYPES[GRENADE_TYPE_IDS[0]].color);
+    d.grenadeAmmo = el('b', 'vb-grenade-ammo', d.grenades);
+    d.grenadeDots = el('span', 'vb-grenade-dots', d.grenades);
+    d.grenadeDots.setAttribute('aria-hidden', 'true');
+    d.grenadeDotList = GRENADE_TYPE_IDS.map((typeId) => {
+      const dot = el('i', `vb-grenade-dot vb-grenade-dot-${typeId}`, d.grenadeDots);
+      dot.dataset.type = typeId;
+      dot.dataset.role = GRENADE_ROLES[typeId] || '';
+      return dot;
+    });
+    d.grenadePouchKey = el('span', 'vb-grenade-pouch', d.grenades);
+    d.grenadePouchKeyBadge = el('kbd', 'vb-grenade-pouch-key', d.grenadePouchKey);
+    el('span', '', d.grenadePouchKey).textContent = 'POUCH';
+    d.grenadeFlash = el('span', 'vb-grenade-flash', d.grenades);
     d.grenadeCharge = el('span', 'vb-grenade-charge', d.grenades);
     d.grenadeChargeFill = el('i', '', d.grenadeCharge);
     d.grenadeHint = el('span', 'vb-grenade-hint', d.grenades);
-    d.grenadeHint.textContent = 'HOLD · RELEASE';
-    this._grenadeType = 0;
-    d.grenadeTypeChips[0].classList.add('is-selected');
+    // Touch keeps only these (styles/touch-controls.css compact card).
+    for (const node of [d.grenadeIcon, d.grenadeAmmo, d.grenadeCharge]) node.dataset.touchCompact = '';
+    // Readied tag under the crosshair: fades in on every ready-type change.
+    d.grenadeReadied = el('div', 'vb-grenade-readied', hud, 'grenade-readied');
+    d.grenadeReadied.setAttribute('aria-live', 'polite');
+    d.grenadeReadiedIcon = el('img', '', d.grenadeReadied);
+    d.grenadeReadiedIcon.alt = '';
+    d.grenadeReadiedIcon.setAttribute('aria-hidden', 'true');
+    d.grenadeReadiedCount = el('b', '', d.grenadeReadied);
+    d.grenadeReadiedNote = el('span', 'vb-grenade-readied-note', d.grenadeReadied);
+    // Aim reticle: power notches, fuse ring, and the release hints while held.
+    d.grenadeAim = el('div', 'vb-grenade-aim', hud, 'grenade-aim');
+    d.grenadeAim.setAttribute('aria-hidden', 'true');
+    d.grenadeAimPower = el('div', 'vb-aim-power', d.grenadeAim);
+    d.grenadeAimNotches = GRENADE_POWER_STEPS.map((step, index) => {
+      const notch = el('i', 'vb-aim-notch', d.grenadeAimPower);
+      notch.style.setProperty('--notch', String(index));
+      return notch;
+    });
+    d.grenadeAimPowerLabel = el('span', 'vb-aim-power-label', d.grenadeAimPower);
+    d.grenadeAimFuse = el('div', 'vb-aim-fuse', d.grenadeAim);
+    d.grenadeAimFuseRing = el('i', 'vb-aim-fuse-ring', d.grenadeAimFuse);
+    d.grenadeAimFuseLabel = el('span', 'vb-aim-fuse-label', d.grenadeAimFuse);
+    d.grenadeAimMount = el('div', 'vb-aim-mount', d.grenadeAim);
+    d.grenadeAimHint = el('div', 'vb-aim-hint', d.grenadeAim);
+    this._grenadeType = -1;
+    this._paintGrenadeType(0);
+    this.setDeviceLabels(this._device);
     // Charge weapons (LONGARC): capacitor meter under the ammo panel.
     d.chargeMeter = el('div', 'vb-charge-meter', hud, 'charge-meter');
     d.chargeMeterTrack = el('span', 'vb-charge-track', d.chargeMeter);
@@ -282,9 +320,7 @@ export class GameplayHud {
     this._unsubscribeBindings?.();
     this._unsubscribeBindings = subscribeKeybindings(() => {
       this.setScoreboard(false);
-      d.grenadeKey.textContent = bindingLabel('grenade');
-      d.grenadeSwitch.textContent = `${bindingLabel('grenadeType')} · SWITCH`;
-      d.grenadeSwitch.title = `Switch grenade type (${bindingLabel('grenadeType')})`;
+      this.setDeviceLabels(this._device);
       d.discReturn.textContent = `${bindingLabel('reload')} · RETURN`;
       d.discReturn.title = `Return every disc on its out leg (${bindingLabel('reload')})`;
     });
@@ -374,64 +410,7 @@ export class GameplayHud {
       painted.wname = s.wname;
       d.wname.textContent = String(s.wname).toUpperCase();
     }
-    if (s.grenadeType != null) {
-      const index = clampGrenadeType(s.grenadeType);
-      if (index !== this._grenadeType) {
-        this._grenadeType = index;
-        d.grenades.dataset.type = GRENADE_TYPE_IDS[index];
-        d.grenades.style.setProperty('--nade', GRENADE_TYPES[GRENADE_TYPE_IDS[index]].color);
-        d.grenadeName.textContent = GRENADE_TYPES[GRENADE_TYPE_IDS[index]].name;
-        for (let i = 0; i < d.grenadeTypeChips.length; i++) {
-          d.grenadeTypeChips[i].classList.toggle('is-selected', i === index);
-        }
-      }
-    }
-    if (s.grenades != null) {
-      const counts = painted.grenades || (painted.grenades = []);
-      let total = 0;
-      let changed = false;
-      for (let t = 0; t < d.grenadeTypeChips.length; t++) {
-        const count = Math.max(0, (Array.isArray(s.grenades) ? s.grenades[t] : t === 0 ? s.grenades : 0) | 0);
-        total += count;
-        if (counts[t] === count) continue;
-        counts[t] = count;
-        changed = true;
-        const chip = d.grenadeTypeChips[t];
-        chip.classList.toggle('is-empty', count <= 0);
-        for (let i = 0; i < chip.pips.length; i++) {
-          chip.pips[i].classList.toggle('is-spent', i >= count);
-        }
-      }
-      if (changed) d.grenades.setAttribute('aria-label', `${total} grenades remaining`);
-    }
-    const wallMine = GRENADE_TYPES[GRENADE_TYPE_IDS[this._grenadeType]]?.wallMine;
-    const grenadeCharge = wallMine ? 0 : clamp01(s.grenadeCharge);
-    const charging = grenadeCharge > 0 || !!s.grenadeCharging;
-    const cook01 = clamp01(s.grenadeCook01);
-    const grenadeFlags = Number(charging) | (Number(grenadeCharge >= 1) << 1)
-      | (Number(charging && cook01 > 0) << 2) | (Number(charging && cook01 >= 0.7) << 3);
-    if (grenadeFlags !== painted.grenadeFlags) {
-      painted.grenadeFlags = grenadeFlags;
-      d.grenades.classList.toggle('is-charging', charging);
-      d.grenades.classList.toggle('is-full', grenadeCharge >= 1);
-      d.grenades.classList.toggle('is-cooking', charging && cook01 > 0);
-      d.grenades.classList.toggle('is-critical', charging && cook01 >= 0.7);
-    }
-    const grenadeFill = wallMine ? Number(charging && s.claymorePlacementValid)
-      : charging && cook01 > 0 ? 1 - cook01 : grenadeCharge;
-    if (grenadeFill !== painted.grenadeFill) {
-      painted.grenadeFill = grenadeFill;
-      d.grenadeChargeFill.style.transform = `scaleX(${grenadeFill})`;
-    }
-    let hint = 'HOLD · RELEASE';
-    if (wallMine) {
-      hint = charging ? (s.claymorePlacementValid ? 'RELEASE · MOUNT' : 'AIM AT A WALL · MAX 2.2m') : `HOLD ${bindingLabel('grenade')} · AIM AT WALL`;
-    } else if (charging && cook01 > 0 && Number.isFinite(s.grenadeCookLeftMs)) {
-      hint = `COOKING · ${(Math.max(0, s.grenadeCookLeftMs) / 1000).toFixed(1)}s`;
-    } else if (grenadeCharge >= 1) {
-      hint = 'MAX · RELEASE';
-    }
-    if (d.grenadeHint.textContent !== hint) d.grenadeHint.textContent = hint;
+    this.paintGrenades(s, alive);
 
     if (s.charge01 !== undefined) {
       const thermal = Number.isFinite(s.heat01);
@@ -777,6 +756,230 @@ export class GameplayHud {
     scope.style.transform = '';
   }
 
+  /**
+   * Key badges and hint copy for the active device: bindings on keyboard, pad
+   * glyphs while a pad drives, and no key badges on touch (the buttons carry them).
+   *
+   * @param {{padActive?: boolean, touch?: boolean}} [device]
+   */
+  setDeviceLabels(device = {}) {
+    this._device = device || {};
+    const d = this.dom;
+    if (!d.grenadeKey) return;
+    const pad = !!this._device.padActive;
+    const touch = !!this._device.touch && !pad;
+    d.grenadeKey.textContent = pad ? 'RB' : bindingLabel('grenade');
+    d.grenadeKey.hidden = touch;
+    d.grenadePouchKeyBadge.textContent = pad ? 'D▼' : bindingLabel('grenadeType');
+    d.grenadePouchKey.hidden = touch;
+    d.grenadePouchKey.title = pad
+      ? 'Tap D-pad down for the next grenade, hold for the pouch'
+      : `Tap ${bindingLabel('grenadeType')} for the next grenade, hold for the pouch`;
+    d.grenades.classList.toggle('is-touch', touch);
+    // Hints read the device, so force the next paint to rebuild them.
+    this._painted.grenadeHint = undefined;
+    this._painted.grenadeAimHint = undefined;
+    if (this.built) this.paintGrenades(this.st, this.st.alive !== false && this.readModel.dead !== true);
+  }
+
+  /** Card identity (type, tint, icon, name) for roster index `index`. @private */
+  _paintGrenadeType(index) {
+    if (index === this._grenadeType) return;
+    this._grenadeType = index;
+    const d = this.dom;
+    const typeId = GRENADE_TYPE_IDS[index];
+    const type = GRENADE_TYPES[typeId];
+    d.grenades.dataset.type = typeId;
+    d.grenades.style.setProperty('--nade', type.color);
+    d.grenadeIcon.src = GRENADE_HUD_ICONS[typeId];
+    d.grenadeReadiedIcon.src = GRENADE_HUD_ICONS[typeId];
+    d.grenadeReadied.style.setProperty('--nade', type.color);
+    d.grenadeAim.style.setProperty('--nade', type.color);
+    this._painted.grenadeName = undefined;
+  }
+
+  /** Records a local timestamp whenever a pulse field changes to a truthy value. @private */
+  _grenadePulseAt(key, value, now) {
+    const pulse = this._grenadePulse;
+    if (value === pulse[key]) return pulse[`${key}At`] ?? -Infinity;
+    pulse[key] = value;
+    if (value !== undefined && value !== null && value !== false && value !== -1) pulse[`${key}At`] = now;
+    return pulse[`${key}At`] ?? -Infinity;
+  }
+
+  /**
+   * Ready Card, readied tag, aim reticle and pouch from the authoritative
+   * counts plus the input seam's pouch fields. Every new field may be missing.
+   */
+  paintGrenades(s, alive = true) {
+    const d = this.dom;
+    if (!d.grenades) return;
+    const painted = this._painted;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const counts = GRENADE_TYPE_IDS.map((_, t) => Math.max(0, (Array.isArray(s.grenades) ? s.grenades[t] : t === 0 ? s.grenades : 0) | 0));
+    const total = counts.reduce((sum, count) => sum + count, 0);
+    const held = !!s.grenadeCharging || clamp01(s.grenadeCharge) > 0;
+    const readyKnown = Number.isInteger(s.grenadeReady);
+    const ready = readyKnown ? s.grenadeReady : (s.grenadeType != null ? clampGrenadeType(s.grenadeType) : 0);
+    const emptyPouch = !held && (readyKnown ? ready < 0 : s.grenades != null && total === 0);
+    // While held the type is locked to the held one; otherwise the ready one.
+    const shown = held && s.grenadeType != null ? clampGrenadeType(s.grenadeType)
+      : ready >= 0 ? clampGrenadeType(ready) : (this._grenadeType >= 0 ? this._grenadeType : 0);
+    const previousShown = this._grenadeType;
+    this._paintGrenadeType(shown);
+    const typeId = GRENADE_TYPE_IDS[shown];
+    const type = GRENADE_TYPES[typeId];
+    const count = counts[shown];
+
+    if (painted.grenadeCounts !== counts.join(',')) {
+      const before = painted.grenadeCounts?.split(',').reduce((sum, value) => sum + Number(value), 0);
+      if (before > total) this._grenadePulse.thrownAt = now;
+      painted.grenadeCounts = counts.join(',');
+      for (let t = 0; t < d.grenadeDotList.length; t++) d.grenadeDotList[t].classList.toggle('is-stocked', counts[t] > 0);
+      d.grenades.setAttribute('aria-label', `${total} grenades remaining`);
+    }
+    if (painted.grenadeReadyDot !== ready) {
+      painted.grenadeReadyDot = ready;
+      for (let t = 0; t < d.grenadeDotList.length; t++) d.grenadeDotList[t].classList.toggle('is-ready', t === ready);
+    }
+    const name = emptyPouch ? 'POUCH EMPTY' : type.name;
+    if (painted.grenadeName !== name) {
+      painted.grenadeName = name;
+      d.grenadeName.textContent = name;
+    }
+    const ammo = `×${count}`;
+    if (painted.grenadeAmmo !== ammo) {
+      painted.grenadeAmmo = ammo;
+      d.grenadeAmmo.textContent = ammo;
+      d.grenadeReadiedCount.textContent = ammo;
+    }
+
+    // Transient pulses. A ready change after the first paint also counts as
+    // "readied" so pickups and respawns flash even without an input timestamp.
+    if (previousShown >= 0 && previousShown !== shown && !held) this._grenadePulse.localReadiedAt = now;
+    const deniedAt = this._grenadePulseAt('denied', s.grenadeDenied, now);
+    const advancedAt = this._grenadePulseAt('advanced', s.grenadeAdvancedTo, now);
+    const pinBackAt = this._grenadePulseAt('pinBack', s.grenadePinBackAt, now);
+    const readiedAt = Math.max(Number.isFinite(s.grenadeReadiedAt) ? s.grenadeReadiedAt : -Infinity,
+      this._grenadePulse.localReadiedAt ?? -Infinity, advancedAt);
+    const denied = now - deniedAt < GRENADE_DENIED_MS;
+    const advanced = now - advancedAt < GRENADE_ADVANCE_MS;
+    const thrown = now - (this._grenadePulse.thrownAt ?? -Infinity) < GRENADE_THROWN_MS;
+    const pinBack = now - pinBackAt < GRENADE_PINBACK_MS;
+    const readiedVisible = alive && !emptyPouch && (held || now - readiedAt < GRENADE_READIED_MS || pinBack);
+
+    const wallMine = !!type.wallMine;
+    const power = wallMine ? 0 : clamp01(Number.isFinite(s.grenadePower) ? s.grenadePower : s.grenadeCharge);
+    let powerIndex = Number.isInteger(s.grenadePowerIndex) ? s.grenadePowerIndex : -1;
+    if (powerIndex < 0) {
+      powerIndex = power > 0
+        ? GRENADE_POWER_STEPS.reduce((best, step, i) => (Math.abs(step - power) < Math.abs(GRENADE_POWER_STEPS[best] - power) ? i : best), 0)
+        : GRENADE_DEFAULT_POWER_INDEX;
+    }
+    powerIndex = Math.max(0, Math.min(GRENADE_POWER_STEPS.length - 1, powerIndex));
+    const cook01 = clamp01(s.grenadeCook01);
+    const cooking = held && cook01 > 0;
+    const critical = held && cook01 >= 0.7;
+    const placeable = wallMine && held && !!s.claymorePlacementValid;
+    const flags = [held, power >= 1 && held, cooking, critical, emptyPouch, denied, advanced, thrown,
+      readiedVisible, pinBack, wallMine, placeable, !!type.cook, alive].map(Number).join('');
+    if (flags !== painted.grenadeFlags) {
+      painted.grenadeFlags = flags;
+      d.grenades.classList.toggle('is-charging', held);
+      d.grenades.classList.toggle('is-full', held && power >= 1);
+      d.grenades.classList.toggle('is-cooking', cooking);
+      d.grenades.classList.toggle('is-critical', critical);
+      d.grenades.classList.toggle('is-empty-pouch', emptyPouch);
+      d.grenades.classList.toggle('is-denied', denied);
+      d.grenades.classList.toggle('is-advanced', advanced);
+      d.grenades.classList.toggle('is-thrown', thrown);
+      d.grenadeReadied.classList.toggle('is-visible', readiedVisible);
+      d.grenadeReadied.classList.toggle('is-advanced', advanced && !held);
+      d.grenadeReadied.classList.toggle('is-pinback', pinBack && !held);
+      d.grenadeAim.classList.toggle('is-visible', held && alive);
+      d.grenadeAim.classList.toggle('is-wallmine', wallMine);
+      d.grenadeAim.classList.toggle('is-valid', placeable);
+      d.grenadeAim.classList.toggle('is-cook', !!type.cook);
+      d.grenadeAim.classList.toggle('is-critical', critical);
+    }
+    const flash = advanced ? `NEXT · ${type.name}` : '';
+    if (painted.grenadeFlash !== flash) {
+      painted.grenadeFlash = flash;
+      d.grenadeFlash.textContent = flash;
+    }
+    // A claymore let go off a wall is a pin back too, but it reads as the reason.
+    const pinBackNote = s.grenadePinBackReason === 'noWall' ? 'NO WALL' : 'PIN BACK';
+    const note = pinBack && !held ? pinBackNote : advanced && !held ? `→ ${type.name}` : '';
+    if (painted.grenadeReadiedNote !== note) {
+      painted.grenadeReadiedNote = note;
+      d.grenadeReadiedNote.textContent = note;
+    }
+
+    // Thin mirror bar on the card: fuse while cooking, mount validity, else power.
+    const fill = !held ? 0 : wallMine ? Number(placeable) : cooking ? 1 - cook01 : power;
+    if (fill !== painted.grenadeFill) {
+      painted.grenadeFill = fill;
+      d.grenadeChargeFill.style.transform = `scaleX(${fill})`;
+    }
+    const pad = !!this._device.padActive;
+    const touch = !!this._device.touch && !pad;
+    const reach = `${Number(CLAYMORE_RULES.placementRange.toFixed(1))}m`;
+    let hint = touch ? 'TAP · THROW' : `TAP ${pad ? 'RB' : bindingLabel('grenade')} · THROW`;
+    if (held) {
+      if (wallMine) hint = placeable ? 'RELEASE · MOUNT' : `NO WALL · MAX ${reach}`;
+      else if (cooking && Number.isFinite(s.grenadeCookLeftMs)) hint = `COOKING · ${(Math.max(0, s.grenadeCookLeftMs) / 1000).toFixed(1)}s`;
+      else hint = 'RELEASE · THROW';
+    }
+    if (painted.grenadeHint !== hint) {
+      painted.grenadeHint = hint;
+      d.grenadeHint.textContent = hint;
+    }
+
+    if (painted.grenadePowerIndex !== powerIndex) {
+      painted.grenadePowerIndex = powerIndex;
+      d.grenadeAimNotches.forEach((notch, i) => notch.classList.toggle('is-lit', i === powerIndex));
+      d.grenadeAimPowerLabel.textContent = powerIndex === 0 ? 'LOB' : `${Math.round(GRENADE_POWER_STEPS[powerIndex] * 100)}%`;
+    }
+    const fuseLeftMs = type.cook
+      ? Math.max(0, Number.isFinite(s.grenadeCookLeftMs) && cooking ? s.grenadeCookLeftMs : type.fuseMs * (1 - cook01))
+      : 0;
+    const fuse = type.cook ? `${(fuseLeftMs / 1000).toFixed(1)}s|${(1 - cook01).toFixed(3)}` : '';
+    if (painted.grenadeFuse !== fuse) {
+      painted.grenadeFuse = fuse;
+      d.grenadeAimFuseLabel.textContent = type.cook ? fuse.split('|')[0] : '';
+      d.grenadeAimFuseRing.style.setProperty('--fuse', type.cook ? fuse.split('|')[1] : '0');
+    }
+    const mount = wallMine ? (placeable ? '[ MOUNT ]' : `[ NO WALL · ${reach} ]`) : '';
+    if (painted.grenadeMount !== mount) {
+      painted.grenadeMount = mount;
+      d.grenadeAimMount.textContent = mount;
+    }
+    const release = touch ? 'LIFT' : 'RELEASE';
+    const cancelKeys = pad ? 'X' : [bindingLabel('reload'), bindingLabel('grenadeCancel')].filter((label) => label !== 'UNBOUND').join(' / ');
+    const pinBackHint = touch ? 'SLIDE TO PIN BACK' : `${cancelKeys} · PIN BACK`;
+    const aimHint = wallMine
+      ? `${release} · MOUNT   ${pinBackHint}`
+      : `${release} · THROW   ${touch ? 'TAP A STOP · RANGE' : pad ? 'D↕ · RANGE' : 'SCROLL · RANGE'}   ${pinBackHint}`;
+    if (painted.grenadeAimHint !== aimHint) {
+      painted.grenadeAimHint = aimHint;
+      d.grenadeAimHint.textContent = aimHint;
+    }
+
+    // Pouch: lazy until first opened, then diffed by the controller itself.
+    // Only state-driven when the host sends the field (else setGrenadePouchState owns it).
+    const pouchOpen = alive && !!s.grenadePouchOpen;
+    if (s.grenadePouchOpen !== undefined && (pouchOpen || this.pouch.dom.root)) {
+      this.pouch.setState({
+        open: pouchOpen,
+        hover: Number.isInteger(s.grenadePouchHover) ? s.grenadePouchHover : -1,
+        ready,
+        counts,
+        device: this._device,
+        chaos: s.grenadeChaos ?? s.chaosUpgrades ?? 0,
+      });
+    }
+  }
+
   resetScope() {
     this.scopeShown = false;
     this.scopeProgress = 0;
@@ -801,6 +1004,7 @@ export class GameplayHud {
     clearBag(this.st);
     this._painted = {};
     this._grenadeType = -1;
+    this._grenadePulse = {};
     this.ringOn = false;
     this.compassW = 0;
     this.compassPPD = 2;
@@ -828,6 +1032,7 @@ export class GameplayHud {
     this.match.reset();
     this.network.reset();
     this.powerups.reset();
+    if (this.pouch.dom.root) this.pouch.setState({ open: false });
   }
 
   dispose() {
@@ -857,6 +1062,7 @@ export class GameplayHud {
     this.network.dispose();
     this.powerups.dispose();
     this.medkit.dispose();
+    this.pouch.dispose();
     const hud = doc ? doc.getElementById('hud') : null;
     if (this._ownedHudRoot) {
       this._ownedHudRoot.remove();
@@ -869,6 +1075,7 @@ export class GameplayHud {
     clearBag(this.st);
     this._painted = {};
     this._grenadeType = -1;
+    this._grenadePulse = {};
     this.scopeShown = false;
     this.scopeProgress = 0;
     this.ringOn = false;

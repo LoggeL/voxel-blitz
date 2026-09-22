@@ -646,7 +646,11 @@ export class LocalPlayer {
     const meleeAllowed = intents.meleeAllowed == null ? fireAllowed : isAllowed(intents.meleeAllowed);
     const grenadeAllowed = intents.grenadeAllowed == null ? fireAllowed : isAllowed(intents.grenadeAllowed);
     const grenadeThrow = input.consumeGrenadeThrow();
-    if (grenadeThrow && grenadeAllowed && this._alive) {
+    // Second defence behind Input: a type the player owns none of is never latched.
+    // Counts not yet known (null) defer to the authority.
+    const grenadeCount = grenadeThrow ? input.getGrenadeCount?.(grenadeThrow.type) : null;
+    const grenadeStocked = typeof grenadeCount !== 'number' || grenadeCount > 0;
+    if (grenadeThrow && grenadeStocked && grenadeAllowed && this._alive) {
       this.grenadeThrowLatched = {
         charge: grenadeThrow.charge,
         cookMs: grenadeThrow.cookMs,

@@ -5,6 +5,7 @@
 import {
   WEAPON_NAMES,
   THROWABLE_NAMES,
+  GRENADE_HUD_ICONS,
   el,
   clamp01,
   resolveKey,
@@ -145,9 +146,15 @@ export class CombatHudController {
       icon.src = weaponImagePath(weaponKey);
       icon.alt = '';
       icon.setAttribute('aria-hidden', 'true');
+    } else if (throwable) {
+      // The legacy `grenade` id predates the typed pouch and was always a frag.
+      const icon = el('img', 'kf-grenade-icon', weapon);
+      icon.src = GRENADE_HUD_ICONS[weaponKey] || GRENADE_HUD_ICONS.frag;
+      icon.alt = '';
+      icon.setAttribute('aria-hidden', 'true');
     } else {
-      const icon = el('span', 'kf-grenade-icon', weapon);
-      icon.textContent = throwable ? '◆' : '·';
+      const icon = el('span', 'kf-world-icon', weapon);
+      icon.textContent = '·';
       icon.setAttribute('aria-hidden', 'true');
     }
     const weaponName = el('span', 'kf-weapon-name', weapon);

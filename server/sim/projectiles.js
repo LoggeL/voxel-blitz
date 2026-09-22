@@ -33,6 +33,7 @@ import {
 } from '../protocol/events.js';
 import { fwdFromYawPitch } from './player.js';
 import {
+  GRENADE_THROW_COOLDOWN_MS,
   GRENADE_TYPES,
   GRENADE_TYPE_IDS,
   clampGrenadeCook,
@@ -175,12 +176,14 @@ export class ProjectileSystem {
       player.grenadeAimQueued = null;
       if (player.state !== 'alive' || !ctx.canThrow(player)) continue;
       if (!(player.grenades[typeIndex] > 0)) continue;
+      // Minimum interval between throws: an edge inside the cooldown is
+      // dropped and spends nothing, so tap-spam cannot empty the pouch.
+      if (ctx.now < (player.nextThrowAt || 0)) continue;
       const type = GRENADE_TYPES[GRENADE_TYPE_IDS[typeIndex]];
-      if (type.cook && clampGrenadeCook(cook, type) >= type.fuseMs) {
-        this.detonateInHand(player, ctx, typeIndex);
-      } else {
-        this.throw(player, ctx, charge, typeIndex, cook, aim);
-      }
+      const launched = type.cook && clampGrenadeCook(cook, type) >= type.fuseMs
+        ? this.detonateInHand(player, ctx, typeIndex)
+        : this.throw(player, ctx, charge, typeIndex, cook, aim);
+      if (launched) player.nextThrowAt = ctx.now + GRENADE_THROW_COOLDOWN_MS;
     }
 
     const substeps = 2;

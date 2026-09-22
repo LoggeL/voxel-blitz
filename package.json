@@ -34,7 +34,7 @@
     "sniper:test": "node tools/sniper-test.mjs && node tools/discrete-shot-network-test.mjs && node tools/sniper-browser-test.mjs",
     "weapons:feel:test": "node tools/sniper-test.mjs && node tools/discrete-shot-network-test.mjs && node tools/aim-punch-test.mjs && node tools/weapon-aim-test.mjs && node tools/weapon-range-test.mjs && node tools/grenade-aim-test.mjs && npm run weapons:reload:test && npm run weapons:handling:test",
     "weapons:reload:browser": "node tools/reload-browser-test.mjs",
-    "throwables:test": "node tools/claymore-test.mjs && node tools/smoke-grenade-test.mjs && node tools/throwable-animation-test.mjs && node tools/molotov-test.mjs && node tools/throwable-client-test.mjs && node tools/grenade-handling-test.mjs",
+    "throwables:test": "node tools/claymore-test.mjs && node tools/smoke-grenade-test.mjs && node tools/throwable-animation-test.mjs && node tools/molotov-test.mjs && node tools/throwable-client-test.mjs && node tools/grenade-handling-test.mjs && node tools/grenade-pouch-rules-test.mjs && node tools/grenade-pouch-input-test.mjs",
     "throwables:browser": "node tools/throwable-browser-test.mjs",
     "gore:test": "node tools/corpse-lifetime-test.mjs && node tools/avatar-death-physics-test.mjs && node tools/overkill-gore-test.mjs && node tools/remote-death-timing-test.mjs",
     "avatars:capture": "node tools/render-avatar-scenes.mjs",

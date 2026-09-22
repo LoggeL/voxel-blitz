@@ -155,14 +155,18 @@ console.log('Grenade aim: quick-throw firing suppression, all grenade types, del
 
 // The displayed arc must stop when the cooked fuse expires, including a partial step.
 {
-  const { predictGrenadePath, stepGrenade, grenadeFuseAfterCook } = await import('../shared/grenade-rules.js');
+  const { predictGrenadePath, stepGrenade, grenadeFuseAfterCook, grenadeCookFromHold, grenadePowerAt, GRENADE_PIN_MS } =
+    await import('../shared/grenade-rules.js');
   const { ProjectileFX } = await import('../public/js/weapons/projectiles.js');
   const THREE = await import('../public/js/vendor/three.module.js');
   const fx = new ProjectileFX(new THREE.Scene(), () => 0);
   try {
-    for (const heldMs of [0, 1200, 2193, 2500]) {
+    // The cook runs from the pin pull: holding exactly GRENADE_PIN_MS has burned nothing.
+    assert.equal(grenadeCookFromHold(GRENADE_PIN_MS, 'frag'), 0);
+    for (const [powerIndex, holdMs] of [[0, 0], [2, GRENADE_PIN_MS + 1200], [3, GRENADE_PIN_MS + 2193], [4, GRENADE_PIN_MS + 2500]]) {
+      const heldMs = grenadeCookFromHold(holdMs, 'frag');
       const launch = grenadeLaunch({ x: 4, y: 1, z: 4, eyeY: 2.62,
-        dir: fwdFromAngles(0.3, 0.2), charge: Math.min(1, heldMs / 1200), type: 'frag' });
+        dir: fwdFromAngles(0.3, 0.2), charge: grenadePowerAt(powerIndex), type: 'frag' });
       const fuseMs = grenadeFuseAfterCook(heldMs, 'frag');
       const actual = fx.setPreview({ ...launch, fuseMs });
       const expected = { ...launch };
@@ -170,7 +174,9 @@ console.log('Grenade aim: quick-throw firing suppression, all grenade types, del
         stepGrenade(expected, Math.min(25, fuseMs - elapsed) / 1000, () => false);
       }
       for (const [i, axis] of ['x', 'y', 'z'].entries()) close(actual.landing[i], expected[axis], `cooked preview ${heldMs} ${axis}`);
-      assert.equal(fx.previewLine.geometry.drawRange.count, actual.points.length);
+      // A mid-air burst hands the last stretch to the dim dotted tail (shared end vertex).
+      assert.equal(fx.previewLine.geometry.drawRange.count
+        + (fx.previewTail.visible ? fx.previewTail.geometry.drawRange.count - 1 : 0), actual.points.length);
       if (heldMs > 0) {
         const full = predictGrenadePath(launch, () => false);
         assert.ok(Math.hypot(...full.landing.map((v, i) => v - actual.landing[i])) > 1,

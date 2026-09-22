@@ -190,4 +190,59 @@ function effectFacade(scene) {
   } finally { game.effects?.dispose(); }
 }
 
-console.log('Throwable client: server-to-net-to-main fire snapshots, shared GPU bounds, epoch-safe animation, pause/resume, reconnect, disposal and expiry passed.');
+// World preview: the landing zone is the shared effect radius, bounces are marked,
+// the arc reads through cover, and a cooked frag bursting mid-air ends dotted.
+{
+  const { ProjectileFX } = await import('../public/js/weapons/projectiles.js');
+  const { grenadeEffectRadius, predictGrenadePath } = await import('../shared/grenade-rules.js');
+  const scene = new THREE.Scene();
+  const floor = (_x, y) => (y < 1 ? 1 : 0);
+  const fx = new ProjectileFX(scene, floor);
+  try {
+    const launch = { type: 'frag', x: 4, y: 2.6, z: 4, vx: 0, vy: 4, vz: -9 };
+    const shown = fx.setPreview(launch);
+    const expected = predictGrenadePath(launch, floor, { maxPoints: 96 });
+    assert(shown.bounces.length > 0, 'a frag at the floor bounces');
+    const dots = fx.bounceDots.filter(dot => dot.visible);
+    assert.equal(dots.length, Math.min(fx.bounceDots.length, expected.bounces.length));
+    assert.deepEqual(dots[0].position.toArray(), expected.bounces[0], 'bounce dots sit on the shared prediction');
+    assert.equal(fx.landingRing.scale.x, grenadeEffectRadius('frag'), 'landing zone is the blast radius');
+    assert.equal(fx.landingDisc.parent, fx.landingRing, 'translucent disc scales with the ring');
+    assert.equal(fx.previewGhost.visible, true);
+    assert.equal(fx.previewGhostMaterial.depthTest, false, 'ghost arc reads through walls');
+    assert.equal(fx.previewGhostMaterial.opacity, 0.25);
+    assert.equal(fx.previewGhost.geometry, fx.previewLine.geometry, 'ghost shares the live arc');
+    assert.equal(fx.previewTail.visible, false, 'a resting frag has no mid-air tail');
+    assert.equal(fx.previewLine.geometry.drawRange.count, shown.points.length);
+
+    fx.setPreview({ ...launch, type: 'molotov', effectRadius: 4.2 });
+    assert.equal(fx.landingRing.scale.x, 4.2, 'a supplied chaos-scaled effect radius wins');
+    fx.setPreview({ ...launch, type: 'smoke', chaosLevel: 1 });
+    assert.equal(fx.landingRing.scale.x, grenadeEffectRadius('smoke', 1));
+    assert.equal(fx.bounceDotMaterial.color.getHex(), fx.previewMaterial.color.getHex(), 'marks follow the type colour');
+
+    const airburst = fx.setPreview({ ...launch, vy: 9, fuseMs: 400 });
+    assert.equal(airburst.rests, false);
+    const line = fx.previewLine.geometry.drawRange.count;
+    const tail = fx.previewTail.geometry.drawRange;
+    assert.equal(fx.previewTail.visible, true, 'a cooked frag bursting mid-air ends in a dotted tail');
+    assert(fx.previewTailMaterial.opacity < fx.previewMaterial.opacity && fx.previewTailMaterial.dashSize < fx.previewMaterial.dashSize);
+    assert.equal(tail.start, line - 1, 'the tail continues from the last bright point');
+    assert.equal(tail.start + tail.count, airburst.points.length, 'bright arc plus tail cover the whole path');
+    fx.setPreview({ ...launch, type: 'pulse', vy: 9, fuseMs: 400 });
+    assert.equal(fx.previewTail.visible, false, 'only cook types show the mid-air tail');
+
+    fx.setPreview({ ...launch, type: 'limpet', n: [0, 0, 1] });
+    assert(!fx.previewLine.visible && !fx.previewGhost.visible && !fx.landingRing.visible
+      && fx.bounceDots.every(dot => !dot.visible), 'the claymore ghost replaces the arc');
+    fx.setPreview(launch);
+    fx.setPreview(null);
+    assert(!fx.previewLine.visible && !fx.previewGhost.visible && !fx.previewTail.visible
+      && !fx.landingRing.visible && fx.bounceDots.every(dot => !dot.visible), 'release hides every preview part');
+  } finally { fx.dispose(); }
+  for (const part of [fx.previewGhost, fx.previewTail, fx.landingRing, ...fx.bounceDots]) {
+    assert.equal(part.parent, null, 'disposal detaches every preview part');
+  }
+}
+
+console.log('Throwable client: server-to-net-to-main fire snapshots, shared GPU bounds, epoch-safe animation, pause/resume, reconnect, disposal and expiry, and the effect-radius world preview passed.');

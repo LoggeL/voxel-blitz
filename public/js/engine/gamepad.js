@@ -14,17 +14,17 @@ export const PAD_BUTTONS = Object.freeze({
   jump: 0,          // A / Cross
   crouch: 1,        // B / Circle (tap toggles, hold holds)
   reload: 2,        // X / Square
-  weapon: 3,        // Y / Triangle: next weapon (cycles the throwable while RB is held)
+  weapon: 3,        // Y / Triangle: tap next weapon, hold for the weapon wheel (weapons only)
   lastWeapon: 4,    // LB / L1
-  grenade: 5,       // RB / R1 (hold to charge)
+  grenade: 5,       // RB / R1: tap quick-throws, hold aims, release throws
   ads: 6,           // LT / L2
   fire: 7,          // RT / R2
   scoreboard: 8,    // Back / Select
   pause: 9,         // Start / Options
   sprint: 10,       // L3
   zoom: 11,         // R3: scope zoom step
-  slotUp: 12,       // D-pad up
-  slotDown: 13,     // D-pad down
+  slotUp: 12,       // D-pad up (grenade power up while RB is held)
+  grenadePouch: 13, // D-pad down: tap next grenade, hold for the pouch (power down while RB is held)
   interact: 14,     // D-pad left (hold)
   buy: 15,          // D-pad right
 });

@@ -10,9 +10,10 @@ import { resolveWeaponIntent } from '../server/sim/combat.js';
 import { stepMovement } from '../server/sim/movement.js';
 import { ProjectileSystem } from '../server/sim/projectiles.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
+import { GRENADE_THROW_COOLDOWN_MS } from '../shared/grenade-rules.js';
 
 function fixture(weaponId) {
-  let now = 0, release = null, slot = null;
+  let now = 0, release = null, slot = null, counts = null;
   const wires = [], shots = [], localThrows = [];
   const camera = new THREE.PerspectiveCamera(75, 2, 0.01, 100);
   const rig = new ViewmodelRig(camera);
@@ -22,6 +23,9 @@ function fixture(weaponId) {
     consumeGrenadeThrow: () => { const next = release; release = null; return next; },
     consumeWeaponSlot: () => { const next = slot; slot = null; return next; },
     setGameplayEnabled() {},
+    // Authoritative counts as main.js feeds them; null until the first row (defers to authority).
+    setGrenadeCounts: value => { counts = value ? [...value] : null; },
+    getGrenadeCount: index => (counts ? counts[index] ?? 0 : null),
   }, { get: (target, key) => target[key] ?? (() => false) });
   const physics = { pos: { x: 4, y: 2, z: 4 }, vel: { x: 0, y: 0, z: 0 }, grounded: true,
     step: () => false, eyeY: () => 3.62, setMapMeta() {} };
@@ -127,6 +131,40 @@ function fixture(weaponId) {
   } finally { run.dispose(); }
 }
 
+{
+  // Second defence behind Input: a release of a type the row has none of never latches.
+  const run = fixture('rifle');
+  try {
+    run.input.setGrenadeCounts([0, 0, 0, 1, 0]);
+    run.release();
+    run.frame();
+    assert.equal(run.player.grenadeThrowLatched, null, 'an empty type never latches');
+    assert.equal(run.localThrows.length, 0, 'an empty type predicts no throw');
+    assert.equal(run.wires.some(wire => wire.throwGrenade), false, 'an empty type sends no edge');
+    run.input.setGrenadeCounts([1, 0, 0, 1, 0]);
+    run.release();
+    run.frame();
+    assert.equal(run.localThrows.length, 1, 'a stocked type still latches');
+    assert.equal(run.wires.at(-1).throwGrenade, true);
+  } finally { run.dispose(); }
+}
+
+{
+  // Pin back: the hold ends without a release, so grenadeHandling clears and no edge is sent.
+  const run = fixture('rifle');
+  try {
+    run.input.grenadeHeld = true;
+    for (let i = 0; i < 20; i++) run.frame();
+    assert.equal(run.wires.at(-1).grenadeHandling, true, 'the held grenade locks the hands');
+    run.input.grenadeHeld = false;
+    run.rig.cancelGrenade({ reseat: true });
+    for (let i = 0; i < 60; i++) run.frame();
+    assert.equal(run.wires.some(wire => wire.throwGrenade), false, 'a cancel never sends a throw edge');
+    assert.equal(run.localThrows.length, 0, 'a cancel predicts no projectile');
+    assert.notEqual(run.wires.at(-1).grenadeHandling, true, 'grenadeHandling clears after the pin back');
+  } finally { run.dispose(); }
+}
+
 function authority(weaponId) {
   const owner = new PlayerEntity('owner', 'Owner', { x: 4, y: 2, z: 4 });
   owner.weapon = WEAPON_IDS.indexOf(weaponId);
@@ -176,4 +214,31 @@ function authority(weaponId) {
     'legacy inputs still fire once the interruption ends');
 }
 
-console.log('Grenade handling: first-frame charge cancellation, quick taps, throw recovery, reload/selection gates, immediate scope visibility, server coalescing and legacy inputs passed.');
+// --- Server throw cooldown (quick-draw pouch, GRENADE_THROW_COOLDOWN_MS) ---
+{
+  const run = authority('rifle');
+  const projectiles = new ProjectileSystem();
+  const ctx = { ...run.ctx, canThrow: () => true };
+  const launches = () => run.events.filter(event => event.kind === 'projectileLaunch').length;
+  const fragsBefore = run.owner.grenades[0];
+  assert.equal(run.owner.nextThrowAt, 0, 'a fresh life starts with no throw cooldown');
+  run.input({ throwGrenade: true, grenadeType: 0, grenadeCharge: 0.6 });
+  projectiles.step(0, ctx);
+  run.input({ throwGrenade: false, grenadeType: 0 });
+  ctx.now = 100; // A second rising edge 100 ms later lands inside the cooldown.
+  run.input({ throwGrenade: true, grenadeType: 0, grenadeCharge: 0.6 });
+  projectiles.step(0, ctx);
+  assert.equal(launches(), 1, 'two edges 100 ms apart produce a single launch');
+  assert.equal(run.owner.grenades[0], fragsBefore - 1, 'the dropped edge spends nothing');
+  assert.equal(run.owner.grenadeEdgeQueued, false, 'the dropped edge is consumed, not deferred');
+  assert.equal(run.owner.nextThrowAt, GRENADE_THROW_COOLDOWN_MS);
+  run.input({ throwGrenade: false, grenadeType: 2 });
+  ctx.now = GRENADE_THROW_COOLDOWN_MS;
+  run.input({ throwGrenade: true, grenadeType: 2, grenadeCharge: 0.6 });
+  projectiles.step(0, ctx);
+  assert.equal(launches(), 2, 'a throw at the end of the cooldown is accepted');
+  run.owner.applySpawn({ x: 4, y: 2, z: 4 });
+  assert.equal(run.owner.nextThrowAt, 0, 'respawn clears the cooldown');
+}
+
+console.log('Grenade handling: first-frame charge cancellation, quick taps, throw recovery, reload/selection gates, immediate scope visibility, server coalescing, legacy inputs, the empty-type latch defence, pin back without an edge and the server throw cooldown passed.');

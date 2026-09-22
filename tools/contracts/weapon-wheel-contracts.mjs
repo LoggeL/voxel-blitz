@@ -188,4 +188,28 @@ export async function runWeaponWheelContracts(ok) {
     ok(!wheel.open && state.picks.join() === '11',
       'Q release uses the current HUD highlight even without relative mouse movement');
   }
+  {
+    // The real input seam: the grenade pouch and the wheel never stack, and the open
+    // wheel's scroll or pad Y branches no longer touch the throwable.
+    const { Input } = await import('../../public/js/engine/input.js');
+    const input = new Input({});
+    input.fallback = true;
+    try {
+      input.setGrenadeCounts([1, 1, 1, 1, 1]);
+      input.setGrenadePouchOpen(true);
+      const wheel = new WeaponWheelController({
+        input,
+        hud: { setWeaponWheelState() {}, weaponWheelRadius: () => 230, weaponWheelHighlight: () => -1 },
+        getContext: () => ({ ...context, match: { mode: 'fun' } }),
+      });
+      wheel.openWheel();
+      ok(wheel.open && input.isWeaponWheelOpen() && !input.isGrenadePouchOpen()
+          && !input.setGrenadePouchOpen(true),
+        'opening the weapon wheel closes the grenade pouch and blocks it while the wheel is up');
+      input._onWheel({ deltaY: 100, deltaMode: 0, timeStamp: 100, preventDefault() {} });
+      ok(input.takeWheelSteps() === 1 && input.getGrenadeType() === 0,
+        'the open wheel scroll steps wheel slots and never cycles the throwable');
+      wheel.close();
+    } finally { input.dispose(); }
+  }
 }

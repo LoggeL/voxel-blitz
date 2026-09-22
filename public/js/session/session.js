@@ -335,7 +335,10 @@ export class Session {
       adsT01: 0,
       grenades: GRENADE_TYPE_IDS.map(() => 0),
       grenadeType: 0,
+      grenadeReady: -1,
       grenadeCharge: 0,
+      grenadeCharging: false,
+      grenadePouchOpen: false,
       charge01: null,
     });
     this.hud.setPainImpulse(0);

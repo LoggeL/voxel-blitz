@@ -28,13 +28,23 @@ import {
   wheelSwitchStep,
 } from '../input-settings.js';
 import {
-  GRENADE_CHARGE_MS,
+  GRENADE_DEFAULT_POWER_INDEX,
+  GRENADE_POUCH_HOLD_MS,
+  GRENADE_POWER_STEPS,
+  GRENADE_TAP_MS,
+  GRENADE_THROW_COOLDOWN_MS,
+  GRENADE_THROW_COOLDOWN_CLIENT_SLACK_MS,
   GRENADE_TYPE_IDS,
-  clampGrenadeCharge,
+  autoReadyGrenade,
+  grenadeCookFromHold,
+  grenadePowerAt,
+  grenadeTypeAt,
+  nextStockedGrenade,
 } from '../../../shared/grenade-rules.js';
 import { TouchControls, shouldEnableTouchControls } from './touch-controls.js';
 import { GamepadInput } from './gamepad.js';
 import { readKeybindings, subscribeKeybindings, isTypingTarget } from '../keybindings.js';
+import { wheelAngleForSlot, wheelSlotFromVector } from '../ui/weapon-wheel.js';
 
 // Touch drags travel far fewer pixels than a mouse, so thumb-look runs hotter than
 // the mouse scale (default 0.003 rad/px × 1.4 ≈ 0.0042 rad/px, about 72° per 300 px).
@@ -67,6 +77,11 @@ function writePref(key, value) {
     else localStorage.setItem(key, String(value));
   } catch (_) {}
 }
+
+/** Quick-key action ids -> GRENADE_TYPE_IDS index (limpet is the wall claymore). */
+const GRENADE_QUICK_KEYS = Object.freeze({
+  grenadeFrag: 0, grenadeClaymore: 1, grenadePulse: 2, grenadeMolotov: 3, grenadeSmoke: 4,
+});
 
 const MOVEMENT_KEYS = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'crouch', 'prone', 'leanLeft', 'leanRight', 'interact'];
 
@@ -125,10 +140,29 @@ export class Input {
     this._reloadQueued = false;
     this._quickMeleeQueued = false;
     this._medkitQueued = false;
-    this._grenadeThrowQueued = null; // {charge, cookMs, type} released this frame
+    this._grenadeThrowQueued = null; // {charge, cookMs, type, tap} released this frame
     this._grenadeHeld = false;
     this._grenadeHoldStartedAt = 0;
-    this._grenadeType = 0;     // selected throwable (index into GRENADE_TYPE_IDS)
+    // Quick-draw pouch: one ready type that is always stocked, locked for the whole hold.
+    this._readyGrenade = 0;    // ready throwable (index into GRENADE_TYPE_IDS), -1 when empty
+    this._preferredGrenade = -1; // last manual pick, preferred by auto-advance
+    this._grenadeCounts = null; // authoritative counts from setGrenadeCounts; null = unknown
+    this._grenadeHoldType = -1; // type locked at the press; -1 while nothing is held
+    this._grenadeHoldSource = null; // action that began the hold (only it can release)
+    this._grenadePower = Array(GRENADE_TYPE_IDS.length).fill(GRENADE_DEFAULT_POWER_INDEX);
+    this._lastGrenadeReleaseAt = -Infinity; // client mirror of the authority throw cooldown
+    this._grenadeReleasePrevAt = -Infinity; // restored when a queued release is cancelled
+    this._grenadeUiEvents = []; // {kind:'denied'|'advanced'|'cancel'|'readied', type, id, reason}
+    this._pouchOpen = false;
+    this._pouchSlot = -1;      // hovered pouch slot, always a stocked type (or -1)
+    this._pouchCursorX = 0;    // clamped virtual cursor (px) that steers the pouch hover
+    this._pouchCursorY = 0;
+    this._pouchKeyHeld = false; // H tap/hold split: holding H opens the pouch
+    this._pouchKeyDownAt = 0;
+    this._pouchKeySpent = false; // the H gesture already opened, confirmed, or was consumed by G
+    this._padPouchHeld = false; // pad d-pad-down tap/hold split
+    this._padPouchDownAt = 0;
+    this._padPouchSpent = false;
     this._switchQueue = 0;     // wheel steps accumulated (+/-1)
     this._wheel = { acc: 0, lastAt: -Infinity };
     this._pendingSlot = null;  // direct Digit1..9/0 pick (0..9) or null
@@ -206,11 +240,11 @@ export class Input {
 
   /* ----------------------------------------------------------- held intents */
 
-  /** LMB / RT / touch fire held; reads false while the weapon wheel is open. */
-  get wantFireHeld() { return !this._wheelOpen && !this._buildMode && (this._mouseFire || this._keyboardFire || this._padFire); }
+  /** LMB / RT / touch fire held; reads false while the weapon wheel or grenade pouch is open. */
+  get wantFireHeld() { return !this._wheelOpen && !this._pouchOpen && !this._buildMode && (this._mouseFire || this._keyboardFire || this._padFire); }
 
-  /** RMB / F / LT / touch ADS held or latched; reads false while the weapon wheel is open. */
-  get wantAdsHeld() { return !this._wheelOpen && (this._mouseAds || this._keyboardAds || this._adsLatched || this._padAds); }
+  /** RMB / F / LT / touch ADS held or latched; reads false while the weapon wheel or pouch is open. */
+  get wantAdsHeld() { return !this._wheelOpen && !this._pouchOpen && (this._mouseAds || this._keyboardAds || this._adsLatched || this._padAds); }
   set wantAdsHeld(value) {
     this._mouseAds = !!value;
     if (!value) this._adsLatched = false;
@@ -455,6 +489,9 @@ export class Input {
       this._padFire = false;
       this._fireTapQueued = false;
       this._reloadQueued = false;
+      // Build mode owns G/H: a held grenade goes back in the pouch and the pouch closes.
+      this.cancelGrenade('build');
+      this._closeGrenadePouch();
     }
   }
 
@@ -515,10 +552,10 @@ export class Input {
       this._buildRotateQueued = false;
       this._quickMeleeQueued = false;
       this._medkitQueued = false;
-      // Cancel a held grenade without throwing it.
-      this._grenadeHeld = false;
-      this._grenadeHoldStartedAt = 0;
+      // Cancel a held grenade without throwing it; the pouch and the wheel are exclusive.
+      this.cancelGrenade('wheel');
       this._grenadeThrowQueued = null;
+      this._closeGrenadePouch();
       this._zoomStepQueue = 0;
       this._switchQueue = 0;
       this._pendingSlot = null;
@@ -553,15 +590,17 @@ export class Input {
    */
   poll(now = eventTime(null), dt = 1 / 60) {
     if (this._disposed) return null;
+    // The H tap/hold split is time based, so it resolves here even without a pad.
+    this._updatePouchKeyHold(now);
     const frame = this._pad.poll(now);
     if (!frame) return null;
     if (frame.connected === false) {
       // Losing a controller cancels holds. Synthetic releases must not throw a
       // grenade, equip a weapon, or latch crouch as though the user tapped it.
-      if (frame.released.grenade) {
-        this._grenadeHeld = false;
-        this._grenadeHoldStartedAt = 0;
-      }
+      if (frame.released.grenade && this._grenadeHoldSource === 'pad') this.cancelGrenade('disconnect');
+      if (this._padPouchHeld && this._pouchOpen) this._closeGrenadePouch();
+      this._padPouchHeld = false;
+      this._padPouchSpent = false;
       if (this._padYHeld && this._wheelOpen) this._wheelCancelQueued = true;
       this._padYHeld = false;
       this._padYWheelFired = false;
@@ -586,9 +625,14 @@ export class Input {
     pk.interact = frame.held.interact;
 
     // Crouch: a quick tap latches, the next tap releases, a long hold follows the button.
-    // While the wheel is up, pad B cancels the wheel instead of touching crouch.
+    // While the wheel or pouch is up, pad B closes it instead of touching crouch.
     if (this._wheelOpen) {
       if (frame.pressed.crouch) this._wheelCancelQueued = true;
+    } else if (this._pouchOpen) {
+      if (frame.pressed.crouch) {
+        this._closeGrenadePouch();
+        this._padPouchSpent = true;
+      }
     } else if (frame.pressed.crouch) {
       this._padCrouchSince = now;
       this._padCrouchUnlatch = this._padCrouchLatched;
@@ -605,25 +649,23 @@ export class Input {
     }
 
     if (frame.pressed.fire && this._wheelOpen) this._wheelReleaseQueued = true;
-    if (frame.pressed.fire && !this._wheelOpen) {
+    if (frame.pressed.fire && !this._wheelOpen && !this._pouchOpen) {
       if (this._buildMode) this._placeQueued = true;
       else this._fireTapQueued = true;
     }
     this._padFire = frame.held.fire;
     this._padAds = frame.held.ads;
-    if (frame.pressed.reload && !this._wheelOpen) {
+    // X while a grenade is held puts the pin back; the swallowed press never reloads.
+    if (frame.pressed.reload && this._grenadeHeld) this.cancelGrenade('pinBack');
+    else if (frame.pressed.reload && !this._wheelOpen) {
       if (this._buildMode) this._buildRotateQueued = true;
       else this._reloadQueued = true;
     }
-    // Y while the grenade is held cycles the throwable instead of the weapon.
-    // Closed and off the grenade it arms the tap/hold split: a quick release still
-    // swaps, holding it PAD_WHEEL_HOLD_MS opens the wheel instead.
+    // Y is weapons only: a quick release swaps, holding it PAD_WHEEL_HOLD_MS opens the
+    // wheel instead.
     if (frame.pressed.weapon) {
       if (this._wheelOpen) {
         this._wheelCancelQueued = true;
-        this._padYWheelFired = true;
-      } else if (this._grenadeHeld) {
-        this.cycleGrenadeType(1);
         this._padYWheelFired = true;
       } else {
         this._padYHeld = true;
@@ -641,32 +683,63 @@ export class Input {
       this._padYWheelFired = true;
     }
     if (frame.released.weapon) {
-      if (!this._wheelOpen && this._padYHeld && !this._padYWheelFired) {
-        if (this._grenadeHeld) this.cycleGrenadeType(1);
-        else this._switchQueue += 1;
-      }
+      if (!this._wheelOpen && this._padYHeld && !this._padYWheelFired) this._switchQueue += 1;
       this._padYHeld = false;
     }
-    // D-pad steps select on the wheel while it is up; closed they switch weapons.
-    if (frame.pressed.slotUp) {
-      if (this._wheelOpen) this._wheelStepQueue -= 1;
-      else this._switchQueue -= 1;
+    // D-pad: power steps while RB holds a grenade, wheel steps while it is up, pouch
+    // steps while that is up; closed, up switches weapons and down is the pouch split.
+    if (this._grenadeHeld) {
+      if (frame.pressed.slotUp) this.stepGrenadePower(1);
+      if (frame.pressed.grenadePouch) this.stepGrenadePower(-1);
+    } else if (this._wheelOpen) {
+      if (frame.pressed.slotUp) this._wheelStepQueue -= 1;
+      if (frame.pressed.grenadePouch) this._wheelStepQueue += 1;
+    } else if (this._pouchOpen) {
+      if (frame.pressed.slotUp) this._stepGrenadePouch(-1);
+      if (frame.pressed.grenadePouch) this._stepGrenadePouch(1);
+    } else {
+      if (frame.pressed.slotUp) this._switchQueue -= 1;
+      if (frame.pressed.grenadePouch && !this._buildMode) {
+        this._padPouchHeld = true;
+        this._padPouchDownAt = now;
+        this._padPouchSpent = false;
+      }
     }
-    if (frame.pressed.slotDown) {
-      if (this._wheelOpen) this._wheelStepQueue += 1;
-      else this._switchQueue += 1;
+    if (this._padPouchHeld && !this._padPouchSpent && !this._pouchOpen
+        && now - this._padPouchDownAt >= PAD_WHEEL_HOLD_MS) {
+      this._padPouchSpent = true;
+      this.setGrenadePouchOpen(true);
+    }
+    if (frame.released.grenadePouch) {
+      if (this._padPouchHeld) {
+        if (this._pouchOpen) this.setGrenadePouchOpen(false, { confirm: true });
+        else if (!this._padPouchSpent) this.cycleGrenadeType(1);
+      }
+      this._padPouchHeld = false;
+      this._padPouchSpent = false;
     }
     if (frame.pressed.lastWeapon) this._lastWeaponReq = true;
     if (frame.pressed.buy && !this._wheelOpen) this._buyMenuQueued = true;
     if (frame.pressed.zoom && !this._wheelOpen) this._zoomStepQueue += 1;
     if (frame.pressed.pause) this._pauseHandler?.();
     this._padScoreboard = frame.held.scoreboard;
-    if (frame.pressed.grenade && !this._wheelOpen && !this._grenadeHeld) this._beginGrenadeHold(now);
-    else if (frame.released.grenade && this._grenadeHeld) this._releaseGrenade(now);
+    if (frame.pressed.grenade && !this._wheelOpen && !this._grenadeHeld) {
+      // RB with the pouch up readies the hovered slot and begins the hold in one press.
+      if (this._pouchOpen) {
+        this.setGrenadePouchOpen(false, { confirm: true });
+        if (this._padPouchHeld) this._padPouchSpent = true;
+      }
+      this._beginGrenadeHold(now, this._readyGrenade, 'pad');
+    } else if (frame.released.grenade && this._grenadeHeld && this._grenadeHoldSource === 'pad') {
+      this._releaseGrenade(now);
+    }
 
     const look = frame.look;
     if (look.magnitude > 0) {
-      if (this._wheelOpen || this._wheelOpenQueued) {
+      if (this._pouchOpen) {
+        // Pad look steers the pouch hover; the camera stays put.
+        this._steerGrenadePouch(look.x * WHEEL_VECTOR_RADIUS_PX, look.y * WHEEL_VECTOR_RADIUS_PX);
+      } else if (this._wheelOpen || this._wheelOpenQueued) {
         // Pad look steers the wheel selection; the camera stays put.
         if (!this._wheelReleaseQueued && !this._wheelCancelQueued) {
           this._wheelVecX += look.x * WHEEL_VECTOR_RADIUS_PX;
@@ -886,30 +959,115 @@ export class Input {
     return slot;
   }
 
-  _beginGrenadeHold(at) {
-    this._grenadeHeld = true;
-    this._grenadeHoldStartedAt = at;
+  /* --------------------------------------------------------- grenade pouch */
+
+  /** True when type `index` can be drawn; unknown counts defer to the authority. */
+  _grenadeStocked(index) {
+    if (!Number.isInteger(index) || index < 0 || index >= GRENADE_TYPE_IDS.length) return false;
+    return !this._grenadeCounts || this._grenadeCounts[index] > 0;
   }
 
-  _releaseGrenade(at) {
-    this._grenadeThrowQueued = {
-      charge: this.getGrenadeCharge(at),
-      cookMs: this.getGrenadeHoldMs(at),
-      type: this._grenadeType,
-    };
-    this._grenadeHeld = false;
-    this._grenadeHoldStartedAt = 0;
+  _emitGrenadeUi(kind, type = this._readyGrenade, reason = null) {
+    this._grenadeUiEvents.push({ kind, type, id: GRENADE_TYPE_IDS[type] ?? null, reason });
+    // Presentation drains this every frame; never let an idle queue grow.
+    if (this._grenadeUiEvents.length > 16) this._grenadeUiEvents.shift();
+  }
+
+  /** The type the next hold would draw: the locked type while held, else the ready one. */
+  _activeGrenade() {
+    return this._grenadeHeld ? this._grenadeHoldType : this._readyGrenade;
   }
 
   /**
-   * The released G throw `{charge, cookMs, type}`, or null when no release is pending.
-   * A quick tap is a valid zero-charge throw; `cookMs` is the full hold so the authority
-   * can burn it off a timed fuse; `type` indexes GRENADE_TYPE_IDS.
+   * Authoritative per-type counts (the self row's `grenades`), fed every frame. Keeps the
+   * ready type stocked through autoReadyGrenade and reports the change: 'advanced' when
+   * the ready type ran out, 'readied' when an empty pouch gains a type (pickup, respawn).
+   */
+  setGrenadeCounts(counts) {
+    if (!counts || typeof counts.length !== 'number') return;
+    const next = GRENADE_TYPE_IDS.map((_, i) => Math.max(0, Math.trunc(Number(counts[i]) || 0)));
+    const prev = this._grenadeCounts;
+    if (prev && next.every((count, i) => count === prev[i])) return;
+    this._grenadeCounts = next;
+    const before = this._readyGrenade;
+    const ready = autoReadyGrenade(next, before, this._preferredGrenade);
+    if (this._pouchOpen && !this._grenadeStocked(this._pouchSlot)) this._pouchSlot = this._snapPouchSlot(this._pouchSlot);
+    if (ready === before) return;
+    this._readyGrenade = ready;
+    if (ready < 0) return;
+    const advanced = !!prev && before >= 0;
+    this._emitGrenadeUi(advanced ? 'advanced' : 'readied', ready, advanced ? 'empty' : 'stocked');
+  }
+
+  /** Copy of the last authoritative counts, or null before the first setGrenadeCounts. */
+  getGrenadeCounts() {
+    return this._grenadeCounts ? [...this._grenadeCounts] : null;
+  }
+
+  /** Count of type `index` from the authoritative row, or null while counts are unknown. */
+  getGrenadeCount(index) {
+    if (!this._grenadeCounts) return null;
+    return this._grenadeCounts[index] ?? 0;
+  }
+
+  /**
+   * Starts a hold of `typeIndex` (default: the ready type). Returns false and reports
+   * 'denied' in build mode, for an empty type, or inside the throw cooldown; otherwise
+   * the type is locked until the release or a cancel.
+   */
+  _beginGrenadeHold(at, typeIndex = this._readyGrenade, source = 'grenade') {
+    if (this._grenadeHeld) return false;
+    const reason = this._buildMode ? 'build'
+      : !this._grenadeStocked(typeIndex) ? 'empty'
+        : at - this._lastGrenadeReleaseAt < GRENADE_THROW_COOLDOWN_MS + GRENADE_THROW_COOLDOWN_CLIENT_SLACK_MS
+          ? 'cooldown' : null;
+    if (reason) {
+      this._emitGrenadeUi('denied', typeIndex, reason);
+      return false;
+    }
+    this._grenadeHeld = true;
+    this._grenadeHoldStartedAt = at;
+    this._grenadeHoldType = typeIndex;
+    this._grenadeHoldSource = source;
+    return true;
+  }
+
+  _clearGrenadeHold() {
+    this._grenadeHeld = false;
+    this._grenadeHoldStartedAt = 0;
+    this._grenadeHoldType = -1;
+    this._grenadeHoldSource = null;
+  }
+
+  /** Tap and hold release alike: the remembered power step and the cook since the pin. */
+  _releaseGrenade(at) {
+    const type = this._grenadeHoldType;
+    const held = Math.max(0, at - this._grenadeHoldStartedAt);
+    this._grenadeThrowQueued = {
+      charge: grenadePowerAt(this._grenadePower[type]),
+      cookMs: grenadeCookFromHold(held, grenadeTypeAt(type)),
+      type,
+      tap: held < GRENADE_TAP_MS,
+    };
+    this._grenadeReleasePrevAt = this._lastGrenadeReleaseAt;
+    this._lastGrenadeReleaseAt = at;
+    this._clearGrenadeHold();
+  }
+
+  /**
+   * The released throw `{charge, cookMs, type, tap}`, or null when no release is pending.
+   * `charge` is the type's remembered power step, `cookMs` counts from the pin pull (zero
+   * for non-cook types), `type` indexes GRENADE_TYPE_IDS, `tap` marks a quick throw.
    */
   consumeGrenadeThrow() {
     const queued = this._grenadeThrowQueued;
     this._grenadeThrowQueued = null;
     return queued;
+  }
+
+  /** The pending release without consuming it (presentation vets claymore placement). */
+  peekGrenadeThrow() {
+    return this._grenadeThrowQueued;
   }
 
   /** Presentation-driven release (a fuse cooked to the end): queues the throw as if let go. */
@@ -919,33 +1077,228 @@ export class Input {
     return true;
   }
 
+  /**
+   * Pin back: drops the held grenade, or a release not yet consumed, without throwing or
+   * spending anything, and reports 'cancel' with `reason`. False when nothing was held.
+   */
+  cancelGrenade(reason = 'pinBack') {
+    let type = -1;
+    if (this._grenadeHeld) {
+      type = this._grenadeHoldType;
+      this._clearGrenadeHold();
+    } else if (this._grenadeThrowQueued) {
+      type = this._grenadeThrowQueued.type;
+      this._grenadeThrowQueued = null;
+      this._lastGrenadeReleaseAt = this._grenadeReleasePrevAt;
+    } else {
+      return false;
+    }
+    this._emitGrenadeUi('cancel', type, reason);
+    return true;
+  }
+
   /** True while the grenade key/button is held (charge may still read 0 on the first ms). */
   isGrenadeCharging() {
     return this._grenadeHeld;
   }
 
-  /** Live 0..1 hold progress for HUD presentation. */
+  /** Throw charge of the held grenade (its power step) for presentation; 0 while not held. */
   getGrenadeCharge(now = eventTime(null)) {
-    if (!this._grenadeHeld) return 0;
-    return clampGrenadeCharge((now - this._grenadeHoldStartedAt) / GRENADE_CHARGE_MS);
+    return this._grenadeHeld ? this.getGrenadePower() : 0;
   }
 
-  /** Milliseconds the grenade has been held (cook time); 0 while not held. */
+  /** Milliseconds the grenade has been held; 0 while not held. */
   getGrenadeHoldMs(now = eventTime(null)) {
     if (!this._grenadeHeld) return 0;
     return Math.max(0, now - this._grenadeHoldStartedAt);
   }
 
-  /** Selected throwable index (H / wheel or Y while holding G cycle it). */
-  getGrenadeType() {
-    return this._grenadeType;
+  /** Cook burned off a timed fuse since the pin pull; 0 while not held or for non-cook types. */
+  getGrenadeCookMs(now = eventTime(null)) {
+    if (!this._grenadeHeld) return 0;
+    return grenadeCookFromHold(now - this._grenadeHoldStartedAt, grenadeTypeAt(this._grenadeHoldType));
   }
 
+  /** Locked type of the held grenade, or -1 while nothing is held. */
+  getGrenadeHoldType() {
+    return this._grenadeHeld ? this._grenadeHoldType : -1;
+  }
+
+  /** Ready type index, or -1 when the pouch is empty. */
+  getReadyGrenade() {
+    return this._readyGrenade;
+  }
+
+  /** Held type while a grenade is held, else the ready type (0 when the pouch is empty). */
+  getGrenadeType() {
+    return Math.max(0, this._activeGrenade());
+  }
+
+  /** Remembered power step index of `type` (default: the held or ready type). */
+  getGrenadePowerIndex(type = this._activeGrenade()) {
+    return this._grenadePower[type] ?? GRENADE_DEFAULT_POWER_INDEX;
+  }
+
+  /** Throw charge (0..1) of the remembered power step of `type`. */
+  getGrenadePower(type = this._activeGrenade()) {
+    return grenadePowerAt(this.getGrenadePowerIndex(type));
+  }
+
+  /** Steps the held (or ready) type's power, `dir` > 0 = farther. Returns the new index. */
+  stepGrenadePower(dir = 1) {
+    const step = dir < 0 ? -1 : 1;
+    return this.setGrenadePowerIndex(this.getGrenadePowerIndex() + step);
+  }
+
+  /** Sets the held (or ready) type's power step, clamped; remembered for the session. */
+  setGrenadePowerIndex(index) {
+    const type = this._activeGrenade();
+    if (type < 0 || !Number.isFinite(index)) return this.getGrenadePowerIndex();
+    this._grenadePower[type] = Math.max(0, Math.min(GRENADE_POWER_STEPS.length - 1, Math.trunc(index)));
+    return this._grenadePower[type];
+  }
+
+  /**
+   * Readies type `index`. Refused while a grenade is held (the type is locked) and for
+   * empty types. A manual pick becomes the auto-advance preference. Reports 'readied'.
+   */
+  selectGrenadeType(index, { manual = true } = {}) {
+    if (this._grenadeHeld || !this._grenadeStocked(index)) return false;
+    const changed = index !== this._readyGrenade;
+    this._readyGrenade = index;
+    if (manual) this._preferredGrenade = index;
+    if (changed) this._emitGrenadeUi('readied', index, manual ? 'pick' : 'auto');
+    return true;
+  }
+
+  /**
+   * Readies the next stocked type in `direction` (roster order, wrapping). Ignored while a
+   * grenade is held; reports 'denied' when no other type is stocked.
+   */
   cycleGrenadeType(direction = 1) {
+    if (this._grenadeHeld) return this.getGrenadeType();
+    const step = Math.trunc(direction) < 0 ? -1 : 1;
     const count = GRENADE_TYPE_IDS.length;
-    const step = Math.trunc(direction) || 1;
-    this._grenadeType = ((this._grenadeType + step) % count + count) % count;
-    return this._grenadeType;
+    const next = this._grenadeCounts
+      ? nextStockedGrenade(this._grenadeCounts, this._readyGrenade, step)
+      : ((Math.max(0, this._readyGrenade) + step) % count + count) % count;
+    if (next < 0) this._emitGrenadeUi('denied', this._readyGrenade, 'noOther');
+    else this.selectGrenadeType(next);
+    return this.getGrenadeType();
+  }
+
+  /** Pending pouch/ready events since the last call (HUD flags and sfx). Consumed on read. */
+  consumeGrenadeUiEvents() {
+    const events = this._grenadeUiEvents;
+    this._grenadeUiEvents = [];
+    return events;
+  }
+
+  /** True while the grenade pouch routes pointer, scroll and stick input. */
+  isGrenadePouchOpen() {
+    return this._pouchOpen;
+  }
+
+  /** Hovered pouch slot (always a stocked type), or -1. */
+  getGrenadePouchHover() {
+    return this._pouchOpen ? this._pouchSlot : -1;
+  }
+
+  /** Hover a pouch slot directly (overlay pointer, touch); empty slots snap to stocked ones. */
+  setGrenadePouchHover(index) {
+    if (!this._pouchOpen || !Number.isInteger(index)) return this.getGrenadePouchHover();
+    this._pouchSlot = this._snapPouchSlot(index);
+    return this._pouchSlot;
+  }
+
+  /**
+   * Opens or closes the pouch. Opening is refused while a grenade is held, in build mode,
+   * with the weapon wheel up or queued, or when nothing is stocked (that reports 'denied').
+   * Closing with `confirm` readies the hovered slot. Returns whether the state changed.
+   */
+  setGrenadePouchOpen(open, { confirm = false } = {}) {
+    if (!open) {
+      if (!this._pouchOpen) return false;
+      const slot = this._pouchSlot;
+      this._closeGrenadePouch();
+      if (confirm && slot >= 0) this.selectGrenadeType(slot);
+      return true;
+    }
+    if (this._pouchOpen) return false;
+    if (this._grenadeHeld || this._buildMode || this._wheelOpen || !this._gameplayEnabled) return false;
+    const first = this._grenadeStocked(this._readyGrenade) ? this._readyGrenade
+      : GRENADE_TYPE_IDS.findIndex((_, i) => this._grenadeStocked(i));
+    if (first < 0) {
+      this._emitGrenadeUi('denied', this._readyGrenade, 'empty');
+      return false;
+    }
+    this._pouchOpen = true;
+    this._pouchSlot = first;
+    this._pouchCursorX = 0;
+    this._pouchCursorY = 0;
+    // Like the wheel: no combat intent leaks through, and a pending wheel open is dropped.
+    this._mouseFire = false;
+    this._keyboardFire = false;
+    this._padFire = false;
+    this._fireTapQueued = false;
+    this._wheelOpenQueued = false;
+    this._accDX = 0;
+    this._accDY = 0;
+    return true;
+  }
+
+  _closeGrenadePouch() {
+    this._pouchOpen = false;
+    this._pouchSlot = -1;
+    this._pouchCursorX = 0;
+    this._pouchCursorY = 0;
+  }
+
+  /** Nearest stocked slot to `index` by angle (the pointer never rests on an empty one). */
+  _snapPouchSlot(index, angle = wheelAngleForSlot(index, GRENADE_TYPE_IDS.length)) {
+    if (this._grenadeStocked(index)) return index;
+    let best = -1;
+    let bestGap = Infinity;
+    for (let i = 0; i < GRENADE_TYPE_IDS.length; i++) {
+      if (!this._grenadeStocked(i)) continue;
+      const gap = Math.abs(((wheelAngleForSlot(i, GRENADE_TYPE_IDS.length) - angle + 540) % 360) - 180);
+      if (gap < bestGap) { best = i; bestGap = gap; }
+    }
+    return best;
+  }
+
+  /** Mouse or stick motion (px) steers a clamped cursor; inside the dead zone the hover stays. */
+  _steerGrenadePouch(dx, dy) {
+    const radius = WHEEL_VECTOR_RADIUS_PX;
+    let x = this._pouchCursorX + (Number(dx) || 0);
+    let y = this._pouchCursorY + (Number(dy) || 0);
+    const length = Math.hypot(x, y);
+    if (length > radius) { x *= radius / length; y *= radius / length; }
+    this._pouchCursorX = x;
+    this._pouchCursorY = y;
+    const slot = wheelSlotFromVector(x / radius, y / radius, GRENADE_TYPE_IDS.length);
+    if (slot < 0) return;
+    const angle = ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
+    const snapped = this._snapPouchSlot(slot, angle);
+    if (snapped >= 0) this._pouchSlot = snapped;
+  }
+
+  /** Scroll / d-pad step through the stocked pouch slots. */
+  _stepGrenadePouch(dir) {
+    if (!this._pouchOpen) return;
+    const count = GRENADE_TYPE_IDS.length;
+    const next = this._grenadeCounts
+      ? nextStockedGrenade(this._grenadeCounts, this._pouchSlot, dir)
+      : ((this._pouchSlot + (dir < 0 ? -1 : 1)) % count + count) % count;
+    if (next >= 0) this._pouchSlot = next;
+  }
+
+  /** H held for GRENADE_POUCH_HOLD_MS opens the pouch (a shorter tap readies the next type). */
+  _updatePouchKeyHold(now) {
+    if (!this._pouchKeyHeld || this._pouchKeySpent || now - this._pouchKeyDownAt < GRENADE_POUCH_HOLD_MS) return;
+    this._pouchKeySpent = true;
+    if (this._grenadeHeld || this._wheelOpen) return;
+    this.setGrenadePouchOpen(true);
   }
 
   /** Clears all held keys/taps/intents/queues (window blur, tab hide, etc). */
@@ -963,9 +1316,14 @@ export class Input {
     this._reloadQueued = false;
     this._quickMeleeQueued = false;
     this._medkitQueued = false;
+    // Pin back and close the pouch; counts, the ready type and power steps survive.
+    this.cancelGrenade('reset');
     this._grenadeThrowQueued = null;
-    this._grenadeHeld = false;
-    this._grenadeHoldStartedAt = 0;
+    this._closeGrenadePouch();
+    this._pouchKeyHeld = false;
+    this._pouchKeySpent = false;
+    this._padPouchHeld = false;
+    this._padPouchSpent = false;
     this._lastWeaponReq = false;
     this._buyMenuQueued = false;
     this._buyMenuHeld = false;
@@ -1063,17 +1421,31 @@ export class Input {
   }
 
   _onTouchLook(dx, dy) {
-    if (!this._gameplayEnabled || this._wheelOpen) return;
+    if (!this._gameplayEnabled || this._wheelOpen || this._pouchOpen) return;
     const scale = this.sens * TOUCH_LOOK_SENSITIVITY_SCALE *
       this._options.touchSensitivity * this._assistScale();
     this._accDX += (Number(dx) || 0) * scale;
     this._accDY += (Number(dy) || 0) * scale * (this.invertY ? -1 : 1);
   }
 
-  _onTouchHold(action, held) {
+  /**
+   * Touch hold edges. For 'grenade' a press returns whether a hold actually began, so the
+   * button can drop its held overlay when the press is denied (cooldown, empty, build).
+   */
+  _onTouchHold(action, held, at = eventTime(null)) {
     const down = !!held;
-    if ((!this._gameplayEnabled || this._wheelOpen) && down) return;
+    if ((!this._gameplayEnabled || this._wheelOpen) && down) return false;
     switch (action) {
+      case 'grenade':
+        // Press readies (a pouch pick first) and begins; lifting throws. PIN BACK pulses cancel.
+        if (down) {
+          if (this._grenadeHeld) return this._grenadeHoldSource === 'touch';
+          this.setGrenadePouchOpen(false, { confirm: true });
+          return this._beginGrenadeHold(at, this._readyGrenade, 'touch');
+        } else if (this._grenadeHeld && this._grenadeHoldSource === 'touch') {
+          this._releaseGrenade(at);
+        }
+        break;
       case 'fire':
         if (this._buildMode) { if (down) this._placeQueued = true; break; }
         if (down && !this._mouseFire) this._fireTapQueued = true;
@@ -1088,11 +1460,31 @@ export class Input {
 
   _onTouchPulse(action) {
     if (!this._gameplayEnabled || this._wheelOpen) return;
-    if (action === 'reload') { if (this._buildMode) this._buildRotateQueued = true; else this._reloadQueued = true; }
+    if (action === 'reload') {
+      if (this._grenadeHeld) this.cancelGrenade('pinBack');
+      else if (this._buildMode) this._buildRotateQueued = true;
+      else this._reloadQueued = true;
+    }
     else if (action === 'medkit') this._medkitQueued = true;
     else if (action === 'weapon') this._switchQueue += 1;
     else if (action === 'buy') this._buyMenuQueued = true;
     else if (action === 'build') this._buildToggleQueued = true;
+    else if (action === 'grenadeCancel') this.cancelGrenade('pinBack');
+    else if (action === 'pouch') {
+      if (this._pouchOpen) this.setGrenadePouchOpen(false);
+      else this.setGrenadePouchOpen(true);
+    } else if (action === 'pouchClose') this.setGrenadePouchOpen(false);
+    else if (typeof action === 'string' && action.startsWith('grenadePower:')) {
+      // Power stops only mean something in hand; never rewrite the ready type's step blind.
+      if (this._grenadeHeld) this.setGrenadePowerIndex(Number(action.slice(13)));
+    } else if (typeof action === 'string' && action.startsWith('pouchSlot:')) {
+      // A tap on a stocked slot readies it; empty slots are never picked.
+      const slot = Number(action.slice(10));
+      if (this._pouchOpen && this._grenadeStocked(slot)) {
+        this._pouchSlot = slot;
+        this.setGrenadePouchOpen(false, { confirm: true });
+      }
+    }
   }
 
   _toggleAds(down) {
@@ -1152,8 +1544,13 @@ export class Input {
         break;
       case 'quickMelee': if (!e.repeat && !this._wheelOpen) this._quickMeleeQueued = true; break;
       case 'medkit': if (!e.repeat && !this._wheelOpen) this._medkitQueued = true; break;
-      case 'reload':
-        if (!e.repeat && !this._wheelOpen) {
+      case 'reload': case 'grenadeCancel':
+        // While a grenade is held R is PIN BACK; the swallowed press never queues a reload.
+        if (this._grenadeHeld) {
+          if (!e.repeat) this.cancelGrenade('pinBack');
+          break;
+        }
+        if (action === 'reload' && !e.repeat && !this._wheelOpen) {
           if (this._buildMode) this._buildRotateQueued = true;
           else this._reloadQueued = true;
         }
@@ -1167,9 +1564,35 @@ export class Input {
         break;
       case 'zoom': if (!e.repeat && !this._wheelOpen) this._zoomStepQueue += 1; break;
       case 'grenade':
-        if (!e.repeat && !this._wheelOpen && !this._grenadeHeld) this._beginGrenadeHold(eventTime(e));
+        if (e.repeat || this._wheelOpen || this._grenadeHeld) break;
+        // G with the pouch up readies the hovered slot and begins: flick-then-G is one gesture.
+        if (this._pouchOpen) {
+          this.setGrenadePouchOpen(false, { confirm: true });
+          this._pouchKeySpent = true;
+        }
+        this._beginGrenadeHold(eventTime(e), this._readyGrenade, 'grenade');
         break;
-      case 'grenadeType': if (!e.repeat && !this._wheelOpen) this.cycleGrenadeType(1); break;
+      case 'grenadeType':
+        // Tap readies the next stocked type on release; a hold opens the pouch in poll().
+        if (e.repeat) { this._updatePouchKeyHold(eventTime(e)); break; }
+        if (this._wheelOpen || this._grenadeHeld || this._buildMode || this._pouchKeyHeld) break;
+        this._pouchKeyHeld = true;
+        this._pouchKeyDownAt = eventTime(e);
+        this._pouchKeySpent = this._pouchOpen;
+        break;
+      case 'grenadePrevious':
+        if (!e.repeat && !this._wheelOpen && !this._buildMode && !this._pouchOpen) this.cycleGrenadeType(-1);
+        break;
+      case 'grenadeFrag': case 'grenadeClaymore': case 'grenadePulse':
+      case 'grenadeMolotov': case 'grenadeSmoke': {
+        if (e.repeat || this._wheelOpen || this._grenadeHeld) break;
+        const type = GRENADE_QUICK_KEYS[action];
+        if (this.setGrenadePouchOpen(false)) this._pouchKeySpent = true;
+        // An empty type is refused by the hold itself, which reports the dry click.
+        if (!this._buildMode) this.selectGrenadeType(type);
+        this._beginGrenadeHold(eventTime(e), type, action);
+        break;
+      }
       case 'previousWeapon': case 'nextWeapon':
         if (!e.repeat) {
           const step = action === 'previousWeapon' ? -1 : 1;
@@ -1184,7 +1607,11 @@ export class Input {
         }
         break;
       case 'Escape':
-        if (this._wheelOpen || this._wheelOpenQueued) {
+        if (this._pouchOpen) {
+          this.setGrenadePouchOpen(false);
+          this._pouchKeySpent = true;
+          e.preventDefault();
+        } else if (this._wheelOpen || this._wheelOpenQueued) {
           this._wheelCancelQueued = true;
           e.preventDefault();
         } else if (this._buildMode) {
@@ -1223,9 +1650,23 @@ export class Input {
         break;
       case 'fire': this._keyboardFire = this._actionHeld(action); break;
       case 'ads': this._keyboardAds = this._actionHeld(action); break;
-      case 'grenade':
-        if (this._grenadeHeld && !this._actionHeld(action)) this._releaseGrenade(eventTime(e));
+      case 'grenade': case 'grenadeFrag': case 'grenadeClaymore': case 'grenadePulse':
+      case 'grenadeMolotov': case 'grenadeSmoke':
+        // Only the action that began the hold releases it.
+        if (this._grenadeHeld && this._grenadeHoldSource === action && !this._actionHeld(action)) {
+          this._releaseGrenade(eventTime(e));
+        }
         break;
+      case 'grenadeType': {
+        if (!this._pouchKeyHeld || this._actionHeld(action)) break;
+        const at = eventTime(e);
+        this._updatePouchKeyHold(at);
+        this._pouchKeyHeld = false;
+        if (this._pouchOpen) this.setGrenadePouchOpen(false, { confirm: true });
+        else if (!this._pouchKeySpent && at - this._pouchKeyDownAt < GRENADE_POUCH_HOLD_MS) this.cycleGrenadeType(1);
+        this._pouchKeySpent = false;
+        break;
+      }
       default: break;
     }
   }
@@ -1233,6 +1674,11 @@ export class Input {
   _onMouseMove(e) {
     if (this._disposed || (!this._gameplayEnabled && !this._spectatorEnabled)
         || (!this._locked && !this.fallback)) return;
+    if (this._pouchOpen) {
+      // Raw pixels steer the pouch hover; the camera does not turn.
+      if (this._locked) this._steerGrenadePouch(e.movementX || 0, e.movementY || 0);
+      return;
+    }
     if (this._wheelOpen || this._wheelOpenQueued) {
       if (!this._locked) return; // Unlocked pointers use the overlay coordinates.
       if (this._wheelReleaseQueued || this._wheelCancelQueued) return;
@@ -1255,6 +1701,13 @@ export class Input {
       return;
     }
     if (!this._gameplayEnabled) return;
+    if (this._pouchOpen) {
+      // The pouch owns the mouse: LMB readies the hovered slot, RMB/MMB close it unchanged.
+      this.setGrenadePouchOpen(false, { confirm: e.button === 0 });
+      this._pouchKeySpent = true;
+      if (e.button !== 0) e.preventDefault?.();
+      return;
+    }
     if (this._wheelOpen) {
       // The wheel owns the mouse while it is up: LMB confirms the highlighted
       // slot, RMB cancels; combat clicks never pass through.
@@ -1313,7 +1766,10 @@ export class Input {
       this._wheelStepQueue += step;
       return;
     }
-    if (this._grenadeHeld) this.cycleGrenadeType(step);
+    // Pouch up: scroll steps its slots. Grenade held: scroll up throws farther. The
+    // scroll never switches weapons or types during a hold.
+    if (this._pouchOpen) this._stepGrenadePouch(step);
+    else if (this._grenadeHeld) this.stepGrenadePower(-step);
     else this._switchQueue += step;
   }
 }

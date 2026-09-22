@@ -1,13 +1,18 @@
 import { placeClaymore } from './claymore-rules.js';
+import { molotovFireProfile } from './molotov-rules.js';
+import { smokeProfile } from './smoke-rules.js';
 /**
  * Shared client/server contract for the throwable roster: five throwable types with
- * one inventory, one charge/cook hold model, and one physics integrator.
+ * one inventory, one ready-grenade pouch model (remembered power steps plus a cook
+ * measured from the pin pull), and one physics integrator.
  *
- * - `frag`   M-4 FRAG      timed fuse that starts at the pin pull (cookable), bounces.
- * - `limpet` CLAYMORE mounts on a nearby wall and detonates when its laser is crossed.
- * - `pulse`  PULSE SHOCK   detonates on impact; light damage, huge knockback, and a
- *                          concussion that slows and panics whoever it lands on.
- * - `molotov`             shatters on impact and leaves a persistent ground fire.
+ * - `frag`    M-4 FRAG         timed fuse that starts at the pin pull (cookable), bounces.
+ * - `limpet`  CLAYMORE         mounts on a nearby wall and detonates when its laser is
+ *                              crossed; it never flies or sticks to players.
+ * - `pulse`   PULSE SHOCK      detonates on impact; light damage, huge knockback, and a
+ *                              concussion that slows and panics whoever it lands on.
+ * - `molotov` MOLOTOV COCKTAIL shatters on impact and leaves a persistent ground fire.
+ * - `smoke`   M-18 SMOKE       timed fuse, then an optical cloud that blocks sight only.
  */
 export const GRENADE_TYPE_IDS = Object.freeze(['frag', 'limpet', 'pulse', 'molotov', 'smoke']);
 
@@ -19,6 +24,28 @@ export const GRENADE_MIN_LIFT = 2.1;
 export const GRENADE_MAX_LIFT = 3.5;
 /** A cooked fuse never gets shorter than this once the grenade leaves the hand. */
 export const GRENADE_MIN_AIR_MS = 180;
+
+/** Release within this window is a quick throw at the type's remembered power. */
+export const GRENADE_TAP_MS = 170;
+/** The pin pulls this long into a hold; cooking starts here (throwable-hands arm time). */
+export const GRENADE_PIN_MS = 240;
+/** Holding the pouch key this long opens the pouch radial instead of stepping it. */
+export const GRENADE_POUCH_HOLD_MS = 200;
+/** Throw power steps (charge 0..1), stepped by the wheel and remembered per type. */
+export const GRENADE_POWER_STEPS = Object.freeze([0.2, 0.4, 0.6, 0.8, 1.0]);
+export const GRENADE_DEFAULT_POWER_INDEX = 2;
+/** Authority minimum interval between two throws from one player. */
+export const GRENADE_THROW_COOLDOWN_MS = 450;
+/**
+ * Client-only margin on top of the authority cooldown. The server measures it between
+ * its own tick times, so jitter and tick quantization can shrink the gap it sees; the
+ * client waits this much longer so it never predicts a throw the server would drop.
+ */
+export const GRENADE_THROW_COOLDOWN_CLIENT_SLACK_MS = 100;
+/** HUD grouping, and the auto-ready fallback when the current type runs out. */
+export const GRENADE_ROLES = Object.freeze({
+  frag: 'lethal', molotov: 'lethal', pulse: 'tactical', smoke: 'tactical', limpet: 'gadget',
+});
 
 const FRAG_PHYSICS = Object.freeze({
   gravity: 18,
@@ -190,6 +217,65 @@ export function grenadeFuseAfterCook(cookMs, type = GRENADE_TYPES.frag) {
   return Math.max(GRENADE_MIN_AIR_MS, profile.fuseMs - cook);
 }
 
+/** Cook for a hold of `heldMs`: measured from the pin pull, zero for non-cook types. */
+export function grenadeCookFromHold(heldMs, type) {
+  const profile = typeof type === 'string' ? GRENADE_TYPES[type] : type;
+  if (!profile || !profile.cook) return 0;
+  const held = Number(heldMs);
+  return Number.isFinite(held) ? Math.max(0, held - GRENADE_PIN_MS) : 0;
+}
+
+/** Throw charge for a power step index, clamped into `GRENADE_POWER_STEPS`. */
+export function grenadePowerAt(index) {
+  const last = GRENADE_POWER_STEPS.length - 1;
+  const step = Number.isFinite(index) ? Math.trunc(index) : GRENADE_DEFAULT_POWER_INDEX;
+  return GRENADE_POWER_STEPS[Math.max(0, Math.min(last, step))];
+}
+
+function stocked(counts, index) {
+  return index >= 0 && Number(counts?.[index]) > 0;
+}
+
+/**
+ * Next type index after `from` (in `dir` order, wrapping) with a count above zero.
+ * `from` itself is never returned; -1 when no other type is stocked.
+ */
+export function nextStockedGrenade(counts, from, dir = 1) {
+  const total = GRENADE_TYPE_IDS.length;
+  const step = dir < 0 ? -1 : 1;
+  // `from` outside the roster (nothing ready): the first stocked slot in `dir` order.
+  const inRoster = Number.isInteger(from) && from >= 0 && from < total;
+  const start = inRoster ? from : (step > 0 ? -1 : total);
+  for (let i = 1; i <= (inRoster ? total - 1 : total); i++) {
+    const index = (((start + step * i) % total) + total) % total;
+    if (stocked(counts, index)) return index;
+  }
+  return -1;
+}
+
+/**
+ * The type the pouch should have ready: `current` while stocked, then the last manual
+ * pick `preferred`, then the first stocked type sharing current's role, then the first
+ * stocked type in roster order. -1 when the pouch is empty.
+ */
+export function autoReadyGrenade(counts, current, preferred) {
+  if (stocked(counts, current)) return current;
+  if (stocked(counts, preferred)) return preferred;
+  const role = GRENADE_ROLES[GRENADE_TYPE_IDS[current]];
+  if (role) {
+    const same = GRENADE_TYPE_IDS.findIndex((id, i) => GRENADE_ROLES[id] === role && stocked(counts, i));
+    if (same >= 0) return same;
+  }
+  return GRENADE_TYPE_IDS.findIndex((_, i) => stocked(counts, i));
+}
+
+/** Radius (m) of the area a type affects, for landing-zone previews. */
+export function grenadeEffectRadius(typeId, chaosLevel = 0) {
+  if (typeId === 'molotov') return molotovFireProfile(chaosLevel).radius;
+  if (typeId === 'smoke') return smokeProfile(chaosLevel).radius;
+  return (GRENADE_TYPES[typeId] || GRENADE_TYPES.frag).damageRadius;
+}
+
 export function grenadeThrowProfile(value) {
   const charge = clampGrenadeCharge(value);
   return Object.freeze({
@@ -296,8 +382,9 @@ export function stepGrenade(grenade, dt, isSolid) {
 
 /**
  * Predicted flight path from a launch state until the fuse burns out. Returns
- * `{points:[[x,y,z],...], landing:[x,y,z], rests:boolean}`; `rests` is true when the
- * grenade has effectively stopped before detonating (a settled, readable landing spot).
+ * `{points:[[x,y,z],...], landing:[x,y,z], rests:boolean, bounces:[[x,y,z],...]}`;
+ * `rests` is true when the grenade has effectively stopped before detonating (a settled,
+ * readable landing spot). `bounces` marks each new contact the grenade survives.
  * Sticky and impact types stop at their first contact, which is where they detonate.
  */
 export function predictGrenadePath(launch, isSolid, {
@@ -317,7 +404,9 @@ export function predictGrenadePath(launch, isSolid, {
   const points = [[grenade.x, grenade.y, grenade.z]];
   const steps = Math.max(1, Math.ceil((horizon / 1000) / stepSeconds));
   const stride = Math.max(1, Math.ceil(steps / (maxPoints - 1)));
+  const bounces = [];
   let contact = false;
+  let touching = false;
   for (let i = 1; i <= steps; i++) {
     stepGrenade(grenade, Math.min(stepSeconds, horizon / 1000 - (i - 1) * stepSeconds), isSolid);
     if ((profile.sticky || profile.impact) && grenade.hitSolid) {
@@ -325,6 +414,9 @@ export function predictGrenadePath(launch, isSolid, {
       points.push([grenade.x, grenade.y, grenade.z]);
       break;
     }
+    // One mark per new contact; a grenade rolling or resting on the floor stays touching.
+    if (grenade.hitSolid && !touching) bounces.push([grenade.x, grenade.y, grenade.z]);
+    touching = grenade.hitSolid;
     if (i % stride === 0 || i === steps) points.push([grenade.x, grenade.y, grenade.z]);
   }
   const speed = Math.hypot(grenade.vx, grenade.vy, grenade.vz);
@@ -332,5 +424,6 @@ export function predictGrenadePath(launch, isSolid, {
     points,
     landing: [grenade.x, grenade.y, grenade.z],
     rests: contact || speed < 1.5,
+    bounces,
   };
 }

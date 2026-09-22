@@ -21,7 +21,7 @@ import { HUD } from './ui/hud.js';
 import { displaySettings } from './ui/display-settings.js';
 import { MAP_LABELS, weaponImagePath } from './ui/hud-support.js';
 import { mapAtmosphere } from './engine/map-atmosphere.js';
-import { WeaponWheelController } from './session/weapon-wheel-controller.js';
+import { GrenadePouchSessionController, WeaponWheelController } from './session/weapon-wheel-controller.js';
 import { RunHud } from './ui/run-hud.js';
 import { sfx } from './audio/sfx.js';
 import { footstepSurfaceAt } from './audio/footsteps.js';
@@ -30,7 +30,8 @@ import { aimAssistStrength } from './player/aim-assist.js';
 import { smokeBlocksSight, copySmokeFields } from '../../shared/smoke-rules.js';
 import { fwdFromAngles } from './util/look.js';
 import { nowMs } from './util/math.js';
-import { GRENADE_TYPES, GRENADE_TYPE_IDS, grenadeFuseAfterCook } from '../../shared/grenade-rules.js';
+import { GRENADE_TYPES, GRENADE_TYPE_IDS, grenadeEffectRadius, grenadeFuseAfterCook } from '../../shared/grenade-rules.js';
+import { chaosLevel } from '../../shared/chaos.js';
 import { AssetScheduler } from './boot/asset-scheduler.js';
 
 window.__vbBoot?.phases && (window.__vbBoot.phases.modules ??= Math.round(performance.now() - window.__vbBoot.startedAt));
@@ -72,6 +73,10 @@ class Game {
     this._grenadeCharging = false;
     this._grenadeCook01 = 0;
     this._grenadeCookLeftMs = 0;
+    // Pouch/ready feedback for the HUD: denied/advanced are change counters, the rest
+    // performance.now() stamps; the fuse tick schedule is measured from the pin pull.
+    this._grenadeFeedback = { denied: 0, advanced: 0, readiedAt: null, pinBackAt: null, pinBackReason: null };
+    this._grenadeNextTickMs = 0;
     this.weapon = null;
     this.roster = null;
     this.build = null;
@@ -101,6 +106,14 @@ class Game {
       getContext: () => ({
         weapon: this.weapon, self: this.selfRow, match: this.matchState,
         enabled: this.session?.gameplayInputEnabled, alive: !!this.player?.alive,
+        spectating: this.spectator?.active === true,
+      }),
+    });
+    this.grenadePouch = new GrenadePouchSessionController({
+      input: this.input,
+      hud: this.hud,
+      getContext: () => ({
+        self: this.selfRow, enabled: this.session?.gameplayInputEnabled, alive: !!this.player?.alive,
         spectating: this.spectator?.active === true,
       }),
     });
@@ -320,13 +333,19 @@ class Game {
       onPick: (slot) => this.weaponWheel.commit(slot),
       onCancel: () => this.weaponWheel.close(),
     });
+    this.grenadePouch.setup();
     this.rig.setWeapon(WEAPON_IDS[this.weapon.slot]);
     this.rig.onReloadClick = (step) => sfx.reloadClick(step, WEAPON_IDS[this.weapon.slot]);
     this.rig.onBoltClack = (step) => sfx.cycleClick(step, WEAPON_IDS[this.weapon.slot]);
-    this.rig.onGrenadeCue = ({ cue }) => {
+    this.rig.onGrenadeCue = ({ cue, charge }) => {
       if (cue === 'pin') sfx.grenadePin();
       else if (cue === 'ignite') sfx.molotovIgnite();
       else if (cue === 'draw') sfx.grenadeDraw();
+      else if (cue === 'ready') sfx.grenadeReady();
+      else if (cue === 'cancel') sfx.grenadePinBack();
+      else if (cue === 'clamp') sfx.claymoreClamp();
+      // The hands delay a quick tap's whoosh past its pin click.
+      else if (cue === 'throw') sfx.grenadeThrow(charge);
     };
     this.muzzleLights = new rt.MuzzleLights(this.worldview.scene);
     this.roster = new rt.AvatarRoster({
@@ -555,9 +574,10 @@ class Game {
     return transition;
   }
 
-  isAuthoritativeFireAllowed(grenade = false) {
+  isAuthoritativeFireAllowed(grenade = false, options = {}) {
     if (!this.session.gameplayInputEnabled || !this.player.alive ||
-        this.selfRow?.state !== 'alive' || this.weaponWheel.open || this.player.physics.vault) return false;
+        this.selfRow?.state !== 'alive' || this.weaponWheel.open || this.grenadePouch?.open ||
+        (this.player.physics.vault && !options.ignoreVault)) return false;
     if (this.matchState?.mode === 'ttt') {
       const melee = grenade === 'melee' || (!grenade && this.weapon.def.mode === 'melee');
       return this.matchState.phase === 'live' || (this.matchState.phase === 'prep' && melee);
@@ -585,8 +605,70 @@ class Game {
   /** Remaining count of the selected throwable from the authoritative row. */
   selectedGrenadeCount() {
     const counts = this.selfRow?.grenades;
-    const index = this.input.getGrenadeType();
-    return Array.isArray(counts) ? (counts[index] | 0) : 0;
+    const index = this.activeGrenadeIndex();
+    return Array.isArray(counts) && index >= 0 ? (counts[index] | 0) : 0;
+  }
+
+  /** The held (locked) type while a grenade is in hand, else the ready one; -1 when none. */
+  activeGrenadeIndex() {
+    const input = this.input;
+    const held = input.getGrenadeHoldType?.() ?? -1;
+    if (held >= 0) return held;
+    return input.getReadyGrenade ? input.getReadyGrenade() : input.getGrenadeType();
+  }
+
+  /**
+   * Before LocalPlayer consumes the release: feed the authoritative counts (auto-advance,
+   * latch defence) and turn a claymore let go without a valid wall into a pin back, so no
+   * packet the authority would reject is ever sent.
+   */
+  vetGrenadeRelease() {
+    const input = this.input;
+    input.setGrenadeCounts?.(this.selfRow?.grenades);
+    const pending = input.peekGrenadeThrow?.();
+    const type = pending && GRENADE_TYPES[GRENADE_TYPE_IDS[pending.type]];
+    if (type?.wallMine && this.player.alive && !this.player.grenadeLaunchState(pending.charge, type.id)) {
+      input.cancelGrenade('noWall');
+    }
+  }
+
+  /**
+   * Pouch/ready UI events from the input seam: HUD pulse fields, dry clicks, and the
+   * pin back on the hands. Build-mode denials stay silent (the keys are simply ignored).
+   */
+  applyGrenadeUiEvents() {
+    const events = this.input.consumeGrenadeUiEvents?.();
+    if (!events?.length) return;
+    const feedback = this._grenadeFeedback;
+    for (const event of events) {
+      if (event.kind === 'denied') {
+        if (event.reason === 'build') continue;
+        feedback.denied++;
+        sfx.grenadeEmpty();
+      } else if (event.kind === 'advanced') {
+        feedback.advanced++;
+        feedback.readiedAt = performance.now();
+      } else if (event.kind === 'readied') {
+        feedback.readiedAt = performance.now();
+      } else if (event.kind === 'cancel') {
+        if (!this.player.alive) { this.rig?.cancelGrenade(); continue; }
+        feedback.pinBackAt = performance.now();
+        feedback.pinBackReason = event.reason ?? null; // 'noWall' reads NO WALL, not PIN BACK
+        this.rig?.cancelGrenade({ reseat: true });
+      }
+    }
+  }
+
+  /** Fuse ticks while a timed fuse cooks: every 500 ms, every 250 ms in the last 800 ms. */
+  tickGrenadeFuse(cooking, cookMs, cookLeftMs) {
+    if (!cooking) {
+      this._grenadeNextTickMs = 0;
+      return;
+    }
+    if (cookMs < this._grenadeNextTickMs) return;
+    const urgent = cookLeftMs < 800;
+    sfx.grenadeFuseTick(urgent ? 2 : 1);
+    this._grenadeNextTickMs = Math.max(this._grenadeNextTickMs, cookMs) + (urgent ? 250 : 500);
   }
 
   /**
@@ -597,25 +679,32 @@ class Game {
    */
   presentGrenadeHandling(now) {
     const input = this.player.input;
-    const typeIndex = input.getGrenadeType();
+    const typeIndex = Math.max(0, this.activeGrenadeIndex());
     const type = GRENADE_TYPES[GRENADE_TYPE_IDS[typeIndex]];
     const canThrow = this.player.alive && this.selectedGrenadeCount() > 0
       && this.isAuthoritativeFireAllowed(true);
     const charging = !!input.isGrenadeCharging?.() && canThrow;
-    const charge = charging ? input.getGrenadeCharge(now) : 0;
+    // Power is the type's remembered step; the cook runs from the pin pull, not the key-down.
+    const power = charging ? (input.getGrenadePower?.() ?? input.getGrenadeCharge(now)) : 0;
     const heldMs = charging ? input.getGrenadeHoldMs(now) : 0;
+    const cookMs = charging && type.cook ? (input.getGrenadeCookMs?.(now) ?? heldMs) : 0;
     this._grenadeCharging = charging;
-    this._grenadeCook01 = charging && type.cook ? Math.min(1, heldMs / type.fuseMs) : 0;
-    this._grenadeCookLeftMs = charging && type.cook ? Math.max(0, type.fuseMs - heldMs) : 0;
-    if (charging && type.cook && heldMs >= type.fuseMs) input.forceGrenadeRelease(now);
+    this._grenadeCook01 = charging && type.cook ? Math.min(1, cookMs / type.fuseMs) : 0;
+    this._grenadeCookLeftMs = charging && type.cook ? Math.max(0, type.fuseMs - cookMs) : 0;
+    this.tickGrenadeFuse(charging && cookMs > 0, cookMs, this._grenadeCookLeftMs);
+    if (charging && type.cook && cookMs >= type.fuseMs) input.forceGrenadeRelease(now);
+    this.applyGrenadeUiEvents();
     if (!canThrow && !this.player.alive) this.rig?.cancelGrenade();
-    else this.rig?.grenadeCharge(charge, typeIndex, heldMs, charging);
-    const preview = charging ? this.player.grenadeLaunchState(charge, type.id) : null;
+    else this.rig?.grenadeCharge(power, typeIndex, heldMs, charging);
+    const preview = charging ? this.player.grenadeLaunchState(power, type.id) : null;
     this._claymorePlacementValid = type.wallMine && !!preview;
     const mineProfile = claymoreProfile(this.selfRow?.chaosUpgrades?.limpet || 0);
+    const level = chaosLevel(this.selfRow, type.id);
     this.effects?.projectilePreview(preview ? { ...preview,
       ...(type.wallMine ? mineProfile : {}),
-      fuseMs: type.cook ? grenadeFuseAfterCook(heldMs, type) : type.fuseMs,
+      fuseMs: type.cook ? grenadeFuseAfterCook(cookMs, type) : type.fuseMs,
+      effectRadius: grenadeEffectRadius(type.id, level),
+      chaosLevel: level,
     } : null);
 
     const thrown = this.player.consumeLocalGrenadeThrow();
@@ -640,9 +729,8 @@ class Game {
         ? grenadeFuseAfterCook(thrown.cookMs, thrownType)
         : (thrownType.sticky ? thrownType.flightMaxMs : thrownType.fuseMs),
     }, { local: true });
+    // Sound comes from the hands' cues: 'clamp' for a mounted claymore, 'throw' otherwise.
     this.rig?.grenadeThrow(thrown.charge, thrown.type);
-    if (thrownType.wallMine) sfx.grenadeDraw();
-    else sfx.grenadeThrow(thrown.charge);
   }
 
   /**
@@ -667,6 +755,18 @@ class Game {
     ctx.canBuild = !!this.build?.available();
     ctx.canMedkit = this.player.medkit.active || (this.player.medkit.remaining === 1 && this.player.hp < 100);
     ctx.wheelOpen = this.weaponWheel.open;
+    // Grenade + pouch buttons: authoritative counts, the ready face and the held power stop.
+    const counts = Array.isArray(this.selfRow?.grenades) ? this.selfRow.grenades : null;
+    // A held grenade rides out a vault (the throw only waits, as on keyboard and pad), so
+    // the button must not hide and pin it back mid-mantle.
+    const holding = !!this.input.isGrenadeCharging?.();
+    ctx.canThrow = alive && !this.build?.active
+      && this.isAuthoritativeFireAllowed(true, { ignoreVault: holding });
+    ctx.grenadeTotal = counts ? counts.reduce((sum, count) => sum + Math.max(0, count | 0), 0) : 0;
+    ctx.grenadeCounts = counts;
+    ctx.grenadeReady = this.activeGrenadeIndex();
+    ctx.grenadePowerIndex = this.input.getGrenadePowerIndex?.();
+    ctx.pouchOpen = this.grenadePouch.open;
     this.input.setTouchContext(ctx);
   }
 
@@ -738,6 +838,8 @@ class Game {
     // Drain spectator motion before LocalPlayer consumes and discards dead-player look.
     const spectatorLook = this.spectator?.active ? this.input.consumeDelta() : null;
     this.weaponWheel.sync();
+    this.grenadePouch.sync();
+    this.vetGrenadeRelease();
     if (this.input.scoreboardHeld !== this._padScoreboard) {
       this._padScoreboard = this.input.scoreboardHeld;
       this.hud.setScoreboard(this._padScoreboard);
@@ -905,12 +1007,23 @@ class Game {
       yawDeg: ((-this.player.view.yaw * 180 / Math.PI) % 360 + 360) % 360,
       alive: this.player.alive,
       grenades: this.selfRow?.grenades ?? 0,
-      grenadeType: this.input.getGrenadeType(),
-      grenadeCharge: this.player.input.getGrenadeCharge(now),
+      grenadeType: Math.max(0, this.activeGrenadeIndex()),
+      grenadeReady: this.input.getReadyGrenade?.() ?? this.input.getGrenadeType(),
+      grenadeCharge: this._grenadeCharging ? this.player.input.getGrenadeCharge(now) : 0,
       grenadeCharging: this._grenadeCharging,
+      grenadePower: this.input.getGrenadePower?.(),
+      grenadePowerIndex: this.input.getGrenadePowerIndex?.(),
       claymorePlacementValid: this._claymorePlacementValid,
       grenadeCook01: this._grenadeCook01,
       grenadeCookLeftMs: this._grenadeCookLeftMs,
+      grenadePouchOpen: this.grenadePouch.open,
+      grenadePouchHover: this.input.getGrenadePouchHover?.() ?? -1,
+      grenadeDenied: this._grenadeFeedback.denied || null,
+      grenadeAdvancedTo: this._grenadeFeedback.advanced || null,
+      grenadeReadiedAt: this._grenadeFeedback.readiedAt,
+      grenadePinBackAt: this._grenadeFeedback.pinBackAt,
+      grenadePinBackReason: this._grenadeFeedback.pinBackReason,
+      grenadeChaos: this.selfRow?.chaosUpgrades ?? 0,
       holdingBreath: !!this.player.aimMotion?.holdingBreath,
       breath01: this.player.aimMotion?.breathRemaining01 ?? 1,
       canHoldBreath: !!this.player.aimMotion?.canHoldBreath,
@@ -1003,6 +1116,10 @@ class Game {
     this.effects?.dispose();
     this.worldview?.dispose();
     this.weaponWheel.reset();
+    this.input?.cancelGrenade?.('reset');
+    this.grenadePouch?.reset();
+    this.input?.consumeGrenadeUiEvents?.(); // stale pulses must not flash in the next session
+    this._grenadeNextTickMs = 0;
     this.feedback = this.spectator = this.roster = this.weapon = this.ownBody = null;
     this.runHud = null;
     this.rig = this.effects = this.worldview = this.mapMeta = null;
@@ -1070,6 +1187,8 @@ window.__vb = {
       },
       throwable: {
         type: GRENADE_TYPE_IDS[game.input.getGrenadeType()],
+        ready: GRENADE_TYPE_IDS[game.input.getReadyGrenade?.()] ?? null,
+        pouchOpen: !!game.grenadePouch.open,
         counts: game.selfRow?.grenades || [],
         active: !!game.rig?.grenadeActive,
         held: !!game.rig?._throwableHands.held,

@@ -106,8 +106,10 @@ try {
   async function key(type, name, code, keyCode) {
     await page.send('Input.dispatchKeyEvent', { type, key: name, code, windowsVirtualKeyCode: keyCode });
   }
-  for (let i = 0; i < 3; i++) {
+  // A KeyH tap readies the next STOCKED type, so step until the bottle is ready.
+  for (let i = 0; i < 5 && await page.evaluate(`window.__vb.stats.throwable.type`) !== 'molotov'; i++) {
     await key('keyDown', 'h', 'KeyH', 72); await key('keyUp', 'h', 'KeyH', 72);
+    await page.evaluate(`new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))`);
   }
   await page.waitFor(`window.__vb.stats.throwable.type === 'molotov'`);
   await key('keyDown', 'g', 'KeyG', 71);

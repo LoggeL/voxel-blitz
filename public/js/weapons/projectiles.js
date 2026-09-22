@@ -3,6 +3,7 @@ import * as THREE from '../vendor/three.module.js';
 import { CLAYMORE_RULES, claymoreBeam } from '../../../shared/claymore-rules.js';
 import {
   GRENADE_TYPES,
+  grenadeEffectRadius,
   predictGrenadePath,
   stepGrenade,
 } from '../../../shared/grenade-rules.js';
@@ -16,6 +17,11 @@ import { createBlenderParts } from '../engine/blender-assets.js';
 /** Unconfirmed local launches are dropped after this long without a matching authority event. */
 const LOCAL_CONFIRM_TIMEOUT_S = 1.0;
 const PREVIEW_MAX_POINTS = 96;
+const PREVIEW_BOUNCE_DOTS = 8;
+/** Share of the arc (at least one segment) drawn as the dim dotted tail of a mid-air burst. */
+const PREVIEW_AIRBURST_TAIL = 0.2;
+/** Blocks searched under a mid-air burst for the floor the landing ring sits on. */
+const PREVIEW_FLOOR_PROBE = 12;
 const CAP_LIT = 0xffd27a;
 const CAP_DIM = 0xff5a1c;
 const ROCKET_TRAIL_INTERVAL_S = 0.028;
@@ -244,6 +250,28 @@ export class ProjectileFX {
     this.previewLine.frustumCulled = false;
     this.previewLine.renderOrder = 8;
     this.previewLine.visible = false;
+    // The same arc again, faint and depth-blind, so it still reads through cover.
+    this.previewGhostMaterial = new THREE.LineDashedMaterial({
+      color: 0xffb347, transparent: true, opacity: 0.25, dashSize: 0.22, gapSize: 0.16,
+      depthWrite: false, depthTest: false, toneMapped: false,
+    });
+    this.previewGhost = new THREE.Line(previewGeometry, this.previewGhostMaterial);
+    this.previewGhost.frustumCulled = false;
+    this.previewGhost.renderOrder = 7;
+    this.previewGhost.visible = false;
+    // A cooked fuse that bursts before it rests: the final stretch is dim and dotted.
+    // It shares the arc's positions and runs its own draw range over them.
+    const tailGeometry = new THREE.BufferGeometry();
+    tailGeometry.setAttribute('position', previewGeometry.attributes.position);
+    tailGeometry.setDrawRange(0, 0);
+    this.previewTailMaterial = new THREE.LineDashedMaterial({
+      color: 0xffb347, transparent: true, opacity: 0.4, dashSize: 0.05, gapSize: 0.14,
+      depthWrite: false, toneMapped: false,
+    });
+    this.previewTail = new THREE.Line(tailGeometry, this.previewTailMaterial);
+    this.previewTail.frustumCulled = false;
+    this.previewTail.renderOrder = 8;
+    this.previewTail.visible = false;
     this.landingMaterial = new THREE.MeshBasicMaterial({
       color: 0xffb347,
       transparent: true,
@@ -252,11 +280,30 @@ export class ProjectileFX {
       side: THREE.DoubleSide,
       toneMapped: false,
     });
-    this.landingRing = new THREE.Mesh(new THREE.RingGeometry(0.28, 0.42, 24), this.landingMaterial);
+    // Landing zone: a unit edge ring plus a translucent disc, scaled to the
+    // type's effect radius (blast, fire or smoke) from the shared rules.
+    this.landingRing = new THREE.Mesh(new THREE.RingGeometry(0.93, 1, 48), this.landingMaterial);
     this.landingRing.rotation.x = -Math.PI / 2;
     this.landingRing.renderOrder = 8;
     this.landingRing.visible = false;
-    this.scene.add(this.previewLine, this.landingRing);
+    this.landingDiscMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffb347, transparent: true, opacity: 0.14, depthWrite: false,
+      side: THREE.DoubleSide, toneMapped: false,
+    });
+    this.landingDisc = new THREE.Mesh(new THREE.CircleGeometry(0.93, 48), this.landingDiscMaterial);
+    this.landingDisc.renderOrder = 8;
+    this.landingRing.add(this.landingDisc);
+    this.bounceDotMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffb347, transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false,
+    });
+    this.bounceDotGeometry = new THREE.SphereGeometry(0.07, 8, 6);
+    this.bounceDots = Array.from({ length: PREVIEW_BOUNCE_DOTS }, () => {
+      const dot = new THREE.Mesh(this.bounceDotGeometry, this.bounceDotMaterial);
+      dot.renderOrder = 8;
+      dot.visible = false;
+      return dot;
+    });
+    this.scene.add(this.previewGhost, this.previewLine, this.previewTail, this.landingRing, ...this.bounceDots);
     this.preview = null;
     this._previewType = '';
     this.minePreview = this._buildVisual('limpet');
@@ -731,20 +778,21 @@ export class ProjectileFX {
   /**
    * Draw (or hide with `null`) the predicted flight for a launch state
    * `{type?,x,y,z,vx,vy,vz}`. Returns the prediction so HUD/audio glue can read the landing.
+   * `fuseMs` limits the horizon (cooked fuse); `effectRadius` sizes the landing zone,
+   * falling back to grenadeEffectRadius(type, chaosLevel) from the shared rules.
    */
   setPreview(launch) {
     this.minePreview.group.visible = false;
     if (!launch) {
       if (this.preview) {
         this.preview = null;
-        this.previewLine.visible = false;
-        this.landingRing.visible = false;
+        this._hidePreviewArc();
       }
       return null;
     }
     const type = GRENADE_TYPES[launch.type] ? launch.type : 'frag';
     if (type === 'limpet') {
-      this.previewLine.visible = this.landingRing.visible = false;
+      this._hidePreviewArc();
       this._poseMine(this.minePreview.group, launch, true);
       this.minePreview.group.visible = true;
       this.preview = { rests: true, landing: [launch.x, launch.y, launch.z] };
@@ -753,8 +801,8 @@ export class ProjectileFX {
     if (type !== this._previewType) {
       this._previewType = type;
       const color = new THREE.Color(GRENADE_TYPES[type].color);
-      this.previewMaterial.color.copy(color);
-      this.landingMaterial.color.copy(color);
+      for (const material of [this.previewMaterial, this.previewGhostMaterial, this.previewTailMaterial,
+        this.landingMaterial, this.landingDiscMaterial, this.bounceDotMaterial]) material.color.copy(color);
     }
     const prediction = predictGrenadePath(launch, this.isSolid, { maxPoints: PREVIEW_MAX_POINTS, fuseMs: launch.fuseMs });
     const count = Math.min(PREVIEW_MAX_POINTS, prediction.points.length);
@@ -766,15 +814,52 @@ export class ProjectileFX {
     }
     const geometry = this.previewLine.geometry;
     geometry.attributes.position.needsUpdate = true;
-    geometry.setDrawRange(0, count);
+    // A cook type that would burst in mid-air ends in a dim dotted tail.
+    const airburst = !!GRENADE_TYPES[type].cook && !prediction.rests && count > 2;
+    const tail = airburst ? Math.max(1, Math.round((count - 1) * PREVIEW_AIRBURST_TAIL)) : 0;
+    geometry.setDrawRange(0, count - tail);
     this.previewLine.computeLineDistances();
     this.previewLine.visible = count > 1;
+    this.previewGhost.visible = count > 1;
+    const tailGeometry = this.previewTail.geometry;
+    tailGeometry.setDrawRange(count - 1 - tail, tail + 1);
+    if (tail) this.previewTail.computeLineDistances();
+    this.previewTail.visible = tail > 0;
+    const bounces = prediction.bounces || [];
+    for (let i = 0; i < this.bounceDots.length; i++) {
+      const dot = this.bounceDots[i];
+      const at = bounces[i];
+      dot.visible = !!at;
+      if (at) dot.position.set(at[0], at[1], at[2]);
+    }
     const landing = prediction.landing;
-    this.landingRing.position.set(landing[0], landing[1] - 0.12, landing[2]);
-    this.landingRing.visible = true;
+    const radius = Number.isFinite(launch.effectRadius) && launch.effectRadius > 0
+      ? launch.effectRadius
+      : grenadeEffectRadius(type, launch.chaosLevel || 0);
+    // A mid-air end point would show the flat ring edge-on at eye height: drop it onto
+    // the floor under the burst instead, or skip it when there is no floor in reach.
+    let ringY = landing[1];
+    if (!prediction.rests) {
+      ringY = null;
+      for (let y = Math.floor(landing[1]); y >= Math.floor(landing[1]) - PREVIEW_FLOOR_PROBE; y--) {
+        if (this.isSolid(landing[0], y - 0.5, landing[2])) { ringY = y + 0.16; break; }
+      }
+    }
+    this.landingRing.visible = ringY != null;
+    if (ringY != null) {
+      this.landingRing.position.set(landing[0], ringY - 0.12, landing[2]);
+      this.landingRing.scale.set(radius, radius, 1);
+    }
     this.landingMaterial.opacity = prediction.rests ? 0.75 : 0.35;
+    this.landingDiscMaterial.opacity = prediction.rests ? 0.14 : 0.06;
     this.preview = prediction;
     return prediction;
+  }
+
+  _hidePreviewArc() {
+    this.previewLine.visible = this.previewGhost.visible = this.previewTail.visible = false;
+    this.landingRing.visible = false;
+    for (const dot of this.bounceDots) dot.visible = false;
   }
 
   _configureMine(mine, event) {
@@ -1351,16 +1436,23 @@ export class ProjectileFX {
       }
     }
     this.blasts.length = 0;
-    this.scene.remove(this.previewLine, this.landingRing);
+    this.scene.remove(this.previewGhost, this.previewLine, this.previewTail, this.landingRing, ...this.bounceDots);
     this.scene.remove(this.minePreview.group);
     this.minePreview.capMaterial.dispose();
     for (const material of this.minePreview.group.userData.authoredMaterials || []) material.dispose();
     this.claymoreLaserGeometry.dispose();
     this.claymoreLaserMaterial.dispose();
     this.previewLine.geometry.dispose();
+    this.previewTail.geometry.dispose();
     this.previewMaterial.dispose();
+    this.previewGhostMaterial.dispose();
+    this.previewTailMaterial.dispose();
     this.landingRing.geometry.dispose();
     this.landingMaterial.dispose();
+    this.landingDisc.geometry.dispose();
+    this.landingDiscMaterial.dispose();
+    this.bounceDotGeometry.dispose();
+    this.bounceDotMaterial.dispose();
     for (const geometry of [
       this.fragGeometry, this.capGeometry, this.limpetGeometry, this.pulseGeometry,
       this.grenadeRibGeometry, this.grenadeBandGeometry,

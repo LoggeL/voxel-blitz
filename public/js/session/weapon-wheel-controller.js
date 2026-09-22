@@ -145,3 +145,47 @@ export class WeaponWheelController {
     this.hud.setWeaponWheelState({ open: false });
   }
 }
+
+/**
+ * Session side of the grenade pouch radial. Input owns the pouch state (hover,
+ * confirm, wheel exclusivity); this closes it when gameplay can no longer use it
+ * and routes the overlay's touch picks back into the input seam. The HUD paints
+ * it from setState's grenadePouch* fields.
+ */
+export class GrenadePouchSessionController {
+  constructor({ input, hud, getContext }) {
+    this.input = input;
+    this.hud = hud;
+    this.getContext = getContext;
+  }
+
+  get open() { return !!this.input.isGrenadePouchOpen?.(); }
+
+  /** Touch: a tapped stocked slot readies it; a tap outside closes without a change. */
+  setup() {
+    this.hud.setupGrenadePouch?.({
+      onPick: (slot) => this.pick(slot),
+      onCancel: () => this.input.setGrenadePouchOpen?.(false),
+    });
+  }
+
+  pick(slot) {
+    if (!this.open) return false;
+    this.input.setGrenadePouchHover(slot);
+    return this.input.setGrenadePouchOpen(false, { confirm: true });
+  }
+
+  /** Per frame: the pouch never outlives death, spectating, menus or disabled gameplay. */
+  sync() {
+    if (!this.open) return;
+    const context = this.getContext();
+    const usable = context.enabled && context.alive && context.self?.state === 'alive' &&
+      context.spectating !== true && !this.hud.isBuyMenuOpen() && !this.hud.settingsOpen;
+    if (!usable) this.input.setGrenadePouchOpen(false);
+  }
+
+  reset() {
+    this.input.setGrenadePouchOpen?.(false);
+    this.hud.setGrenadePouchState?.({ open: false });
+  }
+}
