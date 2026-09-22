@@ -85,6 +85,13 @@
       "geometry_bytes": 784448
     },
     {
+      "asset": "skua",
+      "source_parts": 205,
+      "draws": 19,
+      "triangles": 15412,
+      "geometry_bytes": 1101328
+    },
+    {
       "asset": "talon",
       "source_parts": 32,
       "draws": 8,

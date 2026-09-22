@@ -534,3 +534,85 @@ blender --background --factory-startup docs/design/blender/torch/torch.blend --p
 the hinge, anchors, bounds, UV references, material images, no negative scale,
 no nonfinite coordinates). `torch/build-report.md` carries the design
 alternatives, the BULWARK choice and the measured counts.
+
+## SKUA (glaive slot), revision 1
+
+SKUA supplies the new `glaive` slot (GV-4 RIPTIDE, the 13th weapon). It is
+design study "FORK", chosen from three documented alternatives in
+`skua/concepts/`. It is a forearm-braced disc launcher with these parts:
+
+- a 0.22 m toothed blade disc seated flat on a launch spindle, tilted
+  6 degrees toward the eye, with a magenta razor-glow inlay ring and 24
+  polished teeth;
+- an orange fork bridge carrying a winged ring sight and two hinged catch
+  horns that sweep forward to glowing prongs;
+- an open flywheel cage with a polished drive wheel, a brass gauge and a
+  tapered rear notch tower;
+- a low ivory receiver with the modelled `GV-4` / `RIPTIDE` stencil;
+- a pistol grip, and a strapped brace cuff with a brass buckle;
+- a skeletal cassette under the receiver that shows the spare disc and a
+  magenta progress strip.
+
+It has 205 authored parts, 15,412 triangles, 19 runtime primitives and eight
+frozen materials. Seven of them sample the shared palette maps; the eighth,
+`SKUA | razor glow`, is the untextured `#ff3fd0` emissive.
+
+The study was authored through the live Blender MCP session (protocol 5) with
+`tools/blender/skua/build-skua.py`, which creates its own scene and saves with
+`copy=True`. The runtime export, validation and renders run headless.
+
+Animated parts (runtime model `skua.js`). Every moving part ships pivot-local,
+with its pivot as the node translation:
+
+- `mag`: the seated disc, with its pivot at the disc centre `[0, 0.042, -0.22]`.
+  The geometry is baked with the 6 degree tilt, so it spins about
+  `[0, cos 6, sin 6]`.
+- `bolt`: the flywheel, with its pivot at the hub `[0, 0, 0.06]` (`BOLT_HOME`).
+  It whirls about game z and kicks back 0.012.
+- `trigger`: the blade (tip y -0.066) and the guard, at z -0.005.
+- `extra`: pivot-local leaves:
+  - `horn left | orange paint` and `horn left | razor glow` at `[-0.05, 0, -0.335]`;
+  - `horn right | …` at `[0.05, 0, -0.335]`. Each horn swings about its
+    vertical pin: right `rotation.y = -flare`, left `+flare`, 0 to 22 degrees;
+  - the spare-disc round node `spare disc | blade steel / polished edge /
+    razor glow` at `[0, -0.072, -0.165]`;
+  - `gauge needle | brass` at `[-0.0635, 0, 0.07]`, which spins about game x.
+
+The spindle is bare r 0.0155 rod across the heat band z [-0.40, -0.34]. The
+horns and the fork pass that band off-axis, with nothing but the spindle
+inside radius 0.030. The ring sight (z -0.34) is centred on the 0.150 sight
+line. The rear notch (z +0.07) has its floor 5.5 mm below it, so from the ADS
+eye the whole ring aperture shows above the floor, between the ears.
+
+Build-time gates (each fails the build on violation):
+
+- the anchor contract;
+- heat-band clearance;
+- the coplanar-face audit;
+- the floating-part audit;
+- the horn sweep audit: at 0, 11 and 22 degrees the horns clear every part
+  and stay below the sight line minus 0.03;
+- the disc path audit: the throw/catch slide (the disc shrinks to 0.25 by
+  42 % of the slide, clearing the horn hinge knuckles and pins) and the
+  cassette lift (the spare shrinks in place, the next disc grows on the seat)
+  cut no part the disc does not already touch at rest;
+- the rear notch gate: from the ADS eye the notch floor sits below the ring
+  aperture's lower edge;
+- disc visibility: the seated disc covers at least 4 % of a 50 degree ADS
+  frame from the eye, and its top face shows. The measured coverage is 4.54 %.
+
+```sh
+blender --background --factory-startup --python docs/design/blender/skua/concepts/concept-blockouts.py
+blender --background --factory-startup --python tools/blender/skua/build-skua.py
+blender --background --factory-startup docs/design/blender/skua/skua.blend --python tools/blender/skua/export-game-assets.py
+blender --background --factory-startup --python tools/blender/skua/validate-skua.py
+blender --background --factory-startup docs/design/blender/skua/skua.blend --python tools/blender/skua/render-skua.py
+blender --background --factory-startup docs/design/blender/skua/skua.blend --python tools/blender/skua/pose-skua.py
+```
+
+`docs/design/blender/skua/validation.json` records the fresh import of both
+`skua.glb` and `public/assets/blender/skua.gltf` (`passed: true`). It covers
+pivots, anchors, UVs, palette images, the razor-glow emissive and the budgets.
+`skua/build-report.md` has the alternatives, the FORK choice, the node table
+and the measured counts. The poses are `pose-home`, `pose-throw`,
+`pose-horns-open`, `pose-empty` and `pose-cassette-lift`.

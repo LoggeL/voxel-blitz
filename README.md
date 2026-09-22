@@ -14,7 +14,7 @@ Fast rounds. Destructible arenas. Straight into your browser.
 
 ![VOXEL BLITZ main menu with Quick Play, account creation and a career preview](docs/screenshots/main-menu.png)
 
-A multiplayer voxel arena shooter with destructible cover, twelve weapons and bots that keep the action moving. Jump into Quick Play, invite friends to a custom lobby, or work on your aim in the Killhouse.
+A multiplayer voxel arena shooter with destructible cover, thirteen weapons and bots that keep the action moving. Jump into Quick Play, invite friends to a custom lobby, or work on your aim in the Killhouse.
 
 ## Inside the arena
 
@@ -22,7 +22,7 @@ Combat attacks deal 20% less damage than the original balance. A close rifle bod
 
 - **Break through cover.** Block destruction changes the arena as you fight.
 - **Risk a supply run.** Armor, Medkits and Ammo appear on exposed ground in Fun, Team Deathmatch and Chaos Lab. Walk over one to collect it.
-- **Find your weapon.** Rifles, a shotgun, a revolver, a sniper, an LMG, a minigun, a flamethrower, rockets, melee, ricocheting LONGARC bolts and the piercing VOLTLANCE. Add cookable frags, sticky charges and pulse shocks.
+- **Find your weapon.** Rifles, a shotgun, a revolver, a sniper, an LMG, a minigun, a flamethrower, rockets, melee, ricocheting LONGARC bolts, the piercing VOLTLANCE and the GV-4 RIPTIDE, whose discs cut out, loop home and are caught to reload. Add cookable frags, sticky charges and pulse shocks.
 - **Play with friends or bots.** Up to 32 players per room, with 16 per team, lobby discovery, invite links, QR codes and optional lobby passwords.
 - **Feel every shot.** Procedural weapon models, recoil, aiming down sights, staged reloads, tracers, hit feedback and layered audio.
 - **Play on desktop or touch.** Mouse and keyboard controls, a radial weapon wheel and mobile touch controls.
@@ -30,7 +30,7 @@ Combat attacks deal 20% less damage than the original balance. A close rifle bod
 | Mode | What you play |
 | --- | --- |
 | Fun | Free-for-all with the full arsenal and fast respawns. Quick Play drops you into a live room. |
-| Chaos Lab | Kills and hidden $300 cash bundles earn credits for 51 cumulative upgrades across all twelve weapons and five throwables. Open the lab with B; upgrades survive death. |
+| Chaos Lab | Kills and hidden $300 cash bundles earn credits for 54 cumulative upgrades across all thirteen weapons and five throwables. Open the lab with B; upgrades survive death. |
 | Team Deathmatch | Two teams race to 40 kills. |
 | Search and Destroy | Plant or defuse the bomb, buy your loadout and make each life count. |
 | Gun Game | Every kill advances your weapon. Finish the ladder to win. |

@@ -166,6 +166,17 @@ export class AvatarRoster {
     }
   }
 
+  /**
+   * Authoritative RIPTIDE events for a remote avatar's mount: the disc's
+   * `projectileExplode` (catch or loss) and a `glaiveStock` that restored a disc.
+   */
+  glaive(id, event) {
+    const model = this._avatars.get(String(id))?.weaponModel;
+    if (!model || !event) return;
+    if (event.kind === 'projectileExplode' && event.type === 'glaive') model.glaiveEnded?.(event.caught === true);
+    else if (event.kind === 'glaiveStock' && event.restored) model.glaiveRestored?.();
+  }
+
   /** Presented world position of one remote avatar (`{x,y,z}`), or null when absent. */
   positionOf(id) {
     const avatar = this._avatars.get(String(id));

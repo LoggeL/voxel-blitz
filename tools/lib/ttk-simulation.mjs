@@ -53,7 +53,7 @@ function ballisticPitch(id, distance, eyeHeight, targetHeight) {
 
 export function simulateFight({ weapon, distance, scenario = 'ideal-body', seed = 1,
   hp = 100, armor = 0, maxSeconds = 20, minigun = 'cold', chargeMs,
-  backstab = false, trace = false } = {}) {
+  backstab = false, glaiveReturn = false, trace = false } = {}) {
   const def = WEAPONS[weapon];
   const mode = SCENARIOS.find(s => s.id === scenario);
   if (!def || !mode || !Number.isFinite(distance) || distance <= 0 || distance > 160)
@@ -71,7 +71,8 @@ export function simulateFight({ weapon, distance, scenario = 'ideal-body', seed 
   shooter.minigun = { heat: minigun === 'hot' ? MINIGUN.sweetHeat : 0,
     spin: minigun === 'cold' ? 0 : 1, overheated: false };
   const aimHeight = victim.y + (mode.aim === 'head' ? 1.66 : 1.18);
-  shooter.pitch = def.projectile
+  // RIPTIDE discs fly straight from the eye (no gravity, no muzzle drop): aim directly.
+  shooter.pitch = def.projectile && !def.glaive
     ? ballisticPitch(weapon, distance, shooter.eyeY, aimHeight)
     : aimAngles([shooter.x, shooter.eyeY, shooter.z], [victim.x, aimHeight, victim.z]).pitch;
   const entities = new Map([[shooter.id, shooter], [victim.id, victim]]);
@@ -82,6 +83,8 @@ export function simulateFight({ weapon, distance, scenario = 'ideal-body', seed 
   let shots = 0, hits = 0, headHits = 0, reloads = 0, totalDamage = 0;
   let firstAttackDamage = 0;
   let lastAttackDamage = 0;
+  // RIPTIDE timed return: R on the tick after an out-leg disc cuts the target.
+  let returnPending = false, returnId = 0;
   const takeDamage = victim.takeDamage.bind(victim);
   victim.takeDamage = (amount, ...args) => {
     lastAttackDamage = amount;
@@ -97,9 +100,14 @@ export function simulateFight({ weapon, distance, scenario = 'ideal-body', seed 
     ...(mode.perfect ? { computeConeDeg: () => 0 } : {}),
     launchRocket: (p, dir) => projectiles.launchRocket(p, ctx, dir),
     launchBolt: (p, dir, charge) => projectiles.launchBolt(p, ctx, dir, charge),
+    launchGlaive: (p, dir) => projectiles.launchGlaive(p, ctx, dir),
+    canThrowGlaive: (p) => projectiles.canThrowGlaive(p),
+    returnDiscs: (p) => projectiles.returnDiscs(p, ctx),
     pushEvent(event) {
       if (event.kind === 'shoot') { shots++; firstShotMs ??= timeMs; }
       if (event.kind === 'hit' && event.victim === victim.id) {
+        if (glaiveReturn && def.glaive) returnPending ||= [...projectiles.active.values()]
+          .some(d => d.type === 'glaive' && d.phase === 'out' && d.lastOutHitAt === ctx.now);
         hits++; headHits += event.hs ? 1 : 0; totalDamage += lastAttackDamage;
         firstHitMs ??= timeMs;
         if (timeMs === firstHitMs) firstAttackDamage += lastAttackDamage;
@@ -126,8 +134,11 @@ export function simulateFight({ weapon, distance, scenario = 'ideal-body', seed 
     // releases on the first tick meeting the requested hold duration.
     const release = def.mode === 'charge' && shooter.charging
       && shooter.chargeT + TICK_MS >= holdMs;
+    const discReturn = returnPending;
+    returnPending = false;
     shooter.input = { wantFire: !reload && !release, wantAds: mode.ads,
-      reload, keys: {}, yaw: shooter.yaw, pitch: shooter.pitch };
+      reload: reload || discReturn, keys: {}, yaw: shooter.yaw, pitch: shooter.pitch,
+      ...(discReturn ? { reloadId: ++returnId } : {}) };
     shooter.fireEdgeQueued = !reload && !shooter.reloading && !shooter.charging
       && shooter.cooldown <= 0 && (!empty || def.mode === 'melee');
     const wasReloading = shooter.reloading;

@@ -36,7 +36,7 @@ export const CONDITION_RULES = Object.freeze({
 
 /**
  * @typedef {Object} WeaponDef
- * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife')
+ * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive')
  * @property {string} name          display name
  * @property {'auto'|'semi'|'pump'|'bolt'|'charge'|'melee'} mode trigger behavior; `charge` fires on
  *                                  trigger release and scales with the hold (see `charge`); `melee`
@@ -70,14 +70,16 @@ export const CONDITION_RULES = Object.freeze({
  * @property {object} handling      ergonomics, sway amplitude/rate, vertical/horizontal recoil
  * @property {string} sfx           bank key for the audio engine
  * @property {{reach:number,coneDeg:number,backstabMult:number,backstabDot:number}} [melee] melee profile: swing hits enemies within `reach` meters inside a `coneDeg` arc; damage multiplies by `backstabMult` when the swing direction aligns with the victim's facing beyond `backstabDot`
- * @property {'rocket'|'bolt'} [projectile]  when set, the shot launches an authoritative projectile (shared/rocket-rules.js, shared/bolt-rules.js) instead of firing hitscan rays
+ * @property {'rocket'|'bolt'|'glaive'} [projectile]  when set, the shot launches an authoritative projectile (shared/rocket-rules.js, shared/bolt-rules.js, shared/glaive-rules.js) instead of firing hitscan rays
  * @property {{ms:number,holdMaxMs:number,minDamageMult:number,damageExponent?:number}} [charge]  charge-fire profile
  * @property {number} [hitRadius] outer radius around a body reached by the rail corona
  * @property {number} [coreRadius] full-damage radius around a body inside the rail core
  * @property {{players:number,playerFalloff:number}} [pierce]  body penetration count and damage retained per victim
+ * @property {object} [glaive]  throw-and-return disc flight profile (shared/glaive-rules.js); R returns the
+ *                              discs instead of reloading, so reloadTime/tacTime are unused
  */
 
-/** The ten-weapon roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
+/** The thirteen-weapon roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
 export const WEAPONS = {
   rifle: {
     id: 'rifle', penetration: 55, name: 'VK-77 RAPTOR', mode: 'auto',
@@ -322,12 +324,40 @@ export const WEAPONS = {
     sfx: 'rocket',
     projectile: 'rocket',
   },
+  glaive: {
+    // Throw-and-return disc launcher: two discs, each cuts out in a straight line and
+    // curves back to the hand, piercing bodies on both legs. Catching a disc reloads it;
+    // R snaps every outgoing disc into its return leg. Flight rules: shared/glaive-rules.js.
+    id: 'glaive', name: 'GV-4 RIPTIDE', mode: 'semi',
+    weightKg: 3.1,
+    rpm: 150, magSize: 2, spareRounds: 0,
+    damage: [54, 54, 19], falloffStart: 19, headMult: 1.5, pellets: 1, penetration: 0,
+    spreadDeg: { hip: 1.2, ads: 0.3 }, bloomDeg: 0.6, bloomMaxDeg: 2.4,
+    bloomRecover: 6, moveSpreadDeg: 1.0,
+    crouchSpreadMult: 0.8,
+    recoil: {
+      pitch: 1.1, pitchRamp: 0.2, maxPitchRamp: 1.2,
+      yaw: 0.35, yawPattern: [0.4, -0.6, 0.2],
+      jitter: 0.1, resetMs: 520, adsMult: 0.7, recovery: 0.7,
+    },
+    adsFov: 62, zoom: 1.2, adsTime: 0.18,
+    reloadTime: 1.0, tacTime: 1.0, deployTime: 0.45,   // unused: R returns discs, glaive.regenMs refills
+    tracer: null,        // the disc mesh and its ribbon trail replace a tracer line
+    sfx: 'glaive',
+    projectile: 'glaive',
+    glaive: Object.freeze({
+      speedOut: 34, outMs: 550, speedBack: 30, turnDegPerSec: 540, radius: 0.22,
+      outDamage: 54, backDamage: 72, pierce: 3, pierceFalloff: 0.85, bounces: 1,
+      catchRadius: 1.4, pickupRadius: 1.3, lifetimeMs: 3600, regenMs: 4000,
+      blockDamage: 24, legGapMs: 120, color: '#ff3fd0',
+    }),
+  },
 };
 
 // Attach immutable handling profiles without duplicating the baseline recoil numbers.
 for (const [id, def] of Object.entries(WEAPONS)) WEAPONS[id] = withWeaponHandling(def);
 
-export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower'];
+export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive'];
 
 /** Charge profile with safe defaults for weapons that are not `charge` mode. */
 export function chargeProfile(def) {

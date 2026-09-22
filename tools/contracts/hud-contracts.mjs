@@ -1,5 +1,7 @@
 import { MODE_IDS, GUN_GAME_WEAPON_ORDER } from '../../shared/modes.js';
 import { makeSnapshot } from '../../server/protocol/snapshot.js';
+import { WEAPONS } from '../../shared/combatmath.js';
+import { glaiveDiscSlots } from '../../public/js/ui/hud-support.js';
 
 export async function runHudContracts(ok, installGlobals) {
   // HUD: just enough DOM to execute the shipped settings and scope paths.
@@ -829,6 +831,40 @@ export async function runHudContracts(ok, installGlobals) {
         && document.getElementById('ammoreserve').style.display !== 'none' && document.getElementById('ammoreserve').textContent === '3',
       'melee ammo renders an infinite magazine with no reserve and a gun restores the readout');
 
+      const discStates = (slots) => slots.map((slot) => slot.state).join(',');
+      ok(discStates(glaiveDiscSlots({ magSize: 2, mag: 2 })) === 'hand,hand'
+        && discStates(glaiveDiscSlots({ magSize: 3, mag: 1, inFlight: 1, fab01: [0.5] })) === 'hand,flight,fab'
+        && glaiveDiscSlots({ magSize: 3, mag: 1, inFlight: 1, fab01: [0.5] })[2].fill01 === 0.5
+        && discStates(glaiveDiscSlots({ magSize: 2, mag: 2, inFlight: 1, embedded: 1, fab01: [0.2] })) === 'hand,flight'
+        && discStates(glaiveDiscSlots({ magSize: 2, mag: 0, embedded: 1 })) === 'embedded,empty',
+      'RIPTIDE disc slots follow the server trim order: flight, hand, embedded, then fabricating');
+
+      const discPips = () => document.getElementById('disc-pips').children.map((pip) => [...pip.classes].find((name) => name.startsWith('is-')));
+      const glaiveDef = WEAPONS.glaive;
+      hud.setState({ wid: 'glaive', wname: glaiveDef.name, mag: glaiveDef.magSize, reserve: 0,
+        glaive: { magSize: glaiveDef.magSize, inFlight: 0, outLeg: 0, embedded: 0, fab01: [] } });
+      const discAmmo = document.getElementById('ammo');
+      const discReturn = document.querySelector('.vb-disc-return');
+      const fullDiscs = discAmmo.classList.contains('is-discs') && discAmmo.classList.contains('vb-w-glaive')
+        && !document.getElementById('disc-pips').hidden && discPips().join(',') === 'is-hand,is-hand'
+        && document.querySelectorAll('.vb-ch-disc.is-ready').length === 2
+        && discReturn.textContent.endsWith('RETURN') && !discReturn.classList.contains('is-ready');
+      hud.setState({ mag: 0, glaive: { magSize: 2, inFlight: 1, outLeg: 1, embedded: 1, fab01: [] } });
+      const thrownDiscs = discPips().join(',') === 'is-flight,is-embedded'
+        && document.querySelectorAll('.vb-ch-disc.is-ready').length === 0
+        && discReturn.classList.contains('is-ready') && discAmmo.classList.contains('is-disc-empty')
+        && document.getElementById('disc-pips').getAttribute('aria-label') === 'Discs: 0 ready, 1 in flight, 1 embedded';
+      hud.setState({ mag: 1, glaive: { magSize: 3, inFlight: 1, outLeg: 0, embedded: 0, fab01: [0.25] } });
+      const chaosDiscs = discPips().join(',') === 'is-hand,is-flight,is-fab'
+        && document.getElementById('disc-pips').children[2].style['--fill'] === '25%'
+        && !discReturn.classList.contains('is-ready');
+      hud.setState({ wid: 'rifle', wname: 'VK-77 RAPTOR', mag: 24, reserve: 3, glaive: null });
+      ok(fullDiscs && thrownDiscs && chaosDiscs
+        && !discAmmo.classList.contains('is-discs') && document.getElementById('disc-pips').hidden
+        && discReturn.hidden && document.querySelector('.vb-ch-discs').hidden
+        && document.getElementById('ammocount').textContent === '24',
+      'RIPTIDE ammo shows one pip per disc from the authoritative split, a live R return cue, and restores the readout on switch');
+
       const liveTick = makeSnapshot([], [], [], 20000, {
         ...prepMatch,
         phase: 'live',
@@ -925,8 +961,8 @@ export async function runHudContracts(ok, installGlobals) {
           'TDM groups players into two team tables with only relevant combat stats');
         } else if (mode === 'gungame') {
           ok(headers.join(',') === '#,PLAYER,WEAPON,PING'
-            && /12 \/ 12/.test(document.getElementById('match-phase-label').textContent)
-            && /12\/12/.test(document.getElementById('scores').textContent),
+            && document.getElementById('match-phase-label').textContent.includes(`${GUN_GAME_WEAPON_ORDER.length} / ${GUN_GAME_WEAPON_ORDER.length}`)
+            && document.getElementById('scores').textContent.includes(`${GUN_GAME_WEAPON_ORDER.length}/${GUN_GAME_WEAPON_ORDER.length}`),
           'Gun Game clamps authoritative weapon progression to the final weapon');
         } else {
           ok(!visible(document.getElementById('match-header')) && headers.join(',') === 'PLAYER,PING',

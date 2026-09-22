@@ -113,6 +113,8 @@ class ChaosPolicy extends FunPolicy {
     if (!upgrade || level !== current + 1 || p.credits < upgrade.price) return false;
     p.credits -= upgrade.price;
     p.chaosUpgrades[item] = level;
+    // Third plate seats its extra RIPTIDE disc at once; the normaliser keeps the cap.
+    if (item === 'glaive' && level === 1 && Array.isArray(p.mag)) p.mag[WEAPON_IDS.indexOf('glaive')]++;
     return true;
   }
   tick() {
@@ -151,6 +153,7 @@ export class ModeController {
         engine.tickEvents.push({ t: 'ev', kind, at: engine.now, ...fields });
       },
       respawn: (entity, spawn, options) => engine.respawnPlayer(entity, spawn, options),
+      glaiveStock: (entity) => engine.projectiles.glaiveStock(entity),
       chooseSpawn: (pool, entity, excludeIndex) => {
         if (Array.isArray(pool) && pool.length) {
           const candidates = ['fun', 'chaos', 'tdm', 'snd', 'gungame'].includes(modeId)

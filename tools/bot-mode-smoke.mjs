@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { attachBots } from '../server/bots.js';
 import { GameEngine } from '../server/game.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
-import { MODE_RULES, WEAPON_PRICES } from '../shared/modes.js';
+import { DEFAULT_WEAPON_ID, MODE_RULES, WEAPON_PRICES } from '../shared/modes.js';
 import {
   AIR,
   CONCRETE,
@@ -21,7 +21,7 @@ import { PLAYER_KEYS } from './lib/protocol-contract.mjs';
 
 const CLOCK_START = 1_000_000;
 const FEET_Y = GROUND + 1.02;
-const BUY_PRIORITY = ['sniper', 'lmg', 'rocket', 'longarc', 'rifle', 'shotgun', 'smg'];
+const BUY_PRIORITY = ['sniper', 'lmg', 'rocket', 'longarc', 'lance', 'glaive', 'rifle', 'shotgun', 'smg'];
 const MAP_META = Object.freeze({
   id: 'foundry',
   spawns: {
@@ -691,6 +691,106 @@ function proveDroppedBombRecoveryAndGuard() {
   }
 }
 
+/**
+ * RIPTIDE bots: they throw inside the disc's reach, press R (ack-only, never a
+ * reload) to turn a disc that just cut someone, and swap to the revolver when
+ * the target leaves the band.
+ */
+function proveGlaiveBehavior() {
+  const glaiveSlot = WEAPON_IDS.indexOf('glaive');
+  const revolverSlot = WEAPON_IDS.indexOf(DEFAULT_WEAPON_ID);
+  const engine = createEngine('tdm');
+  engine.addClient('human-0', 'Human');
+  const calls = captureInputs(engine);
+  const manager = attachBots(engine, 2);
+  try {
+    const human = engine.entities.get('human-0');
+    const bot = [...engine.entities.values()].find((player) => player.bot
+      && engine.mode.teamFor(player) !== engine.mode.teamFor(human));
+    assert.ok(bot, 'RIPTIDE fixture has a bot opposing the human');
+    const brain = manager.brains.find((candidate) => candidate.id === bot.id);
+    const teammate = [...engine.entities.values()].find((player) => player.bot && player !== bot);
+    setPosition(teammate, 110.5, 80.5);
+    const hold = (x, z) => {
+      engine.step(TICK_MS); // consume the respawn bookkeeping first
+      brain.spawnSwitchPending = false;
+      bot.weapon = glaiveSlot;
+      bot.mag[glaiveSlot] = bot.def.magSize;
+      bot.deployT = 0;
+      setPosition(bot, 20.5, 20.5);
+      setPosition(human, x, z);
+      bot.yaw = Math.atan2(-(x - bot.x), -(z - bot.z));
+    };
+
+    hold(30.5, 20.5);
+    const hpBefore = human.hp;
+    let threw = false, returned = false, cut = false, turned = false;
+    for (let tick = 0; tick < Math.round(4000 / TICK_MS) && !returned; tick++) {
+      engine.step(TICK_MS);
+      if (engine.projectiles.glaiveInFlight(bot) > 0) threw = true;
+      if (human.hp < hpBefore || human.state !== 'alive') cut = true;
+      const input = latestCall(calls, bot.id).input;
+      if (input.reload && bot.weapon === glaiveSlot) {
+        returned = true;
+        turned = [...engine.projectiles.active.values()].some((disc) => disc.type === 'glaive'
+          && disc.owner === bot && disc.phase === 'back');
+      }
+      assert.equal(bot.reloading, false, 'R on the RIPTIDE never starts a reload');
+      assert.equal(input.wantAds, false, 'RIPTIDE bots never aim down sights');
+    }
+    assert.ok(threw, 'RIPTIDE bot throws a disc at an enemy inside its band');
+    assert.ok(cut, 'RIPTIDE disc cuts the enemy');
+    assert.ok(returned, 'RIPTIDE bot presses R to turn a disc home after it cuts the enemy');
+    assert.ok(turned, 'the bot R press flips its out-leg disc onto the return leg');
+
+    // 15 m: disc 1 is far out (or has just cut) when the burst's second disc leaves.
+    // R turns every out-leg disc, so the bot waits until no fresh disc is on its out leg.
+    const clearDiscs = () => {
+      for (const disc of [...engine.projectiles.active.values()]) {
+        if (disc.type === 'glaive') engine.projectiles.active.delete(disc.id);
+      }
+    };
+    brain.glaiveSwapAt = 0;
+    brain.resetCombat();
+    clearDiscs();
+    human.hp = 1000;
+    hold(35.5, 20.5);
+    const thrown = new Map();
+    for (let tick = 0; tick < Math.round(3000 / TICK_MS); tick++) {
+      engine.step(TICK_MS);
+      for (const disc of engine.projectiles.active.values()) {
+        if (disc.type !== 'glaive' || disc.owner !== bot) continue;
+        if (!thrown.has(disc.id)) thrown.set(disc.id, null);
+        if (disc.phase === 'back' && thrown.get(disc.id) === null) thrown.set(disc.id, disc.flippedAt - disc.launchedAt);
+      }
+    }
+    const flipAges = [...thrown.values()].filter((age) => age !== null);
+    assert.ok(thrown.size >= 2, `RIPTIDE bot throws a burst at 15 m (${thrown.size} discs)`);
+    assert.ok(flipAges.every((age) => age >= 300),
+      `bot R never turns a disc it has just thrown (flip ages ${flipAges.join(', ')} ms)`);
+    human.hp = 100;
+
+    brain.glaiveSwapAt = 0;
+    brain.resetCombat();
+    for (const disc of [...engine.projectiles.active.values()]) {
+      if (disc.type === 'glaive') engine.projectiles.active.delete(disc.id);
+    }
+    human.hp = 100;
+    hold(20.5 + 36, 20.5);
+    let swapped = false;
+    for (let tick = 0; tick < Math.round(4000 / TICK_MS) && !swapped; tick++) {
+      engine.step(TICK_MS);
+      const input = latestCall(calls, bot.id).input;
+      if (input.switchTo === revolverSlot) swapped = true;
+      else assert.equal(input.wantFire && bot.weapon === glaiveSlot, false,
+        'RIPTIDE bot holds its disc beyond the reach');
+    }
+    assert.ok(swapped, 'RIPTIDE bot swaps to the revolver beyond the disc band');
+  } finally {
+    disposeAndProveUnhooked(engine, manager, calls);
+  }
+}
+
 console.log('bot mode smoke: deterministic direct behavior');
 proveTdmTargeting();
 proveAuthoritativeRowsAndProtection();
@@ -698,4 +798,5 @@ proveGunGameProgression();
 proveSndEconomyAndPrepSafety();
 provePlantAndDefuseBehavior();
 proveDroppedBombRecoveryAndGuard();
+proveGlaiveBehavior();
 console.log('bot mode smoke: ok');

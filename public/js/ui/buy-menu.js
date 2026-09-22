@@ -141,7 +141,10 @@ export class BuyMenuController {
       const rpm = def.rpm || 0;
       const mag = def.magSize || 0;
       const spareMags = (def.spareRounds ?? def.spareMags) || 0;
-      statsEl.textContent = `DMG ${damage} · ${rpm ? `${rpm} RPM · ` : ''}${mag} RDS · ${spareMags} ${def.spareRounds != null ? 'SHELLS' : 'MAGS'}`;
+      statsEl.textContent = def.glaive
+        // Returning discs: out/back leg damage and the disc count; there is no reserve.
+        ? `DMG ${Number(combatDamage(def.glaive.outDamage).toFixed(1))}/${Number(combatDamage(def.glaive.backDamage).toFixed(1))} · ${mag} DISCS · RETURNING`
+        : `DMG ${damage} · ${rpm ? `${rpm} RPM · ` : ''}${mag} RDS · ${spareMags} ${def.spareRounds != null ? 'SHELLS' : 'MAGS'}`;
 
       const stages = [];
       if (mode === 'chaos') {

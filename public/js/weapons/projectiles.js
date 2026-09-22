@@ -8,6 +8,8 @@ import {
 } from '../../../shared/grenade-rules.js';
 import { ROCKET_RULES, stepRocket } from '../../../shared/rocket-rules.js';
 import { BOLT_RULES, boltBounces, stepBolt } from '../../../shared/bolt-rules.js';
+import { GLAIVE_CHEST_DROP, GLAIVE_RULES, glaiveFlip, stepGlaive } from '../../../shared/glaive-rules.js';
+import { EYE_HEIGHT } from '../../../shared/combatmath.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { createBlenderParts } from '../engine/blender-assets.js';
 
@@ -25,6 +27,20 @@ const AUTHORED_WORLD_SCALE = Object.freeze({ frag: 1.9, limpet: 2.2, pulse: 2.0,
 const MOLOTOV_WICK_TIP = Object.freeze([-0.037, 0.303, 0]);
 const ROCKET_TRAILS_PER_SECOND = 360;
 const ROCKET_TRAIL_BURST = 12;
+// GV-4 RIPTIDE disc: world-prop radius (a touch over the 0.11 m authored plate so
+// it reads mid-flight), spin rate, ribbon length and the embedded-pickup presentation.
+const GLAIVE_COLOR = 0xff3fd0;
+const GLAIVE_DISC_R = 0.14;
+const GLAIVE_TEETH = 24;
+const GLAIVE_SPIN = 42;
+const GLAIVE_TRAIL_POINTS = 28;
+const GLAIVE_TRAIL_HALF_WIDTH = 0.075;
+const GLAIVE_TRAIL_STEP = 0.18;
+/** Embedded disc: the share of the radius left standing proud of the wall. */
+const GLAIVE_EMBED_PROUD = 0.45;
+/** Owner speed threshold between the out (34 m/s) and back (30 m/s) legs. */
+const GLAIVE_BACK_SPEED = (GLAIVE_RULES.speedOut + GLAIVE_RULES.speedBack) / 2;
+const GLAIVE_UNPARK_MARGIN = 1.5; // m past the catch reach before a sync un-parks a caught disc
 
 /** Blast presentation per projectile type: colour, growth, and life of the flash sphere. */
 const BLAST_STYLE = Object.freeze({
@@ -32,6 +48,8 @@ const BLAST_STYLE = Object.freeze({
   limpet: Object.freeze({ color: 0xffd9a8, grow: 0.46, life: 0.5, ring: true, ringColor: 0xff5a3c }),
   pulse: Object.freeze({ color: 0x59e8ff, grow: 0.65, life: 0.42, wireframe: true, ring: true, ringColor: 0x9ff4ff }),
   bolt: Object.freeze({ color: 0x7dfcff, grow: 0.16, life: 0.28, ring: false }),
+  glaive: Object.freeze({ color: GLAIVE_COLOR, grow: 0.08, life: 0.22, ring: false }),
+  glaiveCatch: Object.freeze({ color: GLAIVE_COLOR, grow: 0.05, life: 0.32, ring: true, ringColor: 0xff8ae6 }),
   rocket: Object.freeze({ color: 0xffb347, grow: 0.5, life: 0.55, ring: true, ringColor: 0xff7a1c }),
   molotov: Object.freeze({ color: 0xff7924, grow: 0.2, life: 0.3, ring: false }),
 });
@@ -40,21 +58,65 @@ function styleFor(type) {
   return BLAST_STYLE[type] || BLAST_STYLE.frag;
 }
 
+/** Flat 24-tooth saw plate with a hub bore, centred on the origin in the XZ plane. */
+function glaiveDiscGeometry() {
+  const shape = new THREE.Shape();
+  const root = GLAIVE_DISC_R * 0.84;
+  for (let i = 0; i < GLAIVE_TEETH; i++) {
+    const a0 = i / GLAIVE_TEETH * Math.PI * 2;
+    const a1 = (i + 0.62) / GLAIVE_TEETH * Math.PI * 2;
+    // Raked tooth: a root point, then the tip leaning into the spin direction.
+    if (i === 0) shape.moveTo(Math.cos(a0) * root, Math.sin(a0) * root);
+    else shape.lineTo(Math.cos(a0) * root, Math.sin(a0) * root);
+    shape.lineTo(Math.cos(a1) * GLAIVE_DISC_R, Math.sin(a1) * GLAIVE_DISC_R);
+  }
+  shape.closePath();
+  const bore = new THREE.Path();
+  bore.absarc(0, 0, 0.018, 0, Math.PI * 2, true);
+  shape.holes.push(bore);
+  const geometry = new THREE.ExtrudeGeometry(shape, { depth: 0.022, bevelEnabled: false, curveSegments: 8 });
+  geometry.translate(0, 0, -0.011);
+  geometry.rotateX(-Math.PI / 2);
+  return geometry;
+}
+
+/** Shared triangle index for a two-vertex-per-point ribbon of `points` samples. */
+function glaiveTrailIndex(points) {
+  const index = [];
+  for (let i = 0; i < points - 1; i++) {
+    const a = i * 2;
+    index.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+  }
+  return index;
+}
+
 /**
  * Predicted presentation for every thrown or launched explosive: frag/limpet/pulse
- * grenades, the rocket, and the LONGARC bolt. Authority `projectileLaunch` events own the truth, but the local
+ * grenades, the rocket, the LONGARC bolt and the GV-4 RIPTIDE disc. Authority `projectileLaunch` events own the truth, but the local
  * player's own launch is spawned immediately (`launch(event, {local:true})`) and later
  * *adopted* by the matching authority event (`{fromSelf:true}`) so nothing pops or doubles.
  * The charge preview draws the same shared integrator's path per grenade type.
  */
 export class ProjectileFX {
-  constructor(scene, getBlock = () => 0, { getEntityPosition = null, onTrail = null, onBounce = null, camera = null } = {}) {
+  constructor(scene, getBlock = () => 0, {
+    getEntityPosition = null, onTrail = null, onBounce = null, onGlaiveFlip = null, onGlaiveFlight = null,
+    camera = null,
+  } = {}) {
     this.scene = scene;
     this.getBlock = getBlock;
     this.getEntityPosition = typeof getEntityPosition === 'function' ? getEntityPosition : null;
     this.onTrail = typeof onTrail === 'function' ? onTrail : null;
+    // `onBounce(x, y, z, type, contact)`: bolt ricochets and glaive out-leg wall contacts.
     this.onBounce = typeof onBounce === 'function' ? onBounce : null;
+    // `onGlaiveFlip(projectile, reason)`: one of the local player's discs turned home.
+    this.onGlaiveFlip = typeof onGlaiveFlip === 'function' ? onGlaiveFlip : null;
+    // `onGlaiveFlight(disc)`: every frame a disc is airborne (the positional whirr loop).
+    this.onGlaiveFlight = typeof onGlaiveFlight === 'function' ? onGlaiveFlight : null;
     this.projectiles = new Map();
+    /** Embedded RIPTIDE discs waiting for their owner (or the 4 s fabricate), keyed by pid. */
+    this.glaivePickups = new Map();
+    this._glaiveTarget = { x: 0, y: 0, z: 0 };
+    this._glaiveBasis = new THREE.Matrix4();
     this.blasts = [];
     this.camera = camera;
     this._aimTarget = new THREE.Vector3();
@@ -127,6 +189,38 @@ export class ProjectileFX {
       color: 0x7dfcff, transparent: true, opacity: 0.35, toneMapped: false,
       blending: THREE.AdditiveBlending, depthWrite: false,
     });
+    // RIPTIDE disc: toothed blade plate lying in local XZ (normal +y), hub, razor-glow rim.
+    this.glaiveDiscGeometry = glaiveDiscGeometry();
+    this.glaiveHubGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.036, 12);
+    this.glaiveRimGeometry = new THREE.TorusGeometry(GLAIVE_DISC_R * 0.72, 0.01, 4, 32);
+    this.glaiveRimGeometry.rotateX(Math.PI / 2);
+    this.glaiveBladeMaterial = new THREE.MeshStandardMaterial({
+      color: 0xc3c8d0, roughness: 0.28, metalness: 0.92,
+      emissive: GLAIVE_COLOR, emissiveIntensity: 0.12,
+    });
+    this.glaiveHubMaterial = new THREE.MeshStandardMaterial({
+      color: 0x33363c, roughness: 0.45, metalness: 0.8,
+    });
+    this.glaiveGlowMaterial = new THREE.MeshBasicMaterial({
+      color: GLAIVE_COLOR, transparent: true, opacity: 0.95, toneMapped: false,
+      blending: THREE.AdditiveBlending, depthWrite: false,
+    });
+    // Ribbon wake: per-vertex colour over additive blending, so black is transparent.
+    this.glaiveTrailMaterial = new THREE.MeshBasicMaterial({
+      vertexColors: true, transparent: true, toneMapped: false,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    });
+    this._glaiveTrailIndex = glaiveTrailIndex(GLAIVE_TRAIL_POINTS);
+    // Owner-only outline of an embedded disc: an inverted hull, plus a faint copy that
+    // ignores depth so the owner can find a disc lodged behind cover.
+    this.glaiveOutlineMaterial = new THREE.MeshBasicMaterial({
+      color: GLAIVE_COLOR, side: THREE.BackSide, toneMapped: false,
+    });
+    this.glaiveGhostMaterial = new THREE.MeshBasicMaterial({
+      color: GLAIVE_COLOR, transparent: true, opacity: 0.22, toneMapped: false,
+      blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false,
+    });
+    this.glaiveCrescentGeometry = new THREE.RingGeometry(0.1, 0.16, 16, 1, Math.PI * 0.15, Math.PI * 0.7);
 
     // Submit rocket bodies, noses and exhausts in three instanced draws per pass.
     this._rocketCapacity = 256;
@@ -338,6 +432,17 @@ export class ProjectileFX {
         }
       }
       group.userData.halo = halo;
+    } else if (type === 'glaive') {
+      // RIPTIDE disc: the group faces the flight (-z forward, so the plate lies in the
+      // plane of travel and the horizontal right), the `spin` child whirls about +y.
+      const spin = new THREE.Group();
+      spin.add(
+        new THREE.Mesh(this.glaiveDiscGeometry, this.glaiveBladeMaterial),
+        new THREE.Mesh(this.glaiveHubGeometry, this.glaiveHubMaterial),
+        new THREE.Mesh(this.glaiveRimGeometry, this.glaiveGlowMaterial),
+      );
+      group.add(spin);
+      group.userData.spin = spin;
     } else if (type === 'bolt') {
       // Coilgun bolt: thin emissive core, additive glow shell, cyan light.
       const core = new THREE.Mesh(this.capGeometry, this.boltCoreMaterial);
@@ -384,7 +489,8 @@ export class ProjectileFX {
     if (!event || !Array.isArray(event.o) || !Array.isArray(event.v)) return false;
     const values = [...event.o, ...event.v].map(Number);
     if (!values.every(Number.isFinite)) return false;
-    const type = event.type === 'rocket' || event.type === 'bolt' || GRENADE_TYPES[event.type]
+    const type = event.type === 'rocket' || event.type === 'bolt' || event.type === 'glaive'
+      || GRENADE_TYPES[event.type]
       ? event.type
       : 'frag';
     if (type === 'limpet' && (!Array.isArray(event.n) || event.n.length !== 3
@@ -392,7 +498,8 @@ export class ProjectileFX {
     if (type === 'limpet' && !local && this._mineIds && !this._mineIds.has(String(event.pid))) return false;
     const fallbackFuse = type === 'rocket'
       ? ROCKET_RULES.lifetimeMs
-      : type === 'bolt' ? BOLT_RULES.lifetimeMs : GRENADE_TYPES[type].fuseMs;
+      : type === 'bolt' ? BOLT_RULES.lifetimeMs
+        : type === 'glaive' ? GLAIVE_RULES.lifetimeMs : GRENADE_TYPES[type].fuseMs;
     const fuseMs = Number(event.fuse);
     const fuse = type === 'limpet' ? Infinity
       : Math.max(0.05, (Number.isFinite(fuseMs) && fuseMs > 0 ? fuseMs : fallbackFuse) / 1000);
@@ -400,12 +507,18 @@ export class ProjectileFX {
     const bn = Number(event.bn);
     const bouncesLeft = type === 'bolt'
       ? Number.isFinite(bn) ? Math.max(0, Math.floor(bn)) : boltBounces(Number(event.charge ?? 1))
-      : 0;
+      : type === 'glaive' ? Number.isFinite(bn) ? Math.max(0, Math.floor(bn)) : GLAIVE_RULES.bounces
+        : 0;
 
     if (!local) {
       if (!event.pid || this.projectiles.has(String(event.pid))) return false;
       if (fromSelf && !event.child && this._adoptLocal(String(event.pid), type, values, fuse)) {
         const adopted = this.projectiles.get(String(event.pid));
+        if (type === 'glaive') {
+          // The prediction may already have bounced or turned home: keep its leg.
+          this._configureGlaive(adopted, event, true);
+          return true;
+        }
         adopted.bouncesLeft = bouncesLeft;
         adopted.chaos = event.chaos || 0;
         if (type === 'limpet') this._configureMine(adopted, event);
@@ -437,16 +550,100 @@ export class ProjectileFX {
       trailAt: 0,
     });
     if (type === 'limpet') this._configureMine(this.projectiles.get(id), event);
-    if (type === 'rocket' || type === 'bolt') this._orientRocket(this.projectiles.get(id));
+    if (type === 'glaive') this._configureGlaive(this.projectiles.get(id), event, local || fromSelf);
+    if (type === 'rocket' || type === 'bolt' || type === 'glaive') this._orientRocket(this.projectiles.get(id));
     return true;
+  }
+
+  /**
+   * RIPTIDE flight state on a fresh or adopted disc. Launch events carry `phase`
+   * ('out'|'back'), `flip` (the out-leg ms; a Chaos Long tether lengthens it) and `bn`;
+   * anything missing falls back to `GLAIVE_RULES`. `own` marks the local player's
+   * discs: they steer toward the camera and raise the flip hook.
+   */
+  _configureGlaive(disc, event, own) {
+    const outMs = Number(event.flip);
+    disc.outAge = (Number.isFinite(outMs) && outMs > 0 ? outMs : GLAIVE_RULES.outMs) / 1000;
+    const phase = event.phase ?? event.ph;
+    if (!disc.phase) disc.phase = phase === 'back' ? 'back' : 'out';
+    else if (phase === 'back' && disc.phase === 'out') this._flipGlaive(disc, 'return');
+    disc.ownerId = event.id != null ? String(event.id) : disc.ownerId ?? null;
+    disc.own = !!own;
+    if (Number.isFinite(Number(event.bn)) && disc.phase === 'out') disc.bouncesLeft = Math.max(0, Math.floor(event.bn));
+    if (!disc.trail) disc.trail = this._createGlaiveTrail(disc);
+  }
+
+  _createGlaiveTrail(disc) {
+    const positions = new Float32Array(GLAIVE_TRAIL_POINTS * 2 * 3);
+    const colors = new Float32Array(GLAIVE_TRAIL_POINTS * 2 * 3);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+    geometry.setIndex(this._glaiveTrailIndex);
+    geometry.setDrawRange(0, 0);
+    const mesh = new THREE.Mesh(geometry, this.glaiveTrailMaterial);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 7;
+    this.scene.add(mesh);
+    // Newest sample first; each keeps the disc's lateral (right) axis at that point.
+    return { mesh, geometry, positions, colors, points: [{ x: disc.x, y: disc.y, z: disc.z, rx: 1, rz: 0 }] };
+  }
+
+  /** Turn a disc home (predicted timer/bounce, R, or an authority update). */
+  _flipGlaive(disc, reason) {
+    if (!glaiveFlip(disc, disc.age * 1000, reason)) return false;
+    if (disc.own) this.onGlaiveFlip?.(disc, reason);
+    return true;
+  }
+
+  /**
+   * Predict R ("return discs") for the local player: every own disc still on its out
+   * leg turns home now. Authority confirms with a `projectileUpdate` per disc.
+   */
+  returnOwnGlaives() {
+    let flipped = 0;
+    for (const disc of this.projectiles.values()) {
+      if (disc.type === 'glaive' && disc.own && this._flipGlaive(disc, 'return')) flipped++;
+    }
+    return flipped;
+  }
+
+  /** Own discs still flying (predicted or confirmed): HUD pips can read this. */
+  ownGlaivesInFlight() {
+    let count = 0;
+    for (const disc of this.projectiles.values()) if (disc.type === 'glaive' && disc.own && !disc.parked) count++;
+    return count;
   }
 
   updateAuthority(event) {
     const p = this.projectiles.get(String(event.pid));
     if (!p || !Array.isArray(event.o) || !Array.isArray(event.v) || ![...event.o, ...event.v].every(Number.isFinite)) return false;
+    let back = false;
+    if (p.type === 'glaive') {
+      // Updates carry `phase` (and `flip`, the reason, on the flip itself); without it
+      // the leg speed tells them apart.
+      const phase = event.phase ?? event.ph;
+      back = phase ? phase === 'back' : Math.hypot(...event.v) < GLAIVE_BACK_SPEED;
+      // An out-leg sync sent before the flip arrives late (Chaos syncs the out leg):
+      // the out leg never resumes, so it must not undo the flip and replay its cue.
+      if (!back && p.phase === 'back') return true;
+      // Syncs sent before the server's own catch trail a predicted catch by about one
+      // RTT; only a disc clearly outside the catch reach is still flying.
+      if (p.parked && p.caught && p.own && this._glaiveNearOwner(p, event.o)) return true;
+    }
     [p.x, p.y, p.z] = event.o;
     [p.vx, p.vy, p.vz] = event.v;
     if (Number.isFinite(event.bn)) p.bouncesLeft = event.bn;
+    if (p.type === 'glaive') {
+      if (back && p.phase === 'out') {
+        this._flipGlaive(p, typeof event.flip === 'string' ? event.flip : 'return');
+        [p.vx, p.vy, p.vz] = event.v;
+      }
+      // An authoritative position means the disc is still flying: undo a predicted park.
+      p.parked = false;
+      p.group.visible = true;
+      if (p.trail) p.trail.mesh.visible = true;
+    }
     p.group.position.set(p.x, p.y, p.z);
     return true;
   }
@@ -474,6 +671,23 @@ export class ProjectileFX {
     this.projectiles.delete(oldest.id);
     oldest.id = pid;
     oldest.local = false;
+    if (type === 'glaive') {
+      // A disc flies 34 m/s, so compare against where the launch has carried it by now
+      // and leave a prediction that already bounced or turned home on its own leg.
+      if (oldest.phase === 'out' && !oldest.flippedAt) {
+        oldest.vx = values[3]; oldest.vy = values[4]; oldest.vz = values[5];
+        const ex = values[0] + values[3] * oldest.age;
+        const ey = values[1] + values[4] * oldest.age;
+        const ez = values[2] + values[5] * oldest.age;
+        if (Math.hypot(oldest.x - ex, oldest.y - ey, oldest.z - ez) > 0.6) {
+          oldest.x = ex; oldest.y = ey; oldest.z = ez;
+          oldest.group.position.set(ex, ey, ez);
+        }
+      }
+      oldest.fuse = fuse + oldest.age;
+      this.projectiles.set(pid, oldest);
+      return true;
+    }
     // Authority and prediction share the integrator, so the states are near-identical;
     // snapping the velocity while keeping the rendered position avoids a visible hop.
     oldest.vx = values[3]; oldest.vy = values[4]; oldest.vz = values[5];
@@ -604,16 +818,54 @@ export class ProjectileFX {
     }
   }
 
-  explode(event) {
+  /**
+   * Authoritative end of a projectile. RIPTIDE discs reuse the channel for every way a
+   * disc leaves the air: `caught` (back in the owner's hand), `reason: 'embed'` (lodged
+   * in a wall as an owner pickup; optional `n` normal and `ms` lifetime), `picked` (an
+   * embedded disc was collected) and any other reason (expiry/owner lost: a fizzle).
+   * Embedded discs otherwise leave through `syncGlaivePickups` (the `glaiveStock` event).
+   * `options.fromSelf` marks the local player's disc (owner-only outline).
+   */
+  explode(event, { fromSelf } = {}) {
     const id = String(event?.pid || event?.gid || '');
     const existing = this.projectiles.get(id);
     const type = event?.type || existing?.type || 'frag';
+    if (type === 'glaive') return this._endGlaive(event, id, existing, fromSelf ?? existing?.own ?? false);
     this._removeProjectile(id);
     const x = Number(event?.x), y = Number(event?.y), z = Number(event?.z);
     if (![x, y, z].every(Number.isFinite)) return false;
     if (type === 'smoke') return true;
     const style = styleFor(type);
     this._spawnBlast(x, y, z, style, Number(event.radius) || style.grow * 12);
+    return true;
+  }
+
+  _endGlaive(event, id, existing, own) {
+    const heading = existing ? (() => {
+      const speed = Math.hypot(existing.vx, existing.vy, existing.vz) || 1;
+      return { x: existing.vx / speed, y: existing.vy / speed, z: existing.vz / speed };
+    })() : null;
+    this._removeProjectile(id);
+    const x = Number(event?.x), y = Number(event?.y), z = Number(event?.z);
+    if (event?.picked) {
+      const pickup = this.glaivePickups.get(id);
+      this.removeGlaivePickup(id);
+      const at = [x, y, z].every(Number.isFinite) ? { x, y, z } : pickup;
+      if (at) this._spawnBlast(at.x, at.y, at.z, BLAST_STYLE.glaive, 0.5);
+      return true;
+    }
+    if (![x, y, z].every(Number.isFinite)) return false;
+    if (event?.caught) {
+      // Own catches are the viewmodel's job (horn clamp); others see a ring at the hand.
+      if (!own) this._spawnBlast(x, y, z, BLAST_STYLE.glaiveCatch, 0.4);
+      return true;
+    }
+    if (event?.embed || event?.reason === 'embed') {
+      const lifeMs = Number(event.ms);
+      return this.embedGlaive({ pid: id, ownerId: event.id ?? existing?.ownerId, x, y, z, n: event.n, own, heading,
+        lifeMs: Number.isFinite(lifeMs) && lifeMs > 0 ? lifeMs : GLAIVE_RULES.regenMs });
+    }
+    this._spawnBlast(x, y, z, BLAST_STYLE.glaive, 0.9);
     return true;
   }
 
@@ -711,6 +963,8 @@ export class ProjectileFX {
         if (projectile.hit && !projectile.local && !projectile.chaos) {
           projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
         }
+      } else if (projectile.type === 'glaive') {
+        this._stepGlaive(projectile, step);
       } else if (!projectile.stuck) {
         stepGrenade(projectile, step, this.isSolid);
         const type = GRENADE_TYPES[projectile.type];
@@ -751,6 +1005,7 @@ export class ProjectileFX {
       this._trailTokens--;
     }
     this._trailCursor = trails.length ? (this._trailCursor + emissions) % trails.length : 0;
+    this._updateGlaivePickups(step);
     this._updateRocketBatches();
     this._updateLights();
 
@@ -777,12 +1032,263 @@ export class ProjectileFX {
     }
   }
 
+  /**
+   * Predicted RIPTIDE flight. Timers run on the disc's own age (authority updates and
+   * `ph` correct a Chaos-lengthened out leg); the return leg steers at the owner's chest.
+   * A predicted catch or back-leg wall contact parks the disc: only the authoritative
+   * `projectileExplode` (caught/embed) resolves it, so the rig never catches early.
+   */
+  _stepGlaive(disc, step) {
+    const spin = disc.group.userData.spin;
+    if (disc.parked) {
+      spin.rotation.y += step * GLAIVE_SPIN * 0.5;
+      return;
+    }
+    if (disc.phase === 'out' && disc.age >= disc.outAge) this._flipGlaive(disc, 'time');
+    const target = disc.phase === 'back' ? this._glaiveOwnerTarget(disc) : null;
+    stepGlaive(disc, step, this.raycast, target, {
+      onBounce: (contact) => {
+        if (disc.own) this.onGlaiveFlip?.(disc, 'bounce');
+        this._spawnBlast(contact.x, contact.y, contact.z, BLAST_STYLE.glaive, 0.6);
+        this._spawnGlaiveCrescent(contact);
+        this.onBounce?.(contact.x, contact.y, contact.z, 'glaive', contact);
+      },
+    });
+    if (disc.caught || disc.hit) {
+      // Hold here until authority resolves it; a lost event still times the disc out.
+      disc.parked = true;
+      if (disc.caught) disc.group.visible = disc.trail.mesh.visible = false;
+      if (!disc.local) disc.fuse = Math.min(disc.fuse, disc.age + 0.6);
+    }
+    this._orientRocket(disc);
+    // Bank into the return curve a little so the plate reads as a thrown disc.
+    if (disc.phase === 'back') disc.group.rotateZ(0.35);
+    spin.rotation.y += step * GLAIVE_SPIN;
+    this._updateGlaiveTrail(disc);
+    if (!disc.parked) this.onGlaiveFlight?.(disc);
+  }
+
+  /** `point` lies within the catch reach (plus a latency margin) of the disc owner's chest. */
+  _glaiveNearOwner(disc, point) {
+    const target = this._glaiveOwnerTarget(disc);
+    if (!target) return false;
+    const reach = GLAIVE_RULES.catchRadius + GLAIVE_UNPARK_MARGIN;
+    return Math.hypot(point[0] - target.x, point[1] - target.y, point[2] - target.z) <= reach;
+  }
+
+  /** The owner's chest: the camera eye for own discs, the presented avatar otherwise. */
+  _glaiveOwnerTarget(disc) {
+    const target = this._glaiveTarget;
+    if (disc.own && this.camera) {
+      target.x = this.camera.position.x;
+      target.y = this.camera.position.y - GLAIVE_CHEST_DROP;
+      target.z = this.camera.position.z;
+      return target;
+    }
+    const owner = disc.ownerId && this.getEntityPosition ? this.getEntityPosition(disc.ownerId) : null;
+    if (!owner) return null;
+    target.x = owner.x;
+    target.y = owner.y + EYE_HEIGHT - GLAIVE_CHEST_DROP;
+    target.z = owner.z;
+    return target;
+  }
+
+  /**
+   * Magenta ribbon behind a disc: flat in the disc plane, fading to the tail. The out
+   * leg draws it solid; the return leg breaks it into dashes that pulse and run toward
+   * the disc, so a returning (more dangerous) disc reads at a glance.
+   */
+  _updateGlaiveTrail(disc) {
+    const trail = disc.trail;
+    if (!trail) return;
+    const speed = Math.hypot(disc.vx, disc.vz);
+    const rx = speed > 1e-4 ? -disc.vz / speed : 1;
+    const rz = speed > 1e-4 ? disc.vx / speed : 0;
+    const points = trail.points;
+    const head = points[0];
+    const moved = Math.hypot(disc.x - head.x, disc.y - head.y, disc.z - head.z);
+    if (moved >= GLAIVE_TRAIL_STEP || points.length === 1) {
+      points.unshift({ x: disc.x, y: disc.y, z: disc.z, rx, rz });
+      if (points.length > GLAIVE_TRAIL_POINTS) points.pop();
+    } else {
+      head.x = disc.x; head.y = disc.y; head.z = disc.z; head.rx = rx; head.rz = rz;
+    }
+    const back = disc.phase === 'back';
+    const pulse = back ? 0.75 + 0.25 * Math.sin(disc.age * 22) : 1;
+    const { positions, colors } = trail;
+    const count = points.length;
+    let distance = 0;
+    for (let i = 0; i < count; i++) {
+      const p = points[i];
+      if (i > 0) {
+        const q = points[i - 1];
+        distance += Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z);
+      }
+      const fade = count > 1 ? (1 - i / (count - 1)) ** 1.5 : 0;
+      const width = GLAIVE_TRAIL_HALF_WIDTH * (0.35 + 0.65 * fade);
+      const dash = back ? (Math.sin(distance * 7 + disc.age * 34) > -0.1 ? 1 : 0.12) : 1;
+      const k = fade * dash * pulse;
+      const o = i * 6;
+      positions[o] = p.x + p.rx * width; positions[o + 1] = p.y; positions[o + 2] = p.z + p.rz * width;
+      positions[o + 3] = p.x - p.rx * width; positions[o + 4] = p.y; positions[o + 5] = p.z - p.rz * width;
+      // #ff3fd0 scaled by the fade; additive blending turns black into clear.
+      colors[o] = colors[o + 3] = k;
+      colors[o + 1] = colors[o + 4] = k * 0.25;
+      colors[o + 2] = colors[o + 5] = k * 0.82;
+    }
+    trail.geometry.attributes.position.needsUpdate = true;
+    trail.geometry.attributes.color.needsUpdate = true;
+    trail.geometry.setDrawRange(0, Math.max(0, count - 1) * 6);
+  }
+
+  /** Magenta crescent scorch where a disc bit into a wall; fades over two seconds. */
+  _spawnGlaiveCrescent(contact) {
+    if (!Number.isFinite(contact?.nx)) return;
+    this._glaiveDecals ||= [];
+    if (this._glaiveDecals.length >= 24) this._disposeGlaiveDecal(this._glaiveDecals.shift());
+    const material = new THREE.MeshBasicMaterial({
+      color: GLAIVE_COLOR, transparent: true, opacity: 0.9, toneMapped: false,
+      depthWrite: false, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    });
+    const mesh = new THREE.Mesh(this.glaiveCrescentGeometry, material);
+    mesh.position.set(contact.x + contact.nx * 0.01, contact.y + contact.ny * 0.01, contact.z + contact.nz * 0.01);
+    mesh.lookAt(mesh.position.x + contact.nx, mesh.position.y + contact.ny, mesh.position.z + contact.nz);
+    mesh.rotateZ(Math.random() * Math.PI * 2);
+    mesh.renderOrder = 6;
+    this.scene.add(mesh);
+    this._glaiveDecals.push({ mesh, material, age: 0, life: 2 });
+  }
+
+  _disposeGlaiveDecal(decal) {
+    this.scene.remove(decal.mesh);
+    decal.material.dispose();
+  }
+
+  /**
+   * An embedded RIPTIDE disc from a `projectileExplode` with `embed`: the plate stands
+   * edge-first in the wall at the contact, quivers out its impact and waits for its
+   * owner. `n` is the wall normal when the event carries it; otherwise the disc's own
+   * last heading stands in. The magenta outline is drawn only when `own`.
+   */
+  embedGlaive({ pid, ownerId = null, x, y, z, n = null, own = false, lifeMs = GLAIVE_RULES.regenMs, heading = null }) {
+    const id = String(pid ?? '');
+    if (!id || ![x, y, z].every(Number.isFinite)) return false;
+    this.removeGlaivePickup(id);
+    let nx = 0, ny = 0, nz = 0;
+    if (Array.isArray(n) && n.length === 3 && n.every(Number.isFinite)) [nx, ny, nz] = n;
+    else if (heading) { nx = -heading.x; ny = -heading.y; nz = -heading.z; }
+    let length = Math.hypot(nx, ny, nz);
+    if (!(length > 1e-6)) { nx = 0; ny = 1; nz = 0; length = 1; }
+    nx /= length; ny /= length; nz /= length;
+    // Plate plane holds the wall normal and a horizontal tangent: the disc stands in
+    // the wall the way it flew into it. A floor/ceiling hit uses world x instead.
+    const up = Math.abs(ny) > 0.9 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+    const normal = new THREE.Vector3(nx, ny, nz);
+    const tangent = new THREE.Vector3().crossVectors(up, normal).normalize();
+    const plateNormal = new THREE.Vector3().crossVectors(normal, tangent).normalize();
+    const group = new THREE.Group();
+    group.position.set(
+      x + nx * GLAIVE_DISC_R * GLAIVE_EMBED_PROUD,
+      y + ny * GLAIVE_DISC_R * GLAIVE_EMBED_PROUD,
+      z + nz * GLAIVE_DISC_R * GLAIVE_EMBED_PROUD,
+    );
+    group.quaternion.setFromRotationMatrix(this._glaiveBasis.makeBasis(tangent, plateNormal, normal));
+    const quiver = new THREE.Group();
+    // Pivot at the wall so the proud half wags about the bite point.
+    quiver.position.z = -GLAIVE_DISC_R * GLAIVE_EMBED_PROUD;
+    const plate = new THREE.Group();
+    plate.position.z = GLAIVE_DISC_R * GLAIVE_EMBED_PROUD;
+    plate.add(
+      new THREE.Mesh(this.glaiveDiscGeometry, this.glaiveBladeMaterial),
+      new THREE.Mesh(this.glaiveHubGeometry, this.glaiveHubMaterial),
+      new THREE.Mesh(this.glaiveRimGeometry, this.glaiveGlowMaterial),
+    );
+    if (own) {
+      const outline = new THREE.Mesh(this.glaiveDiscGeometry, this.glaiveOutlineMaterial);
+      outline.scale.set(1.14, 2.2, 1.14);
+      const ghost = new THREE.Mesh(this.glaiveDiscGeometry, this.glaiveGhostMaterial);
+      ghost.renderOrder = 10;
+      plate.add(outline, ghost);
+    }
+    quiver.add(plate);
+    group.add(quiver);
+    this.scene.add(group);
+    const life = Math.max(0.1, (Number(lifeMs) || GLAIVE_RULES.regenMs) / 1000);
+    this.glaivePickups.set(id, {
+      id, ownerId: ownerId == null ? null : String(ownerId), group, quiver, own: !!own, age: 0, life, x, y, z,
+    });
+    this._spawnGlaiveCrescent({ x, y, z, nx, ny, nz });
+    return true;
+  }
+
+  /** Drop an embedded disc (taken by its owner, fabricated away or cleared by authority). */
+  removeGlaivePickup(pid) {
+    const pickup = this.glaivePickups.get(String(pid ?? ''));
+    if (!pickup) return false;
+    this.scene.remove(pickup.group);
+    this.glaivePickups.delete(pickup.id);
+    return true;
+  }
+
+  /**
+   * One owner's embedded discs from a `glaiveStock` event: rows `{pid, x, y, z, regen}`
+   * replace that owner's set (a missing pid was picked up, fabricated away or
+   * trimmed); a row not yet shown (late join) is embedded without its wall normal.
+   */
+  syncGlaivePickups(ownerId, rows, own = false) {
+    if (!Array.isArray(rows)) return;
+    const owner = ownerId == null ? null : String(ownerId);
+    const active = new Set();
+    for (const row of rows) {
+      const id = String(row?.pid ?? '');
+      if (!id) continue;
+      active.add(id);
+      const regen = Number(row.regen);
+      const existing = this.glaivePickups.get(id);
+      if (existing) {
+        if (Number.isFinite(regen)) existing.life = existing.age + regen / 1000;
+        continue;
+      }
+      this.embedGlaive({ pid: id, ownerId: owner, x: Number(row.x), y: Number(row.y), z: Number(row.z),
+        own, lifeMs: Number.isFinite(regen) && regen > 0 ? regen : GLAIVE_RULES.regenMs });
+    }
+    for (const pickup of [...this.glaivePickups.values()]) {
+      if (pickup.ownerId === owner && !active.has(pickup.id)) this.removeGlaivePickup(pickup.id);
+    }
+  }
+
+  _updateGlaivePickups(step) {
+    for (const pickup of this.glaivePickups.values()) {
+      pickup.age += step;
+      // Decaying twang after the bite, then a faint idle hum so it still reads as live.
+      const twang = 0.22 * Math.exp(-pickup.age * 3.2) * Math.sin(pickup.age * 58);
+      const hum = 0.012 * Math.sin(pickup.age * 9);
+      pickup.quiver.rotation.x = twang + hum;
+      pickup.quiver.rotation.y = twang * 0.35;
+      // Authority normally removes it (pickup/fabricate); this only guards a lost event.
+      if (pickup.age > pickup.life + 1) this.removeGlaivePickup(pickup.id);
+    }
+    const decals = this._glaiveDecals;
+    if (!decals) return;
+    for (let i = decals.length - 1; i >= 0; i--) {
+      const decal = decals[i];
+      decal.age += step;
+      decal.material.opacity = 0.9 * Math.max(0, 1 - decal.age / decal.life);
+      if (decal.age >= decal.life) {
+        this._disposeGlaiveDecal(decal);
+        decals.splice(i, 1);
+      }
+    }
+  }
+
   _updateLights() {
     const nearest = this._lightCandidates;
     nearest.length = 0;
     const eye = this.camera?.position;
     for (const p of this.projectiles.values()) {
-      if (p.type !== 'rocket' && p.type !== 'pulse' && p.type !== 'bolt') continue;
+      if (p.type !== 'rocket' && p.type !== 'pulse' && p.type !== 'bolt' && p.type !== 'glaive') continue;
+      if (p.parked) continue;
       p.lightDistance = eye
         ? (p.x - eye.x) ** 2 + (p.y - eye.y) ** 2 + (p.z - eye.z) ** 2 : 0;
       let i = nearest.length;
@@ -796,10 +1302,11 @@ export class ProjectileFX {
       light.intensity = 0;
       if (!p) continue;
       light.position.set(p.x, p.y, p.z);
-      light.color.setHex(p.type === 'rocket' ? 0xffa040 : p.type === 'pulse' ? 0x59e8ff : 0x7dfcff);
+      light.color.setHex(p.type === 'rocket' ? 0xffa040 : p.type === 'pulse' ? 0x59e8ff
+        : p.type === 'glaive' ? GLAIVE_COLOR : 0x7dfcff);
       light.distance = p.type === 'rocket' ? 7 : p.type === 'pulse' ? 5 : 4;
       light.intensity = p.type === 'rocket' ? 1.84 + Math.sin(p.age * 90) * 0.16
-        : p.type === 'pulse' ? 0.9 : 1;
+        : p.type === 'pulse' ? 0.9 : p.type === 'glaive' ? 0.8 : 1;
     }
   }
 
@@ -807,6 +1314,10 @@ export class ProjectileFX {
     const projectile = this.projectiles.get(id);
     if (!projectile) return false;
     this.scene.remove(projectile.group);
+    if (projectile.trail) {
+      this.scene.remove(projectile.trail.mesh);
+      projectile.trail.geometry.dispose();
+    }
     projectile.capMaterial?.dispose();
     for (const material of projectile.group.userData.authoredMaterials || []) material.dispose();
     this.projectiles.delete(id);
@@ -815,6 +1326,9 @@ export class ProjectileFX {
 
   clear() {
     for (const id of this.projectiles.keys()) this._removeProjectile(id);
+    for (const id of [...this.glaivePickups.keys()]) this.removeGlaivePickup(id);
+    for (const decal of this._glaiveDecals || []) this._disposeGlaiveDecal(decal);
+    if (this._glaiveDecals) this._glaiveDecals.length = 0;
     for (const mesh of this._rocketBatches) mesh.count = 0;
     for (const light of this._lights) light.intensity = 0;
   }
@@ -825,6 +1339,9 @@ export class ProjectileFX {
     this._lightCandidates.length = 0;
     this._trailCandidates.length = 0;
     for (const id of Array.from(this.projectiles.keys())) this._removeProjectile(id);
+    for (const id of [...this.glaivePickups.keys()]) this.removeGlaivePickup(id);
+    for (const decal of this._glaiveDecals || []) this._disposeGlaiveDecal(decal);
+    if (this._glaiveDecals) this._glaiveDecals.length = 0;
     for (const blast of this.blasts) {
       this.scene.remove(blast.mesh);
       blast.material.dispose();
@@ -850,11 +1367,14 @@ export class ProjectileFX {
       this.bottleGeometry, this.bottleNeckGeometry, this.bottleFlameGeometry,
       this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry,
       this.blastGeometry, this.ringGeometry,
+      this.glaiveDiscGeometry, this.glaiveHubGeometry, this.glaiveRimGeometry, this.glaiveCrescentGeometry,
     ]) geometry.dispose();
     for (const material of [
       this.fragMaterial, this.limpetMaterial, this.pulseMaterial, this.rocketMaterial,
       this.bottleMaterial, this.bottleLabelMaterial,
       this.rocketNoseMaterial, this.exhaustMaterial, this.boltCoreMaterial, this.boltGlowMaterial,
+      this.glaiveBladeMaterial, this.glaiveHubMaterial, this.glaiveGlowMaterial, this.glaiveTrailMaterial,
+      this.glaiveOutlineMaterial, this.glaiveGhostMaterial,
     ]) material.dispose();
   }
 }

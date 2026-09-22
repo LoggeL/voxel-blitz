@@ -18,6 +18,8 @@ const RELOAD_STYLES = Object.freeze({
   longarc: { pose: [0.060, 0.34, -0.030, 0.070, -0.18, -0.42], exit: [-0.30, -1.32, 0.76], entry: [-0.10, -1.32, 0.70], twist: [0.15, 0.48, -0.10], socket: [-0.03, -0.12, -0.17] },
   lance: { pose: [0.100, 0.26, -0.090, 0.040, 0.22, -0.60], exit: [-0.46, -1.30, 0.80], entry: [-0.20, -1.30, 0.72], twist: [0.05, -0.52, -0.16], socket: [-0.03, -0.11, -0.15] },
   flamethrower: { pose: [0.025, 0.26, -0.065, 0.065, -0.10, -0.36], exit: [-0.22, -1.40, 0.74], entry: [-0.08, -1.40, 0.68], twist: [0.95, 0, -0.12], socket: [-0.09, -0.17, -0.23] },
+  // RIPTIDE never swaps a magazine: only the fabricate lift, cassette disc up onto the spindle.
+  glaive: { pose: [0.020, 0.10, -0.015, 0.020, 0.04, -0.10], exit: [0, 0, 0], entry: [0, -0.114, 0.055], twist: [-0.105, 0, 0], socket: [-0.03, -0.08, 0.04] },
 });
 
 /**

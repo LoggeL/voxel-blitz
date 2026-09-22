@@ -74,6 +74,10 @@ export async function runAudioContracts(ok, installGlobals) {
         this.events.push(['cancel', time]);
         return this;
       }
+      setTargetAtTime(value, time) {
+        this.events.push(['target', value, time]);
+        return this;
+      }
     }
 
     class FakeAudioNode {
@@ -400,6 +404,25 @@ export async function runAudioContracts(ok, installGlobals) {
             && gains[2] / gains[0] >= (weapon === 'longarc' ? 5 : 2),
           `${weapon} recorded shots retain charge dynamics for positional playback`);
       }
+      // A RIPTIDE disc ending shares the projectile explode channel but is never a blast.
+      for (const detail of [{ caught: true }, { embedded: true }, null]) {
+        const mark = audio.nodes.length;
+        const sources = startedBy(() => sfx.explosion([0, 0, -4], 'glaive', detail));
+        ok(sources >= 2 && !audio.nodes.slice(mark).some((node) =>
+          node.kind === 'buffer-source' && node.buffer?.decoded),
+        `glaive ${detail ? Object.keys(detail)[0] : 'fizzle'} end plays its own cue, not an explosion sample`);
+      }
+      // The in-flight whirr is one reused graph per disc, pitched 20% up on the return leg.
+      const lastTarget = (param) => param.events.findLast((event) => event[0] === 'target')?.[1];
+      const flightMark = audio.nodes.length;
+      sfx.glaiveFlight('contract-disc', [0, 0, -10], { phase: 'out', velocity: [0, 0, 0] });
+      const whirr = audio.nodes.slice(flightMark).find((node) => node.kind === 'oscillator');
+      const outPitch = lastTarget(whirr.frequency);
+      const refreshStarts = startedBy(() => sfx.glaiveFlight('contract-disc', [0, 0, -10],
+        { phase: 'back', velocity: [0, 0, 0] }));
+      ok(refreshStarts === 0 && Math.abs(lastTarget(whirr.frequency) / outPitch - 1.2) < 1e-9,
+        'glaive flight refresh reuses its graph and the return leg is 20% higher');
+      sfx.stopGlaiveFlights();
       const liveDirectToMaster = () => audio.nodes.filter((node) =>
         !node.disconnected && node.connections.includes(master));
       const voiceBaseline = liveDirectToMaster().length;

@@ -19,7 +19,16 @@ for (const id of WEAPON_IDS) {
   assert.deepEqual(parseChaosPurchase(`chaos:${id}:1`), { item: id, level: 1 });
   assert.equal(chaosWeaponDef({ chaosUpgrades: {} }, WEAPONS[id]), WEAPONS[id]);
 }
-assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 51);
+assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 54);
+// RIPTIDE ladder: Third plate seats a third disc, Long tether lengthens the out leg and pierce.
+{
+  const glaive = (level) => chaosWeaponDef({ chaosUpgrades: { glaive: level } }, WEAPONS.glaive);
+  assert.equal(glaive(1).magSize, 3);
+  assert.equal(glaive(2).glaive.outMs, WEAPONS.glaive.glaive.outMs);
+  assert.equal(glaive(3).glaive.outMs, 800);
+  assert.equal(glaive(3).glaive.pierce, 5);
+  assert.equal(glaive(3).glaive.speedOut, WEAPONS.glaive.glaive.speedOut);
+}
 for (const rows of Object.values(CHAOS_UPGRADES)) {
   assert.deepEqual(rows.map(r => r.price), [300, 600, 900]);
   assert.equal(new Set(rows.map(r => r.name)).size, 3);
@@ -136,7 +145,7 @@ for (const [id, count] of [['rifle', 4], ['revolver', 2], ['lance', 4]]) {
   chaosHit(p, {}, [0, 10, 20], { entities: new Map(targets.map(t => [t.id, t])), canDamage: () => true, solidAt: () => false, pushEvent: () => {} });
   assert.equal(targets.filter(t => t.hp < 100).length, count, `${id} arcs to intended number of targets`);
 }
-console.log('Chaos: 51 purchases, complete weapon catalog, economy, stale requests, death persistence, normal-mode isolation, snapshots and cumulative weapon effects passed.');
+console.log('Chaos: 54 purchases, complete weapon catalog, economy, stale requests, death persistence, normal-mode isolation, snapshots and cumulative weapon effects passed.');
 
 // Empty-space projectile fixtures verify explosions and steering without map geometry noise.
 function projectileFixture(type, level) {

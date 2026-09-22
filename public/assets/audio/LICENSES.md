@@ -123,6 +123,20 @@ origin and license of every bundled recording remain auditable.
 - LONGARC and VOLTLANCE sample gain follows charge; procedural reports remain
   a quiet layer and the fallback if sample loading fails.
 
+## GV-4 RIPTIDE throw
+
+- Source: original procedural synthesis for this project (numpy/scipy, fixed seed);
+  no recordings, sample libraries or generated-audio services are involved.
+- `weapons/glaive/fire.ogg`: a pneumatic spindle thunk, a blade whine rising to
+  about 2 kHz and an inharmonic steel "shing" tail, 0.62 s.
+- `weapons/glaive/sources.json` records the layer recipe, seed, normalization,
+  output SHA-256 and decoded measurements. Rebuild with
+  `python3 tools/generate-glaive-audio.py`.
+- Mono 48 kHz Opus, 96 kbit/s (the local ffmpeg has no libvorbis). Not auditioned
+  by ear; checked with signal metrics and `tools/analyze-weapon-audio.mjs`.
+- The in-flight whirr, return, catch, embed, pickup and fabricate cues are
+  procedural WebAudio graphs in `public/js/audio/`, not samples.
+
 ## Pickaxe swing and mining contacts
 
 - Source: ten ElevenLabs API candidates generated on 2026-09-08 (60 credits).

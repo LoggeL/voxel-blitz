@@ -5,6 +5,7 @@ import { OPTICS, configuredWeapon, normalizeAttachments, normalizeWeaponLoadout 
 import { isScopeActive } from './scope-state.js';
 import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../../../shared/minigun.js';
 import { chaosWeaponDef } from '../../../shared/chaos.js';
+import { glaiveCanThrow } from '../../../shared/glaive-rules.js';
 // Client weapon state machine. The composition root owns frame order; this module owns
 // every weapon transition and receives only narrow adapters for its side effects.
 import {
@@ -23,6 +24,8 @@ import { weaponSwapProfile } from '../../../shared/weapon-swap.js';
 import { TIMERS } from './defs.js';
 
 const EMPTY_AMMO = Object.freeze({ mag: 0, reserve: 0 });
+// An unacknowledged RIPTIDE return request stops being sent after this long.
+const GLAIVE_RETURN_TIMEOUT_MS = 1500;
 const DEFAULT_MODE = 'fun';
 
 /** One visibility rule shared by scoped weapon state and spectator presentation. */
@@ -117,6 +120,8 @@ export class WeaponState {
   get scopeActive() { return this._scopeActive; }
   get reloadId() { return this._reloadId || 0; }
   get reloadRequested() { return this.isReloading || this._completedReloadWeapon !== null; }
+  /** The wire's reload flag: a real reload, or a pending RIPTIDE return (R) awaiting its ack. */
+  get reloadIntent() { return this.reloadRequested || this._glaiveReturn !== null; }
   get isDeploying() { return this._now() < this._deployUntil; }
   get isReloading() { return this._reloadState !== null; }
   get flameFiring() {
@@ -189,7 +194,54 @@ export class WeaponState {
       charge01: def.mode === 'charge'
         ? (this._chargeStart === null ? 0 : chargeFromHold(def, now - this._chargeStart))
         : null,
+      glaive: def.glaive ? {
+        discs: ammo.mag,
+        magSize: def.magSize,
+        inFlight: this._glaiveServer?.inFlight ?? null,
+        fab01: this._glaiveFab01(def, now),
+        returning: this._glaiveReturn !== null,
+      } : null,
     };
+  }
+
+  /**
+   * Owner-only RIPTIDE stock (the `glaiveStock` event, or a snapshot row of the same
+   * shape): `fab` ms until each queued fabrication, `pickups[].regen` ms until each
+   * embedded disc fabricates instead, optional `inFlight`. Drives the fabricate gauge.
+   */
+  adoptGlaiveStock({ fab, pickups, inFlight } = {}, now = this._now()) {
+    const timers = [
+      ...(Array.isArray(fab) ? fab : []),
+      ...(Array.isArray(pickups) ? pickups.map(pickup => pickup?.regen) : []),
+    ].filter(Number.isFinite);
+    this._glaiveServer = {
+      inFlight: Number.isFinite(inFlight) ? Math.max(0, Math.trunc(inFlight)) : this._glaiveServer?.inFlight ?? null,
+      fabDueAt: timers.length ? now + Math.max(0, Math.min(...timers)) : null,
+      pickups: Array.isArray(pickups) ? pickups.length : 0,
+    };
+  }
+
+  /** Fabricate progress of the next RIPTIDE disc, when the owner stock carries it. */
+  _glaiveFab01(def, now = this._now()) {
+    const dueAt = this._glaiveServer?.fabDueAt;
+    // A due time well past means the restoring stock event is still in flight.
+    if (!def.glaive || !Number.isFinite(dueAt) || dueAt < now - 250) return null;
+    return clamp01(1 - (dueAt - now) / def.glaive.regenMs);
+  }
+
+  /**
+   * R on the RIPTIDE: never a reload. Bump the identified request so the authority runs
+   * returnDiscs (and acks it), and play the return flare on the rig. No _reloadState.
+   */
+  _requestGlaiveReturn(now) {
+    if (this.quickMeleeActive || this._grenadeHandling || !this._alive) return false;
+    this._reloadId = (this._reloadId || 0) + 1;
+    this._glaiveReturn = { id: this._reloadId, at: now };
+    const def = this.def;
+    // Predict the turn on the own out-leg discs; each predicted flip also leans the rig.
+    const turned = this._effects.glaiveReturn?.() ?? 0;
+    if (!turned && (this._ammo[def.id]?.mag ?? def.magSize) < def.magSize) this._rig.glaiveReturn?.();
+    return true;
   }
 
   /** Drop a capacitor charge without firing (switch, reload, death, blocked mode). */
@@ -265,6 +317,8 @@ export class WeaponState {
     this.cancelReload();
     this._reloadState = null;
     this._completedReloadWeapon = null;
+    // A pending R belongs to the RIPTIDE; sent after the switch it would reload the new gun.
+    this._glaiveReturn = null;
     this._deployUntil = now + weaponSwapProfile(this.def).total * 1000;
     this._adsT = 0;
     this._scopeActive = false;
@@ -349,7 +403,10 @@ export class WeaponState {
     if (slot !== null) this.forceWeapon(slot, { now });
     if (lastWeapon) this.forceWeapon(this._lastSlot, { now });
     // Melee never reloads: a manual request with a no-magazine weapon drawn is a no-op.
-    if (reload && !quickMelee && !this.quickMeleeActive && this._alive && this.def.mode !== 'melee') {
+    if (reload && !quickMelee && !this.quickMeleeActive && this._alive && this.def.glaive) {
+      // The authority holds an identified request across the draw, so no local queue.
+      this._requestGlaiveReturn(now);
+    } else if (reload && !quickMelee && !this.quickMeleeActive && this._alive && this.def.mode !== 'melee') {
       this._queuedReload = now < this._deployUntil;
       if (!this._queuedReload) this.startReload(now);
     }
@@ -373,6 +430,7 @@ export class WeaponState {
 
   clearIntents() {
     this._quickMeleePending = false;
+    this._glaiveReturn = null;
     this._quickMeleeRequest = null;
     this._stopFlame();
     this._audio.minigunMotor?.(0, 0, false);
@@ -390,6 +448,7 @@ export class WeaponState {
     if (this.quickMeleeActive || this._grenadeHandling || this._reloadState || this._completedReloadWeapon === this.def.id || !this._alive || now < this._deployUntil) return false;
     const def = this.def;
     if (def.mode === 'melee') return false; // a knife has no magazine to refill
+    if (def.glaive) return false;           // discs come back by catch or fabricate, never by reload
     const ammo = this._ammo[def.id];
     if (!ammo || ammo.mag >= def.magSize || (this._mode !== 'gungame' && ammo.reserve <= 0)) return false;
 
@@ -430,6 +489,7 @@ export class WeaponState {
   }
 
   tickReload(now) {
+    if (this._glaiveReturn && now - this._glaiveReturn.at > GLAIVE_RETURN_TIMEOUT_MS) this._glaiveReturn = null;
     if (this._queuedReload && now >= this._deployUntil && !this._grenadeHandling) {
       this._queuedReload = false;
       this.startReload(now);
@@ -525,6 +585,11 @@ export class WeaponState {
     const driving = canSpin && !!(this._pendingShotIntent?.held || this._pendingShotIntent?.tap);
     const ready = stepMinigun(this._minigun, thermalDt, driving, canSpin && this._wantAds);
     this._rig.setMinigun?.(this._minigun);
+    const drawn = this.def;
+    if (drawn.glaive) {
+      this._rig.setGlaive?.({ discs: this._ammo[drawn.id]?.mag ?? 0, magSize: drawn.magSize,
+        fab01: this._glaiveFab01(drawn, now) });
+    }
     if (this.def.id === 'minigun') {
       this._audio.minigunMotor?.(this._minigun.spin, this._minigun.heat,
         canSpin, this._minigun.overheated);
@@ -554,9 +619,13 @@ export class WeaponState {
       if (this._pendingShotIntent && this._pendingShotIntent.tap) {
         this._audio.reloadClick(3, weaponId);
       }
-      this.startReload(now);
+      // An empty RIPTIDE waits for its discs; R stays a deliberate return, never automatic.
+      if (!def.glaive) this.startReload(now);
       return false;
     }
+    // Fire gate: a disc in hand and fewer than magSize in the air (owner snapshot).
+    if (def.glaive && !glaiveCanThrow(ammo.mag,
+      this._glaiveServer?.inFlight ?? this._effects.glaivesInFlight?.() ?? 0, def.magSize)) return false;
 
     // Empty-magazine handling must remain reachable while the rotor is stopped.
     if (weaponId === 'minigun' && !ready) return false;
@@ -686,7 +755,7 @@ export class WeaponState {
     if (mode === 'pump') this._rig.pumpAnim();
     if (mode === 'bolt') this._rig.boltAnim();
 
-    if (ammo.mag === 0) this._scheduleEmptyReload(weaponId, this._generation);
+    if (ammo.mag === 0 && !def.glaive) this._scheduleEmptyReload(weaponId, this._generation);
     return true;
   }
 
@@ -717,6 +786,7 @@ export class WeaponState {
     owned,
     chaosUpgrades,
     minigun,
+    glaive,
     weapon,
     attachments,
     reloading,
@@ -736,6 +806,10 @@ export class WeaponState {
       this._thermalAt = now;
     }
     this._bastionUpgrades = bastionUpgrades || {};
+    if (glaive && typeof glaive === 'object') this.adoptGlaiveStock(glaive, now);
+    if (this._glaiveReturn && Number.isSafeInteger(reloadAck) && reloadAck >= this._glaiveReturn.id) {
+      this._glaiveReturn = null;
+    }
     const tttPickup = mode === 'ttt' && Array.isArray(owned) &&
       owned.some(id => !this._owned?.includes(id));
     this._setAuthority(mode, owned);
@@ -829,6 +903,8 @@ export class WeaponState {
 
   menuReset() {
     this._weaponLoadout = {};
+    this._glaiveReturn = null;
+    this._glaiveServer = null;
     this._quickMeleeUntil = -Infinity;
     this._quickMeleeRequest = null;
     this._quickMeleePending = false;

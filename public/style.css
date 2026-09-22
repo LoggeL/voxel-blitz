@@ -38,6 +38,7 @@
   --w-revolver: #ff5277;
   --w-lance:    #c9a2ff;
   --w-knife:    #b9c6cf;
+  --w-glaive:   #ff3fd0;
 
   /* geometry */
   --cut: 10px;               /* chamfer bite */
@@ -2732,6 +2733,7 @@ h1.vb-title::after {
 .vb-w-revolver { --gun-tint: var(--w-revolver); }
 .vb-w-lance    { --gun-tint: var(--w-lance); }
 .vb-w-knife    { --gun-tint: var(--w-knife); }
+.vb-w-glaive   { --gun-tint: var(--w-glaive); }
 
 #ammo.vb-w-rifle #weaponname, #weaponname.vb-w-rifle       { color: var(--w-rifle); }
 #ammo.vb-w-smg #weaponname, #weaponname.vb-w-smg           { color: var(--w-smg); }
@@ -2741,6 +2743,136 @@ h1.vb-title::after {
 #ammo.vb-w-revolver #weaponname, #weaponname.vb-w-revolver { color: var(--w-revolver); }
 #ammo.vb-w-lance #weaponname, #weaponname.vb-w-lance       { color: var(--w-lance); }
 #ammo.vb-w-knife #weaponname, #weaponname.vb-w-knife       { color: var(--w-knife); }
+#ammo.vb-w-glaive #weaponname, #weaponname.vb-w-glaive     { color: var(--w-glaive); }
+
+/* RIPTIDE: disc pips replace the mag/reserve readout. Filled = in hand,
+   spinning ring = in flight, pinned ring = embedded pickup, conic fill =
+   launcher fabricating a replacement. */
+#ammo.is-discs { align-items: center; }
+#ammo.is-discs #ammocount,
+#ammo.is-discs .vb-ammo-sep,
+#ammo.is-discs #ammoreserve { display: none; }
+
+.vb-disc-pips[hidden],
+.vb-disc-return[hidden],
+.vb-ch-discs[hidden] { display: none; }
+
+.vb-disc-pips {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+}
+
+.vb-disc-pip {
+  --fill: 0%;
+  position: relative;
+  display: block;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  transition: opacity 120ms linear, transform 160ms ease;
+}
+
+/* Toothed rim: a dashed border reads as a sawblade at pip size. */
+.vb-disc-pip::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px dashed var(--w-glaive);
+}
+
+.vb-disc-pip::after {
+  content: '';
+  position: absolute;
+  inset: 11px;
+  border-radius: 50%;
+  background: #07090b;
+  border: 1px solid color-mix(in srgb, var(--w-glaive) 60%, #fff);
+}
+
+.vb-disc-pip.is-hand {
+  background: radial-gradient(circle, color-mix(in srgb, var(--w-glaive) 55%, #fff) 0 30%, var(--w-glaive) 31% 62%, color-mix(in srgb, var(--w-glaive) 45%, #000) 63%);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--w-glaive) 55%, transparent);
+}
+
+.vb-disc-pip.is-flight {
+  opacity: 0.85;
+}
+.vb-disc-pip.is-flight::before {
+  animation: vbDiscSpin 520ms linear infinite;
+}
+
+.vb-disc-pip.is-embedded {
+  opacity: 0.6;
+  transform: rotate(18deg);
+}
+.vb-disc-pip.is-embedded::before { border-style: dotted; }
+.vb-disc-pip.is-embedded::after {
+  inset: auto 12px -5px;
+  height: 7px;
+  border-radius: 1px;
+  background: var(--w-glaive);
+  border: 0;
+}
+
+.vb-disc-pip.is-fab {
+  background: conic-gradient(color-mix(in srgb, var(--w-glaive) 70%, transparent) var(--fill), rgba(58, 66, 80, 0.35) var(--fill) 100%);
+  -webkit-mask: radial-gradient(circle, transparent 0 8px, #000 9px);
+  mask: radial-gradient(circle, transparent 0 8px, #000 9px);
+}
+.vb-disc-pip.is-fab::before { opacity: 0.35; }
+.vb-disc-pip.is-fab::after { display: none; }
+
+.vb-disc-pip.is-empty { opacity: 0.18; filter: grayscale(1); }
+
+.vb-disc-return {
+  align-self: center;
+  padding: 3px 6px;
+  font: 700 10px/1 var(--font-mono);
+  letter-spacing: 0.18em;
+  white-space: nowrap;
+  color: var(--sub);
+  border: 1px solid var(--line-dim);
+  border-radius: 2px;
+  transition: color 120ms linear, border-color 120ms linear, background 120ms linear;
+}
+.vb-disc-return.is-ready {
+  color: #07090b;
+  background: var(--w-glaive);
+  border-color: var(--w-glaive);
+}
+
+.vb-ch-discs {
+  position: absolute;
+  left: 0;
+  top: 16px;
+  display: flex;
+  gap: 5px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.vb-ch-disc {
+  display: block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  border: 1px solid var(--w-glaive);
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+  opacity: 0.55;
+}
+.vb-ch-disc.is-ready {
+  background: var(--w-glaive);
+  opacity: 1;
+}
+
+@keyframes vbDiscSpin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .vb-disc-pip.is-flight::before { animation: none; }
+}
 
 /* ---------- killfeed ---------- */
 
@@ -3799,6 +3931,15 @@ body.is-replaying #hud, body.is-replaying .vb-touch-controls { visibility: hidde
 
   #ammocount { font-size: 38px; }
   #ammoreserve { font-size: 14px; }
+  .vb-disc-pips { gap: 6px; min-height: 34px; }
+  .vb-disc-pip { width: 22px; height: 22px; }
+  .vb-disc-pip::before { border-width: 2px; }
+  .vb-disc-pip::after { inset: 8px; }
+  .vb-disc-pip.is-embedded::after { inset: auto 8px -4px; height: 5px; }
+  .vb-disc-pip.is-fab { -webkit-mask: radial-gradient(circle, transparent 0 6px, #000 7px); mask: radial-gradient(circle, transparent 0 6px, #000 7px); }
+  /* Up to three pips plus the return chip outgrow the fixed mobile panel. */
+  #ammo.is-discs { width: auto; min-width: 200px; }
+  .vb-disc-return { padding: 2px 4px; font-size: 8px; letter-spacing: 0.1em; }
 
   #net-meter {
     width: 138px;

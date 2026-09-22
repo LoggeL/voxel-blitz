@@ -71,7 +71,7 @@ Run `npm run powerups:test` for simulation and protocol checks, and
 
 Create a lobby, select **CHAOS LAB**, ready up and start. The full weapon roster is available.
 Start with $600, earn $300 per kill, and open the upgrade shop with **B** (or the touch
-BUY button / gamepad D-pad right). All twelve weapons and four throwables each have
+BUY button / gamepad D-pad right). All thirteen weapons and four throwables each have
 three cumulative upgrades costing $300, $600 and $900. Money and upgrades survive
 respawns for the current match; joining a new room starts fresh. Kills also restore
 one grenade of each type, up to five. The shop does not pause combat. Bots buy upgrades too.
@@ -80,12 +80,14 @@ Experiments include Tesla chain hits, shotgun bowling bolts, wall-piercing explo
 sniper rounds, rocket-fed LMG salvos, revolver pinball rings, eight-bounce LONGARC
 multiball with explosive bumpers, homing cluster rockets, tunnel rails, pickaxe
 shockwaves, frag offspring, homing sticky offspring and vacuum-to-launch pulse bombs.
-The shop describes all 48 stages before purchase, with artwork for every weapon and
+The shop describes all 54 stages before purchase, with artwork for every weapon and
 grenade. Cluster children cannot reproduce;
 rooms cap live projectiles at 192 and clients retain at most 96 blast visuals.
 
 Flamethrower upgrades add side jets, periodic forward backdraft shockwaves and rockets.
-Minigun upgrades add body piercing, periodic ricochet fans and ring salvos. These
+Minigun upgrades add body piercing, periodic ricochet fans and ring salvos. RIPTIDE
+upgrades seat a third disc (Third plate), fire a 2.5 m pulse at every wall contact and
+catch (Razor wake), and stretch the out leg to 800 ms with five-body pierce (Long tether). These
 effects stack while fuel consumption, spin-up and heat still follow the base weapons.
 
 Validate with `npm run chaos:test` and `node tools/chaos-browser-smoke.mjs`.
@@ -310,13 +312,13 @@ Run `npm run bastion:test` for directed simulation on both maps and real WebSock
 ### Fun
 
 Fun is a free-for-all with no teams, no score-limit reset, the complete
-ten-weapon loadout, and a **1500 ms** respawn. Quick Play uses shared live Fun
+thirteen-weapon loadout, and a **1500 ms** respawn. Quick Play uses shared live Fun
 rooms with join in progress and no ready gate.
 
 ### Team Deathmatch
 
 Team Deathmatch assigns each player to the lower-population `alpha` or `bravo`
-team, disables friendly fire, provides the complete ten-weapon loadout, and
+team, disables friendly fire, provides the complete thirteen-weapon loadout, and
 uses team-specific spawn pools. Enemy kills increment the team score. The first
 team to **40** wins; the result approval phase follows, then team and player
 scores reset and everyone respawns. Deaths respawn after **3000 ms** during the
@@ -371,8 +373,9 @@ their purchases and remaining ammunition. Weapons cannot fire during prep.
 ### Gun Game
 
 Gun Game is a free-for-all with a **1500 ms** respawn. Every kill advances the
-player through rifle, SMG, shotgun, sniper, LMG, revolver, LONGARC, rocket,
-VOLTLANCE, and finally the PIXEL PICK pickaxe. A kill with the PIXEL PICK wins; a
+player through rifle, SMG, shotgun, sniper, LMG, F-4 FIRESTORM, rocket, LONGARC,
+GV-4 RIPTIDE, VOLTLANCE, revolver, M-6 FURNACE minigun, and finally the PIXEL PICK
+pickaxe. A kill with the PIXEL PICK wins; a
 **5000 ms** result phase follows before progression and scores reset.
 
 ### Training
@@ -498,11 +501,12 @@ roster cards are omitted; S&D keeps a compact remaining-lives strip on desktop.
 | `X` | toggle prone: 0.65 s to lie down, 0.8 s to stand up; crawl at 1.15 m/s; no jumping or sprinting until upright |
 | mouse1 / mouse2 | fire / ADS (`F` also aims; ADS is hold or toggle per the settings panel, toggle by default on trackpads) |
 | `Z` | sniper zoom step (5× ↔ 2.5×) |
-| `R` | reload; shotgun shells seat one at a time and firing interrupts the load |
+| `R` | reload; shotgun shells seat one at a time and firing interrupts the load. With the GV-4 RIPTIDE, `R` never reloads: it turns every disc still on its out leg home at once |
 | hold/release `G` | charge and throw the selected throwable; longer holds throw farther, and a frag cooks while held (hold past the fuse and it goes off in your hand) |
 | `H`, or wheel while holding `G` | cycle the throwable: M-4 FRAG (2), LIMPET CHARGE (1, sticks to walls and players), PULSE SHOCK (2, impact concussion), MOLOTOV COCKTAIL (1, ground fire) |
 | hold/release mouse1 with the LONGARC | charge the coilgun; release fires a bouncing bolt — a tap ricochets off one wall, a full charge ricochets three times |
 | hold/release mouse1 with the VOLTLANCE | charge the rail-lance; release fires a lance that spears up to six enemies on the line, and only a full charge crosses up to two walls |
+| mouse1 with the GV-4 RIPTIDE | throw a magenta disc; it cuts out for 550 ms (or to its first wall), loops back and is caught to reload. Two discs; with both out the launcher is empty. A disc that hits a wall on the way home sticks there: walk over it or wait 4 s for a replacement |
 | mouse1 with the PIXEL PICK | hold to mine nearby blocks; harder materials require more swings. No ammo or reload; melee hits retain 2.5x backstabs |
 | `1-9` / `0` / wheel | weapon slots (`1-9` and `0` also pick directly while the weapon wheel is open) |
 | `Q` / `E` | strafe left / right (additional to `A` / `D`) |
@@ -559,7 +563,7 @@ rotation banners, or vibration effects. Settings retain control size, handedness
 and look sensitivity. All three sizes keep touch targets at least 44 pixels and
 support portrait and landscape. Append `?touch=1` for desktop QA.
 
-## The ten guns
+## The guns
 
 | gun | mode | rate | ammo | feel identity |
 |---|---:|---:|---:|---|
@@ -573,17 +577,19 @@ support portrait and landscape. Append `?touch=1` for desktop QA.
 | **RX-8 HAVOC** | semi-automatic | 45 rpm | 1 + 5 tubes | slow authoritative rocket with splash, terrain carve, direct-hit bonus, and a self-knockback tuned for rocket jumps |
 | **CL-9 VOLTLANCE** | charge (hold/release) | 100 rpm | 4 + 5 mags | siege rail-lance: a tap flings a weak dart, a charged lance spears up to six enemies on the line with 0.9-per-body falloff, and only a full charge crosses up to two walls decaying 0.72 per wall; rising cell whine and violet lance glow |
 | **PIXEL PICK** | melee | 120 rpm | no ammo — swings are free | pixel pickaxe: material-dependent mining with cracks, cube debris and retro sounds; melee hits and 2.5x backstabs |
+| **GV-4 RIPTIDE** | semi-automatic throw | 150 rpm | 2 discs, reloaded by catching | disc launcher: a toothed magenta disc cuts out 34 m/s in a straight line, loops home at 30 m/s and pierces up to three bodies on each leg (out 43.2, back 57.6 after scale, head ×1.5); `R` turns discs home early; wall-stuck discs are picked up or fabricated after 4 s. No reach past about 20 m (`docs/weapon-design/glaive.md`) |
 
 Gun timing lives in `public/js/guns/defs.js` (timer table per weapon); shared
 ballistics/damage in `shared/combatmath.js`; the LONGARC's bouncing bolts in
-`shared/bolt-rules.js`; authoritative resolve in
+`shared/bolt-rules.js`; the RIPTIDE discs in `shared/glaive-rules.js`; authoritative resolve in
 `server/game.js`. The server re-samples every shot's spread cone itself from
 your reported view angles — client damage claims are never trusted.
 
 ## Feel and settings
 Weapon mass is part of the shared definition: rifle 3.4 kg, SMG 2.3 kg,
 shotgun 3.6 kg, sniper 5.2 kg, LMG 8.4 kg, revolver 1.4 kg, longarc 4.1 kg,
-rocket 9.6 kg, lance 3.8 kg, and knife 0.9 kg. Mouse aim and
+rocket 9.6 kg, lance 3.8 kg, knife 0.9 kg, minigun 11.8 kg, flamethrower 5.8 kg
+and RIPTIDE 3.1 kg. Mouse aim and
 server authority remain immediate. The procedural gun owns a separate angular
 orientation with weight-limited speed and acceleration, so heavier weapons trail
 farther during a turn and settle more slowly after the mouse has stopped.

@@ -157,7 +157,11 @@ export function resolveWeaponIntent(p, _dt, ctx) {
     // Acknowledge accepted and permanently rejected requests. Draw/vault locks
     // defer acknowledgment so the client keeps sending the same request.
     if (identifiedReload) p.reloadAck = inp.reloadId;
-    if (ctx.canUseWeapon(p, p.weapon) && !p.reloading) {
+    if (def.glaive) {
+      // The RIPTIDE has no reload: R turns every out-leg disc home. The ack above
+      // still latches so the client's request clears; `reloading` never sets.
+      if (ctx.canUseWeapon(p, p.weapon)) ctx.returnDiscs?.(p);
+    } else if (ctx.canUseWeapon(p, p.weapon) && !p.reloading) {
       const ammo = { mag: p.mag[p.weapon], reserve: p.reserve[p.weapon] };
       const reload = beginReload(def, ammo, p.infiniteMagazines, p.panic);
       if (reload) {
@@ -444,6 +448,8 @@ function publishBlockDamage(x, y, z, type, previousProgress, ctx) {
  */
 export function fireOneShot(p, ctx, charge = 1, aim = null) {
   const def = p.def;
+  // RIPTIDE fire gate: a seated disc and fewer than `magSize` discs in the air.
+  if (def.projectile === 'glaive' && !(ctx.canThrowGlaive?.(p) ?? true)) return;
   const shotReach = HITSCAN_REACH;
   p.spawnProtectedUntil = 0;
   p.spawnProtected = false;
@@ -488,6 +494,11 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
     // and ricochets inside the projectile system, piercing neither players nor
     // walls, so none of the pierce code below may run for it.
     ctx.launchBolt(p, firstDir, charge01);
+    return;
+  }
+  if (def.projectile === 'glaive') {
+    // The disc is its own authoritative entity; a refused launch keeps the disc seated.
+    if (!ctx.launchGlaive?.(p, firstDir)) p.mag[p.weapon]++;
     return;
   }
   if (def.flame) { ctx.flames.launch(p, oEye, fwd, ctx); return; }

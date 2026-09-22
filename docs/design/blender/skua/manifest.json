@@ -1,0 +1,270 @@
+{
+  "asset": "SKUA",
+  "asset_id": "skua",
+  "kind": "original forearm-braced disc launcher prop (visual game asset)",
+  "blender": "5.2.1 LTS",
+  "authoring_script": "tools/blender/skua/build-skua.py",
+  "source_parts": 205,
+  "animation_group_nodes": [
+    "body",
+    "mag",
+    "bolt",
+    "trigger",
+    "extra"
+  ],
+  "marker_nodes": [
+    "grip",
+    "muzzle",
+    "sight",
+    "support"
+  ],
+  "batch_nodes": 19,
+  "round_nodes": [
+    "spare disc"
+  ],
+  "extra_nodes": [
+    "horn left",
+    "horn right",
+    "spare disc",
+    "gauge needle"
+  ],
+  "triangles": 15412,
+  "triangles_per_primitive": {
+    "body | brass": 988,
+    "body | dark polymer": 2440,
+    "body | gunmetal": 3684,
+    "body | ivory coating": 320,
+    "body | orange paint": 1084,
+    "body | razor glow": 52,
+    "bolt | polished edge": 912,
+    "gauge needle | brass": 48,
+    "horn left | orange paint": 756,
+    "horn left | razor glow": 44,
+    "horn right | orange paint": 756,
+    "horn right | razor glow": 44,
+    "spare disc | blade steel": 1412,
+    "spare disc | polished edge": 288,
+    "spare disc | razor glow": 384,
+    "mag | blade steel": 1412,
+    "mag | polished edge": 288,
+    "mag | razor glow": 384,
+    "trigger | gunmetal": 116
+  },
+  "materials": [
+    "ivory coating",
+    "orange paint",
+    "gunmetal",
+    "dark polymer",
+    "blade steel",
+    "polished edge",
+    "brass",
+    "razor glow"
+  ],
+  "material_textures": {
+    "ivory coating": "palette/ivory-ceramic.jpg",
+    "orange paint": "palette/orange-paint.jpg",
+    "gunmetal": "palette/phosphated-steel.jpg",
+    "dark polymer": "palette/molded-polymer.jpg",
+    "blade steel": "palette/machined-steel.jpg",
+    "polished edge": "palette/machined-steel.jpg",
+    "brass": "palette/aged-brass.jpg"
+  },
+  "texture_source": "public/assets/blender/textures/palette (the shared 1024px palette JPEGs applied by tools/blender/material-library.py; originals untouched)",
+  "uv_density_tiles_per_metre": 3.6,
+  "axes": {
+    "authoring": "+Y forward, +Z up, +X right",
+    "after_gltf": "-Z forward, +Y up, +X right",
+    "map": "game_x = x, game_y = z, game_z = -y"
+  },
+  "anchors_game_space": {
+    "muzzle": [
+      0.0,
+      0.0,
+      -0.4
+    ],
+    "grip": [
+      0.0,
+      -0.075,
+      0.04
+    ],
+    "support": [
+      0.0,
+      -0.06,
+      -0.3
+    ],
+    "sight": [
+      0.0,
+      0.15,
+      -0.34
+    ]
+  },
+  "pivots_game_space": {
+    "mag": [
+      0.0,
+      0.042,
+      -0.22
+    ],
+    "bolt": [
+      0.0,
+      0.0,
+      0.06
+    ],
+    "horn left": [
+      -0.05,
+      0.0,
+      -0.335
+    ],
+    "horn right": [
+      0.05,
+      0.0,
+      -0.335
+    ],
+    "spare disc": [
+      0.0,
+      -0.072,
+      -0.165
+    ],
+    "gauge needle": [
+      -0.0635,
+      0.0,
+      0.07
+    ]
+  },
+  "runtime_motion": {
+    "mag": {
+      "pivot": [
+        0.0,
+        0.042,
+        -0.22
+      ],
+      "tilt_deg": 6,
+      "spin_axis": [
+        0,
+        0.994522,
+        0.104528
+      ]
+    },
+    "bolt": {
+      "pivot": [
+        0.0,
+        0.0,
+        0.06
+      ],
+      "spin_axis": [
+        0,
+        0,
+        1
+      ],
+      "kick_m": 0.012
+    },
+    "horns": {
+      "axis": "game +y through the pin",
+      "flare_deg": [
+        0,
+        11,
+        22
+      ],
+      "runtime": "right rotation.y = -flare, left rotation.y = +flare"
+    },
+    "spare disc": {
+      "pivot": [
+        0.0,
+        -0.072,
+        -0.165
+      ],
+      "lift_to": [
+        0.0,
+        0.042,
+        -0.22
+      ]
+    },
+    "gauge needle": {
+      "pivot": [
+        -0.0635,
+        0.0,
+        0.07
+      ],
+      "spin_axis": [
+        1,
+        0,
+        0
+      ]
+    }
+  },
+  "contract_points": {
+    "breech_y": 0.1,
+    "bore_axis": [
+      0.0,
+      0.0
+    ],
+    "spindle_radius": 0.0155,
+    "heat_band": [
+      -0.4,
+      -0.34
+    ],
+    "heat_band_clearance_radius": 0.03,
+    "sight_height": 0.15,
+    "sight_posts_game_z": [
+      0.07,
+      -0.34
+    ]
+  },
+  "files": {
+    "blend": "docs/design/blender/skua/skua.blend",
+    "glb": "docs/design/blender/skua/skua.glb",
+    "renders": [
+      "render-hero.png",
+      "render-side.png",
+      "render-left.png",
+      "render-ads.png",
+      "render-rear.png"
+    ],
+    "validation": "docs/design/blender/skua/validation.json"
+  },
+  "build_time_checks": {
+    "anchor_contract": "spindle tip on the muzzle plane, bore axis, spindle radius over the heat band, all four markers, the ring sight and rear notch on the 0.150 sight line, trigger tip, flywheel hub at BOLT_HOME, nothing on-axis forward of the muzzle (horn tips |x| >= 0.06)",
+    "heat_band_clearance": "only the spindle within 0.03 of the axis across the band",
+    "coplanar_face_audit": "rejects flush faces between parts",
+    "part_contact": "every part within 1 mm of the spindle cluster",
+    "horn_sweep": "horns at 0/11/22 deg clear of every other part and below SIGHT_Z - 0.03",
+    "disc_paths": "throw/catch slide (shrinking to 0.25) and the in-place cassette lift cut nothing the disc does not touch at rest",
+    "rear_notch": "notch floor below the ring aperture as seen from the ADS eye",
+    "disc_visibility": "seated disc >= 4 % of a 50 deg ADS frame from the eye, top face seen"
+  },
+  "geometry_audit": {
+    "coplanar_faces": [],
+    "floating_parts": [],
+    "horn_sweep": [],
+    "horn_sweep_measured": {
+      "right": {
+        "top_z": 0.067,
+        "min_gap_m": 0.00217,
+        "min_gap_at_deg": 22,
+        "min_gap_pair": "Horn root web right vs Horn pin right"
+      },
+      "left": {
+        "top_z": 0.067,
+        "min_gap_m": 0.00217,
+        "min_gap_at_deg": 22,
+        "min_gap_pair": "Horn root web left vs Horn pin left"
+      }
+    },
+    "disc_paths": [],
+    "disc_visibility": {
+      "frame_fraction": 0.04539,
+      "top_face_fraction": 0.02273
+    },
+    "heat_band_nearest_off_axis": 0.04058
+  },
+  "limitations": [
+    "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
+    "Single LOD; no mobile GPU profiling.",
+    "blade steel and polished edge share the machined-steel palette map, so they differ only by name after the material-library pass.",
+    "The cassette glow strip shares the razor glow material with the discs and prongs.",
+    "The throw path of the seated disc passes the horn pins: the runtime hides the disc during the slide-out."
+  ],
+  "notes": [
+    "Fresh design (study FORK): flat toothed disc on a forward spindle, orange fork bridge with ring sight, hinged catch horns, open flywheel cage, strapped brace cuff, skeletal spare-disc cassette.",
+    "Markings are modelled geometry, not a texture decal."
+  ]
+}

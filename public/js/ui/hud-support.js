@@ -1,4 +1,4 @@
-import { WEAPON_IDS } from '../../../shared/combatmath.js';
+import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { CHAOS_KILL_CREDITS, CHAOS_UPGRADES } from '../../../shared/chaos.js';
 
 export const GLYPH = Object.freeze({
@@ -15,6 +15,7 @@ export const GLYPH = Object.freeze({
   knife: 'PX',
   flamethrower: 'FLM',
   grenade: 'GRN',
+  glaive: 'GV',
 });
 
 export const WEAPON_NAMES = Object.freeze({
@@ -30,6 +31,7 @@ export const WEAPON_NAMES = Object.freeze({
   lance: 'CL-9 VOLTLANCE',
   knife: 'PIXEL PICK',
   flamethrower: 'F-4 FIRESTORM',
+  glaive: 'GV-4 RIPTIDE',
 });
 
 export function weaponImagePath(weaponId) {
@@ -60,6 +62,7 @@ export const WEAPON_CLASSES = Object.freeze({
   lance: 'SIEGE LANCE · LINE PIERCE ×6',
   knife: 'PICKAXE · HOLD TO MINE',
   flamethrower: 'FLAME JET · BUILD AFTERBURN · 28m',
+  glaive: `DISC LAUNCHER · RETURN PIERCE ×${WEAPONS.glaive.glaive.pierce}`,
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([
@@ -70,6 +73,7 @@ export const WEAPON_BUY_ORDER = Object.freeze([
   'lmg',
   'sniper',
   'longarc',
+  'glaive',
   'lance',
   'rocket',
   'flamethrower',
@@ -324,4 +328,32 @@ export function beamReticleRadiusPx(radius, distance = 20, fov = 75, height = 80
   const angularRadius = radius / Math.max(1, distance) + Math.tan(coneDegrees * Math.PI / 180);
   const projectionScale = height / (2 * Math.tan(fov * Math.PI / 360));
   return Math.min(120, Math.max(4, angularRadius * projectionScale));
+}
+
+/**
+ * RIPTIDE disc pips from the authoritative ammo split. Discs in the air outrank
+ * discs in hand, which outrank embedded pickups, which outrank fabrication: the
+ * same order the server normaliser trims in, so a transient over-count paints
+ * the way it will settle. Returns one entry per disc slot, left to right.
+ */
+export function glaiveDiscSlots({ magSize = 0, mag = 0, inFlight = 0, embedded = 0, fab01 = [] } = {}) {
+  const count = (value) => Math.max(0, Math.floor(Number(value) || 0));
+  let free = count(magSize);
+  const take = (value) => {
+    const n = Math.min(free, count(value));
+    free -= n;
+    return n;
+  };
+  const flight = take(inFlight);
+  const hand = take(mag);
+  const stuck = take(embedded);
+  const fab = Array.isArray(fab01) ? fab01.slice(0, free) : [];
+  free -= fab.length;
+  const slots = [];
+  for (let i = 0; i < hand; i++) slots.push({ state: 'hand', fill01: 1 });
+  for (let i = 0; i < flight; i++) slots.push({ state: 'flight', fill01: 0 });
+  for (let i = 0; i < stuck; i++) slots.push({ state: 'embedded', fill01: 0 });
+  for (const progress of fab) slots.push({ state: 'fab', fill01: clamp01(progress) });
+  for (let i = 0; i < free; i++) slots.push({ state: 'empty', fill01: 0 });
+  return slots;
 }

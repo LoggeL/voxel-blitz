@@ -42,6 +42,9 @@ export function createSimulationContexts(engine) {
     ),
     launchRocket: (player, dir) => engine.projectiles.launchRocket(player, projectiles, dir),
     launchBolt: (player, dir, charge) => engine.projectiles.launchBolt(player, projectiles, dir, charge),
+    launchGlaive: (player, dir) => engine.projectiles.launchGlaive(player, projectiles, dir),
+    canThrowGlaive: (player) => engine.projectiles.canThrowGlaive(player),
+    returnDiscs: (player) => engine.projectiles.returnDiscs(player, projectiles),
   };
   const projectiles = {
     targets,

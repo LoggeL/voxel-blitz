@@ -5,6 +5,7 @@ import { SndObjective, pointOf } from './snd/objective.js';
 
 const MODE = 'snd';
 const REVOLVER = 'revolver';
+const GLAIVE_SLOT = WEAPON_IDS.indexOf('glaive');
 const ALPHA = TEAM_IDS[0];
 const BRAVO = TEAM_IDS[1];
 const TEAM_SET = new Set(TEAM_IDS);
@@ -17,7 +18,7 @@ const TEAM_SET = new Set(TEAM_IDS);
  * authoritative engine clock.
  */
 export class SndPolicy {
-  constructor({ rules, mapMeta = null, entities, now, emit, respawn, chooseSpawn } = {}) {
+  constructor({ rules, mapMeta = null, entities, now, emit, respawn, chooseSpawn, glaiveStock = null } = {}) {
     if (!rules || typeof rules !== 'object') throw new TypeError('SndPolicy requires rules');
     if (!entities || typeof entities.get !== 'function' || typeof entities.values !== 'function') {
       throw new TypeError('SndPolicy requires an entity map');
@@ -36,6 +37,7 @@ export class SndPolicy {
     this._emitEvent = emit;
     this._respawnEntity = respawn;
     this._chooseSpawn = chooseSpawn;
+    this._glaiveStock = typeof glaiveStock === 'function' ? glaiveStock : null;
 
     this.phase = 'prep';
     this.phaseEndsAt = this.now + this.rules.prepMs;
@@ -569,6 +571,11 @@ export class SndPolicy {
       const keep = !newMatch && state.survived;
       const savedWeapon = weaponId(entity.weapon);
       const savedMag = Array.isArray(entity.mag) ? entity.mag.slice() : [];
+      // The respawn deletes discs still flying, embedded or fabricating; a survivor
+      // keeps them as seated discs (the ammo normaliser trims any excess).
+      if (keep && GLAIVE_SLOT >= 0 && this._glaiveStock && Number.isFinite(savedMag[GLAIVE_SLOT])) {
+        savedMag[GLAIVE_SLOT] += this._glaiveStock(entity);
+      }
       const savedReserve = Array.isArray(entity.reserve) ? entity.reserve.slice() : [];
       if (!keep) state.owned = new Set([REVOLVER]);
       state.participating = true;

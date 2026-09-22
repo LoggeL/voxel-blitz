@@ -345,6 +345,7 @@ export class GameEngine {
     const pid = String(id);
     const player = this.entities.get(pid);
     if (player) this.mode.onPlayerRemove(player);
+    if (player) this.projectiles.resetGlaive(player, this.contexts.projectiles);
     this.entities.delete(pid);
   }
 
@@ -607,6 +608,8 @@ export class GameEngine {
     if (!entity) return false;
     const next = spawn || this.nextSpawnFor(entity, entity.lastSpawnIndex);
     entity.applySpawn(next);
+    // A fresh life never inherits discs, pickups or fabrications from the last one.
+    this.projectiles.resetGlaive(entity, this.contexts.projectiles);
     entity.spawnProtectedUntil = protect ? this.now + SPAWN_PROTECTION_MS : 0;
     entity.spawnProtected = !!protect;
     if (emitEvent) this.tickEvents.push(evRespawn(entity.id, entity.x, entity.y, entity.z));

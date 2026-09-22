@@ -1,11 +1,13 @@
 import { combatDamage } from '../../shared/combat-balance.js';
 import { collectNearMisses, applyNearMisses, suppressExplosion } from './suppression.js';
-import { pointPlayerDistance } from '../../shared/player-hitboxes.js';
-import { chaosLevel } from '../../shared/chaos.js';
+import { pointPlayerDistance, rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
+import { chaosLevel, chaosWeaponDef } from '../../shared/chaos.js';
+import { chaosGlaiveContact } from './chaos-combat.js';
 // Room-scoped authoritative projectile simulation: four throwable types, the
-// rocket, and the LONGARC bolt. One system owns flight, sticking, detonation,
-// blast damage, knockback, concussion, terrain carving, sympathetic (chain)
-// detonation, and bolt ricochets so every projectile follows the same rules.
+// rocket, the LONGARC bolt and the RIPTIDE disc. One system owns flight, sticking,
+// detonation, blast damage, knockback, concussion, terrain carving, sympathetic
+// (chain) detonation, bolt ricochets and disc returns so every projectile follows
+// the same rules.
 
 import {
   AIR,
@@ -17,10 +19,12 @@ import { raycastVoxels } from '../../shared/raycast.js';
 import {
   PLAYER_HALF,
   WEAPONS,
+  WEAPON_IDS,
   chargeDamageMult,
   damageAtDistance,
 } from '../../shared/combatmath.js';
 import {
+  evGlaiveStock,
   evHit,
   evProjectileExplode,
   evProjectileLaunch,
@@ -39,6 +43,16 @@ import {
 } from '../../shared/grenade-rules.js';
 import { ROCKET_RULES, rocketLaunch, stepRocket } from '../../shared/rocket-rules.js';
 import { BOLT_RULES, boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
+import {
+  glaiveCanThrow,
+  glaiveFlip,
+  glaiveLaunch,
+  glaiveLegDamage,
+  glaivePickupReached,
+  glaiveTarget,
+  stepGlaive,
+  trimGlaiveAmmo,
+} from '../../shared/glaive-rules.js';
 import { sweepPlayers } from './projectile-contact.js';
 import { SmokeSystem } from './smoke.js';
 import { MolotovFireSystem } from './molotov-fire.js';
@@ -51,6 +65,17 @@ const OWNER_GRACE_MS = 220;
 const CHAIN_REACH = 0.8;
 /** A bolt contact ends in this tiny "blast" — a pop, never a real explosion. */
 const BOLT_FIZZLE_RADIUS = 0.5;
+/** The RIPTIDE's fixed weapon slot: catches and fabrications land here in any hand. */
+const GLAIVE_SLOT = WEAPON_IDS.indexOf('glaive');
+/** Every returning disc re-publishes its steered path this often (ms). */
+const GLAIVE_SYNC_MS = 100;
+/** How far past the swept contact the disc centre line is probed for the hit zone (m). */
+const GLAIVE_ZONE_DEPTH = 0.8;
+
+/** The owner's live RIPTIDE definition, Chaos ladder included, whatever is in hand. */
+export function glaiveDef(player) {
+  return chaosWeaponDef(player, WEAPONS.glaive);
+}
 
 /** Blast profile per projectile type, read by tests and the explosion path alike. */
 export const PROJECTILE_RULES = Object.freeze({
@@ -120,10 +145,15 @@ export class ProjectileSystem {
     this._homingCandidates = [];
     this._stepping = [];
     this._previousPlayers = new Map();
+    /** Embedded RIPTIDE discs keyed by the disc id that embedded: owner-only pickups. */
+    this.glaivePickups = new Map();
+    this._glaiveFlying = new Map();
   }
 
   clear() {
     this.active.clear();
+    this.glaivePickups.clear();
+    this._glaiveFlying.clear();
     this.fire.clear();
     this.smoke.clear();
     this._previousPlayers.clear();
@@ -166,22 +196,34 @@ export class ProjectileSystem {
         this._stepClaymore(projectile, ctx);
         continue;
       }
+      if (projectile.type === 'glaive' && !this._glaiveOwnerLive(projectile, ctx)) {
+        // A dead or departed owner loses the disc outright; respawn refills the gun.
+        this._endGlaive(projectile, ctx, 'owner');
+        continue;
+      }
       if (projectile.chaosHoming && !projectile.stuck) this._home(projectile, dt, ctx);
       if (projectile.type === 'pulse' && projectile.chaosLevel >= 1 && !projectile.child) this._pull(projectile, dt, ctx);
       if (projectile.stuckTo) this._followCarrier(projectile, ctx);
       else if (projectile.type === 'rocket') this._flyRocket(projectile, stepSeconds * substeps, ctx);
       else if (projectile.type === 'bolt') this._flyBolt(projectile, stepSeconds * substeps, ctx);
+      else if (projectile.type === 'glaive') this._flyGlaive(projectile, stepSeconds * substeps, ctx);
       else this._flyGrenade(projectile, stepSeconds, substeps, ctx);
       if (!this.active.has(projectile.id)) continue;
-      if (projectile.chaosLevel && ctx.now >= (projectile.syncAt || 0)) {
-        projectile.syncAt = ctx.now + 100;
-        ctx.pushEvent(evProjectileUpdate(projectile.id,
+      // Returning discs steer toward a live owner, so remote presentation needs
+      // the same 100 ms correction stream that Chaos projectiles already use.
+      if ((projectile.chaosLevel || (projectile.type === 'glaive' && projectile.phase === 'back'))
+          && ctx.now >= (projectile.syncAt || 0)) {
+        projectile.syncAt = ctx.now + GLAIVE_SYNC_MS;
+        const update = evProjectileUpdate(projectile.id,
           [projectile.x, projectile.y, projectile.z],
-          [projectile.vx, projectile.vy, projectile.vz], projectile.bouncesLeft));
+          [projectile.vx, projectile.vy, projectile.vz], projectile.bouncesLeft);
+        if (projectile.type === 'glaive') update.phase = projectile.phase;
+        ctx.pushEvent(update);
       }
       if (ctx.now >= projectile.explodeAt || outsideWorld(projectile, ctx)) this.explode(projectile, ctx);
     }
     stepping.length = 0;
+    this._stepGlaiveStock(ctx);
     this._previousPlayers.clear();
     for (const p of ctx.entities.values()) {
       if (p.state === 'alive') this._previousPlayers.set(p.id, { x: p.x, y: p.y, z: p.z, now: ctx.now });
@@ -333,6 +375,286 @@ export class ProjectileSystem {
     ctx.pushEvent(evProjectileExplode(projectile.ownerId, projectile.id, 'bolt',
       [projectile.x, projectile.y, projectile.z], BOLT_FIZZLE_RADIUS));
     return true;
+  }
+
+  /**
+   * One RIPTIDE disc flies on the shared integrator. Unlike a bolt it never stops at
+   * a body: every traveled segment is swept repeatedly so each victim takes at most
+   * one hit per leg, up to the leg's pierce limit. The out-leg reflection chips its
+   * voxel and turns the disc home; a return-leg wall embeds it as an owner pickup.
+   */
+  _flyGlaive(disc, seconds, ctx) {
+    const owner = disc.owner;
+    const rules = disc.rules;
+    stepGlaive(disc, seconds, disc.raycast, glaiveTarget(owner), {
+      now: ctx.now,
+      rules,
+      onTravel: (from, to) => { this._cutGlaive(disc, from, to, ctx); return false; },
+      onBounce: (contact) => {
+        if (typeof ctx.canAffectWorld === 'function' && !ctx.canAffectWorld()) return;
+        const type = ctx.getBlock(contact.x, contact.y, contact.z);
+        if (BLOCK_HP[type] != null) {
+          ctx.damageBlock?.(contact.x, contact.y, contact.z, type, rules.blockDamage);
+        }
+        chaosGlaiveContact(owner, [disc.x, disc.y, disc.z], this._chaosPort(ctx));
+      },
+    });
+    if (!this.active.has(disc.id)) return true;
+    if (disc.expired) return this._endGlaive(disc, ctx, 'expire');
+    if (disc.caught) return this._endGlaive(disc, ctx, 'catch');
+    if (disc.hit) return this._endGlaive(disc, ctx, 'embed');
+    if (disc.flipped) this._publishGlaiveFlip(disc, ctx, disc.flipped);
+    return false;
+  }
+
+  /** Damage every eligible body along one traveled disc segment (see `_flyGlaive`). */
+  _cutGlaive(disc, from, to, ctx) {
+    const leg = disc.phase === 'back' ? 'back' : 'out';
+    const cut = leg === 'back' ? disc.hitBack : disc.hitOut;
+    const rules = disc.rules;
+    const limit = Math.max(1, Math.trunc(rules.pierce) || 1);
+    const owner = disc.owner;
+    const hits = new Set();
+    const end = { x: to.x, y: to.y, z: to.z };
+    // Point-blank guard: a body cut on the out leg cannot take the return cut
+    // until `legGapMs` later, so a disc bouncing off the wall behind it only hits once.
+    const canCut = (victim) => !cut.has(victim)
+      && !(leg === 'back' && ctx.now - (disc.lastHitAt.get(victim) ?? -Infinity) < rules.legGapMs)
+      && this._canContact(victim, disc, ctx, true);
+    while (cut.size < limit) {
+      const contact = sweepPlayers(from, end, rules.radius, ctx.targets || ctx.entities, canCut);
+      if (!contact) break;
+      const { victim, x, y, z } = contact;
+      // The 0.22 m disc reaches the inflated torso box before the head, so the zone
+      // comes from the disc's centre line through the body (hitscan preferCore), probed
+      // a body depth past the contact because the centre line may cross it next step.
+      const span = Math.hypot(end.x - from.x, end.y - from.y, end.z - from.z) || 1;
+      // Only a centre line through the head box is a headshot (hitscan `coreHit`);
+      // a radius-only graze over the helmet cuts as a body hit.
+      const probe = rayPlayerHitboxes([from.x, from.y, from.z],
+        { x: (end.x - from.x) / span, y: (end.y - from.y) / span, z: (end.z - from.z) / span },
+        victim, contact.t * span + GLAIVE_ZONE_DEPTH,
+        { radius: rules.radius, preferCore: true });
+      const hs = !!probe?.coreHit && probe.zone === 'head';
+      const dmg = combatDamage(glaiveLegDamage(leg, cut.size, hs, rules));
+      cut.add(victim);
+      hits.add(victim);
+      disc.lastHitAt.set(victim, ctx.now);
+      if (leg === 'out') disc.lastOutHitAt = ctx.now;
+      const lethal = victim.takeDamage(dmg, hs, owner, 'glaive');
+      // `w` lets clients play the disc's slice (and headshot ring) cue.
+      ctx.pushEvent(Object.assign(evHit(owner.id, victim.id, dmg, hs, [x, y, z], victim.lastDamage), { w: 'glaive' }));
+      if (lethal) ctx.killPlayer(victim, owner, 'glaive', hs, {});
+    }
+    const length = Math.hypot(end.x - from.x, end.y - from.y, end.z - from.z);
+    if (length > 0) {
+      const dir = { x: (end.x - from.x) / length, y: (end.y - from.y) / length, z: (end.z - from.z) / length };
+      const mine = this.nearestClaymore([from.x, from.y, from.z], dir, length, 0, rules.radius);
+      if (mine) this.explode(mine.mine, ctx);
+    }
+    applyNearMisses(collectNearMisses(owner,
+      [from.x, from.y, from.z], [end.x, end.y, end.z], ctx), hits.size ? hits : null, ctx);
+  }
+
+  _publishGlaiveFlip(disc, ctx, reason) {
+    disc.syncAt = ctx.now + GLAIVE_SYNC_MS;
+    ctx.pushEvent(Object.assign(evProjectileUpdate(disc.id,
+      [disc.x, disc.y, disc.z], [disc.vx, disc.vy, disc.vz], disc.bouncesLeft),
+    { phase: disc.phase, flip: reason }));
+  }
+
+  /** The disc's owner still exists and is alive; otherwise the disc is lost. */
+  _glaiveOwnerLive(disc, ctx) {
+    const owner = disc.owner;
+    return !!owner && owner.state === 'alive' && ctx.entities.get(String(owner.id)) === owner;
+  }
+
+  _chaosPort(ctx) {
+    return { chaosBlast: (p, origin, type, radius, damage, knockback) =>
+      this.chaosBlast(p, origin, type, radius, damage, knockback, ctx) };
+  }
+
+  /**
+   * Retire one disc. `catch` seats it in the owner's RIPTIDE slot, `embed` leaves an
+   * owner-only pickup that fabricates after `regenMs`, `expire` (lifetime or out of
+   * the world) queues a fabrication with no pickup, and `owner`/`clear` lose it.
+   */
+  _endGlaive(disc, ctx, reason) {
+    if (!this.active.delete(disc.id)) return false;
+    const owner = disc.owner;
+    const live = this._glaiveOwnerLive(disc, ctx);
+    const point = [disc.x, disc.y, disc.z];
+    ctx.pushEvent(Object.assign(evProjectileExplode(owner?.id ?? disc.ownerId, disc.id, 'glaive', point, 0),
+      { caught: reason === 'catch', reason }));
+    if (!live) return true;
+    if (reason === 'catch') {
+      owner.mag[GLAIVE_SLOT] = Math.max(0, owner.mag[GLAIVE_SLOT] | 0) + 1;
+      chaosGlaiveContact(owner, point, this._chaosPort(ctx));
+    } else if (reason === 'embed') {
+      const hit = disc.hit;
+      this.glaivePickups.set(disc.id, {
+        id: disc.id, owner, x: disc.x, y: disc.y, z: disc.z,
+        cell: hit ? [hit.x, hit.y, hit.z] : null,
+        expiresAt: ctx.now + disc.rules.regenMs,
+      });
+      if (!(typeof ctx.canAffectWorld === 'function' && !ctx.canAffectWorld())) {
+        chaosGlaiveContact(owner, point, this._chaosPort(ctx));
+      }
+      this._publishGlaiveStock(owner, ctx);
+    } else if (reason === 'expire') {
+      (owner.glaiveFab ??= []).push(ctx.now + disc.rules.regenMs);
+      this._publishGlaiveStock(owner, ctx);
+    }
+    return true;
+  }
+
+  _publishGlaiveStock(owner, ctx, restored = null) {
+    const pickups = [];
+    for (const pickup of this.glaivePickups.values()) {
+      if (pickup.owner === owner) pickups.push({ ...pickup, regen: pickup.expiresAt - ctx.now });
+    }
+    ctx.pushEvent(evGlaiveStock(owner.id, (owner.glaiveFab || []).map((at) => at - ctx.now), pickups, restored));
+  }
+
+  /** Discs of `player` still in the air (the fire gate's `inFlight`). */
+  glaiveInFlight(player) {
+    let count = 0;
+    for (const projectile of this.active.values()) {
+      if (projectile.type === 'glaive' && projectile.owner === player) count++;
+    }
+    return count;
+  }
+
+  /** Discs `player` owns outside the hand: flying, embedded or queued for fabrication. */
+  glaiveStock(player) {
+    let count = this.glaiveInFlight(player) + (player?.glaiveFab?.length || 0);
+    for (const pickup of this.glaivePickups.values()) if (pickup.owner === player) count++;
+    return count;
+  }
+
+  /** Fire gate: a seated disc and fewer than `magSize` discs already flying. */
+  canThrowGlaive(player) {
+    return glaiveCanThrow(player.mag?.[GLAIVE_SLOT], this.glaiveInFlight(player), glaiveDef(player).magSize);
+  }
+
+  /**
+   * R on the RIPTIDE: every disc the player owns that is still on its out leg turns
+   * home now. Nothing about reloading changes. Returns how many discs turned.
+   */
+  returnDiscs(player, ctx) {
+    let turned = 0;
+    for (const disc of this.active.values()) {
+      if (disc.type !== 'glaive' || disc.owner !== player || disc.phase !== 'out') continue;
+      if (!glaiveFlip(disc, ctx.now, 'return', disc.rules)) continue;
+      this._publishGlaiveFlip(disc, ctx, 'return');
+      turned++;
+    }
+    return turned;
+  }
+
+  /**
+   * Per-owner disc bookkeeping after flight: embedded pickups (proximity pickup,
+   * destroyed anchor block, `regenMs` fabrication), due fabrications and then the
+   * one ammo normaliser for every combatant.
+   */
+  _stepGlaiveStock(ctx) {
+    if (GLAIVE_SLOT < 0) return;
+    const changed = new Map();
+    for (const pickup of this.glaivePickups.values()) {
+      const owner = pickup.owner;
+      if (!owner || owner.state !== 'alive' || ctx.entities.get(String(owner.id)) !== owner) {
+        this.glaivePickups.delete(pickup.id);
+        // Publish the empty stock so the owner's client drops the pickup and its ghost.
+        if (owner && !changed.has(owner)) changed.set(owner, null);
+        continue;
+      }
+      if (ctx.now >= pickup.expiresAt || glaivePickupReached(pickup, owner, glaiveDef(owner).glaive)) {
+        this.glaivePickups.delete(pickup.id);
+        owner.mag[GLAIVE_SLOT] = Math.max(0, owner.mag[GLAIVE_SLOT] | 0) + 1;
+        changed.set(owner, ctx.now >= pickup.expiresAt ? 'fab' : 'pickup');
+      } else if (pickup.cell && ctx.getBlock(...pickup.cell) === AIR) {
+        // The anchor block is gone: the disc drops out of the world, and the
+        // launcher still fabricates it on the pickup's original schedule.
+        this.glaivePickups.delete(pickup.id);
+        (owner.glaiveFab ??= []).push(pickup.expiresAt);
+        if (!changed.has(owner)) changed.set(owner, null);
+      }
+    }
+    const flying = this._glaiveFlying;
+    flying.clear();
+    for (const disc of this.active.values()) {
+      if (disc.type === 'glaive') flying.set(disc.owner, (flying.get(disc.owner) || 0) + 1);
+    }
+    for (const player of ctx.entities.values()) {
+      if (!Array.isArray(player.mag)) continue;
+      const fab = player.glaiveFab;
+      if (fab?.length) {
+        let due = 0;
+        for (let i = fab.length - 1; i >= 0; i--) {
+          if (ctx.now >= fab[i]) { fab.splice(i, 1); due++; }
+        }
+        if (due) {
+          player.mag[GLAIVE_SLOT] = Math.max(0, player.mag[GLAIVE_SLOT] | 0) + due;
+          changed.set(player, 'fab');
+        }
+      }
+      if (this.normalizeGlaiveAmmo(player, ctx, flying.get(player) || 0) && !changed.has(player)) {
+        changed.set(player, null);
+      }
+    }
+    for (const [owner, restored] of changed) this._publishGlaiveStock(owner, ctx, restored);
+    flying.clear();
+  }
+
+  /**
+   * The ammo invariant `mag + inFlight + embedded + fab <= magSize`, enforced in one
+   * place so every refill path (spawn, round reset, Gun Game, loadouts) stays honest.
+   * Excess comes off queued fabrications first, then embedded pickups, then the seated
+   * count; discs in the air always outrank discs in hand. Returns true when the
+   * owner's pickup or fabrication stock changed.
+   */
+  normalizeGlaiveAmmo(p, ctx, inFlight = this.glaiveInFlight(p)) {
+    if (GLAIVE_SLOT < 0 || !Array.isArray(p.mag)) return false;
+    // Discs are the only ammunition: a spare pool would let a reload conjure discs.
+    if (Array.isArray(p.reserve) && p.reserve[GLAIVE_SLOT]) p.reserve[GLAIVE_SLOT] = 0;
+    const fab = p.glaiveFab || [];
+    let embedded = 0;
+    for (const pickup of this.glaivePickups.values()) if (pickup.owner === p) embedded++;
+    const trim = trimGlaiveAmmo({ magSize: glaiveDef(p).magSize,
+      mag: p.mag[GLAIVE_SLOT], inFlight, embedded, fab: fab.length });
+    p.mag[GLAIVE_SLOT] = trim.mag;
+    if (!trim.dropFab && !trim.dropEmbedded) return false;
+    // Keep the soonest fabrications and the freshest pickups.
+    if (trim.dropFab) { fab.sort((a, b) => a - b); fab.length -= trim.dropFab; }
+    let drop = trim.dropEmbedded;
+    for (const pickup of [...this.glaivePickups.values()].filter((row) => row.owner === p)
+      .sort((a, b) => a.expiresAt - b.expiresAt)) {
+      if (drop-- <= 0) break;
+      this.glaivePickups.delete(pickup.id);
+    }
+    return true;
+  }
+
+  /**
+   * Fresh life, round reset or departure: delete the owner's discs and pickups and
+   * clear queued fabrications. A respawn under the Third plate seats its extra disc.
+   */
+  resetGlaive(player, ctx) {
+    if (!player) return;
+    let touched = !!player.glaiveFab?.length;
+    for (const disc of [...this.active.values()]) {
+      if (disc.type === 'glaive' && disc.owner === player) touched = this._endGlaive(disc, ctx, 'clear') || touched;
+    }
+    for (const pickup of [...this.glaivePickups.values()]) {
+      if (pickup.owner === player) { this.glaivePickups.delete(pickup.id); touched = true; }
+    }
+    player.glaiveFab = [];
+    const base = WEAPONS.glaive.magSize;
+    const cap = glaiveDef(player).magSize;
+    if (GLAIVE_SLOT >= 0 && Array.isArray(player.mag) && cap > base && player.mag[GLAIVE_SLOT] === base) {
+      player.mag[GLAIVE_SLOT] = cap;
+    }
+    if (touched) this._publishGlaiveStock(player, ctx);
   }
 
   _canContact(victim, projectile, ctx, ignoreOwner = false) {
@@ -552,6 +874,48 @@ export class ProjectileSystem {
     return projectile;
   }
 
+  /**
+   * A RIPTIDE disc leaves the spindle from the shooter's eye along the spread-sampled
+   * `dir`. Its rules (out leg, pierce) are frozen from the owner's Chaos ladder.
+   */
+  launchGlaive(player, ctx, dir) {
+    if (this.active.size >= 192) return null;
+    const rules = glaiveDef(player).glaive;
+    const launch = glaiveLaunch({ x: player.x, y: player.eyeY, z: player.z, dir, now: ctx.now, rules });
+    const id = `d${this._nextId++}`;
+    const projectile = {
+      ...launch,
+      id,
+      ownerId: String(player.id),
+      owner: player,
+      rules,
+      explodeAt: launch.expiresAt,
+      hit: null,
+      bounced: null,
+      traveled: 0,
+      // One cut per victim per leg; `lastHitAt` feeds the leg gap and the bots.
+      hitOut: new Set(),
+      hitBack: new Set(),
+      lastHitAt: new Map(),
+      lastOutHitAt: -Infinity,
+      raycast: (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
+        ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
+      ),
+    };
+    this._configureChaos(projectile);
+    this.active.set(id, projectile);
+    ctx.pushEvent(Object.assign(evProjectileLaunch(
+      player.id,
+      id,
+      'glaive',
+      [projectile.x, projectile.y, projectile.z],
+      [projectile.vx, projectile.vy, projectile.vz],
+      rules.lifetimeMs,
+      projectile.bouncesLeft,
+    ), { chaos: projectile.chaosLevel || 0, phase: 'out', flip: rules.outMs }));
+    return projectile;
+  }
+
   _configureChaos(projectile) {
     if (projectile.child) return;
     const p = projectile.owner;
@@ -640,6 +1004,7 @@ export class ProjectileSystem {
 
   explode(projectile, ctx) {
     if (projectile.type === 'bolt') return this._fizzleBolt(projectile, ctx);
+    if (projectile.type === 'glaive') return this._endGlaive(projectile, ctx, 'expire');
     if (!this.active.delete(projectile.id)) return false;
     const baseRules = PROJECTILE_RULES[projectile.type] || PROJECTILE_RULES.frag;
     const level = projectile.chaosLevel || 0;
@@ -802,7 +1167,7 @@ export class ProjectileSystem {
   _chainDetonate(source, origin, rules, ctx) {
     const reach = rules.damageRadius * CHAIN_REACH;
     for (const other of this.active.values()) {
-      if (other === source || other.type === 'bolt' || other.explodeAt <= ctx.now) continue;
+      if (other === source || other.type === 'bolt' || other.type === 'glaive' || other.explodeAt <= ctx.now) continue;
       const distance = Math.hypot(other.x - origin[0], other.y - origin[1], other.z - origin[2]);
       if (distance > reach) continue;
       if (!visibleTo(ctx, origin, [other.x, other.y, other.z])) continue;

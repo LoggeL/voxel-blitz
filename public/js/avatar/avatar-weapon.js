@@ -3,6 +3,7 @@ import { applyStattrakModule } from '../guns/stattrak-module.js';
 import { applyGunCosmetics } from '../cosmetics/skins.js';
 import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from '../guns/heavy-weapon-animation.js';
+import { glaivePresentationFor } from '../guns/glaive-presentation.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { SWIM } from '../../../shared/player-stance.js';
 import { buildGun, disposeGunModels } from '../guns/assemble.js';
@@ -15,6 +16,10 @@ const ADS_SIGHT_X = 0.055;
 const ADS_SIGHT_Y = 1.62;
 const ADS_DEPTH_OFFSET = -0.045;
 const MAX_PITCH = (80 * Math.PI) / 180;
+// Remote RIPTIDE discs: without their authoritative flight the mount assumes the natural
+// return (out leg plus the curve home, measured at about 1.45 s) and replays the catch.
+// Lost-event guard only: remote discs resolve from the authoritative explode/stock events.
+const GLAIVE_LOST_EVENT_S = 6;
 const REFERENCE_GRIP_TARGET = new THREE.Vector3(
   BASE_POSITION.x + HANDS.rifle.grip.x * MODEL_SCALE,
   BASE_POSITION.y + HANDS.rifle.grip.y * MODEL_SCALE,
@@ -151,6 +156,7 @@ export class AvatarWeaponModel {
     minigun,
     swim = 0,
     swimSway = 0,
+    glaive,
   } = {}) {
     this.setWeapon(weapon);
     if (!this._model) return;
@@ -165,6 +171,7 @@ export class AvatarWeaponModel {
       flameActive: this._weaponId === 'flamethrower' && !!firing });
     // Melee (T.melee): the firing pulse drives a forward stab, not a recoil shove, and
     // the assembled flash stub stays dark — a blade neither flashes nor kicks.
+    if (this._weaponId === 'glaive') this._animateGlaive(frameDt, !!firing, glaive);
     const melee = this._model.T.melee === true;
     const continuous = this._model.T.continuous === true;
     const weight = WEAPONS[this._weaponId]?.weightKg || 3.4;
@@ -232,7 +239,53 @@ export class AvatarWeaponModel {
     glow.value = Math.max(charge01, glow.value * Math.exp(-frameDt / 0.05), this._flash);
   }
 
+  /**
+   * Third-person RIPTIDE: the same horn flare/clamp as first person. `glaive` may carry
+   * authoritative `{discs, magSize, caught}`; otherwise the roster forwards the owner's
+   * `projectileExplode` (glaiveEnded) and restored `glaiveStock` (glaiveRestored) events.
+   * A throw no event resolves is only written back after a lost-event guard.
+   */
+  _animateGlaive(dt, firing, glaive) {
+    const presentation = glaivePresentationFor(this._model);
+    this._glaiveOut ||= [];
+    this._glaiveClock = (this._glaiveClock || 0) + dt;
+    if (firing && !this._glaiveFiring && presentation.discs > 0) {
+      presentation.throw();
+      this._glaiveOut.push(this._glaiveClock);
+    }
+    this._glaiveFiring = firing;
+    if (glaive && Number.isFinite(glaive.discs)) {
+      if (glaive.caught) presentation.caught();
+      presentation.setDiscs(glaive.discs, glaive.magSize, glaive.fab01);
+      this._glaiveOut.length = 0;
+    } else if (this._glaiveOut.length && this._glaiveClock - this._glaiveOut[0] >= GLAIVE_LOST_EVENT_S) {
+      this._glaiveOut.shift();
+      presentation.setDiscs(presentation.discs + 1);
+    }
+    presentation.update(dt);
+  }
+
+  /** Authoritative end of one of this avatar's discs: a catch clamps; embed/fizzle/loss do not. */
+  glaiveEnded(caught) {
+    if (this._weaponId !== 'glaive' || !this._model) return;
+    const presentation = glaivePresentationFor(this._model);
+    this._glaiveOut?.shift();
+    if (!caught) return;
+    presentation.caught();
+    presentation.setDiscs(presentation.discs + 1);
+  }
+
+  /** An embedded or fizzled disc came back (pickup or fabrication): the cassette lift. */
+  glaiveRestored() {
+    if (this._weaponId !== 'glaive' || !this._model) return;
+    const presentation = glaivePresentationFor(this._model);
+    presentation.setDiscs(presentation.discs + 1);
+  }
+
   resetPose() {
+    if (this._model && this._weaponId === 'glaive') glaivePresentationFor(this._model).reset();
+    this._glaiveOut = [];
+    this._glaiveFiring = false;
     this._recoil = 0;
     this._stab = 0;
     this._flash = 0;

@@ -24,6 +24,7 @@ import { build as buildRocket } from './models/rocket.js';
 import { build as buildLance } from './models/lance.js';
 import { build as buildFlamethrower } from './models/flamethrower.js';
 import { build as buildKnife } from './models/knife.js';
+import { build as buildGlaive } from './models/glaive.js';
 
 const MODELS = Object.freeze({
   rifle: buildRifle,
@@ -38,6 +39,7 @@ const MODELS = Object.freeze({
   lance: buildLance,
   knife: buildKnife,
   flamethrower: buildFlamethrower,
+  glaive: buildGlaive,
 });
 
 // Glow accents for the two roster ids kit.js's GLOW_ACCENT sheet does not carry yet. makeFx()
@@ -104,7 +106,8 @@ export function buildGun(id, cache) {
   const fx = makeFx(id, FX_ACCENT[id]);
   const uni = fx.uniforms;
   const glow = fx.material;
-  if (!melee && id !== 'revolver') {
+  // The glaive's bolt is the open flywheel drum: no receiver would hide the cap there.
+  if (!melee && id !== 'revolver' && id !== 'glaive') {
     const capZ = BOLT_HOME[id];
     const cap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.012), glow);
     cap.position.set(-0.02, 0.07, capZ + 0.052);

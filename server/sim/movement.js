@@ -146,7 +146,8 @@ export function stepMovement(p, dt, ctx) {
   // immediately, but do not keep blocking on an already acknowledged request.
   const reloadEdge = inp?.reload && (Number.isSafeInteger(inp.reloadId) && inp.reloadId > 0
     ? inp.reloadId > (p.reloadAck || 0) : !p.reloadPrev);
-  const pendingReload = reloadEdge && p.def.mode !== 'melee' &&
+  // R on the RIPTIDE only turns discs home and never occupies the hands.
+  const pendingReload = reloadEdge && p.def.mode !== 'melee' && !p.def.glaive &&
     p.mag?.[p.weapon] < p.def.magSize && (p.infiniteMagazines || p.reserve?.[p.weapon] > 0);
   const handsFree = canClimb({ reloading: p.reloading || pendingReload,
     grenadeHandling: inp?.grenadeHandling || p.grenadeHandlingQueued,
