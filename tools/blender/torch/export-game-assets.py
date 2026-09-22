@@ -1,36 +1,22 @@
-"""Write the browser-facing runtime glTF for TORCH, plus .bin and manifest.
+"""Write the browser-facing runtime glTF for TORCH, plus .bin and manifest row.
 
-    blender --background docs/design/blender/torch/torch.blend \
+Run headless from the saved study source:
+
+    blender --background --factory-startup docs/design/blender/torch/torch.blend \
         --python tools/blender/torch/export-game-assets.py
 
-The runtime file is not the Blender GLB: it is the compact delivery form the
-game's loader (`public/js/engine/blender-assets.js`) expects.
-
-    * buffer `torch.bin`, referenced as a sibling URI
-    * images referenced as `textures/<stem>.jpg`, never re-encoded - the game's
-      map cache keys decoded maps on exactly that string, and GLTFLoader derives
-      Texture.name from the image URI
-    * node transforms are identity with all vertices baked into gun-local
-      space, except the breech-gate venturi pieces, which are direct children of
-      `extra` with vertices baked relative to the reload hinge and the hinge as
-      their node translation (actions.js rotates
-      `extra.userData.rocketReload.gate` about that hinge; the loader flattens
-      node translations away, and `public/js/guns/models/torch.js` re-applies
-      the identical pivot, so both paths agree)
-    * one node per contract part, one primitive per material
-    * analytic UVs at a constant real-world density, carried over from authoring
-
-This script also performs one piece of file hygiene it owns: the authoring
-session may hold other studies in the same Blender file. Any scene that is not
-the TORCH study is removed here and the .blend is re-saved, so the delivered
-source holds exactly one scene. This runs in a background process and never
-touches the live session.
-
-No study texture is written, re-encoded or copied over.
+Produces public/assets/blender/torch.gltf + torch.bin against the frozen node
+contract: top-level group nodes body/mag/bolt/trigger batching geometry per
+material (extras.blenderAsset = "torch"), `extra` holding ONLY the breech gate
+leaves as per-material meshes with hinge-local geometry and node translation
+exactly at the hinge (BISON cover-leaf convention), marker nodes grip, muzzle,
+sight and support at the frozen anchors. Textures are the shared files under
+public/assets/blender/textures referenced byte-identical; nothing is generated.
 """
 import bpy
 import json
 import struct
+import sys
 from collections import defaultdict
 from pathlib import Path
 from mathutils import Matrix, Vector
@@ -48,12 +34,6 @@ TEXTURES = ['ivory-armor', 'orange-painted-metal', 'petrol-ballistic-fabric',
             'worn-gunmetal', 'worn-rubber']
 UV_SCALE = 3.6  # texture tiles per metre; must match build-torch.py
 
-# Authored venturi pieces that swing open on reload. They ship as separable
-# nodes under `extra` (never merged into the body batch) so the runtime can
-# pivot them as one breech gate.
-GATE_NAMES = {'Venturi bell', 'Venturi nozzle', 'Venturi rim',
-              'Venturi step inner', 'Venturi step outer', 'Venturi throat'}
-
 # Reload hinge in game space: bore-axis height at the rocket gate pivot, the
 # same numbers rocket.js derives (T.muzzle[1] for height, BREACH_Z.rocket + 0.16
 # for depth). Frozen by defs.js TIMERS.rocket / models/common.js BREACH_Z.
@@ -70,6 +50,8 @@ if scene is None:
 
 # --- drop foreign studies from the delivered source ------------------------
 source_parts = sum(1 for obj in scene.objects if obj.type == 'MESH' and obj.get('part') in GROUPS)
+if source_parts < 80:
+    raise SystemExit(f'{source_parts} source parts in {BLEND}; expected the authored study')
 removed = [s.name for s in bpy.data.scenes if s is not scene]
 for name in removed:
     bpy.data.scenes.remove(bpy.data.scenes[name])
@@ -99,8 +81,6 @@ if abs(muzzle_game[0] - 0.0) > 1e-6 or abs(muzzle_game[1] - HINGE[1]) > 1e-6 \
 depsgraph = bpy.context.evaluated_depsgraph_get()
 batches = defaultdict(lambda: {'vertices': [], 'indices': [], 'lookup': {}})
 gate_batches = defaultdict(lambda: {'vertices': [], 'indices': [], 'lookup': {}})
-rounds = []
-found_gates = set()
 part_batches = defaultdict(list)
 material_order = []
 material_index = {}
@@ -113,18 +93,14 @@ def stored_world(obj):
 
 
 material_meta = []
+gate_sources = 0
 for obj in sorted(scene.objects, key=lambda o: o.name):
     part = obj.get('part')
     if obj.type != 'MESH' or part not in GROUPS:
         continue
-    base = obj.name.split('.')[0]
-    is_gate = part == 'body' and base in GATE_NAMES
-    if is_gate:
-        found_gates.add(base)
-    # build-torch.py inherited ballista's prop name; prefer the slug's own.
-    key = obj.get(f'{SLUG}_material', obj.get('ballista_material'))
+    key = obj.get('torch_material', obj.get('ballista_material'))
     if not key:
-        raise SystemExit(f'{obj.name} has no {SLUG}_material/ballista_material prop')
+        raise SystemExit(f'{obj.name} has no torch_material/ballista_material prop')
     if key not in material_index:
         material_index[key] = len(material_order)
         material_order.append(key)
@@ -139,16 +115,11 @@ for obj in sorted(scene.objects, key=lambda o: o.name):
     mesh.calc_loop_triangles()
     if mesh.uv_layers.active is None:
         raise SystemExit(f'{obj.name} has no UV layer')
-    if obj.get('round'):
-        # A round is its own node: geometry stays centred on its own origin and
-        # the authored placement travels as the node translation instead.
-        target = {'vertices': [], 'indices': [], 'lookup': {}}
-        offset = Vector((0.0, 0.0, 0.0))
-        rounds.append({'name': obj.name, 'part': part, 'material': material_index[key],
-                       'translation': GAME @ world.translation, 'batch': target})
-    elif is_gate:
+    is_gate = part == 'extra'
+    if is_gate:
         # A gate piece is its own material batch under `extra`: vertices baked
         # relative to the reload hinge, the hinge travelling as translation.
+        gate_sources += 1
         target = gate_batches[material_index[key]]
         offset = GAME @ world.translation - HINGE
     else:
@@ -177,37 +148,28 @@ for obj in sorted(scene.objects, key=lambda o: o.name):
             target['indices'].append(target['lookup'][vertex])
     evaluated.to_mesh_clear()
 
-missing_gates = GATE_NAMES - found_gates
-if missing_gates:
-    raise SystemExit(f'breech gate pieces missing from the TORCH scene: {sorted(missing_gates)}')
+if not gate_batches or gate_sources < 4:
+    raise SystemExit(f'breech gate leaves missing from the TORCH scene ({gate_sources} pieces)')
+for part in GROUPS:
+    if part != 'extra' and not part_batches[part]:
+        raise SystemExit(f'part {part} has no geometry')
 
 # --- material descriptors --------------------------------------------------
 def material_desc(name, material):
     shader = material.node_tree.nodes['Principled BSDF']
     stem = material.get('imagegen_texture', '')
-    tint = list(material.get('gltf_tint', (1, 1, 1)))
-    pbr = {'baseColorFactor': tint + [1],
+    tint = list(material.get('gltf_tint', ()))
+    pbr = {'baseColorFactor': tint + [1] if tint else [round(v, 4) for v in
+                                                      shader.inputs['Base Color'].default_value],
            'metallicFactor': float(shader.inputs['Metallic'].default_value),
            'roughnessFactor': float(shader.inputs['Roughness'].default_value)}
     extras = {'partMaterial': name}
     if stem:
         pbr['baseColorTexture'] = {'index': TEXTURES.index(stem.replace('.jpg', ''))}
-    else:
-        pbr['baseColorFactor'] = [round(v, 4) for v in shader.inputs['Base Color'].default_value]
-    result = {'name': f'TORCH | {name}', 'pbrMetallicRoughness': pbr, 'extras': extras}
-    if material.get('glass'):
-        pbr['baseColorFactor'] = [.18, .58, .65, .16]
-        pbr['metallicFactor'] = 0
-        result['alphaMode'] = 'BLEND'
-        result['doubleSided'] = True
-        extras['glass'] = True
-    strength = float(shader.inputs['Emission Strength'].default_value) \
-        if 'Emission Strength' in shader.inputs else 0.0
-    if strength:
-        result['emissiveFactor'] = [min(1, v * strength)
-                                    for v in shader.inputs['Emission Color'].default_value[:3]]
-        extras['cosmeticGlow'] = True
-    return result
+    bump = float(material.get('textureBumpScale', 0.0) or 0.0)
+    if bump > 0:
+        extras['textureBumpScale'] = bump
+    return {'name': f'{SCENE_PREFIX} | {name}', 'pbrMetallicRoughness': pbr, 'extras': extras}
 
 
 materials = [material_desc(name, material_meta[index])
@@ -257,13 +219,10 @@ def build_mesh(batch):
 
 def add_node(name, primitives, extras=None, translation=None, children=None):
     index = len(document['nodes'])
-    node = {'name': name}
+    node = {'name': name, 'extras': extras or {}}
     if primitives is not None:
         node['mesh'] = len(document['meshes'])
         document['meshes'].append({'name': name, 'primitives': primitives})
-        node['extras'] = extras or {}
-    else:
-        node['extras'] = extras or {}
     if translation is not None:
         node['translation'] = [round(float(v), 6) for v in translation]
     if children is not None:
@@ -287,25 +246,7 @@ for part in GROUPS:
         draws += 1
         triangles += len(batch['indices']) // 3
         part_triangles[f'{part} | {material_order[material]}'] = len(batch['indices']) // 3
-    if not primitives:
-        raise SystemExit(f'part {part} has no geometry')
     add_node(part, primitives, extras={'blenderAsset': SLUG})
-
-round_children = []
-for entry in rounds:
-    attributes, indices = build_mesh(entry['batch'])
-    mesh_index = len(document['meshes'])
-    document['meshes'].append({'name': entry['name'],
-                               'primitives': [{'attributes': attributes, 'indices': indices,
-                                               'material': entry['material']}]})
-    node_index = len(document['nodes'])
-    document['nodes'].append({'name': entry['name'], 'mesh': mesh_index,
-                              'translation': [round(float(v), 6) for v in entry['translation']],
-                              'extras': {'blenderAsset': SLUG, 'role': 'stripper round'}})
-    round_children.append(node_index)
-    draws += 1
-    triangles += len(entry['batch']['indices']) // 3
-    part_triangles[f'extra | {entry["name"]}'] = len(entry['batch']['indices']) // 3
 
 # The breech gate ships as one node per material under `extra`, hinge-relative,
 # so the runtime reload pivot needs no procedural stand-in for the venturi.
@@ -326,7 +267,7 @@ for material in sorted(gate_batches):
     draws += 1
     triangles += len(batch['indices']) // 3
     part_triangles[f'extra | {name}'] = len(batch['indices']) // 3
-add_node('extra', None, extras={'blenderAsset': SLUG}, children=round_children + gate_children)
+add_node('extra', None, extras={'blenderAsset': SLUG}, children=gate_children)
 
 for name in MARKERS:
     # A marker owned by another study in the same file would have picked up a
@@ -334,7 +275,7 @@ for name in MARKERS:
     marker = next((o for o in scene.objects
                    if o.name == name or o.name.split('.')[0] == name), None)
     if marker is None:
-        continue
+        raise SystemExit(f'marker {name} missing from the TORCH scene')
     add_node(name, None, extras={'role': 'gameplay mount marker'},
              translation=GAME @ marker.location)
 
@@ -342,7 +283,7 @@ document['buffers'] = [{'uri': f'{SLUG}.bin', 'byteLength': len(binary)}]
 (OUT / f'{SLUG}.bin').write_bytes(binary)
 (OUT / f'{SLUG}.gltf').write_text(json.dumps(document, separators=(',', ':')) + '\n')
 
-# --- manifest --------------------------------------------------------------
+# --- manifest row (the torch entry only) ------------------------------------
 manifest_path = OUT / 'manifest.json'
 manifest = json.loads(manifest_path.read_text())
 entry = {'asset': SLUG, 'source_parts': source_parts,
@@ -356,7 +297,9 @@ manifest_path.write_text(json.dumps(manifest, indent=2) + '\n')
 print(json.dumps({
     'scene': scene.name,
     'removed_scenes': removed,
+    'source_parts': source_parts,
     'nodes': [node['name'] for node in document['nodes']],
+    'gate_children': [document['nodes'][i]['name'] for i in gate_children],
     'draws': draws,
     'triangles': triangles,
     'triangles_per_primitive': part_triangles,
@@ -368,7 +311,10 @@ print(json.dumps({
     'blend_bytes': BLEND.stat().st_size,
     'gltf_bytes': (OUT / f'{SLUG}.gltf').stat().st_size,
 }, indent=2))
+print('TORCH-EXPORT-DONE')
 
-# Apply the shared ImageGen palette after the weapon-specific export.
+# Apply the shared ImageGen palette after the weapon-specific export (the
+# material-library pass every weapon delivery goes through; it adds the
+# textureLibrary/textureBumpScale extras and the shared palette maps).
 import runpy
 runpy.run_path(str(ROOT / 'tools/blender/material-library.py'))['finish_asset'](SLUG, scene=scene)

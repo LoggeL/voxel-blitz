@@ -2,59 +2,31 @@
 """Render TORCH articulation frames (node transforms only, never geometry).
 
 Usage:
-    blender --background --factory-startup docs/design/blender/torch/torch.blend \\
+    blender --background --factory-startup docs/design/blender/torch/torch.blend \
         --python tools/blender/torch/pose-torch.py
 
-What moves (and why it is legal):
-    Only the animation-group empties (bolt / trigger / mag / extra) are
-    touched, exactly the nodes the runtime animates. No mesh vertex, modifier,
-    material, or parent link is edited.
-
-    Game choreography (public/js/guns/actions.js, defs.js, models/common.js):
-    - _stepJerk: bolt.position.z = stroke * boltTravel (boltTravel.rocket =
-      0.04, game +z is rearward) and triggerGroup.rotation.x = 0.20 * stroke.
-      Authoring space maps game_z -> -y, game_x -> x, so the Blender
-      equivalent is bolt.location.y = -0.04, trigger.rotation.x = 0.20.
-    - _updateRocketReload: bolt.rotation.x = 0.5 * open (reload lift); gate
-      rotation and round insertion live on extra, which the delivered asset
-      keeps intentionally empty (build-torch.py: reload rocket is spawned
-      procedurally by the runtime, extra.userData.reloadRounds).
-
-What does NOT move (frozen by design, documented here so reviewers do not
-ask for it):
-    - Flip-up ladder sights: modelled erect on the shared 0.175 sight line as
-      body-fixed geometry (Rear/Front sight groups parented to body). There is
-      no sight node, so "folded" cannot be shown without editing geometry,
-      which this script forbids. Both pose frames keep the sights erect; the
-      flip articulation the runtime owns is the side arming lever + trigger.
-    - Warhead/breech gate: extra is an empty node by contract. No warhead
-      geometry ships, so the third frame is the reload-open lever pose from a
-      rear 3/4 angle instead of a loaded-round shot.
-    - mag (canister shoe): the game pins mag to body during a rocket reload
-      (rocket.js: mag = body), so mag stays at identity in every frame.
-
-Frames:
-    pose-sight-up.png      identity (lever home, trigger rest), 3/4 view that
-                           keeps both ladder sights and the sight line readable
-    pose-lever-dropped.png fired jerk peak: bolt y -0.04, trigger rot x 0.20,
-                           right-flank close-up on the arming lever + trigger
-    pose-reload-open.png   reload lift: bolt rot x 0.5, rear 3/4 on the
-                           venturi/breech with the lever visibly lifted
-
-Lighting matches render-torch.py (the study lighting): CYCLES CPU, 40
-samples, denoised, 1600x1000, key + fill + rim area lights.
+The transforms mirror the runtime choreography exactly (actions.js
+_updateRocketReload / bolt arming stroke): the breech gate group slides 0.11
+straight back and swings +0.95 rad about game X at the frozen hinge
+(0, 0.075, -0.06); the arming lever rotates +0.5 rad about the gun origin.
 """
 import bpy
+import math
 import sys
-from mathutils import Vector
 from pathlib import Path
+from mathutils import Euler, Matrix, Vector
 
 DOCS = None
 for arg in sys.argv:
     if arg.endswith('torch.blend'):
         DOCS = Path(arg).parent
 if DOCS is None:
-    DOCS = Path('/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/torch')
+    DOCS = Path(__file__).resolve().parents[3] / 'docs/design/blender/torch'
+
+HINGE = Vector((0.000, 0.060, 0.075))   # authoring-space gate pivot
+GATE_SLIDE = 0.11                        # straight back along the bore (game +z)
+GATE_SWING = 0.95                        # rad about game X (= authoring X)
+LEVER_STROKE = 0.5                       # rad about the gun origin
 
 scene = bpy.context.scene
 scene.render.engine = 'CYCLES'
@@ -66,6 +38,7 @@ scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = 'PNG'
 
 # Study lighting (same values as render-torch.py).
+
 
 def area_light(name, location, energy, size=1.4, colour=(1, 1, 1, 1)):
     data = bpy.data.lights.new(name, 'AREA')
@@ -87,18 +60,34 @@ cam = bpy.data.objects.new('TORCH pose camera', cam_data)
 scene.collection.objects.link(cam)
 scene.camera = cam
 
-bolt = bpy.data.objects['bolt']
-trigger = bpy.data.objects['trigger']
-mag = bpy.data.objects['mag']
-extra = bpy.data.objects['extra']
+gate_parts = [o for o in scene.objects if o.get('part') == 'extra']
+bolt_parts = [o for o in scene.objects if o.get('part') == 'bolt']
+if not gate_parts or not bolt_parts:
+    raise SystemExit('pose-torch needs the authored source parts of torch.blend')
+
+IDENTITY = {}
 
 
 def reset_nodes():
-    for node in (bolt, trigger, mag, extra):
-        node.location = (0.0, 0.0, 0.0)
-        node.rotation_euler = (0.0, 0.0, 0.0)
-        node.scale = (1.0, 1.0, 1.0)
+    for obj in gate_parts + bolt_parts:
+        obj.matrix_world = Matrix.Identity(4)
     bpy.context.view_layer.update()
+
+
+def pose_gate(slide):
+    """Slide the gate back and swing it open about the slid hinge, like the runtime."""
+    pivot = HINGE + Vector((0.0, -GATE_SLIDE * slide, 0.0))
+    swing = Matrix.Rotation(GATE_SWING * slide, 4, 'X')
+    matrix = Matrix.Translation(pivot) @ swing @ Matrix.Translation(-pivot)
+    for obj in gate_parts:
+        obj.matrix_world = matrix
+
+
+def pose_lever(stroke):
+    """Rotate the arming lever group about the gun origin (no per-part pivot)."""
+    matrix = Matrix.Rotation(LEVER_STROKE * stroke, 4, 'X')
+    for obj in bolt_parts:
+        obj.matrix_world = matrix
 
 
 def frame_camera(pos, target, lens):
@@ -108,32 +97,28 @@ def frame_camera(pos, target, lens):
     cam_data.lens = lens
 
 
-# (name, bolt_loc, bolt_rot, trigger_rot, cam_pos, cam_target, lens)
-# sight-up vs lever-dropped share one mid-body close-up on the arming lever /
-# trigger / rear sight so the 40 mm jerk drop reads as a pair; reload-open is
-# a wider rear 3/4 on the venturi/breech.
+# (name, gate slide, lever stroke, camera pos, look-at, lens)
 POSES = [
-    ('pose-sight-up',
-     (0.0, 0.0, 0.0), (0.0, 0.0, 0.0), (0.0, 0.0, 0.0),
-     (0.78, -0.52, 0.34), (0.02, 0.07, 0.03), 70),
-    ('pose-lever-dropped',
-     (0.0, -0.04, 0.0), (0.0, 0.0, 0.0), (0.20, 0.0, 0.0),
-     (0.78, -0.52, 0.34), (0.02, 0.07, 0.03), 70),
-    ('pose-reload-open',
-     (0.0, 0.0, 0.0), (0.5, 0.0, 0.0), (0.0, 0.0, 0.0),
-     (0.95, -1.20, 0.52), (0.0, 0.12, 0.04), 55),
+    ('pose-home', 0.0, 0.0,
+     (0.85, -0.95, 0.55), (0.0, 0.18, 0.04), 58),
+    ('pose-gate-open', 1.0, 0.0,
+     (0.85, -0.95, 0.55), (0.0, 0.12, 0.02), 58),
+    ('pose-lever-back', 0.0, 1.0,
+     (0.55, 0.04, 0.027), (0.09, 0.04, 0.027), 100),
+    ('pose-reload', 1.0, 1.0,
+     (1.05, -1.15, 0.62), (0.0, 0.16, 0.02), 52),
 ]
 
-for name, bolt_loc, bolt_rot, trig_rot, pos, target, lens in POSES:
+for (name, gate, lever, pos, target, lens) in POSES:
     reset_nodes()
-    bolt.location = bolt_loc
-    bolt.rotation_euler = bolt_rot
-    trigger.rotation_euler = trig_rot
-    bpy.context.view_layer.update()
+    if gate:
+        pose_gate(gate)
+    if lever:
+        pose_lever(lever)
     frame_camera(pos, target, lens)
     scene.render.filepath = str(DOCS / f'{name}.png')
     bpy.ops.render.render(write_still=True)
-    print(f'POSE_SAVED {name}.png bolt_loc={bolt_loc} bolt_rot={bolt_rot} trigger_rot={trig_rot}')
+    print(f'POSE_SAVED {name}.png gate_slide={gate} lever_stroke={lever}')
 
 reset_nodes()
 print('TORCH-POSE-DONE')

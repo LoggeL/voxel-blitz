@@ -1,65 +1,30 @@
-"""Author TORCH, an original AT4-style shoulder-fired rocket launcher prop for Voxel Blitz.
+"""Author TORCH, the RX-8 HAVOC heavy rocket launcher prop for Voxel Blitz.
 
-Fresh design, built from scratch: no geometry, file or mesh is loaded from the
-older PEREGRINE study. Only the low-level authoring technique (closed convex
-primitives, analytic planar UVs, shared ImageGen maps) and the frozen runtime
-interface (anchors, part nodes, markers) are shared, because the game slot
-demands them.
+Revision 2 is a from-scratch redo of the launcher (design study "BULWARK", see
+docs/design/blender/torch/build-report.md). The old AT4-style study is gone:
+revision 2 is a heavy sci-fi launcher with a squared breech housing, a
+half-cage of braces, industrial panels and handles, a tilting back-blast
+venturi gate at the rear and a fat warhead seated proud of the muzzle.
 
-Run headless (the repo's own convention for long Blender work):
+Run headless:
 
+    blender --background --factory-startup --python tools/blender/torch/build-torch.py
 
-    blender --background --factory-startup --python build-torch.py
+or paste this file into the live Blender MCP session (execute_code); it builds
+in its own scene and saves the source with copy=True, never touching other
+studies. Writes docs/design/blender/torch/{torch.blend,torch.glb,manifest.json}
+and fails the build on any contract or geometry-audit violation.
 
-The script is deterministic and self-contained. It creates its own scene,
-builds there, and writes the .blend with `copy=True` so a live session keeps
-pointing at whatever was open.
-
-Authoring space is Blender's own: +Y is the barrel/forward axis, +Z is up, +X
-is right, which the glTF exporter turns into the game's -Z forward / +Y up /
-+X right convention. Game-local coordinates therefore relate to authoring
-coordinates by
-
-    game_x = x,  game_y = z,  game_z = -y
-
-Every frozen runtime anchor is written as a literal next to the geometry that
-has to reach it, and asserted at build time:
-
-    muzzle   (0, 0.075, -0.780)   -> y = 0.780, x = 0, z = 0.075
-    bore axis x = 0, z = 0.075    -> x = 0, z = 0.075, exposed radius 0.0620
-    grip     (0.045, -0.020, -0.08)-> y = 0.080, x = 0.045, z = -0.020
-    support  (-0.060, -0.030, -0.40) -> y = 0.400, x = -0.060, z = -0.030
-    sight    flip-up ladder 0.175  -> z = 0.175
-    breech   rocket -0.220         -> y = 0.220
-    trigger  rocket -0.110         -> y = 0.110, blade tip z = -0.055
-    bolt home rocket -0.040        -> y = 0.040, arming lever to +x
-    heat band -0.528 .. -0.752     -> y = 0.528 .. 0.752
-
-Design intent: a disposable-tube AT4-style shoulder launcher. One fat olive
-launch tube runs breech to muzzle with a cone muzzle flare, reinforcing bands
-and orange warning stripes; a venturi bell flares behind the breech block; a
-pistol grip with trigger guard, an underslung forward handle, a top rail with
-flip-up ladder sights on the shared 0.175 sight line, and a side arming lever
-with range dial and warning lamps complete the read. No optic, no loose rounds:
-the reload rocket is spawned procedurally by the runtime.
-
-Geometry is closed convex primitives (no booleans, no negative scales), then
-chamfered by a bevel modifier; winding is repaired with recalc_face_normals and
-UVs are an analytic per-face projection of the two non-dominant axes so the six
-ImageGen maps tile at a constant real-world density. Every joint overlaps
-volumetrically by >= 1 mm: butt-jointed flush faces z-fight once same-material
-parts merge into one draw call.
-
-Outputs (owned by this task):
-    docs/design/blender/torch/torch.blend   editable, textures packed
-    docs/design/blender/torch/torch.glb     portable GLB, images embedded
-    docs/design/blender/torch/manifest.json    machine-readable record
+Authoring space: +Y forward (muzzle), +Z up, +X right. The game maps it as
+game_x = x, game_y = z, game_z = -y (Blender glTF export_yup does the same).
 """
 import bmesh
 import bpy
 import json
 import math
 import struct
+import sys
+from collections import defaultdict
 from pathlib import Path
 from mathutils import Euler, Matrix, Vector
 from mathutils.bvhtree import BVHTree
@@ -83,12 +48,14 @@ MARKERS = {'muzzle': MUZZLE, 'grip': GRIP, 'support': SUPPORT, 'sight': SIGHT}
 
 BORE_X, BORE_Z = 0.000, 0.075   # bore axis
 BORE_R = 0.0620                 # exposed bore radius (BARREL_R.rocket - clearance)
-BORE_IN = 0.0450                # muzzle mouth dark-disc radius
-BORE_START = 0.180              # buried in the breech block
-SHROUD_END = 0.460              # reinforced tube ends: bare tube begins
-HEAT_BAND = (0.528, 0.752)      # game z -0.528 .. -0.752
+BORE_IN = 0.0555                # clear bore: the runtime reload round needs >= 0.055
+BORE_START = 0.155              # tube tail, buried in the breech block
+SLEEVE_END = 0.525              # cage front collar: bare sleeve begins after it
+HEAT_BAND = (0.528, 0.752)      # game z -0.528 .. -0.752; runtime glow sleeve 0.0625
 BREECH_Y = 0.220                # BREACH_Z.rocket -0.22
+HINGE = (0.000, 0.060, 0.075)   # game (0, 0.075, -0.06); gate pivot on the bore axis
 SIGHT_Z = 0.175                 # body.userData.sightHeight
+REAR_POST_Y, FRONT_POST_Y = 0.020, 0.768
 TRIGGER_Y, TRIGGER_TIP_Z = 0.110, -0.055   # TRIGGER_Z.rocket -0.11
 BOLT_HOME_GAME_Z = -0.040       # BOLT_HOME.rocket
 BOLT_HOME_Y = -BOLT_HOME_GAME_Z  # the same point in authoring space
@@ -100,17 +67,11 @@ def drop_previous_study():
         for obj in list(previous.objects):
             bpy.data.objects.remove(obj, do_unlink=True)
         bpy.data.scenes.remove(previous)
-    for collection in (bpy.data.meshes, bpy.data.curves):
-        for block in list(collection):
-            if block.users == 0 and (block.name.startswith(ASSET) or
-                                     block.name.endswith((' shell', ' merged', ' mesh'))):
-                collection.remove(block)
-    for collection in (bpy.data.materials, bpy.data.worlds, bpy.data.images):
-        for block in list(collection):
-            if block.users == 0 and (block.name.startswith(ASSET) or
-                                     block.name.startswith('textures/')):
-                collection.remove(block)
-    bpy.data.orphans_purge(do_local_ids=True, do_linked_ids=False, do_recursive=True)
+    # A live MCP session keeps datablocks between runs; purge this study's
+    # materials so names never pick up .001 suffixes.
+    for material in list(bpy.data.materials):
+        if material.name.split('.')[0].startswith(f'{ASSET} |'):
+            bpy.data.materials.remove(material)
 
 
 HEADLESS = bpy.app.background
@@ -133,7 +94,7 @@ scene.unit_settings.system = 'METRIC'
 scene.render.engine = 'CYCLES'
 scene.cycles.samples = 64
 scene.cycles.use_denoising = True
-scene.cycles.seed = 20260914
+scene.cycles.seed = 20260922
 scene.render.resolution_x, scene.render.resolution_y = 1600, 1000
 scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = 'PNG'
@@ -144,59 +105,33 @@ scene.world.node_tree.nodes['Background'].inputs[0].default_value = (.14, .17, .
 scene.world.node_tree.nodes['Background'].inputs[1].default_value = .35
 
 # --- materials -------------------------------------------------------------
-# AT4 palette: olive-drab launch tube over blackened metal ends, orange
-# warning paint, ivory stencils, dark polymer grips. Every material reuses one
-# of the six delivered maps with a different multiply tint (no new images).
-MATERIALS = [
-    ('gunmetal', 'worn-gunmetal', .50, .35, (.34, .34, .36)),
-    ('olive drab', 'worn-gunmetal', .08, .68, (.66, .65, .45)),
-    ('orange paint', 'orange-painted-metal', .12, .50, (.95, .93, .90)),
-    ('ivory coating', 'ivory-armor', .04, .45, (.96, .95, .92)),
-    ('polymer', 'petrol-ballistic-fabric', 0, .82, (.30, .31, .33)),
-    ('rubber', 'worn-rubber', 0, .90, (.45, .45, .47)),
-]
+# Frozen skin palette: exactly seven material names. The six mapped names
+# sample the shared 1024px palette JPEGs per
+# docs/design/blender/material-library/materials.json (the same pass every
+# other weapon went through); cavity black stays untextured. No new images.
+MATERIAL_KEYS = ['gunmetal', 'olive drab', 'orange paint', 'ivory coating',
+                 'polymer', 'rubber', 'cavity black']
+LIBRARY = json.loads((ROOT / 'docs/design/blender/material-library/materials.json').read_text())
+ASSIGNMENT = LIBRARY['assignment']
+
 mats = {}
-for name, stem, metal, rough, tint in MATERIALS:
-    material = bpy.data.materials.new(f'{ASSET} | {name}')
+for name in MATERIAL_KEYS:
+    material = bpy.data.materials.get(f'{ASSET} | {name}') \
+        or bpy.data.materials.new(f'{ASSET} | {name}')
     material.use_nodes = True
-    tree = material.node_tree
-    bsdf = tree.nodes['Principled BSDF']
-    bsdf.inputs['Base Color'].default_value = (*tint, 1)
-    bsdf.inputs['Metallic'].default_value = metal
-    bsdf.inputs['Roughness'].default_value = rough
-    image = bpy.data.images.load(str(INK / f'{stem}.jpg'), check_existing=False)
-    image.name = f'textures/{stem}.jpg'
-    image.colorspace_settings.name = 'sRGB'
-    tex = tree.nodes.new('ShaderNodeTexImage')
-    tex.image = image
-    tex.location = (-420, 120)
-    tex.interpolation = 'Smart'
-    tint_node = tree.nodes.new('ShaderNodeMixRGB')
-    tint_node.blend_type = 'MULTIPLY'
-    tint_node.label = 'delivered map tint'
-    tint_node.location = (-180, 120)
-    tint_node.inputs['Factor'].default_value = 1.0
-    tint_node.inputs['Color2'].default_value = (*tint, 1)
-    tree.links.new(tex.outputs['Color'], tint_node.inputs['Color1'])
-    tree.links.new(tint_node.outputs['Color'], bsdf.inputs['Base Color'])
-    material['imagegen_texture'] = f'{stem}.jpg'
-    material['gltf_tint'] = list(tint)
     mats[name] = material
 
-# Void-black cavity faces (muzzle mouth, venturi throat): plain untextured
-# BSDF so the openings render as true voids instead of lit textured discs.
-void = bpy.data.materials.new(f'{ASSET} | cavity black')
-void.use_nodes = True
+# Void-black cavity faces (bore liner, seams, warhead tip): plain untextured
+# BSDF so openings render as true voids instead of lit textured discs.
+void = mats['cavity black']
 vbsdf = void.node_tree.nodes['Principled BSDF']
 vbsdf.inputs['Base Color'].default_value = (.015, .015, .016, 1)
 vbsdf.inputs['Metallic'].default_value = 0
 vbsdf.inputs['Roughness'].default_value = 1.0
-mats['cavity black'] = void
 
 
 # --- primitive builders ----------------------------------------------------
 PARTS = []      # (object, part, material key)
-ROUND_OBJECTS = []  # stripper rounds: never merged, each its own node
 PART_GROUP = {}
 for group in GROUPS:
     empty = bpy.data.objects.new(group, None)
@@ -253,6 +188,11 @@ def circle(radius, segments, phase=0.0):
             for i in range(segments)]
 
 
+def polygon(radius, sides, phase=0.0):
+    """Regular polygon whose FLATS sit at `radius` (inscribed circle)."""
+    return circle(radius / math.cos(math.pi / sides), sides, phase + math.pi / sides)
+
+
 def prism(profile, depth):
     """Close a (y, z) outline and extrude it along X (the lateral axis)."""
     return solid(profile, depth, 'X')
@@ -294,34 +234,81 @@ def taper(r0, r1, y0, y1, segments=12):
     return verts, faces
 
 
-def tube_stacked(radius, y0, y1, step=0.02, segments=24, radius1=None):
-    """Closed Y-cylinder with lengthwise ring subdivisions.
+def shell(r_out0, r_out1, r_in0, r_in1, y0, y1, segments=24, a0=None, a1=None):
+    """Hollow frustum ring along Y with annular end caps.
 
-    Plain tube() only carries vertices at its end caps, which leaves spans
-    like the heat band with nothing to measure. Rings every `step` keep every
-    audit honest while the silhouette stays a perfect cylinder. `radius1`
-    tapers the rings from `radius` to a second end radius (a muzzle taper:
-    keep it off the heat band, which must stay exactly 0.0210).
+    a0/a1 carve an angular sector (with side caps); the default is a closed
+    ring. Angles follow (x, z) = (r cos a, r sin a) around the local origin.
+    """
+    closed = a0 is None
+    if closed:
+        a0, a1 = 0.0, 2 * math.pi
+    steps = segments if closed else segments + 1
+    angles = [a0 + (a1 - a0) * i / segments for i in range(steps)]
+
+    verts, faces = [], []
+
+    def ring(radius, y):
+        base = len(verts)
+        for angle in angles:
+            verts.append((radius * math.cos(angle), y, radius * math.sin(angle)))
+        return [base + i for i in range(steps)]
+
+    verts, faces = [], []
+    outer0 = ring(r_out0, y0)
+    outer1 = ring(r_out1, y1)
+    inner0 = ring(r_in0, y0)
+    inner1 = ring(r_in1, y1)
+
+    def quads(first, second, flip=False):
+        span = segments if closed else segments
+        for i in range(span):
+            j = (i + 1) % steps
+            quad = (first[i], first[j], second[j], second[i])
+            faces.append(tuple(reversed(quad)) if flip else quad)
+
+    quads(outer0, outer1)
+    quads(inner0, inner1, flip=True)
+    quads(outer0, inner0, flip=True)
+    quads(outer1, inner1)
+    if not closed:
+        for chain in ((outer0[0], outer1[0], inner1[0], inner0[0]),
+                      (inner0[-1], inner1[-1], outer1[-1], outer0[-1])):
+            faces.append(chain)
+    return verts, faces
+
+
+def hollow_stacked(r_out, r_in, y0, y1, step, segments=24, rows=()):
+    """Hollow cylinder with lengthwise ring subdivisions and forced rows.
+
+    Plain end caps alone leave spans like the heat band with nothing to
+    measure; forced rows put vertices exactly on the band edges so every
+    audit sees the real surface.
     """
     count = max(2, int(round((y1 - y0) / step)) + 1)
+    stations = {y0 + (y1 - y0) * k / (count - 1) for k in range(count)}
+    stations |= {y for y in rows if min(y0, y1) <= y <= max(y0, y1)}
+    stations = sorted(stations, reverse=y1 < y0)
     verts, faces = [], []
-    for k in range(count):
-        y = y0 + (y1 - y0) * k / (count - 1)
-        rr = radius if radius1 is None else radius + (radius1 - radius) * k / (count - 1)
+
+    def ring(radius, y):
         base = len(verts)
         for i in range(segments):
             angle = 2 * math.pi * i / segments
-            verts.append((rr * math.cos(angle), y, BORE_Z + rr * math.sin(angle)))
-        ring = tuple(range(base, base + segments))
-        if k == 0:
-            faces.append(tuple(reversed(ring)))
-        if k == count - 1:
-            faces.append(ring)
-        if k:
-            prev = base - segments
-            for i in range(segments):
-                j = (i + 1) % segments
-                faces.append((prev + i, prev + j, base + j, base + i))
+            verts.append((radius * math.cos(angle), y, radius * math.sin(angle)))
+        return [base + i for i in range(segments)]
+
+    outer = [ring(r_out, y) for y in stations]
+    inner = [ring(r_in, y) for y in stations]
+    for k in range(len(stations) - 1):
+        for i in range(segments):
+            j = (i + 1) % segments
+            faces.append((outer[k][i], outer[k][j], outer[k + 1][j], outer[k + 1][i]))
+            faces.append((inner[k][i], inner[k + 1][i], inner[k + 1][j], inner[k][j]))
+    for i in range(segments):
+        j = (i + 1) % segments
+        faces.append((outer[0][i], inner[0][i], inner[0][j], outer[0][j]))
+        faces.append((outer[-1][i], outer[-1][j], inner[-1][j], inner[-1][i]))
     return verts, faces
 
 
@@ -354,73 +341,47 @@ def merge_shapes(shapes):
 
 
 def add(name, part, material, shape, loc=(0, 0, 0), rot=(0, 0, 0),
-        bevel=.0025, mirror=False, uv_scale=UV_SCALE):
-    """Create one chamfered, UV-mapped part."""
+        bevel=.0025, uv_scale=UV_SCALE, sight=False):
+    """Create one chamfered, UV-mapped part with its placement baked in."""
     (base_verts, faces) = shape
-    for side in ((1, -1) if mirror else (1,)):
-        mesh = bpy.data.meshes.new(f'{name}{" left" if side < 0 else ""} shell')
-        verts = [(side * v[0], v[1], v[2]) if side < 0 else v for v in base_verts]
-        mesh.from_pydata(verts, [], faces)
-        mesh.validate()
-        if side < 0:
-            placed, turned = (-loc[0], loc[1], loc[2]), (rot[0], -rot[1], -rot[2])
-        else:
-            placed, turned = loc, rot
-        matrix = Matrix.LocRotScale(Vector(placed), Euler(turned, 'XYZ'), None)
-        bm = bmesh.new()
-        bm.from_mesh(mesh)
-        bmesh.ops.transform(bm, matrix=matrix, verts=bm.verts)
-        bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
-        bm.to_mesh(mesh)
-        bm.free()
-        obj = bpy.data.objects.new(f'{name}{" left" if side < 0 else ""}'
-                                   if mirror else name, mesh)
-        mesh.materials.append(mats[material])
-        obj['part'] = part
-        obj['ballista_material'] = material
-        obj.parent = PART_GROUP[part]
-        STUDY.objects.link(obj)
-        if bevel:
-            modifier = obj.modifiers.new('Edge chamfer', 'BEVEL')
-            modifier.width = bevel
-            modifier.segments = 2
-            modifier.limit_method = 'ANGLE'
-            modifier.angle_limit = math.radians(30)
-            modifier.use_clamp_overlap = True
-        project_uvs(mesh, uv_scale)
-        PARTS.append((obj, part, material))
-    return obj
-
-
-def pair(name, part, material, shape, loc=(0, 0, 0), rot=(0, 0, 0), bevel=.0025):
-    """Mirror a part across X."""
-    add(name, part, material, shape, loc=loc, rot=rot, bevel=bevel)
-    add(name, part, material, shape,
-        loc=(-loc[0], loc[1], loc[2]), rot=(rot[0], -rot[1], -rot[2]), bevel=bevel)
-
-
-def add_local(name, part, material, shapes, loc):
-    """A multi-primitive part whose vertices stay centred on the object origin."""
-    (verts, faces) = merge_shapes(shapes)
     mesh = bpy.data.meshes.new(f'{name} shell')
-    mesh.from_pydata(verts, [], faces)
+    mesh.from_pydata(base_verts, [], faces)
     mesh.validate()
+    matrix = Matrix.LocRotScale(Vector(loc), Euler(rot, 'XYZ'), None)
     bm = bmesh.new()
     bm.from_mesh(mesh)
+    bmesh.ops.transform(bm, matrix=matrix, verts=bm.verts)
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     bm.to_mesh(mesh)
     bm.free()
     obj = bpy.data.objects.new(name, mesh)
     mesh.materials.append(mats[material])
     obj['part'] = part
+    obj['torch_material'] = material
     obj['ballista_material'] = material
-    obj['round'] = True
+    if sight:
+        obj['sight_piece'] = True
     obj.parent = PART_GROUP[part]
-    obj.location = loc
     STUDY.objects.link(obj)
-    ROUND_OBJECTS.append(obj)
-    project_uvs(mesh)
+    if bevel:
+        modifier = obj.modifiers.new('Edge chamfer', 'BEVEL')
+        modifier.width = bevel
+        modifier.segments = 1 if bevel <= .002 else 2
+        modifier.limit_method = 'ANGLE'
+        modifier.angle_limit = math.radians(30)
+        modifier.use_clamp_overlap = True
+    project_uvs(mesh, uv_scale)
+    PARTS.append((obj, part, material))
     return obj
+
+
+def pair(name, part, material, shape, loc=(0, 0, 0), rot=(0, 0, 0),
+         bevel=.0025, sight=False):
+    """Mirror a part across X (two named parts, not one mirrored object)."""
+    for side in (1, -1):
+        add(f'{name} {"right" if side > 0 else "left"}', part, material, shape,
+            loc=(side * loc[0], loc[1], loc[2]),
+            rot=(rot[0], side * rot[1], side * rot[2]), bevel=bevel, sight=sight)
 
 
 def add_text(text, name, part, material, loc, rot, size, extrude=.0012):
@@ -437,221 +398,288 @@ def add_text(text, name, part, material, loc, rot, size, extrude=.0012):
     label = bpy.context.active_object
     label.name = name
     label.data.name = f'{name} mesh'
-    label.data.materials.append(mats[material])
+    mesh = label.data
+    # Bake the placement like add() does so the merged batches are world-true.
+    matrix = label.matrix_world.copy()
+    label.matrix_world = Matrix.Identity(4)
+    bm = bmesh.new()
+    bm.from_mesh(mesh)
+    bmesh.ops.transform(bm, matrix=matrix, verts=bm.verts)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(mesh)
+    bm.free()
+    mesh.materials.append(mats[material])
     label['part'] = part
+    label['torch_material'] = material
     label['ballista_material'] = material
     label.parent = PART_GROUP[part]
-    project_uvs(label.data)
+    project_uvs(mesh)
     PARTS.append((label, part, material))
     return label
 
 
+def bevel_size(x):
+    return x
+
+
 # ===========================================================================
-# BODY: fat launch tube, breech block, rear venturi bell, shoulder rest,
-# pistol grip, forward handle, sling loops
+# BODY: launch tube core + bore liner, squared breech housing, half-cage,
+# muzzle collar and the seated warhead, spine deck, ladder sights, furniture
 # ===========================================================================
-# Breech block swallowing the tube core start; collar ring at its rear joint.
-add('Breech block', 'body', 'gunmetal', tube(.074, .100, 28),
-    loc=(BORE_X, 0.190, BORE_Z))
-add('Breech block collar', 'body', 'gunmetal', tube(.077, .025, 28),
-    loc=(BORE_X, 0.143, BORE_Z))
-# Rear venturi bell flaring behind the block, rim ring and dark throat.
-add('Venturi bell', 'body', 'gunmetal',
-    offset(taper(0.076, 0.088, 0.160, 0.020, 28), dz=BORE_Z), bevel=0)
-# Open venturi duct: the rim ring stands behind the bell cap with stepped
-# funnel walls running back to a dark throat disc set 37 mm inside the nozzle
-# lip, so the rear view reads as a genuine hollow backblast opening instead
-# of a flat cap. The throat plug is wider than the rim bore so it embeds into
-# the rim ring (volumetric contact, no coplanar faces); the nozzle overlaps
-# the rim by 3 mm for the same reason.
-add('Venturi rim', 'body', 'gunmetal', washer(.090, .084, .060, 28),
-    loc=(BORE_X, 0.002, BORE_Z), bevel=0)
-add('Venturi step inner', 'body', 'gunmetal', washer(.078, .072, .012, 28),
-    loc=(BORE_X, -0.014, BORE_Z), bevel=0)
-add('Venturi throat', 'body', 'cavity black', tube(.086, .030, 28),
-    loc=(BORE_X, 0.003, BORE_Z), bevel=0)
-add('Venturi step outer', 'body', 'orange paint', washer(.084, .078, .005, 28),
-    loc=(BORE_X, -0.020, BORE_Z), bevel=0)
-add('Venturi nozzle', 'body', 'gunmetal', washer(.095, .078, .024, 28),
-    loc=(BORE_X, -0.037, BORE_Z), bevel=0)
-add('Backblast warning ring', 'body', 'orange paint', tube(.089, .014, 28),
-    loc=(BORE_X, 0.046, BORE_Z))
-# Shoulder rest hung under the venturi.
-add('Shoulder rest strut', 'body', 'polymer', boxv((.046, .112, .030)),
-    loc=(0, 0.099, -0.002), bevel=.002)
-add('Shoulder rest pad', 'body', 'rubber', boxv((.070, .130, .018)),
-    loc=(0, 0.100, -0.022), bevel=.004)
-# Sling loops: rear ring off the bell, front ring under the bare tube.
-add('Sling loop rear', 'body', 'gunmetal', solid(recty(0.030, 0.070, -0.030, 0.020), .008, 'X',
-                                                 recty(0.042, 0.062, -0.022, 0.008)), bevel=.001)
-add('Sling loop front', 'body', 'gunmetal', solid(recty(0.470, 0.510, -0.015, 0.020), .008, 'X',
-                                                  recty(0.478, 0.502, -0.007, 0.012)), bevel=.001)
-# Under-tube spine tying the furniture together from venturi to foregrip.
-add('Under-tube spine', 'body', 'polymer', boxv((.050, .294, .028)),
-    loc=(0, 0.173, -0.002), bevel=.002)
-# Raked pistol grip wrapping the grip marker; the x = 0.045 palm sits just
-# outboard of the half-width 0.024 panel.
+# The measured bore: bare at exactly 0.0620 across the whole heat band, hollow
+# (>= 0.0555 clear) so the runtime reload round slides through.
+BORE_OBJECT = add('Launch tube core', 'body', 'olive drab',
+                  offset(hollow_stacked(BORE_R, 0.0570, BORE_START, MUZZLE[1], .025,
+                                        24, rows=(*HEAT_BAND, MUZZLE[1])), dz=BORE_Z),
+                  bevel=0)
+BORE_LINER_OBJECT = add('Bore liner', 'body', 'cavity black',
+                        offset(hollow_stacked(0.0572, BORE_IN, 0.158, 0.778, .08, 20), dz=BORE_Z),
+                        bevel=0)
+# "The bore" in the heat-band rule is the tube assembly: core + liner.
+BORE_ASSEMBLY = {BORE_OBJECT.name, BORE_LINER_OBJECT.name}
+# Muzzle collar (the bare sleeve's front furniture) and its index tabs.
+add('Muzzle collar', 'body', 'gunmetal',
+    offset(shell(0.072, 0.072, 0.057, 0.057, 0.754, 0.782), dz=BORE_Z), bevel=.002)
+add('Muzzle warning ring', 'body', 'orange paint',
+    offset(shell(0.0735, 0.0735, 0.070, 0.070, 0.756, 0.766), dz=BORE_Z), bevel=.0015)
+pair('Muzzle index tab', 'body', 'gunmetal', boxv((.010, .016, .024)),
+     loc=(.070, 0.767, BORE_Z), bevel=.0015)
+
+# --- seated warhead: rocket nose peeking out of the tube mouth --------------
+# Baked body geometry per the runtime owner: tip at most ~0.02 past the muzzle
+# plane (the flash and the flying rocket spawn there), radius <= ~0.045, the
+# boom seated INSIDE the mouth. The runtime reload round's seat nose stops at
+# y ~0.58, so this nose keeps the mouth region alone.
+add('Warhead boom', 'body', 'gunmetal',
+    offset(taper(.034, .045, 0.620, 0.706, 20), dz=BORE_Z), bevel=0)
+add('Warhead ogive', 'body', 'ivory coating',
+    offset(taper(.0455, .036, 0.700, 0.786, 20), dz=BORE_Z), bevel=.0015)
+add('Warhead band', 'body', 'orange paint',
+    offset(shell(.0465, .0465, .041, .041, 0.686, 0.704), dz=BORE_Z), bevel=.001)
+add('Warhead tip', 'body', 'cavity black',
+    offset(taper(.037, .026, 0.784, 0.798, 16), dz=BORE_Z), bevel=0)
+add('Warhead obturator', 'body', 'rubber',
+    offset(shell(.0575, .0575, .038, .031, 0.7535, 0.774), dz=BORE_Z), bevel=.0015)
+
+# --- squared breech housing and the rear assembly ---------------------------
+# Octagonal receiver block: squared across the flats, chamfered corners.
+add('Breech block', 'body', 'gunmetal',
+    offset(solid(polygon(.085, 8), .147, 'Y', polygon(.060, 8)), dz=BORE_Z),
+    loc=(0, 0.1915, 0), bevel=.003)
+add('Breech block rib', 'body', 'gunmetal',
+    offset(solid(polygon(.089, 8), .018, 'Y', polygon(.0615, 8)), dz=BORE_Z),
+    loc=(0, 0.254, 0), bevel=.002)
+add('Breech collar', 'body', 'gunmetal',
+    offset(shell(.080, .078, .057, .057, 0.264, 0.292), dz=BORE_Z), bevel=.002)
+add('Breech collar band', 'body', 'orange paint',
+    offset(shell(.0815, .0815, .075, .075, 0.268, 0.278), dz=BORE_Z), bevel=.0015)
+
+# Hinge yoke: two jaws + stub pins carry the gate knuckles at bore height.
+pair('Hinge yoke arm', 'body', 'gunmetal', boxv((.026, .048, .042)),
+     loc=(.070, 0.132, BORE_Z), bevel=.002)
+pair('Hinge yoke jaw', 'body', 'gunmetal', boxv((.008, .052, .048)),
+     loc=(.060, 0.062, BORE_Z), bevel=.0015)
+pair('Hinge pin', 'body', 'gunmetal', tube(.010, .038, 10, axis='X'),
+     loc=(.073, HINGE[1], BORE_Z), bevel=0)
+pair('Hinge pin cap', 'body', 'orange paint', tube(.013, .004, 10, axis='X'),
+     loc=(.093, HINGE[1], BORE_Z), bevel=.001)
+
+# Arming-lever boss and flank rib (body): where the bolt group's shoe rides.
+add('Lever boss', 'body', 'gunmetal', boxv((.024, .032, .044)),
+    loc=(.084, 0.039, 0.026), bevel=.002)
+add('Flank rib right', 'body', 'gunmetal', boxv((.016, .084, .036)),
+    loc=(.082, 0.087, 0.032), bevel=.002)
+add('Flank rib left', 'body', 'gunmetal', boxv((.016, .084, .036)),
+    loc=(-.082, 0.087, 0.032), bevel=.002)
+
+# Pistol grip wrapping the grip marker, with finger ribs and a base plate.
 add('Pistol grip', 'body', 'polymer', prism([
-    (0.150, 0.010), (0.060, 0.010), (0.030, -0.060), (0.035, -0.110),
-    (0.095, -0.118), (0.120, -0.060)], .048), bevel=.008)
-for index, (y, z) in enumerate(((0.100, -0.075), (0.130, -0.0185))):
-    add(f'Grip finger rib {index + 1}', 'body', 'gunmetal', boxv((.068, .010, .010)),
-        loc=(0, y, z), bevel=.002)
-add('Grip base plate', 'body', 'gunmetal', boxv((.052, .058, .012)),
-    loc=(0, 0.065, -0.120), bevel=.003)
-add('Grip palm swell', 'body', 'polymer', boxv((.054, .016, .038)),
-    loc=(0, 0.040, -0.088), bevel=.004)
-# Underslung forward handle around the support marker; the x = -0.060 palm
-# rests on the handle flank.
-add('Handle mount', 'body', 'polymer', boxv((.044, .100, .060)),
-    loc=(-0.005, 0.398, -0.005), bevel=.002)
-# Raked forward handle: a tapered grip prism, not a box, with finger grooves
-# on its leading edge.
-add('Forward handle', 'body', 'polymer', prism([
-    (0.430, 0.005), (0.370, 0.005), (0.362, -0.070), (0.378, -0.085),
-    (0.418, -0.085), (0.432, -0.060)], .050), loc=(-0.035, 0, 0), bevel=.004)
-add('Handle base collar', 'body', 'orange paint', boxv((.058, .030, .059)),
-    loc=(-0.035, 0.398, -0.030), bevel=.002)
-for index, (y, z) in enumerate(((0.3633, -0.030), (0.3613, -0.048), (0.3599, -0.062))):
-    add(f'Handle groove {index + 1}', 'body', 'rubber', boxv((.048, .010, .008)),
-        loc=(-0.035, y, z), bevel=0)
+    (0.156, 0.006), (0.064, 0.006), (0.034, -0.056), (0.040, -0.112),
+    (0.102, -0.120), (0.126, -0.058)], .056), bevel=.008)
+for index, (y, z) in enumerate(((0.104, -0.072), (0.126, -0.018), (0.080, -0.108))):
+    add(f'Grip finger rib {index + 1}', 'body', 'rubber', boxv((.066, .008, .009)),
+        loc=(0, y, z), bevel=.0015)
+add('Grip base plate', 'body', 'gunmetal', boxv((.060, .056, .014)),
+    loc=(0, 0.072, -0.122), bevel=.003)
+add('Grip palm swell', 'body', 'polymer', boxv((.062, .018, .042)),
+    loc=(0, 0.046, -0.082), bevel=.004)
 
-# Launch tube core: bare olive of exactly 0.0620 across the whole heat band,
-# flaring into the cone muzzle ahead of it. The stacked rings bake BORE_Z in.
-BORE_OBJECT = add('Launch tube core', 'body', 'olive drab', merge_shapes([
-    tube_stacked(BORE_R, BORE_START, HEAT_BAND[1], segments=28),
-    tube_stacked(BORE_R, HEAT_BAND[1], MUZZLE[1], step=0.01, segments=28, radius1=0.074)]),
-    loc=(BORE_X, 0, 0), bevel=0)
-# Reinforced sleeve over the rear tube half plus the breech junction collar.
-add('Breech tube sleeve', 'body', 'olive drab', tube(.068, .280, 28),
-    loc=(BORE_X, 0.321, BORE_Z))
-add('Bore breech collar', 'body', 'gunmetal', tube(.071, .020, 28),
-    loc=(BORE_X, 0.466, BORE_Z))
-# Reinforcing bands along the sleeve, one hazard-orange.
-for index, y in enumerate((0.300, 0.370, 0.440)):
-    add(f'Tube band {index + 1}', 'body', 'orange paint' if index == 1 else 'gunmetal',
-        tube(.0715, .020, 28), loc=(BORE_X, y, BORE_Z))
-add('Breech warning band', 'body', 'orange paint', tube(.0705, .035, 28),
-    loc=(BORE_X, 0.245, BORE_Z))
-# Cone muzzle furniture: warning cone hugging the flare, rim ring, and the
-# dark mouth disc recessed a half millimetre behind the rim face.
-add('Muzzle warning cone', 'body', 'orange paint',
-    offset(taper(BORE_R + 0.0005, 0.0745, HEAT_BAND[1] + 0.0015, MUZZLE[1] - 0.0015, 28), dz=BORE_Z),
-    bevel=0)
-add('Muzzle rim', 'body', 'gunmetal', washer(.0745, .0575, .010, 28),
-    loc=(BORE_X, 0.776, BORE_Z), bevel=0)
-add('Muzzle mouth', 'body', 'cavity black', tube(.0570, .002, 28),
-    loc=(BORE_X, 0.7780, BORE_Z), bevel=0)
-# Orange flank warning stripes standing half a millimetre proud of the sleeve.
-pair('Tube warning stripe', 'body', 'orange paint', boxv((.002, .040, .020)),
-     loc=(.0675, 0.335, BORE_Z), bevel=0)
-# Identity markings, modelled as geometry on the tube flanks.
-add_text(ASSET, 'Marking TORCH left', 'body', 'ivory coating',
-         (-0.0685, 0.235, 0.078), (math.pi / 2, 0, -math.pi / 2), .011)
-add_text(ASSET, 'Marking TORCH right', 'body', 'ivory coating',
-         (0.0685, 0.235, 0.078), (math.pi / 2, 0, math.pi / 2), .011)
-add_text('RX-8', 'Marking RX-8 left', 'body', 'orange paint',
-         (-0.0745, 0.213, 0.078), (math.pi / 2, 0, -math.pi / 2), .010)
-add_text('RX-8', 'Marking RX-8 right', 'body', 'orange paint',
-         (0.0745, 0.213, 0.078), (math.pi / 2, 0, math.pi / 2), .010)
+# Shoulder rest: padded brace on the left flank (gate sweep stays |x| <= 0.102).
+add('Shoulder brace arm', 'body', 'gunmetal', boxv((.030, .100, .052)),
+    loc=(-.084, 0.176, 0.038), bevel=.003)
+add('Shoulder brace drop', 'body', 'gunmetal', boxv((.026, .052, .080)),
+    loc=(-.100, 0.108, 0.014), bevel=.003)
+add('Shoulder pad plate', 'body', 'gunmetal', boxv((.020, .130, .110)),
+    loc=(-.108, 0.082, 0.012), bevel=.003)
+add('Shoulder pad', 'body', 'rubber', boxv((.024, .124, .104)),
+    loc=(-.122, 0.082, 0.012), bevel=.006)
+for index, z in enumerate((-0.022, 0.046)):
+    add(f'Pad rib {index + 1}', 'body', 'gunmetal', boxv((.028, .112, .010)),
+        loc=(-.122, 0.082, z), bevel=.0015)
+
+# --- squared housing shell with bolted cheek panels (industrial cladding) ----
+add('Housing shell', 'body', 'olive drab',
+    offset(solid(polygon(.076, 8), .164, 'Y', polygon(.0615, 8)), dz=BORE_Z),
+    loc=(0, 0.372, 0), bevel=.003)
+add('Housing rear band', 'body', 'gunmetal',
+    offset(shell(.080, .080, .060, .060, 0.294, 0.312), dz=BORE_Z), bevel=.002)
+add('Housing front band', 'body', 'gunmetal',
+    offset(shell(.080, .080, .060, .060, 0.434, 0.452), dz=BORE_Z), bevel=.002)
+pair('Housing cheek panel', 'body', 'gunmetal', boxv((.014, .118, .104)),
+     loc=(.082, 0.372, 0.052), bevel=.002)
+pair('Cheek bolt front', 'body', 'orange paint', tube(.008, .006, 8, axis='X'),
+     loc=(.090, 0.418, 0.086), bevel=0)
+pair('Cheek bolt rear', 'body', 'orange paint', tube(.008, .006, 8, axis='X'),
+     loc=(.090, 0.326, 0.086), bevel=0)
+pair('Cheek latch', 'body', 'gunmetal', boxv((.010, .030, .016)),
+     loc=(.090, 0.372, 0.014), bevel=.0015)
+add('Housing vent', 'body', 'cavity black', boxv((.100, .056, .004)),
+    loc=(0, 0.372, 0.150), bevel=0)
+
+# --- forward half-cage and the front collar over the bare sleeve ------------
+add('Cage front collar', 'body', 'gunmetal',
+    offset(shell(.074, .072, .061, .061, 0.506, 0.524), dz=BORE_Z), bevel=.002)
+pair('Cage strut top', 'body', 'gunmetal', boxv((.018, .084, .022)),
+     loc=(.052, 0.480, 0.128), rot=(math.radians(-8), 0, math.radians(16)), bevel=.002)
+pair('Cage strut low', 'body', 'gunmetal', boxv((.018, .084, .022)),
+     loc=(.050, 0.480, 0.018), rot=(math.radians(8), 0, math.radians(16)), bevel=.002)
+pair('Cage collar bolt', 'body', 'gunmetal', tube(.006, .006, 8, axis='X'),
+     loc=(.070, 0.515, BORE_Z), bevel=0)
+
+# Forward hand hold around the support marker (left palm at x = -0.060).
+add('Fore grip mount', 'body', 'polymer', boxv((.052, .062, .052)),
+    loc=(-.028, 0.404, -0.004), bevel=.003)
+add('Fore grip', 'body', 'polymer', prism([
+    (0.444, -0.010), (0.384, -0.010), (0.368, -0.058), (0.376, -0.092),
+    (0.428, -0.096), (0.446, -0.060)], .052), loc=(-.032, 0, 0), bevel=.005)
+for index, (y, z) in enumerate(((0.372, -0.040), (0.370, -0.062), (0.374, -0.082))):
+    add(f'Fore grip groove {index + 1}', 'body', 'rubber', boxv((.046, .008, .008)),
+        loc=(-.032, y, z), bevel=0)
+add('Fore grip collar', 'body', 'orange paint', boxv((.058, .020, .056)),
+    loc=(-.032, 0.432, -0.026), bevel=.0015)
+
+# --- spine deck and flip-up ladder sights on the 0.175 sight line -----------
+add('Spine deck', 'body', 'ivory coating', boxv((.076, .535, .010)),
+    loc=(0, 0.2575, 0.167), bevel=.002)
+for index, y in enumerate((0.220, 0.300, 0.380, 0.460)):
+    add(f'Rail slot {index + 1}', 'body', 'rubber', boxv((.078, .024, .004)),
+        loc=(0, y, 0.1705), bevel=0)
+add('Deck foot rear', 'body', 'gunmetal', boxv((.052, .040, .022)),
+    loc=(0, 0.040, 0.155), bevel=.002)
+add('Deck foot front', 'body', 'gunmetal', boxv((.052, .036, .022)),
+    loc=(0, 0.500, 0.155), bevel=.002)
+
+# Rear ladder sight over the venturi (game z -0.02): twin ears, notch at 0.175.
+add('Rear sight base', 'body', 'gunmetal', boxv((.044, .040, .010)),
+    loc=(0, REAR_POST_Y, 0.176), bevel=.0015, sight=True)
+pair('Rear sight ear', 'body', 'gunmetal', boxv((.008, .032, .030)),
+     loc=(.017, REAR_POST_Y, 0.192), bevel=.0015, sight=True)
+add('Rear sight notch bar', 'body', 'gunmetal', boxv((.028, .028, .008)),
+    loc=(0, REAR_POST_Y, 0.171), bevel=.0015, sight=True)
+add('Rear sight pip', 'body', 'orange paint', boxv((.008, .005, .004)),
+    loc=(0, REAR_POST_Y, 0.1755), bevel=0, sight=True)
+for index, z in enumerate((0.198, 0.206)):
+    add(f'Rear sight rung {index + 1}', 'body', 'gunmetal',
+        tube(.003, .036, 8, axis='X'), loc=(0, REAR_POST_Y, z), bevel=0, sight=True)
+
+# Front ladder sight (game z -0.768): hooded post whose tip touches the line.
+add('Front sight riser', 'body', 'gunmetal', boxv((.024, .018, .028)),
+    loc=(0, FRONT_POST_Y, 0.154), bevel=.0015, sight=True)
+add('Front sight post', 'body', 'gunmetal', boxv((.006, .007, .018)),
+    loc=(0, FRONT_POST_Y, 0.166), bevel=0, sight=True)
+add('Front sight tip', 'body', 'orange paint', boxv((.007, .008, .005)),
+    loc=(0, FRONT_POST_Y, 0.175), bevel=0, sight=True)
+pair('Front sight hood wall', 'body', 'gunmetal', boxv((.005, .016, .030)),
+     loc=(.012, FRONT_POST_Y, 0.172), bevel=.0015, sight=True)
+add('Front sight hood bar', 'body', 'gunmetal', boxv((.030, .020, .005)),
+    loc=(0, FRONT_POST_Y, 0.1885), bevel=.0015, sight=True)
+
+# Identity markings, modelled as geometry on the housing cheeks.
+add_text('RX-8', 'Marking RX-8 left', 'body', 'ivory coating',
+         (-0.0885, 0.372, 0.052), (math.pi / 2, 0, -math.pi / 2), .017)
+add_text('HAVOC', 'Marking HAVOC right', 'body', 'ivory coating',
+         (0.0885, 0.372, 0.052), (math.pi / 2, 0, math.pi / 2), .014)
 
 # ===========================================================================
-# MAG: low mounting shoe under the breech (never a second grip)
+# MAG: the fixed underslung control canister (stays put during the reload)
 # ===========================================================================
-# The runtime builds its own control canister into this group procedurally,
-# so the delivered asset keeps only the shoe it bolts to.
-add('Canister shoe', 'mag', 'polymer', boxv((.060, .070, .050)),
-    loc=(0, 0.280, -0.018), bevel=.002)
-add('Canister shoe stripe', 'mag', 'orange paint', boxv((.068, .020, .054)),
-    loc=(0, 0.280, -0.030), bevel=.0015)
-add('Canister connector', 'mag', 'gunmetal', boxv((.014, .020, .020)),
-    loc=(0, 0.323, -0.010), bevel=.0015)
+add('Control canister', 'mag', 'polymer', boxv((.072, .104, .080)),
+    loc=(0, 0.296, -0.064), bevel=.004)
+add('Canister face panel', 'mag', 'gunmetal', boxv((.010, .084, .058)),
+    loc=(.040, 0.296, -0.064), bevel=.002)
+add('Canister stripe', 'mag', 'orange paint', boxv((.078, .022, .086)),
+    loc=(0, 0.332, -0.064), bevel=.0015)
+add('Canister connector', 'mag', 'gunmetal', boxv((.026, .030, .040)),
+    loc=(0, 0.246, -0.020), bevel=.0015)
+add('Canister rib front', 'mag', 'polymer', boxv((.076, .010, .084)),
+    loc=(0, 0.252, -0.064), bevel=.0015)
+add('Canister rib rear', 'mag', 'polymer', boxv((.076, .010, .084)),
+    loc=(0, 0.310, -0.064), bevel=.0015)
 
 # ===========================================================================
-# BOLT (side arming lever) and TRIGGER: the two small moving owners
+# BOLT: side arming lever, home at game z -0.040; the runtime rotates the
+# whole group about the gun origin, so it stays compact near the bore axis.
 # ===========================================================================
-# Arming lever on the right flank at bolt home; the post-launch jerk drops it.
-add('Arming lever arm', 'bolt', 'gunmetal', boxv((.016, .050, .028)),
-    loc=(0.088, BOLT_HOME_Y, 0.075), bevel=.003)
-add('Arming lever shoe', 'bolt', 'gunmetal', boxv((.020, .024, .034)),
-    loc=(0.088, BOLT_HOME_Y, 0.075), bevel=.002)
 BOLT_KNOB_OBJECT = add('Arming lever knob', 'bolt', 'orange paint',
-                       tube(.012, .020, 10, axis='X'),
-                       loc=(0.102, BOLT_HOME_Y, 0.075))
-add('Arming lever pivot', 'bolt', 'gunmetal', tube(.009, .018, 10, axis='X'),
-    loc=(0.092, BOLT_HOME_Y + 0.028, 0.075))
+                       tube(.013, .020, 12, axis='X'),
+                       loc=(.112, 0.037, 0.021), bevel=.0015)
+add('Arming lever shoe', 'bolt', 'gunmetal', boxv((.024, .030, .034)),
+    loc=(.082, 0.037, 0.023), bevel=.002)
+add('Arming lever arm', 'bolt', 'gunmetal', boxv((.018, .038, .024)),
+    loc=(.098, 0.037, 0.021), bevel=.002)
+add('Arming lever pivot', 'bolt', 'gunmetal', tube(.008, .016, 8, axis='X'),
+    loc=(.085, 0.058, 0.036), bevel=0)
 
+# ===========================================================================
+# TRIGGER: blade + shoe + guard at game z -0.11, blade tip at z -0.055
+# ===========================================================================
 TRIGGER_OBJECT = add('Trigger blade', 'trigger', 'gunmetal', boxv((.010, .016, .045)),
                      loc=(0, TRIGGER_Y, -0.0316), rot=(math.radians(8), 0, 0), bevel=.002)
 add('Trigger shoe', 'trigger', 'orange paint', boxv((.012, .008, .014)),
     loc=(0, TRIGGER_Y + 0.003, -0.048), rot=(math.radians(8), 0, 0), bevel=.0015)
-add('Trigger guard', 'trigger', 'gunmetal', solid(recty(0.060, 0.170, -0.078, 0.002), .030, 'X',
-                                                  recty(0.072, 0.156, -0.064, -0.012)), bevel=.003)
-# ===========================================================================
-# TOP RAIL and FLIP-UP LADDER SIGHTS: axis exactly on the 0.175 sight line
-# ===========================================================================
-# Rail riser bonded to the tube crown; the rail spine carries slot ribs.
-add('Rail riser', 'body', 'gunmetal', boxv((.050, .300, .020)),
-    loc=(0, 0.250, 0.150), bevel=.002)
-add('Top rail spine', 'body', 'gunmetal', boxv((.046, .300, .012)),
-    loc=(0, 0.250, 0.1665), bevel=.0015)
-for index, y in enumerate((0.130, 0.200, 0.270, 0.340)):
-    add(f'Rail slot {index + 1}', 'body', 'rubber', boxv((.048, .020, .003)),
-        loc=(0, y, 0.1725), bevel=0)
-# Rear ladder sight over the venturi (game z -0.02): twin ears with a notch
-# bar whose top edge sits exactly on the sight line.
-add('Rear sight base', 'body', 'gunmetal', boxv((.040, .034, .022)),
-    loc=(0, 0.020, 0.168), bevel=.002)
-pair('Rear sight ear', 'body', 'gunmetal', boxv((.008, .030, .030)),
-     loc=(.0155, 0.020, 0.175), bevel=.0015)
-add('Rear sight notch bar', 'body', 'gunmetal', boxv((.024, .026, .008)),
-    loc=(0, 0.020, 0.171), bevel=.0015)
-add('Rear sight notch glow', 'body', 'orange paint', boxv((.010, .004, .003)),
-    loc=(0, 0.020, 0.1755), bevel=0)
-for index, z in enumerate((0.182, 0.188)):
-    add(f'Rear sight ladder rung {index + 1}', 'body', 'gunmetal',
-        tube(.003, .032, 8, axis='X'), loc=(0, 0.020, z))
-# Front ladder sight (game z -0.66): riser post off the tube crown with a
-# hooded post whose tip touches the sight line.
-add('Front sight riser', 'body', 'gunmetal', boxv((.024, .018, .034)),
-    loc=(0, 0.768, 0.154), bevel=.002)
-add('Front sight post', 'body', 'gunmetal', boxv((.006, .006, .022)),
-    loc=(0, 0.768, 0.166), bevel=0)
-add('Front sight tip', 'body', 'orange paint', boxv((.007, .007, .004)),
-    loc=(0, 0.768, 0.1755), bevel=0)
-pair('Front sight hood wall', 'body', 'gunmetal', boxv((.005, .014, .026)),
-     loc=(.0135, 0.768, 0.168), bevel=.0015)
-add('Front sight hood bar', 'body', 'gunmetal', boxv((.030, .022, .005)),
-    loc=(0, 0.768, 0.1830), bevel=.0015)
-add('Front sight ladder rung', 'body', 'gunmetal', tube(.0028, .028, 8, axis='X'),
-    loc=(0, 0.768, 0.178))
-# Side electronics: range dial on the right flank, warning lamps on the left,
-# cable run back to the breech.
-add('Range dial housing', 'body', 'gunmetal', boxv((.014, .080, .044)),
-    loc=(0.070, 0.138, 0.100), bevel=.002)
-add('Range dial', 'body', 'orange paint', tube(.017, .016, 16, axis='X'),
-    loc=(0.078, 0.138, 0.100))
-add('Range dial hub', 'body', 'gunmetal', tube(.006, .020, 10, axis='X'),
-    loc=(0.079, 0.138, 0.100))
-for index, y in enumerate((0.100, 0.130, 0.160)):
-    add(f'Warning lamp {index + 1}', 'body', 'orange paint' if index == 0 else 'gunmetal',
-        boxv((.008, .014, .014)), loc=(-0.072, y, 0.100), bevel=.0015)
-add('Warning lamp rail', 'body', 'gunmetal', boxv((.006, .100, .020)),
-    loc=(-0.069, 0.128, 0.100), bevel=.0015)
-add('Grip cable run', 'body', 'rubber', boxv((.006, .160, .006)),
-    loc=(-0.064, 0.058, 0.020), bevel=0)
-add('Cable breech socket', 'body', 'gunmetal', boxv((.012, .020, .016)),
-    loc=(-0.066, 0.129, 0.030), bevel=.0015)
+add('Trigger guard', 'trigger', 'gunmetal',
+    solid(recty(0.060, 0.170, -0.078, 0.002), .030, 'X',
+          recty(0.072, 0.156, -0.064, -0.012)), bevel=.003)
 
 # ===========================================================================
-# EXTRA: intentionally empty. The reload rocket is spawned procedurally by the
-# runtime (actions.js _updateRocketReload drives extra.userData.reloadRounds),
-# so the delivered asset carries no loose rounds. The group node itself must
-# still exist at identity for the rig.
+# EXTRA: the breech gate = the tilting back-blast venturi tail. Every part
+# below is a gate leaf piece; the export batches them per material with
+# hinge-local geometry and node translation at the hinge.
 # ===========================================================================
+GATE_FRONT_Y, GATE_REAR_Y = 0.112, -0.048
+SEAM = 0.06  # radians of seam gap either side of the top/bottom splits
+
+
+def gate(name, material, shape, loc=(0, 0, 0), rot=(0, 0, 0), bevel=.002):
+    return add(name, 'extra', material, shape, loc=loc, rot=rot, bevel=bevel)
+
+
+gate('Gate leaf right', 'gunmetal',
+     offset(shell(.0705, .0985, .0570, .0640, GATE_FRONT_Y, GATE_REAR_Y,
+                  14, a0=-math.pi / 2 + SEAM, a1=math.pi / 2 - SEAM), dz=BORE_Z), bevel=.0015)
+gate('Gate leaf left', 'gunmetal',
+     offset(shell(.0705, .0985, .0570, .0640, GATE_FRONT_Y, GATE_REAR_Y,
+                  14, a0=math.pi / 2 + SEAM, a1=3 * math.pi / 2 - SEAM), dz=BORE_Z), bevel=.0015)
+gate('Gate throat collar', 'gunmetal',
+     offset(shell(.075, .074, .057, .057, 0.110, 0.090), dz=BORE_Z), bevel=.0015)
+gate('Gate rim ring', 'gunmetal',
+     offset(shell(.099, .095, .062, .062, -0.028, -0.052), dz=BORE_Z), bevel=.0015)
+gate('Gate warning band', 'orange paint',
+     offset(shell(.0915, .0965, .084, .086, 0.010, -0.020), dz=BORE_Z), bevel=.0015)
+gate('Gate clamp ring', 'gunmetal',
+     offset(shell(.0825, .0855, .072, .073, 0.058, 0.038), dz=BORE_Z), bevel=.0015)
+gate('Gate throat liner', 'cavity black',
+     offset(shell(.0575, .0645, BORE_IN, .0565, 0.106, -0.044), dz=BORE_Z), bevel=0)
+gate('Gate knuckle right', 'gunmetal', washer(.0155, .0105, .024, 12, axis='X'),
+     loc=(.070, HINGE[1], BORE_Z), bevel=0)
+gate('Gate knuckle left', 'gunmetal', washer(.0155, .0105, .024, 12, axis='X'),
+     loc=(-.070, HINGE[1], BORE_Z), bevel=0)
+gate('Gate latch', 'orange paint', boxv((.032, .032, .024)),
+     loc=(0, 0.100, -0.004), bevel=.002)
 
 # Node names the delivered files must use verbatim.
-CONTRACT_NODE_NAMES = set(GROUPS) | set(MARKERS) | {obj.name for obj in ROUND_OBJECTS}
+CONTRACT_NODE_NAMES = set(GROUPS) | set(MARKERS) | {
+    'gate | gunmetal', 'gate | orange paint', 'gate | cavity black'}
 
 
 def contract_node_name(name):
@@ -660,32 +688,35 @@ def contract_node_name(name):
         return head
     return name
 
+
 # --- marker empties --------------------------------------------------------
 MARKER_OBJECTS = {}
 for (name, position) in MARKERS.items():
     marker = bpy.data.objects.new(name, None)
-    marker.empty_display_type = 'ARROWS'
-    marker.empty_display_size = .03
+    marker.empty_display_type = 'SPHERE'
+    marker.empty_display_size = .012
     marker.location = position
-    marker['purpose'] = 'gameplay mount marker'
+    marker.parent = PART_GROUP['body']
     STUDY.objects.link(marker)
     MARKER_OBJECTS[name] = marker
 
 for (key, value) in {'asset_id': 'torch',
-                     'asset_name': 'TORCH',
-                     'game_forward': '-Z after glTF export',
+                     'display_name': 'RX-8 HAVOC',
+                     'design_study': 'BULWARK',
                      'sight_height': SIGHT_Z,
                      'bore_radius': BORE_R}.items():
     scene[key] = value
 
-# --- contract assertions ---------------------------------------------------
+# ===========================================================================
+# build-time checks (all four must pass or the build fails)
+# ===========================================================================
 # Headless runs need an explicit view-layer sync before data-API-created
 # objects show up in the dependency graph.
 bpy.context.view_layer.update()
 depsgraph = bpy.context.evaluated_depsgraph_get()
 extent = {0: [1e9, -1e9], 1: [1e9, -1e9], 2: [1e9, -1e9]}
 points = []
-for (obj, _part, _material) in PARTS + [(o, 'extra', 'orange paint') for o in ROUND_OBJECTS]:
+for (obj, _part, _material) in PARTS:
     evaluated = obj.evaluated_get(depsgraph)
     mesh = evaluated.to_mesh()
     for vertex in mesh.vertices:
@@ -696,40 +727,55 @@ for (obj, _part, _material) in PARTS + [(o, 'extra', 'orange paint') for o in RO
             extent[axis][1] = max(extent[axis][1], point[axis])
     evaluated.to_mesh_clear()
 
+# --- check 1: anchor contract ----------------------------------------------
 bore_object = BORE_OBJECT
 band = [(p, n) for (p, n) in points if HEAT_BAND[0] - 1e-9 <= p[1] <= HEAT_BAND[1] + 1e-9]
 band_radius = max(math.hypot(p[0] - BORE_X, p[2] - BORE_Z) for (p, _n) in band)
-band_foreign = sorted({n for (p, n) in band if n != bore_object.name
+band_foreign = sorted({n for (p, n) in band
+                       if n not in BORE_ASSEMBLY
                        and math.hypot(p[0] - BORE_X, p[2] - BORE_Z) > BORE_R + 1e-6})
 bore_points = [p for (p, n) in points if n == bore_object.name]
+bore_band = [p for p in bore_points if HEAT_BAND[0] - 1e-9 <= p[1] <= HEAT_BAND[1] + 1e-9]
+bore_band_radius = max(math.hypot(p[0] - BORE_X, p[2] - BORE_Z) for p in bore_band)
 bore_x = (min(p[0] for p in bore_points) + max(p[0] for p in bore_points)) / 2
 bore_z = (min(p[2] for p in bore_points) + max(p[2] for p in bore_points)) / 2
 tip = max(bore_points, key=lambda p: p[1])
-tip_plane = sorted({round(p[1], 9) for (p, n) in points if n == bore_object.name and p[1] > 0.75})
+tip_plane = sorted({round(p[1], 9) for p in bore_points if p[1] > 0.75})
 trigger_object = TRIGGER_OBJECT
 trigger_low = min((trigger_object.matrix_world @ v.co)[2] for v in trigger_object.data.vertices)
 bolt_handle = BOLT_KNOB_OBJECT
 knob_far = max((bolt_handle.matrix_world @ v.co)[0] for v in bolt_handle.data.vertices)
+rear_sight = next(o for (o, _p, _m) in PARTS if o.name == 'Rear sight base')
+rear_post_y = sum((rear_sight.matrix_world @ v.co)[1] for v in rear_sight.data.vertices) \
+    / len(rear_sight.data.vertices)
+front_sight = next(o for (o, _p, _m) in PARTS if o.name == 'Front sight riser')
+front_post_y = sum((front_sight.matrix_world @ v.co)[1] for v in front_sight.data.vertices) \
+    / len(front_sight.data.vertices)
+sight_names = {o.name for (o, _p, _m) in PARTS if o.get('sight_piece')}
+sight_line_hits = sorted({n for (p, n) in points
+                          if n not in sight_names and abs(p[0]) < 0.02 and p[2] >= SIGHT_Z - 1e-9})
 
 CONTRACT = [
     ('muzzle_forward_vertex_y', tip[1], MUZZLE[1], 1e-6),
     ('muzzle_marker', MUZZLE[1], 0.780, 1e-9),
     ('bore_axis_x', bore_x, BORE_X, 1e-6),
     ('bore_axis_z', bore_z, BORE_Z, 1e-6),
-    ('exposed_bore_radius_in_heat_band', band_radius, BORE_R, 1e-6),
+    ('exposed_bore_radius_in_heat_band', bore_band_radius, BORE_R, 1e-6),
     ('grip_marker_x', GRIP[0], 0.045, 1e-9),
     ('grip_marker_y', GRIP[1], 0.080, 1e-9),
     ('grip_marker_z', GRIP[2], -0.020, 1e-9),
     ('support_marker_x', SUPPORT[0], -0.060, 1e-9),
     ('support_marker_y', SUPPORT[1], 0.400, 1e-9),
     ('support_marker_z', SUPPORT[2], -0.030, 1e-9),
+    ('sight_marker_x', SIGHT[0], 0.000, 1e-9),
+    ('sight_marker_y', SIGHT[1], 0.340, 1e-9),
     ('sight_axis_z', SIGHT[2], SIGHT_Z, 1e-9),
     ('trigger_blade_y', TRIGGER_Y, 0.110, 1e-9),
     ('trigger_blade_tip_z', trigger_low, TRIGGER_TIP_Z, 1e-4),
     ('bolt_handle_home_y', BOLT_HOME_Y, -BOLT_HOME_GAME_Z, 1e-9),
     ('bolt_knob_reach_x', knob_far, None, None),
-    ('rear_sight_base_y', 0.020, 0.020, 1e-9),
-    ('front_sight_post_y', 0.768, 0.768, 1e-9),
+    ('rear_sight_base_y', rear_post_y, REAR_POST_Y, 1e-6),
+    ('front_sight_post_y', front_post_y, FRONT_POST_Y, 1e-6),
 ]
 contract_failures = []
 for (name, measured, expected, tolerance) in CONTRACT:
@@ -744,10 +790,14 @@ if BORE_START > BREECH_Y:
         f'bore starts at y={BORE_START}, forward of the {BREECH_Y} breech point')
 if knob_far <= 0.100:
     contract_failures.append(f'arming lever does not protrude to +x: reaches {knob_far:.4f}')
+if sight_line_hits:
+    contract_failures.append(
+        f'non-sight geometry touches the 0.175 sight line inside |x| < 0.02: '
+        f'{", ".join(sight_line_hits)}')
 
 print(f'model extent x={extent[0][0]:+.4f}..{extent[0][1]:+.4f} '
       f'y={extent[1][0]:+.4f}..{extent[1][1]:+.4f} z={extent[2][0]:+.4f}..{extent[2][1]:+.4f}')
-print(f'forward-most vertex ({tip[0]:+.6f}, {tip[1]:+.6f}, {tip[2]:+.6f}), muzzle plane rows {tip_plane}')
+print(f'forward-most bore vertex ({tip[0]:+.6f}, {tip[1]:+.6f}, {tip[2]:+.6f}), muzzle plane rows {tip_plane}')
 print(f'heat band z-radius max {band_radius:.6f} over {len(band)} vertices, '
       f'foreign geometry {band_foreign or "none"}')
 print(f'bore axis measured ({bore_x:+.9f}, {bore_z:+.9f}); bolt knob reaches x={knob_far:+.4f}')
@@ -758,17 +808,29 @@ if contract_failures:
 else:
     print('anchor contract: all assertions pass')
 
-# --- pack textures and save the editable source ----------------------------
-bpy.ops.file.pack_all()
-BLEND = DOCS / 'torch.blend'
-bpy.context.preferences.filepaths.save_version = 0
-bpy.ops.wm.save_as_mainfile(filepath=str(BLEND), copy=True, check_existing=False)
+# --- check 2: heat-band clearance ------------------------------------------
+# "No vertex other than the bore may enter the heat band": the runtime's
+# 0.0625 glow sleeve and the support hand own that span. The seated warhead
+# nose nests INSIDE the bore there (runtime owner's spec) and is the single
+# exception; nothing may stand proud of the 0.0620 sleeve.
+heat_band_failures = []
+for name in band_foreign:
+    heat_band_failures.append(f'{name} stands proud of the sleeve inside the heat band')
+for name in sorted({n for (p, n) in band
+                    if n not in BORE_ASSEMBLY and not n.startswith('Warhead')}):
+    heat_band_failures.append(f'{name} enters the heat band')
+for (p, n) in band:
+    if n.startswith('Warhead') and math.hypot(p[0] - BORE_X, p[2] - BORE_Z) > 0.050:
+        heat_band_failures.append(f'{n} leaves the bore nest inside the heat band')
+        break
+if heat_band_failures:
+    print(f'HEAT BAND CLEARANCE: {len(heat_band_failures)} violations')
+    for line in heat_band_failures:
+        print(f'  {line}')
+else:
+    print('heat-band clearance: the band holds the bore and the seated nose alone')
 
-# --- batch to material draw calls and export -------------------------------
-bpy.context.view_layer.update()
-depsgraph = bpy.context.evaluated_depsgraph_get()
-
-
+# --- check 3: coplanar-face audit ------------------------------------------
 def audit_coplanar_faces(tolerance=1e-6):
     """Flag faces from different parts that occupy the same plane and overlap."""
     planes = {}
@@ -813,6 +875,7 @@ if collisions:
 else:
     print('coplanar face audit: clean')
 
+# --- check 4: floating-part audit ------------------------------------------
 CONTACT_M = 0.0010        # 1 mm still reads as one machined form
 CONTACT_ANCHOR = 'Launch tube core'
 
@@ -915,14 +978,37 @@ if floaters:
 else:
     print('part contact audit: every part meets the receiver')
 
+if contract_failures or heat_band_failures or collisions or floaters:
+    raise RuntimeError(
+        f'build gate failed: {len(contract_failures)} contract, {len(heat_band_failures)} '
+        f'heat-band, {len(collisions)} coplanar, {len(floaters)} floating')
+
+# --- shared material-library pass, then pack and save the editable source ---
+# apply_scene styles the six mapped materials onto their shared palette
+# textures (the pass every other weapon went through; cavity black untouched).
+import runpy
+apply_scene = runpy.run_path(str(ROOT / 'tools/blender/material-library.py'))['apply_scene']
+print(json.dumps({'material_library': apply_scene(scene)}, indent=2))
+bpy.ops.file.pack_all()
+BLEND = DOCS / 'torch.blend'
+bpy.context.preferences.filepaths.save_version = 0
+bpy.ops.wm.save_as_mainfile(filepath=str(BLEND), copy=True, check_existing=False)
+
+# --- batch to material draw calls and export -------------------------------
+bpy.context.view_layer.update()
+depsgraph = bpy.context.evaluated_depsgraph_get()
+
 batches = {}
+gate_batches = {}
 for (obj, part, material) in PARTS:
-    batches.setdefault((part, material), []).append(obj)
+    (gate_batches if part == 'extra' else batches).setdefault((part, material), []).append(obj)
 
 export_objects = list(PART_GROUP.values())
 triangles = 0
 per_primitive = {}
-for ((part, material), objects) in sorted(batches.items()):
+merged_batches = {**batches, **gate_batches}
+
+for ((part, material), objects) in sorted(merged_batches.items()):
     bm = bmesh.new()
     for obj in objects:
         evaluated = obj.evaluated_get(depsgraph)
@@ -930,6 +1016,10 @@ for ((part, material), objects) in sorted(batches.items()):
         bm.from_mesh(mesh)
         evaluated.to_mesh_clear()
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    if part == 'extra':
+        # Gate leaves ship hinge-local with the hinge travelling as the node
+        # translation (BISON cover-leaf convention).
+        bmesh.ops.transform(bm, matrix=Matrix.Translation(-Vector(HINGE)), verts=bm.verts)
     merged = bpy.data.meshes.new(f'{part} | {material} merged')
     bm.to_mesh(merged)
     bm.free()
@@ -938,16 +1028,12 @@ for ((part, material), objects) in sorted(batches.items()):
     merged.calc_loop_triangles()
     triangles += len(merged.loop_triangles)
     per_primitive[f'{part} | {material}'] = len(merged.loop_triangles)
-    obj = bpy.data.objects.new(f'{part} | {material}', merged)
+    node_name = f'gate | {material}' if part == 'extra' else f'{part} | {material}'
+    obj = bpy.data.objects.new(node_name, merged)
     obj.parent = PART_GROUP[part]
+    if part == 'extra':
+        obj.location = HINGE
     STUDY.objects.link(obj)
-    export_objects.append(obj)
-
-round_objects = ROUND_OBJECTS
-for obj in round_objects:
-    project_uvs(obj.data)
-    obj.data.calc_loop_triangles()
-    triangles += len(obj.data.loop_triangles)
     export_objects.append(obj)
 
 export_objects += [MARKER_OBJECTS[name] for name in sorted(MARKERS)]
@@ -977,7 +1063,7 @@ wanted = {'filepath': str(GLB), 'export_format': 'GLB', 'use_active_collection':
 
 supported = set(bpy.ops.export_scene.gltf.get_rna_type().properties.keys())
 missing = [k for k in ('use_active_collection', 'use_active_scene', 'export_yup',
-                    'export_extras') if k not in supported]
+                       'export_extras') if k not in supported]
 if missing:
     raise RuntimeError(f'Blender glTF exporter lacks required options: {missing}')
 bpy.ops.export_scene.gltf(**{k: v for (k, v) in wanted.items() if k in supported})
@@ -994,9 +1080,6 @@ _foreign = sorted({contract_node_name(node.get('name', '')) for node in _documen
 if _foreign:
     raise RuntimeError(f'unexpected nodes in the GLB export: {_foreign}')
 
-STEMS = [m[1] for m in MATERIALS]
-
-
 def normalize_glb(path):
     """Rewrite name-bearing fields in the GLB JSON chunk (names only)."""
     raw = path.read_bytes()
@@ -1008,18 +1091,6 @@ def normalize_glb(path):
         chunks.append([kind, raw[offset + 8:offset + 8 + length]])
         offset += 8 + length
     document = json.loads(chunks[0][1].decode('utf-8'))
-    for texture in document.get('textures', []):
-        source = texture.get('source')
-        if source is None:
-            continue
-        stem = Path(document['images'][source]['name']).name
-        head, _, tail = stem.rpartition('.')
-        if tail.isdigit() and head:
-            stem = head
-        if stem.endswith('.jpg'):
-            stem = stem[:-4]
-        if stem in STEMS:
-            texture['name'] = f'textures/{stem}.jpg'
     contract_tints = {f'{ASSET} | {key}': list(material.get('gltf_tint', ()))
                       for (key, material) in mats.items()}
     for material in document.get('materials', []):
@@ -1032,6 +1103,8 @@ def normalize_glb(path):
         name = contract_node_name(node.get('name', ''))
         if name in GROUPS:
             node.setdefault('extras', {})['blenderAsset'] = 'torch'
+        if name.startswith('gate | '):
+            node.setdefault('extras', {})['role'] = 'breech gate'
         if name:
             if name in seen:
                 raise ValueError(f'duplicate glTF node name after normalisation: {name}')
@@ -1042,29 +1115,34 @@ def normalize_glb(path):
     chunks[1][1] = chunks[1][1] + b'\0' * (-len(chunks[1][1]) % 4)
     body = b''.join(struct.pack('<II', len(blob), kind) + blob for (kind, blob) in chunks)
     path.write_bytes(struct.pack('<III', 0x46546C67, 2, 12 + len(body)) + body)
+
+
 normalize_glb(GLB)
 
-# --- record ----------------------------------------------------------------
-for obj in round_objects:
-    per_primitive[f'extra | {obj.name}'] = len(obj.data.loop_triangles)
+# The shared material-library pass finishes the portable GLB too: palette maps
+# and the textureLibrary/textureBumpScale extras every delivery carries.
+_patch = runpy.run_path(str(ROOT / 'tools/blender/material-library.py'))
+print(json.dumps({'glb_materials': _patch['patch_glb'](GLB)}, indent=2))
 
+# --- record ----------------------------------------------------------------
 manifest = {
     'asset': 'TORCH',
     'asset_id': 'torch',
-    'kind': 'original AT4-style shoulder-fired rocket launcher prop (visual game asset)',
+    'kind': 'original heavy sci-fi shoulder-fired rocket launcher prop (visual game asset)',
     'blender': bpy.app.version_string,
     'authoring_script': 'tools/blender/torch/build-torch.py',
     'source_parts': len(PARTS),
     'animation_group_nodes': GROUPS,
     'marker_nodes': sorted(MARKERS),
-    'batch_nodes': len(batches),
-    'round_nodes': [obj.name for obj in round_objects],
+    'batch_nodes': len(merged_batches),
+    'round_nodes': [],
     'triangles': triangles,
     'triangles_per_primitive': per_primitive,
-    'materials': [m[0] for m in MATERIALS] + ['cavity black'],
-    'material_textures': {m[0]: f'{m[1]}.jpg' for m in MATERIALS},
-    'texture_source': 'public/assets/blender/textures (the delivered 1024px JPEGs, '
-                      'reused byte-identical; originals untouched)',
+    'materials': MATERIAL_KEYS,
+    'material_textures': {name: f'palette/{ASSIGNMENT[name]}.jpg'
+                          for name in MATERIAL_KEYS if name in ASSIGNMENT},
+    'texture_source': 'public/assets/blender/textures/palette (the shared 1024px palette '
+                      'JPEGs applied by tools/blender/material-library.py; originals untouched)',
     'uv_density_tiles_per_metre': UV_SCALE,
     'axes': {'authoring': '+Y forward, +Z up, +X right',
              'after_gltf': '-Z forward, +Y up, +X right',
@@ -1077,10 +1155,10 @@ manifest = {
     },
     'contract_points': {'breech_y': BREECH_Y, 'bore_axis': [BORE_X, BORE_Z],
                         'exposed_bore_radius': BORE_R,
-                        'exposed_bore': [SHROUD_END, MUZZLE[1]],
+                        'exposed_bore': [SLEEVE_END, MUZZLE[1]],
                         'heat_band': [-HEAT_BAND[1], -HEAT_BAND[0]],
                         'sight_height': SIGHT_Z,
-                        'sight_posts': [0.020, 0.768]},
+                        'sight_posts': [REAR_POST_Y, FRONT_POST_Y]},
     'files': {'blend': 'docs/design/blender/torch/torch.blend',
               'glb': 'docs/design/blender/torch/torch.glb',
               'renders': ['render-hero.png', 'render-side.png', 'render-left.png',
@@ -1106,8 +1184,12 @@ manifest = {
         'points and the geometry is built around them, but no third-person pose test '
         'was run.',
     ],
-    'notes': ['Fresh design: an AT4-style disposable-tube launcher; no bayonet lug, no optic.',
-              'Cone muzzle flare with an orange warning cone; the heat band stays bare tube.',
+    'notes': ['Fresh design (study BULWARK): squared breech housing, half-cage braces, '
+              'industrial panels and handles, a rocket nose peeking from the tube mouth.',
+              'The heat band stays bare 0.0620 tube: the runtime glow sleeve at 0.0625 '
+              'and the support hand own that span.',
+              'The breech gate (venturi leaves) pivots at the frozen hinge; gate nodes '
+              'ship hinge-local with the hinge as node translation.',
               'Markings are modelled geometry, not a texture decal.',
               'No loose rounds: the reload rocket is spawned procedurally by the runtime.',
               'Flip-up ladder sights bracket the shared 0.175 sight line.'],
@@ -1116,8 +1198,3 @@ manifest = {
 print(json.dumps({k: manifest[k] for k in ('source_parts', 'batch_nodes', 'triangles')}, indent=2))
 print(f'blend={BLEND} bytes={BLEND.stat().st_size}')
 print(f'glb={GLB} bytes={GLB.stat().st_size}')
-if collisions or floaters:
-    raise RuntimeError(f'geometry gate failed: {len(collisions)} coplanar face pairs, '
-                       f'{len(floaters)} floating part groups')
-if contract_failures:
-    raise RuntimeError(f'anchor contract failed: {len(contract_failures)} failures')

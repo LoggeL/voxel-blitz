@@ -471,3 +471,64 @@ blender --background --factory-startup docs/design/blender/grenades/grenades.ble
 node tools/blender-assets-browser-test.mjs
 node tools/throwable-browser-test.mjs
 ```
+
+## TORCH (rocket slot), revision 2
+
+TORCH supplies the existing `rocket` slot (RX-8 HAVOC). Revision 2 is a
+from-scratch redo (design study "BULWARK", chosen from three documented
+alternatives in `torch/concepts/`): the first AT4-style study — thin smooth
+tube with a flared orange warning cone — is deleted. Revision 2 is a heavy
+sci-fi launcher: a squared breech housing with bolted cheek panels and
+modelled `RX-8` / `HAVOC` stencils, half-cage braces to a front collar over
+the bare tube, industrial handles (pistol grip, forward hand hold, left-flank
+shoulder brace with rubber pad), a fixed underslung control canister, a
+rocket nose peeking from the tube mouth, and a visibly separated breech whose
+back-blast venturi gate tilts open for the reload. 108 authored parts, 15,140
+triangles, 17 runtime primitives, seven frozen materials with six sampling the
+shared palette maps through the material-library pass. Display name, stats,
+hitboxes and the reload timeline are unchanged.
+
+The study was authored through the live Blender MCP session (protocol 5) with
+`tools/blender/torch/build-torch.py`, which creates its own scene and saves
+with `copy=True`; the runtime export, validation and renders run headless.
+
+Animated parts (runtime model `torch.js`):
+
+- `mag`: the fixed underslung control canister — it stays put during reload.
+- `bolt`: side arming lever at game z -0.040, rotated about the gun origin for
+  the post-launch jerk stroke.
+- `trigger`: blade (tip z -0.055) and guard at z -0.11.
+- `extra`: ONLY the breech gate leaves (`gate | gunmetal`, `gate | orange
+  paint`, `gate | cavity black`) with hinge-local geometry and node translation
+  exactly `[0, 0.075, -0.06]`; the runtime re-parents them under a gate group
+  at the hinge (BISON cover-leaf convention) and reload slides the gate 0.11
+  back while swinging +0.95 rad about game X. No loose reload round ships: the
+  runtime spawns it procedurally.
+
+The launch tube is bare 0.0620 tube across the heat band z [-0.752, -0.528]
+(the runtime 0.0625 glow sleeve and the support hand own that span) with a
+clear bore of radius 0.0555 from the venturi mouth through the tube's rear
+half so the reload round (seats nose at z ≈ -0.58) slides through. Ladder
+sights bracket the 0.175 sight line at z -0.02 and z -0.768.
+
+Build-time gates (all four fail the build on violation): the anchor contract
+(muzzle plane, bore axis and exposed 0.0620 radius across the whole heat band,
+all four markers, the 0.175 sight line, trigger blade and arming lever home),
+heat-band clearance (only the bore and the seated nose inside radius 0.050),
+the coplanar-face audit and the floating-part audit.
+
+```sh
+# author (headless alternative to the MCP session)
+blender --background --factory-startup --python tools/blender/torch/build-torch.py
+# browser delivery, fresh-import validation, proof renders, articulation stills
+blender --background --factory-startup docs/design/blender/torch/torch.blend --python tools/blender/torch/export-game-assets.py
+blender --background --factory-startup --python tools/blender/torch/validate-torch.py
+blender --background --factory-startup docs/design/blender/torch/torch.blend --python tools/blender/torch/render-torch.py
+blender --background --factory-startup docs/design/blender/torch/torch.blend --python tools/blender/torch/pose-torch.py
+```
+
+`docs/design/blender/torch/validation.json` records the fresh import of both
+`torch.glb` and `public/assets/blender/torch.gltf` (gate-leaf translations at
+the hinge, anchors, bounds, UV references, material images, no negative scale,
+no nonfinite coordinates). `torch/build-report.md` carries the design
+alternatives, the BULWARK choice and the measured counts.

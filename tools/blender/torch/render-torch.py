@@ -2,21 +2,20 @@
 """Render hero/side/left/ads/rear proof shots of the TORCH study.
 
 Usage:
-    blender --background --factory-startup docs/design/blender/torch/torch.blend \\
+    blender --background --factory-startup docs/design/blender/torch/torch.blend \
         --python tools/blender/torch/render-torch.py
 """
 import bpy
 import sys
+from pathlib import Path
 from mathutils import Vector
 
 DOCS = None
 for arg in sys.argv:
     if arg.endswith('torch.blend'):
-        from pathlib import Path
         DOCS = Path(arg).parent
 if DOCS is None:
-    from pathlib import Path
-    DOCS = Path('/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/torch')
+    DOCS = Path(__file__).resolve().parents[3] / 'docs/design/blender/torch'
 
 scene = bpy.context.scene
 scene.render.engine = 'CYCLES'
@@ -29,11 +28,11 @@ scene.render.image_settings.file_format = 'PNG'
 
 VIEWS = {
     # name: (camera pos, look-at, lens)
-    'hero': ((1.50, -1.10, 0.80), (0.0, 0.38, 0.05), 55),
-    'side': ((3.0, 0.38, 0.06), (0.0, 0.38, 0.06), 80),
-    'left': ((-3.0, 0.38, 0.06), (0.0, 0.38, 0.06), 80),
-    'ads': ((0.0, -0.55, 0.26), (0.0, 0.50, 0.16), 45),
-    'rear': ((-0.65, -1.30, 0.35), (0.0, 0.10, 0.075), 55),
+    'hero': ((1.45, -1.25, 0.85), (0.0, 0.40, 0.03), 52),
+    'side': ((3.2, 0.37, 0.05), (0.0, 0.37, 0.05), 85),
+    'left': ((-3.2, 0.37, 0.05), (0.0, 0.37, 0.05), 85),
+    'ads': ((0.0, -0.50, 0.24), (0.0, 0.65, 0.14), 50),
+    'rear': ((-0.55, -1.35, 0.45), (0.0, 0.05, 0.06), 55),
 }
 
 
