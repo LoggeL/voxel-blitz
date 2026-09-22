@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { launchCdpSession } from './lib/cdp-session.mjs';
 import { startServer, stopServer, waitForHttp } from './lib/server-process.mjs';
 
-const server = startServer({ cwd: new URL('..', import.meta.url).pathname, failureContext: 'condition browser test' });
+const server = startServer({ failureContext: 'condition browser test' });
 let browser;
 try {
   const port = await server.port;

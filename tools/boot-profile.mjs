@@ -7,7 +7,7 @@ import { startServer, stopServer } from './lib/server-process.mjs';
 import { launchCdpSession } from './lib/cdp-session.mjs';
 
 const args = new Set(process.argv.slice(2));
-const server = startServer({ cwd: new URL('..', import.meta.url).pathname });
+const server = startServer();
 let session = null;
 try {
   const port = await server.port;

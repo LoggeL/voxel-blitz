@@ -1,76 +1,17 @@
 import assert from 'node:assert/strict';
-import { fork } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
+import { clickById as click, screenshotTo } from './lib/browser-helpers.mjs';
 import { launchCdpSession } from './lib/cdp-session.mjs';
-import { waitForHttp } from './lib/server-process.mjs';
+import { startServer, stopServer, waitForHttp } from './lib/server-process.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const artifacts = path.join(root, '.artifacts/powerups');
-
-async function click(page, id) {
-  const point = await page.evaluate(`(() => {
-    const element=document.getElementById(${JSON.stringify(id)});
-    element?.scrollIntoView({block:'center'});
-    const r=element?.getBoundingClientRect();
-    return r?.width&&r?.height?{x:r.left+r.width/2,y:r.top+r.height/2}:null;
-  })()`);
-  assert.ok(point, `visible #${id}`);
-  for (const type of ['mousePressed', 'mouseReleased']) {
-    await page.send('Input.dispatchMouseEvent', {
-      type, ...point, button: 'left', buttons: type === 'mousePressed' ? 1 : 0, clickCount: 1,
-    });
-  }
-}
-
-async function screenshot(page, name) {
-  const capture = await page.send('Page.captureScreenshot', {
-    format: 'png', captureBeyondViewport: false,
-  }, 15_000);
-  await writeFile(path.join(artifacts, name), Buffer.from(capture.data, 'base64'));
-}
-
-function startFixture() {
-  const child = fork('tools/lib/powerup-browser-fixture.mjs', [], {
-    cwd: root, env: { ...process.env, PORT: '0' }, silent: true,
-  });
-  let output = '', requestId = 0;
-  const port = new Promise((resolve, reject) => {
-    const timeout = setTimeout(() => reject(new Error(`Fixture startup timeout: ${output}`)), 10_000);
-    child.stdout.on('data', chunk => {
-      output += chunk;
-      const match = /voxel-blitz listening on .*:(\d+)\b/.exec(output);
-      if (match) { clearTimeout(timeout); resolve(Number(match[1])); }
-    });
-    child.stderr.on('data', chunk => { output += chunk; });
-    child.once('error', error => { clearTimeout(timeout); reject(error); });
-    child.once('exit', code => { clearTimeout(timeout); reject(new Error(`Fixture exited ${code}: ${output}`)); });
-  });
-  return {
-    port,
-    request(command) {
-      const id = ++requestId;
-      return new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => { child.off('message', receive); reject(new Error(`Fixture ${command} timeout`)); }, 5_000);
-        const receive = message => {
-          if (message.requestId !== id) return;
-          clearTimeout(timeout); child.off('message', receive);
-          if (message.error) reject(new Error(message.error)); else resolve(message.result);
-        };
-        child.on('message', receive); child.send({ requestId: id, command });
-      });
-    },
-    async close() {
-      if (child.exitCode !== null || child.signalCode !== null) return;
-      await new Promise(resolve => {
-        const timeout = setTimeout(() => child.kill('SIGKILL'), 2_000);
-        child.once('exit', () => { clearTimeout(timeout); resolve(); });
-        child.kill('SIGTERM');
-      });
-    },
-  };
-}
+const screenshot = (page, name) => screenshotTo(page, artifacts, name);
+const startFixture = () => startServer({
+  entry: 'tools/lib/powerup-browser-fixture.mjs', ipc: true, portTimeout: 10_000, failureContext: 'power-up browser fixture',
+});
 
 async function gallery(page) {
   return page.evaluate(`(async () => {
@@ -253,5 +194,5 @@ try {
   }
   throw error;
 } finally {
-  await browser?.close(); await fixture.close();
+  await browser?.close(); await stopServer(fixture);
 }

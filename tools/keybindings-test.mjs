@@ -78,7 +78,7 @@ console.log(`Keyboard bindings: persistence, conflicts, holds, combat, slots and
 
 if (!process.argv.includes('--browser')) process.exit(0);
 
-const server = startServer({ cwd: new URL('..', import.meta.url).pathname, failureContext: 'keyboard settings browser test' });
+const server = startServer({ failureContext: 'keyboard settings browser test' });
 let browser;
 try {
   const port = await server.port;

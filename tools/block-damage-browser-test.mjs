@@ -2,26 +2,12 @@ import assert from 'node:assert/strict';
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { clickById as click } from './lib/browser-helpers.mjs';
 import { launchCdpSession } from './lib/cdp-session.mjs';
 import { startServer, stopServer, waitForHttp } from './lib/server-process.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const screenshotPath = process.env.BLOCK_DAMAGE_SCREENSHOT || path.join(root,'.artifacts/block-damage/stages.png');
-
-async function click(page, id) {
-  const point = await page.evaluate(`(() => {
-    const element = document.getElementById(${JSON.stringify(id)});
-    element?.scrollIntoView({block:'center'});
-    const rect = element?.getBoundingClientRect();
-    return rect?.width && rect?.height ? {x:rect.left+rect.width/2,y:rect.top+rect.height/2} : null;
-  })()`);
-  assert.ok(point, `visible #${id}`);
-  for (const type of ['mousePressed', 'mouseReleased']) {
-    await page.send('Input.dispatchMouseEvent', {
-      type, ...point, button:'left', buttons:type === 'mousePressed' ? 1 : 0, clickCount:1,
-    });
-  }
-}
 
 async function renderGallery(page) {
   return page.evaluate(`(async () => {

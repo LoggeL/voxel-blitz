@@ -1,7 +1,13 @@
 import { spawn } from 'node:child_process';
+import { mkdtempSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import { abortError, sleep, withTimeout } from './async.mjs';
 
+const REPO_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const DEFAULT_PORT_PATTERN = /voxel-blitz listening on (?:https?:\/\/[^:\s]+)?:(\d+)\b/;
 const NEVER = new Promise(() => {});
 
@@ -38,8 +44,31 @@ export function serverFailure(server, info, context = server.failureContext) {
   return new Error(`server exited before ${context} completed (${reason})${output ? `\n${output}` : ''}`);
 }
 
+/** Test servers never inherit the developer's persistence: an inherited
+ * DATABASE_URL is dropped and file mode writes to a throwaway data directory
+ * unless the caller passes DATABASE_URL or VB_DATA_DIR itself.
+ */
+function testServerEnv(env) {
+  const childEnv = { ...process.env };
+  delete childEnv.DATABASE_URL;
+  const ownedDataDir = env.VB_DATA_DIR === undefined
+    ? mkdtempSync(path.join(os.tmpdir(), 'vb-test-data-'))
+    : null;
+  return {
+    ownedDataDir,
+    env: {
+      ...childEnv,
+      NODE_ENV: 'test',
+      VB_PERSISTENCE: env.DATABASE_URL ? 'postgres' : 'file',
+      ...(ownedDataDir ? { VB_DATA_DIR: ownedDataDir } : {}),
+      ...env,
+      PORT: '0',
+    },
+  };
+}
+
 export function startServer({
-  cwd,
+  cwd = REPO_ROOT,
   command = process.execPath,
   entry = 'server/index.js',
   args,
@@ -52,20 +81,21 @@ export function startServer({
   stopTimeout = 2_000,
   stopSignal = 'SIGTERM',
   killSignal = 'SIGKILL',
+  ipc = false,
 } = {}) {
   positiveInteger(portTimeout, 'portTimeout');
   positiveInteger(ringBuffer, 'ringBuffer');
   positiveInteger(stopTimeout, 'stopTimeout');
   const parsePort = portMatcher(portPattern);
+  const { env: childEnv, ownedDataDir } = testServerEnv(env);
   const child = spawn(command, args ?? [entry], {
     cwd,
-    env: { ...process.env, NODE_ENV: 'test',
-      VB_PERSISTENCE: (env.DATABASE_URL ?? process.env.DATABASE_URL) ? 'postgres' : 'file',
-      ...env, PORT: '0' },
-    stdio: ['ignore', 'pipe', 'pipe'],
+    env: childEnv,
+    stdio: ipc ? ['ignore', 'pipe', 'pipe', 'ipc'] : ['ignore', 'pipe', 'pipe'],
   });
   const server = {
     child,
+    ownedDataDir,
     stopping: false,
     stdout: '',
     stderr: '',
@@ -140,6 +170,29 @@ export function startServer({
   // Keep an early child failure from becoming an unhandled rejection while the
   // caller is still awaiting the advertised port.
   server.unexpectedExit.catch(() => {});
+
+  if (ipc) {
+    let requestId = 0;
+    // Fixture entries answer { requestId, command } with { requestId, result | error }.
+    server.request = (command, { timeout = 5_000 } = {}) => {
+      const id = ++requestId;
+      return new Promise((resolve, reject) => {
+        const receive = (message) => {
+          if (message?.requestId !== id) return;
+          clearTimeout(timer);
+          child.off('message', receive);
+          if (message.error) reject(new Error(message.error));
+          else resolve(message.result);
+        };
+        const timer = setTimeout(() => {
+          child.off('message', receive);
+          reject(new Error(`fixture ${command} timed out`));
+        }, timeout);
+        child.on('message', receive);
+        child.send({ requestId: id, command });
+      });
+    };
+  }
   return server;
 }
 
@@ -166,6 +219,10 @@ export async function stopServer(server, {
     clearTimeout(server.readyTimer);
     child.stdout?.destroy();
     child.stderr?.destroy();
+    // Removed only after exit so a shutdown flush cannot recreate the directory.
+    if (server.ownedDataDir) {
+      await rm(server.ownedDataDir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
+    }
   }
 }
 

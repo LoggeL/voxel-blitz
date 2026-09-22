@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
+import { clickById as click } from './lib/browser-helpers.mjs';
 import { launchCdpSession } from './lib/cdp-session.mjs';
 import { startServer, stopServer, waitForHttp } from './lib/server-process.mjs';
 import { WEAPON_IDS } from '../shared/combatmath.js';
@@ -9,11 +10,6 @@ import { GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const check = (condition, message) => { if (!condition) throw new Error(message); console.log(`ok - ${message}`); };
-async function click(page, id) {
-  const point = await page.evaluate(`(() => { const el = document.getElementById(${JSON.stringify(id)}); el?.scrollIntoView({block:'center'}); const r = el?.getBoundingClientRect(); return r?.width && r?.height ? {x:r.left+r.width/2,y:r.top+r.height/2} : null; })()`);
-  check(point, `visible #${id}`);
-  for (const type of ['mousePressed', 'mouseReleased']) await page.send('Input.dispatchMouseEvent', { type, ...point, button:'left', buttons:type === 'mousePressed' ? 1 : 0, clickCount:1 });
-}
 async function key(page, key, code) {
   for (const type of ['keyDown','keyUp']) await page.send('Input.dispatchKeyEvent', {type,key,code});
 }
