@@ -21,6 +21,7 @@ import {
   MOUSE_SENSITIVITY,
   SENSITIVITY_PREF_KEY,
 } from '../input-settings.js';
+import { MEDKIT_SECONDS } from '../../../shared/medkit.js';
 
 const ADS_MODE_LABELS = Object.freeze({
   '': 'AUTO (HOLD · TOGGLE ON TRACKPAD)',
@@ -604,7 +605,7 @@ export class SettingsController {
   _syncKeyHints() {
     const dom = this.settingsDom;
     if (dom.meleeHint) dom.meleeHint.textContent = `${bindingLabel('quickMelee')}: quick pickaxe hit for melee or mining. Your current weapon returns after the swing.`;
-    if (dom.medkitHint) dom.medkitHint.textContent = `${bindingLabel('medkit')}: use your medkit. Stand still for 4 seconds to fully heal. Moving, taking damage, or using a weapon cancels it. One kit per life, spent only after healing. Press again to cancel.`;
+    if (dom.medkitHint) dom.medkitHint.textContent = `${bindingLabel('medkit')}: use your medkit. Stand still for ${MEDKIT_SECONDS} seconds to fully heal. Moving, taking damage, or using a weapon cancels it. One kit per life, spent only after healing. Press again to cancel.`;
     this._syncDeviceRows();
   }
 

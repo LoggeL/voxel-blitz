@@ -1,4 +1,4 @@
-import { CAREER_CATALOG, PROGRESSION_BRANCHES, PROGRESSION_TREE, careerItemState, treeNode } from '../../../shared/career.js';
+import { CAREER_CATALOG, CAREER_REWARDS, PROGRESSION_BRANCHES, PROGRESSION_TREE, careerItemState, treeNode } from '../../../shared/career.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { mountMusicControl } from './music-control.js';
 import { cosmeticArtwork as artwork, CosmeticAudition, COSMETIC_AUDIO, cosmeticVolume } from './cosmetic-preview.js';
@@ -107,7 +107,8 @@ export class ProgressionTree {
     this.mountAudioSettings(store);
     const rules = node('details', store, '', 'vb-career-rules');
     node('summary', rules, 'HOW TO EARN XP');
-    node('p', rules, 'Human kill: 25 XP. Bot kill: 10 XP. Active minute: 20 XP. Objectives: 75 XP. Completed match: 100 XP, plus 50 XP for a win. Training does not award XP.');
+    const { kill, botKill, activeMinute, objective, match, victory } = CAREER_REWARDS;
+    node('p', rules, `Human kill: ${kill.xp} XP. Bot kill: ${botKill.xp} XP. Active minute: ${activeMinute.xp} XP. Objectives: ${objective.xp} XP. Completed match: ${match.xp} XP, plus ${victory.xp} XP for a win. Training does not award XP.`);
     node('p', rules, 'Every reward unlocks automatically once its requirements and the node before it are complete. Nothing is bought. Weapon mastery counts human opponents in eligible matches, including Gun Game; training and bot kills do not count.');
     node('p', store, 'Cosmetics keep weapon damage, hitboxes and team identification unchanged. All weapons remain available in Gun Game.', 'vb-career-note');
     this.badge = node('div', document.body, '', 'vb-career-badge');

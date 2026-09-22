@@ -108,7 +108,7 @@ export class MenuLobbyController {
     quickPlayButton.type = 'button';
     quickPlayButton.textContent = 'QUICK PLAY';
     const quickHint = el('div', 'vb-action-hint', quickBox);
-    quickHint.textContent = '5+ BOTS · AUTO ARENA';
+    quickHint.textContent = `${QUICK_PLAY_BOTS}+ BOTS · AUTO ARENA`;
 
     const createBox = el('div', 'vb-create-box', actionsBox);
     const createLobbyButton = el(

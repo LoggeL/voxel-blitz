@@ -1,6 +1,8 @@
-import { TTT_SHOP } from '../../../shared/ttt.js';
+import { TTT_C4, TTT_SHOP } from '../../../shared/ttt.js';
 import { el } from './hud-support.js';
 import { matchesBinding } from '../keybindings.js';
+
+const C4_LABEL = `C4 PLATZIEREN · ${Math.round(TTT_C4.fuseMs / 1000)} S`;
 
 const ICONS = {
   c4: '<rect x="6" y="14" width="36" height="27" rx="3"/><path d="M15 14V8h19v6M13 30h22M24 22v16"/><rect x="15" y="18" width="18" height="7"/>',
@@ -39,7 +41,7 @@ export function buildTttShop(root, purchase, close) {
   const gearStatus = el('p', 'vb-ttt-gear-status', equipment);
   const actionBar = el('div', 'vb-ttt-actions', equipment);
   const disguise = el('button', 'vb-ttt-action', actionBar, 'ttt-disguise');
-  const c4 = el('button','vb-ttt-action',actionBar,'ttt-c4');c4.textContent='C4 PLATZIEREN · 45 S';c4.onclick=()=>purchase('c4-place');
+  const c4 = el('button','vb-ttt-action',actionBar,'ttt-c4');c4.textContent=C4_LABEL;c4.onclick=()=>purchase('c4-place');
   const fakebody = el('button','vb-ttt-action',actionBar,'ttt-fakebody');fakebody.textContent='LEICHE LEGEN';fakebody.onclick=()=>purchase('fakebody-place');
   const mark = el('button', 'vb-ttt-action', actionBar, 'ttt-mark'); mark.textContent = 'PUNKT MERKEN';
   const recall = el('button', 'vb-ttt-action', actionBar, 'ttt-recall');
@@ -96,7 +98,7 @@ export function syncTttShop(dom, state) {
   dom.buyButton.textContent = hasItem ? 'AUSGERÜSTET' : `KAUFEN · ${item.price} CREDIT`;
   dom.buyButton.disabled = hasItem || (ttt.credits ?? 0) < item.price;
   dom.c4.hidden=!owned.includes('c4');dom.c4.disabled=!ttt.c4;
-  dom.c4.textContent=ttt.c4?'C4 PLATZIEREN · 45 S':'C4 BEREITS PLATZIERT';
+  dom.c4.textContent=ttt.c4?C4_LABEL:'C4 BEREITS PLATZIERT';
   dom.fakebody.hidden=!owned.includes('fakebody');dom.fakebody.disabled=!ttt.fakeBodies;
   dom.fakebody.textContent=ttt.fakeBodies?'LEICHE LEGEN':'LEICHE GELEGT';
   dom.disguise.hidden = !owned.includes('disguiser');
