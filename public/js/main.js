@@ -30,7 +30,7 @@ import { aimAssistStrength } from './player/aim-assist.js';
 import { smokeBlocksSight, copySmokeFields } from '../../shared/smoke-rules.js';
 import { fwdFromAngles } from './util/look.js';
 import { nowMs } from './util/math.js';
-import { GRENADE_TYPES, GRENADE_TYPE_IDS, grenadeFuseAfterCook } from '../../shared/grenade-rules.js';
+import { GRENADE_TYPES, GRENADE_TYPE_IDS, grenadeThrowFuseMs } from '../../shared/grenade-rules.js';
 import { AssetScheduler } from './boot/asset-scheduler.js';
 
 window.__vbBoot?.phases && (window.__vbBoot.phases.modules ??= Math.round(performance.now() - window.__vbBoot.startedAt));
@@ -144,7 +144,7 @@ class Game {
             if (event.kind === 'bastion_lane') this.worldview?.bastion?.event?.(event.kind);
             return;
           }
-          if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileUpdate', 'projectileStick',
+          if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileUpdate',
             'projectileExplode', 'blockDamage', 'block', 'mine'].includes(event.kind)) return;
           if (event.kind === 'kill' && event.killer === this.myId && event.victim !== this.myId) this.bumpStattrak(event);
           this.feedback?.handleEvent(event);
@@ -262,14 +262,6 @@ class Game {
     this.liveAvatarsGroup = new rt.THREE.Group();
     this.worldview.scene.add(this.liveEffectsGroup, this.liveAvatarsGroup);
     this.effects = new rt.Effects(this.liveEffectsGroup, this.camera, getBlock, {
-      // Stuck limpets ride their carrier: the local body or a presented remote avatar.
-      getEntityPosition: (id) => {
-        if (id === this.myId) {
-          const pos = this.player.pos;
-          return { x: pos.x, y: pos.y, z: pos.z };
-        }
-        return this.roster?.positionOf(id) || null;
-      },
       // Bolt wall-ricochet zap: client-derived from the shared integrator's bounced flag.
       onBounce: (x, y, z) => sfx.arcZap?.([x, y, z]),
     });
@@ -596,7 +588,7 @@ class Game {
     const mineProfile = claymoreProfile(this.selfRow?.chaosUpgrades?.limpet || 0);
     this.effects?.projectilePreview(preview ? { ...preview,
       ...(type.wallMine ? mineProfile : {}),
-      fuseMs: type.cook ? grenadeFuseAfterCook(heldMs, type) : type.fuseMs,
+      fuseMs: grenadeThrowFuseMs(type, heldMs),
     } : null);
 
     const thrown = this.player.consumeLocalGrenadeThrow();
@@ -617,9 +609,7 @@ class Game {
       ...(thrownType.wallMine ? { n: launch.n, ...mineProfile } : {}),
       o: [launch.x, launch.y, launch.z],
       v: [launch.vx, launch.vy, launch.vz],
-      fuse: thrownType.cook
-        ? grenadeFuseAfterCook(thrown.cookMs, thrownType)
-        : (thrownType.sticky ? thrownType.flightMaxMs : thrownType.fuseMs),
+      fuse: grenadeThrowFuseMs(thrownType, thrown.cookMs),
     }, { local: true });
     this.rig?.grenadeThrow(thrown.charge, thrown.type);
     if (thrownType.wallMine) sfx.grenadeDraw();

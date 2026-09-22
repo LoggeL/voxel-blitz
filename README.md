@@ -22,7 +22,7 @@ Combat attacks deal 20% less damage than the original balance. A close rifle bod
 
 - **Break through cover.** Block destruction changes the arena as you fight.
 - **Risk a supply run.** Armor, Medkits and Ammo appear on exposed ground in Fun, Team Deathmatch and Chaos Lab. Walk over one to collect it.
-- **Find your weapon.** Rifles, a shotgun, a revolver, a sniper, an LMG, a minigun, a flamethrower, rockets, melee, ricocheting LONGARC bolts and the piercing VOLTLANCE. Add cookable frags, sticky charges and pulse shocks.
+- **Find your weapon.** Rifles, a shotgun, a revolver, a sniper, an LMG, a minigun, a flamethrower, rockets, melee, ricocheting LONGARC bolts and the piercing VOLTLANCE. Add cookable frags, laser claymores and pulse shocks.
 - **Play with friends or bots.** Up to 32 players per room, with 16 per team, lobby discovery, invite links, QR codes and optional lobby passwords.
 - **Feel every shot.** Procedural weapon models, recoil, aiming down sights, staged reloads, tracers, hit feedback and layered audio.
 - **Play on desktop or touch.** Mouse and keyboard controls, a radial weapon wheel and mobile touch controls.
