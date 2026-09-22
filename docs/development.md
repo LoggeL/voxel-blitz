@@ -505,7 +505,7 @@ roster cards are omitted; S&D keeps a compact remaining-lives strip on desktop.
 | `R` | reload; shotgun shells seat one at a time and firing interrupts the load |
 | hold/release `G` | charge and throw the selected throwable; longer holds throw farther, and a frag cooks while held (hold past the fuse and it goes off in your hand) |
 | `H`, or wheel while holding `G` | cycle the throwable: M-4 FRAG (2), LIMPET CHARGE (1, sticks to walls and players), PULSE SHOCK (2, impact concussion), MOLOTOV COCKTAIL (1, ground fire) |
-| hold/release mouse1 with the LONGARC | charge the coilgun; release fires a bouncing bolt — a tap ricochets off one wall, a full charge ricochets three times |
+| mouse1 with the LONGARC | automatic coilgun; every bolt ricochets off one wall |
 | hold/release mouse1 with the VOLTLANCE | charge the rail-lance; release fires a lance that spears up to six enemies on the line, and only a full charge crosses up to two walls |
 | mouse1 with the PIXEL PICK | hold to mine nearby blocks; harder materials require more swings. No ammo or reload; melee hits retain 2.5x backstabs |
 | `1-9` / `0` / wheel | weapon slots (`1-9` and `0` also pick directly while the weapon wheel is open) |
@@ -573,7 +573,7 @@ support portrait and landscape. Append `?touch=1` for desktop QA.
 | **LONGSHOT MK-II** bolt sniper | bolt | 42 rpm | 5 + 6 mags | 5× full-screen optic, rotary long-throw bolt, canyon echo crack |
 | **BASTION LMG** | automatic | 720 rpm | 60 + 4 mags | heavy sustained fire and the slowest viewmodel settling |
 | **IRONCLAD .44** revolver | semi-automatic | 300 rpm | 6 + 8 mags | high-damage precision sidearm with fast handling |
-| **LN-03 LONGARC** | charge (hold/release) | 160 rpm | 8 + 6 mags | coilgun: a tap flings a quick single-bounce dart, a full charge launches a bolt that ricochets off walls three times — bolts never pierce bodies or terrain and fizzle once the reflections run out, holding too long vents the shot; rising capacitor whine and coil glow |
+| **LN-03 LONGARC** | automatic | 300 rpm | 8 + 6 mags | coilgun: every bolt ricochets off one wall — bolts never pierce bodies or terrain and fizzle once the reflection runs out |
 | **RX-8 HAVOC** | semi-automatic | 45 rpm | 1 + 5 tubes | slow authoritative rocket with splash, terrain carve, direct-hit bonus, and a self-knockback tuned for rocket jumps |
 | **CL-9 VOLTLANCE** | charge (hold/release) | 100 rpm | 4 + 5 mags | siege rail-lance: a tap flings a weak dart, a charged lance spears up to six enemies on the line with 0.9-per-body falloff, and only a full charge crosses up to two walls decaying 0.72 per wall; rising cell whine and violet lance glow |
 | **PIXEL PICK** | melee | 120 rpm | no ammo — swings are free | pixel pickaxe: material-dependent mining with cracks, cube debris and retro sounds; melee hits and 2.5x backstabs |
@@ -633,7 +633,9 @@ Near misses are capped and rate-limited, with a slowly replenishing shared
 suppression budget. Repeated fire cannot permanently lock panic. Solid cover
 blocks suppression, and direct hits do not also receive near-miss panic.
 
-The sniper alone enters its circular full-screen optic at 72% ADS. The outside
+Scoped weapons (the stock sniper, or any 2× or stronger attachment optic) enter
+their circular full-screen optic at 72% ADS, where the spread cone has already
+settled and below which kills count as no-scopes. The outside
 mask is opaque and the reticle includes crosshairs, mildots, and range ticks;
 the first-person weapon hides only while fully scoped. Authoritative death
 state drives a 1.2–1.5 second remote collapse and a deterministic local camera

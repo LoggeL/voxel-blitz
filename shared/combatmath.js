@@ -9,6 +9,8 @@ export const GRAVITY = 24;
 export const PLAYER_HALF = { x: 0.32, h: 0.95 };   // movement collider half-width, half-height
 export const EYE_HEIGHT = 1.62;                    // eye above feet
 export const SNIPER_SCOPE_ADS_THRESHOLD = 0.72;
+/** Scoped optics (attachment-driven, sniper by default) enter the full-screen scope. */
+export const isScopedWeapon = def => !!(def?.scoped ?? def?.id === 'sniper');
 /** Hitscan shots continue until terrain or a body stops them. The voxel walker
  * owns finite world bounds; weapon damage falloff never terminates a shot. */
 export const HITSCAN_REACH = Infinity;
@@ -20,7 +22,6 @@ export const CONDITION_RULES = Object.freeze({
   panicDamageGain: 0.012,
   panicHeadshotGain: 0.22,
   panicDecayPerS: 0.06,
-  panicLowHpFloor: 0,
   painDamageGain: 0.012,
   painHeadshotGain: 0.12,
   painHalfLifeS: 2,
@@ -388,18 +389,21 @@ export function computeRecoilKickDeg(def, shotIndex, adsT = 0, random01 = 0.5) {
   };
 }
 
+/** Reload stage stretch for `panic01` (0..1): full panic ≈ +`reloadPanicSlow`. */
+export function reloadPanicScale(panic01 = 0) {
+  const panic = Math.max(0, Math.min(1, Number(panic01) || 0));
+  return 1 + panic * CONDITION_RULES.reloadPanicSlow;
+}
 /**
  * Reload plan shared by authority and prediction. Magazine weapons swap in one step;
  * tube weapons seat rounds one at a time (`staged`), so the duration depends on how many
  * rounds are missing and the reload can be interrupted with every seated round kept.
  * Panic fumbles the reload: every stage stretches by up to `reloadPanicSlow`
  * (full panic ≈ +35%), so tube cadence slows shell-for-shell with the total.
+ * `rounds` is the rounds seated for a staged reload, or the full magazine the swap
+ * delivers for a magazine weapon.
  * @returns {{staged:boolean,rounds:number,seconds:number,startSeconds:number,perRoundSeconds:number,endSeconds:number}}
  */
-export function reloadPanicScale(panic01 = 0) {
-  const panic = Math.max(0, Math.min(1, Number(panic01) || 0));
-  return 1 + panic * CONDITION_RULES.reloadPanicSlow;
-}
 export function reloadPlan(def, mag, reserve = Infinity, panic01 = 0) {
   const inMag = Math.max(0, Math.min(def.magSize, Number.isFinite(mag) ? Math.trunc(mag) : 0));
   const scale = reloadPanicScale(panic01);
@@ -443,7 +447,7 @@ export function computeSpreadConeDeg(
   crouching = false,
   pain = 0,
 ) {
-  const t = Math.max(0, Math.min(1, def.id === 'sniper'
+  const t = Math.max(0, Math.min(1, isScopedWeapon(def)
     ? adsT / SNIPER_SCOPE_ADS_THRESHOLD : adsT));
   const hip = def.spreadDeg.hip + def.moveSpreadDeg * Math.min(1, speedXZ / 6.2);
   const base = hip + (def.spreadDeg.ads - hip) * t;

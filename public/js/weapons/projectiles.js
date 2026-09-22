@@ -7,7 +7,7 @@ import {
   stepGrenade,
 } from '../../../shared/grenade-rules.js';
 import { ROCKET_RULES, stepRocket } from '../../../shared/rocket-rules.js';
-import { BOLT_RULES, boltBounces, stepBolt } from '../../../shared/bolt-rules.js';
+import { BOLT_RULES, stepBolt } from '../../../shared/bolt-rules.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { createBlenderParts } from '../engine/blender-assets.js';
 
@@ -395,10 +395,10 @@ export class ProjectileFX {
     const fuseMs = Number(event.fuse);
     const fuse = type === 'limpet' ? Infinity
       : Math.max(0.05, (Number.isFinite(fuseMs) && fuseMs > 0 ? fuseMs : fallbackFuse) / 1000);
-    // Reflection budget: authority events carry `bn`; local spawns may pass `charge`.
+    // Reflection budget: authority events carry `bn`; otherwise the shared rule applies.
     const bn = Number(event.bn);
     const bouncesLeft = type === 'bolt'
-      ? Number.isFinite(bn) ? Math.max(0, Math.floor(bn)) : boltBounces(Number(event.charge ?? 1))
+      ? Number.isFinite(bn) ? Math.max(0, Math.floor(bn)) : BOLT_RULES.bounces
       : 0;
 
     if (!local) {

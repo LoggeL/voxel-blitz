@@ -166,7 +166,7 @@ After admission:
   `grenadeHandling` suppresses weapon fire, ADS, switching and new reloads
   while the hands prepare or throw an item. It cancels capacitor charging
   without firing; authority retains this interruption across coalesced inputs.
-  `wantFire` held on a `charge`-mode weapon (LONGARC, VOLTLANCE) charges the
+  `wantFire` held on a `charge`-mode weapon (VOLTLANCE) charges the
   capacitor and the shot leaves on release or when the hold reaches `holdMaxMs`.
   `viewAge` is the client's current presentation buffer plus measured RTT and
   is clamped by authority to `25–450 ms` before hit rewind.
@@ -354,7 +354,7 @@ The slot roster is exactly
 | 3 `sniper` | LONGSHOT MK-II | bolt | 42 | 5/6 | 95→68 @ 120 | 2.10× | 1 | 5.50°/0.02° | 5.2 kg |
 | 4 `lmg` | BASTION LMG | auto | 720 | 60/4 | 22→14 @ 75 | 1.70× | 1 | 1.65°/0.48° | 8.4 kg |
 | 5 `revolver` | IRONCLAD .44 | semi | 300 | 6/8 | 54→35 @ 80 | 1.90× | 1 | 1.15°/0.12° | 1.4 kg |
-| 6 `longarc` | LN-03 LONGARC | charge | 160 | 8/6 | 88→62 @ 95 | 2.00× | 1 | 1.60°/0.08° | 4.1 kg |
+| 6 `longarc` | LN-03 LONGARC | auto | 300 | 8/6 | 88→62 @ 95 | 2.00× | 1 | 1.60°/0.08° | 4.1 kg |
 | 7 `rocket` | RX-8 HAVOC | semi | 45 | 1/5 | projectile | 1.00× | 1 | 1.10°/0.25° | 9.6 kg |
 | 8 `lance` | CL-9 VOLTLANCE | charge | 100 | 4/5 | 130→95 @ 95 | 2.00× | 1 | 1.20°/0.05° | 3.8 kg |
 | 9 `knife` | K-7 RIPPER | melee | 120 | 0/0 | 58→58 (flat) | 1.00× | 1 | 0°/0° | 0.9 kg |
@@ -363,12 +363,10 @@ Damage is flat to 20 world units by default; the shotgun starts falloff at 12
 and the lance at 45. It then falls linearly to the table's far value at the
 listed end.
 
-The LONGARC is the `charge` mode: holding the trigger charges the capacitor
-over `charge.ms` (850) and the bolt leaves on release, or on its own at
-`charge.holdMaxMs` (2200). Damage scales linearly from `minDamageMult` (0.40) at
-a tap to the table value at full charge. The LONGARC is `projectile:'bolt'`: its
+The LONGARC is `auto`: every bolt leaves at full power with no capacitor
+charge. The LONGARC is `projectile:'bolt'`: its
 shot event carries no hitscan; `shared/bolt-rules.js` owns the ricochet rules —
-a tap bolt reflects off walls once, a full charge three times (`boltBounces`),
+every bolt reflects off walls once (`BOLT_RULES.bounces`),
 bolts never pierce a body or a wall, and the bolt fizzles (a small
 `projectileExplode` pop with no blast) once the reflections run out or its
 lifetime expires. The `rocket` is `projectile:'rocket'`:
@@ -657,9 +655,8 @@ late join whose welcome/state is already live also proceeds directly.
   `stepGrenade(g,dt,isSolid)`, and `predictGrenadePath(launch,isSolid,opts)`;
   `shared/rocket-rules.js` owns `ROCKET_RULES`, `rocketLaunch({x,y,z,dir})`, and
   `stepRocket(r,dt,raycast)`; `shared/bolt-rules.js` owns `BOLT_RULES` (speed
-  52, gravity 3.0, radius 0.1, lifetimeMs 3000, bouncesTap 1 / bouncesCharged 3
-  at `chargedAt` 1, blockDamage 18 per destructible wall contact, colour
-  '#7dfcff'), `boltBounces(charge01)`, `boltLaunch({x,y,z,dir,charge01})`, and
+  52, gravity 3.0, radius 0.1, lifetimeMs 3000, bounces 1, blockDamage 18 per
+  destructible wall contact, colour '#7dfcff'), `boltLaunch({x,y,z,dir})`, and
   `stepBolt(bolt,dt,raycast,{onTravel?,onBounce?})` — one swept reflection walk so prediction,
   presentation, and authority ricochet identically. `onTravel(from,bolt)` runs
   before each wall contact and can return true to stop at a body hit;

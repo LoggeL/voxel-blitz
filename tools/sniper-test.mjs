@@ -4,7 +4,7 @@ import { PlayerEntity } from '../server/sim/player.js';
 import { resolveWeaponIntent } from '../server/sim/combat.js';
 import { stepMovement } from '../server/sim/movement.js';
 import * as THREE from '../public/js/vendor/three.module.js';
-import { BreathHold } from '../public/js/player/breath-hold.js';
+import { BreathHold } from '../shared/conditions.js';
 import { AimSway } from '../public/js/player/aim-sway.js';
 import { isScopeActive, nextScopeZoom } from '../public/js/guns/scope-state.js';
 import { LocalPlayer } from '../public/js/player/local-player.js';

@@ -53,15 +53,16 @@ export const BASTION_ENEMIES = Object.freeze({
 });
 // Weapon keys (as passed to takeDamage) that ignore a vehicle's small-arms factor.
 export const BASTION_PIERCING = Object.freeze(['rocket', 'frag', 'limpet', 'pulse', 'molotov', 'flamethrower', 'longarc', 'lance', 'sniper']);
+/** FAST RELOAD scales every reload stage by this factor. */
+export const BASTION_RELOAD_MULT = 0.85;
 export const BASTION_SHOP = Object.freeze({
   armor: Object.freeze({ name: 'TEAM ARMOR', price: 200, description: '+50 armor for every defender. Once per break.' }),
   reserve: Object.freeze({ name: 'AMMO RESERVE', price: 400, description: '+1 spare magazine each resupply. Entire team, entire run.' }),
-  reload: Object.freeze({ name: 'FAST RELOAD', price: 600, description: '15% faster reloads. Entire team, entire run.' }),
+  reload: Object.freeze({ name: 'FAST RELOAD', price: 600, description: `${Math.round((1 - BASTION_RELOAD_MULT) * 100)}% faster reloads. Entire team, entire run.` }),
 });
 // Single source for the build catalog keys; shared/bastion-build.js imports it.
 export const STRUCTURE_KINDS = Object.freeze(['sandbag', 'wall', 'turret', 'crate']);
 
-export const BASTION_WAVE_IDS = Object.freeze(['probe', 'push', 'assault', 'siege', 'armor', 'onslaught', 'breakthrough', 'lastStand']);
 export const BASTION_WAVES = Object.freeze({   // columns = BASTION_ROLES order
   //             runner breacher heavy brute jugg buggy apc walker
   probe:        Object.freeze([ 8, 0, 0, 0, 0,  0, 0, 0]),   // 8
@@ -113,9 +114,9 @@ export function bastionWeaponDef(player, base) {
   if (enemy) return { ...base, damage: [enemy.damage, enemy.damage, 80], headMult: 1,
     rpm: enemy.rpm, bloomDeg: 0.2, spreadDeg: { ...base.spreadDeg, hip: Math.max(1.6, base.spreadDeg.hip) } };
   if (!player?.bastionUpgrades?.reload) return base;
-  return { ...base, reloadTime: base.reloadTime * 0.85, tacTime: base.tacTime * 0.85,
+  return { ...base, reloadTime: base.reloadTime * BASTION_RELOAD_MULT, tacTime: base.tacTime * BASTION_RELOAD_MULT,
     ...(base.reloadStages ? { reloadStages: Object.fromEntries(
-      Object.entries(base.reloadStages).map(([key, seconds]) => [key, seconds * 0.85])) } : {}) };
+      Object.entries(base.reloadStages).map(([key, seconds]) => [key, seconds * BASTION_RELOAD_MULT])) } : {}) };
 }
 
 /** Epochs reject stale clicks; per-player request IDs make retries idempotent.

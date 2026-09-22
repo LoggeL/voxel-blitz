@@ -41,7 +41,7 @@ import { evDie, evRespawn } from '../server/protocol/events.js';
 import { makeSnapshot } from '../server/protocol/snapshot.js';
 import { PROJECTILE_RULES } from '../server/sim/projectiles.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
-import { BOLT_RULES, boltBounces } from '../shared/bolt-rules.js';
+import { BOLT_RULES } from '../shared/bolt-rules.js';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { ImpactFX } from '../public/js/weapons/impacts.js';
 
@@ -233,7 +233,6 @@ function runDirectContracts() {
     panicDamageGain: 0.012,
     panicHeadshotGain: 0.22,
     panicDecayPerS: 0.06,
-    panicLowHpFloor: 0,
     painDamageGain: 0.012,
     painHeadshotGain: 0.12,
     painHalfLifeS: 2,
@@ -602,8 +601,7 @@ function runDirectContracts() {
   const tapFizzle = coilEngine.tickEvents.find(
     (event) => event.kind === 'projectileExplode' && event.type === 'bolt');
   ok(midCharge === 0 && coilTapShot && coilTapShot.charge === undefined
-    && coilTapLaunch && coilTapLaunch.bn === boltBounces(midCharge)
-    && coilTapLaunch.bn === BOLT_RULES.bouncesTap
+    && coilTapLaunch && coilTapLaunch.bn === BOLT_RULES.bounces
     && coilTapLaunch.fuse === BOLT_RULES.lifetimeMs && coilTapLaunch.v[0] > 45
     && coilTapHit && coilTapHit.dmg > 0 && coilTapHit.dmg === Math.round(combatDamage(WEAPONS.longarc.damage[0]))
     && tapFizzle && tapFizzle.radius === 0.5 && Math.abs(tapFizzle.x - 48.5) < 1
@@ -628,13 +626,13 @@ function runDirectContracts() {
     fullBoltTicks++;
   }
   const fullHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-first');
-  ok(fullCharge === 0 && fullShot && fullShot.charge === undefined && fullLaunch?.bn === boltBounces(1)
+  ok(fullCharge === 0 && fullShot && fullShot.charge === undefined && fullLaunch?.bn === BOLT_RULES.bounces
     && fullHit && fullHit.dmg === Math.round(combatDamage(WEAPONS.longarc.damage[0]))
     && Math.abs(coilFirst.hp - (100 - combatDamage(WEAPONS.longarc.damage[0]))) < 0.2,
   'holding LONGARC launches a one-bounce bolt that lands its 70.4 damage on a direct body hit');
 
   // Ricochet exhaustion: with both victims parked off the flight line, a full
-  // charge (bn 3) bounces between the two end walls, ignores its owner, and
+  // one-bounce bolt (bn 1) reflects off the end wall, ignores its owner, and
   // fizzles harmlessly once the reflections run out.
   coilEngine.tickEvents.length = 0;
   Object.assign(coil, { cooldown: 0, triggerPrev: false, adsT: 1, bloom: 0 });
@@ -654,7 +652,7 @@ function runDirectContracts() {
   }
   const ricochetFizzle = coilEngine.tickEvents.find(
     (event) => event.kind === 'projectileExplode' && event.type === 'bolt');
-  ok(ricochetLaunch?.bn === BOLT_RULES.bouncesCharged && ricochetTicks > 2 && ricochetTicks < 80
+  ok(ricochetLaunch?.bn === BOLT_RULES.bounces && ricochetTicks > 2 && ricochetTicks < 80
     && ricochetFizzle && ricochetFizzle.radius === 0.5
     && ricochetFizzle.x > 35 && ricochetFizzle.x < 38
     && coil.hp === 100 && coilFirst.hp === 100 && coilSecond.hp === 100
@@ -867,9 +865,9 @@ function runDirectContracts() {
   updateCondition(conditionTarget, 2);
   ok(nearly(decayedPanic, 0.8 - CONDITION_RULES.panicDecayPerS * 0.5)
     && nearly(decayedPain, 0.8 * 2 ** (-0.5 / CONDITION_RULES.painHalfLifeS))
-    && nearly(conditionTarget.panic, 0.75 * CONDITION_RULES.panicLowHpFloor)
+    && conditionTarget.panic === 0
     && nearly(conditionTarget.pain, 0.095),
-  'panic decays linearly and excess pain halves in two seconds without crossing its injury floor');
+  'panic decays linearly to zero with no low-HP floor and excess pain halves in two seconds without crossing its injury floor');
 
   Object.assign(conditionTarget, {
     hp: 100, panic: 0.99, pain: 0.99, exhaustion: 0.99, sprint: true, state: 'alive',

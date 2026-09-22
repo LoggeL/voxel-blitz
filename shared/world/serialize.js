@@ -1,9 +1,8 @@
-import { AIR, SX, SY, SZ } from './blocks.js';
+import { AIR } from './blocks.js';
 import { DEFAULT_DIMENSIONS, KNOWN_DIMENSIONS } from './dimensions.js';
 
 const MAP_VERSION = 1;
 export const MAP_HEADER_BYTES = 6;
-export const MAP_BYTES = MAP_HEADER_BYTES + SX * SY * SZ;
 
 /** Serialize blocks as 'VB', version, dimensions, then raw y/z/x bytes. */
 export function serializeBlocks(blocks, dimensions = DEFAULT_DIMENSIONS) {

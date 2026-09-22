@@ -10,26 +10,17 @@ export const BOLT_RULES = Object.freeze({
   /** Self-destruct after this long in flight (map edge or open sky). */
   lifetimeMs: 3000,
   /** Wall reflections: every automatic bolt skips once. */
-  bouncesTap: 1,
-  bouncesCharged: 1,
-  /** Legacy charge threshold; all bolts now carry the same reflection budget. */
-  chargedAt: 1,
+  bounces: 1,
   /** Block damage dealt to a destructible voxel at every wall contact. */
   blockDamage: 18,
   color: '#7dfcff',
 });
 
-/** Reflections a bolt carries when launched at `charge01` (0..1). */
-export function boltBounces(charge01) {
-  const charge = Math.max(0, Math.min(1, Number.isFinite(charge01) ? charge01 : 1));
-  return charge >= BOLT_RULES.chargedAt ? BOLT_RULES.bouncesCharged : BOLT_RULES.bouncesTap;
-}
-
 /**
  * Launch state for a bolt leaving the coil: a muzzle point just ahead of the eye plus a
  * straight velocity along the (already spread-sampled) unit `dir`.
  */
-export function boltLaunch({ x, y, z, dir, charge01 = 1 }) {
+export function boltLaunch({ x, y, z, dir }) {
   const d = dir || { x: 0, y: 0, z: -1 };
   return {
     type: 'bolt',
@@ -39,7 +30,7 @@ export function boltLaunch({ x, y, z, dir, charge01 = 1 }) {
     vx: d.x * BOLT_RULES.speed,
     vy: d.y * BOLT_RULES.speed,
     vz: d.z * BOLT_RULES.speed,
-    bouncesLeft: boltBounces(charge01),
+    bouncesLeft: BOLT_RULES.bounces,
   };
 }
 

@@ -1,7 +1,7 @@
-export const DUEL_KILL_LIMITS = Object.freeze([5, 10, 15, 20, 30]);
-export const DEFAULT_DUEL_KILL_LIMIT = 5;
 // Fixed mode, team, map, Gun Game progression, and Search and Destroy economy contract.
 // This module is dependency-free so the browser and authoritative server share it directly.
+export const DUEL_KILL_LIMITS = Object.freeze([5, 10, 15, 20, 30]);
+export const DEFAULT_DUEL_KILL_LIMIT = 5;
 
 export const MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training']);
 export const DUEL_WEAPONS = Object.freeze(['rifle', 'shotgun', 'sniper', 'revolver', 'knife']);
@@ -98,14 +98,14 @@ export const MODE_RULES = Object.freeze({
 });
 
 const COMBAT_MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame']);
-const DEPOT_MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame']);
+const NO_BOMB_SITE_MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame']);
 
 export const MAP_MODE_COMPATIBILITY = Object.freeze({
   reactor: Object.freeze(['bastion']),
   foundry: COMBAT_MODE_IDS,
   harbor: COMBAT_MODE_IDS,
   canyon: COMBAT_MODE_IDS,
-  depot: DEPOT_MODE_IDS,
+  depot: NO_BOMB_SITE_MODE_IDS,
   citadel: COMBAT_MODE_IDS,
   solstice: COMBAT_MODE_IDS,
   caldera: COMBAT_MODE_IDS,
@@ -113,9 +113,9 @@ export const MAP_MODE_COMPATIBILITY = Object.freeze({
   dust2: COMBAT_MODE_IDS,
   killhouse: Object.freeze(['training']),
   // ttt_minecraft_b5 replica: TTT's home map, plus every non-S&D combat mode.
-  minecraft_b5: DEPOT_MODE_IDS,
+  minecraft_b5: NO_BOMB_SITE_MODE_IDS,
   // ttt_waterworld replica: an indoor pool complex with no bomb sites.
-  waterworld: DEPOT_MODE_IDS,
+  waterworld: NO_BOMB_SITE_MODE_IDS,
   // Causeway: the second linear Bastion map.
   causeway: Object.freeze(['bastion']),
 });

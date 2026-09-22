@@ -1,22 +1,26 @@
 // Bastion build catalog and the shared placement predicate (server accept and
 // client ghost run the same rules). Keeps shared/bastion.js free of block ids.
-import { BARRICADE, AIR, GROUND, isSolidBlock } from './world/blocks.js';
+import { BARRICADE, BLOCK_HP, AIR, GROUND, isSolidBlock } from './world/blocks.js';
 import { BASTION_RULES, STRUCTURE_KINDS } from './bastion.js';
 import { BASTION_BREAK_PHASES } from './modes.js';
 
 export { STRUCTURE_KINDS };
 
+// Rules first, then the player-facing text built from them, so the two cannot drift.
+const blockHp = BLOCK_HP[BARRICADE];
+const turret = { name: 'SENTRY TURRET', price: 350, kind: 'objective', hp: 400, half: Object.freeze([0.45, 0.55, 0.45]),
+  ammo: 240, damage: 12, rpm: 360, range: 26, turnRate: 4 };
+const crate = { name: 'AMMO CRATE', price: 200, kind: 'objective', hp: 250, half: Object.freeze([0.5, 0.4, 0.5]),
+  charges: 6, radius: 2.5, turretRadius: 6 };
 export const BASTION_STRUCTURES = Object.freeze({
   sandbag: Object.freeze({ name: 'SANDBAG LINE', price: 40, kind: 'block', width: 3, height: 1,
-    description: 'Three sandbag blocks, 480 HP each. Kneel-high cover; enemies must breach or go around.' }),
+    description: `Three sandbag blocks, ${blockHp} HP each. Kneel-high cover; enemies must breach or go around.` }),
   wall: Object.freeze({ name: 'BARRICADE WALL', price: 90, kind: 'block', width: 3, height: 2,
-    description: 'Three-wide, two-high barricade, 480 HP per block. Vehicles ram it.' }),
-  turret: Object.freeze({ name: 'SENTRY TURRET', price: 350, kind: 'objective', hp: 400, half: Object.freeze([0.45, 0.55, 0.45]),
-    ammo: 240, damage: 12, rpm: 360, range: 26, turnRate: 4,
-    description: 'Auto-fires at the nearest hostile in sight, 240 rounds. Refilled every break and by ammo crates.' }),
-  crate: Object.freeze({ name: 'AMMO CRATE', price: 200, kind: 'objective', hp: 250, half: Object.freeze([0.5, 0.4, 0.5]),
-    charges: 6, radius: 2.5, turretRadius: 6,
-    description: 'Six refills: +1 reserve magazine and +25 HP for a defender within 2.5 m, once per wave. Refills turrets within 6 m.' }),
+    description: `Three-wide, two-high barricade, ${blockHp} HP per block. Vehicles ram it.` }),
+  turret: Object.freeze({ ...turret,
+    description: `Auto-fires at the nearest hostile in sight, ${turret.ammo} rounds. Refilled every break and by ammo crates.` }),
+  crate: Object.freeze({ ...crate,
+    description: `${crate.charges} refills: +1 reserve magazine and +25 HP for a defender within ${crate.radius} m, once per wave. Refills turrets within ${crate.turretRadius} m.` }),
 });
 
 /** Footprint cells for a kind at a cell with facing 0..3 (0/2 = along x, 1/3 = along z). */

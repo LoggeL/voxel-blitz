@@ -1,6 +1,5 @@
 import { GROUND } from './blocks.js';
 
-export const REACTOR_FLOOR = GROUND;
 const point = (x, z, floor = GROUND) => Object.freeze({ x, y: floor + 1.02, z });
 const deepFreeze = o => { for (const v of Object.values(o)) if (v && typeof v === 'object' && !Object.isFrozen(v)) deepFreeze(v); return Object.freeze(o); };
 
