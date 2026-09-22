@@ -60,6 +60,8 @@ export class BuyMenuController {
     }
 
     root.innerHTML = '';
+    // Every shop reuses this root; drop the previous builder's key handler.
+    root.onkeydown = null;
     if (mode === 'ttt') {
       root.style.display = 'none';
       this.buyDom = buildTttShop(root, item => { if (this._isAdmitted()) this._buyMenuCallbacks?.onBuy?.(`ttt:${item}`); }, () => this.toggleBuyMenu(false));
@@ -214,6 +216,8 @@ export class BuyMenuController {
           this.toggleBuyMenu(false);
           return;
         }
+        // TTT and Bastion trap Tab and handle keys through their own root handler.
+        if (this.buyDom.mode !== 'snd' && this.buyDom.mode !== 'chaos') return;
 
         // The shared Input controller owns the buy-key toggle, including custom digits/Tab.
         if (matchesBinding(event, 'buy')) return;
@@ -537,6 +541,7 @@ export class BuyMenuController {
     this.closeBuyMenuDirect();
     const root = this.buyDom.root;
     if (root) {
+      root.onkeydown = null;
       if (this._ownsRoot) root.remove();
       else root.innerHTML = '';
     }

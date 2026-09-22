@@ -54,14 +54,14 @@ export function buildBastionArmory(root, purchase, close, onSelectStructure = nu
     structureCards[kind] = { card, budget, button };
   }
   const ready = el('button','vb-bastion-ready',panel); ready.onclick=()=>purchase('ready');
-  root.addEventListener('keydown',event=>{
+  root.onkeydown = event=>{
     if (event.key==='Escape' || matchesBinding(event, 'buy')) { event.preventDefault();event.stopPropagation();if(!event.repeat)close(); }
     if(event.key==='Tab') {
       const list=[...root.querySelectorAll('button:not(:disabled),select:not(:disabled)')];
       const i=list.indexOf(document.activeElement); event.preventDefault();
       list[(i+(event.shiftKey?-1:1)+list.length)%list.length]?.focus();
     }
-  });
+  };
   return {root,mode:'bastion',closeBtn,credVal,info,selectors,bastionCards:cards,structureCards,ready,cards:{},itemOrder:[],selectedKind:null};
 }
 

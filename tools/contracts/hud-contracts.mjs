@@ -21,6 +21,7 @@ export async function runHudContracts(ok, installGlobals) {
         if (!event.target) event.target = this;
         event.currentTarget = this;
         for (const fn of [...(this.listeners.get(event.type) || [])]) fn(event);
+        this[`on${event.type}`]?.(event);
         return !event.defaultPrevented;
       }
       listenerCount(type) {
@@ -1167,6 +1168,45 @@ export async function runHudContracts(ok, installGlobals) {
         partialHud.openSettings();
         return [partialDocument.getElementById('settings-overlay')];
       });
+
+      // Every shop mode reuses #buy-menu. After snd -> bastion -> ttt -> bastion,
+      // Tab belongs to the Bastion trap alone: the S&D capture handler must let it
+      // through and no earlier builder's root handler may still run.
+      {
+        const shopDocument = new FakeDocument();
+        const restoreShop = installGlobals({ document: shopDocument, window: new FakeEventTarget() });
+        let shopMode = null;
+        let shop = null;
+        try {
+          const { BuyMenuController } = await import('../../public/js/ui/buy-menu.js');
+          shop = new BuyMenuController({ mode: () => shopMode, isAlive: () => true });
+          shop.setupBuyMenu({ onBuy() {}, onClose() {} });
+          const bastion = { credits: 0, upgrades: {}, budget: {}, ready: 0, defenders: 1, wave: 0, waves: 8 };
+          shopMode = 'bastion';
+          shop.setBuyMenuState({ phase: 'prep', bastion, bastionSelf: {} });
+          shopMode = 'ttt';
+          shop.setBuyMenuState({ phase: 'live' });
+          shopMode = 'bastion';
+          shop.setBuyMenuState({ open: true, phase: 'prep' });
+          const captureTab = event('keydown', { key: 'Tab', code: 'Tab' });
+          shopDocument.dispatchEvent(captureTab);
+          const shopRoot = shopDocument.getElementById('buy-menu');
+          shop.buyDom.closeBtn.focus();
+          shop.buyDom.closeBtn.dispatchEvent(event('keydown', { key: 'Tab', code: 'Tab' }));
+          ok(shop.isBuyMenuOpen()
+            && !captureTab.defaultPrevented && !captureTab.propagationStopped
+            && shopDocument.activeElement === shop.buyDom.selectors.loadout
+            && shopRoot.listenerCount('keydown') === 0,
+          'Bastion shop owns Tab after mode switches: one step from CLOSE reaches the loadout select');
+          const captureEscape = event('keydown', { key: 'Escape', code: 'Escape' });
+          shopDocument.dispatchEvent(captureEscape);
+          ok(!shop.isBuyMenuOpen() && captureEscape.defaultPrevented,
+            'document Escape still closes a Bastion shop');
+        } finally {
+          shop?.dispose();
+          restoreShop();
+        }
+      }
     } finally {
       hud?.dispose();
       restore();
