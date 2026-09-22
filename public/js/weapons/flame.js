@@ -1,6 +1,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { createFireAtlas, FIRE_SPRITE_GLSL } from './fire-sprite.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
+import { isSolidBlock } from '../../../shared/world/blocks.js';
 import { FLAME_RULES } from '../../../shared/flame-rules.js';
 
 const CAPACITY = 512;
@@ -11,6 +12,8 @@ const LOCAL_OPTIONS = Object.freeze({ local: true });
 export class FlameFX {
   constructor(scene, getBlock) {
     this.getBlock = getBlock;
+    // Occlusion matches the server flame: fluids, portals and ghost blocks never block it.
+    this.solidAt = (x, y, z) => isSolidBlock(this.getBlock(x, y, z));
     this.remoteMuzzleProvider = null;
     this._remoteMuzzle = new THREE.Vector3();
     this.origin = new THREE.Vector3();
@@ -117,7 +120,7 @@ export class FlameFX {
     if (forward.lengthSq() < 0.0001) return;
     forward.normalize();
     if (options.local && this.muzzleProvider) {
-      const eyeHit = raycastVoxels(this.getBlock, this.origin.x, this.origin.y, this.origin.z,
+      const eyeHit = raycastVoxels(this.solidAt, this.origin.x, this.origin.y, this.origin.z,
         forward.x, forward.y, forward.z, FLAME_RULES.range);
       const target = this._target.copy(this.origin)
         .addScaledVector(forward, eyeHit ? Math.max(0, eyeHit.t - 0.05) : FLAME_RULES.range);
@@ -128,7 +131,7 @@ export class FlameFX {
       const muzzleDistance = muzzleRay.length();
       if (muzzleDistance > 0) {
         muzzleRay.divideScalar(muzzleDistance);
-        if (raycastVoxels(this.getBlock, event.o[0], event.o[1], event.o[2],
+        if (raycastVoxels(this.solidAt, event.o[0], event.o[1], event.o[2],
           muzzleRay.x, muzzleRay.y, muzzleRay.z, muzzleDistance)) return;
       }
       forward.copy(target).sub(this.origin).normalize();
@@ -144,7 +147,7 @@ export class FlameFX {
       const spread = Math.sqrt(Math.random()) * Math.tan(FLAME_RULES.coneDeg * Math.PI / 360) * (ember ? 1 : 0.65);
       const direction = this._direction.copy(forward).addScaledVector(right, Math.cos(angle) * spread)
         .addScaledVector(up, Math.sin(angle) * spread).normalize();
-      const hit = raycastVoxels(this.getBlock, this.origin.x, this.origin.y, this.origin.z,
+      const hit = raycastVoxels(this.solidAt, this.origin.x, this.origin.y, this.origin.z,
         direction.x, direction.y, direction.z, FLAME_RULES.range);
       const reach = hit ? Math.max(0, hit.t - 0.15) : FLAME_RULES.range;
       puff.age = stagger ? (i % PARTICLES_PER_SHOT) * FLAME_RULES.cadence / PARTICLES_PER_SHOT : initialAge;

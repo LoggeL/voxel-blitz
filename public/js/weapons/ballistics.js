@@ -2,6 +2,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { WEAPONS, HITSCAN_REACH, chargeShotProfile } from '../../../shared/combatmath.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
+import { isSolidBlock } from '../../../shared/world/blocks.js';
 import { freeOldestIndex, hideInstance, makeFlashTexture } from './instancing.js';
 
 const TAU = Math.PI * 2;
@@ -20,6 +21,8 @@ export class TracerFX {
   constructor(scene, worldGetBlockFn, onWallImpact) {
     this.scene = scene;
     this.getBlockFn = worldGetBlockFn || NO_BLOCK;
+    // Fluids, portals and ghost blocks never stop authoritative bullets either.
+    this.solidAt = (x, y, z) => isSolidBlock(this.getBlockFn(x, y, z));
     this.onWallImpact = typeof onWallImpact === 'function' ? onWallImpact : null;
 
     this._matrix = new THREE.Matrix4();
@@ -125,7 +128,7 @@ export class TracerFX {
       const direction = directionInto(this._direction, rawDirection);
       let length = definition ? definition.tracer.len : 22;
       const hit = raycastVoxels(
-        this.getBlockFn,
+        this.solidAt,
         ox,
         oy,
         oz,

@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { WEAPONS, WEAPON_IDS, HITSCAN_REACH, damageAtDistance } from '../shared/combatmath.js';
-import { METAL } from '../shared/world/blocks.js';
+import { AIR, METAL, MC_GHOST_STONE, MC_WATER, STONE } from '../shared/world/blocks.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { PlayerEntity } from '../server/sim/player.js';
 import { fireOneShot } from '../server/sim/combat.js';
 import { RailBeamFX } from '../public/js/weapons/rail-beam.js';
 import { TracerFX } from '../public/js/weapons/ballistics.js';
+import { FlameFX } from '../public/js/weapons/flame.js';
+import { FLAME_RULES } from '../shared/flame-rules.js';
 
 function shotAt(weapon, distance, wallX = null) {
   const shooter = new PlayerEntity('shooter', 'Shooter', { x: 0.5, y: 2, z: 0.5 });
@@ -55,7 +57,7 @@ assert.ok(visited < 5000, 'an empty-sky ray terminates at finite world safety bo
 assert.equal(raycastVoxels(x => x === 1500, 0.5, 2.5, 0.5, 1, 0, 0, HITSCAN_REACH)?.x, 1500);
 
 const scene = new THREE.Scene();
-const beam = new RailBeamFX(scene, x => x >= 350 && x <= 370);
+const beam = new RailBeamFX(scene, x => x >= 350 && x <= 370 ? STONE : AIR);
 try {
   beam.shoot({ w: 'lance', o: [0.5, 2.5, 0.5], d: [1, 0, 0], charge: 0 });
   assert.ok(beam.pool[0].length > 300, 'the rail beam renders its distant terrain endpoint');
@@ -69,7 +71,7 @@ const canvasContext = new Proxy({ createRadialGradient: () => ({ addColorStop() 
 globalThis.document = { createElement: () => ({ getContext: () => canvasContext }) };
 try {
   const impacts = [];
-  const tracers = new TracerFX(scene, x => x === 350, hit => impacts.push(hit));
+  const tracers = new TracerFX(scene, x => x === 350 ? STONE : AIR, hit => impacts.push(hit));
   try {
     tracers.shoot({ w: 'rifle', o: [0.5, 2.5, 0.5], d: [1, 0, 0] }, { local: true });
     assert.equal(impacts[0]?.x, 350, 'distant terrain receives impact feedback');
@@ -97,9 +99,35 @@ try {
     'Remote muzzle flash must not prevent authoritative ricochet paths from rendering');
 
   } finally { tracers.dispose(); }
+
+  // Fluids and ghost blocks are passable for the authoritative server, so the client FX
+  // must not stop, dust or clip there either: only the solid wall behind them counts.
+  const passable = (x, y, z) => x === 3 ? MC_WATER : x === 6 ? MC_GHOST_STONE : x === 350 ? STONE : AIR;
+  const wet = [];
+  const wetTracers = new TracerFX(scene, passable, hit => wet.push(hit));
+  try {
+    wetTracers.shoot({ w: 'rifle', o: [0.5, 2.5, 0.5], d: [1, 0, 0] }, { local: true });
+    assert.deepEqual(wet.map(hit => hit.x), [350], 'tracers pass water and ghost blocks like server bullets');
+    assert.ok(wetTracers.tracers[0].len > 10, 'the streak is not cut at the water surface');
+  } finally { wetTracers.dispose(); }
+  // A long pool: every wet cell used to cost the beam one of its bounded material contacts.
+  const wetBeam = new RailBeamFX(scene, (x, y, z) => x >= 3 && x < 80 ? MC_WATER : passable(x, y, z));
+  try {
+    wetBeam.shoot({ w: 'lance', o: [0.5, 2.5, 0.5], d: [1, 0, 0], charge: 0 });
+    assert.ok(wetBeam.pool[0].length > 300, 'the rail beam reaches the solid wall behind water and ghost blocks');
+  } finally { wetBeam.dispose(); }
 } finally {
   if (previousDocument === undefined) delete globalThis.document;
   else globalThis.document = previousDocument;
+}
+{
+  const flame = new FlameFX(scene, (x, y, z) => z === -3 ? MC_WATER : z === -6 ? MC_GHOST_STONE : AIR);
+  try {
+    // High above y = 0, which the raycaster always treats as a solid floor.
+    flame.shoot({ o: [0.5, FLAME_RULES.range + 2, 0.5], d: [0, 0, -1] });
+    for (const puff of flame.puffs.slice(0, 3)) assert.equal(puff.life, FLAME_RULES.range / FLAME_RULES.speed,
+      'flame reach is not clipped at water or ghost blocks');
+  } finally { flame.dispose(); }
 }
 
 console.log('PASS weapon range: all hitscan firearms hit beyond 120/300, preserve falloff and distant wall occlusion; rail and impact feedback follow.');
