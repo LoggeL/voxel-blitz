@@ -557,7 +557,7 @@ export class WeaponWheelController {
    */
   _onPointerMove(event) {
     if (!this._pointerInteractive || !this._open || document.pointerLockElement) return;
-    // Q release is queued before the frame closes us. Preserve that highlight
+    // A wheel-key release is queued before the frame closes us. Preserve that highlight
     // even if another absolute pointer event arrives before the frame runs.
     if (this._canMovePointer && !this._canMovePointer()) return;
     if (event.pointerType !== 'mouse' && event.pointerId !== this._pointerId) return;
