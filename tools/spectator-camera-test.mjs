@@ -37,6 +37,13 @@ try {
   assert.equal(presented.get(ally.id), ally, 'the selected target survives interpolation gaps');
   assert.deepEqual(spectator.candidates.map(row => row.id), ['ally', 'other'], 'team restrictions remain authoritative');
   assert.equal(presentation.respawnText, 'RESPAWN IN 3.0s');
+  // TTT never sends a respawn time (respawnAt is Infinity server-side).
+  const tttSelf = { ...self, respawnAt: undefined };
+  for (const [phase, text] of [['live', 'RESPAWN NEXT ROUND'], ['post', 'ROUND OVER']]) {
+    spectator.sync({ self: tttSelf, players: [tttSelf, ally, other], match: { mode: 'ttt', phase }, serverNow: 1000 });
+    assert.equal(presentation.respawnText, text, `TTT ${phase} spectator text`);
+  }
+  sync();
   spectator.update(presented, 1 / 60);
   near(camera.position.distanceTo(focus(ally)), 4.6, 'starts in third person');
 

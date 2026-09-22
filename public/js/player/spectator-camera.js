@@ -229,6 +229,8 @@ export class SpectatorCamera {
   }
 
   _respawnText() {
+    // TTT never respawns mid-round and its post phase leads into the next round.
+    if (this.mode === 'ttt') return this.phase === 'post' ? 'ROUND OVER' : 'RESPAWN NEXT ROUND';
     if (this.phase === 'post' && this.mode !== 'snd') return 'MATCH OVER';
     if (this.mode === 'bastion') return 'RETURN AT NEXT SUPPLY';
     if (this.mode === 'snd') return this.phase === 'prep' ? 'ROUND STARTING' : 'RESPAWN NEXT ROUND';
