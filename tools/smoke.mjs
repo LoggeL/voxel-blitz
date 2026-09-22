@@ -233,7 +233,6 @@ function runDirectContracts() {
     panicDamageGain: 0.012,
     panicHeadshotGain: 0.22,
     panicDecayPerS: 0.06,
-    panicLowHpFloor: 0,
     painDamageGain: 0.012,
     painHeadshotGain: 0.12,
     painHalfLifeS: 2,
@@ -867,9 +866,9 @@ function runDirectContracts() {
   updateCondition(conditionTarget, 2);
   ok(nearly(decayedPanic, 0.8 - CONDITION_RULES.panicDecayPerS * 0.5)
     && nearly(decayedPain, 0.8 * 2 ** (-0.5 / CONDITION_RULES.painHalfLifeS))
-    && nearly(conditionTarget.panic, 0.75 * CONDITION_RULES.panicLowHpFloor)
+    && conditionTarget.panic === 0
     && nearly(conditionTarget.pain, 0.095),
-  'panic decays linearly and excess pain halves in two seconds without crossing its injury floor');
+  'panic decays linearly to zero with no low-HP floor and excess pain halves in two seconds without crossing its injury floor');
 
   Object.assign(conditionTarget, {
     hp: 100, panic: 0.99, pain: 0.99, exhaustion: 0.99, sprint: true, state: 'alive',

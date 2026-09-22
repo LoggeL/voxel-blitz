@@ -22,7 +22,6 @@ export const CONDITION_RULES = Object.freeze({
   panicDamageGain: 0.012,
   panicHeadshotGain: 0.22,
   panicDecayPerS: 0.06,
-  panicLowHpFloor: 0,
   painDamageGain: 0.012,
   painHeadshotGain: 0.12,
   painHalfLifeS: 2,
