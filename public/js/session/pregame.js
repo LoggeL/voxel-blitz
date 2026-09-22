@@ -43,6 +43,7 @@ export class PregameFlow {
     this._history = history;
 
     this._recoveryGeneration = 0;
+    this._recoveryStatus = '';
     this._rejoin = null;
     this._generation = 0;
     this._attempt = null;
@@ -55,6 +56,12 @@ export class PregameFlow {
 
   resetAttempt() {
     this._attempt = null;
+  }
+
+  /** Stop any pending reconnect loop and forget the room it would rejoin. */
+  abandonRecovery() {
+    this._recoveryGeneration++;
+    this._rejoin = null;
   }
 
   invalidate() {
@@ -136,10 +143,15 @@ export class PregameFlow {
     this.clearInviteQuery();
     this._setPhase('connecting');
     this._writeName(name);
-    this._hud.showJoinState('connecting…');
-    this._loading?.show('connect', { title: 'FINDING YOUR ARENA', status: 'Connecting to the server…',
+    const recovering = recoveryToken !== null;
+    this._hud.showJoinState(recovering ? this._recoveryStatus : 'connecting…');
+    this._loading?.show('connect', {
+      title: recovering ? 'RECONNECTING' : 'FINDING YOUR ARENA',
+      status: recovering ? this._recoveryStatus : 'Connecting to the server…',
       onCancel: () => {
-        if (!this.isActive(attempt)) return;
+        // The reconnect overlay stays up between retries; cancelling it ends the loop.
+        const retrying = recovering && attempt.recoveryToken === this._recoveryGeneration;
+        if (!retrying && !this.isActive(attempt)) return;
         this._recoveryGeneration++;
         this._rejoin = null;
         this._enterMenu();
@@ -201,7 +213,11 @@ export class PregameFlow {
     const token = ++this._recoveryGeneration;
     for (let retry = 0; retry < 6; retry++) {
       if (this._isTornDown() || token !== this._recoveryGeneration) return;
-      this._enterMenu(`Connection lost. Reconnecting (${retry + 1}/6)…`);
+      this._recoveryStatus = `Connection lost. Reconnecting (${retry + 1}/6)…`;
+      // Build the menu once; later retries keep it (and what the player typed)
+      // and only swap in a fresh socket under the reconnect overlay.
+      if (retry === 0) this._enterMenu(this._recoveryStatus);
+      else this._prepareRetry(this._recoveryStatus);
       await new Promise((resolve) => setTimeout(resolve, Math.min(4000, 500 * 2 ** retry)));
       if (this._isTornDown() || token !== this._recoveryGeneration || this._getPhase() !== 'menu') return;
       const connected = await this.begin(action, token);
@@ -210,6 +226,14 @@ export class PregameFlow {
     if (!this._isTornDown() && token === this._recoveryGeneration) {
       this._enterMenu(`Could not reconnect. Join again with room code ${action.code}.`);
     }
+  }
+
+  _prepareRetry(status) {
+    this._attempt = null;
+    this.replaceNet();
+    this._setPhase('menu');
+    this._hud.showJoinState(status, 'err');
+    this._loading?.update(status);
   }
 
   isActive(attempt) {

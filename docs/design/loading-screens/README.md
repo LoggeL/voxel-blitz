@@ -8,7 +8,7 @@ Screens:
 - Startup: visible HTML before the module graph loads; account/career stages while their real requests run.
 - Admission: indeterminate connection/map transfer status; cancellation returns to the menu and invalidates the attempt.
 - Arena: server-provided map and mode, with completed mesh sectors out of the actual column count. The mesher yields between batches so rendering and cancellation can run. No simulated percentages or minimum splash duration.
-- Startup failure: a reload action replaces the spinner when the main module fails. Arena boot failures release resources and show the same recovery screen.
+- Startup failure: a reload action replaces the spinner when the main module fails. Arena boot failures release resources and return to the menu with the reason; a second consecutive failure shows the same recovery screen.
 
 Validation (2026-09-13):
 - Complete `npm test` passed on the isolated publication snapshot, including the new loading contracts and weapon customization tests.

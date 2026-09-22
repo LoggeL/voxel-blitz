@@ -34,6 +34,9 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
 /** Training run course events emitted by the server's training policy. */
 const RUN_EVENT_KINDS = Object.freeze(['run_start', 'run_split', 'run_finish', 'run_reset']);
 
+/** Close codes the server uses to reject or kick (bad join, password, karma ban). */
+const KICK_CLOSE_CODES = new Set([4002, 4003]);
+
 function nowMs() {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'
     ? performance.now()
@@ -174,6 +177,8 @@ export class Session {
     this._liveResourcesOwned = false;
     this._tornDown = false;
     this._disconnected = false;
+    this._lastServerError = null;
+    this._bootFailures = 0;
 
     this._welcome = null;
     this._myId = null;
@@ -285,6 +290,11 @@ export class Session {
     this._window?.addEventListener?.('resize', this._onResize);
     this._window?.addEventListener?.('keydown', this._onEscape);
     this._window?.addEventListener?.('pagehide', this._onPageHide, { once: true });
+    // pagehide teardown is terminal; a Back/Forward cache restore reloads
+    // instead of showing a menu whose session is already disposed.
+    this._window?.addEventListener?.('pageshow', (event) => {
+      if (event?.persisted && this._tornDown) this._location?.reload?.();
+    });
     this._document?.addEventListener?.('visibilitychange', this._onVisibilityChange);
   }
 
@@ -485,7 +495,7 @@ export class Session {
     return this._gameplayUi.confirmPurchase(self);
   }
 
-  handleDisconnect() {
+  handleDisconnect(info = null) {
     if (this._disconnected || this._tornDown) return false;
 
     this._disconnected = true;
@@ -498,7 +508,11 @@ export class Session {
     this._releaseLiveResources();
 
     if (!this._tornDown && this._phase === 'disconnecting') {
-      void this._pregame.recover();
+      // A kicked player (e.g. a TTT karma ban) would only be refused again.
+      if (KICK_CLOSE_CODES.has(info?.code)) {
+        this._pregame.abandonRecovery();
+        this.enterMenu(this._lastServerError || 'Disconnected by the server.');
+      } else void this._pregame.recover();
     }
     return true;
   }
@@ -583,8 +597,11 @@ export class Session {
         }
         if (typeof this.onTick === 'function') this.onTick(snapshot, this._phase);
       }),
-      net.on('close', () => {
-        if (net === this.net) this.handleDisconnect();
+      net.on('serverError', (error) => {
+        if (net === this.net) this._lastServerError = typeof error?.msg === 'string' ? error.msg : null;
+      }),
+      net.on('close', (info) => {
+        if (net === this.net) this.handleDisconnect(info);
       }),
     );
   }
@@ -596,6 +613,7 @@ export class Session {
   }
 
   _beginLiveBoot(attempt) {
+    this._lastServerError = null;
     this._attachGameplayListeners(attempt.net);
     this._liveResourcesOwned = true;
 
@@ -670,6 +688,7 @@ export class Session {
     const startLoop = requireFunction(ordering.startLoop, 'startLoop');
 
     attempt.bootCompleted = true;
+    this._bootFailures = 0;
     this.input.bind((locked) => this.onPointerLockChange(locked));
     if (Number.isFinite(attempt.sensitivity)) this.input.setSensitivity(attempt.sensitivity);
 
@@ -752,6 +771,22 @@ export class Session {
     try {
       this._pregame.showBootStatus(attempt, message, 'err');
     } catch (_) {}
+    // A failed asset task or arena build can succeed on the next join, so
+    // release the partial live world and return to the menu. A repeat
+    // failure (e.g. no WebGL context) stays terminal.
+    if (++this._bootFailures < 2) {
+      try {
+        this._phase = 'leaving';
+        this.closeBuyMenu();
+        this.hud.closeSettings();
+        this._releaseLiveResources();
+        this._pregame.closeCurrentNet();
+        const reason = String(error && error.message || error || 'unknown error');
+        if (this.enterMenu(`Could not prepare the arena: ${reason}. Try again.`)) return;
+      } catch (menuError) {
+        console.error('[vb] boot failure recovery failed:', menuError);
+      }
+    }
     this.teardown();
     this.loading?.fail('The arena could not be prepared. Reload the game to try again.');
   }
