@@ -119,7 +119,7 @@ try {
  await page.evaluate(`document.activeElement?.blur()`);
  for(const type of ['keyDown','keyUp'])await page.send('Input.dispatchKeyEvent',{type,key:'l',code:'KeyL'});
  await page.waitFor(`window.__tttMessages.filter(m=>m.t==='tick').at(-1)?.players.find(p=>p.ttt)?.owned.length===0`);
- for(const type of ['keyDown','keyUp'])await page.send('Input.dispatchKeyEvent',{type,key:'e',code:'KeyE'});
+ for(const type of ['keyDown','keyUp'])await page.send('Input.dispatchKeyEvent',{type,key:'t',code:'KeyT'});
  await page.waitFor(`window.__tttMessages.filter(m=>m.t==='tick').at(-1)?.players.find(p=>p.ttt)?.owned.length===1`);
  const errors=page.errors||[];assert.deepEqual(errors,[]);
  console.log('TTT browser: lobby, world pickup, drop, secret shop purchase, innocent rejection and desktop/mobile bounds passed');

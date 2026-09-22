@@ -101,7 +101,7 @@ These are the default keys. **Settings → Keyboard** lets you rebind 35 actions
 
 | Input | Action |
 | --- | --- |
-| `WASD` / mouse | Move / look |
+| `WASD`, `Q` / `E` / mouse | Move / look; `Q` / `E` also strafe left / right |
 | `Shift` / `Space` / `Ctrl` or `C` | Sprint / jump / crouch |
 | `Space` again in midair | Grab a reachable ledge and pull up, even after releasing movement keys |
 | Left / right mouse | Fire / aim down sights |
@@ -109,9 +109,9 @@ These are the default keys. **Settings → Keyboard** lets you rebind 35 actions
 | `V` | Quick pickaxe hit for melee or block mining; returns to your weapon |
 | `J` | Use or cancel your medkit: stand still for four seconds to fully heal. One per life, consumed only on completion. Movement, damage and combat actions interrupt it. |
 | `1–9`, `0` or scroll wheel | Switch weapons |
-| Hold `Q`; hover a weapon and release, or move past the outer ring | Weapon wheel |
+| Hold `K`; hover a weapon and release, or move past the outer ring | Weapon wheel |
 | Hold and release `G` / press `H` | Throw / change throwable |
-| `E` / `B` | Objective interaction / S&D buy menu, Chaos Lab or Bastion supplies |
+| `T` / `B` | Objective interaction / S&D buy menu, Chaos Lab or Bastion supplies |
 | `Tab` / `Escape` | Scoreboard / settings and pause menu |
 
 See the [full controls](docs/development.md#controls) for charge weapons, sniper zoom, ladders and spectator controls.

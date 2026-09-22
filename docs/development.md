@@ -505,9 +505,10 @@ roster cards are omitted; S&D keeps a compact remaining-lives strip on desktop.
 | hold/release mouse1 with the VOLTLANCE | charge the rail-lance; release fires a lance that spears up to six enemies on the line, and only a full charge crosses up to two walls |
 | mouse1 with the PIXEL PICK | hold to mine nearby blocks; harder materials require more swings. No ammo or reload; melee hits retain 2.5x backstabs |
 | `1-9` / `0` / wheel | weapon slots (`1-9` and `0` also pick directly while the weapon wheel is open) |
-| `Q` | previous weapon; hold instead opens the weapon wheel; while dead, previous spectator target |
-| hold `Q` / middle mouse | open the radial weapon wheel: aim freezes, mouse motion or scroll highlights a wedge, releasing the held control or clicking equips it, and a centered release, `Esc`, or right mouse cancels |
-| `E` | hold S&D interaction; while dead, next spectator target |
+| `Q` / `E` | strafe left / right (additional to `A` / `D`) |
+| `Q` / `E` while dead | previous / next spectator target |
+| hold `K` / middle mouse | open the radial weapon wheel: aim freezes, mouse motion or scroll highlights a wedge, releasing the held control or clicking equips it, and a centered release, `Esc`, or right mouse cancels |
+| `T` | hold S&D interaction |
 | arrow keys while dead | previous / next spectator target |
 | `B` | open/close the S&D buy menu |
 | `Tab` | scoreboard |

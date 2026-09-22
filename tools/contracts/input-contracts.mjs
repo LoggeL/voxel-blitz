@@ -210,12 +210,31 @@ export async function runInputContracts(ok, installGlobals) {
         'Z changes scope zoom while scrolling switches weapons even when scoped');
       input.setScopeZoomMode(false);
 
-      input._onKeyDown(key('KeyE'));
+      input._onKeyDown(key('KeyT'));
       ok(input.getKeys().interact,
-        'held E is exposed as interaction input');
-      input._onKeyUp(key('KeyE'));
+        'held T is exposed as interaction input');
+      input._onKeyUp(key('KeyT'));
       ok(!input.getKeys().interact,
-        'releasing E clears held interaction input');
+        'releasing T clears held interaction input');
+
+      input._onKeyDown(key('KeyQ'));
+      const qLeft = input.getKeys().left;
+      input._onKeyUp(key('KeyQ'));
+      ok(qLeft && !input.getKeys().left,
+        'Q strafes left as an additional binding');
+      input._onKeyDown(key('KeyE'));
+      const eRight = input.getKeys().right;
+      input._onKeyUp(key('KeyE'));
+      ok(eRight && !input.getKeys().right,
+        'E strafes right as an additional binding');
+      input._onKeyDown(key('KeyA'));
+      const aLeft = input.getKeys().left;
+      input._onKeyUp(key('KeyA'));
+      input._onKeyDown(key('KeyD'));
+      const dRight = input.getKeys().right;
+      input._onKeyUp(key('KeyD'));
+      ok(aLeft && dRight,
+        'A and D keep their strafe bindings');
 
       input.setGameplayEnabled(false);
       input._onKeyDown(key('Digit6'));
@@ -227,7 +246,7 @@ export async function runInputContracts(ok, installGlobals) {
       unlocked = new Input({});
       unlocked.setGameplayEnabled(false);
       unlocked._onKeyDown(key('KeyB'));
-      unlocked._onKeyDown(key('KeyE'));
+      unlocked._onKeyDown(key('KeyT'));
       unlocked._onKeyDown(key('KeyW'));
       unlocked._onKeyDown(key('Digit5'));
       unlocked._onWheel({ deltaY: 1, preventDefault() {} });
@@ -335,7 +354,7 @@ export async function runInputContracts(ok, installGlobals) {
         'mobile gameplay suppression clears all held and queued state');
 
       input.setGameplayEnabled(true);
-      input._onKeyDown(key('KeyE'));
+      input._onKeyDown(key('KeyT'));
       input._onKeyDown(key('KeyB'));
       input.dispose();
       ok(!input.getKeys().interact
@@ -369,71 +388,71 @@ export async function runInputContracts(ok, installGlobals) {
           && WHEEL_VECTOR_RADIUS_PX === 90,
       'the wheel seam pins its pad hold threshold and selection radius for the overlay');
 
-      // Q opens once per physical hold and preserves a release before the frame.
+      // K opens once per physical hold and preserves a release before the frame.
       input = new Input({});
       ok(!input.isWeaponWheelClosing(), 'a new input has no pending wheel close');
-      input._onKeyDown(key('KeyQ', false, 1000));
+      input._onKeyDown(key('KeyK', false, 1000));
       ok(input.takeWheelOpenRequest() && !input.takeWheelOpenRequest(),
-        'Q immediately queues exactly one wheel open');
+        'K immediately queues exactly one wheel open');
       input.setWeaponWheelOpen(true);
       for (let time = 1100; time <= 3000; time += 100) {
-        input._onKeyDown(key('KeyQ', true, time));
+        input._onKeyDown(key('KeyK', true, time));
       }
-      input._onKeyDown(key('KeyQ', false, 3100));
+      input._onKeyDown(key('KeyK', false, 3100));
       ok(!input.takeWheelCancelRequest() && !input.takeWheelRelease()
           && !input.takeWheelOpenRequest() && input.isWeaponWheelOpen(),
-        'holding Q through repeated or duplicate keydown events keeps the wheel open');
-      input._onKeyUp(key('KeyQ', false, 3200));
+        'holding K through repeated or duplicate keydown events keeps the wheel open');
+      input._onKeyUp(key('KeyK', false, 3200));
       ok(input.takeWheelRelease() && !input.takeWheelRelease() && !input.consumeLastWeaponRequest(),
-        'releasing Q confirms once without requesting the previous weapon');
+        'releasing K confirms once without requesting the previous weapon');
       input.setWeaponWheelOpen(false);
-      input._onKeyDown(key('KeyQ', false, 3300));
-      input._onKeyUp(key('KeyQ', false, 3301));
-      ok(input.takeWheelOpenRequest(), 'a quick Q tap still opens the wheel');
+      input._onKeyDown(key('KeyK', false, 3300));
+      input._onKeyUp(key('KeyK', false, 3301));
+      ok(input.takeWheelOpenRequest(), 'a quick K tap still opens the wheel');
       input.setWeaponWheelOpen(true);
-      ok(input.takeWheelRelease(), 'a Q release before the next frame survives opening the wheel');
+      ok(input.takeWheelRelease(), 'a K release before the next frame survives opening the wheel');
       input.setWeaponWheelOpen(false);
-      input._onKeyDown(key('KeyQ', false, 3400));
+      input._onKeyDown(key('KeyK', false, 3400));
       input.clearTransient();
-      input._onKeyUp(key('KeyQ', false, 3500));
+      input._onKeyUp(key('KeyK', false, 3500));
       ok(!input.takeWheelRelease() && !input.takeWheelOpenRequest(),
-        'a focus reset cancels the Q hold without selecting a weapon');
+        'a focus reset cancels the K hold without selecting a weapon');
 
       for (const action of ['flick', 'cancel']) {
-        input._onKeyDown(key('KeyQ', false, 3600));
-        ok(input.takeWheelOpenRequest(), `${action} begins with a new physical Q press`);
+        input._onKeyDown(key('KeyK', false, 3600));
+        ok(input.takeWheelOpenRequest(), `${action} begins with a new physical K press`);
         input.setWeaponWheelOpen(true);
         if (action === 'cancel') input._onKeyDown(key('Escape'));
         input.setWeaponWheelOpen(false);
-        input._onKeyDown(key('KeyQ', true, 3700));
-        input._onKeyDown(key('KeyQ', false, 3800));
+        input._onKeyDown(key('KeyK', true, 3700));
+        input._onKeyDown(key('KeyK', false, 3800));
         ok(!input.takeWheelOpenRequest() && !input.takeWheelRelease()
             && !input.takeWheelCancelRequest(),
-          `a ${action} close stays closed through held-Q repeats and duplicate keydown events`);
-        input._onKeyUp(key('KeyQ', false, 3900));
-        ok(!input.takeWheelRelease(), `Q release after a ${action} close cannot select twice`);
+          `a ${action} close stays closed through held-K repeats and duplicate keydown events`);
+        input._onKeyUp(key('KeyK', false, 3900));
+        ok(!input.takeWheelRelease(), `K release after a ${action} close cannot select twice`);
       }
 
-      input._onKeyDown(key('KeyQ', false, 4000));
+      input._onKeyDown(key('KeyK', false, 4000));
       input._onKeyDown(key('Escape', false, 4001));
       ok(input.takeWheelOpenRequest() && input.takeWheelCancelRequest(),
-        'Escape can cancel a Q open request before the first frame');
+        'Escape can cancel a K open request before the first frame');
       input.setWeaponWheelOpen(false);
       input.fallback = false;
       input._touchMode = false;
       input._locked = false;
-      input._onKeyUp(key('KeyQ', false, 4002));
-      ok(!input.takeWheelRelease(), 'Q release without gameplay access never selects a weapon');
+      input._onKeyUp(key('KeyK', false, 4002));
+      ok(!input.takeWheelRelease(), 'K release without gameplay access never selects a weapon');
       input._locked = true;
-      input._onKeyDown(key('KeyQ', false, 4100));
+      input._onKeyDown(key('KeyK', false, 4100));
       ok(input.takeWheelOpenRequest(),
-        'Q release without gameplay access still rearms the next physical Q press');
+        'K release without gameplay access still rearms the next physical K press');
       input.setWeaponWheelOpen(true);
       input._hBlur();
-      input._onKeyDown(key('KeyQ', true, 4200));
-      input._onKeyUp(key('KeyQ', false, 4300));
+      input._onKeyDown(key('KeyK', true, 4200));
+      input._onKeyUp(key('KeyK', false, 4300));
       ok(!input.isWeaponWheelOpen() && !input.takeWheelOpenRequest() && !input.takeWheelRelease(),
-        'blur cancels the wheel and later Q repeats or release cannot reopen or equip');
+        'blur cancels the wheel and later K repeats or release cannot reopen or equip');
       input.dispose();
 
       // Middle mouse opens; its release leaves it open. A closed right click latches
@@ -491,26 +510,26 @@ export async function runInputContracts(ok, installGlobals) {
       ok(input.consumeDelta().dx === 0 && input.consumeDelta().dy === 0,
       'the camera look accumulator stays frozen while the wheel steers');
       input.setWeaponWheelOpen(false);
-      input._onKeyDown(key('KeyQ'));
+      input._onKeyDown(key('KeyK'));
       input._onMouseMove({ movementX: 260, movementY: -80 });
-      input._onKeyUp(key('KeyQ'));
+      input._onKeyUp(key('KeyK'));
       ok(input.isWeaponWheelClosing() && input.isWeaponWheelClosing(),
-        'the readonly closing state freezes overlay motion immediately after Q release');
+        'the readonly closing state freezes overlay motion immediately after K release');
       input._onMouseMove({ movementX: -180, movementY: 180 });
-      ok(input.takeWheelOpenRequest(), 'a rapid Q gesture requests the wheel');
+      ok(input.takeWheelOpenRequest(), 'a rapid K gesture requests the wheel');
       input.setWeaponWheelOpen(true);
       vector = input.takeWheelVector(200);
       ok(vector.x === 1.3 && vector.y === -0.4 && input.takeWheelRelease()
           && input.consumeDelta().dx === 0 && input.consumeDelta().dy === 0,
-      'a rapid Q gesture keeps movement before release and ignores movement after release');
+      'a rapid K gesture keeps movement before release and ignores movement after release');
 
       for (const stop of ['release', 'cancel']) {
         input.setWeaponWheelOpen(false);
-        input._onKeyDown(key('KeyQ'));
+        input._onKeyDown(key('KeyK'));
         input.takeWheelOpenRequest();
         input.setWeaponWheelOpen(true);
         input._onMouseMove({ movementX: 40, movementY: 20 });
-        if (stop === 'release') input._onKeyUp(key('KeyQ'));
+        if (stop === 'release') input._onKeyUp(key('KeyK'));
         else input._onKeyDown(key('Escape'));
         ok(input.isWeaponWheelClosing(), `${stop} exposes the frozen wheel state to pointer overlays`);
         input._onMouseMove({ movementX: -200, movementY: 200 });
@@ -520,7 +539,7 @@ export async function runInputContracts(ok, installGlobals) {
           `mouse movement after wheel ${stop} preserves the release position and keeps the camera still`);
         input.setWeaponWheelOpen(false);
         ok(!input.isWeaponWheelClosing(), `${stop} close clears the frozen state for the next gesture`);
-        input._onKeyUp(key('KeyQ'));
+        input._onKeyUp(key('KeyK'));
       }
       input.setWeaponWheelOpen(true);
       input._locked = false;
@@ -582,9 +601,9 @@ export async function runInputContracts(ok, installGlobals) {
       input._onKeyDown(key('KeyB'));
       ok(!input.consumeBuyMenuRequest(),
       'B cannot open the armory through the open wheel');
-      input._onKeyDown(key('KeyE'));
+      input._onKeyDown(key('KeyT'));
       ok(!input.getKeys().interact,
-      'E cannot interact through the open wheel');
+      'T cannot interact through the open wheel');
       input._onKeyDown(key('KeyZ'));
       ok(input.consumeZoomStep() === 0,
       'Z cannot zoom through the open wheel');
@@ -872,14 +891,14 @@ export async function runInputContracts(ok, installGlobals) {
       `pad look steers the wheel at the shared ${WHEEL_VECTOR_RADIUS_PX}px radius and freezes the camera`);
       fake.axes = [0, 0, 1, 0];
       pad.poll(2255, 1 / 60);
-      pad._onKeyDown({ code: 'KeyQ', preventDefault() {} });
-      pad._onKeyUp({ code: 'KeyQ', preventDefault() {} });
+      pad._onKeyDown({ code: 'KeyK', preventDefault() {} });
+      pad._onKeyUp({ code: 'KeyK', preventDefault() {} });
       fake.axes = [0, 0, -1, 1];
       pad.poll(2260, 1 / 60);
       const releasedPadVec = pad.takeWheelVector();
       ok(releasedPadVec.x === 1 && releasedPadVec.y === 0 && pad.takeWheelRelease()
           && pad.consumeDelta().dx === 0 && pad.consumeDelta().dy === 0,
-        'pad look after Q release preserves prior wheel movement and cannot move the camera');
+        'pad look after K release preserves prior wheel movement and cannot move the camera');
       pad._onKeyDown({ code: 'Escape', preventDefault() {} });
       pad.poll(2265, 1 / 60);
       const cancelledPadVec = pad.takeWheelVector();

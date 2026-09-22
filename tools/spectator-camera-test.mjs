@@ -87,7 +87,7 @@ try {
   near(camera.position.distanceTo(waiting), 0, 'empty snapshots do not reset the waiting orbit');
 
   for (const button of [0, 1, 2]) input._onMouseDown({ button, preventDefault() {} });
-  for (const code of ['KeyW', 'Space', 'KeyR', 'KeyG', 'KeyQ', 'Digit1']) {
+  for (const code of ['KeyW', 'Space', 'KeyR', 'KeyG', 'KeyK', 'Digit1']) {
     input._onKeyDown({ code, preventDefault() {} });
   }
   assert.equal(input.wantFireHeld, false);

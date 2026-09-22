@@ -126,7 +126,7 @@ try {
  assert.equal(await page.evaluate(`window.__tttMessages.filter(m=>m.t==='tick').some(m=>m.events?.some(e=>e.kind==='kill'))`),false);
  await screenshot(page,'unidentified-desktop.png');
  await page.evaluate(`document.activeElement?.blur()`);
- for(const type of ['keyDown','keyUp'])await page.send('Input.dispatchKeyEvent',{type,key:'e',code:'KeyE'});
+ for(const type of ['keyDown','keyUp'])await page.send('Input.dispatchKeyEvent',{type,key:'t',code:'KeyT'});
  await page.waitFor(`!document.getElementById('ttt-body-report').hidden&&document.getElementById('ttt-body-report').textContent.includes('TRAITOR')`);
  assert.ok((await page.evaluate(`document.getElementById('ttt-body-report').textContent`)).includes(victim.name));
  await page.evaluate(`document.dispatchEvent(new MouseEvent('mousemove',{movementX:524,movementY:320,bubbles:true}))`);

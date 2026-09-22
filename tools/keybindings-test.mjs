@@ -33,9 +33,9 @@ try {
   assert.equal(input.keys.sprint, true, 'releasing one alternate key preserves the other hold');
   input._onKeyUp(key('ShiftRight'));
   assert.equal(input.keys.sprint, false);
-  assert.equal(setKeybinding('grenade', 'KeyT').ok, true);
-  input._onKeyDown(key('KeyT'));
-  input._onKeyUp(key('KeyT', { timeStamp: 1300 }));
+  assert.equal(setKeybinding('grenade', 'KeyO').ok, true);
+  input._onKeyDown(key('KeyO'));
+  input._onKeyUp(key('KeyO', { timeStamp: 1300 }));
   assert.equal(input.consumeGrenadeThrow().charge, 1, 'remapped hold/release keeps grenade charge');
   setKeybinding('weaponWheel', 'KeyU');
   input._onKeyDown(key('KeyU'));

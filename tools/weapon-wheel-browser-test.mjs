@@ -24,7 +24,7 @@ async function desktopBrowser() {
   throw new Error('Native pointer-lock test needs a desktop Chromium browser; set WEAPON_WHEEL_BROWSER to its executable.');
 }
 
-async function key(page, type, code = 'KeyQ', repeat = false) {
+async function key(page, type, code = 'KeyK', repeat = false) {
   const name = code === 'Escape' ? 'Escape' : code.slice(3).toLowerCase();
   await page.send('Input.dispatchKeyEvent', {
     type, code, key: name, autoRepeat: repeat,
@@ -66,7 +66,7 @@ async function openWheel(page) {
   await key(page, 'keyDown');
   await page.waitFor(`window.__vb.wheelOpen &&
     document.querySelectorAll('#weapon-wheel .vb-wheel-slot').length === ${WEAPON_IDS.length}`, {
-    label: 'held Q opens the complete weapon wheel',
+    label: 'held K opens the complete weapon wheel',
   });
 }
 
@@ -106,13 +106,13 @@ try {
 
   const before = await page.evaluate('window.__vb.stats.weapon');
   await openWheel(page);
-  await key(page, 'keyDown', 'KeyQ', true);
+  await key(page, 'keyDown', 'KeyK', true);
   await key(page, 'keyDown', 'KeyW');
   await key(page, 'keyUp', 'KeyW');
   await frames(page);
   assert.equal(await page.evaluate('window.__vb.wheelOpen'), true,
-    'Q repeat and an ordinary movement key do not cancel the wheel');
-  console.log('ok - Q repeat and movement keys keep the wheel open');
+    'K repeat and an ordinary movement key do not cancel the wheel');
+  console.log('ok - K repeat and movement keys keep the wheel open');
 
   const knifeSlot = WEAPON_IDS.indexOf('knife');
   let wheel = await geometry(page, knifeSlot);
@@ -121,33 +121,33 @@ try {
     label: 'actual knife card is highlighted by pointer hover',
   });
   assert.equal(await page.evaluate('window.__vb.stats.weapon'), before,
-    'hovering a card previews without equipping before Q release');
+    'hovering a card previews without equipping before K release');
   assert.equal(await page.evaluate('window.__vb.wheelOpen'), true);
   if (process.env.WEAPON_WHEEL_SCREENSHOT) {
     const screenshot = await page.send('Page.captureScreenshot', { format: 'png' }, 15_000);
     await writeFile(process.env.WEAPON_WHEEL_SCREENSHOT, Buffer.from(screenshot.data, 'base64'));
   }
   await key(page, 'keyUp');
-  await expectSelection(page, 'knife', 'Q release equips the visibly highlighted card');
+  await expectSelection(page, 'knife', 'K release equips the visibly highlighted card');
 
   await openWheel(page);
   wheel = await geometry(page, WEAPON_IDS.indexOf('sniper'));
   await mouse(page, { x: wheel.center.x + wheel.radius * 1.55, y: wheel.center.y });
-  await expectSelection(page, 'sniper', 'outward radial mouse movement equips before Q release');
-  for (let i = 0; i < 3; i++) await key(page, 'keyDown', 'KeyQ', true);
+  await expectSelection(page, 'sniper', 'outward radial mouse movement equips before K release');
+  for (let i = 0; i < 3; i++) await key(page, 'keyDown', 'KeyK', true);
   await frames(page);
   assert.equal(await page.evaluate('window.__vb.wheelOpen'), false,
-    'a continued Q hold does not reopen after radial selection');
+    'a continued K hold does not reopen after radial selection');
   await key(page, 'keyUp');
   await frames(page);
   assert.equal(await page.evaluate('window.__vb.stats.weapon'), 'sniper');
-  console.log('ok - radial selection stays closed until the held Q is released');
+  console.log('ok - radial selection stays closed until the held K is released');
 
   await openWheel(page);
   wheel = await geometry(page, knifeSlot);
   await mouse(page, wheel.center);
   await key(page, 'keyUp');
-  await expectSelection(page, 'sniper', 'releasing Q in the center keeps the current weapon');
+  await expectSelection(page, 'sniper', 'releasing K in the center keeps the current weapon');
   await openWheel(page);
   await key(page, 'keyDown', 'Escape');
   await key(page, 'keyUp', 'Escape');
@@ -160,13 +160,13 @@ try {
   await mouse(page, wheel.card);
   await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${knifeSlot}].classList.contains('is-hl')`);
   await page.evaluate(`(() => {
-    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyQ', key: 'q', bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyK', key: 'k', bubbles: true }));
     document.getElementById('weapon-wheel').dispatchEvent(new PointerEvent('pointermove', {
       pointerType: 'mouse', clientX: ${wheel.center.x + wheel.radius * 1.55},
       clientY: ${wheel.center.y}, bubbles: true,
     }));
   })()`);
-  await expectSelection(page, 'knife', 'unlocked pointer movement after Q release preserves the released card');
+  await expectSelection(page, 'knife', 'unlocked pointer movement after K release preserves the released card');
 
   await browser.close();
   // Chromium headless rejects native pointer lock, so this phase uses a
@@ -197,14 +197,14 @@ try {
   assert.equal(await page.evaluate('window.__vb.wheelOpen'), true,
     'locked movement to the card waits for release');
   await key(page, 'keyUp');
-  await expectSelection(page, 'knife', 'locked pointer hover and Q release equip the knife');
+  await expectSelection(page, 'knife', 'locked pointer hover and K release equip the knife');
   const aimAfter = await page.evaluate('({ yaw: window.__vb.stats.yaw, pitch: window.__vb.stats.pitch })');
   assert.deepEqual(aimAfter, aim, 'steering the locked wheel does not turn the player view');
 
   await openWheel(page);
   await mouse(page, { x: center.x + wheel.radius * 0.55, y: center.y });
   await expectSelection(page, 'sniper', 'one fast locked radial motion keeps its full distance and equips');
-  await key(page, 'keyDown', 'KeyQ', true);
+  await key(page, 'keyDown', 'KeyK', true);
   await frames(page);
   assert.equal(await page.evaluate('window.__vb.wheelOpen'), false);
   await key(page, 'keyUp');
@@ -212,21 +212,21 @@ try {
   // One task delivers all three events before the next animation frame. The
   // queued mouse delta and release must survive opening on that later frame.
   await page.evaluate(`(() => {
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyQ', key: 'q', bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyK', key: 'k', bubbles: true }));
     document.dispatchEvent(new MouseEvent('mousemove', { movementX: ${-wheel.radius}, movementY: 0, bubbles: true }));
-    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyQ', key: 'q', bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyK', key: 'k', bubbles: true }));
   })()`);
-  await expectSelection(page, 'knife', 'a Q press, move and release in one frame equips the intended weapon');
+  await expectSelection(page, 'knife', 'a K press, move and release in one frame equips the intended weapon');
   await page.evaluate(`(() => {
-    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyQ', key: 'q', bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyK', key: 'k', bubbles: true }));
     document.dispatchEvent(new MouseEvent('mousemove', { movementX: ${wheel.radius}, movementY: 0, bubbles: true }));
-    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyQ', key: 'q', bubbles: true }));
+    window.dispatchEvent(new KeyboardEvent('keyup', { code: 'KeyK', key: 'k', bubbles: true }));
     document.dispatchEvent(new MouseEvent('mousemove', { movementX: ${-wheel.radius * 3}, movementY: 0, bubbles: true }));
   })()`);
-  await expectSelection(page, 'sniper', 'movement after Q release cannot overwrite the released selection');
+  await expectSelection(page, 'sniper', 'movement after K release cannot overwrite the released selection');
   assert.equal(await page.evaluate(`document.pointerLockElement === document.getElementById('game')`), true);
   assert.deepEqual(page.errors, [], 'no browser runtime or resource errors');
-  console.log('Weapon wheel browser: unlocked and locked hover/release, radial selection, Q repeat, cancel, dead zone and fast input verified.');
+  console.log('Weapon wheel browser: unlocked and locked hover/release, radial selection, K repeat, cancel, dead zone and fast input verified.');
 } catch (error) {
   if (browser) {
     console.error('Weapon wheel failure state:', await browser.page.evaluate(`({

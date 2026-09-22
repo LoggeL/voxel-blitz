@@ -153,7 +153,7 @@ export class Input {
     this._wheelOpenQueued = false;
     this._wheelReleaseQueued = false;
     this._wheelCancelQueued = false;
-    this._wheelQHeld = false;
+    this._wheelKeyHeld = false;
     this._mmbHeld = false;     // physical middle-mouse latch while it opens the wheel
     this._padYHeld = false;    // pad Y tap/hold split: holding Y opens the wheel
     this._padYDownAt = 0;
@@ -497,7 +497,7 @@ export class Input {
   setWeaponWheelOpen(open) {
     if (open) {
       this._wheelOpen = true;
-      // Preserve a fast Q/flick/release gesture queued before the first frame.
+      // Preserve a fast wheel-key/flick/release gesture queued before the first frame.
       // Closing and transient resets already clear the previous gesture's vector.
       this._wheelStepQueue = 0;
       this._pendingWheelSlot = null;
@@ -811,7 +811,7 @@ export class Input {
   }
 
   /**
-   * Queued wheel-open request since the last call: Q press, a
+   * Queued wheel-open request since the last call: the wheel key press, a
    * middle-mouse press, or pad Y held >= PAD_WHEEL_HOLD_MS
    * (a short press swaps weapons). Consumed on read.
    * @returns {boolean}
@@ -823,7 +823,7 @@ export class Input {
   }
 
   /**
-   * True when Q is released, LMB clicks, or the pad trigger confirms a wheel
+   * True when the wheel key is released, LMB clicks, or the pad trigger confirms a wheel
    * selection. Consumed on read.
    * @returns {boolean}
    */
@@ -985,7 +985,7 @@ export class Input {
     this._wheelOpenQueued = false;
     this._wheelReleaseQueued = false;
     this._wheelCancelQueued = false;
-    this._wheelQHeld = false;
+    this._wheelKeyHeld = false;
     this._mmbHeld = false;
     this._padYHeld = false;
     this._padYDownAt = 0;
@@ -1175,8 +1175,8 @@ export class Input {
         }
         break;
       case 'weaponWheel':
-        if (!e.repeat && !this._wheelQHeld) {
-          this._wheelQHeld = true;
+        if (!e.repeat && !this._wheelKeyHeld) {
+          this._wheelKeyHeld = true;
           if (!this._wheelOpen) this._wheelOpenQueued = true;
         }
         break;
@@ -1205,11 +1205,11 @@ export class Input {
     if (!this._disposed && this._canReadGameplay() && action) e.preventDefault();
     if (action === 'buy') { this._buyMenuHeld = false; return; }
     if (action === 'weaponWheel') {
-      if (!this._disposed && this._canReadGameplay() && this._wheelQHeld
+      if (!this._disposed && this._canReadGameplay() && this._wheelKeyHeld
           && (this._wheelOpen || this._wheelOpenQueued) && !this._actionHeld(action)) {
         this._wheelReleaseQueued = true;
       }
-      this._wheelQHeld = this._actionHeld(action);
+      this._wheelKeyHeld = this._actionHeld(action);
       return;
     }
     if (this._disposed || !this._canReadGameplay()) return;

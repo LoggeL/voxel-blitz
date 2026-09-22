@@ -553,13 +553,13 @@ async function main() {
       const output = path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT).replace(/\.png$/, '-training.png');
       await writeFile(output, Buffer.from(screenshot.data, 'base64'));
     }
-    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ' });
-    await page.waitFor(`window.__vb.wheelOpen`, { label: 'Q opens weapon wheel while held' });
-    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
-    await page.waitFor('!window.__vb.wheelOpen', { label: 'Q release closes the weapon wheel' });
-    requireCondition(true, 'Q release closes the weapon wheel');
-    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ' });
-    await page.waitFor('window.__vb.wheelOpen', { label: 'held Q reopens wheel for selection' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'k', code: 'KeyK' });
+    await page.waitFor(`window.__vb.wheelOpen`, { label: 'K opens weapon wheel while held' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'k', code: 'KeyK' });
+    await page.waitFor('!window.__vb.wheelOpen', { label: 'K release closes the weapon wheel' });
+    requireCondition(true, 'K release closes the weapon wheel');
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'k', code: 'KeyK' });
+    await page.waitFor('window.__vb.wheelOpen', { label: 'held K reopens wheel for selection' });
     requireCondition(await page.evaluate(`(() => {
       const keys = [...document.querySelectorAll('#weapon-wheel .vb-wheel-key')];
       return keys.length === ${WEAPON_IDS.length} && keys[9].textContent === '[0]';
@@ -579,12 +579,12 @@ async function main() {
       const output = path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT).replace(/\.png$/, '-wheel.png');
       await writeFile(output, Buffer.from(screenshot.data, 'base64'));
     }
-    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'k', code: 'KeyK' });
     await page.waitFor(`!window.__vb.wheelOpen && window.__vb.stats.weapon === 'knife'`, {
       label: 'weapon wheel knife selection',
     });
     requireCondition(true, 'wheel selection equips the knife and closes through the live controller');
-    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'k', code: 'KeyK' });
     await page.waitFor('window.__vb.wheelOpen', { label: 'flamethrower wheel selection' });
     const flamePick = await page.evaluate(`(() => {
       const rect = document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${WEAPON_IDS.indexOf('flamethrower')}].getBoundingClientRect();
@@ -593,7 +593,7 @@ async function main() {
     await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...flamePick });
     await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${WEAPON_IDS.indexOf('flamethrower')}].classList.contains('is-hl')`,
       { label: 'flamethrower highlighted' });
-    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'k', code: 'KeyK' });
     await page.waitFor(`!window.__vb.wheelOpen && window.__vb.stats.weapon === 'flamethrower'`,
       { label: 'flamethrower equipped' });
     await page.evaluate(`(() => {
@@ -666,7 +666,7 @@ async function main() {
         document.getElementById('touch-' + action).dispatchEvent(new PointerEvent(type,
           { bubbles: true, pointerId, pointerType: 'touch', clientX: 0, clientY: 0 }));
     })()`);
-    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'q', code: 'KeyQ' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'k', code: 'KeyK' });
     await page.waitFor('window.__vb.wheelOpen', { label: 'minigun wheel selection' });
     const minigunPick = await page.evaluate(`(() => {
       const rect = document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${WEAPON_IDS.indexOf('minigun')}].getBoundingClientRect();
@@ -675,7 +675,7 @@ async function main() {
     await page.send('Input.dispatchMouseEvent', { type: 'mouseMoved', ...minigunPick });
     await page.waitFor(`document.querySelectorAll('#weapon-wheel .vb-wheel-slot')[${WEAPON_IDS.indexOf('minigun')}].classList.contains('is-hl')`,
       { label: 'minigun highlighted' });
-    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'q', code: 'KeyQ' });
+    await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'k', code: 'KeyK' });
     await page.waitFor(`!window.__vb.wheelOpen && window.__vb.stats.weapon === 'minigun' &&
       window.__heavyAuthority?.weapon === ${WEAPON_IDS.indexOf('minigun')} &&
       window.__heavyRead().ammo === window.__heavyAuthority.mag`, { label: 'minigun authority and HUD equipped' });
