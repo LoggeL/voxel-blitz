@@ -57,6 +57,36 @@ let minigunReportIndex = 0;
 let pickaxeSwingIndex = 0;
 let pickaxeImpactIndex = 0;
 let bulletWhizIndex = 0;
+const vehicleLoops = new Map();
+
+/** Bastion vehicle drones: sawtooth fundamental per hull; the walker adds a stride thud. */
+const VEHICLE_DRONE = Object.freeze({ buggy: 140, apc: 90, walker: 60 });
+const VEHICLE_HOLD = 0.6;
+const VEHICLE_FADE = 0.3;
+const VEHICLE_LEVEL = 0.16;
+const MAX_VEHICLE_LOOPS = 6;
+
+function positionFrom(value) {
+  const pos = positionOf(value);
+  if (pos) return pos.slice(0, 3);
+  return value && Number.isFinite(value.x) && Number.isFinite(value.z)
+    ? [value.x, Number.isFinite(value.y) ? value.y : 0, value.z] : null;
+}
+
+function releaseVehicleLoop(key, voice) {
+  if (!voice) return;
+  const ctx = voice.ctx;
+  const at = ctx && ctx.state !== 'closed' ? ctx.currentTime : 0;
+  try {
+    voice.gain.gain.cancelScheduledValues(at);
+    voice.gain.gain.setValueAtTime(voice.gain.gain.value, at);
+    voice.gain.gain.linearRampToValueAtTime(0, at + VEHICLE_FADE);
+    voice.osc.stop(at + VEHICLE_FADE + 0.05);
+    voice.sub.stop(at + VEHICLE_FADE + 0.05);
+  } catch {}
+  if (vehicleLoops.get(key) === voice) vehicleLoops.delete(key);
+  pool?.refresh(voice.output, null, VEHICLE_FADE);
+}
 
 /** Blast voice per explosive type: gain, low weight, and crack brightness. */
 const EXPLOSION_PROFILES = Object.freeze({
@@ -210,6 +240,7 @@ export const sfx = {
     localVocalUntil = 0;
     painHitVariant = -1;
     disposeChargeLoop();
+    this.stopVehicleLoops();
     flameLoops?.dispose();
     flameLoops = null;
     minigunMotor?.dispose();
@@ -366,17 +397,133 @@ export const sfx = {
     });
   },
 
+  /** Bastion director cues. `pos` ([x,y,z] or {x,y,z}) makes the cue positional. */
   bastionCue(kind, pos = null) {
+    const deferredPos = positionFrom(pos);
     run('bastion', () => {
-      const output = pool.acquire(pos ? { pos } : null, 1.2);
+      const output = pool.acquire(deferredPos ? { pos: deferredPos } : null, 1.6);
       const at = primitives.nowT();
-      const alarm = kind === 'bastion_alarm' || kind === 'bastion_charge';
-      for (let i = 0; i < 3; i++) primitives.tone(output, {
-        t0: at + i * 0.19, type: alarm ? 'triangle' : 'sine',
-        f0: alarm ? 420 + i * 180 : 600 + i * 200,
-        f1: alarm ? 240 : 720 + i * 200, dec: 0.16, g: 0.065,
-      });
+      const tone = (o) => primitives.tone(output, { t0: at, type: 'sine', dec: 0.16, g: 0.065, ...o });
+      switch (kind) {
+        case 'bastion_stage':
+          [520, 700, 880].forEach((f, i) => tone({ t0: at + i * 0.14, f0: f, dec: 0.26, g: 0.07 }));
+          break;
+        case 'bastion_regroup':
+          [720, 480].forEach((f, i) => tone({ t0: at + i * 0.22, type: 'triangle', f0: f, f1: f * 0.94, dec: 0.32, g: 0.07 }));
+          break;
+        case 'bastion_extract':
+          for (let i = 0; i < 3; i++) {
+            tone({ t0: at + i * 0.36, f0: 880, dec: 0.12, g: 0.06 });
+            tone({ t0: at + i * 0.36 + 0.13, f0: 1320, dec: 0.14, g: 0.05 });
+          }
+          break;
+        case 'bastion_build':
+          tone({ type: 'square', f0: 900, att: 0.002, dec: 0.04, g: 0.045 });
+          tone({ t0: at + 0.07, type: 'square', f0: 1200, att: 0.002, dec: 0.04, g: 0.045 });
+          break;
+        case 'bastion_structure':
+          tone({ type: 'sawtooth', f0: 500, f1: 180, dec: 0.45, g: 0.08 });
+          break;
+        case 'bastion_vehicle':
+          tone({ type: 'sawtooth', f0: 80, f1: 60, att: 0.02, dec: 0.8, g: 0.12 });
+          break;
+        case 'bastion_breach':
+          tone({ type: 'square', f0: 220, att: 0.002, dec: 0.08, g: 0.08 });
+          tone({ t0: at + 0.14, type: 'square', f0: 220, att: 0.002, dec: 0.08, g: 0.08 });
+          break;
+        case 'bastion_tier':
+          // Brass stab: a detuned sawtooth chord with a short bite.
+          [220, 330, 440].forEach((f, i) => {
+            tone({ type: 'sawtooth', f0: f, f1: f * 0.985, att: 0.012, dec: 0.36, g: 0.05, detune: (i - 1) * 6 });
+            tone({ type: 'square', f0: f * 2, att: 0.012, dec: 0.12, g: 0.018 });
+          });
+          break;
+        default: {
+          const alarm = kind === 'bastion_alarm' || kind === 'bastion_charge';
+          for (let i = 0; i < 3; i++) tone({
+            t0: at + i * 0.19, type: alarm ? 'triangle' : 'sine',
+            f0: alarm ? 420 + i * 180 : 600 + i * 200,
+            f1: alarm ? 240 : 720 + i * 200, dec: 0.16, g: 0.065,
+          });
+        }
+      }
     });
+  },
+
+  /**
+   * Refresh a positional engine drone for one vehicle; call every frame it is
+   * heard. A loop that stops being refreshed fades out on the audio clock.
+   */
+  vehicleLoop(id, pos, kind = 'buggy') {
+    const key = String(id);
+    const deferredPos = positionFrom(pos);
+    run('vehicleLoop', () => {
+      const ctx = engine.ctx;
+      if (!ctx || ctx.state !== 'running') return;
+      const at = ctx.currentTime;
+      const hz = VEHICLE_DRONE[kind] ?? 100;
+      let voice = vehicleLoops.get(key);
+      if (voice && (voice.ctx !== ctx || at >= voice.end)) { releaseVehicleLoop(key, voice); voice = null; }
+      if (!voice) {
+        while (vehicleLoops.size >= MAX_VEHICLE_LOOPS) {
+          const [oldKey, oldest] = [...vehicleLoops.entries()].reduce((a, b) => (a[1].last <= b[1].last ? a : b));
+          releaseVehicleLoop(oldKey, oldest);
+        }
+        const output = pool.acquire(deferredPos ? { pos: deferredPos, priority: 1 } : null, VEHICLE_HOLD + VEHICLE_FADE);
+        const osc = ctx.createOscillator();
+        osc.type = 'sawtooth';
+        osc.frequency.value = hz;
+        const sub = ctx.createOscillator();
+        sub.type = 'triangle';
+        sub.frequency.value = hz / 2;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = kind === 'walker' ? 260 : 420;
+        filter.Q.value = 1.2;
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        osc.connect(filter);
+        sub.connect(filter);
+        filter.connect(gain).connect(output);
+        osc.start(at);
+        sub.start(at);
+        voice = { ctx, output, osc, sub, filter, gain, kind, last: at, end: at, thudAt: at };
+        vehicleLoops.set(key, voice);
+        pool.addCleanup(output, () => {
+          try { osc.stop(); sub.stop(); } catch {}
+          osc.disconnect(); sub.disconnect(); filter.disconnect(); gain.disconnect();
+          if (vehicleLoops.get(key) === voice) vehicleLoops.delete(key);
+        });
+      }
+      const level = at >= voice.end ? 0 : voice.gain.gain.value;
+      voice.last = at;
+      voice.end = at + VEHICLE_HOLD + VEHICLE_FADE;
+      const g = voice.gain.gain;
+      g.cancelScheduledValues(at);
+      g.setValueAtTime(level, at);
+      g.linearRampToValueAtTime(VEHICLE_LEVEL, at + 0.12);
+      g.setValueAtTime(VEHICLE_LEVEL, at + VEHICLE_HOLD);
+      g.linearRampToValueAtTime(0, voice.end);
+      // WebAudio permits replacing a future stop deadline until the source ends.
+      voice.osc.stop(voice.end + 0.05);
+      voice.sub.stop(voice.end + 0.05);
+      voice.osc.frequency.setTargetAtTime(hz * (0.98 + 0.04 * Math.random()), at, 0.12);
+      if (kind === 'walker' && at >= voice.thudAt) {
+        voice.thudAt = at + 0.7;
+        primitives.tone(voice.output, { t0: at, type: 'sine', f0: 70, f1: 32, att: 0.004, dec: 0.22, g: 0.3 });
+      }
+      pool.refresh(voice.output, deferredPos ? { pos: deferredPos } : null, VEHICLE_HOLD + VEHICLE_FADE);
+    });
+  },
+
+  stopVehicleLoop(id) {
+    const key = String(id);
+    releaseVehicleLoop(key, vehicleLoops.get(key));
+  },
+
+  stopVehicleLoops() {
+    for (const [key, voice] of [...vehicleLoops]) releaseVehicleLoop(key, voice);
+    vehicleLoops.clear();
   },
 
   cycleClick(step, weapon) {

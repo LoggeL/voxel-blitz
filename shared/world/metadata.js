@@ -5,6 +5,8 @@ import { trapsFor } from './traps.js';
 import { MAP_MODE_COMPATIBILITY } from '../modes.js';
 import { foundryLadderVolumes } from './terrain-foundry.js';
 import { REACTOR_LAYOUT } from './reactor-layout.js';
+import { CAUSEWAY_LAYOUT } from './causeway-layout.js';
+import { BASTION_LAYOUTS } from './bastion-layouts.js';
 import { MINECRAFT_B5_ANCHORS } from './minecraft-b5-data.js';
 import { WATERWORLD_ANCHORS } from './waterworld-data.js';
 import {
@@ -26,6 +28,7 @@ const MAP_NAMES = Object.freeze({
   killhouse: 'Killhouse',
   minecraft_b5: 'Minecraft B5',
   waterworld: 'Waterworld',
+  causeway: 'Causeway',
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
@@ -116,6 +119,8 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
     snd: { attackers: [], defenders: [] },
     ttt: WATERWORLD_ANCHORS.spawns.ttt,
   },
+  causeway: { fun: CAUSEWAY_LAYOUT.defenders.map(p => [p.x, p.z]),
+    tdm: { alpha: [], bravo: [] }, snd: { attackers: [], defenders: [] } },
 });
 
 const MAP_SITE_LAYOUTS = Object.freeze({
@@ -147,12 +152,19 @@ const MAP_SITE_LAYOUTS = Object.freeze({
   killhouse: [],
   minecraft_b5: [],
   waterworld: [],
+  causeway: [],
 });
 
 const MAP_LANDMARKS = Object.freeze({
   ...LARGE_LANDMARKS,
-  reactor: [ { id: 'core', name: 'Reactor Core', x: 64, z: 54, floorY: GROUND },
-    { id: 'supply', name: 'Service Bay', x: 64, z: 78, floorY: GROUND } ],
+  reactor: [ { id: 'gate', name: 'North Gate', x: 64, z: 41, floorY: GROUND },
+    { id: 'core', name: 'Reactor Core', x: 64, z: 54, floorY: GROUND },
+    { id: 'bay', name: 'Service Bay', x: 64, z: 78, floorY: GROUND } ],
+  causeway: [ { id: 'gate', name: 'East Gate', x: 146, z: 72, floorY: GROUND },
+    { id: 'pump', name: 'Pump House', x: 112, z: 72, floorY: GROUND },
+    { id: 'sluice', name: 'Sluice Yard', x: 76, z: 72, floorY: GROUND },
+    { id: 'tower', name: 'Control Tower', x: 42, z: 72, floorY: GROUND },
+    { id: 'pad', name: 'Extraction Pad', x: 16, z: 72, floorY: GROUND } ],
   dust2: DUST2_LANDMARKS,
   nuketown: [
     { id: 'yellow-house', name: 'Yellow House', x: 59, z: 67 },
@@ -293,7 +305,7 @@ function resolveSpawnPool(world, anchors, floorY = null) {
 export function createMapMetadata(id, world) {
   const anchors = MAP_SPAWN_ANCHORS[id];
   // Courtyard/training spawns stay below roofs; Dust II anchors carry NAV levels.
-  const floorY = ['killhouse', 'reactor', 'depot'].includes(id) ? GROUND : null;
+  const floorY = ['killhouse', 'reactor', 'depot', 'causeway'].includes(id) ? GROUND : null;
   const metadata = {
     id,
     name: MAP_NAMES[id],
@@ -326,9 +338,10 @@ export function createMapMetadata(id, world) {
       slides: structuredClone(WATERWORLD_ANCHORS.slides),
       props: structuredClone(WATERWORLD_ANCHORS.props),
     } : {}),
-    ...(id === 'reactor' ? { bastion: structuredClone(REACTOR_LAYOUT), spawnBounds: {
-      minX: 51, maxX: 76, minZ: 43, maxZ: 67, minY: GROUND + 1, maxY: GROUND + 1.1,
-    } } : {}),
+    // Bastion maps carry their staged layout; spawn bounds come from the layout.
+    ...(MAP_MODE_COMPATIBILITY[id].includes('bastion') ? {
+      bastion: structuredClone(BASTION_LAYOUTS[id]), spawnBounds: { ...BASTION_LAYOUTS[id].spawnBounds },
+    } : {}),
     // Keep procedural and terrain-recovery spawns inside the test-town wall.
     ...(id === 'nuketown' ? { spawnBounds: {
       minX: 22.5, maxX: 104.5, minZ: 6.5, maxZ: 88.5,

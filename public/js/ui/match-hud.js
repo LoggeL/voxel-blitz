@@ -36,6 +36,43 @@ export class MatchHud {
     this._latestMatch = null;
     this._latestSelfRow = null;
     this._latestPlayers = [];
+    this._allPlayers = [];
+    this._latestServerNow = null;
+    // Bastion presentation context: lane names from the map meta, one transient
+    // banner at a time (4 s) and the build controller's read model.
+    this._bastion = { laneNames: {}, banner: null, build: null };
+    this._buildKey = '';
+  }
+
+  /** Lane display names come from `mapMeta.bastion.lanes`; the HUD imports no layout. */
+  setMapMeta(meta) {
+    const lanes = Array.isArray(meta?.bastion?.lanes) ? meta.bastion.lanes : [];
+    this._bastion.laneNames = Object.fromEntries(lanes.map(lane => [lane.id, lane.name]));
+  }
+
+  /** Queue a transient bastion banner; a newer one replaces the current one. */
+  pushBastionBanner(text, holdMs = 4000) {
+    if (!text) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    this._bastion.banner = { text: String(text), until: now + holdMs };
+    this._repaintBastion();
+  }
+
+  /** Build controller read model; repaints the prompt when it changes. */
+  setBuildState(state) {
+    const next = state && typeof state === 'object' ? { ...state } : null;
+    const key = JSON.stringify(next);
+    if (key === this._buildKey) return;
+    this._buildKey = key;
+    this._bastion.build = next;
+    this._repaintBastion();
+  }
+
+  _repaintBastion() {
+    const match = this._latestMatch;
+    if (!this.dom.header || match?.mode !== 'bastion') return;
+    const sNow = Number.isFinite(this._latestServerNow) ? this._latestServerNow : Date.now();
+    updateBastionHud(this.dom, match, this._latestSelfRow, sNow, this._bastion);
   }
 
   build(hud) {
@@ -139,7 +176,8 @@ export class MatchHud {
   setMatchState(match, selfRow, players, serverNow) {
     this._latestMatch = match || null;
     this._latestSelfRow = selfRow || null;
-    this._latestPlayers = Array.isArray(players) ? players.filter(p => !p.npcRole) : [];
+    this._allPlayers = Array.isArray(players) ? players : [];
+    this._latestPlayers = this._allPlayers.filter(p => !p.npcRole);
 
     const m = this.dom;
     if (!m.header) return;
@@ -165,6 +203,7 @@ export class MatchHud {
     }
 
     const sNow = Number.isFinite(serverNow) && serverNow > 0 ? serverNow : Date.now();
+    this._latestServerNow = sNow;
     this.result.update(match, selfRow, this._latestPlayers, sNow);
     let clockText = '';
     let isUrgentBomb = false;
@@ -333,7 +372,8 @@ export class MatchHud {
       });
     }
 
-    if (curMode === 'bastion') updateBastionHud(m,match,selfRow,sNow);
+    if (curMode === 'bastion') updateBastionHud(m,match,selfRow,sNow,this._bastion);
+    else if (m.buildPrompt) m.buildPrompt.style.display = 'none';
 
     if (this._latestPlayers) {
       this.onPlayers(this._latestPlayers, match, selfRow);
@@ -353,6 +393,10 @@ export class MatchHud {
     this._latestMatch = null;
     this._latestSelfRow = null;
     this._latestPlayers = [];
+    this._allPlayers = [];
+    this._bastion.banner = null;
+    this._bastion.build = null;
+    this._buildKey = '';
   }
 
   _removeDom() {

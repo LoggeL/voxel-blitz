@@ -1,4 +1,4 @@
-import { reactorDefenderSolid } from '../../shared/world/reactor-layout.js';
+import { bastionDefenderSolid } from '../../shared/world/bastion-layouts.js';
 // Client-side predicted player movement. Mirrors the server constants
 // (see BUILD-CONTRACT) so prediction tracks authority closely.
 import { PRONE, stanceEye, stanceHeight } from '../../shared/player-stance.js';
@@ -41,7 +41,7 @@ export class PlayerPhysics {
   }
 
   solid(x, y, z) { return isSolidBlock(getBlock(x, y, z))
-    || (this.mapMeta?.id === 'reactor' && reactorDefenderSolid(x,y,z)); }
+    || (!!this.mapMeta?.bastion && bastionDefenderSolid(this.mapMeta.bastion, x, y, z)); }
 
   solidBelow(x, y, z) {
     return solidBelow(this._solidAt, x, y, z);

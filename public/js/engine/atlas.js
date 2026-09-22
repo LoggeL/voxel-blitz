@@ -16,6 +16,7 @@ import {
   MC_OBSIDIAN, MC_NETHERRACK, MC_GLOWSTONE, MC_CLOUD, MC_CACTUS, MC_CHEST,
   MC_FURNACE, MC_CRAFTING, MC_TNT, MC_WATER, MC_LAVA, MC_PORTAL, MC_GHOST_SOLID,
   POOL_TILE_BLUE, POOL_TILE_WHITE, POOL_FLOOR, SLIDE_BLUE, SLIDE_YELLOW, POOL_PANEL,
+  BARRICADE,
 } from '../../../shared/worlddata.js';
 
 export const ATLAS_SIZE = 256;
@@ -41,6 +42,8 @@ export const TILE = {
   MC_CRAFT_TOP: 66, MC_TNT_SIDE: 67, MC_TNT_TOP: 68, MC_WATER: 69, MC_LAVA: 70, MC_PORTAL: 71,
   // Leith Waterworld finishes.
   POOL_TILE_BLUE: 72, POOL_TILE_WHITE: 73, POOL_FLOOR: 74, SLIDE_BLUE: 75, SLIDE_YELLOW: 76, POOL_PANEL: 77,
+  // Bastion sandbag barricade (walls and sandbag lines share one block).
+  BARRICADE: 78,
 };
 
 /** Deterministic integer wobble -> 0..k-1. The atlas' only "randomness". */
@@ -237,6 +240,15 @@ function rust(x, y) {
   r += grain; g += grain; b += grain >> 1;
   if (x === 0 || y === 0) { r += 12; g += 10; b += 10; }
   if (x === 15 || y === 15) { r -= 26; g -= 24; b -= 22; } // darker seam edge
+  return [clamp255(r), clamp255(g), clamp255(b), 255];
+}
+
+/** Stacked hessian sandbags: 4-row bags with a dark stitched seam and a bulge highlight. */
+function barricade(x, y) {
+  const grain = wob(x, y, 44, 10) - 5;
+  let r = 122 + grain, g = 108 + grain, b = 74 + (grain >> 1);
+  if (y % 4 === 3) { r = 96; g = 84; b = 58; }
+  else if (y % 4 === 1) { r += 16; g += 16; b += 16; }
   return [clamp255(r), clamp255(g), clamp255(b), 255];
 }
 
@@ -681,6 +693,7 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.SLIDE_BLUE]: (x, y) => slidePlastic([40, 118, 226], x, y, 137),
   [TILE.SLIDE_YELLOW]: (x, y) => slidePlastic([244, 198, 42], x, y, 138),
   [TILE.POOL_PANEL]: poolPanel,
+  [TILE.BARRICADE]: barricade,
   [TILE.BEDROCK]: bedrock,
 });
 
@@ -760,6 +773,7 @@ export const DEFAULT_BLOCK_TILES = Object.freeze({
   [SLIDE_BLUE]: { all: TILE.SLIDE_BLUE },
   [SLIDE_YELLOW]: { all: TILE.SLIDE_YELLOW },
   [POOL_PANEL]: { all: TILE.POOL_PANEL },
+  [BARRICADE]: { all: TILE.BARRICADE },
   ...MC_BLOCK_TILES,
   // Ghost blocks look exactly like the material they imitate.
   ...Object.fromEntries(Object.entries(MC_GHOST_SOLID).map(([ghost, solid]) => [ghost, MC_BLOCK_TILES[solid]])),

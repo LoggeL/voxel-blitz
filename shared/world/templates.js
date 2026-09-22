@@ -3,6 +3,7 @@ import { generateHarborInto, generateCanyonInto } from './flatmap-large.js';
 import { generateNuketownInto } from './flatmap-nuketown.js';
 import { generateDust2Into } from './flatmap-dust2.js';
 import { generateReactorInto } from './flatmap-reactor.js';
+import { generateCausewayInto } from './flatmap-causeway.js';
 import { MAP_IDS } from '../modes.js';
 import { BEDROCK, SX, SY, SZ } from './blocks.js';
 import { generateDepotInto } from './flatmap-depot.js';
@@ -53,6 +54,7 @@ function buildPristineTemplate(id) {
   else if (id === 'killhouse') generateKillhouseInto(world, blocks, heights);
   else if (id === 'minecraft_b5') generateMinecraftB5Into(world, blocks, heights);
   else if (id === 'waterworld') generateWaterworldInto(world, blocks, heights);
+  else if (id === 'causeway') generateCausewayInto(world, blocks, heights);
   else generateSolsticeInto(world, blocks, heights);
 
   blocks.fill(BEDROCK, 0, SX * SZ);

@@ -119,7 +119,7 @@ export class WorldView {
     const palette = mapAtmosphere(meta?.id);
 
     this.scene = new THREE.Scene();
-    this.bastion = meta?.id === 'reactor' ? new BastionWorld(this.scene) : null;
+    this.bastion = meta?.bastion ? new BastionWorld(this.scene, meta.bastion) : null;
     this.scene.fog = new THREE.FogExp2(palette.fog, palette.density);
 
     const hemi = new THREE.HemisphereLight(palette.skyLight, palette.groundLight, palette.ambient);
@@ -227,7 +227,7 @@ export class WorldView {
     );
   }
 
-  setMatch(match) { this.bastion?.sync(match); this.tttWeapons.sync(match?.weaponPickups || []); this.tttCorpses.sync(match?.corpses || []); this.tttSupplies.sync([...(match?.weaponPickups||[]).filter(p=>p.grenade),...(match?.c4||[])]); }
+  setMatch(match, serverNow) { this.bastion?.sync(match, undefined, serverNow); this.tttWeapons.sync(match?.weaponPickups || []); this.tttCorpses.sync(match?.corpses || []); this.tttSupplies.sync([...(match?.weaponPickups||[]).filter(p=>p.grenade),...(match?.c4||[])]); }
 
   setGameMode(mode) {
     this.siteMarkers.setMode(mode);
@@ -243,6 +243,7 @@ export class WorldView {
     tickFluidMaterials(dt);
     this.skyUpdate(dt);
     this.powerups.update(dt);
+    this.bastion?.update(dt);
     this.tttTraps.update(this.tttTrapClock = (this.tttTrapClock || 0) + dt);
   }
 

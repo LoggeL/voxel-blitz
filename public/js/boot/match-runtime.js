@@ -17,5 +17,7 @@ export { FootstepCadence } from '../audio/footsteps.js';
 export { Killcam } from '../player/killcam.js';
 export { SpectatorCamera } from '../player/spectator-camera.js';
 export { AvatarRoster } from '../avatar/avatar-roster.js';
+export { makeVehicleAvatar } from '../avatar/bastion-vehicle.js';
+export { BuildController } from '../player/build-controller.js';
 export { CombatFeedback, applySnapshotBlocks, isWorldPointVisible } from '../combat/feedback.js';
 export { disposeFirstPersonBody, makeFirstPersonBody } from '../player/first-person-body.js';

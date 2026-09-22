@@ -3,8 +3,8 @@ import { AIR, BEDROCK, CONCRETE, METAL, STONE, PALE, RUST, ACCENT, GLASS, WOOD,
 import { fillBox, paintFloor } from './flatmaps.js';
 import { REACTOR_LAYOUT } from './reactor-layout.js';
 
-/** Reactor 9 is authored for core defense, independently of every PvP map. */
-export function generateReactorInto(world, blocks, heights) {
+/** Reactor 9 is authored for staged core defense, independently of every PvP map. */
+export function generateReactorInto(world, blocks, heights, layout = REACTOR_LAYOUT) {
   blocks.fill(AIR);
   heights.fill(GROUND);
   fillBox(world, 0, 0, 0, SX - 1, GROUND - 1, SZ - 1, BEDROCK);
@@ -105,9 +105,40 @@ export function generateReactorInto(world, blocks, heights) {
   for(const x of [56,72]) fillBox(world,x,GROUND+1,76,x,GROUND+5,76,METAL);
   paintFloor(world,61,76,67,81,GROUND,BEDROCK);
   for(const x of [61,67]) paintFloor(world,x,76,x,81,GROUND,ACCENT);
-  // Spawn floors are immutable; no cover is placed on the authored routes.
-  for (const lane of REACTOR_LAYOUT.lanes) for (const p of [...lane.spawns,...lane.route]) {
-    paintFloor(world,Math.floor(p.x)-1,Math.floor(p.z)-1,Math.floor(p.x)+1,Math.floor(p.z)+1,GROUND,BEDROCK);
+  // Every stage objective stands on an indestructible 7x7 pad; the shared
+  // protection pass then armours spawns, defender points and vehicle routes.
+  for (const s of layout.stages) {
+    const ox = Math.floor(s.objective.x), oz = Math.floor(s.objective.z);
+    paintFloor(world, ox - 3, oz - 3, ox + 3, oz + 3, GROUND, BEDROCK);
+  }
+  protectLayout(world, layout);
+}
+
+/**
+ * Protection pass shared by every Bastion map (a copy lives in each generator):
+ * indestructible pads under every authored point, a cleared and armoured strip
+ * along every vehicle route, and an accent outline around each build zone.
+ */
+function protectLayout(world, layout) {
+  const G = GROUND;
+  const pad = (p, r) => paintFloor(world, Math.floor(p.x) - r, Math.floor(p.z) - r, Math.floor(p.x) + r, Math.floor(p.z) + r, G, BEDROCK);
+  for (const lane of layout.lanes) pad(lane.entry, 1);
+  for (const s of layout.stages) {
+    for (const p of [...s.spawns, ...s.defenders, s.supply]) pad(p, 1);
+    for (let i = 1; i < s.vehicleRoute.length; i++) {
+      const a = s.vehicleRoute[i - 1], b = s.vehicleRoute[i];
+      const len = Math.hypot(b.x - a.x, b.z - a.z), steps = Math.max(1, Math.ceil(len / 0.5));
+      for (let n = 0; n <= steps; n++) {
+        const t = Math.min(1, n / steps), cx = Math.floor(a.x + (b.x - a.x) * t), cz = Math.floor(a.z + (b.z - a.z) * t);
+        paintFloor(world, cx - 2, cz - 2, cx + 2, cz + 2, G, BEDROCK);
+        for (let y = G + 1; y <= G + 4; y++) for (let z = cz - 2; z <= cz + 2; z++) for (let x = cx - 2; x <= cx + 2; x++) {
+          if (world.getBlock(x, y, z) !== BEDROCK) world.setBlock(x, y, z, AIR);
+        }
+      }
+    }
+    const { minX, maxX, minZ, maxZ } = s.buildZone;
+    for (let x = minX; x <= maxX; x++) for (const z of [minZ, maxZ]) if (world.getBlock(x, G, z) === CONCRETE) world.setBlock(x, G, z, ACCENT);
+    for (let z = minZ; z <= maxZ; z++) for (const x of [minX, maxX]) if (world.getBlock(x, G, z) === CONCRETE) world.setBlock(x, G, z, ACCENT);
   }
 }
 

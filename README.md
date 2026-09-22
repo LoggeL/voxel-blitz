@@ -34,7 +34,7 @@ Combat attacks deal 20% less damage than the original balance. A close rifle bod
 | Team Deathmatch | Two teams race to 40 kills. |
 | Search and Destroy | Plant or defuse the bomb, buy your loadout and make each life count. |
 | Gun Game | Every kill advances your weapon. Finish the ladder to win. |
-| Bastion | Cooperative defense for 1–4 players on Reactor 9: eight waves, three enemy roles, a shared bank and reactor repairs. |
+| Bastion | Cooperative linear defense for 1–4 players on Reactor 9 or Causeway: staged objectives, buildable walls and sentries, eight enemy tiers including vehicles, and a timed extraction. |
 | Training | Respawning range targets and a timed four-stage Killhouse course. |
 
 ## Screenshots
@@ -50,7 +50,7 @@ Actual browser captures from the game. Arena shots use the built-in fixed-camera
 
 The Killhouse firing line. Practice here, then head into the timed course.
 
-Thirteen maps ship with the game: Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2, Minecraft B5, Waterworld, Harbor, Canyon, Killhouse and Reactor 9. Harbor and Canyon cover 192 × 144 blocks, 2.25 times the area of the original arenas, with 16 spawn anchors per team and two S&D sites. [Bastion](docs/pve-bastion.md) uses Reactor 9 exclusively. Create a custom Bastion lobby, ready up and start; B opens supplies and E repairs the core between waves. [Dust 2](docs/maps/dust2.md) brings Long A, Short/Catwalk, Mid Doors and B Tunnels to the destructible voxel world. Select it in a custom lobby for Fun, Chaos Lab, Team Deathmatch, Search and Destroy or Gun Game. [Minecraft B5](docs/maps/minecraft-b5.md) is a block-for-block replica of `ttt_minecraft_b5` with a swimmable ocean, working Nether portals and the Nether below the island. [Waterworld](docs/maps/waterworld.md) replicates `ttt_waterworld`, the Leith Waterworld leisure pools with their flumes, changing rooms, traitor room teleport and glass foyer. See the [map compatibility table](docs/development.md#map-compatibility) for supported modes.
+Fourteen maps ship with the game: Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2, Minecraft B5, Waterworld, Harbor, Canyon, Killhouse, Reactor 9 and Causeway. Harbor and Canyon cover 192 × 144 blocks, 2.25 times the area of the original arenas, with 16 spawn anchors per team and two S&D sites; Causeway shares those dimensions as a linear defense causeway. [Bastion](docs/pve-bastion.md) uses Reactor 9 and Causeway. Create a custom Bastion lobby, ready up and start; B opens supplies, N builds, E repairs the objective between waves. [Dust 2](docs/maps/dust2.md) brings Long A, Short/Catwalk, Mid Doors and B Tunnels to the destructible voxel world. Select it in a custom lobby for Fun, Chaos Lab, Team Deathmatch, Search and Destroy or Gun Game. [Minecraft B5](docs/maps/minecraft-b5.md) is a block-for-block replica of `ttt_minecraft_b5` with a swimmable ocean, working Nether portals and the Nether below the island. [Waterworld](docs/maps/waterworld.md) replicates `ttt_waterworld`, the Leith Waterworld leisure pools with their flumes, changing rooms, traitor room teleport and glass foyer. See the [map compatibility table](docs/development.md#map-compatibility) for supported modes.
 
 ## Get started
 

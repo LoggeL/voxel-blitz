@@ -712,8 +712,8 @@ export class ProjectileSystem {
       let damage = rules.damage * falloff;
       if (direct && Number.isFinite(rules.directDamage)) damage += rules.directDamage;
       // NPC rockets retain the real flight/blast/terrain simulation, with a
-      // readable 70-damage attack instead of the player rocket's lethal impact.
-      if (owner?.npcRole === 'breacher' && projectile.type === 'rocket') damage = 70 * falloff;
+      // readable profile-damage attack instead of the player rocket's lethal impact.
+      if (Number.isFinite(owner?.npcRocketDamage) && projectile.type === 'rocket') damage = owner.npcRocketDamage * falloff;
       damage = Math.round(damage * (isSelf ? rules.selfDamage : 1) * 10) / 10;
       let lethal = false;
       if (damageEnabled && damage > 0) {

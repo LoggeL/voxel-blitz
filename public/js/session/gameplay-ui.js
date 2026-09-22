@@ -232,9 +232,11 @@ export class GameplayUiFlow {
   }
 
   purchaseWeapon(weapon) {
+    // Bastion build placements arrive from the build controller with the dialog closed.
+    const build = typeof weapon === 'string' && /^bastion:[^:]+:\d+:\d+:build:/.test(weapon);
     if (
       typeof weapon !== 'string' ||
-      !this._hud.isBuyMenuOpen() ||
+      (!build && !this._hud.isBuyMenuOpen()) ||
       !this._gameplay.matchState ||
       !this._isBuyPhase() ||
       this._gameplay.selfRow?.state !== 'alive' ||

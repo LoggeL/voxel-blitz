@@ -284,14 +284,26 @@ and a full room or 16-room exhaustion with `4005`; the server sends a JSON
 
 ## Bastion
 
-Bastion (`bastion`) is cooperative defense for one to four humans on the dedicated
-Reactor 9 (`reactor`) map. It has eight finite waves, a 1,000 HP objective, three NPC
-roles, free loadout selection, team upgrades, repair and a wave supply station.
-Human admission stays separate from NPC simulation and snapshots. Late joins wait
-for supply, and solo has one emergency return. The active enemy cap is five solo
-and eight in co-op. See [the rules and implementation](pve-bastion.md).
+Bastion (`bastion`) is cooperative linear defense for one to four humans on the
+two PvE maps Reactor 9 (`reactor`, three stages) and Causeway (`causeway`, five
+stages). Each stage has its own objective, enemy direction, defender points, supply
+point, build zone and wave rows; clearing a hold stage pays a stage bonus and
+regroups the team at the next line, and the final stage is a 150 s extraction
+hold with a last-stand loop. Eight enemy tiers (runner, breacher, heavy, brute,
+juggernaut, buggy, APC, walker) scale body, hitboxes and eye height with
+`bodyScale`; vehicles are NPC rows with `npcVehicle` and a combat box that follow
+the stage's vehicle route and ram destructibles. Between waves defenders build
+sandbag lines, barricade walls (`BARRICADE` block 85), sentry turrets and ammo
+crates through the ordinary buy frame, gated by the shared `canPlaceStructure`
+rules and a per-stage budget (48 voxels, 2 turrets, 1 crate). Enemies breach
+built cells through a second cost-weighted navigation field. The layout registry
+`shared/world/bastion-layouts.js` feeds the policy, the engine's defender
+collision and the client. Human admission stays separate from NPC simulation and
+snapshots. Late joins wait for a break, and solo has one emergency return. The
+active enemy caps are 6/9/10/10 for one to four players (vehicles 1/1/2/2). See
+[the rules and implementation](pve-bastion.md).
 
-Run `npm run bastion:test` for directed simulation and real WebSocket coverage.
+Run `npm run bastion:test` for directed simulation on both maps and real WebSocket coverage.
 
 ## Game modes and maps
 
@@ -440,13 +452,14 @@ state, round reset and bot presses.
 
 ### Map compatibility
 
-Harbor and Canyon are 192 × 144 × 40 voxels; Minecraft B5 is 128 × 96 × 88 so the Nether fits under the island; Waterworld is 200 × 188 × 36, the whole leisure centre and its foyer at 32 Source units per voxel. Existing maps retain 128 × 96 × 40 dimensions. Binary world headers carry each map's actual dimensions; voxel indices, chunk counts, projectile bounds and spawn pools use those dimensions.
+Harbor, Canyon and Causeway are 192 × 144 × 40 voxels; Minecraft B5 is 128 × 96 × 88 so the Nether fits under the island; Waterworld is 200 × 188 × 36, the whole leisure centre and its foyer at 32 Source units per voxel. Existing maps retain 128 × 96 × 40 dimensions. Binary world headers carry each map's actual dimensions; voxel indices, chunk counts, projectile bounds and spawn pools use those dimensions.
 
 | map id | modes | identity |
 |---|---|---|
 | `harbor` | Fun, Chaos, TDM, S&D, Gun Game | large cargo dock with permeable warehouses, container lanes and a central crane |
 | `canyon` | Fun, Chaos, TDM, S&D, Gun Game | large dry river arena with mesas, ruins and aqueduct arches |
-| `reactor` | Bastion | three shielded ingress chambers, destructible courtyard cover, reactor ring and Service Bay |
+| `reactor` | Bastion | staged core defense: North Gate pump, reactor ring and Service Bay extraction behind three shielded ingress galleries with destructible courtyard cover |
+| `causeway` | Bastion | linear five-objective causeway with alternating side breaches and a vehicle road |
 | `foundry` | Fun, TDM, S&D, Gun Game | industrial Foundry with A/B sites |
 | `depot` | Fun, TDM, Gun Game | point-symmetric cargo Depot |
 | `citadel` | Fun, TDM, S&D, Gun Game | Citadel with Courtyard A and elevated Compound B |
@@ -692,7 +705,7 @@ instanced batch; idle effect pools skip GPU uploads. The HUD and shop update DOM
 properties only when their displayed values change, while timed effects keep
 animating. `refactor:test` and `browser:ui` protect these behavior and cost limits.
 
-Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2, Killhouse and Reactor 9 are deterministic templates. Every room receives a
+Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2, Killhouse, Reactor 9 and Causeway are deterministic templates. Every room receives a
 fresh mutable clone of its selected map. The current room map is serialized in
 the single binary admission frame; subsequent block destruction is room-scoped
 and streams as index deltas inside immutable client snapshots. Each tick also

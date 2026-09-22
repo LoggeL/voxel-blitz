@@ -687,6 +687,13 @@ export async function runInputContracts(ok, installGlobals) {
         && [...prep].sort().join(',') === 'buy,jump'
         && [...live].sort().join(',') === 'ads,fire,interact,jump,reload,weapon',
     'touch buttons appear only for actions the current gameplay context allows');
+    // Bastion prep/supply with a live defender: the build chip cycles the blueprint.
+    const buildPrep = visibleTouchActions({
+      alive: true, canFire: false, canReload: false, grenades: 2, canInteract: false,
+      weaponCount: 1, canBuy: true, canBuild: true, scoped: false,
+    });
+    ok([...buildPrep].sort().join(',') === 'build,buy,jump',
+      'a canBuild touch context adds only the build chip beside the supply and jump chips');
     const wheelLive = visibleTouchActions({
       alive: true, canFire: true, canReload: true, grenades: 1, canInteract: true,
       weaponCount: 2, canBuy: false, scoped: true, wheelOpen: true,

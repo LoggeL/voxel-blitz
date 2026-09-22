@@ -77,6 +77,8 @@ export function updateCondition(p, dt) {
   });
   recoverConditions(p, dt, { hp: p.hp, burning: p.burning, sprinting: p.sprint,
     holdingBreath: breath.holdingBreath, crouching: p.crouch || p.proneT > 0 });
+  // Bastion juggernauts ignore suppression: their aim never degrades under fire.
+  if (p.noPanic) p.panic = 0;
 }
 
 function slideAxis(player, axis, amount, solidAt, mapMeta = null, canStep = false) {
@@ -91,7 +93,7 @@ function slideAxis(player, axis, amount, solidAt, mapMeta = null, canStep = fals
 function recordPose(p, now) {
   p.hist.push({ x: p.x, y: p.y, z: p.z, yaw: p.yaw, pitch: p.pitch,
     crouch: p.crouch, proneT: p.proneT, ads: p.ads, reloading: p.reloading, weapon: p.weapon,
-    vx: p.vx, vz: p.vz, t: now });
+    vx: p.vx, vz: p.vz, bodyScale: p.bodyScale, combatBox: p.combatBox, t: now });
   if (p.hist.length > HISTORY_SAMPLES) p.hist.shift();
 }
 

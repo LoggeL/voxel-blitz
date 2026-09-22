@@ -22,7 +22,7 @@ for (const [surface, names] of Object.entries({
   grass: ['GRASS', 'DIRT', 'LEAVES', 'MC_GRASS', 'MC_DIRT', 'MC_LEAVES', 'MC_CACTUS', 'MC_CLAY'],
   gravel: ['MC_GRAVEL'],
   sand: ['SAND', 'MC_SAND'],
-  cloth: ['MC_WOOL_WHITE', 'MC_WOOL_RED', 'MC_CLOUD'],
+  cloth: ['MC_WOOL_WHITE', 'MC_WOOL_RED', 'MC_CLOUD', 'BARRICADE'],
 })) for (const name of names) MATERIALS.set(BLOCK[name], surface);
 
 /** Hard paving, tile, glass and unknown solid materials share the stone bank. */

@@ -11,6 +11,7 @@ import {
   weaponImagePath,
 } from './hud-support.js';
 import { DamageNumberPool } from './damage-numbers.js';
+import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import { DeathTreatment } from './death-treatment.js';
 
 const KILLFEED_MAX_ROWS = 5;
@@ -113,7 +114,8 @@ export class CombatHudController {
     if (Array.isArray(players)) {
       for (const player of players) {
         if (player && player.id != null) {
-          this.names.set(String(player.id), String(player.name || player.id));
+          // Bastion NPC rows may omit a name; the shared profile names the role.
+          this.names.set(String(player.id), String(player.name || BASTION_ENEMIES[player.npcRole]?.name || player.id));
         }
       }
     }
@@ -121,7 +123,8 @@ export class CombatHudController {
   }
 
   nameFor(id) {
-    return this.names.get(String(id)) ?? String(id);
+    const key = String(id);
+    return this.names.get(key) ?? (key.startsWith('struct-') ? 'SENTRY' : key);
   }
 
   killfeed(ev) {

@@ -127,7 +127,7 @@ try {
     return { conflict, saved, noLeakedInput, movement, cancelled, reassigned, reset, scrollableContent, noHorizontalOverflow };
   })()`);
   for (const [name, value] of Object.entries(result)) assert.ok(value, name);
-  assert.equal(result.scrollableContent, 35);
+  assert.equal(result.scrollableContent, 37);
   const screenshot = await browser.page.send('Page.captureScreenshot', { format: 'png' });
   await writeFile('/tmp/voxel-keyboard-settings-390.png', Buffer.from(screenshot.data, 'base64'));
   await browser.page.evaluate(`(async () => { const { setKeybinding } = await import('/js/keybindings.js'); setKeybinding('forward', 'KeyI'); window.bindingSettingsTest.settings.closeSettings(); })()`);

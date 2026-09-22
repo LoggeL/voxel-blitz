@@ -87,13 +87,17 @@ const stances = [
   { name: 'going prone', p: { x: 3, y: 1, z: -2, yaw: 0.6, proneT: 0.5 } },
   { name: 'nearly prone', p: { x: 3, y: 1, z: -2, yaw: 0.6, proneT: 0.8 } },
   { name: 'prone', p: { x: 3, y: 1, z: -2, yaw: 0.6, proneT: 1 } },
+  // Bastion juggernaut: the roster scales the whole rig by `bodyScale` and the
+  // shared zones scale with it, so the same thresholds hold at 1.4.
+  { name: 'juggernaut 1.4', p: { x: 3, y: 1, z: -2, yaw: 0.6, bodyScale: 1.4 }, scale: 1.4 },
 ];
 // Cosmetic extremities: the neck gasket swinging with head pitch, the radio
 // antenna, the flexing reload hand and the swinging pauldron.
 const MIN_INSIDE = { head: 0.95, pack: 0.96, lElbow: 0.75, rElbow: 0.75, lArm: 0.9, rArm: 0.9 };
 const MAX_P98 = { head: 0.10, pack: 0.25, lElbow: 0.06, rElbow: 0.06, lArm: 0.03, rArm: 0.03 };
 let checks = 0;
-for (const { name, p } of stances) {
+for (const { name, p, scale = 1 } of stances) {
+  av.group.scale.setScalar(scale);
   pose(p);
   const boxes = playerHitboxes(p);
   for (const part of Object.keys(parts)) {
@@ -128,6 +132,7 @@ for (const { name, p } of stances) {
     }
   }
 }
+av.group.scale.setScalar(1);
 
 // Running: the gait swings the whole leg; the stride depth keeps the boots covered.
 for (const swing of [-1, 1]) {

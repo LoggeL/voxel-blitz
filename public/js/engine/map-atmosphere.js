@@ -24,6 +24,8 @@ const PALETTES = {
   waterworld: { skyTop: '#3d95dc', skyHorizon: '#cfe7f7', fog: '#e1f2ed', groundLight: '#7f929b',
     skyLight: '#e8f4fc', sun: '#fff8ea', ambient: 0.96, sunlight: 1.3, density: 0.0014 },
   minecraft_b5: { skyTop: '#3d8fe0', skyHorizon: '#c4dcff', fog: '#adc7ff', groundLight: '#6f8a5c', ambient: 0.9, sunlight: 1.36, density: 0.0022 },
+  // Overcast dam crossing: flat grey-blue sky and thin cool fog down the corridor.
+  causeway: { skyTop: '#3b6f8f', skyHorizon: '#b9cfd9', fog: '#b7c9d3', density: 0.0026, groundLight: '#5d6e70', ambient: 0.8 },
 };
 export function mapAtmosphere(mapId) {
   return { ...DEFAULT, ...PALETTES[mapId] };

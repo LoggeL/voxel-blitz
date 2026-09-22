@@ -91,7 +91,7 @@ export const MODE_LABELS = Object.freeze({
 
 export const MODE_DESCRIPTIONS = Object.freeze({
   ttt: '60 Sekunden Waffen suchen · Geheime Rollen · Ein Leben · Traitor-Shop',
-  bastion: '1–4 defenders · 8 finite waves · Protect the reactor · Team upgrades between waves',
+  bastion: '1–4 defenders · Linear stages · Build walls & sentries between waves · Enemies grow every wave · Extract under fire',
   chaos: `Kills pay $${CHAOS_KILL_CREDITS} · ${Object.values(CHAOS_UPGRADES).reduce((total, upgrades) => total + upgrades.length, 0)} stacking upgrades · Open the lab with B · No balance, just chaos`,
   fun: 'Shared instant skirmish · 8-gun full loadout · Rapid respawn',
   tdm: 'Alpha vs Bravo · First team to 40 kills wins · Team spawns',
@@ -114,12 +114,13 @@ export const MAP_LABELS = Object.freeze({
   killhouse: 'KILLHOUSE',
   minecraft_b5: 'MINECRAFT B5',
   waterworld: 'WATERWORLD',
+  causeway: 'CAUSEWAY · LINEAR',
 });
 
 export const MAP_DESCRIPTIONS = Object.freeze({
   harbor: '192 × 144 freight terminal for up to 16 vs 16. Cargo lanes, four warehouses and two dock sites.',
   canyon: '192 × 144 desert battlefield for up to 16 vs 16. Braided canyon routes, ruins and a dry river.',
-  reactor: 'Dedicated core-defense courtyard with three entrances, turbine halls and destructible cover.',
+  reactor: 'Staged core defense: hold the North Gate, fall back to the reactor core, extract from the Service Bay.',
   foundry: 'Industrial foundry with multi-level catwalks and mid-lane cover (All Modes)',
   depot: 'Point-symmetric cargo depot with mirrored containers & central plaza (Fun / TDM / Gun Game)',
   citadel: 'Urban fortress with Courtyard A and Compound B tactical bomb sites (All Modes)',
@@ -130,6 +131,7 @@ export const MAP_DESCRIPTIONS = Object.freeze({
   killhouse: 'Covered firing bays and four numbered rooms. Practice on respawning targets or race the course.',
   minecraft_b5: 'Block-for-block ttt_minecraft_b5: island village, lighthouse, mine rails, the Nether below and swimmable ocean (Fun / TTT / Duel / Chaos / TDM / Gun Game)',
   waterworld: 'Block-for-block ttt_waterworld: Leith Waterworld leisure pools, flumes, changing rooms, glass foyer and the traitor room (Fun / TTT / Duel / Chaos / TDM / Gun Game)',
+  causeway: '192 × 144 linear defense causeway: five objectives from the East Gate to the extraction pad, alternating side breaches and a vehicle road.',
 });
 
 export const MAP_PREVIEWS = Object.freeze({
@@ -146,6 +148,7 @@ export const MAP_PREVIEWS = Object.freeze({
   killhouse: './assets/maps/killhouse-range.webp',
   minecraft_b5: './assets/maps/minecraft-b5.webp',
   waterworld: './assets/maps/waterworld.webp',
+  causeway: './assets/maps/causeway.webp',
 });
 
 export const CARDINAL = Object.freeze({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' });

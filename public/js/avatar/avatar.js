@@ -15,8 +15,11 @@ export const TEAM_AVATAR_COLORS = Object.freeze({
 
 export function disposeAvatar(av) {
   av._skinLayer?.clear();
+  av._roleLayer?.clear();
+  av._roleLayer = null;
   av.weaponModel?.dispose();
-  disposeObjectTree(av.group);
+  if (typeof av.dispose === 'function' && av.vehicle) av.dispose();
+  else disposeObjectTree(av.group);
 }
 
 export function setAvatarTeam(av, team) {
@@ -42,7 +45,7 @@ export function setAvatarOpacity(av, opacity) {
 export function setAvatarFlash(av, amount) {
   const flash = clamp01(amount);
   for (let i = 0; i < av.flashMaterials.length; i++) {
-    av.flashMaterials[i].emissive.setRGB(flash * 0.9, flash * 0.08, flash * 0.04);
+    av.flashMaterials[i].emissive?.setRGB(flash * 0.9, flash * 0.08, flash * 0.04);
   }
 }
 
@@ -198,7 +201,8 @@ export function resetAvatarPose(av) {
   av.verticalSpeed = 0;
   av.group.visible = true;
   av.group.rotation.set(0, 0, 0);
-  av.group.scale.set(1, 1, 1);
+  // Bastion tiers are scaled whole bodies: the hitbox envelope scales with them.
+  av.group.scale.setScalar(av.bodyScale || 1);
   av.torso.position.set(0, 1.18, 0);
   av.torso.rotation.set(0, 0, 0);
   av.torso.scale.set(1, 1, 1);
@@ -250,7 +254,7 @@ export function beginAvatarDeath(av, now, impact = null) {
   if (av.tag) av.tag.visible = false;
   if (av.hpSpr) av.hpSpr.visible = false;
   // Bake the death location/yaw into the pieces so later snapshots cannot drag them.
-  av.weaponModel?.stopDeathEffects();
+  av.weaponModel?.stopDeathEffects?.();
   av.group.updateMatrixWorld(true);
   for (const limb of av.limbStates) {
     limb.object.matrixWorld.decompose(limb.object.position, limb.object.quaternion, limb.object.scale);
@@ -401,6 +405,7 @@ export function makeAvatar(id, name, team = null) {
     lastHp: null,
     lastImpact: null,
     alive: true,
+    bodyScale: 1,
     deathT: 0,
     deathForcedUntil: 0,
     deathSide: (hashInt(id) & 1) ? 1 : -1,

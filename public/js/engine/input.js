@@ -135,6 +135,13 @@ export class Input {
     this._lastWeaponReq = false;
     this._buyMenuQueued = false;
     this._buyMenuHeld = false; // physical B latch suppresses repeat/re-entry
+    // Bastion build mode: LMB places instead of firing, R rotates instead of
+    // reloading, N cycles the blueprint. The build controller owns the mode.
+    this._buildMode = false;
+    this._placeQueued = false;
+    this._buildToggleQueued = false;
+    this._buildRotateQueued = false;
+    this._buildExitQueued = false;
     this._zoomStepQueue = 0;   // scope zoom steps (KeyZ, wheel while scoped, R3)
     this._scopeZoomMode = false;
     // Radial weapon wheel seam: while open, devices reroute (see setWeaponWheelOpen).
@@ -200,7 +207,7 @@ export class Input {
   /* ----------------------------------------------------------- held intents */
 
   /** LMB / RT / touch fire held; reads false while the weapon wheel is open. */
-  get wantFireHeld() { return !this._wheelOpen && (this._mouseFire || this._keyboardFire || this._padFire); }
+  get wantFireHeld() { return !this._wheelOpen && !this._buildMode && (this._mouseFire || this._keyboardFire || this._padFire); }
 
   /** RMB / F / LT / touch ADS held or latched; reads false while the weapon wheel is open. */
   get wantAdsHeld() { return !this._wheelOpen && (this._mouseAds || this._keyboardAds || this._adsLatched || this._padAds); }
@@ -432,6 +439,50 @@ export class Input {
     this._touchControls?.setContext(context);
   }
 
+  /* ------------------------------------------------------------ build mode */
+
+  /** Bastion build mode: entering clears fire/reload intents so no shot leaks. */
+  setBuildMode(active) {
+    const next = !!active;
+    if (next === this._buildMode) return;
+    this._buildMode = next;
+    this._placeQueued = false;
+    this._buildRotateQueued = false;
+    this._buildExitQueued = false;
+    if (next) {
+      this._mouseFire = false;
+      this._keyboardFire = false;
+      this._padFire = false;
+      this._fireTapQueued = false;
+      this._reloadQueued = false;
+    }
+  }
+
+  isBuildMode() { return this._buildMode; }
+
+  /** One placement per LMB press / fire chip tap while build mode is active. */
+  consumePlaceRequest() {
+    const queued = this._placeQueued;
+    this._placeQueued = false;
+    return this._canReadGameplay() && this._buildMode && queued;
+  }
+
+  /** Build key pressed since the last call: 'next' cycles, 'exit' (Escape) leaves. */
+  consumeBuildToggle() {
+    const next = this._buildToggleQueued, exit = this._buildExitQueued;
+    this._buildToggleQueued = false;
+    this._buildExitQueued = false;
+    if (!this._canReadGameplay()) return null;
+    return exit ? 'exit' : next ? 'next' : null;
+  }
+
+  /** Reload key pressed while build mode is active: rotate the blueprint. */
+  consumeBuildRotate() {
+    const queued = this._buildRotateQueued;
+    this._buildRotateQueued = false;
+    return this._canReadGameplay() && this._buildMode && queued;
+  }
+
   /* ----------------------------------------------------------- weapon wheel */
 
   /**
@@ -460,6 +511,8 @@ export class Input {
       this._mouseAds = false;
       this._adsLatched = false;
       this._reloadQueued = false;
+      this._placeQueued = false;
+      this._buildRotateQueued = false;
       this._quickMeleeQueued = false;
       this._medkitQueued = false;
       // Cancel a held grenade without throwing it.
@@ -552,10 +605,16 @@ export class Input {
     }
 
     if (frame.pressed.fire && this._wheelOpen) this._wheelReleaseQueued = true;
-    if (frame.pressed.fire && !this._wheelOpen) this._fireTapQueued = true;
+    if (frame.pressed.fire && !this._wheelOpen) {
+      if (this._buildMode) this._placeQueued = true;
+      else this._fireTapQueued = true;
+    }
     this._padFire = frame.held.fire;
     this._padAds = frame.held.ads;
-    if (frame.pressed.reload && !this._wheelOpen) this._reloadQueued = true;
+    if (frame.pressed.reload && !this._wheelOpen) {
+      if (this._buildMode) this._buildRotateQueued = true;
+      else this._reloadQueued = true;
+    }
     // Y while the grenade is held cycles the throwable instead of the weapon.
     // Closed and off the grenade it arms the tap/hold split: a quick release still
     // swaps, holding it PAD_WHEEL_HOLD_MS opens the wheel instead.
@@ -908,6 +967,10 @@ export class Input {
     this._lastWeaponReq = false;
     this._buyMenuQueued = false;
     this._buyMenuHeld = false;
+    this._placeQueued = false;
+    this._buildToggleQueued = false;
+    this._buildRotateQueued = false;
+    this._buildExitQueued = false;
     this._switchQueue = 0;
     this._wheel.acc = 0;
     this._pendingSlot = null;
@@ -1010,6 +1073,7 @@ export class Input {
     if ((!this._gameplayEnabled || this._wheelOpen) && down) return;
     switch (action) {
       case 'fire':
+        if (this._buildMode) { if (down) this._placeQueued = true; break; }
         if (down && !this._mouseFire) this._fireTapQueued = true;
         this._mouseFire = down;
         break;
@@ -1022,10 +1086,11 @@ export class Input {
 
   _onTouchPulse(action) {
     if (!this._gameplayEnabled || this._wheelOpen) return;
-    if (action === 'reload') this._reloadQueued = true;
+    if (action === 'reload') { if (this._buildMode) this._buildRotateQueued = true; else this._reloadQueued = true; }
     else if (action === 'medkit') this._medkitQueued = true;
     else if (action === 'weapon') this._switchQueue += 1;
     else if (action === 'buy') this._buyMenuQueued = true;
+    else if (action === 'build') this._buildToggleQueued = true;
   }
 
   _toggleAds(down) {
@@ -1084,7 +1149,13 @@ export class Input {
         break;
       case 'quickMelee': if (!e.repeat && !this._wheelOpen) this._quickMeleeQueued = true; break;
       case 'medkit': if (!e.repeat && !this._wheelOpen) this._medkitQueued = true; break;
-      case 'reload': if (!e.repeat && !this._wheelOpen) this._reloadQueued = true; break;
+      case 'reload':
+        if (!e.repeat && !this._wheelOpen) {
+          if (this._buildMode) this._buildRotateQueued = true;
+          else this._reloadQueued = true;
+        }
+        break;
+      case 'build': if (!e.repeat && !this._wheelOpen) this._buildToggleQueued = true; break;
       case 'ads':
         if (!e.repeat && !this._wheelOpen) {
           if (this.adsMode() === 'toggle') this._toggleAds(true);
@@ -1112,6 +1183,9 @@ export class Input {
       case 'Escape':
         if (this._wheelOpen || this._wheelOpenQueued) {
           this._wheelCancelQueued = true;
+          e.preventDefault();
+        } else if (this._buildMode) {
+          this._buildExitQueued = true;
           e.preventDefault();
         }
         break;
@@ -1190,6 +1264,11 @@ export class Input {
         e.preventDefault();
         return;
       }
+      return;
+    }
+    if (this._buildMode && e.button === 0) {
+      // Build mode owns LMB: one placement per click, never a shot.
+      this._placeQueued = true;
       return;
     }
     if (e.button === 0) {

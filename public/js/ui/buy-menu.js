@@ -40,6 +40,9 @@ export class BuyMenuController {
     this._ownsRoot = false;
     this._deferredTimers = new Set();
     this._paintedState = null;
+    // Bastion: an armory card hands a blueprint to the build controller.
+    this._onSelectStructure = null;
+    this._bastionRequest = 0;
   }
 
   ensureBuyMenu() {
@@ -65,12 +68,9 @@ export class BuyMenuController {
     }
     if (mode === 'bastion') {
       root.style.display = 'none';
-      this.buyDom = buildBastionArmory(root, (action,item) => {
-        if (!this._isAdmitted()) return;
-        const state = this._buyMenuState;
-        this._bastionRequest = Math.max(this._bastionRequest || 0,state.bastionSelf?.request || 0)+1;
-        this._buyMenuCallbacks?.onBuy?.(bastionPurchaseId(state.bastion,this._bastionRequest,action,item));
-      }, () => this.toggleBuyMenu(false));
+      this.buyDom = buildBastionArmory(root, (action,item) => this.purchaseBastion(action,item),
+        () => this.toggleBuyMenu(false),
+        (kind) => { this.toggleBuyMenu(false); this._onSelectStructure?.(kind); });
       this._paintedState = null;
       this.syncBuyMenuUI();
       return root;
@@ -253,9 +253,37 @@ export class BuyMenuController {
     return root;
   }
 
-  setupBuyMenu({ onBuy, onClose } = {}) {
+  setupBuyMenu({ onBuy, onClose, onSelectStructure } = {}) {
     this._buyMenuCallbacks = { onBuy, onClose };
+    if (typeof onSelectStructure === 'function') this._onSelectStructure = onSelectStructure;
     this.ensureBuyMenu();
+  }
+
+  /** Host callback for the FORTIFICATIONS cards; survives later setupBuyMenu calls. */
+  setStructureCallback(onSelectStructure) {
+    this._onSelectStructure = typeof onSelectStructure === 'function' ? onSelectStructure : null;
+  }
+
+  /** Marks the blueprint the build controller holds so its card reads as selected. */
+  setSelectedStructure(kind) {
+    if (!this.buyDom.root || this.buyDom.mode !== 'bastion' || this.buyDom.selectedKind === (kind || null)) return;
+    this.buyDom.selectedKind = kind || null;
+    this._paintedState = null;
+    if (this._buyMenuOpen) this.syncBuyMenuUI();
+  }
+
+  /**
+   * Bastion purchase through the shared grammar. `build` carries the placement
+   * cell and facing; the dialog need not be open (the build controller places
+   * with it closed). Admission (phase, alive, no overlay) is checked here.
+   */
+  purchaseBastion(action, item = null, cell = null, facing = 0) {
+    if (this.host.mode?.() !== 'bastion' || !this._isAdmitted()) return false;
+    const state = this._buyMenuState;
+    if (!state.bastion) return false;
+    this._bastionRequest = Math.max(this._bastionRequest || 0, state.bastionSelf?.request || 0) + 1;
+    const id = bastionPurchaseId(state.bastion, this._bastionRequest, action, item, cell, facing);
+    return this._buyMenuCallbacks?.onBuy?.(id) !== false;
   }
 
   setBuyMenuState({ ttt, open, phase, credits, owned, chaosUpgrades, bastion, bastionSelf } = {}) {
@@ -514,6 +542,7 @@ export class BuyMenuController {
     }
 
     this._buyMenuCallbacks = null;
+    this._onSelectStructure = null;
     this.buyDom = {};
     this._paintedState = null;
     this._buyMenuState = { phase: 'idle', credits: 0, owned: [] };

@@ -2,7 +2,7 @@
 
 The active map previews are direct captures of the playable voxel maps.
 Seven were refreshed on 2026-09-07 after the expanded structures and props pass;
-Dust 2 was added on 2026-09-08. They use the same world
+Dust 2 was added on 2026-09-08; Causeway and the re-rendered Reactor 9 on 2026-09-22. They use the same world
 generation, lighting, sky and landmark signs as gameplay. No generated scenery,
 external assets, compositing or retouching is included in these previews.
 
@@ -18,6 +18,8 @@ external assets, compositing or retouching is included in these previews.
 | killhouse | `killhouse-range.webp` | `.artifacts/map-rich-pass/killhouse-control-yard.png` |
 | minecraft_b5 | `minecraft-b5.webp` | `.artifacts/map-renders/minecraft_b5-hero.png` (2026-09-14, `node tools/render-map-scenes.mjs --map minecraft_b5`) |
 | waterworld | `waterworld.webp` | `.artifacts/map-renders/waterworld-hero.png` (2026-09-15, `node tools/render-map-scenes.mjs --map waterworld`) |
+| reactor | `reactor-preview.webp` | `.artifacts/map-renders/reactor-hero.png` (2026-09-22, `node tools/render-map-scenes.mjs --map reactor`; re-rendered after the staged Bastion layout, objective pads and route strips) |
+| causeway | `causeway.webp` | `.artifacts/map-renders/causeway-hero.png` (2026-09-22, `node tools/render-map-scenes.mjs --map causeway`; low shot west along the corridor from the east gate after the rock faces were skinned in stone strata) |
 
 Capture command:
 

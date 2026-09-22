@@ -70,6 +70,12 @@ const SIGNS = {
     ['PLANT ROOM', 'STAFF ONLY', 175, 13, 25, 3.6, 1.4, '+z'],
     ['CHANGING ROOMS', 'LOCKERS', 16, 11, 45, 3.6, 1.4, '-z'],
   ],
+  // Painted on the north rock face (z=43), clear of both north passages.
+  causeway: [
+    ['CAUSEWAY / 07', 'EAST GATE', 156, 20, 44, 14, 1.4, '+z'],
+    ['PUMP HOUSE', 'STAGE 2', 112, 20, 44, 10, 1.2, '+z'],
+    ['EXTRACTION', 'PAD 1', 16, 20, 44, 10, 1.2, '+z'],
+  ],
 };
 const COLORS = {
   harbor: ['#173239', '#b9f4ff'], canyon: ['#265452', '#f8deb1'],
@@ -80,6 +86,7 @@ const COLORS = {
   killhouse: ['#263848', '#ffcf77'],
   minecraft_b5: ['#6b4a2a', '#f3e6c8'],
   waterworld: ['#1f4e7a', '#e9f4fb'],
+  causeway: ['#1e3a4a', '#d9f2ff'],
 };
 const supportsPaint = type => type !== AIR && type !== GLASS;
 

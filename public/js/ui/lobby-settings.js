@@ -98,7 +98,7 @@ export class LobbySettings {
       ? 'BASE 1V1 WEAPON SET: Rifle · Shotgun · Sniper · Revolver · Pixel Pick. No throwables.' : '';
     this.capacity.textContent = `${state.members?.length || 0} / ${limit} SLOTS · ${MAP_LABELS[state.map] || state.map}`;
     this.hint.textContent = state.gameMode === 'bastion'
-      ? '1–4 players defend Reactor 9 through 8 waves. Enemy waves are automatic. No friendly bots.' : state.gameMode === 'duel'
+      ? `1–4 players defend ${MAP_LABELS[state.map] || state.map} stage by stage: build, hold, fall back, extract. No friendly bots.` : state.gameMode === 'duel'
       ? 'Share the invite link. Two players, no bots. Both players must be ready.' : isHost
       ? 'Smaller maps reduce bots. Joining friends replace bots when full. Changes reset readiness.'
       : 'The host can change settings while everyone joins.';

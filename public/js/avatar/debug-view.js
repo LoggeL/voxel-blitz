@@ -1,5 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
-import { playerHitboxes } from '../../../shared/player-hitboxes.js';
+import { combatHitboxes } from '../../../shared/player-hitboxes.js';
+import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import { displaySettings } from '../ui/display-settings.js';
 
 /** The same oriented body zones the server uses for damage. */
@@ -46,7 +47,9 @@ export class AvatarDebugView {
         this.scene.add(group);
         this.boxes.set(remote.id, group);
       }
-      const zones = playerHitboxes(remote);
+      // Scaled Bastion tiers and vehicle boxes mirror the server's damage volumes.
+      const zones = combatHitboxes({ ...remote, bodyScale: remote.npcScale,
+        combatBox: remote.combatBox ?? (remote.npcVehicle ? BASTION_ENEMIES[remote.npcRole]?.combatBox : undefined) });
       zones.forEach((zone, i) => {
         let wire = group.children[i];
         if (!wire) {

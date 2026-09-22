@@ -124,9 +124,19 @@ export class MatchResultOverlay {
     }
     this.dom.traitors.hidden = mode !== 'ttt';
     if (mode === 'bastion') {
-      this.dom.eyebrow.textContent = 'BASTION · REACTOR 9';
-      this.dom.detail.textContent = victory ? 'REACTOR SECURED' : match.bastion?.reason === 'core' ? 'REACTOR DESTROYED' : 'DEFENDERS ELIMINATED';
-      this.dom.score.textContent = `WAVE ${match.bastion?.wave || 1} / 8 · CORE ${Math.ceil(match.bastion?.core?.hp || 0)} HP`;
+      const b = match.bastion || {};
+      const reason = b.reason;
+      this.dom.eyebrow.textContent = `BASTION · ${MAP_LABELS[match.map] || match.map || ''}`;
+      this.dom.detail.textContent = victory ? 'EXTRACTION COMPLETE'
+        : reason === 'objective' ? `${b.core?.name || 'OBJECTIVE'} DESTROYED`
+        : reason === 'team' ? 'DEFENDERS ELIMINATED'
+        : reason === 'missed' ? 'EVAC MISSED'
+        : reason === 'abandoned' ? 'RUN ABANDONED'
+        : reason === 'core' ? 'REACTOR DESTROYED' : 'DEFENDERS ELIMINATED';
+      const stage = b.stage;
+      this.dom.score.textContent = stage
+        ? `STAGE ${(stage.index ?? 0) + 1} / ${stage.count || 1} · WAVE ${b.wave || 1}`
+        : `WAVE ${b.wave || 1}`;
     }
 
     this.scoreboard.update(results, match, selfId);

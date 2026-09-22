@@ -59,7 +59,8 @@ export class HUD {
     });
     // Match snapshots are also the authoritative source for combat names.
     this.gameplay.match.onPlayers = (players, match, selfRow) => {
-      this.combat.setNames(players);
+      // Killfeed names need every row, including Bastion NPCs the roster filters out.
+      this.combat.setNames(this.gameplay.match._allPlayers?.length ? this.gameplay.match._allPlayers : players);
       this.gameplay.setPlayers(players, match, selfRow);
     };
 
@@ -112,6 +113,13 @@ export class HUD {
 
   setupBuyMenu(config = {}) { return this.buy.setupBuyMenu(config); }
   setBuyMenuState(state = {}) { return this.buy.setBuyMenuState(state); }
+  /** Bastion build: armory cards hand a blueprint to the game's build controller. */
+  setStructureCallback(onSelectStructure) { return this.buy.setStructureCallback(onSelectStructure); }
+  setSelectedStructure(kind) { return this.buy.setSelectedStructure(kind); }
+  purchaseBastion(action, item = null, cell = null, facing = 0) { return this.buy.purchaseBastion(action, item, cell, facing); }
+  setMapMeta(meta) { return this.gameplay.match.setMapMeta(meta); }
+  bastionBanner(text, holdMs) { return this.gameplay.match.pushBastionBanner(text, holdMs); }
+  setBuildState(state) { return this.gameplay.match.setBuildState(state); }
   toggleBuyMenu(force) { return this.buy.toggleBuyMenu(force); }
   isBuyMenuOpen() { return this.buy.isBuyMenuOpen(); }
 

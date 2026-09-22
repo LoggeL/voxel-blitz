@@ -84,6 +84,8 @@ export const POOL_FLOOR = 81;
 export const SLIDE_BLUE = 82;
 export const SLIDE_YELLOW = 83;
 export const POOL_PANEL = 84;
+// Bastion fortifications (sandbag lines and barricade walls built between waves).
+export const BARRICADE = 85;
 
 /** Ghost block -> the solid material it imitates (shared by textures and balance). */
 export const MC_GHOST_SOLID = Object.freeze({
@@ -137,6 +139,7 @@ export const BLOCK_HP = {
   [DUST_WOOD]: 85,
   [POOL_TILE_BLUE]: 200, [POOL_TILE_WHITE]: 200, [POOL_FLOOR]: 240,
   [SLIDE_BLUE]: 90, [SLIDE_YELLOW]: 90, [POOL_PANEL]: 420,
+  [BARRICADE]: 480,
   ...mcTable(0),
 };
 
@@ -152,6 +155,7 @@ export const BLOCK_HARDNESS = Object.freeze({
   [DUST_FLOOR]: 95, [DUST_TRIM]: 75, [DUST_TILE]: 55,
   [DUST_CRATE]: 25, [DUST_WOOD]: 32,
   [POOL_TILE_BLUE]: 55, [POOL_TILE_WHITE]: 55, [POOL_FLOOR]: 70, [SLIDE_BLUE]: 22, [SLIDE_YELLOW]: 22, [POOL_PANEL]: 110,
+  [BARRICADE]: 120,
   ...mcTable(1),
   [MC_WATER]: 8, [MC_LAVA]: 8, [MC_PORTAL]: 0,
 });
@@ -184,6 +188,7 @@ export const GRENADE_RESISTANCE = Object.freeze({
   [DUST_CRATE]: 62,
   [DUST_WOOD]: 72,
   [POOL_TILE_BLUE]: 94, [POOL_TILE_WHITE]: 94, [POOL_FLOOR]: 100, [SLIDE_BLUE]: 40, [SLIDE_YELLOW]: 40, [POOL_PANEL]: 130,
+  [BARRICADE]: 180,   // rockets (210) and pulse (200) carve it; frags (165) do not
   ...mcTable(2),
   [MC_WATER]: Infinity, [MC_LAVA]: Infinity, [MC_PORTAL]: Infinity,
 });
@@ -208,5 +213,6 @@ export const MINING_HITS = Object.freeze({
   [DUST_FLOOR]: 8, [DUST_TRIM]: 7, [DUST_TILE]: 6,
   [DUST_CRATE]: 5, [DUST_WOOD]: 6,
   [POOL_TILE_BLUE]: 6, [POOL_TILE_WHITE]: 6, [POOL_FLOOR]: 7, [SLIDE_BLUE]: 3, [SLIDE_YELLOW]: 3, [POOL_PANEL]: 9,
+  [BARRICADE]: 6,
   ...mcTable(3),
 });

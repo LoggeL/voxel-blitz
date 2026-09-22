@@ -1,4 +1,4 @@
-import { reactorDefenderSolid } from '../shared/world/reactor-layout.js';
+import { BASTION_LAYOUTS, bastionDefenderSolid } from '../shared/world/bastion-layouts.js';
 import { FlameSystem, extinguish, igniteFromLava, updateBurn } from './sim/fire.js';
 // Authoritative fixed-step simulation facade. Transport, room management and
 // map delivery stay outside; focused simulation modules own player state,
@@ -69,7 +69,9 @@ export class GameEngine {
     this.fluidAt = (x, y, z) => FLUID_BLOCKS.has(this.world.getBlock(x, y, z));
     this.teleportSerial = 0;
 
-    this.defenderSolidAt = (x,y,z) => this.solidAt(x,y,z) || reactorDefenderSolid(x,y,z);
+    // Bastion defenders collide with the layout's invisible gates; a bare {id} meta falls back to the registry.
+    this.defenderSolidAt = (x,y,z) => this.solidAt(x,y,z)
+      || bastionDefenderSolid(this.mapMeta?.bastion ?? BASTION_LAYOUTS[this.mapMeta?.id], x, y, z);
 
     this.entities = new Map();
     this.npcs = new Map();
@@ -81,6 +83,8 @@ export class GameEngine {
     };
     this.objectives = new Map();
     this.changedBlocks = new Set();
+    // Monotonic count of block replacements; navigation fields key their rebuild on it.
+    this.blockRevision = 0;
     const genericSpawns = Array.isArray(this.mapMeta?.spawns?.fun)
       ? this.mapMeta.spawns.fun
       : [];
@@ -530,6 +534,7 @@ export class GameEngine {
     const i = ((y * SZ) + z) * SX + x;
     this.changedBlocks.add(i);
     this.tickBlocks.push({ i, v: value });
+    this.blockRevision++;
   }
 
   pushBlockDamage(x, y, z, value, progress) {

@@ -1143,28 +1143,66 @@ this document in the same change.
 
 ### Bastion cooperative defense
 
-- `bastion` supports `reactor` only. Create/configure normalizes friendly bots to
-  zero and permits at most four human members. NPCs are held in `GameEngine.npcs`;
-  objectives in `objectives`. Combat target iteration includes the core, while
-  movement, player lifecycle and avatar snapshots exclude objectives.
-- `shared/bastion.js` owns eight waves, scaling, bounded active populations,
-  purchase parsing, repair eligibility and mode-specific weapon adjustments.
-  The policy lives in `server/modes/bastion.js`, with navigation and enemy AI in
-  `server/modes/bastion/`. Phases are `prep`, `live`, `supply`, `post`.
-- `match.bastion` is a complete replacement: run/prep epochs, wave, core, alive and
-  queued counts, team credits/upgrades, readiness, lanes, service point and solo
-  return state. NPC rows carry `npcRole` and `npcAttack`; defender rows carry
-  `bastion`, `bastionUpgrades` and owned weapons.
-- Supply actions use the existing buy frame with
-  `bastion:<run>:<prep>:<request>:<action>[:item]`. The server rejects stale or
-  repeated requests before mutation. Repairs reserve credits until completion.
-  `bastion_clear` clears client combat hazards at phase boundaries.
-- `reactorDefenderSolid` is shared by authority and prediction for ingress shields
-  and reactor collision. The deterministic map has no random pickup sites.
-- `npm run bastion:test` covers lifecycle through all eight waves, normal damage,
-  enemy perception and navigation, purchases, repair reservations, input release,
-  late joins and an actual WebSocket lobby. See `docs/pve-bastion.md` for rules and
-  the boundary between automated checks and pending human balance playtests.
+- `bastion` supports `reactor` and `causeway`. Create/configure normalizes friendly
+  bots to zero and permits at most four human members. NPCs are held in
+  `GameEngine.npcs`; the current stage objective and every player structure live in
+  `objectives`. Combat target iteration includes objectives, while movement, player
+  lifecycle and avatar snapshots exclude them.
+- Layouts are registered in `shared/world/bastion-layouts.js` (`BASTION_LAYOUTS`,
+  `PVE_MAP_IDS`, `bastionPlannedWaves`, `bastionHoldWaves`, `bastionStageOfWave`).
+  `bastionDefenderSolid(layout, x, y, z)` replaces `reactorDefenderSolid` for
+  authority and prediction: ingress boxes, authored solids and every stage's
+  objective column are defender-solid above `GROUND`. A bare `{id}` map meta
+  resolves through the registry. The deterministic maps have no random pickup sites.
+- `shared/bastion.js` owns the rules, eight roles, enemy profiles, eight wave rows
+  with per-player scaling and caps (6/9/10/10 alive, 1/1/2/2 vehicles), the piercing
+  list, purchase parsing, repair eligibility and mode-specific weapon adjustments.
+  `shared/bastion-build.js` owns the structure catalog, `structureFootprint` and
+  `canPlaceStructure` with its ordered reason strings. The policy lives in
+  `server/modes/bastion.js`; enemies, navigation, vehicles and structures in
+  `server/modes/bastion/`. Phases stay `prep`, `live`, `supply`, `post`; a regroup is
+  a `supply` phase with `match.bastion.stage.transition === 'regroup'`.
+- A run walks the layout's stages: hold stages play their wave rows, pay
+  `bastionReward(wave)` per wave and `stageBonus` per cleared stage, then
+  `setStage(i+1)` and a regroup break that teleports defenders to the new defender
+  points; the extract stage sets `holdEndsAt`, loops its last row without reward and
+  ends `extracted` (beacon alive and a live defender within `extractRadius` at or
+  after `holdEndsAt`) or `missed` after `extractGraceMs`. Other end reasons are
+  `objective`, `team` and `abandoned`; `match_end` carries `stage`.
+- `match.bastion` is a complete replacement: run/prep epochs, wave and planned
+  `waves`, `stage` (index, count, id, name, kind, lane, wave, waves, transition,
+  holdEndsAt, extractRadius, buildZone, next), `core` (alias of the current
+  objective with model, half, hp, maxHp, lastHit), `held`, alive/queued counts, team
+  credits/upgrades, readiness, `lanes`, `supply`, `structures` rows, `budget`
+  (`barricadeVoxels`, `turrets`, `crates` as used/max) and `vehicles`. NPC rows
+  carry `npcRole`, `npcAttack`, and when relevant `npcScale` and `npcVehicle`;
+  defender rows carry `bastion` (including the last accepted `build`),
+  `bastionUpgrades` and owned weapons.
+- Supply and build actions use the existing buy frame with
+  `bastion:<run>:<prep>:<request>:<action>[:item][:<x>:<y>:<z>:<facing>]`; building
+  is `build:<kind>:<x>:<y>:<z>:<facing>` with `kind` in `STRUCTURE_KINDS`. The
+  server rejects stale or repeated requests before mutation and applies
+  `canPlaceStructure` with an occupancy check. Barricades are ordinary `BARRICADE`
+  (85) voxels streamed as block deltas and reverted by `engine.restoreWorld()`;
+  turrets and crates are structure objectives (`struct-` ids). Repairs reserve
+  credits until completion. `bastion_clear` clears client combat hazards at phase
+  boundaries.
+- `engine.blockRevision` increments on every `pushBlockDelta`; enemy navigation
+  rebuilds its walk and breach fields against it, so built and destroyed cells are
+  visible to NPC routing on the next tick.
+- Events: `bastion_wave {wave,total,stage,row}`, `bastion_supply`, `bastion_alarm`,
+  `bastion_charge`, `bastion_lane`, `bastion_buy`, `bastion_pickup`, `bastion_clear`,
+  `bastion_stage`, `bastion_regroup`, `bastion_extract`, `bastion_build`,
+  `bastion_structure` (destroyed), `bastion_breach` (rate-limited), `bastion_vehicle`
+  (spawn/deploy/destroyed) and `bastion_tier`.
+- `npm run bastion:test` covers both maps: wave table and registry helpers,
+  purchases and the build grammar, placement rules with budget and restoration,
+  breach AI, sentry turrets, vehicles, objective damage per profile, full director
+  runs to extraction with exact rewards, missed extraction and beacon loss, stage
+  advance, reachability of every stage, scaled hitboxes, layout contracts, client
+  construction and an actual WebSocket lobby with a Causeway build. See
+  `docs/pve-bastion.md` for rules and the boundary between automated checks and
+  pending human balance playtests.
 
 ## Personal medkit
 

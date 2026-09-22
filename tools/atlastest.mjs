@@ -206,7 +206,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 // ---------------------------------------------- mode + map foundation contract
 {
   ok(sameValue(MODE_IDS, ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -325,6 +325,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     killhouse: ['training'],
     minecraft_b5: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame'],
     waterworld: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame'],
+    causeway: ['bastion'],
   };
   ok(sameValue(MAP_MODE_COMPATIBILITY, expectedCompatibility)
     && deeplyFrozen(MAP_MODE_COMPATIBILITY)
@@ -362,10 +363,11 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     killhouse: 'Killhouse',
     minecraft_b5: 'Minecraft B5',
     waterworld: 'Waterworld',
+    causeway: 'Causeway',
   };
   const expectedMapHashes = {
     harbor: 'eeb64538', canyon: 'b8e254a7',
-    reactor: '32534739',
+    reactor: 'b1104db3',
     foundry: 'db04cb71',
     depot: '41bc3abe',
     citadel: '2848ff82',
@@ -376,6 +378,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     killhouse: '395d8d45',
     minecraft_b5: '5516e8c9',
     waterworld: 'dab98505',
+    causeway: 'fdf3f10d',
   };
   const expectedSpawnCounts = {
     harbor: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
@@ -391,6 +394,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     killhouse: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 0, sndDefenders: 0 },
     minecraft_b5: { fun: 14, tdmAlpha: 8, tdmBravo: 8, sndAttackers: 0, sndDefenders: 0 },
     waterworld: { fun: 24, tdmAlpha: 12, tdmBravo: 12, sndAttackers: 0, sndDefenders: 0 },
+    causeway: { fun: 4, tdmAlpha: 0, tdmBravo: 0, sndAttackers: 0, sndDefenders: 0 },
   };
   const pristineBytes = new Map();
 

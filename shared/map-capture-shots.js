@@ -23,6 +23,11 @@ export const MAP_CAPTURE_SHOTS = Object.freeze([
   shot('canyon', 'snd-site-b', [155, 16.62, 60], [155, 17, 71], 78, 'snd'),
   shot('reactor', 'hero', [90, 38, 80], [64, 17, 46], 68, 'bastion'),
   shot('reactor', 'core', [67, 18, 68], [64, 18, 51], 75, 'bastion'),
+  // Causeway: the dam corridor from the east, then the three stage yards.
+  shot('causeway', 'hero', [162, 25, 88], [70, 15, 72], 68, 'bastion'),
+  shot('causeway', 'east-gate', [128, 19, 96], [150, 17, 70], 76, 'bastion'),
+  shot('causeway', 'pump-house', [96, 18, 52], [112, 17, 72], 76, 'bastion'),
+  shot('causeway', 'extraction', [40, 19, 50], [16, 17, 72], 76, 'bastion'),
   shot('nuketown', 'snd-site-a', [36, 21, 58], [36, 15, 47], 72, 'snd'),
   shot('nuketown', 'snd-site-b', [95, 22, 60], [92, 15, 47], 72, 'snd'),
   shot('nuketown', 'hero', [105, 43, 73], [62, 20, 45], 66),

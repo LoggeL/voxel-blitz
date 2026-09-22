@@ -174,7 +174,7 @@ export class PlayerEntity {
   }
 
   get def() { return bastionWeaponDef(this, chaosWeaponDef(this, configuredWeapon(WEAPON_IDS[this.weapon], this.weaponLoadout))); }
-  get eyeY() { return this.y + stanceEye(PHYSICS.eye, this.crouch, this.proneT); }
+  get eyeY() { return this.y + stanceEye(PHYSICS.eye, this.crouch, this.proneT) * (this.bodyScale || 1); }
 
   /** Return true when the hit is lethal. */
   takeDamage(dmg, headshot = false, attacker = null, weapon = '') {

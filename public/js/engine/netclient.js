@@ -166,7 +166,7 @@ const PASSTHROUGH_FIELDS = [
   'breathReserve', 'breathExhausted', 'breathReleasedFor',
   'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
   'grenades', 'charge', 'minigun', 'impulse', 'disguised',
-  'npcRole', 'npcAttack', 'bastion', 'bastionUpgrades',
+  'npcRole', 'npcAttack', 'npcScale', 'npcVehicle', 'bastion', 'bastionUpgrades',
 ];
 
 export class NetClient {

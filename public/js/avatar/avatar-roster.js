@@ -1,6 +1,7 @@
 import { applyAvatarCosmetics } from '../cosmetics/skins.js';
 import { footstepVolume, strideCrossed } from '../audio/footsteps.js';
-import { updateBastionAvatar } from './bastion-avatar.js';
+import { applyBastionSignal, updateBastionAvatar } from './bastion-avatar.js';
+import { makeVehicleAvatar } from './bastion-vehicle.js';
 import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import * as THREE from '../vendor/three.module.js';
 import { isTeamMode } from '../../../shared/modes.js';
@@ -35,8 +36,10 @@ const CORPSE_SECONDS = 10;
 const CORPSE_FADE_SECONDS = 1.2;
 
 export class AvatarRoster {
-  constructor({ scene, getBlock = null, gore = null, getMyId = () => null, now = nowMs, footstep = null }) {
+  constructor({ scene, getBlock = null, gore = null, getMyId = () => null, now = nowMs, footstep = null, vehicle = null }) {
     this._footstep = typeof footstep === 'function' ? footstep : null;
+    // Positional engine drone: vehicle(id, [x,y,z], kind) while alive, vehicle(id, null) to stop.
+    this._vehicleSfx = typeof vehicle === 'function' ? vehicle : null;
     this._scene = scene;
     this._solidAt = getBlock ? (x, y, z) => !!getBlock(x, y, z) : null;
     this._labelTarget = new THREE.Vector3();
@@ -131,6 +134,15 @@ export class AvatarRoster {
       vz: avatar.group.position.z,
       hs: false,
     }, damageEvent);
+    if (avatar.vehicle) {
+      // Vehicles keep their hull: no limb physics, the presenter tilts it over.
+      if (!avatar.beginDeath?.()) return;
+      avatar.deathForcedUntil = Math.max(avatar.deathForcedUntil || 0, now + 1420);
+      this._pendingDeaths.delete(id);
+      this._vehicleSfx?.(id, null);
+      this._gore?.(impact, { lethal: true, local: false });
+      return;
+    }
     if (!beginAvatarDeath(avatar, now, impact)) return;
     this._pendingDeaths.delete(id);
     this._gore?.(impact, { lethal: true, local: false });
@@ -143,7 +155,7 @@ export class AvatarRoster {
     this._remoteImpacts.delete(id);
     const avatar = this._avatars.get(id);
     if (!avatar) return;
-    resetAvatarPose(avatar);
+    if (avatar.vehicle) avatar.reset?.(); else resetAvatarPose(avatar);
     avatar.lastHp = null;
     avatar.lastImpact = null;
     avatar.updateHealth(1);
@@ -158,7 +170,7 @@ export class AvatarRoster {
   positionOf(id) {
     const avatar = this._avatars.get(String(id));
     if (!avatar) return null;
-    const position = avatar.alive ? avatar.group.position : avatar.hips.position;
+    const position = avatar.alive || avatar.vehicle ? avatar.group.position : avatar.hips.position;
     return { x: position.x, y: position.y, z: position.z };
   }
 
@@ -173,6 +185,7 @@ export class AvatarRoster {
     const corpse = this._corpses.get(id);
     if (!corpse) return;
     this._corpses.delete(id);
+    if (corpse.avatar.vehicle) this._vehicleSfx?.(id, null);
     this._scene?.remove(corpse.avatar.group);
     disposeAvatar(corpse.avatar);
   }
@@ -184,6 +197,7 @@ export class AvatarRoster {
       corpse.elapsed += step;
       if (corpse.elapsed >= CORPSE_SECONDS) { this._dropCorpse(id); continue; }
       this._counters.dyingAvatars++;
+      if (corpse.avatar.vehicle) corpse.avatar.update?.(step, null);
       if (!corpse.settled) {
         updateAvatarDeath(corpse.avatar, step, corpse.elapsed / CORPSE_SECONDS, this._solidAt);
         corpse.settled = corpse.avatar.limbStates.every(limb =>
@@ -218,6 +232,7 @@ export class AvatarRoster {
     for (const [id, avatar] of this._avatars) {
       if (id === myId || !remotes.has(id)) {
         this._scene.remove(avatar.group);
+        if (avatar.vehicle) this._vehicleSfx?.(id, null);
         this._avatars.delete(id);
         this._pendingHits.delete(id);
         this._pendingDeaths.delete(id);
@@ -233,13 +248,14 @@ export class AvatarRoster {
       // building one here would only be killed again on the same frame.
       if (!avatar && remote.state !== 'alive' && this._corpses.has(remote.id)) continue;
       if (!avatar) {
-        avatar = makeAvatar(remote.id, remote.name, remote.team);
+        avatar = remote.npcVehicle ? makeVehicleAvatar(remote.id, remote.npcRole) : makeAvatar(remote.id, remote.name, remote.team);
         avatar.px = remote.x;
         avatar.pz = remote.z;
         avatar.group.position.set(remote.x, remote.y, remote.z);
         this._scene.add(avatar.group);
         this._avatars.set(remote.id, avatar);
       }
+      if (avatar.vehicle) { this._syncVehicle(avatar, remote, dt, now, persistentCorpses); continue; }
       setAvatarTeam(avatar, remote.team);
       applyAvatarCosmetics(avatar, remote.cosmetics);
       updateBastionAvatar(avatar,remote);
@@ -268,7 +284,7 @@ export class AvatarRoster {
       avatar.alive = true;
       avatar.group.visible = true;
       avatar.group.rotation.set(0, remote.yaw, 0);
-      avatar.group.scale.set(1, 1, 1);
+      avatar.group.scale.setScalar(avatar.bodyScale || 1);
       setAvatarOpacity(avatar, 1);
 
       const sampleMotion = avatar.motionSeeded && dt > 0;
@@ -352,6 +368,8 @@ export class AvatarRoster {
       avatar.head.rotation.x += (remote.pitch * 0.7 - hit01 * 0.1 + (avatar.swimHeadTilt || 0) - avatar.head.rotation.x) * poseBlend;
       avatar.head.rotation.z += (-flinch * 0.7 - avatar.head.rotation.z) * poseBlend;
       setAvatarFlash(avatar, hit01);
+      // The flash owns the emissive channel while it lasts; the tell returns after it.
+      if (hit01 === 0 && avatar.bastionSignal) applyBastionSignal(avatar, remote);
       // Outside-in burning: while the snapshot row burns, feed the shared flame
       // batch from three staggered body emitters (chest/head/legs) at a bounded
       // ~30 puffs/second. Numbers only, no allocation; puffs expire on their own
@@ -375,6 +393,42 @@ export class AvatarRoster {
       }
     }
     this._debugView.sync(remotes, this._avatars, myId);
+  }
+
+  /**
+   * Vehicle rows keep position, yaw, opacity, hit flash, hp bar and the corpse
+   * pool; the presenter animates wheels, legs and the attack tell itself.
+   */
+  _syncVehicle(avatar, remote, dt, now, persistentCorpses) {
+    const pendingHit = this._pendingHits.get(remote.id);
+    if (pendingHit) {
+      this._pendingHits.delete(remote.id);
+      if (pendingHit.until >= now) this.hit(remote.id, pendingHit.ev);
+    }
+    const pendingDeath = this._pendingDeaths.get(remote.id);
+    if (pendingDeath?.until >= now && avatar.alive) this.death(remote.id, now, pendingDeath.damageEvent);
+    const alive = remote.state === 'alive' && now >= (avatar.deathForcedUntil || 0);
+    if (!alive) {
+      if (avatar.alive) this.death(remote.id, now);
+      if (persistentCorpses) { avatar.group.visible = false; return; }
+      this._retireCorpse(remote.id, avatar);
+      return;
+    }
+    if (!avatar.alive) avatar.reset?.();
+    avatar.alive = true;
+    avatar.group.visible = true;
+    avatar.group.position.set(remote.x, remote.y, remote.z);
+    avatar.group.rotation.set(0, remote.yaw, 0);
+    setAvatarOpacity(avatar, 1);
+    const hit01 = avatar.hitT > 0 ? avatar.hitT / 0.18 : 0;
+    avatar.hitT = Math.max(0, avatar.hitT - dt);
+    avatar.update?.(dt, remote);
+    setAvatarFlash(avatar, hit01);
+    if (remote.hp != null && remote.hp !== avatar.lastHp) {
+      avatar.lastHp = remote.hp;
+      avatar.updateHealth(remote.hp / (BASTION_ENEMIES[remote.npcRole]?.hp || 100));
+    }
+    this._vehicleSfx?.(remote.id, [remote.x, remote.y, remote.z], remote.npcRole);
   }
 
   /** Test the player's head, so a tag above cover cannot reveal a hidden enemy. */
@@ -405,8 +459,9 @@ export class AvatarRoster {
 
   dispose() {
     this._debugView.dispose();
-    for (const avatar of this._avatars.values()) {
+    for (const [id, avatar] of this._avatars) {
       this._scene?.remove(avatar.group);
+      if (avatar.vehicle) this._vehicleSfx?.(id, null);
       disposeAvatar(avatar);
     }
     for (const id of [...this._corpses.keys()]) this._dropCorpse(id);

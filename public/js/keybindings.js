@@ -13,6 +13,7 @@ export const KEYBINDING_ACTIONS = Object.freeze([
   ['medkit', 'Medkit / cancel healing', ['KeyJ']], ['grenade', 'Throw grenade (hold / release)', ['KeyG']],
   ['grenadeType', 'Next grenade type', ['KeyH']], ['zoom', 'Scope zoom', ['KeyZ']],
   ['weaponWheel', 'Weapon wheel (hold)', ['KeyQ']], ['buy', 'Buy menu / armory', ['KeyB']],
+  ['build', 'Build mode (Bastion)', ['KeyN']],
   ['scoreboard', 'Scoreboard (hold)', ['Tab']],
   ['previousWeapon', 'Previous weapon', []], ['nextWeapon', 'Next weapon', []],
   ...Array.from({ length: 10 }, (_, i) => [`slot${i + 1}`, `Weapon slot ${i + 1}`, [`Digit${(i + 1) % 10}`]]),

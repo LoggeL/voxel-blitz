@@ -63,7 +63,7 @@ export function shouldEnableTouchControls({
 
 /** Every contextual button; the pause button is always available. */
 export const TOUCH_ACTIONS = Object.freeze([
-  'fire', 'ads', 'jump', 'reload', 'interact', 'weapon', 'buy', 'medkit',
+  'fire', 'ads', 'jump', 'reload', 'interact', 'weapon', 'buy', 'medkit', 'build',
 ]);
 
 /**
@@ -85,6 +85,7 @@ export function visibleTouchActions(context) {
   if (context.canInteract) visible.add('interact');
   if ((context.weaponCount ?? 2) > 1) visible.add('weapon');
   if (context.canBuy) visible.add('buy');
+  if (context.canBuild) visible.add('build');
   return visible;
 }
 
@@ -222,6 +223,7 @@ export class TouchControls {
     d.interact = this._button(root, 'interact', 'USE', 'Interact');
     d.weapon = this._button(root, 'weapon', '⇄', 'Next weapon');
     d.buy = this._button(root, 'buy', 'BUY', 'Open armory');
+    d.build = this._button(root, 'build', 'BUILD', 'Cycle build blueprint (Bastion)');
 
     this._bindMove();
     this._bindLook();
@@ -233,6 +235,7 @@ export class TouchControls {
     this._bindPulse(d.medkit, 'medkit');
     this._bindPulse(d.weapon, 'weapon');
     this._bindPulse(d.buy, 'buy');
+    this._bindPulse(d.build, 'build');
     this._bindPulse(d.pause, 'pause');
     this.setOptions(this._options);
     this.setContext(this._context);

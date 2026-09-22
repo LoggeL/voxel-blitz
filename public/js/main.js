@@ -11,7 +11,7 @@ import { loadingScreen } from './ui/loading-screen.js';
 import { claymoreProfile } from '../../shared/claymore-rules.js';
 import { ProgressionTree } from './ui/progression.js';
 import { AccountMenu } from './ui/account-menu.js';
-import { bastionRepairAvailable } from '../../shared/bastion.js';
+import { BASTION_ENEMIES, bastionRepairAvailable } from '../../shared/bastion.js';
 import { FrameRateController } from './engine/frame-rate.js';
 import { WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
 import { VAULT_SECONDS } from '../../shared/player-movement.js';
@@ -74,6 +74,7 @@ class Game {
     this._grenadeCookLeftMs = 0;
     this.weapon = null;
     this.roster = null;
+    this.build = null;
     this.feedback = null;
     this.runHud = null;
     this.spectator = null;
@@ -136,7 +137,11 @@ class Game {
             return;
           }
           if (event.kind.startsWith('bastion_')) {
-            sfx.bastionCue(event.kind, event.pos);
+            // Transient HUD banners for the tells that need a read before the audio cue.
+            const banner = this.bastionBannerFor(event);
+            if (banner) this.hud.bastionBanner(banner);
+            sfx.bastionCue(event.kind, event.pos ?? (Number.isFinite(event.x) ? [event.x, event.y, event.z] : null));
+            if (event.kind === 'bastion_lane') this.worldview?.bastion?.event?.(event.kind);
             return;
           }
           if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileUpdate', 'projectileStick',
@@ -149,6 +154,7 @@ class Game {
         onGameplayInputDisabled: () => {
           this.player?.setGameplayInputEnabled(false);
           this.weapon?.clearIntents();
+          this.build?.exit();
         },
         onGameplayInputEnabled: () => this.player?.setGameplayInputEnabled(true),
         onMenuBuilt: () => {
@@ -163,6 +169,21 @@ class Game {
 
   get net() { return this.session.net; }
   get myId() { return this.session.myId; }
+
+  /** Banner copy for the bastion events that deserve a 4 s HUD read; null for the rest. */
+  bastionBannerFor(event) {
+    const name = role => BASTION_ENEMIES[role]?.name || String(role || '').toUpperCase();
+    switch (event.kind) {
+      // `kind` is the event id on the wire; the unit kind travels as `type` (BastionPolicy.emit).
+      case 'bastion_vehicle': return event.phase === 'spawn' ? `VEHICLE INBOUND · ${name(event.type ?? event.vehicle ?? event.role)}` : null;
+      case 'bastion_tier': return `${name(event.role)} SIGHTED`;
+      case 'bastion_breach': return 'BREACH AT THE LINE';
+      case 'bastion_structure': return event.destroyed ? 'STRUCTURE LOST' : null;
+      case 'bastion_regroup': return event.next?.name ? `FALL BACK TO ${event.next.name}` : null;
+      case 'bastion_extract': return 'EXTRACTION CALLED · HOLD THE BEACON';
+      default: return null;
+    }
+  }
 
   resize() {
     if (!this.renderer || !this.camera) return;
@@ -213,6 +234,7 @@ class Game {
     if (!isActive()) return;
     this.mapMeta = mapMeta || getMapMeta(welcome.map);
     this.player.setMapMeta(this.mapMeta);
+    this.hud.setMapMeta(this.mapMeta);
     this.player.setBaseFov(this.session.baseFov);
     this.player.respawn({ ...welcome.spawn, state: 'alive', hp: 100 }, { spawnProtected: false });
 
@@ -297,8 +319,25 @@ class Game {
         pos: [remote.x, remote.y, remote.z], body: avatar,
         surface: footstepSurfaceAt(getBlock, remote),
       }),
+      // Positional engine drone per alive vehicle row; stopped when the row dies or leaves.
+      vehicle: (id, pos, kind) => (pos ? sfx.vehicleLoop?.(id, pos, kind) : sfx.stopVehicleLoop?.(id)),
     });
     this.footsteps = new rt.FootstepCadence();
+    // Bastion build mode: the ghost lives in the world scene, the purchase rides the buy path.
+    this.build = rt.BuildController ? new rt.BuildController({
+      input: this.input,
+      getBlock,
+      getWorldview: () => this.worldview,
+      getCamera: () => this.camera,
+      getPlayer: () => this.player,
+      getMatch: () => this.matchState,
+      getSelfRow: () => this.selfRow,
+      getMapMeta: () => this.mapMeta,
+      purchase: (action, item, cell, facing) => this.hud.purchaseBastion(action, item, cell, facing),
+      isBuyMenuOpen: () => this.hud.isBuyMenuOpen(),
+      inputEnabled: () => !!this.session.gameplayInputEnabled,
+    }) : null;
+    this.hud.setStructureCallback((kind) => { this.build?.select(kind); });
     rt.attachRemoteMuzzleBridge(this.effects, () => this.roster);
     this.roster.setBurnFX(this.effects.flames);
     this.killcam = new rt.Killcam({ scene: this.worldview.scene, getBlock, worldview: this.worldview,
@@ -409,7 +448,7 @@ class Game {
     const match = snapshot.match && typeof snapshot.match === 'object' ? snapshot.match : null;
     const previousMatch = this.matchState;
     this.matchState = match;
-    this.worldview?.setMatch(match);
+    this.worldview?.setMatch(match, Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : undefined);
     this.worldview?.tttTraps?.sync(self?.ttt?.traps || []);
     this.worldview?.setPowerups(snapshot.powerups);
     this.selfRow = self;
@@ -599,12 +638,14 @@ class Game {
     const owned = this.selfRow?.owned;
     const ctx = this._touchContext;
     ctx.alive = alive;
-    ctx.canFire = this.isAuthoritativeFireAllowed();
+    // Build mode keeps the fire chip: it places the blueprint instead of shooting.
+    ctx.canFire = this.isAuthoritativeFireAllowed() || !!this.build?.active;
     ctx.canReload = !!(ammo && def && ammo.mag < def.magSize && ammo.reserve > 0
       && !this.weapon.isReloading);
     ctx.canInteract = this.isAuthoritativeInteractAllowed();
     ctx.weaponCount = Array.isArray(owned) ? owned.length + (this.matchState?.mode === 'ttt' ? 1 : 0) : WEAPON_IDS.length;
     ctx.canBuy = this.session.canOpenBuyMenu();
+    ctx.canBuild = !!this.build?.available();
     ctx.canMedkit = this.player.medkit.active || (this.player.medkit.remaining === 1 && this.player.hp < 100);
     ctx.wheelOpen = this.weaponWheel.open;
     this.input.setTouchContext(ctx);
@@ -786,6 +827,14 @@ class Game {
       this.worldview.update(dt);
     } catch (error) { this.phaseError('fx/rig', error); }
     try {
+      if (this.build) {
+        this.build.update();
+        const model = this.build.readModel();
+        this.hud.setBuildState(model.active ? model : null);
+        this.hud.setSelectedStructure(model.active ? model.kind : null);
+      }
+    } catch (error) { this.phaseError('build', error); }
+    try {
       const view = this.net?.interpolate(performance.now());
       const presentedPlayers = this.spectator?.ensureTargetPresent(view?.players)
         || view?.players;
@@ -914,6 +963,9 @@ class Game {
     this.killcam?.dispose();
     this.killcam = null;
     this.spectator?.dispose();
+    this.build?.dispose();
+    this.build = null;
+    this.hud.setBuildState?.(null);
     this.roster?.dispose();
     this.weapon?.dispose();
     if (this.ownBody) {

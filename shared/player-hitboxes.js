@@ -54,12 +54,15 @@ export function playerHitboxes(p) {
   const hands = HANDS[WEAPON_IDS[p.weapon || 0]] || HANDS.rifle;
   const yaw = basisFor(0, p.yaw || 0, 0);
   const feet = [p.x, p.y, p.z];
+  // Uniform body scale (Bastion tiers): every joint is feet-relative, so scaling
+  // the centre and the half extents scales the whole skeleton. Default 1.
+  const s = Number.isFinite(p.bodyScale) && p.bodyScale > 0 ? p.bodyScale : 1;
   const boxes = [];
   // Each zone box sits at a joint plus an offset in the joint's own frame.
   function box(zone, joint, { size, offset = ZERO }, basis = IDENTITY_BASIS) {
     const center = add(joint, rotate(offset, basis));
-    boxes.push({ zone, center: add(feet, rotate(center, yaw)),
-      half: [size[0] / 2, size[1] / 2, size[2] / 2],
+    boxes.push({ zone, center: add(feet, rotate([center[0] * s, center[1] * s, center[2] * s], yaw)),
+      half: [size[0] / 2 * s, size[1] / 2 * s, size[2] / 2 * s],
       basis: [rotate(basis[0], yaw), rotate(basis[1], yaw), rotate(basis[2], yaw)] });
   }
   const headBasis = basisFor(pitch * 0.7);
