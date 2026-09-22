@@ -37,11 +37,11 @@ export function createSimulationContexts(engine) {
     pushBlockDamage: (x, y, z, value, progress) => engine.pushBlockDamage(x, y, z, value, progress),
     pushEvent: (event) => engine.tickEvents.push(event),
     computeConeDeg,
-    chaosBlast: (player, origin, type, radius, damage, knockback) => (
-      engine.projectiles.chaosBlast(player, origin, type, radius, damage, knockback, projectiles)
+    chaosBlast: (player, origin, type, radius, damage, knockback, weaponKey) => (
+      engine.projectiles.chaosBlast(player, origin, type, radius, damage, knockback, projectiles, weaponKey)
     ),
-    launchRocket: (player, dir) => engine.projectiles.launchRocket(player, projectiles, dir),
-    launchBolt: (player, dir, charge) => engine.projectiles.launchBolt(player, projectiles, dir, charge),
+    launchRocket: (player, dir, source) => engine.projectiles.launchRocket(player, projectiles, dir, source),
+    launchBolt: (player, dir, charge, source) => engine.projectiles.launchBolt(player, projectiles, dir, charge, false, source),
   };
   const projectiles = {
     targets,

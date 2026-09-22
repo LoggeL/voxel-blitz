@@ -311,13 +311,13 @@ export class ProjectileSystem {
         dmg = combatDamage(Math.round(dmg * 10) / 10);
         const lethal = victim.takeDamage(dmg, hs, projectile.owner, 'longarc');
         ctx.pushEvent(evHit(projectile.ownerId, victim.id, dmg, hs, [x, y, z], victim.lastDamage));
-        if (lethal) ctx.killPlayer(victim, projectile.owner, WEAPONS.longarc.id, hs, {});
+        if (lethal) ctx.killPlayer(victim, projectile.owner, projectile.weaponKey || WEAPONS.longarc.id, hs, {});
         this._fizzleBolt(projectile, ctx);
         return true;
       },
       onBounce: (contact) => {
         if (typeof ctx.canAffectWorld === 'function' && !ctx.canAffectWorld()) return;
-        if (projectile.chaosLevel >= 3) this.chaosBlast(projectile.owner, [projectile.x, projectile.y, projectile.z], 'pulse', 3, 25, 12, ctx);
+        if (projectile.chaosLevel >= 3) this.chaosBlast(projectile.owner, [projectile.x, projectile.y, projectile.z], 'pulse', 3, 25, 12, ctx, projectile.weaponKey);
         const type = ctx.getBlock(contact.x, contact.y, contact.z);
         if (BLOCK_HP[type] != null) {
           ctx.damageBlock?.(contact.x, contact.y, contact.z, type, BOLT_RULES.blockDamage);
@@ -435,8 +435,11 @@ export class ProjectileSystem {
     return projectile;
   }
 
-  /** A rocket leaves the tube from the shooter's eye along the spread-sampled `dir`. */
-  launchRocket(player, ctx, dir) {
+  /**
+   * A rocket leaves the tube from the shooter's eye along the spread-sampled `dir`.
+   * `weaponKey` credits a Chaos side effect to the weapon that fired it.
+   */
+  launchRocket(player, ctx, dir, { weaponKey = null } = {}) {
     if (this.active.size >= 192) return null;
     const launch = rocketLaunch({ x: player.x, y: player.eyeY, z: player.z, dir });
     const id = `r${this._nextId++}`;
@@ -456,6 +459,7 @@ export class ProjectileSystem {
         ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
       ),
     };
+    if (weaponKey) projectile.weaponKey = weaponKey;
     this._configureChaos(projectile);
     this.active.set(id, projectile);
     ctx.pushEvent(Object.assign(evProjectileLaunch(
@@ -470,13 +474,14 @@ export class ProjectileSystem {
   }
 
   /** A bolt leaves the coil from the shooter's eye along the spread-sampled `dir`. */
-  launchBolt(player, ctx, dir, charge01 = 1, satellite = false) {
+  launchBolt(player, ctx, dir, charge01 = 1, satellite = false, { weaponKey = WEAPONS.longarc.id } = {}) {
     if (this.active.size >= 192) return null;
     const launch = boltLaunch({ x: player.x, y: player.eyeY, z: player.z, dir, charge01 });
     const id = `b${this._nextId++}`;
     const projectile = {
       id,
       type: 'bolt',
+      weaponKey,
       ownerId: String(player.id),
       owner: player,
       x: launch.x, y: launch.y, z: launch.z,
@@ -508,7 +513,7 @@ export class ProjectileSystem {
       for (const angle of [-0.18, 0.18]) this.launchBolt(player, ctx, {
         x: dir.x * Math.cos(angle) - dir.z * Math.sin(angle), y: dir.y,
         z: dir.x * Math.sin(angle) + dir.z * Math.cos(angle),
-      }, charge01, true);
+      }, charge01, true, { weaponKey });
     }
     return projectile;
   }
@@ -589,12 +594,13 @@ export class ProjectileSystem {
     }
   }
 
-  chaosBlast(owner, origin, type, radius, damage, knockback, ctx) {
+  chaosBlast(owner, origin, type, radius, damage, knockback, ctx, weaponKey = null) {
     const id = `c${this._nextId++}`;
     const projectile = { id, type, owner, ownerId: String(owner.id),
       x: origin[0], y: origin[1], z: origin[2], child: true,
       blastRules: { ...PROJECTILE_RULES[type], damageRadius: radius, damage,
         knockback, terrainRadius: 0, selfDamage: 0, selfKnockback: 0 } };
+    if (weaponKey) projectile.weaponKey = weaponKey;
     this.active.set(id, projectile);
     return this.explode(projectile, ctx);
   }
@@ -652,7 +658,8 @@ export class ProjectileSystem {
   _damagePlayers(owner, origin, rules, projectile, ctx, hitVictims = new Set()) {
     const damageEnabled = ctx.grenadeDamage !== false || projectile.type === 'rocket';
     if (!damageEnabled && projectile.type !== 'pulse') return;
-    const weaponKey = projectile.type;
+    // Damage rules key on the blast type; kill credit goes to the source weapon.
+    const weaponKey = projectile.weaponKey || projectile.type;
     for (const victim of (ctx.targets || ctx.entities).values()) {
       if (victim.state !== 'alive') continue;
       if (Number.isFinite(victim.spawnProtectedUntil) &&

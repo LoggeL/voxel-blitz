@@ -218,6 +218,28 @@ assert.equal(projectileFixture('bolt', 2).system.active.size, 3, 'multiball emit
 assert.equal(projectileFixture('bolt', 0).projectile.chaosLevel, 0, 'unupgraded LONGARC must not receive free first tier');
 console.log('Chaos projectiles: cluster counts, bounded generations, live cap, multiball, homing steering and vacuum passed.');
 
+// Side projectiles and blasts credit the kill (and career mastery) to the weapon that spawned them.
+assert.equal(shot('smg', 3, 6).rockets[0][2].weaponKey, 'smg');
+assert.equal(shot('rifle', 3, 3).bolts[0][3].weaponKey, 'rifle');
+assert.equal(shot('knife', 1, 1).blasts[0][6], 'knife');
+for (const [kind, item, source, expected] of [['rocket', 'smg', 'smg', 'smg'], ['bolt', 'rifle', 'rifle', 'rifle'],
+  ['rocket', 'rocket', undefined, 'rocket'], ['bolt', 'longarc', undefined, 'longarc'], ['blast', 'sniper', 'sniper', 'sniper']]) {
+  const system = new engine.projectiles.constructor();
+  const kills = [];
+  const owner = { id: 'credit-owner', x: 20, y: 10, eyeY: 11.6, z: 20, def: WEAPONS[item], chaosUpgrades: { [item]: 1 } };
+  const victim = { id: 'credit-victim', state: 'alive', x: 20, y: 10, z: 14, eyeY: 11.6, vx: 0, vy: 0, vz: 0, takeDamage: () => true };
+  const ctx = { now: 0, entities: new Map([[victim.id, victim]]), getBlock: () => 0, canDamage: () => true,
+    canAffectWorld: () => true, pushEvent: () => {}, destroyBlock: () => {}, damageBlock: () => {},
+    killPlayer: (_victim, killer, weapon) => kills.push([killer, weapon]) };
+  const options = source ? { weaponKey: source } : undefined;
+  if (kind === 'rocket') system.launchRocket(owner, ctx, { x: 0, y: 0, z: -1 }, options);
+  else if (kind === 'bolt') system.launchBolt(owner, ctx, { x: 0, y: 0, z: -1 }, 1, false, options);
+  else system.chaosBlast(owner, [victim.x, victim.y + 1, victim.z], 'frag', 3.5, 42, 10, ctx, source);
+  for (let i = 0; i < 40 && system.active.size; i++) { ctx.now += 25; system.step(0.025, ctx); }
+  assert.deepEqual(kills, [[owner, expected]], `${kind} from ${item} credits ${expected}`);
+}
+console.log('Chaos kill credit: side rockets, bolts and blasts credit their source weapon; plain launches keep their own.');
+
 // Integration regression: upgraded rails use the piercing branch in fireOneShot.
 // Side targets sit outside even the fully charged lance beam radius.
 for (const item of ['sniper', 'lance']) for (const mode of ['chaos', 'fun']) {
