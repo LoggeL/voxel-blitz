@@ -167,6 +167,7 @@ export class PlayerEntity {
     this.grenadeTypeQueued = 0;
     this.grenadeCookQueued = 0;
     this.grenadeAimQueued = null;
+    this.nextThrowAt = 0;
     this.grenades = freshGrenadeLoadout();
     // Charge-mode weapons (LONGARC): hold time and the normalized wire charge.
     this.charging = false;
