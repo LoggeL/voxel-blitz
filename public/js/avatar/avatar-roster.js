@@ -1,5 +1,5 @@
 import { applyAvatarCosmetics } from '../cosmetics/skins.js';
-import { footstepVolume, strideCrossed } from '../audio/footsteps.js';
+import { footstepVolume, gaitPhaseRate, strideCrossed } from '../audio/footsteps.js';
 import { applyBastionSignal, updateBastionAvatar } from './bastion-avatar.js';
 import { makeVehicleAvatar } from './bastion-vehicle.js';
 import { BASTION_ENEMIES } from '../../../shared/bastion.js';
@@ -55,6 +55,9 @@ export class AvatarRoster {
     this._pendingDeaths = new Map();
     this._pickaxeSwings = new Map();
     this._corpses = new Map();
+    // Rows whose body already fell during their current death: a still-dead row
+    // is never rebuilt, so its corpse cannot be killed (and gored) again.
+    this._fallen = new Set();
     this._counters = {
       dyingAvatars: 0,
       runningAvatars: 0,
@@ -126,6 +129,15 @@ export class AvatarRoster {
       boundedMapSet(this._pendingDeaths, id, { until: now + IMPACT_TTL_MS, damageEvent });
       return;
     }
+    if (avatar.vehicle) {
+      // Vehicles keep their hull: no limb physics, the presenter tilts it over.
+      // No gore either: a destroyed hull is not a body.
+      if (!avatar.beginDeath?.()) return;
+      avatar.deathForcedUntil = Math.max(avatar.deathForcedUntil || 0, now + 1420);
+      this._pendingDeaths.delete(id);
+      this._vehicleSfx?.(id, null);
+      return;
+    }
     const stored = this._remoteImpacts.get(id);
     const recentAvatarImpact = avatar.lastImpact?.until >= now ? avatar.lastImpact.ev : null;
     const impact = withGoreDamage(stored?.ev || recentAvatarImpact || {
@@ -134,21 +146,13 @@ export class AvatarRoster {
       vz: avatar.group.position.z,
       hs: false,
     }, damageEvent);
-    if (avatar.vehicle) {
-      // Vehicles keep their hull: no limb physics, the presenter tilts it over.
-      if (!avatar.beginDeath?.()) return;
-      avatar.deathForcedUntil = Math.max(avatar.deathForcedUntil || 0, now + 1420);
-      this._pendingDeaths.delete(id);
-      this._vehicleSfx?.(id, null);
-      this._gore?.(impact, { lethal: true, local: false });
-      return;
-    }
     if (!beginAvatarDeath(avatar, now, impact)) return;
     this._pendingDeaths.delete(id);
     this._gore?.(impact, { lethal: true, local: false });
   }
 
   respawn(id, ev) {
+    this._fallen.delete(id);
     this._pickaxeSwings.delete(id);
     this._pendingHits.delete(id);
     this._pendingDeaths.delete(id);
@@ -176,6 +180,7 @@ export class AvatarRoster {
 
   /** Detach a killed avatar from its player; the body finishes on its own. */
   _retireCorpse(id, avatar) {
+    this._fallen.add(id);
     this._avatars.delete(id);
     this._dropCorpse(id);
     this._corpses.set(id, { avatar, elapsed: 0 });
@@ -229,6 +234,9 @@ export class AvatarRoster {
     }
 
     const myId = this._getMyId();
+    for (const id of this._fallen) {
+      if (!remotes.get(id) || remotes.get(id).state === 'alive') this._fallen.delete(id);
+    }
     for (const [id, avatar] of this._avatars) {
       if (id === myId || !remotes.has(id)) {
         this._scene.remove(avatar.group);
@@ -244,9 +252,11 @@ export class AvatarRoster {
     for (const remote of remotes.values()) {
       if (remote.id === myId) continue;
       let avatar = this._avatars.get(remote.id);
-      // A dead row whose body is already on the ground needs no live avatar:
-      // building one here would only be killed again on the same frame.
-      if (!avatar && remote.state !== 'alive' && this._corpses.has(remote.id)) continue;
+      // A dead row whose body already fell needs no live avatar: building one
+      // here would only be killed again on the same frame, and once the corpse
+      // has faded it would drop a second body with a fresh gore burst.
+      if (!avatar && remote.state !== 'alive'
+          && (this._fallen.has(remote.id) || this._corpses.has(remote.id))) continue;
       if (!avatar) {
         avatar = remote.npcVehicle ? makeVehicleAvatar(remote.id, remote.npcRole) : makeAvatar(remote.id, remote.name, remote.team);
         avatar.px = remote.x;
@@ -259,26 +269,8 @@ export class AvatarRoster {
       setAvatarTeam(avatar, remote.team);
       applyAvatarCosmetics(avatar, remote.cosmetics);
       updateBastionAvatar(avatar,remote);
-
-      const pendingHit = this._pendingHits.get(remote.id);
-      if (pendingHit) {
-        this._pendingHits.delete(remote.id);
-        if (pendingHit.until >= now) this.hit(remote.id, pendingHit.ev);
-      }
-      const pendingDeath = this._pendingDeaths.get(remote.id);
-      if (pendingDeath?.until >= now && avatar.alive) this.death(remote.id, now, pendingDeath.damageEvent);
-
       avatar.disguised = remote.disguised === true;
-      const rowAlive = remote.state === 'alive';
-      const alive = rowAlive && now >= avatar.deathForcedUntil;
-      if (!alive) {
-        if (avatar.alive) this.death(remote.id, now);
-        if (persistentCorpses) { avatar.group.visible=false; continue; }
-        // beginAvatarDeath already baked the world pose into the loose pieces,
-        // so the whole avatar can be handed over to the corpse pool as it is.
-        this._retireCorpse(remote.id, avatar);
-        continue;
-      }
+      if (this._settleDeadRow(avatar, remote, now, persistentCorpses)) continue;
 
       if (!avatar.alive) resetAvatarPose(avatar);
       avatar.alive = true;
@@ -312,7 +304,7 @@ export class AvatarRoster {
       const stride = Math.min(1, avatar.speedEst / 5.8);
       if (stride > 0.03) {
         const phaseBefore = avatar.runPhase;
-        avatar.runPhase += dt * (5.2 + avatar.speedEst * 1.25) * (1 - avatar.motion.air * 0.85);
+        avatar.runPhase += dt * gaitPhaseRate(avatar.speedEst, avatar.motion.air);
         counters.runningAvatars++;
         // A footfall lands with each forward leg extreme; hurried, grounded,
         // upright bodies are audible so nearby enemies can be heard.
@@ -396,10 +388,11 @@ export class AvatarRoster {
   }
 
   /**
-   * Vehicle rows keep position, yaw, opacity, hit flash, hp bar and the corpse
-   * pool; the presenter animates wheels, legs and the attack tell itself.
+   * Replay hits and deaths that arrived before the avatar existed, then settle
+   * a dead row: kill the avatar once, and either hide it (persistent corpses)
+   * or hand it to the corpse pool. Returns true when the row is done this frame.
    */
-  _syncVehicle(avatar, remote, dt, now, persistentCorpses) {
+  _settleDeadRow(avatar, remote, now, persistentCorpses) {
     const pendingHit = this._pendingHits.get(remote.id);
     if (pendingHit) {
       this._pendingHits.delete(remote.id);
@@ -407,13 +400,21 @@ export class AvatarRoster {
     }
     const pendingDeath = this._pendingDeaths.get(remote.id);
     if (pendingDeath?.until >= now && avatar.alive) this.death(remote.id, now, pendingDeath.damageEvent);
-    const alive = remote.state === 'alive' && now >= (avatar.deathForcedUntil || 0);
-    if (!alive) {
-      if (avatar.alive) this.death(remote.id, now);
-      if (persistentCorpses) { avatar.group.visible = false; return; }
-      this._retireCorpse(remote.id, avatar);
-      return;
-    }
+    if (remote.state === 'alive' && now >= (avatar.deathForcedUntil || 0)) return false;
+    if (avatar.alive) this.death(remote.id, now);
+    if (persistentCorpses) { avatar.group.visible = false; return true; }
+    // beginAvatarDeath already baked the world pose into the loose pieces,
+    // so the whole avatar can be handed over to the corpse pool as it is.
+    this._retireCorpse(remote.id, avatar);
+    return true;
+  }
+
+  /**
+   * Vehicle rows keep position, yaw, opacity, hit flash, hp bar and the corpse
+   * pool; the presenter animates wheels, legs and the attack tell itself.
+   */
+  _syncVehicle(avatar, remote, dt, now, persistentCorpses) {
+    if (this._settleDeadRow(avatar, remote, now, persistentCorpses)) return;
     if (!avatar.alive) avatar.reset?.();
     avatar.alive = true;
     avatar.group.visible = true;
@@ -470,6 +471,7 @@ export class AvatarRoster {
     this._remoteImpacts.clear();
     this._pendingDeaths.clear();
     this._pickaxeSwings.clear();
+    this._fallen.clear();
     this._counters.dyingAvatars = 0;
     this._counters.runningAvatars = 0;
     this._counters.maxAvatarSpeed = 0;

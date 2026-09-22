@@ -16,12 +16,14 @@ const row = (state, extra = {}) => ({
 function fixture() {
   const scene = new THREE.Scene();
   let now = 0;
+  const gore = [];
   // Solid ground under the body, so the loose pieces land instead of falling forever.
   const roster = new AvatarRoster({ scene, now: () => now, getMyId: () => 'local',
-    getBlock: (x, y) => y < 1 });
+    getBlock: (x, y) => y < 1, gore: (impact, options) => gore.push(options) });
   return {
     roster,
     scene,
+    lethalGore: () => gore.filter(options => options?.lethal).length,
     frame(state, dt = 1 / 60, extra) {
       now += dt * 1000;
       roster.sync(new Map([['remote', row(state, extra)]]), dt, now, false);
@@ -103,8 +105,31 @@ function fixture() {
   run.run('dead', 2);
   assert.equal(run.roster._avatars.size, 0,
     'no live avatar is rebuilt for a row that is still dead');
+  run.run('dead', CORPSE_SECONDS + 2);
+  assert.equal(run.lethalGore(), 1, 'a row seen only as dead bursts once, not again after its body fades');
+  assert.equal(run.bodies(), 0, 'no second body appears once the first one has faded');
+  run.roster.dispose();
+}
+
+// --- a player who stays dead past the corpse lifetime is not killed again ----
+// Bastion keeps a dead human dead for the rest of the stage; spectating and
+// round ends can also hold a dead row far longer than the body lasts.
+{
+  const run = fixture();
+  run.frame('alive');
+  run.run('dead', 25);
+  assert.equal(run.lethalGore(), 1, 'one death, one lethal gore burst');
+  assert.equal(run.roster._corpses.size, 0, 'the body has faded out');
+  assert.equal(run.roster._avatars.size, 0, 'no live avatar is rebuilt for the still-dead row');
+  assert.equal(run.bodies(), 0, 'the scene is empty while the player stays dead');
+  run.frame('alive');
+  assert.equal(run.roster._avatars.get('remote')?.alive, true, 'the player comes back on respawn');
+  assert.equal(run.bodies(), 1, 'only the respawned player is in the scene');
+  run.frame('dead');
+  assert.equal(run.lethalGore(), 2, 'the next death bursts again');
+  assert.equal(run.roster._corpses.size, 1, 'and leaves its own body');
   run.roster.dispose();
 }
 
 console.log(`Corpse lifetime: bodies detach from their player, outlive the respawn, `
-  + `fade out and vanish after ${CORPSE_SECONDS}s, stay one per player, and dispose cleanly.`);
+  + `fade out and vanish after ${CORPSE_SECONDS}s, stay one per player and death, and dispose cleanly.`);
