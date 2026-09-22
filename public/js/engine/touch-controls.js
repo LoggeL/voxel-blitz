@@ -3,6 +3,10 @@ const DEFAULT_DEAD_ZONE = 0.14;
 /** Quick press/release on a toggle button latches it instead of acting as a hold. */
 export const TOUCH_TOGGLE_TAP_MS = 260;
 const LOOK_DELTA_CLAMP_PX = 90;
+/** Stick deflection that counts as a direction (touch joystick and pad move stick). */
+export const TOUCH_MOVE_THRESHOLD = 0.2;
+/** Forward stick deflection that auto-sprints on the touch joystick. */
+export const TOUCH_SPRINT_THRESHOLD = 0.86;
 
 function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
@@ -30,6 +34,11 @@ export function joystickVector(dx, dy, radius = DEFAULT_RADIUS, deadZone = DEFAU
     y: clamp((Number(dy) || 0) * scale, -1, 1),
     magnitude: clamp(magnitude, 0, 1),
   });
+}
+
+/** The one touch auto-sprint rule: the input and the stick's sprint cue both read it. */
+export function touchSprintActive({ y = 0, magnitude = 0 } = {}) {
+  return y < -TOUCH_MOVE_THRESHOLD && magnitude >= TOUCH_SPRINT_THRESHOLD;
 }
 
 /**
@@ -283,7 +292,7 @@ export class TouchControls {
       this.dom.moveKnob.style.transform =
         `translate(${(vector.x * throwPx).toFixed(2)}px, ${(vector.y * throwPx).toFixed(2)}px)`;
       zone.classList.toggle('is-engaged', vector.magnitude > 0);
-      zone.classList.toggle('is-sprinting', vector.y < -0.5 && vector.magnitude >= 0.92);
+      zone.classList.toggle('is-sprinting', touchSprintActive(vector));
       this.onMove(vector);
     };
     const release = (event) => {
@@ -295,7 +304,7 @@ export class TouchControls {
       base.style.left = '';
       base.style.top = '';
       base.style.bottom = '';
-      zone.classList.remove('is-engaged', 'is-sprinting', 'is-floating');
+      zone.classList.remove('is-engaged', 'is-sprinting');
       this.onMove({ x: 0, y: 0, magnitude: 0 });
     };
     this._listen(zone, 'pointerdown', (event) => {
@@ -312,7 +321,6 @@ export class TouchControls {
       base.style.left = `${(cx - zoneRect.left - half).toFixed(1)}px`;
       base.style.top = `${(cy - zoneRect.top - half).toFixed(1)}px`;
       base.style.bottom = 'auto';
-      zone.classList.add('is-floating');
       this._moveCenter = { x: cx, y: cy };
       this._moveRadius = half;
       update(event);
@@ -473,7 +481,7 @@ export class TouchControls {
       this.dom.moveBase.style.top = '';
       this.dom.moveBase.style.bottom = '';
     }
-    this.dom.move?.classList.remove('is-engaged', 'is-sprinting', 'is-floating');
+    this.dom.move?.classList.remove('is-engaged', 'is-sprinting');
     this.dom.look?.classList.remove('is-engaged');
     for (const button of this.root?.querySelectorAll?.('.vb-touch-button') || []) {
       button.classList.remove('is-held', 'is-latched');

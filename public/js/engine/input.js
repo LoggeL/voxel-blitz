@@ -32,15 +32,18 @@ import {
   GRENADE_TYPE_IDS,
   clampGrenadeCharge,
 } from '../../../shared/grenade-rules.js';
-import { TouchControls, shouldEnableTouchControls } from './touch-controls.js';
+import {
+  TOUCH_MOVE_THRESHOLD,
+  TouchControls,
+  shouldEnableTouchControls,
+  touchSprintActive,
+} from './touch-controls.js';
 import { GamepadInput } from './gamepad.js';
 import { readKeybindings, subscribeKeybindings, isTypingTarget } from '../keybindings.js';
 
 // Touch drags travel far fewer pixels than a mouse, so thumb-look runs hotter than
 // the mouse scale (default 0.003 rad/px × 1.4 ≈ 0.0042 rad/px, about 72° per 300 px).
 export const TOUCH_LOOK_SENSITIVITY_SCALE = 1.4;
-const TOUCH_MOVE_THRESHOLD = 0.2;
-const TOUCH_SPRINT_THRESHOLD = 0.86;
 /** Aim assist never removes more than this much of pad/touch look speed near a target. */
 export const AIM_ASSIST_MAX_SLOWDOWN = 0.5;
 /** Quick pad crouch press latches; a longer hold releases with the button. */
@@ -1049,7 +1052,7 @@ export class Input {
     this.keys.right = x > TOUCH_MOVE_THRESHOLD;
     this.keys.forward = y < -TOUCH_MOVE_THRESHOLD;
     this.keys.back = y > TOUCH_MOVE_THRESHOLD;
-    this.keys.sprint = this.keys.forward && magnitude >= TOUCH_SPRINT_THRESHOLD;
+    this.keys.sprint = touchSprintActive({ y, magnitude });
   }
 
   _onTouchLook(dx, dy) {

@@ -59,6 +59,9 @@
   will-change: transform;
 }
 .vb-touch-move-zone.is-engaged .vb-touch-stick-knob { background: #ffffff55; }
+/* Past the auto-sprint ring (touchSprintActive): the stick itself shows the sprint. */
+.vb-touch-move-zone.is-sprinting .vb-touch-stick-base { border-color: var(--amber); }
+.vb-touch-move-zone.is-sprinting .vb-touch-stick-knob { border-color: var(--amber-hi); background: #ff9f1c80; }
 .vb-touch-button {
   --touch-column: 0px;
   --touch-row: 0px;

@@ -65,6 +65,7 @@ export async function runInputContracts(ok, installGlobals) {
         joystickVector,
         resolveToggleRelease,
         shouldEnableTouchControls,
+        touchSprintActive,
       } = await import('../../public/js/engine/touch-controls.js');
       ok(resolveToggleRelease(120, false) === true
         && resolveToggleRelease(600, false) === false
@@ -314,6 +315,21 @@ export async function runInputContracts(ok, installGlobals) {
       ok(mobileMove.forward && mobileMove.right && mobileMove.sprint
         && !mobileMove.back && !mobileMove.left,
       'mobile joystick maps diagonals and outer-ring auto sprint onto canonical movement keys');
+      // The stick's sprint cue and the sprint key read one rule, including the
+      // 0.86-0.92 ring and shallow forward diagonals the old cue missed.
+      const sprintProbes = [
+        { x: 0, y: -0.88, magnitude: 0.88 },
+        { x: 0.95, y: -0.3, magnitude: 0.95 },
+        { x: 0, y: -0.8, magnitude: 0.8 },
+        { x: 0.98, y: -0.1, magnitude: 0.98 },
+        { x: 0, y: 0.95, magnitude: 0.95 },
+      ];
+      ok(sprintProbes.every(probe => {
+        touch._onTouchMove(probe);
+        return touch.getKeys().sprint === touchSprintActive(probe);
+      }) && sprintProbes.map(touchSprintActive).join() === 'true,true,false,false,false',
+      'the joystick sprint cue and touch auto-sprint share one threshold rule');
+      touch._onTouchMove({ x: 0.45, y: -0.9, magnitude: 0.92 });
       touch._onTouchLook(10, -5);
       const mobileLook = touch.consumeDelta();
       ok(Math.abs(mobileLook.dx - 0.042) < 1e-12
