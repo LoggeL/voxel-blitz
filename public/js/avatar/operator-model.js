@@ -1,5 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
 import { buildRivet } from './rivet-model.js';
+import { leanBodyPoint } from '../../../shared/player-lean.js';
 
 export const UPPER_ARM = 0.34;
 export const FOREARM = 0.34;
@@ -143,6 +144,7 @@ export function buildOperator({ suit, dark, armor, visor, skin, variant }) {
 }
 
 const down = new THREE.Vector3(0, -1, 0);
+const LEAN_AXIS = new THREE.Vector3(0, 0, 1);
 const target = new THREE.Vector3();
 const direction = new THREE.Vector3();
 const pole = new THREE.Vector3();
@@ -162,6 +164,11 @@ export function poseOperatorArm(av, side, anchor, reload = 0) {
   const swimPitch = av.swimLean || 0;
   arm.position.y -= 0.08 * (1 - Math.cos(swimPitch));
   arm.position.z -= 0.08 * Math.sin(swimPitch);
+  // Peek lean carries the shoulders around the hip pivot with the chest.
+  if (av.leanT) {
+    const shoulder = leanBodyPoint([arm.position.x, arm.position.y, arm.position.z], av.leanT, av.crouchPose);
+    arm.position.set(shoulder[0], shoulder[1], shoulder[2]);
+  }
   if (anchor) {
     target.set(anchor.x, anchor.y, anchor.z);
     av.weaponModel.modelRoot.localToWorld(target);
@@ -178,6 +185,8 @@ export function poseOperatorArm(av, side, anchor, reload = 0) {
   const along = distance / 2;
   const bend = Math.sqrt(Math.max(0, length * length - along * along));
   pole.set(side * 0.8, -1, 0.25);
+  // The hitbox arms fold in the leaned body frame, so the elbow pole rolls too.
+  if (av.leanRoll) pole.applyAxisAngle(LEAN_AXIS, av.leanRoll);
   pole.addScaledVector(direction, -pole.dot(direction)).normalize();
   joint.copy(arm.position).addScaledVector(direction, along).addScaledVector(pole, bend);
   direction.subVectors(joint, arm.position).normalize();

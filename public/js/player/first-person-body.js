@@ -1,5 +1,6 @@
 import { applyBodyCosmetics } from '../cosmetics/skins.js';
 import { pronePose, stepSwim, swimCycle, swimEffort } from '../../../shared/player-stance.js';
+import { leanBodyPoint, leanRoll } from '../../../shared/player-lean.js';
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 import { smooth01 } from '../util/math.js';
@@ -248,6 +249,12 @@ export function updateFirstPersonBody(
   body.right.knee.rotation.x *= 1 - prone;
   body.left.leg.rotation.z *= 1 - prone;
   body.right.leg.rotation.z *= 1 - prone;
+  // The peek lean rolls the chest about the hips together with the camera.
+  const lean = (Number(motion.leanT) || 0) * (1 - prone);
+  const chest = leanBodyPoint([0, body.torso.position.y, body.torso.position.z], lean, crouch);
+  body.torso.position.x = chest[0];
+  body.torso.position.y = chest[1];
+  body.torso.rotation.z = leanRoll(lean);
 }
 
 /** Terminal cleanup for every scene object and GPU resource created by the factory. */

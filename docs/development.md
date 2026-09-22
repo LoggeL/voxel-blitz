@@ -523,7 +523,7 @@ roster cards are omitted; S&D keeps a compact remaining-lives strip on desktop.
 | mouse1 with the GV-4 RIPTIDE | throw a magenta disc; it cuts out for 550 ms (or to its first wall), loops back and is caught to reload. Two discs; with both out the launcher is empty. A disc that hits a wall on the way home sticks there: walk over it or wait 4 s for a replacement |
 | mouse1 with the PIXEL PICK | hold to mine nearby blocks; harder materials require more swings. No ammo or reload; melee hits retain 2.5x backstabs |
 | `1-9` / `0` / wheel | weapon slots (`1-9` and `0` also pick directly while the weapon wheel is open) |
-| `Q` / `E` | strafe left / right (additional to `A` / `D`) |
+| hold `Q` / `E` | lean left / right: the upper body rolls about the hips so head and weapon peek ~0.3 m past cover (0.22 s in or out); walls limit it, and a forward sprint, prone, swimming, vaulting or ladders hold you upright. The leaned head is a real target and shots leave from the leaned eye |
 | `Q` / `E` while dead | previous / next spectator target |
 | hold `K` / middle mouse | open the radial weapon wheel: aim freezes, mouse motion or scroll highlights a wedge, releasing the held control or clicking equips it, and a centered release, `Esc`, or right mouse cancels |
 | `T` | hold S&D interaction |

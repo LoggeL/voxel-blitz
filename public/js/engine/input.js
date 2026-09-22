@@ -71,7 +71,7 @@ function writePref(key, value) {
   } catch (_) {}
 }
 
-const MOVEMENT_KEYS = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'crouch', 'prone', 'interact'];
+const MOVEMENT_KEYS = ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'crouch', 'prone', 'leanLeft', 'leanRight', 'interact'];
 
 export class Input {
   /**
@@ -164,14 +164,14 @@ export class Input {
     this._aimAssist = 0;       // 0..1 strength supplied by the composition root
     this.keys = {
       forward: false, back: false, left: false, right: false,
-      jump: false, sprint: false, crouch: false, prone: false, interact: false,
+      jump: false, sprint: false, crouch: false, prone: false, leanLeft: false, leanRight: false, interact: false,
     };
 
     // Gamepad state lives beside the keyboard so both can be held at once.
     this._pad = new GamepadInput();
     this._padKeys = {
       forward: false, back: false, left: false, right: false,
-      jump: false, sprint: false, crouch: false, prone: false, interact: false,
+      jump: false, sprint: false, crouch: false, prone: false, leanLeft: false, leanRight: false, interact: false,
     };
     this._padFire = false;
     this._padAds = false;
@@ -728,6 +728,8 @@ export class Input {
       sprint: k.sprint || p.sprint,
       crouch: k.crouch || p.crouch,
       prone: !!k.prone,
+      leanLeft: !!k.leanLeft,
+      leanRight: !!k.leanRight,
       interact: k.interact || p.interact,
       reload: this._reloadQueued,
     };
@@ -966,7 +968,7 @@ export class Input {
     this._keyboardAds = false;
     const k = this.keys;
     k.forward = k.back = k.left = k.right = false;
-    k.jump = k.sprint = k.crouch = k.prone = k.interact = false;
+    k.jump = k.sprint = k.crouch = k.prone = k.leanLeft = k.leanRight = k.interact = false;
     this._mouseFire = false;
     this._mouseAds = false;
     this._adsLatched = false;
@@ -1142,6 +1144,7 @@ export class Input {
     switch (action || e.code) {
       case 'prone': if (!e.repeat && !this._wheelOpen) this.keys.prone = !this.keys.prone; break;
       case 'forward': case 'back': case 'left': case 'right': case 'sprint': case 'crouch':
+      case 'leanLeft': case 'leanRight':
         this.keys[action] = true;
         break;
       case 'jump':
@@ -1227,7 +1230,7 @@ export class Input {
     if (this._disposed || !this._canReadGameplay()) return;
     switch (action) {
       case 'forward': case 'back': case 'left': case 'right': case 'jump':
-      case 'sprint': case 'crouch': case 'interact':
+      case 'sprint': case 'crouch': case 'leanLeft': case 'leanRight': case 'interact':
         this.keys[action] = this._actionHeld(action);
         break;
       case 'fire': this._keyboardFire = this._actionHeld(action); break;

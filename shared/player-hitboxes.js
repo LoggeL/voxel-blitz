@@ -1,4 +1,5 @@
 import { pronePose } from './player-stance.js';
+import { leanBodyPoint, leanRoll } from './player-lean.js';
 import { HANDS } from './avatar-hands.js';
 import { WEAPON_IDS } from './combatmath.js';
 
@@ -59,20 +60,27 @@ export function playerHitboxes(p) {
   // the centre and the half extents scales the whole skeleton. Default 1.
   const s = Number.isFinite(p.bodyScale) && p.bodyScale > 0 ? p.bodyScale : 1;
   const boxes = [];
+  // Peek lean rolls the upper body about the hips; legs and hips stay planted.
+  const lean = (p.leanT || 0) * (1 - prone);
+  const leanBasis = lean ? basisFor(0, 0, leanRoll(lean)) : null;
   // Each zone box sits at a joint plus an offset in the joint's own frame.
-  function box(zone, joint, { size, offset = ZERO }, basis = IDENTITY_BASIS) {
-    const center = add(joint, rotate(offset, basis));
+  function box(zone, joint, { size, offset = ZERO }, basis = IDENTITY_BASIS, upper = false) {
+    let center = add(joint, rotate(offset, basis));
+    if (upper && leanBasis) {
+      center = leanBodyPoint(center, lean, crouch);
+      basis = [rotate(basis[0], leanBasis), rotate(basis[1], leanBasis), rotate(basis[2], leanBasis)];
+    }
     boxes.push({ zone, center: add(feet, rotate([center[0] * s, center[1] * s, center[2] * s], yaw)),
       half: [size[0] / 2 * s, size[1] / 2 * s, size[2] / 2 * s],
       basis: [rotate(basis[0], yaw), rotate(basis[1], yaw), rotate(basis[2], yaw)] });
   }
   const headBasis = basisFor(pitch * 0.7);
   const head = [0, mix(1.66 - crouch * 0.34, 0.48), 0];
-  box('head', head, HELMET, headBasis);
-  box('head', head, FACE, headBasis);
-  box('head', head, HEADSET, headBasis);
-  box('torso', [0, mix(1.18 - crouch * 0.27, 0.3), prone * 0.4], TORSO, basisFor(mix(crouch * 0.12, -Math.PI / 2)));
-  box('torso', [0, mix(1.43 - crouch * 0.34, 0.36), prone * 0.1], NECK);
+  box('head', head, HELMET, headBasis, true);
+  box('head', head, FACE, headBasis, true);
+  box('head', head, HEADSET, headBasis, true);
+  box('torso', [0, mix(1.18 - crouch * 0.27, 0.3), prone * 0.4], TORSO, basisFor(mix(crouch * 0.12, -Math.PI / 2)), true);
+  box('torso', [0, mix(1.43 - crouch * 0.34, 0.36), prone * 0.1], NECK, IDENTITY_BASIS, true);
   box('hips', [0, mix(0.84 - crouch * 0.20, 0.25), prone * 0.8], HIPS, basisFor(-prone * Math.PI / 2));
   // Legs fold exactly like poseOperatorLeg for a still stance: crouching bends
   // the knees forward and prone lays the leg out behind the hips. The cosmetic
@@ -137,7 +145,7 @@ export function playerHitboxes(p) {
       const z = [x[1]*axis[2]-x[2]*axis[1], x[2]*axis[0]-x[0]*axis[2], x[0]*axis[1]-x[1]*axis[0]];
       const shift = segment.shift;
       box('arm', start.map((v, i) => (v + end[i]) / 2 + axis[i] * shift),
-        { size: [segment.width, length + segment.margin, segment.width] }, [x, axis, z]);
+        { size: [segment.width, length + segment.margin, segment.width] }, [x, axis, z], true);
     }
   }
   return boxes;

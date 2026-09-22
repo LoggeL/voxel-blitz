@@ -217,15 +217,18 @@ export async function runInputContracts(ok, installGlobals) {
         'releasing T clears held interaction input');
 
       input._onKeyDown(key('KeyQ'));
-      const qLeft = input.getKeys().left;
+      const qHeld = input.getKeys();
       input._onKeyUp(key('KeyQ'));
-      ok(qLeft && !input.getKeys().left,
-        'Q strafes left as an additional binding');
+      ok(qHeld.leanLeft && !qHeld.left && !qHeld.leanRight && !input.getKeys().leanLeft,
+        'held Q leans left without strafing');
       input._onKeyDown(key('KeyE'));
-      const eRight = input.getKeys().right;
+      const eHeld = input.getKeys();
       input._onKeyUp(key('KeyE'));
-      ok(eRight && !input.getKeys().right,
-        'E strafes right as an additional binding');
+      ok(eHeld.leanRight && !eHeld.right && !eHeld.leanLeft && !input.getKeys().leanRight,
+        'held E leans right without strafing');
+      input._onKeyDown(key('KeyQ'));
+      input.clearTransient();
+      ok(!input.getKeys().leanLeft, 'a focus reset releases a held lean');
       input._onKeyDown(key('KeyA'));
       const aLeft = input.getKeys().left;
       input._onKeyUp(key('KeyA'));

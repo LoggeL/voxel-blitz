@@ -21,7 +21,7 @@ function fan(p, id, ctx, dir, count, rocket = false, circle = false) {
 
 function flameJets(p, ctx, dir) {
   if (!ctx.flames) return;
-  const origin = [p.x, p.eyeY, p.z];
+  const origin = [p.eyeX ?? p.x, p.eyeY, p.eyeZ ?? p.z];
   for (const angle of [-0.2, 0.2]) {
     // The normal center packet launches after this hook. Reserve its slot.
     if (ctx.flames.active?.length >= FLAME_RULES.maxProjectiles - 1) break;
@@ -55,9 +55,10 @@ export function chaosShot(p, ctx, dir, def = p.def) {
     flameJets(p, ctx, dir);
     if (level >= 2 && p.shotSeq % 10 === 0) {
       // Keep the backdraft on the shooter's side of cover, just like the fire.
-      const wall = raycastVoxels(ctx.solidAt, p.x, p.eyeY, p.z, dir.x, dir.y, dir.z, 6);
+      const eye = [p.eyeX ?? p.x, p.eyeY, p.eyeZ ?? p.z];
+      const wall = raycastVoxels(ctx.solidAt, eye[0], eye[1], eye[2], dir.x, dir.y, dir.z, 6);
       const reach = wall ? Math.max(0, wall.t - 0.1) : 6;
-      ctx.chaosBlast?.(p, [p.x + dir.x * reach, p.eyeY + dir.y * reach, p.z + dir.z * reach], 'pulse', 4, 18, 20, id);
+      ctx.chaosBlast?.(p, [eye[0] + dir.x * reach, eye[1] + dir.y * reach, eye[2] + dir.z * reach], 'pulse', 4, 18, 20, id);
     }
     if (level >= 3 && p.shotSeq % 20 === 0) fan(p, id, ctx, dir, 1, true);
   }

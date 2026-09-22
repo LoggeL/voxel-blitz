@@ -13,6 +13,7 @@ import { ImpactFX, blockSoundFor } from '../weapons/impacts.js';
 import { ViewmodelRig } from '../guns/viewmodel.js';
 import { EYE_HEIGHT, WEAPON_IDS, isScopedWeapon } from '../../../shared/combatmath.js';
 import { stanceEye } from '../../../shared/player-stance.js';
+import { LEAN, leanEyeOffset, leanPose } from '../../../shared/player-lean.js';
 import { WEAPON_NAMES, THROWABLE_NAMES } from '../ui/hud-support.js';
 
 /** Recorded attacker view. Live simulation keeps running and owns respawn. */
@@ -105,8 +106,10 @@ export class Killcam {
     this.worldview?.updateReplayTerrain(sample.terrain);
     const target = sample.players.get(this.clip.killer);
     if (!target) { this.stop(); return false; }
-    this.camera.position.set(target.x, target.y + stanceEye(EYE_HEIGHT, target.crouch, target.proneT), target.z);
-    this.camera.rotation.set(target.pitch, target.yaw, 0, 'YXZ');
+    const lean = leanEyeOffset(target.leanT || 0, target.yaw, target.crouch ? 1 : 0);
+    this.camera.position.set(target.x + lean.x, target.y + stanceEye(EYE_HEIGHT, target.crouch, target.proneT) + lean.y,
+      target.z + lean.z);
+    this.camera.rotation.set(target.pitch, target.yaw, -leanPose(target.leanT || 0) * LEAN.viewRoll, 'YXZ');
     const weaponId = WEAPON_IDS[target.weapon] || 'rifle';
     const def = configuredWeapon(weaponId, {[weaponId]:target.attachments});
     const ads = target.adsT ?? (target.ads ? 1 : 0);

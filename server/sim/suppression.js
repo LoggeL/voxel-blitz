@@ -1,12 +1,15 @@
 import { stanceEye } from '../../shared/player-stance.js';
+import { leanEyeOffset } from '../../shared/player-lean.js';
 import { PHYSICS } from '../../shared/player-movement.js';
 import { SUPPRESSION_RULES, applySuppression } from '../../shared/suppression-rules.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 
 // Use the actual stance eye height, including transitions. A fixed standing
-// target can otherwise invent a visible point above crouch/prone cover.
+// target can otherwise invent a visible point above crouch/prone cover. A
+// peek lean carries the eye out past the corner it is leaning around.
 function dangerTarget(victim) {
-  return [victim.x, victim.y + stanceEye(PHYSICS.eye, victim.crouch, victim.proneT), victim.z];
+  const lean = leanEyeOffset(victim.leanT || 0, victim.yaw || 0, victim.crouch ? 1 : 0);
+  return [victim.x + lean.x, victim.y + stanceEye(PHYSICS.eye, victim.crouch, victim.proneT) + lean.y, victim.z + lean.z];
 }
 
 function eligible(owner, victim, ctx) {

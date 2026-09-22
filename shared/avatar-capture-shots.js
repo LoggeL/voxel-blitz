@@ -11,17 +11,20 @@ const VIEW_POSES = Object.freeze({
   'swim-profile': Object.freeze({ firing: false, ads: false, crouching: false, swimming: true, moveSpeed: 2.6, pose: 'hip-swimming' }),
   'swim-tread': Object.freeze({ firing: false, ads: false, crouching: false, swimming: true, moveSpeed: 0, pose: 'hip-treading' }),
   spectator: Object.freeze({ firing: false, ads: true, crouching: false, pose: 'ads-standing' }),
+  // Full right peek lean seen head-on: head, chest, arms and weapon roll about the hips.
+  'lean-front': Object.freeze({ firing: false, ads: true, crouching: false, leanT: 1, pose: 'ads-leaning' }),
 });
 
 export const AVATAR_CAPTURE_VIEWS = Object.freeze(Object.keys(VIEW_POSES));
 
-const WEAPON_VIEWS = AVATAR_CAPTURE_VIEWS.filter((view) => view !== 'spectator' && view !== 'swim-tread');
+const WEAPON_VIEWS = AVATAR_CAPTURE_VIEWS.filter((view) => !['spectator', 'swim-tread', 'lean-front'].includes(view));
 
 export const AVATAR_CAPTURE_SHOTS = Object.freeze([
   ...WEAPON_IDS.flatMap((weapon) => WEAPON_VIEWS.map((view) =>
     Object.freeze({ weapon, view, ...VIEW_POSES[view] }))),
   Object.freeze({ weapon: 'sniper', view: 'spectator', ...VIEW_POSES.spectator }),
   Object.freeze({ weapon: 'rifle', view: 'swim-tread', ...VIEW_POSES['swim-tread'] }),
+  Object.freeze({ weapon: 'rifle', view: 'lean-front', ...VIEW_POSES['lean-front'] }),
 ]);
 
 export function findAvatarCaptureShot(weapon, view) {

@@ -97,11 +97,12 @@ The **Music** slider is available in the main menu, lobby, lobby browser, accoun
 
 ## Controls
 
-These are the default keys. **Settings → Keyboard** lets you rebind 35 actions, clear a binding or restore defaults. Changes are saved in this browser, and the HUD shows the current bindings. Escape remains available for menus.
+These are the default keys. **Settings → Keyboard** lets you rebind 39 actions, clear a binding or restore defaults. Changes are saved in this browser, and the HUD shows the current bindings. Escape remains available for menus.
 
 | Input | Action |
 | --- | --- |
-| `WASD`, `Q` / `E` / mouse | Move / look; `Q` / `E` also strafe left / right |
+| `WASD` / mouse | Move / look |
+| Hold `Q` / `E` | Lean left / right: peek around cover with head and weapon while the feet stay put |
 | `Shift` / `Space` / `Ctrl` or `C` | Sprint / jump / crouch |
 | `Space` again in midair | Grab a reachable ledge and pull up, even after releasing movement keys |
 | Left / right mouse | Fire / aim down sights |

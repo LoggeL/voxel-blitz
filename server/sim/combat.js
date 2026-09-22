@@ -253,7 +253,7 @@ function meleeSwing(p, ctx, def = p.def, aim = p) {
   p.shotSeq++;
   p.firing = true;
   const fwd = fwdFromYawPitch(aim.yaw, aim.pitch);
-  const oEye = [p.x, p.eyeY, p.z];
+  const oEye = [p.eyeX ?? p.x, p.eyeY, p.eyeZ ?? p.z];
   // Same presentation origin as fireOneShot so client FX share one contract.
   const muzzle = [
     oEye[0] + fwd.x * 0.25,
@@ -468,7 +468,7 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
     : computeConeDeg(p);
   p.exhaustion = clamp01(p.exhaustion + CONDITION_RULES.exhaustionShotGain * (def.flame ? 0.25 : 1));
   p.bloom = Math.min(def.bloomMaxDeg, p.bloom + def.bloomDeg);
-  const oEye = [p.x, p.eyeY, p.z];
+  const oEye = [p.eyeX ?? p.x, p.eyeY, p.eyeZ ?? p.z];
   // Muzzle-ish origin reported to clients: eye dropped 0.15, nudged forward.
   const muzzle = [
     oEye[0] + fwd.x * 0.25,

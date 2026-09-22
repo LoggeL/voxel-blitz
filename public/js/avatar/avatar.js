@@ -1,4 +1,5 @@
 import { pronePose, stepSwim, swimCycle, swimEffort } from '../../../shared/player-stance.js';
+import { leanBodyPoint, leanRoll } from '../../../shared/player-lean.js';
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
 import { clamp01 } from '../util/math.js';
@@ -7,6 +8,10 @@ import { AvatarWeaponModel } from './avatar-weapon.js';
 import { prepareDeathPart, stepDeathPart } from './death-physics.js';
 import { AvatarMotion } from './avatar-motion.js';
 import { buildOperator, poseOperatorArm, poseOperatorLeg } from './operator-model.js';
+
+const LEAN_AXIS = new THREE.Vector3(0, 0, 1);
+const LEAN_TURN = new THREE.Quaternion();
+const LEAN_POINT = [0, 0, 0];
 
 export const TEAM_AVATAR_COLORS = Object.freeze({
   alpha: Object.freeze({ suit: 0x38bdf8, dark: 0x0c4a6e }),
@@ -58,6 +63,7 @@ export function updateAvatarWeaponPose(av, {
   reloading = false,
   crouching = false,
   proneT = 0,
+  leanT = 0,
   stride = 0,
   swing = 0,
   dt = 0,
@@ -110,6 +116,16 @@ export function updateAvatarWeaponPose(av, {
   const aimDamping = ads || reloading ? 0.25 : 1;
   av.weaponModel.root.position.y += (av.motion.breath * 0.004 - av.motion.landing * 0.009) * upright * aimDamping;
   av.weaponModel.root.rotation.z += (av.motion.side * -0.008 + av.motion.turn * -0.008) * upright * aimDamping;
+  // Peek lean rolls the carried weapon with the upper body about the hips; the
+  // arms below solve to its palms and the stance pose rolls head and chest.
+  av.leanT = (Number(leanT) || 0) * upright;
+  av.leanRoll = leanRoll(av.leanT);
+  if (av.leanT && av.weaponModel.modelRoot) {
+    const root = av.weaponModel.root;
+    const point = leanBodyPoint([root.position.x, root.position.y, root.position.z], av.leanT, av.crouchPose, LEAN_POINT);
+    root.position.set(point[0], point[1], point[2]);
+    root.quaternion.premultiply(LEAN_TURN.setFromAxisAngle(LEAN_AXIS, av.leanRoll));
+  }
   if (dt > 0) av.reloadPhase = (av.reloadPhase || 0) + dt / 0.9;
   const reload = av.weaponModel.reloadT * (0.65 + 0.25 * Math.sin(Math.PI * 2 * (av.reloadPhase || 0)));
   av.group.updateMatrixWorld(true);
@@ -143,9 +159,15 @@ export function updateAvatarStancePose(av, {
     av.lLeg.rotation.x) * poseBlend;
   av.rLeg.rotation.x += (-gait - motion.air * 0.08 * upright * (1 - swim) - cycle.legTrail + cycle.kick -
     av.rLeg.rotation.x) * poseBlend;
-  av.torso.position.y += ((1.18 - crouch * 0.27 - settle * 0.012) - av.torso.position.y) * poseBlend;
+  const lean = av.leanT || 0;
+  const chest = leanBodyPoint([0, 1.18 - crouch * 0.27 - settle * 0.012, 0], lean, crouch, LEAN_POINT);
+  av.torso.position.x += (chest[0] - av.torso.position.x) * poseBlend;
+  av.torso.position.y += (chest[1] - av.torso.position.y) * poseBlend;
   av.hips.position.y += ((0.84 - crouch * 0.20 - settle * 0.008) - av.hips.position.y) * poseBlend;
-  av.head.position.y += ((1.66 - crouch * 0.34) - av.head.position.y) * poseBlend;
+  const head = leanBodyPoint([0, 1.66 - crouch * 0.34, 0], lean, crouch, LEAN_POINT);
+  av.head.position.x += (head[0] - av.head.position.x) * poseBlend;
+  av.head.position.y += (head[1] - av.head.position.y) * poseBlend;
+  av.torso.rotation.z = av.head.rotation.z = av.leanRoll || 0;
   av.torso.rotation.x += (stride * 0.16 * (1 - swim) + crouch * 0.12 - cycle.torsoPitch -
     av.torso.rotation.x) * poseBlend;
   av.torso.rotation.y = (motion.turn * 0.018 - motion.side * 0.008) * upright;
@@ -191,6 +213,8 @@ export function resetAvatarPose(av) {
   av.swimLean = 0;
   av.swimHeadTilt = 0;
   av.swimBob = 0;
+  av.leanT = 0;
+  av.leanRoll = 0;
   for (const part of [av.head, av.torso, av.hips, av.lLeg, av.rLeg]) part.position.z = 0;
   av.lastImpact = null;
   av.motionSeeded = false;
@@ -332,6 +356,8 @@ export function makeAvatar(id, name, team = null) {
   const skin = new THREE.MeshStandardMaterial({ color: [0xc68b67, 0x8c5b42, 0xe0ae87][variant], roughness: 0.92, transparent: true });
   const { torso, hips, head, lLeg, rLeg, lArm, rArm, lElbow, rElbow, lHand, rHand, pack, pouches } =
     buildOperator({ suit, dark, armor, visor: visorMat, skin, variant });
+  // Roll outermost, like the leaned hitbox zones: pitch first, then the lean.
+  torso.rotation.order = head.rotation.order = 'ZYX';
 
   const weaponModel = new AvatarWeaponModel();
   weaponModel.setWeapon('rifle');

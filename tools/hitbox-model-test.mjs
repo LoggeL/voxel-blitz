@@ -48,7 +48,7 @@ function pose(p, motion = {}) {
   av.group.rotation.y = p.yaw || 0;
   for (let i = 0; i < 90; i++) {
     updateAvatarWeaponPose(av, { weapon: p.weapon || 0, pitch: p.pitch || 0, ads: !!p.ads, reloading: !!p.reloading,
-      crouching: !!p.crouch, proneT: p.proneT || 0, dt: 1 / 30, blend: 1, ...motion });
+      crouching: !!p.crouch, proneT: p.proneT || 0, leanT: p.leanT || 0, dt: 1 / 30, blend: 1, ...motion });
     updateAvatarStancePose(av, motion);
   }
   // The roster pitches the head like the head zone does.
@@ -87,6 +87,11 @@ const stances = [
   { name: 'going prone', p: { x: 3, y: 1, z: -2, yaw: 0.6, proneT: 0.5 } },
   { name: 'nearly prone', p: { x: 3, y: 1, z: -2, yaw: 0.6, proneT: 0.8 } },
   { name: 'prone', p: { x: 3, y: 1, z: -2, yaw: 0.6, proneT: 1 } },
+  // Peek lean rolls head, chest, arms and weapon about the hips.
+  { name: 'leaning left', p: { x: 3, y: 1, z: -2, yaw: 0.6, leanT: -1 } },
+  { name: 'leaning right', p: { x: 3, y: 1, z: -2, yaw: 0.6, leanT: 1 } },
+  { name: 'half lean ads', p: { x: 3, y: 1, z: -2, yaw: 0.6, leanT: 0.5, ads: true, pitch: -0.5 } },
+  { name: 'crouched lean', p: { x: 3, y: 1, z: -2, yaw: 0.6, leanT: -1, crouch: true, ads: true } },
   // Bastion juggernaut: the roster scales the whole rig by `bodyScale` and the
   // shared zones scale with it, so the same thresholds hold at 1.4.
   { name: 'juggernaut 1.4', p: { x: 3, y: 1, z: -2, yaw: 0.6, bodyScale: 1.4 }, scale: 1.4 },
