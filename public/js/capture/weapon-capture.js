@@ -146,11 +146,11 @@ if (state.startsWith('charge-')) {
 if (state.startsWith('reload-')) {
   // Fractions of the one-second reload: cylinder work for the revolver, the
   // belt gun's cover-open / box-drop / lead-laid / handle-rack beats for the LMG,
-  // and the rocket's gate-drop and tube-mouth shove for the RX-8 rear load.
+  // and the rocket's gate-swing and tube-mouth shove for the RX-8 rear load.
   const belt = weapon === 'lmg';
   rig.reload(1, belt ? 'magswap' : 'cylinder');
   const fraction = weapon === 'rocket'
-    ? { 'reload-open': 0.33, 'reload-load': 0.72 }[state]
+    ? { 'reload-open': 0.33, 'reload-load': 0.76 }[state]
     : belt
       ? { 'reload-open': 0.14, 'reload-eject': 0.28, 'reload-load': 0.875, 'reload-charge': 0.965 }[state]
       : { 'reload-open': 0.26, 'reload-eject': 0.40, 'reload-load': 0.64 }[state];

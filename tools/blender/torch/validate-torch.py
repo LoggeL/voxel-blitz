@@ -6,7 +6,7 @@ Usage:
 
 Checks the study GLB and the browser glTF against the frozen runtime contract:
 node and marker names, anchor placement, group identity, bounds, UV references,
-embedded material images, gate-leaf node translations exactly [0, 0.075, -0.06],
+embedded material images, gate-leaf node translations exactly [-0.104, 0.075, -0.135],
 no negative scale, no nonfinite coordinates, no inward-facing surfaces. Writes
 docs/design/blender/torch/validation.json with passed/failures/advisory keys.
 """
@@ -34,7 +34,7 @@ PARTS = ('body', 'mag', 'bolt', 'trigger', 'extra')
 MARKERS = ('muzzle', 'grip', 'support', 'sight')
 GROUP_NAMES = set(PARTS)
 GATE_PREFIX = 'gate | '
-HINGE_GAME = (0.0, 0.075, -0.06)
+HINGE_GAME = (-0.104, 0.075, -0.135)  # vertical side pin, see build-torch.py HINGE
 ANCHORS = {  # authoring space: +Y forward, +Z up
     'muzzle': (0.0, 0.780, 0.075),
     'grip': (0.045, 0.080, -0.020),

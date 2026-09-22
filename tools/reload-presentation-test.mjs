@@ -82,12 +82,15 @@ try {
   // geometry are covered by tools/weapon-materials-browser-test.mjs and the
   // weapon capture matrix.
   const rearZ = BREACH_Z.rocket + 0.16;
+  // The authored hinge: a vertical pin on the left flank, game (-0.104, 0.075,
+  // -0.135) = the gate node translation torch.gltf carries.
+  const hinge = new THREE.Vector3(-0.104, rocket.T.muzzle[1], BREACH_Z.rocket + 0.085);
   const breech = new THREE.Group();
   breech.name = 'rocket_rear_breech';
-  breech.position.set(rocket.T.muzzle[0], rocket.T.muzzle[1], rearZ);
+  breech.position.copy(hinge);
   rocket.extra.add(breech);
   rocket.extra.userData.reloadPart = breech;
-  rocket.extra.userData.rocketReload = { gate: breech, axisY: rocket.T.muzzle[1], rearZ };
+  rocket.extra.userData.rocketReload = { gate: breech, axisY: rocket.T.muzzle[1], rearZ, swing: 1.75, hinge };
   const reloadRound = new THREE.Group();
   reloadRound.name = 'rocket_reload_round';
   reloadRound.visible = false;
@@ -99,29 +102,32 @@ try {
   const round = rocket.extra.userData.reloadRounds;
   const gate = rocket.extra.userData.rocketReload.gate;
   action.update(0.35, 0, rocket, rocket.T);
-  assert.ok(gate.position.z > rocket.extra.userData.rocketReload.rearZ + 0.1
-    && gate.rotation.x > 0.9, 'rocket breech slides clear of the tube and flips open');
+  assert.ok(gate.position.equals(hinge) && gate.rotation.y < -1.7 && gate.rotation.x === 0,
+    'rocket breech swings open sideways on its side pin (no slide, tail out to -x)');
   action.update(0.42, 0, rocket, rocket.T);
   assert.ok(round.visible && round.position.y > rocket.T.muzzle[1] - 0.5
     && round.position.z > rocket.extra.userData.rocketReload.rearZ + 0.3,
     'new rocket is staged up at the tube mouth rather than rising from below the frame');
   action.update(0.50, 0, rocket, rocket.T);
   assert.equal(round.visible, true, 'a complete new rocket is drawn');
+  assert.ok(round.position.x > 0.25,
+    'new rocket loads on the gate-free (+x) flank, clear of the swung back clamp');
   action.update(0.68, 0, rocket, rocket.T);
   assert.ok(Math.abs(round.position.x) < 1e-9, 'new rocket aligns with the tube');
   assert.equal(round.position.y, rocket.T.muzzle[1]);
+  assert.ok(round.position.z - 0.245 > rearZ + 0.12,
+    'the aligned nose parks ahead of the swung back-clamp ring zone, never inside its collar');
   const alignedZ = round.position.z;
   action.update(0.81, 0, rocket, rocket.T);
   assert.ok(round.position.z < alignedZ - 0.4, 'rocket is inserted forward along the bore axis');
   action.update(0.88, 0, rocket, rocket.T);
-  assert.ok(gate.rotation.x < 0.35, 'rocket rear breech slams shut over the seated round');
+  assert.ok(gate.rotation.y > -0.7 && gate.rotation.y < 0, 'rocket rear breech slams shut over the seated round');
   action.update(0.93, 0, rocket, rocket.T);
   assert.ok(Math.abs(rocket.bolt.rotation.x) < 1e-9, 'rocket arming lever cocks home on the closing cue');
   action.update(0.94, 0, rocket, rocket.T);
   assert.equal(round.visible, false, 'seated rocket is inside the tube');
-  assert.equal(gate.rotation.x, 0, 'rear breech latches closed');
-  assert.equal(gate.position.z, rocket.extra.userData.rocketReload.rearZ,
-    'rocket rear breech returns to the tube mouth');
+  assert.equal(gate.rotation.y, 0, 'rear breech latches closed');
+  assert.ok(gate.position.equals(hinge), 'rocket rear breech stays on its hinge pin');
   // Cancelling mid-reload, while the round is staged and the breech stands open,
   // restores the complete rest pose.
   action.cancelReload(rocket);
@@ -130,9 +136,8 @@ try {
   assert.equal(round.visible, true, 'a complete new rocket is drawn');
   action.cancelReload(rocket);
   assert.equal(round.visible, false, 'cancelled rocket reload stows the round');
-  assert.equal(gate.rotation.x, 0, 'cancelled rocket reload closes the rear breech');
-  assert.equal(gate.position.z, rocket.extra.userData.rocketReload.rearZ,
-    'cancelled rocket reload returns the gate to the tube mouth');
+  assert.equal(gate.rotation.y, 0, 'cancelled rocket reload closes the rear breech');
+  assert.ok(gate.position.equals(hinge), 'cancelled rocket reload leaves the gate on its hinge pin');
   assert.equal(rocket.bolt.rotation.x, 0, 'cancelled rocket reload homes the arming lever');
   assert.ok(round.children.every((child) => child.visible),
     'cancelled rocket reload keeps the round parts visible');

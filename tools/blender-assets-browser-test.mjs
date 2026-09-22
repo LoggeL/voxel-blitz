@@ -199,33 +199,41 @@ try {
     must(gate.name === 'rocket_rear_breech', 'TORCH gate is named rocket_rear_breech');
     must(gate.parent === rocket.extra && rocket.root.getObjectByName('rocket_rear_breech') === gate,
       'TORCH gate group hangs inside the rocket scene graph');
-    must(Math.abs(gate.position.x) < 1e-9 && Math.abs(gate.position.y - 0.075) < 1e-9 && Math.abs(gate.position.z + 0.06) < 1e-9,
-      'TORCH gate hinge pins at (0, 0.075, -0.06)');
+    must(Math.abs(gate.position.x + 0.104) < 1e-6 && Math.abs(gate.position.y - 0.075) < 1e-6 && Math.abs(gate.position.z + 0.135) < 1e-6,
+      'TORCH gate hinge pins at (-0.104, 0.075, -0.135), the vertical side pin the template exported');
+    must(rocketReload.hinge.equals(gate.position) && rocketReload.swing === 1.75 && Math.abs(rocketReload.rearZ + 0.06) < 1e-9,
+      'TORCH rocketReload exposes the hinge, the 1.75 rad swing and the -0.06 round-path reference');
+    must(gate.children.length === 3 && gate.children.every((leaf) => leaf.position.lengthSq() < 1e-12),
+      'TORCH gate leaves are hinge-local under the swing group');
     const round = rocket.extra.userData.reloadRounds, rearZ = rocketReload.rearZ;
     const actions = new WeaponActions();
     actions.startReload(0, 1, 'magswap', rocket.T);
     actions.update(0.35, 0, rocket, rocket.T);
-    must(gate.position.z > rearZ + 0.1 && gate.rotation.x > 0.9,
-      'rocket breech slides clear of the tube and flips open');
+    must(gate.position.equals(rocketReload.hinge) && gate.rotation.y < -1.7 && gate.rotation.x === 0,
+      'rocket breech swings open sideways on its side pin (no slide, tail out to -x)');
     actions.update(0.42, 0, rocket, rocket.T);
     must(round.visible === true && round.position.y > rocket.T.muzzle[1] - 0.5
       && round.position.z > rearZ + 0.3,
       'new rocket is staged up at the tube mouth rather than rising from below the frame');
     actions.update(0.50, 0, rocket, rocket.T);
     must(round.visible === true, 'a complete new rocket is drawn');
+    must(round.position.x > 0.25,
+      'new rocket loads on the gate-free (+x) flank, clear of the swung back clamp');
     actions.update(0.68, 0, rocket, rocket.T);
     must(Math.abs(round.position.x) < 1e-9, 'new rocket aligns with the tube');
     must(round.position.y === rocket.T.muzzle[1], 'rocket round rides the bore axis height');
+    must(round.position.z - 0.245 > rearZ + 0.12,
+      'the aligned nose parks ahead of the swung back-clamp ring zone, never inside its collar');
     const alignedZ = round.position.z;
     actions.update(0.81, 0, rocket, rocket.T);
     must(round.position.z < alignedZ - 0.4, 'rocket is inserted forward along the bore axis');
     actions.update(0.88, 0, rocket, rocket.T);
-    must(gate.rotation.x < 0.35, 'rocket rear breech slams shut over the seated round');
+    must(gate.rotation.y > -0.7 && gate.rotation.y < 0, 'rocket rear breech slams shut over the seated round');
     actions.update(0.93, 0, rocket, rocket.T);
     must(Math.abs(rocket.bolt.rotation.x) < 1e-9, 'rocket arming lever cocks home on the closing cue');
     actions.update(0.94, 0, rocket, rocket.T);
     must(round.visible === false, 'seated rocket is inside the tube');
-    must(gate.rotation.x === 0 && gate.position.z === rearZ, 'rocket rear breech latches closed');
+    must(gate.rotation.y === 0 && gate.position.equals(rocketReload.hinge), 'rocket rear breech latches closed on its pin');
     // Cancelling mid-reload, while the round is staged and the breech stands open,
     // restores the complete rest pose.
     actions.cancelReload(rocket);
@@ -233,7 +241,7 @@ try {
     actions.update(0.50, 0, rocket, rocket.T);
     must(round.visible === true, 'a complete new rocket is drawn');
     actions.cancelReload(rocket);
-    must(round.visible === false && gate.rotation.x === 0 && gate.position.z === rearZ
+    must(round.visible === false && gate.rotation.y === 0 && gate.position.equals(rocketReload.hinge)
       && rocket.bolt.rotation.x === 0
       && round.children.every((child) => child.visible)
       && round.position.equals(round.userData.homePosition),

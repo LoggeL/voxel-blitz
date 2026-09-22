@@ -9,7 +9,8 @@ Produces public/assets/blender/torch.gltf + torch.bin against the frozen node
 contract: top-level group nodes body/mag/bolt/trigger batching geometry per
 material (extras.blenderAsset = "torch"), `extra` holding ONLY the breech gate
 leaves as per-material meshes with hinge-local geometry and node translation
-exactly at the hinge (BISON cover-leaf convention), marker nodes grip, muzzle,
+exactly at the side hinge (BISON cover-leaf convention; the gate swings about
+game +y on that pin), marker nodes grip, muzzle,
 sight and support at the frozen anchors. Textures are the shared files under
 public/assets/blender/textures referenced byte-identical; nothing is generated.
 """
@@ -34,10 +35,11 @@ TEXTURES = ['ivory-armor', 'orange-painted-metal', 'petrol-ballistic-fabric',
             'worn-gunmetal', 'worn-rubber']
 UV_SCALE = 3.6  # texture tiles per metre; must match build-torch.py
 
-# Reload hinge in game space: bore-axis height at the rocket gate pivot, the
-# same numbers rocket.js derives (T.muzzle[1] for height, BREACH_Z.rocket + 0.16
-# for depth). Frozen by defs.js TIMERS.rocket / models/common.js BREACH_Z.
-HINGE = Vector((0.0, 0.075, -0.06))
+# Reload hinge in game space: the VERTICAL pin on the left flank at bore-axis
+# height (T.muzzle[1]), BREACH_Z.rocket + 0.085 deep, just outside the 0.099
+# gate rim. Must match HINGE in build-torch.py (authoring (-0.104, 0.135,
+# 0.075)); the runtime reads it back from the gate node translation.
+HINGE = Vector((-0.104, 0.075, -0.135))
 
 # game_x = x, game_y = z, game_z = -y: a proper rotation, so normals map like
 # positions and the flat normal matrix is this rotation itself.

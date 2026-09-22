@@ -3,8 +3,9 @@
 Revision 2 is a from-scratch redo of the launcher (design study "BULWARK", see
 docs/design/blender/torch/build-report.md). The old AT4-style study is gone:
 revision 2 is a heavy sci-fi launcher with a squared breech housing, a
-half-cage of braces, industrial panels and handles, a tilting back-blast
-venturi gate at the rear and a fat warhead seated proud of the muzzle.
+half-cage of braces, industrial panels and handles, a side-hinged back-blast
+venturi gate at the rear (it swings open sideways on a vertical pin on the
+left flank, Carl Gustaf M3 style) and a fat warhead seated proud of the muzzle.
 
 Run headless:
 
@@ -53,7 +54,17 @@ BORE_START = 0.155              # tube tail, buried in the breech block
 SLEEVE_END = 0.525              # cage front collar: bare sleeve begins after it
 HEAT_BAND = (0.528, 0.752)      # game z -0.528 .. -0.752; runtime glow sleeve 0.0625
 BREECH_Y = 0.220                # BREACH_Z.rocket -0.22
-HINGE = (0.000, 0.060, 0.075)   # game (0, 0.075, -0.06); gate pivot on the bore axis
+# Gate pivot: a VERTICAL pin on the left flank, just outside the 0.099 gate
+# rim and in the front third of the gate, so the venturi swings open sideways
+# like a door and leaves the bore axis completely clear for the reload round.
+# Game (-0.104, 0.075, -0.135) = BREACH_Z.rocket + 0.085; the runtime reads it
+# back from the exported gate node translation.
+HINGE = (-0.104, 0.135, 0.075)
+HINGE_PIN_Z = (0.018, 0.132)    # the pin spans authoring z 0.018..0.132 (game y)
+GATE_SWING = 1.75               # rad, runtime gate.rotation.y = -GATE_SWING * open
+GATE_SWEEP_MAX = 1.85           # audited swing range (runtime overshoot included)
+GATE_AXIS_CLEARANCE = 0.055     # open gate must stay this far from the bore axis
+GATE_REAR_Z_GAME = -0.060       # rocketReload.rearZ = BREACH_Z.rocket + 0.16 (round path)
 SIGHT_Z = 0.175                 # body.userData.sightHeight
 REAR_POST_Y, FRONT_POST_Y = 0.020, 0.768
 TRIGGER_Y, TRIGGER_TIP_Z = 0.110, -0.055   # TRIGGER_Z.rocket -0.11
@@ -474,27 +485,37 @@ add('Breech collar', 'body', 'gunmetal',
 add('Breech collar band', 'body', 'orange paint',
     offset(shell(.0815, .0815, .075, .075, 0.268, 0.278), dz=BORE_Z), bevel=.0015)
 
-# Hinge yoke: two jaws + stub pins carry the gate knuckles at bore height.
-pair('Hinge yoke arm', 'body', 'gunmetal', boxv((.026, .048, .042)),
-     loc=(.070, 0.132, BORE_Z), bevel=.002)
-pair('Hinge yoke jaw', 'body', 'gunmetal', boxv((.008, .052, .048)),
-     loc=(.060, 0.062, BORE_Z), bevel=.0015)
-pair('Hinge pin', 'body', 'gunmetal', tube(.010, .038, 10, axis='X'),
-     loc=(.073, HINGE[1], BORE_Z), bevel=0)
-pair('Hinge pin cap', 'body', 'orange paint', tube(.013, .004, 10, axis='X'),
-     loc=(.093, HINGE[1], BORE_Z), bevel=.001)
+# Side hinge: a lug on the breech block's left flank carries the VERTICAL pin;
+# the gate's knuckles ride the pin above and below the lug. The pin ends wear
+# orange caps that overlap the pin ends by 1 mm (no flush end faces).
+PIN_LENGTH = HINGE_PIN_Z[1] - HINGE_PIN_Z[0]
+add('Hinge lug', 'body', 'gunmetal', boxv((.032, .028, .050)),
+    loc=(-.100, HINGE[1], HINGE[2]), bevel=.002)
+add('Hinge pin', 'body', 'gunmetal', tube(.010, PIN_LENGTH, 12, axis='Z'),
+    loc=(HINGE[0], HINGE[1], (HINGE_PIN_Z[0] + HINGE_PIN_Z[1]) / 2), bevel=0)
+add('Hinge pin cap top', 'body', 'orange paint', tube(.013, .005, 12, axis='Z'),
+    loc=(HINGE[0], HINGE[1], HINGE_PIN_Z[1] + 0.0015), bevel=.001)
+add('Hinge pin cap bottom', 'body', 'orange paint', tube(.013, .005, 12, axis='Z'),
+    loc=(HINGE[0], HINGE[1], HINGE_PIN_Z[0] - 0.0015), bevel=.001)
+# Latch keeper on the right flank: an L bracket off the block face whose plate
+# hangs back over the gate's orange latch tab (1 mm running clearance).
+add('Latch keeper', 'body', 'gunmetal',
+    solid([(0.080, 0.120), (0.090, 0.120), (0.090, 0.086), (0.102, 0.086),
+           (0.102, 0.150), (0.080, 0.150)], .040, 'Z'),
+    loc=(0, 0, BORE_Z), bevel=.0015)
 
-# Arming-lever boss and flank rib (body): where the bolt group's shoe rides.
-add('Lever boss', 'body', 'gunmetal', boxv((.024, .032, .044)),
-    loc=(.084, 0.039, 0.026), bevel=.002)
+# Arming-lever boss and right flank rib (body): where the bolt group's shoe
+# rides. The left flank carries only the hinge lug and the shoulder brace.
+add('Lever boss', 'body', 'gunmetal', boxv((.021, .032, .044)),
+    loc=(.0865, 0.039, 0.026), bevel=.002)
 add('Flank rib right', 'body', 'gunmetal', boxv((.016, .084, .036)),
     loc=(.082, 0.087, 0.032), bevel=.002)
-add('Flank rib left', 'body', 'gunmetal', boxv((.016, .084, .036)),
-    loc=(-.082, 0.087, 0.032), bevel=.002)
 
-# Pistol grip wrapping the grip marker, with finger ribs and a base plate.
+# Pistol grip wrapping the grip marker, with finger ribs and a base plate. Its
+# top stops at z -0.008, under the closed venturi's belly (z >= -0.0046 over
+# the grip), so the sideways gate sweep never cuts through it.
 add('Pistol grip', 'body', 'polymer', prism([
-    (0.156, 0.006), (0.064, 0.006), (0.034, -0.056), (0.040, -0.112),
+    (0.156, -0.008), (0.064, -0.008), (0.034, -0.056), (0.040, -0.112),
     (0.102, -0.120), (0.126, -0.058)], .056), bevel=.008)
 for index, (y, z) in enumerate(((0.104, -0.072), (0.126, -0.018), (0.080, -0.108))):
     add(f'Grip finger rib {index + 1}', 'body', 'rubber', boxv((.066, .008, .009)),
@@ -504,18 +525,20 @@ add('Grip base plate', 'body', 'gunmetal', boxv((.060, .056, .014)),
 add('Grip palm swell', 'body', 'polymer', boxv((.062, .018, .042)),
     loc=(0, 0.046, -0.082), bevel=.004)
 
-# Shoulder rest: padded brace on the left flank (gate sweep stays |x| <= 0.102).
-add('Shoulder brace arm', 'body', 'gunmetal', boxv((.030, .100, .052)),
-    loc=(-.084, 0.176, 0.038), bevel=.003)
+# Shoulder rest: padded brace on the left flank, forward of the hinge lug so
+# neither the lug nor the sideways gate sweep (audited below) ever touches it.
+BRACE_Y = 0.227
+add('Shoulder brace arm', 'body', 'gunmetal', boxv((.030, .068, .052)),
+    loc=(-.084, BRACE_Y + 0.028, 0.038), bevel=.003)
 add('Shoulder brace drop', 'body', 'gunmetal', boxv((.026, .052, .080)),
-    loc=(-.100, 0.108, 0.014), bevel=.003)
+    loc=(-.100, BRACE_Y + 0.026, 0.014), bevel=.003)
 add('Shoulder pad plate', 'body', 'gunmetal', boxv((.020, .130, .110)),
-    loc=(-.108, 0.082, 0.012), bevel=.003)
+    loc=(-.108, BRACE_Y, 0.012), bevel=.003)
 add('Shoulder pad', 'body', 'rubber', boxv((.024, .124, .104)),
-    loc=(-.122, 0.082, 0.012), bevel=.006)
+    loc=(-.122, BRACE_Y, 0.012), bevel=.006)
 for index, z in enumerate((-0.022, 0.046)):
     add(f'Pad rib {index + 1}', 'body', 'gunmetal', boxv((.028, .112, .010)),
-        loc=(-.122, 0.082, z), bevel=.0015)
+        loc=(-.122, BRACE_Y, z), bevel=.0015)
 
 # --- squared housing shell with bolted cheek panels (industrial cladding) ----
 add('Housing shell', 'body', 'olive drab',
@@ -559,13 +582,16 @@ add('Fore grip collar', 'body', 'orange paint', boxv((.058, .020, .056)),
     loc=(-.032, 0.432, -0.026), bevel=.0015)
 
 # --- spine deck and flip-up ladder sights on the 0.175 sight line -----------
-add('Spine deck', 'body', 'ivory coating', boxv((.076, .535, .010)),
-    loc=(0, 0.2575, 0.167), bevel=.002)
+# The deck tail stops at y 0.024 and its rear foot is a short spacer over the
+# venturi: the closed gate's crown (z <= 0.1616 there) must never enter the
+# deck, because the gate now sweeps sideways underneath it.
+add('Spine deck', 'body', 'ivory coating', boxv((.076, .501, .010)),
+    loc=(0, 0.2745, 0.167), bevel=.002)
 for index, y in enumerate((0.220, 0.300, 0.380, 0.460)):
     add(f'Rail slot {index + 1}', 'body', 'rubber', boxv((.078, .024, .004)),
         loc=(0, y, 0.1705), bevel=0)
-add('Deck foot rear', 'body', 'gunmetal', boxv((.052, .040, .022)),
-    loc=(0, 0.040, 0.155), bevel=.002)
+add('Deck foot rear', 'body', 'gunmetal', boxv((.052, .028, .013)),
+    loc=(0, 0.102, 0.1595), bevel=.002)
 add('Deck foot front', 'body', 'gunmetal', boxv((.052, .036, .022)),
     loc=(0, 0.500, 0.155), bevel=.002)
 
@@ -623,8 +649,10 @@ add('Canister rib rear', 'mag', 'polymer', boxv((.076, .010, .084)),
 BOLT_KNOB_OBJECT = add('Arming lever knob', 'bolt', 'orange paint',
                        tube(.013, .020, 12, axis='X'),
                        loc=(.112, 0.037, 0.021), bevel=.0015)
-add('Arming lever shoe', 'bolt', 'gunmetal', boxv((.024, .030, .034)),
-    loc=(.082, 0.037, 0.023), bevel=.002)
+# The shoe rides the right flank rib; it stops 2 mm outside the closed gate's
+# clamp ring (x 0.074) so the gate sweep audit sees no buried vertex.
+add('Arming lever shoe', 'bolt', 'gunmetal', boxv((.022, .030, .034)),
+    loc=(.089, 0.037, 0.023), bevel=.002)
 add('Arming lever arm', 'bolt', 'gunmetal', boxv((.018, .038, .024)),
     loc=(.098, 0.037, 0.021), bevel=.002)
 add('Arming lever pivot', 'bolt', 'gunmetal', tube(.008, .016, 8, axis='X'),
@@ -637,17 +665,26 @@ TRIGGER_OBJECT = add('Trigger blade', 'trigger', 'gunmetal', boxv((.010, .016, .
                      loc=(0, TRIGGER_Y, -0.0316), rot=(math.radians(8), 0, 0), bevel=.002)
 add('Trigger shoe', 'trigger', 'orange paint', boxv((.012, .008, .014)),
     loc=(0, TRIGGER_Y + 0.003, -0.048), rot=(math.radians(8), 0, 0), bevel=.0015)
+# The guard's top bar (z -0.020..-0.006) meets the breech block's belly and
+# stays under the closed venturi like the grip does.
 add('Trigger guard', 'trigger', 'gunmetal',
-    solid(recty(0.060, 0.170, -0.078, 0.002), .030, 'X',
-          recty(0.072, 0.156, -0.064, -0.012)), bevel=.003)
+    solid(recty(0.060, 0.170, -0.078, -0.006), .030, 'X',
+          recty(0.072, 0.156, -0.064, -0.020)), bevel=.003)
 
 # ===========================================================================
-# EXTRA: the breech gate = the tilting back-blast venturi tail. Every part
-# below is a gate leaf piece; the export batches them per material with
+# EXTRA: the breech gate = the side-swinging back-blast venturi tail. Every
+# part below is a gate leaf piece; the export batches them per material with
 # hinge-local geometry and node translation at the hinge.
 # ===========================================================================
 GATE_FRONT_Y, GATE_REAR_Y = 0.112, -0.048
 SEAM = 0.06  # radians of seam gap either side of the top/bottom splits
+# The seven venturi pieces below are frozen (the closed-pose check asserts
+# their bounds); only the hinge knuckles and the latch tab changed for the
+# side hinge.
+GATE_CORE_NAMES = ['Gate leaf right', 'Gate leaf left', 'Gate throat collar',
+                   'Gate rim ring', 'Gate warning band', 'Gate clamp ring',
+                   'Gate throat liner']
+GATE_CORE_BOUNDS = ((-0.099, 0.099), (-0.052, 0.112), (BORE_Z - 0.099, BORE_Z + 0.099))
 
 
 def gate(name, material, shape, loc=(0, 0, 0), rot=(0, 0, 0), bevel=.002):
@@ -670,12 +707,17 @@ gate('Gate clamp ring', 'gunmetal',
      offset(shell(.0825, .0855, .072, .073, 0.058, 0.038), dz=BORE_Z), bevel=.0015)
 gate('Gate throat liner', 'cavity black',
      offset(shell(.0575, .0645, BORE_IN, .0565, 0.106, -0.044), dz=BORE_Z), bevel=0)
-gate('Gate knuckle right', 'gunmetal', washer(.0155, .0105, .024, 12, axis='X'),
-     loc=(.070, HINGE[1], BORE_Z), bevel=0)
-gate('Gate knuckle left', 'gunmetal', washer(.0155, .0105, .024, 12, axis='X'),
-     loc=(-.070, HINGE[1], BORE_Z), bevel=0)
-gate('Gate latch', 'orange paint', boxv((.032, .032, .024)),
-     loc=(0, 0.100, -0.004), bevel=.002)
+# Two knuckles ride the vertical pin above and below the body lug (0.5 mm
+# running clearance, 3 mm end gaps); each hangs off the leaf on a short arm
+# that stays behind the breech block (y <= 0.114) at every swing angle.
+for (label, z) in (('top', 0.1155), ('bottom', 0.0345)):
+    gate(f'Gate knuckle {label}', 'gunmetal', washer(.0155, .0105, .025, 12, axis='Z'),
+         loc=(HINGE[0], HINGE[1], z), bevel=0)
+    gate(f'Gate knuckle arm {label}', 'gunmetal', boxv((.054, .018, .021)),
+         loc=(-.083, 0.105, z), bevel=.0015)
+# Orange latch tab on the right flank, seated 1 mm inside the keeper plate.
+gate('Gate latch', 'orange paint', boxv((.023, .026, .030)),
+     loc=(0.0775, 0.101, BORE_Z), bevel=.002)
 
 # Node names the delivered files must use verbatim.
 CONTRACT_NODE_NAMES = set(GROUPS) | set(MARKERS) | {
@@ -708,7 +750,7 @@ for (key, value) in {'asset_id': 'torch',
     scene[key] = value
 
 # ===========================================================================
-# build-time checks (all four must pass or the build fails)
+# build-time checks (all five must pass or the build fails)
 # ===========================================================================
 # Headless runs need an explicit view-layer sync before data-API-created
 # objects show up in the dependency graph.
@@ -978,10 +1020,160 @@ if floaters:
 else:
     print('part contact audit: every part meets the receiver')
 
-if contract_failures or heat_band_failures or collisions or floaters:
+# --- check 5: gate sweep audit ---------------------------------------------
+# The venturi swings about the vertical hinge line through (HINGE.x, HINGE.y).
+# The runtime drives gate.rotation.y = -GATE_SWING * open in game space; the
+# game map is a proper rotation, so that is the same sense about authoring +Z:
+# x' = x cos t + y sin t, y' = -x sin t + y cos t (hinge-relative), z unchanged.
+# For t in 0..GATE_SWEEP_MAX step 0.05 every evaluated gate vertex must (a) lie
+# outside every body/mag/bolt/trigger volume, (b) for t >= 1.55 keep at least
+# GATE_AXIS_CLEARANCE from the bore axis line, and (c) at t = 0 the frozen
+# venturi pieces must still occupy today's closed-pose bounds.
+SWEEP_STEP = 0.05
+SWEEP_OPEN_FROM = 1.55
+
+
+def audit_gate_sweep():
+    findings = []
+    hinge = Vector(HINGE)
+    # (c) closed-pose freeze on the authored (pre-modifier) venturi pieces.
+    core = {name: None for name in GATE_CORE_NAMES}
+    low, high = [1e9] * 3, [-1e9] * 3
+    for (obj, part, _material) in PARTS:
+        if part != 'extra' or obj.name not in core:
+            continue
+        core[obj.name] = obj
+        for vertex in obj.data.vertices:
+            point = obj.matrix_world @ vertex.co
+            for axis in range(3):
+                low[axis] = min(low[axis], point[axis])
+                high[axis] = max(high[axis], point[axis])
+    missing = sorted(name for (name, obj) in core.items() if obj is None)
+    if missing:
+        findings.append(f'closed pose: venturi pieces missing: {", ".join(missing)}')
+    core_bounds = (tuple(low), tuple(high))
+    for axis, (want_low, want_high) in enumerate(GATE_CORE_BOUNDS):
+        if abs(low[axis] - want_low) > 1e-6 or abs(high[axis] - want_high) > 1e-6:
+            findings.append(f'closed pose: venturi bounds on axis {axis} are '
+                            f'{low[axis]:+.6f}..{high[axis]:+.6f}, frozen {want_low:+.6f}..{want_high:+.6f}')
+
+    statics = []
+    for (obj, part, _material) in PARTS:
+        if part == 'extra':
+            continue
+        evaluated = obj.evaluated_get(depsgraph)
+        mesh = evaluated.to_mesh()
+        verts = [obj.matrix_world @ v.co for v in mesh.vertices]
+        polys = [tuple(p.vertices) for p in mesh.polygons]
+        statics.append({'name': obj.name,
+                        'low': [min(v[i] for v in verts) for i in range(3)],
+                        'high': [max(v[i] for v in verts) for i in range(3)],
+                        'tree': BVHTree.FromPolygons(verts, polys, all_triangles=False)})
+        evaluated.to_mesh_clear()
+    gate_points = []
+    for (obj, part, _material) in PARTS:
+        if part != 'extra':
+            continue
+        evaluated = obj.evaluated_get(depsgraph)
+        mesh = evaluated.to_mesh()
+        gate_points.extend(((obj.matrix_world @ v.co) - hinge, obj.name) for v in mesh.vertices)
+        evaluated.to_mesh_clear()
+
+    # Three skewed rays, majority vote: one ray can double-count a shared
+    # edge (a knuckle vertex looking up the pin's own axis did exactly that).
+    rays = [Vector(v).normalized() for v in ((1.0, 0.0173, 0.0091),
+                                             (0.0091, 1.0, 0.0173),
+                                             (0.0173, 0.0091, 1.0))]
+
+    def inside(tree, point):
+        votes = 0
+        for ray in rays:
+            crossings = 0
+            origin = point.copy()
+            for _step in range(64):
+                hit = tree.ray_cast(origin + ray * 1e-6, ray, 4.0)
+                if hit[3] is None:
+                    break
+                crossings += 1
+                origin = hit[0]
+            votes += crossings % 2
+        return votes >= 2
+
+    def contains(static, point, slack=0.0):
+        return all(static['low'][k] - slack <= point[k] <= static['high'][k] + slack
+                   for k in range(3))
+
+    steps = int(round(GATE_SWEEP_MAX / SWEEP_STEP)) + 1
+    axis_clearance = (1e9, None, None)      # (distance, theta, part)
+    part_gap = (1e9, None, None, None)      # (gap, theta, gate part, static part)
+    open_gap = (1e9, None, None, None)       # same, theta >= 0.3, hinge running fit excluded
+    buried = {}
+    for step in range(steps):
+        theta = round(step * SWEEP_STEP, 2)
+        cos_t, sin_t = math.cos(theta), math.sin(theta)
+        swept = [(Vector((rel.x * cos_t + rel.y * sin_t, -rel.x * sin_t + rel.y * cos_t, rel.z)) + hinge,
+                  name) for (rel, name) in gate_points]
+        low = [min(p[i] for (p, _n) in swept) for i in range(3)]
+        high = [max(p[i] for (p, _n) in swept) for i in range(3)]
+        nearby = [s for s in statics
+                  if all(s['low'][k] <= high[k] + 0.03 and low[k] <= s['high'][k] + 0.03
+                         for k in range(3))]
+        for (point, name) in swept:
+            if theta >= SWEEP_OPEN_FROM - 1e-9:
+                distance = math.hypot(point.x - BORE_X, point.z - BORE_Z)
+                if distance < axis_clearance[0]:
+                    axis_clearance = (distance, theta, name)
+                if distance < GATE_AXIS_CLEARANCE - 1e-9:
+                    key = ('axis', name)
+                    buried.setdefault(key, []).append((theta, distance))
+            for static in nearby:
+                if contains(static, point, 0.03):
+                    hit = static['tree'].find_nearest(point)
+                    if hit[3] is not None and hit[3] < part_gap[0]:
+                        part_gap = (hit[3], theta, name, static['name'])
+                    if hit[3] is not None and hit[3] < open_gap[0] and theta >= 0.3 \
+                            and not name.startswith('Gate knuckle'):
+                        open_gap = (hit[3], theta, name, static['name'])
+                if contains(static, point) and inside(static['tree'], point):
+                    key = ('inside', name, static['name'])
+                    buried.setdefault(key, []).append((theta, 0.0))
+    for (key, hits) in sorted(buried.items()):
+        thetas = sorted({round(t, 2) for (t, _d) in hits})
+        if key[0] == 'axis':
+            closest = min(d for (_t, d) in hits)
+            findings.append(f'{key[1]} comes within {closest:.4f} of the bore axis while open '
+                            f'(theta {thetas[0]}..{thetas[-1]}, need >= {GATE_AXIS_CLEARANCE})')
+        else:
+            findings.append(f'{key[1]} enters {key[2]} at theta {thetas[0]}..{thetas[-1]} '
+                            f'({len(hits)} vertex hits)')
+    print(f'gate sweep: {len(gate_points)} gate vertices x {steps} angles (0..{GATE_SWEEP_MAX} rad) '
+          f'against {len(statics)} static parts')
+    print(f'  closed venturi bounds x={core_bounds[0][0]:+.4f}..{core_bounds[1][0]:+.4f} '
+          f'y={core_bounds[0][1]:+.4f}..{core_bounds[1][1]:+.4f} (frozen, checked at theta 0)')
+    print(f'  min bore-axis clearance while open (theta >= {SWEEP_OPEN_FROM}): '
+          f'{axis_clearance[0]:.4f} at theta {axis_clearance[1]} ({axis_clearance[2]}); need {GATE_AXIS_CLEARANCE}')
+    print(f'  min gate-to-part surface gap over the sweep: {part_gap[0] * 1000:.2f} mm at theta '
+          f'{part_gap[1]} ({part_gap[2]} vs {part_gap[3]})')
+    print(f'  min swing clearance (theta >= 0.3, knuckle/pin running fit excluded): '
+          f'{open_gap[0] * 1000:.2f} mm at theta {open_gap[1]} ({open_gap[2]} vs {open_gap[3]})')
+    return findings, {'axis_clearance_open': [round(axis_clearance[0], 6), axis_clearance[1], axis_clearance[2]],
+                      'min_part_gap': [round(part_gap[0], 6), part_gap[1], part_gap[2], part_gap[3]],
+                      'min_swing_gap': [round(open_gap[0], 6), open_gap[1], open_gap[2], open_gap[3]]}
+
+
+(sweep_failures, sweep_measured) = audit_gate_sweep()
+if sweep_failures:
+    print(f'GATE SWEEP: {len(sweep_failures)} violations')
+    for line in sweep_failures:
+        print(f'  {line}')
+else:
+    print('gate sweep audit: the venturi swings clear of every part and the bore axis')
+
+if contract_failures or heat_band_failures or collisions or floaters or sweep_failures:
     raise RuntimeError(
         f'build gate failed: {len(contract_failures)} contract, {len(heat_band_failures)} '
-        f'heat-band, {len(collisions)} coplanar, {len(floaters)} floating')
+        f'heat-band, {len(collisions)} coplanar, {len(floaters)} floating, '
+        f'{len(sweep_failures)} gate sweep')
 
 # --- shared material-library pass, then pack and save the editable source ---
 # apply_scene styles the six mapped materials onto their shared palette
@@ -1159,6 +1351,15 @@ manifest = {
                         'heat_band': [-HEAT_BAND[1], -HEAT_BAND[0]],
                         'sight_height': SIGHT_Z,
                         'sight_posts': [REAR_POST_Y, FRONT_POST_Y]},
+    'hinge': {'game': [HINGE[0], HINGE[2], -HINGE[1]],
+              'authoring': list(HINGE),
+              'axis': 'vertical pin (game +y) on the left flank; the gate node '
+                      'translation in torch.gltf is the single runtime source',
+              'pin_game_y': list(HINGE_PIN_Z),
+              'swing_rad': GATE_SWING,
+              'runtime': 'gate.rotation.y = -swing_rad * open; no slide',
+              'round_path_rear_z_game': GATE_REAR_Z_GAME,
+              'sweep_audit': sweep_measured},
     'files': {'blend': 'docs/design/blender/torch/torch.blend',
               'glb': 'docs/design/blender/torch/torch.glb',
               'renders': ['render-hero.png', 'render-side.png', 'render-left.png',
@@ -1175,8 +1376,14 @@ manifest = {
         'part_contact': 'every authored part must cross, nearly touch or sit inside '
                         'another part; a group that only meets the model through '
                         'empty space is reported as floating and fails the build',
+        'gate_sweep': f'every evaluated gate vertex is swung about the vertical hinge '
+                      f'line for theta 0..{GATE_SWEEP_MAX} rad step {SWEEP_STEP}: none may '
+                      f'enter a body/mag/bolt/trigger volume, for theta >= {SWEEP_OPEN_FROM} '
+                      f'all must keep {GATE_AXIS_CLEARANCE} from the bore axis, and at theta 0 '
+                      f'the frozen venturi pieces must occupy their closed-pose bounds',
     },
-    'geometry_audit': {'coplanar_faces': collisions, 'floating_parts': floaters},
+    'geometry_audit': {'coplanar_faces': collisions, 'floating_parts': floaters,
+                       'gate_sweep': sweep_failures},
     'limitations': [
         'Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.',
         'Single LOD; no mobile GPU profiling.',
@@ -1188,8 +1395,10 @@ manifest = {
               'industrial panels and handles, a rocket nose peeking from the tube mouth.',
               'The heat band stays bare 0.0620 tube: the runtime glow sleeve at 0.0625 '
               'and the support hand own that span.',
-              'The breech gate (venturi leaves) pivots at the frozen hinge; gate nodes '
-              'ship hinge-local with the hinge as node translation.',
+              'The breech gate (venturi leaves) swings open sideways on a vertical pin '
+              'on the left flank (game (-0.104, 0.075, -0.135), 1.75 rad, no slide) so '
+              'the bore axis stays clear for the reload round; gate nodes ship '
+              'hinge-local with the hinge as node translation.',
               'Markings are modelled geometry, not a texture decal.',
               'No loose rounds: the reload rocket is spawned procedurally by the runtime.',
               'Flip-up ladder sights bracket the shared 0.175 sight line.'],

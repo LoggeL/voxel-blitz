@@ -4,7 +4,7 @@
   "kind": "original heavy sci-fi shoulder-fired rocket launcher prop (visual game asset)",
   "blender": "5.2.1 LTS",
   "authoring_script": "tools/blender/torch/build-torch.py",
-  "source_parts": 108,
+  "source_parts": 106,
   "animation_group_nodes": [
     "body",
     "mag",
@@ -20,10 +20,10 @@
   ],
   "batch_nodes": 17,
   "round_nodes": [],
-  "triangles": 15140,
+  "triangles": 15092,
   "triangles_per_primitive": {
     "body | cavity black": 792,
-    "body | gunmetal": 4540,
+    "body | gunmetal": 4404,
     "body | ivory coating": 572,
     "body | olive drab": 3136,
     "body | orange paint": 1564,
@@ -32,7 +32,7 @@
     "bolt | gunmetal": 116,
     "bolt | orange paint": 92,
     "extra | cavity black": 192,
-    "extra | gunmetal": 1848,
+    "extra | gunmetal": 1936,
     "extra | orange paint": 428,
     "mag | gunmetal": 88,
     "mag | orange paint": 44,
@@ -107,6 +107,45 @@
       0.768
     ]
   },
+  "hinge": {
+    "game": [
+      -0.104,
+      0.075,
+      -0.135
+    ],
+    "authoring": [
+      -0.104,
+      0.135,
+      0.075
+    ],
+    "axis": "vertical pin (game +y) on the left flank; the gate node translation in torch.gltf is the single runtime source",
+    "pin_game_y": [
+      0.018,
+      0.132
+    ],
+    "swing_rad": 1.75,
+    "runtime": "gate.rotation.y = -swing_rad * open; no slide",
+    "round_path_rear_z_game": -0.06,
+    "sweep_audit": {
+      "axis_clearance_open": [
+        0.092827,
+        1.55,
+        "Gate knuckle top"
+      ],
+      "min_part_gap": [
+        0.000253,
+        0.0,
+        "Gate warning band",
+        "Rear sight notch bar"
+      ],
+      "min_swing_gap": [
+        0.004277,
+        0.30000000000000004,
+        "Gate clamp ring",
+        "Spine deck"
+      ]
+    }
+  },
   "files": {
     "blend": "docs/design/blender/torch/torch.blend",
     "glb": "docs/design/blender/torch/torch.glb",
@@ -123,11 +162,13 @@
     "anchor_contract": "muzzle plane, bore axis and exposed 0.0620 radius across the whole heat band, all four markers, the 0.175 sight line, the trigger blade and the arming lever home position are asserted against the runtime contract every build",
     "heat_band_clearance": "no vertex other than the bore may enter the heat band",
     "coplanar_face_audit": "rejects flush faces between parts, which z-fight once same-material parts merge into one draw call",
-    "part_contact": "every authored part must cross, nearly touch or sit inside another part; a group that only meets the model through empty space is reported as floating and fails the build"
+    "part_contact": "every authored part must cross, nearly touch or sit inside another part; a group that only meets the model through empty space is reported as floating and fails the build",
+    "gate_sweep": "every evaluated gate vertex is swung about the vertical hinge line for theta 0..1.85 rad step 0.05: none may enter a body/mag/bolt/trigger volume, for theta >= 1.55 all must keep 0.055 from the bore axis, and at theta 0 the frozen venturi pieces must occupy their closed-pose bounds"
   },
   "geometry_audit": {
     "coplanar_faces": [],
-    "floating_parts": []
+    "floating_parts": [],
+    "gate_sweep": []
   },
   "limitations": [
     "Scalar metallic/roughness only: no baked normal, occlusion or roughness maps.",
@@ -137,7 +178,7 @@
   "notes": [
     "Fresh design (study BULWARK): squared breech housing, half-cage braces, industrial panels and handles, a rocket nose peeking from the tube mouth.",
     "The heat band stays bare 0.0620 tube: the runtime glow sleeve at 0.0625 and the support hand own that span.",
-    "The breech gate (venturi leaves) pivots at the frozen hinge; gate nodes ship hinge-local with the hinge as node translation.",
+    "The breech gate (venturi leaves) swings open sideways on a vertical pin on the left flank (game (-0.104, 0.075, -0.135), 1.75 rad, no slide) so the bore axis stays clear for the reload round; gate nodes ship hinge-local with the hinge as node translation.",
     "Markings are modelled geometry, not a texture decal.",
     "No loose rounds: the reload rocket is spawned procedurally by the runtime.",
     "Flip-up ladder sights bracket the shared 0.175 sight line."

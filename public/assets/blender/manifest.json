@@ -93,10 +93,10 @@
     },
     {
       "asset": "torch",
-      "source_parts": 108,
+      "source_parts": 106,
       "draws": 17,
-      "triangles": 15140,
-      "geometry_bytes": 1010576
+      "triangles": 15092,
+      "geometry_bytes": 1006160
     },
     {
       "asset": "wasp",

@@ -68,9 +68,10 @@ z +0.36.
 - `trigger`: blade (tip at z -0.055) + shoe + guard at z -0.11.
 - `extra`: ONLY the breech gate leaves (`gate | gunmetal`, `gate | orange
   paint`, `gate | cavity black`), hinge-local geometry with node translation
-  exactly `[0, 0.075, -0.06]`; the runtime slides the gate 0.13 back and
-  swings +1.05 rad about game X (hinge-stop bounce on the drop, slam at the
-  seat cue). No loose reload round: the runtime spawns it.
+  exactly `[-0.104, 0.075, -0.135]` (the vertical left-flank pin); the runtime
+  swings the venturi 1.75 rad open sideways about that pin (Carl Gustaf M3
+  style; hinge-stop bounce on the drop, slam at the seat cue). No loose reload
+  round: the runtime spawns it.
 
 ## Commands
 
@@ -154,9 +155,10 @@ Every run below was executed for this delivery (not assumed):
 
 ## Assumptions (stated, not checked)
 
-- Gate articulation axis: the runtime rotates `gate.rotation.x` (+1.05 rad,
-  with a 0.13 slide) about the frozen hinge; the leaves are shaped for that
-  motion (confirmed with the runtime owner during the redo).
+- Gate articulation axis: the runtime swings `gate.rotation.y` (1.75 rad)
+  about the vertical left-flank pin at (-0.104, 0.075, -0.135); the leaves are
+  shaped for that motion
+  (confirmed with the runtime owner during the redo).
 - Hand fit: the grip and support palms sit on the contract points and the
   furniture is built around them, but no third-person pose test was run.
 - The seated warhead nose inside the bore is the one geometry the strict
