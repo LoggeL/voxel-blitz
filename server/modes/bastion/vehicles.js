@@ -89,12 +89,13 @@ export function stepVehicle(engine, policy, p, dt) {
       else if (now - route.stalledSince > HARD_STALL_MS) route.parked = true;
     }
   }
-  // 4. Contact damage to defenders standing inside the hull footprint.
+  // 4. Contact damage to defenders standing inside the hull footprint (spawn protection holds).
   const [hx, , hz] = profile.combatBox;
   for (const id of policy.active) {
     const d = engine.entities.get(id);
     if (!d || d.state !== 'alive' || now - (route.lastContact.get(id) || -Infinity) < CONTACT_MS) continue;
     if (Math.abs(d.x - p.x) > hx + 0.4 || Math.abs(d.z - p.z) > hz + 0.4 || Math.abs(d.y - p.y) > 2.5) continue;
+    if (!policy.canDamage(p, d)) continue;
     route.lastContact.set(id, now);
     const lethal = d.takeDamage(profile.ramPlayerDamage, false, p, 'ram');
     d.vx += fwd.x * profile.ramKnock; d.vz += fwd.z * profile.ramKnock; d.vy += 5;

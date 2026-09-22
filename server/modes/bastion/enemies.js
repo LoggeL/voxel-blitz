@@ -279,7 +279,7 @@ export class BastionEnemies {
     const fwd = fwdFromYawPitch(p.yaw, 0);
     for (const d of defenders) {
       const dx = d.x - p.x, dz = d.z - p.z, len = Math.hypot(dx, dz) || 1;
-      if (len > 2.2 || (dx * fwd.x + dz * fwd.z) / len < 0.2) continue;
+      if (len > 2.2 || (dx * fwd.x + dz * fwd.z) / len < 0.2 || !policy.canDamage(p, d)) continue;
       const lethal = d.takeDamage(profile.slamDamage, false, p, 'slam');
       d.vx += fwd.x * profile.slamKnock; d.vz += fwd.z * profile.slamKnock; d.vy += 5;
       d.impulseSeq = (d.impulseSeq || 0) + 1; d.grounded = false; d.vault = null;
