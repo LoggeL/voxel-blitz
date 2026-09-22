@@ -43,6 +43,19 @@ try {
   assert.equal(live.body.all(node => node.tag === 'th').some(th => th.text === '#'), false);
   assert.equal(live.body.all(hasClass('dead')).length, 0, 'an unidentified body is not marked dead');
 
+  // The post-round result keeps the name order, so it must not number it as placements either.
+  for (const mode of ['ttt', 'fun']) {
+    const result = new Scoreboard();
+    result.build(new Element('div'), { presentation: 'result' });
+    result.update(players, { mode, phase: 'post', corpses: [] }, 'a');
+    const table = result.body.all(node => node.tag === 'table')[0];
+    const headers = table.all(node => node.tag === 'th').map(th => th.text);
+    const row = table.all(node => node.tag === 'tr' && node.dataset.pid)[0];
+    assert.equal(row.children.length, headers.length, `${mode} result rows line up with their headers`);
+    assert.equal(headers.includes('#'), mode !== 'ttt', `${mode} result rank header`);
+    assert.equal(result.body.all(hasClass('vb-sb-rank')).length, mode === 'ttt' ? 0 : players.length, `${mode} result rank cells`);
+  }
+
   // Bastion is co-op: one squad section, no enemy table and no TDM score limit.
   const squad = [{ id: 'h1', name: 'Host', team: 'alpha' }, { id: 'h2', name: 'Guest', team: 'alpha' }];
   for (const presentation of ['live', 'result']) {
@@ -63,4 +76,4 @@ try {
 } finally {
   globalThis.document = saved;
 }
-console.log('Scoreboard: neutral TTT order without rank cells, single Bastion squad and TDM team tables passed.');
+console.log('Scoreboard: neutral TTT order without rank cells (live and result), single Bastion squad and TDM team tables passed.');

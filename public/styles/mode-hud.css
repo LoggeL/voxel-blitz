@@ -121,7 +121,7 @@
 #match-result-scoreboard .vb-sb-number { white-space: nowrap; }
 #match-result-scoreboard .vb-me .vb-sb-name { font-weight: 700; }
 #match-result-scoreboard .vb-sb-you { color: var(--ok); }
-#match-result-scoreboard.vb-mode-scoreboard th:nth-child(2) { text-align: left; }
+#match-result-scoreboard.vb-mode-scoreboard:not([data-mode="ttt"]) th:nth-child(2) { text-align: left; }
 #match-result-scoreboard .vb-sb-vote { min-width: 28px; color: #71838d; }
 #match-result-scoreboard .vb-sb-vote.is-approved { color: #91df9a; font-weight: 800; }
 #match-result-scoreboard thead th { position: sticky; top: 0; z-index: 1; background: #101b22; }

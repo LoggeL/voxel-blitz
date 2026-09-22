@@ -117,7 +117,7 @@ export class Scoreboard {
     const table = el('table', '', parent);
     const head = el('tr', '', el('thead', '', table));
     const columns = this.resultPresentation
-      ? ['#', 'PLAYER', ...(mode === 'gungame' ? ['WEAPON'] : mode === 'ttt' ? [] : ['K', 'D']), ...(mode === 'snd' ? ['STATUS'] : [])]
+      ? [...(mode === 'ttt' ? [] : ['#']), 'PLAYER', ...(mode === 'gungame' ? ['WEAPON'] : mode === 'ttt' ? [] : ['K', 'D']), ...(mode === 'snd' ? ['STATUS'] : [])]
       : mode === 'training' ? ['PLAYER']
       : mode === 'gungame' ? ['#', 'PLAYER', 'WEAPON']
         : mode === 'snd' ? ['PLAYER', 'K', 'D', 'STATUS']
@@ -141,7 +141,8 @@ export class Scoreboard {
       const tr = el('tr', [self ? 'vb-me' : '', dead ? 'dead' : '', team ? `vb-team-${team}` : ''].filter(Boolean).join(' '), body);
       tr.dataset.pid = String(player.id);
       if (this.resultPresentation) tr.dataset.bot = String(!!player.bot);
-      if (this.resultPresentation || (!isTeamMode(mode) && !['training', 'ttt'].includes(mode))) el('td', 'vb-sb-rank', tr).textContent = String(index + 1);
+      // TTT rows are sorted by name, so a rank would read as a false placement.
+      if (mode !== 'ttt' && (this.resultPresentation || (!isTeamMode(mode) && mode !== 'training'))) el('td', 'vb-sb-rank', tr).textContent = String(index + 1);
       const name = el('td', 'vb-sb-name', tr);
       name.textContent = String(player.name || 'PLAYER');
       if (mode==='ttt' && player.tttRole) {
