@@ -975,8 +975,10 @@ export async function runHudContracts(ok, installGlobals) {
       const buyCredits = document.getElementById('buy-credits-val');
       const ownedCard = document.getElementById('buy-card-revolver');
       const minigunCard = document.getElementById('buy-card-minigun');
-      ok(minigunCard.querySelector('.vb-buy-key-badge').textContent !== 'GRENADE',
-        'minigun armory card is labelled as a weapon');
+      ok(minigunCard.querySelector('.vb-buy-key-badge').textContent === 'CLICK'
+        && document.getElementById('buy-grid').children[9].querySelector('.vb-buy-key-badge').textContent === '[0]'
+        && document.querySelector('.vb-buy-footer-hint').textContent.startsWith('[1-9, 0] FIRST 10 ITEMS'),
+      'armory key badges and footer match the ten digit shortcuts; later cards read CLICK');
       const smgButton = document.getElementById('buy-btn-smg');
       const sniperButton = document.getElementById('buy-btn-sniper');
       ok(hud.isBuyMenuOpen()

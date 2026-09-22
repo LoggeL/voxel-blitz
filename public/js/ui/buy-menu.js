@@ -122,7 +122,8 @@ export class BuyMenuController {
 
       const cardTop = el('div', 'vb-buy-card-top', card);
       const keyBadge = el('span', 'vb-buy-key-badge', cardTop);
-      keyBadge.textContent = index < 10 ? `[${keyNumber}]` : WEAPONS[wid] ? 'SELECT' : 'GRENADE';
+      // Digits reach the first ten cards only; later cards are bought by click or Tab + Enter.
+      keyBadge.textContent = index < 10 ? `[${keyNumber}]` : 'CLICK';
 
       const glyphBadge = el('span', `vb-buy-glyph-badge vb-w-${wid}`, cardTop);
       glyphBadge.textContent = GLYPH[wid] || wid.toUpperCase();
@@ -188,7 +189,7 @@ export class BuyMenuController {
 
     const footer = el('div', 'vb-buy-footer', panel);
     const hint = el('span', 'vb-buy-footer-hint', footer);
-    hint.textContent = mode === 'chaos' ? '[1-9, 0] FIRST 10 ITEMS · CLICK OR TAB + ENTER FOR ALL · [ESC] CLOSE' : 'PRESS [1-8] TO BUY · [ESC] TO CLOSE · UI UPDATES ON SERVER CONFIRMATION';
+    hint.textContent = '[1-9, 0] FIRST 10 ITEMS · CLICK OR TAB + ENTER FOR ALL · [ESC] CLOSE';
 
     this.buyDom = {
       root,
