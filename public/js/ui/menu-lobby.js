@@ -56,7 +56,7 @@ export class MenuLobbyController {
     );
   }
 
-  buildMenu(onAction, _options = {}) {
+  buildMenu(onAction) {
     const previousMenu = document.getElementById('menu');
     const isInitialMenu = !this.browser;
     const retry = previousMenu?.getAttribute('aria-hidden') === 'false' ? this.browser?.retry : null;
@@ -165,7 +165,6 @@ export class MenuLobbyController {
     loadProgress.setAttribute('aria-label', 'Match asset loading progress');
     const loadLabel = el('span', 'vb-load-label', loadBar);
     loadLabel.textContent = 'LOADING MATCH ASSETS…';
-    this._playButtons = [quickPlayButton, browseButton, createLobbyButton, duelButton];
     this._loadBar = loadBar;
     this._loadProgress = loadProgress;
     this._loadLabel = loadLabel;
@@ -187,6 +186,7 @@ export class MenuLobbyController {
     const trainingButton = el('button', 'vb-btn vb-training-btn', trainingInfo, 'training-btn');
     trainingButton.type = 'button';
     trainingButton.textContent = 'TRAINING';
+    this._playButtons = [quickPlayButton, browseButton, createLobbyButton, duelButton, trainingButton];
 
     el('aside', 'vb-menu-showcase', primary).setAttribute('aria-label', 'Your account and career');
 
@@ -263,10 +263,7 @@ export class MenuLobbyController {
         } catch (_) {}
       });
     }
-    // The training entry is built with the warm-up card below; register it here
-    // so the gate covers every match entry.
-    if (trainingButton && !this._playButtons.includes(trainingButton)) this._playButtons.push(trainingButton);
-    // Re-apply the latched asset gate: rebuilds start gated until main.js
+    // Re-apply the latched asset gate; a rebuilt menu keeps the last state pushed by main.js.
     this.setPlayReady(this._playReady === true, this._playProgress);
   }
 
