@@ -60,7 +60,6 @@ export const BASTION_SHOP = Object.freeze({
 // Single source for the build catalog keys; shared/bastion-build.js imports it.
 export const STRUCTURE_KINDS = Object.freeze(['sandbag', 'wall', 'turret', 'crate']);
 
-export const BASTION_WAVE_IDS = Object.freeze(['probe', 'push', 'assault', 'siege', 'armor', 'onslaught', 'breakthrough', 'lastStand']);
 export const BASTION_WAVES = Object.freeze({   // columns = BASTION_ROLES order
   //             runner breacher heavy brute jugg buggy apc walker
   probe:        Object.freeze([ 8, 0, 0, 0, 0,  0, 0, 0]),   // 8

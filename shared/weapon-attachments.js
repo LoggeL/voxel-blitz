@@ -33,7 +33,6 @@ export const ATTACHMENT_SLOTS = Object.freeze(Object.fromEntries(WEAPON_IDS.map(
   // the same normalize/validate/transport/persistence path as optics and grips.
   counter: standardCounter,
 })])));
-export const DEFAULT_ATTACHMENTS = Object.freeze({ optic: 'standard', grip: 'standard', counter: 'standard' });
 const record = value => value && typeof value === 'object' && !Array.isArray(value);
 export function normalizeAttachments(weapon, value) {
   const slots = ATTACHMENT_SLOTS[weapon];
