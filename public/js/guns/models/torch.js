@@ -25,6 +25,7 @@ export function buildTorch({ kit, T, groups }) {
   // hinge-local so the slide-and-swing pivot owns the only offset.
   for (const child of [...parts.extra.children]) child.position.sub(hinge);
   gate.add(...parts.extra.children);
+  groups.extra.add(gate);
   groups.extra.userData.reloadPart = gate;
   groups.extra.userData.rocketReload = { gate, axisY: T.muzzle[1], rearZ };
 

@@ -619,7 +619,6 @@ export class WeaponActions {
     const presented = this._phase(frac, 0.025, 0.18) * (1 - this._phase(frac, 0.90, 1));
     const open = this._phase(frac, timeline.start, 0.32) * (1 - this._phase(frac, timeline.home, timeline.clickAt));
     const seat = this._contact(frac, timeline.home, 0.07);
-    const latch = this._contact(frac, timeline.clickAt, 0.05);
     out.dip = 0.045 * presented + 0.025 * seat;
     out.rock = 0.10 * presented - 0.08 * seat;
     out.x = -0.12 * presented;
