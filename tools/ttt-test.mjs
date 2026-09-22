@@ -4,6 +4,7 @@ import { LobbyManager } from '../server/lobby.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { parseBuyFrame } from '../server/protocol/admission.js';
 import { isModeMapCompatible } from '../shared/modes.js';
+import { evHit } from '../server/protocol/events.js';
 
 let snapshot;
 const g=new GameEngine({mode:'ttt',broadcast:s=>snapshot=s});
@@ -73,6 +74,7 @@ wallGame.world.setBlock(21,20,20,1);assert.equal(wallPolicy.buy(wp,'ttt:pickup:9
 const timeoutGame=new GameEngine({mode:'ttt'});timeoutGame.addClient('a','A');
 const tp=timeoutGame.mode.policy;timeoutGame.now=tp.phaseEndsAt;timeoutGame.mode.tick();
 assert.equal(tp.phase,'prep','one player waits instead of receiving an impossible role');
+assert.deepEqual(timeoutGame.mode.matchSnapshot().waiting,{have:1,need:2},'a solo prep reports whom it waits for');
 timeoutGame.addClient('b','B');timeoutGame.mode.tick();assert.equal(tp.phase,'live');
 timeoutGame.applyInput('a',{quickMelee:true});assert.ok(timeoutGame.entities.get('a').quickMeleeQueued,'unarmed quick melee is accepted');
 timeoutGame.now=tp.phaseEndsAt;timeoutGame.mode.tick();assert.equal(tp.matchWinner,'innocent','innocents win at time limit');
@@ -85,4 +87,49 @@ assert.equal(fp.mag[fp.weapon],30,'prep fire cannot consume ammo');
 fireGame.now=firePolicy.phaseEndsAt;fireGame.mode.tick();
 for(let i=0;i<20;i++)fireGame.step(50);
 assert.ok(fp.mag[fp.weapon]<30,'held pickup weapon really fires in live phase');
-console.log('TTT: preparation deadline, private roles, single-slot pickup/drop, ammo conservation, shop authorization, walls, late join, elimination, continuation passed');
+// Bystanders never learn who killed whom before the round ends; the killer and
+// victim keep their own hit feedback, and rewards still see the full tick.
+let privacyTick;
+const pg=new GameEngine({mode:'ttt',broadcast:s=>privacyTick=s});
+for(let i=0;i<5;i++)pg.addClient(`v${i}`,`Viewer ${i}`);
+const pp=pg.mode.policy;pg.now=pp.phaseEndsAt;pg.mode.tick();assert.equal(pp.phase,'live');
+const killer=[...pg.entities.values()].find(p=>pp.roles.get(p.id)==='traitor');
+const [victim,bystander]=[...pg.entities.values()].filter(p=>pp.roles.get(p.id)==='innocent');
+pg.tickEvents.push(evHit(killer.id,victim.id,100,false,[victim.x,victim.y+1,victim.z],{healthDamage:100,overkill:0,lethal:true}));
+pg.killPlayer(victim,killer,'rifle',false);pg.step(50);
+assert.equal(pp.phase,'live');
+assert.equal(privacyTick.players.find(p=>p.id===killer.id).kills,1,'the authoritative tick still counts the kill');
+const views=new Map();
+const privacyManager=Object.create(LobbyManager.prototype);
+privacyManager.sendJson=(meta,obj,source)=>views.set(meta.id,{obj,source});
+privacyManager._broadcastJson({engine:pg,members:new Map([...pg.entities.keys()].map(id=>[id,{id,meta:{id}}]))},privacyTick);
+const seen=id=>views.get(id).obj, lethalHit=id=>seen(id).events.find(e=>e.kind==='hit'&&e.victim===victim.id);
+assert.equal(views.get(bystander.id).source,privacyTick,'career observes the authoritative tick');
+assert.ok(views.get(bystander.id).source.events.some(e=>e.kind==='kill'));
+for(const id of pg.entities.keys())assert.equal(seen(id).events.some(e=>e.kind==='kill'),false,'no recipient receives kill events');
+assert.equal(lethalHit(bystander.id).attacker,'','bystanders see the hit but not the shooter');
+assert.equal(lethalHit(bystander.id).lethal,true);
+assert.equal(lethalHit(killer.id).attacker,killer.id,'the attacker keeps hit confirmation');
+assert.equal(lethalHit(victim.id).attacker,killer.id,'the victim keeps damage direction');
+const row=(viewer,id)=>seen(viewer).players.find(p=>p.id===id);
+assert.equal(row(bystander.id,killer.id).kills,0,'foreign kill counters stay hidden');
+assert.equal(row(bystander.id,killer.id).score,0);
+assert.equal(row(bystander.id,victim.id).deaths,0,'foreign death counters stay hidden');
+assert.equal(row(killer.id,killer.id).kills,1,'own counters stay real');
+assert.equal(row(bystander.id,victim.id).state,'dead','the corpse itself is public');
+const postView=pp.viewFor(bystander.id,{...privacyTick,match:{...privacyTick.match,phase:'post'}});
+assert.equal(postView.players.find(p=>p.id===killer.id).kills,1,'counters are revealed after the round');
+assert.equal(postView.events.find(e=>e.kind==='hit').attacker,killer.id);
+// A prep death (drowning, lava, falls) happens before roles exist and must not cost the round.
+const prepGame=new GameEngine({mode:'ttt'});prepGame.addClient('a','A');prepGame.addClient('b','B');
+const prepPolicy=prepGame.mode.policy, drowned=prepGame.entities.get('b');
+prepGame.killPlayer(drowned,null,'water',false,null);assert.equal(drowned.state,'dead');
+prepGame.now=prepPolicy.phaseEndsAt;prepGame.mode.tick();
+assert.equal(drowned.state,'alive','prep deaths respawn at the deadline');
+assert.equal(prepPolicy.phase,'live');assert.equal(prepPolicy.roles.size,2);
+// Everyone dying in one tick is a traitor win (Terrortown rules).
+const wipeGame=new GameEngine({mode:'ttt'});for(let i=0;i<4;i++)wipeGame.addClient(`w${i}`,`W${i}`);
+const wipePolicy=wipeGame.mode.policy;wipeGame.now=wipePolicy.phaseEndsAt;wipeGame.mode.tick();assert.equal(wipePolicy.phase,'live');
+for(const p of wipeGame.entities.values()){p.state='dead';wipeGame.mode.onPlayerDeath(p);}
+wipeGame.mode.tick();assert.equal(wipePolicy.phase,'post');assert.equal(wipePolicy.matchWinner,'traitor','nobody alive means traitors win');
+console.log('TTT: preparation deadline, private roles, single-slot pickup/drop, ammo conservation, shop authorization, walls, late join, elimination, continuation, kill privacy, prep waiting/respawn and total wipe passed');

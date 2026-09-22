@@ -116,14 +116,20 @@ export class CareerService {
     else this.loadouts.delete(id);
   }
 
+  /** A revoked login or claimed guest token stops earning on a live socket. */
+  refreshClientIdentity(client) {
+    if (client.authRequest) {
+      const current = this.identity(client.authRequest);
+      client.profileId = current === client.admittedProfileId ? current : null;
+    }
+    return client.profileId;
+  }
+
   /** Authentication is checked in memory; snapshots never read persistence. */
   clientLoadout(client) {
     if (!client) return normalizeCosmeticLoadout(null);
     try {
-      if (client.authRequest) {
-        const current = this.identity(client.authRequest);
-        client.profileId = current === client.admittedProfileId ? current : null;
-      }
+      this.refreshClientIdentity(client);
       return normalizeCosmeticLoadout(client.profileId ? this.loadouts.get(client.profileId) : null);
     } catch {
       client.profileId = null;
@@ -214,10 +220,14 @@ export class CareerService {
     state.now = snapshot.now;
     const reward = { xp: 0, kills: 0, matches: 0, pvpKills: 0, wins: 0, mastery: {} };
     const addReward = delta => { reward.xp += delta.xp; };
+    // TTT has no teams: the secret role is the side for friendly fire and victory.
+    const roles = match.mode === 'ttt' ? client.room.engine.mode?.policy?.roles : null;
+    const sideOf = (id, team) => roles ? roles.get(String(id)) ?? null : team;
+    const side = sideOf(client.id, self.team);
     for (const event of snapshot.events || []) {
       if (event.kind === 'kill' && event.killer === client.id && event.victim !== client.id) {
         const victim = client.room.engine.entities.get(event.victim) || client.room.engine.combatants?.get(event.victim);
-        if (!victim || (self.team && victim.team === self.team)) continue;
+        if (!victim || (side && sideOf(event.victim, victim.team) === side)) continue;
         addReward(victim.bot ? CAREER_REWARDS.botKill : CAREER_REWARDS.kill);
         reward.kills++;
         if (!victim.bot) {
@@ -251,7 +261,7 @@ export class CareerService {
       if (state.participated >= 10000) {
         addReward(CAREER_REWARDS.match);
         reward.matches++;
-        if (match.winner === self.id || (self.team && match.winner === self.team)) {
+        if (match.winner === self.id || (side && match.winner === side)) {
           addReward(CAREER_REWARDS.victory);
           reward.wins++;
         }

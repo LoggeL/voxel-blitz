@@ -108,16 +108,15 @@ async function main() {
   // One tick snapshot reaches every member of a room; serialize it once.
   const payloadCache = new WeakMap();
 
-  function sendJson(c, obj) {
+  // `source` is the authoritative tick behind a per-recipient view (TTT hides
+  // kill events from players); rewards are always observed on the full tick.
+  function sendJson(c, obj, source = obj) {
     try {
       // Session revocation affects existing sockets immediately. A guest can
       // keep playing, but an old login or claimed guest token earns no XP.
-      if (c.authRequest) {
-        const current = career.identity(c.authRequest);
-        c.profileId = current === c.admittedProfileId ? current : null;
-      }
+      career.refreshClientIdentity(c);
       obj = career.decorateSnapshot(obj, clients);
-      const saving = career.observe(c, obj);
+      const saving = career.observe(c, source);
       // File persistence returns the updated profile; PostgreSQL returns a promise.
       saving?.catch?.(error => {
         if (!c.careerErrorLogged) console.error('[career] reward save failed:', error.message);
