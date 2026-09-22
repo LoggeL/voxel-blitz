@@ -188,7 +188,41 @@ try {
     belt.update(4.2, 0, lmg, lmg.T);
     must(cover.rotation.x === 0 && lmg.bolt.position.z === 0 && lead.visible && lead.position.equals(lead.userData.homePosition), 'belt reload resets every part');
     belt.dispose(lmg);
-    disposeGunModels([gun,sniper,lmg],cache);
+    // TORCH (RX-8 HAVOC) rear load: the exported template must hang its breech
+    // gate on the authored hinge inside the scene graph — an orphaned gate group
+    // or a hinge-misplaced leaf is exactly the redo regression this block pins.
+    const rocket = buildGun('rocket', cache);
+    must(rocket.body.userData.blenderAsset === 'torch', 'first person TORCH');
+    must(rocket.body.userData.sightHeight === 0.175, 'rocket sight line at 0.175');
+    const rocketReload = rocket.extra.userData.rocketReload, gate = rocketReload?.gate;
+    must(gate, 'TORCH exposes its rocketReload gate under extra');
+    must(gate.name === 'rocket_rear_breech', 'TORCH gate is named rocket_rear_breech');
+    must(gate.parent === rocket.extra && rocket.root.getObjectByName('rocket_rear_breech') === gate,
+      'TORCH gate group hangs inside the rocket scene graph');
+    must(Math.abs(gate.position.x) < 1e-9 && Math.abs(gate.position.y - 0.075) < 1e-9 && Math.abs(gate.position.z + 0.06) < 1e-9,
+      'TORCH gate hinge pins at (0, 0.075, -0.06)');
+    const round = rocket.extra.userData.reloadRounds, rearZ = rocketReload.rearZ;
+    const actions = new WeaponActions();
+    actions.startReload(0, 1, 'magswap', rocket.T);
+    actions.update(0.35, 0, rocket, rocket.T);
+    must(gate.position.z > rearZ + 0.1 && gate.rotation.x > 0.9,
+      'rocket breech slides clear of the tube and flips open');
+    actions.update(0.50, 0, rocket, rocket.T);
+    must(round.visible === true, 'a complete new rocket is drawn');
+    actions.update(0.68, 0, rocket, rocket.T);
+    must(Math.abs(round.position.x) < 1e-9, 'new rocket aligns with the tube');
+    must(round.position.y === rocket.T.muzzle[1], 'rocket round rides the bore axis height');
+    const alignedZ = round.position.z;
+    actions.update(0.81, 0, rocket, rocket.T);
+    must(round.position.z < alignedZ - 0.4, 'rocket is inserted forward along the bore axis');
+    actions.update(0.94, 0, rocket, rocket.T);
+    must(round.visible === false, 'seated rocket is inside the tube');
+    must(gate.rotation.x === 0 && gate.position.z === rearZ, 'rocket rear breech latches closed');
+    actions.cancelReload(rocket);
+    must(round.visible === false && gate.rotation.x === 0 && gate.position.z === rearZ,
+      'cancelled rocket reload restores the TORCH rest pose');
+    actions.dispose();
+    disposeGunModels([gun,sniper,lmg,rocket],cache);
     const grenadeParts = createBlenderParts('grenades');
     must(Object.keys(grenadeParts).join() === 'frag,limpet,pulse,molotov,smoke', 'five authored throwables');
     for (const [id, part] of Object.entries(grenadeParts)) {
@@ -225,8 +259,13 @@ try {
     const sync=AvatarRoster.prototype.sync, setWeapon=ViewmodelRig.prototype.setWeapon;
     AvatarRoster.prototype.sync=function(...args){window.__assetRoster=this;return sync.apply(this,args);};
     ViewmodelRig.prototype.setWeapon=function(...args){window.__assetRig=this;return setWeapon.apply(this,args);};
-    document.getElementById('create-lobby-btn').click();
   })()`);
+  // triggerCreate returns early while the menu gates play on the match asset
+  // set (15 GLTF templates + shared textures decode on a cold cache): the click
+  // may only land once the gate lifts.
+  await page.waitFor(`document.getElementById('create-lobby-btn').disabled === false`,
+    { timeoutMs: 120000, label: 'match asset set' });
+  await page.evaluate(`document.getElementById('create-lobby-btn').click()`);
   await page.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false'`);
   await page.evaluate(`(() => { const select=document.getElementById('game-mode-select');
     select.value='training';select.dispatchEvent(new Event('change',{bubbles:true})); })()`);

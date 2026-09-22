@@ -23,8 +23,8 @@ references for the procedural weapon models:
 - `lmg.png`
 - `revolver.png`
 - `longarc.png` (side-profile render of the procedural `longarc` model, 480 px wide)
-- `rocket.png` (side-profile render of the procedural `rocket` model via
-  `npm run weapons:icons`, 480 px wide)
+- `rocket.png` (side-profile render of the TORCH Blender model — BULWARK
+  revision 2 — via `node tools/render-hud-icon.mjs --weapon rocket`, 480 px wide)
 
 Model changes should preserve the recognizable side-profile proportions,
 materials, furniture, sights, feeding system, and muzzle treatment shown in the

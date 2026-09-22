@@ -5,6 +5,7 @@ import { ViewmodelRig } from '../public/js/guns/viewmodel.js';
 import { WeaponActions } from '../public/js/guns/actions.js';
 import { buildGun, disposeGunModels } from '../public/js/guns/assemble.js';
 import { MaterialCache } from '../public/js/guns/kit.js';
+import { BREACH_Z } from '../public/js/guns/models/common.js';
 
 const swapIds = ['rifle', 'smg', 'lmg', 'minigun', 'longarc', 'lance', 'flamethrower'];
 const camera = new THREE.PerspectiveCamera(75, 16 / 9, 0.01, 100);
@@ -75,6 +76,24 @@ const models = [];
 function modelFor(id) { const model = buildGun(id, cache); models.push(model); return model; }
 try {
   const rocket = modelFor('rocket');
+  // The TORCH template never loads in headless node. This contract mount
+  // fixture mirrors torch.js wiring so the WeaponActions rocket choreography
+  // can be asserted here; the TORCH template mapping and authored gate
+  // geometry are covered by tools/weapon-materials-browser-test.mjs and the
+  // weapon capture matrix.
+  const rearZ = BREACH_Z.rocket + 0.16;
+  const breech = new THREE.Group();
+  breech.name = 'rocket_rear_breech';
+  breech.position.set(rocket.T.muzzle[0], rocket.T.muzzle[1], rearZ);
+  rocket.extra.add(breech);
+  rocket.extra.userData.reloadPart = breech;
+  rocket.extra.userData.rocketReload = { gate: breech, axisY: rocket.T.muzzle[1], rearZ };
+  const reloadRound = new THREE.Group();
+  reloadRound.name = 'rocket_reload_round';
+  reloadRound.visible = false;
+  reloadRound.userData.homePosition = reloadRound.position.clone();
+  rocket.extra.add(reloadRound);
+  rocket.extra.userData.reloadRounds = reloadRound;
   const action = new WeaponActions();
   action.startReload(0, 1, 'magswap', rocket.T);
   const round = rocket.extra.userData.reloadRounds;
