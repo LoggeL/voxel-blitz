@@ -1,7 +1,7 @@
 import { DEFAULT_TRAITOR_PERCENT, TTT_TRAITOR_PERCENTS } from '../../../shared/ttt.js';
-import { DUEL_KILL_LIMITS, DEFAULT_DUEL_KILL_LIMIT, MAP_IDS, MODE_IDS, isModeMapCompatible, mapForMode } from '../../../shared/modes.js';
-import { el, MAP_LABELS, MODE_LABELS, savePref } from './hud-support.js';
-import { MAX_BOTS, lobbyCapacity } from '../../../shared/lobby-limits.js';
+import { DUEL_KILL_LIMITS, DEFAULT_DUEL_KILL_LIMIT, DUEL_WEAPONS, MAP_IDS, MODE_IDS, MODE_RULES, isModeMapCompatible, mapForMode } from '../../../shared/modes.js';
+import { el, MAP_LABELS, MODE_LABELS, WEAPON_NAMES, savePref } from './hud-support.js';
+import { MAX_BOTS, lobbyCapacity, modeAllowsBots } from '../../../shared/lobby-limits.js';
 
 /** Host controls edit the authoritative waiting room, never a draft lobby. */
 export class LobbySettings {
@@ -30,7 +30,7 @@ export class LobbySettings {
           duelKillLimit: Number(this.controls.duelKillLimit.value),
           traitorPercent: Number(this.controls.traitorPercent.value),
           map: this.controls.map.value,
-          bots: ['training', 'duel', 'bastion'].includes(this.controls.gameMode.value) ? 0 : Math.max(0, Math.min(Number(this.controls.bots.value), limit - this.humanCount)),
+          bots: !modeAllowsBots(this.controls.gameMode.value) ? 0 : Math.max(0, Math.min(Number(this.controls.bots.value), limit - this.humanCount)),
         };
         // A rapid second map choice must use the already-trimmed bot request.
         this.controls.bots.value = String(settings.bots);
@@ -82,20 +82,20 @@ export class LobbySettings {
     this.controls.duelKillLimit.parentNode.hidden = state.gameMode !== 'duel';
     this.controls.traitorPercent.value = String(state.traitorPercent ?? DEFAULT_TRAITOR_PERCENT);
     this.controls.traitorPercent.parentNode.hidden = state.gameMode !== 'ttt';
-    this.traitorCount.textContent = `${state.traitorCount ?? 0} TRAITORS / ${state.members?.length || 0} PLAYERS (including bots). Rounded down, at least one per side. Roles after 60 seconds.`;
+    this.traitorCount.textContent = `${state.traitorCount ?? 0} TRAITORS / ${state.members?.length || 0} PLAYERS (including bots). Rounded down, at least one per side. Roles after ${Math.round(MODE_RULES.ttt.prepMs / 1000)} seconds.`;
     this.controls.gameMode.value = state.gameMode;
     this.syncMaps(state.gameMode, state.map);
-    this.controls.bots.value = String(['training', 'duel', 'bastion'].includes(state.gameMode) ? 0 : state.bots);
+    this.controls.bots.value = String(modeAllowsBots(state.gameMode) ? state.bots : 0);
     const limit = lobbyCapacity(state.gameMode, state.map);
     for (const option of this.controls.bots.options) {
       option.disabled = Number(option.value) > limit - this.humanCount;
       option.hidden = option.disabled;
     }
     for (const [key, select] of Object.entries(this.controls)) {
-      select.disabled = !isHost || state.phase !== 'waiting' || (key === 'bots' && ['training', 'duel', 'bastion'].includes(state.gameMode));
+      select.disabled = !isHost || state.phase !== 'waiting' || (key === 'bots' && !modeAllowsBots(state.gameMode));
     }
     this.loadout.textContent = state.gameMode === 'duel'
-      ? 'BASE 1V1 WEAPON SET: Rifle · Shotgun · Sniper · Revolver · Pixel Pick. No throwables.' : '';
+      ? `BASE 1V1 WEAPON SET: ${DUEL_WEAPONS.map(id => WEAPON_NAMES[id] || id).join(' · ')}. No throwables.` : '';
     this.capacity.textContent = `${state.members?.length || 0} / ${limit} SLOTS · ${MAP_LABELS[state.map] || state.map}`;
     this.hint.textContent = state.gameMode === 'bastion'
       ? `1–4 players defend ${MAP_LABELS[state.map] || state.map} stage by stage: build, hold, fall back, extract. No friendly bots.` : state.gameMode === 'duel'

@@ -86,7 +86,7 @@ export class HUD {
 
   setupMatchContinuation(onContinue) { this.gameplay.match.result.onContinue = onContinue; }
 
-  buildMenu(callback, options) { return this.menu.buildMenu(callback, options); }
+  buildMenu(callback) { return this.menu.buildMenu(callback); }
   showJoinState(message, tone = '') { return this.menu.showJoinState(message, tone); }
   showLobby(state, callbacks = {}) { return this.menu.showLobby(state, callbacks); }
   updateLobby(state) { return this.menu.updateLobby(state); }

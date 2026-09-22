@@ -147,20 +147,20 @@ export class MatchResultOverlay {
     this.dom.approve.disabled = !selfId || !this.roundId || approved || selfIsBot;
     this.dom.approve.textContent = approved ? 'APPROVED' : 'CONTINUE';
     this.dom.approve.setAttribute('aria-pressed', String(approved));
+    const thresholdPercent = Math.round((continuation?.ratio ?? 0.4) * 100);
     this.dom.approvals.textContent = continuation
-      ? `${continuation.approved.length} / ${continuation.eligible} PLAYERS APPROVED · ${continuation.required} REQUIRED (40%)`
+      ? `${continuation.approved.length} / ${continuation.eligible} PLAYERS APPROVED · ${continuation.required} REQUIRED (${thresholdPercent}%)`
       : '';
     const remainingVotes = continuation ? Math.max(0, continuation.required - continuation.approved.length) : 0;
     this.dom.needed.textContent = continuation ? remainingVotes ? `${remainingVotes} MORE NEEDED` : 'READY' : '';
     const approvalPercent = continuation?.eligible > 0
       ? Math.min(100, continuation.approved.length / continuation.eligible * 100) : 0;
-    const thresholdPercent = Math.round((continuation?.ratio ?? 0.4) * 100);
     this.dom.meter.style.setProperty('--approval-progress', `${approvalPercent}%`);
     this.dom.meter.style.setProperty('--approval-threshold', `${thresholdPercent}%`);
     this.dom.meter.setAttribute('aria-valuenow', String(Math.round(approvalPercent)));
     this.dom.meter.setAttribute('aria-valuetext', this.dom.approvals.textContent);
     this.dom.threshold.textContent = `${thresholdPercent}%`;
-    this.dom.countdownHint.textContent = `5s countdown at ${thresholdPercent}%`;
+    this.dom.countdownHint.textContent = `${Math.round((continuation?.countdownMs ?? 5000) / 1000)}s countdown at ${thresholdPercent}%`;
     const now = Number.isFinite(serverNow) ? serverNow : Date.now();
     const remaining = Number.isFinite(match.phaseEndsAt)
       ? Math.max(0, (match.phaseEndsAt - now) / 1000)

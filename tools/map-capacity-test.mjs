@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { LobbyManager } from '../server/lobby.js';
 import { MAP_IDS, MODE_IDS, isModeMapCompatible } from '../shared/modes.js';
-import { MAP_PLAYER_LIMITS, lobbyCapacity } from '../shared/lobby-limits.js';
+import { MAP_PLAYER_LIMITS, lobbyCapacity, modeAllowsBots } from '../shared/lobby-limits.js';
 
 const frames = [];
 const manager = new LobbyManager({ sendJson(meta, frame) { frames.push({ id: meta.id, ...frame }); }, sendFrame() {}, closeClient() {} });
@@ -16,6 +17,7 @@ try {
       const capacity = lobbyCapacity(mode, map);
       const state = manager._stateFor(host.room);
       const noBots = ['duel', 'bastion', 'training'].includes(mode);
+      assert.equal(modeAllowsBots(mode), !noBots, `${mode} bot support is shared by server and lobby UI`);
       assert.equal(state.members.length, noBots ? 1 : capacity, `${map}/${mode} creation clamps requested bots`);
       if (mode !== 'training') assert.equal(manager.list().find(room => room.code === host.room.code).capacity, capacity);
       if (mode === 'duel') assert.equal(capacity, 2);
@@ -24,6 +26,11 @@ try {
     }
   }
   assert.ok(counts.size >= 5, 'maps have distinct population tiers');
+  // Menu quick-create, host controls and the server share one no-bot rule.
+  for (const file of ['server/lobby.js', 'public/js/ui/lobby-settings.js', 'public/js/ui/menu-lobby.js']) {
+    const source = readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
+    assert.doesNotMatch(source, /\[\s*'training',\s*'duel'/, `${file} uses modeAllowsBots instead of a copied mode list`);
+  }
 
   const host = { id: 'host' };
   assert.ok(await manager.create(host, 'Host', 31, 'tdm', 'harbor'));

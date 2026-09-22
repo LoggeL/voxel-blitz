@@ -55,6 +55,8 @@ Reduced motion swaps decoded images directly. Reactor has its own background.
 - `node tools/map-capacity-test.mjs`: every compatible mode/map, directory
   limits, bot trimming, preserved difficulty, human admission, atomic rejection
   of a smaller map, Quick Play and bot replenishment.
+- `node tools/lobby-settings-test.mjs`: host controls use the shared no-bot
+  rule and read TTT prep time and the 1v1 weapon set from shared rules.
 - `npm run lobby:large:test`: all map caps plus real 32-socket admission and
   launch on Harbor, rejected 33rd socket, team limits, bot takeover, S&D bomb
   ownership and preserved assignments.

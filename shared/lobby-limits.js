@@ -27,6 +27,11 @@ export function lobbyCapacity(gameMode, map = 'foundry') {
   return Math.min(mapLimit, gameMode === 'duel' ? 2 : gameMode === 'bastion' ? 4 : MAX_PLAYERS);
 }
 
+/** Duel is 1v1, Training and Bastion populate their own targets: no lobby bots. */
+export function modeAllowsBots(gameMode) {
+  return !['training', 'duel', 'bastion'].includes(gameMode);
+}
+
 export function hasLobbyTeams(gameMode) {
   return gameMode === 'tdm' || gameMode === 'snd';
 }
