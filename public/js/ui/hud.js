@@ -97,14 +97,7 @@ export class HUD {
   openSettings() { return this.settings.openSettings(); }
   closeSettings() { return this.settings.closeSettings(); }
   setDeviceInfo(device = {}) {
-    const d = this.gameplay.dom;
-    if (d.grenadeKey && d.grenadeSwitch) {
-      d.grenadeKey.textContent = device.padActive ? 'RB' : 'G';
-      d.grenadeKey.style.display = device.touch && !device.padActive ? 'none' : '';
-      d.grenadeSwitch.textContent = device.padActive ? 'RB + Y · SWITCH' : 'H · SWITCH';
-      d.grenadeSwitch.hidden = !!device.touch && !device.padActive;
-      d.grenadeSwitch.title = device.padActive ? 'Hold RB and press Y to switch grenade type' : 'Switch grenade type (H)';
-    }
+    this.gameplay.syncGrenadeLabels(device);
     return this.settings.setDeviceInfo(device);
   }
 

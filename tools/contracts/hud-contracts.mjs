@@ -24,6 +24,7 @@ export async function runHudContracts(ok, installGlobals) {
         if (!event.target) event.target = this;
         event.currentTarget = this;
         for (const fn of [...(this.listeners.get(event.type) || [])]) fn(event);
+        this[`on${event.type}`]?.(event);
         return !event.defaultPrevented;
       }
       listenerCount(type) {
@@ -594,6 +595,27 @@ export async function runHudContracts(ok, installGlobals) {
       hud.hideLobby();
 
       hud.buildHUD();
+      {
+        // Grenade hints follow custom bindings through device changes, and a
+        // rebind keeps the pad labels while a pad is active.
+        const { setKeybinding, resetKeybindings } = await import('../../public/js/keybindings.js');
+        const grenadeKey = document.querySelector('.vb-grenade-key');
+        const grenadeSwitch = document.querySelector('.vb-grenade-switch');
+        const mouse = { touch: false, pointerKind: 'mouse', trackpadDetected: false, padActive: false };
+        setKeybinding('grenade', 'KeyU');
+        setKeybinding('grenadeType', 'KeyY');
+        hud.setDeviceInfo(mouse);
+        const keyboardLabels = grenadeKey.textContent === 'U'
+          && grenadeSwitch.textContent === 'Y · SWITCH'
+          && grenadeSwitch.title === 'Switch grenade type (Y)';
+        hud.setDeviceInfo({ ...mouse, padActive: true });
+        setKeybinding('grenade', 'KeyI');
+        const padLabels = grenadeKey.textContent === 'RB' && grenadeSwitch.textContent === 'RB + Y · SWITCH';
+        hud.setDeviceInfo(mouse);
+        resetKeybindings();
+        ok(keyboardLabels && padLabels && grenadeKey.textContent === 'G' && grenadeSwitch.textContent === 'H · SWITCH',
+          'grenade key hints follow custom bindings across device changes and keep pad labels on rebind');
+      }
       hud.setState({ wid: 'sniper', adsT01: 0.7199, alive: true, hp: 100 });
       ok(!document.getElementById('sniper-scope'),
         'sniper scope stays absent immediately below the ADS threshold');
@@ -956,8 +978,10 @@ export async function runHudContracts(ok, installGlobals) {
       const buyCredits = document.getElementById('buy-credits-val');
       const ownedCard = document.getElementById('buy-card-revolver');
       const minigunCard = document.getElementById('buy-card-minigun');
-      ok(minigunCard.querySelector('.vb-buy-key-badge').textContent !== 'GRENADE',
-        'minigun armory card is labelled as a weapon');
+      ok(minigunCard.querySelector('.vb-buy-key-badge').textContent === 'CLICK'
+        && document.getElementById('buy-grid').children[9].querySelector('.vb-buy-key-badge').textContent === '[0]'
+        && document.querySelector('.vb-buy-footer-hint').textContent.startsWith('[1-9, 0] FIRST 10 ITEMS'),
+      'armory key badges and footer match the ten digit shortcuts; later cards read CLICK');
       const cardStats = wid => document.getElementById(`buy-card-${wid}`).querySelector('.vb-buy-wstats').textContent;
       const cardDamage = amount => Number(combatDamage(amount).toFixed(1));
       ok(cardStats('rocket').startsWith(`DMG ${cardDamage(ROCKET_RULES.directDamage + ROCKET_RULES.splashDamage)} ·`)
@@ -1176,6 +1200,55 @@ export async function runHudContracts(ok, installGlobals) {
         partialHud.openSettings();
         return [partialDocument.getElementById('settings-overlay')];
       });
+
+      // Every shop mode reuses #buy-menu. After snd -> bastion -> ttt -> bastion,
+      // Tab belongs to the Bastion trap alone: the S&D capture handler must let it
+      // through and no earlier builder's root handler may still run.
+      {
+        const shopDocument = new FakeDocument();
+        const restoreShop = installGlobals({ document: shopDocument, window: new FakeEventTarget() });
+        let shopMode = null;
+        let shop = null;
+        try {
+          const { BuyMenuController } = await import('../../public/js/ui/buy-menu.js');
+          shop = new BuyMenuController({ mode: () => shopMode, isAlive: () => true });
+          shop.setupBuyMenu({ onBuy() {}, onClose() {} });
+          const bastion = { credits: 0, upgrades: {}, budget: {}, ready: 0, defenders: 1, wave: 0, waves: 8 };
+          shopMode = 'bastion';
+          shop.setBuyMenuState({ phase: 'prep', bastion, bastionSelf: {} });
+          shopMode = 'ttt';
+          shop.setBuyMenuState({ phase: 'live' });
+          shopMode = 'bastion';
+          shop.setBuyMenuState({ open: true, phase: 'prep' });
+          const captureTab = event('keydown', { key: 'Tab', code: 'Tab' });
+          shopDocument.dispatchEvent(captureTab);
+          const shopRoot = shopDocument.getElementById('buy-menu');
+          shop.buyDom.closeBtn.focus();
+          shop.buyDom.closeBtn.dispatchEvent(event('keydown', { key: 'Tab', code: 'Tab' }));
+          ok(shop.isBuyMenuOpen()
+            && !captureTab.defaultPrevented && !captureTab.propagationStopped
+            && shopDocument.activeElement === shop.buyDom.selectors.loadout
+            && shopRoot.listenerCount('keydown') === 0,
+          'Bastion shop owns Tab after mode switches: one step from CLOSE reaches the loadout select');
+          const captureEscape = event('keydown', { key: 'Escape', code: 'Escape' });
+          shopDocument.dispatchEvent(captureEscape);
+          ok(!shop.isBuyMenuOpen() && captureEscape.defaultPrevented,
+            'document Escape still closes a Bastion shop');
+        } finally {
+          shop?.dispose();
+          restoreShop();
+        }
+      }
+
+      // #weaponname and buy glyphs carry vb-w-<id> for every weapon; each needs a tint.
+      {
+        const { readFileSync } = await import('node:fs');
+        const { WEAPON_IDS } = await import('../../shared/combatmath.js');
+        const css = readFileSync(new URL('../../public/style.css', import.meta.url), 'utf8');
+        const untinted = WEAPON_IDS.filter((id) => !css.includes(`--w-${id}:`)
+          || !css.includes(`.vb-w-${id} `) || !css.includes(`#weaponname.vb-w-${id} `));
+        ok(untinted.length === 0, `every weapon has a HUD tint token and weapon-name colour (${untinted.join(', ') || 'all tinted'})`);
+      }
     } finally {
       hud?.dispose();
       restore();

@@ -40,10 +40,9 @@ export class KeyboardSettings {
       const header = el('div', 'vb-setting-header', row);
       const label = el('span', 'vb-label', header, `binding-label-${action.id}`);
       label.textContent = action.label;
-      const buttons = el('div', '', row);
-      buttons.style.display = 'flex'; buttons.style.gap = '8px';
-      const button = el('button', 'vb-btn', buttons, `settings-bind-${action.id}`);
-      button.type = 'button'; button.style.flex = '1'; button.style.minWidth = '0';
+      const buttons = el('div', 'vb-keybind-controls', row);
+      const button = el('button', 'vb-btn vb-keybind-btn vb-keybind-btn--bind', buttons, `settings-bind-${action.id}`);
+      button.type = 'button';
       button.setAttribute('aria-label', `Change ${action.label} key`);
       button.setAttribute('aria-describedby', 'settings-keybinding-status');
       button.addEventListener('click', () => {
@@ -54,12 +53,8 @@ export class KeyboardSettings {
         this.status.textContent = `Press a key for ${action.label}. Escape cancels.`;
         document.addEventListener('keydown', this._capture, true);
       });
-      const clear = el('button', 'vb-btn', buttons, `settings-clear-${action.id}`);
+      const clear = el('button', 'vb-btn vb-keybind-btn vb-keybind-btn--clear', buttons, `settings-clear-${action.id}`);
       clear.type = 'button'; clear.textContent = 'CLEAR';
-      clear.style.width = 'auto'; clear.style.flexShrink = '0';
-      button.style.fontSize = '12px'; button.style.letterSpacing = '0'; button.style.textIndent = '0';
-      clear.style.fontSize = '12px'; clear.style.letterSpacing = '0'; clear.style.textIndent = '0';
-      for (const control of [button, clear]) Object.assign(control.style, { margin: '0', color: '#e2e8ee', background: '#0b1218', border: '1px solid #8593a080', boxShadow: 'none' });
       clear.setAttribute('aria-label', `Clear ${action.label} key`);
       clear.addEventListener('click', () => {
         this.cancel();
@@ -77,8 +72,6 @@ export class KeyboardSettings {
     for (const [id, button] of this.buttons) {
       button.textContent = id === this.pending ? 'PRESS A KEY…' : bindingLabel(id);
       button.setAttribute('aria-pressed', String(id === this.pending));
-      button.style.background = id === this.pending ? '#ffcb57' : '#0b1218';
-      button.style.color = id === this.pending ? '#15100b' : '#e2e8ee';
     }
   }
 

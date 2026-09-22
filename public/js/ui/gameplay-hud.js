@@ -53,9 +53,6 @@ export class GameplayHud {
     this.scoreboardMatch = null;
     this.scoreboardSelfId = null;
 
-    this.scopeShown = false;
-    this.scopeProgress = 0;
-    this.scopeRAF = 0;
     this.compassRAF = 0;
     this.ringOn = false;
     this.compassW = 0;
@@ -65,6 +62,7 @@ export class GameplayHud {
     this.lastWepKey = '';
     this.chGap = undefined;
     this._scopeZoomShown = 0;
+    this._device = null;
 
     this.tabBound = false;
     this.onKD = null;
@@ -88,16 +86,10 @@ export class GameplayHud {
   buildHUD() {
     this.onBeforeBuild();
     this.built = true;
-    if (this.scopeRAF) {
-      cancelAnimationFrame(this.scopeRAF);
-      this.scopeRAF = 0;
-    }
     if (this.compassRAF) {
       cancelAnimationFrame(this.compassRAF);
       this.compassRAF = 0;
     }
-    this.scopeShown = false;
-    this.scopeProgress = 0;
     this.ringOn = false;
     this.compassW = 0;
     this.compassPPD = 2;
@@ -164,10 +156,8 @@ export class GameplayHud {
     // absolutely positioned descendants above its bounds.
     d.grenades = el('div', 'vb-grenade-count', hud, 'grenade-count');
     d.grenadeKey = el('span', 'vb-grenade-key', d.grenades);
-    d.grenadeKey.textContent = bindingLabel('grenade');
     d.grenadeSwitch = el('span', 'vb-grenade-switch', d.grenades);
-    d.grenadeSwitch.textContent = `${bindingLabel('grenadeType')} · SWITCH`;
-    d.grenadeSwitch.title = `Switch grenade type (${bindingLabel('grenadeType')})`;
+    this.syncGrenadeLabels();
     d.grenadeTypes = el('span', 'vb-grenade-types', d.grenades);
     d.grenadeTypeChips = [];
     for (const typeId of GRENADE_TYPE_IDS) {
@@ -268,11 +258,23 @@ export class GameplayHud {
     this._unsubscribeBindings?.();
     this._unsubscribeBindings = subscribeKeybindings(() => {
       this.setScoreboard(false);
-      d.grenadeKey.textContent = bindingLabel('grenade');
-      d.grenadeSwitch.textContent = `${bindingLabel('grenadeType')} · SWITCH`;
-      d.grenadeSwitch.title = `Switch grenade type (${bindingLabel('grenadeType')})`;
+      this.syncGrenadeLabels();
     });
     this.apply();
+  }
+
+  /** Grenade key hints follow the last device info and the live keybindings. */
+  syncGrenadeLabels(device = this._device || {}) {
+    this._device = device;
+    const d = this.dom;
+    if (!d.grenadeKey || !d.grenadeSwitch) return;
+    const pad = !!device.padActive;
+    const typeKey = bindingLabel('grenadeType');
+    d.grenadeKey.textContent = pad ? 'RB' : bindingLabel('grenade');
+    d.grenadeKey.style.display = device.touch && !pad ? 'none' : '';
+    d.grenadeSwitch.textContent = pad ? 'RB + Y · SWITCH' : `${typeKey} · SWITCH`;
+    d.grenadeSwitch.hidden = !!device.touch && !pad;
+    d.grenadeSwitch.title = pad ? 'Hold RB and press Y to switch grenade type' : `Switch grenade type (${typeKey})`;
   }
 
   menuDone() {
@@ -705,10 +707,6 @@ export class GameplayHud {
     if (!this.built) return;
     const scope = on ? this.ensureScope() : this.dom.scope;
     if (!scope) return;
-    this.scopeShown = !!on;
-    this.scopeProgress = on ? 1 : 0;
-    if (this.scopeRAF) cancelAnimationFrame(this.scopeRAF);
-    this.scopeRAF = 0;
     scope.classList.toggle('active', !!on);
     scope.classList.remove('exiting');
     scope.style.opacity = on ? '1' : '';
@@ -716,12 +714,6 @@ export class GameplayHud {
   }
 
   resetScope() {
-    this.scopeShown = false;
-    this.scopeProgress = 0;
-    if (this.scopeRAF) {
-      cancelAnimationFrame(this.scopeRAF);
-      this.scopeRAF = 0;
-    }
     if (this.dom.scope) {
       this.dom.scope.classList.remove('active', 'exiting');
       this.dom.scope.style.opacity = '';
@@ -770,10 +762,6 @@ export class GameplayHud {
 
   dispose() {
     this._unsubscribeBindings?.();
-    if (this.scopeRAF) {
-      cancelAnimationFrame(this.scopeRAF);
-      this.scopeRAF = 0;
-    }
     if (this.compassRAF) {
       cancelAnimationFrame(this.compassRAF);
       this.compassRAF = 0;
@@ -807,8 +795,6 @@ export class GameplayHud {
     clearBag(this.st);
     this._painted = {};
     this._grenadeType = -1;
-    this.scopeShown = false;
-    this.scopeProgress = 0;
     this.ringOn = false;
     this.compassW = 0;
     this.compassPPD = 2;
