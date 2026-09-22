@@ -815,6 +815,7 @@ class Game {
         reducedMotion: displaySettings().reducedMotion,
         weaponAim: this.player.weaponAim,
         weaponDef: this.weapon.def,
+        weaponLoadout: this.weapon.weaponLoadout,
         shotYaw: this.player.shotYaw,
         shotPitch: this.player.shotPitch,
       });

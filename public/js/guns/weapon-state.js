@@ -107,6 +107,7 @@ export class WeaponState {
 
   get def() { return bastionWeaponDef({ bastionUpgrades: this._mode === 'bastion' ? this._bastionUpgrades : null }, chaosWeaponDef({ chaosUpgrades: this._mode === 'chaos' ? this._chaosUpgrades : null }, configuredWeapon(WEAPON_IDS[this._slot], this._weaponLoadout))); }
   setLoadout(value) { this._weaponLoadout = normalizeWeaponLoadout(value); }
+  get weaponLoadout() { return this._weaponLoadout; }
   get quickMeleeActive() { return this._now() < this._quickMeleeUntil; }
   get quickMeleeRequest() { return this._quickMeleeRequest; }
   acknowledgeQuickMelee() { this._quickMeleeRequest = null; }

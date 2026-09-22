@@ -77,6 +77,17 @@ press(); frame(); assert.equal(weapon.reloadRequested, false);
 assert.equal(rig._id, 'knife');
 weapon.deathReset(); assert.equal(rig._id, 'rifle');
 assert.equal(weapon.quickMeleeRequest, null);
+// A hitch caps the rig's chop clock behind the state's wall clock. A slot press in the first
+// frame after the chop must still reach the viewmodel instead of being wiped by the late cancel.
+now += 1000; press(); frame(); assert.equal(rig._id, 'knife');
+rig.update(0.4); now += 400;
+now += QUICK_MELEE_SECONDS * 1000;
+assert.ok(rig._quickMelee, 'the capped rig clock still believes the chop is running');
+weapon.applyIntents({ slot: 1 }, now, { allowFire: true, alive: true });
+weapon.tryFire(now, { allowFire: true, alive: true, yaw: 0, pitch: 0 });
+assert.equal(WEAPON_IDS[weapon.slot], 'smg');
+for (let i = 0; i < 120; i++) { now += 1000 / 60; rig.update(1 / 60); }
+assert.equal(rig._id, WEAPON_IDS[weapon.slot], 'the viewmodel draws the gun the state equipped');
 player.dispose(); weapon.dispose(); rig.dispose(); input.dispose();
 
 function harness() {

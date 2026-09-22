@@ -22,6 +22,42 @@ assert.equal(rig._deployOffset().y, 0);
 assert.equal(rig.fire(), true);
 rig.dispose();
 
+{
+  // The state's def names the incoming gun the moment a swap starts (and stays on the gun
+  // during a quick-melee knife); the shown model must keep dressing from its own loadout.
+  let clock = 0;
+  const shown = new ViewmodelRig(new THREE.PerspectiveCamera(75, 2, 0.01, 100));
+  const weapon = new WeaponState({ rig: shown, now: () => clock,
+    audio: { draw() {}, reloadClick() {}, fire() {} }, effects: { shoot() {} },
+    feedback: { addExhaustion() {}, addRecoil() {} },
+    network: { isCurrentGeneration: () => true, isRunning: () => true }, setTimer: () => 0, clearTimer() {},
+  });
+  weapon.resetToLoadout();
+  weapon.setLoadout({ smg: { optic: 'reflex' }, knife: { counter: 'stattrak' } });
+  shown.setMastery({ knife: { kills: 3, headshots: 0 } });
+  shown.setWeapon('rifle');
+  const step = (seconds) => { for (let i = 0; i < Math.ceil(seconds * 120); i++) {
+    clock += 1000 / 120;
+    shown.update(1 / 120, { grounded: true, weaponDef: weapon.def, weaponLoadout: weapon.weaponLoadout });
+  } };
+  step(0.5);
+  const rifle = shown._models.rifle;
+  assert.equal(rifle.attachmentKey, 'standard/standard');
+  assert.equal(weapon.forceWeapon(1, { now: clock }), true);
+  const { holster, draw } = weaponSwapProfile(WEAPONS.smg);
+  step(holster * 0.9);
+  assert.equal(shown._id, 'rifle');
+  assert.equal(rifle.attachmentKey, 'standard/standard', 'the holstering rifle never grows the SMG optic');
+  step(holster * 0.1 + draw + 0.05);
+  assert.equal(shown._id, 'smg');
+  assert.equal(shown._models.smg.attachmentKey, 'reflex/standard');
+  assert.equal(shown.quickMelee(), true);
+  step(1 / 120);
+  assert.equal(shown._id, 'knife');
+  assert.equal(shown._models.knife.stattrakKey, 'stattrak/3', 'the quick-melee knife shows its own counter');
+  shown.dispose(); weapon.dispose();
+}
+
 let now = 0;
 const state = new WeaponState({
   rig: { root: { visible: false }, setWeapon() {}, reload() {}, pumpAnim() {}, boltAnim() {}, ads() {}, equipWeapon() {}, fire: () => true },

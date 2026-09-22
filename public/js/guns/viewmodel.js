@@ -120,9 +120,11 @@ export class ViewmodelRig {
 
   /* ------------------------------------ public API ----------------------------------------- */
 
-  /** Lazily builds `id`, swaps visibility, resets transient motion state, replays equip dip. */
   /** Keep the outgoing model attached until it has reached the holster. */
   equipWeapon(id) {
+    // WeaponState can end a chop on its wall clock before this rig's capped frame clock does;
+    // restore the real weapon now so a later cancelQuickMelee cannot discard the swap.
+    if (this._quickMelee) this.cancelQuickMelee();
     if (!this._cur) { this.setWeapon(id); return; }
     const profile = weaponSwapProfile(WEAPONS[id]);
     this._swap = { id, elapsed: this._swap?.elapsed || 0, ...profile };
@@ -159,6 +161,7 @@ export class ViewmodelRig {
     if (headshot === true) row.headshots++;
   }
 
+  /** Lazily builds `id`, swaps visibility, resets transient motion state, replays equip dip. */
   setWeapon(id) {
     this._quickMelee = null;
     this._swap = null;
@@ -186,7 +189,6 @@ export class ViewmodelRig {
     this._swingT = 0; this._swingContact = false;                     // no mid-swap slash residue
     this._lean.p = this._lean.v = 0;
     this._surge.p = this._surge.v = 0;
-    this._nadeWind = 0; this._nadeThrowT = 0;
     this._chargeT = 0;
     this._flameActive = false;
     this._flameFuel = 1;
@@ -229,8 +231,8 @@ export class ViewmodelRig {
   }
 
   /**
-   * One accepted/enqueued shot envelope: spring impulses from WEAPONS canonical viewKick (mirrored
-   * into TIMERS by defs.js), glow+heat shader spikes, 60ms billboard flash + 80ms muzzle light,
+   * One accepted/enqueued shot envelope: spring impulses from WEAPONS canonical recoil (mirrored
+   * into TIMERS viewKick by defs.js), glow+heat shader spikes, 60ms billboard flash + 80ms muzzle light,
    * timer-driven choreography enqueues, rof lockout, callback dispatch. Returns false when busy.
    */
   fire(def = WEAPONS[this._id]) {
@@ -302,10 +304,6 @@ export class ViewmodelRig {
     return true;
   }
 
-  /**
-   * Charge weapons: live 0..1 capacitor charge while the trigger is held. Drives the coil
-   * glow floor and a slight rearward squeeze; presentation only, it never gates fire.
-   */
   setMinigun(state) { this._minigunState = { ...state }; }
 
   setFlame(active, fuel = 1) {
@@ -313,6 +311,10 @@ export class ViewmodelRig {
     this._flameFuel = Math.max(0, Math.min(1, fuel));
   }
 
+  /**
+   * Charge weapons: live 0..1 capacitor charge while the trigger is held. Drives the coil
+   * glow floor and a slight rearward squeeze; presentation only, it never gates fire.
+   */
   setCharge(t01) {
     this._chargeT = Math.max(0, Math.min(1, Number(t01) || 0));
     if (this._chargeT === 0) this._chargeOrb.visible = false;
@@ -436,8 +438,12 @@ export class ViewmodelRig {
       }
     }
     const cur = this._cur;
-    if (cur) applyAttachmentModel(cur, this._id, ctx.weaponDef?.attachments);
-    if (cur) applyStattrakModule(cur, this._id, ctx.weaponDef?.attachments, this._mastery?.[this._id]?.kills);
+    // The state's def already names the incoming gun while the outgoing one holsters, and
+    // stays on the gun during a quick-melee knife: dress the shown model from its own loadout.
+    const ownDef = ctx.weaponDef?.id === this._id ? ctx.weaponDef : null;
+    const attachments = ownDef ? ownDef.attachments : ctx.weaponLoadout?.[this._id];
+    if (cur) applyAttachmentModel(cur, this._id, attachments);
+    if (cur) applyStattrakModule(cur, this._id, attachments, this._mastery?.[this._id]?.kills);
     if (cur) animateHeavyWeapon(cur.body, { dt: elapsed, time: this._now,
       minigun: this._minigunState, flameActive: this._flameActive, fuel: this._flameFuel });
     const speed = ctx.speed || 0, grounded = ctx.grounded !== false;
@@ -508,7 +514,7 @@ export class ViewmodelRig {
       yaw: this.camera?.rotation?.y,
       pitch: this.camera?.rotation?.x,
       weightKg: T.weightKg,
-      handling: ctx.weaponDef?.handling || WEAPONS[this._id]?.handling,
+      handling: ownDef?.handling || WEAPONS[this._id]?.handling,
       ads: this._adsSmooth,
     });
 
