@@ -13,7 +13,7 @@ export class BreathHold {
     return this;
   }
 
-  update(dt, { eligible = false, pressed = false, panic = 0, pain = 0 } = {}) {
+  update(dt, { eligible = false, pressed = false } = {}) {
     const step = Math.max(0, Math.min(0.25, Number(dt) || 0));
     const wasHolding = this.holding;
     const capacity = 2.4; // Pressure never removes the chance to steady yourself.

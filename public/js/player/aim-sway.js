@@ -68,7 +68,7 @@ export class AimSway {
     const eligible = !!(alive && grounded && stationary);
     const breath = this.breath.update(dt, {
       eligible: steadyEligible({ alive, grounded, stationary, handlingAllowed, ads: ads01 }),
-      pressed: shift, panic: panic01, pain: pain01,
+      pressed: shift,
     });
     const { holdingBreath } = breath;
     const conditionSway = alive ? panic01 * 2.5 : 0;
