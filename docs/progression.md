@@ -38,6 +38,12 @@ asserts this property rather than trusting the layout.
 | High Noon | revolver skin | 35 | 10× precision scope | 1,000 revolver PvP kills |
 | CY-9 cyber scope | attachment | 44 | 10× precision scope | — |
 | Foundry | minigun skin | 75 | CY-9 cyber scope | 5,000 minigun PvP kills |
+| Timber | IRON PICK skin | 3 | Reflex sight | — |
+| Cobble | IRON PICK skin | 7 | Timber | — |
+| Gilded | IRON PICK skin | 20 | Cobble | — |
+| Deep Diamond | IRON PICK skin | 40 | Gilded | — |
+| Ashforged | IRON PICK skin | 45 | Deep Diamond | 500 knife-slot (IRON PICK) PvP kills |
+| Runebound | IRON PICK skin | 60 | Deep Diamond | 2,500 knife-slot (IRON PICK) PvP kills |
 | Ignition | signature | 5 | — | — |
 | Salvager | character skin | 25 | Ignition | — |
 | Circuit | signature | 25 | Ignition | — |

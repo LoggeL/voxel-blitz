@@ -268,10 +268,11 @@ export const WEAPONS = {
     pierce: { players: 6, playerFalloff: 0.9 },
   },
   knife: {
-    // PIXEL PICK: fighting knife. No magazine and no reload — every swing is free
-    // and the cadence is the rpm cap alone. A short reach cone replaces ballistics;
-    // swinging into an enemy from behind their facing is a lethal backstab.
-    id: 'knife', name: 'PIXEL PICK', mode: 'melee',
+    // IRON PICK: the pickaxe (slot id stays `knife`). No magazine and no reload —
+    // every swing is free and the cadence is the rpm cap alone. A short reach cone
+    // replaces ballistics; a swing from behind the victim's facing is a lethal
+    // backstab, a falling swing crits and every hit shoves (shared/melee.js).
+    id: 'knife', name: 'IRON PICK', mode: 'melee',
     weightKg: 0.9,
     rpm: 120, magSize: 0, spareMags: 0,
     damage: [58, 58, 2], headMult: 1.0, pellets: 1,
@@ -287,7 +288,7 @@ export const WEAPONS = {
     reloadTime: 0, tacTime: 0, deployTime: 0.3,
     tracer: null,        // no projectile line: the swing arc is presentation-only
     sfx: 'knife',
-    melee: { reach: 2.2, coneDeg: 110, backstabMult: 2.5, backstabDot: 0.4 },
+    melee: { reach: 2.2, coneDeg: 110, backstabMult: 2.5, backstabDot: 0.4, critMult: 1.5 },
   },
   flamethrower: {
     id: 'flamethrower', name: 'F-4 FIRESTORM', mode: 'auto',

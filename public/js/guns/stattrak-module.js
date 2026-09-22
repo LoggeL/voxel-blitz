@@ -7,8 +7,10 @@ import { imagegenMap } from '../engine/blender-assets.js';
 // applyAttachmentModel: one keyed group under model.body, rebuilt only when the
 // toggle or the displayed count changes, disposed through disposeObjectTrees.
 const PLATE = { x: -0.052, y: 0.055, z: -0.02, length: 0.11, height: 0.032, thick: 0.014 };
-// The pickaxe blade lives in the y-z plane, so its plate spans the flat instead.
-const KNIFE_PLATE = { x: 0, y: -0.07, z: -0.12, length: 0.09, height: 0.03, thick: 0.046 };
+// The IRON PICK sprite lives in the y-z plane, so its plate straddles the flat
+// rear head arm (seat and tilt from body.userData.pickaxe.plate), readable from
+// either face; the fallback seat matches the default iron-pickaxe build.
+const KNIFE_PLATE = { x: 0.01, y: 0.1406, z: 0.0311, rx: 25 * Math.PI / 180, length: 0.09, height: 0.03, thick: 0.046 };
 const MAX_DISPLAY = 999999;
 
 function makeCounterTexture(kills) {
@@ -51,15 +53,18 @@ export function applyStattrakModule(model, id, value, kills) {
     model.stattrakGroup = null;
   }
   if (key === 'standard') return;
-  const plate = id === 'knife' ? KNIFE_PLATE : PLATE;
+  const plate = id === 'knife' ? { ...KNIFE_PLATE, ...model.body.userData.pickaxe?.plate } : PLATE;
   const group = new THREE.Group(); group.name = 'stattrak';
   const gunmetal = imagegenMap('worn-gunmetal');
   const housingMat = new THREE.MeshStandardMaterial({ color: 0x9aa1a8, roughness: 0.6, metalness: 0.5 });
   if (gunmetal) { housingMat.map = gunmetal; housingMat.color.setHex(0x565d64); }
   const housing = new THREE.Mesh(new THREE.BoxGeometry(plate.thick, plate.height + 0.008, plate.length + 0.008),
     housingMat);
-  housing.position.set(plate.x, plate.y, plate.z);
-  group.add(housing);
+  const seat = new THREE.Group();
+  seat.position.set(plate.x, plate.y, plate.z);
+  seat.rotation.x = plate.rx || 0;
+  seat.add(housing);
+  group.add(seat);
   const texture = makeCounterTexture(count);
   const faces = id === 'knife' ? [-1, 1] : [-1];
   for (const side of faces) {
@@ -67,8 +72,8 @@ export function applyStattrakModule(model, id, value, kills) {
       texture ? new THREE.MeshBasicMaterial({ map: texture, toneMapped: false })
         : new THREE.MeshBasicMaterial({ color: 0xff9a2a }));
     screen.rotation.y = side * Math.PI / 2;
-    screen.position.set(plate.x + side * (plate.thick / 2 + 0.001), plate.y, plate.z);
-    group.add(screen);
+    screen.position.set(side * (plate.thick / 2 + 0.001), 0, 0);
+    seat.add(screen);
   }
   model.stattrakGroup = group; model.body.add(group);
 }

@@ -20,12 +20,13 @@ import { hearNoise } from './bot-hearing.js';
 // reroutes anything wedged on geometry. RIPTIDE holders lead the disc by its
 // flight time, throw only inside its reach, press R to turn a disc that just
 // cut someone (or a far one while both are out) and fall back to the revolver
-// outside the disc's range band.
+// outside the disc's range band. IRON PICK (melee) holders close in, sprint
+// into the swing for the knockback hit and hop so it lands on the fall as a crit.
 
 import {
   AIR, FLUID_BLOCKS, worldDimensions, GROUND,
 } from '../shared/worlddata.js';
-import { WEAPON_IDS, WEAPONS, computeRecoilKickDeg } from '../shared/combatmath.js';
+import { WEAPON_IDS, WEAPONS, PLAYER_HALF, computeRecoilKickDeg } from '../shared/combatmath.js';
 import { DEFAULT_WEAPON_ID, WEAPON_PRICES } from '../shared/modes.js';
 import { MAX_BOTS } from '../shared/lobby-limits.js';
 import { mulberry32 } from '../shared/noise.js';
@@ -74,6 +75,13 @@ const GLAIVE_RETURN_HIT_MS = 250; // R turns a disc this soon after its out-hit
 const GLAIVE_RETURN_FAR = 12;     // ... or once it is this far out with no disc seated
 const GLAIVE_RETURN_MIN_AGE_MS = 300; // never while a fresh disc is still leaving the hand
 const GLAIVE_LINEUP_COS = Math.cos(15 * Math.PI / 180);
+const MELEE_CLOSE = 1.3;          // m: stop pressing forward this close to the body
+const MELEE_SPRINT_DIST = 1.7;    // m: sprint in until here so the swing shoves hard
+const MELEE_HOP_DIST = 3.2;       // m: hop inside this so the swing lands falling (crit)
+const MELEE_HOP_CD_MS = 1600;     // between crit hops (scaled by the personality's hop rate)
+const MELEE_AIM_TOLERANCE = 0.3;  // rad: the 110-degree swing cone forgives loose aim
+const MELEE_REACH_SLACK = 0.1;    // m inside the server's centre-distance reach
+const MELEE_SWAP_DIST = 14;       // m: past this a pick holder draws any loaded gun it owns
 
 function dist3(ax, ay, az, bx, by, bz) {
   return Math.hypot(bx - ax, by - ay, bz - az);
@@ -219,6 +227,7 @@ class Brain {
     this.watchX = null;
     this.watchZ = 0;
     this.glaiveSwapAt = 0;           // earliest next RIPTIDE range-band swap
+    this.critHopAt = 0;              // earliest next IRON PICK crit hop
   }
 
   /** Drop combat memory but keep navigation/skill continuity. */
@@ -656,6 +665,11 @@ class BotManager {
     let moving = false;
     let sprint = false;
     const combatMovement = br.state === 'fight' && enemy && !objectiveUrgent && !interactionReady;
+    // IRON PICK: no magazine, reach-limited — it closes in instead of spacing.
+    const melee = p.def.mode === 'melee' && !!p.def.melee;
+    // Engage on damage permission, not fire permission: TTT prep lets the knife
+    // "fire" but nobody can be hurt, and a live swing would only mine the wall.
+    const meleeLive = melee && !!enemy && this.game.mode.canDamage(p, enemy);
 
     if (combatMovement) {
       // Combat motion: spacing + perpendicular wobble.
@@ -676,6 +690,21 @@ class BotManager {
       inp.keys.crouch = br.crouchFight && d > 10;
       moving = true;
       sprint = false;
+      if (melee) {
+        // Run straight in (sprinting, so the hit knocks back), circle-strafe only
+        // once inside the reach, and hop there so the swing falls as a crit (a
+        // sprinting fall stays a knockback hit). No sprint-in or hop unless live.
+        const wetAhead = wet(p.x + fx * 1.5, p.z + fz * 1.5);
+        inp.keys.f = d > MELEE_CLOSE && !wetAhead;
+        inp.keys.b = false;
+        inp.keys.crouch = false;
+        if (d > MELEE_HOP_DIST) inp.keys.l = inp.keys.r = false;
+        sprint = meleeLive && inp.keys.f && d > MELEE_SPRINT_DIST;
+        if (d <= MELEE_HOP_DIST && p.grounded && now >= br.critHopAt && meleeLive) {
+          inp.keys.jump = true;
+          br.critHopAt = now + MELEE_HOP_CD_MS / pers.hop;
+        }
+      }
     } else if (searching && navDist <= ARRIVE_DIST) {
       // Check around the remembered spot. Do not turn toward hidden movement.
       const scanYaw = Math.atan2(-ndx, -ndz) + Math.sin(now / 350 + br.strafePhase) * 0.9;
@@ -742,7 +771,13 @@ class BotManager {
 
       // Ammo logistics mid-fight: reload, else cycle to any loaded slot. The
       // RIPTIDE reloads by catching: with a disc still in the air it waits.
-      if (p.mag[p.weapon] === 0) {
+      if (melee) {
+        // The pick never runs dry; it only gives way to a loaded gun for far targets.
+        if (flat > MELEE_SWAP_DIST && inp.switchTo === undefined && !br.spawnSwitchPending) {
+          const gun = ownedSlots.find(s => s !== p.weapon && WEAPONS[WEAPON_IDS[s]].mode !== 'melee' && p.mag[s] > 0);
+          if (gun !== undefined) inp.switchTo = gun;
+        }
+      } else if (p.mag[p.weapon] === 0) {
         if (p.reserve[p.weapon] > 0) inp.reload = true;
         else if (glaive && this.game.projectiles.glaiveInFlight(p) > 0) { /* catch pending */ }
         else {
@@ -759,12 +794,17 @@ class BotManager {
       // the steering to settle on where the bot believes the target is; the
       // wander and any uncorrected kick then land as misses, not hesitation.
       const aimDistance = Math.hypot(flat, aim[1] - eye[1]);
+      const aimTolerance = melee ? MELEE_AIM_TOLERANCE : AIM_TOLERANCE;
       canShoot = br.noticeProgress >= 1
-        && Math.abs(wrapAngle(baseYaw - intendedYaw)) < AIM_TOLERANCE
-        && Math.abs(basePitch - intendedPitch) < AIM_TOLERANCE
+        && Math.abs(wrapAngle(baseYaw - intendedYaw)) < aimTolerance
+        && Math.abs(basePitch - intendedPitch) < aimTolerance
         && !raycastVoxels(this.solidAt, ...eye,
           -Math.sin(inp.yaw) * Math.cos(inp.pitch), Math.sin(inp.pitch),
           -Math.cos(inp.yaw) * Math.cos(inp.pitch), aimDistance);
+      // The swing reaches the body centre (server meleeSwing); while a hop still
+      // rises the pick waits for the fall, where the hit crits.
+      if (melee) canShoot &&= dist3(eye[0], eye[1], eye[2], enemy.x, enemy.y + PLAYER_HALF.h, enemy.z)
+        <= p.def.melee.reach + PLAYER_HALF.x - MELEE_REACH_SLACK && !(!p.grounded && p.vy > 0);
 
       // RIPTIDE: throw only inside its reach, swap to the revolver outside the
       // band, and press R to bring a disc back through the target.
@@ -783,7 +823,9 @@ class BotManager {
         else lineUp = this.glaiveLineUp(p, eye, inp.yaw, inp.pitch, reach) >= 2;
         if (this.glaiveReturnWanted(p, now)) inp.reload = true;
       }
-      if (combatAllowed && canShoot && p.mag[p.weapon] > 0) {
+      // A held trigger swings the pick at its rpm cadence: no bursts, no magazine.
+      if (melee) { if (combatAllowed && canShoot && meleeLive) inp.wantFire = true; }
+      else if (combatAllowed && canShoot && p.mag[p.weapon] > 0) {
         if (now >= br.pauseUntil || lineUp) {
           if (!br.inBurst) {
             const shots = pers.burst[0] + Math.floor(br.rng() * (pers.burst[1] - pers.burst[0] + 1));

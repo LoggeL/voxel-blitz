@@ -1,4 +1,4 @@
-import { WEAPON_IDS } from './combatmath.js';
+import { WEAPON_IDS, WEAPONS } from './combatmath.js';
 
 /** Career progression is one tree. A node opens when every listed requirement is
  * complete and its parent is already unlocked; nothing is ever bought. Branch
@@ -35,6 +35,25 @@ export const PROGRESSION_TREE = Object.freeze([
   node('weapons', { id: 'minigun-foundry', kind: 'weaponSkin', weapon: 'minigun', level: 75, parent: 'optic-cyber', masteryKills: 5000,
     color: '#ff7846', rarity: 'legendary', collection: 'Foundry', preview: '/assets/cosmetics/minigun-foundry.png',
     name: 'Foundry', detail: 'Industrial hazard armor and furnace vents. A long-term minigun mastery reward.' }),
+  // BLOCKWORKS -- IRON PICK material tiers. The level tiers chain; mastery tiers are leaves.
+  node('weapons', { id: 'pickaxe-timber', kind: 'weaponSkin', weapon: 'knife', level: 3, parent: 'optic-reflex',
+    color: '#b08a55', rarity: 'common', collection: 'Blockworks', preview: '/assets/cosmetics/pickaxe-timber.png',
+    name: 'Timber', detail: 'A plank-cut pick head for your IRON PICK. Where every dig begins.' }),
+  node('weapons', { id: 'pickaxe-cobble', kind: 'weaponSkin', weapon: 'knife', level: 7, parent: 'pickaxe-timber',
+    color: '#9a9a9b', rarity: 'uncommon', collection: 'Blockworks', preview: '/assets/cosmetics/pickaxe-cobble.png',
+    name: 'Cobble', detail: 'A knapped stone head on a trusty stick. Heavier looking, same swing.' }),
+  node('weapons', { id: 'pickaxe-gilded', kind: 'weaponSkin', weapon: 'knife', level: 20, parent: 'pickaxe-cobble',
+    color: '#f6d86a', rarity: 'rare', collection: 'Blockworks', preview: '/assets/cosmetics/pickaxe-gilded.png',
+    name: 'Gilded', detail: 'Soft polished gold. Impractical underground, glorious in the arena.' }),
+  node('weapons', { id: 'pickaxe-deep-diamond', kind: 'weaponSkin', weapon: 'knife', level: 40, parent: 'pickaxe-gilded',
+    color: '#74efdc', rarity: 'epic', collection: 'Blockworks', preview: '/assets/cosmetics/pickaxe-deep-diamond.png',
+    name: 'Deep Diamond', detail: 'Cyan facets with a faint inner light, cut from the deepest layer.' }),
+  node('weapons', { id: 'pickaxe-ashforged', kind: 'weaponSkin', weapon: 'knife', level: 45, parent: 'pickaxe-deep-diamond', masteryKills: 500,
+    color: '#9a7f70', rarity: 'legendary', collection: 'Blockworks', preview: '/assets/cosmetics/pickaxe-ashforged.png',
+    name: 'Ashforged', detail: 'Near-black alloy on a charred stick. Earned with 500 pick kills against human opponents.' }),
+  node('weapons', { id: 'pickaxe-runebound', kind: 'weaponSkin', weapon: 'knife', level: 60, parent: 'pickaxe-deep-diamond', masteryKills: 2500,
+    color: '#9a5cff', rarity: 'legendary', collection: 'Blockworks', preview: '/assets/cosmetics/pickaxe-runebound.png',
+    name: 'Runebound', detail: 'A diamond pick wrapped in a drifting violet enchantment glint. 2,500 pick kills against human opponents.' }),
 
   // CHARACTER
   node('character', { id: 'ignition', kind: 'signature', level: 5, parent: null, color: '#ff954f', rarity: 'uncommon', collection: 'Foundry',
@@ -131,7 +150,7 @@ export function careerItemState(profile, value) {
   if (!item) return { owned: false, equipped: false, locked: true, eligible: false, blockedByParent: false, progress: 0, requirements: [] };
   const requirement = (label, current, target) => ({ label, current, target, complete: current >= target });
   const requirements = [requirement('Career level', careerLevel(profile?.xp), item.level)];
-  if (item.masteryKills) requirements.push(requirement(`${item.weapon} PvP kills`, profile?.mastery?.[item.weapon]?.kills || 0, item.masteryKills));
+  if (item.masteryKills) requirements.push(requirement(`${WEAPONS[item.weapon]?.name || item.weapon} PvP kills`, profile?.mastery?.[item.weapon]?.kills || 0, item.masteryKills));
   if (item.pvpKills) requirements.push(requirement('PvP kills', profile?.pvpKills || 0, item.pvpKills));
   const owned = !!profile?.owned?.includes(item.id);
   // A grant is permanent: inserting a parent above an already-owned node must not

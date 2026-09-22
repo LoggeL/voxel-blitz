@@ -47,9 +47,13 @@ function render() {
     cache=new MaterialCache();gun=buildGun(item.weapon,cache);applyGunCosmetics(gun,item.weapon,loadout);
     gun.root.traverse(object=>{if(object.name==='hand_r'||object.name==='hand_l')object.visible=false;});
     scene.add(gun.root);
-    const bounds=new THREE.Box3().setFromObject(gun.root),center=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());
+    // Frame what renders: the hidden Blender glove carries a forearm that would pull the centre off the weapon.
+    const bounds=new THREE.Box3();gun.root.updateMatrixWorld(true);
+    gun.root.traverseVisible(object=>{if(object.isMesh)bounds.expandByObject(object);});
+    const center=bounds.getCenter(new THREE.Vector3()),size=bounds.getSize(new THREE.Vector3());
     gun.root.position.sub(center);
-    const width=Math.max(size.z,size.x,size.y);
+    // Tall silhouettes (the IRON PICK) need the 3:2 frame's height, not its length.
+    const width=Math.max(size.z,size.x,size.y*1.25);
     camera.position.set(width*(item.weapon === 'rifle' ? -1.35 : 1.35),width*.48,width*.68);camera.lookAt(0,0,0);
     pedestal.visible=false;
   } else {

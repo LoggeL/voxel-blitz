@@ -1,0 +1,96 @@
+/* IRON PICK HUD: the Minecraft-style attack indicator under the reticle and the
+   heavier pickaxe hitmarker. Pixel-crisp: whole-pixel borders, no radii, no blur. */
+
+.vb-melee-meter {
+  position: absolute;
+  left: 0;
+  top: 20px;
+  width: 34px;
+  height: 18px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.vb-melee-track {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 34px;
+  height: 6px;
+  box-sizing: border-box;
+  border: 1px solid #111214;
+  background: rgba(58, 60, 64, 0.72);
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  transition: opacity 60ms linear;
+}
+
+.vb-melee-track > i {
+  position: absolute;
+  inset: 1px;
+  display: block;
+  background: #e9ecee;
+  box-shadow: inset 0 -1px 0 #a9b0b6;
+  transform: scaleX(0);
+  transform-origin: left center;
+}
+
+.vb-melee-meter.is-charging .vb-melee-track { opacity: 1; }
+
+/* Ready pop: the pixel pick flashes once, then the indicator gets out of the way. */
+.vb-melee-ready {
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  width: 18px;
+  height: 16px;
+  margin-left: -9px;
+  opacity: 0;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.7));
+}
+
+.vb-melee-ready svg { display: block; width: 100%; height: 100%; }
+
+.vb-melee-meter.is-ready .vb-melee-ready {
+  animation: vb-melee-ready 300ms steps(6, end) forwards;
+}
+
+@keyframes vb-melee-ready {
+  0% { opacity: 1; transform: translateY(2px) scale(0.8); }
+  35% { opacity: 1; transform: translateY(0) scale(1.1); }
+  70% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-2px) scale(1); }
+}
+
+/* Pickaxe hitmarker: thicker, longer arms with a hard pixel shadow instead of glow. */
+#hitmarker.vb-melee:not(.vb-kill) {
+  transform: translate(-50%, -50%) scale(1.3);
+}
+
+#hitmarker.vb-melee:not(.vb-kill)::before,
+#hitmarker.vb-melee:not(.vb-kill)::after {
+  width: 18px;
+  height: 3px;
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.75);
+}
+
+#hitmarker.vb-melee-crit:not(.vb-kill)::before,
+#hitmarker.vb-melee-crit:not(.vb-kill)::after {
+  background: #fff3b8;
+  box-shadow: 1px 1px 0 rgba(0, 0, 0, 0.75), 0 0 6px rgba(255, 236, 150, 0.9);
+}
+
+#hitmarker.vb-melee-backstab:not(.vb-kill)::before,
+#hitmarker.vb-melee-backstab:not(.vb-kill)::after {
+  width: 20px;
+  background: var(--danger);
+}
+
+#hitmarker.vb-melee-armor:not(.vb-kill)::before,
+#hitmarker.vb-melee-armor:not(.vb-kill)::after {
+  background: #9fb3c2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vb-melee-meter.is-ready .vb-melee-ready { animation-duration: 1ms; }
+}

@@ -946,7 +946,7 @@ export async function runHudContracts(ok, installGlobals) {
       hud.setState({ fuel01: null, flameFiring: false });
       ok(!document.getElementById('charge-meter').classList.contains('is-visible')
         && !document.getElementById('charge-meter').classList.contains('is-fuel'), 'switching away clears the tank meter');
-      hud.setState({ wid: 'knife', wname: 'K-7 RIPPER', mag: 0, reserve: 0 });
+      hud.setState({ wid: 'knife', wname: 'IRON PICK', mag: 0, reserve: 0 });
       const meleeAmmo = document.getElementById('ammocount').textContent === '∞'
         && document.getElementById('ammo').children[2].style.display === 'none'
         && document.getElementById('ammoreserve').style.display === 'none'
@@ -956,6 +956,19 @@ export async function runHudContracts(ok, installGlobals) {
         && document.getElementById('ammo').children[2].style.display !== 'none'
         && document.getElementById('ammoreserve').style.display !== 'none' && document.getElementById('ammoreserve').textContent === '3',
       'melee ammo renders an infinite magazine with no reserve and a gun restores the readout');
+      // IRON PICK attack indicator: a 16-step bar while recharging, one ready pop on full.
+      const meleeMeter = document.getElementById('melee-meter');
+      hud.setState({ wid: 'knife', melee01: 1 });
+      const drawnFull = !meleeMeter.classList.contains('is-charging') && !meleeMeter.classList.contains('is-ready');
+      hud.setState({ melee01: 0.52 });
+      const charging = meleeMeter.classList.contains('is-charging')
+        && meleeMeter.querySelector('.vb-melee-track').children[0].style.transform === 'scaleX(0.5)';
+      hud.setState({ melee01: 1 });
+      const popped = !meleeMeter.classList.contains('is-charging') && meleeMeter.classList.contains('is-ready');
+      hud.setState({ wid: 'rifle', melee01: null });
+      ok(drawnFull && charging && popped && !meleeMeter.classList.contains('is-ready')
+        && meleeMeter.parentNode === document.getElementById('crosshair'),
+      'the pickaxe attack indicator steps with the swing cadence, pops once when ready and hides for guns');
 
       const discStates = (slots) => slots.map((slot) => slot.state).join(',');
       ok(discStates(glaiveDiscSlots({ magSize: 2, mag: 2 })) === 'hand,hand'

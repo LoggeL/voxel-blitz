@@ -2,25 +2,31 @@
 
 Cosmetics are nodes on the career unlock tree; see [progression](progression.md) for the tree itself, its branches and the full node table. This note covers how the cosmetics render, sound and persist.
 
-The first collection contains three weapon skins, two character skins, three death signatures and three original sound kits. Every weapon remains playable in every mode where that mode permits it. Gun Game uses its own weapon order and applies the player's equipped skin to each matching weapon.
+The collections contain nine weapon skins, two character skins, three death signatures and three original sound kits. Six of the weapon skins form the Blockworks set for the IRON PICK (the `knife` slot): Timber, Cobble, Gilded and Deep Diamond open by level in a chain, Ashforged and Runebound are mastery leaves under Deep Diamond. Every weapon remains playable in every mode where that mode permits it. Gun Game uses its own weapon order and applies the player's equipped skin to each matching weapon.
 
 | Item | Slot | Level | Additional requirement |
 | --- | --- | ---: | --- |
+| Timber | IRON PICK skin | 3 | None |
 | Ignition | Death signature | 5 | None |
+| Cobble | IRON PICK skin | 7 | None |
 | Arcade | Sound kit | 10 | None |
 | Overdrive | Rifle skin | 15 | 250 rifle PvP kills |
+| Gilded | IRON PICK skin | 20 | None |
 | Salvager | Character skin | 25 | None |
 | Circuit | Death signature | 25 | None |
 | High Noon | Revolver skin | 35 | 1,000 revolver PvP kills |
 | High Noon | Sound kit | 35 | None |
+| Deep Diamond | IRON PICK skin | 40 | None |
+| Ashforged | IRON PICK skin | 45 | 500 IRON PICK PvP kills |
 | Overdrive | Sound kit | 50 | None |
+| Runebound | IRON PICK skin | 60 | 2,500 IRON PICK PvP kills |
 | Foundry | Minigun skin | 75 | 5,000 minigun PvP kills |
 | Sovereign | Death signature | 75 | None |
 | Revenant | Character skin | 100 | 10,000 PvP kills |
 
 All listed requirements must be satisfied, and so must the node before each item in the tree. Every item is granted automatically; nothing is bought. HUD themes and callsigns are tree nodes too and open by career level. The career page previews locked items, exposes each requirement separately, and supports an independent weapon skin per weapon plus a character, signature, sound kit, reticle and nameplate. Each slot can return to standard.
 
-The XP curve is unchanged: level N starts at `(N - 1)^2 * 100` XP. Level 50 requires 240,100 XP, level 100 requires 980,100 XP. These are initial content gates, not a measured play-time promise. The mastery display marks 250, 1,000, 5,000 and 10,000 human kills. Only explicit catalog entries grant items; the other tier markers are progress milestones.
+The XP curve is unchanged: level N starts at `(N - 1)^2 * 100` XP. Level 50 requires 240,100 XP, level 100 requires 980,100 XP. These are initial content gates, not a measured play-time promise. The mastery display marks 250, 1,000, 5,000 and 10,000 human kills; the Blockworks leaves add 500 and 2,500 IRON PICK kills (quick-melee kills count, they are knife-slot kills). Only explicit catalog entries grant items; the other tier markers are progress milestones.
 
 ## Attribution and persistence
 
@@ -34,11 +40,13 @@ Equipment is checked against the server's tree and owned inventory. Client-provi
 
 Each skin is an individual module under `public/js/cosmetics/skins/`. `SkinLayer` clones changed materials and owns added details so equipping one player cannot recolor another. Removing a skin restores original materials and releases its added GPU resources. Gun details remain attached to their existing magazine, bolt and rotor parents. Team-colored character cloth is retained. Hitboxes, handling, damage, muzzle markers and sight anchors are unchanged.
 
+Blockworks is one parametric module (`skins/pickaxe-tiers.js`): each tier remaps the eight IRON PICK sprite roles (head outline/dark/mid/light/highlight, handle outline/dark/light) by their stable palette keys, touching only the `pickaxe_head` and `pickaxe_handle` groups. Deep Diamond adds a faint emissive on the bright pixels; Runebound adds a violet enchantment glint, an additive shader overlay on cloned sprite geometry that reads page time per draw, so third-person rigs animate it too. See [the Blockworks design note](design/cosmetics/pickaxe-tiers.md).
+
 The local gun, third-person carried gun and killcam use the same skin modules. Character palettes also affect local gun gloves and the visible local body. Added character details participate in normal death fades. The inventory images are rendered from these actual models, not separate illustrations.
 
 The collection's featured weapon and character skins use an interactive 3D viewer. Choose **INSPECT IN 3D**, drag horizontally or vertically to rotate, and scroll or pinch to zoom. Zoom buttons and **RESET VIEW** are also available. With the canvas focused, arrow keys rotate, plus/minus zoom, and Home or R resets the camera. **SHOW STANDARD** compares the original model while preserving the inspection angle and weapon attachments. Locked skins can be inspected without granting or equipping them.
 
-The Armory uses the same viewer for all twelve weapons, including the equipped skin and the current attachment draft. Model geometry, materials and attachments come from the gameplay builders. The viewer owns its camera and skin layers, renders only on interaction/resize, and releases its WebGL context when closed. Collection cards keep their static thumbnails, and the featured preview falls back to artwork if WebGL is unavailable.
+The Armory uses the same viewer for all thirteen weapons, including the equipped skin and the current attachment draft. Model geometry, materials and attachments come from the gameplay builders. The viewer owns its camera and skin layers, renders only on interaction/resize, and releases its WebGL context when closed. Collection cards keep their static thumbnails, and the featured preview falls back to artwork if WebGL is unavailable.
 
 `npm run models:browser` checks actual models, mouse/touch/keyboard interaction, standard comparison, saved and draft attachments, locked preview without inventory writes, responsive framing, context restoration and close/reopen cleanup. References, prompts and browser captures are recorded in [the viewer design note](design/model-viewer/README.md).
 

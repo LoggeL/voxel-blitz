@@ -240,18 +240,19 @@ export const TIMERS = {
     kick: { stiffness: 185, damping: 21, yawWobble: 0.6 },
   },
   knife: {
-    // K-7 RIPPER: fighting knife. Melee never reloads and never cycles — every field below
-    // still exists so the rig/action code can read the sheet without mode special cases.
+    // IRON PICK (slot id `knife`): a one-handed pickaxe. Melee never reloads and never
+    // cycles — every field below still exists so the rig/action code can read the sheet
+    // without mode special cases; `melee` skips flash, heat and the bolt-status cap.
     rof: WEAPONS.knife.rpm,
     adsTime: WEAPONS.knife.adsTime,
     deployTime: WEAPONS.knife.deployTime,
     weightKg: WEAPONS.knife.weightKg,
     viewKick: { pitchDeg: WEAPONS.knife.recoil.pitch, yawDeg: WEAPONS.knife.recoil.yaw },
-    muzzle: [0, 0.02, -0.42],   // blade point; the spine top IS the 0.02 sight line.
+    muzzle: [0, 0.02, -0.42],   // forward pick point; the 0.02 sight line runs along the head.
     portY: 0.05,
     ejectRight: 0,
-    barrelLen: 0.40,        // guard plane -0.02 -> blade point; heat-band mapping span.
-    heatLen: [0.04, 0.12],  // small ember collar at the blade base, short of the guard.
+    barrelLen: 0.40,        // fist -> pick point; heat-band mapping span (never lit).
+    heatLen: [0.04, 0.12],  // unused: melee skips the heat sleeve.
     boltTravel: 0,          // no bolt: the per-shot jerk stroke no-ops on an empty group.
     rechargeDur: 0.09,
     pumpMag: 0,
@@ -259,7 +260,9 @@ export const TIMERS = {
     cycleKind: null,
     ejectOnFire: false,     // nothing to eject; swings consume no ammunition.
     magTimeline: { start: 0.1, home: 0.6, clickAt: 0, type: 'mag' }, // never plays: magSize 0.
-    adsOffset: { x: 0, y: -0.02, z: -0.60 },    // point the blade spine down the camera axis.
+    // No sights: aiming sets the pick back by the 75->68 deg adsFov zoom so it
+    // frames like the hip hold, a touch down-right and clear of the aim.
+    adsOffset: { x: 0.235, y: -0.255, z: -0.552 },
     kick: { stiffness: 320, damping: 26, yawWobble: 0.5 },  // light, snappy wrist snap.
     melee: true,
   },

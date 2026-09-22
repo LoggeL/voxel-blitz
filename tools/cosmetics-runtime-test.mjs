@@ -32,6 +32,50 @@ for(const item of CAREER_CATALOG.filter(i=>i.kind==='weaponSkin')) {
  for(const [object,material] of own)assert.equal(object.material,material,'standard restores original material identity');
  disposeGunModels([model],cache);disposeGunModels([control],controlCache);
 }
+// BLOCKWORKS pickaxe tiers repaint only the eight sprite roles; the enchant glint is an
+// owned additive overlay on cloned geometry, so clearing it never frees the page-owned sprite.
+{
+ const pickTiers=CAREER_CATALOG.filter(i=>i.kind==='weaponSkin'&&i.weapon==='knife');
+ assert.deepEqual(pickTiers.map(i=>i.id),['pickaxe-timber','pickaxe-cobble','pickaxe-gilded','pickaxe-deep-diamond','pickaxe-ashforged','pickaxe-runebound']);
+ assert.ok(pickTiers.every(i=>i.collection==='Blockworks'));
+ const cache=new MaterialCache(),model=buildGun('knife',cache);
+ const roleMeshes=[];model.body.traverse(o=>{if(o.userData.pickaxeRole)roleMeshes.push(o);});
+ assert.equal(roleMeshes.length,8,'eight role meshes');
+ const base=new Map(roleMeshes.map(o=>[o,o.material.color.getHex()]));
+ const owned=()=>roleMeshes.every(o=>o.geometry.userData.pageOwned===true);
+ assert.ok(owned(),'the cached sprite geometry is page-owned');
+ for(const item of pickTiers){
+  applyGunCosmetics(model,'knife',{weaponSkins:{knife:item.id}});
+  assert.ok(owned(),`${item.id} never strips the shared page-owned flag`);
+  const heads=roleMeshes.filter(o=>o.userData.pickaxeRole.startsWith('head'));
+  assert.ok(heads.every(o=>o.material.color.getHex()!==base.get(o)),`${item.id} repaints every head role`);
+  const hand=model.root.getObjectByName('hand_r');let handTouched=false;
+  hand.traverse(o=>{if(o.material&&!cache.sharedMaterials.has(o.material)&&!o.material.userData.paletteColor)handTouched=true;});
+  assert.equal(handTouched,false,`${item.id} leaves the glove alone`);
+  const glints=[];model.body.traverse(o=>{if(o.name.startsWith('runebound_glint_'))glints.push(o);});
+  if(item.id==='pickaxe-runebound'){
+   assert.equal(glints.length,8,'runebound overlays every role');
+   assert.ok(glints.every(o=>o.material.isShaderMaterial&&o.material.userData.cosmeticGlow&&o.material.blending===THREE.AdditiveBlending
+    &&!o.geometry.userData.pageOwned&&typeof o.onBeforeRender==='function'),'glint is an owned additive overlay');
+   glints[0].onBeforeRender();assert.ok(glints[0].material.uniforms.uTime.value>0,'glint reads page time per draw');
+  } else assert.equal(glints.length,0,`${item.id} has no glint`);
+  if(item.id==='pickaxe-deep-diamond'){
+   const hi=roleMeshes.find(o=>o.userData.pickaxeRole==='head-highlight').material;
+   assert.ok(hi.emissiveIntensity>0&&hi.emissive.getHex()!==0&&hi.userData.cosmeticGlow,'diamond highlights carry a faint inner light');
+  }
+ }
+ applyGunCosmetics(model,'knife',{weaponSkins:{}});
+ assert.ok(roleMeshes.every(o=>o.material.color.getHex()===base.get(o)&&o.geometry.attributes.position.array.length>0),'standard restores the iron palette');
+ assert.ok(owned(),'reset keeps the sprite geometry page-owned');
+ // A second Runebound pick torn down must never free the sprite geometry the first one still draws.
+ let freed=0;for(const o of roleMeshes)o.geometry.addEventListener('dispose',()=>freed++);
+ const otherCache=new MaterialCache(),other=buildGun('knife',otherCache);
+ applyGunCosmetics(other,'knife',{weaponSkins:{knife:'pickaxe-runebound'}});
+ disposeGunModels([other],otherCache);
+ assert.equal(freed,0,'disposing another Runebound pick leaves the shared sprite geometry alone');
+ assert.ok(owned(),'and the shared geometry stays page-owned');
+ disposeGunModels([model],cache);
+}
 // Use the real operator skeleton; only the nameplate canvas needs a DOM stand-in.
 globalThis.document = { createElement: () => ({ getContext: () => new Proxy({}, {
  get: (object, key) => object[key] ?? (() => {}),

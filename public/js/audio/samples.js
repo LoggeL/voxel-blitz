@@ -1,5 +1,6 @@
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { FOOTSTEP_SLOTS } from './footsteps.js';
+import { pickaxeSampleFiles } from './pickaxe.js';
 
 const SLOT_ROOT = '/assets/audio';
 
@@ -74,12 +75,16 @@ for (const [surface, slots] of Object.entries(FOOTSTEP_SLOTS)) {
   });
 }
 Object.assign(sampleFileSlots, footstepManifest);
+// IRON PICK per-material dig takes, glass shatters and melee attack cues.
+const pickaxeManifest = pickaxeSampleFiles(SLOT_ROOT);
+Object.assign(sampleFileSlots, pickaxeManifest);
 export const SAMPLE_FILE_SLOTS = Object.freeze(sampleFileSlots);
 
 // Only files that ship with the game belong here. The wider slot catalog stays
 // optional, so one missing sample never turns into a startup fetch waterfall.
 export const BUILTIN_SAMPLE_MANIFEST = Object.freeze({
   ...footstepManifest,
+  ...pickaxeManifest,
   'human.pain.light': SAMPLE_FILE_SLOTS['human.pain.light'],
   'human.pain.light.2': SAMPLE_FILE_SLOTS['human.pain.light.2'],
   'human.pain.light.3': SAMPLE_FILE_SLOTS['human.pain.light.3'],

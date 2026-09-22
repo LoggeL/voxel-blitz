@@ -9,7 +9,10 @@ import { AudioEngine } from './engine.js';
 import { VoicePool } from './voices.js';
 import { FlameLoops } from './flame-loop.js';
 import { MinigunMotor, MINIGUN_REPORT, minigunReportChoice, renderMinigunReport } from './minigun-motor.js';
-import { pickaxeSampleChoice, pickaxeMaterial, renderPickaxeContact } from './pickaxe.js';
+import {
+  PickaxeDigVariations, pickaxeDigMaterial, pickaxeSampleChoice, pickaxeMaterial, renderMeleeHitFallback,
+  renderPickaxeContact,
+} from './pickaxe.js';
 import { createVoices } from './primitives.js';
 import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from './samples.js';
 import { MenuMusicLoop } from './music.js';
@@ -60,6 +63,7 @@ let minigunMotor = null;
 let minigunReportIndex = 0;
 let pickaxeSwingIndex = 0;
 let pickaxeImpactIndex = 0;
+let pickaxeVariations = new PickaxeDigVariations();
 let bulletWhizIndex = 0;
 const vehicleLoops = new Map();
 const glaiveLoops = new Map();
@@ -291,6 +295,7 @@ export const sfx = {
     minigunReportIndex = 0;
     pickaxeSwingIndex = 0;
     pickaxeImpactIndex = 0;
+    pickaxeVariations = new PickaxeDigVariations();
     menuMusic?.dispose();
     menuMusic = null;
     pool = null;
@@ -726,6 +731,14 @@ export const sfx = {
   mine(type, broken, pos) {
     const deferred = copyOptions(pos);
     run('impact', () => {
+      // The block's own dig take first; the generic contact chain stays as fallback.
+      const has = (slot) => !!samples.getBuffer(slot);
+      const dig = pickaxeVariations.dig(pickaxeDigMaterial(type), !!broken, Math.random, has);
+      if (dig) {
+        const lifetime = (samples.getBuffer(dig.slot).duration || 0.5) / dig.rate + 0.02;
+        const output = pool.acquire(outputOptions(deferred), lifetime);
+        if (samples.play(dig.slot, output, { gain: dig.gain, rate: dig.rate, cleanupOwner: output })) return;
+      }
       const material = pickaxeMaterial(type);
       const output = pool.acquire(outputOptions(deferred), 0.4);
       let contact = output;
@@ -760,6 +773,22 @@ export const sfx = {
       else if (weapon === 'revolver') {
         reloadRevolver(output, primitives, step, at, brightness);
       } else genericReloadStep(output, primitives, step, at, brightness);
+    });
+  },
+
+  /**
+   * IRON PICK player hit. `kind` is strong | crit | knockback | backstab |
+   * armor; `pos` ([x,y,z] or {x,y,z}) places it in the world unless `local`
+   * (the listener dealt or took the hit) plays it in the head.
+   */
+  meleeHit({ kind = 'strong', pos = null, local = false } = {}) {
+    const at = local ? null : positionFrom(pos);
+    run('meleeHit', () => {
+      const choice = pickaxeVariations.attack(kind, Math.random, (slot) => !!samples.getBuffer(slot));
+      const lifetime = choice.slot ? (samples.getBuffer(choice.slot).duration || 0.5) / choice.rate + 0.02 : 0.3;
+      const output = pool.acquire({ pos: at, priority: 1 }, lifetime);
+      if (choice.slot && samples.play(choice.slot, output, { ...choice, cleanupOwner: output })) return;
+      renderMeleeHitFallback(output, primitives, choice.kind);
     });
   },
 

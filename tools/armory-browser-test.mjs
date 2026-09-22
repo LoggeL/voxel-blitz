@@ -47,7 +47,7 @@ try {
       await screenshot('main-account-390x844');
     }
     await page.evaluate(`document.getElementById('career-open').click()`);
-    await page.waitFor(`document.getElementById('career-shop').open && document.querySelectorAll('[data-cosmetic]').length === 34`);
+    await page.waitFor(`document.getElementById('career-shop').open && document.querySelectorAll('[data-cosmetic]').length === 40`);
     await page.evaluate(`document.getElementById('career-shop').scrollTop = 0`);
     assert.equal(await page.evaluate(`document.getElementById('career-shop').scrollWidth <= document.getElementById('career-shop').clientWidth`), true, `${width}px career fits`);
     await page.evaluate(`document.activeElement?.blur()`);
@@ -65,7 +65,7 @@ try {
   await page.send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
   await page.evaluate(`document.getElementById('career-menu-preview').click()`);
   await page.waitFor(`document.getElementById('career-shop').open`);
-  for (const [kind, count] of [['weapons', 12], ['character', 5], ['presentation', 17], ['all', 34]]) {
+  for (const [kind, count] of [['weapons', 18], ['character', 5], ['presentation', 17], ['all', 40]]) {
     await page.evaluate(`document.querySelector('[data-filter="${kind}"]').click()`);
     assert.equal(await page.evaluate(`document.querySelectorAll('[data-cosmetic]').length`), count);
     assert.equal(await page.evaluate(`document.querySelector('[data-filter="${kind}"]').getAttribute('aria-pressed')`), 'true');

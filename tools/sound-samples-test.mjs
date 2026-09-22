@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { BUILTIN_SAMPLE_MANIFEST } from '../public/js/audio/samples.js';
 import { MINIGUN_REPORT, MINIGUN_REPORT_SLOTS, minigunReportChoice } from '../public/js/audio/minigun-motor.js';
 import { fireSampleProfile } from '../public/js/audio/reports.js';
+import { PICKAXE_ATTACK_KINDS, PICKAXE_ATTACK_SLOTS, PICKAXE_BREAK_SLOTS, PICKAXE_DIG_SLOTS } from '../public/js/audio/pickaxe.js';
+import { GLASS, GRASS, METAL, MC_GRAVEL, MC_WOOL_RED, PLANK, SAND, STONE } from '../shared/world/blocks.js';
 import { sfx } from '../public/js/audio/sfx.js';
 
 class Param {
@@ -60,6 +62,20 @@ function sampledCue(play, slot) {
   return sources[0];
 }
 
+/** Exactly one recording from `slots`; returns the source for rate/gain/route checks. */
+function sampledFrom(play, slots, label) {
+  const before = ctx.nodes.length;
+  play();
+  const sources = ctx.nodes.slice(before).filter((node) => node.kind === 'source' && node.buffer?.url);
+  assert.equal(sources.length, 1, label);
+  assert.ok(slots.some((slot) => BUILTIN_SAMPLE_MANIFEST[slot] === sources[0].buffer.url), label);
+  return sources[0];
+}
+const routedTo = (node, kind) => {
+  for (let seen = 0; node && seen < 8; seen++, node = node.connections?.[0]) if (node.kind === kind) return node;
+  return null;
+};
+
 try {
   await sfx.init();
   for (const headshot of [false, true]) {
@@ -90,6 +106,25 @@ try {
   assert.equal(throwPanner.positionZ.value, 5);
   const knife = sampledCue(() => sfx.fire('knife'), 'weapons.knife.fire');
   assert.equal(knife.playbackRate.value, fireSampleProfile('knife').rate);
+  // Mining plays the block's own dig take: quiet and low while mining, full on the break.
+  for (const [type, material] of [[STONE, 'stone'], [PLANK, 'wood'], [MC_GRAVEL, 'gravel'], [GRASS, 'grass'],
+    [SAND, 'sand'], [MC_WOOL_RED, 'cloth'], [GLASS, 'glass'], [METAL, 'metal']]) {
+    const hit = sampledFrom(() => sfx.mine(type, false, [4, 1, -2]), PICKAXE_DIG_SLOTS[material], `${material} mining hit`);
+    assert.ok(hit.playbackRate.value < 0.95 && hit.connections[0].gain.value < 0.5, `${material} hit is low and quiet`);
+    assert.equal(routedTo(hit, 'panner')?.positionX.value, 4, `${material} contact sits at the block`);
+    const broken = sampledFrom(() => sfx.mine(type, true, [4, 1, -2]),
+      PICKAXE_BREAK_SLOTS[material] || PICKAXE_DIG_SLOTS[material], `${material} break`);
+    assert.ok(broken.playbackRate.value >= 0.96 && broken.playbackRate.value <= 1.04
+      && broken.connections[0].gain.value === 1, `${material} break plays full near the recorded pitch`);
+  }
+  // Player hits: one attack take per kind; positional unless the listener is involved.
+  for (const kind of PICKAXE_ATTACK_KINDS) {
+    const remote = sampledFrom(() => sfx.meleeHit({ kind, pos: { x: 3, y: 1, z: 2 } }), PICKAXE_ATTACK_SLOTS[kind], kind);
+    assert.equal(routedTo(remote, 'panner')?.positionZ.value, 2, `${kind} hit is placed on the victim`);
+    const own = sampledFrom(() => sfx.meleeHit({ kind, pos: [3, 1, 2], local: true }), PICKAXE_ATTACK_SLOTS[kind], kind);
+    assert.equal(routedTo(own, 'panner'), null, `local ${kind} hit plays in the head`);
+  }
+  sampledFrom(() => sfx.meleeHit({ kind: 'bogus' }), PICKAXE_ATTACK_SLOTS.strong, 'unknown kinds read as strong');
   const minigun = sampledCue(() => sfx.fire('minigun'), 'weapons.minigun.fire');
   assert.equal(minigun.playbackRate.value, MINIGUN_REPORT.rate);
   assert.equal(minigun.connections[0].gain.value, MINIGUN_REPORT.gain);
@@ -177,4 +212,4 @@ try {
   else globalThis.window = originalWindow;
   globalThis.fetch = originalFetch;
 }
-console.log('Sound samples: explosion identity, grenade handling, knife, minigun, sustained flame, blast priority, bolt expiry and failed-fetch fallbacks passed.');
+console.log('Sound samples: explosion identity, grenade handling, knife, pickaxe dig/attack banks, minigun, sustained flame, blast priority, bolt expiry and failed-fetch fallbacks passed.');

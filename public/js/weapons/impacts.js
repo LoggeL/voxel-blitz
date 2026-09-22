@@ -9,6 +9,12 @@ import { freeOldestIndex, hideInstance, makeImpactCrossGeometry } from './instan
 const TAU = Math.PI * 2;
 const IMPACT_POOL_SIZE = 40;
 const PARTICLE_POOL_SIZE = 512;
+const STAR_POOL_SIZE = 96;
+// IRON PICK block contact: a few chips per dig hit, a block-filling burst on the break.
+export const MINE_HIT_PARTICLES = 6;
+export const MINE_BREAK_PARTICLES = 32;
+export const CRIT_STARS = 14;
+export const BACKSTAB_STARS = 18;
 
 const BLOCK_TINTS = Object.freeze({
   1: 0x6da34d,
@@ -60,6 +66,13 @@ const GLINT_PARTICLES = Object.freeze({
 const SHARD_PARTICLES = Object.freeze({
   speed: 4.4, gravity: 22, size: 2.6, life: 0.75, shards: true,
 });
+// Minecraft terrain particles: small unspun squares of the block colour that
+// keep their shade, drift under air drag, fall at 16 m/s² and settle on floors.
+const BLOCK_PARTICLES = Object.freeze({
+  speed: 1.4, gravity: 16, size: 1.3, life: 0.9, blocky: true,
+});
+// Minecraft crit sparkle: a pale pixel star bursting out and braking hard.
+const CRIT_TINT = 0xf4f1e6, BACKSTAB_TINT = 0xd8243c;
 
 /** Impact bank (glass/wood/metal/stone). Wood and metal come from the footstep material
  * table so every surface cue agrees; foliage snaps like wood rather than thudding like stone. */
@@ -69,6 +82,19 @@ export function blockSoundFor(type) {
   if (type === LEAVES || type === MC_LEAVES) return 'wood';
   const surface = footstepMaterial(type);
   return surface === 'wood' || surface === 'metal' ? surface : 'stone';
+}
+
+/** Flat 5x5-pixel plus with a hollow-free centre: the crit sparkle silhouette, unit size. */
+function makePixelStarGeometry() {
+  const u = 0.2, rects = [[-u / 2, -2.5 * u, u, 5 * u], [-2.5 * u, -u / 2, 5 * u, u],
+    [-1.5 * u, -1.5 * u, u, u], [0.5 * u, 0.5 * u, u, u], [-1.5 * u, 0.5 * u, u, u], [0.5 * u, -1.5 * u, u, u]];
+  const positions = [];
+  for (const [x, y, w, h] of rects) {
+    positions.push(x, y, 0, x + w, y, 0, x + w, y + h, 0, x, y, 0, x + w, y + h, 0, x, y + h, 0);
+  }
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  return geometry;
 }
 
 export class ImpactFX {
@@ -100,6 +126,22 @@ export class ImpactFX {
       this.partMesh.setColorAt(i, this._col.setHex(0xffffff));
     }
     scene.add(this.partMesh);
+
+    // Crit stars: a flat pixel-plus that faces the camera.
+    this.starsSpawned = 0;
+    this.starMesh = new THREE.InstancedMesh(makePixelStarGeometry(), new THREE.MeshBasicMaterial({
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false,
+    }), STAR_POOL_SIZE);
+    this.starMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.starMesh.frustumCulled = false;
+    this.starMesh.renderOrder = 9;
+    this.stars = new Array(STAR_POOL_SIZE);
+    for (let i = 0; i < STAR_POOL_SIZE; i++) {
+      this.stars[i] = { active: false };
+      hideInstance(this.starMesh, i);
+      this.starMesh.setColorAt(i, this._col.setHex(0xffffff));
+    }
+    scene.add(this.starMesh);
 
     const impactMaterial = () => new THREE.MeshBasicMaterial({
       transparent: true,
@@ -244,20 +286,66 @@ export class ImpactFX {
     }
   }
 
+  /**
+   * One accepted pickaxe contact. Dig hits chip a few block-coloured squares off
+   * the struck face; the break fills the whole block volume with a radial burst,
+   * like Minecraft's 4x4x4 break shower. Metal and glass add two contact glints.
+   */
   mine(ev) {
     if (this._disposed) return;
     const material = pickaxeMaterial(ev.from);
-    const x = ev.x + 0.5 + ev.nx * 0.53;
-    const y = ev.y + 0.5 + ev.ny * 0.53;
-    const z = ev.z + 0.5 + ev.nz * 0.53;
-    const outward = [ev.nx * 0.3, ev.ny * 0.3, ev.nz * 0.3];
-    const particles = material === 'metal' ? METAL_PARTICLES
-      : material === 'glass' ? GLASS_PARTICLES : DUST_PARTICLES;
-    this.spawnParticles(x, y, z, ev.progress >= 1 ? 18 : 5,
-      material === 'metal' ? 0xffd78a : BLOCK_TINTS[ev.from] || 0x999999,
-      { ...particles, outward, softness: material === 'soft' });
+    const tint = BLOCK_TINTS[ev.from] || 0x999999;
+    const broken = ev.progress >= 1;
+    const x = ev.x + 0.5 + ev.nx * (broken ? 0 : 0.53);
+    const y = ev.y + 0.5 + ev.ny * (broken ? 0 : 0.53);
+    const z = ev.z + 0.5 + ev.nz * (broken ? 0 : 0.53);
+    const outward = [ev.nx * 0.18, ev.ny * 0.18, ev.nz * 0.18];
+    this.spawnParticles(x, y, z, broken ? MINE_BREAK_PARTICLES : MINE_HIT_PARTICLES, tint, broken
+      ? { ...BLOCK_PARTICLES, spread: 0.42, radial: 3.2, speed: 0.6 }
+      : { ...BLOCK_PARTICLES, outward, spread: 0.3, flat: [ev.nx, ev.ny, ev.nz] });
     if (material === 'glass' || material === 'metal') {
-      this.spawnParticles(x, y, z, 2, 0xfff1cf, GLINT_PARTICLES);
+      const gx = ev.x + 0.5 + ev.nx * 0.53, gy = ev.y + 0.5 + ev.ny * 0.53, gz = ev.z + 0.5 + ev.nz * 0.53;
+      this.spawnParticles(gx, gy, gz, 2, 0xfff1cf, GLINT_PARTICLES);
+    }
+  }
+
+  /**
+   * IRON PICK player hit by kind: crit and backstab burst pixel stars (pale /
+   * crimson), a full armor absorb throws brass sparks, a knockback shove a puff.
+   */
+  meleeHit(ev, kind) {
+    if (this._disposed) return;
+    const x = Number(ev?.vx), y = Number(ev?.vy), z = Number(ev?.vz);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return;
+    if (kind === 'crit') this.spawnStars(x, y, z, CRIT_STARS, CRIT_TINT);
+    else if (kind === 'backstab') this.spawnStars(x, y, z, BACKSTAB_STARS, BACKSTAB_TINT);
+    else if (kind === 'armor') this.spawnParticles(x, y, z, 6, 0xffd78a, METAL_PARTICLES);
+    else if (kind === 'knockback') this.spawnParticles(x, y - 0.5, z, 6, 0xe6e2da, { ...DUST_PARTICLES, softness: true });
+  }
+
+  spawnStars(x, y, z, count, tint) {
+    const col = this._col.setHex(tint);
+    for (let i = 0; i < count; i++) {
+      let idx = this.stars.findIndex((star) => !star.active);
+      if (idx < 0) idx = freeOldestIndex(this.stars);
+      const star = this.stars[idx];
+      const th = Math.random() * TAU, up = Math.random() * 2 - 1;
+      const flat = Math.sqrt(1 - up * up), speed = 3 + Math.random() * 3;
+      star.active = true;
+      star.t = 0;
+      star.life = 0.45 + Math.random() * 0.4;
+      star.size = 0.05 + Math.random() * 0.035;
+      star.x = x + Math.cos(th) * flat * 0.2;
+      star.y = y + up * 0.35;
+      star.z = z + Math.sin(th) * flat * 0.2;
+      star.vx = Math.cos(th) * flat * speed;
+      star.vy = up * speed * 0.8 + 1.4;
+      star.vz = Math.sin(th) * flat * speed;
+      star.spin = (Math.random() - 0.5) * 6;
+      star.rot = Math.random() * TAU;
+      const shade = 0.78 + Math.random() * 0.3;
+      star.colR = col.r * shade; star.colG = col.g * shade; star.colB = col.b * shade;
+      this.starsSpawned++;
     }
   }
 
@@ -301,9 +389,19 @@ export class ImpactFX {
       p.gravity = opt.gravity ?? 20;
       p.softness = !!opt.softness;
       p.glint = !!opt.spriteGlint;
+      p.blocky = !!opt.blocky;
       p.x = x;
       p.y = y;
       p.z = z;
+      // Volume spread: jitter the start inside a box (flattened onto a struck face).
+      let ox = 0, oy = 0, oz = 0;
+      if (opt.spread) {
+        ox = (Math.random() * 2 - 1) * opt.spread;
+        oy = (Math.random() * 2 - 1) * opt.spread;
+        oz = (Math.random() * 2 - 1) * opt.spread;
+        if (opt.flat) { ox *= 1 - Math.abs(opt.flat[0]); oy *= 1 - Math.abs(opt.flat[1]); oz *= 1 - Math.abs(opt.flat[2]); }
+        p.x += ox; p.y += oy; p.z += oz;
+      }
       const th = Math.random() * TAU;
       const ph = Math.random() * Math.PI;
       const speed = opt.speed * (
@@ -317,13 +415,20 @@ export class ImpactFX {
         p.vy += opt.outward[1] * 4 + 1.2;
         p.vz += opt.outward[2] * 7;
       }
-      p.spinX = (Math.random() - 0.5) * 12;
-      p.spinY = (Math.random() - 0.5) * 12;
-      p.rx = Math.random() * TAU;
-      p.ry = Math.random() * TAU;
-      p.colR = col.r * (0.8 + Math.random() * 0.35);
-      p.colG = col.g * (0.8 + Math.random() * 0.35);
-      p.colB = col.b * (0.8 + Math.random() * 0.35);
+      if (opt.radial) {
+        p.vx += ox * opt.radial;
+        p.vy += oy * opt.radial + 1.2;
+        p.vz += oz * opt.radial;
+      }
+      p.spinX = p.blocky ? 0 : (Math.random() - 0.5) * 12;
+      p.spinY = p.blocky ? 0 : (Math.random() - 0.5) * 12;
+      p.rx = p.blocky ? 0 : Math.random() * TAU;
+      p.ry = p.blocky ? 0 : Math.random() * TAU;
+      // Texture-fragment shading: blocky chips vary more, one shade per chip.
+      const shade = p.blocky ? 0.68 + Math.random() * 0.42 : 0;
+      p.colR = col.r * (shade || 0.8 + Math.random() * 0.35);
+      p.colG = col.g * (shade || 0.8 + Math.random() * 0.35);
+      p.colB = col.b * (shade || 0.8 + Math.random() * 0.35);
       this.particlesSpawned++;
     }
   }
@@ -370,10 +475,31 @@ export class ImpactFX {
       }
       const wasVy = p.vy;
       p.vy -= p.gravity * dt;
+      if (p.blocky) {
+        const drag = Math.pow(0.667, dt);        // Minecraft's 0.98 per tick
+        p.vx *= drag; p.vy *= drag; p.vz *= drag;
+      }
+      const prevX = p.x, prevY = p.y, prevZ = p.z;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.z += p.vz * dt;
-      if (p.vy < 0 && wasVy < 0) {
+      if (p.blocky) {
+        const floorY = Math.floor(p.y - 0.04);
+        const solid = (x, y, z) => this.getBlockFn(Math.floor(x), Math.floor(y), Math.floor(z));
+        if (p.vy < 0 && prevY >= floorY + 1 && this.getBlockFn(Math.floor(p.x), floorY, Math.floor(p.z))) {
+          // Chips that came down through a top face rest there and slide to a stop.
+          p.y = floorY + 1.04;
+          p.vy = 0;
+          p.vx *= 0.7;
+          p.vz *= 0.7;
+        } else if (solid(p.x, p.y, p.z)) {
+          // Entered a wall or ceiling from the side or below: never lift it onto
+          // that block's top. Side hits lose their drift; ceiling hits stop rising.
+          p.x = prevX; p.z = prevZ; p.vx = 0; p.vz = 0;
+          if (solid(p.x, p.y, p.z)) { p.y = prevY; if (p.vy > 0) p.vy = 0; }
+          if (solid(p.x, p.y, p.z)) p.t = p.life;
+        }
+      } else if (p.vy < 0 && wasVy < 0) {
         const below = this.getBlockFn(
           Math.floor(p.x), Math.floor(p.y - 0.04), Math.floor(p.z),
         );
@@ -386,8 +512,10 @@ export class ImpactFX {
       }
       p.rx += p.spinX * dt;
       p.ry += p.spinY * dt;
-      const fade = 1 - p.t / p.life;
-      const scale = p.size * (p.softness ? fade * fade : 0.6 + fade * 0.6);
+      const fade = p.blocky ? 1 : 1 - p.t / p.life;
+      // Blocky chips keep size and shade, then pop out over their last 60 ms.
+      const scale = p.size * (p.blocky ? Math.min(1, (p.life - p.t) / 0.06)
+        : p.softness ? fade * fade : 0.6 + fade * 0.6);
       this._e.set(p.rx, p.ry, 0);
       this._q.setFromEuler(this._e);
       this._s.setScalar(scale);
@@ -401,12 +529,46 @@ export class ImpactFX {
       this.partMesh.instanceMatrix.needsUpdate = true;
       if (this.partMesh.instanceColor) this.partMesh.instanceColor.needsUpdate = true;
     }
+    this._updateStars(dt);
+  }
+
+  _updateStars(dt) {
+    let dirty = false;
+    const billboardQ = this.camera && this.camera.quaternion;
+    for (let i = 0; i < this.stars.length; i++) {
+      const star = this.stars[i];
+      if (!star.active) continue;
+      dirty = true;
+      star.t += dt;
+      if (star.t >= star.life) {
+        star.active = false;
+        hideInstance(this.starMesh, i);
+        continue;
+      }
+      const brake = Math.exp(-5.5 * dt);
+      star.vx *= brake; star.vz *= brake;
+      star.vy = star.vy * brake - 2.5 * dt;
+      star.x += star.vx * dt; star.y += star.vy * dt; star.z += star.vz * dt;
+      star.rot += star.spin * dt;
+      const k = star.t / star.life;
+      this._e.set(0, 0, star.rot);
+      this._q.setFromEuler(this._e);
+      if (billboardQ) this._q.premultiply(billboardQ);
+      this._s.setScalar(star.size * (1 - k * k));
+      this._m4.compose(this._v.set(star.x, star.y, star.z), this._q, this._s);
+      this.starMesh.setMatrixAt(i, this._m4);
+      this.starMesh.setColorAt(i, this._col.setRGB(star.colR, star.colG, star.colB));
+    }
+    if (dirty) {
+      this.starMesh.instanceMatrix.needsUpdate = true;
+      if (this.starMesh.instanceColor) this.starMesh.instanceColor.needsUpdate = true;
+    }
   }
 
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
-    for (const mesh of [this.partMesh, ...this.impactMeshes]) {
+    for (const mesh of [this.partMesh, this.starMesh, ...this.impactMeshes]) {
       this.scene.remove(mesh);
       mesh.dispose();
       mesh.geometry.dispose();

@@ -109,15 +109,18 @@ export function buildGun(id, cache) {
     bolt.add(cap);
   }
 
-  const span = (T.heatLen[1] - T.heatLen[0]) * T.barrelLen;
-  const startZ = BREACH_Z[id] - T.heatLen[0] * T.barrelLen;
-  const heatGeometry = new THREE.CylinderGeometry(
-    BARREL_R[id], BARREL_R[id], span, 10, 1, true,
-  );
-  heatGeometry.rotateX(Math.PI / 2);
-  const heat = new THREE.Mesh(heatGeometry, glow);
-  heat.position.set(T.muzzle[0], T.muzzle[1], startZ - span / 2);
-  body.add(heat);
+  // Melee has no barrel: a heat sleeve would float as a glowing rod beside the pick.
+  if (!melee) {
+    const span = (T.heatLen[1] - T.heatLen[0]) * T.barrelLen;
+    const startZ = BREACH_Z[id] - T.heatLen[0] * T.barrelLen;
+    const heatGeometry = new THREE.CylinderGeometry(
+      BARREL_R[id], BARREL_R[id], span, 10, 1, true,
+    );
+    heatGeometry.rotateX(Math.PI / 2);
+    const heat = new THREE.Mesh(heatGeometry, glow);
+    heat.position.set(T.muzzle[0], T.muzzle[1], startZ - span / 2);
+    body.add(heat);
+  }
 
   const rightHand = kit.glove(
     body,

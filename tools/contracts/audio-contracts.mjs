@@ -403,6 +403,27 @@ export async function runAudioContracts(ok, installGlobals) {
       ok(audio.nodes.slice(variantMark).some((node) =>
         node.kind === 'buffer-source' && node.buffer?.decoded),
       'an unloaded swing variant falls back to the shipped recording');
+      // IRON PICK: a mined block plays one dig take; player hits one attack take.
+      const digLoad = await sfx.loadSamples({
+        'pickaxe.dig.stone.1': '/assets/audio/weapons/knife/dig-stone-1.ogg',
+        'pickaxe.attack.crit.1': '/assets/audio/weapons/knife/attack-crit-1.ogg',
+      }, async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(8) }));
+      const bankSample = (play) => {
+        const mark = audio.nodes.length;
+        const started = startedBy(play);
+        const source = audio.nodes.slice(mark).find((node) => node.kind === 'buffer-source' && node.buffer?.decoded);
+        return { started, gain: source?.connections[0]?.gain.value, rate: source?.playbackRate.value };
+      };
+      const digHit = bankSample(() => sfx.mine(3, false, [0, 0, -2]));
+      const digBreak = bankSample(() => sfx.mine(3, true, [0, 0, -2]));
+      const critHit = bankSample(() => sfx.meleeHit({ kind: 'crit', pos: [0, 0, -2] }));
+      ok(digLoad.loaded === 2 && [digHit, digBreak, critHit].every(({ started }) => started === 1)
+          && digHit.gain < digBreak.gain && digHit.rate < digBreak.rate
+          && digBreak.gain <= 1 && digBreak.rate <= 1.04 && critHit.rate >= 0.95 && critHit.rate <= 1.05,
+      'pickaxe dig and attack cues each play one bounded take; mining hits sit below the break');
+      ok(['strong', 'knockback', 'backstab', 'armor'].every((kind) =>
+        startedBy(() => sfx.meleeHit({ kind, local: true })) >= 2),
+      'an unloaded attack bank falls back to a procedural melee hit');
       for (const weapon of ['longarc', 'lance']) {
         const gains = [0, 0.5, 1].map((charge) => {
           const mark = audio.nodes.length;
@@ -450,6 +471,8 @@ export async function runAudioContracts(ok, installGlobals) {
         'global voice registry leaves at most 48 live outputs plus the echo bus');
       for (let i = 0; i < 30; i++) {
         sfx.impact('metal', 1, { pos: [i, 0, -i] });
+        sfx.mine(3, i % 4 === 0, [i, 0, i]);
+        sfx.meleeHit({ kind: 'crit', pos: [-i, 0, i] });
       }
       ok(audio.nodes.filter((node) =>
         node.kind === 'panner' && !node.disconnected).length <= 16,

@@ -386,8 +386,8 @@ their purchases and remaining ammunition. Weapons cannot fire during prep.
 
 Gun Game is a free-for-all with a **1500 ms** respawn. Every kill advances the
 player through rifle, SMG, shotgun, sniper, LMG, F-4 FIRESTORM, rocket, LONGARC,
-GV-4 RIPTIDE, VOLTLANCE, revolver, M-6 FURNACE minigun, and finally the PIXEL PICK
-pickaxe. A kill with the PIXEL PICK wins; a
+GV-4 RIPTIDE, VOLTLANCE, revolver, M-6 FURNACE minigun, and finally the IRON PICK
+pickaxe. A kill with the IRON PICK wins; a
 **5000 ms** result phase follows before progression and scores reset.
 
 ### Training
@@ -521,7 +521,7 @@ roster cards are omitted; S&D keeps a compact remaining-lives strip on desktop.
 | mouse1 with the LONGARC | automatic coilgun; every bolt ricochets off one wall |
 | hold/release mouse1 with the VOLTLANCE | charge the rail-lance; release fires a lance that spears up to six enemies on the line, and only a full charge crosses up to two walls |
 | mouse1 with the GV-4 RIPTIDE | throw a magenta disc; it cuts out for 550 ms (or to its first wall), loops back and is caught to reload. Two discs; with both out the launcher is empty. A disc that hits a wall on the way home sticks there: walk over it or wait 4 s for a replacement |
-| mouse1 with the PIXEL PICK | hold to mine nearby blocks; harder materials require more swings. No ammo or reload; melee hits retain 2.5x backstabs |
+| mouse1 with the IRON PICK | hold to mine nearby blocks; harder materials require more swings. No ammo or reload. Hits on players: 2.5x backstab, 1.5x crit while falling, every hit shoves the victim and a sprinting hit knocks it back hard |
 | `1-9` / `0` / wheel | weapon slots (`1-9` and `0` also pick directly while the weapon wheel is open) |
 | hold `Q` / `E` | lean left / right: the upper body rolls about the hips so head and weapon peek ~0.3 m past cover (0.22 s in or out); walls limit it, and a forward sprint, prone, swimming, vaulting or ladders hold you upright. The leaned head is a real target and shots leave from the leaned eye |
 | `Q` / `E` while dead | previous / next spectator target |
@@ -590,7 +590,7 @@ support portrait and landscape. Append `?touch=1` for desktop QA.
 | **LN-03 LONGARC** | automatic | 300 rpm | 8 + 6 mags | coilgun: every bolt ricochets off one wall — bolts never pierce bodies or terrain and fizzle once the reflection runs out |
 | **RX-8 HAVOC** | semi-automatic | 45 rpm | 1 + 5 tubes | slow authoritative rocket with splash, terrain carve, direct-hit bonus, and a self-knockback tuned for rocket jumps |
 | **CL-9 VOLTLANCE** | charge (hold/release) | 100 rpm | 4 + 5 mags | siege rail-lance: a tap flings a weak dart, a charged lance spears up to six enemies on the line with 0.9-per-body falloff, and only a full charge crosses up to two walls decaying 0.72 per wall; rising cell whine and violet lance glow |
-| **PIXEL PICK** | melee | 120 rpm | no ammo — swings are free | pixel pickaxe: material-dependent mining with cracks, cube debris and retro sounds; melee hits and 2.5x backstabs |
+| **IRON PICK** | melee | 120 rpm | no ammo — swings are free | iron pickaxe: material-dependent mining with cracks and block debris; hits deal 58 (46.4 after scale), Minecraft-style falling crits ×1.5 (69.6 — crit + hit kills), 2.5x backstabs (116, lethal), a ~1 m shove on every hit and a ~2.6 m sprint knockback (`shared/melee.js`); bots close in, sprint and hop for crits |
 | **GV-4 RIPTIDE** | semi-automatic throw | 150 rpm | 2 discs, reloaded by catching | disc launcher: a toothed magenta disc cuts out 34 m/s, bending gently onto a body just off its line, loops home at 30 m/s and pierces up to three bodies on each leg (out 43.2, back 57.6 after scale, head ×1.5); `R` turns discs home early; wall-stuck discs are picked up or fabricated after 4 s. No reach past about 20 m (`docs/weapon-design/glaive.md`) |
 
 Gun timing lives in `public/js/guns/defs.js` (timer table per weapon); shared

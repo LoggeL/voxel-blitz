@@ -149,6 +149,24 @@ origin and license of every bundled recording remain auditable.
 - Mono 48 kHz Opus at 96 kbit/s. Account/service terms govern generated recordings;
   no CC0 license is asserted. Historical swing rebuilding writes to `legacy-output`.
 
+## IRON PICK dig and attack sets
+
+- Sources: 13 new ElevenLabs API candidates generated on 2026-09-22 (65 credits;
+  the key then reached its quota), plus unused takes from this project's own
+  2026-09-08, 2026-09-09 and 2026-09-16 generations. Seeded numpy synthesis adds
+  iron/glass ring partials, body thumps, cloth puffs and the crit sparkle.
+- Original foley in the style of block-game dig and attack sounds; no Mojang or
+  other game recordings were used or imitated file-for-file.
+- `weapons/knife/dig-<material>-<n>.ogg` (stone, wood, gravel, grass, sand,
+  cloth, glass, metal), `dig-glass-break-<n>.ogg` and
+  `attack-<strong|crit|knockback|backstab|armor>-<n>.ogg`.
+- `elevenlabs-pickaxe-dig-sources.json` records every layer, prompt, receipt,
+  source/output hash and decoded measurement. Rebuild with
+  `.artifacts/audio-analysis-venv/bin/python tools/prepare-pickaxe-dig-audio.py process`
+  from retained sources; recipes in `docs/audio/pickaxe-dig/recipes.json`.
+- Mono 48 kHz Opus at 96 kbit/s. Account/service terms govern generated recordings;
+  no CC0 license is asserted.
+
 ## Physical hit foley
 
 - Source: six original ElevenLabs API candidates generated on 2026-09-08 (30 credits).

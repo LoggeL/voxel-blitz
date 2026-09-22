@@ -36,6 +36,6 @@ for (const item of CAREER_CATALOG) {
     sounds++;
   }
 }
-assert.equal(previews, 5);
+assert.equal(previews, 11);
 assert.equal(sounds, 9);
-console.log('Cosmetics assets: five rendered previews and nine ElevenLabs Opus cues match catalog paths, provenance hashes and bounded signal metrics.');
+console.log('Cosmetics assets: eleven rendered previews and nine ElevenLabs Opus cues match catalog paths, provenance hashes and bounded signal metrics.');

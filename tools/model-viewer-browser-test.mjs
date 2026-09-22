@@ -103,13 +103,15 @@ try {
   assert.notEqual((await view()).yaw, initial.yaw, 'keyboard rotates model');
   await click('[data-viewer-action="reset"]');
   for (const item of CAREER_CATALOG.filter(item => ['weaponSkin', 'characterSkin'].includes(item.kind))) {
+    // Only the featured card carries an inspect button: feature the tree node first.
+    await click(`[data-node="${item.id}"]`);
     await click(`[data-inspect="${item.id}"]`); await ready(item.id);
     await framing(item.id);
     assert.equal(await page.evaluate(`__viewer.root.userData.skin`), item.id, `${item.id}: gameplay skin module applied`);
     await click('[data-viewer-action="standard"]'); await ready('standard');
     await click('[data-viewer-action="standard"]'); await ready(item.id);
   }
-  await click('[data-inspect="salvager"]'); await ready('salvager');
+  await click('[data-node="salvager"]'); await click('[data-inspect="salvager"]'); await ready('salvager');
   await snapshot('character-desktop');
   const inspectPosts = page.events.filter(e => e.method === 'Network.requestWillBeSent' && e.params.request.method === 'POST' && e.params.request.url.includes('/api/career'));
   assert.equal(inspectPosts.length, 0, 'inspection and standard comparison never modify inventory');
@@ -197,7 +199,7 @@ try {
   await framing('restored WebGL context');
   await click('#career-close');
   assert.deepEqual(page.errors, [], 'no browser errors');
-  console.log('Model viewer: all five skins and twelve weapons, actual material/attachment parity, locked inspection without writes, mouse/touch/pinch/keyboard controls, reset, standard comparison, responsive framing at 1440/1280/390/360px, category changes and close/reopen cleanup passed.');
+  console.log('Model viewer: all eleven skins and twelve weapons, actual material/attachment parity, locked inspection without writes, mouse/touch/pinch/keyboard controls, reset, standard comparison, responsive framing at 1440/1280/390/360px, category changes and close/reopen cleanup passed.');
 } catch (error) {
   console.error(server.stderr);
   if (browser) {

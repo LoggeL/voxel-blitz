@@ -287,7 +287,19 @@ export async function runViewmodelContracts(ok, installGlobals) {
   {
     const { HANDS } = await import('../../public/js/guns/defs.js');
     const { AvatarWeaponModel } = await import('../../public/js/avatar/avatar-weapon.js');
+    const { PICKAXE_LIFT_AT, PICKAXE_STRIKE_AT, PICKAXE_SWING_SECONDS } =
+      await import('../../public/js/guns/pickaxe-swing.js');
     const carried = new AvatarWeaponModel();
+    // Third-person IRON PICK chop: a pitch about the fist; the grip never moves.
+    // dt 0 holds every smoothed layer (aim blend, deploy) so only the chop moves.
+    const chopFrame = (seconds) => {
+      carried.meleeSwing = seconds;
+      carried.update({ weapon: 'knife', ads: true, dt: 0 });
+      carried.root.updateMatrixWorld(true);
+      const g = HANDS.knife.grip;
+      return { pitch: carried.root.rotation.x, grip: new THREE.Vector3(g.x, g.y, g.z)
+        .multiply(carried.modelRoot.scale).applyEuler(carried.root.rotation).add(carried.root.position) };
+    };
     try {
       let valid = true;
       const hipMounts = new Set();
@@ -331,12 +343,11 @@ export async function runViewmodelContracts(ok, installGlobals) {
           && carried.adsT > 0.9
           && Number.isFinite(carried.root.position.y)
           && Number.isFinite(carried.root.rotation.x)
-          // Melee carries no ballistic flash and its firing pose is the forward
-          // stab lunge (forward = -z, with a slight pitch dip), not a gun sight.
+          // Melee carries no ballistic flash; the firing flag alone never moves the
+          // pick (the chop runs on the swing clock, checked below), not a gun sight.
           && (isMelee
             ? (carried._model.flash.mats.length === 0
-              && carried.root.position.z < -0.05
-              && carried.root.rotation.x < -0.02)
+              && Math.abs(carried.root.rotation.x) < 1e-9)
             : (carried._model.flash.grp.visible === !carried._model.T.continuous
               && Math.abs(standingSightY - 1.62) < 0.02));
       }
@@ -344,6 +355,15 @@ export async function runViewmodelContracts(ok, installGlobals) {
         'remote-avatar mounts preserve weapon-specific grips and align every ADS sight through firing and crouch');
       ok(carriedGeometryMismatch.length === 0,
         `carried weapons build body geometry except the Blender-only slots in Node (${carriedGeometryMismatch.join(', ')})`);
+      for (let frame = 0; frame < 240; frame++) carried.update({ weapon: 'knife', ads: true, dt: 1 / 60 });
+      const settled = chopFrame(null);
+      const lifted = chopFrame(PICKAXE_LIFT_AT * PICKAXE_SWING_SECONDS);
+      const struck = chopFrame(PICKAXE_STRIKE_AT * PICKAXE_SWING_SECONDS);
+      const done = chopFrame(PICKAXE_SWING_SECONDS);
+      ok(lifted.pitch > settled.pitch + 0.4 && struck.pitch < settled.pitch - 0.6
+          && Math.abs(done.pitch - settled.pitch) < 1e-9
+          && [lifted, struck, done].every((frame) => frame.grip.distanceTo(settled.grip) < 1e-9),
+        'a remote IRON PICK swing is an overhead chop about the fist, timed from the swing start');
     } finally {
       carried.dispose();
     }
@@ -547,6 +567,34 @@ export async function runViewmodelContracts(ok, installGlobals) {
       };
       ok(muzzleProbe('lance'), 'lance emitter tip lands exactly on its T.muzzle anchor');
       ok(muzzleProbe('knife'), 'knife point lands exactly on its T.muzzle anchor');
+      {
+        // IRON PICK: the procedural sprite, not a Blender asset; eight role draws,
+        // no barrel heat sleeve, pick point on the muzzle plane, stick through the fist.
+        const pick = rig._models.knife;
+        const roles = [];
+        let shaderMeshes = 0;
+        pick.body.traverse((part) => {
+          if (part.userData.pickaxeRole) roles.push(part.userData.pickaxeRole);
+          if (part.isMesh && part.material?.isShaderMaterial) shaderMeshes++;
+        });
+        const handle = pick.body.getObjectByName('pickaxe_handle');
+        const { grip } = (await import('../../public/js/guns/defs.js')).HANDS.knife;
+        // Body-local rays along z at the grip height, from the front and from behind.
+        const through = (dir) => {
+          const origin = pick.body.localToWorld(new THREE.Vector3(grip.x, grip.y, grip.z - dir));
+          const heading = new THREE.Vector3(0, 0, dir).transformDirection(pick.body.matrixWorld);
+          const hit = new THREE.Raycaster(origin, heading).intersectObject(handle, true)[0];
+          return hit ? pick.body.worldToLocal(hit.point.clone()).z : NaN;
+        };
+        const [front, back] = [through(1), through(-1)];
+        ok(pick.body.userData.proceduralAsset === 'iron-pickaxe' && pick.body.userData.blenderAsset === undefined
+          && new Set(roles).size === 8 && roles.length === 8 && shaderMeshes === 0
+          && pick.body.getObjectByName('pickaxe_head') && handle
+          && Math.abs(pick.body.userData.pickaxe.tip.getWorldPosition(new THREE.Vector3())
+            .applyMatrix4(pick.body.matrixWorld.clone().invert()).z - pick.T.muzzle[2]) < 1e-4
+          && front < grip.z && back > grip.z,
+        'knife slot builds the eight-draw iron pickaxe sprite with its stick through the grip anchor');
+      }
       const knifeSight = Number(rig._models.knife.body.userData.sightHeight);
       ok(Number.isFinite(knifeSight) && knifeSight > 0 && knifeSight <= 0.05
         && rig._models.knife.flash.mats.length === 0 && rig._models.lance.flash.mats.length === 2,
@@ -910,6 +958,12 @@ export async function runViewmodelContracts(ok, installGlobals) {
         && knifeAmmo.reserve === 0 && !weaponState.isReloading
         && weaponState.readModel(4600).charge01 === null,
     'a melee swing is free: no ammo consumed, no reload ever, and no charge readout');
+    // Attack indicator: empty on the swing, linear over the authoritative 60/rpm cadence.
+    const cadenceMs = 60000 / WEAPONS.knife.rpm;
+    ok(weaponState.readModel(5100).melee01 === 0
+        && Math.abs(weaponState.readModel(5100 + cadenceMs / 2).melee01 - 0.5) < 1e-9
+        && weaponState.readModel(5100 + cadenceMs).melee01 === 1,
+    'the IRON PICK attack indicator fills from the swing over exactly the rpm cadence');
 
     weaponState.resetToLoadout();
     weaponState.forceWeapon(WEAPON_IDS.indexOf('lance'), { now: 5800 });

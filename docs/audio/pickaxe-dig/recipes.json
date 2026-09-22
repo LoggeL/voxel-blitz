@@ -1,0 +1,1131 @@
+{
+ "credit_note": "13 new dig candidates (65 credits) were generated on 2026-09-22 before the project's API key reached its 2000-credit quota (HTTP 401 quota_exceeded, 1 credit left; the failed requests were not billed). The remaining materials and every attack cue are layered from unused or rejected takes that earlier sessions generated with the same account (receipts and hashes re-verified) plus seeded numpy synthesis layers.",
+ "rejected": [
+  "dig-grass-1 alone: a low earth thud with no rustle; kept only as the thud layer under the grass rustle takes.",
+  "dig-wood-1 and dig-wood-2 alone: -38 dBFS and -27 dBFS broadband decays with no knock; dig-wood-2 kept under a synthesized hollow wood resonance.",
+  "footsteps step-cloth-1/3/6, step-stone-3/4/9, step-sand-3/4/6 and the step-metal cuts shipped as footfalls are not reused as-is; metal digs use other contacts of step-metal-4/5, and the armour cues re-pitch (x0.78-0.85) and low-pass step-metal-3/6.",
+  "remaining impact-metal-2: -54 dBFS with a stationary noise floor; unusable.",
+  "pickaxe-impact knife-1/2/3: -46 dBFS sub-bass decays with no contact, as the 2026-09-08 review found.",
+  "hits hithead-3 and hit-audio ticks: too small and clean for a melee attack body.",
+  "pickaxe-rock pickaxeimpact-2 and swoosh knife-2 / swing knife-1 already ship as the pickaxe impact and swing; not reused."
+ ],
+ "dig": {
+  "stone": [
+   {
+    "reason": "Largest isolated grit tick with its 2 kHz stone resonance and crumble tail.",
+    "length": 0.26,
+    "body_rms": 0.13,
+    "layers": [
+     {
+      "source": "dig/dig-stone-1",
+      "trim": [
+       0.128,
+       0.26
+      ],
+      "gain": 1
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       190,
+       120
+      ],
+      "decay": 0.022,
+      "gain": 0.18
+     }
+    ]
+   },
+   {
+    "reason": "Dense gritty crunch cluster; bright chip texture over a short body.",
+    "length": 0.24,
+    "body_rms": 0.13,
+    "layers": [
+     {
+      "source": "dig/dig-stone-2",
+      "trim": [
+       0.0,
+       0.23
+      ],
+      "gain": 1,
+      "tau": 0.07,
+      "hold": 0.03
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       180,
+       110
+      ],
+      "decay": 0.02,
+      "gain": 0.18
+     }
+    ]
+   },
+   {
+    "reason": "Loudest late chip of dig-stone-3 and its grit tail, cut at the contact.",
+    "length": 0.12,
+    "body_rms": 0.13,
+    "layers": [
+     {
+      "source": "dig/dig-stone-3",
+      "trim": [
+       0.28,
+       0.37
+      ],
+      "gain": 1
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       200,
+       125
+      ],
+      "decay": 0.02,
+      "gain": 0.18
+     }
+    ]
+   },
+   {
+    "reason": "Unused 2026-09-09 stone chip take: mineral tick plus a second grit burst.",
+    "length": 0.2,
+    "body_rms": 0.13,
+    "layers": [
+     {
+      "source": "remaining/impact-stone-2",
+      "trim": [
+       0.036,
+       0.2
+      ],
+      "gain": 1
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       185,
+       115
+      ],
+      "decay": 0.022,
+      "gain": 0.18
+     }
+    ]
+   }
+  ],
+  "wood": [
+   {
+    "reason": "First hollow knock of dig-wood-3: 1-2 kHz woody resonance, low body.",
+    "length": 0.1,
+    "body_rms": 0.14,
+    "layers": [
+     {
+      "source": "dig/dig-wood-3",
+      "trim": [
+       0.133,
+       0.185
+      ],
+      "gain": 1,
+      "tau": 0.03,
+      "hold": 0.02
+     }
+    ]
+   },
+   {
+    "reason": "Second and third knocks of dig-wood-3 as a softer double clonk.",
+    "length": 0.14,
+    "body_rms": 0.14,
+    "layers": [
+     {
+      "source": "dig/dig-wood-3",
+      "trim": [
+       0.18,
+       0.3
+      ],
+      "gain": 1
+     }
+    ]
+   },
+   {
+    "reason": "Quiet broadband dig-wood-2 decay made into a knock by a hollow plank resonance.",
+    "length": 0.16,
+    "body_rms": 0.14,
+    "layers": [
+     {
+      "source": "dig/dig-wood-2",
+      "trim": [
+       0.0,
+       0.15
+      ],
+      "gain": 0.8
+     },
+     {
+      "synth": "ring",
+      "partials": [
+       410,
+       930,
+       1560
+      ],
+      "decay": 0.045,
+      "gain": 0.7
+     }
+    ]
+   },
+   {
+    "reason": "Unused woody knock from 2026-09-09 over a lower hollow resonance.",
+    "length": 0.14,
+    "body_rms": 0.14,
+    "layers": [
+     {
+      "source": "remaining/impact-wood-1",
+      "trim": [
+       0.068,
+       0.2
+      ],
+      "gain": 1
+     },
+     {
+      "synth": "ring",
+      "partials": [
+       360,
+       820,
+       1390
+      ],
+      "decay": 0.04,
+      "gain": 0.55
+     }
+    ]
+   }
+  ],
+  "gravel": [
+   {
+    "reason": "Grainy scrunch of small pebbles, dense first 130 ms.",
+    "length": 0.2,
+    "body_rms": 0.12,
+    "layers": [
+     {
+      "source": "dig/dig-gravel-1",
+      "trim": [
+       0.0,
+       0.2
+      ],
+      "gain": 1,
+      "tau": 0.08,
+      "hold": 0.04
+     }
+    ]
+   },
+   {
+    "reason": "Crunchier take with a strong pebble crack after onset.",
+    "length": 0.2,
+    "body_rms": 0.12,
+    "layers": [
+     {
+      "source": "dig/dig-gravel-2",
+      "trim": [
+       0.0,
+       0.2
+      ],
+      "gain": 1,
+      "tau": 0.08,
+      "hold": 0.06
+     }
+    ]
+   },
+   {
+    "reason": "Short two-grain crunch with a loamy low end.",
+    "length": 0.2,
+    "body_rms": 0.12,
+    "layers": [
+     {
+      "source": "dig/dig-gravel-3",
+      "trim": [
+       0.0,
+       0.2
+      ],
+      "gain": 1,
+      "tau": 0.09,
+      "hold": 0.07
+     }
+    ]
+   }
+  ],
+  "grass": [
+   {
+    "reason": "Leafy rustle burst over a soft earth thud.",
+    "length": 0.2,
+    "body_rms": 0.11,
+    "layers": [
+     {
+      "source": "dig/dig-grass-3",
+      "trim": [
+       0.0,
+       0.2
+      ],
+      "gain": 0.75,
+      "filters": "lowpass=f=7000"
+     },
+     {
+      "source": "dig/dig-grass-1",
+      "trim": [
+       0.045,
+       0.2
+      ],
+      "gain": 0.8
+     }
+    ]
+   },
+   {
+    "reason": "Longer grass rustle over a synthesized dull turf thud.",
+    "length": 0.24,
+    "body_rms": 0.11,
+    "layers": [
+     {
+      "source": "dig/dig-grass-2",
+      "trim": [
+       0.0,
+       0.24
+      ],
+      "gain": 0.75,
+      "filters": "lowpass=f=6500",
+      "tau": 0.08,
+      "hold": 0.03
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       140,
+       85
+      ],
+      "decay": 0.04,
+      "gain": 0.8
+     }
+    ]
+   },
+   {
+    "reason": "Slowed, darker rustle and the recorded thud for a softer third take.",
+    "length": 0.22,
+    "body_rms": 0.11,
+    "layers": [
+     {
+      "source": "dig/dig-grass-3",
+      "trim": [
+       0.02,
+       0.2
+      ],
+      "gain": 0.7,
+      "rate": 0.86,
+      "filters": "lowpass=f=5000"
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       125,
+       80
+      ],
+      "decay": 0.045,
+      "gain": 0.75
+     }
+    ]
+   }
+  ],
+  "sand": [
+   {
+    "reason": "Sandy hiss-crunch shaped from the long dig-sand-1 take into one soft contact.",
+    "length": 0.22,
+    "body_rms": 0.1,
+    "layers": [
+     {
+      "source": "dig/dig-sand-1",
+      "trim": [
+       0.02,
+       0.24
+      ],
+      "gain": 1,
+      "filters": "lowpass=f=7500",
+      "tau": 0.07,
+      "hold": 0.02
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       120,
+       80
+      ],
+      "decay": 0.03,
+      "gain": 0.35
+     }
+    ]
+   },
+   {
+    "reason": "Later dig-sand-1 section with the grain crunch at 280 ms.",
+    "length": 0.2,
+    "body_rms": 0.1,
+    "layers": [
+     {
+      "source": "dig/dig-sand-1",
+      "trim": [
+       0.22,
+       0.42
+      ],
+      "gain": 1,
+      "filters": "lowpass=f=7500",
+      "tau": 0.08,
+      "hold": 0.06
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       115,
+       75
+      ],
+      "decay": 0.03,
+      "gain": 0.35
+     }
+    ]
+   },
+   {
+    "reason": "Unused sand footfall take: muffled compressing scrunch.",
+    "length": 0.2,
+    "body_rms": 0.1,
+    "layers": [
+     {
+      "source": "footsteps/step-sand-2",
+      "trim": [
+       0.14,
+       0.34
+      ],
+      "gain": 1,
+      "tau": 0.07,
+      "hold": 0.05
+     },
+     {
+      "source": "dig/dig-sand-1",
+      "trim": [
+       0.3,
+       0.42
+      ],
+      "gain": 0.45,
+      "filters": "lowpass=f=6000"
+     }
+    ]
+   }
+  ],
+  "cloth": [
+   {
+    "reason": "Unused padded carpet thump plus a lowpassed air puff.",
+    "length": 0.22,
+    "body_rms": 0.085,
+    "layers": [
+     {
+      "source": "footsteps/step-cloth-5",
+      "trim": [
+       0.0,
+       0.22
+      ],
+      "gain": 1,
+      "filters": "lowpass=f=2400"
+     },
+     {
+      "synth": "puff",
+      "lowpass": 700,
+      "decay": 0.06,
+      "gain": 0.7
+     }
+    ]
+   },
+   {
+    "reason": "Unused fabric brush take shaped into a muffled puff over a soft thud.",
+    "length": 0.24,
+    "body_rms": 0.085,
+    "layers": [
+     {
+      "source": "footsteps/step-cloth-4",
+      "trim": [
+       0.13,
+       0.4
+      ],
+      "gain": 0.9,
+      "filters": "lowpass=f=3000",
+      "tau": 0.07,
+      "hold": 0.02
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       130,
+       90
+      ],
+      "decay": 0.04,
+      "gain": 0.7
+     }
+    ]
+   },
+   {
+    "reason": "Unused cushioned footfall take, darkened, with a longer puff.",
+    "length": 0.24,
+    "body_rms": 0.085,
+    "layers": [
+     {
+      "source": "footsteps/step-cloth-2",
+      "trim": [
+       0.0,
+       0.24
+      ],
+      "gain": 1,
+      "filters": "lowpass=f=2000",
+      "tau": 0.07,
+      "hold": 0.02
+     },
+     {
+      "synth": "puff",
+      "lowpass": 520,
+      "decay": 0.075,
+      "gain": 0.8
+     }
+    ]
+   }
+  ],
+  "glass": [
+   {
+    "reason": "Unused bright glass tick (2026-09-09) with synthesized glass partials: a hard tink.",
+    "length": 0.14,
+    "body_rms": 0.09,
+    "layers": [
+     {
+      "source": "remaining/impact-glass-1",
+      "trim": [
+       0.085,
+       0.2
+      ],
+      "gain": 0.9,
+      "highpass": 600
+     },
+     {
+      "synth": "ring",
+      "partials": [
+       2930,
+       5260,
+       7810
+      ],
+      "decay": 0.035,
+      "gain": 0.55
+     }
+    ]
+   },
+   {
+    "reason": "Second glass tick take: a slightly lower, fuller tink.",
+    "length": 0.16,
+    "body_rms": 0.09,
+    "layers": [
+     {
+      "source": "remaining/impact-glass-2",
+      "trim": [
+       0.098,
+       0.25
+      ],
+      "gain": 0.9,
+      "highpass": 600
+     },
+     {
+      "synth": "ring",
+      "partials": [
+       2410,
+       4380,
+       6570
+      ],
+      "decay": 0.04,
+      "gain": 0.5
+     }
+    ]
+   },
+   {
+    "reason": "Pre-tick of impact-glass-1 under a brighter synthesized tink.",
+    "length": 0.12,
+    "body_rms": 0.09,
+    "layers": [
+     {
+      "source": "remaining/impact-glass-1",
+      "trim": [
+       0.045,
+       0.085
+      ],
+      "gain": 0.7,
+      "highpass": 600
+     },
+     {
+      "synth": "ring",
+      "partials": [
+       3350,
+       6020,
+       8900
+      ],
+      "decay": 0.03,
+      "gain": 0.7
+     }
+    ]
+   }
+  ],
+  "metal": [
+   {
+    "reason": "First steel clank of step-metal-4 over a bright iron ring.",
+    "length": 0.24,
+    "body_rms": 0.12,
+    "layers": [
+     {
+      "source": "footsteps/step-metal-4",
+      "trim": [
+       0.008,
+       0.14
+      ],
+      "gain": 1
+     },
+     {
+      "synth": "ring",
+      "partials": [
+       1180,
+       2710,
+       4230
+      ],
+      "decay": 0.11,
+      "gain": 0.4
+     }
+    ]
+   },
+   {
+    "reason": "Middle steel clank of step-metal-4 (not the shipped footfall cut) with the recorded 1-3 kHz ring from impact-metal-1.",
+    "length": 0.26,
+    "body_rms": 0.12,
+    "layers": [
+     {
+      "source": "footsteps/step-metal-4",
+      "trim": [
+       0.14,
+       0.27
+      ],
+      "gain": 1
+     },
+     {
+      "source": "remaining/impact-metal-1",
+      "trim": [
+       0.0,
+       0.26
+      ],
+      "gain": 0.5
+     }
+    ]
+   },
+   {
+    "reason": "Unused clattering step-metal-5 contact over a lower iron ring.",
+    "length": 0.24,
+    "body_rms": 0.12,
+    "layers": [
+     {
+      "source": "footsteps/step-metal-5",
+      "trim": [
+       0.245,
+       0.45
+      ],
+      "gain": 1,
+      "tau": 0.08,
+      "hold": 0.03
+     },
+     {
+      "synth": "ring",
+      "partials": [
+       960,
+       2240,
+       3610
+      ],
+      "decay": 0.12,
+      "gain": 0.45
+     }
+    ]
+   }
+  ]
+ },
+ "break": {
+  "glass": [
+   {
+    "reason": "Unused shatter take: brittle crash, shards and one late tinkle.",
+    "length": 0.52,
+    "body_rms": 0.12,
+    "peak": 0.62,
+    "fade_out": 0.08,
+    "layers": [
+     {
+      "source": "remaining/impact-glass-3",
+      "trim": [
+       0.0,
+       0.52
+      ],
+      "gain": 1,
+      "highpass": 200,
+      "tau": 0.18,
+      "hold": 0.12
+     }
+    ]
+   },
+   {
+    "reason": "Second shatter take: finer shards, shorter.",
+    "length": 0.46,
+    "body_rms": 0.12,
+    "peak": 0.62,
+    "fade_out": 0.08,
+    "layers": [
+     {
+      "source": "remaining/impact-glass-4",
+      "trim": [
+       0.0,
+       0.46
+      ],
+      "gain": 1,
+      "highpass": 200,
+      "tau": 0.14,
+      "hold": 0.08
+     },
+     {
+      "synth": "ring",
+      "partials": [
+       3120,
+       5540,
+       8210
+      ],
+      "decay": 0.05,
+      "gain": 0.25
+     }
+    ]
+   }
+  ]
+ },
+ "attack": {
+  "strong": [
+   {
+    "reason": "Unused meaty body THWAP plus a pickaxe steel-on-stone tick as the iron edge.",
+    "length": 0.24,
+    "body_rms": 0.16,
+    "peak": 0.7,
+    "layers": [
+     {
+      "source": "hits/hitbody-3",
+      "trim": [
+       0.0,
+       0.24
+      ],
+      "gain": 1
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       165,
+       70
+      ],
+      "decay": 0.06,
+      "gain": 0.75
+     },
+     {
+      "source": "pickaxe-rock/pickaxeimpact-1",
+      "trim": [
+       0.618,
+       0.69
+      ],
+      "gain": 0.35,
+      "highpass": 1200
+     }
+    ]
+   },
+   {
+    "reason": "Unused heavy chop thump (swing knife-3) with a stone-tick iron edge.",
+    "length": 0.22,
+    "body_rms": 0.16,
+    "peak": 0.7,
+    "layers": [
+     {
+      "source": "pickaxe-swing/knife-3",
+      "trim": [
+       0.0,
+       0.14
+      ],
+      "gain": 0.9,
+      "filters": "lowpass=f=3500"
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       150,
+       65
+      ],
+      "decay": 0.055,
+      "gain": 0.7
+     },
+     {
+      "source": "pickaxe-rock/pickaxeimpact-1",
+      "trim": [
+       0.19,
+       0.26
+      ],
+      "gain": 0.33,
+      "highpass": 1200
+     }
+    ]
+   },
+   {
+    "reason": "Body THWAP slowed for weight with a 2 kHz grit tick from dig-stone-1 as the edge.",
+    "length": 0.26,
+    "body_rms": 0.16,
+    "peak": 0.7,
+    "layers": [
+     {
+      "source": "hits/hitbody-3",
+      "trim": [
+       0.0,
+       0.24
+      ],
+      "gain": 1,
+      "rate": 0.88
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       155,
+       62
+      ],
+      "decay": 0.065,
+      "gain": 0.7
+     },
+     {
+      "source": "dig/dig-stone-1",
+      "trim": [
+       0.13,
+       0.19
+      ],
+      "gain": 0.3,
+      "highpass": 900
+     }
+    ]
+   }
+  ],
+  "crit": [
+   {
+    "reason": "Crunchy triple bone crack (unused hithead-1), heavy thump and a bright glint sparkle.",
+    "length": 0.26,
+    "body_rms": 0.17,
+    "peak": 0.72,
+    "layers": [
+     {
+      "source": "hits/hithead-1",
+      "trim": [
+       0.04,
+       0.2
+      ],
+      "gain": 0.8
+     },
+     {
+      "source": "dig/dig-gravel-2",
+      "trim": [
+       0.0,
+       0.12
+      ],
+      "gain": 0.65,
+      "rate": 0.85
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       140,
+       55
+      ],
+      "decay": 0.05,
+      "gain": 0.55
+     },
+     {
+      "synth": "sparkle",
+      "count": 5,
+      "spacing": 0.019,
+      "start": 0.012,
+      "range": [
+       3600,
+       7600
+      ],
+      "gain": 0.5
+     }
+    ]
+   },
+   {
+    "reason": "Body THWAP with a gravel crunch and a longer, higher sparkle.",
+    "length": 0.28,
+    "body_rms": 0.17,
+    "peak": 0.72,
+    "layers": [
+     {
+      "source": "hits/hitbody-3",
+      "trim": [
+       0.0,
+       0.2
+      ],
+      "gain": 0.9
+     },
+     {
+      "source": "dig/dig-gravel-1",
+      "trim": [
+       0.0,
+       0.1
+      ],
+      "gain": 0.65,
+      "rate": 0.8
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       135,
+       52
+      ],
+      "decay": 0.05,
+      "gain": 0.55
+     },
+     {
+      "synth": "sparkle",
+      "count": 6,
+      "spacing": 0.022,
+      "start": 0.015,
+      "range": [
+       4200,
+       8600
+      ],
+      "gain": 0.5
+     }
+    ]
+   }
+  ],
+  "knockback": [
+   {
+    "reason": "Body THWAP then an unused pickaxe air whoosh as the target is shoved.",
+    "length": 0.3,
+    "body_rms": 0.15,
+    "peak": 0.7,
+    "fade_out": 0.06,
+    "layers": [
+     {
+      "source": "hits/hitbody-3",
+      "trim": [
+       0.0,
+       0.2
+      ],
+      "gain": 1
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       160,
+       68
+      ],
+      "decay": 0.045,
+      "gain": 0.75
+     },
+     {
+      "source": "pickaxe-swoosh/knife-1",
+      "trim": [
+       0.02,
+       0.15
+      ],
+      "gain": 0.85,
+      "delay": 0.05,
+      "filters": "highpass=f=250"
+     }
+    ]
+   },
+   {
+    "reason": "Chop thump then the second unused swing whoosh.",
+    "length": 0.3,
+    "body_rms": 0.15,
+    "peak": 0.7,
+    "fade_out": 0.06,
+    "layers": [
+     {
+      "source": "pickaxe-swing/knife-3",
+      "trim": [
+       0.0,
+       0.12
+      ],
+      "gain": 0.9,
+      "filters": "lowpass=f=3500"
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       150,
+       64
+      ],
+      "decay": 0.045,
+      "gain": 0.7
+     },
+     {
+      "source": "pickaxe-swing/knife-2",
+      "trim": [
+       0.0,
+       0.13
+      ],
+      "gain": 0.85,
+      "delay": 0.05,
+      "filters": "highpass=f=250"
+     }
+    ]
+   }
+  ],
+  "armor": [
+   {
+    "reason": "Boot-on-steel clank pitched down and darkened into a dull plate clank, short low ring.",
+    "length": 0.22,
+    "body_rms": 0.13,
+    "peak": 0.68,
+    "layers": [
+     {
+      "source": "footsteps/step-metal-3",
+      "trim": [
+       0.018,
+       0.2
+      ],
+      "gain": 1,
+      "rate": 0.85,
+      "filters": "lowpass=f=3000"
+     },
+     {
+      "synth": "ring",
+      "partials": [
+       310,
+       745,
+       1280
+      ],
+      "decay": 0.05,
+      "gain": 0.4
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       150,
+       80
+      ],
+      "decay": 0.04,
+      "gain": 0.4
+     }
+    ]
+   },
+   {
+    "reason": "Clattering steel contact slowed and lowpassed; muted plate resonance.",
+    "length": 0.22,
+    "body_rms": 0.13,
+    "peak": 0.68,
+    "layers": [
+     {
+      "source": "footsteps/step-metal-6",
+      "trim": [
+       0.035,
+       0.2
+      ],
+      "gain": 1,
+      "rate": 0.78,
+      "filters": "lowpass=f=3200"
+     },
+     {
+      "synth": "ring",
+      "partials": [
+       280,
+       690,
+       1190
+      ],
+      "decay": 0.055,
+      "gain": 0.45
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       140,
+       75
+      ],
+      "decay": 0.045,
+      "gain": 0.45
+     }
+    ]
+   }
+  ],
+  "backstab": [
+   {
+    "reason": "Deep crunch: slowed bone cracks and gravel grit over the heaviest thump.",
+    "length": 0.3,
+    "body_rms": 0.17,
+    "peak": 0.72,
+    "layers": [
+     {
+      "source": "hits/hithead-1",
+      "trim": [
+       0.04,
+       0.2
+      ],
+      "gain": 0.8,
+      "rate": 0.8
+     },
+     {
+      "source": "dig/dig-gravel-2",
+      "trim": [
+       0.0,
+       0.16
+      ],
+      "gain": 0.6,
+      "rate": 0.72
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       120,
+       45
+      ],
+      "decay": 0.09,
+      "gain": 0.95
+     },
+     {
+      "source": "hits/hitbody-3",
+      "trim": [
+       0.0,
+       0.2
+      ],
+      "gain": 0.6,
+      "rate": 0.8
+     }
+    ]
+   },
+   {
+    "reason": "Chop thump with slowed stone crunch and a low body for a heavy wet crunch.",
+    "length": 0.3,
+    "body_rms": 0.17,
+    "peak": 0.72,
+    "layers": [
+     {
+      "source": "pickaxe-swing/knife-3",
+      "trim": [
+       0.0,
+       0.14
+      ],
+      "gain": 0.8,
+      "rate": 0.85,
+      "filters": "lowpass=f=3000"
+     },
+     {
+      "source": "dig/dig-stone-2",
+      "trim": [
+       0.0,
+       0.2
+      ],
+      "gain": 0.5,
+      "rate": 0.7
+     },
+     {
+      "synth": "thud",
+      "hz": [
+       115,
+       42
+      ],
+      "decay": 0.095,
+      "gain": 0.95
+     }
+    ]
+   }
+  ]
+ }
+}

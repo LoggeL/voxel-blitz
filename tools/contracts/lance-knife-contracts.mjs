@@ -22,7 +22,7 @@ export async function runLanceKnifeContracts(ok) {
   const melee = knife.melee;
   // One authoritative knife swing along +x on an open lane. The victim stands
   // `forward` ahead and `side` to the left; `facing` is its yaw (PI/2 faces
-  // the blade, -PI/2 looks along the swing and takes a backstab).
+  // the pick, -PI/2 looks along the swing and takes a backstab).
   function swing(forward, side = 0, facing = Math.PI / 2) {
     const engine = new GameEngine();
     for (let x = 36; x <= 48; x++) for (let y = 15; y <= 20; y++) {
@@ -49,13 +49,13 @@ export async function runLanceKnifeContracts(ok) {
   const back = swing(melee.reach * 0.5, 0, -Math.PI / 2);
   ok(front.hits === 1 && Math.abs(front.damage - combatDamage(knife.damage[0])) < 1e-9
       && back.hits === 1 && back.damage > front.damage,
-    'a knife swing inside its reach deals base damage and a backstab deals more');
+    'an IRON PICK swing inside its reach deals base damage and a backstab deals more');
   ok(swing(melee.reach + PLAYER_HALF.x + 0.1).hits === 0,
-    'a knife swing misses a victim beyond its reach');
+    'an IRON PICK swing misses a victim beyond its reach');
   const coneProbe = (deg) => swing(melee.reach * 0.6 * Math.cos(deg * Math.PI / 180),
     melee.reach * 0.6 * Math.sin(deg * Math.PI / 180)).hits;
   ok(coneProbe(melee.coneDeg / 4) === 1 && coneProbe(Math.min(89, melee.coneDeg / 2 + 15)) === 0,
-    'a knife swing hits inside its arc and misses a victim beside it');
+    'an IRON PICK swing hits inside its arc and misses a victim beside it');
 
   ok(0 < chargeDamageMult(lance, 0)
       && chargeDamageMult(lance, 0) < chargeDamageMult(lance, 0.25)
@@ -65,13 +65,13 @@ export async function runLanceKnifeContracts(ok) {
     'lance charge damage ramps monotonically from a nonzero tap floor to full at one');
 
   ok(reloadPlan(knife, 0).rounds === 0,
-    'the knife reload plan seats zero rounds, so the reload path never engages');
+    'the IRON PICK reload plan seats zero rounds, so the reload path never engages');
   const lanceReload = reloadPlan(lance, 0);
   ok(lanceReload.rounds === 1 && lanceReload.seconds > 0 && lanceReload.seconds === lance.reloadTime,
     'an empty VOLTLANCE cell swaps in one full-reload step');
 
   ok(damageAtDistance(knife, melee.reach * 0.25) === knife.damage[0]
       && damageAtDistance(knife, melee.reach) === knife.damage[0],
-    'a knife swing deals flat damage inside its reach with no falloff');
+    'an IRON PICK swing deals flat damage inside its reach with no falloff');
 
 }

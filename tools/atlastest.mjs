@@ -554,7 +554,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
 // ------------------------------------------- melee + lance combat contracts
 // Headless server behavior: drive the REAL GameEngine combat resolve over a
-// carved flat arena and pin the K-7 RIPPER and CL-9 VOLTLANCE contracts.
+// carved flat arena and pin the IRON PICK and CL-9 VOLTLANCE contracts.
 {
   const world = createMapState('foundry');
   const engine = new GameEngine({ world });
@@ -604,6 +604,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     && bestHits.length === 1
     && bestHits[0].attacker === 'm-hero' && bestHits[0].victim === 'm-ahead'
     && bestHits[0].dmg === 46 && bestHits[0].hs === false
+    && bestHits[0].w === 'knife' && bestHits[0].mk === 'strong' && bestHits[0].q === 0
     && hero.mag[KNIFE] === 0 && hero.reserve[KNIFE] === 0
     && engine.entities.get('m-angled').hp === 100,
   'knife swing hits the best-angle victim inside the reach cone and consumes no ammo');
@@ -629,6 +630,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   const backHits = eventsOf('hit');
   const backKills = eventsOf('kill');
   ok(backHits.length === 1 && backHits[0].dmg === 116 && backHits[0].hs === false
+    && backHits[0].mk === 'backstab'
     && backKills.length === 1 && backKills[0].w === 'knife'
     && backKills[0].killer === 'b-hero' && backKills[0].victim === 'b-back'
     && backKills[0].hs === false && backKills[0].lr === false,

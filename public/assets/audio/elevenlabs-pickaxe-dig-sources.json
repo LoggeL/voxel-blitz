@@ -1,0 +1,3881 @@
+{
+  "service": "ElevenLabs Sound Effects",
+  "model": "eleven_text_to_sound_v2",
+  "generated": "2026-09-22",
+  "candidates": 13,
+  "selected": 39,
+  "credits": 65,
+  "credit_note": "13 new dig candidates (65 credits) were generated on 2026-09-22 before the project's API key reached its 2000-credit quota (HTTP 401 quota_exceeded, 1 credit left; the failed requests were not billed). The remaining materials and every attack cue are layered from unused or rejected takes that earlier sessions generated with the same account (receipts and hashes re-verified) plus seeded numpy synthesis layers.",
+  "reused_sources": [
+    "footsteps/step-cloth-2",
+    "footsteps/step-cloth-4",
+    "footsteps/step-cloth-5",
+    "footsteps/step-metal-3",
+    "footsteps/step-metal-4",
+    "footsteps/step-metal-5",
+    "footsteps/step-metal-6",
+    "footsteps/step-sand-2",
+    "hits/hitbody-3",
+    "hits/hithead-1",
+    "pickaxe-rock/pickaxeimpact-1",
+    "pickaxe-swing/knife-2",
+    "pickaxe-swing/knife-3",
+    "pickaxe-swoosh/knife-1",
+    "remaining/impact-glass-1",
+    "remaining/impact-glass-2",
+    "remaining/impact-glass-3",
+    "remaining/impact-glass-4",
+    "remaining/impact-metal-1",
+    "remaining/impact-stone-2",
+    "remaining/impact-wood-1"
+  ],
+  "review_basis": "Waveform/spectrogram inspection and metric gates (onset, 40 ms body RMS, peak, spectral centroid, energy decay, tail). No subjective listening approval is asserted.",
+  "api_reference": "https://elevenlabs.io/docs/api-reference/text-to-sound-effects/convert",
+  "source_note": "Original generated Foley plus seeded numpy synthesis layers. No game or third-party recordings used. Generating account terms apply.",
+  "rebuild": ".artifacts/audio-analysis-venv/bin/python tools/prepare-pickaxe-dig-audio.py process",
+  "rejected": [
+    "dig-grass-1 alone: a low earth thud with no rustle; kept only as the thud layer under the grass rustle takes.",
+    "dig-wood-1 and dig-wood-2 alone: -38 dBFS and -27 dBFS broadband decays with no knock; dig-wood-2 kept under a synthesized hollow wood resonance.",
+    "footsteps step-cloth-1/3/6, step-stone-3/4/9, step-sand-3/4/6 and the step-metal cuts shipped as footfalls are not reused as-is; metal digs use other contacts of step-metal-4/5, and the armour cues re-pitch (x0.78-0.85) and low-pass step-metal-3/6.",
+    "remaining impact-metal-2: -54 dBFS with a stationary noise floor; unusable.",
+    "pickaxe-impact knife-1/2/3: -46 dBFS sub-bass decays with no contact, as the 2026-09-08 review found.",
+    "hits hithead-3 and hit-audio ticks: too small and clean for a melee attack body.",
+    "pickaxe-rock pickaxeimpact-2 and swoosh knife-2 / swing knife-1 already ship as the pickaxe impact and swing; not reused."
+  ],
+  "selections": [
+    {
+      "family": "dig",
+      "set": "stone",
+      "variant": 1,
+      "slot": "pickaxe.dig.stone.1",
+      "output": "public/assets/audio/weapons/knife/dig-stone-1.ogg",
+      "output_sha256": "7de0998e9c206cffbc7da986c09b0d0b286f676fdddb7befb0f808f8245ecef9",
+      "layers": [
+        {
+          "source": "dig/dig-stone-1",
+          "trim_seconds": [
+            0.128,
+            0.26
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "a3248d6e4588b303f14ef50598ed9a6a987d2a77e3c36679b1b1a5c6b1c0719e",
+          "raw_sha256": "e35a389aba0255ec47ff17f40feca9869f340a2f33f559cb3c3325558074b671",
+          "generation": {
+            "cue": "dig-stone",
+            "created_at": "2026-09-22T18:39:56.736378+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into solid stone: a crisp gritty rock tick and a short dry crumble of tiny stone grit. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              190,
+              120
+            ],
+            "decay": 0.022,
+            "gain": 0.18
+          },
+          "gain": 0.18,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.26,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.13,
+      "peak_target": 0.6,
+      "normalization_gain": 0.5538941216437807,
+      "synthesis_seed": 717465800,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Largest isolated grit tick with its 2 kHz stone resonance and crumble tail.",
+      "final_metrics": {
+        "duration_seconds": 0.14347916666666666,
+        "peak": 0.6028908491134644,
+        "rms": 0.05053987405024615,
+        "peak_dbfs": -4.395226159139706,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 7.273855640808919e-05,
+        "onset_seconds_2pct_peak": 0.0004166666666666667,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.09,
+        "rms_5ms_peak": 0.22807992794088636,
+        "rms_5ms_peak_at_seconds": 0.01,
+        "energy_seconds": {
+          "50": 0.012854166666666667,
+          "90": 0.018833333333333334,
+          "95": 0.026791666666666665,
+          "99": 0.0885625
+        },
+        "spectral_centroid_hz": 2156.599832421211,
+        "energy_band_percent": {
+          "0-120Hz": 0.20095221287385648,
+          "120-1000Hz": 18.560233510151555,
+          "1000-5000Hz": 77.67003756412015,
+          "5000-24001Hz": 3.568776712854443
+        },
+        "boundary_step": 0.001645653410378145,
+        "sample_step_99pct": 0.07622374750208098,
+        "first_20ms_rms": 0.129121568544862,
+        "last_20ms_rms": 7.195604650177357e-05,
+        "rms_5ms_coefficient_of_variation": 1.88988797440119
+      }
+    },
+    {
+      "family": "dig",
+      "set": "stone",
+      "variant": 2,
+      "slot": "pickaxe.dig.stone.2",
+      "output": "public/assets/audio/weapons/knife/dig-stone-2.ogg",
+      "output_sha256": "3c0ab8e40e6fc77a5529a1591e4ef794474a1c2835bc169726a13d13b6424ad9",
+      "layers": [
+        {
+          "source": "dig/dig-stone-2",
+          "trim_seconds": [
+            0.0,
+            0.23
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "885ad18a025b12ba9da8f17f25e3ef487cd3d8d7e8a26b3ee07bd5507147001b",
+          "raw_sha256": "564819d3d01d2cff81ff523f4fd0dffd76c03e8a88c13e6d590f76f9caafad3a",
+          "generation": {
+            "cue": "dig-stone",
+            "created_at": "2026-09-22T18:39:58.784521+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into solid stone: a crisp gritty rock tick and a short dry crumble of tiny stone grit. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              180,
+              110
+            ],
+            "decay": 0.02,
+            "gain": 0.18
+          },
+          "gain": 0.18,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.24,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.13,
+      "peak_target": 0.6,
+      "normalization_gain": 0.757642924594237,
+      "synthesis_seed": 3876868367,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Dense gritty crunch cluster; bright chip texture over a short body.",
+      "final_metrics": {
+        "duration_seconds": 0.22239583333333332,
+        "peak": 0.5857025980949402,
+        "rms": 0.06694759982558275,
+        "peak_dbfs": -4.646456989961768,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.00010405805747040886,
+        "onset_seconds_2pct_peak": 6.25e-05,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.145,
+        "rms_5ms_peak": 0.18581991506438392,
+        "rms_5ms_peak_at_seconds": 0.0,
+        "energy_seconds": {
+          "50": 0.020291666666666666,
+          "90": 0.06539583333333333,
+          "95": 0.07716666666666666,
+          "99": 0.13529166666666667
+        },
+        "spectral_centroid_hz": 6619.078442368236,
+        "energy_band_percent": {
+          "0-120Hz": 0.20776144791686885,
+          "120-1000Hz": 12.095180657856078,
+          "1000-5000Hz": 8.814862676502662,
+          "5000-24001Hz": 78.88219521772439
+        },
+        "boundary_step": 0.003370977920894802,
+        "sample_step_99pct": 0.23820653721690183,
+        "first_20ms_rms": 0.1570622552946774,
+        "last_20ms_rms": 0.0001490530134446683,
+        "rms_5ms_coefficient_of_variation": 1.2918348875219592
+      }
+    },
+    {
+      "family": "dig",
+      "set": "stone",
+      "variant": 3,
+      "slot": "pickaxe.dig.stone.3",
+      "output": "public/assets/audio/weapons/knife/dig-stone-3.ogg",
+      "output_sha256": "c1a0a1ce24ff998b00507a55de85293fe5c774f1aef6a20e407b1532681599b2",
+      "layers": [
+        {
+          "source": "dig/dig-stone-3",
+          "trim_seconds": [
+            0.28,
+            0.37
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "71656e50cccfe617fe4945e5fd965d8608ce18a2fd713be43cd4c9b8c70b5cce",
+          "raw_sha256": "24528f2b5c3f6a748aebe4d8f65411efc8bdd8d102d23c0fd40e85229ba1dc0b",
+          "generation": {
+            "cue": "dig-stone",
+            "created_at": "2026-09-22T18:40:00.970089+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into solid stone: a crisp gritty rock tick and a short dry crumble of tiny stone grit. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              200,
+              125
+            ],
+            "decay": 0.02,
+            "gain": 0.18
+          },
+          "gain": 0.18,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.12,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.13,
+      "peak_target": 0.6,
+      "normalization_gain": 0.5893778981396923,
+      "synthesis_seed": 3863798928,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Loudest late chip of dig-stone-3 and its grit tail, cut at the contact.",
+      "final_metrics": {
+        "duration_seconds": 0.09325,
+        "peak": 0.5990142822265625,
+        "rms": 0.047248130690480505,
+        "peak_dbfs": -4.451256453107269,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.0001901506413094281,
+        "onset_seconds_2pct_peak": 0.0005833333333333334,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.05,
+        "rms_5ms_peak": 0.1548426386108471,
+        "rms_5ms_peak_at_seconds": 0.015,
+        "energy_seconds": {
+          "50": 0.018770833333333334,
+          "90": 0.0215625,
+          "95": 0.026854166666666665,
+          "99": 0.04741666666666667
+        },
+        "spectral_centroid_hz": 4071.3196331728514,
+        "energy_band_percent": {
+          "0-120Hz": 0.44668411856809653,
+          "120-1000Hz": 33.60514867059239,
+          "1000-5000Hz": 21.399569827339658,
+          "5000-24001Hz": 44.54859738349987
+        },
+        "boundary_step": 0.0004992193844373105,
+        "sample_step_99pct": 0.15299465999007322,
+        "first_20ms_rms": 0.0930928695625778,
+        "last_20ms_rms": 0.00014595442423862644,
+        "rms_5ms_coefficient_of_variation": 1.4019963684467314
+      }
+    },
+    {
+      "family": "dig",
+      "set": "stone",
+      "variant": 4,
+      "slot": "pickaxe.dig.stone.4",
+      "output": "public/assets/audio/weapons/knife/dig-stone-4.ogg",
+      "output_sha256": "c02c5e0a41e8cd15c66ccc514fc251e4daab840638188597a7081d5b1e9845dd",
+      "layers": [
+        {
+          "source": "remaining/impact-stone-2",
+          "trim_seconds": [
+            0.036,
+            0.2
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "1af1599c4a7c1459f555e1067070c6b4d73cb3b727ca8a867bf8b7f7071f4720",
+          "raw_sha256": "236b32e169e00845e9f171f41ac8d2e52756c1e8f725498a18f6bac46863faf2",
+          "generation": {
+            "cue": "impact-stone",
+            "created_at": "2026-09-09T11:28:42.290646+00:00",
+            "request_body": {
+              "text": "One bullet striking hard stone, dense mineral tick and tiny gritty chips. No gunfire. One isolated event, immediate onset, short natural tail. Dry close game foley. No music, speech, ambience or reverb.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              185,
+              115
+            ],
+            "decay": 0.022,
+            "gain": 0.18
+          },
+          "gain": 0.18,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.2,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.13,
+      "peak_target": 0.6,
+      "normalization_gain": 0.5514118358303389,
+      "synthesis_seed": 996454764,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Unused 2026-09-09 stone chip take: mineral tick plus a second grit burst.",
+      "final_metrics": {
+        "duration_seconds": 0.17597916666666666,
+        "peak": 0.5946477651596069,
+        "rms": 0.05114478900869908,
+        "peak_dbfs": -4.514804179376275,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.0001409556097024274,
+        "onset_seconds_2pct_peak": 0.0004583333333333333,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.13,
+        "rms_5ms_peak": 0.15816008922879435,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.06216666666666667,
+          "90": 0.0918125,
+          "95": 0.10297916666666666,
+          "99": 0.11922916666666666
+        },
+        "spectral_centroid_hz": 4547.162575206056,
+        "energy_band_percent": {
+          "0-120Hz": 0.345615788970128,
+          "120-1000Hz": 15.93764755400389,
+          "1000-5000Hz": 44.1866128982603,
+          "5000-24001Hz": 39.53012375876568
+        },
+        "boundary_step": 0.0017073148183044395,
+        "sample_step_99pct": 0.127744504250586,
+        "first_20ms_rms": 0.09688575465261275,
+        "last_20ms_rms": 0.00019281894631331412,
+        "rms_5ms_coefficient_of_variation": 0.9565280966720213
+      }
+    },
+    {
+      "family": "dig",
+      "set": "wood",
+      "variant": 1,
+      "slot": "pickaxe.dig.wood.1",
+      "output": "public/assets/audio/weapons/knife/dig-wood-1.ogg",
+      "output_sha256": "df9435d693c2e3065c32d007efa4366ef6fe3d753226a655186755f9de6f9bc0",
+      "layers": [
+        {
+          "source": "dig/dig-wood-3",
+          "trim_seconds": [
+            0.133,
+            0.185
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "94f4730fb5bc71e83e63b063d6ba509dea42484c88a566acc270cafdd6db46cc",
+          "raw_sha256": "ec319d7bdf02d434cd72ac93cd6af2a2a1bce689143cb22181727be715373c6b",
+          "generation": {
+            "cue": "dig-wood",
+            "created_at": "2026-09-22T18:40:06.905722+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into a solid wooden block: a hollow woody knock with a faint dry splinter crackle. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.1,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.14,
+      "peak_target": 0.6,
+      "normalization_gain": 0.6,
+      "synthesis_seed": 2058479944,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "First hollow knock of dig-wood-3: 1-2 kHz woody resonance, low body.",
+      "final_metrics": {
+        "duration_seconds": 0.06397916666666667,
+        "peak": 0.6002732515335083,
+        "rms": 0.09770117978431633,
+        "peak_dbfs": -4.433020171703647,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.00010923508549214599,
+        "onset_seconds_2pct_peak": 0.00125,
+        "onset_seconds_8pct_rms": 0.005,
+        "last_active_seconds_8pct_rms": 0.035,
+        "rms_5ms_peak": 0.22713573809485313,
+        "rms_5ms_peak_at_seconds": 0.015,
+        "energy_seconds": {
+          "50": 0.016041666666666666,
+          "90": 0.022354166666666668,
+          "95": 0.024291666666666666,
+          "99": 0.0285625
+        },
+        "spectral_centroid_hz": 1534.463423977939,
+        "energy_band_percent": {
+          "0-120Hz": 1.6261237298788072,
+          "120-1000Hz": 31.1452313405215,
+          "1000-5000Hz": 66.67888085242494,
+          "5000-24001Hz": 0.5497640771747494
+        },
+        "boundary_step": 0.0007029895823507104,
+        "sample_step_99pct": 0.10718443319201466,
+        "first_20ms_rms": 0.15741662798875147,
+        "last_20ms_rms": 0.0008725082119693236,
+        "rms_5ms_coefficient_of_variation": 1.4185387742002962
+      }
+    },
+    {
+      "family": "dig",
+      "set": "wood",
+      "variant": 2,
+      "slot": "pickaxe.dig.wood.2",
+      "output": "public/assets/audio/weapons/knife/dig-wood-2.ogg",
+      "output_sha256": "81b0a17ccb903beb7fd80892c7aa559e6920aaef116b7ab6d92222f39062df83",
+      "layers": [
+        {
+          "source": "dig/dig-wood-3",
+          "trim_seconds": [
+            0.18,
+            0.3
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "94f4730fb5bc71e83e63b063d6ba509dea42484c88a566acc270cafdd6db46cc",
+          "raw_sha256": "ec319d7bdf02d434cd72ac93cd6af2a2a1bce689143cb22181727be715373c6b",
+          "generation": {
+            "cue": "dig-wood",
+            "created_at": "2026-09-22T18:40:06.905722+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into a solid wooden block: a hollow woody knock with a faint dry splinter crackle. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.14,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.14,
+      "peak_target": 0.6,
+      "normalization_gain": 0.6,
+      "synthesis_seed": 706956247,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Second and third knocks of dig-wood-3 as a softer double clonk.",
+      "final_metrics": {
+        "duration_seconds": 0.13197916666666668,
+        "peak": 0.6016355156898499,
+        "rms": 0.05967955391133683,
+        "peak_dbfs": -4.4133306885925165,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -3.6578517722327765e-05,
+        "onset_seconds_2pct_peak": 0.00020833333333333335,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.065,
+        "rms_5ms_peak": 0.1944890094169651,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.010166666666666666,
+          "90": 0.022145833333333333,
+          "95": 0.05025,
+          "99": 0.0581875
+        },
+        "spectral_centroid_hz": 1045.464227038424,
+        "energy_band_percent": {
+          "0-120Hz": 1.290837284438785,
+          "120-1000Hz": 57.66426600854394,
+          "1000-5000Hz": 40.947751987748525,
+          "5000-24001Hz": 0.09714471926876354
+        },
+        "boundary_step": 0.0014350732199090999,
+        "sample_step_99pct": 0.04593140363693238,
+        "first_20ms_rms": 0.14424118356353655,
+        "last_20ms_rms": 0.00021300312403179294,
+        "rms_5ms_coefficient_of_variation": 1.6154110719774966
+      }
+    },
+    {
+      "family": "dig",
+      "set": "wood",
+      "variant": 3,
+      "slot": "pickaxe.dig.wood.3",
+      "output": "public/assets/audio/weapons/knife/dig-wood-3.ogg",
+      "output_sha256": "fa62f7be3e7c6ee75d93cf3588c90f7b932e8247fdf0e46f14dafdffb8965377",
+      "layers": [
+        {
+          "source": "dig/dig-wood-2",
+          "trim_seconds": [
+            0.0,
+            0.15
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "91c3f59dafebbeed1243d50608a353d173af6523783ae180bc254c0d5b3720d2",
+          "raw_sha256": "8a1187fea75b0b49e999b3fcd9cbfc1994e3f7ba01a379b74e8f884a679b1452",
+          "generation": {
+            "cue": "dig-wood",
+            "created_at": "2026-09-22T18:40:04.957799+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into a solid wooden block: a hollow woody knock with a faint dry splinter crackle. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.8,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "ring",
+            "partials": [
+              410,
+              930,
+              1560
+            ],
+            "decay": 0.045,
+            "gain": 0.7
+          },
+          "gain": 0.7,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.16,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.14,
+      "peak_target": 0.6,
+      "normalization_gain": 0.43571263814439076,
+      "synthesis_seed": 4227073797,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Quiet broadband dig-wood-2 decay made into a knock by a hollow plank resonance.",
+      "final_metrics": {
+        "duration_seconds": 0.16,
+        "peak": 0.4659639298915863,
+        "rms": 0.07484342646108498,
+        "peak_dbfs": -6.632954011922877,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -7.270744229716704e-05,
+        "onset_seconds_2pct_peak": 0.00010416666666666667,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.115,
+        "rms_5ms_peak": 0.18012443283705704,
+        "rms_5ms_peak_at_seconds": 0.0,
+        "energy_seconds": {
+          "50": 0.015083333333333334,
+          "90": 0.04697916666666667,
+          "95": 0.06135416666666667,
+          "99": 0.09154166666666666
+        },
+        "spectral_centroid_hz": 1179.2662308350896,
+        "energy_band_percent": {
+          "0-120Hz": 1.204165057261834,
+          "120-1000Hz": 65.71904683954804,
+          "1000-5000Hz": 31.235808930623676,
+          "5000-24001Hz": 1.840979172566422
+        },
+        "boundary_step": 0.0032642237783875316,
+        "sample_step_99pct": 0.07227991163730639,
+        "first_20ms_rms": 0.16511604879995712,
+        "last_20ms_rms": 0.0005768298577553193,
+        "rms_5ms_coefficient_of_variation": 1.0896108783333487
+      }
+    },
+    {
+      "family": "dig",
+      "set": "wood",
+      "variant": 4,
+      "slot": "pickaxe.dig.wood.4",
+      "output": "public/assets/audio/weapons/knife/dig-wood-4.ogg",
+      "output_sha256": "1350dd6637f7e9a6211e3ef12b3d2b2bd00fb83be80accd9142231754fd959cf",
+      "layers": [
+        {
+          "source": "remaining/impact-wood-1",
+          "trim_seconds": [
+            0.068,
+            0.2
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "9d8950c3e124d5d6d645e5ef1c878cc5d47372db01fcf50f966da2c681882400",
+          "raw_sha256": "2e57be90818395ace758972e3c95b776cef1ef2f35bd2464c6c959f9fd9b0c8d",
+          "generation": {
+            "cue": "impact-wood",
+            "created_at": "2026-09-09T11:28:43.886437+00:00",
+            "request_body": {
+              "text": "One bullet striking wood, a dull woody knock and splinter snap. No gunfire. One isolated event, immediate onset, short natural tail. Dry close game foley. No music, speech, ambience or reverb.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "ring",
+            "partials": [
+              360,
+              820,
+              1390
+            ],
+            "decay": 0.04,
+            "gain": 0.55
+          },
+          "gain": 0.55,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.14,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.14,
+      "peak_target": 0.6,
+      "normalization_gain": 0.5284594215247326,
+      "synthesis_seed": 1800252641,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Unused woody knock from 2026-09-09 over a lower hollow resonance.",
+      "final_metrics": {
+        "duration_seconds": 0.14,
+        "peak": 0.5961886048316956,
+        "rms": 0.06332342536896997,
+        "peak_dbfs": -4.492326581029497,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -1.008536609716887e-05,
+        "onset_seconds_2pct_peak": 0.000375,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.085,
+        "rms_5ms_peak": 0.2003204459678503,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.0093125,
+          "90": 0.0373125,
+          "95": 0.049791666666666665,
+          "99": 0.07664583333333333
+        },
+        "spectral_centroid_hz": 1053.1774092827652,
+        "energy_band_percent": {
+          "0-120Hz": 0.023797769308083423,
+          "120-1000Hz": 71.15920123074639,
+          "1000-5000Hz": 27.82708330461549,
+          "5000-24001Hz": 0.989917695330017
+        },
+        "boundary_step": 0.0002460627492837375,
+        "sample_step_99pct": 0.06192740552127348,
+        "first_20ms_rms": 0.14364501185067519,
+        "last_20ms_rms": 0.00047336371807276507,
+        "rms_5ms_coefficient_of_variation": 1.155951638566712
+      }
+    },
+    {
+      "family": "dig",
+      "set": "gravel",
+      "variant": 1,
+      "slot": "pickaxe.dig.gravel.1",
+      "output": "public/assets/audio/weapons/knife/dig-gravel-1.ogg",
+      "output_sha256": "a334cc67eec025cf817b8e3f86868f9bd9e3099a681671eb0b4075a567f6dab1",
+      "layers": [
+        {
+          "source": "dig/dig-gravel-1",
+          "trim_seconds": [
+            0.0,
+            0.2
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "5a0d28b7a0fe9e22c901d9b2c51e27c01c539fd270a0f6b3bafe97bbf35625b1",
+          "raw_sha256": "db61340461cb83d8600e4ae1781616538f2a8aebc28c26e84b6706fff2e11dcf",
+          "generation": {
+            "cue": "dig-gravel",
+            "created_at": "2026-09-22T18:40:09.108528+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into loose gravel and packed dirt: a crunchy grainy scrunch of small pebbles and soil. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.2,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.12,
+      "peak_target": 0.6,
+      "normalization_gain": 0.44223329742830547,
+      "synthesis_seed": 156383047,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Grainy scrunch of small pebbles, dense first 130 ms.",
+      "final_metrics": {
+        "duration_seconds": 0.2,
+        "peak": 0.4512012004852295,
+        "rms": 0.05981322695323144,
+        "peak_dbfs": -6.912595070413733,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -1.9392710471226593e-05,
+        "onset_seconds_2pct_peak": 0.00020833333333333335,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.145,
+        "rms_5ms_peak": 0.18298959449339688,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.023208333333333334,
+          "90": 0.05597916666666667,
+          "95": 0.08427083333333334,
+          "99": 0.109125
+        },
+        "spectral_centroid_hz": 1905.9004815766111,
+        "energy_band_percent": {
+          "0-120Hz": 0.056488165970682194,
+          "120-1000Hz": 2.721336472461888,
+          "1000-5000Hz": 93.96840739634727,
+          "5000-24001Hz": 3.253767965220143
+        },
+        "boundary_step": 0.0013640636848322174,
+        "sample_step_99pct": 0.07215645600110301,
+        "first_20ms_rms": 0.11718085762963114,
+        "last_20ms_rms": 0.0001357459979454502,
+        "rms_5ms_coefficient_of_variation": 1.2098232426370086
+      }
+    },
+    {
+      "family": "dig",
+      "set": "gravel",
+      "variant": 2,
+      "slot": "pickaxe.dig.gravel.2",
+      "output": "public/assets/audio/weapons/knife/dig-gravel-2.ogg",
+      "output_sha256": "cb02cb181143ef5b390c4df23ecf6e735aee3a6e02166d13b8cb3d3bfa95cf89",
+      "layers": [
+        {
+          "source": "dig/dig-gravel-2",
+          "trim_seconds": [
+            0.0,
+            0.2
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "dee1f531b46c232b541993ba5c32d3c922b67e5448c276ca053129c107f59c22",
+          "raw_sha256": "42334175220a98123d1dd6491ef632b33dd65d0328d7614c14ddbee101952951",
+          "generation": {
+            "cue": "dig-gravel",
+            "created_at": "2026-09-22T18:40:11.333823+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into loose gravel and packed dirt: a crunchy grainy scrunch of small pebbles and soil. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.2,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.12,
+      "peak_target": 0.6,
+      "normalization_gain": 0.6,
+      "synthesis_seed": 2810208769,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Crunchier take with a strong pebble crack after onset.",
+      "final_metrics": {
+        "duration_seconds": 0.192125,
+        "peak": 0.5898919105529785,
+        "rms": 0.04965598312265613,
+        "peak_dbfs": -4.584551189222303,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -3.1489213362403447e-06,
+        "onset_seconds_2pct_peak": 0.00022916666666666666,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.125,
+        "rms_5ms_peak": 0.12550246591326,
+        "rms_5ms_peak_at_seconds": 0.05,
+        "energy_seconds": {
+          "50": 0.050625,
+          "90": 0.07595833333333334,
+          "95": 0.08197916666666667,
+          "99": 0.12097916666666667
+        },
+        "spectral_centroid_hz": 3076.545177998319,
+        "energy_band_percent": {
+          "0-120Hz": 0.006904594852027213,
+          "120-1000Hz": 1.0292905185088455,
+          "1000-5000Hz": 87.25427000750902,
+          "5000-24001Hz": 11.709534879130107
+        },
+        "boundary_step": 0.002339237679109374,
+        "sample_step_99pct": 0.08768653124570835,
+        "first_20ms_rms": 0.06853828975430834,
+        "last_20ms_rms": 7.88796539419233e-05,
+        "rms_5ms_coefficient_of_variation": 1.0658439049723716
+      }
+    },
+    {
+      "family": "dig",
+      "set": "gravel",
+      "variant": 3,
+      "slot": "pickaxe.dig.gravel.3",
+      "output": "public/assets/audio/weapons/knife/dig-gravel-3.ogg",
+      "output_sha256": "509f21fe0e00f22e4e7032fb4ea9ed74893e8e3fb4137e026e13143e0f204507",
+      "layers": [
+        {
+          "source": "dig/dig-gravel-3",
+          "trim_seconds": [
+            0.0,
+            0.2
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "ac341704aca587899bac96399b6da5adf9c7c3f7ddf582e30d97f485ecc4cf71",
+          "raw_sha256": "f879e475d5906a9e038c3a337a1a2a431ccacf004040d0d864579ed929a9a4fc",
+          "generation": {
+            "cue": "dig-gravel",
+            "created_at": "2026-09-22T18:40:13.432050+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into loose gravel and packed dirt: a crunchy grainy scrunch of small pebbles and soil. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.2,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.12,
+      "peak_target": 0.6,
+      "normalization_gain": 0.6,
+      "synthesis_seed": 2369833531,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Short two-grain crunch with a loamy low end.",
+      "final_metrics": {
+        "duration_seconds": 0.2,
+        "peak": 0.5987958908081055,
+        "rms": 0.056253563853418606,
+        "peak_dbfs": -4.4544237726414355,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 8.023716266372846e-06,
+        "onset_seconds_2pct_peak": 0.000375,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.13,
+        "rms_5ms_peak": 0.16990783926348124,
+        "rms_5ms_peak_at_seconds": 0.01,
+        "energy_seconds": {
+          "50": 0.035458333333333335,
+          "90": 0.06641666666666667,
+          "95": 0.07791666666666666,
+          "99": 0.103625
+        },
+        "spectral_centroid_hz": 2398.090801294361,
+        "energy_band_percent": {
+          "0-120Hz": 0.03708925989648006,
+          "120-1000Hz": 4.820386965257548,
+          "1000-5000Hz": 91.36585282491092,
+          "5000-24001Hz": 3.7766709499350473
+        },
+        "boundary_step": 0.00262388537487368,
+        "sample_step_99pct": 0.08247281908988961,
+        "first_20ms_rms": 0.11656888790591677,
+        "last_20ms_rms": 0.0008824833733279192,
+        "rms_5ms_coefficient_of_variation": 1.2787700832990416
+      }
+    },
+    {
+      "family": "dig",
+      "set": "grass",
+      "variant": 1,
+      "slot": "pickaxe.dig.grass.1",
+      "output": "public/assets/audio/weapons/knife/dig-grass-1.ogg",
+      "output_sha256": "d2930e088e8f6dd9e2f96f6acd984a32e1c14fd5ee2eeca9283eb448ba4131d8",
+      "layers": [
+        {
+          "source": "dig/dig-grass-3",
+          "trim_seconds": [
+            0.0,
+            0.2
+          ],
+          "filters": "highpass=f=90,lowpass=f=7000",
+          "source_sha256": "0d991ae226f1cdc6022bc0d42a517f8c239a4771ba0567dd95cd9da55cb4d08d",
+          "raw_sha256": "843ae57bc29100c95b2bcef412739f02770cd28222aa9b91fdf821131f7af99d",
+          "generation": {
+            "cue": "dig-grass",
+            "created_at": "2026-09-22T18:40:19.212177+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into grassy turf: a soft dull earth thud with a brief rustle of grass blades. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.75,
+          "delay_seconds": 0
+        },
+        {
+          "source": "dig/dig-grass-1",
+          "trim_seconds": [
+            0.045,
+            0.2
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "3e8e10dfd9f773c4e954fff17cd0fabb35c53fa71af065a1ba2ac6ba27b6056d",
+          "raw_sha256": "1d3f122859b2ad5ce68e50f442275d40b8d36e5b76bb1ae5c217728948dd067e",
+          "generation": {
+            "cue": "dig-grass",
+            "created_at": "2026-09-22T18:40:15.416462+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into grassy turf: a soft dull earth thud with a brief rustle of grass blades. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.8,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.2,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.11,
+      "peak_target": 0.6,
+      "normalization_gain": 0.3887882975113408,
+      "synthesis_seed": 1582489534,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Leafy rustle burst over a soft earth thud.",
+      "final_metrics": {
+        "duration_seconds": 0.2,
+        "peak": 0.3677462935447693,
+        "rms": 0.05820558310038923,
+        "peak_dbfs": -8.689033915239971,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.00020979568488280382,
+        "onset_seconds_2pct_peak": 2.0833333333333333e-05,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.14,
+        "rms_5ms_peak": 0.12661472722890027,
+        "rms_5ms_peak_at_seconds": 0.015,
+        "energy_seconds": {
+          "50": 0.027104166666666665,
+          "90": 0.071,
+          "95": 0.08395833333333333,
+          "99": 0.11489583333333334
+        },
+        "spectral_centroid_hz": 3973.119899984701,
+        "energy_band_percent": {
+          "0-120Hz": 22.64515607215953,
+          "120-1000Hz": 4.787733985619965,
+          "1000-5000Hz": 31.321836025139007,
+          "5000-24001Hz": 41.245273917081484
+        },
+        "boundary_step": 0.00488094546017237,
+        "sample_step_99pct": 0.12908550158143067,
+        "first_20ms_rms": 0.11327751800792116,
+        "last_20ms_rms": 0.00039229623676866076,
+        "rms_5ms_coefficient_of_variation": 0.9565921546746761
+      }
+    },
+    {
+      "family": "dig",
+      "set": "grass",
+      "variant": 2,
+      "slot": "pickaxe.dig.grass.2",
+      "output": "public/assets/audio/weapons/knife/dig-grass-2.ogg",
+      "output_sha256": "20a8ab098af80095b0535f54af457d2abacc06708d2a2b6be321607d49e71640",
+      "layers": [
+        {
+          "source": "dig/dig-grass-2",
+          "trim_seconds": [
+            0.0,
+            0.24
+          ],
+          "filters": "highpass=f=90,lowpass=f=6500",
+          "source_sha256": "8427b220c51ed403360b1d1ced470d72ae47131836223c65482081433d0db2c5",
+          "raw_sha256": "518b4edc8072af5a1065daabacc83c5bb49c5feb70bc809184bbec98a32f8192",
+          "generation": {
+            "cue": "dig-grass",
+            "created_at": "2026-09-22T18:40:17.299014+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into grassy turf: a soft dull earth thud with a brief rustle of grass blades. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.75,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              140,
+              85
+            ],
+            "decay": 0.04,
+            "gain": 0.8
+          },
+          "gain": 0.8,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.24,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.11,
+      "peak_target": 0.6,
+      "normalization_gain": 0.25243783760763294,
+      "synthesis_seed": 856768527,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Longer grass rustle over a synthesized dull turf thud.",
+      "final_metrics": {
+        "duration_seconds": 0.24,
+        "peak": 0.3357952833175659,
+        "rms": 0.049897117296086535,
+        "peak_dbfs": -9.478508167743819,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.00030453915691433953,
+        "onset_seconds_2pct_peak": 0.0003333333333333333,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.11,
+        "rms_5ms_peak": 0.15338211051095865,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.017354166666666667,
+          "90": 0.05491666666666667,
+          "95": 0.06758333333333333,
+          "99": 0.09360416666666667
+        },
+        "spectral_centroid_hz": 1699.1740341829748,
+        "energy_band_percent": {
+          "0-120Hz": 45.56688555568277,
+          "120-1000Hz": 28.075969252550326,
+          "1000-5000Hz": 8.930461940693332,
+          "5000-24001Hz": 17.426683251073573
+        },
+        "boundary_step": 0.001896112851682119,
+        "sample_step_99pct": 0.07983124062418928,
+        "first_20ms_rms": 0.12902305308310927,
+        "last_20ms_rms": 6.415212695806952e-05,
+        "rms_5ms_coefficient_of_variation": 1.3238480504112067
+      }
+    },
+    {
+      "family": "dig",
+      "set": "grass",
+      "variant": 3,
+      "slot": "pickaxe.dig.grass.3",
+      "output": "public/assets/audio/weapons/knife/dig-grass-3.ogg",
+      "output_sha256": "08f9071a7f2df7f4d8c316a5bf72fe934707111dcb1cfe71f616acfdad56676d",
+      "layers": [
+        {
+          "source": "dig/dig-grass-3",
+          "trim_seconds": [
+            0.02,
+            0.2
+          ],
+          "filters": "asetrate=41280,aresample=48000,highpass=f=90,lowpass=f=5000",
+          "source_sha256": "0d991ae226f1cdc6022bc0d42a517f8c239a4771ba0567dd95cd9da55cb4d08d",
+          "raw_sha256": "843ae57bc29100c95b2bcef412739f02770cd28222aa9b91fdf821131f7af99d",
+          "generation": {
+            "cue": "dig-grass",
+            "created_at": "2026-09-22T18:40:19.212177+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into grassy turf: a soft dull earth thud with a brief rustle of grass blades. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.7,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              125,
+              80
+            ],
+            "decay": 0.045,
+            "gain": 0.75
+          },
+          "gain": 0.75,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.22,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.11,
+      "peak_target": 0.6,
+      "normalization_gain": 0.26013306022035776,
+      "synthesis_seed": 842126007,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Slowed, darker rustle and the recorded thud for a softer third take.",
+      "final_metrics": {
+        "duration_seconds": 0.22,
+        "peak": 0.34178170561790466,
+        "rms": 0.05228240018335936,
+        "peak_dbfs": -9.32502374522712,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.00028728337582078405,
+        "onset_seconds_2pct_peak": 0.00014583333333333335,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.125,
+        "rms_5ms_peak": 0.14439861633316356,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.0188125,
+          "90": 0.05725,
+          "95": 0.07489583333333333,
+          "99": 0.1081875
+        },
+        "spectral_centroid_hz": 1171.9490063696355,
+        "energy_band_percent": {
+          "0-120Hz": 63.86914665544246,
+          "120-1000Hz": 11.527061848685959,
+          "1000-5000Hz": 16.169836854984073,
+          "5000-24001Hz": 8.433954640887482
+        },
+        "boundary_step": 0.00014294343054643832,
+        "sample_step_99pct": 0.05931035209447146,
+        "first_20ms_rms": 0.12711338314107348,
+        "last_20ms_rms": 0.0001639705202666548,
+        "rms_5ms_coefficient_of_variation": 1.1665715655699278
+      }
+    },
+    {
+      "family": "dig",
+      "set": "sand",
+      "variant": 1,
+      "slot": "pickaxe.dig.sand.1",
+      "output": "public/assets/audio/weapons/knife/dig-sand-1.ogg",
+      "output_sha256": "a451a42545b691768f6f3183a799c6461698fa709ca26bad1211ff3c5915b81c",
+      "layers": [
+        {
+          "source": "dig/dig-sand-1",
+          "trim_seconds": [
+            0.02,
+            0.24
+          ],
+          "filters": "highpass=f=90,lowpass=f=7500",
+          "source_sha256": "0d95c1b9737c0b2fd8478215fff7d2d6eb29ba8483553b21e3faf2d21b158fea",
+          "raw_sha256": "d2163e83273432388a2aea66161ac326a61e9db0a2b81799648633fda1e56c27",
+          "generation": {
+            "cue": "dig-sand",
+            "created_at": "2026-09-22T18:40:21.045763+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into dry loose sand: a soft sandy hiss and small muffled crunch of shifting grains. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              120,
+              80
+            ],
+            "decay": 0.03,
+            "gain": 0.35
+          },
+          "gain": 0.35,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.22,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.1,
+      "peak_target": 0.6,
+      "normalization_gain": 0.5124170995513699,
+      "synthesis_seed": 4285598016,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Sandy hiss-crunch shaped from the long dig-sand-1 take into one soft contact.",
+      "final_metrics": {
+        "duration_seconds": 0.22,
+        "peak": 0.3048744797706604,
+        "rms": 0.054751796472227963,
+        "peak_dbfs": -10.317578554912306,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.0005295750332098419,
+        "onset_seconds_2pct_peak": 0.00014583333333333335,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.17500000000000002,
+        "rms_5ms_peak": 0.12375978309170103,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.03352083333333333,
+          "90": 0.09710416666666667,
+          "95": 0.11941666666666667,
+          "99": 0.15327083333333333
+        },
+        "spectral_centroid_hz": 3513.0391765615864,
+        "energy_band_percent": {
+          "0-120Hz": 32.16885927509686,
+          "120-1000Hz": 6.923916370062559,
+          "1000-5000Hz": 28.768539340079837,
+          "5000-24001Hz": 32.13868501476076
+        },
+        "boundary_step": 0.00195573640303337,
+        "sample_step_99pct": 0.11496699467301369,
+        "first_20ms_rms": 0.1062347650471398,
+        "last_20ms_rms": 0.00047309100784244504,
+        "rms_5ms_coefficient_of_variation": 0.7813429474876847
+      }
+    },
+    {
+      "family": "dig",
+      "set": "sand",
+      "variant": 2,
+      "slot": "pickaxe.dig.sand.2",
+      "output": "public/assets/audio/weapons/knife/dig-sand-2.ogg",
+      "output_sha256": "0dc9d607ad6063dfe31782a1ab6b9e97f576db45d5d3c72993ae5b902a5fe089",
+      "layers": [
+        {
+          "source": "dig/dig-sand-1",
+          "trim_seconds": [
+            0.22,
+            0.42
+          ],
+          "filters": "highpass=f=90,lowpass=f=7500",
+          "source_sha256": "0d95c1b9737c0b2fd8478215fff7d2d6eb29ba8483553b21e3faf2d21b158fea",
+          "raw_sha256": "d2163e83273432388a2aea66161ac326a61e9db0a2b81799648633fda1e56c27",
+          "generation": {
+            "cue": "dig-sand",
+            "created_at": "2026-09-22T18:40:21.045763+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into dry loose sand: a soft sandy hiss and small muffled crunch of shifting grains. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              115,
+              75
+            ],
+            "decay": 0.03,
+            "gain": 0.35
+          },
+          "gain": 0.35,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.2,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.1,
+      "peak_target": 0.6,
+      "normalization_gain": 0.43735400311687056,
+      "synthesis_seed": 420554119,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Later dig-sand-1 section with the grain crunch at 280 ms.",
+      "final_metrics": {
+        "duration_seconds": 0.1669375,
+        "peak": 0.43080079555511475,
+        "rms": 0.0636390145604698,
+        "peak_dbfs": -7.314470067328967,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.00020101224350288897,
+        "onset_seconds_2pct_peak": 0.00016666666666666666,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.09,
+        "rms_5ms_peak": 0.1350309263311336,
+        "rms_5ms_peak_at_seconds": 0.055,
+        "energy_seconds": {
+          "50": 0.0323125,
+          "90": 0.058520833333333334,
+          "95": 0.0609375,
+          "99": 0.06835416666666666
+        },
+        "spectral_centroid_hz": 4722.800629287133,
+        "energy_band_percent": {
+          "0-120Hz": 24.57864649657229,
+          "120-1000Hz": 3.306780171740184,
+          "1000-5000Hz": 21.268644162937093,
+          "5000-24001Hz": 50.84592916875045
+        },
+        "boundary_step": 0.001545607898151502,
+        "sample_step_99pct": 0.19147484488785282,
+        "first_20ms_rms": 0.10972170659262541,
+        "last_20ms_rms": 0.00016180430301392408,
+        "rms_5ms_coefficient_of_variation": 1.126290974577269
+      }
+    },
+    {
+      "family": "dig",
+      "set": "sand",
+      "variant": 3,
+      "slot": "pickaxe.dig.sand.3",
+      "output": "public/assets/audio/weapons/knife/dig-sand-3.ogg",
+      "output_sha256": "eb84212e89307792c17623937246c58372106ced2287c81a33a0afa01b7097e3",
+      "layers": [
+        {
+          "source": "footsteps/step-sand-2",
+          "trim_seconds": [
+            0.14,
+            0.34
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "9c92a92a7546a31b8ebde4afc10c2c72abe288989863c11443aff263975db22a",
+          "raw_sha256": "f7d6257805059f9e4fe2d77a7c764ef2628196ea6ac0996db2fb4fadd2444946",
+          "generation": {
+            "cue": "step-sand",
+            "created_at": "2026-09-15T22:39:21.548516+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated natural boot footstep on dry sand: a soft muffled weighty footfall with a brief sandy compressing scrunch. Close dry Foley for a first-person game. Immediate heel-to-sole contact, decays within 250 milliseconds, then silence. One foot landing only. No walking sequence, second step, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.45,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "source": "dig/dig-sand-1",
+          "trim_seconds": [
+            0.3,
+            0.42
+          ],
+          "filters": "highpass=f=90,lowpass=f=6000",
+          "source_sha256": "0d95c1b9737c0b2fd8478215fff7d2d6eb29ba8483553b21e3faf2d21b158fea",
+          "raw_sha256": "d2163e83273432388a2aea66161ac326a61e9db0a2b81799648633fda1e56c27",
+          "generation": {
+            "cue": "dig-sand",
+            "created_at": "2026-09-22T18:40:21.045763+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into dry loose sand: a soft sandy hiss and small muffled crunch of shifting grains. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.45,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.2,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.1,
+      "peak_target": 0.6,
+      "normalization_gain": 0.4230249468786806,
+      "synthesis_seed": 841273612,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Unused sand footfall take: muffled compressing scrunch.",
+      "final_metrics": {
+        "duration_seconds": 0.2,
+        "peak": 0.30808061361312866,
+        "rms": 0.06260601854660909,
+        "peak_dbfs": -10.226712587749976,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -7.040063185550838e-05,
+        "onset_seconds_2pct_peak": 0.00016666666666666666,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.125,
+        "rms_5ms_peak": 0.13113283139391335,
+        "rms_5ms_peak_at_seconds": 0.045,
+        "energy_seconds": {
+          "50": 0.0479375,
+          "90": 0.0836875,
+          "95": 0.0935625,
+          "99": 0.10833333333333334
+        },
+        "spectral_centroid_hz": 3038.598969148892,
+        "energy_band_percent": {
+          "0-120Hz": 0.09669858122928256,
+          "120-1000Hz": 26.335388315187334,
+          "1000-5000Hz": 54.19179696265008,
+          "5000-24001Hz": 19.376116140933288
+        },
+        "boundary_step": 0.0006159096938063158,
+        "sample_step_99pct": 0.10216693282127384,
+        "first_20ms_rms": 0.08110453927995513,
+        "last_20ms_rms": 0.00010149836669072276,
+        "rms_5ms_coefficient_of_variation": 0.8826906633750334
+      }
+    },
+    {
+      "family": "dig",
+      "set": "cloth",
+      "variant": 1,
+      "slot": "pickaxe.dig.cloth.1",
+      "output": "public/assets/audio/weapons/knife/dig-cloth-1.ogg",
+      "output_sha256": "5208900c7652b18d5423d3b6fa363942d3436948fbe781e07db85e4466b970df",
+      "layers": [
+        {
+          "source": "footsteps/step-cloth-5",
+          "trim_seconds": [
+            0.0,
+            0.22
+          ],
+          "filters": "highpass=f=90,lowpass=f=2400",
+          "source_sha256": "c9cc604a9bc3daec0428ca88c4280ee4269aae4a34cbdc8f852b6e661c33913f",
+          "raw_sha256": "f7de0bf36ccf7378a7dffc66fa5ef83bdddca5929eabf8e10c09daab92669011",
+          "generation": {
+            "cue": "step-cloth",
+            "created_at": "2026-09-15T22:41:47.133295+00:00",
+            "request_body": {
+              "text": "Studio Foley recording: after a brief silence, ONE boot firmly plants on thick carpet: a muted low padded footfall with a short soft fabric brush. Heel and sole contact together as one compact percussive FOOTFALL, then quickly decay into silence. Clear tactile attack, realistic shoe texture. One event only. No walking sequence, dragging, bass drone, electronic tone, music or ambience.",
+              "duration_seconds": 1.0,
+              "prompt_influence": 0.45,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "10",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "puff",
+            "lowpass": 700,
+            "decay": 0.06,
+            "gain": 0.7
+          },
+          "gain": 0.7,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.22,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.085,
+      "peak_target": 0.6,
+      "normalization_gain": 0.21045052368783532,
+      "synthesis_seed": 3247387671,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Unused padded carpet thump plus a lowpassed air puff.",
+      "final_metrics": {
+        "duration_seconds": 0.22,
+        "peak": 0.2118387073278427,
+        "rms": 0.0403598180116949,
+        "peak_dbfs": -13.479893647271787,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 3.48027776606693e-05,
+        "onset_seconds_2pct_peak": 0.00010416666666666667,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.14,
+        "rms_5ms_peak": 0.1337571737158243,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.0181875,
+          "90": 0.0688125,
+          "95": 0.09154166666666666,
+          "99": 0.12660416666666666
+        },
+        "spectral_centroid_hz": 259.45937938114935,
+        "energy_band_percent": {
+          "0-120Hz": 25.739312539119574,
+          "120-1000Hz": 72.78775214938754,
+          "1000-5000Hz": 1.447318606218039,
+          "5000-24001Hz": 0.02561670527484141
+        },
+        "boundary_step": 0.002050079623586498,
+        "sample_step_99pct": 0.007160110250115396,
+        "first_20ms_rms": 0.10424180672881093,
+        "last_20ms_rms": 0.00035434659314272516,
+        "rms_5ms_coefficient_of_variation": 1.1388486260340647
+      }
+    },
+    {
+      "family": "dig",
+      "set": "cloth",
+      "variant": 2,
+      "slot": "pickaxe.dig.cloth.2",
+      "output": "public/assets/audio/weapons/knife/dig-cloth-2.ogg",
+      "output_sha256": "4e30b5126cedf42565bc09871f04818465c5fdf110d224ed154747d8ef30c373",
+      "layers": [
+        {
+          "source": "footsteps/step-cloth-4",
+          "trim_seconds": [
+            0.13,
+            0.4
+          ],
+          "filters": "highpass=f=90,lowpass=f=3000",
+          "source_sha256": "b99747893bb227dcc9e6bfe085f760a84cabe50d55a94ee36810d011d2fcf095",
+          "raw_sha256": "c222223d40717ee2a2092495d6d72e1ded3a8704d72ade7a31225447844fc6c1",
+          "generation": {
+            "cue": "step-cloth",
+            "created_at": "2026-09-15T22:41:45.259378+00:00",
+            "request_body": {
+              "text": "Studio Foley recording: after a brief silence, ONE boot firmly plants on thick carpet: a muted low padded footfall with a short soft fabric brush. Heel and sole contact together as one compact percussive FOOTFALL, then quickly decay into silence. Clear tactile attack, realistic shoe texture. One event only. No walking sequence, dragging, bass drone, electronic tone, music or ambience.",
+              "duration_seconds": 1.0,
+              "prompt_influence": 0.45,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "10",
+            "request_id": null
+          },
+          "gain": 0.9,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              130,
+              90
+            ],
+            "decay": 0.04,
+            "gain": 0.7
+          },
+          "gain": 0.7,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.24,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.085,
+      "peak_target": 0.6,
+      "normalization_gain": 0.2499339619031205,
+      "synthesis_seed": 2542041267,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Unused fabric brush take shaped into a muffled puff over a soft thud.",
+      "final_metrics": {
+        "duration_seconds": 0.24,
+        "peak": 0.181672140955925,
+        "rms": 0.040549310201192346,
+        "peak_dbfs": -14.814233314790982,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -5.882892597739627e-05,
+        "onset_seconds_2pct_peak": 0.0004375,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.145,
+        "rms_5ms_peak": 0.11850994474023059,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.019020833333333334,
+          "90": 0.0700625,
+          "95": 0.09175,
+          "99": 0.12952083333333334
+        },
+        "spectral_centroid_hz": 402.1852012517542,
+        "energy_band_percent": {
+          "0-120Hz": 63.26772247979515,
+          "120-1000Hz": 24.69816818118612,
+          "1000-5000Hz": 11.500881798918044,
+          "5000-24001Hz": 0.5332275401006759
+        },
+        "boundary_step": 8.679571055836277e-05,
+        "sample_step_99pct": 0.016357967720832672,
+        "first_20ms_rms": 0.10172345465786489,
+        "last_20ms_rms": 0.00023942862377091372,
+        "rms_5ms_coefficient_of_variation": 1.0782302051049582
+      }
+    },
+    {
+      "family": "dig",
+      "set": "cloth",
+      "variant": 3,
+      "slot": "pickaxe.dig.cloth.3",
+      "output": "public/assets/audio/weapons/knife/dig-cloth-3.ogg",
+      "output_sha256": "a275f8d0b2b00ae405b0177f5ca031f466f95d5f1b85bb7f16f6469d645ae0f3",
+      "layers": [
+        {
+          "source": "footsteps/step-cloth-2",
+          "trim_seconds": [
+            0.0,
+            0.24
+          ],
+          "filters": "highpass=f=90,lowpass=f=2000",
+          "source_sha256": "ee630f46350b8db062de4144f47c3870d9d067d40da4b81d9916cf219f06b397",
+          "raw_sha256": "e4be8163261b77c126cb00f39f182f759e205dac454b44c0d6966812d1765ba1",
+          "generation": {
+            "cue": "step-cloth",
+            "created_at": "2026-09-15T22:39:27.175704+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated natural boot footstep on thick carpet: a muted low padded footfall with a short soft fabric brush. Close dry Foley for a first-person game. Immediate heel-to-sole contact, decays within 250 milliseconds, then silence. One foot landing only. No walking sequence, second step, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.45,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "puff",
+            "lowpass": 520,
+            "decay": 0.075,
+            "gain": 0.8
+          },
+          "gain": 0.8,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.24,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.085,
+      "peak_target": 0.6,
+      "normalization_gain": 0.19953648750408362,
+      "synthesis_seed": 497430276,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Unused cushioned footfall take, darkened, with a longer puff.",
+      "final_metrics": {
+        "duration_seconds": 0.24,
+        "peak": 0.21558572351932526,
+        "rms": 0.03965541293700416,
+        "peak_dbfs": -13.327600046150106,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 5.887124982392559e-05,
+        "onset_seconds_2pct_peak": 0.0001875,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.17500000000000002,
+        "rms_5ms_peak": 0.14362844710741188,
+        "rms_5ms_peak_at_seconds": 0.02,
+        "energy_seconds": {
+          "50": 0.0245,
+          "90": 0.07841666666666666,
+          "95": 0.10433333333333333,
+          "99": 0.15352083333333333
+        },
+        "spectral_centroid_hz": 203.10655351427013,
+        "energy_band_percent": {
+          "0-120Hz": 28.659279333872444,
+          "120-1000Hz": 70.07560683736335,
+          "1000-5000Hz": 1.237854050663683,
+          "5000-24001Hz": 0.027259778100505807
+        },
+        "boundary_step": 0.00011440663365647197,
+        "sample_step_99pct": 0.005437943935394284,
+        "first_20ms_rms": 0.06805271304054908,
+        "last_20ms_rms": 0.0005685811759137874,
+        "rms_5ms_coefficient_of_variation": 1.0595671384546106
+      }
+    },
+    {
+      "family": "dig",
+      "set": "glass",
+      "variant": 1,
+      "slot": "pickaxe.dig.glass.1",
+      "output": "public/assets/audio/weapons/knife/dig-glass-1.ogg",
+      "output_sha256": "679524611cf76c87f7d4bc7da201dbde7685a38ee620a7f4a86214e9470295d8",
+      "layers": [
+        {
+          "source": "remaining/impact-glass-1",
+          "trim_seconds": [
+            0.085,
+            0.2
+          ],
+          "filters": "highpass=f=600",
+          "source_sha256": "c045f1e024d35f9e77bd120f7613da40d2ec43fe283156d6b644b8111e678ce8",
+          "raw_sha256": "479118dc8ebd41dbcdd77a5b34bc471258cba10a736148c3e07199cbcead60a5",
+          "generation": {
+            "cue": "impact-glass",
+            "created_at": "2026-09-09T11:28:44.313087+00:00",
+            "request_body": {
+              "text": "One bullet striking a glass pane, brittle crack and fine falling shards. No gunfire. One isolated event, immediate onset, short natural tail. Dry close game foley. No music, speech, ambience or reverb.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.9,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "ring",
+            "partials": [
+              2930,
+              5260,
+              7810
+            ],
+            "decay": 0.035,
+            "gain": 0.55
+          },
+          "gain": 0.55,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.14,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.09,
+      "peak_target": 0.6,
+      "normalization_gain": 0.47088297759252806,
+      "synthesis_seed": 1501034293,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Unused bright glass tick (2026-09-09) with synthesized glass partials: a hard tink.",
+      "final_metrics": {
+        "duration_seconds": 0.14,
+        "peak": 0.4656344950199127,
+        "rms": 0.04972855051796872,
+        "peak_dbfs": -6.639097077391955,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -7.820454437579812e-07,
+        "onset_seconds_2pct_peak": 0.0003333333333333333,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.08,
+        "rms_5ms_peak": 0.16447697545221396,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.009520833333333333,
+          "90": 0.033125,
+          "95": 0.04722916666666667,
+          "99": 0.073
+        },
+        "spectral_centroid_hz": 4643.937959866558,
+        "energy_band_percent": {
+          "0-120Hz": 3.462290204993523e-05,
+          "120-1000Hz": 1.1017580108191438,
+          "1000-5000Hz": 66.00785929009936,
+          "5000-24001Hz": 32.890348076179414
+        },
+        "boundary_step": 0.0010395916915513226,
+        "sample_step_99pct": 0.16371991828083984,
+        "first_20ms_rms": 0.11693953689396729,
+        "last_20ms_rms": 0.00022013445318663622,
+        "rms_5ms_coefficient_of_variation": 1.247074666051558
+      }
+    },
+    {
+      "family": "dig",
+      "set": "glass",
+      "variant": 2,
+      "slot": "pickaxe.dig.glass.2",
+      "output": "public/assets/audio/weapons/knife/dig-glass-2.ogg",
+      "output_sha256": "601c8e96786d2522b1364aa188fd6cd031e00e0712092a9f130c50acce6b6dce",
+      "layers": [
+        {
+          "source": "remaining/impact-glass-2",
+          "trim_seconds": [
+            0.098,
+            0.25
+          ],
+          "filters": "highpass=f=600",
+          "source_sha256": "9630fd1e6e545c114bd9ec2166da8be3bcff9812d02cac405a6a211d020c3b90",
+          "raw_sha256": "7a3133add4ae3019f7342246f499c42d3c2e04d3f7b44fc848164e78c625ac8b",
+          "generation": {
+            "cue": "impact-glass",
+            "created_at": "2026-09-09T11:28:45.888319+00:00",
+            "request_body": {
+              "text": "One bullet striking a glass pane, brittle crack and fine falling shards. No gunfire. One isolated event, immediate onset, short natural tail. Dry close game foley. No music, speech, ambience or reverb.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.9,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "ring",
+            "partials": [
+              2410,
+              4380,
+              6570
+            ],
+            "decay": 0.04,
+            "gain": 0.5
+          },
+          "gain": 0.5,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.16,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.09,
+      "peak_target": 0.6,
+      "normalization_gain": 0.4703877830031425,
+      "synthesis_seed": 1962276737,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Second glass tick take: a slightly lower, fuller tink.",
+      "final_metrics": {
+        "duration_seconds": 0.16,
+        "peak": 0.5069233179092407,
+        "rms": 0.047247882550326255,
+        "peak_dbfs": -5.901154625072405,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -5.53543915593017e-07,
+        "onset_seconds_2pct_peak": 0.000375,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.085,
+        "rms_5ms_peak": 0.1725695144408293,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.008875,
+          "90": 0.03941666666666667,
+          "95": 0.056791666666666664,
+          "99": 0.0835625
+        },
+        "spectral_centroid_hz": 3727.030202055422,
+        "energy_band_percent": {
+          "0-120Hz": 1.4926128875630173e-05,
+          "120-1000Hz": 0.13020996656695585,
+          "1000-5000Hz": 78.74140913093427,
+          "5000-24001Hz": 21.12836597636988
+        },
+        "boundary_step": 0.0005509184478853513,
+        "sample_step_99pct": 0.12255268111824998,
+        "first_20ms_rms": 0.11598591354195645,
+        "last_20ms_rms": 0.0003233129822334208,
+        "rms_5ms_coefficient_of_variation": 1.2473502264692065
+      }
+    },
+    {
+      "family": "dig",
+      "set": "glass",
+      "variant": 3,
+      "slot": "pickaxe.dig.glass.3",
+      "output": "public/assets/audio/weapons/knife/dig-glass-3.ogg",
+      "output_sha256": "b93b27efff61c6ac885f1d9015c351ed33e4dc4e958840154d1ad0d22b286c77",
+      "layers": [
+        {
+          "source": "remaining/impact-glass-1",
+          "trim_seconds": [
+            0.045,
+            0.085
+          ],
+          "filters": "highpass=f=600",
+          "source_sha256": "c045f1e024d35f9e77bd120f7613da40d2ec43fe283156d6b644b8111e678ce8",
+          "raw_sha256": "479118dc8ebd41dbcdd77a5b34bc471258cba10a736148c3e07199cbcead60a5",
+          "generation": {
+            "cue": "impact-glass",
+            "created_at": "2026-09-09T11:28:44.313087+00:00",
+            "request_body": {
+              "text": "One bullet striking a glass pane, brittle crack and fine falling shards. No gunfire. One isolated event, immediate onset, short natural tail. Dry close game foley. No music, speech, ambience or reverb.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.7,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "ring",
+            "partials": [
+              3350,
+              6020,
+              8900
+            ],
+            "decay": 0.03,
+            "gain": 0.7
+          },
+          "gain": 0.7,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.12,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.09,
+      "peak_target": 0.6,
+      "normalization_gain": 0.3870808166230679,
+      "synthesis_seed": 4163647952,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Pre-tick of impact-glass-1 under a brighter synthesized tink.",
+      "final_metrics": {
+        "duration_seconds": 0.12,
+        "peak": 0.38249820470809937,
+        "rms": 0.05318858045566067,
+        "peak_dbfs": -8.347411978165212,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -1.0594225528206793e-06,
+        "onset_seconds_2pct_peak": 0.00025,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.07,
+        "rms_5ms_peak": 0.14203968241450363,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.00975,
+          "90": 0.029916666666666668,
+          "95": 0.038125,
+          "99": 0.0581875
+        },
+        "spectral_centroid_hz": 5757.406957036577,
+        "energy_band_percent": {
+          "0-120Hz": 2.7487935909960537e-05,
+          "120-1000Hz": 0.06387411752820121,
+          "1000-5000Hz": 59.48957598364342,
+          "5000-24001Hz": 40.44652241089247
+        },
+        "boundary_step": 0.0014479970936918107,
+        "sample_step_99pct": 0.17926392912864691,
+        "first_20ms_rms": 0.11486671650397465,
+        "last_20ms_rms": 0.0002777549402077778,
+        "rms_5ms_coefficient_of_variation": 1.195713335035831
+      }
+    },
+    {
+      "family": "dig",
+      "set": "metal",
+      "variant": 1,
+      "slot": "pickaxe.dig.metal.1",
+      "output": "public/assets/audio/weapons/knife/dig-metal-1.ogg",
+      "output_sha256": "b7cb4d20a602a0af63de32937550a5359eefd41aa8443368f29ae059937811ef",
+      "layers": [
+        {
+          "source": "footsteps/step-metal-4",
+          "trim_seconds": [
+            0.008,
+            0.14
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "11fed721257cd7db8b16b77552b4fd7363ca1d3252d823d51d8607286e010f6c",
+          "raw_sha256": "7ea0733b3a3e96b0df7816517707059f76fc6d76d4089bcf8902e4f11ba544a8",
+          "generation": {
+            "cue": "step-metal",
+            "created_at": "2026-09-15T22:41:39.354618+00:00",
+            "request_body": {
+              "text": "Studio Foley recording: after a brief silence, ONE boot firmly plants on a thick steel walkway: a firm boot clack with a short low metallic resonance, no high ringing. Heel and sole contact together as one compact percussive FOOTFALL, then quickly decay into silence. Clear tactile attack, realistic shoe texture. One event only. No walking sequence, dragging, bass drone, electronic tone, music or ambience.",
+              "duration_seconds": 1.0,
+              "prompt_influence": 0.45,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "10",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "ring",
+            "partials": [
+              1180,
+              2710,
+              4230
+            ],
+            "decay": 0.11,
+            "gain": 0.4
+          },
+          "gain": 0.4,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.24,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.12,
+      "peak_target": 0.6,
+      "normalization_gain": 0.5267347000395926,
+      "synthesis_seed": 1446254572,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "First steel clank of step-metal-4 over a bright iron ring.",
+      "final_metrics": {
+        "duration_seconds": 0.24,
+        "peak": 0.5866823196411133,
+        "rms": 0.05666968479801623,
+        "peak_dbfs": -4.631939991187307,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 7.770834297998741e-05,
+        "onset_seconds_2pct_peak": 0.000625,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.18,
+        "rms_5ms_peak": 0.1965352322256547,
+        "rms_5ms_peak_at_seconds": 0.01,
+        "energy_seconds": {
+          "50": 0.020645833333333332,
+          "90": 0.08364583333333334,
+          "95": 0.11429166666666667,
+          "99": 0.16791666666666666
+        },
+        "spectral_centroid_hz": 3277.174128897614,
+        "energy_band_percent": {
+          "0-120Hz": 0.05506403125701435,
+          "120-1000Hz": 4.0911406722807095,
+          "1000-5000Hz": 74.45869704654433,
+          "5000-24001Hz": 21.395098249917936
+        },
+        "boundary_step": 0.0012499938322889648,
+        "sample_step_99pct": 0.14447687700390813,
+        "first_20ms_rms": 0.1377777810592052,
+        "last_20ms_rms": 0.0007711079067906133,
+        "rms_5ms_coefficient_of_variation": 0.9715049322529913
+      }
+    },
+    {
+      "family": "dig",
+      "set": "metal",
+      "variant": 2,
+      "slot": "pickaxe.dig.metal.2",
+      "output": "public/assets/audio/weapons/knife/dig-metal-2.ogg",
+      "output_sha256": "07dd61a4c6731d78c5b06a8f20319bae052e32751e1c80854f9eee29ce3d0285",
+      "layers": [
+        {
+          "source": "footsteps/step-metal-4",
+          "trim_seconds": [
+            0.14,
+            0.27
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "11fed721257cd7db8b16b77552b4fd7363ca1d3252d823d51d8607286e010f6c",
+          "raw_sha256": "7ea0733b3a3e96b0df7816517707059f76fc6d76d4089bcf8902e4f11ba544a8",
+          "generation": {
+            "cue": "step-metal",
+            "created_at": "2026-09-15T22:41:39.354618+00:00",
+            "request_body": {
+              "text": "Studio Foley recording: after a brief silence, ONE boot firmly plants on a thick steel walkway: a firm boot clack with a short low metallic resonance, no high ringing. Heel and sole contact together as one compact percussive FOOTFALL, then quickly decay into silence. Clear tactile attack, realistic shoe texture. One event only. No walking sequence, dragging, bass drone, electronic tone, music or ambience.",
+              "duration_seconds": 1.0,
+              "prompt_influence": 0.45,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "10",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "source": "remaining/impact-metal-1",
+          "trim_seconds": [
+            0.0,
+            0.26
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "474942343693be818b7bf2fc90bd3ee517b845f242272de23aac71d8c820e876",
+          "raw_sha256": "68231678e1ee550ec7df8ad2ed03aadb3a997abd0692e95073e9f67843c719e2",
+          "generation": {
+            "cue": "impact-metal",
+            "created_at": "2026-09-09T11:28:43.966479+00:00",
+            "request_body": {
+              "text": "One bullet striking steel plate, bright hard metallic tick with a short resonant body. No gunfire. One isolated event, immediate onset, short natural tail. Dry close game foley. No music, speech, ambience or reverb.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.5,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.26,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.12,
+      "peak_target": 0.6,
+      "normalization_gain": 0.5492716006380225,
+      "synthesis_seed": 2072863852,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Middle steel clank of step-metal-4 (not the shipped footfall cut) with the recorded 1-3 kHz ring from impact-metal-1.",
+      "final_metrics": {
+        "duration_seconds": 0.26,
+        "peak": 0.5942097902297974,
+        "rms": 0.04888911188357612,
+        "peak_dbfs": -4.52120394032227,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -8.653708741821703e-06,
+        "onset_seconds_2pct_peak": 0.0004166666666666667,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.155,
+        "rms_5ms_peak": 0.18836236094204123,
+        "rms_5ms_peak_at_seconds": 0.01,
+        "energy_seconds": {
+          "50": 0.016583333333333332,
+          "90": 0.07879166666666666,
+          "95": 0.10954166666666666,
+          "99": 0.15985416666666666
+        },
+        "spectral_centroid_hz": 3555.894297166292,
+        "energy_band_percent": {
+          "0-120Hz": 0.042795645668125215,
+          "120-1000Hz": 4.957499553979068,
+          "1000-5000Hz": 73.31799609468622,
+          "5000-24001Hz": 21.68170870566658
+        },
+        "boundary_step": 0.00017462677988078212,
+        "sample_step_99pct": 0.12691507689654818,
+        "first_20ms_rms": 0.13275384801111792,
+        "last_20ms_rms": 0.0006241932609435375,
+        "rms_5ms_coefficient_of_variation": 1.1032240665795043
+      }
+    },
+    {
+      "family": "dig",
+      "set": "metal",
+      "variant": 3,
+      "slot": "pickaxe.dig.metal.3",
+      "output": "public/assets/audio/weapons/knife/dig-metal-3.ogg",
+      "output_sha256": "925d4cbcdf1002823bb3fdcfd05f61e9add98150ce215d14314aa7d5ada41653",
+      "layers": [
+        {
+          "source": "footsteps/step-metal-5",
+          "trim_seconds": [
+            0.245,
+            0.45
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "5832d0e39668d8d074229c89995dcd6ea1d2bbab4e9f65f16504981fdb7efcc7",
+          "raw_sha256": "adc78bc633d3c1ec4ff2209e86bbf46a48cebc4b7779af2b911c8a29efd13e66",
+          "generation": {
+            "cue": "step-metal",
+            "created_at": "2026-09-15T22:41:41.399589+00:00",
+            "request_body": {
+              "text": "Studio Foley recording: after a brief silence, ONE boot firmly plants on a thick steel walkway: a firm boot clack with a short low metallic resonance, no high ringing. Heel and sole contact together as one compact percussive FOOTFALL, then quickly decay into silence. Clear tactile attack, realistic shoe texture. One event only. No walking sequence, dragging, bass drone, electronic tone, music or ambience.",
+              "duration_seconds": 1.0,
+              "prompt_influence": 0.45,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "10",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "ring",
+            "partials": [
+              960,
+              2240,
+              3610
+            ],
+            "decay": 0.12,
+            "gain": 0.45
+          },
+          "gain": 0.45,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.24,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.12,
+      "peak_target": 0.6,
+      "normalization_gain": 0.3904290099611985,
+      "synthesis_seed": 3958179029,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Unused clattering step-metal-5 contact over a lower iron ring.",
+      "final_metrics": {
+        "duration_seconds": 0.24,
+        "peak": 0.47512534260749817,
+        "rms": 0.058176107671762255,
+        "peak_dbfs": -6.46383608447799,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -2.8856704533391448e-05,
+        "onset_seconds_2pct_peak": 0.0004166666666666667,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.19,
+        "rms_5ms_peak": 0.17191874165964904,
+        "rms_5ms_peak_at_seconds": 0.01,
+        "energy_seconds": {
+          "50": 0.023770833333333335,
+          "90": 0.07935416666666667,
+          "95": 0.10908333333333334,
+          "99": 0.16441666666666666
+        },
+        "spectral_centroid_hz": 1880.489179285891,
+        "energy_band_percent": {
+          "0-120Hz": 12.85787649304262,
+          "120-1000Hz": 60.618089418611724,
+          "1000-5000Hz": 15.181659282609841,
+          "5000-24001Hz": 11.34237480573582
+        },
+        "boundary_step": 0.0019740549100788485,
+        "sample_step_99pct": 0.10316665595397347,
+        "first_20ms_rms": 0.13516414373997296,
+        "last_20ms_rms": 0.0007561287034196555,
+        "rms_5ms_coefficient_of_variation": 0.9533986718765131
+      }
+    },
+    {
+      "family": "break",
+      "set": "glass",
+      "variant": 1,
+      "slot": "pickaxe.break.glass.1",
+      "output": "public/assets/audio/weapons/knife/dig-glass-break-1.ogg",
+      "output_sha256": "0f3016aebe53ebe52b8c87c2385eb5a2f57f919089a900e112ec385dc279455d",
+      "layers": [
+        {
+          "source": "remaining/impact-glass-3",
+          "trim_seconds": [
+            0.0,
+            0.52
+          ],
+          "filters": "highpass=f=200",
+          "source_sha256": "93ed6c9d9cd5c3495a287dcba39033e7ce8f488c386b21efe77137d54030935c",
+          "raw_sha256": "4ebc8e301aad53f32dd7eb1b723dbad98007a25e92ae46c9a2c682f360fced2f",
+          "generation": {
+            "cue": "impact-glass",
+            "created_at": "2026-09-09T11:36:49.010688+00:00",
+            "request_body": {
+              "text": "A pane of thin window glass shatters from one tiny fast projectile. A brittle glass CRISH immediately followed by many tiny glass fragments tinkling and skittering down onto a hard floor. Delicate irregular crystalline shard detail, unmistakable broken glass. Short dry decay under half a second. No metallic latch, no mechanism, no gunshot, no voice, no music, no ambience. One isolated shattering event.",
+              "duration_seconds": 0.8,
+              "prompt_influence": 0.4,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "8",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.52,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.08,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.12,
+      "peak_target": 0.62,
+      "normalization_gain": 0.43615542232069787,
+      "synthesis_seed": 1691600120,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Unused shatter take: brittle crash, shards and one late tinkle.",
+      "final_metrics": {
+        "duration_seconds": 0.52,
+        "peak": 0.3879803717136383,
+        "rms": 0.05570082171838226,
+        "peak_dbfs": -8.223804904202584,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 2.9981860327894755e-06,
+        "onset_seconds_2pct_peak": 0.00010416666666666667,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.44,
+        "rms_5ms_peak": 0.13149724592065531,
+        "rms_5ms_peak_at_seconds": 0.025,
+        "energy_seconds": {
+          "50": 0.058979166666666666,
+          "90": 0.23283333333333334,
+          "95": 0.2548125,
+          "99": 0.309
+        },
+        "spectral_centroid_hz": 7154.458809092743,
+        "energy_band_percent": {
+          "0-120Hz": 0.015190592587782123,
+          "120-1000Hz": 0.49546837254704695,
+          "1000-5000Hz": 20.399889076553148,
+          "5000-24001Hz": 79.08945195831203
+        },
+        "boundary_step": 0.0022425248077695414,
+        "sample_step_99pct": 0.1902399840950964,
+        "first_20ms_rms": 0.11566787140659714,
+        "last_20ms_rms": 6.53587497455143e-05,
+        "rms_5ms_coefficient_of_variation": 0.9214346458073118
+      }
+    },
+    {
+      "family": "break",
+      "set": "glass",
+      "variant": 2,
+      "slot": "pickaxe.break.glass.2",
+      "output": "public/assets/audio/weapons/knife/dig-glass-break-2.ogg",
+      "output_sha256": "9422b6acacc5d84709087140818e2a3ce35985e17c73d25971cb4c9e351448fe",
+      "layers": [
+        {
+          "source": "remaining/impact-glass-4",
+          "trim_seconds": [
+            0.0,
+            0.46
+          ],
+          "filters": "highpass=f=200",
+          "source_sha256": "6afb32b73881f44b5a85115caf2b0b08844094b3bfbe70029d34bbdd3b44bbd9",
+          "raw_sha256": "a52e61bfa63a3d822d38f104660f039a2606c12630d9e7d080725a8cba8601dc",
+          "generation": {
+            "cue": "impact-glass",
+            "created_at": "2026-09-09T11:36:51.105786+00:00",
+            "request_body": {
+              "text": "A pane of thin window glass shatters from one tiny fast projectile. A brittle glass CRISH immediately followed by many tiny glass fragments tinkling and skittering down onto a hard floor. Delicate irregular crystalline shard detail, unmistakable broken glass. Short dry decay under half a second. No metallic latch, no mechanism, no gunshot, no voice, no music, no ambience. One isolated shattering event.",
+              "duration_seconds": 0.8,
+              "prompt_influence": 0.4,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "8",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "ring",
+            "partials": [
+              3120,
+              5540,
+              8210
+            ],
+            "decay": 0.05,
+            "gain": 0.25
+          },
+          "gain": 0.25,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.46,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.08,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.12,
+      "peak_target": 0.62,
+      "normalization_gain": 0.4168060222476923,
+      "synthesis_seed": 3584160341,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Second shatter take: finer shards, shorter.",
+      "final_metrics": {
+        "duration_seconds": 0.4303125,
+        "peak": 0.4175018072128296,
+        "rms": 0.05288557770638185,
+        "peak_dbfs": -7.586832805482513,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -2.65449850536993e-06,
+        "onset_seconds_2pct_peak": 0.000125,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.245,
+        "rms_5ms_peak": 0.13055697717770132,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.044104166666666667,
+          "90": 0.1229375,
+          "95": 0.15954166666666666,
+          "99": 0.20489583333333333
+        },
+        "spectral_centroid_hz": 7815.457328620982,
+        "energy_band_percent": {
+          "0-120Hz": 0.0017497763399968206,
+          "120-1000Hz": 0.4573032121337463,
+          "1000-5000Hz": 15.717039125031224,
+          "5000-24001Hz": 83.82390788649502
+        },
+        "boundary_step": 0.0024083552120828244,
+        "sample_step_99pct": 0.20141629349440365,
+        "first_20ms_rms": 0.1257141562398671,
+        "last_20ms_rms": 3.414965251243167e-05,
+        "rms_5ms_coefficient_of_variation": 1.1221830074862629
+      }
+    },
+    {
+      "family": "attack",
+      "set": "strong",
+      "variant": 1,
+      "slot": "pickaxe.attack.strong.1",
+      "output": "public/assets/audio/weapons/knife/attack-strong-1.ogg",
+      "output_sha256": "9a14e9d99e3575cac84c1ce002e1e077acd53d5e4a88d995749f9c6d4d81193d",
+      "layers": [
+        {
+          "source": "hits/hitbody-3",
+          "trim_seconds": [
+            0.0,
+            0.24
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "32f3a092e43d9954976cbf7b050fea63d5ce9700d9b2b648f70c082041d5d193",
+          "raw_sha256": "07d42605563ec735eb70cfca674d56f70c91d5ad09fa01bb2434b284efaf22a7",
+          "generation": {
+            "cue": "hitbody",
+            "created_at": "2026-09-07T23:18:13.588887+00:00",
+            "request_body": {
+              "text": "One bullet striking a thick cloth ballistic vest over a body: a dry compact meaty THWAP, firm low-mid thud with a sharp leathery slap and tiny fabric crack. Close realistic tactical shooter impact foley, forceful immediate onset, rapid natural 100 ms decay. One single impact only. No firearm discharge, no UI tick, no musical tone, no beep, no wooden knock, no metal ringing, no echo, no voice, no music.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              165,
+              70
+            ],
+            "decay": 0.06,
+            "gain": 0.75
+          },
+          "gain": 0.75,
+          "delay_seconds": 0
+        },
+        {
+          "source": "pickaxe-rock/pickaxeimpact-1",
+          "trim_seconds": [
+            0.618,
+            0.69
+          ],
+          "filters": "highpass=f=1200",
+          "source_sha256": "76ba58509664ade30474442dbbbcebd9d3c2a2c9044a5f943c681eb0e1fd34b9",
+          "raw_sha256": "485191e823e1347959053893915c26e3210dfca478427fc5e34bbda60e5553f5",
+          "generation": {
+            "cue": "pickaxeimpact",
+            "created_at": "2026-09-07T23:19:54.214854+00:00",
+            "request_body": {
+              "text": "A single loud pickaxe strike against solid rock: a sharp steel-on-stone clack over a chunky deep thud, followed by dry gritty stone chips. Close isolated foley, short natural decay. No swing, no second strike, no ringing, no voice, no music.",
+              "duration_seconds": 1.0,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "10",
+            "request_id": null
+          },
+          "gain": 0.35,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.24,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.16,
+      "peak_target": 0.7,
+      "normalization_gain": 0.3377066933984521,
+      "synthesis_seed": 647324925,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Unused meaty body THWAP plus a pickaxe steel-on-stone tick as the iron edge.",
+      "final_metrics": {
+        "duration_seconds": 0.24,
+        "peak": 0.48243221640586853,
+        "rms": 0.07873705641193154,
+        "peak_dbfs": -6.3312739617976534,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -3.945600569509399e-05,
+        "onset_seconds_2pct_peak": 0.00020833333333333335,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.17,
+        "rms_5ms_peak": 0.19946036092806782,
+        "rms_5ms_peak_at_seconds": 0.015,
+        "energy_seconds": {
+          "50": 0.026166666666666668,
+          "90": 0.06772916666666666,
+          "95": 0.094125,
+          "99": 0.134375
+        },
+        "spectral_centroid_hz": 808.9805111282437,
+        "energy_band_percent": {
+          "0-120Hz": 50.405326184718184,
+          "120-1000Hz": 42.37764654710785,
+          "1000-5000Hz": 2.563562580451853,
+          "5000-24001Hz": 4.653464687722124
+        },
+        "boundary_step": 0.004070938273798674,
+        "sample_step_99pct": 0.09695858947932719,
+        "first_20ms_rms": 0.17680783034961606,
+        "last_20ms_rms": 0.000539047001302253,
+        "rms_5ms_coefficient_of_variation": 1.0566377098768316
+      }
+    },
+    {
+      "family": "attack",
+      "set": "strong",
+      "variant": 2,
+      "slot": "pickaxe.attack.strong.2",
+      "output": "public/assets/audio/weapons/knife/attack-strong-2.ogg",
+      "output_sha256": "9a4e5afb65ad9d77dba452eb6c4613e48edaf5bdaed1e0d271c87da7c868e04a",
+      "layers": [
+        {
+          "source": "pickaxe-swing/knife-3",
+          "trim_seconds": [
+            0.0,
+            0.14
+          ],
+          "filters": "highpass=f=90,lowpass=f=3500",
+          "source_sha256": "08bcfa9812f82e9c29e15c22387953771fe62757113628b0de0e08054e219aa5",
+          "raw_sha256": "6241ea5d0c56c64dd6366e50e58852f46da16bf594e2043039736c8983469e56",
+          "generation": {
+            "cue": "knife",
+            "created_at": "2026-09-07T23:18:00.162633+00:00",
+            "request_body": {
+              "text": "One forceful swing of a heavy pickaxe through air. Thick close rushing whoosh, fast downward chop, coarse wooden handle grip and restrained cloth friction. Starts moving immediately, strongest air rush after 90 ms, ends within 240 ms. Dry tactile melee foley, strong low-mid weight. No impact, no metallic ring, no whistle, no laser, no voices, music or ambience. One swing only.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.9,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              150,
+              65
+            ],
+            "decay": 0.055,
+            "gain": 0.7
+          },
+          "gain": 0.7,
+          "delay_seconds": 0
+        },
+        {
+          "source": "pickaxe-rock/pickaxeimpact-1",
+          "trim_seconds": [
+            0.19,
+            0.26
+          ],
+          "filters": "highpass=f=1200",
+          "source_sha256": "76ba58509664ade30474442dbbbcebd9d3c2a2c9044a5f943c681eb0e1fd34b9",
+          "raw_sha256": "485191e823e1347959053893915c26e3210dfca478427fc5e34bbda60e5553f5",
+          "generation": {
+            "cue": "pickaxeimpact",
+            "created_at": "2026-09-07T23:19:54.214854+00:00",
+            "request_body": {
+              "text": "A single loud pickaxe strike against solid rock: a sharp steel-on-stone clack over a chunky deep thud, followed by dry gritty stone chips. Close isolated foley, short natural decay. No swing, no second strike, no ringing, no voice, no music.",
+              "duration_seconds": 1.0,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "10",
+            "request_id": null
+          },
+          "gain": 0.33,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.22,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.16,
+      "peak_target": 0.7,
+      "normalization_gain": 0.3227577673184797,
+      "synthesis_seed": 3988016057,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Unused heavy chop thump (swing knife-3) with a stone-tick iron edge.",
+      "final_metrics": {
+        "duration_seconds": 0.22,
+        "peak": 0.4771956503391266,
+        "rms": 0.07496837920181784,
+        "peak_dbfs": -6.426070471967057,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.00023509561949131613,
+        "onset_seconds_2pct_peak": 0.0005833333333333334,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.13,
+        "rms_5ms_peak": 0.21150345249794197,
+        "rms_5ms_peak_at_seconds": 0.0,
+        "energy_seconds": {
+          "50": 0.016729166666666666,
+          "90": 0.05510416666666667,
+          "95": 0.07266666666666667,
+          "99": 0.11258333333333333
+        },
+        "spectral_centroid_hz": 348.20574398623666,
+        "energy_band_percent": {
+          "0-120Hz": 47.98119250339138,
+          "120-1000Hz": 49.14145081915325,
+          "1000-5000Hz": 1.8924648354183098,
+          "5000-24001Hz": 0.9848918420370446
+        },
+        "boundary_step": 0.003163028404742363,
+        "sample_step_99pct": 0.048075168281793625,
+        "first_20ms_rms": 0.1893342206714529,
+        "last_20ms_rms": 0.0003383773366627891,
+        "rms_5ms_coefficient_of_variation": 1.1876626106584138
+      }
+    },
+    {
+      "family": "attack",
+      "set": "strong",
+      "variant": 3,
+      "slot": "pickaxe.attack.strong.3",
+      "output": "public/assets/audio/weapons/knife/attack-strong-3.ogg",
+      "output_sha256": "e7337f0cbad459b4e2065970075c3ce9346171c98f47c1b3c8a2b4e7644985e9",
+      "layers": [
+        {
+          "source": "hits/hitbody-3",
+          "trim_seconds": [
+            0.0,
+            0.24
+          ],
+          "filters": "asetrate=42240,aresample=48000,highpass=f=90",
+          "source_sha256": "32f3a092e43d9954976cbf7b050fea63d5ce9700d9b2b648f70c082041d5d193",
+          "raw_sha256": "07d42605563ec735eb70cfca674d56f70c91d5ad09fa01bb2434b284efaf22a7",
+          "generation": {
+            "cue": "hitbody",
+            "created_at": "2026-09-07T23:18:13.588887+00:00",
+            "request_body": {
+              "text": "One bullet striking a thick cloth ballistic vest over a body: a dry compact meaty THWAP, firm low-mid thud with a sharp leathery slap and tiny fabric crack. Close realistic tactical shooter impact foley, forceful immediate onset, rapid natural 100 ms decay. One single impact only. No firearm discharge, no UI tick, no musical tone, no beep, no wooden knock, no metal ringing, no echo, no voice, no music.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              155,
+              62
+            ],
+            "decay": 0.065,
+            "gain": 0.7
+          },
+          "gain": 0.7,
+          "delay_seconds": 0
+        },
+        {
+          "source": "dig/dig-stone-1",
+          "trim_seconds": [
+            0.13,
+            0.19
+          ],
+          "filters": "highpass=f=900",
+          "source_sha256": "a3248d6e4588b303f14ef50598ed9a6a987d2a77e3c36679b1b1a5c6b1c0719e",
+          "raw_sha256": "e35a389aba0255ec47ff17f40feca9869f340a2f33f559cb3c3325558074b671",
+          "generation": {
+            "cue": "dig-stone",
+            "created_at": "2026-09-22T18:39:56.736378+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into solid stone: a crisp gritty rock tick and a short dry crumble of tiny stone grit. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.3,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.26,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.16,
+      "peak_target": 0.7,
+      "normalization_gain": 0.3580428472998947,
+      "synthesis_seed": 3563856248,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Body THWAP slowed for weight with a 2 kHz grit tick from dig-stone-1 as the edge.",
+      "final_metrics": {
+        "duration_seconds": 0.26,
+        "peak": 0.5307694673538208,
+        "rms": 0.07781015146870673,
+        "peak_dbfs": -5.501881359752012,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.0005524107690003557,
+        "onset_seconds_2pct_peak": 0.00020833333333333335,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.18,
+        "rms_5ms_peak": 0.2330669906099528,
+        "rms_5ms_peak_at_seconds": 0.015,
+        "energy_seconds": {
+          "50": 0.027395833333333335,
+          "90": 0.07645833333333334,
+          "95": 0.10460416666666666,
+          "99": 0.14866666666666667
+        },
+        "spectral_centroid_hz": 762.1998539372529,
+        "energy_band_percent": {
+          "0-120Hz": 57.88961206578805,
+          "120-1000Hz": 35.14143700166093,
+          "1000-5000Hz": 2.622936591874603,
+          "5000-24001Hz": 4.346014340676429
+        },
+        "boundary_step": 0.0019988619023934007,
+        "sample_step_99pct": 0.08211789451539514,
+        "first_20ms_rms": 0.17789822118094117,
+        "last_20ms_rms": 0.0007687414758853317,
+        "rms_5ms_coefficient_of_variation": 1.0483105522827125
+      }
+    },
+    {
+      "family": "attack",
+      "set": "crit",
+      "variant": 1,
+      "slot": "pickaxe.attack.crit.1",
+      "output": "public/assets/audio/weapons/knife/attack-crit-1.ogg",
+      "output_sha256": "eb4943060b958b8f3c50fd85a433d278e705e81418dd0ff38f4b0388d3fa55af",
+      "layers": [
+        {
+          "source": "hits/hithead-1",
+          "trim_seconds": [
+            0.04,
+            0.2
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "8f92d74fed72c827c4f212d4af5830473fb47e67933bac2708cf322a5f9eeada",
+          "raw_sha256": "076e471e9acdd878f144b2aed86e2a80d0f4c60aa8ae80d7866cff83946a46aa",
+          "generation": {
+            "cue": "hithead",
+            "created_at": "2026-09-07T23:18:20.662809+00:00",
+            "request_body": {
+              "text": "One hard bullet head impact for a realistic tactical shooter: a sharp close fleshy CRACK with a tight crunchy bone snap, dense short lower thump underneath and dry gritty high-frequency splatter. Forceful single compact impact, immediate attack and natural 120 ms decay. Real physical contact foley. No gun firing, no UI chirp, no beep, no music, no ringing bell, no metallic ricochet, no voice, no echo, no repeated impacts.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.8,
+          "delay_seconds": 0
+        },
+        {
+          "source": "dig/dig-gravel-2",
+          "trim_seconds": [
+            0.0,
+            0.12
+          ],
+          "filters": "asetrate=40800,aresample=48000,highpass=f=90",
+          "source_sha256": "dee1f531b46c232b541993ba5c32d3c922b67e5448c276ca053129c107f59c22",
+          "raw_sha256": "42334175220a98123d1dd6491ef632b33dd65d0328d7614c14ddbee101952951",
+          "generation": {
+            "cue": "dig-gravel",
+            "created_at": "2026-09-22T18:40:11.333823+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into loose gravel and packed dirt: a crunchy grainy scrunch of small pebbles and soil. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.65,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              140,
+              55
+            ],
+            "decay": 0.05,
+            "gain": 0.55
+          },
+          "gain": 0.55,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "sparkle",
+            "count": 5,
+            "spacing": 0.019,
+            "start": 0.012,
+            "range": [
+              3600,
+              7600
+            ],
+            "gain": 0.5
+          },
+          "gain": 0.5,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.26,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.17,
+      "peak_target": 0.72,
+      "normalization_gain": 0.4892863938063195,
+      "synthesis_seed": 3519500252,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Crunchy triple bone crack (unused hithead-1), heavy thump and a bright glint sparkle.",
+      "final_metrics": {
+        "duration_seconds": 0.26,
+        "peak": 0.5272183418273926,
+        "rms": 0.0860640714829656,
+        "peak_dbfs": -5.560189782550299,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.0003502207425602571,
+        "onset_seconds_2pct_peak": 0.0001875,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.15,
+        "rms_5ms_peak": 0.18985429502501833,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.0344375,
+          "90": 0.08479166666666667,
+          "95": 0.09675,
+          "99": 0.12329166666666666
+        },
+        "spectral_centroid_hz": 2716.465436107059,
+        "energy_band_percent": {
+          "0-120Hz": 41.53426286876445,
+          "120-1000Hz": 8.664738078686819,
+          "1000-5000Hz": 8.619836414177826,
+          "5000-24001Hz": 41.1811626383709
+        },
+        "boundary_step": 0.0012386856105877087,
+        "sample_step_99pct": 0.14357592701911917,
+        "first_20ms_rms": 0.17975321062517297,
+        "last_20ms_rms": 0.00012935364222784775,
+        "rms_5ms_coefficient_of_variation": 1.056782147233299
+      }
+    },
+    {
+      "family": "attack",
+      "set": "crit",
+      "variant": 2,
+      "slot": "pickaxe.attack.crit.2",
+      "output": "public/assets/audio/weapons/knife/attack-crit-2.ogg",
+      "output_sha256": "d1f13ef683f7c41ae0c3c4efd66f6ff800cb22472ee9788ed0feaac004b499a9",
+      "layers": [
+        {
+          "source": "hits/hitbody-3",
+          "trim_seconds": [
+            0.0,
+            0.2
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "32f3a092e43d9954976cbf7b050fea63d5ce9700d9b2b648f70c082041d5d193",
+          "raw_sha256": "07d42605563ec735eb70cfca674d56f70c91d5ad09fa01bb2434b284efaf22a7",
+          "generation": {
+            "cue": "hitbody",
+            "created_at": "2026-09-07T23:18:13.588887+00:00",
+            "request_body": {
+              "text": "One bullet striking a thick cloth ballistic vest over a body: a dry compact meaty THWAP, firm low-mid thud with a sharp leathery slap and tiny fabric crack. Close realistic tactical shooter impact foley, forceful immediate onset, rapid natural 100 ms decay. One single impact only. No firearm discharge, no UI tick, no musical tone, no beep, no wooden knock, no metal ringing, no echo, no voice, no music.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.9,
+          "delay_seconds": 0
+        },
+        {
+          "source": "dig/dig-gravel-1",
+          "trim_seconds": [
+            0.0,
+            0.1
+          ],
+          "filters": "asetrate=38400,aresample=48000,highpass=f=90",
+          "source_sha256": "5a0d28b7a0fe9e22c901d9b2c51e27c01c539fd270a0f6b3bafe97bbf35625b1",
+          "raw_sha256": "db61340461cb83d8600e4ae1781616538f2a8aebc28c26e84b6706fff2e11dcf",
+          "generation": {
+            "cue": "dig-gravel",
+            "created_at": "2026-09-22T18:40:09.108528+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into loose gravel and packed dirt: a crunchy grainy scrunch of small pebbles and soil. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.65,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              135,
+              52
+            ],
+            "decay": 0.05,
+            "gain": 0.55
+          },
+          "gain": 0.55,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "sparkle",
+            "count": 6,
+            "spacing": 0.022,
+            "start": 0.015,
+            "range": [
+              4200,
+              8600
+            ],
+            "gain": 0.5
+          },
+          "gain": 0.5,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.28,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.17,
+      "peak_target": 0.72,
+      "normalization_gain": 0.4098673041709988,
+      "synthesis_seed": 1542902025,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Body THWAP with a gravel crunch and a longer, higher sparkle.",
+      "final_metrics": {
+        "duration_seconds": 0.2769583333333333,
+        "peak": 0.5895030498504639,
+        "rms": 0.08360174358214155,
+        "peak_dbfs": -4.5902788739800195,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.0003726102408135442,
+        "onset_seconds_2pct_peak": 0.00020833333333333335,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.16,
+        "rms_5ms_peak": 0.2135634320130856,
+        "rms_5ms_peak_at_seconds": 0.01,
+        "energy_seconds": {
+          "50": 0.0325625,
+          "90": 0.10145833333333333,
+          "95": 0.1206875,
+          "99": 0.14670833333333333
+        },
+        "spectral_centroid_hz": 2640.4376904902106,
+        "energy_band_percent": {
+          "0-120Hz": 26.673384861499606,
+          "120-1000Hz": 23.3831468723285,
+          "1000-5000Hz": 26.16496461022569,
+          "5000-24001Hz": 23.778503655946196
+        },
+        "boundary_step": 0.0018785113643389195,
+        "sample_step_99pct": 0.14291051805019378,
+        "first_20ms_rms": 0.1764235514252358,
+        "last_20ms_rms": 0.00023451620861391284,
+        "rms_5ms_coefficient_of_variation": 1.0222065157693012
+      }
+    },
+    {
+      "family": "attack",
+      "set": "knockback",
+      "variant": 1,
+      "slot": "pickaxe.attack.knockback.1",
+      "output": "public/assets/audio/weapons/knife/attack-knockback-1.ogg",
+      "output_sha256": "9176c0fc0c80829b420d63aae136ae94264bcb9087472b2b75e2c901176cf109",
+      "layers": [
+        {
+          "source": "hits/hitbody-3",
+          "trim_seconds": [
+            0.0,
+            0.2
+          ],
+          "filters": "highpass=f=90",
+          "source_sha256": "32f3a092e43d9954976cbf7b050fea63d5ce9700d9b2b648f70c082041d5d193",
+          "raw_sha256": "07d42605563ec735eb70cfca674d56f70c91d5ad09fa01bb2434b284efaf22a7",
+          "generation": {
+            "cue": "hitbody",
+            "created_at": "2026-09-07T23:18:13.588887+00:00",
+            "request_body": {
+              "text": "One bullet striking a thick cloth ballistic vest over a body: a dry compact meaty THWAP, firm low-mid thud with a sharp leathery slap and tiny fabric crack. Close realistic tactical shooter impact foley, forceful immediate onset, rapid natural 100 ms decay. One single impact only. No firearm discharge, no UI tick, no musical tone, no beep, no wooden knock, no metal ringing, no echo, no voice, no music.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              160,
+              68
+            ],
+            "decay": 0.045,
+            "gain": 0.75
+          },
+          "gain": 0.75,
+          "delay_seconds": 0
+        },
+        {
+          "source": "pickaxe-swoosh/knife-1",
+          "trim_seconds": [
+            0.02,
+            0.15
+          ],
+          "filters": "highpass=f=90,highpass=f=250",
+          "source_sha256": "bcdb5f3f9665bc045932a682b6e24ee31b255a6a69c2d3aa1aec46ed84df4fed",
+          "raw_sha256": "90d78ddbe22f0525545493a2a42b3bc9e1bcfc81edecf75fb00896a2cd8c4857",
+          "generation": {
+            "cue": "knife",
+            "created_at": "2026-09-07T23:19:58.110091+00:00",
+            "request_body": {
+              "text": "One close heavy pickaxe swing through air, a fast broad rushing swoosh with wooden handle creak and cloth friction. A strong downward chop, dry and compact. No impact, no ringing, no voice, no music.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.85,
+          "delay_seconds": 0.05
+        }
+      ],
+      "length_seconds": 0.3,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.06,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.15,
+      "peak_target": 0.7,
+      "normalization_gain": 0.33177363742551974,
+      "synthesis_seed": 3809796198,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Body THWAP then an unused pickaxe air whoosh as the target is shoved.",
+      "final_metrics": {
+        "duration_seconds": 0.23322916666666665,
+        "peak": 0.46935802698135376,
+        "rms": 0.07888698652982866,
+        "peak_dbfs": -6.569915008230598,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 1.3244211952899858e-05,
+        "onset_seconds_2pct_peak": 0.00020833333333333335,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.145,
+        "rms_5ms_peak": 0.1920070406505037,
+        "rms_5ms_peak_at_seconds": 0.015,
+        "energy_seconds": {
+          "50": 0.029083333333333333,
+          "90": 0.1068125,
+          "95": 0.11195833333333334,
+          "99": 0.1249375
+        },
+        "spectral_centroid_hz": 1143.7374200170002,
+        "energy_band_percent": {
+          "0-120Hz": 40.299321946284145,
+          "120-1000Hz": 48.12494625250158,
+          "1000-5000Hz": 3.836342318108268,
+          "5000-24001Hz": 7.739389483106
+        },
+        "boundary_step": 0.004159563744906336,
+        "sample_step_99pct": 0.0946042477712035,
+        "first_20ms_rms": 0.16546218862989853,
+        "last_20ms_rms": 0.00017395583092006604,
+        "rms_5ms_coefficient_of_variation": 0.965550528923554
+      }
+    },
+    {
+      "family": "attack",
+      "set": "knockback",
+      "variant": 2,
+      "slot": "pickaxe.attack.knockback.2",
+      "output": "public/assets/audio/weapons/knife/attack-knockback-2.ogg",
+      "output_sha256": "e4b1d729c7f8a08a59b7f018c3c22bc2768af8910163bbe4c1e2649e0170bdfa",
+      "layers": [
+        {
+          "source": "pickaxe-swing/knife-3",
+          "trim_seconds": [
+            0.0,
+            0.12
+          ],
+          "filters": "highpass=f=90,lowpass=f=3500",
+          "source_sha256": "08bcfa9812f82e9c29e15c22387953771fe62757113628b0de0e08054e219aa5",
+          "raw_sha256": "6241ea5d0c56c64dd6366e50e58852f46da16bf594e2043039736c8983469e56",
+          "generation": {
+            "cue": "knife",
+            "created_at": "2026-09-07T23:18:00.162633+00:00",
+            "request_body": {
+              "text": "One forceful swing of a heavy pickaxe through air. Thick close rushing whoosh, fast downward chop, coarse wooden handle grip and restrained cloth friction. Starts moving immediately, strongest air rush after 90 ms, ends within 240 ms. Dry tactile melee foley, strong low-mid weight. No impact, no metallic ring, no whistle, no laser, no voices, music or ambience. One swing only.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.9,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              150,
+              64
+            ],
+            "decay": 0.045,
+            "gain": 0.7
+          },
+          "gain": 0.7,
+          "delay_seconds": 0
+        },
+        {
+          "source": "pickaxe-swing/knife-2",
+          "trim_seconds": [
+            0.0,
+            0.13
+          ],
+          "filters": "highpass=f=90,highpass=f=250",
+          "source_sha256": "e4771251f4a08a4370869f058eb73066093018b39fb73dd6aeeba1fe09d2c117",
+          "raw_sha256": "dd96dc5dc31513941819900520d879f6dd6e5599707e47762e9bb41263afb010",
+          "generation": {
+            "cue": "knife",
+            "created_at": "2026-09-07T23:17:55.093608+00:00",
+            "request_body": {
+              "text": "One forceful swing of a heavy pickaxe through air. Thick close rushing whoosh, fast downward chop, coarse wooden handle grip and restrained cloth friction. Starts moving immediately, strongest air rush after 90 ms, ends within 240 ms. Dry tactile melee foley, strong low-mid weight. No impact, no metallic ring, no whistle, no laser, no voices, music or ambience. One swing only.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.85,
+          "delay_seconds": 0.05
+        }
+      ],
+      "length_seconds": 0.3,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.06,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.15,
+      "peak_target": 0.7,
+      "normalization_gain": 0.31351931729097626,
+      "synthesis_seed": 3626581960,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Chop thump then the second unused swing whoosh.",
+      "final_metrics": {
+        "duration_seconds": 0.2266875,
+        "peak": 0.45612266659736633,
+        "rms": 0.07256747082040299,
+        "peak_dbfs": -6.818366907140807,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.0001203670410800205,
+        "onset_seconds_2pct_peak": 0.00025,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.13,
+        "rms_5ms_peak": 0.204493035494111,
+        "rms_5ms_peak_at_seconds": 0.0,
+        "energy_seconds": {
+          "50": 0.017833333333333333,
+          "90": 0.08952083333333333,
+          "95": 0.0994375,
+          "99": 0.11685416666666666
+        },
+        "spectral_centroid_hz": 494.94998867997055,
+        "energy_band_percent": {
+          "0-120Hz": 37.998916250219864,
+          "120-1000Hz": 54.6362540738239,
+          "1000-5000Hz": 5.740363964038607,
+          "5000-24001Hz": 1.6244657119176258
+        },
+        "boundary_step": 0.00079928150807973,
+        "sample_step_99pct": 0.04737371817231157,
+        "first_20ms_rms": 0.17940523690106924,
+        "last_20ms_rms": 8.398974387866233e-05,
+        "rms_5ms_coefficient_of_variation": 1.1334376669071793
+      }
+    },
+    {
+      "family": "attack",
+      "set": "armor",
+      "variant": 1,
+      "slot": "pickaxe.attack.armor.1",
+      "output": "public/assets/audio/weapons/knife/attack-armor-1.ogg",
+      "output_sha256": "b1af7da2bc69f80879ca8dcaf5f70eb199654aa3ef6ded369796c3a242027045",
+      "layers": [
+        {
+          "source": "footsteps/step-metal-3",
+          "trim_seconds": [
+            0.018,
+            0.2
+          ],
+          "filters": "asetrate=40800,aresample=48000,highpass=f=90,lowpass=f=3000",
+          "source_sha256": "7439cd87f30fb3941c91f6e1489b1bb8c7dda95121fefbf17ae8485408cf903d",
+          "raw_sha256": "8ed4dfabfc8c7cdf68dea000c5c8c29a5b13e9d382147acb80aaadabfc23a3b4",
+          "generation": {
+            "cue": "step-metal",
+            "created_at": "2026-09-15T22:39:06.452019+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated natural boot footstep on a thick steel walkway: a firm boot clack with a short low metallic resonance, no high ringing. Close dry Foley for a first-person game. Immediate heel-to-sole contact, decays within 250 milliseconds, then silence. One foot landing only. No walking sequence, second step, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.45,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "ring",
+            "partials": [
+              310,
+              745,
+              1280
+            ],
+            "decay": 0.05,
+            "gain": 0.4
+          },
+          "gain": 0.4,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              150,
+              80
+            ],
+            "decay": 0.04,
+            "gain": 0.4
+          },
+          "gain": 0.4,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.22,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.13,
+      "peak_target": 0.68,
+      "normalization_gain": 0.3254273954325075,
+      "synthesis_seed": 3746798407,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Boot-on-steel clank pitched down and darkened into a dull plate clank, short low ring.",
+      "final_metrics": {
+        "duration_seconds": 0.22,
+        "peak": 0.44228652119636536,
+        "rms": 0.05737881210763469,
+        "peak_dbfs": -7.085925913455218,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.0001435349637720454,
+        "onset_seconds_2pct_peak": 0.0004375,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.145,
+        "rms_5ms_peak": 0.20567748518266682,
+        "rms_5ms_peak_at_seconds": 0.01,
+        "energy_seconds": {
+          "50": 0.016416666666666666,
+          "90": 0.03802083333333333,
+          "95": 0.057520833333333334,
+          "99": 0.1185625
+        },
+        "spectral_centroid_hz": 329.19610582854614,
+        "energy_band_percent": {
+          "0-120Hz": 21.334475327457472,
+          "120-1000Hz": 71.97636030032041,
+          "1000-5000Hz": 6.688539928401058,
+          "5000-24001Hz": 0.0006244438210702752
+        },
+        "boundary_step": 0.00010283777464792365,
+        "sample_step_99pct": 0.015073064565658578,
+        "first_20ms_rms": 0.14534292144427496,
+        "last_20ms_rms": 0.00016829658576415833,
+        "rms_5ms_coefficient_of_variation": 1.4055557089247952
+      }
+    },
+    {
+      "family": "attack",
+      "set": "armor",
+      "variant": 2,
+      "slot": "pickaxe.attack.armor.2",
+      "output": "public/assets/audio/weapons/knife/attack-armor-2.ogg",
+      "output_sha256": "8efb7365359c616d37499ac3db547ec3501241f7cf6ef0936ef9627ea2405bfe",
+      "layers": [
+        {
+          "source": "footsteps/step-metal-6",
+          "trim_seconds": [
+            0.035,
+            0.2
+          ],
+          "filters": "asetrate=37440,aresample=48000,highpass=f=90,lowpass=f=3200",
+          "source_sha256": "8104262e4565050264dd173218ff6a61fb8c5b1bcdd7132fa34216db5f6011a5",
+          "raw_sha256": "8eca0d039bf2062ed570a3aeccf5948a636494a695ace835fbb7287df794a64b",
+          "generation": {
+            "cue": "step-metal",
+            "created_at": "2026-09-15T22:41:43.233706+00:00",
+            "request_body": {
+              "text": "Studio Foley recording: after a brief silence, ONE boot firmly plants on a thick steel walkway: a firm boot clack with a short low metallic resonance, no high ringing. Heel and sole contact together as one compact percussive FOOTFALL, then quickly decay into silence. Clear tactile attack, realistic shoe texture. One event only. No walking sequence, dragging, bass drone, electronic tone, music or ambience.",
+              "duration_seconds": 1.0,
+              "prompt_influence": 0.45,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "10",
+            "request_id": null
+          },
+          "gain": 1,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "ring",
+            "partials": [
+              280,
+              690,
+              1190
+            ],
+            "decay": 0.055,
+            "gain": 0.45
+          },
+          "gain": 0.45,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              140,
+              75
+            ],
+            "decay": 0.045,
+            "gain": 0.45
+          },
+          "gain": 0.45,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.22,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.13,
+      "peak_target": 0.68,
+      "normalization_gain": 0.41041644039628106,
+      "synthesis_seed": 3286306971,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Clattering steel contact slowed and lowpassed; muted plate resonance.",
+      "final_metrics": {
+        "duration_seconds": 0.22,
+        "peak": 0.4816552996635437,
+        "rms": 0.06339124063466924,
+        "peak_dbfs": -6.345273136001438,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": 0.00019738663806555568,
+        "onset_seconds_2pct_peak": 0.0002916666666666667,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.14,
+        "rms_5ms_peak": 0.1781814310581658,
+        "rms_5ms_peak_at_seconds": 0.01,
+        "energy_seconds": {
+          "50": 0.017708333333333333,
+          "90": 0.07570833333333334,
+          "95": 0.08591666666666667,
+          "99": 0.12822916666666667
+        },
+        "spectral_centroid_hz": 659.9954242372576,
+        "energy_band_percent": {
+          "0-120Hz": 33.5253854704236,
+          "120-1000Hz": 43.112655335512464,
+          "1000-5000Hz": 23.083348997914626,
+          "5000-24001Hz": 0.27861019614932336
+        },
+        "boundary_step": 0.0010593369725029333,
+        "sample_step_99pct": 0.04162597760558134,
+        "first_20ms_rms": 0.15702891348640222,
+        "last_20ms_rms": 0.0003383157014263904,
+        "rms_5ms_coefficient_of_variation": 1.0940371210302562
+      }
+    },
+    {
+      "family": "attack",
+      "set": "backstab",
+      "variant": 1,
+      "slot": "pickaxe.attack.backstab.1",
+      "output": "public/assets/audio/weapons/knife/attack-backstab-1.ogg",
+      "output_sha256": "c736ad1e33782465f9d4e9ab87aa35db9970bc3f7eaacdc874af026af8488795",
+      "layers": [
+        {
+          "source": "hits/hithead-1",
+          "trim_seconds": [
+            0.04,
+            0.2
+          ],
+          "filters": "asetrate=38400,aresample=48000,highpass=f=90",
+          "source_sha256": "8f92d74fed72c827c4f212d4af5830473fb47e67933bac2708cf322a5f9eeada",
+          "raw_sha256": "076e471e9acdd878f144b2aed86e2a80d0f4c60aa8ae80d7866cff83946a46aa",
+          "generation": {
+            "cue": "hithead",
+            "created_at": "2026-09-07T23:18:20.662809+00:00",
+            "request_body": {
+              "text": "One hard bullet head impact for a realistic tactical shooter: a sharp close fleshy CRACK with a tight crunchy bone snap, dense short lower thump underneath and dry gritty high-frequency splatter. Forceful single compact impact, immediate attack and natural 120 ms decay. Real physical contact foley. No gun firing, no UI chirp, no beep, no music, no ringing bell, no metallic ricochet, no voice, no echo, no repeated impacts.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.8,
+          "delay_seconds": 0
+        },
+        {
+          "source": "dig/dig-gravel-2",
+          "trim_seconds": [
+            0.0,
+            0.16
+          ],
+          "filters": "asetrate=34560,aresample=48000,highpass=f=90",
+          "source_sha256": "dee1f531b46c232b541993ba5c32d3c922b67e5448c276ca053129c107f59c22",
+          "raw_sha256": "42334175220a98123d1dd6491ef632b33dd65d0328d7614c14ddbee101952951",
+          "generation": {
+            "cue": "dig-gravel",
+            "created_at": "2026-09-22T18:40:11.333823+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into loose gravel and packed dirt: a crunchy grainy scrunch of small pebbles and soil. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.6,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              120,
+              45
+            ],
+            "decay": 0.09,
+            "gain": 0.95
+          },
+          "gain": 0.95,
+          "delay_seconds": 0
+        },
+        {
+          "source": "hits/hitbody-3",
+          "trim_seconds": [
+            0.0,
+            0.2
+          ],
+          "filters": "asetrate=38400,aresample=48000,highpass=f=90",
+          "source_sha256": "32f3a092e43d9954976cbf7b050fea63d5ce9700d9b2b648f70c082041d5d193",
+          "raw_sha256": "07d42605563ec735eb70cfca674d56f70c91d5ad09fa01bb2434b284efaf22a7",
+          "generation": {
+            "cue": "hitbody",
+            "created_at": "2026-09-07T23:18:13.588887+00:00",
+            "request_body": {
+              "text": "One bullet striking a thick cloth ballistic vest over a body: a dry compact meaty THWAP, firm low-mid thud with a sharp leathery slap and tiny fabric crack. Close realistic tactical shooter impact foley, forceful immediate onset, rapid natural 100 ms decay. One single impact only. No firearm discharge, no UI tick, no musical tone, no beep, no wooden knock, no metal ringing, no echo, no voice, no music.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.6,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.3,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.17,
+      "peak_target": 0.72,
+      "normalization_gain": 0.30179402747559503,
+      "synthesis_seed": 3246835478,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Deep crunch: slowed bone cracks and gravel grit over the heaviest thump.",
+      "final_metrics": {
+        "duration_seconds": 0.3,
+        "peak": 0.4194510579109192,
+        "rms": 0.08298502951901619,
+        "peak_dbfs": -7.546374118360877,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -0.0005076971655328559,
+        "onset_seconds_2pct_peak": 0.00025,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.245,
+        "rms_5ms_peak": 0.19235773458486152,
+        "rms_5ms_peak_at_seconds": 0.02,
+        "energy_seconds": {
+          "50": 0.0351875,
+          "90": 0.10439583333333333,
+          "95": 0.135,
+          "99": 0.19145833333333334
+        },
+        "spectral_centroid_hz": 351.95069262970117,
+        "energy_band_percent": {
+          "0-120Hz": 85.82593322072816,
+          "120-1000Hz": 8.299788251082989,
+          "1000-5000Hz": 3.955811286620409,
+          "5000-24001Hz": 1.9184672415684587
+        },
+        "boundary_step": 0.0016301269206451252,
+        "sample_step_99pct": 0.051233874037861823,
+        "first_20ms_rms": 0.17934508789467982,
+        "last_20ms_rms": 0.0005042498265317398,
+        "rms_5ms_coefficient_of_variation": 0.9279743214201644
+      }
+    },
+    {
+      "family": "attack",
+      "set": "backstab",
+      "variant": 2,
+      "slot": "pickaxe.attack.backstab.2",
+      "output": "public/assets/audio/weapons/knife/attack-backstab-2.ogg",
+      "output_sha256": "504418c711bf2b34054148dc8d90586c846fc5ca54931f5a2225bec23a0d0217",
+      "layers": [
+        {
+          "source": "pickaxe-swing/knife-3",
+          "trim_seconds": [
+            0.0,
+            0.14
+          ],
+          "filters": "asetrate=40800,aresample=48000,highpass=f=90,lowpass=f=3000",
+          "source_sha256": "08bcfa9812f82e9c29e15c22387953771fe62757113628b0de0e08054e219aa5",
+          "raw_sha256": "6241ea5d0c56c64dd6366e50e58852f46da16bf594e2043039736c8983469e56",
+          "generation": {
+            "cue": "knife",
+            "created_at": "2026-09-07T23:18:00.162633+00:00",
+            "request_body": {
+              "text": "One forceful swing of a heavy pickaxe through air. Thick close rushing whoosh, fast downward chop, coarse wooden handle grip and restrained cloth friction. Starts moving immediately, strongest air rush after 90 ms, ends within 240 ms. Dry tactile melee foley, strong low-mid weight. No impact, no metallic ring, no whistle, no laser, no voices, music or ambience. One swing only.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.3,
+              "model_id": "eleven_text_to_sound_v2"
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.8,
+          "delay_seconds": 0
+        },
+        {
+          "source": "dig/dig-stone-2",
+          "trim_seconds": [
+            0.0,
+            0.2
+          ],
+          "filters": "asetrate=33600,aresample=48000,highpass=f=90",
+          "source_sha256": "885ad18a025b12ba9da8f17f25e3ef487cd3d8d7e8a26b3ee07bd5507147001b",
+          "raw_sha256": "564819d3d01d2cff81ff523f4fd0dffd76c03e8a88c13e6d590f76f9caafad3a",
+          "generation": {
+            "cue": "dig-stone",
+            "created_at": "2026-09-22T18:39:58.784521+00:00",
+            "request_body": {
+              "text": "Exactly ONE isolated iron pickaxe dig contact into solid stone: a crisp gritty rock tick and a short dry crumble of tiny stone grit. Close dry Foley for a blocky voxel mining game, crunchy and slightly lo-fi. Immediate attack, decays within 300 milliseconds, then silence. One hit only. No repeated hits, voices, music, ambience or reverberation.",
+              "duration_seconds": 0.5,
+              "prompt_influence": 0.5,
+              "model_id": "eleven_text_to_sound_v2",
+              "loop": false
+            },
+            "character_cost": "5",
+            "request_id": null
+          },
+          "gain": 0.5,
+          "delay_seconds": 0
+        },
+        {
+          "synth": {
+            "synth": "thud",
+            "hz": [
+              115,
+              42
+            ],
+            "decay": 0.095,
+            "gain": 0.95
+          },
+          "gain": 0.95,
+          "delay_seconds": 0
+        }
+      ],
+      "length_seconds": 0.3,
+      "fade_in_seconds": 0.0015,
+      "fade_out_seconds": 0.05,
+      "fade_out_curve": "quadratic",
+      "target_body_rms_40ms": 0.17,
+      "peak_target": 0.72,
+      "normalization_gain": 0.26365992328702464,
+      "synthesis_seed": 4243745276,
+      "sample_rate_hz": 48000,
+      "channels": 1,
+      "codec": "Opus",
+      "bitrate": "96k",
+      "selection_reason": "Chop thump with slowed stone crunch and a low body for a heavy wet crunch.",
+      "final_metrics": {
+        "duration_seconds": 0.3,
+        "peak": 0.3945193290710449,
+        "rms": 0.0784724751387202,
+        "peak_dbfs": -8.07863428238645,
+        "clipping_samples_at_0_999": 0,
+        "dc_mean": -4.419475939724767e-05,
+        "onset_seconds_2pct_peak": 0.00014583333333333335,
+        "onset_seconds_8pct_rms": 0.0,
+        "last_active_seconds_8pct_rms": 0.24,
+        "rms_5ms_peak": 0.20827503267256667,
+        "rms_5ms_peak_at_seconds": 0.005,
+        "energy_seconds": {
+          "50": 0.0303125,
+          "90": 0.10675,
+          "95": 0.13539583333333333,
+          "99": 0.201625
+        },
+        "spectral_centroid_hz": 326.5868247762903,
+        "energy_band_percent": {
+          "0-120Hz": 79.12668760357455,
+          "120-1000Hz": 16.317467434470153,
+          "1000-5000Hz": 2.920502629688824,
+          "5000-24001Hz": 1.6353423322664635
+        },
+        "boundary_step": 0.0033277901748078875,
+        "sample_step_99pct": 0.04027997031807902,
+        "first_20ms_rms": 0.18562526190708886,
+        "last_20ms_rms": 0.0007106015735173661,
+        "rms_5ms_coefficient_of_variation": 0.9454849018337453
+      }
+    }
+  ]
+}

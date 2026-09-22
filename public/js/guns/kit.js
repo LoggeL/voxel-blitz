@@ -39,11 +39,21 @@ const BLENDER_HAND_FRAMES = Object.freeze({
 });
 
 // Per-weapon palm-centre nudges where the shared anchor sheet was tuned for
-// the old box mitt rather than a wrapped fist: short revolver grip, knife
-// handle held at the anchor itself.
+// the old box mitt rather than a wrapped fist: short revolver grip; the IRON
+// PICK fist slides ~2.9 sprite pixels down the stick from HANDS.knife.grip, the
+// stick running through the curled fingers with a pixel of butt below them.
 const BLENDER_HAND_OFFSETS = Object.freeze({
   revolver: { grip: [-0.025, -0.045, 0.0] },
-  knife: { grip: [-0.015, 0.040, 0.0] },
+  knife: { grip: [-0.012, -0.100, 0.050] },
+});
+// Per-weapon glove scale: the one-handed pick reads as a big fist on a small item.
+const BLENDER_HAND_SCALES = Object.freeze({ knife: { grip: 1.3 } });
+
+// Per-weapon basis overrides. The IRON PICK stick leans 20 degrees forward of
+// vertical (models/iron-pickaxe.js PICKAXE_TILT), so the fist turns its wrap
+// axis onto the stick instead of the raked pistol grip (a 47 degree turn).
+const BLENDER_HAND_WEAPON_FRAMES = Object.freeze({
+  knife: { grip: { back: [0.926, 0.127, 0.349], fingers: [0.204, -0.333, -0.916] } },
 });
 
 // Character-skin palette keys per HANDS material (see cosmetics/skins.js);
@@ -53,7 +63,7 @@ const BLENDER_HAND_PALETTE = Object.freeze({
 });
 
 function orientBlenderHand(group, pose, weaponId) {
-  const frame = BLENDER_HAND_FRAMES[pose];
+  const frame = BLENDER_HAND_WEAPON_FRAMES[weaponId]?.[pose] || BLENDER_HAND_FRAMES[pose];
   const z = new THREE.Vector3().fromArray(frame.fingers).normalize().negate();
   const y = new THREE.Vector3().fromArray(frame.back);
   y.addScaledVector(z, -y.dot(z)).normalize();
@@ -218,6 +228,7 @@ export function makeKit(cache) {
       group.userData.blenderAsset = 'hands';
       group.userData.handPose = pose;
       if (mirror < 0) group.scale.x = -1;
+      group.scale.multiplyScalar(BLENDER_HAND_SCALES[weaponId]?.[pose] || 1);
       orientBlenderHand(group, pose, weaponId);
       for (const mesh of blenderNode.children) {
         for (const material of [].concat(mesh.material)) {

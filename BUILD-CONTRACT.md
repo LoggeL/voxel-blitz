@@ -241,7 +241,8 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
   top-level deliveries. Combat events remain:
   - `{t:'ev',kind:'shoot',id,o:[x,y,z],d:[x,y,z],w,spread:[x,y,z],charge?}`
     (`charge` only on `charge`-mode weapons)
-  - `{t:'ev',kind:'hit',attacker,victim,dmg,hs,vx,vy,vz}`
+  - `{t:'ev',kind:'hit',attacker,victim,dmg,hs,vx,vy,vz,w?,mk?,q?}` (`w` on
+    glaive and pickaxe hits; pickaxe hits add `mk` and `q`)
   - `{t:'ev',kind:'kill',killer,victim,w,hs}`
   - `{t:'ev',kind:'block',x,y,z,v:0,from}`; the same mutation appears in
     `tick.blocks` at `i=(y*SZ+z)*SX+x`
@@ -372,7 +373,7 @@ The slot roster is exactly
 | 6 `longarc` | LN-03 LONGARC | auto | 300 | 8/6 | 88→62 @ 95 | 2.00× | 1 | 1.60°/0.08° | 4.1 kg |
 | 7 `rocket` | RX-8 HAVOC | semi | 45 | 1/5 | projectile | 1.00× | 1 | 1.10°/0.25° | 9.6 kg |
 | 8 `lance` | CL-9 VOLTLANCE | charge | 100 | 4/5 | 130→95 @ 95 | 2.00× | 1 | 1.20°/0.05° | 3.8 kg |
-| 9 `knife` | K-7 RIPPER | melee | 120 | 0/0 | 58→58 (flat) | 1.00× | 1 | 0°/0° | 0.9 kg |
+| 9 `knife` | IRON PICK | melee | 120 | 0/0 | 58→58 (flat) | 1.00× | 1 | 0°/0° | 0.9 kg |
 | 10 `minigun` | M-6 FURNACE | auto | 1200 | 300/4 | 12→8 @ 70 | 1.70× | 1 | 1.35°/0.36° | 11.8 kg |
 | 11 `flamethrower` | F-4 FIRESTORM | auto | 1200 | 160/5 | 6→2 @ 28 | 1.00× | 1 | 0°/0° | 5.8 kg |
 | 12 `glaive` | GV-4 RIPTIDE | semi | 150 | 2 discs/0 | disc: out 54, back 72 | 1.50× | 1 | 1.20°/0.30° | 3.1 kg |
@@ -418,7 +419,7 @@ six bodies with `playerFalloff` 0.9. Terrain uses the material energy rules belo
 so wall count depends on hardness, remaining health, impact angle and charge.
 `chargeProfile` exposes `ms`, `holdMaxMs`, `minDamageMult` and `damageExponent`.
 
-The RIPPER (`knife`) is the `melee` mode: `magSize` 0 and `spareMags` 0 mean a
+The IRON PICK (`knife`) is the `melee` mode: `magSize` 0 and `spareMags` 0 mean a
 swing consumes no ammunition and the reload path never engages (`reloadPlan`
 seats 0 rounds). The swing arc (`melee.reach` 2.2, `melee.coneDeg` 110)
 replaces ballistics — no tracer, flat 58 damage with no falloff, `headMult` 1.0
@@ -426,6 +427,14 @@ so there are no headshots. Swings aimed at terrain mine the contacted block
 using its `MINING_HITS` count. When the strike lands from
 behind the victim's facing (`dot(victimForward, swingDir)` above
 `melee.backstabDot` 0.4) the damage multiplies by `melee.backstabMult` (2.5).
+A swing by an airborne, falling attacker (not swimming, climbing, vaulting,
+riding or prone) is a critical hit at `melee.critMult` 1.5; the multipliers never
+stack. Every non-lethal hit shoves the victim along the swing yaw through the
+impulse contract (`impulseSeq`): 4.5 m/s plus a 4.0 m/s hop, or 9.5 m/s plus
+6.0 m/s when the attacker sprints, halving the victim's own horizontal speed;
+large Bastion bodies resist by model scale and vehicles and objectives never
+move (`shared/melee.js`). The hit event carries `w:'knife'`, `mk` (`backstab` >
+`crit` > `knockback` > `strong`) and `q` (1 for the quick melee).
 
 ### shared/raycast.js
 `raycastVoxels(solidAt,ox,oy,oz,dx,dy,dz,maxDist)` returns
@@ -673,7 +682,9 @@ late join whose welcome/state is already live also proceeds directly.
   It builds ten procedural models — one `build()` per weapon id from the
   `guns/models/*.js` registry wired in `guns/assemble.js`, adding
   `models/lance.js` (cell whine, violet lance glow) and `models/knife.js`
-  (a compact blade with no reload or charge furniture). Its internal angular
+  (the IRON PICK: a 16x16 pixel sprite extruded 1 px thick, one merged mesh
+  per palette role, built by `models/iron-pickaxe.js`; no reload or charge
+  furniture). Its internal angular
   follower observes the
   completed camera orientation, caps weapon rotation speed and acceleration by
   `weightKg`, tightens toward the sight line with ADS, folds lag beyond its
@@ -858,7 +869,7 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   respawn. Players progress through the immutable shared order rifle, SMG,
   shotgun, sniper, LMG, flamethrower, rocket, longarc, RIPTIDE (glaive), lance,
   revolver, minigun, knife; a kill with
-  the RIPPER knife wins. The winner is shown during `post` (40% human approval + `5000 ms`)
+  the IRON PICK wins. The winner is shown during `post` (40% human approval + `5000 ms`)
   before progression and scores reset.
 - **Search and Destroy (`snd`):** persistent `alpha`/`bravo` teams map to
   attackers/defenders, friendly fire is disabled, and roles swap after 6

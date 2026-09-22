@@ -427,6 +427,7 @@ class Game {
       world: this._world,
       respawnLocal: (row) => this.respawnLocal(row),
       onLocalMine: () => this.rig?.pickaxeContact(),
+      onLocalMeleeHit: () => this.rig?.pickaxeContact(),
       onLocalFlinch: (strength) => this.rig?.flinch(strength),
       onLocalDeath: (_transition, killerId) => {
         this.weapon?.deathReset();

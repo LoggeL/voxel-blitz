@@ -14,7 +14,7 @@ export const GLYPH = Object.freeze({
   longarc: 'LA',
   rocket: 'RKT',
   lance: 'VL',
-  knife: 'PX',
+  knife: 'PK',
   flamethrower: 'FLM',
   grenade: 'GRN',
   glaive: 'GV',
@@ -31,7 +31,7 @@ export const WEAPON_NAMES = Object.freeze({
   longarc: 'LN-03 LONGARC',
   rocket: 'RX-8 HAVOC',
   lance: 'CL-9 VOLTLANCE',
-  knife: 'PIXEL PICK',
+  knife: 'IRON PICK',
   flamethrower: 'F-4 FIRESTORM',
   glaive: 'GV-4 RIPTIDE',
 });

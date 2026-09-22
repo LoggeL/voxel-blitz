@@ -191,6 +191,7 @@ export class WeaponState {
       charge01: def.mode === 'charge'
         ? (this._chargeStart === null ? 0 : chargeFromHold(def, now - this._chargeStart))
         : null,
+      melee01: this._meleeReady01(def, now),
       glaive: def.glaive ? {
         discs: ammo.mag,
         magSize: def.magSize,
@@ -199,6 +200,17 @@ export class WeaponState {
         returning: this._glaiveReturn !== null,
       } : null,
     };
+  }
+
+  /**
+   * IRON PICK attack indicator: 0 right after a swing (or a draw / quick hit),
+   * 1 once the next swing is accepted. Reads the same timers that gate
+   * _tryMeleeFire, whose cadence is the authoritative 60/rpm.
+   */
+  _meleeReady01(def, now) {
+    if (def.mode !== 'melee') return null;
+    const wait = Math.max(this._nextFireAt || 0, this._deployUntil || 0, this._quickMeleeUntil || 0) - now;
+    return Math.max(0, Math.min(1, 1 - wait / (60000 / def.rpm)));
   }
 
   /**
@@ -554,6 +566,8 @@ export class WeaponState {
       this._nextFireAt = Math.max(this._nextFireAt, this._quickMeleeUntil);
       this._quickMeleeRequest = { yaw: this._yaw, pitch: this._pitch };
       this._audio.fire('knife');
+      // The quick hit punches the view like a drawn swing, a little lighter.
+      this.shakeView(WEAPONS.knife, now, 0.6);
     }
     if (now < this._quickMeleeUntil) return false;
     this._flameFrameAt = now;
@@ -661,10 +675,10 @@ export class WeaponState {
   }
 
   /**
-   * Melee (K-7 RIPPER): a swing is free — no magazine, no reload, no ballistics.
+   * Melee (IRON PICK): a swing is free — no magazine, no reload, no ballistics.
    * A tap edge or a held trigger swings on the rpm cadence alone; the reach cone
-   * (and its backstab multiplier) is resolved by the authority, so the client
-   * only replays the standard fire feedback: rig kick, report, and recoil.
+   * (and its backstab/crit/knockback kinds) is resolved by the authority, so the
+   * client only replays the swing, the report and the view punch.
    */
   _tryMeleeFire(now, def, weaponId) {
     const input = this._pendingShotIntent;

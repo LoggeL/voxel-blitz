@@ -2,6 +2,8 @@ import { sfx } from '../audio/sfx.js';
 import { BUILTIN_SAMPLE_MANIFEST } from '../audio/samples.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { FOOTSTEP_SLOTS, gaitPhaseRate, footstepVolume, SPRINT_SPEED } from '../audio/footsteps.js';
+import { PICKAXE_ATTACK_KINDS, PICKAXE_ATTACK_SLOTS, PICKAXE_DIG_MATERIALS, PICKAXE_DIG_SLOTS } from '../audio/pickaxe.js';
+import { GLASS, GRASS, METAL, MC_GRAVEL, MC_WOOL_WHITE, PLANK, SAND, STONE } from '../../../shared/world/blocks.js';
 
 const status = document.getElementById('status');
 const volume = document.getElementById('volume');
@@ -14,7 +16,8 @@ let loading;
 let generation = 0;
 let waveformCount = 0;
 let waveformFailures = 0;
-const featuredCueCount = 28 + Object.values(FOOTSTEP_SLOTS).flat().length;
+const featuredCueCount = 29 + PICKAXE_DIG_MATERIALS.length + PICKAXE_ATTACK_KINDS.length
+  + Object.values(FOOTSTEP_SLOTS).flat().length;
 
 for (const [control, suffix, factor] of [[volume, '%', 100], [distance, ' m', 1], [charge, '%', 100]]) {
   control.addEventListener('input', () => {
@@ -352,8 +355,49 @@ card(newCues, WEAPONS.knife.name, 'A weighty air swing. Stone contact and fragme
 ]);
 card(newCues, 'Pickaxe swing, variation 2', 'Alternate air movement used during repeated swings.', 'weapons.knife.fire.2', []);
 for (let variant = 1; variant <= 2; variant++) card(newCues, `Pickaxe stone contact, variation ${variant}`,
-  'Dry steel contact and stone grit. The game uses one recording per accepted hit.',
+  'Dry steel contact and stone grit. Fallback when a block\'s dig take is unavailable.',
   variant === 1 ? 'pickaxe.impact' : 'pickaxe.impact.2', []);
+// Per-material dig takes: quiet low hits while mining, full take on the break.
+const DIG_PREVIEW = {
+  stone: [STONE, 'Crisp gritty tick; concrete, brick, cobble, ores.'],
+  wood: [PLANK, 'Hollow knock; planks, logs, crates, siding, plastic slides.'],
+  gravel: [MC_GRAVEL, 'Crunchy grains; gravel, dirt and clay.'],
+  grass: [GRASS, 'Soft rustle-thud; grass, leaves, TNT.'],
+  sand: [SAND, 'Soft hiss-crunch; sand.'],
+  cloth: [MC_WOOL_WHITE, 'Muffled puff; wool, cloud, cactus, sandbags.'],
+  glass: [GLASS, 'Bright tink while mining, a shatter on the break; glass and glowstone.'],
+  metal: [METAL, 'Ringing clank; steel, vehicle panels, iron, gold and diamond blocks.'],
+};
+function digSequence(material) {
+  stopLoops(); const token = generation;
+  const [type] = DIG_PREVIEW[material];
+  for (let i = 0; i < 5; i++) later(() => {
+    if (generation !== token) return;
+    sfx.fire('knife'); sfx.mine(type, i === 4, [0, 0, -Number(distance.value)]);
+  }, i * 500);
+  status.textContent = `Pickaxe ${material}: four mining hits and the break at 120 RPM`;
+}
+for (const material of PICKAXE_DIG_MATERIALS) {
+  const [type, detail] = DIG_PREVIEW[material];
+  card(newCues, `Dig: ${material} (${PICKAXE_DIG_SLOTS[material].length} takes)`, detail, PICKAXE_DIG_SLOTS[material][0], [
+    button('Mining hit', () => { sfx.mine(type, false, [0, 0, -Number(distance.value)]); status.textContent = `Pickaxe ${material}: mining hit`; }),
+    button('Break', () => { sfx.mine(type, true, [0, 0, -Number(distance.value)]); status.textContent = `Pickaxe ${material}: break`; }),
+    button('Mine it', () => digSequence(material), true),
+  ]);
+}
+card(newCues, 'Dig: glass shatter', 'The breaking strike on glass swaps the tink for a shatter.', 'pickaxe.break.glass.1', []);
+const ATTACK_PREVIEW = {
+  strong: 'Meaty thud with an iron edge: a plain pickaxe hit.',
+  crit: 'Falling critical hit: a sharper, heavier crunch with a bright sparkle.',
+  knockback: 'Sprint hit: the thud trails a whoosh as the target is shoved.',
+  backstab: 'Heavy crunch for a hit from behind.',
+  armor: 'Dull plate clank when armour absorbs the whole hit.',
+};
+for (const kind of PICKAXE_ATTACK_KINDS) card(newCues, `Pickaxe hit: ${kind} (${PICKAXE_ATTACK_SLOTS[kind].length} takes)`,
+  ATTACK_PREVIEW[kind], PICKAXE_ATTACK_SLOTS[kind][0], [
+    button('Own hit', () => { sfx.fire('knife'); sfx.meleeHit({ kind, local: true }); status.textContent = `Pickaxe ${kind} hit: in the head`; }),
+    button('Remote hit', () => { sfx.meleeHit({ kind, pos: [0, 0, -Number(distance.value)] }); status.textContent = `Pickaxe ${kind} hit at ${distance.value} m`; }),
+  ]);
 card(newCues, WEAPONS.minigun.name, 'Three dry, weighty discharge variations, with a low mechanical rotor texture.', 'weapons.minigun.fire', [
   button('One shot', () => playWeapon('minigun')),
   button('Rotor only', () => minigunCycle(), true),

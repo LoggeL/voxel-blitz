@@ -32,7 +32,7 @@ export function buildBastionArmory(root, purchase, close, onSelectStructure = nu
     for(const id of values) { const option = el('option','',select); option.value=id; option.textContent=names[id]||id; }
     select.onchange = ()=>purchase(key,select.value); selectors[key]=select;
   }
-  el('p','vb-bastion-info',panel).textContent = `Revolver + Pixel Pick + one smoke included. Hold ${bindingLabel('interact')} next to the objective for ${BASTION_RULES.repairMs / 1000} seconds to repair ${BASTION_RULES.repairHp} HP ($${BASTION_RULES.repairPrice}, ${TIMES[BASTION_RULES.repairLimit] ?? `${BASTION_RULES.repairLimit} times`} per break).`;
+  el('p','vb-bastion-info',panel).textContent = `Revolver + Iron Pick + one smoke included. Hold ${bindingLabel('interact')} next to the objective for ${BASTION_RULES.repairMs / 1000} seconds to repair ${BASTION_RULES.repairHp} HP ($${BASTION_RULES.repairPrice}, ${TIMES[BASTION_RULES.repairLimit] ?? `${BASTION_RULES.repairLimit} times`} per break).`;
   el('h3','vb-bastion-section',panel).textContent = 'TEAM UPGRADES';
   const grid = el('div','vb-bastion-upgrades',panel), cards = {};
   for(const [id,item] of Object.entries(BASTION_SHOP)) {

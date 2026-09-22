@@ -1,14 +1,18 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import {
-  PICKAXE_SWING_SLOTS, PICKAXE_IMPACT_SLOTS,
-  pickaxeSampleChoice, pickaxeMaterial, renderPickaxeContact,
+  PICKAXE_SWING_SLOTS, PICKAXE_IMPACT_SLOTS, PICKAXE_DIG_MATERIALS, PICKAXE_DIG_SLOTS, PICKAXE_BREAK_SLOTS,
+  PICKAXE_ATTACK_KINDS, PICKAXE_ATTACK_SLOTS, PickaxeDigVariations,
+  pickaxeSampleChoice, pickaxeMaterial, pickaxeDigMaterial, renderPickaxeContact, renderMeleeHitFallback,
 } from '../public/js/audio/pickaxe.js';
+import { BUILTIN_SAMPLE_MANIFEST } from '../public/js/audio/samples.js';
+import * as BLOCK from '../shared/world/blocks.js';
 import {
   GRASS, DIRT, SAND, WOOD, LEAVES, PLANK, DUST_CRATE, DUST_WOOD,
   METAL, ACCENT, RUST, BUS_YELLOW, TRUCK_RED, GLASS, STONE,
   BRICK, POOL_PANEL, MC_LEAVES, MC_GHOST_PLANKS, MC_GHOST_STONE,
 } from '../shared/world/blocks.js';
-import * as BLOCK from '../shared/world/blocks.js';
 import { blockSoundFor } from '../public/js/weapons/impacts.js';
 import { footstepMaterial } from '../public/js/audio/footsteps.js';
 
@@ -110,6 +114,100 @@ for (const material of ['stone', 'soft', 'metal', 'glass']) {
 }
 
 console.log('Pickaxe audio: swing/impact rotation, material classification, single attack, metal ring, debris tails and routing passed.');
+
+// Block-game dig groups: every block lands in one bank, ghosts sound like their solid.
+const digGroups = {
+  stone: ['STONE', 'CONCRETE', 'BRICK', 'ASPHALT', 'DUST_ROCK', 'MC_STONE', 'MC_COBBLE', 'MC_OBSIDIAN',
+    'MC_NETHERRACK', 'MC_COAL_ORE', 'MC_FURNACE', 'POOL_TILE_BLUE', 'BEDROCK'],
+  wood: ['WOOD', 'PLANK', 'DUST_CRATE', 'TEAL_SIDING', 'MC_LOG', 'MC_PLANKS', 'MC_BOOKSHELF', 'MC_CHEST', 'SLIDE_BLUE'],
+  grass: ['GRASS', 'LEAVES', 'MC_GRASS', 'MC_LEAVES', 'MC_TNT'],
+  gravel: ['DIRT', 'MC_DIRT', 'MC_GRAVEL', 'MC_CLAY'],
+  sand: ['SAND', 'MC_SAND'],
+  cloth: ['MC_WOOL_WHITE', 'MC_WOOL_RED', 'MC_CLOUD', 'MC_CACTUS', 'BARRICADE'],
+  glass: ['GLASS', 'MC_GLASS', 'MC_GLOWSTONE'],
+  metal: ['METAL', 'ACCENT', 'RUST', 'BUS_YELLOW', 'MC_IRON', 'MC_GOLD', 'MC_DIAMOND', 'POOL_PANEL'],
+};
+for (const [material, names] of Object.entries(digGroups)) {
+  for (const name of names) assert.equal(pickaxeDigMaterial(BLOCK[name]), material, `${name} digs like ${material}`);
+}
+for (const [ghost, solid] of Object.entries(BLOCK.MC_GHOST_SOLID)) {
+  assert.equal(pickaxeDigMaterial(Number(ghost)), pickaxeDigMaterial(solid), `ghost ${ghost} digs like its solid`);
+}
+for (let type = 1; type <= 85; type++) assert.ok(PICKAXE_DIG_MATERIALS.includes(pickaxeDigMaterial(type)));
+assert.equal(pickaxeDigMaterial(9999), 'stone');
+
+// Take choice: never the same take twice in a row per material; mining hits
+// are quiet and pitched down, the breaking strike is full; glass shatters.
+let seed = 7;
+const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+const variations = new PickaxeDigVariations();
+for (const material of PICKAXE_DIG_MATERIALS) {
+  let previous = null;
+  const seen = new Set();
+  for (let i = 0; i < 40; i++) {
+    const hit = variations.dig(material, false, random);
+    assert.ok(PICKAXE_DIG_SLOTS[material].includes(hit.slot) && hit.slot !== previous, `${material} no-repeat`);
+    assert.ok(hit.gain < 0.5 && hit.rate >= 0.76 && hit.rate <= 0.94, `${material} mining hit is low and quiet`);
+    previous = hit.slot;
+    seen.add(hit.slot);
+  }
+  assert.equal(seen.size, PICKAXE_DIG_SLOTS[material].length, `${material} rotates through every take`);
+  const broken = variations.dig(material, true, random);
+  assert.ok(broken.gain === 1 && broken.rate >= 0.96 && broken.rate <= 1.04, `${material} break is full level`);
+  assert.ok((PICKAXE_BREAK_SLOTS[material] || PICKAXE_DIG_SLOTS[material]).includes(broken.slot));
+}
+assert.ok(PICKAXE_BREAK_SLOTS.glass.includes(variations.dig('glass', true, random).slot), 'glass shatters on break');
+assert.ok(PICKAXE_DIG_SLOTS.glass.includes(variations.dig('glass', true, random,
+  (slot) => !slot.startsWith('pickaxe.break')).slot), 'an unloaded shatter falls back to the glass dig take');
+assert.equal(variations.dig('stone', false, random, () => false), null, 'nothing loaded leaves the legacy contact chain');
+assert.equal(variations.dig('lava', false, random).material, 'stone');
+for (const kind of PICKAXE_ATTACK_KINDS) {
+  const a = variations.attack(kind, random);
+  const b = variations.attack(kind, random);
+  assert.ok(PICKAXE_ATTACK_SLOTS[kind].includes(a.slot) && a.slot !== b.slot, `${kind} attack no-repeat`);
+  assert.ok(a.rate >= 0.97 && a.rate <= 1.03);
+}
+assert.equal(variations.attack('nope', random).kind, 'strong');
+assert.equal(variations.attack('crit', random, () => false).slot, null);
+for (const kind of PICKAXE_ATTACK_KINDS) {
+  const primitives = recorder();
+  renderMeleeHitFallback('out', primitives, kind);
+  assert.ok(primitives.calls.length >= 2 && primitives.calls.every(({ out, g }) => out === 'out' && g > 0),
+    `${kind} procedural fallback is audible and routed`);
+  if (kind === 'crit') assert.ok(primitives.calls.filter(({ f0 }) => f0 > 3000).length >= 3, 'crit sparkles');
+  if (kind === 'armor') assert.ok(primitives.calls.filter(({ type }) => type === 'sine').length === 3, 'armor rings');
+}
+
+// Listen-free QA on the shipped takes: receipt hashes match the files and the
+// decoded metrics keep each material/kind in its own character.
+const receipt = JSON.parse(readFileSync(new URL('../public/assets/audio/elevenlabs-pickaxe-dig-sources.json', import.meta.url)));
+const bySlot = new Map(receipt.selections.map((entry) => [entry.slot, entry]));
+const banks = [...Object.values(PICKAXE_DIG_SLOTS), ...Object.values(PICKAXE_BREAK_SLOTS),
+  ...Object.values(PICKAXE_ATTACK_SLOTS)].flat();
+assert.equal(receipt.selections.length, banks.length, 'one receipt entry per shipped take');
+for (const slot of banks) {
+  const entry = bySlot.get(slot);
+  assert.ok(entry, `${slot} has a receipt`);
+  assert.equal(`/${entry.output.replace(/^public\//, '')}`, BUILTIN_SAMPLE_MANIFEST[slot], `${slot} ships its file`);
+  const bytes = readFileSync(new URL(`../${entry.output}`, import.meta.url));
+  assert.equal(createHash('sha256').update(bytes).digest('hex'), entry.output_sha256, `${slot} matches its receipt`);
+  const m = entry.final_metrics;
+  assert.ok(m.onset_seconds_2pct_peak <= 0.006 && m.peak <= 0.75 && m.clipping_samples_at_0_999 === 0
+    && m.last_20ms_rms < 0.004 && m.duration_seconds <= (slot.includes('break') ? 0.62 : 0.46), `${slot} metrics`);
+}
+const mean = (slots, key) => slots.reduce((sum, slot) => sum + key(bySlot.get(slot).final_metrics), 0) / slots.length;
+const centroid = (slots) => mean(slots, (m) => m.spectral_centroid_hz);
+assert.ok(centroid(PICKAXE_DIG_SLOTS.cloth) < 600, 'wool digs as a muffled puff');
+assert.ok(centroid(PICKAXE_DIG_SLOTS.cloth) < centroid(PICKAXE_DIG_SLOTS.wood)
+  && centroid(PICKAXE_DIG_SLOTS.wood) < centroid(PICKAXE_DIG_SLOTS.stone), 'cloth < wood < stone brightness');
+assert.ok(centroid(PICKAXE_DIG_SLOTS.wood) < 1800, 'wood is a hollow knock');
+assert.ok(centroid(PICKAXE_BREAK_SLOTS.glass) > centroid(PICKAXE_DIG_SLOTS.glass)
+  && centroid(PICKAXE_DIG_SLOTS.glass) > centroid(PICKAXE_DIG_SLOTS.metal), 'glass tinks bright and shatters brighter');
+assert.ok(centroid(PICKAXE_ATTACK_SLOTS.crit) > 1.5 * centroid(PICKAXE_ATTACK_SLOTS.strong), 'crit carries a sparkle');
+assert.ok(centroid(PICKAXE_ATTACK_SLOTS.backstab) < centroid(PICKAXE_ATTACK_SLOTS.crit), 'backstab is the heavy crunch');
+assert.ok(mean(PICKAXE_ATTACK_SLOTS.knockback, (m) => m.energy_seconds['90'])
+  > mean(PICKAXE_ATTACK_SLOTS.strong, (m) => m.energy_seconds['90']), 'knockback trails a whoosh');
+console.log('Pickaxe dig/attack banks: block-game material groups, no-repeat hit/break choice, glass shatter, fallbacks and shipped-take metrics passed.');
 
 const { CombatFeedback } = await import('../public/js/combat/feedback.js');
 const played = [];

@@ -338,7 +338,11 @@ export class AvatarRoster {
       avatar.group.position.set(remote.x,
         remote.y + cadence * stride * 0.025 * (1 - avatar.motion.air) * (1 - (avatar.swimPose || 0)) + (avatar.swimBob || 0),
         remote.z);
-      const pickaxe = this._pickaxeSwings.has(remote.id);
+      const pickaxeUntil = this._pickaxeSwings.get(remote.id);
+      const pickaxe = pickaxeUntil !== undefined;
+      // Chop clock: every swing event restarts one quick-melee window, so its
+      // start is the expiry minus that window.
+      avatar.weaponModel.meleeSwing = pickaxe ? (now - pickaxeUntil) / 1000 + QUICK_MELEE_SECONDS : null;
       updateAvatarWeaponPose(avatar, {
         attachments: remote.attachments,
         weapon: pickaxe ? WEAPON_IDS.indexOf('knife') : remote.weapon,

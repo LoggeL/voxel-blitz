@@ -3,7 +3,9 @@ import { sfx } from '../audio/sfx.js';
 import { BUILTIN_SAMPLE_MANIFEST, LocalSampleBank } from '../audio/samples.js';
 import { VoicePool } from '../audio/voices.js';
 import { MINIGUN_REPORT_SLOTS } from '../audio/minigun-motor.js';
-import { PICKAXE_SWING_SLOTS, PICKAXE_IMPACT_SLOTS } from '../audio/pickaxe.js';
+import {
+  PICKAXE_ATTACK_KINDS, PICKAXE_ATTACK_SLOTS, PICKAXE_BREAK_SLOTS, PICKAXE_DIG_SLOTS, PICKAXE_SWING_SLOTS,
+} from '../audio/pickaxe.js';
 import { PAIN_SAMPLE_SLOTS } from '../audio/pain-moans.js';
 import { auditBufferPeak, recordedTailComplete } from './audio-source-audit.js';
 import { FOOTSTEP_SURFACES, FOOTSTEP_SLOTS, gaitPhaseRate, SPRINT_SPEED } from '../audio/footsteps.js';
@@ -334,33 +336,52 @@ async function main() {
       `${label}: preserves local or world audio routing`);
   }
   const pickaxeSwingUrls = PICKAXE_SWING_SLOTS.map((slot) => BUILTIN_SAMPLE_MANIFEST[slot]);
-  const pickaxeImpactUrls = PICKAXE_IMPACT_SLOTS.map((slot) => BUILTIN_SAMPLE_MANIFEST[slot]);
+  const urlsOf = (slots) => slots.map((slot) => BUILTIN_SAMPLE_MANIFEST[slot]);
   check(weaponResults.knife.trace.sources.length === 1
     && pickaxeSwingUrls.includes(weaponResults.knife.trace.sources[0].sample),
   'A missed pickaxe swing has one air recording and no impact or synthetic tick');
-  for (const [type, material] of [[3, 'stone'], [5, 'wood'], [8, 'metal'], [11, 'glass']]) {
-    const strike = await cue(`Pickaxe ${material} contact`, [[0, () => sfx.mine(type, false, [0, 0, -2])]]);
-    check(strike.trace.sources.filter((source) => pickaxeImpactUrls.includes(source.sample)).length === 1,
-      `Pickaxe ${material} contact starts one recorded impact`);
+  // Each block plays its own material's dig take: low and quiet while mining, full on the break.
+  for (const [type, material] of [[3, 'stone'], [10, 'wood'], [42, 'gravel'], [1, 'grass'], [4, 'sand'],
+    [50, 'cloth'], [11, 'glass'], [8, 'metal']]) {
+    const strike = await cue(`Pickaxe ${material} mining hit`, [[0, () => sfx.mine(type, false, [0, 0, -2])]]);
+    check(strike.trace.sources.length === 1 && urlsOf(PICKAXE_DIG_SLOTS[material]).includes(strike.trace.sources[0].sample)
+      && strike.trace.sources[0].rate >= 0.76 && strike.trace.sources[0].rate <= 0.94
+      && recordedTailComplete(strike.trace.sources[0], RATE),
+    `Pickaxe ${material} mining hit plays one complete, pitched-down ${material} dig take`);
     check(strike.trace.acquisitions.every((entry) => entry.positional),
       `Pickaxe ${material} contact retains its world position`);
+    const broken = await cue(`Pickaxe ${material} break`, [[0, () => sfx.mine(type, true, [0, 0, -2])]]);
+    check(broken.trace.sources.length === 1
+      && urlsOf(PICKAXE_BREAK_SLOTS[material] || PICKAXE_DIG_SLOTS[material]).includes(broken.trace.sources[0].sample)
+      && broken.trace.sources[0].rate >= 0.96 && broken.trace.sources[0].rate <= 1.04
+      && recordedTailComplete(broken.trace.sources[0], RATE),
+    `Pickaxe ${material} break plays one full ${material === 'glass' ? 'shatter' : 'dig'} take and no debris layer`);
   }
-  const pickaxeBreak = await cue('Pickaxe stone break', [[0, () => sfx.mine(3, true, [0, 0, -2])]]);
-  check(pickaxeBreak.trace.sources.filter((source) => pickaxeImpactUrls.includes(source.sample)).length === 1
-    && pickaxeBreak.trace.sources.filter((source) => source.sample === 'procedural noise').length === 3,
-  'A mined block breaks with one recorded contact and three bounded debris grains');
+  for (const kind of PICKAXE_ATTACK_KINDS) {
+    for (const local of [true, false]) {
+      const hit = await cue(`Pickaxe ${kind} hit (${local ? 'own' : 'remote'})`,
+        [[0, () => sfx.meleeHit({ kind, local, pos: [0, 0, -2] })]]);
+      check(hit.trace.sources.length === 1 && urlsOf(PICKAXE_ATTACK_SLOTS[kind]).includes(hit.trace.sources[0].sample)
+        && recordedTailComplete(hit.trace.sources[0], RATE)
+        && hit.trace.acquisitions.every((entry) => entry.positional === !local),
+      `Pickaxe ${kind} hit plays one complete attack take ${local ? 'in the head' : 'at the victim'}`);
+    }
+  }
   const miningName = 'Pickaxe, four-second mining at 120 RPM';
   const mining = await renderScenario(miningName, Array.from({ length: 8 }, (_, index) => [index * 0.5, () => {
     sfx.fire('knife'); sfx.mine(3, index === 5, [0, 0, -2]);
   }]), 4.6);
   cues[miningName] = mining.metrics;
   audible(mining, miningName, 55);
+  const stoneUrls = urlsOf(PICKAXE_DIG_SLOTS.stone);
+  const contacts = mining.trace.sources.filter((source) => stoneUrls.includes(source.sample));
   check(pickaxeSwingUrls.every((url) => mining.trace.sources.filter((source) => source.sample === url).length === 4)
-    && pickaxeImpactUrls.every((url) => mining.trace.sources.filter((source) => source.sample === url).length === 4),
-  'Four seconds of mining plays eight swings and eight contacts across both variations');
-  check(mining.trace.sources.filter((source) => source.sample !== 'procedural noise')
-    .every((source) => source.rate >= 0.93 && source.rate <= 1.04 && recordedTailComplete(source, RATE)),
-  'Mining variations keep natural pitch and finish every recorded tail');
+    && contacts.length === 8 && contacts.every((source, i) => i === 0 || source.sample !== contacts[i - 1].sample)
+    && mining.trace.sources.length === 16,
+  'Four seconds of mining plays eight swings and eight stone dig takes, never the same take twice in a row');
+  check(contacts.every((source, i) => (i === 5 ? source.rate >= 0.96 && source.rate <= 1.04
+    : source.rate >= 0.76 && source.rate <= 0.82) && recordedTailComplete(source, RATE)),
+  'Mining hits sit pitched down, the break near recorded pitch, and every recorded tail finishes');
   check(regionRms(mining.data, 4.1, 4.55) < 0.00001,
     'Mining reaches silence after the last contact without a hanging tail');
   for (const headshot of [false, true]) {

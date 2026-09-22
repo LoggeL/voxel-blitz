@@ -72,6 +72,8 @@ Object.assign(sfx, {
   hitmark: (headshot) => calls.push(`hit:${headshot}`),
   killConfirm: (headshot) => calls.push(`kill:${headshot}`),
   fire: (weapon) => calls.push(weapon),
+  mine: (type, broken) => calls.push(`mine:${type}:${broken}`),
+  meleeHit: ({ kind, local }) => calls.push(`melee:${kind}:${local}`),
   stopFlame: () => calls.push('fade'),
   stopFlames: () => { throw new Error('Preview release must fade, not dispose the flame graph.'); },
 });
@@ -117,6 +119,12 @@ try {
   await document.getElementById('stop-loops').dispatch('click');
   assert.equal(calls.at(-1), 'stop-moans');
   assert.equal(timers.size, 0, 'Stop cancels the cadence and current moan');
+  await findButton('Break').dispatch('click');
+  assert.equal(calls.at(-1), 'mine:3:true', 'the first dig card breaks a stone block through the game facade');
+  await findButton('Own hit').dispatch('click');
+  assert.deepEqual(calls.slice(-2), ['knife', 'melee:strong:true'], 'own pickaxe hit pairs the swing with the attack cue');
+  assert.equal(elements.filter((element) => element.tagName === 'h3' && /^(Dig|Pickaxe hit): /.test(element.textContent)).length,
+    14, 'one preview card per dig material, the glass shatter and each attack kind');
 } finally {
   Object.assign(sfx, previousSfx);
   for (const [key, descriptor] of savedGlobals) {
@@ -124,4 +132,4 @@ try {
     else delete globalThis[key];
   }
 }
-console.log('Audio preview: loading cancellation, fresh playback, held release, sample handoff and blur fade passed.');
+console.log('Audio preview: loading cancellation, fresh playback, held release, sample handoff, blur fade and pickaxe dig/attack cards passed.');

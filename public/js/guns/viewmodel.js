@@ -21,7 +21,11 @@ import { ViewmodelArms } from './viewmodel-arms.js';
 import { ThrowableHands } from './throwable-hands.js';
 import { MedkitHands } from './medkit-hands.js';
 import { QUICK_MELEE_SECONDS } from '../../../shared/quick-melee.js';
-import { PICKAXE_SWING_SECONDS as SWING_S, PICKAXE_CARRY_YAW, PICKAXE_CARRY_ROLL, pickaxeSwingPose } from './pickaxe-swing.js';
+import { PICKAXE_SWING_SECONDS as SWING_S, pickaxeSwingPose } from './pickaxe-swing.js';
+
+// Quick melee (V) presentation inside QUICK_MELEE_SECONDS: the pick pulls in
+// from below, swings, stows; the returning weapon then rises (cosmetic only).
+const QUICK_IN_S = 0.08, QUICK_OUT_S = 0.14, QUICK_RETURN_S = 0.14;
 
 // Weapons with a running motor: its 0..1 level drives the hold's machine tremor.
 // The rotary barrel reads the authoritative spin; the RIPTIDE flywheel reads the
@@ -86,7 +90,9 @@ export class ViewmodelRig {
     this._nadeThrowT = 0;               // seconds left in the throw lunge
     this._flinchPending = 0;            // latched startle strength, landed in update()
     this._swingT = 0;                   // seconds left in the pickaxe chop (T.melee only)
-    this._swingContact = false;          // accepted contact for this swing
+    this._swingContact = false;          // accepted contact for this swing: false or the progress it arrived at
+    this._swingPose = {};                // reused pickaxeSwingPose output
+    this._quickReturnT = 0;              // seconds left in the post-quick-melee weapon rise
     this._chargeT = 0;                  // held capacitor charge 0..1 (coil glow floor + squeeze)
     this._lean = { p: 0, v: 0 };        // lagged lateral lean (m) from strafing, mass-scaled
     this._surge = { p: 0, v: 0 };       // lagged fore/aft surge (m) from acceleration
@@ -176,6 +182,7 @@ export class ViewmodelRig {
   /** Lazily builds `id`, swaps visibility, resets transient motion state, replays equip dip. */
   setWeapon(id) {
     this._quickMelee = null;
+    this._quickReturnT = 0;
     this._swap = null;
     this._swapDraw = false;
     const key = TIMERS[id] ? id : 'rifle';                           // forgiving: bad key stays playable
@@ -220,6 +227,8 @@ export class ViewmodelRig {
 
   quickMelee() {
     if (!this._cur || this.grenadeActive || this._swap || this._quickMelee) return false;
+    // The pick is already in hand: V is one plain swing, no stow-and-raise dip.
+    if (this._id === 'knife') return this.fire();
     const weapon = this._id;
     this.setWeapon('knife');
     this._depT = 1;
@@ -230,13 +239,17 @@ export class ViewmodelRig {
 
   cancelQuickMelee() {
     if (!this._quickMelee) return;
+    if (this._quickMelee.weapon === 'knife') { this._quickMelee = null; return; }
     this.setWeapon(this._quickMelee.weapon);
     this._depT = 1;
+    this._quickReturnT = QUICK_RETURN_S;
   }
 
-  /** Only accepted local contacts add the wrist rebound; misses follow through. */
+  /** Only accepted local contacts (block or player) add the wrist rebound; misses follow through. */
   pickaxeContact() {
-    if (this._id === 'knife' && this._swingT > 0) this._swingContact = true;
+    if (this._id === 'knife' && this._swingT > 0 && this._swingContact === false) {
+      this._swingContact = 1 - this._swingT / SWING_S;
+    }
   }
   /** A nearby crack startles the hold. Latched: the impulse lands in update()
    * under ADS damping and reduced-motion suppression, like every other layer. */
@@ -694,13 +707,30 @@ export class ViewmodelRig {
     const nadeRx = -0.14 * wind - 0.16 * lunge + Math.sin(this._now * 53) * 0.018 * strain;
     const nadeRz = 0.20 * wind + 0.08 * lunge;
 
-    // The pickaxe carries at a side angle and chops inward around the palm.
+    // The pick rides in the diagonal carry and chops down-inward about the fist.
     let swingX = 0, swingY = 0, swingZ = 0, swingRx = 0, swingRy = 0, swingRz = 0;
-    if (this._swingT > 0) {
-      this._swingT = Math.max(0, this._swingT - elapsed);
-      const pose = pickaxeSwingPose(1 - this._swingT / SWING_S, this._swingContact);
+    if (this._swingT > 0) this._swingT = Math.max(0, this._swingT - elapsed);
+    if (this._id === 'knife') {
+      const pose = pickaxeSwingPose(this._swingT > 0 ? 1 - this._swingT / SWING_S : 1, this._swingContact,
+        this._swingPose, this.camera?.aspect);
       swingX = pose.x; swingY = pose.y; swingZ = pose.z;
       swingRx = pose.rx; swingRy = pose.ry; swingRz = pose.rz;
+    }
+    // Quick melee: pull in from below, stow before the timer ends, then the
+    // returning weapon rises. Never gates fire; the timers stay authoritative.
+    let quickDip = 0;
+    if (this._quickMelee && this._id === 'knife') {
+      const t = QUICK_MELEE_SECONDS - this._quickMelee.remaining;
+      quickDip = Math.max(1 - this._smooth01(Math.min(1, t / QUICK_IN_S)),
+        this._smooth01(Math.max(0, Math.min(1, (t - QUICK_MELEE_SECONDS + QUICK_OUT_S) / QUICK_OUT_S))));
+    }
+    if (this._quickReturnT > 0) {
+      this._quickReturnT = Math.max(0, this._quickReturnT - elapsed);
+      quickDip = Math.max(quickDip, (this._quickReturnT / QUICK_RETURN_S) ** 2);
+    }
+    if (quickDip > 0) {
+      swingX += 0.08 * quickDip; swingY -= 0.34 * quickDip; swingZ += 0.08 * quickDip;
+      swingRx -= 0.55 * quickDip; swingRz -= 0.30 * quickDip;
     }
 
     /* sprint cant + counter-roll + inertia roll composition */
@@ -748,12 +778,15 @@ export class ViewmodelRig {
       HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0) + glaivePush
     );
     this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22,
-      swingRy + (this._id === 'knife' ? PICKAXE_CARRY_YAW : 0) + (dep.ry || 0) + (actionMotion.yaw || 0),
-      swingRz + (this._id === 'knife' ? PICKAXE_CARRY_ROLL : 0) + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0) + swimCarry * 0.06);
+      swingRy + (dep.ry || 0) + (actionMotion.yaw || 0),
+      swingRz + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0) + swimCarry * 0.06);
+    this.content.scale.setScalar(this._id === 'knife' ? this._swingPose.s || 1 : 1);   // narrow-screen pick framing
 
     /* arms: two-bone reach from each glove back to the player's own shoulders.
        Runs after the pose is composed, so it reads the final hand transforms. */
     this._arms.update(cur, viewPitch, this.content.visible);
+    // The narrow-screen pick shrinks its fist; the sleeve thins with it so the cuff never swallows the glove.
+    for (const arm of this._arms.arms) arm.segments.forearm.scale.x = arm.segments.forearm.scale.y = this.content.scale.x;
 
     /* shader slot decays: fast capacitor pop, slower ember heat (tau 0.6s per spec) */
     this._decayFx(dt, cur);

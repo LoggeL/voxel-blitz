@@ -32,6 +32,19 @@ import { GrenadePouchController } from './grenade-pouch.js';
 import { FLAME_RULES } from '../../../shared/flame-rules.js';
 
 const EMPTY_READ_MODEL = Object.freeze({ dead: false, painImpulse: 0 });
+// IRON PICK attack indicator: a 16-step pixel bar (Minecraft's 16-texel
+// cooldown bar) and a pixel pick that pops when the next swing is ready.
+const MELEE_STEPS = 16;
+const MELEE_MARK_MS = 280;
+const MELEE_READY_PIXELS = [
+  ['#dfe4e8', [[1, 0], [2, 0], [3, 0], [4, 0], [5, 1], [6, 1], [6, 2], [7, 3], [7, 4], [8, 5]]],
+  ['#8e979e', [[2, 1], [3, 1], [4, 1], [5, 2], [6, 3], [7, 5]]],
+  ['#9a6b3a', [[4, 3], [3, 4], [2, 5], [1, 6], [0, 7]]],
+  ['#5e4125', [[5, 3], [4, 4], [3, 5], [2, 6], [1, 7]]],
+];
+const MELEE_READY_SVG = `<svg viewBox="0 0 9 8" shape-rendering="crispEdges" aria-hidden="true">${
+  MELEE_READY_PIXELS.map(([fill, cells]) => cells.map(([x, y]) =>
+    `<rect x="${x}" y="${y}" width="1" height="1" fill="${fill}"/>`).join('')).join('')}</svg>`;
 // Grenade HUD pulse windows (ms); the CSS animations run inside them.
 const GRENADE_DENIED_MS = 150;
 const GRENADE_THROWN_MS = 120;
@@ -140,6 +153,13 @@ export class GameplayHud {
     d.chDiscs = el('div', 'vb-ch-discs', d.ch);
     d.chDiscs.setAttribute('aria-hidden', 'true');
     d.chDiscs.hidden = true;
+    // IRON PICK attack indicator under the reticle (hidden with it while aiming).
+    d.meleeMeter = el('div', 'vb-melee-meter', d.ch, 'melee-meter');
+    d.meleeMeter.setAttribute('role', 'meter');
+    d.meleeMeter.setAttribute('aria-label', 'Pickaxe swing ready');
+    d.meleeMeterFill = el('i', '', el('span', 'vb-melee-track', d.meleeMeter));
+    d.meleeReady = el('span', 'vb-melee-ready', d.meleeMeter);
+    d.meleeReady.innerHTML = MELEE_READY_SVG;
     // Breath meter: only while aiming, shows the hold-breath window draining.
     d.breath = el('div', 'vb-breath-meter', hud, 'breath-meter');
     d.breathFill = el('i', '', d.breath);
@@ -486,8 +506,11 @@ export class GameplayHud {
     const opticText = `${s.wname || WEAPONS[key]?.name || ""} · ${s.opticName || "Factory optic"}`;
     if (opticLabel && opticLabel.textContent !== opticText) opticLabel.textContent = opticText;
     this.setBreath(s, alive, adsT);
+    this.setMeleeMeter(s, alive);
     this.setConditionMeters(s, alive);
-    this.hideCrosshairForAds(!alive || adsT > 0.35);
+    // The pick has no sight (its ADS pose sits off the aim axis): keep the
+    // crosshair and the attack meter up while it zooms.
+    this.hideCrosshairForAds(!alive || (adsT > 0.35 && WEAPONS[key]?.mode !== 'melee'));
     if (alive !== painted.alive) {
       painted.alive = alive;
       d.ch.classList.toggle('vb-dead', !alive);
@@ -534,6 +557,52 @@ export class GameplayHud {
     }
     const hint = holding ? 'STEADYING' : (s.breathExhausted ? 'RECOVERING' : `${bindingLabel('sprint')} · STEADY YOURSELF`);
     if (d.breathHint.textContent !== hint) d.breathHint.textContent = hint;
+  }
+
+  /**
+   * Attack indicator: `melee01` is the weapon state's swing readiness (null
+   * unless the pick is drawn). The bar shows while recharging, draws included
+   * (Minecraft's swap cooldown); only a swing's recharge pops the ready pick.
+   */
+  setMeleeMeter(s, alive) {
+    const d = this.dom;
+    if (!d.meleeMeter) return;
+    const painted = this._painted;
+    const value = alive && s.melee01 != null && Number.isFinite(Number(s.melee01)) ? clamp01(s.melee01) : null;
+    const step = value === null ? -1 : Math.floor(value * MELEE_STEPS + 1e-6);
+    if (step !== painted.meleeStep) {
+      const charging = step >= 0 && step < MELEE_STEPS;
+      d.meleeMeter.classList.toggle('is-charging', charging);
+      // A full -> charging drop is a swing; the pop plays only when that swing's
+      // recharge fills, never after a draw or respawn recharge.
+      if (painted.meleeStep === MELEE_STEPS && charging) painted.meleeSwung = true;
+      else if (step < 0) painted.meleeSwung = false;
+      if (charging) d.meleeMeter.classList.remove('is-ready');
+      else if (step === MELEE_STEPS && painted.meleeSwung) {
+        d.meleeMeter.classList.add('is-ready');
+        painted.meleeSwung = false;
+      } else d.meleeMeter.classList.remove('is-ready');
+      if (charging) d.meleeMeterFill.style.transform = `scaleX(${step / MELEE_STEPS})`;
+      d.meleeMeter.setAttribute('aria-valuenow', String(Math.max(0, step)));
+      painted.meleeStep = step;
+    }
+    if (this._meleeMarkUntil && performance.now() >= this._meleeMarkUntil) this._clearMeleeMark();
+  }
+
+  /** Heavier hitmarker for a pickaxe hit; `kind` tints it (crit, backstab, armor, knockback). */
+  meleeHitmark(kind = 'strong') {
+    const hm = this.dom.hitmarker;
+    if (!hm) return;
+    this._clearMeleeMark();
+    hm.classList.add('vb-melee', `vb-melee-${kind}`);
+    this._meleeMark = kind;
+    this._meleeMarkUntil = performance.now() + MELEE_MARK_MS;
+  }
+
+  _clearMeleeMark() {
+    if (this._meleeMark) this.dom.hitmarker?.classList.remove('vb-melee', `vb-melee-${this._meleeMark}`);
+    this._meleeMark = null;
+    this._meleeMarkUntil = 0;
   }
 
   /** Optic magnification label inside the scope overlay (zoom steps change it live). */

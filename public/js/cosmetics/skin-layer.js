@@ -44,6 +44,12 @@ export class SkinLayer {
           if (typeof paint === 'object') {
             if (paint.roughness !== undefined) mat.roughness = paint.roughness;
             if (paint.metalness !== undefined) mat.metalness = paint.metalness;
+            // A self-lit accent never takes the hit flash (see applyAvatarCosmetics).
+            if (paint.emissive !== undefined && mat.emissive) {
+              mat.emissive.setHex(paint.emissive);
+              mat.emissiveIntensity = paint.emissiveIntensity ?? 1;
+              mat.userData.cosmeticGlow = true;
+            }
           }
           this.clones.set(original, mat);
           this.materials.add(mat);

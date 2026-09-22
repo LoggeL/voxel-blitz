@@ -20,6 +20,7 @@ export function createSimulationContexts(engine) {
     get blockHp() { return engine.blockHp; },
     get blockMining() { return engine.blockMining; },
     get flames() { return engine.flames; },
+    get mapMeta() { return engine.mapMeta; },
     solidAt: engine.solidAt,
     getBlock: (x, y, z) => engine.world.getBlock(x, y, z),
     setBlock: (x, y, z, value) => engine.world.setBlock(x, y, z, value),

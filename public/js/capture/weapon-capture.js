@@ -7,6 +7,7 @@ import { buildAtlas } from '../engine/atlas.js';
 import { RailBeamFX } from '../weapons/rail-beam.js';
 import { FlameFX } from '../weapons/flame.js';
 import { ViewmodelRig } from '../guns/viewmodel.js';
+import { PICKAXE_LIFT_AT, PICKAXE_STRIKE_AT, PICKAXE_SWING_SECONDS } from '../guns/pickaxe-swing.js';
 import { createSniperScope } from '../ui/sniper-scope.js';
 
 const params = new URLSearchParams(location.search);
@@ -110,7 +111,8 @@ for (let frame = 0; frame < 300; frame++) rig.update(1 / 60, stablePose);
 
 if (state.startsWith('pickaxe-')) {
   rig.fire();
-  const seconds = state === 'pickaxe-lift' ? 0.15 : 0.27;
+  // Named swing phases: the cocked anticipation and the head crossing the aim point.
+  const seconds = (state === 'pickaxe-lift' ? PICKAXE_LIFT_AT : PICKAXE_STRIKE_AT) * PICKAXE_SWING_SECONDS;
   for (let frame = 0; frame < Math.round(seconds * 100); frame++) rig.update(0.01, stablePose);
 }
 if (state.startsWith('mining-')) {
@@ -122,6 +124,9 @@ if (state.startsWith('mining-')) {
   const fx = new ImpactFX(scene, camera, () => 3);
   fx.mine({ x: -1, y: 1, z: -3, nx: 0, ny: 0, nz: 1, from: 3,
     progress });
+  // Chips are only written into the instance matrices by update(); a few
+  // frames show them leaving the face.
+  for (let frame = 0; frame < 4; frame++) fx.update(1 / 60);
 }
 
 if (state.startsWith('swap-')) {

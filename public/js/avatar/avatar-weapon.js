@@ -8,6 +8,7 @@ import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { SWIM } from '../../../shared/player-stance.js';
 import { buildGun, disposeGunModels } from '../guns/assemble.js';
 import { HANDS } from '../guns/defs.js';
+import { pickaxeChopPitch } from '../guns/pickaxe-swing.js';
 import { MaterialCache } from '../guns/kit.js';
 
 const BASE_POSITION = new THREE.Vector3(0.15, 1.30, -0.21);
@@ -16,6 +17,7 @@ const ADS_SIGHT_X = 0.055;
 const ADS_SIGHT_Y = 1.62;
 const ADS_DEPTH_OFFSET = -0.045;
 const MAX_PITCH = (80 * Math.PI) / 180;
+const X_AXIS = new THREE.Vector3(1, 0, 0);
 // Remote RIPTIDE discs: without their authoritative flight the mount assumes the natural
 // return (out leg plus the curve home, measured at about 1.45 s) and replays the catch.
 // Lost-event guard only: remote discs resolve from the authoritative explode/stock events.
@@ -64,7 +66,10 @@ export class AvatarWeaponModel {
     this._model = null;
     this._weaponId = null;
     this._recoil = 0;
-    this._stab = 0;        // smoothed 0..1 melee stab lunge weight (T.melee bundles only)
+    // Seconds since this carrier's current IRON PICK swing started (null = none).
+    // Set by the roster from the swing event clock; drives the overhead chop.
+    this.meleeSwing = null;
+    this._chopGrip = new THREE.Vector3();
     this._flash = 0;
     this._ads = 0;
     this._reload = 0;      // smoothed 0..1 reload pose weight
@@ -169,8 +174,8 @@ export class AvatarWeaponModel {
     animateHeavyWeapon(this._model.body, { dt: frameDt, time: this._machineTime,
       minigun: minigun || { spin: firing ? 1 : 0, heat: 0 },
       flameActive: this._weaponId === 'flamethrower' && !!firing });
-    // Melee (T.melee): the firing pulse drives a forward stab, not a recoil shove, and
-    // the assembled flash stub stays dark — a blade neither flashes nor kicks.
+    // Melee (T.melee): the swing clock drives an overhead chop about the fist, not a
+    // recoil shove, and the assembled flash stub stays dark — a pick neither flashes nor kicks.
     if (this._weaponId === 'glaive') this._animateGlaive(frameDt, !!firing, glaive);
     const melee = this._model.T.melee === true;
     const continuous = this._model.T.continuous === true;
@@ -180,10 +185,7 @@ export class AvatarWeaponModel {
     const blend = 1 - Math.exp(-frameDt * (firing ? 28 : 16 / Math.sqrt(kickScale)));
     this._recoil += ((firing && !melee ? continuous ? 0.12 : 1 : 0) - this._recoil) * blend;
     this._flash = melee || continuous ? 0 : (firing ? 1 : Math.max(0, this._flash - frameDt / 0.065));
-    // Stab envelope mirrors the recoil pulse: fast exp attack (full lunge over ~0.12s of
-    // held firing), slower exp settle once the swing flag drops.
-    const stabBlend = 1 - Math.exp(-frameDt * (firing ? 22 : 10));
-    this._stab += ((firing ? 1 : 0) - this._stab) * stabBlend;
+    const chop = melee ? pickaxeChopPitch(this.meleeSwing) : 0;
     const adsTime = Math.max(0.05, WEAPONS[this._weaponId]?.adsTime || 0.16);
     const adsBlend = 1 - Math.exp(-frameDt * 3 / adsTime);
     this._ads += (((ads && !reloading) ? 1 : 0) - this._ads) * adsBlend;
@@ -194,14 +196,13 @@ export class AvatarWeaponModel {
     const deploy = this._deployDur > 0 ? this._deployT / this._deployDur : 0;
     // Draw raise lives on the model root, so the mount/sight contract stays intact
     // and an aimed weapon is never held below its sight line.
-    const raise = deploy * deploy * (1 - this._ads);
+    const raise = chop ? 0 : deploy * deploy * (1 - this._ads);
     const reloadPulse = Math.sin(Math.PI * ((this._reloadT / 0.9) % 1));
     const crouch = clamp01(crouchT) * (1 - prone);
     const aimPitch = Math.max(-MAX_PITCH, Math.min(MAX_PITCH, Number(pitch) || 0));
     const hip = this._profile.hip;
     const aimed = this._profile.ads;
     const recoil = melee ? 0 : this._recoil * kickScale;
-    const stab = melee ? this._stab : 0;
     // Swimming carries the gun low and canted at the hip; aiming lifts it back
     // to the sight line, so the arm zones keep covering the settled mount.
     const carry = clamp01(swim) * (1 - this._ads) * (1 - prone);
@@ -209,16 +210,24 @@ export class AvatarWeaponModel {
       THREE.MathUtils.lerp(hip.x, aimed.x, this._ads) - this._reload * 0.02 + swimSway * SWIM.sway * carry,
       THREE.MathUtils.lerp(hip.y, aimed.y, this._ads) - crouch * 0.29 - prone * 1.14 +
         Math.abs(swing) * stride * 0.012 - this._reload * 0.07 - SWIM.weaponDip * carry,
-      THREE.MathUtils.lerp(hip.z, aimed.z, this._ads) + recoil * 0.035 - stab * 0.15 +
-      this._reload * 0.03,
+      THREE.MathUtils.lerp(hip.z, aimed.z, this._ads) + recoil * 0.035 + this._reload * 0.03,
     );
     this.root.rotation.set(
-      aimPitch * (1 - this._reload * 0.6) + recoil * 0.045 - stab * 0.09 - this._reload * 0.42 -
+      aimPitch * (1 - this._reload * 0.6) + recoil * 0.045 - this._reload * 0.42 -
         SWIM.weaponPitch * carry,
       this._reload * 0.18,
       -swing * stride * 0.025 * (1 - this._ads * 0.72) + this._reload * 0.28 +
         (SWIM.weaponRoll + swimSway * 0.04) * carry,
     );
+    if (chop) {
+      // Rx(chop) premultiplies the mount rotation; shift the mount so the fist
+      // (HANDS.knife.grip) stays put and the solved arms follow the chop exactly.
+      const g = this._chopGrip.copy(this._profile.hands.grip).multiplyScalar(MODEL_SCALE)
+        .applyEuler(this.root.rotation);
+      this.root.position.add(g);
+      this.root.position.sub(g.applyAxisAngle(X_AXIS, chop));
+      this.root.rotation.x += chop;
+    }
     this._model.root.position.y = -raise * 0.14;
     this._model.root.rotation.x = -raise * 0.5;
     this._model.bolt.position.z = continuous || this._weaponId === 'minigun' ? 0 : recoil * this._model.T.boltTravel * 0.55;
@@ -287,7 +296,6 @@ export class AvatarWeaponModel {
     this._glaiveOut = [];
     this._glaiveFiring = false;
     this._recoil = 0;
-    this._stab = 0;
     this._flash = 0;
     this._ads = 0;
     this._reload = 0;

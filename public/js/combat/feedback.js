@@ -118,6 +118,7 @@ export class CombatFeedback {
     respawnLocal,
     onLocalDeath,
     onLocalMine,
+    onLocalMeleeHit,
     onLocalFlinch,
   }) {
     this.effects = effects;
@@ -135,12 +136,27 @@ export class CombatFeedback {
     this.respawnLocal = respawnLocal;
     this.onLocalDeath = onLocalDeath;
     this.onLocalMine = onLocalMine;
+    this.onLocalMeleeHit = onLocalMeleeHit;
     this.onLocalFlinch = onLocalFlinch;
 
     this._disposed = false;
     this._presentedDeaths = new WeakSet();
     this._minedBreak = null;
     this._lastBulletFlybyAt = -Infinity;
+  }
+
+  /**
+   * Melee hit presentation. Kind is the server's `mk` (strong|crit|knockback|
+   * backstab); a swing fully absorbed by armor (no health damage) is 'armor'.
+   */
+  meleeHit(ev, myId = this.getMyId(), localVictim = ev.victim === myId) {
+    const armor = Number.isFinite(ev.healthDamage) && ev.healthDamage <= 0;
+    const kind = armor ? 'armor' : (typeof ev.mk === 'string' ? ev.mk : 'strong');
+    const local = ev.attacker === myId || localVictim;
+    this.sfx.meleeHit?.({ kind, pos: impactPosition(ev), local });
+    if (!localVictim) this.effects.impacts?.meleeHit?.(ev, kind);   // never in the victim's own eyes
+    if (ev.attacker === myId) this.onLocalMeleeHit?.(ev);
+    return kind;
   }
 
   handleEvent(ev) {
@@ -213,11 +229,14 @@ export class CombatFeedback {
         this.effects.impact(ev);
         // A RIPTIDE cut: steel slice, with the ring on a headshot.
         if (ev.w === 'glaive') this.sfx.glaiveCue?.('slice', { pos: impactPosition(ev), head: !!ev.hs });
+        // An IRON PICK hit: attack cue per kind, crit stars and the wrist rebound.
+        const meleeKind = ev.w === 'knife' ? this.meleeHit(ev, myId, localVictim) : null;
         if (ev.attacker === myId && !localVictim) {
           const visible = this.isImpactVisible(ev);
           if (visible) {
             this.hud.hitmark(ev.hs ? 'head' : 'body');
             this.sfx.hitmark(ev.hs);
+            if (meleeKind) this.hud.gameplay?.meleeHitmark?.(meleeKind);
           }
           this.spawnDamageNumber(ev, visible);
         }
@@ -261,8 +280,9 @@ export class CombatFeedback {
           this.world.applyDeltas([{ x: ev.x, y: ev.y, z: ev.z, v: nextType }]);
         }
         if (nextType === 0 && fromType !== 0) {
-          this.effects.explodeBlock(ev.x, ev.y, ev.z, fromType);
+          // A pick break already threw its block-chip shower and break sound.
           if (!minedBreak || minedBreak.x !== ev.x || minedBreak.y !== ev.y || minedBreak.z !== ev.z) {
+            this.effects.explodeBlock(ev.x, ev.y, ev.z, fromType);
             this.sfx.impact(this.blockSound(fromType), 0.8, [ev.x, ev.y, ev.z]);
           }
         }
@@ -364,9 +384,11 @@ export class CombatFeedback {
       ? hit.painImpulse
       : { intensity: hit.painImpulse, angleDeg });
     const healthDamage = Number.isFinite(hit.healthDamage) ? hit.healthDamage : hit.damage;
+    // An IRON PICK hit was already voiced by its attack cue (meleeHit).
+    const voiced = ev.w === 'knife';
     if (healthDamage > 0) {
       this.effects.gore(ev, { lethal: false, local: true });
-      this.sfx.impact('flesh', Math.min(0.5, healthDamage / 60), null);
+      if (!voiced) this.sfx.impact('flesh', Math.min(0.5, healthDamage / 60), null);
       this.sfx.pain({
         damage: healthDamage,
         headshot: ev.hs,
@@ -374,7 +396,7 @@ export class CombatFeedback {
         pos: impactPosition(ev),
         local: true,
       });
-    } else {
+    } else if (!voiced) {
       this.sfx.impact('metal', Math.min(0.35, hit.damage / 80), null);
     }
     return true;

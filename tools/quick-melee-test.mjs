@@ -142,6 +142,9 @@ for (const blocked of ['vault', 'deploy', 'dead', 'grenade', 'mode']) {
   Object.assign(v, { x: h.p.x, y: h.p.y, z: h.p.z - 1.3, yaw: Math.PI, pitch: 0 });
   h.tap(); assert.equal(v.hp, 100 - combatDamage(WEAPONS.knife.damage[0]), 'nearby enemy takes pickaxe damage');
   assert.equal(h.events.some(e => e.kind === 'mine'), false, 'enemy hit takes priority over mining');
+  const tagged = h.events.find(e => e.kind === 'hit');
+  assert.deepEqual([tagged.w, tagged.mk, tagged.q], ['knife', 'strong', 1], 'quick pick hits carry the pickaxe cue tag');
+  assert.equal(v.impulseSeq, 1, 'the quick pick shoves like any pickaxe hit');
   updateTimers(h.p, 0.61); h.blocks.set('20,16,22', STONE); h.tap();
   assert.equal(v.hp, 100 - combatDamage(WEAPONS.knife.damage[0]), 'wall blocks melee damage');
 }

@@ -6,6 +6,7 @@ import { rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { chaosShot, chaosHit } from './chaos-combat.js';
 import { chaosWeaponDef } from '../../shared/chaos.js';
 import { QUICK_MELEE_SECONDS } from '../../shared/quick-melee.js';
+import { meleeHitProfile, meleeDamage, applyMeleeKnockback } from '../../shared/melee.js';
 // Authoritative weapon intent, ballistics, and destructible-block damage.
 // The caller owns world/entity state and exposes only the narrow operations
 // needed by this hot path through `ctx`.
@@ -13,7 +14,7 @@ import { QUICK_MELEE_SECONDS } from '../../shared/quick-melee.js';
 import { BULLET_RULES, bulletPower, bulletMaterialImpact, voxelExitDistance } from '../../shared/bullet-material.js';
 import { MINING_HITS } from '../../shared/world/blocks.js';
 import { weaponSwapProfile } from '../../shared/weapon-swap.js';
-import { AIR, BEDROCK, GLASS, LEAVES, BLOCK_HP } from '../../shared/worlddata.js';
+import { AIR, BEDROCK, GLASS, LEAVES, BLOCK_HP, ladderContact } from '../../shared/worlddata.js';
 import {
   CONDITION_RULES,
   WEAPONS,
@@ -119,7 +120,7 @@ export function resolveWeaponIntent(p, dt, ctx) {
     p.adsT = 0;
     p.quickMeleeT = QUICK_MELEE_SECONDS;
     p.cooldown = Math.max(p.cooldown, QUICK_MELEE_SECONDS);
-    meleeSwing(p, ctx, chaosWeaponDef(p, WEAPONS.knife), quickAim);
+    meleeSwing(p, ctx, chaosWeaponDef(p, WEAPONS.knife), quickAim, true);
   }
   if (p.quickMeleeT > 0) {
     p.fireEdgeQueued = false;
@@ -228,7 +229,7 @@ function resolveChargeIntent(p, dt, inp, fireEdge, ctx) {
 }
 
 /**
- * Melee weapons (PIXEL PICK): every swing is free — no magazine, no reload — so
+ * Melee weapons (IRON PICK): every swing is free — no magazine, no reload — so
  * the press edge or a held trigger swings at the rpm cadence alone. A short
  * reach cone replaces ballistics entirely (see `meleeSwing`).
  */
@@ -242,11 +243,13 @@ function resolveMeleeIntent(p, inp, fireEdge, ctx) {
  * Resolve one accepted swing: the single best-angle living victim inside
  * `melee.reach` (center distance + victim radius) and the `melee.coneDeg` arc,
  * with voxel line of sight from the shooter's eye, takes the hit. A victim
- * facing along the swing direction beyond `melee.backstabDot` is a backstab.
- * Damage flows through the same body-hit event path as `fireOneShot` — kill
- * credit included. Swings without an unobstructed victim mine the aimed block.
+ * facing along the swing direction beyond `melee.backstabDot` is a backstab; a
+ * falling attacker crits and every hit shoves the victim along the swing yaw,
+ * hard when sprinting (shared/melee.js). Damage flows through the same body-hit
+ * event path as `fireOneShot` — kill credit included — tagged `w`/`mk`/`q` for
+ * the pickaxe hit cues. Swings without an unobstructed victim mine the block.
  */
-function meleeSwing(p, ctx, def = p.def, aim = p) {
+function meleeSwing(p, ctx, def = p.def, aim = p, quick = false) {
   const melee = def.melee;
   p.spawnProtectedUntil = 0;
   p.spawnProtected = false;
@@ -305,10 +308,15 @@ function meleeSwing(p, ctx, def = p.def, aim = p) {
   const victim = best.victim;
   const vFwd = fwdFromYawPitch(victim.yaw, victim.pitch);
   const backstab = vFwd.x * dirX + vFwd.y * dirY + vFwd.z * dirZ > melee.backstabDot;
-  const dmg = combatDamage(Math.round(def.damage[0] * (backstab ? melee.backstabMult : 1) * 10) / 10);
+  const hit = meleeHitProfile(def, p, { backstab, ladder: ladderContact(ctx.mapMeta, p.x, p.y, p.z) });
+  const dmg = meleeDamage(def, hit.mult);
   const lethal = victim.takeDamage(dmg, false, p, def.id);
-  ctx.pushEvent(evHit(p.id, victim.id, dmg, false, [victim.x, victim.eyeY, victim.z], victim.lastDamage));
+  // `w`/`mk`/`q` let clients pick the pickaxe attack cue; fully armored hits keep
+  // the lastDamage fields, from which the client derives the armor clank.
+  ctx.pushEvent(Object.assign(evHit(p.id, victim.id, dmg, false, [victim.x, victim.eyeY, victim.z],
+    victim.lastDamage), { w: 'knife', mk: hit.kind, q: quick ? 1 : 0 }));
   if (lethal) ctx.killPlayer(victim, p, def.id, false);
+  else applyMeleeKnockback(victim, aim.yaw, hit.knockback);
 }
 
 /** Accepted swings leave shared damage on the block until it is replaced. */

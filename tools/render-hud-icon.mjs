@@ -3,7 +3,8 @@
 // headlessly (the same assemble.js the viewmodel uses), then flat-shaded and z-buffered by
 // a tiny orthographic software rasterizer and written as an RGBA PNG.
 // The Blender-imported weapons use the browser renderer to preserve their
-// generated maps.
+// generated maps; the procedural IRON PICK (knife slot) is flat pixel colour and
+// uses the rasterizer.
 //
 //   node tools/render-hud-icon.mjs --weapon rocket
 //   node tools/render-hud-icon.mjs --all [--out-dir DIR] [--width 480] [--height 240]
@@ -15,6 +16,7 @@ import * as THREE from '../public/js/vendor/three.module.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
 import { buildGun } from '../public/js/guns/assemble.js';
 import { GLOW_ACCENT, MaterialCache } from '../public/js/guns/kit.js';
+import { PICKAXE_TILT } from '../public/js/guns/models/iron-pickaxe.js';
 import { renderBlenderHud } from './blender/render-hud.mjs';
 
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -23,7 +25,7 @@ const DEFAULT_OUT_DIR = path.join(PROJECT_ROOT, 'public', 'assets', 'weapons', '
 const BLENDER_HUD_ASSETS = Object.freeze({
   rifle: 'kestrel', smg: 'wasp', shotgun: 'mastiff', sniper: 'peregrine',
   lmg: 'bison', revolver: 'fang', rocket: 'torch', longarc: 'halo',
-  lance: 'pike', flamethrower: 'ifrit', minigun: 'hydra', knife: 'talon', glaive: 'skua',
+  lance: 'pike', flamethrower: 'ifrit', minigun: 'hydra', glaive: 'skua',
 });
 const SUPERSAMPLE = 3;
 const MARGIN = 1.06;
@@ -62,8 +64,8 @@ function collectTriangles(root, accent) {
   const triangles = [];
   const vertex = new THREE.Vector3();
   root.updateMatrixWorld(true);
-  root.traverse((object) => {
-    if (!object.isMesh || !object.visible) return;
+  root.traverseVisible((object) => {
+    if (!object.isMesh) return;
     const material = Array.isArray(object.material) ? object.material[0] : object.material;
     if (!material || material.transparent || material.isShaderMaterial) return;
     const geometry = object.geometry;
@@ -155,6 +157,9 @@ function rasterize(triangles, width, height) {
   return rgba;
 }
 
+/** three.js colours are linear; encode the shaded result for an sRGB PNG. */
+const toSrgb = (v) => (v <= 0.0031308 ? v * 12.92 : 1.055 * v ** (1 / 2.4) - 0.055);
+
 /** Box-filter downsample with premultiplied-alpha averaging so edges stay clean. */
 function downsample(rgba, width, height, factor) {
   const outW = width / factor;
@@ -175,9 +180,9 @@ function downsample(rgba, width, height, factor) {
       }
       const o = (y * outW + x) * 4;
       if (a > 0) {
-        out[o] = Math.round(Math.min(1, r / a) * 255);
-        out[o + 1] = Math.round(Math.min(1, g / a) * 255);
-        out[o + 2] = Math.round(Math.min(1, b / a) * 255);
+        out[o] = Math.round(toSrgb(Math.min(1, r / a)) * 255);
+        out[o + 1] = Math.round(toSrgb(Math.min(1, g / a)) * 255);
+        out[o + 2] = Math.round(toSrgb(Math.min(1, b / a)) * 255);
         out[o + 3] = Math.round((a / (factor * factor)) * 255);
       }
     }
@@ -232,6 +237,9 @@ export function renderHudIcon(weapon, { width = 480, height = 240 } = {}) {
   const cache = new MaterialCache();
   const model = buildGun(weapon, cache);
   model.flash.grp.visible = false;
+  for (const name of ['hand_l', 'hand_r']) { const hand = model.root.getObjectByName(name); if (hand) hand.visible = false; }
+  // The pick is carried tilted; its icon shows the classic 45-degree inventory item.
+  if (model.body.userData.pickaxe) model.root.rotation.x = -PICKAXE_TILT;
   const triangles = collectTriangles(model.root, GLOW_ACCENT[weapon]);
   const superWidth = width * SUPERSAMPLE;
   const superHeight = height * SUPERSAMPLE;

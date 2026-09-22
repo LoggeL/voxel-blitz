@@ -25,6 +25,8 @@ function assetKind(slot) {
   if (slot.endsWith('.explosion')) return 'blast';
   if (slot === 'combat.grenadePin' || slot === 'combat.grenadeThrow') return 'handling';
   if (slot.includes('.reload.')) return 'reload';
+  // IRON PICK dig/break/attack takes land with the visible strike.
+  if (/^pickaxe\.(?:dig|break|attack)\./.test(slot)) return 'contact';
   return 'sample';
 }
 
@@ -264,7 +266,7 @@ async function main() {
       rowFailures.push('invalid duration');
     }
     const onsetLimit = asset.weapon === 'knife' ? 50
-      : asset.kind === 'fire' ? ALIGNMENT_LIMIT_MS
+      : asset.kind === 'fire' || asset.kind === 'contact' ? ALIGNMENT_LIMIT_MS
       : asset.kind === 'blast' ? 25
       : asset.kind === 'handling' ? 70 : asset.kind === 'loop' ? 100 : Infinity;
     if (runtime.onsetMs > onsetLimit) {

@@ -147,6 +147,14 @@ export class Killcam {
       } else if (event.kind === 'hit') {
         this.impacts.impact(event);
         this.roster.hit(event.victim, event);
+        if (event.w === 'knife') {
+          // IRON PICK: the same attack cue per kind and crit/backstab stars as live play.
+          const kind = Number.isFinite(event.healthDamage) && event.healthDamage <= 0 ? 'armor'
+            : (typeof event.mk === 'string' ? event.mk : 'strong');
+          const pos = [event.vx, event.vy, event.vz].every(Number.isFinite) ? [event.vx, event.vy, event.vz] : null;
+          this.audio?.meleeHit?.({ kind, pos, local: event.attacker === this.clip.killer });
+          this.impacts.meleeHit?.(event, kind);
+        }
         if (event.attacker === this.clip.killer && event.victim !== this.clip.killer) this.audio?.hitmark?.(event.hs);
       } else if (event.kind === 'kill') {
         this.roster.death(event.victim, undefined, event);
@@ -155,9 +163,15 @@ export class Killcam {
       else if (event.kind === 'mine') {
         this.impacts.mine(event);
         this.audio?.mine?.(event.from, event.progress >= 1, [event.x + 0.5, event.y + 0.5, event.z + 0.5]);
+        if (event.progress >= 1) this._minedBreak = `${event.x},${event.y},${event.z}`;
       } else if (event.kind === 'block' && event.v === 0 && event.from) {
-        this.impacts.explodeBlock(event.x, event.y, event.z, event.from);
-        this.audio?.impact?.(blockSoundFor(event.from), 0.8, [event.x, event.y, event.z]);
+        // A pick break already threw its chip shower and break sound.
+        const cell = `${event.x},${event.y},${event.z}`;
+        if (this._minedBreak === cell) this._minedBreak = null;
+        else {
+          this.impacts.explodeBlock(event.x, event.y, event.z, event.from);
+          this.audio?.impact?.(blockSoundFor(event.from), 0.8, [event.x, event.y, event.z]);
+        }
       }
     }
     const mark = sample.hitmark;
@@ -178,6 +192,7 @@ export class Killcam {
   stop() {
     if (this.active) this.worldview?.setReplayTerrain(null);
     this.active = false;
+    this._minedBreak = null;
     this.history.activeClip = null;
     this.scopeActive = false;
     this.scope.classList.remove('active');

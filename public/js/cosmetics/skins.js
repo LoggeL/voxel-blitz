@@ -6,8 +6,9 @@ import * as highNoon from './skins/revolver-high-noon.js';
 import * as foundry from './skins/minigun-foundry.js';
 import * as salvager from './skins/salvager.js';
 import * as revenant from './skins/revenant.js';
+import { PICKAXE_SKINS } from './skins/pickaxe-tiers.js';
 
-const WEAPON_SKINS = { 'rifle-overdrive': overdrive, 'revolver-high-noon': highNoon, 'minigun-foundry': foundry };
+const WEAPON_SKINS = { 'rifle-overdrive': overdrive, 'revolver-high-noon': highNoon, 'minigun-foundry': foundry, ...PICKAXE_SKINS };
 const CHARACTER_SKINS = { salvager, revenant };
 
 export function applyGunCosmetics(model, weapon, value) {
