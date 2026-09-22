@@ -211,6 +211,8 @@ export class CombatFeedback {
           });
         }
         this.effects.impact(ev);
+        // A RIPTIDE cut: steel slice, with the ring on a headshot.
+        if (ev.w === 'glaive') this.sfx.glaiveCue?.('slice', { pos: impactPosition(ev), head: !!ev.hs });
         if (ev.attacker === myId && !localVictim) {
           const visible = this.isImpactVisible(ev);
           if (visible) {
@@ -280,8 +282,28 @@ export class CombatFeedback {
         break;
       }
       case 'projectileExplode': {
+        if (ev.type === 'glaive') {
+          // RIPTIDE discs end without a blast: catch, embed or fizzle. The owner hears
+          // their own catch in the head, at the hand, not at the chest point.
+          const own = ev.id === myId;
+          this.effects.projectileExplode(ev, { fromSelf: own });
+          this.sfx.explosion(own && ev.caught ? null : [ev.x, ev.y, ev.z], 'glaive',
+            { id: ev.pid, caught: !!ev.caught, embedded: ev.reason === 'embed' });
+          break;
+        }
         this.effects.projectileExplode(ev);
         this.sfx.explosion([ev.x, ev.y, ev.z], ev.type);
+        break;
+      }
+      case 'glaiveStock': {
+        // One owner's embedded RIPTIDE discs and fabrication queue.
+        const own = ev.id === myId;
+        this.effects.glaiveStock?.(ev, { own });
+        if (own && ev.restored) this.sfx.glaiveCue?.(ev.restored === 'pickup' ? 'pickup' : 'fabricated');
+        // A newly queued fabrication starts the launcher's fabricate hum.
+        const fabs = Array.isArray(ev.fab) ? ev.fab.length : 0;
+        if (own && fabs > (this._ownGlaiveFabs || 0)) this.sfx.glaiveCue?.('fabricate');
+        if (own) this._ownGlaiveFabs = fabs;
         break;
       }
       case 'respawn': {

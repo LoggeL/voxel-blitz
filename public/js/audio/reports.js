@@ -56,6 +56,10 @@ const FIRE_REPORT_PROFILES = Object.freeze({
   rocket: Object.freeze({
     lifetime: 1.6, sampleGain: 0.99, sampleRate: 0.9, layerGain: 0.18,
   }),
+  // A light throw, not a discharge: short, quiet layer and no low boom.
+  glaive: Object.freeze({
+    lifetime: 0.35, sampleGain: 0.88, sampleRate: 1.02, layerGain: 0.08,
+  }),
 });
 
 export function fireReportProfile(key) {
@@ -231,6 +235,85 @@ export function shotRocket(out, primitives) {
   });
 }
 
+/** GV-4 RIPTIDE throw: a pneumatic spindle puff, a rising blade whoosh and a thin steel tick. */
+export function shotGlaive(out, primitives) {
+  const t0 = primitives.nowT();
+  primitives.tone(out, {
+    t0, type: 'sine', f0: 150, f1: 70, att: 0.001, dec: 0.07, g: 0.34,
+  });
+  primitives.hiss(out, {
+    t0, filter: 'bandpass', f: 700, sweepTo: 2200, sweepMs: 0.2, q: 1.3, att: 0.02, dec: 0.2, g: 0.36,
+  });
+  primitives.tone(out, {
+    t0: t0 + 0.012, type: 'triangle', f0: 3150, f1: 2900, dec: 0.06, g: 0.08,
+  });
+}
+
+// Voice lifetime (seconds) of each RIPTIDE disc event cue rendered below.
+export const GLAIVE_CUES = Object.freeze({
+  bounce: 0.35, slice: 0.3, return: 0.45, catch: 0.7, embed: 0.8, pickup: 0.45, fizzle: 0.4,
+});
+
+/**
+ * Render one RIPTIDE disc event. `cue` is a GLAIVE_CUES key:
+ * - bounce: wall tink plus a stone chip;
+ * - slice: blade through a body (`head` adds a bright ring);
+ * - return: the local "vwomp" as the disc turns home;
+ * - catch: the horns clack shut and the disc rings on the spindle;
+ * - embed: a heavy thunk with a short wobble as the disc bites into a wall;
+ * - pickup: a steel "shlink" as a walked-over disc snaps back into the cassette;
+ * - fizzle: a lifetime expiry, a dull falling ring without impact.
+ */
+export function renderGlaiveCue(cue, out, primitives, { head = false } = {}) {
+  const t0 = primitives.nowT();
+  if (cue === 'bounce') {
+    primitives.tone(out, { t0, type: 'triangle', f0: 3600, f1: 3300, dec: 0.08, g: 0.2 });
+    primitives.tone(out, { t0, type: 'sine', f0: 5150, detune: 9, dec: 0.05, g: 0.08 });
+    primitives.hiss(out, { t0, filter: 'bandpass', f: 1500, q: 1.2, dec: 0.05, g: 0.34 });
+    primitives.hiss(out, { t0: t0 + 0.02, filter: 'highpass', f: 2600, q: 0.7, dec: 0.08, g: 0.12 });
+  } else if (cue === 'slice') {
+    primitives.hiss(out, {
+      t0, filter: 'bandpass', f: 2600, sweepTo: 900, sweepMs: 0.08, q: 1.6, dec: 0.09, g: 0.36,
+    });
+    primitives.tone(out, { t0, type: 'sine', f0: 160, f1: 80, att: 0.001, dec: 0.05, g: 0.22 });
+    if (head) {
+      primitives.tone(out, { t0: t0 + 0.004, type: 'sine', f0: 4200, f1: 4050, dec: 0.22, g: 0.1 });
+      primitives.tone(out, { t0: t0 + 0.004, type: 'sine', f0: 6300, detune: 7, dec: 0.14, g: 0.05 });
+    }
+  } else if (cue === 'return') {
+    primitives.tone(out, { t0, type: 'sawtooth', f0: 900, f1: 260, att: 0.015, dec: 0.2, g: 0.07 });
+    primitives.hiss(out, {
+      t0, filter: 'bandpass', f: 2400, sweepTo: 520, sweepMs: 0.22, q: 2.2, att: 0.02, dec: 0.24, g: 0.22,
+    });
+  } else if (cue === 'catch') {
+    primitives.tone(out, { t0, type: 'square', f0: 1300, f1: 620, dec: 0.025, g: 0.16 });
+    primitives.hiss(out, { t0, filter: 'bandpass', f: 2100, q: 4, dec: 0.03, g: 0.3 });
+    primitives.tone(out, { t0: t0 + 0.004, type: 'sine', f0: 92, f1: 55, att: 0.001, dec: 0.06, g: 0.3 });
+    [2870, 4380, 6130].forEach((hz, index) => primitives.tone(out, {
+      t0: t0 + 0.01, type: 'sine', f0: hz, detune: 4 * index, dec: 0.42 - index * 0.1, g: 0.07 - index * 0.015,
+    }));
+  } else if (cue === 'embed') {
+    primitives.tone(out, { t0, type: 'sine', f0: 120, f1: 48, att: 0.001, dec: 0.12, g: 0.46 });
+    primitives.hiss(out, { t0, filter: 'lowpass', f: 1100, q: 0.8, dec: 0.07, g: 0.42 });
+    // Wobble: a decaying ring whose repeated taps read as the disc quivering.
+    for (let i = 0; i < 5; i++) {
+      primitives.tone(out, {
+        t0: t0 + 0.05 + i * 0.045, type: 'triangle', f0: 1900 - i * 60, dec: 0.04, g: 0.07 * 0.72 ** i,
+      });
+    }
+  } else if (cue === 'pickup') {
+    primitives.hiss(out, {
+      t0, filter: 'bandpass', f: 1800, sweepTo: 5200, sweepMs: 0.12, q: 2.4, att: 0.01, dec: 0.13, g: 0.24,
+    });
+    primitives.tone(out, { t0: t0 + 0.11, type: 'sine', f0: 3400, f1: 3280, dec: 0.2, g: 0.08 });
+    primitives.tone(out, { t0: t0 + 0.11, type: 'square', f0: 1500, f1: 800, dec: 0.018, g: 0.1 });
+  } else if (cue === 'fizzle') {
+    primitives.tone(out, { t0, type: 'sine', f0: 2870, f1: 1100, dec: 0.3, g: 0.06 });
+    primitives.hiss(out, { t0, filter: 'bandpass', f: 1400, sweepTo: 400, sweepMs: 0.3, q: 1.4, dec: 0.3, g: 0.12 });
+  } else return false;
+  return true;
+}
+
 /** Chain-arc zap: a short electric crackle between two bodies. */
 export function arcZap(out, primitives) {
   const t0 = primitives.nowT();
@@ -311,5 +394,6 @@ export function renderFireReport(
   else if (key === 'lance') shotLance(out, primitives, charge);
   else if (key === 'knife') shotKnife(out, primitives);
   else if (key === 'rocket') shotRocket(out, primitives);
+  else if (key === 'glaive') shotGlaive(out, primitives);
   else shotRifleSmg(out, primitives, FIRE_PARAMS[key] || FIRE_PARAMS.rifle);
 }

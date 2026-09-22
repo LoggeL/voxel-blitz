@@ -142,8 +142,8 @@ function runDirectContracts() {
   ok(stateEvents[0]?.kind === 'die' && stateEvents[1]?.kind === 'respawn',
     'embedded die and respawn events are dispatchable by kind');
 
-  const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower'];
-  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6, 3.8, 0.9, 11.8, 5.8];
+  const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive'];
+  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6, 3.8, 0.9, 11.8, 5.8, 3.1];
   ok(JSON.stringify(WEAPON_IDS) === JSON.stringify(expectedWeaponIds),
     'weapon roster exposes the exact ten-slot order');
   const definitionsComplete = WEAPON_IDS.every((id, slot) => {
@@ -171,7 +171,7 @@ function runDirectContracts() {
       && Number.isFinite(def.recoil?.resetMs) && def.recoil.resetMs > 0
       && def.recoil.resetMs > 60000 / def.rpm
       && Number.isFinite(def.recoil?.adsMult) && def.recoil.adsMult > 0 && def.recoil.adsMult <= 1
-      && (def.mode === 'melee' || def.id === 'longarc' || def.id === 'lance'
+      && (def.mode === 'melee' || def.id === 'longarc' || def.id === 'lance' || def.id === 'glaive'
         ? def.tracer === null
         : (typeof def.tracer?.color === 'string' && Number.isFinite(def.tracer?.width)
           && Number.isFinite(def.tracer?.len)))

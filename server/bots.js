@@ -17,12 +17,15 @@ import { hearNoise } from './bot-hearing.js';
 // hurried footsteps that sends an idle bot to investigate (see bot-hearing.js),
 // perpendicular strafing while fighting, panic retreat to a cover spot the
 // enemy cannot see, dry-mid-fight weapon cycling, and a stuck watchdog that
-// reroutes anything wedged on geometry.
+// reroutes anything wedged on geometry. RIPTIDE holders lead the disc by its
+// flight time, throw only inside its reach, press R to turn a disc that just
+// cut someone (or a far one while both are out) and fall back to the revolver
+// outside the disc's range band.
 
 import {
   AIR, FLUID_BLOCKS, worldDimensions, GROUND,
 } from '../shared/worlddata.js';
-import { WEAPON_IDS, computeRecoilKickDeg } from '../shared/combatmath.js';
+import { WEAPON_IDS, WEAPONS, computeRecoilKickDeg } from '../shared/combatmath.js';
 import { DEFAULT_WEAPON_ID, WEAPON_PRICES } from '../shared/modes.js';
 import { MAX_BOTS } from '../shared/lobby-limits.js';
 import { mulberry32 } from '../shared/noise.js';
@@ -33,6 +36,7 @@ import { botDifficulty, DEFAULT_BOT_DIFFICULTY, isBotDifficulty } from '../share
 import { BOT_PERSONALITIES, DEFAULT_BOT_PERSONALITY, isBotPersonality, rollBotPersonality } from '../shared/bot-personality.js';
 import { cancelCharge } from './sim/combat.js';
 import { wrapAngle } from './sim/player.js';
+import { glaiveDef } from './sim/projectiles.js';
 
 const TAU = Math.PI * 2;
 const PITCH_TURN_RATE = 4.0;      // rad/s vertical tracking cap
@@ -53,7 +57,7 @@ const STUCK_WINDOW_MS = 1000;     // displacement sample window
 const STUCK_DIST = 0.35;          // less than this over the window == wedged
 const BOT_SEED = 0x00B0755;
 const DEFAULT_WEAPON_SLOT = WEAPON_IDS.indexOf(DEFAULT_WEAPON_ID);
-const BUY_PRIORITY = Object.freeze(['sniper', 'lmg', 'rocket', 'longarc', 'lance', 'rifle', 'shotgun', 'smg']);
+const BUY_PRIORITY = Object.freeze(['sniper', 'lmg', 'rocket', 'longarc', 'lance', 'glaive', 'rifle', 'shotgun', 'smg']);
 const URGENT_GOALS = new Set(['plant', 'recoverBomb', 'defuse']);
 const ALL_WEAPON_SLOTS = Object.freeze(WEAPON_IDS.map((_, slot) => slot));
 const PLANT_READY_DIST = 2.0;
@@ -61,6 +65,15 @@ const DEFUSE_READY_DIST = 1.6;
 const RECOVER_READY_DIST = 0.8;
 const DEFEND_ARRIVE_DIST = 4.0;
 const OBJECTIVE_DETOUR_MS = 1600;
+const GLAIVE_SLOT = WEAPON_IDS.indexOf('glaive');
+const GLAIVE_MIN_RANGE = 4;       // m: closer and the disc's out leg is wasted
+const GLAIVE_MAX_RANGE = 18;      // m: the out leg's reach without Long tether
+const GLAIVE_BAND_SLACK = 1;      // m of hysteresis before swapping away
+const GLAIVE_SWAP_CD_MS = 1200;   // between range-band weapon swaps
+const GLAIVE_RETURN_HIT_MS = 250; // R turns a disc this soon after its out-hit
+const GLAIVE_RETURN_FAR = 12;     // ... or once it is this far out with no disc seated
+const GLAIVE_RETURN_MIN_AGE_MS = 300; // never while a fresh disc is still leaving the hand
+const GLAIVE_LINEUP_COS = Math.cos(15 * Math.PI / 180);
 
 function dist3(ax, ay, az, bx, by, bz) {
   return Math.hypot(bx - ax, by - ay, bz - az);
@@ -121,6 +134,20 @@ function nearestDry(world, from) {
 
 function eyeOf(p) {
   return [p.x, p.eyeY, p.z];
+}
+
+/**
+ * Where a projectile of `speed` m/s meets a target moving on the ground:
+ * horizontal velocity times flight time, scaled by skill. Returns [dx, dz].
+ */
+function projectileLead(target, dist, speed, skill = 1) {
+  const t = (dist / speed) * skill;
+  return [(target.vx || 0) * t, (target.vz || 0) * t];
+}
+
+/** The RIPTIDE's engagement reach: 18 m, stretched by Long tether's longer out leg. */
+function glaiveReach(rules) {
+  return GLAIVE_MAX_RANGE * rules.outMs / WEAPONS.glaive.glaive.outMs;
 }
 
 function goalPoint(goal) {
@@ -191,6 +218,7 @@ class Brain {
     this.stuckSince = 0;
     this.watchX = null;
     this.watchZ = 0;
+    this.glaiveSwapAt = 0;           // earliest next RIPTIDE range-band swap
   }
 
   /** Drop combat memory but keep navigation/skill continuity. */
@@ -336,6 +364,39 @@ class BotManager {
     return best;
   }
 
+  /**
+   * R on the RIPTIDE: true when an out-leg disc cut someone within the last
+   * quarter second (the back leg finishes them), or when nothing is seated and
+   * a disc is far out. R turns every out-leg disc, so it waits while a freshly
+   * thrown one is still short of the target. Bots read the discs directly.
+   */
+  glaiveReturnWanted(p, now) {
+    const seated = p.mag[GLAIVE_SLOT] > 0;
+    const out = [...this.game.projectiles.active.values()]
+      .filter((disc) => disc.type === 'glaive' && disc.owner === p && disc.phase === 'out');
+    if (out.some((disc) => now - disc.launchedAt < GLAIVE_RETURN_MIN_AGE_MS)) return false;
+    for (const disc of out) {
+      if (now - disc.lastOutHitAt < GLAIVE_RETURN_HIT_MS) return true;
+      if (!seated && dist3(p.x, p.eyeY, p.z, disc.x, disc.y, disc.z) > GLAIVE_RETURN_FAR) return true;
+    }
+    return false;
+  }
+
+  /** Enemies inside a 15 degree cone of the aim, within `reach` and in clear sight. */
+  glaiveLineUp(p, eye, yaw, pitch, reach) {
+    const dx = -Math.sin(yaw) * Math.cos(pitch), dy = Math.sin(pitch), dz = -Math.cos(yaw) * Math.cos(pitch);
+    let count = 0;
+    for (const o of this.game.entities.values()) {
+      if (o === p || o.state !== 'alive' || !this.game.mode.isEnemy(p, o)) continue;
+      const tx = o.x - eye[0], ty = (o.eyeY - 0.35) - eye[1], tz = o.z - eye[2];
+      const d = Math.hypot(tx, ty, tz);
+      if (d < 1e-6 || d > reach || (tx * dx + ty * dy + tz * dz) / d < GLAIVE_LINEUP_COS) continue;
+      if (raycastVoxels(this.solidAt, ...eye, tx / d, ty / d, tz / d, d)) continue;
+      count++;
+    }
+    return count;
+  }
+
   /** Loudest enemy noise this bot can hear right now, or null. */
   listen(br, p, profile) {
     const rangeScale = profile.sightRange / 120;
@@ -372,6 +433,8 @@ class BotManager {
     if (mode.phase === 'prep' && br.buyRound !== mode.round) {
       br.buyRound = mode.round;
       for (const id of BUY_PRIORITY) {
+        // A survivor already holding this tier or better keeps its credits.
+        if (snapshot.owned.includes(id)) break;
         if (snapshot.credits >= WEAPON_PRICES[id] && mode.purchase(p, id)) {
           snapshot = mode.playerSnapshot(p);
           break;
@@ -651,9 +714,14 @@ class BotManager {
       // Aim at an actually exposed part of the current stance, led by the
       // target's horizontal motion in proportion to skill so the eased
       // steering does not trail a strafing enemy.
-      const leadS = LEAD_S * br.skill;
-      const aim = [br.sighting.aimPoint[0] + (enemy.vx || 0) * leadS, br.sighting.aimPoint[1],
-        br.sighting.aimPoint[2] + (enemy.vz || 0) * leadS];
+      // The RIPTIDE's disc is slow enough that the lead follows its flight time.
+      const glaive = p.weapon === GLAIVE_SLOT && !!p.def.glaive;
+      const glaiveRules = glaive ? glaiveDef(p).glaive : null;
+      const [aimX, aimY, aimZ] = br.sighting.aimPoint;
+      const lead = glaive
+        ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), glaiveRules.speedOut, br.skill)
+        : [(enemy.vx || 0) * LEAD_S * br.skill, (enemy.vz || 0) * LEAD_S * br.skill];
+      const aim = [aimX + lead[0], aimY, aimZ + lead[1]];
       const yawT = Math.atan2(-(aim[0] - p.x), -(aim[2] - p.z));
       const flat = Math.hypot(aim[0] - p.x, aim[2] - p.z) || 1;
       const pitchT = Math.atan2(aim[1] - eye[1], flat);
@@ -672,9 +740,11 @@ class BotManager {
       inp.pitch = Math.max(-1.5, Math.min(1.5, basePitch + recoil.pitch));
       inp.wantAds = flat > 28 && p.def.id === 'sniper';
 
-      // Ammo logistics mid-fight: reload, else cycle to any loaded slot.
+      // Ammo logistics mid-fight: reload, else cycle to any loaded slot. The
+      // RIPTIDE reloads by catching: with a disc still in the air it waits.
       if (p.mag[p.weapon] === 0) {
         if (p.reserve[p.weapon] > 0) inp.reload = true;
+        else if (glaive && this.game.projectiles.glaiveInFlight(p) > 0) { /* catch pending */ }
         else {
           const cur = p.weapon;
           for (let k = 1; k <= WEAPON_IDS.length; k++) {
@@ -695,8 +765,26 @@ class BotManager {
         && !raycastVoxels(this.solidAt, ...eye,
           -Math.sin(inp.yaw) * Math.cos(inp.pitch), Math.sin(inp.pitch),
           -Math.cos(inp.yaw) * Math.cos(inp.pitch), aimDistance);
+
+      // RIPTIDE: throw only inside its reach, swap to the revolver outside the
+      // band, and press R to bring a disc back through the target.
+      let lineUp = false;
+      if (glaive) {
+        const reach = glaiveReach(glaiveRules);
+        const inBand = aimDistance >= GLAIVE_MIN_RANGE && aimDistance <= reach;
+        const outsideBand = aimDistance < GLAIVE_MIN_RANGE - GLAIVE_BAND_SLACK / 2
+          || aimDistance > reach + GLAIVE_BAND_SLACK;
+        if (outsideBand && p.mag[p.weapon] > 0 && inp.switchTo === undefined && !br.spawnSwitchPending
+            && now >= br.glaiveSwapAt && ownedSlots.includes(DEFAULT_WEAPON_SLOT)) {
+          inp.switchTo = DEFAULT_WEAPON_SLOT;
+          br.glaiveSwapAt = now + GLAIVE_SWAP_CD_MS;
+        }
+        if (!inBand || !this.game.projectiles.canThrowGlaive(p)) canShoot = false;
+        else lineUp = this.glaiveLineUp(p, eye, inp.yaw, inp.pitch, reach) >= 2;
+        if (this.glaiveReturnWanted(p, now)) inp.reload = true;
+      }
       if (combatAllowed && canShoot && p.mag[p.weapon] > 0) {
-        if (now >= br.pauseUntil) {
+        if (now >= br.pauseUntil || lineUp) {
           if (!br.inBurst) {
             const shots = pers.burst[0] + Math.floor(br.rng() * (pers.burst[1] - pers.burst[0] + 1));
             br.burstEnd = now + shots * Math.round(60000 / p.def.rpm);
@@ -717,6 +805,18 @@ class BotManager {
     } else {
       br.engagedMs = 0;
       br.aim.dropKick();
+    }
+
+    // A RIPTIDE bot parked on another slot (range swap, dry cycling) draws the
+    // disc launcher again once a disc is seated and any target is in its band.
+    if (GLAIVE_SLOT >= 0 && p.weapon !== GLAIVE_SLOT && p.mag[GLAIVE_SLOT] > 0
+        && inp.switchTo === undefined && !br.spawnSwitchPending && now >= br.glaiveSwapAt
+        && ownedSlots.includes(GLAIVE_SLOT) && this.preferredSlot(br, ownedSlots) === GLAIVE_SLOT) {
+      const d = combatMovement ? dist3(eye[0], eye[1], eye[2], enemy.x, enemy.eyeY - 0.35, enemy.z) : null;
+      if (d === null || (d >= GLAIVE_MIN_RANGE && d <= glaiveReach(glaiveDef(p).glaive))) {
+        inp.switchTo = GLAIVE_SLOT;
+        br.glaiveSwapAt = now + GLAIVE_SWAP_CD_MS;
+      }
     }
 
     // Releasing an obscured charge would still shoot through cover. Discard

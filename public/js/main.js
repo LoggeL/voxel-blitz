@@ -148,6 +148,14 @@ class Game {
           if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileUpdate',
             'projectileExplode', 'blockDamage', 'block', 'mine'].includes(event.kind)) return;
           if (event.kind === 'kill' && event.killer === this.myId && event.victim !== this.myId) this.bumpStattrak(event);
+          // Own RIPTIDE stock (embedded discs, fabrication queue) feeds the fabricate gauge.
+          if (event.kind === 'glaiveStock' && event.id === this.myId) this.weapon?.adoptGlaiveStock(event);
+          // Only the authoritative catch of an own RIPTIDE disc plays the horn clamp.
+          if (event.kind === 'projectileExplode' && event.type === 'glaive' && event.caught === true &&
+            event.id === this.myId) this.rig?.glaiveCatch();
+          // Remote RIPTIDE mounts clamp or restore on the same authoritative events.
+          if ((event.kind === 'glaiveStock' || (event.kind === 'projectileExplode' && event.type === 'glaive'))
+            && event.id !== this.myId) this.roster?.glaive(event.id, event);
           this.feedback?.handleEvent(event);
         },
         onRunEvent: (event) => this.runHud?.handleEvent(event),
@@ -280,8 +288,27 @@ class Game {
     this.liveAvatarsGroup = new rt.THREE.Group();
     this.worldview.scene.add(this.liveEffectsGroup, this.liveAvatarsGroup);
     this.effects = new rt.Effects(this.liveEffectsGroup, this.camera, getBlock, {
-      // Bolt wall-ricochet zap: client-derived from the shared integrator's bounced flag.
-      onBounce: (x, y, z) => sfx.arcZap?.([x, y, z]),
+      // RIPTIDE discs home on their owner: the local body or a presented remote avatar.
+      getEntityPosition: (id) => {
+        if (id === this.myId) {
+          const pos = this.player.pos;
+          return { x: pos.x, y: pos.y, z: pos.z };
+        }
+        return this.roster?.positionOf(id) || null;
+      },
+      // Bolt wall-ricochet zap / RIPTIDE bounce tink: client-derived from the shared
+      // integrators' bounced flag.
+      onBounce: (x, y, z, type) => (type === 'glaive'
+        ? sfx.glaiveCue?.('bounce', { pos: [x, y, z] })
+        : sfx.arcZap?.([x, y, z])),
+      // RIPTIDE: positional whirr per airborne disc; the local "vwomp" as an own disc turns.
+      onGlaiveFlight: (disc) => sfx.glaiveFlight?.(disc.id, [disc.x, disc.y, disc.z],
+        { phase: disc.phase, velocity: [disc.vx, disc.vy, disc.vz] }),
+      onGlaiveFlip: (detail) => {
+        sfx.glaiveCue?.('return');
+        // The horns flare and the view leans toward the own disc as it turns home.
+        this.rig?.glaiveReturn({ world: detail, all: false });
+      },
     });
     this.worldview.scene.add(this.camera);
     this.ownBody = rt.makeFirstPersonBody();
@@ -507,7 +534,7 @@ class Game {
     }
     if (self && this.weapon) {
       this.weapon.reconcileServer({
-        minigun: self.minigun, attachments: self.attachments,
+        minigun: self.minigun, glaive: self.glaive, attachments: self.attachments,
         mag: self.mag,
         reserve: self.reserve,
         chaosUpgrades: self.chaosUpgrades,
@@ -763,7 +790,8 @@ class Game {
       sendInput: (input) => this.net?.sendInput(input) || false,
       getNetworkWeaponState: () => ({
         slot: this.weapon.slot,
-        reloading: this.weapon.reloadRequested,
+        // reloadIntent also carries a pending RIPTIDE return (R) until the server acks it.
+        reloading: this.weapon.reloadIntent,
         reloadId: this.weapon.reloadId,
       }),
     });
@@ -870,6 +898,12 @@ class Game {
       ? this.worldview.pickCameraRay(this.camera.position, fwdFromAngles(this.player.shotYaw, this.player.shotPitch), HITSCAN_REACH)
       : null;
     const reticle = this.rt.projectAimReticle(this.camera, this.player.shotYaw, this.player.shotPitch);
+    const weaponModel = this.weapon.readModel(now);
+    // RIPTIDE pips: the HUD's in-flight, embedded and fabrication split lives with the
+    // disc presentation (server launch/explode/glaiveStock events); `mag` stays authoritative.
+    if (weaponModel.glaive) {
+      weaponModel.glaive = { ...weaponModel.glaive, ...(this.effects?.glaiveHudState?.() || {}) };
+    }
     this.hud.setState({
       crosshairX: reticle.x,
       crosshairY: reticle.y,
@@ -879,7 +913,7 @@ class Game {
       hp: this.player.hp,
       medkit: this.player.medkit,
       armor: this.selfRow?.armor ?? 0,
-      ...this.weapon.readModel(now),
+      ...weaponModel,
       panic: this.player.panic,
       pain: this.player.pain,
       crouching: this.player.crouchBool,

@@ -170,6 +170,25 @@ export class AvatarRoster {
     }
   }
 
+  /**
+   * Authoritative RIPTIDE events for a remote avatar's mount: the disc's
+   * `projectileExplode` (catch or loss) and a `glaiveStock` that restored a disc.
+   */
+  glaive(id, event) {
+    const model = this._avatars.get(String(id))?.weaponModel;
+    if (!model || !event) return;
+    if (event.kind === 'projectileExplode' && event.type === 'glaive') model.glaiveEnded?.(event.caught === true);
+    else if (event.kind === 'glaiveStock' && event.restored) model.glaiveRestored?.();
+  }
+
+  /** Presented world position of one remote avatar (`{x,y,z}`), or null when absent. */
+  positionOf(id) {
+    const avatar = this._avatars.get(String(id));
+    if (!avatar) return null;
+    const position = avatar.alive || avatar.vehicle ? avatar.group.position : avatar.hips.position;
+    return { x: position.x, y: position.y, z: position.z };
+  }
+
   /** Detach a killed avatar from its player; the body finishes on its own. */
   _retireCorpse(id, avatar) {
     this._fallen.add(id);

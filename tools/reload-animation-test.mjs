@@ -69,7 +69,7 @@ try {
     x: pose.x.toFixed(3), z: pose.push.toFixed(3), roll: pose.roll.toFixed(3),
     magazineY: pose.magazine.y.toFixed(3) })));
 
-  for (const id of ['smg', 'lmg', 'minigun', 'sniper', 'longarc', 'lance', 'rocket', 'flamethrower']) {
+  for (const id of ['smg', 'lmg', 'minigun', 'sniper', 'longarc', 'lance', 'rocket', 'flamethrower', 'glaive']) {
     const run = animation(id);
     for (let frame = 0; frame < 121; frame++) {
       const pose = run.sample(frame / 120);

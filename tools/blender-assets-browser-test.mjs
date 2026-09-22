@@ -247,7 +247,23 @@ try {
       && round.position.equals(round.userData.homePosition),
       'cancelled rocket reload restores the TORCH rest pose');
     actions.dispose();
-    disposeGunModels([gun,sniper,lmg,rocket],cache);
+    // SKUA (GV-4 RIPTIDE): the wrapper must re-hang the cassette's spare disc as the
+    // reload round and the catch horns on their authored hinges.
+    const glaive = buildGun('glaive', cache);
+    must(glaive.body.userData.blenderAsset === 'skua', 'first person SKUA');
+    must(glaive.body.userData.sightHeight === 0.150, 'glaive sight line at 0.150');
+    const spare = glaive.extra.userData.reloadRounds, glaiveParts = glaive.extra.userData.glaive;
+    must(spare && spare.name === 'glaive_spare_disc' && glaiveParts?.spare === spare,
+      'SKUA reloadRounds holds the cassette spare disc');
+    must(spare.parent === glaive.extra && spare.children.length > 0
+      && spare.position.distanceTo(new T.Vector3(0, -0.072, -0.165)) < 1e-3
+      && spare.position.equals(spare.userData.homePosition),
+      'SKUA spare disc sits on its authored cassette pivot');
+    must(glaiveParts.horns.length === 2 && glaiveParts.horns.every(({ pivot, side }) =>
+      Math.abs(pivot.position.x - 0.05 * side) < 1e-3 && Math.abs(pivot.position.z + 0.335) < 1e-3),
+      'SKUA catch horns hang on their (+-0.05, 0, -0.335) hinges');
+    must(glaiveParts.disc && glaiveParts.flywheel, 'SKUA exposes the seated disc and flywheel pivots');
+    disposeGunModels([gun,sniper,lmg,rocket,glaive],cache);
     const grenadeParts = createBlenderParts('grenades');
     must(Object.keys(grenadeParts).join() === 'frag,limpet,pulse,molotov,smoke', 'five authored throwables');
     for (const [id, part] of Object.entries(grenadeParts)) {

@@ -6,6 +6,7 @@ import { SndObjective } from './snd/objective.js';
 
 const MODE = 'snd';
 const REVOLVER = 'revolver';
+const GLAIVE_SLOT = WEAPON_IDS.indexOf('glaive');
 const ALPHA = TEAM_IDS[0];
 const BRAVO = TEAM_IDS[1];
 const TEAM_SET = new Set(TEAM_IDS);
@@ -19,6 +20,8 @@ const TEAM_SET = new Set(TEAM_IDS);
 export class SndPolicy extends TeamPolicy {
   constructor(context) {
     super('SndPolicy', context);
+    // Saved RIPTIDE discs: in-flight and embedded discs count toward the kept mag.
+    this._glaiveStock = typeof context?.glaiveStock === 'function' ? context.glaiveStock : null;
     this.mode = MODE;
     this.phase = 'prep';
     this.phaseEndsAt = this.now + this.rules.prepMs;
@@ -486,6 +489,11 @@ export class SndPolicy extends TeamPolicy {
       const keep = !newMatch && state.survived;
       const savedWeapon = weaponId(entity.weapon);
       const savedMag = Array.isArray(entity.mag) ? entity.mag.slice() : [];
+      // The respawn deletes discs still flying, embedded or fabricating; a survivor
+      // keeps them as seated discs (the ammo normaliser trims any excess).
+      if (keep && GLAIVE_SLOT >= 0 && this._glaiveStock && Number.isFinite(savedMag[GLAIVE_SLOT])) {
+        savedMag[GLAIVE_SLOT] += this._glaiveStock(entity);
+      }
       const savedReserve = Array.isArray(entity.reserve) ? entity.reserve.slice() : [];
       if (!keep) state.owned = new Set([REVOLVER]);
       state.participating = true;

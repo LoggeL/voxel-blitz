@@ -69,6 +69,9 @@ for (const weapon of WEAPON_IDS) {
       for (const state of ['ready', 'hot']) for (const scenario of SCENARIOS.filter(s => s.ads))
         variants.push({ ...run(weapon, distance, scenario, { minigun: state }), variant: state });
     }
+    // RIPTIDE: R on the tick after an out-leg cut turns every airborne disc home.
+    if (WEAPONS[weapon].glaive) for (const scenario of SCENARIOS.filter(s => s.perfect))
+      variants.push({ ...run(weapon, distance, scenario, { glaiveReturn: true }), variant: 'R nach Treffer' });
     if (weapon === 'knife' && distance <= 3)
       variants.push({ ...run(weapon, distance, SCENARIOS[0], { backstab: true }), variant: 'backstab' });
     if (weapon === 'lance') for (const scenario of SCENARIOS.filter(s => s.perfect)) {

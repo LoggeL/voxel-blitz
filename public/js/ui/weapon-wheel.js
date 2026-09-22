@@ -56,6 +56,14 @@ function _entriesSignature(entries) {
   )).join(',');
 }
 
+/** Slot ammo text. The RIPTIDE has no reserve: its "mag / reserve" reads as discs in hand. */
+function wheelAmmoLabel(entry) {
+  const ammo = (entry && entry.ammo) || '';
+  if (entry?.id !== 'glaive') return ammo;
+  const discs = /^(\d+) \//.exec(ammo);
+  return discs ? `${discs[1]} DISC${discs[1] === '1' ? '' : 'S'}` : ammo;
+}
+
 /** textContent setter that skips identical writes (cheap diff). */
 function _setText(node, value) {
   if (node && node.textContent !== value) node.textContent = value;
@@ -436,7 +444,7 @@ export class WeaponWheelController {
       _setText(item.name, (entry && entry.name) || '');
       item.node.setAttribute('aria-label', `${entry?.name || ''}, ${entry?.owned ? entry.ammo : 'locked'}${entry?.current ? ', equipped' : ''}`);
       _setText(item.key, entry && index < 10 ? `[${bindingLabel(`slot${index + 1}`)}]` : (entry && entry.key) || '');
-      _setText(item.ammo, (entry && entry.ammo) || '');
+      _setText(item.ammo, wheelAmmoLabel(entry));
       item.node.classList.toggle('is-current', !!(entry && entry.current));
       item.node.classList.toggle('is-locked', !(entry && entry.owned));
     });

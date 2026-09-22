@@ -1,0 +1,30 @@
+{
+  "weapon": "glaive",
+  "source": "Original procedural synthesis (numpy/scipy); no recordings or generated-audio services.",
+  "generator": "tools/generate-glaive-audio.py",
+  "seed": 4104,
+  "layers": {
+    "thunk": "pneumatic launch: 118 Hz -> 46 Hz sine body, 2nd harmonic, 900 Hz lowpassed air burst",
+    "whine": "blade spin-up: 620 Hz -> 2050 Hz exponential saw sweep, 0.9 kHz..3 kHz bandpass, swell then release",
+    "shing": "steel tail: 7 inharmonic partials 2.87..9.6 kHz with 0.6..3 Hz beating, 5.5 kHz highpassed scrape"
+  },
+  "duration_seconds": 0.62,
+  "fade_in_seconds": 0.001,
+  "fade_out_seconds": 0.05,
+  "peak_target": 0.7,
+  "normalization_gain": 0.5023262572367415,
+  "encoding": "Ogg Opus, mono 48 kHz, 96 kbit/s (local ffmpeg has no libvorbis)",
+  "output": "public/assets/audio/weapons/glaive/fire.ogg",
+  "output_sha256": "879a8b696c292663108974320a607cba73d5c986b325333deeb6cbf05f0b446b",
+  "metrics": {
+    "decoded_duration_seconds": 0.62,
+    "sample_peak": 0.676423,
+    "sample_peak_dbfs": -3.396,
+    "rms_dbfs": -19.882,
+    "clipped_samples": 0
+  },
+  "qa": {
+    "listening_audition": false,
+    "note": "Signal metrics and tools/analyze-weapon-audio.mjs checked; not auditioned."
+  }
+}

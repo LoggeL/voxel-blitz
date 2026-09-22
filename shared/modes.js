@@ -21,6 +21,7 @@ export const GUN_GAME_WEAPON_ORDER = Object.freeze([
   'flamethrower',
   'rocket',
   'longarc',
+  'glaive',
   'lance',
   'revolver',
   'minigun',
@@ -47,6 +48,7 @@ export const WEAPON_PRICES = Object.freeze({
   rocket: 4300,
   flamethrower: 2400,
   sniper: 4750,
+  glaive: 3000,
 });
 
 export const MODE_RULES = Object.freeze({

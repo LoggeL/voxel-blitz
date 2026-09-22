@@ -22,16 +22,20 @@ import {
   cycleActionClick,
   drawCloth,
   genericReloadStep,
+  glaiveFabricate,
+  reloadGlaive,
   reloadLmg,
   reloadLongarc,
   reloadRevolver,
   reloadRocket,
 } from './mechanics.js';
 import {
+  GLAIVE_CUES,
   arcZap,
   fireReportProfile,
   fireSampleProfile,
   renderFireReport,
+  renderGlaiveCue,
   sendEcho,
 } from './reports.js';
 
@@ -58,6 +62,7 @@ let pickaxeSwingIndex = 0;
 let pickaxeImpactIndex = 0;
 let bulletWhizIndex = 0;
 const vehicleLoops = new Map();
+const glaiveLoops = new Map();
 
 /** Bastion vehicle drones: sawtooth fundamental per hull; the walker adds a stride thud. */
 const VEHICLE_DRONE = Object.freeze({ buggy: 140, apc: 90, walker: 60 });
@@ -86,6 +91,44 @@ function releaseVehicleLoop(key, voice) {
   } catch {}
   if (vehicleLoops.get(key) === voice) vehicleLoops.delete(key);
   pool?.refresh(voice.output, null, VEHICLE_FADE);
+}
+
+/**
+ * RIPTIDE in-flight whirr: a band-passed saw pair under a 30 Hz tremolo. The
+ * return leg sits 20% higher so a listener can tell an incoming disc apart,
+ * and Doppler follows the disc's radial speed relative to the listener.
+ */
+const GLAIVE_FLIGHT = Object.freeze({
+  hz: 330, bandHz: 1900, q: 3.2, tremoloHz: 30, depth: 0.45, level: 0.16,
+  backPitch: 1.2, hold: 0.25, fade: 0.12, maxLoops: 8, soundSpeed: 343,
+});
+
+function releaseGlaiveLoop(key, voice) {
+  if (!voice) return;
+  const ctx = voice.ctx;
+  const at = ctx && ctx.state !== 'closed' ? ctx.currentTime : 0;
+  try {
+    voice.gain.gain.cancelScheduledValues(at);
+    voice.gain.gain.setValueAtTime(voice.gain.gain.value, at);
+    voice.gain.gain.linearRampToValueAtTime(0, at + GLAIVE_FLIGHT.fade);
+    for (const osc of voice.sources) osc.stop(at + GLAIVE_FLIGHT.fade + 0.05);
+  } catch {}
+  if (glaiveLoops.get(key) === voice) glaiveLoops.delete(key);
+  pool?.refresh(voice.output, null, GLAIVE_FLIGHT.fade);
+}
+
+/** Doppler ratio for a source moving at `velocity` as heard from `listener` (clamped). */
+function dopplerRatio(pos, velocity, listener) {
+  if (!Array.isArray(listener) || !velocity) return 1;
+  const dx = pos[0] - listener[0];
+  const dy = pos[1] - listener[1];
+  const dz = pos[2] - listener[2];
+  const distance = Math.hypot(dx, dy, dz);
+  if (!(distance > 0.05)) return 1;
+  // Positive radial speed means the disc is moving away from the listener.
+  const radial = (velocity[0] * dx + velocity[1] * dy + velocity[2] * dz) / distance;
+  const ratio = GLAIVE_FLIGHT.soundSpeed / (GLAIVE_FLIGHT.soundSpeed + radial);
+  return Math.max(0.8, Math.min(1.25, ratio));
 }
 
 /** Blast voice per explosive type: gain, low weight, and crack brightness. */
@@ -240,6 +283,7 @@ export const sfx = {
     painHitVariant = -1;
     disposeChargeLoop();
     this.stopVehicleLoops();
+    this.stopGlaiveFlights();
     flameLoops?.dispose();
     flameLoops = null;
     minigunMotor?.dispose();
@@ -528,6 +572,134 @@ export const sfx = {
     vehicleLoops.clear();
   },
 
+  /**
+   * Refresh the positional whirr of one RIPTIDE disc in flight; call every frame
+   * it is visible with its world `pos`. `phase` is 'out' or 'back' (the return
+   * leg is pitched up 20%). `velocity` ([x,y,z] m/s) drives Doppler; without it
+   * the velocity is estimated from successive positions. A loop that stops
+   * being refreshed fades out on its own.
+   */
+  glaiveFlight(id, pos, { phase = 'out', velocity = null } = {}) {
+    const key = String(id);
+    const deferredPos = positionFrom(pos);
+    if (!deferredPos) return;
+    const deferredVelocity = Array.isArray(velocity) && velocity.length >= 3
+      && velocity.slice(0, 3).every(Number.isFinite) ? velocity.slice(0, 3) : null;
+    run('glaiveFlight', () => {
+      const ctx = engine.ctx;
+      if (!ctx || ctx.state !== 'running') return;
+      const at = ctx.currentTime;
+      let voice = glaiveLoops.get(key);
+      if (voice && (voice.ctx !== ctx || at >= voice.end)) { releaseGlaiveLoop(key, voice); voice = null; }
+      if (!voice) {
+        while (glaiveLoops.size >= GLAIVE_FLIGHT.maxLoops) {
+          const [oldKey, oldest] = [...glaiveLoops.entries()].reduce((a, b) => (a[1].last <= b[1].last ? a : b));
+          releaseGlaiveLoop(oldKey, oldest);
+        }
+        const lifetime = GLAIVE_FLIGHT.hold + GLAIVE_FLIGHT.fade;
+        const output = pool.acquire({ pos: deferredPos, priority: 1 }, lifetime);
+        const saw = ctx.createOscillator();
+        saw.type = 'sawtooth';
+        saw.frequency.value = GLAIVE_FLIGHT.hz;
+        const edge = ctx.createOscillator();
+        edge.type = 'sawtooth';
+        edge.frequency.value = GLAIVE_FLIGHT.hz * 2.01;
+        const filter = ctx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.value = GLAIVE_FLIGHT.bandHz;
+        filter.Q.value = GLAIVE_FLIGHT.q;
+        // Tremolo: gain = (1 - depth) + depth * sin(30 Hz), the spinning teeth chopping the air.
+        const tremolo = ctx.createGain();
+        tremolo.gain.value = 1 - GLAIVE_FLIGHT.depth;
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = GLAIVE_FLIGHT.tremoloHz;
+        const lfoDepth = ctx.createGain();
+        lfoDepth.gain.value = GLAIVE_FLIGHT.depth;
+        lfo.connect(lfoDepth).connect(tremolo.gain);
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        saw.connect(filter);
+        edge.connect(filter);
+        filter.connect(tremolo).connect(gain).connect(output);
+        const sources = [saw, edge, lfo];
+        for (const osc of sources) osc.start(at);
+        voice = {
+          ctx, output, saw, edge, filter, gain, sources,
+          last: at, end: at, pos: deferredPos, velocity: null,
+        };
+        glaiveLoops.set(key, voice);
+        pool.addCleanup(output, () => {
+          for (const osc of sources) {
+            try { osc.stop(); } catch {}
+            osc.disconnect();
+          }
+          filter.disconnect(); tremolo.disconnect(); lfoDepth.disconnect(); gain.disconnect();
+          if (glaiveLoops.get(key) === voice) glaiveLoops.delete(key);
+        });
+      }
+      // Estimate velocity from the previous refresh when the caller has none.
+      let motion = deferredVelocity;
+      const dt = at - voice.last;
+      if (!motion && dt > 0.004) {
+        const sample = [0, 1, 2].map((axis) => (deferredPos[axis] - voice.pos[axis]) / dt);
+        motion = voice.velocity
+          ? voice.velocity.map((value, axis) => value + (sample[axis] - value) * 0.5) : sample;
+      }
+      if (motion) voice.velocity = motion;
+      const pitch = (phase === 'back' ? GLAIVE_FLIGHT.backPitch : 1)
+        * dopplerRatio(deferredPos, voice.velocity, engine.listenerPos?.());
+      const level = at >= voice.end ? 0 : voice.gain.gain.value;
+      voice.last = at;
+      voice.pos = deferredPos;
+      voice.end = at + GLAIVE_FLIGHT.hold + GLAIVE_FLIGHT.fade;
+      const g = voice.gain.gain;
+      g.cancelScheduledValues(at);
+      g.setValueAtTime(level, at);
+      g.linearRampToValueAtTime(GLAIVE_FLIGHT.level, at + 0.04);
+      g.setValueAtTime(GLAIVE_FLIGHT.level, at + GLAIVE_FLIGHT.hold);
+      g.linearRampToValueAtTime(0, voice.end);
+      for (const osc of voice.sources) osc.stop(voice.end + 0.05);
+      voice.saw.frequency.setTargetAtTime(GLAIVE_FLIGHT.hz * pitch, at, 0.03);
+      voice.edge.frequency.setTargetAtTime(GLAIVE_FLIGHT.hz * 2.01 * pitch, at, 0.03);
+      voice.filter.frequency.setTargetAtTime(GLAIVE_FLIGHT.bandHz * pitch, at, 0.03);
+      pool.refresh(voice.output, { pos: deferredPos }, GLAIVE_FLIGHT.hold + GLAIVE_FLIGHT.fade);
+    });
+  },
+
+  stopGlaiveFlight(id) {
+    const key = String(id);
+    releaseGlaiveLoop(key, glaiveLoops.get(key));
+  },
+
+  stopGlaiveFlights() {
+    for (const [key, voice] of [...glaiveLoops]) releaseGlaiveLoop(key, voice);
+    glaiveLoops.clear();
+  },
+
+  /**
+   * One RIPTIDE disc event. `cue` is bounce | slice | return | catch | embed |
+   * pickup | fizzle | fabricate | fabricated. `options` is a world position
+   * ([x,y,z] or { pos }) for positional cues, plus `head` for a headshot slice.
+   * Without a position the cue plays in the listener's head (own catch, R return,
+   * fabricate).
+   */
+  glaiveCue(cue, options = null) {
+    const deferred = copyOptions(options);
+    const head = !!(deferred && !Array.isArray(deferred) && deferred.head);
+    if (cue === 'fabricate' || cue === 'fabricated') {
+      run('glaiveCue', () => {
+        const output = pool.acquire(outputOptions(deferred), cue === 'fabricate' ? 1 : 0.3);
+        glaiveFabricate(output, primitives, cue === 'fabricated');
+      });
+      return;
+    }
+    if (!GLAIVE_CUES[cue]) return;
+    run('glaiveCue', () => {
+      const output = pool.acquire(outputOptions(deferred), GLAIVE_CUES[cue]);
+      renderGlaiveCue(cue, output, primitives, { head });
+    });
+  },
+
   cycleClick(step, weapon) {
     run('cycle', () => {
       const output = pool.acquire(null, 0.24);
@@ -584,6 +756,7 @@ export const sfx = {
       if (weapon === 'lmg') reloadLmg(output, primitives, step, at, brightness);
       else if (weapon === 'longarc') reloadLongarc(output, primitives, step, at, brightness);
       else if (weapon === 'rocket') reloadRocket(output, primitives, step, at, brightness);
+      else if (weapon === 'glaive') reloadGlaive(output, primitives, step, at, brightness);
       else if (weapon === 'revolver') {
         reloadRevolver(output, primitives, step, at, brightness);
       } else genericReloadStep(output, primitives, step, at, brightness);
@@ -887,11 +1060,20 @@ export const sfx = {
     });
   },
 
-  /** Blast at a world position. `type` is frag | limpet | pulse | rocket (frag by default). */
-  explosion(pos, type = 'frag') {
+  /**
+   * Blast at a world position. `type` is frag | limpet | pulse | rocket (frag by default).
+   * A RIPTIDE disc ending (`type` 'glaive') is never a blast: `detail.caught` plays the
+   * catch clack, `detail.embedded` the wall thunk, and anything else a lifetime fizzle.
+   */
+  explosion(pos, type = 'frag', detail = null) {
     const deferredPos = Array.isArray(pos) ? pos.slice(0, 3) : pos;
     // Bolt expiry shares the projectile event channel, but has no blast radius.
     if (type === 'bolt') return this.arcZap(deferredPos);
+    if (type === 'glaive') {
+      if (detail?.id != null) this.stopGlaiveFlight(detail.id);
+      const cue = detail?.caught ? 'catch' : detail?.embedded ? 'embed' : 'fizzle';
+      return this.glaiveCue(cue, Array.isArray(deferredPos) ? { pos: deferredPos } : null);
+    }
     if (type === 'smoke') {
       run('smokeRelease', () => {
         const output = pool.acquire({ pos: deferredPos, priority: 2 }, 2.2);

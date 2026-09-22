@@ -138,9 +138,59 @@ for (const reserve of [1, 3, 42]) {
 }
 console.log('Shotgun shells: per-shell consumption, interruption conservation and limited reserve passed.');
 
+// RIPTIDE R on the client: an identified request with no reload state. The ack or
+// the timeout clears it, and a weapon switch drops it so the next gun never reloads.
+{
+  const slot = WEAPON_IDS.indexOf('glaive');
+  const rifle = WEAPON_IDS.indexOf('rifle');
+  const { state, at } = client();
+  const authority = new PlayerEntity('glaive-return', 'Test', { x: 4, y: 2, z: 4 }, false);
+  authority.weapon = slot;
+  authority.mag[slot] = 1;
+  const snap = (extra = {}) => ({ mag: authority.mag, reserve: authority.reserve,
+    weapon: authority.weapon, alive: true, ...extra });
+  state.forceWeapon(slot, { now: -10000 });
+  state.reconcileServer(snap(), 0);
+  const press = (now) => {
+    at(now);
+    const before = state.reloadId;
+    state.applyIntents({ reload: true }, now, { allowFire: true, alive: true });
+    assert.equal(state.reloadId, before + 1, 'R on the RIPTIDE bumps the identified request');
+    assert.equal(state.reloadIntent, true, 'the request is sent as the reload intent');
+    assert.equal(state.isReloading, false, 'R on the RIPTIDE never starts a local reload');
+    assert.equal(state._reloadState, null);
+    return state.reloadId;
+  };
+  let id = press(100);
+  state.reconcileServer(snap({ reloadAck: id - 1 }), 150);
+  assert.equal(state.reloadIntent, true, 'an older ack keeps the return pending');
+  state.reconcileServer(snap({ reloadAck: id }), 200);
+  assert.equal(state.reloadIntent, false, 'the authority ack clears the return');
+  press(1000);
+  state.tickReload(1000 + 1400);
+  assert.equal(state.reloadIntent, true, 'the return waits for its ack');
+  state.tickReload(1000 + 1600);
+  assert.equal(state.reloadIntent, false, 'an unacknowledged return times out');
+  id = press(5000);
+  state.forceWeapon(rifle, { now: 5010 });
+  assert.equal(state.reloadIntent, false, 'switching away drops the pending return');
+  // The next input for the drawn rifle must not carry the stale request.
+  authority.weapon = rifle;
+  authority.mag[rifle] = 5;
+  authority.deployT = 0;
+  authority.input = { reload: state.reloadIntent, reloadId: state.reloadId, wantFire: false };
+  updateTimers(authority, 0.02);
+  resolveWeaponIntent(authority, 0.02, context);
+  assert.equal(authority.reloading, false, 'a dropped RIPTIDE return never reloads the next gun');
+  state.dispose();
+}
+console.log('RIPTIDE R: identified request, ack, timeout and switch clear passed.');
+
 // Exercise numbered requests with snapshots slower than rendering. Deploy can
 // outlast the entire predicted animation without losing the pending request.
-for (const id of WEAPON_IDS.filter(id => WEAPONS[id].mode !== 'melee')) {
+// RIPTIDE R is a disc return, never a reload: the client block above and
+// tools/glaive-test.mjs (authority) cover it.
+for (const id of WEAPON_IDS.filter(id => WEAPONS[id].mode !== 'melee' && !WEAPONS[id].glaive)) {
   for (const delay of [0, 5000]) {
     const slot = WEAPON_IDS.indexOf(id);
     const { state, calls, at } = client();

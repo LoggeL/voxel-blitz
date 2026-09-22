@@ -78,7 +78,7 @@ assert.deepEqual(calls[1][1].pos, [-1, 2, 0], 'next eligible pass moves to the c
 for (const ev of [
   { ...shot, id: 'local' }, { ...shot, hitVictims: ['local'] },
   { ...shot, paths: undefined }, { ...shot, paths: [[segment(1, -10, -1)]] },
-  ...['rocket', 'longarc', 'knife', 'flamethrower'].map((w) => ({ ...shot, w })),
+  ...['rocket', 'longarc', 'knife', 'flamethrower', 'glaive'].map((w) => ({ ...shot, w })),
 ]) {
   const h = harness(); h.feedback.handleEvent(ev);
   assert.equal(h.calls.length, 0, `excluded shot ${ev.w}, ${ev.id}, ${JSON.stringify(ev.hitVictims)}`);

@@ -11,6 +11,7 @@ export const WEP_TONE = {
   revolver: 1.32,
   longarc: 1.42,
   rocket: 0.66,
+  glaive: 1.24,
 };
 
 // Cloth-rustle draw length per weapon.
@@ -23,6 +24,8 @@ export const DRAW_LEN = {
   revolver: 0.13,
   longarc: 0.22,
   rocket: 0.3,
+  // Long enough to hear the flywheel spin up under the 0.45s deploy.
+  glaive: 0.45,
 };
 
 const CYCLE_TONE = Object.freeze({
@@ -177,6 +180,59 @@ export function reloadRocket(out, primitives, step, t0, brightness) {
   }
 }
 
+/**
+ * RIPTIDE cassette lift (the fabricate presentation): a spring release, the
+ * spare disc sliding onto the spindle, and the horns clamping it home.
+ */
+export function reloadGlaive(out, primitives, step, t0, brightness) {
+  if (step === 1) {
+    primitives.tone(out, {
+      t0, type: 'square', f0: 1250 * brightness, f1: 700, dec: 0.02, g: 0.16,
+    });
+    primitives.hiss(out, {
+      t0: t0 + 0.02, filter: 'bandpass', f: 900 * brightness, q: 1.1, dec: 0.08, g: 0.22,
+    });
+  } else if (step === 2) {
+    primitives.hiss(out, {
+      t0, filter: 'bandpass', f: 2400 * brightness, sweepTo: 4200, sweepMs: 0.16, q: 2.6,
+      att: 0.02, dec: 0.16, g: 0.2,
+    });
+  } else {
+    primitives.tone(out, {
+      t0, type: 'square', f0: 1300 * brightness, f1: 620, dec: 0.022, g: 0.18,
+    });
+    primitives.tone(out, {
+      t0: t0 + 0.01, type: 'sine', f0: 2870 * brightness, detune: 5, dec: 0.25, g: 0.06,
+    });
+  }
+}
+
+/**
+ * RIPTIDE fabricate. `done` false is the start: a low hum that swells as the
+ * launcher begins printing a replacement disc; `done` true is the finish click
+ * with a short rising confirmation as the cassette seats the new disc.
+ */
+export function glaiveFabricate(out, primitives, done = false, t0 = primitives.nowT()) {
+  if (!done) {
+    primitives.tone(out, {
+      t0, type: 'sawtooth', f0: 70, f1: 110, att: 0.25, dec: 0.6, g: 0.06,
+    });
+    primitives.tone(out, {
+      t0, type: 'sine', f0: 140, f1: 220, att: 0.25, dec: 0.6, g: 0.05,
+    });
+    primitives.hiss(out, {
+      t0, filter: 'bandpass', f: 600, sweepTo: 1400, sweepMs: 0.8, q: 3, att: 0.3, dec: 0.5, g: 0.06,
+    });
+    return;
+  }
+  primitives.tone(out, {
+    t0, type: 'square', f0: 1700, f1: 900, dec: 0.02, g: 0.16,
+  });
+  primitives.tone(out, {
+    t0: t0 + 0.03, type: 'sine', f0: 880, f1: 1320, dec: 0.12, g: 0.06,
+  });
+}
+
 export function genericReloadStep(out, primitives, step, t0, brightness) {
   if (step === 1) {
     primitives.hiss(out, {
@@ -256,6 +312,24 @@ export function drawCloth(out, primitives, weapon, t0 = primitives.nowT()) {
     primitives.tone(out, {
       t0: t0 + duration * 0.88, type: 'square', f0: 1100, f1: 520,
       dec: 0.02, g: 0.14,
+    });
+  } else if (weapon === 'glaive') {
+    // Holster rustle, the flywheel spinning up, then the horns snapping ready.
+    primitives.hiss(out, {
+      t0, filter: 'bandpass', f: 760, q: 0.8,
+      dec: duration * 0.35, g: 0.18,
+    });
+    primitives.tone(out, {
+      t0: t0 + duration * 0.15, type: 'sawtooth', f0: 90, f1: 820,
+      att: duration * 0.4, dec: duration * 0.35, g: 0.05,
+    });
+    primitives.hiss(out, {
+      t0: t0 + duration * 0.2, filter: 'bandpass', f: 500, sweepTo: 2600,
+      sweepMs: duration * 0.6, q: 2.4, att: duration * 0.3, dec: duration * 0.4, g: 0.1,
+    });
+    primitives.tone(out, {
+      t0: t0 + duration * 0.9, type: 'square', f0: 1300, f1: 620,
+      dec: 0.02, g: 0.12,
     });
   } else if (weapon === 'longarc') {
     primitives.hiss(out, {

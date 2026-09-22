@@ -21,6 +21,7 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
   'projectileLaunch',
   'projectileUpdate',
   'projectileExplode',
+  'glaiveStock',
   'respawn',
   'die',
   'body_identified',

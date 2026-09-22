@@ -278,6 +278,38 @@ TIMERS.flamethrower = {
   boltTravel: 0.01, rechargeDur: 0.2,
 };
 
+TIMERS.glaive = {
+  // GV-4 RIPTIDE: forearm-braced disc launcher. The "barrel" is the launch spindle the
+  // seated disc rides on; the "bolt" is the flywheel drive wheel, which only nudges back.
+  // Throw/return/catch choreography lives in glaive-presentation.js, not in a reload.
+  tbase: -0.02,
+  rof: WEAPONS.glaive.rpm,
+  adsTime: WEAPONS.glaive.adsTime,
+  deployTime: WEAPONS.glaive.deployTime,
+  weightKg: WEAPONS.glaive.weightKg,
+  viewKick: { pitchDeg: WEAPONS.glaive.recoil.pitch, yawDeg: WEAPONS.glaive.recoil.yaw },
+  bursts: [[0]],          // semi: one disc per trigger pull.
+  anglesRad: [-0.0014],
+  interval: 0,
+  clip: 999,
+  muzzle: [0, 0, -0.40],  // spindle tip on the bore axis.
+  portY: 0.08,
+  ejectRight: 0,
+  barrelLen: 0.30,        // spindle breech -0.10 -> tip.
+  heatLen: [0.80, 1.0],   // friction glow on the spindle tip only (z -0.34..-0.40).
+  boltTravel: 0.012,      // flywheel kick-back per throw.
+  rechargeDur: 0,
+  pumpMag: 0,
+  cycleBack: false,
+  cycleKind: null,
+  ejectOnFire: false,     // the disc is the round and it comes back.
+  // Never driven by R (R returns discs); kept for the cassette-lift timing only.
+  // clickAt follows home so the lift cues stay in the canonical 1-2-3 order.
+  magTimeline: { start: 0.2, home: 0.7, clickAt: 0.78, type: 'mag' },
+  adsOffset: { x: 0, y: -0.150, z: -0.35 },   // ring sight on the camera axis; eye at gun z +0.35.
+  kick: { stiffness: 190, damping: 18, yawWobble: 0.2 },
+};
+
 /**
  * Walk / sprint / idle procedural-motion profile. Frequencies Hz, amplitudes meters, tilts radians.
  * figure-8: x = sin(pi*p), y = cos(2*pi*p) traces the classic lazy infinity loop.

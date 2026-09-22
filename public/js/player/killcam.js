@@ -75,7 +75,12 @@ export class Killcam {
       WEAPON_NAMES[clip.weapon] || THROWABLE_NAMES[clip.weapon] || 'ELIMINATED';
     this.roster = new AvatarRoster({ scene: this.group, getBlock: this.getBlock, getMyId: () => clip.killer });
     this.tracers = new TracerFX(this.group, this.getBlock, () => {});
-    this.projectiles = new ProjectileFX(this.group, this.getBlock, { camera: this.camera });
+    // Replayed discs steer home toward their owner's sampled position (the killer's too).
+    this.projectiles = new ProjectileFX(this.group, this.getBlock, { camera: this.camera,
+      getEntityPosition: (id) => {
+        const player = this.sample?.players?.get(String(id));
+        return player ? { x: player.x, y: player.y, z: player.z } : this.roster?.positionOf(id) || null;
+      } });
     this.impacts = new ImpactFX(this.group, this.camera, this.getBlock);
     this.rig = new ViewmodelRig(this.camera);
     this.weapon = null;

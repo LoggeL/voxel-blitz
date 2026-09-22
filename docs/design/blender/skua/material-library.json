@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "asset": "skua",
+  "materials": [
+    {
+      "material": "SKUA | ivory coating",
+      "texture": "ivory-ceramic"
+    },
+    {
+      "material": "SKUA | blade steel",
+      "texture": "machined-steel"
+    },
+    {
+      "material": "SKUA | orange paint",
+      "texture": "orange-paint"
+    },
+    {
+      "material": "SKUA | brass",
+      "texture": "aged-brass"
+    },
+    {
+      "material": "SKUA | dark polymer",
+      "texture": "molded-polymer"
+    },
+    {
+      "material": "SKUA | polished edge",
+      "texture": "machined-steel"
+    },
+    {
+      "material": "SKUA | gunmetal",
+      "texture": "phosphated-steel"
+    }
+  ]
+}

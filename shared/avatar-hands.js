@@ -44,6 +44,10 @@ export const HANDS = {
     grip: { x: 0.045, y: 0.015, z: -0.10 },                 // dominant palm wraps pistol grip.
     support: { x: -0.055, y: 0.005, z: -0.42, on: 'body' }, // cup under the rail shroud.
   },
+  glaive: {
+    grip: { x: 0, y: -0.075, z: 0.04 },                     // pistol grip ahead of the brace cuff.
+    support: { x: 0, y: -0.06, z: -0.30, on: 'body' },      // stub under the fork bridge.
+  },
   knife: {
     grip: { x: 0.020, y: -0.225, z: -0.035 },                // fist rides low: the baked glove
                                                             // cuff must stay under the 0.02 sight line.

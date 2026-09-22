@@ -23,7 +23,7 @@ const DEFAULT_OUT_DIR = path.join(PROJECT_ROOT, 'public', 'assets', 'weapons', '
 const BLENDER_HUD_ASSETS = Object.freeze({
   rifle: 'kestrel', smg: 'wasp', shotgun: 'mastiff', sniper: 'peregrine',
   lmg: 'bison', revolver: 'fang', rocket: 'torch', longarc: 'halo',
-  lance: 'pike', flamethrower: 'ifrit', minigun: 'hydra', knife: 'talon',
+  lance: 'pike', flamethrower: 'ifrit', minigun: 'hydra', knife: 'talon', glaive: 'skua',
 });
 const SUPERSAMPLE = 3;
 const MARGIN = 1.06;

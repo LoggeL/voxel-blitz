@@ -32,6 +32,10 @@ matching illustration. The same geometry is rendered in first-person and on
 remote avatars, so it must also remain fully visible in the deterministic
 weapon and avatar capture matrices.
 
+Weapon audio sources are recorded in
+[`../audio/LICENSES.md`](../audio/LICENSES.md); the GV-4 RIPTIDE (`glaive`) throw
+report is original procedural synthesis (`tools/generate-glaive-audio.py`).
+
 Runtime contracts take precedence over ornamental detail: the muzzle tip,
 grip and sight axes, animated bolt/pump/trigger groups, and reload handles must
 continue to use the anchors documented in `public/js/guns/models/common.js`.

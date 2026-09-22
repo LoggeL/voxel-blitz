@@ -11,8 +11,28 @@ import { RailBeamFX } from './rail-beam.js';
 import { BOLT_RULES } from '../../../shared/bolt-rules.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { rocketLaunch } from '../../../shared/rocket-rules.js';
+import { GLAIVE_RULES, glaiveLaunch } from '../../../shared/glaive-rules.js';
 
 export { blockSoundFor };
+
+/**
+ * Window events for the local player's RIPTIDE discs, so the viewmodel/HUD can react
+ * without reaching into the FX layer. `detail` is `{pid, x, y, z}` plus `reason` on a
+ * flip ('time'|'bounce'|'return'; predicted, then confirmed by authority at most once
+ * per disc). Catch/embed/stock come from authoritative events only; `stock` carries
+ * `{fab, pickups, restored}` from the server's `glaiveStock`.
+ */
+export const GLAIVE_EVENTS = Object.freeze({
+  flip: 'vb-glaive-flip',
+  catch: 'vb-glaive-catch',
+  embed: 'vb-glaive-embed',
+  stock: 'vb-glaive-stock',
+});
+
+function emitGlaive(name, detail) {
+  if (typeof window === 'undefined' || typeof window.dispatchEvent !== 'function') return;
+  window.dispatchEvent(new CustomEvent(name, { detail }));
+}
 
 const BLAST_PARTICLES = Object.freeze({
   frag: Object.freeze({ count: 34, tint: 0xff9f1c, speed: 8.2, size: 1.55, life: 0.72, shake: 0.95, reach: 26 }),
@@ -21,10 +41,14 @@ const BLAST_PARTICLES = Object.freeze({
   rocket: Object.freeze({ count: 52, tint: 0xffb347, speed: 10.5, size: 1.8, life: 0.85, shake: 1.15, reach: 32 }),
   bolt: Object.freeze({ count: 10, tint: 0x7dfcff, speed: 5.5, size: 1.0, life: 0.4, shake: 0.18, reach: 14 }),
   molotov: Object.freeze({ count: 24, tint: 0xff9238, speed: 4.5, size: 1.1, life: 0.65, shake: 0.22, reach: 14 }),
+  // RIPTIDE: remote catch sparkle and fizzle. No shake: nothing detonates.
+  glaive: Object.freeze({ count: 8, tint: 0xff3fd0, speed: 3.2, size: 0.9, life: 0.35, shake: 0, reach: 1 }),
 });
 
 export class Effects {
-  constructor(scene, camera, worldGetBlockFn, { onBounce = null } = {}) {
+  constructor(scene, camera, worldGetBlockFn, {
+    getEntityPosition = null, onBounce = null, onGlaiveFlip = null, onGlaiveFlight = null,
+  } = {}) {
     this.scene = scene;
     this.camera = camera;
     this.getBlockFn = worldGetBlockFn || (() => 0);
@@ -44,11 +68,24 @@ export class Effects {
     this.brass = new BrassPool(scene, this.getBlockFn);
     this.projectiles = new ProjectileFX(scene, this.getBlockFn, {
       camera,
+      getEntityPosition,
       onTrail: (x, y, z) => this.impacts.spawnParticles(
         x, y, z, 1, 0x8d8f94, { speed: 0.6, gravity: -0.4, size: 1.6, life: 0.55, softness: true },
       ),
-      onBounce: typeof onBounce === 'function' ? onBounce : null,
+      onBounce: (x, y, z, type, contact) => {
+        // RIPTIDE wall contact: bright sparks plus a stone chip off the bitten face.
+        if (type === 'glaive') this._glaiveSparks(x, y, z, contact);
+        if (typeof onBounce === 'function') onBounce(x, y, z, type, contact);
+      },
+      onGlaiveFlip: (disc, reason) => {
+        const detail = { pid: disc.id, x: disc.x, y: disc.y, z: disc.z, reason };
+        emitGlaive(GLAIVE_EVENTS.flip, detail);
+        if (typeof onGlaiveFlip === 'function') onGlaiveFlip(detail);
+      },
+      onGlaiveFlight: typeof onGlaiveFlight === 'function' ? onGlaiveFlight : null,
     });
+    /** The local player's queued fabrications as `performance.now()` due times. */
+    this._glaiveFabDue = [];
 
     this.stats = {};
     Object.defineProperties(this.stats, {
@@ -98,7 +135,78 @@ export class Effects {
         ],
         bn: BOLT_RULES.bounces,
       }, { local: true });
+    } else if (options.local && definition?.projectile === 'glaive' && Array.isArray(event.o)) {
+      // A RIPTIDE throw spawns the predicted disc from the shared launch formula; the
+      // authority `projectileLaunch` adopts it. Remote discs arrive as launch events.
+      const dir = event.spread || event.d;
+      const direction = Array.isArray(dir)
+        ? { x: dir[0], y: dir[1], z: dir[2] }
+        : dir;
+      const length = Math.hypot(direction.x, direction.y, direction.z) || 1;
+      const launch = glaiveLaunch({
+        x: event.o[0], y: event.o[1], z: event.o[2],
+        dir: { x: direction.x / length, y: direction.y / length, z: direction.z / length },
+      });
+      this.projectiles.launch({
+        type: 'glaive',
+        o: [launch.x, launch.y, launch.z],
+        v: [launch.vx, launch.vy, launch.vz],
+        bn: launch.bouncesLeft,
+      }, { local: true });
     }
+  }
+
+  /**
+   * Predict R on the RIPTIDE: the local player's out-leg discs turn home at once
+   * (each flip also emits `vb-glaive-flip`). Returns how many discs turned.
+   */
+  glaiveReturn() {
+    return this._disposed ? 0 : this.projectiles.returnOwnGlaives();
+  }
+
+  /** Local player's discs currently in the air (predicted or confirmed). */
+  glaivesInFlight() {
+    return this._disposed ? 0 : this.projectiles.ownGlaivesInFlight();
+  }
+
+  /**
+   * The HUD's RIPTIDE split beside the authoritative `mag`: discs in the air, how many
+   * of them R can still turn (`outLeg`), embedded pickups and each fabrication's
+   * progress 0..1. Shape matches `GameplayHud.setGlaiveDiscs` (`s.glaive`).
+   */
+  glaiveHudState(now = performance.now()) {
+    let inFlight = 0, outLeg = 0, embedded = 0;
+    for (const disc of this.projectiles.projectiles.values()) {
+      if (disc.type !== 'glaive' || !disc.own || disc.parked) continue;
+      inFlight++;
+      if (disc.phase === 'out') outLeg++;
+    }
+    for (const pickup of this.projectiles.glaivePickups.values()) if (pickup.own) embedded++;
+    const regen = GLAIVE_RULES.regenMs;
+    const fab01 = this._glaiveFabDue.map(due => Math.max(0, Math.min(1, 1 - (due - now) / regen)));
+    return { inFlight, outLeg, embedded, fab01 };
+  }
+
+  /**
+   * Server `glaiveStock` for one owner: replace that owner's embedded discs and, for
+   * the local player, the fabrication queue the HUD reads.
+   */
+  glaiveStock(event, { own = false } = {}) {
+    if (this._disposed || !event) return;
+    this.projectiles.syncGlaivePickups(event.id, event.pickups, own);
+    if (!own) return;
+    const now = performance.now();
+    this._glaiveFabDue = Array.isArray(event.fab)
+      ? event.fab.map(ms => now + Math.max(0, Number(ms) || 0)) : [];
+    emitGlaive(GLAIVE_EVENTS.stock, { fab: event.fab || [], pickups: event.pickups || [], restored: event.restored || null });
+  }
+
+  _glaiveSparks(x, y, z, contact) {
+    this.impacts.spawnParticles(x, y, z, 9, 0xffd6f4, { speed: 6, gravity: 12, size: 0.8, life: 0.3, sparks: true });
+    this.impacts.spawnParticles(
+      x + (contact?.nx || 0) * 0.05, y + (contact?.ny || 0) * 0.05, z + (contact?.nz || 0) * 0.05,
+      5, 0x7b7670, { speed: 2.8, gravity: 16, size: 1.4, life: 0.55, softness: true },
+    );
   }
 
   confirmShot(event) {
@@ -138,8 +246,10 @@ export class Effects {
     return this.projectiles.setPreview(launch);
   }
 
-  projectileExplode(event) {
+  /** `options.fromSelf` marks the local player's projectile (RIPTIDE catch/embed hooks). */
+  projectileExplode(event, options = {}) {
     if (this._disposed) return;
+    if (event?.type === 'glaive') { this._glaiveEnd(event, options); return; }
     this.projectiles.explode(event);
     if (event?.type === 'smoke') return;
     const style = BLAST_PARTICLES[event?.type] || BLAST_PARTICLES.frag;
@@ -167,6 +277,35 @@ export class Effects {
       this.shake(Math.max(0, style.shake - distance / style.reach));
     }
   }
+
+  _glaiveEnd(event, { fromSelf } = {}) {
+    const existing = this.projectiles.projectiles.get(String(event.pid ?? ''));
+    const own = fromSelf ?? existing?.own ?? false;
+    this.projectiles.explode(event, { fromSelf: own });
+    const x = Number(event.x), y = Number(event.y), z = Number(event.z);
+    const detail = { pid: String(event.pid ?? ''), x, y, z };
+    if (event.picked || ![x, y, z].every(Number.isFinite)) return;
+    if (event.caught) {
+      if (own) emitGlaive(GLAIVE_EVENTS.catch, detail);
+      else this._blastParticles(event, BLAST_PARTICLES.glaive);
+      return;
+    }
+    if (event.embed || event.reason === 'embed') {
+      this._glaiveSparks(x, y, z, Array.isArray(event.n) ? { nx: event.n[0], ny: event.n[1], nz: event.n[2] } : null);
+      if (own) emitGlaive(GLAIVE_EVENTS.embed, detail);
+      return;
+    }
+    this._blastParticles(event, BLAST_PARTICLES.glaive);
+  }
+
+  _blastParticles(event, style) {
+    this.impacts.spawnParticles(
+      Number(event.x), Number(event.y), Number(event.z),
+      style.count, style.tint,
+      { speed: style.speed, gravity: 6, size: style.size, life: style.life, sparks: true },
+    );
+  }
+
 
   syncMines(rows, selfId) {
     if (!this._disposed) this.projectiles.syncMines?.(rows, selfId);
@@ -203,6 +342,7 @@ export class Effects {
 
   clearCombatHazards() {
     this.projectiles.clear();
+    this._glaiveFabDue = [];
     this.flames.localActive = false; this.flames.localEvent = null;
     for (const puff of this.flames.puffs) puff.life = 0;
     this.flames.geometry.instanceCount = 0;

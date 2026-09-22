@@ -73,9 +73,10 @@ export function evDie(id, damage = null) {
 }
 
 /**
- * A grenade leaves the hand, a rocket leaves the tube, or a bolt leaves the coil.
- * `type` is a throwable/rocket/bolt id. Bolts alone carry `bn`: the reflections
- * they still hold at launch, so clients can mirror the ricochet FX locally.
+ * A grenade leaves the hand, a rocket leaves the tube, a bolt leaves the coil or a
+ * RIPTIDE disc leaves the spindle. `type` is a throwable/rocket/bolt/glaive id.
+ * Bolts and discs carry `bn`: the reflections they still hold at launch, so clients
+ * can mirror the ricochet FX locally.
  */
 export function evProjectileLaunch(id, projectileId, type, origin, velocity, fuseMs, bounces) {
   const event = {
@@ -85,7 +86,7 @@ export function evProjectileLaunch(id, projectileId, type, origin, velocity, fus
     v: velocity.map((value) => round(value, D2)),
     fuse: Math.max(0, Math.round(Number(fuseMs) || 0)),
   };
-  if (String(type) === 'bolt' && Number.isFinite(bounces)) {
+  if ((String(type) === 'bolt' || String(type) === 'glaive') && Number.isFinite(bounces)) {
     event.bn = Math.max(0, Math.trunc(bounces));
   }
   return event;
@@ -108,5 +109,25 @@ export function evProjectileUpdate(projectileId, origin, velocity, bounces) {
     v: velocity.map(value => round(value, D2)),
   };
   if (Number.isFinite(bounces)) event.bn = Math.max(0, Math.trunc(bounces));
+  return event;
+}
+
+/**
+ * A RIPTIDE owner's disc stock outside hand and air: `fab` lists the milliseconds
+ * until each queued fabrication completes, `pickups` the owner-only embedded discs
+ * (`pid` is the disc that embedded, `regen` the milliseconds until it fabricates
+ * instead). `restored` ('pickup'|'fab') marks the change that returned a disc.
+ */
+export function evGlaiveStock(id, fab, pickups, restored = null) {
+  const event = {
+    t: 'ev', kind: 'glaiveStock', id: String(id),
+    fab: fab.map((ms) => Math.max(0, Math.round(Number(ms) || 0))),
+    pickups: pickups.map((pickup) => ({
+      pid: String(pickup.id),
+      x: round(pickup.x, D2), y: round(pickup.y, D2), z: round(pickup.z, D2),
+      regen: Math.max(0, Math.round(Number(pickup.regen) || 0)),
+    })),
+  };
+  if (restored) event.restored = String(restored);
   return event;
 }

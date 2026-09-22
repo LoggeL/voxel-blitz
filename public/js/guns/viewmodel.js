@@ -7,6 +7,7 @@ import { weaponSwapProfile } from '../../../shared/weapon-swap.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from './heavy-weapon-animation.js';
+import { glaivePresentationFor } from './glaive-presentation.js';
 import { BOB, DEPLOY, TIMERS } from './defs.js';
 import { buildGun, disposeGunModels } from './assemble.js';
 import { WeaponActions } from './actions.js';
@@ -22,6 +23,13 @@ import { MedkitHands } from './medkit-hands.js';
 import { QUICK_MELEE_SECONDS } from '../../../shared/quick-melee.js';
 import { PICKAXE_SWING_SECONDS as SWING_S, PICKAXE_CARRY_YAW, PICKAXE_CARRY_ROLL, pickaxeSwingPose } from './pickaxe-swing.js';
 
+// Weapons with a running motor: its 0..1 level drives the hold's machine tremor.
+// The rotary barrel reads the authoritative spin; the RIPTIDE flywheel reads the
+// presentation's armed level, which dips on each throw and spins back up.
+const MOTOR_IDS = Object.freeze({
+  minigun: Object.freeze({ level: (rig) => rig._minigunState?.spin || 0, tremor: 0.0012 }),
+  glaive: Object.freeze({ level: (rig) => rig._glaiveMotion?.motor || 0, tremor: 0.0003 }),
+});
 
 export class ViewmodelRig {
 
@@ -65,6 +73,9 @@ export class ViewmodelRig {
     }
     this._chargeOrb.visible = false;
     this._cur = null;                  // active model bundle
+    this._glaive = null;               // GlaivePresentation for the drawn RIPTIDE, else null
+    this._glaiveMotion = null;         // last presentation layers {pushZ, tiltYaw, tiltPitch, motor}
+    this._glaiveState = null;          // authoritative {discs, magSize, fab01} from WeaponState
     this._id = null;
     this._now = 0;                     // rig-local clock, advanced only by update()
     this._queue = [];                  // deferred timer-boundary events {at, fn}
@@ -178,6 +189,9 @@ export class ViewmodelRig {
     if (this._cur && this._cur !== next) this.content.remove(this._cur.root);
     this._cur = next; this._id = key;
     this.content.add(next.root);
+    this._glaive = key === 'glaive' ? glaivePresentationFor(next) : null;
+    this._glaiveMotion = null;
+    if (this._glaive) this._glaive.reset(this._glaiveState?.discs);
     next.muzzleMarker.add(this._chargeOrb);
     this._chargeOrb.visible = false;
     this.pivot.position.copy(next.pivotCam);
@@ -272,7 +286,9 @@ export class ViewmodelRig {
     this._spr.push.v += ((this._id === 'minigun' ? 0.10 : 0.35) + pr * 1.1) * Math.sqrt(mass);
 
     this._uniSet(1, Math.min(1, cur.uni.uHeat.value + 0.5)); // burst heat accumulator, capped
-    this.revealFlash();
+    // The disc leaves a pneumatic spindle: no muzzle flash, the presentation plays the throw.
+    if (this._glaive) this._glaive.throw(def?.glaive?.outMs);
+    else this.revealFlash();
 
     const cycMs = 60000 / T.rof;          // rpm-referenced gate — literally the fire-cap definition
     this._lockUntil = Math.max(this._lockUntil, now + cycMs / 1000);
@@ -305,6 +321,31 @@ export class ViewmodelRig {
   }
 
   setMinigun(state) { this._minigunState = { ...state }; }
+
+  /** RIPTIDE authority each frame: discs in hand (mag), magSize, optional fabricate 0..1. */
+  setGlaive(state) {
+    this._glaiveState = state ? { discs: state.discs, magSize: state.magSize, fab01: state.fab01 ?? null } : null;
+    if (this._glaive && state) this._glaive.setDiscs(state.discs, state.magSize, state.fab01 ?? null);
+  }
+
+  /**
+   * A RIPTIDE return: R (every disc out) or one own disc turning home (`all:false`).
+   * `world` {x,y,z} is the turning disc; its screen side sets the view-tilt direction.
+   */
+  glaiveReturn({ world = null, all = true } = {}) {
+    if (!this._glaive) return;
+    let screenX = 0;
+    if (world && Number.isFinite(world.x) && this.camera?.matrixWorldInverse) {
+      this.camera.updateMatrixWorld();
+      const view = this._tmpV.set(world.x, world.y, world.z).applyMatrix4(this.camera.matrixWorldInverse);
+      // In front of the eye (-z) the projected x is the screen side; behind it, keep centre.
+      if (view.z < 0) screenX = this._tmpV.set(world.x, world.y, world.z).project(this.camera).x;
+    }
+    this._glaive.returnLeg({ screenX, all });
+  }
+
+  /** The authoritative `caught:true` event for one of the local player's discs. */
+  glaiveCatch() { this._glaive?.caught(); }
 
   setFlame(active, fuel = 1) {
     this._flameActive = !!active;
@@ -610,6 +651,11 @@ export class ViewmodelRig {
     const actionMotion = this._actions.update(this._now, dt, cur, T);
     const reloadDip = actionMotion.dip;
     const reloadRock = actionMotion.rock;
+    // RIPTIDE disc states run after the reload/jerk layer so their visibility writes win.
+    this._glaiveMotion = this._glaive ? this._glaive.update(elapsed) : null;
+    const glaivePush = this._glaiveMotion?.pushZ || 0;
+    const glaiveYaw = (this._glaiveMotion?.tiltYaw || 0) * cosmeticMotion;
+    const glaivePitch = (this._glaiveMotion?.tiltPitch || 0) * cosmeticMotion;
 
     /* grenade wind-up + throw lunge (mass-scaled: a heavy gun is slower to pull aside) */
     const windRate = 9 * Math.sqrt(mass);
@@ -650,9 +696,10 @@ export class ViewmodelRig {
     const roll = bobX / (BOB.walkHorz || 1) * BOB.counterRoll * (1 - adsE * 0.5)
       + turn.roll
       + this._lean.p * BOB.leanRollPerMeter;
-    const motor = this._id === 'minigun' ? (this._minigunState?.spin || 0) : 0;
+    const motorProfile = MOTOR_IDS[this._id];
+    const motor = motorProfile ? motorProfile.level(this) : 0;
     const pressure = this._id === 'flamethrower' && this._flameActive ? 1 : 0;
-    const machineTremor = Math.sin(this._now * (35 + motor * 55)) * motor * 0.0012;
+    const machineTremor = Math.sin(this._now * (35 + motor * 55)) * motor * (motorProfile?.tremor || 0);
 
     /* ---------- compose transforms (condition offsets never touch the authoritative camera) ---------- */
     this.posG.position.set(
@@ -671,8 +718,8 @@ export class ViewmodelRig {
     this._aimQ.setFromEuler(this._aimEuler.set(shotPitch, shotYaw, 0, 'YXZ'));
     this._aimQ.premultiply(this._cameraQ.invert());
     this._cosmeticQ.setFromEuler(this._aimEuler.set(
-      this._spr.pitch.p + this._air.p * BOB.airPitchPerMeter + conditionPitch + fearPitch,
-      this._spr.yaw.p + conditionYaw + fearYaw,
+      this._spr.pitch.p + this._air.p * BOB.airPitchPerMeter + conditionPitch + fearPitch + glaivePitch,
+      this._spr.yaw.p + conditionYaw + fearYaw + glaiveYaw,
       roll + cant + nadeRz, 'YXZ'));
     this.pivot.quaternion.copy(this._aimQ).multiply(this._cosmeticQ);
 
@@ -684,7 +731,7 @@ export class ViewmodelRig {
     this.content.position.set(
       HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0) + swimSway,
       HIP.y + (T.adsOffset.y - HIP.y - (cur.attachmentSightOffset || 0)) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065 - swimCarry * 0.05,
-      HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0)
+      HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0) + glaivePush
     );
     this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22,
       swingRy + (this._id === 'knife' ? PICKAXE_CARRY_YAW : 0) + (dep.ry || 0) + (actionMotion.yaw || 0),

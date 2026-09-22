@@ -176,7 +176,7 @@ After admission:
   from the same socket so the client can measure application-level round-trip
   time. An opted-in reply also carries `diagnostics` with server RTT freshness,
   tick/process timing and queued bytes; ordinary replies omit this telemetry.
-- `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'}` requests
+- `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive'}` requests
   an S&D prep-phase purchase.
 - `{t:'chat',text:string}` broadcasts at most 120 trimmed characters only to
   this member's room, with control/zero-width characters stripped. Each member
@@ -344,7 +344,7 @@ recovery. The condition penalty is exactly
 crouching also applies each weapon's `crouchSpreadMult` to base spread/bloom.
 
 The slot roster is exactly
-`['rifle','smg','shotgun','sniper','lmg','revolver','longarc','rocket','lance','knife']`:
+`['rifle','smg','shotgun','sniper','lmg','revolver','longarc','rocket','lance','knife','minigun','flamethrower','glaive']`:
 
 | slot/key | display name | mode | rpm | mag/spare mags | close→far damage @ end | head | pellets | hip/ADS cone | mass |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -358,6 +358,9 @@ The slot roster is exactly
 | 7 `rocket` | RX-8 HAVOC | semi | 45 | 1/5 | projectile | 1.00× | 1 | 1.10°/0.25° | 9.6 kg |
 | 8 `lance` | CL-9 VOLTLANCE | charge | 100 | 4/5 | 130→95 @ 95 | 2.00× | 1 | 1.20°/0.05° | 3.8 kg |
 | 9 `knife` | K-7 RIPPER | melee | 120 | 0/0 | 58→58 (flat) | 1.00× | 1 | 0°/0° | 0.9 kg |
+| 10 `minigun` | M-6 FURNACE | auto | 1200 | 300/4 | 12→8 @ 70 | 1.70× | 1 | 1.35°/0.36° | 11.8 kg |
+| 11 `flamethrower` | F-4 FIRESTORM | auto | 1200 | 160/5 | 6→2 @ 28 | 1.00× | 1 | 0°/0° | 5.8 kg |
+| 12 `glaive` | GV-4 RIPTIDE | semi | 150 | 2 discs/0 | disc: out 54, back 72 | 1.50× | 1 | 1.20°/0.30° | 3.1 kg |
 
 Damage is flat to 20 world units by default; the shotgun starts falloff at 12
 and the lance at 45. It then falls linearly to the table's far value at the
@@ -376,6 +379,23 @@ splash (96 @ 4.8 radius, 0.55 self), knockback (11, 15.5 self), and the carve
 (radius 3.1, power 145, 80 blocks). All remaining cadence, bloom, recoil, ADS,
 reload, deploy, tracer, mass, and SFX fields are read from `WEAPONS`; do not
 duplicate them.
+
+The RIPTIDE (`glaive`) is `projectile:'glaive'`: `shared/glaive-rules.js` owns one
+flight integrator for the server and client prediction. A disc leaves the eye at
+34 m/s without gravity (hit radius 0.22), flies a straight out leg for 550 ms or
+until its first wall contact (one reflection, 24 block damage), then steers home
+to the owner's chest (`eyeY - 0.35`) at 30 m/s, turning at most 540°/s in a
+level loop. Each leg cuts each body once, up to 3 bodies with ×0.85 per extra
+body; base damage is out 54 and back 72 before `COMBAT_DAMAGE_SCALE`, head
+×1.5 (zone from the disc centre line), and the same body cannot take its back cut
+within 120 ms of its out cut. A disc within 1.4 m of its living owner is caught
+into `mag[12]` (`projectileExplode` with `caught:true`), in any hand. R never
+reloads: the identified reload request is acknowledged and `returnDiscs` turns
+every out-leg disc home. A back-leg wall embeds the disc as an owner-only pickup
+(1.3 m) that fabricates after 4000 ms (`glaiveStock` event); a 3.6 s lifetime
+fizzle fabricates without a pickup; owner death or disconnect loses the disc.
+`mag + inFlight + embedded + fab ≤ magSize` is enforced by one normaliser each
+tick. Throwing needs a seated disc and fewer than `magSize` discs in the air.
 
 The VOLTLANCE (`lance`) charges over 2800 ms and taps for a damage multiplier
 of 0.08. Charge increases damage, beam radius and penetration power. It can hit
@@ -809,19 +829,20 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   `shared/powerups.js` owns balance, `shared/powerup-sites.js` owns placement,
   and `server/sim/powerups.js` owns collection and scheduling. `PowerupView`
   renders depth-tested symbols; `PowerupHud` shows armor and collection feedback.
-- **Fun (`fun`):** free-for-all target eligibility, complete ten-weapon
-  loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
+- **Fun (`fun`):** free-for-all target eligibility, complete
+  thirteen-weapon loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
   `1500 ms` respawn. Shared quick rooms allow join in progress with no ready
   gate.
 - **Team Deathmatch (`tdm`):** persistent `alpha`/`bravo` assignment chooses the
   lower human+bot population; friendly fire is disabled and every player owns
-  the complete ten-weapon loadout. Enemy kills increment the killer's team
+  the complete thirteen-weapon loadout. Enemy kills increment the killer's team
   score. First to `40` enters `post` (40% human approval + `5000 ms`), then team/player scores
   reset and all players respawn. Live deaths respawn after `3000 ms` at the
   player's team spawn pool.
 - **Gun Game (`gungame`):** free-for-all target eligibility and `1500 ms`
   respawn. Players progress through the immutable shared order rifle, SMG,
-  shotgun, sniper, LMG, revolver, longarc, rocket, lance, knife; a kill with
+  shotgun, sniper, LMG, flamethrower, rocket, longarc, RIPTIDE (glaive), lance,
+  revolver, minigun, knife; a kill with
   the RIPPER knife wins. The winner is shown during `post` (40% human approval + `5000 ms`)
   before progression and scores reset.
 - **Search and Destroy (`snd`):** persistent `alpha`/`bravo` teams map to
@@ -840,8 +861,9 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   elimination.
 - **S&D economy:** players start with 800 credits; kill +300, plant +300, round
   win +3250, and consecutive losses +1400/+1900/+2400/+2900/+3400, capped at
-  16000. Prices are revolver 0, knife 500, SMG 1250, shotgun 1800, rifle 2700,
-  longarc 3500, lance 3800, LMG 4000, rocket 4300, sniper 4750. Only alive
+  16000. Prices are revolver 0, knife 500, SMG 1250, shotgun 1800,
+  flamethrower 2400, rifle 2700, RIPTIDE (glaive) 3000, longarc 3500, lance 3800,
+  LMG 4000, rocket 4300, sniper 4750, minigun 4800. Only alive
   participants buy during prep. A purchase owns,
   selects, and refills that weapon. New/dead players start the next round with
   revolver; survivors retain purchases and remaining ammunition.

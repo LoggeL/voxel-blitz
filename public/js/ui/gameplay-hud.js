@@ -8,6 +8,7 @@ import {
   resolveKey,
   spreadFromCone,
   beamReticleRadiusPx,
+  glaiveDiscSlots,
   weaponImagePath,
 } from './hud-support.js';
 import { Scoreboard } from './scoreboard.js';
@@ -117,6 +118,10 @@ export class GameplayHud {
     d.ringHint = el('div', '', d.ch, 'reload-hint');
     d.ringHint.textContent = 'RELOADING';
     d.ringHint.style.display = 'none';
+    // RIPTIDE: one small pip per disc under the reticle, lit while it is in hand.
+    d.chDiscs = el('div', 'vb-ch-discs', d.ch);
+    d.chDiscs.setAttribute('aria-hidden', 'true');
+    d.chDiscs.hidden = true;
     // Breath meter: only while aiming, shows the hold-breath window draining.
     d.breath = el('div', 'vb-breath-meter', hud, 'breath-meter');
     d.breathFill = el('i', '', d.breath);
@@ -193,10 +198,19 @@ export class GameplayHud {
     d.chargeMeterLabel = el('span', 'vb-charge-label', d.chargeMeter);
     d.chargeMeterLabel.textContent = 'COIL CHARGE';
     d.mag = el('span', '', d.ammo, 'ammocount');
-    d.sep = el('span', '', d.ammo);
+    d.sep = el('span', 'vb-ammo-sep', d.ammo);
     d.sep.textContent = '/';
     d.res = el('span', '', d.ammo, 'ammoreserve');
     d.wname = el('div', '', d.ammo, 'weaponname');
+    // RIPTIDE replaces mag/reserve with disc pips: in hand, in flight,
+    // embedded in a wall, or being fabricated by the launcher.
+    d.discs = el('span', 'vb-disc-pips', d.ammo, 'disc-pips');
+    d.discs.setAttribute('role', 'img');
+    d.discs.hidden = true;
+    d.discReturn = el('span', 'vb-disc-return', d.ammo);
+    d.discReturn.textContent = `${bindingLabel('reload')} · RETURN`;
+    d.discReturn.title = `Return every disc on its out leg (${bindingLabel('reload')})`;
+    d.discReturn.hidden = true;
 
     d.kf = el('div', '', hud, 'killfeed');
     d.dmglayer = el('div', '', hud, 'dmglayer');
@@ -259,6 +273,8 @@ export class GameplayHud {
     this._unsubscribeBindings = subscribeKeybindings(() => {
       this.setScoreboard(false);
       this.syncGrenadeLabels();
+      d.discReturn.textContent = `${bindingLabel('reload')} · RETURN`;
+      d.discReturn.title = `Return every disc on its out leg (${bindingLabel('reload')})`;
     });
     this.apply();
   }
@@ -329,8 +345,15 @@ export class GameplayHud {
       if (key) d.weaponIcon.src = weaponImagePath(key);
       d.res.title = WEAPONS[key]?.spareRounds != null ? 'Spare shells' : 'Spare magazines';
       d.res.setAttribute('aria-label', d.res.title);
+      const discs = !!WEAPONS[key]?.glaive;
+      d.ammo.classList.toggle('is-discs', discs);
+      d.discs.hidden = !discs;
+      d.discReturn.hidden = !discs;
+      d.chDiscs.hidden = !discs;
+      painted.discs = undefined;
       this.lastWepKey = key;
     }
+    if (WEAPONS[key]?.glaive) this.setGlaiveDiscs(s, WEAPONS[key]);
     const melee = WEAPONS[key]?.mode === 'melee';
     if (s.mag != null && (s.mag !== painted.mag || melee !== painted.melee)) {
       painted.mag = s.mag;
@@ -555,6 +578,45 @@ export class GameplayHud {
     if (!label) return;
     label.textContent = `${value.toFixed(1)}×`;
     this._scopeZoomShown = value;
+  }
+
+  /**
+   * Paint RIPTIDE disc pips from the authoritative split: `mag` is discs in
+   * hand, `glaive` carries { magSize, inFlight, outLeg, embedded, fab01[] }.
+   */
+  setGlaiveDiscs(s, def) {
+    const d = this.dom;
+    const g = s.glaive || {};
+    const slots = glaiveDiscSlots({
+      magSize: g.magSize ?? def.magSize,
+      mag: s.mag,
+      inFlight: g.inFlight,
+      embedded: g.embedded,
+      fab01: g.fab01,
+    });
+    const returnable = Math.max(0, Number(g.outLeg ?? g.inFlight) || 0);
+    const signature = `${slots.map((slot) => `${slot.state}:${Math.round(slot.fill01 * 100)}`).join(',')}|${returnable > 0}`;
+    if (signature === this._painted.discs) return;
+    this._painted.discs = signature;
+    while (d.discs.children.length > slots.length) d.discs.children[d.discs.children.length - 1].remove();
+    while (d.chDiscs.children.length > slots.length) d.chDiscs.children[d.chDiscs.children.length - 1].remove();
+    while (d.discs.children.length < slots.length) el('i', 'vb-disc-pip', d.discs);
+    while (d.chDiscs.children.length < slots.length) el('i', 'vb-ch-disc', d.chDiscs);
+    const tally = { hand: 0, flight: 0, embedded: 0, fab: 0, empty: 0 };
+    slots.forEach((slot, i) => {
+      tally[slot.state]++;
+      const pip = d.discs.children[i];
+      pip.className = `vb-disc-pip is-${slot.state}`;
+      pip.style.setProperty('--fill', `${Math.round(slot.fill01 * 100)}%`);
+      d.chDiscs.children[i].className = `vb-ch-disc${slot.state === 'hand' ? ' is-ready' : ''}`;
+    });
+    const parts = [`${tally.hand} ready`];
+    if (tally.flight) parts.push(`${tally.flight} in flight`);
+    if (tally.embedded) parts.push(`${tally.embedded} embedded`);
+    if (tally.fab) parts.push(`${tally.fab} fabricating`);
+    d.discs.setAttribute('aria-label', `Discs: ${parts.join(', ')}`);
+    d.ammo.classList.toggle('is-disc-empty', tally.hand === 0);
+    d.discReturn.classList.toggle('is-ready', returnable > 0);
   }
 
   updateAmmoLow() {

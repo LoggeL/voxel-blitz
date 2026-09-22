@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import { ProjectileSystem } from '../server/sim/projectiles.js';
+import { PlayerEntity, fwdFromYawPitch } from '../server/sim/player.js';
 import { sweepPlayers } from '../server/sim/projectile-contact.js';
 import { playerHitboxes, rayPlayerHitboxes } from '../shared/player-hitboxes.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
@@ -140,6 +141,45 @@ for (const targets of [[], [{x:0,y:9,z:-5}], [{x:0,y:9,z:5,state:'dead'}],
   assert(b.vx < 0, 'steers toward farther visible enemy');
   for (const axis of ['vx','vy','vz']) assert(Math.abs(a[axis]-b[axis]) < 1e-12);
 }
+// RIPTIDE burst: 24 players throw both discs at once into a crowd. The repeated
+// per-leg sweep and the 100 ms return sync must stay inside the tick budget.
+const glaiveBurst = (() => {
+  const system = new ProjectileSystem();
+  const events = [];
+  const players = Array.from({ length: 24 }, (_, i) => {
+    const p = new PlayerEntity(`g${i}`, `g${i}`, { x: 20 + (i % 6) * 3, y: 20, z: 20 + Math.floor(i / 6) * 3 }, false);
+    Object.assign(p, { yaw: (i / 24) * Math.PI * 2, pitch: 0, weapon: WEAPON_IDS.indexOf('glaive') });
+    return p;
+  });
+  const ctx = {
+    now: 1000, entities: new Map(players.map((p) => [p.id, p])),
+    getBlock: () => 0, solidAt: () => false, canAffectWorld: () => true,
+    canDamage: (a, b) => a !== b, canThrow: () => true,
+    pushEvent: (event) => events.push(event), killPlayer: (victim) => { victim.state = 'dead'; },
+    damageBlock() {}, destroyBlock: () => false,
+  };
+  for (const p of players) for (let disc = 0; disc < 2; disc++) {
+    p.mag[p.weapon]--;
+    system.launchGlaive(p, ctx, fwdFromYawPitch(p.yaw + disc * 0.2, 0));
+  }
+  const launched = [...system.active.values()].filter((p) => p.type === 'glaive').length;
+  const ticks = [];
+  for (let tick = 0; tick < 240 && [...system.active.values()].some((p) => p.type === 'glaive'); tick++) {
+    ctx.now += 1000 / 60;
+    const start = performance.now();
+    system.step(1 / 60, ctx);
+    ticks.push(performance.now() - start);
+  }
+  assert.equal(launched, 48, 'every player has two discs in the air');
+  assert(![...system.active.values()].some((p) => p.type === 'glaive'), 'every disc resolves within its lifetime');
+  const updates = events.filter((e) => e.kind === 'projectileUpdate').length;
+  // At most one leg flip per disc plus one resync per 100 ms of its 3.6 s lifetime.
+  assert(updates <= 48 * (1 + 36), `return sync stays bounded (${updates} updates)`);
+  ticks.sort((a, b) => a - b);
+  const median = ticks[Math.floor(ticks.length / 2)];
+  assert(median < 4, `48-disc tick median ${median.toFixed(3)} ms stays under 4 ms`);
+  return { discs: launched, ticks: ticks.length, medianTickMs: Number(median.toFixed(3)), updates };
+})();
 const o = [12.345678901234, 7.89123456789, 21.1234567890123];
 const v = [3.456789012345, -1.234567890123, 29.987654321098];
 const event = evProjectileUpdate('r123', o, v, 8);
@@ -151,4 +191,4 @@ const rawBytes = JSON.stringify({t:'ev',kind:'projectileUpdate',pid:'r123',o,v,b
 const wireBytes = JSON.stringify(event).length;
 assert(wireBytes < rawBytes * 0.75);
 console.log(JSON.stringify({collisionMedianMs192x24: collision, homingVoxelReads: homing,
-  updateBytes: { before: rawBytes, after: wireBytes }, matchingContacts: contacts}));
+  updateBytes: { before: rawBytes, after: wireBytes }, matchingContacts: contacts, glaiveBurst}));
