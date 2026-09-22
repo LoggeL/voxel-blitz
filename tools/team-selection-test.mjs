@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { setTimeout as delay } from 'node:timers/promises';
+import { GameEngine } from '../server/game.js';
 import { LobbyManager } from '../server/lobby.js';
+import { getMapMeta } from '../shared/worlddata.js';
 import { startServer, stopServer } from './lib/server-process.mjs';
 import { Client } from './lib/ws-client.mjs';
 
@@ -53,6 +55,44 @@ for (const gameMode of ['tdm', 'snd']) {
   manager.leave(host); manager.leave(guest);
 }
 
+// A carrier leaving during prep (nobody can move yet) hands the bomb to a
+// remaining attacker; once the round is live it drops where they stood.
+{
+  const engine = new GameEngine({ mode: 'snd', mapMeta: getMapMeta('foundry') });
+  for (const id of ['a', 'b', 'c', 'd', 'e']) engine.addClient(id, id.toUpperCase());
+  const policy = engine.mode.policy;
+  const attackerIds = () => [...engine.entities.values()]
+    .filter(p => policy.teamFor(p) === policy.attackers).map(p => p.id);
+  const prepCarrier = policy.bomb.carrierId;
+  assert.equal(policy.phase, 'prep');
+  assert.ok(attackerIds().includes(prepCarrier));
+  const prepSince = engine.tickEvents.length;
+  engine.removeClient(prepCarrier);
+  const prepEvents = engine.tickEvents.slice(prepSince);
+  assert.equal(policy.bomb.state, 'carried', 'prep disconnect reassigns the bomb');
+  assert.notEqual(policy.bomb.carrierId, prepCarrier, 'the leaver never keeps the bomb');
+  assert.ok(attackerIds().includes(policy.bomb.carrierId), 'a remaining attacker carries it');
+  assert.equal(engine.entities.get(policy.bomb.carrierId).bomb, true);
+  assert.ok(prepEvents.some(ev => ev.kind === 'bomb_assigned' && ev.id === policy.bomb.carrierId));
+  assert.ok(!prepEvents.some(ev => ev.kind === 'bomb_drop'), 'prep disconnect never drops the bomb');
+  const handedTo = policy.bomb.carrierId;
+  while (policy.phase === 'prep') engine.step(50);
+  assert.equal(policy.phase, 'live');
+  assert.equal(policy.bomb.state, 'carried');
+  assert.equal(policy.bomb.carrierId, handedTo, 'live starts with the reassigned carrier');
+
+  const liveCarrier = engine.entities.get(handedTo);
+  const at = { x: liveCarrier.x, y: liveCarrier.y, z: liveCarrier.z };
+  const liveSince = engine.tickEvents.length;
+  engine.removeClient(handedTo);
+  assert.equal(policy.bomb.state, 'dropped', 'live disconnect drops the bomb');
+  assert.equal(policy.bomb.carrierId, null);
+  assert.deepEqual({ x: policy.bomb.x, y: policy.bomb.y, z: policy.bomb.z }, at);
+  assert.ok(engine.tickEvents.slice(liveSince).some(ev => ev.kind === 'bomb_drop'
+    && ev.id === handedTo && ev.reason === 'disconnect'));
+  engine.stop();
+}
+
 // Real transport: only the host can assign teams, and every member receives changes.
 const server = startServer({ failureContext: 'team selection' });
 const clients = [];
@@ -102,4 +142,4 @@ try {
   await Promise.allSettled(clients.map(c => c.close()));
   await stopServer(server);
 }
-console.log('Team selection passed: permissions, readiness, map persistence, spawns, bomb ownership, bot balance and real WebSocket launch.');
+console.log('Team selection passed: permissions, readiness, map persistence, spawns, bomb ownership (incl. carrier disconnects), bot balance and real WebSocket launch.');

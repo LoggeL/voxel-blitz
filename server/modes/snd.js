@@ -144,11 +144,16 @@ export class SndPolicy {
     if (!state) return false;
 
     const position = (entity && pointOf(entity)) || state.last;
-    if (this.bomb.state === 'carried' && this.bomb.carrierId === id) {
+    const wasCarrier = this.bomb.state === 'carried' && this.bomb.carrierId === id;
+    if (wasCarrier && this.phase !== 'prep') {
       this._objective.dropBomb(position, id, 'disconnect');
     }
     this._objective.clearInteraction(id, true);
     this._players.delete(id);
+    // Nobody can move during prep, so a leaving carrier hands the bomb to a
+    // remaining attacker instead of stranding it at an empty spawn. The leaver
+    // is already out of _players, so assignBomb cannot pick them again.
+    if (wasCarrier && this.phase === 'prep') this._reassignBomb();
     this._emit('team_removed', { id, team: state.team });
     return true;
   }
@@ -181,9 +186,7 @@ export class SndPolicy {
     this._objective.clearInteraction(String(entity.id), true);
     this._syncPlayer(entity, state);
     this._respawn(entity, { emitEvent: false });
-    this._objective.resetBomb();
-    this._syncAllPlayers();
-    this._objective.assignBomb();
+    this._reassignBomb();
     return true;
   }
 
@@ -199,7 +202,8 @@ export class SndPolicy {
     if (this.phase !== 'post') state.survived = false;
     this._objective.clearInteraction(String(dead.id), true);
     if (this.bomb.state === 'carried' && this.bomb.carrierId === String(dead.id)) {
-      this._objective.dropBomb(state.last, String(dead.id), 'death');
+      if (this.phase === 'prep') this._reassignBomb();
+      else this._objective.dropBomb(state.last, String(dead.id), 'death');
     }
     if (killer && this.isEnemy(killer, dead)) {
       const killerEntity = this._entity(killer);
@@ -464,6 +468,13 @@ export class SndPolicy {
       const state = this._state(entity);
       if (state) this._syncPlayer(entity, state);
     }
+  }
+
+  /** Prep-phase bomb handoff: return it to the pool and pick an eligible attacker. */
+  _reassignBomb() {
+    this._objective.resetBomb();
+    this._syncAllPlayers();
+    this._objective.assignBomb();
   }
 
   _rememberPositions() {

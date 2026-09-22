@@ -838,7 +838,8 @@ bots:difficulty:browser` checks real host/member controls and match launch.
 - **S&D objective:** one attacker carries the bomb. A carrier holds interact
   inside A/B for `3000 ms` to plant. A defender holds interact within 2 units
   for `5000 ms` to defuse. The fuse is `40000 ms`; dropped-bomb auto-pickup
-  radius is 1.4 units. Carrier death/disconnect drops at the last position.
+  radius is 1.4 units. Carrier death/disconnect drops at the last position;
+  during prep the bomb is reassigned to a remaining attacker instead.
   Tick outcome priority is explosion, completed defuse, elimination, then
   unplanted time expiry. A planted bomb keeps the round live after attacker
   elimination.
