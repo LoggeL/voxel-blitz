@@ -42,6 +42,14 @@ import { SmokeSystem } from './smoke.js';
 import { MolotovFireSystem } from './molotov-fire.js';
 import { CLAYMORE_RULES, rayClaymore, placeClaymore, claymoreProfile, claymoreBeam, crossesClaymore } from '../../shared/claymore-rules.js';
 
+/** Live projectiles per room; launches beyond it are refused. */
+export const MAX_ACTIVE_PROJECTILES = 192;
+/**
+ * Slots only paid launches (a fired rocket or bolt, a thrown grenade) may fill:
+ * Chaos side projectiles and cluster children stop short of them, so a shot
+ * whose ammunition is already spent always gets its projectile.
+ */
+export const PRIMARY_PROJECTILE_RESERVE = 32;
 /** An impact projectile ignores its own thrower for this long after release. */
 const OWNER_GRACE_MS = 220;
 /** Chain detonation reaches this fraction of the blast radius. */
@@ -117,6 +125,10 @@ export class ProjectileSystem {
     this._homingCandidates = [];
     this._stepping = [];
     this._previousPlayers = new Map();
+  }
+
+  _hasRoom(secondary = false) {
+    return this.active.size < MAX_ACTIVE_PROJECTILES - (secondary ? PRIMARY_PROJECTILE_RESERVE : 0);
   }
 
   clear() {
@@ -361,7 +373,7 @@ export class ProjectileSystem {
 
   /** Release-edge throw. `typeIndex` selects the grenade; `cookMs` shortens a timed fuse. */
   throw(player, ctx, charge = 0.5, typeIndex = 0, cookMs = 0, aim = null) {
-    if (this.active.size >= 192) return null;
+    if (!this._hasRoom()) return null;
     const index = clampGrenadeType(typeIndex);
     const type = GRENADE_TYPES[GRENADE_TYPE_IDS[index]];
     const direction = fwdFromYawPitch(aim?.yaw ?? player.yaw, aim?.pitch ?? player.pitch);
@@ -437,10 +449,11 @@ export class ProjectileSystem {
 
   /**
    * A rocket leaves the tube from the shooter's eye along the spread-sampled `dir`.
-   * `weaponKey` credits a Chaos side effect to the weapon that fired it.
+   * `weaponKey` credits a Chaos side effect to the weapon that fired it;
+   * `secondary` side effects leave the paid-launch reserve free.
    */
-  launchRocket(player, ctx, dir, { weaponKey = null } = {}) {
-    if (this.active.size >= 192) return null;
+  launchRocket(player, ctx, dir, { weaponKey = null, secondary = false } = {}) {
+    if (!this._hasRoom(secondary)) return null;
     const launch = rocketLaunch({ x: player.x, y: player.eyeY, z: player.z, dir });
     const id = `r${this._nextId++}`;
     const projectile = {
@@ -474,8 +487,8 @@ export class ProjectileSystem {
   }
 
   /** A bolt leaves the coil from the shooter's eye along the spread-sampled `dir`. */
-  launchBolt(player, ctx, dir, charge01 = 1, satellite = false, { weaponKey = WEAPONS.longarc.id } = {}) {
-    if (this.active.size >= 192) return null;
+  launchBolt(player, ctx, dir, charge01 = 1, satellite = false, { weaponKey = WEAPONS.longarc.id, secondary = false } = {}) {
+    if (!this._hasRoom(satellite || secondary)) return null;
     const launch = boltLaunch({ x: player.x, y: player.eyeY, z: player.z, dir, charge01 });
     const id = `b${this._nextId++}`;
     const projectile = {
@@ -576,7 +589,7 @@ export class ProjectileSystem {
 
   _scatter(source, count, ctx) {
     const type = source.type === 'rocket' ? 'frag' : source.type;
-    for (let i = 0; i < count && this.active.size < 192; i++) {
+    for (let i = 0; i < count && this._hasRoom(true); i++) {
       const angle = i / count * Math.PI * 2;
       const id = `g${this._nextId++}`;
       const child = { ...source, id, type, child: true, stuck: false,

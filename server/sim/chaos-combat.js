@@ -13,8 +13,8 @@ function fan(p, id, ctx, dir, count, rocket = false, circle = false) {
       y: dir.y, z: dir.x * Math.sin(a) + dir.z * Math.cos(a) };
     const length = Math.hypot(d.x, d.y, d.z) || 1;
     d.x /= length; d.y /= length; d.z /= length;
-    if (rocket) ctx.launchRocket?.(p, d, { weaponKey: id });
-    else ctx.launchBolt?.(p, d, 1, { weaponKey: id });
+    if (rocket) ctx.launchRocket?.(p, d, { weaponKey: id, secondary: true });
+    else ctx.launchBolt?.(p, d, 1, { weaponKey: id, secondary: true });
   }
 }
 
