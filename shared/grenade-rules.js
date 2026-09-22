@@ -69,7 +69,7 @@ export const GRENADE_TYPES = Object.freeze({
     name: 'M-4 FRAG',
     short: 'FRAG',
     perLife: 2,
-    fuseMs: 2600,
+    fuseMs: 5000,
     cook: true,
     impact: false,
     damage: 175,

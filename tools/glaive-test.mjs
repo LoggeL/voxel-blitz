@@ -15,6 +15,7 @@ import {
   GLAIVE_RULES,
   glaiveHitDamage,
   glaiveLegDamage,
+  glaiveSeek,
   glaiveTarget,
   stepGlaive,
 } from '../shared/glaive-rules.js';
@@ -263,6 +264,50 @@ const explodes = (events, disc) => events.filter((e) => e.kind === 'projectileEx
   assert.ok(startY - lowest < 0.5, `the return loop stays level (dropped ${(startY - lowest).toFixed(2)} m)`);
   assert.ok(widest > 2, 'the return traces a visible sideways curve');
   assert.equal(explodes(h.events, disc)[0]?.caught, true, 'the level loop still comes home');
+}
+
+// ---- Out-leg seeking: a near miss bends in, wide or over-the-head bodies do not -------
+{
+  // 1.3 m off a level line at 10 m misses the straight disc's 0.22 m envelope.
+  const h = harness();
+  const victim = h.addVictim('near', 10, 1.3, 1000);
+  const disc = h.throwDisc();
+  while (!disc.hitOut.has(victim) && disc.phase === 'out') h.tick();
+  assert.ok(disc.hitOut.has(victim), 'an out-leg disc seeks onto a body just off its line');
+  assert.ok(disc.seeking, 'the disc reports it bent');
+  assert.ok(h.events.some((e) => e.kind === 'projectileUpdate' && e.pid === disc.id && e.phase === 'out'),
+    'a seeking out leg publishes its bent path');
+  const speed = Math.hypot(disc.vx, disc.vy, disc.vz);
+  close(speed, RULES.speedOut, 'seeking keeps the out-leg speed', 1e-6);
+}
+{
+  const bodies = [{ x: 0, y: 0, z: -10 }];
+  const aim = (y) => ({ phase: 'out', x: 1.3, y, z: 0, vx: 0, vy: 0, vz: -RULES.speedOut });
+  const eye = aim(1.62);
+  assert.ok(glaiveSeek(eye, 0.05, bodies), 'a head-height line seeks the body');
+  assert.equal(eye.vy, 0, 'seeking only bends sideways, so a head line stays a head line');
+  assert.ok(eye.vx < 0, 'the disc bends toward the body');
+  assert.equal(glaiveSeek(aim(1.95), 0.05, bodies), null, 'a line over the helmet is left a miss');
+  const wide = { phase: 'out', x: 0, y: 1.2, z: 0, vx: 0, vy: 0, vz: -RULES.speedOut };
+  assert.equal(glaiveSeek(wide, 0.05, [{ x: 6, y: 0, z: -6 }]), null, 'a body 45 deg off the heading is ignored');
+  assert.equal(glaiveSeek(wide, 0.05, [{ x: 0, y: 0, z: -30 }]), null, 'a body beyond seekRange is ignored');
+  assert.equal(glaiveSeek(wide, 0.05, bodies, RULES, () => false), null, 'a body behind cover is ignored');
+  const back = { ...wide, phase: 'back' };
+  assert.equal(glaiveSeek(back, 0.05, bodies), null, 'the return leg never seeks');
+  const turn = aim(1.2);
+  glaiveSeek(turn, 0.01, bodies);
+  const bent = Math.acos(-turn.vz / RULES.speedOut) * 180 / Math.PI;
+  assert.ok(bent <= RULES.seekDegPerSec * 0.01 + 1e-6, `seeking turns at most seekDegPerSec (${bent.toFixed(3)} deg)`);
+}
+{
+  // Friendly fire may let a disc cut a teammate, but it never hunts one.
+  const h = harness();
+  h.owner.team = 'alpha';
+  const mate = h.addVictim('mate', 10, 1.3, 1000);
+  mate.team = 'alpha';
+  const disc = h.throwDisc();
+  while (disc.phase === 'out' && h.projectiles.active.has(disc.id)) h.tick();
+  assert.ok(!disc.seeking && !disc.hitOut.has(mate), 'a teammate is never sought');
 }
 
 // ---- Head zone: the disc centre line, not its 0.22 m envelope, picks the zone ---------
@@ -704,4 +749,4 @@ function embedded() {
   assert.equal(draw.gainT, 0, 'a later gain still plays the fabricate/pickup lift');
 }
 
-console.log('GLAIVE: scale-derived damage, flight legs, bounce, 540 deg/s return, per-leg pierce, leg gap, catch in any hand, fire gate, R-return ack, embed pickup/fabricate, fizzle, owner loss, refill invariant, resets and Chaos ladder passed.');
+console.log('GLAIVE: scale-derived damage, flight legs, out-leg seeking, bounce, 540 deg/s return, per-leg pierce, leg gap, catch in any hand, fire gate, R-return ack, embed pickup/fabricate, fizzle, owner loss, refill invariant, resets and Chaos ladder passed.');

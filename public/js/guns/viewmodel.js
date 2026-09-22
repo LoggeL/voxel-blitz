@@ -148,6 +148,7 @@ export class ViewmodelRig {
   setCosmetics(loadout) {
     this._cosmetics = loadout;
     this._vaultHands.setCosmetics(loadout);
+    this._medkitHands.setCosmetics(loadout);
     this._arms.setCosmetics(loadout);
     for (const [weapon, model] of Object.entries(this._models)) applyGunCosmetics(model, weapon, loadout);
   }
@@ -508,10 +509,15 @@ export class ViewmodelRig {
     const forwardSpeed = Number.isFinite(ctx.forwardSpeed) ? ctx.forwardSpeed : 0;
     const sprinting = !!ctx.isSprinting, crouching = !!ctx.crouch;
     const vaulting = !!ctx.vaulting;
+    // Camera orientation is fixed for this frame: the bandaging arms hang from
+    // pitch-following shoulders, and the shot pose below reads the same basis.
+    this.camera.getWorldQuaternion(this._cameraQ);
+    this._aimEuler.setFromQuaternion(this._cameraQ, 'YXZ');
+    const viewPitch = this._aimEuler.x;
     const vaultBlend = this._vaultHands.update(elapsed, vaulting, ctx.vaultProgress);
     const throwableBlend = this._throwableHands.update(elapsed, { suppressed: vaulting });
     const healing = !!ctx.medkitActive && !vaulting;
-    const medkitBlend = this._medkitHands.update(elapsed, healing, ctx.medkitProgress, ctx.reducedMotion);
+    const medkitBlend = this._medkitHands.update(elapsed, healing, ctx.medkitProgress, ctx.reducedMotion, viewPitch);
     this.content.visible = throwableBlend < 0.92 && !healing && medkitBlend < 0.05;
     this._now += elapsed;
     this._drainQueue();
@@ -721,9 +727,6 @@ export class ViewmodelRig {
     // World-space yaw/pitch offsets are not camera-local Euler offsets when the
     // player looks steeply up/down. Transform the actual shot orientation back
     // into camera space, then layer the short decorative recoil/carry motion.
-    this.camera.getWorldQuaternion(this._cameraQ);
-    this._aimEuler.setFromQuaternion(this._cameraQ, 'YXZ');
-    const viewPitch = this._aimEuler.x;
     const shotYaw = Number.isFinite(ctx.shotYaw) ? ctx.shotYaw : this._aimEuler.y + aimYaw;
     const shotPitch = Number.isFinite(ctx.shotPitch) ? ctx.shotPitch : this._aimEuler.x + aimPitch;
     this._aimQ.setFromEuler(this._aimEuler.set(shotPitch, shotYaw, 0, 'YXZ'));

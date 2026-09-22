@@ -822,7 +822,7 @@ export async function runHudContracts(ok, installGlobals) {
         && card.querySelector('.vb-grenade-hint').textContent === 'RELEASE · THROW'
         && aim.querySelector('.vb-aim-power-label').textContent === 'LOB'
         && aim.classList.contains('is-cook')
-        && aim.querySelector('.vb-aim-fuse-label').textContent === '2.6s';
+        && aim.querySelector('.vb-aim-fuse-label').textContent === '5.0s';
       hud.setState({
         grenades: [1, 1, 0], grenadeType: 0, grenadeReady: 0, grenadeCharge: 1, grenadeCharging: true,
         grenadeCook01: 0.75, grenadeCookLeftMs: 650,

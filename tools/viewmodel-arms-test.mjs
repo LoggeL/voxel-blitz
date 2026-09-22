@@ -51,7 +51,7 @@ const shoulder = new THREE.Vector3();
 const rig = new ViewmodelRig(new THREE.PerspectiveCamera(75, 2, 0.05, 400));
 try {
   const ctx = { speed: 0, grounded: true, aimSwayScale: 0, reducedMotion: true };
-  const segment = (name, side) => rig.root.getObjectByName(`arm_${name}_${side}`);
+  const segment = (name, side, arms = rig._arms) => arms.root.getObjectByName(`arm_${name}_${side}`);
   const worldEnds = (name, side) => {
     const group = segment(name, side);
     group.updateWorldMatrix(true, false);

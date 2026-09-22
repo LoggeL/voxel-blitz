@@ -48,6 +48,7 @@ const BLAST_PARTICLES = Object.freeze({
 export class Effects {
   constructor(scene, camera, worldGetBlockFn, {
     getEntityPosition = null, onBounce = null, onGlaiveFlip = null, onGlaiveFlight = null,
+    getGlaiveSeekBodies = null,
   } = {}) {
     this.scene = scene;
     this.camera = camera;
@@ -69,6 +70,7 @@ export class Effects {
     this.projectiles = new ProjectileFX(scene, this.getBlockFn, {
       camera,
       getEntityPosition,
+      getGlaiveSeekBodies,
       onTrail: (x, y, z) => this.impacts.spawnParticles(
         x, y, z, 1, 0x8d8f94, { speed: 0.6, gravity: -0.4, size: 1.6, life: 0.55, softness: true },
       ),

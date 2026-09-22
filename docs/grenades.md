@@ -15,7 +15,7 @@ It is fixed, so the pouch wedges never move.
 
 | Type | Role | Fuse | Notes |
 | --- | --- | --- | --- |
-| M-4 FRAG | lethal | 2.6 s timed | Cookable, 7.5 m blast |
+| M-4 FRAG | lethal | 5 s timed | Cookable, 7.5 m blast |
 | CLAYMORE | gadget | tripwire | Mounts on a wall, no power step |
 | PULSE SHOCK | tactical | impact | 7.2 m blast |
 | MOLOTOV COCKTAIL | lethal | impact | Fire radius from `molotovFireProfile` |
@@ -90,7 +90,7 @@ The wire fields are the same; only what the client puts in them changed.
 - **`grenadeCook`** is measured from the pin pull:
   `grenadeCookFromHold(heldMs, type)` = `heldMs - 240` for cookable types, 0
   otherwise. A cooked frag therefore lasts 240 ms longer than before, so the
-  fuse matches the visible pin. A frag held for 240 + 2600 ms is released
+  fuse matches the visible pin. A frag held for 240 + 5000 ms is released
   automatically and detonates in the hand, exactly as the server has always
   done for `cook >= fuseMs`.
 - The type is locked for the whole hold, which removes the cross-type

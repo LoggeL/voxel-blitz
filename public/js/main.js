@@ -309,6 +309,9 @@ class Game {
         }
         return this.roster?.positionOf(id) || null;
       },
+      // RIPTIDE out-leg seeking: the living, presented bodies a disc may bend onto.
+      // Authority owns the real turn and corrects any mismatch with its disc syncs.
+      getGlaiveSeekBodies: (disc) => this.glaiveSeekBodies(disc.own ? this.myId : disc.ownerId),
       // Bolt wall-ricochet zap / RIPTIDE bounce tink: client-derived from the shared
       // integrators' bounced flag.
       onBounce: (x, y, z, type) => (type === 'glaive'
@@ -815,6 +818,21 @@ class Game {
     this.hud.setDeviceInfo(info);
   }
 
+  /** Presented feet positions of every living non-teammate an `ownerId` disc may seek. */
+  glaiveSeekBodies(ownerId) {
+    const bodies = this._glaiveSeekBodies ||= [];
+    bodies.length = 0;
+    const players = this._presentedPlayers;
+    const team = ownerId === this.myId ? this.selfRow?.team : players?.get(ownerId)?.team;
+    for (const row of players?.values() || []) {
+      if (row.id === ownerId || row.state !== 'alive' || (team != null && row.team === team)) continue;
+      bodies.push(row);
+    }
+    if (ownerId !== this.myId && this.player && this.selfRow?.state === 'alive'
+      && (team == null || this.selfRow.team !== team)) bodies.push(this.player.pos);
+    return bodies;
+  }
+
   smokeObscures(from, to) {
     return smokeBlocksSight(this.smokeFields, [from.x, from.y, from.z], [to.x, to.y, to.z],
       (this.serverNow || 0) + Math.max(0, nowMs() - (this.smokeObservedAt || nowMs())));
@@ -976,6 +994,7 @@ class Game {
       const view = this.net?.interpolate(performance.now());
       const presentedPlayers = this.spectator?.ensureTargetPresent(view?.players)
         || view?.players;
+      this._presentedPlayers = presentedPlayers || null;
       if (presentedPlayers) this.roster.sync(presentedPlayers, dt, now, this.matchState?.mode === 'ttt');
       this.spectator?.update(presentedPlayers, dt, spectatorLook);
       this.roster.updateLabels(this.camera,

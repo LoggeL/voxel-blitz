@@ -351,6 +351,9 @@ export const WEAPONS = {
       outDamage: 54, backDamage: 72, pierce: 3, pierceFalloff: 0.85, bounces: 1,
       catchRadius: 1.4, pickupRadius: 1.3, lifetimeMs: 3600, regenMs: 4000,
       blockDamage: 24, legGapMs: 120, color: '#ff3fd0',
+      // Out-leg seeking: a body within 22 deg of the heading and 20 m pulls the
+      // disc in at up to 110 deg/s, so a near miss still connects.
+      seekDegPerSec: 110, seekConeDeg: 22, seekRange: 20,
     }),
   },
 };

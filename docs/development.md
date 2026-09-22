@@ -591,7 +591,7 @@ support portrait and landscape. Append `?touch=1` for desktop QA.
 | **RX-8 HAVOC** | semi-automatic | 45 rpm | 1 + 5 tubes | slow authoritative rocket with splash, terrain carve, direct-hit bonus, and a self-knockback tuned for rocket jumps |
 | **CL-9 VOLTLANCE** | charge (hold/release) | 100 rpm | 4 + 5 mags | siege rail-lance: a tap flings a weak dart, a charged lance spears up to six enemies on the line with 0.9-per-body falloff, and only a full charge crosses up to two walls decaying 0.72 per wall; rising cell whine and violet lance glow |
 | **PIXEL PICK** | melee | 120 rpm | no ammo — swings are free | pixel pickaxe: material-dependent mining with cracks, cube debris and retro sounds; melee hits and 2.5x backstabs |
-| **GV-4 RIPTIDE** | semi-automatic throw | 150 rpm | 2 discs, reloaded by catching | disc launcher: a toothed magenta disc cuts out 34 m/s in a straight line, loops home at 30 m/s and pierces up to three bodies on each leg (out 43.2, back 57.6 after scale, head ×1.5); `R` turns discs home early; wall-stuck discs are picked up or fabricated after 4 s. No reach past about 20 m (`docs/weapon-design/glaive.md`) |
+| **GV-4 RIPTIDE** | semi-automatic throw | 150 rpm | 2 discs, reloaded by catching | disc launcher: a toothed magenta disc cuts out 34 m/s, bending gently onto a body just off its line, loops home at 30 m/s and pierces up to three bodies on each leg (out 43.2, back 57.6 after scale, head ×1.5); `R` turns discs home early; wall-stuck discs are picked up or fabricated after 4 s. No reach past about 20 m (`docs/weapon-design/glaive.md`) |
 
 Gun timing lives in `public/js/guns/defs.js` (timer table per weapon); shared
 ballistics/damage in `shared/combatmath.js`; the LONGARC's bouncing bolts in

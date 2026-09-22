@@ -2,8 +2,8 @@
 
 Slot 12 `glaive`, Blender asset SKUA (`skua`), accent magenta `#ff3fd0`.
 
-A forearm-braced launcher throws a toothed magenta disc. The disc cuts out in a
-straight line, loops back and is caught to reload. Both legs pierce bodies. You
+A forearm-braced launcher throws a toothed magenta disc. The disc cuts out
+nearly straight, bending gently onto a body just off its line, loops back and is caught to reload. Both legs pierce bodies. You
 hold two discs, so the launcher is empty while both are in the air. R has no
 reload meaning on this weapon: it turns every disc still on its out leg home at once.
 
@@ -16,8 +16,17 @@ server, the client prediction and the balance simulator all use.
 - **Throw:** semi-auto, 150 rpm (0.4 s). The disc starts 0.45 m ahead of the eye
   on the aim ray and flies at 34 m/s with no gravity. Its hit radius is 0.22 m.
   You can throw only with a seated disc and fewer than `magSize` discs in the air.
-- **Out leg:** lasts 550 ms, which is about 19 m of straight flight. The first
+- **Out leg:** lasts 550 ms, which is about 19 m of flight. The first
   wall contact reflects the disc once, deals 24 block damage and turns it home.
+- **Seeking (out leg only):** `glaiveSeek` bends the disc toward the damageable,
+  visible body closest to its heading, at most 110°/s (`seekDegPerSec`). The body
+  must be within 22° of the heading (`seekConeDeg`) and 20 m (`seekRange`), and
+  not already cut on this leg. Teammates are never sought, even with friendly
+  fire. The disc aims at the body's axis at the height it would already pass, so
+  seeking only bends it sideways. A head-height line stays a head cut, and a line
+  over the helmet or under the knees (outside 0.1 to 1.8 m above the feet) stays
+  a miss. The server is authoritative. The client predicts the same bend onto the
+  presented bodies (`getGlaiveSeekBodies`).
 - **Return leg:** 30 m/s toward the owner's chest (`eyeY - 0.35`), turning at
   most 540°/s. While the owner is behind the disc it yaws in a level loop, like
   a boomerang, toward the owner's side (left when dead astern). This loop has a
@@ -56,7 +65,7 @@ server, the client prediction and the balance simulator all use.
 | Event | Fields |
 |---|---|
 | `projectileLaunch` | `type:'glaive'`, `bn`, `phase:'out'`, `flip` (out-leg ms), `chaos`, `fuse` = lifetime |
-| `projectileUpdate` | `phase`. A leg change adds `flip: 'time'`, `'bounce'` or `'return'`. Returning discs also resync every 100 ms. |
+| `projectileUpdate` | `phase`. A leg change adds `flip: 'time'`, `'bounce'` or `'return'`. Returning discs, and out-leg discs once they have sought a body, also resync every 100 ms. |
 | `projectileExplode` | `type:'glaive'`, `radius:0`, `caught` (true only on catch), `reason` (`catch`, `embed`, `expire`, `owner` or `clear`). An `embed` explode position is the pickup position, and the pickup keeps the disc `pid`. |
 | `glaiveStock` | `id` (owner), `fab` (ms left per queued fabrication), `pickups[{pid,x,y,z,regen}]`, optional `restored` (`pickup` or `fab`). It goes to every client, and only the owner's client shows the pickups. Owner death publishes it with no pickups. |
 | `hit` | A disc cut carries `w:'glaive'`, so clients play the slice cue (with the ring on `hs`). A headshot needs the disc's centre line through the head box; a radius-only graze is a body cut. |
@@ -132,7 +141,8 @@ the spec:
 
 - `npm run weapons:glaive:test` (`tools/glaive-test.mjs`) covers:
   - the scale-derived damage rules and the head zone;
-  - the out leg, the bounce, the 540°/s level return loop and pierce;
+  - the out leg, out-leg seeking (near miss, cone, range, cover, height band,
+    turn cap and teammates), the bounce, the 540°/s level return loop and pierce;
   - the leg gap, catch in any hand and the fire gate;
   - R (ack without `reloading`), embed and pickup, fabrication, fizzle and owner loss;
   - the refill invariant, resets and the Chaos ladder.

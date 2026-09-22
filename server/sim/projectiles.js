@@ -48,6 +48,7 @@ import {
   glaiveLaunch,
   glaiveLegDamage,
   glaivePickupReached,
+  glaiveSeek,
   glaiveTarget,
   stepGlaive,
   trimGlaiveAmmo,
@@ -73,7 +74,7 @@ const CHAIN_REACH = 0.8;
 const BOLT_FIZZLE_RADIUS = 0.5;
 /** The RIPTIDE's fixed weapon slot: catches and fabrications land here in any hand. */
 const GLAIVE_SLOT = WEAPON_IDS.indexOf('glaive');
-/** Every returning disc re-publishes its steered path this often (ms). */
+/** Every returning or seeking disc re-publishes its steered path this often (ms). */
 const GLAIVE_SYNC_MS = 100;
 /** How far past the swept contact the disc centre line is probed for the hit zone (m). */
 const GLAIVE_ZONE_DEPTH = 0.8;
@@ -149,6 +150,7 @@ export class ProjectileSystem {
     this.smoke = new SmokeSystem();
     this._nextId = 1;
     this._homingCandidates = [];
+    this._glaiveSeekBodies = [];
     this._stepping = [];
     this._previousPlayers = new Map();
     /** Embedded RIPTIDE discs keyed by the disc id that embedded: owner-only pickups. */
@@ -220,9 +222,10 @@ export class ProjectileSystem {
       else if (projectile.type === 'glaive') this._flyGlaive(projectile, stepSeconds * substeps, ctx);
       else this._flyGrenade(projectile, stepSeconds, substeps, ctx);
       if (!this.active.has(projectile.id)) continue;
-      // Returning discs steer toward a live owner, so remote presentation needs
-      // the same 100 ms correction stream that Chaos projectiles already use.
-      if ((projectile.chaosLevel || (projectile.type === 'glaive' && projectile.phase === 'back'))
+      // Returning discs steer toward a live owner and seeking discs bend onto a
+      // body, so remote presentation needs the same 100 ms correction stream that
+      // Chaos projectiles already use.
+      if ((projectile.chaosLevel || (projectile.type === 'glaive' && (projectile.phase === 'back' || projectile.seeking)))
           && ctx.now >= (projectile.syncAt || 0)) {
         projectile.syncAt = ctx.now + GLAIVE_SYNC_MS;
         const update = evProjectileUpdate(projectile.id,
@@ -404,6 +407,7 @@ export class ProjectileSystem {
   _flyGlaive(disc, seconds, ctx) {
     const owner = disc.owner;
     const rules = disc.rules;
+    if (disc.phase === 'out') disc.seeking = this._seekGlaive(disc, seconds, ctx) || disc.seeking;
     stepGlaive(disc, seconds, disc.raycast, glaiveTarget(owner), {
       now: ctx.now,
       rules,
@@ -423,6 +427,28 @@ export class ProjectileSystem {
     if (disc.hit) return this._endGlaive(disc, ctx, 'embed');
     if (disc.flipped) this._publishGlaiveFlip(disc, ctx, disc.flipped);
     return false;
+  }
+
+  /**
+   * Out-leg seeking toward the torso of a damageable body the disc has not cut on
+   * this leg and can see. True when the heading bent this step.
+   */
+  _seekGlaive(disc, seconds, ctx) {
+    const bodies = this._glaiveSeekBodies;
+    bodies.length = 0;
+    for (const victim of (ctx.targets || ctx.entities).values()) {
+      if (disc.hitOut.has(victim) || !this._canContact(victim, disc, ctx, true)) continue;
+      // Friendly fire may let a disc cut a teammate, but it never hunts one.
+      if (disc.owner.team != null && victim.team === disc.owner.team) continue;
+      bodies.push(victim);
+    }
+    const origin = [0, 0, 0], end = [0, 0, 0];
+    const target = glaiveSeek(disc, seconds, bodies, disc.rules, (point) => {
+      origin[0] = disc.x; origin[1] = disc.y; origin[2] = disc.z;
+      end[0] = point.x; end[1] = point.y; end[2] = point.z;
+      return visibleTo(ctx, origin, end);
+    });
+    return !!target;
   }
 
   /** Damage every eligible body along one traveled disc segment (see `_flyGlaive`). */

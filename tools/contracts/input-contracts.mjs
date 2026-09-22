@@ -135,7 +135,7 @@ export async function runInputContracts(ok, installGlobals) {
       'an H tap readies the next type, the wheel steps power while G is held instead of switching weapons or types, and the release carries the type');
       typeInput.selectGrenadeType(0);
       typeInput._onKeyDown(key('KeyG', false, 4000));
-      ok(typeInput.forceGrenadeRelease(6840) && typeInput.consumeGrenadeThrow()?.cookMs === 2600,
+      ok(typeInput.forceGrenadeRelease(9240) && typeInput.consumeGrenadeThrow()?.cookMs === 5000,
         'a presentation-forced release reports the cook burned since the pin');
       typeInput.dispose?.();
 

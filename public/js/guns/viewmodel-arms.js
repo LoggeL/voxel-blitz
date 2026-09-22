@@ -26,6 +26,7 @@ export const ARM = Object.freeze({
   forearmStretchMax: 1.25,       // the forearm, the half in view, stretches the least
   shoulderGive: 0.25,            // the torso leans into an out-of-reach hand before the arm stretches
   minBend: 0.045,                // the elbow never sits exactly on the shoulder-wrist line
+  pole: Object.freeze([0.55, -1, 0.30]), // elbow hint for the right arm (x mirrors for the left)
 });
 
 // Same palette keys the gun gloves expose (see kit.js): character skins
@@ -55,7 +56,7 @@ const _up = new THREE.Vector3();
  * with the elbow, the shoulder the arm actually hangs from and both segment
  * lengths. Exported so the arm chain can be checked without a browser.
  */
-export function solveArm(side, wrist, shoulder, out = {}) {
+export function solveArm(side, wrist, shoulder, out = {}, pole = ARM.pole) {
   const U = ARM.upperArm, F = ARM.forearm;
   const anchor = (out.shoulder ||= new THREE.Vector3()).copy(shoulder);
   _dir.subVectors(wrist, anchor);
@@ -69,8 +70,8 @@ export function solveArm(side, wrist, shoulder, out = {}) {
     anchor.addScaledVector(_dir, give);
     distance -= give;
   }
-  // Elbows drop below and outside the shoulder-wrist line.
-  _pole.set(side * 0.55, -1, 0.30);
+  // Elbows drop below and outside the shoulder-wrist line by default.
+  _pole.set(side * pole[0], pole[1], pole[2]);
   _pole.addScaledVector(_dir, -_pole.dot(_dir));
   if (_pole.lengthSq() < 1e-8) _pole.set(0, 0, 1).addScaledVector(_dir, -_dir.z);
   _pole.normalize();
@@ -153,6 +154,8 @@ export class ViewmodelArms {
     this._gloveId = null;
     this._skinLayer = null;
     this._blenderReady = false;
+    /** Elbow hint (`ARM.pole` layout); a pose that raises the forearm sets its own. */
+    this.pole = ARM.pole;
     this.arms = [-1, 1].map(side => this._buildArm(side));
   }
 
@@ -254,7 +257,7 @@ export class ViewmodelArms {
       _back.set(0, 1, 0).transformDirection(_handToRoot);
       const [sx, sy, sz] = ARM.shoulder;
       _shoulder.set(arm.side * sx, sy * cos - sz * sin, sy * sin + sz * cos);
-      const solved = solveArm(arm.side, _wrist, _shoulder, arm.solved ||= {});
+      const solved = solveArm(arm.side, _wrist, _shoulder, arm.solved ||= {}, this.pole);
       poseSegment(arm.segments.forearm, _wrist, solved.elbow, _back, ARM.forearm);
       _up.set(arm.side * 0.5, 1, 0);
       poseSegment(arm.segments.upperarm, solved.elbow, solved.shoulder, _up, ARM.upperArm);

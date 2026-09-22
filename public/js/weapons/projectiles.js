@@ -9,7 +9,7 @@ import {
 } from '../../../shared/grenade-rules.js';
 import { ROCKET_RULES, stepRocket } from '../../../shared/rocket-rules.js';
 import { BOLT_RULES, stepBolt } from '../../../shared/bolt-rules.js';
-import { GLAIVE_CHEST_DROP, GLAIVE_RULES, glaiveFlip, stepGlaive } from '../../../shared/glaive-rules.js';
+import { GLAIVE_CHEST_DROP, GLAIVE_RULES, glaiveFlip, glaiveSeek, stepGlaive } from '../../../shared/glaive-rules.js';
 import { EYE_HEIGHT } from '../../../shared/combatmath.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { createBlenderParts } from '../engine/blender-assets.js';
@@ -106,7 +106,7 @@ function glaiveTrailIndex(points) {
 export class ProjectileFX {
   constructor(scene, getBlock = () => 0, {
     getEntityPosition = null, onTrail = null, onBounce = null, onGlaiveFlip = null, onGlaiveFlight = null,
-    camera = null,
+    getGlaiveSeekBodies = null, camera = null,
   } = {}) {
     this.scene = scene;
     this.getBlock = getBlock;
@@ -119,6 +119,8 @@ export class ProjectileFX {
     this.onGlaiveFlip = typeof onGlaiveFlip === 'function' ? onGlaiveFlip : null;
     // `onGlaiveFlight(disc)`: every frame a disc is airborne (the positional whirr loop).
     this.onGlaiveFlight = typeof onGlaiveFlight === 'function' ? onGlaiveFlight : null;
+    // `getGlaiveSeekBodies(disc)`: presented feet positions an out-leg disc may seek.
+    this.getGlaiveSeekBodies = typeof getGlaiveSeekBodies === 'function' ? getGlaiveSeekBodies : null;
     this.projectiles = new Map();
     /** Embedded RIPTIDE discs waiting for their owner (or the 4 s fabricate), keyed by pid. */
     this.glaivePickups = new Map();
@@ -1093,6 +1095,7 @@ export class ProjectileFX {
       return;
     }
     if (disc.phase === 'out' && disc.age >= disc.outAge) this._flipGlaive(disc, 'time');
+    if (disc.phase === 'out') this._seekGlaive(disc, step);
     const target = disc.phase === 'back' ? this._glaiveOwnerTarget(disc) : null;
     stepGlaive(disc, step, this.raycast, target, {
       onBounce: (contact) => {
@@ -1114,6 +1117,18 @@ export class ProjectileFX {
     spin.rotation.y += step * GLAIVE_SPIN;
     this._updateGlaiveTrail(disc);
     if (!disc.parked) this.onGlaiveFlight?.(disc);
+  }
+
+  /** Predicted out-leg seeking onto presented bodies; authority syncs correct the rest. */
+  _seekGlaive(disc, step) {
+    const bodies = this.getGlaiveSeekBodies?.(disc);
+    if (!bodies?.length) return;
+    glaiveSeek(disc, step, bodies, GLAIVE_RULES, (point) => {
+      const dx = point.x - disc.x, dy = point.y - disc.y, dz = point.z - disc.z;
+      const distance = Math.hypot(dx, dy, dz);
+      return distance <= 0.18 || !this.raycast(disc.x, disc.y, disc.z,
+        dx / distance, dy / distance, dz / distance, distance - 0.18);
+    });
   }
 
   /** `point` lies within the catch reach (plus a latency margin) of the disc owner's chest. */

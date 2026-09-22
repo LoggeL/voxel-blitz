@@ -3,7 +3,8 @@
  * formula, one flight integrator and one damage/ammo rule set so the local prediction,
  * the remote presentation and the authoritative simulation all fly the identical disc.
  *
- * A disc flies an `out` leg in a straight line (no gravity) until `flipAt`, its first
+ * A disc flies an `out` leg (no gravity, bending gently onto a body just off its line,
+ * `glaiveSeek`) until `flipAt`, its first
  * wall contact (one reflection) or an R press, then a `back` leg that steers toward the
  * owner's chest with a capped turn rate. A wall on the back leg embeds the disc.
  */
@@ -13,12 +14,21 @@ import { COMBAT_DAMAGE_SCALE } from './combat-balance.js';
 export const GLAIVE_RULES = WEAPONS.glaive.glaive;
 /** The return leg aims at the chest: this far below the eye. */
 export const GLAIVE_CHEST_DROP = 0.35;
+/**
+ * An out-leg disc only seeks a body it would pass at a height between these (metres
+ * above the feet): the standing hitbox spans about 0.7 to 1.85 m, so a throw over
+ * the helmet or under the knees stays a miss.
+ */
+const SEEK_LOW = 0.1;
+const SEEK_HIGH = 1.8;
 /** Embedded-disc pickup height band around the owner's feet, metres. */
 const PICKUP_BELOW = 0.75;
 const PICKUP_ABOVE = 2.35;
 const D2R = Math.PI / 180;
 
 const rulesOf = (rules) => rules || GLAIVE_RULES;
+const SEEK_POINT = { x: 0, y: 0, z: 0 };
+const SEEK_BEST = { x: 0, y: 0, z: 0 };
 
 /**
  * Launch state for a disc leaving the spindle: a point just ahead of the eye on the aim
@@ -117,6 +127,72 @@ export function steerGlaive(disc, dt, target, rules) {
   disc.vy = (uy * c + py * s) * speed;
   disc.vz = (uz * c + pz * s) * speed;
   return disc;
+}
+
+/**
+ * The point on a body's axis (feet at `body.y`) an out-leg disc seeks: the height
+ * the disc would already arrive at on its current slope, so seeking only pulls it
+ * sideways and never turns a chest line into a head cut (or back). Null when that
+ * height misses the body band (`SEEK_LOW`..`SEEK_HIGH`).
+ */
+export function glaiveSeekPoint(disc, body, out = {}) {
+  const dx = body.x - disc.x, dz = body.z - disc.z;
+  const level = Math.hypot(disc.vx, disc.vz);
+  if (!(level > 1e-6)) return null;
+  const arrive = disc.y + disc.vy * Math.hypot(dx, dz) / level;
+  if (arrive < body.y + SEEK_LOW || arrive > body.y + SEEK_HIGH) return null;
+  out.x = body.x;
+  out.y = arrive;
+  out.z = body.z;
+  return out;
+}
+
+/**
+ * Out-leg seeking: bend the disc toward the best body ahead of it by at most
+ * `seekDegPerSec * dt`, keeping its speed. `bodies` are feet positions; each is
+ * aimed at through `glaiveSeekPoint`. Only points within `seekRange` metres and
+ * `seekConeDeg` of the heading qualify, and the smallest angle wins, so the disc
+ * slides onto a near miss instead of swerving across the map. `canSee(point)` may
+ * reject a body behind cover. Returns the seek point, or null when none qualified.
+ */
+export function glaiveSeek(disc, dt, bodies, rules, canSee = null) {
+  const r = rulesOf(rules);
+  if (disc.phase !== 'out' || !(r.seekDegPerSec > 0) || !bodies) return null;
+  const speed = Math.hypot(disc.vx, disc.vy, disc.vz);
+  if (!(speed > 1e-6)) return null;
+  const ux = disc.vx / speed, uy = disc.vy / speed, uz = disc.vz / speed;
+  const minCos = Math.cos(r.seekConeDeg * D2R);
+  const rangeSq = r.seekRange * r.seekRange;
+  let best = null, bestCos = minCos, bx = 0, by = 0, bz = 0;
+  for (const body of bodies) {
+    const target = glaiveSeekPoint(disc, body, SEEK_POINT);
+    if (!target) continue;
+    const dx = target.x - disc.x, dy = target.y - disc.y, dz = target.z - disc.z;
+    const d2 = dx * dx + dy * dy + dz * dz;
+    if (d2 < 0.04 || d2 > rangeSq) continue;
+    const d = Math.sqrt(d2);
+    const cos = (ux * dx + uy * dy + uz * dz) / d;
+    if (cos < bestCos) continue;
+    if (canSee && !canSee(target)) continue;
+    best = SEEK_BEST; best.x = target.x; best.y = target.y; best.z = target.z;
+    bestCos = cos;
+    bx = dx / d; by = dy / d; bz = dz / d;
+  }
+  if (!best) return null;
+  const angle = Math.acos(Math.min(1, bestCos));
+  const maxTurn = r.seekDegPerSec * D2R * Math.max(0, dt);
+  if (angle <= maxTurn || angle < 1e-6) {
+    disc.vx = bx * speed; disc.vy = by * speed; disc.vz = bz * speed;
+    return best;
+  }
+  let px = bx - bestCos * ux, py = by - bestCos * uy, pz = bz - bestCos * uz;
+  const pl = Math.hypot(px, py, pz) || 1;
+  px /= pl; py /= pl; pz /= pl;
+  const c = Math.cos(maxTurn), s = Math.sin(maxTurn);
+  disc.vx = (ux * c + px * s) * speed;
+  disc.vy = (uy * c + py * s) * speed;
+  disc.vz = (uz * c + pz * s) * speed;
+  return best;
 }
 
 /** Squared distance from point `p` to the segment a→b. */

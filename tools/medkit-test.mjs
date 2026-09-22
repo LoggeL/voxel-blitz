@@ -151,6 +151,16 @@ assert.equal(freshPlayer.medkit.active, true, 'keyboard -> local prediction -> r
 for (let i = 0; i < 45; i++) rig.update(1 / 60, { medkitActive: true, medkitProgress: 0.5 });
 assert.equal(rig._medkitHands.root.visible, true);
 assert.equal(rig.content.visible, false, 'bandaging replaces the gun model');
+{
+  // Bandaging uses the shared glove anchors and two-bone arms, not a cut sleeve.
+  const hands = rig._medkitHands;
+  assert.ok(hands.root.getObjectByName('hand_l') && hands.root.getObjectByName('hand_r'));
+  assert.equal(hands.arms.root.visible, true, 'both bandaging gloves carry their arms');
+  const forearm = hands.arms.arms[0].segments.forearm;
+  assert.ok(forearm.visible && hands.wraps.every((wrap) => wrap.parent === forearm),
+    'the dressing turns ride the solved left forearm');
+  assert.equal(hands.wraps.filter((wrap) => wrap.visible).length, 4, 'half the dressing is laid at 50 %');
+}
 input._fireTapQueued = true; now += 20; frame();
 assert.equal(local.medkit.active, false, 'even a released click cancels healing');
 assert.equal(wire.at(-1).cancelMedkit, true);
@@ -160,6 +170,7 @@ assert.equal(local.medkit.active, false);
 assert.equal(wire.at(-1).cancelMedkit, true, 'pause cancels the server action');
 for (let i = 0; i < 45; i++) rig.update(1 / 60, { medkitActive: false });
 assert.equal(rig._medkitHands.root.visible, false);
+assert.equal(rig._medkitHands.arms.root.visible, false, 'the bandaging arms leave with the hands');
 assert.equal(rig.content.visible, true);
 local.dispose(); input.dispose(); weapon.dispose(); rig.dispose();
 authority.stop(); engine.stop();

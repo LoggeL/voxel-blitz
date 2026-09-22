@@ -215,8 +215,8 @@ try {
       'the forced release happens at cook >= fuse');
     check(input.consumeGrenadeThrow()?.cookMs === frag.fuseMs, 'the forced throw reports the whole fuse as cook');
     input.selectGrenadeType(GRENADE_TYPE_IDS.indexOf('pulse'));
-    input._onKeyDown(key('KeyG', 5000));
-    input._onKeyUp(key('KeyG', 7000));
+    input._onKeyDown(key('KeyG', forceAt + 2000));
+    input._onKeyUp(key('KeyG', forceAt + 4000));
     check(input.consumeGrenadeThrow()?.cookMs === 0, 'non-cook types never report a cook');
     input.dispose();
   }
