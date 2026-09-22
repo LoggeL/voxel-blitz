@@ -186,6 +186,7 @@ npm run modes:lobby  # selected mode/map lobby and wire contracts
 npm run modes:bots   # deterministic bot behavior in Fun, TDM, S&D, and Gun Game
 npm test             # refactor/weapon/client contracts, gameplay, lobbies, bot modes
 npm run refactor:test # hitbox equivalence and RIVET model fit, server contexts/terrain, FX budgets/cleanup
+npm run menus:test   # menu Back/Forward history, killhouse run overlay, scoreboard reveal rules
 npm run container:smoke # HTTP + WebSocket check against BASE_URL or localhost
 npm run browser:smoke   # connected touch-mode menu, play, input, pause, and quit flow
 npm run browser:ui      # HUD/shop DOM mutation budgets and session input lifecycle
