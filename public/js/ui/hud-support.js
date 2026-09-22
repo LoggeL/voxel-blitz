@@ -1,5 +1,4 @@
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
-import { CHAOS_KILL_CREDITS, CHAOS_UPGRADES } from '../../../shared/chaos.js';
 
 export const GLYPH = Object.freeze({
   rifle: 'R',
@@ -89,17 +88,6 @@ export const MODE_LABELS = Object.freeze({
   training: 'TRAINING · RANGE & KILLHOUSE',
 });
 
-export const MODE_DESCRIPTIONS = Object.freeze({
-  ttt: '60 Sekunden Waffen suchen · Geheime Rollen · Ein Leben · Traitor-Shop',
-  bastion: '1–4 defenders · Linear stages · Build walls & sentries between waves · Enemies grow every wave · Extract under fire',
-  chaos: `Kills pay $${CHAOS_KILL_CREDITS} · ${Object.values(CHAOS_UPGRADES).reduce((total, upgrades) => total + upgrades.length, 0)} stacking upgrades · Open the lab with B · No balance, just chaos`,
-  fun: 'Shared instant skirmish · 8-gun full loadout · Rapid respawn',
-  tdm: 'Alpha vs Bravo · First team to 40 kills wins · Team spawns',
-  snd: 'Attackers vs Defenders · Buy phase economy · First to 7 round wins',
-  gungame: 'Earn a kill with each weapon · Revolver elimination wins',
-  training: 'Test every gun on respawning dummies · Race the 4-stage killhouse for the best time',
-});
-
 export const MAP_LABELS = Object.freeze({
   harbor: 'HARBOR · LARGE',
   canyon: 'CANYON · LARGE',
@@ -115,23 +103,6 @@ export const MAP_LABELS = Object.freeze({
   minecraft_b5: 'MINECRAFT B5',
   waterworld: 'WATERWORLD',
   causeway: 'CAUSEWAY · LINEAR',
-});
-
-export const MAP_DESCRIPTIONS = Object.freeze({
-  harbor: '192 × 144 freight terminal for up to 16 vs 16. Cargo lanes, four warehouses and two dock sites.',
-  canyon: '192 × 144 desert battlefield for up to 16 vs 16. Braided canyon routes, ruins and a dry river.',
-  reactor: 'Staged core defense: hold the North Gate, fall back to the reactor core, extract from the Service Bay.',
-  foundry: 'Industrial foundry with multi-level catwalks and mid-lane cover (All Modes)',
-  depot: 'Point-symmetric cargo depot with mirrored containers & central plaza (Fun / TDM / Gun Game)',
-  citadel: 'Urban fortress with Courtyard A and Compound B tactical bomb sites (All Modes)',
-  solstice: 'Desert solar observatory with a glass biodome, turbine hall, and compact linked lanes (All Modes)',
-  caldera: 'Volcanic caldera with a west obsidian gate and elevated east ember refinery (All Modes)',
-  nuketown: 'Classic test-town: furnished two-storey houses, school bus, moving truck and backyard routes (All Modes)',
-  dust2: 'Long A, sunken Pit, raised Catwalk and two-level B Tunnels',
-  killhouse: 'Covered firing bays and four numbered rooms. Practice on respawning targets or race the course.',
-  minecraft_b5: 'Block-for-block ttt_minecraft_b5: island village, lighthouse, mine rails, the Nether below and swimmable ocean (Fun / TTT / Duel / Chaos / TDM / Gun Game)',
-  waterworld: 'Block-for-block ttt_waterworld: Leith Waterworld leisure pools, flumes, changing rooms, glass foyer and the traitor room (Fun / TTT / Duel / Chaos / TDM / Gun Game)',
-  causeway: '192 × 144 linear defense causeway: five objectives from the East Gate to the extraction pad, alternating side breaches and a vehicle road.',
 });
 
 export const MAP_PREVIEWS = Object.freeze({
@@ -152,7 +123,6 @@ export const MAP_PREVIEWS = Object.freeze({
 });
 
 export const CARDINAL = Object.freeze({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' });
-export const SCOPE_MS = 120;
 
 export function el(tag, cls, parent, id) {
   const node = document.createElement(tag);
