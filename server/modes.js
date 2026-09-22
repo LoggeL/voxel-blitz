@@ -24,7 +24,6 @@ class DuelPolicy extends FunPolicy {
   constructor(context) {
     super(context);
     this.mode = 'duel';
-    this._emit = context.emit;
   }
 
   canFire(player) { return this.phase === 'live' && super.canFire(player); }

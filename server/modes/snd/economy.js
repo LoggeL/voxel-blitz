@@ -1,13 +1,6 @@
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { WEAPON_PRICES } from '../../../shared/modes.js';
-
-const WEAPON_SET = new Set(WEAPON_IDS);
-
-export function weaponId(value) {
-  if (typeof value === 'string' && WEAPON_SET.has(value)) return value;
-  if (Number.isFinite(value)) return WEAPON_IDS[Math.trunc(value)] || null;
-  return null;
-}
+import { weaponId } from '../base-policy.js';
 
 /** Owns S&D credits, purchases and loadout/ammo mutations. */
 export class SndEconomy {

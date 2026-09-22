@@ -1,7 +1,8 @@
 import { WEAPON_IDS } from '../../shared/combatmath.js';
 import { TEAM_IDS } from '../../shared/modes.js';
-import { SndEconomy, weaponId } from './snd/economy.js';
-import { SndObjective, pointOf } from './snd/objective.js';
+import { TeamPolicy, pointOf, weaponId } from './base-policy.js';
+import { SndEconomy } from './snd/economy.js';
+import { SndObjective } from './snd/objective.js';
 
 const MODE = 'snd';
 const REVOLVER = 'revolver';
@@ -13,30 +14,12 @@ const TEAM_SET = new Set(TEAM_IDS);
  * State-owning Search and Destroy match policy.
  *
  * The injected context supplies simulation operations without exposing the
- * GameEngine host object. `now` is read lazily so boundary ticks preserve the
- * authoritative engine clock.
+ * GameEngine host object (see BasePolicy).
  */
-export class SndPolicy {
-  constructor({ rules, mapMeta = null, entities, now, emit, respawn, chooseSpawn } = {}) {
-    if (!rules || typeof rules !== 'object') throw new TypeError('SndPolicy requires rules');
-    if (!entities || typeof entities.get !== 'function' || typeof entities.values !== 'function') {
-      throw new TypeError('SndPolicy requires an entity map');
-    }
-    if (typeof now !== 'function') throw new TypeError('SndPolicy requires a clock');
-    if (typeof emit !== 'function') throw new TypeError('SndPolicy requires an event emitter');
-    if (typeof respawn !== 'function') throw new TypeError('SndPolicy requires a respawn callback');
-    if (typeof chooseSpawn !== 'function') throw new TypeError('SndPolicy requires a spawn selector');
-
+export class SndPolicy extends TeamPolicy {
+  constructor(context) {
+    super('SndPolicy', context);
     this.mode = MODE;
-    this.rules = rules;
-    this.mapMeta = mapMeta && typeof mapMeta === 'object' ? mapMeta : null;
-
-    this._entities = entities;
-    this._clock = now;
-    this._emitEvent = emit;
-    this._respawnEntity = respawn;
-    this._chooseSpawn = chooseSpawn;
-
     this.phase = 'prep';
     this.phaseEndsAt = this.now + this.rules.prepMs;
     this.scores = { [ALPHA]: 0, [BRAVO]: 0 };
@@ -56,13 +39,7 @@ export class SndPolicy {
 
   get bomb() { return this._objective.bomb; }
 
-  get now() {
-    const value = this._clock();
-    return Number.isFinite(value) ? value : 0;
-  }
-
   tick() {
-    this._rememberPositions();
     if (this.phase === 'post') {
       if (Number.isFinite(this.phaseEndsAt) && this.now >= this.phaseEndsAt) this._startNextRound();
       return;
@@ -250,27 +227,6 @@ export class SndPolicy {
     return !!state && state.owned.has(id);
   }
 
-  canDamage(attacker, target) {
-    const victim = this._entity(target);
-    if (!victim) return false;
-    if (attacker != null && victim.spawnProtectedUntil > this.now) return false;
-    if (attacker == null) return true;
-    if (this.rules.friendlyFire) {
-      const source = this._entity(attacker);
-      return !!source && String(source.id) !== String(victim.id);
-    }
-    return this.isEnemy(attacker, victim);
-  }
-
-  isEnemy(a, b) {
-    const left = this._entity(a);
-    const right = this._entity(b);
-    if (!left || !right || String(left.id) === String(right.id)) return false;
-    const leftTeam = this.teamFor(left);
-    const rightTeam = this.teamFor(right);
-    return !!leftTeam && !!rightTeam && leftTeam !== rightTeam;
-  }
-
   canRespawn(player) {
     const entity = this._entity(player);
     return !!entity && entity.state === 'dead' && this.phase === 'prep';
@@ -389,8 +345,7 @@ export class SndPolicy {
       bomb: this.bomb.state === 'carried'
         && this.bomb.carrierId === String(entity.id),
       interaction,
-      spawnProtected: Number.isFinite(entity.spawnProtectedUntil)
-        && entity.spawnProtectedUntil > this.now,
+      spawnProtected: this._spawnProtected(entity),
     };
   }
 
@@ -405,44 +360,11 @@ export class SndPolicy {
     this._objective.dispose();
   }
 
-  _entity(value) {
-    if (value && typeof value === 'object') return value;
-    if (value == null) return null;
-    return this._entities.get(String(value)) || null;
-  }
-
-  _state(value) {
-    const entity = this._entity(value);
-    if (!entity) return null;
-    return this._players.get(String(entity.id)) || null;
-  }
-
-  teamFor(player) {
-    const entity = this._entity(player);
-    const id = entity ? String(entity.id) : String(player ?? '');
-    const team = this._players.get(id)?.team ?? entity?.team ?? null;
-    return TEAM_SET.has(team) ? team : null;
-  }
-
   roleFor(player) {
     const team = this.teamFor(player);
     if (team === this.attackers) return 'attackers';
     if (team === this.defenders) return 'defenders';
     return null;
-  }
-
-  _balancedTeam() {
-    let alpha = 0;
-    let bravo = 0;
-    for (const state of this._players.values()) {
-      if (state.team === ALPHA) alpha++;
-      else if (state.team === BRAVO) bravo++;
-    }
-    return alpha <= bravo ? ALPHA : BRAVO;
-  }
-
-  _emit(kind, fields = {}) {
-    this._emitEvent(kind, fields);
   }
 
   _syncPlayer(entity, state) {
@@ -452,8 +374,7 @@ export class SndPolicy {
     entity.bomb = this.bomb.state === 'carried'
       && this.bomb.carrierId === String(entity.id);
     entity.interaction = this._objective.interactionSnapshot(String(entity.id));
-    entity.spawnProtected = Number.isFinite(entity.spawnProtectedUntil)
-      && entity.spawnProtectedUntil > this.now;
+    entity.spawnProtected = this._spawnProtected(entity);
   }
 
   _syncAllPlayers() {
@@ -468,14 +389,6 @@ export class SndPolicy {
     this._objective.resetBomb();
     this._syncAllPlayers();
     this._objective.assignBomb();
-  }
-
-  _rememberPositions() {
-    for (const entity of this._entities.values()) {
-      const state = this._state(entity);
-      const point = pointOf(entity);
-      if (state && point) state.last = point;
-    }
   }
 
   _makeSpectator(entity, state) {

@@ -1,53 +1,17 @@
 import { WEAPON_IDS } from '../../shared/combatmath.js';
-export class FunPolicy {
-  constructor({ rules, mapMeta, entities, now, respawn, chooseSpawn }) {
+import { BasePolicy } from './base-policy.js';
+
+/** Free-for-all base for Fun, Duel, Chaos and TTT: everyone owns every weapon. */
+export class FunPolicy extends BasePolicy {
+  constructor(context) {
+    super('FunPolicy', context);
     this.mode = 'fun';
-    this.rules = rules;
-    this.mapMeta = mapMeta;
-    this.phase = 'live';
-    this.phaseEndsAt = null;
-    this.scores = null;
-    this.matchWinner = null;
-    this.round = null;
-    this.roundWinner = null;
     this.attackers = null;
     this.defenders = null;
-    this._entities = entities;
-    this._clock = now;
-    this._respawnEntity = respawn;
-    this._chooseSpawn = chooseSpawn;
     this._players = new Set();
   }
 
-  get now() {
-    const value = this._clock();
-    return Number.isFinite(value) ? value : 0;
-  }
-
   tick() {}
-
-  teamFor() { return null; }
-  roleFor() { return null; }
-
-  isEnemy(a, b) {
-    const left = this._entity(a);
-    const right = this._entity(b);
-    return !!left && !!right && String(left.id) !== String(right.id);
-  }
-
-  canDamage(attacker, target) {
-    const victim = this._entity(target);
-    if (!victim) return false;
-    if (attacker != null && victim.spawnProtectedUntil > this.now) return false;
-    return attacker == null || this.isEnemy(attacker, victim);
-  }
-
-  canUseWeapon(_player, weapon) {
-    const slot = typeof weapon === 'string'
-      ? WEAPON_IDS.indexOf(weapon)
-      : Math.trunc(weapon);
-    return Number.isFinite(slot) && slot >= 0 && slot < WEAPON_IDS.length;
-  }
 
   canFire(player) {
     const entity = this._entity(player);
@@ -146,19 +110,11 @@ export class FunPolicy {
       owned: WEAPON_IDS.slice(),
       bomb: false,
       interaction: null,
-      spawnProtected: !!entity
-        && Number.isFinite(entity.spawnProtectedUntil)
-        && entity.spawnProtectedUntil > this.now,
+      spawnProtected: this._spawnProtected(entity),
     };
   }
 
   dispose() { this._players.clear(); }
-
-  _entity(value) {
-    if (value && typeof value === 'object') return value;
-    if (value == null) return null;
-    return this._entities.get(String(value)) || null;
-  }
 
   _syncPlayer(entity) {
     entity.team = null;
@@ -166,8 +122,7 @@ export class FunPolicy {
     entity.owned = WEAPON_IDS.slice();
     entity.bomb = false;
     entity.interaction = null;
-    entity.spawnProtected = Number.isFinite(entity.spawnProtectedUntil)
-      && entity.spawnProtectedUntil > this.now;
+    entity.spawnProtected = this._spawnProtected(entity);
   }
 
   _respawn(entity, options) {

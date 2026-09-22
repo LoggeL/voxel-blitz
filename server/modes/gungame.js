@@ -1,4 +1,5 @@
 import { WEAPONS, WEAPON_IDS } from '../../shared/combatmath.js';
+import { BasePolicy } from './base-policy.js';
 
 export function shuffledGunGameOrder(order, random = Math.random) {
   const weapons = order.filter((id) => id !== 'knife');
@@ -10,63 +11,18 @@ export function shuffledGunGameOrder(order, random = Math.random) {
 }
 
 /** Owns Gun Game weapon progression, legal loadouts, and match completion. */
-export class GunGamePolicy {
-  constructor({ rules, mapMeta = null, entities, now, emit, respawn, chooseSpawn }) {
-    if (!rules || !Array.isArray(rules.weaponOrder) || !rules.weaponOrder.length) {
-      throw new TypeError('GunGamePolicy requires a weapon order');
-    }
-    if (!entities || typeof entities.get !== 'function' || typeof entities.values !== 'function') {
-      throw new TypeError('GunGamePolicy requires entities');
-    }
-    if (typeof now !== 'function'
-        || typeof emit !== 'function'
-        || typeof respawn !== 'function'
-        || typeof chooseSpawn !== 'function') {
-      throw new TypeError('GunGamePolicy requires mode callbacks');
-    }
-
+export class GunGamePolicy extends BasePolicy {
+  constructor(context) {
+    const order = context?.rules?.weaponOrder;
+    if (!Array.isArray(order) || !order.length) throw new TypeError('GunGamePolicy requires a weapon order');
+    super('GunGamePolicy', context);
     this.mode = 'gungame';
-    this.rules = rules;
-    this.weaponOrder = shuffledGunGameOrder(rules.weaponOrder);
-    this.mapMeta = mapMeta && typeof mapMeta === 'object' ? mapMeta : null;
-    this.phase = 'live';
-    this.phaseEndsAt = null;
-    this.scores = null;
-    this.matchWinner = null;
-    this.round = null;
-    this.roundWinner = null;
-
-    this._entities = entities;
-    this._clock = now;
-    this._emitEvent = emit;
-    this._respawnEntity = respawn;
-    this._chooseSpawn = chooseSpawn;
+    this.weaponOrder = shuffledGunGameOrder(order);
     this._players = new Map();
-  }
-
-  get now() {
-    const value = this._clock();
-    return Number.isFinite(value) ? value : 0;
   }
 
   tick() {
     if (this.phase === 'post' && Number.isFinite(this.phaseEndsAt) && this.now >= this.phaseEndsAt) this.reset();
-  }
-
-  teamFor() { return null; }
-  roleFor() { return null; }
-
-  isEnemy(a, b) {
-    const left = this._entity(a);
-    const right = this._entity(b);
-    return !!left && !!right && String(left.id) !== String(right.id);
-  }
-
-  canDamage(attacker, target) {
-    const victim = this._entity(target);
-    if (!victim) return false;
-    if (attacker != null && victim.spawnProtectedUntil > this.now) return false;
-    return attacker == null || this.isEnemy(attacker, victim);
   }
 
   canUseWeapon(player, weapon) {
@@ -199,9 +155,7 @@ export class GunGamePolicy {
       owned: weapon ? [weapon] : [],
       bomb: false,
       interaction: null,
-      spawnProtected: !!entity
-        && Number.isFinite(entity.spawnProtectedUntil)
-        && entity.spawnProtectedUntil > this.now,
+      spawnProtected: this._spawnProtected(entity),
     };
   }
 
@@ -224,17 +178,6 @@ export class GunGamePolicy {
   }
 
   dispose() { this._players.clear(); }
-
-  _entity(value) {
-    if (value && typeof value === 'object') return value;
-    if (value == null) return null;
-    return this._entities.get(String(value)) || null;
-  }
-
-  _state(value) {
-    const entity = this._entity(value);
-    return entity ? this._players.get(String(entity.id)) || null : null;
-  }
 
   _weaponId(level) {
     return this.weaponOrder[Math.max(0, Math.min(
@@ -266,10 +209,6 @@ export class GunGamePolicy {
     entity.adsT = 0;
     entity.bloom = 0;
     return true;
-  }
-
-  _emit(kind, fields = {}) {
-    this._emitEvent(kind, fields);
   }
 
   _respawn(entity, { emitEvent = true } = {}) {
