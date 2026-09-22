@@ -448,9 +448,18 @@ export async function runNetClientContracts(ok, installGlobals) {
 
       const sentBeforeClose = joined.ws.sent.length;
       joined.client.close();
-      joined.client.buyWeapon('rifle');
-      joined.client.sendInput({ interact: true });
-      ok(joined.ws.sent.length === sentBeforeClose
+      const closedSends = [
+        joined.client.buyWeapon('rifle'),
+        joined.client.sendInput({ interact: true }),
+        joined.client.setReady(true),
+        joined.client.approveContinuation('round-1'),
+        joined.client.configureLobby({ gameMode: 'tdm', map: 'citadel', bots: 0 }),
+        joined.client.setBotDifficulty(1, 'hard'),
+        joined.client.setLobbyTeam(1, 'alpha'),
+        joined.client.requestStart(),
+      ];
+      ok(closedSends.every((sent) => sent === false)
+        && joined.ws.sent.length === sentBeforeClose
         && joined.client.welcome === null
         && joined.client.latestLobbyState === null
         && joined.client.latestMatch === null
