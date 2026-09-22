@@ -166,6 +166,12 @@
 #settings-overlay .vb-pause-rail .vb-title { font-size: 64px; }
 #settings-overlay .vb-setting-header .vb-label { font-size: 14px; }
 #settings-overlay .vb-setting-row { min-height: 62px; }
+.vb-keybind-controls { display: flex; gap: 8px; }
+.vb-keyboard-settings .vb-btn.vb-keybind-btn { margin: 0; font-size: 12px; letter-spacing: 0; text-indent: 0; color: #e2e8ee; background: #0b1218; border: 1px solid #8593a080; box-shadow: none; }
+.vb-keyboard-settings .vb-btn.vb-keybind-btn:hover { background: #16222d; border-color: #c3ced8; }
+.vb-keyboard-settings .vb-btn.vb-keybind-btn[aria-pressed="true"] { color: #15100b; background: #ffcb57; border-color: #ffcb57; }
+.vb-keyboard-settings .vb-keybind-btn--bind { flex: 1; min-width: 0; }
+.vb-keyboard-settings .vb-keybind-btn--clear { width: auto; flex-shrink: 0; }
 #settings-overlay .vb-frame-settings { min-width: 0; }
 #settings-overlay .vb-frame-settings p { text-transform: none; letter-spacing: normal; }
 #settings-overlay .vb-frame-help { color: var(--sub); font-size: 12px; line-height: 1.5; margin: 10px 0; }
