@@ -1,6 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
 import { WEAPONS, HITSCAN_REACH, chargeShotProfile, chargeDamageMult, damageAtDistance } from '../../../shared/combatmath.js';
-import { BLOCK_HP } from '../../../shared/world/blocks.js';
+import { BLOCK_HP, isSolidBlock } from '../../../shared/world/blocks.js';
 import { BULLET_RULES, bulletPower, bulletMaterialImpact, voxelExitDistance } from '../../../shared/bullet-material.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { LARGE_DIMENSIONS } from '../../../shared/world/dimensions.js';
@@ -91,7 +91,7 @@ export class RailBeamFX {
     let damageScale = chargeDamageMult(WEAPONS.lance, charge);
     for (let wall = 0; !event.resolvedEnd && wall < BULLET_RULES.maxContacts; wall++) {
       const hit = raycastVoxels((x, y, z) =>
-        !pierced.has(`${x},${y},${z}`) && this.getBlock(x, y, z),
+        !pierced.has(`${x},${y},${z}`) && isSolidBlock(this.getBlock(x, y, z)),
         eye.x, eye.y, eye.z, direction.x, direction.y, direction.z, traceReach);
       if (!hit) break;
       length = hit.t;

@@ -115,7 +115,7 @@ export class WeaponActions {
   /** Begin a mode-driven pump or bolt cycle. */
   beginCycle(kind, silentStall, T) {
     if (this._disposed || !T?.cycleBack || this._cycle) return false;
-    let durMs = kind === 'pump' ? PUMP_MS : T.bursts[0][0] || 900;
+    let durMs = kind === 'pump' ? PUMP_MS : T.cycleMs || 900;
     if (kind === 'bolt') durMs = Math.max(SNIPER_BOLT_MIN_S * 1000, durMs);
     this._cycle = { kind, dur: durMs / 1000, t: 0, step: 0, silent: !!silentStall };
     return true;

@@ -6,7 +6,11 @@ import {
 import {
   GRASS, DIRT, SAND, WOOD, LEAVES, PLANK, DUST_CRATE, DUST_WOOD,
   METAL, ACCENT, RUST, BUS_YELLOW, TRUCK_RED, GLASS, STONE,
+  BRICK, POOL_PANEL, MC_LEAVES, MC_GHOST_PLANKS, MC_GHOST_STONE,
 } from '../shared/world/blocks.js';
+import * as BLOCK from '../shared/world/blocks.js';
+import { blockSoundFor } from '../public/js/weapons/impacts.js';
+import { footstepMaterial } from '../public/js/audio/footsteps.js';
 
 // Record every scheduled voice instead of rendering one, so the contact stays
 // inspectable: one attack, its material colour, and the optional debris tail.
@@ -138,3 +142,18 @@ feedback.onLocalMine = () => localContacts++;
 feedback.handleEvent({ kind: 'mine', id: 'other', from: STONE, x: 1, y: 2, z: 3, progress: 0.2 });
 feedback.handleEvent({ kind: 'mine', id: 'self', from: STONE, x: 1, y: 2, z: 3, progress: 0.2 });
 assert.equal(localContacts, 1, 'only the local accepted strike rebounds the held pickaxe');
+
+// Bullet dust/sparks and block-break sounds share the named material tables:
+// brick is masonry, painted vehicle and pool panels ring like metal, crates splinter.
+assert.equal(blockSoundFor(BRICK), 'stone', 'brick never sparks or clangs like steel');
+for (const type of [METAL, ACCENT, RUST, BUS_YELLOW, TRUCK_RED, POOL_PANEL]) assert.equal(blockSoundFor(type), 'metal');
+for (const type of [WOOD, PLANK, DUST_CRATE, DUST_WOOD, LEAVES, MC_LEAVES, MC_GHOST_PLANKS]) assert.equal(blockSoundFor(type), 'wood');
+assert.equal(blockSoundFor(GLASS), 'glass');
+assert.equal(blockSoundFor(MC_GHOST_STONE), 'stone');
+for (const type of new Set(Object.values(BLOCK).filter(Number.isInteger))) {
+  const pickaxe = pickaxeMaterial(type), impact = blockSoundFor(type);
+  assert.equal(impact === 'metal', pickaxe === 'metal', `impact and pickaxe agree on metal for block ${type}`);
+  assert.equal(impact === 'glass', pickaxe === 'glass', `impact and pickaxe agree on glass for block ${type}`);
+  if (footstepMaterial(type) === 'metal') assert.equal(impact, 'metal', `footsteps and impacts agree on metal for block ${type}`);
+}
+console.log('Impact materials: brick is stone; metal and glass agree across impact, pickaxe and footstep tables.');

@@ -1,6 +1,7 @@
 // Fixed-budget world-space shell pool with voxel collision and settling.
 import * as THREE from '../vendor/three.module.js';
 import { hideInstance } from './instancing.js';
+import { isSolidBlock } from '../../../shared/world/blocks.js';
 
 const BRASS_POOL_SIZE = 32;
 const NO_BLOCK = () => 0;
@@ -102,7 +103,7 @@ export class BrassPool {
       const gy = Math.floor(shell.position.y);
       const gx = Math.floor(shell.position.x);
       const gz = Math.floor(shell.position.z);
-      const collided = this.getBlockFn(gx, gy, gz) !== 0;
+      const collided = isSolidBlock(this.getBlockFn(gx, gy, gz));
       if (collided) {
         shell.position.y = gy + 1.03;
         shell.vel.set(0, 0, 0);
