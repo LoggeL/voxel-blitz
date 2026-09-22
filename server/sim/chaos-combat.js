@@ -4,16 +4,18 @@ import { WEAPONS } from '../../shared/combatmath.js';
 import { FLAME_RULES } from '../../shared/flame-rules.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { evHit, evShoot } from '../protocol/events.js';
+import { markLaunched } from './player.js';
 
-function fan(p, ctx, dir, count, rocket = false, circle = false) {
+/** Chaos side projectiles credit their kills to the weapon `id` that spawned them. */
+function fan(p, id, ctx, dir, count, rocket = false, circle = false) {
   for (let i = 0; i < count; i++) {
     const a = circle ? i / count * Math.PI * 2 : (i - (count - 1) / 2) * 0.2;
     const d = { x: dir.x * Math.cos(a) - dir.z * Math.sin(a),
       y: dir.y, z: dir.x * Math.sin(a) + dir.z * Math.cos(a) };
     const length = Math.hypot(d.x, d.y, d.z) || 1;
     d.x /= length; d.y /= length; d.z /= length;
-    if (rocket) ctx.launchRocket?.(p, d);
-    else ctx.launchBolt?.(p, d, 1);
+    if (rocket) ctx.launchRocket?.(p, d, { weaponKey: id, secondary: true });
+    else ctx.launchBolt?.(p, d, 1, { weaponKey: id, secondary: true });
   }
 }
 
@@ -34,20 +36,20 @@ function flameJets(p, ctx, dir) {
 export function chaosShot(p, ctx, dir, def = p.def) {
   const id = WEAPONS[def.id].id, level = chaosLevel(p, id);
   if (!level) return;
-  if (id === 'rifle' && level >= 3 && p.shotSeq % 3 === 0) fan(p, ctx, dir, 1);
+  if (id === 'rifle' && level >= 3 && p.shotSeq % 3 === 0) fan(p, id, ctx, dir, 1);
   if (id === 'smg') {
-    if (p.shotSeq % 3 === 0) fan(p, ctx, dir, level >= 2 ? 2 : 1);
-    if (level >= 3 && p.shotSeq % 6 === 0) fan(p, ctx, dir, 1, true);
+    if (p.shotSeq % 3 === 0) fan(p, id, ctx, dir, level >= 2 ? 2 : 1);
+    if (level >= 3 && p.shotSeq % 6 === 0) fan(p, id, ctx, dir, 1, true);
   }
   if (id === 'shotgun') {
-    if (level >= 2) fan(p, ctx, dir, 3);
-    if (level >= 3) ctx.chaosBlast?.(p, [p.x + dir.x * 4, p.eyeY + dir.y * 4, p.z + dir.z * 4], 'pulse', 5, 25, 25);
+    if (level >= 2) fan(p, id, ctx, dir, 3);
+    if (level >= 3) ctx.chaosBlast?.(p, [p.x + dir.x * 4, p.eyeY + dir.y * 4, p.z + dir.z * 4], 'pulse', 5, 25, 25, id);
   }
-  if (id === 'sniper' && level >= 3) fan(p, ctx, { ...dir, y: Math.min(0.8, dir.y + 0.22) }, 3, true);
-  if (id === 'lmg' && p.shotSeq % (level >= 2 ? 3 : 5) === 0) fan(p, ctx, dir, level >= 3 ? 3 : 1, true);
+  if (id === 'sniper' && level >= 3) fan(p, id, ctx, { ...dir, y: Math.min(0.8, dir.y + 0.22) }, 3, true);
+  if (id === 'lmg' && p.shotSeq % (level >= 2 ? 3 : 5) === 0) fan(p, id, ctx, dir, level >= 3 ? 3 : 1, true);
   if (id === 'minigun') {
-    if (level >= 2 && p.shotSeq % 10 === 0) fan(p, ctx, dir, 3);
-    if (level >= 3 && p.shotSeq % 20 === 0) fan(p, ctx, dir, 8, false, true);
+    if (level >= 2 && p.shotSeq % 10 === 0) fan(p, id, ctx, dir, 3);
+    if (level >= 3 && p.shotSeq % 20 === 0) fan(p, id, ctx, dir, 8, false, true);
   }
   if (id === 'flamethrower') {
     flameJets(p, ctx, dir);
@@ -55,26 +57,26 @@ export function chaosShot(p, ctx, dir, def = p.def) {
       // Keep the backdraft on the shooter's side of cover, just like the fire.
       const wall = raycastVoxels(ctx.solidAt, p.x, p.eyeY, p.z, dir.x, dir.y, dir.z, 6);
       const reach = wall ? Math.max(0, wall.t - 0.1) : 6;
-      ctx.chaosBlast?.(p, [p.x + dir.x * reach, p.eyeY + dir.y * reach, p.z + dir.z * reach], 'pulse', 4, 18, 20);
+      ctx.chaosBlast?.(p, [p.x + dir.x * reach, p.eyeY + dir.y * reach, p.z + dir.z * reach], 'pulse', 4, 18, 20, id);
     }
-    if (level >= 3 && p.shotSeq % 20 === 0) fan(p, ctx, dir, 1, true);
+    if (level >= 3 && p.shotSeq % 20 === 0) fan(p, id, ctx, dir, 1, true);
   }
-  if (id === 'revolver' && level >= 3) fan(p, ctx, dir, 6, false, true);
-  if (id === 'lance' && level >= 3) fan(p, ctx, dir, 8, false, true);
+  if (id === 'revolver' && level >= 3) fan(p, id, ctx, dir, 6, false, true);
+  if (id === 'lance' && level >= 3) fan(p, id, ctx, dir, 8, false, true);
   if (id === 'knife') {
-    ctx.chaosBlast?.(p, level >= 2 ? [p.x, p.y + 0.2, p.z] : [p.x + dir.x * 3, p.eyeY, p.z + dir.z * 3], 'pulse', level >= 2 ? 6 : 3, 45, level >= 2 ? 30 : 12);
-    if (level >= 3) fan(p, ctx, dir, 3);
+    ctx.chaosBlast?.(p, level >= 2 ? [p.x, p.y + 0.2, p.z] : [p.x + dir.x * 3, p.eyeY, p.z + dir.z * 3], 'pulse', level >= 2 ? 6 : 3, 45, level >= 2 ? 30 : 12, id);
+    if (level >= 3) fan(p, id, ctx, dir, 3);
   }
 }
 
 export function chaosHit(p, victim, point, ctx) {
   const id = p.def.id, level = chaosLevel(p, id);
   if (!level) return;
-  if ((id === 'sniper' || id === 'revolver') && level >= 2) ctx.chaosBlast?.(p, point, 'frag', 3.5, 42, 10);
+  if ((id === 'sniper' || id === 'revolver') && level >= 2) ctx.chaosBlast?.(p, point, 'frag', 3.5, 42, 10, id);
   if (id === 'shotgun' && victim.state === 'alive') {
     const dx = victim.x - p.x, dz = victim.z - p.z, len = Math.hypot(dx, dz) || 1;
     victim.vx += dx / len * 3; victim.vz += dz / len * 3; victim.vy = Math.max(9, victim.vy);
-    victim.impulseSeq = (victim.impulseSeq || 0) + 1; victim.grounded = false; victim.vault = null;
+    markLaunched(victim);
   }
   const count = id === 'rifle' ? (level >= 2 ? 4 : 2) : id === 'revolver' ? 2 : id === 'lance' && level >= 2 ? 4 : 0;
   if (!count) return;
@@ -87,10 +89,10 @@ export function chaosHit(p, victim, point, ctx) {
     if (raycastVoxels(ctx.solidAt, ...point, ...dir, d - 0.1)) continue;
     ctx.pushEvent({ ...evShoot(p.id, point, dir, 'lance', dir), chaosArc: true, reach: d, charge: 0.35 });
     const damage = combatDamage(28);
-    const lethal = v.takeDamage(damage, false);
+    const lethal = v.takeDamage(damage, false, p, id);
     ctx.pushEvent(evHit(p.id, v.id, damage, false, [v.x, v.eyeY, v.z], v.lastDamage));
     if (lethal) ctx.killPlayer(v, p, id, false);
-    else if (id === 'rifle' && level >= 2) { v.vy = Math.max(v.vy, 12); v.grounded = false; v.vault = null; v.impulseSeq = (v.impulseSeq || 0) + 1; }
+    else if (id === 'rifle' && level >= 2) { v.vy = Math.max(v.vy, 12); markLaunched(v); }
     if (++hit >= count) break;
   }
 }

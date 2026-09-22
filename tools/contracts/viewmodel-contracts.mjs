@@ -379,10 +379,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
 
     const { ProjectileFX } = await import('../../public/js/weapons/projectiles.js');
     const scene = new THREE.Scene();
-    const carriers = new Map([['p9', { x: 30, y: 20, z: 30 }]]);
-    const fx = new ProjectileFX(scene, (x, y) => (y < 20 ? 1 : 0), {
-      getEntityPosition: (id) => carriers.get(id) || null,
-    });
+    const fx = new ProjectileFX(scene, (x, y) => (y < 20 ? 1 : 0));
     try {
       const preview = fx.setPreview(launch);
       const previewShown = fx.previewLine.visible && fx.landingRing.visible && preview?.points.length > 10;
@@ -412,10 +409,9 @@ export async function runViewmodelContracts(ok, installGlobals) {
         'explosion removes the adopted projectile and spawns one blast');
 
       fx.launch({ pid: 'l1', type: 'limpet', o: [30.2, 21, 30.1], v: [0, 0, 0], n: [1, 0, 0], armMs: 0 });
-      carriers.set('p9', { x: 34, y: 20, z: 30 });
       fx.update(0.05);
       const limpet = fx.projectiles.get('l1');
-      ok(limpet?.stuck && !limpet.stuckTo && limpet.x === 30.2 && limpet.fuse === Infinity
+      ok(limpet?.stuck && limpet.x === 30.2 && limpet.fuse === Infinity
           && limpet.group.userData.laser.visible,
         'a Claymore stays fixed on its wall and displays an armed laser without a timed fuse');
 

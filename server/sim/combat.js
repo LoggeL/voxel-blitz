@@ -29,7 +29,7 @@ import {
   chargeShotProfile,
   railDamageMult,
 } from '../../shared/combatmath.js';
-import { clearReload } from './movement.js';
+import { clearReload, reloadIdentified, reloadRequestEdge } from './movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { NETWORK_PRESENTATION } from '../../shared/networking.js';
 import { evShoot, evHit, evBlock } from '../protocol/events.js';
@@ -41,7 +41,6 @@ import {
 } from './player.js';
 
 const LONG_RANGE_KILL_DISTANCE = 40;
-const NO_SCOPE_ADS_THRESHOLD = SNIPER_SCOPE_ADS_THRESHOLD;
 const HISTORY_WINDOW_MS = 500;
 
 export function computeConeDeg(p) {
@@ -89,10 +88,10 @@ export function canFire(p, fireEdge, ctx) {
 /**
  * Consume the latest weapon intent for one living entity.
  *
- * ctx = { canFire, canUseWeapon, killPlayer, getBlock, setBlock, blockHp,
- *         entities, canDamage, now, solidAt, pushBlockDelta, pushEvent }
+ * `ctx` is the combat context from `createSimulationContexts` in
+ * server/sim/context.js, the source of truth for its operations.
  */
-export function resolveWeaponIntent(p, _dt, ctx) {
+export function resolveWeaponIntent(p, dt, ctx) {
   const inp = p.input;
   p.minigun ??= createMinigunState();
   if (p.medkit?.active || inp?.grenadeHandling || p.grenadeHandlingQueued) {
@@ -105,7 +104,7 @@ export function resolveWeaponIntent(p, _dt, ctx) {
     p.mining = null;
     p.ads = false;
     cancelCharge(p);
-    stepMinigun(p.minigun, _dt, false, false);
+    stepMinigun(p.minigun, dt, false, false);
     return;
   }
   const quickAim = p.quickMeleeQueued;
@@ -130,13 +129,12 @@ export function resolveWeaponIntent(p, _dt, ctx) {
   const minigunEnabled = p.def.id === 'minigun' && inp &&
     (inp.switchTo == null || inp.switchTo === p.weapon) && !inp.reload &&
     ctx.canFire(p) && !p.vault && !p.reloading && p.deployT <= 0 && p.mag[p.weapon] > 0;
-  const minigunReady = stepMinigun(p.minigun, _dt,
+  const minigunReady = stepMinigun(p.minigun, dt,
     !!(minigunEnabled && (inp.wantFire || p.fireEdgeQueued)), !!(minigunEnabled && inp.wantAds));
   if (!inp?.wantFire && !p.fireEdgeQueued) p.mining = null;
   if (!inp) { p.triggerPrev = false; p.reloadPrev = false; return; }
-  const identifiedReload = Number.isSafeInteger(inp.reloadId) && inp.reloadId > 0;
-  const reloadEdge = !!inp.reload && (identifiedReload
-    ? inp.reloadId > (p.reloadAck || 0) : !p.reloadPrev);
+  const identifiedReload = reloadIdentified(inp);
+  const reloadEdge = reloadRequestEdge(p, inp);
   p.reloadPrev = !!inp.reload;
 
   // A new selection interrupts the current draw and starts the selected
@@ -176,7 +174,7 @@ export function resolveWeaponIntent(p, _dt, ctx) {
   p.fireEdgeQueued = false;
   p.fireAimQueued = null;
   if (def.mode === 'charge') {
-    resolveChargeIntent(p, _dt, inp, fireEdge, ctx);
+    resolveChargeIntent(p, dt, inp, fireEdge, ctx);
     p.triggerPrev = inp.wantFire;
     return;
   }
@@ -368,11 +366,11 @@ export function nearestVictim(shooter, o, d, limit, ctx, minT = 0, radius = 0, h
     if (hit && !hit.coreHit && hit.t > limit - 1e-3) continue;
     if (hit && hit.t < bestT) {
       bestT = hit.t;
-      best = { victim: v, x: pos.x, y: pos.y, z: pos.z, ...hit };
+      best = { victim: v, ...hit };
     }
   }
   if (!best) return null;
-  return { victim: best.victim, t: bestT, rx: best.x, ry: best.y, rz: best.z, radialDistance: best.radialDistance, coreHit: best.coreHit, zone: best.zone };
+  return { victim: best.victim, t: bestT, radialDistance: best.radialDistance, coreHit: best.coreHit, zone: best.zone };
 }
 
 export function blockKey(x, y, z) {
@@ -457,6 +455,7 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
   if (def.id === 'minigun') heatMinigun(p.minigun);
   const rng = shotRng(p);
   const fwd = fwdFromYawPitch(aim?.yaw ?? p.yaw, aim?.pitch ?? p.pitch);
+  // Tests inject ctx.computeConeDeg to pin or observe spread.
   const coneDeg = typeof ctx.computeConeDeg === 'function'
     ? ctx.computeConeDeg(p)
     : computeConeDeg(p);
@@ -532,7 +531,7 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
         ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, point, tgt.victim.lastDamage));
         if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
           longRange: dist >= LONG_RANGE_KILL_DISTANCE,
-          noScope: def.id === 'sniper' && p.adsT < NO_SCOPE_ADS_THRESHOLD,
+          noScope: def.id === 'sniper' && p.adsT < SNIPER_SCOPE_ADS_THRESHOLD,
         });
         chaosHit(p, tgt.victim, point, ctx);
         hitVictims.add(tgt.victim);

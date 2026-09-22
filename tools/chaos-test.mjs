@@ -10,6 +10,9 @@ import { MOLOTOV_FIRE, molotovFireProfile } from '../shared/molotov-rules.js';
 import { MAP_IDS, isModeMapCompatible, mapForMode } from '../shared/modes.js';
 import { CHAOS_UPGRADES, CHAOS_START_CREDITS, CHAOS_KILL_CREDITS, chaosPurchaseId, parseChaosPurchase, chaosWeaponDef } from '../shared/chaos.js';
 import { chaosShot, chaosHit } from '../server/sim/chaos-combat.js';
+import { MAX_ACTIVE_PROJECTILES, PRIMARY_PROJECTILE_RESERVE } from '../server/sim/projectiles.js';
+
+const SECONDARY_PROJECTILE_CAP = MAX_ACTIVE_PROJECTILES - PRIMARY_PROJECTILE_RESERVE;
 
 assert.equal(CHAOS_START_CREDITS, 600);
 assert.equal(CHAOS_KILL_CREDITS, 300);
@@ -136,6 +139,17 @@ for (const [id, count] of [['rifle', 4], ['revolver', 2], ['lance', 4]]) {
   chaosHit(p, {}, [0, 10, 20], { entities: new Map(targets.map(t => [t.id, t])), canDamage: () => true, solidAt: () => false, pushEvent: () => {} });
   assert.equal(targets.filter(t => t.hp < 100).length, count, `${id} arcs to intended number of targets`);
 }
+for (const id of ['shotgun', 'rifle']) {
+  // Chaos knockback resets the same ground/vault state as blasts and client impulse adoption.
+  const launched = () => ({ id: 'launched', state: 'alive', x: 3, y: 10, eyeY: 11.6, z: 20, vx: 0, vy: 0, vz: 0, hp: 100,
+    grounded: true, coyote: 0.08, jumpGroundY: 10, vault: {}, takeDamage(n) { this.hp -= n; return false; } });
+  const direct = launched(), arced = Object.assign(launched(), { x: 5 });
+  chaosHit({ id: 'shooter', x: 0, z: 20, def: WEAPONS[id], chaosUpgrades: { [id]: 2 } }, direct, [3, 11.6, 20],
+    { entities: new Map(id === 'rifle' ? [[arced.id, arced]] : []), canDamage: () => true, solidAt: () => false, pushEvent: () => {} });
+  const body = id === 'rifle' ? arced : direct;
+  assert.deepEqual([body.impulseSeq, body.grounded, body.coyote, body.vault, body.jumpGroundY], [1, false, 0, null, null],
+    `${id} Chaos launch clears every state that could swallow it`);
+}
 console.log('Chaos: 51 purchases, complete weapon catalog, economy, stale requests, death persistence, normal-mode isolation, snapshots and cumulative weapon effects passed.');
 
 // Empty-space projectile fixtures verify explosions and steering without map geometry noise.
@@ -211,12 +225,34 @@ assert.equal(projectileFixture('bolt', 2).system.active.size, 3, 'multiball emit
 }
 {
   const f = projectileFixture('frag', 3);
-  for (let i = 0; i < 190; i++) f.system.active.set(`filler${i}`, { type: 'bolt', x: 1000, y: 1000, z: 1000 });
+  for (let i = 0; i < SECONDARY_PROJECTILE_CAP - 2; i++) f.system.active.set(`filler${i}`, { type: 'bolt', x: 1000, y: 1000, z: 1000 });
   f.system.explode(f.projectile, f.ctx);
-  assert.equal(f.system.active.size, 192, 'cluster fan respects live projectile cap');
+  assert.equal(f.system.active.size, SECONDARY_PROJECTILE_CAP, 'cluster fan stops short of the paid-launch reserve');
 }
 assert.equal(projectileFixture('bolt', 0).projectile.chaosLevel, 0, 'unupgraded LONGARC must not receive free first tier');
 console.log('Chaos projectiles: cluster counts, bounded generations, live cap, multiball, homing steering and vacuum passed.');
+
+// Side projectiles and blasts credit the kill (and career mastery) to the weapon that spawned them.
+assert.equal(shot('smg', 3, 6).rockets[0][2].weaponKey, 'smg');
+assert.equal(shot('rifle', 3, 3).bolts[0][3].weaponKey, 'rifle');
+assert.equal(shot('knife', 1, 1).blasts[0][6], 'knife');
+for (const [kind, item, source, expected] of [['rocket', 'smg', 'smg', 'smg'], ['bolt', 'rifle', 'rifle', 'rifle'],
+  ['rocket', 'rocket', undefined, 'rocket'], ['bolt', 'longarc', undefined, 'longarc'], ['blast', 'sniper', 'sniper', 'sniper']]) {
+  const system = new engine.projectiles.constructor();
+  const kills = [];
+  const owner = { id: 'credit-owner', x: 20, y: 10, eyeY: 11.6, z: 20, def: WEAPONS[item], chaosUpgrades: { [item]: 1 } };
+  const victim = { id: 'credit-victim', state: 'alive', x: 20, y: 10, z: 14, eyeY: 11.6, vx: 0, vy: 0, vz: 0, takeDamage: () => true };
+  const ctx = { now: 0, entities: new Map([[victim.id, victim]]), getBlock: () => 0, canDamage: () => true,
+    canAffectWorld: () => true, pushEvent: () => {}, destroyBlock: () => {}, damageBlock: () => {},
+    killPlayer: (_victim, killer, weapon) => kills.push([killer, weapon]) };
+  const options = source ? { weaponKey: source } : undefined;
+  if (kind === 'rocket') system.launchRocket(owner, ctx, { x: 0, y: 0, z: -1 }, options);
+  else if (kind === 'bolt') system.launchBolt(owner, ctx, { x: 0, y: 0, z: -1 }, 1, false, options);
+  else system.chaosBlast(owner, [victim.x, victim.y + 1, victim.z], 'frag', 3.5, 42, 10, ctx, source);
+  for (let i = 0; i < 40 && system.active.size; i++) { ctx.now += 25; system.step(0.025, ctx); }
+  assert.deepEqual(kills, [[owner, expected]], `${kind} from ${item} credits ${expected}`);
+}
+console.log('Chaos kill credit: side rockets, bolts and blasts credit their source weapon; plain launches keep their own.');
 
 // Integration regression: upgraded rails use the piercing branch in fireOneShot.
 // Side targets sit outside even the fully charged lance beam radius.
@@ -356,17 +392,34 @@ for (const level of [2, 3]) {
 }
 for (const item of ['minigun', 'flamethrower']) {
   const { game, shooter } = heavyWeaponFixture(item, 3, []);
-  for (let i = 0; i < 191; i++) game.projectiles.active.set(`cap-${i}`, { type: 'bolt' });
+  for (let i = 0; i < SECONDARY_PROJECTILE_CAP - 1; i++) game.projectiles.active.set(`cap-${i}`, { type: 'bolt' });
   if (item === 'flamethrower') for (let i = 0; i < FLAME_RULES.maxProjectiles - 1; i++) {
     game.flames.launch(shooter, [40, shooter.eyeY, 40.5], { x: 1, y: 0, z: 0 }, game.contexts.combat);
   }
   shooter.shotSeq = 19;
   fireOneShot(shooter, game.contexts.combat);
-  assert.equal(game.projectiles.active.size, 192, `${item} upgrades honor the room projectile cap`);
+  assert.equal(game.projectiles.active.size, SECONDARY_PROJECTILE_CAP, `${item} upgrades honor the room projectile cap`);
   if (item === 'flamethrower') {
     assert.equal(game.flames.active.length, FLAME_RULES.maxProjectiles, 'extra jets honor the fire packet cap');
     assert.equal(game.tickEvents.filter(e => e.chaosFlame).length, 0, 'side jets reserve the last available slot for the center stream');
     assert(Math.abs(game.flames.active.at(-1).direction.z) < 1e-9, 'the final available fire packet follows the crosshair');
   }
+}
+// A shot whose round is already spent always gets its projectile: Chaos side
+// effects cannot fill the reserve, and only the hard cap refuses a paid launch.
+{
+  const { game, shooter } = heavyWeaponFixture('lmg', 3, []);
+  for (let i = 0; i < SECONDARY_PROJECTILE_CAP; i++) game.projectiles.active.set(`reserve-${i}`, { type: 'bolt' });
+  shooter.shotSeq = 2;
+  fireOneShot(shooter, game.contexts.combat);
+  assert.equal(game.projectiles.active.size, SECONDARY_PROJECTILE_CAP, 'Chaos salvos cannot use the reserved slots');
+  shooter.weapon = WEAPON_IDS.indexOf('rocket');
+  shooter.cooldown = 0;
+  fireOneShot(shooter, game.contexts.combat);
+  assert.equal(game.projectiles.active.size, SECONDARY_PROJECTILE_CAP + 1, 'a fired rocket uses the reserved slots');
+  for (let i = game.projectiles.active.size; i < MAX_ACTIVE_PROJECTILES; i++) game.projectiles.active.set(`full-${i}`, { type: 'bolt' });
+  const grenades = shooter.grenades[0];
+  assert.equal(game.projectiles.throw(shooter, game.contexts.projectiles, 1, 0), null);
+  assert.equal(shooter.grenades[0], grenades, 'a throw refused at the hard cap keeps its grenade');
 }
 console.log('Chaos heavy weapons: three-body piercing, cumulative salvos, travelling side jets, afterburn, cover, friendly-fire restrictions, backdraft damage and projectile caps passed.');

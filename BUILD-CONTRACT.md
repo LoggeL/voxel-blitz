@@ -246,9 +246,7 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
     `tick.blocks` at `i=(y*SZ+z)*SX+x`
   - `{t:'ev',kind:'projectileLaunch',id,pid,type,o:[x,y,z],v:[x,y,z],fuse}`,
     with bolts additionally carrying `bn` (reflections left: 1 at a tap, 3 at a
-    full charge), `{t:'ev',kind:'projectileStick',id,pid,x,y,z,to,fuse}` (a
-    limpet on terrain has `to:null`, on a player `to` is that id), and
-    `{t:'ev',kind:'projectileExplode',id,pid,type,x,y,z,radius}` where `type`
+    full charge), and `{t:'ev',kind:'projectileExplode',id,pid,type,x,y,z,radius}` where `type`
     is `'frag'|'limpet'|'pulse'|'rocket'|'bolt'`; a `'bolt'` explosion is the
     harmless fizzle (radius 0.5, no blast, no knockback)
   - `{t:'die',kind:'die',id}` and
@@ -628,11 +626,11 @@ late join whose welcome/state is already live also proceeds directly.
   permanently fall back to a direct scene render. Its target pixel ratio caps
   at `1.35` (`1.0` on devices reporting at most 4 GB), and `?shader=off` is the
   deterministic manual fallback.
-- `new Effects(scene,camera,worldGetBlockFn,{getEntityPosition?})` exposes
+- `new Effects(scene,camera,worldGetBlockFn,{onBounce?})` exposes
   `shoot(ev,{local?})` (a local rocket shot also spawns the predicted rocket),
   `impact(evHit)`, `explodeBlock(x,y,z,blockId)`, `spawnBrass(pos,velocity)`,
   `projectileLaunch(ev,{local?,fromSelf?})`, `projectilePreview(launch|null)`,
-  `projectileStick(ev)`, `projectileExplode(ev)`, `update(dt)`,
+  `projectileExplode(ev)`, `update(dt)`,
   `shake(amount)`, getter `currentShakeXY`, and `dispose()`.
 - `new ViewmodelRig(camera)` exposes `setWeapon(id)`, `fire()`, `ads(t01)`,
   `setCharge(t01)` (held capacitor charge: coil glow floor plus a rearward
@@ -652,9 +650,9 @@ late join whose welcome/state is already live also proceeds directly.
   velocity in the camera frame and drive a mass-scaled lean/surge spring; the
   kick and body springs scale by `kickMassScale(weightKg)` from `guns/defs.js`.
 - **Throwables and rockets:** `shared/grenade-rules.js` owns `GRENADE_TYPE_IDS`,
-  `GRENADE_TYPES` (per-type fuse, cook/impact/sticky flags, blast, knockback,
+  `GRENADE_TYPES` (per-type fuse, cook/impact/wallMine flags, blast, knockback,
   concussion, carve, colour, and physics), `freshGrenadeLoadout()`,
-  `clampGrenadeType`, `clampGrenadeCook`, `grenadeFuseAfterCook`,
+  `clampGrenadeType`, `clampGrenadeCook`, `grenadeFuseAfterCook`, `grenadeThrowFuseMs`,
   `grenadeLaunch({x,y,z,eyeY,vx,vy,vz,dir,charge,type})`,
   `stepGrenade(g,dt,isSolid)`, and `predictGrenadePath(launch,isSolid,opts)`;
   `shared/rocket-rules.js` owns `ROCKET_RULES`, `rocketLaunch({x,y,z,dir})`, and
@@ -675,9 +673,8 @@ late join whose welcome/state is already live also proceeds directly.
   a local rocket shot), and the authority `projectileLaunch` for the local id
   adopts the oldest pending prediction of that type (no pop, no double spawn;
   unconfirmed predictions time out after 1 s). `Effects.projectilePreview`
-  draws the type-coloured dotted arc and landing ring while charging; sticky
-  and impact previews stop at the first contact. `ProjectileFX` rides a limpet
-  stuck to a player through `getEntityPosition(id)`. `LocalPlayer`
+  draws the type-coloured dotted arc and landing ring while charging; impact
+  previews stop at the first contact. `LocalPlayer`
   `consumeLocalGrenadeThrow()` (`{charge,cookMs,type,at}`) and
   `grenadeLaunchState(charge,type)` feed that presentation; the composition
   root forces the release when a frag has been held for its whole fuse so

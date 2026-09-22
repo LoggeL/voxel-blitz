@@ -287,11 +287,6 @@ export class CombatFeedback {
         this.effects.projectiles?.updateAuthority(ev);
         break;
       }
-      case 'projectileStick': {
-        this.effects.projectileStick(ev);
-        this.sfx.impact('metal', 0.5, { pos: [ev.x, ev.y, ev.z] });
-        break;
-      }
       case 'projectileExplode': {
         this.effects.projectileExplode(ev);
         this.sfx.explosion([ev.x, ev.y, ev.z], ev.type);

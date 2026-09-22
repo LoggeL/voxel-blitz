@@ -34,6 +34,19 @@ export function aimAngles(from, to) {
   return { yaw: Math.atan2(-dx, -dz), pitch: Math.atan2(dy, planar) };
 }
 
+/**
+ * Server-applied knockback: bump the impulse sequence clients adopt and drop
+ * every ground/vault state that would swallow the launch, exactly as
+ * `PlayerPhysics.adoptImpulse` does. Callers apply their own velocity.
+ */
+export function markLaunched(entity) {
+  entity.impulseSeq = (entity.impulseSeq || 0) + 1;
+  entity.grounded = false;
+  entity.coyote = 0;
+  entity.vault = null;
+  entity.jumpGroundY = null;
+}
+
 export function clamp01(v) {
   return Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
 }

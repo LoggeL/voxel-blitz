@@ -2,8 +2,8 @@ import { combatDamage } from '../../shared/combat-balance.js';
 import { collectNearMisses, applyNearMisses, suppressExplosion } from './suppression.js';
 import { pointPlayerDistance } from '../../shared/player-hitboxes.js';
 import { chaosLevel } from '../../shared/chaos.js';
-// Room-scoped authoritative projectile simulation: four throwable types, the
-// rocket, and the LONGARC bolt. One system owns flight, sticking, detonation,
+// Room-scoped authoritative projectile simulation: five throwable types, the
+// rocket, and the LONGARC bolt. One system owns flight, claymore mounting, detonation,
 // blast damage, knockback, concussion, terrain carving, sympathetic (chain)
 // detonation, and bolt ricochets so every projectile follows the same rules.
 
@@ -15,7 +15,6 @@ import {
 } from '../../shared/worlddata.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import {
-  PLAYER_HALF,
   WEAPONS,
   chargeDamageMult,
   damageAtDistance,
@@ -25,16 +24,15 @@ import {
   evProjectileExplode,
   evProjectileLaunch,
   evProjectileUpdate,
-  evProjectileStick,
 } from '../protocol/events.js';
-import { fwdFromYawPitch } from './player.js';
+import { fwdFromYawPitch, markLaunched } from './player.js';
 import {
   GRENADE_TYPES,
   GRENADE_TYPE_IDS,
   clampGrenadeCook,
   clampGrenadeType,
-  grenadeFuseAfterCook,
   grenadeLaunch,
+  grenadeThrowFuseMs,
   stepGrenade,
 } from '../../shared/grenade-rules.js';
 import { ROCKET_RULES, rocketLaunch, stepRocket } from '../../shared/rocket-rules.js';
@@ -44,8 +42,15 @@ import { SmokeSystem } from './smoke.js';
 import { MolotovFireSystem } from './molotov-fire.js';
 import { CLAYMORE_RULES, rayClaymore, placeClaymore, claymoreProfile, claymoreBeam, crossesClaymore } from '../../shared/claymore-rules.js';
 
-const P_HEIGHT = PLAYER_HALF.h * 2;
-/** A sticky/impact projectile ignores its own thrower for this long after release. */
+/** Live projectiles per room; launches beyond it are refused. */
+export const MAX_ACTIVE_PROJECTILES = 192;
+/**
+ * Slots only paid launches (a fired rocket or bolt, a thrown grenade) may fill:
+ * Chaos side projectiles and cluster children stop short of them, so a shot
+ * whose ammunition is already spent always gets its projectile.
+ */
+export const PRIMARY_PROJECTILE_RESERVE = 32;
+/** An impact projectile ignores its own thrower for this long after release. */
 const OWNER_GRACE_MS = 220;
 /** Chain detonation reaches this fraction of the blast radius. */
 const CHAIN_REACH = 0.8;
@@ -122,6 +127,10 @@ export class ProjectileSystem {
     this._previousPlayers = new Map();
   }
 
+  _hasRoom(secondary = false) {
+    return this.active.size < MAX_ACTIVE_PROJECTILES - (secondary ? PRIMARY_PROJECTILE_RESERVE : 0);
+  }
+
   clear() {
     this.active.clear();
     this.fire.clear();
@@ -168,8 +177,7 @@ export class ProjectileSystem {
       }
       if (projectile.chaosHoming && !projectile.stuck) this._home(projectile, dt, ctx);
       if (projectile.type === 'pulse' && projectile.chaosLevel >= 1 && !projectile.child) this._pull(projectile, dt, ctx);
-      if (projectile.stuckTo) this._followCarrier(projectile, ctx);
-      else if (projectile.type === 'rocket') this._flyRocket(projectile, stepSeconds * substeps, ctx);
+      if (projectile.type === 'rocket') this._flyRocket(projectile, stepSeconds * substeps, ctx);
       else if (projectile.type === 'bolt') this._flyBolt(projectile, stepSeconds * substeps, ctx);
       else this._flyGrenade(projectile, stepSeconds, substeps, ctx);
       if (!this.active.has(projectile.id)) continue;
@@ -240,6 +248,17 @@ export class ProjectileSystem {
       n: [...mine.n], armMs: Math.max(0, mine.armedAt - now), laserRange: mine.laserRange, chaos: mine.chaosLevel };
   }
 
+  /**
+   * Drop persistent mines: every one when a round ends, or one owner's when that
+   * player leaves. Clients remove any mine missing from `mineSnapshot`.
+   */
+  clearMines(ownerId = null) {
+    const owner = ownerId == null ? null : String(ownerId);
+    for (const [id, projectile] of this.active) {
+      if (projectile.type === 'limpet' && (owner === null || projectile.ownerId === owner)) this.active.delete(id);
+    }
+  }
+
   /** Full persistent mine state also reaches players who join after placement. */
   mineSnapshot(now) {
     return [...this.active.values()].filter(p => p.type === 'limpet' && p.mount)
@@ -250,11 +269,7 @@ export class ProjectileSystem {
     const type = GRENADE_TYPES[projectile.type];
     for (let i = 0; i < substeps; i++) {
       stepGrenade(projectile, stepSeconds, projectile.isSolid);
-      if (type.sticky && !projectile.stuck) {
-        const victim = this._contactVictim(projectile, type.physics.radius, ctx);
-        if (victim) return this._stick(projectile, ctx, victim);
-        if (projectile.hitSolid) return this._stick(projectile, ctx, null);
-      } else if (type.impact && !(projectile.child && projectile.type === 'pulse')) {
+      if (type.impact && !(projectile.child && projectile.type === 'pulse')) {
         const victim = this._contactVictim(projectile, type.physics.radius, ctx);
         if (victim || projectile.hitSolid) return this.explode(projectile, ctx);
       }
@@ -308,13 +323,13 @@ export class ProjectileSystem {
         dmg = combatDamage(Math.round(dmg * 10) / 10);
         const lethal = victim.takeDamage(dmg, hs, projectile.owner, 'longarc');
         ctx.pushEvent(evHit(projectile.ownerId, victim.id, dmg, hs, [x, y, z], victim.lastDamage));
-        if (lethal) ctx.killPlayer(victim, projectile.owner, WEAPONS.longarc.id, hs, {});
+        if (lethal) ctx.killPlayer(victim, projectile.owner, projectile.weaponKey || WEAPONS.longarc.id, hs, {});
         this._fizzleBolt(projectile, ctx);
         return true;
       },
       onBounce: (contact) => {
         if (typeof ctx.canAffectWorld === 'function' && !ctx.canAffectWorld()) return;
-        if (projectile.chaosLevel >= 3) this.chaosBlast(projectile.owner, [projectile.x, projectile.y, projectile.z], 'pulse', 3, 25, 12, ctx);
+        if (projectile.chaosLevel >= 3) this.chaosBlast(projectile.owner, [projectile.x, projectile.y, projectile.z], 'pulse', 3, 25, 12, ctx, projectile.weaponKey);
         const type = ctx.getBlock(contact.x, contact.y, contact.z);
         if (BLOCK_HP[type] != null) {
           ctx.damageBlock?.(contact.x, contact.y, contact.z, type, BOLT_RULES.blockDamage);
@@ -356,44 +371,9 @@ export class ProjectileSystem {
     return null;
   }
 
-  _stick(projectile, ctx, victim) {
-    const type = GRENADE_TYPES[projectile.type];
-    projectile.stuck = true;
-    projectile.vx = projectile.vy = projectile.vz = 0;
-    projectile.explodeAt = ctx.now + type.fuseMs;
-    if (victim) {
-      projectile.stuckTo = victim;
-      projectile.stickOffset = {
-        x: projectile.x - victim.x,
-        y: Math.max(0.3, Math.min(P_HEIGHT - 0.2, projectile.y - victim.y)),
-        z: projectile.z - victim.z,
-      };
-    }
-    ctx.pushEvent(evProjectileStick(
-      projectile.ownerId,
-      projectile.id,
-      [projectile.x, projectile.y, projectile.z],
-      victim ? victim.id : null,
-      type.fuseMs,
-    ));
-    return true;
-  }
-
-  _followCarrier(projectile, ctx) {
-    const carrier = projectile.stuckTo;
-    if (!carrier || carrier.state !== 'alive' || !ctx.entities.has(String(carrier.id))) {
-      // The carrier died or left: the charge drops where it was and keeps its fuse.
-      projectile.stuckTo = null;
-      return;
-    }
-    projectile.x = carrier.x + projectile.stickOffset.x;
-    projectile.y = carrier.y + projectile.stickOffset.y;
-    projectile.z = carrier.z + projectile.stickOffset.z;
-  }
-
   /** Release-edge throw. `typeIndex` selects the grenade; `cookMs` shortens a timed fuse. */
   throw(player, ctx, charge = 0.5, typeIndex = 0, cookMs = 0, aim = null) {
-    if (this.active.size >= 192) return null;
+    if (!this._hasRoom()) return null;
     const index = clampGrenadeType(typeIndex);
     const type = GRENADE_TYPES[GRENADE_TYPE_IDS[index]];
     const direction = fwdFromYawPitch(aim?.yaw ?? player.yaw, aim?.pitch ?? player.pitch);
@@ -403,9 +383,7 @@ export class ProjectileSystem {
       vx: player.vx, vy: player.vy, vz: player.vz,
       dir: direction, charge, type: type.id,
     });
-    const fuseMs = type.cook
-      ? grenadeFuseAfterCook(cookMs, type)
-      : (type.sticky ? type.flightMaxMs : type.fuseMs);
+    const fuseMs = grenadeThrowFuseMs(type, cookMs);
     const id = `g${this._nextId++}`;
     const projectile = {
       id,
@@ -418,8 +396,6 @@ export class ProjectileSystem {
       launchedAt: ctx.now,
       explodeAt: ctx.now + fuseMs,
       stuck: false,
-      stuckTo: null,
-      stickOffset: null,
       hitSolid: false,
       isSolid: (x, y, z) => solid(ctx, x, y, z),
     };
@@ -455,8 +431,6 @@ export class ProjectileSystem {
       launchedAt: ctx.now,
       explodeAt: ctx.now,
       stuck: true,
-      stuckTo: null,
-      stickOffset: null,
       hitSolid: false,
       isSolid: (x, y, z) => solid(ctx, x, y, z),
     };
@@ -473,9 +447,13 @@ export class ProjectileSystem {
     return projectile;
   }
 
-  /** A rocket leaves the tube from the shooter's eye along the spread-sampled `dir`. */
-  launchRocket(player, ctx, dir) {
-    if (this.active.size >= 192) return null;
+  /**
+   * A rocket leaves the tube from the shooter's eye along the spread-sampled `dir`.
+   * `weaponKey` credits a Chaos side effect to the weapon that fired it;
+   * `secondary` side effects leave the paid-launch reserve free.
+   */
+  launchRocket(player, ctx, dir, { weaponKey = null, secondary = false } = {}) {
+    if (!this._hasRoom(secondary)) return null;
     const launch = rocketLaunch({ x: player.x, y: player.eyeY, z: player.z, dir });
     const id = `r${this._nextId++}`;
     const projectile = {
@@ -488,13 +466,13 @@ export class ProjectileSystem {
       launchedAt: ctx.now,
       explodeAt: ctx.now + ROCKET_RULES.lifetimeMs,
       stuck: false,
-      stuckTo: null,
       hit: null,
       directVictim: null,
       raycast: (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
         ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
       ),
     };
+    if (weaponKey) projectile.weaponKey = weaponKey;
     this._configureChaos(projectile);
     this.active.set(id, projectile);
     ctx.pushEvent(Object.assign(evProjectileLaunch(
@@ -509,13 +487,14 @@ export class ProjectileSystem {
   }
 
   /** A bolt leaves the coil from the shooter's eye along the spread-sampled `dir`. */
-  launchBolt(player, ctx, dir, charge01 = 1, satellite = false) {
-    if (this.active.size >= 192) return null;
+  launchBolt(player, ctx, dir, charge01 = 1, satellite = false, { weaponKey = WEAPONS.longarc.id, secondary = false } = {}) {
+    if (!this._hasRoom(satellite || secondary)) return null;
     const launch = boltLaunch({ x: player.x, y: player.eyeY, z: player.z, dir, charge01 });
     const id = `b${this._nextId++}`;
     const projectile = {
       id,
       type: 'bolt',
+      weaponKey,
       ownerId: String(player.id),
       owner: player,
       x: launch.x, y: launch.y, z: launch.z,
@@ -547,7 +526,7 @@ export class ProjectileSystem {
       for (const angle of [-0.18, 0.18]) this.launchBolt(player, ctx, {
         x: dir.x * Math.cos(angle) - dir.z * Math.sin(angle), y: dir.y,
         z: dir.x * Math.sin(angle) + dir.z * Math.cos(angle),
-      }, charge01, true);
+      }, charge01, true, { weaponKey });
     }
     return projectile;
   }
@@ -604,17 +583,17 @@ export class ProjectileSystem {
       if (distance < 0.5 || distance > 9 || !visibleTo(ctx, [projectile.x, projectile.y, projectile.z], [v.x, v.y + 1, v.z])) continue;
       const force = Math.min(0.05, Math.max(0, dt)) * 32 / distance;
       v.vx += dx * force; v.vy += Math.max(0.15, dy) * force; v.vz += dz * force;
-      v.impulseSeq = (v.impulseSeq || 0) + 1; v.grounded = false; v.vault = null;
+      markLaunched(v);
     }
   }
 
   _scatter(source, count, ctx) {
     const type = source.type === 'rocket' ? 'frag' : source.type;
-    for (let i = 0; i < count && this.active.size < 192; i++) {
+    for (let i = 0; i < count && this._hasRoom(true); i++) {
       const angle = i / count * Math.PI * 2;
       const id = `g${this._nextId++}`;
-      const child = { ...source, id, type, child: true, stuck: false, stuckTo: null,
-        stickOffset: null, hitSolid: false, directVictim: null, chained: false,
+      const child = { ...source, id, type, child: true, stuck: false,
+        hitSolid: false, directVictim: null, chained: false,
         x: source.x, y: source.y + 0.2, z: source.z,
         vx: Math.cos(angle) * (count > 6 ? 10 : 7), vy: 8 + i % 3, vz: Math.sin(angle) * (count > 6 ? 10 : 7),
         launchedAt: ctx.now, explodeAt: ctx.now + (type === 'frag' ? 1500 : 700) + i * 65,
@@ -628,12 +607,13 @@ export class ProjectileSystem {
     }
   }
 
-  chaosBlast(owner, origin, type, radius, damage, knockback, ctx) {
+  chaosBlast(owner, origin, type, radius, damage, knockback, ctx, weaponKey = null) {
     const id = `c${this._nextId++}`;
     const projectile = { id, type, owner, ownerId: String(owner.id),
       x: origin[0], y: origin[1], z: origin[2], child: true,
       blastRules: { ...PROJECTILE_RULES[type], damageRadius: radius, damage,
         knockback, terrainRadius: 0, selfDamage: 0, selfKnockback: 0 } };
+    if (weaponKey) projectile.weaponKey = weaponKey;
     this.active.set(id, projectile);
     return this.explode(projectile, ctx);
   }
@@ -691,7 +671,8 @@ export class ProjectileSystem {
   _damagePlayers(owner, origin, rules, projectile, ctx, hitVictims = new Set()) {
     const damageEnabled = ctx.grenadeDamage !== false || projectile.type === 'rocket';
     if (!damageEnabled && projectile.type !== 'pulse') return;
-    const weaponKey = projectile.type;
+    // Damage rules key on the blast type; kill credit goes to the source weapon.
+    const weaponKey = projectile.weaponKey || projectile.type;
     for (const victim of (ctx.targets || ctx.entities).values()) {
       if (victim.state !== 'alive') continue;
       if (Number.isFinite(victim.spawnProtectedUntil) &&
@@ -703,8 +684,7 @@ export class ProjectileSystem {
       const dy = target[1] - origin[1];
       const dz = target[2] - origin[2];
       const distance = Math.hypot(dx, dy, dz);
-      const direct = projectile.directVictim === victim
-        || (projectile.stuckTo === victim && !isSelf);
+      const direct = projectile.directVictim === victim;
       if (!direct && (distance >= rules.damageRadius || !visibleTo(ctx, origin, target))) continue;
       const falloff = direct
         ? 1
@@ -730,14 +710,8 @@ export class ProjectileSystem {
         rules.knockbackFalloff ?? 1.22);
       const impulse = Math.max(0, strength * pressure);
       const invDistance = distance > 0.01 ? 1 / distance : 0;
-      if (impulse > 0) {
-        // A grounded acceleration step or an in-progress vault must not swallow the launch.
-        victim.impulseSeq = (victim.impulseSeq || 0) + 1;
-        victim.grounded = false;
-        victim.coyote = 0;
-        victim.vault = null;
-        victim.jumpGroundY = null;
-      }
+      // A grounded acceleration step or an in-progress vault must not swallow the launch.
+      if (impulse > 0) markLaunched(victim);
       victim.vx += dx * invDistance * impulse;
       victim.vy += Math.max(0.8, dy * invDistance + 0.35) * impulse;
       victim.vz += dz * invDistance * impulse;

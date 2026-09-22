@@ -166,14 +166,6 @@ export class AvatarRoster {
     }
   }
 
-  /** Presented world position of one remote avatar (`{x,y,z}`), or null when absent. */
-  positionOf(id) {
-    const avatar = this._avatars.get(String(id));
-    if (!avatar) return null;
-    const position = avatar.alive || avatar.vehicle ? avatar.group.position : avatar.hips.position;
-    return { x: position.x, y: position.y, z: position.z };
-  }
-
   /** Detach a killed avatar from its player; the body finishes on its own. */
   _retireCorpse(id, avatar) {
     this._avatars.delete(id);

@@ -24,7 +24,7 @@ const BLAST_PARTICLES = Object.freeze({
 });
 
 export class Effects {
-  constructor(scene, camera, worldGetBlockFn, { getEntityPosition = null, onBounce = null } = {}) {
+  constructor(scene, camera, worldGetBlockFn, { onBounce = null } = {}) {
     this.scene = scene;
     this.camera = camera;
     this.getBlockFn = worldGetBlockFn || (() => 0);
@@ -44,7 +44,6 @@ export class Effects {
     this.brass = new BrassPool(scene, this.getBlockFn);
     this.projectiles = new ProjectileFX(scene, this.getBlockFn, {
       camera,
-      getEntityPosition,
       onTrail: (x, y, z) => this.impacts.spawnParticles(
         x, y, z, 1, 0x8d8f94, { speed: 0.6, gravity: -0.4, size: 1.6, life: 0.55, softness: true },
       ),
@@ -137,10 +136,6 @@ export class Effects {
   projectilePreview(launch) {
     if (this._disposed) return null;
     return this.projectiles.setPreview(launch);
-  }
-
-  projectileStick(event) {
-    if (!this._disposed) this.projectiles.stick(event);
   }
 
   projectileExplode(event) {

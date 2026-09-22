@@ -9,7 +9,7 @@ const SPAWN_RECENT_MS = 8000;
 const NEIGHBOURS = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[-1,1],[1,-1],[-1,-1]];
 const SPAWN_LOS_PENALTY = 36;
 const SPAWN_RECENT_PENALTY = 24;
-export const MAX_TRACKED_SPAWNS = 256;
+const MAX_TRACKED_SPAWNS = 256;
 
 function spawnPointKey(point) {
   return `${point.x},${point.y},${point.z}`;
@@ -47,20 +47,6 @@ export class SpawnSelector {
 
   setNow(ms) {
     this.now = ms;
-  }
-
-  reset() {
-    this.spawnUseTimes.clear();
-  }
-
-  dispose() {
-    this.spawnUseTimes.clear();
-    this.entities = null;
-    this.isEnemy = null;
-    this.solidAt = null;
-    this.fluidAt = null;
-    this.spawnSurfaces = null;
-    this.now = 0;
   }
 
   expand(pool) {

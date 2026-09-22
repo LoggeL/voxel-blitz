@@ -90,16 +90,6 @@ export function evProjectileLaunch(id, projectileId, type, origin, velocity, fus
   return event;
 }
 
-/** A limpet stuck to terrain (`to` null) or to a player (`to` is that player's id). */
-export function evProjectileStick(id, projectileId, origin, to, fuseMs) {
-  return {
-    t: 'ev', kind: 'projectileStick', id: String(id), pid: String(projectileId),
-    x: round(origin[0], D2), y: round(origin[1], D2), z: round(origin[2], D2),
-    to: to == null ? null : String(to),
-    fuse: Math.max(0, Math.round(Number(fuseMs) || 0)),
-  };
-}
-
 export function evProjectileExplode(id, projectileId, type, origin, radius) {
   return {
     t: 'ev', kind: 'projectileExplode', id: String(id), pid: String(projectileId),

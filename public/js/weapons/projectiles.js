@@ -48,10 +48,9 @@ function styleFor(type) {
  * The charge preview draws the same shared integrator's path per grenade type.
  */
 export class ProjectileFX {
-  constructor(scene, getBlock = () => 0, { getEntityPosition = null, onTrail = null, onBounce = null, camera = null } = {}) {
+  constructor(scene, getBlock = () => 0, { onTrail = null, onBounce = null, camera = null } = {}) {
     this.scene = scene;
     this.getBlock = getBlock;
-    this.getEntityPosition = typeof getEntityPosition === 'function' ? getEntityPosition : null;
     this.onTrail = typeof onTrail === 'function' ? onTrail : null;
     this.onBounce = typeof onBounce === 'function' ? onBounce : null;
     this.projectiles = new Map();
@@ -432,8 +431,6 @@ export class ProjectileFX {
       child: !!event.child,
       local,
       stuck: type === 'limpet',
-      stuckTo: null,
-      stickOffset: null,
       trailAt: 0,
     });
     if (type === 'limpet') this._configureMine(this.projectiles.get(id), event);
@@ -484,33 +481,6 @@ export class ProjectileFX {
     }
     oldest.fuse = fuse + oldest.age;
     this.projectiles.set(pid, oldest);
-    return true;
-  }
-
-  /** A limpet stuck to terrain or to a player (`to`); it now rides that carrier. */
-  stick(event) {
-    const projectile = this.projectiles.get(String(event?.pid || ''));
-    if (!projectile) return false;
-    const x = Number(event.x), y = Number(event.y), z = Number(event.z);
-    if ([x, y, z].every(Number.isFinite)) {
-      projectile.x = x; projectile.y = y; projectile.z = z;
-    }
-    projectile.vx = projectile.vy = projectile.vz = 0;
-    projectile.stuck = true;
-    projectile.stuckTo = event.to ? String(event.to) : null;
-    if (projectile.stuckTo && this.getEntityPosition) {
-      const carrier = this.getEntityPosition(projectile.stuckTo);
-      if (carrier) {
-        projectile.stickOffset = {
-          x: projectile.x - carrier.x,
-          y: Math.max(0.3, Math.min(1.6, projectile.y - carrier.y)),
-          z: projectile.z - carrier.z,
-        };
-      }
-    }
-    const fuseMs = Number(event.fuse);
-    if (Number.isFinite(fuseMs) && fuseMs > 0) projectile.fuse = projectile.age + fuseMs / 1000;
-    projectile.group.position.set(projectile.x, projectile.y, projectile.z);
     return true;
   }
 
@@ -682,13 +652,6 @@ export class ProjectileFX {
       projectile.age += step;
       if (projectile.type === 'limpet') {
         this._poseMine(projectile.group, projectile, projectile.age >= projectile.armedAge);
-      } else if (projectile.stuckTo && this.getEntityPosition) {
-        const carrier = this.getEntityPosition(projectile.stuckTo);
-        if (carrier && projectile.stickOffset) {
-          projectile.x = carrier.x + projectile.stickOffset.x;
-          projectile.y = carrier.y + projectile.stickOffset.y;
-          projectile.z = carrier.z + projectile.stickOffset.z;
-        }
       } else if (projectile.type === 'rocket') {
         stepRocket(projectile, step, this.raycast);
         projectile.group.position.set(projectile.x, projectile.y, projectile.z);
@@ -713,8 +676,6 @@ export class ProjectileFX {
         }
       } else if (!projectile.stuck) {
         stepGrenade(projectile, step, this.isSolid);
-        const type = GRENADE_TYPES[projectile.type];
-        if (type.sticky && projectile.hitSolid) projectile.stuck = true;
         const spin = Math.min(1, Math.hypot(projectile.vx, projectile.vy, projectile.vz) / 6);
         projectile.group.rotation.x += step * 7.4 * spin;
         projectile.group.rotation.z += step * 5.2 * spin;

@@ -208,3 +208,35 @@ console.log('Claymore: wall-only placement, inventory, arming, laser occlusion, 
   }
 }
 console.log('Claymore gunfire: direct housing hit detonates once before arming; solid cover blocks the shot.');
+
+// Persistent mines belong to one round and one connected owner.
+{
+  const {GameEngine} = await import('../server/game.js');
+  const {BEDROCK} = await import('../shared/worlddata.js');
+  const game = new GameEngine({mode:'snd'});
+  try {
+    game.addClient('a', 'Alpha'); game.addClient('b', 'Bravo');
+    const policy = game.mode.policy;
+    policy._startLive();
+    const plant = (owner, z) => {
+      const player = game.entities.get(owner);
+      game.world.setBlock(12, 21, z, BEDROCK);
+      game.projectiles.active.set(`round-mine-${owner}`, {id:`round-mine-${owner}`, type:'limpet',
+        x:11.91, y:21.5, z:z+0.5, n:[-1,0,0], mount:[12,21,z], owner:player, ownerId:player.id,
+        armedAt:Infinity, explodeAt:Infinity, laserRange:5, chaosLevel:0});
+    };
+    plant('a', 10); plant('b', 12);
+    game.step();
+    assert.equal(game.mode.phase, 'live');
+    assert.equal(game.projectiles.mineSnapshot(game.now).length, 2, 'mounted mines persist across live ticks');
+    game.removeClient('a');
+    assert.deepEqual(game.projectiles.mineSnapshot(game.now).map(row => row.pid), ['round-mine-b'],
+      'a disconnect removes only the departed owner\'s mines');
+    policy._finishRound(policy.defenders, 'elimination');
+    game.step();
+    assert.notEqual(game.mode.phase, 'live');
+    assert.equal(game.projectiles.active.size, 0, 'a finished round clears every mine');
+    assert.deepEqual(game.projectiles.mineSnapshot(game.now), []);
+  } finally { game.stop(); }
+}
+console.log('Claymore lifetime: disconnects remove the owner\'s mines and finished rounds clear the rest.');

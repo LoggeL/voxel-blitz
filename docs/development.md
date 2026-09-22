@@ -11,7 +11,7 @@ samples, and menu music.
 Every weapon has a dedicated generated HUD silhouette. With `?debug=1`, the HUD
 shows round-trip history, arrival jitter, the adaptive snapshot buffer, and FPS.
 The live HUD shows four server-authoritative throwables per life: cookable frags,
-sticky limpet charges, concussive pulse shocks, and Molotov cocktails. Holding a
+laser-tripped claymores, concussive pulse shocks, and Molotov cocktails. Holding a
 throwable raises it into the hand, then animates pin extraction or bottle ignition
 with the matching sound. A Molotov breaks on impact and leaves ground fire for
 6.5 seconds. Its 3.2 m footprint follows exposed terrain and deals 24 damage per
@@ -79,7 +79,7 @@ one grenade of each type, up to five. The shop does not pause combat. Bots buy u
 Experiments include Tesla chain hits, shotgun bowling bolts, wall-piercing explosive
 sniper rounds, rocket-fed LMG salvos, revolver pinball rings, eight-bounce LONGARC
 multiball with explosive bumpers, homing cluster rockets, tunnel rails, pickaxe
-shockwaves, frag offspring, homing sticky offspring and vacuum-to-launch pulse bombs.
+shockwaves, frag offspring, long-wire claymores and vacuum-to-launch pulse bombs.
 The shop describes all 48 stages before purchase, with artwork for every weapon and
 grenade. Cluster children cannot reproduce;
 rooms cap live projectiles at 192 and clients retain at most 96 blast visuals.
