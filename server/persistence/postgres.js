@@ -2,7 +2,7 @@ import { Client } from 'pg';
 import { readFile } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import { AccountError } from '../account-security.js';
-import { CAREER_CATALOG, careerView, equipCareerItem, reconcileCareerUnlocks } from '../../shared/career.js';
+import { careerView, equipCareerItem, reconcileCareerUnlocks, treeNode } from '../../shared/career.js';
 import { CAREER_ID, emptyProfile, validateProfile, normalizeCareerProgress, applyCareerProgress } from './career-profile.js';
 
 const LOCK = [1447185492, 1];
@@ -200,7 +200,9 @@ export class PostgresStore {
       }
       const profile = await this.lockedProfile(client, id);
       if (!profile) return null;
-      applyCareerProgress(profile, changes);
+      // `granted` feeds the deferred post-match career frame; unused for now.
+      const granted = [];
+      applyCareerProgress(profile, changes, granted);
       await this.writeProfile(client, id, profile);
       return profile;
     }, { retryReward: true }).catch(error => { this.rewardError = error; throw error; });
@@ -210,7 +212,7 @@ export class PostgresStore {
     return this.transaction(async client => {
       if (!authorized()) throw new Error('Your session changed. Reopen your career before equipping.');
       const profile = await this.lockedProfile(client, id);
-      const item = itemId === 'standard' ? { id: 'standard', kind: selection.slot, weapon: selection.weapon } : CAREER_CATALOG.find(item => item.id === itemId);
+      const item = itemId === 'standard' ? { id: 'standard', kind: selection.slot, weapon: selection.weapon } : treeNode(itemId);
       if (!profile || !item) throw new Error('Unknown item');
       reconcileCareerUnlocks(profile);
       // Re-checked after the awaits above: a session can be revoked mid-transaction.

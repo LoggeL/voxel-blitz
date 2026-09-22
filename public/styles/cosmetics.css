@@ -1,3 +1,16 @@
+/* ---------- in-match career presentation (local-presentation.js sets the accent) ---------- */
+:root { --career-accent: #ffb347; }
+#crosshair .ch-arm, #crosshair::after, .vb-reticle-crosshair .ch-arm, .vb-reticle-crosshair::after { background: var(--career-accent); }
+#career-badge { display: none; position: fixed; right: 16px; top: max(82px, calc(var(--vb-net-meter-clear, 0px) + 10px)); padding: 5px 9px; border-left: 2px solid var(--career-accent); background: #101820bf; color: var(--career-accent); font: 700 11px/1.4 monospace; letter-spacing: 1px; white-space: nowrap; pointer-events: none; z-index: 5; }
+body:has(#hud:not(.hidden)) #career-badge { display: block; }
+@media (max-width: 640px) { #career-badge { top: max(100px, calc(var(--vb-net-meter-clear, 0px) + 10px)); right: 8px; } }
+
+/* ---------- scoreboard nameplate ---------- */
+.vb-sb-nameplate {
+  margin-left: 6px; font-size: .58rem; letter-spacing: .1em; padding: 1px 5px; border-radius: 3px; white-space: nowrap;
+  color: var(--item-color, #9fb6cc); border: 1px solid currentColor; opacity: .9; }
+
+/* ---------- death signatures ---------- */
 #deathnote:has(.vb-death-signature) { transform:translate(-50%,-100%); width:min(420px,calc(100vw - 32px)); padding:12px 16px; animation-name:vb-signature-death-pop; }
 @keyframes vb-signature-death-pop { from { opacity:0; transform:translate(-50%,-95%) scale(.92); } to { opacity:1; transform:translate(-50%,-100%) scale(1); } }
 .vb-death-signature { --signature-color: #ffb347; display:flex; position:relative; align-items:center; justify-content:center; gap:18px; width:min(360px,100%); min-height:76px; box-sizing:border-box; margin:14px auto 0; padding:12px 28px; overflow:hidden; color:var(--signature-color); border:1px solid color-mix(in srgb,var(--signature-color) 55%,transparent); border-left:4px solid var(--signature-color); background:linear-gradient(115deg,#10151ff2,#111622ed); box-shadow:0 10px 40px #0008; text-shadow:none; text-align:left; }

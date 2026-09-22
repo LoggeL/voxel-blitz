@@ -9,6 +9,8 @@ import { makeAvatar, setAvatarTeam, setAvatarOpacity, disposeAvatar, TEAM_AVATAR
 import { CAREER_CATALOG } from '../shared/career.js';
 import { KillcamHistory } from '../public/js/player/killcam-history.js';
 import { CombatFeedback } from '../public/js/combat/feedback.js';
+import { readFileSync } from 'node:fs';
+import { applyTheme, applyReticle, applyLocalPresentation, resetLocalPresentation } from '../public/js/cosmetics/local-presentation.js';
 
 const source=new THREE.MeshStandardMaterial({color:0x123456});
 const a=new THREE.Mesh(new THREE.BoxGeometry(),source),b=new THREE.Mesh(new THREE.BoxGeometry(),source);
@@ -89,3 +91,40 @@ const history=new KillcamHistory();const cosmetics={weaponSkins:{rifle:'rifle-ov
 history.record({serverNow:1,players:[{id:'p',x:0,y:0,z:0,yaw:0,pitch:0,cosmetics}]});
 cosmetics.weaponSkins.rifle='standard';assert.equal(history.frames[0].players[0].cosmetics.weaponSkins.rifle,'rifle-overdrive','replay owns independent skin snapshot');
 console.log('Cosmetics runtime: isolated materials, reversible layers, weapon anchors, bounded audio, mute/suspend behavior, and replay copies passed.');
+// Local presentation: theme accent and reticle shape live on the document root.
+assert.equal(applyReticle('reticle-dot'),'dot','no document: resolves without touching the DOM');resetLocalPresentation();
+const rootStyle=new Map(),root={dataset:{},style:{getPropertyValue:k=>rootStyle.get(k)??'',setProperty:(k,v)=>rootStyle.set(k,v),removeProperty:k=>rootStyle.delete(k)}};
+globalThis.document={documentElement:root};
+applyReticle('reticle-dot');assert.equal(root.dataset.reticle,'dot');
+applyReticle('standard');assert.equal('reticle' in root.dataset,false,'standard removes the reticle');
+applyReticle('reticle-chevron');applyReticle('no-such-item');assert.equal('reticle' in root.dataset,false,'unknown ids remove the reticle');
+applyReticle('reticle-halo');applyReticle('arctic');assert.equal('reticle' in root.dataset,false,'non-reticle ids remove the reticle');
+applyTheme('arctic');assert.equal(rootStyle.get('--career-accent'),'#72e6ff');
+applyTheme('reticle-dot');assert.equal(rootStyle.get('--career-accent'),'#ffb347','non-theme ids fall back to amber');
+applyTheme(undefined);assert.equal(rootStyle.get('--career-accent'),'#ffb347');
+assert.deepEqual(applyLocalPresentation({theme:'orchid',reticle:'reticle-diamond'}),{accent:CAREER_CATALOG.find(i=>i.id==='orchid').color,reticle:'diamond'});
+assert.equal(root.dataset.reticle,'diamond');
+applyLocalPresentation(null);assert.equal(rootStyle.get('--career-accent'),'#ffb347');assert.equal('reticle' in root.dataset,false);
+applyLocalPresentation({theme:'mint',reticle:'reticle-gap'});resetLocalPresentation();
+assert.equal(rootStyle.has('--career-accent'),false);assert.equal('reticle' in root.dataset,false,'reset returns to stylesheet defaults');
+delete globalThis.document;
+// Every catalog reticle shape styles the live crosshair and the armory preview.
+const styleCss=readFileSync(new URL('../public/style.css',import.meta.url),'utf8');
+const shapes=CAREER_CATALOG.filter(i=>i.kind==='reticle').map(i=>i.reticle);
+assert.deepEqual([...shapes].sort(),['bracket','chevron','diamond','dot','gap','halo']);
+for(const shape of shapes){
+ assert.ok(styleCss.includes(`:root[data-reticle='${shape}'] #crosshair`),`${shape} styles #crosshair`);
+ assert.ok(styleCss.includes(`.vb-reticle-preview[data-reticle='${shape}'] .vb-reticle-crosshair`),`${shape} styles the reticle preview`);
+}
+assert.doesNotMatch(styleCss,/:root\[data-reticle='[a-z]+'\] \.ch-arm/,'root reticle rules stay scoped to #crosshair so previews keep their own shape');
+const cosmeticsCss=readFileSync(new URL('../public/styles/cosmetics.css',import.meta.url),'utf8');
+assert.match(cosmeticsCss,/:root \{ --career-accent: #ffb347; \}/);
+assert.match(cosmeticsCss,/body:has\(#hud:not\(\.hidden\)\) #career-badge \{ display: block; \}/);
+assert.match(cosmeticsCss,/#crosshair \.ch-arm, #crosshair::after/);
+assert.match(cosmeticsCss,/\.vb-sb-nameplate \{/);
+// Boot wiring: one ARMORY dialog, snapshot-driven reticle in a match.
+const mainJs=readFileSync(new URL('../public/js/main.js',import.meta.url),'utf8');
+assert.doesNotMatch(mainJs,/WeaponCustomization|weapon-customization|workshop-open|mountArmoryButton/);
+assert.match(mainJs,/applyReticle\(this\._liveReticle\)/);
+assert.match(mainJs,/import\('\.\/ui\/armory\/weapon-bench\.js'\)/);
+console.log('Local presentation: theme accent, reticle data attribute, reset, CSS shapes for every reticle and boot wiring passed.');

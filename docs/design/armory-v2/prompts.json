@@ -1,0 +1,53 @@
+{
+  "status": "not generated: ImageGen was unavailable in the WP5 integration session (2026-09-22). These are the prompts that would have been sent; no reference image was fabricated.",
+  "inputs": [
+    "Current screenshots: docs/design/armory-v2/screenshots/*.png (implemented UI) and the superseded references in docs/design/armory/",
+    "docs/design/armory-v2/spec.md sections 5.1-5.9"
+  ],
+  "shared": "Game UI screen for VOXEL BLITZ, a voxel arena shooter. Dark slate panels (#0d151c to #1a2632), thin 1px steel borders, amber accent #ffb347 with cyan secondary #72e6ff, condensed uppercase kickers in a monospaced face, bold sans-serif names, no rounded pills, no glassmorphism. One dialog titled ARMORY with a sticky 56px header (brand VOXEL BLITZ, tabs LOADOUT / WEAPONS / PROGRESS / MASTERY, small MUSIC slider, BACK button) and a 64px career strip (callsign art, GUEST PLAYER, LEVEL 12 / Veteran, XP bar with '1,300 XP TO LEVEL 13', record PVP KILLS / WINS / ALL KILLS / MATCHES, SAVE YOUR CAREER). Right column: a 400px inspector with a 16:10 3D stage, kicker, 28px name, 'WHO SEES IT:' line, one-sentence detail, state glyph plus word, requirement bars and one primary action. Locked items use dashed borders and a lock glyph at full contrast, never faded. No currency, no prices, no store words. All numbers illustrative.",
+  "alternatives": [
+    {
+      "id": "alt-a",
+      "name": "Workbench grid",
+      "desktop": {
+        "size": "1440x900",
+        "file": "alt-a-desktop.png",
+        "prompt": "{shared} LOADOUT tab selected. Left 280px slot rail grouped OPERATOR (operator skin, death signature, sound kit), HUD (HUD theme, callsign, reticle, nameplate) and WEAPONS (13 weapon rows with HUD icon and 'Overdrive · Reflex · Angled'); each slot button 64px with a 44px thumbnail, 11px label, 15px bold equipped name and '2 / 3 UNLOCKED'. Center: 'CALLSIGN' heading, audience line, a 5-column grid of 132px option cards (art, name, chip EQUIPPED with check / NEW / LV 18 / lock). Inspector shows a callsign emblem on a dark plate with EQUIP button."
+      },
+      "mobile": {
+        "size": "390x844",
+        "file": "alt-a-mobile.png",
+        "prompt": "{shared} Mobile full-screen at 390x844 with 16px gutters: header row BACK / ARMORY / music icon, second row four equal 44px tabs. Strip collapsed to one 48px row: level circle, XP bar, CAREER DETAILS toggle. Full-width slot list. Sticky 64px bottom bar with thumbnail, item name, state word and DETAILS button."
+      }
+    },
+    {
+      "id": "alt-b",
+      "name": "Progress-first journey",
+      "desktop": {
+        "size": "1440x900",
+        "file": "alt-b-desktop.png",
+        "prompt": "{shared} PROGRESS tab selected. Top: 'NEXT UP' three goal cards in a row (next level reward 'Angled foregrip · LV 5 · 500 XP', closest mastery tier 'Raptor I nameplate · 40 / 50', long chase 'Revenant · COMBAT SCORE 2,310 / 10,000'), each with art and a thin bar. Below: 'LEVEL JOURNEY' horizontal rail of level circles with '3,100 XP AWAY' and reward chips. Below: 'UNLOCK TREE' with filter buttons ALL / WEAPONS / CHARACTER / PRESENTATION, '12 / 53 UNLOCKED', and three branch columns drawn as real trees: a spine of 48px node rows (level badge, 32px thumb, name, 'HUD THEME · LV 3', state glyph) with side lanes indented and joined by 1px connectors."
+      },
+      "mobile": {
+        "size": "390x844",
+        "file": "alt-b-mobile.png",
+        "prompt": "{shared} Mobile 390x844 PROGRESS tab: goal cards stacked in one column, the level journey as a horizontal snap rail, one tree branch shown at a time, and an open bottom sheet (max 72% height) with a 220px stage, item details and a full-width action."
+      }
+    },
+    {
+      "id": "alt-c",
+      "name": "Mastery ladder wall",
+      "desktop": {
+        "size": "1440x900",
+        "file": "alt-c-desktop.png",
+        "prompt": "{shared} MASTERY tab selected. A one-line rule text ('Human kills count 1. Bot and Bastion kills count ¼, up to 40 per weapon per match.'), an ARSENAL row of four tiles (Armorer 4 / 5 weapons at SPECIALIST, Arsenal nameplate, Armsmaster, Revenant chase), a CLOSEST TO NEXT TIER / ALL WEAPONS toggle, then a 3-column grid of 13 weapon cards: HUD weapon silhouette, weapon name, four tier pips I II III IV in bronze #c98a4b, steel #c8d2dc, gold #ffd23f and violet #b98cff with numeral text, '132 / 250 SCORE', bar, 'NEXT: Raptor II nameplate'. One card expanded into a ladder with four tier rows and reward tiles."
+      },
+      "mobile": {
+        "size": "390x844",
+        "file": "alt-c-mobile.png",
+        "prompt": "{shared} Mobile 390x844 MASTERY tab: arsenal tiles and weapon cards in a single column, tier pips kept legible at 11px minimum, sticky bottom inspector bar."
+      }
+    }
+  ],
+  "selection": "None chosen from generated art. The implementation follows spec.md directly; see README.md for the comparison against the implemented screenshots."
+}

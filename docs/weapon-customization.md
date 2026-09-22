@@ -1,8 +1,12 @@
 # Weapon customization and handling
 
-The main menu's **ARMORY** equips an optic, a grip and an optional StatTrak kill counter for each compatible weapon. The workshop shows the actual game model, four handling metrics and differences from the factory setup. Changes are saved per weapon, then applied on the next match or training admission. Factory setup resets that weapon without changing the others.
+The **WEAPONS** tab of the main menu's ARMORY dialog (`#career-shop`) equips a skin, an optic, a grip and an optional StatTrak kill counter for each compatible weapon. It opens from the tab bar, from a weapon row on the LOADOUT tab, from an attachment's **FIT ON** action and from a mastery ladder's **TUNE IN WEAPONS** button. There is no separate workshop dialog any more: `#workshop-open` and `dialog#weapon-customization` are gone.
 
-The 3D viewer includes the equipped weapon skin and current attachment choices. Drag to rotate in both axes, scroll or pinch to zoom, or use the on-screen zoom and reset controls. Arrow keys, plus/minus and Home work when the viewer is focused. **SHOW STANDARD** compares the unskinned weapon without changing the attachment draft or saved equipment. The collection uses this same viewer for weapon and character skins, including locked items. See [the viewer design and checks](design/model-viewer/README.md).
+The body is `WeaponBench` (`public/js/ui/armory/weapon-bench.js`, loaded lazily): a weapon rail (`#armory-weapon-rail`, arrow keys, Home and End) with each weapon's HUD icon and mastery tier pip, then SKIN, OPTIC, GRIP and KILL COUNTER groups and a **FACTORY SETUP** button. The inspector beside it shows the weapon in 3D with the focused option applied, the four handling meters with their change against the equipped setup (glyph, word and colour), the turn ceiling and zoom, and the weapon's mastery line with its next reward.
+
+**Save on select.** There are no drafts and no SAVE button. Picking a part changes its pressed state at once; after a 250 ms quiet window the latest pick for that weapon is saved with `POST /api/career/attachments`. An older response can never overwrite a newer pick. A rejected save (4xx or 503) rolls back to the last confirmed `equipped.weaponAttachments[weapon]` and shows the server's error; success reads "<WEAPON NAME> setup saved". Skins equip through the career equip route, with a per-weapon standard reset. **FACTORY SETUP** saves factory parts for that weapon only. Setups apply when you join your next match or training.
+
+The 3D viewer includes the equipped weapon skin and the current attachment choice. Drag sideways to rotate, scroll or pinch to zoom, or use the zoom and reset controls under the inspector. Arrow keys, plus/minus and Home work when the viewer is focused. **SHOW STANDARD** compares the unskinned weapon without changing the saved setup. See [the viewer design and checks](design/model-viewer/README.md).
 
 ## Attachments
 
@@ -23,7 +27,7 @@ The catalogs and compatibility rules live in `shared/weapon-attachments.js`. Bas
 | Vertical | -4 | ×0.88 | ×0.94 | ×0.75 | ×0.95 |
 | Precision | -7 | ×0.65 | ×0.75 | ×0.95 | ×0.72 |
 
-All 12 weapons have a workshop entry. The pickaxe has fixed mounts; the revolver and heavy special weapons retain their factory grips. Minigun, flamethrower and launcher accept the reflex and 2× optics. Scopes support the existing alternate magnification input and scope/breath/reload visibility rules. Attachment models appear in the workshop, first person and remote players' hands. A third slot fits a StatTrak LED counter that displays the weapon's confirmed human kills from career mastery; it changes handling nothing and rides the same save/transport path as optics and grips.
+Every weapon in `WEAPON_IDS` has a bench entry. The pickaxe has fixed mounts; the revolver and heavy special weapons retain their factory grips. Minigun, flamethrower and launcher accept the reflex and 2× optics. Scopes support the existing alternate magnification input and scope/breath/reload visibility rules. Attachment models appear in the ARMORY, first person and remote players' hands. A third slot fits a StatTrak LED counter that displays the weapon's confirmed human kills from career mastery; it changes handling nothing and rides the same save/transport path as optics and grips.
 
 Arrowhead's [customization release](https://arrowhead.zendesk.com/hc/en-us/articles/20039732796956--PATCH-01-003-000) describes sights and underbarrel parts. Its [Into the Unjust patch](https://arrowhead.zendesk.com/hc/en-us/articles/23973732653084--Into-the-Unjust-5-0-0) gives the -1/-2/-4 ergonomics costs for 2×/4×/10× optics. The grip tradeoffs above are Voxel Blitz balancing choices. Magazines and muzzle parts are outside this implementation.
 
@@ -35,7 +39,7 @@ Ownership is authorization and deliberately stays out of `shared/weapon-attachme
 
 A stored selection is never rewritten on read. A part that is locked is downgraded to factory only at delivery, so the saved setup returns intact once the node opens. `validateProfile` deliberately does not gate attachments: every profile written before this system existed names parts it does not own, and gating there would reject those careers outright.
 
-The armory shows locked parts with their required level and marks them `aria-disabled` rather than `disabled`, so they stay focusable and a screen reader can announce why they are closed. Drafts containing a locked part are sanitized to factory before they can be saved.
+The WEAPONS tab shows locked parts with a lock glyph and their required level (`LV 18`), marks them `data-locked` and `aria-disabled` rather than `disabled`, so they stay focusable and a screen reader can announce why they are closed. Choosing a locked part only explains the gate; it is never queued for saving.
 
 ## Player turning
 
@@ -57,12 +61,6 @@ The server reads the profile at admission, freezes that match's setup and sends 
 
 `npm run weapons:handling:test` covers every compatible model/configuration, immutable base definitions, client/server values, scope switching, HTTP rejection, player isolation, persistence/restart, rollback, frame-rate parity, immediate full flick input, independent movement and weapon settling. The complete `npm test` suite covers existing combat, reload, conditions, accounts, modes, maps and networking.
 
-Browser checks covered:
+`npm run armory:browser` and `npm run models:browser` (muted CDP captures) cover the WEAPONS tab: every weapon on the rail, save-on-select of a rifle optic surviving a reload, a debounced single POST for `scope4`, a locked rifle skin at level 100 without rifle mastery, standard comparison keeping the setup, and responsive framing at 1280, 390 and 360 px. `tools/armory-preview-test.mjs` pins the debounce, latest-wins, rollback and locked-part behaviour without a browser.
 
-- ARMORY entry, all weapon model types, changing both slots, saving and reload persistence.
-- 1280×720 desktop and 390×844 mobile layouts, with all four metrics, scrolling controls and accessible save/back actions.
-- A saved rifle 4×/precision setup entering training with ergonomics 61, sway 0.104° at 0.18 Hz, vertical recoil 0.646° and horizontal recoil 0.2304°.
-- Actual rifle scope activation at 4×, 21.718° camera FOV and the correct weapon/optic label.
-- Returning from training to the menu and reopening the armory. This also exposed and fixed a null match access in the current scoreboard code.
-
-Design prompts, both generated alternatives, selected layout rationale and browser screenshots are in [the design record](design/weapon-customization/design.md). Detailed test output and measurements are under `.artifacts/weapon-customization/`. File persistence was exercised end to end; the PostgreSQL path uses the existing persistence interface but was not run against a live database in this task.
+The original workshop's design record and handling measurements remain in [the design record](design/weapon-customization/design.md) and `.artifacts/weapon-customization/`; the ARMORY redesign is recorded in [design/armory-v2](design/armory-v2/README.md).

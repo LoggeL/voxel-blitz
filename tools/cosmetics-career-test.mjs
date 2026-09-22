@@ -4,9 +4,10 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { CAREER_CATALOG, careerItemState, careerView, cosmeticLoadout, normalizeCosmeticLoadout,
-  equipCareerItem, reconcileCareerUnlocks, defaultCosmeticLoadout } from '../shared/career.js';
+  equipCareerItem, reconcileCareerUnlocks, defaultCosmeticLoadout, xpForLevel, MASTERY_TIERS, masteryTier,
+  masteryScore, combatScore, arsenalCount } from '../shared/career.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
-import { emptyProfile, validateProfile } from '../server/persistence/career-profile.js';
+import { emptyProfile, validateProfile, normalizeCareerProgress, applyCareerProgress, masteryView } from '../server/persistence/career-profile.js';
 import { CareerService } from '../server/career.js';
 import { GameEngine } from '../server/game.js';
 
@@ -30,27 +31,74 @@ try {
 
   const complete = () => {
     const profile = emptyProfile();
-    profile.xp = (100 - 1) ** 2 * 100;
+    profile.xp = xpForLevel(100);
     profile.pvpKills = 10000;
+    profile.kills = 10000;
     profile.mastery = Object.fromEntries(WEAPON_IDS.map(weapon => [weapon, { kills: 10000, headshots: 0 }]));
     return profile;
   };
-  for (const item of CAREER_CATALOG.filter(item => item.masteryKills || item.pvpKills)) {
-    const profile = complete();
-    if (item.masteryKills) profile.mastery[item.weapon] = { kills: item.masteryKills - 1, headshots: 0 };
-    if (item.pvpKills) profile.pvpKills = item.pvpKills - 1;
-    reconcileCareerUnlocks(profile);
-    assert.ok(!profile.owned.includes(item.id), `${item.id} needs its exact gate`);
-    if (item.masteryKills) profile.mastery[item.weapon].kills++;
-    if (item.pvpKills) profile.pvpKills++;
-    reconcileCareerUnlocks(profile);
-    assert.ok(profile.owned.includes(item.id));
-    assert.equal(careerItemState(profile, item).eligible, true);
-    assert.equal(profile.credits, undefined, 'rewards never involve a currency');
-    assert.equal(reconcileCareerUnlocks(profile).length, 0, 'grants are idempotent');
-    equipCareerItem(profile, item);
-    assert.equal(careerItemState(profile, item).equipped, true);
+  // Every mastery tier boundary, reached by human kills alone and by bot kills at a quarter weight.
+  assert.deepEqual(MASTERY_TIERS.map(tier => tier.score), [50, 250, 1000, 2500]);
+  for (const item of CAREER_CATALOG.filter(item => item.masteryTier)) {
+    const target = masteryTier(item.masteryTier).score;
+    for (const [short, enough] of [[{ kills: target - 1, headshots: 0 }, { kills: target, headshots: 0 }],
+      [{ kills: target - 50, headshots: 0, botKills: 199 }, { kills: target - 50, headshots: 0, botKills: 200 }]]) {
+      const profile = complete();
+      profile.mastery[item.weapon] = short;
+      assert.equal(masteryScore(short), target - 1);
+      reconcileCareerUnlocks(profile);
+      assert.ok(!profile.owned.includes(item.id), `${item.id} needs its exact tier`);
+      profile.mastery[item.weapon] = enough;
+      reconcileCareerUnlocks(profile);
+      assert.ok(profile.owned.includes(item.id), `${item.id} opens at ${target}`);
+      assert.equal(careerItemState(profile, item).eligible, true);
+      assert.equal(profile.credits, undefined, 'rewards never involve a currency');
+      assert.equal(reconcileCareerUnlocks(profile).length, 0, 'grants are idempotent');
+      equipCareerItem(profile, item);
+      assert.equal(careerItemState(profile, item).equipped, true, `${item.id} can be equipped`);
+    }
   }
+  assert.equal(masteryScore({ kills: 200, headshots: 0, botKills: 199 }), 249, 'bot kills weigh a quarter, rounded down');
+  assert.equal(masteryScore({ kills: 200, headshots: 0, botKills: 200 }), 250);
+  // Revenant: combat score counts PvP kills plus a quarter of the rest.
+  const revenant = complete();
+  Object.assign(revenant, { pvpKills: 9000, kills: 9000 + 3999 });
+  assert.equal(combatScore(revenant), 9999);
+  reconcileCareerUnlocks(revenant);
+  assert.ok(!revenant.owned.includes('revenant'), 'revenant needs 10,000 combat score');
+  revenant.kills++;
+  assert.equal(combatScore(revenant), 10000);
+  reconcileCareerUnlocks(revenant);
+  assert.ok(revenant.owned.includes('revenant'), 'revenant opens at 10,000 combat score');
+  // Arsenal: five weapons at SPECIALIST.
+  const arsenal = { ...emptyProfile(), mastery: Object.fromEntries(WEAPON_IDS.slice(0, 4).map(weapon => [weapon, { kills: 250, headshots: 0 }])) };
+  arsenal.mastery[WEAPON_IDS[4]] = { kills: 249, headshots: 0 };
+  assert.equal(arsenalCount(arsenal, 'specialist'), 4);
+  reconcileCareerUnlocks(arsenal);
+  assert.ok(!arsenal.owned.includes('armorer'), 'armorer needs five SPECIALIST weapons');
+  assert.equal(careerItemState(arsenal, 'armorer').requirements[1].current, 4);
+  arsenal.mastery[WEAPON_IDS[4]] = { kills: 249, headshots: 0, botKills: 4 };
+  assert.equal(arsenalCount(arsenal, 'specialist'), 5);
+  reconcileCareerUnlocks(arsenal);
+  assert.ok(arsenal.owned.includes('armorer'), 'armorer opens at five SPECIALIST weapons');
+  equipCareerItem(arsenal, 'armorer');
+  assert.equal(careerItemState(arsenal, 'armorer').equipped, true, 'the arsenal callsign can be equipped');
+  assert.equal(validateProfile(arsenal).equipped.title, 'armorer', 'an equipped mastery callsign survives validation');
+  assert.ok(!arsenal.owned.includes('nameplate-arsenal') && !arsenal.owned.includes('armsmaster'));
+
+  // botKills round-trips through validation and the shared progress merge; kills stay human-only.
+  const withBots = validateProfile({ ...emptyProfile(), mastery: { rifle: { kills: 5, headshots: 2, botKills: 7 }, smg: { kills: 1, headshots: 0 } } });
+  assert.deepEqual(withBots.mastery, { rifle: { kills: 5, headshots: 2, botKills: 7 }, smg: { kills: 1, headshots: 0 } });
+  const granted = [];
+  applyCareerProgress(withBots, normalizeCareerProgress({ xp: 10, kills: 1, mastery: { rifle: { kills: 0, headshots: 0, botKills: 1 }, smg: { kills: 1, headshots: 1 } } }), granted);
+  assert.deepEqual(withBots.mastery, { rifle: { kills: 5, headshots: 2, botKills: 8 }, smg: { kills: 2, headshots: 1 } });
+  assert.deepEqual(granted, [], 'a small reward grants nothing');
+  applyCareerProgress(withBots, normalizeCareerProgress({ xp: 100 }), granted);
+  assert.deepEqual(granted, ['optic-reflex', 'arctic', 'pathfinder'], 'newly granted ids are reported');
+  assert.deepEqual(masteryView(withBots.mastery), { rifle: { kills: 5, headshots: 2 }, smg: { kills: 2, headshots: 1 } }, 'the welcome mastery stays human-only');
+  assert.throws(() => normalizeCareerProgress({ mastery: { rifle: { kills: 0, headshots: 0, botKills: 1.5 } } }), /mastery/);
+  assert.throws(() => applyCareerProgress(validateProfile({ ...emptyProfile(), mastery: { rifle: { kills: 0, headshots: 0, botKills: Number.MAX_SAFE_INTEGER } } }),
+    normalizeCareerProgress({ mastery: { rifle: { kills: 0, headshots: 0, botKills: 1 } } })), /exceeds/);
 
   const rifle = CAREER_CATALOG.find(item => item.id === 'rifle-overdrive');
   assert.throws(() => career.equip(guest, rifle.id), /not been unlocked/);
@@ -107,7 +155,8 @@ try {
   career.observe(client, snapshot({ events: [{ kind: 'kill', killer: 'p1', victim: 'p2', w: acceptedWeapon, hs: true }] }));
   assert.equal(career.profile(combatId).kills, 2, 'bots retain normal lower-value career rewards');
   assert.equal(career.profile(combatId).pvpKills, 1, 'bots cannot farm PvP unlocks');
-  assert.equal(career.profile(combatId).mastery[acceptedWeapon].kills, 1);
+  assert.equal(career.profile(combatId).mastery[acceptedWeapon].kills, 1, 'bot kills never count as human mastery kills');
+  assert.equal(career.profile(combatId).mastery[acceptedWeapon].botKills, 1, 'bot kills advance weighted mastery');
   victim.bot = false;
   victim.team = 'alpha';
   career.observe(client, snapshot({ players: [{ id: 'p1', team: 'alpha', state: 'alive' }], events: [{ kind: 'kill', killer: 'p1', victim: 'p2', w: 'rifle' }] }));
@@ -135,6 +184,8 @@ try {
   const clients = new Map([[meta.id, meta]]);
   const frame = () => ({ t: 'tick', players: [{ id: meta.id }], events: [{ kind: 'kill', killer: meta.id, victim: 'other' }] });
   const view = career.decorateSnapshot(frame(), clients);
+  assert.deepEqual(Object.keys(view.players[0].cosmetics), Object.keys(defaultCosmeticLoadout()), 'the wire loadout shape is unchanged');
+  assert.deepEqual(Object.keys(view.events[0].cosmetics), Object.keys(defaultCosmeticLoadout()));
   assert.equal(view.players[0].cosmetics.weaponSkins.rifle, rifle.id);
   assert.equal(view.events[0].cosmetics.weaponSkins.rifle, rifle.id);
   career.equip(account, 'standard', () => true, { slot: 'weaponSkin', weapon: 'rifle' });
@@ -178,13 +229,14 @@ try {
       await admin.query('INSERT INTO vb_careers(id,xp,credits,kills,matches,owned,equipped) VALUES($1,$2,$3,$4,$5,$6,$7)',
         [pgGuest, legacy.xp, legacy.credits, legacy.kills, legacy.matches, JSON.stringify(legacy.owned), JSON.stringify(legacy.equipped)]);
       store = await PostgresStore.open({ connectionString: fixture.connectionString });
-      assert.deepEqual((await admin.query('SELECT version FROM vb_schema_migrations ORDER BY version')).rows.map(row => row.version), [1, 2, 3]);
+      assert.deepEqual((await admin.query('SELECT version FROM vb_schema_migrations ORDER BY version')).rows.map(row => row.version), [1, 2, 3, 4]);
       assert.deepEqual(await store.readProfile(pgGuest), validateProfile(legacy), 'PostgreSQL upgrades preserve old profiles and grant level rewards');
-      const delta = { pvpKills: 250, mastery: { rifle: { kills: 250, headshots: 51 }, revolver: { kills: 5, headshots: 0 } }, wins: 4 };
+      const delta = { pvpKills: 250, mastery: { rifle: { kills: 250, headshots: 51 }, revolver: { kills: 5, headshots: 0, botKills: 9 } }, wins: 4 };
       const receipt = randomUUID();
       await store.applyProgress(pgGuest, delta, { operationId: receipt });
       await store.applyProgress(pgGuest, { ...delta, mastery: { revolver: delta.mastery.revolver, rifle: delta.mastery.rifle } }, { operationId: receipt });
       assert.equal((await store.readProfile(pgGuest)).mastery.rifle.kills, 250, 'SQL receipt dedupe covers mastery regardless of JSON key order');
+      assert.deepEqual((await store.readProfile(pgGuest)).mastery.revolver, { kills: 5, headshots: 0, botKills: 9 }, 'botKills round-trips through jsonb');
       const pgView = await store.equip(pgGuest, rifle.id);
       assert.equal(pgView.equipped.weaponSkins.rifle, rifle.id);
       assert.equal(pgView.credits, undefined, 'the SQL view drops the dead currency');

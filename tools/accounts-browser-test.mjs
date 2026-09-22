@@ -37,7 +37,8 @@ try {
   const page = browser.page;
   await page.send('Network.setCookie', { name: 'vb-career', value: guest, url, httpOnly: true, sameSite: 'Strict' });
   await page.send('Page.reload');
-  await page.waitFor(`document.getElementById('account-open') && document.getElementById('play-btn') && document.querySelector('.vb-career-stats')?.textContent.includes('LEVEL 2')`);
+  // Quick Play opens once the match asset set lands (menu load gate).
+  await page.waitFor(`document.getElementById('account-open') && document.getElementById('play-btn')?.disabled === false && document.getElementById('career-menu-preview')?.textContent.includes('LEVEL 2')`, { timeoutMs: 60000 });
   await assertGuest(page);
   await page.evaluate(`document.getElementById('name-input').value = 'GuestPilot'; document.getElementById('name-input').dispatchEvent(new Event('input', { bubbles: true }));`);
   await open(page);
@@ -69,7 +70,8 @@ try {
   assert.equal(await page.evaluate(`!!document.getElementById('account-recovery-code')`), false, 'recovery reveal is removed after saving');
   await page.evaluate(`document.getElementById('account-close').click(); document.getElementById('career-open').click();`);
   await page.waitFor(`document.querySelector('.vb-career-stats').textContent.includes('LEVEL 2')`);
-  await page.evaluate(`document.querySelector('[data-item="arctic"]').click()`);
+  // LOADOUT: HUD THEME slot, then the Arctic option.
+  await page.evaluate(`document.querySelector('[data-slot="theme"]').click(); document.querySelector('[data-option="arctic"]').click()`);
   await page.waitFor(`document.querySelector('.vb-career-status').textContent === 'Arctic equipped'`);
   await page.evaluate(`document.getElementById('career-close').click()`);
   console.log('Accounts browser: optional guest path, registration, validation, private recovery reveal, account name and guest-career adoption passed.');
@@ -77,11 +79,11 @@ try {
   // A completely separate browser profile represents another device.
   other = await launchCdpSession(url);
   const remote = other.page;
-  await remote.waitFor(`document.getElementById('account-open') && document.getElementById('play-btn')`);
+  await remote.waitFor(`document.getElementById('account-open') && document.getElementById('play-btn')?.disabled === false`, { timeoutMs: 60000 });
   await assertGuest(remote);
   await remote.evaluate(`document.getElementById('account-nav-open').click()`); await fill(remote, { username, password }); await submit(remote);
   await remote.waitFor(`document.getElementById('name-input').readOnly && getComputedStyle(document.documentElement).getPropertyValue('--career-accent').trim() === '#72e6ff'`);
-  assert.equal(await remote.evaluate(`document.querySelector('.vb-career-stats').textContent.includes('LEVEL 2')`), true, 'the career follows login on a different device');
+  assert.equal(await remote.evaluate(`document.getElementById('career-menu-preview').textContent.includes('LEVEL 2')`), true, 'the career follows login on a different device');
   await fill(remote, { currentPassword: 'incorrect existing password', newPassword: secondPassword, confirmPassword: secondPassword });
   await submit(remote);
   assert.match(await remote.evaluate(`document.getElementById('account-feedback').textContent`), /password/i);
@@ -106,7 +108,7 @@ try {
   await fill(remote, { username, password: recoveredPassword }); await submit(remote);
   await remote.waitFor(`document.getElementById('name-input').readOnly`);
   await remote.send('Page.reload');
-  await remote.waitFor(`document.getElementById('name-input')?.readOnly && document.querySelector('.vb-career-stats')?.textContent.includes('LEVEL 2')`);
+  await remote.waitFor(`document.getElementById('name-input')?.readOnly && document.getElementById('career-menu-preview')?.textContent.includes('LEVEL 2')`);
   console.log('Accounts browser: independent-device career sync, password change, session revocation, recovery rotation and login persistence passed.');
 
   // The first browser's old session was revoked. Career must refresh the

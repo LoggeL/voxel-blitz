@@ -55,6 +55,8 @@ try {
   });
   const profile = await fetch(`${base}/api/career`, { headers: { Cookie: cookie } }).then(r => r.json());
   assert.equal(profile.xp, CAREER_REWARDS.botKill.xp);
+  assert.equal(profile.pvpKills, 0, 'a bot kill is not a PvP kill');
+  assert.deepEqual(profile.mastery.rifle, { kills: 0, headshots: 0, botKills: 1 }, 'the HTTP career view carries weighted bot mastery');
   ws.close();
   await stopServer(server);
   assert.doesNotMatch(server.stderr, /\[career\] reward.*failed/, 'successful file reward must not be logged as a persistence error');

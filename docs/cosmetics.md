@@ -2,29 +2,47 @@
 
 Cosmetics are nodes on the career unlock tree; see [progression](progression.md) for the tree itself, its branches and the full node table. This note covers how the cosmetics render, sound and persist.
 
-The first collection contains three weapon skins, two character skins, three death signatures and three original sound kits. Every weapon remains playable in every mode where that mode permits it. Gun Game uses its own weapon order and applies the player's equipped skin to each matching weapon.
+The first collection contains three weapon skins, two character skins, three death signatures and three original sound kits. The redesign adds only data or CSS rewards: callsigns, HUD themes, nameplates and three CSS reticles. Every weapon remains playable in every mode where that mode permits it. Gun Game uses its own weapon order and applies the player's equipped skin to each matching weapon.
 
 | Item | Slot | Level | Additional requirement |
 | --- | --- | ---: | --- |
 | Ignition | Death signature | 5 | None |
 | Arcade | Sound kit | 10 | None |
-| Overdrive | Rifle skin | 15 | 250 rifle PvP kills |
+| Overdrive | Rifle skin | 12 | Rifle mastery SPECIALIST (score 250) |
 | Salvager | Character skin | 25 | None |
 | Circuit | Death signature | 25 | None |
-| High Noon | Revolver skin | 35 | 1,000 revolver PvP kills |
+| Revenant | Character skin | 25 | Combat score 10,000 |
+| High Noon | Revolver skin | 34 | Revolver mastery ELITE (score 1,000) |
 | High Noon | Sound kit | 35 | None |
+| Foundry | Minigun skin | 44 | Minigun mastery MASTER (score 2,500) |
 | Overdrive | Sound kit | 50 | None |
-| Foundry | Minigun skin | 75 | 5,000 minigun PvP kills |
 | Sovereign | Death signature | 75 | None |
-| Revenant | Character skin | 100 | 10,000 PvP kills |
 
-All listed requirements must be satisfied, and so must the node before each item in the tree. Every item is granted automatically; nothing is bought. HUD themes and callsigns are tree nodes too and open by career level. The career page previews locked items, exposes each requirement separately, and supports an independent weapon skin per weapon plus a character, signature, sound kit, reticle and nameplate. Each slot can return to standard.
+Every requirement must be satisfied, and so must the node before each item in the tree. Every item is granted automatically; nothing is bought.
 
-The XP curve is unchanged: level N starts at `(N - 1)^2 * 100` XP. Level 50 requires 240,100 XP, level 100 requires 980,100 XP. These are initial content gates, not a measured play-time promise. The mastery display marks 250, 1,000, 5,000 and 10,000 human kills. Only explicit catalog entries grant items; the other tier markers are progress milestones.
+## Slots and who sees them
+
+`LOADOUT_SLOTS` in `shared/career.js` is the single slot table. The ARMORY's LOADOUT tab lists it in this order and prints the audience line for each slot. `wire` slots ride the snapshot `cosmetics` object (`EQUIPPABLE_SLOTS` is derived from it and keeps its five ids and order); theme and callsign stay local.
+
+| Slot | Label | Standard reset | On the wire | Who sees it |
+| --- | --- | --- | --- | --- |
+| `characterSkin` | OPERATOR SKIN | standard | yes | Everyone in the match |
+| `signature` | DEATH SIGNATURE | standard | yes | Players you eliminate, on their death card |
+| `sound` | SOUND KIT | standard | yes | You on kills, your victims on death, the lobby when you win |
+| `theme` | HUD THEME | amber | no | Only you: HUD accent and crosshair |
+| `title` | CALLSIGN | rookie | no | Only you: career badge and menu card |
+| `reticle` | RETICLE | standard | yes | Only you: your crosshair |
+| `nameplate` | NAMEPLATE | standard | yes | Everyone, beside your name on the scoreboard |
+
+Weapon skins are chosen per weapon on the WEAPONS tab (`equipped.weaponSkins[weapon]`), with a per-weapon standard reset. Resetting the theme equips Amber and resetting the callsign equips Rookie.
+
+## Mastery tiers
+
+Tiers come from `MASTERY_TIERS` in `shared/career-mastery.js`: INITIATED 50, SPECIALIST 250, ELITE 1,000 and MASTER 2,500 mastery score, where score is human kills plus a quarter of bot and Bastion kills (at most 40 counted per weapon per match). Every tier pays a reward on all 13 weapons: three mastery nameplates and a Master callsign each, plus the three arsenal rewards. The legacy weapon skins above are mastery rewards too. See [progression](progression.md#mastery).
 
 ## Attribution and persistence
 
-The server counts accepted kill events, including the actual weapon used before a Gun Game stage advance. Training, bots, self-kills and teammate kills do not count toward PvP mastery. Bots still award their original reduced career XP. Wins count completed matches; individual Search and Destroy round wins do not count as match wins.
+The server counts accepted kill events, including the actual weapon used before a Gun Game stage advance. Training, self-kills and teammate kills never count. Human kills add to `mastery[w].kills` (which StatTrak shows); bot and Bastion kills add to `mastery[w].botKills` at a quarter weight toward the mastery score and still award their reduced career XP. Wins count completed matches; individual Search and Destroy round wins do not count as match wins.
 
 Existing XP, kills, matches, unlocks and equipment are preserved; a legacy `credits` field is dropped on read and previously purchased items stay owned. Historical PvP attribution and weapon mastery start at zero because earlier profiles did not record them. File-backed profiles migrate when read. PostgreSQL adds immutable migration 2 (`schema-cosmetics.sql`) after checking the existing migration checksum; mastery, PvP kills and wins persist through account adoption and restart.
 
@@ -36,9 +54,9 @@ Each skin is an individual module under `public/js/cosmetics/skins/`. `SkinLayer
 
 The local gun, third-person carried gun and killcam use the same skin modules. Character palettes also affect local gun gloves and the visible local body. Added character details participate in normal death fades. The inventory images are rendered from these actual models, not separate illustrations.
 
-The collection's featured weapon and character skins use an interactive 3D viewer. Choose **INSPECT IN 3D**, drag horizontally or vertically to rotate, and scroll or pinch to zoom. Zoom buttons and **RESET VIEW** are also available. With the canvas focused, arrow keys rotate, plus/minus zoom, and Home or R resets the camera. **SHOW STANDARD** compares the original model while preserving the inspection angle and weapon attachments. Locked skins can be inspected without granting or equipping them.
+The ARMORY inspector uses one interactive 3D viewer for the whole dialog: weapon and character skins, attachments on the selected weapon, and the WEAPONS tab's bench. Drag sideways to rotate (vertical swipes scroll the page, `touch-action: pan-y`), scroll or pinch to zoom; zoom buttons and **RESET VIEW** sit under the inspector. With the canvas focused, arrow keys rotate and tilt, plus/minus zoom, and Home or R resets the camera. **SHOW STANDARD** compares the original model while preserving the angle and attachments. Locked skins can be inspected without granting or equipping them.
 
-The Armory uses the same viewer for all twelve weapons, including the equipped skin and the current attachment draft. Model geometry, materials and attachments come from the gameplay builders. The viewer owns its camera and skin layers, renders only on interaction/resize, and releases its WebGL context when closed. Collection cards keep their static thumbnails, and the featured preview falls back to artwork if WebGL is unavailable.
+Model geometry, materials and attachments come from the gameplay builders. The viewer is created lazily, rebuilt only when the model or skin changes, renders only on interaction/resize, honours `prefers-reduced-motion`, and releases its WebGL context when the ARMORY closes. Before 3D loads the stage shows static art and "LOADING 3D PREVIEW"; without WebGL it keeps the art and says "3D preview unavailable on this device". Every other kind previews with `cosmeticArtwork`: a mini HUD for themes, atlas art or a typographic plate for callsigns, a live `.vb-reticle-preview` using the real reticle CSS, and a scoreboard row with a real `.vb-sb-nameplate`.
 
 `npm run models:browser` checks actual models, mouse/touch/keyboard interaction, standard comparison, saved and draft attachments, locked preview without inventory writes, responsive framing, context restoration and close/reopen cleanup. References, prompts and browser captures are recorded in [the viewer design note](design/model-viewer/README.md).
 
@@ -50,7 +68,7 @@ Each kit contains `kill.ogg`, `death.ogg`, `victory.ogg` and `sources.json`. Ori
 
 The killer hears their short kill confirmation. The victim hears the killer's death sting, which stops on respawn. At a completed match, the winner's kit plays; team wins use the highest-kill human on the winning team, with player ID breaking a tie. Joining during a result screen does not replay the anthem. Late kill confirmations cannot interrupt victory music.
 
-Cosmetic channels share the gameplay master bus and also have separate volume/mute controls in the career page. Only one cosmetic cue plays at a time. Suspended or unloaded cues are skipped rather than queued, death/reset/disconnect clears voices, and hiding the page stops them. Locked kits can be auditioned in the collection; changing selection or closing it stops that preview.
+Cosmetic channels share the gameplay master bus and also have separate volume/mute controls (CUE VOLUME, under the ARMORY's SOUND KIT slot). Only one cosmetic cue plays at a time. Suspended or unloaded cues are skipped rather than queued, death/reset/disconnect clears voices, and hiding the page stops them. Locked kits can be auditioned from the inspector; changing selection or closing it stops that preview.
 
 Audio is checked for codec, duration, peaks, clipping and provenance. Signal checks do not replace a listening review.
 

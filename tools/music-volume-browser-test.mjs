@@ -106,6 +106,12 @@ try {
     const shot = await page.send('Page.captureScreenshot', { format: 'png' });
     await writeFile(`.artifacts/music-volume/${name}.png`, Buffer.from(shot.data, 'base64'));
     await page.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
+    // The armory header shows a 44px speaker button at 390px; it opens the slider.
+    const toggle = `${scope} .vb-armory-music-toggle`;
+    if (await page.evaluate(`!!document.querySelector(${JSON.stringify(toggle)})?.getClientRects().length`)) {
+      await click(toggle);
+      assert.equal(await page.evaluate(`document.querySelector(${JSON.stringify(toggle)}).getAttribute('aria-expanded')`), 'true');
+    }
     const mobile = await point(`${scope} [data-music-volume]`);
     assert.ok(mobile.visible && mobile.reachable && !mobile.disabled, `${name} music is reachable at 390px`);
     await adjust(scope);

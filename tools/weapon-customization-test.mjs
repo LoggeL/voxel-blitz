@@ -11,6 +11,7 @@ import { PlayerEntity } from '../server/sim/player.js';
 import { WeaponState } from '../public/js/guns/weapon-state.js';
 import { isScopeActive, nextScopeZoom } from '../public/js/guns/scope-state.js';
 import { CareerService } from '../server/career.js';
+import { xpForLevel } from '../shared/career.js';
 import { startServer, stopServer } from './lib/server-process.mjs';
 
 import { buildGun, disposeGunModels } from '../public/js/guns/assemble.js';
@@ -107,7 +108,7 @@ for (const ads of [0, 1]) {
 const directory=await mkdtemp(path.join(tmpdir(),'vb-customization-'));let server;const sockets=[];
 try {
   const unlockedGuest='c'.repeat(64), lockedGuest='d'.repeat(64);
-  await writeFile(path.join(directory,`${unlockedGuest}.json`),JSON.stringify({xp:(34-1)**2*100,kills:0,matches:0,owned:['amber','rookie'],equipped:{theme:'amber',title:'rookie'}}));
+  await writeFile(path.join(directory,`${unlockedGuest}.json`),JSON.stringify({xp:xpForLevel(34),kills:0,matches:0,owned:['amber','rookie'],equipped:{theme:'amber',title:'rookie'}}));
   await writeFile(path.join(directory,`${lockedGuest}.json`),JSON.stringify({xp:0,kills:0,matches:0,owned:['amber','rookie'],equipped:{theme:'amber',title:'rookie'}}));
   server=startServer({cwd:process.cwd(),env:{VB_PERSISTENCE:'file',VB_DATA_DIR:directory}});let url=`http://127.0.0.1:${await server.port}`;
   const cookie=`vb-career=${unlockedGuest}`;
@@ -123,7 +124,9 @@ try {
     body:JSON.stringify({weapon:'rifle',attachments:selection})});
   assert.equal(lockedPost.status,400,'a locked attachment cannot be saved');
   assert.match((await lockedPost.json()).error,/Unlock this attachment/);
-  let response=await post('rifle',selection);assert.equal(response.status,200);assert.deepEqual((await response.json()).equipped.weaponAttachments.rifle,selection);
+  let response=await post('rifle',selection);assert.equal(response.status,200);const firstSave=await response.json();assert.deepEqual(firstSave.equipped.weaponAttachments.rifle,selection);
+  // Save-on-select may repeat the same setup; a repeat is an idempotent no-op.
+  response=await post('rifle',selection);assert.equal(response.status,200);assert.deepEqual(await response.json(),firstSave,'the same setup saved twice is idempotent');
   response=await post('sniper',{optic:'scope10',grip:'precision'});assert.equal(response.status,200);
   assert.deepEqual((await response.json()).equipped.weaponAttachments.rifle,selection,'Saving another weapon preserves the first');
   const connect=async(cookies,forged=false)=>{

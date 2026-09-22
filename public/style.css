@@ -4586,13 +4586,72 @@ html[data-reduced-motion="true"] .vb-condition-track > i { transition: none; }
 .vb-killcam-top{position:relative;z-index:1}
 .vb-killcam-bottom{z-index:1}
 
-/* ---------- unlockable reticle styles ---------- */
-:root[data-reticle='dot'] .ch-arm { display: none; }
-:root[data-reticle='dot'] #crosshair::after { width: 4px; height: 4px; left: -2px; top: -2px; }
-:root[data-reticle='chevron'] .ch-arm:nth-child(1) { display: none; }
-:root[data-reticle='chevron'] .ch-arm:nth-child(3) { transform: translateX(calc(-1 * var(--gap, 4px) - 100% + var(--ch-jx))) translateY(var(--ch-jy)) rotate(38deg); }
-:root[data-reticle='chevron'] .ch-arm:nth-child(4) { transform: translateX(calc(var(--gap, 4px) + var(--ch-jx))) translateY(var(--ch-jy)) rotate(-38deg); }
-:root[data-reticle='halo'] .ch-arm { display: none; }
-:root[data-reticle='halo'] #crosshair::before {
+/* ---------- unlockable reticle styles ----------
+   `:root[data-reticle]` shapes the live #crosshair (cosmetics/local-presentation.js).
+   `.vb-reticle-preview[data-reticle] > .vb-reticle-crosshair > .ch-arm x4` renders the
+   same shape anywhere else; every rule below lists both selectors. */
+.vb-reticle-preview { position: relative; }
+.vb-reticle-crosshair {
+  position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none;
+  transform: scale(var(--reticle-scale, 1));
+  --gap: 4px; --gap-ease: 52ms; --ch-jx: 0px; --ch-jy: 0px; --ch-rot: 0deg; --ch-arm-opacity: 1; --ch-glow: 4px;
+}
+.vb-reticle-crosshair::after {
+  content: ''; position: absolute; left: -1px; top: -1px; width: 2px; height: 2px; border-radius: 50%;
+  background: #ffffff; box-shadow: 0 0 3px rgba(0, 0, 0, 0.8);
+}
+
+/* dot: a single enlarged center dot */
+:root[data-reticle='dot'] #crosshair .ch-arm,
+.vb-reticle-preview[data-reticle='dot'] .vb-reticle-crosshair .ch-arm { display: none; }
+:root[data-reticle='dot'] #crosshair::after,
+.vb-reticle-preview[data-reticle='dot'] .vb-reticle-crosshair::after { width: 4px; height: 4px; left: -2px; top: -2px; }
+
+/* chevron: downward-open angle */
+:root[data-reticle='chevron'] #crosshair .ch-arm:nth-child(1),
+.vb-reticle-preview[data-reticle='chevron'] .vb-reticle-crosshair .ch-arm:nth-child(1) { display: none; }
+:root[data-reticle='chevron'] #crosshair .ch-arm:nth-child(3),
+.vb-reticle-preview[data-reticle='chevron'] .vb-reticle-crosshair .ch-arm:nth-child(3) { transform: translateX(calc(-1 * var(--gap, 4px) - 100% + var(--ch-jx))) translateY(var(--ch-jy)) rotate(38deg); }
+:root[data-reticle='chevron'] #crosshair .ch-arm:nth-child(4),
+.vb-reticle-preview[data-reticle='chevron'] .vb-reticle-crosshair .ch-arm:nth-child(4) { transform: translateX(calc(var(--gap, 4px) + var(--ch-jx))) translateY(var(--ch-jy)) rotate(-38deg); }
+
+/* halo: spread ring around the center dot */
+:root[data-reticle='halo'] #crosshair .ch-arm,
+.vb-reticle-preview[data-reticle='halo'] .vb-reticle-crosshair .ch-arm { display: none; }
+:root[data-reticle='halo'] #crosshair::before,
+.vb-reticle-preview[data-reticle='halo'] .vb-reticle-crosshair::before {
   content: ''; position: absolute; left: 50%; top: 50%; width: calc(var(--gap, 4px) * 2 + 10px); height: calc(var(--gap, 4px) * 2 + 10px);
   transform: translate(-50%, -50%); border: 1px solid var(--career-accent, #fffdd8); border-radius: 50%; opacity: .8; }
+
+/* gap: four short arms around a wide open center, no dot */
+:root[data-reticle='gap'] #crosshair::after,
+.vb-reticle-preview[data-reticle='gap'] .vb-reticle-crosshair::after { display: none; }
+:root[data-reticle='gap'] #crosshair .ch-arm:nth-child(1),
+.vb-reticle-preview[data-reticle='gap'] .vb-reticle-crosshair .ch-arm:nth-child(1) { height: 6px; transform: translateY(calc(-1 * var(--gap, 4px) - 5px - 100% + var(--ch-jy))) translateX(var(--ch-jx)) rotate(var(--ch-rot)); }
+:root[data-reticle='gap'] #crosshair .ch-arm:nth-child(2),
+.vb-reticle-preview[data-reticle='gap'] .vb-reticle-crosshair .ch-arm:nth-child(2) { height: 6px; transform: translateY(calc(var(--gap, 4px) + 5px + var(--ch-jy))) translateX(var(--ch-jx)) rotate(calc(-1 * var(--ch-rot))); }
+:root[data-reticle='gap'] #crosshair .ch-arm:nth-child(3),
+.vb-reticle-preview[data-reticle='gap'] .vb-reticle-crosshair .ch-arm:nth-child(3) { width: 6px; transform: translateX(calc(-1 * var(--gap, 4px) - 5px - 100% + var(--ch-jx))) translateY(var(--ch-jy)) rotate(calc(-1 * var(--ch-rot))); }
+:root[data-reticle='gap'] #crosshair .ch-arm:nth-child(4),
+.vb-reticle-preview[data-reticle='gap'] .vb-reticle-crosshair .ch-arm:nth-child(4) { width: 6px; transform: translateX(calc(var(--gap, 4px) + 5px + var(--ch-jx))) translateY(var(--ch-jy)) rotate(var(--ch-rot)); }
+
+/* bracket: two side brackets frame the center dot */
+:root[data-reticle='bracket'] #crosshair .ch-arm:is(:nth-child(1), :nth-child(2)),
+.vb-reticle-preview[data-reticle='bracket'] .vb-reticle-crosshair .ch-arm:is(:nth-child(1), :nth-child(2)) { display: none; }
+:root[data-reticle='bracket'] #crosshair .ch-arm:is(:nth-child(3), :nth-child(4)),
+.vb-reticle-preview[data-reticle='bracket'] .vb-reticle-crosshair .ch-arm:is(:nth-child(3), :nth-child(4)) {
+  top: -7px; width: 5px; height: 14px; box-sizing: border-box; background: transparent; box-shadow: none;
+  border: 2px solid var(--career-accent, #fffdd8); filter: drop-shadow(0 0 1px rgba(0, 0, 0, 0.9)); }
+:root[data-reticle='bracket'] #crosshair .ch-arm:nth-child(3),
+.vb-reticle-preview[data-reticle='bracket'] .vb-reticle-crosshair .ch-arm:nth-child(3) { border-right: 0; transform: translateX(calc(-1 * var(--gap, 4px) - 3px - 100% + var(--ch-jx))) translateY(var(--ch-jy)); }
+:root[data-reticle='bracket'] #crosshair .ch-arm:nth-child(4),
+.vb-reticle-preview[data-reticle='bracket'] .vb-reticle-crosshair .ch-arm:nth-child(4) { border-left: 0; transform: translateX(calc(var(--gap, 4px) + 3px + var(--ch-jx))) translateY(var(--ch-jy)); }
+
+/* diamond: a small rotated square outline around the center dot */
+:root[data-reticle='diamond'] #crosshair .ch-arm,
+.vb-reticle-preview[data-reticle='diamond'] .vb-reticle-crosshair .ch-arm { display: none; }
+:root[data-reticle='diamond'] #crosshair::before,
+.vb-reticle-preview[data-reticle='diamond'] .vb-reticle-crosshair::before {
+  content: ''; position: absolute; left: 50%; top: 50%; width: calc(var(--gap, 4px) + 7px); height: calc(var(--gap, 4px) + 7px);
+  box-sizing: border-box; transform: translate(-50%, -50%) rotate(45deg); border: 1.5px solid var(--career-accent, #fffdd8);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.7); opacity: .9; }

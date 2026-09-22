@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync, renameSync } from 'node:fs';
 import path from 'node:path';
-import { CAREER_CATALOG, CAREER_REWARDS, careerView, equipCareerItem, reconcileCareerUnlocks, cosmeticLoadout, normalizeCosmeticLoadout } from '../shared/career.js';
+import { CAREER_REWARDS, BOT_MASTERY_CAP_PER_MATCH, careerView, equipCareerItem, reconcileCareerUnlocks, cosmeticLoadout, normalizeCosmeticLoadout,
+  treeNode } from '../shared/career.js';
 import { CareerClaims, DatabaseCareerClaims, GUEST_TOKEN, careerProfilePath, guestCookie } from './career-identity.js';
 import { emptyProfile, validateProfile, normalizeCareerProgress, applyCareerProgress } from './persistence/career-profile.js';
 
@@ -10,6 +11,11 @@ import { setProfileAttachments, saveStoredAttachments, assertUnlockedAttachments
 import { validateAttachments } from '../shared/weapon-attachments.js';
 
 const COOKIE = 'vb-career';
+/** Fun/FFA and chaos never enter 'post': their bot-mastery cap window is 10 minutes of match time. */
+const ENDLESS_MODES = new Set(['fun', 'chaos']);
+const ENDLESS_MATCH_MS = 10 * 60000;
+/** `/purchase` is a legacy alias of `/equip` that a cached client bundle may still call. */
+const CAREER_ROUTES = Object.freeze({ '/api/career': 'GET', '/api/career/equip': 'POST', '/api/career/purchase': 'POST', '/api/career/attachments': 'POST' });
 
 /** Server-owned careers, with account profiles isolated from guest cookies. */
 export class CareerService {
@@ -29,6 +35,8 @@ export class CareerService {
     this.decoratedSnapshots = new WeakMap();
     this.dirty = new Set();
     this.sessions = new WeakMap();
+    // Bot-mastery caps belong to the match, not the connection: engine -> {post, since, counts: profileId -> {w: n}}.
+    this.botMastery = new WeakMap();
     this.pendingRewards = new Set();
     this.rewardError = null;
     this.timer = store ? null : setInterval(() => {
@@ -212,6 +220,7 @@ export class CareerService {
     if (snapshot.now <= state.now) return;
     const delta = state.now < 0 ? 0 : Math.min(1000, snapshot.now - state.now);
     state.now = snapshot.now;
+    const botMastery = this.botMasteryCounts(client, match, snapshot.now);
     const reward = { xp: 0, kills: 0, matches: 0, pvpKills: 0, wins: 0, mastery: {} };
     const addReward = delta => { reward.xp += delta.xp; };
     for (const event of snapshot.events || []) {
@@ -220,7 +229,15 @@ export class CareerService {
         if (!victim || (self.team && victim.team === self.team)) continue;
         addReward(victim.bot ? CAREER_REWARDS.botKill : CAREER_REWARDS.kill);
         reward.kills++;
-        if (!victim.bot) {
+        if (victim.bot) {
+          // Bots and Bastion NPCs advance mastery at a quarter weight, capped per
+          // weapon per match so a bot lobby cannot be farmed. `kills` stays human-only.
+          if (WEAPON_IDS.includes(event.w) && (botMastery[event.w] ||= 0) < BOT_MASTERY_CAP_PER_MATCH) {
+            botMastery[event.w]++;
+            const mastery = reward.mastery[event.w] ||= { kills: 0, headshots: 0 };
+            mastery.botKills = (mastery.botKills || 0) + 1;
+          }
+        } else {
           reward.pvpKills++;
           // The accepted kill weapon matters in Gun Game: self.weapon already
           // points at the next weapon after a successful stage transition.
@@ -258,10 +275,28 @@ export class CareerService {
       }
       state.post = true;
       state.participated = 0;
-    } else if (match.phase !== 'post') state.post = false;
+    } else if (match.phase !== 'post' && state.post) state.post = false;
     // The 20 Hz observation path is synchronous and makes no database calls
     // until an authoritative event actually earns a nonzero reward.
     if (['xp', 'kills', 'matches', 'pvpKills', 'wins'].some(key => reward[key] > 0)) return this.applyProgress(client.profileId, reward);
+  }
+
+  /** This profile's bot-mastery counts for the current match on this engine. A rejoin
+   * keeps them; they reset when a post phase ends, or every ENDLESS_MATCH_MS in endless modes. */
+  botMasteryCounts(client, match, now) {
+    const engine = client.room.engine;
+    let entry = this.botMastery.get(engine);
+    if (!entry) this.botMastery.set(engine, entry = { post: false, since: now, counts: new Map() });
+    // Like the match reward, only a decided post phase ends a match (S&D round breaks do not).
+    if (match.phase === 'post') entry.post ||= match.winner != null;
+    else if (entry.post || (ENDLESS_MODES.has(match.mode) && now - entry.since >= ENDLESS_MATCH_MS)) {
+      entry.post = false;
+      entry.since = now;
+      entry.counts.clear();
+    }
+    let counts = entry.counts.get(client.profileId);
+    if (!counts) entry.counts.set(client.profileId, counts = {});
+    return counts;
   }
 
   /** Equip only. Unlocks are granted by progression, never bought. */
@@ -272,7 +307,7 @@ export class CareerService {
     });
     if (!authorized()) throw new Error('Your session changed. Reopen your career before equipping.');
     const profile = this.profile(id);
-    const item = itemId === 'standard' ? { id: 'standard', kind: selection.slot, weapon: selection.weapon } : CAREER_CATALOG.find(item => item.id === itemId);
+    const item = itemId === 'standard' ? { id: 'standard', kind: selection.slot, weapon: selection.weapon } : treeNode(itemId);
     if (!profile || !item) throw new Error('Unknown item');
     const previous = validateProfile(profile);
     const wasDirty = this.dirty.has(id);
@@ -317,14 +352,14 @@ export class CareerService {
 
   async handleHttp(req, res) {
     const route = (req.url || '').split('?')[0];
-    if (!['/api/career', '/api/career/equip', '/api/career/purchase', '/api/career/attachments'].includes(route)) return false;
+    if (!Object.hasOwn(CAREER_ROUTES, route)) return false;
     const reply = (status, payload) => {
       res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
       res.end(JSON.stringify(payload));
       return true;
     };
-    const isRead = route === '/api/career' && req.method === 'GET';
-    if (!isRead && (!['/api/career/equip', '/api/career/purchase', '/api/career/attachments'].includes(route) || req.method !== 'POST')) return reply(405, { error: 'Method not allowed' });
+    if (req.method !== CAREER_ROUTES[route]) return reply(405, { error: 'Method not allowed' });
+    const isRead = req.method === 'GET';
     // A custom header plus same-origin requests prevents ambient-cookie purchases.
     if (!isRead && (req.headers['x-vb-career'] !== '1' || req.headers['sec-fetch-site'] === 'cross-site'))
       return reply(403, { error: 'Open your career from the game' });

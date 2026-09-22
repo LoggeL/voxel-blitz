@@ -75,7 +75,7 @@
     "balance:simulate": "node tools/simulate-ttk.mjs",
     "balance:compare": "node tools/compare-ttk.mjs",
     "balance:simulation:test": "node tools/ttk-simulation-test.mjs",
-    "career:test": "node tools/progression-tree-test.mjs && node tools/career-test.mjs && node tools/career-websocket-test.mjs && node tools/cosmetics-career-test.mjs && node tools/cosmetics-ui-test.mjs && node tools/cosmetics-runtime-test.mjs && node tools/cosmetics-assets-test.mjs",
+    "career:test": "node tools/progression-tree-test.mjs && node tools/career-gates-test.mjs && node tools/career-test.mjs && node tools/career-websocket-test.mjs && node tools/cosmetics-career-test.mjs && node tools/cosmetics-ui-test.mjs && node tools/cosmetics-runtime-test.mjs && node tools/cosmetics-assets-test.mjs && node tools/armory-model-test.mjs && node tools/armory-dom-contract-test.mjs && node tools/armory-preview-test.mjs",
     "career:browser": "node tools/career-browser-test.mjs",
     "keybindings:test": "node tools/keybindings-test.mjs && node tools/account-keybindings-test.mjs",
     "keybindings:browser": "node tools/keybindings-test.mjs --browser",

@@ -36,6 +36,11 @@ for (const item of CAREER_CATALOG) {
     sounds++;
   }
 }
-assert.equal(previews, 5);
-assert.equal(sounds, 9);
+// Counts derive from the catalog; the redesign adds data-only kinds, so the art set stays 5 PNGs and 3 kits.
+const previewItems = CAREER_CATALOG.filter(item => item.preview).length;
+const kits = CAREER_CATALOG.filter(item => item.kind === 'sound').length;
+assert.equal(previews, previewItems);
+assert.equal(sounds, kits * 3);
+assert.equal(previewItems, 5, 'no new preview artwork');
+assert.equal(kits, 3, 'no new sound kits');
 console.log('Cosmetics assets: five rendered previews and nine ElevenLabs Opus cues match catalog paths, provenance hashes and bounded signal metrics.');

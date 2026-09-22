@@ -1,3 +1,5 @@
+> **Superseded (2026-09-22).** The single-dialog ARMORY redesign replaces the career page and the separate weapon workshop these references describe. See [armory-v2](../armory-v2/README.md) and its [spec](../armory-v2/spec.md). The production artwork in `public/assets/ui/armory/` (the callsign/theme atlas) is still used.
+
 # Career and menu design references
 
 Created on 2026-09-12 with the built-in OpenAI imagegen tool. The two reference screens were generated first, then rebuilt with semantic HTML, CSS and live account/career data. They are design references, not flattened screens used as the interface.

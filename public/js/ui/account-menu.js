@@ -302,7 +302,7 @@ export class AccountMenu {
       forgot: 'Forgot your password?', reset: 'Set a new password', verify: 'Confirm your email', email: 'Recovery email' };
     element('h2', header, this.recoveryCode ? 'Save your recovery code' : titles[this.mode]).id = 'account-title';
     element('p', dialog, this.user ? `Signed in as ${this.user.username}. Your career is saved to this account.`
-      : 'Accounts keep your XP, levels and purchases across devices. You can always play as a guest.').id = 'account-description';
+      : 'Accounts keep your XP, level and unlocks across devices. You can always play as a guest.').id = 'account-description';
     const feedback = element('p', dialog, this.message || '', 'vb-account-feedback');
     feedback.id = 'account-feedback'; feedback.setAttribute('role', 'status'); feedback.setAttribute('aria-live', 'polite');
     this.syncWarning();

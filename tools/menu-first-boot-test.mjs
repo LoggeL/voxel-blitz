@@ -47,16 +47,17 @@ try {
 
   // The menu is interactive while those assets are pending: match entries are
   // gated behind the frosted load bar with real scheduler progress, while the
-  // armory, career and settings entries are already part of the first paint.
+  // ARMORY and settings entries are already part of the first paint.
   assert.equal(await page.evaluate(`document.getElementById('play-btn').disabled`), true, 'quick play waits for the match asset set');
   assert.equal(await page.evaluate(`document.getElementById('create-lobby-btn').disabled`), true, 'lobby creation waits for the match asset set');
   const gate = await page.evaluate(`(() => { const bar = document.getElementById('menu-load-bar'); const progress = bar?.querySelector('progress'); return { hidden: bar?.hidden, value: progress?.value, max: progress?.max, label: bar?.textContent }; })()`);
   assert.equal(gate.hidden, false, 'the load bar is visible while play is gated');
   assert.ok(gate.value >= 0 && gate.value < gate.max, `load bar carries real progress (${gate.value} / ${gate.max})`);
   assert.match(gate.label, /LOADING/);
-  assert.ok(await page.evaluate(`!!document.getElementById('workshop-open') && !!document.getElementById('career-open')`),
-    'armory and career entries are part of the first menu');
-  assert.equal(await page.evaluate(`document.getElementById('workshop-open').disabled`), false, 'the armory entry responds while assets load');
+  assert.ok(await page.evaluate(`!!document.getElementById('career-open') && !document.getElementById('workshop-open')`),
+    'the single ARMORY entry is part of the first menu');
+  assert.equal(await page.evaluate(`document.getElementById('career-open').disabled`), false, 'the armory entry responds while assets load');
+  assert.match(await page.evaluate(`document.getElementById('career-open').textContent`), /ARMORY/);
   const indicator = await page.evaluate(`(() => { const el = document.getElementById('asset-status'); return { hidden: el.hidden, text: el.textContent }; })()`);
   assert.equal(indicator.hidden, false, 'the menu shows the background progress line');
   assert.match(indicator.text, /PREPARING ASSETS\d+ \/ \d+/);
