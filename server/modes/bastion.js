@@ -3,10 +3,10 @@ import { BASTION_RULES as R, BASTION_ROLES, BASTION_ENEMIES, BASTION_SHOP, basti
 import { BASTION_LAYOUTS, bastionPlannedWaves } from '../../shared/world/bastion-layouts.js';
 import { WEAPONS, WEAPON_IDS } from '../../shared/combatmath.js';
 import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
+import { slot } from './bastion/ai-common.js';
 import { BastionEnemies } from './bastion/enemies.js';
 import { BastionStructures } from './bastion/structures.js';
 
-const slot = id => WEAPON_IDS.indexOf(id);
 const distance = (a,b) => Math.hypot(a.x-b.x,a.y-b.y,a.z-b.z);
 const point = p => ({ x:p.x,y:p.y,z:p.z });
 const APC = BASTION_ROLES.indexOf('apc');
