@@ -819,24 +819,25 @@ bots:difficulty:browser` checks real host/member controls and match launch.
 - **Team Deathmatch (`tdm`):** persistent `alpha`/`bravo` assignment chooses the
   lower human+bot population; friendly fire is disabled and every player owns
   the complete ten-weapon loadout. Enemy kills increment the killer's team
-  score. First to `40` enters a `5000 ms` post phase, then team/player scores
+  score. First to `40` enters `post` (40% human approval + `5000 ms`), then team/player scores
   reset and all players respawn. Live deaths respawn after `3000 ms` at the
   player's team spawn pool.
 - **Gun Game (`gungame`):** free-for-all target eligibility and `1500 ms`
   respawn. Players progress through the immutable shared order rifle, SMG,
   shotgun, sniper, LMG, revolver, longarc, rocket, lance, knife; a kill with
-  the RIPPER knife wins. The winner is shown during a `5000 ms` post phase
+  the RIPPER knife wins. The winner is shown during `post` (40% human approval + `5000 ms`)
   before progression and scores reset.
 - **Search and Destroy (`snd`):** persistent `alpha`/`bravo` teams map to
   attackers/defenders, friendly fire is disabled, and roles swap after 6
   completed rounds. First to 7 round wins wins the match. Each round is
-  `prep 10000 ms`, `live 90000 ms`, and `post 5000 ms`; firing is disabled
+  `prep 10000 ms`, `live 90000 ms`, and `post` (40% human approval + `5000 ms`); firing is disabled
   during prep and there is no round respawn. Every participant respawns at
   round start.
 - **S&D objective:** one attacker carries the bomb. A carrier holds interact
   inside A/B for `3000 ms` to plant. A defender holds interact within 2 units
   for `5000 ms` to defuse. The fuse is `40000 ms`; dropped-bomb auto-pickup
-  radius is 1.4 units. Carrier death/disconnect drops at the last position.
+  radius is 1.4 units. Carrier death/disconnect drops at the last position;
+  during prep the bomb is reassigned to a remaining attacker instead.
   Tick outcome priority is explosion, completed defuse, elimination, then
   unplanted time expiry. A planted bomb keeps the round live after attacker
   elimination.
@@ -856,7 +857,9 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   owns one active runner per room, splits, gates, and connection-scoped bests.
   Other humans may use the range but cannot clear that runner's stage targets
   or reset the course. Death/disconnect releases it; returning to the start
-  restarts the active attempt. Dummies have no respawn protection.
+  restarts the active attempt. `match.course.runner` names the active runner
+  (null when free), and no spawn lies on the start pad. Dummies have no
+  respawn protection.
 - **Map compatibility:** `foundry` supports Fun/TDM/S&D/Gun Game; `depot`
   supports Fun/TDM/Gun Game; `citadel`, `solstice`, and `caldera` support
   Fun/TDM/S&D/Gun Game; `killhouse` supports Training only. Foundry has A/B

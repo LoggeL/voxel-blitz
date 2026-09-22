@@ -1,7 +1,7 @@
 // Bastion's public balance and purchase contract. No world or engine dependencies.
 export const BASTION_RULES = Object.freeze({
   prepMs: 25000, supplyMs: 20000, regroupMs: 30000, minimumPrepMs: 8000,
-  postMs: 15000, returnMs: 5000, startCredits: 400, stageBonus: 250,
+  returnMs: 5000, startCredits: 400, stageBonus: 250,
   spawnIntervalMs: 3000, warningMs: 5000, groupSize: 3, vehicleIntervalMs: 9000,
   repairMs: 4000, repairRadius: 3, repairHp: 200, repairPrice: 150, repairLimit: 2,
   extractGraceMs: 30000, buildRadius: 6, breachStallMs: 4000,

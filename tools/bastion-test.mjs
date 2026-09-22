@@ -11,6 +11,7 @@ import { playerHitboxes } from '../shared/player-hitboxes.js';
 import { parseBuyFrame } from '../server/protocol/admission.js';
 import { fireOneShot } from '../server/sim/combat.js';
 import { aimAngles } from '../server/sim/player.js';
+import { stepVehicle } from '../server/modes/bastion/vehicles.js';
 
 const G = GROUND, PVE = ['reactor', 'causeway'];
 const layoutOf = map => getMapMeta(map).bastion;
@@ -85,7 +86,7 @@ const shooter=(h,peak)=>{const n=h.m.aliveEnemies().length;for(const npc of h.e.
 {
   const h=make(),{e,m,p}=h;m.startWave();e.killPlayer(p,null,'world',false);assert(m.returnAt);advance(e,R.returnMs);assert.equal(p.state,'alive');assert.equal(p.armor,0);
   e.killPlayer(p,null,'world',false);e.step();assert.equal(m.phase,'post');assert.equal(m.reason,'team');
-  advance(e,R.postMs);assert.equal(m.phase,'post');
+  advance(e,15000);assert.equal(m.phase,'post','post waits for the continuation vote');
   e.mode.approveContinuation(p.id,e.mode.matchSnapshot().continuation.id);
   advance(e,5000);assert.equal(m.phase,'prep');assert.equal(m.wave,0);assert.equal(m.credits,400);assert.equal(m.soloUsed,false);e.stop();
   console.log('ok: one solo return, defeat, approved fresh run');
@@ -246,6 +247,25 @@ const shooter=(h,peak)=>{const n=h.m.aliveEnemies().length;for(const npc of h.e.
   assert.equal(hit('heavy',80,'lmg'),5);assert.equal(hit('juggernaut',50,'lmg'),6);assert.equal(hit('apc',60,'rocket'),60);
   assert.equal(hit('brute',25,undefined,'slam'),25);assert.equal(hit('walker',9,'lmg'),9);assert.equal(hit('walker',60,'rocket'),12);e.stop();
   console.log('ok: objective damage per profile');
+}
+{
+  // Spawn protection holds against brute slams and hull contact, like every other damage path.
+  const {e,m,p}=make();m.startWave();m.queue=[];
+  const brute=m.ai.spawn('brute',0,0),f=fwd(brute.yaw);
+  const health=()=>p.hp+p.armor;
+  const slam=()=>{Object.assign(p,{x:brute.x+f.x*1.5,y:brute.y,z:brute.z+f.z*1.5,vx:0,vy:0,vz:0});brute.ai.slamAt=0;
+    m.ai.slam(brute,BASTION_ENEMIES.brute,null,m.objective,Infinity,false);};
+  p.spawnProtectedUntil=e.now+5000;const before=health();slam();
+  assert.equal(health(),before,'a spawn-protected defender shrugs off the slam');
+  p.spawnProtectedUntil=0;slam();
+  assert(health()<before,'an unprotected defender in the arc takes the slam');
+  const v=m.ai.spawn('buggy',0,0);Object.assign(p,{hp:100,armor:0});
+  const ram=()=>{Object.assign(p,{x:v.x,y:v.y,z:v.z,vx:0,vy:0,vz:0});v.input={keys:{},wantFire:false,yaw:v.yaw,pitch:v.pitch};stepVehicle(e,m,v,0);};
+  p.spawnProtectedUntil=e.now+5000;ram();
+  assert.equal(health(),100,'a spawn-protected defender inside the hull takes no contact damage');
+  p.spawnProtectedUntil=0;ram();
+  assert(health()<100,'an unprotected defender inside the hull takes contact damage');e.stop();
+  console.log('ok: spawn protection blocks slam and ram contact damage');
 }
 for(const map of PVE){
   // An end-to-end director run at production timings on each map; the test shooter removes spawned NPCs.

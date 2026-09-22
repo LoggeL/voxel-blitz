@@ -127,9 +127,9 @@ prepGame.killPlayer(drowned,null,'water',false,null);assert.equal(drowned.state,
 prepGame.now=prepPolicy.phaseEndsAt;prepGame.mode.tick();
 assert.equal(drowned.state,'alive','prep deaths respawn at the deadline');
 assert.equal(prepPolicy.phase,'live');assert.equal(prepPolicy.roles.size,2);
-// Everyone dying in one tick is a traitor win (Terrortown rules).
+// Mutual wipe: everyone dying in one tick is a traitor win (Terrortown rules).
 const wipeGame=new GameEngine({mode:'ttt'});for(let i=0;i<4;i++)wipeGame.addClient(`w${i}`,`W${i}`);
 const wipePolicy=wipeGame.mode.policy;wipeGame.now=wipePolicy.phaseEndsAt;wipeGame.mode.tick();assert.equal(wipePolicy.phase,'live');
-for(const p of wipeGame.entities.values()){p.state='dead';wipeGame.mode.onPlayerDeath(p);}
+for(const p of wipeGame.entities.values()){assert.ok(wipePolicy.roles.has(p.id));p.state='dead';wipeGame.mode.onPlayerDeath(p);}
 wipeGame.mode.tick();assert.equal(wipePolicy.phase,'post');assert.equal(wipePolicy.matchWinner,'traitor','nobody alive means traitors win');
-console.log('TTT: preparation deadline, private roles, single-slot pickup/drop, ammo conservation, shop authorization, walls, late join, elimination, continuation, kill privacy, prep waiting/respawn and total wipe passed');
+console.log('TTT: preparation deadline, private roles, single-slot pickup/drop, ammo conservation, shop authorization, walls, late join, elimination, continuation, kill privacy, prep waiting/respawn and mutual wipe passed');

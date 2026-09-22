@@ -281,19 +281,6 @@ export class GameEngine {
     return this.spawnInfoFor(player);
   }
 
-  /** NPC ownership stays with the mode, separate from lobby/pseudo-client bots. */
-  addNpc(id, profile, spawn, role) {
-    if (this.entities.has(id)) return this.entities.get(id);
-    const npc = new PlayerEntity(id, profile.name, spawn, true, this.world.dimensions);
-    npc.npcRole = role;
-    npc.npcSpeed = profile.speed;
-    npc.hp = profile.hp;
-    npc.armor = profile.armor;
-    npc.team = 'bravo';
-    this.entities.set(id, npc);
-    return npc;
-  }
-
   restoreWorld() {
     const { sx: SX, sz: SZ } = worldDimensions(this.world);
     const pristine = createMapState(this.mapMeta.id);

@@ -3,10 +3,9 @@ import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import { BEDROCK, METAL, BARRICADE, AIR, GROUND, isSolidBlock } from '../../../shared/world/blocks.js';
 import { damageBlock } from '../../sim/combat.js';
 import { aimAngles, wrapAngle, fwdFromYawPitch, markLaunched } from '../../sim/player.js';
+import { turn, flat, chargeReady, burstFire } from './ai-common.js';
 
 const RAM_MS = 250, HARD_STALL_MS = 3000, OBJECTIVE_RAM_MS = 1000, CONTACT_MS = 700, SEEN_MS = 4000, ROCKET_SPREAD = 0.05;
-const turn = (a, b, rate) => a + Math.max(-rate, Math.min(rate, wrapAngle(b - a)));
-const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
 /**
  * Probe the hull footprint at a candidate position. Cells whose centre lies
@@ -89,12 +88,13 @@ export function stepVehicle(engine, policy, p, dt) {
       else if (now - route.stalledSince > HARD_STALL_MS) route.parked = true;
     }
   }
-  // 4. Contact damage to defenders standing inside the hull footprint.
+  // 4. Contact damage to defenders standing inside the hull footprint (spawn protection holds).
   const [hx, , hz] = profile.combatBox;
   for (const id of policy.active) {
     const d = engine.entities.get(id);
     if (!d || d.state !== 'alive' || now - (route.lastContact.get(id) || -Infinity) < CONTACT_MS) continue;
     if (Math.abs(d.x - p.x) > hx + 0.4 || Math.abs(d.z - p.z) > hz + 0.4 || Math.abs(d.y - p.y) > 2.5) continue;
+    if (!policy.canDamage(p, d)) continue;
     route.lastContact.set(id, now);
     const lethal = d.takeDamage(profile.ramPlayerDamage, false, p, 'ram');
     d.vx += fwd.x * profile.ramKnock; d.vz += fwd.z * profile.ramKnock; d.vy += 5;
@@ -127,9 +127,7 @@ export function stepVehicle(engine, policy, p, dt) {
   }
   if (!target || !canFire || now < (ai.pauseUntil || 0)) { if (target && now < (ai.pauseUntil || 0)) p.npcAttack = 'cooldown'; return; }
   if (profile.rocket) {
-    if (!ai.windup) { ai.windup = now; policy.emit('bastion_charge', { id: p.id, pos: [p.x, p.eyeY, p.z] }); }
-    p.npcAttack = 'charging';
-    if (now - ai.windup < profile.windupMs) return;
+    if (!chargeReady(policy, p, profile, now)) return;
     // Twin tubes: the salvo leaves together with a small yaw spread after the tell.
     for (let i = 0; i < profile.shots; i++) {
       const dir = fwdFromYawPitch(aimYaw + (i - (profile.shots - 1) / 2) * ROCKET_SPREAD, p.pitch);
@@ -139,17 +137,5 @@ export function stepVehicle(engine, policy, p, dt) {
     p.npcAttack = 'firing'; p.firing = true; ai.windup = 0; ai.pauseUntil = now + profile.pauseMs;
     return;
   }
-  if (!ai.burstStart) {
-    if (profile.windupMs) {
-      if (!ai.windup) { ai.windup = now; policy.emit('bastion_charge', { id: p.id, pos: [p.x, p.eyeY, p.z] }); }
-      p.npcAttack = 'charging';
-      if (now - ai.windup < profile.windupMs) return;
-      ai.windup = 0;
-    }
-    ai.burstStart = now; ai.burstShots = p.shotSeq;
-  }
-  const burstMs = Math.max(2000, profile.shots * 60000 / profile.rpm + 300);
-  if (p.shotSeq - ai.burstShots >= profile.shots || now - ai.burstStart >= burstMs) {
-    ai.pauseUntil = now + profile.pauseMs; ai.burstStart = 0; p.npcAttack = 'cooldown';
-  } else { p.input.wantFire = true; p.input.yaw = aimYaw; p.npcAttack = 'firing'; }
+  if (burstFire(policy, p, profile, now)) { p.input.wantFire = true; p.input.yaw = aimYaw; }
 }

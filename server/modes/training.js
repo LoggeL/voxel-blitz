@@ -1,5 +1,6 @@
 import { WEAPON_IDS } from '../../shared/combatmath.js';
 import { isTrainingDummyId as isDummyId } from '../../shared/modes.js';
+import { BasePolicy } from './base-policy.js';
 import { TrainingCourse } from './training/course.js';
 
 // Firing-range policy for the killhouse map. Idle dummy targets occupy fixed
@@ -16,49 +17,16 @@ function pad2(value) {
 }
 
 /** Owns dummy targets, spawn protection, and the staged killhouse run clock. */
-export class TrainingPolicy {
-  constructor({
-    rules,
-    mapMeta = null,
-    entities,
-    now,
-    emit,
-    respawn,
-    chooseSpawn,
-    spawnDummy,
-    blocks,
-  }) {
-    if (!rules || typeof rules !== 'object') {
-      throw new TypeError('TrainingPolicy requires rules');
-    }
-    if (!entities || typeof entities.get !== 'function' || typeof entities.values !== 'function') {
-      throw new TypeError('TrainingPolicy requires entities');
-    }
-    if (typeof now !== 'function'
-        || typeof emit !== 'function'
-        || typeof respawn !== 'function'
-        || typeof chooseSpawn !== 'function'
-        || typeof spawnDummy !== 'function') {
-      throw new TypeError('TrainingPolicy requires mode callbacks');
-    }
+export class TrainingPolicy extends BasePolicy {
+  constructor(context) {
+    super('TrainingPolicy', context);
+    const { entities, emit, spawnDummy, blocks } = context;
+    if (typeof spawnDummy !== 'function') throw new TypeError('TrainingPolicy requires mode callbacks');
     if (!blocks || typeof blocks.get !== 'function' || typeof blocks.set !== 'function') {
       throw new TypeError('TrainingPolicy requires block access');
     }
 
     this.mode = 'training';
-    this.rules = rules;
-    this.mapMeta = mapMeta && typeof mapMeta === 'object' ? mapMeta : null;
-    this.phase = 'live';
-    this.phaseEndsAt = null;
-    this.scores = null;
-    this.matchWinner = null;
-    this.round = null;
-    this.roundWinner = null;
-
-    this._entities = entities;
-    this._clock = now;
-    this._respawnEntity = respawn;
-    this._chooseSpawn = chooseSpawn;
     this._spawnDummy = spawnDummy;
     this._players = new Set();
     // Built lazily on the first tick: engine.spawnSelector is assigned after
@@ -76,18 +44,10 @@ export class TrainingPolicy {
     });
   }
 
-  get now() {
-    const value = this._clock();
-    return Number.isFinite(value) ? value : 0;
-  }
-
   tick() {
     this._ensureDummies();
     this.course.tick();
   }
-
-  teamFor() { return null; }
-  roleFor() { return null; }
 
   isEnemy(a, b) {
     const left = this._entity(a);
@@ -109,13 +69,6 @@ export class TrainingPolicy {
     if (attacker != null && this._dummies?.get(String(victim.id))?.kind === 'stage'
         && this.course.active && this._entity(attacker)?.id !== this.course.active.id) return false;
     return attacker == null || this.isEnemy(attacker, victim);
-  }
-
-  canUseWeapon(_player, weapon) {
-    const slot = typeof weapon === 'string'
-      ? WEAPON_IDS.indexOf(weapon)
-      : Math.trunc(weapon);
-    return Number.isFinite(slot) && slot >= 0 && slot < WEAPON_IDS.length;
   }
 
   canFire(player) {
@@ -209,6 +162,8 @@ export class TrainingPolicy {
       attackers: null,
       defenders: null,
       bomb: null,
+      // One physical course: other players learn it is in use while a run lasts.
+      course: { runner: this.course.active ? String(this.course.active.id) : null },
     };
   }
 
@@ -220,9 +175,7 @@ export class TrainingPolicy {
       owned: WEAPON_IDS.slice(),
       bomb: false,
       interaction: null,
-      spawnProtected: !!entity
-        && Number.isFinite(entity.spawnProtectedUntil)
-        && entity.spawnProtectedUntil > this.now,
+      spawnProtected: this._spawnProtected(entity),
     };
   }
 
@@ -233,12 +186,6 @@ export class TrainingPolicy {
     this._stageDummyIds.clear();
   }
 
-  _entity(value) {
-    if (value && typeof value === 'object') return value;
-    if (value == null) return null;
-    return this._entities.get(String(value)) || null;
-  }
-
   _syncPlayer(entity) {
     if (isDummyId(entity.id)) entity.spawnProtectedUntil = 0;
     entity.team = null;
@@ -246,8 +193,7 @@ export class TrainingPolicy {
     entity.owned = WEAPON_IDS.slice();
     entity.bomb = false;
     entity.interaction = null;
-    entity.spawnProtected = Number.isFinite(entity.spawnProtectedUntil)
-      && entity.spawnProtectedUntil > this.now;
+    entity.spawnProtected = this._spawnProtected(entity);
   }
 
   _respawn(entity, options) {

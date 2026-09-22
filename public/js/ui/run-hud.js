@@ -33,6 +33,13 @@ function cancelFrameDefault(handle) {
   else clearTimeout(handle);
 }
 
+/** Idle overlay hint: the single course is busy while someone else runs it. */
+export function runIdleHint(runner, myId) {
+  return runner != null && runner !== myId
+    ? 'KILLHOUSE · COURSE IN USE · Another run is live'
+    : 'KILLHOUSE · Step on the start pad to begin the run';
+}
+
 /** Local run clock: m:ss.t — tenth-of-a-second precision for race times. */
 function formatRunClock(seconds) {
   const totalMs = Math.max(0, Math.floor(seconds * 1000));
@@ -64,6 +71,7 @@ export class RunHud {
 
     this.dom = {};
     this._mode = null;
+    this._runner = null;
     this._state = null;
     this._running = false;
     this._startedAt = 0;
@@ -72,9 +80,15 @@ export class RunHud {
     this._toastTimer = 0;
   }
 
-  /** Match snapshots drive visibility: the overlay exists only in training. */
+  /** Match snapshots drive visibility (training only) and the course-in-use hint. */
   setMatch(match) {
     const mode = match && typeof match === 'object' ? (match.mode || null) : null;
+    const runner = mode === 'training' ? (match.course?.runner ?? null) : null;
+    if (runner !== this._runner) {
+      this._runner = runner;
+      const dom = this._domIfConnected();
+      if (dom && this._state === 'idle') dom.hint.textContent = runIdleHint(runner, this._getMyId?.() ?? null);
+    }
     if (mode === this._mode) return;
     this._mode = mode;
     const dom = this._ensureDom();
@@ -110,6 +124,7 @@ export class RunHud {
     this.dom.root?.remove();
     this.dom = {};
     this._mode = null;
+    this._runner = null;
     this._state = null;
     this._running = false;
   }
@@ -177,7 +192,7 @@ export class RunHud {
       this._toastTimer = 0;
     }
     dom.toast.classList.remove('is-visible');
-    dom.hint.textContent = 'KILLHOUSE · Step on the start pad to begin the run';
+    dom.hint.textContent = runIdleHint(this._runner, this._getMyId?.() ?? null);
     dom.best.textContent = this._bestText();
     this._applyStateClasses();
   }

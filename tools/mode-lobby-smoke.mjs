@@ -225,8 +225,9 @@ function assertPlayerRows(tick, clientsInRoom, label) {
   `${label} carries exact player identities, normalized pain, and complete mode rows`);
 }
 
-function assertMatchShape(tick, selection, label) {
-  pass(tick?.t === 'tick' && tick.match && Object.keys(tick.match).sort().join(',') === MATCH_KEYS,
+function assertMatchShape(tick, selection, label, extraKeys = []) {
+  const keys = [...MATCH_KEYS.split(','), ...extraKeys].sort().join(',');
+  pass(tick?.t === 'tick' && tick.match && Object.keys(tick.match).sort().join(',') === keys,
     `${label} carries the complete match replacement`);
   pass(tick.match.mode === selection.gameMode && tick.match.map === selection.map,
     `${label} carries exact match mode and map`);
@@ -1004,7 +1005,8 @@ async function runTrainingKillhouse(port, signal) {
     signal,
   );
   const firstTick = firstTickFrame.value;
-  assertMatchShape(firstTick, selection, 'Training tick');
+  assertMatchShape(firstTick, selection, 'Training tick', ['course']);
+  pass(firstTick.match.course?.runner === null, 'Training tick reports a free course');
   pass(firstTick.match.phase === 'live' && firstTick.match.phaseEndsAt === null &&
     firstTick.match.scores === null && firstTick.match.winner === null &&
     firstTick.match.round === null && firstTick.match.roundWinner === null &&

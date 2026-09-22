@@ -6,11 +6,10 @@ import { raycastVoxels } from '../../../shared/raycast.js';
 import { damageBlock } from '../../sim/combat.js';
 import { PlayerEntity, aimAngles, wrapAngle, fwdFromYawPitch, markLaunched } from '../../sim/player.js';
 import { observeBotTarget } from '../../bot-perception.js';
+import { turn, flat, chargeReady, burstFire } from './ai-common.js';
 import { BastionNavigation } from './navigation.js';
 import { stepVehicle } from './vehicles.js';
 
-const turn = (a, b, rate) => a + Math.max(-rate, Math.min(rate, wrapAngle(b - a)));
-const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const BREACH_REACH = 2.2, STRIKE_REACH = 2.5, STRIKE_MS = 1000;
 
 /** An attacker behind the body (dot of facing and attacker direction below -0.5). */
@@ -236,9 +235,7 @@ export class BastionEnemies {
       if (p.npcRole === 'brute' && (!target.defender || target.distance < 4 || target.distance > 10)) continue;
       if (e.now < ai.pauseUntil) { p.npcAttack = 'cooldown'; continue; }
       if (profile.rocket) {
-        if (!ai.windup) { ai.windup = e.now; policy.emit('bastion_charge', { id: p.id, pos: [p.x, p.eyeY, p.z] }); }
-        p.npcAttack = 'charging';
-        if (e.now - ai.windup < profile.windupMs) continue;
+        if (!chargeReady(policy, p, profile, e.now)) continue;
         // Launch through the normal projectile simulation after the visible tell.
         const dir = fwdFromYawPitch(p.yaw, p.pitch);
         e.projectiles.launchRocket(p, e.contexts.projectiles, dir);
@@ -246,20 +243,8 @@ export class BastionEnemies {
         ai.pauseUntil = e.now + profile.pauseMs; ai.windup = 0; p.npcAttack = 'firing';
         continue;
       }
-      if (!ai.burstStart) {
-        if (profile.windupMs) {
-          // Juggernaut spin-up: a visible tell before every burst.
-          if (!ai.windup) { ai.windup = e.now; policy.emit('bastion_charge', { id: p.id, pos: [p.x, p.eyeY, p.z] }); }
-          p.npcAttack = 'charging';
-          if (e.now - ai.windup < profile.windupMs) continue;
-          ai.windup = 0;
-        }
-        ai.burstStart = e.now; ai.burstShots = p.shotSeq;
-      }
-      const burstMs = Math.max(2000, profile.shots * 60000 / profile.rpm + 300);
-      if (p.shotSeq - ai.burstShots >= profile.shots || e.now - ai.burstStart >= burstMs) {
-        ai.pauseUntil = e.now + profile.pauseMs; ai.burstStart = 0; p.npcAttack = 'cooldown';
-      } else { p.input.wantFire = true; p.npcAttack = 'firing'; }
+      // Juggernaut spin-up (windupMs) is a visible tell before every burst.
+      p.input.wantFire = burstFire(policy, p, profile, e.now);
     }
   }
   /** Brute slam: arc damage and knockback on defenders, flat hits on structures, the objective and barricades. */
@@ -279,7 +264,7 @@ export class BastionEnemies {
     const fwd = fwdFromYawPitch(p.yaw, 0);
     for (const d of defenders) {
       const dx = d.x - p.x, dz = d.z - p.z, len = Math.hypot(dx, dz) || 1;
-      if (len > 2.2 || (dx * fwd.x + dz * fwd.z) / len < 0.2) continue;
+      if (len > 2.2 || (dx * fwd.x + dz * fwd.z) / len < 0.2 || !policy.canDamage(p, d)) continue;
       const lethal = d.takeDamage(profile.slamDamage, false, p, 'slam');
       d.vx += fwd.x * profile.slamKnock; d.vz += fwd.z * profile.slamKnock; d.vy += 5;
       markLaunched(d);

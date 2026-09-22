@@ -1,16 +1,7 @@
+import { pointOf } from '../base-policy.js';
+
 function clamp01(value) {
   return Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
-}
-
-export function pointOf(value) {
-  if (Array.isArray(value)) {
-    const [x, y, z] = value;
-    return [x, y, z].every(Number.isFinite) ? { x, y, z } : null;
-  }
-  if (!value || typeof value !== 'object') return null;
-  return [value.x, value.y, value.z].every(Number.isFinite)
-    ? { x: value.x, y: value.y, z: value.z }
-    : null;
 }
 
 function distance(a, b) {
