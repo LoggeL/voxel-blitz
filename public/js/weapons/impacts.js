@@ -1,7 +1,9 @@
 // Bounded hit confirmations, material-aware voxel debris, and block shatter FX.
+import { footstepMaterial } from '../audio/footsteps.js';
 import { pickaxeMaterial } from '../audio/pickaxe.js';
 import { removedDamageCells } from '../engine/block-damage-geometry.js';
 import * as THREE from '../vendor/three.module.js';
+import { GLASS, LEAVES, MC_GHOST_SOLID, MC_GLASS, MC_LEAVES, isSolidBlock } from '../../../shared/world/blocks.js';
 import { freeOldestIndex, hideInstance, makeImpactCrossGeometry } from './instancing.js';
 
 const TAU = Math.PI * 2;
@@ -59,12 +61,14 @@ const SHARD_PARTICLES = Object.freeze({
   speed: 4.4, gravity: 22, size: 2.6, life: 0.75, shards: true,
 });
 
+/** Impact bank (glass/wood/metal/stone). Wood and metal come from the footstep material
+ * table so every surface cue agrees; foliage snaps like wood rather than thudding like stone. */
 export function blockSoundFor(type) {
-  if (type === 11 || type === 47) return 'glass';
-  if (type === 10 || type === 6 || type === 5 || type === 44 || type === 45 || type === 46
-    || type === 49 || type === 62 || type === 64) return 'wood';
-  if (type === 9 || type === 8 || type === 13 || type === 14 || type === 52 || type === 53 || type === 54) return 'metal';
-  return 'stone';
+  type = MC_GHOST_SOLID[type] ?? type;
+  if (type === GLASS || type === MC_GLASS) return 'glass';
+  if (type === LEAVES || type === MC_LEAVES) return 'wood';
+  const surface = footstepMaterial(type);
+  return surface === 'wood' || surface === 'metal' ? surface : 'stone';
 }
 
 export class ImpactFX {
@@ -373,7 +377,7 @@ export class ImpactFX {
         const below = this.getBlockFn(
           Math.floor(p.x), Math.floor(p.y - 0.04), Math.floor(p.z),
         );
-        if (below) {
+        if (isSolidBlock(below)) {
           p.y += 0.05;
           p.vy *= -0.35;
           p.vx *= 0.6;
