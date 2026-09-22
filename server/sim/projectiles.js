@@ -511,7 +511,7 @@ export class ProjectileSystem {
   /** A bolt leaves the coil from the shooter's eye along the spread-sampled `dir`. */
   launchBolt(player, ctx, dir, charge01 = 1, satellite = false) {
     if (this.active.size >= 192) return null;
-    const launch = boltLaunch({ x: player.x, y: player.eyeY, z: player.z, dir, charge01 });
+    const launch = boltLaunch({ x: player.x, y: player.eyeY, z: player.z, dir });
     const id = `b${this._nextId++}`;
     const projectile = {
       id,

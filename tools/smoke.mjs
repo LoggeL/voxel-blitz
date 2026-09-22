@@ -41,7 +41,7 @@ import { evDie, evRespawn } from '../server/protocol/events.js';
 import { makeSnapshot } from '../server/protocol/snapshot.js';
 import { PROJECTILE_RULES } from '../server/sim/projectiles.js';
 import { GRENADE_TYPES, GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
-import { BOLT_RULES, boltBounces } from '../shared/bolt-rules.js';
+import { BOLT_RULES } from '../shared/bolt-rules.js';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { ImpactFX } from '../public/js/weapons/impacts.js';
 
@@ -601,8 +601,7 @@ function runDirectContracts() {
   const tapFizzle = coilEngine.tickEvents.find(
     (event) => event.kind === 'projectileExplode' && event.type === 'bolt');
   ok(midCharge === 0 && coilTapShot && coilTapShot.charge === undefined
-    && coilTapLaunch && coilTapLaunch.bn === boltBounces(midCharge)
-    && coilTapLaunch.bn === BOLT_RULES.bouncesTap
+    && coilTapLaunch && coilTapLaunch.bn === BOLT_RULES.bounces
     && coilTapLaunch.fuse === BOLT_RULES.lifetimeMs && coilTapLaunch.v[0] > 45
     && coilTapHit && coilTapHit.dmg > 0 && coilTapHit.dmg === Math.round(combatDamage(WEAPONS.longarc.damage[0]))
     && tapFizzle && tapFizzle.radius === 0.5 && Math.abs(tapFizzle.x - 48.5) < 1
@@ -627,13 +626,13 @@ function runDirectContracts() {
     fullBoltTicks++;
   }
   const fullHit = coilEngine.tickEvents.find((event) => event.kind === 'hit' && event.victim === 'coil-first');
-  ok(fullCharge === 0 && fullShot && fullShot.charge === undefined && fullLaunch?.bn === boltBounces(1)
+  ok(fullCharge === 0 && fullShot && fullShot.charge === undefined && fullLaunch?.bn === BOLT_RULES.bounces
     && fullHit && fullHit.dmg === Math.round(combatDamage(WEAPONS.longarc.damage[0]))
     && Math.abs(coilFirst.hp - (100 - combatDamage(WEAPONS.longarc.damage[0]))) < 0.2,
   'holding LONGARC launches a one-bounce bolt that lands its 70.4 damage on a direct body hit');
 
   // Ricochet exhaustion: with both victims parked off the flight line, a full
-  // charge (bn 3) bounces between the two end walls, ignores its owner, and
+  // one-bounce bolt (bn 1) reflects off the end wall, ignores its owner, and
   // fizzles harmlessly once the reflections run out.
   coilEngine.tickEvents.length = 0;
   Object.assign(coil, { cooldown: 0, triggerPrev: false, adsT: 1, bloom: 0 });
@@ -653,7 +652,7 @@ function runDirectContracts() {
   }
   const ricochetFizzle = coilEngine.tickEvents.find(
     (event) => event.kind === 'projectileExplode' && event.type === 'bolt');
-  ok(ricochetLaunch?.bn === BOLT_RULES.bouncesCharged && ricochetTicks > 2 && ricochetTicks < 80
+  ok(ricochetLaunch?.bn === BOLT_RULES.bounces && ricochetTicks > 2 && ricochetTicks < 80
     && ricochetFizzle && ricochetFizzle.radius === 0.5
     && ricochetFizzle.x > 35 && ricochetFizzle.x < 38
     && coil.hp === 100 && coilFirst.hp === 100 && coilSecond.hp === 100

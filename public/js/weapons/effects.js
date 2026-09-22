@@ -8,7 +8,7 @@ import { GoreFX } from './gore.js';
 import { ImpactFX, blockSoundFor } from './impacts.js';
 import { ProjectileFX } from './projectiles.js';
 import { RailBeamFX } from './rail-beam.js';
-import { boltBounces, BOLT_RULES } from '../../../shared/bolt-rules.js';
+import { BOLT_RULES } from '../../../shared/bolt-rules.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { rocketLaunch } from '../../../shared/rocket-rules.js';
 
@@ -97,7 +97,7 @@ export class Effects {
           direction.y / length * BOLT_RULES.speed,
           direction.z / length * BOLT_RULES.speed,
         ],
-        bn: boltBounces(event.charge ?? 1),
+        bn: BOLT_RULES.bounces,
       }, { local: true });
     }
   }

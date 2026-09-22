@@ -1,6 +1,7 @@
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { combatDamage } from '../../../shared/combat-balance.js';
 import { ROCKET_RULES } from '../../../shared/rocket-rules.js';
+import { BOLT_RULES } from '../../../shared/bolt-rules.js';
 import { CHAOS_KILL_CREDITS, CHAOS_UPGRADES } from '../../../shared/chaos.js';
 
 export const GLYPH = Object.freeze({
@@ -57,7 +58,7 @@ export const WEAPON_CLASSES = Object.freeze({
   lmg: 'HEAVY MACHINE GUN · AUTO',
   minigun: 'AIM TO PRE-SPIN · HEAT BOOST',
   sniper: 'PRECISION SNIPER · 5× OPTIC',
-  longarc: 'CHARGE COILGUN · ARC BOLTS ×3 BOUNCE',
+  longarc: `AUTO COILGUN · ARC BOLTS ×${BOLT_RULES.bounces} BOUNCE`,
   rocket: 'ROCKET LAUNCHER · SPLASH & ROCKET JUMP',
   lance: 'SIEGE LANCE · LINE PIERCE ×6',
   knife: 'PICKAXE · HOLD TO MINE',
