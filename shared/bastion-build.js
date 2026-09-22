@@ -2,6 +2,7 @@
 // client ghost run the same rules). Keeps shared/bastion.js free of block ids.
 import { BARRICADE, AIR, GROUND, isSolidBlock } from './world/blocks.js';
 import { BASTION_RULES, STRUCTURE_KINDS } from './bastion.js';
+import { BASTION_BREAK_PHASES } from './modes.js';
 
 export { STRUCTURE_KINDS };
 
@@ -42,7 +43,7 @@ export function canPlaceStructure({ getBlock, layout, stageIndex, kind, cell, fa
   const def = BASTION_STRUCTURES[kind];
   if (!def || !cell || !Number.isInteger(cell.x) || !Number.isInteger(cell.y) || !Number.isInteger(cell.z)
     || !Number.isInteger(facing) || facing < 0 || facing > 3) return fail('kind');
-  if (!['prep', 'supply'].includes(phase)) return fail('phase');
+  if (!BASTION_BREAK_PHASES.includes(phase)) return fail('phase');
   if (player?.state !== 'alive') return fail('alive');
   if (Math.hypot(player.x - (cell.x + 0.5), player.z - (cell.z + 0.5)) > BASTION_RULES.buildRadius
     || Math.abs(player.y - cell.y) > 3) return fail('reach');

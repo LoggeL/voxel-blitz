@@ -1,6 +1,6 @@
 import { bindingLabel, subscribeKeybindings } from '../keybindings.js';
 import { updateBastionHud } from './bastion-hud.js';
-import { GUN_GAME_WEAPON_ORDER, MODE_RULES } from '../../../shared/modes.js';
+import { GUN_GAME_WEAPON_ORDER, MODE_RULES, buyWindowOpen } from '../../../shared/modes.js';
 import {
   MAP_LABELS,
   clamp01,
@@ -343,7 +343,7 @@ export class MatchHud {
         m.carrierBadge.style.display = (curMode === 'snd' && selfRow.bomb) ? 'inline-block' : 'none';
       }
       if (m.buyPrompt) {
-        const canBuy = ((curMode === 'ttt' && phase === 'live' && selfRow?.ttt?.role === 'traitor') || (curMode === 'snd' && phase === 'prep') || (curMode === 'chaos' && phase === 'live'))
+        const canBuy = buyWindowOpen(curMode, phase, selfRow?.ttt?.role)
           && this.readModel.dead !== true
           && selfRow.hp > 0
           && selfRow.state !== 'dead';

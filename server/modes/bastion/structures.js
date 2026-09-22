@@ -10,7 +10,7 @@ import { turn, slot } from './ai-common.js';
 
 // The sentry fires the LMG's tracer/sfx identity with its own flat damage curve.
 export const TURRET_DEF = Object.freeze({ ...WEAPONS.lmg, damage: [12, 12, 40], rpm: 360, pellets: 1, headMult: 1,
-  spreadDeg: { ...WEAPONS.lmg.spreadDeg, hip: 1.2 }, bloomPerShot: 0 });
+  spreadDeg: { ...WEAPONS.lmg.spreadDeg, hip: 1.2 }, bloomDeg: 0 });
 const CRATE_TICK_MS = 250;
 const key = (x, y, z) => `${x},${y},${z}`;
 

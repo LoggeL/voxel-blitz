@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { BASTION_RULES as R, BASTION_ROLES, BASTION_ENEMIES, BASTION_SHOP, bastionWave, bastionReward, parseBastionPurchase } from '../../shared/bastion.js';
 import { BASTION_LAYOUTS, bastionPlannedWaves } from '../../shared/world/bastion-layouts.js';
+import { BASTION_BREAK_PHASES } from '../../shared/modes.js';
 import { WEAPONS, WEAPON_IDS } from '../../shared/combatmath.js';
 import { GRENADE_TYPE_IDS } from '../../shared/grenade-rules.js';
 import { slot } from './bastion/ai-common.js';
@@ -305,7 +306,7 @@ export class BastionPolicy {
   buy(p,value) {
     if (typeof p !== 'object') p = this.engine.entities.get(String(p));
     const req = parseBastionPurchase(value), state = this.players.get(p?.id);
-    if (!req || !state || p.state !== 'alive' || !['prep','supply'].includes(this.phase)
+    if (!req || !state || p.state !== 'alive' || !BASTION_BREAK_PHASES.includes(this.phase)
         || req.run !== this.run || req.prep !== this.prep || req.request <= state.request) return false;
     state.request = req.request;
     if (req.action === 'ready') { this.ready.add(p.id); return true; }

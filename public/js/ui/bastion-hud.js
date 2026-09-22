@@ -1,5 +1,6 @@
 import { bindingLabel } from '../keybindings.js';
-import { BASTION_ENEMIES } from '../../../shared/bastion.js';
+import { BASTION_ENEMIES, BASTION_RULES, bastionRepairStatus } from '../../../shared/bastion.js';
+import { buyWindowOpen } from '../../../shared/modes.js';
 import { el } from './hud-support.js';
 
 /** Transient banner override (vehicle inbound, tier sighted, breach, structure lost). */
@@ -56,18 +57,20 @@ export function updateBastionHud(m,match,self,now,ctx={}) {
   m.clock.textContent=`${Math.max(0,Math.ceil((match.phaseEndsAt-now)/1000))}s`;
   m.bombBanner.style.display='block';
   const laneName=bastionLaneName(ctx.laneNames,stage?.lane||b.lanes?.[0]);
-  const nearCore=self&&Number.isFinite(core.x)&&Math.hypot(self.x-core.x,self.z-core.z)<4;
+  const repairStatus=bastionRepairStatus(match,self);
   const waiting=self?.bastion?.waiting;
   const localNow=Number.isFinite(ctx.localNow)?ctx.localNow:(typeof performance!=='undefined'?performance.now():Date.now());
   const transient=ctx.banner&&ctx.banner.until>localNow?ctx.banner.text:null;
   m.bombBanner.textContent=waiting?'JOINING AT NEXT BREAK':b.returnAt?`EMERGENCY RETURN · ${Math.max(0,Math.ceil((b.returnAt-now)/1000))}s`
     :transient?transient
     :phase==='post'?stageName:phase==='live'?`${laneName} BREACH${b.supply?.active&&!self?.bastion?.supplyUsed?' · SUPPLY OPEN':''}`
-    :nearCore&&core.hp<maxHp?`HOLD ${bindingLabel('interact')} TO REPAIR ($150)`
+    :repairStatus==='ok'?`HOLD ${bindingLabel('interact')} TO REPAIR ($${BASTION_RULES.repairPrice})`
+    :repairStatus==='limit'?`REPAIRS USED · ${BASTION_RULES.repairLimit} PER BREAK`
+    :repairStatus==='credits'?`REPAIR NEEDS $${BASTION_RULES.repairPrice}`
     :`${b.ready}/${b.defenders} READY · [${bindingLabel('buy')}] SUPPLY · [${bindingLabel('build')}] BUILD`;
   m.bombBanner.className='vb-match-bomb-banner vb-bastion-banner'+(transient?' vb-bastion-banner-alert':'');
   m.creditsBox.style.display='flex';m.creditsVal.textContent=`$ ${b.credits}`;
-  const buildable=(phase==='prep'||phase==='supply')&&self?.state==='alive';
+  const buildable=buyWindowOpen(match.mode,phase)&&self?.state==='alive';
   m.buyPrompt.textContent=`[${bindingLabel('buy')}] SUPPLY · LOADOUT / UPGRADES / READY`;
   m.buyPrompt.style.display=buildable?'block':'none';
   if(!m.buildPrompt) m.buildPrompt=el('div','vb-build-prompt',m.buyPrompt.parentNode);

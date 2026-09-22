@@ -178,3 +178,17 @@ export function mapForMode(modeId, preferredMap) {
   if (isModeMapCompatible(modeId, preferredMap)) return preferredMap;
   return MAP_IDS.find((mapId) => isModeMapCompatible(modeId, mapId)) ?? null;
 }
+
+/** Bastion breaks between waves: supply, building and objective repair are open. */
+export const BASTION_BREAK_PHASES = Object.freeze(['prep', 'supply']);
+
+/**
+ * Whether the mode's shop is open in `phase`: traitor shop live, S&D armory in
+ * prep, Chaos Lab live, Bastion supply during breaks. Liveness is the caller's.
+ */
+export function buyWindowOpen(modeId, phase, tttRole = null) {
+  return (modeId === 'ttt' && phase === 'live' && tttRole === 'traitor')
+    || (modeId === 'snd' && phase === 'prep')
+    || (modeId === 'chaos' && phase === 'live')
+    || (modeId === 'bastion' && BASTION_BREAK_PHASES.includes(phase));
+}

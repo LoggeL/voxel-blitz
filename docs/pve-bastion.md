@@ -43,7 +43,9 @@ weitere Spieler beitreten.
   Im Baumodus dreht `R` die Ausrichtung, die linke Maustaste platziert, `Esc`
   verlässt den Modus. Der Geist zeigt grün, wo gebaut werden darf, und rot mit
   Begründung, wo nicht. Bauen geht nur in Vorbereitung und Versorgung.
-- `E` am beschädigten Ziel halten: vier Sekunden reparieren. Das Menü dafür schließen.
+- `T` (Interaktion) am beschädigten Ziel halten: vier Sekunden reparieren. Das Menü dafür schließen.
+  Das Banner zeigt die Reparatur nur in Reichweite und nennt, wenn die Pausengrenze
+  erreicht ist oder das Geld fehlt; dieselbe Prüfung (`bastionRepairStatus`) sperrt die Eingabe.
 - Waffenrad: Hauptwaffe, Revolver und Spitzhacke. Eine Rauchgranate ist immer dabei.
 - Touch: Armory-, Use- und Build-Chips erscheinen im passenden Spielzustand;
   der Build-Chip schaltet den Bauplan weiter, der Feuer-Chip platziert.
@@ -347,6 +349,9 @@ verpasste Extraktion und Beacon-Verlust, Stufenwechsel, Erreichbarkeit jeder
 Stufe, skalierte Trefferzonen, Layout-Verträge (Zugänge, Routen, Türbreite)
 und die Client-Konstruktion. Der WebSocket-Test prüft Lobby, Kauf, späten
 Beitritt, vier Plätze, getrennte NPC-Snapshots und einen Sandsackbau auf Causeway.
+`tools/bastion-ui-test.mjs` prüft ohne Browser HUD-Beschriftungen und
+Reparaturhinweis, Baubudgets, das gemeinsame Kauffenster (`buyWindowOpen`) und die
+Tab-Reihenfolge der Versorgung nach Wechseln zwischen den Shop-Modi.
 Die Suite ist in `npm test` enthalten.
 
 Balance-Spieltests stehen aus: Ein vollständiger Durchlauf durch menschliche

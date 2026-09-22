@@ -1,4 +1,5 @@
 // Bastion's public balance and purchase contract. No world or engine dependencies.
+import { BASTION_BREAK_PHASES } from './modes.js';
 export const BASTION_RULES = Object.freeze({
   prepMs: 25000, supplyMs: 20000, regroupMs: 30000, minimumPrepMs: 8000,
   returnMs: 5000, startCredits: 400, stageBonus: 250,
@@ -88,20 +89,29 @@ export function bastionWave(rowId, players) {
 
 export function bastionReward(wave) { return 300 + 50 * wave; }
 
-// `match.bastion.core` is the current stage objective (alias kept by the policy).
-export function bastionRepairAvailable(match, player) {
-  const core = match?.bastion?.core;
-  return match?.mode === 'bastion' && ['prep','supply'].includes(match.phase)
+/**
+ * Repair eligibility with the server's refusal reasons (BastionPolicy.repairTick).
+ * `match.bastion.core` is the current stage objective (alias kept by the policy).
+ * @returns {null|'ok'|'limit'|'credits'} null when no repair is in reach at all.
+ */
+export function bastionRepairStatus(match, player) {
+  const b = match?.bastion, core = b?.core;
+  if (!(match?.mode === 'bastion' && BASTION_BREAK_PHASES.includes(match.phase)
     && player?.state === 'alive' && core?.hp < core?.maxHp
-    && Math.hypot(player.x-core.x,player.y-core.y,player.z-core.z) <= BASTION_RULES.repairRadius;
+    && Math.hypot(player.x-core.x,player.y-core.y,player.z-core.z) <= BASTION_RULES.repairRadius)) return null;
+  // Snapshot credits already exclude a running repair's price; never cancel our own.
+  if (player.interaction?.kind === 'repair') return 'ok';
+  if ((b.repairs | 0) >= BASTION_RULES.repairLimit) return 'limit';
+  return b.credits < BASTION_RULES.repairPrice ? 'credits' : 'ok';
 }
+export function bastionRepairAvailable(match, player) { return bastionRepairStatus(match, player) === 'ok'; }
 
 // Keep recoil, appearance and projectile flight identical to the existing weapon.
 // Only NPC damage/cadence and the purchased human reload timing differ in this mode.
 export function bastionWeaponDef(player, base) {
   const enemy = BASTION_ENEMIES[player?.npcRole];
   if (enemy) return { ...base, damage: [enemy.damage, enemy.damage, 80], headMult: 1,
-    rpm: enemy.rpm, bloomPerShot: 0.2, spreadDeg: { ...base.spreadDeg, hip: Math.max(1.6, base.spreadDeg.hip) } };
+    rpm: enemy.rpm, bloomDeg: 0.2, spreadDeg: { ...base.spreadDeg, hip: Math.max(1.6, base.spreadDeg.hip) } };
   if (!player?.bastionUpgrades?.reload) return base;
   return { ...base, reloadTime: base.reloadTime * 0.85, tacTime: base.tacTime * 0.85,
     ...(base.reloadStages ? { reloadStages: Object.fromEntries(
