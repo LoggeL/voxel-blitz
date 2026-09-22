@@ -60,6 +60,20 @@ export function clearReload(p) {
   p.reloadLoose = 0;
 }
 
+/** A reload request carrying a client sequence id (acknowledged via `reloadAck`). */
+export function reloadIdentified(inp) {
+  return Number.isSafeInteger(inp?.reloadId) && inp.reloadId > 0;
+}
+
+/**
+ * A new reload request this tick: an unacknowledged id, or a legacy press edge.
+ * Movement reserves the hands and weapon intent starts the reload from this one
+ * predicate, so it must be read before `reloadPrev` is updated.
+ */
+export function reloadRequestEdge(p, inp) {
+  return !!inp?.reload && (reloadIdentified(inp) ? inp.reloadId > (p.reloadAck || 0) : !p.reloadPrev);
+}
+
 /** Advance pain, panic, and exhaustion after movement for this tick. */
 export function updateCondition(p, dt) {
   const keys = p.input?.keys || IDLE_KEYS;
@@ -144,8 +158,7 @@ export function stepMovement(p, dt, ctx) {
   const ride = swimming && !p.slide ? null : slideContact(ctx.mapMeta, p.x, p.y, p.z, p.slide);
   // Movement precedes weapon intents. Reserve hands for a valid new reload
   // immediately, but do not keep blocking on an already acknowledged request.
-  const reloadEdge = inp?.reload && (Number.isSafeInteger(inp.reloadId) && inp.reloadId > 0
-    ? inp.reloadId > (p.reloadAck || 0) : !p.reloadPrev);
+  const reloadEdge = reloadRequestEdge(p, inp);
   const pendingReload = reloadEdge && p.def.mode !== 'melee' &&
     p.mag?.[p.weapon] < p.def.magSize && (p.infiniteMagazines || p.reserve?.[p.weapon] > 0);
   const handsFree = canClimb({ reloading: p.reloading || pendingReload,

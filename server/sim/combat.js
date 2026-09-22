@@ -29,7 +29,7 @@ import {
   chargeShotProfile,
   railDamageMult,
 } from '../../shared/combatmath.js';
-import { clearReload } from './movement.js';
+import { clearReload, reloadIdentified, reloadRequestEdge } from './movement.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { NETWORK_PRESENTATION } from '../../shared/networking.js';
 import { evShoot, evHit, evBlock } from '../protocol/events.js';
@@ -134,9 +134,8 @@ export function resolveWeaponIntent(p, _dt, ctx) {
     !!(minigunEnabled && (inp.wantFire || p.fireEdgeQueued)), !!(minigunEnabled && inp.wantAds));
   if (!inp?.wantFire && !p.fireEdgeQueued) p.mining = null;
   if (!inp) { p.triggerPrev = false; p.reloadPrev = false; return; }
-  const identifiedReload = Number.isSafeInteger(inp.reloadId) && inp.reloadId > 0;
-  const reloadEdge = !!inp.reload && (identifiedReload
-    ? inp.reloadId > (p.reloadAck || 0) : !p.reloadPrev);
+  const identifiedReload = reloadIdentified(inp);
+  const reloadEdge = reloadRequestEdge(p, inp);
   p.reloadPrev = !!inp.reload;
 
   // A new selection interrupts the current draw and starts the selected
