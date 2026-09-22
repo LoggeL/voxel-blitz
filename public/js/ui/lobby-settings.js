@@ -1,6 +1,6 @@
 import { DEFAULT_TRAITOR_PERCENT, TTT_TRAITOR_PERCENTS } from '../../../shared/ttt.js';
-import { DUEL_KILL_LIMITS, DEFAULT_DUEL_KILL_LIMIT, MAP_IDS, MODE_IDS, isModeMapCompatible, mapForMode } from '../../../shared/modes.js';
-import { el, MAP_LABELS, MODE_LABELS, savePref } from './hud-support.js';
+import { DUEL_KILL_LIMITS, DEFAULT_DUEL_KILL_LIMIT, DUEL_WEAPONS, MAP_IDS, MODE_IDS, MODE_RULES, isModeMapCompatible, mapForMode } from '../../../shared/modes.js';
+import { el, MAP_LABELS, MODE_LABELS, WEAPON_NAMES, savePref } from './hud-support.js';
 import { MAX_BOTS, lobbyCapacity, modeAllowsBots } from '../../../shared/lobby-limits.js';
 
 /** Host controls edit the authoritative waiting room, never a draft lobby. */
@@ -82,7 +82,7 @@ export class LobbySettings {
     this.controls.duelKillLimit.parentNode.hidden = state.gameMode !== 'duel';
     this.controls.traitorPercent.value = String(state.traitorPercent ?? DEFAULT_TRAITOR_PERCENT);
     this.controls.traitorPercent.parentNode.hidden = state.gameMode !== 'ttt';
-    this.traitorCount.textContent = `${state.traitorCount ?? 0} TRAITORS / ${state.members?.length || 0} PLAYERS (including bots). Rounded down, at least one per side. Roles after 60 seconds.`;
+    this.traitorCount.textContent = `${state.traitorCount ?? 0} TRAITORS / ${state.members?.length || 0} PLAYERS (including bots). Rounded down, at least one per side. Roles after ${Math.round(MODE_RULES.ttt.prepMs / 1000)} seconds.`;
     this.controls.gameMode.value = state.gameMode;
     this.syncMaps(state.gameMode, state.map);
     this.controls.bots.value = String(modeAllowsBots(state.gameMode) ? state.bots : 0);
@@ -95,7 +95,7 @@ export class LobbySettings {
       select.disabled = !isHost || state.phase !== 'waiting' || (key === 'bots' && !modeAllowsBots(state.gameMode));
     }
     this.loadout.textContent = state.gameMode === 'duel'
-      ? 'BASE 1V1 WEAPON SET: Rifle · Shotgun · Sniper · Revolver · Pixel Pick. No throwables.' : '';
+      ? `BASE 1V1 WEAPON SET: ${DUEL_WEAPONS.map(id => WEAPON_NAMES[id] || id).join(' · ')}. No throwables.` : '';
     this.capacity.textContent = `${state.members?.length || 0} / ${limit} SLOTS · ${MAP_LABELS[state.map] || state.map}`;
     this.hint.textContent = state.gameMode === 'bastion'
       ? `1–4 players defend ${MAP_LABELS[state.map] || state.map} stage by stage: build, hold, fall back, extract. No friendly bots.` : state.gameMode === 'duel'

@@ -49,7 +49,7 @@ export class RoundContinuation {
   snapshot() {
     return {
       id: this.id, approved: [...this.approved], eligible: this.eligible.size,
-      required: this.required, ratio: APPROVAL_RATIO,
+      required: this.required, ratio: APPROVAL_RATIO, countdownMs: COUNTDOWN_MS,
     };
   }
 }

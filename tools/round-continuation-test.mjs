@@ -57,6 +57,8 @@ for (const count of [1, 2, 3, 4, 5, 6, 10, 16, 30, 64]) {
   const vote = new RoundContinuation(entities, () => now);
   vote.begin(); vote.approve('a', vote.id); vote.approve('b', vote.id);
   assert.equal(vote.endsAt, 5100);
+  assert.equal(vote.endsAt - 100, vote.snapshot().countdownMs, 'the result overlay hint reads the authoritative countdown');
+  assert.equal(vote.snapshot().ratio * 5, 2, 'the snapshot ratio matches the required approvals');
   now = 5100;
   entities.set('f', { id: 'f' }); vote.sync();
   assert.equal(vote.endsAt, null, 'a join that raises the threshold cancels the countdown, even at its deadline');
