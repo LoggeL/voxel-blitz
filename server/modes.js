@@ -240,7 +240,6 @@ export class ModeController {
     return this.policy.onPlayerTakeover?.(player, nextId) === true;
   }
   onPlayerRespawn(player) { return this.policy.onPlayerRespawn(player); }
-  respawnDelay() { return this.policy.respawnDelay(); }
   canRespawn(player) { return this.policy.canRespawn(player); }
   canTimedRespawn(player) { return this.policy.canTimedRespawn(player); }
   chooseSpawn(player, excludeIndex) { return this.policy.chooseSpawn(player, excludeIndex); }

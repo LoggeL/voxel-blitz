@@ -55,9 +55,6 @@ export class SndPolicy {
   }
 
   get bomb() { return this._objective.bomb; }
-  set bomb(value) { this._objective.bomb = value; }
-  get _interactions() { return this._objective.interactions; }
-  set _interactions(value) { this._objective.interactions = value; }
 
   get now() {
     const value = this._clock();
@@ -401,10 +398,6 @@ export class SndPolicy {
     const entity = this._entity(player);
     return this._chooseSpawn(this.spawnPoolFor(entity), entity, excludeIndex);
   }
-  reset() {
-    this._startNextRound(true);
-  }
-
 
   dispose() {
     this._objective.clearAllInteractions();
