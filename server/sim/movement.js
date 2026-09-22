@@ -114,7 +114,8 @@ function recordPose(p, now) {
 /**
  * Integrate one living entity for one fixed simulation step.
  *
- * ctx = { solidAt(x,y,z), fluidAt?(x,y,z), mapMeta, now, movementLocked, onFall(entity) }
+ * ctx = { solidAt(x,y,z), fluidAt?(x,y,z), mapMeta, now, movementLocked,
+ *         onFall(entity, reason) } where reason is 'invalid' (non-finite state) or 'void'
  */
 export function stepMovement(p, dt, ctx) {
   const inp = p.input;
