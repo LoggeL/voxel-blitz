@@ -9,7 +9,7 @@ import { FLAME_RULES } from '../shared/flame-rules.js';
 import { MOLOTOV_FIRE, molotovFireProfile } from '../shared/molotov-rules.js';
 import { MAP_IDS, isModeMapCompatible, mapForMode } from '../shared/modes.js';
 import { CHAOS_UPGRADES, CHAOS_START_CREDITS, CHAOS_KILL_CREDITS, chaosPurchaseId, parseChaosPurchase, chaosWeaponDef } from '../shared/chaos.js';
-import { chaosShot, chaosHit } from '../server/sim/chaos-combat.js';
+import { chaosShot, chaosHit, chaosGlaiveContact } from '../server/sim/chaos-combat.js';
 import { MAX_ACTIVE_PROJECTILES, PRIMARY_PROJECTILE_RESERVE } from '../server/sim/projectiles.js';
 
 const SECONDARY_PROJECTILE_CAP = MAX_ACTIVE_PROJECTILES - PRIMARY_PROJECTILE_RESERVE;
@@ -260,6 +260,18 @@ for (const [kind, item, source, expected] of [['rocket', 'smg', 'smg', 'smg'], [
   else system.chaosBlast(owner, [victim.x, victim.y + 1, victim.z], 'frag', 3.5, 42, 10, ctx, source);
   for (let i = 0; i < 40 && system.active.size; i++) { ctx.now += 25; system.step(0.025, ctx); }
   assert.deepEqual(kills, [[owner, expected]], `${kind} from ${item} credits ${expected}`);
+}
+// RIPTIDE razor wake goes through the projectile system's Chaos port and must still credit the glaive.
+{
+  const system = new engine.projectiles.constructor();
+  const kills = [];
+  const owner = { id: 'wake-owner', x: 20, y: 10, eyeY: 11.6, z: 20, def: WEAPONS.glaive, chaosUpgrades: { glaive: 2 } };
+  const victim = { id: 'wake-victim', state: 'alive', x: 20, y: 10, z: 14, eyeY: 11.6, vx: 0, vy: 0, vz: 0, takeDamage: () => true };
+  const ctx = { now: 0, entities: new Map([[victim.id, victim]]), getBlock: () => 0, canDamage: () => true,
+    canAffectWorld: () => true, pushEvent: () => {}, destroyBlock: () => {}, damageBlock: () => {},
+    killPlayer: (_victim, killer, weapon) => kills.push([killer, weapon]) };
+  chaosGlaiveContact(owner, [victim.x, victim.y + 1, victim.z], system._chaosPort(ctx));
+  assert.deepEqual(kills, [[owner, 'glaive']], 'a razor-wake kill credits the RIPTIDE, not the pulse grenade');
 }
 console.log('Chaos kill credit: side rockets, bolts and blasts credit their source weapon; plain launches keep their own.');
 

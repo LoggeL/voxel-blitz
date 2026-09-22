@@ -282,16 +282,11 @@ TIMERS.glaive = {
   // GV-4 RIPTIDE: forearm-braced disc launcher. The "barrel" is the launch spindle the
   // seated disc rides on; the "bolt" is the flywheel drive wheel, which only nudges back.
   // Throw/return/catch choreography lives in glaive-presentation.js, not in a reload.
-  tbase: -0.02,
   rof: WEAPONS.glaive.rpm,
   adsTime: WEAPONS.glaive.adsTime,
   deployTime: WEAPONS.glaive.deployTime,
   weightKg: WEAPONS.glaive.weightKg,
   viewKick: { pitchDeg: WEAPONS.glaive.recoil.pitch, yawDeg: WEAPONS.glaive.recoil.yaw },
-  bursts: [[0]],          // semi: one disc per trigger pull.
-  anglesRad: [-0.0014],
-  interval: 0,
-  clip: 999,
   muzzle: [0, 0, -0.40],  // spindle tip on the bore axis.
   portY: 0.08,
   ejectRight: 0,

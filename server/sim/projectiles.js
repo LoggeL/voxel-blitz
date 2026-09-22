@@ -485,8 +485,8 @@ export class ProjectileSystem {
   }
 
   _chaosPort(ctx) {
-    return { chaosBlast: (p, origin, type, radius, damage, knockback) =>
-      this.chaosBlast(p, origin, type, radius, damage, knockback, ctx) };
+    return { chaosBlast: (p, origin, type, radius, damage, knockback, weaponKey) =>
+      this.chaosBlast(p, origin, type, radius, damage, knockback, ctx, weaponKey) };
   }
 
   /**
@@ -858,7 +858,7 @@ export class ProjectileSystem {
    * `dir`. Its rules (out leg, pierce) are frozen from the owner's Chaos ladder.
    */
   launchGlaive(player, ctx, dir) {
-    if (this.active.size >= 192) return null;
+    if (!this._hasRoom()) return null;
     const rules = glaiveDef(player).glaive;
     const launch = glaiveLaunch({ x: player.x, y: player.eyeY, z: player.z, dir, now: ctx.now, rules });
     const id = `d${this._nextId++}`;

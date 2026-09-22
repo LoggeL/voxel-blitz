@@ -100,5 +100,5 @@ export function chaosHit(p, victim, point, ctx) {
 /** Razor wake: every RIPTIDE wall contact and every catch sheds a small shockwave. */
 export function chaosGlaiveContact(p, point, ctx) {
   if (!p || chaosLevel(p, 'glaive') < 2) return;
-  ctx.chaosBlast?.(p, point, 'pulse', 2.5, 20, 12);
+  ctx.chaosBlast?.(p, point, 'pulse', 2.5, 20, 12, 'glaive');
 }
