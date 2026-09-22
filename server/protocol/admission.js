@@ -44,6 +44,27 @@ function hasExactKeys(value, expected) {
     expected.every((key) => Object.prototype.hasOwnProperty.call(value, key));
 }
 
+// Controls, zero-widths and bidi overrides never reach other players' screens.
+// eslint-disable-next-line no-control-regex
+const INVISIBLE_TEXT = /[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g;
+export const CHAT_MAX_LENGTH = 120;
+
+/** Strip controls/zero-widths, collapse whitespace, clamp to 16 chars. */
+export function sanitizeName(raw, ordinal) {
+  const name = typeof raw === 'string' ? raw
+    .replace(INVISIBLE_TEXT, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 16) : '';
+  const suffix = Number.isSafeInteger(ordinal) ? ordinal : '';
+  return name.length > 0 ? name : 'Rookie' + suffix;
+}
+
+/** Room chat text: invisible characters stripped, then at most 120 trimmed characters. */
+export function sanitizeChatText(raw) {
+  return typeof raw === 'string' ? raw.replace(INVISIBLE_TEXT, '').slice(0, CHAT_MAX_LENGTH).trim() : '';
+}
+
 export function validLobbyPassword(value) {
   return typeof value === 'string' && value.length <= 64;
 }

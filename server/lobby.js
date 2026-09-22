@@ -12,6 +12,7 @@ import {
   LOBBY_CODE_LENGTH,
   TICK_MS,
   normalizeLobbyCode,
+  sanitizeChatText,
   validLobbyPassword,
   validBotCount,
 } from './protocol/admission.js';
@@ -29,7 +30,7 @@ import {
 import { createMapState, getMapMeta } from '../shared/worlddata.js';
 import { MAX_BOTS, MAX_TEAM_PLAYERS, lobbyCapacity, hasLobbyTeams } from '../shared/lobby-limits.js';
 
-const derivePassword = promisify(scrypt);
+const scryptAsync = promisify(scrypt);
 const capacity = (room) => lobbyCapacity(room.gameMode, room.map);
 const MAX_ROOMS = 16;
 const QUICK_MIN_BOTS = 5;
@@ -39,6 +40,36 @@ const QUICK_MAPS = Object.freeze(['foundry', 'depot', 'solstice', 'caldera']);
 const CLOSE_MALFORMED = 4002;
 const CLOSE_UNKNOWN = 4004;
 const CLOSE_FULL = 4005;
+
+// Lobby passwords share libuv's small thread pool with account hashing and
+// static compression, so only a few derivations run or wait at once.
+const PASSWORD_JOB_LIMIT = 2;
+const PASSWORD_QUEUE_LIMIT = 16;
+const passwordJobs = { active: 0, queue: [] };
+// Each room tolerates a few typos, then refuses guesses for the rest of the window.
+export const PASSWORD_FAILURE_LIMIT = 8;
+const PASSWORD_FAILURE_WINDOW_MS = 60_000;
+// Room chat: a burst of three lines, then one line per second per member.
+const CHAT_BURST = 3;
+const CHAT_REFILL_MS = 1000;
+// Ping-only roster refreshes are coalesced; real lobby changes broadcast at once.
+const PING_BROADCAST_MS = 2000;
+
+class LobbyBusyError extends Error {}
+
+async function derivePassword(password, salt) {
+  if (passwordJobs.active < PASSWORD_JOB_LIMIT) passwordJobs.active++;
+  else if (passwordJobs.queue.length < PASSWORD_QUEUE_LIMIT) await new Promise(resolve => passwordJobs.queue.push(resolve));
+  else throw new LobbyBusyError('lobby password queue full');
+  try {
+    return await scryptAsync(password, salt, 32);
+  } finally {
+    // A queued job inherits the finished job's slot.
+    const next = passwordJobs.queue.shift();
+    if (next) next();
+    else passwordJobs.active--;
+  }
+}
 
 function memberId(meta) {
   if (!meta || (typeof meta.id !== 'string' && !Number.isFinite(meta.id))) return null;
@@ -120,7 +151,7 @@ export class LobbyManager {
     let room = null;
     try {
       const passwordSalt = password ? randomBytes(16) : null;
-      const passwordHash = password ? await derivePassword(password, passwordSalt, 32) : null;
+      const passwordHash = password ? await derivePassword(password, passwordSalt) : null;
       // Password work runs off the simulation thread. Recheck admission after it.
       if (!this._validAdmission(meta, name) || this.stopped) return false;
       if (this.rooms.size >= MAX_ROOMS) {
@@ -130,8 +161,9 @@ export class LobbyManager {
       room.passwordSalt = passwordSalt;
       room.passwordHash = passwordHash;
       return this._admit(room, meta, name, false);
-    } catch {
+    } catch (error) {
       if (room) this._destroyRoom(room);
+      if (error instanceof LobbyBusyError) return this._reject(meta, 'Server busy. Try again shortly.', 1013, 'server busy');
       return this._reject(meta, 'Unable to create lobby', 1011, 'room creation failed');
     }
   }
@@ -149,10 +181,24 @@ export class LobbyManager {
     if (!room || room.destroyed || room.quick) {
       return this._reject(meta, `Unknown lobby ${code}`, CLOSE_UNKNOWN, 'unknown lobby');
     }
-    if (room.passwordHash && (!password || !timingSafeEqual(
-      await derivePassword(password, room.passwordSalt, 32), room.passwordHash,
-    ))) {
-      return this._reject(meta, 'Incorrect lobby password', 4003, 'incorrect password');
+    if (room.passwordHash) {
+      const failures = room.passwordFailures;
+      if (failures && failures.until <= performance.now()) room.passwordFailures = null;
+      if (room.passwordFailures?.count >= PASSWORD_FAILURE_LIMIT) {
+        return this._reject(meta, 'Too many incorrect lobby passwords. Try again in a minute.', 4003, 'password attempts');
+      }
+      let accepted = false;
+      try {
+        accepted = !!password && timingSafeEqual(await derivePassword(password, room.passwordSalt), room.passwordHash);
+      } catch (error) {
+        if (error instanceof LobbyBusyError) return this._reject(meta, 'Server busy. Try again shortly.', 1013, 'server busy');
+        return this._reject(meta, 'Unable to join lobby', 1011, 'password check failed');
+      }
+      if (!accepted) {
+        room.passwordFailures ??= { count: 0, until: performance.now() + PASSWORD_FAILURE_WINDOW_MS };
+        room.passwordFailures.count++;
+        return this._reject(meta, 'Incorrect lobby password', 4003, 'incorrect password');
+      }
     }
     if (!this._validAdmission(meta, name) || this.stopped) return false;
     if (room.members.size >= capacity(room)) {
@@ -191,7 +237,10 @@ export class LobbyManager {
     if (room.phase !== 'waiting') return this._error(meta, 'Lobby has already started');
     if (member.ready === value) return true;
     const now = performance.now();
-    if (now < (meta.readyChangeAllowedAt ?? 0)) return this._error(meta, 'Please wait 2 seconds before changing ready status');
+    if (now < (meta.readyChangeAllowedAt ?? 0)) {
+      const seconds = Math.ceil((meta.readyChangeAllowedAt - now) / 1000);
+      return this._error(meta, `Please wait ${seconds} second${seconds === 1 ? '' : 's'} before changing ready status`);
+    }
     meta.readyChangeAllowedAt = now + 2000;
     member.ready = value;
     this._broadcastLobbyState(room);
@@ -320,6 +369,7 @@ export class LobbyManager {
             tickRate: Math.round(1000 / this.tickMs), spawn: spawn.spawn || spawn,
             lobby: { code: room.code, role: room.host === human.id ? 'host' : 'member' },
             phase: 'waiting', gameMode, map, weaponLoadout: human.meta.weaponLoadout,
+            mastery: human.meta.mastery,
             blockDamage: Array.from(engine.blockDamage.values()) }),
           t: 'lobbyConfig',
         });
@@ -367,9 +417,14 @@ export class LobbyManager {
 
   chat(meta, text) {
     const found = this._memberFor(meta);
-    if (!found || typeof text !== 'string') return false;
-    const clean = text.slice(0, 120).trim();
-    if (!clean) return false;
+    const clean = sanitizeChatText(text);
+    if (!found || !clean) return false;
+    const { member } = found;
+    const now = performance.now();
+    const tokens = Math.min(CHAT_BURST, (member.chatTokens ?? CHAT_BURST) + (now - (member.chatRefillAt ?? now)) / CHAT_REFILL_MS);
+    member.chatRefillAt = now;
+    member.chatTokens = tokens >= 1 ? tokens - 1 : tokens;
+    if (tokens < 1) return false;
 
     this._broadcastJson(found.room, {
       t: 'chat',
@@ -645,8 +700,14 @@ export class LobbyManager {
   }
 
   updatePing(meta) {
-    const found = this._memberFor(meta);
-    if (found?.room.phase === 'waiting') this._broadcastLobbyState(found.room);
+    const room = this._memberFor(meta)?.room;
+    if (room?.phase !== 'waiting' || room.pingBroadcastTimer) return;
+    // Every member pings every 1.5 s; one roster refresh carries all of them.
+    room.pingBroadcastTimer = setTimeout(() => {
+      room.pingBroadcastTimer = null;
+      if (room.phase === 'waiting') this._broadcastLobbyState(room);
+    }, PING_BROADCAST_MS);
+    room.pingBroadcastTimer.unref?.();
   }
 
   _stateFor(room) {
@@ -720,6 +781,7 @@ export class LobbyManager {
     if (!room || room.destroyed) return;
     room.destroyed = true;
     clearTimeout(room.expiryTimer);
+    clearTimeout(room.pingBroadcastTimer);
 
     try { room.engine.stop(); } catch { /* cleanup continues */ }
     if (room.botManager) {

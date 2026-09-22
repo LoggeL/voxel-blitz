@@ -179,7 +179,8 @@ After admission:
 - `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'}` requests
   an S&D prep-phase purchase.
 - `{t:'chat',text:string}` broadcasts at most 120 trimmed characters only to
-  this member's room.
+  this member's room, with control/zero-width characters stripped. Each member
+  may burst 3 lines, then 1 line/s; excess lines are dropped silently.
 Client binary frames are ignored. Sockets must admit within 10 seconds, may
 send at most 180 messages/s, and may send at most 64 KiB per frame.
 
