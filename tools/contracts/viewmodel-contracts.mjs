@@ -9,7 +9,29 @@ function isRenderedOpaque({ object }) {
   return true;
 }
 
+// Slots whose only model is a Blender template. Node never loads the
+// templates, so these build no body here and their geometry is checked by
+// `npm run weapons:blender:browser` instead.
+const NODE_BLENDER_ONLY = new Set(['sniper', 'rocket']);
+
+// Body meshes of one built gun, excluding the gloves and the anchor-driven
+// flash, muzzle attachments (the rail charge orb), bolt glow cap and heat
+// sleeve that every slot receives.
+function bodyMeshCount(model) {
+  let count = 0;
+  model.root.traverse((object) => {
+    if (!object.isMesh || object.material?.uniforms === model.uni) return;
+    for (let node = object; node && node !== model.root; node = node.parent) {
+      if (node === model.flash.grp || node === model.muzzleMarker
+        || node.name === 'hand_r' || node.name === 'hand_l') return;
+    }
+    count++;
+  });
+  return count;
+}
+
 export async function runViewmodelContracts(ok, installGlobals) {
+  console.log(`viewmodel contracts: Blender-only slots checked for anchors only in Node: ${[...NODE_BLENDER_ONLY].join(', ')}`);
   {
     const { shouldShowViewmodel } = await import('../../public/js/guns/weapon-state.js');
     ok(shouldShowViewmodel()
@@ -270,8 +292,10 @@ export async function runViewmodelContracts(ok, installGlobals) {
       let valid = true;
       const hipMounts = new Set();
       let referenceGrip = null;
+      const carriedGeometryMismatch = [];
       for (const id of WEAPON_IDS) {
         carried.update({ weapon: id, dt: 1 / 60 });
+        if ((bodyMeshCount(carried._model) > 0) === NODE_BLENDER_ONLY.has(id)) carriedGeometryMismatch.push(id);
         hipMounts.add(carried.root.position.toArray().map((value) => value.toFixed(4)).join(','));
         const grip = HANDS[id].grip;
         const gripWorld = new THREE.Vector3(
@@ -318,6 +342,8 @@ export async function runViewmodelContracts(ok, installGlobals) {
       }
       ok(valid && hipMounts.size >= 4,
         'remote-avatar mounts preserve weapon-specific grips and align every ADS sight through firing and crouch');
+      ok(carriedGeometryMismatch.length === 0,
+        `carried weapons build body geometry except the Blender-only slots in Node (${carriedGeometryMismatch.join(', ')})`);
     } finally {
       carried.dispose();
     }
@@ -468,6 +494,7 @@ export async function runViewmodelContracts(ok, installGlobals) {
 
     const lagByWeapon = new Map();
     const maxSpeedByWeapon = new Map();
+    const viewmodelGeometryMismatch = [];
     try {
       for (const id of WEAPON_IDS) {
         camera.rotation.set(0, 0, 0);
@@ -486,7 +513,10 @@ export async function runViewmodelContracts(ok, installGlobals) {
           && Number.isFinite(rig.posG.position.x)
           && Number.isFinite(rig.pivot.rotation.y),
         `${id} viewmodel builds, attaches, and updates to finite transforms`);
+        if ((bodyMeshCount(rig._models[id]) > 0) === NODE_BLENDER_ONLY.has(id)) viewmodelGeometryMismatch.push(id);
       }
+      ok(viewmodelGeometryMismatch.length === 0,
+        `first-person viewmodels build body geometry except the Blender-only slots in Node (${viewmodelGeometryMismatch.join(', ')})`);
 
       const muzzleProbe = (id) => {
         const model = rig._models[id];
@@ -528,7 +558,8 @@ export async function runViewmodelContracts(ok, installGlobals) {
         10,
       );
       const blockedIronSights = [];
-      for (const id of WEAPON_IDS.filter((weaponId) => weaponId !== 'sniper')) {
+      // The scoped sniper has no iron sight; Blender-only slots have no geometry in Node.
+      for (const id of WEAPON_IDS.filter((weaponId) => weaponId !== 'sniper' && !NODE_BLENDER_ONLY.has(weaponId))) {
         camera.rotation.set(0, 0, 0);
         rig.setWeapon(id);
         rig.ads(1);

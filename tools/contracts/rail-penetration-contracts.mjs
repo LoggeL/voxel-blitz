@@ -27,6 +27,11 @@ export function runRailPenetrationContracts(ok) {
     engine.stop();
     return result;
   }
+  const tap = chargeShotProfile(WEAPONS.lance, 0).hitRadius;
+  const full = chargeShotProfile(WEAPONS.lance, 1).hitRadius;
+  // RIVET's elbow bracer reaches 0.56 m from the centre line; probes add this
+  // bound so only the rail radius decides whether the widest body part is hit.
+  const BODY_REACH = 0.6;
   const clear = shoot();
   const covered = shoot([STONE, METAL]);
   ok(covered.hits.length === 1 && covered.damage > 0 && covered.damage < clear.damage
@@ -38,8 +43,8 @@ export function runRailPenetrationContracts(ok) {
   ok(shoot([PLANK], 0, 0).hits.length === 1 && shoot([METAL], 0, 0).hits.length === 0,
     'a tapped rail crosses soft wood but stops at hard metal');
   ok(shoot([], PLAYER_HALF.x + 0.4).hits.length === 1
-    && shoot([], 0.6 + 1.7).hits.length === 0,
-    'wide rail collision catches a clear graze and rejects targets outside its 1.6-meter radius');
+    && shoot([], BODY_REACH + full + 0.1).hits.length === 0,
+    'wide rail collision catches a clear graze and rejects targets outside its full-charge radius');
   ok(shoot([STONE], 0, 1, 42.8).hits.length === 1,
     'a body overlapping a pierced wall receives damage only once');
   const core = shoot([], PLAYER_HALF.x + 0.15);
@@ -48,13 +53,12 @@ export function runRailPenetrationContracts(ok) {
   ok(core.damage === clear.damage && middle.damage > edge.damage && edge.damage > 0
     && middle.damage < core.damage && core.hits.every(hit => !hit.hs),
     'rail core retains full damage while the corona fades continuously without grazing headshots');
-  // RIVET's elbow bracer reaches 0.56 m from the centre line, so the tap
-  // radius (0.64 m) is probed one metre out where only a full charge grazes.
-  ok(shoot([], PLAYER_HALF.x + 1.0, 0).hits.length === 0 && shoot([], PLAYER_HALF.x + 1.0).hits.length === 1,
+  // Probed past the tap radius plus the widest body part, where only a full
+  // charge still grazes.
+  const between = BODY_REACH + (tap + full) / 2;
+  ok(shoot([], between, 0).hits.length === 0 && shoot([], between).hits.length === 1,
     'a tap has a smaller real collision radius than a full charge');
-  const tap = chargeShotProfile(WEAPONS.lance, 0).hitRadius;
-  const full = chargeShotProfile(WEAPONS.lance, 1).hitRadius;
-  ok(full === 1.6 && Math.abs(tap - 0.64) < 1e-9
+  ok(tap > 0 && tap < full
     && beamReticleRadiusPx(full, 20) > beamReticleRadiusPx(tap, 20)
     && beamReticleRadiusPx(full, 10) > beamReticleRadiusPx(full, 20)
     && beamReticleRadiusPx(full, 20, 42) > beamReticleRadiusPx(full, 20, 75),

@@ -118,7 +118,8 @@ fire to 512 packets. The client renders a fixed 512-particle batch in one draw c
 local emission follows the current nozzle and stops immediately when fire is blocked.
 A sustained WebAudio noise loop replaces discrete gun reports and fades on release.
 
-Run `npm run flamethrower:test` for combat, hitbox, client cadence and audio checks.
+Run `npm run flamethrower:test` for combat, hitbox and client cadence checks;
+`npm run audio:test` includes the flamethrower audio suite.
 `node tools/flamethrower-render-smoke.mjs` verifies a sustained stream, nozzle continuity,
 range, wall clipping, pool limits, release behavior and WebGL rendering.
 
@@ -190,6 +191,10 @@ npm run menus:test   # menu Back/Forward history, killhouse run overlay, scorebo
 npm run container:smoke # HTTP + WebSocket check against BASE_URL or localhost
 npm run browser:smoke   # connected touch-mode menu, play, input, pause, and quit flow
 npm run browser:ui      # HUD/shop DOM mutation budgets and session input lifecycle
+npm run wheel:browser   # held-key weapon wheel pointer and DOM flow
+npm run duel:browser    # duel flow and duel scoreboard
+npm run sniper:browser  # scoped sniper client flow
+npm run weapons:blender:browser # Blender weapon templates and materials
 node tools/client-refactor-test.mjs --browser # shell batching, pixels and GPU cleanup
 npm run audio:mix       # actual sample + synth + echo + limiter browser render
 ```
@@ -201,6 +206,9 @@ artifacts under `.artifacts/`:
 npm run maps:capture
 npm run weapons:capture
 npm run avatars:capture
+npm run skybox:capture
+npm run menus:design:capture
+npm run gore:capture
 npm run weapons:capture -- --weapon revolver
 npm run weapons:capture -- --state scoped
 npm run audio:audit
@@ -776,7 +784,7 @@ arena screen, followed by the mesh sectors, so no frame renders before the
 Blender templates exist; tasks that already finished add no stage. A failed task
 is retried by the next request. `window.__vbAssets.status` exposes the task
 states. `npm run boot:profile` reports the menu-ready point and the background
-total; `npm run boot:test` (part of `browser:ui`) parks the Blender and sample
+total; `npm run boot:browser` (part of `browser:ui`) parks the Blender and sample
 requests at the network layer and proves that the menu responds and that quick
 play waits on the arena screen for exactly those assets.
 

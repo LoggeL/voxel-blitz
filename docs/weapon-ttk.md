@@ -20,7 +20,7 @@ Die Simulation ruft `resolveWeaponIntent`, `updateTimers`, `updateCondition`, `P
 - Szenarien: perfekte Körper-/Kopftreffer ohne Streuung sowie ADS Körper, ADS Kopf und Hüfte Körper mit echter Streuung. Zielpunkte liegen auf Brust- bzw. Kopfhöhe. Bei Streuung können auch andere Körperzonen getroffen werden. Bei der perfekten Schrotflinte treffen alle Pellets dieselbe Zone; das ist eine theoretische Untergrenze.
 - ADS ist vor Beginn erreicht. Rückstoß und Flugbahn werden perfekt kompensiert. Die Flugbahnkorrektur verwendet den echten diskreten Projektilintegrator samt Mündungsversatz. Kein Vorhalten gegen laufende Ziele.
 - Kein Gegenfeuer, keine Bewegung, keine Deckung oder Abpraller, keine Reaktions-/Netzlaufzeit, kein Wechseln, Heilen oder Upgrade. Explosionen bewegen das fixierte Ziel nicht. Der Aufbau beschreibt kontrollierte Waffenleistung und keine gemessene TTK echter Matches.
-- Minigun startet im Hauptvergleich kalt. Zusatzreihen zeigen bereits drehende Rotoren mit kalter und optimal heißer Waffe. Railgun lädt im Hauptvergleich vollständig; eine zusätzliche Suche bestimmt die früheste tödliche Teilaufladung in 50-ms-Schritten bei perfektem Kerntreffer. PIXEL PICK enthält zusätzlich Rückenangriffe.
+- Minigun startet im Hauptvergleich kalt. Zusatzreihen zeigen bereits drehende Rotoren mit kalter und optimal heißer Waffe. Railgun lädt im Hauptvergleich vollständig; eine zusätzliche Suche bestimmt die früheste tödliche Teilaufladung in Server-Tick-Schritten (16,7 ms) bei perfektem Kerntreffer. PIXEL PICK enthält zusätzlich Rückenangriffe.
 
 ## Wiederholbarkeit und Auswertung
 

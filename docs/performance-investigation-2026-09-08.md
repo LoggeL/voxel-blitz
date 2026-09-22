@@ -28,7 +28,7 @@ This addresses a demonstrated source of freezing. It does not establish that it 
 
 ## Reproduce
 
-Run `npm run feedback:test` for the 35 browser checks covering scoreboard modes and ping refresh, team colors, blocked/open/dead labels, shader variants, and pool cleanup.
+Run `npm run feedback:browser` for the 35 browser checks covering scoreboard modes and ping refresh, team colors, blocked/open/dead labels, shader variants, and pool cleanup.
 
 Run `npm run profile:gameplay` to launch a local server and installed Chromium browser. Set `PROFILE_BROWSER` to an explicit browser executable if needed, and `PROFILE_OUT` to change the output directory. On Windows PowerShell, for example:
 

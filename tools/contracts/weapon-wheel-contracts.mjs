@@ -1,12 +1,14 @@
 // Wheel geometry and session lifecycle. Real pointer/DOM interactions are
-// covered separately by tools/weapon-wheel-browser-test.mjs.
+// covered separately by `npm run wheel:browser`.
 
 export async function runWeaponWheelContracts(ok) {
   const { WHEEL_DEAD_ZONE, wheelAngleForSlot, wheelSlotFromVector } =
     await import('../../public/js/ui/weapon-wheel.js');
 
-  ok(WHEEL_DEAD_ZONE === 0.32,
-    'the weapon wheel pins its selection dead zone');
+  ok(WHEEL_DEAD_ZONE > 0 && WHEEL_DEAD_ZONE < 1
+      && wheelSlotFromVector(WHEEL_DEAD_ZONE * 0.5, 0, 8) === -1
+      && wheelSlotFromVector(0, -(WHEEL_DEAD_ZONE + 0.01), 8) === 0,
+    'the default dead zone ignores small deflections and selects just outside it');
 
   ok(wheelAngleForSlot(0, 4) === 270 && wheelAngleForSlot(1, 4) === 0
       && wheelAngleForSlot(2, 4) === 90 && wheelAngleForSlot(3, 4) === 180,
@@ -23,7 +25,7 @@ export async function runWeaponWheelContracts(ok) {
     'a four-slot wheel gives each cardinal its own slot');
   ok(wheelSlotFromVector(0, -1, 10) === 0 && wheelSlotFromVector(1, 0, 10) === 3
       && wheelSlotFromVector(0, 1, 10) === 5 && wheelSlotFromVector(-1, 0, 10) === 8,
-    'the shipped ten-slot wheel maps up/right/down/left onto slots 0/3/5/8');
+    'a ten-slot wheel maps up/right/down/left onto slots 0/3/5/8');
   ok(wheelSlotFromVector(Math.sin(Math.PI / 10), -Math.cos(Math.PI / 10), 10) === 1,
     'a vector on the ten-slot half-up boundary between slots rounds into the next clockwise slot');
   ok(wheelSlotFromVector(-Math.sin(Math.PI / 10), -Math.cos(Math.PI / 10), 10) === 0,
@@ -140,14 +142,14 @@ export async function runWeaponWheelContracts(ok) {
     queue.vector = { x: -1, y: 0 };
     wheel.sync();
     ok(!wheel.open && !state.open && state.picks.join() === '9' && state.radius === 230,
-      'Q press, card movement and release before a frame equip once using the visible radius');
+      'wheel-key press, card movement and release before a frame equip once using the visible radius');
   }
   {
     const { queue, state, wheel } = gestureHarness();
     queue.open = queue.release = true;
     wheel.sync();
     ok(!wheel.open && !state.open && state.picks.length === 0,
-      'a quick centered Q tap closes without equipping a weapon');
+      'a quick centered wheel-key tap closes without equipping a weapon');
   }
   {
     const { queue, state, wheel } = gestureHarness();

@@ -582,12 +582,11 @@ late join whose welcome/state is already live also proceeds directly.
   presentation release a fuse cooked to the end. `getGrenadeType()`
   and `cycleGrenadeType(dir)` own the selected throwable:
   `H` cycles it, and the wheel (or pad `Y`) cycles it while `G` is held instead
-  of switching weapons. `E` holds interact; `B` toggles the buy menu;
-  `1–9`/`0`/wheel/`Q` select weapons.
-  The radial weapon wheel drains `takeWheelOpenRequest()` (Q held
-  `WHEEL_HOLD_MS=180`, a middle-mouse press, pad `Y` held
-  `PAD_WHEEL_HOLD_MS=260`; a quicker Q press still
-  swaps to the previous weapon and a quicker Y tap still swaps or cycles the
+  of switching weapons. `T` holds interact; `B` toggles the buy menu;
+  `1–9`/`0`/wheel select weapons.
+  The radial weapon wheel drains `takeWheelOpenRequest()` (a `K` press,
+  where a centered tap closes without equipping; a middle-mouse press; pad `Y` held
+  `PAD_WHEEL_HOLD_MS=260`; a quicker Y tap still swaps or cycles the
   throwable), `takeWheelRelease()` (the opening control released while open),
   `takeWheelCancelRequest()` (`Esc`, right mouse, or pad `B` while open),
   `takeWheelVector()` (normalized selection motion where `1` equals
