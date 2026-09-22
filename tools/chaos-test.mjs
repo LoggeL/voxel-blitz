@@ -139,6 +139,17 @@ for (const [id, count] of [['rifle', 4], ['revolver', 2], ['lance', 4]]) {
   chaosHit(p, {}, [0, 10, 20], { entities: new Map(targets.map(t => [t.id, t])), canDamage: () => true, solidAt: () => false, pushEvent: () => {} });
   assert.equal(targets.filter(t => t.hp < 100).length, count, `${id} arcs to intended number of targets`);
 }
+for (const id of ['shotgun', 'rifle']) {
+  // Chaos knockback resets the same ground/vault state as blasts and client impulse adoption.
+  const launched = () => ({ id: 'launched', state: 'alive', x: 3, y: 10, eyeY: 11.6, z: 20, vx: 0, vy: 0, vz: 0, hp: 100,
+    grounded: true, coyote: 0.08, jumpGroundY: 10, vault: {}, takeDamage(n) { this.hp -= n; return false; } });
+  const direct = launched(), arced = Object.assign(launched(), { x: 5 });
+  chaosHit({ id: 'shooter', x: 0, z: 20, def: WEAPONS[id], chaosUpgrades: { [id]: 2 } }, direct, [3, 11.6, 20],
+    { entities: new Map(id === 'rifle' ? [[arced.id, arced]] : []), canDamage: () => true, solidAt: () => false, pushEvent: () => {} });
+  const body = id === 'rifle' ? arced : direct;
+  assert.deepEqual([body.impulseSeq, body.grounded, body.coyote, body.vault, body.jumpGroundY], [1, false, 0, null, null],
+    `${id} Chaos launch clears every state that could swallow it`);
+}
 console.log('Chaos: 51 purchases, complete weapon catalog, economy, stale requests, death persistence, normal-mode isolation, snapshots and cumulative weapon effects passed.');
 
 // Empty-space projectile fixtures verify explosions and steering without map geometry noise.

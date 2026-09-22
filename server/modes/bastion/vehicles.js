@@ -2,7 +2,7 @@ import { evShoot, evHit } from '../../protocol/events.js';
 import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import { BEDROCK, METAL, BARRICADE, AIR, GROUND, isSolidBlock } from '../../../shared/world/blocks.js';
 import { damageBlock } from '../../sim/combat.js';
-import { aimAngles, wrapAngle, fwdFromYawPitch } from '../../sim/player.js';
+import { aimAngles, wrapAngle, fwdFromYawPitch, markLaunched } from '../../sim/player.js';
 
 const RAM_MS = 250, HARD_STALL_MS = 3000, OBJECTIVE_RAM_MS = 1000, CONTACT_MS = 700, SEEN_MS = 4000, ROCKET_SPREAD = 0.05;
 const turn = (a, b, rate) => a + Math.max(-rate, Math.min(rate, wrapAngle(b - a)));
@@ -98,7 +98,7 @@ export function stepVehicle(engine, policy, p, dt) {
     route.lastContact.set(id, now);
     const lethal = d.takeDamage(profile.ramPlayerDamage, false, p, 'ram');
     d.vx += fwd.x * profile.ramKnock; d.vz += fwd.z * profile.ramKnock; d.vy += 5;
-    d.impulseSeq = (d.impulseSeq || 0) + 1; d.grounded = false; d.vault = null;
+    markLaunched(d);
     engine.tickEvents.push(evHit(p.id, d.id, profile.ramPlayerDamage, false, [d.x, d.y + 1, d.z], d.lastDamage));
     if (lethal) engine.killPlayer(d, p, 'ram', false, null);
   }

@@ -4,7 +4,7 @@ import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { GROUND, BARRICADE, AIR } from '../../../shared/world/blocks.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { damageBlock } from '../../sim/combat.js';
-import { PlayerEntity, aimAngles, wrapAngle, fwdFromYawPitch } from '../../sim/player.js';
+import { PlayerEntity, aimAngles, wrapAngle, fwdFromYawPitch, markLaunched } from '../../sim/player.js';
 import { observeBotTarget } from '../../bot-perception.js';
 import { BastionNavigation } from './navigation.js';
 import { stepVehicle } from './vehicles.js';
@@ -282,7 +282,7 @@ export class BastionEnemies {
       if (len > 2.2 || (dx * fwd.x + dz * fwd.z) / len < 0.2) continue;
       const lethal = d.takeDamage(profile.slamDamage, false, p, 'slam');
       d.vx += fwd.x * profile.slamKnock; d.vz += fwd.z * profile.slamKnock; d.vy += 5;
-      d.impulseSeq = (d.impulseSeq || 0) + 1; d.grounded = false; d.vault = null;
+      markLaunched(d);
       e.tickEvents.push(evHit(p.id, d.id, profile.slamDamage, false, [d.x, d.y + 1, d.z], d.lastDamage));
       if (lethal) e.killPlayer(d, p, 'slam', false, null);
     }

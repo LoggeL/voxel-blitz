@@ -25,7 +25,7 @@ import {
   evProjectileLaunch,
   evProjectileUpdate,
 } from '../protocol/events.js';
-import { fwdFromYawPitch } from './player.js';
+import { fwdFromYawPitch, markLaunched } from './player.js';
 import {
   GRENADE_TYPES,
   GRENADE_TYPE_IDS,
@@ -583,7 +583,7 @@ export class ProjectileSystem {
       if (distance < 0.5 || distance > 9 || !visibleTo(ctx, [projectile.x, projectile.y, projectile.z], [v.x, v.y + 1, v.z])) continue;
       const force = Math.min(0.05, Math.max(0, dt)) * 32 / distance;
       v.vx += dx * force; v.vy += Math.max(0.15, dy) * force; v.vz += dz * force;
-      v.impulseSeq = (v.impulseSeq || 0) + 1; v.grounded = false; v.vault = null;
+      markLaunched(v);
     }
   }
 
@@ -710,14 +710,8 @@ export class ProjectileSystem {
         rules.knockbackFalloff ?? 1.22);
       const impulse = Math.max(0, strength * pressure);
       const invDistance = distance > 0.01 ? 1 / distance : 0;
-      if (impulse > 0) {
-        // A grounded acceleration step or an in-progress vault must not swallow the launch.
-        victim.impulseSeq = (victim.impulseSeq || 0) + 1;
-        victim.grounded = false;
-        victim.coyote = 0;
-        victim.vault = null;
-        victim.jumpGroundY = null;
-      }
+      // A grounded acceleration step or an in-progress vault must not swallow the launch.
+      if (impulse > 0) markLaunched(victim);
       victim.vx += dx * invDistance * impulse;
       victim.vy += Math.max(0.8, dy * invDistance + 0.35) * impulse;
       victim.vz += dz * invDistance * impulse;

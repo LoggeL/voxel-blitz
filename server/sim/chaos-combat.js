@@ -4,6 +4,7 @@ import { WEAPONS } from '../../shared/combatmath.js';
 import { FLAME_RULES } from '../../shared/flame-rules.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { evHit, evShoot } from '../protocol/events.js';
+import { markLaunched } from './player.js';
 
 /** Chaos side projectiles credit their kills to the weapon `id` that spawned them. */
 function fan(p, id, ctx, dir, count, rocket = false, circle = false) {
@@ -75,7 +76,7 @@ export function chaosHit(p, victim, point, ctx) {
   if (id === 'shotgun' && victim.state === 'alive') {
     const dx = victim.x - p.x, dz = victim.z - p.z, len = Math.hypot(dx, dz) || 1;
     victim.vx += dx / len * 3; victim.vz += dz / len * 3; victim.vy = Math.max(9, victim.vy);
-    victim.impulseSeq = (victim.impulseSeq || 0) + 1; victim.grounded = false; victim.vault = null;
+    markLaunched(victim);
   }
   const count = id === 'rifle' ? (level >= 2 ? 4 : 2) : id === 'revolver' ? 2 : id === 'lance' && level >= 2 ? 4 : 0;
   if (!count) return;
@@ -91,7 +92,7 @@ export function chaosHit(p, victim, point, ctx) {
     const lethal = v.takeDamage(damage, false, p, id);
     ctx.pushEvent(evHit(p.id, v.id, damage, false, [v.x, v.eyeY, v.z], v.lastDamage));
     if (lethal) ctx.killPlayer(v, p, id, false);
-    else if (id === 'rifle' && level >= 2) { v.vy = Math.max(v.vy, 12); v.grounded = false; v.vault = null; v.impulseSeq = (v.impulseSeq || 0) + 1; }
+    else if (id === 'rifle' && level >= 2) { v.vy = Math.max(v.vy, 12); markLaunched(v); }
     if (++hit >= count) break;
   }
 }
