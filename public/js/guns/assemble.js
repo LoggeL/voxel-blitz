@@ -1,5 +1,5 @@
 import { clearGunCosmetics } from '../cosmetics/skins.js';
-// Ten-model registry and shared first-person gun composition root.
+// Model registry and shared first-person gun composition root.
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTrees } from '../engine/dispose.js';
 import { imagegenMap } from '../engine/blender-assets.js';
@@ -40,11 +40,6 @@ const MODELS = Object.freeze({
   flamethrower: buildFlamethrower,
 });
 
-// Glow accents for the two roster ids kit.js's GLOW_ACCENT sheet does not carry yet. makeFx()
-// defaults to GLOW_ACCENT[id], so assemble passes the def-tracer-matched colors here and the
-// rig, HUD icon rasterizer, and models all agree on one accent per weapon.
-const FX_ACCENT = Object.freeze({ lance: 0xc9a2ff, knife: 0xb8c4d4 });
-
 /**
  * Melee bundles have no ballistic muzzle flash, but the flash object is part of the model
  * contract: the rig (revealFlash/flashOff/_decayFx), the avatar mount, and HUD capture all
@@ -57,7 +52,7 @@ function makeMeleeFlash() {
 
 /**
  * Assemble one model bundle. MaterialCache is rig-owned; registering the completed hierarchy
- * preserves one shared-material reference per rig even when all ten models are built lazily.
+ * preserves one shared-material reference per rig even when every model is built lazily.
  */
 export function buildGun(id, cache) {
   const buildModel = MODELS[id];
@@ -101,7 +96,7 @@ export function buildGun(id, cache) {
   flash.grp.position.copy(muzzleMarker.position).add(new THREE.Vector3(0, 0, -0.01));
   body.add(flash.grp);
 
-  const fx = makeFx(id, FX_ACCENT[id]);
+  const fx = makeFx(id);
   const uni = fx.uniforms;
   const glow = fx.material;
   if (!melee && id !== 'revolver') {

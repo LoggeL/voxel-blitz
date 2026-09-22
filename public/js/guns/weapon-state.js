@@ -20,7 +20,6 @@ import {
   chargeShotProfile,
 } from '../../../shared/combatmath.js';
 import { weaponSwapProfile } from '../../../shared/weapon-swap.js';
-import { TIMERS } from './defs.js';
 
 const EMPTY_AMMO = Object.freeze({ mag: 0, reserve: 0 });
 const DEFAULT_MODE = 'fun';
@@ -306,7 +305,7 @@ export class WeaponState {
   }
 
   /**
-   * Apply already-consumed input edges. Ordering matches the former Game.sampleMovement block:
+   * Apply already-consumed input edges. Ordering matches LocalPlayer._sampleMovement:
    * wheel, direct slot, last weapon, reload, then fire tap/hold staging.
    */
   applyIntents({
@@ -341,7 +340,6 @@ export class WeaponState {
       this._chargeHeldPrev = false;
       this._stopFlame();
       this._scopeActive = false;
-      this._fireTapLatched = false;
       this._pendingShotIntent = { tap: false, held: false };
       return;
     }
@@ -355,8 +353,6 @@ export class WeaponState {
       if (!this._queuedReload) this.startReload(now);
     }
 
-    if (fireTap && this._allowFire) this._fireTapLatched = true;
-    if (!this._allowFire) this._fireTapLatched = false;
     this._pendingShotIntent = {
       tap: this._allowFire && !reload && !!fireTap,
       held: this._allowFire && !!fireHeld,
@@ -378,7 +374,6 @@ export class WeaponState {
     this._stopFlame();
     this._audio.minigunMotor?.(0, 0, false);
     this._pendingShotIntent = null;
-    this._fireTapLatched = false;
     this._wantAds = false;
     this._allowFire = false;
     this._grenadeHandling = false;
@@ -451,19 +446,6 @@ export class WeaponState {
     this._reloadState = null;
     this._completedReloadWeapon = reload.weapon;
     return true;
-  }
-
-  /**
-   * Complete all weapon phases without an interposed network send. The composition root uses
-   * tickReload()/tryFire(), sends input, then settleFrame() to preserve the live loop ordering.
-   */
-  update(dt, now, context) {
-    if (this._disposed) return false;
-    this._acceptFrameContext(context);
-    this.tickReload(now);
-    const fired = this._tryFire(now);
-    this.settleFrame(dt);
-    return fired;
   }
 
   /** Bloom recovery and ADS are intentionally separate from the pre-send reload/fire phase. */
@@ -828,6 +810,7 @@ export class WeaponState {
     if (this._rig.root) this._rig.root.visible = true;
   }
 
+  /** Full state reset, used by the constructor (and tests); not tied to any menu. */
   menuReset() {
     this._weaponLoadout = {};
     this._quickMeleeUntil = -Infinity;
@@ -852,7 +835,6 @@ export class WeaponState {
     this._wantAds = false;
     this._scopeActive = false;
     this._pendingShotIntent = null;
-    this._fireTapLatched = false;
     this._chargeStart = null;
     this._chargeHeldPrev = false;
     this._allowFire = false;
