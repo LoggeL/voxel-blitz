@@ -204,11 +204,9 @@ export async function runInputContracts(ok, installGlobals) {
       'trackpad mode scales look up and smooths it over a few frames without losing motion');
       input.setOptions({ pointerMode: 'auto' });
       input._onKeyDown(key('KeyZ'));
-      input.setScopeZoomMode(true);
       input._onWheel(wheel(100, 9000));
       ok(input.consumeZoomStep() === 1 && input.consumeWeaponSwitch() === 1,
         'Z changes scope zoom while scrolling switches weapons even when scoped');
-      input.setScopeZoomMode(false);
 
       input._onKeyDown(key('KeyT'));
       ok(input.getKeys().interact,
@@ -549,17 +547,15 @@ export async function runInputContracts(ok, installGlobals) {
       'unlocked overlay pointer motion is never applied again as relative wheel input');
       input.dispose();
 
-      // Open-wheel scroll steps the wheel and wins over scope zoom.
+      // Open-wheel scroll steps the wheel and never queues a scope zoom step.
       input = new Input({});
       input.setWeaponWheelOpen(true);
       input._onWheel(wheel(100, 1000));
       ok(input.takeWheelSteps() === 1 && input.takeWheelSteps() === 0,
       'an open-wheel scroll queues one slot step and drains');
-      input.setScopeZoomMode(true);
       input._onWheel(wheel(100, 1200));
       ok(input.consumeZoomStep() === 0 && input.takeWheelSteps() === 1,
-      'an open wheel wins over scope zoom: scroll steps the wheel, not the scope');
-      input.setScopeZoomMode(false);
+      'an open-wheel scroll steps the wheel and never queues a scope zoom step');
       input.dispose();
 
       // Digits route to the wheel while open and to the slot seam while closed.

@@ -142,8 +142,7 @@ export class Input {
     this._buildToggleQueued = false;
     this._buildRotateQueued = false;
     this._buildExitQueued = false;
-    this._zoomStepQueue = 0;   // scope zoom steps (KeyZ, wheel while scoped, R3)
-    this._scopeZoomMode = false;
+    this._zoomStepQueue = 0;   // scope zoom steps (KeyZ, R3)
     // Radial weapon wheel seam: while open, devices reroute (see setWeaponWheelOpen).
     this._wheelOpen = false;
     this._wheelVecX = 0;       // raw mouse px (pad look scaled) toward full ring deflection
@@ -154,7 +153,6 @@ export class Input {
     this._wheelReleaseQueued = false;
     this._wheelCancelQueued = false;
     this._wheelKeyHeld = false;
-    this._mmbHeld = false;     // physical middle-mouse latch while it opens the wheel
     this._padYHeld = false;    // pad Y tap/hold split: holding Y opens the wheel
     this._padYDownAt = 0;
     this._padYWheelFired = false;
@@ -427,11 +425,6 @@ export class Input {
 
   _assistScale() {
     return 1 - AIM_ASSIST_MAX_SLOWDOWN * this._aimAssist;
-  }
-
-  /** Wheel steps become zoom steps instead of weapon switches while scoped. */
-  setScopeZoomMode(active) {
-    this._scopeZoomMode = !!active;
   }
 
   /** Per-frame contextual visibility for the touch buttons; cheap when unchanged. */
@@ -803,7 +796,7 @@ export class Input {
     return queued;
   }
 
-  /** Scope zoom steps (Z, wheel while scoped, R3) since the last call. */
+  /** Scope zoom steps (Z / R3) since the last call. */
   consumeZoomStep() {
     const q = this._zoomStepQueue;
     this._zoomStepQueue = 0;
@@ -986,7 +979,6 @@ export class Input {
     this._wheelReleaseQueued = false;
     this._wheelCancelQueued = false;
     this._wheelKeyHeld = false;
-    this._mmbHeld = false;
     this._padYHeld = false;
     this._padYDownAt = 0;
     this._padYWheelFired = false;
@@ -1276,7 +1268,6 @@ export class Input {
       this._fireTapQueued = true;
     } else if (e.button === 1) {
       this._wheelOpenQueued = true;
-      this._mmbHeld = true;
     } else if (e.button === 2) {
       this._toggleAds(true);
       e.preventDefault();
@@ -1284,10 +1275,7 @@ export class Input {
   }
 
   _onMouseUp(e) {
-    if (e.button === 1) {
-      this._mmbHeld = false;
-      return;
-    }
+    if (e.button === 1) return;
     if (this._wheelOpen) return;
     if (e.button === 0) this._mouseFire = false;
     else if (e.button === 2 && this.adsMode() === 'hold') this._mouseAds = false;

@@ -770,12 +770,11 @@ class Game {
     });
     this.presentGrenadeHandling(now);
     const def = this.weapon.def;
-    // Scope zoom steps (Z, wheel while scoped, R3, touch ZOOM) only while looking through the optic.
+    // Scope zoom steps (Z / R3) only while looking through the optic.
     const zoomSteps = this.input.consumeZoomStep();
     if (zoomSteps && this.weapon.scopeActive) {
       for (let i = 0; i < Math.abs(zoomSteps); i++) this.player.cycleScopeZoom(def);
     }
-    this.input.setScopeZoomMode(!!this.weapon.scopeActive);
     if (this.spectator?.active) {
       if (this.camera.fov !== this.session.baseFov) {
         this.camera.fov = this.session.baseFov;
