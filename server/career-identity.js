@@ -12,10 +12,18 @@ export function careerProfilePath(directory, id) {
   return account ? path.join(directory, 'account-careers', account[1] + '.json') : null;
 }
 
+// Parsed once per request and cookie header; live sockets ask on every frame.
+const guestCookies = new WeakMap();
+
 export function guestCookie(req) {
-  const value = String(req.headers?.cookie || '').split(';').map(v => v.trim())
+  const header = String(req.headers?.cookie || '');
+  const cached = req && typeof req === 'object' ? guestCookies.get(req) : null;
+  if (cached?.header === header) return cached.guest;
+  const value = header.split(';').map(v => v.trim())
     .find(v => v.startsWith('vb-career='))?.slice('vb-career='.length);
-  return GUEST_TOKEN.test(value || '') ? value : null;
+  const guest = GUEST_TOKEN.test(value || '') ? value : null;
+  if (req && typeof req === 'object') guestCookies.set(req, { header, guest });
+  return guest;
 }
 
 /** A durable claim is the transfer boundary. Its snapshot also recovers an

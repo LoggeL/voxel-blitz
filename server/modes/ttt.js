@@ -93,6 +93,19 @@ export class TttPolicy extends FunPolicy {
           .map(p=>({id:p.id,name:p.name,x:p.x,y:p.y+1,z:p.z,ally:true,live:true})):[],
       allies: role === 'traitor' ? [...this.roles].filter(([,r]) => r === 'traitor').map(([id]) => id) : [] };
   }
+  /**
+   * One recipient's tick. Only their own row carries private state. Until the
+   * round ends nobody learns who killed whom: no kill events, no foreign
+   * kill/death/score counters, and bystanders see hits without the attacker.
+   */
+  viewFor(recipientId, tick) {
+    const self = String(recipientId), secret = tick.match?.phase !== 'post';
+    return { ...tick,
+      events: tick.events?.filter(event => event.kind !== 'kill').map(event =>
+        secret && event.kind === 'hit' && event.attacker !== self && event.victim !== self ? { ...event, attacker: '' } : event),
+      players: tick.players.map(p => String(p.id) === self ? { ...p, ttt: this.privateState(self) }
+        : { ...p, disguised: this.equipment.isDisguised(p.id), ...(secret ? { kills: 0, deaths: 0, score: 0 } : {}) }) };
+  }
   drop(p) {
     if (!p?.owned.length) return false;
     const weapon = p.owned[0], slot = WEAPON_IDS.indexOf(weapon);
@@ -207,7 +220,10 @@ export class TttPolicy extends FunPolicy {
       return;
     }
     if (this.phase === 'prep' && this.phaseEndsAt !== null && this.now >= this.phaseEndsAt) {
+      // Deaths before roles exist (falls, drowning) must not cost the round.
+      for (const p of this._entities.values()) if (p.state === 'dead' && this._players.has(String(p.id))) this._respawn(p);
       const players = [...this._entities.values()].filter(p => p.state === 'alive');
+      // Roles need two living players; the round starts as soon as one joins.
       if (players.length < 2) return;
       for (let i=players.length-1;i>0;i--) { const j=randomInt(i+1); [players[i],players[j]]=[players[j],players[i]]; }
       players.forEach((p,i) => { const role=i<tttTraitorCount(players.length, this.rules.traitorPercent)?'traitor':'innocent';
@@ -221,15 +237,20 @@ export class TttPolicy extends FunPolicy {
     this.traps.tick();
     const living=[...this._entities.values()].filter(p=>p.state==='alive' && this.roles.has(String(p.id)));
     const traitors=living.filter(p=>this.roles.get(String(p.id))==='traitor').length;
-    if (!traitors || traitors===living.length || this.now>=this.phaseEndsAt) {
-      this.matchWinner = !traitors || this.now>=this.phaseEndsAt ? 'innocent' : 'traitor';
+    const timeUp=this.now>=this.phaseEndsAt;
+    if (timeUp || !traitors || traitors===living.length) {
+      // Terrortown order: time limit, then nobody alive (traitors), then the last side standing.
+      this.matchWinner = timeUp ? 'innocent' : !living.length || traitors===living.length ? 'traitor' : 'innocent';
       this.karma.end();
       this.phase='post'; this.phaseEndsAt=null;
       this.traps.clear();
     }
   }
   matchSnapshot() {
+    const waiting = this.phase==='prep' && this.phaseEndsAt!==null && this.now>=this.phaseEndsAt
+      ? [...this._entities.values()].filter(p=>p.state==='alive').length : null;
     return { ...super.matchSnapshot(), phaseEndsAt: this.phaseEndsAt, round: this.round, winner: this.matchWinner,
+      ...(waiting!==null && waiting<2 ? { waiting: { have: waiting, need: 2 } } : {}),
       weaponPickups: [...this.pickups.values()].map(({mag,reserve,...item})=>item),
       c4: this.equipment.bombSnapshot(),
       corpses: [...this.corpses.values()].map(body=>({id:body.id,x:body.x,y:body.y,z:body.z,yaw:body.yaw,identified:body.identified,

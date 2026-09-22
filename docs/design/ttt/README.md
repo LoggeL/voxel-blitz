@@ -3,12 +3,12 @@
 Erste spielbare Version im Lobby-Menü. Mindestens zwei Teilnehmer; Bots zählen mit.
 
 - Vorbereitung: 60 Sekunden frei bewegen und Waffen suchen, kein Schaden.
-- Rollen: zufällig 25 Prozent Traitors (abgerundet, mindestens einer), übrige Innocents. Rollen werden erst nach der Vorbereitung erzeugt. Bei nur einem Teilnehmer wartet die Rollenvergabe auf weitere Teilnehmer.
+- Rollen: zufällig 25 Prozent Traitors (abgerundet, mindestens einer), übrige Innocents. Rollen werden erst nach der Vorbereitung erzeugt. Bei nur einem Teilnehmer wartet die Rollenvergabe auf weitere Teilnehmer; die Anzeige zeigt dann „WARTE AUF SPIELER (1/2)“ statt der Uhr. Wer in der Vorbereitung stirbt, erscheint zum Rundenstart wieder.
 - 48 zufällig platzierte Waffen auf begehbaren Bodenflächen, verteilt auf sechs Waffentypen. Ein Waffenplatz, kein Startgewehr und keine zusätzlichen Granaten oder Spitzhacke.
 - E hebt eine nahe Waffe auf. L legt die getragene Waffe ab. Beide Aktionen stehen auch als Bildschirmtasten bereit. Die Tasten sind in den Einstellungen änderbar. Zum Wechseln erst ablegen.
 - B öffnet den geheimen Traitor-Shop. Zwei Credits pro Runde, je ein Credit für Radar, Disguiser, Teleporter, +50 Rüstung, +35 Gesundheit oder volle Reservemunition. Gadget-Bedienung, Originalquellen und Screenshots stehen in [Traitor-Ausrüstung](shop-equipment/README.md). Käufe ohne Nutzen verbrauchen keinen Credit. Jede Aktion wird vom Server geprüft.
-- Rollen und Guthaben werden nur an den jeweiligen Spieler übertragen. Traitors sehen die Namen ihrer Mitstreiter. Erst nach Rundenende werden alle Rollen im Ergebniszustand veröffentlicht.
-- Ein Leben. Späte Beitritte während der aktiven Runde warten als Zuschauer. Innocents gewinnen bei ausgeschalteten Traitors oder nach fünf Minuten; Traitors gewinnen, wenn kein Innocent mehr lebt. Der vorhandene Abstimmungsablauf startet die nächste Runde mit erneuter Vorbereitung.
+- Rollen und Guthaben werden nur an den jeweiligen Spieler übertragen. Traitors sehen die Namen ihrer Mitstreiter. Erst nach Rundenende werden alle Rollen im Ergebniszustand veröffentlicht. Bis dahin sehen Spieler keine Kill-Ereignisse, keine fremden Kill-, Tod- und Punktezähler und bei fremden Treffern keinen Schützen; die Tabelle ist nach Namen sortiert.
+- Ein Leben. Späte Beitritte während der aktiven Runde warten als Zuschauer. Innocents gewinnen bei ausgeschalteten Traitors oder nach fünf Minuten; Traitors gewinnen, wenn kein Innocent mehr lebt, auch wenn alle gleichzeitig sterben. Der vorhandene Abstimmungsablauf startet die nächste Runde mit erneuter Vorbereitung.
 
 Diese erste Version enthält keine Detektivrolle, Leichenuntersuchung, Karma oder zusätzliche Kommunikationskanäle. Bots verwenden bislang das vorhandene Kampfverhalten, keine soziale Täuschungslogik.
 

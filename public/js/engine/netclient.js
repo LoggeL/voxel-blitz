@@ -748,7 +748,10 @@ export class NetClient {
       }
       case 'lobbyConfig': {
         if (this.latestLobbyState?.phase !== 'waiting' || msg.id !== this.id) break;
-        this._pendingLobbyConfig = immutableWireCopy(msg);
+        // Replaces the admission welcome, so keep its per-connection career data.
+        this._pendingLobbyConfig = immutableWireCopy({ ...msg,
+          weaponLoadout: msg.weaponLoadout || this.welcome?.weaponLoadout || {},
+          mastery: msg.mastery && typeof msg.mastery === 'object' ? msg.mastery : this.welcome?.mastery || {} });
         break;
       }
       case 'lobbyState': {

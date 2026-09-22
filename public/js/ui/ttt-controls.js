@@ -36,7 +36,11 @@ export class TttControls {
   }
   examine() { if(this.body&&!this.inspect.disabled)this.send(`ttt:inspect:${this.body.id}`); }
   take() { if(this.nearest&&!this.pickup.disabled)this.send(`ttt:pickup:${this.nearest.id}`); }
-  /** The server also reads the raw interact key; this request is a harmless duplicate. */
+  /**
+   * The browser's only trap path: outside S&D and Bastion repair the client
+   * zeroes `keys.interact`, so examine/pickup presses near a button never fire
+   * it. The server's raw interact-edge path serves protocol clients and tests.
+   */
   fire() { if(this.trap&&!this.trapButton.disabled)this.send(`ttt:trap:${this.trap.id}`); }
   trapTriggered(event) { if(this.game.selfRow?.ttt?.role==='traitor'){this.note=`${event.name} ausgelöst`;this.noteUntil=Date.now()+4000;} }
   sync(match,self,players) {

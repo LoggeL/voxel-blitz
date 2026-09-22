@@ -212,7 +212,7 @@ export class MatchHud {
       const fuseRemSec = Math.max(0, (match.bomb.explodeAt - sNow) / 1000);
       clockText = `${fuseRemSec.toFixed(1)}s`;
       isUrgentBomb = true;
-    } else if (['snd','ttt'].includes(curMode) && Number.isFinite(match?.phaseEndsAt)) {
+    } else if (['snd','ttt'].includes(curMode) && Number.isFinite(match?.phaseEndsAt) && !match.waiting) {
       const remSec = Math.max(0, (match.phaseEndsAt - sNow) / 1000);
       clockText = formatClock(remSec);
     }
@@ -224,7 +224,8 @@ export class MatchHud {
 
     if (m.phaseLabel) {
       if (curMode === 'ttt') {
-        m.phaseLabel.textContent = phase === 'prep' ? 'VORBEREITUNG · WAFFEN SUCHEN' : phase === 'post' ? 'RUNDE BEENDET' : (selfRow?.ttt?.role || 'ZUSCHAUER').toUpperCase();
+        m.phaseLabel.textContent = phase === 'prep' && match?.waiting ? `WARTE AUF SPIELER (${match.waiting.have}/${match.waiting.need})`
+          : phase === 'prep' ? 'VORBEREITUNG · WAFFEN SUCHEN' : phase === 'post' ? 'RUNDE BEENDET' : (selfRow?.ttt?.role || 'ZUSCHAUER').toUpperCase();
       } else if (curMode === 'snd') {
         const status = phase === 'prep' ? 'BUY' : phase === 'post' ? 'ROUND OVER' : '';
         m.phaseLabel.textContent = `R${match?.round || 1}${status ? ` · ${status}` : ''}`;

@@ -10,7 +10,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { staticHandler } from './static.js';
 import { LobbyManager } from './lobby.js';
 import { ServerDiagnostics } from './diagnostics.js';
-import { TICK_MS, parseAdmissionFrame, parseBuyFrame } from './protocol/admission.js';
+import { TICK_MS, parseAdmissionFrame, parseBuyFrame, sanitizeName } from './protocol/admission.js';
 
 const MAX_CONNECTIONS = 256;
 const MAX_MESSAGE_BYTES = 64 * 1024;
@@ -42,18 +42,6 @@ process.on('unhandledRejection', (err) => {
 function resolvePort() {
   const v = Number.parseInt(process.env.PORT, 10);
   return Number.isInteger(v) && v >= 0 && v <= 65535 ? v : 8070;
-}
-
-/** Strip controls/zero-widths, collapse whitespace, clamp to 16 chars. */
-export function sanitizeName(raw, ordinal) {
-  let name = typeof raw === 'string' ? raw
-    // eslint-disable-next-line no-control-regex
-    .replace(/[\u0000-\u001f\u007f-\u009f\u200b-\u200f\u202a-\u202e\u2066-\u2069]/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 16) : '';
-  const suffix = Number.isSafeInteger(ordinal) ? ordinal : '';
-  return name.length > 0 ? name : 'Rookie' + suffix;
 }
 
 async function main() {
@@ -108,16 +96,15 @@ async function main() {
   // One tick snapshot reaches every member of a room; serialize it once.
   const payloadCache = new WeakMap();
 
-  function sendJson(c, obj) {
+  // `source` is the authoritative tick behind a per-recipient view (TTT hides
+  // kill events from players); rewards are always observed on the full tick.
+  function sendJson(c, obj, source = obj) {
     try {
       // Session revocation affects existing sockets immediately. A guest can
       // keep playing, but an old login or claimed guest token earns no XP.
-      if (c.authRequest) {
-        const current = career.identity(c.authRequest);
-        c.profileId = current === c.admittedProfileId ? current : null;
-      }
+      career.refreshClientIdentity(c);
       obj = career.decorateSnapshot(obj, clients);
-      const saving = career.observe(c, obj);
+      const saving = career.observe(c, source);
       // File persistence returns the updated profile; PostgreSQL returns a promise.
       saving?.catch?.(error => {
         if (!c.careerErrorLogged) console.error('[career] reward save failed:', error.message);
@@ -155,10 +142,11 @@ async function main() {
       if (await accounts.handleHttp(req, res)) return;
       if (await career.handleHttp(req, res)) return;
       if ((req.url || '').split('?')[0] === '/healthz' && req.method === 'GET') {
-        store?.assertAvailable();
+        // `healthy` already covers a lost writer and a failed reward save.
         const healthy = !store || store.healthy;
+        const status = healthy ? 'ok' : store.rewardError ? 'saving failed' : store.active ? 'saving delayed' : 'unavailable';
         res.writeHead(healthy ? 200 : 503, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-        res.end(JSON.stringify({ status: healthy ? 'ok' : 'saving delayed', persistence }));
+        res.end(JSON.stringify({ status, persistence }));
         return;
       }
       if ((req.url || '').split('?')[0] === '/api/lobbies' && req.method === 'GET') {
@@ -389,10 +377,7 @@ async function main() {
           manager.buy(meta, parseBuyFrame(msg));
           return;
         }
-        if (msg.t === 'chat') {
-          const text = String(typeof msg.text === 'string' ? msg.text : '').slice(0, 120).trim();
-          if (text) manager.chat(meta, text);
-        }
+        if (msg.t === 'chat') manager.chat(meta, msg.text);
       } catch { /* malformed game traffic must not kill sockets */ }
     });
 

@@ -13,6 +13,9 @@ export function gunLevel(player) {
 }
 
 export function rankPlayers(players, mode) {
+  // TTT order must not reveal who has killed or who died unseen.
+  if (mode === 'ttt') return [...players].sort((a, b) =>
+    String(a.name ?? '').localeCompare(String(b.name ?? '')) || String(a.id).localeCompare(String(b.id)));
   return [...players].sort((a, b) =>
     (mode === 'gungame' ? (b.score | 0) - (a.score | 0) : 0)
     || (b.kills | 0) - (a.kills | 0)

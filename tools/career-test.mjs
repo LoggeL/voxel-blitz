@@ -80,6 +80,35 @@ try {
   sndTick('post', 'alpha');
   assert.equal(service.profile(sndId).xp, 150, 'S&D match reward is awarded once');
 
+  // TTT has no teams: the secret role decides friendly fire and victory.
+  const tttEngine = new GameEngine({ mode: 'ttt' });
+  for (const pid of ['t1', 't2', 'i1', 'i2', 'i3', 'i4', 'i5', 'i6']) tttEngine.addClient(pid, pid);
+  const tttPolicy = tttEngine.mode.policy;
+  tttEngine.now = tttPolicy.phaseEndsAt; tttEngine.mode.tick();
+  for (const pid of tttEngine.entities.keys()) tttPolicy.roles.set(pid, pid.startsWith('t') ? 'traitor' : 'innocent');
+  let tttNow = 0;
+  const tttObserve = (client, patch = {}) => service.observe(client, {
+    t: 'tick', now: ++tttNow * 1000, events: [], players: [{ id: client.id, team: null, state: 'alive' }],
+    match: { mode: 'ttt', phase: 'live', winner: null }, ...patch,
+  });
+  const traitorCareer = { id: 't1', profileId: randomBytes(32).toString('hex'), room: { engine: tttEngine } };
+  const innocentCareer = { id: 'i2', profileId: randomBytes(32).toString('hex'), room: { engine: tttEngine } };
+  tttEngine.entities.get('t1').input = tttEngine.entities.get('i2').input = { keys: { f: true } };
+  tttObserve(traitorCareer, { events: [{ kind: 'kill', killer: 't1', victim: 'i1', w: 'rifle', hs: false }] });
+  assert.equal(service.profile(traitorCareer.profileId).pvpKills, 1, 'a traitor killing an innocent counts');
+  assert.equal(service.profile(traitorCareer.profileId).mastery.rifle?.kills, 1, 'TTT kills feed weapon mastery');
+  tttObserve(traitorCareer, { events: [{ kind: 'kill', killer: 't1', victim: 't2', w: 'rifle', hs: false }] });
+  assert.equal(service.profile(traitorCareer.profileId).pvpKills, 1, 'killing a fellow traitor earns nothing');
+  tttObserve(innocentCareer, { events: [{ kind: 'kill', killer: 'i2', victim: 'i3', w: 'rifle', hs: false }] });
+  assert.equal(service.profile(innocentCareer.profileId).xp, 0, 'killing a fellow innocent earns nothing');
+  for (let i = 0; i < 11; i++) { tttObserve(traitorCareer); tttObserve(innocentCareer); }
+  tttObserve(traitorCareer, { match: { mode: 'ttt', phase: 'post', winner: 'traitor' } });
+  tttObserve(innocentCareer, { match: { mode: 'ttt', phase: 'post', winner: 'traitor' } });
+  assert.equal(service.profile(traitorCareer.profileId).wins, 1, 'the winning TTT side records a win');
+  assert.equal(service.profile(innocentCareer.profileId).wins, 0, 'the losing TTT side records none');
+  assert.equal(service.profile(innocentCareer.profileId).matches, 1, 'both sides complete the match');
+  tttEngine.stop();
+
   const failureId = randomBytes(32).toString('hex');
   service.award(failureId, { xp: 100 });
   const blockedDirectory = path.join(directory, 'not-a-directory');

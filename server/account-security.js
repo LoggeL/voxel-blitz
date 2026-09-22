@@ -37,12 +37,20 @@ export function digest(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
+// Live sockets revalidate their upgrade request on every outgoing frame. The
+// cookie never changes there, so parse and hash it once per request and header.
+const sessionHashes = new WeakMap();
+
 export function sessionHash(req) {
-  const cookies = String(req.headers?.cookie || '').split(';').map(value => value.trim())
+  const header = String(req.headers?.cookie || '');
+  const cached = req && typeof req === 'object' ? sessionHashes.get(req) : null;
+  if (cached?.header === header) return cached.hash;
+  const cookies = header.split(';').map(value => value.trim())
     .filter(value => value.startsWith(ACCOUNT_COOKIE + '='));
-  if (cookies.length !== 1) return null;
-  const token = cookies[0].slice(ACCOUNT_COOKIE.length + 1);
-  return HEX_64.test(token) ? digest(`vb-session:v1:${token}`) : null;
+  const token = cookies.length === 1 ? cookies[0].slice(ACCOUNT_COOKIE.length + 1) : '';
+  const hash = HEX_64.test(token) ? digest(`vb-session:v1:${token}`) : null;
+  if (req && typeof req === 'object') sessionHashes.set(req, { header, hash });
+  return hash;
 }
 
 export function freshSession() {

@@ -166,7 +166,9 @@ the lobby without disconnecting.
 Lobby passwords are case-sensitive, support up to 64 characters, and are
 checked by the server on every join, including invite links. The server keeps
 salted scrypt hashes in memory and never includes passwords in directory or
-lobby frames. The client retains the password in memory for automatic reconnect;
+lobby frames. At most two derivations run at once (16 may queue, beyond that
+admission closes with 1013), and a room refuses guesses for a minute after 8
+wrong passwords. The client retains the password in memory for automatic reconnect;
 it is not saved in preferences or invitation URLs.
 
 Headless clients can join quick play from additional shells:
