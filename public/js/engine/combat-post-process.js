@@ -184,6 +184,9 @@ export class CombatPostProcess {
     this.frames = 0;
     this.fallbacks = 0;
     this.lastError = '';
+    // A thrown pass latches direct rendering until the buffer is resized;
+    // `enabled` alone cannot, because smoke still needs the pass without grading.
+    this._failed = false;
     this._disposed = false;
     this._size = postProcessBufferSize(1, 1, 1, maxPixelRatio);
 
@@ -233,6 +236,7 @@ export class CombatPostProcess {
     if (next.width !== this._size.width || next.height !== this._size.height) {
       this.target.setSize(next.width, next.height);
       this.uniforms.resolution.value.set(next.width, next.height);
+      this._failed = false;
     }
     this._size = next;
     return next;
@@ -241,6 +245,10 @@ export class CombatPostProcess {
   render(scene, camera, state = {}) {
     if (this._disposed) return false;
     this.renderer.info?.reset?.();
+    if (this._failed) {
+      this.renderer.render(scene, camera);
+      return false;
+    }
     const smokeCount = updateSmokeUniforms(this.uniforms, state.smokeFields, state.smokeNow, camera);
     const burning = clamp01(state.burning);
     if (!this.enabled && !smokeCount && !burning) {
@@ -268,6 +276,7 @@ export class CombatPostProcess {
     } catch (error) {
       this.renderer.setRenderTarget(null);
       this.enabled = false;
+      this._failed = true;
       this.fallbacks++;
       this.lastError = String(error?.message || error || 'shader render failed');
       this.renderer.render(scene, camera);
@@ -278,6 +287,7 @@ export class CombatPostProcess {
   get stats() {
     return Object.freeze({
       enabled: this.enabled,
+      failed: this._failed,
       frames: this.frames,
       fallbacks: this.fallbacks,
       bufferWidth: this._size.width,
