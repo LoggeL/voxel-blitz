@@ -538,6 +538,9 @@ export class WeaponState {
   syncRigAds() {
     this._rig.ads(this._adsT);
     this._rig.setFlame?.(this.flameFiring, this.def.flame ? this.ammoOf(this.def.id).mag / this.def.magSize : 0);
+    if (this.def.id === 'mgl') {
+      this._rig.setSkipjack?.({ mag: this._ammo.mgl?.mag ?? 0, magSize: this.def.magSize });
+    }
   }
 
   /** Direct fire transition for callers that keep the former split tick/fire frame order. */

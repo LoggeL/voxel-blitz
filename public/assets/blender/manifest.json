@@ -86,10 +86,10 @@
     },
     {
       "asset": "skipjack",
-      "source_parts": 238,
-      "draws": 27,
-      "triangles": 23732,
-      "geometry_bytes": 1129552
+      "source_parts": 99,
+      "draws": 20,
+      "triangles": 11228,
+      "geometry_bytes": 549848
     },
     {
       "asset": "skua",

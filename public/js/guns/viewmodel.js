@@ -83,6 +83,7 @@ export class ViewmodelRig {
     this._glaiveState = null;          // authoritative {discs, magSize, fab01} from WeaponState
     this._bubble = null;               // BubblePresentation for the drawn SUDSBLASTER, else null
     this._bubbleState = null;          // authoritative {mag, magSize} from WeaponState
+    this._skipjackState = null;        // live three-round cassette count from WeaponState
     this._id = null;
     this._now = 0;                     // rig-local clock, advanced only by update()
     this._queue = [];                  // deferred timer-boundary events {at, fn}
@@ -209,6 +210,7 @@ export class ViewmodelRig {
     if (this._glaive) this._glaive.reset(this._glaiveState?.discs);
     this._bubble = key === 'bubble' ? bubblePresentationFor(next) : null;
     if (this._bubble) this._bubble.reset(this._bubbleState?.mag, this._bubbleState?.magSize);
+    if (key === 'mgl' && this._skipjackState) this.setSkipjack(this._skipjackState);
     next.muzzleMarker.add(this._chargeOrb);
     this._chargeOrb.visible = false;
     this.pivot.position.copy(next.pivotCam);
@@ -378,6 +380,15 @@ export class ViewmodelRig {
   setBubble(state) {
     this._bubbleState = state ? { mag: state.mag, magSize: state.magSize } : null;
     if (this._bubble && state) this._bubble.setMag(state.mag, state.magSize);
+  }
+
+  /** SKIPJACK's three modeled grenades follow the local weapon ammo state. */
+  setSkipjack(state) {
+    this._skipjackState = state ? { mag: state.mag, magSize: state.magSize } : null;
+    const rounds = this._models.mgl?.extra.userData.skipjack?.rounds;
+    if (!rounds || !state) return;
+    const count = Math.max(0, Math.min(rounds.length, Math.floor(Number(state.mag) || 0)));
+    for (let i = 0; i < rounds.length; i++) rounds[i].visible = i < count;
   }
 
   /** An empty trigger pull: the SUDSBLASTER film forms weakly and pops. */

@@ -2,7 +2,7 @@
   "asset": "GL-3 SKIPJACK",
   "asset_id": "skipjack",
   "weapon_id": "mgl",
-  "revision": 1,
+  "revision": 8,
   "axis_contract": {
     "authoring_forward": "+Y",
     "authoring_up": "+Z",
@@ -12,7 +12,7 @@
   "anchors_authoring": {
     "muzzle": [
       0.0,
-      0.72,
+      0.782,
       0.075
     ],
     "grip": [
@@ -27,16 +27,67 @@
     ],
     "sight": [
       0.0,
-      0.337,
+      0.332,
       0.291
     ]
   },
-  "source_parts": 238,
-  "runtime_draws": 27,
-  "triangles": 23732,
+  "source_parts": 99,
+  "runtime_draws": 20,
+  "triangles": 11228,
   "runtime_gltf": "public/assets/blender/skipjack.gltf",
   "portable_glb": "docs/design/blender/skipjack/skipjack.glb",
   "blend": "docs/design/blender/skipjack/skipjack.blend",
   "hero_render": "docs/design/blender/skipjack/skipjack-hero.png",
+  "hero_view": "orthographic front-left three-quarter; muzzle to image left",
+  "side_render": "docs/design/blender/skipjack/skipjack-side.png",
+  "review_views": {
+    "right-side": "docs/design/blender/skipjack/review/final/right-side.png",
+    "muzzle": "docs/design/blender/skipjack/review/final/muzzle.png",
+    "rear": "docs/design/blender/skipjack/review/final/rear.png",
+    "top": "docs/design/blender/skipjack/review/final/top.png",
+    "ads": "docs/design/blender/skipjack/review/final/ads.png"
+  },
+  "material_tints": {
+    "gunmetal": [
+      0.06,
+      0.075,
+      0.095
+    ],
+    "machined steel": [
+      0.25,
+      0.29,
+      0.33
+    ],
+    "olive drab": [
+      0.085,
+      0.108,
+      0.072
+    ],
+    "dark polymer": [
+      0.12,
+      0.15,
+      0.17
+    ],
+    "rubber": [
+      0.1,
+      0.12,
+      0.12
+    ],
+    "orange paint": [
+      0.48,
+      0.2,
+      0.06
+    ],
+    "brass": [
+      0.36,
+      0.27,
+      0.13
+    ],
+    "phosphor": [
+      0.38,
+      0.78,
+      0.38
+    ]
+  },
   "textured_materials": 7
 }

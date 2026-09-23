@@ -339,10 +339,10 @@ TIMERS.mgl = {
   deployTime: WEAPONS.mgl.deployTime,
   weightKg: WEAPONS.mgl.weightKg,
   viewKick: { pitchDeg: WEAPONS.mgl.recoil.pitch, yawDeg: WEAPONS.mgl.recoil.yaw },
-  muzzle: [0, 0.075, -0.72],
+  muzzle: [0, 0.075, -0.782],
   portY: 0.13,
   ejectRight: -0.04,
-  barrelLen: 0.39,
+  barrelLen: 0.44,
   heatLen: [0.62, 0.96],
   boltTravel: 0.025,
   rechargeDur: 0.18,
@@ -351,7 +351,7 @@ TIMERS.mgl = {
   cycleKind: null,
   ejectOnFire: false,
   magTimeline: { start: 0.16, home: 0.80, clickAt: 0.90, type: 'mag' },
-  adsOffset: { x: 0, y: -0.155, z: -0.70 },
+  adsOffset: { x: 0, y: -0.291, z: -0.70 }, // Center the SKIPJACK reflex dot on the shot ray.
   kick: { stiffness: 150, damping: 21, yawWobble: 0.45 },
 };
 

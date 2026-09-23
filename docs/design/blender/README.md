@@ -616,3 +616,75 @@ pivots, anchors, UVs, palette images, the razor-glow emissive and the budgets.
 `skua/build-report.md` has the alternatives, the FORK choice, the node table
 and the measured counts. The poses are `pose-home`, `pose-throw`,
 `pose-horns-open`, `pose-empty` and `pose-cassette-lift`.
+
+## SKIPJACK (mgl slot), revision 8
+
+SKIPJACK supplies the existing `mgl` slot (GL-3 SKIPJACK). Revision 8 is a
+from-scratch redo (design study "CITADEL", chosen from three documented
+alternatives in `skipjack/concepts/`): the revision 7 study — a stepped riser
+tower with a wire-cage reflex, three oversized bottles bolted on an open
+bracket outside the receiver, ski rails on a thin barrel — is replaced by one
+continuous faceted wedge running from the stock comb to a crowned 40 mm muzzle,
+with a fluted shroud and bare heat-sleeve barrel between them.
+
+Its three 40 mm grenades (brass base, olive body, orange arming band, ogive
+nose) are bayed on the left flank in a machined cassette: two rims per grenade
+in a gunmetal frame on the receiver's bay plate, a transverse trunnion pin
+resting in two receiver saddles, and an orange release paddle at the frame's
+lower rear. The 0.291 m sight line is carried by an arc-range ladder — two
+swept fins with range dots and a cursor bar that are also the hooded reflex's
+wings, leaving the ADS window down the sight axis completely open. A tapered
+stock with cheek comb and rubber pad, a raked pistol grip at the grip anchor, a
+swept trigger guard with orange blade in line with the grip, a slim support
+fore-grip at the support anchor, a right-cheek charging pawl in its track, a
+fire selector and a phosphor round counter complete it. 99 authored parts,
+11,228 triangles, 20 runtime draws, ten frozen materials with seven sampling
+the shared palette maps. Display name, stats, hitboxes, `sightHeight` 0.291 and
+the reload timeline are unchanged.
+
+The study was authored through the live Blender MCP session (protocol 5,
+`execute_blender_code`) with `tools/blender/skipjack/build-skipjack.py`, which
+creates its own scene and saves with `copy=True`; the runtime export,
+validation and renders run headless.
+
+Animated parts (runtime model `skipjack.js`):
+
+- `mag`: the whole cassette (bay plate, frame, rims, trunnion pin, release
+  paddle and lever) plus the three grenade meshes, hung on a hinge group at
+  `CASSETTE_HINGE` = game (-0.163, 0.055, -0.30) — the trunnion pin line. The
+  reload tips the cassette down-left about the pin, exchanges it in the
+  0.47–0.60 window and seats it at the home click. Round meshes (`round 1..3`)
+  merge to one vertex-coloured draw each and hide with the authoritative
+  magazine count (`viewmodel.setSkipjack`), so spent chambers read empty.
+- `bolt`: the charging pawl at game (0.094, 0.113, -0.175), racked 25 mm
+  rearward at the end of the reload.
+- `trigger`: swept guard, pivot pin and orange blade in line with the grip axis.
+- `extra`: fire selector, round counter and the phosphor sight emitter.
+
+The left hand's `release` target in `_updateSkipjackReload` moved with the
+redesign to game [-0.19, -0.10, -0.12] (the new release paddle); every other
+choreography constant is untouched.
+
+Build-time gates (each fails the build on violation): the four frozen anchors,
+the muzzle tip on the bore axis at the contract plane, heat-band clearance for
+the runtime glow sleeve (bare r 0.040 tube over game z [-0.752, -0.603]), an
+unobstructed sight channel down the ADS line, a floating-part contact audit,
+per-part outward-surface signed volume, and the round-name contract.
+
+```sh
+# author (headless alternative to the MCP session)
+blender --background --factory-startup --python tools/blender/skipjack/build-skipjack.py
+# browser delivery, fresh-import validation, proof renders, reload pose stills
+blender --background docs/design/blender/skipjack/skipjack.blend --python tools/blender/skipjack/export-game-assets.py
+blender --background --factory-startup --python tools/blender/skipjack/validate-skipjack.py
+blender --background --factory-startup docs/design/blender/skipjack/skipjack.blend --python tools/blender/skipjack/render-skipjack.py
+blender --background --factory-startup docs/design/blender/skipjack/skipjack.blend --python tools/blender/skipjack/pose-skipjack.py
+```
+
+`docs/design/blender/skipjack/validation.json` records the fresh import of both
+`skipjack.glb` and `public/assets/blender/skipjack.gltf` (`passed: true`). It
+covers the nine-node contract, batch extras and round names, anchors, UVs,
+outward normals, the muzzle tip and the budgets (fail above 32 draws / 26,000
+triangles / 10 materials). `skipjack/build-report.md` has the design
+alternatives, the CITADEL choice, the node table and the measured counts; the
+poses are `pose-home`, `pose-open`, `pose-exchange` and `pose-seated`.

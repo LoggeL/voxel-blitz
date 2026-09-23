@@ -3,6 +3,14 @@
   "asset": "skipjack",
   "materials": [
     {
+      "material": "SKIPJACK | gunmetal",
+      "texture": "phosphated-steel"
+    },
+    {
+      "material": "SKIPJACK | machined steel",
+      "texture": "machined-steel"
+    },
+    {
       "material": "SKIPJACK | olive drab",
       "texture": "olive-paint"
     },
@@ -11,8 +19,8 @@
       "texture": "pebbled-rubber"
     },
     {
-      "material": "SKIPJACK | gunmetal",
-      "texture": "phosphated-steel"
+      "material": "SKIPJACK | brass",
+      "texture": "aged-brass"
     },
     {
       "material": "SKIPJACK | orange paint",
@@ -21,14 +29,6 @@
     {
       "material": "SKIPJACK | dark polymer",
       "texture": "molded-polymer"
-    },
-    {
-      "material": "SKIPJACK | machined steel",
-      "texture": "machined-steel"
-    },
-    {
-      "material": "SKIPJACK | brass",
-      "texture": "aged-brass"
     }
   ]
 }
