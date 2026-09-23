@@ -306,6 +306,7 @@ async function main() {
               admission.gameMode,
               admission.map,
               admission.password,
+              admission.directStart,
             );
           } else {
             admitted = await manager.join(meta, name, admission.lobby, admission.password);

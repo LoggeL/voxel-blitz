@@ -1039,6 +1039,25 @@ async function runTrainingKillhouse(port, signal) {
   'guest Training tick carries the same human-plus-dummy roster with no combat bots');
 
   await closeRoomClients(members, 'Training room');
+
+  const solo = await admit(
+    makeClient(port, 'Training-Solo'),
+    { t: 'create', name: 'Training-Solo', bots: 0, gameMode: 'training', map: 'killhouse', directStart: true },
+    selection,
+    signal,
+  );
+  pass(solo.welcome.phase === 'live' && solo.initialState.phase === 'live'
+    && solo.initialState.members.length === 1,
+  'main-menu solo Killhouse starts live without a waiting lobby');
+  const soloTick = await nextTick(
+    solo, solo.mark(),
+    (tick) => tick.match?.mode === 'training' && tick.powerups?.length === 4,
+    'solo Killhouse ammo pickups',
+    signal,
+  );
+  pass(soloTick.powerups.every((pickup) => pickup.type === 'ammo'),
+    'solo Killhouse distributes four ammo pickups');
+  await closeRoomClients([solo], 'Solo Training room');
 }
 
 async function runSndCitadel(port, depotBytes, signal) {

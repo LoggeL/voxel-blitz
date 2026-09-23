@@ -1,4 +1,4 @@
-import { AIR } from './world/blocks.js';
+import { AIR, GROUND } from './world/blocks.js';
 import { worldDimensions } from './world/dimensions.js';
 import { MINECRAFT_B5_ANCHORS } from './world/minecraft-b5-data.js';
 import { WATERWORLD_ANCHORS } from './world/waterworld-data.js';
@@ -23,6 +23,18 @@ const ANCHORS = Object.freeze({
   waterworld: WATERWORLD_ANCHORS.powerups,
   bikini_bottom: BIKINI_BOTTOM_POWERUPS,
 });
+
+// Fixed supply points along the range and the route to the timed course.
+const TRAINING_AMMO_ANCHORS = Object.freeze([
+  [64, 84], [14, 58], [64, 50], [112, 50],
+]);
+
+export function findTrainingAmmoSites(world) {
+  if (world?.meta?.id !== 'killhouse') return [];
+  return TRAINING_AMMO_ANCHORS.map(([x, z]) => ({
+    x: x + 0.5, y: GROUND + 1.02, z: z + 0.5,
+  })).filter((site) => isPowerupSiteSupported(world, site));
+}
 
 /** Cheap live check for active pickups; a mined or blocked pad is invalid. */
 export function isPowerupSiteSupported(world, site) {

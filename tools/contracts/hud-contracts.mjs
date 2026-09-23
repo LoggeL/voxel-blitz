@@ -550,8 +550,9 @@ export async function runHudContracts(ok, installGlobals) {
       const trainingAction = menuActions.at(-1);
       ok(trainingAction.mode === 'create' && trainingAction.gameMode === 'training'
         && trainingAction.map === 'killhouse' && trainingAction.bots === 0
+        && trainingAction.directStart === true
         && trainingAction.name === document.getElementById('name-input').value,
-      'the main-menu Killhouse entry creates a training lobby with the current identity and no combat bots');
+      'the main-menu Killhouse entry starts solo training with the current identity and no combat bots');
 
       const lobbyState = {
         code: 'ZX9Q2',

@@ -127,6 +127,8 @@ export class PregameFlow {
       generation: this._generation,
       net,
       mode,
+      directStart: mode === 'create' && action.directStart === true
+        && action.gameMode === 'training' && action.map === 'killhouse',
       name,
       bots,
       sensitivity,
@@ -175,6 +177,7 @@ export class PregameFlow {
     if (mode === 'create') {
       opts.gameMode = action.gameMode;
       opts.map = action.map;
+      if (attempt.directStart) opts.directStart = true;
     }
     if (mode === 'join') opts.lobby = code;
 

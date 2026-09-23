@@ -34,10 +34,10 @@ import { resolveWeaponIntent } from './sim/combat.js';
 import { SpawnSelector } from './sim/spawn.js';
 import { ProjectileSystem } from './sim/projectiles.js';
 import { createSimulationContexts } from './sim/context.js';
-import { CHAOS_CASH_RULES } from '../shared/powerups.js';
+import { CHAOS_CASH_RULES, TRAINING_AMMO_RULES } from '../shared/powerups.js';
 import { findChaosCashSites } from '../shared/chaos-cash-sites.js';
 import { PowerupSystem } from './sim/powerups.js';
-import { findPowerupSites, isPowerupSiteSupported } from '../shared/powerup-sites.js';
+import { findPowerupSites, findTrainingAmmoSites, isPowerupSiteSupported } from '../shared/powerup-sites.js';
 import {
   clampGrenadeCharge,
   clampGrenadeCook,
@@ -106,12 +106,16 @@ export class GameEngine {
     this.flames = new FlameSystem();
 
     this.mode = new ModeController(this, { mode: callbacks.mode, mapMeta: this.mapMeta });
+    const trainingAmmo = this.mode.mode === 'training' && this.mapMeta?.id === 'killhouse';
     this.powerups = new PowerupSystem({
       solidAt: this.solidAt,
-      findSites: () => findPowerupSites(this.world, this.mapMeta),
+      findSites: () => trainingAmmo
+        ? findTrainingAmmoSites(this.world)
+        : findPowerupSites(this.world, this.mapMeta),
       isSupported: (site) => isPowerupSiteSupported(this.world, site),
       rng: callbacks.powerupRng,
       now: this.now,
+      ...(trainingAmmo ? { rules: TRAINING_AMMO_RULES, types: ['ammo'], prefix: 'training-ammo' } : {}),
     });
     let cashSites;
     this.cash = new PowerupSystem({

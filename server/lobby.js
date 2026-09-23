@@ -149,10 +149,11 @@ export class LobbyManager {
     }
   }
 
-  async create(meta, name, bots, gameMode = DEFAULT_MODE_ID, map = mapForMode(gameMode), password = '') {
+  async create(meta, name, bots, gameMode = DEFAULT_MODE_ID, map = mapForMode(gameMode), password = '', directStart = false) {
     if (!this._validAdmission(meta, name) || !validLobbyPassword(password) ||
         !validBotCount(bots) ||
-        !this._validModeMap(gameMode, map)) {
+        !this._validModeMap(gameMode, map) ||
+        (directStart && (gameMode !== 'training' || map !== 'killhouse' || bots !== 0 || password))) {
       return this._reject(meta, 'Malformed lobby creation request', CLOSE_MALFORMED, 'bad create');
     }
     if (this.stopped) return this._reject(meta, 'Server is shutting down', 1013, 'server shutdown');
@@ -172,7 +173,7 @@ export class LobbyManager {
       room = this._createRoom(false, bots, gameMode, map);
       room.passwordSalt = passwordSalt;
       room.passwordHash = passwordHash;
-      return this._admit(room, meta, name, false);
+      return this._admit(room, meta, name, directStart);
     } catch (error) {
       if (room) this._destroyRoom(room);
       if (error instanceof LobbyBusyError) return this._reject(meta, 'Server busy. Try again shortly.', 1013, 'server busy');

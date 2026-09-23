@@ -318,7 +318,7 @@ export class NetClient {
    * reconnects start clean. Omitting opts.mode preserves quick play.
    * @param {string} url ws(s)://… endpoint @param {string} name display name
    * @param {{mode?:'quick'|'create'|'join',bots?:number,lobby?:string,password?:string,
-   *          gameMode?:string,map?:string}} [opts]
+   *          gameMode?:string,map?:string,directStart?:boolean}} [opts]
    * @returns {Promise<object>} welcome payload
    */
   connect(url, name, opts = null) {
@@ -330,6 +330,9 @@ export class NetClient {
       const map = mapForMode(gameMode, options.map);
       initialFrame = { t: 'create', name, bots, gameMode, map };
       if (options.password) initialFrame.password = options.password;
+      if (options.directStart === true && gameMode === 'training' && map === 'killhouse') {
+        initialFrame.directStart = true;
+      }
     } else if (options.mode === 'join') {
       initialFrame = { t: 'join', name, lobby: options.lobby };
       if (options.password) initialFrame.password = options.password;

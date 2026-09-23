@@ -112,10 +112,12 @@ export function parseAdmissionFrame(raw) {
   if (raw.t === 'create') {
     const hasMode = Object.prototype.hasOwnProperty.call(raw, 'gameMode');
     const hasMap = Object.prototype.hasOwnProperty.call(raw, 'map');
+    const hasDirectStart = Object.prototype.hasOwnProperty.call(raw, 'directStart');
     const expected = ['t', 'name', 'bots'];
     if (hasPassword) expected.push('password');
     if (hasMode) expected.push('gameMode');
     if (hasMap) expected.push('map');
+    if (hasDirectStart) expected.push('directStart');
     if (!hasExactKeys(raw, expected) || !validBotCount(raw.bots)) return null;
     if (hasMode && !isModeId(raw.gameMode)) return null;
     if (hasMap && !isMapId(raw.map)) return null;
@@ -125,8 +127,11 @@ export function parseAdmissionFrame(raw) {
       ? raw.map
       : mapForMode(gameMode);
     if (!map || !isModeMapCompatible(gameMode, map)) return null;
+    if (hasDirectStart && (raw.directStart !== true || gameMode !== 'training'
+      || map !== 'killhouse' || raw.bots !== 0 || hasPassword)) return null;
     return {
       kind: 'create',
+      directStart: hasDirectStart,
       password: raw.password || '',
       name: raw.name,
       bots: raw.bots,

@@ -30,13 +30,11 @@ try {
   ]) {
     browser = await launchCdpSession(`http://127.0.0.1:${port}/?debug=1&headless=1${touch ? '&touch=1' : ''}`);
     const page = browser.page;
-    await page.waitFor(`!!document.getElementById('training-btn')`);
+    await page.waitFor(`document.getElementById('training-btn')?.disabled === false`);
     await page.evaluate(`document.getElementById('training-btn').click()`);
-    await page.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false'`);
-    await page.evaluate(`document.getElementById('lobby-ready-btn').click()`);
-    await page.waitFor(`document.getElementById('lobby-start-btn')?.disabled === false`);
-    await page.evaluate(`document.getElementById('lobby-start-btn').click()`);
     await page.waitFor(`window.__vb?.stats.running && window.__vb.stats.lastSnapAgeMs < 1000`);
+    assert.notEqual(await page.evaluate(`document.getElementById('lobby')?.getAttribute('aria-hidden')`),
+      'false', 'main-menu Killhouse enters play without showing the lobby');
     await page.evaluate(`(async () => {
       const { LocalPlayer } = await import('/js/player/local-player.js');
       const { CombatPostProcess } = await import('/js/engine/combat-post-process.js');

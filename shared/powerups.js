@@ -25,6 +25,16 @@ export const CHAOS_CASH_RULES = Object.freeze({
   lifetimeMs: 90000,
 });
 
+export const TRAINING_AMMO_RULES = Object.freeze({
+  ...POWERUP_RULES,
+  modes: Object.freeze(['training']),
+  firstSpawnMs: 0,
+  spawnMinMs: 250,
+  spawnMaxMs: 250,
+  maxActive: 4,
+  lifetimeMs: 60 * 60 * 1000,
+});
+
 export const POWERUP_TYPES = Object.freeze({
   cash: Object.freeze({ label: 'Cash', color: 0x8be66d,
     description: `+${CHAOS_CASH_RULES.amount} credits for Chaos upgrades.` }),

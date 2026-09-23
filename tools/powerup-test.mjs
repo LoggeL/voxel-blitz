@@ -5,7 +5,7 @@ import { PlayerEntity } from '../server/sim/player.js';
 import { makeSnapshot } from '../server/protocol/snapshot.js';
 import { WEAPON_IDS, WEAPONS } from '../shared/combatmath.js';
 import { POWERUP_RULES } from '../shared/powerups.js';
-import { findPowerupSites } from '../shared/powerup-sites.js';
+import { findPowerupSites, findTrainingAmmoSites } from '../shared/powerup-sites.js';
 import { createMapState, MAP_IDS } from '../shared/worlddata.js';
 import { PLAYER_KEYS } from './lib/protocol-contract.mjs';
 import { NetClient } from '../public/js/engine/netclient.js';
@@ -176,8 +176,8 @@ for (const scenario of ['dead', 'far', 'above', 'wall', 'floor', 'ceiling']) {
   assert.equal(h.system.active.size, ['floor', 'ceiling'].includes(scenario) ? 0 : 1, scenario);
 }
 
-// PvP maps have exposed pickups on real geometry. Training has none; Bastion
-// owns its authored wave supply point instead of the random pickup scheduler.
+// PvP maps have exposed pickups on real geometry. Training uses fixed indoor
+// supply points; Bastion owns its authored wave supply point.
 for (const mapId of MAP_IDS) {
   const world = createMapState(mapId), mapSites = findPowerupSites(world, world.meta);
   // Waterworld is a roofed leisure centre: no pad sees open sky, so Fun mode
@@ -185,6 +185,33 @@ for (const mapId of MAP_IDS) {
   if (mapId === 'killhouse' || mapId === 'reactor' || mapId === 'causeway' || mapId === 'waterworld') assert.equal(mapSites.length, 0);
   else assert.ok(mapSites.length >= 3, `${mapId}: enough exposed contest points`);
   assert.ok(mapSites.every((site) => validPowerupSite(site, (x, y, z) => world.getBlock(x, y, z) !== 0, world.dimensions)));
+}
+
+{
+  const world = createMapState('killhouse');
+  const sites = findTrainingAmmoSites(world);
+  assert.equal(sites.length, 4);
+  assert.ok(sites.every((site) => validPowerupSite(site,
+    (x, y, z) => world.getBlock(x, y, z) !== 0, world.dimensions)));
+  const frames = [];
+  const game = new GameEngine({ world, mode: 'training', broadcast: (frame) => frames.push(frame) });
+  game.addClient('trainee', 'Trainee');
+  for (let i = 0; i < 30; i++) game.step(50);
+  const supplies = frames.at(-1).powerups;
+  assert.equal(supplies.length, 4);
+  assert.ok(supplies.every((pickup) => pickup.type === 'ammo'));
+  const trainee = game.entities.get('trainee');
+  trainee.reserve.fill(0);
+  Object.assign(trainee, { x: supplies[0].x, y: supplies[0].y, z: supplies[0].z });
+  game.step(50);
+  assert.ok(trainee.reserve[WEAPON_IDS.indexOf('rifle')] > 0);
+  assert.ok(frames.at(-1).events.some((event) => event.kind === 'powerup'
+    && event.type === 'ammo' && event.id === 'trainee'));
+  trainee.x = 40.5;
+  trainee.z = 86.5;
+  for (let i = 0; i < 10; i++) game.step(50);
+  assert.equal(frames.at(-1).powerups.length, 4, 'used ammo supply reappears');
+  game.stop();
 }
 
 // Snapshots own pickup rows, contain the full current state for a late join,

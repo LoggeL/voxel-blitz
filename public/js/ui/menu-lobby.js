@@ -185,7 +185,7 @@ export class MenuLobbyController {
     el('h2', '', trainingInfo).textContent = 'KILLHOUSE';
     const trainingButton = el('button', 'vb-btn vb-training-btn', trainingInfo, 'training-btn');
     trainingButton.type = 'button';
-    trainingButton.textContent = 'TRAINING';
+    trainingButton.textContent = 'PLAY SOLO';
     this._playButtons = [quickPlayButton, browseButton, createLobbyButton, duelButton, trainingButton];
 
     el('aside', 'vb-menu-showcase', primary).setAttribute('aria-label', 'Your account and career');
@@ -230,6 +230,7 @@ export class MenuLobbyController {
     trainingButton.addEventListener('click', () => {
       if (trainingButton.disabled) return;
       this.onMenuAction({ mode: 'create', gameMode: 'training', map: 'killhouse', bots: 0,
+        directStart: true,
         code: '', ...getIdentity() });
     });
     quickPlayButton.addEventListener('click', triggerQuick);
