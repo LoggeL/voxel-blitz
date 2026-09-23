@@ -12,6 +12,7 @@ import { BOLT_RULES } from '../../../shared/bolt-rules.js';
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { rocketLaunch } from '../../../shared/rocket-rules.js';
 import { GLAIVE_RULES, glaiveLaunch } from '../../../shared/glaive-rules.js';
+import { bubbleLaunch } from '../../../shared/bubble-rules.js';
 
 export { blockSoundFor };
 
@@ -43,7 +44,11 @@ const BLAST_PARTICLES = Object.freeze({
   molotov: Object.freeze({ count: 24, tint: 0xff9238, speed: 4.5, size: 1.1, life: 0.65, shake: 0.22, reach: 14 }),
   // RIPTIDE: remote catch sparkle and fizzle. No shake: nothing detonates.
   glaive: Object.freeze({ count: 8, tint: 0xff3fd0, speed: 3.2, size: 0.9, life: 0.35, shake: 0, reach: 1 }),
+  // SUDSBLASTER pop: a soft droplet spray, barely a nudge of shake.
+  bubble: Object.freeze({ count: 12, tint: 0xe6f9ff, speed: 3.2, size: 0.8, life: 0.45, shake: 0.05, reach: 10 }),
 });
+/** Bubble trails only within this range of the camera (metres). */
+const BUBBLE_TRAIL_RANGE = 30;
 
 export class Effects {
   constructor(scene, camera, worldGetBlockFn, {
@@ -71,9 +76,12 @@ export class Effects {
       camera,
       getEntityPosition,
       getGlaiveSeekBodies,
-      onTrail: (x, y, z) => this.impacts.spawnParticles(
-        x, y, z, 1, 0x8d8f94, { speed: 0.6, gravity: -0.4, size: 1.6, life: 0.55, softness: true },
-      ),
+      onTrail: (x, y, z, projectile) => {
+        if (projectile?.type === 'bubble') { this._bubbleTrail(x, y, z, projectile); return; }
+        this.impacts.spawnParticles(
+          x, y, z, 1, 0x8d8f94, { speed: 0.6, gravity: -0.4, size: 1.6, life: 0.55, softness: true },
+        );
+      },
       onBounce: (x, y, z, type, contact) => {
         // RIPTIDE wall contact: bright sparks plus a stone chip off the bitten face.
         if (type === 'glaive') this._glaiveSparks(x, y, z, contact);
@@ -155,7 +163,32 @@ export class Effects {
         v: [launch.vx, launch.vy, launch.vz],
         bn: launch.bouncesLeft,
       }, { local: true });
+    } else if (options.local && definition?.projectile === 'bubble' && Array.isArray(event.o)) {
+      // A SUDSBLASTER pull spawns the predicted bubble from the shared launch (the same
+      // wand offsets and point-blank wall clamp as authority), sized by the release charge.
+      const dir = event.spread || event.d;
+      const direction = Array.isArray(dir)
+        ? { x: dir[0], y: dir[1], z: dir[2] }
+        : dir;
+      const launch = bubbleLaunch({
+        x: event.o[0], y: event.o[1], z: event.o[2], dir: direction,
+        charge01: Number(event.charge) || 0, raycast: this.projectiles.raycast,
+      });
+      this.projectiles.launch({
+        type: 'bubble',
+        o: [launch.x, launch.y, launch.z],
+        v: [launch.vx, launch.vy, launch.vz],
+        charge: launch.charge,
+      }, { local: true });
     }
+  }
+
+  /** Rising micro-bubbles behind a flying bubble (three per puff for a big one). */
+  _bubbleTrail(x, y, z, projectile) {
+    const eye = this.camera?.position;
+    if (eye && Math.hypot(eye.x - x, eye.y - y, eye.z - z) > BUBBLE_TRAIL_RANGE) return;
+    this.impacts.spawnParticles(x, y, z, projectile.chargeMix > 0.5 ? 3 : 1, 0xdff8ff,
+      { speed: 0.4, gravity: -2.5, size: 1.1, life: 0.8, softness: true });
   }
 
   /**
@@ -256,14 +289,23 @@ export class Effects {
   projectileExplode(event, options = {}) {
     if (this._disposed) return;
     if (event?.type === 'glaive') { this._glaiveEnd(event, options); return; }
+    // A Foam-party mini pops at half scale (read before the record is released).
+    const mini = event?.type === 'bubble' && !!this.projectiles.projectiles?.get(String(event.pid || ''))?.child;
     this.projectiles.explode(event);
     if (event?.type === 'smoke') return;
     const style = BLAST_PARTICLES[event?.type] || BLAST_PARTICLES.frag;
     this.impacts.spawnParticles(
       Number(event.x), Number(event.y), Number(event.z),
-      style.count, style.tint,
-      { speed: style.speed, gravity: event?.type === 'pulse' ? 2 : 15, size: style.size, life: style.life, sparks: true },
+      mini ? Math.ceil(style.count / 2) : style.count, style.tint,
+      { speed: style.speed, gravity: event?.type === 'pulse' ? 2 : event?.type === 'bubble' ? 9 : 15,
+        size: style.size, life: style.life, sparks: true },
     );
+    if (event?.type === 'bubble') {
+      // Foam puffs float up off whatever the bubble popped on.
+      this.impacts.spawnParticles(Number(event.x), Number(event.y), Number(event.z), mini ? 3 : 6, 0xffffff,
+        { speed: 0.8, gravity: -1.2, size: mini ? 0.8 : 1.6, life: 0.9, softness: true });
+      // The flash, film ring and cartoon pop strokes come from ProjectileFX.explode.
+    }
     if (event?.type === 'frag' || event?.type === 'limpet' || event?.type === 'rocket') {
       // Dirt burst: the blast throws soil up around the sparks — slower,
       // longer-lived and soft. Energy blasts (pulse/bolt) throw none.

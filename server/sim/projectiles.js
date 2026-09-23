@@ -4,10 +4,11 @@ import { pointPlayerDistance, rayPlayerHitboxes } from '../../shared/player-hitb
 import { chaosLevel, chaosWeaponDef } from '../../shared/chaos.js';
 import { chaosGlaiveContact } from './chaos-combat.js';
 // Room-scoped authoritative projectile simulation: five throwable types, the
-// rocket, the LONGARC bolt and the RIPTIDE disc. One system owns flight, claymore
-// mounting, detonation, blast damage, knockback, concussion, terrain carving,
-// sympathetic (chain) detonation, bolt ricochets and disc returns so every
-// projectile follows the same rules.
+// rocket, the LONGARC bolt, the RIPTIDE disc and the SUDSBLASTER bubble. One
+// system owns flight, claymore mounting, bubble clinging, detonation, blast
+// damage, knockback, concussion, terrain carving, sympathetic (chain)
+// detonation, bolt ricochets and disc returns so every projectile follows the
+// same rules.
 
 import {
   AIR,
@@ -27,6 +28,7 @@ import {
   evHit,
   evProjectileExplode,
   evProjectileLaunch,
+  evProjectileStick,
   evProjectileUpdate,
 } from '../protocol/events.js';
 import { fwdFromYawPitch, markLaunched } from './player.js';
@@ -53,6 +55,7 @@ import {
   stepGlaive,
   trimGlaiveAmmo,
 } from '../../shared/glaive-rules.js';
+import { BUBBLE_RULES, bubbleBlastRules, bubbleLaunch, bubbleMix, bubbleProfile, stepBubble } from '../../shared/bubble-rules.js';
 import { sweepPlayers } from './projectile-contact.js';
 import { SmokeSystem } from './smoke.js';
 import { MolotovFireSystem } from './molotov-fire.js';
@@ -110,6 +113,9 @@ export const PROJECTILE_RULES = Object.freeze({
     concussPanic: 0,
     directDamage: ROCKET_RULES.directDamage,
   }),
+  // Static Soap Shot profile: the fallback for scatter/chaos spreads. Every live
+  // bubble carries its own charge-interpolated `blastRules`.
+  bubble: Object.freeze(bubbleBlastRules(bubbleProfile(0))),
 });
 
 const finitePoint = (x, y, z) =>
@@ -220,12 +226,14 @@ export class ProjectileSystem {
       if (projectile.type === 'rocket') this._flyRocket(projectile, stepSeconds * substeps, ctx);
       else if (projectile.type === 'bolt') this._flyBolt(projectile, stepSeconds * substeps, ctx);
       else if (projectile.type === 'glaive') this._flyGlaive(projectile, stepSeconds * substeps, ctx);
+      else if (projectile.type === 'bubble') this._flyBubble(projectile, stepSeconds * substeps, ctx);
       else this._flyGrenade(projectile, stepSeconds, substeps, ctx);
       if (!this.active.has(projectile.id)) continue;
       // Returning discs steer toward a live owner and seeking discs bend onto a
       // body, so remote presentation needs the same 100 ms correction stream that
-      // Chaos projectiles already use.
-      if ((projectile.chaosLevel || (projectile.type === 'glaive' && (projectile.phase === 'back' || projectile.seeking)))
+      // Chaos projectiles already use. Bubbles never steer and the client runs the
+      // same exact integrator, so launch and stick events carry the full state.
+      if (((projectile.chaosLevel && projectile.type !== 'bubble') || (projectile.type === 'glaive' && (projectile.phase === 'back' || projectile.seeking)))
           && ctx.now >= (projectile.syncAt || 0)) {
         projectile.syncAt = ctx.now + GLAIVE_SYNC_MS;
         const update = evProjectileUpdate(projectile.id,
@@ -336,6 +344,85 @@ export class ProjectileSystem {
     }
     if (projectile.hit) return this.explode(projectile, ctx);
     return false;
+  }
+
+  /**
+   * One SUDSBLASTER bubble drifts on the exact buoyant integrator. The first body it
+   * touches (its owner too, after the grace window: the soap trampoline) takes a
+   * direct pop; terrain pops it, or under Clingfilm sticks it to a wall or ceiling.
+   */
+  _flyBubble(b, seconds, ctx) {
+    // Already marked to pop (bullet, chain, cap eviction, blocked launch): pop now,
+    // never fly on into a wall and cling with a fresh fuse.
+    if (b.explodeAt <= ctx.now) return this.explode(b, ctx);
+    if (b.stuck) return this._stepClungBubble(b, ctx);
+    const prev = { x: b.x, y: b.y, z: b.z };
+    stepBubble(b, seconds, b.raycast);
+    const contact = this._sweepVictim(prev, b, b.radius, ctx, b);
+    if (contact) {
+      b.x = contact.x; b.y = contact.y; b.z = contact.z;
+      b.directVictim = contact.victim;
+      return this.explode(b, ctx);
+    }
+    if (b.hit) {
+      // Walls and ceilings only: a floor contact still pops, which keeps bubble jumps.
+      if (!b.child && (b.chaosLevel || 0) >= 2 && !(b.hit.ny > 0.5)) return this._clingBubble(b, ctx);
+      return this.explode(b, ctx);
+    }
+    return false;
+  }
+
+  /** Chaos 2 "Clingfilm": the bubble sticks as a proximity mine with a fresh fuse. */
+  _clingBubble(b, ctx) {
+    if (b.explodeAt <= ctx.now) return this.explode(b, ctx);
+    const cling = BUBBLE_RULES.cling;
+    const hit = b.hit;
+    b.stuck = true;
+    b.vx = b.vy = b.vz = 0;
+    b.mount = [hit.x, hit.y, hit.z];
+    b.explodeAt = ctx.now + cling.ms;
+    b.clungAt = ctx.now;
+    let clung = 0, oldest = null;
+    for (const other of this.active.values()) {
+      if (other.type !== 'bubble' || !other.stuck || other.owner !== b.owner || other.explodeAt <= ctx.now) continue;
+      clung++;
+      if (other !== b && (!oldest || other.clungAt < oldest.clungAt)) oldest = other;
+    }
+    if (clung > cling.perOwner && oldest) oldest.explodeAt = ctx.now;
+    ctx.pushEvent(evProjectileStick(b.ownerId, b.id, [b.x, b.y, b.z], cling.ms, [hit.nx, hit.ny, hit.nz]));
+    return true;
+  }
+
+  /** A clung bubble pops when its mount goes, or when a visible enemy body comes close. */
+  _stepClungBubble(b, ctx) {
+    if (!b.mount || ctx.getBlock(...b.mount) === AIR) return this.explode(b, ctx);
+    const cling = BUBBLE_RULES.cling;
+    const reach = cling.reachSmall + (cling.reachBig - cling.reachSmall) * bubbleMix(b.charge);
+    const victim = this._contactVictim(b, reach, ctx, b, true);
+    if (victim && visibleTo(ctx, [b.x, b.y, b.z], [victim.x, victim.y + 1.05, victim.z])) return this.explode(b, ctx);
+    return false;
+  }
+
+  /**
+   * Hitscan rays pop the bubbles they cross (the ray is never stopped). Only the
+   * shooter's own bubbles and those of players the shooter may damage pop.
+   */
+  popBubblesOnRay(shooter, origin, d, t0, t1, pad, ctx) {
+    let popped = 0;
+    const end = Number.isFinite(t1) ? t1 : Infinity;
+    for (const b of this.active.values()) {
+      if (b.type !== 'bubble' || b.explodeAt <= ctx.now) continue;
+      if (b.owner !== shooter && !ctx.canDamage(shooter, b.owner)) continue;
+      const cx = b.x - origin[0], cy = b.y - origin[1], cz = b.z - origin[2];
+      const t = Math.max(t0, Math.min(end, cx * d.x + cy * d.y + cz * d.z));
+      const px = cx - d.x * t, py = cy - d.y * t, pz = cz - d.z * t;
+      const reach = b.radius + (pad || 0);
+      if (px * px + py * py + pz * pz > reach * reach) continue;
+      b.explodeAt = ctx.now;
+      b.chained = true;
+      popped++;
+    }
+    return popped;
   }
 
   /**
@@ -837,6 +924,78 @@ export class ProjectileSystem {
     return projectile;
   }
 
+  /**
+   * A SUDSBLASTER bubble leaves the wand ring below the shooter's eye along the
+   * spread-sampled `dir`, sized by the release `charge01`. Each owner keeps at most
+   * `maxPerOwner` live bubbles (the oldest airbursts); a full room evicts the owner's
+   * oldest bubble and only refuses (null) when the owner has none to evict. A twin
+   * is a secondary launch: it stays out of the paid-launch reserve and never evicts.
+   * Chaos 1 "Double bubble" blows a free, never-adopted `twin` off to one side.
+   */
+  launchBubble(player, ctx, dir, charge01 = 0, twin = false) {
+    const now = ctx.now;
+    let owned = 0, oldest = null;
+    for (const other of this.active.values()) {
+      if (other.type !== 'bubble' || other.child || other.owner !== player || other.explodeAt <= now) continue;
+      owned++;
+      if (!oldest || other.launchedAt < oldest.launchedAt) oldest = other;
+    }
+    if (!this._hasRoom(twin)) {
+      // Only the paid primary may evict: a free twin must never pop the shot it rides with.
+      if (twin || !oldest) return null;
+      this.explode(oldest, ctx);
+      if (!this._hasRoom()) return null;
+      owned--;
+      oldest = null;
+      for (const other of this.active.values()) {
+        if (other.type !== 'bubble' || other.child || other.owner !== player || other.explodeAt <= now) continue;
+        if (!oldest || other.launchedAt < oldest.launchedAt) oldest = other;
+      }
+    }
+    if (owned >= BUBBLE_RULES.maxPerOwner && oldest) oldest.explodeAt = now;
+    const charge = Math.max(0, Math.min(1, Number.isFinite(charge01) ? charge01 : 0));
+    const raycast = (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
+      ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
+    );
+    const launch = bubbleLaunch({ x: player.eyeX ?? player.x, y: player.eyeY, z: player.eyeZ ?? player.z,
+      dir, charge01: charge, raycast });
+    const id = `u${this._nextId++}`;
+    const projectile = {
+      ...launch,
+      id,
+      type: 'bubble',
+      ownerId: String(player.id),
+      owner: player,
+      launchedAt: now,
+      explodeAt: now + (launch.blocked ? 0 : launch.lifetimeMs),
+      stuck: false,
+      mount: null,
+      hit: null,
+      directVictim: null,
+      twin: !!twin,
+      blastRules: bubbleBlastRules(bubbleProfile(charge)),
+      raycast,
+    };
+    this._configureChaos(projectile);
+    this.active.set(id, projectile);
+    ctx.pushEvent(Object.assign(evProjectileLaunch(
+      player.id,
+      id,
+      'bubble',
+      [projectile.x, projectile.y, projectile.z],
+      [projectile.vx, projectile.vy, projectile.vz],
+      launch.lifetimeMs,
+    ), { chaos: projectile.chaosLevel || 0, charge: Math.round(charge * 1000) / 1000, ...(twin ? { twin: 1 } : {}) }));
+    if (!twin && (projectile.chaosLevel || 0) >= 1) {
+      const angle = ((player.shotSeq | 0) % 2 ? 1 : -1) * BUBBLE_RULES.twin.yawRad;
+      this.launchBubble(player, ctx, {
+        x: dir.x * Math.cos(angle) - dir.z * Math.sin(angle), y: dir.y,
+        z: dir.x * Math.sin(angle) + dir.z * Math.cos(angle),
+      }, charge, true);
+    }
+    return projectile;
+  }
+
   /** A bolt leaves the coil from the shooter's eye along the spread-sampled `dir`. */
   launchBolt(player, ctx, dir, charge01 = 1, satellite = false, { weaponKey = WEAPONS.longarc.id, secondary = false } = {}) {
     if (!this._hasRoom(satellite || secondary)) return null;
@@ -981,6 +1140,7 @@ export class ProjectileSystem {
   }
 
   _scatter(source, count, ctx) {
+    if (source.type === 'bubble') return this._foamParty(source, ctx);
     const type = source.type === 'rocket' ? 'frag' : source.type;
     for (let i = 0; i < count && this._hasRoom(true); i++) {
       const angle = i / count * Math.PI * 2;
@@ -997,6 +1157,30 @@ export class ProjectileSystem {
       ctx.pushEvent(Object.assign(evProjectileLaunch(child.ownerId, id, type,
         [child.x, child.y, child.z], [child.vx, child.vy, child.vz], child.explodeAt - ctx.now),
         { chaos: child.chaosLevel, child: true }));
+    }
+  }
+
+  /** Chaos 3 "Foam party": a non-child pop scatters mini bubbles that never scatter again. */
+  _foamParty(source, ctx) {
+    const foam = BUBBLE_RULES.foam;
+    const prof = bubbleProfile(0, true);
+    for (let i = 0; i < foam.count && this._hasRoom(true); i++) {
+      const angle = i / foam.count * Math.PI * 2;
+      const id = `u${this._nextId++}`;
+      const child = { ...source, id, type: 'bubble', child: true, twin: false, stuck: false,
+        mount: null, hit: null, directVictim: null, chained: false,
+        x: source.x, y: source.y + 0.1, z: source.z,
+        vx: Math.cos(angle) * foam.speed, vy: foam.up, vz: Math.sin(angle) * foam.speed,
+        drag: prof.drag, rise: prof.rise, radius: prof.radius, charge: 0,
+        lifetimeMs: prof.lifetimeMs, blocked: false,
+        launchedAt: ctx.now, explodeAt: ctx.now + foam.lifetimeMs + i * foam.stepMs,
+        chaosHoming: false,
+        blastRules: bubbleBlastRules(prof),
+      };
+      this.active.set(id, child);
+      ctx.pushEvent(Object.assign(evProjectileLaunch(child.ownerId, id, 'bubble',
+        [child.x, child.y, child.z], [child.vx, child.vy, child.vz], child.explodeAt - ctx.now),
+      { chaos: child.chaosLevel || 0, child: true, charge: 0 }));
     }
   }
 
@@ -1048,7 +1232,7 @@ export class ProjectileSystem {
     }
     const hitVictims = new Set();
     this._damagePlayers(owner, origin, rules, projectile, ctx, hitVictims);
-    if (ctx.grenadeDamage !== false || projectile.type === 'rocket' || projectile.type === 'pulse') {
+    if (ctx.grenadeDamage !== false || projectile.type === 'rocket' || projectile.type === 'pulse' || projectile.type === 'bubble') {
       suppressExplosion(owner, origin, rules.damageRadius, hitVictims, ctx);
     }
     if (rules.terrainRadius > 0) this._destroyTerrain(origin, rules, ctx);
@@ -1056,14 +1240,15 @@ export class ProjectileSystem {
     if (!projectile.child) {
       const count = projectile.type === 'frag' && level >= 1 ? (level >= 2 ? 12 : 6)
         : projectile.type === 'rocket' && level >= 3 ? 6
-        : projectile.type === 'pulse' && level >= 3 ? 8 : 0;
+        : projectile.type === 'pulse' && level >= 3 ? 8
+        : projectile.type === 'bubble' && level >= 3 ? BUBBLE_RULES.foam.count : 0;
       if (count) this._scatter(projectile, count, ctx);
     }
     return true;
   }
 
   _damagePlayers(owner, origin, rules, projectile, ctx, hitVictims = new Set()) {
-    const damageEnabled = ctx.grenadeDamage !== false || projectile.type === 'rocket';
+    const damageEnabled = ctx.grenadeDamage !== false || projectile.type === 'rocket' || projectile.type === 'bubble';
     if (!damageEnabled && projectile.type !== 'pulse') return;
     // Damage rules key on the blast type; kill credit goes to the source weapon.
     const weaponKey = projectile.weaponKey || projectile.type;
@@ -1094,7 +1279,10 @@ export class ProjectileSystem {
         hitVictims.add(victim);
         damage = combatDamage(damage);
         lethal = victim.takeDamage(damage, false, owner, projectile.type);
-        ctx.pushEvent(evHit(owner?.id || '', victim.id, damage, false, target, victim.lastDamage));
+        const hit = evHit(owner?.id || '', victim.id, damage, false, target, victim.lastDamage);
+        // `soak` lets the victim's client predict the bubble slow instead of rubber-banding.
+        if (projectile.type === 'bubble' && rules.concussMs > 0 && !isSelf) hit.soak = Math.round(rules.concussMs);
+        ctx.pushEvent(hit);
       }
       const strength = victim.objective ? 0 : isSelf && Number.isFinite(rules.selfKnockback)
         ? rules.selfKnockback
@@ -1110,7 +1298,8 @@ export class ProjectileSystem {
       victim.vy += Math.max(0.8, dy * invDistance + 0.35) * impulse;
       victim.vz += dz * invDistance * impulse;
       if (projectile.type === 'pulse' && projectile.chaosLevel >= 2 && impulse > 0) victim.vy = Math.max(victim.vy, impulse);
-      if (rules.concussMs > 0 && !isSelf) {
+      // Bubble pops soak only victims they actually damaged (always paired with `evHit.soak`).
+      if (rules.concussMs > 0 && !isSelf && (projectile.type !== 'bubble' || hitVictims.has(victim))) {
         victim.concussedUntil = Math.max(victim.concussedUntil || 0, ctx.now + rules.concussMs);
         // The ambient blast pass provides bounded panic for uninjured targets.
         // Injured targets already receive panic through takeDamage.
@@ -1171,6 +1360,8 @@ export class ProjectileSystem {
     const reach = rules.damageRadius * CHAIN_REACH;
     for (const other of this.active.values()) {
       if (other === source || other.type === 'bolt' || other.type === 'glaive' || other.explodeAt <= ctx.now) continue;
+      // A bubble stream (and its Double-bubble twin) never pops its own siblings.
+      if (other.type === 'bubble' && source.type === 'bubble' && other.ownerId === source.ownerId) continue;
       const distance = Math.hypot(other.x - origin[0], other.y - origin[1], other.z - origin[2]);
       if (distance > reach) continue;
       if (!visibleTo(ctx, origin, [other.x, other.y, other.z])) continue;

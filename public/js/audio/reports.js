@@ -60,6 +60,10 @@ const FIRE_REPORT_PROFILES = Object.freeze({
   glaive: Object.freeze({
     lifetime: 0.35, sampleGain: 0.88, sampleRate: 1.02, layerGain: 0.08,
   }),
+  // SB-1 SUDSBLASTER: a squeeze and a bloop, not a discharge; the Big Bubble deepens it.
+  bubble: Object.freeze({
+    lifetime: 0.4, sampleGain: 0.9, sampleRate: 1.06, layerGain: 0.3,
+  }),
 });
 
 export function fireReportProfile(key) {
@@ -249,6 +253,49 @@ export function shotGlaive(out, primitives) {
   });
 }
 
+/**
+ * SB-1 SUDSBLASTER release: a bulb squeak, an air push through the nozzle and the soap
+ * "bloop" as the film lets go. `charge` (0..1) bends the bloop into a deep Big-Bubble
+ * "bwomp" with a low release thump.
+ */
+export function shotBubble(out, primitives, charge = 0) {
+  const r = primitives.rnd(0.94, 1.08);
+  const m = Math.max(0, Math.min(1, Number(charge) || 0)) ** 2;
+  const t0 = primitives.nowT();
+  primitives.tone(out, { t0, type: 'triangle', f0: 1900 * r, f1: 2600 * r, att: 0.002, dec: 0.035, g: 0.05 });
+  primitives.hiss(out, {
+    t0, filter: 'bandpass', f: 900, sweepTo: 2600, sweepMs: 0.06, q: 1.6, att: 0.004, dec: 0.07 + 0.1 * m, g: 0.22,
+  });
+  primitives.tone(out, {
+    t0: t0 + 0.03, type: 'sine', f0: (320 - 140 * m) * r, f1: (900 - 380 * m) * r,
+    att: 0.004, dec: 0.075 + 0.065 * m, g: 0.38,
+  });
+  primitives.tone(out, { t0: t0 + 0.036, type: 'sine', f0: 640 * r, f1: 1500 * r, dec: 0.05, g: 0.12 * (1 - m) });
+  primitives.hiss(out, { t0: t0 + 0.05, filter: 'lowpass', f: 1400, sweepTo: 500, dec: 0.12 + 0.1 * m, g: 0.1 });
+  if (m > 0.5) primitives.tone(out, { t0, type: 'sine', f0: 140, f1: 90, dec: 0.09, g: 0.2 * m });
+}
+
+/**
+ * SB-1 SUDSBLASTER pop: the film snaps (a rising sine), tears ("tss"), a tiny thump and a
+ * spritz of droplets. `big` adds a splash and three droplet blips; `child` (Foam-party
+ * minis) plays higher and quieter, so a burst reads "pip-pip-pip".
+ */
+export function bubblePop(out, primitives, { big = false, child = false } = {}) {
+  const q = primitives.rnd(0.85, 1.2) * (child ? 1.5 : 1);
+  const k = child ? 0.5 : 1;
+  const t0 = primitives.nowT();
+  primitives.tone(out, { t0, type: 'sine', f0: 700 * q, f1: 1900 * q, att: 0.001, dec: 0.045, g: 0.42 * k });
+  primitives.hiss(out, { t0, filter: 'highpass', f: 3000, att: 0.0005, dec: 0.025, g: 0.35 * k });
+  primitives.tone(out, { t0, type: 'sine', f0: 180, f1: 110, dec: 0.06, g: 0.18 * k });
+  primitives.hiss(out, { t0: t0 + 0.01, filter: 'bandpass', f: 5200, q: 2, dec: 0.14, g: 0.06 * k });
+  if (!big) return;
+  primitives.hiss(out, { t0: t0 + 0.01, filter: 'lowpass', f: 900, dec: 0.2, g: 0.25 });
+  for (let i = 0; i < 3; i++) {
+    const f = primitives.rnd(2000, 4000);
+    primitives.tone(out, { t0: t0 + 0.06 + i * 0.04, type: 'sine', f0: f, f1: f * 1.3, dec: 0.03, g: 0.09 });
+  }
+}
+
 // Voice lifetime (seconds) of each RIPTIDE disc event cue rendered below.
 export const GLAIVE_CUES = Object.freeze({
   bounce: 0.35, slice: 0.3, return: 0.45, catch: 0.7, embed: 0.8, pickup: 0.45, fizzle: 0.4,
@@ -395,5 +442,6 @@ export function renderFireReport(
   else if (key === 'knife') shotKnife(out, primitives);
   else if (key === 'rocket') shotRocket(out, primitives);
   else if (key === 'glaive') shotGlaive(out, primitives);
+  else if (key === 'bubble') shotBubble(out, primitives, charge);
   else shotRifleSmg(out, primitives, FIRE_PARAMS[key] || FIRE_PARAMS.rifle);
 }

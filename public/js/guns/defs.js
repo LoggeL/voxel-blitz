@@ -308,6 +308,30 @@ TIMERS.glaive = {
   kick: { stiffness: 190, damping: 18, yawWobble: 0.2 },
 };
 
+TIMERS.bubble = {
+  // SB-1 SUDSBLASTER: the "barrel" is the teal nozzle; the "bolt" is the bulb plunger; the
+  // "mag" is the screw-in soap tank. Fire/charge/idle choreography lives in bubble-presentation.js.
+  rof: WEAPONS.bubble.rpm,
+  adsTime: WEAPONS.bubble.adsTime,
+  deployTime: WEAPONS.bubble.deployTime,
+  weightKg: WEAPONS.bubble.weightKg,
+  viewKick: { pitchDeg: WEAPONS.bubble.recoil.pitch, yawDeg: WEAPONS.bubble.recoil.yaw },
+  muzzle: [0, 0.030, -0.540],   // nozzle bell lip = wand ring centre.
+  portY: 0.09,
+  ejectRight: 0,
+  barrelLen: 0.24,              // nozzle tube -0.30 -> bell lip.
+  heatLen: [0.80, 1.0],         // fx sleeve = cyan sheen on the bell on fire.
+  boltTravel: 0.008,
+  rechargeDur: 0.06,
+  pumpMag: 0,
+  cycleBack: false,
+  cycleKind: null,
+  ejectOnFire: false,           // soap, no brass.
+  magTimeline: { start: 0.16, home: 0.80, clickAt: 0.90, type: 'mag' },
+  adsOffset: { x: 0, y: -0.140, z: -0.42 },
+  kick: { stiffness: 150, damping: 14, yawWobble: 0.55 },   // soft, wobbly spring.
+};
+
 /**
  * Walk / sprint / idle procedural-motion profile. Frequencies Hz, amplitudes meters, tilts radians.
  * figure-8: x = sin(pi*p), y = cos(2*pi*p) traces the classic lazy infinity loop.

@@ -37,7 +37,7 @@ export const CONDITION_RULES = Object.freeze({
 
 /**
  * @typedef {Object} WeaponDef
- * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive')
+ * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive'|'bubble')
  * @property {string} name          display name
  * @property {'auto'|'semi'|'pump'|'bolt'|'charge'|'melee'} mode trigger behavior; `charge` fires on
  *                                  trigger release and scales with the hold (see `charge`); `melee`
@@ -71,7 +71,7 @@ export const CONDITION_RULES = Object.freeze({
  * @property {object} handling      ergonomics, sway amplitude/rate, vertical/horizontal recoil
  * @property {string} sfx           bank key for the audio engine
  * @property {{reach:number,coneDeg:number,backstabMult:number,backstabDot:number}} [melee] melee profile: swing hits enemies within `reach` meters inside a `coneDeg` arc; damage multiplies by `backstabMult` when the swing direction aligns with the victim's facing beyond `backstabDot`
- * @property {'rocket'|'bolt'|'glaive'} [projectile]  when set, the shot launches an authoritative projectile (shared/rocket-rules.js, shared/bolt-rules.js, shared/glaive-rules.js) instead of firing hitscan rays
+ * @property {'rocket'|'bolt'|'glaive'|'bubble'} [projectile]  when set, the shot launches an authoritative projectile (shared/rocket-rules.js, shared/bolt-rules.js, shared/glaive-rules.js, shared/bubble-rules.js) instead of firing hitscan rays
  * @property {{ms:number,holdMaxMs:number,minDamageMult:number,damageExponent?:number}} [charge]  charge-fire profile
  * @property {number} [hitRadius] outer radius around a body reached by the rail corona
  * @property {number} [coreRadius] full-damage radius around a body inside the rail core
@@ -80,7 +80,7 @@ export const CONDITION_RULES = Object.freeze({
  *                              discs instead of reloading, so reloadTime/tacTime are unused
  */
 
-/** The thirteen-weapon roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
+/** The fourteen-weapon roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
 export const WEAPONS = {
   rifle: {
     id: 'rifle', penetration: 55, name: 'VK-77 RAPTOR', mode: 'auto',
@@ -357,12 +357,43 @@ export const WEAPONS = {
       seekDegPerSec: 110, seekConeDeg: 22, seekRange: 20,
     }),
   },
+  bubble: {
+    // Bubble launcher: tap for a quick Soap Shot, hold to blow a Big Bubble (fires on
+    // release, lets go on its own at holdMaxMs). Bubbles are buoyant: drag bleeds their
+    // speed toward a terminal rise, so every shot hooks upward and nothing flies past
+    // ~18.6 m. Pops splash, shove (always upward) and soak (concussion slow); they never
+    // hurt terrain or their owner. Flight and blast rules: shared/bubble-rules.js.
+    id: 'bubble', name: 'SB-1 SUDSBLASTER', mode: 'charge',
+    weightKg: 2.6,
+    rpm: 300, magSize: 12, spareMags: 4,
+    damage: [42, 42, 19], falloffStart: 18,   // display only: raw direct Soap Shot; real damage is the blast
+    headMult: 1, pellets: 1, penetration: 0,
+    spreadDeg: { hip: 1.4, ads: 0.5 }, bloomDeg: 0.35, bloomMaxDeg: 2.4,
+    bloomRecover: 4.0, moveSpreadDeg: 1.0,
+    crouchSpreadMult: 0.8,
+    recoil: {
+      pitch: 0.9, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.3, yawPattern: [0.21, -0.37, 0.44, -0.18],
+      jitter: 0.05, resetMs: 420, adsMult: 0.8, recovery: 0.7,
+    },
+    adsFov: 62, zoom: 1.15, adsTime: 0.15,
+    reloadTime: 2.2, tacTime: 1.7, deployTime: 0.36,
+    tracer: null,          // the bubble mesh and its rising micro-bubble trail replace a tracer
+    sfx: 'bubble',
+    projectile: 'bubble',
+    charge: {
+      ms: 900,             // a full Big Bubble
+      holdMaxMs: 1500,     // the film cannot hold more air: auto-release (no corner-camping a charged bubble)
+      minDamageMult: 1,    // unused: damage comes from bubbleProfile(charge), not chargeDamageMult
+      damageExponent: 2,
+    },
+  },
 };
 
 // Attach immutable handling profiles without duplicating the baseline recoil numbers.
 for (const [id, def] of Object.entries(WEAPONS)) WEAPONS[id] = withWeaponHandling(def);
 
-export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive'];
+export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble'];
 
 /** Charge profile with safe defaults for weapons that are not `charge` mode. */
 export function chargeProfile(def) {

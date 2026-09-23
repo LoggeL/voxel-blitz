@@ -35,6 +35,7 @@ import {
 import {
   GLAIVE_CUES,
   arcZap,
+  bubblePop,
   fireReportProfile,
   fireSampleProfile,
   renderFireReport,
@@ -58,6 +59,7 @@ let painMoanVoice = null;
 let localVocalUntil = 0;
 let painHitVariant = -1;
 let chargeLoop = null;
+let bubbleChargeLoop = null;
 let flameLoops = null;
 let minigunMotor = null;
 let minigunReportIndex = 0;
@@ -170,13 +172,69 @@ function ensureChargeLoop() {
 }
 
 function disposeChargeLoop() {
-  if (!chargeLoop) return;
-  try {
-    chargeLoop.oscillator.stop();
-    chargeLoop.shimmer.stop();
-    chargeLoop.gain.disconnect();
-  } catch {}
-  chargeLoop = null;
+  if (chargeLoop) {
+    try {
+      chargeLoop.oscillator.stop();
+      chargeLoop.shimmer.stop();
+      chargeLoop.gain.disconnect();
+    } catch {}
+    chargeLoop = null;
+  }
+  if (bubbleChargeLoop) {
+    try {
+      bubbleChargeLoop.noise.stop();
+      bubbleChargeLoop.tone.stop();
+      bubbleChargeLoop.vibrato.stop();
+      bubbleChargeLoop.tremolo.stop();
+      bubbleChargeLoop.gain.disconnect();
+    } catch {}
+    bubbleChargeLoop = null;
+  }
+}
+
+/**
+ * SUDSBLASTER Big-Bubble hold: a band-passed breath of air through the wand and a wobbling
+ * soap-film tone that both climb with the charge; past 90 % a slow tremolo creaks the film.
+ */
+function ensureBubbleChargeLoop() {
+  const ctx = engine.ctx;
+  if (!ctx || ctx.state === 'closed' || !engine.bus || !engine.noiseBuffer) return null;
+  if (bubbleChargeLoop && bubbleChargeLoop.ctx === ctx) return bubbleChargeLoop;
+  const noise = ctx.createBufferSource();
+  noise.buffer = engine.noiseBuffer;
+  noise.loop = true;
+  const band = ctx.createBiquadFilter();
+  band.type = 'bandpass';
+  band.frequency.value = 600;
+  band.Q.value = 1.2;
+  const tone = ctx.createOscillator();
+  tone.type = 'sine';
+  tone.frequency.value = 220;
+  const vibrato = ctx.createOscillator();
+  vibrato.frequency.value = 6;
+  const vibratoDepth = ctx.createGain();
+  vibratoDepth.gain.value = 8;
+  vibrato.connect(vibratoDepth).connect(tone.frequency);
+  const toneGain = ctx.createGain();
+  toneGain.gain.value = 0.45;
+  const creak = ctx.createGain();
+  creak.gain.value = 1;
+  const tremolo = ctx.createOscillator();
+  tremolo.frequency.value = 13;
+  const tremoloDepth = ctx.createGain();
+  tremoloDepth.gain.value = 0;
+  tremolo.connect(tremoloDepth).connect(creak.gain);
+  const gain = ctx.createGain();
+  gain.gain.value = 0;
+  noise.connect(band).connect(creak);
+  tone.connect(toneGain).connect(creak);
+  creak.connect(gain).connect(engine.bus);
+  noise.start();
+  tone.start();
+  vibrato.start();
+  tremolo.start();
+  bubbleChargeLoop = { ctx, noise, band, tone, vibrato, vibratoDepth, tremolo, tremoloDepth, gain, level: 0 };
+  return bubbleChargeLoop;
 }
 
 function copyOptions(value) {
@@ -411,18 +469,32 @@ export const sfx = {
    * `active`; the whine climbs in pitch and brightness with the charge and fades out on
    * release.
    */
-  weaponCharge(level01, active = true) {
+  weaponCharge(level01, active = true, weaponId = null) {
     const level = Math.max(0, Math.min(1, Number(level01) || 0));
     if (!active) {
-      if (chargeLoop) {
-        const at = chargeLoop.ctx.currentTime;
-        chargeLoop.gain.gain.cancelScheduledValues(at);
-        chargeLoop.gain.gain.setTargetAtTime(0, at, 0.03);
-        chargeLoop.level = 0;
+      // A release or cancel stops every charge voice, whichever weapon was held.
+      for (const loop of [chargeLoop, bubbleChargeLoop]) {
+        if (!loop) continue;
+        const at = loop.ctx.currentTime;
+        loop.gain.gain.cancelScheduledValues(at);
+        loop.gain.gain.setTargetAtTime(0, at, 0.03);
+        loop.level = 0;
       }
       return false;
     }
     if (!engine.ctx || engine.ctx.state === 'closed') return false;
+    if (weaponId === 'bubble') {
+      const loop = ensureBubbleChargeLoop();
+      if (!loop) return false;
+      const at = loop.ctx.currentTime;
+      loop.level = level;
+      loop.band.frequency.setTargetAtTime(600 + 1600 * level, at, 0.04);
+      loop.tone.frequency.setTargetAtTime(220 + 420 * level, at, 0.04);
+      loop.vibratoDepth.gain.setTargetAtTime(8 + 30 * level, at, 0.05);
+      loop.tremoloDepth.gain.setTargetAtTime(level > 0.9 ? 0.25 : 0, at, 0.03);
+      loop.gain.gain.setTargetAtTime(0.025 + 0.09 * level, at, 0.015);
+      return true;
+    }
     const loop = ensureChargeLoop();
     if (!loop) return false;
     const at = loop.ctx.currentTime;
@@ -1166,6 +1238,16 @@ export const sfx = {
       if (detail?.id != null) this.stopGlaiveFlight(detail.id);
       const cue = detail?.caught ? 'catch' : detail?.embedded ? 'embed' : 'fizzle';
       return this.glaiveCue(cue, Array.isArray(deferredPos) ? { pos: deferredPos } : null);
+    }
+    if (type === 'bubble') {
+      // SUDSBLASTER pop: soap, not powder, so never the frag sample. The blast radius tells
+      // a Big Bubble (> 3 m) from a Soap Shot and a Foam-party mini (< 2.15 m).
+      const radius = Number(detail?.radius) || 2.2;
+      run('bubblePop', () => {
+        const output = pool.acquire({ pos: deferredPos, priority: 1 }, 0.35);
+        bubblePop(output, primitives, { big: radius > 3, child: radius < 2.15 });
+      });
+      return;
     }
     if (type === 'smoke') {
       run('smokeRelease', () => {

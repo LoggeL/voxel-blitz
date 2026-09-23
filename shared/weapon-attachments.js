@@ -25,10 +25,10 @@ const standardCounter = Object.freeze(['standard', 'stattrak']);
 const allGrips = ['standard', 'angled', 'vertical', 'precision'];
 const rifles = ['standard', 'reflex', 'scope2', 'scope4'];
 export const ATTACHMENT_SLOTS = Object.freeze(Object.fromEntries(WEAPON_IDS.map(id => [id, item({
-  optics: Object.freeze(['knife', 'glaive'].includes(id) ? ['standard'] : id === 'sniper' ? [...rifles, 'scope10']
+  optics: Object.freeze(['knife', 'glaive', 'bubble'].includes(id) ? ['standard'] : id === 'sniper' ? [...rifles, 'scope10']
     : id === 'lance' ? [...rifles, 'cyber']
     : ['minigun', 'flamethrower', 'rocket'].includes(id) ? ['standard', 'reflex', 'scope2'] : [...rifles]),
-  grips: Object.freeze(['knife', 'revolver', 'minigun', 'flamethrower', 'rocket', 'glaive'].includes(id) ? ['standard'] : [...allGrips]),
+  grips: Object.freeze(['knife', 'revolver', 'minigun', 'flamethrower', 'rocket', 'glaive', 'bubble'].includes(id) ? ['standard'] : [...allGrips]),
   // Cosmetic-only: every weapon can carry the kill counter, so the toggle rides
   // the same normalize/validate/transport/persistence path as optics and grips.
   counter: standardCounter,

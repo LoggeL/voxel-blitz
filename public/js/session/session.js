@@ -20,6 +20,7 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
   'mine',
   'projectileLaunch',
   'projectileUpdate',
+  'projectileStick',
   'projectileExplode',
   'glaiveStock',
   'respawn',

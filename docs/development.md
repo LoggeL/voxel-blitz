@@ -71,7 +71,7 @@ Run `npm run powerups:test` for simulation and protocol checks, and
 
 Create a lobby, select **CHAOS LAB**, ready up and start. The full weapon roster is available.
 Start with $600, earn $300 per kill, and open the upgrade shop with **B** (or the touch
-BUY button / gamepad D-pad right). All thirteen weapons and four throwables each have
+BUY button / gamepad D-pad right). All fourteen weapons and four throwables each have
 three cumulative upgrades costing $300, $600 and $900. Money and upgrades survive
 respawns for the current match; joining a new room starts fresh. Kills also restore
 one grenade of each type, up to five. The shop does not pause combat. Bots buy upgrades too.
@@ -80,14 +80,17 @@ Experiments include Tesla chain hits, shotgun bowling bolts, wall-piercing explo
 sniper rounds, rocket-fed LMG salvos, revolver pinball rings, eight-bounce LONGARC
 multiball with explosive bumpers, homing cluster rockets, tunnel rails, pickaxe
 shockwaves, frag offspring, long-wire claymores and vacuum-to-launch pulse bombs.
-The shop describes all 54 stages before purchase, with artwork for every weapon and
+The shop describes all 57 stages before purchase, with artwork for every weapon and
 grenade. Cluster children cannot reproduce;
 rooms cap live projectiles at 192 and clients retain at most 96 blast visuals.
 
 Flamethrower upgrades add side jets, periodic forward backdraft shockwaves and rockets.
 Minigun upgrades add body piercing, periodic ricochet fans and ring salvos. RIPTIDE
 upgrades seat a third disc (Third plate), fire a 2.5 m pulse at every wall contact and
-catch (Razor wake), and stretch the out leg to 800 ms with five-body pierce (Long tether). These
+catch (Razor wake), and stretch the out leg to 800 ms with five-body pierce (Long tether).
+SUDSBLASTER upgrades blow a free twin bubble off to the side (Double bubble), stick
+bubbles to walls and ceilings as 5 s proximity mines (Clingfilm) and scatter five mini
+bubbles from every pop (Foam party). These
 effects stack while fuel consumption, spin-up and heat still follow the base weapons.
 
 Validate with `npm run chaos:test` and `node tools/chaos-browser-smoke.mjs`.
@@ -324,13 +327,13 @@ Run `npm run bastion:test` for directed simulation on both maps and real WebSock
 ### Fun
 
 Fun is a free-for-all with no teams, no score-limit reset, the complete
-thirteen-weapon loadout, and a **1500 ms** respawn. Quick Play uses shared live Fun
+fourteen-weapon loadout, and a **1500 ms** respawn. Quick Play uses shared live Fun
 rooms with join in progress and no ready gate.
 
 ### Team Deathmatch
 
 Team Deathmatch assigns each player to the lower-population `alpha` or `bravo`
-team, disables friendly fire, provides the complete thirteen-weapon loadout, and
+team, disables friendly fire, provides the complete fourteen-weapon loadout, and
 uses team-specific spawn pools. Enemy kills increment the team score. The first
 team to **40** wins; the result approval phase follows, then team and player
 scores reset and everyone respawns. Deaths respawn after **3000 ms** during the
@@ -386,7 +389,7 @@ their purchases and remaining ammunition. Weapons cannot fire during prep.
 
 Gun Game is a free-for-all with a **1500 ms** respawn. Every kill advances the
 player through rifle, SMG, shotgun, sniper, LMG, F-4 FIRESTORM, rocket, LONGARC,
-GV-4 RIPTIDE, VOLTLANCE, revolver, M-6 FURNACE minigun, and finally the IRON PICK
+GV-4 RIPTIDE, SB-1 SUDSBLASTER, VOLTLANCE, revolver, M-6 FURNACE minigun, and finally the IRON PICK
 pickaxe. A kill with the IRON PICK wins; a
 **5000 ms** result phase follows before progression and scores reset.
 
@@ -596,18 +599,20 @@ support portrait and landscape. Append `?touch=1` for desktop QA.
 | **CL-9 VOLTLANCE** | charge (hold/release) | 100 rpm | 4 + 5 mags | siege rail-lance: a tap flings a weak dart, a charged lance spears up to six enemies on the line with 0.9-per-body falloff, and only a full charge crosses up to two walls decaying 0.72 per wall; rising cell whine and violet lance glow |
 | **IRON PICK** | melee | 120 rpm | no ammo — swings are free | iron pickaxe: material-dependent mining with cracks and block debris; hits deal 58 (46.4 after scale), Minecraft-style falling crits ×1.5 (69.6 — crit + hit kills), 2.5x backstabs (116, lethal), a ~1 m shove on every hit and a ~2.6 m sprint knockback (`shared/melee.js`); bots close in, sprint and hop for crits |
 | **GV-4 RIPTIDE** | semi-automatic throw | 150 rpm | 2 discs, reloaded by catching | disc launcher: a toothed magenta disc cuts out 34 m/s, bending gently onto a body just off its line, loops home at 30 m/s and pierces up to three bodies on each leg (out 43.2, back 57.6 after scale, head ×1.5); `R` turns discs home early; wall-stuck discs are picked up or fabricated after 4 s. No reach past about 20 m (`docs/weapon-design/glaive.md`) |
+| **SB-1 SUDSBLASTER** | charge (tap or hold/release) | 300 rpm | 12 + 4 tanks | bubble launcher: a tap fires a quick Soap Shot (33.6 after scale, three kill), a 0.9 s hold blows a Big Bubble (56 direct, 4.2 m splash, strong upward shove) that lets go on its own at 1.5 s. Drag bleeds every bubble toward a terminal rise, so shots hook upward and nothing flies past about 18.6 m. Pops splash, shove upward and soak (×0.6 move speed); they never damage terrain or their owner. Enemy bullets pop bubbles in flight (`docs/weapon-design/bubble.md`) |
 
 Gun timing lives in `public/js/guns/defs.js` (timer table per weapon); shared
 ballistics/damage in `shared/combatmath.js`; the LONGARC's bouncing bolts in
-`shared/bolt-rules.js`; the RIPTIDE discs in `shared/glaive-rules.js`; authoritative resolve in
+`shared/bolt-rules.js`; the RIPTIDE discs in `shared/glaive-rules.js`; the SUDSBLASTER bubbles in
+`shared/bubble-rules.js`; authoritative resolve in
 `server/game.js`. The server re-samples every shot's spread cone itself from
 your reported view angles — client damage claims are never trusted.
 
 ## Feel and settings
 Weapon mass is part of the shared definition: rifle 3.4 kg, SMG 2.3 kg,
 shotgun 3.6 kg, sniper 5.2 kg, LMG 8.4 kg, revolver 1.4 kg, longarc 4.1 kg,
-rocket 9.6 kg, lance 3.8 kg, knife 0.9 kg, minigun 11.8 kg, flamethrower 5.8 kg
-and RIPTIDE 3.1 kg. Mouse aim and
+rocket 9.6 kg, lance 3.8 kg, knife 0.9 kg, minigun 11.8 kg, flamethrower 5.8 kg,
+RIPTIDE 3.1 kg and SUDSBLASTER 2.6 kg. Mouse aim and
 server authority remain immediate. The procedural gun owns a separate angular
 orientation with weight-limited speed and acceleration, so heavier weapons trail
 farther during a turn and settle more slowly after the mouse has stopped.

@@ -9,6 +9,7 @@ import { WEAPONS, WEAPON_IDS, chargeProfile } from '../../shared/combatmath.js';
 import { MINIGUN } from '../../shared/minigun.js';
 import { rocketLaunch, stepRocket } from '../../shared/rocket-rules.js';
 import { boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
+import { bubbleLaunch, bubbleProfile, stepBubble } from '../../shared/bubble-rules.js';
 import { TICK_MS } from '../../server/protocol/admission.js';
 
 export const DISTANCES = [1, 2, 5, 10, 15, 20, 30, 40, 60, 80, 100, 120];
@@ -23,14 +24,16 @@ export const SCENARIOS = [
 const aimCache = new Map();
 /** Compensate gravity and muzzle offset using the actual discrete integrator.
  * The target stays still; this deliberately assumes perfect range estimation. */
-function ballisticPitch(id, distance, eyeHeight, targetHeight) {
-  const key = [id, distance, eyeHeight, targetHeight].join(':');
+function ballisticPitch(id, distance, eyeHeight, targetHeight, charge01 = 0) {
+  const key = [id, distance, eyeHeight, targetHeight, charge01].join(':');
   if (aimCache.has(key)) return aimCache.get(key);
-  const launch = id === 'rocket' ? rocketLaunch : boltLaunch;
-  const step = id === 'rocket' ? stepRocket : stepBolt;
+  const launch = id === 'rocket' ? rocketLaunch : id === 'bubble' ? bubbleLaunch : boltLaunch;
+  const step = id === 'rocket' ? stepRocket : id === 'bubble' ? stepBubble : stepBolt;
+  // A bubble pops at the end of its lifetime; everything else gets 200 ticks.
+  const ticks = id === 'bubble' ? Math.ceil(bubbleProfile(charge01).lifetimeMs / TICK_MS) : 200;
   function height(pitch) {
-    const p = launch({ x: 0, y: eyeHeight, z: 0, dir: fwdFromYawPitch(0, pitch) });
-    for (let tick = 0; tick < 200; tick++) {
+    const p = launch({ x: 0, y: eyeHeight, z: 0, dir: fwdFromYawPitch(0, pitch), charge01 });
+    for (let tick = 0; tick < ticks; tick++) {
       const from = { z: p.z, y: p.y };
       step(p, TICK_MS / 1000, () => null);
       if (p.z <= -distance) {
@@ -61,7 +64,8 @@ export function simulateFight({ weapon, distance, scenario = 'ideal-body', seed 
   if (!(hp > 0 && hp <= 1000) || !(armor >= 0 && armor <= 100)
     || !(maxSeconds > 0 && maxSeconds <= 120)) throw new Error('Invalid HP, armor or time limit');
   if (!['cold', 'ready', 'hot'].includes(minigun)) throw new Error('Invalid minigun state');
-  const holdMs = chargeMs ?? chargeProfile(def).holdMaxMs;
+  // SUDSBLASTER rows default to Soap-Shot taps (press, release next tick).
+  const holdMs = chargeMs ?? (def.projectile === 'bubble' ? 0 : chargeProfile(def).holdMaxMs);
   if (!Number.isFinite(holdMs) || holdMs < 0) throw new Error('Invalid charge time');
   const shooter = new PlayerEntity(`ttk-${seed}`, 'Shooter', { x: 100, y: 20, z: 200 });
   const victim = new PlayerEntity('target', 'Target', { x: 100, y: 20, z: 200 - distance });
@@ -73,7 +77,8 @@ export function simulateFight({ weapon, distance, scenario = 'ideal-body', seed 
   const aimHeight = victim.y + (mode.aim === 'head' ? 1.66 : 1.18);
   // RIPTIDE discs fly straight from the eye (no gravity, no muzzle drop): aim directly.
   shooter.pitch = def.projectile && !def.glaive
-    ? ballisticPitch(weapon, distance, shooter.eyeY, aimHeight)
+    ? ballisticPitch(weapon, distance, shooter.eyeY, aimHeight,
+      def.projectile === 'bubble' ? Math.min(1, holdMs / def.charge.ms) : 0)
     : aimAngles([shooter.x, shooter.eyeY, shooter.z], [victim.x, aimHeight, victim.z]).pitch;
   const entities = new Map([[shooter.id, shooter], [victim.id, victim]]);
   const targets = new Map([[victim.id, victim]]);
@@ -101,6 +106,7 @@ export function simulateFight({ weapon, distance, scenario = 'ideal-body', seed 
     launchRocket: (p, dir) => projectiles.launchRocket(p, ctx, dir),
     launchBolt: (p, dir, charge) => projectiles.launchBolt(p, ctx, dir, charge),
     launchGlaive: (p, dir) => projectiles.launchGlaive(p, ctx, dir),
+    launchBubble: (p, dir, charge) => projectiles.launchBubble(p, ctx, dir, charge),
     canThrowGlaive: (p) => projectiles.canThrowGlaive(p),
     returnDiscs: (p) => projectiles.returnDiscs(p, ctx),
     pushEvent(event) {

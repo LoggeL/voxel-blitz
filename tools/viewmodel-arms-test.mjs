@@ -122,7 +122,7 @@ try {
   // Every weapon keeps both segments inside a sane length, so no arm can shoot
   // across the screen when a hand anchor sits somewhere unusual.
   for (const id of ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'minigun', 'revolver',
-    'longarc', 'lance', 'rocket', 'flamethrower', 'glaive', 'knife']) {
+    'longarc', 'lance', 'rocket', 'flamethrower', 'glaive', 'bubble', 'knife']) {
     rig.setWeapon(id);
     for (let i = 0; i < 60; i++) rig.update(1 / 60, ctx);
     for (const side of ['l', 'r']) {

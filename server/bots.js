@@ -38,6 +38,7 @@ import { BOT_PERSONALITIES, DEFAULT_BOT_PERSONALITY, isBotPersonality, rollBotPe
 import { cancelCharge } from './sim/combat.js';
 import { wrapAngle } from './sim/player.js';
 import { glaiveDef } from './sim/projectiles.js';
+import { BUBBLE_RULES, bubbleFlight, bubbleProfile } from '../shared/bubble-rules.js';
 
 const TAU = Math.PI * 2;
 const PITCH_TURN_RATE = 4.0;      // rad/s vertical tracking cap
@@ -75,6 +76,11 @@ const GLAIVE_RETURN_HIT_MS = 250; // R turns a disc this soon after its out-hit
 const GLAIVE_RETURN_FAR = 12;     // ... or once it is this far out with no disc seated
 const GLAIVE_RETURN_MIN_AGE_MS = 300; // never while a fresh disc is still leaving the hand
 const GLAIVE_LINEUP_COS = Math.cos(15 * Math.PI / 180);
+const BUBBLE_SLOT = WEAPON_IDS.indexOf('bubble');
+const BUBBLE_MAX_RANGE = 16;      // m: Soap Shots still connect (the lifetime pops them at ~18.6 m)
+const BUBBLE_DRAW_RANGE = 12;     // m: redraw the launcher / blow a Big Bubble inside this
+const BUBBLE_GROUP_DIST = 3.5;    // m: a second enemy this close to the target earns a Big Bubble
+const BUBBLE_SWAP_CD_MS = 2500;   // between SUDSBLASTER range swaps
 const MELEE_CLOSE = 1.3;          // m: stop pressing forward this close to the body
 const MELEE_SPRINT_DIST = 1.7;    // m: sprint in until here so the swing shoves hard
 const MELEE_HOP_DIST = 3.2;       // m: hop inside this so the swing lands falling (crit)
@@ -227,6 +233,8 @@ class Brain {
     this.watchX = null;
     this.watchZ = 0;
     this.glaiveSwapAt = 0;           // earliest next RIPTIDE range-band swap
+    this.bubbleSwapAt = 0;           // earliest next SUDSBLASTER range swap
+    this.bubbleBig = false;          // the current trigger pull blows a Big Bubble
     this.critHopAt = 0;              // earliest next IRON PICK crit hop
   }
 
@@ -404,6 +412,20 @@ class BotManager {
       count++;
     }
     return count;
+  }
+
+  /**
+   * A Big Bubble pays off against a group or an S&D plant/defuse: the target is close
+   * and another enemy stands next to it, or it is holding an objective interaction.
+   */
+  wantsBigBubble(p, enemy, distance) {
+    if (!enemy || !(distance <= BUBBLE_DRAW_RANGE)) return false;
+    if (this.game.mode.mode === 'snd' && enemy.interaction) return true;
+    for (const o of this.game.entities.values()) {
+      if (o === p || o === enemy || o.state !== 'alive' || !this.game.mode.isEnemy(p, o)) continue;
+      if (dist3(o.x, o.y, o.z, enemy.x, enemy.y, enemy.z) <= BUBBLE_GROUP_DIST) return true;
+    }
+    return false;
   }
 
   /** Loudest enemy noise this bot can hear right now, or null. */
@@ -747,10 +769,19 @@ class BotManager {
       const glaive = p.weapon === GLAIVE_SLOT && !!p.def.glaive;
       const glaiveRules = glaive ? glaiveDef(p).glaive : null;
       const [aimX, aimY, aimZ] = br.sighting.aimPoint;
+      // SUDSBLASTER bubbles hook upward: lead by the closed-form flight time and aim
+      // under the target by the rise (low skill under-compensates, so misses float over).
+      const bubble = p.def.projectile === 'bubble';
+      const bubbleFlat = bubble ? Math.hypot(aimX - p.x, aimZ - p.z) : 0;
+      // Only a Big Bubble actually being blown aims on the Big Bubble profile: a stale
+      // flag from the last hold must not null the flight (and so the shot) at 12.5-18 m.
+      if (bubble && !p.charging) br.bubbleBig = false;
+      const flight = bubble ? bubbleFlight(bubbleProfile(p.charging && br.bubbleBig ? 1 : 0), bubbleFlat) : null;
       const lead = glaive
         ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), glaiveRules.speedOut, br.skill)
+        : flight ? (flight.t > 0 ? projectileLead(enemy, bubbleFlat, bubbleFlat / flight.t, br.skill) : [0, 0])
         : [(enemy.vx || 0) * LEAD_S * br.skill, (enemy.vz || 0) * LEAD_S * br.skill];
-      const aim = [aimX + lead[0], aimY, aimZ + lead[1]];
+      const aim = [aimX + lead[0], aimY - (flight ? (flight.rise - BUBBLE_RULES.muzzleDrop) * br.skill : 0), aimZ + lead[1]];
       const yawT = Math.atan2(-(aim[0] - p.x), -(aim[2] - p.z));
       const flat = Math.hypot(aim[0] - p.x, aim[2] - p.z) || 1;
       const pitchT = Math.atan2(aim[1] - eye[1], flat);
@@ -823,6 +854,18 @@ class BotManager {
         else lineUp = this.glaiveLineUp(p, eye, inp.yaw, inp.pitch, reach) >= 2;
         if (this.glaiveReturnWanted(p, now)) inp.reload = true;
       }
+      // SUDSBLASTER: hold fire past the bubble's reach and swap to the revolver when
+      // the target is well out of it. A bubble-only loadout (Gun Game) fires whenever
+      // a bubble can still reach.
+      if (bubble) {
+        const others = ownedSlots.some((slot) => slot !== p.weapon);
+        if (!flight || (others && aimDistance > BUBBLE_MAX_RANGE)) canShoot = false;
+        if (aimDistance > BUBBLE_MAX_RANGE + 2 && p.mag[DEFAULT_WEAPON_SLOT] > 0 && inp.switchTo === undefined
+            && !br.spawnSwitchPending && now >= br.bubbleSwapAt && ownedSlots.includes(DEFAULT_WEAPON_SLOT)) {
+          inp.switchTo = DEFAULT_WEAPON_SLOT;
+          br.bubbleSwapAt = now + BUBBLE_SWAP_CD_MS;
+        }
+      }
       // A held trigger swings the pick at its rpm cadence: no bursts, no magazine.
       if (melee) { if (combatAllowed && canShoot && meleeLive) inp.wantFire = true; }
       else if (combatAllowed && canShoot && p.mag[p.weapon] > 0) {
@@ -832,8 +875,15 @@ class BotManager {
             br.burstEnd = now + shots * Math.round(60000 / p.def.rpm);
             br.inBurst = true;
           }
+          // A Big Bubble hold outlasts a short burst: finish blowing it first.
+          if (bubble && p.charging) br.burstEnd = Math.max(br.burstEnd, now + 1);
           if (now < br.burstEnd) {
-            if (p.def.mode === 'charge') {
+            if (bubble) {
+              // Taps press one tick and release the next; a Big Bubble holds ~95% charge.
+              if (!p.charging && !p.triggerPrev) br.bubbleBig = this.wantsBigBubble(p, enemy, aimDistance);
+              const holdMs = br.bubbleBig ? 0.95 * p.def.charge.ms : 0;
+              inp.wantFire = p.charging ? p.chargeT < holdMs : !p.triggerPrev;
+            } else if (p.def.mode === 'charge') {
               // Charge weapons release near full power.
               const chargeMs = p.def.charge?.ms || 850;
               inp.wantFire = p.charging ? p.chargeT < chargeMs * 0.95 : !p.triggerPrev;
@@ -858,6 +908,17 @@ class BotManager {
       if (d === null || (d >= GLAIVE_MIN_RANGE && d <= glaiveReach(glaiveDef(p).glaive))) {
         inp.switchTo = GLAIVE_SLOT;
         br.glaiveSwapAt = now + GLAIVE_SWAP_CD_MS;
+      }
+    }
+
+    // Same for the SUDSBLASTER: redraw it once seated and a target is inside its reach.
+    if (BUBBLE_SLOT >= 0 && p.weapon !== BUBBLE_SLOT && p.mag[BUBBLE_SLOT] > 0
+        && inp.switchTo === undefined && !br.spawnSwitchPending && now >= br.bubbleSwapAt
+        && ownedSlots.includes(BUBBLE_SLOT) && this.preferredSlot(br, ownedSlots) === BUBBLE_SLOT) {
+      const d = combatMovement ? dist3(eye[0], eye[1], eye[2], enemy.x, enemy.eyeY - 0.35, enemy.z) : null;
+      if (d === null || d <= BUBBLE_DRAW_RANGE) {
+        inp.switchTo = BUBBLE_SLOT;
+        br.bubbleSwapAt = now + BUBBLE_SWAP_CD_MS;
       }
     }
 

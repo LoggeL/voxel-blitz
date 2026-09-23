@@ -13,6 +13,14 @@ assert.equal(simulateFight({ weapon: 'revolver', distance: 80, scenario: 'ideal-
 assert.equal(simulateFight({ weapon: 'revolver', distance: 80 }).shots, 5);
 assert.equal(simulateFight({ weapon: 'minigun', distance: 10, minigun: 'hot' }).killMs, 400);
 assert.equal(simulateFight({ weapon: 'flamethrower', distance: 10 }).killMs, 1350);
+// SB-1 SUDSBLASTER: a 3-tap Soap Shot that loses every hitscan duel and cannot reach 30 m.
+const bubbleClose = simulateFight({ weapon: 'bubble', distance: 5 });
+assert.equal(bubbleClose.shots, 3);
+assert.ok(bubbleClose.killMs >= 500 && bubbleClose.killMs <= 750, `bubble 5 m kill ${bubbleClose.killMs}`);
+assert.ok(bubbleClose.killMs > simulateFight({ weapon: 'rifle', distance: 5 }).killMs
+  && bubbleClose.killMs > simulateFight({ weapon: 'smg', distance: 5 }).killMs, 'bubble loses the 5 m duel');
+assert.ok(simulateFight({ weapon: 'bubble', distance: 15 }).killMs <= 1600);
+assert.equal(simulateFight({ weapon: 'bubble', distance: 30, maxSeconds: 4 }).killMs, null);
 
 // Hitpoints come from the actual explosion path, including scaling and rounding.
 close(simulateBlast({ direct: true }).damage, 184);
@@ -36,4 +44,4 @@ for (let distance = 0; distance <= 8; distance += 0.125) {
 }
 // Existing grenade/rocket pressure, cover, and client impulse reconciliation.
 runBlastImpulseContracts((value, message) => assert.ok(value, message));
-console.log('Weapon balance: near/far kill boundaries, minigun bonus, flame buff, direct/splash damage, curved falloff, radius cutoff, cover, armor and preserved rocket-jump pressure passed.');
+console.log('Weapon balance: near/far kill boundaries, minigun bonus, flame buff, bubble reach, direct/splash damage, curved falloff, radius cutoff, cover, armor and preserved rocket-jump pressure passed.');

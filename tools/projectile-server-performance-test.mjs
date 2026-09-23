@@ -180,6 +180,54 @@ const glaiveBurst = (() => {
   assert(median < 4, `48-disc tick median ${median.toFixed(3)} ms stays under 4 ms`);
   return { discs: launched, ticks: ticks.length, medianTickMs: Number(median.toFixed(3)), updates };
 })();
+// SUDSBLASTER Foam party: 12 owners at Chaos 3 pull 5 times a second for 10 s under a
+// ceiling (clung mines, twins, five children per pop). The per-owner cap and the room
+// budget keep the population bounded and the tick inside the budget.
+const bubbleStorm = (() => {
+  const system = new ProjectileSystem();
+  const slot = WEAPON_IDS.indexOf('bubble');
+  const players = Array.from({ length: 12 }, (_, i) => {
+    const p = new PlayerEntity(`u${i}`, `u${i}`, { x: 20 + (i % 4) * 4, y: 20, z: 20 + Math.floor(i / 4) * 4 }, false);
+    Object.assign(p, { yaw: (i / 12) * Math.PI * 2, pitch: 0.25, weapon: slot, chaosUpgrades: { bubble: 3 } });
+    return p;
+  });
+  const ceiling = 26;
+  const ctx = {
+    now: 1000, entities: new Map(players.map((p) => [p.id, p])),
+    getBlock: (_x, y) => (y >= ceiling ? 1 : 0), solidAt: (_x, y) => y >= ceiling,
+    canAffectWorld: () => true, canDamage: (a, b) => a !== b, canThrow: () => true,
+    pushEvent() {}, killPlayer: (victim) => { victim.hp = 100; },
+    damageBlock() {}, destroyBlock: () => false,
+  };
+  const ticks = [];
+  let peak = 0, peakOwned = 0;
+  for (let tick = 0; tick < 600; tick++) {
+    ctx.now += 1000 / 60;
+    const start = performance.now();
+    if (tick % 12 === 0) {
+      for (const p of players) {
+        p.shotSeq++;
+        system.launchBubble(p, ctx, fwdFromYawPitch(p.yaw + tick * 0.01, p.pitch), (tick / 12) % 3 === 0 ? 1 : 0);
+      }
+    }
+    system.step(1 / 60, ctx);
+    ticks.push(performance.now() - start);
+    peak = Math.max(peak, system.active.size);
+    for (const p of players) {
+      let owned = 0;
+      for (const b of system.active.values()) if (b.owner === p && !b.child && b.explodeAt > ctx.now) owned++;
+      peakOwned = Math.max(peakOwned, owned);
+    }
+  }
+  ticks.sort((a, b) => a - b);
+  const median = ticks[Math.floor(ticks.length / 2)];
+  const p99 = ticks[Math.floor(ticks.length * 0.99)];
+  assert(peak <= 193, `bubble storm stays inside the room budget (${peak})`);
+  assert(peakOwned <= 16, `per-owner bubble cap holds (${peakOwned})`);
+  assert(median < 4, `bubble storm tick median ${median.toFixed(3)} ms stays under 4 ms`);
+  assert(p99 < 12, `bubble storm tick p99 ${p99.toFixed(3)} ms stays under 12 ms`);
+  return { peakProjectiles: peak, peakOwned, medianTickMs: Number(median.toFixed(3)), p99TickMs: Number(p99.toFixed(3)) };
+})();
 const o = [12.345678901234, 7.89123456789, 21.1234567890123];
 const v = [3.456789012345, -1.234567890123, 29.987654321098];
 const event = evProjectileUpdate('r123', o, v, 8);
@@ -191,4 +239,4 @@ const rawBytes = JSON.stringify({t:'ev',kind:'projectileUpdate',pid:'r123',o,v,b
 const wireBytes = JSON.stringify(event).length;
 assert(wireBytes < rawBytes * 0.75);
 console.log(JSON.stringify({collisionMedianMs192x24: collision, homingVoxelReads: homing,
-  updateBytes: { before: rawBytes, after: wireBytes }, matchingContacts: contacts, glaiveBurst}));
+  updateBytes: { before: rawBytes, after: wireBytes }, matchingContacts: contacts, glaiveBurst, bubbleStorm}));

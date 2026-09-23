@@ -1,0 +1,54 @@
+/* SB-1 SUDSBLASTER: rise ladder marks above the crosshair and the soaked vignette. */
+.vb-bubble-ladder { position: absolute; left: 0; top: 0; width: 0; height: 0; pointer-events: none; }
+.vb-bubble-ladder[hidden], .vb-bubble-mark[hidden], .vb-soap-vignette[hidden], .vb-soap-label[hidden] { display: none; }
+.vb-bubble-mark {
+  position: absolute; left: 0; top: -3px; width: 5px; height: 5px; box-sizing: border-box;
+  border: 1px solid #c9f4ffd9; border-radius: 50%;
+  box-shadow: 0 0 3px #000a, inset 0 0 2px #9fe9ff80;
+  transition: transform 90ms linear;
+}
+.vb-bubble-mark span {
+  position: absolute; left: 9px; top: 50%; transform: translateY(-50%);
+  color: #dff8ff; opacity: .55; font: 600 9px/1 'Helvetica Neue', Arial, sans-serif;
+  letter-spacing: .04em; text-shadow: 0 0 3px #000; white-space: nowrap;
+}
+
+.vb-soap-vignette {
+  position: absolute; inset: 0; pointer-events: none; overflow: hidden; opacity: 0;
+  /* Pastel thin-film edge: a conic rainbow masked to the screen border. */
+  background: conic-gradient(from 30deg at 50% 50%, #ffc6ec, #c9f4ff, #fff4b8, #b9a4ff, #9fe9ff, #ffc6ec);
+  -webkit-mask: radial-gradient(ellipse 72% 68% at 50% 50%, transparent 58%, #000 100%);
+  mask: radial-gradient(ellipse 72% 68% at 50% 50%, transparent 58%, #000 100%);
+}
+.vb-soap-bubble {
+  position: absolute; bottom: -40px; width: 26px; height: 26px; border-radius: 50%;
+  border: 1.5px solid #ffffffb3; background: radial-gradient(circle at 32% 30%, #fffe 0 12%, #ffffff1a 30%, #9fe9ff26 70%, #ffc6ec40);
+  left: calc(var(--i) * 3% + 2%);
+  animation: vb-soap-rise calc(2.4s + var(--i) * .35s) linear infinite;
+  animation-delay: calc(var(--i) * -.55s);
+}
+.vb-soap-bubble:nth-child(even) { left: auto; right: calc(var(--i) * 2.5% + 1%); width: 18px; height: 18px; }
+@keyframes vb-soap-rise {
+  from { transform: translate(0, 0) scale(.8); }
+  50% { transform: translate(10px, -55vh) scale(1); }
+  to { transform: translate(-6px, -110vh) scale(1.1); }
+}
+.vb-soap-label {
+  position: absolute; left: 50%; top: 12%; transform: translateX(-50%); pointer-events: none;
+  color: #dff8ff; font: 700 11px/1 'Helvetica Neue', Arial, sans-serif; letter-spacing: .22em;
+  text-shadow: 0 0 6px #9fe9ffa6, 0 1px 2px #000c;
+  animation: vb-soap-label 1s ease-out both;
+}
+@keyframes vb-soap-label {
+  from { opacity: 0; transform: translate(-50%, 6px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  75% { opacity: 1; }
+  to { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .vb-soap-bubble, .vb-soap-label { animation: none; }
+  .vb-soap-bubble { display: none; }
+  .vb-bubble-mark { transition: none; }
+}
+html[data-reduced-motion="true"] .vb-soap-bubble { display: none; }
+html[data-reduced-motion="true"] .vb-soap-label { animation: none; }

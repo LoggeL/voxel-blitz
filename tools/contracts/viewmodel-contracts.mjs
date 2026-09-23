@@ -345,10 +345,11 @@ export async function runViewmodelContracts(ok, installGlobals) {
           && Number.isFinite(carried.root.rotation.x)
           // Melee carries no ballistic flash; the firing flag alone never moves the
           // pick (the chop runs on the swing clock, checked below), not a gun sight.
+          // The SUDSBLASTER blows soap, so its film release replaces the flash.
           && (isMelee
             ? (carried._model.flash.mats.length === 0
               && Math.abs(carried.root.rotation.x) < 1e-9)
-            : (carried._model.flash.grp.visible === !carried._model.T.continuous
+            : (carried._model.flash.grp.visible === !(carried._model.T.continuous || id === 'bubble')
               && Math.abs(standingSightY - 1.62) < 0.02));
       }
       ok(valid && hipMounts.size >= 4,

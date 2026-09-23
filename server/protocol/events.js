@@ -92,6 +92,20 @@ export function evProjectileLaunch(id, projectileId, type, origin, velocity, fus
   return event;
 }
 
+/** A Chaos 2 SUDSBLASTER bubble clung to terrain: frozen there with a fresh fuse. */
+export function evProjectileStick(id, projectileId, origin, fuseMs, normal = null) {
+  const event = {
+    t: 'ev', kind: 'projectileStick', id: String(id), pid: String(projectileId),
+    x: round(origin[0], D2), y: round(origin[1], D2), z: round(origin[2], D2),
+    fuse: Math.max(0, Math.round(Number(fuseMs) || 0)),
+  };
+  // Optional mount face normal (Clingfilm bubbles flatten against it).
+  if (Array.isArray(normal) && normal.length === 3 && normal.every(Number.isFinite)) {
+    event.n = [round(normal[0], D2), round(normal[1], D2), round(normal[2], D2)];
+  }
+  return event;
+}
+
 export function evProjectileExplode(id, projectileId, type, origin, radius) {
   return {
     t: 'ev', kind: 'projectileExplode', id: String(id), pid: String(projectileId),

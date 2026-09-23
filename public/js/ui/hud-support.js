@@ -2,6 +2,7 @@ import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { combatDamage } from '../../../shared/combat-balance.js';
 import { ROCKET_RULES } from '../../../shared/rocket-rules.js';
 import { BOLT_RULES } from '../../../shared/bolt-rules.js';
+import { bubbleProfile } from '../../../shared/bubble-rules.js';
 
 export const GLYPH = Object.freeze({
   rifle: 'R',
@@ -18,6 +19,7 @@ export const GLYPH = Object.freeze({
   flamethrower: 'FLM',
   grenade: 'GRN',
   glaive: 'GV',
+  bubble: 'SB',
 });
 
 export const WEAPON_NAMES = Object.freeze({
@@ -34,6 +36,7 @@ export const WEAPON_NAMES = Object.freeze({
   knife: 'IRON PICK',
   flamethrower: 'F-4 FIRESTORM',
   glaive: 'GV-4 RIPTIDE',
+  bubble: 'SB-1 SUDSBLASTER',
 });
 
 export function weaponImagePath(weaponId) {
@@ -74,12 +77,14 @@ export const WEAPON_CLASSES = Object.freeze({
   knife: 'PICKAXE · HOLD TO MINE',
   flamethrower: 'FLAME JET · BUILD AFTERBURN · 28m',
   glaive: `DISC LAUNCHER · RETURN PIERCE ×${WEAPONS.glaive.glaive.pierce}`,
+  bubble: 'BUBBLE LAUNCHER · TAP OR HOLD · FLOATS UP',
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([
   'revolver',
   'smg',
   'shotgun',
+  'bubble',
   'rifle',
   'lmg',
   'sniper',
@@ -93,9 +98,9 @@ export const WEAPON_BUY_ORDER = Object.freeze([
 ]);
 
 /**
- * Armory card stat line from the rules that resolve damage: a rocket shows its
- * direct hit (impact plus full splash), pellet weapons show per-pellet damage
- * times the pellet count, melee weapons carry no ammunition fields, and the
+ * Armory card stat line from the rules that resolve damage: a rocket and a
+ * tap-fired SUDSBLASTER Soap Shot show their direct hit (impact plus full
+ * splash), pellet weapons show per-pellet damage times the pellet count, melee weapons carry no ammunition fields, and the
  * RIPTIDE's returning discs show out/back leg damage and the disc count (there
  * is no reserve).
  */
@@ -105,7 +110,10 @@ export function weaponCardStats(def) {
     return `DMG ${leg(def.glaive.outDamage)}/${leg(def.glaive.backDamage)} · ${def.magSize || 0} DISCS · RETURNING`;
   }
   const close = Array.isArray(def.damage) ? def.damage[0] : (def.damage || 0);
-  const base = def.projectile === 'rocket' ? ROCKET_RULES.directDamage + ROCKET_RULES.splashDamage : close;
+  const soapShot = def.projectile === 'bubble' ? bubbleProfile(0) : null;
+  const base = def.projectile === 'rocket' ? ROCKET_RULES.directDamage + ROCKET_RULES.splashDamage
+    : soapShot ? soapShot.directDamage + soapShot.splashDamage
+      : close;
   const pellets = def.pellets > 1 ? `×${def.pellets}` : '';
   const rpm = def.rpm ? ` · ${def.rpm} RPM` : '';
   if (def.mode === 'melee') return `DMG ${Number(combatDamage(base).toFixed(1))}${rpm}`;

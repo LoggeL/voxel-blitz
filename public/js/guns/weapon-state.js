@@ -584,6 +584,10 @@ export class WeaponState {
       this._rig.setGlaive?.({ discs: this._ammo[drawn.id]?.mag ?? 0, magSize: drawn.magSize,
         fab01: this._glaiveFab01(drawn, now) });
     }
+    // SUDSBLASTER suds level follows the authoritative tank.
+    if (drawn.projectile === 'bubble') {
+      this._rig.setBubble?.({ mag: this._ammo[drawn.id]?.mag ?? 0, magSize: drawn.magSize });
+    }
     if (this.def.id === 'minigun') {
       this._audio.minigunMotor?.(this._minigun.spin, this._minigun.heat,
         canSpin, this._minigun.overheated);
@@ -653,12 +657,13 @@ export class WeaponState {
       if (!ammo || this._reloadState) return false;
       if (ammo.mag <= 0) {
         this._audio.reloadClick(3, weaponId);
+        this._rig.dryFire?.();
         this.startReload(now);
         return false;
       }
       this._chargeStart = now;
       this._rig.setCharge?.(0);
-      this._audio.weaponCharge?.(0, true);
+      this._audio.weaponCharge?.(0, true, weaponId);
       return false;
     }
     const heldMs = now - this._chargeStart;
@@ -666,7 +671,7 @@ export class WeaponState {
     const vent = heldMs >= profile.holdMaxMs;
     if (input.held && !vent) {
       this._rig.setCharge?.(charge);
-      this._audio.weaponCharge?.(charge, true);
+      this._audio.weaponCharge?.(charge, true, weaponId);
       return false;
     }
     this.cancelCharge();

@@ -12,6 +12,7 @@ export const WEP_TONE = {
   longarc: 1.42,
   rocket: 0.66,
   glaive: 1.24,
+  bubble: 1.35,
 };
 
 // Cloth-rustle draw length per weapon.
@@ -26,6 +27,7 @@ export const DRAW_LEN = {
   rocket: 0.3,
   // Long enough to hear the flywheel spin up under the 0.45s deploy.
   glaive: 0.45,
+  bubble: 0.12,
 };
 
 const CYCLE_TONE = Object.freeze({

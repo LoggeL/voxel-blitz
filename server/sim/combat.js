@@ -509,6 +509,11 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
     if (!ctx.launchGlaive?.(p, firstDir)) p.mag[p.weapon]++;
     return;
   }
+  if (def.projectile === 'bubble') {
+    // Refused launch (projectile budget) keeps the round, like the RIPTIDE disc.
+    if (!ctx.launchBubble?.(p, firstDir, charge01)) p.mag[p.weapon]++;
+    return;
+  }
   if (def.flame) { ctx.flames.launch(p, oEye, fwd, ctx); return; }
   const shotProfile = chargeShotProfile(def, charge01);
   const playerLimit = Math.max(1, Math.trunc(def.pierce?.players || 1));
@@ -534,6 +539,8 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
       for (;;) {
         const tgt = nearestVictim(p, origin, d, wallT, ctx, minT, shotProfile.hitRadius, hitVictims);
         const mine = ctx.nearestClaymore?.(origin, d, tgt?.t ?? wallT, minT, shotProfile.hitRadius);
+        // Bullets pop the bubbles they cross without stopping (no soap shield).
+        ctx.popBubblesOnRay?.(p, origin, d, minT, mine ? mine.t : (tgt?.t ?? wallT), shotProfile.hitRadius);
         if (mine) {
           path.push({o:origin,end:origin.map((v,i)=>v+d[['x','y','z'][i]]*mine.t)});
           ctx.shootClaymore(mine.mine);

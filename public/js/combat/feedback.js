@@ -241,6 +241,11 @@ export class CombatFeedback {
           this.spawnDamageNumber(ev, visible);
         }
         if (localVictim && this.player.alive) this.applyLocalHit(ev);
+        // A bubble pop soaked us: predict the authoritative slow instead of rubber-banding.
+        if (localVictim && ev.soak > 0) {
+          this.player.soak?.(ev.soak);
+          this.hud?.soak?.(ev.soak);
+        }
         break;
       }
       case 'body_identified': {
@@ -301,6 +306,10 @@ export class CombatFeedback {
         this.effects.projectiles?.updateAuthority(ev);
         break;
       }
+      case 'projectileStick': {
+        this.effects.projectiles?.stick(ev);
+        break;
+      }
       case 'projectileExplode': {
         if (ev.type === 'glaive') {
           // RIPTIDE discs end without a blast: catch, embed or fizzle. The owner hears
@@ -312,7 +321,7 @@ export class CombatFeedback {
           break;
         }
         this.effects.projectileExplode(ev);
-        this.sfx.explosion([ev.x, ev.y, ev.z], ev.type);
+        this.sfx.explosion([ev.x, ev.y, ev.z], ev.type, ev.type === 'bubble' ? { radius: ev.radius } : null);
         break;
       }
       case 'glaiveStock': {

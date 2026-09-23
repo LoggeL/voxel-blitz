@@ -19,6 +19,7 @@ import { displaySettings } from './display-settings.js';
 import { NetworkHud } from './network-hud.js';
 import { PowerupHud } from './powerup-hud.js';
 import { MedkitHud } from './medkit-hud.js';
+import { BubbleHud } from './bubble-hud.js';
 import {
   GRENADE_TYPES,
   GRENADE_TYPE_IDS,
@@ -110,6 +111,7 @@ export class GameplayHud {
     this.network = new NetworkHud();
     this.powerups = new PowerupHud();
     this.medkit = new MedkitHud();
+    this.bubble = new BubbleHud();
     this.pouch = new GrenadePouchController();
     this._device = {};
     this._grenadePulse = {};
@@ -177,6 +179,7 @@ export class GameplayHud {
     d.hpf = el('div', '', d.track, 'hpfill');
     this.powerups.build(hud, d.hb);
     this.medkit.build(hud, d.hb);
+    this.bubble.build(hud, d.ch);
     d.conditionMeters = ['pain', 'panic'].map(key => {
       const root = el('div', `vb-condition-meter vb-condition-${key}`, d.hb, `${key}-meter`);
       root.hidden = true;
@@ -365,6 +368,7 @@ export class GameplayHud {
     const key = resolveKey(s.wid);
     this.powerups.update(s.armor, alive);
     this.medkit.update(s.medkit, alive, s.hp);
+    this.bubble.update(s, key, alive);
 
     if (s.hp != null) {
       const hp = Math.min(100, Math.max(0, Number(s.hp)));
@@ -462,6 +466,10 @@ export class GameplayHud {
           else label = `${s.heat01 >= 0.65 ? 'SWEET SPOT' : 'HEAT'} ${Math.round(s.heat01 * 100)}% · +${Math.round((s.heatDamageMult - 1) * 100)}% DMG`;
         } else if (fuel) {
           label = `FUEL ${Math.max(0, s.fuelSeconds || 0).toFixed(1)}s · ${s.flameFiring ? 'IGNITING' : `${FLAME_RULES.range}m JET`}`;
+        } else if (key === 'bubble') {
+          // SUDSBLASTER: a tap is a Soap Shot; a held film grows a Big Bubble and lets go by itself.
+          label = charge01 >= 1 ? 'BIG BUBBLE · LETS GO SOON'
+            : charge01 > 0 ? 'BLOWING · RELEASE TO FIRE' : 'TAP · HOLD FOR BIG BUBBLE';
         } else label = charge01 >= 1 ? 'CHARGED' : charge01 > 0 ? 'CHARGING' : 'COIL CHARGE';
         if (d.chargeMeterLabel.textContent !== label) d.chargeMeterLabel.textContent = label;
       }
@@ -1108,6 +1116,7 @@ export class GameplayHud {
     this.network.dispose();
     this.powerups.dispose();
     this.medkit.dispose();
+    this.bubble.dispose();
     this.pouch.dispose();
     const hud = doc ? doc.getElementById('hud') : null;
     if (this._ownedHudRoot) {

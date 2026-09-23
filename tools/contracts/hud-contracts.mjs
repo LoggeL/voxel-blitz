@@ -718,7 +718,8 @@ export async function runHudContracts(ok, installGlobals) {
         && element.getAttribute('aria-hidden') !== 'true';
       const players = [
         {
-          id: 17, name: 'HOST', team: 'alpha', score: 12,
+          // Score past the last Gun Game level, so the clamp check survives roster growth.
+          id: 17, name: 'HOST', team: 'alpha', score: 99,
           kills: 5, deaths: 1, bomb: true, state: 'alive', local: true,
         },
         {

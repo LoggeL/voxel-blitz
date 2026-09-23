@@ -4,6 +4,7 @@ import { applyGunCosmetics } from '../cosmetics/skins.js';
 import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from '../guns/heavy-weapon-animation.js';
 import { glaivePresentationFor } from '../guns/glaive-presentation.js';
+import { bubblePresentationFor } from '../guns/bubble-presentation.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { SWIM } from '../../../shared/player-stance.js';
 import { buildGun, disposeGunModels } from '../guns/assemble.js';
@@ -177,6 +178,8 @@ export class AvatarWeaponModel {
     // Melee (T.melee): the swing clock drives an overhead chop about the fist, not a
     // recoil shove, and the assembled flash stub stays dark — a pick neither flashes nor kicks.
     if (this._weaponId === 'glaive') this._animateGlaive(frameDt, !!firing, glaive);
+    const bubble = this._weaponId === 'bubble';
+    if (bubble) this._animateBubble(frameDt, !!firing, charge);
     const melee = this._model.T.melee === true;
     const continuous = this._model.T.continuous === true;
     const weight = WEAPONS[this._weaponId]?.weightKg || 3.4;
@@ -184,7 +187,8 @@ export class AvatarWeaponModel {
     const kickScale = Math.max(0.7, Math.min(1.5, Math.pow(weight / 3.4, 0.35)));
     const blend = 1 - Math.exp(-frameDt * (firing ? 28 : 16 / Math.sqrt(kickScale)));
     this._recoil += ((firing && !melee ? continuous ? 0.12 : 1 : 0) - this._recoil) * blend;
-    this._flash = melee || continuous ? 0 : (firing ? 1 : Math.max(0, this._flash - frameDt / 0.065));
+    // The SUDSBLASTER blows soap, not powder: its film release replaces the flash.
+    this._flash = melee || continuous || bubble ? 0 : (firing ? 1 : Math.max(0, this._flash - frameDt / 0.065));
     const chop = melee ? pickaxeChopPitch(this.meleeSwing) : 0;
     const adsTime = Math.max(0.05, WEAPONS[this._weaponId]?.adsTime || 0.16);
     const adsBlend = 1 - Math.exp(-frameDt * 3 / adsTime);
@@ -254,6 +258,19 @@ export class AvatarWeaponModel {
    * `projectileExplode` (glaiveEnded) and restored `glaiveStock` (glaiveRestored) events.
    * A throw no event resolves is only written back after a lost-event guard.
    */
+  /**
+   * Third-person SUDSBLASTER: the same film, charge sphere, bulb squash and handoff
+   * as first person, driven by the snapshot hold charge and the firing edge.
+   */
+  _animateBubble(dt, firing, charge) {
+    const presentation = bubblePresentationFor(this._model);
+    if (!presentation?.ready) return;
+    presentation.setCharge(Math.max(0, Math.min(1, Number(charge) || 0)));
+    if (firing && !this._bubbleFiring) presentation.fire();
+    this._bubbleFiring = firing;
+    presentation.update(dt);
+  }
+
   _animateGlaive(dt, firing, glaive) {
     const presentation = glaivePresentationFor(this._model);
     this._glaiveOut ||= [];
@@ -293,6 +310,8 @@ export class AvatarWeaponModel {
 
   resetPose() {
     if (this._model && this._weaponId === 'glaive') glaivePresentationFor(this._model).reset();
+    if (this._model && this._weaponId === 'bubble') bubblePresentationFor(this._model)?.reset();
+    this._bubbleFiring = false;
     this._glaiveOut = [];
     this._glaiveFiring = false;
     this._recoil = 0;

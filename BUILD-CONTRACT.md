@@ -177,7 +177,7 @@ After admission:
   from the same socket so the client can measure application-level round-trip
   time. An opted-in reply also carries `diagnostics` with server RTT freshness,
   tick/process timing and queued bytes; ordinary replies omit this telemetry.
-- `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive'}` requests
+- `{t:'buy',weapon:'rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive'|'bubble'}` requests
   an S&D prep-phase purchase.
 - `{t:'chat',text:string}` broadcasts at most 120 trimmed characters only to
   this member's room, with control/zero-width characters stripped. Each member
@@ -248,7 +248,10 @@ send at most 180 messages/s, and may send at most 64 KiB per frame.
     `tick.blocks` at `i=(y*SZ+z)*SX+x`
   - `{t:'ev',kind:'projectileLaunch',id,pid,type,o:[x,y,z],v:[x,y,z],fuse}`,
     with bolts additionally carrying `bn` (reflections left: 1 at a tap, 3 at a
-    full charge), and `{t:'ev',kind:'projectileExplode',id,pid,type,x,y,z,radius}` where `type`
+    full charge), `{t:'ev',kind:'projectileStick',id,pid,x,y,z,fuse}` (terrain
+    only: sent solely when a Chaos 2 SUDSBLASTER bubble clings to a wall or
+    ceiling; there is no `to`/carrier field and `fuse` restarts the pop timer),
+    and `{t:'ev',kind:'projectileExplode',id,pid,type,x,y,z,radius}` where `type`
     is `'frag'|'limpet'|'pulse'|'rocket'|'bolt'`; a `'bolt'` explosion is the
     harmless fizzle (radius 0.5, no blast, no knockback)
   - `{t:'die',kind:'die',id}` and
@@ -361,7 +364,7 @@ recovery. The condition penalty is exactly
 crouching also applies each weapon's `crouchSpreadMult` to base spread/bloom.
 
 The slot roster is exactly
-`['rifle','smg','shotgun','sniper','lmg','revolver','longarc','rocket','lance','knife','minigun','flamethrower','glaive']`:
+`['rifle','smg','shotgun','sniper','lmg','revolver','longarc','rocket','lance','knife','minigun','flamethrower','glaive','bubble']`:
 
 | slot/key | display name | mode | rpm | mag/spare mags | close→far damage @ end | head | pellets | hip/ADS cone | mass |
 |---|---|---|---:|---:|---:|---:|---:|---:|---:|
@@ -378,6 +381,7 @@ The slot roster is exactly
 | 10 `minigun` | M-6 FURNACE | auto | 1200 | 300/4 | 12→8 @ 70 | 1.70× | 1 | 1.35°/0.36° | 11.8 kg |
 | 11 `flamethrower` | F-4 FIRESTORM | auto | 1200 | 160/5 | 6→2 @ 28 | 1.00× | 1 | 0°/0° | 5.8 kg |
 | 12 `glaive` | GV-4 RIPTIDE | semi | 150 | 2 discs/0 | disc: out 54, back 72 | 1.50× | 1 | 1.20°/0.30° | 3.1 kg |
+| 13 `bubble` | SB-1 SUDSBLASTER | charge | 300 | 12/4 | bubble: tap 16+26, Big 20+50 | 1.00× | 1 | 1.40°/0.50° | 2.6 kg |
 
 Damage is flat to 20 world units by default; the shotgun starts falloff at 12
 and the lance at 45. It then falls linearly to the table's far value at the
@@ -413,6 +417,25 @@ every out-leg disc home. A back-leg wall embeds the disc as an owner-only pickup
 fizzle fabricates without a pickup; owner death or disconnect loses the disc.
 `mag + inFlight + embedded + fab ≤ magSize` is enforced by one normaliser each
 tick. Throwing needs a seated disc and fewer than `magSize` discs in the air.
+
+The SUDSBLASTER (`bubble`) is `mode:'charge'` and `projectile:'bubble'`:
+`shared/bubble-rules.js` owns one exact flight integrator for the server, the
+client prediction, bots, the HUD rise ladder and the TTK simulation. A tap
+(Soap Shot) leaves 0.55 m ahead of and 0.16 m below the eye at 24 m/s; holding
+for `charge.ms` (900) blows a Big Bubble (13 m/s) that leaves on release or on
+its own at `charge.holdMaxMs` (1500). Every profile field is lerped by
+`charge01^2`. Drag bleeds speed toward a terminal rise (3.0 / 1.4 m/s), so
+bubbles hook upward and nothing reaches past about 18.6 m. A pop deals
+direct + splash before `COMBAT_DAMAGE_SCALE` (tap 16 + 26 @ 2.2 m, Big 20 + 50 @
+4.2 m), always shoves upward, soaks the victim (`concussedUntil`, ×0.6 move
+speed; the hit event carries `soak` only when damage was dealt), and never
+damages terrain or its owner; Gun Game keeps its player damage. An owner's bubbles never pop
+each other; enemy hitscan pops a bubble without stopping, teammates' bullets
+pass through; walking into your own floating bubble after 220 ms bounces you
+without damage. Each owner keeps at most 16 bubbles (a full room evicts that
+owner's oldest) and a refused launch refunds the round. Chaos adds a twin
+bubble (`twin:1`, never adopted as the local prediction), 5 s wall and ceiling
+cling mines (8 per owner) and five mini bubbles per pop.
 
 The VOLTLANCE (`lance`) charges over 2800 ms and taps for a damage multiplier
 of 0.08. Charge increases damage, beam radius and penetration power. It can hit
@@ -724,7 +747,10 @@ late join whose welcome/state is already live also proceeds directly.
   predicted local projectile on release (and `Effects.shoot` does the same for
   a local rocket shot), and the authority `projectileLaunch` for the local id
   adopts the oldest pending prediction of that type (no pop, no double spawn;
-  unconfirmed predictions time out after 1 s). `Effects.projectilePreview`
+  unconfirmed predictions time out after 1 s). `ProjectileFX.stick(ev)` applies
+  an authority `projectileStick`: it freezes that projectile at the reported
+  point and restarts its fuse (the combat feedback and killcam both route the
+  event there). `Effects.projectilePreview`
   draws the type-coloured dotted arc and landing ring while charging; impact
   previews stop at the first contact. `LocalPlayer`
   `consumeLocalGrenadeThrow()` (`{charge,cookMs,type,at}`) and
@@ -866,19 +892,19 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   and `server/sim/powerups.js` owns collection and scheduling. `PowerupView`
   renders depth-tested symbols; `PowerupHud` shows armor and collection feedback.
 - **Fun (`fun`):** free-for-all target eligibility, complete
-  thirteen-weapon loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
+  fourteen-weapon loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
   `1500 ms` respawn. Shared quick rooms allow join in progress with no ready
   gate.
 - **Team Deathmatch (`tdm`):** persistent `alpha`/`bravo` assignment chooses the
   lower human+bot population; friendly fire is disabled and every player owns
-  the complete thirteen-weapon loadout. Enemy kills increment the killer's team
+  the complete fourteen-weapon loadout. Enemy kills increment the killer's team
   score. First to `40` enters `post` (40% human approval + `5000 ms`), then team/player scores
   reset and all players respawn. Live deaths respawn after `3000 ms` at the
   player's team spawn pool.
 - **Gun Game (`gungame`):** free-for-all target eligibility and `1500 ms`
   respawn. Players progress through the immutable shared order rifle, SMG,
-  shotgun, sniper, LMG, flamethrower, rocket, longarc, RIPTIDE (glaive), lance,
-  revolver, minigun, knife; a kill with
+  shotgun, sniper, LMG, flamethrower, rocket, longarc, RIPTIDE (glaive),
+  SUDSBLASTER (bubble), lance, revolver, minigun, knife; a kill with
   the IRON PICK wins. The winner is shown during `post` (40% human approval + `5000 ms`)
   before progression and scores reset.
 - **Search and Destroy (`snd`):** persistent `alpha`/`bravo` teams map to
@@ -898,7 +924,7 @@ bots:difficulty:browser` checks real host/member controls and match launch.
 - **S&D economy:** players start with 800 credits; kill +300, plant +300, round
   win +3250, and consecutive losses +1400/+1900/+2400/+2900/+3400, capped at
   16000. Prices are revolver 0, knife 500, SMG 1250, shotgun 1800,
-  flamethrower 2400, rifle 2700, RIPTIDE (glaive) 3000, longarc 3500, lance 3800,
+  SUDSBLASTER (bubble) 2200, flamethrower 2400, rifle 2700, RIPTIDE (glaive) 3000, longarc 3500, lance 3800,
   LMG 4000, rocket 4300, sniper 4750, minigun 4800. Only alive
   participants buy during prep. A purchase owns,
   selects, and refills that weapon. New/dead players start the next round with

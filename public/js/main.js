@@ -158,7 +158,7 @@ class Game {
             if (event.kind === 'bastion_lane') this.worldview?.bastion?.event?.(event.kind);
             return;
           }
-          if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileUpdate',
+          if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileUpdate', 'projectileStick',
             'projectileExplode', 'blockDamage', 'block', 'mine'].includes(event.kind)) return;
           if (event.kind === 'kill' && event.killer === this.myId && event.victim !== this.myId) this.bumpStattrak(event);
           // Own RIPTIDE stock (embedded discs, fabrication queue) feeds the fabricate gauge.

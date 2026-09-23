@@ -20,6 +20,8 @@ const RELOAD_STYLES = Object.freeze({
   flamethrower: { pose: [0.025, 0.26, -0.065, 0.065, -0.10, -0.36], exit: [-0.22, -1.40, 0.74], entry: [-0.08, -1.40, 0.68], twist: [0.95, 0, -0.12], socket: [-0.09, -0.17, -0.23] },
   // RIPTIDE never swaps a magazine: only the fabricate lift, cassette disc up onto the spindle.
   glaive: { pose: [0.020, 0.10, -0.015, 0.020, 0.04, -0.10], exit: [0, 0, 0], entry: [0, -0.114, 0.055], twist: [-0.105, 0, 0], socket: [-0.03, -0.08, 0.04] },
+  // SUDSBLASTER: the soap bottle hangs canted under the receiver; the palm cups its base.
+  bubble: { pose: [0.050, 0.30, -0.060, 0.030, 0.18, -0.46], exit: [-0.30, -1.10, 0.30], entry: [-0.24, -1.05, 0.26], twist: [0.10, 0, 0.45], socket: [-0.05, -0.13, -0.11] },
 });
 
 /**

@@ -10,10 +10,12 @@ import {
 import { ROCKET_RULES, stepRocket } from '../../../shared/rocket-rules.js';
 import { BOLT_RULES, stepBolt } from '../../../shared/bolt-rules.js';
 import { GLAIVE_CHEST_DROP, GLAIVE_RULES, glaiveFlip, glaiveSeek, stepGlaive } from '../../../shared/glaive-rules.js';
+import { bubbleProfile, stepBubble } from '../../../shared/bubble-rules.js';
 import { EYE_HEIGHT } from '../../../shared/combatmath.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { createBlenderParts } from '../engine/blender-assets.js';
 import { BLAST_STYLE, ExplosionFX, lightWeight } from './explosion-fx.js';
+import { makeSoapFilm } from '../guns/soap-film.js';
 
 /** Unconfirmed local launches are dropped after this long without a matching authority event. */
 const LOCAL_CONFIRM_TIMEOUT_S = 1.0;
@@ -48,6 +50,24 @@ const GLAIVE_EMBED_PROUD = 0.45;
 /** Owner speed threshold between the out (34 m/s) and back (30 m/s) legs. */
 const GLAIVE_BACK_SPEED = (GLAIVE_RULES.speedOut + GLAIVE_RULES.speedBack) / 2;
 const GLAIVE_UNPARK_MARGIN = 1.5; // m past the catch reach before a sync un-parks a caught disc
+// SB-1 SUDSBLASTER bubble: inflate time off the ring, wobble decay and the rising trail
+// cadence (small / big). The shell scales to the authoritative physics radius.
+const BUBBLE_INFLATE_S = 0.09;
+const BUBBLE_WOBBLE_DECAY_S = 0.4;
+const BUBBLE_TRAIL_SMALL_S = 0.06;
+const BUBBLE_TRAIL_BIG_S = 0.04;
+const BUBBLE_FUSE_TELL_S = 0.25;
+/** Phase-shifted soap films shared round-robin by flying bubbles (never cloned per bubble). */
+const BUBBLE_FILM_PHASES = Object.freeze([0, 0.25, 0.5, 0.75]);
+const UP_Y = new THREE.Vector3(0, 1, 0);
+// Cartoon pop lines: six radial white strokes that fly out and fade on every pop, with a
+// soap droplet flung past every other stroke. The pool covers a Foam-party pull (a pair
+// of pops plus ten minis) without recycling a live burst.
+const POP_LINE_POOL = 16;
+const POP_LINE_COUNT = 6;
+const POP_DROPLETS = 3;
+const POP_LINE_GROW_S = 0.11;
+const POP_LINE_LIFE_S = 0.2;
 
 // Blast presentation per projectile type (flash, ring, fireball, smoke, light,
 // scorch) lives with the instanced ExplosionFX batch in explosion-fx.js.
@@ -56,6 +76,20 @@ function styleFor(type) {
 }
 
 /** Flat 24-tooth saw plate with a hub bore, centred on the origin in the XZ plane. */
+/**
+ * One cartoon pop stroke in local XY: a kite along +x (x -0.5..0.5) with a needle
+ * inner tip and its full width (y ±0.5) near the outer end, so a burst reads as
+ * speed lines flying off the torn skin rather than a clock face of bars.
+ */
+function popStrokeGeometry() {
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array([
+    -0.5, 0, 0, 0.22, -0.5, 0, 0.5, 0, 0, 0.22, 0.5, 0,
+  ]), 3));
+  geometry.setIndex([0, 1, 2, 0, 2, 3]);
+  return geometry;
+}
+
 function glaiveDiscGeometry() {
   const shape = new THREE.Shape();
   const root = GLAIVE_DISC_R * 0.84;
@@ -193,6 +227,46 @@ export class ProjectileFX {
     // Energy additives carry HDR colour (> 1.0) so HDR tiers bloom them; LDR clips.
     this.boltGlowMaterial.color.multiplyScalar(2);
     this.exhaustMaterial.color.multiplyScalar(2.2);
+    // SUDSBLASTER bubble: a unit sphere scaled to the physics radius, skinned with the
+    // viewmodel's soap film (four phase-shifted copies shared round-robin), a faint inner
+    // body and a camera-facing cartoon window glint. The last 250 ms of the fuse swap the
+    // skin to the two tell films (hue pushed +0.8, bright/dim) at 20 Hz.
+    this.bubbleGeometry = new THREE.SphereGeometry(1, 20, 14);
+    this.bubbleFilms = BUBBLE_FILM_PHASES.map((phase) => makeSoapFilm({ alpha: 0.85, phase }).material);
+    this.bubbleTellFilms = [makeSoapFilm({ alpha: 0.95, phase: 0.8 }).material,
+      makeSoapFilm({ alpha: 0.5, phase: 0.8 }).material];
+    this._bubbleFilmCursor = 0;
+    this.bubbleInnerMaterial = new THREE.MeshBasicMaterial({
+      color: 0xdff8ff, transparent: true, opacity: 0.12, depthWrite: false,
+    });
+    this.bubbleShineGeometry = new THREE.CircleGeometry(1, 16);
+    // Pop strokes: a billboarded group of six thin quads per pooled burst (WebGL ignores
+    // line widths, so the strokes are unit planes stretched along their ray).
+    this.popStrokeGeometry = popStrokeGeometry();
+    this._popLines = Array.from({ length: POP_LINE_POOL }, () => {
+      const material = new THREE.MeshBasicMaterial({
+        color: 0xffffff, transparent: true, opacity: 0, depthWrite: false, toneMapped: false,
+        blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      });
+      const lines = new THREE.Group();
+      for (let i = 0; i < POP_LINE_COUNT; i++) {
+        const stroke = new THREE.Mesh(this.popStrokeGeometry, material);
+        stroke.renderOrder = 8;
+        lines.add(stroke);
+      }
+      for (let i = 0; i < POP_DROPLETS; i++) {
+        const droplet = new THREE.Mesh(this.bubbleShineGeometry, material);
+        droplet.renderOrder = 8;
+        lines.add(droplet);
+      }
+      lines.visible = false;
+      this.scene.add(lines);
+      return { lines, material, age: Infinity, scale: 1, spin: 0 };
+    });
+    this._popCursor = 0;
+    this.bubbleShineMaterial = new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.85, depthWrite: false, toneMapped: false,
+    });
     // RIPTIDE disc: toothed blade plate lying in local XZ (normal +y), hub, razor-glow rim.
     this.glaiveDiscGeometry = glaiveDiscGeometry();
     this.glaiveHubGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.036, 12);
@@ -488,6 +562,31 @@ export class ProjectileFX {
       );
       group.add(spin);
       group.userData.spin = spin;
+    } else if (type === 'bubble') {
+      // Soap bubble: `shell` carries the wobble scale and spin (film skin plus a faint
+      // inner body); `shine` is the billboarded window glint, posed toward the camera.
+      const shell = new THREE.Group();
+      const film = this.bubbleFilms[this._bubbleFilmCursor++ % this.bubbleFilms.length];
+      const skin = new THREE.Mesh(this.bubbleGeometry, film);
+      skin.renderOrder = 6;
+      skin.userData.film = film;
+      const inner = new THREE.Mesh(this.bubbleGeometry, this.bubbleInnerMaterial);
+      inner.scale.setScalar(0.96);
+      inner.renderOrder = 5;
+      shell.add(inner, skin);
+      const shine = new THREE.Group();
+      const glint = new THREE.Mesh(this.bubbleShineGeometry, this.bubbleShineMaterial);
+      glint.scale.set(0.25, 0.15, 1);
+      glint.position.set(-0.37, 0.45, 0);
+      const dot = new THREE.Mesh(this.bubbleShineGeometry, this.bubbleShineMaterial);
+      dot.scale.setScalar(0.1);
+      dot.position.set(-0.55, 0.2, 0);
+      glint.renderOrder = dot.renderOrder = 7;
+      shine.add(glint, dot);
+      group.add(shell, shine);
+      group.userData.shell = shell;
+      group.userData.skin = skin;
+      group.userData.shine = shine;
     } else if (type === 'bolt') {
       // Coilgun bolt: thin emissive core, additive glow shell, cyan light.
       const core = new THREE.Mesh(this.capGeometry, this.boltCoreMaterial);
@@ -535,7 +634,7 @@ export class ProjectileFX {
     const values = [...event.o, ...event.v].map(Number);
     if (!values.every(Number.isFinite)) return false;
     const type = event.type === 'rocket' || event.type === 'bolt' || event.type === 'glaive'
-      || GRENADE_TYPES[event.type]
+      || event.type === 'bubble' || GRENADE_TYPES[event.type]
       ? event.type
       : 'frag';
     if (type === 'limpet' && (!Array.isArray(event.n) || event.n.length !== 3
@@ -544,7 +643,9 @@ export class ProjectileFX {
     const fallbackFuse = type === 'rocket'
       ? ROCKET_RULES.lifetimeMs
       : type === 'bolt' ? BOLT_RULES.lifetimeMs
-        : type === 'glaive' ? GLAIVE_RULES.lifetimeMs : GRENADE_TYPES[type].fuseMs;
+        : type === 'glaive' ? GLAIVE_RULES.lifetimeMs
+          : type === 'bubble' ? bubbleProfile(Number(event.charge) || 0, !!event.child).lifetimeMs
+            : GRENADE_TYPES[type].fuseMs;
     const fuseMs = Number(event.fuse);
     const fuse = type === 'limpet' ? Infinity
       : Math.max(0.05, (Number.isFinite(fuseMs) && fuseMs > 0 ? fuseMs : fallbackFuse) / 1000);
@@ -557,7 +658,8 @@ export class ProjectileFX {
 
     if (!local) {
       if (!event.pid || this.projectiles.has(String(event.pid))) return false;
-      if (fromSelf && !event.child && this._adoptLocal(String(event.pid), type, values, fuse)) {
+      // A Double-bubble twin is authority-only: it must not steal the prediction's slot.
+      if (fromSelf && !event.child && !event.twin && this._adoptLocal(String(event.pid), type, values, fuse, event)) {
         const adopted = this.projectiles.get(String(event.pid));
         if (type === 'glaive') {
           // The prediction may already have bounced or turned home: keep its leg.
@@ -568,6 +670,8 @@ export class ProjectileFX {
         adopted.chaos = event.chaos || 0;
         if (type === 'limpet') this._configureMine(adopted, event);
         if (type === 'rocket' && event.chaos) adopted.group.scale.setScalar(2.2);
+        // The release charge is authoritative: re-derive the flight, keep the position.
+        if (type === 'bubble') this._configureBubble(adopted, event);
         return true;
       }
     }
@@ -594,6 +698,7 @@ export class ProjectileFX {
     });
     if (type === 'limpet') this._configureMine(this.projectiles.get(id), event);
     if (type === 'glaive') this._configureGlaive(this.projectiles.get(id), event, local || fromSelf);
+    if (type === 'bubble') this._configureBubble(this.projectiles.get(id), event);
     if (type === 'rocket' || type === 'bolt' || type === 'glaive') this._orientRocket(this.projectiles.get(id));
     return true;
   }
@@ -614,6 +719,66 @@ export class ProjectileFX {
     disc.own = !!own;
     if (Number.isFinite(Number(event.bn)) && disc.phase === 'out') disc.bouncesLeft = Math.max(0, Math.floor(event.bn));
     if (!disc.trail) disc.trail = this._createGlaiveTrail(disc);
+  }
+
+  /** Flight profile (drag, rise, radius) of a fresh or adopted bubble from its launch charge. */
+  _configureBubble(bubble, event) {
+    const profile = bubbleProfile(Number(event.charge) || 0, !!event.child);
+    bubble.drag = profile.drag;
+    bubble.rise = profile.rise;
+    bubble.radius = profile.radius;
+    bubble.chargeMix = profile.mix;
+    // Presentation only: a per-bubble phase so a stream never wobbles in lockstep.
+    if (!Number.isFinite(bubble.wobblePhase)) bubble.wobblePhase = Math.random() * Math.PI * 2;
+    this._poseBubble(bubble, 0);
+  }
+
+  /**
+   * Inflate, squash-and-stretch wobble, clung flattening and the last-250 ms fuse
+   * flicker for one bubble, plus its rising micro-bubble trail cadence.
+   */
+  _poseBubble(bubble, step) {
+    const shell = bubble.group.userData.shell;
+    if (!shell) return;
+    const age = bubble.age;
+    const big = bubble.chargeMix > 0.5;
+    const omega = big ? 4 * Math.PI * 2 / 7 : 11;
+    const amp = 0.04 + 0.08 * Math.max(0, 1 - age / BUBBLE_WOBBLE_DECAY_S);
+    const phase = omega * age + (bubble.wobblePhase || 0);
+    const inflate = 0.35 + 0.65 * Math.min(1, age / BUBBLE_INFLATE_S);
+    const r = (bubble.radius || 0.24) * inflate;
+    const flat = bubble.stuck ? 0.85 + 0.05 * Math.sin(age * Math.PI * 1.6) : 1;
+    shell.scale.set(
+      r * (1 + amp * Math.sin(phase)),
+      r * (1 - amp * Math.sin(phase)) * flat,
+      r * (1 + 0.7 * amp * Math.sin(1.3 * phase + 1)),
+    );
+    if (bubble.stuck && bubble.mountNormal) {
+      // Clung: shell-local Y lines up with the mount normal, so the flatten above
+      // presses the bubble against its wall or ceiling (and it stops spinning).
+      shell.quaternion.setFromUnitVectors(UP_Y, bubble.mountNormal);
+    } else {
+      shell.rotation.y += 0.8 * step;
+    }
+    // Fuse tell: the skin flickers bright/dim on the hue-shifted tell films.
+    const remaining = bubble.fuse - age;
+    const { skin, shine } = bubble.group.userData;
+    if (skin) {
+      skin.material = remaining < BUBBLE_FUSE_TELL_S
+        ? this.bubbleTellFilms[Math.sin(age * 20 * Math.PI * 2) < 0 ? 1 : 0]
+        : skin.userData.film;
+    }
+    // Window glint: faces the camera, riding the near side of the skin.
+    const eye = this.camera?.position;
+    if (shine && eye) {
+      const dx = eye.x - bubble.x, dy = eye.y - bubble.y, dz = eye.z - bubble.z;
+      const d = Math.hypot(dx, dy, dz) || 1;
+      shine.quaternion.copy(this.camera.quaternion);
+      shine.position.set(dx / d * r * 0.97, dy / d * r * 0.97, dz / d * r * 0.97);
+      shine.scale.setScalar(r);
+    }
+    const interval = big ? BUBBLE_TRAIL_BIG_S : BUBBLE_TRAIL_SMALL_S;
+    if (this.onTrail && !bubble.stuck && age - bubble.trailAt >= interval) this._trailCandidates.push(bubble);
   }
 
   _createGlaiveTrail(disc) {
@@ -691,6 +856,29 @@ export class ProjectileFX {
     return true;
   }
 
+  /**
+   * Authoritative terrain cling (a Chaos 2 SUDSBLASTER bubble): freeze the
+   * projectile at the reported point and restart its fuse.
+   */
+  stick(event) {
+    const projectile = this.projectiles.get(String(event?.pid || ''));
+    if (!projectile) return false;
+    const x = Number(event.x), y = Number(event.y), z = Number(event.z);
+    if ([x, y, z].every(Number.isFinite)) {
+      projectile.x = x; projectile.y = y; projectile.z = z;
+    }
+    projectile.vx = projectile.vy = projectile.vz = 0;
+    projectile.stuck = true;
+    const n = Array.isArray(event.n) ? event.n.map(Number) : null;
+    if (n && n.length === 3 && n.every(Number.isFinite) && Math.hypot(...n) > 1e-6) {
+      projectile.mountNormal = new THREE.Vector3(n[0], n[1], n[2]).normalize();
+    }
+    const fuseMs = Number(event.fuse);
+    if (Number.isFinite(fuseMs) && fuseMs > 0) projectile.fuse = projectile.age + fuseMs / 1000;
+    projectile.group.position.set(projectile.x, projectile.y, projectile.z);
+    return true;
+  }
+
   /** Legacy alias for the frag-only API. */
   throw(event, options) {
     return this.launch({ type: 'frag', ...event, pid: event?.pid ?? event?.gid }, options);
@@ -703,7 +891,7 @@ export class ProjectileFX {
     return count;
   }
 
-  _adoptLocal(pid, type, values, fuse) {
+  _adoptLocal(pid, type, values, fuse, event = null) {
     let oldest = null;
     for (const projectile of this.projectiles.values()) {
       if (projectile.local && projectile.type === type && (!oldest || projectile.age > oldest.age)) {
@@ -726,6 +914,22 @@ export class ProjectileFX {
           oldest.x = ex; oldest.y = ey; oldest.z = ez;
           oldest.group.position.set(ex, ey, ez);
         }
+      }
+      oldest.fuse = fuse + oldest.age;
+      this.projectiles.set(pid, oldest);
+      return true;
+    }
+    if (type === 'bubble') {
+      // Bubbles bleed speed: compare against the authority launch advanced by the
+      // prediction's age on the authoritative charge, not against the raw launch state.
+      const profile = bubbleProfile(Number(event?.charge) || 0, false);
+      const at = { x: values[0], y: values[1], z: values[2], vx: values[3], vy: values[4], vz: values[5],
+        drag: profile.drag, rise: profile.rise, radius: profile.radius };
+      stepBubble(at, oldest.age, this.raycast);
+      oldest.vx = at.vx; oldest.vy = at.vy; oldest.vz = at.vz;
+      if (Math.hypot(oldest.x - at.x, oldest.y - at.y, oldest.z - at.z) > 0.6) {
+        oldest.x = at.x; oldest.y = at.y; oldest.z = at.z;
+        oldest.group.position.set(at.x, at.y, at.z);
       }
       oldest.fuse = fuse + oldest.age;
       this.projectiles.set(pid, oldest);
@@ -890,8 +1094,73 @@ export class ProjectileFX {
     if (![x, y, z].every(Number.isFinite)) return false;
     if (type === 'smoke') return true;
     const style = styleFor(type);
+    if (type === 'bubble') {
+      // A soap pop is a torn skin, not a fireball: the flash and ring scale with the
+      // splash relative to a Soap Shot (2.2 m), not with the full splash radius. A
+      // Foam-party mini pops at half scale (its server radius is the 2 m foam splash).
+      const scale = existing?.child ? 0.5 : (Number(event.radius) || 2.2) / 2.2;
+      this._spawnBlast(x, y, z, style, scale);
+      this._spawnPopLines(x, y, z, scale);
+      return true;
+    }
     this._spawnBlast(x, y, z, style, Number(event.radius) || style.grow * 12);
     return true;
+  }
+
+  /** One pooled burst of cartoon pop lines; the oldest burst is reused when all are live. */
+  _spawnPopLines(x, y, z, scale) {
+    const pop = this._popLines[this._popCursor];
+    this._popCursor = (this._popCursor + 1) % this._popLines.length;
+    pop.lines.position.set(x, y, z);
+    pop.age = 0;
+    pop.scale = Math.max(0.35, Math.min(2.2, scale));
+    pop.spin = (x * 7.1 + z * 3.3) % (Math.PI * 2);
+    pop.lines.visible = true;
+    this._posePopLines(pop);
+  }
+
+  /** Grow the pop strokes outward in the camera plane for 110 ms, then fade them out. */
+  _updatePopLines(step) {
+    for (const pop of this._popLines) {
+      if (!pop.lines.visible) continue;
+      pop.age += step;
+      if (pop.age >= POP_LINE_LIFE_S) { pop.lines.visible = false; continue; }
+      this._posePopLines(pop);
+    }
+  }
+
+  /**
+   * Strokes snap from r .25-.45 out to .5-.9 (times the pop scale) on an ease-out,
+   * thinning as they fly; the droplets ride just past every other stroke and keep
+   * drifting while the burst fades.
+   */
+  _posePopLines(pop) {
+    const grow = Math.min(1, pop.age / POP_LINE_GROW_S);
+    const ease = 1 - (1 - grow) ** 3;
+    if (this.camera) pop.lines.quaternion.copy(this.camera.quaternion);
+    const strokes = pop.lines.children;
+    for (let i = 0; i < POP_LINE_COUNT; i++) {
+      // A slight twist off the even spacing so a burst never reads as a clock face.
+      const a = pop.spin + i * Math.PI * 2 / POP_LINE_COUNT + (i % 2 ? 0.16 : -0.08);
+      const jitter = (i % 2) * 0.2;
+      const inner = (0.25 + jitter + 0.25 * ease) * pop.scale;
+      const outer = (0.45 + jitter + (0.45 - jitter) * ease) * pop.scale;
+      const stroke = strokes[i];
+      const mid = (inner + outer) / 2;
+      stroke.position.set(Math.cos(a) * mid, Math.sin(a) * mid, 0);
+      stroke.rotation.z = a;
+      stroke.scale.set(Math.max(0.01, outer - inner), (0.06 - 0.025 * ease) * pop.scale, 1);
+    }
+    const drift = Math.min(1, pop.age / POP_LINE_LIFE_S);
+    for (let k = 0; k < POP_DROPLETS; k++) {
+      const a = pop.spin + (2 * k) * Math.PI * 2 / POP_LINE_COUNT - 0.08;
+      const r = (0.5 + 0.55 * ease + 0.15 * drift) * pop.scale;
+      const droplet = strokes[POP_LINE_COUNT + k];
+      droplet.position.set(Math.cos(a) * r, Math.sin(a) * r, 0);
+      droplet.scale.setScalar((0.035 - 0.012 * drift) * pop.scale);
+    }
+    pop.material.opacity = grow < 1 ? 0.95
+      : 0.95 * (1 - (pop.age - POP_LINE_GROW_S) / (POP_LINE_LIFE_S - POP_LINE_GROW_S));
   }
 
   _endGlaive(event, id, existing, own) {
@@ -973,6 +1242,13 @@ export class ProjectileFX {
         }
       } else if (projectile.type === 'glaive') {
         this._stepGlaive(projectile, step);
+      } else if (projectile.type === 'bubble') {
+        if (!projectile.stuck) stepBubble(projectile, step, this.raycast);
+        this._poseBubble(projectile, step);
+        // Authority owns the pop (projectileExplode); a remote terrain contact only shortens the wait.
+        if (projectile.hit && !projectile.local && !projectile.chaos) {
+          projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
+        }
       } else if (!projectile.stuck) {
         stepGrenade(projectile, step, this.isSolid);
         const spin = Math.min(1, Math.hypot(projectile.vx, projectile.vy, projectile.vz) / 6);
@@ -1015,6 +1291,7 @@ export class ProjectileFX {
     this._updateRocketBatches();
     // Blasts age first so the light pool sees this frame's envelope.
     this.explosions.update(step, this.camera?.position);
+    this._updatePopLines(step);
     this._updateLights();
   }
 
@@ -1362,6 +1639,7 @@ export class ProjectileFX {
     if (this._glaiveDecals) this._glaiveDecals.length = 0;
     for (const mesh of this._rocketBatches) mesh.count = 0;
     this.explosions.clear();
+    for (const pop of this._popLines) { pop.lines.visible = false; pop.age = Infinity; }
     for (const light of this._lights) light.intensity = 0;
   }
 
@@ -1375,7 +1653,11 @@ export class ProjectileFX {
     for (const decal of this._glaiveDecals || []) this._disposeGlaiveDecal(decal);
     if (this._glaiveDecals) this._glaiveDecals.length = 0;
     this.explosions.dispose();
-    this.blasts.length = 0;
+    for (const pop of this._popLines) {
+      this.scene.remove(pop.lines);
+      pop.material.dispose();
+    }
+    this.popStrokeGeometry.dispose();
     this.scene.remove(this.previewGhost, this.previewLine, this.previewTail, this.landingRing, ...this.bounceDots);
     this.scene.remove(this.minePreview.group);
     this.minePreview.capMaterial.dispose();
@@ -1397,13 +1679,15 @@ export class ProjectileFX {
       this.fragGeometry, this.capGeometry, this.limpetGeometry, this.pulseGeometry,
       this.grenadeRibGeometry, this.grenadeBandGeometry,
       this.bottleGeometry, this.bottleNeckGeometry, this.bottleFlameGeometry,
-      this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry,
+      this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry, this.bubbleGeometry,
+      this.bubbleShineGeometry,
       this.glaiveDiscGeometry, this.glaiveHubGeometry, this.glaiveRimGeometry, this.glaiveCrescentGeometry,
     ]) geometry.dispose();
     for (const material of [
       this.fragMaterial, this.limpetMaterial, this.pulseMaterial, this.rocketMaterial,
       this.bottleMaterial, this.bottleLabelMaterial,
       this.rocketNoseMaterial, this.exhaustMaterial, this.boltCoreMaterial, this.boltGlowMaterial,
+      ...this.bubbleFilms, ...this.bubbleTellFilms, this.bubbleInnerMaterial, this.bubbleShineMaterial,
       this.glaiveBladeMaterial, this.glaiveHubMaterial, this.glaiveGlowMaterial, this.glaiveTrailMaterial,
       this.glaiveOutlineMaterial, this.glaiveGhostMaterial,
     ]) material.dispose();

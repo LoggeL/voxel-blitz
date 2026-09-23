@@ -299,7 +299,8 @@ export class TracerFX {
       }
     }
 
-    if (!local) this.spawnFlash([ox, oy, oz], event.d);
+    // The SUDSBLASTER releases a soap film, never a powder flash.
+    if (!local && definition?.projectile !== 'bubble') this.spawnFlash([ox, oy, oz], event.d);
     if (definition && !definition.tracer) return;
     if (Array.isArray(event.paths)) { this.resolvedShot(event, { pinned: !local }); return; }
 

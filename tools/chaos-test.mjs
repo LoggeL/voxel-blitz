@@ -22,7 +22,7 @@ for (const id of WEAPON_IDS) {
   assert.deepEqual(parseChaosPurchase(`chaos:${id}:1`), { item: id, level: 1 });
   assert.equal(chaosWeaponDef({ chaosUpgrades: {} }, WEAPONS[id]), WEAPONS[id]);
 }
-assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 54);
+assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 57);
 // RIPTIDE ladder: Third plate seats a third disc, Long tether lengthens the out leg and pierce.
 {
   const glaive = (level) => chaosWeaponDef({ chaosUpgrades: { glaive: level } }, WEAPONS.glaive);
@@ -159,7 +159,7 @@ for (const id of ['shotgun', 'rifle']) {
   assert.deepEqual([body.impulseSeq, body.grounded, body.coyote, body.vault, body.jumpGroundY], [1, false, 0, null, null],
     `${id} Chaos launch clears every state that could swallow it`);
 }
-console.log('Chaos: 54 purchases, complete weapon catalog, economy, stale requests, death persistence, normal-mode isolation, snapshots and cumulative weapon effects passed.');
+console.log('Chaos: 57 purchases, complete weapon catalog, economy, stale requests, death persistence, normal-mode isolation, snapshots and cumulative weapon effects passed.');
 
 // Empty-space projectile fixtures verify explosions and steering without map geometry noise.
 function projectileFixture(type, level) {
@@ -442,5 +442,25 @@ for (const item of ['minigun', 'flamethrower']) {
   const grenades = shooter.grenades[0];
   assert.equal(game.projectiles.throw(shooter, game.contexts.projectiles, 1, 0), null);
   assert.equal(shooter.grenades[0], grenades, 'a throw refused at the hard cap keeps its grenade');
+}
+// Chaos 1 SUDSBLASTER twin is a free secondary launch: inside the reserve band it
+// is skipped and never evicts (pops) the paid bubble it rides with.
+{
+  const { game, shooter } = heavyWeaponFixture('bubble', 1, []);
+  for (let i = 0; i < 170; i++) game.projectiles.active.set(`busy-${i}`, { type: 'bolt' });
+  const mag = shooter.mag[shooter.weapon];
+  fireOneShot(shooter, game.contexts.combat);
+  const kinds = game.tickEvents.filter(e => e.kind?.startsWith('projectile')).map(e => `${e.kind}:${e.twin ? 'twin' : 'paid'}`);
+  assert.deepEqual(kinds, ['projectileLaunch:paid'], 'the paid bubble survives and the twin is skipped');
+  assert.equal(game.projectiles.active.size, 171);
+  assert.equal(shooter.mag[shooter.weapon], mag - 1, 'the paid round is spent on a live bubble');
+  // At the hard cap a paid bubble still evicts the owner's oldest bubble.
+  for (let i = game.projectiles.active.size; i < MAX_ACTIVE_PROJECTILES; i++) game.projectiles.active.set(`full-${i}`, { type: 'bolt' });
+  game.tickEvents.length = 0;
+  shooter.cooldown = 0;
+  fireOneShot(shooter, game.contexts.combat);
+  const full = game.tickEvents.filter(e => e.kind?.startsWith('projectile')).map(e => `${e.kind}:${e.twin ? 'twin' : 'paid'}`);
+  assert.deepEqual(full, ['projectileExplode:paid', 'projectileLaunch:paid'], 'a full room evicts the oldest own bubble for a paid shot only');
+  assert.equal(game.projectiles.active.size, MAX_ACTIVE_PROJECTILES);
 }
 console.log('Chaos heavy weapons: three-body piercing, cumulative salvos, travelling side jets, afterburn, cover, friendly-fire restrictions, backdraft damage and projectile caps passed.');

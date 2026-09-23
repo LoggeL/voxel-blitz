@@ -8,6 +8,7 @@ import { WEAPONS } from '../../../shared/combatmath.js';
 import * as THREE from '../vendor/three.module.js';
 import { animateHeavyWeapon } from './heavy-weapon-animation.js';
 import { glaivePresentationFor } from './glaive-presentation.js';
+import { bubblePresentationFor } from './bubble-presentation.js';
 import { BOB, DEPLOY, TIMERS } from './defs.js';
 import { buildGun, disposeGunModels } from './assemble.js';
 import { WeaponActions } from './actions.js';
@@ -80,6 +81,8 @@ export class ViewmodelRig {
     this._glaive = null;               // GlaivePresentation for the drawn RIPTIDE, else null
     this._glaiveMotion = null;         // last presentation layers {pushZ, tiltYaw, tiltPitch, motor}
     this._glaiveState = null;          // authoritative {discs, magSize, fab01} from WeaponState
+    this._bubble = null;               // BubblePresentation for the drawn SUDSBLASTER, else null
+    this._bubbleState = null;          // authoritative {mag, magSize} from WeaponState
     this._id = null;
     this._now = 0;                     // rig-local clock, advanced only by update()
     this._queue = [];                  // deferred timer-boundary events {at, fn}
@@ -130,7 +133,11 @@ export class ViewmodelRig {
     this._actions = new WeaponActions({
       onBoltClack: (step) => this.onBoltClack?.(step),
       onShellEject: () => this._emitShell(),
-      onReloadClick: (step) => this.onReloadClick?.(step),
+      onReloadClick: (step) => {
+        // SUDSBLASTER prime: the fresh tank's click pumps the bulb and re-forms the film.
+        if (step === 3) this._bubble?.prime();
+        this.onReloadClick?.(step);
+      },
       onPumpImpulse: (amount) => { this._spr.push.v += amount; },
     });
   }
@@ -200,6 +207,8 @@ export class ViewmodelRig {
     this._glaive = key === 'glaive' ? glaivePresentationFor(next) : null;
     this._glaiveMotion = null;
     if (this._glaive) this._glaive.reset(this._glaiveState?.discs);
+    this._bubble = key === 'bubble' ? bubblePresentationFor(next) : null;
+    if (this._bubble) this._bubble.reset(this._bubbleState?.mag, this._bubbleState?.magSize);
     next.muzzleMarker.add(this._chargeOrb);
     this._chargeOrb.visible = false;
     this.pivot.position.copy(next.pivotCam);
@@ -302,6 +311,7 @@ export class ViewmodelRig {
     this._uniSet(1, Math.min(1, cur.uni.uHeat.value + 0.5)); // burst heat accumulator, capped
     // The disc leaves a pneumatic spindle: no muzzle flash, the presentation plays the throw.
     if (this._glaive) this._glaive.throw(def?.glaive?.outMs);
+    else if (this._bubble) this._bubble.fire();   // soap, not powder: the film releases, no flash
     else this.revealFlash();
 
     const cycMs = 60000 / T.rof;          // rpm-referenced gate — literally the fire-cap definition
@@ -311,6 +321,9 @@ export class ViewmodelRig {
       // Mode owns rechambering (rig.pumpAnim()/boltAnim()); deadline prevents a lost event wedging
       // the busy gate forever. The bolt length itself is T.cycleMs, read by WeaponActions.beginCycle.
       this._stallUntil = now + cycMs / 1000 + 0.15;
+    } else if (this._bubble) {
+      // The bulb plunger jerks back; there is no bolt to clack.
+      this._enqueue(0.014, () => this._actions.startJerk(this._id, this._cur, T.boltTravel, 0.05));
     } else if (this._id === 'minigun') {
       // The rotary feed ejects steadily; it has no reciprocating rifle bolt.
       if (T.ejectOnFire) this._enqueue(0.025, () => this._emitShell());
@@ -361,6 +374,15 @@ export class ViewmodelRig {
   /** The authoritative `caught:true` event for one of the local player's discs. */
   glaiveCatch() { this._glaive?.caught(); }
 
+  /** SUDSBLASTER authority each frame: rounds in the soap tank (the suds level). */
+  setBubble(state) {
+    this._bubbleState = state ? { mag: state.mag, magSize: state.magSize } : null;
+    if (this._bubble && state) this._bubble.setMag(state.mag, state.magSize);
+  }
+
+  /** An empty trigger pull: the SUDSBLASTER film forms weakly and pops. */
+  dryFire() { this._bubble?.dryFire(); }
+
   setFlame(active, fuel = 1) {
     this._flameActive = !!active;
     this._flameFuel = Math.max(0, Math.min(1, fuel));
@@ -373,6 +395,7 @@ export class ViewmodelRig {
   setCharge(t01) {
     this._chargeT = Math.max(0, Math.min(1, Number(t01) || 0));
     if (this._chargeT === 0) this._chargeOrb.visible = false;
+    this._bubble?.setCharge(this._chargeT);
   }
 
   /** External button-hold ramp reaches us pre-normalized (0..1); we ease-polish + expose readback. */
@@ -384,11 +407,13 @@ export class ViewmodelRig {
   reload(dur, type, stages = null, elapsed = 0) {
     if (!this._cur) return;
     this._actions.startReload(this._now - elapsed, dur, type, this._cur.T, stages);
+    this._bubble?.reload(dur, this._cur.T.magTimeline, elapsed);
   }
 
   /** A shot interrupted a staged reload: snap the moving parts home, keep the gun raised. */
   cancelReload() {
     if (!this._cur) return false;
+    this._bubble?.cancelReload();
     return this._actions.cancelReload(this._cur);
   }
 
@@ -686,6 +711,8 @@ export class ViewmodelRig {
     const glaivePush = this._glaiveMotion?.pushZ || 0;
     const glaiveYaw = (this._glaiveMotion?.tiltYaw || 0) * cosmeticMotion;
     const glaivePitch = (this._glaiveMotion?.tiltPitch || 0) * cosmeticMotion;
+    // SUDSBLASTER film, bulb and tank run after the reload layer too (the tank turns inside the mag).
+    this._bubble?.update(elapsed, { speed01: this._sprint, leanX: this._lean.p * cosmeticMotion, adsT: adsE });
 
     /* grenade wind-up + throw lunge (mass-scaled: a heavy gun is slower to pull aside) */
     const windRate = 9 * Math.sqrt(mass);

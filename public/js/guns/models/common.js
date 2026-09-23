@@ -19,6 +19,7 @@ export const BREACH_Z = {
   flamethrower: -0.22,
   knife: -0.02,
   glaive: -0.10,
+  bubble: -0.30,   // nozzle tube start
 };
 
 // Heat-sleeve radii include the existing tiny clearance that prevents z-fighting.
@@ -36,6 +37,7 @@ export const BARREL_R = {
   flamethrower: 0.043,
   knife: 0.0075,
   glaive: 0.016,   // launch spindle
+  bubble: 0.0235,  // nozzle r 0.022 plus clearance
 };
 
 export const BOLT_HOME = {
@@ -52,6 +54,7 @@ export const BOLT_HOME = {
   flamethrower: -0.040,
   knife: -0.020,
   glaive: 0.06,    // flywheel hub
+  bubble: 0.045,   // plunger rod under the bulb
 };
 
 export const PUMP_REST = new THREE.Vector3(0, 0.038, -0.30);
@@ -70,6 +73,7 @@ export const TRIGGER_Z = {
   flamethrower: -0.11,
   knife: -0.08,
   glaive: -0.005,
+  bubble: -0.035,
 };
 
 // Camera-space hip carry; +x is true screen-right.

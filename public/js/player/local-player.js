@@ -373,6 +373,7 @@ export class LocalPlayer {
     this.exhaustion = 0;
     this.pain = Number.isFinite(ev.pain) ? clamp01(ev.pain) : 0;
     this.spawnProtected = typeof spawnProtected === 'boolean' ? spawnProtected : true;
+    this.soakUntil = 0;
     this._lastLocalImpact = null;
     this.deathElapsed = 0;
     this.deathRoll = 0;
@@ -719,6 +720,15 @@ export class LocalPlayer {
     this.physics.wantLean = leanBlocked({ sprint: this.keys.sprint,
       forward: this.keys.forward && !this.keys.back, crouch: this.keys.crouch }) ? 0 : leanInput(this.keys);
     return weaponIntents;
+  }
+
+  /** A SUDSBLASTER pop soaked the local player: mirror the server's concussion slow. */
+  soak(ms) {
+    if (!(Number.isFinite(ms) && ms > 0)) return;
+    this.soakUntil = Math.max(this.soakUntil || 0, nowMs() + ms);
+    // The pop sets the server's concussion; ride the same speedScale path (after the
+    // swim/prone caps, applied once) until the snapshot's concussedMs takes over.
+    this._concussedS = Math.max(this._concussedS, ms / 1000);
   }
 
   _stepPrediction(dt) {

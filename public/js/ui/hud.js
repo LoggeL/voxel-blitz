@@ -160,6 +160,8 @@ export class HUD {
   powerup(event) { return this.gameplay.powerups.collected(event); }
   clearPowerups() { return this.gameplay.powerups.reset(); }
   setPainImpulse(value) { return this.combat.setPainImpulse(value); }
+  /** A SUDSBLASTER pop soaked the local player for `ms` (server `evHit.soak`). */
+  soak(ms) { return this.gameplay.bubble.soak(ms); }
   clearDamage() { return this.combat.clearDamage(); }
   hideDeathNote() { return this.combat.hideDeathNote(); }
   setDeathBrutality(value) { return this.combat.setDeathBrutality(value); }

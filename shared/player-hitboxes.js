@@ -16,7 +16,7 @@ const IDENTITY_BASIS = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
 const ZERO = [0, 0, 0];
 export const SIGHT_HEIGHT = { rifle: 0.145, smg: 0.112, shotgun: 0.100, sniper: 0.205, minigun: 0.155, lmg: 0.155,
   revolver: 0.105, longarc: 0.155, rocket: 0.175, lance: 0.155, knife: 0.02, flamethrower: 0.158,
-  glaive: 0.150 };
+  glaive: 0.150, bubble: 0.140 };
 const clamp01 = v => Math.max(0, Math.min(1, v));
 function basisFor(x = 0, y = 0, z = 0) {
   const a = Math.cos(x), b = Math.sin(x), c = Math.cos(y), d = Math.sin(y);

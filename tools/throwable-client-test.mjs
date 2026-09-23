@@ -40,7 +40,7 @@ function effectFacade(scene) {
   effects._disposed = false;
   effects._trauma = 0;
   effects.fireFields = new FireFieldFX(scene);
-  for (const key of ['tracers', 'railBeams', 'flames', 'impacts', 'goreFx', 'brass', 'projectiles']) {
+  for (const key of ['tracers', 'railBeams', 'flames', 'impacts', 'goreFx', 'brass', 'projectiles', 'popLines']) {
     effects[key] = { update() {}, dispose() {} };
   }
   return effects;

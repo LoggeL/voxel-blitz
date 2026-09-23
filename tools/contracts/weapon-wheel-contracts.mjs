@@ -54,7 +54,7 @@ export async function runWeaponWheelContracts(ok) {
     getContext: () => context,
   });
   const entries = controller.entries();
-  ok(entries.length === 13 && entries[9].key === '[0]' && entries[9].ammo === '∞'
+  ok(entries.length === 14 && entries[9].key === '[0]' && entries[9].ammo === '∞'
       && !entries[0].owned && entries[5].owned,
     'wheel entries use the real tenth-slot key and authoritative ownership');
   controller.openWheel();

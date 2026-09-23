@@ -142,6 +142,7 @@ export class Killcam {
         this.audio?.fire(event.w, { pos: event.o });
       } else if (event.kind === 'projectileLaunch') this.projectiles.launch(event);
       else if (event.kind === 'projectileUpdate') this.projectiles.updateAuthority(event);
+      else if (event.kind === 'projectileStick') this.projectiles.stick(event);
       else if (event.kind === 'projectileExplode') {
         this.projectiles.explode(event);
         this.audio?.explosion?.([event.x, event.y, event.z], event.type);
