@@ -155,10 +155,41 @@ try {
     console.log(`${map}: real 20 Hz TDM, 32 players/31 bots, 60 seconds: ${JSON.stringify(matchMetrics)}`);
   }
 } finally { Math.random = random; }
-for (const map of ['foundry', 'dust2', 'solstice', 'caldera']) {
+for (const map of ['foundry', 'dust2', 'solstice', 'caldera', 'bikini_bottom']) {
   const world = createMapState(map), target = { x: 20, y: 15, z: 20 };
   assert.equal(groundNavigation(world), null);
   assert.equal(navigationWaypoint(world, { x: 10, y: 15, z: 10 }, target, {}, 0), target,
     `${map}: original navigation remains outside the large-map ground graph`);
 }
+// Bikini Bottom keeps legacy straight-line steering, so its doors and stairs
+// sit on the direct lines from both spawn rows: the Krusty Krab back door and
+// the Chum Bucket south stair/door face the site centres, and the plinth has a
+// stepped base. 11 TDM bots defending each site centre for 90 s must mostly
+// end plant-valid (inside the site, within 1.5 of its floor).
+try {
+  for (const seed of [1, 2, 3, 4, 5, 6]) {
+    for (const siteIndex of [0, 1]) {
+      Math.random = mulberry32(seed);
+      const world = createMapState('bikini_bottom'), site = world.meta.sites[siteIndex];
+      const game = new GameEngine({ world, mode: 'tdm' });
+      const target = { x: (site.minX + site.maxX) / 2, y: site.y, z: (site.minZ + site.maxZ) / 2 };
+      game.addClient('human', 'Navigation control');
+      const bots = attachBots(game, 11);
+      game.mode.canFire = () => false;
+      game.mode.botGoal = () => ({ kind: 'defend', target, interact: false });
+      const onSite = new Set();
+      for (let tick = 0; tick < 1800 && onSite.size < 11; tick++) {
+        game.step(50);
+        for (const brain of bots.brains) {
+          const p = game.entities.get(brain.id);
+          if (p.x >= site.minX && p.x <= site.maxX + 1 && p.z >= site.minZ && p.z <= site.maxZ + 1
+            && Math.abs(p.y - site.y) <= 1.5) onSite.add(brain.id);
+        }
+      }
+      assert.ok(onSite.size >= 9, `bikini_bottom seed ${seed} site ${site.id}: legacy bots reach the plant zone (${onSite.size}/11)`);
+      bots.dispose(); game.stop();
+    }
+  }
+} finally { Math.random = random; }
+console.log('bikini_bottom: legacy objective arrivals >= 9/11 on both sites, seeds 1-6.');
 console.log('LARGE MAP NAVIGATION: ALL OK');

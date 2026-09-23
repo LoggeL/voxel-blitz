@@ -459,6 +459,9 @@ Authored traps (button standing cell → effect):
 | `nuketown` | Busbombe (1 use) | 75,16,50 (moving truck) | explosion inside the school bus at 55.5,17,44.5, r 7, 130 dmg |
 | `nuketown` | Fallout (50 s) | 75,16,54 (moving truck) | smoke at 46.5/64.5/82.5, 15, 39.5 plus damage on the street x 40–89, z 36–41.5 for 14 s |
 | `nuketown` | Gasleitung (40 s) | 85,16,50 (moving truck) | ground fire on the yellow house porch at 60.5,15,58.5 for 12 s |
+| `bikini_bottom` | Grillbrand (1 use) | 21,16,38 (Krusty Krab kitchen, back wall) | ground fire at 23.5/27.5/24.5, 15.05, 44.5/47.5/51.5 in the dining room (site A) for 12 s |
+| `bikini_bottom` | Flutwelle (45 s) | 36,15,69 (lifeguard hut) | flood the Goo Lagoon beach x 37–45, y 15–16, z 71–80 for 8 s |
+| `bikini_bottom` | Quallenstich (40 s) | 95,15,74 (Treedome drum) | electrify the Jellyfish Fields x 96–112, y 14.5–17, z 68–81 for 10 s, 7 dmg every 450 ms |
 
 `node tools/ttt-traps-test.mjs` (part of `npm run ttt:test`) checks every
 button on every map (solid floor, air at feet and body, a solid wall behind
@@ -487,6 +490,7 @@ Harbor, Canyon and Causeway are 192 × 144 × 40 voxels; Minecraft B5 is 128 × 
 | `killhouse` | Training | weapon-test firing range with respawning dummies and a timed 4-stage killhouse course |
 | `minecraft_b5` | Fun, TTT, 1v1, Chaos Lab, TDM, Gun Game | block-for-block replica of `ttt_minecraft_b5` (`docs/maps/minecraft-b5.md`): island village, lighthouse, mine rails, swimmable ocean, working Nether portals and the Nether below |
 | `waterworld` | Fun, TTT, 1v1, Chaos Lab, TDM, Gun Game | block-for-block replica of `ttt_waterworld` (`docs/maps/waterworld.md`): Leith Waterworld leisure pools, rideable flumes with the tester volumes, changing rooms, cafe mezzanine, traitor room teleport and the glass foyer |
+| `bikini_bottom` | Fun, TTT, 1v1, Chaos Lab, TDM, S&D, Gun Game | original undersea town inspired by the cartoon (`docs/maps/bikini-bottom.md`): Krusty Krab (A) versus the raised Chum Bucket (B), Conch Street houses, a boating school whose flume shoots riders into Goo Lagoon, Treedome and Jellyfish Fields |
 
 ## Mode-specific HUD and scoreboards
 
@@ -728,7 +732,7 @@ instanced batch; idle effect pools skip GPU uploads. The HUD and shop update DOM
 properties only when their displayed values change, while timed effects keep
 animating. `refactor:test` and `browser:ui` protect these behavior and cost limits.
 
-Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2, Killhouse, Reactor 9 and Causeway are deterministic templates. Every room receives a
+Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2, Bikini Bottom, Killhouse, Reactor 9 and Causeway are deterministic templates. Every room receives a
 fresh mutable clone of its selected map. The current room map is serialized in
 the single binary admission frame; subsequent block destruction is room-scoped
 and streams as index deltas inside immutable client snapshots. Each tick also

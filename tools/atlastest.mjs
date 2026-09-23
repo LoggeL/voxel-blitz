@@ -207,7 +207,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 // ---------------------------------------------- mode + map foundation contract
 {
   ok(sameValue(MODE_IDS, ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -325,6 +325,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     minecraft_b5: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame'],
     waterworld: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame'],
     causeway: ['bastion'],
+    bikini_bottom: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
   };
   ok(sameValue(MAP_MODE_COMPATIBILITY, expectedCompatibility)
     && deeplyFrozen(MAP_MODE_COMPATIBILITY)
@@ -363,6 +364,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     minecraft_b5: 'Minecraft B5',
     waterworld: 'Waterworld',
     causeway: 'Causeway',
+    bikini_bottom: 'Bikini Bottom',
   };
   const expectedMapHashes = {
     harbor: 'eeb64538', canyon: 'b8e254a7',
@@ -378,6 +380,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     minecraft_b5: '5516e8c9',
     waterworld: 'dab98505',
     causeway: 'fdf3f10d',
+    bikini_bottom: 'c8eada2b',
   };
   const expectedSpawnCounts = {
     harbor: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
@@ -394,6 +397,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     minecraft_b5: { fun: 14, tdmAlpha: 8, tdmBravo: 8, sndAttackers: 0, sndDefenders: 0 },
     waterworld: { fun: 24, tdmAlpha: 12, tdmBravo: 12, sndAttackers: 0, sndDefenders: 0 },
     causeway: { fun: 4, tdmAlpha: 0, tdmBravo: 0, sndAttackers: 0, sndDefenders: 0 },
+    bikini_bottom: { fun: 12, tdmAlpha: 6, tdmBravo: 6, sndAttackers: 6, sndDefenders: 6 },
   };
   const pristineBytes = new Map();
 

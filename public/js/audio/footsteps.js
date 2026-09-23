@@ -17,11 +17,13 @@ export const FOOTSTEP_SLOTS = Object.freeze(Object.fromEntries(FOOTSTEP_SURFACES
 const MATERIALS = new Map();
 for (const [surface, names] of Object.entries({
   wood: ['WOOD', 'PLANK', 'DUST_CRATE', 'DUST_WOOD', 'YELLOW_SIDING', 'TEAL_SIDING',
-    'MC_LOG', 'MC_PLANKS', 'MC_BOOKSHELF', 'MC_CHEST', 'MC_CRAFTING', 'MC_TNT'],
-  metal: ['METAL', 'ACCENT', 'RUST', 'BUS_YELLOW', 'TRUCK_RED', 'MC_IRON', 'MC_GOLD', 'MC_DIAMOND', 'POOL_PANEL'],
-  grass: ['GRASS', 'DIRT', 'LEAVES', 'MC_GRASS', 'MC_DIRT', 'MC_LEAVES', 'MC_CACTUS', 'MC_CLAY'],
+    'MC_LOG', 'MC_PLANKS', 'MC_BOOKSHELF', 'MC_CHEST', 'MC_CRAFTING', 'MC_TNT', 'BB_PINEAPPLE', 'BB_HULL'],
+  metal: ['METAL', 'ACCENT', 'RUST', 'BUS_YELLOW', 'TRUCK_RED', 'MC_IRON', 'MC_GOLD', 'MC_DIAMOND', 'POOL_PANEL',
+    'BB_CHUM'],
+  grass: ['GRASS', 'DIRT', 'LEAVES', 'MC_GRASS', 'MC_DIRT', 'MC_LEAVES', 'MC_CACTUS', 'MC_CLAY',
+    'BB_PINE_LEAF', 'BB_KELP'],
   gravel: ['MC_GRAVEL'],
-  sand: ['SAND', 'MC_SAND'],
+  sand: ['SAND', 'MC_SAND', 'BB_SAND'],
   cloth: ['MC_WOOL_WHITE', 'MC_WOOL_RED', 'MC_CLOUD', 'BARRICADE'],
 })) for (const name of names) MATERIALS.set(BLOCK[name], surface);
 

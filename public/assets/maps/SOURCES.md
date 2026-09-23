@@ -20,6 +20,7 @@ external assets, compositing or retouching is included in these previews.
 | waterworld | `waterworld.webp` | `.artifacts/map-renders/waterworld-hero.png` (2026-09-15, `node tools/render-map-scenes.mjs --map waterworld`) |
 | reactor | `reactor-preview.webp` | `.artifacts/map-renders/reactor-hero.png` (2026-09-22, `node tools/render-map-scenes.mjs --map reactor`; re-rendered after the staged Bastion layout, objective pads and route strips) |
 | causeway | `causeway.webp` | `.artifacts/map-renders/causeway-hero.png` (2026-09-22, `node tools/render-map-scenes.mjs --map causeway`; low shot west along the corridor from the east gate after the rock faces were skinned in stone strata) |
+| bikini_bottom | `bikini-bottom.webp` | `.artifacts/map-renders/bikini_bottom-hero.png` (2026-09-22, `node tools/render-map-scenes.mjs --map bikini_bottom`; `cwebp -q 82 -metadata none`) |
 
 Capture command:
 

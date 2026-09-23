@@ -11,6 +11,7 @@ import * as THREE from '../vendor/three.module.js';
 import {
   AIR, GRASS, DIRT, LEAVES, GLASS, MC_GRASS, MC_GLASS, MC_LEAVES, MC_WATER, MC_LAVA, MC_PORTAL,
   MC_GHOST_GRASS, MC_GLOWSTONE, MC_GHOST_GLOWSTONE,
+  BB_PINE_LEAF, BB_KELP,
 } from '../../../shared/worlddata.js';
 import { createFluidMaterial } from './fluid-material.js';
 import { DAMAGE_GRID, damageStage, damageCells } from './block-damage-geometry.js';
@@ -60,7 +61,7 @@ const FACES = [
 ];
 const CORNER_UV = [[0, 0], [1, 0], [1, 1], [0, 1]];
 
-const CUTOUT = new Set([LEAVES, MC_LEAVES]);
+const CUTOUT = new Set([LEAVES, MC_LEAVES, BB_PINE_LEAF, BB_KELP]);
 const TRANSLUCENT = new Set([GLASS, MC_GLASS, MC_WATER, MC_PORTAL]);
 /** Fluids render through their own animated materials, one bucket each. */
 const FLUID_BUCKETS = Object.freeze({ [MC_WATER]: 'water', [MC_LAVA]: 'lava' });

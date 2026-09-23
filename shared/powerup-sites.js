@@ -2,6 +2,7 @@ import { AIR } from './world/blocks.js';
 import { worldDimensions } from './world/dimensions.js';
 import { MINECRAFT_B5_ANCHORS } from './world/minecraft-b5-data.js';
 import { WATERWORLD_ANCHORS } from './world/waterworld-data.js';
+import { BIKINI_BOTTOM_POWERUPS } from './world/bikini-bottom-data.js';
 
 export const POWERUP_SITE_MIN_SPAWN_DISTANCE = 12;
 
@@ -20,6 +21,7 @@ const ANCHORS = Object.freeze({
   dust2: [[25, 14, 27], [28, 16, 78], [74, 14, 77], [64, 15, 91]],
   minecraft_b5: MINECRAFT_B5_ANCHORS.powerups,
   waterworld: WATERWORLD_ANCHORS.powerups,
+  bikini_bottom: BIKINI_BOTTOM_POWERUPS,
 });
 
 /** Cheap live check for active pickups; a mined or blocked pad is invalid. */

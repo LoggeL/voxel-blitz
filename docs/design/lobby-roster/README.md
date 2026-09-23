@@ -17,7 +17,7 @@ authoritative lobby state.
 | Arena | Maximum humans and friendly bots combined |
 | --- | ---: |
 | Depot | 8 |
-| Nuketown, Solstice, Caldera | 12 |
+| Nuketown, Solstice, Caldera, Bikini Bottom | 12 |
 | Foundry, Dust II | 16 |
 | Citadel | 20 |
 | Harbor, Canyon | 32 |

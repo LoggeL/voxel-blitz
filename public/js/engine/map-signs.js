@@ -76,6 +76,14 @@ const SIGNS = {
     ['PUMP HOUSE', 'STAGE 2', 112, 20, 44, 10, 1.2, '+z'],
     ['EXTRACTION', 'PAD 1', 16, 20, 44, 10, 1.2, '+z'],
   ],
+  // Krusty Krab sign on its single-thickness PLANK gable (breakable backing),
+  // the Chum Bucket gatehouse, the wheelhouse and the lifeguard hut.
+  bikini_bottom: [
+    ['THE KRUSTY KRAB', 'FINE UNDERSEA DINING', 25.5, 20.5, 59, 5.6, 1.6, '+z'],
+    ['CHUM BUCKET', 'NOW SERVING · SITE B', 101.5, 23, 38, 7, 1.6, '-z'],
+    ['BOATING SCHOOL', 'STUDENT DRIVERS AHEAD', 63.5, 22.5, 51, 5, 1.2, '+z'],
+    ['GOO LAGOON', 'NO SWIMMING AFTER CHUM', 38.5, 16.5, 68, 2.6, 1.0, '-z'],
+  ],
 };
 const COLORS = {
   harbor: ['#173239', '#b9f4ff'], canyon: ['#265452', '#f8deb1'],
@@ -87,6 +95,7 @@ const COLORS = {
   minecraft_b5: ['#6b4a2a', '#f3e6c8'],
   waterworld: ['#1f4e7a', '#e9f4fb'],
   causeway: ['#1e3a4a', '#d9f2ff'],
+  bikini_bottom: ['#fff1c9', '#1d5f86'],
 };
 const supportsPaint = type => type !== AIR && type !== GLASS;
 

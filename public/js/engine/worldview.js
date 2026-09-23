@@ -18,6 +18,7 @@ import { installSky } from './sky.js';
 import { buildNuketownDetails } from './nuketown-details.js';
 import { buildMinecraftB5Details } from './minecraft-b5-details.js';
 import { buildWaterworldDetails } from './waterworld-details.js';
+import { buildBikiniBottomDetails } from './bikini-bottom-details.js';
 import { tickFluidMaterials, applyWaterPalette, configureFluidQuality } from './fluid-material.js';
 import { mapAtmosphere } from './map-atmosphere.js';
 import { buildMapBackdrop } from './map-backdrop.js';
@@ -197,7 +198,8 @@ export class WorldView {
 
     this.mapDetails = meta?.id === 'nuketown' ? buildNuketownDetails()
       : meta?.id === 'minecraft_b5' ? buildMinecraftB5Details(meta, this.atlas)
-        : meta?.id === 'waterworld' ? buildWaterworldDetails(meta) : null;
+        : meta?.id === 'waterworld' ? buildWaterworldDetails(meta)
+          : meta?.id === 'bikini_bottom' ? buildBikiniBottomDetails(meta, visualBlock) : null;
     if (this.mapDetails) this.scene.add(this.mapDetails.group);
     applyWaterPalette(palette);
     this.mapSigns = buildMapSigns(meta?.id, visualBlock);
@@ -370,6 +372,7 @@ export class WorldView {
     this.ambience?.update(dt);
     this.powerups.update(dt);
     this.bastion?.update(dt);
+    this.mapDetails?.update?.(dt);
     this.tttTraps.update(this.tttTrapClock = (this.tttTrapClock || 0) + dt);
   }
 

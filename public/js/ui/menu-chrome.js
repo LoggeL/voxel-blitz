@@ -15,6 +15,7 @@ const MENU_BACKDROPS = Object.freeze({
   killhouse: '/assets/maps/killhouse-range.webp',
   reactor: MAP_PREVIEWS.reactor,
   causeway: MAP_PREVIEWS.causeway,
+  bikini_bottom: MAP_PREVIEWS.bikini_bottom,
 });
 
 const backdrops = new WeakMap();

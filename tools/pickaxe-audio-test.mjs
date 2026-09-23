@@ -118,14 +118,16 @@ console.log('Pickaxe audio: swing/impact rotation, material classification, sing
 // Block-game dig groups: every block lands in one bank, ghosts sound like their solid.
 const digGroups = {
   stone: ['STONE', 'CONCRETE', 'BRICK', 'ASPHALT', 'DUST_ROCK', 'MC_STONE', 'MC_COBBLE', 'MC_OBSIDIAN',
-    'MC_NETHERRACK', 'MC_COAL_ORE', 'MC_FURNACE', 'POOL_TILE_BLUE', 'BEDROCK'],
-  wood: ['WOOD', 'PLANK', 'DUST_CRATE', 'TEAL_SIDING', 'MC_LOG', 'MC_PLANKS', 'MC_BOOKSHELF', 'MC_CHEST', 'SLIDE_BLUE'],
-  grass: ['GRASS', 'LEAVES', 'MC_GRASS', 'MC_LEAVES', 'MC_TNT'],
+    'MC_NETHERRACK', 'MC_COAL_ORE', 'MC_FURNACE', 'POOL_TILE_BLUE', 'BEDROCK',
+    'BB_CORAL', 'BB_MOAI', 'BB_ROCK', 'BB_ROAD'],
+  wood: ['WOOD', 'PLANK', 'DUST_CRATE', 'TEAL_SIDING', 'MC_LOG', 'MC_PLANKS', 'MC_BOOKSHELF', 'MC_CHEST', 'SLIDE_BLUE',
+    'BB_PINEAPPLE', 'BB_HULL'],
+  grass: ['GRASS', 'LEAVES', 'MC_GRASS', 'MC_LEAVES', 'MC_TNT', 'BB_PINE_LEAF', 'BB_KELP'],
   gravel: ['DIRT', 'MC_DIRT', 'MC_GRAVEL', 'MC_CLAY'],
-  sand: ['SAND', 'MC_SAND'],
+  sand: ['SAND', 'MC_SAND', 'BB_SAND'],
   cloth: ['MC_WOOL_WHITE', 'MC_WOOL_RED', 'MC_CLOUD', 'MC_CACTUS', 'BARRICADE'],
   glass: ['GLASS', 'MC_GLASS', 'MC_GLOWSTONE'],
-  metal: ['METAL', 'ACCENT', 'RUST', 'BUS_YELLOW', 'MC_IRON', 'MC_GOLD', 'MC_DIAMOND', 'POOL_PANEL'],
+  metal: ['METAL', 'ACCENT', 'RUST', 'BUS_YELLOW', 'MC_IRON', 'MC_GOLD', 'MC_DIAMOND', 'POOL_PANEL', 'BB_CHUM'],
 };
 for (const [material, names] of Object.entries(digGroups)) {
   for (const name of names) assert.equal(pickaxeDigMaterial(BLOCK[name]), material, `${name} digs like ${material}`);
@@ -133,7 +135,7 @@ for (const [material, names] of Object.entries(digGroups)) {
 for (const [ghost, solid] of Object.entries(BLOCK.MC_GHOST_SOLID)) {
   assert.equal(pickaxeDigMaterial(Number(ghost)), pickaxeDigMaterial(solid), `ghost ${ghost} digs like its solid`);
 }
-for (let type = 1; type <= 85; type++) assert.ok(PICKAXE_DIG_MATERIALS.includes(pickaxeDigMaterial(type)));
+for (let type = 1; type <= 95; type++) assert.ok(PICKAXE_DIG_MATERIALS.includes(pickaxeDigMaterial(type)));
 assert.equal(pickaxeDigMaterial(9999), 'stone');
 
 // Take choice: never the same take twice in a row per material; mining hits

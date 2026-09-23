@@ -6,7 +6,7 @@ export const DEFAULT_DUEL_KILL_LIMIT = 5;
 export const MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training']);
 export const DUEL_WEAPONS = Object.freeze(['rifle', 'shotgun', 'sniper', 'revolver', 'knife']);
 export const TEAM_IDS = Object.freeze(['alpha', 'bravo']);
-export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway']);
+export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom']);
 
 export const DEFAULT_MODE_ID = MODE_IDS[0];
 export const DEFAULT_TEAM_ID = TEAM_IDS[0];
@@ -120,6 +120,8 @@ export const MAP_MODE_COMPATIBILITY = Object.freeze({
   waterworld: NO_BOMB_SITE_MODE_IDS,
   // Causeway: the second linear Bastion map.
   causeway: Object.freeze(['bastion']),
+  // Bikini Bottom: Krusty Krab (A) vs Chum Bucket (B), every combat mode.
+  bikini_bottom: COMBAT_MODE_IDS,
 });
 
 export function isModeId(value) {

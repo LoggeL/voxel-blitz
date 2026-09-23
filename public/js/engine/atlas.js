@@ -17,6 +17,7 @@ import {
   MC_FURNACE, MC_CRAFTING, MC_TNT, MC_WATER, MC_LAVA, MC_PORTAL, MC_GHOST_SOLID,
   POOL_TILE_BLUE, POOL_TILE_WHITE, POOL_FLOOR, SLIDE_BLUE, SLIDE_YELLOW, POOL_PANEL,
   BARRICADE,
+  BB_SAND, BB_CORAL, BB_PINEAPPLE, BB_PINE_LEAF, BB_KELP, BB_MOAI, BB_ROCK, BB_HULL, BB_CHUM, BB_ROAD,
 } from '../../../shared/worlddata.js';
 
 export const ATLAS_SIZE = 256;
@@ -47,6 +48,11 @@ export const TILE = {
   // Per-map surfaces: lighter armoured concrete for BEDROCK streets and walls,
   // and the boundary skin (ribbed cladding, steel pilasters, hazard kick band).
   ARMOR_CONCRETE: 79, FACADE_PANEL: 80, FACADE_JOINT: 81, FACADE_PILLAR: 82, FACADE_BASE: 83,
+  // Bikini Bottom cartoon seafloor materials.
+  BB_SAND: 84, BB_CORAL: 85, BB_PINEAPPLE: 86, BB_PINE_LEAF: 87, BB_KELP: 88,
+  BB_MOAI: 89, BB_ROCK: 90, BB_HULL: 91, BB_CHUM: 92, BB_ROAD: 93,
+  // Bikini Bottom's per-map GLASS remap: a clean pane with no diagonal streaks.
+  BB_DOME_GLASS: 94,
 };
 
 /** Deterministic integer wobble -> 0..k-1. The atlas' only "randomness". */
@@ -711,6 +717,88 @@ function slidePlastic(base, x, y, salt) {
   return dustColor(base, highlight + dustGrain(x, y >> 2, salt, 5) - 2);
 }
 
+// Bikini Bottom: flat cartoon colours with few grain levels, like the
+// Waterworld finishes. Flecks, pits and chips come from a pure pixel hash.
+const bbHash = (x, y, salt) => dustGrain(x, y, salt, 1000) / 1000;
+/**
+ * Coral pores: one candidate per 4px cell on a staggered grid, kept by hash
+ * (about 60%) and nudged +-1px, so faces never knit into a regular checker.
+ */
+function bbCoralPore(x, y) {
+  const cy = y >> 2, cx = (x + (cy & 1) * 2) >> 2;
+  if (bbHash(cx, cy, 149) >= 0.6) return false;
+  const jitter = dustGrain(cx, cy, 150, 9);
+  const px = ((cx << 2) - (cy & 1) * 2 + 1 + (jitter % 3) - 1 + 16) & 15;
+  const py = ((cy << 2) + 1 + ((jitter / 3) | 0) - 1 + 16) & 15;
+  return x === px && y === py;
+}
+function bbSand(x, y) {
+  // Every voxel repeats this tile, so shell flecks stay faint (a tint, not a
+  // dot) and sparse enough never to line up into a visible lattice.
+  const ripple = Math.round(4 * Math.sin((x + y) * 0.4));
+  const base = [232, 220, 176], shade = ripple + dustGrain(x >> 1, y >> 1, 142, 7) - 3;
+  const fleck = bbHash(x >> 1, y >> 1, 141);
+  const shell = fleck < 0.02 ? [206, 216, 206] : fleck < 0.04 ? [238, 208, 192] : null;
+  return dustColor(shell ?? base, shell ? 0 : shade);
+}
+function bbCoral(x, y) {
+  if (bbCoralPore(x, y)) return dustColor([184, 86, 106], 0);
+  if (bbCoralPore(x, y + 1)) return dustColor([246, 160, 174], 0);  // rim above the pore
+  return dustColor([232, 122, 140], dustGrain(x >> 2, y >> 1, 151, 5) - 2);
+}
+function bbPineapple(x, y) {
+  const a = (x + y) % 8;
+  const b = (x - y + 16) % 8;
+  if (a === 4 && b === 4) return dustColor([255, 241, 191], 0);
+  if (a === 0 || b === 0) return dustColor([201, 122, 28], 0);
+  return dustColor([240, 160, 48], 0);
+}
+function bbPineLeaf(x, y) {
+  const lane = x % 4;
+  if ((lane !== 1 && lane !== 2) || y < (x * 7) % 5) return [0, 0, 0, 0];   // ragged tips
+  return lane === 2 ? dustColor([108, 192, 112], 0) : dustColor([63, 154, 74], 0);
+}
+function bbKelp(x, y) {
+  const off = Math.abs(x - 7.5 - 2 * Math.sin(y * 0.8));
+  if (off >= 4.5) return [0, 0, 0, 0];
+  if (off < 1) return y % 8 === 3 ? dustColor([201, 180, 74], 0) : dustColor([79, 154, 90], 0);
+  return dustColor([47, 111, 58], 0);
+}
+function bbMoai(x, y) {
+  if (bbHash(x, y, 143) < 0.06) return dustColor([95, 115, 133], 0);
+  return dustColor([125, 147, 166], dustGrain(x, y, 144, 17) - 8);
+}
+const BB_ROCK_TONES = [[128, 84, 56], [138, 90, 60], [148, 98, 66]];
+function bbRock(x, y) {
+  // Short hash-placed cracks inside the tile (never touching its edges).
+  if (x > 1 && x < 14 && y > 1 && y < 14 && bbHash(x >> 2, y >> 2, 148) < 0.08
+    && (x & 3) === ((y + (bbHash(x >> 2, y >> 2, 152) < 0.5 ? 0 : 2)) & 3)) return dustColor([94, 59, 39], 0);
+  if (bbHash(x >> 1, y, 145) < 0.05) return dustColor([168, 118, 79], 0);   // 2x1 pebbles
+  return dustColor(BB_ROCK_TONES[dustGrain(x >> 2, y >> 1, 145, 3)], 0);
+}
+function bbHull(x, y) {
+  if (x % 8 === 1 && y % 4 === 2) return dustColor([46, 36, 26], 0);   // nails
+  if (y % 8 === 2) return dustColor([63, 143, 138], 0);                // teal stripe
+  if (y % 4 === 0) return dustColor([74, 56, 38], 0);                  // plank seam
+  return dustColor([107, 82, 56], 0);
+}
+function bbChum(x, y) {
+  if ((x === 2 || x === 13) && (y === 2 || y === 13)) return dustColor([201, 210, 214], 0);   // rivets
+  if (x === 15 || y === 15) return dustColor([62, 72, 76], 0);
+  if (x === 0 || y === 0) return dustColor([122, 138, 144], 0);
+  return dustColor([93, 107, 112], 0);
+}
+function bbRoad(x, y) {
+  // Warm blue-grey tarmac with sparse dark grit, clearly not ice.
+  if (bbHash(x, y, 146) < 0.02) return dustColor([112, 124, 136], 0);
+  return dustColor([132, 146, 160], dustGrain(x, y, 147, 13) - 6);
+}
+/** Clean pane for the Treedome and windows: faint cyan, no streaks, 1px top/left frame. */
+function bbDomeGlass(x, y) {
+  if (x === 0 || y === 0) return [214, 240, 248, 170];
+  return [clamp255(190 + dustGrain(x >> 2, y >> 2, 153, 5)), 228, 240, 120];
+}
+
 export const TILE_PAINTERS = Object.freeze({
   [TILE.AIR_DEBUG]: airDebug,
   [TILE.GRASS_TOP]: grassTop,
@@ -796,6 +884,17 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.FACADE_JOINT]: facadeJoint,
   [TILE.FACADE_PILLAR]: facadePillar,
   [TILE.FACADE_BASE]: facadeBase,
+  [TILE.BB_SAND]: bbSand,
+  [TILE.BB_CORAL]: bbCoral,
+  [TILE.BB_PINEAPPLE]: bbPineapple,
+  [TILE.BB_PINE_LEAF]: bbPineLeaf,
+  [TILE.BB_KELP]: bbKelp,
+  [TILE.BB_MOAI]: bbMoai,
+  [TILE.BB_ROCK]: bbRock,
+  [TILE.BB_HULL]: bbHull,
+  [TILE.BB_CHUM]: bbChum,
+  [TILE.BB_ROAD]: bbRoad,
+  [TILE.BB_DOME_GLASS]: bbDomeGlass,
 });
 
 // ------------------------------------------------------------- face mapping
@@ -875,6 +974,16 @@ export const DEFAULT_BLOCK_TILES = Object.freeze({
   [SLIDE_YELLOW]: { all: TILE.SLIDE_YELLOW },
   [POOL_PANEL]: { all: TILE.POOL_PANEL },
   [BARRICADE]: { all: TILE.BARRICADE },
+  [BB_SAND]: { all: TILE.BB_SAND },
+  [BB_CORAL]: { all: TILE.BB_CORAL },
+  [BB_PINEAPPLE]: { all: TILE.BB_PINEAPPLE },
+  [BB_PINE_LEAF]: { all: TILE.BB_PINE_LEAF },
+  [BB_KELP]: { all: TILE.BB_KELP },
+  [BB_MOAI]: { all: TILE.BB_MOAI },
+  [BB_ROCK]: { all: TILE.BB_ROCK },
+  [BB_HULL]: { all: TILE.BB_HULL },
+  [BB_CHUM]: { all: TILE.BB_CHUM },
+  [BB_ROAD]: { all: TILE.BB_ROAD },
   ...MC_BLOCK_TILES,
   // Ghost blocks look exactly like the material they imitate.
   ...Object.fromEntries(Object.entries(MC_GHOST_SOLID).map(([ghost, solid]) => [ghost, MC_BLOCK_TILES[solid]])),
@@ -903,6 +1012,12 @@ export const MAP_SURFACES = Object.freeze({
   causeway: Object.freeze({ remap: Object.freeze({ [TILE.BEDROCK]: TILE.ARMOR_CONCRETE }), boundary: true, pilasterEvery: 8 }),
   killhouse: Object.freeze({ remap: null, boundary: true, pilasterEvery: 0 }),
   caldera: Object.freeze({ remap: null, boundary: true, pilasterEvery: 0 }),
+  // The METAL shell (parapet and the cells behind wall kelp) reads as reef
+  // rock; GLASS drops the global streaked pane for a clean one. Safe while the
+  // map authors no METAL inside the reef (tools/bikini-bottom-test.mjs).
+  bikini_bottom: Object.freeze({
+    remap: Object.freeze({ [TILE.METAL]: TILE.BB_ROCK, [TILE.GLASS]: TILE.BB_DOME_GLASS }), boundary: false, pilasterEvery: 0,
+  }),
 });
 const NO_SURFACE = Object.freeze({ remap: null, boundary: false, pilasterEvery: 0 });
 
@@ -956,6 +1071,8 @@ const NO_RING_DARKEN = new Set([
   TILE.DUST_SANDSTONE, TILE.DUST_PLASTER, TILE.DUST_ROCK, TILE.DUST_FLOOR,
   TILE.DUST_TRIM, TILE.DUST_TILE, TILE.DUST_CRATE, TILE.DUST_WOOD,
   TILE.FACADE_PANEL, TILE.FACADE_JOINT, TILE.FACADE_PILLAR, TILE.FACADE_BASE,
+  // Cutout blades read as foliage; seafloor sand and road stay seamless like SAND/ASPHALT.
+  TILE.BB_PINE_LEAF, TILE.BB_KELP, TILE.BB_SAND, TILE.BB_ROAD, TILE.BB_DOME_GLASS,
   ...Object.entries(TILE).filter(([name]) => name.startsWith('MC_')).map(([, slot]) => slot),
 ]);
 const RING_DARKEN = 0.9;
@@ -963,7 +1080,8 @@ const RING_DARKEN = 0.9;
  * Poured and cut stone keep a faint block rhythm, enough to read wall courses
  * and distances, too weak to draw graph paper across a floor.
  */
-const SOFT_RING = new Map([[TILE.CONCRETE, 0.95], [TILE.PALE, 0.95], [TILE.STONE, 0.94], [TILE.ARMOR_CONCRETE, 0.95]]);
+const SOFT_RING = new Map([[TILE.CONCRETE, 0.95], [TILE.PALE, 0.95], [TILE.STONE, 0.94], [TILE.ARMOR_CONCRETE, 0.95],
+  [TILE.BB_ROCK, 0.96], [TILE.BB_CORAL, 0.96]]);
 
 /** Paint one tile, ring darkening included, through write(px, py, rgba). */
 function paintTile(tile, write) {

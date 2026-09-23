@@ -86,6 +86,18 @@ export const SLIDE_YELLOW = 83;
 export const POOL_PANEL = 84;
 // Bastion fortifications (sandbag lines and barricade walls built between waves).
 export const BARRICADE = 85;
+// Bikini Bottom seafloor town: sand, coral, the pineapple rind and crown,
+// kelp, moai stone, reef rock, boat hull planks, riveted chum steel and road.
+export const BB_SAND = 86;
+export const BB_CORAL = 87;
+export const BB_PINEAPPLE = 88;
+export const BB_PINE_LEAF = 89;
+export const BB_KELP = 90;
+export const BB_MOAI = 91;
+export const BB_ROCK = 92;
+export const BB_HULL = 93;
+export const BB_CHUM = 94;
+export const BB_ROAD = 95;
 
 /** Ghost block -> the solid material it imitates (shared by textures and balance). */
 export const MC_GHOST_SOLID = Object.freeze({
@@ -140,6 +152,8 @@ export const BLOCK_HP = {
   [POOL_TILE_BLUE]: 200, [POOL_TILE_WHITE]: 200, [POOL_FLOOR]: 240,
   [SLIDE_BLUE]: 90, [SLIDE_YELLOW]: 90, [POOL_PANEL]: 420,
   [BARRICADE]: 480,
+  [BB_SAND]: 70, [BB_CORAL]: 220, [BB_PINEAPPLE]: 120, [BB_PINE_LEAF]: 30, [BB_KELP]: 10,
+  [BB_MOAI]: 320, [BB_ROCK]: 380, [BB_HULL]: 110, [BB_CHUM]: 420, [BB_ROAD]: 300,
   ...mcTable(0),
 };
 
@@ -156,6 +170,8 @@ export const BLOCK_HARDNESS = Object.freeze({
   [DUST_CRATE]: 25, [DUST_WOOD]: 32,
   [POOL_TILE_BLUE]: 55, [POOL_TILE_WHITE]: 55, [POOL_FLOOR]: 70, [SLIDE_BLUE]: 22, [SLIDE_YELLOW]: 22, [POOL_PANEL]: 110,
   [BARRICADE]: 120,
+  [BB_SAND]: 16, [BB_CORAL]: 65, [BB_PINEAPPLE]: 32, [BB_PINE_LEAF]: 8, [BB_KELP]: 4,
+  [BB_MOAI]: 90, [BB_ROCK]: 100, [BB_HULL]: 30, [BB_CHUM]: 110, [BB_ROAD]: 85,
   ...mcTable(1),
   [MC_WATER]: 8, [MC_LAVA]: 8, [MC_PORTAL]: 0,
 });
@@ -189,6 +205,9 @@ export const GRENADE_RESISTANCE = Object.freeze({
   [DUST_WOOD]: 72,
   [POOL_TILE_BLUE]: 94, [POOL_TILE_WHITE]: 94, [POOL_FLOOR]: 100, [SLIDE_BLUE]: 40, [SLIDE_YELLOW]: 40, [POOL_PANEL]: 130,
   [BARRICADE]: 180,   // rockets (210) and pulse (200) carve it; frags (165) do not
+  [BB_SAND]: 16, [BB_CORAL]: 82, [BB_PINEAPPLE]: 42, [BB_PINE_LEAF]: 10, [BB_KELP]: 6,
+  [BB_MOAI]: 110, [BB_ROCK]: 120, [BB_HULL]: 40, [BB_ROAD]: 112,
+  [BB_CHUM]: 140,     // rockets (210) and frags (165) breach the bucket
   ...mcTable(2),
   [MC_WATER]: Infinity, [MC_LAVA]: Infinity, [MC_PORTAL]: Infinity,
 });
@@ -214,5 +233,7 @@ export const MINING_HITS = Object.freeze({
   [DUST_CRATE]: 5, [DUST_WOOD]: 6,
   [POOL_TILE_BLUE]: 6, [POOL_TILE_WHITE]: 6, [POOL_FLOOR]: 7, [SLIDE_BLUE]: 3, [SLIDE_YELLOW]: 3, [POOL_PANEL]: 9,
   [BARRICADE]: 6,
+  [BB_SAND]: 2, [BB_CORAL]: 5, [BB_PINEAPPLE]: 4, [BB_PINE_LEAF]: 1, [BB_KELP]: 1,
+  [BB_MOAI]: 7, [BB_ROCK]: 8, [BB_HULL]: 3, [BB_CHUM]: 8, [BB_ROAD]: 8,
   ...mcTable(3),
 });

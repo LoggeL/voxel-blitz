@@ -98,6 +98,20 @@ export const MAP_TRAPS = Object.freeze({
       button: { x: 85, y: 16, z: 50, face: 'z-' }, cooldownMs: 40000,
       effect: { kind: 'fire', points: [{ x: 60.5, y: 15.05, z: 58.5 }], durationMs: 12000 } },
   ],
+  // Grill button on the Krusty Krab kitchen deck (back wall z=37), the
+  // lifeguard hut's west wall at Goo Lagoon, the Treedome drum at the fields.
+  bikini_bottom: [
+    { id: 'grill-flare', name: 'Grillbrand', detail: 'Die Grillplatte der Krabbenküche flammt auf und setzt den Speisesaal in Brand.',
+      button: { x: 21, y: 16, z: 38, face: 'z-' }, uses: 1,
+      effect: { kind: 'fire', points: [{ x: 23.5, y: 15.05, z: 44.5 }, { x: 27.5, y: 15.05, z: 47.5 },
+        { x: 24.5, y: 15.05, z: 51.5 }], durationMs: 12000 } },
+    { id: 'high-tide', name: 'Flutwelle', detail: 'Die Goo Lagoon läuft über und flutet den Strand für kurze Zeit.',
+      button: { x: 36, y: 15, z: 69, face: 'x+' }, cooldownMs: 45000,
+      effect: { kind: 'flood', region: box(37, 15, 71, 45, 16, 80), durationMs: 8000 } },
+    { id: 'jelly-sting', name: 'Quallenstich', detail: 'Ein Quallenschwarm setzt die Jellyfish Fields 10 Sekunden unter Strom.',
+      button: { x: 95, y: 15, z: 74, face: 'x-' }, cooldownMs: 40000,
+      effect: { kind: 'electrify', regions: [box(96, 14.5, 68, 112, 17, 81)], durationMs: 10000, damage: 7, intervalMs: 450 } },
+  ],
 });
 
 export function trapsFor(mapId) {

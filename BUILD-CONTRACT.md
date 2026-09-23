@@ -128,7 +128,7 @@ The first non-binary frame is exactly one admission shape:
   applies only to a newly created quick room. Fresh quick rooms rotate between
   `foundry`, `depot`, `solstice`, and `caldera`.
 - `{t:'create',name:string,bots:number,gameMode?:'fun'|'tdm'|'snd'|'gungame'|'training',
-  map?:'foundry'|'depot'|'citadel'|'solstice'|'caldera'|'nuketown'|'dust2'|'killhouse'}` creates a public waiting lobby.
+  map?:'foundry'|'depot'|'citadel'|'solstice'|'caldera'|'nuketown'|'dust2'|'killhouse'|'bikini_bottom'}` creates a public waiting lobby.
   Omitted values default to `fun` and the first compatible map. An explicitly
   incompatible mode/map pair is malformed.
 - `{t:'join',name:string,lobby:string}` joins a public waiting or live lobby and
@@ -302,7 +302,7 @@ and landmarks use the ground floor at `GROUND + 1.02`, independently of the high
 roof voxel recorded by `heightAt`. Spawn and target validation checks the actual
 feet cell and headroom. The four-stage gate metadata remains authoritative.
 
-`createMapState` accepts `foundry`, `depot`, `citadel`, `solstice`, `caldera`, `nuketown`, `dust2`, or `killhouse` and returns an
+`createMapState` accepts `foundry`, `depot`, `citadel`, `solstice`, `caldera`, `nuketown`, `dust2`, `killhouse`, or `bikini_bottom` and returns an
 independent `{mapId,meta,getBlock,setBlock,heightAt,findSpawns,serializeWorld,
 rebuildHeightMap}`. Templates are generated and cached once, then cloned for
 each room. `meta` is deeply frozen and has
@@ -312,7 +312,7 @@ the map id travels in JSON. `createWorldState` remains the default Foundry API.
 
 ### shared/modes.js
 Exports immutable `MODE_IDS=['fun','tdm','snd','gungame','training']`,
-`TEAM_IDS=['alpha','bravo']`, `MAP_IDS=['foundry','depot','citadel','solstice','caldera','nuketown','dust2','killhouse']`,
+`TEAM_IDS=['alpha','bravo']`, `MAP_IDS=['foundry','depot','citadel','solstice','caldera','nuketown','dust2','killhouse','bikini_bottom']`,
 `MODE_RULES`, `MAP_MODE_COMPATIBILITY`, S&D credit constants,
 `WEAPON_PRICES`, defaults, validators/normalizers for mode/team/map/weapon ids,
 `isTeamMode(modeId)`, `isModeMapCompatible(modeId,mapId)`,
@@ -320,6 +320,7 @@ Exports immutable `MODE_IDS=['fun','tdm','snd','gungame','training']`,
 truth for mode ids, map compatibility, timings, and economy. `MAP_MODE_COMPATIBILITY.caldera`
 covers the four combat modes.
 `MAP_MODE_COMPATIBILITY.killhouse` covers only training.
+`MAP_MODE_COMPATIBILITY.bikini_bottom` is `COMBAT_MODE_IDS` (Fun, TTT, 1v1, Chaos Lab, TDM, S&D, Gun Game).
 
 ### shared/player-hitboxes.js
 `playerHitboxes(player)` defines oriented head, torso, hip, arm and leg volumes
@@ -968,6 +969,23 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   map authors one. The roofed hall exposes no power-up pad.
   `tools/compile-waterworld-reference.py` regenerates
   `shared/world/waterworld-data.js`; see `docs/maps/waterworld.md`.
+- **Bikini Bottom (`bikini_bottom`):** an original procedural undersea town
+  inspired by the cartoon, 128 × 40 × 96 with `GROUND = 14`, point-symmetric
+  gameplay footprints (`P(x,z) = (127-x, 95-z)`). Supports all combat modes
+  (Fun, TTT, 1v1, Chaos Lab, TDM, S&D, Gun Game), capacity 12. Site A is the
+  Krusty Krab dining floor (floor y14), site B the raised Chum Bucket deck (floor y17);
+  the Boating School in mid carries a rideable flume (`meta.slides`, the
+  shared `SLIDE_RULES`) from its deck into the swimmable Goo Lagoon
+  (`MC_WATER`). `shared/world/flatmap-bikini-bottom.js` builds the core and
+  calls five region builders (`setpiece-bikini-bottom-{conch,krab,school,chum,south}.js`);
+  `shared/world/bikini-bottom-data.js` owns the flume path and power-up pads.
+  Ten materials (`BB_SAND` … `BB_ROAD`, ids 86–95) are destructible and have
+  atlas tiles. Bots roam with `standHeights [13,17]` and no navigation floor.
+  Three TTT traps (grill fire, lagoon flood, jellyfish sting). Client-only
+  caustics, god rays, kelp, fish, jellyfish, bubble columns and the horizon
+  live in `public/js/engine/bikini-bottom-details.js`. See
+  `docs/maps/bikini-bottom.md`; `node tools/bikini-bottom-test.mjs` and
+  `tools/bikini-bottom-lobby-test.mjs` run in `npm run maps:test`.
 - **Settings:** sensitivity defaults to `0.003` rad/px, clamps to
   `0.0008–0.012`, and persists as `vb-sens-v2` (`SENSITIVITY_PREF_KEY`; the
   old `vb-sens` scale is ignored rather than clamped). Touch look runs at 1.4×
@@ -1115,11 +1133,11 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   follows the immediate camera with weight-limited speed and acceleration.
   Heavier weapons trail farther and settle more slowly; camera/authority aim is
   never delayed or altered.
-- **Worlds:** Foundry, Depot, Citadel, Solstice, and Caldera are deterministic 128×40×96 templates.
+- **Worlds:** Foundry, Depot, Citadel, Solstice, Caldera, and Bikini Bottom are deterministic 128×40×96 templates.
   Every room mutates an independent clone of its selected map. Block damage and
   serialized late-join state remain local to that room.
 - **Bullet materials:** `BLOCK_HP` and `BLOCK_HARDNESS` in `shared/world/blocks.js`
-  cover all 28 destructible materials. The distinct `BEDROCK` material fills
+  cover all 38 destructible materials. The distinct `BEDROCK` material fills
   every generated map at `y = 0`, has infinite resistance, and cannot be destroyed. Hitscan weapon definitions carry `penetration`.
   `shared/bullet-material.js` computes damage and energy loss from current power,
   material hardness, voxel path thickness and impact angle. Weak rounds chip cover;

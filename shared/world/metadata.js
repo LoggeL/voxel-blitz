@@ -9,6 +9,7 @@ import { CAUSEWAY_LAYOUT } from './causeway-layout.js';
 import { BASTION_LAYOUTS } from './bastion-layouts.js';
 import { MINECRAFT_B5_ANCHORS } from './minecraft-b5-data.js';
 import { WATERWORLD_ANCHORS } from './waterworld-data.js';
+import { BIKINI_BOTTOM_FLUME } from './bikini-bottom-data.js';
 import {
   DUST2_NAV_FLOORS, DUST2_SPAWN_ANCHORS, DUST2_SITES, DUST2_LANDMARKS,
   dust2FloorsAt,
@@ -29,6 +30,7 @@ const MAP_NAMES = Object.freeze({
   minecraft_b5: 'Minecraft B5',
   waterworld: 'Waterworld',
   causeway: 'Causeway',
+  bikini_bottom: 'Bikini Bottom',
 });
 
 export const MAP_SPAWN_ANCHORS = Object.freeze({
@@ -122,6 +124,19 @@ export const MAP_SPAWN_ANCHORS = Object.freeze({
   },
   causeway: { fun: CAUSEWAY_LAYOUT.defenders.map(p => [p.x, p.z]),
     tdm: { alpha: [], bravo: [] }, snd: { attackers: [], defenders: [] } },
+  // Point-symmetric about (127 - x, 95 - z): bravo/defenders north, alpha/
+  // attackers south. Every anchor is open-sky ground (map-spec §10.1).
+  bikini_bottom: {
+    fun: [[8, 8], [64, 8], [119, 87], [63, 87], [10, 41], [117, 54], [26, 22], [101, 73], [102, 24], [25, 71], [45, 47], [82, 48]],
+    tdm: {
+      alpha: [[18, 87], [36, 87], [54, 87], [73, 87], [91, 87], [109, 87]],
+      bravo: [[18, 8], [36, 8], [54, 8], [73, 8], [91, 8], [109, 8]],
+    },
+    snd: {
+      attackers: [[20, 87], [34, 87], [48, 87], [79, 87], [93, 87], [107, 87]],
+      defenders: [[24, 24], [50, 22], [56, 12], [71, 12], [79, 21], [101, 22]],
+    },
+  },
 });
 
 const MAP_SITE_LAYOUTS = Object.freeze({
@@ -154,9 +169,13 @@ const MAP_SITE_LAYOUTS = Object.freeze({
   minecraft_b5: [],
   waterworld: [],
   causeway: [],
+  bikini_bottom: [
+    { id: 'A', minX: 20, maxX: 31, minZ: 42, maxZ: 53, y: GROUND + 1.02 },   // Krusty Krab dining floor (skylit roof)
+    { id: 'B', minX: 96, maxX: 107, minZ: 42, maxZ: 53, y: GROUND + 4.02 },  // Chum Bucket deck (top y17) inside the ring
+  ],
 });
 
-const MAP_LANDMARKS = Object.freeze({
+export const MAP_LANDMARKS = Object.freeze({
   ...LARGE_LANDMARKS,
   reactor: [ { id: 'gate', name: 'North Gate', x: 64, z: 41, floorY: GROUND },
     { id: 'core', name: 'Reactor Core', x: 64, z: 54, floorY: GROUND },
@@ -204,6 +223,23 @@ const MAP_LANDMARKS = Object.freeze({
   ],
   minecraft_b5: MINECRAFT_B5_ANCHORS.landmarks.map(({ id, name, x, z, floorY }) => ({ id, name, x, z, floorY })),
   waterworld: WATERWORLD_ANCHORS.landmarks.map(({ id, name, x, z, floorY }) => ({ id, name, x, z, floorY })),
+  // Roofs, lids and domes cover several of these cells, so every entry pins its floor.
+  bikini_bottom: [
+    { id: 'conch', name: 'Conch Street', x: 64, z: 31, floorY: GROUND },
+    { id: 'pineapple', name: 'Pineapple', x: 40, z: 21, floorY: GROUND },
+    { id: 'moai', name: 'Moai House', x: 64, z: 27, floorY: GROUND },
+    { id: 'rock', name: 'Rock Home', x: 88, z: 23, floorY: GROUND + 3 },
+    { id: 'kelp', name: 'Kelp Grove', x: 22, z: 20, floorY: GROUND },
+    { id: 'anchors', name: 'Anchor Yard', x: 103, z: 21, floorY: GROUND },
+    { id: 'krab', name: 'Krusty Krab', x: 25, z: 47, floorY: GROUND },
+    { id: 'school', name: 'Boating School', x: 57, z: 48, floorY: GROUND + 4 },
+    { id: 'chum', name: 'Chum Bucket', x: 98, z: 47, floorY: GROUND + 3 },
+    { id: 'lagoon', name: 'Goo Lagoon', x: 46, z: 80, floorY: GROUND },
+    { id: 'pinnacle', name: 'Coral Pinnacle', x: 64, z: 68, floorY: GROUND },
+    { id: 'treedome', name: 'Treedome', x: 84, z: 77, floorY: GROUND },
+    { id: 'fields', name: 'Jellyfish Fields', x: 103, z: 75, floorY: GROUND },
+    { id: 'wreck', name: 'Wreck Cove', x: 25, z: 74, floorY: GROUND },
+  ],
 });
 
 /** Dummy-target posts per map, indexed by dummy bot id (dummy-<index>). */
@@ -348,6 +384,13 @@ export function createMapMetadata(id, world) {
       minX: 22.5, maxX: 104.5, minZ: 6.5, maxZ: 88.5,
       minY: GROUND + 1, maxY: GROUND + 1.1,
     } } : {}),
+    // Ground-level spawns only; bots roam up to T+3 so school-deck and roof
+    // tops (y >= 18) never become roam targets. The flume rides meta.slides.
+    ...(id === 'bikini_bottom' ? {
+      spawnBounds: { minX: 4, maxX: 123, minZ: 4, maxZ: 91, minY: GROUND + 1, maxY: GROUND + 1.1 },
+      standHeights: [GROUND - 1, GROUND + 3],
+      slides: [structuredClone(BIKINI_BOTTOM_FLUME)],
+    } : {}),
     ...(id === 'dust2' ? { spawnBounds: {
       minX: 22.5, maxX: 105.5, minZ: 3.5, maxZ: 92.5,
       minY: 11, maxY: 18.1,

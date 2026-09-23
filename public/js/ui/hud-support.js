@@ -140,6 +140,7 @@ export const MAP_LABELS = Object.freeze({
   minecraft_b5: 'MINECRAFT B5',
   waterworld: 'WATERWORLD',
   causeway: 'CAUSEWAY · LINEAR',
+  bikini_bottom: 'BIKINI BOTTOM',
 });
 
 export const MAP_PREVIEWS = Object.freeze({
@@ -157,6 +158,7 @@ export const MAP_PREVIEWS = Object.freeze({
   minecraft_b5: './assets/maps/minecraft-b5.webp',
   waterworld: './assets/maps/waterworld.webp',
   causeway: './assets/maps/causeway.webp',
+  bikini_bottom: './assets/maps/bikini-bottom.webp',
 });
 
 export const CARDINAL = Object.freeze({ 0: 'N', 90: 'E', 180: 'S', 270: 'W' });

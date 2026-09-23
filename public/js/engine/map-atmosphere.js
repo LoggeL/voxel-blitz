@@ -79,6 +79,14 @@ const PALETTES = {
     ambient: 0.9, sunlight: 0.95, sunDisc: 0, sunDir: [20, 120, 30],
     grade: { saturation: 0.94, shadowTint: [-0.003, 0.002, 0.008], highlightTint: [0.0, 0.004, 0.008] },
     light: { minSky: 0.54 } },
+  // Sunlit shallow sea: teal gradient, pink puff clouds read as "sky flowers",
+  // soft overhead surface glow. skybox: null keeps the clouds visible; fog
+  // stays under the 0.007 bot-fairness cap (bots see through client fog).
+  bikini_bottom: { skybox: null, skyTop: '#0b5a86', skyHorizon: '#46c2d4', fog: '#3aa8bf', density: 0.0062,
+    skyLight: '#c8f6ff', groundLight: '#d8c48c', sun: '#eafcff', ambient: 0.98, sunlight: 1.05, cloud: '#ffd6ec',
+    sunDisc: 0.35, sunDir: [20, 120, 10],
+    grade: { shadowTint: [-0.01, 0.008, 0.02], highlightTint: [0.0, 0.01, 0.012], saturation: 1.1 },
+    light: { minSky: 0.4 }, envIntensity: 0.55 },
 };
 /**
  * Scenery beyond the walls and in the air (map-backdrop.js, map-ambience.js).
