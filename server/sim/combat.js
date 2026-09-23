@@ -497,6 +497,11 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
     if (typeof ctx.launchRocket === 'function') ctx.launchRocket(p, firstDir);
     return;
   }
+  if (def.projectile === 'mgl') {
+    // A capped room projectile budget must not eat a paid drum round.
+    if (!ctx.launchMgl?.(p, firstDir)) p.mag[p.weapon]++;
+    return;
+  }
   if (def.projectile === 'bolt' && typeof ctx.launchBolt === 'function') {
     // The LONGARC bolt is its own authoritative entity from here on: it launches
     // and ricochets inside the projectile system, piercing neither players nor

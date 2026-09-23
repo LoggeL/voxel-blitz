@@ -181,4 +181,4 @@ await mkdir('.artifacts/weapon-handling', { recursive: true });
 await writeFile('.artifacts/weapon-handling/measurements.json', JSON.stringify(results, null, 2) + '\n');
 console.table(results.map(r => ({ weapon: r.weapon, ergonomics: r.ergonomics,
   turnDegS: +r.maxTurnDegPerSecond.toFixed(1), acquire90s: +r.acquire90Seconds.toFixed(3), swayHz: r.sway.frequencyHz })));
-console.log('Handling: all 12 weapons, both extremes, real angular caps, ADS, 30/60/144 FPS, hitch/wrap, independent customization and sway passed.');
+console.log(`Handling: all ${WEAPON_IDS.length} weapons, both extremes, real angular caps, ADS, 30/60/144 FPS, hitch/wrap, independent customization and sway passed.`);

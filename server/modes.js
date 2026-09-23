@@ -4,7 +4,7 @@ import { CHAOS_START_CREDITS, CHAOS_KILL_CREDITS, CHAOS_UPGRADES, chaosLevel, pa
 // Authoritative mode facade. GameEngine talks to one stable controller while
 // state-owning team policies live in server/modes/.
 
-import { WEAPON_IDS } from '../shared/combatmath.js';
+import { WEAPON_IDS, WEAPONS } from '../shared/combatmath.js';
 import {
   DEFAULT_MODE_ID,
   DUEL_WEAPONS,
@@ -89,6 +89,10 @@ class ChaosPolicy extends FunPolicy {
     super._syncPlayer(entity);
     entity.credits = Number.isFinite(credits) && entity.chaosUpgrades ? credits : CHAOS_START_CREDITS;
     entity.chaosUpgrades ??= {};
+    if (chaosLevel(entity, 'mgl') >= 3 && Array.isArray(entity.mag)) {
+      const slot = WEAPON_IDS.indexOf('mgl');
+      entity.mag[slot] = Math.max(WEAPONS.mgl.magSize + 1, Math.max(0, entity.mag[slot] | 0));
+    }
   }
   playerSnapshot(player) {
     const entity = this._entity(player);
@@ -114,6 +118,10 @@ class ChaosPolicy extends FunPolicy {
     p.chaosUpgrades[item] = level;
     // Third plate seats its extra RIPTIDE disc at once; the normaliser keeps the cap.
     if (item === 'glaive' && level === 1 && Array.isArray(p.mag)) p.mag[WEAPON_IDS.indexOf('glaive')]++;
+    if (item === 'mgl' && level === 3 && Array.isArray(p.mag)) {
+      const slot = WEAPON_IDS.indexOf('mgl');
+      p.mag[slot] = Math.min(WEAPONS.mgl.magSize + 1, Math.max(0, p.mag[slot] | 0) + 1);
+    }
     return true;
   }
   tick() {

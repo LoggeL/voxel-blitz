@@ -64,6 +64,9 @@ const FIRE_REPORT_PROFILES = Object.freeze({
   bubble: Object.freeze({
     lifetime: 0.4, sampleGain: 0.9, sampleRate: 1.06, layerGain: 0.3,
   }),
+  mgl: Object.freeze({
+    lifetime: 0.82, sampleGain: 0.9, sampleRate: 0.94, layerGain: 0.22,
+  }),
 });
 
 export function fireReportProfile(key) {
@@ -236,6 +239,23 @@ export function shotRocket(out, primitives) {
   });
   primitives.hiss(out, {
     t0: t0 + 0.006, filter: 'highpass', f: 3400, q: 0.6, dec: 0.06, g: 0.3,
+  });
+}
+
+/** GL-3 SKIPJACK launch: a compact pressure thump, ignition pop and cassette index click. */
+export function shotMgl(out, primitives) {
+  const t0 = primitives.nowT();
+  primitives.tone(out, {
+    t0, type: 'sine', f0: 132, f1: 48, att: 0.001, dec: 0.24, g: 0.62,
+  });
+  primitives.tone(out, {
+    t0: t0 + 0.004, type: 'square', f0: 380, f1: 105, dec: 0.075, g: 0.18,
+  });
+  primitives.hiss(out, {
+    t0, filter: 'lowpass', f: 900, sweepTo: 260, sweepMs: 0.22, q: 0.7, dec: 0.24, g: 0.38,
+  });
+  primitives.tone(out, {
+    t0: t0 + 0.16, type: 'triangle', f0: 1180, f1: 490, dec: 0.055, g: 0.07,
   });
 }
 
@@ -441,6 +461,7 @@ export function renderFireReport(
   else if (key === 'lance') shotLance(out, primitives, charge);
   else if (key === 'knife') shotKnife(out, primitives);
   else if (key === 'rocket') shotRocket(out, primitives);
+  else if (key === 'mgl') shotMgl(out, primitives);
   else if (key === 'glaive') shotGlaive(out, primitives);
   else if (key === 'bubble') shotBubble(out, primitives, charge);
   else shotRifleSmg(out, primitives, FIRE_PARAMS[key] || FIRE_PARAMS.rifle);

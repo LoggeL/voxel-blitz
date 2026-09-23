@@ -21,6 +21,12 @@ close(rocket.firstAttackDamage, 184);
 assert.equal(rocket.killMs, 216.66666666666669);
 assert.equal(rocket.damageWindowMs, 0);
 assert.ok(simulateFight({ weapon: 'rocket', distance: 80 }).killMs > rocket.killMs);
+const mgl = simulateFight({ weapon: 'mgl', distance: 10 });
+assert.equal(mgl.firstAttackDamage, 64);
+assert.equal(mgl.shots, 2, 'the GL-3 needs two center hits against 100 HP');
+assert.ok(mgl.killMs > 1000 && mgl.killMs < 2200, `SKIPJACK flight and cadence are counted (${mgl.killMs} ms)`);
+assert.equal(simulateFight({ weapon: 'mgl', distance: 56, maxSeconds: 8 }).killMs, null,
+  'the SKIPJACK is not credited with hits beyond its reliable lower-arc reach');
 const bolt = simulateFight({ weapon: 'longarc', distance: 80, scenario: 'ideal-head' });
 assert.equal(bolt.headHits, 1, 'ballistic compensation must actually reach the head');
 assert.equal(bolt.damageWindowMs, 0);

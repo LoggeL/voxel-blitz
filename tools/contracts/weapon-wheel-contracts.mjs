@@ -42,6 +42,7 @@ export async function runWeaponWheelContracts(ok) {
   ok(wheelSlotFromVector(-Math.sin(Math.PI / 8), -Math.cos(Math.PI / 8), 8) === 0,
     'a vector on the last half-up boundary wraps around into slot 0');
   const { WeaponWheelController } = await import('../../public/js/session/weapon-wheel-controller.js');
+  const { WEAPON_IDS } = await import('../../shared/combatmath.js');
   const picks = [];
   const context = {
     match: { mode: 'snd' }, self: { owned: ['revolver', 'knife'], state: 'alive' },
@@ -54,9 +55,13 @@ export async function runWeaponWheelContracts(ok) {
     getContext: () => context,
   });
   const entries = controller.entries();
-  ok(entries.length === 14 && entries[9].key === '[0]' && entries[9].ammo === '∞'
+  ok(WEAPON_IDS.slice(0, 14).join() === 'rifle,smg,shotgun,sniper,lmg,revolver,longarc,rocket,lance,knife,minigun,flamethrower,glaive,bubble'
+      && WEAPON_IDS[14] === 'mgl' && entries.length === 15
+      && entries[9].key === '[0]' && entries[9].ammo === '∞'
+      && entries[14].id === 'mgl' && entries[14].name === 'GL-3 SKIPJACK'
+      && entries[14].key === '[WHEEL]' && entries[14].ammo === '—' && !entries[14].owned
       && !entries[0].owned && entries[5].owned,
-    'wheel entries use the real tenth-slot key and authoritative ownership');
+    'wheel appends SKIPJACK without changing legacy numeric slots and uses authoritative ownership');
   controller.openWheel();
   controller.commit(0);
   controller.openWheel();

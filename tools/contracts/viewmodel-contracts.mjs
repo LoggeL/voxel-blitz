@@ -12,7 +12,7 @@ function isRenderedOpaque({ object }) {
 // Slots whose only model is a Blender template. Node never loads the
 // templates, so these build no body here and their geometry is checked by
 // `npm run weapons:blender:browser` instead.
-const NODE_BLENDER_ONLY = new Set(['sniper', 'rocket']);
+const NODE_BLENDER_ONLY = new Set(['sniper', 'rocket', 'mgl']);
 
 // Body meshes of one built gun, excluding the gloves and the anchor-driven
 // flash, muzzle attachments (the rail charge orb), bolt glow cap and heat

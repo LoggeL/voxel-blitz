@@ -332,6 +332,29 @@ TIMERS.bubble = {
   kick: { stiffness: 150, damping: 14, yawWobble: 0.55 },   // soft, wobbly spring.
 };
 
+TIMERS.mgl = {
+  // GL-3 SKIPJACK: under-slung three-round cassette and 40 mm tube.
+  rof: WEAPONS.mgl.rpm,
+  adsTime: WEAPONS.mgl.adsTime,
+  deployTime: WEAPONS.mgl.deployTime,
+  weightKg: WEAPONS.mgl.weightKg,
+  viewKick: { pitchDeg: WEAPONS.mgl.recoil.pitch, yawDeg: WEAPONS.mgl.recoil.yaw },
+  muzzle: [0, 0.075, -0.72],
+  portY: 0.13,
+  ejectRight: -0.04,
+  barrelLen: 0.39,
+  heatLen: [0.62, 0.96],
+  boltTravel: 0.025,
+  rechargeDur: 0.18,
+  pumpMag: 0,
+  cycleBack: false,
+  cycleKind: null,
+  ejectOnFire: false,
+  magTimeline: { start: 0.16, home: 0.80, clickAt: 0.90, type: 'mag' },
+  adsOffset: { x: 0, y: -0.155, z: -0.70 },
+  kick: { stiffness: 150, damping: 21, yawWobble: 0.45 },
+};
+
 /**
  * Walk / sprint / idle procedural-motion profile. Frequencies Hz, amplitudes meters, tilts radians.
  * figure-8: x = sin(pi*p), y = cos(2*pi*p) traces the classic lazy infinity loop.

@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "asset": "skipjack",
+  "materials": [
+    {
+      "material": "SKIPJACK | olive drab",
+      "texture": "olive-paint"
+    },
+    {
+      "material": "SKIPJACK | rubber",
+      "texture": "pebbled-rubber"
+    },
+    {
+      "material": "SKIPJACK | gunmetal",
+      "texture": "phosphated-steel"
+    },
+    {
+      "material": "SKIPJACK | orange paint",
+      "texture": "orange-paint"
+    },
+    {
+      "material": "SKIPJACK | dark polymer",
+      "texture": "molded-polymer"
+    },
+    {
+      "material": "SKIPJACK | machined steel",
+      "texture": "machined-steel"
+    },
+    {
+      "material": "SKIPJACK | brass",
+      "texture": "aged-brass"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ import { startServer, stopServer } from './lib/server-process.mjs';
 import { launchCdpSession } from './lib/cdp-session.mjs';
 const out=path.resolve('.artifacts/weapon-materials');
 const config=JSON.parse(await readFile('docs/design/blender/material-library/materials.json','utf8'));
-const weaponIds={bison:'lmg',fang:'revolver',halo:'longarc',hydra:'minigun',ifrit:'flamethrower',kestrel:'rifle',mastiff:'shotgun',peregrine:'sniper',pike:'lance',skua:'glaive',torch:'rocket',wasp:'smg'};
+const weaponIds={bison:'lmg',fang:'revolver',halo:'longarc',hydra:'minigun',ifrit:'flamethrower',kestrel:'rifle',mastiff:'shotgun',peregrine:'sniper',pike:'lance',skipjack:'mgl',skua:'glaive',torch:'rocket',wasp:'smg'};
 const server=startServer({entry:'tools/capture-server.mjs'});
 await mkdir(out,{recursive:true});
 let browser;

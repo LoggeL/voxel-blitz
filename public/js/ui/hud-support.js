@@ -3,6 +3,7 @@ import { combatDamage } from '../../../shared/combat-balance.js';
 import { ROCKET_RULES } from '../../../shared/rocket-rules.js';
 import { BOLT_RULES } from '../../../shared/bolt-rules.js';
 import { bubbleProfile } from '../../../shared/bubble-rules.js';
+import { MGL_RULES } from '../../../shared/mgl-rules.js';
 
 export const GLYPH = Object.freeze({
   rifle: 'R',
@@ -20,6 +21,7 @@ export const GLYPH = Object.freeze({
   grenade: 'GRN',
   glaive: 'GV',
   bubble: 'SB',
+  mgl: 'GL3',
 });
 
 export const WEAPON_NAMES = Object.freeze({
@@ -37,6 +39,7 @@ export const WEAPON_NAMES = Object.freeze({
   flamethrower: 'F-4 FIRESTORM',
   glaive: 'GV-4 RIPTIDE',
   bubble: 'SB-1 SUDSBLASTER',
+  mgl: 'GL-3 SKIPJACK',
 });
 
 export function weaponImagePath(weaponId) {
@@ -78,6 +81,7 @@ export const WEAPON_CLASSES = Object.freeze({
   flamethrower: 'FLAME JET · BUILD AFTERBURN · 28m',
   glaive: `DISC LAUNCHER · RETURN PIERCE ×${WEAPONS.glaive.glaive.pierce}`,
   bubble: 'BUBBLE LAUNCHER · TAP OR HOLD · FLOATS UP',
+  mgl: `GRENADE LAUNCHER · ARC & BOUNCE · ${MGL_RULES.maxBounces} SURFACE BOUNCES`,
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([
@@ -92,6 +96,7 @@ export const WEAPON_BUY_ORDER = Object.freeze([
   'glaive',
   'lance',
   'rocket',
+  'mgl',
   'flamethrower',
   'knife',
   'minigun',
@@ -112,8 +117,9 @@ export function weaponCardStats(def) {
   const close = Array.isArray(def.damage) ? def.damage[0] : (def.damage || 0);
   const soapShot = def.projectile === 'bubble' ? bubbleProfile(0) : null;
   const base = def.projectile === 'rocket' ? ROCKET_RULES.directDamage + ROCKET_RULES.splashDamage
-    : soapShot ? soapShot.directDamage + soapShot.splashDamage
-      : close;
+    : def.projectile === 'mgl' ? MGL_RULES.directDamage + MGL_RULES.splashDamage
+      : soapShot ? soapShot.directDamage + soapShot.splashDamage
+        : close;
   const pellets = def.pellets > 1 ? `×${def.pellets}` : '';
   const rpm = def.rpm ? ` · ${def.rpm} RPM` : '';
   if (def.mode === 'melee') return `DMG ${Number(combatDamage(base).toFixed(1))}${rpm}`;

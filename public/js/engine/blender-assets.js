@@ -2,7 +2,7 @@ import * as THREE from '../vendor/three.module.js';
 import { GLTFLoader } from '../vendor/loaders/GLTFLoader.js';
 import { loadingScreen } from '../ui/loading-screen.js';
 
-const ASSET_IDS = Object.freeze(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'torch', 'wasp', 'skua', 'hands', 'grenades']);
+const ASSET_IDS = Object.freeze(['rivet', 'kestrel', 'peregrine', 'bison', 'fang', 'halo', 'hydra', 'ifrit', 'mastiff', 'pike', 'torch', 'wasp', 'skua', 'skipjack', 'hands', 'grenades']);
 
 // Geometry and decoded ImageGen maps belong to the page, not to a player or a
 // preview. Only materials are cloned, so one skin/fade cannot affect another rig.
@@ -16,8 +16,8 @@ export function imagegenMap(name) {
 
 export function loadBlenderAssets() {
   return loading ??= (async () => {
-    // The fifteen models share 21 texture files. three.js only reuses a
-    // response through its loader cache, so enable it for the library load and
+    // The weapon set and supporting assets share palette texture files.
+    // three.js only reuses a response through its loader cache, so enable it for the library load and
     // release the raw buffers afterwards (decoded textures stay on the GPU).
     const cacheWasEnabled = THREE.Cache.enabled;
     THREE.Cache.enabled = true;

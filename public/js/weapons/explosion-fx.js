@@ -60,6 +60,13 @@ export const BLAST_STYLE = Object.freeze({
     light: Object.freeze({ color: 0xffa040, range: 10, intensity: 20, life: 0.55 }),
     scorch: 3.8,
   }),
+  mgl: Object.freeze({
+    color: 0xe5a647, grow: 0.42, life: 0.42, ring: true, ringColor: 0xb8cd4d, flash: 1.9, flashLife: 0.12,
+    fire: Object.freeze({ count: 5, size: 1.2, speed: 4.6, life: 0.42, tint: FIRE_HOT }),
+    smoke: Object.freeze({ count: 8, size: 1.15, speed: 2.2, life: 1.6, shade: 0.16 }),
+    light: Object.freeze({ color: 0xffb85c, range: 6.5, intensity: 10, life: 0.38 }),
+    scorch: 0,
+  }),
   molotov: Object.freeze({
     color: 0xff7924, grow: 0.2, life: 0.3, ring: false, flash: 1.6, flashLife: 0.12,
     fire: Object.freeze({ count: 6, size: 1.3, speed: 3.2, life: 0.5, tint: FIRE_OILY }),

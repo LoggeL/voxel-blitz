@@ -52,7 +52,7 @@ export const BASTION_ENEMIES = Object.freeze({
     look: Object.freeze({ suit: 0x5b3f6b, dark: 0x1a1420 }) }),
 });
 // Weapon keys (as passed to takeDamage) that ignore a vehicle's small-arms factor.
-export const BASTION_PIERCING = Object.freeze(['rocket', 'frag', 'limpet', 'pulse', 'molotov', 'flamethrower', 'longarc', 'lance', 'sniper']);
+export const BASTION_PIERCING = Object.freeze(['rocket', 'mgl', 'frag', 'limpet', 'pulse', 'molotov', 'flamethrower', 'longarc', 'lance', 'sniper']);
 /** FAST RELOAD scales every reload stage by this factor. */
 export const BASTION_RELOAD_MULT = 0.85;
 export const BASTION_SHOP = Object.freeze({

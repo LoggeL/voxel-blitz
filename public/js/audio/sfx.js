@@ -143,6 +143,7 @@ const EXPLOSION_PROFILES = Object.freeze({
   limpet: Object.freeze({ gain: 1.18, lifetime: 2.2, low: 0.9, lowHz: 64, crack: 0.42, crackHz: 1500, echo: 0.28 }),
   pulse: Object.freeze({ gain: 1.0, lifetime: 1.2, low: 0.36, lowHz: 110, crack: 0.5, crackHz: 3400, echo: 0.16, electric: true }),
   rocket: Object.freeze({ gain: 1.22, lifetime: 2.2, low: 0.95, lowHz: 58, crack: 0.4, crackHz: 1600, echo: 0.3 }),
+  mgl: Object.freeze({ gain: 1.04, lifetime: 1.45, low: 0.76, lowHz: 72, crack: 0.31, crackHz: 2050, echo: 0.21 }),
 });
 
 /** One sustained capacitor whine for a held charge (LONGARC, VOLTLANCE); created lazily, never pooled. */

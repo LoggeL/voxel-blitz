@@ -52,6 +52,10 @@ export const HANDS = {
     grip: { x: 0, y: -0.050, z: 0.012 },                     // bubblegum pistol grip.
     support: { x: 0, y: -0.058, z: -0.345, on: 'body' },    // palm cups the bamboo foregrip pole.
   },
+  mgl: {
+    grip: { x: 0.047, y: -0.203, z: -0.056 },
+    support: { x: -0.058, y: -0.184, z: -0.373, on: 'body' },
+  },
   knife: {
     grip: { x: 0.020, y: -0.225, z: -0.035 },                // fist rides low: the baked glove
                                                             // cuff must stay under the 0.02 sight line.

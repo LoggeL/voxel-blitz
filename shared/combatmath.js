@@ -37,7 +37,7 @@ export const CONDITION_RULES = Object.freeze({
 
 /**
  * @typedef {Object} WeaponDef
- * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive'|'bubble')
+ * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive'|'bubble'|'mgl')
  * @property {string} name          display name
  * @property {'auto'|'semi'|'pump'|'bolt'|'charge'|'melee'} mode trigger behavior; `charge` fires on
  *                                  trigger release and scales with the hold (see `charge`); `melee`
@@ -71,7 +71,7 @@ export const CONDITION_RULES = Object.freeze({
  * @property {object} handling      ergonomics, sway amplitude/rate, vertical/horizontal recoil
  * @property {string} sfx           bank key for the audio engine
  * @property {{reach:number,coneDeg:number,backstabMult:number,backstabDot:number}} [melee] melee profile: swing hits enemies within `reach` meters inside a `coneDeg` arc; damage multiplies by `backstabMult` when the swing direction aligns with the victim's facing beyond `backstabDot`
- * @property {'rocket'|'bolt'|'glaive'|'bubble'} [projectile]  when set, the shot launches an authoritative projectile (shared/rocket-rules.js, shared/bolt-rules.js, shared/glaive-rules.js, shared/bubble-rules.js) instead of firing hitscan rays
+ * @property {'rocket'|'bolt'|'glaive'|'bubble'|'mgl'} [projectile]  when set, the shot launches an authoritative projectile instead of firing hitscan rays
  * @property {{ms:number,holdMaxMs:number,minDamageMult:number,damageExponent?:number}} [charge]  charge-fire profile
  * @property {number} [hitRadius] outer radius around a body reached by the rail corona
  * @property {number} [coreRadius] full-damage radius around a body inside the rail core
@@ -80,7 +80,7 @@ export const CONDITION_RULES = Object.freeze({
  *                              discs instead of reloading, so reloadTime/tacTime are unused
  */
 
-/** The fourteen-weapon roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
+/** The fifteen-weapon roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
 export const WEAPONS = {
   rifle: {
     id: 'rifle', penetration: 55, name: 'VK-77 RAPTOR', mode: 'auto',
@@ -388,12 +388,35 @@ export const WEAPONS = {
       damageExponent: 2,
     },
   },
+  mgl: {
+    // GL-3 SKIPJACK: three slow arcing rounds, with a brief safe arm, four surface
+    // bounces, body-contact detonation and a timed airburst. Blast caps at 64 scaled
+    // damage, so landing a round still takes aim and a follow-up.
+    id: 'mgl', name: 'GL-3 SKIPJACK', mode: 'semi',
+    weightKg: 5.6,
+    rpm: 70, magSize: 3, spareMags: 2,
+    damage: [80, 80, 19], falloffStart: 18, // display only: direct damage is the full base blast plus its bonus
+    headMult: 1, pellets: 1, penetration: 0,
+    spreadDeg: { hip: 1.0, ads: 0.18 }, bloomDeg: 0.35, bloomMaxDeg: 1.8,
+    bloomRecover: 4.2, moveSpreadDeg: 1.6,
+    crouchSpreadMult: 0.78,
+    recoil: {
+      pitch: 2.3, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.62, yawPattern: [-0.45, 0.38, 0.58, -0.3],
+      jitter: 0.08, resetMs: 950, adsMult: 0.72, recovery: 0.62,
+    },
+    adsFov: 58, zoom: 1.25, adsTime: 0.2,
+    reloadTime: 2.8, tacTime: 2.8, deployTime: 0.58,
+    tracer: null,
+    sfx: 'mgl',
+    projectile: 'mgl',
+  },
 };
 
 // Attach immutable handling profiles without duplicating the baseline recoil numbers.
 for (const [id, def] of Object.entries(WEAPONS)) WEAPONS[id] = withWeaponHandling(def);
 
-export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble'];
+export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl'];
 
 /** Charge profile with safe defaults for weapons that are not `charge` mode. */
 export function chargeProfile(def) {

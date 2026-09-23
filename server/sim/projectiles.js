@@ -4,9 +4,9 @@ import { pointPlayerDistance, rayPlayerHitboxes } from '../../shared/player-hitb
 import { chaosLevel, chaosWeaponDef } from '../../shared/chaos.js';
 import { chaosGlaiveContact } from './chaos-combat.js';
 // Room-scoped authoritative projectile simulation: five throwable types, the
-// rocket, the LONGARC bolt, the RIPTIDE disc and the SUDSBLASTER bubble. One
-// system owns flight, claymore mounting, bubble clinging, detonation, blast
-// damage, knockback, concussion, terrain carving, sympathetic (chain)
+// rocket, the SKIPJACK round, the LONGARC bolt, the RIPTIDE disc and the
+// SUDSBLASTER bubble. One system owns flight, claymore mounting, bubble clinging,
+// detonation, blast damage, knockback, concussion, terrain carving, sympathetic (chain)
 // detonation, bolt ricochets and disc returns so every projectile follows the
 // same rules.
 
@@ -43,6 +43,7 @@ import {
   stepGrenade,
 } from '../../shared/grenade-rules.js';
 import { ROCKET_RULES, rocketLaunch, stepRocket } from '../../shared/rocket-rules.js';
+import { MGL_RULES, mglLaunch, stepMgl } from '../../shared/mgl-rules.js';
 import { BOLT_RULES, boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
 import {
   glaiveCanThrow,
@@ -112,6 +113,25 @@ export const PROJECTILE_RULES = Object.freeze({
     concussMs: 0,
     concussPanic: 0,
     directDamage: ROCKET_RULES.directDamage,
+  }),
+  mgl: Object.freeze({
+    id: 'mgl',
+    name: 'GL-3 SKIPJACK',
+    fuseMs: MGL_RULES.fuseMs,
+    damage: MGL_RULES.splashDamage,
+    damageRadius: MGL_RULES.damageRadius,
+    damageFalloffExponent: MGL_RULES.damageFalloffExponent,
+    selfDamage: MGL_RULES.selfDamage,
+    knockback: MGL_RULES.knockback,
+    selfKnockback: MGL_RULES.selfKnockback,
+    knockbackRadius: MGL_RULES.knockbackRadius,
+    knockbackFalloff: MGL_RULES.knockbackFalloff,
+    terrainRadius: MGL_RULES.terrainRadius,
+    terrainPower: MGL_RULES.terrainPower,
+    maxDestroyedBlocks: MGL_RULES.maxDestroyedBlocks,
+    concussMs: 0,
+    concussPanic: 0,
+    directDamage: MGL_RULES.directDamage,
   }),
   // Static Soap Shot profile: the fallback for scatter/chaos spreads. Every live
   // bubble carries its own charge-interpolated `blastRules`.
@@ -224,6 +244,7 @@ export class ProjectileSystem {
       if (projectile.chaosHoming && !projectile.stuck) this._home(projectile, dt, ctx);
       if (projectile.type === 'pulse' && projectile.chaosLevel >= 1 && !projectile.child) this._pull(projectile, dt, ctx);
       if (projectile.type === 'rocket') this._flyRocket(projectile, stepSeconds * substeps, ctx);
+      else if (projectile.type === 'mgl') this._flyMgl(projectile, stepSeconds, substeps, ctx);
       else if (projectile.type === 'bolt') this._flyBolt(projectile, stepSeconds * substeps, ctx);
       else if (projectile.type === 'glaive') this._flyGlaive(projectile, stepSeconds * substeps, ctx);
       else if (projectile.type === 'bubble') this._flyBubble(projectile, stepSeconds * substeps, ctx);
@@ -343,6 +364,30 @@ export class ProjectileSystem {
       return this.explode(projectile, ctx);
     }
     if (projectile.hit) return this.explode(projectile, ctx);
+    return false;
+  }
+
+  _flyMgl(projectile, stepSeconds, substeps, ctx) {
+    if (projectile.explodeAt <= ctx.now) return this.explode(projectile, ctx);
+    const armed = ctx.now >= projectile.armedAt;
+    for (let i = 0; i < substeps; i++) {
+      const from = { x: projectile.x, y: projectile.y, z: projectile.z };
+      const before = projectile.bouncesLeft;
+      stepMgl(projectile, stepSeconds, projectile.raycast);
+      if (projectile.bouncesLeft !== before) {
+        ctx.pushEvent(evProjectileUpdate(projectile.id,
+          [projectile.x, projectile.y, projectile.z],
+          [projectile.vx, projectile.vy, projectile.vz], projectile.bouncesLeft));
+      }
+      if (!armed) continue;
+      const contact = this._sweepVictim(from, projectile, MGL_RULES.radius, ctx, projectile);
+      if (contact) {
+        projectile.x = contact.x; projectile.y = contact.y; projectile.z = contact.z;
+        projectile.directVictim = contact.victim;
+        return this.explode(projectile, ctx);
+      }
+      if (projectile.hitSolid) return this.explode(projectile, ctx);
+    }
     return false;
   }
 
@@ -924,6 +969,41 @@ export class ProjectileSystem {
     return projectile;
   }
 
+  /** Launch one armed-timed bouncing 40 mm round from the SKIPJACK. */
+  launchMgl(player, ctx, dir) {
+    if (!this._hasRoom()) return null;
+    const launch = mglLaunch({
+      x: player.eyeX ?? player.x, y: player.eyeY, z: player.eyeZ ?? player.z, dir,
+    });
+    const id = `m${this._nextId++}`;
+    const projectile = {
+      ...launch,
+      id,
+      ownerId: String(player.id),
+      owner: player,
+      launchedAt: ctx.now,
+      armedAt: ctx.now + MGL_RULES.armMs,
+      explodeAt: ctx.now + MGL_RULES.fuseMs,
+      directVictim: null,
+      raycast: (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
+        ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
+      ),
+    };
+    this._configureChaos(projectile);
+    if (projectile.chaosLevel >= 1) projectile.bouncesLeft += 2;
+    if (projectile.chaosLevel >= 2) projectile.blastRules = {
+      ...PROJECTILE_RULES.mgl,
+      damage: MGL_RULES.splashDamage * 1.1,
+      damageRadius: MGL_RULES.damageRadius + 0.3,
+    };
+    this.active.set(id, projectile);
+    ctx.pushEvent(Object.assign(evProjectileLaunch(
+      player.id, id, 'mgl', [projectile.x, projectile.y, projectile.z],
+      [projectile.vx, projectile.vy, projectile.vz], MGL_RULES.fuseMs, projectile.bouncesLeft,
+    ), { arm: MGL_RULES.armMs, chaos: projectile.chaosLevel || 0 }));
+    return projectile;
+  }
+
   /**
    * A SUDSBLASTER bubble leaves the wand ring below the shooter's eye along the
    * spread-sampled `dir`, sized by the release `charge01`. Each owner keeps at most
@@ -1232,7 +1312,8 @@ export class ProjectileSystem {
     }
     const hitVictims = new Set();
     this._damagePlayers(owner, origin, rules, projectile, ctx, hitVictims);
-    if (ctx.grenadeDamage !== false || projectile.type === 'rocket' || projectile.type === 'pulse' || projectile.type === 'bubble') {
+    if (ctx.grenadeDamage !== false || projectile.type === 'rocket' || projectile.type === 'mgl'
+      || projectile.type === 'pulse' || projectile.type === 'bubble') {
       suppressExplosion(owner, origin, rules.damageRadius, hitVictims, ctx);
     }
     if (rules.terrainRadius > 0) this._destroyTerrain(origin, rules, ctx);
@@ -1248,7 +1329,8 @@ export class ProjectileSystem {
   }
 
   _damagePlayers(owner, origin, rules, projectile, ctx, hitVictims = new Set()) {
-    const damageEnabled = ctx.grenadeDamage !== false || projectile.type === 'rocket' || projectile.type === 'bubble';
+    const damageEnabled = ctx.grenadeDamage !== false || projectile.type === 'rocket'
+      || projectile.type === 'mgl' || projectile.type === 'bubble';
     if (!damageEnabled && projectile.type !== 'pulse') return;
     // Damage rules key on the blast type; kill credit goes to the source weapon.
     const weaponKey = projectile.weaponKey || projectile.type;

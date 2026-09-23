@@ -42,6 +42,7 @@ export function createSimulationContexts(engine) {
       engine.projectiles.chaosBlast(player, origin, type, radius, damage, knockback, projectiles, weaponKey)
     ),
     launchRocket: (player, dir, source) => engine.projectiles.launchRocket(player, projectiles, dir, source),
+    launchMgl: (player, dir) => engine.projectiles.launchMgl(player, projectiles, dir),
     launchBolt: (player, dir, charge, source) => engine.projectiles.launchBolt(player, projectiles, dir, charge, false, source),
     launchGlaive: (player, dir) => engine.projectiles.launchGlaive(player, projectiles, dir),
     canThrowGlaive: (player) => engine.projectiles.canThrowGlaive(player),

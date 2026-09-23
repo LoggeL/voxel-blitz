@@ -26,6 +26,7 @@ import { build as buildFlamethrower } from './models/flamethrower.js';
 import { build as buildKnife } from './models/knife.js';
 import { build as buildGlaive } from './models/glaive.js';
 import { build as buildBubble } from './models/bubble.js';
+import { buildSkipjack } from './models/skipjack.js';
 
 const MODELS = Object.freeze({
   rifle: buildRifle,
@@ -42,6 +43,7 @@ const MODELS = Object.freeze({
   flamethrower: buildFlamethrower,
   glaive: buildGlaive,
   bubble: buildBubble,
+  mgl: buildSkipjack,
 });
 
 /**

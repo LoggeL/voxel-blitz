@@ -892,12 +892,12 @@ bots:difficulty:browser` checks real host/member controls and match launch.
   and `server/sim/powerups.js` owns collection and scheduling. `PowerupView`
   renders depth-tested symbols; `PowerupHud` shows armor and collection feedback.
 - **Fun (`fun`):** free-for-all target eligibility, complete
-  fourteen-weapon loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
+  fifteen-weapon loadouts, friendly-fire/team logic not applicable, no score-limit reset, and
   `1500 ms` respawn. Shared quick rooms allow join in progress with no ready
   gate.
 - **Team Deathmatch (`tdm`):** persistent `alpha`/`bravo` assignment chooses the
   lower human+bot population; friendly fire is disabled and every player owns
-  the complete fourteen-weapon loadout. Enemy kills increment the killer's team
+  the complete fifteen-weapon loadout. Enemy kills increment the killer's team
   score. First to `40` enters `post` (40% human approval + `5000 ms`), then team/player scores
   reset and all players respawn. Live deaths respawn after `3000 ms` at the
   player's team spawn pool.

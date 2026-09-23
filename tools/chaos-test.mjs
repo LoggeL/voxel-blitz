@@ -10,7 +10,8 @@ import { MOLOTOV_FIRE, molotovFireProfile } from '../shared/molotov-rules.js';
 import { MAP_IDS, isModeMapCompatible, mapForMode } from '../shared/modes.js';
 import { CHAOS_UPGRADES, CHAOS_START_CREDITS, CHAOS_KILL_CREDITS, chaosPurchaseId, parseChaosPurchase, chaosWeaponDef } from '../shared/chaos.js';
 import { chaosShot, chaosHit, chaosGlaiveContact } from '../server/sim/chaos-combat.js';
-import { MAX_ACTIVE_PROJECTILES, PRIMARY_PROJECTILE_RESERVE } from '../server/sim/projectiles.js';
+import { MAX_ACTIVE_PROJECTILES, PRIMARY_PROJECTILE_RESERVE, ProjectileSystem } from '../server/sim/projectiles.js';
+import { MGL_RULES } from '../shared/mgl-rules.js';
 
 const SECONDARY_PROJECTILE_CAP = MAX_ACTIVE_PROJECTILES - PRIMARY_PROJECTILE_RESERVE;
 
@@ -22,7 +23,7 @@ for (const id of WEAPON_IDS) {
   assert.deepEqual(parseChaosPurchase(`chaos:${id}:1`), { item: id, level: 1 });
   assert.equal(chaosWeaponDef({ chaosUpgrades: {} }, WEAPONS[id]), WEAPONS[id]);
 }
-assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 57);
+assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 60);
 // RIPTIDE ladder: Third plate seats a third disc, Long tether lengthens the out leg and pierce.
 {
   const glaive = (level) => chaosWeaponDef({ chaosUpgrades: { glaive: level } }, WEAPONS.glaive);
@@ -31,6 +32,33 @@ assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 57);
   assert.equal(glaive(3).glaive.outMs, 800);
   assert.equal(glaive(3).glaive.pierce, 5);
   assert.equal(glaive(3).glaive.speedOut, WEAPONS.glaive.glaive.speedOut);
+}
+// SKIPJACK ladder: longer bounces, a restrained blast bump, then one extra round.
+{
+  const mgl = (level) => chaosWeaponDef({ chaosUpgrades: { mgl: level } }, WEAPONS.mgl);
+  assert.equal(mgl(1).magSize, 3);
+  assert.equal(mgl(2).magSize, 3);
+  assert.equal(mgl(3).magSize, 4);
+  assert.deepEqual(CHAOS_UPGRADES.mgl.map((row) => row.price), [300, 600, 900]);
+}
+{
+  const events = [], system = new ProjectileSystem();
+  const owner = { id: 'skipjack', x: 20, y: 10, z: 20, eyeY: 11.6, chaosUpgrades: {} };
+  const ctx = { now: 1000, entities: new Map([[owner.id, owner]]), pushEvent: (event) => events.push(event),
+    solidAt: () => false, getBlock: () => 0 };
+  const roundAt = (level) => {
+    owner.chaosUpgrades.mgl = level;
+    return system.launchMgl(owner, ctx, { x: 0, y: 0, z: -1 });
+  };
+  assert.equal(roundAt(0).bouncesLeft, MGL_RULES.maxBounces);
+  assert.equal(roundAt(1).bouncesLeft, MGL_RULES.maxBounces + 2);
+  const enhanced = roundAt(2);
+  assert.equal(enhanced.blastRules.damage, MGL_RULES.splashDamage * 1.1);
+  assert.equal(enhanced.blastRules.damageRadius, MGL_RULES.damageRadius + 0.3);
+  assert.equal(enhanced.blastRules.terrainRadius, 0);
+  assert.equal(roundAt(3).blastRules.damageRadius, MGL_RULES.damageRadius + 0.3,
+    'later upgrades retain the blast improvement');
+  assert.equal(events.at(-1).bn, MGL_RULES.maxBounces + 2, 'the longer skip budget is published to clients');
 }
 for (const rows of Object.values(CHAOS_UPGRADES)) {
   assert.deepEqual(rows.map(r => r.price), [300, 600, 900]);
@@ -66,6 +94,7 @@ engine.killPlayer(buyer, buyer, 'rocket', false);
 assert.equal(buyer.credits, 0, 'suicide earns nothing');
 assert.equal(buy('chaos:smg:1'), false, 'dead player cannot buy');
 engine.respawnPlayer(buyer);
+engine.mode.onPlayerRespawn(buyer);
 assert.equal(buyer.credits, 0);
 assert.equal(buyer.chaosUpgrades.rifle, 2, 'upgrades survive death and respawn');
 for (const [item, rows] of Object.entries(CHAOS_UPGRADES)) {
@@ -82,16 +111,22 @@ for (const [item, rows] of Object.entries(CHAOS_UPGRADES)) {
   }
   assert.equal(buy(chaosPurchaseId(item, 3)), false, 'max tier cannot overflow');
 }
+assert.equal(buyer.mag[WEAPON_IDS.indexOf('mgl')], WEAPONS.mgl.magSize + 1,
+  'Spare chamber seats its fourth round when purchased');
 const boughtUpgrades = { ...buyer.chaosUpgrades }, creditsBeforeRespawn = buyer.credits;
 engine.killPlayer(buyer, buyer, 'rocket', false);
 engine.respawnPlayer(buyer);
-assert.deepEqual(buyer.chaosUpgrades, boughtUpgrades, 'all 48 purchases survive a fresh life');
+engine.mode.onPlayerRespawn(buyer);
+assert.deepEqual(buyer.chaosUpgrades, boughtUpgrades, 'all 60 purchases survive a fresh life');
+assert.equal(buyer.mag[WEAPON_IDS.indexOf('mgl')], WEAPONS.mgl.magSize + 1,
+  'respawning with Spare chamber starts with all four rounds');
 assert.equal(buyer.credits, creditsBeforeRespawn);
 const snapshot = makeSnapshot([buyer], [], [], engine.now, engine.mode.matchSnapshot());
 assert.equal(snapshot.match.mode, 'chaos');
 assert.deepEqual(snapshot.players[0].chaosUpgrades, buyer.chaosUpgrades);
 snapshot.players[0].chaosUpgrades.rifle = 0;
 assert.equal(buyer.chaosUpgrades.rifle, 3, 'snapshot does not alias authority state');
+assert.equal(buyer.mag[WEAPON_IDS.indexOf('mgl')], 4, 'the fourth SKIPJACK round survives purchase and respawn');
 const normal = new GameEngine({ mode: 'fun' });
 normal.addClient('normal', 'Normal');
 const vanilla = normal.entities.get('normal');
@@ -159,7 +194,7 @@ for (const id of ['shotgun', 'rifle']) {
   assert.deepEqual([body.impulseSeq, body.grounded, body.coyote, body.vault, body.jumpGroundY], [1, false, 0, null, null],
     `${id} Chaos launch clears every state that could swallow it`);
 }
-console.log('Chaos: 57 purchases, complete weapon catalog, economy, stale requests, death persistence, normal-mode isolation, snapshots and cumulative weapon effects passed.');
+console.log('Chaos: 60 purchases, complete weapon catalog, economy, stale requests, death persistence, normal-mode isolation, snapshots and cumulative weapon effects passed.');
 
 // Empty-space projectile fixtures verify explosions and steering without map geometry noise.
 function projectileFixture(type, level) {

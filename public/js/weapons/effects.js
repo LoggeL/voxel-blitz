@@ -13,6 +13,7 @@ import { WEAPONS } from '../../../shared/combatmath.js';
 import { rocketLaunch } from '../../../shared/rocket-rules.js';
 import { GLAIVE_RULES, glaiveLaunch } from '../../../shared/glaive-rules.js';
 import { bubbleLaunch } from '../../../shared/bubble-rules.js';
+import { MGL_RULES, mglLaunch } from '../../../shared/mgl-rules.js';
 
 export { blockSoundFor };
 
@@ -40,6 +41,7 @@ const BLAST_PARTICLES = Object.freeze({
   limpet: Object.freeze({ count: 44, tint: 0xffc27a, speed: 9.5, size: 1.7, life: 0.8, shake: 1.05, reach: 28 }),
   pulse: Object.freeze({ count: 26, tint: 0x9ff4ff, speed: 11, size: 1.2, life: 0.45, shake: 0.7, reach: 24 }),
   rocket: Object.freeze({ count: 52, tint: 0xffb347, speed: 10.5, size: 1.8, life: 0.85, shake: 1.15, reach: 32 }),
+  mgl: Object.freeze({ count: 20, tint: 0xe5a647, speed: 6.2, size: 1.05, life: 0.48, shake: 0.45, reach: 20 }),
   bolt: Object.freeze({ count: 10, tint: 0x7dfcff, speed: 5.5, size: 1.0, life: 0.4, shake: 0.18, reach: 14 }),
   molotov: Object.freeze({ count: 24, tint: 0xff9238, speed: 4.5, size: 1.1, life: 0.65, shake: 0.22, reach: 14 }),
   // RIPTIDE: remote catch sparkle and fizzle. No shake: nothing detonates.
@@ -85,6 +87,7 @@ export class Effects {
       onBounce: (x, y, z, type, contact) => {
         // RIPTIDE wall contact: bright sparks plus a stone chip off the bitten face.
         if (type === 'glaive') this._glaiveSparks(x, y, z, contact);
+        if (type === 'mgl') this._mglSparks(x, y, z, contact);
         if (typeof onBounce === 'function') onBounce(x, y, z, type, contact);
       },
       onGlaiveFlip: (disc, reason) => {
@@ -180,6 +183,22 @@ export class Effects {
         v: [launch.vx, launch.vy, launch.vz],
         charge: launch.charge,
       }, { local: true });
+    } else if (options.local && definition?.projectile === 'mgl' && Array.isArray(event.o)) {
+      const dir = event.spread || event.d;
+      const direction = Array.isArray(dir)
+        ? { x: dir[0], y: dir[1], z: dir[2] }
+        : dir;
+      const aim = Array.isArray(event.d) ? { x: event.d[0], y: event.d[1], z: event.d[2] }
+        : direction || { x: 0, y: 0, z: -1 };
+      const launch = mglLaunch({ x: event.o[0] - aim.x * 0.25,
+        y: event.o[1] + 0.15 - aim.y * 0.25, z: event.o[2] - aim.z * 0.25, dir: direction });
+      this.projectiles.launch({
+        type: 'mgl',
+        o: [launch.x, launch.y, launch.z],
+        v: [launch.vx, launch.vy, launch.vz],
+        bn: launch.bouncesLeft,
+        arm: MGL_RULES.armMs,
+      }, { local: true });
     }
   }
 
@@ -189,6 +208,15 @@ export class Effects {
     if (eye && Math.hypot(eye.x - x, eye.y - y, eye.z - z) > BUBBLE_TRAIL_RANGE) return;
     this.impacts.spawnParticles(x, y, z, projectile.chargeMix > 0.5 ? 3 : 1, 0xdff8ff,
       { speed: 0.4, gravity: -2.5, size: 1.1, life: 0.8, softness: true });
+  }
+
+  /** Compact phosphor sparks from a bouncing 40 mm shell. */
+  _mglSparks(x, y, z, contact) {
+    const count = contact?.ny > 0.5 ? 8 : 5;
+    this.impacts.spawnParticles(x, y, z, count, 0xb8cd4d,
+      { speed: 4.2, gravity: 12, size: 0.72, life: 0.3, sparks: true });
+    this.impacts.spawnParticles(x, y, z, 3, 0xe8892d,
+      { speed: 2.1, gravity: 9, size: 0.9, life: 0.22, sparks: true });
   }
 
   /**

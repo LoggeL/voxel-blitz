@@ -1,7 +1,7 @@
 import { GRENADE_TYPES } from '../../shared/grenade-rules.js';
 import { WEAPONS } from '../../shared/combatmath.js';
+import { PROJECTILE_RULES, ProjectileSystem } from '../../server/sim/projectiles.js';
 import { shuffledGunGameOrder } from '../../server/modes/gungame.js';
-import { ProjectileSystem } from '../../server/sim/projectiles.js';
 
 export function runGunGameRulesContracts(ok) {
   const order = Object.keys(WEAPONS);
@@ -18,4 +18,13 @@ export function runGunGameRulesContracts(ok) {
     });
   }
   ok(victim.hp === 100 && victim.vy > 30, 'Gun Game grenades cannot damage even their owner');
+  const launcherVictim = { id: 'mgl-target', state: 'alive', x: 0, y: 0, z: 0, hp: 100,
+    armor: 0, vx: 0, vy: 0, vz: 0, panic: 0,
+    takeDamage(amount) { this.hp -= amount; return this.hp <= 0; } };
+  grenadeSystem._damagePlayers({ id: 'mgl-owner' }, [0, 1.05, 0], PROJECTILE_RULES.mgl,
+    { type: 'mgl', directVictim: launcherVictim }, {
+      now: 0, grenadeDamage: false, entities: new Map([[launcherVictim.id, launcherVictim]]),
+      canDamage: () => true, pushEvent() {}, killPlayer() {},
+    });
+  ok(launcherVictim.hp === 36, 'Gun Game SKIPJACK weapon damage remains enabled');
 }

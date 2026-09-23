@@ -74,9 +74,8 @@ export function evDie(id, damage = null) {
 
 /**
  * A grenade leaves the hand, a rocket leaves the tube, a bolt leaves the coil or a
- * RIPTIDE disc leaves the spindle. `type` is a throwable/rocket/bolt/glaive id.
- * Bolts and discs carry `bn`: the reflections they still hold at launch, so clients
- * can mirror the ricochet FX locally.
+ * RIPTIDE disc or MGL round leaves its launcher. `type` is a throwable or weapon
+ * projectile id. Ricochet projectiles carry `bn`, their bounces remaining at launch.
  */
 export function evProjectileLaunch(id, projectileId, type, origin, velocity, fuseMs, bounces) {
   const event = {
@@ -86,7 +85,7 @@ export function evProjectileLaunch(id, projectileId, type, origin, velocity, fus
     v: velocity.map((value) => round(value, D2)),
     fuse: Math.max(0, Math.round(Number(fuseMs) || 0)),
   };
-  if ((String(type) === 'bolt' || String(type) === 'glaive') && Number.isFinite(bounces)) {
+  if (['bolt', 'glaive', 'mgl'].includes(String(type)) && Number.isFinite(bounces)) {
     event.bn = Math.max(0, Math.trunc(bounces));
   }
   return event;

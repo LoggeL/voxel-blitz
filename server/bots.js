@@ -39,6 +39,7 @@ import { cancelCharge } from './sim/combat.js';
 import { wrapAngle } from './sim/player.js';
 import { glaiveDef } from './sim/projectiles.js';
 import { BUBBLE_RULES, bubbleFlight, bubbleProfile } from '../shared/bubble-rules.js';
+import { MGL_RULES } from '../shared/mgl-rules.js';
 
 const TAU = Math.PI * 2;
 const PITCH_TURN_RATE = 4.0;      // rad/s vertical tracking cap
@@ -81,6 +82,7 @@ const BUBBLE_MAX_RANGE = 16;      // m: Soap Shots still connect (the lifetime p
 const BUBBLE_DRAW_RANGE = 12;     // m: redraw the launcher / blow a Big Bubble inside this
 const BUBBLE_GROUP_DIST = 3.5;    // m: a second enemy this close to the target earns a Big Bubble
 const BUBBLE_SWAP_CD_MS = 2500;   // between SUDSBLASTER range swaps
+const MGL_MAX_RANGE = 52;          // reliable lower-arc reach with room for lead and aim error
 const MELEE_CLOSE = 1.3;          // m: stop pressing forward this close to the body
 const MELEE_SPRINT_DIST = 1.7;    // m: sprint in until here so the swing shoves hard
 const MELEE_HOP_DIST = 3.2;       // m: hop inside this so the swing lands falling (crit)
@@ -157,6 +159,16 @@ function eyeOf(p) {
 function projectileLead(target, dist, speed, skill = 1) {
   const t = (dist / speed) * skill;
   return [(target.vx || 0) * t, (target.vz || 0) * t];
+}
+
+/** Low-arc launch angle for a stationary target at horizontal distance and height. */
+function mglAimPitch(horizontal, vertical) {
+  const x = Math.max(0.35, horizontal);
+  const speed2 = MGL_RULES.speed ** 2;
+  const discriminant = speed2 ** 2 - MGL_RULES.gravity
+    * (MGL_RULES.gravity * x ** 2 + 2 * vertical * speed2);
+  if (discriminant < 0) return null;
+  return Math.atan((speed2 - Math.sqrt(discriminant)) / (MGL_RULES.gravity * x));
 }
 
 /** The RIPTIDE's engagement reach: 18 m, stretched by Long tether's longer out leg. */
@@ -772,6 +784,8 @@ class BotManager {
       // SUDSBLASTER bubbles hook upward: lead by the closed-form flight time and aim
       // under the target by the rise (low skill under-compensates, so misses float over).
       const bubble = p.def.projectile === 'bubble';
+      const mgl = p.def.projectile === 'mgl';
+      const mglFlat = mgl ? Math.max(0.35, Math.hypot(aimX - p.x, aimZ - p.z) - MGL_RULES.muzzleForward) : 0;
       const bubbleFlat = bubble ? Math.hypot(aimX - p.x, aimZ - p.z) : 0;
       // Only a Big Bubble actually being blown aims on the Big Bubble profile: a stale
       // flag from the last hold must not null the flight (and so the shot) at 12.5-18 m.
@@ -779,12 +793,16 @@ class BotManager {
       const flight = bubble ? bubbleFlight(bubbleProfile(p.charging && br.bubbleBig ? 1 : 0), bubbleFlat) : null;
       const lead = glaive
         ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), glaiveRules.speedOut, br.skill)
+        : mgl ? projectileLead(enemy, mglFlat, MGL_RULES.speed, br.skill)
         : flight ? (flight.t > 0 ? projectileLead(enemy, bubbleFlat, bubbleFlat / flight.t, br.skill) : [0, 0])
         : [(enemy.vx || 0) * LEAD_S * br.skill, (enemy.vz || 0) * LEAD_S * br.skill];
       const aim = [aimX + lead[0], aimY - (flight ? (flight.rise - BUBBLE_RULES.muzzleDrop) * br.skill : 0), aimZ + lead[1]];
       const yawT = Math.atan2(-(aim[0] - p.x), -(aim[2] - p.z));
       const flat = Math.hypot(aim[0] - p.x, aim[2] - p.z) || 1;
-      const pitchT = Math.atan2(aim[1] - eye[1], flat);
+      const mglPitch = mgl ? mglAimPitch(Math.max(0.35, flat - MGL_RULES.muzzleForward),
+        aim[1] - (eye[1] - MGL_RULES.muzzleDrop)) : null;
+      const pitchT = mgl && mglPitch !== null
+        ? mglPitch : Math.atan2(aim[1] - eye[1], flat);
       const sigmaDeg = ((2.2 - 1.6 * br.skill) * errFactor + 0.3) * profile.aimError * pers.aimError;
       const sigmaRad = sigmaDeg * Math.PI / 180;
       // Correlated wander drifts the intended point; the eased steering
@@ -829,9 +847,9 @@ class BotManager {
       canShoot = br.noticeProgress >= 1
         && Math.abs(wrapAngle(baseYaw - intendedYaw)) < aimTolerance
         && Math.abs(basePitch - intendedPitch) < aimTolerance
-        && !raycastVoxels(this.solidAt, ...eye,
+        && (mgl || !raycastVoxels(this.solidAt, ...eye,
           -Math.sin(inp.yaw) * Math.cos(inp.pitch), Math.sin(inp.pitch),
-          -Math.cos(inp.yaw) * Math.cos(inp.pitch), aimDistance);
+          -Math.cos(inp.yaw) * Math.cos(inp.pitch), aimDistance));
       // The swing reaches the body centre (server meleeSwing); while a hop still
       // rises the pick waits for the fall, where the hit crits.
       if (melee) canShoot &&= dist3(eye[0], eye[1], eye[2], enemy.x, enemy.y + PLAYER_HALF.h, enemy.z)
@@ -865,6 +883,12 @@ class BotManager {
           inp.switchTo = DEFAULT_WEAPON_SLOT;
           br.bubbleSwapAt = now + BUBBLE_SWAP_CD_MS;
         }
+      }
+      if (mgl) {
+        const others = ownedSlots.some((slot) => slot !== p.weapon);
+        if (mglPitch === null || aimDistance > MGL_MAX_RANGE) canShoot = false;
+        if (aimDistance > MGL_MAX_RANGE + 2 && others && p.mag[DEFAULT_WEAPON_SLOT] > 0
+            && inp.switchTo === undefined && !br.spawnSwitchPending) inp.switchTo = DEFAULT_WEAPON_SLOT;
       }
       // A held trigger swings the pick at its rpm cadence: no bursts, no magazine.
       if (melee) { if (combatAllowed && canShoot && meleeLive) inp.wantFire = true; }

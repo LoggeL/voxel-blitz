@@ -1,0 +1,42 @@
+{
+  "asset": "GL-3 SKIPJACK",
+  "asset_id": "skipjack",
+  "weapon_id": "mgl",
+  "revision": 1,
+  "axis_contract": {
+    "authoring_forward": "+Y",
+    "authoring_up": "+Z",
+    "authoring_right": "+X",
+    "game_mapping": "x=x, y=z, z=-y"
+  },
+  "anchors_authoring": {
+    "muzzle": [
+      0.0,
+      0.72,
+      0.075
+    ],
+    "grip": [
+      0.047,
+      0.056,
+      -0.203
+    ],
+    "support": [
+      -0.058,
+      0.373,
+      -0.184
+    ],
+    "sight": [
+      0.0,
+      0.337,
+      0.291
+    ]
+  },
+  "source_parts": 238,
+  "runtime_draws": 27,
+  "triangles": 23732,
+  "runtime_gltf": "public/assets/blender/skipjack.gltf",
+  "portable_glb": "docs/design/blender/skipjack/skipjack.glb",
+  "blend": "docs/design/blender/skipjack/skipjack.blend",
+  "hero_render": "docs/design/blender/skipjack/skipjack-hero.png",
+  "textured_materials": 7
+}

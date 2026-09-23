@@ -8,6 +8,7 @@ import { FlameSystem, updateBurn } from '../../server/sim/fire.js';
 import { WEAPONS, WEAPON_IDS, chargeProfile } from '../../shared/combatmath.js';
 import { MINIGUN } from '../../shared/minigun.js';
 import { rocketLaunch, stepRocket } from '../../shared/rocket-rules.js';
+import { MGL_RULES, mglLaunch, stepMgl } from '../../shared/mgl-rules.js';
 import { boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
 import { bubbleLaunch, bubbleProfile, stepBubble } from '../../shared/bubble-rules.js';
 import { TICK_MS } from '../../server/protocol/admission.js';
@@ -27,10 +28,13 @@ const aimCache = new Map();
 function ballisticPitch(id, distance, eyeHeight, targetHeight, charge01 = 0) {
   const key = [id, distance, eyeHeight, targetHeight, charge01].join(':');
   if (aimCache.has(key)) return aimCache.get(key);
-  const launch = id === 'rocket' ? rocketLaunch : id === 'bubble' ? bubbleLaunch : boltLaunch;
-  const step = id === 'rocket' ? stepRocket : id === 'bubble' ? stepBubble : stepBolt;
+  const launch = id === 'rocket' ? rocketLaunch : id === 'mgl' ? mglLaunch
+    : id === 'bubble' ? bubbleLaunch : boltLaunch;
+  const step = id === 'rocket' ? stepRocket : id === 'mgl' ? stepMgl
+    : id === 'bubble' ? stepBubble : stepBolt;
   // A bubble pops at the end of its lifetime; everything else gets 200 ticks.
-  const ticks = id === 'bubble' ? Math.ceil(bubbleProfile(charge01).lifetimeMs / TICK_MS) : 200;
+  const ticks = id === 'bubble' ? Math.ceil(bubbleProfile(charge01).lifetimeMs / TICK_MS)
+    : id === 'mgl' ? Math.ceil(MGL_RULES.fuseMs / TICK_MS) : 200;
   function height(pitch) {
     const p = launch({ x: 0, y: eyeHeight, z: 0, dir: fwdFromYawPitch(0, pitch), charge01 });
     for (let tick = 0; tick < ticks; tick++) {
@@ -104,6 +108,7 @@ export function simulateFight({ weapon, distance, scenario = 'ideal-body', seed 
     destroyBlock: () => false, pushBlockDelta() {},
     ...(mode.perfect ? { computeConeDeg: () => 0 } : {}),
     launchRocket: (p, dir) => projectiles.launchRocket(p, ctx, dir),
+    launchMgl: (p, dir) => projectiles.launchMgl(p, ctx, dir),
     launchBolt: (p, dir, charge) => projectiles.launchBolt(p, ctx, dir, charge),
     launchGlaive: (p, dir) => projectiles.launchGlaive(p, ctx, dir),
     launchBubble: (p, dir, charge) => projectiles.launchBubble(p, ctx, dir, charge),

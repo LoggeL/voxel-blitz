@@ -44,6 +44,7 @@
   --w-knife:    #b9c6cf;
   --w-glaive:   #ff3fd0;
   --w-bubble:   #9fe9ff;
+  --w-mgl:      #d3ba58;
 
   /* geometry */
   --cut: 10px;               /* chamfer bite */
@@ -2411,6 +2412,7 @@ h1.vb-title::after {
 .vb-w-knife    { --gun-tint: var(--w-knife); }
 .vb-w-glaive   { --gun-tint: var(--w-glaive); }
 .vb-w-bubble   { --gun-tint: var(--w-bubble); }
+.vb-w-mgl      { --gun-tint: var(--w-mgl); }
 
 #ammo.vb-w-rifle #weaponname, #weaponname.vb-w-rifle       { color: var(--w-rifle); }
 #ammo.vb-w-smg #weaponname, #weaponname.vb-w-smg           { color: var(--w-smg); }
@@ -2426,6 +2428,7 @@ h1.vb-title::after {
 #ammo.vb-w-knife #weaponname, #weaponname.vb-w-knife       { color: var(--w-knife); }
 #ammo.vb-w-glaive #weaponname, #weaponname.vb-w-glaive     { color: var(--w-glaive); }
 #ammo.vb-w-bubble #weaponname, #weaponname.vb-w-bubble     { color: var(--w-bubble); }
+#ammo.vb-w-mgl #weaponname, #weaponname.vb-w-mgl             { color: var(--w-mgl); }
 
 /* RIPTIDE: disc pips replace the mag/reserve readout. Filled = in hand,
    spinning ring = in flight, pinned ring = embedded pickup, conic fill =

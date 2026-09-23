@@ -18,6 +18,7 @@ export const WEAPON_HANDLING_PROFILES = Object.freeze({
   lance: profile(34, 0.16, 0.16), knife: profile(100, 0.08, 0.50),
   minigun: profile(8, 0.10, 0.10), flamethrower: profile(28, 0.18, 0.17),
   glaive: profile(70, 0.35, 0.9), bubble: profile(82, 0.26, 0.55),
+  mgl: profile(46, 0.2, 0.2),
 });
 const DEFAULT_HANDLING = Object.freeze({
   ...WEAPON_HANDLING_PROFILES.rifle, verticalRecoil: 0.68, horizontalRecoil: 0.32,

@@ -11,6 +11,7 @@ import { ROCKET_RULES, stepRocket } from '../../../shared/rocket-rules.js';
 import { BOLT_RULES, stepBolt } from '../../../shared/bolt-rules.js';
 import { GLAIVE_CHEST_DROP, GLAIVE_RULES, glaiveFlip, glaiveSeek, stepGlaive } from '../../../shared/glaive-rules.js';
 import { bubbleProfile, stepBubble } from '../../../shared/bubble-rules.js';
+import { MGL_RULES, stepMgl } from '../../../shared/mgl-rules.js';
 import { EYE_HEIGHT } from '../../../shared/combatmath.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { createBlenderParts } from '../engine/blender-assets.js';
@@ -190,6 +191,11 @@ export class ProjectileFX {
     this.rocketNoseGeometry.rotateX(-Math.PI / 2);
     this.exhaustGeometry = new THREE.ConeGeometry(0.11, 0.42, 8, 1, true);
     this.exhaustGeometry.rotateX(Math.PI / 2);
+    this.mglBodyGeometry = new THREE.CylinderGeometry(0.09, 0.09, 0.32, 12);
+    this.mglBodyGeometry.rotateX(Math.PI / 2);
+    this.mglNoseGeometry = new THREE.ConeGeometry(0.09, 0.1, 12);
+    this.mglNoseGeometry.rotateX(-Math.PI / 2);
+    this.mglBandGeometry = new THREE.TorusGeometry(0.09, 0.012, 5, 12);
     this.fragMaterial = new THREE.MeshStandardMaterial({
       color: 0x20242a, roughness: 0.48, metalness: 0.78,
     });
@@ -211,6 +217,10 @@ export class ProjectileFX {
     this.rocketNoseMaterial = new THREE.MeshStandardMaterial({
       color: 0xff6f1c, roughness: 0.5, metalness: 0.4,
     });
+    this.mglBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x44493c, roughness: 0.48, metalness: 0.72 });
+    this.mglNoseMaterial = new THREE.MeshStandardMaterial({ color: 0xe8892d, roughness: 0.42, metalness: 0.55 });
+    this.mglBandMaterial = new THREE.MeshStandardMaterial({ color: 0xb8cd4d, roughness: 0.4, metalness: 0.38,
+      emissive: 0x28320a, emissiveIntensity: 0.6 });
     this.exhaustMaterial = new THREE.MeshBasicMaterial({
       color: 0xffb347, transparent: true, opacity: 0.85,
       blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
@@ -451,6 +461,13 @@ export class ProjectileFX {
       exhaust.position.z = 0.45;
       group.add(body, nose, exhaust);
       group.userData.exhaust = exhaust;
+    } else if (type === 'mgl') {
+      const body = new THREE.Mesh(this.mglBodyGeometry, this.mglBodyMaterial);
+      const nose = new THREE.Mesh(this.mglNoseGeometry, this.mglNoseMaterial);
+      nose.position.z = -0.205;
+      const band = new THREE.Mesh(this.mglBandGeometry, this.mglBandMaterial);
+      band.position.z = 0.055;
+      group.add(body, nose, band);
     } else if (type === 'smoke') {
       const authored = this._authoredGrenade('smoke');
       if (authored) {
@@ -633,7 +650,7 @@ export class ProjectileFX {
     if (!event || !Array.isArray(event.o) || !Array.isArray(event.v)) return false;
     const values = [...event.o, ...event.v].map(Number);
     if (!values.every(Number.isFinite)) return false;
-    const type = event.type === 'rocket' || event.type === 'bolt' || event.type === 'glaive'
+    const type = event.type === 'rocket' || event.type === 'bolt' || event.type === 'glaive' || event.type === 'mgl'
       || event.type === 'bubble' || GRENADE_TYPES[event.type]
       ? event.type
       : 'frag';
@@ -642,6 +659,7 @@ export class ProjectileFX {
     if (type === 'limpet' && !local && this._mineIds && !this._mineIds.has(String(event.pid))) return false;
     const fallbackFuse = type === 'rocket'
       ? ROCKET_RULES.lifetimeMs
+      : type === 'mgl' ? MGL_RULES.fuseMs
       : type === 'bolt' ? BOLT_RULES.lifetimeMs
         : type === 'glaive' ? GLAIVE_RULES.lifetimeMs
           : type === 'bubble' ? bubbleProfile(Number(event.charge) || 0, !!event.child).lifetimeMs
@@ -654,7 +672,8 @@ export class ProjectileFX {
     const bouncesLeft = type === 'bolt'
       ? Number.isFinite(bn) ? Math.max(0, Math.floor(bn)) : BOLT_RULES.bounces
       : type === 'glaive' ? Number.isFinite(bn) ? Math.max(0, Math.floor(bn)) : GLAIVE_RULES.bounces
-        : 0;
+        : type === 'mgl' ? Number.isFinite(bn) ? Math.max(0, Math.floor(bn)) : MGL_RULES.maxBounces
+          : 0;
 
     if (!local) {
       if (!event.pid || this.projectiles.has(String(event.pid))) return false;
@@ -692,6 +711,7 @@ export class ProjectileFX {
       bouncesLeft,
       chaos: event.chaos || 0,
       child: !!event.child,
+      armAge: type === 'mgl' ? Math.max(0, Number(event.arm) || MGL_RULES.armMs) / 1000 : 0,
       local,
       stuck: type === 'limpet',
       trailAt: 0,
@@ -699,7 +719,7 @@ export class ProjectileFX {
     if (type === 'limpet') this._configureMine(this.projectiles.get(id), event);
     if (type === 'glaive') this._configureGlaive(this.projectiles.get(id), event, local || fromSelf);
     if (type === 'bubble') this._configureBubble(this.projectiles.get(id), event);
-    if (type === 'rocket' || type === 'bolt' || type === 'glaive') this._orientRocket(this.projectiles.get(id));
+    if (type === 'rocket' || type === 'bolt' || type === 'glaive' || type === 'mgl') this._orientRocket(this.projectiles.get(id));
     return true;
   }
 
@@ -1228,6 +1248,14 @@ export class ProjectileFX {
           this._trailCandidates.push(projectile);
         }
         if (projectile.hit && !projectile.local && !projectile.chaos) projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
+      } else if (projectile.type === 'mgl') {
+        const before = projectile.bouncesLeft;
+        stepMgl(projectile, step, this.raycast);
+        this._orientRocket(projectile);
+        if (projectile.bouncesLeft !== before) this.onBounce?.(projectile.x, projectile.y, projectile.z, 'mgl', projectile.hit);
+        if (projectile.hitSolid && projectile.age >= projectile.armAge) {
+          projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
+        }
       } else if (projectile.type === 'bolt') {
         stepBolt(projectile, step, this.raycast, {
           onBounce: (contact) => {
@@ -1679,7 +1707,8 @@ export class ProjectileFX {
       this.fragGeometry, this.capGeometry, this.limpetGeometry, this.pulseGeometry,
       this.grenadeRibGeometry, this.grenadeBandGeometry,
       this.bottleGeometry, this.bottleNeckGeometry, this.bottleFlameGeometry,
-      this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry, this.bubbleGeometry,
+      this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry,
+      this.mglBodyGeometry, this.mglNoseGeometry, this.mglBandGeometry, this.bubbleGeometry,
       this.bubbleShineGeometry,
       this.glaiveDiscGeometry, this.glaiveHubGeometry, this.glaiveRimGeometry, this.glaiveCrescentGeometry,
     ]) geometry.dispose();
@@ -1687,6 +1716,7 @@ export class ProjectileFX {
       this.fragMaterial, this.limpetMaterial, this.pulseMaterial, this.rocketMaterial,
       this.bottleMaterial, this.bottleLabelMaterial,
       this.rocketNoseMaterial, this.exhaustMaterial, this.boltCoreMaterial, this.boltGlowMaterial,
+      this.mglBodyMaterial, this.mglNoseMaterial, this.mglBandMaterial,
       ...this.bubbleFilms, ...this.bubbleTellFilms, this.bubbleInnerMaterial, this.bubbleShineMaterial,
       this.glaiveBladeMaterial, this.glaiveHubMaterial, this.glaiveGlowMaterial, this.glaiveTrailMaterial,
       this.glaiveOutlineMaterial, this.glaiveGhostMaterial,
