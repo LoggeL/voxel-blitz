@@ -189,6 +189,18 @@ export class AvatarRoster {
     return { x: position.x, y: position.y, z: position.z };
   }
 
+  /** Ground contact blobs (engine/contact-shadows.js) under living, visible bodies. */
+  addContactShadows(shadows) {
+    for (const avatar of this._avatars.values()) {
+      if (!avatar.alive || !avatar.group.visible) continue;
+      const p = avatar.group.position;
+      if (avatar.vehicle) {
+        const box = BASTION_ENEMIES[avatar.kind]?.combatBox;
+        shadows.add(p.x, p.y, p.z, (box ? Math.max(box[0], box[2]) : 1) * 1.25, 0.6);
+      } else shadows.add(p.x, p.y, p.z, 0.58 * (avatar.bodyScale || 1), 0.7);
+    }
+  }
+
   /** Detach a killed avatar from its player; the body finishes on its own. */
   _retireCorpse(id, avatar) {
     this._fallen.add(id);

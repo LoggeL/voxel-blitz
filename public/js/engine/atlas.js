@@ -44,6 +44,9 @@ export const TILE = {
   POOL_TILE_BLUE: 72, POOL_TILE_WHITE: 73, POOL_FLOOR: 74, SLIDE_BLUE: 75, SLIDE_YELLOW: 76, POOL_PANEL: 77,
   // Bastion sandbag barricade (walls and sandbag lines share one block).
   BARRICADE: 78,
+  // Per-map surfaces: lighter armoured concrete for BEDROCK streets and walls,
+  // and the boundary skin (ribbed cladding, steel pilasters, hazard kick band).
+  ARMOR_CONCRETE: 79, FACADE_PANEL: 80, FACADE_JOINT: 81, FACADE_PILLAR: 82, FACADE_BASE: 83,
 };
 
 /** Deterministic integer wobble -> 0..k-1. The atlas' only "randomness". */
@@ -61,78 +64,104 @@ function airDebug(x, y) {
   return (((x >> 2) + (y >> 2)) & 1) ? [34, 34, 38, 255] : [255, 0, 222, 255];
 }
 
+// Tile-local hash and smooth value noise. The lattice wraps at the tile edge,
+// so low-frequency mottling never shows a seam where two blocks meet.
+function grain(x, y, salt, range) {
+  let value = Math.imul(x + 17, 374761393) ^ Math.imul(y + 29, 668265263) ^ Math.imul(salt, 1274126177);
+  value = Math.imul(value ^ (value >>> 13), 1274126177);
+  return ((value ^ (value >>> 16)) >>> 0) % range;
+}
+
+function tileNoise(x, y, cell, salt) {
+  const period = TILE_PX / cell;
+  const gx = x / cell, gy = y / cell;
+  const x0 = Math.floor(gx), y0 = Math.floor(gy);
+  const fx = gx - x0, fy = gy - y0;
+  const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  const at = (ix, iy) => grain(((ix % period) + period) % period, ((iy % period) + period) % period, salt, 1024) / 1023;
+  const top = at(x0, y0) + (at(x0 + 1, y0) - at(x0, y0)) * sx;
+  const bottom = at(x0, y0 + 1) + (at(x0 + 1, y0 + 1) - at(x0, y0 + 1)) * sx;
+  return top + (bottom - top) * sy;
+}
+
+/** Two octaves of tile-wrapped mottle in -1..1. */
+function mottle(x, y, salt) {
+  return (tileNoise(x, y, 8, salt) - 0.5) * 1.3 + (tileNoise(x, y, 4, salt + 1) - 0.5) * 0.7;
+}
+
 function grassTop(x, y) {
-  const n1 = wob(x, y, 1, 31);
-  const n2 = wob(x, y, 2, 17);
-  let r = 74 + (n1 & 15);
-  let g = 134 + (n2 & 15) + ((n1 >> 2) & 7);
-  let b = 44 + (n1 & 7);
-  if (wob(x, y, 3, 53) < 4) { r = r * 0.82 | 0; g = g * 0.85 | 0; b = b * 0.8 | 0; } // damp patches
-  if (wob(x, y, 4, 37) < 3) { r = 122; g = 188; b = 84; }                            // blade flecks
-  return [r, g, b, 255];
+  const m = mottle(x, y, 1);
+  const g = grain(x, y, 2, 17) - 8;
+  let r = 78 + m * 10 + (g >> 1);
+  let gr = 140 + m * 14 + g;
+  let b = 47 + m * 6 + (g >> 2);
+  if (grain(x, y, 3, 29) < 2) { r *= 0.8; gr *= 0.84; b *= 0.78; }                 // damp shade
+  if (grain(x, y, 4, 23) < 2) { r = 118 + m * 8; gr = 184 + m * 8; b = 80; }        // blade flecks
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
 }
 
 function dirtPix(x, y) {
-  const n = wob(x, y, 5, 43);
-  let r = 116 + (n & 19);
-  let g = 82 + ((n >> 1) & 13);
-  let b = 56 + (n & 7);
-  if (wob(x, y, 6, 41) < 3) { r = 148; g = 136; b = 122; }  // pebbles
-  if (((x + y) & 1) === 0) { r -= 6; g -= 5; b -= 4; }      // fine grain
-  return [r, g, b, 255];
+  const m = mottle(x, y, 5);
+  const g = grain(x, y, 6, 19) - 9;
+  let r = 120 + m * 12 + g;
+  let gr = 86 + m * 9 + (g * 0.7);
+  let b = 58 + m * 6 + (g >> 1);
+  if (grain(x, y, 7, 37) < 2) { r = 146; gr = 134; b = 120; }  // pebbles
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
 }
 
 /** Grass side = dirt with a ragged green lip drooping over the top edge. */
 function grassSide(x, y) {
-  const lip = 3 + wob(x, 0, 9, 3);           // fringe depth 3..5 per column
+  const lip = 3 + grain(x, 0, 9, 3);         // fringe depth 3..5 per column
   if (y < lip - 1) {
     const p = grassTop(x, y);
     return [p[0] * 0.92 | 0, p[1] * 0.94 | 0, p[2] * 0.9 | 0, 255];
   }
-  if (y < lip) return [56, 104, 40, 255];    // dark fringe underside
+  if (y < lip) return [60, 106, 42, 255];    // dark fringe underside
   return dirtPix(x, y);
 }
 
 function stone(x, y) {
-  const n = wob(x >> 1, y >> 1, 7, 71) + wob(x, y, 8, 47);
-  let v = 106 + (n / 118 * 42) | 0;
-  if (wob(x, 0, 10, 23) < 2) v -= 12;        // faint vertical banding
-  if (wob(x, y, 9, 191) === 0) v -= 34;      // hairline cracks
-  return [v, v + 2, v + 5, 255];
+  const m = mottle(x, y, 7);
+  let v = 124 + m * 14 + (grain(x, y, 8, 13) - 6);
+  if (tileNoise(x, y, 2, 10) > 0.86) v -= 12;             // darker flecks
+  if (grain(x, y, 9, 97) === 0) v -= 24;                   // hairline pits
+  return [clamp255(v), clamp255(v + 2), clamp255(v + 5), 255];
 }
 
 // Dense charcoal strata with pale mineral seams distinguish the world foundation.
 function bedrock(x, y) {
   const band = (y + ((x >> 2) & 1)) % 6;
-  const grain = wob(x, y, 93, 19);
+  const g = grain(x, y, 93, 15);
   const seam = band === 0;
-  const value = seam ? 78 + grain : 28 + grain + (band === 1 ? 10 : 0);
-  return [value, value + 5, value + 12, 255];
+  const value = seam ? 80 + g : 30 + g + (band === 1 ? 10 : 0) + mottle(x, y, 94) * 6;
+  return [clamp255(value), clamp255(value + 5), clamp255(value + 12), 255];
 }
 
 function sand(x, y) {
-  const n = wob(x, y, 11, 29);
-  let r = 210 + (n & 15);
-  let g = 194 + ((n >> 1) & 13);
-  let b = 150 + (n & 9);
-  if (((x ^ y) & 1) === 0 && wob(x, y, 12, 7) < 2) { r = 230; g = 214; b = 172; } // dither sparkle
-  if (wob(x, y, 13, 59) < 3) { r -= 24; g -= 22; b -= 20; }
-  return [r, g, b, 255];
+  const m = mottle(x, y, 11);
+  const g = grain(x, y, 12, 13) - 6;
+  let r = 214 + m * 9 + g;
+  let gr = 198 + m * 8 + g;
+  let b = 154 + m * 6 + (g >> 1);
+  if (grain(x, y, 13, 31) < 2) { r += 14; gr += 14; b += 12; }   // sparkle
+  if (grain(x, y, 14, 43) < 2) { r -= 22; gr -= 20; b -= 18; }   // grit
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
 }
 
 function woodBark(x, y) {
-  const streak = wob(x, 0, 14, 13);
-  let r = 104 + (streak & 7) * 4;
-  let g = 74 + (streak & 7) * 3;
+  const streak = grain(x, 0, 14, 8);
+  let r = 104 + streak * 4 + mottle(x, y, 15) * 6;
+  let g = 74 + streak * 3;
   let b = 46 + (streak & 3) * 3;
-  if (((y * 5 + wob(x, y, 15, 3)) % 16) < 1) { r -= 26; g -= 20; b -= 14; } // broken rings
-  if (wob(x, y, 16, 67) < 2) { r = 62; g = 42; b = 26; }                    // knots
-  return [r, g, b, 255];
+  if (((y * 5 + grain(x, y, 15, 3)) % 16) < 1) { r -= 26; g -= 20; b -= 14; } // broken rings
+  if (grain(x, y, 16, 67) < 2) { r = 62; g = 42; b = 26; }                    // knots
+  return [clamp255(r), clamp255(g), clamp255(b), 255];
 }
 
 function woodRings(x, y) {
   const dx = x - 7.5, dy = y - 7.5;
-  const d = Math.sqrt(dx * dx + dy * dy) + wob(x, y, 17, 5) * 0.08;
+  const d = Math.sqrt(dx * dx + dy * dy) + grain(x, y, 17, 5) * 0.08;
   const ring = d * 1.9 | 0;
   const dark = ring & 1;
   let r = dark ? 148 : 174;
@@ -158,17 +187,21 @@ function leaves(x, y) {
   return [base[0] + shade, base[1] + shade, base[2] + (shade >> 1), 255];
 }
 
+// Poured concrete reads as one continuous slab: cloudy mottle, fine aggregate
+// and the odd pore, with no painted bevel. Convex block edges get their
+// highlight from the terrain shader instead, so flat floors carry no grid.
 function concrete(x, y) {
-  const m = wob(x >> 1, y >> 1, 22, 37) - 18;    // coarse mottle
-  let v = 168 + m + (wob(x, y, 23, 11) - 5);
-  if (x === 0 || y === 0) v += 34;               // bevel highlight top/left
-  if (x === 15 || y === 15) v -= 38;             // bevel shadow bottom/right
+  const m = mottle(x, y, 22);
+  let v = 170 + m * 11 + (grain(x, y, 23, 9) - 4);
+  if (grain(x, y, 24, 61) === 0) v -= 16;        // pores
+  if (tileNoise(x, y, 2, 25) > 0.9) v += 7;      // lighter aggregate
   return [clamp255(v), clamp255(v + 2), clamp255(v + 4), 255];
 }
 
 function metal(x, y) {
   const panel = ((x >> 3) + (y >> 3)) & 1;
-  let r = 106 + panel * 7, g = 121 + panel * 8, b = 138 + panel * 9;
+  const m = mottle(x, y, 26) * 4;
+  let r = 106 + panel * 7 + m, g = 121 + panel * 8 + m, b = 138 + panel * 9 + m;
   const lx = x & 7, ly = y & 7;
   if (lx === 0 || ly === 0) { r = 62; g = 72; b = 86; }          // cross seams
   else if (lx === 1 || ly === 1) { r += 14; g += 14; b += 14; }  // seam catch-light
@@ -176,29 +209,32 @@ function metal(x, y) {
     if (Math.abs(lx - 6) === 1 || Math.abs(ly - 2) === 1) { r = 52; g = 60; b = 74; }
     else { r = 186; g = 198; b = 212; }
   }
-  return [r, g, b, 255];
+  return [clamp255(r), clamp255(g), clamp255(b), 255];
 }
 
 function accent(x, y) {
   let r = 224, g = 122, b = 30;
-  if ((((x + y) >> 2) & 1) === 0) { r -= 16; g -= 8; b -= 4; }   // subtle hazard stripes
-  const m = wob(x >> 1, y >> 1, 24, 21) - 10;
-  r += m >> 1; g += m >> 1; b += m >> 2;
-  if (x === 0 || y === 0) { r += 22; g += 14; b += 6; }
-  if (x === 15 || y === 15) { r -= 30; g -= 18; b -= 10; }
+  if ((((x + y) >> 2) & 1) === 0) { r -= 12; g -= 6; b -= 3; }   // subtle hazard stripes
+  const m = mottle(x, y, 27) * 8;
+  const g2 = grain(x, y, 28, 7) - 3;
+  r += m + g2; g += m * 0.6 + g2; b += m * 0.3;
+  if (grain(x, y, 29, 53) === 0) { r -= 40; g -= 26; b -= 10; }  // paint chips
+  if (x === 0 || y === 0) { r += 10; g += 6; b += 3; }
+  if (x === 15 || y === 15) { r -= 14; g -= 9; b -= 5; }
   return [clamp255(r), clamp255(g), clamp255(b), 255];
 }
 
 function plank(x, y) {
   const board = (y >> 2) & 3;
-  const tone = wob(board, 0, 25, 11);
+  const tone = grain(board, 0, 25, 11);
   let r = 168 + tone * 4 - (board & 1) * 10;
   let g = 122 + tone * 3 - (board & 1) * 8;
   let b = 78 + tone * 2;
   if ((y & 3) === 3) { r = 104; g = 72; b = 44; }                // board seam gap
   else {
-    r += wob(x, y, 26, 17) - 8;                                  // fiber grain
-    g += wob(x, y, 27, 13) - 6;
+    const fiber = tileNoise(x, y * 4 + board * 5, 4, 26) - 0.5;  // stretched grain
+    r += fiber * 22 + grain(x, y, 27, 7) - 3;
+    g += fiber * 16;
   }
   if ((x === 2 || x === 13) && ((y + board * 3) % 9) === 2) { r = 150; g = 150; b = 154; } // nails
   return [clamp255(r), clamp255(g), clamp255(b), 255];
@@ -216,11 +252,9 @@ function glass(x, y) {
 }
 
 function pale(x, y) {
-  const m = wob(x >> 1, y >> 1, 28, 29) - 14;
-  let v = 206 + m + (wob(x, y, 29, 9) - 4);
-  if (wob(x, y, 30, 73) < 2) v -= 26;            // worn scuffs
-  if (x === 0 || y === 0) v += 18;
-  if (x === 15 || y === 15) v -= 24;
+  const m = mottle(x, y, 28);
+  let v = 208 + m * 9 + (grain(x, y, 29, 7) - 3);
+  if (grain(x, y, 30, 73) < 2) v -= 18;          // worn scuffs
   return [clamp255(v), clamp255(v + 1), clamp255(v + 2), 255];
 }
 
@@ -230,26 +264,79 @@ function rust(x, y) {
   let r = 122, g = 112, b = 118;
   if (ridge === 0) { r -= 34; g -= 30; b -= 28; }        // ridge valley shadow
   else if (ridge === 1) { r += 22; g += 22; b += 24; }   // ridge catch-light
-  const patch = wob(x >> 2, y >> 2, 31, 19);
-  if (patch < 5) {                                       // rust bloom clusters
-    r = 158 + patch * 6; g = 86 + patch * 4; b = 38;
-  } else if (patch < 8) {                                // fading rust tint
-    r += 26; g -= 8; b -= 14;
+  const bloom = tileNoise(x, y, 4, 31);
+  if (bloom > 0.7) {                                     // rust bloom clusters
+    const k = (bloom - 0.7) / 0.3;
+    r += (160 - r) * k; g += (88 - g) * k; b += (40 - b) * k;
+  } else if (bloom > 0.55) {                             // fading rust tint
+    r += 20; g -= 6; b -= 12;
   }
-  const grain = wob(x, y, 32, 15) - 7;
-  r += grain; g += grain; b += grain >> 1;
-  if (x === 0 || y === 0) { r += 12; g += 10; b += 10; }
-  if (x === 15 || y === 15) { r -= 26; g -= 24; b -= 22; } // darker seam edge
+  const g2 = grain(x, y, 32, 13) - 6;
+  r += g2; g += g2; b += g2 >> 1;
+  if (y === 15) { r -= 18; g -= 16; b -= 14; }           // lower seam edge
   return [clamp255(r), clamp255(g), clamp255(b), 255];
 }
 
 /** Stacked hessian sandbags: 4-row bags with a dark stitched seam and a bulge highlight. */
 function barricade(x, y) {
-  const grain = wob(x, y, 44, 10) - 5;
-  let r = 122 + grain, g = 108 + grain, b = 74 + (grain >> 1);
+  const fiber = grain(x, y, 44, 11) - 5 + mottle(x, y, 45) * 5;
+  let r = 122 + fiber, g = 108 + fiber, b = 74 + fiber * 0.5;
   if (y % 4 === 3) { r = 96; g = 84; b = 58; }
   else if (y % 4 === 1) { r += 16; g += 16; b += 16; }
   return [clamp255(r), clamp255(g), clamp255(b), 255];
+}
+
+/**
+ * Armoured concrete: the indestructible street and wall mass of Reactor and
+ * Causeway. Mid grey with a cool cast, dense aggregate and the odd tie pore,
+ * light enough to take sun and shade instead of reading as a black void.
+ */
+function armorConcrete(x, y) {
+  const m = mottle(x, y, 150);
+  let v = 112 + m * 9 + (grain(x, y, 151, 9) - 4);
+  if (tileNoise(x, y, 2, 152) > 0.86) v += 9;             // pale aggregate
+  if (grain(x, y, 153, 67) === 0) v -= 18;                // pores
+  return [clamp255(v - 2), clamp255(v + 1), clamp255(v + 6), 255];
+}
+
+/**
+ * Boundary cladding: vertical ribs every 8px (half a block), so the rib
+ * rhythm hides the voxel grid on long perimeter walls. No horizontal seams;
+ * weathering streaks run down each rib column.
+ */
+function facadePanel(x, y) {
+  const lx = x & 7;
+  const rib = lx === 0 ? -22 : lx === 1 ? 12 : lx === 2 ? 5 : lx === 7 ? -7 : 0;
+  const streak = (grain(x, 0, 154, 9) - 4) + (tileNoise(x, y, 4, 155) - 0.5) * 8;
+  const v = 150 + rib + streak + (grain(x, y, 156, 5) - 2);
+  return [clamp255(v - 4), clamp255(v), clamp255(v + 6), 255];
+}
+
+/** Cladding with a recessed horizontal panel joint along the block's lower edge. */
+function facadeJoint(x, y) {
+  const c = facadePanel(x, y);
+  const k = y === 15 ? -32 : y === 14 ? -10 : 0;
+  return [clamp255(c[0] + k), clamp255(c[1] + k), clamp255(c[2] + k), 255];
+}
+
+/** Dark steel pilaster: two broad vertical plates with seam and catch-light. */
+function facadePillar(x, y) {
+  const lx = x & 7;
+  const seam = lx === 0 ? -26 : lx === 1 ? 18 : lx === 6 ? -6 : 0;
+  const streak = (grain(x, 0, 157, 7) - 3) + mottle(x, y, 158) * 4;
+  const v = 96 + seam + streak;
+  return [clamp255(v - 6), clamp255(v + 2), clamp255(v + 14), 255];
+}
+
+/** Cladding over a muted amber/graphite hazard kick band at the wall foot. */
+function facadeBase(x, y) {
+  if (y < 9) return facadePanel(x, y);
+  if (y === 9) return [58, 60, 64, 255];                  // kick-plate lip shadow
+  const wear = grain(x, y, 159, 7) - 3 + (grain(x, y, 160, 29) === 0 ? -20 : 0);
+  // Diagonal stripes with an 8px period stay continuous across block seams.
+  return (((x + y) >> 2) & 1)
+    ? [clamp255(186 + wear), clamp255(138 + wear), clamp255(54 + wear), 255]
+    : [clamp255(50 + wear), clamp255(52 + wear), clamp255(56 + wear), 255];
 }
 
 /** Running-bond red masonry: offset mortar lines every 4-row course, per-brick variance. */
@@ -258,25 +345,34 @@ function brick(x, y) {
   const headOff = (course & 1) * 4;                     // half-brick stagger per course
   const mortar = (y & 3) === 3 || ((x + headOff) & 7) === 0;
   if (mortar) {
-    const m = wob(x, y, 33, 9) - 4;
-    return [clamp255(178 + m), clamp255(174 + m), clamp255(168 + m), 255];
+    const m = grain(x, y, 33, 9) - 4;
+    return [clamp255(170 + m), clamp255(166 + m), clamp255(160 + m), 255];
   }
   // Per-brick identity: course row + staggered column bucket drives hue/value.
   const brickCol = ((x + headOff) >> 3) & 1;
-  const tone = wob(brickCol, course, 34, 13);
+  const tone = grain(brickCol, course, 34, 13);
   let r = 148 + tone * 3, g = 66 + tone * 2, b = 52;
-  const grain = wob(x, y, 35, 13) - 6;
-  r += grain; g += grain >> 1; b += grain >> 1;
-  if ((y & 3) === 0) { r -= 18; g -= 10; b -= 8; }        // shadow under mortar above
-  if (x === 0 || y === 0) { r += 10; g += 6; b += 4; }
-  if (x === 15 || y === 15) { r -= 22; g -= 12; b -= 10; }
+  const fleck = grain(x, y, 35, 13) - 6 + mottle(x, y, 36) * 5;
+  r += fleck; g += fleck * 0.5; b += fleck * 0.5;
+  if ((y & 3) === 0) { r -= 14; g -= 8; b -= 6; }         // shadow under mortar above
   return [clamp255(r), clamp255(g), clamp255(b), 255];
 }
 
 function siding(base, x, y) {
-  const n = wob(x, y, 40, 9) - 4;
+  const n = grain(x, y, 40, 7) - 3 + mottle(x, y, 41) * 5;
   const shade = y % 8 === 7 ? -35 : y % 8 === 0 ? 15 : 0;
   return [...base.map(v => clamp255(v + n + shade)), 255];
+}
+
+function asphalt(x, y) {
+  const n = grain(x, y, 41, 11) - 5 + mottle(x, y, 42) * 6 + (grain(x, y, 43, 29) === 0 ? 14 : 0);
+  return [clamp255(52 + n), clamp255(55 + n), clamp255(58 + n), 255];
+}
+
+function roof(x, y) {
+  const seam = y % 4 === 3 || (x + (Math.floor(y / 4) % 2) * 8) % 16 === 0;
+  const n = seam ? -14 : grain(x, y, 42, 9) - 4 + mottle(x, y, 46) * 6;
+  return [clamp255(91 + n), clamp255(74 + n), clamp255(62 + n), 255];
 }
 
 // Dust II's Kasbah stone and sun-faded plaster have soft mineral variation.
@@ -635,8 +731,8 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.BRICK]: brick,
   [TILE.YELLOW_SIDING]: (x,y) => siding([226,190,87],x,y),
   [TILE.TEAL_SIDING]: (x,y) => siding([93,177,156],x,y),
-  [TILE.ASPHALT]: (x,y) => { const n = wob(x,y,41,16); return [49+n,52+n,55+n,255]; },
-  [TILE.ROOF]: (x,y) => { const n = y%4===3 || (x+(Math.floor(y/4)%2)*8)%16===0 ? -12 : wob(x,y,42,12); return [91+n,74+n,62+n,255]; },
+  [TILE.ASPHALT]: asphalt,
+  [TILE.ROOF]: roof,
   [TILE.BUS_YELLOW]: (x,y) => siding([242,177,38],x,y),
   [TILE.TRUCK_RED]: (x,y) => siding([167,52,42],x,y),
   [TILE.DUST_SANDSTONE]: dustSandstone,
@@ -695,6 +791,11 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.POOL_PANEL]: poolPanel,
   [TILE.BARRICADE]: barricade,
   [TILE.BEDROCK]: bedrock,
+  [TILE.ARMOR_CONCRETE]: armorConcrete,
+  [TILE.FACADE_PANEL]: facadePanel,
+  [TILE.FACADE_JOINT]: facadeJoint,
+  [TILE.FACADE_PILLAR]: facadePillar,
+  [TILE.FACADE_BASE]: facadeBase,
 });
 
 // ------------------------------------------------------------- face mapping
@@ -791,6 +892,37 @@ export function faceTile(blockId, face) {
   return m.side;
 }
 
+/**
+ * Per-map surface treatment, applied by the chunk mesher on top of faceTile:
+ * `remap` swaps whole tiles (for example the near-black BEDROCK streets of
+ * Reactor and Causeway), `boundary` opts the map into boundary skins on its
+ * tall perimeter shell. Maps without an entry render the default tiles.
+ */
+export const MAP_SURFACES = Object.freeze({
+  reactor: Object.freeze({ remap: Object.freeze({ [TILE.BEDROCK]: TILE.ARMOR_CONCRETE }), boundary: true, pilasterEvery: 8 }),
+  causeway: Object.freeze({ remap: Object.freeze({ [TILE.BEDROCK]: TILE.ARMOR_CONCRETE }), boundary: true, pilasterEvery: 8 }),
+  killhouse: Object.freeze({ remap: null, boundary: true, pilasterEvery: 0 }),
+  caldera: Object.freeze({ remap: null, boundary: true, pilasterEvery: 0 }),
+});
+const NO_SURFACE = Object.freeze({ remap: null, boundary: false, pilasterEvery: 0 });
+
+export function mapSurface(mapId) {
+  return MAP_SURFACES[mapId] || NO_SURFACE;
+}
+
+/**
+ * Boundary skin by resolved side tile. Only the plain grey shell materials
+ * are reclad; authored trims (ACCENT bands, BRICK, RUST, numerals) keep their
+ * own tiles, so a map's perimeter design survives the skin.
+ */
+export const BOUNDARY_SKIN = Object.freeze({
+  [TILE.CONCRETE]: TILE.FACADE_PANEL,
+  [TILE.STONE]: TILE.FACADE_PANEL,
+  [TILE.BEDROCK]: TILE.FACADE_PANEL,
+  [TILE.ARMOR_CONCRETE]: TILE.FACADE_PANEL,
+  [TILE.METAL]: TILE.FACADE_PILLAR,
+});
+
 // --------------------------------------------------------------------- UVs
 
 const EDGE_INSET = 0.5;                // atlas pixels; normalized exactly once below
@@ -820,44 +952,133 @@ export function tileRect(tile) {
 /** These tiles supply their own seams or deliberately have a seamless surface. */
 const NO_RING_DARKEN = new Set([
   TILE.AIR_DEBUG, TILE.GLASS,
+  TILE.ASPHALT, TILE.SAND, TILE.DIRT, TILE.GRASS_TOP, TILE.BEDROCK, TILE.RUST,
   TILE.DUST_SANDSTONE, TILE.DUST_PLASTER, TILE.DUST_ROCK, TILE.DUST_FLOOR,
   TILE.DUST_TRIM, TILE.DUST_TILE, TILE.DUST_CRATE, TILE.DUST_WOOD,
+  TILE.FACADE_PANEL, TILE.FACADE_JOINT, TILE.FACADE_PILLAR, TILE.FACADE_BASE,
   ...Object.entries(TILE).filter(([name]) => name.startsWith('MC_')).map(([, slot]) => slot),
 ]);
-const RING_DARKEN = 0.78;
+const RING_DARKEN = 0.9;
+/**
+ * Poured and cut stone keep a faint block rhythm, enough to read wall courses
+ * and distances, too weak to draw graph paper across a floor.
+ */
+const SOFT_RING = new Map([[TILE.CONCRETE, 0.95], [TILE.PALE, 0.95], [TILE.STONE, 0.94], [TILE.ARMOR_CONCRETE, 0.95]]);
 
-function paintSheet(data) {
-  for (const key of Object.keys(TILE_PAINTERS)) {
-    const tile = Number(key);
-    const paint = TILE_PAINTERS[key];
-    const col = (tile % GRID) * TILE_PX;
-    const row = ((tile / GRID) | 0) * TILE_PX;
-    for (let py = 0; py < TILE_PX; py++) {
-      for (let px = 0; px < TILE_PX; px++) {
-        const c = paint(px, py);
-        const i = ((row + py) * ATLAS_SIZE + col + px) * 4;
-        data[i] = c[0]; data[i + 1] = c[1]; data[i + 2] = c[2]; data[i + 3] = c[3];
-      }
-    }
-    if (!NO_RING_DARKEN.has(tile)) {
-      for (let p = 0; p < TILE_PX; p++) {
-        darkenEdge(data, col + p, row); darkenEdge(data, col + p, row + TILE_PX - 1);
-        darkenEdge(data, col, row + p); darkenEdge(data, col + TILE_PX - 1, row + p);
-      }
+/** Paint one tile, ring darkening included, through write(px, py, rgba). */
+function paintTile(tile, write) {
+  const paint = TILE_PAINTERS[tile];
+  const ring = NO_RING_DARKEN.has(tile) ? 1 : SOFT_RING.get(tile) ?? RING_DARKEN;
+  for (let py = 0; py < TILE_PX; py++) {
+    for (let px = 0; px < TILE_PX; px++) {
+      const c = paint(px, py);
+      if (ring < 1 && (px === 0 || py === 0 || px === TILE_PX - 1 || py === TILE_PX - 1)) {
+        write(px, py, [c[0] * ring, c[1] * ring, c[2] * ring, c[3]]);
+      } else write(px, py, c);
     }
   }
 }
 
-function darkenEdge(data, px, py) {
-  const i = (py * ATLAS_SIZE + px) * 4;
-  data[i] *= RING_DARKEN; data[i + 1] *= RING_DARKEN; data[i + 2] *= RING_DARKEN;
+function paintSheet(data) {
+  for (const key of Object.keys(TILE_PAINTERS)) {
+    const tile = Number(key);
+    const col = (tile % GRID) * TILE_PX;
+    const row = ((tile / GRID) | 0) * TILE_PX;
+    paintTile(tile, (px, py, c) => {
+      const i = ((row + py) * ATLAS_SIZE + col + px) * 4;
+      data[i] = c[0]; data[i + 1] = c[1]; data[i + 2] = c[2]; data[i + 3] = c[3];
+    });
+  }
+}
+
+/** One texture-array layer per TILE slot; the mesher's layer index is the slot. */
+export const TERRAIN_LAYERS = Math.max(...Object.values(TILE)) + 1;
+
+/** RGBA8 layers, top image row first, for a DataArrayTexture. */
+export function paintTerrainLayers() {
+  const data = new Uint8Array(TILE_PX * TILE_PX * 4 * TERRAIN_LAYERS);
+  for (const key of Object.keys(TILE_PAINTERS)) {
+    const tile = Number(key);
+    const base = tile * TILE_PX * TILE_PX * 4;
+    paintTile(tile, (px, py, c) => {
+      const i = base + (py * TILE_PX + px) * 4;
+      data[i] = clamp255(c[0]); data[i + 1] = clamp255(c[1]); data[i + 2] = clamp255(c[2]); data[i + 3] = clamp255(c[3]);
+    });
+  }
+  return data;
+}
+
+/**
+ * Tangent-space pixel normals from each layer's luminance: mortar, seams and
+ * rivets read as relief under grazing sun. Sobel samples wrap inside the tile,
+ * so neighbouring blocks never disagree at a seam. +X follows u, +Y follows
+ * the image rows downward (the mesher's t coordinate).
+ */
+export function paintTerrainNormals(albedo, strength = 1.0) {
+  const data = new Uint8Array(albedo.length);
+  const lum = (layer, x, y) => {
+    const i = layer * TILE_PX * TILE_PX * 4 + (((y + TILE_PX) % TILE_PX) * TILE_PX + ((x + TILE_PX) % TILE_PX)) * 4;
+    return (albedo[i] * 0.299 + albedo[i + 1] * 0.587 + albedo[i + 2] * 0.114) / 255;
+  };
+  for (let layer = 0; layer < TERRAIN_LAYERS; layer++) {
+    for (let y = 0; y < TILE_PX; y++) {
+      for (let x = 0; x < TILE_PX; x++) {
+        const dx = (lum(layer, x + 1, y - 1) + 2 * lum(layer, x + 1, y) + lum(layer, x + 1, y + 1))
+          - (lum(layer, x - 1, y - 1) + 2 * lum(layer, x - 1, y) + lum(layer, x - 1, y + 1));
+        const dy = (lum(layer, x - 1, y + 1) + 2 * lum(layer, x, y + 1) + lum(layer, x + 1, y + 1))
+          - (lum(layer, x - 1, y - 1) + 2 * lum(layer, x, y - 1) + lum(layer, x + 1, y - 1));
+        let nx = -dx * strength, ny = -dy * strength, nz = 1;
+        const len = Math.hypot(nx, ny, nz);
+        nx /= len; ny /= len; nz /= len;
+        const i = layer * TILE_PX * TILE_PX * 4 + (y * TILE_PX + x) * 4;
+        data[i] = Math.round((nx * 0.5 + 0.5) * 255);
+        data[i + 1] = Math.round((ny * 0.5 + 0.5) * 255);
+        data[i + 2] = Math.round((nz * 0.5 + 0.5) * 255);
+        data[i + 3] = 255;
+      }
+    }
+  }
+  return data;
+}
+
+function arrayTexture(data, colorSpace, anisotropy) {
+  const texture = new THREE.DataArrayTexture(data, TILE_PX, TILE_PX, TERRAIN_LAYERS);
+  texture.format = THREE.RGBAFormat;
+  texture.type = THREE.UnsignedByteType;
+  texture.magFilter = THREE.NearestFilter;
+  texture.minFilter = THREE.NearestMipmapLinearFilter;
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.generateMipmaps = true;
+  texture.colorSpace = colorSpace;
+  texture.anisotropy = anisotropy;
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/**
+ * Terrain texture arrays: every tile is its own layer, so mip levels never
+ * bleed across neighbouring tiles and anisotropic filtering stays clean at
+ * grazing angles. The 2D sheet remains for fluids, debris and detail props.
+ */
+export function buildTerrainTextures({ anisotropy = 4, normals = false } = {}) {
+  const albedo = paintTerrainLayers();
+  const map = arrayTexture(albedo, THREE.SRGBColorSpace, anisotropy);
+  map.name = 'terrain-albedo';
+  const normalMap = normals ? arrayTexture(paintTerrainNormals(albedo), THREE.NoColorSpace, anisotropy) : null;
+  if (normalMap) {
+    normalMap.name = 'terrain-normals';
+    normalMap.magFilter = THREE.LinearFilter;
+    normalMap.minFilter = THREE.LinearMipmapLinearFilter;
+  }
+  return { map, normalMap };
 }
 
 /**
  * Paint every tile into a fresh canvas, wrap it in a THREE.CanvasTexture and
  * hand back the accessor surface the mesher/renderer needs.
  */
-export function buildAtlas() {
+export function buildAtlas({ anisotropy = 4, normals = false } = {}) {
   const canvas = document.createElement('canvas');
   canvas.width = ATLAS_SIZE;
   canvas.height = ATLAS_SIZE;
@@ -873,15 +1094,23 @@ export function buildAtlas() {
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
   let disposed = false;
+  let terrain = null;
 
   return {
     canvas,
     /** THREE.CanvasTexture configured for crisp voxel texels under minification. */
     texture() { return tex; },
+    /** Lazily built texture arrays for the chunk mesher's terrain material. */
+    terrainTextures() {
+      terrain ??= buildTerrainTextures({ anisotropy, normals });
+      return terrain;
+    },
     dispose() {
       if (disposed) return;
       disposed = true;
       tex.dispose();
+      terrain?.map.dispose();
+      terrain?.normalMap?.dispose();
     },
     tileRect,
     faceTile,

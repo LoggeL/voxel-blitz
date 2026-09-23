@@ -4,6 +4,7 @@ import { KeyboardSettings } from './keyboard-settings.js';
 import { bindingLabel, subscribeKeybindings } from '../keybindings.js';
 import { ConnectionSettings } from './connection-settings.js';
 import { FrameRateSettings } from './frame-rate-settings.js';
+import { GraphicsSettings } from './graphics-settings.js';
 import { MAP_LABELS, MODE_LABELS, el, loadPref, loadPrefNum, savePref } from './hud-support.js';
 import {
   ADS_MODES,
@@ -81,6 +82,7 @@ export class SettingsController {
     this.settingsDom = {};
     this.connection = new ConnectionSettings();
     this.frameRate = new FrameRateSettings();
+    this.graphics = new GraphicsSettings();
     this.keyboard = new KeyboardSettings();
     this._unsubscribeBindings = subscribeKeybindings(() => this._syncKeyHints());
   }
@@ -352,6 +354,7 @@ export class SettingsController {
     const meleeHint = el('p', 'vb-settings-hint', controls);
     const medkitHint = el('p', 'vb-settings-hint', controls);
     const groups = { controls: [...controls.children], keyboard: [this.keyboard.mount(controls)], display: [], debug: [] };
+    groups.display.push(this.graphics.mount(controls));
     groups.display.push(this.frameRate.mount(controls));
     let category = 'display';
     const displaySelects = {};

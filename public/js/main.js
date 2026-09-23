@@ -209,10 +209,47 @@ class Game {
 
   resize() {
     if (!this.renderer || !this.camera) return;
+    // The canvas shares the scene target's grid: no wasted HiDPI backbuffer
+    // and one resample, done by the browser compositor.
+    const size = this.post?.setSize(innerWidth, innerHeight, devicePixelRatio);
+    this.renderer.setPixelRatio(size ? size.pixelRatio : Math.min(devicePixelRatio, 2));
     this.renderer.setSize(innerWidth, innerHeight);
-    this.post?.setSize(innerWidth, innerHeight, devicePixelRatio);
     this.camera.aspect = innerWidth / innerHeight;
     this.camera.updateProjectionMatrix();
+  }
+
+  /**
+   * Resolve the graphics tier for the next map and rebuild the post chain only
+   * when its buffers or program defines differ. Called before any world
+   * material compiles, never mid-match.
+   */
+  ensureGraphicsProfile(rt = this.rt) {
+    const deviceMemory = Number(navigator.deviceMemory);
+    const profile = rt.resolveGraphicsProfile(rt.graphicsQuality(), {
+      ...rt.rendererCapabilities(this.renderer),
+      touch: rt.isTouchDevice(),
+      deviceMemory,
+    });
+    // Shadow programs are decided before any world material compiles (WorldView re-asserts it).
+    this.renderer.shadowMap.enabled = profile.shadowMapSize > 0;
+    const key = JSON.stringify(profile);
+    if (this.post && this._graphicsKey === key) return profile;
+    this.post?.dispose();
+    this.graphics = profile;
+    this._graphicsKey = key;
+    const memoryCap = rt.recommendedPostProcessPixelRatio(deviceMemory);
+    this.post = new rt.CombatPostProcess(this.renderer, {
+      enabled: !shaderDisabled,
+      maxPixelRatio: memoryCap < rt.POST_PROCESS_PROFILE.maxPixelRatio ? memoryCap : profile.renderScale,
+      reducedMotion: displaySettings().reducedMotion,
+      msaa: profile.msaa,
+      hdr: profile.hdr,
+      bloomLevels: profile.bloomLevels,
+      fxaa: profile.msaa === 0,
+      ssao: profile.ssao,
+    });
+    this.resize();
+    return profile;
   }
 
   /**
@@ -230,18 +267,22 @@ class Game {
     const rt = runtime;
     try {
       const canvas = this.input.canvas;
-      this.renderer = new rt.THREE.WebGLRenderer({ canvas, antialias: true });
-      this.renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-      this.renderer.setSize(innerWidth, innerHeight);
-      this.post = new rt.CombatPostProcess(this.renderer, {
-        enabled: !shaderDisabled,
-        maxPixelRatio: rt.recommendedPostProcessPixelRatio(Number(navigator.deviceMemory)),
-        reducedMotion: displaySettings().reducedMotion,
-      });
-      this.post.setSize(innerWidth, innerHeight, devicePixelRatio);
+      // Anti-aliasing happens in the post chain's multisampled target (or FXAA);
+      // a multisampled canvas would only be written by the final full-screen pass.
+      this.renderer = new rt.THREE.WebGLRenderer({ canvas, antialias: false });
+      // Only the fail-open direct render reaches the canvas with scene materials;
+      // it shares the post chain's highlight shoulder.
+      this.renderer.toneMapping = rt.THREE.NeutralToneMapping;
+      // GLSL failures never throw: log them like three, record them and fail
+      // open (post chain to direct rendering, patched materials to stock).
+      this.shaderMonitor = new rt.ShaderErrorMonitor({
+        renderer: this.renderer,
+        getPost: () => this.post,
+        getRoots: () => (this.worldview ? [this.worldview.scene, ...(this.worldview.characterRoots || [])] : []),
+      }).install();
       this.camera = new rt.THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 400);
       this.camera.fov = this.session.baseFov;
-      this.camera.updateProjectionMatrix();
+      this.ensureGraphicsProfile(rt);
       this.clock = new rt.THREE.Clock();
       this.player = new rt.LocalPlayer({ input: this.input });
       this.player.setGameplayInputEnabled(this.session.gameplayInputEnabled);
@@ -250,6 +291,7 @@ class Game {
       this.post?.dispose();
       this.renderer?.dispose();
       this.player = this.post = this.renderer = this.camera = this.clock = null;
+      this.shaderMonitor = this.graphics = this._graphicsKey = null;
       throw error;
     }
     this.rt = rt;
@@ -285,10 +327,12 @@ class Game {
     if (!net.isOpen()) return this.session.handleDisconnect();
 
     showStatus('building voxel mesh…', 'ok');
+    const graphics = this.ensureGraphicsProfile();
     this.worldview = new rt.WorldView({
       getBlock,
       getBlockDamage: (x, y, z) => net.getBlockDamage(x, y, z),
-    }, this.mapMeta);
+    }, this.mapMeta, { graphics, renderer: this.renderer });
+    this.post.setGrade(this.worldview.palette.grade);
     await this.worldview.ready({ isActive, onProgress: showProgress,
       yieldControl: () => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))),
     });
@@ -300,6 +344,7 @@ class Game {
     this.liveEffectsGroup = new rt.THREE.Group();
     this.liveAvatarsGroup = new rt.THREE.Group();
     this.worldview.scene.add(this.liveEffectsGroup, this.liveAvatarsGroup);
+    this.worldview.dynamicShadows?.addCasterRoot(this.liveAvatarsGroup, { coarse: true });
     this.effects = new rt.Effects(this.liveEffectsGroup, this.camera, getBlock, {
       // RIPTIDE discs home on their owner: the local body or a presented remote avatar.
       getEntityPosition: (id) => {
@@ -402,6 +447,9 @@ class Game {
     this.killcam = new rt.Killcam({ scene: this.worldview.scene, getBlock, worldview: this.worldview,
       mapBytes: serializeWorld(), blockDamage: [...net.blockDamage.values()],
       terrainTime: net.latestSnapshots.at(-1)?.serverNow ?? -Infinity, audio: sfx, now: nowMs });
+    this.worldview.addCharacterRoots?.(this.liveAvatarsGroup, this.rig.root, this.killcam.group);
+    this.worldview.addNearCharacterRoots?.(this.ownBody.group);
+    this.worldview.dynamicShadows?.addCasterRoot(this.killcam.group, { coarse: true });
     this.spectator = new rt.SpectatorCamera({
       camera: this.camera,
       raycast: (origin, direction, distance) => (
@@ -437,6 +485,15 @@ class Game {
       },
     });
     this.runHud = new RunHud({ getMyId: () => this.myId });
+
+    showStatus('warming up shaders…', 'ok');
+    this.shaderWarmup = await rt.warmShaders({
+      renderer: this.renderer, scene: this.worldview.scene, camera: this.camera,
+      post: this.post, characterRoots: this.worldview.characterRoots || [],
+      shadows: this.worldview.dynamicShadows,
+    });
+    if (!isActive()) return;
+    if (!net.isOpen()) return this.session.handleDisconnect();
 
     complete({
       activateLive: () => { this.running = true; this.clock.start(); this.frameRate.reset(); renderAssetStatus(); },
@@ -982,7 +1039,7 @@ class Game {
         [flameDirection.x, flameDirection.y, flameDirection.z],
         [this.camera.position.x, this.camera.position.y, this.camera.position.z]);
       this.effects.update(dt, frameDt);
-      this.worldview.update(dt);
+      this.worldview.update(dt, this.camera);
     } catch (error) { this.phaseError('fx/rig', error); }
     try {
       if (this.build) {
@@ -1100,6 +1157,13 @@ class Game {
     this.liveEffectsGroup.visible = !replaying;
     this.liveAvatarsGroup.visible = !replaying;
     this.worldview.powerups.group.visible = !replaying;
+    // Character light probe, material patching and contact blobs (contact-shadows.js).
+    const characterFrame = this._characterFrame ||= { camera: null, dt: 0, roster: null, bodyPosition: null };
+    characterFrame.camera = replaying ? this.killcam.camera : this.camera;
+    characterFrame.dt = frameDt;
+    characterFrame.roster = replaying ? this.killcam.roster : this.roster;
+    characterFrame.bodyPosition = !replaying && !spectating && this.player.alive ? this.player.pos : null;
+    this.worldview.presentCharacters?.(characterFrame);
     const renderStart = performance.now();
     if (renderFrame && replaying) {
       this._postFrame.smokeFields = this.killcam.sample.smokeFields;
@@ -1267,6 +1331,8 @@ window.__vb = {
       ) : 0,
       device: game.input.deviceInfo(),
       shader: game.post?.stats || null,
+      shaderErrors: game.shaderMonitor?.errors.slice() || [],
+      shaderWarmup: game.shaderWarmup || null,
       geometries: info.memory.geometries ?? 0,
       textures: info.memory.textures ?? 0,
       drawCalls: info.render.calls ?? 0,

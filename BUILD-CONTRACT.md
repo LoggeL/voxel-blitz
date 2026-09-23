@@ -659,14 +659,23 @@ late join whose welcome/state is already live also proceeds directly.
   button cannot activate them. A `wheelOpen` context collapses contextual buttons
   to the pause-only set. Disabling gameplay releases captured and latched controls.
   Size and hand options preserve separate touch targets of at least 44 CSS pixels.
-- `new WorldView({getBlock})`; call `await ready()` before rendering,
+- `new WorldView({getBlock}, mapMeta, {graphics, renderer})`; `graphics` is the
+  tier profile from `engine/graphics-quality.js` (defaults to MEDIUM), `renderer`
+  enables the one-off environment bake. `ready()` bakes the voxel light volume
+  (`engine/voxel-light.js`) before meshing; call `await ready()` before rendering,
   `applyDeltas([{x,y,z,v}])`, `update(dt)`, `pickCameraRay(origin,dir,maxDist)`, and `dispose()`.
 - `new CombatPostProcess(renderer,options)` owns the bounded scene render target
   and full-screen combat shader. Call `setSize(width,height,pixelRatio)`, then
   `render(scene,camera,{time,panic,pain,scopeActive})`; any shader failure must
-  permanently fall back to a direct scene render. Its target pixel ratio caps
-  at `1.35` (`1.0` on devices reporting at most 4 GB), and `?shader=off` is the
-  deterministic manual fallback.
+  permanently fall back to a direct scene render. The scene always renders into
+  the target (switching to the canvas would recompile every material), with
+  `options.msaa`/`hdr`/`bloomLevels`/`fxaa`/`ssao` fixed per graphics tier at map
+  load. Its target pixel ratio caps at the tier's render scale (`1.35` on HIGH,
+  `1.0` on devices reporting at most 4 GB) and the canvas uses the same ratio.
+  `?shader=off` is the deterministic manual fallback: grading, bloom and eye
+  adaptation off, condition feedback and smoke still rendered. `npm run
+  graphics:test` covers the tier rules and the pass structure; see
+  `docs/graphics.md`.
 - `new Effects(scene,camera,worldGetBlockFn,{onBounce?})` exposes
   `shoot(ev,{local?})` (a local rocket shot also spawns the predicted rocket),
   `impact(evHit)`, `explodeBlock(x,y,z,blockId)`, `spawnBrass(pos,velocity)`,

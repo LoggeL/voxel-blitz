@@ -111,16 +111,27 @@ for (let y = 1; solid.length < 90; y++) {
   const fakeRuntime = {
     THREE: {
       WebGLRenderer: class {
-        constructor() { if (++rendererAttempts === 1) throw new Error('Error creating WebGL context'); }
+        constructor() {
+          if (++rendererAttempts === 1) throw new Error('Error creating WebGL context');
+          this.debug = {};
+          this.shadowMap = {};
+        }
         setPixelRatio() {}
         setSize() {}
         dispose() { disposed.push('renderer'); }
       },
+      NeutralToneMapping: 7,
       PerspectiveCamera: class { updateProjectionMatrix() {} },
       Clock: class {},
     },
     CombatPostProcess: class { setSize() {} dispose() { disposed.push('post'); } },
+    ShaderErrorMonitor: class { constructor() { this.errors = []; } install() { return this; } },
     recommendedPostProcessPixelRatio: () => 1,
+    POST_PROCESS_PROFILE: { maxPixelRatio: 2 },
+    graphicsQuality: () => 'auto',
+    rendererCapabilities: () => ({}),
+    isTouchDevice: () => false,
+    resolveGraphicsProfile: () => ({ shadowMapSize: 0, msaa: 0, hdr: false, bloomLevels: 0, ssao: false, renderScale: 1 }),
     LocalPlayer: class { setGameplayInputEnabled() {} dispose() { disposed.push('player'); } },
   };
   const RuntimeGame = new Function('assets', 'loadingScreen', 'MATCH_ASSETS', 'runtime', 'shaderDisabled',

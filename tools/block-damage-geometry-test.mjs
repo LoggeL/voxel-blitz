@@ -124,10 +124,12 @@ function checkSurface(store, blocks, damage) {
       }
     }
     for (const value of geometry.attributes.color.array) assert.ok(Number.isFinite(value) && value > 0);
+    // Solid buckets carry face-local UVs into a per-tile texture-array layer.
     for (let i = 0; i < geometry.attributes.uv.count; i++) {
-      assert.ok(geometry.attributes.uv.getX(i) >= 0.09999 && geometry.attributes.uv.getX(i) <= 0.20001);
-      assert.ok(geometry.attributes.uv.getY(i) >= 0.69999 && geometry.attributes.uv.getY(i) <= 0.80001);
+      assert.ok(geometry.attributes.uv.getX(i) >= -1e-5 && geometry.attributes.uv.getX(i) <= 1 + 1e-5);
+      assert.ok(geometry.attributes.uv.getY(i) >= -1e-5 && geometry.attributes.uv.getY(i) <= 1 + 1e-5);
     }
+    assert.equal(geometry.attributes.terrainLayer.count, geometry.attributes.uv.count, 'every vertex names its tile layer');
   }
   assert.deepEqual(actual, expected, 'rendered surface exactly closes the remaining block volume');
 }

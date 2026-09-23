@@ -12,21 +12,33 @@ import { BastionWorld } from './bastion-world.js';
 import * as THREE from '../vendor/three.module.js';
 import { buildAtlas } from './atlas.js';
 import { ChunkStore } from './chunks.js';
+import { GrassTufts } from './grass-tufts.js';
 import { buildInitialMesh } from './initial-mesh.js';
 import { installSky } from './sky.js';
 import { buildNuketownDetails } from './nuketown-details.js';
 import { buildMinecraftB5Details } from './minecraft-b5-details.js';
 import { buildWaterworldDetails } from './waterworld-details.js';
-import { tickFluidMaterials } from './fluid-material.js';
+import { tickFluidMaterials, applyWaterPalette, configureFluidQuality } from './fluid-material.js';
 import { mapAtmosphere } from './map-atmosphere.js';
+import { buildMapBackdrop } from './map-backdrop.js';
+import { buildMapAmbience } from './map-ambience.js';
 import { buildMapSigns } from './map-signs.js';
 import { buildMapLights } from './map-lights.js';
 import { SiteMarkers } from './site-markers.js';
 import { PowerupView } from './powerup-view.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
+import { GRAPHICS_PROFILES } from './graphics-quality.js';
+import { VoxelLightVolume, createVoxelLightUniforms, bindVoxelLightVolume, updateViewExposure } from './voxel-light.js';
+import { bakeEnvironment } from './environment-map.js';
+import { installFarFog } from './fog-chunk.js';
+import { DynamicShadows, configureShadowRenderer } from './dynamic-shadows.js';
+import { ContactShadows, presentCharacterFrame } from './contact-shadows.js';
+import { bindCharacterLight, releaseCharacterLight } from './character-light.js';
 
-/** Sun placement in world units; direction normalises to sky.SUN_DIR. */
-const SUN_POS = new THREE.Vector3(60, 90, 20);
+installFarFog();
+
+/** Distance of the directional sun from the map centre along its palette direction. */
+const SUN_DISTANCE = 110;
 
 const LADDER_RUNG_SPACING = 0.62;
 const LADDER_RUNG_BOTTOM_INSET = 0.3;
@@ -105,8 +117,10 @@ export class WorldView {
   /**
    * @param {{getBlock:Function,getBlockDamage?:Function,meta?:object}} storeRef
    * @param {object|null} mapMeta
+   * @param {{graphics?:object,renderer?:object}} options graphics tier knobs
+   *   (graphics-quality.js) and the WebGLRenderer used for one-off bakes.
    */
-  constructor(storeRef, mapMeta = null) {
+  constructor(storeRef, mapMeta = null, { graphics = GRAPHICS_PROFILES.medium, renderer = null } = {}) {
     if (!storeRef || typeof storeRef.getBlock !== 'function') {
       throw new TypeError('WorldView requires { getBlock }');
     }
@@ -117,35 +131,95 @@ export class WorldView {
     const visualDamage = (x, y, z) => (this.replayTerrain || this.store).getBlockDamage?.(x, y, z) || 0;
     const meta = mapMeta || storeRef.meta;
     const palette = mapAtmosphere(meta?.id);
+    this.palette = palette;
+    this.graphics = graphics;
 
     this.scene = new THREE.Scene();
     this.bastion = meta?.bastion ? new BastionWorld(this.scene, meta.bastion) : null;
     this.scene.fog = new THREE.FogExp2(palette.fog, palette.density);
+    const dimensions = getMapDimensions(meta?.id);
+    this.dimensions = dimensions;
+    const center = new THREE.Vector3(dimensions.sx / 2, 0, dimensions.sz / 2);
+    this.sunDir = new THREE.Vector3(...palette.sunDir).normalize();
 
     const hemi = new THREE.HemisphereLight(palette.skyLight, palette.groundLight, palette.ambient);
     hemi.name = 'hemi';
     this.scene.add(hemi);
 
+    // The sun aims at the map centre; its target must live in the scene graph
+    // or the light keeps pointing at the world origin.
     const sun = new THREE.DirectionalLight(palette.sun, palette.sunlight);
     sun.name = 'sun';
-    sun.position.copy(SUN_POS);
-    sun.castShadow = false;              // perf: AO + face shading carry the look
-    this.scene.add(sun);
+    sun.position.copy(center).addScaledVector(this.sunDir, SUN_DISTANCE);
+    sun.target.position.copy(center);
+    sun.castShadow = false;              // the voxel light volume bakes sun visibility
+    this.scene.add(sun, sun.target);
     this.sun = sun;
+    // High/Ultra add a shadow map for dynamic casters only; decided here, before
+    // any world program compiles, and never toggled for the life of this map.
+    configureFluidQuality(graphics);     // water shader detail, before any water material exists
+    this.dynamicShadows = configureShadowRenderer(renderer, graphics)
+      ? new DynamicShadows(this.scene, sun, {
+        size: graphics.shadowMapSize, sunDir: this.sunDir, intensity: palette.light?.shadow ?? 0.75,
+      })
+      : null;
 
-    this.atlas = buildAtlas();
-    this.chunkStore = new ChunkStore(this.scene, this.atlas, visualBlock, visualDamage, getMapDimensions(meta?.id));
+    // Prefiltered sky light for PBR surfaces, baked before any program compiles.
+    this.environment = graphics.ibl ? bakeEnvironment(renderer, palette, this.sunDir) : null;
+    if (this.environment) {
+      this.scene.environment = this.environment.texture;
+      this.scene.environmentIntensity = palette.envIntensity;
+    }
+
+    this.atlas = buildAtlas({ anisotropy: graphics.anisotropy, normals: graphics.normalMaps });
+    this.lightUniforms = createVoxelLightUniforms();
+    this.lightVolume = new VoxelLightVolume(visualBlock, dimensions, {
+      sunDir: this.sunDir,
+      emitters: () => this.mapLights?.emitters?.() || [],
+    });
+    this.chunkStore = new ChunkStore(this.scene, this.atlas, visualBlock, visualDamage, dimensions, {
+      lightUniforms: this.lightUniforms,
+      edgeShading: graphics.edgeShading,
+      mapId: meta?.id,
+    });
+    this.grassTufts = new GrassTufts(this.scene, visualBlock, visualDamage, dimensions, {
+      density: graphics.grassDensity, lightUniforms: this.lightUniforms, receiveShadow: !!this.dynamicShadows,
+    });
+    // An 8-bit target clips each channel at 1.0 on its own, which turns HDR
+    // glowstone lime; LDR tiers keep emitters just inside the range.
+    for (const kind of ['opaque', 'cutout', 'glass']) {
+      const u = this.chunkStore.materials[kind].userData.terrainUniforms;
+      if (u) u.terrainEmissive.value = graphics.hdr ? 1.7 : 0.4;
+    }
+    for (const fluid of [this.chunkStore.materials.water, this.chunkStore.materials.lava]) {
+      fluid.uniforms.sunDir?.value.copy(this.sunDir);
+    }
 
     this.mapDetails = meta?.id === 'nuketown' ? buildNuketownDetails()
       : meta?.id === 'minecraft_b5' ? buildMinecraftB5Details(meta, this.atlas)
         : meta?.id === 'waterworld' ? buildWaterworldDetails(meta) : null;
     if (this.mapDetails) this.scene.add(this.mapDetails.group);
+    applyWaterPalette(palette);
     this.mapSigns = buildMapSigns(meta?.id, visualBlock);
     this.scene.add(this.mapSigns.group);
     this.mapLights = buildMapLights(meta?.id, visualBlock);
     this.scene.add(this.mapLights.group);
+    // Distant skyline (one merged draw) and the air (one points draw).
+    this.backdrop = buildMapBackdrop(palette, dimensions);
+    if (this.backdrop) this.scene.add(this.backdrop.group);
+    this.ambience = buildMapAmbience(palette, {
+      graphics, lightUniforms: this.lightUniforms,
+      floorY: palette.ambience?.floor ?? (palette.backdrop?.ground ?? 14) + 1,
+    });
+    if (this.ambience) this.scene.add(this.ambience.points);
 
-    this.skyUpdate = installSky(this.scene, palette, getMapDimensions(meta?.id));
+    // Fog takes the panorama's horizon tone, so distant geometry melts into the
+    // sky behind it; the palette colour keeps a say for readability.
+    this.skyUpdate = installSky(this.scene, palette, dimensions, {
+      onHorizon: (horizon) => {
+        if (!this._disposed) this.scene.fog.color.set(palette.fog).lerp(horizon, 0.6);
+      },
+    });
 
     this.ladderVisuals = buildLadderVisuals(mapMeta || storeRef.meta || null);
     if (this.ladderVisuals) this.scene.add(this.ladderVisuals.group);
@@ -161,12 +235,27 @@ export class WorldView {
     this.scene.add(this.tttTraps.group);
     this.powerups = new PowerupView();
     this.scene.add(this.powerups.group);
+    // Blob contact shadows (one draw) and character lighting from the light volume.
+    this.contactShadows = new ContactShadows(visualBlock, { strength: this.dynamicShadows ? 0.8 : 1 });
+    this.scene.add(this.contactShadows.mesh);
+    bindCharacterLight(this.lightUniforms);
+    this.characterRoots = [this.tttWeapons.group, this.tttCorpses.group];
+    this.nearCharacterRoots = [];        // take the camera probe like the viewmodel (own body)
+    if (this.dynamicShadows) {
+      // Corpses and dropped guns are avatar-grade part lists: one silhouette per joint.
+      for (const group of [this.tttWeapons.group, this.tttCorpses.group]) this.dynamicShadows.addCasterRoot(group, { coarse: true });
+      for (const group of [this.tttSupplies.group, this.bastion?.group]) this.dynamicShadows.addCasterRoot(group);
+      for (const group of [this.mapDetails?.group, this.ladderVisuals?.group]) this.dynamicShadows.markReceivers(group);
+    }
   }
 
   /** Builds every initial chunk column; resolves when the world is renderable. */
   async ready(options) {
+    this.lightVolume.build();
+    bindVoxelLightVolume(this.lightUniforms, this.lightVolume, { ...this.palette.light, adaptation: !!this.graphics?.hdr });
     if (options) await buildInitialMesh(this.chunkStore, options);
     else this.chunkStore.buildAll();
+    this.grassTufts.build();
     return this;
   }
 
@@ -186,10 +275,15 @@ export class WorldView {
     for (let i = 0; i < deltas.length; i++) {
       const d = deltas[i];
       this.chunkStore.applyBlockDelta(d.x, d.y, d.z, d.v);
+      this.grassTufts.applyBlockDelta(d.x, d.y, d.z, d.v);
     }
+    this.lightVolume.applyDeltas(deltas);
     if (deltas.length) {
+      this.contactShadows.invalidate();
       this.mapSigns.refresh();
+      const lit = this.mapLights.stats.visible;
       this.mapLights.refresh();
+      if (this.mapLights.stats.visible !== lit) this.lightVolume.touchEmitters(this.mapLights.emitters());
     }
   }
 
@@ -204,6 +298,8 @@ export class WorldView {
     this.rebuildDeltas([...this.replayTouched.values()]);
     // A replay frame must show the recorded state before it is rendered.
     this.chunkStore.update(Infinity);
+    this.grassTufts.flush();
+    this.lightVolume.flush();
     if (!terrain) this.replayTouched.clear();
   }
 
@@ -212,6 +308,8 @@ export class WorldView {
     this.rememberReplayDeltas(deltas);
     this.rebuildDeltas(deltas);
     this.chunkStore.update(Infinity);
+    this.grassTufts.flush();
+    this.lightVolume.flush();
   }
 
   /**
@@ -237,11 +335,39 @@ export class WorldView {
     this.powerups.sync(rows);
   }
 
+  /** Groups whose lit materials take character lighting (avatars, own body, viewmodel). */
+  addCharacterRoots(...roots) {
+    for (const root of roots) if (root && !this.characterRoots.includes(root)) this.characterRoots.push(root);
+  }
+
+  /**
+   * Character roots lit by the camera probe instead of their own position (the
+   * first-person body). Anything parented to the render camera, such as the
+   * viewmodel, is near already.
+   */
+  addNearCharacterRoots(...roots) {
+    this.addCharacterRoots(...roots);
+    for (const root of roots) if (root && !this.nearCharacterRoots.includes(root)) this.nearCharacterRoots.push(root);
+  }
+
+  /**
+   * Just before the render: patch character materials, feed the camera light
+   * probe and rebuild the contact blobs. `frame` is a reused object:
+   * { camera, dt, roster, bodyPosition } (contact-shadows.js).
+   */
+  presentCharacters(frame) {
+    presentCharacterFrame(this, frame);
+  }
+
   /** Per-frame tick: drains the chunk remesh budget and drifts the clouds. */
-  update(dt) {
+  update(dt, camera = null) {
     this.chunkStore.update();
+    this.grassTufts.update(dt);
+    this.lightVolume.update(typeof performance !== 'undefined' ? performance.now() : 0);
+    if (camera) updateViewExposure(this.lightUniforms, this.lightVolume, camera.position, dt);
     tickFluidMaterials(dt);
     this.skyUpdate(dt);
+    this.ambience?.update(dt);
     this.powerups.update(dt);
     this.bastion?.update(dt);
     this.tttTraps.update(this.tttTrapClock = (this.tttTrapClock || 0) + dt);
@@ -251,6 +377,7 @@ export class WorldView {
     if (this._disposed) return;
     this._disposed = true;
     this.chunkStore.dispose();
+    this.grassTufts.dispose();
     this.bastion?.dispose();
     if (this.ladderVisuals) {
       this.scene.remove(this.ladderVisuals.group);
@@ -274,6 +401,16 @@ export class WorldView {
     this.mapSigns.dispose();
     this.mapLights.dispose();
     this.skyUpdate.dispose();
+    this.backdrop?.dispose();
+    this.ambience?.dispose();
     this.atlas.dispose();
+    this.contactShadows.dispose();
+    releaseCharacterLight(this.lightUniforms);
+    this.characterRoots.length = 0;
+    this.nearCharacterRoots.length = 0;
+    this.lightVolume.dispose();
+    this.lightUniforms._fallback.dispose();
+    this.environment?.dispose();
+    this.dynamicShadows?.dispose();
   }
 }

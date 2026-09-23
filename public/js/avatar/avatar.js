@@ -2,6 +2,7 @@ import { pronePose, stepSwim, swimCycle, swimEffort } from '../../../shared/play
 import { leanBodyPoint, leanRoll } from '../../../shared/player-lean.js';
 import * as THREE from '../vendor/three.module.js';
 import { disposeObjectTree } from '../engine/dispose.js';
+import { prepareCharacterTree } from '../engine/character-light.js';
 import { clamp01 } from '../util/math.js';
 import { hashHue, hashInt } from '../util/hash.js';
 import { AvatarWeaponModel } from './avatar-weapon.js';
@@ -489,5 +490,7 @@ export function makeAvatar(id, name, team = null) {
     angular: new THREE.Vector3(),
   }));
   setAvatarTeam(avatar, team);
+  // Light-volume shading, light floor and rim, fixed before the first compile.
+  prepareCharacterTree(group, false);
   return avatar;
 }

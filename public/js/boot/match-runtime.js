@@ -5,7 +5,9 @@
 // sits on the menu's critical path.
 export * as THREE from '../vendor/three.module.js';
 export { MuzzleLights } from '../engine/muzzle-lights.js';
-export { CombatPostProcess, recommendedPostProcessPixelRatio } from '../engine/combat-post-process.js';
+export { CombatPostProcess, recommendedPostProcessPixelRatio, POST_PROCESS_PROFILE } from '../engine/combat-post-process.js';
+export { graphicsQuality, resolveGraphicsProfile, rendererCapabilities, isTouchDevice } from '../engine/graphics-quality.js';
+export { ShaderErrorMonitor, warmShaders } from '../engine/shader-warmup.js';
 export { WorldView } from '../engine/worldview.js';
 export { ViewmodelRig } from '../guns/viewmodel.js';
 export { WeaponState, shouldShowViewmodel } from '../guns/weapon-state.js';

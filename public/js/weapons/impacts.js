@@ -2,6 +2,7 @@
 import { footstepMaterial } from '../audio/footsteps.js';
 import { pickaxeMaterial } from '../audio/pickaxe.js';
 import { removedDamageCells } from '../engine/block-damage-geometry.js';
+import { FACE_SHADE } from '../engine/chunks.js';
 import * as THREE from '../vendor/three.module.js';
 import { GLASS, LEAVES, MC_GHOST_SOLID, MC_GLASS, MC_LEAVES, isSolidBlock } from '../../../shared/world/blocks.js';
 import { freeOldestIndex, hideInstance, makeImpactCrossGeometry } from './instancing.js';
@@ -113,7 +114,29 @@ export class ImpactFX {
     this._e = new THREE.Euler();
 
     const particleGeometry = new THREE.BoxGeometry(0.09, 0.09, 0.09);
-    const particleMaterial = new THREE.MeshBasicMaterial({ toneMapped: false });
+    // Block debris carries the terrain's fixed per-face shade (BoxGeometry faces
+    // run +X -X +Y -Y +Z -Z, four vertices each, exactly the FACE_SHADE order),
+    // so chips read as little lit blocks. The pool is shared with blood, sparks,
+    // glass and dust, so a per-instance weight (1 for blocky chips, 0 for every
+    // other particle) mixes the shade in; one fixed program for all of them.
+    const chipShade = new Float32Array(particleGeometry.attributes.position.count * 3);
+    for (let i = 0; i < chipShade.length / 3; i++) chipShade.fill(FACE_SHADE[(i >> 2) % 6], i * 3, i * 3 + 3);
+    particleGeometry.setAttribute('color', new THREE.BufferAttribute(chipShade, 3));
+    this.partShade = new THREE.InstancedBufferAttribute(new Float32Array(PARTICLE_POOL_SIZE), 1);
+    particleGeometry.setAttribute('chipShadeWeight', this.partShade);
+    const particleMaterial = new THREE.MeshBasicMaterial({ toneMapped: false, vertexColors: true });
+    particleMaterial.onBeforeCompile = (shader) => {
+      shader.vertexShader = shader.vertexShader
+        .replace('#include <common>', '#include <common>\nattribute float chipShadeWeight;')
+        .replace('#include <color_vertex>', [
+          'vColor = vec3( 1.0 );',
+          'vColor *= mix( vec3( 1.0 ), color, chipShadeWeight );',
+          '#ifdef USE_INSTANCING_COLOR',
+          '  vColor *= instanceColor.xyz;',
+          '#endif',
+        ].join('\n'));
+    };
+    particleMaterial.customProgramCacheKey = () => 'vb-debris-chip-shade';
     this.partMesh = new THREE.InstancedMesh(
       particleGeometry, particleMaterial, PARTICLE_POOL_SIZE,
     );
@@ -390,6 +413,10 @@ export class ImpactFX {
       p.softness = !!opt.softness;
       p.glint = !!opt.spriteGlint;
       p.blocky = !!opt.blocky;
+      if (this.partShade.array[idx] !== (p.blocky ? 1 : 0)) {
+        this.partShade.array[idx] = p.blocky ? 1 : 0;
+        this.partShade.needsUpdate = true;
+      }
       p.x = x;
       p.y = y;
       p.z = z;

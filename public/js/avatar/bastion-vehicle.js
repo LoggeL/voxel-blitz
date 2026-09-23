@@ -1,6 +1,7 @@
 import * as THREE from '../vendor/three.module.js';
 import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import { disposeObjectTree } from '../engine/dispose.js';
+import { prepareCharacterTree } from '../engine/character-light.js';
 
 // Vehicle presenter for Bastion rows with `npcVehicle:true`. Returns the avatar
 // duck-type avatar-roster.js expects (group, head, torso, tag, hpSpr, material
@@ -157,5 +158,6 @@ export function makeVehicleAvatar(id, kind) {
     },
   };
   avatar.updateHealth(1);
+  prepareCharacterTree(group, false);
   return avatar;
 }

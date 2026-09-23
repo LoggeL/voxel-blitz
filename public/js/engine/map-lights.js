@@ -1,8 +1,11 @@
 import * as THREE from '../vendor/three.module.js';
 import { AIR } from '../../../shared/world/blocks.js';
 import { LARGE_MAP_LIGHTS, lightFixtureGeometry } from '../../../shared/world/large-map-lights.js';
+import { LIGHT_HUE } from './voxel-light.js';
 
 const COLORS = Object.freeze({ cyan: 0xa1f1ff, amber: 0xffd08a, warm: 0xffda9c });
+/** Voxel block-light reach per fixture kind; floods throw the widest pool. */
+const LIGHT_LEVEL = Object.freeze({ flood: 14, bollard: 11, lantern: 12 });
 
 /** Emissive fixture faces: one instanced draw per color, zero extra light sources. */
 export function buildMapLights(mapId, getBlock) {
@@ -18,8 +21,9 @@ export function buildMapLights(mapId, getBlock) {
     if (!entries.length) continue;
     const count = entries.reduce((sum, light) => sum + light.surfaces.length, 0);
     const geometry = new THREE.PlaneGeometry(1, 1);
+    // Emissive above 1.0 so HDR tiers bloom the lamp faces.
     const material = new THREE.MeshStandardMaterial({ ...materialParams,
-      color: COLORS[color], emissive: COLORS[color], emissiveIntensity: 0.9 });
+      color: COLORS[color], emissive: COLORS[color], emissiveIntensity: 2.2 });
     const mesh = new THREE.InstancedMesh(geometry, material, count);
     mesh.name = `map-light-${color}`;
     mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
@@ -68,9 +72,30 @@ export function buildMapLights(mapId, getBlock) {
     }
   };
   refresh();
+  /** Air cells in front of every lit face, as block-light emitters. */
+  const emitters = () => {
+    const cells = [];
+    for (const { entries } of batches) {
+      for (const light of entries) {
+        if (!light.visible) continue;
+        for (const { surface, visible } of light.indices) {
+          if (!visible) continue;
+          cells.push({
+            x: Math.floor(surface.position[0] + surface.normal[0] * 0.6),
+            y: Math.floor(surface.position[1]),
+            z: Math.floor(surface.position[2] + surface.normal[2] * 0.6),
+            level: LIGHT_LEVEL[light.kind] || 12,
+            hue: LIGHT_HUE[light.color] ?? LIGHT_HUE.warm,
+          });
+        }
+      }
+    }
+    return cells;
+  };
   return {
     group,
     refresh,
+    emitters,
     get stats() { return { fixtures: fixtures.length, visible: fixtures.filter(light => light.visible).length,
       faces: fixtures.reduce((sum, light) => sum + (light.visibleFaces || 0), 0),
       drawCalls: batches.length, dynamicLights: 0 }; },

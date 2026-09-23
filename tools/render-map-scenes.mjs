@@ -7,7 +7,24 @@ import { parseCaptureArgs, runCaptureFlow } from './lib/capture-flow.mjs';
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUT_DIR = path.join(PROJECT_ROOT, '.artifacts', 'map-renders');
 
+// --quality low|medium|high|ultra forwards ?quality= to capture.html (default high);
+// --avatars forwards ?avatars=1 (capture avatars placed in view).
+const QUALITIES = new Set(['low', 'medium', 'high', 'ultra']);
+
 function parseArgs(argv) {
+  let quality = null;
+  let avatars = false;
+  const rest = [];
+  for (let index = 0; index < argv.length; index++) {
+    if (argv[index] === '--avatars') { avatars = true; continue; }
+    if (argv[index] !== '--quality') { rest.push(argv[index]); continue; }
+    quality = argv[++index];
+    if (!QUALITIES.has(quality)) throw new Error(`invalid --quality: ${quality}`);
+  }
+  return { ...parseCaptureArgsFor(rest), quality, avatars };
+}
+
+function parseCaptureArgsFor(argv) {
   return parseCaptureArgs(argv, {
     defaultOutDir: DEFAULT_OUT_DIR,
     selectors: { '--map': 'map', '--shot': 'shot' },
@@ -25,11 +42,14 @@ function selectedShots(options) {
   return matches;
 }
 
-async function renderShot({ browser, baseUrl, outDir, dimensions, shot }) {
-  const output = path.join(outDir, `${shot.map}-${shot.id}.png`);
+async function renderShot({ browser, baseUrl, outDir, dimensions, shot }, { quality, avatars }) {
+  const suffix = `${avatars ? '-avatars' : ''}${quality ? `-${quality}` : ''}`;
+  const output = path.join(outDir, `${shot.map}-${shot.id}${suffix}.png`);
   const url = new URL('/capture.html', baseUrl);
   url.searchParams.set('map', shot.map);
   url.searchParams.set('shot', shot.id);
+  if (quality) url.searchParams.set('quality', quality);
+  if (avatars) url.searchParams.set('avatars', '1');
   const readyMarkers = [
     'data-capture-ready="true"',
     `data-capture-map="${shot.map}"`,
@@ -59,7 +79,7 @@ async function main() {
     route: '/capture.html',
     failureContext: 'map capture',
     shots,
-    captureShot: renderShot,
+    captureShot: (context) => renderShot(context, options),
     formatShot: (entry) => `${entry.map}/${entry.id}`,
   });
   console.log(`rendered ${rendered.length} scene${rendered.length === 1 ? '' : 's'}`);

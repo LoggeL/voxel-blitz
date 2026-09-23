@@ -8,6 +8,13 @@ import { BastionStructureView } from './bastion-structures.js';
 const COLOR = { future: 0x5a6670, held: 0x3f8f5a, teal: 0x55ead0, amber: 0xffae45, red: 0xff4d40, zone: 0x46ddb1, laneOff: 0x332315, laneOn: 0xff6a1f, laneWarn: 0xff2a2a };
 const LANE_WARNING_MS = 5000, EXTRACT_FINAL_MS = 15000;
 const EMPTY_LAYOUT = Object.freeze({ ingress: [], solids: [], lanes: [], stages: [] });
+// The scene blends in linear light (combat-post-process renders into a linear
+// target), where the old sRGB-tuned alphas read about three times as strong over
+// dark walls but weaker over pale concrete. The volumetric field only needs a hint;
+// the floor cues (build zone, extraction ring) keep enough alpha to read on light floors.
+const OVERLAY_OPACITY = Object.freeze({ field: 0.025, zone: 0.1, ring: 0.16, ringIdle: 0.1, ringPulse: [0.12, 0.07] });
+// Distance every overlay keeps from the integer voxel planes it would otherwise share.
+const OVERLAY_INSET = 0.05;
 
 export class BastionWorld {
   constructor(scene, layout) {
@@ -19,8 +26,11 @@ export class BastionWorld {
     this.metal = this.material(0x24394b); this.pale = this.material(0xd2e7df); this.dark = this.material(0x1a2430);
     const stages = Array.isArray(this.layout.stages) ? this.layout.stages : [];
     const floorY = stages[0]?.objective?.y ?? 15.02;
-    const field = new THREE.MeshBasicMaterial({ color: 0xff9d4b, transparent: true, opacity: .12, depthWrite: false, side: THREE.DoubleSide }); this.materials.push(field);
-    for (const b of this.layout.ingress ?? []) this.box(this.group, [(b.minX + b.maxX) / 2, floorY + 4, (b.minZ + b.maxZ) / 2], [b.maxX - b.minX, 8, b.maxZ - b.minZ], field);
+    // Ingress fields sit OVERLAY_INSET inside every block plane, so walls hide them
+    // by depth instead of z-fighting with them; only the openings stay tinted.
+    const field = this.overlay(0xff9d4b, OVERLAY_OPACITY.field, 1), fieldBase = Math.floor(floorY);
+    for (const b of this.layout.ingress ?? []) this.box(this.group, [(b.minX + b.maxX) / 2, fieldBase + 4, (b.minZ + b.maxZ) / 2],
+      [b.maxX - b.minX - 2 * OVERLAY_INSET, 8 - 2 * OVERLAY_INSET, b.maxZ - b.minZ - 2 * OVERLAY_INSET], field);
     for (const lane of this.layout.lanes ?? []) {
       const e = lane.entry ?? { x: 0, y: floorY, z: 0 }, material = this.material(0x80684f, COLOR.laneOff);
       this.box(this.group, [e.x, e.y + 5.5, e.z], [0.4, 2, 0.4], material);
@@ -53,8 +63,8 @@ export class BastionWorld {
         this.box(root, [0, 0.1, 0], [1.6, 0.2, 1.6], this.metal);
         this.box(root, [0, 1.8, 0], [0.4, 3.2, 0.4], this.pale);
         { const torus = new THREE.TorusGeometry(0.6, 0.06, 8, 24); torus.rotateX(Math.PI / 2); s.strobe = this.mesh(root, torus, glow, [0, 3.4, 0]); }
-        { const r = stage.extractRadius ?? 8; s.ringMat = new THREE.MeshBasicMaterial({ color: COLOR.amber, transparent: true, opacity: .3, depthWrite: false, side: THREE.DoubleSide }); this.materials.push(s.ringMat);
-          const ring = new THREE.RingGeometry(Math.max(0.5, r - 0.35), r, 48); ring.rotateX(-Math.PI / 2); s.ring = this.mesh(root, ring, s.ringMat, [0, 0.03, 0]); s.ring.visible = false; }
+        { const r = stage.extractRadius ?? 8; s.ringMat = this.overlay(COLOR.amber, OVERLAY_OPACITY.ring, -1);
+          const ring = new THREE.RingGeometry(Math.max(0.5, r - 0.35), r, 48); ring.rotateX(-Math.PI / 2); s.ring = this.mesh(root, ring, s.ringMat, [0, Math.floor(o.y) - o.y + OVERLAY_INSET, 0]); s.ring.visible = false; }
         top = 3.9; break;
       default: // 'core': the reactor stack
         this.box(root, [0, 0.22, 0], [2.8, 0.44, 2.8], this.metal);
@@ -73,13 +83,19 @@ export class BastionWorld {
     const z = stage.buildZone;
     if (z && [z.minX, z.maxX, z.minZ, z.maxZ].every(Number.isFinite)) {
       const w = z.maxX - z.minX + 1, d = z.maxZ - z.minZ + 1;
-      const zoneMat = new THREE.MeshBasicMaterial({ color: COLOR.zone, transparent: true, opacity: .18, depthWrite: false, side: THREE.DoubleSide }); this.materials.push(zoneMat);
+      const zoneMat = this.overlay(COLOR.zone, OVERLAY_OPACITY.zone, -1);
       const plane = new THREE.PlaneGeometry(w, d); plane.rotateX(-Math.PI / 2);
-      s.zone = this.mesh(this.group, plane, zoneMat, [z.minX + w / 2, o.y + 0.01, z.minZ + d / 2]); s.zone.visible = false;
+      s.zone = this.mesh(this.group, plane, zoneMat, [z.minX + w / 2, Math.floor(o.y) + OVERLAY_INSET, z.minZ + d / 2]); s.zone.visible = false;
     }
     return s;
   }
 
+  /** Low-alpha zone cue; `offset` 1 yields to coplanar-adjacent geometry, -1 wins over the floor below it. */
+  overlay(color, opacity, offset) {
+    const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: offset, polygonOffsetUnits: offset });
+    this.materials.push(m); return m;
+  }
   material(color, emissive = 0) { const m = new THREE.MeshStandardMaterial({ color, emissive, emissiveIntensity: 0.8, roughness: 0.55, metalness: 0.4 }); this.materials.push(m); return m; }
   mesh(parent, geometry, material, pos) { this.geometries.push(geometry); const mesh = new THREE.Mesh(geometry, material); mesh.position.set(...pos); parent.add(mesh); return mesh; }
   box(parent, pos, size, material) { return this.mesh(parent, new THREE.BoxGeometry(...size), material, pos); }
@@ -139,7 +155,7 @@ export class BastionWorld {
       if (s.ring?.visible) {
         const live = this.phase === 'live', final = live && this.holdRemainingMs !== null && this.holdRemainingMs <= EXTRACT_FINAL_MS;
         s.ringMat.color.setHex(final ? COLOR.zone : COLOR.amber);
-        s.ringMat.opacity = live ? 0.22 + 0.16 * Math.sin(this.clock * (final ? 6 : 2.5)) : 0.18;
+        s.ringMat.opacity = live ? OVERLAY_OPACITY.ringPulse[0] + OVERLAY_OPACITY.ringPulse[1] * Math.sin(this.clock * (final ? 6 : 2.5)) : OVERLAY_OPACITY.ringIdle;
       }
     }
   }

@@ -47,20 +47,7 @@ export function buildNuketownDetails() {
   mesh.instanceColor.needsUpdate=true;
   group.add(mesh);
   const textures=[], materials=[material], geometries=[geometry];
-  const desertGeo=new THREE.PlaneGeometry(700,700);
-  const desertMat=new THREE.MeshLambertMaterial({color:0xc4ad83});
-  const desert=new THREE.Mesh(desertGeo,desertMat);
-  desert.rotation.x=-Math.PI/2;desert.position.set(64,13.9,48);group.add(desert);
-  geometries.push(desertGeo);materials.push(desertMat);
-  const mountainMat=new THREE.MeshLambertMaterial({color:0xa79078});
-  materials.push(mountainMat);
-  for(let i=0;i<18;i++) {
-    const angle=i*Math.PI*2/18, height=10+(i*7)%17;
-    const geo=new THREE.CylinderGeometry(14+(i*3)%14,45+(i*11)%26,height,6,1);
-    const mountain=new THREE.Mesh(geo,mountainMat);
-    mountain.position.set(64+Math.cos(angle)*235,13+height/2,48+Math.sin(angle)*235);
-    mountain.rotation.y=i*.7;group.add(mountain);geometries.push(geo);
-  }
+  // The desert floor and the mesa ring beyond the fence are one merged draw in map-backdrop.js.
   const label=(text,x,y,z,w,h,background,ink,rotation=0)=>{
     const canvas=document.createElement('canvas'); canvas.width=1024; canvas.height=256;
     const ctx=canvas.getContext('2d'); ctx.fillStyle=background;ctx.fillRect(0,0,1024,256);

@@ -173,7 +173,8 @@ export class ProjectileFX {
     });
     this.pulseMaterial = new THREE.MeshStandardMaterial({
       color: 0x0f2a33, roughness: 0.3, metalness: 0.85,
-      emissive: 0x59e8ff, emissiveIntensity: 0.9,
+      // HDR: > 1 so the pulse core blooms on HDR tiers.
+      emissive: 0x59e8ff, emissiveIntensity: 2.2,
     });
     this.bottleMaterial = new THREE.MeshStandardMaterial({
       color: 0x426d2d, roughness: 0.25, metalness: 0.12,
@@ -192,12 +193,15 @@ export class ProjectileFX {
     });
     this.boltCoreMaterial = new THREE.MeshStandardMaterial({
       color: 0x0f2a33, roughness: 0.3, metalness: 0.85,
-      emissive: 0x7dfcff, emissiveIntensity: 1.2,
+      emissive: 0x7dfcff, emissiveIntensity: 2.6,
     });
     this.boltGlowMaterial = new THREE.MeshBasicMaterial({
       color: 0x7dfcff, transparent: true, opacity: 0.35, toneMapped: false,
       blending: THREE.AdditiveBlending, depthWrite: false,
     });
+    // Energy additives carry HDR colour (> 1.0) so HDR tiers bloom them; LDR clips.
+    this.boltGlowMaterial.color.multiplyScalar(2);
+    this.exhaustMaterial.color.multiplyScalar(2.2);
     // RIPTIDE disc: toothed blade plate lying in local XZ (normal +y), hub, razor-glow rim.
     this.glaiveDiscGeometry = glaiveDiscGeometry();
     this.glaiveHubGeometry = new THREE.CylinderGeometry(0.03, 0.03, 0.036, 12);

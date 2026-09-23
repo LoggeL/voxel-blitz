@@ -33,23 +33,30 @@ export class RailBeamFX {
     this.ringGeometry = new THREE.TorusGeometry(1, 0.045, 4, 24);
     this.pool = Array.from({ length: POOL_SIZE }, () => {
       const group = new THREE.Group();
-      const layers = [0xf7ffff, 0xaa89ff, 0x633bff].map((color) => {
-        const mesh = new THREE.Mesh(this.geometry, new THREE.MeshBasicMaterial({
-          color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
-        }));
+      // Linear HDR gains: the white core and violet sheath exceed 1.0 so HDR tiers
+      // bloom them; the wide hit-radius corona stays a faint 1.0 veil.
+      const layers = [[0xf7ffff, 3.2], [0xaa89ff, 1.6], [0x633bff, 1]].map(([color, gain]) => {
+        const material = new THREE.MeshBasicMaterial({
+          color, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+        });
+        material.color.multiplyScalar(gain);
+        const mesh = new THREE.Mesh(this.geometry, material);
         group.add(mesh);
         return mesh;
       });
       const rings = Array.from({ length: 5 }, () => {
-        const mesh = new THREE.Mesh(this.ringGeometry, new THREE.MeshBasicMaterial({
-          color: 0x9defff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
-        }));
+        const material = new THREE.MeshBasicMaterial({
+          color: 0x9defff, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
+        });
+        material.color.multiplyScalar(1.8);
+        const mesh = new THREE.Mesh(this.ringGeometry, material);
         group.add(mesh);
         return mesh;
       });
       const glows = [0, 1].map(() => {
         const sprite = new THREE.Sprite(new THREE.SpriteMaterial({
           map: this.glowTexture, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
+          color: new THREE.Color().setScalar(2.4), toneMapped: false,
         }));
         group.add(sprite);
         return sprite;
