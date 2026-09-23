@@ -46,14 +46,14 @@ Median aus `npm run balance:simulate` (Standardoptionen, 100 HP, keine Rüstung)
 
 Die Streuungsszenarien liegen wegen des 0,22-m-Scheibenradius innerhalb von 0,02 s der perfekten Werte. Zum Vergleich: VK-77 RAPTOR 0,35 s (Körper, bis 20 m). Die Spezifikation erwartete 0,40 s mit R und 1,0–1,2 s ohne Trick; beides setzt einen Rückweg durch das Ziel voraus, den die Wendegeometrie im Freien nicht erzeugt. Details und Ursachen: `docs/weapon-design/glaive.md`.
 
-## SB-1 SUDSBLASTER (Stand 2026-09-22)
+## SB-1 SUDSBLASTER (Stand 2026-09-23, Buff)
 
-Median aus `npm run balance:simulate` (Standardoptionen, 100 HP, keine Rüstung). Der Hauptvergleich schießt Soap Shots (Tippen, Loslassen im nächsten Tick); die Zusatzreihe `Big Bubble (voll geladen)` hält jeden Schuss 900 ms. Die Flugbahnkorrektur nutzt `bubbleLaunch`/`stepBubble` aus `shared/bubble-rules.js`, also Auftrieb und Luftwiderstand des echten Integrators. Ein Soap-Shot-Volltreffer macht 16 + 26 = 42 roh, 33,6 nach Skalierung: drei Treffer töten. Kopftreffer zählen ×1.
+Median aus `simulateFight` (`tools/lib/ttk-simulation.mjs`, 64 Seeds, 100 HP, keine Rüstung). Der Hauptvergleich schießt Soap Shots (Tippen, Loslassen im nächsten Tick); die Zusatzreihe `Big Bubble (voll geladen)` hält jeden Schuss 600 ms. Die Flugbahnkorrektur nutzt `bubbleLaunch`/`stepBubble` aus `shared/bubble-rules.js`, also Auftrieb und Luftwiderstand des echten Integrators. Ein Soap-Shot-Volltreffer macht 16 + 28 = 44 roh, 35,2 nach Skalierung; der zweite Treffer landet im Einweichen des ersten (×1,25, 44), drei Treffer töten. Kopftreffer zählen ×1.
 
-| Szenario | 1 m | 5 m | 10 m | 15 m | ab 20 m |
-|---|---:|---:|---:|---:|---:|
-| Perfekt: Körper | 0,47 s | 0,62 s | 0,92 s | 1,40 s | keine Reichweite |
-| Streuung: Hüfte Körper | 0,47 s | 0,62 s | 0,92 s | 1,42 s | keine Reichweite |
-| Big Bubble (voll geladen), zwei Treffer | 2,05 s | 2,32 s | 3,02 s | keine Reichweite | keine Reichweite |
+| Szenario | 1 m | 5 m | 10 m | 15 m | 20 m | 25 m | ab 30 m |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Perfekt: Körper | 0,47 s | 0,57 s | 0,77 s | 0,98 s | 1,27 s | 1,67 s | keine Reichweite |
+| Streuung: Hüfte Körper | 0,47 s | 0,57 s | 0,77 s | 0,98 s | 1,28 s | 1,68 s | keine Reichweite |
+| Big Bubble (voll geladen), zwei Treffer | 1,42 s | 1,60 s | 2,23 s | keine Reichweite | keine Reichweite | keine Reichweite | keine Reichweite |
 
-Die Blasen driften mit dem Luftwiderstand gegen eine Endsteiggeschwindigkeit (3,0 bzw. 1,4 m/s); ein Soap Shot reicht höchstens etwa 18,6 m weit, eine Big Bubble etwa 12,8 m. Die Reichweitengrenze folgt aus der Flugbahn, nicht aus einem Schadensabfall. Zum Vergleich: VK-77 RAPTOR 0,35 s, HORNET SMG 0,40 s (Körper, bis 20 m). Gruppen-Splash, Einweichen (×0,6 Bewegung), Rückstoß und Bewegungstricks bildet die Simulation nicht ab. Details: `docs/weapon-design/bubble.md`.
+Vorher (2026-09-22): Soap Shot 0,47 / 0,62 / 0,92 / 1,40 s bis 15 m, ab 20 m keine Reichweite; Big Bubble 2,05 / 2,32 / 3,02 s. Die Blasen driften mit dem Luftwiderstand gegen eine Endsteiggeschwindigkeit (3,0 bzw. 1,4 m/s); ein Soap Shot reicht höchstens etwa 27 m weit, eine Big Bubble etwa 12,8 m. Die Reichweitengrenze folgt aus der Flugbahn, nicht aus einem Schadensabfall. Zum Vergleich: VK-77 RAPTOR 0,35 s, HORNET SMG 0,40 s (Körper, bis 20 m). Der großzügigere Splash (3,0 m, 17,6 auf 1 m), die Annäherungszündung der Big Bubble, Gruppen-Splash, Rückstoß und Bewegungstricks zeigen sich in diesen Duell-Werten nicht. Details: `docs/weapon-design/bubble.md`.

@@ -361,12 +361,12 @@ export const WEAPONS = {
     // Bubble launcher: tap for a quick Soap Shot, hold to blow a Big Bubble (fires on
     // release, lets go on its own at holdMaxMs). Bubbles are buoyant: drag bleeds their
     // speed toward a terminal rise, so every shot hooks upward and nothing flies past
-    // ~18.6 m. Pops splash, shove (always upward) and soak (concussion slow); they never
+    // ~27 m. Pops splash, shove (always upward) and soak (concussion slow); they never
     // hurt terrain or their owner. Flight and blast rules: shared/bubble-rules.js.
     id: 'bubble', name: 'SB-1 SUDSBLASTER', mode: 'charge',
     weightKg: 2.6,
     rpm: 300, magSize: 12, spareMags: 4,
-    damage: [42, 42, 19], falloffStart: 18,   // display only: raw direct Soap Shot; real damage is the blast
+    damage: [44, 44, 28], falloffStart: 24,   // display only: raw direct Soap Shot; real damage is the blast
     headMult: 1, pellets: 1, penetration: 0,
     spreadDeg: { hip: 1.4, ads: 0.5 }, bloomDeg: 0.35, bloomMaxDeg: 2.4,
     bloomRecover: 4.0, moveSpreadDeg: 1.0,
@@ -382,7 +382,7 @@ export const WEAPONS = {
     sfx: 'bubble',
     projectile: 'bubble',
     charge: {
-      ms: 900,             // a full Big Bubble
+      ms: 600,             // a full Big Bubble
       holdMaxMs: 1500,     // the film cannot hold more air: auto-release (no corner-camping a charged bubble)
       minDamageMult: 1,    // unused: damage comes from bubbleProfile(charge), not chargeDamageMult
       damageExponent: 2,

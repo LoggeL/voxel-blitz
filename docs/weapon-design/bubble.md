@@ -10,12 +10,13 @@ textures, audio and effects are original procedural work inspired by the
 cartoon's underwater bubble motif; no asset, logo, character likeness or sound
 is copied.
 
-- **Tap: Soap Shot.** A quick bubble that flies nearly straight to about 8 m,
-  then hooks upward. Three direct hits kill.
-- **Hold (up to 0.9 s): Big Bubble.** A wobbling film swells on the wand ring.
+- **Tap: Soap Shot.** A fast bubble that flies nearly straight to about 15 m,
+  then hooks upward. Three direct hits kill; a soaked target takes two direct
+  hits and a near miss.
+- **Hold (up to 0.6 s): Big Bubble.** A wobbling film swells on the wand ring.
   On release a big, slow bubble drifts out, hovers and rises: a shove, a
-  floating mine, a ceiling bomb and a trampoline in one. At 1.5 s the film
-  lets go on its own.
+  floating trap that pops on any enemy who comes within 0.8 m of its film, a
+  ceiling bomb and a trampoline in one. At 1.5 s the film lets go on its own.
 
 ## Rules
 
@@ -23,7 +24,7 @@ Canonical values live in `shared/bubble-rules.js` (`BUBBLE_RULES`), which the
 server, the client prediction, bots, the HUD rise ladder and the TTK simulator
 all import. `WEAPONS.bubble` in `shared/combatmath.js` holds cadence (300 rpm),
 the 12-round tank with 4 spares, reload 2.2 s (tactical 1.7 s), spread, recoil
-and the charge window (`charge.ms` 900, `holdMaxMs` 1500). Its `damage` array
+and the charge window (`charge.ms` 600, `holdMaxMs` 1500). Its `damage` array
 is display only; the real damage is the pop.
 
 Every profile field is lerped from the tap endpoint to the Big Bubble endpoint
@@ -31,12 +32,13 @@ by `mix = charge01²`, so short taps stay Soap Shots.
 
 | Field | Soap Shot (tap) | Big Bubble (full) |
 |---|---:|---:|
-| Launch speed | 24 m/s | 13 m/s |
-| Drag / terminal rise | 1.2 / 3.0 m/s | 1.0 / 1.4 m/s |
+| Launch speed | 32 m/s | 13 m/s |
+| Drag / terminal rise | 0.9 / 3.0 m/s | 1.0 / 1.4 m/s |
 | Radius | 0.24 m | 0.60 m |
-| Lifetime | 2.2 s | 4.2 s |
-| Direct + splash (raw) | 16 + 26 | 20 + 50 |
-| Splash radius | 2.2 m | 4.2 m |
+| Lifetime | 1.6 s | 4.2 s |
+| Direct + splash (raw) | 16 + 28 | 35 + 50 |
+| Splash radius / falloff exponent | 3.0 m / 0.6 | 4.2 m / 0.9 |
+| Proximity trigger | none | 0.8 m from the film |
 | Knockback / self | 3.5 / 2.0 | 13 / 8 |
 | Soak | 0.5 s | 1.8 s |
 
@@ -48,34 +50,41 @@ point.
 
 | Target distance | Soap Shot: time / rise / aim under | Big Bubble: time / rise / aim under |
 |---|---|---|
-| 5 m | 0.18 s / +0.05 m / aim at the chest | 0.32 s / +0.06 m |
-| 8 m | 0.35 s / +0.19 m / 0.25° | 0.70 s / +0.27 m / 0.8° |
-| 10 m | 0.49 s / +0.36 m / 1.1° | 1.07 s / +0.58 m / 2.4° |
-| 12 m | 0.66 s / +0.60 m / 2.1° | 1.66 s / +1.19 m / 4.9° |
-| 15 m | 0.99 s / +1.23 m / 4.1° | out of reach |
-| Maximum | 18.6 m, +4.3 m at the pop | 12.8 m, +4.5 m (hovers for the last ~1.7 s) |
+| 5 m | 0.13 s / +0.02 m / aim at the chest | 0.32 s / +0.06 m |
+| 8 m | – | 0.70 s / +0.27 m / 0.8° |
+| 10 m | 0.32 s / +0.13 m / aim at the chest | 1.07 s / +0.58 m / 2.4° |
+| 12 m | – | 1.66 s / +1.19 m / 4.9° |
+| 15 m | 0.55 s / +0.35 m / 0.7° | out of reach |
+| 20 m | 0.84 s / +0.75 m / 1.7° | out of reach |
+| 25 m | 1.24 s / +1.48 m / 3.0° | out of reach |
+| Maximum | 27.1 m, +2.3 m at the pop | 12.8 m, +4.5 m (hovers for the last ~1.7 s) |
 
 Bubbles are good against targets level with or above you and poor against
 targets far below. The range cap comes from the physics, not from a hidden
 falloff.
 
 **Damage.** After `COMBAT_DAMAGE_SCALE` (0.8) a Soap Shot direct hit deals
-33.6 (three kill, 100.8), a Big Bubble 56. Splash is measured to the chest
+35.2 (three kill, 105.6), a Big Bubble 68. Splash is measured to the chest
 (feet + 1.05 m):
 
 | Pop to chest | 0.5 m | 1 m | 1.5 m | 2 m | 3 m | 4 m |
 |---|---:|---:|---:|---:|---:|---:|
-| Soap Shot | 16.1 | 11.3 | 6.6 | 1.9 | 0 | 0 |
+| Soap Shot | 20.1 | 17.6 | 14.8 | 11.6 | 0 | 0 |
 | Big Bubble | 35.7 | 31.3 | 26.9 | 22.4 | 13.0 | 2.6 |
 
 **Every pop** splashes, shoves (always upward), soaks the victim (the existing
 `concussedUntil` slow, ×0.6 move speed) and **never damages terrain or its
-owner**. Gun Game keeps its player damage. The `hit` event carries `soak` only
+owner**. **Soaked** (`soakedUntil`, as long as the soak): the next bubble pop on
+that victim deals ×1.25, so a Soap Shot stream goes 35.2, then 44, and two
+direct hits plus a 1 m near miss kill. A Big Bubble plus one Soap Shot kills. Gun Game keeps its player damage. The `hit` event carries `soak` only
 when damage was dealt, and the client applies the slow locally so the victim
 does not rubber-band.
 
 **Bubble rules on the server** (`server/sim/projectiles.js`):
 - an owner's own bubbles never set each other off;
+- a Big Bubble's film pops on any visible enemy body within `proximity`
+  (lerped, 0.8 m at full charge) and that body takes the direct hit;
+- enemy hitscan needs two rays to pop a Big Bubble (`tough`, mix ≥ 0.5);
 - enemy hitscan pops a bubble without stopping; teammates' bullets pass through;
 - walking into your own floating bubble after 220 ms bounces you up without damage;
 - each owner keeps at most 16 bubbles; a full room (192 projectiles) evicts that
@@ -122,7 +131,7 @@ with no self-damage.
   normal, and one pooled burst of cartoon pop strokes per pop (quads, since
   WebGL ignores line widths), scaled by the blast radius and halved for
   Foam-party minis.
-- **HUD** (`public/js/ui/bubble-hud.js`): a rise ladder with 10/12/15 m marks
+- **HUD** (`public/js/ui/bubble-hud.js`): a rise ladder with 15/20/25 m marks
   computed from the shared flight rules and the current field of view (they
   slide toward 8/10/12 m while charging), and a pastel SOAKED vignette.
 - **Audio** (`public/js/audio/reports.js`, `sfx.js`): a charge-aware

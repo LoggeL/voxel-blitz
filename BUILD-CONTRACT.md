@@ -381,7 +381,7 @@ The slot roster is exactly
 | 10 `minigun` | M-6 FURNACE | auto | 1200 | 300/4 | 12→8 @ 70 | 1.70× | 1 | 1.35°/0.36° | 11.8 kg |
 | 11 `flamethrower` | F-4 FIRESTORM | auto | 1200 | 160/5 | 6→2 @ 28 | 1.00× | 1 | 0°/0° | 5.8 kg |
 | 12 `glaive` | GV-4 RIPTIDE | semi | 150 | 2 discs/0 | disc: out 54, back 72 | 1.50× | 1 | 1.20°/0.30° | 3.1 kg |
-| 13 `bubble` | SB-1 SUDSBLASTER | charge | 300 | 12/4 | bubble: tap 16+26, Big 20+50 | 1.00× | 1 | 1.40°/0.50° | 2.6 kg |
+| 13 `bubble` | SB-1 SUDSBLASTER | charge | 300 | 12/4 | bubble: tap 16+28, Big 35+50 | 1.00× | 1 | 1.40°/0.50° | 2.6 kg |
 
 Damage is flat to 20 world units by default; the shotgun starts falloff at 12
 and the lance at 45. It then falls linearly to the table's far value at the
@@ -421,16 +421,20 @@ tick. Throwing needs a seated disc and fewer than `magSize` discs in the air.
 The SUDSBLASTER (`bubble`) is `mode:'charge'` and `projectile:'bubble'`:
 `shared/bubble-rules.js` owns one exact flight integrator for the server, the
 client prediction, bots, the HUD rise ladder and the TTK simulation. A tap
-(Soap Shot) leaves 0.55 m ahead of and 0.16 m below the eye at 24 m/s; holding
-for `charge.ms` (900) blows a Big Bubble (13 m/s) that leaves on release or on
+(Soap Shot) leaves 0.55 m ahead of and 0.16 m below the eye at 32 m/s; holding
+for `charge.ms` (600) blows a Big Bubble (13 m/s) that leaves on release or on
 its own at `charge.holdMaxMs` (1500). Every profile field is lerped by
 `charge01^2`. Drag bleeds speed toward a terminal rise (3.0 / 1.4 m/s), so
-bubbles hook upward and nothing reaches past about 18.6 m. A pop deals
-direct + splash before `COMBAT_DAMAGE_SCALE` (tap 16 + 26 @ 2.2 m, Big 20 + 50 @
-4.2 m), always shoves upward, soaks the victim (`concussedUntil`, ×0.6 move
-speed; the hit event carries `soak` only when damage was dealt), and never
-damages terrain or its owner; Gun Game keeps its player damage. An owner's bubbles never pop
-each other; enemy hitscan pops a bubble without stopping, teammates' bullets
+bubbles hook upward and nothing reaches past about 27 m. A pop deals
+direct + splash before `COMBAT_DAMAGE_SCALE` (tap 16 + 28 @ 3.0 m with falloff
+exponent 0.6, Big 35 + 50 @ 4.2 m), always shoves upward, soaks the victim
+(`concussedUntil` and `soakedUntil`, ×0.6 move speed; the hit event carries
+`soak` only when damage was dealt), and never damages terrain or its owner;
+Gun Game keeps its player damage. A pop on a victim still soaked by an earlier
+bubble deals ×1.25. A Big Bubble's film pops on any visible enemy body within
+`proximity` (0.8 m at full charge) and that body takes the direct hit. An
+owner's bubbles never pop each other; enemy hitscan pops a bubble without
+stopping (a Big Bubble, `mix` ≥ 0.5, needs two enemy rays), teammates' bullets
 pass through; walking into your own floating bubble after 220 ms bounces you
 without damage. Each owner keeps at most 16 bubbles (a full room evicts that
 owner's oldest) and a refused launch refunds the round. Chaos adds a twin

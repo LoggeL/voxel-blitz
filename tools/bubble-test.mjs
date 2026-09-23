@@ -64,7 +64,7 @@ assert.ok(STONE > 0, 'a damageable block type exists for wall contacts');
   assert.ok(WEAPONS.bubble.damage[2] > WEAPONS.bubble.falloffStart);
   // The 3-tap contract: direct + splash of a Soap Shot, scaled, times three kills.
   const tap = combatDamage(BUBBLE_RULES.small.directDamage + BUBBLE_RULES.small.splashDamage);
-  close(tap, 42 * COMBAT_DAMAGE_SCALE, 'Soap Shot direct effective damage', 1e-9);
+  close(tap, 44 * COMBAT_DAMAGE_SCALE, 'Soap Shot direct effective damage', 1e-9);
   assert.ok(3 * tap >= 100 && 2 * tap < 100, 'three direct Soap Shots kill, two do not');
 }
 
@@ -95,13 +95,13 @@ assert.ok(STONE > 0, 'a damageable block type exists for wall contacts');
     lastVy = b.vy;
   }
   assert.ok(b.y > startY + 1.0, `a tap rises more than 1 m in the first second (${b.y - startY})`);
-  assert.ok(bubbleMaxRange(bubbleProfile(0)) <= 18.6, 'Soap Shot reach caps near 18.6 m');
+  assert.ok(bubbleMaxRange(bubbleProfile(0)) <= 27.2, 'Soap Shot reach caps near 27.1 m');
   assert.ok(bubbleMaxRange(bubbleProfile(1)) <= 12.85, 'Big Bubble reach caps near 12.8 m');
   assert.equal(bubbleFlight(bubbleProfile(0), 30), null, 'nothing reaches 30 m');
   assert.equal(bubbleAimDrop(bubbleProfile(0), 30), null);
   const ten = bubbleFlight(bubbleProfile(0), 10);
-  close(ten.t, 0.49, 'Soap Shot reaches 10 m in ~0.49 s', 0.01);
-  close(ten.rise, 0.36, 'and rises ~0.36 m', 0.01);
+  close(ten.t, 0.32, 'Soap Shot reaches 10 m in ~0.32 s', 0.01);
+  close(ten.rise, 0.13, 'and rises ~0.13 m', 0.01);
 }
 
 // ---- 6. Point-blank wall clamp ------------------------------------------------------------
@@ -206,14 +206,14 @@ const chestOf = (p) => ({ x: p.x, y: p.y + 1.05, z: p.z });
   assert.equal(launched.length, 1, 'a tap launches exactly one bubble');
   const [b] = launched;
   assert.ok(b.id.startsWith('u'), 'bubble ids use the u prefix');
-  assert.ok(Math.abs(b.blastRules.directDamage - 16) < 0.01, 'a tap is (almost exactly) the Soap Shot');
+  assert.ok(Math.abs(b.blastRules.directDamage - 16) < 0.1, 'a tap is (almost exactly) the Soap Shot');
   assert.equal(h.owner.mag[SLOT], mag - 1, 'the tap spends one round');
   const launch = h.events.find((e) => e.kind === 'projectileLaunch' && e.pid === b.id);
   assert.ok(launch && Number.isFinite(launch.charge) && launch.chaos === 0, 'launch carries charge and chaos');
   assert.equal(launch.type, 'bubble');
 }
 
-// ---- 9. Direct Soap Shots: 33.6 each, three kill, credit 'bubble' --------------------------
+// ---- 9. Direct Soap Shots: 35.2, then 44 soaked; three kill, credit 'bubble' ---------------
 {
   const h = harness();
   const victim = h.addPlayer('victim', 5, 0, 0);
@@ -224,29 +224,89 @@ const chestOf = (p) => ({ x: p.x, y: p.y + 1.05, z: p.z });
     const hits = hitsOn(h.events, victim);
     assert.equal(hits.length, shot + 1, `tap ${shot + 1} lands directly`);
     // Hit events carry whole-number damage; the authoritative HP carries the decimals.
-    if (shot < 2) close(hp - victim.hp, 33.6, `tap ${shot + 1} deals 33.6`, 0.05);
-    assert.equal(hits.at(-1).soak, BUBBLE_RULES.small.concussMs, 'direct pops soak the victim');
+    // The second tap lands inside the first one's soak: x1.25.
+    if (shot < 2) close(hp - victim.hp, shot ? 44 : 35.2, `tap ${shot + 1} deals ${shot ? 44 : 35.2}`, 0.05);
+    assert.equal(hits.at(-1).soak, Math.round(bubbleProfile(b.charge).concussMs), 'direct pops soak the victim');
   }
   assert.equal(victim.state, 'dead', 'three direct Soap Shots kill');
   assert.deepEqual(h.kills.at(-1), { victim: 'victim', killer: 'owner', weapon: 'bubble', hs: false });
 }
 
-// ---- 10. Big Bubble direct: 56, a hard upward shove --------------------------------------
+// ---- 10. Big Bubble direct: 68, a hard upward shove --------------------------------------
 {
   const h = harness();
   const victim = h.addPlayer('victim', 5, 0, 0);
   const seq = victim.impulseSeq || 0;
   const hp = victim.hp;
-  const [b] = h.pull(h.owner, 900);
-  assert.ok(b.charge >= 0.99, `a 900 ms hold is a full Big Bubble (${b.charge})`);
+  const [b] = h.pull(h.owner, WEAPONS.bubble.charge.ms);
+  assert.ok(b.charge >= 0.99, `a ${WEAPONS.bubble.charge.ms} ms hold is a full Big Bubble (${b.charge})`);
   close(b.radius, BUBBLE_RULES.big.radius, 'Big Bubble radius', 1e-3);
   h.runUntilGone(b);
   const [hit] = hitsOn(h.events, victim);
-  close(hp - victim.hp, 56, 'Big Bubble direct deals 56', 0.1);
-  assert.equal(hit.dmg, 56);
+  close(hp - victim.hp, 68, 'Big Bubble direct deals 68', 0.1);
+  assert.equal(hit.dmg, 68);
   assert.equal(hit.soak, Math.round(bubbleProfile(b.charge).concussMs), 'Big Bubble soaks ~1.8 s');
   assert.ok(victim.vy >= 10, `Big Bubble lifts the victim (vy ${victim.vy})`);
   assert.ok(victim.impulseSeq > seq, 'the shove bumps impulseSeq');
+}
+
+// ---- 10b. Big Bubble trap: an enemy body near the film pops it as a direct hit ----------------
+{
+  const h = harness();
+  const victim = h.addPlayer('victim', 6, 0, 0);
+  const b = h.projectiles.launchBubble(h.owner, h.pctx, { x: 0, y: 0, z: -1 }, 1);
+  const chest = chestOf(victim);
+  // Hovering 1.2 m beside the chest: no contact, but inside radius + proximity of the hull.
+  Object.assign(b, { x: chest.x + 1.2, y: chest.y, z: chest.z, vx: 0, vy: 0, vz: 0, rise: 0 });
+  h.tick();
+  assert.equal(h.projectiles.active.has(b.id), false, 'a Big Bubble pops on a nearby enemy');
+  close(100 - victim.hp, 68, 'the trap pop counts as a direct Big Bubble hit', 0.1);
+
+  const soap = h.projectiles.launchBubble(h.owner, h.pctx, { x: 0, y: 0, z: -1 }, 0);
+  Object.assign(soap, { x: chest.x + 1.2, y: chest.y, z: chest.z, vx: 0, vy: 0, vz: 0, rise: 0 });
+  h.tick();
+  assert.ok(h.projectiles.active.has(soap.id), 'a Soap Shot has no proximity trigger');
+
+  const walled = harness({ solid: (x, y, z) => x === Math.floor(spawn.x + 0.6) });
+  const hidden = walled.addPlayer('victim', 6, 0, 0);
+  const c = walled.projectiles.launchBubble(walled.owner, walled.pctx, { x: 0, y: 0, z: -1 }, 1);
+  const hiddenChest = chestOf(hidden);
+  Object.assign(c, { x: hiddenChest.x + 1.2, y: hiddenChest.y, z: hiddenChest.z, vx: 0, vy: 0, vz: 0, rise: 0 });
+  walled.tick();
+  assert.ok(walled.projectiles.active.has(c.id), 'the film never reaches through a wall');
+
+  const team = harness({ canDamage: (a, v) => a !== v && !(a.team && a.team === v.team) });
+  team.owner.team = 'alpha';
+  const mate = team.addPlayer('mate', 6, 0, 0);
+  mate.team = 'alpha';
+  const f = team.projectiles.launchBubble(team.owner, team.pctx, { x: 0, y: 0, z: -1 }, 1);
+  const mateChest = chestOf(mate);
+  Object.assign(f, { x: mateChest.x + 1.2, y: mateChest.y, z: mateChest.z, vx: 0, vy: 0, vz: 0, rise: 0 });
+  team.tick();
+  assert.ok(team.projectiles.active.has(f.id), 'teammates never trip it');
+}
+
+// ---- 10c. Soaked: a pop inside an earlier soak lands x1.25; the soak ends with the life -------
+{
+  const h = harness();
+  const victim = h.addPlayer('victim', 8, 0, 0);
+  const pop = (dx) => {
+    const b = h.projectiles.launchBubble(h.owner, h.pctx, { x: 0, y: 0, z: -1 }, 0);
+    const chest = chestOf(victim);
+    Object.assign(b, { x: chest.x + dx, y: chest.y, z: chest.z });
+    const hp = victim.hp;
+    h.projectiles.explode(b, h.pctx);
+    return hp - victim.hp;
+  };
+  const dry = pop(1);
+  close(victim.soakedUntil, h.pctx.now + BUBBLE_RULES.small.concussMs, 'a damaging pop soaks', 1e-3);
+  close(pop(1), combatDamage(Math.round(28 * (2 / 3) ** 0.6 * BUBBLE_RULES.soakedDamageMult * 10) / 10),
+    'the soaked pop deals x1.25', 1e-9);
+  assert.ok(dry < 18, `the first pop is dry (${dry})`);
+  h.pctx.now += BUBBLE_RULES.small.concussMs + 1;
+  close(pop(1), dry, 'the bonus ends with the soak', 1e-9);
+  victim.applySpawn(spawn);
+  assert.equal(victim.soakedUntil, 0, 'a respawn is dry');
 }
 
 // ---- 11. Splash at 1 m; nothing behind a wall ------------------------------------------------
@@ -258,9 +318,9 @@ const chestOf = (p) => ({ x: p.x, y: p.y + 1.05, z: p.z });
   Object.assign(b, { x: chest.x + 1, y: chest.y, z: chest.z });
   h.projectiles.explode(b, h.pctx);
   assert.equal(hitsOn(h.events, victim).length, 1, 'the splash hits');
-  const expected = combatDamage(Math.round(26 * (1 - 1 / 2.2) * 10) / 10);
+  const expected = combatDamage(Math.round(28 * (1 - 1 / 3) ** 0.6 * 10) / 10);
   close(100 - victim.hp, expected, 'Soap Shot splash at 1 m', 1e-9);
-  close(100 - victim.hp, 11.3, 'splash at 1 m is ~11.3', 0.1);
+  close(100 - victim.hp, 17.6, 'splash at 1 m is ~17.6', 0.1);
   close(victim.concussedUntil, h.pctx.now + BUBBLE_RULES.small.concussMs, 'splash soaks for 500 ms', 1e-3);
 
   const walled = harness({ solid: (x, y, z) => x === Math.floor(spawn.x + 0.6) });
@@ -308,8 +368,8 @@ const chestOf = (p) => ({ x: p.x, y: p.y + 1.05, z: p.z });
   const victim = h.addPlayer('victim', 8, 0, 0);
   const b = h.projectiles.launchBubble(h.owner, h.pctx, { x: 0, y: 0, z: -1 }, 0);
   const chest = chestOf(victim);
-  // 2.198 m: inside the 2.2 m radius, but the splash rounds to zero.
-  Object.assign(b, { x: chest.x + 2.198, y: chest.y, z: chest.z });
+  // 2.99995 m: inside the 3.0 m radius, but the splash rounds to zero.
+  Object.assign(b, { x: chest.x + 2.99995, y: chest.y, z: chest.z });
   h.projectiles.explode(b, h.pctx);
   assert.equal(hitsOn(h.events, victim).length, 0, 'a zero-damage edge pop sends no hit');
   assert.equal(victim.concussedUntil, 0, 'and soaks nobody');
@@ -365,8 +425,13 @@ const chestOf = (p) => ({ x: p.x, y: p.y + 1.05, z: p.z });
   const b = h.projectiles.launchBubble(h.owner, h.pctx, { x: 0, y: 0, z: -1 }, 1);
   // Park the owner's Big Bubble on the rifle's line, 6 m out and 0.7 m off the victim's chest line.
   Object.assign(b, { x: shooter.x, y: shooter.eyeY, z: shooter.z - 6 });
+  const fuse = b.explodeAt;
   fireOneShot(shooter, h.combat, 1, { yaw: 0, pitch: 0 });
-  assert.ok(b.explodeAt <= h.pctx.now && b.chained, 'an enemy ray pops the bubble');
+  assert.equal(b.explodeAt, fuse, 'one enemy ray does not pop a Big Bubble');
+  assert.equal(b.bulletHits, 1);
+  shooter.cooldown = 0;
+  fireOneShot(shooter, h.combat, 1, { yaw: 0, pitch: 0 });
+  assert.ok(b.explodeAt <= h.pctx.now && b.chained, 'a second enemy ray pops it');
   assert.ok(hitsOn(h.events, victim).some((e) => e.attacker === 'shooter'), 'the ray still reaches the victim');
   h.tick();
   assert.equal(h.projectiles.active.has(b.id), false, 'the popped bubble is gone next tick');
@@ -537,8 +602,8 @@ const chestOf = (p) => ({ x: p.x, y: p.y + 1.05, z: p.z });
   const h = harness({ solid: (x, y, z) => z <= wallZ });
   h.owner.chaosUpgrades = { bubble: 2 };
   const b = h.projectiles.launchBubble(h.owner, h.pctx, { x: 0, y: 0, z: -1 }, 0, true);
-  for (let i = 0; i < 40 && b.z - (wallZ + 1) > 1; i++) h.tick();
-  assert.ok(h.projectiles.active.has(b.id) && !b.stuck && b.z - (wallZ + 1) <= 1, 'the bubble is one tick off the wall');
+  for (let i = 0; i < 40 && b.z - (wallZ + 1) > 1.5; i++) h.tick();
+  assert.ok(h.projectiles.active.has(b.id) && !b.stuck && b.z - (wallZ + 1) <= 1.5, 'the bubble is one tick off the wall');
   const shooter = h.addPlayer('shooter', 0, 5, 0);
   assert.equal(h.projectiles.popBubblesOnRay(shooter, [b.x + 5, b.y, b.z], { x: -1, y: 0, z: 0 }, 0, 20, 0, h.pctx), 1,
     'the ray pops the bubble');
@@ -735,7 +800,7 @@ const chestOf = (p) => ({ x: p.x, y: p.y + 1.05, z: p.z });
   // Double bubble: the twin keeps the release charge and counts toward the owner cap.
   const big = harness();
   big.owner.chaosUpgrades = { bubble: 1 };
-  const pair = big.pull(big.owner, 900);
+  const pair = big.pull(big.owner, WEAPONS.bubble.charge.ms);
   assert.equal(pair.length, 2, 'a charged pull blows its twin too');
   assert.ok(pair[0].charge >= 0.99 && pair[1].charge === pair[0].charge, 'the twin keeps the release charge');
   const cap = harness();
@@ -906,11 +971,11 @@ const chestOf = (p) => ({ x: p.x, y: p.y + 1.05, z: p.z });
 {
   const { bubbleLadderMarks, bubbleLadderOffsetPx, BubbleHud } = await import('../public/js/ui/bubble-hud.js');
   const tap = bubbleLadderMarks(0, 75, 800);
-  assert.deepEqual(tap.map((m) => m.distance), [10, 12, 15], 'Soap Shot marks at 10/12/15 m');
+  assert.deepEqual(tap.map((m) => m.distance), [15, 20, 25], 'Soap Shot marks at 15/20/25 m');
   assert.ok(tap.every((m) => m.px > 0) && tap[0].px < tap[1].px && tap[1].px < tap[2].px,
     'marks sit above the crosshair, farther marks higher');
   const focal = 800 / (2 * Math.tan(75 * Math.PI / 360));
-  close(tap[0].px, Math.tan(bubbleAimDrop(bubbleProfile(0), 10)) * focal, 'the 10 m mark is the aim drop', 1e-9);
+  close(tap[0].px, Math.tan(bubbleAimDrop(bubbleProfile(0), 15)) * focal, 'the 15 m mark is the aim drop', 1e-9);
   const full = bubbleLadderMarks(1, 75, 800);
   assert.deepEqual(full.map((m) => m.distance), [8, 10, 12], 'a full charge slides to the Big-Bubble marks');
   assert.ok(full.every((m) => m.px > 0), 'every Big-Bubble mark is in reach');
@@ -1047,10 +1112,10 @@ const chestOf = (p) => ({ x: p.x, y: p.y + 1.05, z: p.z });
     assert.ok(pressThenRelease, 'the tap presses and releases');
     assert.ok(human.hp < 1000, 'bot Soap Shots land at 10 m');
     // The aim drop the bot applies at full skill.
-    const flight = bubbleFlight(bubbleProfile(0), 10);
-    assert.ok(flight.rise - BUBBLE_RULES.muzzleDrop > 0.15, 'at 10 m the bot aims ~0.2 m under the chest');
+    const flight = bubbleFlight(bubbleProfile(0), 15);
+    assert.ok(flight.rise - BUBBLE_RULES.muzzleDrop > 0.15, 'at 15 m the bot aims ~0.2 m under the chest');
 
-    // A second enemy within 3.5 m of the target earns a ~855 ms Big Bubble.
+    // A second enemy within 3.5 m of the target earns a ~570 ms Big Bubble.
     hold(20.5, 12.5, [22.5, 12.5]);
     const big = [];
     watch(4000, () => { for (const b of own()) if (!big.some((c) => c.id === b.id)) big.push(b.charge); });
@@ -1065,8 +1130,8 @@ const chestOf = (p) => ({ x: p.x, y: p.y + 1.05, z: p.z });
     assert.ok(stale.length >= 2, `a stale Big-Bubble flag still fires Soap Shots at 14.5 m (${stale.length})`);
     assert.ok(stale.every((c) => c.charge < 0.1), 'and they are taps');
 
-    // 25 m: never fires the bubble, swaps to the revolver.
-    hold(20.5, 45.5);
+    // 35 m: never fires the bubble, swaps to the revolver.
+    hold(20.5, 55.5);
     brain.bubbleSwapAt = 0;
     let fired = false, swapped = false;
     watch(3000, () => {
@@ -1075,7 +1140,7 @@ const chestOf = (p) => ({ x: p.x, y: p.y + 1.05, z: p.z });
       if (call?.input.switchTo === WEAPON_IDS.indexOf(DEFAULT_WEAPON_ID)) swapped = true;
       if (bot.weapon !== SLOT) Object.assign(bot, { weapon: SLOT, deployT: 0 });
     });
-    assert.equal(fired, false, 'bots never fire bubbles at 25 m');
+    assert.equal(fired, false, 'bots never fire bubbles at 35 m');
     assert.ok(swapped, 'bots swap to the revolver beyond the bubble reach');
   } finally {
     manager.dispose();
@@ -1083,6 +1148,6 @@ const chestOf = (p) => ({ x: p.x, y: p.y + 1.05, z: p.z });
   }
 }
 
-console.log('SB-1 SUDSBLASTER: rules, exact integrator, reach, taps, Big Bubble, splash, soak, no terrain, self, '
+console.log('SB-1 SUDSBLASTER: rules, exact integrator, reach, taps, Big Bubble, trap, soaked bonus, splash, soak, no terrain, self, '
   + 'Gun Game, owner chain, bullet pops, trampoline, caps, vent, Double bubble, Clingfilm, Foam party, chaos edges, client presentation, '
   + 'viewmodel presentation, rise ladder, soak vignette and bots passed.');

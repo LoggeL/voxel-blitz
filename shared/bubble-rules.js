@@ -9,18 +9,24 @@
 const clamp01 = (v) => Math.max(0, Math.min(1, Number.isFinite(v) ? v : 0));
 
 export const BUBBLE_RULES = Object.freeze({
-  /** Tap endpoint (charge 0): the Soap Shot. 3 direct hits kill (3 x 33.6). */
+  /** Tap endpoint (charge 0): the Soap Shot. 3 direct hits kill (3 x 35.2); soaked,
+   * two direct hits and a 1 m near miss do. Flat and fast, with a forgiving splash. */
   small: Object.freeze({
-    speed: 24, drag: 1.2, rise: 3.0, radius: 0.24, lifetimeMs: 2200,
-    directDamage: 16, splashDamage: 26, damageRadius: 2.2, damageFalloffExponent: 1.0,
-    knockback: 3.5, selfKnockback: 2.0, knockbackRadius: 2.8, concussMs: 500,
+    speed: 32, drag: 0.9, rise: 3.0, radius: 0.24, lifetimeMs: 1600,
+    directDamage: 16, splashDamage: 28, damageRadius: 3.0, damageFalloffExponent: 0.6,
+    knockback: 3.5, selfKnockback: 2.0, knockbackRadius: 2.8, concussMs: 500, proximity: 0,
   }),
-  /** Full-hold endpoint (charge 1): the Big Bubble. Control, shove, movement. */
+  /** Full-hold endpoint (charge 1): the Big Bubble. A floating trap: it pops on any enemy
+   * body within `proximity` of its film, and that body takes the direct hit. */
   big: Object.freeze({
     speed: 13, drag: 1.0, rise: 1.4, radius: 0.60, lifetimeMs: 4200,
-    directDamage: 20, splashDamage: 50, damageRadius: 4.2, damageFalloffExponent: 0.9,
-    knockback: 13, selfKnockback: 8, knockbackRadius: 4.6, concussMs: 1800,
+    directDamage: 35, splashDamage: 50, damageRadius: 4.2, damageFalloffExponent: 0.9,
+    knockback: 13, selfKnockback: 8, knockbackRadius: 4.6, concussMs: 1800, proximity: 0.8,
   }),
+  /** A pop on a victim still soaked by an earlier bubble hits this much harder. */
+  soakedDamageMult: 1.25,
+  /** Big Bubbles (mix >= `mix`) shrug off single enemy bullets: `hits` rays pop them. */
+  tough: Object.freeze({ mix: 0.5, hits: 2 }),
   /** mix = charge01^2: short taps stay on the small endpoint. */
   chargeCurve: 2,
   knockbackFalloff: 0.65,
@@ -41,14 +47,14 @@ export const BUBBLE_RULES = Object.freeze({
   foam: Object.freeze({
     count: 5, speed: 6, up: 1.5, drag: 1.2, rise: 3.0, radius: 0.18, lifetimeMs: 900, stepMs: 60,
     directDamage: 5, splashDamage: 9, damageRadius: 2.0, damageFalloffExponent: 1.0,
-    knockback: 2.5, selfKnockback: 0, knockbackRadius: 2.4, concussMs: 500,
+    knockback: 2.5, selfKnockback: 0, knockbackRadius: 2.4, concussMs: 500, proximity: 0,
   }),
   color: '#9fe9ff',
 });
 
 const LERPED = Object.freeze(['speed', 'drag', 'rise', 'radius', 'lifetimeMs', 'directDamage',
   'splashDamage', 'damageRadius', 'damageFalloffExponent', 'knockback', 'selfKnockback',
-  'knockbackRadius', 'concussMs']);
+  'knockbackRadius', 'concussMs', 'proximity']);
 
 export function bubbleMix(charge01 = 0) {
   return clamp01(charge01) ** BUBBLE_RULES.chargeCurve;
@@ -62,7 +68,7 @@ export function bubbleProfile(charge01 = 0, child = false) {
       lifetimeMs: f.lifetimeMs, directDamage: f.directDamage, splashDamage: f.splashDamage,
       damageRadius: f.damageRadius, damageFalloffExponent: f.damageFalloffExponent,
       knockback: f.knockback, selfKnockback: f.selfKnockback, knockbackRadius: f.knockbackRadius,
-      concussMs: f.concussMs };
+      concussMs: f.concussMs, proximity: f.proximity };
   }
   const mix = bubbleMix(charge01);
   const { small, big } = BUBBLE_RULES;

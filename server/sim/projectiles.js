@@ -394,7 +394,8 @@ export class ProjectileSystem {
   /**
    * One SUDSBLASTER bubble drifts on the exact buoyant integrator. The first body it
    * touches (its owner too, after the grace window: the soap trampoline) takes a
-   * direct pop; terrain pops it, or under Clingfilm sticks it to a wall or ceiling.
+   * direct pop, and a Big Bubble's film reaches for visible enemies within its
+   * `proximity`; terrain pops it, or under Clingfilm sticks it to a wall or ceiling.
    */
   _flyBubble(b, seconds, ctx) {
     // Already marked to pop (bullet, chain, cap eviction, blocked launch): pop now,
@@ -408,6 +409,13 @@ export class ProjectileSystem {
       b.x = contact.x; b.y = contact.y; b.z = contact.z;
       b.directVictim = contact.victim;
       return this.explode(b, ctx);
+    }
+    if (b.proximity > 0.05) {
+      const near = this._contactVictim(b, b.radius + b.proximity, ctx, b, true);
+      if (near && visibleTo(ctx, [b.x, b.y, b.z], [near.x, near.y + 1.05, near.z])) {
+        b.directVictim = near;
+        return this.explode(b, ctx);
+      }
     }
     if (b.hit) {
       // Walls and ceilings only: a floor contact still pops, which keeps bubble jumps.
@@ -450,7 +458,8 @@ export class ProjectileSystem {
 
   /**
    * Hitscan rays pop the bubbles they cross (the ray is never stopped). Only the
-   * shooter's own bubbles and those of players the shooter may damage pop.
+   * shooter's own bubbles and those of players the shooter may damage pop; an
+   * enemy Big Bubble needs `BUBBLE_RULES.tough.hits` rays.
    */
   popBubblesOnRay(shooter, origin, d, t0, t1, pad, ctx) {
     let popped = 0;
@@ -463,6 +472,9 @@ export class ProjectileSystem {
       const px = cx - d.x * t, py = cy - d.y * t, pz = cz - d.z * t;
       const reach = b.radius + (pad || 0);
       if (px * px + py * py + pz * pz > reach * reach) continue;
+      const tough = BUBBLE_RULES.tough;
+      b.bulletHits = (b.bulletHits || 0) + 1;
+      if (b.owner !== shooter && !b.child && bubbleMix(b.charge) >= tough.mix && b.bulletHits < tough.hits) continue;
       b.explodeAt = ctx.now;
       b.chained = true;
       popped++;
@@ -1053,6 +1065,8 @@ export class ProjectileSystem {
       hit: null,
       directVictim: null,
       twin: !!twin,
+      proximity: bubbleProfile(charge).proximity,
+      bulletHits: 0,
       blastRules: bubbleBlastRules(bubbleProfile(charge)),
       raycast,
     };
@@ -1248,7 +1262,7 @@ export class ProjectileSystem {
       const angle = i / foam.count * Math.PI * 2;
       const id = `u${this._nextId++}`;
       const child = { ...source, id, type: 'bubble', child: true, twin: false, stuck: false,
-        mount: null, hit: null, directVictim: null, chained: false,
+        mount: null, hit: null, directVictim: null, chained: false, proximity: 0, bulletHits: 0,
         x: source.x, y: source.y + 0.1, z: source.z,
         vx: Math.cos(angle) * foam.speed, vy: foam.up, vz: Math.sin(angle) * foam.speed,
         drag: prof.drag, rise: prof.rise, radius: prof.radius, charge: 0,
@@ -1352,6 +1366,8 @@ export class ProjectileSystem {
         : Math.pow(1 - distance / rules.damageRadius, rules.damageFalloffExponent ?? 1.22);
       let damage = rules.damage * falloff;
       if (direct && Number.isFinite(rules.directDamage)) damage += rules.directDamage;
+      // Soaked by an earlier bubble: this pop lands harder.
+      if (projectile.type === 'bubble' && !isSelf && victim.soakedUntil > ctx.now) damage *= BUBBLE_RULES.soakedDamageMult;
       // NPC rockets retain the real flight/blast/terrain simulation, with a
       // readable profile-damage attack instead of the player rocket's lethal impact.
       if (Number.isFinite(owner?.npcRocketDamage) && projectile.type === 'rocket') damage = owner.npcRocketDamage * falloff;
@@ -1383,6 +1399,7 @@ export class ProjectileSystem {
       // Bubble pops soak only victims they actually damaged (always paired with `evHit.soak`).
       if (rules.concussMs > 0 && !isSelf && (projectile.type !== 'bubble' || hitVictims.has(victim))) {
         victim.concussedUntil = Math.max(victim.concussedUntil || 0, ctx.now + rules.concussMs);
+        if (projectile.type === 'bubble') victim.soakedUntil = Math.max(victim.soakedUntil || 0, ctx.now + rules.concussMs);
         // The ambient blast pass provides bounded panic for uninjured targets.
         // Injured targets already receive panic through takeDamage.
       }

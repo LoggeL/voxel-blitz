@@ -176,6 +176,8 @@ export class PlayerEntity {
     this.minigun = { heat: 0, spin: 0, overheated: false };
     // Pulse concussion deadline (server clock ms); movement slows until then.
     this.concussedUntil = 0;
+    // SUDSBLASTER soak deadline: bubble pops before it deal soaked damage.
+    this.soakedUntil = 0;
     this.grounded = false;
     this.coyote = 0;
     this.crouch = false;

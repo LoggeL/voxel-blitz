@@ -5,8 +5,8 @@
 import { bubbleAimDrop, bubbleProfile } from '../../../shared/bubble-rules.js';
 import { el } from './hud-support.js';
 
-// Soap Shot marks at 10/12/15 m slide toward the Big-Bubble ones at 8/10/12 m while charging.
-const LADDER_SMALL_M = Object.freeze([10, 12, 15]);
+// Soap Shot marks at 15/20/25 m slide toward the Big-Bubble ones at 8/10/12 m while charging.
+const LADDER_SMALL_M = Object.freeze([15, 20, 25]);
 const LADDER_BIG_M = Object.freeze([8, 10, 12]);
 const SOAK_FADE_MS = 250;
 const SOAK_OPACITY = 0.35;
