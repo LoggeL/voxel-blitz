@@ -2249,6 +2249,7 @@ h1.vb-title::after {
 .vb-weapon-art[data-weapon-id='flamethrower'] { --vb-weapon-art-scale: 0.73; }
 .vb-weapon-art[data-weapon-id='glaive'] { --vb-weapon-art-scale: 0.76; }
 .vb-weapon-art[data-weapon-id='bubble'] { --vb-weapon-art-scale: 0.98; }
+.vb-weapon-art[data-weapon-id='mgl'] { --vb-weapon-art-scale: 0.74; }
 
 /* Grenade Ready Card, readied tag, aim reticle and pouch: styles/grenade-pouch.css. */
 
