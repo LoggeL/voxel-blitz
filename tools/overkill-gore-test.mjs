@@ -6,6 +6,7 @@ import { evHit, evKill, evDie } from '../server/protocol/events.js';
 import { GoreFX } from '../public/js/weapons/gore.js';
 import { goreProfile, withGoreDamage } from '../public/js/weapons/gore-profile.js';
 import { LocalPlayer } from '../public/js/player/local-player.js';
+import { DeathHeadCam } from '../public/js/player/death-head-cam.js';
 import { AvatarRoster } from '../public/js/avatar/avatar-roster.js';
 
 const spawn = { x: 0, y: 2, z: 0, index: 0 };
@@ -71,7 +72,9 @@ assert.equal(goreProfile({ overkill: 200, healthDamage: 0 }).chunkCount, 0);
 const impact = { vx: 1, vy: 2, vz: 3, hs: true, overkill: 10 };
 assert.deepEqual(withGoreDamage(impact, { overkill: 55, healthDamage: 75 }),
   { ...impact, overkill: 55, healthDamage: 75 }, 'death metadata preserves the impact position and headshot');
-const local = { _alive: true, _lastLocalImpact: null, physics: { pos: { x: 1, y: 2, z: 3 } }, _impulseRecoil() {} };
+const local = { _alive: true, _lastLocalImpact: null, _impulseRecoil() {},
+  physics: { pos: { x: 1, y: 2, z: 3 }, eyeY: () => 3.6 }, _reconcileOffset: { x: 0, y: 0, z: 0 },
+  deathHead: new DeathHeadCam(), aimYaw: 0, aimPitch: 0, deathCamMotion: 1 };
 const transition = LocalPlayer.prototype.die.call(local, 'owner', { damageEvent: { overkill: 55, healthDamage: 75 } });
 assert.equal(transition.goreImpact.overkill, 55, 'a local death without a hit packet still receives excess damage');
 assert.equal(transition.goreImpact.healthDamage, 75);

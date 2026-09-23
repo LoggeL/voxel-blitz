@@ -17,6 +17,8 @@ export { TttControls } from '../ui/ttt-controls.js';
 export { LocalPlayer } from '../player/local-player.js';
 export { FootstepCadence } from '../audio/footsteps.js';
 export { Killcam } from '../player/killcam.js';
+export { DEATH_HEAD, deathFadeOpacity } from '../player/death-head-cam.js';
+export { DeathFade } from '../ui/death-fade.js';
 export { SpectatorCamera } from '../player/spectator-camera.js';
 export { AvatarRoster } from '../avatar/avatar-roster.js';
 export { makeVehicleAvatar } from '../avatar/bastion-vehicle.js';

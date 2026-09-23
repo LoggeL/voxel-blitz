@@ -5,6 +5,7 @@ import { fovForZoom } from './local-player.js';
 import { bindingLabel, matchesBinding, isTypingTarget } from '../keybindings.js';
 import * as THREE from '../vendor/three.module.js';
 import { KillcamHistory, sampleKillcam } from './killcam-history.js';
+import { KILLCAM } from '../../../shared/killcam-rules.js';
 import { KillcamTerrain } from './killcam-terrain.js';
 import { AvatarRoster } from '../avatar/avatar-roster.js';
 import { TracerFX } from '../weapons/ballistics.js';
@@ -15,6 +16,10 @@ import { EYE_HEIGHT, WEAPON_IDS, isScopedWeapon } from '../../../shared/combatma
 import { stanceEye } from '../../../shared/player-stance.js';
 import { LEAN, leanEyeOffset, leanPose } from '../../../shared/player-lean.js';
 import { WEAPON_NAMES, THROWABLE_NAMES } from '../ui/hud-support.js';
+
+// Replay tail after the clip end, plus slack for the respawn snapshot's latency.
+const TAIL_MS = 300;
+const RESPAWN_SLACK_MS = 200;
 
 /** Recorded attacker view. Live simulation keeps running and owns respawn. */
 export class Killcam {
@@ -57,14 +62,42 @@ export class Killcam {
     document.addEventListener('keydown', this._onKey);
   }
 
-  start(deathEvent, mode) {
+  /**
+   * Cut the clip at the kill; with `delayMs` the replay waits (the local death
+   * sequence owns the screen meanwhile) and drops just enough lead-in to finish
+   * before the server respawn.
+   */
+  start(deathEvent, mode, { delayMs = 0 } = {}) {
     const clip = this.history.clip(deathEvent, mode);
     if (!clip) return false;
     this.stop();
     this.clip = clip;
     this.history.activeClip = clip;
+    const delay = Math.max(0, Number(delayMs) || 0);
+    const budget = KILLCAM.respawnMs - delay - TAIL_MS - RESPAWN_SLACK_MS;
+    this.replayStart = Math.max(clip.start, Math.min(clip.killTime, clip.end - budget));
+    if (delay > 0) {
+      this.pendingAt = this.now() + delay;
+      return true;
+    }
+    this._activate();
+    return true;
+  }
+
+  get pending() { return this.pendingAt != null; }
+
+  _activate() {
+    const clip = this.clip;
+    this.pendingAt = null;
     this.worldview?.setReplayTerrain(clip.terrain);
     this.previousTime = clip.start - 1;
+    if (this.replayStart > clip.start) {
+      // Skipped lead-in: its block edits still happened, its shots stay silent.
+      const skipped = sampleKillcam(clip, this.replayStart, this.previousTime);
+      clip.terrain?.apply(skipped.terrain);
+      this.worldview?.updateReplayTerrain(skipped.terrain);
+      this.previousTime = skipped.time;
+    }
     this.sample = null;
     this.active = true;
     this.group.visible = true;
@@ -87,19 +120,22 @@ export class Killcam {
     this.weapon = null;
     this.padHeld = true;
     this.started = this.now();
-    return true;
   }
 
   update(dt, aspect, fov) {
+    if (this.pendingAt != null) {
+      if (this.now() < this.pendingAt) return false;
+      this._activate();
+    }
     if (!this.active) return false;
     const elapsed = this.now() - this.started;
-    const duration = this.clip.end - this.clip.start;
-    if (elapsed >= duration + 300) { this.stop(); return false; }
+    const duration = this.clip.end - this.replayStart;
+    if (elapsed >= duration + TAIL_MS) { this.stop(); return false; }
     const pads = typeof navigator !== 'undefined' ? navigator.getGamepads?.() || [] : [];
     const pressed = Array.from(pads).some(pad => pad?.buttons?.[0]?.pressed);
     if (pressed && !this.padHeld) { this.stop(); return false; }
     this.padHeld = pressed;
-    const sample = sampleKillcam(this.clip, this.clip.start + elapsed, this.previousTime);
+    const sample = sampleKillcam(this.clip, this.replayStart + elapsed, this.previousTime);
     this.previousTime = sample.time;
     this.sample = sample;
     this.clip.terrain?.apply(sample.terrain);
@@ -194,6 +230,7 @@ export class Killcam {
   stop() {
     if (this.active) this.worldview?.setReplayTerrain(null);
     this.active = false;
+    this.pendingAt = null;
     this._minedBreak = null;
     this.history.activeClip = null;
     this.scopeActive = false;

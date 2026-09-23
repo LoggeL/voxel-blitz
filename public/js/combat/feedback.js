@@ -436,6 +436,12 @@ export class CombatFeedback {
     this.hud.setPainImpulse(1);
     this.hud.setDeathBrutality(headshot ? 1 : 0.82);
     this.effects?.gore(transition.goreImpact, { lethal: true, local: true });
+    // The head leaves with the camera: the stump spurts where the eye was. A wound
+    // profile, not a lethal burst, so the flying eye still sees the body through it.
+    const neck = transition.neck;
+    if (neck && [neck.x, neck.y, neck.z].every(Number.isFinite)) {
+      this.effects?.gore({ vx: neck.x, vy: neck.y, vz: neck.z, healthDamage: 40 }, { lethal: false });
+    }
     this.sfx.deathSelf({ headshot });
     const killer = killerId && killerId !== this.getMyId() ? this.getPlayersCache().find(row => row.id === killerId) : null;
     const cosmetics = killerId && killerId !== this.getMyId() ? event?.cosmetics || killer?.cosmetics : null;

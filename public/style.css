@@ -3189,6 +3189,12 @@ h1.vb-title::after {
 .vb-killcam-progress { grid-column: 1 / -1; height: 3px; margin-top: 6px; background: #48525b; }
 .vb-killcam-progress i { display: block; height: 100%; background: #ff8768; transform-origin: left; }
 body.is-replaying #hud, body.is-replaying .vb-touch-controls { visibility: hidden; }
+/* Local death cut: the severed-head flight blacks out before the killcam or spectator view. */
+.vb-death-fade {
+  position: fixed; inset: 0; z-index: calc(var(--z-scope) + 2); pointer-events: none;
+  background: #000; opacity: 0;
+}
+body.is-dying .vb-spectator { visibility: hidden; }
 @media (max-width: 600px) {
   .vb-killcam-top { padding: 14px 16px; }
   .vb-killcam-bottom { bottom: 16px; }

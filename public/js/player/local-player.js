@@ -16,6 +16,7 @@ import { withGoreDamage } from '../weapons/gore-profile.js';
 import { AimSway } from './aim-sway.js';
 import { WeaponAimMotion } from '../guns/weapon-aim.js';
 import { resetFirstPersonBody, updateFirstPersonBody } from './first-person-body.js';
+import { DeathHeadCam } from './death-head-cam.js';
 
 const NO_LEAN = Object.freeze({ x: 0, y: 0, z: 0 });
 
@@ -171,6 +172,9 @@ export class LocalPlayer {
     this.deathRoll = 0;
     this.deathPitch = 0;
     this.deathSide = 1;
+    this.deathHead = new DeathHeadCam();
+    /** 0..1 spin of the death head flight; the composition root lowers it for reduced motion. */
+    this.deathCamMotion = 1;
     this.sendAccum = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
@@ -345,6 +349,7 @@ export class LocalPlayer {
     this.deathRoll = 0;
     this.deathPitch = 0;
     this.deathSide = 1;
+    this.deathHead.stop();
     this.sendAccum = 0;
     this.pendingShotIntent = null;
     this.fireTapLatched = false;
@@ -378,6 +383,7 @@ export class LocalPlayer {
     this.deathElapsed = 0;
     this.deathRoll = 0;
     this.deathPitch = 0;
+    this.deathHead.stop();
     this._resetRecoil();
     this._resetReconcileOffset();
     this.currentSpeedXZ = 0;
@@ -403,6 +409,7 @@ export class LocalPlayer {
     damageEvent = null,
     headshot = false,
     id = null,
+    killerPos = null,
   } = {}) {
     if (!this._alive) return null;
     const resolvedImpact = impact || this._lastLocalImpact;
@@ -429,8 +436,17 @@ export class LocalPlayer {
         hs: resolvedHeadshot,
       }, damageEvent);
     this._lastLocalImpact = null;
+    // The camera is the head: it leaves the neck away from whoever took it.
+    const pos = this.physics.pos;
+    const offset = this._reconcileOffset;
+    const eye = { x: pos.x + offset.x, y: this.physics.eyeY() + offset.y, z: pos.z + offset.z };
+    const away = killerPos && Number.isFinite(killerPos.x) && Number.isFinite(killerPos.z)
+      ? { x: eye.x - killerPos.x, z: eye.z - killerPos.z } : null;
+    this.deathHead.start({ ...eye, yaw: this.aimYaw, pitch: this.aimPitch, away,
+      side: this.deathSide, headshot: resolvedHeadshot, motion: this.deathCamMotion });
     return {
       kind: 'death',
+      neck: { x: eye.x, y: eye.y - 0.2, z: eye.z },
       killerId: killerId || null,
       headshot: resolvedHeadshot,
       impact: resolvedImpact,
@@ -992,6 +1008,7 @@ export class LocalPlayer {
     deathEvent = null,
     impact = null,
     id = null,
+    killerPos = null,
   } = {}) {
     if (!me) return EMPTY_RECONCILE;
     if (Number.isFinite(snapSeq)) {
@@ -1028,6 +1045,7 @@ export class LocalPlayer {
         damageEvent: deathEvent,
         headshot: !!(deathEvent?.hs || impact?.hs),
         id,
+        killerPos,
       });
     }
     this._hp = hp;
@@ -1123,22 +1141,34 @@ export class LocalPlayer {
       this.deathPitch = 0;
     } else {
       this.deathElapsed = Math.min(1.4, this.deathElapsed + dt);
-      const impactT = smooth01(this.deathElapsed / 0.18);
-      const collapseT = smooth01(this.deathElapsed / 0.86);
-      const settleT = smooth01(this.deathElapsed / 1.22);
-      camera.position.y -= 1.48 * collapseT + 0.12 * impactT;
-      this.deathPitch = -0.18 * impactT - 0.66 * collapseT + 0.08 * settleT;
-      this.deathRoll = this.deathSide * (0.26 * impactT + 1.12 * collapseT);
+      const head = this.deathHead;
+      if (head.active) {
+        head.step(dt, (x, y, z) => this.physics.solid(x, y, z));
+        camera.position.set(head.pos.x, head.pos.y, head.pos.z);
+        this.deathPitch = 0;
+        this.deathRoll = 0;
+      } else {
+        const impactT = smooth01(this.deathElapsed / 0.18);
+        const collapseT = smooth01(this.deathElapsed / 0.86);
+        const settleT = smooth01(this.deathElapsed / 1.22);
+        camera.position.y -= 1.48 * collapseT + 0.12 * impactT;
+        this.deathPitch = -0.18 * impactT - 0.66 * collapseT + 0.08 * settleT;
+        this.deathRoll = this.deathSide * (0.26 * impactT + 1.12 * collapseT);
+      }
     }
 
     this.scopeActive = scopeActive ?? isScopeActive({ weapon: weaponDef.id, scoped: weaponDef.scoped, ads: this.adsT,
       alive: this._alive, vaulting: !!this.physics.vault, grenadeHandling: this.grenadeHandling });
     camera.rotation.order = 'YXZ';
-    camera.rotation.set(
-      this.aimPitch + this.recoilPitch + this.deathPitch,
-      this.aimYaw + this.recoilYaw,
-      this.deathRoll + this.recoilRoll + leanRoll,
-    );
+    if (!this._alive && this.deathHead.active) {
+      camera.rotation.set(this.deathHead.pitch, this.deathHead.yaw, this.deathHead.roll);
+    } else {
+      camera.rotation.set(
+        this.aimPitch + this.recoilPitch + this.deathPitch,
+        this.aimYaw + this.recoilYaw,
+        this.deathRoll + this.recoilRoll + leanRoll,
+      );
+    }
     this._lookScale = adsLookScale(camera.fov, baseFov);
     const scopeKey = `${weaponDef.id}/${weaponDef.attachments?.optic || 'standard'}/${weaponDef.zoom || 0}`;
     if (this._scopeKey !== scopeKey) { this._scopeKey = scopeKey; this._scopeZoom = 0; }

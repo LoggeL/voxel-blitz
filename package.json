@@ -41,7 +41,7 @@
     "wheel:browser": "node tools/weapon-wheel-browser-test.mjs",
     "throwables:test": "node tools/claymore-test.mjs && node tools/smoke-grenade-test.mjs && node tools/throwable-animation-test.mjs && node tools/molotov-test.mjs && node tools/throwable-client-test.mjs && node tools/grenade-handling-test.mjs && node tools/grenade-pouch-rules-test.mjs && node tools/grenade-pouch-input-test.mjs",
     "throwables:browser": "node tools/throwable-browser-test.mjs",
-    "gore:test": "node tools/corpse-lifetime-test.mjs && node tools/avatar-death-physics-test.mjs && node tools/overkill-gore-test.mjs && node tools/remote-death-timing-test.mjs",
+    "gore:test": "node tools/death-head-cam-test.mjs && node tools/corpse-lifetime-test.mjs && node tools/avatar-death-physics-test.mjs && node tools/overkill-gore-test.mjs && node tools/remote-death-timing-test.mjs",
     "gore:capture": "node tools/gore-render-smoke.mjs",
     "avatars:capture": "node tools/render-avatar-scenes.mjs",
     "browser:smoke": "node tools/browser-flow-smoke.mjs",

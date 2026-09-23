@@ -447,6 +447,8 @@ class Game {
     this.killcam = new rt.Killcam({ scene: this.worldview.scene, getBlock, worldview: this.worldview,
       mapBytes: serializeWorld(), blockDamage: [...net.blockDamage.values()],
       terrainTime: net.latestSnapshots.at(-1)?.serverNow ?? -Infinity, audio: sfx, now: nowMs });
+    this.deathFade = new rt.DeathFade();
+    this._deathAt = null;
     this.worldview.addCharacterRoots?.(this.liveAvatarsGroup, this.rig.root, this.killcam.group);
     this.worldview.addNearCharacterRoots?.(this.ownBody.group);
     this.worldview.dynamicShadows?.addCasterRoot(this.killcam.group, { coarse: true });
@@ -478,6 +480,7 @@ class Game {
       onLocalMeleeHit: () => this.rig?.pickaxeContact(),
       onLocalFlinch: (strength) => this.rig?.flinch(strength),
       onLocalDeath: (_transition, killerId) => {
+        this._deathAt = nowMs();
         this.weapon?.deathReset();
         this.session.syncGameplayInput();
         // Fallback chase view if there is not enough recorded history.
@@ -599,9 +602,13 @@ class Game {
       deathEvent,
       impact: hitEvent,
       id: this.myId,
+      killerPos: deathEvent?.killer ? players.find((row) => row.id === deathEvent.killer) || null : null,
     });
     if (reconciled.transition?.kind === 'death') {
-      if (deathEvent?.kind === 'kill') this.killcam?.start(deathEvent, match?.mode);
+      // The replay waits for the local head flight and its cut to black.
+      if (deathEvent?.kind === 'kill') {
+        this.killcam?.start(deathEvent, match?.mode, { delayMs: this.rt.DEATH_HEAD.introMs });
+      }
       this.feedback?.presentLocalDeath(
         deathEvent?.killer || null,
         reconciled.transition,
@@ -989,7 +996,12 @@ class Game {
     if (zoomSteps && this.weapon.scopeActive) {
       for (let i = 0; i < Math.abs(zoomSteps); i++) this.player.cycleScopeZoom(def);
     }
-    if (this.spectator?.active) {
+    // Death intro: the camera flies with the severed head before killcam/spectator take over.
+    const deathMs = !this.player.alive && this._deathAt !== null ? now - this._deathAt : null;
+    const dying = deathMs !== null && deathMs < this.rt.DEATH_HEAD.introMs;
+    this.player.deathCamMotion = displaySettings().reducedMotion ? 0.15 : 1;
+    this.deathFade?.set(deathMs === null ? 0 : this.rt.deathFadeOpacity(deathMs), dying);
+    if (this.spectator?.active && !dying) {
       if (this.camera.fov !== this.session.baseFov) {
         this.camera.fov = this.session.baseFov;
         this.camera.updateProjectionMatrix();
@@ -1055,7 +1067,7 @@ class Game {
         || view?.players;
       this._presentedPlayers = presentedPlayers || null;
       if (presentedPlayers) this.roster.sync(presentedPlayers, dt, now, this.matchState?.mode === 'ttt');
-      this.spectator?.update(presentedPlayers, dt, spectatorLook);
+      if (!dying) this.spectator?.update(presentedPlayers, dt, spectatorLook);
       this.roster.updateLabels(this.camera,
         (origin, direction, distance) => this.worldview.pickCameraRay(origin, direction, distance),
         this.matchState?.mode, this.selfRow?.team, (from, to) => this.smokeObscures(from, to));
@@ -1068,11 +1080,12 @@ class Game {
     this.syncDeviceInfo(now);
     if (this.rig?.root) {
       this.rig.root.visible = this.rt.shouldShowViewmodel({
-        spectating,
+        spectating: spectating || dying,
         scopeActive: this.weapon?.scopeActive,
       });
     }
-    if (spectating && this.ownBody?.group) this.ownBody.group.visible = false;
+    // The headless body stays in shot while the head flies off it.
+    if (spectating && !dying && this.ownBody?.group) this.ownBody.group.visible = false;
 
     const beamAim = this.weapon.def.id === 'lance'
       ? this.worldview.pickCameraRay(this.camera.position, fwdFromAngles(this.player.shotYaw, this.player.shotPitch), HITSCAN_REACH)
@@ -1203,6 +1216,9 @@ class Game {
     this.tttControls?.dispose();this.tttControls=null;
     this.killcam?.dispose();
     this.killcam = null;
+    this.deathFade?.dispose();
+    this.deathFade = null;
+    this._deathAt = null;
     this.spectator?.dispose();
     this.build?.dispose();
     this.build = null;
