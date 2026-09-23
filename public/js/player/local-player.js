@@ -161,6 +161,7 @@ export class LocalPlayer {
     this.recoilPitch = 0;
     this.recoilYaw = 0;
     this.recoilRoll = 0;
+    this.leanViewRoll = 0;
     this.adsT = 0;
     this.wantAds = false;
     this._movementAds = false;   // ADS as the server's sprint gate sees it
@@ -1104,6 +1105,7 @@ export class LocalPlayer {
     // Peek lean: the eye swings out with the upper body and the view cants slightly.
     const lean = this._leanEyeOffset();
     const leanRoll = this._alive ? -leanPose(this.physics.leanT) * LEAN.viewRoll : 0;
+    this.leanViewRoll = leanRoll;
     camera.position.set(pos.x + lean.x + offset.x, cameraEyeY + offset.y, pos.z + lean.z + offset.z);
     if (this._alive) {
       this.deathElapsed = 0;

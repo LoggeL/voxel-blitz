@@ -5,6 +5,7 @@ import { projectAimReticle } from '../public/js/ui/aim-reticle.js';
 import { ViewmodelRig } from '../public/js/guns/viewmodel.js';
 import { LocalPlayer } from '../public/js/player/local-player.js';
 import { WEAPONS } from '../shared/combatmath.js';
+import { LEAN } from '../shared/player-lean.js';
 import { NetClient } from '../public/js/engine/netclient.js';
 import { GameEngine } from '../server/game.js';
 import { PlayerEntity } from '../server/sim/player.js';
@@ -53,6 +54,33 @@ for (const pitch of [-Math.PI / 3, 0, Math.PI / 3]) {
   const bore = new THREE.Vector3(0, 0, -1).applyQuaternion(rig._cur.muzzleMarker.getWorldQuaternion(new THREE.Quaternion()));
   const expected = new THREE.Vector3(-Math.sin(shotYaw) * Math.cos(shotPitch), Math.sin(shotPitch), -Math.cos(shotYaw) * Math.cos(shotPitch));
   assert.ok(bore.angleTo(expected) < 1e-6, `Muzzle and ray agree at view pitch ${pitch}`);
+}
+
+// Peek lean cants the camera about the eye. The gun rotates about its grip, so
+// it must share that cant or the sight line swings off the shot ray under ADS.
+{
+  const pose = () => {
+    camera.updateMatrixWorld(true);
+    const sight = rig.content.getWorldPosition(new THREE.Vector3());
+    return camera.worldToLocal(sight);
+  };
+  rig.ads(1);
+  const settle = (roll, viewRoll) => {
+    camera.rotation.set(0.1, 0.7, roll);
+    for (let i = 0; i < 240; i++) rig.update(1 / 60, { grounded: true, aimSwayScale: 0, reducedMotion: true,
+      shotYaw: 0.7, shotPitch: 0.1, viewRoll });
+    return pose();
+  };
+  const upright = settle(0, 0);
+  const cant = -LEAN.viewRoll;
+  const leaned = settle(cant, cant);
+  assert.ok(leaned.distanceTo(upright) < 1e-6, `Lean cant keeps the ADS sight picture: ${leaned.toArray()} vs ${upright.toArray()}`);
+  const bore = new THREE.Vector3(0, 0, -1).applyQuaternion(rig._cur.muzzleMarker.getWorldQuaternion(new THREE.Quaternion()));
+  const expected = new THREE.Vector3(-Math.sin(0.7) * Math.cos(0.1), Math.sin(0.1), -Math.cos(0.7) * Math.cos(0.1));
+  assert.ok(bore.angleTo(expected) < 1e-6, 'Leaned bore still follows the shot ray');
+  const stale = settle(cant, 0);
+  assert.ok(stale.distanceTo(upright) > 1e-3, 'An unshared cant would swing the sight about the grip');
+  rig.ads(0);
 }
 rig.dispose();
 

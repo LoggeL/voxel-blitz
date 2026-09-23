@@ -974,6 +974,7 @@ class Game {
         weaponLoadout: this.weapon.weaponLoadout,
         shotYaw: this.player.shotYaw,
         shotPitch: this.player.shotPitch,
+        viewRoll: this.player.leanViewRoll,
       });
       this.weapon.syncRigAds();
       const flameDirection = fwdFromAngles(this.player.shotYaw, this.player.shotPitch);

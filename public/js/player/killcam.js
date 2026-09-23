@@ -130,7 +130,8 @@ export class Killcam {
     if (weapon !== this.weapon) { this.rig.setWeapon(weapon); this.weapon = weapon; }
     this.rig.ads(ads);
     this.rig.update(dt, { speed: target.moveSpeed, crouch: target.crouch, proneT: target.proneT,
-      grounded: target.grounded, shotYaw: target.yaw, shotPitch: target.pitch });
+      grounded: target.grounded, shotYaw: target.yaw, shotPitch: target.pitch,
+      viewRoll: this.camera.rotation.z });
     this.rig.root.visible = !this.scopeActive;
     this.audio?.setListener({ pos: [target.x, this.camera.position.y, target.z],
       fwd: [-Math.sin(target.yaw) * Math.cos(target.pitch), Math.sin(target.pitch), -Math.cos(target.yaw) * Math.cos(target.pitch)] });

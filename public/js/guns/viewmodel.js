@@ -759,7 +759,10 @@ export class ViewmodelRig {
     // into camera space, then layer the short decorative recoil/carry motion.
     const shotYaw = Number.isFinite(ctx.shotYaw) ? ctx.shotYaw : this._aimEuler.y + aimYaw;
     const shotPitch = Number.isFinite(ctx.shotPitch) ? ctx.shotPitch : this._aimEuler.x + aimPitch;
-    this._aimQ.setFromEuler(this._aimEuler.set(shotPitch, shotYaw, 0, 'YXZ'));
+    // The peek-lean cant rolls the view about the eye; the carried gun must share
+    // it, or the counter-roll about the grip swings the sight off the shot ray.
+    const shotRoll = Number.isFinite(ctx.viewRoll) ? ctx.viewRoll : 0;
+    this._aimQ.setFromEuler(this._aimEuler.set(shotPitch, shotYaw, shotRoll, 'YXZ'));
     this._aimQ.premultiply(this._cameraQ.invert());
     this._cosmeticQ.setFromEuler(this._aimEuler.set(
       this._spr.pitch.p + this._air.p * BOB.airPitchPerMeter + conditionPitch + fearPitch + glaivePitch,
