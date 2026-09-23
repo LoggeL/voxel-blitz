@@ -147,6 +147,30 @@ try {
   rig.cancelGrenade();
   for (let i = 0; i < 120; i++) rig.update(1 / 60, ctx);
   assert.equal(rig._arms.root.visible, true, 'the arms come back with the gun');
+
+  // Vault hands carry their own arms: each forearm starts at the climbing
+  // glove's wrist and hangs from the same body shoulder, then leaves with them.
+  const vault = rig._vaultHands;
+  assert.equal(vault.arms.root.visible, false, 'no vault, no vault arms');
+  for (let i = 0; i < 12; i++) rig.update(1 / 60, { ...ctx, vaulting: true, grounded: false, vaultProgress: 0.2 });
+  assert.equal(vault.arms.root.visible, true, 'the climbing hands show their arms');
+  for (const side of ['l', 'r']) {
+    const hand = vault.root.getObjectByName(side === 'l' ? 'hand_l' : 'hand_r');
+    hand.updateWorldMatrix(true, false);
+    const palm = new THREE.Vector3(0, 0, ARM.wristZ).applyMatrix4(hand.matrixWorld);
+    const forearm = segment('forearm', side, vault.arms);
+    forearm.updateWorldMatrix(true, false);
+    assert.ok(new THREE.Vector3().setFromMatrixPosition(forearm.matrixWorld).distanceTo(palm) < 1e-6,
+      `${side}: the vault forearm starts at the climbing glove's wrist`);
+    const cap = segment('shoulder', side, vault.arms);
+    cap.updateWorldMatrix(true, false);
+    const local = rig.root.worldToLocal(new THREE.Vector3().setFromMatrixPosition(cap.matrixWorld));
+    assert.ok(Math.sign(local.x) === (side === 'l' ? -1 : 1) && local.z > -0.3,
+      `${side}: the vault arm hangs from its own body shoulder`);
+  }
+  for (let i = 0; i < 60; i++) rig.update(1 / 60, ctx);
+  assert.equal(vault.root.visible, false, 'the vault hands leave after the climb');
+  assert.equal(vault.arms.root.visible, false, 'and take their arms with them');
 } finally {
   rig.dispose();
 }

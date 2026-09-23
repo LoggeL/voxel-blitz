@@ -522,12 +522,12 @@ export class ViewmodelRig {
     const forwardSpeed = Number.isFinite(ctx.forwardSpeed) ? ctx.forwardSpeed : 0;
     const sprinting = !!ctx.isSprinting, crouching = !!ctx.crouch;
     const vaulting = !!ctx.vaulting;
-    // Camera orientation is fixed for this frame: the bandaging arms hang from
-    // pitch-following shoulders, and the shot pose below reads the same basis.
+    // Camera orientation is fixed for this frame: the vault and bandaging arms hang
+    // from pitch-following shoulders, and the shot pose below reads the same basis.
     this.camera.getWorldQuaternion(this._cameraQ);
     this._aimEuler.setFromQuaternion(this._cameraQ, 'YXZ');
     const viewPitch = this._aimEuler.x;
-    const vaultBlend = this._vaultHands.update(elapsed, vaulting, ctx.vaultProgress);
+    const vaultBlend = this._vaultHands.update(elapsed, vaulting, ctx.vaultProgress, viewPitch);
     const throwableBlend = this._throwableHands.update(elapsed, { suppressed: vaulting });
     const healing = !!ctx.medkitActive && !vaulting;
     const medkitBlend = this._medkitHands.update(elapsed, healing, ctx.medkitProgress, ctx.reducedMotion, viewPitch);

@@ -5,6 +5,7 @@ import { SkinLayer } from '../cosmetics/skin-layer.js';
 import { normalizeCosmeticLoadout } from '../../../shared/career.js';
 import { palette as salvagerPalette } from '../cosmetics/skins/salvager.js';
 import { palette as revenantPalette } from '../cosmetics/skins/revenant.js';
+import { ViewmodelArms } from './viewmodel-arms.js';
 
 const smooth = value => {
   const t = Math.max(0, Math.min(1, value));
@@ -18,7 +19,11 @@ const BLENDER_HAND_PALETTE = Object.freeze({
 });
 const CHARACTER_GLOVES = Object.freeze({ salvager: salvagerPalette, revenant: revenantPalette });
 
-/** Camera-local reach, brace, and release. These hands never move the aiming camera. */
+/**
+ * Camera-local reach, brace, and release. These hands never move the aiming
+ * camera. Each glove carries a two-bone arm back to the player's shoulder
+ * (viewmodel-arms.js), so the climbing hands read as the character's own.
+ */
 export class VaultHands {
   constructor(parent) {
     this.root = new THREE.Group();
@@ -32,11 +37,12 @@ export class VaultHands {
     this._gloveId = null;
     this._skinLayer = null;
     const geometry = new THREE.BoxGeometry(1, 1, 1);
-    const sleeve = new THREE.MeshStandardMaterial({ color: 0x44515e, roughness: 0.95 });
     const glove = new THREE.MeshStandardMaterial({ color: 0x202831, roughness: 0.88 });
     const armor = new THREE.MeshStandardMaterial({ color: 0x667582, roughness: 0.72 });
     this.hands = [-1, 1].map(side => {
       const hand = new THREE.Group();
+      // Named like the gun gloves: the arm rig finds its wrist anchors by name.
+      hand.name = side < 0 ? 'hand_l' : 'hand_r';
       hand.userData.side = side;
       hand.userData.blender = null;
       const procedural = [];
@@ -48,8 +54,6 @@ export class VaultHands {
         procedural.push(mesh);
         return mesh;
       };
-      const arm = box(sleeve, [0.13, 0.13, 0.30], [0, -0.10, 0.19]);
-      arm.rotation.x = 0.5;
       box(glove, [0.12, 0.065, 0.15], [0, 0, 0]);
       box(armor, [0.105, 0.018, 0.085], [0, 0.037, 0.015]);
       for (let finger = 0; finger < 4; finger++) {
@@ -60,6 +64,11 @@ export class VaultHands {
       this.root.add(hand);
       return hand;
     });
+    // A sibling of the hands' root, not a child: the arms keep their own skin
+    // layer, and they follow the hands' visibility through the anchor chain.
+    this.arms = new ViewmodelArms(parent);
+    this.arms.root.name = 'vault-arms';
+    this._armModel = { root: this.root };
   }
 
   /** Mount the Blender support glove (open cradle) once the template is loaded. */
@@ -109,6 +118,7 @@ export class VaultHands {
   }
 
   setCosmetics(loadout) {
+    this.arms.setCosmetics(loadout);
     this._cosmetics = loadout;
     const id = normalizeCosmeticLoadout(loadout).characterSkin;
     if (id === this._gloveId) return;
@@ -116,7 +126,7 @@ export class VaultHands {
     this._retint();
   }
 
-  update(dt, active, progress) {
+  update(dt, active, progress, pitch = 0) {
     this._ensureBlenderHands();
     const seconds = Math.max(0, Math.min(0.25, dt));
     this.blend += ((active ? 1 : 0) - this.blend) * (1 - Math.exp(-seconds * (active ? 24 : 15)));
@@ -134,10 +144,12 @@ export class VaultHands {
         -0.22 - this.blend * (0.37 * reach - 0.08 * press));
       hand.rotation.set(-0.18 + press * 0.38, -side * 0.08, side * (0.1 + press * 0.12));
     }
+    this.arms.update(this._armModel, pitch, this.root.visible);
     return this.blend;
   }
 
   dispose() {
+    this.arms.dispose();
     this._skinLayer?.clear();
     this._skinLayer = null;
     this.root.removeFromParent();
