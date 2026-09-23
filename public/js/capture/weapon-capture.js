@@ -155,7 +155,7 @@ if (state.startsWith('reload-')) {
   const belt = weapon === 'lmg';
   rig.reload(1, belt ? 'magswap' : 'cylinder');
   const fraction = weapon === 'rocket'
-    ? { 'reload-open': 0.33, 'reload-load': 0.76 }[state]
+    ? { 'reload-open': 0.33, 'reload-load': 0.76, 'reload-charge': 0.90 }[state]
     : belt
       ? { 'reload-open': 0.14, 'reload-eject': 0.28, 'reload-load': 0.875, 'reload-charge': 0.965 }[state]
       : { 'reload-open': 0.26, 'reload-eject': 0.40, 'reload-load': 0.64 }[state];

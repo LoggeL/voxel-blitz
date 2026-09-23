@@ -621,10 +621,11 @@ export class WeaponActions {
 
   /**
    * RX-8 HAVOC reload staging, all six beats under the camera: PRESENT the
-   * breech, SWING the venturi gate open sideways on its left-flank pin with a
-   * weighted hinge-stop, LOAD the round up from lower-right clear of the open
-   * gate, SEAT it with an accelerating shove along the bore axis, SLAM the gate
-   * shut, COCK the arming lever. Pure function of `frac`; rest pose untouched.
+   * breech, OPEN the venturi clamp by hand on its left-flank pin, LOAD the round
+   * up from lower-right clear of the open clamp, SEAT it with an accelerating
+   * shove along the bore axis, CLOSE the clamp by hand again and latch it, COCK
+   * the arming lever. One support hand runs the clamp and the round the whole
+   * way. Pure function of `frac`; rest pose untouched.
    */
   _updateRocketReload(frac, model, out) {
     const reload = this._reload;
@@ -650,14 +651,24 @@ export class WeaponActions {
     // open, clear of the bore axis, before the round starts to rise. Negative
     // rotation.y carries the venturi tail out to -x, the player-facing flank.
     parts.gate.position.copy(parts.hinge);
-    const open = this._phase(frac, 0.20, 0.32) * (1 - this._phase(frac, 0.85, 0.90));
-    // The hinge-stop bounce at 0.31 overshoots the swing with weight; SLAM swings
-    // the gate shut from 0.85 and a smaller rebound at 0.895 reopens it a hair
-    // as the latch takes the impact. Both decays end before 0.94 so the rest
-    // value is exactly 0 (a closed gate can never rotate past its block face).
+    const open = this._phase(frac, 0.20, 0.32) * (1 - this._phase(frac, 0.875, 0.925));
+    // The hinge-stop bounce at 0.31 overshoots the swing with weight; CLOSE lets
+    // the returning hand swing the gate shut from 0.875 and a smaller rebound at
+    // 0.92 reopens it a hair as the latch takes the impact (cue 3). Both decays
+    // end before 0.94 so the rest value is exactly 0 (a closed gate can never
+    // rotate past its block face).
     const swing = parts.swing * open + 0.07 * this._contact(frac, 0.31, 0.12)
-      + 0.05 * this._contact(frac, 0.895, 0.04);
+      + 0.05 * this._contact(frac, 0.92, 0.02);
     parts.gate.rotation.y = swing > 0 ? -swing : 0;
+    // Clamp grab: the palm rides the venturi collar (rest offset from the pin),
+    // rotated with the live swing so the hand stays on the handle it operates.
+    const grabOff = [0.1044, 0.05, 0.1783];
+    const cos = Math.cos(parts.gate.rotation.y), sin = Math.sin(parts.gate.rotation.y);
+    const grab = [
+      parts.hinge.x + grabOff[0] * cos + grabOff[2] * sin,
+      parts.hinge.y + grabOff[1],
+      parts.hinge.z - grabOff[0] * sin + grabOff[2] * cos,
+    ];
     // COCK: the arming lever tips while the breech stands open and snaps home
     // exactly on cue 3.
     model.bolt.rotation.x = 0.55 * open * (1 - this._phase(frac, 0.88, timeline.clickAt));
@@ -680,9 +691,16 @@ export class WeaponActions {
     round.position.set(0.30 * (1 - align), parts.axisY - 0.55 * (1 - raise),
       parts.rearZ + 0.42 - 0.71 * insert * insert);
     round.rotation.y = 0.45 * (1 - align);
-    this._moveReloadHand(model, round.position.x - 0.04, round.position.y - 0.04, round.position.z + 0.075,
-      this._phase(frac, 0.24, 0.38) * (1 - this._phase(frac, timeline.home, 0.98)),
-      round.visible || frac >= timeline.home);
+    // HAND: one support hand runs the whole story — pull the clamp open, take the
+    // rocket and shove it home, then swing the clamp shut and latch it. Targets
+    // blend between the swing-following clamp grab and the round's grip point.
+    const grip = [round.position.x - 0.04, round.position.y - 0.04, round.position.z + 0.075];
+    let target = grab;
+    if (frac >= 0.34 && frac < 0.42) target = this._blendTargets(grab, grip, this._phase(frac, 0.34, 0.42));
+    else if (frac >= 0.42 && frac < 0.845) target = grip;
+    else if (frac >= 0.845 && frac < 0.875) target = this._blendTargets(grip, grab, this._phase(frac, 0.845, 0.875));
+    this._moveReloadHand(model, target[0], target[1], target[2],
+      this._phase(frac, 0.06, 0.18) * (1 - this._phase(frac, 0.96, 1)), true);
     for (const [at, click] of [[timeline.start, 1], [timeline.home, 2], [timeline.clickAt, 3]]) {
       if (frac >= at && reload.lastFrac < at) this._callbacks.onReloadClick(click);
     }

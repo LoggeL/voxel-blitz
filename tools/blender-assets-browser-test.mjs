@@ -208,6 +208,13 @@ try {
     const round = rocket.extra.userData.reloadRounds, rearZ = rocketReload.rearZ;
     const actions = new WeaponActions();
     actions.startReload(0, 1, 'magswap', rocket.T);
+    const rocketHandL = rocket.root.getObjectByName('hand_l');
+    const rocketGrab = () => gate.localToWorld(new T.Vector3(0.1044, 0.05, 0.1783));
+    const rocketHand = () => rocketHandL.getWorldPosition(new T.Vector3());
+    actions.update(0.30, 0, rocket, rocket.T);
+    rocket.root.updateMatrixWorld(true);
+    must(rocketHandL.visible === true && rocketHand().distanceTo(rocketGrab()) < 0.05,
+      'the support hand pulls the venturi clamp open');
     actions.update(0.35, 0, rocket, rocket.T);
     must(gate.position.equals(rocketReload.hinge) && gate.rotation.y < -1.7 && gate.rotation.x === 0,
       'rocket breech swings open sideways on its side pin (no slide, tail out to -x)');
@@ -219,6 +226,10 @@ try {
     must(round.visible === true, 'a complete new rocket is drawn');
     must(round.position.x > 0.25,
       'new rocket loads on the gate-free (+x) flank, clear of the swung back clamp');
+    actions.update(0.55, 0, rocket, rocket.T);
+    rocket.root.updateMatrixWorld(true);
+    must(rocketHand().distanceTo(round.getWorldPosition(new T.Vector3()).add(new T.Vector3(-0.04, -0.04, 0.075))) < 0.05,
+      'the support hand carries the rocket toward the tube mouth');
     actions.update(0.68, 0, rocket, rocket.T);
     must(Math.abs(round.position.x) < 1e-9, 'new rocket aligns with the tube');
     must(round.position.y === rocket.T.muzzle[1], 'rocket round rides the bore axis height');
@@ -228,7 +239,13 @@ try {
     actions.update(0.81, 0, rocket, rocket.T);
     must(round.position.z < alignedZ - 0.4, 'rocket is inserted forward along the bore axis');
     actions.update(0.88, 0, rocket, rocket.T);
-    must(gate.rotation.y > -0.7 && gate.rotation.y < 0, 'rocket rear breech slams shut over the seated round');
+    must(gate.rotation.y < -1.5, 'the hand swings the rear breech shut after seating the rocket');
+    actions.update(0.90, 0, rocket, rocket.T);
+    rocket.root.updateMatrixWorld(true);
+    must(rocketHand().distanceTo(rocketGrab()) < 0.05,
+      'the support hand returns to close and latch the venturi clamp');
+    actions.update(0.91, 0, rocket, rocket.T);
+    must(gate.rotation.y > -0.5 && gate.rotation.y < 0, 'rocket rear breech slams shut over the seated round');
     actions.update(0.93, 0, rocket, rocket.T);
     must(Math.abs(rocket.bolt.rotation.x) < 1e-9, 'rocket arming lever cocks home on the closing cue');
     actions.update(0.94, 0, rocket, rocket.T);

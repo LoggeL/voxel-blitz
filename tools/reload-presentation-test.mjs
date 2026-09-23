@@ -121,7 +121,9 @@ try {
   action.update(0.81, 0, rocket, rocket.T);
   assert.ok(round.position.z < alignedZ - 0.4, 'rocket is inserted forward along the bore axis');
   action.update(0.88, 0, rocket, rocket.T);
-  assert.ok(gate.rotation.y > -0.7 && gate.rotation.y < 0, 'rocket rear breech slams shut over the seated round');
+  assert.ok(gate.rotation.y < -1.5, 'the hand swings the rear breech shut after seating the rocket');
+  action.update(0.91, 0, rocket, rocket.T);
+  assert.ok(gate.rotation.y > -0.5 && gate.rotation.y < 0, 'rocket rear breech slams shut over the seated round');
   action.update(0.93, 0, rocket, rocket.T);
   assert.ok(Math.abs(rocket.bolt.rotation.x) < 1e-9, 'rocket arming lever cocks home on the closing cue');
   action.update(0.94, 0, rocket, rocket.T);
