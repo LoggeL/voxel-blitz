@@ -2220,12 +2220,34 @@ h1.vb-title::after {
   position: absolute;
   left: 10px;
   bottom: 7px;
-  width: 110px;
+  width: 98px;
   height: 56px;
   object-fit: contain;
   object-position: center;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.78));
 }
+
+/* The HUD PNGs share a 2:1 canvas, but their visible silhouettes do not. Keep
+   their optical height aligned across the wheel, HUD, kill feed and shop. */
+.vb-weapon-art {
+  transform: scale(var(--vb-weapon-art-scale, 1));
+  transform-origin: center;
+}
+
+.vb-weapon-art[data-weapon-id='revolver'] { --vb-weapon-art-scale: 1; }
+.vb-weapon-art[data-weapon-id='smg'] { --vb-weapon-art-scale: 0.77; }
+.vb-weapon-art[data-weapon-id='shotgun'] { --vb-weapon-art-scale: 1.18; }
+.vb-weapon-art[data-weapon-id='rifle'] { --vb-weapon-art-scale: 1.01; }
+.vb-weapon-art[data-weapon-id='lmg'] { --vb-weapon-art-scale: 1.07; }
+.vb-weapon-art[data-weapon-id='minigun'] { --vb-weapon-art-scale: 0.77; }
+.vb-weapon-art[data-weapon-id='sniper'] { --vb-weapon-art-scale: 1.07; }
+.vb-weapon-art[data-weapon-id='longarc'] { --vb-weapon-art-scale: 1.06; }
+.vb-weapon-art[data-weapon-id='rocket'] { --vb-weapon-art-scale: 0.93; }
+.vb-weapon-art[data-weapon-id='lance'] { --vb-weapon-art-scale: 1.13; }
+.vb-weapon-art[data-weapon-id='knife'] { --vb-weapon-art-scale: 0.72; }
+.vb-weapon-art[data-weapon-id='flamethrower'] { --vb-weapon-art-scale: 0.73; }
+.vb-weapon-art[data-weapon-id='glaive'] { --vb-weapon-art-scale: 0.76; }
+.vb-weapon-art[data-weapon-id='bubble'] { --vb-weapon-art-scale: 0.98; }
 
 /* Grenade Ready Card, readied tag, aim reticle and pouch: styles/grenade-pouch.css. */
 
@@ -3558,7 +3580,7 @@ body.is-replaying #hud, body.is-replaying .vb-touch-controls { visibility: hidde
   #weapon-icon {
     left: 5px;
     bottom: 7px;
-    width: 64px;
+    width: 58px;
     height: 40px;
   }
 
@@ -3760,10 +3782,25 @@ body.is-replaying #hud, body.is-replaying .vb-touch-controls { visibility: hidde
 
 .vb-wheel-icon {
   width: 64px;
-  height: 48px;
+  height: 32px;
   object-fit: contain;
   filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
   opacity: 0.92;
+}
+
+.vb-wheel-icon-frame {
+  width: 74px;
+  height: 40px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 1px solid rgba(159, 176, 191, 0.25);
+  border-radius: 3px;
+  background: rgba(7, 10, 14, 0.7);
+  box-shadow: inset 0 1px 0 rgba(235, 241, 245, 0.045);
+  transition: border-color 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
 }
 
 .vb-wheel-name {
@@ -3797,6 +3834,17 @@ body.is-replaying #hud, body.is-replaying .vb-touch-controls { visibility: hidde
 
 .vb-wheel-slot.is-current {
   color: var(--amber);
+}
+
+.vb-wheel-slot.is-current .vb-wheel-icon-frame {
+  border-color: rgba(255, 179, 71, 0.82);
+  background: rgba(255, 179, 71, 0.1);
+}
+
+.vb-wheel-slot.is-hl .vb-wheel-icon-frame {
+  border-color: var(--amber-hi);
+  background: rgba(255, 179, 71, 0.15);
+  box-shadow: 0 0 0 1px rgba(255, 190, 80, 0.2), inset 0 1px 0 rgba(255, 239, 209, 0.08);
 }
 
 .vb-wheel-slot.is-current::after {
@@ -3873,23 +3921,28 @@ body.is-replaying #hud, body.is-replaying .vb-touch-controls { visibility: hidde
 
 @media (max-width: 600px), (max-height: 600px) {
   .vb-wheel-slot {
-    width: 70px;
-    height: 64px;
-    margin: -32px 0 0 -35px;
-    gap: 2px;
+    width: 52px;
+    height: 52px;
+    margin: -26px 0 0 -26px;
+    gap: 1px;
   }
 
   .vb-wheel-icon {
+    width: 44px;
+    height: 22px;
+  }
+
+  .vb-wheel-icon-frame {
     width: 52px;
-    height: 32px;
+    height: 26px;
   }
 
   .vb-wheel-name {
     display: none; /* The highlighted weapon's full name remains in the hub. */
   }
 
-  .vb-wheel-key { font-size: 9px; }
-  .vb-wheel-ammo { font-size: 10px; }
+  .vb-wheel-key { font-size: 8px; }
+  .vb-wheel-ammo { font-size: 9px; }
 
   .vb-wheel-slot.is-current::after {
     content: '';

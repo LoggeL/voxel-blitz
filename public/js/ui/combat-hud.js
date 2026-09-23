@@ -141,8 +141,9 @@ export class CombatHudController {
     const throwable = !!(weaponKey && THROWABLE_NAMES[weaponKey]);
     const weapon = el('span', `kf-weapon kf-weapon-${weaponKey || 'world'}`, row);
     if (weaponKey && WEAPON_NAMES[weaponKey]) {
-      const icon = el('img', 'kf-weapon-icon', weapon);
+      const icon = el('img', 'kf-weapon-icon vb-weapon-art', weapon);
       icon.src = weaponImagePath(weaponKey);
+      icon.dataset.weaponId = weaponKey;
       icon.alt = '';
       icon.setAttribute('aria-hidden', 'true');
     } else if (throwable) {

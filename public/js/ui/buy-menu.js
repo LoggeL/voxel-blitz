@@ -150,8 +150,9 @@ export class BuyMenuController {
         classEl.remove();
         statsEl.remove();
         const isWeapon = Boolean(WEAPONS[wid]);
-        const image = el('img', `vb-chaos-weapon-image${isWeapon ? '' : ' vb-chaos-grenade-image'}`, cardBody);
+        const image = el('img', `vb-chaos-weapon-image${isWeapon ? ' vb-weapon-art' : ' vb-chaos-grenade-image'}`, cardBody);
         image.src = isWeapon ? weaponImagePath(wid) : GRENADE_HUD_ICONS[wid] || '';
+        if (isWeapon) image.dataset.weaponId = wid;
         image.alt = '';
         image.draggable = false;
         cardBody.insertBefore(image, nameEl);

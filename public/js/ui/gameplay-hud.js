@@ -195,7 +195,7 @@ export class GameplayHud {
     });
 
     d.ammo = el('div', '', hud, 'ammo');
-    d.weaponIcon = el('img', 'vb-weapon-icon', d.ammo, 'weapon-icon');
+    d.weaponIcon = el('img', 'vb-weapon-icon vb-weapon-art', d.ammo, 'weapon-icon');
     d.weaponIcon.alt = '';
     d.weaponIcon.setAttribute('aria-hidden', 'true');
     // Kept outside #ammo because that panel's angular clip-path also clips
@@ -391,7 +391,12 @@ export class GameplayHud {
       const tint = WEAPON_IDS.includes(key) ? `vb-w-${key}` : '';
       d.wname.className = tint;
       d.ammo.className = tint;
-      if (key) d.weaponIcon.src = weaponImagePath(key);
+      if (key) {
+        d.weaponIcon.src = weaponImagePath(key);
+        d.weaponIcon.dataset.weaponId = key;
+      } else {
+        d.weaponIcon.removeAttribute('data-weapon-id');
+      }
       d.res.title = WEAPONS[key]?.spareRounds != null ? 'Spare shells' : 'Spare magazines';
       d.res.setAttribute('aria-label', d.res.title);
       const discs = !!WEAPONS[key]?.glaive;

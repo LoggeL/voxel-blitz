@@ -407,7 +407,8 @@ export class WeaponWheelController {
       this.dom.ticks.push(tick);
       const node = el('div', 'vb-wheel-slot', null);
       node.style.setProperty('--vb-wheel-angle', `${angle}deg`);
-      const icon = el('img', 'vb-wheel-icon', node);
+      const iconFrame = el('span', 'vb-wheel-icon-frame', node);
+      const icon = el('img', 'vb-wheel-icon vb-weapon-art', iconFrame);
       icon.alt = '';
       icon.decoding = 'async';
       icon.draggable = false;
@@ -441,6 +442,8 @@ export class WeaponWheelController {
       }
       const icon = entry && entry.icon ? entry.icon : '';
       if (item.icon.getAttribute('src') !== icon) item.icon.setAttribute('src', icon);
+      if (entry?.id) item.icon.dataset.weaponId = entry.id;
+      else item.icon.removeAttribute('data-weapon-id');
       _setText(item.name, (entry && entry.name) || '');
       item.node.setAttribute('aria-label', `${entry?.name || ''}, ${entry?.owned ? entry.ammo : 'locked'}${entry?.current ? ', equipped' : ''}`);
       _setText(item.key, entry && index < 10 ? `[${bindingLabel(`slot${index + 1}`)}]` : (entry && entry.key) || '');
