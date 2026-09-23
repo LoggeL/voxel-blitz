@@ -319,21 +319,140 @@ export function makeFx(id, accent = GLOW_ACCENT[id]) {
   return { uniforms, material };
 }
 
+// Muzzle-flash pixel atlas: FLASH_FRAMES columns of 32 px cells, row 0 the front star
+// (plane A, across the bore) and row 1 the side plume (plane B, along the bore, base at
+// v=0). Palette levels are sRGB: 1 orange rim, 2 amber, 3 near-white core.
+export const FLASH_FRAMES = 4;
+const FLASH_CELL = 32;
+// Neutral linear gain applied to the atlas. The palette is authored against it so
+// only the core lands above 1.0 (~2.6, 2.4, 2.05: it blooms on HDR tiers); the amber
+// (~1.55, 0.65, 0.1) and rim (~0.95, 0.22, 0.03) keep their hue through the
+// highlight roll-off instead of washing pink. LDR tiers clip to white/amber/orange.
+export const FLASH_GAIN = 2.6;
+const FLASH_PALETTE = [null, [163, 82, 25, 190], [203, 137, 55, 230], [255, 246, 230, 255]];
+// Per frame: core radius, 4 axis spike lengths, 4 diagonal spike lengths, plume length,
+// plume belly, prong height. Hand-picked so consecutive shots never repeat a silhouette.
+const FLASH_SHAPES = [
+  [2.6, [14, 11, 15, 12], [10, 7, 11, 6], 29, 5.0, 9],
+  [3.2, [12, 15, 11, 14], [7, 11, 6, 10], 24, 6.0, 6],
+  [2.2, [15, 13, 13, 15], [11, 6, 9, 8], 31, 4.0, 12],
+  [3.0, [13, 14, 15, 11], [6, 10, 10, 7], 27, 5.5, 8],
+];
+let flashAtlas = null;
+
+/** RGBA8 pixels of the flash atlas; pure so tools can dump or hash it. */
+export function flashAtlasPixels() {
+  const width = FLASH_CELL * FLASH_FRAMES;
+  const height = FLASH_CELL * 2;
+  const levels = new Uint8Array(width * height);
+  const mark = (x, y, level) => {
+    const index = y * width + x;
+    if (level > levels[index]) levels[index] = level;
+  };
+  const level = v => (v > 0.6 ? 3 : v > 0.3 ? 2 : v > 0.05 ? 1 : 0);
+  const half = FLASH_CELL / 2 - 0.5;
+  for (let frame = 0; frame < FLASH_FRAMES; frame++) {
+    const [core, axes, diagonals, plumeLength, belly, prong] = FLASH_SHAPES[frame];
+    const x0 = frame * FLASH_CELL;
+    for (let y = 0; y < FLASH_CELL; y++) {
+      for (let x = 0; x < FLASH_CELL; x++) {
+        // Front star: hot core plus tapering spikes on the axes and diagonals.
+        const dx = x - half;
+        const dy = y - half;
+        const radius = Math.hypot(dx, dy);
+        let v = 1.05 - radius / (core * 1.35);
+        for (let spike = 0; spike < 8; spike++) {
+          const angle = spike * Math.PI / 4;
+          const length = spike % 2 ? diagonals[spike >> 1] : axes[spike >> 1];
+          const along = dx * Math.cos(angle) + dy * Math.sin(angle);
+          if (along <= 0 || along >= length) continue;
+          const across = Math.abs(-dx * Math.sin(angle) + dy * Math.cos(angle));
+          const taper = 1 - along / length;
+          const halfWidth = 0.6 + (spike % 2 ? 1.0 : 1.5) * taper;
+          if (across < halfWidth) v = Math.max(v, taper * (spike % 2 ? 0.8 : 1.1) - across / halfWidth * 0.3 + 0.08);
+        }
+        mark(x0 + x, y, level(v));
+        // Side plume: a tongue that bellies out past the crown, then tapers to a point,
+        // with a pair of short prongs raking forward off the crown.
+        const along = y / plumeLength;
+        let p = 0;
+        if (along < 1) {
+          const bellyAt = 0.28;
+          const profile = along < bellyAt
+            ? 2.2 + (belly - 2.2) * (along / bellyAt)
+            : belly * (1 - (along - bellyAt) / (1 - bellyAt)) ** 0.8;
+          const across = Math.abs(dx);
+          if (across < profile + 0.5) p = (1 - along * 0.85) * (1.1 - across / (profile + 0.5) * 0.7);
+        }
+        const prongAlong = y - prong;
+        if (prongAlong > 0 && prongAlong < 9) {
+          const offset = Math.abs(Math.abs(dx) - (belly + 0.5 + prongAlong * 0.55));
+          if (offset < 1.1 - prongAlong / 10) p = Math.max(p, 0.28 - prongAlong * 0.02);
+        }
+        mark(x0 + x, FLASH_CELL + y, level(p));
+      }
+    }
+  }
+  const pixels = new Uint8Array(width * height * 4);
+  for (let i = 0; i < levels.length; i++) {
+    const color = FLASH_PALETTE[levels[i]];
+    if (color) pixels.set(color, i * 4);
+  }
+  return { pixels, width, height };
+}
+
+/** The one shared flash atlas (page-owned; clones and the world flash batch sample it). */
+export function flashAtlasTexture() {
+  if (flashAtlas) return flashAtlas;
+  const { pixels, width, height } = flashAtlasPixels();
+  flashAtlas = new THREE.DataTexture(pixels, width, height);
+  flashAtlas.colorSpace = THREE.SRGBColorSpace;
+  flashAtlas.magFilter = THREE.NearestFilter;
+  flashAtlas.minFilter = THREE.LinearFilter;
+  flashAtlas.userData.pageOwned = true;
+  flashAtlas.needsUpdate = true;
+  return flashAtlas;
+}
+
+/**
+ * Two additive planes on one flash group, local -z along the bore: plane A the front
+ * star across the bore, plane B a cross plane along the bore rolled toward the eye.
+ * Each plane owns a clone of the shared atlas (one GPU upload) so frames are UV offsets
+ * only; `pose()` changes uniforms, never the program.
+ */
 export function makeFlash() {
   const group = new THREE.Group();
-  const makePlane = () => new THREE.Mesh(
-    new THREE.PlaneGeometry(0.14, 0.14),
-    new THREE.MeshBasicMaterial({
-      color: COL.flash,
+  const atlas = flashAtlasTexture();
+  const makePlane = (geometry, row) => {
+    const map = atlas.clone();
+    // clone() copies userData; the clone belongs to this gun, so gun disposal
+    // must release it (the shared Source stays alive through the page-owned atlas).
+    delete map.userData.pageOwned;
+    map.repeat.set(1 / FLASH_FRAMES, 0.5);
+    map.offset.set(0, row * 0.5);
+    return new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({
+      color: new THREE.Color().setScalar(FLASH_GAIN),
+      map,
       transparent: true,
       opacity: 0,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
       side: THREE.DoubleSide,
-    }),
-  );
-  const first = makePlane();
-  const second = makePlane();
+      // Additive needs no back-then-front split: one draw and one program per plane.
+      forceSinglePass: true,
+      toneMapped: false,
+    }));
+  };
+  // Star: a hand-width ahead of the crown so suppressors and brakes never swallow it.
+  const starGeometry = new THREE.PlaneGeometry(0.26, 0.26);
+  starGeometry.translate(0, 0, -0.025);
+  const first = makePlane(starGeometry, 0);
+  // Plume: XY plane laid into XZ (normal +y), base at the crown, tip forward.
+  const plumeGeometry = new THREE.PlaneGeometry(0.11, 0.32);
+  plumeGeometry.rotateX(-Math.PI / 2);
+  plumeGeometry.translate(0, 0, -0.155);
+  const second = makePlane(plumeGeometry, 1);
+  // Default roll stands the plume upright so a third-person barrel shows it side-on.
   second.rotation.z = Math.PI / 2;
   group.add(first);
   group.add(second);
@@ -342,7 +461,14 @@ export function makeFlash() {
   light.visible = false;
   group.add(light);
   group.visible = false;
-  return { grp: group, mats: [first.material, second.material], light };
+  const pose = (frame, spin, plumeRoll = Math.PI / 2) => {
+    const column = ((frame % FLASH_FRAMES) + FLASH_FRAMES) % FLASH_FRAMES / FLASH_FRAMES;
+    first.material.map.offset.x = column;
+    second.material.map.offset.x = column;
+    first.rotation.z = spin;
+    second.rotation.z = plumeRoll;
+  };
+  return { grp: group, mats: [first.material, second.material], light, planes: [first, second], pose };
 }
 
 /** Procedural circle-and-mildot texture; null keeps headless model construction usable. */

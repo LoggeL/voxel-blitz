@@ -13,6 +13,7 @@ import { GLAIVE_CHEST_DROP, GLAIVE_RULES, glaiveFlip, glaiveSeek, stepGlaive } f
 import { EYE_HEIGHT } from '../../../shared/combatmath.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { createBlenderParts } from '../engine/blender-assets.js';
+import { BLAST_STYLE, ExplosionFX, lightWeight } from './explosion-fx.js';
 
 /** Unconfirmed local launches are dropped after this long without a matching authority event. */
 const LOCAL_CONFIRM_TIMEOUT_S = 1.0;
@@ -48,18 +49,8 @@ const GLAIVE_EMBED_PROUD = 0.45;
 const GLAIVE_BACK_SPEED = (GLAIVE_RULES.speedOut + GLAIVE_RULES.speedBack) / 2;
 const GLAIVE_UNPARK_MARGIN = 1.5; // m past the catch reach before a sync un-parks a caught disc
 
-/** Blast presentation per projectile type: colour, growth, and life of the flash sphere. */
-const BLAST_STYLE = Object.freeze({
-  frag: Object.freeze({ color: 0xff9f1c, grow: 0.38, life: 0.42, ring: true, ringColor: 0xffc56b }),
-  limpet: Object.freeze({ color: 0xffd9a8, grow: 0.46, life: 0.5, ring: true, ringColor: 0xff5a3c }),
-  pulse: Object.freeze({ color: 0x59e8ff, grow: 0.65, life: 0.42, wireframe: true, ring: true, ringColor: 0x9ff4ff }),
-  bolt: Object.freeze({ color: 0x7dfcff, grow: 0.16, life: 0.28, ring: false }),
-  glaive: Object.freeze({ color: GLAIVE_COLOR, grow: 0.08, life: 0.22, ring: false }),
-  glaiveCatch: Object.freeze({ color: GLAIVE_COLOR, grow: 0.05, life: 0.32, ring: true, ringColor: 0xff8ae6 }),
-  rocket: Object.freeze({ color: 0xffb347, grow: 0.5, life: 0.55, ring: true, ringColor: 0xff7a1c }),
-  molotov: Object.freeze({ color: 0xff7924, grow: 0.2, life: 0.3, ring: false }),
-});
-
+// Blast presentation per projectile type (flash, ring, fireball, smoke, light,
+// scorch) lives with the instanced ExplosionFX batch in explosion-fx.js.
 function styleFor(type) {
   return BLAST_STYLE[type] || BLAST_STYLE.frag;
 }
@@ -126,7 +117,6 @@ export class ProjectileFX {
     this.glaivePickups = new Map();
     this._glaiveTarget = { x: 0, y: 0, z: 0 };
     this._glaiveBasis = new THREE.Matrix4();
-    this.blasts = [];
     this.camera = camera;
     this._aimTarget = new THREE.Vector3();
     this._lightCandidates = [];
@@ -144,6 +134,9 @@ export class ProjectileFX {
     this.raycast = (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
       (x, y, z) => isSolidBlock(this.getBlock(x, y, z)), ox, oy, oz, dx, dy, dz, max,
     );
+    // Instanced flash/ring/fireball/smoke/scorch batch; `blasts` is its live record list.
+    this.explosions = new ExplosionFX(this.scene, this.isSolid);
+    this.blasts = this.explosions.blasts;
 
     this.fragGeometry = new THREE.BoxGeometry(0.26, 0.26, 0.26);
     this.grenadeRibGeometry = new THREE.BoxGeometry(0.29, 0.035, 0.29);
@@ -163,8 +156,6 @@ export class ProjectileFX {
     this.rocketNoseGeometry.rotateX(-Math.PI / 2);
     this.exhaustGeometry = new THREE.ConeGeometry(0.11, 0.42, 8, 1, true);
     this.exhaustGeometry.rotateX(Math.PI / 2);
-    this.blastGeometry = new THREE.IcosahedronGeometry(1, 2);
-    this.ringGeometry = new THREE.TorusGeometry(1, 0.06, 6, 40);
     this.fragMaterial = new THREE.MeshStandardMaterial({
       color: 0x20242a, roughness: 0.48, metalness: 0.78,
     });
@@ -932,48 +923,9 @@ export class ProjectileFX {
     return true;
   }
 
-  /** One additive flash sphere (plus optional ring) at a world point. */
+  /** One pooled blast (flash, ring, fireball, smoke, light, scorch) at a world point. */
   _spawnBlast(x, y, z, style, radius) {
-    // Cluster salvos and bumper bombs share a bounded visual budget.
-    if (this.blasts.length >= 96) {
-      const oldest = this.blasts.shift();
-      this.scene.remove(oldest.mesh);
-      oldest.material.dispose();
-      if (oldest.ring) { this.scene.remove(oldest.ring.mesh); oldest.ring.material.dispose(); }
-    }
-    const material = new THREE.MeshBasicMaterial({
-      color: style.color,
-      transparent: true,
-      opacity: 0.9,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-      toneMapped: false,
-    });
-    material.wireframe = !!style.wireframe;
-    const mesh = new THREE.Mesh(this.blastGeometry, material);
-    mesh.position.set(x, y, z);
-    mesh.scale.setScalar(0.08);
-    mesh.renderOrder = 9;
-    this.scene.add(mesh);
-    const blast = { mesh, material, age: 0, life: style.life, radius, grow: style.grow, ring: null };
-    if (style.ring) {
-      const ringMaterial = new THREE.MeshBasicMaterial({
-        color: style.ringColor,
-        transparent: true,
-        opacity: 0.8,
-        depthWrite: false,
-        blending: THREE.AdditiveBlending,
-        toneMapped: false,
-      });
-      const ring = new THREE.Mesh(this.ringGeometry, ringMaterial);
-      ring.position.set(x, y + 0.15, z);
-      ring.rotation.x = Math.PI / 2;
-      ring.scale.setScalar(0.1);
-      ring.renderOrder = 9;
-      this.scene.add(ring);
-      blast.ring = { mesh: ring, material: ringMaterial };
-    }
-    this.blasts.push(blast);
+    return this.explosions.spawn(x, y, z, style, radius, this.camera?.position);
   }
 
   _orientRocket(projectile) {
@@ -1061,29 +1013,9 @@ export class ProjectileFX {
     this._trailCursor = trails.length ? (this._trailCursor + emissions) % trails.length : 0;
     this._updateGlaivePickups(step);
     this._updateRocketBatches();
+    // Blasts age first so the light pool sees this frame's envelope.
+    this.explosions.update(step, this.camera?.position);
     this._updateLights();
-
-    for (let index = this.blasts.length - 1; index >= 0; index--) {
-      const blast = this.blasts[index];
-      blast.age += step;
-      const t = Math.min(1, blast.age / blast.life);
-      const eased = 1 - Math.pow(1 - t, 3);
-      blast.mesh.scale.setScalar(0.08 + blast.radius * blast.grow * eased);
-      blast.material.opacity = Math.max(0, (1 - t) * (1 - t) * 0.9);
-      if (blast.ring) {
-        blast.ring.mesh.scale.setScalar(0.1 + blast.radius * 1.1 * eased);
-        blast.ring.material.opacity = Math.max(0, (1 - t) * 0.8);
-      }
-      if (t >= 1) {
-        this.scene.remove(blast.mesh);
-        blast.material.dispose();
-        if (blast.ring) {
-          this.scene.remove(blast.ring.mesh);
-          blast.ring.material.dispose();
-        }
-        this.blasts.splice(index, 1);
-      }
-    }
   }
 
   /**
@@ -1353,21 +1285,41 @@ export class ProjectileFX {
     const nearest = this._lightCandidates;
     nearest.length = 0;
     const eye = this.camera?.position;
+    // Candidates rank by what they add to the view: intensity x envelope x
+    // range^2 / (range^2 + distance^2), with a strong bonus for blasts. A live
+    // rocket blast beats a pop of weak bubble lights at the viewer's feet, a
+    // blast at the far end of the map loses to a rocket passing the camera once
+    // its flash has decayed, and equal lights still rank nearest first. The
+    // pool size never changes. `lightRank` sorts ascending, so it is negated.
+    const blasts = this.explosions.blasts;
+    for (let b = 0; b < blasts.length; b++) {
+      const blast = blasts[b];
+      const level = this.explosions.lightLevel(blast);
+      if (level <= 0) continue;
+      const glow = blast.style.light;
+      blast.lightRank = -8 * lightWeight(glow.intensity * level, glow.range, blast, eye);
+      this._insertLightCandidate(blast);
+    }
     for (const p of this.projectiles.values()) {
       if (p.type !== 'rocket' && p.type !== 'pulse' && p.type !== 'bolt' && p.type !== 'glaive') continue;
       if (p.parked) continue;
-      p.lightDistance = eye
-        ? (p.x - eye.x) ** 2 + (p.y - eye.y) ** 2 + (p.z - eye.z) ** 2 : 0;
-      let i = nearest.length;
-      while (i > 0 && nearest[i - 1].lightDistance > p.lightDistance) i--;
-      if (i >= PROJECTILE_LIGHT_LIMIT) continue;
-      nearest.splice(i, 0, p);
-      if (nearest.length > PROJECTILE_LIGHT_LIMIT) nearest.pop();
+      p.lightRank = p.type === 'rocket' ? -lightWeight(1.84, 7, p, eye)
+        : p.type === 'pulse' ? -lightWeight(0.9, 5, p, eye) : -lightWeight(p.type === 'glaive' ? 0.8 : 1, 4, p, eye);
+      this._insertLightCandidate(p);
     }
     for (let i = 0; i < this._lights.length; i++) {
       const light = this._lights[i], p = nearest[i];
       light.intensity = 0;
       if (!p) continue;
+      if (p.isBlast) {
+        const glow = p.style.light;
+        // Lifted off the burst point so the floor it sits on catches the flash.
+        light.position.set(p.x, p.y + 0.6, p.z);
+        light.color.setHex(glow.color);
+        light.distance = glow.range;
+        light.intensity = glow.intensity * this.explosions.lightLevel(p) * (1 + Math.sin(p.age * 70) * 0.08);
+        continue;
+      }
       light.position.set(p.x, p.y, p.z);
       light.color.setHex(p.type === 'rocket' ? 0xffa040 : p.type === 'pulse' ? 0x59e8ff
         : p.type === 'glaive' ? GLAIVE_COLOR : 0x7dfcff);
@@ -1375,6 +1327,18 @@ export class ProjectileFX {
       light.intensity = p.type === 'rocket' ? 1.84 + Math.sin(p.age * 90) * 0.16
         : p.type === 'pulse' ? 0.9 : p.type === 'glaive' ? 0.8 : 1;
     }
+  }
+
+  /** Sorted insert into the bounded light candidate list, without splice garbage. */
+  _insertLightCandidate(candidate) {
+    const nearest = this._lightCandidates;
+    let i = nearest.length;
+    while (i > 0 && nearest[i - 1].lightRank > candidate.lightRank) i--;
+    if (i >= PROJECTILE_LIGHT_LIMIT) return;
+    const end = Math.min(nearest.length, PROJECTILE_LIGHT_LIMIT - 1);
+    for (let j = end; j > i; j--) nearest[j] = nearest[j - 1];
+    nearest[i] = candidate;
+    if (nearest.length > PROJECTILE_LIGHT_LIMIT) nearest.length = PROJECTILE_LIGHT_LIMIT;
   }
 
   _removeProjectile(id) {
@@ -1397,6 +1361,7 @@ export class ProjectileFX {
     for (const decal of this._glaiveDecals || []) this._disposeGlaiveDecal(decal);
     if (this._glaiveDecals) this._glaiveDecals.length = 0;
     for (const mesh of this._rocketBatches) mesh.count = 0;
+    this.explosions.clear();
     for (const light of this._lights) light.intensity = 0;
   }
 
@@ -1409,14 +1374,7 @@ export class ProjectileFX {
     for (const id of [...this.glaivePickups.keys()]) this.removeGlaivePickup(id);
     for (const decal of this._glaiveDecals || []) this._disposeGlaiveDecal(decal);
     if (this._glaiveDecals) this._glaiveDecals.length = 0;
-    for (const blast of this.blasts) {
-      this.scene.remove(blast.mesh);
-      blast.material.dispose();
-      if (blast.ring) {
-        this.scene.remove(blast.ring.mesh);
-        blast.ring.material.dispose();
-      }
-    }
+    this.explosions.dispose();
     this.blasts.length = 0;
     this.scene.remove(this.previewGhost, this.previewLine, this.previewTail, this.landingRing, ...this.bounceDots);
     this.scene.remove(this.minePreview.group);
@@ -1440,7 +1398,6 @@ export class ProjectileFX {
       this.grenadeRibGeometry, this.grenadeBandGeometry,
       this.bottleGeometry, this.bottleNeckGeometry, this.bottleFlameGeometry,
       this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry,
-      this.blastGeometry, this.ringGeometry,
       this.glaiveDiscGeometry, this.glaiveHubGeometry, this.glaiveRimGeometry, this.glaiveCrescentGeometry,
     ]) geometry.dispose();
     for (const material of [

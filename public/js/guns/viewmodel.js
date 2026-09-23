@@ -901,9 +901,20 @@ export class ViewmodelRig {
   revealFlash() {
     const cur = this._cur; if (!cur) return;
     const g = cur.flash.grp;
-    const s = 0.85 + this._rng() * 0.5;                                // seeded size flicker
+    // One seeded draw drives size, atlas frame and star roll, so the per-magazine
+    // sequence behind recoil wobble and shell spin stays unchanged.
+    const r = this._rng();
+    const s = 0.85 + r * 0.5;                                          // seeded size flicker
     g.scale.setScalar(s);
-    g.quaternion.copy(this.camera.quaternion);                         // billboard to eye plane
+    // The group keeps the bore frame (local -z down the barrel): the star lies across
+    // the bore and the plume rolls about it toward the eye (the camera-local origin).
+    g.quaternion.identity();
+    if (cur.flash.pose) {
+      const bits = Math.floor(r * 4294967296);
+      g.updateWorldMatrix(true, false);
+      const eye = g.worldToLocal(this.camera.getWorldPosition(this._flashEye ||= new THREE.Vector3()));
+      cur.flash.pose(bits & 3, ((bits >>> 2) & 3) * Math.PI / 2, Math.atan2(-eye.x, eye.y));
+    }
     g.visible = true;
     for (const m of cur.flash.mats) m.opacity = 1;
     cur.flash.light.intensity = 2.4;

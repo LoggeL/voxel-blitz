@@ -47,6 +47,11 @@ await worldview.ready();
 await worldview.skyUpdate.ready;
 worldview.setGameMode(shot.mode);
 worldview.scene.add(camera);
+// Opt-in blast review: ?explosion=frag|limpet|rocket|pulse|molotov, ?explosionAge=s, ?explosionAt=x,y,z.
+const explosion = params.get('explosion') ? (await import('./explosion-capture.js')).stageCaptureExplosion({
+  type: params.get('explosion'), age: params.get('explosionAge') ?? 0.12, at: params.get('explosionAt'),
+  scene: worldview.scene, camera, getBlock: world.getBlock,
+}) : null;
 
 // Two synchronous frames let sky callbacks and matrices settle without
 // introducing gameplay, network, avatar, HUD, weapon state, or a headless
@@ -72,4 +77,5 @@ window.__vbCapture = Object.freeze({
   graphics,
   post: post?.stats || null,
   avatars: captureAvatars,
+  explosion,
 });

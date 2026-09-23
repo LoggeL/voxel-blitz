@@ -64,7 +64,7 @@
     "animations:browser": "node tools/movement-animation-browser-test.mjs && node tools/stance-animation-browser-test.mjs",
     "prone:test": "node tools/prone-test.mjs && node tools/traversal-test.mjs && node tools/lean-test.mjs",
     "prone:browser": "node tools/traversal-browser-test.mjs",
-    "projectiles:test": "node tools/projectile-server-performance-test.mjs && node tools/projectile-performance-test.mjs",
+    "projectiles:test": "node tools/projectile-server-performance-test.mjs && node tools/projectile-performance-test.mjs && node tools/explosion-fx-test.mjs",
     "refactor:test": "node tools/hitbox-refactor-test.mjs && node tools/hitbox-model-test.mjs && node tools/server-refactor-test.mjs && node tools/client-refactor-test.mjs && node tools/display-debug-test.mjs && node tools/test-harness-test.mjs",
     "browser:ui": "node tools/session-refactor-test.mjs && node tools/menu-first-boot-test.mjs",
     "menus:browser": "node tools/menu-history-browser-test.mjs",
