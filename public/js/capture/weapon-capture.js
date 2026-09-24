@@ -73,6 +73,12 @@ camera.add(inspectionFill);
 
 const rig = new ViewmodelRig(camera);
 rig.setWeapon(state.startsWith('swap-') ? (weapon === 'rifle' ? 'revolver' : 'rifle') : weapon);
+const ammoPreview = Number(params.get('ammo'));
+if (weapon === 'mgl') {
+  const mag = params.has('ammo') && Number.isFinite(ammoPreview)
+    ? ammoPreview : WEAPONS.mgl.magSize;
+  rig.setSkipjack({ mag, magSize: Math.max(WEAPONS.mgl.magSize, mag) });
+}
 
 const stablePose = Object.freeze({
   speed: 0,
@@ -156,6 +162,8 @@ if (state.startsWith('reload-')) {
   rig.reload(1, belt ? 'magswap' : 'cylinder');
   const fraction = weapon === 'rocket'
     ? { 'reload-open': 0.33, 'reload-load': 0.76, 'reload-charge': 0.90 }[state]
+    : weapon === 'mgl'
+      ? { 'reload-open': 0.34, 'reload-load': 0.82, 'reload-charge': 0.93 }[state]
     : belt
       ? { 'reload-open': 0.14, 'reload-eject': 0.28, 'reload-load': 0.875, 'reload-charge': 0.965 }[state]
       : { 'reload-open': 0.26, 'reload-eject': 0.40, 'reload-load': 0.64 }[state];
@@ -195,4 +203,5 @@ renderer.render(scene, camera);
 document.documentElement.dataset.captureReady = 'true';
 document.documentElement.dataset.captureWeapon = weapon;
 document.documentElement.dataset.captureState = state;
-window.__vbWeaponCapture = Object.freeze({ weapon, state });
+window.__vbWeaponCapture = Object.freeze({ weapon, state,
+  ammo: weapon === 'mgl' && params.has('ammo') ? ammoPreview : null });

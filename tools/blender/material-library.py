@@ -19,6 +19,10 @@ BACKUP=ROOT/'.artifacts/weapon-materials/before'
 
 
 def assignment(name):
+    if name.split(' | ')[0] == 'SKIPJACK':
+        finish=re.sub(r'\.\d+$','',name.split(' | ')[-1]).strip().lower()
+        if finish=='olive drab':return 'skipjack-olive-armor'
+        if finish=='gunmetal':return 'skipjack-dark-steel'
     label=re.sub(r'\.\d+$','',name.split(' | ')[-1]).strip().lower()
     return CONFIG['assignment'].get(label)
 
@@ -51,7 +55,17 @@ def apply_scene(scene):
         output=nodes.new('ShaderNodeOutputMaterial');output.location=(420,60)
         tex=nodes.new('ShaderNodeTexImage');tex.location=(-530,120);tex.image=image
         tex.label='ImageGen | '+key;tex.interpolation='Linear';tex.extension='REPEAT'
-        links.new(tex.outputs['Color'],shader.inputs['Base Color'])
+        if material.name.split(' | ')[-1] == 'round colors':
+            # SKIPJACK stores the brass/olive/orange zones in COLOR_0. Keep
+            # those colors while layering the new shell microtexture over them.
+            color=nodes.new('ShaderNodeVertexColor');color.layer_name='RoundColor'
+            mix=nodes.new('ShaderNodeMixRGB');mix.blend_type='MULTIPLY'
+            mix.inputs['Fac'].default_value=1
+            links.new(tex.outputs['Color'],mix.inputs['Color1'])
+            links.new(color.outputs['Color'],mix.inputs['Color2'])
+            links.new(mix.outputs['Color'],shader.inputs['Base Color'])
+        else:
+            links.new(tex.outputs['Color'],shader.inputs['Base Color'])
         bump=nodes.new('ShaderNodeBump');bump.location=(-150,-140)
         bump.inputs['Strength'].default_value=1
         bump.inputs['Distance'].default_value=spec['bump']

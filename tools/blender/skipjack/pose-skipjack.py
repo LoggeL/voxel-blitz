@@ -7,7 +7,7 @@ Usage:
 
 The transforms replicate the runtime path in public/js/guns/actions.js
 `_updateSkipjackReload` exactly. For every `mag` source mesh the runtime
-subtracts CASSETTE_HINGE (game (-0.163, 0.055, -0.30)), applies the
+subtracts CASSETTE_HINGE (game (-0.151, 0.083, -0.095)), applies the
 whole-cassette Euler(1.06*open, 0, -0.13*open) XYZ rotation in GAME space plus
 the translation game (-0.095*lateral, -0.025*open, +0.038*open), then restores
 the hinge; `open`/`lateral`/`rack` come verbatim from the phase curves with
@@ -52,7 +52,7 @@ SAMPLES = 24
 RESOLUTION = (1600, 1000)
 
 GAME = Matrix(((1, 0, 0), (0, 0, 1), (0, -1, 0)))  # game (x, y, z) = GAME @ authoring
-CASSETTE_HINGE_GAME = Vector((-0.163, 0.055, -0.30))
+CASSETTE_HINGE_GAME = Vector((-0.151, 0.083, -0.095))
 GAME_TO_AUTH = GAME.to_3x3().transposed()
 HINGE_AUTH = GAME_TO_AUTH @ CASSETTE_HINGE_GAME
 MAG_TIMELINE = (0.16, 0.80, 0.90)  # start, home, clickAt (TIMERS.mgl.magTimeline)
@@ -195,7 +195,7 @@ originals = {obj: obj.matrix_world.copy() for obj in mag_parts + bolt_parts}
 def reset_nodes():
     for obj in mag_parts + bolt_parts:
         obj.matrix_world = originals[obj]
-        obj.hide_render = False
+        obj.hide_render = obj.name.startswith('round 1 |')
     bpy.context.view_layer.update()
 
 
@@ -214,7 +214,7 @@ for name, frac, bolt_back in POSES:
     bolt = bolt_matrix(bolt_back)
     for obj in mag_parts:
         obj.matrix_world = cassette @ originals[obj]
-        obj.hide_render = not visible  # runtime: cassette.visible = frac < .47 || frac >= .60
+        obj.hide_render = not visible or obj.name.startswith('round 1 |')
     for obj in bolt_parts:
         obj.matrix_world = bolt @ originals[obj]
     bpy.context.view_layer.update()

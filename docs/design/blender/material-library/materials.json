@@ -39,6 +39,7 @@
     "brass": "aged-brass",
     "copper rail": "aged-copper",
     "olive drab": "olive-paint",
+    "round colors": "skipjack-shell",
     "fuel red": "red-enamel",
     "shell red": "red-enamel",
     "tan webbing": "tan-webbing",
@@ -48,6 +49,21 @@
     "petrol grip": "petrol-fabric"
   },
   "materials": {
+    "skipjack-olive-armor": {
+      "metal": 0.2,
+      "rough": 0.6,
+      "bump": 7e-05
+    },
+    "skipjack-dark-steel": {
+      "metal": 0.48,
+      "rough": 0.47,
+      "bump": 4.5e-05
+    },
+    "skipjack-shell": {
+      "metal": 0.24,
+      "rough": 0.48,
+      "bump": 4e-05
+    },
     "phosphated-steel": {
       "metal": 0.35,
       "rough": 0.53,

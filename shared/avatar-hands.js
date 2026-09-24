@@ -53,8 +53,8 @@ export const HANDS = {
     support: { x: 0, y: -0.058, z: -0.345, on: 'body' },    // palm cups the bamboo foregrip pole.
   },
   mgl: {
-    grip: { x: 0.047, y: -0.203, z: -0.056 },
-    support: { x: -0.058, y: -0.184, z: -0.373, on: 'body' },
+    grip: { x: 0.041, y: -0.112, z: -0.332 },
+    support: { x: -0.052, y: 0.006, z: -0.478, on: 'body' },
   },
   knife: {
     grip: { x: 0.020, y: -0.225, z: -0.035 },                // fist rides low: the baked glove

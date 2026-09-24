@@ -195,9 +195,9 @@ export function buildGun(id, cache) {
     conditionPhase:
       (id.charCodeAt(0) * 0.017 + id.charCodeAt(id.length - 1) * 0.031) % (Math.PI * 2),
     pivotCam: new THREE.Vector3(
-      HIP.x + hands.grip.x,
-      HIP.y + hands.grip.y,
-      HIP.z + hands.grip.z,
+      (T.hipOffset || HIP).x + hands.grip.x,
+      (T.hipOffset || HIP).y + hands.grip.y,
+      (T.hipOffset || HIP).z + hands.grip.z,
     ),
   };
 }

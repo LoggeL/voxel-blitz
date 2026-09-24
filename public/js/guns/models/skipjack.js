@@ -3,13 +3,13 @@ import { createBlenderParts } from '../../engine/blender-assets.js';
 
 // The cassette's trunnion is on its near, rear cheek. Runtime meshes carry
 // baked game-space coordinates, so offset them into this pivot once at build.
-const CASSETTE_HINGE = new THREE.Vector3(-0.163, 0.055, -0.30);
+const CASSETTE_HINGE = new THREE.Vector3(-0.151, 0.083, -0.095);
 const ROUND_NAME = /round[ _-]*([1-3])(?:\b|[ _|-])/i;
 
-// GL-3 SKIPJACK is authored as five rigid runtime parts. The three live rounds
-// travel with the under-slung cassette (`mag`), while the charging pawl remains
-// a small independent bolt so firing and reload motion stay inside the normal
-// viewmodel contract.
+// GL-3 SKIPJACK is authored as five rigid runtime parts. Up to three reserve
+// rounds travel with the flank cassette (`mag`); one shot is already chambered.
+// The charging pawl remains independent, so firing and reload motion stay
+// inside the normal viewmodel contract.
 export function buildSkipjack({ groups }) {
   const parts = createBlenderParts('skipjack');
   if (!parts) return false;
@@ -37,7 +37,7 @@ export function buildSkipjack({ groups }) {
   groups.extra.userData.skipjack = { cassette, rounds };
 
   groups.body.userData.blenderAsset = 'skipjack';
-  groups.body.userData.sightHeight = 0.291;
+  groups.body.userData.sightHeight = 0.216;
   groups.mag.userData.cassette = true;
   return true;
 }

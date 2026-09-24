@@ -351,7 +351,8 @@ TIMERS.mgl = {
   cycleKind: null,
   ejectOnFire: false,
   magTimeline: { start: 0.16, home: 0.80, clickAt: 0.90, type: 'mag' },
-  adsOffset: { x: 0, y: -0.291, z: -0.70 }, // Center the SKIPJACK reflex dot on the shot ray.
+  hipOffset: { x: 0.18, y: -0.26, z: -0.30 },
+  adsOffset: { x: 0, y: -0.216, z: -0.32 }, // Eye behind the compact optic, stock below the view.
   kick: { stiffness: 150, damping: 21, yawWobble: 0.45 },
 };
 

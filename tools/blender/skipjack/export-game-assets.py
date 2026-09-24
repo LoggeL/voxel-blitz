@@ -16,7 +16,7 @@ translation-only so the loader's "sum ancestor positions" flattening is exact.
 
 Also writes docs/design/blender/skipjack/skipjack.glb (portable twin of the
 same geometry), the public/assets/blender/manifest.json inventory row, and
-docs/design/blender/skipjack/manifest.json at revision 8, then runs the shared
+docs/design/blender/skipjack/manifest.json at revision 12, then runs the shared
 material finalizer (finish_asset) and the SKIPJACK ASSET_TINTS gltfTint pass
 on both documents before re-saving the .blend.
 
@@ -47,27 +47,26 @@ MARKERS = ['muzzle', 'grip', 'support', 'sight']
 MATERIAL_KEYS = ('gunmetal', 'machined steel', 'olive drab', 'dark polymer',
                  'rubber', 'orange paint', 'brass', 'phosphor', 'optic glass')
 ROUND_MATERIAL = 'round colors'
-UV_SCALE = 3.6  # texture tiles per metre; matches the authoring UV projection
+UV_SCALE = 7.5  # texture tiles per metre; matches the authoring UV projection
 
 # Frozen gameplay anchors in authoring space. The runtime reads them back from
 # the marker node translations in game space (muzzle must sit on T.mgl.muzzle),
 # so drift here must fail the export rather than ship a mis-aimed launcher.
 ANCHORS = {'muzzle': (0, 0.782, 0.075),
-           'grip': (0.047, 0.056, -0.203),
-           'support': (-0.058, 0.373, -0.184),
-           'sight': (0, 0.332, 0.291)}
+           'grip': (0.041, 0.332, -0.112),
+           'support': (-0.052, 0.478, 0.006),
+           'sight': (0, 0.342, 0.216)}
 
 # game_x = x, game_y = z, game_z = -y: a proper rotation, so normals map like
 # positions and the flat normal matrix is this rotation itself.
 GAME = Matrix(((1, 0, 0), (0, 0, 1), (0, -1, 0)))
 
-# Keep SKIPJACK's generated palette maps while restoring the darker graphite,
-# olive and orange values in the game-facing glTFs and the finished materials.
+# Preserve surface detail and material contrast at first-person distance.
 ASSET_TINTS = {
-    'gunmetal': (.06, .075, .095), 'machined steel': (.25, .29, .33),
-    'olive drab': (.085, .108, .072), 'dark polymer': (.12, .15, .17),
-    'rubber': (.10, .12, .12), 'orange paint': (.48, .20, .06),
-    'brass': (.36, .27, .13), 'phosphor': (.38, .78, .38),
+    'gunmetal': (.29, .31, .34), 'machined steel': (.42, .45, .48),
+    'olive drab': (.44, .49, .37), 'dark polymer': (.48, .52, .56),
+    'rubber': (.55, .57, .57), 'orange paint': (.82, .55, .34),
+    'brass': (.76, .70, .50), 'phosphor': (.38, .78, .38),
 }
 
 REVIEW_VIEWS = ('right-side', 'muzzle', 'rear', 'top', 'ads')
@@ -467,7 +466,9 @@ def smoke_material_record():
     for material in sorted({m for obj in scene.objects if obj.type == 'MESH'
                             for m in obj.data.materials if m}, key=lambda m: m.name):
         label = re.sub(r'\.\d+$', '', material.name.split(' | ')[-1]).strip().lower()
-        key = config['assignment'].get(label)
+        key = ({'olive drab': 'skipjack-olive-armor',
+                'gunmetal': 'skipjack-dark-steel'}.get(label)
+               or config['assignment'].get(label))
         if key:
             applied.append({'material': material.name, 'texture': key})
     return {'version': config['version'], 'asset': SLUG, 'materials': applied}, applied
@@ -533,10 +534,10 @@ if not SMOKE_ROOT:
     bpy.context.preferences.filepaths.save_version = 0
     bpy.ops.wm.save_as_mainfile(filepath=str(BLEND), check_existing=False)
 
-# --- docs manifest (revision 8) ----------------------------------------------
+# --- docs manifest (revision 12) ---------------------------------------------
 review_dir = f'docs/design/blender/{SLUG}/review/final'
 docs_manifest = {
-    'asset': 'GL-3 SKIPJACK', 'asset_id': SLUG, 'weapon_id': 'mgl', 'revision': 8,
+    'asset': 'GL-3 SKIPJACK', 'asset_id': SLUG, 'weapon_id': 'mgl', 'revision': 12,
     'axis_contract': {'authoring_forward': '+Y', 'authoring_up': '+Z', 'authoring_right': '+X',
                       'game_mapping': 'x=x, y=z, z=-y'},
     'anchors_authoring': {name: marker_authoring[name] for name in MARKERS},

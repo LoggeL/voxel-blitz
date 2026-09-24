@@ -18,7 +18,7 @@ revisions. Outputs:
     review/final/muzzle.png           front quarter into the crowned muzzle
     review/final/rear.png             sight picture from behind
     review/final/top.png              overhead three-quarter
-    review/final/ads.png              exactly on the sight line (0, y, 0.291),
+    review/final/ads.png              exactly on the sight line (0, y, 0.216),
                                       looking +Y toward the muzzle
 
 With VB_SKIPJACK_SMOKE_ROOT set every PNG lands under that root so development
@@ -86,9 +86,14 @@ scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = 'PNG'
 scene.render.film_transparent = False
 scene.view_settings.view_transform = 'AgX'
+scene.view_settings.exposure = -0.55
 
 for obj in scene.objects:
     obj.hide_render = not is_source_mesh(obj)
+    # Standard GL-3 capacity is three total: one enclosed in the launcher and
+    # two reserves outside. The third exterior slot is used by the ammo upgrade.
+    if obj.name.startswith('round 1 |'):
+        obj.hide_render = True
 
 # In-script dark sweep + three area lights (the .blend's own studio gear is
 # hidden above so revisions cannot shift the proof lighting).
@@ -97,7 +102,7 @@ sweep_material.use_nodes = True
 sweep_shader = sweep_material.node_tree.nodes['Principled BSDF']
 sweep_shader.inputs['Base Color'].default_value = (0.023, 0.032, 0.039, 1)
 sweep_shader.inputs['Roughness'].default_value = 0.68
-bpy.ops.mesh.primitive_plane_add(size=12, location=(0, 0.28, -0.42))
+bpy.ops.mesh.primitive_plane_add(size=200, location=(0, 0.28, -0.42))
 sweep = bpy.context.object
 sweep.name = 'SKIPJACK | render sweep'
 sweep.data.materials.append(sweep_material)
@@ -122,9 +127,9 @@ def area(name, loc, power, color, size, target):
     return obj
 
 
-area('SKIPJACK | key softbox', (1.4, -0.6, 1.6), 95, (0.72, 0.84, 1.0), 1.4, (0, 0.34, 0))
-area('SKIPJACK | cool edge', (-1.15, 0.48, 0.78), 105, (0.72, 0.83, 1.0), 0.9, (0, 0.36, 0))
-area('SKIPJACK | overhead strip', (0.1, 0.75, 1.3), 78, (0.66, 0.90, 1.0), 1.1, (0, 0.37, -0.02))
+area('SKIPJACK | key softbox', (1.4, -0.6, 1.6), 95, (1.0, 0.96, 0.90), 1.4, (0, 0.34, 0))
+area('SKIPJACK | cool edge', (-1.15, 0.48, 0.78), 105, (0.90, 0.95, 1.0), 0.9, (0, 0.36, 0))
+area('SKIPJACK | overhead strip', (0.1, 0.75, 1.3), 78, (1.0, 1.0, 1.0), 1.1, (0, 0.37, -0.02))
 
 cam_data = bpy.data.cameras.new('SKIPJACK | proof camera')
 cam = bpy.data.objects.new('SKIPJACK | proof camera', cam_data)
@@ -135,22 +140,25 @@ scene.camera = cam
 # name: (output path, camera position, look-at, orthographic scale)
 VIEWS = (
     ('skipjack-hero', 'skipjack-hero.png',
-     (-1.55, 1.15, 0.32), (0.0, 0.32, -0.005), 1.18),
+     (-2.0, 0.56, 0.23), (0.0, 0.26, 0.025), 1.14),
     ('skipjack-side', 'skipjack-side.png',
-     (-2.0, 0.32, -0.005), (0.0, 0.32, -0.005), 1.18),
+     (-2.0, 0.26, 0.025), (0.0, 0.26, 0.025), 1.18),
     ('right-side', 'review/final/right-side.png',
-     (2.0, 0.32, -0.005), (0.0, 0.32, -0.005), 1.18),
+     (2.0, 0.26, 0.025), (0.0, 0.26, 0.025), 1.18),
     ('muzzle', 'review/final/muzzle.png',
-     (-0.20, 2.0, 0.19), (0.0, 0.32, -0.005), 0.95),
+     (-0.20, 2.0, 0.19), (0.0, 0.26, 0.025), 0.95),
     ('rear', 'review/final/rear.png',
      (0.0, -1.35, 0.40), (0.0, 0.35, 0.24), 0.95),
     ('top', 'review/final/top.png',
-     (-0.75, 0.48, 1.55), (0.0, 0.32, -0.005), 1.18),
+     (-0.75, 0.48, 1.55), (0.0, 0.26, 0.025), 1.18),
     ('ads', 'review/final/ads.png',
-     (0.0, -1.0, 0.291), (0.0, 0.6, 0.291), 0.5),
+     (0.0, -1.0, 0.216), (0.0, 0.6, 0.216), 0.5),
 )
 
+selected = set(filter(None, os.environ.get('VB_SKIPJACK_VIEWS', '').split(',')))
 for name, rel, pos, target, scale in VIEWS:
+    if selected and name not in selected:
+        continue
     cam.location = Vector(pos)
     cam.rotation_euler = (Vector(target) - cam.location).to_track_quat('-Z', 'Y').to_euler()
     cam_data.ortho_scale = scale

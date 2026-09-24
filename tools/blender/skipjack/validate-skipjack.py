@@ -70,9 +70,9 @@ ROUND_MATERIAL = 'round colors'
 EXPECTED_MATERIALS = set(MATERIAL_KEYS) | {ROUND_MATERIAL}
 ANCHORS = {  # authoring space: +Y forward, +Z up
     'muzzle': (0.0, 0.782, 0.075),
-    'grip': (0.047, 0.056, -0.203),
-    'support': (-0.058, 0.373, -0.184),
-    'sight': (0.0, 0.332, 0.291),
+    'grip': (0.041, 0.332, -0.112),
+    'support': (-0.052, 0.478, 0.006),
+    'sight': (0.0, 0.342, 0.216),
 }
 MUZZLE_GAME = (0.0, 0.075, -0.782)  # authoring (0, 0.782, 0.075) via game=(x, z, -y)
 MARKER_ROLE = 'gameplay mount marker'

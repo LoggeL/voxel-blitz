@@ -2,7 +2,7 @@
   "asset": "GL-3 SKIPJACK",
   "asset_id": "skipjack",
   "weapon_id": "mgl",
-  "revision": 8,
+  "revision": 12,
   "axis_contract": {
     "authoring_forward": "+Y",
     "authoring_up": "+Z",
@@ -16,24 +16,24 @@
       0.075
     ],
     "grip": [
-      0.047,
-      0.056,
-      -0.203
+      0.041,
+      0.332,
+      -0.112
     ],
     "support": [
-      -0.058,
-      0.373,
-      -0.184
+      -0.052,
+      0.478,
+      0.006
     ],
     "sight": [
       0.0,
-      0.332,
-      0.291
+      0.342,
+      0.216
     ]
   },
-  "source_parts": 99,
+  "source_parts": 163,
   "runtime_draws": 20,
-  "triangles": 11228,
+  "triangles": 25232,
   "runtime_gltf": "public/assets/blender/skipjack.gltf",
   "portable_glb": "docs/design/blender/skipjack/skipjack.glb",
   "blend": "docs/design/blender/skipjack/skipjack.blend",
@@ -49,39 +49,39 @@
   },
   "material_tints": {
     "gunmetal": [
-      0.06,
-      0.075,
-      0.095
+      0.29,
+      0.31,
+      0.34
     ],
     "machined steel": [
-      0.25,
-      0.29,
-      0.33
+      0.42,
+      0.45,
+      0.48
     ],
     "olive drab": [
-      0.085,
-      0.108,
-      0.072
+      0.44,
+      0.49,
+      0.37
     ],
     "dark polymer": [
-      0.12,
-      0.15,
-      0.17
+      0.48,
+      0.52,
+      0.56
     ],
     "rubber": [
-      0.1,
-      0.12,
-      0.12
+      0.55,
+      0.57,
+      0.57
     ],
     "orange paint": [
-      0.48,
-      0.2,
-      0.06
+      0.82,
+      0.55,
+      0.34
     ],
     "brass": [
-      0.36,
-      0.27,
-      0.13
+      0.76,
+      0.7,
+      0.5
     ],
     "phosphor": [
       0.38,

@@ -83,7 +83,7 @@ export class ViewmodelRig {
     this._glaiveState = null;          // authoritative {discs, magSize, fab01} from WeaponState
     this._bubble = null;               // BubblePresentation for the drawn SUDSBLASTER, else null
     this._bubbleState = null;          // authoritative {mag, magSize} from WeaponState
-    this._skipjackState = null;        // live three-round cassette count from WeaponState
+    this._skipjackState = null;        // total chambered + cassette rounds from WeaponState
     this._id = null;
     this._now = 0;                     // rig-local clock, advanced only by update()
     this._queue = [];                  // deferred timer-boundary events {at, fn}
@@ -382,13 +382,15 @@ export class ViewmodelRig {
     if (this._bubble && state) this._bubble.setMag(state.mag, state.magSize);
   }
 
-  /** SKIPJACK's three modeled grenades follow the local weapon ammo state. */
+  /** One round is already chambered; the cassette shows only the remaining rounds. */
   setSkipjack(state) {
     this._skipjackState = state ? { mag: state.mag, magSize: state.magSize } : null;
     const rounds = this._models.mgl?.extra.userData.skipjack?.rounds;
     if (!rounds || !state) return;
-    const count = Math.max(0, Math.min(rounds.length, Math.floor(Number(state.mag) || 0)));
-    for (let i = 0; i < rounds.length; i++) rounds[i].visible = i < count;
+    const reserve = Math.max(0, Math.min(rounds.length, Math.floor(Number(state.mag) || 0) - 1));
+    // Feed from the top: the upper slot empties first. No cassette round is
+    // moved toward the barrel during firing; only the chambered round fires.
+    for (let i = 0; i < rounds.length; i++) rounds[i].visible = i >= rounds.length - reserve;
   }
 
   /** An empty trigger pull: the SUDSBLASTER film forms weakly and pops. */
@@ -813,10 +815,11 @@ export class ViewmodelRig {
     // Floating: the gun rides 5 cm lower with a slow lateral scull; ADS lifts it back.
     const swimCarry = this._swim * (1 - adsE);
     const swimSway = Math.sin(this._now * 2.4) * 0.01 * swimCarry;
+    const hip = T.hipOffset || HIP;
     this.content.position.set(
-      HIP.x + (T.adsOffset.x - HIP.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0) + swimSway,
-      HIP.y + (T.adsOffset.y - HIP.y - (cur.attachmentSightOffset || 0)) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065 - swimCarry * 0.05,
-      HIP.z + (T.adsOffset.z - HIP.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0) + glaivePush
+      hip.x + (T.adsOffset.x - hip.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0) + swimSway,
+      hip.y + (T.adsOffset.y - hip.y - (cur.attachmentSightOffset || 0)) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065 - swimCarry * 0.05,
+      hip.z + (T.adsOffset.z - hip.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0) + glaivePush
     );
     this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22,
       swingRy + (dep.ry || 0) + (actionMotion.yaw || 0),
@@ -1015,7 +1018,8 @@ export class ViewmodelRig {
 
   /** Snap base pose without waiting for next update tick (setWeapon-time correctness). */
   _applyBasePose() {
-    this.content.position.set(HIP.x, HIP.y, HIP.z);
+    const hip = this._models[this._id]?.T.hipOffset || HIP;
+    this.content.position.set(hip.x, hip.y, hip.z);
     this.content.rotation.set(DEPLOY.startTilt, 0, 0);
     this.posG.position.set(0, 0, 0);
   }

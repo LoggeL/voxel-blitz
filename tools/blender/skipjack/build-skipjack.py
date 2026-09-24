@@ -1,4 +1,4 @@
-"""Rebuild GL-3 SKIPJACK as design study "CITADEL" (revision 8).
+"""Rebuild GL-3 SKIPJACK as the rounded CITADEL study (revision 12).
 
 Run in the connected Blender 5.x session through Blender MCP:
 
@@ -12,11 +12,10 @@ or headless as the fallback:
 
 The study is authored in docs/design/blender/skipjack/skipjack.blend (saved with
 copy=True so a live session keeps its own file). Design study "CITADEL": one
-continuous faceted wedge from stock comb to muzzle nut, a three-grenade cassette
-bayed on the left flank whose armoured frame and machined rims expose the
-rounds, and an arc-range ladder sight carrying the reflex at the frozen 0.291 m
-sight line. Alternatives and the choice are recorded in
-docs/design/blender/skipjack/concepts/concept-prompts.md.
+traced reference silhouette with a narrow stock neck, a single forward grip,
+a three-position flank cassette and a compact 0.216 m reflex sight. Geometry
+is authored in reference-geometry.py against the large side view in
+concepts/revision11/rounded-direction-b.png.
 
 Authoring space is +Y muzzle, +Z up, +X right; the delivery export maps
 game (x, y, z) = (x, z, -y). This script authors source parts only (one mesh
@@ -46,14 +45,14 @@ GROUP_NAMES = ('body', 'mag', 'bolt', 'trigger', 'extra')
 MATERIAL_KEYS = ('gunmetal', 'machined steel', 'olive drab', 'dark polymer',
                  'rubber', 'orange paint', 'brass', 'phosphor', 'optic glass')
 ROUND_MATERIAL = 'round colors'
-UV_SCALE = 3.6
+UV_SCALE = 7.5
 
-# Frozen viewmodel anchors in authoring space (game = (x, z, -y)).
+# Reference-model viewmodel anchors in authoring space (game = (x, z, -y)).
 ANCHORS = {
     'muzzle': (0.0, 0.782, 0.075),
-    'grip': (0.047, 0.056, -0.203),
-    'support': (-0.058, 0.373, -0.184),
-    'sight': (0.0, 0.332, 0.291),
+    'grip': (0.041, 0.332, -0.112),
+    'support': (-0.052, 0.478, 0.006),
+    'sight': (0.0, 0.342, 0.216),
 }
 BORE_Z = 0.075
 MUZZLE_Y = 0.782
@@ -62,7 +61,7 @@ MUZZLE_Y = 0.782
 HEAT_Y = (0.603, 0.752)
 HEAT_CLEAR_R = 0.046
 SIGHT_AXIS = (0.0, ANCHORS['sight'][2])   # (x, z) of the ADS line
-SIGHT_CLEAR_R = 0.025
+SIGHT_CLEAR_R = 0.021
 CONTACT_M = 0.004
 
 SCENE_NAME = f'{ASSET} | GL-3 grenade launcher study'
@@ -171,12 +170,12 @@ materials['optic glass'] = glass
 # Runtime rounds merge to one vertex-coloured draw each; the editable study
 # parts carry their finish as a RoundColor corner layer on this one material.
 ROUND_VERTEX_COLORS = {
-    'gunmetal': (.065, .090, .105, 1),
-    'machined steel': (.22, .28, .29, 1),
-    'olive drab': (.075, .095, .062, 1),
-    'dark polymer': (.018, .025, .028, 1),
-    'orange paint': (.50, .13, .025, 1),
-    'brass': (.30, .20, .06, 1),
+    'gunmetal': (.10, .13, .15, 1),
+    'machined steel': (.36, .43, .44, 1),
+    'olive drab': (.43, .51, .30, 1),
+    'dark polymer': (.035, .045, .050, 1),
+    'orange paint': (.90, .31, .065, 1),
+    'brass': (.52, .37, .14, 1),
 }
 round_material = bpy.data.materials.new(f'{ASSET} | {ROUND_MATERIAL}')
 round_material.diffuse_color = (1, 1, 1, 1)
@@ -211,7 +210,8 @@ def orient(mesh):
         mesh.update()
 
 
-def link_part(obj, name, group, material, bevel=0.0015, smooth=False, color=None):
+def link_part(obj, name, group, material, bevel=0.0015, smooth=False, color=None,
+              bevel_segments=1):
     obj.name = name
     obj.data.name = f'{name} mesh'
     obj.parent = groups[group]
@@ -227,7 +227,7 @@ def link_part(obj, name, group, material, bevel=0.0015, smooth=False, color=None
     if bevel > 0:
         mod = obj.modifiers.new('machined edge chamfers', 'BEVEL')
         mod.width = bevel
-        mod.segments = 1
+        mod.segments = bevel_segments
         mod.limit_method = 'ANGLE'
         mod.angle_limit = math.radians(28)
         mod.use_clamp_overlap = True
@@ -249,14 +249,15 @@ def link_part(obj, name, group, material, bevel=0.0015, smooth=False, color=None
     return obj
 
 
-def box(name, group, mat, loc, size, bevel=.002, rot=None):
+def box(name, group, mat, loc, size, bevel=.002, rot=None, bevel_segments=1):
     bpy.ops.mesh.primitive_cube_add(size=1, location=loc)
     obj = active_obj()
     obj.dimensions = size
     if rot:
         obj.rotation_euler = rot
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
-    return link_part(obj, name, group, mat, bevel)
+    return link_part(obj, name, group, mat, bevel,
+                     bevel_segments=bevel_segments)
 
 
 def profile_prism(name, group, mat, x_center, width, profile, bevel=.008):
@@ -376,7 +377,7 @@ def arc(name, group, mat, center, radius, start, end, plane='YZ', tube=.005, ste
 
 def round_cyl(name, finish, loc, radius, depth, radius_top=None, verts=20):
     obj = cylinder(name, 'mag', ROUND_MATERIAL, loc, radius, depth,
-                   verts=verts, bevel=.0006, radius_top=radius_top)
+                   verts=verts, bevel=0, radius_top=radius_top)
     obj['skipjack_material'] = finish
     layer = obj.data.color_attributes.new(name='RoundColor', type='BYTE_COLOR',
                                           domain='CORNER')
@@ -385,172 +386,9 @@ def round_cyl(name, finish, loc, radius, depth, radius_top=None, verts=20):
     return obj
 
 
-# ---------------------------------------------------------------------------
-# Barrel group: bare 40 mm launch tube across the heat band, fluted shroud
-# behind it, and an octagonal crown nut with slot vents at the muzzle.
-# ---------------------------------------------------------------------------
-hollow_tube('barrel | launch tube', 'body', 'gunmetal', (0, .552, BORE_Z),
-            .040, .032, .460, verts=40, bevel=.001)
-cylinder('barrel | bore shadow', 'body', 'rubber', (0, .60, BORE_Z),
-         .033, .004, verts=32, bevel=0)
-hollow_tube('shroud | faceted sleeve', 'body', 'gunmetal', (0, .47, BORE_Z),
-            .057, .039, .260, verts=8, bevel=.0025)
-for y in (.352, .588):
-    hollow_tube(f'shroud | collar {y:.3f}', 'body', 'machined steel', (0, y, BORE_Z),
-                .061, .039, .014, verts=8, bevel=.001)
-hollow_tube('shroud | orange datum band', 'body', 'orange paint', (0, .568, BORE_Z),
-            .0585, .039, .008, verts=8, bevel=.0006)
-hollow_tube('crown | octagonal nut', 'body', 'gunmetal', (0, .769, BORE_Z),
-            .056, .0395, .026, verts=8, bevel=.004)
-for i, x in enumerate((.054, -.054)):
-    box(f'crown | slot vent {i + 1}', 'body', 'dark polymer', (x, .769, BORE_Z),
-        (.008, .016, .020), .0006)
-box('crown | orange index', 'body', 'orange paint', (0, .762, BORE_Z + .0545),
-    (.022, .008, .004), .0004)
-
-# ---------------------------------------------------------------------------
-# Receiver: one continuous faceted wedge. Diagonal top ridge from the stock
-# comb to the muzzle nut; milled left bay carries the cassette's back plate.
-# ---------------------------------------------------------------------------
-profile_prism('receiver | forged wedge', 'body', 'olive drab', 0, .170,
-              [(-.055, .100), (-.010, .145), (.135, .168), (.300, .168),
-               (.408, .132), (.436, .062), (.415, -.010), (.335, -.078),
-               (.045, -.082), (-.048, -.050)], .012)
-box('receiver | top rail', 'body', 'gunmetal', (0, .16, .177), (.10, .30, .018), .003)
-for i in range(5):
-    box(f'receiver | rail notch {i + 1}', 'body', 'dark polymer',
-        (0, .055 + i * .055, .187), (.102, .010, .005), .0006)
-for side in (-1, 1):
-    box(f'receiver | cheek panel {side:+}', 'body', 'dark polymer',
-        (side * .089, .18, .045), (.008, .28, .13), .004)
-    for y in (.08, .30):
-        cylinder(f'receiver | cheek fastener {side:+} {y:.2f}', 'body', 'machined steel',
-                 (side * .093, y, .08), .006, .004, axis='X', verts=12, bevel=.0004)
-box('receiver | belly rail', 'body', 'gunmetal', (0, .17, -.086), (.13, .22, .014), .003)
-box('receiver | rear cap', 'body', 'gunmetal', (0, -.052, .02), (.15, .05, .13), .005)
-# The fixed bay floor and hinge saddles stay behind when the cassette swings out.
-box('receiver | bay mount', 'body', 'gunmetal', (-.098, .21, -.01), (.012, .22, .18), .003)
-for x in (-.172, -.112):
-    box(f'receiver | saddle floor {x:+.3f}', 'body', 'gunmetal',
-        (x, .30, .044), (.018, .036, .010), .001)
-    box(f'receiver | saddle lip {x:+.3f}', 'body', 'gunmetal',
-        (x, .278, .056), (.018, .010, .028), .001)
-
-# ---------------------------------------------------------------------------
-# Sight: the ladder fins ARE the reflex housing wings, so the 0.291 m arc line
-# reads as range hardware and nothing floats. Open window down the ADS line.
-# ---------------------------------------------------------------------------
-for side in (-1, 1):
-    profile_prism(f'sight | ladder fin {side:+}', 'body', 'gunmetal',
-                  side * .0335, .011,
-                  [(.230, .180), (.258, .245), (.300, .300), (.350, .335),
-                   (.352, .258), (.296, .215), (.252, .176)], .003)
-for i, (y, z) in enumerate(( (.272, .238), (.292, .256), (.312, .274))):
-    cylinder(f'sight | range dot {i + 1}', 'body', 'orange paint',
-             (-.0395, y, z), .004, .003, axis='X', verts=10, bevel=0)
-box('sight | cursor bar', 'body', 'dark polymer', (0, .302, .256), (.086, .014, .012), .002)
-box('sight | hood bridge', 'body', 'gunmetal', (0, .338, .331), (.092, .034, .016), .003)
-box('sight | base block', 'body', 'dark polymer', (0, .332, .238), (.062, .055, .016), .002)
-box('sight | reflex lens', 'body', 'optic glass', (0, .332, .292), (.058, .002, .060), 0)
-cylinder('sight | reflex emitter', 'extra', 'phosphor', (0, .332, .291),
-         .0035, .010, axis='Y', verts=12, bevel=0)
-for side in (-1, 1):
-    cylinder(f'sight | windage knob {side:+}', 'body', 'machined steel',
-             (side * .046, .332, .300), .010, .012, axis='X', verts=16, bevel=.0007)
-
-# ---------------------------------------------------------------------------
-# Stock, grip, trigger and the support fore-grip at the frozen hand anchors.
-# ---------------------------------------------------------------------------
-profile_prism('stock | backbone', 'body', 'olive drab', 0, .115,
-              [(-.030, .102), (-.105, .118), (-.190, .102), (-.226, .020),
-               (-.214, -.048), (-.140, -.066), (-.050, -.050)], .008)
-box('stock | cheek comb', 'body', 'olive drab', (0, -.075, .112), (.10, .11, .016), .005)
-box('stock | butt plate', 'body', 'gunmetal', (0, -.215, .018), (.125, .014, .14), .004)
-box('stock | shoulder pad', 'body', 'rubber', (0, -.229, .018), (.132, .030, .15), .008)
-
-profile_prism('grip | core', 'body', 'dark polymer', .047, .084,
-              [(.140, -.075), (.028, -.075), (.008, -.300), (.058, -.326),
-               (.100, -.302), (.128, -.160)], .010)
-box('grip | backstrap', 'body', 'rubber', (.047, .008, -.190), (.088, .022, .19), .006,
-    rot=(0.10, 0, 0))
-box('grip | base cap', 'body', 'gunmetal', (.047, .033, -.318), (.09, .06, .014), .004)
-
-arc('trigger | swept guard', 'trigger', 'gunmetal', (.047, .085, -.105), .052,
-    math.pi * 1.05, math.pi * 1.95, 'YZ', .007, 24)
-rod_between('trigger | pivot pin', 'trigger', 'gunmetal',
-            (.012, .11, -.09), (.082, .11, -.09), .005, 12)
-rod_between('trigger | blade', 'trigger', 'orange paint',
-            (.047, .12, -.086), (.057, .104, -.15), .006, 10)
-
-box('foregrip | mount', 'body', 'gunmetal', (-.058, .36, .004), (.075, .13, .05), .004)
-box('foregrip | neck', 'body', 'dark polymer', (-.058, .37, -.055), (.058, .08, .10), .005)
-profile_prism('foregrip | palm swell', 'body', 'dark polymer', -.058, .064,
-              [(.318, -.098), (.412, -.098), (.408, -.200), (.378, -.268),
-               (.330, -.258), (.312, -.180)], .010)
-box('foregrip | hand stop', 'body', 'dark polymer', (-.058, .318, -.115),
-    (.068, .028, .03), .004)
-box('foregrip | orange index', 'body', 'orange paint', (-.058, .412, -.103),
-    (.04, .014, .006), .0008)
-
-# ---------------------------------------------------------------------------
-# Cassette (mag): three 40 mm grenades bayed on the left flank between the
-# bay mount and the armoured frame, held by machined rims on a transverse
-# trunnion. All of it swings out on the runtime reload choreography.
-# ---------------------------------------------------------------------------
-CASSETTE_X = -.135
-ROUND_ROWS = (.055, -.008, -.071)
-HINGE_AUTH = Vector((-.163, .300, .055))   # trunnion pin line; exported to the runtime
-
-for index, row in enumerate(ROUND_ROWS, start=1):
-    round_cyl(f'round {index} | brass base', 'brass', (CASSETTE_X, .126, row), .0265, .022)
-    round_cyl(f'round {index} | olive body', 'olive drab', (CASSETTE_X, .213, row), .025, .152)
-    round_cyl(f'round {index} | orange band', 'orange paint', (CASSETTE_X, .190, row), .0258, .012)
-    round_cyl(f'round {index} | steel shoulder', 'machined steel', (CASSETTE_X, .295, row),
-              .026, .012, radius_top=.0235)
-    round_cyl(f'round {index} | olive nose', 'olive drab', (CASSETTE_X, .3125, row),
-              .0235, .023, radius_top=.009)
-    round_cyl(f'round {index} | dark tip', 'dark polymer', (CASSETTE_X, .327, row),
-              .009, .006, radius_top=.004, verts=12)
-    for y in (.132, .292):
-        torus(f'cassette | rim {index} {y:.3f}', 'mag', 'machined steel',
-              (CASSETTE_X, y, row), .029, .005, axis='Y', segments=24, ring_segments=8)
-
-box('cassette | bay plate', 'mag', 'gunmetal', (-.096, .21, -.01), (.02, .245, .20), .003)
-box('cassette | spine bar', 'mag', 'gunmetal', (-.152, .21, .092), (.024, .185, .026), .003)
-box('cassette | lower bar', 'mag', 'gunmetal', (-.152, .21, -.100), (.024, .185, .022), .003)
-for y in (.11, .31):
-    box(f'cassette | frame post {y:.2f}', 'mag', 'gunmetal', (-.152, y, -.005),
-        (.024, .02, .19), .003)
-cylinder('cassette | trunnion pin', 'mag', 'machined steel',
-         (-.13, HINGE_AUTH.y, HINGE_AUTH.z), .008, .11, axis='X',
-         verts=16, bevel=.0005)
-for x in (-.158, -.116):
-    cylinder(f'cassette | trunnion boss {x:+.3f}', 'mag', 'gunmetal',
-             (x, HINGE_AUTH.y, HINGE_AUTH.z), .018, .02, axis='X', verts=20, bevel=.0008)
-box('cassette | release paddle', 'mag', 'orange paint', (-.168, .115, -.105),
-    (.016, .03, .05), .003)
-rod_between('cassette | release lever', 'mag', 'gunmetal',
-            (-.168, .12, -.105), (-.168, .20, -.10), .005, 10)
-
-# ---------------------------------------------------------------------------
-# Bolt: the charging pawl slides back 25 mm in its right-cheek track.
-# ---------------------------------------------------------------------------
-box('bolt | pawl arm', 'bolt', 'machined steel', (.094, .175, .113), (.016, .09, .026), .003)
-cylinder('bolt | pawl knob', 'bolt', 'orange paint', (.108, .175, .113),
-         .011, .018, axis='X', verts=16, bevel=.0006)
-cylinder('bolt | pawl drum', 'bolt', 'machined steel', (.088, .138, .113),
-         .015, .014, axis='X', verts=20, bevel=.0008)
-for z in (.098, .128):
-    box(f'bolt | track rail {z:.3f}', 'body', 'gunmetal', (.09, .175, z),
-        (.01, .12, .008), .001)
-
-# ---------------------------------------------------------------------------
-# Extra: the fire selector and the round counter on the right cheek.
-# ---------------------------------------------------------------------------
-cylinder('extra | selector dial', 'extra', 'brass', (.091, .27, .02),
-         .016, .012, axis='X', verts=20, bevel=.0008)
-box('extra | counter bezel', 'extra', 'gunmetal', (.09, .22, .10), (.014, .05, .028), .003)
-box('extra | counter segments', 'extra', 'phosphor', (.098, .22, .10), (.004, .026, .008), .0004)
+# Geometry follows the approved side reference, including its hand/optic layout.
+reference = Path(__file__).with_name('reference-geometry.py')
+exec(compile(reference.read_text(), str(reference), 'exec'))
 
 # --- frozen gameplay mount markers ------------------------------------------
 for name, loc in ANCHORS.items():
@@ -594,11 +432,11 @@ area('studio | muzzle fill', (0, 1.35, .36), 44, (.72, .85, 1), .65, (0, .55, .0
 cam_data = bpy.data.cameras.new('studio | hero camera')
 cam = bpy.data.objects.new('studio | hero camera', cam_data)
 studio_collection.objects.link(cam)
-cam.location = (-1.55, 1.15, .32)
-target = Vector((0, .32, -.005))
+cam.location = (-2.0, .56, .23)
+target = Vector((0, .26, .025))
 cam.rotation_euler = (target - cam.location).to_track_quat('-Z', 'Y').to_euler()
 cam_data.type = 'ORTHO'
-cam_data.ortho_scale = 1.18
+cam_data.ortho_scale = 1.14
 scene.camera = cam
 
 # ---------------------------------------------------------------------------

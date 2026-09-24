@@ -4,22 +4,25 @@
   "gltf": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/skipjack.gltf",
   "passed": true,
   "failures": [],
-  "advisory": [],
+  "advisory": [
+    "glb:triangles 25232 above redo target 20000",
+    "gltf:triangles 25232 above redo target 20000"
+  ],
   "measured": {
-    "glb:file": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/skipjack/skipjack.glb (1895284 bytes)",
-    "glb:node_names_unique": "29 nodes: ['body', 'body | dark polymer', 'body | gunmetal', 'body | machined steel', 'body | olive drab', 'body | optic glass', 'body | orange paint', 'body | rubber', 'bolt', 'bolt | machined steel', 'bolt | orange paint', 'extra', 'extra | brass', 'extra | gunmetal', 'extra | phosphor', 'grip', 'mag', 'mag | gunmetal', 'mag | machined steel', 'mag | orange paint', 'mag | round 1', 'mag | round 2', 'mag | round 3', 'muzzle', 'sight', 'support', 'trigger', 'trigger | gunmetal', 'trigger | orange paint']",
+    "glb:file": "/Users/logge/Documents/Projects/voxel-blitz/docs/design/blender/skipjack/skipjack.glb (3151420 bytes)",
+    "glb:node_names_unique": "29 nodes: ['body', 'body | dark polymer', 'body | gunmetal', 'body | machined steel', 'body | olive drab', 'body | optic glass', 'body | orange paint', 'body | rubber', 'bolt', 'bolt | gunmetal', 'bolt | machined steel', 'extra', 'extra | gunmetal', 'extra | orange paint', 'extra | phosphor', 'grip', 'mag', 'mag | dark polymer', 'mag | gunmetal', 'mag | machined steel', 'mag | orange paint', 'mag | round 1', 'mag | round 2', 'mag | round 3', 'muzzle', 'sight', 'support', 'trigger', 'trigger | gunmetal']",
     "glb:top_level_nodes": "9 top-level nodes: ['body', 'bolt', 'extra', 'grip', 'mag', 'muzzle', 'sight', 'support', 'trigger']",
     "glb:translation_only_chain": "0 rotation/scale/matrix entries: []",
     "glb:anchor:muzzle": "translation=[0.0, 0.075, -0.782] want=[0.0, 0.075, -0.782] (tol 1e-5)",
     "glb:marker_role:muzzle": "extras={'role': 'gameplay mount marker'} (want role='gameplay mount marker')",
     "glb:marker_empty:muzzle": "mesh=None children=[]",
-    "glb:anchor:grip": "translation=[0.047, -0.203, -0.056] want=[0.047, -0.203, -0.056] (tol 1e-5)",
+    "glb:anchor:grip": "translation=[0.041, -0.112, -0.332] want=[0.041, -0.112, -0.332] (tol 1e-5)",
     "glb:marker_role:grip": "extras={'role': 'gameplay mount marker'} (want role='gameplay mount marker')",
     "glb:marker_empty:grip": "mesh=None children=[]",
-    "glb:anchor:support": "translation=[-0.058, -0.184, -0.373] want=[-0.058, -0.184, -0.373] (tol 1e-5)",
+    "glb:anchor:support": "translation=[-0.052, 0.006, -0.478] want=[-0.052, 0.006, -0.478] (tol 1e-5)",
     "glb:marker_role:support": "extras={'role': 'gameplay mount marker'} (want role='gameplay mount marker')",
     "glb:marker_empty:support": "mesh=None children=[]",
-    "glb:anchor:sight": "translation=[0.0, 0.291, -0.332] want=[0.0, 0.291, -0.332] (tol 1e-5)",
+    "glb:anchor:sight": "translation=[0.0, 0.216, -0.342] want=[0.0, 0.216, -0.342] (tol 1e-5)",
     "glb:marker_role:sight": "extras={'role': 'gameplay mount marker'} (want role='gameplay mount marker')",
     "glb:marker_empty:sight": "mesh=None children=[]",
     "glb:group:body": "empty present",
@@ -54,6 +57,9 @@
     "glb:batch_name:mag | orange paint": "'mag | orange paint' (want \"<mag> | <material key>\")",
     "glb:batch_extras:mag | orange paint": "extras={'blenderAsset': 'skipjack', 'part': 'mag', 'skipjack_material': 'orange paint'} (want blenderAsset='skipjack', part='mag', skipjack_material='orange paint')",
     "glb:batch_material:mag | orange paint": "material keys ['orange paint'] (want 'orange paint')",
+    "glb:batch_name:mag | dark polymer": "'mag | dark polymer' (want \"<mag> | <material key>\")",
+    "glb:batch_extras:mag | dark polymer": "extras={'blenderAsset': 'skipjack', 'part': 'mag', 'skipjack_material': 'dark polymer'} (want blenderAsset='skipjack', part='mag', skipjack_material='dark polymer')",
+    "glb:batch_material:mag | dark polymer": "material keys ['dark polymer'] (want 'dark polymer')",
     "glb:round_name:mag | round 1": "'mag | round 1' must match /round[ _-]*([1-3])(?:\\b|[ _|-])/i as round 1",
     "glb:round_mesh_name:mag | round 1": "mesh 'mag | round 1' must name round 1 for the runtime sorter",
     "glb:round_extras:mag | round 1": "extras={'blenderAsset': 'skipjack', 'part': 'mag', 'ammoRound': 1} (want blenderAsset='skipjack', part=\"mag\", ammoRound=1)",
@@ -67,29 +73,26 @@
     "glb:round_extras:mag | round 3": "extras={'blenderAsset': 'skipjack', 'part': 'mag', 'ammoRound': 3} (want blenderAsset='skipjack', part=\"mag\", ammoRound=3)",
     "glb:round_material:mag | round 3": "material keys ['round colors'] (want 'round colors'; RoundColor layer rides this material)",
     "glb:group:bolt": "empty present",
+    "glb:batch_name:bolt | gunmetal": "'bolt | gunmetal' (want \"<bolt> | <material key>\")",
+    "glb:batch_extras:bolt | gunmetal": "extras={'blenderAsset': 'skipjack', 'part': 'bolt', 'skipjack_material': 'gunmetal'} (want blenderAsset='skipjack', part='bolt', skipjack_material='gunmetal')",
+    "glb:batch_material:bolt | gunmetal": "material keys ['gunmetal'] (want 'gunmetal')",
     "glb:batch_name:bolt | machined steel": "'bolt | machined steel' (want \"<bolt> | <material key>\")",
     "glb:batch_extras:bolt | machined steel": "extras={'blenderAsset': 'skipjack', 'part': 'bolt', 'skipjack_material': 'machined steel'} (want blenderAsset='skipjack', part='bolt', skipjack_material='machined steel')",
     "glb:batch_material:bolt | machined steel": "material keys ['machined steel'] (want 'machined steel')",
-    "glb:batch_name:bolt | orange paint": "'bolt | orange paint' (want \"<bolt> | <material key>\")",
-    "glb:batch_extras:bolt | orange paint": "extras={'blenderAsset': 'skipjack', 'part': 'bolt', 'skipjack_material': 'orange paint'} (want blenderAsset='skipjack', part='bolt', skipjack_material='orange paint')",
-    "glb:batch_material:bolt | orange paint": "material keys ['orange paint'] (want 'orange paint')",
     "glb:group:trigger": "empty present",
     "glb:batch_name:trigger | gunmetal": "'trigger | gunmetal' (want \"<trigger> | <material key>\")",
     "glb:batch_extras:trigger | gunmetal": "extras={'blenderAsset': 'skipjack', 'part': 'trigger', 'skipjack_material': 'gunmetal'} (want blenderAsset='skipjack', part='trigger', skipjack_material='gunmetal')",
     "glb:batch_material:trigger | gunmetal": "material keys ['gunmetal'] (want 'gunmetal')",
-    "glb:batch_name:trigger | orange paint": "'trigger | orange paint' (want \"<trigger> | <material key>\")",
-    "glb:batch_extras:trigger | orange paint": "extras={'blenderAsset': 'skipjack', 'part': 'trigger', 'skipjack_material': 'orange paint'} (want blenderAsset='skipjack', part='trigger', skipjack_material='orange paint')",
-    "glb:batch_material:trigger | orange paint": "material keys ['orange paint'] (want 'orange paint')",
     "glb:group:extra": "empty present",
     "glb:batch_name:extra | gunmetal": "'extra | gunmetal' (want \"<extra> | <material key>\")",
     "glb:batch_extras:extra | gunmetal": "extras={'blenderAsset': 'skipjack', 'part': 'extra', 'skipjack_material': 'gunmetal'} (want blenderAsset='skipjack', part='extra', skipjack_material='gunmetal')",
     "glb:batch_material:extra | gunmetal": "material keys ['gunmetal'] (want 'gunmetal')",
+    "glb:batch_name:extra | orange paint": "'extra | orange paint' (want \"<extra> | <material key>\")",
+    "glb:batch_extras:extra | orange paint": "extras={'blenderAsset': 'skipjack', 'part': 'extra', 'skipjack_material': 'orange paint'} (want blenderAsset='skipjack', part='extra', skipjack_material='orange paint')",
+    "glb:batch_material:extra | orange paint": "material keys ['orange paint'] (want 'orange paint')",
     "glb:batch_name:extra | phosphor": "'extra | phosphor' (want \"<extra> | <material key>\")",
     "glb:batch_extras:extra | phosphor": "extras={'blenderAsset': 'skipjack', 'part': 'extra', 'skipjack_material': 'phosphor'} (want blenderAsset='skipjack', part='extra', skipjack_material='phosphor')",
     "glb:batch_material:extra | phosphor": "material keys ['phosphor'] (want 'phosphor')",
-    "glb:batch_name:extra | brass": "'extra | brass' (want \"<extra> | <material key>\")",
-    "glb:batch_extras:extra | brass": "extras={'blenderAsset': 'skipjack', 'part': 'extra', 'skipjack_material': 'brass'} (want blenderAsset='skipjack', part='extra', skipjack_material='brass')",
-    "glb:batch_material:extra | brass": "material keys ['brass'] (want 'brass')",
     "glb:round_batches": "{'mag | round 1': 'round 1', 'mag | round 2': 'round 2', 'mag | round 3': 'round 3'} (want mag | round 1..3 with ammoRound 1..3)",
     "glb:batches": {
       "body": [
@@ -102,28 +105,27 @@
         "rubber"
       ],
       "bolt": [
-        "machined steel",
-        "orange paint"
+        "gunmetal",
+        "machined steel"
       ],
       "extra": [
-        "brass",
         "gunmetal",
+        "orange paint",
         "phosphor"
       ],
       "mag": [
+        "dark polymer",
         "gunmetal",
         "machined steel",
         "orange paint"
       ],
       "trigger": [
-        "gunmetal",
-        "orange paint"
+        "gunmetal"
       ]
     },
-    "glb:material_names": "['brass', 'dark polymer', 'gunmetal', 'machined steel', 'olive drab', 'optic glass', 'orange paint', 'phosphor', 'round colors', 'rubber'] (suffix must be one of ['brass', 'dark polymer', 'gunmetal', 'machined steel', 'olive drab', 'optic glass', 'orange paint', 'phosphor', 'round colors', 'rubber'])",
-    "glb:material_budget": "10 material batches (fail above 10: nine palette keys + 'round colors')",
+    "glb:material_names": "['dark polymer', 'gunmetal', 'machined steel', 'olive drab', 'optic glass', 'orange paint', 'phosphor', 'round colors', 'rubber'] (suffix must be one of ['brass', 'dark polymer', 'gunmetal', 'machined steel', 'olive drab', 'optic glass', 'orange paint', 'phosphor', 'round colors', 'rubber'])",
+    "glb:material_budget": "9 material batches (fail above 10: nine palette keys + 'round colors')",
     "glb:materials": [
-      "SKIPJACK | brass",
       "SKIPJACK | dark polymer",
       "SKIPJACK | gunmetal",
       "SKIPJACK | machined steel",
@@ -137,9 +139,9 @@
     "glb:uv_references": "missing=[] mismatched=[]",
     "glb:accessor_bounds_finite": "[]",
     "glb:draw_budget": "20 draws (merged batches; fail above 32)",
-    "glb:triangle_budget": "11228 triangles (fail above 26000)",
+    "glb:triangle_budget": "25232 triangles (fail above 26000)",
     "glb:draws": 20,
-    "glb:triangles": 11228,
+    "glb:triangles": 25232,
     "glb:imported_objects": [
       "body",
       "body | dark polymer",
@@ -150,14 +152,15 @@
       "body | orange paint",
       "body | rubber",
       "bolt",
+      "bolt | gunmetal",
       "bolt | machined steel",
-      "bolt | orange paint",
       "extra",
-      "extra | brass",
       "extra | gunmetal",
+      "extra | orange paint",
       "extra | phosphor",
       "grip",
       "mag",
+      "mag | dark polymer",
       "mag | gunmetal",
       "mag | machined steel",
       "mag | orange paint",
@@ -168,17 +171,16 @@
       "sight",
       "support",
       "trigger",
-      "trigger | gunmetal",
-      "trigger | orange paint"
+      "trigger | gunmetal"
     ],
     "glb:import_marker:muzzle": "present",
     "glb:import_anchor:muzzle": "got (0.0, 0.782, 0.075) want (0.0, 0.782, 0.075) (tol 2e-3)",
     "glb:import_marker:grip": "present",
-    "glb:import_anchor:grip": "got (0.047, 0.056, -0.203) want (0.047, 0.056, -0.203) (tol 2e-3)",
+    "glb:import_anchor:grip": "got (0.041, 0.332, -0.112) want (0.041, 0.332, -0.112) (tol 2e-3)",
     "glb:import_marker:support": "present",
-    "glb:import_anchor:support": "got (-0.058, 0.373, -0.184) want (-0.058, 0.373, -0.184) (tol 2e-3)",
+    "glb:import_anchor:support": "got (-0.052, 0.478, 0.006) want (-0.052, 0.478, 0.006) (tol 2e-3)",
     "glb:import_marker:sight": "present",
-    "glb:import_anchor:sight": "got (0.0, 0.332, 0.291) want (0.0, 0.332, 0.291) (tol 2e-3)",
+    "glb:import_anchor:sight": "got (0.0, 0.342, 0.216) want (0.0, 0.342, 0.216) (tol 2e-3)",
     "glb:import_chain_translation_only": "linear-part spread 0.00e+00, object scales [(1.0, 1.0, 1.0)]",
     "glb:import_uv_layers": "20 meshes, no UVs: []",
     "glb:nonfinite_coordinates": "[]",
@@ -189,38 +191,38 @@
         0.0,
         0.075
       ],
-      "band_vertices": 272
+      "band_vertices": 568
     },
-    "glb:import_material_budget": "10 materials: ['SKIPJACK | brass', 'SKIPJACK | dark polymer', 'SKIPJACK | gunmetal', 'SKIPJACK | machined steel', 'SKIPJACK | olive drab', 'SKIPJACK | optic glass', 'SKIPJACK | orange paint', 'SKIPJACK | phosphor', 'SKIPJACK | round colors', 'SKIPJACK | rubber']",
-    "glb:import_triangles": 11196,
+    "glb:import_material_budget": "9 materials: ['SKIPJACK | dark polymer', 'SKIPJACK | gunmetal', 'SKIPJACK | machined steel', 'SKIPJACK | olive drab', 'SKIPJACK | optic glass', 'SKIPJACK | orange paint', 'SKIPJACK | phosphor', 'SKIPJACK | round colors', 'SKIPJACK | rubber']",
+    "glb:import_triangles": 24994,
     "glb:bounds_authoring": [
       [
-        -0.185,
-        0.117
+        -0.1765,
+        0.101
       ],
       [
-        -0.244,
+        -0.24997,
         0.782
       ],
       [
-        -0.325,
-        0.339
+        -0.18132,
+        0.255
       ]
     ],
-    "gltf:file": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/skipjack.gltf (21913 bytes)",
-    "gltf:node_names_unique": "29 nodes: ['body', 'body | dark polymer', 'body | gunmetal', 'body | machined steel', 'body | olive drab', 'body | optic glass', 'body | orange paint', 'body | rubber', 'bolt', 'bolt | machined steel', 'bolt | orange paint', 'extra', 'extra | brass', 'extra | gunmetal', 'extra | phosphor', 'grip', 'mag', 'mag | gunmetal', 'mag | machined steel', 'mag | orange paint', 'mag | round 1', 'mag | round 2', 'mag | round 3', 'muzzle', 'sight', 'support', 'trigger', 'trigger | gunmetal', 'trigger | orange paint']",
+    "gltf:file": "/Users/logge/Documents/Projects/voxel-blitz/public/assets/blender/skipjack.gltf (21894 bytes)",
+    "gltf:node_names_unique": "29 nodes: ['body', 'body | dark polymer', 'body | gunmetal', 'body | machined steel', 'body | olive drab', 'body | optic glass', 'body | orange paint', 'body | rubber', 'bolt', 'bolt | gunmetal', 'bolt | machined steel', 'extra', 'extra | gunmetal', 'extra | orange paint', 'extra | phosphor', 'grip', 'mag', 'mag | dark polymer', 'mag | gunmetal', 'mag | machined steel', 'mag | orange paint', 'mag | round 1', 'mag | round 2', 'mag | round 3', 'muzzle', 'sight', 'support', 'trigger', 'trigger | gunmetal']",
     "gltf:top_level_nodes": "9 top-level nodes: ['body', 'bolt', 'extra', 'grip', 'mag', 'muzzle', 'sight', 'support', 'trigger']",
     "gltf:translation_only_chain": "0 rotation/scale/matrix entries: []",
     "gltf:anchor:muzzle": "translation=[0.0, 0.075, -0.782] want=[0.0, 0.075, -0.782] (tol 1e-5)",
     "gltf:marker_role:muzzle": "extras={'role': 'gameplay mount marker'} (want role='gameplay mount marker')",
     "gltf:marker_empty:muzzle": "mesh=None children=[]",
-    "gltf:anchor:grip": "translation=[0.047, -0.203, -0.056] want=[0.047, -0.203, -0.056] (tol 1e-5)",
+    "gltf:anchor:grip": "translation=[0.041, -0.112, -0.332] want=[0.041, -0.112, -0.332] (tol 1e-5)",
     "gltf:marker_role:grip": "extras={'role': 'gameplay mount marker'} (want role='gameplay mount marker')",
     "gltf:marker_empty:grip": "mesh=None children=[]",
-    "gltf:anchor:support": "translation=[-0.058, -0.184, -0.373] want=[-0.058, -0.184, -0.373] (tol 1e-5)",
+    "gltf:anchor:support": "translation=[-0.052, 0.006, -0.478] want=[-0.052, 0.006, -0.478] (tol 1e-5)",
     "gltf:marker_role:support": "extras={'role': 'gameplay mount marker'} (want role='gameplay mount marker')",
     "gltf:marker_empty:support": "mesh=None children=[]",
-    "gltf:anchor:sight": "translation=[0.0, 0.291, -0.332] want=[0.0, 0.291, -0.332] (tol 1e-5)",
+    "gltf:anchor:sight": "translation=[0.0, 0.216, -0.342] want=[0.0, 0.216, -0.342] (tol 1e-5)",
     "gltf:marker_role:sight": "extras={'role': 'gameplay mount marker'} (want role='gameplay mount marker')",
     "gltf:marker_empty:sight": "mesh=None children=[]",
     "gltf:group:body": "empty present",
@@ -255,6 +257,9 @@
     "gltf:batch_name:mag | orange paint": "'mag | orange paint' (want \"<mag> | <material key>\")",
     "gltf:batch_extras:mag | orange paint": "extras={'blenderAsset': 'skipjack', 'part': 'mag', 'skipjack_material': 'orange paint'} (want blenderAsset='skipjack', part='mag', skipjack_material='orange paint')",
     "gltf:batch_material:mag | orange paint": "material keys ['orange paint'] (want 'orange paint')",
+    "gltf:batch_name:mag | dark polymer": "'mag | dark polymer' (want \"<mag> | <material key>\")",
+    "gltf:batch_extras:mag | dark polymer": "extras={'blenderAsset': 'skipjack', 'part': 'mag', 'skipjack_material': 'dark polymer'} (want blenderAsset='skipjack', part='mag', skipjack_material='dark polymer')",
+    "gltf:batch_material:mag | dark polymer": "material keys ['dark polymer'] (want 'dark polymer')",
     "gltf:round_name:mag | round 1": "'mag | round 1' must match /round[ _-]*([1-3])(?:\\b|[ _|-])/i as round 1",
     "gltf:round_mesh_name:mag | round 1": "mesh 'mag | round 1' must name round 1 for the runtime sorter",
     "gltf:round_extras:mag | round 1": "extras={'blenderAsset': 'skipjack', 'part': 'mag', 'ammoRound': 1} (want blenderAsset='skipjack', part=\"mag\", ammoRound=1)",
@@ -268,29 +273,26 @@
     "gltf:round_extras:mag | round 3": "extras={'blenderAsset': 'skipjack', 'part': 'mag', 'ammoRound': 3} (want blenderAsset='skipjack', part=\"mag\", ammoRound=3)",
     "gltf:round_material:mag | round 3": "material keys ['round colors'] (want 'round colors'; RoundColor layer rides this material)",
     "gltf:group:bolt": "empty present",
+    "gltf:batch_name:bolt | gunmetal": "'bolt | gunmetal' (want \"<bolt> | <material key>\")",
+    "gltf:batch_extras:bolt | gunmetal": "extras={'blenderAsset': 'skipjack', 'part': 'bolt', 'skipjack_material': 'gunmetal'} (want blenderAsset='skipjack', part='bolt', skipjack_material='gunmetal')",
+    "gltf:batch_material:bolt | gunmetal": "material keys ['gunmetal'] (want 'gunmetal')",
     "gltf:batch_name:bolt | machined steel": "'bolt | machined steel' (want \"<bolt> | <material key>\")",
     "gltf:batch_extras:bolt | machined steel": "extras={'blenderAsset': 'skipjack', 'part': 'bolt', 'skipjack_material': 'machined steel'} (want blenderAsset='skipjack', part='bolt', skipjack_material='machined steel')",
     "gltf:batch_material:bolt | machined steel": "material keys ['machined steel'] (want 'machined steel')",
-    "gltf:batch_name:bolt | orange paint": "'bolt | orange paint' (want \"<bolt> | <material key>\")",
-    "gltf:batch_extras:bolt | orange paint": "extras={'blenderAsset': 'skipjack', 'part': 'bolt', 'skipjack_material': 'orange paint'} (want blenderAsset='skipjack', part='bolt', skipjack_material='orange paint')",
-    "gltf:batch_material:bolt | orange paint": "material keys ['orange paint'] (want 'orange paint')",
     "gltf:group:trigger": "empty present",
     "gltf:batch_name:trigger | gunmetal": "'trigger | gunmetal' (want \"<trigger> | <material key>\")",
     "gltf:batch_extras:trigger | gunmetal": "extras={'blenderAsset': 'skipjack', 'part': 'trigger', 'skipjack_material': 'gunmetal'} (want blenderAsset='skipjack', part='trigger', skipjack_material='gunmetal')",
     "gltf:batch_material:trigger | gunmetal": "material keys ['gunmetal'] (want 'gunmetal')",
-    "gltf:batch_name:trigger | orange paint": "'trigger | orange paint' (want \"<trigger> | <material key>\")",
-    "gltf:batch_extras:trigger | orange paint": "extras={'blenderAsset': 'skipjack', 'part': 'trigger', 'skipjack_material': 'orange paint'} (want blenderAsset='skipjack', part='trigger', skipjack_material='orange paint')",
-    "gltf:batch_material:trigger | orange paint": "material keys ['orange paint'] (want 'orange paint')",
     "gltf:group:extra": "empty present",
     "gltf:batch_name:extra | gunmetal": "'extra | gunmetal' (want \"<extra> | <material key>\")",
     "gltf:batch_extras:extra | gunmetal": "extras={'blenderAsset': 'skipjack', 'part': 'extra', 'skipjack_material': 'gunmetal'} (want blenderAsset='skipjack', part='extra', skipjack_material='gunmetal')",
     "gltf:batch_material:extra | gunmetal": "material keys ['gunmetal'] (want 'gunmetal')",
+    "gltf:batch_name:extra | orange paint": "'extra | orange paint' (want \"<extra> | <material key>\")",
+    "gltf:batch_extras:extra | orange paint": "extras={'blenderAsset': 'skipjack', 'part': 'extra', 'skipjack_material': 'orange paint'} (want blenderAsset='skipjack', part='extra', skipjack_material='orange paint')",
+    "gltf:batch_material:extra | orange paint": "material keys ['orange paint'] (want 'orange paint')",
     "gltf:batch_name:extra | phosphor": "'extra | phosphor' (want \"<extra> | <material key>\")",
     "gltf:batch_extras:extra | phosphor": "extras={'blenderAsset': 'skipjack', 'part': 'extra', 'skipjack_material': 'phosphor'} (want blenderAsset='skipjack', part='extra', skipjack_material='phosphor')",
     "gltf:batch_material:extra | phosphor": "material keys ['phosphor'] (want 'phosphor')",
-    "gltf:batch_name:extra | brass": "'extra | brass' (want \"<extra> | <material key>\")",
-    "gltf:batch_extras:extra | brass": "extras={'blenderAsset': 'skipjack', 'part': 'extra', 'skipjack_material': 'brass'} (want blenderAsset='skipjack', part='extra', skipjack_material='brass')",
-    "gltf:batch_material:extra | brass": "material keys ['brass'] (want 'brass')",
     "gltf:round_batches": "{'mag | round 1': 'round 1', 'mag | round 2': 'round 2', 'mag | round 3': 'round 3'} (want mag | round 1..3 with ammoRound 1..3)",
     "gltf:batches": {
       "body": [
@@ -303,28 +305,27 @@
         "rubber"
       ],
       "bolt": [
-        "machined steel",
-        "orange paint"
+        "gunmetal",
+        "machined steel"
       ],
       "extra": [
-        "brass",
         "gunmetal",
+        "orange paint",
         "phosphor"
       ],
       "mag": [
+        "dark polymer",
         "gunmetal",
         "machined steel",
         "orange paint"
       ],
       "trigger": [
-        "gunmetal",
-        "orange paint"
+        "gunmetal"
       ]
     },
-    "gltf:material_names": "['brass', 'dark polymer', 'gunmetal', 'machined steel', 'olive drab', 'optic glass', 'orange paint', 'phosphor', 'round colors', 'rubber'] (suffix must be one of ['brass', 'dark polymer', 'gunmetal', 'machined steel', 'olive drab', 'optic glass', 'orange paint', 'phosphor', 'round colors', 'rubber'])",
-    "gltf:material_budget": "10 material batches (fail above 10: nine palette keys + 'round colors')",
+    "gltf:material_names": "['dark polymer', 'gunmetal', 'machined steel', 'olive drab', 'optic glass', 'orange paint', 'phosphor', 'round colors', 'rubber'] (suffix must be one of ['brass', 'dark polymer', 'gunmetal', 'machined steel', 'olive drab', 'optic glass', 'orange paint', 'phosphor', 'round colors', 'rubber'])",
+    "gltf:material_budget": "9 material batches (fail above 10: nine palette keys + 'round colors')",
     "gltf:materials": [
-      "SKIPJACK | brass",
       "SKIPJACK | dark polymer",
       "SKIPJACK | gunmetal",
       "SKIPJACK | machined steel",
@@ -338,9 +339,9 @@
     "gltf:uv_references": "missing=[] mismatched=[]",
     "gltf:accessor_bounds_finite": "[]",
     "gltf:draw_budget": "20 draws (merged batches; fail above 32)",
-    "gltf:triangle_budget": "11228 triangles (fail above 26000)",
+    "gltf:triangle_budget": "25232 triangles (fail above 26000)",
     "gltf:draws": 20,
-    "gltf:triangles": 11228,
+    "gltf:triangles": 25232,
     "gltf:imported_objects": [
       "body",
       "body | dark polymer",
@@ -351,14 +352,15 @@
       "body | orange paint",
       "body | rubber",
       "bolt",
+      "bolt | gunmetal",
       "bolt | machined steel",
-      "bolt | orange paint",
       "extra",
-      "extra | brass",
       "extra | gunmetal",
+      "extra | orange paint",
       "extra | phosphor",
       "grip",
       "mag",
+      "mag | dark polymer",
       "mag | gunmetal",
       "mag | machined steel",
       "mag | orange paint",
@@ -369,17 +371,16 @@
       "sight",
       "support",
       "trigger",
-      "trigger | gunmetal",
-      "trigger | orange paint"
+      "trigger | gunmetal"
     ],
     "gltf:import_marker:muzzle": "present",
     "gltf:import_anchor:muzzle": "got (0.0, 0.782, 0.075) want (0.0, 0.782, 0.075) (tol 2e-3)",
     "gltf:import_marker:grip": "present",
-    "gltf:import_anchor:grip": "got (0.047, 0.056, -0.203) want (0.047, 0.056, -0.203) (tol 2e-3)",
+    "gltf:import_anchor:grip": "got (0.041, 0.332, -0.112) want (0.041, 0.332, -0.112) (tol 2e-3)",
     "gltf:import_marker:support": "present",
-    "gltf:import_anchor:support": "got (-0.058, 0.373, -0.184) want (-0.058, 0.373, -0.184) (tol 2e-3)",
+    "gltf:import_anchor:support": "got (-0.052, 0.478, 0.006) want (-0.052, 0.478, 0.006) (tol 2e-3)",
     "gltf:import_marker:sight": "present",
-    "gltf:import_anchor:sight": "got (0.0, 0.332, 0.291) want (0.0, 0.332, 0.291) (tol 2e-3)",
+    "gltf:import_anchor:sight": "got (0.0, 0.342, 0.216) want (0.0, 0.342, 0.216) (tol 2e-3)",
     "gltf:import_chain_translation_only": "linear-part spread 0.00e+00, object scales [(1.0, 1.0, 1.0)]",
     "gltf:import_uv_layers": "20 meshes, no UVs: []",
     "gltf:nonfinite_coordinates": "[]",
@@ -390,22 +391,22 @@
         0.0,
         0.075
       ],
-      "band_vertices": 272
+      "band_vertices": 568
     },
-    "gltf:import_material_budget": "10 materials: ['SKIPJACK | brass', 'SKIPJACK | dark polymer', 'SKIPJACK | gunmetal', 'SKIPJACK | machined steel', 'SKIPJACK | olive drab', 'SKIPJACK | optic glass', 'SKIPJACK | orange paint', 'SKIPJACK | phosphor', 'SKIPJACK | round colors', 'SKIPJACK | rubber']",
-    "gltf:import_triangles": 11196,
+    "gltf:import_material_budget": "9 materials: ['SKIPJACK | dark polymer', 'SKIPJACK | gunmetal', 'SKIPJACK | machined steel', 'SKIPJACK | olive drab', 'SKIPJACK | optic glass', 'SKIPJACK | orange paint', 'SKIPJACK | phosphor', 'SKIPJACK | round colors', 'SKIPJACK | rubber']",
+    "gltf:import_triangles": 24994,
     "gltf:bounds_authoring": [
       [
-        -0.185,
-        0.117
+        -0.1765,
+        0.101
       ],
       [
-        -0.244,
+        -0.24997,
         0.782
       ],
       [
-        -0.325,
-        0.339
+        -0.18132,
+        0.255
       ]
     ]
   }

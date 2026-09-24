@@ -1,0 +1,9 @@
+ImageGen prompt (selected source): Square opaque texture photograph, edge-to-edge: a close-up of olive green ceramic-coated grenade casing metal, densely covering the entire frame. Fine shallow stamped grain, tiny scratches, restrained chipped edges, subtle worn paint. Even diffuse light, flat orthographic view. Tileable surface pattern, consistent across all edges. No object silhouette, no text, no icons, no transparency, no black background.
+
+The runtime map is desaturated, reduced to 1024 px and lifted to a low-contrast near-white range so vertex colors still distinguish brass, olive, orange and steel.
+
+Olive armor ImageGen prompt: Square, opaque, edge-to-edge orthographic macro surface of desaturated military olive powder-coated metal. Fine but visible gritty paint grain, broad irregular abrasion along subtle stamped metal grain, small scuffs exposing cooler gray metal, restrained dirt in micro-pits. Similar visual detail density to a high-quality authored game LMG texture, readable on large panels at first-person distance. Uniform flat illumination, no perspective, no recognizable object, no border. Tile seamlessly across all edges. No text, insignia, numbers, decals, large scratches, deep damage, black void, transparency or gradients.
+
+Dark steel ImageGen prompt: Square, opaque, edge-to-edge orthographic macro surface of charcoal phosphated steel with visible fine machining striations, irregular dull edge wear, sparse brushed bright-metal nicks and shallow oil-darkened recesses. Detailed but subtle enough for a first-person game weapon, with the same tactile richness as an authored LMG. Uniform flat illumination, no perspective, no recognizable object, no border; tile seamlessly on all sides. No text, insignia, numbers, decals, dramatic scratches, rust, large damage, black void, transparency or gradients.
+
+The two runtime JPEGs are downsampled to 1024 px and brightness-adjusted before material tinting; the sources remain here.

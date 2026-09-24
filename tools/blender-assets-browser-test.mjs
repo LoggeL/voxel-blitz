@@ -264,6 +264,50 @@ try {
       && round.position.equals(round.userData.homePosition),
       'cancelled rocket reload restores the TORCH rest pose');
     actions.dispose();
+    const { ViewmodelRig } = await import('/js/guns/viewmodel.js');
+    const skipjackRig = new ViewmodelRig(new T.PerspectiveCamera());
+    skipjackRig.setWeapon('mgl');
+    const skipjack = skipjackRig._models.mgl.extra.userData.skipjack;
+    must(skipjack?.rounds.length === 3, 'SKIPJACK provides three reserve slots for the ammo upgrade');
+    const { TIMERS, HANDS } = await import('/js/guns/defs.js');
+    const skipjackDoc = await (await fetch('/assets/blender/skipjack.gltf')).json();
+    for (const key of ['grip', 'support']) {
+      const mount = skipjackDoc.nodes.find(n => n.name === key).translation;
+      const hand = HANDS.mgl[key];
+      must(new T.Vector3(...mount).distanceTo(new T.Vector3(hand.x, hand.y, hand.z)) < 1e-6,
+        'SKIPJACK '+key+' hand follows the reference model anchor');
+    }
+    const sight = skipjackDoc.nodes.find(n => n.name === 'sight').translation;
+    must(Math.abs(sight[1] + TIMERS.mgl.adsOffset.y) < 1e-6 &&
+      Math.abs(sight[1] - skipjackRig._models.mgl.body.userData.sightHeight) < 1e-6,
+      'SKIPJACK compact optic and ADS use the same height');
+    const skipjackSource = createBlenderParts('skipjack');
+    skipjackSource.body.updateMatrixWorld(true);
+    const sightRay = new T.Raycaster(new T.Vector3(0, sight[1], .4), new T.Vector3(0, 0, -1), 0, 2);
+    const sightBlockers = sightRay.intersectObject(skipjackSource.body, true)
+      .filter(hit => !hit.object.material?.name?.includes('optic glass'));
+    must(sightBlockers.length === 0, 'SKIPJACK sight ray clears the actual exported housing');
+    disposeObjectTrees(Object.values(skipjackSource));
+    const skipjackMaps = new Set();
+    skipjackRig._models.mgl.body.traverse(o => {
+      for (const material of [].concat(o.material || [])) if (material.map) skipjackMaps.add(material.map.name);
+    });
+    must(skipjackMaps.has('textures/palette/skipjack-olive-armor.jpg') &&
+      skipjackMaps.has('textures/palette/skipjack-dark-steel.jpg'),
+      'SKIPJACK receiver delivers its two dedicated surface textures');
+    must(skipjack.rounds.every(r => r.children.some(mesh => mesh.material?.map?.name ===
+      'textures/palette/skipjack-shell.jpg')), 'all SKIPJACK rounds use the shell surface texture');
+    for (const [ammo, expected] of [[4,'111'],[3,'011'],[2,'001'],[1,'000'],[0,'000']]) {
+      skipjackRig.setSkipjack({mag:ammo,magSize:Math.max(3,ammo)});
+      must(skipjack.rounds.map(r=>Number(r.visible)).join('') === expected,
+        'SKIPJACK chambered round leaves only external reserve '+ammo);
+    }
+    skipjackRig.setSkipjack({mag:3,magSize:3});
+    const beforeShot=skipjack.rounds.map(r=>r.position.clone());
+    must(skipjackRig.fire(), 'SKIPJACK fires its chambered round');
+    must(skipjack.rounds.every((r,i)=>r.position.equals(beforeShot[i])),
+      'firing does not pull an external round toward the barrel');
+    skipjackRig.dispose();
     // SKUA (GV-4 RIPTIDE): the wrapper must re-hang the cassette's spare disc as the
     // reload round and the catch horns on their authored hinges.
     const glaive = buildGun('glaive', cache);
