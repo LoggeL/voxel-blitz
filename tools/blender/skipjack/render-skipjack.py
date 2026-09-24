@@ -45,7 +45,7 @@ BATCH_NAME = re.compile(
     r'^(?:' + '|'.join(map(re.escape, GROUP_NAMES)) + r') \| (?:'
     + '|'.join(map(re.escape, MATERIAL_KEYS)) + r'|round [1-3])$')
 
-SAMPLES = 40
+SAMPLES = int(os.environ.get('VB_SKIPJACK_SAMPLES', '40'))
 RESOLUTION = (1600, 1000)
 
 
@@ -153,6 +153,10 @@ VIEWS = (
      (-0.75, 0.48, 1.55), (0.0, 0.26, 0.025), 1.18),
     ('ads', 'review/final/ads.png',
      (0.0, -1.0, 0.216), (0.0, 0.6, 0.216), 0.5),
+    ('front-quarter', 'review/final/front-quarter.png',
+     (-1.55, 1.35, 0.62), (0.0, 0.25, 0.02), 1.22),
+    ('rear-quarter', 'review/final/rear-quarter.png',
+     (-1.25, -1.45, 0.55), (0.0, 0.22, 0.02), 1.22),
 )
 
 selected = set(filter(None, os.environ.get('VB_SKIPJACK_VIEWS', '').split(',')))

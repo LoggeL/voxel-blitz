@@ -180,6 +180,7 @@ export class WeaponActions {
       skipjack.cassette.position.copy(skipjack.cassette.userData.homePosition);
       skipjack.cassette.rotation.set(0, 0, 0);
       skipjack.cassette.visible = true;
+      skipjack.reload = null; // ViewmodelRig re-applies the authoritative reserve
     }
     const rounds = model.extra.userData.reloadRounds;
     if (rounds) {
@@ -561,53 +562,74 @@ export class WeaponActions {
     return [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t, from[2] + (to[2] - from[2]) * t];
   }
 
-  /** SKIPJACK's cassette pivots on its rear cheek and exchanges on the open side. */
+  /**
+   * SKIPJACK cassette swap, all beats on the left flank under the camera:
+   * PRESENT the flank, trip the orange paddle (click 1), SWING the cassette out
+   * on its vertical front hinge, LIFT it off the pin and carry it away, bring the
+   * loaded cassette in, drop it on the pin and SWING it shut (click 2). An empty
+   * swap then racks the charging pawl, stripping the top fresh round into the
+   * chamber (click 3); a tactical swap keeps its chambered round and only pats
+   * the closed cassette. Slot visibility follows the plan set by ViewmodelRig.
+   */
   _updateSkipjackReload(frac, model, T, out) {
     const reload = this._reload;
     const { start, home, clickAt } = T.magTimeline;
-    const cassette = model.extra.userData.skipjack.cassette;
+    const skipjack = model.extra.userData.skipjack;
+    const cassette = skipjack.cassette;
     const atHome = cassette.userData.homePosition;
-    const present = this._phase(frac, 0.02, start) * (1 - this._phase(frac, clickAt, 1));
-    const open = this._phase(frac, start - 0.035, 0.34) *
-      (1 - this._phase(frac, home - 0.08, clickAt));
-    const outstroke = this._phase(frac, 0.30, 0.47);
-    const instroke = this._phase(frac, 0.60, home);
-    const lateral = outstroke * (1 - instroke);
-    const latch = this._contact(frac, clickAt, 0.055);
-    const seat = this._contact(frac, home, 0.07);
+    const plan = skipjack.reload || { shown: skipjack.rounds.filter((r) => r.visible).length,
+      fresh: skipjack.rounds.length - 1, chambered: false };
+    const racks = !plan.chambered;
 
-    cassette.position.set(atHome.x - 0.095 * lateral, atHome.y - 0.025 * open,
-      atHome.z + 0.038 * open);
-    cassette.rotation.x = 1.06 * open;
-    cassette.rotation.z = -0.13 * open;
-    cassette.visible = frac < 0.47 || frac >= 0.60;
-    const rack = this._phase(frac, clickAt - 0.025, clickAt + 0.035) *
-      (1 - this._phase(frac, clickAt + 0.045, 0.985));
+    const present = this._phase(frac, 0.02, start) * (1 - this._phase(frac, 0.91, 1));
+    const open = this._phase(frac, start, 0.27) * (1 - this._phase(frac, 0.70, home));
+    const swingKick = this._contact(frac, 0.27, 0.05);
+    const lifted = this._phase(frac, 0.30, 0.36) * (1 - this._phase(frac, 0.66, 0.70));
+    const away = this._phase(frac, 0.36, 0.46) * (1 - this._phase(frac, 0.56, 0.66));
+    const tug = this._contact(frac, 0.33, 0.06);
+    const pinDrop = this._contact(frac, 0.70, 0.05);
+    const seat = this._contact(frac, home, 0.06);
+    const rack = racks ? this._phase(frac, clickAt - 0.03, clickAt + 0.02) *
+      (1 - this._phase(frac, clickAt + 0.04, 0.98)) : 0;
+    const rackHit = racks ? this._contact(frac, clickAt + 0.02, 0.05) : 0;
+    const pat = racks ? 0 : this._contact(frac, 0.86, 0.05);
+
+    // Rear edge swings out (-x) about the vertical hub; lift clears the pin.
+    cassette.rotation.set(0, -(0.92 * open + 0.07 * swingKick), 0.10 * away);
+    cassette.position.set(atHome.x - 0.15 * away, atHome.y + 0.05 * lifted - 0.30 * away,
+      atHome.z + 0.05 * away);
+    const swapped = frac >= 0.56;
+    cassette.visible = frac < 0.46 || swapped;
+    const stripped = racks && frac >= clickAt + 0.01;
+    const reserve = !swapped ? plan.shown : plan.fresh - (stripped ? 1 : 0);
+    const rounds = skipjack.rounds;
+    for (let i = 0; i < rounds.length; i++) rounds[i].visible = i >= rounds.length - reserve;
     model.bolt.position.z = T.boltTravel * rack;
 
-    out.dip = 0.055 * present + 0.025 * seat - 0.013 * latch;
-    out.rock = 0.26 * present + 0.08 * open - 0.12 * seat + 0.07 * latch;
-    out.x = -0.035 * present - 0.015 * lateral;
-    out.push = 0.045 * present + 0.025 * lateral - 0.052 * seat + 0.018 * latch;
-    out.yaw = -0.17 * present - 0.05 * open;
-    out.roll = 0.12 * present + 0.10 * open - 0.05 * latch;
+    out.dip = 0.050 * present + 0.018 * tug - 0.012 * pinDrop + 0.022 * seat + 0.012 * rackHit;
+    out.rock = 0.24 * present + 0.06 * open - 0.05 * tug - 0.10 * seat + 0.06 * rackHit - 0.03 * pat;
+    out.x = -0.030 * present - 0.012 * open;
+    out.push = 0.040 * present + 0.010 * away - 0.040 * seat + 0.016 * rackHit;
+    out.yaw = -0.20 * present - 0.05 * open;
+    out.roll = 0.14 * present + 0.08 * open - 0.04 * seat - 0.03 * rackHit;
 
-    // The left hand first trips the orange paddle, carries the released
-    // cassette, then returns to the pawl after the new cassette seats.
-    const release = [-0.19, -0.10, -0.12];
-    const carry = [cassette.position.x - 0.015, cassette.position.y - 0.065,
-      cassette.position.z + 0.095];
-    const pawl = [0.055, 0.115, -0.175 + model.bolt.position.z];
-    const carryBlend = this._phase(frac, start - 0.04, 0.30);
-    const pawlBlend = this._phase(frac, home + 0.02, clickAt + 0.025);
-    const target = this._blendTargets(
-      this._blendTargets(release, carry, carryBlend), pawl, pawlBlend);
-    const handBlend = this._phase(frac, 0.02, start - 0.02) *
-      (1 - this._phase(frac, 0.975, 1));
-    this._moveReloadHand(model, target[0], target[1], target[2], handBlend,
-      cassette.visible || frac >= home);
+    // Left hand: paddle -> cassette rear edge (carried through the swap) -> the
+    // charging pawl on an empty swap, or a pat on the closed cassette -> support.
+    const angle = cassette.rotation.y;
+    const edge = (lx, ly, lz) => [
+      cassette.position.x + lx * Math.cos(angle) + lz * Math.sin(angle),
+      cassette.position.y + ly,
+      cassette.position.z - lx * Math.sin(angle) + lz * Math.cos(angle)];
+    const paddle = [-0.188, -0.118, -0.082];
+    const grip = edge(-0.070, -0.045, 0.200);
+    const finish = racks ? [0.068, 0.128, -0.292 + model.bolt.position.z] : edge(-0.058, -0.01, 0.12);
+    let target = this._blendTargets(paddle, grip, this._phase(frac, start + 0.01, 0.24));
+    target = this._blendTargets(target, finish, this._phase(frac, home + 0.01, racks ? clickAt - 0.03 : 0.85));
+    const blend = this._phase(frac, 0.02, start - 0.02) * (1 - this._phase(frac, 0.93, 0.995));
+    this._moveReloadHand(model, target[0], target[1], target[2], blend, true);
 
     for (const [at, click] of [[start, 1], [home, 2], [clickAt, 3]]) {
+      if (click === 3 && !racks) continue;
       if (frac >= at && reload.lastFrac < at) this._callbacks.onReloadClick(click);
     }
   }

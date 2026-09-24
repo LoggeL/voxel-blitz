@@ -7,7 +7,7 @@ export const WEAPON_CAPTURE_STATES = Object.freeze(['pickaxe-lift', 'pickaxe-imp
 // charging handle), the rocket's rear breech and the GL-3's swing-out grenade
 // cassette (tip-open, seated exchange, pawl rack); 'reload-charge' is the belt
 // gun's final handle rack; the rocket's final beat latches the venturi clamp.
-const RELOAD_CAPTURE_WEAPONS = Object.freeze({ revolver: ['reload-open', 'reload-eject', 'reload-load'], lmg: ['reload-open', 'reload-eject', 'reload-load', 'reload-charge'], rocket: ['reload-open', 'reload-load', 'reload-charge'], mgl: ['reload-open', 'reload-load', 'reload-charge'] });
+const RELOAD_CAPTURE_WEAPONS = Object.freeze({ revolver: ['reload-open', 'reload-eject', 'reload-load'], lmg: ['reload-open', 'reload-eject', 'reload-load', 'reload-charge'], rocket: ['reload-open', 'reload-load', 'reload-charge'], mgl: ['reload-open', 'reload-eject', 'reload-load', 'reload-charge'] });
 
 export const WEAPON_CAPTURE_SHOTS = Object.freeze(WEAPON_IDS.flatMap((weapon) =>
   WEAPON_CAPTURE_STATES.filter((state) => ((!state.startsWith('pickaxe-') && !state.startsWith('mining-')) || weapon === 'knife') && (!state.startsWith('charge-') || weapon === 'lance') && (!state.startsWith('reload-') || RELOAD_CAPTURE_WEAPONS[weapon]?.includes(state))).map((state) => Object.freeze({ weapon, state }))));

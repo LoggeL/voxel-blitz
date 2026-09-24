@@ -2,8 +2,11 @@ import { startServer, stopServer } from '../lib/server-process.mjs';
 import { launchCdpSession } from '../lib/cdp-session.mjs';
 
 /** Render one delivered Blender asset's geometry and ImageGen maps into a transparent HUD icon. */
-export async function renderBlenderHud({ asset, weapon, width = 480, height = 240 } = {}) {
+// `side: 'left'` renders the left flank (e.g. SKIPJACK's cassette) and mirrors the
+// image so the muzzle still points right like every other HUD icon.
+export async function renderBlenderHud({ asset, weapon, width = 480, height = 240, side = 'right' } = {}) {
   if (!asset || !weapon) throw new TypeError('renderBlenderHud requires { asset, weapon }');
+  const left = side === 'left';
   const server = startServer({ entry: 'tools/capture-server.mjs' });
   let browser;
   try {
@@ -26,13 +29,16 @@ export async function renderBlenderHud({ asset, weapon, width = 480, height = 24
       const center=bounds.getCenter(new T.Vector3()),size=bounds.getSize(new T.Vector3());
       const aspect=${width}/${height}, half=Math.max(size.y,size.z/aspect)*.54;
       const camera=new T.OrthographicCamera(-half*aspect,half*aspect,half,-half,.01,10);
-      camera.position.set(2,center.y,center.z);camera.lookAt(center);
+      camera.position.set(${left ? -2 : 2},center.y,center.z);camera.lookAt(center);
       const scene=new T.Scene();scene.add(root,new T.HemisphereLight(0xe3efff,0x493a2f,2));
-      const key=new T.DirectionalLight(0xffedd4,3);key.position.set(3,5,-4);scene.add(key);
+      const key=new T.DirectionalLight(0xffedd4,3);key.position.set(${left ? -3 : 3},5,-4);scene.add(key);
       const renderer=new T.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});
       renderer.setSize(${width},${height});renderer.setClearColor(0x000000,0);
       renderer.outputColorSpace=T.SRGBColorSpace;renderer.render(scene,camera);
-      const png=renderer.domElement.toDataURL('image/png').split(',')[1];
+      let output=renderer.domElement;
+      if(${left}){const flipped=document.createElement('canvas');flipped.width=${width};flipped.height=${height};
+        const context=flipped.getContext('2d');context.scale(-1,1);context.drawImage(output,-${width},0);output=flipped;}
+      const png=output.toDataURL('image/png').split(',')[1];
       const triangles=renderer.info.render.triangles;renderer.dispose();disposeGunModels([gun],cache);
       return {png,triangles};
     })()`);

@@ -2,7 +2,7 @@
   "asset": "GL-3 SKIPJACK",
   "asset_id": "skipjack",
   "weapon_id": "mgl",
-  "revision": 12,
+  "revision": 13,
   "axis_contract": {
     "authoring_forward": "+Y",
     "authoring_up": "+Z",
@@ -31,9 +31,9 @@
       0.216
     ]
   },
-  "source_parts": 163,
-  "runtime_draws": 20,
-  "triangles": 25232,
+  "source_parts": 132,
+  "runtime_draws": 21,
+  "triangles": 19254,
   "runtime_gltf": "public/assets/blender/skipjack.gltf",
   "portable_glb": "docs/design/blender/skipjack/skipjack.glb",
   "blend": "docs/design/blender/skipjack/skipjack.blend",
@@ -45,7 +45,9 @@
     "muzzle": "docs/design/blender/skipjack/review/final/muzzle.png",
     "rear": "docs/design/blender/skipjack/review/final/rear.png",
     "top": "docs/design/blender/skipjack/review/final/top.png",
-    "ads": "docs/design/blender/skipjack/review/final/ads.png"
+    "ads": "docs/design/blender/skipjack/review/final/ads.png",
+    "front-quarter": "docs/design/blender/skipjack/review/final/front-quarter.png",
+    "rear-quarter": "docs/design/blender/skipjack/review/final/rear-quarter.png"
   },
   "material_tints": {
     "gunmetal": [
@@ -59,9 +61,9 @@
       0.48
     ],
     "olive drab": [
+      0.34,
       0.44,
-      0.49,
-      0.37
+      0.29
     ],
     "dark polymer": [
       0.48,

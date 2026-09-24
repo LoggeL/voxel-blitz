@@ -7,24 +7,27 @@ Usage:
 
 The transforms replicate the runtime path in public/js/guns/actions.js
 `_updateSkipjackReload` exactly. For every `mag` source mesh the runtime
-subtracts CASSETTE_HINGE (game (-0.151, 0.083, -0.095)), applies the
-whole-cassette Euler(1.06*open, 0, -0.13*open) XYZ rotation in GAME space plus
-the translation game (-0.095*lateral, -0.025*open, +0.038*open), then restores
-the hinge; `open`/`lateral`/`rack` come verbatim from the phase curves with
-magTimeline start 0.16 / home 0.80 / clickAt 0.90 (TIMERS.mgl). Baked world
-vertices play the role of the runtime meshes' baked game-space positions, so the
-game-space matrix is conjugated into authoring space with GAME = ((1,0,0),
-(0,0,1),(0,-1,0)).
+subtracts CASSETTE_HINGE (game (-0.142, 0.020, -0.306), the vertical hub at the
+cassette's front edge), applies Euler(0, -(0.92*open + 0.07*kick), 0.10*away)
+XYZ in GAME space plus the translation game (-0.15*away, 0.05*lifted -
+0.30*away, 0.05*away), then restores the hinge. The phase curves come verbatim
+from the runtime with magTimeline start 0.16 / home 0.80 / clickAt 0.90
+(TIMERS.mgl). Baked world vertices play the role of the runtime meshes' baked
+game-space positions, so the game-space matrix is conjugated into authoring
+space with GAME = ((1,0,0),(0,0,1),(0,-1,0)).
 
-Frames (frac of the reload duration):
+Frames (frac of the reload duration). Frames up to pose-seated show a tactical
+swap from two total rounds (one reserve outside, the fresh cassette carries
+two); pose-rack is the empty swap stripping one fresh round into the chamber:
 
-    pose-home.png       0.00  closed and seated on the cheek
-    pose-open.png       0.34  full 60.7 deg swing at the open peak
-    pose-exchange.png   0.53  cassette hidden in the exchange window (0.47-0.60)
-    pose-seated.png     0.90  closed again, bolt group pinned at the full
-                              boltTravel +0.025 game z (the rack curve at 0.90
-                              is mid-stroke +0.0094; the frame proves the full
-                              stroke envelope instead)
+    pose-home.png       0.00  closed on the hinge hub, one reserve round
+    pose-open.png       0.27  swung out 53 deg about the vertical front hub
+    pose-lift.png       0.36  lifted 5 cm off the hinge pin, still loaded
+    pose-exchange.png   0.50  cassette away (hidden 0.46-0.56)
+    pose-insert.png     0.66  fresh cassette (two rounds) back on the pin
+    pose-seated.png     0.80  swung shut and seated
+    pose-rack.png       0.905 empty swap: pawl at full boltTravel, one round
+                              left outside after the strip
 
 With VB_SKIPJACK_SMOKE_ROOT set every PNG lands under that root so development
 runs never touch delivered docs.
@@ -52,10 +55,11 @@ SAMPLES = 24
 RESOLUTION = (1600, 1000)
 
 GAME = Matrix(((1, 0, 0), (0, 0, 1), (0, -1, 0)))  # game (x, y, z) = GAME @ authoring
-CASSETTE_HINGE_GAME = Vector((-0.151, 0.083, -0.095))
+CASSETTE_HINGE_GAME = Vector((-0.142, 0.020, -0.306))
 GAME_TO_AUTH = GAME.to_3x3().transposed()
 HINGE_AUTH = GAME_TO_AUTH @ CASSETTE_HINGE_GAME
 MAG_TIMELINE = (0.16, 0.80, 0.90)  # start, home, clickAt (TIMERS.mgl.magTimeline)
+TIMERS_BOLT_TRAVEL = 0.025        # TIMERS.mgl.boltTravel
 
 
 def out_path(path):
@@ -94,21 +98,29 @@ def phase(t, from_, to):
     return smooth01(max(0.0, min(1.0, (t - from_) / max(0.001, to - from_))))
 
 
-def reload_state(frac):
+def contact(t, at, decay):
+    attack = min(0.018, decay * 0.25)
+    return phase(t, at - attack, at) * (1 - phase(t, at, at + decay))
+
+
+def reload_state(frac, racks):
     """Cassette/bolt state of _updateSkipjackReload at `frac`."""
     (start, home, click_at) = MAG_TIMELINE
-    open_amount = phase(frac, start - 0.035, 0.34) * (1 - phase(frac, home - 0.08, click_at))
-    lateral = phase(frac, 0.30, 0.47) * (1 - phase(frac, 0.60, home))
-    rack = phase(frac, click_at - 0.025, click_at + 0.035) * \
-        (1 - phase(frac, click_at + 0.045, 0.985))
-    visible = frac < 0.47 or frac >= 0.60
-    return open_amount, lateral, rack, visible
+    open_amount = phase(frac, start, 0.27) * (1 - phase(frac, 0.70, home))
+    kick = contact(frac, 0.27, 0.05)
+    lifted = phase(frac, 0.30, 0.36) * (1 - phase(frac, 0.66, 0.70))
+    away = phase(frac, 0.36, 0.46) * (1 - phase(frac, 0.56, 0.66))
+    rack = (phase(frac, click_at - 0.03, click_at + 0.02) *
+            (1 - phase(frac, click_at + 0.04, 0.98))) if racks else 0.0
+    visible = frac < 0.46 or frac >= 0.56
+    return open_amount, kick, lifted, away, rack, visible
 
 
-def cassette_matrix(open_amount, lateral):
+def cassette_matrix(open_amount, kick, lifted, away):
     """Authoring-space replica of the runtime cassette transform."""
-    delta_game = Vector((-0.095 * lateral, -0.025 * open_amount, 0.038 * open_amount))
-    rotation_game = Euler((1.06 * open_amount, 0.0, -0.13 * open_amount), 'XYZ').to_matrix()
+    delta_game = Vector((-0.15 * away, 0.05 * lifted - 0.30 * away, 0.05 * away))
+    rotation_game = Euler((0.0, -(0.92 * open_amount + 0.07 * kick), 0.10 * away),
+                          'XYZ').to_matrix()
     rotation_auth = GAME_TO_AUTH @ rotation_game @ GAME.to_3x3()
     return (Matrix.Translation(HINGE_AUTH + GAME_TO_AUTH @ delta_game)
             @ rotation_auth.to_4x4() @ Matrix.Translation(-HINGE_AUTH))
@@ -176,8 +188,8 @@ scene.collection.objects.link(cam)
 cam_data.type = 'ORTHO'
 cam_data.ortho_scale = 1.25
 scene.camera = cam
-# Left-rear three-quarter: the cassette hinge, the cheek recess and the whole
-# swing envelope (out to -X, down and back) all read from here.
+# Left-rear three-quarter, as the shooter sees the flank: the front hinge hub,
+# the bay and the whole swing envelope (rear edge out to -X) read from here.
 cam.location = Vector((-1.45, -0.45, 0.35))
 cam.rotation_euler = (Vector((-0.05, 0.25, -0.03)) - cam.location).to_track_quat('-Z', 'Y').to_euler()
 
@@ -199,22 +211,32 @@ def reset_nodes():
     bpy.context.view_layer.update()
 
 
-# (name, reload fraction, bolt back along game +z)
+# (name, reload fraction, empty swap that racks, exterior rounds shown)
 POSES = (
-    ('pose-home', 0.00, 0.000),
-    ('pose-open', 0.34, 0.000),
-    ('pose-exchange', 0.53, 0.000),
-    ('pose-seated', 0.90, 0.025),
+    ('pose-home', 0.00, False, 1),
+    ('pose-open', 0.27, False, 1),
+    ('pose-lift', 0.36, False, 1),
+    ('pose-exchange', 0.50, False, 1),
+    ('pose-insert', 0.66, False, 2),
+    ('pose-seated', 0.80, False, 2),
+    ('pose-rack', 0.905, True, 1),
 )
 
-for name, frac, bolt_back in POSES:
+
+def round_shown(obj, count):
+    """Slots empty from the top: round 1 is the upper, round 3 the lower slot."""
+    match = re.match(r'round ([1-3]) \|', obj.name)
+    return not match or int(match.group(1)) > 3 - count
+
+
+for name, frac, racks, count in POSES:
     reset_nodes()
-    open_amount, lateral, rack, visible = reload_state(frac)
-    cassette = cassette_matrix(open_amount, lateral)
-    bolt = bolt_matrix(bolt_back)
+    open_amount, kick, lifted, away, rack, visible = reload_state(frac, racks)
+    cassette = cassette_matrix(open_amount, kick, lifted, away)
+    bolt = bolt_matrix(TIMERS_BOLT_TRAVEL * rack)
     for obj in mag_parts:
         obj.matrix_world = cassette @ originals[obj]
-        obj.hide_render = not visible or obj.name.startswith('round 1 |')
+        obj.hide_render = not visible or not round_shown(obj, count)
     for obj in bolt_parts:
         obj.matrix_world = bolt @ originals[obj]
     bpy.context.view_layer.update()
@@ -222,8 +244,8 @@ for name, frac, bolt_back in POSES:
     output.parent.mkdir(parents=True, exist_ok=True)
     scene.render.filepath = str(output)
     bpy.ops.render.render(write_still=True)
-    print(f'POSE_SAVED {name}.png frac={frac} open={open_amount:.3f} '
-          f'lateral={lateral:.3f} rack={rack:.3f} bolt_back={bolt_back} visible={visible}')
+    print(f'POSE_SAVED {name}.png frac={frac} open={open_amount:.3f} lifted={lifted:.3f} '
+          f'away={away:.3f} rack={rack:.3f} visible={visible} rounds={count}')
 
 reset_nodes()
 print('SKIPJACK-POSE-DONE')

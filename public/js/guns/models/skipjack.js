@@ -1,9 +1,10 @@
 import * as THREE from '../../vendor/three.module.js';
 import { createBlenderParts } from '../../engine/blender-assets.js';
 
-// The cassette's trunnion is on its near, rear cheek. Runtime meshes carry
-// baked game-space coordinates, so offset them into this pivot once at build.
-const CASSETTE_HINGE = new THREE.Vector3(-0.151, 0.083, -0.095);
+// The cassette swings on the vertical hinge hub at its front edge (authoring
+// (-0.142, 0.306, 0.020); game = (x, z, -y)). Runtime meshes carry baked
+// game-space coordinates, so offset them into this pivot once at build.
+const CASSETTE_HINGE = new THREE.Vector3(-0.142, 0.020, -0.306);
 const ROUND_NAME = /round[ _-]*([1-3])(?:\b|[ _|-])/i;
 
 // GL-3 SKIPJACK is authored as five rigid runtime parts. Up to three reserve
@@ -34,7 +35,8 @@ export function buildSkipjack({ groups }) {
     (number ? rounds[Number(number) - 1] : cassette).add(mesh);
   }
   groups.mag.add(cassette);
-  groups.extra.userData.skipjack = { cassette, rounds };
+  // `reload` is the presentation plan of the running swap (see ViewmodelRig.reload).
+  groups.extra.userData.skipjack = { cassette, rounds, reload: null };
 
   groups.body.userData.blenderAsset = 'skipjack';
   groups.body.userData.sightHeight = 0.216;

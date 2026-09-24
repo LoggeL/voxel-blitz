@@ -1,66 +1,144 @@
-# GL-3 SKIPJACK, revision 12
+# GL-3 SKIPJACK, revision 13
 
-The model follows the large side view in
-`concepts/revision11/rounded-direction-b.png`. `reference-geometry.py` records
-the sampled image contours and their conversion to authoring coordinates.
-The receiver, long stock with a narrow neck, single forward grip, flank
-cassette and compact optic use those contours and proportions. The rear and
-opposite side are completed as a coherent 3D object; the generated reference
-does not specify every hidden surface.
+Revision 13 rebuilds the model against the approved side view
+`concepts/revision11/rounded-direction-b.png`. All images in this folder are
+real Blender or browser renders of the delivered asset. The concept image only
+appears as the reference in `reference-comparison.html` and `comparison.png`.
 
-`skipjack-hero.png` and `skipjack-side.png` are renders of the actual Blender
-model. `reference-comparison.html` puts the selected reference next to the
-model. No generated concept image is used as a model proof.
+## Starting point (revision 12)
 
-## Geometry and materials
+The largest visible gap to the reference was form, not detail. The receiver and
+stock were side profiles extruded across X with an edge bevel. From the side
+the outline matched, but from above, in the ADS view and in first person both
+read as flat-sided slabs with rounded edges. The stock's dark thumb recess was a
+shallow displacement with a thin overlay, so it read like a sticker. The
+receiver had no dark chin or keel, and the right side carried a flat dark plate.
 
-The receiver has continuous shading across its rounded shoulder. The stock
-has recessed thumb pockets and a curved rubber pad. The barrel jacket has
-four rounded ventilation openings cut through its wall. The short reflex
-hood has a real aperture, tapered side housings and orange adjustment dials.
-The cassette is a continuous frame with retaining collars and flat capped
-rounds. Small recessed screw sockets and grip inserts follow the reference.
+Presentation and rules had these defects:
 
-The olive and graphite surface maps are retained, with finer texture scale
-and reduced bump strength. Their source PNGs and prompts are in `textures/`.
-The browser, portable GLB and editable Blender file share the material maps.
+* `beginReload` set `mag = 0` for every magazine swap. On SKIPJACK the chambered
+  round disappeared too, and the cassette emptied the moment R was pressed,
+  while it was still closed on the gun.
+* The fresh cassette came back with the old, empty count and filled only at
+  the end of the reload.
+* Tactical and empty swaps both took 2.8 s, both with a charging stroke.
+* The cassette tipped about a lateral rear trunnion, so its front dropped out
+  of view instead of opening toward the shooter.
+* A generic glowing bolt-face cap (`assemble.js`) sat outside the narrow stock
+  and lit up bright green after each shot. The baseline capture shows it too.
 
-## Game integration
+## Geometry
 
-The grip and support anchors now match the single forward grip and support
-position below the barrel. The optic is at authoring Z 0.216 m, with the ADS
-offset and runtime sight height using the same value. The new cassette hinge
-is used by both the runtime and the Blender reload proofs. Hip and ADS
-placement put the longer stock below the first-person view.
+`tools/blender/skipjack/reference-geometry.py` authors every volume:
 
-One round is enclosed in the chamber. The authoritative magazine count is
-the total in the weapon; only its reserve is shown outside:
+* **Receiver and stock**: one lofted shell. Its side profile (top, bottom) and
+  half widths are traced from the reference at 20 knots and resampled with
+  smoothing. Cross-sections are super-ellipses, rounder on top
+  (n 2.1–2.4) than underneath (n 2.2–2.9). The dark keel (chin below the
+  barrel collar, a thin belly strip, the stock underside) is split along a seam
+  row whose angle is solved per ring. The colour break therefore follows the
+  surface without stair steps. The shell has cylindrical arc-length UVs.
+* **Pockets**: exact Boolean differences transfer the dark finish to the pocket
+  walls, which are then separated into the keel/pocket part. The pockets are the
+  flat cassette bay on the left flank, both stock thumb scoops traced from the
+  reference, and the right service cover that seats the charging track. The
+  scoop floors run parallel to the curved stock at 13.5 mm depth. They are
+  filled by a constrained Delaunay triangulation over an even grid, so the
+  smooth-shaded floor has no sliver fans.
+* **Barrel**: one closed lathe profile with the rear pole, the rubber nose ring
+  and the orange collar band, three rounded rib bands, the stepped muzzle brake
+  with crown and lip, the brake chamber and the 40 mm bore with its floor. The
+  brake has eight radial capsule vents.
+* **Grip and pad**: a lofted, raked grip made from horizontal super-elliptic
+  sections, with three finger swells and a heel cap, and the orange trigger blade
+  in front of it, as in the reference. The rubber shoulder pad is lofted as a
+  rounded rectangle.
+* **Cassette**: a true frame ring with rounded inner and outer corners (no
+  Boolean cap across the window). Retainer pegs, detent studs, the top slot bar,
+  the pull ring and the orange release paddle are separate parts. The cassette
+  now hangs on a **vertical hinge hub at its front edge**, at the position of
+  the round boss in the reference. Two receiver knuckles on a pin carry it. The
+  cassette has no back plate. The bay floor is dark, so the empty top slot reads
+  as in the reference and the rounds stay visible when the cassette is open.
+* **Details**: two panel seams (the receiver/stock joint, the nose cover), screws
+  seated on the local shell normal, and the sight rail with slots. The compact
+  reflex hood keeps its open aperture.
 
-| Total rounds | Visible reserve rounds |
+Material: the olive tint is now a deeper, greener olive (`ASSET_TINTS` 0.34,
+0.44, 0.29), and the round colours are darker. They use the existing palette maps
+`skipjack-olive-armor`, `skipjack-dark-steel`, `skipjack-shell`,
+`molded-polymer` and `pebbled-rubber`.
+
+## Optimization
+
+The first complete draft exported 22,930 triangles in 22 draws. Screw heads
+became two-radius cones without bevel modifiers, the lathe went from 32 to 28
+segments with four-point ribs, pocket floors use a coarser even grid, and a few
+small rings and slots were simplified. After a check that the silhouette and
+pocket rims were unchanged, the delivery has **19,254 triangles, 21 runtime
+draws, 9 materials, 7 textured**. That is below the 20,000 target and the
+26,000 hard limit (revision 12: 25,232 / 20).
+
+## Runtime and rules
+
+* `public/js/guns/models/skipjack.js`: `CASSETTE_HINGE` = game (-0.142, 0.020,
+  -0.306), the vertical hub axis.
+* `actions.js` `_updateSkipjackReload`: present the flank, trip the paddle
+  (click 1), swing the rear edge out 53° about the hub with a small overshoot,
+  lift 5 cm off the pin, carry it away (hidden 0.46–0.56), bring the loaded
+  cassette onto the pin and swing it shut (click 2). An empty swap then racks the
+  pawl and strips the top fresh round into the chamber (click 3). A tactical swap
+  only pats the closed cassette. The left hand follows the paddle, the
+  cassette's rear edge and the pawl.
+* `viewmodel.js`: `reload()` records the pre-swap reserve, the fresh load and
+  whether a round is chambered. Until the cassette leaves the hand the slots show
+  the old reserve, then the fresh load. Cancel, weapon swap, death and completion
+  clear the plan and show the authoritative reserve again. The cassette pose and
+  the pawl reset.
+* `shared/reload.js` / `combatmath.js`: `chamber: 1`, `tacTime` 2.3 s, three
+  spare cassettes. The balance rationale is in `docs/weapon-design/skipjack.md`.
+  Server and client prediction share the rule.
+
+Visible exterior rounds, with one round in the chamber:
+
+| Total rounds | Visible reserve |
 | ---: | ---: |
-| 4, with upgrade | 3 |
-| 3, standard full load | 2 |
-| 2 | 1 |
+| 4, upgrade | 3 |
+| 3, after a tactical swap | 2 |
+| 2, after an empty swap | 1 |
 | 1 or 0 | 0 |
 
-Slots empty from top to bottom. Firing does not translate an exterior round
-toward the barrel. The three-round cassette and charging handle keep their
-separate reload motion.
+## Verification
 
-## Optimization and verification
+* The Blender build gates pass: anchors, muzzle tip, heat band, sight channel,
+  non-empty parts, contact audit, outward surfaces, round contract.
+* `validate-skipjack.py` (fresh GLB and glTF import) passed.
+* `npm run weapons:blender:browser` passed. The gate now also samples real
+  runtime swaps: tactical, empty and upgrade slot sequences, the hinge swing,
+  cancel, and a weapon swap in the middle of a reload.
+* `npm run weapons:reload:test` passed, including the new
+  `tools/skipjack-ammo-test.mjs`.
+* `node tools/skipjack-browser-test.mjs` passed and wrote `review/browser/`
+  (desktop held/4 rounds/after shot/ADS, the four reload beats, mobile held and
+  ADS).
 
-The first detailed pass evaluated to 36,592 triangles. The delivered model
-has 25,232 triangles, 20 runtime draws, 9 materials and 7 textured materials.
-The reduction is approximately 31 percent, mainly from small bevels, hidden
-surfaces and contour sampling. The model is below the hard 26,000 triangle
-budget. The advisory 20,000 triangle target remains exceeded and is recorded
-in `validation.json`.
+The renders in this folder are `skipjack-hero.png`, `skipjack-side.png`,
+`review/final/*.png` (including `front-quarter` and `rear-quarter`) and
+`pose-*.png`. The HUD icon `public/assets/weapons/hud/mgl.png` is
+rendered from the runtime model on the cassette side (`tools/render-hud-icon.mjs`
+sets `side: 'left'` for `mgl` only and mirrors the image, so the muzzle points
+right like every other icon). `comparison.png` shows the reference, the revision 12 model and
+revision 13 side by side.
 
-The Blender build gates and fresh imports of the GLB and glTF passed.
-`npm run weapons:blender:browser` passed the 540-pose integration sweep and
-material checks. Its SKIPJACK checks compare the exported hand anchors to
-the runtime hands, compare the optic height to ADS, raycast through the
-actual exported sight opening and verify ammunition visibility.
-`npm run weapons:reload:test` passed the state, network, animation and
-presentation checks. `node tools/skipjack-browser-test.mjs` captured held,
-firing, ADS and reload states plus the mobile held view in `review/browser/`.
+## Remaining limits
+
+* The reference is a single generated concept. Hidden surfaces (the right side,
+  the underside, the inside of the bay) are designed to fit it; the image does
+  not specify them.
+* The surface maps are the shared palette textures with a tint. There is no
+  baked normal, AO or edge-wear map, so painted edge wear like in the
+  reference is not present.
+* The reload hand is the shared support glove, moved by position only. It does
+  not change its grip shape per beat.
+* Balance is covered by deterministic tests (damage, TTK, life total, swap
+  times), not by playtests.

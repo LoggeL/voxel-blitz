@@ -46,6 +46,9 @@ export const CONDITION_RULES = Object.freeze({
  * @property {number} magSize       magazine capacity
  * @property {number} [spareRounds] loose reserve shells for tube reloads
  * @property {number} spareMags    full spare magazines carried on spawn
+ * @property {number} [chamber]     rounds held in a closed chamber outside the magazine; a
+ *                                  tactical swap keeps them, an empty swap chambers from the
+ *                                  fresh magazine and so delivers magSize - chamber
  * @property {[number,number,number]} damage  [close, far, falloffEnd] units; linear close->far between falloffStart and falloffEnd
  * @property {number} [falloffStart=20] distance before damage begins falling
  * @property {number} headMult      headshot damage multiplier
@@ -392,9 +395,13 @@ export const WEAPONS = {
     // GL-3 SKIPJACK: three slow arcing rounds, with a brief safe arm, four surface
     // bounces, body-contact detonation and a timed airburst. Blast caps at 64 scaled
     // damage, so landing a round still takes aim and a follow-up.
+    // One round rides in the closed chamber; each flank cassette carries magSize - 1.
+    // A tactical swap keeps the chambered round and skips the charging stroke; an
+    // empty swap strips a cassette round into the chamber (2 of 3). Three cassettes
+    // keep the 9-round life total of the old two-cassette, round-wasting reload.
     id: 'mgl', name: 'GL-3 SKIPJACK', mode: 'semi',
     weightKg: 5.6,
-    rpm: 70, magSize: 3, spareMags: 2,
+    rpm: 70, magSize: 3, spareMags: 3, chamber: 1,
     damage: [80, 80, 19], falloffStart: 18, // display only: direct damage is the full base blast plus its bonus
     headMult: 1, pellets: 1, penetration: 0,
     spreadDeg: { hip: 1.0, ads: 0.18 }, bloomDeg: 0.35, bloomMaxDeg: 1.8,
@@ -406,7 +413,7 @@ export const WEAPONS = {
       jitter: 0.08, resetMs: 950, adsMult: 0.72, recovery: 0.62,
     },
     adsFov: 58, zoom: 1.25, adsTime: 0.2,
-    reloadTime: 2.8, tacTime: 2.8, deployTime: 0.58,
+    reloadTime: 2.8, tacTime: 2.3, deployTime: 0.58,
     tracer: null,
     sfx: 'mgl',
     projectile: 'mgl',
@@ -497,9 +504,12 @@ export function reloadPlan(def, mag, reserve = Infinity, panic01 = 0) {
   const scale = reloadPanicScale(panic01);
   const stages = def.reloadStages;
   if (!stages) {
+    const chamber = Math.max(0, Math.trunc(Number(def.chamber) || 0));
+    const chambered = chamber > 0 && inMag > 0;
     return {
       staged: false,
-      rounds: def.magSize,
+      chambered,
+      rounds: chamber > 0 && !chambered ? def.magSize - chamber : def.magSize,
       seconds: (inMag > 0 ? def.tacTime : def.reloadTime) * scale,
       startSeconds: 0,
       perRoundSeconds: 0,

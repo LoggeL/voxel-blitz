@@ -76,7 +76,7 @@
     "profile:gameplay": "node tools/profile-gameplay.mjs",
     "fps:test": "node tools/frame-rate-test.mjs",
     "graphics:test": "node tools/graphics-quality-test.mjs && node tools/advanced-lighting-test.mjs && node tools/character-light-test.mjs",
-    "weapons:reload:test": "node tools/reload-state-test.mjs && node tools/reload-network-test.mjs && node tools/reload-animation-test.mjs && node tools/reload-presentation-test.mjs",
+    "weapons:reload:test": "node tools/reload-state-test.mjs && node tools/reload-network-test.mjs && node tools/reload-animation-test.mjs && node tools/reload-presentation-test.mjs && node tools/skipjack-ammo-test.mjs",
     "conditions:test": "node tools/condition-recovery-test.mjs && node tools/condition-wire-test.mjs && node tools/suppression-test.mjs && node tools/condition-presentation-test.mjs",
     "conditions:browser": "node tools/condition-browser-test.mjs",
     "medkit:test": "node tools/medkit-test.mjs",

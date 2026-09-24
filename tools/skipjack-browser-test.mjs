@@ -20,10 +20,13 @@ try {
     ['desktop-4-total', 1280, 720, 4, 'held'],
     ['desktop-2-after-shot', 1280, 720, 2, 'firing'],
     ['desktop-ads', 1280, 720, 3, 'scoped'],
-    ['desktop-reload-open', 1280, 720, 3, 'reload-open'],
-    ['desktop-reload-seated', 1280, 720, 3, 'reload-load'],
-    ['desktop-reload-charge', 1280, 720, 3, 'reload-charge'],
+    // Tactical swaps (a round still chambered) and an empty swap that racks.
+    ['desktop-reload-open', 1280, 720, 2, 'reload-open'],
+    ['desktop-reload-eject', 1280, 720, 2, 'reload-eject'],
+    ['desktop-reload-seated', 1280, 720, 1, 'reload-load'],
+    ['desktop-reload-charge', 1280, 720, 0, 'reload-charge'],
     ['mobile-3-total', 390, 844, 3, 'held'],
+    ['mobile-ads', 390, 844, 3, 'scoped'],
   ]) {
     await page.send('Emulation.setDeviceMetricsOverride',
       { width, height, deviceScaleFactor: 1, mobile: width < 500 });

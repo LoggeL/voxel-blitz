@@ -19,6 +19,9 @@ import { GLOW_ACCENT, MaterialCache } from '../public/js/guns/kit.js';
 import { PICKAXE_TILT } from '../public/js/guns/models/iron-pickaxe.js';
 import { renderBlenderHud } from './blender/render-hud.mjs';
 
+// SKIPJACK is named for its left-flank cassette; show that side (mirrored, muzzle right).
+const HUD_SIDE = Object.freeze({ mgl: 'left' });
+
 const PROJECT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUT_DIR = path.join(PROJECT_ROOT, 'public', 'assets', 'weapons', 'hud');
 /** Slots supplied by a Blender asset: weapon id -> asset id. Every other weapon uses the rasterizer. */
@@ -257,7 +260,8 @@ async function main() {
   for (const weapon of weapons) {
     const asset = BLENDER_HUD_ASSETS[weapon];
     const { png, triangles } = asset
-      ? await renderBlenderHud({ asset, weapon, width: options.width, height: options.height })
+      ? await renderBlenderHud({ asset, weapon, width: options.width, height: options.height,
+        side: HUD_SIDE[weapon] })
       : renderHudIcon(weapon, options);
     const output = path.join(options.outDir, `${weapon}.png`);
     await writeFile(output, png);

@@ -2,28 +2,49 @@
 <html lang="de">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>SKIPJACK: Referenz und Blender-Modell</title>
+<title>SKIPJACK: Referenz und Blender-Modell, Revision 13</title>
 <style>
   *{box-sizing:border-box}body{margin:0;background:#161b20;color:#edf1f2;font:16px/1.5 system-ui,sans-serif}
   main{max-width:1800px;margin:auto;padding:28px}h1{font-size:24px;font-weight:600;margin:0 0 8px}
-  p{color:#bcc7cb;margin:0 0 24px}.pair{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  h2{font-size:18px;font-weight:600;margin:32px 0 12px}p{color:#bcc7cb;margin:0 0 24px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}.three{grid-template-columns:repeat(3,1fr)}
+  .four{grid-template-columns:repeat(4,1fr)}
   figure{margin:0;background:#22292f;border:1px solid #3c454d;border-radius:8px;overflow:hidden}
-  figcaption{padding:12px 16px;font-weight:600}.crop{aspect-ratio:1536/650;overflow:hidden}
-  .crop img{width:100%;display:block}.model img{margin-top:-10.2%}
-  .browser{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:24px}.browser img{width:100%;display:block}
-  a{color:#bad7ec}footer{margin-top:20px;color:#bcc7cb}@media(max-width:900px){.pair,.browser{grid-template-columns:1fr}}
+  figcaption{padding:10px 14px;font-weight:600}img{width:100%;display:block}
+  a{color:#bad7ec}footer{margin-top:24px;color:#bcc7cb}
+  @media(max-width:900px){.grid,.three,.four{grid-template-columns:1fr}}
 </style>
 <main>
-  <h1>SKIPJACK: Referenz und Blender-Modell</h1>
-  <p>Die Vorlage links stammt aus ImageGen. Rechts steht der Render des exportierten 3D-Modells.</p>
-  <div class="pair">
-    <figure><figcaption>Ausgewählte Referenz</figcaption><div class="crop"><img src="concepts/revision11/rounded-direction-b.png" alt="Große Seitenansicht der ausgewählten Referenz"></div></figure>
-    <figure><figcaption>Blender-Modell, Revision 12</figcaption><div class="crop model"><img src="skipjack-hero.png" alt="Tatsächlicher Blender-Render des SKIPJACK"></div></figure>
+  <h1>SKIPJACK: Referenz und Blender-Modell, Revision 13</h1>
+  <p>Links die ausgewählte ImageGen-Vorlage. Alle anderen Bilder sind echte Renders des exportierten Modells (Blender Cycles) oder Browser-Captures der Spielansicht.</p>
+  <figure><figcaption>Referenz · Revision 12 · Revision 13</figcaption><img src="comparison.png" alt="Referenz, altes und neues Modell nebeneinander"></figure>
+  <h2>Blender-Renders</h2>
+  <div class="grid">
+    <figure><figcaption>Vorne links, drei Viertel</figcaption><img src="review/final/front-quarter.png" alt="Vordere Dreiviertelansicht"></figure>
+    <figure><figcaption>Hinten links, drei Viertel</figcaption><img src="review/final/rear-quarter.png" alt="Hintere Dreiviertelansicht"></figure>
+    <figure><figcaption>Rechte Seite</figcaption><img src="review/final/right-side.png" alt="Rechte Seite mit Servicetasche"></figure>
+    <figure><figcaption>Visierlinie</figcaption><img src="review/final/ads.png" alt="Blick durch das Visier"></figure>
   </div>
-  <div class="browser">
-    <figure><figcaption>Im Browser: normale Haltung</figcaption><img src="review/browser/desktop-3-total.png" alt="Spielansicht mit zwei sichtbaren Reservegranaten"></figure>
-    <figure><figcaption>Im Browser: Zielen</figcaption><img src="review/browser/desktop-ads.png" alt="Zielpunkt mittig im niedrigen Visier"></figure>
+  <h2>Nachladen (Blender-Posen der Laufzeit-Transformation)</h2>
+  <div class="grid four">
+    <figure><figcaption>Aufgeschwenkt</figcaption><img src="pose-open.png" alt="Kassette um die Frontnabe aufgeschwenkt"></figure>
+    <figure><figcaption>Vom Stift gehoben</figcaption><img src="pose-lift.png" alt="Kassette angehoben"></figure>
+    <figure><figcaption>Neue Kassette auf dem Stift</figcaption><img src="pose-insert.png" alt="Frische Kassette eingesetzt"></figure>
+    <figure><figcaption>Leer: Durchladen</figcaption><img src="pose-rack.png" alt="Ladehebel hinten"></figure>
   </div>
-  <footer>25.232 Dreiecke · 20 Zeichenaufrufe · <a href="build-report.md">Modell- und Prüfbericht</a> · <a href="skipjack.blend">Blender-Datei</a></footer>
+  <h2>Im Browser</h2>
+  <div class="grid three">
+    <figure><figcaption>Hüfte, 3 Schuss</figcaption><img src="review/browser/desktop-3-total.png" alt="Spielansicht mit zwei sichtbaren Reservegranaten"></figure>
+    <figure><figcaption>Zielen</figcaption><img src="review/browser/desktop-ads.png" alt="Zielpunkt im Visier"></figure>
+    <figure><figcaption>Nach dem Schuss</figcaption><img src="review/browser/desktop-2-after-shot.png" alt="Nach dem Schuss"></figure>
+    <figure><figcaption>Taktisch: aufgeschwenkt</figcaption><img src="review/browser/desktop-reload-open.png" alt="Kassette offen"></figure>
+    <figure><figcaption>Neue Kassette</figcaption><img src="review/browser/desktop-reload-seated.png" alt="Frische Kassette"></figure>
+    <figure><figcaption>Leer: Durchladen</figcaption><img src="review/browser/desktop-reload-charge.png" alt="Durchladen"></figure>
+  </div>
+  <div class="grid four" style="margin-top:20px">
+    <figure><figcaption>Mobil, Hüfte</figcaption><img src="review/browser/mobile-3-total.png" alt="Mobile Ansicht"></figure>
+    <figure><figcaption>Mobil, Zielen</figcaption><img src="review/browser/mobile-ads.png" alt="Mobile Visieransicht"></figure>
+  </div>
+  <footer>19.254 Dreiecke · 21 Zeichenaufrufe · 9 Materialien · <a href="build-report.md">Modell- und Prüfbericht</a> · <a href="skipjack.blend">Blender-Datei</a></footer>
 </main>
 </html>

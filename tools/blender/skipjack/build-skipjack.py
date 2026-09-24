@@ -1,4 +1,4 @@
-"""Rebuild GL-3 SKIPJACK as the rounded CITADEL study (revision 12).
+"""Rebuild GL-3 SKIPJACK as the sculpted CITADEL study (revision 13).
 
 Run in the connected Blender 5.x session through Blender MCP:
 
@@ -12,9 +12,11 @@ or headless as the fallback:
 
 The study is authored in docs/design/blender/skipjack/skipjack.blend (saved with
 copy=True so a live session keeps its own file). Design study "CITADEL": one
-traced reference silhouette with a narrow stock neck, a single forward grip,
-a three-position flank cassette and a compact 0.216 m reflex sight. Geometry
-is authored in reference-geometry.py against the large side view in
+lofted receiver/stock shell with super-elliptic sections, Boolean pockets for
+the cassette bay, thumb scoops and service cover, a lathed barrel and brake,
+a lofted grip and shoulder pad, a three-position flank cassette on a vertical
+front hinge hub and a compact 0.216 m reflex sight. Geometry is authored in
+reference-geometry.py against the large side view in
 concepts/revision11/rounded-direction-b.png.
 
 Authoring space is +Y muzzle, +Z up, +X right; the delivery export maps
@@ -171,8 +173,8 @@ materials['optic glass'] = glass
 # parts carry their finish as a RoundColor corner layer on this one material.
 ROUND_VERTEX_COLORS = {
     'gunmetal': (.10, .13, .15, 1),
-    'machined steel': (.36, .43, .44, 1),
-    'olive drab': (.43, .51, .30, 1),
+    'machined steel': (.30, .34, .35, 1),
+    'olive drab': (.27, .34, .19, 1),
     'dark polymer': (.035, .045, .050, 1),
     'orange paint': (.90, .31, .065, 1),
     'brass': (.52, .37, .14, 1),
@@ -211,7 +213,7 @@ def orient(mesh):
 
 
 def link_part(obj, name, group, material, bevel=0.0015, smooth=False, color=None,
-              bevel_segments=1):
+              bevel_segments=1, keep_uv=False):
     obj.name = name
     obj.data.name = f'{name} mesh'
     obj.parent = groups[group]
@@ -220,7 +222,8 @@ def link_part(obj, name, group, material, bevel=0.0015, smooth=False, color=None
     obj.data.materials.append(materials[material])
     obj['part'] = group
     obj['skipjack_material'] = material
-    orient(obj.data)
+    if not obj.get('open_shell'):
+        orient(obj.data)
     source_collection.objects.link(obj) if obj.name not in source_collection.objects else None
     for poly in obj.data.polygons:
         poly.use_smooth = smooth
@@ -238,6 +241,9 @@ def link_part(obj, name, group, material, bevel=0.0015, smooth=False, color=None
                                               domain='CORNER')
         for entry in layer.data:
             entry.color = color
+    if keep_uv and obj.data.uv_layers:
+        PARTS.append(obj)
+        return obj
     uv = obj.data.uv_layers.new(name='UVMap') if not obj.data.uv_layers else obj.data.uv_layers[0]
     for poly in obj.data.polygons:
         axis = max(range(3), key=lambda i: abs(poly.normal[i]))
@@ -469,6 +475,9 @@ def mesh_points(obj):
 
 source_meshes = [o for o in source_collection.objects if o.type == 'MESH']
 part_points = {obj.name: mesh_points(obj) for obj in source_meshes}
+empty_parts = sorted(name for name, points in part_points.items() if not points)
+gate('non-empty parts', not empty_parts, f'empty: {empty_parts[:8]}')
+source_meshes = [o for o in source_meshes if part_points[o.name]]
 
 tip_y = max(p.y for points in part_points.values() for p in points)
 tip_band = [p for points in part_points.values() for p in points if p.y >= tip_y - 2e-3]
@@ -517,6 +526,7 @@ gate('floating parts', not floating, f'detached: {sorted(floating)[:8]}')
 # Same signed-volume math as validate-skipjack's inward-surface audit, on the
 # evaluated world-space triangles, so a flipped shell fails here first.
 inverted = []
+open_volume = 0.0
 for obj in source_meshes:
     depsgraph = bpy.context.evaluated_depsgraph_get()
     evaluated = obj.evaluated_get(depsgraph)
@@ -527,8 +537,14 @@ for obj in source_meshes:
         a, b, c = (obj.matrix_world @ mesh.vertices[i].co for i in triangle.vertices)
         volume += a.dot(b.cross(c)) / 6.0
     evaluated.to_mesh_clear()
+    if obj.get('open_shell'):
+        # The olive shell and its dark keel/pocket skin close each other.
+        open_volume += volume
+        continue
     if volume <= 0:
         inverted.append(f'{obj.name} ({volume * 1e6:.1f} cm3)')
+if open_volume <= 0:
+    inverted.append(f'open shell pair ({open_volume * 1e6:.1f} cm3)')
 gate('outward surfaces', not inverted, f'inverted: {sorted(inverted)[:6]}')
 
 round_names = sorted(o.name for o in source_meshes if o.name.startswith('round '))

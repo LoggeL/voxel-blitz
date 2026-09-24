@@ -163,7 +163,7 @@ if (state.startsWith('reload-')) {
   const fraction = weapon === 'rocket'
     ? { 'reload-open': 0.33, 'reload-load': 0.76, 'reload-charge': 0.90 }[state]
     : weapon === 'mgl'
-      ? { 'reload-open': 0.34, 'reload-load': 0.82, 'reload-charge': 0.93 }[state]
+      ? { 'reload-open': 0.25, 'reload-eject': 0.40, 'reload-load': 0.68, 'reload-charge': 0.905 }[state]
     : belt
       ? { 'reload-open': 0.14, 'reload-eject': 0.28, 'reload-load': 0.875, 'reload-charge': 0.965 }[state]
       : { 'reload-open': 0.26, 'reload-eject': 0.40, 'reload-load': 0.64 }[state];

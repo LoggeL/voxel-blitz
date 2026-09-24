@@ -216,7 +216,8 @@ for (const id of WEAPON_IDS.filter(id => WEAPONS[id].mode !== 'melee' && !WEAPON
       state.tickReload(now);
     }
     assert.equal(accepted, true, `${id}: request survives delayed acceptance`);
-    assert.equal(authority.mag[slot], WEAPONS[id].magSize);
+    // An empty swap on a closed-chamber launcher strips one fresh round into the chamber.
+    assert.equal(authority.mag[slot], WEAPONS[id].magSize - (WEAPONS[id].chamber || 0));
     assert.deepEqual(state.ammoOf(id), { mag: authority.mag[slot], reserve: authority.reserve[slot] });
     assert.equal(state.reloadRequested, false);
     assert.equal(calls.length, 1, `${id}: delayed snapshots do not replay animation`);

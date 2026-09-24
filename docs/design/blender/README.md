@@ -617,59 +617,48 @@ pivots, anchors, UVs, palette images, the razor-glow emissive and the budgets.
 and the measured counts. The poses are `pose-home`, `pose-throw`,
 `pose-horns-open`, `pose-empty` and `pose-cassette-lift`.
 
-## SKIPJACK (mgl slot), revision 8
+## SKIPJACK (mgl slot), revision 13
 
-SKIPJACK supplies the existing `mgl` slot (GL-3 SKIPJACK). Revision 8 is a
-from-scratch redo (design study "CITADEL", chosen from three documented
-alternatives in `skipjack/concepts/`): the revision 7 study — a stepped riser
-tower with a wire-cage reflex, three oversized bottles bolted on an open
-bracket outside the receiver, ski rails on a thin barrel — is replaced by one
-continuous faceted wedge running from the stock comb to a crowned 40 mm muzzle,
-with a fluted shroud and bare heat-sleeve barrel between them.
+SKIPJACK supplies the existing `mgl` slot (GL-3 SKIPJACK). Revision 13 rebuilds
+the CITADEL study against the approved side view
+`skipjack/concepts/revision11/rounded-direction-b.png`. The earlier revisions
+extruded side plates and read as slabs from above and in ADS. Revision 13 uses
+rounded volumes (`tools/blender/skipjack/reference-geometry.py`):
 
-Its three 40 mm grenades (brass base, olive body, orange arming band, ogive
-nose) are bayed on the left flank in a machined cassette: two rims per grenade
-in a gunmetal frame on the receiver's bay plate, a transverse trunnion pin
-resting in two receiver saddles, and an orange release paddle at the frame's
-lower rear. The 0.291 m sight line is carried by an arc-range ladder — two
-swept fins with range dots and a cursor bar that are also the hooded reflex's
-wings, leaving the ADS window down the sight axis completely open. A tapered
-stock with cheek comb and rubber pad, a raked pistol grip at the grip anchor, a
-swept trigger guard with orange blade in line with the grip, a slim support
-fore-grip at the support anchor, a right-cheek charging pawl in its track, a
-fire selector and a phosphor round counter complete it. 99 authored parts,
-11,228 triangles, 20 runtime draws, ten frozen materials with seven sampling
-the shared palette maps. Display name, stats, hitboxes, `sightHeight` 0.291 and
-the reload timeline are unchanged.
+- one lofted receiver/stock shell with super-elliptic sections traced from the
+  reference outline. The dark keel (chin under the barrel collar, belly, stock
+  underside) is split on an exact row seam;
+- exact Boolean pockets with conformal, Delaunay-filled floors: the flat
+  cassette bay, both thumb scoops and the right service cover;
+- a lathed launch tube with rib bands, collar, crown and eight vented brake
+  slots, a lofted raked grip with finger swells and a lofted rubber pad;
+- a frame ring cassette on a vertical front hinge hub, carried by two receiver
+  knuckles on a pin; three slots, rounds `round 1..3` from top to bottom.
 
-The study was authored through the live Blender MCP session (protocol 5,
-`execute_blender_code`) with `tools/blender/skipjack/build-skipjack.py`, which
-creates its own scene and saves with `copy=True`; the runtime export,
-validation and renders run headless.
+19.3k triangles, 21 runtime draws, nine materials with seven sampling the
+shared palette maps. Anchors, `sightHeight` 0.216 and the node contract are
+unchanged.
 
 Animated parts (runtime model `skipjack.js`):
 
-- `mag`: the whole cassette (bay plate, frame, rims, trunnion pin, release
-  paddle and lever) plus the three grenade meshes, hung on a hinge group at
-  `CASSETTE_HINGE` = game (-0.163, 0.055, -0.30) — the trunnion pin line. The
-  reload tips the cassette down-left about the pin, exchanges it in the
-  0.47–0.60 window and seats it at the home click. Round meshes (`round 1..3`)
-  merge to one vertex-coloured draw each and hide with the authoritative
-  magazine count (`viewmodel.setSkipjack`), so spent chambers read empty.
-- `bolt`: the charging pawl at game (0.094, 0.113, -0.175), racked 25 mm
-  rearward at the end of the reload.
-- `trigger`: swept guard, pivot pin and orange blade in line with the grip axis.
-- `extra`: fire selector, round counter and the phosphor sight emitter.
-
-The left hand's `release` target in `_updateSkipjackReload` moved with the
-redesign to game [-0.19, -0.10, -0.12] (the new release paddle); every other
-choreography constant is untouched.
+- `mag`: frame, hub, pull ring, release paddle and the three round groups, hung
+  on `CASSETTE_HINGE` = game (-0.142, 0.020, -0.306), the vertical hub axis. The
+  reload swings the rear edge out about that axis, lifts the cassette off the pin,
+  exchanges it (hidden 0.46–0.56), drops the fresh one on the pin and swings it
+  shut at the home click. Slots show the reserve outside the chambered round;
+  during a swap `skipjack.reload` (set by `ViewmodelRig.reload`) keeps the old
+  count until the cassette leaves and the fresh load after it returns.
+- `bolt`: the charging pawl in the right service pocket, racked 25 mm rearward
+  only on an empty swap, where it strips one fresh round into the chamber.
+- `trigger`: orange blade and pivot pin in front of the grip.
+- `extra`: selector dial, chamber witness and the phosphor sight emitter.
 
 Build-time gates (each fails the build on violation): the four frozen anchors,
 the muzzle tip on the bore axis at the contract plane, heat-band clearance for
-the runtime glow sleeve (bare r 0.040 tube over game z [-0.752, -0.603]), an
-unobstructed sight channel down the ADS line, a floating-part contact audit,
-per-part outward-surface signed volume, and the round-name contract.
+the runtime glow sleeve (r 0.046 clearance over game z [-0.752, -0.603]), an
+unobstructed sight channel down the ADS line, non-empty parts, a floating-part
+contact audit, outward-surface signed volume (per closed part, and jointly for
+the open shell/keel pair), and the round-name contract.
 
 ```sh
 # author (headless alternative to the MCP session)
@@ -686,5 +675,5 @@ blender --background --factory-startup docs/design/blender/skipjack/skipjack.ble
 covers the nine-node contract, batch extras and round names, anchors, UVs,
 outward normals, the muzzle tip and the budgets (fail above 32 draws / 26,000
 triangles / 10 materials). `skipjack/build-report.md` has the design
-alternatives, the CITADEL choice, the node table and the measured counts; the
-poses are `pose-home`, `pose-open`, `pose-exchange` and `pose-seated`.
+rebuild notes and the measured counts; the poses are `pose-home`, `pose-open`,
+`pose-lift`, `pose-exchange`, `pose-insert`, `pose-seated` and `pose-rack`.

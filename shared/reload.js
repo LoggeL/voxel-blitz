@@ -1,11 +1,14 @@
 import { reloadPlan } from './combatmath.js';
 
+const chamberOf = (def) => Math.max(0, Math.trunc(Number(def.chamber) || 0));
+
 /** Reload simulation in seconds. The caller owns the clock and ammo storage.
  * `panic01` fumbles every stage (authority passes its own, prediction its own). */
 export function beginReload(def, ammo, infinite = false, panic01 = 0) {
   if (def.mode === 'melee' || ammo.mag >= def.magSize || (!infinite && ammo.reserve <= 0)) return null;
   const plan = reloadPlan(def, ammo.mag, infinite ? Infinity : ammo.reserve, panic01);
-  if (!plan.staged) ammo.mag = 0;
+  // A magazine swap drops the magazine at once; a chambered round stays put.
+  if (!plan.staged) ammo.mag = plan.chambered ? chamberOf(def) : 0;
   return { ...plan, elapsed: 0, inserted: 0, done: false };
 }
 
@@ -28,7 +31,9 @@ export function advanceReload(reload, def, ammo, dt, infinite = false) {
   if (reload.elapsed + 1e-9 >= reload.seconds) {
     reload.done = true;
     if (!reload.staged && (infinite || ammo.reserve > 0)) {
-      ammo.mag = def.magSize;
+      // Closed-bolt launchers: an empty swap must strip one round of the fresh
+      // magazine into the chamber, so it delivers magSize - chamber in total.
+      ammo.mag = reload.chambered || !chamberOf(def) ? def.magSize : def.magSize - chamberOf(def);
       if (!infinite) ammo.reserve--;
     }
   }

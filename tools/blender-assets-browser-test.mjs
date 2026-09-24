@@ -307,6 +307,49 @@ try {
     must(skipjackRig.fire(), 'SKIPJACK fires its chambered round');
     must(skipjack.rounds.every((r,i)=>r.position.equals(beforeShot[i])),
       'firing does not pull an external round toward the barrel');
+    // Real runtime swaps: sample the running cassette animation, not a static pose.
+    const pose = { speed: 0, vaulting: false, grounded: true, aimSwayScale: 0 };
+    const slots = () => skipjack.rounds.map(r=>Number(r.visible)).join('');
+    const run = (seconds) => { for (let t = 0; t < seconds - 1e-9; t += 0.01) skipjackRig.update(0.01, pose); };
+    const cassette = skipjack.cassette, home = cassette.userData.homePosition;
+    const swapCheck = (mag, magSize, expected) => {
+      for (let i = 0; i < 40; i++) skipjackRig.update(0.05, pose);
+      skipjackRig.setSkipjack({mag, magSize});
+      skipjackRig.reload(1, 'magswap');
+      const seen = [];
+      let swung = 0;
+      for (const until of [0.30, 0.50, 0.62, 0.86, 0.97]) {
+        run(until - (seen.length ? [0.30, 0.50, 0.62, 0.86, 0.97][seen.length - 1] : 0));
+        skipjackRig.setSkipjack({mag: Math.min(mag, 1), magSize}); // authority mid-swap
+        seen.push(cassette.visible ? slots() : 'away');
+        swung = Math.max(swung, Math.abs(cassette.rotation.y));
+      }
+      must(seen.join(',') === expected, 'SKIPJACK swap ' + mag + '/' + magSize + ' slots ' + seen.join(',') + ' (want ' + expected + ')');
+      must(swung > 0.6, 'the cassette swings open on its front hinge');
+      run(0.1);
+      must(cassette.position.equals(home) && cassette.rotation.y === 0 && skipjack.reload === null,
+        'a finished swap leaves the cassette seated');
+    };
+    swapCheck(2, 3, '001,away,011,011,011');  // tactical: chamber kept, 2 fresh
+    swapCheck(0, 3, '000,away,011,011,001');  // empty: the rack strips one fresh round
+    swapCheck(1, 4, '000,away,111,111,111');  // upgraded tactical swap
+    skipjackRig.setSkipjack({mag:3,magSize:3});
+    skipjackRig.reload(1, 'magswap');
+    run(0.40);
+    skipjackRig.setSkipjack({mag:1,magSize:3});
+    skipjackRig.cancelReload();
+    must(cassette.visible && cassette.position.equals(home) && cassette.rotation.y === 0 &&
+      slots() === '000',
+      'a cancelled swap seats the cassette and shows the authoritative reserve');
+    skipjackRig.setSkipjack({mag:3,magSize:3});
+    skipjackRig.reload(1, 'magswap');
+    run(0.40);
+    skipjackRig.setWeapon('rifle');
+    skipjackRig.setSkipjack({mag:1,magSize:3});
+    skipjackRig.setWeapon('mgl');
+    must(cassette.position.equals(home) && cassette.rotation.y === 0 && cassette.visible &&
+      slots() === '000' && skipjackRig._models.mgl.bolt.position.z === 0,
+      'a weapon swap mid-reload leaves no open cassette, rack or stale reserve');
     skipjackRig.dispose();
     // SKUA (GV-4 RIPTIDE): the wrapper must re-hang the cassette's spare disc as the
     // reload round and the catch horns on their authored hinges.

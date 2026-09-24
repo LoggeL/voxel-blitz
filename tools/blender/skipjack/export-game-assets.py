@@ -16,7 +16,7 @@ translation-only so the loader's "sum ancestor positions" flattening is exact.
 
 Also writes docs/design/blender/skipjack/skipjack.glb (portable twin of the
 same geometry), the public/assets/blender/manifest.json inventory row, and
-docs/design/blender/skipjack/manifest.json at revision 12, then runs the shared
+docs/design/blender/skipjack/manifest.json at revision 13, then runs the shared
 material finalizer (finish_asset) and the SKIPJACK ASSET_TINTS gltfTint pass
 on both documents before re-saving the .blend.
 
@@ -64,12 +64,12 @@ GAME = Matrix(((1, 0, 0), (0, 0, 1), (0, -1, 0)))
 # Preserve surface detail and material contrast at first-person distance.
 ASSET_TINTS = {
     'gunmetal': (.29, .31, .34), 'machined steel': (.42, .45, .48),
-    'olive drab': (.44, .49, .37), 'dark polymer': (.48, .52, .56),
+    'olive drab': (.34, .44, .29), 'dark polymer': (.48, .52, .56),
     'rubber': (.55, .57, .57), 'orange paint': (.82, .55, .34),
     'brass': (.76, .70, .50), 'phosphor': (.38, .78, .38),
 }
 
-REVIEW_VIEWS = ('right-side', 'muzzle', 'rear', 'top', 'ads')
+REVIEW_VIEWS = ('right-side', 'muzzle', 'rear', 'top', 'ads', 'front-quarter', 'rear-quarter')
 
 SMOKE_ROOT = None
 _smoke = os.environ.get('VB_SKIPJACK_SMOKE_ROOT')
@@ -534,10 +534,10 @@ if not SMOKE_ROOT:
     bpy.context.preferences.filepaths.save_version = 0
     bpy.ops.wm.save_as_mainfile(filepath=str(BLEND), check_existing=False)
 
-# --- docs manifest (revision 12) ---------------------------------------------
+# --- docs manifest (revision 13) ---------------------------------------------
 review_dir = f'docs/design/blender/{SLUG}/review/final'
 docs_manifest = {
-    'asset': 'GL-3 SKIPJACK', 'asset_id': SLUG, 'weapon_id': 'mgl', 'revision': 12,
+    'asset': 'GL-3 SKIPJACK', 'asset_id': SLUG, 'weapon_id': 'mgl', 'revision': 13,
     'axis_contract': {'authoring_forward': '+Y', 'authoring_up': '+Z', 'authoring_right': '+X',
                       'game_mapping': 'x=x, y=z, z=-y'},
     'anchors_authoring': {name: marker_authoring[name] for name in MARKERS},

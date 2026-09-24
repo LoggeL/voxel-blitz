@@ -106,8 +106,9 @@ export function buildGun(id, cache) {
   const uni = fx.uniforms;
   const glow = fx.material;
   // The glaive's bolt is the open flywheel drum and the bubble's plunger sits outside
-  // any receiver: nothing would hide the cap there.
-  if (!melee && id !== 'revolver' && id !== 'glaive' && id !== 'bubble') {
+  // any receiver: nothing would hide the cap there. SKIPJACK's closed chamber has only
+  // the external charging pawl; its rounded stock would leave the cap in plain view.
+  if (!melee && id !== 'revolver' && id !== 'glaive' && id !== 'bubble' && id !== 'mgl') {
     const capZ = BOLT_HOME[id];
     const cap = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, 0.012), glow);
     cap.position.set(-0.02, 0.07, capZ + 0.052);
