@@ -50,6 +50,16 @@ try {
   assert.equal(image.headers.get('content-encoding'), null, 'webp is not re-encoded');
   assert.equal(image.headers.get('content-length'), String(readFileSync(new URL('../public/assets/ui/armory/menu-hero.webp', import.meta.url)).length));
 
+  // The original announcer WAVs must reach the browser's decoder unchanged.
+  for (const cue of ['doublekill', 'triplekill', 'multikill', 'ultrakill', 'monsterkill', 'rampage', 'godlike']) {
+    const path = `/assets/audio/announcer/quake/${cue}.wav`;
+    const audio = await get(path, { 'accept-encoding': 'gzip, br' });
+    assert.equal(audio.status, 200, `${cue} is served`);
+    assert.equal(audio.headers.get('content-type'), 'audio/wav');
+    assert.equal(audio.headers.get('content-encoding'), null);
+    assert.deepEqual(Buffer.from(await audio.arrayBuffer()), readFileSync(new URL(`../public${path}`, import.meta.url)));
+  }
+
   // Clients without compression support get the identity body with its length.
   const plain = await get('/js/main.js', { 'accept-encoding': 'identity' });
   assert.equal(plain.headers.get('content-encoding'), null);

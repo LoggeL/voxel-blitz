@@ -1,4 +1,5 @@
 import { sfx } from '../audio/sfx.js';
+import { ANNOUNCER_CUES } from '../../../shared/announcer.js';
 import { BUILTIN_SAMPLE_MANIFEST } from '../audio/samples.js';
 import { WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
 import { FOOTSTEP_SLOTS, gaitPhaseRate, footstepVolume, SPRINT_SPEED } from '../audio/footsteps.js';
@@ -16,7 +17,7 @@ let loading;
 let generation = 0;
 let waveformCount = 0;
 let waveformFailures = 0;
-const featuredCueCount = 29 + PICKAXE_DIG_MATERIALS.length + PICKAXE_ATTACK_KINDS.length
+const featuredCueCount = 29 + Object.keys(ANNOUNCER_CUES).length + PICKAXE_DIG_MATERIALS.length + PICKAXE_ATTACK_KINDS.length
   + Object.values(FOOTSTEP_SLOTS).flat().length;
 
 for (const [control, suffix, factor] of [[volume, '%', 100], [distance, ' m', 1], [charge, '%', 100]]) {
@@ -58,6 +59,7 @@ function stopLoops() {
   sfx.stopFlame();
   sfx.minigunMotor(0, 0, false);
   sfx.stopPainMoans();
+  sfx.stopAnnouncer();
   for (const audio of document.querySelectorAll('audio')) audio.pause();
 }
 
@@ -307,6 +309,12 @@ card(hitFeedback, 'Incoming body impact', 'A muted physical impact, scaled by re
 ]);
 
 const explosions = document.getElementById('explosions');
+for (const [cue, { label }] of Object.entries(ANNOUNCER_CUES)) {
+  card(hitFeedback, `Quake: ${label}`, 'Classic recording through the game master volume and limiter.',
+    `announcer.${cue}`, [button(`Announce ${label}`, () => {
+      sfx.announceKill(cue); status.textContent = `Quake announcer: ${label}`;
+    })]);
+}
 for (const [type, title, description] of [
   ['frag', 'Frag grenade', 'Sharp blast with a short debris tail.'],
   ['limpet', 'Limpet charge', 'A heavier blast for the attached charge.'],

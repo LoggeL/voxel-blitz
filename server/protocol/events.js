@@ -1,3 +1,5 @@
+import { ANNOUNCER_CUES } from '../../shared/announcer.js';
+
 const D2 = 100, D3 = 1000;
 
 function round(v, d) {
@@ -47,6 +49,7 @@ export function evKill(killer, victim, w, hs, markers = null) {
     hs: !!hs,
     lr: !!markers?.longRange,
     ns: !!markers?.noScope,
+    ...(Object.hasOwn(ANNOUNCER_CUES, markers?.announcer) ? { announcer: markers.announcer } : {}),
     ...(Number.isFinite(markers?.dist) ? { dist: round(markers.dist, 10) } : {}),
     ...damageMetadata(markers?.damage),
   };

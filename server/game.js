@@ -23,6 +23,7 @@ import { makeSnapshot } from './protocol/snapshot.js';
 import { medkitMovement, medkitCombat } from '../shared/medkit.js';
 import { interruptMedkit, updateMedkit } from './sim/medkit.js';
 import { evKill, evRespawn, evDie, evHit } from './protocol/events.js';
+import { KillAnnouncer } from './sim/kill-announcer.js';
 import { ModeController } from './modes.js';
 import {
   PlayerEntity,
@@ -104,6 +105,7 @@ export class GameEngine {
     this.tickHooks = [];
     this.projectiles = new ProjectileSystem();
     this.flames = new FlameSystem();
+    this.killAnnouncer = new KillAnnouncer();
 
     this.mode = new ModeController(this, { mode: callbacks.mode, mapMeta: this.mapMeta });
     const trainingAmmo = this.mode.mode === 'training' && this.mapMeta?.id === 'killhouse';
@@ -548,6 +550,9 @@ export class GameEngine {
       return;
     }
     const damage = victim.hp <= 0 && victim.lastDamage?.lethal ? victim.lastDamage : null;
+    // TTT deliberately carries no kill-reward metadata across hidden roles.
+    const announcer = this.killAnnouncer.kill(victim, killer, this.now,
+      this.mode.phase === 'live' && this.mode.mode !== 'ttt' && this.mode.isEnemy(killer, victim));
     victim.hp = 0;
     victim.armor = 0;
     interruptMedkit(victim);
@@ -571,6 +576,7 @@ export class GameEngine {
     victim.vz = 0;
     const modeContext = { weapon: weaponKey || '' };
     const shotTraits = {
+      announcer,
       longRange: !!markers?.longRange,
       noScope: !!markers?.noScope,
       dist: markers?.dist,
@@ -602,6 +608,7 @@ export class GameEngine {
       ? player
       : this.entities.get(String(player));
     if (!entity) return false;
+    this.killAnnouncer.reset(entity);
     const next = spawn || this.nextSpawnFor(entity, entity.lastSpawnIndex);
     entity.applySpawn(next);
     // A fresh life never inherits discs, pickups or fabrications from the last one.

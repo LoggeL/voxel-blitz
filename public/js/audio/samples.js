@@ -1,10 +1,14 @@
 import { WEAPON_IDS } from '../../../shared/combatmath.js';
+import { ANNOUNCER_CUES } from '../../../shared/announcer.js';
 import { FOOTSTEP_SLOTS } from './footsteps.js';
 import { pickaxeSampleFiles } from './pickaxe.js';
 
 const SLOT_ROOT = '/assets/audio';
+const announcerManifest = Object.fromEntries(Object.keys(ANNOUNCER_CUES).map(cue =>
+  [`announcer.${cue}`, `${SLOT_ROOT}/announcer/quake/${cue}.wav`]));
 
 const sampleFileSlots = {
+  ...announcerManifest,
   'weapons.rifle.fire': `${SLOT_ROOT}/weapons/rifle/fire.ogg`,
   'weapons.smg.fire': `${SLOT_ROOT}/weapons/smg/fire.ogg`,
   'weapons.shotgun.fire': `${SLOT_ROOT}/weapons/shotgun/fire.ogg`,
@@ -83,6 +87,7 @@ export const SAMPLE_FILE_SLOTS = Object.freeze(sampleFileSlots);
 // Only files that ship with the game belong here. The wider slot catalog stays
 // optional, so one missing sample never turns into a startup fetch waterfall.
 export const BUILTIN_SAMPLE_MANIFEST = Object.freeze({
+  ...announcerManifest,
   ...footstepManifest,
   ...pickaxeManifest,
   'human.pain.light': SAMPLE_FILE_SLOTS['human.pain.light'],

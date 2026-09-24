@@ -64,7 +64,7 @@ class Game {
     this.frameRate = new FrameRateController();
     this._onFrameVisibility = () => {
       this.frameRate.reset(undefined, document.hidden);
-      if (document.hidden) sfx.stopCosmetics();
+      if (document.hidden) { sfx.stopCosmetics(); sfx.stopAnnouncer(); }
     };
     document.addEventListener('visibilitychange', this._onFrameVisibility);
     this.worldview = null;
@@ -1198,6 +1198,7 @@ class Game {
   }
 
   disposeLiveResources() {
+    sfx.stopAnnouncer();
     sfx.stopCosmetics();
     this.muzzleLights?.dispose();
     this.muzzleLights = null;

@@ -1,4 +1,5 @@
 import { CosmeticAudio } from './cosmetics.js';
+import { AnnouncerVoice } from './announcer.js';
 import { PanicBreathCadence } from './panic-breath.js';
 import { PainMoanCadence, PAIN_MOAN_THRESHOLD, painSampleChoice, renderPainMoan } from './pain-moans.js';
 import { renderBreath } from './breath.js';
@@ -48,6 +49,7 @@ const cosmeticAudio = new CosmeticAudio(engine);
 let pool = null;
 let primitives = null;
 let samples = null;
+const announcer = new AnnouncerVoice(engine, cue => samples?.getBuffer(`announcer.${cue}`));
 let builtInSamplesPromise = null;
 let menuMusic = null;
 let menuMusicVolume = 0.8;
@@ -339,7 +341,12 @@ export const sfx = {
   playCosmetic(id, cue) { return cosmeticAudio.play(id, cue); },
   stopCosmetics(cue) { cosmeticAudio.stop(cue); },
 
+  // No queued unlock replay: a stale multikill should never speak over a new life.
+  announceKill(cue) { return announcer.play(cue); },
+  stopAnnouncer() { announcer.stop(); },
+
   async dispose() {
+    announcer.stop();
     cosmeticAudio.clear();
     this.stopPainMoans();
     localVocalUntil = 0;

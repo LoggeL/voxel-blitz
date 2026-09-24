@@ -262,6 +262,7 @@ export class CombatFeedback {
             // Kill confirmation outranks the body/head mark of the lethal hit.
             this.hud.hitmark(ev.hs ? 'killHead' : 'kill');
             if (!this.sfx.playCosmetic?.(this.getSelfRow()?.cosmetics?.sound, 'kill')) this.sfx.killConfirm?.(!!ev.hs);
+            if (this.player?.alive && ev.announcer) this.sfx.announceKill?.(ev.announcer);
           }
         }
         break;
@@ -337,6 +338,8 @@ export class CombatFeedback {
       }
       case 'respawn': {
         if (ev.id === myId) {
+          // Round resets can respawn an already living player.
+          this.sfx.stopAnnouncer?.();
           const selfRow = this.getSelfRow();
           const hp = selfRow?.hp;
           if (!this.player.alive && selfRow?.state === 'alive' &&
@@ -430,6 +433,7 @@ export class CombatFeedback {
       return false;
     }
     this._presentedDeaths.add(transition);
+    this.sfx.stopAnnouncer?.();
     this.onLocalDeath(transition, killerId || null, event);
 
     const headshot = !!transition.headshot;
@@ -473,6 +477,7 @@ export class CombatFeedback {
 
   presentLocalRespawn() {
     if (this._disposed) return;
+    this.sfx.stopAnnouncer?.();
     this.sfx.stopCosmetics?.('kill');
     this.sfx.stopCosmetics?.('death');
     this._presentedDeaths = new WeakSet();
@@ -489,6 +494,7 @@ export class CombatFeedback {
   dispose() {
     if (this._disposed) return;
     this._disposed = true;
+    this.sfx.stopAnnouncer?.();
     this.sfx.stopFlames?.();
     this._presentedDeaths = new WeakSet();
     this.effects = null;

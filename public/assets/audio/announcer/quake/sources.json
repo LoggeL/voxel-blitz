@@ -1,0 +1,154 @@
+{
+  "source_page": "https://staredit.net/files/2142/",
+  "source_download": "https://staredit.net/sc1db/download/2142/",
+  "archive_sha256": "ba2cfefe079e2f1669cd140fb1006eed218bd6daaf9a0974b101a4a4fe323f3f",
+  "archive_uploader": "Original-Hydra",
+  "source_author": "Not given by archive page",
+  "set": "normal",
+  "retrieved_at": "2026-09-24T11:47:37.146118+00:00",
+  "scope": "Classic Quake Sounds recordings selected by the user for the game announcer.",
+  "clips": [
+    {
+      "id": "doublekill",
+      "archive_member": "normal/doublekill.wav",
+      "file": "doublekill.wav",
+      "sha256": "4a34ef6eb4d327eda145bf26392463a90a888b454fc1f0ec4b40c4f6ed0c19ed",
+      "audio": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "pcm_s16le",
+            "sample_rate": "11025",
+            "channels": 1
+          }
+        ],
+        "format": {
+          "duration": "1.933061"
+        }
+      }
+    },
+    {
+      "id": "triplekill",
+      "archive_member": "normal/triplekill.wav",
+      "file": "triplekill.wav",
+      "sha256": "6885b415dac30b342253c960080a5542a111adcad6254a5332d6bf2268a14841",
+      "audio": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "pcm_s16le",
+            "sample_rate": "11025",
+            "channels": 1
+          }
+        ],
+        "format": {
+          "duration": "2.142041"
+        }
+      }
+    },
+    {
+      "id": "multikill",
+      "archive_member": "normal/multikill.wav",
+      "file": "multikill.wav",
+      "sha256": "2fdd11c32e00028479a1f2bc31e1fb9a3da8740e51e03f9fab5a9708bdec5cf7",
+      "audio": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "pcm_s16le",
+            "sample_rate": "11025",
+            "channels": 1
+          }
+        ],
+        "format": {
+          "duration": "2.011429"
+        }
+      }
+    },
+    {
+      "id": "ultrakill",
+      "archive_member": "normal/ultrakill.wav",
+      "file": "ultrakill.wav",
+      "sha256": "d44ae775150bba9310b6dca99ad2f881d21a3a7ef2cca7d5635265d2184fd1de",
+      "audio": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "pcm_s16le",
+            "sample_rate": "11025",
+            "channels": 1
+          }
+        ],
+        "format": {
+          "duration": "1.488980"
+        }
+      }
+    },
+    {
+      "id": "monsterkill",
+      "archive_member": "normal/monsterkill.wav",
+      "file": "monsterkill.wav",
+      "sha256": "d0c79642c376ad6ad946191a777d4541868faa8154eeb741c12f69419f3e8df3",
+      "audio": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "pcm_s16le",
+            "sample_rate": "11025",
+            "channels": 1
+          }
+        ],
+        "format": {
+          "duration": "4.597551"
+        }
+      }
+    },
+    {
+      "id": "rampage",
+      "archive_member": "normal/rampage.wav",
+      "file": "rampage.wav",
+      "sha256": "981c1073aacfed9ea83a04fdccab1b89ce86186d83aeb04725ee410a68052b8f",
+      "audio": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "pcm_s16le",
+            "sample_rate": "11025",
+            "channels": 1
+          }
+        ],
+        "format": {
+          "duration": "1.776327"
+        }
+      }
+    },
+    {
+      "id": "godlike",
+      "archive_member": "normal/godlike.wav",
+      "file": "godlike.wav",
+      "sha256": "8da40dc855ac901815792ab6d9abed5114553f4768d461d06338ed45020d3f23",
+      "audio": {
+        "programs": [],
+        "stream_groups": [],
+        "streams": [
+          {
+            "codec_name": "pcm_s16le",
+            "sample_rate": "11025",
+            "channels": 1
+          }
+        ],
+        "format": {
+          "duration": "1.488980"
+        }
+      }
+    }
+  ],
+  "processing": "Unmodified WAV bytes; runtime gain and fades only.",
+  "license": "Source page does not specify a redistribution license for the recordings."
+}

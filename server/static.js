@@ -40,6 +40,7 @@ const MIME = {
   '.wasm': 'application/wasm',
   '.mp3': 'audio/mpeg',
   '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
 };
 
 const INDEX_HTML = 'index.html';
