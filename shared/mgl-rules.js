@@ -1,17 +1,18 @@
 /**
  * GL-3 SKIPJACK: shared authority and client flight/blast contract.
  * A launched 40 mm round follows a real arc, skips off solid faces, arms shortly
- * after leaving the muzzle, detonates on an armed body/solid contact, or airbursts
- * at the fixed fuse. Blast damage is intentionally below a one-hit kill.
+ * after leaving the muzzle, detonates on an armed body contact or a solid contact
+ * after its bounce budget is spent, and airbursts at the fixed fuse. Blast damage
+ * is intentionally below a one-hit kill.
  */
 export const MGL_RULES = Object.freeze({
-  speed: 26,
+  speed: 32,
   gravity: 11,
   radius: 0.11,
-  fuseMs: 2600,
+  fuseMs: 1800,
   armMs: 160,
   maxBounces: 4,
-  bounce: 0.46,
+  bounce: 0.65,
   floorFriction: 0.78,
   wallDamping: 0.86,
   splashDamage: 60,
@@ -28,7 +29,7 @@ export const MGL_RULES = Object.freeze({
   maxDestroyedBlocks: 0,
   muzzleForward: 0.52,
   muzzleDrop: 0.12,
-  color: '#c5a84b',
+  color: '#ff8a2c',
 });
 
 /** Spawn a round just ahead of the eye along the already spread-sampled aim. */

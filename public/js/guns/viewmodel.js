@@ -846,7 +846,7 @@ export class ViewmodelRig {
       hip.z + (T.adsOffset.z - hip.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0) + glaivePush
     );
     this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22,
-      swingRy + (dep.ry || 0) + (actionMotion.yaw || 0),
+      swingRy + (dep.ry || 0) + (actionMotion.yaw || 0) + (T.hipYaw || 0) * (1 - adsE),
       swingRz + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0) + swimCarry * 0.06);
     this.content.scale.setScalar(this._id === 'knife' ? this._swingPose.s || 1 : 1);   // narrow-screen pick framing
 

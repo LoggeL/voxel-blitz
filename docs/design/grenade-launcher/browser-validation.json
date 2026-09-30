@@ -1,0 +1,206 @@
+{
+  "captures": {
+    "desktop/mgl-held": {
+      "bytes": 268413,
+      "reserve": 2,
+      "fx": null
+    },
+    "desktop/mgl-scoped": {
+      "bytes": 212024,
+      "reserve": 2,
+      "fx": null
+    },
+    "desktop/mgl-firing": {
+      "bytes": 265162,
+      "reserve": 2,
+      "fx": null
+    },
+    "desktop/mgl-reload-open": {
+      "bytes": 258475,
+      "reserve": 2,
+      "fx": null
+    },
+    "desktop/mgl-reload-eject": {
+      "bytes": 252789,
+      "reserve": 2,
+      "fx": null
+    },
+    "desktop/mgl-reload-load": {
+      "bytes": 263192,
+      "reserve": 2,
+      "fx": null
+    },
+    "desktop/mgl-reload-charge": {
+      "bytes": 299766,
+      "reserve": 2,
+      "fx": null
+    },
+    "desktop/mgl-flight": {
+      "bytes": 270584,
+      "reserve": 2,
+      "fx": {
+        "projectiles": 1,
+        "trails": 1,
+        "bounces": 0,
+        "blasts": 0,
+        "particles": 0
+      }
+    },
+    "desktop/mgl-bounce": {
+      "bytes": 273149,
+      "reserve": 2,
+      "fx": {
+        "projectiles": 1,
+        "trails": 1,
+        "bounces": 1,
+        "blasts": 0,
+        "particles": 13
+      }
+    },
+    "desktop/mgl-blast": {
+      "bytes": 282015,
+      "reserve": 2,
+      "fx": {
+        "projectiles": 0,
+        "trails": 0,
+        "bounces": 0,
+        "blasts": 1,
+        "particles": 46
+      }
+    },
+    "mobile/mgl-held": {
+      "bytes": 165714,
+      "reserve": 2,
+      "fx": null
+    },
+    "mobile/mgl-scoped": {
+      "bytes": 186228,
+      "reserve": 2,
+      "fx": null
+    },
+    "mobile/mgl-firing": {
+      "bytes": 166837,
+      "reserve": 2,
+      "fx": null
+    },
+    "mobile/mgl-reload-open": {
+      "bytes": 182487,
+      "reserve": 2,
+      "fx": null
+    },
+    "mobile/mgl-reload-eject": {
+      "bytes": 176056,
+      "reserve": 2,
+      "fx": null
+    },
+    "mobile/mgl-reload-load": {
+      "bytes": 179277,
+      "reserve": 2,
+      "fx": null
+    },
+    "mobile/mgl-reload-charge": {
+      "bytes": 217365,
+      "reserve": 2,
+      "fx": null
+    },
+    "mobile/mgl-flight": {
+      "bytes": 168383,
+      "reserve": 2,
+      "fx": {
+        "projectiles": 1,
+        "trails": 1,
+        "bounces": 0,
+        "blasts": 0,
+        "particles": 0
+      }
+    },
+    "mobile/mgl-bounce": {
+      "bytes": 170681,
+      "reserve": 2,
+      "fx": {
+        "projectiles": 1,
+        "trails": 1,
+        "bounces": 1,
+        "blasts": 0,
+        "particles": 13
+      }
+    },
+    "mobile/mgl-blast": {
+      "bytes": 181094,
+      "reserve": 2,
+      "fx": {
+        "projectiles": 0,
+        "trails": 0,
+        "bounces": 0,
+        "blasts": 1,
+        "particles": 46
+      }
+    },
+    "landscape/mgl-held": {
+      "bytes": 89288,
+      "reserve": 2,
+      "fx": null
+    },
+    "landscape/mgl-scoped": {
+      "bytes": 72645,
+      "reserve": 2,
+      "fx": null
+    },
+    "landscape/mgl-firing": {
+      "bytes": 88669,
+      "reserve": 2,
+      "fx": null
+    },
+    "landscape/mgl-reload-open": {
+      "bytes": 87713,
+      "reserve": 2,
+      "fx": null
+    },
+    "landscape/mgl-reload-eject": {
+      "bytes": 86452,
+      "reserve": 2,
+      "fx": null
+    },
+    "landscape/mgl-reload-load": {
+      "bytes": 89210,
+      "reserve": 2,
+      "fx": null
+    },
+    "landscape/mgl-reload-charge": {
+      "bytes": 97764,
+      "reserve": 2,
+      "fx": null
+    },
+    "desktop/mgl-held-ammo-2": {
+      "bytes": 268579,
+      "reserve": 1,
+      "fx": null
+    },
+    "desktop/mgl-held-ammo-0": {
+      "bytes": 268335,
+      "reserve": 0,
+      "fx": null
+    }
+  },
+  "dynamic": {
+    "before": 1,
+    "completed": true,
+    "cancelled": true,
+    "shotRecovery": true,
+    "maxFeedStep": 0.21039388491141964,
+    "maxBoltStep": 0.022252172885674368,
+    "maxTrails": 1,
+    "bounded": true,
+    "disposed": true
+  },
+  "live": {
+    "mag": 3,
+    "weapon": "mgl",
+    "map": "KILLHOUSE",
+    "running": true,
+    "magAfter": 2,
+    "confirmedLaunches": 1
+  },
+  "browserErrors": [],
+  "cleanupSuccessful": true
+}

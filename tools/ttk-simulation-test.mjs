@@ -24,7 +24,10 @@ assert.ok(simulateFight({ weapon: 'rocket', distance: 80 }).killMs > rocket.kill
 const mgl = simulateFight({ weapon: 'mgl', distance: 10 });
 assert.equal(mgl.firstAttackDamage, 64);
 assert.equal(mgl.shots, 2, 'the GL-3 needs two center hits against 100 HP');
-assert.ok(mgl.killMs > 1000 && mgl.killMs < 2200, `SKIPJACK flight and cadence are counted (${mgl.killMs} ms)`);
+assert.ok(mgl.killMs >= 700 && mgl.killMs <= 900, `SKIPJACK flight and cadence are counted (${mgl.killMs} ms)`);
+const mglSalvo = simulateFight({ weapon: 'mgl', distance: 20, trace: true });
+assert.deepEqual(mglSalvo.events.filter((event) => event.kind === 'shoot').map((event) => event.ms),
+  [0, 516.6666666666667, 1033.3333333333335], 'all three chambered shots can leave in about one second');
 assert.equal(simulateFight({ weapon: 'mgl', distance: 56, maxSeconds: 8 }).killMs, null,
   'the SKIPJACK is not credited with hits beyond its reliable lower-arc reach');
 const bolt = simulateFight({ weapon: 'longarc', distance: 80, scenario: 'ideal-head' });

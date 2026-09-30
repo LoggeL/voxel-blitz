@@ -61,10 +61,11 @@ export const BLAST_STYLE = Object.freeze({
     scorch: 3.8,
   }),
   mgl: Object.freeze({
-    color: 0xe5a647, grow: 0.42, life: 0.42, ring: true, ringColor: 0xb8cd4d, flash: 1.9, flashLife: 0.12,
-    fire: Object.freeze({ count: 5, size: 1.2, speed: 4.6, life: 0.42, tint: FIRE_HOT }),
-    smoke: Object.freeze({ count: 8, size: 1.15, speed: 2.2, life: 1.6, shade: 0.16 }),
-    light: Object.freeze({ color: 0xffb85c, range: 6.5, intensity: 10, life: 0.38 }),
+    color: 0xffe2a2, grow: 0.5, life: 0.38, ring: true, ringColor: 0xff8a2c,
+    ringPeak: 0.65, flash: 3.1, flashLife: 0.095,
+    fire: Object.freeze({ count: 9, size: 1.35, speed: 6.4, life: 0.52, tint: FIRE_HOT }),
+    smoke: Object.freeze({ count: 11, size: 1.35, speed: 2.8, life: 1.8, shade: 0.15 }),
+    light: Object.freeze({ color: 0xff9b43, range: 7, intensity: 15, life: 0.42 }),
     scorch: 0,
   }),
   molotov: Object.freeze({
@@ -576,7 +577,7 @@ export class ExplosionFX {
           const scale = 0.1 + blast.radius * 1.1 * eased;
           // A fireball carries explosives; their ring stays a faint shock cue.
           const fade = 1 - rt;
-          const level = (style.fire ? fade * fade * fade * 0.3 : fade * 0.8) * near;
+          const level = (style.fire ? fade * fade * fade * (style.ringPeak || 0.3) : fade * 0.8) * near;
           this._matrix.makeScale(scale, scale, scale).setPosition(blast.x, blast.y + 0.15, blast.z);
           this._color.setRGB(blast.rr * level, blast.rg * level, blast.rb * level);
           this.rings.setMatrixAt(rings, this._matrix);

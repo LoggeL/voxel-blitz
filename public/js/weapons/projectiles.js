@@ -29,6 +29,9 @@ const PREVIEW_FLOOR_PROBE = 12;
 const CAP_LIT = 0xffd27a;
 const CAP_DIM = 0xff5a1c;
 const ROCKET_TRAIL_INTERVAL_S = 0.028;
+const MGL_TRAIL_POINTS = 14;
+const MGL_TRAIL_LIMIT = 32;
+const MGL_TRAIL_HALF_WIDTH = 0.095;
 const PROJECTILE_LIGHT_LIMIT = 4;
 // GRENADES study -> in-world prop. The authored bodies are held-frame sized
 // (0.06-0.12 m); the thrown props have always read a little larger than life so
@@ -196,6 +199,7 @@ export class ProjectileFX {
     this.mglNoseGeometry = new THREE.ConeGeometry(0.09, 0.1, 12);
     this.mglNoseGeometry.rotateX(-Math.PI / 2);
     this.mglBandGeometry = new THREE.TorusGeometry(0.09, 0.012, 5, 12);
+    this.mglCoreGeometry = new THREE.IcosahedronGeometry(0.055, 1);
     this.fragMaterial = new THREE.MeshStandardMaterial({
       color: 0x20242a, roughness: 0.48, metalness: 0.78,
     });
@@ -217,10 +221,19 @@ export class ProjectileFX {
     this.rocketNoseMaterial = new THREE.MeshStandardMaterial({
       color: 0xff6f1c, roughness: 0.5, metalness: 0.4,
     });
-    this.mglBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x44493c, roughness: 0.48, metalness: 0.72 });
-    this.mglNoseMaterial = new THREE.MeshStandardMaterial({ color: 0xe8892d, roughness: 0.42, metalness: 0.55 });
-    this.mglBandMaterial = new THREE.MeshStandardMaterial({ color: 0xb8cd4d, roughness: 0.4, metalness: 0.38,
-      emissive: 0x28320a, emissiveIntensity: 0.6 });
+    this.mglBodyMaterial = new THREE.MeshStandardMaterial({ color: 0x313943, roughness: 0.48, metalness: 0.82 });
+    this.mglNoseMaterial = new THREE.MeshStandardMaterial({ color: MGL_RULES.color, roughness: 0.32, metalness: 0.5,
+      emissive: MGL_RULES.color, emissiveIntensity: 0.35 });
+    this.mglBandMaterial = new THREE.MeshStandardMaterial({ color: 0xffc36b, roughness: 0.3, metalness: 0.45,
+      emissive: MGL_RULES.color, emissiveIntensity: 2.4 });
+    this.mglCoreMaterial = new THREE.MeshBasicMaterial({ color: 0xffd997, toneMapped: false });
+    this.mglCoreMaterial.color.multiplyScalar(1.8);
+    this.mglTrailMaterial = new THREE.MeshBasicMaterial({
+      vertexColors: true, transparent: true, toneMapped: false,
+      blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
+    });
+    this._mglTrailIndex = glaiveTrailIndex(MGL_TRAIL_POINTS);
+    this._mglTrailCount = 0;
     this.exhaustMaterial = new THREE.MeshBasicMaterial({
       color: 0xffb347, transparent: true, opacity: 0.85,
       blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false,
@@ -467,7 +480,11 @@ export class ProjectileFX {
       nose.position.z = -0.205;
       const band = new THREE.Mesh(this.mglBandGeometry, this.mglBandMaterial);
       band.position.z = 0.055;
-      group.add(body, nose, band);
+      const frontBand = new THREE.Mesh(this.mglBandGeometry, this.mglBandMaterial);
+      frontBand.position.z = -0.115;
+      const core = new THREE.Mesh(this.mglCoreGeometry, this.mglCoreMaterial);
+      core.position.z = -0.272;
+      group.add(body, nose, band, frontBand, core);
     } else if (type === 'smoke') {
       const authored = this._authoredGrenade('smoke');
       if (authored) {
@@ -685,7 +702,13 @@ export class ProjectileFX {
           this._configureGlaive(adopted, event, true);
           return true;
         }
-        adopted.bouncesLeft = bouncesLeft;
+        if (type === 'mgl') {
+          // The launch reports the original authority budget (Chaos can add two).
+          // Carry only bounces spent by the local prediction into that budget.
+          const spent = Math.max(0, adopted.launchBounceBudget - adopted.bouncesLeft);
+          adopted.bouncesLeft = Math.max(0, bouncesLeft - spent);
+          adopted.launchBounceBudget = bouncesLeft;
+        } else adopted.bouncesLeft = bouncesLeft;
         adopted.chaos = event.chaos || 0;
         if (type === 'limpet') this._configureMine(adopted, event);
         if (type === 'rocket' && event.chaos) adopted.group.scale.setScalar(2.2);
@@ -709,6 +732,7 @@ export class ProjectileFX {
       age: 0,
       fuse,
       bouncesLeft,
+      launchBounceBudget: type === 'mgl' ? bouncesLeft : 0,
       chaos: event.chaos || 0,
       child: !!event.child,
       armAge: type === 'mgl' ? Math.max(0, Number(event.arm) || MGL_RULES.armMs) / 1000 : 0,
@@ -716,6 +740,9 @@ export class ProjectileFX {
       stuck: type === 'limpet',
       trailAt: 0,
     });
+    if (type === 'mgl' && this._mglTrailCount < MGL_TRAIL_LIMIT) {
+      this.projectiles.get(id).mglTrail = this._createMglTrail(this.projectiles.get(id));
+    }
     if (type === 'limpet') this._configureMine(this.projectiles.get(id), event);
     if (type === 'glaive') this._configureGlaive(this.projectiles.get(id), event, local || fromSelf);
     if (type === 'bubble') this._configureBubble(this.projectiles.get(id), event);
@@ -817,6 +844,76 @@ export class ProjectileFX {
     return { mesh, geometry, positions, colors, points: [{ x: disc.x, y: disc.y, z: disc.z, rx: 1, rz: 0 }] };
   }
 
+  /** One fixed, world-space wake per visible shell; all points and buffers are reused in flight. */
+  _createMglTrail(shell) {
+    const positions = new Float32Array(MGL_TRAIL_POINTS * 6);
+    const colors = new Float32Array(MGL_TRAIL_POINTS * 6);
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3).setUsage(THREE.DynamicDrawUsage));
+    geometry.setIndex(this._mglTrailIndex);
+    geometry.setDrawRange(0, 0);
+    const mesh = new THREE.Mesh(geometry, this.mglTrailMaterial);
+    mesh.frustumCulled = false;
+    mesh.renderOrder = 7;
+    this.scene.add(mesh);
+    this._mglTrailCount++;
+    const points = Array.from({ length: MGL_TRAIL_POINTS }, () => ({ x: shell.x, y: shell.y, z: shell.z, rx: 1, ry: 0, rz: 0 }));
+    return { mesh, geometry, positions, colors, points, count: 1 };
+  }
+
+  _resetMglTrail(shell) {
+    const trail = shell.mglTrail;
+    if (!trail) return;
+    trail.count = 1;
+    trail.points[0].x = shell.x;
+    trail.points[0].y = shell.y;
+    trail.points[0].z = shell.z;
+    trail.geometry.setDrawRange(0, 0);
+  }
+
+  _updateMglTrail(shell) {
+    const trail = shell.mglTrail;
+    if (!trail) return;
+    const { points, positions, colors } = trail;
+    // The width faces the viewer, so a level shot does not collapse to an edge-on line.
+    const eye = this.camera?.position;
+    const ex = eye ? eye.x - shell.x : 0;
+    const ey = eye ? eye.y - shell.y : 1;
+    const ez = eye ? eye.z - shell.z : 0;
+    let rx = shell.vy * ez - shell.vz * ey;
+    let ry = shell.vz * ex - shell.vx * ez;
+    let rz = shell.vx * ey - shell.vy * ex;
+    const length = Math.hypot(rx, ry, rz);
+    if (length > 0.001) { rx /= length; ry /= length; rz /= length; }
+    else {
+      const cameraRight = this.camera?.matrixWorld?.elements;
+      rx = cameraRight?.[0] ?? 1;
+      ry = cameraRight?.[1] ?? 0;
+      rz = cameraRight?.[2] ?? 0;
+    }
+    const tail = points.pop();
+    tail.x = shell.x; tail.y = shell.y; tail.z = shell.z;
+    tail.rx = rx; tail.ry = ry; tail.rz = rz;
+    points.unshift(tail);
+    trail.count = Math.min(MGL_TRAIL_POINTS, trail.count + 1);
+    for (let i = 0; i < trail.count; i++) {
+      const p = points[i];
+      const fade = (1 - i / MGL_TRAIL_POINTS) ** 2;
+      const width = MGL_TRAIL_HALF_WIDTH * (0.3 + fade * 0.7);
+      const heat = fade * (0.86 + Math.sin(shell.age * 43 - i * 0.8) * 0.14);
+      const o = i * 6;
+      positions[o] = p.x + p.rx * width; positions[o + 1] = p.y + p.ry * width; positions[o + 2] = p.z + p.rz * width;
+      positions[o + 3] = p.x - p.rx * width; positions[o + 4] = p.y - p.ry * width; positions[o + 5] = p.z - p.rz * width;
+      colors[o] = colors[o + 3] = heat * 1.45;
+      colors[o + 1] = colors[o + 4] = heat * 0.42;
+      colors[o + 2] = colors[o + 5] = heat * 0.08;
+    }
+    trail.geometry.attributes.position.needsUpdate = true;
+    trail.geometry.attributes.color.needsUpdate = true;
+    trail.geometry.setDrawRange(0, Math.max(0, trail.count - 1) * 6);
+  }
+
   /** Turn a disc home (predicted timer/bounce, R, or an authority update). */
   _flipGlaive(disc, reason) {
     if (!glaiveFlip(disc, disc.age * 1000, reason)) return false;
@@ -859,8 +956,12 @@ export class ProjectileFX {
       // RTT; only a disc clearly outside the catch reach is still flying.
       if (p.parked && p.caught && p.own && this._glaiveNearOwner(p, event.o)) return true;
     }
+    const mglCorrection = p.type === 'mgl' && Math.hypot(
+      p.x - event.o[0], p.y - event.o[1], p.z - event.o[2],
+    ) > 0.6;
     [p.x, p.y, p.z] = event.o;
     [p.vx, p.vy, p.vz] = event.v;
+    if (mglCorrection) this._resetMglTrail(p);
     if (Number.isFinite(event.bn)) p.bouncesLeft = event.bn;
     if (p.type === 'glaive') {
       if (back && p.phase === 'out') {
@@ -950,6 +1051,16 @@ export class ProjectileFX {
       if (Math.hypot(oldest.x - at.x, oldest.y - at.y, oldest.z - at.z) > 0.6) {
         oldest.x = at.x; oldest.y = at.y; oldest.z = at.z;
         oldest.group.position.set(at.x, at.y, at.z);
+      }
+      oldest.fuse = fuse + oldest.age;
+      this.projectiles.set(pid, oldest);
+      return true;
+    }
+    if (type === 'mgl') {
+      // This event contains the launch state. Keep the shell's already integrated
+      // flight and bounce leg; an authority update can correct later drift.
+      if (oldest.age < 0.05 && oldest.bouncesLeft === oldest.launchBounceBudget) {
+        oldest.vx = values[3]; oldest.vy = values[4]; oldest.vz = values[5];
       }
       oldest.fuse = fuse + oldest.age;
       this.projectiles.set(pid, oldest);
@@ -1252,6 +1363,7 @@ export class ProjectileFX {
         const before = projectile.bouncesLeft;
         stepMgl(projectile, step, this.raycast);
         this._orientRocket(projectile);
+        this._updateMglTrail(projectile);
         if (projectile.bouncesLeft !== before) this.onBounce?.(projectile.x, projectile.y, projectile.z, 'mgl', projectile.hit);
         if (projectile.hitSolid && projectile.age >= projectile.armAge) {
           projectile.fuse = Math.min(projectile.fuse, projectile.age + 0.25);
@@ -1606,9 +1718,10 @@ export class ProjectileFX {
       this._insertLightCandidate(blast);
     }
     for (const p of this.projectiles.values()) {
-      if (p.type !== 'rocket' && p.type !== 'pulse' && p.type !== 'bolt' && p.type !== 'glaive') continue;
+      if (p.type !== 'rocket' && p.type !== 'pulse' && p.type !== 'bolt' && p.type !== 'glaive' && p.type !== 'mgl') continue;
       if (p.parked) continue;
       p.lightRank = p.type === 'rocket' ? -lightWeight(1.84, 7, p, eye)
+        : p.type === 'mgl' ? -lightWeight(1.25, 4, p, eye)
         : p.type === 'pulse' ? -lightWeight(0.9, 5, p, eye) : -lightWeight(p.type === 'glaive' ? 0.8 : 1, 4, p, eye);
       this._insertLightCandidate(p);
     }
@@ -1626,10 +1739,11 @@ export class ProjectileFX {
         continue;
       }
       light.position.set(p.x, p.y, p.z);
-      light.color.setHex(p.type === 'rocket' ? 0xffa040 : p.type === 'pulse' ? 0x59e8ff
+      light.color.setHex(p.type === 'rocket' ? 0xffa040 : p.type === 'mgl' ? 0xff8a2c : p.type === 'pulse' ? 0x59e8ff
         : p.type === 'glaive' ? GLAIVE_COLOR : 0x7dfcff);
       light.distance = p.type === 'rocket' ? 7 : p.type === 'pulse' ? 5 : 4;
       light.intensity = p.type === 'rocket' ? 1.84 + Math.sin(p.age * 90) * 0.16
+        : p.type === 'mgl' ? 1.25 + Math.sin(p.age * 52) * 0.12
         : p.type === 'pulse' ? 0.9 : p.type === 'glaive' ? 0.8 : 1;
     }
   }
@@ -1653,6 +1767,11 @@ export class ProjectileFX {
     if (projectile.trail) {
       this.scene.remove(projectile.trail.mesh);
       projectile.trail.geometry.dispose();
+    }
+    if (projectile.mglTrail) {
+      this.scene.remove(projectile.mglTrail.mesh);
+      projectile.mglTrail.geometry.dispose();
+      this._mglTrailCount--;
     }
     projectile.capMaterial?.dispose();
     for (const material of projectile.group.userData.authoredMaterials || []) material.dispose();
@@ -1708,7 +1827,7 @@ export class ProjectileFX {
       this.grenadeRibGeometry, this.grenadeBandGeometry,
       this.bottleGeometry, this.bottleNeckGeometry, this.bottleFlameGeometry,
       this.rocketBodyGeometry, this.rocketNoseGeometry, this.exhaustGeometry,
-      this.mglBodyGeometry, this.mglNoseGeometry, this.mglBandGeometry, this.bubbleGeometry,
+      this.mglBodyGeometry, this.mglNoseGeometry, this.mglBandGeometry, this.mglCoreGeometry, this.bubbleGeometry,
       this.bubbleShineGeometry,
       this.glaiveDiscGeometry, this.glaiveHubGeometry, this.glaiveRimGeometry, this.glaiveCrescentGeometry,
     ]) geometry.dispose();
@@ -1716,7 +1835,7 @@ export class ProjectileFX {
       this.fragMaterial, this.limpetMaterial, this.pulseMaterial, this.rocketMaterial,
       this.bottleMaterial, this.bottleLabelMaterial,
       this.rocketNoseMaterial, this.exhaustMaterial, this.boltCoreMaterial, this.boltGlowMaterial,
-      this.mglBodyMaterial, this.mglNoseMaterial, this.mglBandMaterial,
+      this.mglBodyMaterial, this.mglNoseMaterial, this.mglBandMaterial, this.mglCoreMaterial, this.mglTrailMaterial,
       ...this.bubbleFilms, ...this.bubbleTellFilms, this.bubbleInnerMaterial, this.bubbleShineMaterial,
       this.glaiveBladeMaterial, this.glaiveHubMaterial, this.glaiveGlowMaterial, this.glaiveTrailMaterial,
       this.glaiveOutlineMaterial, this.glaiveGhostMaterial,

@@ -1,13 +1,15 @@
 # GL-3 SKIPJACK
 
-Compact grenade launcher with a side-swing three-slot cassette on a vertical front hinge. Its 40 mm rounds leave the muzzle at 26 m/s and
+Compact grenade launcher with a side-swing three-slot cassette on a vertical front hinge. Its 40 mm rounds leave the muzzle at 32 m/s and
 follow a gravity arc of 11 m/s². A round arms after 160 ms, bounces from up to
-four solid faces, and detonates on an armed body or surface contact. If nothing
-stops it, it airbursts after 2.6 seconds.
+four solid faces, and detonates on an armed body contact or on the next surface
+after its bounce budget runs out. If nothing stops it, it airbursts after 1.8
+seconds. A bank retains 65% of the normal impact speed before wall or floor
+damping, so aimed wall and floor shots carry useful momentum.
 
 | Stat | Value |
 | --- | ---: |
-| Fire rate | 70 rpm |
+| Fire rate | 115 rpm |
 | Loaded | 3 rounds: 1 chambered + 2 in the cassette |
 | Reserve | 3 spare cassettes of 2 rounds |
 | Tactical swap (round chambered) | 2.3 s, back to 3 |
@@ -19,8 +21,11 @@ stops it, it airbursts after 2.6 seconds.
 | Terrain damage | None |
 
 The shared 0.8 combat multiplier caps a direct center hit at 64 HP. A nearby
-non-contact target takes at most 48 HP at the blast center. Its slow cadence and
-visible arcing flight give opponents time to move between shots.
+non-contact target takes at most 48 HP at the blast center. Three quick shots
+can pressure a corner while the visible arc and short fuse reward a deliberate
+bank angle. In the stationary ideal-aim simulation, two direct hits at 10 m
+kill in 0.8 s; the lower arc still registers hits at 50 m, while 56 m misses
+before the 1.8 s fuse expires.
 
 ## Chamber and cassette
 
@@ -39,9 +44,9 @@ the standard loadout and is filled by the Chaos Lab spare chamber.
 
 Before revision 13, every swap dropped the chambered round too and took 2.8 s,
 although a tactical swap has nothing to chamber. The third spare cassette keeps the
-life total at nine rounds (`3 + 3 x 2`, the former `3 + 2 x 3`). Burst damage,
-radius and cadence are unchanged; a player who empties the launcher now reloads one
-more time per life, while a disciplined tactical swap is 0.5 s faster.
+life total at nine rounds (`3 + 3 x 2`, the former `3 + 2 x 3`). A player who
+empties the launcher reloads one more time per life, while a disciplined
+tactical swap is 0.5 s faster.
 `tools/skipjack-ammo-test.mjs` pins the rule, the upgrade and the life total. The 160 ms arm period reduces point-blank
 self-detonations; the owner is also protected from contact for the existing 220 ms
 projectile grace window. Gun Game keeps the weapon's direct and splash damage enabled,

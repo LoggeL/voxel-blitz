@@ -65,7 +65,7 @@ const FIRE_REPORT_PROFILES = Object.freeze({
     lifetime: 0.4, sampleGain: 0.9, sampleRate: 1.06, layerGain: 0.3,
   }),
   mgl: Object.freeze({
-    lifetime: 0.82, sampleGain: 0.9, sampleRate: 0.94, layerGain: 0.22,
+    lifetime: 0.95, sampleGain: 1.02, sampleRate: 0.93, layerGain: 0.36,
   }),
 });
 
@@ -242,21 +242,30 @@ export function shotRocket(out, primitives) {
   });
 }
 
-/** GL-3 SKIPJACK launch: a compact pressure thump, ignition pop and cassette index click. */
-export function shotMgl(out, primitives) {
+/** GL-3 SKIPJACK launch: pressure ram, hard muzzle crack and two mechanical contacts. */
+export function shotMgl(out, primitives, includeMechanics = true) {
   const t0 = primitives.nowT();
   primitives.tone(out, {
-    t0, type: 'sine', f0: 132, f1: 48, att: 0.001, dec: 0.24, g: 0.62,
+    t0, type: 'sine', f0: 148, f1: 44, att: 0.001, dec: 0.32, g: 0.78,
   });
   primitives.tone(out, {
-    t0: t0 + 0.004, type: 'square', f0: 380, f1: 105, dec: 0.075, g: 0.18,
+    t0: t0 + 0.004, type: 'square', f0: 440, f1: 92, dec: 0.09, g: 0.25,
   });
   primitives.hiss(out, {
-    t0, filter: 'lowpass', f: 900, sweepTo: 260, sweepMs: 0.22, q: 0.7, dec: 0.24, g: 0.38,
+    t0, filter: 'lowpass', f: 1200, sweepTo: 220, sweepMs: 0.3, q: 0.7, dec: 0.32, g: 0.48,
   });
-  primitives.tone(out, {
-    t0: t0 + 0.16, type: 'triangle', f0: 1180, f1: 490, dec: 0.055, g: 0.07,
+  primitives.hiss(out, {
+    t0: t0 + 0.006, filter: 'highpass', f: 3100, q: 0.6, dec: 0.045, g: 0.32,
   });
+  if (includeMechanics) {
+    // The local rig emits its own bolt contacts; remote reports need their own tail.
+    primitives.tone(out, {
+      t0: t0 + 0.14, type: 'triangle', f0: 1460, f1: 610, dec: 0.065, g: 0.1,
+    });
+    primitives.tone(out, {
+      t0: t0 + 0.23, type: 'square', f0: 720, f1: 340, dec: 0.045, g: 0.055,
+    });
+  }
 }
 
 /** GV-4 RIPTIDE throw: a pneumatic spindle puff, a rising blade whoosh and a thin steel tick. */
@@ -461,7 +470,7 @@ export function renderFireReport(
   else if (key === 'lance') shotLance(out, primitives, charge);
   else if (key === 'knife') shotKnife(out, primitives);
   else if (key === 'rocket') shotRocket(out, primitives);
-  else if (key === 'mgl') shotMgl(out, primitives);
+  else if (key === 'mgl') shotMgl(out, primitives, includeMechanics);
   else if (key === 'glaive') shotGlaive(out, primitives);
   else if (key === 'bubble') shotBubble(out, primitives, charge);
   else shotRifleSmg(out, primitives, FIRE_PARAMS[key] || FIRE_PARAMS.rifle);

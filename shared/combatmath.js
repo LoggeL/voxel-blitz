@@ -392,7 +392,7 @@ export const WEAPONS = {
     },
   },
   mgl: {
-    // GL-3 SKIPJACK: three slow arcing rounds, with a brief safe arm, four surface
+    // GL-3 SKIPJACK: three rapid arcing rounds, with a brief safe arm, four surface
     // bounces, body-contact detonation and a timed airburst. Blast caps at 64 scaled
     // damage, so landing a round still takes aim and a follow-up.
     // One round rides in the closed chamber; each flank cassette carries magSize - 1.
@@ -401,7 +401,7 @@ export const WEAPONS = {
     // keep the 9-round life total of the old two-cassette, round-wasting reload.
     id: 'mgl', name: 'GL-3 SKIPJACK', mode: 'semi',
     weightKg: 5.6,
-    rpm: 70, magSize: 3, spareMags: 3, chamber: 1,
+    rpm: 115, magSize: 3, spareMags: 3, chamber: 1,
     damage: [80, 80, 19], falloffStart: 18, // display only: direct damage is the full base blast plus its bonus
     headMult: 1, pellets: 1, penetration: 0,
     spreadDeg: { hip: 1.0, ads: 0.18 }, bloomDeg: 0.35, bloomMaxDeg: 1.8,

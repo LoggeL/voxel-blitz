@@ -47,4 +47,57 @@ fx.update(1 / 60);
 assert.ok(scene.children.filter(o => o.isInstancedMesh).every(o => o.count === 301), 'batch growth preserves excess local predictions');
 fx.dispose();
 assert.equal(scene.children.length, 0, 'dispose removes all projectile resources from scene');
-console.log('ok - 192-rocket light budget, smoke budget, fairness, nearest lights, single-shot cadence and cleanup');
+
+// A shell's camera-facing wake uses a fixed active budget and never bridges a sync jump.
+const mglScene = new THREE.Scene();
+const mglCamera = new THREE.PerspectiveCamera();
+mglCamera.position.set(0, 4, 10);
+mglCamera.lookAt(0, 4, 0);
+mglCamera.updateMatrixWorld();
+const mglFx = new ProjectileFX(mglScene, () => 0, { camera: mglCamera });
+for (let i = 0; i < 40; i++) mglFx.launch({ pid: `m${i}`, type: 'mgl', o: [i, 4, 0], v: [0, 0, -32] });
+assert.equal(mglFx._mglTrailCount, 32, 'shell wake has a fixed active limit');
+for (let frame = 0; frame < 8; frame++) mglFx.update(1 / 60);
+const shell = mglFx.projectiles.get('m0');
+assert.ok(shell.mglTrail.geometry.drawRange.count > 0, 'moving shell draws its wake');
+assert.ok(Math.abs(shell.mglTrail.positions[0] - shell.mglTrail.positions[3]) > 0.15,
+  'wake keeps visible width when the shell flies toward the camera');
+mglFx.updateAuthority({ pid: 'm0', o: [12, 4, -4], v: [0, 0, -32] });
+assert.equal(shell.mglTrail.geometry.drawRange.count, 0, 'authority correction clears the old path');
+mglFx.update(1 / 60);
+assert.equal(shell.mglTrail.geometry.drawRange.count, 6, 'new wake starts from corrected position');
+mglFx.clear();
+mglFx.launch({ type: 'mgl', o: [0, 4, 0], v: [0, 0, -32] }, { local: true });
+for (let frame = 0; frame < 6; frame++) mglFx.update(1 / 60);
+const predicted = [...mglFx.projectiles.values()].find(p => p.local && p.type === 'mgl');
+const predictedZ = predicted.z;
+assert.ok(mglFx.launch({ pid: 'adopted', type: 'mgl', o: [0, 4, 0], v: [0, 0, -32], bn: 6 }, { fromSelf: true }));
+assert.ok(Math.abs(mglFx.projectiles.get('adopted').z - predictedZ) < 1e-6,
+  'authority launch adopts the advanced shell without snapping to its old muzzle');
+assert.equal(mglFx.projectiles.get('adopted').bouncesLeft, 6,
+  'unspent local prediction receives the full Chaos bounce budget');
+const adopted = mglFx.projectiles.get('adopted');
+mglFx.updateAuthority({ pid: 'adopted', o: [adopted.x, adopted.y, adopted.z],
+  v: [adopted.vx, adopted.vy, adopted.vz], bn: 2 });
+assert.equal(adopted.bouncesLeft, 2, 'later authority update owns the exact remaining budget');
+
+mglFx.clear();
+let contactMade = false;
+mglFx.raycast = (_x, _y, z) => {
+  if (contactMade || z > -0.45) return null;
+  contactMade = true;
+  return { x: 0, y: 4, z: -0.5, nx: 0, ny: 0, nz: 1, t: 0.01 };
+};
+mglFx.launch({ type: 'mgl', o: [0, 4, 0], v: [0, 0, -32] }, { local: true });
+for (let frame = 0; frame < 12 && !contactMade; frame++) mglFx.update(1 / 60);
+const bounced = [...mglFx.projectiles.values()].find(p => p.local && p.type === 'mgl');
+assert.ok(contactMade && bounced.bouncesLeft === 3 && bounced.vz > 0, 'shared flight spends one bounce and reflects the shell');
+const reflectedVz = bounced.vz;
+assert.ok(mglFx.launch({ pid: 'bounced', type: 'mgl', o: [0, 4, 0], v: [0, 0, -32], bn: 6 }, { fromSelf: true }));
+assert.equal(mglFx.projectiles.get('bounced').bouncesLeft, 5,
+  'Chaos authority budget retains the bounce already spent by prediction');
+assert.equal(mglFx.projectiles.get('bounced').vz, reflectedVz,
+  'authority launch does not overwrite the reflected velocity with launch velocity');
+mglFx.dispose();
+assert.equal(mglScene.children.length, 0, 'shell wake resources are released');
+console.log('ok - 192-rocket budgets, shell wake cap/correction, Chaos bounce adoption and cleanup');

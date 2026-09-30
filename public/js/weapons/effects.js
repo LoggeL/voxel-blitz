@@ -41,7 +41,7 @@ const BLAST_PARTICLES = Object.freeze({
   limpet: Object.freeze({ count: 44, tint: 0xffc27a, speed: 9.5, size: 1.7, life: 0.8, shake: 1.05, reach: 28 }),
   pulse: Object.freeze({ count: 26, tint: 0x9ff4ff, speed: 11, size: 1.2, life: 0.45, shake: 0.7, reach: 24 }),
   rocket: Object.freeze({ count: 52, tint: 0xffb347, speed: 10.5, size: 1.8, life: 0.85, shake: 1.15, reach: 32 }),
-  mgl: Object.freeze({ count: 20, tint: 0xe5a647, speed: 6.2, size: 1.05, life: 0.48, shake: 0.45, reach: 20 }),
+  mgl: Object.freeze({ count: 34, tint: 0xffa443, speed: 9.2, size: 1.3, life: 0.62, shake: 0.72, reach: 24 }),
   bolt: Object.freeze({ count: 10, tint: 0x7dfcff, speed: 5.5, size: 1.0, life: 0.4, shake: 0.18, reach: 14 }),
   molotov: Object.freeze({ count: 24, tint: 0xff9238, speed: 4.5, size: 1.1, life: 0.65, shake: 0.22, reach: 14 }),
   // RIPTIDE: remote catch sparkle and fizzle. No shake: nothing detonates.
@@ -210,13 +210,15 @@ export class Effects {
       { speed: 0.4, gravity: -2.5, size: 1.1, life: 0.8, softness: true });
   }
 
-  /** Compact phosphor sparks from a bouncing 40 mm shell. */
+  /** Hot metal and grit leave the real contact face when a shell skips. */
   _mglSparks(x, y, z, contact) {
-    const count = contact?.ny > 0.5 ? 8 : 5;
-    this.impacts.spawnParticles(x, y, z, count, 0xb8cd4d,
-      { speed: 4.2, gravity: 12, size: 0.72, life: 0.3, sparks: true });
-    this.impacts.spawnParticles(x, y, z, 3, 0xe8892d,
-      { speed: 2.1, gravity: 9, size: 0.9, life: 0.22, sparks: true });
+    const nx = contact?.nx || 0, ny = contact?.ny || 0, nz = contact?.nz || 0;
+    const outward = [nx, ny, nz];
+    const count = ny > 0.5 ? 12 : 9;
+    this.impacts.spawnParticles(x + nx * 0.04, y + ny * 0.04, z + nz * 0.04,
+      count, 0xffa23a, { speed: 5.8, gravity: 14, size: 0.8, life: 0.32, sparks: true, outward });
+    this.impacts.spawnParticles(x, y, z, 4, 0xffe2a2,
+      { speed: 3.7, gravity: 12, size: 0.65, life: 0.2, sparks: true, outward });
   }
 
   /**
@@ -342,6 +344,10 @@ export class Effects {
         26, 0x6e5136,
         { speed: 5.2, gravity: 17, size: 2.3, life: 1.15, softness: true },
       );
+    } else if (event?.type === 'mgl') {
+      // Compact fragments sit between the hot flash and the rising smoke.
+      this.impacts.spawnParticles(Number(event.x), Number(event.y), Number(event.z),
+        12, 0x51545a, { speed: 5.5, gravity: 18, size: 0.9, life: 0.65, blocky: true });
     }
     const position = this.camera?.position;
     if (position) {

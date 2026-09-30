@@ -344,16 +344,17 @@ TIMERS.mgl = {
   ejectRight: -0.04,
   barrelLen: 0.44,
   heatLen: [0.62, 0.96],
-  boltTravel: 0.025,
+  boltTravel: 0.058,
   rechargeDur: 0.18,
   pumpMag: 0,
   cycleBack: false,
   cycleKind: null,
   ejectOnFire: false,
   magTimeline: { start: 0.16, home: 0.80, clickAt: 0.90, type: 'mag' },
-  hipOffset: { x: 0.18, y: -0.26, z: -0.30 },
+  hipOffset: { x: 0.18, y: -0.24, z: -0.44 },
+  hipYaw: 0.22,
   adsOffset: { x: 0, y: -0.216, z: -0.32 }, // Eye behind the compact optic, stock below the view.
-  kick: { stiffness: 150, damping: 21, yawWobble: 0.45 },
+  kick: { stiffness: 175, damping: 19, yawWobble: 0.48 },
 };
 
 /**

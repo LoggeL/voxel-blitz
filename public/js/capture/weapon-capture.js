@@ -6,7 +6,9 @@ import { ChunkStore } from '../engine/chunks.js';
 import { buildAtlas } from '../engine/atlas.js';
 import { RailBeamFX } from '../weapons/rail-beam.js';
 import { FlameFX } from '../weapons/flame.js';
+import { Effects } from '../weapons/effects.js';
 import { ViewmodelRig } from '../guns/viewmodel.js';
+import { MGL_RULES } from '../../../shared/mgl-rules.js';
 import { PICKAXE_LIFT_AT, PICKAXE_STRIKE_AT, PICKAXE_SWING_SECONDS } from '../guns/pickaxe-swing.js';
 import { createSniperScope } from '../ui/sniper-scope.js';
 
@@ -108,6 +110,9 @@ switch (state) {
     rig.ads(1);
     break;
   case 'firing':
+  case 'mgl-flight':
+  case 'mgl-bounce':
+  case 'mgl-blast':
     rig.ads(0);
     break;
   default:
@@ -197,11 +202,72 @@ if (state === 'firing') {
   }
 }
 
+let mglFx = null;
+let mglBounces = 0;
+if (state.startsWith('mgl-')) {
+  // Drive the production effects facade and shared flight integrator at fixed
+  // steps, then leave the resulting scene frozen for a repeatable screenshot.
+  // The bounce obstacle is a visible voxel that matches getBlock exactly.
+  const bounce = state === 'mgl-bounce';
+  const getBlock = (x, y, z) => bounce && x === -1 && y === 1 && z === -8 ? 3 : 0;
+  if (bounce) {
+    const obstacle = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: 0x536778, roughness: 0.82, metalness: 0.18 }),
+    );
+    obstacle.position.set(-0.5, 1.5, -7.5);
+    scene.add(obstacle);
+  }
+  mglFx = new Effects(scene, camera, getBlock, {
+    onBounce: (_x, _y, _z, type) => { if (type === 'mgl') mglBounces++; },
+  });
+  mglFx.projectiles.explosions.seed(0x5eed);
+  const pid = 'capture-mgl';
+  mglFx.projectileLaunch({ pid, type: 'mgl', o: [-0.55, 1.6, -2.2],
+    v: [0, 0, -MGL_RULES.speed], bn: MGL_RULES.maxBounces, arm: MGL_RULES.armMs });
+  if (state === 'mgl-blast') {
+    mglFx.projectileExplode({ pid, type: 'mgl', x: -0.55, y: 1.45, z: -7.5,
+      radius: MGL_RULES.damageRadius });
+  }
+  const frames = state === 'mgl-flight' ? 11 : state === 'mgl-bounce' ? 13 : 5;
+  for (let frame = 0; frame < frames; frame++) mglFx.update(1 / 60);
+}
+
 renderer.render(scene, camera);
 renderer.render(scene, camera);
 
 document.documentElement.dataset.captureReady = 'true';
 document.documentElement.dataset.captureWeapon = weapon;
 document.documentElement.dataset.captureState = state;
+const skipjack = weapon === 'mgl' ? rig._models.mgl?.extra.userData.skipjack : null;
+const mglBody = weapon === 'mgl' ? rig._models.mgl?.body : null;
+const originalOliveParts = mglBody?.children.filter((part) =>
+  /olive[ _-]*drab/i.test(part.name)
+    || /skipjack-olive-armor/i.test(part.material?.map?.name || '')) || [];
 window.__vbWeaponCapture = Object.freeze({ weapon, state,
-  ammo: weapon === 'mgl' && params.has('ammo') ? ammoPreview : null });
+  ammo: weapon === 'mgl' && params.has('ammo') ? ammoPreview : null,
+  modelAsset: mglBody?.userData.blenderAsset ?? null,
+  modelStructure: mglBody ? Object.freeze({
+    originalOliveParts: originalOliveParts.length,
+    visibleOriginalOliveParts: originalOliveParts.filter((part) => part.visible).length,
+    rearArmor: !!mglBody.getObjectByName('skipjack_rear_armor_plate'),
+    rearReceiver: !!mglBody.getObjectByName('skipjack_rear_receiver_plate'),
+    upperStockRail: !!mglBody.getObjectByName('skipjack_stock_upper_rail'),
+  }) : null,
+  visibleReserve: skipjack?.rounds.filter((round) => round.visible).length ?? null,
+  reserveSlots: skipjack?.rounds.length ?? null,
+  modelFinite: weapon === 'mgl'
+    ? (() => { rig._models.mgl.root.updateMatrixWorld(true);
+      let finite = true;
+      rig._models.mgl.root.traverse((part) => {
+        if (!part.matrixWorld.elements.every(Number.isFinite)) finite = false;
+      });
+      return finite; })()
+    : null,
+  fx: mglFx ? Object.freeze({
+    projectiles: mglFx.projectiles.projectiles.size,
+    trails: mglFx.projectiles._mglTrailCount,
+    bounces: mglBounces,
+    blasts: mglFx.projectiles.blasts.length,
+    particles: mglFx.stats.particlesSpawned,
+  }) : null });

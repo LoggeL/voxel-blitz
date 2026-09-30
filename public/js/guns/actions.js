@@ -102,11 +102,15 @@ export class WeaponActions {
   startJerk(weaponId, model, travel, dur) {
     if (this._disposed || !model) return false;
     const revolver = weaponId === 'revolver';
+    const skipjack = weaponId === 'mgl' && model.extra.userData.skipjack?.feed
+      ? model.extra.userData.skipjack : null;
     this._jerk = {
       t: 0,
-      dur: revolver ? Math.max(0.11, dur) : dur,
+      dur: revolver ? Math.max(0.11, dur) : skipjack ? Math.max(0.23, dur) : dur,
       travel,
       revolver,
+      skipjack,
+      feedStart: skipjack ? skipjack.feed.rotation.z % (Math.PI * 2) : 0,
       cylinderStart: revolver ? (model.extra.userData.revolver?.cylinder.rotation.z ?? model.mag.rotation.z) : 0,
     };
     if (revolver && model.extra.userData.revolver) {
@@ -207,6 +211,7 @@ export class WeaponActions {
     }
     model.bolt.position.set(0, 0, 0);
     model.bolt.rotation.set(0, 0, 0);
+    if (model.extra.userData.skipjack?.feed) model.extra.userData.skipjack.feed.rotation.z = 0;
     model.triggerGroup.rotation.set(0, 0, 0);
     if (model.pump) model.pump.position.copy(PUMP_REST);
   }
@@ -215,7 +220,9 @@ export class WeaponActions {
     const jerk = this._jerk;
     jerk.t += dt;
     const u = Math.min(1, jerk.t / jerk.dur);
-    const stroke = Math.sin(Math.PI * u);
+    const stroke = jerk.skipjack
+      ? this._phase(u, 0, 0.16) * (1 - this._phase(u, 0.25, 0.72))
+      : Math.sin(Math.PI * u);
     model.triggerGroup.rotation.x = 0.20 * stroke;
     if (jerk.revolver) {
       const revolver = model.extra.userData.revolver;
@@ -225,6 +232,14 @@ export class WeaponActions {
         model.bolt.rotation.x = -0.70 * stroke;
         model.mag.rotation.z = jerk.cylinderStart + (Math.PI / 3) * this._smooth01(u);
       }
+    } else if (jerk.skipjack) {
+      // The rotary feed advances one chamber as the exposed charging pawl
+      // punches back, then settles before the next shot at full fire rate.
+      const index = this._phase(u, 0.05, 0.37);
+      const settle = this._contact(u, 0.37, 0.28);
+      jerk.skipjack.feed.rotation.z = jerk.feedStart + Math.PI / 3 * index + 0.045 * settle;
+      model.bolt.position.z = stroke * jerk.travel;
+      model.bolt.rotation.x = -0.22 * stroke;
     } else {
       model.bolt.position.z = stroke * jerk.travel;
     }
@@ -589,13 +604,14 @@ export class WeaponActions {
     const tug = this._contact(frac, 0.33, 0.06);
     const pinDrop = this._contact(frac, 0.70, 0.05);
     const seat = this._contact(frac, home, 0.06);
+    const latch = this._contact(frac, home + 0.045, 0.075);
     const rack = racks ? this._phase(frac, clickAt - 0.03, clickAt + 0.02) *
       (1 - this._phase(frac, clickAt + 0.04, 0.98)) : 0;
     const rackHit = racks ? this._contact(frac, clickAt + 0.02, 0.05) : 0;
     const pat = racks ? 0 : this._contact(frac, 0.86, 0.05);
 
     // Rear edge swings out (-x) about the vertical hub; lift clears the pin.
-    cassette.rotation.set(0, -(0.92 * open + 0.07 * swingKick), 0.10 * away);
+    cassette.rotation.set(0, -(0.92 * open + 0.07 * swingKick + 0.035 * latch), 0.10 * away);
     cassette.position.set(atHome.x - 0.15 * away, atHome.y + 0.05 * lifted - 0.30 * away,
       atHome.z + 0.05 * away);
     const swapped = frac >= 0.56;
@@ -605,33 +621,42 @@ export class WeaponActions {
     const rounds = skipjack.rounds;
     for (let i = 0; i < rounds.length; i++) rounds[i].visible = i >= rounds.length - reserve;
     model.bolt.position.z = T.boltTravel * rack;
+    model.bolt.rotation.x = -0.18 * rack;
 
     out.dip = 0.050 * present + 0.018 * tug - 0.012 * pinDrop + 0.022 * seat + 0.012 * rackHit;
-    out.rock = 0.24 * present + 0.06 * open - 0.05 * tug - 0.10 * seat + 0.06 * rackHit - 0.03 * pat;
+    out.rock = 0.24 * present + 0.09 * open - 0.05 * tug - 0.10 * seat +
+      0.045 * latch + 0.06 * rackHit - 0.03 * pat;
     out.x = -0.030 * present - 0.012 * open;
-    out.push = 0.040 * present + 0.010 * away - 0.040 * seat + 0.016 * rackHit;
+    out.push = 0.040 * present + 0.016 * away - 0.040 * seat + 0.012 * latch + 0.016 * rackHit;
     out.yaw = -0.20 * present - 0.05 * open;
     out.roll = 0.14 * present + 0.08 * open - 0.04 * seat - 0.03 * rackHit;
 
-    // Left hand: paddle -> cassette rear edge (carried through the swap) -> the
-    // charging pawl on an empty swap, or a pat on the closed cassette -> support.
+    // Left hand follows the moving cassette edge through the swing and lift,
+    // then reaches the charging pawl or pats the latch before returning home.
+    // Keep this numeric: the action runs every frame for the whole reload.
     const angle = cassette.rotation.y;
-    const edge = (lx, ly, lz) => [
-      cassette.position.x + lx * Math.cos(angle) + lz * Math.sin(angle),
-      cassette.position.y + ly,
-      cassette.position.z - lx * Math.sin(angle) + lz * Math.cos(angle)];
-    const paddle = [-0.188, -0.118, -0.082];
-    const grip = edge(-0.070, -0.045, 0.200);
-    const finish = racks ? [0.068, 0.128, -0.292 + model.bolt.position.z] : edge(-0.058, -0.01, 0.12);
-    let target = this._blendTargets(paddle, grip, this._phase(frac, start + 0.01, 0.24));
-    target = this._blendTargets(target, finish, this._phase(frac, home + 0.01, racks ? clickAt - 0.03 : 0.85));
+    const cos = Math.cos(angle);
+    const sin = Math.sin(angle);
+    const gripX = cassette.position.x - 0.070 * cos + 0.200 * sin;
+    const gripY = cassette.position.y - 0.045;
+    const gripZ = cassette.position.z + 0.070 * sin + 0.200 * cos;
+    const finishX = racks ? 0.068 : cassette.position.x - 0.058 * cos + 0.120 * sin;
+    const finishY = racks ? 0.128 : cassette.position.y - 0.010;
+    const finishZ = racks ? -0.292 + model.bolt.position.z
+      : cassette.position.z + 0.058 * sin + 0.120 * cos;
+    const take = this._phase(frac, start + 0.01, 0.24);
+    const finish = this._phase(frac, home + 0.01, racks ? clickAt - 0.03 : 0.85);
+    const targetX = -0.188 + (gripX + 0.188) * take;
+    const targetY = -0.118 + (gripY + 0.118) * take;
+    const targetZ = -0.082 + (gripZ + 0.082) * take;
     const blend = this._phase(frac, 0.02, start - 0.02) * (1 - this._phase(frac, 0.93, 0.995));
-    this._moveReloadHand(model, target[0], target[1], target[2], blend, true);
+    this._moveReloadHand(model, targetX + (finishX - targetX) * finish,
+      targetY + (finishY - targetY) * finish,
+      targetZ + (finishZ - targetZ) * finish, blend, true);
 
-    for (const [at, click] of [[start, 1], [home, 2], [clickAt, 3]]) {
-      if (click === 3 && !racks) continue;
-      if (frac >= at && reload.lastFrac < at) this._callbacks.onReloadClick(click);
-    }
+    if (frac >= start && reload.lastFrac < start) this._callbacks.onReloadClick(1);
+    if (frac >= home && reload.lastFrac < home) this._callbacks.onReloadClick(2);
+    if (racks && frac >= clickAt && reload.lastFrac < clickAt) this._callbacks.onReloadClick(3);
   }
 
   _updateCylinderReload(frac, model, out) {
