@@ -146,11 +146,14 @@ export function macroTone(x, y, z) {
   const ix = Math.floor(gx), iy = Math.floor(gy), iz = Math.floor(gz);
   let fx = gx - ix, fy = gy - iy, fz = gz - iz;
   fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy); fz = fz * fz * (3 - 2 * fz);
-  const l = (dx, dy, dz) => lattice(ix + dx, iy + dy, iz + dz);
-  const x00 = l(0, 0, 0) + (l(1, 0, 0) - l(0, 0, 0)) * fx;
-  const x10 = l(0, 1, 0) + (l(1, 1, 0) - l(0, 1, 0)) * fx;
-  const x01 = l(0, 0, 1) + (l(1, 0, 1) - l(0, 0, 1)) * fx;
-  const x11 = l(0, 1, 1) + (l(1, 1, 1) - l(0, 1, 1)) * fx;
+  // Each vertex samples these eight corners. Retain the first value of each
+  // pair instead of hashing it twice or creating a closure per vertex.
+  const l000 = lattice(ix, iy, iz), l010 = lattice(ix, iy + 1, iz);
+  const l001 = lattice(ix, iy, iz + 1), l011 = lattice(ix, iy + 1, iz + 1);
+  const x00 = l000 + (lattice(ix + 1, iy, iz) - l000) * fx;
+  const x10 = l010 + (lattice(ix + 1, iy + 1, iz) - l010) * fx;
+  const x01 = l001 + (lattice(ix + 1, iy, iz + 1) - l001) * fx;
+  const x11 = l011 + (lattice(ix + 1, iy + 1, iz + 1) - l011) * fx;
   const y0 = x00 + (x10 - x00) * fy, y1 = x01 + (x11 - x01) * fy;
   return (y0 + (y1 - y0) * fz) * 2 - 1;
 }
@@ -647,12 +650,15 @@ function emitUncoveredFace(bucket, wx, wy, wz, f, id, rectOf, resolveTile, gb, s
     for (let u = 0; u < DAMAGE_GRID; u++) {
       // The tangent frame runs backwards on some faces. Choose the occupied
       // quarter-cell on the inside of the face at each tangent coordinate.
-      const cell = fd.o.map((o, axis) => Math.min(DAMAGE_GRID - 1,
-        o * DAMAGE_GRID + fd.u[axis] * u + fd.v[axis] * v
-          + Math.min(0, fd.u[axis]) + Math.min(0, fd.v[axis])));
-      if (cellOccludes(gb, shapeAt, wx * DAMAGE_GRID + cell[0] + fd.n[0],
-        wy * DAMAGE_GRID + cell[1] + fd.n[1], wz * DAMAGE_GRID + cell[2] + fd.n[2], id)) continue;
-      emitCellFace(bucket, wx, wy, wz, ...cell, f, id, rectOf, resolveTile, gb, shapeAt);
+      const x = Math.min(DAMAGE_GRID - 1, fd.o[0] * DAMAGE_GRID + fd.u[0] * u + fd.v[0] * v
+        + Math.min(0, fd.u[0]) + Math.min(0, fd.v[0]));
+      const y = Math.min(DAMAGE_GRID - 1, fd.o[1] * DAMAGE_GRID + fd.u[1] * u + fd.v[1] * v
+        + Math.min(0, fd.u[1]) + Math.min(0, fd.v[1]));
+      const z = Math.min(DAMAGE_GRID - 1, fd.o[2] * DAMAGE_GRID + fd.u[2] * u + fd.v[2] * v
+        + Math.min(0, fd.u[2]) + Math.min(0, fd.v[2]));
+      if (cellOccludes(gb, shapeAt, wx * DAMAGE_GRID + x + fd.n[0],
+        wy * DAMAGE_GRID + y + fd.n[1], wz * DAMAGE_GRID + z + fd.n[2], id)) continue;
+      emitCellFace(bucket, wx, wy, wz, x, y, z, f, id, rectOf, resolveTile, gb, shapeAt);
     }
   }
 }
@@ -660,9 +666,7 @@ function emitUncoveredFace(bucket, wx, wy, wz, f, id, rectOf, resolveTile, gb, s
 /** Quarter-block quad, with the original full-block texture scale and cut AO. */
 function emitCellFace(bucket, wx, wy, wz, x, y, z, f, id, tileRectFn, resolveTile, gb, shapeAt) {
   const fd = FACES[f];
-  const local = [x, y, z];
-  const normalAxis = fd.n.findIndex((value) => value !== 0);
-  const plane = local[normalAxis] + Number(fd.n[normalAxis] > 0);
+  const plane = (f < 2 ? x : f < 4 ? y : z) + Number((f & 1) === 0);
   const isCut = plane > 0 && plane < DAMAGE_GRID;
   const textureId = isCut && id === GRASS ? DIRT : id;
   const tile = resolveTile(textureId, f, wx, wy, wz);
@@ -673,28 +677,30 @@ function emitCellFace(bucket, wx, wy, wz, x, y, z, f, id, tileRectFn, resolveTil
   const emissive = EMISSIVE.has(id);
   const shade = emissive ? 1 : FACE_SHADE[f] * (isCut ? 0.82 : 1)
     * (1 + (grassTop ? (posJitter(wx, wy, wz) - 50) * 0.0006 : 0));
-  const outer = [wx * DAMAGE_GRID + x + fd.n[0], wy * DAMAGE_GRID + y + fd.n[1],
-    wz * DAMAGE_GRID + z + fd.n[2]];
-  const ao = [];
-  const sample = (u, v) => cellOccludes(gb, shapeAt,
-    outer[0] + fd.u[0] * u + fd.v[0] * v,
-    outer[1] + fd.u[1] * u + fd.v[1] * v,
-    outer[2] + fd.u[2] * u + fd.v[2] * v);
+  const sx = wx * DAMAGE_GRID + x + fd.n[0], sy = wy * DAMAGE_GRID + y + fd.n[1];
+  const sz = wz * DAMAGE_GRID + z + fd.n[2];
+  const ux = fd.u[0], uy = fd.u[1], uz = fd.u[2];
+  const vx = fd.v[0], vy = fd.v[1], vz = fd.v[2];
+  const ao = AO_SCRATCH;
 
   for (let c = 0; c < CORNER_UV.length; c++) {
-    const [cu, cv] = CORNER_UV[c];
+    const cu = CORNER_UV[c][0], cv = CORNER_UV[c][1];
     const su = cu ? 1 : -1, sv = cv ? 1 : -1;
-    const level = emissive ? 1 : aoLevel(sample(su, 0), sample(0, sv), sample(su, sv));
-    ao.push(level);
-    const p = local.map((value, axis) =>
-      (value + fd.o[axis] + cu * fd.u[axis] + cv * fd.v[axis]) / DAMAGE_GRID);
-    const px = wx + p[0], py = wy + p[1], pz = wz + p[2];
+    const level = emissive ? 1 : aoLevel(
+      cellOccludes(gb, shapeAt, sx + ux * su, sy + uy * su, sz + uz * su),
+      cellOccludes(gb, shapeAt, sx + vx * sv, sy + vy * sv, sz + vz * sv),
+      cellOccludes(gb, shapeAt, sx + ux * su + vx * sv, sy + uy * su + vy * sv, sz + uz * su + vz * sv));
+    ao[c] = level;
+    const localX = (x + fd.o[0] + cu * ux + cv * vx) / DAMAGE_GRID;
+    const localY = (y + fd.o[1] + cu * uy + cv * vy) / DAMAGE_GRID;
+    const localZ = (z + fd.o[2] + cu * uz + cv * vz) / DAMAGE_GRID;
+    const px = wx + localX, py = wy + localY, pz = wz + localZ;
     bucket.pos.push(px, py, pz);
-    bucket.nrm.push(...fd.n);
+    bucket.nrm.push(fd.n[0], fd.n[1], fd.n[2]);
     const k = shade * level * (emissive ? 1 : 1 + macroTone(px, py, pz) * MACRO_AMPLITUDE);
     bucket.col.push(k * (grassTop ? 1.02 : 1), k, k * (grassTop ? 0.94 : 1));
-    const u = p.reduce((sum, value, axis) => sum + (value - fd.o[axis]) * fd.u[axis], 0);
-    const v = p.reduce((sum, value, axis) => sum + (value - fd.o[axis]) * fd.v[axis], 0);
+    const u = (localX - fd.o[0]) * ux + (localY - fd.o[1]) * uy + (localZ - fd.o[2]) * uz;
+    const v = (localX - fd.o[0]) * vx + (localY - fd.o[1]) * vy + (localZ - fd.o[2]) * vz;
     if (bucket.atlasUv) {
       bucket.uv.push(rect.u0 + (rect.u1 - rect.u0) * u, rect.v1 + (rect.v0 - rect.v1) * v);
     } else {
@@ -713,6 +719,7 @@ function emitCellFace(bucket, wx, wy, wz, x, y, z, f, id, tileRectFn, resolveTil
 }
 
 const UV_SCRATCH = [0, 0];
+const AO_SCRATCH = [0, 0, 0, 0];
 const CORNER_T = [[0, 0], [0, 0], [0, 0], [0, 0]];
 /** Face-frame edges (-u, +u, -v, +v) as their two corner indices. */
 const FACE_EDGES = [[0, 3], [1, 2], [0, 1], [3, 2]];
@@ -749,7 +756,7 @@ function emitFace(bucket, wx, wy, wz, f, id, tileRectFn, resolveTile, gb) {
   const grimeTop = side && occ(gb, sx, sy + 1, sz) ? GRIME_CEILING : 1;
   const transform = faceUvTransform(wx, wy, wz, f, tile);
 
-  const ao = [0, 0, 0, 0];
+  const ao = AO_SCRATCH;
   for (let c = 0; c < 4; c++) {
     const cu = CORNER_UV[c][0], cv = CORNER_UV[c][1];
     const su = cu === 1 ? 1 : -1;

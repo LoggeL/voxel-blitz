@@ -12,6 +12,7 @@ import { nowMs, smooth01 } from '../util/math.js';
 import { boundedMapSet } from '../util/bounded-map.js';
 import { hashInt } from '../util/hash.js';
 import { withGoreDamage } from '../weapons/gore-profile.js';
+import { isSolidBlock } from '../../../shared/world/blocks.js';
 import {
   beginAvatarDeath,
   disposeAvatar,
@@ -41,7 +42,11 @@ export class AvatarRoster {
     // Positional engine drone: vehicle(id, [x,y,z], kind) while alive, vehicle(id, null) to stop.
     this._vehicleSfx = typeof vehicle === 'function' ? vehicle : null;
     this._scene = scene;
-    this._solidAt = getBlock ? (x, y, z) => !!getBlock(x, y, z) : null;
+    this._disposed = false;
+    this._solidAt = getBlock ? (x, y, z) => {
+      const type = getBlock(x, y, z);
+      return !!type && isSolidBlock(type);
+    } : null;
     this._labelTarget = new THREE.Vector3();
     this._labelDirection = new THREE.Vector3();
     this._debugView = new AvatarDebugView(scene);
@@ -74,6 +79,7 @@ export class AvatarRoster {
   /** Barrel tip of a living remote avatar, or null. Presentation only: hits
    *  stay authoritative. */
   muzzleWorldPos(id, out) {
+    if (this._disposed) return null;
     if (id === this._getMyId()) return null;
     const avatar = this._avatars.get(id);
     if (!avatar?.alive) return null;
@@ -102,11 +108,13 @@ export class AvatarRoster {
   }
 
   swingPickaxe(id) {
+    if (this._disposed) return;
     if (id === this._getMyId()) return;
     boundedMapSet(this._pickaxeSwings, id, this._now() + QUICK_MELEE_SECONDS * 1000);
   }
 
   hit(id, ev) {
+    if (this._disposed) return;
     if (id === this._getMyId()) return;
     const now = this._now();
     boundedMapSet(this._remoteImpacts, id, { ev, until: now + IMPACT_TTL_MS });
@@ -122,6 +130,7 @@ export class AvatarRoster {
   }
 
   death(id, at, damageEvent = null) {
+    if (this._disposed) return;
     if (id === this._getMyId()) return;
     const now = Number.isFinite(at) ? at : this._now();
     const avatar = this._avatars.get(id);
@@ -140,7 +149,7 @@ export class AvatarRoster {
     }
     const stored = this._remoteImpacts.get(id);
     const recentAvatarImpact = avatar.lastImpact?.until >= now ? avatar.lastImpact.ev : null;
-    const impact = withGoreDamage(stored?.ev || recentAvatarImpact || {
+    const impact = withGoreDamage((stored?.until >= now ? stored.ev : null) || recentAvatarImpact || {
       vx: avatar.group.position.x,
       vy: avatar.group.position.y + 1.08,
       vz: avatar.group.position.z,
@@ -152,6 +161,7 @@ export class AvatarRoster {
   }
 
   respawn(id, ev) {
+    if (this._disposed) return;
     this._fallen.delete(id);
     this._pickaxeSwings.delete(id);
     this._pendingHits.delete(id);
@@ -237,6 +247,7 @@ export class AvatarRoster {
   }
 
   sync(remotes, dt, now, persistentCorpses = false) {
+    if (this._disposed) return;
     for (const [id, until] of this._pickaxeSwings) {
       if (now >= until || !remotes.has(id)) this._pickaxeSwings.delete(id);
     }
@@ -487,6 +498,8 @@ export class AvatarRoster {
   }
 
   dispose() {
+    if (this._disposed) return;
+    this._disposed = true;
     this._debugView.dispose();
     for (const [id, avatar] of this._avatars) {
       this._scene?.remove(avatar.group);
@@ -508,5 +521,8 @@ export class AvatarRoster {
     this._solidAt = null;
     this._getMyId = null;
     this._now = null;
+    this._burnFX = null;
+    this._footstep = null;
+    this._vehicleSfx = null;
   }
 }

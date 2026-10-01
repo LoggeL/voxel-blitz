@@ -31,7 +31,8 @@ class FakeNet {
     for (const fn of [...(this.listeners.get(type) || [])]) fn(payload);
   }
 
-  connect() {
+  connect(url, name, options) {
+    this.connection = { url, name, options };
     return new Promise((resolve, reject) => { this.pending = { resolve, reject }; });
   }
 
@@ -143,9 +144,9 @@ function makeHarness({ onEnterLive } = {}) {
 
 const WELCOME = Object.freeze({ id: 'me', map: 'foundry', gameMode: 'tdm', phase: 'live', lobby: { code: 'ABCDE' } });
 
-async function goLive(h) {
+async function goLive(h, action = { mode: 'quick', name: 'Tester' }) {
   h.session.start();
-  h.menuAction({ mode: 'quick', name: 'Tester' });
+  h.menuAction(action);
   await flush();
   h.session.net.admit(WELCOME);
   await flush();
@@ -202,6 +203,8 @@ await withInstantTimers(async (delays) => {
     await flush();
     const net = h.session.net;
     assert(net.pending, `retry ${retry} opens a fresh connection`);
+    assert.equal(net.connection.options.mode, 'quick', 'quick rooms recover through supported quick-play admission');
+    assert.equal(net.connection.options.lobby, undefined, 'quick rooms do not support joining by invite code');
     assert.equal(h.loading.title, 'RECONNECTING');
     assert.match(h.loading.status, new RegExp(`Reconnecting \\(${retry}/6\\)`));
     assert.match(h.lastJoinState(), /Reconnecting/, 'the join status keeps the reconnect feedback');
@@ -210,9 +213,26 @@ await withInstantTimers(async (delays) => {
   }
   assert.deepEqual(delays, [500, 1000, 2000, 4000, 4000, 4000]);
   assert.equal(h.menuBuilds(), builds + 2, 'menu is built when recovery starts and when it gives up');
-  assert.equal(h.lastJoinState(), 'Could not reconnect. Join again with room code ABCDE.');
+  assert.equal(h.lastJoinState(), 'Could not reconnect. Please try Quick Play again.');
   assert.equal(h.loading.stage, null);
   assert.equal(h.disconnects, 1);
+});
+
+// Private-room recovery still targets the admitted invite code and password.
+await withInstantTimers(async () => {
+  const h = makeHarness();
+  await goLive(h, { mode: 'create', name: 'Tester', password: 'test-room-password' });
+  h.session.net.drop();
+  for (let retry = 0; retry < 6; retry++) {
+    await flush();
+    const net = h.session.net;
+    assert.equal(net.connection.options.mode, 'join');
+    assert.equal(net.connection.options.lobby, WELCOME.lobby.code);
+    assert.equal(net.connection.options.password, 'test-room-password');
+    net.refuse();
+    await flush();
+  }
+  assert.equal(h.lastJoinState(), 'Could not reconnect. Join again with room code ABCDE.');
 });
 
 // Cancel on the reconnect overlay ends the loop, also between retries.

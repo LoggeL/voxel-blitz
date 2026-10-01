@@ -22,7 +22,9 @@ try {
     softwareRendering: false,
   });
   const p = browser.page;
-  await p.waitFor(`document.getElementById('create-lobby-btn') && window.__vb`);
+  await p.waitFor(`window.__vb && window.__vbBoot?.readyMs > 0 &&
+    document.getElementById('create-lobby-btn')?.disabled === false`,
+  { timeoutMs: 120000, label: 'play actions ready after background assets' });
   await p.evaluate(`document.getElementById('create-lobby-btn').click()`);
   await p.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false'`);
   await p.evaluate(`(() => { for (const [id,value] of [['bot-count','6'],['game-mode-select','fun']]) {const e=document.getElementById(id);e.value=value;e.dispatchEvent(new Event('change',{bubbles:true}));} })()`);

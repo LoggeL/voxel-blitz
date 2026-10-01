@@ -37,6 +37,7 @@ export class AccountMenu {
     this.dialog.setAttribute('aria-busy', 'false');
     this.dialog.addEventListener('keydown', event => event.stopPropagation());
     this.dialog.addEventListener('close', () => {
+      if (this.dialog.open) return;
       this.recoveryCode = null;
       for (const input of this.dialog.querySelectorAll('#account-form input')) input.value = '';
       const recovery = this.dialog.querySelector('#account-recovery-code');
@@ -169,7 +170,7 @@ export class AccountMenu {
   open(mode = 'login') {
     if (this.disposed || this.busy) return;
     if (this.onOpen?.() === false) return;
-    this.returnFocus = document.activeElement;
+    if (!this.dialog.open) this.returnFocus = document.activeElement;
     this.mode = EMAIL_MODES.includes(mode) ? mode : this.user ? 'account' : (['login', 'register', 'recover'].includes(mode) ? mode : 'login');
     this.message = ''; this.recoveryCode = null;
     this.render();

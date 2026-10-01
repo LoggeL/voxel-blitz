@@ -19,17 +19,18 @@ function spawnPointKey(point) {
  * Authoritative spawn scorer.
  *
  * `entities` is the authoritative Map in insertion order. `isEnemy`, `solidAt`
- * and the optional `fluidAt` are injected policy/world operations; no engine
+ * and optional `fluidAt`/`portalAt` are injected policy/world operations; no engine
  * object crosses the seam. Call setNow once per simulation step before
  * choosing spawns.
  */
 export class SpawnSelector {
-  constructor({ entities, isEnemy, solidAt, fluidAt = null, now, spawnBounds = null, dimensions = null }) {
+  constructor({ entities, isEnemy, solidAt, fluidAt = null, portalAt = null, now, spawnBounds = null, dimensions = null }) {
     this.dimensions = dimensions || worldDimensions();
     this.entities = entities;
     this.isEnemy = isEnemy;
     this.solidAt = solidAt;
     this.fluidAt = typeof fluidAt === 'function' ? fluidAt : null;
+    this.portalAt = typeof portalAt === 'function' ? portalAt : null;
     this.spawnBounds = spawnBounds;
     this.spawnSurfaces = spawnBounds?.surfaces ? new Set() : null;
     for (let i = 0; i < (spawnBounds?.surfaces?.length || 0); i += 3) {
@@ -90,11 +91,13 @@ export class SpawnSelector {
   }
 
   /**
-   * Lava or water at the feet, body or floor cell, or in any of the eight
+   * A portal at the same body point queried by the authoritative volume step,
+   * or lava or water at the feet, body or floor cell, or in any of the eight
    * horizontal neighbours at feet or floor level: the spawn push can shove a
    * fresh body one cell sideways, and a fluid floor drops it into the pool.
    */
   hazardous(point) {
+    if (this.portalAt?.(point.x, point.y + 0.5, point.z)) return true;
     const fluidAt = this.fluidAt;
     if (!fluidAt) return false;
     const x = Math.floor(point.x), y = Math.floor(point.y), z = Math.floor(point.z);
@@ -151,8 +154,8 @@ export class SpawnSelector {
       }
       if (!candidates.length) throw new Error('World has no walkable spawn surface');
     }
-    // Never spawn in or beside lava or water while any dry candidate exists;
-    // a pool that is entirely wet keeps the ordinary scoring rather than failing.
+    // Prefer candidates clear of fluids and portal triggers; a pool that is
+    // entirely hazardous keeps the ordinary scoring rather than failing.
     const dry = candidates.filter((candidate) => !this.hazardous(candidate));
     if (dry.length) candidates = dry;
 

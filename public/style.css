@@ -3449,6 +3449,29 @@ body.is-dying .vb-spectator { visibility: hidden; }
   }
 }
 
+/* Health contains medkit, armor and optional condition readouts. Let their
+   actual height and the economy rows place touch diagnostics below them. */
+.vb-touch-mode #hud {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: calc(max(10px, env(safe-area-inset-top)) + 54px) 0 0 max(12px, env(safe-area-inset-left));
+}
+.vb-touch-mode #hud #healthbar,
+.vb-touch-mode #hud #econ-cluster,
+.vb-touch-mode #hud:has(#armor-status:not([hidden])) #econ-cluster,
+.vb-touch-mode #hud .vb-run-hud,
+.vb-touch-mode #hud #net-meter {
+  position: relative;
+  inset: auto;
+  flex-shrink: 0;
+}
+.vb-touch-mode #hud #healthbar { order: 0; }
+.vb-touch-mode #hud #econ-cluster { order: 1; }
+.vb-touch-mode #hud .vb-run-hud { order: 2; }
+.vb-touch-mode #hud #net-meter { order: 3; }
+
 @media (max-width: 960px) {
   #net-meter {
     top: 104px;
@@ -3489,6 +3512,72 @@ body.is-dying .vb-spectator { visibility: hidden; }
   .vb-buy-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+}
+
+@media (orientation: landscape) and (max-height: 480px) and (min-width: 480px) {
+  /* Both hands can use the side button stacks. Diagnostics use the free
+     column between them while retaining the health/economy flow height. */
+  .vb-touch-mode #hud #net-meter { margin-left: 224px; }
+}
+
+@media (orientation: landscape) and (min-width: 480px) {
+  /* Training and diagnostics share a separate column, beside the actual
+     health/economy rows rather than covering them or extending offscreen. */
+  .vb-touch-mode #hud:has(.vb-run-hud:not(.hidden)) {
+    display: grid;
+    grid-template-columns: 224px 210px;
+    grid-template-rows: auto auto;
+    align-content: start;
+    align-items: start;
+  }
+  .vb-touch-mode #hud:has(.vb-run-hud:not(.hidden)) #healthbar { grid-column: 1; grid-row: 1; }
+  .vb-touch-mode #hud:has(.vb-run-hud:not(.hidden)) #econ-cluster { grid-column: 1; grid-row: 2; }
+  .vb-touch-mode #hud:has(.vb-run-hud:not(.hidden)) .vb-run-hud { grid-column: 2; grid-row: 1; }
+  .vb-touch-mode #hud:has(.vb-run-hud:not(.hidden)) #net-meter { grid-column: 2; grid-row: 2; margin-left: 0; }
+}
+
+@media (orientation: landscape) and (max-height: 480px) and (min-width: 480px) and (max-width: 640px) {
+  /* The side controls and expanded health/economy cards use the full height.
+     Keep enabled diagnostics in the open column between both thumb stacks. */
+  .vb-touch-mode #hud #net-meter {
+    position: absolute;
+    top: calc(max(10px, env(safe-area-inset-top)) + 170px);
+    left: 50%;
+    width: 156px;
+    margin-left: 0;
+    transform: translateX(-50%);
+  }
+  .vb-touch-mode #hud .vb-net-history { height: 14px; }
+  .vb-touch-mode #hud:has(.vb-run-hud:not(.hidden)) {
+    grid-template-columns: minmax(0, 1fr) 156px minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    gap: 4px;
+    padding-right: max(12px, env(safe-area-inset-right));
+  }
+  .vb-touch-mode #hud:has(.vb-run-hud:not(.hidden)) .vb-run-hud {
+    grid-row: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 4px;
+    width: 156px;
+    padding: 4px;
+    margin-top: 116px;
+  }
+  .vb-touch-mode #hud:has(.vb-run-hud:not(.hidden)) #net-meter {
+    grid-row: 2;
+    position: relative;
+    inset: auto;
+    transform: none;
+  }
+  .vb-touch-mode #hud .vb-run-hud :is(.vb-run-hint, .vb-run-best, .vb-run-result, .vb-run-newbest, .vb-run-toast) {
+    grid-column: 1 / -1;
+    margin: 0;
+    font-size: 8px;
+  }
+  .vb-touch-mode #hud .vb-run-timer { margin: 0; font-size: 16px; }
+  .vb-touch-mode #hud .vb-run-stage { margin: 0; font-size: 8px; align-self: center; }
+  .vb-touch-mode #hud .vb-run-newbest { padding: 2px 4px; }
+  .vb-touch-mode #hud .vb-run-toast:not(.is-visible) { display: none; }
 }
 
 @media (max-width: 640px) {

@@ -133,6 +133,7 @@ export class GameEngine {
       isEnemy: (left, right) => this.mode.isEnemy(left, right),
       solidAt: this.solidAt,
       fluidAt: this.fluidAt,
+      portalAt: (x, y, z) => portalAt(this.mapMeta, x, y, z),
       spawnBounds: this.mapMeta?.spawnBounds,
       dimensions: this.world.dimensions,
       now: this.now,

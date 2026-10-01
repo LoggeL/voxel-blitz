@@ -152,10 +152,36 @@ try {
   await browser.page.send('Input.dispatchKeyEvent', { type: 'keyUp', code: 'KeyI', key: 'i', windowsVirtualKeyCode: 73 });
   assert.equal(await browser.page.evaluate('window.bindingSettingsTest.input.keys.forward'), false);
   await browser.page.evaluate('window.bindingSettingsTest.input.dispose(); window.bindingSettingsTest.settings.dispose();');
+  await browser.page.evaluate(`(async () => {
+    const { Input } = await import('/js/engine/input.js');
+    const canvas = document.createElement('canvas'); document.body.append(canvas);
+    const input = new Input(canvas); input.fallback = true; input._touchMode = true; input.bind();
+    input.setTouchContext({ alive: true, canFire: true, canReload: true, weaponCount: 2 });
+    window.touchBindingTest = input;
+  })()`);
+  for (const [width, height] of [[390, 844], [844, 390], [1280, 720]]) {
+    await browser.page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: true });
+    const positions = await browser.page.evaluate(`(() => {
+      const centre = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; };
+      return { move: centre('.vb-touch-stick-base'), fire: centre('#touch-fire') };
+    })()`);
+    await browser.page.send('Input.dispatchKeyEvent', { type: 'keyDown', code: 'KeyI', key: 'i', windowsVirtualKeyCode: 73 });
+    await browser.page.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...positions.move, id: 1 }] });
+    await browser.page.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ ...positions.move, y: positions.move.y - 40, id: 1 }] });
+    await browser.page.send('Input.dispatchKeyEvent', { type: 'keyUp', code: 'KeyI', key: 'i', windowsVirtualKeyCode: 73 });
+    assert.equal(await browser.page.evaluate('window.touchBindingTest.getKeys().forward'), true, `${width}x${height}: keyboard release preserves native touch movement`);
+    await browser.page.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    assert.equal(await browser.page.evaluate('window.touchBindingTest.getKeys().forward'), false, `${width}x${height}: native joystick release clears movement`);
+    await browser.page.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ ...positions.fire, id: 2 }] });
+    assert.equal(await browser.page.evaluate('window.touchBindingTest.wantFireHeld && document.querySelector("#touch-fire").getAttribute("aria-pressed") === "true"'), true, `${width}x${height}: native touch holds fire`);
+    await browser.page.send('Input.dispatchTouchEvent', { type: 'touchCancel', touchPoints: [] });
+    assert.equal(await browser.page.evaluate('window.touchBindingTest.wantFireHeld'), false, `${width}x${height}: native cancellation releases fire`);
+  }
+  await browser.page.evaluate('window.touchBindingTest.dispose();');
   await browser.page.send('Page.reload');
   await browser.page.waitFor('document.readyState === "complete"');
   assert.equal(await browser.page.evaluate(`(async () => { const { readKeybindings } = await import('/js/keybindings.js'); return readKeybindings().forward[0]; })()`), 'KeyI', 'custom binding survives page reload');
-  console.log('Keyboard settings browser: actual dialog capture, conflict feedback, movement, Escape cancellation, clear/reassign and reset passed.');
+  console.log('Keyboard settings browser: dialog, conflicts, native keyboard/touch isolation, cancellation at 390x844, 844x390 and 1280x720, persistence and reset passed.');
 } finally {
   await browser?.close();
   await stopServer(server);

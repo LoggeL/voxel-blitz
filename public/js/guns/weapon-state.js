@@ -4,7 +4,7 @@ import { beginReload, advanceReload } from '../../../shared/reload.js';
 import { OPTICS, configuredWeapon, normalizeAttachments, normalizeWeaponLoadout } from '../../../shared/weapon-attachments.js';
 import { isScopeActive } from './scope-state.js';
 import { createMinigunState, stepMinigun, heatMinigun, minigunDamageMult } from '../../../shared/minigun.js';
-import { chaosWeaponDef } from '../../../shared/chaos.js';
+import { chaosLevel, chaosWeaponDef } from '../../../shared/chaos.js';
 import { usesOwnedLoadout as usesAuthoritativeOwnedWeapons } from '../../../shared/modes.js';
 import { glaiveCanThrow } from '../../../shared/glaive-rules.js';
 // Client weapon state machine. The composition root owns frame order; this module owns
@@ -104,7 +104,28 @@ export class WeaponState {
     this.menuReset();
   }
 
-  get def() { return bastionWeaponDef({ bastionUpgrades: this._mode === 'bastion' ? this._bastionUpgrades : null }, chaosWeaponDef({ chaosUpgrades: this._mode === 'chaos' ? this._chaosUpgrades : null }, configuredWeapon(WEAPON_IDS[this._slot], this._weaponLoadout))); }
+  get def() {
+    const id = WEAPON_IDS[this._slot];
+    const selection = this._weaponLoadout?.[id];
+    const optic = selection?.optic ?? 'standard';
+    const grip = selection?.grip ?? 'standard';
+    const counter = selection?.counter ?? 'standard';
+    const context = this._definitionContext;
+    context.chaosUpgrades = this._mode === 'chaos' ? this._chaosUpgrades : null;
+    context.bastionUpgrades = this._mode === 'bastion' ? this._bastionUpgrades : null;
+    const chaos = chaosLevel(context, id);
+    const reload = !!context.bastionUpgrades?.reload;
+    const cached = this._definitionCache;
+    // Snapshots recreate upgrade/attachment objects. Compare their effective
+    // values so every getter in a frame shares one definition until it changes.
+    if (cached && cached.id === id && cached.optic === optic && cached.grip === grip &&
+        cached.counter === counter && cached.chaos === chaos && cached.reload === reload) {
+      return cached.def;
+    }
+    const def = bastionWeaponDef(context, chaosWeaponDef(context, configuredWeapon(id, this._weaponLoadout)));
+    this._definitionCache = { id, optic, grip, counter, chaos, reload, def };
+    return def;
+  }
   setLoadout(value) { this._weaponLoadout = normalizeWeaponLoadout(value); }
   get weaponLoadout() { return this._weaponLoadout; }
   get quickMeleeActive() { return this._now() < this._quickMeleeUntil; }
@@ -536,10 +557,11 @@ export class WeaponState {
 
   /** Call at the original rig-update point, after camera/body updates. */
   syncRigAds() {
+    const def = this.def;
     this._rig.ads(this._adsT);
-    this._rig.setFlame?.(this.flameFiring, this.def.flame ? this.ammoOf(this.def.id).mag / this.def.magSize : 0);
-    if (this.def.id === 'mgl') {
-      this._rig.setSkipjack?.({ mag: this._ammo.mgl?.mag ?? 0, magSize: this.def.magSize });
+    this._rig.setFlame?.(this.flameFiring, def.flame ? (this._ammo[def.id]?.mag ?? 0) / def.magSize : 0);
+    if (def.id === 'mgl') {
+      this._rig.setSkipjack?.({ mag: this._ammo.mgl?.mag ?? 0, magSize: def.magSize });
     }
   }
 
@@ -905,6 +927,8 @@ export class WeaponState {
 
   /** Full state reset, used by the constructor (and tests); not tied to any menu. */
   menuReset() {
+    this._definitionCache = null;
+    this._definitionContext = { chaosUpgrades: null, bastionUpgrades: null };
     this._weaponLoadout = {};
     this._glaiveReturn = null;
     this._glaiveServer = null;
@@ -937,6 +961,7 @@ export class WeaponState {
     this._alive = true;
     this._mode = DEFAULT_MODE;
     this._chaosUpgrades = null;
+    this._bastionUpgrades = null;
     this._owned = null;
     this._generation = 0;
     this._yaw = 0;

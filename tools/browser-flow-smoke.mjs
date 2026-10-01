@@ -43,6 +43,77 @@ async function pressEscape(page) {
   });
 }
 
+async function requireCareerLayout(page, label) {
+  const errors = await page.evaluate(`(async () => {
+    const rank = document.querySelector('.vb-career-badge');
+    const ammo = document.getElementById('ammo');
+    const weapon = document.getElementById('weaponname');
+    const charge = document.getElementById('charge-meter');
+    const network = document.getElementById('net-meter');
+    const training = document.querySelector('.vb-run-hud:not(.hidden)');
+    if (!rank || !ammo || !weapon || !charge || !network || !rank.textContent.trim()) {
+      return ['missing live rank or ammo display'];
+    }
+    const { PROGRESSION_TREE } = await import('/shared/career.js');
+    const longestTitle = PROGRESSION_TREE.filter(item => item.kind === 'title')
+      .reduce((longest, item) => item.name.length > longest.name.length ? item : longest);
+    const errors = [], chargeClass = charge.className, rankText = rank.textContent;
+    const rankHidden = document.documentElement.classList.contains('vb-touch-mode') &&
+      matchMedia('(orientation: landscape) and (max-height: 480px) and (min-width: 480px) and (max-width: 640px)').matches;
+    if ((getComputedStyle(rank).display === 'none') !== rankHidden) errors.push('unexpected rank ribbon visibility');
+    rank.textContent = 'LV ' + longestTitle.level + ' · ' + longestTitle.name;
+    const chargeLabel = charge.querySelector('.vb-charge-label'), chargeText = chargeLabel.textContent;
+    const intersects = (a, b) => a.width > 0 && a.height > 0 && b.width > 0 && b.height > 0 &&
+      a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+    const controls = [...document.querySelectorAll('#touch-controls .vb-touch-button:not(.is-hidden), #touch-controls .vb-touch-stick-base')]
+      .map(node => [node.id || 'movement stick', node]);
+    try {
+      for (const heavyCharge of [false, true]) {
+        charge.classList.toggle('is-visible', heavyCharge);
+        charge.classList.toggle('is-thermal', heavyCharge);
+        if (heavyCharge) chargeLabel.textContent = 'SWEET SPOT 67% · +35% DMG';
+        const r = rank.getBoundingClientRect();
+        if (!rankHidden && (r.width <= 0 || r.height <= 0 || r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight)) {
+          errors.push('rank ribbon is clipped');
+        }
+        for (const [name, node] of [['ammo', ammo], ['weapon name', weapon], ['charge', charge], ['telemetry', network],
+          ['health/medkit', document.getElementById('healthbar')], ['economy', document.getElementById('econ-cluster')],
+          ...(training ? [['Training panel', training]] : []), ...controls]) {
+          const b = node.getBoundingClientRect();
+          if (getComputedStyle(node).display !== 'none' && intersects(r, b)) {
+            errors.push((heavyCharge ? 'heavy charge: ' : '') + 'rank ribbon overlaps ' + name);
+          }
+        }
+        if (training) {
+          const t = training.getBoundingClientRect();
+          if (t.width <= 0 || t.height <= 0 || t.left < 0 || t.top < 0 || t.right > innerWidth || t.bottom > innerHeight ||
+            training.scrollWidth > training.clientWidth + 1) errors.push('Training panel is clipped');
+          for (const [name, node] of [['health/medkit', document.getElementById('healthbar')],
+            ['economy', document.getElementById('econ-cluster')], ['telemetry', network], ['ammo', ammo], ['charge', charge], ...controls]) {
+            if (getComputedStyle(node).display !== 'none' && intersects(t, node.getBoundingClientRect())) errors.push('Training panel overlaps ' + name);
+          }
+        }
+      }
+      if (getComputedStyle(network).display !== 'none') {
+        const n = network.getBoundingClientRect();
+        if (n.left < 0 || n.top < 0 || n.right > innerWidth || n.bottom > innerHeight || network.scrollWidth > network.clientWidth + 1) {
+          errors.push('enabled telemetry is clipped');
+        }
+        for (const [name, node] of [['health/medkit', document.getElementById('healthbar')],
+          ['economy', document.getElementById('econ-cluster')],
+          ...(training ? [['Training panel', training]] : []), ...controls]) {
+          const b = node.getBoundingClientRect();
+          if (getComputedStyle(node).display !== 'none' && intersects(n, b)) {
+            errors.push('enabled telemetry overlaps ' + name);
+          }
+        }
+      }
+    } finally { charge.className = chargeClass; chargeLabel.textContent = chargeText; rank.textContent = rankText; }
+    return errors;
+  })()`);
+  requireCondition(errors.length === 0, label + ': ' + errors.join('; '));
+}
+
 async function main() {
   const server = startServer({
     cwd: PROJECT_ROOT,
@@ -328,7 +399,7 @@ async function main() {
       live.shader.fallbacks === 0 && live.shader.bufferWidth > 0 && live.shader.bufferHeight > 0,
     'combat post-process compiles and renders through its bounded target');
 
-    const touchControls = await page.evaluate(`(() => ({
+    const touchControls = await page.evaluate(`(() => { const stats = window.__vb.stats; return {
       active: document.getElementById('touch-controls')?.classList.contains('is-active'),
       actions: [...document.querySelectorAll('#touch-controls .vb-touch-button')].map(button => button.dataset.action).sort(),
       visible: [...document.querySelectorAll('#touch-controls .vb-touch-button:not(.is-hidden)')].map(button => button.dataset.action),
@@ -337,20 +408,32 @@ async function main() {
       move: !!document.getElementById('touch-move-zone'),
       look: !!document.getElementById('touch-look-zone'),
       coarseClass: document.documentElement.classList.contains('vb-touch-mode'),
-    }))()`);
-    const expectedTouchActions = ['ads', 'buy', 'fire', 'interact', 'jump', 'medkit', 'pause', 'reload', 'weapon'];
-    const arenaTouchActions = ['ads', 'fire', 'jump', 'medkit', 'pause', 'reload', 'weapon'];
+      grenade: !!document.querySelector('#touch-grenade:not(.is-hidden)'),
+      pouch: !!document.querySelector('#touch-pouch:not(.is-hidden)'),
+      grenadeType: document.getElementById('touch-grenade')?.dataset.type,
+      grenadeCount: document.querySelector('.vb-touch-grenade-count')?.textContent,
+      ready: stats.throwable.ready,
+      counts: stats.throwable.counts,
+    }; })()`);
+    const expectedTouchActions = ['ads', 'build', 'buy', 'fire', 'grenade', 'interact', 'jump', 'medkit', 'pause', 'pouch', 'reload', 'weapon'];
+    const arenaTouchActions = ['ads', 'fire', 'grenade', 'jump', 'medkit', 'pause', 'pouch', 'reload', 'weapon'];
     requireCondition(touchControls.active && touchControls.actions.join(',') === expectedTouchActions.join(',') &&
-      touchControls.visible.length >= 5 && touchControls.visible.length <= 7 &&
+      touchControls.visible.length >= 5 && touchControls.visible.length <= 9 &&
       touchControls.visible.every(action => arenaTouchActions.includes(action)) && touchControls.fire && touchControls.weapon &&
       touchControls.move && touchControls.look && touchControls.coarseClass,
     'mobile live play exposes core touch actions with contextual reload and medkit: ' + touchControls.visible.join(', '));
+    const { GRENADE_TYPE_IDS } = await import('../shared/grenade-rules.js');
+    const readyIndex = GRENADE_TYPE_IDS.indexOf(touchControls.ready);
+    requireCondition(readyIndex >= 0 && touchControls.counts[readyIndex] > 0 && touchControls.grenade && touchControls.pouch
+      && touchControls.grenadeType === touchControls.ready && touchControls.grenadeCount === `×${touchControls.counts[readyIndex]}`,
+    'stocked grenade and pouch controls show the authoritative ready type and count');
 
     const mobileLayout = await page.evaluate(`(async () => {
       const { TouchControls } = await import('/js/engine/touch-controls.js');
       const fixture = new TouchControls();
       fixture.mount();
-      fixture.setContext({ alive: true, canFire: true, canReload: true, canMedkit: true, weaponCount: 2, canInteract: true });
+      fixture.setContext({ alive: true, canFire: true, canReload: true, canMedkit: true, weaponCount: 2, canInteract: true,
+        canThrow: true, grenadeTotal: 1, grenadeReady: 0, grenadeCounts: [1, 0, 0, 0, 0] });
       fixture.setEnabled(true);
       const errors = [];
       try {
@@ -404,6 +487,8 @@ async function main() {
       return errors;
     })()`);
     requireCondition(matchLayout.length === 0, 'mobile headers fit above health and ammo in every mode: ' + matchLayout.join('; '));
+
+    await requireCareerLayout(page, 'live XP rank stays in bounds and clear of ammo, charge and touch controls');
 
     const mobileInput = await page.evaluate(`(async () => {
       const pointer = (type, target, init) => target.dispatchEvent(new PointerEvent(type, {
@@ -740,6 +825,21 @@ async function main() {
     await page.waitFor(`getComputedStyle(document.getElementById('net-meter')).display !== 'none'`, {
       label: 'enabled telemetry visible on touch layout',
     });
+    await requireCareerLayout(page, 'XP rank, Training panel and enabled telemetry stay clear of health, economy and touch controls');
+    if (process.env.BROWSER_SMOKE_SCREENSHOT) {
+      await clickElement(page, 'settings-resume-btn');
+      await page.waitFor(`!window.__vb.stats.settingsOpen`, { label: 'telemetry screenshot after resume' });
+      const aliveBefore = await page.evaluate(`window.__vb.stats.alive`);
+      if (aliveBefore) {
+        const screenshot = await page.send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false }, 15_000);
+        const output = path.resolve(PROJECT_ROOT, process.env.BROWSER_SMOKE_SCREENSHOT).replace(/\.png$/, '-telemetry.png');
+        await writeFile(output, Buffer.from(screenshot.data, 'base64'));
+        const aliveAfter = await page.evaluate(`window.__vb.stats.alive`);
+        console.log('telemetry screenshot:', JSON.stringify({ output, aliveBefore, aliveAfter }));
+      } else console.log('telemetry screenshot skipped: authoritative player is dead');
+      await pressEscape(page);
+      await page.waitFor(`window.__vb.stats.settingsOpen`, { label: 'Training pause after telemetry screenshot' });
+    }
     await clickElement(page, 'settings-leave-btn');
     await page.waitFor(`!window.__vb.stats.running && !document.getElementById('run-overlay')`, {
       label: 'Training teardown',

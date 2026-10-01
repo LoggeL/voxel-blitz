@@ -37,6 +37,9 @@ try {
     assert.equal(settings.controls.bots.disabled, true, `${gameMode} locks the bot control`);
   }
   settings.update(lobby('tdm'), true);
+  const mapOptions = [...settings.controls.map.options];
+  settings.update(lobby('tdm', { members: [{ id: '1', ready: true, ping: 42 }] }), true);
+  assert.ok(settings.controls.map.options.every((option, index) => option === mapOptions[index]), 'readiness and ping updates preserve native map option nodes');
   assert.equal(settings.controls.bots.value, '5');
   assert.equal(settings.controls.bots.disabled, false);
   settings.controls.gameMode.value = 'bastion';

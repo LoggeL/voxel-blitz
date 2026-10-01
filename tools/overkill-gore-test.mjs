@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { PlayerEntity } from '../server/sim/player.js';
 import { GameEngine } from '../server/game.js';
+import { KillAnnouncer } from '../server/sim/kill-announcer.js';
 import { evHit, evKill, evDie } from '../server/protocol/events.js';
 import { GoreFX } from '../public/js/weapons/gore.js';
 import { goreProfile, withGoreDamage } from '../public/js/weapons/gore-profile.js';
@@ -10,6 +11,7 @@ import { DeathHeadCam } from '../public/js/player/death-head-cam.js';
 import { AvatarRoster } from '../public/js/avatar/avatar-roster.js';
 
 const spawn = { x: 0, y: 2, z: 0, index: 0 };
+const deathEngine = () => ({ tickEvents: [], now: 0, killAnnouncer: new KillAnnouncer(), mode: { onPlayerDeath() {} } });
 const target = (health = 100, armor = 0) => Object.assign(new PlayerEntity('victim', 'Victim', spawn, false), { hp: health, armor });
 for (const [hp, armor, incoming, healthDamage, excess, lethal] of [
   [100, 0, 100, 100, 0, true],
@@ -29,7 +31,7 @@ for (const [hp, armor, incoming, healthDamage, excess, lethal] of [
   assert.equal(hit.dmg, incoming, 'existing incoming-damage field keeps its meaning');
   assert.equal(hit.overkill, excess); assert.equal(hit.healthDamage, healthDamage); assert.equal(hit.lethal, lethal);
   if (lethal) {
-    const engine = { tickEvents: [], mode: { onPlayerDeath() {} } };
+    const engine = deathEngine();
     GameEngine.prototype.killPlayer.call(engine, victim, null, 'rifle', false);
     assert.deepEqual(engine.tickEvents.map((event) => [event.kind, event.overkill, event.healthDamage]),
       [['die', excess, healthDamage], ['kill', excess, healthDamage]],
@@ -40,14 +42,14 @@ for (const [hp, armor, incoming, healthDamage, excess, lethal] of [
 }
 const worldVictim = target();
 worldVictim.takeDamage(20);
-const worldEngine = { tickEvents: [], mode: { onPlayerDeath() {} } };
+const worldEngine = deathEngine();
 GameEngine.prototype.killPlayer.call(worldEngine, worldVictim, null, 'world', false);
 assert.ok(worldEngine.tickEvents.every((event) => event.overkill === undefined),
   'a later world death cannot reuse an unrelated hit as its killing damage');
 assert.equal(evHit('a', 'v', 25, false, [0, 0, 0]).overkill, undefined);
 assert.equal(evKill('a', 'v', 'rifle', false).overkill, undefined);
 assert.equal(evKill('a', 'v', 'rifle', false).dist, undefined, 'kills without a ray carry no shot length');
-const rangedEngine = { tickEvents: [], mode: { onPlayerDeath() {} } };
+const rangedEngine = deathEngine();
 GameEngine.prototype.killPlayer.call(rangedEngine, target(), null, 'sniper', false, { longRange: true, dist: 43.27 });
 assert.deepEqual(rangedEngine.tickEvents.filter((event) => event.kind === 'kill').map((event) => [event.lr, event.dist]),
   [[true, 43.3]], 'the kill event forwards the authoritative shot length with its LONG RANGE marker');

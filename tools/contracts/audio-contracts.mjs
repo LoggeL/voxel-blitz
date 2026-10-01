@@ -589,6 +589,55 @@ export async function runAudioContracts(ok, installGlobals) {
           && freshFetches === 1,
       'disposing during a menu music load discards the late buffer and forces a fresh fetch');
       cancellableMusic.dispose();
+      const { VoicePool } = await import('../../public/js/audio/voices.js');
+      const ownedPool = new VoicePool({ ctx: cancellationAudio, bus: cancellationDestination, _registerVoicePool() {} });
+      const muffledMark = cancellationAudio.nodes.length;
+      const muffled = ownedPool.acquire({ muffled: true, pos: [1, 2, 3] }, 1);
+      ownedPool.release(muffled);
+      ownedPool.release(muffled);
+      ok(cancellationAudio.nodes.slice(muffledMark).every(node => node.disconnectCount === 1),
+        'retiring a muffled voice disconnects its output, filter and panner exactly once');
+
+      const { LocalSampleBank } = await import('../../public/js/audio/samples.js');
+      const response = bytes => ({ ok: true, arrayBuffer: async () => bytes });
+      let cleanupSample;
+      const bank = new LocalSampleBank({ getContext: () => cancellationAudio,
+        addCleanup: (_owner, cleanup) => { cleanupSample = cleanup; } });
+      await bank.load({ owned: '/owned' }, async () => response(new ArrayBuffer(4)));
+      const sampleMark = cancellationAudio.nodes.length;
+      bank.play('owned', cancellationDestination);
+      const ownedSource = cancellationAudio.nodes.slice(sampleMark).find(node => node.kind === 'buffer-source');
+      cleanupSample(); cleanupSample();
+      ok(ownedSource.stops.length === 1 && ownedSource.disconnectCount === 1,
+        'voice retirement stops a playing sample and disconnects it exactly once');
+      const rejectedBank = new LocalSampleBank({ getContext: () => cancellationAudio,
+        addCleanup: (_owner, cleanup) => cleanup() });
+      await rejectedBank.load({ rejected: '/rejected' }, async () => response(new ArrayBuffer(4)));
+      const startsBeforeRejected = cancellationAudio.starts.length;
+      ok(!rejectedBank.play('rejected', cancellationDestination) && cancellationAudio.starts.length === startsBeforeRejected,
+        'a sample whose output was already retired never starts a disconnected source');
+
+      let finishSampleFetch;
+      const pendingLoad = bank.load({ late: '/late' }, () => new Promise(resolve => { finishSampleFetch = resolve; }));
+      bank.clear();
+      finishSampleFetch(response(new ArrayBuffer(4)));
+      ok((await pendingLoad).loaded === 0 && bank.getBuffer('late') === null,
+        'clearing the sample bank invalidates pending loads and discards late buffers');
+      let finishOldSlot;
+      const oldLoad = bank.load({ override: '/old' }, () => new Promise(resolve => { finishOldSlot = resolve; }));
+      const newBytes = new ArrayBuffer(8);
+      await bank.load({ override: '/new' }, async () => response(newBytes));
+      finishOldSlot(response(new ArrayBuffer(4)));
+      ok((await oldLoad).loaded === 0 && bank.getBuffer('override')?.decoded === newBytes,
+        'an older slot request cannot overwrite a newer explicit sample');
+      let finishSharedFetch, sharedFetches = 0;
+      const sharedFetch = () => { sharedFetches++; return new Promise(resolve => { finishSharedFetch = resolve; }); };
+      const sharedA = bank.load({ shared: '/shared' }, sharedFetch);
+      const sharedB = bank.load({ shared: '/shared' }, sharedFetch);
+      const oneFetch = sharedFetches === 1;
+      finishSharedFetch(response(new ArrayBuffer(4)));
+      ok(oneFetch && (await sharedA).loaded === 1 && (await sharedB).loaded === 1,
+        'overlapping identical sample loads share one fetch and decode');
       await cancellationAudio.close();
     } finally {
       if (sfx) await sfx.dispose();

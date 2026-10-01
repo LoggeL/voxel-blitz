@@ -129,6 +129,7 @@ export class Input {
     this._bound = false;
     this._locked = false;
     this._gameplayEnabled = true;
+    this._focused = true;
     this._spectatorEnabled = false;
     this._disposed = false;
     this._touchMode = shouldEnableTouchControls();
@@ -138,6 +139,8 @@ export class Input {
     this._accDY = 0;
     this._mouseFire = false;
     this._mouseAds = false;
+    this._touchFire = false;
+    this._touchAds = false;
     this._adsLatched = false; // toggle-mode ADS latch (mouse/keyboard)
     this._fireTapQueued = false;
     this._reloadQueued = false;
@@ -200,6 +203,9 @@ export class Input {
       forward: false, back: false, left: false, right: false,
       jump: false, sprint: false, crouch: false, prone: false, leanLeft: false, leanRight: false, interact: false,
     };
+    // Touch and keyboard holds survive the other device's release on hybrids.
+    this._touchKeys = { forward: false, back: false, left: false, right: false,
+      jump: false, sprint: false, interact: false };
 
     // Gamepad state lives beside the keyboard so both can be held at once.
     this._pad = new GamepadInput();
@@ -224,7 +230,8 @@ export class Input {
     this._hMouseUp = (e) => this._onMouseUp(e);
     this._hWheel = (e) => this._onWheel(e);
     this._hContext = (e) => { e.preventDefault(); };
-    this._hBlur = () => this.clearTransient();
+    this._hBlur = () => { this._focused = false; this.clearTransient(); };
+    this._hFocus = () => { this._focused = true; };
     this._hVis = () => { if (document.hidden) this.clearTransient(); };
     this._hFullscreenChange = () => this._syncKeyboardLock();
     this._hLockChange = () => {
@@ -242,13 +249,13 @@ export class Input {
   /* ----------------------------------------------------------- held intents */
 
   /** LMB / RT / touch fire held; reads false while the weapon wheel or grenade pouch is open. */
-  get wantFireHeld() { return !this._wheelOpen && !this._pouchOpen && !this._buildMode && (this._mouseFire || this._keyboardFire || this._padFire); }
+  get wantFireHeld() { return !this._wheelOpen && !this._pouchOpen && !this._buildMode && (this._mouseFire || this._keyboardFire || this._touchFire || this._padFire); }
 
   /** RMB / F / LT / touch ADS held or latched; reads false while the weapon wheel or pouch is open. */
-  get wantAdsHeld() { return !this._wheelOpen && !this._pouchOpen && (this._mouseAds || this._keyboardAds || this._adsLatched || this._padAds); }
+  get wantAdsHeld() { return !this._wheelOpen && !this._pouchOpen && (this._mouseAds || this._keyboardAds || this._adsLatched || this._touchAds || this._padAds); }
   set wantAdsHeld(value) {
     this._mouseAds = !!value;
-    if (!value) this._adsLatched = false;
+    if (!value) this._adsLatched = this._touchAds = false;
   }
 
   /** Back/Select on a pad holds the scoreboard, like Tab. */
@@ -270,6 +277,7 @@ export class Input {
     window.addEventListener('keydown', this._hKeyDown);
     window.addEventListener('keyup', this._hKeyUp);
     window.addEventListener('blur', this._hBlur);
+    window.addEventListener('focus', this._hFocus);
     document.addEventListener('visibilitychange', this._hVis);
     document.addEventListener('mousemove', this._hMouseMove);
     document.addEventListener('mouseup', this._hMouseUp);
@@ -490,6 +498,7 @@ export class Input {
     this._buildExitQueued = false;
     if (next) {
       this._mouseFire = false;
+      this._touchFire = false;
       this._keyboardFire = false;
       this._padFire = false;
       this._fireTapQueued = false;
@@ -546,6 +555,8 @@ export class Input {
       this._accDX = 0;
       this._accDY = 0;
       this._mouseFire = false;
+      this._touchFire = false;
+      this._touchAds = false;
       this._keyboardFire = false;
       this._keyboardAds = false;
       this._fireTapQueued = false;
@@ -609,6 +620,12 @@ export class Input {
       if (this._padYHeld && this._wheelOpen) this._wheelCancelQueued = true;
       this._padYHeld = false;
       this._padYWheelFired = false;
+      this._clearPadState();
+      return frame;
+    }
+    // Poll edges while backgrounded so a hidden press cannot become a fresh
+    // action when the tab returns, but never rebuild gameplay holds there.
+    if (!this._canReadDevices()) {
       this._clearPadState();
       return frame;
     }
@@ -792,18 +809,19 @@ export class Input {
   getKeys() {
     const k = this.keys;
     const p = this._padKeys;
+    const t = this._touchKeys;
     const out = {
-      forward: k.forward || p.forward,
-      back: k.back || p.back,
-      left: k.left || p.left,
-      right: k.right || p.right,
-      jump: k.jump || p.jump,
-      sprint: k.sprint || p.sprint,
+      forward: k.forward || p.forward || t.forward,
+      back: k.back || p.back || t.back,
+      left: k.left || p.left || t.left,
+      right: k.right || p.right || t.right,
+      jump: k.jump || p.jump || t.jump,
+      sprint: k.sprint || p.sprint || t.sprint,
       crouch: k.crouch || p.crouch,
       prone: !!k.prone,
       leanLeft: !!k.leanLeft,
       leanRight: !!k.leanRight,
-      interact: k.interact || p.interact,
+      interact: k.interact || p.interact || t.interact,
       reload: this._reloadQueued,
     };
     this._reloadQueued = false;
@@ -1251,8 +1269,10 @@ export class Input {
     this._pouchCursorY = 0;
     // Like the wheel: no combat intent leaks through, and a pending wheel open is dropped.
     this._mouseFire = false;
+    this._touchFire = false;
     this._keyboardFire = false;
     this._padFire = false;
+    this._mouseAds = this._keyboardAds = this._touchAds = this._padAds = this._adsLatched = false;
     this._fireTapQueued = false;
     this._wheelOpenQueued = false;
     this._accDX = 0;
@@ -1324,6 +1344,9 @@ export class Input {
     k.jump = k.sprint = k.crouch = k.prone = k.leanLeft = k.leanRight = k.interact = false;
     this._mouseFire = false;
     this._mouseAds = false;
+    this._touchFire = false;
+    this._touchAds = false;
+    for (const name of Object.keys(this._touchKeys)) this._touchKeys[name] = false;
     this._adsLatched = false;
     this._fireTapQueued = false;
     this._reloadQueued = false;
@@ -1382,6 +1405,7 @@ export class Input {
       window.removeEventListener('keydown', this._hKeyDown);
       window.removeEventListener('keyup', this._hKeyUp);
       window.removeEventListener('blur', this._hBlur);
+      window.removeEventListener('focus', this._hFocus);
       document.removeEventListener('visibilitychange', this._hVis);
       document.removeEventListener('mousemove', this._hMouseMove);
       document.removeEventListener('mouseup', this._hMouseUp);
@@ -1400,8 +1424,12 @@ export class Input {
   }
 
   // ----- internal handlers (also exercised by headless tests) -----
+  _canReadDevices() {
+    return this._focused && (typeof document === 'undefined' || !document.hidden);
+  }
+
   _canReadGameplay() {
-    return this._gameplayEnabled && (this._locked || this.fallback || this._touchMode);
+    return this._canReadDevices() && this._gameplayEnabled && (this._locked || this.fallback || this._touchMode);
   }
 
   _mountTouchControls() {
@@ -1409,7 +1437,7 @@ export class Input {
     this._touchControls = new TouchControls({
       onMove: (vector) => this._onTouchMove(vector),
       onLook: (dx, dy) => this._onTouchLook(dx, dy),
-      onHold: (action, held) => this._onTouchHold(action, held),
+      onHold: (action, held, at) => this._onTouchHold(action, held, at),
       onPulse: (action) => this._onTouchPulse(action),
       onPause: () => {
         if (this._gameplayEnabled || this._spectatorEnabled) this._pauseHandler?.();
@@ -1424,16 +1452,17 @@ export class Input {
   }
 
   _onTouchMove({ x = 0, y = 0, magnitude = 0 } = {}) {
-    if (!this._gameplayEnabled) return;
-    this.keys.left = x < -TOUCH_MOVE_THRESHOLD;
-    this.keys.right = x > TOUCH_MOVE_THRESHOLD;
-    this.keys.forward = y < -TOUCH_MOVE_THRESHOLD;
-    this.keys.back = y > TOUCH_MOVE_THRESHOLD;
-    this.keys.sprint = touchSprintActive({ y, magnitude });
+    if (!this._canReadDevices() || !this._gameplayEnabled) return;
+    const keys = this._touchKeys;
+    keys.left = x < -TOUCH_MOVE_THRESHOLD;
+    keys.right = x > TOUCH_MOVE_THRESHOLD;
+    keys.forward = y < -TOUCH_MOVE_THRESHOLD;
+    keys.back = y > TOUCH_MOVE_THRESHOLD;
+    keys.sprint = touchSprintActive({ y, magnitude });
   }
 
   _onTouchLook(dx, dy) {
-    if ((!this._gameplayEnabled && !this._spectatorEnabled) || this._wheelOpen || this._pouchOpen) return;
+    if (!this._canReadDevices() || (!this._gameplayEnabled && !this._spectatorEnabled) || this._wheelOpen || this._pouchOpen) return;
     const scale = this.sens * TOUCH_LOOK_SENSITIVITY_SCALE *
       this._options.touchSensitivity * (this._gameplayEnabled ? this._assistScale() : 1);
     this._accDX += (Number(dx) || 0) * scale;
@@ -1446,7 +1475,7 @@ export class Input {
    */
   _onTouchHold(action, held, at = eventTime(null)) {
     const down = !!held;
-    if ((!this._gameplayEnabled || this._wheelOpen) && down) return false;
+    if ((!this._canReadDevices() || !this._gameplayEnabled || this._wheelOpen || (this._pouchOpen && action !== 'grenade')) && down) return false;
     switch (action) {
       case 'grenade':
         // Press readies (a pouch pick first) and begins; lifting throws. PIN BACK pulses cancel.
@@ -1460,18 +1489,18 @@ export class Input {
         break;
       case 'fire':
         if (this._buildMode) { if (down) this._placeQueued = true; break; }
-        if (down && !this._mouseFire) this._fireTapQueued = true;
-        this._mouseFire = down;
+        if (down && !this._touchFire) this._fireTapQueued = true;
+        this._touchFire = down;
         break;
-      case 'ads': this._mouseAds = down; break;
-      case 'jump': this.keys.jump = down; break;
-      case 'interact': this.keys.interact = down; break;
+      case 'ads': this._touchAds = down; break;
+      case 'jump': this._touchKeys.jump = down; break;
+      case 'interact': this._touchKeys.interact = down; break;
       default: break;
     }
   }
 
   _onTouchPulse(action) {
-    if (!this._gameplayEnabled || this._wheelOpen) return;
+    if (!this._canReadDevices() || !this._gameplayEnabled || this._wheelOpen) return;
     if (action === 'reload') {
       if (this._grenadeHeld) this.cancelGrenade('pinBack');
       else if (this._buildMode) this._buildRotateQueued = true;
@@ -1522,7 +1551,7 @@ export class Input {
   }
 
   _onKeyDown(e) {
-    if (this._disposed || e.defaultPrevented || isTypingTarget(e.target) || e.target?.closest?.('#settings-overlay')) return;
+    if (this._disposed || !this._canReadDevices() || e.defaultPrevented || isTypingTarget(e.target) || e.target?.closest?.('#settings-overlay')) return;
     const action = this._keyboardAction(e.code);
     if (this._canReadGameplay() && action) e.preventDefault();
     if (action === 'buy') {
@@ -1684,7 +1713,7 @@ export class Input {
   }
 
   _onMouseMove(e) {
-    if (this._disposed || (!this._gameplayEnabled && !this._spectatorEnabled)
+    if (this._disposed || !this._canReadDevices() || (!this._gameplayEnabled && !this._spectatorEnabled)
         || (!this._locked && !this.fallback)) return;
     if (this._pouchOpen) {
       // Raw pixels steer the pouch hover; the camera does not turn.
@@ -1707,7 +1736,7 @@ export class Input {
   }
 
   _onMouseDown(e) {
-    if (this._disposed || (!this._gameplayEnabled && !this._spectatorEnabled)) return;
+    if (this._disposed || !this._canReadDevices() || (!this._gameplayEnabled && !this._spectatorEnabled)) return;
     if (!this._locked && !this.fallback) {
       if (e.isTrusted) this.requestLock();
       return;
@@ -1758,7 +1787,7 @@ export class Input {
   }
 
   _onWheel(e) {
-    if (!this._gameplayEnabled || (!this._locked && !this.fallback)) return;
+    if (!this._canReadDevices() || !this._gameplayEnabled || (!this._locked && !this.fallback)) return;
     if (e.deltaY === 0) return;
     e.preventDefault();
     // A stream of small pixel deltas is a trackpad; notched wheels never look like this.

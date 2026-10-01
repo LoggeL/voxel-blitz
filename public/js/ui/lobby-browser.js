@@ -1,6 +1,8 @@
 import { cleanCode, el, MAP_LABELS, MAP_PREVIEWS, MODE_LABELS } from './hud-support.js';
 import { mountMusicControl } from './music-control.js';
 
+const PREPARING_MESSAGE = 'PREPARING THE ARENA. PLEASE WAIT.';
+
 /** Code entry and a read-only room directory. Admission remains server-owned. */
 export class LobbyBrowser {
   constructor(parent, onJoin, onCreate, navigation = null) {
@@ -11,6 +13,7 @@ export class LobbyBrowser {
     this.request = null;
     this.retry = null;
     this.returnFocus = null;
+    this.playReady = false;
     this.dialog = el('dialog', 'vb-lobby-browser', parent, 'lobby-browser');
     this.dialog.setAttribute('aria-labelledby', 'lobby-browser-title');
     const topbar = el('div', 'vb-browser-topbar', this.dialog);
@@ -48,11 +51,12 @@ export class LobbyBrowser {
     this.codeInput.setAttribute('aria-describedby', 'lobby-browser-join-status');
     this.codeInput.addEventListener('input', () => {
       this.codeInput.value = cleanCode(this.codeInput.value);
-      this.showJoinState('');
+      this.showJoinState(this.playReady ? '' : PREPARING_MESSAGE);
     });
-    const codeJoin = el('button', 'vb-btn vb-browser-code-join', codeRow, 'join-lobby-btn');
+    const codeJoin = this.codeJoin = el('button', 'vb-btn vb-browser-code-join', codeRow, 'join-lobby-btn');
     codeJoin.type = 'submit';
     codeJoin.textContent = 'JOIN';
+    codeJoin.disabled = !this.playReady;
     this.passwordOption = el('details', 'vb-password-option', codeForm);
     el('summary', '', this.passwordOption).textContent = 'This lobby has a password';
     const passwordLabel = el('label', '', this.passwordOption);
@@ -79,10 +83,11 @@ export class LobbyBrowser {
     const hostCard = el('div', 'vb-browser-host-card', sidebar);
     el('h3', '', hostCard).textContent = 'YOUR ARENA. YOUR RULES.';
     el('p', '', hostCard).textContent = 'Choose a map and mode, then bring your friends.';
-    const create = el('button', 'vb-btn', hostCard, 'browser-create-lobby-btn');
+    const create = this.create = el('button', 'vb-btn', hostCard, 'browser-create-lobby-btn');
     create.type = 'button';
     create.textContent = 'CREATE LOBBY';
-    create.addEventListener('click', () => { this.close(); onCreate?.(); });
+    create.disabled = !this.playReady;
+    create.addEventListener('click', () => { if (!this.playReady) return; this.close(); onCreate?.(); });
     const directoryHeader = el('div', 'vb-browser-directory-header', directory);
     el('h3', '', directoryHeader).textContent = 'AVAILABLE LOBBIES';
     this.refresh = el('button', 'vb-btn', directoryHeader, 'lobby-browser-refresh');
@@ -124,7 +129,7 @@ export class LobbyBrowser {
   show({ code, passwordRequired = false } = {}, returnFocus = document.activeElement) {
     this.retry = null;
     this.returnFocus = returnFocus;
-    this.showJoinState('');
+    this.showJoinState(this.playReady ? '' : PREPARING_MESSAGE);
     if (code) this.codeInput.value = cleanCode(code);
     this.codePassword.value = '';
     this.passwordOption.open = passwordRequired;
@@ -143,6 +148,10 @@ export class LobbyBrowser {
   }
 
   join(code, password, passwordRequired) {
+    if (!this.playReady) {
+      this.showJoinState(PREPARING_MESSAGE);
+      return;
+    }
     // Admission rebuilds the menu on failure. Keep the room for a retry, never its secret.
     this.retry = { code, passwordRequired };
     this.close();
@@ -152,6 +161,17 @@ export class LobbyBrowser {
   close() {
     this.navigation?.close(this);
     if (this.dialog.open) this.dialog.close();
+  }
+
+  setPlayReady(ready) {
+    this.playReady = ready === true;
+    this.codeJoin.disabled = !this.playReady;
+    this.create.disabled = !this.playReady;
+    if (this.playReady && this.joinStatus.textContent === PREPARING_MESSAGE) this.showJoinState('');
+    for (const button of this.rows.querySelectorAll('[data-lobby-full]')) {
+      button.disabled = !this.playReady || button.dataset.lobbyFull === 'true';
+    }
+    for (const button of this.rows.querySelectorAll('[data-lobby-create]')) button.disabled = !this.playReady;
   }
 
   async load() {
@@ -204,9 +224,11 @@ export class LobbyBrowser {
       const action = el('button', 'vb-btn', empty);
       action.type = 'button';
       action.textContent = this.lobbies.length ? 'CLEAR FILTERS' : 'CREATE LOBBY';
+      if (!this.lobbies.length) { action.dataset.lobbyCreate = 'true'; action.disabled = !this.playReady; }
       action.addEventListener('click', () => {
         if (!this.lobbies.length) { this.dialog.querySelector('#browser-create-lobby-btn').click(); return; }
         this.search.value = ''; this.mode.value = ''; this.available.checked = false; this.renderResults();
+        this.search.focus();
       });
     }
     for (const room of rooms) this.renderLobby(room);
@@ -239,8 +261,10 @@ export class LobbyBrowser {
     }
     const join = el('button', 'vb-btn', row);
     join.type = 'submit';
-    join.disabled = lobby.players >= lobby.capacity;
-    join.textContent = join.disabled ? 'FULL' : 'JOIN';
+    const full = lobby.players >= lobby.capacity;
+    join.dataset.lobbyFull = String(full);
+    join.disabled = full || !this.playReady;
+    join.textContent = full ? 'FULL' : 'JOIN';
     join.setAttribute('aria-label', `Join ${lobby.host}'s lobby`);
     row.addEventListener('submit', (event) => {
       event.preventDefault();

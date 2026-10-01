@@ -631,6 +631,12 @@ export async function runHudContracts(ok, installGlobals) {
         && !document.getElementById('sniper-scope').classList.contains('exiting'),
       'sniper scope is fully active without a second animation clock');
 
+      // Deliberately leave transition residue so scope exit verifies cleanup,
+      // including styles the ordinary steady scope state does not set.
+      const exitingScope = document.getElementById('sniper-scope');
+      exitingScope.classList.add('exiting');
+      exitingScope.style.opacity = '0.5';
+      exitingScope.style.transform = 'scale(1.02)';
       hud.setState({ adsT01: 0.7199 });
       ok(!document.getElementById('sniper-scope').classList.contains('active')
         && !document.getElementById('sniper-scope').classList.contains('exiting'),

@@ -37,7 +37,8 @@ try {
   const page = browser.page;
   await page.send('Network.setCookie', { name: 'vb-career', value: guest, url, httpOnly: true, sameSite: 'Strict' });
   await page.send('Page.reload');
-  await page.waitFor(`document.getElementById('account-open') && document.getElementById('play-btn') && document.querySelector('.vb-career-stats')?.textContent.includes('LEVEL 2')`);
+  await page.waitFor(`window.__vbBoot?.readyMs > 0 && document.getElementById('account-open') && document.getElementById('play-btn')?.disabled === false && document.querySelector('.vb-career-stats')?.textContent.includes('LEVEL 2')`,
+    { timeoutMs: 120_000, label: 'account menu with guest play ready' });
   await assertGuest(page);
   await page.evaluate(`document.getElementById('name-input').value = 'GuestPilot'; document.getElementById('name-input').dispatchEvent(new Event('input', { bubbles: true }));`);
   await open(page);
@@ -45,6 +46,9 @@ try {
   assert.equal(await page.evaluate(`document.getElementById('account-dialog').open`), false, 'guest choice closes the optional dialog');
   await page.waitFor(`document.activeElement.id === 'account-open'`, { label: 'account opener focus restored' });
   assert.equal(await page.evaluate(`document.activeElement.id`), 'account-open', 'closing restores focus to the account button');
+  await open(page);
+  await page.evaluate(`document.getElementById('account-forgot').click(); [...document.querySelectorAll('#account-dialog button')].find(button => button.textContent === 'USE A RECOVERY CODE').click(); document.getElementById('account-guest').click()`);
+  await page.waitFor(`document.activeElement.id === 'account-open'`, { label: 'nested account actions preserve the original opener' });
   await open(page);
   await page.evaluate(`document.getElementById('account-tab-register').click()`);
   await page.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: false });
@@ -77,7 +81,8 @@ try {
   // A completely separate browser profile represents another device.
   other = await launchCdpSession(url);
   const remote = other.page;
-  await remote.waitFor(`document.getElementById('account-open') && document.getElementById('play-btn')`);
+  await remote.waitFor(`window.__vbBoot?.readyMs > 0 && document.getElementById('account-open') && document.getElementById('play-btn')?.disabled === false`,
+    { timeoutMs: 120_000, label: 'second device guest play ready' });
   await assertGuest(remote);
   await remote.evaluate(`document.getElementById('account-nav-open').click()`); await fill(remote, { username, password }); await submit(remote);
   await remote.waitFor(`document.getElementById('name-input').readOnly && getComputedStyle(document.documentElement).getPropertyValue('--career-accent').trim() === '#72e6ff'`);

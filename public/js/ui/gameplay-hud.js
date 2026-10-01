@@ -511,8 +511,10 @@ export class GameplayHud {
     if (wantScope) {
       // Scope marks follow the same shot ray as the ordinary crosshair while
       // the camera remains free to turn ahead of the weapon.
-      this.dom.scope.style.setProperty('--scope-aim-x', `${aimX - 50}vw`);
-      this.dom.scope.style.setProperty('--scope-aim-y', `${aimY - 50}vh`);
+      const style = this.dom.scope.style;
+      const scopeX = `${aimX - 50}vw`, scopeY = `${aimY - 50}vh`;
+      if (style.getPropertyValue('--scope-aim-x') !== scopeX) style.setProperty('--scope-aim-x', scopeX);
+      if (style.getPropertyValue('--scope-aim-y') !== scopeY) style.setProperty('--scope-aim-y', scopeY);
     }
     this.setScopeZoom(s.scopeZoom);
     const opticLabel = this.dom.scope?.querySelector?.(".scope-model-label");
@@ -819,10 +821,12 @@ export class GameplayHud {
     if (!this.built) return;
     const scope = on ? this.ensureScope() : this.dom.scope;
     if (!scope) return;
-    scope.classList.toggle('active', !!on);
-    scope.classList.remove('exiting');
-    scope.style.opacity = on ? '1' : '';
-    scope.style.transform = '';
+    const active = !!on;
+    if (scope.classList.contains('active') !== active) scope.classList.toggle('active', active);
+    if (scope.classList.contains('exiting')) scope.classList.remove('exiting');
+    const opacity = active ? '1' : '';
+    if (scope.style.opacity !== opacity) scope.style.opacity = opacity;
+    if (scope.style.transform !== '') scope.style.transform = '';
   }
 
   /**

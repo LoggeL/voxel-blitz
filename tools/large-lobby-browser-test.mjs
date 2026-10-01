@@ -25,7 +25,8 @@ try {
       }
     };` });
   await page.send('Page.navigate', { url: `http://127.0.0.1:${port}/?headless=1` });
-  await page.waitFor(`!!document.getElementById('create-lobby-btn')`);
+  await page.waitFor(`window.__vbBoot?.readyMs > 0 && document.getElementById('create-lobby-btn')?.disabled === false`,
+    { timeoutMs: 120_000, label: 'interactive menu with match assets ready' });
   await page.evaluate(`document.getElementById('create-lobby-btn').click()`);
   await page.waitFor(`document.querySelectorAll('#lobby .vb-team-select').length === 8`);
   const set = async (selector, value) => {
@@ -36,6 +37,11 @@ try {
     })()`);
   };
   await set('[aria-label="Team for TACTICAL BOT 1"]', 'alpha');
+  await page.evaluate(`document.getElementById('lobby-view-list').click()`);
+  await page.evaluate(`document.querySelector('[aria-label="Team for TACTICAL BOT 2"]').focus()`);
+  await set('[aria-label="Team for TACTICAL BOT 2"]', 'bravo');
+  await page.waitFor(`window.__rosterFrames.filter(frame => frame.t === 'lobbyState').at(-1).members.find(row => row.id === 'bot-1').team === 'bravo'`);
+  assert.equal(await page.evaluate(`document.activeElement.getAttribute('aria-label')`), 'Team for TACTICAL BOT 2', 'an authoritative team change keeps focus on the rebuilt selector');
   for (let i = 2; i <= 7; i++) {
     await set(`[aria-label="Team for TACTICAL BOT ${i}"]`, 'bravo');
   }
@@ -63,8 +69,10 @@ try {
   }
   await page.evaluate(`(() => { const search = document.querySelector('.vb-roster-search'); search.value = 'TACTICAL BOT 31'; search.dispatchEvent(new Event('input')); })()`);
   assert.equal(await page.evaluate(`document.querySelectorAll('#lobby-roster .vb-roster-item').length`), 1);
+  await page.evaluate(`document.querySelector('[aria-label="Difficulty for TACTICAL BOT 31"]').focus()`);
   await set('[aria-label="Difficulty for TACTICAL BOT 31"]', 'hard');
   await page.waitFor(`window.__rosterFrames.filter(frame => frame.t === 'lobbyState').at(-1).members.find(row => row.id === 'bot-30').difficulty === 'hard'`);
+  assert.equal(await page.evaluate(`document.activeElement.getAttribute('aria-label')`), 'Difficulty for TACTICAL BOT 31', 'an authoritative bot difficulty change keeps focus on the rebuilt selector');
   await page.evaluate(`(() => { const search = document.querySelector('.vb-roster-search'); search.value = ''; search.dispatchEvent(new Event('input')); })()`);
   await page.evaluate(`document.getElementById('lobby-view-overview').click()`);
   await page.evaluate(`document.querySelector('[aria-label="Details for TACTICAL BOT 31"]').click()`);
@@ -97,10 +105,10 @@ try {
   await page.waitFor(`document.querySelector('.vb-lobby-backdrop').dataset.image === '/assets/maps/canyon.webp'`);
   assert.equal(await page.evaluate(`document.querySelectorAll('.vb-crossfade-incoming').length`), 0, 'reduced motion swaps decoded images without animation');
   await page.send('Emulation.setEmulatedMedia', { features: [] });
-  await mkdir('docs/design/lobby-roster', { recursive: true });
+  await mkdir('.artifacts/lobby-roster', { recursive: true });
   const capture = async name => {
     const shot = await page.send('Page.captureScreenshot', { format: 'png' });
-    await writeFile(`docs/design/lobby-roster/${name}.png`, Buffer.from(shot.data, 'base64'));
+    await writeFile(`.artifacts/lobby-roster/${name}.png`, Buffer.from(shot.data, 'base64'));
   };
   for (const view of ['overview', 'teams', 'list']) {
     await page.evaluate(`document.getElementById('lobby-view-${view}').click(); document.getElementById('lobby').scrollTop = 0; document.getElementById('lobby-roster').scrollTop = 0`);

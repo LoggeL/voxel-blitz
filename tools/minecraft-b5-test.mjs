@@ -334,6 +334,34 @@ assert.equal(selector.pick(lavaPool).x, origin.x, 'a dry candidate beats a lava 
 assert.equal(selector.pick([lavaPool[0]]).x, lavaPool[0].x, 'an entirely wet pool still spawns rather than failing');
 console.log('Minecraft B5: every authored, expanded and selected spawn is clear of lava and water.');
 
+// Expanding the island's eastern spawns used to add (88.5, 55, 24.5) inside
+// Portal_Nether. Seed 33 selected it and teleported a new host on its first tick.
+for (const pool of [meta.spawns.fun, meta.spawns.tdm.alpha, meta.spawns.tdm.bravo]) {
+  for (const point of selector.expand(pool)) {
+    assert.equal(portalAt(meta, point.x, point.y + 0.5, point.z), null,
+      `expanded spawn ${point.x},${point.y},${point.z} starts outside every portal trigger`);
+  }
+}
+const previousRandom = Math.random;
+try {
+  let seed = 33;
+  Math.random = () => (seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0) / 4294967296;
+  const arena = new GameEngine({ world: createMapState('minecraft_b5'), mapMeta: meta, mode: 'fun' });
+  arena.addClient('portal-spawn', 'Portal spawn');
+  const body = arena.entities.get('portal-spawn');
+  assert.equal(portalAt(meta, body.x, body.y + 0.5, body.z), null, 'seed 33 selects a non-portal spawn');
+  arena.addBot('portal-bot-1', 'Bot one');
+  arena.addBot('portal-bot-2', 'Bot two');
+  arena.step(arena.intervalMs);
+  assert.equal(body.teleportSeq || 0, 0, 'seed 33 causes no initial portal travel');
+  Object.assign(body, { x: (island.minX + island.maxX) / 2, y: island.minY + 0.5,
+    z: (island.minZ + island.maxZ) / 2, vx: 0, vy: 0, vz: 0 });
+  arena.step(arena.intervalMs);
+  assert.equal(body.teleportSeq, 1, 'entering a portal still publishes its first teleport');
+  assert.deepEqual([body.x, body.y, body.z], [island.x, island.y, island.z], 'portal travel keeps its authored destination');
+} finally { Math.random = previousRandom; }
+console.log('Minecraft B5: expanded spawns avoid portal triggers and deliberate entry still teleports.');
+
 // Climbing out of water: a swimmer holding jump and pushing toward a bank
 // pulls up onto it, whether the bank is flush with the surface, one block
 // higher or capped by an overhang two blocks up. Server and prediction agree.

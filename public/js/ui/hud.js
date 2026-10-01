@@ -142,7 +142,11 @@ export class HUD {
     if (match?.mode === 'ttt' && !this._tttKillfeedHidden) this.combat.clearKillfeed();
     this._tttKillfeedHidden = match?.mode === 'ttt';
     const feed = this.combat.dom.kf;
-    if (feed) { feed.hidden = false; feed.dataset.ttt = String(this._tttKillfeedHidden); }
+    if (feed) {
+      if (feed.hidden) feed.hidden = false;
+      const ttt = String(this._tttKillfeedHidden);
+      if (feed.dataset.ttt !== ttt) feed.dataset.ttt = ttt;
+    }
     return this.gameplay.match.setMatchState(match, selfRow, players, serverNow);
   }
   setState(state) { return this.gameplay.setState(state); }

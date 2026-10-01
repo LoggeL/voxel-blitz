@@ -3,6 +3,7 @@ import * as THREE from '../vendor/three.module.js';
 import { freeOldestIndex, hideInstance } from './instancing.js';
 import { raycastVoxels } from '../../../shared/raycast.js';
 import { goreProfile } from './gore-profile.js';
+import { isSolidBlock } from '../../../shared/world/blocks.js';
 
 const TAU = Math.PI * 2;
 const GORE_MIST_POOL_SIZE = 256;
@@ -18,6 +19,10 @@ export class GoreFX {
     this.scene = scene;
     this.camera = camera;
     this.getBlockFn = worldGetBlockFn || (() => 0);
+    this._solidAt = (x, y, z) => {
+      const type = this.getBlockFn(x, y, z);
+      return !!type && isSolidBlock(type);
+    };
     this._disposed = false;
 
     this._m4 = new THREE.Matrix4();
@@ -108,10 +113,19 @@ export class GoreFX {
     this.goreVeil = new Array(GORE_VEIL_POOL_SIZE);
 
     for (const mesh of this.goreMeshes) {
+      mesh.count = 0;
+      mesh.visible = false;
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mesh.frustumCulled = false;
       scene.add(mesh);
     }
+    for (const [pool, mesh] of [
+      [this.goreChunks, this.goreChunkMesh], [this.goreMist, this.goreMistMesh],
+      [this.goreDroplets, this.goreDropletMesh], [this.goreStains, this.goreStainMesh],
+      [this.goreVeil, this.goreVeilMesh],
+    ]) Object.defineProperties(pool, {
+      mesh: { value: mesh }, free: { value: 0, writable: true },
+    });
     this.goreStainMesh.renderOrder = 2;
     this.goreVeilMesh.renderOrder = 7;
 
@@ -160,6 +174,7 @@ export class GoreFX {
 
   /** ev: {vx,vy,vz, hs?, nx?,ny?,nz?, normal?:[x,y,z]} */
   gore(ev, { lethal = false, local = false } = {}) {
+    if (this._disposed) return;
     const x = ev && Number(ev.vx);
     const y = ev && Number(ev.vy);
     const z = ev && Number(ev.vz);
@@ -259,17 +274,35 @@ export class GoreFX {
       }
     }
 
-    for (const mesh of this.goreMeshes) mesh.instanceMatrix.needsUpdate = true;
+    if (mistCount) this.goreMistMesh.instanceMatrix.needsUpdate = true;
+    if (dropletCount) this.goreDropletMesh.instanceMatrix.needsUpdate = true;
   }
 
   _claimSlot(pool) {
-    for (let i = 0; i < pool.length; i++) {
-      if (!pool[i].active) return i;
-    }
-    return freeOldestIndex(pool);
+    let index = pool.free;
+    while (index < pool.length && pool[index].active) index++;
+    if (index < pool.length) pool.free = index + 1;
+    else index = freeOldestIndex(pool);
+    pool.mesh.count = Math.max(pool.mesh.count, index + 1);
+    pool.mesh.visible = true;
+    return index;
+  }
+
+  _releaseSlot(pool, index) {
+    pool[index].active = false;
+    pool.free = Math.min(pool.free, index);
+    hideInstance(pool.mesh, index);
+  }
+
+  _finishPool(pool, drawCount, dirty) {
+    pool.mesh.count = drawCount;
+    pool.mesh.visible = drawCount > 0;
+    pool.free = Math.min(pool.free, drawCount);
+    if (dirty) pool.mesh.instanceMatrix.needsUpdate = true;
   }
 
   spawnBloodStain(x, y, z, nx, ny, nz, size) {
+    if (this._disposed) return;
     if (!Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(z)) return;
     this._normal.set(nx, ny, nz);
     if (this._normal.lengthSq() < 0.0001) return;
@@ -283,6 +316,7 @@ export class GoreFX {
     stain.y = y;
     stain.z = z;
     stain.size = size * (0.75 + Math.random() * 0.5);
+    stain.fade = 1;
     this._q.setFromUnitVectors(this._forward.set(0, 0, 1), this._normal);
     stain.qx = this._q.x;
     stain.qy = this._q.y;
@@ -298,6 +332,7 @@ export class GoreFX {
   }
 
   spawnChunks(x, y, z, profile) {
+    if (this._disposed) return;
     for (let i = 0; i < profile.chunkCount; i++) {
       const index = this._claimSlot(this.goreChunks);
       const p = this.goreChunks[index];
@@ -314,34 +349,40 @@ export class GoreFX {
       });
       this._drawChunk(p, index);
     }
+    if (profile.chunkCount) this.goreChunkMesh.instanceMatrix.needsUpdate = true;
   }
 
   _drawChunk(p, index) {
     const fade = Math.min(1, (p.life - p.t) * 2);
     const squash = 1 + (p.squash || 0);
+    if (p.drawnSettled && p.settled && squash === 1 && p.fade === fade) return false;
     this._q.setFromEuler(this._e.set(p.rx, p.ry, p.rz));
     this._m4.compose(this._v.set(p.x, p.y, p.z), this._q,
       this._s.set(p.sx * fade * squash, p.sy * fade / squash, p.sz * fade * squash));
     this.goreChunkMesh.setMatrixAt(index, this._m4);
+    p.drawnSettled = p.settled && squash === 1;
+    p.fade = fade;
+    return true;
   }
 
   _updateChunks(dt) {
     let chunksDirty = false;
-    for (let i = 0; i < this.goreChunks.length; i++) {
+    let drawCount = 0;
+    for (let i = 0; i < this.goreChunkMesh.count; i++) {
       const p = this.goreChunks[i];
       if (!p.active) continue;
-      chunksDirty = true;
       p.t += dt;
       if (p.t >= p.life) {
-        p.active = false;
-        hideInstance(this.goreChunkMesh, i);
+        this._releaseSlot(this.goreChunks, i);
+        chunksDirty = true;
         continue;
       }
+      drawCount = i + 1;
       p.squash = Math.max(0, (p.squash || 0) - dt * 5);
       if (!p.settled) {
         p.vy -= 15 * dt;
         const distance = Math.hypot(p.vx, p.vy, p.vz) * dt;
-        const hit = raycastVoxels(this.getBlockFn, p.x, p.y, p.z, p.vx, p.vy, p.vz, distance);
+        const hit = raycastVoxels(this._solidAt, p.x, p.y, p.z, p.vx, p.vy, p.vz, distance);
         if (hit) {
           const f = distance > 0 ? hit.t / distance : 0;
           const cx = p.x + p.vx * dt * f, cy = p.y + p.vy * dt * f, cz = p.z + p.vz * dt * f;
@@ -370,26 +411,28 @@ export class GoreFX {
             x: p.x, y: p.y, z: p.z, vx: p.vx * 0.1, vy: -0.4, vz: p.vz * 0.1, size: 0.038 });
         }
       }
-      this._drawChunk(p, i);
+      if (this._drawChunk(p, i)) chunksDirty = true;
     }
-    if (chunksDirty) this.goreChunkMesh.instanceMatrix.needsUpdate = true;
+    this._finishPool(this.goreChunks, drawCount, chunksDirty);
   }
 
   update(dt) {
+    if (this._disposed) return;
     this._updateChunks(dt);
     let mistDirty = false;
-    for (let i = 0; i < this.goreMist.length; i++) {
+    let mistDrawCount = 0;
+    const drag = Math.max(0, 1 - dt * 3.4);
+    for (let i = 0; i < this.goreMistMesh.count; i++) {
       const p = this.goreMist[i];
       if (!p.active) continue;
       mistDirty = true;
       p.t += dt;
       if (p.t >= p.life) {
-        p.active = false;
-        hideInstance(this.goreMistMesh, i);
+        this._releaseSlot(this.goreMist, i);
         continue;
       }
+      mistDrawCount = i + 1;
       const u = p.t / p.life;
-      const drag = Math.max(0, 1 - dt * 3.4);
       p.vx *= drag;
       p.vy = p.vy * drag - 2.2 * dt;
       p.vz *= drag;
@@ -404,26 +447,25 @@ export class GoreFX {
       );
       this.goreMistMesh.setMatrixAt(i, this._m4);
     }
-    if (mistDirty) this.goreMistMesh.instanceMatrix.needsUpdate = true;
+    this._finishPool(this.goreMist, mistDrawCount, mistDirty);
 
     let dropletsDirty = false;
-    for (let i = 0; i < this.goreDroplets.length; i++) {
+    let dropletDrawCount = 0;
+    for (let i = 0; i < this.goreDropletMesh.count; i++) {
       const p = this.goreDroplets[i];
       if (!p.active) continue;
       dropletsDirty = true;
       p.t += dt;
       if (p.t >= p.life) {
-        p.active = false;
-        hideInstance(this.goreDropletMesh, i);
+        this._releaseSlot(this.goreDroplets, i);
         continue;
       }
       p.vy -= 13.5 * dt;
       const distance = Math.hypot(p.vx, p.vy, p.vz) * dt;
-      const hit = raycastVoxels(this.getBlockFn, p.x, p.y, p.z, p.vx, p.vy, p.vz, distance);
+      const hit = raycastVoxels(this._solidAt, p.x, p.y, p.z, p.vx, p.vy, p.vz, distance);
       if (hit) {
         const f = distance > 0 ? hit.t / distance : 0;
-        p.active = false;
-        hideInstance(this.goreDropletMesh, i);
+        this._releaseSlot(this.goreDroplets, i);
         this.spawnBloodStain(
           p.x + p.vx * dt * f + hit.nx * 0.012,
           p.y + p.vy * dt * f + hit.ny * 0.012,
@@ -432,6 +474,7 @@ export class GoreFX {
         );
         continue;
       }
+      dropletDrawCount = i + 1;
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       p.z += p.vz * dt;
@@ -448,20 +491,24 @@ export class GoreFX {
       this._m4.compose(this._v.set(p.x, p.y, p.z), this._q, this._s);
       this.goreDropletMesh.setMatrixAt(i, this._m4);
     }
-    if (dropletsDirty) this.goreDropletMesh.instanceMatrix.needsUpdate = true;
+    this._finishPool(this.goreDroplets, dropletDrawCount, dropletsDirty);
 
     let stainsDirty = false;
-    for (let i = 0; i < this.goreStains.length; i++) {
+    let stainDrawCount = 0;
+    for (let i = 0; i < this.goreStainMesh.count; i++) {
       const stain = this.goreStains[i];
       if (!stain.active) continue;
-      stainsDirty = true;
       stain.t += dt;
       if (stain.t >= stain.life) {
-        stain.active = false;
-        hideInstance(this.goreStainMesh, i);
+        this._releaseSlot(this.goreStains, i);
+        stainsDirty = true;
         continue;
       }
+      stainDrawCount = i + 1;
       const fade = Math.min(1, (1 - stain.t / stain.life) * 4);
+      if (fade === stain.fade) continue;
+      stain.fade = fade;
+      stainsDirty = true;
       this._q.set(stain.qx, stain.qy, stain.qz, stain.qw);
       this._m4.compose(
         this._v.set(stain.x, stain.y, stain.z),
@@ -470,23 +517,24 @@ export class GoreFX {
       );
       this.goreStainMesh.setMatrixAt(i, this._m4);
     }
-    if (stainsDirty) this.goreStainMesh.instanceMatrix.needsUpdate = true;
+    this._finishPool(this.goreStains, stainDrawCount, stainsDirty);
 
     let veilDirty = false;
-    if (this.camera && this.camera.position && this.camera.quaternion) {
+    let veilDrawCount = 0;
+    if (this.goreVeilMesh.count && this.camera?.position && this.camera.quaternion) {
       this.camera.getWorldDirection(this._forward);
       this._right.set(1, 0, 0).applyQuaternion(this.camera.quaternion);
       this._normal.set(0, 1, 0).applyQuaternion(this.camera.quaternion);
-      for (let i = 0; i < this.goreVeil.length; i++) {
+      for (let i = 0; i < this.goreVeilMesh.count; i++) {
         const veil = this.goreVeil[i];
         if (!veil.active) continue;
         veilDirty = true;
         veil.t += dt;
         if (veil.t >= veil.life) {
-          veil.active = false;
-          hideInstance(this.goreVeilMesh, i);
+          this._releaseSlot(this.goreVeil, i);
           continue;
         }
+        veilDrawCount = i + 1;
         const u = veil.t / veil.life;
         const fade = Math.min(1, (1 - u) * 3.5);
         const side = veil.side * (1 + u * 0.16);
@@ -501,14 +549,13 @@ export class GoreFX {
         this.goreVeilMesh.setMatrixAt(i, this._m4);
       }
     } else {
-      for (let i = 0; i < this.goreVeil.length; i++) {
+      for (let i = 0; i < this.goreVeilMesh.count; i++) {
         if (!this.goreVeil[i].active) continue;
         veilDirty = true;
-        this.goreVeil[i].active = false;
-        hideInstance(this.goreVeilMesh, i);
+        this._releaseSlot(this.goreVeil, i);
       }
     }
-    if (veilDirty) this.goreVeilMesh.instanceMatrix.needsUpdate = true;
+    this._finishPool(this.goreVeil, veilDrawCount, veilDirty);
   }
 
   dispose() {

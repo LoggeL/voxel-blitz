@@ -30,7 +30,7 @@ try {
     { urlPattern: '*/assets/blender/*', requestStage: 'Request' },
     { urlPattern: '*/assets/audio/weapons/*', requestStage: 'Request' },
   ] });
-  await page.send('Page.navigate', { url: `${origin}/?headless=1` });
+  await page.send('Page.navigate', { url: `${origin}/?headless=1&lobby=abcde` });
   await page.waitFor(`window.__vbBoot?.readyMs > 0 && !document.getElementById('loading-screen').open && !!document.getElementById('play-btn')`,
     { timeoutMs: 60_000, label: 'interactive menu' });
   const readyMs = await page.evaluate('window.__vbBoot.readyMs');
@@ -50,6 +50,33 @@ try {
   // armory, career and settings entries are already part of the first paint.
   assert.equal(await page.evaluate(`document.getElementById('play-btn').disabled`), true, 'quick play waits for the match asset set');
   assert.equal(await page.evaluate(`document.getElementById('create-lobby-btn').disabled`), true, 'lobby creation waits for the match asset set');
+  assert.equal(await page.evaluate(`document.getElementById('browse-lobbies-btn').disabled`), false, 'read-only lobby browsing is available while match assets load');
+  await page.waitFor(`document.getElementById('lobby-browser').open && document.getElementById('join-code-input').value === 'ABCDE'`);
+  assert.equal(await page.evaluate(`document.activeElement.id`), 'join-code-input', 'the loading-time invitation focuses its normalized code');
+  await page.evaluate(`document.getElementById('lobby-browser-close').click()`);
+  await page.waitFor(`document.activeElement.id === 'browse-lobbies-btn'`, { label: 'loading-time invitation returns focus to the browse button' });
+  await page.evaluate(`(() => {
+    window.__originalDirectoryFetch = window.fetch;
+    window.fetch = (url, options) => url === '/api/lobbies'
+      ? Promise.resolve({ ok: true, json: async () => ({ lobbies: [
+        { code: 'FGHIJ', host: 'Open room', gameMode: 'tdm', map: 'foundry', players: 1, capacity: 8, phase: 'waiting', passwordRequired: false },
+        { code: 'KLMNO', host: 'Full room', gameMode: 'duel', map: 'depot', players: 2, capacity: 2, phase: 'waiting', passwordRequired: false }
+      ] }) }) : window.__originalDirectoryFetch(url, options);
+    document.getElementById('browse-lobbies-btn').click();
+  })()`);
+  await page.waitFor(`document.querySelectorAll('.vb-browser-room').length === 2`);
+  assert.equal(await page.evaluate(`[...document.querySelectorAll('.vb-browser-room button')].every(button => button.disabled)`), true,
+    'directory row admission is gated while match assets load');
+  await page.evaluate(`document.querySelector('.vb-browser-room').requestSubmit()`);
+  assert.equal(await page.evaluate(`document.getElementById('lobby-browser').open && document.getElementById('menu').getAttribute('aria-hidden') === 'false'`), true,
+    'directory form submission cannot bypass the loading-time admission gate');
+  await page.evaluate(`window.fetch = window.__originalDirectoryFetch; delete window.__originalDirectoryFetch; document.getElementById('lobby-browser-refresh').click()`);
+  await page.waitFor(`!!document.querySelector('.vb-browser-empty')`);
+  assert.equal(await page.evaluate(`document.getElementById('join-lobby-btn').disabled && document.getElementById('browser-create-lobby-btn').disabled && document.querySelector('.vb-browser-empty button').disabled`), true,
+    'code, sidebar and empty-directory admission wait for match assets');
+  await page.evaluate(`document.getElementById('join-code-input').form.requestSubmit()`);
+  assert.equal(await page.evaluate(`document.getElementById('lobby-browser').open && document.getElementById('lobby-browser-join-status').textContent === 'PREPARING THE ARENA. PLEASE WAIT.' && document.getElementById('menu').getAttribute('aria-hidden') === 'false'`), true,
+    'keyboard submission cannot bypass the loading-time admission gate');
   const gate = await page.evaluate(`(() => { const bar = document.getElementById('menu-load-bar'); const progress = bar?.querySelector('progress'); return { hidden: bar?.hidden, value: progress?.value, max: progress?.max, label: bar?.textContent }; })()`);
   assert.equal(gate.hidden, false, 'the load bar is visible while play is gated');
   assert.ok(gate.value >= 0 && gate.value < gate.max, `load bar carries real progress (${gate.value} / ${gate.max})`);
@@ -77,6 +104,10 @@ try {
   await page.waitFor(`document.getElementById('play-btn').disabled === false && document.getElementById('menu-load-bar').hidden === true`,
     { timeoutMs: 120_000, label: 'play gate lifts once the match assets are ready' });
   await page.waitFor('window.__vbAssets.idle === true', { timeoutMs: 120_000, label: 'background assets idle' });
+  assert.equal(await page.evaluate(`!document.getElementById('join-lobby-btn').disabled && !document.getElementById('browser-create-lobby-btn').disabled && !document.querySelector('.vb-browser-empty button').disabled`), true,
+    'directory admission becomes available once the match set is ready');
+  assert.equal(await page.evaluate(`document.getElementById('lobby-browser-join-status').textContent`), '', 'loading-time guidance clears when admission becomes available');
+  await page.evaluate(`document.getElementById('lobby-browser-close').click()`);
   await page.evaluate(`document.getElementById('play-btn').click()`);
   await page.waitFor('window.__vb.stats.running === true', { timeoutMs: 120_000, label: 'live match' });
   assert.equal(await page.evaluate(`document.getElementById('asset-status').hidden`), true, 'the indicator leaves with the menu');

@@ -369,6 +369,50 @@ export async function runInputContracts(ok, installGlobals) {
       ok(touch.getKeys().interact, 'mobile objective interaction stays available as a hold');
       touch._onTouchHold('interact', false, 800);
       ok(!touch.getKeys().interact, 'releasing mobile interaction stops planting or defusing');
+      touch._onKeyDown(key('KeyW'));
+      touch._onTouchMove({ x: 0, y: 0, magnitude: 0 });
+      ok(touch.getKeys().forward, 'releasing the joystick preserves held keyboard movement');
+      touch._onTouchMove({ x: 0, y: -1, magnitude: 1 });
+      touch._onKeyUp(key('KeyW'));
+      ok(touch.getKeys().forward, 'releasing the keyboard preserves held joystick movement');
+      touch._onKeyDown(key('Space'));
+      touch._onTouchHold('jump', false);
+      ok(touch.getKeys().jump, 'releasing touch jump preserves a held keyboard jump');
+      touch._onTouchHold('jump', true);
+      touch._onKeyUp(key('Space'));
+      ok(touch.getKeys().jump, 'releasing keyboard jump preserves a held touch jump');
+      touch.fallback = true;
+      touch._onMouseDown({ button: 0 });
+      touch._onTouchHold('fire', true);
+      touch._onTouchHold('fire', false);
+      ok(touch.wantFireHeld, 'releasing touch fire preserves a held mouse button');
+      touch._onTouchHold('fire', true);
+      touch._onMouseUp({ button: 0 });
+      ok(touch.wantFireHeld, 'releasing the mouse preserves held touch fire');
+      touch._onMouseDown({ button: 2, preventDefault() {} });
+      touch._onTouchHold('ads', true);
+      touch._onTouchHold('ads', false);
+      ok(touch.wantAdsHeld, 'releasing touch ADS preserves a held mouse ADS button');
+      touch._onTouchHold('ads', true);
+      touch._onMouseUp({ button: 2 });
+      ok(touch.wantAdsHeld, 'releasing mouse ADS preserves held touch ADS');
+      touch.wantAdsHeld = false;
+      ok(!touch.wantAdsHeld, 'clearing pointer ADS also clears touch ADS');
+      touch._onTouchHold('ads', true);
+      touch.setWeaponWheelOpen(true);
+      touch.setWeaponWheelOpen(false);
+      ok(!touch.wantFireHeld && !touch.wantAdsHeld, 'closing the wheel cannot restore old touch combat holds');
+      touch._onTouchHold('fire', true);
+      touch._onTouchHold('ads', true);
+      touch.setGrenadePouchOpen(true);
+      touch._onTouchHold('fire', true);
+      touch._onTouchHold('ads', true);
+      touch.setGrenadePouchOpen(false);
+      ok(!touch.wantFireHeld && !touch.wantAdsHeld, 'the pouch clears touch combat and rejects hidden combat presses');
+      touch._onTouchHold('fire', true);
+      touch.setBuildMode(true);
+      touch.setBuildMode(false);
+      ok(!touch.wantFireHeld, 'leaving build mode cannot restore old touch fire');
       touch.setGameplayEnabled(false);
       ok(!touch.wantAdsHeld && !touch.getKeys().jump && touch.consumeWeaponSwitch() === 0
         && touchResetCalls === 1,
@@ -769,6 +813,7 @@ export async function runInputContracts(ok, installGlobals) {
     // Exercise the pointer callbacks, including cancellation, without a browser.
     const target = () => ({
       handlers: new Map(),
+      dataset: {},
       classList: { add() {}, remove() {}, toggle() {} },
       setAttribute() {},
       addEventListener(type, fn) { this.handlers.set(type, fn); },
@@ -804,7 +849,44 @@ export async function runInputContracts(ok, installGlobals) {
     minimal.setContext({ alive: false });
     swap.dispatch('pointerup');
     ok(pulses.length === 2, 'cancelled, hidden, and secondary-finger presses cannot trigger a swap');
+    const grenade = target(), power = target();
+    minimal.dom.grenade = grenade;
+    minimal.dom.grenadePowerChips = [power];
+    minimal._bindGrenade(grenade);
+    minimal._bindPowerChip(power, 0);
+    minimal.setContext({ alive: true, canThrow: true, grenadeTotal: 1 });
+    grenade.dispatch('pointerdown', 8, 100);
+    power.dispatch('pointerdown', 9, 110);
+    grenade.dispatch('pointerup', 8, 120);
+    const oldPowerReleased = !minimal._pulsePointers.has('grenadePower:0');
+    grenade.dispatch('pointerdown', 10, 130);
+    power.dispatch('pointerup', 9, 140);
+    ok(oldPowerReleased && !pulses.includes('grenadePower:0'),
+      'ending a grenade hold cancels a still-held power chip before the next grenade hold');
     minimal.dispose();
+
+    let paints = 0;
+    const painting = new TouchControls({ documentRef: null });
+    painting.dom.grenade = Object.assign(target(), { dataset: {} });
+    painting.dom.grenadePowerChips = [target(), target(), target()];
+    for (const chip of painting.dom.grenadePowerChips) chip.classList.toggle = () => { paints++; };
+    const context = { alive: true, canThrow: true, grenadeTotal: 2, grenadeReady: 0,
+      grenadeCounts: [2, 0, 0, 0, 0], grenadePowerIndex: 1 };
+    painting.setContext(context);
+    paints = 0;
+    for (let i = 0; i < 100; i++) painting.setContext({ ...context });
+    ok(paints === 0, 'unchanged authoritative touch contexts do not repaint the power chips every frame');
+    painting.setContext({ ...context, grenadePowerIndex: 2 });
+    ok(paints === 3, 'an authoritative power change still repaints every power chip');
+    context.canReload = context.canMedkit = true;
+    painting.setContext(context);
+    ok(!painting._hidden.has('reload') && !painting._hidden.has('medkit'),
+      'mutating the reused live context still reveals newly available reload and medkit actions');
+    context.canReload = context.canMedkit = false;
+    painting.setContext(context);
+    ok(painting._hidden.has('reload') && painting._hidden.has('medkit'),
+      'mutating the reused live context hides reload and medkit when they stop being available');
+    painting.dispose();
 
     // Spectating keeps only look and pause: a live context cannot bring chips back,
     // a held joystick lets go, and a fresh stick touch is ignored.
@@ -984,6 +1066,43 @@ export async function runInputContracts(ok, installGlobals) {
           && !pad.isGrenadeCharging() && pad.consumeGrenadeThrow() === null
           && pad.consumeWeaponSwitch() === 0 && !pad.deviceInfo(3100).padActive,
         'controller disconnect cancels combat and crouch holds without throwing, swapping, or clearing keyboard movement');
+
+      fake.connected = true;
+      fake.id = 'first';
+      fake.index = 0;
+      pad.poll(4000, 1 / 60);
+      const replacement = { connected: true, mapping: 'standard', id: 'second', index: 1,
+        axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, value: 0 })) };
+      replacement.buttons[PAD_BUTTONS.grenade] = { pressed: true, value: 1 };
+      replacement.buttons[PAD_BUTTONS.fire] = { pressed: true, value: 1 };
+      pad._pad.navigator = { getGamepads: () => [null, replacement] };
+      pad.poll(4050, 1 / 60);
+      ok(!pad.isGrenadeCharging() && pad.consumeGrenadeThrow() === null && pad.consumeWeaponSwitch() === 0,
+        'replacing a held controller with another connected pad cancels instead of throwing or swapping');
+      pad.poll(4100, 1 / 60);
+      ok(!pad.wantFireHeld && !pad.isGrenadeCharging() && !pad.consumeFireTap(),
+        'adopting a replacement pad does not activate buttons that were already held');
+      replacement.buttons[PAD_BUTTONS.grenade] = { pressed: false, value: 0 };
+      replacement.buttons[PAD_BUTTONS.fire] = { pressed: false, value: 0 };
+      pad.poll(4110, 1 / 60);
+      replacement.buttons[PAD_BUTTONS.fire] = { pressed: true, value: 1 };
+      pad.poll(4120, 1 / 60);
+      ok(pad.wantFireHeld && pad.consumeFireTap(), 'a released replacement button rearms for a new physical press');
+      replacement.buttons[PAD_BUTTONS.fire] = { pressed: false, value: 0 };
+      pad._pad.navigator = { getGamepads: () => [fake, replacement] };
+      pad.poll(4150, 1 / 60);
+      ok(!pad.wantFireHeld && !pad.isGrenadeCharging(),
+        'connecting a lower-index controller does not steal an existing controller session');
+      replacement.axes = [0, -1, 1, 0];
+      replacement.buttons[PAD_BUTTONS.fire] = { pressed: true, value: 1 };
+      pad._hBlur();
+      pad.poll(4200, 1 / 60);
+      ok(!pad.getKeys().forward && !pad.wantFireHeld && !pad.consumeFireTap() && pad.consumeDelta().dx === 0,
+        'background controller polling cannot restore movement, fire or look after blur');
+      pad._hFocus();
+      replacement.axes = [0, 0, 0, 0];
+      replacement.buttons[PAD_BUTTONS.fire] = { pressed: false, value: 0 };
+      pad.poll(4250, 1 / 60);
 
       pad.setWeaponWheelOpen(true);
       pad._onTouchLook(40, 20);

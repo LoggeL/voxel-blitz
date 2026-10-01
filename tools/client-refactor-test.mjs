@@ -120,8 +120,10 @@ try {
   fx.goreFx.spawnBloodStain(0, 0, -2, 0, 1, 0, 0.4);
   const spawnedVersions = meshes.map(mesh => mesh.instanceMatrix.version);
   fx.update(1 / 60);
-  assert.ok(meshes.every((mesh, i) => mesh.instanceMatrix.version > spawnedVersions[i]),
-    'every populated effect still uploads animated transforms');
+  assert.ok(meshes.every((mesh, i) => mesh === fx.goreFx.goreStainMesh
+    ? mesh.instanceMatrix.version === spawnedVersions[i]
+    : mesh.instanceMatrix.version > spawnedVersions[i]),
+    'animated effects upload transforms while a stationary stain reuses its existing buffer');
   fx.update(60);
   fx.shoot({ w: 'flamethrower', o: [0, 2, 0], d: [0, 0, -1] }, { local: true });
   fx.projectiles.launch({ pid: 'bastion-reset', type: 'rocket', o: [0, 2, 0], v: [0, 0, -10] });

@@ -18,6 +18,29 @@ function clearBag(bag) {
   for (const key of Object.keys(bag)) delete bag[key];
 }
 
+// Read the rendered primitive value: snapshots and player rows may be mutated
+// in place, and other HUD controllers can change these same elements.
+function setText(node, value) {
+  const text = String(value ?? '');
+  if (node && node.textContent !== text) node.textContent = text;
+}
+
+function setStyle(node, key, value) {
+  if (node && node.style[key] !== value) node.style[key] = value;
+}
+
+function setData(node, key, value) {
+  if (node && node.dataset[key] !== value) node.dataset[key] = value;
+}
+
+function setClass(node, value) {
+  if (node && node.className !== value) node.className = value;
+}
+
+function toggleClass(node, name, on) {
+  if (node && node.classList.contains(name) !== on) node.classList.toggle(name, on);
+}
+
 /** Owns the authoritative match header, objective, and economy presentation. */
 export class MatchHud {
   constructor({
@@ -183,23 +206,28 @@ export class MatchHud {
     if (!m.header) return;
 
     const curMode = match?.mode || 'fun';
-    m.header.dataset.mode = curMode;
-    m.header.parentNode.dataset.mode = curMode;
-    m.header.parentNode.dataset.tttUnarmed = String(curMode === 'ttt' && !selfRow?.owned?.length);
-    m.header.style.display = curMode === 'training' ? 'none' : 'flex';
-    m.mapBadge.style.display = 'none';
-    m.clock.style.display = ['snd','ttt'].includes(curMode) ? 'block' : 'none';
+    setData(m.header, 'mode', curMode);
+    setData(m.header.parentNode, 'mode', curMode);
+    setData(m.header.parentNode, 'tttUnarmed', String(curMode === 'ttt' && !selfRow?.owned?.length));
+    setStyle(m.header, 'display', curMode === 'training' ? 'none' : 'flex');
+    setStyle(m.mapBadge, 'display', 'none');
+    setStyle(m.clock, 'display', ['snd','ttt'].includes(curMode) ? 'block' : 'none');
     const curMap = match?.map || 'foundry';
-    if (m.coreBar) m.coreBar.hidden = curMode !== 'bastion';
+    if (m.coreBar && m.coreBar.hidden !== (curMode !== 'bastion')) m.coreBar.hidden = curMode !== 'bastion';
+    if (curMode !== 'snd') {
+      setClass(m.alphaRole, 'vb-team-role');
+      setClass(m.bravoRole, 'vb-team-role');
+    }
+    if (curMode !== 'bastion') toggleClass(m.phaseLabel, 'vb-bastion-urgent', false);
     const phase = match?.phase || 'live';
     const isTeamMode = curMode === 'tdm' || curMode === 'snd';
     this.playerStatus.update(this._latestPlayers, curMode, selfRow?.id);
 
     if (m.modeBadge) {
-      m.modeBadge.textContent = curMode === 'fun' ? 'FFA' : (MODE_TITLES[curMode] || curMode.toUpperCase());
+      setText(m.modeBadge, curMode === 'fun' ? 'FFA' : (MODE_TITLES[curMode] || curMode.toUpperCase()));
     }
     if (m.mapBadge) {
-      m.mapBadge.textContent = MAP_LABELS[curMap] || curMap.toUpperCase();
+      setText(m.mapBadge, MAP_LABELS[curMap] || curMap.toUpperCase());
     }
 
     const sNow = Number.isFinite(serverNow) && serverNow > 0 ? serverNow : Date.now();
@@ -218,31 +246,31 @@ export class MatchHud {
     }
 
     if (m.clock) {
-      m.clock.textContent = clockText;
-      m.clock.classList.toggle('vb-clock-urgent', isUrgentBomb);
+      setText(m.clock, clockText);
+      toggleClass(m.clock, 'vb-clock-urgent', isUrgentBomb);
     }
 
     if (m.phaseLabel) {
       if (curMode === 'ttt') {
-        m.phaseLabel.textContent = phase === 'prep' && match?.waiting ? `WARTE AUF SPIELER (${match.waiting.have}/${match.waiting.need})`
-          : phase === 'prep' ? 'VORBEREITUNG · WAFFEN SUCHEN' : phase === 'post' ? 'RUNDE BEENDET' : (selfRow?.ttt?.role || 'ZUSCHAUER').toUpperCase();
+        setText(m.phaseLabel, phase === 'prep' && match?.waiting ? `WARTE AUF SPIELER (${match.waiting.have}/${match.waiting.need})`
+          : phase === 'prep' ? 'VORBEREITUNG · WAFFEN SUCHEN' : phase === 'post' ? 'RUNDE BEENDET' : (selfRow?.ttt?.role || 'ZUSCHAUER').toUpperCase());
       } else if (curMode === 'snd') {
         const status = phase === 'prep' ? 'BUY' : phase === 'post' ? 'ROUND OVER' : '';
-        m.phaseLabel.textContent = `R${match?.round || 1}${status ? ` · ${status}` : ''}`;
+        setText(m.phaseLabel, `R${match?.round || 1}${status ? ` · ${status}` : ''}`);
       } else if (curMode === 'duel') {
-        m.phaseLabel.textContent = `FIRST TO ${match?.killLimit ?? MODE_RULES.duel.killLimit} KILLS`;
+        setText(m.phaseLabel, `FIRST TO ${match?.killLimit ?? MODE_RULES.duel.killLimit} KILLS`);
       } else if (curMode === 'tdm') {
-        m.phaseLabel.textContent = `FIRST TO ${MODE_RULES.tdm.scoreLimit}`;
+        setText(m.phaseLabel, `FIRST TO ${MODE_RULES.tdm.scoreLimit}`);
       } else if (curMode === 'gungame') {
-        m.phaseLabel.textContent = `WEAPON ${gunLevel(selfRow)} / ${GUN_GAME_WEAPON_ORDER.length}`;
+        setText(m.phaseLabel, `WEAPON ${gunLevel(selfRow)} / ${GUN_GAME_WEAPON_ORDER.length}`);
       } else if (curMode === 'training') {
-        m.phaseLabel.textContent = '';
+        setText(m.phaseLabel, '');
       } else {
         const ranked = rankPlayers(this._latestPlayers, curMode);
         const rank = ranked.findIndex((p) => String(p.id) === String(selfRow?.id));
-        m.phaseLabel.textContent = `${rank >= 0 ? `#${rank + 1} · ` : ''}${selfRow?.kills | 0} KILLS`;
+        setText(m.phaseLabel, `${rank >= 0 ? `#${rank + 1} · ` : ''}${selfRow?.kills | 0} KILLS`);
       }
-      m.phaseLabel.dataset.compact = m.phaseLabel.textContent;
+      setData(m.phaseLabel, 'compact', m.phaseLabel.textContent);
     }
 
     if (curMode === 'duel') {
@@ -250,58 +278,58 @@ export class MatchHud {
         .slice().sort((a, b) => String(a.id).localeCompare(String(b.id))).slice(0, 2);
       for (const [index, side] of ['alpha', 'bravo'].entries()) {
         const player = players[index];
-        m[`${side}Block`].style.display = 'flex';
-        m[`${side}Name`].textContent = player?.name || 'WAITING';
-        m[`${side}Role`].textContent = player && String(player.id) === String(selfRow?.id) ? 'YOU' : '';
-        m[`${side}Score`].textContent = String(player ? match?.scores?.[player.id] ?? player.kills ?? 0 : 0);
+        setStyle(m[`${side}Block`], 'display', 'flex');
+        setText(m[`${side}Name`], player?.name || 'WAITING');
+        setText(m[`${side}Role`], player && String(player.id) === String(selfRow?.id) ? 'YOU' : '');
+        setText(m[`${side}Score`], player ? match?.scores?.[player.id] ?? player.kills ?? 0 : 0);
       }
     } else if (isTeamMode) {
-      m.alphaName.textContent = 'ALPHA';
-      m.bravoName.textContent = 'BRAVO';
-      if (m.alphaBlock) m.alphaBlock.style.display = 'flex';
-      if (m.bravoBlock) m.bravoBlock.style.display = 'flex';
+      setText(m.alphaName, 'ALPHA');
+      setText(m.bravoName, 'BRAVO');
+      setStyle(m.alphaBlock, 'display', 'flex');
+      setStyle(m.bravoBlock, 'display', 'flex');
 
       const alphaSc = match?.scores?.alpha ?? 0;
       const bravoSc = match?.scores?.bravo ?? 0;
-      if (m.alphaScore) m.alphaScore.textContent = String(alphaSc);
-      if (m.bravoScore) m.bravoScore.textContent = String(bravoSc);
+      setText(m.alphaScore, alphaSc);
+      setText(m.bravoScore, bravoSc);
 
       if (curMode === 'snd') {
         const alphaIsAttacker = match?.attackers === 'alpha';
         if (m.alphaRole) {
-          m.alphaRole.textContent = alphaIsAttacker ? 'ATTACK' : 'DEFEND';
-          m.alphaRole.className = `vb-team-role ${alphaIsAttacker ? 'vb-role-attack' : 'vb-role-defend'}`;
+          setText(m.alphaRole, alphaIsAttacker ? 'ATTACK' : 'DEFEND');
+          setClass(m.alphaRole, `vb-team-role ${alphaIsAttacker ? 'vb-role-attack' : 'vb-role-defend'}`);
         }
         if (m.bravoRole) {
-          m.bravoRole.textContent = alphaIsAttacker ? 'DEFEND' : 'ATTACK';
-          m.bravoRole.className = `vb-team-role ${alphaIsAttacker ? 'vb-role-defend' : 'vb-role-attack'}`;
+          setText(m.bravoRole, alphaIsAttacker ? 'DEFEND' : 'ATTACK');
+          setClass(m.bravoRole, `vb-team-role ${alphaIsAttacker ? 'vb-role-defend' : 'vb-role-attack'}`);
         }
       } else {
-        if (m.alphaRole) m.alphaRole.textContent = '';
-        if (m.bravoRole) m.bravoRole.textContent = '';
+        setText(m.alphaRole, '');
+        setText(m.bravoRole, '');
       }
     } else {
-      if (m.alphaBlock) m.alphaBlock.style.display = 'none';
-      if (m.bravoBlock) m.bravoBlock.style.display = 'none';
+      setStyle(m.alphaBlock, 'display', 'none');
+      setStyle(m.bravoBlock, 'display', 'none');
     }
 
     if (m.bombBanner) {
       if (curMode === 'snd' && match?.bomb && ['dropped', 'planted', 'defused', 'exploded'].includes(match.bomb.state)) {
         const b = match.bomb;
-        m.bombBanner.style.display = 'block';
-        m.bombBanner.className = `vb-match-bomb-banner state-${b.state || 'none'}`;
+        setStyle(m.bombBanner, 'display', 'block');
+        setClass(m.bombBanner, `vb-match-bomb-banner state-${b.state || 'none'}`);
 
         if (b.state === 'dropped') {
-          m.bombBanner.textContent = 'BOMB DROPPED';
+          setText(m.bombBanner, 'BOMB DROPPED');
         } else if (b.state === 'planted') {
-          m.bombBanner.textContent = `BOMB · SITE ${String(b.site || 'A').toUpperCase()}`;
+          setText(m.bombBanner, `BOMB · SITE ${String(b.site || 'A').toUpperCase()}`);
         } else if (b.state === 'defused') {
-          m.bombBanner.textContent = 'BOMB DEFUSED';
+          setText(m.bombBanner, 'BOMB DEFUSED');
         } else if (b.state === 'exploded') {
-          m.bombBanner.textContent = 'BOMB DETONATED';
+          setText(m.bombBanner, 'BOMB DETONATED');
         }
       } else {
-        m.bombBanner.style.display = 'none';
+        setStyle(m.bombBanner, 'display', 'none');
       }
     }
 
@@ -313,42 +341,42 @@ export class MatchHud {
       const hasProgress = Number.isFinite(progress) && progress > 0;
 
       if (!isDead && isPhaseValid && interaction && hasProgress) {
-        m.interactBar.style.display = 'block';
+        setStyle(m.interactBar, 'display', 'block');
         const kind = String(interaction.kind || '').toLowerCase();
         const type = kind === 'plant' ? 'PLANTING BOMB' : (kind === 'defuse' ? 'DEFUSING BOMB' : 'INTERACTING');
         const site = interaction.site ? ` [SITE ${String(interaction.site).toUpperCase()}]` : '';
         if (m.interactLabel) {
-          m.interactLabel.textContent = `${type}${site}...`;
+          setText(m.interactLabel, `${type}${site}...`);
         }
         if (m.interactFill) {
           const pct = clamp01(progress);
-          m.interactFill.style.width = `${Math.round(pct * 100)}%`;
+          setStyle(m.interactFill, 'width', `${Math.round(pct * 100)}%`);
         }
       } else {
-        m.interactBar.style.display = 'none';
+        setStyle(m.interactBar, 'display', 'none');
         if (m.interactFill) {
-          m.interactFill.style.width = '0%';
+          setStyle(m.interactFill, 'width', '0%');
         }
       }
     }
 
     if (selfRow) {
       if (m.creditsBox) {
-        m.creditsBox.style.display = (curMode === 'snd' || curMode === 'chaos') ? 'flex' : 'none';
+        setStyle(m.creditsBox, 'display', (curMode === 'snd' || curMode === 'chaos') ? 'flex' : 'none');
       }
       if (m.creditsVal) {
-        m.creditsVal.textContent = `$ ${Number(selfRow.credits || 0).toLocaleString()}`;
+        setText(m.creditsVal, `$ ${Number(selfRow.credits || 0).toLocaleString()}`);
       }
       if (m.carrierBadge) {
-        m.carrierBadge.style.display = (curMode === 'snd' && selfRow.bomb) ? 'inline-block' : 'none';
+        setStyle(m.carrierBadge, 'display', (curMode === 'snd' && selfRow.bomb) ? 'inline-block' : 'none');
       }
       if (m.buyPrompt) {
         const canBuy = buyWindowOpen(curMode, phase, selfRow?.ttt?.role)
           && this.readModel.dead !== true
           && selfRow.hp > 0
           && selfRow.state !== 'dead';
-        m.buyPrompt.textContent = curMode === 'ttt' ? `[${bindingLabel('buy')}] TRAITOR-SHOP` : curMode === 'chaos' ? `[${bindingLabel('buy')}] CHAOS LAB · BUY UPGRADES` : `[${bindingLabel('buy')}] ARMORY OPEN`;
-        m.buyPrompt.style.display = canBuy ? 'block' : 'none';
+        setText(m.buyPrompt, curMode === 'ttt' ? `[${bindingLabel('buy')}] TRAITOR-SHOP` : curMode === 'chaos' ? `[${bindingLabel('buy')}] CHAOS LAB · BUY UPGRADES` : `[${bindingLabel('buy')}] ARMORY OPEN`);
+        setStyle(m.buyPrompt, 'display', canBuy ? 'block' : 'none');
       }
 
       this.onBuyMenuState({
@@ -360,9 +388,9 @@ export class MatchHud {
         bastion: match?.bastion, bastionSelf: selfRow.bastion,
       });
     } else {
-      if (m.creditsBox) m.creditsBox.style.display = 'none';
-      if (m.carrierBadge) m.carrierBadge.style.display = 'none';
-      if (m.buyPrompt) m.buyPrompt.style.display = 'none';
+      setStyle(m.creditsBox, 'display', 'none');
+      setStyle(m.carrierBadge, 'display', 'none');
+      setStyle(m.buyPrompt, 'display', 'none');
       this.onBuyMenuState({
         open: false,
         ttt: selfRow?.ttt || null,
@@ -374,7 +402,7 @@ export class MatchHud {
     }
 
     if (curMode === 'bastion') updateBastionHud(m,match,selfRow,sNow,this._bastion);
-    else if (m.buildPrompt) m.buildPrompt.style.display = 'none';
+    else setStyle(m.buildPrompt, 'display', 'none');
 
     if (this._latestPlayers) {
       this.onPlayers(this._latestPlayers, match, selfRow);

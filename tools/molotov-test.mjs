@@ -178,6 +178,27 @@ for (const chunks of [[7.5], Array(75).fill(0.1)]) {
 
 // Fields and pending damage obey phase/lifecycle and bounded room budgets.
 {
+  const f = fixture();
+  f.ctx.targets = { values() { throw new Error('idle fire queried damage targets'); } };
+  f.step(0.05);
+  assert.equal(f.system.fire.pending.size, 0, 'an idle ground-fire tick has no damage query');
+}
+{
+  let ground = true;
+  const f = fixture((_x, y) => ground && y === 0 ? 1 : 0);
+  const field = f.ignite();
+  const previousSnapshot = f.system.fire.snapshot();
+  f.step(0.1);
+  ground = false;
+  f.step(0.1);
+  assert.equal(f.victim.hp, 100 - combatDamage(30 * 0.1), 'destroyed ground flushes only its pending exposure');
+  assert.equal(f.victim.molotovBurning, 0, 'expired contact clears feedback before the idle fast path');
+  assert.equal(f.system.fire.active.size, 0);
+  assert.equal(f.system.fire.pending.size, 0);
+  assert.equal(field.cells.length, 0);
+  assert(previousSnapshot[0].cells.length > 0, 'compaction does not change an earlier published snapshot');
+}
+{
   const f = fixture(); f.ignite(); f.step(0.1);
   f.ctx.canAffectWorld = () => false; f.step(0.5);
   assert.equal(f.system.fire.active.size, 0); assert.equal(f.system.fire.pending.size, 0);

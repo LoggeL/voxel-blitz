@@ -195,6 +195,9 @@ export class ProjectileSystem {
     this.fire.clear();
     this.smoke.clear();
     this._previousPlayers.clear();
+    this._stepping.length = 0;
+    this._homingCandidates.length = 0;
+    this._glaiveSeekBodies.length = 0;
   }
 
   step(dt, ctx) {
@@ -592,6 +595,7 @@ export class ProjectileSystem {
       end[0] = point.x; end[1] = point.y; end[2] = point.z;
       return visibleTo(ctx, origin, end);
     });
+    bodies.length = 0;
     return !!target;
   }
 

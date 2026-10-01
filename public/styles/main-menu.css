@@ -108,6 +108,11 @@
   #menu .vb-menu-footer span:last-child { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { #menu .vb-menu-primary .vb-btn { transition: none; } }
+@media (max-width: 360px) {
+  #menu .vb-brand-rail { grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; }
+  #menu .vb-main-nav { gap: 8px; }
+  #menu .vb-brand-rail > .vb-music-control { width: 100px; min-width: 100px; }
+}
 
 /* Match-asset load bar: frosted rail over the menu art while play is gated. */
 #menu .vb-load-bar {

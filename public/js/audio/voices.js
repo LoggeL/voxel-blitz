@@ -34,9 +34,10 @@ export class VoicePool {
 
     const output = activeCtx.createGain();
     let panner = null;
+    let lowpass = null;
     let last = output;
     if (opts && opts.muffled) {
-      const lowpass = activeCtx.createBiquadFilter();
+      lowpass = activeCtx.createBiquadFilter();
       lowpass.type = 'lowpass';
       lowpass.frequency.value = 480;
       lowpass.Q.value = 0.6;
@@ -60,6 +61,7 @@ export class VoicePool {
     const entry = {
       out: output,
       panner,
+      lowpass,
       priority: Math.max(0, Math.min(2, Number(opts?.priority) || 0)),
       until: now + lifetime + 0.5,
       timer: null,
@@ -213,6 +215,7 @@ export class VoicePool {
       try { entry.cleanups[i](); } catch (_) {}
     }
     try { entry.panner?.disconnect(); } catch (_) {}
+    try { entry.lowpass?.disconnect(); } catch (_) {}
     try { entry.out.disconnect(); } catch (_) {}
     this._removeEntry(this._voices, entry);
     this._removeEntry(this._positional, entry);

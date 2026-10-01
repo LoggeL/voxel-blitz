@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { startServer, stopServer } from './lib/server-process.mjs';
 import { Client } from './lib/ws-client.mjs';
-import { createMapState } from '../shared/worlddata.js';
+import { createMapState, getMapMeta, portalAt } from '../shared/worlddata.js';
 const server = startServer();
 const clients = [];
 const template = createMapState('minecraft_b5').serializeWorld();
@@ -13,6 +13,8 @@ try {
     const { welcome, map } = await client.waitForHandshake();
     assert.equal(welcome.map, 'minecraft_b5');
     assert.equal(welcome.gameMode, mode);
+    assert.equal(portalAt(getMapMeta('minecraft_b5'), welcome.spawn.x, welcome.spawn.y + 0.5, welcome.spawn.z), null,
+      'the authoritative admission spawn starts outside every portal trigger');
     assert.equal(map.byteLength, 6 + 128 * 88 * 96, 'the tall 128 x 96 x 88 world travels on the wire');
     assert.deepEqual(new Uint8Array(map), template, 'authoritative bytes equal the shared template');
     const state = await client.waitForJson((m) => m.t === 'lobbyState', 'lobby');

@@ -10,7 +10,8 @@ try {
   await waitForHttp(port);
   browser = await launchCdpSession(`http://127.0.0.1:${port}/?headless=1`, { width: 1672, height: 941 });
   const page = browser.page;
-  await page.waitFor(`!!document.getElementById('browse-lobbies-btn')`);
+  await page.waitFor(`window.__vbBoot?.readyMs > 0 && document.getElementById('create-lobby-btn')?.disabled === false`,
+    { timeoutMs: 120_000, label: 'interactive menu with match assets ready' });
   await mkdir('.artifacts', { recursive: true });
   const capture = async (name) => {
     const shot = await page.send('Page.captureScreenshot', { format: 'png' });
@@ -44,14 +45,19 @@ try {
   await set('lobby-mode-filter', 'duel'); assert.equal(await count(), 1);
   assert.equal(await page.evaluate(`document.querySelector('.vb-browser-room button').disabled`), true);
   await set('lobby-available-filter', true, 'checked'); assert.equal(await count(), 0);
-  await page.evaluate(`document.querySelector('.vb-browser-empty button').click()`); assert.equal(await count(), 3);
+  await page.evaluate(`document.querySelector('.vb-browser-empty button').focus(); document.querySelector('.vb-browser-empty button').click()`); assert.equal(await count(), 3);
+  assert.equal(await page.evaluate(`document.activeElement.id`), 'lobby-search-input', 'clearing filters restores focus to search after removing the empty-state button');
   for (const [width, height] of [[1440, 900], [800, 600], [390, 844], [320, 640]]) {
     await page.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: 1, mobile: false });
     assert.equal(await page.evaluate(`document.getElementById('lobby-browser').scrollWidth <= innerWidth`), true, `directory fits ${width}`);
     if (width === 390) await capture('lobby-search-mobile');
     await page.evaluate(`document.getElementById('lobby-browser').close()`);
     await page.waitFor(`document.activeElement.id === 'browse-lobbies-btn'`);
-    assert.equal(await page.evaluate(`document.getElementById('menu').scrollWidth <= innerWidth`), true, `main menu fits ${width}`);
+    const overflow = await page.evaluate(`[...document.querySelectorAll('#menu *')].filter(element => {
+      const rect = element.getBoundingClientRect(); return rect.width && rect.right > innerWidth + 1;
+    }).slice(0, 8).map(element => ({ id: element.id, className: element.className, right: element.getBoundingClientRect().right }))`);
+    if (width === 320) await capture('main-menu-320');
+    assert.equal(await page.evaluate(`document.getElementById('menu').scrollWidth <= innerWidth`), true, `main menu fits ${width}: ${JSON.stringify(overflow)}`);
     if (width === 390) await capture('main-menu-mobile');
     await page.evaluate(`document.getElementById('browse-lobbies-btn').click()`);
     await page.waitFor(`document.querySelectorAll('.vb-browser-room').length === 3`);

@@ -81,6 +81,7 @@ export const TOUCH_ACTIONS = Object.freeze([
   'fire', 'ads', 'jump', 'reload', 'interact', 'weapon', 'buy', 'medkit', 'build',
   'grenade', 'pouch',
 ]);
+const ACTION_BITS = Object.freeze(Object.fromEntries(TOUCH_ACTIONS.map((action, i) => [action, 1 << i])));
 
 /**
  * Which touch buttons a gameplay context earns. Null context (menu, dead, spectating)
@@ -88,26 +89,27 @@ export const TOUCH_ACTIONS = Object.freeze([
  * radial is up (the grenade pouch draws its own slots). Pure so the rule is
  * contract-testable without DOM.
  */
-export function visibleTouchActions(context) {
-  const visible = new Set();
-  if (!context || context.alive === false) return visible;
-  if (context.wheelOpen || context.pouchOpen) return visible; // radial up: every chip but pause hides
-  visible.add('jump');
+function visibleTouchMask(context) {
+  if (!context || context.alive === false || context.wheelOpen || context.pouchOpen) return 0;
+  let mask = ACTION_BITS.jump;
   if (context.canFire !== false) {
-    visible.add('fire');
-    visible.add('ads');
+    mask |= ACTION_BITS.fire | ACTION_BITS.ads;
   }
-  if (context.canReload) visible.add('reload');
-  if (context.canMedkit) visible.add('medkit');
-  if (context.canInteract) visible.add('interact');
-  if ((context.weaponCount ?? 2) > 1) visible.add('weapon');
-  if (context.canBuy) visible.add('buy');
-  if (context.canBuild) visible.add('build');
+  if (context.canReload) mask |= ACTION_BITS.reload;
+  if (context.canMedkit) mask |= ACTION_BITS.medkit;
+  if (context.canInteract) mask |= ACTION_BITS.interact;
+  if ((context.weaponCount ?? 2) > 1) mask |= ACTION_BITS.weapon;
+  if (context.canBuy) mask |= ACTION_BITS.buy;
+  if (context.canBuild) mask |= ACTION_BITS.build;
   if (context.canThrow && Number(context.grenadeTotal) > 0) {
-    visible.add('grenade');
-    visible.add('pouch');
+    mask |= ACTION_BITS.grenade | ACTION_BITS.pouch;
   }
-  return visible;
+  return mask;
+}
+
+export function visibleTouchActions(context) {
+  const mask = visibleTouchMask(context);
+  return new Set(TOUCH_ACTIONS.filter(action => mask & ACTION_BITS[action]));
 }
 
 /** Face of the grenade button: the ready type id and its count, or nulls when none is ready. */
@@ -170,6 +172,8 @@ export class TouchControls {
     this._lookTap = null;
     this._context = null;
     this._hidden = new Set();
+    this._visibilityMask = null;
+    this._paintedPowerIndex = undefined;
     this._spectating = false;
     this._options = { size: 'medium', hand: 'right' };
   }
@@ -182,18 +186,21 @@ export class TouchControls {
    */
   setContext(context = null) {
     const next = context && typeof context === 'object' ? context : null;
-    const visible = this._spectating ? new Set() : visibleTouchActions(next);
+    const mask = this._spectating ? 0 : visibleTouchMask(next);
     const changed = [];
-    for (const action of TOUCH_ACTIONS) {
-      const hide = !visible.has(action);
-      if (hide === this._hidden.has(action)) continue;
-      if (hide) {
-        this._hidden.add(action);
-        this._releaseAction(action);
-      } else {
-        this._hidden.delete(action);
+    if (mask !== this._visibilityMask) {
+      for (const action of TOUCH_ACTIONS) {
+        const hide = !(mask & ACTION_BITS[action]);
+        if (this._visibilityMask !== null && hide === this._hidden.has(action)) continue;
+        if (hide) {
+          this._hidden.add(action);
+          this._releaseAction(action);
+        } else {
+          this._hidden.delete(action);
+        }
+        changed.push(action);
       }
-      changed.push(action);
+      this._visibilityMask = mask;
     }
     this._context = next;
     for (const action of changed) {
@@ -240,6 +247,8 @@ export class TouchControls {
   }
 
   _paintPower(index) {
+    if (index === this._paintedPowerIndex) return;
+    this._paintedPowerIndex = index;
     for (const [i, chip] of (this.dom.grenadePowerChips || []).entries()) {
       chip.classList.toggle('is-selected', i === index);
     }
@@ -334,6 +343,10 @@ export class TouchControls {
     d.pinBack = addElement(this.document, 'div', 'vb-touch-pin-back', root, 'PIN BACK');
     d.pinBack.id = 'touch-pin-back';
     d.pinBack.setAttribute('aria-hidden', 'true');
+
+    // Context may arrive before mount or survive a remount; paint the new nodes.
+    this._visibilityMask = null;
+    this._paintedPowerIndex = undefined;
 
     this._bindMove();
     this._bindLook();
@@ -607,7 +620,10 @@ export class TouchControls {
     this._powerIndex = -1;
     this.root?.classList.remove('is-grenade-held');
     this.dom.pinBack?.classList.remove('is-armed');
-    for (const chip of this.dom.grenadePowerChips || []) chip.classList.remove('is-held');
+    for (const [index, chip] of (this.dom.grenadePowerChips || []).entries()) {
+      chip.classList.remove('is-held');
+      this._pulsePointers.delete(`grenadePower:${index}`);
+    }
     this._paintGrenade(this._context);
   }
 

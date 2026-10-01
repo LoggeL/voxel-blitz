@@ -86,6 +86,19 @@ import { raycastVoxels } from '../shared/raycast.js';
   assert.deepEqual(stepped, []);
 }
 
+// Scratch query arrays must release any live body references when a room stops.
+{
+  const system = new ProjectileSystem();
+  const victim = { id: 'victim', state: 'alive' };
+  system._stepping.push({ owner: victim });
+  system._homingCandidates.push({ v: victim });
+  system._glaiveSeekBodies.push(victim);
+  system.clear();
+  assert.equal(system._stepping.length, 0);
+  assert.equal(system._homingCandidates.length, 0);
+  assert.equal(system._glaiveSeekBodies.length, 0);
+}
+
 // Frozen pre-refactor terrain algorithm verifies exact destruction order,
 // shielding, material resistance, clipping and per-blast caps.
 function referenceTerrain(origin, rules, ctx) {

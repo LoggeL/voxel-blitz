@@ -302,3 +302,8 @@
     transform: none;
   }
 }
+
+/* Leave the ammo swap target clear when the tall button stack reaches the HUD. */
+@media (orientation: landscape) and (max-height: 480px) {
+  .vb-touch-medkit { --touch-column: calc(var(--touch-fire) + var(--touch-button) + 24px); }
+}

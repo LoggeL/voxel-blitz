@@ -31,6 +31,7 @@ import {
 const INTERP_SPAN = 65536;        // events-per-snapshot domain for composite ids
 const SEEN_SOFT_CAP = 8192;       // dedupe set size before pruning oldest half
 const RING_LEN = 32;
+export const CONNECTION_TIMEOUT_MS = 30_000;
 
 /** JSON-wire copy with every retained object/array made immutable. */
 const immutableWireCopy = (value) => {
@@ -261,7 +262,11 @@ export class NetClient {
   _emit(type, payload) {
     const set = this._listeners.get(type);
     if (!set) return;
+    const generation = this._sessionGeneration;
     for (const fn of set) {
+      // Leaving from one listener invalidates the remaining gameplay callbacks.
+      // Close listeners still all receive the old session's release notification.
+      if (type !== 'close' && generation !== this._sessionGeneration) break;
       try {
         fn(payload);
       } catch (err) {
@@ -352,6 +357,7 @@ export class NetClient {
 
     return new Promise((resolve, reject) => {
       let settled = false;
+      let deadline = null;
       let pairedWelcome = null;
       const pendingBinaries = [];
       const ws = new WSCtor(url);
@@ -362,6 +368,8 @@ export class NetClient {
       const rejectConnect = (err) => {
         if (settled) return;
         settled = true;
+        clearTimeout(deadline);
+        deadline = null;
         pendingBinaries.length = 0;
         const wasCurrent = isCurrent();
         detach();
@@ -400,6 +408,8 @@ export class NetClient {
         // onMap is caller code and may have synchronously closed this session.
         if (settled || !isCurrent()) return;
         settled = true;
+        clearTimeout(deadline);
+        deadline = null;
         if (this._connectAbort === rejectConnect) this._connectAbort = null;
         this._reattach(ws, generation);
         this.dirty = false;
@@ -407,6 +417,10 @@ export class NetClient {
       };
 
       this._connectAbort = rejectConnect;
+      deadline = setTimeout(() => {
+        if (isCurrent() && !settled) rejectConnect(new Error('connection timed out before welcome/map'));
+      }, CONNECTION_TIMEOUT_MS);
+      deadline?.unref?.();
       try {
         ws.binaryType = 'arraybuffer';
       } catch {
@@ -679,7 +693,9 @@ export class NetClient {
     const delayed = drainEventsWithDedupe(this.latestSnapshots, target, this._drainState);
     const events = Object.freeze(own.length ? own.concat(delayed) : delayed);
     this.latestEvents = events;
+    const generation = this._sessionGeneration;
     for (let i = 0; i < events.length; i++) {
+      if (generation !== this._sessionGeneration) break;
       const ev = events[i];
       if (ev && ev.kind) this._emit(ev.kind, ev);
     }

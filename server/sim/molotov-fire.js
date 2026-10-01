@@ -96,11 +96,17 @@ export class MolotovFireSystem {
     if (!Number.isFinite(dt) || dt <= 0) return;
     this._clearExposure();
     for (const [id, field] of this.active) {
-      field.cells = field.cells.filter(cell => supported(ctx, cell));
+      let kept = 0;
+      for (const cell of field.cells) if (supported(ctx, cell)) field.cells[kept++] = cell;
+      field.cells.length = kept;
       if (!field.cells.length || field.expiresAt <= ctx.now - dt * 1000) this.active.delete(id);
     }
-    if (ctx.grenadeDamage === false) this.pending.clear();
-    else for (const victim of (ctx.targets || ctx.entities).values()) {
+    const damageEnabled = ctx.grenadeDamage !== false;
+    if (!damageEnabled) this.pending.clear();
+    // Most room ticks have no ground fire. Exposure was cleared above, and
+    // pending doses must still flush after the last field disappears.
+    if (!this.active.size && !this.pending.size) return;
+    if (damageEnabled) for (const victim of (ctx.targets || ctx.entities).values()) {
       // A fire kill can end the round while this loop is still running.
       if (ctx.canAffectWorld?.() === false) { this.clear(); return; }
       if (victim.state !== 'alive' || victim.spawnProtectedUntil > ctx.now) {

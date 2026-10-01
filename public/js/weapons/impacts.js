@@ -146,6 +146,9 @@ export class ImpactFX {
     this.partMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.partMesh.frustumCulled = false;
     this.parts = new Array(PARTICLE_POOL_SIZE);
+    this._partCount = 0;
+    this.partMesh.count = 0;
+    this.partMesh.visible = false;
     for (let i = 0; i < PARTICLE_POOL_SIZE; i++) {
       this.parts[i] = { active: false };
       hideInstance(this.partMesh, i);
@@ -162,6 +165,10 @@ export class ImpactFX {
     this.starMesh.frustumCulled = false;
     this.starMesh.renderOrder = 9;
     this.stars = new Array(STAR_POOL_SIZE);
+    this._starCount = 0;
+    this._starFree = 0;
+    this.starMesh.count = 0;
+    this.starMesh.visible = false;
     for (let i = 0; i < STAR_POOL_SIZE; i++) {
       this.stars[i] = { active: false };
       hideInstance(this.starMesh, i);
@@ -191,7 +198,10 @@ export class ImpactFX {
     ];
     this.impacts = new Array(IMPACT_POOL_SIZE);
     this.impactCursor = 0;
+    this._impactCount = 0;
     for (const mesh of this.impactMeshes) {
+      mesh.count = 0;
+      mesh.visible = false;
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mesh.frustumCulled = false;
       mesh.renderOrder = 8;
@@ -211,6 +221,7 @@ export class ImpactFX {
 
   /** evHit: {vx,vy,vz, hs?, dmg?} */
   impact(evHit) {
+    if (this._disposed) return;
     const x = evHit && Number(evHit.vx);
     const y = evHit && Number(evHit.vy);
     const z = evHit && Number(evHit.vz);
@@ -220,6 +231,7 @@ export class ImpactFX {
     const idx = this.impactCursor;
     this.impactCursor = (idx + 1) % IMPACT_POOL_SIZE;
     const cue = this.impacts[idx];
+    if (!cue.active) this._impactCount++;
     cue.active = true;
     cue.t = 0;
     cue.life = hs ? 0.36 : 0.28;
@@ -230,6 +242,8 @@ export class ImpactFX {
     cue.rot = idx * 2.399963229728653;
     this._updateImpactCue(idx, cue, 0);
     for (const mesh of this.impactMeshes) {
+      mesh.count = Math.max(mesh.count, idx + 1);
+      mesh.visible = true;
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
@@ -350,10 +364,14 @@ export class ImpactFX {
   }
 
   spawnStars(x, y, z, count, tint) {
+    if (this._disposed) return;
     const col = this._col.setHex(tint);
     for (let i = 0; i < count; i++) {
-      let idx = this.stars.findIndex((star) => !star.active);
-      if (idx < 0) idx = freeOldestIndex(this.stars);
+      let idx = this._starFree;
+      while (idx < this.stars.length && this.stars[idx].active) idx++;
+      if (idx < this.stars.length) this._starFree = idx + 1;
+      else idx = freeOldestIndex(this.stars);
+      this._starCount = Math.max(this._starCount, idx + 1);
       const star = this.stars[idx];
       const th = Math.random() * TAU, up = Math.random() * 2 - 1;
       const flat = Math.sqrt(1 - up * up), speed = 3 + Math.random() * 3;
@@ -373,6 +391,8 @@ export class ImpactFX {
       star.colR = col.r * shade; star.colG = col.g * shade; star.colB = col.b * shade;
       this.starsSpawned++;
     }
+    this.starMesh.count = this._starCount;
+    this.starMesh.visible = this._starCount > 0;
   }
 
   /** Debris follows exactly the cells removed by the persistent chunk mesh. */
@@ -397,16 +417,11 @@ export class ImpactFX {
   }
 
   spawnParticles(x, y, z, count, tint, opt) {
+    if (this._disposed) return;
     const col = this._col.setHex(tint);
     for (let i = 0; i < count; i++) {
-      let idx = -1;
-      for (let j = 0; j < this.parts.length; j++) {
-        if (!this.parts[j].active) {
-          idx = j;
-          break;
-        }
-      }
-      if (idx < 0) idx = freeOldestIndex(this.parts);
+      const idx = this._partCount < this.parts.length
+        ? this._partCount++ : freeOldestIndex(this.parts);
       const p = this.parts[idx];
       p.active = true;
       p.t = 0;
@@ -461,37 +476,56 @@ export class ImpactFX {
       p.colB = col.b * (shade || 0.8 + Math.random() * 0.35);
       this.particlesSpawned++;
     }
+    this.partMesh.count = this._partCount;
+    this.partMesh.visible = this._partCount > 0;
   }
 
   update(dt) {
+    if (this._disposed) return;
     let impactsDirty = false;
-    for (let i = 0; i < this.impacts.length; i++) {
+    let impactDrawCount = 0;
+    for (let i = 0; this._impactCount && i < this.impactCoreMesh.count; i++) {
       const cue = this.impacts[i];
       if (!cue.active) continue;
       impactsDirty = true;
       cue.t += dt;
       if (cue.t >= cue.life) {
         cue.active = false;
+        this._impactCount--;
         for (const mesh of this.impactMeshes) hideInstance(mesh, i);
         continue;
       }
       this._updateImpactCue(i, cue, cue.t / cue.life);
+      impactDrawCount = i + 1;
     }
     if (impactsDirty) for (const mesh of this.impactMeshes) {
+      mesh.count = impactDrawCount;
+      mesh.visible = impactDrawCount > 0;
       mesh.instanceMatrix.needsUpdate = true;
       if (mesh.instanceColor) mesh.instanceColor.needsUpdate = true;
     }
 
     let particlesDirty = false;
-    for (let i = 0; i < this.parts.length; i++) {
-      const p = this.parts[i];
-      if (!p.active) continue;
+    const chipDrag = Math.pow(0.667, dt); // Minecraft's 0.98 per tick
+    let partCount = 0;
+    for (let read = 0; read < this._partCount; read++) {
+      const p = this.parts[read];
       particlesDirty = true;
       p.t += dt;
       if (p.t >= p.life) {
         p.active = false;
-        hideInstance(this.partMesh, i);
         continue;
+      }
+      // Pack survivors in their original order, moving only already expired
+      // records back into the free suffix. Each live record advances once.
+      const i = partCount++;
+      if (i !== read) {
+        this.parts[read] = this.parts[i];
+        this.parts[i] = p;
+        if (this.partShade.array[i] !== (p.blocky ? 1 : 0)) {
+          this.partShade.array[i] = p.blocky ? 1 : 0;
+          this.partShade.needsUpdate = true;
+        }
       }
       if (p.glint) {
         const k = p.t / p.life;
@@ -506,8 +540,7 @@ export class ImpactFX {
       const wasVy = p.vy;
       p.vy -= p.gravity * dt;
       if (p.blocky) {
-        const drag = Math.pow(0.667, dt);        // Minecraft's 0.98 per tick
-        p.vx *= drag; p.vy *= drag; p.vz *= drag;
+        p.vx *= chipDrag; p.vy *= chipDrag; p.vz *= chipDrag;
       }
       const prevX = p.x, prevY = p.y, prevZ = p.z;
       p.x += p.vx * dt;
@@ -515,19 +548,18 @@ export class ImpactFX {
       p.z += p.vz * dt;
       if (p.blocky) {
         const floorY = Math.floor(p.y - 0.04);
-        const solid = (x, y, z) => this.getBlockFn(Math.floor(x), Math.floor(y), Math.floor(z));
-        if (p.vy < 0 && prevY >= floorY + 1 && this.getBlockFn(Math.floor(p.x), floorY, Math.floor(p.z))) {
+        if (p.vy < 0 && prevY >= floorY + 1 && isSolidBlock(this.getBlockFn(Math.floor(p.x), floorY, Math.floor(p.z)))) {
           // Chips that came down through a top face rest there and slide to a stop.
           p.y = floorY + 1.04;
           p.vy = 0;
           p.vx *= 0.7;
           p.vz *= 0.7;
-        } else if (solid(p.x, p.y, p.z)) {
+        } else if (this._solidParticleAt(p.x, p.y, p.z)) {
           // Entered a wall or ceiling from the side or below: never lift it onto
           // that block's top. Side hits lose their drift; ceiling hits stop rising.
           p.x = prevX; p.z = prevZ; p.vx = 0; p.vz = 0;
-          if (solid(p.x, p.y, p.z)) { p.y = prevY; if (p.vy > 0) p.vy = 0; }
-          if (solid(p.x, p.y, p.z)) p.t = p.life;
+          if (this._solidParticleAt(p.x, p.y, p.z)) { p.y = prevY; if (p.vy > 0) p.vy = 0; }
+          if (this._solidParticleAt(p.x, p.y, p.z)) p.t = p.life;
         }
       } else if (p.vy < 0 && wasVy < 0) {
         const below = this.getBlockFn(
@@ -556,6 +588,10 @@ export class ImpactFX {
       );
     }
     if (particlesDirty) {
+      for (let i = partCount; i < this._partCount; i++) hideInstance(this.partMesh, i);
+      this._partCount = partCount;
+      this.partMesh.count = this._partCount;
+      this.partMesh.visible = this._partCount > 0;
       this.partMesh.instanceMatrix.needsUpdate = true;
       if (this.partMesh.instanceColor) this.partMesh.instanceColor.needsUpdate = true;
     }
@@ -565,17 +601,22 @@ export class ImpactFX {
   _updateStars(dt) {
     let dirty = false;
     const billboardQ = this.camera && this.camera.quaternion;
-    for (let i = 0; i < this.stars.length; i++) {
+    const brake = Math.exp(-5.5 * dt);
+    let starCount = 0;
+    // Fixed slots retain transparent draw order when a later spawn fills a
+    // hole before a surviving star. Only the unused tail leaves the draw range.
+    for (let i = 0; i < this._starCount; i++) {
       const star = this.stars[i];
       if (!star.active) continue;
       dirty = true;
       star.t += dt;
       if (star.t >= star.life) {
         star.active = false;
+        this._starFree = Math.min(this._starFree, i);
         hideInstance(this.starMesh, i);
         continue;
       }
-      const brake = Math.exp(-5.5 * dt);
+      starCount = i + 1;
       star.vx *= brake; star.vz *= brake;
       star.vy = star.vy * brake - 2.5 * dt;
       star.x += star.vx * dt; star.y += star.vy * dt; star.z += star.vz * dt;
@@ -590,9 +631,17 @@ export class ImpactFX {
       this.starMesh.setColorAt(i, this._col.setRGB(star.colR, star.colG, star.colB));
     }
     if (dirty) {
+      this._starCount = starCount;
+      this._starFree = Math.min(this._starFree, starCount);
+      this.starMesh.count = this._starCount;
+      this.starMesh.visible = this._starCount > 0;
       this.starMesh.instanceMatrix.needsUpdate = true;
       if (this.starMesh.instanceColor) this.starMesh.instanceColor.needsUpdate = true;
     }
+  }
+
+  _solidParticleAt(x, y, z) {
+    return isSolidBlock(this.getBlockFn(Math.floor(x), Math.floor(y), Math.floor(z)));
   }
 
   dispose() {

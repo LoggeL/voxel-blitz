@@ -227,7 +227,9 @@ export class PregameFlow {
       if (connected || token !== this._recoveryGeneration) return;
     }
     if (!this._isTornDown() && token === this._recoveryGeneration) {
-      this._enterMenu(`Could not reconnect. Join again with room code ${action.code}.`);
+      this._enterMenu(action.mode === 'quick'
+        ? 'Could not reconnect. Please try Quick Play again.'
+        : `Could not reconnect. Join again with room code ${action.code}.`);
     }
   }
 

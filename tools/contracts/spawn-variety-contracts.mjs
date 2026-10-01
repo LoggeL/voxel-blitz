@@ -40,4 +40,19 @@ export function runSpawnVarietyContracts(ok) {
   const unguarded = new SpawnSelector({ entities: new Map(), isEnemy: () => true, solidAt: (x, y) => y === 0, now: 0 });
   ok(!unguarded.hazardous(inLava) && unguarded.pick([inLava, dry]).x === inLava.x,
     'worlds without fluids keep their previous spawn behaviour');
+
+  const portalQueries = [];
+  const portalGuarded = new SpawnSelector({ entities: new Map(), isEnemy: () => true,
+    solidAt: (x, y) => y === 0, now: 0,
+    portalAt: (x, y, z) => {
+      portalQueries.push([x, y, z]);
+      return x === inLava.x && y === inLava.y + 0.5 && z === inLava.z;
+    } });
+  ok(portalGuarded.hazardous(inLava)
+    && portalQueries[0].every((value, i) => value === [inLava.x, inLava.y + 0.5, inLava.z][i]),
+    'spawn portal guards query the authoritative body point rather than the feet');
+  ok(portalGuarded.pick([inLava, dry], null, -1, { variety: true }).x === dry.x,
+    'a safe spawn beats a portal trigger even without fluid volumes');
+  ok(portalGuarded.pick([inLava]).x === inLava.x,
+    'an entirely hazardous pool retains the existing fallback instead of failing');
 }

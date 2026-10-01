@@ -53,6 +53,20 @@
 .vb-career :is(button,summary,input):focus-visible { outline: 2px solid #ffd38d; outline-offset: 3px; }
 .vb-career-badge { display: none; position: fixed; right: 16px; top: max(82px, calc(var(--vb-net-meter-clear, 0px) + 10px)); padding: 5px 9px; border-left: 2px solid var(--career-accent); background: #101820bf; color: var(--career-accent); font: 700 10px/1.4 monospace; letter-spacing: 1px; pointer-events: none; z-index: 5; }
 body:has(#hud:not(.hidden)) .vb-career-badge { display: block; }
+/* Touch uses a left diagnostics column. Keep the rank below right-side ammo
+   and its optional charge meter. */
+.vb-touch-mode { --vb-career-badge-top: calc(max(10px, env(safe-area-inset-top)) + 114px); }
+.vb-touch-mode:has(#charge-meter.is-visible) { --vb-career-badge-top: calc(max(10px, env(safe-area-inset-top)) + 146px); }
+.vb-touch-mode .vb-career-badge { top: var(--vb-career-badge-top); right: max(12px, env(safe-area-inset-right)); }
+@media (orientation: landscape) and (max-height: 480px) and (min-width: 480px) {
+  /* The thumb buttons reach this high: use the free band beside the cards. */
+  .vb-touch-mode .vb-career-badge { top: calc(max(10px, env(safe-area-inset-top)) + 54px); right: calc(max(12px, env(safe-area-inset-right)) + 224px); }
+}
+@media (orientation: landscape) and (max-height: 480px) and (min-width: 480px) and (max-width: 640px) {
+  /* Longer callsigns do not fit between the health card and thumb controls.
+     Career details remain available in the menu. */
+  .vb-touch-mode body:has(#hud:not(.hidden)) .vb-career-badge { display: none; }
+}
 #crosshair .ch-arm, #crosshair::after { background: var(--career-accent); }
 #menu .vb-career-menu-preview { display: flex; align-items: center; gap: 12px; box-sizing: border-box; width: 100%; min-height: 108px; padding: 10px 16px 10px 10px; border: 1px solid #82909b; background: #111920e8; color: #f5f1e9; text-align: left; cursor: pointer; }
 #menu .vb-career-menu-preview:hover { border-color: #ffc676; background: #18232de8; }

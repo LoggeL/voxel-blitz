@@ -186,7 +186,7 @@ export class MenuLobbyController {
     const trainingButton = el('button', 'vb-btn vb-training-btn', trainingInfo, 'training-btn');
     trainingButton.type = 'button';
     trainingButton.textContent = 'PLAY SOLO';
-    this._playButtons = [quickPlayButton, browseButton, createLobbyButton, duelButton, trainingButton];
+    this._playButtons = [quickPlayButton, createLobbyButton, duelButton, trainingButton];
 
     el('aside', 'vb-menu-showcase', primary).setAttribute('aria-label', 'Your account and career');
 
@@ -274,6 +274,7 @@ export class MenuLobbyController {
     this._playReady = ready === true;
     this._playProgress = { fraction, label };
     for (const button of this._playButtons || []) button.disabled = !this._playReady;
+    this.browser?.setPlayReady(this._playReady);
     if (!this._loadBar) return;
     this._loadBar.hidden = this._playReady;
     if (!this._playReady) {

@@ -52,6 +52,7 @@ const COMPRESSIBLE = new Set(['.html', '.css', '.js', '.mjs', '.gltf', '.bin', '
 const COMPRESS_MIN_BYTES = 1024;
 const COMPRESS_MAX_BYTES = 24 * 1024 * 1024;
 const encodedBodies = new Map();
+const pendingEncodings = new Map();
 let encodedBytes = 0;
 const ENCODED_CACHE_LIMIT = 64 * 1024 * 1024;
 
@@ -60,17 +61,43 @@ function etagFor(stats) {
   return `W/"${stats.size.toString(16)}-${Math.trunc(stats.mtimeMs).toString(16)}"`;
 }
 
-function pickEncoding(req) {
-  const accept = String(req.headers?.['accept-encoding'] || '').toLowerCase();
-  if (/\bbr\b/.test(accept)) return 'br';
-  if (/\bgzip\b/.test(accept)) return 'gzip';
-  return null;
+function pickEncoding(req, canCompress) {
+  const qualities = new Map();
+  for (const entry of String(req.headers?.['accept-encoding'] || '').toLowerCase().split(',')) {
+    const [coding, ...parameters] = entry.split(';').map(part => part.trim());
+    if (!coding) continue;
+    const parameter = parameters.find(part => /^q\s*=/.test(part));
+    const quality = parameter === undefined ? 1 : Number(parameter.slice(parameter.indexOf('=') + 1));
+    qualities.set(coding, Number.isFinite(quality) && quality >= 0 && quality <= 1 ? quality : 0);
+  }
+  let encoding = null;
+  let quality = 0;
+  if (canCompress) for (const candidate of ['br', 'gzip']) {
+    const accepted = qualities.get(candidate) ?? qualities.get('*') ?? 0;
+    if (accepted > quality) { encoding = candidate; quality = accepted; }
+  }
+  // Identity is the ordinary fallback. An explicit preference can beat
+  // compression, and explicit identity/wildcard refusal must be respected.
+  const identity = qualities.get('identity') ?? (qualities.get('*') === 0 ? 0 : 1);
+  if (encoding && !(qualities.has('identity') && identity > quality)) return encoding;
+  return identity > 0 ? 'identity' : null;
 }
 
 async function encodedBody(filePath, stats, encoding) {
   const key = `${encoding}:${filePath}:${stats.size}:${Math.trunc(stats.mtimeMs)}`;
   const hit = encodedBodies.get(key);
   if (hit) return hit;
+  const pending = pendingEncodings.get(key);
+  if (pending) return pending;
+  // Browser preloads and simultaneous players share the same cold job;
+  // failures release it so the next request can retry.
+  const work = buildEncodedBody(filePath, encoding, key);
+  pendingEncodings.set(key, work);
+  try { return await work; }
+  finally { pendingEncodings.delete(key); }
+}
+
+async function buildEncodedBody(filePath, encoding, key) {
   const raw = await readFile(filePath);
   const body = encoding === 'br'
     ? await brotliAsync(raw, { params: {
@@ -136,15 +163,19 @@ export async function staticHandler(req, res) {
     'ETag': etag,
     'Vary': 'Accept-Encoding',
   };
+  const encoding = pickEncoding(req, COMPRESSIBLE.has(ext) && stats.size >= COMPRESS_MIN_BYTES && stats.size <= COMPRESS_MAX_BYTES);
+  if (!encoding) {
+    if (typeof res.writeHead === 'function') res.writeHead(406, { 'Cache-Control': 'no-store', 'Vary': 'Accept-Encoding', 'Content-Length': 0 });
+    if (typeof res.end === 'function') res.end();
+    return true;
+  }
   if (matchesEtag(req, etag)) {
     if (typeof res.writeHead === 'function') res.writeHead(304, baseHeaders);
     if (typeof res.end === 'function') res.end();
     return true;
   }
 
-  const encoding = COMPRESSIBLE.has(ext) && stats.size >= COMPRESS_MIN_BYTES && stats.size <= COMPRESS_MAX_BYTES
-    ? pickEncoding(req) : null;
-  if (encoding) {
+  if (encoding !== 'identity') {
     let body;
     try {
       body = await encodedBody(filePath, stats, encoding);

@@ -81,6 +81,9 @@ export class LobbyRoster {
       button.title = view === 'teams' && !teams ? 'Available in Team Deathmatch and Search & Destroy' : '';
       button.setAttribute('aria-pressed', String(view === this.view));
     }
+    if (this.viewButtons.teams.disabled && document.activeElement === this.viewButtons.teams) {
+      this.viewButtons[this.view].focus();
+    }
     for (const [filter, button] of Object.entries(this.filterButtons)) {
       button.textContent = `${filter.toUpperCase()} (${counts[filter]})`;
       button.setAttribute('aria-pressed', String(filter === this.filter));
@@ -98,6 +101,10 @@ export class LobbyRoster {
     if (signature !== this.signature) {
       this.signature = signature;
       const scrollTop = this.list.scrollTop;
+      const focused = document.activeElement;
+      const focusedRow = this.list.contains(focused) ? focused.closest('.vb-roster-item') : null;
+      const focusedControl = focusedRow && ['vb-bot-difficulty', 'vb-team-select', 'vb-roster-inspect']
+        .find(className => focused.classList.contains(className));
       this.list.replaceChildren();
       this.list.setAttribute('role', this.view === 'teams' ? 'group' : 'list');
       if (!filtered.length) el('p', 'vb-roster-empty', this.list).textContent = 'No operators match this filter.';
@@ -115,6 +122,12 @@ export class LobbyRoster {
         }
       } else for (const member of filtered) this.renderMember(this.list, member, state, selfIsHost, teams, teamCounts);
       this.list.scrollTop = scrollTop;
+      if (focusedRow) {
+        const row = [...this.list.querySelectorAll('.vb-roster-item')]
+          .find(item => item.dataset.memberId === focusedRow.dataset.memberId);
+        const target = (focusedControl && row?.querySelector(`.${focusedControl}`)) || row || this.list;
+        target.focus({ preventScroll: true });
+      }
     }
     for (const ping of this.list.querySelectorAll('.vb-roster-ping')) {
       const member = members.find(row => String(row.id) === ping.dataset.memberId);

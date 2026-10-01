@@ -13,7 +13,8 @@ try {
   const page = browser.page;
   const url = `${origin}/?debug=1&headless=1&touch=1`;
   await page.send('Page.navigate', { url });
-  await page.waitFor(`document.getElementById('play-btn')`);
+  await page.waitFor(`window.__vbBoot?.readyMs > 0 && document.getElementById('create-lobby-btn')?.disabled === false`,
+    { timeoutMs: 120_000, label: 'interactive menu with match assets ready' });
   // A real input event makes same-document history eligible for browser UI Back.
   await page.send('Input.dispatchMouseEvent', { type: 'mousePressed', x: 10, y: 10, button: 'left', clickCount: 1 });
   await page.send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: 10, y: 10, button: 'left', clickCount: 1 });

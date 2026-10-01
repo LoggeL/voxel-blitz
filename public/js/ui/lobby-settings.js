@@ -67,7 +67,12 @@ export class LobbySettings {
   }
 
   syncMaps(mode, preferred) {
-    this.options(this.controls.map, MAP_IDS.filter((id) => isModeMapCompatible(mode, id)), MAP_LABELS);
+    const maps = MAP_IDS.filter((id) => isModeMapCompatible(mode, id));
+    const options = this.controls.map.options;
+    // Ping/readiness updates must leave the native map menu intact.
+    if (options.length !== maps.length || maps.some((id, index) => options[index].value !== id)) {
+      this.options(this.controls.map, maps, MAP_LABELS);
+    }
     this.controls.map.value = mapForMode(mode, preferred);
     for (const option of this.controls.map.options) {
       const limit = lobbyCapacity(mode, option.value);

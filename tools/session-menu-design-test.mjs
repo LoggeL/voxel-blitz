@@ -9,7 +9,9 @@ try {
   browser = await launchCdpSession(`http://127.0.0.1:${port}/?debug=1&headless=1`, { width: 1536, height: 1024 });
   const page = browser.page;
   await page.send('Emulation.setDeviceMetricsOverride', { width: 1536, height: 1024, deviceScaleFactor: 1, mobile: false });
-  await page.waitFor(`!!document.getElementById('create-lobby-btn')`);
+  await page.waitFor(`window.__vbBoot?.readyMs > 0 &&
+    document.getElementById('create-lobby-btn')?.disabled === false`,
+  { timeoutMs: 120000, label: 'lobby creation ready after background assets' });
   await page.evaluate(`document.getElementById('create-lobby-btn').click()`);
   await page.waitFor(`document.getElementById('lobby')?.getAttribute('aria-hidden') === 'false'`);
   await mkdir('.artifacts', { recursive: true });
@@ -39,6 +41,10 @@ try {
   }
   await page.evaluate(`document.getElementById('settings-tab-controls').focus()`);
   await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowRight', code: 'ArrowRight' });
+  await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowRight', code: 'ArrowRight' });
+  assert.equal(await page.evaluate(`document.activeElement.id`), 'settings-tab-keyboard');
+  await page.send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'ArrowRight', code: 'ArrowRight' });
+  await page.send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'ArrowRight', code: 'ArrowRight' });
   assert.equal(await page.evaluate(`document.activeElement.id`), 'settings-tab-display');
   await page.evaluate(`document.getElementById('settings-tab-controls').click()`);
   for (const width of [1280,800,390,320]) {

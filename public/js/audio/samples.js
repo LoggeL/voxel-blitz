@@ -148,11 +148,13 @@ export class LocalSampleBank {
     this._getContext = getContext;
     this._addCleanup = typeof addCleanup === 'function' ? addCleanup : null;
     this._buffers = new Map();
+    this._loading = new Map();
+    this._generation = 0;
   }
 
   async load(manifest = {}, fetchImpl = globalThis.fetch) {
     const ctx = this._getContext();
-    if (!ctx || typeof ctx.decodeAudioData !== 'function' || typeof fetchImpl !== 'function') {
+    if (!ctx || ctx.state === 'closed' || typeof ctx.decodeAudioData !== 'function' || typeof fetchImpl !== 'function') {
       return Object.freeze({ loaded: 0, failed: Object.keys(manifest).length });
     }
 
@@ -163,15 +165,31 @@ export class LocalSampleBank {
         failed++;
         return;
       }
-      try {
-        const response = await fetchImpl(url);
-        if (!response?.ok) throw new Error(`sample fetch failed: ${url}`);
-        const buffer = await ctx.decodeAudioData(await response.arrayBuffer());
-        this._buffers.set(slot, buffer);
-        loaded++;
-      } catch (_) {
-        failed++;
+      let entry = this._loading.get(slot);
+      if (!entry || entry.ctx !== ctx || entry.url !== url) {
+        entry = { ctx, url, generation: this._generation, promise: null };
+        this._loading.set(slot, entry);
+        const current = () => this._generation === entry.generation
+          && this._getContext() === ctx && ctx.state !== 'closed' && this._loading.get(slot) === entry;
+        entry.promise = (async () => {
+          try {
+            const response = await fetchImpl(url);
+            if (!response?.ok || !current()) return false;
+            const bytes = await response.arrayBuffer();
+            if (!current()) return false;
+            const buffer = await ctx.decodeAudioData(bytes);
+            if (!current()) return false;
+            this._buffers.set(slot, buffer);
+            return true;
+          } catch (_) {
+            return false;
+          } finally {
+            if (this._loading.get(slot) === entry) this._loading.delete(slot);
+          }
+        })();
       }
+      if (await entry.promise) loaded++;
+      else failed++;
     }));
     return Object.freeze({ loaded, failed });
   }
@@ -184,7 +202,7 @@ export class LocalSampleBank {
   play(slot, output, { gain = 1, rate = 1, cleanupOwner = output } = {}) {
     const ctx = this._getContext();
     const buffer = this.getBuffer(slot);
-    if (!ctx || !buffer || !output) return false;
+    if (!ctx || ctx.state === 'closed' || !buffer || !output) return false;
 
     const source = ctx.createBufferSource();
     const level = ctx.createGain();
@@ -196,16 +214,21 @@ export class LocalSampleBank {
     const cleanup = () => {
       if (cleaned) return;
       cleaned = true;
+      try { source.stop(ctx.currentTime); } catch (_) {}
       try { source.disconnect(); } catch (_) {}
       try { level.disconnect(); } catch (_) {}
     };
     source.onended = cleanup;
     this._addCleanup?.(cleanupOwner, cleanup);
-    source.start(ctx.currentTime);
+    // VoicePool can retire a low-priority output before this source is started.
+    if (cleaned) return false;
+    try { source.start(ctx.currentTime); } catch (_) { cleanup(); return false; }
     return true;
   }
 
   clear() {
+    this._generation++;
+    this._loading.clear();
     this._buffers.clear();
   }
 }
