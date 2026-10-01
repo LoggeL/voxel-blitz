@@ -56,7 +56,7 @@
     "weapons:glaive:test": "node tools/glaive-test.mjs",
     "weapons:bubble:test": "node tools/bubble-test.mjs",
     "minigun:test": "node tools/minigun-test.mjs && node tools/minigun-client-test.mjs && node tools/heavy-weapon-model-test.mjs",
-    "skipjack:test": "node tools/skipjack-gameplay-test.mjs && node tools/skipjack-ammo-test.mjs && node tools/skipjack-animation-test.mjs",
+    "skipjack:test": "node tools/skipjack-gameplay-test.mjs && node tools/skipjack-ammo-test.mjs && node tools/skipjack-animation-test.mjs && node tools/skipjack-destruction-test.mjs",
     "skipjack:browser": "node tools/grenade-launcher-browser-test.mjs",
     "weapons:quick-melee:test": "node tools/quick-melee-test.mjs && node tools/melee-rules-test.mjs",
     "killcam:test": "node tools/killcam-test.mjs",

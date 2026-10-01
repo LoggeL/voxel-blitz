@@ -39,7 +39,7 @@ close(simulateBlast({ type: 'mgl', direct: true }).damage, 64);
 close(simulateBlast({ type: 'mgl', distance: 0 }).damage, 48);
 assert.equal(simulateBlast({ type: 'mgl', direct: true }).hpLeft, 36, 'a direct round cannot one-shot');
 assert.equal(simulateBlast({ type: 'mgl', distance: MGL_RULES.damageRadius }).damage, 0);
-assert.equal(MGL_RULES.terrainRadius, 0, 'SKIPJACK blasts preserve terrain');
+assert.equal(MGL_RULES.terrainRadius, 2.8, 'SKIPJACK blasts open a small crater');
 {
   const wallZ = -0.6;
   const wallRay = (ox, _oy, oz, _dx, _dy, dz, max) => {

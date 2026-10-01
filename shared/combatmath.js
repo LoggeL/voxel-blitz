@@ -395,13 +395,13 @@ export const WEAPONS = {
     // GL-3 SKIPJACK: three rapid arcing rounds, with a brief safe arm, four surface
     // bounces, body-contact detonation and a timed airburst. Blast caps at 64 scaled
     // damage, so landing a round still takes aim and a follow-up.
-    // One round rides in the closed chamber; each flank cassette carries magSize - 1.
-    // A tactical swap keeps the chambered round and skips the charging stroke; an
-    // empty swap strips a cassette round into the chamber (2 of 3). Three cassettes
-    // keep the 9-round life total of the old two-cassette, round-wasting reload.
+    // One round rides in the closed chamber; the flank cassette displays the
+    // remaining rounds. An empty swap brings in three and chambers the top one;
+    // a tactical swap keeps its chambered round and skips the charging stroke.
+    // The starting load and two spare cassettes total nine rounds per life.
     id: 'mgl', name: 'GL-3 SKIPJACK', mode: 'semi',
     weightKg: 5.6,
-    rpm: 115, magSize: 3, spareMags: 3, chamber: 1,
+    rpm: 115, magSize: 3, spareMags: 2, chamber: 1,
     damage: [80, 80, 19], falloffStart: 18, // display only: direct damage is the full base blast plus its bonus
     headMult: 1, pellets: 1, penetration: 0,
     spreadDeg: { hip: 1.0, ads: 0.18 }, bloomDeg: 0.35, bloomMaxDeg: 1.8,
@@ -509,7 +509,8 @@ export function reloadPlan(def, mag, reserve = Infinity, panic01 = 0) {
     return {
       staged: false,
       chambered,
-      rounds: chamber > 0 && !chambered ? def.magSize - chamber : def.magSize,
+      rounds: def.id === 'mgl' ? def.magSize
+        : chamber > 0 && !chambered ? def.magSize - chamber : def.magSize,
       seconds: (inMag > 0 ? def.tacTime : def.reloadTime) * scale,
       startSeconds: 0,
       perRoundSeconds: 0,

@@ -31,9 +31,10 @@ export function advanceReload(reload, def, ammo, dt, infinite = false) {
   if (reload.elapsed + 1e-9 >= reload.seconds) {
     reload.done = true;
     if (!reload.staged && (infinite || ammo.reserve > 0)) {
-      // Closed-bolt launchers: an empty swap must strip one round of the fresh
-      // magazine into the chamber, so it delivers magSize - chamber in total.
-      ammo.mag = reload.chambered || !chamberOf(def) ? def.magSize : def.magSize - chamberOf(def);
+      // SKIPJACK feeds the top of three fresh rounds into the chamber while the
+      // other two remain in the cassette. Its full load still has three shots.
+      ammo.mag = reload.chambered || !chamberOf(def) || def.id === 'mgl'
+        ? def.magSize : def.magSize - chamberOf(def);
       if (!infinite) ammo.reserve--;
     }
   }

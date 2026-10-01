@@ -269,6 +269,14 @@ try {
     skipjackRig.setWeapon('mgl');
     const skipjack = skipjackRig._models.mgl.extra.userData.skipjack;
     must(skipjack?.rounds.length === 3, 'SKIPJACK provides three reserve slots for the ammo upgrade');
+    const stock = skipjackRig._models.mgl.body;
+    const stockBridge = stock.getObjectByName('skipjack_stock_bridge');
+    const stockRails = stock.children.filter(part => part.name === 'skipjack_stock_upper_rail' ||
+      part.name === 'skipjack_stock_lower_rail');
+    must(stockBridge && stockRails.length === 4 &&
+      stockRails.every(rail => new T.Box3().setFromObject(stockBridge)
+        .intersectsBox(new T.Box3().setFromObject(rail))),
+    'SKIPJACK stock bridge physically joins all four rails');
     const { TIMERS, HANDS } = await import('/js/guns/defs.js');
     const skipjackDoc = await (await fetch('/assets/blender/skipjack.gltf')).json();
     for (const key of ['grip', 'support']) {
@@ -305,8 +313,16 @@ try {
     skipjackRig.setSkipjack({mag:3,magSize:3});
     const beforeShot=skipjack.rounds.map(r=>r.position.clone());
     must(skipjackRig.fire(), 'SKIPJACK fires its chambered round');
-    must(skipjack.rounds.every((r,i)=>r.position.equals(beforeShot[i])),
-      'firing does not pull an external round toward the barrel');
+    skipjackRig.setSkipjack({mag:2,magSize:3});
+    for(let i=0;i<12;i++) skipjackRig.update(0.01,{speed:0,vaulting:false,grounded:true,aimSwayScale:0});
+    must(skipjack.rounds[1].position.distanceTo(beforeShot[1])>0.01,
+      'shot lifts the next physical shell out of the cassette');
+    must(skipjack.rounds[2].position.y>beforeShot[2].y,
+      'follower pushes the lower shell up while the top shell chambers');
+    for(let i=0;i<20;i++) skipjackRig.update(0.01,{speed:0,vaulting:false,grounded:true,aimSwayScale:0});
+    must(skipjack.rounds.map(r=>Number(r.visible)).join('')==='001',
+      'settled first shot leaves one visible external round');
+    skipjackRig.setSkipjack({mag:3,magSize:3});
     // Real runtime swaps: sample the running cassette animation, not a static pose.
     const pose = { speed: 0, vaulting: false, grounded: true, aimSwayScale: 0 };
     const slots = () => skipjack.rounds.map(r=>Number(r.visible)).join('');
@@ -331,7 +347,7 @@ try {
         'a finished swap leaves the cassette seated');
     };
     swapCheck(2, 3, '001,away,011,011,011');  // tactical: chamber kept, 2 fresh
-    swapCheck(0, 3, '000,away,011,011,001');  // empty: the rack strips one fresh round
+    swapCheck(0, 3, '000,away,111,111,011');  // empty: three arrive, then one chambers
     swapCheck(1, 4, '000,away,111,111,111');  // upgraded tactical swap
     skipjackRig.setSkipjack({mag:3,magSize:3});
     skipjackRig.reload(1, 'magswap');

@@ -1,0 +1,13 @@
+{
+  "selected": "connected-stock",
+  "references": [
+    "concept-connected-stock.png",
+    "concept-braced-stock.png"
+  ],
+  "source": "../after-desktop/mgl-held.png",
+  "purpose": "Remove unsupported rear hardware and make side-cassette chambering visible.",
+  "prompts": [
+    "Use case: precise-object-edit. Edit the supplied actual first-person voxel game screenshot into a mechanical cleanup design reference. Preserve the exact orange and gunmetal grenade launcher identity, grip, optic, muzzle direction, game environment, camera composition, arms and crosshair. Remove every floating little circular fastener and isolated attachment around the rear receiver/stock. All fasteners must be seated flush in a supporting surface. Side cassette has three vertically stacked 40mm cartridges for loading, with a clear connected feed rail to the chamber; finished loaded state shows only two cartridges on the side because one is inside the weapon. Physically coherent playable low-poly geometry, no loose ornamental pieces, no new UI/text. Alternative A: retain the two stock rails, but give them one continuous central bridge and fully connected transverse brackets. Flush bolts sit only at supported joints. Make the existing rear plate edges and stock meet cleanly, while preserving the current silhouette and orange receiver panels.",
+    "Use case: precise-object-edit. Edit the supplied actual first-person voxel game screenshot into a mechanical cleanup design reference. Preserve the exact orange and gunmetal grenade launcher identity, grip, optic, muzzle direction, game environment, camera composition, arms and crosshair. Remove every floating little circular fastener and isolated attachment around the rear receiver/stock. All fasteners must be seated flush in a supporting surface. Side cassette has three vertically stacked 40mm cartridges for loading, with a clear connected feed rail to the chamber; finished loaded state shows only two cartridges on the side because one is inside the weapon. Physically coherent playable low-poly geometry, no loose ornamental pieces, no new UI/text. Alternative B: simplify the stock to an open triangular gunmetal brace with a single broad shoulder pad and two orange integrated clamp plates. No extra circular decorations, no disconnected rails. Preserve receiver dimensions and side cassette position."
+  ]
+}

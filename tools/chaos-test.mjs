@@ -55,7 +55,7 @@ assert.equal(Object.values(CHAOS_UPGRADES).flat().length, 60);
   const enhanced = roundAt(2);
   assert.equal(enhanced.blastRules.damage, MGL_RULES.splashDamage * 1.1);
   assert.equal(enhanced.blastRules.damageRadius, MGL_RULES.damageRadius + 0.3);
-  assert.equal(enhanced.blastRules.terrainRadius, 0);
+  assert.equal(enhanced.blastRules.terrainRadius, MGL_RULES.terrainRadius);
   assert.equal(roundAt(3).blastRules.damageRadius, MGL_RULES.damageRadius + 0.3,
     'later upgrades retain the blast improvement');
   assert.equal(events.at(-1).bn, MGL_RULES.maxBounces + 2, 'the longer skip budget is published to clients');

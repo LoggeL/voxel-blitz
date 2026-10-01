@@ -11,7 +11,7 @@ import { glaivePresentationFor } from './glaive-presentation.js';
 import { bubblePresentationFor } from './bubble-presentation.js';
 import { BOB, DEPLOY, TIMERS } from './defs.js';
 import { buildGun, disposeGunModels } from './assemble.js';
-import { WeaponActions } from './actions.js';
+import { WeaponActions, syncSkipjackAmmo } from './actions.js';
 import { MaterialCache } from './kit.js';
 import { D2R, HIP, VM_FOV_BASE } from './models/common.js';
 import { kickMassScale } from './defs.js';
@@ -35,12 +35,6 @@ const MOTOR_IDS = Object.freeze({
   minigun: Object.freeze({ level: (rig) => rig._minigunState?.spin || 0, tremor: 0.0012 }),
   glaive: Object.freeze({ level: (rig) => rig._glaiveMotion?.motor || 0, tremor: 0.0003 }),
 });
-
-/** Up to three exterior SKIPJACK slots, emptied from the top. */
-function showSkipjackReserve(rounds, reserve) {
-  const count = Math.max(0, Math.min(rounds.length, Math.floor(Number(reserve) || 0)));
-  for (let i = 0; i < rounds.length; i++) rounds[i].visible = i >= rounds.length - count;
-}
 
 export class ViewmodelRig {
 
@@ -352,6 +346,7 @@ export class ViewmodelRig {
       cur.muzzleMarker.getWorldQuaternion(this._tmpQ);
       this.onMuzzleFlash(this._tmpV.clone(), this._tmpQ.clone());
     }
+    if (this._id === 'mgl') this._actions.beginSkipjackShot(cur, this._skipjackState?.mag);
     return true;
   }
 
@@ -390,12 +385,18 @@ export class ViewmodelRig {
 
   /** One round is already chambered; the cassette shows only the remaining rounds. */
   setSkipjack(state) {
-    this._skipjackState = state ? { mag: state.mag, magSize: state.magSize } : null;
+    if (!state) {
+      this._skipjackState = null;
+      return;
+    }
+    if (!this._skipjackState) this._skipjackState = { mag: 0, magSize: 0 };
+    this._skipjackState.mag = state.mag;
+    this._skipjackState.magSize = state.magSize;
     const skipjack = this._models.mgl?.extra.userData.skipjack;
-    // A running cassette swap owns the slots: the old cassette keeps its rounds
-    // until it leaves the hand, the fresh one arrives loaded (ReloadActions).
-    if (!skipjack || !state || skipjack.reload) return;
-    showSkipjackReserve(skipjack.rounds, Math.floor(Number(state.mag) || 0) - 1);
+    if (!skipjack) return;
+    // A running transfer keeps its traveling shell visible until it seats;
+    // divergent authority cancels the transfer and restores the real count.
+    syncSkipjackAmmo(skipjack, state.mag);
   }
 
   /** An empty trigger pull: the SUDSBLASTER film forms weakly and pops. */
@@ -426,12 +427,16 @@ export class ViewmodelRig {
     if (!this._cur) return;
     const skipjack = this._cur.extra.userData.skipjack;
     if (skipjack) {
+      skipjack.shot = null;
+      syncSkipjackAmmo(skipjack, this._skipjackState?.mag);
       // The slots still show the pre-swap reserve here; one round rides in the
       // chamber. A tactical swap keeps it; an empty swap strips a fresh round.
       const shown = skipjack.rounds.filter((round) => round.visible).length;
       const magSize = Math.max(1, Math.floor(Number(this._skipjackState?.magSize) || WEAPONS.mgl.magSize));
       const chambered = Math.floor(Number(this._skipjackState?.mag) || 0) > 0;
-      skipjack.reload = { shown, fresh: Math.min(skipjack.rounds.length, magSize - 1), chambered };
+      skipjack.reload = { shown,
+        fresh: Math.min(skipjack.rounds.length, magSize - (chambered ? 1 : 0)),
+        chambered, fullLoad: magSize };
     }
     this._actions.startReload(this._now - elapsed, dur, type, this._cur.T, stages);
     this._bubble?.reload(dur, this._cur.T.magTimeline, elapsed);

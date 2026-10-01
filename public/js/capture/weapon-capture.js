@@ -8,6 +8,9 @@ import { RailBeamFX } from '../weapons/rail-beam.js';
 import { FlameFX } from '../weapons/flame.js';
 import { Effects } from '../weapons/effects.js';
 import { ViewmodelRig } from '../guns/viewmodel.js';
+import { buildGun } from '../guns/assemble.js';
+import { MaterialCache } from '../guns/kit.js';
+import { presentSkipjackReserve } from '../guns/actions.js';
 import { MGL_RULES } from '../../../shared/mgl-rules.js';
 import { PICKAXE_LIFT_AT, PICKAXE_STRIKE_AT, PICKAXE_SWING_SECONDS } from '../guns/pickaxe-swing.js';
 import { createSniperScope } from '../ui/sniper-scope.js';
@@ -15,9 +18,14 @@ import { createSniperScope } from '../ui/sniper-scope.js';
 const params = new URLSearchParams(location.search);
 const weapon = params.get('weapon') || 'rifle';
 const state = params.get('state') || 'held';
+const angle = params.get('angle');
 const shot = findWeaponCaptureShot(weapon, state);
 
 if (!shot) throw new Error(`unknown weapon capture: ${weapon}/${state}`);
+if (angle && (weapon !== 'mgl' || state !== 'held' ||
+  !['hero', 'front', 'left', 'right', 'rear', 'top'].includes(angle))) {
+  throw new Error(`unknown weapon inspection angle: ${weapon}/${state}/${angle}`);
+}
 
 const canvas = document.getElementById('capture');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -76,10 +84,11 @@ camera.add(inspectionFill);
 const rig = new ViewmodelRig(camera);
 rig.setWeapon(state.startsWith('swap-') ? (weapon === 'rifle' ? 'revolver' : 'rifle') : weapon);
 const ammoPreview = Number(params.get('ammo'));
+const previewMag = params.has('ammo') && Number.isFinite(ammoPreview)
+  ? ammoPreview : WEAPONS.mgl.magSize;
 if (weapon === 'mgl') {
-  const mag = params.has('ammo') && Number.isFinite(ammoPreview)
-    ? ammoPreview : WEAPONS.mgl.magSize;
-  rig.setSkipjack({ mag, magSize: Math.max(WEAPONS.mgl.magSize, mag) });
+  rig.setSkipjack({ mag: previewMag,
+    magSize: Math.max(WEAPONS.mgl.magSize, previewMag) });
 }
 
 const stablePose = Object.freeze({
@@ -100,6 +109,10 @@ switch (state) {
   case 'reload-eject':
   case 'reload-load':
   case 'reload-charge':
+  case 'reload-incoming':
+  case 'reload-lift':
+  case 'reload-slide':
+  case 'reload-seated':
   case 'charge-low':
   case 'charge-high':
   case 'vaulting':
@@ -113,6 +126,8 @@ switch (state) {
   case 'mgl-flight':
   case 'mgl-bounce':
   case 'mgl-blast':
+  case 'shot-lift':
+  case 'shot-slide':
     rig.ads(0);
     break;
   default:
@@ -168,7 +183,9 @@ if (state.startsWith('reload-')) {
   const fraction = weapon === 'rocket'
     ? { 'reload-open': 0.33, 'reload-load': 0.76, 'reload-charge': 0.90 }[state]
     : weapon === 'mgl'
-      ? { 'reload-open': 0.25, 'reload-eject': 0.40, 'reload-load': 0.68, 'reload-charge': 0.905 }[state]
+      ? { 'reload-open': 0.25, 'reload-eject': 0.40, 'reload-load': 0.68,
+          'reload-charge': 0.905, 'reload-incoming': 0.62, 'reload-lift': 0.86,
+          'reload-slide': 0.89, 'reload-seated': 0.955 }[state]
     : belt
       ? { 'reload-open': 0.14, 'reload-eject': 0.28, 'reload-load': 0.875, 'reload-charge': 0.965 }[state]
       : { 'reload-open': 0.26, 'reload-eject': 0.40, 'reload-load': 0.64 }[state];
@@ -202,6 +219,13 @@ if (state === 'firing') {
   }
 }
 
+if (state === 'shot-lift' || state === 'shot-slide') {
+  if (!rig.fire()) throw new Error('MGL shot capture could not fire');
+  rig.setSkipjack({ mag: Math.max(0, previewMag - 1), magSize: WEAPONS.mgl.magSize });
+  const seconds = state === 'shot-lift' ? 0.075 : 0.16;
+  for (let frame = 0; frame < Math.round(seconds * 200); frame++) rig.update(0.005, stablePose);
+}
+
 let mglFx = null;
 let mglBounces = 0;
 if (state.startsWith('mgl-')) {
@@ -233,8 +257,60 @@ if (state.startsWith('mgl-')) {
   for (let frame = 0; frame < frames; frame++) mglFx.update(1 / 60);
 }
 
-renderer.render(scene, camera);
-renderer.render(scene, camera);
+let renderScene = scene;
+let inspectionBounds = null;
+let inspectionVisibleReserve = null;
+if (angle) {
+  // The same runtime model bundle as the match, shown without hands so the
+  // stock, cassette and loose-looking fittings can be inspected on every side.
+  rig.root.visible = false;
+  const model = buildGun('mgl', new MaterialCache());
+  presentSkipjackReserve(model.extra.userData.skipjack, previewMag - 1);
+  inspectionVisibleReserve = model.extra.userData.skipjack.rounds
+    .filter((round) => round.visible).length;
+  model.root.traverse((part) => {
+    if (part.name === 'hand_l' || part.name === 'hand_r') part.visible = false;
+  });
+  model.flash.grp.visible = false;
+  model.root.updateMatrixWorld(true);
+  const bounds = new THREE.Box3();
+  model.root.traverseVisible((part) => {
+    if (!part.geometry) return;
+    part.geometry.computeBoundingBox();
+    bounds.union(part.geometry.boundingBox.clone().applyMatrix4(part.matrixWorld));
+  });
+  const center = bounds.getCenter(new THREE.Vector3());
+  const size = bounds.getSize(new THREE.Vector3());
+  inspectionBounds = { center: center.toArray(), size: size.toArray() };
+  const direction = {
+    hero: [-1, 0.6, -1], front: [0, 0.25, -1], left: [-1, 0.1, 0],
+    right: [1, 0.1, 0], rear: [0, 0.15, 1], top: [0, 1, 0],
+  }[angle];
+  renderScene = new THREE.Scene();
+  renderScene.background = new THREE.Color(0x263c52);
+  renderScene.add(new THREE.HemisphereLight(0xd8e8ff, 0x443022, 2.5));
+  for (const [color, intensity, position] of [
+    [0xffdda9, 4, [2, 4, 3]], [0x8ab9ff, 3, [-3, 2, -2]],
+    [0xffffff, 2, [-2, 0, 3]],
+  ]) {
+    const light = new THREE.DirectionalLight(color, intensity);
+    light.position.set(...position);
+    renderScene.add(light);
+  }
+  renderScene.add(model.root, camera);
+  camera.fov = 40;
+  camera.near = 0.01;
+  camera.far = 100;
+  camera.up.set(0, 0, angle === 'top' ? -1 : 0);
+  if (angle !== 'top') camera.up.set(0, 1, 0);
+  const distance = Math.max(size.length() * 1.7, 0.8);
+  camera.position.copy(center).add(new THREE.Vector3(...direction).normalize().multiplyScalar(distance));
+  camera.lookAt(center);
+  camera.updateProjectionMatrix();
+}
+
+renderer.render(renderScene, camera);
+renderer.render(renderScene, camera);
 
 document.documentElement.dataset.captureReady = 'true';
 document.documentElement.dataset.captureWeapon = weapon;
@@ -245,6 +321,7 @@ const originalOliveParts = mglBody?.children.filter((part) =>
   /olive[ _-]*drab/i.test(part.name)
     || /skipjack-olive-armor/i.test(part.material?.map?.name || '')) || [];
 window.__vbWeaponCapture = Object.freeze({ weapon, state,
+  angle, inspectionBounds, inspectionVisibleReserve,
   ammo: weapon === 'mgl' && params.has('ammo') ? ammoPreview : null,
   modelAsset: mglBody?.userData.blenderAsset ?? null,
   modelStructure: mglBody ? Object.freeze({
@@ -253,9 +330,15 @@ window.__vbWeaponCapture = Object.freeze({ weapon, state,
     rearArmor: !!mglBody.getObjectByName('skipjack_rear_armor_plate'),
     rearReceiver: !!mglBody.getObjectByName('skipjack_rear_receiver_plate'),
     upperStockRail: !!mglBody.getObjectByName('skipjack_stock_upper_rail'),
+    stockBridge: !!mglBody.getObjectByName('skipjack_stock_bridge'),
   }) : null,
   visibleReserve: skipjack?.rounds.filter((round) => round.visible).length ?? null,
   reserveSlots: skipjack?.rounds.length ?? null,
+  roundState: skipjack?.rounds.map((round) => ({ visible: round.visible,
+    position: round.position.toArray() })) ?? null,
+  cassetteState: skipjack ? { visible: skipjack.cassette.visible,
+    position: skipjack.cassette.position.toArray(),
+    rotation: skipjack.cassette.rotation.toArray() } : null,
   modelFinite: weapon === 'mgl'
     ? (() => { rig._models.mgl.root.updateMatrixWorld(true);
       let finite = true;

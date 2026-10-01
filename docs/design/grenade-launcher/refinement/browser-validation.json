@@ -1,0 +1,2366 @@
+{
+  "captures": {
+    "desktop/mgl-held": {
+      "bytes": 267633,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-scoped": {
+      "bytes": 212587,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-firing": {
+      "bytes": 264225,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.06541683911588256,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-shot-lift": {
+      "bytes": 257703,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.10599124792904993,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.07626430903262923,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-shot-slide": {
+      "bytes": 260140,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0.11381950764817371,
+            0.05543166976652705,
+            -0.18938035726334787
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.1258057497280058,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-reload-open": {
+      "bytes": 258152,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.8398196844477437,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-reload-eject": {
+      "bytes": 253164,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.19479999999998157,
+          -0.035599999999963175,
+          -0.28840000000000615
+        ],
+        "rotation": [
+          0,
+          -0.92,
+          0.035199999999987734,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-reload-load": {
+      "bytes": 263574,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.04500000000002717,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.92,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-reload-charge": {
+      "bytes": 297867,
+      "reserve": 3,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0.119,
+            -0.008000000000000007,
+            -0.198
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.003640000000008661,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-reload-incoming": {
+      "bytes": 255991,
+      "reserve": 3,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.19480000000002862,
+          -0.035600000000057266,
+          -0.28839999999999044
+        ],
+        "rotation": [
+          0,
+          -0.92,
+          0.0352000000000191,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-reload-lift": {
+      "bytes": 304968,
+      "reserve": 3,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.036370883271167775,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.008106717910373894,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.008106717910373894,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.03136000000000825,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-reload-slide": {
+      "bytes": 306168,
+      "reserve": 3,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0.07956777172191863,
+            0.0068719779434073544,
+            -0.13239007395747807
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.05571534766896702,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.05571534766896702,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.012320000000012788,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-reload-seated": {
+      "bytes": 284770,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-flight": {
+      "bytes": 269813,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": {
+        "projectiles": 1,
+        "trails": 1,
+        "bounces": 0,
+        "blasts": 0,
+        "particles": 0
+      }
+    },
+    "desktop/mgl-bounce": {
+      "bytes": 272214,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": {
+        "projectiles": 1,
+        "trails": 1,
+        "bounces": 1,
+        "blasts": 0,
+        "particles": 13
+      }
+    },
+    "desktop/mgl-blast": {
+      "bytes": 282269,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": {
+        "projectiles": 0,
+        "trails": 0,
+        "bounces": 0,
+        "blasts": 1,
+        "particles": 46
+      }
+    },
+    "mobile/mgl-held": {
+      "bytes": 165832,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-scoped": {
+      "bytes": 185845,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-firing": {
+      "bytes": 166796,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.06541683911588256,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-shot-lift": {
+      "bytes": 167738,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.10599124792904993,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.07626430903262923,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-shot-slide": {
+      "bytes": 167698,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0.11381950764817371,
+            0.05543166976652705,
+            -0.18938035726334787
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.1258057497280058,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-reload-open": {
+      "bytes": 182775,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.8398196844477437,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-reload-eject": {
+      "bytes": 175620,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.19479999999998157,
+          -0.035599999999963175,
+          -0.28840000000000615
+        ],
+        "rotation": [
+          0,
+          -0.92,
+          0.035199999999987734,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-reload-load": {
+      "bytes": 180105,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.04500000000002717,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.92,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-reload-charge": {
+      "bytes": 219118,
+      "reserve": 3,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0.119,
+            -0.008000000000000007,
+            -0.198
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.003640000000008661,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-reload-incoming": {
+      "bytes": 179290,
+      "reserve": 3,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.19480000000002862,
+          -0.035600000000057266,
+          -0.28839999999999044
+        ],
+        "rotation": [
+          0,
+          -0.92,
+          0.0352000000000191,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-reload-lift": {
+      "bytes": 220559,
+      "reserve": 3,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.036370883271167775,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.008106717910373894,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.008106717910373894,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.03136000000000825,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-reload-slide": {
+      "bytes": 222752,
+      "reserve": 3,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0.07956777172191863,
+            0.0068719779434073544,
+            -0.13239007395747807
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.05571534766896702,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.05571534766896702,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.012320000000012788,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-reload-seated": {
+      "bytes": 187483,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "mobile/mgl-flight": {
+      "bytes": 168486,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": {
+        "projectiles": 1,
+        "trails": 1,
+        "bounces": 0,
+        "blasts": 0,
+        "particles": 0
+      }
+    },
+    "mobile/mgl-bounce": {
+      "bytes": 170859,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": {
+        "projectiles": 1,
+        "trails": 1,
+        "bounces": 1,
+        "blasts": 0,
+        "particles": 13
+      }
+    },
+    "mobile/mgl-blast": {
+      "bytes": 181493,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": {
+        "projectiles": 0,
+        "trails": 0,
+        "bounces": 0,
+        "blasts": 1,
+        "particles": 46
+      }
+    },
+    "landscape/mgl-held": {
+      "bytes": 88826,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "landscape/mgl-scoped": {
+      "bytes": 73085,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "landscape/mgl-firing": {
+      "bytes": 88211,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.06541683911588256,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "landscape/mgl-shot-lift": {
+      "bytes": 87319,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.10599124792904993,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.07626430903262923,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "landscape/mgl-shot-slide": {
+      "bytes": 87151,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0.11381950764817371,
+            0.05543166976652705,
+            -0.18938035726334787
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.1258057497280058,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "landscape/mgl-reload-open": {
+      "bytes": 86875,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.8398196844477437,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "landscape/mgl-reload-eject": {
+      "bytes": 85755,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.19479999999998157,
+          -0.035599999999963175,
+          -0.28840000000000615
+        ],
+        "rotation": [
+          0,
+          -0.92,
+          0.035199999999987734,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "landscape/mgl-reload-load": {
+      "bytes": 88484,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.04500000000002717,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.92,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "landscape/mgl-reload-charge": {
+      "bytes": 96978,
+      "reserve": 3,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0.119,
+            -0.008000000000000007,
+            -0.198
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.003640000000008661,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "landscape/mgl-reload-incoming": {
+      "bytes": 87111,
+      "reserve": 3,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.19480000000002862,
+          -0.035600000000057266,
+          -0.28839999999999044
+        ],
+        "rotation": [
+          0,
+          -0.92,
+          0.0352000000000191,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "landscape/mgl-reload-lift": {
+      "bytes": 99465,
+      "reserve": 3,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.036370883271167775,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.008106717910373894,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.008106717910373894,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.03136000000000825,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "landscape/mgl-reload-slide": {
+      "bytes": 99204,
+      "reserve": 3,
+      "rounds": [
+        {
+          "visible": true,
+          "position": [
+            0.07956777172191863,
+            0.0068719779434073544,
+            -0.13239007395747807
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.05571534766896702,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.05571534766896702,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          -0.012320000000012788,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "landscape/mgl-reload-seated": {
+      "bytes": 93504,
+      "reserve": 2,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.063,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-held-ammo-2": {
+      "bytes": 267757,
+      "reserve": 1,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": true,
+          "position": [
+            0,
+            0.126,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    },
+    "desktop/mgl-held-ammo-0": {
+      "bytes": 267854,
+      "reserve": 0,
+      "rounds": [
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        },
+        {
+          "visible": false,
+          "position": [
+            0,
+            0,
+            0
+          ]
+        }
+      ],
+      "cassette": {
+        "visible": true,
+        "position": [
+          -0.142,
+          0.02,
+          -0.306
+        ],
+        "rotation": [
+          0,
+          0,
+          0,
+          "XYZ"
+        ]
+      },
+      "fx": null
+    }
+  },
+  "dynamic": {
+    "before": 1,
+    "completed": true,
+    "cancelled": true,
+    "shotRecovery": true,
+    "afterFirst": "001",
+    "afterSecond": "000",
+    "roundTravel": 0.2594012336131037,
+    "maxFeedStep": 0.21039388491141964,
+    "maxBoltStep": 0.022252172885674368,
+    "maxTrails": 1,
+    "bounded": true,
+    "disposed": true
+  },
+  "inspection": {
+    "hero": {
+      "bytes": 103218,
+      "visibleReserve": 2
+    },
+    "front": {
+      "bytes": 45296,
+      "visibleReserve": 2
+    },
+    "left": {
+      "bytes": 90738,
+      "visibleReserve": 2
+    },
+    "right": {
+      "bytes": 92762,
+      "visibleReserve": 2
+    },
+    "rear": {
+      "bytes": 42808,
+      "visibleReserve": 2
+    },
+    "top": {
+      "bytes": 90333,
+      "visibleReserve": 2
+    }
+  },
+  "live": {
+    "mag": 3,
+    "weapon": "mgl",
+    "map": "KILLHOUSE",
+    "running": true,
+    "feet": {
+      "x": 40.5,
+      "y": 15,
+      "z": 86.5
+    },
+    "yaw": 0,
+    "pitch": 0,
+    "blocksBefore": 948,
+    "magAfter": 2,
+    "confirmedLaunches": 1,
+    "destruction": {
+      "blocksAfter": 942,
+      "blockRegion": {
+        "x0": 34,
+        "x1": 46,
+        "y0": 14,
+        "y1": 24,
+        "z0": 49,
+        "z1": 89
+      },
+      "ownLaunches": [
+        {
+          "t": "ev",
+          "kind": "projectileLaunch",
+          "id": "p1_mpw1ty",
+          "pid": "m1",
+          "type": "mgl",
+          "o": [
+            40.5,
+            16.5,
+            85.98
+          ],
+          "v": [
+            0.2,
+            0.15,
+            -32
+          ],
+          "fuse": 1800,
+          "bn": 4,
+          "arm": 160,
+          "chaos": 0
+        }
+      ],
+      "explosions": [
+        {
+          "t": "ev",
+          "kind": "projectileExplode",
+          "id": "p1_mpw1ty",
+          "pid": "m1",
+          "type": "mgl",
+          "x": 40.76,
+          "y": 15.13,
+          "z": 65.72,
+          "radius": 4.5
+        }
+      ],
+      "removedBlocks": [
+        {
+          "t": "ev",
+          "kind": "block",
+          "x": 40,
+          "y": 14,
+          "z": 65,
+          "v": 0,
+          "from": 3
+        },
+        {
+          "t": "ev",
+          "kind": "block",
+          "x": 41,
+          "y": 14,
+          "z": 65,
+          "v": 0,
+          "from": 3
+        },
+        {
+          "t": "ev",
+          "kind": "block",
+          "x": 40,
+          "y": 14,
+          "z": 66,
+          "v": 0,
+          "from": 3
+        },
+        {
+          "t": "ev",
+          "kind": "block",
+          "x": 41,
+          "y": 14,
+          "z": 66,
+          "v": 0,
+          "from": 3
+        },
+        {
+          "t": "ev",
+          "kind": "block",
+          "x": 40,
+          "y": 14,
+          "z": 64,
+          "v": 0,
+          "from": 3
+        },
+        {
+          "t": "ev",
+          "kind": "block",
+          "x": 39,
+          "y": 14,
+          "z": 65,
+          "v": 0,
+          "from": 3
+        }
+      ],
+      "localBlockReadback": [
+        {
+          "x": 40,
+          "y": 14,
+          "z": 65,
+          "value": 0
+        },
+        {
+          "x": 41,
+          "y": 14,
+          "z": 65,
+          "value": 0
+        },
+        {
+          "x": 40,
+          "y": 14,
+          "z": 66,
+          "value": 0
+        },
+        {
+          "x": 41,
+          "y": 14,
+          "z": 66,
+          "value": 0
+        },
+        {
+          "x": 40,
+          "y": 14,
+          "z": 64,
+          "value": 0
+        },
+        {
+          "x": 39,
+          "y": 14,
+          "z": 65,
+          "value": 0
+        }
+      ],
+      "debris": {
+        "calls": 6,
+        "particles": 84,
+        "materials": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ]
+      }
+    }
+  },
+  "browserErrors": [],
+  "cleanupSuccessful": true
+}

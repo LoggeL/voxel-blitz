@@ -6,6 +6,7 @@ import { createBlenderParts } from '../../engine/blender-assets.js';
 // game-space coordinates, so offset them into this pivot once at build.
 const CASSETTE_HINGE = new THREE.Vector3(-0.142, 0.020, -0.306);
 const ROUND_NAME = /round[ _-]*([1-3])(?:\b|[ _|-])/i;
+const cleanedStockGeometry = new WeakMap();
 const C = Object.freeze({
   black: 0x171b1e, steel: 0x30383d, edge: 0x657078, silver: 0x9a9d99,
   orange: 0xed711c, orangeLight: 0xff9d34, amber: 0xffb02e,
@@ -47,6 +48,48 @@ function sidePlate(parent, side, outline, thickness, material, name) {
   const plate = mesh(parent, geometry, material, side * 0.066, 0, 0, name);
   if (side < 0) plate.position.x -= thickness;
   return plate;
+}
+
+// The Blender stock has four small, layered screw assemblies whose old cover
+// supplied their backing. Keep its grip, rails and buttpad, and remove only
+// those isolated triangles after the cover is hidden.
+function removeUnbackedStockFasteners(body) {
+  for (const part of body.children) {
+    if (!part.isMesh || !part.visible || !part.geometry?.index) continue;
+    const geometry = part.geometry;
+    if (cleanedStockGeometry.has(geometry)) {
+      part.geometry = cleanedStockGeometry.get(geometry);
+      continue;
+    }
+    const position = geometry.getAttribute('position');
+    const index = geometry.index;
+    const retained = [];
+    const isLegacyFastener = vertex => {
+      const x = Math.abs(position.getX(vertex));
+      const y = position.getY(vertex);
+      const z = position.getZ(vertex);
+      return z >= 0.17 && z <= 0.20 && x >= 0.04 && x <= 0.06 &&
+        ((y >= 0.09 && y <= 0.11) || (y >= -0.07 && y <= -0.05));
+    };
+    for (let i = 0; i < index.count; i += 3) {
+      const a = index.getX(i), b = index.getX(i + 1), c = index.getX(i + 2);
+      if (!isLegacyFastener(a) || !isLegacyFastener(b) || !isLegacyFastener(c)) {
+        retained.push(a, b, c);
+      }
+    }
+    if (retained.length === index.count) {
+      cleanedStockGeometry.set(geometry, geometry);
+      continue;
+    }
+    const cleaned = geometry.clone();
+    cleaned.setIndex(retained);
+    cleaned.clearGroups();
+    // The source geometry belongs to the page's Blender asset template. The
+    // filtered form has the same lifetime and is shared by every gun instance.
+    cleaned.userData.pageOwned = true;
+    cleanedStockGeometry.set(geometry, cleaned);
+    part.geometry = cleaned;
+  }
 }
 
 function buildChassis(groups, kit, T, surfaces) {
@@ -142,26 +185,43 @@ function buildChassis(groups, kit, T, surfaces) {
       [-0.060, 0.105], [0.015, 0.105], [0.059, 0.065], [0.047, -0.031],
       [-0.072, -0.031],
     ], 0.021, steel, 'skipjack_rear_receiver_plate');
-    box(body, 0.014, 0.008, 0.160, side * 0.105, 0.117, -0.131,
+    box(body, 0.014, 0.008, 0.160, side * 0.099, 0.117, -0.131,
       C.orangeLight, { rg: 0.45, mt: 0.48 });
     for (const z of [-0.177, -0.128, -0.078, 0.022]) {
       mesh(body, new THREE.SphereGeometry(0.006, 8, 6), silver,
-        side * 0.097, 0.049, z, 'skipjack_rear_plate_bolt');
+        side * (z > 0 ? 0.089 : 0.097), 0.049, z, 'skipjack_rear_plate_bolt');
     }
-    strut(body, [side * 0.039, 0.066, 0.045], [side * 0.039, 0.066, 0.243],
-      0.011, edge, 'skipjack_stock_upper_rail');
-    strut(body, [side * 0.038, -0.025, 0.046], [side * 0.038, -0.025, 0.243],
-      0.011, steel, 'skipjack_stock_lower_rail');
-    box(body, 0.034, 0.061, 0.018, side * 0.050, 0.024, 0.091,
+    strut(body, [side * 0.039, 0.066, 0.020], [side * 0.039, 0.066, 0.246],
+      0.012, edge, 'skipjack_stock_upper_rail');
+    strut(body, [side * 0.038, -0.025, 0.020], [side * 0.038, -0.025, 0.246],
+      0.012, steel, 'skipjack_stock_lower_rail');
+    box(body, 0.034, 0.089, 0.024, side * 0.050, 0.021, 0.091,
       C.orange, { mat: orange });
-    box(body, 0.033, 0.079, 0.021, side * 0.050, 0.024, 0.226,
+    box(body, 0.033, 0.089, 0.024, side * 0.050, 0.021, 0.226,
       C.orange, { mat: orange });
+    for (const z of [0.091, 0.226]) {
+      mesh(body, new THREE.SphereGeometry(0.005, 8, 6), dark,
+        side * 0.069, 0.022, z, 'skipjack_stock_bracket_fastener');
+    }
   }
+  // A single rigid bridge ties both pairs of rails together and seats on the
+  // original polymer stock. The rods enter the bridge rather than passing by it.
+  const bridge = box(body, 0.112, 0.112, 0.052, 0, 0.021, 0.147,
+    C.steel, { mat: steel });
+  bridge.name = 'skipjack_stock_bridge';
+  const bridgeCap = box(body, 0.114, 0.014, 0.054, 0, 0.076, 0.147,
+    C.edge, { mat: edge });
+  bridgeCap.name = 'skipjack_stock_bridge_cap';
   box(body, 0.137, 0.119, 0.027, 0, 0.015, 0.252,
     C.black, { rg: 0.85, mt: 0.08 });
   for (const y of [-0.026, 0.004, 0.034, 0.064]) {
     box(body, 0.135, 0.007, 0.030, 0, y, 0.268, C.edge, { rg: 0.66, mt: 0.34 });
   }
+
+  strut(body, [-0.098, 0.111, -0.174], [-0.082, 0.150, -0.300],
+    0.006, edge, 'skipjack_chamber_feed_rail');
+  strut(body, [-0.082, 0.150, -0.300], [-0.044, 0.098, -0.372],
+    0.006, edge, 'skipjack_chamber_entry_guide');
 
   // Framed cassette windows leave every authored shell visible. Their glowing
   // bands live inside the same round groups, so zero ammo cannot show a glow.
@@ -217,6 +277,7 @@ export function buildSkipjack({ groups, kit, T }) {
       child.visible = false;
     }
   }
+  removeUnbackedStockFasteners(groups.body);
 
   const cassette = new THREE.Group();
   cassette.name = 'skipjack_cassette_hinge';
@@ -225,6 +286,10 @@ export function buildSkipjack({ groups, kit, T }) {
   const rounds = Array.from({ length: 3 }, (_, index) => {
     const group = new THREE.Group();
     group.name = `skipjack_round_${index + 1}`;
+    group.userData.homePosition = new THREE.Vector3();
+    // The authored shell's center in body space. The first round occupies the
+    // upper cassette slot; subsequent slots are one round pitch lower.
+    group.userData.homeCenter = new THREE.Vector3(-0.119, 0.083 - index * 0.063, -0.187);
     cassette.add(group);
     return group;
   });
@@ -242,7 +307,11 @@ export function buildSkipjack({ groups, kit, T }) {
   }
   groups.mag.add(cassette);
   // `reload` is the presentation plan of the running swap (see ViewmodelRig.reload).
-  groups.extra.userData.skipjack = { cassette, rounds, feed, reload: null };
+  groups.extra.userData.skipjack = {
+    cassette, rounds, feed, reload: null,
+    roundPitch: 0.063,
+    chamberAnchor: new THREE.Vector3(0, 0.075, -0.385),
+  };
 
   groups.body.userData.blenderAsset = 'skipjack';
   groups.body.userData.sightHeight = 0.216;

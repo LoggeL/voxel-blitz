@@ -8,6 +8,36 @@ import {
 
 const NOOP = () => {};
 
+/** Place the remaining cassette shells in consecutive slots, starting at the top. */
+export function presentSkipjackReserve(skipjack, reserve) {
+  const rounds = skipjack.rounds;
+  const count = Math.max(0, Math.min(rounds.length, Math.trunc(Number(reserve) || 0)));
+  const first = rounds.length - count;
+  const rise = first * (skipjack.roundPitch || 0.063);
+  for (let i = 0; i < rounds.length; i++) {
+    const round = rounds[i];
+    round.position.copy(round.userData.homePosition);
+    round.visible = i >= first;
+    if (round.visible) round.position.y += rise;
+  }
+}
+
+/** Keep the current transfer until the accepted shot reaches its chamber. */
+export function syncSkipjackAmmo(skipjack, mag) {
+  skipjack.authoritativeMag = Math.max(0, Math.trunc(Number(mag) || 0));
+  if (skipjack.reload) return;
+  const shot = skipjack.shot;
+  if (shot) {
+    if (skipjack.authoritativeMag === shot.expectedMag) {
+      shot.confirmed = true;
+      return;
+    }
+    if (skipjack.authoritativeMag === shot.fromMag && !shot.confirmed) return;
+    skipjack.shot = null;
+  }
+  presentSkipjackReserve(skipjack, skipjack.authoritativeMag - 1);
+}
+
 // Receiver presentation, spent-ammo exit and fresh-ammo entry differ with the
 // magazine well, feed system and carried mass. All paths meet the existing cues.
 const RELOAD_STYLES = Object.freeze({
@@ -98,6 +128,17 @@ export class WeaponActions {
     return true;
   }
 
+  /** Latch the pre-shot cassette count before the ammo authority decrements it. */
+  beginSkipjackShot(model, mag) {
+    const skipjack = model?.extra.userData.skipjack;
+    if (this._disposed || !skipjack || skipjack.reload || skipjack.shot) return false;
+    const fromMag = Math.trunc(Number(mag) || 0);
+    const fromReserve = Math.min(skipjack.rounds.length, fromMag - 1);
+    if (fromReserve <= 0) return false;
+    skipjack.shot = { fromMag, expectedMag: fromMag - 1, fromReserve, confirmed: false };
+    return true;
+  }
+
   /** Start the short automatic bolt/hammer reciprocation used by non-cycleBack weapons. */
   startJerk(weaponId, model, travel, dur) {
     if (this._disposed || !model) return false;
@@ -184,7 +225,9 @@ export class WeaponActions {
       skipjack.cassette.position.copy(skipjack.cassette.userData.homePosition);
       skipjack.cassette.rotation.set(0, 0, 0);
       skipjack.cassette.visible = true;
-      skipjack.reload = null; // ViewmodelRig re-applies the authoritative reserve
+      skipjack.reload = null;
+      skipjack.shot = null;
+      presentSkipjackReserve(skipjack, skipjack.authoritativeMag - 1);
     }
     const rounds = model.extra.userData.reloadRounds;
     if (rounds) {
@@ -240,6 +283,8 @@ export class WeaponActions {
       jerk.skipjack.feed.rotation.z = jerk.feedStart + Math.PI / 3 * index + 0.045 * settle;
       model.bolt.position.z = stroke * jerk.travel;
       model.bolt.rotation.x = -0.22 * stroke;
+      if (jerk.skipjack.shot) this._animateSkipjackFeed(jerk.skipjack,
+        jerk.skipjack.shot.fromReserve, u);
     } else {
       model.bolt.position.z = stroke * jerk.travel;
     }
@@ -247,8 +292,37 @@ export class WeaponActions {
       model.bolt.position.z = 0;
       model.bolt.rotation.x = 0;
       model.triggerGroup.rotation.x = 0;
+      if (jerk.skipjack?.shot) {
+        jerk.skipjack.shot = null;
+        presentSkipjackReserve(jerk.skipjack, jerk.skipjack.authoritativeMag - 1);
+      }
       this._jerk = null;
     }
+  }
+
+  /** The top shell lifts clear, slides into the receiver, and lower shells rise behind it. */
+  _animateSkipjackFeed(skipjack, fromReserve, u) {
+    if (fromReserve <= 0) return;
+    const rounds = skipjack.rounds;
+    const first = rounds.length - fromReserve;
+    const pitch = skipjack.roundPitch || 0.063;
+    const source = rounds[first];
+    const home = source.userData.homePosition;
+    const center = source.userData.homeCenter;
+    const target = skipjack.chamberAnchor;
+    presentSkipjackReserve(skipjack, fromReserve);
+    const push = this._phase(u, 0.12, 0.67);
+    for (let i = first + 1; i < rounds.length; i++) rounds[i].position.y += pitch * push;
+    const lift = this._phase(u, 0.03, 0.34) * (1 - this._phase(u, 0.34, 0.66));
+    // Seat before the visibility handoff, including at 30 FPS: the last visible
+    // pose is inside the bore rather than a shell floating above the receiver.
+    const slide = this._phase(u, 0.32, 0.70);
+    const fromY = center.y + first * pitch;
+    source.position.set(home.x + (target.x - center.x) * slide,
+      home.y + first * pitch + pitch * 0.75 * lift + (target.y - fromY) * slide,
+      home.z + (target.z - center.z) * slide);
+    source.visible = u < 0.84;
+    if (u >= 0.84) presentSkipjackReserve(skipjack, fromReserve - 1);
   }
 
   _stepCycle(model, T, dt) {
@@ -582,9 +656,9 @@ export class WeaponActions {
    * PRESENT the flank, trip the orange paddle (click 1), SWING the cassette out
    * on its vertical front hinge, LIFT it off the pin and carry it away, bring the
    * loaded cassette in, drop it on the pin and SWING it shut (click 2). An empty
-   * swap then racks the charging pawl, stripping the top fresh round into the
-   * chamber (click 3); a tactical swap keeps its chambered round and only pats
-   * the closed cassette. Slot visibility follows the plan set by ViewmodelRig.
+   * swap then racks the charging pawl, lifting and sliding the top fresh round
+   * into the chamber (click 3); a tactical swap keeps its chambered round and
+   * only pats the closed cassette. The remaining shells rise into the top slots.
    */
   _updateSkipjackReload(frac, model, T, out) {
     const reload = this._reload;
@@ -592,9 +666,16 @@ export class WeaponActions {
     const skipjack = model.extra.userData.skipjack;
     const cassette = skipjack.cassette;
     const atHome = cassette.userData.homePosition;
-    const plan = skipjack.reload || { shown: skipjack.rounds.filter((r) => r.visible).length,
-      fresh: skipjack.rounds.length - 1, chambered: false };
-    const racks = !plan.chambered;
+    const plan = skipjack.reload;
+    let shown = plan?.shown;
+    if (shown === undefined) {
+      shown = 0;
+      for (let i = 0; i < skipjack.rounds.length; i++) {
+        if (skipjack.rounds[i].visible) shown++;
+      }
+    }
+    const fresh = plan?.fresh ?? skipjack.rounds.length;
+    const racks = !plan?.chambered;
 
     const present = this._phase(frac, 0.02, start) * (1 - this._phase(frac, 0.91, 1));
     const open = this._phase(frac, start, 0.27) * (1 - this._phase(frac, 0.70, home));
@@ -616,10 +697,14 @@ export class WeaponActions {
       atHome.z + 0.05 * away);
     const swapped = frac >= 0.56;
     cassette.visible = frac < 0.46 || swapped;
-    const stripped = racks && frac >= clickAt + 0.01;
-    const reserve = !swapped ? plan.shown : plan.fresh - (stripped ? 1 : 0);
-    const rounds = skipjack.rounds;
-    for (let i = 0; i < rounds.length; i++) rounds[i].visible = i >= rounds.length - reserve;
+    presentSkipjackReserve(skipjack, !swapped ? shown : fresh);
+    // The Chaos fourth round exceeds the three modeled cassette slots. Its
+    // chambered shell is implied, leaving all three exterior shells in place.
+    if (swapped && racks && fresh > 0 &&
+        (plan?.fullLoad ?? skipjack.rounds.length) <= skipjack.rounds.length) {
+      this._animateSkipjackFeed(skipjack, fresh,
+        this._phase(frac, clickAt - 0.085, clickAt + 0.055));
+    }
     model.bolt.position.z = T.boltTravel * rack;
     model.bolt.rotation.x = -0.18 * rack;
 

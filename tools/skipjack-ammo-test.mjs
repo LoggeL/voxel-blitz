@@ -6,12 +6,14 @@ import { PlayerEntity } from '../server/sim/player.js';
 import { resolveWeaponIntent } from '../server/sim/combat.js';
 import { updateTimers } from '../server/sim/movement.js';
 
-// GL-3 SKIPJACK: one round rides in the closed chamber, each flank cassette
-// carries magSize - 1. A tactical swap keeps the chambered round and needs no
-// charging stroke; an empty swap strips a fresh round into the chamber.
+// GL-3 SKIPJACK: one round rides in the closed chamber, with the remaining
+// two visible outside. A tactical swap keeps that round; an empty swap seats
+// the top of three fresh rounds and leaves two visible in the cassette.
 const mgl = WEAPONS.mgl;
 assert.equal(mgl.chamber, 1);
 assert.equal(mgl.magSize, 3);
+assert.equal(mgl.spareMags, 2);
+assert.equal(mgl.rpm, 115);
 assert.ok(mgl.tacTime < mgl.reloadTime, 'skipping the charging stroke makes a tactical swap faster');
 
 function swap(def, mag, reserve = 3) {
@@ -23,9 +25,9 @@ function swap(def, mag, reserve = 3) {
 }
 
 const empty = swap(mgl, 0);
-assert.deepEqual([empty.during, empty.mag, empty.reserve], [0, 2, 2], 'empty swap: 2 of 3 rounds');
+assert.deepEqual([empty.during, empty.mag, empty.reserve], [0, 3, 2], 'empty swap: three rounds loaded');
 assert.equal(empty.plan.seconds, mgl.reloadTime);
-assert.equal(empty.plan.rounds, 2);
+assert.equal(empty.plan.rounds, 3);
 for (const mag of [1, 2]) {
   const tactical = swap(mgl, mag);
   assert.deepEqual([tactical.during, tactical.mag, tactical.reserve], [1, 3, 2],
@@ -38,9 +40,9 @@ assert.equal(beginReload(mgl, { mag: 3, reserve: 3 }), null, 'a full launcher do
 // The Spare chamber upgrade adds one round per cassette: 4 total, 3 outside.
 const upgraded = chaosWeaponDef({ chaosUpgrades: { mgl: 3 } }, mgl);
 assert.equal(upgraded.chamber, 1);
-assert.deepEqual([swap(upgraded, 0).mag, swap(upgraded, 1).mag], [3, 4]);
+assert.deepEqual([swap(upgraded, 0).mag, swap(upgraded, 1).mag], [4, 4]);
 
-// Life totals: three cassettes of two keep the old 3 + 2 x 3 = 9 round budget.
+// Life totals: one starting load and two full reloads give 3 + 2 x 3 = 9.
 let fired = mgl.magSize;
 let ammo = { mag: 0, reserve: mgl.spareMags };
 while (ammo.reserve > 0) {
@@ -64,7 +66,7 @@ for (const id of WEAPON_IDS) {
 // Server authority: the same rules run through the authoritative intent path.
 const context = { canUseWeapon: () => true, canFire: () => true };
 const slot = WEAPON_IDS.indexOf('mgl');
-for (const [start, expected, seconds] of [[2, 3, mgl.tacTime], [0, 2, mgl.reloadTime]]) {
+for (const [start, expected, seconds] of [[2, 3, mgl.tacTime], [0, 3, mgl.reloadTime]]) {
   const player = new PlayerEntity(`skipjack-${start}`, 'Test', { x: 4, y: 2, z: 4 }, false);
   player.weapon = slot;
   player.deployT = 0;
