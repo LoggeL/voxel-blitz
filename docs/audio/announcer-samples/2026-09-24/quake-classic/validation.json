@@ -1,0 +1,64 @@
+{
+  "preview_duration": 19.338,
+  "preview_clipped_samples": 0,
+  "preview_peak_dbfs": -2.0,
+  "processing": "Each source normalized to -2 dBFS peak; 650 ms silence between clips; original files unchanged.",
+  "timeline": [
+    {
+      "clip": "doublekill",
+      "start": 0.0,
+      "duration": 1.933,
+      "source_peak_dbfs": -0.52,
+      "source_clipped_samples": 0,
+      "preview_gain_db": -1.48
+    },
+    {
+      "clip": "triplekill",
+      "start": 2.583,
+      "duration": 2.142,
+      "source_peak_dbfs": -0.65,
+      "source_clipped_samples": 0,
+      "preview_gain_db": -1.35
+    },
+    {
+      "clip": "multikill",
+      "start": 5.375,
+      "duration": 2.011,
+      "source_peak_dbfs": -0.05,
+      "source_clipped_samples": 0,
+      "preview_gain_db": -1.95
+    },
+    {
+      "clip": "ultrakill",
+      "start": 8.036,
+      "duration": 1.489,
+      "source_peak_dbfs": -0.06,
+      "source_clipped_samples": 0,
+      "preview_gain_db": -1.94
+    },
+    {
+      "clip": "monsterkill",
+      "start": 10.175,
+      "duration": 4.598,
+      "source_peak_dbfs": -0.24,
+      "source_clipped_samples": 0,
+      "preview_gain_db": -1.76
+    },
+    {
+      "clip": "rampage",
+      "start": 15.423,
+      "duration": 1.776,
+      "source_peak_dbfs": -0.22,
+      "source_clipped_samples": 0,
+      "preview_gain_db": -1.78
+    },
+    {
+      "clip": "godlike",
+      "start": 17.849,
+      "duration": 1.489,
+      "source_peak_dbfs": -0.51,
+      "source_clipped_samples": 0,
+      "preview_gain_db": -1.49
+    }
+  ]
+}

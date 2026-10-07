@@ -1,0 +1,19 @@
+{
+  "model": "gemini-3.8-flash-tts",
+  "method": "Google AI Studio UI in Brave",
+  "samples": [
+    {
+      "file": "01-dark-arena-algenib.wav",
+      "voice": "Algenib",
+      "style": "Dark fantasy arena kill announcer. Very deep gravelly chest voice, imposing and powerful, a controlled guttural roar with crisp consonants. Short punchy calls, each 1 to 2 seconds. Increase intensity with each call: Double kill is stern, Triple kill triumphant, Ultra kill thunderous, Rampage an explosive victorious roar. Separate calls with a full second of silence. Dry isolated voice, no music or sound effects. Say only the provided words; do not read the pause tags.",
+      "text": "Double kill! <long pause> Triple kill! <long pause> Ultra kill! <long pause> Rampage!"
+    },
+    {
+      "file": "02-berserker-mako.wav",
+      "voice": "Mako",
+      "style": "Extremely aggressive arena shooter kill announcer. A furious warrior with a deep chest voice, snarling vocal grit and explosive projected shouts. Full combat intensity from the first word. Slam every consonant and bark KILL with real force. DOUBLE KILL is a vicious battle cry; TRIPLE KILL is louder and more ferocious; ULTRA KILL is a savage triumphant bellow; RAMPAGE is the biggest guttural roar, ripping into the first syllable and sustaining the final vowel briefly. Fast decisive attacks, 1 to 2 seconds per call. One second of clean silence between calls. Dry isolated voice only. No music, crowd, effects, laughter, extra words, or spoken pause tags.",
+      "text": "DOUBLE KILL! <long pause> TRIPLE KILL! <long pause> ULTRA KILL! <long pause> RAMPAGE!"
+    }
+  ],
+  "decision": "User selected the classic Quake announcer instead."
+}
