@@ -13,6 +13,24 @@ const wrap = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 const clamp = (value, lo, hi) => Math.max(lo, Math.min(hi, value));
 const finite = (value, fallback = 0) => Number.isFinite(value) ? value : fallback;
 const round = (value, scale) => Math.round(finite(value) * scale) / scale;
+/**
+ * clampMountAim is a pure function of the hull type, the mount, the requested
+ * aim and the hull attitude (yaw, pitch, roll). Each mount keeps its two most
+ * recent results; an idle or parked hull asks the same question every tick.
+ */
+const aimMemo = new WeakMap();
+function clampAim(vehicle, mountId, yaw, pitch) {
+  let byMount = aimMemo.get(vehicle);
+  if (!byMount) aimMemo.set(vehicle, byMount = new Map());
+  let entries = byMount.get(mountId);
+  if (!entries) byMount.set(mountId, entries = []);
+  for (const e of entries) if (e.type === vehicle.type && e.kind === vehicle.kind && Object.is(e.yaw, yaw) && Object.is(e.pitch, pitch)
+    && Object.is(e.hullYaw, vehicle.yaw) && Object.is(e.hullPitch, vehicle.pitch) && Object.is(e.hullRoll, vehicle.roll)) return e.result;
+  const result = clampMountAim(vehicle, mountId, yaw, pitch);
+  entries.unshift({ type: vehicle.type, kind: vehicle.kind, yaw, pitch, hullYaw: vehicle.yaw, hullPitch: vehicle.pitch, hullRoll: vehicle.roll, result });
+  if (entries.length > 2) entries.pop();
+  return result;
+}
 
 /** Small deterministic spread generator per mount (xorshift on a seeded state). */
 function nextRandom(state) {
@@ -103,12 +121,12 @@ export class VehicleMounts {
         if (!state || mount.slavedTo) continue;
         if (mount.fixed) { state.yaw = finite(vehicle.yaw); state.pitch = finite(vehicle.pitch); continue; }
         const desired = input && Number.isFinite(input.yaw) ? { yaw: input.yaw, pitch: finite(input.pitch) } : { yaw: state.yaw, pitch: state.pitch };
-        const target = clampMountAim(vehicle, mountId, desired.yaw, desired.pitch);
+        const target = clampAim(vehicle, mountId, desired.yaw, desired.pitch);
         const yawStep = mount.yawRate * slewScale * dt, pitchStep = mount.pitchRate * slewScale * dt;
         state.yaw = wrap(state.yaw + clamp(wrap(target.yaw - state.yaw), -yawStep, yawStep));
         state.pitch = state.pitch + clamp(target.pitch - state.pitch, -pitchStep, pitchStep);
         // The hull may have turned under a limited mount: stay inside the arc.
-        const held = clampMountAim(vehicle, mountId, state.yaw, state.pitch);
+        const held = clampAim(vehicle, mountId, state.yaw, state.pitch);
         state.yaw = held.yaw; state.pitch = held.pitch;
       }
       for (const mountId of seat.mounts) {

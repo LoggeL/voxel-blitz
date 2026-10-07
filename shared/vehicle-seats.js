@@ -7,8 +7,20 @@ const EMPTY_SEATS = Object.freeze([]);
 export function vehicleSeats(type) {
   return vehicleDef(type)?.seats ?? EMPTY_SEATS;
 }
-export const vehicleSeatDefinition = (type, seatId = 'driver') => vehicleSeats(type).find(seat => seat.id === seatId) || null;
-export const vehicleDriverSeat = type => vehicleSeats(type).find(seat => seat.drives) || null;
+// Seat lists are frozen per definition: index them once (first seat wins, as find does).
+const seatIndex = new WeakMap();
+function indexSeats(seats) {
+  let index = seatIndex.get(seats);
+  if (!index) {
+    const byId = new Map();
+    for (const seat of seats) if (!byId.has(seat.id)) byId.set(seat.id, seat);
+    index = { byId, driver: seats.find(seat => seat.drives) || null };
+    seatIndex.set(seats, index);
+  }
+  return index;
+}
+export const vehicleSeatDefinition = (type, seatId = 'driver') => indexSeats(vehicleSeats(type)).byId.get(seatId) || null;
+export const vehicleDriverSeat = type => indexSeats(vehicleSeats(type)).driver;
 /** Legacy presentation rows may omit seatOccupants; occupantId always means driver. */
 export function vehicleSeatOccupantId(vehicle, seatId = 'driver') {
   if (!vehicleSeatDefinition(vehicle, seatId)) return null;

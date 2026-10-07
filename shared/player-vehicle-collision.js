@@ -1,4 +1,4 @@
-import { hullFootprint, rectangleFootprint, footprintContact, vehicleHullParts, hullBoxesOverlap, solidHull } from './vehicle-collision.js';
+import { hullFootprint, rectangleFootprint, footprintContact, vehicleHullParts, hullBoxesOverlap, solidHull, VEHICLE_COLLIDERS } from './vehicle-collision.js';
 import { VEHICLE_RULES, isAircraft } from './vehicles.js';
 import { PHYSICS, boxCollides } from './player-movement.js';
 import { stanceHeight } from './player-stance.js';
@@ -7,7 +7,21 @@ const GAP = 1e-4;
 export const infantryHeight = player => stanceHeight(PHYSICS.height, player.proneT || 0);
 // Live hulls and fresh ground wrecks are solid (vehicle-collision solidHull).
 const liveHull = v => solidHull(v) && VEHICLE_RULES[v.type]
-  && [v.x, v.y, v.z, v.yaw].every(Number.isFinite);
+  && Number.isFinite(v.x) && Number.isFinite(v.y) && Number.isFinite(v.z) && Number.isFinite(v.yaw);
+/** Horizontal distance from a hull root beyond which playerHullContact is
+ * always null: the aircraft gate below, or the ground footprint's and the
+ * body square's circumradii (plus slack for rounding). */
+const reachByType = new Map();
+function contactReach(type) {
+  let reach = reachByType.get(type);
+  if (reach === undefined) {
+    const rules = VEHICLE_RULES[type], shape = VEHICLE_COLLIDERS[type];
+    reach = isAircraft(type) ? rules.radius + rules.height + PHYSICS.halfW
+      : Math.hypot(shape.halfWidth, shape.halfLength) + PHYSICS.halfW * Math.SQRT2 + 0.01;
+    reachByType.set(type, reach);
+  }
+  return reach;
+}
 /** A body forced out of a hull ignores that hull briefly (`ghostVehicleId`). */
 const ghosted = (player, vehicle) => player?.ghostVehicleId != null && player.ghostVehicleId === vehicle?.id;
 export function playerHullContact(player, vehicle, height = infantryHeight(player)) {
@@ -36,9 +50,22 @@ export function playerHullContact(player, vehicle, height = infantryHeight(playe
  * A body already overlapped by a new snapshot may leave the hull freely.
  */
 export function slidePlayerVehicleAxis(player, axis, start, vehicles, height = infantryHeight(player)) {
-  const hulls = [...(vehicles || [])].filter(liveHull);
   const end = player[axis], amount = end - start;
-  if (!amount || !hulls.length || player.vehicleId || player.state === 'dead') return false;
+  if (!amount || player.vehicleId || player.state === 'dead') return false;
+  // Every probe stays on the swept segment; hulls whose contact reach cannot
+  // touch it never collide, so they are skipped before any copy is made.
+  const minX = axis === 'x' ? Math.min(start, end) : player.x, maxX = axis === 'x' ? Math.max(start, end) : player.x;
+  const minZ = axis === 'z' ? Math.min(start, end) : player.z, maxZ = axis === 'z' ? Math.max(start, end) : player.z;
+  const hulls = [];
+  for (const v of vehicles || []) {
+    if (!liveHull(v)) continue;
+    const dx = v.x < minX ? minX - v.x : v.x > maxX ? v.x - maxX : 0, dz = v.z < minZ ? minZ - v.z : v.z > maxZ ? v.z - maxZ : 0;
+    const reach = contactReach(v.type) + 0.01;
+    // NaN sweep bounds keep the hull (no early-out on non-finite input).
+    if (dx * dx + dz * dz > reach * reach) continue;
+    hulls.push(v);
+  }
+  if (!hulls.length) return false;
   const probe = { ...player, [axis]: start };
   const collides = pos => hulls.some(v => playerHullContact(pos, v, height));
   // Vehicle movement resolves authoritative overlaps. Prediction can receive

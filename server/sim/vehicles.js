@@ -1,7 +1,7 @@
-import { hullFootprint, footprintsOverlap, vehicleHullParts, vehicleSupportOffset, hullBoxesOverlap, voxelHullBox, rayHullPartSpan, nearestHullPoint, solidHull, solidWreck } from '../../shared/vehicle-collision.js';
+import { hullFootprint, footprintCells, footprintsOverlap, vehicleHullParts, vehicleSupportOffset, hullBoxesOverlap, voxelHullBox, rayHullPartSpan, nearestHullPoint, solidHull, solidWreck } from '../../shared/vehicle-collision.js';
 import { isSolidBlock } from '../../shared/worlddata.js';
 import { VEHICLE_RULES, isAircraft, vehicleEnterDistance, vehicleDirection, vehicleSeatPose, vehicleLocalPoint } from '../../shared/vehicles.js';
-import { vehicleSeats, vehicleSeatDefinition, vehicleSeatOccupantId, vehicleOccupiedSeats, vehicleWeaponSeatId, vehicleDriverSeat } from '../../shared/vehicle-seats.js';
+import { vehicleSeats, vehicleSeatDefinition, vehicleSeatOccupantId, vehicleWeaponSeatId, vehicleDriverSeat } from '../../shared/vehicle-seats.js';
 import { VEHICLE_DAMAGE_RULES, VEHICLE_LIFECYCLE, vehicleDef, vehicleMaxHp, mountPose as sharedMountPose } from '../../shared/vehicle-defs.js';
 import { VEHICLE_STATUS } from '../../shared/conquest-contract.js';
 import { groundAttitude } from '../../shared/vehicle-attitude.js';
@@ -44,19 +44,57 @@ export const VEHICLE_MOMENTUM_RULES = Object.freeze({ driverCreditSeconds: 5, ex
 export const HEAVY_PUSH_RULES = Object.freeze({ maxSpeed: 6, reach: 4.5, step: 0.15 });
 /** Wall contact keeps the tangential motion; scraping bleeds speed by the normal share. */
 export const WALL_SLIDE_RULES = Object.freeze({ scrape: 1.6 });
+/** Everything a ground hull's collision/support pass reads from or writes to the
+ * hull after its drive stepper (see advanceGround's rest replay). */
+const GROUND_REST_INPUTS = Object.freeze(['x','y','z','yaw','pitch','roll','gearDown','speed','yawRate','leftTrackSpeed','rightTrackSpeed',
+  'vx','vy','vz','scraping','stuckFor','disabled']);
+const GROUND_REST_OUTPUTS = Object.freeze(['x','y','z','yaw','speed','yawRate','leftTrackSpeed','rightTrackSpeed','vx','vy','vz','scraping','stuckFor']);
+/** An aircraft wreck's sweep inputs and its outputs. */
+const WRECK_REST_INPUTS = Object.freeze(['x','y','z','vx','vy','vz','yaw','pitch','roll','gearDown']);
+const WRECK_REST_OUTPUTS = Object.freeze(['x','y','z','vx','vy','vz','speed','airspeed','grounded']);
+const readFields = (v, fields) => { const values = new Array(fields.length); for (let i = 0; i < fields.length; i++) values[i] = v[fields[i]]; return values; };
+const fieldsMatch = (v, fields, values) => { for (let i = 0; i < fields.length; i++) if (!Object.is(v[fields[i]], values[i])) return false; return true; };
+const writeFields = (v, fields, values) => { for (let i = 0; i < fields.length; i++) if (values[i] !== undefined || Object.hasOwn(v, fields[i])) v[fields[i]] = values[i]; };
 const cross = (a,b,c) => (b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]);
+const byPoint = (a,b) => a[0]-b[0] || a[1]-b[1];
+/** Monotone-chain hull of the contact points; true when (x, z) lies inside it. */
 function balancedSupport(points, x, z) {
-  const sorted = points.slice().sort((a,b) => a[0]-b[0] || a[1]-b[1]);
-  if (sorted.length < 3) return false;
-  const half = list => { const result=[]; for(const p of list) {while(result.length>1 && cross(result.at(-2),result.at(-1),p)<=1e-9)result.pop();result.push(p);}return result; };
-  const lower=half(sorted), upper=half(sorted.slice().reverse());
-  const polygon=[...lower.slice(0,-1),...upper.slice(0,-1)];
-  return polygon.length>=3 && polygon.every((p,i) => cross(p,polygon[(i+1)%polygon.length],[x,z])>=-1e-8);
+  const sorted = points.slice().sort(byPoint), n = sorted.length;
+  if (n < 3) return false;
+  const lower = [], upper = [];
+  for (let i = 0; i < n; i++) {
+    const p = sorted[i];
+    while (lower.length > 1 && cross(lower[lower.length-2], lower[lower.length-1], p) <= 1e-9) lower.pop();
+    lower.push(p);
+  }
+  for (let i = n - 1; i >= 0; i--) {
+    const p = sorted[i];
+    while (upper.length > 1 && cross(upper[upper.length-2], upper[upper.length-1], p) <= 1e-9) upper.pop();
+    upper.push(p);
+  }
+  const polygon = lower; polygon.pop();
+  for (let i = 0; i < upper.length - 1; i++) polygon.push(upper[i]);
+  const count = polygon.length;
+  if (count < 3) return false;
+  for (let i = 0; i < count; i++) {
+    const a = polygon[i], b = polygon[(i+1)%count];
+    if (!((b[0]-a[0])*(z-a[1])-(b[1]-a[1])*(x-a[0]) >= -1e-8)) return false;
+  }
+  return true;
+}
+/** Support patches per footprint, aligned with footprintCells (read-only). */
+const patchLists = new WeakMap();
+function cellPatch(hull, cells, i) {
+  let patches = patchLists.get(hull);
+  if (!patches) patchLists.set(hull, patches = new Array(cells.length >> 1));
+  return patches[i >> 1] ??= supportPatch(hull, cells[i], cells[i + 1]);
 }
 /** Clip the oriented footprint to one supporting voxel's actual top face. */
 function supportPatch(hull, bx, bz) {
   let polygon = [hull.corners[0],hull.corners[1],hull.corners[3],hull.corners[2]];
-  for (const [axis,edge,sign] of [[0,bx,1],[0,bx+1,-1],[1,bz,1],[1,bz+1,-1]]) {
+  // Clip edges in order: x >= bx, x <= bx+1, z >= bz, z <= bz+1.
+  for (let k = 0; k < 4; k++) {
+    const axis = k < 2 ? 0 : 1, edge = k === 0 ? bx : k === 1 ? bx+1 : k === 2 ? bz : bz+1, sign = k & 1 ? -1 : 1;
     const next=[];
     for(let i=0;i<polygon.length;i++) {
       const a=polygon[i], b=polygon[(i+1)%polygon.length];
@@ -99,6 +137,9 @@ export class VehicleSystem {
     this.locks = new VehicleLocks(this);
     this.padOwners = new Map();
     this.contactClock = 0; this.clockAnchor = 0; this.anchoredNow = null;
+    // Rest replay: a hull at rest whose collision pass would see exactly the
+    // inputs of its last pass replays that pass's result (see advanceGround).
+    this.restMemos = new WeakMap(); this.attitudeKeys = new WeakMap(); this.infantryTouches = 0;
     this.reset();
   }
   /** Simulation milliseconds: the engine clock plus substep progress within its tick. */
@@ -158,10 +199,12 @@ export class VehicleSystem {
     return isSolidBlock(this.engine.world.getBlock(Math.floor(x), Math.floor(y), Math.floor(z)));
   }
   ground(x, z, around, rise = 1, fall = 3) {
-    const d = this.engine.world.dimensions;
+    const world = this.engine.world, d = world.dimensions;
     if (d && (x < 0 || z < 0 || x >= d.sx || z >= d.sz)) return null;
+    // The column and every probed y are in bounds: solid() is isSolidBlock(getBlock()).
+    const bx = Math.floor(x), bz = Math.floor(z);
     for (let y = Math.floor(around + rise - 0.001); y >= Math.floor(around - fall); y--)
-      if (y >= 0 && (!d || y < d.sy) && this.solid(x, y, z)) return y + 1;
+      if (y >= 0 && (!d || y < d.sy) && isSolidBlock(world.getBlock(bx, y, bz))) return y + 1;
     return null;
   }
   /** Other hulls a pose must avoid: live hulls and fresh ground wrecks. */
@@ -174,14 +217,16 @@ export class VehicleSystem {
     if (isAircraft(v.type)) return this.clearAircraftHull(v,x,y,z,yaw);
     const h = VEHICLE_RULES[v.type].height, hull = hullFootprint(v.type, x, z, yaw);
     const d = this.engine.world.dimensions;
-    if (![x,y,z,yaw].every(Number.isFinite) || (d && (hull.minX < 0 || hull.minZ < 0 || hull.maxX > d.sx || hull.maxZ > d.sz || y < 0 || y + h > d.sy))) return false;
-    for (let bx = Math.floor(hull.minX); bx < Math.ceil(hull.maxX); bx++)
-      for (let bz = Math.floor(hull.minZ); bz < Math.ceil(hull.maxZ); bz++) {
-        if (!footprintsOverlap(hull, hullFootprint('voxel', bx + 0.5, bz + 0.5, 0))) continue;
-        for (let by = Math.floor(y + 0.03); by <= Math.floor(y + h - 0.01); by++)
-          if (this.solid(bx, by, bz)) return false;
-      }
-    for (const other of this.obstacles(v)) {
+    if (!(Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z) && Number.isFinite(yaw))
+      || (d && (hull.minX < 0 || hull.minZ < 0 || hull.maxX > d.sx || hull.maxZ > d.sz || y < 0 || y + h > d.sy))) return false;
+    // Every probed voxel lies inside the bounds checked above (or the world has
+    // none), where solid() is exactly isSolidBlock(getBlock()).
+    const cells = footprintCells(hull), bottom = Math.floor(y + 0.03), top = Math.floor(y + h - 0.01), world = this.engine.world;
+    for (let i = 0; i < cells.length; i += 2)
+      for (let by = bottom; by <= top; by++)
+        if (isSolidBlock(world.getBlock(cells[i], by, cells[i + 1]))) return false;
+    for (const other of this.vehicles.values()) {
+      if (other === v || other.id === v.id || !solidHull(other)) continue;
       if(Math.hypot(x-other.x,z-other.z)>VEHICLE_RULES[v.type].radius+VEHICLE_RULES[other.type].radius+VEHICLE_RULES[other.type].height)continue;
       if (isAircraft(other.type)) {
         const box=vehicleHullParts(v,x,y,z,yaw)[0];
@@ -191,22 +236,26 @@ export class VehicleSystem {
     return true;
   }
   clearAircraftHull(v,x,y,z,yaw=v.yaw) {
-    if (![x,y,z,yaw,v.pitch??0,v.roll??0].every(Number.isFinite)) return false;
-    const parts=vehicleHullParts(v,x,y,z,yaw),d=this.engine.world.dimensions;
+    if (!(Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z) && Number.isFinite(yaw)
+      && Number.isFinite(v.pitch ?? 0) && Number.isFinite(v.roll ?? 0))) return false;
+    const parts=vehicleHullParts(v,x,y,z,yaw),world=this.engine.world,d=world.dimensions;
     for(const part of parts) {
       const hull=part.hull;
       if(part.minY < -1e-7 || part.maxY > (VEHICLE_RULES[v.type].ceiling??180)+1e-7 || (d && (hull.minX<0||hull.maxX>d.sx||hull.minZ<0||hull.maxZ>d.sz)))return false;
       if(d&&part.minY>=d.sy)continue;
+      const bottom=Math.floor(part.minY+1e-5),top=Math.min(Math.floor(part.maxY-1e-5),d?d.sy-1:Infinity);
       for(let bx=Math.floor(hull.minX);bx<Math.ceil(hull.maxX);bx++)
         for(let bz=Math.floor(hull.minZ);bz<Math.ceil(hull.maxZ);bz++)
-          for(let by=Math.floor(part.minY+1e-5);by<=Math.min(Math.floor(part.maxY-1e-5),d?d.sy-1:Infinity);by++) {
-            if(this.solid(bx,by,bz,true)&&hullBoxesOverlap(part,voxelHullBox(bx,by,bz)))return false;
+          for(let by=bottom;by<=top;by++) {
+            // In bounds by the checks above: solid() is isSolidBlock(getBlock()).
+            if(isSolidBlock(world.getBlock(bx,by,bz))&&hullBoxesOverlap(part,voxelHullBox(bx,by,bz)))return false;
           }
     }
-    for(const other of this.obstacles(v)) {
+    for(const other of this.vehicles.values()) {
+      if (other === v || other.id === v.id || !solidHull(other)) continue;
       if(Math.hypot(x-other.x,z-other.z)>VEHICLE_RULES[v.type].radius+VEHICLE_RULES[other.type].radius+VEHICLE_RULES[v.type].height+VEHICLE_RULES[other.type].height)continue;
       const otherParts=vehicleHullParts(other);
-      if(parts.some(part=>otherParts.some(body=>hullBoxesOverlap(part,body))))return false;
+      for (const part of parts) for (const body of otherParts) if (hullBoxesOverlap(part,body)) return false;
     }
     return true;
   }
@@ -214,22 +263,24 @@ export class VehicleSystem {
     const def = VEHICLE_RULES[v.type], hull = hullFootprint(v.type, x, z, v.yaw);
     const maxStep = def.maxStep ?? 0.25, maxSlope = def.maxSlope ?? 0.1;
     const offset = isAircraft(v.type) ? vehicleSupportOffset(v) : 0;
-    const supports=[];
+    const cells=footprintCells(hull), heights=[], patches=[];
     // A missing centre or corner is a hole, not proof that the whole chassis
     // lacks ground. Contact patches include both tracks/wheels at every yaw.
-    for(let bx=Math.floor(hull.minX);bx<Math.ceil(hull.maxX);bx++)
-      for(let bz=Math.floor(hull.minZ);bz<Math.ceil(hull.maxZ);bz++) {
-        if(!footprintsOverlap(hull,hullFootprint('voxel',bx+0.5,bz+0.5,0)))continue;
-        const height=this.ground(bx+0.5,bz+0.5,v.y+offset,maxStep);
-        if(height!=null)supports.push({height,points:supportPatch(hull,bx,bz)});
-      }
-    if(!supports.length)return null;
-    const supportY=Math.max(...supports.map(s=>s.height)),y=supportY-offset;
+    let supportY=-Infinity;
+    for(let i=0;i<cells.length;i+=2) {
+      const height=this.ground(cells[i]+0.5,cells[i+1]+0.5,v.y+offset,maxStep);
+      if(height==null)continue;
+      heights.push(height); patches.push(cellPatch(hull,cells,i));
+      supportY=Math.max(supportY,height);
+    }
+    if(!heights.length)return null;
+    const y=supportY-offset;
     const slopeSpan=maxSlope*Math.min(hull.halfWidth,hull.halfLength)*2;
     // Deep pit floors do not bear load while the opposite rim bridges the gap.
     // If the remaining contact patches cannot balance the centre, it must fall.
-    const bearing=supports.filter(s=>supportY-s.height<=slopeSpan);
-    if (!balancedSupport(bearing.flatMap(s=>s.points),x,z) || y-v.y>maxStep || !this.clearHull(v,x,y,z)) return null;
+    const points=[];
+    for(let i=0;i<heights.length;i++) if(supportY-heights[i]<=slopeSpan) for(const point of patches[i]) points.push(point);
+    if (!balancedSupport(points,x,z) || y-v.y>maxStep || !this.clearHull(v,x,y,z)) return null;
     return y;
   }
   /** Gravity for an unsupported ground hull. Landing above 9 m/s costs hp*(vy-9)/25. */
@@ -410,7 +461,19 @@ export class VehicleSystem {
     v.occupantId = vehicleSeatOccupantId(v, vehicleDriverSeat(v)?.id ?? 'driver');
     if (v.occupantId == null) v.engineOn = false;
   }
-  crew(v) { return vehicleOccupiedSeats(v).map(seat => this.engine.entities.get(seat.occupantId)).filter(p => this.seatFor(p,v)); }
+  /** Seated, valid crew in seat order (vehicleOccupiedSeats without its seat copies). */
+  crew(v) {
+    const result = [], occupants = v.seatOccupants;
+    for (const seat of vehicleSeats(v)) {
+      // vehicleSeatOccupantId for a seat of this hull's own list.
+      const raw = occupants && Object.hasOwn(occupants, seat.id) ? occupants[seat.id] : seat.id === 'driver' ? v.occupantId : null;
+      if (typeof raw !== 'string' && typeof raw !== 'number') continue;
+      const id = String(raw);
+      const p = this.engine.entities.get(id);
+      if (this.seatFor(p, v)) result.push(p);
+    }
+    return result;
+  }
   syncCrew(v) { for (const p of this.crew(v)) this.sync(p,v); }
   /** Legacy view: occupant of the primary mount's seat. */
   weaponOperator(v) {
@@ -592,14 +655,21 @@ export class VehicleSystem {
     }
     return best && { x: best.x, y: best.y, z: best.z };
   }
+  /** The bodies resolveInfantry considers for a hull at its current pose. */
+  infantryInReach(v, body) {
+    return !(body.state !== 'alive' || body.vehicleId || body.ghostVehicleId === v.id || Math.hypot(body.x - v.x, body.z - v.z) > VEHICLE_RULES[v.type].radius + 2);
+  }
   /** Plan every push before changing a body. A pinned pedestrian stops a light
    * chassis; a slow heavy hull shoves them sideways instead when it can. */
   resolveInfantry(v, previous, driver, dt) {
-    const pushes = [], hulls = [...this.vehicles.values()].filter(solidHull), def = vehicleDef(v);
+    const pushes = [], def = vehicleDef(v);
     const solidAt = (x,y,z) => this.solid(x,y,z,isAircraft(v.type));
-    let blocked = false;
+    let blocked = false, hulls = null;
     for (const body of this.engine.entities.values()) {
-      if (body.state !== 'alive' || body.vehicleId || body.ghostVehicleId === v.id || Math.hypot(body.x - v.x, body.z - v.z) > VEHICLE_RULES[v.type].radius + 2) continue;
+      if (!this.infantryInReach(v, body)) continue;
+      // Hull list as of the call: nothing changes before the first body in reach.
+      hulls ??= [...this.vehicles.values()].filter(solidHull);
+      this.infantryTouches++;
       const push = vehiclePlayerPush(body, v, solidAt, hulls);
       if (!push) continue;
       const { contact } = push;
@@ -631,7 +701,7 @@ export class VehicleSystem {
   /** A parked, crewless, grounded aircraft at rest skips its flight substeps
    * until terrain changes or someone boards (the profiled CPU hog). */
   asleep(v) {
-    const resting = v.grounded && !v.occupantId && !vehicleOccupiedSeats(v).length && !(v.rotorSpeed > 1e-4) && !(v.enginePower > 1e-4)
+    const resting = v.grounded && !v.occupantId && !vehicleSeats(v).some(seat => vehicleSeatOccupantId(v, seat.id) != null) && !(v.rotorSpeed > 1e-4) && !(v.enginePower > 1e-4)
       && !(v.throttle > 1e-4) && Math.abs(v.vx) < 1e-6 && Math.abs(v.vy) < 1e-6 && Math.abs(v.vz) < 1e-6 && !(Math.abs(v.speed) > 1e-6);
     if (!resting) { v.sleepRevision = null; return false; }
     const revision = this.engine.blockRevision ?? 0;
@@ -772,17 +842,19 @@ export class VehicleSystem {
     const yawDelta = angleDelta(requestedAttitude.yaw, safeAttitude.yaw);
     const arc = Math.abs(yawDelta) + Math.abs(requestedAttitude.pitch-safeAttitude.pitch) + Math.abs(requestedAttitude.roll-safeAttitude.roll);
     const attitudeSteps = Math.max(1, Math.ceil(arc * (def.radius + def.height) * 2 / 0.12));
-    const supportY = v.grounded ? safeAttitude.y + vehicleSupportOffset({ ...v, ...safeAttitude }) : null;
+    // Hull boxes read only type, gear and pose: probe with those, not a copy of the hull.
+    const probe = pose => ({ type: v.type, gearDown: v.gearDown, x: v.x, y: pose.y, z: v.z, yaw: pose.yaw, pitch: pose.pitch, roll: pose.roll });
+    const supportY = v.grounded ? safeAttitude.y + vehicleSupportOffset(probe(safeAttitude)) : null;
     const attitudeAt = t => {
       const pose = { yaw: safeAttitude.yaw + yawDelta*t,
         pitch: safeAttitude.pitch + (requestedAttitude.pitch-safeAttitude.pitch)*t,
         roll: safeAttitude.roll + (requestedAttitude.roll-safeAttitude.roll)*t,
         y: safeAttitude.y + (requestedAttitude.y-safeAttitude.y)*t };
-      if (v.grounded) pose.y = supportY - vehicleSupportOffset({ ...v, ...pose });
+      if (v.grounded) pose.y = supportY - vehicleSupportOffset(probe(pose));
       else if(pose.y+def.radius+def.height>=flightCeiling-ceilingGap) {
         // Ceiling contact constrains the root height, not all rotation. Sweep
         // the resulting downward pivot so terrain still blocks the airframe.
-        const top=Math.max(...vehicleHullParts({ ...v, ...pose }).map(part=>part.maxY));
+        const top=Math.max(...vehicleHullParts(probe(pose)).map(part=>part.maxY));
         pose.y-=Math.max(0,top-flightCeiling+ceilingGap);
       }
       return pose;
@@ -839,10 +911,10 @@ export class VehicleSystem {
           let low = 0, high = 1;
           const from = safe;
           for (let j = 0; j < 18; j++) {
-            const t = (low + high) / 2, probe = Object.fromEntries(['x','y','z'].map(axis => [axis, from[axis] + (point[axis] - from[axis]) * t]));
-            if (this.clearHull(v, probe.x, probe.y, probe.z)) low = t; else high = t;
+            const t = (low + high) / 2;
+            if (this.clearHull(v, from.x + (point.x - from.x) * t, from.y + (point.y - from.y) * t, from.z + (point.z - from.z) * t)) low = t; else high = t;
           }
-          safe = Object.fromEntries(['x','y','z'].map(axis => [axis, from[axis] + (point[axis] - from[axis]) * low]));
+          safe = { x: from.x + (point.x - from.x) * low, y: from.y + (point.y - from.y) * low, z: from.z + (point.z - from.z) * low };
           Object.assign(v, safe);
           hit = point;
           break;
@@ -920,6 +992,17 @@ export class VehicleSystem {
     const previous = { x: v.x, y: v.y, z: v.z, yaw: v.yaw };
     const drive = v.disabled ? VEHICLE_DAMAGE_RULES.disabledDrive : 1;
     GROUND_STEPPERS[handling](v, { throttle: controls.throttle * drive, steer: controls.steer, brake: controls.brake }, dt);
+    // A driverless hull at rest with no body in reach: its collision pass is a
+    // pure function of the fields, terrain and nearby hulls it reads, so when
+    // they all equal the previous pass's inputs, that pass's result is reused.
+    const restable = !p && controls.throttle === 0 && v.speed === 0 && !this.fallSpeeds.has(v.id) && !this.infantryNear(v);
+    if (restable && this.replayRest(v, 'ground', previous, dt)) return;
+    const memo = restable ? this.beginRest(v, 'ground', previous, dt) : null;
+    this.moveGround(v, previous, controls, def, driver, dt);
+    if (memo) this.endRest(v, memo);
+    else this.restMemos.delete(v);
+  }
+  moveGround(v, previous, controls, def, driver, dt) {
     if (!this.clearHull(v,v.x,v.y,v.z)) { v.yaw=previous.yaw; v.yawRate=0; v.leftTrackSpeed=v.speed; v.rightTrackSpeed=v.speed; }
     const dir=vehicleDirection(v.yaw), x=v.x+dir[0]*v.speed*dt,z=v.z+dir[2]*v.speed*dt;
     const floor=this.placement(v,x,z);
@@ -956,6 +1039,45 @@ export class VehicleSystem {
     // A disabled hull that cannot move under throttle reports immobilized.
     if (v.disabled && Math.abs(controls.throttle) > 0.1 && Math.hypot(v.x - previous.x, v.z - previous.z) < 0.02 * dt) v.stuckFor += dt;
     else v.stuckFor = 0;
+  }
+  infantryNear(v) {
+    for (const body of this.engine.entities.values()) if (this.infantryInReach(v, body)) return true;
+    return false;
+  }
+  /** Solid hulls a resting hull's collision pass can touch, with their poses. */
+  restNeighbors(v, list = null) {
+    const own = VEHICLE_RULES[v.type], reach = own.radius + own.height + 2;
+    let j = 0;
+    for (const other of this.vehicles.values()) {
+      if (other === v || other.id === v.id || !solidHull(other)) continue;
+      const rules = VEHICLE_RULES[other.type];
+      if (Math.hypot(v.x - other.x, v.z - other.z) > reach + rules.radius + rules.height) continue;
+      if (!list) { (this.neighborScratch ??= []).push(other, other.x, other.y, other.z, other.yaw, other.pitch, other.roll, other.gearDown); continue; }
+      if (list[j] !== other || !Object.is(list[j+1], other.x) || !Object.is(list[j+2], other.y) || !Object.is(list[j+3], other.z)
+        || !Object.is(list[j+4], other.yaw) || !Object.is(list[j+5], other.pitch) || !Object.is(list[j+6], other.roll) || list[j+7] !== other.gearDown) return false;
+      j += 8;
+    }
+    if (list) return j === list.length;
+    const result = this.neighborScratch; this.neighborScratch = null;
+    return result ?? [];
+  }
+  beginRest(v, kind, previous, dt) {
+    const fields = kind === 'ground' ? GROUND_REST_INPUTS : WRECK_REST_INPUTS;
+    return { kind, dt, world: this.engine.world, revision: this.engine.blockRevision ?? 0, hp: v.hp, touches: this.infantryTouches,
+      pre: previous ? [previous.x, previous.y, previous.z, previous.yaw] : null, inputs: readFields(v, fields), neighbors: this.restNeighbors(v), outputs: null };
+  }
+  endRest(v, memo) {
+    if (!Object.is(v.hp, memo.hp) || memo.touches !== this.infantryTouches || this.fallSpeeds.has(v.id)) { this.restMemos.delete(v); return; }
+    memo.outputs = readFields(v, memo.kind === 'ground' ? GROUND_REST_OUTPUTS : WRECK_REST_OUTPUTS);
+    this.restMemos.set(v, memo);
+  }
+  replayRest(v, kind, previous, dt) {
+    const memo = this.restMemos.get(v);
+    if (!memo || memo.kind !== kind || memo.dt !== dt || memo.world !== this.engine.world || memo.revision !== (this.engine.blockRevision ?? 0)) return false;
+    if (previous && !(Object.is(memo.pre[0], previous.x) && Object.is(memo.pre[1], previous.y) && Object.is(memo.pre[2], previous.z) && Object.is(memo.pre[3], previous.yaw))) return false;
+    if (!fieldsMatch(v, kind === 'ground' ? GROUND_REST_INPUTS : WRECK_REST_INPUTS, memo.inputs) || !this.restNeighbors(v, memo.neighbors)) return false;
+    writeFields(v, kind === 'ground' ? GROUND_REST_OUTPUTS : WRECK_REST_OUTPUTS, memo.outputs);
+    return true;
   }
   runover(v, victim, driver, impactSpeed) {
     const key = `${v.id}:${victim.id}`, prior = this.infantryContacts.get(key);
@@ -1001,11 +1123,16 @@ export class VehicleSystem {
   /** Ground hulls pitch and roll with the voxel support under them. */
   updateAttitude(v, dt) {
     if (isAircraft(v.type)) return;
-    const revision = this.engine.blockRevision ?? 0;
-    const key = `${v.x.toFixed(3)},${v.y.toFixed(3)},${v.z.toFixed(3)},${v.yaw.toFixed(4)},${revision}`;
-    if (key !== v.attitudeKey) {
-      v.attitudeKey = key;
-      v.attitudeTarget = groundAttitude((x, y, z) => this.engine.world.getBlock(x, y, z), v.type, v.x, v.z, v.yaw, v.y);
+    const revision = this.engine.blockRevision ?? 0, seen = this.attitudeKeys.get(v);
+    // An identical pose and revision rebuild the identical key string.
+    if (!(seen && seen.key === v.attitudeKey && Object.is(seen.x, v.x) && Object.is(seen.y, v.y) && Object.is(seen.z, v.z)
+        && Object.is(seen.yaw, v.yaw) && seen.revision === revision)) {
+      const key = `${v.x.toFixed(3)},${v.y.toFixed(3)},${v.z.toFixed(3)},${v.yaw.toFixed(4)},${revision}`;
+      if (key !== v.attitudeKey) {
+        v.attitudeKey = key;
+        v.attitudeTarget = groundAttitude((x, y, z) => this.engine.world.getBlock(x, y, z), v.type, v.x, v.z, v.yaw, v.y);
+      }
+      this.attitudeKeys.set(v, { key, x: v.x, y: v.y, z: v.z, yaw: v.yaw, revision });
     }
     const target = v.attitudeTarget ?? { pitch: 0, roll: 0 }, blend = Math.min(1, dt * 12);
     v.pitch = finite(v.pitch) + (target.pitch - finite(v.pitch)) * blend;
@@ -1037,6 +1164,15 @@ export class VehicleSystem {
       v.wreckRestRevision = v.y === y && !this.fallSpeeds.has(v.id) ? revision : null;
       return;
     }
+    // A wreck at rest replays its last sweep while its inputs are unchanged.
+    const restable = !v.vx && !v.vy && !v.vz;
+    if (restable && this.replayRest(v, 'wreck', null, dt)) return;
+    const memo = restable ? this.beginRest(v, 'wreck', null, dt) : null;
+    this.moveWreck(v, dt);
+    if (memo) this.endRest(v, memo);
+    else this.restMemos.delete(v);
+  }
+  moveWreck(v, dt) {
     const def=VEHICLE_RULES[v.type];
     v.vx=(v.vx || 0)*Math.exp(-0.12*dt); v.vz=(v.vz || 0)*Math.exp(-0.12*dt);
     v.vy=Math.max(-60,(v.vy || 0)-(def.gravity || 9.81)*dt);
@@ -1044,14 +1180,14 @@ export class VehicleSystem {
     const distance=Math.hypot(destination.x-start.x,destination.y-start.y,destination.z-start.z), steps=Math.max(1,Math.ceil(distance/0.16));
     let safe=start;
     for(let i=1;i<=steps;i++) {
-      const point=Object.fromEntries(['x','y','z'].map(axis=>[axis,start[axis]+(destination[axis]-start[axis])*i/steps]));
+      const point={x:start.x+(destination.x-start.x)*i/steps,y:start.y+(destination.y-start.y)*i/steps,z:start.z+(destination.z-start.z)*i/steps};
       if(!this.clearHull(v,point.x,point.y,point.z)) {
         let low=0,high=1;
         for(let j=0;j<20;j++) {
-          const t=(low+high)/2, probe=Object.fromEntries(['x','y','z'].map(axis=>[axis,safe[axis]+(point[axis]-safe[axis])*t]));
-          if(this.clearHull(v,probe.x,probe.y,probe.z))low=t;else high=t;
+          const t=(low+high)/2;
+          if(this.clearHull(v,safe.x+(point.x-safe.x)*t,safe.y+(point.y-safe.y)*t,safe.z+(point.z-safe.z)*t))low=t;else high=t;
         }
-        Object.assign(v,Object.fromEntries(['x','y','z'].map(axis=>[axis,safe[axis]+(point[axis]-safe[axis])*low])));
+        v.x=safe.x+(point.x-safe.x)*low; v.y=safe.y+(point.y-safe.y)*low; v.z=safe.z+(point.z-safe.z)*low;
         v.vx=v.vy=v.vz=v.speed=v.airspeed=0;
         const floor=this.placement(v,v.x,v.z);
         v.grounded=floor!=null&&Math.abs(v.y-floor)<0.08;
