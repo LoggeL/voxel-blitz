@@ -29,9 +29,9 @@ export const CLOTH_LOW = 0.9;
 export const CLOTH_HIGH = MAST_HEIGHT - 0.25 - CLOTH_HEIGHT;
 export const BEAM_HEIGHT = 96;
 /** Beam radius at its foot and top (m): a slim marker, not a column of light. */
-const BEAM_RADIUS = Object.freeze([0.45, 0.2]);
+const BEAM_RADIUS = Object.freeze([0.32, 0.12]);
 /** Camera distances (m) over which the beam fades in: up close the mast and cloth speak. */
-const BEAM_NEAR_FADE = Object.freeze([24, 80]);
+const BEAM_NEAR_FADE = Object.freeze([40, 140]);
 /**
  * Yaw of the battlefield wind (radians, three.js Y rotation): cloths stream
  * toward local +X turned by this angle, i.e. world (cos, 0, -sin); the
@@ -204,7 +204,7 @@ varying float vBeamDepth;
 varying float vBeamReach;
 #include <fog_pars_fragment>
 void main() {
-  float lift = smoothstep( 0.0, 0.04, vBeamHeight ) * ( 1.0 - smoothstep( 0.25, 1.0, vBeamHeight ) );
+  float lift = smoothstep( 0.0, 0.04, vBeamHeight ) * ( 1.0 - smoothstep( 0.12, 0.75, vBeamHeight ) );
   float core = pow( vBeamEdge, 2.2 );
   float a = lift * core * vBeamGlow;
   // Close to the flag the beam steps aside for the mast, cloth and ring.
@@ -223,7 +223,8 @@ void main() {
   #ifdef VB_FAR_FADE_START
     fade *= 1.0 - smoothstep( VB_FAR_FADE_START, VB_FAR_FADE_END, vBeamDepth );
   #endif
-  // Premultiplied additive (ONE, ONE) and above 1.0 at the core: HDR tiers bloom it.
+  // Premultiplied additive (ONE, ONE), kept below 1.0 so no tier blooms it: a
+  // discreet bearing hint, the HUD markers carry the objective.
   gl_FragColor = vec4( vBeamColor * a * fade, 0.0 );
 }`;
 
@@ -570,8 +571,8 @@ export class ConquestWorld {
     const contested = flag.state === 'contested';
     const pulse = contested ? 0.5 + 0.5 * Math.sin(this.pulse * Math.PI * 2 * 1.6) : 0;
     this.beams.setColorAt(flag.index, _color.setHex(this.colorFor(flag.owner)));
-    const glow = flag.owner ? 1.25 : 0.55;
-    this.beamParams.setXY(flag.index, contested ? glow * (0.45 + 0.75 * pulse) : glow, pulse);
+    const glow = flag.owner ? 0.5 : 0.28;
+    this.beamParams.setXY(flag.index, contested ? glow * (0.7 + 0.3 * pulse) : glow, pulse);
     const perFlag = RING_VERTICES_PER_FLAG, base = flag.index * perFlag;
     _color.setHex(this.colorFor(flag.owner));
     for (let v = 0; v < perFlag; v++) {

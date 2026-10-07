@@ -104,7 +104,8 @@ assert.equal(beamColor(flagA), CONQUEST_FLAG_COLORS.own, 'beam colour follows th
 assert.equal(beamColor(flagB), CONQUEST_FLAG_COLORS.enemy);
 assert.equal(beamColor(flagE), CONQUEST_FLAG_COLORS.neutral, 'an unowned flag keeps a neutral beam while it is captured');
 assert.equal(ringColor(flagD), new THREE.Color(CONQUEST_FLAG_COLORS.enemy).getHex(), 'the ground ring takes the owner colour');
-assert.ok(beamGlow(flagA) > 1, 'owned beams are emissive above 1.0 (HDR bloom)');
+assert.ok(beamGlow(flagA) < 1, 'owned beams stay below 1.0, so no tier blooms them into a column of light');
+assert.ok(beamGlow(flagA) > beamGlow(flagC), 'an owned beam still reads brighter than a neutral one');
 
 // Contested flags pulse; settled ones hold a constant glow.
 const samples = { A: new Set(), C: new Set() };
