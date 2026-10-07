@@ -1,0 +1,14 @@
+Use case: ui-mockup. Asset type: VOXEL BLITZ Conquest in-match gameplay HUD design reference for a Battlefield-style browser voxel shooter. Primary request: one wide image with three clearly separate alternative HUD layouts, each a desktop 16:9 first-person view plus a small phone-landscape inset. The world behind: a blocky 1 m voxel river valley at golden hour, a village with terracotta roofs and a church spire, a steel truss bridge, smoke columns from burning tank wrecks, a friendly voxel tank driving ahead, enemy soldiers near flag B. The player holds a blocky voxel rifle in the lower right.
+
+Every alternative contains exactly these elements, tied to game state:
+- top centre: own ticket count 212 with a bar on the left (blue #4cc3ff), enemy ticket count 187 with a bar on the right (orange #ff8a3d), five flag chips A B C D E between them (A blue, B being captured with a half fill bar, C neutral grey #d8d8d8, D and E orange), the match clock 14:32, and a small "-1/3s" bleed indicator on the side holding fewer flags;
+- a capture ring below the crosshair: flag letter B, circular progress arc, label CAPTURING, count "3 vs 1";
+- floating world markers over distant flags with letter and distance in metres, squadmate name tags in green, a spotted enemy diamond in red;
+- a circular minimap bottom left with compass letters, flag letters, player arrow and vehicle icons;
+- a squad list of four names with kit icons next to the minimap;
+- a kill feed top right with three entries;
+- a score ticker "+100 KILL" and "+50 CAPTURE ASSIST" stacking near the centre;
+- weapon card bottom right: weapon name, ammo 24 / 120, fire mode, grenade count 2, gadget;
+- health bar bottom right with 74 HP.
+Alternative one: compact minimal tactical, thin strokes. Alternative two: bolder wide ticket panel and larger minimap. Alternative three: angled panels with amber #ffcf5c selection accents.
+Existing identity: charcoal translucent panels, thin slate borders, condensed uppercase typography, amber highlight. Keep the screen centre clear. Practical HTML/CSS implementation, readable mobile safe areas. No chat panels, no fictional currencies, no real game branding or logos.

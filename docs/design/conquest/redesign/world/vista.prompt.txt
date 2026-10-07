@@ -1,0 +1,14 @@
+Use case: stylized-concept. Asset type: environment key art for a browser voxel shooter.
+
+Primary request:
+- The view: from the edge of a raised military plateau (runway and hangar just out of frame on the left), looking east down into a wide river valley at golden hour.
+- Built from 1 m voxels with crisp ambient occlusion and flat-shaded faces.
+- In view:
+  - a steel truss bridge with two arches over a slow river in the centre;
+  - a village on a hill to the right with white plaster houses, terracotta stepped roofs and a church spire;
+  - an industrial works far right with a smelter hall, a cooling tower and two tall brick chimneys trailing grey smoke that leans north-east;
+  - a ridge on the left with bunkers, trenches and a radar dome;
+  - dark pine forests, wheat strips and dry grass meadows;
+  - three burnt-out tank and truck wrecks along the river, each with a black smoke column.
+- Ridged mountains ring the horizon in warm haze. The low sun comes from behind the camera's left shoulder. The shadow sides of the ridge are clearly darker, with long shadows.
+- No text, no UI.

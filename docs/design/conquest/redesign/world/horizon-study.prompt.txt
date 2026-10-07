@@ -1,0 +1,10 @@
+Use case: stylized-concept. Asset type: level-of-detail study for a browser voxel shooter battlefield built from 1 m voxels with flat-shaded faces and crisp ambient occlusion, golden-hour light from the west-south-west, warm haze. The battlefield is a river valley with a steel truss bridge, a hill village with terracotta roofs and a church spire, an industrial works with a cooling tower and smoking brick chimneys, a ridge with bunkers and trenches, pine forests and wheat strips.
+
+An aerial view from 70 m over the west HQ looking across the whole 768 m valley to the east. It shows how detail falls off:
+- crisp voxels near the camera;
+- simplified 2 m blocks in the middle distance;
+- smooth tinted terrain far away;
+- a ring of hazy voxel mountains beyond the map edge, with artillery flashes glowing just beyond the far ridge;
+- chimney smoke and wreck smoke columns readable at 600 m.
+
+No text, no UI.

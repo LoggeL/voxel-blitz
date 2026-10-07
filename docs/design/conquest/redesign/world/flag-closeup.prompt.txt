@@ -1,0 +1,8 @@
+Use case: game prop design. A Conquest capture point on a gravel square at a ruined bridgehead:
+- a slim grey steel mast on a concrete plinth;
+- a team flag half-hoisted, cloth rippling;
+- a tall translucent light beam rising from the mast, in sky blue (own team) or orange (enemy);
+- a dashed ring of light on the ground marking a 24 m capture radius;
+- a large letter "C" marker floating above the mast.
+
+Show three states left to right: neutral (grey cloth low), being captured by blue (cloth halfway, blue beam pulsing), and owned by orange (cloth at the top, orange beam). Voxel environment, golden-hour light.

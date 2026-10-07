@@ -1,0 +1,12 @@
+Use case: stylized-concept. Asset type: visual effects reference board for a browser voxel shooter with military vehicles built from 0.2 m voxels, flat-shaded, golden-hour light, blocky voxel terrain. A board of the vehicle effects, voxel-friendly with soft particle sprites:
+- the tank main-gun muzzle flash with a smoke ring and side jets from the brake, plus a ground dust cone;
+- HMG tracers;
+- a rocket pod salvo with smoke trails;
+- flares;
+- a tank smoke screen;
+- rotor wash over dust and over water;
+- an afterburner and contrails;
+- tyre and track marks;
+- hull hit sparks: a white spark for no effect, an orange spark with a scorch mark for an effective hit.
+
+Arrange as a labeled grid of nine panels. No branding, no text except small panel labels.
