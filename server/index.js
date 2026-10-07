@@ -398,7 +398,8 @@ async function main() {
       meta.closed = true;
       clearTimeout(joinTimer);
       const room = meta.room?.code;
-      if (room && meta.joined && !meta.dropReason && code !== 1000) {
+      // 1000/1001 are a normal goodbye or a closed tab; anything else is worth tracing.
+      if (room && meta.joined && !meta.dropReason && code !== 1000 && code !== 1001) {
         console.warn(`[voxel-blitz] ${id} (${room}) disconnected: code ${code}${reason?.length ? ` ${reason}` : ''}`);
       }
       try {
