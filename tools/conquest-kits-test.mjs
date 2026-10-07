@@ -11,6 +11,7 @@ import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
 import { GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
 import { PlayerEntity } from '../server/sim/player.js';
 import { createConquestRoles, ConquestRoles, hullMaxHp, settleBodyY } from '../server/modes/conquest/roles.js';
+import { ownedWeapons } from '../server/protocol/snapshot.js';
 
 const DIMS = { sx: 256, sy: 64, sz: 256 };
 const slot = id => WEAPON_IDS.indexOf(id);
@@ -754,6 +755,8 @@ class FakeVehicleSystem {
   assert.equal(game.mode.canUseWeapon(eng, 'stinger'), true);
   assert.equal(game.mode.canUseWeapon(eng, 'rocket'), false, 'the AT launcher is not owned by an AA engineer');
   assert.deepEqual(game.mode.policy.kitFor(eng), { kit: 'engineer', variant: 0, gadget: 1 });
+  // The wire row keeps kit-only gadgets: without a shop price the STINGER used to be filtered out.
+  assert.deepEqual(new Set(ownedWeapons(game.mode.playerSnapshot(eng).owned)), new Set(['smg', 'stinger', 'revolver', 'knife']), 'the snapshot row lists the STINGER');
   // A later deploy without a gadget field is the backward-compatible AT default.
   respawnWith(eng, { kit: 'engineer', variant: 1 });
   assert.deepEqual(new Set(eng.owned), new Set(['shotgun', 'rocket', 'revolver', 'knife']), 'no gadget: the AT launcher');

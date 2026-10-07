@@ -7,7 +7,6 @@ import {
   DEFAULT_MODE_ID,
   MAX_CREDITS,
   isTeamId,
-  isWeaponId,
 } from '../../shared/modes.js';
 import { isRecord } from './admission.js';
 import { copyBlockDamage } from './block-damage.js';
@@ -43,13 +42,17 @@ function weaponSlot(value) {
   return Math.max(0, Math.min(WEAPON_IDS.length - 1, slot));
 }
 
-function ownedWeapons(values) {
+// Any real weapon, not only purchasable ones: kit-only gadgets (the Conquest
+// STINGER) have no shop price but must reach the client's owned list.
+const KNOWN_WEAPONS = new Set(WEAPON_IDS);
+
+export function ownedWeapons(values) {
   if (values === undefined) return WEAPON_IDS.slice();
   if (!Array.isArray(values)) return [];
   const seen = new Set();
   const owned = [];
   for (const value of values) {
-    if (isWeaponId(value) && !seen.has(value)) {
+    if (KNOWN_WEAPONS.has(value) && !seen.has(value)) {
       seen.add(value);
       owned.push(value);
     }
