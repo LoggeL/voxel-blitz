@@ -129,7 +129,13 @@ export const FLUID_BLOCKS = Object.freeze(new Set([MC_WATER, MC_LAVA]));
 export const PASSABLE_BLOCKS = Object.freeze(new Set([
   AIR, MC_WATER, MC_LAVA, MC_PORTAL, ...Object.keys(MC_GHOST_SOLID).map(Number),
 ]));
+// Lookup table for the voxel ids a world stores (0..255): raycasts and
+// collision ask this per crossed cell, so it avoids a Set lookup per voxel.
+const SOLID_TABLE = new Uint8Array(256);
+for (let id = 0; id < 256; id++) SOLID_TABLE[id] = PASSABLE_BLOCKS.has(id) ? 0 : 1;
 export function isSolidBlock(type) {
+  // Integer ids 0..255 read the table; anything else keeps the Set's answer.
+  if ((type & 255) === type) return SOLID_TABLE[type] === 1;
   return !PASSABLE_BLOCKS.has(type);
 }
 

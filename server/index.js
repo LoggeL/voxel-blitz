@@ -10,6 +10,10 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { staticHandler } from './static.js';
 import { LobbyManager } from './lobby.js';
 import { ServerDiagnostics } from './diagnostics.js';
+import { createMapState, getMapMeta } from '../shared/worlddata.js';
+import { surfaceNavigation } from './bot-navigation.js';
+import { roadGraph } from './bot-vehicle-driving.js';
+import { coalesceTick, resetHeldTicks, tickSent, tickSettled } from './protocol/tick-backlog.js';
 import { TICK_MS, parseAdmissionFrame, parseBuyFrame, parseConquestIntent, sanitizeName } from './protocol/admission.js';
 
 const MAX_CONNECTIONS = 256;
@@ -78,9 +82,11 @@ async function main() {
     try { c.ws.close(code, reason); } catch { /* already down */ }
   }
 
-  function sendFrame(c, payload) {
+  function sendFrame(c, payload, settled = null) {
     const ws = c.ws;
     if (ws.readyState !== WebSocket.OPEN) return false;
+    // A binary frame is a map: deltas held for the previous world are void.
+    if (typeof payload !== 'string') resetHeldTicks(c);
     const frameBytes = typeof payload === 'string'
       ? Buffer.byteLength(payload)
       : payload.byteLength;
@@ -91,6 +97,7 @@ async function main() {
     }
     try {
       ws.send(payload, (err) => {
+        settled?.(c);
         if (err) terminateClient(c, `send failed: ${err.message}`);
       });
       return true;
@@ -122,12 +129,31 @@ async function main() {
       if (!c.careerErrorLogged) console.error('[career] reward failed:', error.message);
       c.careerErrorLogged = true;
     }
+    if (obj.t === 'welcome' || obj.t === 'lobbyConfig') resetHeldTicks(c);
+    if (obj.t === 'tick') {
+      // Backpressure: a client whose earlier snapshots are still in flight
+      // skips this one; its deltas ride along with the next snapshot sent.
+      const out = c.ws.readyState === WebSocket.OPEN ? coalesceTick(c, obj) : obj;
+      if (out === null) return true;
+      if (out !== obj) {
+        let merged;
+        try { merged = JSON.stringify(out); } catch { return false; }
+        tickSent(c);
+        if (sendFrame(c, merged, tickSettled)) return true;
+        tickSettled(c);
+        return false;
+      }
+    }
     let payload = payloadCache.get(obj);
     if (payload === undefined) {
       try { payload = JSON.stringify(obj); } catch { return false; }
       if (obj.t === 'tick') payloadCache.set(obj, payload);
     }
-    return sendFrame(c, payload);
+    if (obj.t !== 'tick') return sendFrame(c, payload);
+    tickSent(c);
+    if (sendFrame(c, payload, tickSettled)) return true;
+    tickSettled(c);
+    return false;
   }
 
   const manager = new LobbyManager({
@@ -423,6 +449,19 @@ async function main() {
     }
   }, 30000);
   heartbeat.unref();
+
+  // Frontier's template, metadata, wire bytes, surface graph and road graph
+  // are built on first use (~0.7 s of synchronous work). Build them before
+  // accepting players, so the first Conquest room does not stall every match.
+  {
+    const started = performance.now();
+    const mapMeta = getMapMeta('frontier');
+    const world = createMapState('frontier');
+    world.serializeWorld();
+    surfaceNavigation(world);
+    roadGraph({ mapMeta });
+    console.log(`[voxel-blitz] Frontier prepared in ${Math.round(performance.now() - started)} ms`);
+  }
 
   server.listen(port, () => {
     const address = server.address();

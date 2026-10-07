@@ -48,6 +48,19 @@ const UPPER_ARM = { width: 0.32, margin: 0.18, shift: -0.05 };
 const FOREARM = { width: 0.27, margin: 0.12, shift: 0.03 };
 
 export function playerHitboxes(p) {
+  return buildHitboxes(p, false);
+}
+
+/**
+ * The head (helmet), torso, neck and hips boxes only, bit-identical to the
+ * first six boxes of playerHitboxes: bot perception samples these every tick
+ * and needs no limbs.
+ */
+export function playerCoreHitboxes(p) {
+  return buildHitboxes(p, true);
+}
+
+function buildHitboxes(p, coreOnly) {
   const prone = pronePose(p.proneT);
   const mix = (a, b) => a + (b - a) * prone;
   const crouch = p.crouch ? 1 : 0;
@@ -82,6 +95,7 @@ export function playerHitboxes(p) {
   box('torso', [0, mix(1.18 - crouch * 0.27, 0.3), prone * 0.4], TORSO, basisFor(mix(crouch * 0.12, -Math.PI / 2)), true);
   box('torso', [0, mix(1.43 - crouch * 0.34, 0.36), prone * 0.1], NECK, IDENTITY_BASIS, true);
   box('hips', [0, mix(0.84 - crouch * 0.20, 0.25), prone * 0.8], HIPS, basisFor(-prone * Math.PI / 2));
+  if (coreOnly) return boxes;
   // Legs fold exactly like poseOperatorLeg for a still stance: crouching bends
   // the knees forward and prone lays the leg out behind the hips. The cosmetic
   // running stride only widens each segment's depth, so the empty space between

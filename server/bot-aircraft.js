@@ -40,8 +40,8 @@ const horizontalSpeed = v => Math.hypot(v.vx || 0, v.vz || 0);
 const rulesOf = v => VEHICLE_RULES[v.type] ?? VEHICLE_RULES.helicopter;
 const bodyOrigin = v => [v.x, v.y + (rulesOf(v).gunPivotHeight ?? 1), v.z];
 const clearRay = (game, a, b) => {
-  const delta = b.map((n, i) => n - a[i]);
-  return !raycastVoxels(game.solidAt, ...a, ...delta, Math.hypot(...delta))
+  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+  return !raycastVoxels(game.solidAt, a[0], a[1], a[2], dx, dy, dz, Math.hypot(dx, dy, dz))
     && !game.projectiles.smoke.blocksSight(a, b, game.now);
 };
 export const HELI_ORBIT = Object.freeze({ min: 60, max: 90, radius: 75, height: 34 });
@@ -67,45 +67,77 @@ function rayBox(origin, dir, lo, hi, max) {
  * hulls. Knowing a visible target never permits fire through a friendly body. */
 function clearAircraftShot(game, p, v, target, origin, dir, distance, speed, gravity) {
   const seconds = distance / speed;
+  const at = t => origin.map((n, i) => n + dir[i] * speed * t - (i === 1 ? gravity * t * t / 2 : 0));
+  // Every sampled segment lies inside the arc's bounding box (x and z are
+  // linear in t, y peaks at the apex): only boxes overlapping it can block.
+  const apex = gravity > 0 ? dir[1] * speed / gravity : -1;
+  const ends = [origin, at(seconds), ...(apex > 0 && apex < seconds ? [at(apex)] : [])];
+  const lo = [0, 1, 2].map(i => Math.min(...ends.map(e => e[i])) - 1), hi = [0, 1, 2].map(i => Math.max(...ends.map(e => e[i])) + 1);
+  const overlaps = (a, b) => a[0] <= hi[0] && b[0] >= lo[0] && a[1] <= hi[1] && b[1] >= lo[1] && a[2] <= hi[2] && b[2] >= lo[2];
+  const boxes = [];
+  for (const hull of game.vehicles.vehicles.values()) {
+    if (hull === v || hull.id === target.vehicleId || hull.hp <= 0) continue;
+    const def = rulesOf(hull), r = def.radius;
+    const a = [hull.x - r, hull.y, hull.z - r], b = [hull.x + r, hull.y + def.height, hull.z + r];
+    if (overlaps(a, b)) boxes.push(a, b);
+  }
+  for (const other of game.entities.values()) {
+    if (other === p || other.id === target.id || other.state !== 'alive' || other.vehicleId || game.mode.isEnemy(p, other)) continue;
+    const a = [other.x - 0.45, other.y, other.z - 0.45], b = [other.x + 0.45, other.eyeY + 0.2, other.z + 0.45];
+    if (overlaps(a, b)) boxes.push(a, b);
+  }
   let from = origin;
   for (let t = Math.min(0.035, seconds); t <= seconds + 1e-8; t = Math.min(seconds, t + 0.035)) {
     const to = origin.map((n, i) => n + dir[i] * speed * t - (i === 1 ? gravity * t * t / 2 : 0));
     if (!clearRay(game, from, to)) return false;
-    const delta = to.map((n, i) => n - from[i]), length = Math.hypot(...delta), unit = delta.map(n => n / (length || 1));
-    for (const hull of game.vehicles.vehicles.values()) {
-      if (hull === v || hull.id === target.vehicleId || hull.hp <= 0) continue;
-      const def = rulesOf(hull), r = def.radius;
-      if (rayBox(from, unit, [hull.x - r, hull.y, hull.z - r], [hull.x + r, hull.y + def.height, hull.z + r], length)) return false;
-    }
-    for (const other of game.entities.values()) {
-      if (other === p || other.id === target.id || other.state !== 'alive' || other.vehicleId || game.mode.isEnemy(p, other)) continue;
-      if (rayBox(from, unit, [other.x - 0.45, other.y, other.z - 0.45], [other.x + 0.45, other.eyeY + 0.2, other.z + 0.45], length)) return false;
+    if (boxes.length) {
+      const delta = to.map((n, i) => n - from[i]), length = Math.hypot(...delta), unit = delta.map(n => n / (length || 1));
+      for (let i = 0; i < boxes.length; i += 2) if (rayBox(from, unit, boxes[i], boxes[i + 1], length)) return false;
     }
     from = to; if (t === seconds) break;
   }
   return true;
 }
 
-/** Visible targets for a pilot's fixed guns: hulls (air first for missiles) then infantry and exposed crew. */
-function observeAircraftTarget(game, br, p, v, { airOnly = false } = {}) {
+/**
+ * Visible targets for a pilot's fixed guns: hulls (air first for missiles)
+ * then infantry and exposed crew. With `heldId` only that target is checked
+ * (the sweep's long sight lines run every other tick, like infantry scans);
+ * a held target out of sight falls back to the full sweep at once.
+ */
+function observeAircraftTarget(game, br, p, v, { airOnly = false, heldId = null } = {}) {
   const observer = { x: v.x, z: v.z, eyeY: bodyOrigin(v)[1], yaw: v.yaw, pitch: v.pitch || 0 };
   const options = { sightRange: BOT_AIRCRAFT_SIGHT_RANGE };
+  const hullSighting = hull => {
+    if (hull === v || hull.hp <= 0 || (hull.team && hull.team === (game.mode.teamFor?.(p) ?? p.team))) return null;
+    if (airOnly && !aircraft(hull)) return null;
+    const crew = hullCrew(game, hull).filter(o => game.mode.isEnemy(p, o));
+    if (!crew.length || game.mode.canDamage?.(p, hull) === false) return null;
+    const sighting = observeBotVehicle(observer, hull, game.solidAt, game.projectiles.smoke, game.now, false, br.difficulty, options);
+    return sighting ? { target: hullTarget(hull, crew[0]), sighting, score: sighting.distance * (aircraft(hull) && v.type === 'plane' ? 0.5 : 1) } : null;
+  };
+  const bodySighting = target => {
+    if (target.state !== 'alive' || !game.mode.isEnemy(p, target) || game.mode.canDamage?.(p, target) === false) return null;
+    if (target.vehicleId && !seatedExposed(game, target)) return null;
+    const sighting = observeBotTarget(observer, target, game.solidAt, game.projectiles.smoke, game.now, false, br.difficulty, options);
+    return sighting ? { target, sighting, score: sighting.distance } : null;
+  };
+  if (heldId) {
+    const hullId = heldId.startsWith('vehicle:') ? heldId.slice(8) : null;
+    const hull = hullId !== null ? game.vehicles.vehicles.get(hullId) : null;
+    const body = hullId === null && !airOnly ? game.entities.get(heldId) : null;
+    const held = hull ? hullSighting(hull) : body ? bodySighting(body) : null;
+    if (held) return held;
+  }
   let best = null;
   for (const hull of game.vehicles.vehicles.values()) {
-    if (hull === v || hull.hp <= 0 || (hull.team && hull.team === (game.mode.teamFor?.(p) ?? p.team))) continue;
-    if (airOnly && !aircraft(hull)) continue;
-    const crew = hullCrew(game, hull).filter(o => game.mode.isEnemy(p, o));
-    if (!crew.length || game.mode.canDamage?.(p, hull) === false) continue;
-    const sighting = observeBotVehicle(observer, hull, game.solidAt, game.projectiles.smoke, game.now, false, br.difficulty, options);
-    const score = sighting ? sighting.distance * (aircraft(hull) && v.type === 'plane' ? 0.5 : 1) : Infinity;
-    if (sighting && (!best || score < best.score)) best = { target: hullTarget(hull, crew[0]), sighting, score };
+    const seen = hullSighting(hull);
+    if (seen && (!best || seen.score < best.score)) best = seen;
   }
   if (best || airOnly) return best;
   for (const target of game.entities.values()) {
-    if (target.state !== 'alive' || !game.mode.isEnemy(p, target) || game.mode.canDamage?.(p, target) === false) continue;
-    if (target.vehicleId && !seatedExposed(game, target)) continue;
-    const sighting = observeBotTarget(observer, target, game.solidAt, game.projectiles.smoke, game.now, false, br.difficulty, options);
-    if (sighting && (!best || sighting.distance < best.score)) best = { target, sighting, score: sighting.distance };
+    const seen = bodySighting(target);
+    if (seen && (!best || seen.score < best.score)) best = seen;
   }
   return best;
 }
@@ -134,7 +166,10 @@ export function aircraftCombatIntent(game, br, p, v, state, now, dt, { airOnly =
   // Air-to-air and air-to-ground recognition accumulate separately: a jet
   // checking the sky every tick must not wipe its ground target's evidence.
   const slot = airOnly ? 'airCombat' : 'combat';
-  const observed = game.mode.canFire(p) ? observeAircraftTarget(game, br, p, v, { airOnly }) : null;
+  // Full sweeps alternate with checks of the held target only.
+  const sweep = state[`${slot}Sweep`] = !state[`${slot}Sweep`];
+  const heldId = !sweep && state[slot] ? state[slot].id : null;
+  const observed = game.mode.canFire(p) ? observeAircraftTarget(game, br, p, v, { airOnly, heldId }) : null;
   if (!observed) { state[slot] = null; return null; }
   const { target, sighting } = observed;
   let combat = state[slot];

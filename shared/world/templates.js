@@ -140,16 +140,18 @@ export function createMapState(id, serializedBytes) {
   const dimensions = getMapDimensions(id);
   let blocks;
   let heights;
+  let pristine = null;
   if (serializedBytes === undefined) {
     blocks = template.blocks.slice();
     heights = template.heights.slice();
+    pristine = template.blocks;
   } else {
     validateSerializedWorld(serializedBytes, dimensions);
     blocks = deserializeBlocks(serializedBytes, dimensions).blocks;
     heights = new Int16Array(dimensions.sx * dimensions.sz);
     rebuildHeights(blocks, heights, dimensions);
   }
-  return createStateApi(blocks, heights, template.meta.spawns.fun, id, template.meta);
+  return createStateApi(blocks, heights, template.meta.spawns.fun, id, template.meta, dimensions, pristine);
 }
 
 export function createWorldState(serializedBytes) {

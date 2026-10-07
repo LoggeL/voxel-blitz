@@ -75,7 +75,7 @@
     "hud:runtime:test": "node tools/hud-runtime-test.mjs",
     "menus:design:capture": "node tools/session-menu-design-test.mjs",
     "feedback:browser": "node tools/player-feedback-test.mjs",
-    "connection:test": "node tools/connection-diagnostics-test.mjs && node tools/network-transport-test.mjs && node tools/own-feedback-test.mjs && node tools/invite-url-test.mjs && node tools/session-lifecycle-test.mjs && node tools/netclient-lifecycle-test.mjs",
+    "connection:test": "node tools/connection-diagnostics-test.mjs && node tools/network-transport-test.mjs && node tools/tick-backpressure-test.mjs && node tools/own-feedback-test.mjs && node tools/invite-url-test.mjs && node tools/session-lifecycle-test.mjs && node tools/netclient-lifecycle-test.mjs",
     "profile:gameplay": "node tools/profile-gameplay.mjs",
     "fps:test": "node tools/frame-rate-test.mjs",
     "graphics:test": "node tools/graphics-quality-test.mjs && node tools/advanced-lighting-test.mjs && node tools/character-light-test.mjs && node tools/chunk-meshing-performance-test.mjs",

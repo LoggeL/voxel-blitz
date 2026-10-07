@@ -15,7 +15,7 @@ import { botDifficulty } from '../shared/bot-difficulty.js';
 import { BOT_PERSONALITIES, DEFAULT_BOT_PERSONALITY } from '../shared/bot-personality.js';
 import { WEAPON_IDS, WEAPONS } from '../shared/combatmath.js';
 import { VEHICLE_RULES, vehicleDirection, vehicleMuzzlePose } from '../shared/vehicles.js';
-import { vehicleOccupiedSeats, vehicleWeaponSeatId } from '../shared/vehicle-seats.js';
+import { vehicleSeatOccupantId, vehicleSeats, vehicleWeaponSeatId } from '../shared/vehicle-seats.js';
 import { VEHICLE_WEAPON_META, seatWeaponList, vehicleMountOrder } from '../shared/conquest-contract.js';
 import { ROCKET_RULES } from '../shared/rocket-rules.js';
 import { raycastVoxels } from '../shared/raycast.js';
@@ -30,7 +30,10 @@ const HALF_VERTICAL_FOV = 50 * Math.PI / 180;
 const RANGED_PRIORITY = ['rocket', 'lance', 'sniper', 'lmg', 'rifle', 'minigun', 'revolver', 'smg', 'shotgun'];
 const sightOrigin = p => [p.eyeX ?? p.x, p.eyeY, p.eyeZ ?? p.z];
 const delta = (a, b) => b.map((n, i) => n - a[i]);
-const clearRay = (solidAt, a, b) => !raycastVoxels(solidAt, ...a, ...delta(a, b), Math.hypot(...delta(a, b)));
+const clearRay = (solidAt, a, b) => {
+  const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2];
+  return !raycastVoxels(solidAt, a[0], a[1], a[2], dx, dy, dz, Math.hypot(dx, dy, dz));
+};
 
 /** Tank 360 degree check radius and the wider check of open gunner seats. */
 export const TANK_OMNI_RANGE = 40;
@@ -64,8 +67,11 @@ export const vehicleHullRules = type => VEHICLE_RULES[type] ?? VEHICLE_RULES.hel
 /** Live occupants of a hull, by seat. */
 export function hullCrew(game, v) {
   const crew = [];
-  for (const seat of vehicleOccupiedSeats(v)) {
-    const p = game.entities.get(seat.occupantId);
+  // vehicleOccupiedSeats without its per-seat copies (this runs per bot and hull every tick).
+  for (const seat of vehicleSeats(v)) {
+    const occupantId = vehicleSeatOccupantId(v, seat.id);
+    if (occupantId == null) continue;
+    const p = game.entities.get(occupantId);
     if (p?.state === 'alive' && p.vehicleId === v.id) crew.push(p);
   }
   if (!crew.length && v.occupantId != null) {
@@ -306,18 +312,51 @@ export function blockedByOtherEntity(game, p, target, origin, dir, distance) {
   return false;
 }
 
+/**
+ * The boxes blockedByOtherEntity tests, limited to those overlapping a region
+ * [lo, hi]: a segment inside the region can only meet those, so an arc checks
+ * its segments against a short list instead of every hull and body.
+ */
+function blockerBoxesWithin(game, p, target, lo, hi) {
+  const ownHull = p.vehicleId, boxes = [];
+  const overlaps = (a, b) => a[0] <= hi[0] && b[0] >= lo[0] && a[1] <= hi[1] && b[1] >= lo[1] && a[2] <= hi[2] && b[2] >= lo[2];
+  for (const v of game.vehicles?.vehicles.values() ?? []) {
+    if (v.id === ownHull || v.id === target.vehicleId || v.hp <= 0) continue;
+    const def = vehicleHullRules(v.type), r = def.radius;
+    const a = [v.x - r, v.y, v.z - r], b = [v.x + r, v.y + def.height, v.z + r];
+    if (overlaps(a, b)) boxes.push(a, b);
+  }
+  for (const o of game.entities.values()) {
+    if (o === p || o.state !== 'alive' || o.id === target.id || game.mode.isEnemy(p, o)) continue;
+    if (ownHull && o.vehicleId === ownHull) continue;
+    const a = [o.x - 0.45, o.y, o.z - 0.45], b = [o.x + 0.45, o.eyeY + 0.2, o.z + 0.45];
+    if (overlaps(a, b)) boxes.push(a, b);
+  }
+  return boxes;
+}
+
 /** Sample the projectile's gravity arc so an arc never authorizes wall fire. */
 export function clearFlight(game, p, target, origin, dir, distance, { speed = ROCKET_RULES.speed, gravity = ROCKET_RULES.gravity, explosive = true } = {}) {
   if (!explosive || !(speed > 0)) return !raycastVoxels(game.solidAt, ...origin, ...dir, distance)
     && !game.projectiles?.smoke?.blocksSight(origin, origin.map((n, i) => n + dir[i] * distance), game.now)
     && !blockedByOtherEntity(game, p, target, origin, dir, distance);
   const seconds = distance / speed;
+  // Every sampled segment lies inside the arc's bounding box (x and z are
+  // linear in t, y peaks at the apex): only boxes overlapping it can block.
+  const at = t => origin.map((n, i) => n + dir[i] * speed * t - (i === 1 ? gravity * t * t * 0.5 : 0));
+  const apex = gravity > 0 ? dir[1] * speed / gravity : -1;
+  const ends = [origin, at(seconds), ...(apex > 0 && apex < seconds ? [at(apex)] : [])];
+  const lo = [0, 1, 2].map(i => Math.min(...ends.map(e => e[i])) - 1), hi = [0, 1, 2].map(i => Math.max(...ends.map(e => e[i])) + 1);
+  const blockers = blockerBoxesWithin(game, p, target, lo, hi);
   let previous = origin;
   for (let t = Math.min(0.035, seconds); t <= seconds + 1e-8; t = Math.min(seconds, t + 0.035)) {
     const point = origin.map((n, i) => n + dir[i] * speed * t - (i === 1 ? gravity * t * t * 0.5 : 0));
     const d = delta(previous, point), length = Math.hypot(...d);
-    if (!clearRay(game.solidAt, previous, point) || game.projectiles.smoke?.blocksSight(previous, point, game.now)
-        || blockedByOtherEntity(game, p, target, previous, d.map(n => n / (length || 1)), length)) return false;
+    if (!clearRay(game.solidAt, previous, point) || game.projectiles.smoke?.blocksSight(previous, point, game.now)) return false;
+    if (blockers.length) {
+      const unit = d.map(n => n / (length || 1));
+      for (let i = 0; i < blockers.length; i += 2) if (rayBox(previous, unit, blockers[i], blockers[i + 1], length) !== null) return false;
+    }
     previous = point;
     if (t === seconds) break;
   }

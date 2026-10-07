@@ -66,19 +66,21 @@ function interactionCopy(value) {
   };
 }
 
-function wireCopy(value, seen = new WeakSet()) {
+// `ancestors` holds the objects on the current copy path (a cycle copies as
+// null); a shallow array beats allocating a WeakSet per call every tick.
+function wireCopy(value, ancestors = []) {
   if (value == null || typeof value === 'string' || typeof value === 'boolean') return value;
   if (typeof value === 'number') return Number.isFinite(value) ? value : null;
-  if (typeof value !== 'object' || seen.has(value)) return null;
-  seen.add(value);
-  if (Array.isArray(value)) {
-    const copy = value.map((item) => wireCopy(item, seen));
-    seen.delete(value);
-    return copy;
+  if (typeof value !== 'object' || ancestors.includes(value)) return null;
+  ancestors.push(value);
+  let copy;
+  if (Array.isArray(value)) copy = value.map((item) => wireCopy(item, ancestors));
+  else {
+    copy = {};
+    const keys = Object.keys(value);
+    for (let i = 0; i < keys.length; i++) copy[keys[i]] = wireCopy(value[keys[i]], ancestors);
   }
-  const copy = {};
-  for (const [key, item] of Object.entries(value)) copy[key] = wireCopy(item, seen);
-  seen.delete(value);
+  ancestors.pop();
   return copy;
 }
 
@@ -109,6 +111,95 @@ export function conquestPlayerRow(p, nowMs) {
 export function conquestStatsRow(p) {
   const stats = Array.isArray(p.conquest?.stats) ? p.conquest.stats : [];
   return [0, 1, 2, 3].map(i => Math.max(0, Math.trunc(stats[i]) || 0));
+}
+
+/** One contracted player row (key order is the wire order). */
+function playerRow(p, nowMs) {
+  const row = {
+    id: String(p.id),
+    vehicleId: typeof p.vehicleId === 'string' ? p.vehicleId : null,
+    vehicleSeatId: typeof p.vehicleId === 'string' && typeof p.vehicleSeatId === 'string' ? p.vehicleSeatId : null,
+    name: String(p.name),
+    cosmetics: normalizeCosmeticLoadout(p.cosmetics),
+    x: round(p.x, D2),
+    y: round(p.y, D2),
+    z: round(p.z, D2),
+    yaw: round(p.yaw, D3),
+    pitch: round(p.pitch, D3),
+    hp: round(p.hp, 1),
+    medkit: {
+      remaining: p.medkit?.remaining === 1 ? 1 : 0,
+      active: !!p.medkit?.active,
+      progress: round(Math.max(0, Math.min(1, (p.medkit?.elapsed || 0) / MEDKIT_SECONDS)), D3),
+      ack: Number.isSafeInteger(p.medkit?.ack) ? p.medkit.ack : 0,
+    },
+    armor: round(Math.max(0, Math.min(POWERUP_RULES.maxArmor, Number.isFinite(p.armor) ? p.armor : 0)), 1),
+    burning: round(Math.max(0, p.burning || 0, p.molotovBurning || 0), D3),
+    panic: round(Math.max(0, Math.min(1, Number.isFinite(p.panic) ? p.panic : 0)), D3),
+    pain: round(Math.max(0, Math.min(1, Number.isFinite(p.pain) ? p.pain : 0)), D3),
+    // Remaining pulse concussion; prediction scales its speed the way authority does.
+    concussedMs: Number.isFinite(p.concussedUntil) ? Math.max(0, Math.round(p.concussedUntil - nowMs)) : 0,
+    exhaustion: round(Math.max(0, Math.min(1, Number.isFinite(p.exhaustion) ? p.exhaustion : 0)), D3),
+    breathReserve: round(Math.max(0, Math.min(1, Number.isFinite(p.breath?.reserve) ? p.breath.reserve : 1)), D3),
+    breathExhausted: !!p.breath?.exhausted,
+    breathReleasedFor: round(Math.max(0, Math.min(1, Number.isFinite(p.breath?.releasedFor) ? p.breath.releasedFor : 0)), D3),
+    spawnProtected: !!p.spawnProtected,
+    weapon: weaponSlot(p.weapon),
+  };
+  if (p.weaponLoadout) row.attachments = normalizeAttachments(WEAPON_IDS[weaponSlot(p.weapon)], p.weaponLoadout[WEAPON_IDS[weaponSlot(p.weapon)]]);
+  row.score = p.score | 0;
+  row.kills = p.kills | 0;
+  row.deaths = p.deaths | 0;
+  row.impulse = p.impulseSeq > 0 && [p.vx, p.vy, p.vz].every(Number.isFinite)
+    ? { seq: p.impulseSeq, velocity: [round(p.vx, D2), round(p.vy, D2), round(p.vz, D2)] }
+    : null;
+  // Map portals move the authoritative body; prediction snaps on a new sequence.
+  row.teleport = Number.isSafeInteger(p.teleportSeq) && p.teleportSeq > 0 ? p.teleportSeq : 0;
+  row.swimming = !!p.swimming;
+  row.ping = Number.isFinite(p.ping) ? Math.max(0, Math.round(p.ping)) : null;
+  row.state = p.state === 'dead' ? 'dead' : 'alive';
+  // Only dead players with an automatic respawn publish a deadline.
+  // Round-based modes deliberately expose null instead of Infinity.
+  row.respawnAt = p.state === 'dead' && Number.isFinite(p.respawnAt)
+    ? round(p.respawnAt, 1)
+    : null;
+  row.firing = !!p.firing;
+  row.ads = !!p.ads;
+  row.adsT = round(Math.max(0, Math.min(1, p.adsT || 0)), D3);
+  row.scopeZoom = p.input?.scopeZoom || 0;
+  row.deploying = p.deployT > 0;
+  row.grenadeHandling = !!p.input?.grenadeHandling;
+  row.crouch = !!p.crouch;
+  row.grounded = !!p.grounded;
+  row.vaulting = !!p.vault;
+  row.proneT = p.proneT || 0;
+  row.leanT = round(p.leanT || 0, D3);
+  row.moveSpeed = round(Math.hypot(p.vx || 0, p.vz || 0), D2);
+  row.mag = ammoCopy(p.mag);
+  row.reserve = ammoCopy(p.reserve);
+  row.minigun = p.minigun ? { ...p.minigun } : undefined;
+  row.reloading = !!p.reloading;
+  row.reloadAck = p.reloadAck || 0;
+  row.reloadState = p.reloading && p.reloadState ? { ...p.reloadState } : null;
+  row.team = isTeamId(p.team) ? p.team : null;
+  row.credits = Number.isFinite(p.credits)
+    ? Math.max(0, Math.min(MAX_CREDITS, Math.trunc(p.credits)))
+    : 0;
+  row.owned = ownedWeapons(p.owned);
+  if (p.tttKarma) row.karma = Math.round(p.tttKarma.base);
+  if (p.chaosUpgrades) row.chaosUpgrades = { ...p.chaosUpgrades };
+  if (isRecord(p.conquest)) { row.cq = conquestPlayerRow(p, nowMs); row.cqs = conquestStatsRow(p); }
+  if (p.bastion) { row.bastion = { ...p.bastion }; row.bastionUpgrades = { ...p.bastionUpgrades }; }
+  if (p.npcRole) {
+    row.npcRole = p.npcRole; row.npcAttack = p.npcAttack;
+    if (Number.isFinite(p.bodyScale) && p.bodyScale !== 1) row.npcScale = round(p.bodyScale, D3);
+    if (p.npcVehicle) row.npcVehicle = true;
+  }
+  row.bomb = !!p.bomb;
+  row.interaction = interactionCopy(p.interaction);
+  row.grenades = grenadeCopy(p.grenades);
+  row.charge = round(Math.max(0, Math.min(1, Number.isFinite(p.charge) ? p.charge : 0)), D3);
+  return row;
 }
 
 function defaultMatchSnapshot() {
@@ -143,88 +234,7 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
     smokeFields: copySmokeFields(smokeFields),
     now: round(nowMs, 1),
     match: matchSnapshot,
-    players: (playersArr || []).map((p) => ({
-      id: String(p.id),
-      vehicleId: typeof p.vehicleId === 'string' ? p.vehicleId : null,
-      vehicleSeatId: typeof p.vehicleId === 'string' && typeof p.vehicleSeatId === 'string' ? p.vehicleSeatId : null,
-      name: String(p.name),
-      cosmetics: normalizeCosmeticLoadout(p.cosmetics),
-      x: round(p.x, D2),
-      y: round(p.y, D2),
-      z: round(p.z, D2),
-      yaw: round(p.yaw, D3),
-      pitch: round(p.pitch, D3),
-      hp: round(p.hp, 1),
-      medkit: {
-        remaining: p.medkit?.remaining === 1 ? 1 : 0,
-        active: !!p.medkit?.active,
-        progress: round(Math.max(0, Math.min(1, (p.medkit?.elapsed || 0) / MEDKIT_SECONDS)), D3),
-        ack: Number.isSafeInteger(p.medkit?.ack) ? p.medkit.ack : 0,
-      },
-      armor: round(Math.max(0, Math.min(POWERUP_RULES.maxArmor, Number.isFinite(p.armor) ? p.armor : 0)), 1),
-      burning: round(Math.max(0, p.burning || 0, p.molotovBurning || 0), D3),
-      panic: round(Math.max(0, Math.min(1, Number.isFinite(p.panic) ? p.panic : 0)), D3),
-      pain: round(Math.max(0, Math.min(1, Number.isFinite(p.pain) ? p.pain : 0)), D3),
-      // Remaining pulse concussion; prediction scales its speed the way authority does.
-      concussedMs: Number.isFinite(p.concussedUntil) ? Math.max(0, Math.round(p.concussedUntil - nowMs)) : 0,
-      exhaustion: round(Math.max(0, Math.min(1, Number.isFinite(p.exhaustion) ? p.exhaustion : 0)), D3),
-      breathReserve: round(Math.max(0, Math.min(1, Number.isFinite(p.breath?.reserve) ? p.breath.reserve : 1)), D3),
-      breathExhausted: !!p.breath?.exhausted,
-      breathReleasedFor: round(Math.max(0, Math.min(1, Number.isFinite(p.breath?.releasedFor) ? p.breath.releasedFor : 0)), D3),
-      spawnProtected: !!p.spawnProtected,
-      weapon: weaponSlot(p.weapon),
-      ...(p.weaponLoadout ? { attachments: normalizeAttachments(WEAPON_IDS[weaponSlot(p.weapon)], p.weaponLoadout[WEAPON_IDS[weaponSlot(p.weapon)]]) } : {}),
-      score: p.score | 0,
-      kills: p.kills | 0,
-      deaths: p.deaths | 0,
-      impulse: p.impulseSeq > 0 && [p.vx, p.vy, p.vz].every(Number.isFinite)
-        ? { seq: p.impulseSeq, velocity: [round(p.vx, D2), round(p.vy, D2), round(p.vz, D2)] }
-        : null,
-      // Map portals move the authoritative body; prediction snaps on a new sequence.
-      teleport: Number.isSafeInteger(p.teleportSeq) && p.teleportSeq > 0 ? p.teleportSeq : 0,
-      swimming: !!p.swimming,
-      ping: Number.isFinite(p.ping) ? Math.max(0, Math.round(p.ping)) : null,
-      state: p.state === 'dead' ? 'dead' : 'alive',
-      // Only dead players with an automatic respawn publish a deadline.
-      // Round-based modes deliberately expose null instead of Infinity.
-      respawnAt: p.state === 'dead' && Number.isFinite(p.respawnAt)
-        ? round(p.respawnAt, 1)
-        : null,
-      firing: !!p.firing,
-      ads: !!p.ads,
-      adsT: round(Math.max(0, Math.min(1, p.adsT || 0)), D3),
-      scopeZoom: p.input?.scopeZoom || 0,
-      deploying: p.deployT > 0,
-      grenadeHandling: !!p.input?.grenadeHandling,
-      crouch: !!p.crouch,
-      grounded: !!p.grounded,
-      vaulting: !!p.vault,
-      proneT: p.proneT || 0,
-      leanT: round(p.leanT || 0, D3),
-      moveSpeed: round(Math.hypot(p.vx || 0, p.vz || 0), D2),
-      mag: ammoCopy(p.mag),
-      reserve: ammoCopy(p.reserve),
-      minigun: p.minigun ? { ...p.minigun } : undefined,
-      reloading: !!p.reloading,
-      reloadAck: p.reloadAck || 0,
-      reloadState: p.reloading && p.reloadState ? { ...p.reloadState } : null,
-      team: isTeamId(p.team) ? p.team : null,
-      credits: Number.isFinite(p.credits)
-        ? Math.max(0, Math.min(MAX_CREDITS, Math.trunc(p.credits)))
-        : 0,
-      owned: ownedWeapons(p.owned),
-      ...(p.tttKarma ? { karma: Math.round(p.tttKarma.base) } : {}),
-      ...(p.chaosUpgrades ? { chaosUpgrades: { ...p.chaosUpgrades } } : {}),
-      ...(isRecord(p.conquest) ? { cq: conquestPlayerRow(p, nowMs), cqs: conquestStatsRow(p) } : {}),
-      ...(p.bastion ? { bastion: { ...p.bastion }, bastionUpgrades: { ...p.bastionUpgrades } } : {}),
-      ...(p.npcRole ? { npcRole: p.npcRole, npcAttack: p.npcAttack,
-        ...(Number.isFinite(p.bodyScale) && p.bodyScale !== 1 ? { npcScale: round(p.bodyScale, D3) } : {}),
-        ...(p.npcVehicle ? { npcVehicle: true } : {}) } : {}),
-      bomb: !!p.bomb,
-      interaction: interactionCopy(p.interaction),
-      grenades: grenadeCopy(p.grenades),
-      charge: round(Math.max(0, Math.min(1, Number.isFinite(p.charge) ? p.charge : 0)), D3),
-    })),
+    players: (playersArr || []).map((p) => playerRow(p, nowMs)),
     // Engines clear these scratch arrays after broadcasting, so snapshots must
     // not retain either source array.
     blocks: (blockDeltas || []).map((b) => ({ i: b.i | 0, v: b.v | 0 })),

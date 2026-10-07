@@ -22,6 +22,9 @@ import { worldDimensions } from '../shared/world/dimensions.js';
 import { FLUID_BLOCKS, isSolidBlock } from '../shared/world/blocks.js';
 
 const NAVS = new WeakMap();
+// Graphs of pristine template worlds, per template voxels and graph options:
+// a fresh room (or a fully restored map) copies them instead of rebuilding.
+const PRISTINE_GRAPHS = new WeakMap();
 const DIRS = Object.freeze([[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]);
 const OPPOSITE = Object.freeze([1, 0, 3, 2, 5, 4, 7, 6]);
 const SQRT2 = Math.SQRT2;
@@ -32,6 +35,11 @@ const VAULT_COST = 1.6;      // a two-voxel rise needs a vault
 const CLIMB_COST = 0.15;     // per voxel of rise, so gentle routes win ties
 const LOOKAHEAD = 14;        // metres of straight walk a follower may skip ahead
 const ROUTE_TTL_MS = 6000;
+// A* node expansions per tick after which further replans wait for the next
+// tick (a follower keeps its previous route meanwhile). The first search of a
+// tick always runs, so a burst of replans (match start, a squad order, a
+// crater across many routes) spreads over a few ticks instead of one.
+const SEARCH_BUDGET_NODES = 12000;
 const REVERSE_PROBE_NODES = 2048;    // reverse flood from a goal in another component before the full A*
 const PARTIAL_SEARCH_NODES = 4096;   // A* budget toward a goal known to be unreachable
 const CHANGE_LOG = 32;               // applyChanges entries kept for route invalidation
@@ -48,7 +56,7 @@ export function surfaceNavigation(world) {
   let nav = NAVS.get(world);
   if (!nav) {
     nav = new SurfaceNav(world, world.meta.navigation);
-    nav.build();
+    nav.rebuild();
     NAVS.set(world, nav);
   }
   return nav;
@@ -79,6 +87,9 @@ export class SurfaceNav {
     this.stamp = new Uint32Array(this.nodes);
     this.closed = new Uint32Array(this.nodes);
     this.search = 0;
+    this.lastExpanded = 0;
+    this.budgetAt = NaN;        // tick time of the expansion budget below
+    this.budgetUsed = 0;        // A* expansions spent by waypoint() this tick
     this.heap = new Int32Array(this.nodes);
     this.heapSize = 0;
     this.rstamp = new Uint32Array(this.nodes);
@@ -86,17 +97,45 @@ export class SurfaceNav {
     this.rqueue = new Int32Array(REVERSE_PROBE_NODES + 16);
     this.changes = [];          // [{ revision, cells: Set }] from applyChanges, newest last
     this.colScratch = [];
+    // Node offset of each direction's neighbour cell (layer 0), for flood fills.
+    this.dirOffsets = Int32Array.from(DIRS, ([dx, dz]) => (dz * this.gw + dx) * 2);
+    this.floodQueue = null;
     this.watch = null;          // TerrainWatch over the engine's changed-block log (set by the bot manager)
   }
 
   // ---------------------------------------------------------------- build --
 
+  /** Full build from the world's voxels. */
   build() {
     const start = performance.now();
     const cells = this.gw * this.gd;
     for (let c = 0; c < cells; c++) this.computeCell(c, true);
     for (let c = 0; c < cells; c++) this.computeEdgesFrom(c, true);
     this.labelComponents();
+    this.buildMs = performance.now() - start;
+    return this;
+  }
+
+  /**
+   * build(), except that a world matching its pristine template copies the
+   * template's graph (the graph is a pure function of the voxels; built once
+   * per process): a new room or a fully restored map skips ~110 ms of work.
+   */
+  rebuild() {
+    const template = this.world.matchesTemplate?.() ? this.world.templateBlocks : null;
+    if (!template) return this.build();
+    const key = `${this.cell}:${this.maxStep}:${this.nodes}`;
+    const cached = PRISTINE_GRAPHS.get(template)?.get(key);
+    if (!cached) {
+      this.build();
+      if (!PRISTINE_GRAPHS.has(template)) PRISTINE_GRAPHS.set(template, new Map());
+      PRISTINE_GRAPHS.get(template).set(key, { height: this.height.slice(), flags: this.flags.slice(),
+        edges: this.edges.slice(), component: this.component.slice() });
+      return this;
+    }
+    const start = performance.now();
+    this.height.set(cached.height); this.flags.set(cached.flags);
+    this.edges.set(cached.edges); this.component.set(cached.component);
     this.buildMs = performance.now() - start;
     return this;
   }
@@ -282,26 +321,25 @@ export class SurfaceNav {
   labelComponents() {
     // Strongly connected components are overkill here: label by forward
     // reachability from the largest region, others get their own labels.
-    this.component.fill(-1);
+    // Edges only join in-bounds neighbours, so a neighbour is node base + offset.
+    const component = this.component, flags = this.flags, edges = this.edges, off = this.dirOffsets;
+    const nodes = this.nodes, queue = (this.floodQueue ??= new Int32Array(nodes));
+    component.fill(-1);
     let label = 0;
-    const queue = new Int32Array(this.nodes);
-    for (let s = 0; s < this.nodes; s++) {
-      if (!this.flags[s] || this.component[s] >= 0) continue;
+    for (let s = 0; s < nodes; s++) {
+      if (!flags[s] || component[s] >= 0) continue;
       let read = 0, write = 0;
-      queue[write++] = s; this.component[s] = label;
+      queue[write++] = s; component[s] = label;
       while (read < write) {
         const node = queue[read++];
-        const mask = this.edges[node];
-        if (!mask) continue;
-        const c = node >> 1, cx = c % this.gw, cz = (c / this.gw) | 0;
-        for (let d = 0; d < 8; d++) {
-          const bits = (mask >> (d * 2)) & 3;
+        let mask = edges[node];
+        const base = node & ~1;
+        for (let d = 0; mask; d++, mask >>= 2) {
+          const bits = mask & 3;
           if (!bits) continue;
-          const n = (cz + DIRS[d][1]) * this.gw + cx + DIRS[d][0];
-          for (let l = 0; l < 2; l++) if (bits & (1 << l)) {
-            const next = n * 2 + l;
-            if (this.component[next] < 0) { this.component[next] = label; queue[write++] = next; }
-          }
+          const next = base + off[d];
+          if ((bits & 1) && component[next] < 0) { component[next] = label; queue[write++] = next; }
+          if ((bits & 2) && component[next + 1] < 0) { component[next + 1] = label; queue[write++] = next + 1; }
         }
       }
       label++;
@@ -435,6 +473,7 @@ export class SurfaceNav {
         }
       }
     }
+    this.lastExpanded = expanded;
     const path = [];
     for (let node = best; node !== -1; node = this.parent[node]) {
       path.push(node);
@@ -558,12 +597,28 @@ export class SurfaceNav {
           cells: this.routeCells(from, [to]) };
         return brain.surfaceRoute.points[0];
       }
+      if (this.budgetAt !== now) { this.budgetAt = now; this.budgetUsed = 0; }
+      if (this.budgetUsed >= SEARCH_BUDGET_NODES) {
+        // Over this tick's search budget: keep walking the old route, or hold
+        // still for a tick when there is none here yet (none, or the body
+        // respawned or teleported away from it).
+        if (!route || Math.hypot(from.x - route.last.x, from.z - route.last.z) > 10) return { x: from.x, y: from.y, z: from.z };
+        route.last = { x: from.x, z: from.z };
+        return this.followRoute(from, route);
+      }
+      this.lastExpanded = 0;
       const planned = this.route(from, to);
+      this.budgetUsed += Math.max(1, this.lastExpanded);
       route = brain.surfaceRoute = { target: { x: to.x, y: to.y, z: to.z }, points: planned.points,
         until: now + ROUTE_TTL_MS + ((brain.index ?? 0) % 8) * 125, last: { x: from.x, z: from.z },
         revision: this.revision, reached: planned.reached, cells: planned.reached ? this.routeCells(from, planned.points) : null };
     }
     route.last = { x: from.x, z: from.z };
+    return this.followRoute(from, route);
+  }
+
+  /** Steering point along a cached route: drop passed nodes, look ahead along clear straight walks. */
+  followRoute(from, route) {
     const points = route.points;
     if (!points.length) return { x: from.x, y: from.y, z: from.z };
     // Drop nodes already passed, then look ahead along clear straight walks.
@@ -596,17 +651,20 @@ export class SurfaceNav {
     const start = this.nodeAt(point);
     const seen = new Uint8Array(this.nodes);
     if (start === NODE_NONE) return seen;
-    const queue = new Int32Array(this.nodes);
+    const edges = this.edges, off = this.dirOffsets;
+    const queue = (this.floodQueue ??= new Int32Array(this.nodes));
     let read = 0, write = 0;
     queue[write++] = start; seen[start] = 1;
     while (read < write) {
-      const node = queue[read++], mask = this.edges[node];
-      const c = node >> 1, cx = c % this.gw, cz = (c / this.gw) | 0;
-      for (let d = 0; d < 8; d++) {
-        const bits = (mask >> (d * 2)) & 3;
+      const node = queue[read++];
+      let mask = edges[node];
+      const base = node & ~1;
+      for (let d = 0; mask; d++, mask >>= 2) {
+        const bits = mask & 3;
         if (!bits) continue;
-        const n = (cz + DIRS[d][1]) * this.gw + cx + DIRS[d][0];
-        for (let l = 0; l < 2; l++) if (bits & (1 << l) && !seen[n * 2 + l]) { seen[n * 2 + l] = 1; queue[write++] = n * 2 + l; }
+        const next = base + off[d];
+        if ((bits & 1) && !seen[next]) { seen[next] = 1; queue[write++] = next; }
+        if ((bits & 2) && !seen[next + 1]) { seen[next + 1] = 1; queue[write++] = next + 1; }
       }
     }
     return seen;

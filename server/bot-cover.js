@@ -36,12 +36,18 @@ const sectorYaw = sector => wrap(sector * TAU / SECTORS);
 
 const passable = block => !isSolidBlock(block) && !FLUID_BLOCKS.has(block);
 
+// Sets built on a world that matches its pristine template, per template
+// voxels, map metadata (HQ starts) and flag: a new room or a restored map
+// copies them instead of sampling ~1000 points per flag again.
+const PRISTINE_SETS = new WeakMap();
+
 export class CoverIndex {
   constructor(game) {
     this.game = game;
     this.sets = new Map();
     this.dirty = new Set();
     this.nextRebuildAt = 0;
+    this.rebuilding = null;    // { id, steps } of the flag whose sets are being rebuilt
     this.claims = new Map();   // node key -> { id, until }
     this.solidAt = (x, y, z) => isSolidBlock(game.world.getBlock(x, y, z));
   }
@@ -71,19 +77,31 @@ export class CoverIndex {
    * the end of a partial route and never arrive.
    */
   reachable() {
+    const steps = this.reachableSteps();
+    let next = steps.next();
+    while (!next.done) next = steps.next();
+    return next.value;
+  }
+
+  /** reachable() as a generator: one flood fill per step. */
+  *reachableSteps() {
     const nav = surfaceNavigation(this.game.world);
     if (!nav) return null;
     if (this.reach?.nav === nav && this.reach.revision === nav.revision) return this.reach.seen;
+    const revision = nav.revision;
     let seen = null;
     for (const base of Object.values(this.game.mapMeta?.conquest?.bases ?? {})) {
       const starts = [...(Array.isArray(base?.spawns) ? base.spawns : []), base];
       const start = starts.find(point => Number.isFinite(point?.x) && Number.isFinite(point?.z) && nav.nodeAt(point) >= 0);
       if (!start) continue;
+      if (seen) yield;
+      // The graph changed between steps: start over on the current revision.
+      if (nav.revision !== revision) return yield* this.reachableSteps();
       const from = nav.reachableFrom(start);
       if (!seen) seen = from;
       else for (let i = 0; i < seen.length; i++) seen[i] |= from[i];
     }
-    this.reach = { nav, revision: nav.revision, seen };
+    this.reach = { nav, revision, seen };
     return seen;
   }
 
@@ -102,11 +120,58 @@ export class CoverIndex {
 
   /** Build every set for one flag. */
   build(flag) {
-    const started = performance.now();
+    let set = this.pristineSet(flag);
+    if (!set) {
+      const steps = this.buildSteps(flag);
+      let next = steps.next();
+      while (!next.done) next = steps.next();
+      set = next.value;
+      this.rememberPristine(flag, set);
+    }
+    this.sets.set(flag.id, set);
+    return set;
+  }
+
+  /** Cache slot of a flag's sets while the world matches its template, else null. */
+  pristineSlot(flag) {
+    const world = this.game.world, template = world.matchesTemplate?.() ? world.templateBlocks : null;
+    const meta = this.game.mapMeta;
+    if (!template || !meta || typeof meta !== 'object') return null;
+    if (!PRISTINE_SETS.has(template)) PRISTINE_SETS.set(template, new WeakMap());
+    const byMeta = PRISTINE_SETS.get(template);
+    if (!byMeta.has(meta)) byMeta.set(meta, new Map());
+    return { map: byMeta.get(meta), key: `${flag.id}:${flag.x}:${flag.y}:${flag.z}:${flag.radius}` };
+  }
+
+  /** A private copy of the cached pristine sets for a flag, or null. */
+  pristineSet(flag) {
+    const slot = this.pristineSlot(flag), cached = slot?.map.get(slot.key);
+    return cached ? structuredClone(cached) : null;
+  }
+
+  rememberPristine(flag, set) {
+    const slot = this.pristineSlot(flag);
+    if (slot) slot.map.set(slot.key, structuredClone(set));
+  }
+
+  /**
+   * One flag's sets as a generator that yields after each sampled ring, so a
+   * rebuild mid-match spreads over ticks (see refresh). Returns the set.
+   */
+  *buildSteps(flag) {
+    let elapsed = 0, started = performance.now();
     const cover = [], overwatch = [], armor = [];
     const center = [flag.x, (flag.y ?? 0) + 1.2, flag.z];
-    const seen = this.reachable();
+    const reach = this.reachableSteps();
+    let step = reach.next();
+    while (!step.done) {
+      elapsed += performance.now() - started; yield; started = performance.now();
+      step = reach.next();
+    }
+    const seen = step.value;
+    const pause = function* () { elapsed += performance.now() - started; yield; started = performance.now(); };
     for (let r = COVER_MIN; r <= COVER_MAX; r += 3) {
+      yield* pause();
       const count = Math.max(16, Math.round(TAU * r / 4));
       for (let k = 0; k < count; k++) {
         const a = (k + (r % 2) * 0.5) / count * TAU;
@@ -128,6 +193,7 @@ export class CoverIndex {
       }
     }
     for (let r = OVERWATCH_MIN; r <= OVERWATCH_MAX; r += 10) {
+      yield* pause();
       const count = Math.max(24, Math.round(TAU * r / 9));
       for (let k = 0; k < count; k++) {
         const a = k / count * TAU;
@@ -139,6 +205,7 @@ export class CoverIndex {
       }
     }
     for (let r = ARMOR_MIN; r <= ARMOR_MAX; r += 8) {
+      yield* pause();
       const count = Math.max(20, Math.round(TAU * r / 10));
       for (let k = 0; k < count; k++) {
         const a = k / count * TAU;
@@ -149,10 +216,8 @@ export class CoverIndex {
         armor.push({ key: `${flag.id}:a:${x},${z}`, x, y: feet + 0.02, z, dist: r });
       }
     }
-    const set = { flag: { id: flag.id, x: flag.x, y: flag.y, z: flag.z, radius: flag.radius }, cover, overwatch, armor,
-      buildMs: performance.now() - started };
-    this.sets.set(flag.id, set);
-    return set;
+    return { flag: { id: flag.id, x: flag.x, y: flag.y, z: flag.z, radius: flag.radius }, cover, overwatch, armor,
+      buildMs: elapsed + performance.now() - started };
   }
 
   /** Make sure every flag has its sets (attach time). */
@@ -177,15 +242,32 @@ export class CoverIndex {
     for (const id of this.sets.keys()) this.dirty.add(id);
   }
 
-  /** Rebuild at most one dirty flag per interval. */
+  /**
+   * Rebuild at most one dirty flag per interval. A rebuild runs one ring per
+   * call (a few tenths of a millisecond per tick instead of ~10 ms at once)
+   * and replaces the flag's sets when it completes; until then bots keep the
+   * previous sets. A change during the rebuild marks the flag dirty again.
+   */
   refresh(now) {
+    if (this.rebuilding) {
+      const step = this.rebuilding.steps.next();
+      if (step.done) {
+        if (this.sets.has(this.rebuilding.id)) this.sets.set(this.rebuilding.id, step.value);
+        this.rebuilding = null;
+      }
+      return true;
+    }
     if (!this.dirty.size || now < this.nextRebuildAt) return false;
     const id = this.dirty.values().next().value;
     this.dirty.delete(id);
     const set = this.sets.get(id);
-    if (set) this.build(set.flag);
     this.nextRebuildAt = now + REBUILD_INTERVAL_MS;
-    return true;
+    if (!set) return true;
+    // A restored (pristine) map takes the cached sets at once.
+    const pristine = this.pristineSet(set.flag);
+    if (pristine) { this.sets.set(id, pristine); return true; }
+    this.rebuilding = { id, steps: this.buildSteps(set.flag) };
+    return this.refresh(now);
   }
 
   claim(node, id, now, ms = 4000) { if (node) this.claims.set(node.key, { id, until: now + ms }); }

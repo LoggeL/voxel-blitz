@@ -427,8 +427,9 @@ class BotManager {
     const { sx } = worldDimensions(this.game.world);
     if (columns === null) {
       // The log cannot locate the changes (world restore): every column may
-      // have changed. Rebuild the graph; cover sets refresh one flag at a time.
-      nav.build();
+      // have changed. Rebuild the graph (a copy when the map is pristine
+      // again); cover sets refresh one flag at a time.
+      nav.rebuild();
       nav.revision++;
       this.commander?.cover.markAllChanged();
       return;

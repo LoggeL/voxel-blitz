@@ -8,8 +8,14 @@ const round = (n) => Number.isFinite(n) ? Math.round(n * 100) / 100 : null;
 export class TickTiming {
   constructor() { this.samples = []; }
   record(at, duration, interval) {
-    this.samples.push({ at, duration, interval });
-    this.samples = this.samples.filter((s) => at - s.at <= 2000).slice(-200);
+    // Samples arrive in time order: trim the expired head in place (no
+    // per-tick array copies), then keep the newest 200.
+    const samples = this.samples;
+    samples.push({ at, duration, interval });
+    let drop = 0;
+    while (drop < samples.length && at - samples[drop].at > 2000) drop++;
+    if (samples.length - drop > 200) drop = samples.length - 200;
+    if (drop) samples.splice(0, drop);
   }
   read(at = performance.now()) {
     const samples = this.samples.filter((s) => at - s.at <= 2000);

@@ -59,6 +59,9 @@ const DROWN_GRACE_S = 8;
 const DROWN_DAMAGE = 6;
 const DROWN_INTERVAL_S = 0.5;
 const SPAWN_PROTECTION_MS = 1500;
+/** A present rate-control axis clamped to [-1, 1] (malformed is neutral), undefined when omitted. */
+const rateControl = (msg, field) => Object.hasOwn(msg, field)
+  ? Number.isFinite(msg[field]) ? Math.max(-1, Math.min(1, msg[field])) : 0 : undefined;
 /** Vehicle actions that move a body between seats or out of a hull. */
 const SEAT_TRANSITIONS = new Set(['enter', 'exit', 'seat']);
 
@@ -308,8 +311,11 @@ export class GameEngine {
 
   restoreWorld() {
     const { sx: SX, sz: SZ } = worldDimensions(this.world);
-    // Copying a large map's pristine voxels is only worth it once something broke.
-    const pristine = this.changedBlocks.size ? createMapState(this.mapMeta.id) : null;
+    // Template-backed worlds read their pristine voxels in place; others copy
+    // the map's pristine voxels, which is only worth it once something broke.
+    const pristine = !this.changedBlocks.size ? null
+      : this.world.templateBlocks && this.world.mapId === this.mapMeta.id ? { getBlock: (x, y, z) => this.world.templateBlock(x, y, z) }
+        : createMapState(this.mapMeta.id);
     for (const i of [...this.changedBlocks]) {
       const x = i % SX, z = Math.floor(i / SX) % SZ, y = Math.floor(i / (SX * SZ));
       const value = pristine.getBlock(x, y, z);
@@ -430,8 +436,9 @@ export class GameEngine {
       vehicleControlSeatId: validMountedContext ? msg.vehicleControlSeatId : undefined,
       // Present rate controls, including zero, suppress legacy angle aiming.
       // A malformed explicit axis is neutral; omission keeps older clients.
-      ...Object.fromEntries(['vehiclePitchControl', 'vehicleRollControl', 'vehicleYawControl'].map(field =>
-        [field, Object.hasOwn(msg, field) ? Number.isFinite(msg[field]) ? Math.max(-1, Math.min(1, msg[field])) : 0 : undefined])),
+      vehiclePitchControl: rateControl(msg, 'vehiclePitchControl'),
+      vehicleRollControl: rateControl(msg, 'vehicleRollControl'),
+      vehicleYawControl: rateControl(msg, 'vehicleYawControl'),
       wantFire: !!msg.wantFire,
       quickMelee: !!msg.quickMelee,
       wantAds: !!msg.wantAds,

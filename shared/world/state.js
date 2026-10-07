@@ -3,6 +3,7 @@ import { getMapDimensions, worldDimensions } from './dimensions.js';
 import { MAP_SPAWN_ANCHORS } from './metadata.js';
 import { rebuildHeights, serializeBlocks } from './serialize.js';
 
+const PRISTINE_BYTES = new WeakMap();
 const RING = [...MAP_SPAWN_ANCHORS.foundry.fun.slice(0, 8), [64, 48]];
 
 export function createStateApi(
@@ -12,15 +13,37 @@ export function createStateApi(
   mapId = 'foundry',
   meta = null,
   dimensions = getMapDimensions(mapId),
+  pristine = null,
 ) {
   const { sx: SX, sy: SY, sz: SZ } = dimensions;
   const idx = (x, y, z) => (y * SZ + z) * SX + x;
   let navigationRevision = 0;
   const navigationChanges = [];
+  // Template-backed states (createMapState) know their pristine voxels: they
+  // count the cells that differ from it and the block replacements made, so
+  // derived data (wire bytes, navigation graphs) can be cached per template
+  // or per mutation instead of being rebuilt from 47 M voxels.
+  if (pristine && pristine.length !== blocks.length) pristine = null;
+  let divergent = 0, mutations = 0, serialized = null;
   const world = {
     dimensions,
     mapId,
     meta,
+    /** The pristine template voxels this state started from (shared, read-only), or null. */
+    get templateBlocks() { return pristine; },
+    /** Block replacements since creation (monotonic). */
+    get mutationCount() { return mutations; },
+    /** True when every voxel equals the pristine template again (or never changed). */
+    matchesTemplate() { return pristine !== null && divergent === 0; },
+    /** The template's voxel at a cell; the live voxel for states without a template. */
+    templateBlock(x, y, z) {
+      if (!pristine) return world.getBlock(x, y, z);
+      x |= 0; y |= 0; z |= 0;
+      if (y < 0) return BEDROCK;
+      if (x < 0 || z < 0 || x >= SX || z >= SZ) return METAL;
+      if (y >= SY) return AIR;
+      return pristine[idx(x, y, z)];
+    },
     get navigationRevision() { return navigationRevision; },
     navigationChangesSince(revision) {
       if (revision === navigationRevision) return [];
@@ -44,8 +67,14 @@ export function createStateApi(
       z |= 0;
       if (x < 0 || z < 0 || x >= SX || z >= SZ || y < 0 || y >= SY) return false;
       const index = idx(x, y, z);
-      if (blocks[index] === value) return true;
-      const wasAir = blocks[index] === AIR;
+      const before = blocks[index];
+      if (before === value) return true;
+      const wasAir = before === AIR;
+      if (pristine) {
+        const original = pristine[index];
+        divergent += (value !== original) - (before !== original);
+      }
+      mutations++;
       blocks[index] = value;
       const floor = meta?.navigationFloor;
       if (Number.isFinite(floor) && wasAir !== (value === AIR) && y >= floor && y <= floor + 2) {
@@ -72,7 +101,18 @@ export function createStateApi(
     },
 
     serializeWorld() {
-      return serializeBlocks(blocks, dimensions);
+      // Template-backed states change only through setBlock, so the encoded
+      // bytes are reused until the next replacement; an unchanged (or fully
+      // restored) map shares one encoding per template. Callers must treat the
+      // returned bytes as read-only.
+      if (!pristine) return serializeBlocks(blocks, dimensions);
+      if (divergent === 0) {
+        let bytes = PRISTINE_BYTES.get(pristine);
+        if (!bytes) PRISTINE_BYTES.set(pristine, bytes = serializeBlocks(pristine, dimensions));
+        return bytes;
+      }
+      if (serialized?.mutations !== mutations) serialized = { mutations, bytes: serializeBlocks(blocks, dimensions) };
+      return serialized.bytes;
     },
 
     rebuildHeightMap() {

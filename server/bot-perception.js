@@ -1,4 +1,4 @@
-import { playerHitboxes } from '../shared/player-hitboxes.js';
+import { playerCoreHitboxes } from '../shared/player-hitboxes.js';
 import { pronePose } from '../shared/player-stance.js';
 import { botDifficulty } from '../shared/bot-difficulty.js';
 import { raycastVoxels } from '../shared/raycast.js';
@@ -32,7 +32,7 @@ export function observeBotTarget(observer, target, solidAt, smoke, now, tracking
   // Sample actual combat volumes, including the rotated crouch/prone body.
   // Prefer the torso for aim; a head or shoulder peeking out still counts,
   // but offers much less visual evidence than an exposed body.
-  const boxes = playerHitboxes(target);
+  const boxes = playerCoreHitboxes(target);
   const torso = boxes.find(box => box.zone === 'torso');
   const head = boxes.find(box => box.zone === 'head');
   const hips = boxes.find(box => box.zone === 'hips');
