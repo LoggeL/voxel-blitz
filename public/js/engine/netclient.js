@@ -458,8 +458,12 @@ export class NetClient {
       } catch {
         /* exotic shims: data still arrives as ArrayBuffer-or-String */
       }
-      ws.onclose = () => {
-        if (isCurrent()) rejectConnect(new Error('closed before welcome/map'));
+      ws.onclose = (event) => {
+        if (!isCurrent()) return;
+        // The close code lets a rejoin tell a vanished lobby from a dropped link.
+        const error = new Error('closed before welcome/map');
+        error.code = Number(event?.code) || 0;
+        rejectConnect(error);
       };
       ws.onerror = () => {
         if (isCurrent()) rejectConnect(new Error('connection failed before welcome/map'));

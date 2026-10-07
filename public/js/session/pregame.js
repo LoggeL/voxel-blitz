@@ -1,6 +1,14 @@
 import { MAP_LABELS, MAP_PREVIEWS, MODE_LABELS } from '../ui/hud-support.js';
 import { MAX_BOTS } from '../../../shared/lobby-limits.js';
 
+/** Close codes that end a rejoin for good (bad join, refused, lobby gone, lobby full). */
+const REJOIN_REFUSED = Object.freeze({
+  4002: () => 'Could not reconnect: the server refused the request.',
+  4003: () => 'Could not reconnect: the lobby refused this player.',
+  4004: (code) => `Lobby ${code} has closed. Start or join a new match.`,
+  4005: (code) => `Could not reconnect: lobby ${code} is full.`,
+});
+
 /**
  * Owns admission attempts, their NetClient, and lobby presentation.
  * The Session facade supplies the small set of lifecycle transitions that cross
@@ -203,6 +211,12 @@ export class PregameFlow {
       if (!this.isActive(attempt)) return;
       const detail = error && error.message ? error.message : 'try again';
       if (recoveryToken === null) this._enterMenu(`connection failed — ${detail}`);
+      else if (REJOIN_REFUSED[error?.code]) {
+        // The lobby is gone, full or refuses us: further retries would only loop.
+        this._recoveryGeneration++;
+        this._rejoin = null;
+        this._enterMenu(REJOIN_REFUSED[error.code](code));
+      }
       return false;
     }
   }

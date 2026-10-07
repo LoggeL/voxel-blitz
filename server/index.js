@@ -17,6 +17,8 @@ const MAX_MESSAGE_BYTES = 64 * 1024;
 const MAX_MESSAGES_PER_SECOND = 180;
 // Allow two complete large-map replacements plus snapshots during host edits.
 const MAX_QUEUED_BYTES = 4 * 1024 * 1024;
+// Server-initiated closes that a rejoin would only repeat (bad join, ban).
+const KICK_CLOSE_CODES = new Set([4002, 4003]);
 // Consecutive snapshots repeat almost every byte, so a per-connection deflate
 // context (window >= one full 20 kB snapshot) shrinks them 20-40x. Less data on
 // the wire keeps home and mobile uplinks free of queueing delay, which is what
@@ -63,7 +65,12 @@ async function main() {
   const career = await CareerService.create({ accounts, store });
   let connCounter = 0;
 
-  function terminateClient(c) {
+  // Server-side drops name their cause once, so a reconnect loop can be traced.
+  function terminateClient(c, reason = 'terminated') {
+    if (!c.dropReason) {
+      c.dropReason = reason;
+      console.warn(`[voxel-blitz] dropping ${c.id} (${c.room?.code || 'no room'}): ${reason}, queued ${c.ws.bufferedAmount} B`);
+    }
     try { c.ws.terminate(); } catch { /* already down */ }
   }
 
@@ -79,16 +86,16 @@ async function main() {
       : payload.byteLength;
     if (!Number.isFinite(frameBytes) ||
         ws.bufferedAmount + frameBytes > MAX_QUEUED_BYTES) {
-      terminateClient(c);
+      terminateClient(c, Number.isFinite(frameBytes) ? 'send queue full' : 'unsendable frame');
       return false;
     }
     try {
       ws.send(payload, (err) => {
-        if (err) terminateClient(c);
+        if (err) terminateClient(c, `send failed: ${err.message}`);
       });
       return true;
-    } catch {
-      terminateClient(c);
+    } catch (err) {
+      terminateClient(c, `send threw: ${err?.message}`);
       return false;
     }
   }
@@ -387,12 +394,18 @@ async function main() {
       } catch { /* malformed game traffic must not kill sockets */ }
     });
 
-    ws.on('close', (code) => {
+    ws.on('close', (code, reason) => {
       meta.closed = true;
       clearTimeout(joinTimer);
+      const room = meta.room?.code;
+      if (room && meta.joined && !meta.dropReason && code !== 1000) {
+        console.warn(`[voxel-blitz] ${id} (${room}) disconnected: code ${code}${reason?.length ? ` ${reason}` : ''}`);
+      }
       try {
         career.detachClient(meta);
-        manager.leave(meta, { reconnectable: code === 1006 || code === 1001 });
+        // Only a deliberate client goodbye (1000) or a kick closes the room for good;
+        // every other drop leaves the 30 s window in which the player can rejoin.
+        manager.leave(meta, { reconnectable: code !== 1000 && !KICK_CLOSE_CODES.has(code) });
       } catch (err) {
         console.error('[voxel-blitz] lobby leave:', err.message);
       }
@@ -403,9 +416,9 @@ async function main() {
   // Terminate silently-dead sockets every 30 s.
   const heartbeat = setInterval(() => {
     for (const c of clients.values()) {
-      if (!c.alive) { terminateClient(c); continue; }
+      if (!c.alive) { terminateClient(c, 'heartbeat timeout (no pong in 30 s)'); continue; }
       c.alive = false;
-      try { c.ws.ping(); } catch { terminateClient(c); }
+      try { c.ws.ping(); } catch { terminateClient(c, 'heartbeat ping failed'); }
     }
   }, 30000);
   heartbeat.unref();

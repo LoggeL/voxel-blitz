@@ -44,8 +44,10 @@ class FakeNet {
     this.pending.resolve(welcome);
   }
 
-  refuse(message = 'connection failed before welcome/map') {
-    this.pending.reject(new Error(message));
+  refuse(message = 'connection failed before welcome/map', code = 0) {
+    const error = new Error(message);
+    if (code) error.code = code;
+    this.pending.reject(error);
   }
 
   /** The socket dies underneath the session (dropped link or server kick). */
@@ -233,6 +235,22 @@ await withInstantTimers(async () => {
     await flush();
   }
   assert.equal(h.lastJoinState(), 'Could not reconnect. Join again with room code ABCDE.');
+});
+
+// A lobby that closed while the link was down ends recovery at once instead of
+// retrying the same refused code five more times.
+await withInstantTimers(async () => {
+  const h = makeHarness();
+  await goLive(h, { mode: 'create', name: 'Tester' });
+  h.session.net.drop();
+  await flush();
+  const nets = h.nets.length;
+  h.session.net.refuse('closed before welcome/map', 4004);
+  await flush(20);
+  assert.equal(h.session.phase, 'menu');
+  assert.equal(h.lastJoinState(), `Lobby ${WELCOME.lobby.code} has closed. Start or join a new match.`);
+  assert.equal(h.nets.length, nets + 1, 'only the menu replaces the net; no retry connects');
+  assert.equal(h.session.net.pending, null);
 });
 
 // Cancel on the reconnect overlay ends the loop, also between retries.
