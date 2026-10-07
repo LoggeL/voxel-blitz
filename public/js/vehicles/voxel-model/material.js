@@ -25,8 +25,8 @@ export const VOXEL_MATERIALS = Object.freeze({
   dark: Object.freeze({ color: 0x2b2e2a, rough: 0.88, metal: 0.12 }),
   interior: Object.freeze({ color: 0x4b5049, rough: 0.9, metal: 0.05 }),
   seat: Object.freeze({ color: 0x3d3529, rough: 0.92, metal: 0 }),
-  steel: Object.freeze({ color: 0x8a918b, rough: 0.46, metal: 0.62 }),
-  gunmetal: Object.freeze({ color: 0x34383a, rough: 0.42, metal: 0.7 }),
+  steel: Object.freeze({ color: 0x8a918b, rough: 0.5, metal: 0.45 }),
+  gunmetal: Object.freeze({ color: 0x41464a, rough: 0.48, metal: 0.45 }),
   rubber: Object.freeze({ color: 0x1c1d1d, rough: 0.96, metal: 0 }),
   track: Object.freeze({ color: 0x3a3833, rough: 0.82, metal: 0.38 }),
   canvas: Object.freeze({ camo: 'canvas', rough: 0.95, metal: 0 }),
@@ -46,44 +46,47 @@ export const VOXEL_MATERIALS = Object.freeze({
   stripe: Object.freeze({ team: 'stripe', rough: 0.6, metal: 0.05 }),
   roundel: Object.freeze({ team: 'roundel', rough: 0.55, metal: 0.05 }),
   ring: Object.freeze({ team: 'ring', rough: 0.55, metal: 0.05 }),
-  // Faction recognition panels (IFF bands, pennants): saturated team colour
-  // over the camouflage so WEST and EAST hulls read apart at range. Like
-  // VS-17 marker panels they are fluorescent: a negative emissive is a
-  // constant glow that does not follow the lamps (and dies when charred).
-  band: Object.freeze({ team: 'band', rough: 0.62, metal: 0.04, emissive: -0.4 }),
+  // Plain team base coat (wheel dishes, small fittings): no blots, so it merges.
+  drab: Object.freeze({ team: 'drab', rough: 0.8, metal: 0.14 }),
+  // Missile warning band.
+  marking: Object.freeze({ color: 0xb8432a, rough: 0.6, metal: 0.05 }),
+  // Radome, sensor glass housings and similar light-grey composites.
+  radome: Object.freeze({ color: 0x9c9f9a, rough: 0.6, metal: 0.08 }),
   glass: Object.freeze({ glass: true, color: 0x7fb8cf, rough: 0.08, metal: 0.4 }),
 });
 
 /**
- * Team camouflage: WEST woodland, EAST desert. Weights are the share of each
- * blot colour; the stripe and roundel are high contrast at range. `band` is
- * the faction recognition colour (WEST blue, EAST orange) painted on IFF
- * panels, fin flashes and pennants; camo alone does not survive 150 m of haze.
+ * Team camouflage (fleet sheet, 2026-10-07): WEST woodland, EAST desert.
+ * Each list is [base, ...blots]: the first colour is the ground coat, every
+ * later entry is an independent blot field with that coverage share (later
+ * entries paint over earlier ones). `panel` shares the weights so the blots
+ * run on across panels in a slightly lighter coat. The stripe (WEST white,
+ * EAST black) and the roundel (WEST blue, EAST orange, in a contrasting ring)
+ * are the team identity; there are no saturated recognition panels.
  */
 export const TEAM_SCHEMES = Object.freeze({
   alpha: Object.freeze({
     name: 'woodland',
-    // Cool forest greens (not olive drab, which matches grass at range) with
-    // a small brown blot; WEST reads blue-green against the field.
-    body: Object.freeze([[0x44673f, 0.46], [0x2e4a34, 0.26], [0x574a36, 0.12], [0x1e2922, 0.16]]),
-    panel: Object.freeze([[0x4a6e43, 0.6], [0x31503a, 0.4]]),
-    canvas: Object.freeze([[0x4d5f45, 0.7], [0x3c4b39, 0.3]]),
-    stripe: 0xf1efe4, roundel: 0x3050d8, ring: 0xf1efe4, band: 0x3050d8,
+    // Olive ground, mid green and black-green blots, a small olive-brown share.
+    body: Object.freeze([[0x687341, 1], [0x465a2e, 0.4], [0x5c4b30, 0.15], [0x29361f, 0.25]]),
+    panel: Object.freeze([[0x717c47, 1], [0x4c6132, 0.4], [0x635134, 0.15], [0x2e3b23, 0.25]]),
+    canvas: Object.freeze([[0x5e6442, 1], [0x4b5236, 0.4]]),
+    stripe: 0xefeee6, roundel: 0x2d5ad8, ring: 0xf2f0e8, drab: 0x5b6136,
   }),
   bravo: Object.freeze({
     name: 'desert',
-    // Warm sand and rust-brown: EAST reads orange-tan against the field.
-    body: Object.freeze([[0xbf8e5b, 0.46], [0x9e6b43, 0.26], [0xd4b07f, 0.16], [0x6d4931, 0.12]]),
-    panel: Object.freeze([[0xc4955f, 0.6], [0xa8774a, 0.4]]),
-    canvas: Object.freeze([[0xb8976b, 0.7], [0x93724b, 0.3]]),
-    stripe: 0x1d1d1b, roundel: 0xe8582a, ring: 0xf4e7c8, band: 0xec5a1c,
+    // Sand ground, tan and dark khaki blots, a few pale highlights.
+    body: Object.freeze([[0xc9a066, 1], [0xa57a49, 0.4], [0xdcbf90, 0.14], [0x6b5235, 0.22]]),
+    panel: Object.freeze([[0xd1a96f, 1], [0xae8250, 0.4], [0xe2c799, 0.14], [0x725839, 0.22]]),
+    canvas: Object.freeze([[0xb59a6e, 1], [0x977c55, 0.4]]),
+    stripe: 0x1b1b19, roundel: 0xec6a22, ring: 0x1b1b19, drab: 0xa98a5b,
   }),
   neutral: Object.freeze({
     name: 'grey',
-    body: Object.freeze([[0x7b8079, 0.6], [0x666b65, 0.4]]),
+    body: Object.freeze([[0x7b8079, 1], [0x666b65, 0.4]]),
     panel: Object.freeze([[0x858a83, 1]]),
     canvas: Object.freeze([[0x77786a, 1]]),
-    stripe: 0xd8d8d8, roundel: 0xd8d8d8, ring: 0x4a4a4a, band: 0xbfbfbf,
+    stripe: 0xd8d8d8, roundel: 0xd8d8d8, ring: 0x4a4a4a, drab: 0x6f736d,
   }),
 });
 
@@ -108,20 +111,26 @@ function valueNoise(x, y, z, seed) {
   return total;
 }
 
-/** Blot index for a camo palette at a hull-frame point (metres). */
+// Value noise piles up around 0.5; this maps the two-octave blend to a roughly
+// uniform rank so a blot share of 0.25 really covers about a quarter.
+const noiseRank = n => Math.max(0, Math.min(1, (n - 0.27) / 0.46));
+
+/**
+ * Blot index for a camo palette at a hull-frame point (metres). Every blot
+ * colour has its own warped noise field, stretched along the hull (Z) so the
+ * patches read as the long brush blots of the reference, about 0.5-1.2 m
+ * across. Voxel centres sample it, so the edges step per voxel.
+ */
 export function camoIndex(weights, x, y, z, seed = 7) {
-  // Low-frequency blots with a little warp, sized for ~1-1.5 m patches.
-  const warp = valueNoise(x * 0.9 + 11, y * 0.9, z * 0.9, seed + 3) * 0.8;
-  const n = valueNoise(x * 0.62 + warp, y * 0.62 + warp * 0.5, z * 0.62 - warp, seed) * 0.72
-    + valueNoise(x * 1.5, y * 1.5, z * 1.5, seed + 9) * 0.28;
-  // Map to a uniform-ish rank before thresholding by the weights.
-  const t = Math.max(0, Math.min(0.9999, (n - 0.22) / 0.56));
-  let acc = 0;
-  for (let i = 0; i < weights.length; i++) {
-    acc += weights[i][1];
-    if (t < acc) return i;
+  const sx = x * 1.1, sy = y * 1.25, sz = z * 0.72;
+  const warp = (valueNoise(sx * 0.7 + 11, sy * 0.7, sz * 0.7, seed + 3) - 0.5) * 1.1;
+  for (let i = weights.length - 1; i >= 1; i--) {
+    const o = i * 17.31;
+    const n = valueNoise(sx + warp + o, sy - warp * 0.6 + o * 0.37, sz + warp * 0.8 - o * 0.53, seed + i * 13) * 0.72
+      + valueNoise(sx * 2.3 + o, sy * 2.3, sz * 2.3 - o, seed + i * 29) * 0.28;
+    if (noiseRank(n) > 1 - weights[i][1]) return i;
   }
-  return weights.length - 1;
+  return 0;
 }
 
 /**
@@ -249,10 +258,10 @@ if ( vehChar > 0.0 ) {
   float vehLum = dot( vehBase, vec3( 0.2126, 0.7152, 0.0722 ) );
   float vehUp = clamp( vVehNormal.y, 0.0, 1.0 );
   float vehGrain = vehNoise( vVehLocal * 9.0 + 3.0 );
-  vec3 vehCharcoal = ( vec3( 0.034, 0.031, 0.028 ) + vehGrain * 0.014 ) * ( 0.75 + 1.1 * vehLum );
+  vec3 vehCharcoal = ( vec3( 0.034, 0.031, 0.028 ) + vehGrain * 0.014 ) * ( 0.75 + 1.1 * vehLum ) + vehBase * 0.13;
   float vehAsh = vehUp * smoothstep( 0.4, 0.78, vehNoise( vVehLocal * 2.6 + 11.0 ) );
   float vehRust = ( 1.0 - vehUp ) * smoothstep( 0.52, 0.82, vehNoise( vVehLocal * 1.9 + 23.0 ) );
-  vehCharcoal = mix( vehCharcoal, vec3( 0.12, 0.116, 0.11 ), vehAsh * 0.7 );
+  vehCharcoal = mix( vehCharcoal, vec3( 0.13, 0.125, 0.118 ), vehAsh * 0.75 );
   vehCharcoal = mix( vehCharcoal, vec3( 0.075, 0.036, 0.018 ), vehRust * 0.75 );
   vehCharcoal *= 1.0 + 1.1 * vehLipMask;
   diffuseColor.rgb = mix( diffuseColor.rgb, vehCharcoal, vehChar );

@@ -1,103 +1,106 @@
 import { VoxelPart } from '../voxel-model/dsl.js';
 import { VEHICLE_DEFS } from '../../../../shared/vehicle-defs.js';
 import { blueprint, createKit, buildSeatAnchors, buildMounts, lightAnchor, finishModel } from './common.js';
+import { rotorPart } from './helicopter.js';
 
 export const TRANSPORT_ROTOR = Object.freeze({ hub: [0, 3.3, -0.2], radius: 6, tail: [0.3, 2.5, 4.3], tailRadius: 1 });
 
+const PAINT = material => material === 'paint' || material === 'panel';
+
+// Hull-frame boxes snap to the 0.2 m grid: symmetric pairs use even tenths.
 function buildParts() {
   const def = VEHICLE_DEFS.transport;
   const hull = new VoxelPart('transport-hull');
-  // Boxy utility fuselage with a glazed nose and an open cabin.
-  hull.loft([[-3.6, 0.5, 0.8, 1.6, 2], [-3.0, 0.9, 0.6, 2.1, 3], [-2.2, 1.1, 0.5, 2.5, 7],
-    [1.6, 1.1, 0.5, 2.6, 8], [2.2, 0.8, 0.9, 2.5, 5]], 'paint');
-  // Cockpit and cabin interior.
-  hull.carve([-0.9, 0.7, -2.6], [0.9, 2.4, 1.6]);
-  hull.box([-0.9, 0.5, -2.6], [0.9, 0.7, 1.6], 'interior');
-  // Wide sliding-door openings on both sides; the doors are slid back.
+  // Boxy utility fuselage with a rounded glazed nose.
+  hull.loft([[-3.8, 0.5, 0.8, 1.6, 2], [-3.2, 0.9, 0.6, 2.1, 3], [-2.4, 1.1, 0.5, 2.5, 6],
+    [1.8, 1.1, 0.5, 2.6, 8], [2.4, 0.8, 0.9, 2.5, 5]], 'paint');
+  // Cockpit glazing: the outer layer of the nose, framed into panes, over a
+  // painted sill.
+  hull.loft([[-3.5, 0.6, 1.0, 1.8, 2], [-2.8, 1.0, 1.0, 2.4, 3], [-1.8, 1.1, 1.0, 2.55, 6]], 'glass', { shell: 0.2 });
+  hull.paint([-2, 0, -4], [2, 1.2, 0], 'paint', { where: material => material === 'glass' });
+  for (const z of [-3.0, -2.4]) hull.paint([-2, 1.2, z], [2, 3, z + 0.2], 'dark', { where: material => material === 'glass' });
+  hull.paint([-0.2, 1.2, -4], [0.2, 3, -1.8], 'dark', { where: material => material === 'glass' });
+  // Cockpit and cabin interior, floor at 0.7.
+  hull.carve([-0.8, 0.7, -3.0], [0.8, 2.4, -1.8]);
+  hull.carve([-1.0, 0.7, -1.8], [1.0, 2.4, 1.8]);
+  hull.box([-1.0, 0.5, -3.0], [1.0, 0.7, 1.8], 'interior');
+  hull.box([-0.8, 0.7, -3.0], [0.8, 1.4, -2.8], 'dark');
+  hull.box([-0.6, 1.2, -2.8], [0.6, 1.4, -2.6], 'interior');
+  // Wide sliding-door openings on both sides; the doors are slid back on rails.
   for (const side of [-1, 1]) {
-    hull.carve([side < 0 ? -1.2 : 0.8, 0.7, -0.6], [side < 0 ? -0.8 : 1.2, 2.2, 1.2]);
-    hull.box([side < 0 ? -1.4 : 1.2, 0.8, 1.2], [side < 0 ? -1.2 : 1.4, 2.2, 1.8], 'panel', { tag: side < 0 ? 'door-left' : 'door-right' });
-    // IFF panel on the slid-back door, at cabin-roof height.
-    hull.box([side < 0 ? -1.4 : 1.2, 1.6, 1.2], [side < 0 ? -1.2 : 1.4, 2.0, 1.8], 'band', { tag: side < 0 ? 'door-left' : 'door-right' });
+    const tag = side < 0 ? 'door-left' : 'door-right';
+    hull.carve([side < 0 ? -1.2 : 1.0, 0.7, -0.6], [side < 0 ? -1.0 : 1.2, 2.2, 1.2]);
+    hull.box([side < 0 ? -1.4 : 1.2, 0.8, 1.2], [side < 0 ? -1.2 : 1.4, 2.2, 1.8], 'panel', { tag });
+    hull.box([side < 0 ? -1.4 : 1.2, 1.4, 1.4], [side < 0 ? -1.2 : 1.4, 2.0, 1.6], 'glass', { tag });
+    hull.box([side < 0 ? -1.4 : 1.2, 2.2, -0.6], [side < 0 ? -1.2 : 1.4, 2.4, 1.8], 'dark');
+    hull.roundel([side * 1.4, 1.1, 1.5], 0.28, [side, 0, 0], { depth: 0.2, ring: 0.14 });
+    // Door-gun post on the sill and the nav light ahead of the door.
+    hull.box([side < 0 ? -1.4 : 1.2, 0.6, 0.0], [side < 0 ? -1.2 : 1.4, 1.2, 0.2], 'gunmetal');
+    hull.box([side < 0 ? -1.4 : 1.2, 1.0, -1.0], [side < 0 ? -1.2 : 1.4, 1.2, -0.8], side < 0 ? 'navRed' : 'navGreen');
+    // Team stripe behind the cockpit.
+    hull.skin([side < 0 ? -1.4 : 0.0, 0.4, -1.6], [side < 0 ? 0.0 : 1.4, 2.8, -1.2], 'stripe', { normal: [side, 0, 0], where: PAINT });
   }
-  // Nose glazing and cockpit side windows.
-  hull.loft([[-3.2, 0.5, 1.2, 1.8, 2], [-2.6, 0.95, 1.1, 2.4, 3], [-1.6, 1.05, 1.2, 2.5, 6]], 'glass', { shell: 0.2 });
-  hull.box([-0.9, 0.7, -2.6], [0.9, 1.4, -2.4], 'dark');
-  hull.box([-0.7, 1.2, -2.4], [0.7, 1.4, -2.2], 'screen');
-  // Crew and passenger seats from the def.
+  // Pilot and co-pilot seats, door gunners' jump seats, the rear bench.
+  for (const x of [-0.36, 0.36]) {
+    const [, y, z] = def.seats[0].position;
+    hull.box([x - 0.2, 0.7, z - 0.2], [x + 0.2, y - 0.15, z + 0.2], 'seat');
+    hull.box([x - 0.2, y - 0.15, z + 0.2], [x + 0.2, y + 0.65, z + 0.4], 'seat');
+  }
   for (const seat of def.seats) {
     const [x, y, z] = seat.position;
-    const facing = seat.id.startsWith('door') ? Math.sign(x) : 0;
-    if (facing) {
-      // Door gunners sit sideways on a jump seat facing out.
-      hull.box([x - 0.2, 0.7, z - 0.2], [x + 0.2, y - 0.15, z + 0.2], 'seat');
-      hull.box([x - 0.2 - facing * 0.2, y - 0.15, z - 0.2], [x + 0.2 - facing * 0.4, y + 0.55, z + 0.2], 'seat');
-    } else {
-      hull.box([x - 0.2, 0.7, z - 0.2], [x + 0.2, y - 0.15, z + 0.2], 'seat');
-      hull.box([x - 0.2, y - 0.15, z + 0.2], [x + 0.2, y + 0.65, z + 0.4], 'seat');
-    }
+    if (!seat.id.startsWith('door')) continue;
+    const facing = Math.sign(x);
+    hull.box([x - 0.2, 0.7, z - 0.2], [x + 0.2, y - 0.15, z + 0.2], 'seat');
+    hull.box([x - 0.2 - facing * 0.2, y - 0.15, z - 0.2], [x + 0.2 - facing * 0.4, y + 0.55, z + 0.2], 'seat');
   }
-  // Engines, exhausts and the mast fairing.
+  {
+    const y = def.seats.find(seat => seat.id === 'rear-left').position[1];
+    hull.box([-0.8, 0.7, 1.0], [0.8, y - 0.15, 1.4], 'seat');
+    hull.box([-0.8, y - 0.15, 1.4], [-0.2, y + 0.65, 1.6], 'seat');
+    hull.box([0.2, y - 0.15, 1.4], [0.8, y + 0.65, 1.6], 'seat');
+    hull.box([-0.2, 0.7, 1.4], [0.2, y + 0.65, 1.6], 'dark');
+  }
+  // Twin engines on the cabin roof with dark intakes and exhausts, the mast fairing.
   for (const side of [-1, 1]) {
     const tag = side < 0 ? 'engine-left' : 'engine-right';
-    hull.loft([[-1.0, 0.3, 2.5, 3.0, 4], [1.0, 0.32, 2.5, 3.0, 4], [1.6, 0.22, 2.55, 2.95, 3]], 'panel', { xOffset: side * 0.5, tag });
-    hull.box([side < 0 ? -0.8 : 0.4, 2.6, 1.4], [side < 0 ? -0.4 : 0.8, 2.8, 1.8], 'exhaust', { tag });
+    hull.loft([[-1.0, 0.3, 2.5, 3.0, 4], [-0.6, 0.38, 2.45, 3.05, 5], [1.2, 0.38, 2.45, 3.05, 5], [1.6, 0.26, 2.55, 2.95, 3]], 'panel', { xOffset: side * 0.5, tag });
+    hull.box([side < 0 ? -0.8 : 0.4, 2.6, -1.0], [side < 0 ? -0.4 : 0.8, 2.8, -0.8], 'dark', { tag });
+    hull.box([side < 0 ? -1.0 : 0.6, 2.6, 1.2], [side < 0 ? -0.6 : 1.0, 2.8, 1.6], 'exhaust', { tag });
   }
-  hull.box([-0.2, 2.6, -0.4], [0.2, 3.2, 0.0], 'gunmetal');
-  // Faction-coloured cowlings and a recognition band along both lower flanks.
-  hull.paint([-1.0, 2.4, -1.0], [1.0, 3.1, 1.2], 'band', { where: material => material === 'panel' });
-  for (const normal of [[1, 0, 0], [-1, 0, 0]]) {
-    hull.skin([-1.4, 0.6, -2.4], [1.4, 1.0, 2.2], 'band', { normal, where: material => material === 'paint' });
-  }
-  // Tail boom, stripe, fin, stabilizer.
-  hull.loft([[2.0, 0.45, 1.5, 2.4, 4], [3.2, 0.32, 1.85, 2.45, 4], [4.4, 0.22, 2.05, 2.5, 4]], 'paint', { tag: 'tail' });
-  hull.box([-0.6, 1.4, 2.2], [0.6, 2.6, 2.4], 'stripe', { tag: 'tail' });
-  // Faction band round the boom and the fin flash.
-  hull.paint([-0.6, 1.4, 2.6], [0.6, 2.6, 3.0], 'band', { where: material => material === 'paint' });
-  hull.prism('x', [[3.8, 2.1], [4.2, 3.6], [4.6, 3.6], [4.6, 2.1]], [-0.1, 0.1], 'paint', { tag: 'tail' });
-  hull.paint([-0.2, 2.8, 3.8], [0.2, 3.6, 4.7], 'band');
-  hull.box([-1.0, 2.0, 3.6], [1.0, 2.2, 4.0], 'paint', { tag: 'tail' });
-  hull.box([-0.1, 3.6, 4.4], [0.1, 3.8, 4.6], 'strobe', { tag: 'tail' });
-  // Fixed landing gear: two mains and a tail wheel.
+  hull.box([-0.4, 2.6, -0.6], [0.4, 3.0, 0.4], 'panel');
+  hull.box([-0.2, 3.0, -0.4], [0.2, 3.2, 0.0], 'gunmetal');
+  // Tail boom, fin, split stabilizer (clear of the tail rotor), strobe. The
+  // boom stays on the wreck; the stabilizer halves tear off.
+  hull.loft([[2.0, 0.45, 1.5, 2.4, 4], [3.2, 0.32, 1.85, 2.45, 4], [4.4, 0.22, 2.05, 2.5, 4]], 'paint');
+  hull.prism('x', [[3.8, 2.1], [4.2, 3.6], [4.6, 3.6], [4.6, 2.1]], [-0.2, 0.2], 'paint');
+  hull.box([-1.2, 2.0, 3.6], [-0.2, 2.2, 4.0], 'paint', { tag: 'tail' });
+  hull.box([0.4, 2.0, 3.6], [1.2, 2.2, 4.0], 'paint', { tag: 'tail' });
+  hull.box([0.0, 2.4, 4.2], [0.2, 2.6, 4.4], 'gunmetal');
+  hull.box([-0.2, 3.6, 4.4], [0.2, 3.8, 4.6], 'strobe');
+  for (const side of [-1, 1]) hull.roundel([side * 0.4, 2.15, 2.9], 0.28, [side, 0, 0], { depth: 0.3, ring: 0.14 });
+  // Wheeled gear: mains under the cockpit, tail wheel under the boom.
   for (const side of [-1, 1]) {
     const tag = side < 0 ? 'gear-left' : 'gear-right';
-    hull.box([side < 0 ? -1.4 : 1.0, 0, -0.2], [side < 0 ? -1.0 : 1.4, 0.4, 0.2], 'rubber', { tag });
-    hull.box([side < 0 ? -1.2 : 0.8, 0.4, -0.2], [side < 0 ? -0.8 : 1.2, 0.6, 0.0], 'gunmetal', { tag });
+    hull.box([side < 0 ? -1.4 : 1.0, 0.0, -2.2], [side < 0 ? -1.0 : 1.4, 0.4, -1.8], 'rubber', { tag });
+    hull.box([side < 0 ? -1.4 : 1.2, 0.2, -2.0], [side < 0 ? -1.2 : 1.4, 0.4, -1.8], 'drab', { tag });
+    hull.box([side < 0 ? -1.2 : 1.0, 0.4, -2.0], [side < 0 ? -1.0 : 1.2, 0.8, -1.8], 'gunmetal', { tag });
+    hull.box([side < 0 ? -1.2 : 1.0, 0.6, -1.8], [side < 0 ? -1.0 : 1.2, 0.8, -1.4], 'gunmetal', { tag });
   }
-  hull.box([-0.1, 0.0, 3.4], [0.1, 0.4, 3.6], 'rubber', { tag: 'tail' });
-  hull.box([-0.1, 0.4, 3.4], [0.1, 2.0, 3.6], 'gunmetal', { tag: 'tail' });
-  // Door gun arms from the fuselage.
-  for (const mountId of ['door-left', 'door-right']) {
-    const [x, y, z] = def.mounts[mountId].pivot, side = Math.sign(x);
-    hull.box([side < 0 ? x : 1.0, 1.2, z - 0.1], [side < 0 ? -1.0 : x, 1.4, z + 0.1], 'gunmetal');
-  }
-  hull.box([-1.2, 1.0, -0.8], [-1.0, 1.2, -0.6], 'navRed');
-  hull.box([1.0, 1.0, -0.8], [1.2, 1.2, -0.6], 'navGreen');
-  hull.box([-0.4, 0.4, -3.0], [0.4, 0.6, -2.6], 'head');
-  // Team roundels on the cabin flanks between the cockpit glass and the doors.
-  hull.roundel([1.1, 1.6, -1.1], 0.45, [1, 0, 0]);
-  hull.roundel([-1.1, 1.6, -1.1], 0.45, [-1, 0, 0]);
+  hull.box([-0.2, 0.0, 3.4], [0.2, 0.4, 3.8], 'rubber', { tag: 'tail' });
+  hull.box([-0.2, 0.4, 3.4], [0.0, 2.0, 3.6], 'gunmetal', { tag: 'tail' });
+  hull.box([-0.2, 0.4, -3.2], [0.2, 0.6, -2.8], 'head');
   hull.userData.priority = { tail: 100, 'door-left': 70, 'door-right': 70, 'engine-left': 60, 'engine-right': 60, 'gear-left': 35, 'gear-right': 35 };
 
-  const [hx, hy, hz] = TRANSPORT_ROTOR.hub, r = TRANSPORT_ROTOR.radius;
-  const rotor = new VoxelPart('transport-rotor', { pivot: TRANSPORT_ROTOR.hub, grid: [hx - 0.1, hy - 0.1, hz - 0.1] });
-  rotor.box([hx - 0.3, hy - 0.1, hz - 0.3], [hx + 0.3, hy + 0.1, hz + 0.3], 'gunmetal', { tag: 'rotor' });
-  rotor.box([hx + 0.3, hy - 0.1, hz - 0.1], [hx + r, hy + 0.1, hz + 0.1], 'rotor', { tag: 'rotor' });
-  rotor.box([hx - r, hy - 0.1, hz - 0.1], [hx - 0.3, hy + 0.1, hz + 0.1], 'rotor', { tag: 'rotor' });
-  rotor.box([hx - 0.1, hy - 0.1, hz + 0.3], [hx + 0.1, hy + 0.1, hz + r], 'rotor', { tag: 'rotor' });
-  rotor.box([hx - 0.1, hy - 0.1, hz - r], [hx + 0.1, hy + 0.1, hz - 0.3], 'rotor', { tag: 'rotor' });
-  for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-    const ex = hx + dx * (r - 0.3), ez = hz + dz * (r - 0.3);
-    rotor.box([ex - 0.1, hy - 0.1, ez - 0.1], [ex + 0.1, hy + 0.1, ez + 0.1], 'tip', { tag: 'rotor' });
-  }
-  rotor.userData.priority = { rotor: 95 };
+  const rotor = rotorPart('transport-rotor', TRANSPORT_ROTOR.hub, TRANSPORT_ROTOR.radius);
   const [tx, ty, tz] = TRANSPORT_ROTOR.tail, tr = TRANSPORT_ROTOR.tailRadius;
   const tail = new VoxelPart('transport-tail-rotor', { pivot: TRANSPORT_ROTOR.tail, grid: [tx - 0.1, ty - 0.1, tz - 0.1] });
   tail.box([tx - 0.1, ty - tr, tz - 0.1], [tx + 0.1, ty + tr, tz + 0.1], 'rotor', { tag: 'tail-rotor' });
   tail.box([tx - 0.1, ty - 0.1, tz - tr], [tx + 0.1, ty + 0.1, tz + tr], 'rotor', { tag: 'tail-rotor' });
+  tail.box([tx - 0.1, ty - 0.1, tz - 0.1], [tx + 0.3, ty + 0.1, tz + 0.1], 'gunmetal', { tag: 'tail-rotor' });
   tail.userData.priority = { 'tail-rotor': 65 };
 
-  // Door miniguns: swivel post (yaw) and the six-barrel gun (pitch), authored facing -Z.
+  // Door miniguns: swivel post (yaw) and the six-barrel gun with its barrel
+  // clamp, ammo can and spade grips (pitch), authored facing -Z.
   const guns = {};
   for (const mountId of ['door-left', 'door-right']) {
     const mount = def.mounts[mountId], [x, y, z] = mount.pivot, tag = mountId;
@@ -106,7 +109,10 @@ function buildParts() {
     const gun = new VoxelPart(`transport-${mountId}-gun`, { pivot: mount.pivot, grid: [x - 0.1, y - 0.1, z] });
     gun.box([x - 0.1, y - 0.1, z - 0.3], [x + 0.1, y + 0.1, z + 0.3], 'dark', { tag });
     gun.box([x - 0.1, y - 0.1, z - mount.muzzle], [x + 0.1, y + 0.1, z - 0.3], 'gunmetal', { tag });
-    gun.box([x - 0.3, y - 0.1, z - 0.1], [x - 0.1, y + 0.1, z + 0.3], 'canvas', { tag });
+    gun.box([x - 0.3, y - 0.1, z - mount.muzzle + 0.2], [x + 0.3, y + 0.1, z - mount.muzzle + 0.4], 'dark', { tag });
+    gun.box([x - 0.1, y - 0.3, z - mount.muzzle + 0.2], [x + 0.1, y + 0.3, z - mount.muzzle + 0.4], 'dark', { tag });
+    gun.box([x - 0.3, y - 0.3, z - 0.1], [x - 0.1, y + 0.1, z + 0.3], 'drab', { tag });
+    gun.box([x - 0.1, y - 0.1, z + 0.3], [x + 0.1, y + 0.3, z + 0.5], 'dark', { tag });
     gun.userData.priority = { [tag]: 55 };
     guns[mountId] = { swivel, gun };
   }
@@ -149,19 +155,19 @@ export function makeTransportModel(options = {}) {
     left: kit.anchor(body, 'collective', [-0.66, 1.55, -1.0]), right: kit.anchor(body, 'cyclic', [-0.36, 1.6, -1.35]),
   };
   const emitters = {
-    exhaust: [-0.6, 0.6].map(x => ({ node: kit.anchor(body, 'exhaust', [x, 2.7, 1.85]), direction: [Math.sign(x) * 0.5, 0.2, 1] })),
+    exhaust: [-0.8, 0.8].map(x => ({ node: kit.anchor(body, 'exhaust', [x, 2.7, 1.65]), direction: [Math.sign(x) * 0.5, 0.2, 1] })),
     rotor: { node: mainRotor, radius: TRANSPORT_ROTOR.radius },
     lights: [
-      lightAnchor(kit, body, 'navRed', [-1.25, 1.1, -0.7], [-1, 0, 0]), lightAnchor(kit, body, 'navGreen', [1.25, 1.1, -0.7], [1, 0, 0]),
-      lightAnchor(kit, body, 'strobe', [0, 3.85, 4.5], [0, 1, 0]), lightAnchor(kit, body, 'head', [0, 0.45, -3.05], [0, -0.3, -1]),
+      lightAnchor(kit, body, 'navRed', [-1.45, 1.1, -0.9], [-1, 0, 0]), lightAnchor(kit, body, 'navGreen', [1.45, 1.1, -0.9], [1, 0, 0]),
+      lightAnchor(kit, body, 'strobe', [0, 3.85, 4.5], [0, 1, 0]), lightAnchor(kit, body, 'head', [0, 0.45, -3.25], [0, -0.3, -1]),
     ],
     flares: [-1.0, 1.0].map(x => ({ node: kit.anchor(body, 'flare-dispenser', [x, 1.4, 1.9]), direction: [Math.sign(x), -0.3, 0.7] })),
     fire: [kit.anchor(body, 'engine-fire', [0, 2.8, 0.6])],
     cookoff: [kit.anchor(body, 'fuel-cookoff', [0, 0.9, 0.6])],
     smokeTrail: kit.anchor(body, 'wreck-trail', [0, 2.6, 1.2]),
   };
-  const contacts = [-1.2, 1.2].map(x => ({ x, z: 0, radius: 0.5, strength: 0.45, stretch: 1 }))
-    .concat([{ x: 0, z: 3.5, radius: 0.35, strength: 0.35, stretch: 1 }]);
+  const contacts = [-1.2, 1.2].map(x => ({ x, z: -2.0, radius: 0.5, strength: 0.45, stretch: 1 }))
+    .concat([{ x: 0, z: 3.6, radius: 0.35, strength: 0.35, stretch: 1 }]);
   let rotorAngle = 0, tailAngle = 0;
   const animate = (dt, { rotorSpeed = 0, wreck = false } = {}) => {
     const spin = wreck ? 0 : Math.max(0, Math.min(1, rotorSpeed));

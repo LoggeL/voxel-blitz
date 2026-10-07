@@ -6,65 +6,78 @@ import { blueprint, createKit, buildSeatAnchors, buildMounts, lightAnchor, finis
 export const PLANE_GEAR = Object.freeze({ nose: [0, 1.0, -2.6], mains: [[-0.9, 1.0, 0.9], [0.9, 1.0, 0.9]] });
 export const PLANE_NOZZLES = Object.freeze([[-0.45, 1.2, 4.75], [0.45, 1.2, 4.75]]);
 
+const PAINT = material => material === 'paint' || material === 'panel';
+
+// Hull-frame boxes snap to the 0.2 m grid: symmetric pairs use even tenths.
 function buildParts() {
   const def = VEHICLE_DEFS.plane;
   const hull = new VoxelPart('plane-hull');
-  // Area-ruled fuselage, radome and twin engine bays.
-  hull.loft([[-5.05, 0.12, 0.95, 1.15, 2], [-4.4, 0.35, 0.85, 1.45, 2], [-3.0, 0.55, 0.8, 1.6, 3],
-    [-2.2, 0.75, 0.8, 1.65, 5], [2.0, 0.9, 0.85, 1.7, 7], [3.6, 0.8, 0.9, 1.6, 6], [4.6, 0.65, 0.95, 1.5, 5]], 'paint');
-  hull.paint([-0.4, 0.8, -5.2], [0.4, 1.6, -4.2], 'dark');
-  // Cockpit tub under a glass bubble.
+  // Long fuselage: pointed grey radome, cockpit hump, wide engine bays aft.
+  hull.loft([[-5.2, 0.1, 0.95, 1.15, 2], [-4.6, 0.3, 0.85, 1.4, 2], [-3.4, 0.5, 0.8, 1.6, 2.5],
+    [-2.4, 0.6, 0.8, 1.7, 3], [-1.2, 0.7, 0.85, 1.75, 4], [2.0, 0.8, 0.85, 1.75, 6], [3.6, 0.85, 0.9, 1.65, 6], [4.6, 0.8, 0.95, 1.5, 5]], 'paint');
+  hull.paint([-1, 0.6, -5.4], [1, 1.8, -4.2], 'radome');
+  // Bubble canopy over the cockpit tub, with a dark windscreen bow.
   hull.carve([-0.4, 1.2, -2.4], [0.4, 1.8, -0.2]);
   hull.box([-0.4, 1.0, -2.4], [0.4, 1.2, -0.2], 'interior');
   hull.loft([[-2.8, 0.15, 1.5, 1.7, 2], [-2.2, 0.42, 1.4, 2.2, 2.5], [-1.0, 0.48, 1.4, 2.35, 3], [-0.2, 0.3, 1.45, 1.9, 2]], 'glass', { shell: 0.2 });
+  hull.paint([-1, 1.4, -2.4], [1, 2.4, -2.2], 'dark', { where: material => material === 'glass' });
   const [sx, sy, sz] = def.seats[0].position;
   hull.box([sx - 0.2, 1.2, sz - 0.2], [sx + 0.2, sy - 0.1, sz + 0.2], 'seat');
   hull.box([sx - 0.2, sy - 0.1, sz + 0.2], [sx + 0.2, sy + 0.7, sz + 0.4], 'seat');
   hull.box([-0.4, 1.4, -2.4], [0.4, 1.6, -2.2], 'screen');
-  // Intakes with dark mouths.
+  // Dorsal spine from the canopy back to the tails.
+  hull.box([-0.4, 1.6, -0.2], [0.4, 1.8, 3.2], 'panel');
+  // Boxy intakes either side of the cockpit with dark mouths and a raked lip.
   for (const side of [-1, 1]) {
     const x0 = side < 0 ? -1.0 : 0.6, x1 = side < 0 ? -0.6 : 1.0;
-    hull.box([x0, 0.9, -2.2], [x1, 1.5, 0.4], 'paint');
-    hull.box([x0, 0.9, -2.4], [x1, 1.5, -2.2], 'exhaust');
-    // Faction flash along the intake flank.
-    hull.skin([x0, 1.1, -2.2], [x1, 1.5, 0.2], 'band', { normal: [side, 0, 0] });
+    hull.box([x0, 0.8, -1.8], [x1, 1.6, 0.8], 'paint');
+    hull.wedge([x0, 0.8, -2.4], [x1, 1.6, -1.8], 'paint', { along: 'z', slope: 'y', from: 0.5, to: 1, anchor: 1 });
+    hull.box([x0, 0.8, -2.2], [x1, 1.2, -2.0], 'exhaust');
+    hull.box([side < 0 ? -1.0 : 0.8, 1.0, -1.8], [side < 0 ? -0.8 : 1.0, 1.2, -1.2], 'panel');
   }
   // Swept wings and tailplanes (one symmetric outline each).
-  hull.prism('y', [[-0.8, -1.0], [0.8, -1.0], [4.4, 1.2], [4.4, 2.0], [0.8, 1.8], [-0.8, 1.8], [-4.4, 2.0], [-4.4, 1.2]], [1.2, 1.4], 'paint');
+  hull.prism('y', [[-0.8, -0.9], [0.8, -0.9], [4.5, 1.3], [4.5, 2.0], [0.8, 2.1], [-0.8, 2.1], [-4.5, 2.0], [-4.5, 1.3]], [1.2, 1.4], 'paint');
   for (const side of [-1, 1]) {
     const tag = side < 0 ? 'wing-left' : 'wing-right';
-    hull.paint([side < 0 ? -4.6 : 2.2, 1.0, 0.4], [side < 0 ? -2.2 : 4.6, 1.6, 2.2], 'paint', { tag });
+    hull.paint([side < 0 ? -4.6 : 2.2, 1.0, 0.0], [side < 0 ? -2.2 : 4.6, 1.6, 2.2], 'paint', { tag });
+    // Flaps along the trailing edge in the lighter panel coat.
+    hull.paint([side < 0 ? -3.6 : 1.0, 1.2, 1.8], [side < 0 ? -1.0 : 3.6, 1.4, 2.2], 'panel', { where: PAINT });
     hull.box([side < 0 ? -4.6 : 4.4, 1.2, 1.4], [side < 0 ? -4.4 : 4.6, 1.4, 1.8], side < 0 ? 'navRed' : 'navGreen', { tag });
-    hull.roundel([side * 3.1, 1.4, 1.2], 0.45, [0, 1, 0]);
-    // Faction wingtip flashes, top and bottom.
-    hull.paint([side < 0 ? -4.6 : 3.8, 1.0, 1.2], [side < 0 ? -3.8 : 4.6, 1.6, 2.2], 'band', { where: material => material === 'paint' });
+    hull.roundel([side * 3.1, 1.4, 1.3], 0.42, [0, 1, 0], { depth: 0.2 });
+    hull.roundel([side * 1.0, 1.2, -1.0], 0.36, [side, 0, 0], { depth: 0.2, ring: 0.14 });
   }
-  hull.prism('y', [[-0.6, 2.6], [0.6, 2.6], [1.9, 3.4], [1.9, 4.2], [0.6, 3.8], [-0.6, 3.8], [-1.9, 4.2], [-1.9, 3.4]], [1.4, 1.6], 'paint', { tag: 'tailplane' });
-  // Twin canted fins with the team stripe.
+  hull.prism('y', [[-0.6, 2.8], [0.6, 2.8], [2.0, 3.6], [2.0, 4.4], [0.6, 4.2], [-0.6, 4.2], [-2.0, 4.4], [-2.0, 3.6]], [1.4, 1.6], 'paint', { tag: 'tailplane' });
+  // Twin fins with swept leading edges, rudders in the panel coat, dark tips.
   for (const side of [-1, 1]) {
-    const tag = side < 0 ? 'fin-left' : 'fin-right';
-    hull.prism('x', [[2.2, 1.6], [3.6, 3.0], [4.2, 3.0], [4.4, 1.6]], side < 0 ? [-0.8, -0.6] : [0.6, 0.8], 'paint', { tag });
-    hull.paint([side < 0 ? -0.8 : 0.6, 2.0, 2.4], [side < 0 ? -0.6 : 0.8, 2.4, 4.4], 'stripe', { tag });
-    hull.paint([side < 0 ? -0.8 : 0.6, 2.4, 2.4], [side < 0 ? -0.6 : 0.8, 3.0, 4.4], 'band', { tag });
+    const tag = side < 0 ? 'fin-left' : 'fin-right', xs = side < 0 ? [-0.8, -0.6] : [0.6, 0.8];
+    hull.prism('x', [[2.2, 1.6], [3.4, 3.4], [4.0, 3.4], [4.4, 1.6]], xs, 'paint', { tag });
+    hull.paint([xs[0], 1.8, 3.8], [xs[1], 3.0, 4.4], 'panel', { tag });
+    hull.paint([xs[0], 3.2, 3.2], [xs[1], 3.4, 4.0], 'dark', { tag });
   }
   hull.box([-0.8, 3.0, 3.8], [-0.6, 3.2, 4.0], 'strobe', { tag: 'fin-left' });
-  // Nozzles.
+  // Team stripe: a full band round the fuselage and intakes behind the cockpit.
+  hull.skin([-1.2, 0.6, -0.2], [1.2, 2.0, 0.4], 'stripe', { where: PAINT });
+  // Twin nozzles: metal cans with petal rims and dark throats.
   for (const [x, y, z] of PLANE_NOZZLES) {
-    hull.cyl([x, y, z - 0.35], 0.36, 0.6, 'z', 'gunmetal');
-    hull.cyl([x, y, z - 0.3], 0.18, 0.6, 'z', 'exhaust');
+    hull.cyl([x, y, z - 0.35], 0.38, 0.6, 'z', 'gunmetal');
+    hull.cyl([x, y, z - 0.15], 0.42, 0.2, 'z', 'dark', { hollow: 0.24 });
+    hull.cyl([x, y, z - 0.3], 0.2, 0.6, 'z', 'exhaust');
   }
   // Wing pylons down to the missile rails.
-  for (const [x, y, z] of def.mounts.rails.sides) hull.box([x - 0.1, y + 0.2, z - 0.6], [x + 0.1, 1.2, z + 0.6], 'gunmetal', { tag: x < 0 ? 'wing-left' : 'wing-right' });
+  for (const [x, y, z] of def.mounts.rails.sides) hull.box([x - 0.2, y + 0.2, z - 0.6], [x + 0.2, 1.2, z + 0.8], 'gunmetal', { tag: x < 0 ? 'wing-left' : 'wing-right' });
   // Gun port by the nose.
   const nose = def.mounts.nose.pivot;
-  hull.box([nose[0] + 0.2, nose[1] - 0.1, nose[2] + 0.6], [nose[0] + 0.4, nose[1] + 0.1, nose[2] + 1.0], 'dark');
+  hull.box([nose[0] + 0.2, nose[1] - 0.1, nose[2] + 1.4], [nose[0] + 0.4, nose[1] + 0.1, nose[2] + 1.8], 'dark');
   hull.userData.priority = { 'wing-left': 90, 'wing-right': 90, tailplane: 70, 'fin-left': 60, 'fin-right': 60 };
 
+  // AA missile: white body, grey seeker, red warning band, cruciform fins.
   const missile = new VoxelPart('plane-missile', { grid: [-0.1, -0.1, 0] });
   missile.box([-0.1, -0.1, -1.0], [0.1, 0.1, 0.8], 'missile');
-  missile.box([-0.1, -0.1, -1.2], [0.1, 0.1, -1.0], 'warhead');
-  missile.box([-0.3, -0.1, 0.6], [0.3, 0.1, 0.8], 'missile');
-  missile.box([-0.1, -0.3, 0.6], [0.1, 0.3, 0.8], 'missile');
+  missile.box([-0.1, -0.1, -1.2], [0.1, 0.1, -1.0], 'radome');
+  missile.box([-0.1, -0.1, -0.8], [0.1, 0.1, -0.6], 'marking');
+  missile.box([-0.3, -0.1, 0.4], [0.3, 0.1, 0.8], 'missile');
+  missile.box([-0.1, -0.3, 0.4], [0.1, 0.3, 0.8], 'missile');
+  missile.box([-0.3, -0.1, -0.6], [0.3, 0.1, -0.4], 'warhead');
   missile.userData.breaks = true;
 
   // Retracting gear legs, pivoting at the bay roof.
@@ -73,6 +86,7 @@ function buildParts() {
     const part = new VoxelPart(name, { pivot: top, grid: [x - 0.1, 0, z - 0.1] });
     part.box([x - 0.1, 0.4, z - 0.1], [x + 0.1, y, z + 0.1], 'steel', { tag });
     part.box([x - 0.1, 0, z - 0.3], [x + 0.1, 0.4, z + 0.3], 'rubber', { tag });
+    part.box([x - 0.1, 0.2, z - 0.1], [x + 0.1, 0.4, z + 0.1], 'drab', { tag });
     part.userData.priority = { [tag]: 30 };
     return part;
   };

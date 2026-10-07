@@ -50,8 +50,9 @@ const pivotZ = def.mounts.main.pivot[2], tip = pivotZ - def.mounts.main.muzzle;
 let tipWidth = 0, tubeWidth = 0;
 for (let i = 0; i < p.count; i++) {
   const x = Math.abs(p.getX(i)), z = p.getZ(i) + pivotZ;
+  // The brake spans tip..tip+0.6 (front ring, side slots, rear ring).
   if (z < tip + 0.45) tipWidth = Math.max(tipWidth, x);
-  else if (z > tip + 0.6 && z < -3.05) tubeWidth = Math.max(tubeWidth, x);
+  else if (z > tip + 0.65 && z < -3.05) tubeWidth = Math.max(tubeWidth, x);
 }
 check(() => assert.ok(tipWidth > tubeWidth + 0.15, `muzzle brake (${tipWidth.toFixed(2)} vs ${tubeWidth.toFixed(2)})`));
 

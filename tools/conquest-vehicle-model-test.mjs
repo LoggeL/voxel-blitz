@@ -61,7 +61,7 @@ check(() => assert.ok([...meshed.opaque.attributes.aEdge.array].every(mask => ma
   }
 }
 const pal = meshed.opaque.attributes.aPal.array;
-check(() => assert.ok(Math.abs(pal[0] - 0.46) < 1e-6 && Math.abs(pal[1] - 0.62) < 1e-6, 'steel roughness and metalness in aPal'));
+check(() => assert.ok(Math.abs(pal[0] - 0.5) < 1e-6 && Math.abs(pal[1] - 0.45) < 1e-6, 'steel roughness and metalness in aPal'));
 // An L-shape darkens the inner corner (ambient occlusion in vertex colour).
 const corner = new VoxelPart('corner').box([0, 0, 0], [0.4, 0.2, 0.2], 'steel').box([0, 0.2, 0], [0.2, 0.4, 0.2], 'steel');
 const cornerMesh = meshVoxelPart(corner, resolve).opaque;

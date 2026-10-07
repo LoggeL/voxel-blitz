@@ -9,45 +9,51 @@ export const JEEP_WHEELS = Object.freeze([
 ]);
 export const JEEP_WHEEL_RADIUS = 0.45;
 
+// Hull-frame boxes snap to the 0.2 m grid: symmetric pairs use even tenths.
 function buildParts() {
   const pintle = VEHICLE_DEFS.jeep.mounts.pintle;
   const seats = Object.fromEntries(VEHICLE_DEFS.jeep.seats.map(seat => [seat.id, seat.position]));
   const hull = new VoxelPart('jeep-hull');
-  // Chassis rails and floor tub.
-  hull.box([-0.8, 0.4, -2.0], [0.8, 0.6, 1.8], 'dark');
-  hull.box([-0.8, 0.6, -0.6], [0.8, 0.8, 1.8], 'paint');
-  // Bonnet with grille, bumper, headlights.
-  hull.box([-0.8, 0.8, -1.8], [0.8, 1.2, -0.6], 'paint', { tag: 'hood' });
+  // Chassis rails and the cabin floor (floorTop 0.8).
+  hull.box([-0.6, 0.4, -2.0], [0.6, 0.6, 2.0], 'dark');
+  hull.box([-0.8, 0.6, -0.6], [0.8, 0.8, 2.0], 'dark');
+  // Wide flat bonnet over the engine bay, stepped back from the grille.
+  hull.box([-0.8, 0.6, -2.0], [0.8, 1.2, -0.6], 'paint', { tag: 'hood' });
   hull.box([-0.8, 1.2, -1.8], [0.8, 1.4, -0.6], 'panel', { tag: 'hood' });
-  hull.box([-0.8, 0.6, -2.0], [0.8, 1.2, -1.8], 'dark');
-  for (let x = -0.6; x < 0.6; x += 0.4) hull.box([x, 0.8, -2.0], [x + 0.2, 1.2, -1.8], 'gunmetal');
-  hull.box([-1.0, 0.6, -2.2], [1.0, 0.8, -2.0], 'steel');
+  // Slotted grille (recessed slots) with round lamps in its corners.
+  for (const x of [-0.6, -0.2, 0.0, 0.4]) hull.carve([x, 0.6, -2.0], [x + 0.2, 1.0, -1.8]);
+  hull.box([-0.6, 0.6, -1.8], [0.6, 1.0, -1.6], 'dark');
+  // Bumper with tow hooks.
+  hull.box([-1.0, 0.4, -2.2], [1.0, 0.6, -2.0], 'dark');
   for (const side of [-1, 1]) {
-    const x0 = side < 0 ? -0.8 : 0.6, x1 = side < 0 ? -0.6 : 0.8;
-    hull.box([x0, 1.0, -2.0], [x1, 1.2, -1.8], 'head');
-    // Fenders over the wheels and the open side sills.
-    const fx0 = side < 0 ? -1.2 : 0.8, fx1 = side < 0 ? -0.8 : 1.2;
-    hull.box([fx0, 0.8, -1.8], [fx1, 1.0, -0.6], 'paint', { tag: side < 0 ? 'fender-front-left' : 'fender-front-right' });
-    hull.box([fx0, 0.8, 0.6], [fx1, 1.0, 1.8], 'paint', { tag: side < 0 ? 'fender-rear-left' : 'fender-rear-right' });
-    // Open side sills carry the faction IFF panel between the wheels.
-    hull.box([side < 0 ? -1.0 : 0.8, 0.6, -0.6], [side < 0 ? -0.8 : 1.0, 1.0, 0.6], 'band');
-    hull.box([side < 0 ? -0.8 : 0.6, 0.8, 0.4], [side < 0 ? -0.6 : 0.8, 1.2, 1.8], 'paint');
-    // Team stripe on the bonnet sides.
-    hull.box([side < 0 ? -1.0 : 0.8, 0.8, -1.4], [side < 0 ? -0.8 : 1.0, 1.0, -1.0], 'stripe', { tag: side < 0 ? 'fender-front-left' : 'fender-front-right' });
-    // Tail lights.
-    hull.box([side < 0 ? -0.8 : 0.6, 0.8, 1.8], [side < 0 ? -0.6 : 0.8, 1.0, 2.0], 'tail');
+    const tag = side < 0 ? 'fender-front-left' : 'fender-front-right';
+    hull.box([side < 0 ? -0.8 : 0.6, 0.8, -2.0], [side < 0 ? -0.6 : 0.8, 1.0, -1.8], 'head');
+    hull.box([side < 0 ? -0.6 : 0.4, 0.4, -2.4], [side < 0 ? -0.4 : 0.6, 0.6, -2.2], 'steel');
+    // Flared fenders over the front wheels.
+    hull.box([side < 0 ? -1.2 : 0.8, 1.0, -1.8], [side < 0 ? -0.8 : 1.2, 1.2, -0.6], 'paint', { tag });
+    hull.wedge([side < 0 ? -1.2 : 0.8, 0.8, -2.0], [side < 0 ? -0.8 : 1.2, 1.2, -1.8], 'paint', { along: 'z', slope: 'y', from: 0.5, to: 1, anchor: 1, tag });
+    // Half doors with a running board, then the wide rear quarters over the back wheels.
+    hull.box([side < 0 ? -1.0 : 0.8, 0.6, -0.6], [side < 0 ? -0.8 : 1.0, 1.2, 0.6], 'paint');
+    hull.box([side < 0 ? -1.2 : 1.0, 0.6, -0.6], [side < 0 ? -1.0 : 1.2, 0.8, 0.6], 'dark');
+    hull.box([side < 0 ? -1.2 : 0.8, 1.0, 0.6], [side < 0 ? -0.8 : 1.2, 1.4, 2.0], 'paint', { tag: side < 0 ? 'fender-rear-left' : 'fender-rear-right' });
+    hull.box([side < 0 ? -1.2 : 1.0, 1.0, 1.8], [side < 0 ? -1.0 : 1.2, 1.2, 2.0], 'tail', { tag: side < 0 ? 'fender-rear-left' : 'fender-rear-right' });
+    // Team stripe down each door, roundel on each rear quarter.
+    hull.skin([side < 0 ? -1.2 : 0.8, 0.6, -0.2], [side < 0 ? -0.8 : 1.2, 1.2, 0.2], 'stripe', { normal: [side, 0, 0], where: material => material === 'paint' });
+    hull.roundel([side * 1.2, 1.2, 1.3], 0.3, [side, 0, 0], { depth: 0.2 });
   }
-  // Rear tailgate, spare wheel, jerrycan.
-  hull.box([-0.6, 0.6, 1.8], [0.6, 1.2, 2.0], 'paint', { tag: 'tailgate' });
-  hull.box([-0.6, 0.8, 1.8], [0.2, 1.0, 2.0], 'band', { tag: 'tailgate' });
-  hull.cyl([0.2, 1.1, 2.1], 0.36, 0.2, 'z', 'rubber', { tag: 'spare' });
-  hull.box([-0.8, 0.8, 2.0], [-0.4, 1.4, 2.2], 'canvas', { tag: 'jerrycan' });
-  // Windscreen frame with a glass row; dashboard.
-  hull.box([-0.8, 1.2, -0.6], [0.8, 1.4, -0.4], 'dark');
-  hull.box([-0.8, 1.4, -0.6], [-0.6, 2.0, -0.4], 'paint', { tag: 'windscreen' });
-  hull.box([0.6, 1.4, -0.6], [0.8, 2.0, -0.4], 'paint', { tag: 'windscreen' });
-  hull.box([-0.8, 2.0, -0.6], [0.8, 2.2, -0.4], 'band', { tag: 'windscreen' });
-  hull.box([-0.6, 1.4, -0.6], [0.6, 2.0, -0.4], 'glass', { tag: 'windscreen' });
+  // Tailgate, spare wheel and jerrycan on the back.
+  hull.box([-0.8, 0.6, 1.8], [0.8, 1.4, 2.0], 'paint', { tag: 'tailgate' });
+  hull.cyl([0.4, 1.1, 2.1], 0.36, 0.2, 'z', 'rubber', { tag: 'spare' });
+  hull.cyl([0.4, 1.1, 2.1], 0.18, 0.4, 'z', 'drab', { tag: 'spare' });
+  hull.box([-0.6, 0.8, 2.0], [-0.2, 1.4, 2.2], 'canvas', { tag: 'jerrycan' });
+  // Windscreen: cowl, outer posts, top rail and a centre post between two panes.
+  hull.box([-1.0, 1.2, -0.6], [1.0, 1.4, -0.4], 'dark');
+  hull.box([-1.0, 1.4, -0.6], [-0.8, 2.0, -0.4], 'paint', { tag: 'windscreen' });
+  hull.box([0.8, 1.4, -0.6], [1.0, 2.0, -0.4], 'paint', { tag: 'windscreen' });
+  hull.box([-1.0, 2.0, -0.6], [1.0, 2.2, -0.4], 'paint', { tag: 'windscreen' });
+  hull.box([-0.2, 1.4, -0.6], [0.2, 2.0, -0.4], 'dark', { tag: 'windscreen' });
+  hull.box([-0.8, 1.4, -0.6], [-0.2, 2.0, -0.4], 'glass', { tag: 'windscreen' });
+  hull.box([0.2, 1.4, -0.6], [0.8, 2.0, -0.4], 'glass', { tag: 'windscreen' });
   // Seats from the def hips (cushion below, back behind).
   const cushion = (position, width = 0.4) => {
     const [x, y, z] = position;
@@ -58,19 +64,24 @@ function buildParts() {
   cushion([0.4, seats['front-passenger'][1], 0.0]);
   hull.box([-0.8, 0.8, 1.2], [-0.2, seats['rear-left'][1] - 0.15, 1.6], 'seat');
   hull.box([-0.8, seats['rear-left'][1] - 0.15, 1.6], [-0.2, seats['rear-left'][1] + 0.35, 1.8], 'seat');
-  // Roll bar and the pintle post on the rear bed.
-  for (const x of [-0.8, 0.6]) hull.box([x, 1.2, 0.4], [x + 0.2, 2.2, 0.6], 'gunmetal', { tag: 'rollbar' });
-  hull.box([-0.8, 2.0, 0.4], [0.8, 2.2, 0.6], 'gunmetal', { tag: 'rollbar' });
-  hull.box([pintle.pivot[0] - 0.1, 0.8, pintle.pivot[2] - 0.1], [pintle.pivot[0] + 0.1, 1.9, pintle.pivot[2] + 0.1], 'gunmetal');
-  // Gunner's standing plate behind the post.
+  // Roll cage: a hoop behind the front seats, a rear hoop and side rails.
+  for (const side of [-1, 1]) {
+    const x0 = side < 0 ? -1.0 : 0.8, x1 = side < 0 ? -0.8 : 1.0;
+    hull.box([x0, 1.2, 0.4], [x1, 2.0, 0.6], 'gunmetal', { tag: 'rollbar' });
+    hull.box([x0, 1.4, 1.6], [x1, 2.0, 1.8], 'gunmetal', { tag: 'rollbar' });
+    hull.box([x0, 1.8, -0.4], [x1, 2.0, 1.8], 'gunmetal', { tag: 'rollbar' });
+  }
+  hull.box([-0.8, 1.8, 0.4], [0.8, 2.0, 0.6], 'gunmetal', { tag: 'rollbar' });
+  // The pintle post on the rear bed and the gunner's standing plate behind it.
+  hull.box([pintle.pivot[0] - 0.2, 0.8, pintle.pivot[2] - 0.2], [pintle.pivot[0] + 0.2, 1.0, pintle.pivot[2] + 0.2], 'gunmetal');
+  hull.box([pintle.pivot[0] - 0.1, 1.0, pintle.pivot[2] - 0.1], [pintle.pivot[0] + 0.1, 1.9, pintle.pivot[2] + 0.1], 'gunmetal');
   hull.box([-0.2, 0.8, 0.8], [0.2, 0.9, 1.4], 'dark');
-  // Radio and antenna.
-  hull.box([0.4, 0.8, 1.4], [0.8, 1.2, 1.8], 'dark');
-  for (let y = 1.2; y < 2.8; y += 0.2) hull.box([0.6, y, 1.6], [0.8, y + 0.2, 1.8], 'dark', { tag: 'antenna' });
-  // Faction pennant streaming back from the whip.
-  hull.box([0.6, 2.4, 1.8], [0.8, 2.8, 2.0], 'band', { tag: 'antenna' });
-  hull.box([0.6, 2.6, 2.0], [0.8, 2.8, 2.2], 'band', { tag: 'antenna' });
-  hull.roundel([0, 1.4, -1.2], 0.4, [0, 1, 0]);
+  // Radio set and two antenna whips at the rear corners.
+  hull.box([0.4, 0.8, 1.4], [0.8, 1.2, 1.8], 'drab');
+  for (const side of [-1, 1]) {
+    for (let y = 1.4; y < 2.4; y += 0.2) hull.box([side < 0 ? -1.0 : 0.8, y, 1.8], [side < 0 ? -0.8 : 1.0, y + 0.2, 2.0], 'dark', { tag: 'antenna' });
+  }
+  hull.roundel([0, 1.4, -1.2], 0.42, [0, 1, 0]);
   hull.userData.priority = { hood: 80, windscreen: 75, rollbar: 60, tailgate: 50, spare: 70, jerrycan: 40, antenna: 20,
     'fender-front-left': 45, 'fender-front-right': 45, 'fender-rear-left': 45, 'fender-rear-right': 45 };
 
@@ -78,26 +89,34 @@ function buildParts() {
   const steering = new VoxelPart('jeep-steering', { pivot: [-0.4, 1.5, -0.3] });
   steering.box([-0.6, 1.4, -0.4], [-0.2, 1.6, -0.2], 'dark');
 
-  // Pintle: swivel ring (yaw) and the .50 HMG with its shield (pitch).
+  // Pintle: swivel ring (yaw) and the .50 HMG with its gun shield, ammo can
+  // and spade grips (pitch).
   const [px, py, pz] = pintle.pivot;
   const swivel = new VoxelPart('jeep-pintle-swivel', { pivot: [px, 1.9, pz], grid: [px - 0.1, 0, pz - 0.1] });
   swivel.box([px - 0.1, 1.9, pz - 0.1], [px + 0.1, 2.1, pz + 0.1], 'steel', { tag: 'pintle' });
-  swivel.box([px - 0.3, 1.9, pz - 0.3], [px + 0.3, 2.0, pz - 0.1], 'gunmetal', { tag: 'pintle' });
+  swivel.box([px - 0.3, 1.9, pz - 0.3], [px + 0.3, 2.0, pz + 0.3], 'gunmetal', { tag: 'pintle' });
   const hmg = new VoxelPart('jeep-pintle-hmg', { pivot: pintle.pivot, grid: [px - 0.1, py - 0.1, pz] });
   hmg.box([px - 0.1, py - 0.1, pz - 0.4], [px + 0.1, py + 0.1, pz + 0.2], 'dark', { tag: 'pintle' });
-  hmg.box([px - 0.1, py - 0.1, pz - pintle.muzzle], [px + 0.1, py + 0.1, pz - 0.4], 'gunmetal', { tag: 'pintle' });
-  hmg.box([px - 0.5, py - 0.3, pz - 0.6], [px + 0.5, py + 0.3, pz - 0.4], 'paint', { tag: 'pintle' });
-  hmg.box([px + 0.1, py - 0.3, pz - 0.2], [px + 0.3, py - 0.1, pz + 0.2], 'canvas', { tag: 'pintle' });
+  hmg.box([px - 0.1, py + 0.1, pz - 0.2], [px + 0.1, py + 0.2, pz + 0.2], 'gunmetal', { tag: 'pintle' });
+  hmg.box([px - 0.1, py - 0.1, pz - pintle.muzzle + 0.2], [px + 0.1, py + 0.1, pz - 0.4], 'gunmetal', { tag: 'pintle' });
+  hmg.box([px - 0.1, py - 0.1, pz - pintle.muzzle], [px + 0.1, py + 0.1, pz - pintle.muzzle + 0.2], 'dark', { tag: 'pintle' });
+  // Gun shield: a tall plate with a side wing and a vision slot, the barrel through it.
+  hmg.box([px - 0.3, py - 0.3, pz - 0.6], [px + 0.5, py + 0.5, pz - 0.4], 'paint', { tag: 'pintle' });
+  hmg.box([px + 0.3, py - 0.3, pz - 0.4], [px + 0.5, py + 0.5, pz - 0.2], 'paint', { tag: 'pintle' });
+  hmg.box([px - 0.1, py - 0.1, pz - 0.6], [px + 0.1, py + 0.1, pz - 0.4], 'gunmetal', { tag: 'pintle' });
+  hmg.box([px + 0.1, py + 0.1, pz - 0.6], [px + 0.3, py + 0.3, pz - 0.4], 'dark', { tag: 'pintle' });
+  hmg.box([px - 0.5, py - 0.3, pz - 0.2], [px - 0.1, py + 0.1, pz + 0.2], 'drab', { tag: 'pintle' });
+  hmg.box([px - 0.3, py - 0.1, pz + 0.2], [px + 0.3, py + 0.1, pz + 0.4], 'dark', { tag: 'pintle' });
   hmg.userData.priority = { pintle: 85 };
 
   // Wheels are authored at twice their size and meshed at half scale:
-  // 0.1 m voxels give a round tyre, a recessed rim and a hub cap.
+  // 0.1 m voxels give a round tyre, a painted rim and a hub (flush
+  // faces keep the instanced wheel cheap).
   const wheel = new VoxelPart('jeep-wheel', { grid: [0, 0.1, 0.1] });
   wheel.userData.scale = 0.5;
   const r = JEEP_WHEEL_RADIUS * 2;
   wheel.cyl([0, 0, 0], r, 0.8, 'x', 'rubber', { hollow: 0.56 });
-  wheel.cyl([0, 0, 0], 0.62, 0.4, 'x', 'steel');
-  wheel.cyl([0, 0, 0], 0.62, 0.8, 'x', 'gunmetal', { hollow: 0.5 });
+  wheel.cyl([0, 0, 0], 0.62, 0.8, 'x', 'drab');
   wheel.cyl([0, 0, 0], 0.24, 0.8, 'x', 'dark');
   // Charred tyres stay on the wreck: the hull settles onto them.
   wheel.userData.breaks = false;
@@ -137,11 +156,11 @@ export function makeJeepModel(options = {}) {
     dust: JEEP_WHEELS.filter(wheel => !wheel.front).map(wheel => kit.anchor(group, 'wheel-contact', [wheel.x, 0.05, wheel.z + 0.3])),
     tracks: JEEP_WHEELS.filter(wheel => !wheel.front).map(wheel => kit.anchor(group, 'tire-decal', [wheel.x, 0.02, wheel.z])),
     lights: [
-      lightAnchor(kit, body, 'head', [-0.7, 1.1, -2.05]), lightAnchor(kit, body, 'head', [0.7, 1.1, -2.05]),
-      lightAnchor(kit, body, 'tail', [-0.7, 0.9, 2.05], [0, 0, 1]), lightAnchor(kit, body, 'tail', [0.7, 0.9, 2.05], [0, 0, 1]),
+      lightAnchor(kit, body, 'head', [-0.7, 0.9, -2.05]), lightAnchor(kit, body, 'head', [0.7, 0.9, -2.05]),
+      lightAnchor(kit, body, 'tail', [-1.1, 1.1, 2.05], [0, 0, 1]), lightAnchor(kit, body, 'tail', [1.1, 1.1, 2.05], [0, 0, 1]),
     ],
     fire: [kit.anchor(body, 'engine-fire', [0, 1.3, -1.2])],
-    cookoff: [kit.anchor(body, 'fuel-cookoff', [-0.6, 1.1, 2.1])],
+    cookoff: [kit.anchor(body, 'fuel-cookoff', [-0.4, 1.1, 2.1])],
   };
   const contacts = [-1.17, 1.16].map(z => ({ x: 0, z, radius: 0.6, stretch: 0.62, strength: 0.55, across: true }));
   const matrix = new THREE.Matrix4(), position = new THREE.Vector3(), quaternion = new THREE.Quaternion(), euler = new THREE.Euler(0, 0, 0, 'YXZ');

@@ -151,9 +151,34 @@ for (let i = 0; i < 150; i++) {
 contactShadows.begin(camera.position);
 view.addContactShadows(contactShadows);
 contactShadows.end();
+
+// Hull mask for the range check: only opaque hull voxels (no crew, glass,
+// rotor blur, particles, ground or contact shadows), drawn flat white on black.
+function renderHullMask() {
+  const toggled = [];
+  scene.traverse(object => {
+    if (!(object.isMesh || object.isPoints || object.isSprite || object.isLine)) return;
+    const hull = !!object.geometry?.userData?.vehicleVoxel && !object.material?.transparent;
+    toggled.push([object, object.visible]);
+    object.visible = object.visible && hull;
+  });
+  const background = scene.background, fog = scene.fog, override = scene.overrideMaterial;
+  scene.background = new THREE.Color(0x000000); scene.fog = null;
+  scene.overrideMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+  renderer.render(scene, camera);
+  const gl = renderer.getContext();
+  const mask = new Uint8Array(canvas.width * canvas.height * 4);
+  gl.readPixels(0, 0, canvas.width, canvas.height, gl.RGBA, gl.UNSIGNED_BYTE, mask);
+  scene.overrideMaterial.dispose();
+  scene.background = background; scene.fog = fog; scene.overrideMaterial = override;
+  for (const [object, visible] of toggled) object.visible = visible;
+  return mask;
+}
+const hullMask = angle === 'range' ? renderHullMask() : null;
 renderer.render(scene, camera);
 
-// Team hue check at range: mean hue of hull pixels inside each hull's box.
+// Team hue check at range: saturation-weighted mean hue of the hull pixels
+// (hull mask) inside each hull's projected box.
 function hueOfRegion(row) {
   const item = view.item(row.id);
   const box = new THREE.Box3().setFromObject(item.model.body);
@@ -171,6 +196,8 @@ function hueOfRegion(row) {
   let sx = 0, sy = 0, count = 0;
   const skyHsl = {}; sky.getHSL(skyHsl);
   for (let i = 0; i < pixels.length; i += 4) {
+    const px = (i / 4) % width, py = Math.floor(i / 4 / width);
+    if (hullMask[((canvas.height - y1 + py) * canvas.width + x0 + px) * 4] < 128) continue;
     const c = new THREE.Color(pixels[i] / 255, pixels[i + 1] / 255, pixels[i + 2] / 255);
     const hsl = {}; c.getHSL(hsl);
     if (hsl.s < 0.08 || Math.abs(hsl.h - skyHsl.h) < 0.03) continue;

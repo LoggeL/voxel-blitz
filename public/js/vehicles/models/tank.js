@@ -10,104 +10,142 @@ export const TANK_TRACK_X = 1.3;
 const ROADWHEEL_Z = Object.freeze([-1.75, -1.05, -0.35, 0.35, 1.05, 1.75]);
 const CLEATS_PER_SIDE = 28;
 
+const CAMO = material => material === 'paint' || material === 'panel';
+
+// Hull-frame boxes snap to the 0.2 m grid: symmetric pairs use even tenths.
 function buildParts() {
   const main = VEHICLE_DEFS.tank.mounts.main, rws = VEHICLE_DEFS.tank.mounts.rws, coax = VEHICLE_DEFS.tank.mounts.coax;
-  // Running gear: belts and their guards stay on the ground frame (no suspension bob).
+  // Running gear: belts, drive sprocket and idler stay on the ground frame (no
+  // suspension bob). They stay on the wreck, which rests on its belts.
   const running = new VoxelPart('tank-running');
   for (const side of [-1, 1]) {
-    const x0 = side < 0 ? -1.6 : 1.0, x1 = side < 0 ? -1.0 : 1.6;
-    running.prism('x', TANK_TRACK_PATH, [x0, x1], 'track', { shell: 0.15, tag: side < 0 ? 'track-left' : 'track-right' });
-    // Drive sprocket teeth at the rear, idler hub at the front.
-    running.box([x0 + 0.2, 0.4, 2.2], [x1 - 0.2, 0.6, 2.4], 'gunmetal', { tag: side < 0 ? 'track-left' : 'track-right' });
-    running.box([x0 + 0.2, 0.4, -2.4], [x1 - 0.2, 0.6, -2.2], 'gunmetal', { tag: side < 0 ? 'track-left' : 'track-right' });
+    const x0 = side < 0 ? -1.6 : 1.0, x1 = side < 0 ? -1.0 : 1.6, tag = null;
+    running.prism('x', TANK_TRACK_PATH, [x0, x1], 'track', { shell: 0.15, tag });
+    // Drive sprocket at the rear and idler at the front, inside the belt loop.
+    for (const z of [-2.3, 2.3]) {
+      running.cyl([side * 1.3, 0.5, z], 0.32, 0.4, 'x', 'gunmetal', { tag });
+      running.cyl([side * 1.3, 0.5, z], 0.12, 0.6, 'x', 'dark', { tag });
+    }
   }
-  running.userData.priority = { 'track-left': 60, 'track-right': 60 };
 
-  // Hull body: lower tub, sloped glacis, fenders, engine deck, lamps.
+  // Hull: lower tub, long sloped glacis, sponsons over the belts, engine deck.
   const hull = new VoxelPart('tank-hull');
-  hull.box([-1.0, 0.2, -2.2], [1.0, 1.0, 2.4], 'paint');
-  hull.wedge([-1.0, 0.2, -2.6], [1.0, 1.0, -2.2], 'paint', { along: 'z', slope: 'y', from: 0.5, to: 1, anchor: 1 });
+  hull.box([-1.0, 0.4, -2.2], [1.0, 1.0, 2.6], 'paint');
+  hull.wedge([-1.0, 0.4, -2.6], [1.0, 1.0, -2.2], 'paint', { along: 'z', slope: 'y', from: 0.4, to: 1, anchor: 1 });
   hull.box([-1.6, 1.0, -1.8], [1.6, 1.6, 2.6], 'paint');
-  hull.wedge([-1.6, 1.0, -2.6], [1.6, 1.6, -1.8], 'paint', { along: 'z', slope: 'y', from: 0.34, to: 1, anchor: 0 });
-  hull.box([-1.8, 1.0, -2.4], [1.8, 1.2, 2.6], 'panel');
-  // Side skirts break away as plates.
+  hull.wedge([-1.6, 1.0, -2.8], [1.6, 1.6, -1.8], 'paint', { along: 'z', slope: 'y', from: 0.34, to: 1, anchor: 0 });
+  // Rear plate overhang and the dark belly gap under it.
+  hull.box([-1.6, 1.0, 2.6], [1.6, 1.4, 2.8], 'panel');
+  hull.box([-1.0, 0.6, 2.6], [1.0, 1.0, 2.8], 'dark');
+  // Segmented side skirts: a sloped heavy front plate, panel notches along
+  // the bottom edge and a lighter groove along the top.
   for (const side of [-1, 1]) {
-    const tag = side < 0 ? 'skirt-left' : 'skirt-right';
+    // The left skirt tears off in the blast; the right one stays on the wreck.
+    const tag = side < 0 ? 'skirt-left' : null;
     const x0 = side < 0 ? -1.8 : 1.6, x1 = side < 0 ? -1.6 : 1.8;
-    hull.box([x0, 0.6, -2.2], [x1, 1.0, 2.2], 'paint', { tag });
-    // Faction IFF panel across the middle of each skirt.
-    hull.box([x0, 0.6, -0.8], [x1, 1.0, 0.8], 'band', { tag });
-    for (const z of [-1.4, 1.2]) hull.box([x0, 0.6, z], [x1, 0.8, z + 0.2], 'panel', { tag });
-  }
-  // Engine deck louvres, exhaust boxes, rear stowage.
-  for (let z = 0.8; z < 2.4; z += 0.4) hull.box([-1.2, 1.4, z], [1.2, 1.6, z + 0.2], 'dark');
-  hull.box([-1.4, 1.6, 1.0], [1.4, 1.8, 1.2], 'panel');
-  for (const side of [-1, 1]) {
-    const x = side < 0 ? -1.4 : 1.0;
-    hull.box([x, 1.0, 2.4], [x + 0.4, 1.4, 2.8], 'exhaust');
-    hull.box([side < 0 ? -1.6 : 1.2, 1.2, 2.6], [side < 0 ? -1.2 : 1.6, 1.4, 2.8], 'tail');
-    // Headlights with guards on the glacis.
+    hull.box([x0, 0.8, -2.2], [x1, 1.4, 2.4], 'paint', { tag });
+    hull.wedge([x0, 0.6, -2.6], [x1, 1.4, -2.2], 'panel', { along: 'z', slope: 'y', from: 0.5, to: 1, anchor: 1, tag });
+    for (const z of [-1.4, -0.2, 1.0]) hull.carve([x0, 0.8, z], [x1, 1.0, z + 0.2]);
+    hull.skin([x0, 1.2, -2.6], [x1, 1.4, 2.4], 'panel', { normal: [side, 0, 0], where: CAMO });
+    // Stowage bins on the sponson tops, aft of the turret ring.
+    hull.box([side < 0 ? -1.6 : 1.2, 1.6, 0.6], [side < 0 ? -1.2 : 1.6, 1.8, 2.2], 'canvas', { tag: side < 0 ? 'tools-left' : 'tools-right' });
+    // Exhaust grilles and tail lamps on the rear plate.
+    hull.box([side < 0 ? -1.4 : 1.0, 1.0, 2.8], [side < 0 ? -1.0 : 1.4, 1.4, 3.0], 'exhaust');
+    hull.box([side < 0 ? -1.6 : 1.4, 1.2, 2.8], [side < 0 ? -1.4 : 1.6, 1.4, 3.0], 'tail');
+    // Headlights in boxed guards at the glacis corners, tow hooks fore and aft.
     hull.box([side < 0 ? -1.6 : 1.2, 1.2, -2.6], [side < 0 ? -1.2 : 1.6, 1.4, -2.4], 'dark');
     hull.box([side < 0 ? -1.4 : 1.2, 1.2, -2.8], [side < 0 ? -1.2 : 1.4, 1.4, -2.6], 'head');
-    // Tow hooks.
-    hull.box([side < 0 ? -0.8 : 0.6, 0.6, -2.8], [side < 0 ? -0.6 : 0.8, 0.8, -2.6], 'dark');
+    hull.box([side < 0 ? -1.6 : 1.4, 1.2, -2.8], [side < 0 ? -1.4 : 1.6, 1.4, -2.6], 'dark');
+    hull.box([side < 0 ? -0.8 : 0.6, 0.4, -2.8], [side < 0 ? -0.6 : 0.8, 0.6, -2.6], 'dark');
+    hull.box([side < 0 ? -0.8 : 0.6, 0.6, 2.8], [side < 0 ? -0.6 : 0.8, 0.8, 3.0], 'dark');
   }
-  hull.box([-0.6, 1.8, 2.2], [0.6, 2.0, 2.6], 'canvas', { tag: 'stowage-rear' });
-  hull.box([-0.6, 1.6, 2.2], [0.6, 1.8, 2.6], 'dark', { tag: 'stowage-rear' });
-  // Driver hatch and periscope block (driver sits sealed below).
-  hull.box([-0.9, 1.6, -1.6], [-0.3, 1.8, -1.0], 'panel');
-  hull.box([-0.9, 1.6, -1.8], [-0.3, 1.8, -1.6], 'dark');
-  hull.box([-1.6, 1.2, -1.4], [-1.2, 1.4, -0.2], 'gunmetal', { tag: 'tools-left' });
-  hull.userData.priority = { 'skirt-left': 55, 'skirt-right': 55, 'stowage-rear': 40, 'tools-left': 30 };
+  // Engine deck grilles (flush dark slats) and the rear stowage rack.
+  for (let z = 1.0; z < 2.4; z += 0.4) hull.paint([-0.8, 1.4, z], [0.8, 1.6, z + 0.2], 'dark');
+  hull.box([-1.0, 1.6, 0.8], [1.0, 1.8, 1.0], 'panel');
+  hull.box([-0.6, 1.4, 2.8], [0.6, 1.8, 3.0], 'canvas', { tag: 'stowage-rear' });
+  hull.box([-0.8, 1.4, 2.6], [0.8, 1.8, 2.8], 'gunmetal', { tag: 'stowage-rear' });
+  // Driver hatch with periscopes (the driver sits sealed below).
+  hull.box([-1.0, 1.6, -1.6], [-0.4, 1.8, -1.0], 'panel');
+  hull.box([-1.0, 1.6, -1.8], [-0.4, 1.8, -1.6], 'dark');
+  // Team markings: a vertical stripe on each skirt, roundels aft.
+  for (const side of [-1, 1]) {
+    hull.skin([side < 0 ? -2.0 : 1.6, 0.8, -1.0], [side < 0 ? -1.6 : 2.0, 1.4, -0.6], 'stripe', { normal: [side, 0, 0] });
+    hull.roundel([side * 1.8, 1.1, 1.6], 0.34, [side, 0, 0], { depth: 0.2 });
+  }
+  hull.userData.priority = { 'skirt-left': 55, 'stowage-rear': 40, 'tools-left': 30, 'tools-right': 30 };
 
-  // Turret: angular cheeks, bustle, roof sight, smoke banks, hatch and roundel.
+  // Turret: low, wide hull with arrow-head add-on cheeks either side of a
+  // recessed mantlet, a rear bustle and stowage basket.
   const turret = new VoxelPart('tank-turret', { pivot: TANK_TURRET_PIVOT });
-  turret.box([-1.2, 1.6, -1.2], [1.2, 2.4, 1.2], 'paint', { tag: 'turret' });
-  turret.wedge([-1.2, 1.6, -2.0], [1.2, 2.4, -1.2], 'paint', { along: 'z', slope: 'x', from: 0.5, to: 1, anchor: 0.5, tag: 'turret' });
-  turret.box([-1.0, 1.8, 1.2], [1.0, 2.4, 1.8], 'paint', { tag: 'turret' });
-  turret.box([-1.0, 1.8, 1.8], [1.0, 2.2, 2.0], 'dark', { tag: 'turret' });
-  turret.box([-1.0, 2.4, -1.0], [1.0, 2.6, 1.6], 'panel', { tag: 'turret' });
+  turret.box([-1.4, 1.6, -1.2], [1.4, 2.4, 1.4], 'paint', { tag: 'turret' });
+  turret.box([-1.2, 2.4, -1.0], [1.2, 2.6, 1.6], 'panel', { tag: 'turret' });
+  for (const side of [-1, 1]) {
+    // Arrow-head cheek: the inner edge reaches far forward, the outer edge sweeps back.
+    const cheek = [[0.4, -2.2], [1.4, -1.2], [1.4, -0.8], [0.4, -0.8]].map(([x, z]) => [side * x, z]);
+    turret.prism('y', cheek, [1.6, 2.4], 'paint', { tag: 'turret' });
+    turret.prism('y', [[0.4, -1.8], [1.2, -1.0], [0.4, -1.0]].map(([x, z]) => [side * x, z]), [2.4, 2.6], 'panel', { tag: 'turret' });
+  }
+  // Bustle and the stowage basket on its back.
+  turret.box([-1.2, 1.8, 1.4], [1.2, 2.4, 2.0], 'paint', { tag: 'turret' });
+  turret.box([-1.2, 1.8, 2.0], [1.2, 2.4, 2.4], 'gunmetal', { tag: 'turret' });
+  turret.carve([-1.0, 2.0, 2.0], [1.0, 2.4, 2.2]);
+  turret.box([-1.0, 2.0, 2.0], [1.0, 2.2, 2.2], 'canvas', { tag: 'turret' });
   // Commander hatch: an open ring the exposed commander stands in.
   turret.carve([0.4, 2.2, 0.2], [0.8, 2.6, 0.6]);
   turret.box([0.2, 2.6, 0.6], [1.0, 2.8, 0.8], 'panel', { tag: 'turret' });
   turret.box([0.2, 2.6, 0.0], [0.4, 2.8, 0.8], 'dark', { tag: 'turret' });
-  // Gunner's sight.
-  turret.box([-0.8, 2.6, -0.8], [-0.4, 3.0, -0.4], 'panel', { tag: 'turret' });
-  turret.box([-0.8, 2.8, -1.0], [-0.4, 3.0, -0.8], 'dark', { tag: 'turret' });
-  // Smoke launcher banks (three tubes each), the smoke pop emits from their mouths.
+  // Loader hatch and the gunner's primary sight with its dark window.
+  turret.box([-1.0, 2.6, 0.2], [-0.4, 2.8, 0.8], 'panel', { tag: 'turret' });
+  turret.box([-1.0, 2.6, -1.0], [-0.6, 3.0, -0.4], 'panel', { tag: 'turret' });
+  turret.box([-1.0, 2.8, -1.2], [-0.6, 3.0, -1.0], 'dark', { tag: 'turret' });
   for (const side of [-1, 1]) {
-    const x0 = side < 0 ? -1.4 : 1.2, x1 = side < 0 ? -1.2 : 1.4;
-    for (let i = 0; i < 3; i++) turret.box([x0, 2.0 + (i % 2) * 0.2, -1.0 + i * 0.2], [x1, 2.2 + (i % 2) * 0.2, -0.8 + i * 0.2], i % 2 ? 'gunmetal' : 'dark', { tag: 'turret' });
-    turret.box([side < 0 ? -1.4 : 1.2, 1.8, 0.2], [side < 0 ? -1.2 : 1.4, 2.2, 1.0], 'canvas', { tag: side < 0 ? 'stowage-left' : 'stowage-right' });
+    // Smoke launcher bank: three stepped tubes at each front corner with dark
+    // mouths facing forward (the smoke pop emits from them).
+    const x0 = side < 0 ? -1.6 : 1.4, x1 = side < 0 ? -1.4 : 1.6;
+    turret.box([x0, 1.8, -0.8], [x1, 2.4, -0.2], 'panel', { tag: 'turret' });
+    for (let i = 0; i < 3; i++) {
+      const y = 1.8 + i * 0.2, z = -1.2 + (i % 2) * 0.2;
+      turret.box([x0, y, z + 0.2], [x1, y + 0.2, -0.8], 'gunmetal', { tag: 'turret' });
+      turret.box([x0, y, z], [x1, y + 0.2, z + 0.2], 'dark', { tag: 'turret' });
+    }
+    // Side stowage boxes along the bustle flanks.
+    turret.box([x0, 1.8, 0.4], [x1, 2.2, 1.6], 'canvas', { tag: side < 0 ? 'stowage-left' : 'stowage-right' });
+    // Vertical team stripe across each flank, roundel on the stowage box.
+    turret.skin([side < 0 ? -1.8 : 1.0, 1.6, -0.2], [side < 0 ? -1.0 : 1.8, 2.6, 0.2], 'stripe', { normal: [side, 0, 0], where: CAMO });
+    turret.roundel([side * 1.6, 2.0, 1.0], 0.3, [side, 0, 0], { depth: 0.2 });
+    // Antenna whips at the rear corners.
+    for (let y = 2.4; y < 3.4; y += 0.2) turret.box([side < 0 ? -1.0 : 0.8, y, 1.8], [side < 0 ? -0.8 : 1.0, y + 0.2, 2.0], 'dark', { tag: 'turret' });
   }
-  // Faction band round the turret flanks and bustle, under the roof edge.
-  turret.paint([-1.6, 2.0, -0.4], [1.6, 2.2, 2.0], 'band', { where: material => material === 'paint' });
-  // Antenna whip with the faction pennant.
-  for (let y = 2.6; y < 3.6; y += 0.2) turret.box([-0.8, y, 1.4], [-0.6, y + 0.2, 1.6], 'dark', { tag: 'turret' });
-  turret.box([-0.8, 3.2, 1.6], [-0.6, 3.6, 1.8], 'band', { tag: 'turret' });
-  turret.box([-0.8, 3.4, 1.8], [-0.6, 3.6, 2.0], 'band', { tag: 'turret' });
-  turret.roundel([0.2, 2.6, -0.2], 0.5, [0, 1, 0]);
+  turret.roundel([-0.5, 2.6, 1.2], 0.36, [0, 1, 0], { depth: 0.2 });
   turret.userData.priority = { turret: 110, 'stowage-left': 45, 'stowage-right': 45 };
 
   // Gun cradle: mantlet and coax port; pitches about the main pivot.
   const gunPivot = main.pivot;
   const gun = new VoxelPart('tank-gun', { pivot: gunPivot, grid: [0.1, gunPivot[1] - 0.1, 0] });
-  gun.box([-0.5, gunPivot[1] - 0.3, -1.6], [0.5, gunPivot[1] + 0.3, -1.0], 'paint', { tag: 'gun' });
+  gun.box([-0.3, gunPivot[1] - 0.3, -1.8], [0.3, gunPivot[1] + 0.3, -1.0], 'panel', { tag: 'gun' });
   gun.box([coax.pivot[0] - 0.1, coax.pivot[1] - 0.1, -2.4], [coax.pivot[0] + 0.1, coax.pivot[1] + 0.1, -1.6], 'gunmetal', { tag: 'gun' });
   gun.userData.priority = { gun: 90 };
 
-  // Barrel: recoils along its axis; thermal sleeve, fume extractor, muzzle brake.
-  const barrel = new VoxelPart('tank-barrel', { pivot: gunPivot, grid: [0.1, gunPivot[1] - 0.1, 0] });
+  // Barrel: a 0.4 m tube centred on the pivot with a thermal collar, a fume
+  // extractor and a slotted muzzle brake round a dark bore; recoils along its axis.
+  const barrel = new VoxelPart('tank-barrel', { pivot: gunPivot, grid: [0, gunPivot[1], 0] });
   const tip = gunPivot[2] - main.muzzle;
   const y = gunPivot[1];
-  barrel.box([-0.1, y - 0.1, tip + 0.2], [0.1, y + 0.1, -1.6], 'gunmetal', { tag: 'barrel' });
-  barrel.box([-0.1, y - 0.3, -3.0], [0.1, y + 0.3, -2.2], 'paint', { tag: 'barrel' });
-  barrel.box([-0.3, y - 0.1, -3.0], [0.3, y + 0.1, -2.2], 'paint', { tag: 'barrel' });
-  barrel.box([-0.3, y - 0.1, tip], [0.3, y + 0.1, tip + 0.4], 'dark', { tag: 'barrel' });
-  barrel.box([-0.1, y - 0.3, tip], [0.1, y + 0.3, tip + 0.4], 'dark', { tag: 'barrel' });
+  const sleeve = (z0, z1, material) => {
+    barrel.box([-0.4, y - 0.2, z0], [0.4, y + 0.2, z1], material, { tag: 'barrel' });
+    barrel.box([-0.2, y - 0.4, z0], [0.2, y + 0.4, z1], material, { tag: 'barrel' });
+  };
+  barrel.box([-0.2, y - 0.2, tip + 0.4], [0.2, y + 0.2, -1.6], 'paint', { tag: 'barrel' });
+  sleeve(-2.2, -1.8, 'panel');
+  sleeve(-3.0, -2.4, 'paint');
+  barrel.box([-0.4, y - 0.2, tip], [0.4, y + 0.2, tip + 0.6], 'panel', { tag: 'barrel' });
+  barrel.carve([-0.4, y - 0.2, tip + 0.2], [-0.2, y + 0.2, tip + 0.4]);
+  barrel.carve([0.2, y - 0.2, tip + 0.2], [0.4, y + 0.2, tip + 0.4]);
+  barrel.paint([-0.2, y - 0.2, tip], [0.2, y + 0.2, tip + 0.2], 'exhaust');
   barrel.userData.priority = { barrel: 120 };
 
-  // Remote weapon station: base ring (yaw) and the HMG cradle (pitch).
+  // Remote weapon station: base ring (yaw) and the HMG cradle with its
+  // sensor head and ammo box (pitch).
   const rwsBasePivot = [rws.pivot[0], 2.6, rws.pivot[2]];
   const rwsBase = new VoxelPart('tank-rws-base', { pivot: rwsBasePivot, grid: [rws.pivot[0] - 0.1, 0, rws.pivot[2] - 0.1] });
   rwsBase.box([rws.pivot[0] - 0.1, 2.6, rws.pivot[2] - 0.1], [rws.pivot[0] + 0.1, 2.7, rws.pivot[2] + 0.1], 'gunmetal', { tag: 'rws' });
@@ -115,14 +153,21 @@ function buildParts() {
   const rwsGun = new VoxelPart('tank-rws-gun', { pivot: rws.pivot, grid: [rws.pivot[0] - 0.1, rws.pivot[1] - 0.1, rws.pivot[2]] });
   const [rx, ry, rz] = rws.pivot;
   rwsGun.box([rx - 0.1, ry - 0.1, rz - 0.4], [rx + 0.1, ry + 0.1, rz + 0.2], 'dark', { tag: 'rws' });
-  rwsGun.box([rx - 0.1, ry - 0.1, rz - rws.muzzle], [rx + 0.1, ry + 0.1, rz - 0.4], 'gunmetal', { tag: 'rws' });
+  rwsGun.box([rx - 0.1, ry - 0.1, rz - rws.muzzle + 0.2], [rx + 0.1, ry + 0.1, rz - 0.4], 'gunmetal', { tag: 'rws' });
+  rwsGun.box([rx - 0.1, ry - 0.1, rz - rws.muzzle], [rx + 0.1, ry + 0.1, rz - rws.muzzle + 0.2], 'dark', { tag: 'rws' });
   rwsGun.box([rx + 0.1, ry - 0.1, rz - 0.4], [rx + 0.3, ry + 0.1, rz], 'panel', { tag: 'rws' });
+  rwsGun.box([rx - 0.1, ry + 0.1, rz - 0.4], [rx + 0.1, ry + 0.3, rz - 0.2], 'panel', { tag: 'rws' });
+  rwsGun.box([rx - 0.1, ry + 0.1, rz - 0.6], [rx + 0.1, ry + 0.3, rz - 0.4], 'dark', { tag: 'rws' });
   rwsGun.userData.priority = { rws: 70 };
 
-  // Roadwheel and cleat shapes (instanced).
-  const wheel = new VoxelPart('tank-roadwheel', { grid: [0.1, 0, 0] });
-  wheel.cyl([0, 0, 0], 0.33, 0.6, 'x', 'rubber');
-  wheel.cyl([0, 0, 0], 0.15, 0.6, 'x', 'steel');
+  // Roadwheel (instanced): authored at twice its size and meshed at half
+  // scale, so the 0.1 m voxels give a round tyre, a painted dish and a hub.
+  const wheel = new VoxelPart('tank-roadwheel', { grid: [0, 0.1, 0.1] });
+  wheel.userData.scale = 0.5;
+  // Flat faces keep the instanced wheel cheap (no AO rings to split quads).
+  wheel.cyl([0, 0, 0], 0.66, 0.8, 'x', 'rubber');
+  wheel.cyl([0, 0, 0], 0.46, 0.8, 'x', 'drab');
+  wheel.cyl([0, 0, 0], 0.16, 0.8, 'x', 'dark');
   const cleat = new VoxelPart('tank-cleat', { grid: [0.1, -0.1, -0.1] });
   cleat.box([-0.3, -0.1, -0.1], [0.3, 0.1, 0.1], 'track');
   return { running, hull, turret, gun, barrel, rwsBase, rwsGun, wheel, cleat, rwsBasePivot };
@@ -192,14 +237,14 @@ export function makeTankModel(options = {}) {
   });
 
   const emitters = {
-    exhaust: [-1.2, 1.2].map(x => ({ node: kit.anchor(body, 'exhaust', [x, 1.2, 2.85]), direction: [0, 0.2, 1] })),
+    exhaust: [-1.2, 1.2].map(x => ({ node: kit.anchor(body, 'exhaust', [x, 1.2, 3.05]), direction: [0, 0.2, 1] })),
     dust: [-1, 1].flatMap(side => [-2.0, 2.0].map(z => kit.anchor(group, 'track-contact', [side * TANK_TRACK_X, 0.05, z]))),
     tracks: [-1, 1].map(side => kit.anchor(group, 'track-decal', [side * TANK_TRACK_X, 0.02, 2.3])),
     lights: [
       lightAnchor(kit, body, 'head', [-1.3, 1.3, -2.85]), lightAnchor(kit, body, 'head', [1.3, 1.3, -2.85]),
-      lightAnchor(kit, body, 'tail', [-1.4, 1.3, 2.85], [0, 0, 1]), lightAnchor(kit, body, 'tail', [1.4, 1.3, 2.85], [0, 0, 1]),
+      lightAnchor(kit, body, 'tail', [-1.5, 1.3, 3.05], [0, 0, 1]), lightAnchor(kit, body, 'tail', [1.5, 1.3, 3.05], [0, 0, 1]),
     ],
-    smoke: [-1, 1].map(side => ({ node: kit.anchor(turret, 'smoke-bank', [side * 1.3, 2.4, -0.8]), direction: [side * 0.6, 0.55, -0.6] })),
+    smoke: [-1, 1].map(side => ({ node: kit.anchor(turret, 'smoke-bank', [side * 1.5, 2.2, -1.2]), direction: [side * 0.6, 0.55, -0.6] })),
     fire: [kit.anchor(body, 'engine-fire', [0, 1.7, 1.6]), kit.anchor(turret, 'turret-fire', [0.3, 2.6, 0.4])],
     cookoff: [kit.anchor(turret, 'ammo-cookoff', [0, 2.5, 1.4])],
   };
