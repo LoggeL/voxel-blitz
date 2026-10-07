@@ -15,6 +15,10 @@ export function relativeTeam(team, selfTeam) {
 }
 export const teamDisplayName = team => TEAM_DISPLAY[team] ?? 'NEUTRAL';
 
+const SQUAD_NAMES = Object.freeze(['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT', 'GOLF', 'HOTEL']);
+/** Squad display name (squad ids are 1-based per team). */
+export const squadName = id => SQUAD_NAMES[(id | 0) - 1] || String(id | 0);
+
 /** Per-player Conquest columns from the row: score, K, D, objective, vehicles, revives, squad. */
 export function scoreboardRow(player) {
   const stats = decodeConquestStats(player);

@@ -52,8 +52,15 @@ try {
   settings.update(lobby('duel'), true);
   for (const id of DUEL_WEAPONS) assert.ok(settings.loadout.textContent.includes(WEAPON_NAMES[id]), `duel set lists ${id}`);
   assert.match(settings.loadout.textContent, /^BASE 1V1 WEAPON SET: .+\. No throwables\.$/);
+
+  // The closed map menu fits its label: the "768 × 768" size lives in the capacity line, not the option.
+  settings.update(lobby('conquest', { map: 'frontier' }), true);
+  const frontier = settings.controls.map.options.find(option => option.value === 'frontier');
+  assert.match(frontier.textContent, /^FRONTIER · \d+ PLAYERS$/, `short Frontier option (${frontier.textContent})`);
+  assert.ok(frontier.textContent.length <= 26, 'the Frontier option fits the closed menu');
+  assert.match(settings.capacity.textContent, /FRONTIER · 768 × 768$/, 'the capacity line keeps the battlefield size');
 } finally {
   if (saved === undefined) delete globalThis.document;
   else globalThis.document = saved;
 }
-console.log('Lobby settings passed: shared no-bot rule, TTT prep copy and duel weapon set from shared rules.');
+console.log('Lobby settings passed: shared no-bot rule, TTT prep copy, duel weapon set from shared rules and a map label that fits.');

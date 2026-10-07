@@ -166,7 +166,9 @@ export function conquestHudFixtures() {
       seatOccupants: { driver: 'me', commander: 'sq2' }, st: VEHICLE_STATUS.engine | VEHICLE_STATUS.disabled | VEHICLE_STATUS.burning,
       mounts: [[yawTo(tankAt, C) + 0.06, 0.02, 4, 0, 40], [yawTo(tankAt, C) + 0.06, 0.02, -1, 22, 0], [yawTo(tankAt, C) - 0.4, 0.1, -1, 0, 0]],
       sel: { driver: 0 }, cmr: 46, speed: 3.2 });
-    out.push(state('tank-driver', 'Tank driver · AP reloading · disabled', { self, players: roster(self), vehicles: [tank, spottedTank],
+    // Brannock rides as commander: his row carries the seat like the live snapshot does.
+    const crew = roster(self).map(p => p.id === 'sq2' ? { ...p, x: tankAt.x, z: tankAt.z, vehicleId: 'alpha-tank', vehicleSeatId: 'commander' } : p);
+    out.push(state('tank-driver', 'Tank driver · AP reloading · disabled', { self, players: crew, vehicles: [tank, spottedTank],
       match: baseMatch(), camera: cam(tankAt.x - Math.sin(yawTo(tankAt, C)) * -9, GROUND + 4.6, tankAt.z - Math.cos(yawTo(tankAt, C)) * -9, yawTo(tankAt, C), -0.06),
       events: [{ kind: 'vehicle_hit', vehicleId: 'alpha-tank', attacker: 'en3', dmg: 220, zone: 'rear', cls: 'at', eff: 1, pos: [tankAt.x, GROUND + 1, tankAt.z] },
         { kind: 'vehicle_hit', vehicleId: 'bravo-tank', attacker: 'me', dmg: 300, zone: 'side', cls: 'at', eff: 1, pos: [0, 0, 0] },

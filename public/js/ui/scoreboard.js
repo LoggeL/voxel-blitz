@@ -4,7 +4,7 @@ import { WEAPONS } from '../../../shared/combatmath.js';
 import { gunLevel, MODE_TITLES, rankPlayers } from './mode-presentation.js';
 import { treeNode } from '../../../shared/career.js';
 import { TEAM_DISPLAY } from '../../../shared/conquest-contract.js';
-import { scoreboardRow } from './conquest/scoring.js';
+import { scoreboardRow, squadName } from './conquest/scoring.js';
 
 /** Conquest live columns: squad, score, kills, deaths, objective score, vehicles destroyed, revives. */
 const CONQUEST_COLUMNS = Object.freeze(['SQ', 'PLAYER', 'SCORE', 'K', 'D', 'OBJ', 'VEH', 'REV']);
@@ -214,9 +214,8 @@ export class Scoreboard {
   dispose() { this.root?.remove(); this.root = null; this.signature = ''; this.voteCells?.clear(); }
 }
 
-const SQUAD_NAMES = Object.freeze(['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT', 'GOLF', 'HOTEL']);
-/** Squad display name (squad ids are 1-based per team). */
-export const squadName = id => SQUAD_NAMES[(id | 0) - 1] || String(id | 0);
+/** Squad display name (squad ids are 1-based per team); shared with the in-match squad list. */
+export { squadName };
 
 /** Stable squad grouping: squads by total score, members in their ranked order, squadless last. */
 export function groupBySquad(players) {

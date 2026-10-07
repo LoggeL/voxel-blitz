@@ -23,11 +23,11 @@ body[data-vehicle-seated="true"] :is(#ammo, #grenade-count, #weaponname, #pickax
 .cq-team { display: grid; gap: 4px; }
 .cq-team-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .cq-team-name { font-size: 12px; font-weight: 700; letter-spacing: 1.6px; color: var(--cq-sub); }
-.cq-tickets { font-size: 26px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+.cq-tickets { font-size: 30px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
 .cq-team-own .cq-tickets { color: var(--cq-own); }
 .cq-team-enemy .cq-tickets { color: var(--cq-enemy); }
 .cq-team-enemy .cq-team-head { flex-direction: row-reverse; }
-.cq-ticket-track { height: 6px; background: #ffffff14; border-radius: 3px; overflow: hidden; }
+.cq-ticket-track { height: 8px; background: #ffffff14; border-radius: 3px; box-shadow: inset 0 0 0 1px #ffffff0a; overflow: hidden; }
 .cq-ticket-fill { display: block; height: 100%; border-radius: 3px; transition: width 300ms linear; }
 .cq-team-own .cq-ticket-fill { background: linear-gradient(90deg, #1f8fc4, var(--cq-own)); box-shadow: 0 0 10px #4cc3ff66; }
 .cq-team-enemy .cq-ticket-track { transform: scaleX(-1); }
@@ -57,7 +57,7 @@ body[data-vehicle-seated="true"] :is(#ammo, #grenade-count, #weaponname, #pickax
   opacity: 0.55;
 }
 .cq-chip[data-contested="true"] { border-color: var(--cq-contested); animation: cq-pulse 0.8s ease-in-out infinite; }
-.cq-chip[data-contested="true"] .cq-chip-fill { background: repeating-linear-gradient(45deg, #ffd16655 0 4px, transparent 4px 8px); opacity: 1; }
+.cq-chip[data-contested="true"] .cq-chip-fill { background: repeating-linear-gradient(45deg, #ffd166a6 0 3px, transparent 3px 7px); opacity: 1; }
 .cq-chip-letter {
   position: absolute; inset: 0; display: grid; place-items: center; transform: rotate(-45deg);
   font-size: 15px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000;
@@ -101,6 +101,7 @@ body[data-vehicle-seated="true"] :is(#ammo, #grenade-count, #weaponname, #pickax
 .cq-ring-track { fill: #0b131aaa; stroke: #ffffff26; stroke-width: 5; }
 .cq-ring-arc { fill: none; stroke: var(--lean); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 120ms linear; filter: drop-shadow(0 0 4px var(--lean)); }
 .cq-ring[data-tone="contested"] .cq-ring-dial { animation: cq-ring-shake 0.5s ease-in-out infinite; }
+.cq-ring[data-tone="contested"] .cq-ring-track { stroke: var(--cq-contested); stroke-opacity: 0.85; stroke-dasharray: 3 3; }
 .cq-ring-letter { position: absolute; inset: 0; display: grid; place-items: center; font-size: 24px; font-weight: 800; color: var(--tone); }
 .cq-ring-label { font-size: 14px; font-weight: 800; letter-spacing: 2px; color: var(--tone); }
 .cq-ring-counts { display: flex; gap: 6px; align-items: baseline; font-size: 13px; font-weight: 800; }
@@ -175,6 +176,24 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-compass-N { color: #ffd166; }
 .cq-map-hint { position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: calc(104px + var(--cq-minimap) + 14px); width: var(--cq-minimap);
   text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #c4d0d8b0; text-shadow: 0 1px 2px #000; }
+/* Squad list beside the minimap (reference Alt 2): kit or hull glyph, name, DOWN / DEAD. */
+.cq-squad {
+  position: absolute; left: calc(max(22px, env(safe-area-inset-left)) + var(--cq-minimap) + 18px); bottom: 112px;
+  display: grid; gap: 4px; min-width: 132px; max-width: 190px; padding: 6px 18px 7px 9px;
+  background: linear-gradient(90deg, rgba(9, 15, 20, 0.78), rgba(9, 15, 20, 0.5) 70%, rgba(9, 15, 20, 0));
+  border-left: 2px solid var(--cq-squad); border-radius: 2px; text-shadow: 0 1px 2px #000;
+}
+.cq-squad-head { font-size: 10px; font-weight: 800; letter-spacing: 2px; color: var(--cq-squad); }
+.cq-squad-list { display: grid; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.cq-squad-row { display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 7px; min-height: 18px; }
+.cq-squad-icon { display: block; width: 18px; height: 18px; color: var(--cq-squad); filter: drop-shadow(0 1px 1px #000); }
+.cq-squad-glyph { width: 100%; height: 100%; display: block; }
+.cq-squad-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; font-weight: 700; letter-spacing: 0.5px; color: #eef3f6; }
+.cq-squad-row[data-leader="true"] .cq-squad-name::after { content: ' \2605'; color: #ffd166; font-size: 10px; }
+.cq-squad-state { font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+.cq-squad-row[data-state="down"] .cq-squad-icon, .cq-squad-row[data-state="down"] .cq-squad-state { color: #ff6b6b; }
+.cq-squad-row[data-state="dead"] { opacity: 0.5; }
+.cq-squad-row[data-state="dead"] .cq-squad-state { color: var(--cq-sub); }
 .cq-spot-flash { position: absolute; left: 50%; top: calc(50% - 70px); transform: translateX(-50%); font-size: 13px; font-weight: 800; letter-spacing: 2px; color: var(--cq-danger); text-shadow: 0 1px 3px #000; }
 
 /* ------------------------------------------------------------- vehicle */
@@ -392,6 +411,8 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .vb-touch-mode .cq-banner-title { font-size: 15px; letter-spacing: 1px; }
 .vb-touch-mode .cq-banner-detail { font-size: 10px; }
 .vb-touch-mode .cq-minimap { top: calc(max(10px, env(safe-area-inset-top)) + 114px); bottom: auto; left: max(12px, env(safe-area-inset-left)); }
+/* Phone portrait has no free corner beside the minimap (MAP / SPOT sit there): the squad list shows in landscape only. */
+.vb-touch-mode .cq-squad { display: none; }
 .vb-touch-mode .cq-compass { width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; font-size: 8px; }
 .vb-touch-mode .cq-ring { top: calc(50% + 34px); }
 .vb-touch-mode .cq-ring-dial { width: 50px; height: 50px; }
@@ -468,6 +489,17 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
   .vb-touch-mode .cq-interact { top: auto; bottom: 64px; }
   .vb-touch-mode .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 52px); max-width: calc(100vw - 460px); }
   .vb-touch-mode .cq-restricted { top: 16%; }
+  /* Landscape: the squad list rides right of the HP card, left of the banner lane and above MAP / SPOT. */
+  .vb-touch-mode .cq-squad {
+    display: grid; left: calc(max(12px, env(safe-area-inset-left)) + 110px); top: calc(max(10px, env(safe-area-inset-top)) + 54px); bottom: auto;
+    min-width: 0; width: 100px; max-width: 100px; gap: 2px; padding: 3px 6px 3px 6px;
+  }
+  .vb-touch-mode .cq-squad-head { font-size: 8px; letter-spacing: 1px; }
+  .vb-touch-mode .cq-squad-list { gap: 1px; }
+  .vb-touch-mode .cq-squad-row { grid-template-columns: 12px minmax(0, 1fr) auto; gap: 4px; min-height: 13px; }
+  .vb-touch-mode .cq-squad-icon { width: 12px; height: 12px; }
+  .vb-touch-mode .cq-squad-name { font-size: 10px; letter-spacing: 0.2px; }
+  .vb-touch-mode .cq-squad-state { font-size: 8px; letter-spacing: 0.4px; }
   .cq-deploy-body { grid-template-columns: minmax(0, 1fr) 280px; }
   .cq-deploy-mapcol { grid-template-columns: 200px minmax(0, 1fr); }
   .cq-deploy-head { gap: 10px; }
@@ -499,7 +531,7 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
   top: calc(max(10px, env(safe-area-inset-top)) + 70px);
   max-height: calc(100dvh - max(10px, env(safe-area-inset-top)) - 80px);
 }
-body:has(#scoreboard.is-open[data-mode="conquest"]) :is(.vb-conquest-hud :is(.cq-world, .cq-reticles, .cq-ring, .cq-ticker, .cq-minimap, .cq-vehicle, .cq-interact, .cq-map-hint, .cq-banner, .cq-lock, .cq-lock-bearing, .cq-restricted, .cq-spot-flash), .vb-touch-controls > :not(.vb-touch-pause)) { visibility: hidden; }
+body:has(#scoreboard.is-open[data-mode="conquest"]) :is(.vb-conquest-hud :is(.cq-world, .cq-reticles, .cq-ring, .cq-ticker, .cq-minimap, .cq-squad, .cq-vehicle, .cq-interact, .cq-map-hint, .cq-banner, .cq-lock, .cq-lock-bearing, .cq-restricted, .cq-spot-flash), .vb-touch-controls > :not(.vb-touch-pause)) { visibility: hidden; }
 /* Phone portrait board: drop the ping column and tighten cells so names stay on one line. */
 @media (max-width: 520px) {
   #scoreboard.vb-mode-scoreboard[data-mode="conquest"] { min-width: 0; width: calc(100vw - 20px); max-width: none; padding: 12px 8px 14px; }

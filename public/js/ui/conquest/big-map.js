@@ -75,62 +75,151 @@ export class NorthUpMap {
       ctx.beginPath(); ctx.moveTo(v, 0); ctx.lineTo(v, px); ctx.moveTo(0, v); ctx.lineTo(px, v); ctx.stroke();
     }
     const pulse = (Math.sin(nowMs / 160) + 1) * 0.75;
-    // Flag names shrink with small maps (phone deploy / landscape full map) and never print over each other:
-    // a name that would collide goes above its flag, or is left out (the letter still identifies the flag).
-    const labelPx = Math.max(LABEL_MIN_PX, Math.min(LABEL_MAX_PX, css / 32)) * scale;
-    const labelRects = [];
-    for (const item of sortItems(items)) {
+    const sorted = sortItems(items);
+    // Flags and HQs are fixed; hull and spawn badges that land on a flag diamond, an HQ or each other step
+    // aside (a short leader line keeps the true spot), so flag letters stay readable.
+    const fixed = [];
+    const badges = [];
+    for (const item of sorted) {
       const c = toCanvas(item.x, item.z);
-      if (item.kind === 'flag') {
-        paintFlag(ctx, item, c, item.radius * s, { letterSize: 15 * scale, pulse: item.contested ? pulse : 0 });
-        if (labels && item.name && css >= LABEL_MIN_MAP_PX) {
-          const text = item.name.toUpperCase();
-          ctx.font = `700 ${labelPx}px "Rajdhani", system-ui, sans-serif`;
-          ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-          const w = ctx.measureText(text).width + 4 * scale, h = labelPx * 1.15;
-          const x = Math.max(w / 2 + 2 * scale, Math.min(px - w / 2 - 2 * scale, c.x));
-          const gap = item.radius * s + 6 * scale;
-          const spot = [c.y + gap, c.y - gap - h].map(y => ({ left: x - w / 2, right: x + w / 2, top: y, bottom: y + h }))
-            .find(r => r.top >= 0 && r.bottom <= px && !labelRects.some(o => r.left < o.right && o.left < r.right && r.top < o.bottom && o.top < r.bottom));
-          if (spot) {
-            labelRects.push(spot);
-            ctx.lineWidth = 3 * scale; ctx.strokeStyle = '#081016e0'; ctx.strokeText(text, x, spot.top);
-            ctx.fillStyle = '#eef3f6'; ctx.fillText(text, x, spot.top);
-          }
-        }
-      } else if (item.kind === 'hq') {
-        ctx.beginPath(); ctx.arc(c.x, c.y, item.radius * s, 0, Math.PI * 2);
-        ctx.fillStyle = `${toneColor(item.rel)}1f`; ctx.fill();
-        ctx.setLineDash([4 * scale, 4 * scale]); ctx.strokeStyle = `${toneColor(item.rel)}99`; ctx.lineWidth = 1.5 * scale; ctx.stroke(); ctx.setLineDash([]);
-        paintUnit(ctx, item, c, 0, 1.15 * scale);
-      } else {
-        paintUnit(ctx, item, c, item.kind === 'self' ? item.yaw : item.yaw ?? 0, 1.1 * scale);
-      }
+      if (item.kind === 'flag') fixed.push({ x: c.x, y: c.y, r: 15 * scale });
+      else if (item.kind === 'hq') fixed.push({ x: c.x, y: c.y, r: 12 * scale });
+      else if (item.kind === 'vehicle') badges.push({ item, x: c.x, y: c.y, ox: c.x, oy: c.y, r: 9.5 * scale });
     }
-    this.spawnHits = [];
+    const spawnEntries = [];
     for (const spawn of spawns || []) {
       if (!Number.isFinite(spawn.x) || !Number.isFinite(spawn.z)) continue;
       const c = toCanvas(spawn.x, spawn.z);
       const active = selected === spawn.spawn;
       const r = (active ? 17 : 13) * scale;
+      spawnEntries.push({ spawn, active, x: c.x, y: c.y, ox: c.x, oy: c.y, r });
+      // Flag and HQ spawns are the flag / HQ itself and stay put; squad and hull spawns are badges.
+      if (spawn.kind === 'flag' || spawn.kind === 'hq') fixed.push({ x: c.x, y: c.y, r: r + 1 });
+    }
+    const spawnBadges = spawnEntries.filter(e => e.spawn.kind !== 'flag' && e.spawn.kind !== 'hq');
+    // A hull with a spawn badge on it is the same marker twice: the spawn badge replaces it.
+    const spawnHulls = new Set(spawnBadges.filter(b => b.spawn.kind === 'vehicle').map(b => String(b.spawn.id)));
+    const movable = [...badges.filter(b => !spawnHulls.has(String(b.item.id))), ...spawnBadges];
+    declutter(movable, fixed, { px, maxShift: 30 * scale });
+    for (const item of sorted) {
+      const c = toCanvas(item.x, item.z);
+      if (item.kind === 'flag') {
+        paintFlag(ctx, item, c, item.radius * s, { letterSize: 15 * scale, pulse: item.contested ? pulse : 0 });
+      } else if (item.kind === 'hq') {
+        ctx.beginPath(); ctx.arc(c.x, c.y, item.radius * s, 0, Math.PI * 2);
+        ctx.fillStyle = `${toneColor(item.rel)}1f`; ctx.fill();
+        ctx.setLineDash([4 * scale, 4 * scale]); ctx.strokeStyle = `${toneColor(item.rel)}99`; ctx.lineWidth = 1.5 * scale; ctx.stroke(); ctx.setLineDash([]);
+        paintUnit(ctx, item, c, 0, 1.15 * scale);
+      } else if (item.kind === 'vehicle') {
+        const badge = badges.find(b => b.item === item);
+        if (!badge || spawnHulls.has(String(item.id))) continue;
+        leader(ctx, badge, scale);
+        paintUnit(ctx, item, { x: badge.x, y: badge.y }, item.yaw ?? 0, 1.1 * scale);
+      } else {
+        paintUnit(ctx, item, c, item.kind === 'self' ? item.yaw : item.yaw ?? 0, 1.1 * scale);
+      }
+    }
+    this.spawnHits = [];
+    for (const entry of spawnEntries) {
+      const { spawn, active, r } = entry;
+      leader(ctx, entry, scale);
       ctx.save();
-      ctx.beginPath(); ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+      ctx.beginPath(); ctx.arc(entry.x, entry.y, r, 0, Math.PI * 2);
       ctx.fillStyle = spawn.ok ? (active ? '#ffd166' : '#0d1a22e8') : '#2a1d1de0';
       ctx.fill();
       ctx.lineWidth = (active ? 3 : 2) * scale;
       ctx.strokeStyle = spawn.ok ? (active ? '#fff7d6' : CQ_COLORS.own) : '#8a5151';
       ctx.stroke();
       const glyph = spawn.kind === 'hq' ? 'hq' : spawn.kind === 'squad' ? 'squad' : spawn.kind === 'vehicle' ? (spawn.type || 'tank') : null;
-      if (glyph) drawIcon(ctx, glyph, c.x, c.y, r * 1.15, active ? '#101418' : spawn.ok ? CQ_COLORS.own : '#9a7070');
+      if (glyph) drawIcon(ctx, glyph, entry.x, entry.y, r * 1.15, active ? '#101418' : spawn.ok ? CQ_COLORS.own : '#9a7070');
       else {
         ctx.fillStyle = active ? '#101418' : spawn.ok ? CQ_COLORS.own : '#9a7070';
         ctx.font = `800 ${r * 1.1}px "Rajdhani", system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText(spawn.id, c.x, c.y + 1);
+        ctx.fillText(spawn.id, entry.x, entry.y + 1);
       }
       ctx.restore();
-      this.spawnHits.push({ spawn: spawn.spawn, u: c.x / px, v: c.y / px });
+      this.spawnHits.push({ spawn: spawn.spawn, u: entry.x / px, v: entry.y / px });
+    }
+    // Flag names last, on top of every marker: shrunk on small maps (phone deploy / landscape full map), placed
+    // below, above or beside the flag where no badge, HQ or other name sits, and on a dark plate.
+    if (labels && css >= LABEL_MIN_MAP_PX) {
+      const labelPx = Math.max(LABEL_MIN_PX, Math.min(LABEL_MAX_PX, css / 32)) * scale;
+      const blockers = [...movable, ...fixed].map(b => ({ left: b.x - b.r, right: b.x + b.r, top: b.y - b.r, bottom: b.y + b.r }));
+      const labelRects = [];
+      const hit = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      ctx.font = `700 ${labelPx}px "Rajdhani", system-ui, sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      for (const item of sorted) {
+        if (item.kind !== 'flag' || !item.name) continue;
+        const c = toCanvas(item.x, item.z);
+        const text = item.name.toUpperCase();
+        const w = ctx.measureText(text).width + 8 * scale, h = labelPx * 1.25;
+        const gap = Math.max(item.radius * s, 12 * scale) + 5 * scale;
+        const inside = r => r.left >= 0 && r.right <= px && r.top >= 0 && r.bottom <= px;
+        const at = (cx, top) => { const x = Math.max(w / 2 + 2 * scale, Math.min(px - w / 2 - 2 * scale, cx)); return { x, left: x - w / 2, right: x + w / 2, top, bottom: top + h }; };
+        const candidates = [at(c.x, c.y + gap), at(c.x, c.y - gap - h), at(c.x + gap + w / 2, c.y - h / 2), at(c.x - gap - w / 2, c.y - h / 2),
+          at(c.x, c.y + gap + 16 * scale), at(c.x, c.y - gap - h - 16 * scale)].filter(inside);
+        const clearOfLabels = candidates.filter(r => !labelRects.some(o => hit(r, o)));
+        const spot = clearOfLabels.find(r => !blockers.some(o => hit(r, o))) ?? clearOfLabels[0];
+        if (!spot) continue;
+        labelRects.push(spot);
+        ctx.fillStyle = '#081016b8';
+        ctx.fillRect(spot.left, spot.top - 1 * scale, w, h);
+        ctx.lineWidth = 3 * scale; ctx.strokeStyle = '#081016e0'; ctx.strokeText(text, spot.x, spot.top + 1 * scale);
+        ctx.fillStyle = '#eef3f6'; ctx.fillText(text, spot.x, spot.top + 1 * scale);
+      }
     }
   }
+}
+
+/** A thin line from a displaced badge back to its true map position. */
+function leader(ctx, badge, scale) {
+  if (Math.hypot(badge.x - badge.ox, badge.y - badge.oy) < 1) return;
+  ctx.save();
+  ctx.beginPath(); ctx.moveTo(badge.ox, badge.oy); ctx.lineTo(badge.x, badge.y);
+  ctx.strokeStyle = '#eef3f6b0'; ctx.lineWidth = 1.2 * scale; ctx.stroke();
+  ctx.beginPath(); ctx.arc(badge.ox, badge.oy, 2 * scale, 0, Math.PI * 2); ctx.fillStyle = '#eef3f6'; ctx.fill();
+  ctx.restore();
+}
+
+/**
+ * Push movable badges (circles {x, y, r}) off the fixed markers and off each
+ * other, at most `maxShift` px from their true spot and inside the map square.
+ * Deterministic: a badge exactly on a marker steps toward the map centre's
+ * opposite side (outward), ties broken by list order.
+ */
+export function declutter(movable, fixed, { px, maxShift = 30, iterations = 24, margin = 2 } = {}) {
+  const push = (b, dx, dy, need) => {
+    let d = Math.hypot(dx, dy);
+    if (d < 1e-3) { const out = Math.atan2(b.oy - px / 2, b.ox - px / 2) || 0; dx = Math.cos(out); dy = Math.sin(out); d = 1; }
+    b.x += dx / d * need; b.y += dy / d * need;
+  };
+  for (let it = 0; it < iterations; it++) {
+    let moved = false;
+    for (let i = 0; i < movable.length; i++) {
+      const b = movable[i];
+      for (const f of fixed) {
+        const need = b.r + f.r + margin - Math.hypot(b.x - f.x, b.y - f.y);
+        if (need > 0.25) { push(b, b.x - f.x, b.y - f.y, need); moved = true; }
+      }
+      for (let j = 0; j < i; j++) {
+        const o = movable[j];
+        const need = b.r + o.r + margin - Math.hypot(b.x - o.x, b.y - o.y);
+        if (need > 0.25) {
+          // Split the step, the later badge moving more, so equal spots separate deterministically.
+          const dx = b.x - o.x || (i - j), dy = b.y - o.y;
+          push(b, dx, dy, need * 0.6); push(o, -dx, -dy, need * 0.4); moved = true;
+        }
+      }
+    }
+    for (const b of movable) {
+      const dx = b.x - b.ox, dy = b.y - b.oy, d = Math.hypot(dx, dy);
+      if (d > maxShift) { b.x = b.ox + dx / d * maxShift; b.y = b.oy + dy / d * maxShift; }
+      b.x = Math.max(b.r, Math.min(px - b.r, b.x)); b.y = Math.max(b.r, Math.min(px - b.r, b.y));
+    }
+    if (!moved) break;
+  }
+  return movable;
 }
 
 /** Full-screen map overlay toggled with the bigMap binding (M) or the touch map button. */

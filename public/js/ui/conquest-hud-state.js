@@ -15,7 +15,7 @@ import {
 } from '../../../shared/conquest.js';
 import * as vehicleDefs from '../../../shared/vehicle-defs.js';
 import { WEAPON_NAMES } from './hud-support.js';
-import { relativeTeam, teamDisplayName } from './conquest/scoring.js';
+import { relativeTeam, squadName, teamDisplayName } from './conquest/scoring.js';
 import {
   angleTo, ballisticPoint, clampToEdge, forwardFromAngles, leadPoint, localPlanar,
 } from './conquest/projection.js';
@@ -179,6 +179,27 @@ export function squadOf(cq, self, players = []) {
     (decodeConquestPlayer(p)?.squad | 0) === squad) : [];
   const entry = cq?.squads?.find(s => s.team === team && s.squadId === squad) ?? null;
   return { squad, leaderId: entry?.leaderId ?? null, mates };
+}
+
+/**
+ * Squad list beside the minimap: the local player's squadmates from their
+ * authoritative rows (cq kit / squad / down, hp, state, vehicleId), leader
+ * first. A mate in a hull shows that hull instead of the kit. Null without a
+ * squad or squadmates.
+ */
+export function squadListModel({ cq, self, players = [], vehicles = [] } = {}) {
+  if (!self) return null;
+  const { squad, leaderId, mates } = squadOf(cq, self, players);
+  if (!(squad > 0) || !mates.length) return null;
+  const hulls = new Map((vehicles || []).filter(Boolean).map(v => [String(v.id), v]));
+  const rows = mates.map(p => {
+    const info = decodeConquestPlayer(p);
+    const state = info?.down ? 'down' : alive(p) ? 'alive' : 'dead';
+    const hull = state === 'alive' && p.vehicleId != null ? hulls.get(String(p.vehicleId)) : null;
+    return { id: String(p.id), name: p.name || '', kit: info?.kit ?? null, state, vehicleType: hull?.type ?? null,
+      leader: leaderId != null && String(leaderId) === String(p.id) };
+  }).sort((a, b) => (b.leader - a.leader) || a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+  return { squad, name: squadName(squad), selfLeader: leaderId != null && String(leaderId) === String(self.id), rows };
 }
 
 /** Restricted / out-of-bounds countdown from cq[4]. */
@@ -506,50 +527,63 @@ export function flagMarkerModels(cq, self, selfTeam, projector, insets) {
 
 /** Screen box of one flag marker around its centre: the 40 px diamond plus the distance label below it. */
 export const FLAG_MARKER_BOX = Object.freeze({ left: 24, right: 24, top: 22, bottom: 36 });
+/** Clear space kept between two flag markers, so a column of edge markers reads as separate markers. */
+export const EDGE_MARKER_GAP = 10;
 const EDGE_STEP = 4;
 
 /**
  * Edge-clamped flag markers slide along their border so they never stack on
  * each other or on fixed HUD panels (`obstacles`: screen rects of the minimap,
  * vehicle card, touch buttons...). Nearest flags keep their natural slot first;
- * a marker whose border is full moves to the nearest free slot on another
- * border, and one with no free slot anywhere stays where the clamp put it.
- * On-screen markers are world-anchored: they never move but are avoided.
+ * the others slide away from their nearest neighbour on the same border, so
+ * the order along the border follows the flags' bearings. A marker whose border
+ * is full moves to the nearest free slot on another border; when no slot clears
+ * the panels it still keeps clear of the other markers (a marker over a panel
+ * edge reads better than two piled markers). On-screen markers are
+ * world-anchored: they never move but are avoided.
  */
-export function spreadEdgeMarkers(models, { width, height, insets = {}, obstacles = [], box = FLAG_MARKER_BOX } = {}) {
+export function spreadEdgeMarkers(models, { width, height, insets = {}, obstacles = [], box = FLAG_MARKER_BOX, gap = EDGE_MARKER_GAP } = {}) {
   if (!Array.isArray(models) || !models.some(m => m.edge && !m.inside)) return models;
   const { top = 72, bottom = 96, left = 40, right = 40 } = insets;
   const minX = left, maxX = width - right, minY = top, maxY = height - bottom;
-  const rectAt = (x, y) => ({ left: x - box.left, right: x + box.right, top: y - box.top, bottom: y + box.bottom });
+  const pad = gap / 2;
+  const rectAt = (x, y, grow = 0) => ({ left: x - box.left - grow, right: x + box.right + grow, top: y - box.top - grow, bottom: y + box.bottom + grow });
   const hits = (a, b) => a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
   const out = models.map(m => ({ ...m }));
-  // World-anchored on-screen markers stay put; edge markers keep clear of them too.
-  const placed = out.filter(m => !m.edge && !m.inside).map(m => rectAt(m.x, m.y));
-  const free = r => !obstacles.some(o => o && hits(r, o)) && !placed.some(p => hits(r, p));
+  // Marker rects carry half the gap each, so two neighbours keep `gap` px between them.
+  const placed = out.filter(m => !m.edge && !m.inside).map(m => rectAt(m.x, m.y, pad));
+  const clearOfMarkers = (x, y) => { const r = rectAt(x, y, pad); return !placed.some(p => hits(r, p)); };
+  const clearOfPanels = (x, y) => { const r = rectAt(x, y); return !obstacles.some(o => o && hits(r, o)); };
+  const free = (x, y) => clearOfPanels(x, y) && clearOfMarkers(x, y);
+  const onBorder = [];
   const order = out.filter(m => m.edge && !m.inside).sort((a, b) => a.distance - b.distance || String(a.id).localeCompare(String(b.id)));
+  const around = [];
+  for (let x = minX; x <= maxX; x += EDGE_STEP) around.push({ x, y: minY }, { x, y: maxY });
+  for (let y = minY; y <= maxY; y += EDGE_STEP) around.push({ x: minX, y }, { x: maxX, y });
+  const nearestOf = (list, m) => list.reduce((best, p) => (!best || Math.hypot(p.x - m.x, p.y - m.y) < Math.hypot(best.x - m.x, best.y - m.y) ? p : best), null);
   for (const m of order) {
     // Left / right borders slide vertically; top / bottom borders slide horizontally.
     const vertical = Math.abs(m.x - minX) < 0.5 || Math.abs(m.x - maxX) < 0.5;
+    const side = vertical ? (m.x < width / 2 ? 'left' : 'right') : (m.y < height / 2 ? 'top' : 'bottom');
     const [lo, hi, start] = vertical ? [minY, maxY, m.y] : [minX, maxX, m.x];
+    // Slide away from the nearest already placed neighbour on this border (keeps the bearing order).
+    const neighbour = onBorder.filter(n => n.side === side).reduce((best, n) => (!best || Math.abs(n.along - start) < Math.abs(best.along - start) ? n : best), null);
+    const dir = neighbour && start < neighbour.along ? -1 : 1;
     const span = Math.max(start - lo, hi - start);
     let spot = null;
     for (let d = 0; d <= span && !spot; d += EDGE_STEP) {
-      for (const along of d === 0 ? [start] : [start + d, start - d]) {
+      for (const along of d === 0 ? [start] : [start + d * dir, start - d * dir]) {
         if (along < lo || along > hi) continue;
         const x = vertical ? m.x : along, y = vertical ? along : m.y;
-        if (free(rectAt(x, y))) { spot = { x, y }; break; }
+        if (free(x, y)) { spot = { x, y }; break; }
       }
     }
-    // A full border (phone landscape has room for about two per side): take the nearest free slot on the others.
-    if (!spot) {
-      const around = [];
-      for (let x = minX; x <= maxX; x += EDGE_STEP) around.push({ x, y: minY }, { x, y: maxY });
-      for (let y = minY; y <= maxY; y += EDGE_STEP) around.push({ x: minX, y }, { x: maxX, y });
-      spot = around.filter(p => free(rectAt(p.x, p.y)))
-        .reduce((best, p) => (!best || Math.hypot(p.x - m.x, p.y - m.y) < Math.hypot(best.x - m.x, best.y - m.y) ? p : best), null);
-    }
+    // A full border (phone landscape has room for about two per side): take the nearest free slot on the others,
+    // then the nearest slot that at least clears the other markers.
+    if (!spot) spot = nearestOf(around.filter(p => free(p.x, p.y)), m) ?? nearestOf(around.filter(p => clearOfMarkers(p.x, p.y)), m);
     if (spot) { m.x = spot.x; m.y = spot.y; }
-    placed.push(rectAt(m.x, m.y));
+    placed.push(rectAt(m.x, m.y, pad));
+    onBorder.push({ side, along: start });
   }
   return out;
 }

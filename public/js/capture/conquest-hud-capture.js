@@ -153,7 +153,7 @@ function boxes() {
     .map(n => ({ id: n.querySelector('.cq-flag-marker-letter')?.textContent || '?', box: union(rect(n), rect(n.querySelector('.cq-flag-marker-distance'))) }))
     .filter(f => f.box);
   return {
-    top: one('.cq-top'), banner: one('.cq-banner'), ring: one('.cq-ring'), ticker: one('.cq-ticker'), minimap: one('.cq-minimap'),
+    top: one('.cq-top'), banner: one('.cq-banner'), ring: one('.cq-ring'), ticker: one('.cq-ticker'), minimap: one('.cq-minimap'), squad: one('.cq-squad'),
     'map-hint': one('.cq-map-hint'), vehicle: one('.cq-vehicle'), interact: one('.cq-interact'), lock: one('.cq-lock'), restricted: one('.cq-restricted'),
     healthbar: one('#healthbar'), ammo: one('#ammo'), grenades: one('#grenade-count'), 'reload-hint': one('#reload-hint'), killfeed: one('#killfeed'),
     // The result panel fills phone screens: its header texts are what must clear the pause button.

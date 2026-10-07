@@ -9,7 +9,7 @@ import { bindingLabel, isTypingTarget, matchesBinding } from '../keybindings.js'
 import {
   bannerForEvent, captureRingModel, conquestTouchFields, flagChipModels, flagMarkerModels, hullZoneFlash, interactModel, isAircraftType,
   killerCard, lockerModel, mapItems, matchEndBanner, nextFreeSeatIndex, readConquest, restrictedModel, reticleModel, scoreEntry,
-  seatedVehicle, spreadEdgeMarkers, ticketModel, unitMarkerModels, vehicleHitMark, vehiclePanelModel,
+  seatedVehicle, spreadEdgeMarkers, squadListModel, ticketModel, unitMarkerModels, vehicleHitMark, vehiclePanelModel,
 } from './conquest-hud-state.js';
 import { CONQUEST_TOUCH_EVENT } from '../engine/touch-controls.js';
 import { el } from './hud-support.js';
@@ -23,6 +23,7 @@ import { Minimap } from './conquest/minimap.js';
 import { cameraAngles, cameraPosition, createProjector } from './conquest/projection.js';
 import { Reticles } from './conquest/reticles.js';
 import { ScoreTicker } from './conquest/score-ticker.js';
+import { SquadList } from './conquest/squad-list.js';
 import { TopBar } from './conquest/top-bar.js';
 import { VehiclePanel } from './conquest/vehicle-panel.js';
 
@@ -32,7 +33,7 @@ const MARKER_INSETS_TOUCH = Object.freeze({ top: 124, bottom: 150, left: 28, rig
 /** Phone landscape: HP card, minimap and MAP / SPOT fill the left edge, so left markers clamp right of them. */
 const MARKER_INSETS_TOUCH_LANDSCAPE = Object.freeze({ top: 124, bottom: 150, left: 196, right: 28 });
 /** Fixed HUD panels edge-clamped flag markers keep clear of (re-measured at most every OBSTACLE_MS). */
-const MARKER_OBSTACLES = ['.cq-minimap', '.cq-map-hint', '.cq-vehicle', '.cq-top', '.cq-banner', '.cq-ring', '.cq-interact', '.cq-lock',
+const MARKER_OBSTACLES = ['.cq-minimap', '.cq-squad', '.cq-map-hint', '.cq-vehicle', '.cq-top', '.cq-banner', '.cq-ring', '.cq-interact', '.cq-lock',
   '.cq-restricted', '#healthbar', '#ammo', '#grenade-count', '.vb-touch-button'].join(', ');
 const OBSTACLE_MS = 400;
 /** The crosshair and its reticle labels (vehicle ammo, lock, pipper): clamped edge markers stay out of it. */
@@ -63,6 +64,7 @@ export class ConquestHud {
     this.lock = new LockWarning(this.root);
     this.restricted = new RestrictedOverlay(this.root);
     this.minimap = new Minimap(this.root, { onOpen: () => this.toggleBigMap(true) });
+    this.squadList = new SquadList(this.root);
     this.vehiclePanel = new VehiclePanel(this.root);
     this.interact = new InteractPrompt(this.root, { onInteract, onSupport });
     this.spotFlash = el('div', 'cq-spot-flash', this.root);
@@ -328,10 +330,12 @@ export class ConquestHud {
       this.reticles.clear();
       this.markers.clear();
       this.minimap.root.hidden = true;
+      this.squadList.update(null);
       this.deploy.update({ cq, self, players, vehicles, nowMs: now, mapItems: items, meta: cq.meta });
       return;
     }
     this.minimap.root.hidden = false;
+    this.squadList.update(squadListModel({ cq, self, players, vehicles }));
     // Airborne aircraft crew never count toward a capture (spec F1), so no ring for them.
     const airborne = !!seated && isAircraftType(seated.row.type) && seated.row.grounded === false;
     this.ring.update(airborne ? null : captureRingModel(cq, self, selfTeam));

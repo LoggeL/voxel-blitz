@@ -18,6 +18,7 @@ const { supportPump, SUPPORT_INTERVAL_MS } = await import('../public/js/ui/conqu
 const { stackTicker, TICKER_HOLD_MS } = await import('../public/js/ui/conquest/score-ticker.js');
 const { scheduleBanner, tickBanners, BANNER_MS } = await import('../public/js/ui/conquest/banners.js');
 const { zonePaths } = await import('../public/js/ui/conquest/vehicle-panel.js');
+const { declutter } = await import('../public/js/ui/conquest/big-map.js');
 const { KILL_KEY_ICONS, ICON_PATHS } = await import('../public/js/ui/conquest/icons.js');
 const { conquestHudFixtures, fixtureMapMeta, FIXTURE_NOW } = await import('../public/js/capture/conquest-hud-fixtures.js');
 const { WEAPON_NAMES, VEHICLE_KILL_KEYS, isVehicleKillKey } = await import('../public/js/ui/hud-support.js');
@@ -285,7 +286,46 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
     { width: 1440, height: 900, insets, obstacles: [minimapBox] })[0];
   assert.ok(blocked.y + box.bottom <= minimapBox.top, `an edge marker leaves the minimap (y ${blocked.y})`);
   assert.equal(state.spreadEdgeMarkers(flags, { width: VIEW.width, height: VIEW.height, insets }).length, flags.length);
+  // A pile on one border keeps the bearing order (B above A above D), with a clear gap between neighbours.
+  const pile = state.spreadEdgeMarkers([
+    { id: 'A', x: 1392, y: 400, edge: true, inside: false, distance: 100 },
+    { id: 'B', x: 1392, y: 396, edge: true, inside: false, distance: 200 },
+    { id: 'D', x: 1392, y: 404, edge: true, inside: false, distance: 300 },
+    { id: 'E', x: 1392, y: 401, edge: true, inside: false, distance: 400 },
+  ], { width: 1440, height: 900, insets });
+  const py = id => pile.find(m => m.id === id).y;
+  assert.equal(py('A'), 400, 'the nearest keeps its slot');
+  assert.ok(py('B') < py('A') && py('D') > py('A'), `order follows the clamp order (B ${py('B')}, A 400, D ${py('D')})`);
+  const ys = pile.map(m => m.y).sort((a, b) => a - b);
+  for (let i = 1; i < ys.length; i++) assert.ok(ys[i] - ys[i - 1] >= box.top + box.bottom + state.EDGE_MARKER_GAP, `gap between piled markers (${ys.join(', ')})`);
+  assert.ok(pile.every(m => m.x === 1392), 'a pile with room stays on its border');
+  // A border too short for all of them still never stacks two markers.
+  const crowded = state.spreadEdgeMarkers(['A', 'B', 'C', 'D', 'E'].map((id, i) => ({ id, x: 196, y: 180, edge: true, inside: false, distance: 100 + i })),
+    { width: 844, height: 390, insets: { top: 124, bottom: 150, left: 196, right: 28 }, obstacles: [{ left: 0, top: 0, right: 844, bottom: 100 }] });
+  for (let i = 0; i < crowded.length; i++) for (let j = 0; j < i; j++) {
+    const a = crowded[i], b = crowded[j];
+    assert.ok(Math.abs(a.x - b.x) >= box.left + box.right || Math.abs(a.y - b.y) >= box.top + box.bottom, `${a.id} and ${b.id} do not stack`);
+  }
 
+  // Squad list beside the minimap.
+  const squadFix = byId('capturing');
+  const model = state.squadListModel({ cq: cqOf(squadFix), self: squadFix.self, players: squadFix.players, vehicles: squadFix.vehicles });
+  assert.equal(model.name, 'ALPHA'); assert.equal(model.selfLeader, true, 'squad 1 is led by the local player');
+  assert.deepEqual(model.rows.map(r => [r.name, r.kit, r.state, r.vehicleType]),
+    [['Brannock', 'support', 'alive', null], ['Halden', 'assault', 'alive', null], ['Kestrel', 'engineer', 'alive', null]],
+    'squadmates only (no self, no other squad), kits from cq[0]');
+  const rv = byId('revive');
+  const downRow = state.squadListModel({ cq: cqOf(rv), self: rv.self, players: rv.players }).rows.find(r => r.name === 'Mercer');
+  assert.equal(downRow.state, 'down', 'a downed mate reads DOWN');
+  assert.ok(!state.squadListModel({ cq: cqOf(rv), self: rv.self, players: rv.players }).rows.some(r => r.name === 'Lindqvist'), 'other squads stay out');
+  // Seated mates show their hull; a dead (not downed) mate reads DEAD; the leader is flagged.
+  const seatedPlayers = squadFix.players.map(p => p.id === 'sq1' ? { ...p, vehicleId: 'alpha-helicopter', vehicleSeatId: 'gunner' } : p.id === 'sq2' ? { ...p, hp: 0, state: 'dead' } : p);
+  const cqCap = cqOf(squadFix);
+  const led = { ...cqCap, squads: cqCap.squads.map(sq => sq.team === 'alpha' && sq.squadId === 1 ? { ...sq, leaderId: 'sq1' } : sq) };
+  const seated = state.squadListModel({ cq: led, self: squadFix.self, players: seatedPlayers, vehicles: squadFix.vehicles });
+  assert.deepEqual(seated.rows.map(r => [r.name, r.state, r.vehicleType, r.leader]),
+    [['Kestrel', 'alive', 'helicopter', true], ['Brannock', 'dead', null, false], ['Halden', 'alive', null, false]], 'leader first, hull and death from the rows');
+  assert.equal(state.squadListModel({ cq: cqCap, self: { ...squadFix.self, cq: [0, 0, 0, 0, 0, 0, 0] }, players: squadFix.players }), null, 'no squad, no list');
   const revive = byId('revive');
   const units = state.unitMarkerModels({ self: revive.self, players: revive.players, vehicles: revive.vehicles, selfTeam: 'alpha', projector: projectorFor(revive) });
   assert.deepEqual(units.filter(u => u.kind === 'down').map(u => u.id).sort(), ['dn1', 'dn2'], 'downed teammates within 40 m');
@@ -571,6 +611,29 @@ ok();
   assert.equal(big.bigMap.open, true); assert.equal(big.bigMap.root.hidden, false);
   const bigText = textsDrawn(big.bigMap.map.context);
   for (const name of ['KESTREL FARM', 'IRON BRIDGE', 'KESSLER WORKS']) assert.ok(bigText.includes(name), `big map labels ${name}`);
+  const squadHud = rendered.get('capturing').hud;
+  assert.equal(squadHud.squadList.root.hidden, false);
+  assert.equal(squadHud.squadList.head.textContent, 'ALPHA SQUAD');
+  assert.deepEqual(squadHud.squadList.rows.filter(n => !n.hidden).map(n => n.label.textContent), ['Brannock', 'Halden', 'Kestrel']);
+  assert.equal(rendered.get('deploy').hud.squadList.root.hidden, true, 'no squad list while dead (deploy screen)');
+  const rev = rendered.get('revive').hud.squadList.rows.find(n => n.label.textContent === 'Mercer');
+  assert.equal(rev.dataset.state, 'down'); assert.equal(rev.state.textContent, 'DOWN');
+  // Map layering: flag names paint after every hull and spawn badge, so no badge covers a name.
+  for (const [id, map] of [['deploy', rendered.get('deploy').hud.deploy.map], ['big-map', big.bigMap.map]]) {
+    const all = map.context.calls;
+    const calls = all.slice(all.findLastIndex(c => c[0] === 'clearRect'));
+    const lastBadge = calls.findLastIndex(c => c[0] === 'arc' || c[0] === 'fill');
+    const firstName = calls.findIndex(c => c[0] === 'fillText' && c[1] === 'IRON BRIDGE');
+    assert.ok(firstName > lastBadge, `${id}: IRON BRIDGE is drawn above the badges (${firstName} > ${lastBadge})`);
+  }
+  // Badges on a flag step aside, at most maxShift from their true spot, and off each other.
+  const badges = [{ x: 100, y: 100, ox: 100, oy: 100, r: 10 }, { x: 101, y: 100, ox: 101, oy: 100, r: 10 }];
+  declutter(badges, [{ x: 100, y: 100, r: 15 }], { px: 400, maxShift: 40 });
+  for (const b of badges) {
+    assert.ok(Math.hypot(b.x - 100, b.y - 100) >= 25 - 0.5, `badge clears the flag (${b.x.toFixed(1)}, ${b.y.toFixed(1)})`);
+    assert.ok(Math.hypot(b.x - b.ox, b.y - b.oy) <= 40 + 1e-6, 'badge stays near its true spot');
+  }
+  assert.ok(Math.hypot(badges[0].x - badges[1].x, badges[0].y - badges[1].y) >= 20 - 0.5, 'badges clear each other');
   ok();
 }
 

@@ -10,6 +10,13 @@ const CONQUEST_HINT = `${FRONTIER_PLAN.dimensions.sx} × ${FRONTIER_PLAN.dimensi
   + 'Squads of four deploy on HQ, held flags, squadmates or vehicles. Drive jeeps and tanks, fly attack and transport helicopters and jets. '
   + 'Hold three or more flags to bleed enemy tickets.';
 
+/**
+ * Map menu label: the map label without a trailing "W × H" size, which the
+ * capacity line under the menu already shows. The closed menu is about 30
+ * characters wide, and "FRONTIER · 768 × 768 · 16 PLAYERS" was cut off.
+ */
+export const mapOptionLabel = id => String(MAP_LABELS[id] || id).replace(/\s*·\s*\d+\s*×\s*\d+\s*$/, '');
+
 /** Host controls edit the authoritative waiting room, never a draft lobby. */
 export class LobbySettings {
   constructor(parent, onChange) {
@@ -83,7 +90,7 @@ export class LobbySettings {
     this.controls.map.value = mapForMode(mode, preferred);
     for (const option of this.controls.map.options) {
       const limit = lobbyCapacity(mode, option.value);
-      option.textContent = `${MAP_LABELS[option.value]} · ${limit} PLAYERS`;
+      option.textContent = `${mapOptionLabel(option.value)} · ${limit} PLAYERS`;
       option.disabled = this.humanCount > limit;
     }
   }
