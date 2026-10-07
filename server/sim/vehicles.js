@@ -17,6 +17,8 @@ import { stepJeepDrive } from '../../shared/vehicle-handling/jeep.js';
 import { stepTankDrive } from '../../shared/vehicle-handling/tank.js';
 import { stepHelicopterFlight } from '../../shared/vehicle-handling/helicopter.js';
 import { stepPlaneFlight } from '../../shared/vehicle-handling/plane.js';
+import { CHUTE, EJECTION } from '../../shared/parachute.js';
+import { markLaunched } from './player.js';
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, Number.isFinite(n) ? n : 0));
 const finite = (n, fallback = 0) => Number.isFinite(n) ? n : fallback;
@@ -38,6 +40,13 @@ const spawnRoutes = spawn => Object.fromEntries(['walkingRoute','exitRoute'].fla
 }));
 const padAlternate = spawn => Number.isFinite(spawn.altX) && Number.isFinite(spawn.altZ)
   ? { x: spawn.altX, y: finite(spawn.altY, spawn.y), z: spawn.altZ, yaw: finite(spawn.altYaw, finite(spawn.yaw)) } : null;
+/** A human who takes a driving seat of an airborne aircraft gets this long of
+ * neutral stick (hold attitude, keep throttle) until their client's first
+ * mounted control packet arrives, so the hull never lurches or drops. */
+export const SEAT_TAKEOVER_GRACE_SECONDS = 1;
+const TAKEOVER_HOLD_INPUT = Object.freeze({ keys: Object.freeze({}), vehicleThrottle: 0, vehicleSteer: 0, vehicleLift: 0, vehicleBrake: 0,
+  vehiclePitchControl: 0, vehicleRollControl: 0, vehicleYawControl: 0 });
+const EJECTION_TYPES = new Set(EJECTION.types);
 export const RUNOVER_RULES = Object.freeze({ minSpeed: 5, maxDamage: 100, cooldownSeconds: 0.75, separateSeconds: 0.12 });
 export const VEHICLE_MOMENTUM_RULES = Object.freeze({ driverCreditSeconds: 5, exitHorizontalSpeed: 16, ejectHorizontalSpeed: 36, ejectVerticalSpeed: 20 });
 /** Heavy hulls below this speed shove a pinned body sideways instead of stopping. */
@@ -323,30 +332,62 @@ export class VehicleSystem {
     const v = this.vehicles.get(id);
     if (!p || this.engine.entities.get(String(p.id)) !== p || p.state !== 'alive' || p.vehicleId || !v || !(v.hp > 0) || v.padInactive
       || this.teamOf(p) !== v.team || Math.hypot(p.x-v.x,p.y-v.y,p.z-v.z) > vehicleEnterDistance(v.type)) return false;
+    if (p.chute) { p.chute = CHUTE.none; p.chuteT = 0; }
     if (this.engine.mode?.canFire && !this.engine.mode.canFire(p)) return false;
     this.cleanCrew(v);
     const free = seat => vehicleSeatOccupantId(v, seat.id) == null;
-    const seat = requestedSeatId != null ? vehicleSeats(v).find(item => item.id === requestedSeatId && free(item)) : vehicleSeats(v).find(free);
+    // A human takes a seat a bot holds (the requested one, else a free seat
+    // first, then the first bot seat in F-key order); the bot is put out.
+    const takeable = seat => !free(seat) && !!this.botTakeover(p, v, seat.id);
+    const seats = vehicleSeats(v);
+    const seat = requestedSeatId != null ? seats.find(item => item.id === requestedSeatId && (free(item) || takeable(item)))
+      : seats.find(free) ?? seats.find(takeable);
     if (!seat) return false;
+    const bot = free(seat) ? null : this.botTakeover(p, v, seat.id);
+    if (bot) this.exit(bot);
+    if (!free(seat)) return false;
+    const airborne = isAircraft(v.type) && !v.grounded;
     v.seatOccupants[seat.id] = String(p.id);
-    if (seat.drives) { this.lastDrivers.delete(v.id); v.occupantId = String(p.id); v.engineOn = true; }
+    if (seat.drives) { this.lastDrivers.delete(v.id); v.occupantId = String(p.id); v.engineOn = true; this.takeoverGrace(p, v, airborne); }
     p.vehicleId = v.id; p.vehicleSeatId = seat.id; p.ghostVehicleId = null;
     this.sync(p,v); return true;
+  }
+  /** The bot a human `p` may put out of `seatId` (never a human, never for a bot), or null. */
+  botTakeover(p, v, seatId) {
+    if (!p || p.bot) return null;
+    const occupant = this.seatOccupant(v, seatId);
+    return occupant && occupant !== p && occupant.bot === true && this.teamOf(occupant) === this.teamOf(p) ? occupant : null;
+  }
+  /** Neutral controls for a human taking the stick of an airborne aircraft (see SEAT_TAKEOVER_GRACE_SECONDS). */
+  takeoverGrace(p, v, airborne) {
+    p.seatGraceUntil = airborne && !p.bot ? this.contactClock + SEAT_TAKEOVER_GRACE_SECONDS : 0;
+    p.seatGraceVehicleId = v.id;
   }
   /** Move a seated player to another free seat of the same hull at once. */
   switchSeat(p, seatId) {
     const v = this.vehicles.get(p?.vehicleId), from = this.seatFor(p, v), to = v && vehicleSeatDefinition(v, seatId);
-    if (!from || !to || from.id === to.id || !(v.hp > 0) || p.state !== 'alive' || vehicleSeatOccupantId(v, to.id) != null) return false;
+    if (!from || !to || from.id === to.id || !(v.hp > 0) || p.state !== 'alive') return false;
+    // A bot in the wanted seat swaps into the human's seat instead of blocking it.
+    const bot = vehicleSeatOccupantId(v, to.id) != null ? this.botTakeover(p, v, to.id) : null;
+    if (vehicleSeatOccupantId(v, to.id) != null && !bot) return false;
+    const airborne = isAircraft(v.type) && !v.grounded;
     v.seatOccupants[from.id] = null;
     if (from.drives) {
-      this.lastDrivers.set(v.id, { player:p, team:this.teamOf(p), deaths:p.deaths, expires:this.contactClock + VEHICLE_MOMENTUM_RULES.driverCreditSeconds });
+      if (!bot) this.lastDrivers.set(v.id, { player:p, team:this.teamOf(p), deaths:p.deaths, expires:this.contactClock + VEHICLE_MOMENTUM_RULES.driverCreditSeconds });
       v.occupantId = null; v.engineOn = false;
     }
+    if (bot) {
+      v.seatOccupants[from.id] = String(bot.id);
+      bot.vehicleSeatId = from.id;
+      if (from.drives) { v.occupantId = String(bot.id); v.engineOn = true; }
+      this.clearSeatStance(bot);
+    }
     v.seatOccupants[to.id] = String(p.id);
-    if (to.drives) { this.lastDrivers.delete(v.id); v.occupantId = String(p.id); v.engineOn = true; }
+    if (to.drives) { this.lastDrivers.delete(v.id); v.occupantId = String(p.id); v.engineOn = true; this.takeoverGrace(p, v, airborne); }
     p.vehicleSeatId = to.id;
     this.clearSeatStance(p);
     this.sync(p, v);
+    if (bot) this.sync(bot, v);
     return true;
   }
   /** Exit never fails: eight angles around the hull, then the roof, then a forced eject. */
@@ -364,10 +405,38 @@ export class VehicleSystem {
   eject(p, v = this.vehicles.get(p?.vehicleId)) {
     const seat = this.seatFor(p, v);
     if (!seat) return false;
+    if (seat.drives && EJECTION_TYPES.has(v.type) && !v.grounded) return this.ejectionSeat(p, v, seat);
     const spot = this.exitSpot(p, v, seat, true);
     this.release(p);
     Object.assign(p, { x: spot.x, y: spot.y, z: spot.z, ...this.exitVelocity(v, true), grounded: false, coyote: 0, jumpGroundY: null, vault: null, slide: null });
+    // Clients adopt the inherited velocity at once (the impulse sequence).
+    markLaunched(p);
     if (spot.ghost) this.ghost(p, v);
+    return true;
+  }
+  /**
+   * Jet ejection (shared/parachute.js EJECTION): the seat leaves the cockpit
+   * along the airframe's up axis blended with world up, keeps part of the jet's
+   * momentum, rides ballistic for EJECTION.seatSeconds and then opens the
+   * canopy. The empty jet flies on without a pilot until it crashes.
+   */
+  ejectionSeat(p, v, seat) {
+    const pose = vehicleSeatPose(v, seat.id);
+    const origin = vehicleLocalPoint(v, 0, 0, 0), up = vehicleLocalPoint(v, 0, 1, 0);
+    let ux = up[0] - origin[0], uy = up[1] - origin[1] + 1, uz = up[2] - origin[2];
+    const length = Math.hypot(ux, uy, uz) || 1;
+    ux /= length; uy /= length; uz /= length;
+    const carry = EJECTION.carry, hx = finite(v.vx) * carry, hz = finite(v.vz) * carry, horizontal = Math.hypot(hx, hz);
+    const scale = horizontal > EJECTION.maxCarry ? EJECTION.maxCarry / horizontal : 1;
+    const velocity = { vx: hx * scale + ux * EJECTION.launchSpeed, vy: finite(v.vy) * carry + uy * EJECTION.launchSpeed, vz: hz * scale + uz * EJECTION.launchSpeed };
+    this.release(p);
+    Object.assign(p, { x: pose.x, y: pose.y, z: pose.z, ...velocity, grounded: false, coyote: 0, jumpGroundY: null, vault: null, slide: null,
+      chute: CHUTE.seat, chuteT: EJECTION.seatSeconds });
+    markLaunched(p);
+    // The seat clears the canopy frame and the tail it climbs past.
+    this.ghost(p, v);
+    this.engine.tickEvents?.push({ t: 'ev', kind: 'ejection', id: String(p.id), vehicleId: v.id,
+      pos: [q(pose.x, 100), q(pose.y, 100), q(pose.z, 100)], vel: [q(velocity.vx, 100), q(velocity.vy, 100), q(velocity.vz, 100)], yaw: q(v.yaw, 1000) });
     return true;
   }
   ghost(p, v) { p.ghostVehicleId = v.id; p.ghostUntil = this.contactClock + VEHICLE_LIFECYCLE.exitNoCollideSeconds; }
@@ -1216,7 +1285,11 @@ export class VehicleSystem {
       this.damageModel.step(v, dt);
       if (!(v.hp > 0)) continue;
       const p=this.seatOccupant(v, vehicleDriverSeat(v)?.id ?? 'driver');
-      const input=p?.input || {}, k=input.keys || {};
+      let input=p?.input || {};
+      // A fresh human pilot of an airborne hull holds the stick neutral until
+      // their client's first mounted packet (vehicleControlId) arrives.
+      if (p && p.seatGraceUntil > this.contactClock && p.seatGraceVehicleId === v.id && input.vehicleControlId !== v.id) input = TAKEOVER_HOLD_INPUT;
+      const k=input.keys || {};
       const allowed = this.canOperate(p);
       v.engineOn=allowed;
       const throttle=allowed ? clamp(input.vehicleThrottle ?? ((k.f?1:0)-(k.b?1:0)),-1,1) : 0;
@@ -1258,16 +1331,21 @@ export class VehicleSystem {
     else rest(v);
     const crew=this.crew(v);
     let crewKilled=0;
+    // A hull lost to its own crash (no enemy behind it) kills its crew with the
+    // kill key 'crash' and no killer, never a "roadkill" of the driver itself.
+    const crashed = !attacker && sourceTeam == null && !!physicalImpact;
     for(const p of crew) {
       this.release(p);
       if(p.state==='alive') {
-        const crewKiller = killer && (killer === p || this.teamOf(killer) !== v.team) ? killer : null;
+        const enemyKiller = killer && this.teamOf(killer) !== v.team ? killer : null;
+        const crewKey = crashed && !enemyKiller ? 'crash' : 'vehicle';
+        const crewKiller = crewKey === 'crash' ? null : killer && (killer === p || this.teamOf(killer) !== v.team) ? killer : null;
         if(typeof p.takeDamage==='function') {
           const crewDamage=Math.max(1,(Number.isFinite(p.hp)?p.hp:100)+(Number.isFinite(p.armor)?Math.max(0,p.armor):0));
-          p.takeDamage(crewDamage,false,crewKiller,'vehicle');
+          p.takeDamage(crewDamage,false,crewKiller,crewKey);
           this.engine.tickEvents?.push(evHit(crewKiller?.id || '',p.id,crewDamage,false,[p.x,p.y+0.8,p.z],p.lastDamage));
         }
-        this.engine.killPlayer?.(p,crewKiller,'vehicle',false);
+        this.engine.killPlayer?.(p,crewKiller,crewKey,false);
         if (p.state !== 'alive') crewKilled++;
       }
     }

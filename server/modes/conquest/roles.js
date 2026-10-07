@@ -11,6 +11,7 @@ import {
   kitId,
   kitLoadout,
   kitWeapons,
+  normalizeGadget,
   normalizeVariant,
 } from '../../../shared/conquest-kits.js';
 import { PLAYER_HALF, WEAPONS, WEAPON_IDS } from '../../../shared/combatmath.js';
@@ -154,12 +155,12 @@ export class ConquestRoles {
     let state = this.states.get(id);
     if (!state && create) {
       state = {
-        kit: null, variant: 0, down: null, session: null,
+        kit: null, variant: 0, gadget: 0, down: null, session: null,
         lastDamageRef: entity && typeof entity === 'object' ? entity.lastDamage ?? null : null,
         lastHp: Number.isFinite(entity?.hp) ? entity.hp : null,
         lastDamagedAt: -Infinity, seatedVehicleId: null,
         repairCredit: new Map(), nextResupplyAt: this.now + KIT_ROLE_RULES.resupplyIntervalMs,
-        lastRefilledAt: -Infinity, resupplyAwards: new Map(),
+        lastRefilledAt: -Infinity, lastGadgetRefillAt: -Infinity, resupplyAwards: new Map(),
       };
       this.states.set(id, state);
     }
@@ -173,6 +174,7 @@ export class ConquestRoles {
 
   kitOf(entity) { return this._state(entity, false)?.kit ?? null; }
   variantOf(entity) { return this._state(entity, false)?.variant ?? 0; }
+  gadgetOf(entity) { return this._state(entity, false)?.gadget ?? 0; }
 
   /**
    * Re-key everything held for `priorId` (a bot taken over by a human keeps
@@ -219,19 +221,22 @@ export class ConquestRoles {
    * Issue the kit inventory for a fresh life. During a revive the kit chosen
    * on the deploy screen is ignored: the body keeps the kit it died with.
    */
-  applyLoadout(entity, kit, variant) {
+  applyLoadout(entity, kit, variant, gadget) {
     const p = this._entity(entity);
     const state = this._state(p);
     if (!p || !state) return null;
-    let nextKit, nextVariant;
+    let nextKit, nextVariant, nextGadget;
     if (this._reviving === idOf(p) && state.kit) {
       nextKit = state.kit;
       nextVariant = state.variant;
+      nextGadget = state.gadget;
     } else {
       nextKit = kitId(kit) ?? state.kit ?? 'assault';
       nextVariant = variant === undefined || variant === null ? (kitId(kit) ? 0 : state.variant) : normalizeVariant(variant);
+      // Backward compatible: no gadget choice means the kit default (the AT launcher).
+      nextGadget = gadget === undefined || gadget === null ? (kitId(kit) ? 0 : state.gadget) : normalizeGadget(nextKit, gadget);
     }
-    const load = kitLoadout(nextKit, nextVariant);
+    const load = kitLoadout(nextKit, nextVariant, nextGadget);
     p.mag = load.mag.slice();
     p.reserve = load.reserve.slice();
     p.grenades = load.grenades.slice();
@@ -244,14 +249,15 @@ export class ConquestRoles {
     p.reloadLoose = 0;
     state.kit = load.kit;
     state.variant = load.variant;
+    state.gadget = load.gadgetIndex;
     state.nextResupplyAt = this.now + KIT_ROLE_RULES.resupplyIntervalMs;
-    return { kit: load.kit, variant: load.variant };
+    return { kit: load.kit, variant: load.variant, gadget: load.gadgetIndex };
   }
 
   /** Weapon ids this player may hold, or null when no kit applies (non-Conquest fallback). */
   owned(entity) {
     const state = this._state(entity, false);
-    return state?.kit ? kitWeapons(state.kit, state.variant).owned : null;
+    return state?.kit ? kitWeapons(state.kit, state.variant, state.gadget).owned : null;
   }
 
   /** Kit weapon gate for ConquestPolicy.canUseWeapon. Without a kit any real weapon passes. */
@@ -282,6 +288,7 @@ export class ConquestRoles {
       until: this.now + this.rules.reviveWindowMs,
       kit: state.kit,
       variant: state.variant,
+      gadget: state.gadget,
       inventory: copyInventory(p),
     };
     return true;
@@ -299,7 +306,7 @@ export class ConquestRoles {
       const hull = vehicles?.get?.(state.seatedVehicleId);
       if (!hull || !finite3(hull) || Math.hypot(hull.x - p.x, hull.z - p.z) <= SEATED_DEATH_REACH) return false;
     }
-    if (weapon === 'vehicle' && vehicles && typeof vehicles.values === 'function') {
+    if ((weapon === 'vehicle' || weapon === 'crash') && vehicles && typeof vehicles.values === 'function') {
       for (const hull of vehicles.values()) {
         if (hull && !(hull.hp > 0) && finite3(hull) && !(hull.wreckAge > 0.5)
             && Math.hypot(hull.x - p.x, hull.y - p.y, hull.z - p.z) <= WRECK_BLAST_REACH) return false;
@@ -539,7 +546,8 @@ export class ConquestRoles {
     // Keep the kit and the inventory the body carried.
     state.kit = down.kit ?? state.kit;
     state.variant = down.variant ?? state.variant;
-    const load = kitLoadout(state.kit ?? 'assault', state.variant);
+    state.gadget = down.gadget ?? state.gadget;
+    const load = kitLoadout(state.kit ?? 'assault', state.variant, state.gadget);
     target.owned = load.owned.slice();
     const inv = down.inventory;
     if (inv?.mag?.length === WEAPON_IDS.length) target.mag = inv.mag.slice();
@@ -608,8 +616,10 @@ export class ConquestRoles {
         if (!mateState?.kit || this.teamOf(mate) !== team) continue;
         if (feetDistance(supporter, mate) > radius) continue;
         if (now - mateState.lastRefilledAt < interval) continue;
-        const given = applyResupply(mate, mateState.kit, mateState.variant);
-        if (!given.reserve && !given.grenade) continue;
+        const gadgetRound = now - mateState.lastGadgetRefillAt >= KIT_ROLE_RULES.gadgetResupplyMs;
+        const given = applyResupply(mate, mateState.kit, mateState.variant, mateState.gadget, { gadgetRound });
+        if (given.gadget) mateState.lastGadgetRefillAt = now;
+        if (!given.reserve && !given.grenade && !given.gadget) continue;
         mateState.lastRefilledAt = now;
         if (mate === supporter || idOf(mate) === idOf(supporter)) continue;
         const last = state.resupplyAwards.get(idOf(mate)) ?? -Infinity;

@@ -91,12 +91,14 @@ const activeFlag = (value, nowMs) => value === true || (Number.isFinite(value) &
 /**
  * Conquest player row `cq` (see decodeConquestPlayer): [kitIndex(-1 none),
  * squadId, down, spotted, restricted tenths of a second, lockProgress 0..100,
- * actionProgress 0..100]. Progress values arrive as 0..1 fractions.
+ * actionProgress 0..100, chute?]. Progress values arrive as 0..1 fractions.
+ * The trailing chute state (1 canopy, 2 ejection seat) is only appended while
+ * airborne under it, so grounded rows keep their 7 entries.
  */
 export function conquestPlayerRow(p, nowMs) {
   const cq = p.conquest;
   const restrictedMs = Number.isFinite(cq.restrictedMs) ? Math.max(0, cq.restrictedMs) : 0;
-  return [
+  const row = [
     KIT_IDS.indexOf(cq.kit),
     Math.max(0, Math.trunc(cq.squad) || 0),
     activeFlag(cq.down, nowMs),
@@ -105,6 +107,8 @@ export function conquestPlayerRow(p, nowMs) {
     percent(p.lockProgress),
     percent(cq.actionProgress),
   ];
+  if (p.chute === 1 || p.chute === 2) row.push(p.chute);
+  return row;
 }
 
 /** Conquest per-player counters `cqs`: [objectiveScore, vehiclesDestroyed, revives, captures]. */

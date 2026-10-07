@@ -335,6 +335,7 @@ export class WeaponState {
         !this._owned.includes(WEAPON_IDS[slot])) {
       return false;
     }
+    if (!this._slotSelectable(slot)) return false;
 
     this._cancelEmptyReload();
     this._stopFlame();
@@ -360,6 +361,26 @@ export class WeaponState {
     return true;
   }
 
+  /**
+   * The launcher digit (the RX-8's slot key) raises whichever Engineer gadget the
+   * authoritative kit carries, so an AA Engineer reaches the STINGER (which has
+   * no digit of its own) with the same key as the AT launcher.
+   */
+  _gadgetSlotAlias(slot) {
+    const rocket = WEAPON_IDS.indexOf('rocket');
+    if (slot !== rocket || !usesAuthoritativeOwnedWeapons(this._mode) || !Array.isArray(this._owned)
+        || this._owned.includes('rocket')) return slot;
+    const gadget = this._owned.find(id => WEAPONS[id]?.gadgetOnly);
+    return gadget ? WEAPON_IDS.indexOf(gadget) : slot;
+  }
+
+  /** Kit-only gadgets (the STINGER) are selectable only when an authoritative kit owns them. */
+  _slotSelectable(slot) {
+    const id = WEAPON_IDS[slot];
+    if (!WEAPONS[id]?.gadgetOnly) return true;
+    return usesAuthoritativeOwnedWeapons(this._mode) && Array.isArray(this._owned) && this._owned.includes(id);
+  }
+
   cycleWeapon(direction, { mode, owned, now = this._now() } = {}) {
     this._setAuthority(mode, owned);
     if (!Number.isFinite(direction) || direction === 0) return false;
@@ -370,6 +391,7 @@ export class WeaponState {
     let currentIndex = -1;
     for (let slot = 0; slot < WEAPON_IDS.length; slot++) {
       if (authoritativeOwned && !this._owned.includes(WEAPON_IDS[slot])) continue;
+      if (!this._slotSelectable(slot)) continue;
       if (slot === this._slot) currentIndex = availableCount;
       availableCount++;
     }
@@ -382,6 +404,7 @@ export class WeaponState {
     let seen = 0;
     for (let slot = 0; slot < WEAPON_IDS.length; slot++) {
       if (authoritativeOwned && !this._owned.includes(WEAPON_IDS[slot])) continue;
+      if (!this._slotSelectable(slot)) continue;
       if (seen === targetIndex) return this.forceWeapon(slot, { now });
       seen++;
     }
@@ -429,7 +452,7 @@ export class WeaponState {
     }
 
     if (switchDelta) this.cycleWeapon(switchDelta, { now });
-    if (slot !== null) this.forceWeapon(slot, { now });
+    if (slot !== null) this.forceWeapon(this._gadgetSlotAlias(slot), { now });
     if (lastWeapon) this.forceWeapon(this._lastSlot, { now });
     // Melee never reloads: a manual request with a no-magazine weapon drawn is a no-op.
     if (reload && !quickMelee && !this.quickMeleeActive && this._alive && this.def.glaive) {
@@ -655,6 +678,11 @@ export class WeaponState {
 
     const input = this._pendingShotIntent;
     if (!input) return false;
+    // AX-9 STINGER: no lock, no launch (the server refuses it too); a tap only clicks.
+    if (def.projectile === 'stinger' && !this._lockReady) {
+      if (input.tap) { this._audio.reloadClick(3, weaponId); this._rig.dryFire?.(); }
+      return false;
+    }
     const mode = def.mode;
     if (mode === 'auto') {
       if (!input.held && !input.tap) return false;
@@ -1003,8 +1031,10 @@ export class WeaponState {
     cameraY = 0,
     cameraZ = 0,
     generation = this._generation,
+    lockReady = false,
   } = {}) {
     this._allowFire = !!allowFire;
+    this._lockReady = !!lockReady;
     this._allowMelee = !!allowMelee;
     this._grenadeHandling = !!grenadeHandling;
     this._alive = !!alive;

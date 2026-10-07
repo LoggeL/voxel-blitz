@@ -1052,6 +1052,8 @@ export class LocalPlayer {
     this.medkit.reconcile(me.medkit);
     if (!authoritativeAlive) this.medkit.cancel();
     if (authoritativeAlive && me.impulse) this.physics.adoptImpulse(me.impulse);
+    // Conquest parachute / ejection seat: cq[7] (absent while not under a canopy).
+    if (authoritativeAlive) this.physics.adoptChute?.(Array.isArray(me.cq) ? me.cq[7] | 0 : 0);
 
     // TTT teleporter returns and map portals both restart prediction at the
     // authoritative body; a portal arrival also adopts the authored heading.

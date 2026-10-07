@@ -23,6 +23,7 @@ export const GLYPH = Object.freeze({
   glaive: 'GV',
   bubble: 'SB',
   mgl: 'GL3',
+  stinger: 'AA',
 });
 
 export const WEAPON_NAMES = Object.freeze({
@@ -41,14 +42,19 @@ export const WEAPON_NAMES = Object.freeze({
   glaive: 'GV-4 RIPTIDE',
   bubble: 'SB-1 SUDSBLASTER',
   mgl: 'GL-3 SKIPJACK',
+  stinger: 'AX-9 STINGER',
   // Conquest kill keys: mounted vehicle weapons, roadkills and the restricted-area timer.
   ...Object.fromEntries(Object.entries(VEHICLE_WEAPON_META).map(([key, meta]) => [key, meta.label])),
   vehicle: 'ROADKILL',
   restricted: 'RESTRICTED AREA',
+  // Conquest fall damage (shared/parachute.js): self death, or credited to the enemy who knocked you off.
+  fall: 'FELL',
+  // Crew of a hull wrecked by its own crash (no enemy behind it).
+  crash: 'CRASHED',
 });
 
 /** Kill keys that have no weapon-slot art; the kill feed draws a vector icon for them. */
-export const VEHICLE_KILL_KEYS = Object.freeze([...Object.keys(VEHICLE_WEAPON_META), 'vehicle', 'restricted']);
+export const VEHICLE_KILL_KEYS = Object.freeze([...Object.keys(VEHICLE_WEAPON_META), 'vehicle', 'restricted', 'fall', 'crash']);
 export const isVehicleKillKey = key => typeof key === 'string' && VEHICLE_KILL_KEYS.includes(key);
 
 export function weaponImagePath(weaponId) {
@@ -91,6 +97,7 @@ export const WEAPON_CLASSES = Object.freeze({
   glaive: `DISC LAUNCHER · RETURN PIERCE ×${WEAPONS.glaive.glaive.pierce}`,
   bubble: 'BUBBLE LAUNCHER · TAP OR HOLD · FLOATS UP',
   mgl: `GRENADE LAUNCHER · ARC & BOUNCE · ${MGL_RULES.maxBounces} SURFACE BOUNCES`,
+  stinger: 'AA LAUNCHER · LOCK ON AIRCRAFT · FLARES DECOY',
 });
 
 export const WEAPON_BUY_ORDER = Object.freeze([

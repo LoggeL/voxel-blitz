@@ -262,6 +262,15 @@ export function vehicleFreeSeats(row) {
   return vehicleSeatIds(row).filter(id => seatOccupant(row, id) == null);
 }
 
+/** Server bot ids are `bot-<n>` (humans are `p<n>_…`); clients read bot seats from that. */
+export const isBotId = id => typeof id === 'string' && /^bot-\d+$/.test(id);
+
+/** Seat ids held by one of `botIds` (a Set of ids), in topology order: a human may take them. */
+export function vehicleBotSeats(row, botIds) {
+  if (!botIds?.size) return [];
+  return vehicleSeatIds(row).filter(id => { const occupant = seatOccupant(row, id); return occupant != null && botIds.has(String(occupant)); });
+}
+
 const vehicleDisabled = row => row?.disabled === true || ((row?.st | 0) & VEHICLE_STATUS.disabled) !== 0
   || ((row?.st | 0) & VEHICLE_STATUS.wreck) !== 0;
 const insideZone = (flag, p, rules) => Number.isFinite(flag?.x) && Number.isFinite(p?.x)
@@ -272,13 +281,15 @@ const insideZone = (flag, p, rules) => Number.isFinite(flag?.x) && Number.isFini
  * Every deploy option of `self` from data both the server and the client own:
  *
  * view = { flags: [{id, x, y, z, radius, owner, state, alpha, bravo}],
- *          players: [{id, team, state, x, y, z, vehicleId, squad}],
+ *          players: [{id, team, state, x, y, z, vehicleId, squad, bot?}],
  *          vehicles: [{id, type, team, hp, seatOccupants, st?, disabled?}] }
- * self = { id, team, squad }
+ * self = { id, team, squad, bot? }
  *
- * Returns `[{spawn, kind, id, ok, reason, x, z, seats?}]`. `reason` is a
- * deploy_refused reason or null. The server adds checks the client cannot see
- * (squad damage lock and cooldown, a flag cell clear of enemy sight).
+ * Returns `[{spawn, kind, id, ok, reason, x, z, seats?, takeover?}]`. `reason`
+ * is a deploy_refused reason or null. A vehicle lists its free `seats` and,
+ * for a human, the `takeover` seats a friendly bot holds: deploying there puts
+ * the bot out. The server adds checks the client cannot see (squad damage lock
+ * and cooldown, a flag cell clear of enemy sight).
  */
 export function deployOptions(view, self, rules = CONQUEST_RULES) {
   const team = self?.team;
@@ -294,6 +305,9 @@ export function deployOptions(view, self, rules = CONQUEST_RULES) {
       x: coord(flag.x), z: coord(flag.z) });
   }
   const vehicles = new Map((Array.isArray(view?.vehicles) ? view.vehicles : []).map(v => [String(v.id), v]));
+  // Humans take seats from friendly bots (never the reverse, never from a human).
+  const bots = self?.bot ? null : new Set((Array.isArray(view?.players) ? view.players : [])
+    .filter(p => p && p.bot === true && p.team === team && p.state === 'alive').map(p => String(p.id)));
   const squad = self?.squad | 0;
   if (squad > 0) {
     for (const mate of Array.isArray(view?.players) ? view.players : []) {
@@ -301,17 +315,23 @@ export function deployOptions(view, self, rules = CONQUEST_RULES) {
       if (mate.state !== 'alive') continue;
       const hull = mate.vehicleId == null ? null : vehicles.get(String(mate.vehicleId));
       const threatened = flags.some(f => f && f.owner === team && f.state === 'neutralizing' && insideZone(f, mate, rules));
-      const reason = hull && AIRCRAFT_SET.has(hull.type) ? 'busy' : threatened ? 'contested' : null;
+      // A mate in an aircraft: spawn into a seat of that aircraft (a free one,
+      // else one a bot holds), BF style; with none left the mate is 'busy'.
+      const aircraft = hull && AIRCRAFT_SET.has(hull.type);
+      const seatId = aircraft && hull.team === team && hull.hp > 0 && !vehicleDisabled(hull)
+        ? vehicleFreeSeats(hull)[0] ?? vehicleBotSeats(hull, bots)[0] ?? null : null;
+      const reason = aircraft && !seatId ? 'busy' : threatened ? 'contested' : null;
       options.push({ spawn: `squad:${mate.id}`, kind: 'squad', id: String(mate.id), ok: !reason, reason,
-        x: coord(mate.x), z: coord(mate.z) });
+        x: coord(mate.x), z: coord(mate.z), ...(seatId ? { vehicleId: String(hull.id), type: hull.type, seatId } : {}) });
     }
   }
   for (const hull of vehicles.values()) {
     if (hull.team !== team || !(hull.hp > 0) || ((hull.st | 0) & VEHICLE_STATUS.wreck)) continue;
     const seats = vehicleFreeSeats(hull);
-    const reason = vehicleDisabled(hull) ? 'busy' : seats.length ? null : 'seat';
+    const takeover = vehicleBotSeats(hull, bots);
+    const reason = vehicleDisabled(hull) ? 'busy' : seats.length || takeover.length ? null : 'seat';
     options.push({ spawn: `vehicle:${hull.id}`, kind: 'vehicle', id: String(hull.id), ok: !reason, reason,
-      x: coord(hull.x), z: coord(hull.z), type: hull.type, seats });
+      x: coord(hull.x), z: coord(hull.z), type: hull.type, seats, ...(takeover.length ? { takeover } : {}) });
   }
   return options;
 }
@@ -327,10 +347,12 @@ export function resolveDeployChoice(options, spawn) {
   const option = (options || []).find(o => o.spawn === key) || null;
   if (!option) return { ok: false, reason: 'invalid', option: null, seatId: null };
   if (!option.ok) return { ok: false, reason: option.reason || 'invalid', option, seatId: null };
-  if (choice.kind !== 'vehicle') return { ok: true, reason: null, option, seatId: null };
-  const seatId = choice.seatId ?? option.seats?.[0] ?? null;
-  if (!seatId || !option.seats?.includes(seatId)) return { ok: false, reason: 'seat', option, seatId: null };
-  return { ok: true, reason: null, option, seatId };
+  // A squad mate in an aircraft resolves to a seat of that aircraft.
+  if (choice.kind !== 'vehicle') return { ok: true, reason: null, option, seatId: choice.kind === 'squad' ? option.seatId ?? null : null };
+  // No named seat: a free one first, else the first seat a bot holds.
+  const seatId = choice.seatId ?? option.seats?.[0] ?? option.takeover?.[0] ?? null;
+  if (!seatId || !(option.seats?.includes(seatId) || option.takeover?.includes(seatId))) return { ok: false, reason: 'seat', option, seatId: null };
+  return { ok: true, reason: null, option, seatId, ...(option.takeover?.includes(seatId) ? { takeover: true } : {}) };
 }
 
 /** Client-side view for deployOptions from a decoded match and snapshot rows. */
@@ -339,7 +361,8 @@ export function deployViewFromSnapshot(decodedMatch, players = [], vehicles = []
     flags: (decodedMatch?.flags || []).map(f => ({ id: f.id, x: f.x, y: f.y, z: f.z, radius: f.radius,
       owner: f.owner, state: f.state, alpha: f.alpha, bravo: f.bravo })),
     players: (players || []).map(p => ({ id: String(p.id), team: p.team, state: p.state, x: p.x, y: p.y, z: p.z,
-      vehicleId: p.vehicleId ?? null, squad: (decodePlayer ? decodePlayer(p)?.squad : p.squad) | 0 })),
+      vehicleId: p.vehicleId ?? null, squad: (decodePlayer ? decodePlayer(p)?.squad : p.squad) | 0,
+      bot: p.bot === true || isBotId(String(p.id)) })),
     vehicles: (vehicles || []).map(v => ({ id: v.id, type: v.type, team: v.team, hp: v.hp, x: v.x, z: v.z,
       seatOccupants: v.seatOccupants, occupantId: v.occupantId, st: v.st, disabled: v.disabled })),
   };

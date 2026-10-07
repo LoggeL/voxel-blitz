@@ -340,6 +340,8 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-spawn-seats { display: flex; flex-wrap: wrap; gap: 4px; padding-left: 40px; }
 .cq-spawn-seat { min-height: 30px; padding: 4px 8px; border: 1px solid var(--cq-line); border-radius: 3px; background: #0e1820; color: var(--cq-sub); font: 800 10px var(--font-ui); letter-spacing: 1px; cursor: pointer; }
 .cq-spawn-seat.is-selected { color: #101418; background: #ffd166; border-color: #ffd166; }
+/* A seat a bot holds: taking it puts the bot out. */
+.cq-spawn-seat.is-takeover:not(.is-selected) { border-style: dashed; color: var(--cq-own, #4cc3ff); }
 .cq-deploy-side { display: grid; gap: 8px; }
 .cq-deploy-section { margin: 0; font-size: 12px; letter-spacing: 3px; color: var(--cq-sub); }
 .cq-deploy-kits { display: grid; gap: 6px; align-items: start; }
@@ -355,7 +357,12 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
 .cq-kit-variant { min-height: 32px; padding: 4px 6px; border: 1px solid var(--cq-line); border-radius: 3px; background: #0b141b; color: var(--cq-sub); font: 700 11px var(--font-ui); letter-spacing: 0.6px; cursor: pointer; }
 .cq-kit-variant.is-selected { color: #04131c; background: var(--cq-own); border-color: var(--cq-own); }
 .cq-kit-gear { font-size: 10px; letter-spacing: 1px; color: var(--cq-sub); }
-.cq-kit:not(.is-selected) .cq-kit-variants, .cq-kit:not(.is-selected) .cq-kit-gear { display: none; }
+.cq-kit-gadgets { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.cq-kit-gadget { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 6px; min-height: 32px; padding: 4px 6px; border: 1px dashed var(--cq-line); border-radius: 3px; background: #0b141b; color: var(--cq-sub); font: 700 11px var(--font-ui); letter-spacing: 0.6px; text-align: left; cursor: pointer; }
+.cq-kit-gadget-role { min-width: 24px; padding: 1px 4px; border: 1px solid currentColor; border-radius: 2px; font-size: 10px; letter-spacing: 1px; text-align: center; }
+.cq-kit-gadget-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cq-kit-gadget.is-selected { color: #04131c; background: #ffcf5c; border: 1px solid #ffcf5c; }
+.cq-kit:not(.is-selected) .cq-kit-variants, .cq-kit:not(.is-selected) .cq-kit-gadgets, .cq-kit:not(.is-selected) .cq-kit-gear { display: none; }
 .cq-deploy-foot { display: flex; align-items: center; gap: 14px; justify-content: flex-end; }
 .cq-deploy-status { margin-right: auto; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; color: var(--cq-sub); }
 .cq-deploy-status[data-tone="warn"] { color: #ffb1a8; }
@@ -473,7 +480,7 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
   .cq-deploy-map { width: min(100%, 300px, 38vh); justify-self: center; }
   .cq-deploy-spawns { grid-template-columns: 1fr 1fr; max-height: none; }
   .cq-deploy-kits { grid-template-columns: 1fr 1fr; }
-  .cq-kit-variants { grid-template-columns: 1fr; }
+  .cq-kit-variants, .cq-kit-gadgets { grid-template-columns: 1fr; }
   .cq-deploy-button { min-width: 0; width: 100%; }
   .cq-deploy-foot { flex-wrap: wrap; }
 }
@@ -509,7 +516,7 @@ body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { t
   .cq-deploy-kits { grid-template-columns: 1fr 1fr; }
   .cq-kit { padding: 5px 6px; gap: 4px; }
   .cq-kit-name b { font-size: 12px; }
-  .cq-kit-variants { grid-template-columns: 1fr; }
+  .cq-kit-variants, .cq-kit-gadgets { grid-template-columns: 1fr; }
 }
 @media (prefers-reduced-motion: reduce) {
   .cq-chip, .cq-chip::after, .cq-ring-dial, .cq-banner.is-in, .cq-lock, .cq-restricted-seconds, .cq-unit-glyph, .cq-team .cq-ticket-fill { animation: none !important; }

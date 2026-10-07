@@ -28,7 +28,7 @@ export class WeaponCustomization {
     button(header,'BACK',()=>this.dialog.close()).id = 'workshop-close';
     const layout = el('div',this.dialog,'','vb-workshop-layout');
     this.weapons = el('nav',layout,'','vb-workshop-weapons'); this.weapons.setAttribute('aria-label','Choose weapon');
-    for (const id of WEAPON_IDS) {
+    for (const id of WEAPON_IDS.filter(weapon => !WEAPONS[weapon].gadgetOnly)) {
       const n = button(this.weapons,'',()=>{this.weapon=id;this.render();},'vb-workshop-weapon');
       n.dataset.weapon = id; el('span',n,String(WEAPON_IDS.indexOf(id)+1).padStart(2,'0'));
       el('strong',n,WEAPONS[id].name); el('small',n,id.toUpperCase());

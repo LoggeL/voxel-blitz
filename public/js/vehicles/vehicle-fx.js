@@ -15,6 +15,7 @@ import { AIR, FLUID_BLOCKS } from '../../../shared/worlddata.js';
 import { TILE_PAINTERS, TILE_PX, faceTile } from '../engine/atlas.js';
 import { DUST_TINTS } from '../fx/presets.js';
 import { canonicalMountKey, isAircraftType, rowMaxHp } from './voxel-model/anchors.js';
+import { ParachuteFx } from './parachute-fx.js';
 
 /** Presentation tuning (no gameplay values). */
 export const VEHICLE_FX = Object.freeze({
@@ -321,6 +322,8 @@ export class VehicleFx {
     this.decals = new DecalLayer(this.group, { capacity: VEHICLE_FX.decalCapacity, fade: VEHICLE_FX.decalFadeSeconds, name: 'vehicle-track-decals' });
     this.hullMarks = new DecalLayer(this.group, { capacity: VEHICLE_FX.hullMarkCapacity, fade: VEHICLE_FX.hullMarkSeconds, name: 'vehicle-hull-marks' });
     this.sprites = new LightSprites(this.group, VEHICLE_FX.lightCapacity);
+    // Canopies, ejection seats and the jet's canopy glass (synced per frame from the player rows).
+    this.parachutes = new ParachuteFx({ group: this.group, fx, cameraShake });
     this.state = new Map();       // vehicleId -> per-hull FX state
     this.missiles = new Map();    // projectile id -> trail
     this.flash = null;            // borrowed muzzle light
@@ -368,6 +371,7 @@ export class VehicleFx {
       case 'vehicle_disabled': return this._disabled(ev);
       case 'vehicle_repaired': return this._repaired(ev);
       case 'countermeasure': return this._countermeasure(ev);
+      case 'ejection': this._count('ejection'); return this.parachutes.eject(ev, this.selfId);
       default: return false;
     }
   }
@@ -971,6 +975,7 @@ export class VehicleFx {
     this.decals.dispose();
     this.hullMarks.dispose();
     this.sprites.dispose();
+    this.parachutes.dispose();
     this.group.removeFromParent();
     const light = this.muzzleLights?.lights?.[1];
     if (this.flash && light) light.intensity = 0;

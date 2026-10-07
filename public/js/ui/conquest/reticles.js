@@ -273,6 +273,11 @@ export class Reticles {
       }
       ctx.stroke();
     });
-    this._text(ctx, locker.label, p.x, p.y + size + 16, color);
+    // Seeker progress ring (STINGER / AA missile): fills clockwise while the
+    // lock builds and closes red once it is complete.
+    const ring = size + 8, fill = Math.max(0, Math.min(1, locker.progress));
+    ctx.lineWidth = 3; ctx.strokeStyle = color;
+    shadowed(ctx, () => { ctx.beginPath(); ctx.arc(p.x, p.y, ring, -Math.PI / 2, -Math.PI / 2 + TAU * fill); ctx.stroke(); });
+    this._text(ctx, locker.label, p.x, p.y + ring + 14, color);
   }
 }

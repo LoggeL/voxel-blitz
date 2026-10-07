@@ -5,8 +5,10 @@ export const MATCH_KEYS = 'attackers,bomb,defenders,map,mode,phase,phaseEndsAt,r
 /** Conquest player rows add `cq` (decodeConquestPlayer) and `cqs` (decodeConquestStats); other modes never carry them. */
 export const CONQUEST_PLAYER_EXTRA_KEYS = 'cq,cqs';
 export const CONQUEST_PLAYER_KEYS = [...PLAYER_KEYS.split(','), ...CONQUEST_PLAYER_EXTRA_KEYS.split(',')].sort().join(',');
-/** `cq` = [kitIndex, squadId, down, spotted, restrictedDs, lockProgress100, actionProgress100]; `cqs` = [objective, vehicles, revives, captures]. */
+/** `cq` = [kitIndex, squadId, down, spotted, restrictedDs, lockProgress100, actionProgress100, chute?]; `cqs` = [objective, vehicles, revives, captures].
+ * The 8th entry (parachute 1 / ejection seat 2, shared/parachute.js) only rides rows of bodies under a canopy. */
 export const CONQUEST_CQ_LENGTH = 7;
+export const CONQUEST_CQ_MAX_LENGTH = 8;
 export const CONQUEST_CQS_LENGTH = 4;
 
 /** Conquest matches add `conquest`; during `post` the controller also adds continuation and results. */

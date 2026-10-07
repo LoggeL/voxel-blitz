@@ -4,8 +4,8 @@
 import assert from 'node:assert/strict';
 import { CONQUEST_RULES, KITS, KIT_IDS, KIT_SIDEARM, decodeConquestPlayer } from '../shared/conquest-contract.js';
 import {
-  KIT_GADGET_AMMO, KIT_MELEE, KIT_MENU, KIT_ROLE_RULES, applyResupply, isUnsuppressedWeapon, kitIndex,
-  kitLoadout, kitMaxGrenades, kitMaxReserve, normalizeKit, normalizeVariant, reserveUnitsPerMagazine,
+  KIT_GADGET_AMMO, KIT_MELEE, KIT_MENU, KIT_ROLE_RULES, applyResupply, isUnsuppressedWeapon, kitGadget, kitIndex,
+  kitLoadout, kitMaxGrenades, kitMaxReserve, kitWeapons, normalizeGadget, normalizeKit, normalizeVariant, reserveUnitsPerMagazine,
 } from '../shared/conquest-kits.js';
 import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
 import { GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
@@ -77,8 +77,46 @@ const TICK = 1000 / 60;
   assert.equal(inv.reserve[slot('shotgun')], WEAPONS.shotgun.spareRounds, 'reserve capped at kit maximum');
   assert.equal(given.grenade, 'frag');
   given = applyResupply(inv, 'engineer', 1);
-  assert.deepEqual(given, { reserve: 0, grenade: null }, 'a full inventory takes nothing');
-  assert.equal(inv.reserve[slot('rocket')], 4, 'resupply never touches the gadget');
+  assert.deepEqual(given, { reserve: 0, grenade: null, gadget: 0 }, 'a full inventory takes nothing');
+  assert.equal(inv.reserve[slot('rocket')], 4, 'a pulse without a gadget round leaves the gadget alone');
+  // Gadget rounds come back one at a time, capped at the issued total (mag + reserve).
+  inv.mag[slot('rocket')] = 0; inv.reserve[slot('rocket')] = 3;
+  given = applyResupply(inv, 'engineer', 1, 0, { gadgetRound: true });
+  assert.equal(given.gadget, 1); assert.equal(inv.reserve[slot('rocket')], 4, 'one AT rocket back');
+  inv.reserve[slot('rocket')] = 5;
+  given = applyResupply(inv, 'engineer', 1, 0, { gadgetRound: true });
+  assert.equal(given.gadget, 0, 'a full launcher (0 + 5) takes no rocket');
+}
+
+// ------------------------------------------------- engineer gadget choice --
+{
+  assert.deepEqual(KITS.engineer.gadgets, ['rocket', 'stinger'], 'the engineer picks the AT launcher or the STINGER');
+  assert.equal(KITS.engineer.gadget, 'rocket', 'the AT launcher stays the default gadget');
+  for (const kit of ['assault', 'support', 'recon']) {
+    assert.equal(normalizeGadget(kit, 1), 0, `${kit} has no gadget choice`);
+    assert.equal(kitGadget(kit, 1), null);
+  }
+  assert.equal(normalizeGadget('engineer', 1), 1);
+  assert.equal(normalizeGadget('engineer', 7), 0, 'an unknown gadget index is the default');
+  assert.equal(normalizeGadget('engineer', undefined), 0, 'backward compatible: no gadget means AT');
+  const at = kitLoadout('engineer', 0), aa = kitLoadout('engineer', 0, 1);
+  assert.equal(at.gadget, 'rocket'); assert.equal(aa.gadget, 'stinger');
+  assert(aa.owned.includes('stinger') && !aa.owned.includes('rocket'), 'the AA engineer carries the STINGER instead of the rocket');
+  assert(at.owned.includes('rocket') && !at.owned.includes('stinger'), 'the AT engineer never owns a STINGER');
+  assert.equal(aa.mag[slot('stinger')], KIT_GADGET_AMMO.stinger.mag);
+  assert.equal(aa.reserve[slot('stinger')], KIT_GADGET_AMMO.stinger.reserve);
+  assert.equal(aa.mag[slot('rocket')] + aa.reserve[slot('rocket')], 0, 'no AT rockets in the AA loadout');
+  assert.equal(aa.gadgetIndex, 1); assert.equal(at.gadgetIndex, 0);
+  assert.deepEqual(kitWeapons('engineer', 1, 1).owned.sort(), ['knife', 'revolver', 'shotgun', 'stinger']);
+  const menu = KIT_MENU.find(k => k.id === 'engineer');
+  assert.deepEqual(menu.gadgets.map(g => [g.gadget, g.role]), [['rocket', 'AT'], ['stinger', 'AA']]);
+  assert.deepEqual(KIT_MENU.find(k => k.id === 'assault').gadgets, []);
+  // STINGER resupply: one missile per gadget round, capped at 1 + 2.
+  aa.mag[slot('stinger')] = 0; aa.reserve[slot('stinger')] = 0;
+  assert.equal(applyResupply(aa, 'engineer', 0, 1, { gadgetRound: true }).gadget, 1);
+  assert.equal(aa.reserve[slot('stinger')], 1);
+  aa.reserve[slot('stinger')] = 3;
+  assert.equal(applyResupply(aa, 'engineer', 0, 1, { gadgetRound: true }).gadget, 0, 'a full STINGER takes nothing');
 }
 
 // --------------------------------------------------------------- fixtures --
@@ -680,4 +718,66 @@ class FakeVehicleSystem {
   }
 }
 
-console.log('Conquest kits: loadouts per kit and variant, down/revive window and refusals, repair rate/disabled/interrupt/awards, resupply caps and award limit, real-engine revive passed.');
+// ----------------- real engine: the deploy gadget choice is authoritative (AT or STINGER) --
+{
+  const { GameEngine } = await import('../server/game.js');
+  const world = {
+    dimensions: { sx: 128, sy: 32, sz: 128 },
+    getBlock: (_x, y) => (y < 2 ? 1 : 0),
+    findSpawns: () => [{ x: 20, y: 2, z: 20 }],
+    setBlock: () => {},
+  };
+  const game = new GameEngine({
+    mode: 'conquest',
+    mapMeta: { id: 'frontier', dimensions: world.dimensions,
+      spawns: { conquest: { alpha: [{ x: 20, y: 2, z: 20 }], bravo: [{ x: 90, y: 2, z: 90 }] } },
+      conquest: { flags: [], bases: {}, vehicleSpawns: [] } },
+    world, broadcast: () => {},
+  });
+  game.addClient('aa', 'Engineer'); game.addClient('sup', 'Support'); game.addClient('foe', 'Enemy'); game.addClient('w', 'Wing');
+  const eng = game.entities.get('aa');
+  const team = game.mode.teamFor(eng);
+  const support = [...game.entities.values()].find(p => p !== eng && game.mode.teamFor(p) === team);
+  const foe = [...game.entities.values()].find(p => game.mode.teamFor(p) !== team);
+  game.step();
+  const respawnWith = (p, intent) => {
+    p.takeDamage(500, false, foe, 'rifle');
+    game.killPlayer(p, foe, 'rifle', false);
+    assert.equal(game.mode.conquestIntent(p, { type: 'deploy', spawn: 'hq', ...intent }), true, `deploy ${JSON.stringify(intent)} accepted`);
+    for (let i = 0; i < 60 * 8 && p.state !== 'alive'; i++) game.step();
+    assert.equal(p.state, 'alive', 'deployed');
+  };
+  respawnWith(eng, { kit: 'engineer', variant: 0, gadget: 1 });
+  assert.deepEqual(new Set(eng.owned), new Set(['smg', 'stinger', 'revolver', 'knife']), 'gadget 1: the engineer deploys with the STINGER');
+  assert.equal(eng.mag[slot('stinger')], 1); assert.equal(eng.reserve[slot('stinger')], 2);
+  assert.equal(eng.mag[slot('rocket')] + eng.reserve[slot('rocket')], 0, 'and without AT rockets');
+  assert.equal(game.mode.canUseWeapon(eng, 'stinger'), true);
+  assert.equal(game.mode.canUseWeapon(eng, 'rocket'), false, 'the AT launcher is not owned by an AA engineer');
+  assert.deepEqual(game.mode.policy.kitFor(eng), { kit: 'engineer', variant: 0, gadget: 1 });
+  // A later deploy without a gadget field is the backward-compatible AT default.
+  respawnWith(eng, { kit: 'engineer', variant: 1 });
+  assert.deepEqual(new Set(eng.owned), new Set(['shotgun', 'rocket', 'revolver', 'knife']), 'no gadget: the AT launcher');
+  assert.equal(game.mode.canUseWeapon(eng, 'stinger'), false);
+  // The support aura hands gadget rounds back (one per gadgetResupplyMs).
+  respawnWith(eng, { kit: 'engineer', variant: 0, gadget: 1 });
+  respawnWith(support, { kit: 'support', variant: 0 });
+  Object.assign(eng, { x: 40.5, y: 2, z: 40.5 }); Object.assign(support, { x: 42.5, y: 2, z: 40.5 });
+  Object.assign(foe, { x: 100.5, y: 2, z: 100.5 });
+  eng.mag[slot('stinger')] = 0; eng.reserve[slot('stinger')] = 0;
+  for (let i = 0; i < 60 * (KIT_ROLE_RULES.resupplyIntervalMs / 1000 + 1); i++) {
+    Object.assign(eng, { x: 40.5, z: 40.5 }); Object.assign(support, { x: 42.5, z: 40.5 });
+    game.step();
+  }
+  assert.equal(eng.reserve[slot('stinger')], 1, 'one STINGER back from the support aura');
+  for (let i = 0; i < 60 * 5; i++) { Object.assign(eng, { x: 40.5, z: 40.5 }); Object.assign(support, { x: 42.5, z: 40.5 }); game.step(); }
+  assert.equal(eng.reserve[slot('stinger')], 1, 'gadget rounds are rationed to one per 12 s');
+  // Free-for-all modes never hand out the kit-only STINGER.
+  const ffa = new GameEngine({ mode: 'ffa', world, broadcast: () => {} });
+  ffa.addClient('x', 'X');
+  const x = ffa.entities.get('x');
+  assert.equal(ffa.mode.canUseWeapon(x, 'stinger'), false, 'FFA refuses the kit-only STINGER');
+  assert.equal(x.mag[slot('stinger')] + x.reserve[slot('stinger')], 0, 'FFA spawns carry no STINGER');
+  console.log('  real engine: gadget choice (STINGER / AT default), gadget resupply, FFA exclusion');
+}
+
+console.log('Conquest kits: loadouts per kit and variant, down/revive window and refusals, repair rate/disabled/interrupt/awards, resupply caps and award limit, engineer gadget choice (AT / STINGER) and gadget resupply, real-engine revive passed.');

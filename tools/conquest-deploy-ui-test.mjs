@@ -46,11 +46,21 @@ let groups = 0;
   assert.equal(model.spawn, 'flag:A'); assert.equal(model.valid, true); assert.equal(model.selectedKey, 'flag:A');
   assert.equal(model.waitMs, 3200); assert.equal(model.countdown, '3.2'); assert.equal(model.ready, false, 'not before respawnAt');
   assert.equal(model.timeoutMs, 3200 + CONQUEST_RULES.deployTimeoutMs);
-  assert.deepEqual(model.choice, { spawn: 'flag:A', kit: 'engineer', variant: 1 });
+  assert.deepEqual(model.choice, { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0 }, 'the engineer choice carries its gadget (AT by default)');
   assert.deepEqual(model.kits.map(k => k.id), KIT_IDS);
   const engineer = model.kits.find(k => k.id === 'engineer');
   assert.equal(engineer.selected, true); assert.deepEqual(engineer.primaries.map(p => p.selected), [false, true]);
   assert.equal(engineer.gadget, WEAPON_NAMES.rocket, 'the engineer gadget is the AT rocket');
+  assert.deepEqual(engineer.gadgets.map(g => [g.weapon, g.role, g.selected]), [['rocket', 'AT', true], ['stinger', 'AA', false]],
+    'the engineer card offers the AT launcher and the STINGER');
+  assert.deepEqual(model.kits.filter(k => k.id !== 'engineer').map(k => k.gadgets.length), [0, 0, 0], 'other kits have no gadget choice');
+  const aa = state.deployModel({ cq: cqOf(deploy), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles,
+    nowMs: FIXTURE_NOW, selection: { ...deploy.selection, gadget: 1 } });
+  assert.deepEqual(aa.choice, { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 1 });
+  assert.equal(aa.kits.find(k => k.id === 'engineer').gadget, WEAPON_NAMES.stinger);
+  const assaultAa = state.deployModel({ cq: cqOf(deploy), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles,
+    nowMs: FIXTURE_NOW, selection: { spawn: 'hq', kit: 'assault', gadget: 1 } });
+  assert.deepEqual(assaultAa.choice, { spawn: 'hq', kit: 'assault', variant: 0 }, 'a kit without a gadget choice never sends one');
   assert.deepEqual(engineer.grenades, Object.entries(KITS.engineer.grenades).map(([t, n]) => `${n}× ${t.toUpperCase()}`));
 
   // A refused choice, a stale selection and a vehicle seat.
@@ -111,7 +121,15 @@ let groups = 0;
   assert.equal(screen.map.spawnHits.length, 7);
 
   screen.button.click();
-  assert.deepEqual(sent, [{ spawn: 'flag:A', kit: 'engineer', variant: 1 }], 'Deploy sends {spawn, kit, variant}');
+  assert.deepEqual(sent, [{ spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0 }], 'Deploy sends {spawn, kit, variant, gadget}');
+  // The gadget toggle (AT / AA) on the engineer card re-sends the choice with the STINGER.
+  const gadgetButtons = screen.kits.querySelectorAll('.cq-kit-gadget');
+  assert.deepEqual(gadgetButtons.map(b => b.dataset.gadget), ['rocket', 'stinger'], 'only the engineer card shows the gadget toggle');
+  gadgetButtons[1].click();
+  update();
+  assert.deepEqual(sent.at(-1), { spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 1 }, 'picking the STINGER re-sends gadget 1');
+  assert.equal(dom.storage.getItem('vb-conquest-kit-gadget'), '1', 'gadget choice persists');
+  assert.equal(screen.kits.querySelector('.cq-kit-gadget.is-selected').dataset.gadget, 'stinger');
   assert.equal(screen.button.textContent, 'DEPLOYING IN 3.2');
   // A change while readied is re-sent so the server holds the latest choice.
   screen.kits.querySelectorAll('.cq-kit-pick').find(b => b.textContent.startsWith('RECON')).click();

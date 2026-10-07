@@ -1,4 +1,5 @@
 import { KIT_IDS } from '../../../shared/conquest-contract.js';
+import { normalizeGadget as kitGadgetIndex } from '../../../shared/conquest-kits.js';
 import { vehicleDef } from '../../../shared/vehicles.js';
 import {
   deployOptions,
@@ -17,6 +18,8 @@ const round2 = n => Math.round(n * 100) / 100;
 
 export function normalizeKit(kit) { return KIT_IDS.includes(kit) ? kit : DEFAULT_KIT; }
 export function normalizeVariant(variant) { return variant === 1 ? 1 : 0; }
+/** Gadget choice of a kit (0 default: the Engineer's AT launcher; 1 the STINGER). */
+export function normalizeGadget(kit, gadget) { return kitGadgetIndex(normalizeKit(kit), gadget === 1 ? 1 : 0); }
 
 /**
  * Deploy gate and spawn resolution. A dead player respawns once it holds a
@@ -51,13 +54,13 @@ export class DeploySystem {
     const id = String(playerId);
     let state = this.states.get(id);
     if (!state) {
-      state = { choice: null, lastValid: null, kit: DEFAULT_KIT, variant: 0, resolved: null, spawnedAt: null };
+      state = { choice: null, lastValid: null, kit: DEFAULT_KIT, variant: 0, gadget: 0, resolved: null, spawnedAt: null };
       this.states.set(id, state);
     }
     return state;
   }
 
-  kitOf(playerId) { const s = this.states.get(String(playerId)); return s ? { kit: s.kit, variant: s.variant } : { kit: DEFAULT_KIT, variant: 0 }; }
+  kitOf(playerId) { const s = this.states.get(String(playerId)); return s ? { kit: s.kit, variant: s.variant, gadget: s.gadget ?? 0 } : { kit: DEFAULT_KIT, variant: 0, gadget: 0 }; }
 
   remove(playerId) { this.states.delete(String(playerId)); this.squadSpawnAt.delete(String(playerId)); }
 
@@ -80,7 +83,7 @@ export class DeploySystem {
   options(entity) {
     const policy = this.policy;
     const team = policy.teamFor(entity);
-    return deployOptions(policy.deployView(), { id: String(entity.id), team, squad: policy.squads.squadOf(entity.id) }, policy.rules);
+    return deployOptions(policy.deployView(), { id: String(entity.id), team, squad: policy.squads.squadOf(entity.id), bot: !!entity.bot }, policy.rules);
   }
 
   /**
@@ -111,6 +114,7 @@ export class DeploySystem {
     const state = this.state(entity.id);
     const kit = normalizeKit(intent?.kit);
     const variant = normalizeVariant(intent?.variant);
+    const gadget = normalizeGadget(kit, intent?.gadget);
     const check = this.validate(entity, intent?.spawn);
     if (!check.ok) {
       policy._emit('deploy_refused', { id: String(entity.id), reason: check.reason });
@@ -118,7 +122,8 @@ export class DeploySystem {
     }
     state.kit = kit;
     state.variant = variant;
-    state.choice = { spawn: intent.spawn, kit, variant };
+    state.gadget = gadget;
+    state.choice = { spawn: intent.spawn, kit, variant, gadget };
     state.lastValid = state.choice;
     return true;
   }
@@ -141,8 +146,9 @@ export class DeploySystem {
       if (pick) {
         state.kit = normalizeKit(pick.kit);
         state.variant = normalizeVariant(pick.variant);
+        state.gadget = normalizeGadget(state.kit, pick.gadget);
         const check = this.validate(entity, pick.spawn);
-        state.choice = { spawn: check.ok ? pick.spawn : 'hq', kit: state.kit, variant: state.variant };
+        state.choice = { spawn: check.ok ? pick.spawn : 'hq', kit: state.kit, variant: state.variant, gadget: state.gadget };
         state.lastValid = state.choice;
       }
     }
@@ -153,14 +159,14 @@ export class DeploySystem {
       policy._emit('deploy_refused', { id: String(entity.id), reason: resolved.reason });
       if (entity.bot) {
         const fallback = this._frontlineChoice(entity);
-        const retry = fallback.spawn !== 'hq' ? this._resolve(entity, { spawn: fallback.spawn, kit: state.kit, variant: state.variant }) : null;
-        state.resolved = retry?.ok ? retry : this._resolve(entity, { spawn: 'hq', kit: state.kit, variant: state.variant });
+        const retry = fallback.spawn !== 'hq' ? this._resolve(entity, { spawn: fallback.spawn, kit: state.kit, variant: state.variant, gadget: state.gadget }) : null;
+        state.resolved = retry?.ok ? retry : this._resolve(entity, { spawn: 'hq', kit: state.kit, variant: state.variant, gadget: state.gadget });
         return state.resolved.ok;
       }
     }
     if (!timedOut) return false;
     const fallback = state.lastValid ? this._resolve(entity, state.lastValid) : null;
-    state.resolved = fallback?.ok ? fallback : this._resolve(entity, { spawn: 'hq', kit: state.kit, variant: state.variant });
+    state.resolved = fallback?.ok ? fallback : this._resolve(entity, { spawn: 'hq', kit: state.kit, variant: state.variant, gadget: state.gadget });
     return state.resolved.ok;
   }
 
@@ -177,7 +183,7 @@ export class DeploySystem {
     const resolved = state.resolved && state.resolved.at === this.policy.now ? state.resolved : null;
     state.resolved = null;
     state.choice = null;
-    if (resolved) { state.kit = resolved.kit; state.variant = resolved.variant; }
+    if (resolved) { state.kit = resolved.kit; state.variant = resolved.variant; state.gadget = resolved.gadget ?? 0; }
     return resolved;
   }
 
@@ -199,9 +205,11 @@ export class DeploySystem {
     if (!pick) return false;
     const kit = normalizeKit(pick.kit);
     const variant = normalizeVariant(pick.variant);
-    if (kit === state.kit && variant === state.variant) return false;
+    const gadget = normalizeGadget(kit, pick.gadget);
+    if (kit === state.kit && variant === state.variant && gadget === state.gadget) return false;
     state.kit = kit;
     state.variant = variant;
+    state.gadget = gadget;
     return true;
   }
 
@@ -210,13 +218,14 @@ export class DeploySystem {
    * keeps the kit it died with, so a kit picked on the deploy screen meanwhile
    * is dropped (`kit`/`variant` are the body's kit when the caller knows it).
    */
-  onRevived(entity, kit = null, variant = null) {
+  onRevived(entity, kit = null, variant = null, gadget = null) {
     const state = this.state(entity.id);
     state.choice = null;
     state.resolved = null;
     if (KIT_IDS.includes(kit)) {
       state.kit = kit;
       state.variant = normalizeVariant(variant);
+      state.gadget = normalizeGadget(kit, gadget);
     }
   }
 
@@ -269,6 +278,7 @@ export class DeploySystem {
     const kit = BOT_KIT_ROTATION[slot % BOT_KIT_ROTATION.length];
     const state = this.state(entity.id);
     const variant = state.lastValid?.kit === kit ? state.variant : 0;
+    const gadget = state.lastValid?.kit === kit ? state.gadget : 0;
     const flags = policy.capture.flags;
     const targets = flags.filter(f => f.owner !== team);
     const options = this.options(entity).filter(o => o.kind === 'flag' && o.ok);
@@ -279,13 +289,14 @@ export class DeploySystem {
       const distance = targets.length ? Math.min(...targets.map(t => Math.hypot(t.x - flag.x, t.z - flag.z))) : 0;
       if (distance < bestDistance) { best = option; bestDistance = distance; }
     }
-    return { spawn: best ? best.spawn : 'hq', kit, variant };
+    return { spawn: best ? best.spawn : 'hq', kit, variant, gadget };
   }
 
-  /** Resolve a choice to a concrete point now: `{ok, reason, kind, id, seatId, point, kit, variant, at}`. */
+  /** Resolve a choice to a concrete point now: `{ok, reason, kind, id, seatId, point, kit, variant, gadget, at}`. */
   _resolve(entity, choice) {
     const policy = this.policy;
-    const base = { kit: normalizeKit(choice.kit), variant: normalizeVariant(choice.variant), at: policy.now };
+    const base = { kit: normalizeKit(choice.kit), variant: normalizeVariant(choice.variant),
+      gadget: normalizeGadget(choice.kit, choice.gadget), at: policy.now };
     const check = this.validate(entity, choice.spawn);
     if (!check.ok) return { ...base, ok: false, reason: check.reason };
     if (check.kind === 'hq') return { ...base, ok: true, reason: null, kind: 'hq', id: null, seatId: null, point: this._hqPoint(entity, entity.lastSpawnIndex) };
@@ -297,6 +308,10 @@ export class DeploySystem {
     }
     if (check.kind === 'squad') {
       const mate = policy._entity(check.id);
+      // A mate in an aircraft: deploy into the seat deployOptions picked (free or a bot's).
+      const aircraftHull = check.seatId && mate?.vehicleId ? policy.vehicleFor(mate.vehicleId) : null;
+      if (aircraftHull) return { ...base, ok: true, reason: null, kind: 'vehicle', id: String(aircraftHull.id), seatId: check.seatId,
+        point: { x: aircraftHull.x, y: aircraftHull.y, z: aircraftHull.z, index: -1 } };
       const selector = policy.spawnSelector;
       // A mate seated in a ground hull: probe behind the hull, outside its
       // collider, at its base height (the seat pose floats above the floor).

@@ -11,6 +11,7 @@ import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 import { slideContact, stepSlideRide } from '../../shared/slide-rules.js';
 import { slidePlayerVehicleAxis, constrainPlayerVehicleMotion } from '../../shared/player-vehicle-collision.js';
+import { CHUTE, stepChuteState, stepChuteVelocity } from '../../shared/parachute.js';
 
 // Shooter-side rewind reads up to maxViewAgeMs (450 ms) back; at 60 Hz that
 // needs 27 samples, so 32 keeps a full window plus headroom.
@@ -124,7 +125,10 @@ function recordPose(p, now) {
  * Integrate one living entity for one fixed simulation step.
  *
  * ctx = { solidAt(x,y,z), fluidAt?(x,y,z), mapMeta, now, movementLocked,
- *         onFall(entity, reason) } where reason is 'invalid' (non-finite state) or 'void'
+ *         onFall(entity, reason), airRules?, onLand?(entity, impactSpeed) } where
+ *         reason is 'invalid' (non-finite state) or 'void'. With `airRules`
+ *         (Conquest) the parachute and ejection seat fly (shared/parachute.js)
+ *         and every landing reports its downward impact speed to `onLand`.
  */
 export function stepMovement(p, dt, ctx) {
   const inp = p.input;
@@ -153,6 +157,7 @@ export function stepMovement(p, dt, ctx) {
     p.sprint = false;
     p.coyote = 0;
     p.grounded = solidBelow(ctx.solidAt, p.x, p.y, p.z);
+    p.chute = CHUTE.none;
     recordPose(p, ctx.now);
     return;
   }
@@ -173,7 +178,8 @@ export function stepMovement(p, dt, ctx) {
   // R on the RIPTIDE only turns discs home and never occupies the hands.
   const pendingReload = reloadEdge && p.def.mode !== 'melee' && !p.def.glaive &&
     p.mag?.[p.weapon] < p.def.magSize && (p.infiniteMagazines || p.reserve?.[p.weapon] > 0);
-  const handsFree = canClimb({ reloading: p.reloading || pendingReload,
+  const chuteBefore = ctx.airRules ? p.chute | 0 : CHUTE.none;
+  const handsFree = !chuteBefore && canClimb({ reloading: p.reloading || pendingReload,
     grenadeHandling: inp?.grenadeHandling || p.grenadeHandlingQueued,
     quickMelee: p.quickMeleeT > 0 || !!p.quickMeleeQueued,
     deploying: p.deployT > 0, healing: p.medkit?.active });
@@ -198,6 +204,7 @@ export function stepMovement(p, dt, ctx) {
   p.swimming = swimming;
   if (ride) {
     p.vault = null;
+    p.chute = CHUTE.none;
     const previous = { x: p.x, y: p.y, z: p.z };
     const velocity = { x: p.vx, y: p.vy, z: p.vz };
     p.slide = stepSlideRide(p, velocity, ride, dt, { x: wx, z: wz });
@@ -217,7 +224,7 @@ export function stepMovement(p, dt, ctx) {
   }
   p.slide = null;
   if (p.grounded) p.jumpGroundY = p.y;
-  const deliberateGrab = !p.grounded && jumpPressed && !low;
+  const deliberateGrab = !p.grounded && jumpPressed && !low && !chuteBefore;
   if (handsFree && !p.vault && swimming) {
     p.vault = findSwimExit(ctx.solidAt, p, { x: wx, z: wz }, !!kf.jump, p.crouch || low, movementYaw);
   } else if (handsFree && !p.vault && !swimming && canStartVault(p.grounded, p.grounded ? kf.jump : deliberateGrab,
@@ -225,6 +232,12 @@ export function stepMovement(p, dt, ctx) {
     p.vault = findVault(ctx.solidAt, p, { x: wx, z: wz },
       deliberateGrab ? p.y : p.jumpGroundY, movementYaw, deliberateGrab ? 0 : 1);
   }
+  if (ctx.airRules) {
+    // A ledge grab wins over opening the canopy; bots never toggle it by hand.
+    const next = stepChuteState(p, { jumpPressed: jumpPressed && !p.bot && !p.vault && !(p.coyote > 0), auto: !!p.bot,
+      blocked: !!p.vault || swimming, dt, solidAt: ctx.solidAt, fluidAt: ctx.fluidAt });
+    p.chute = next.chute; p.chuteT = next.chuteT;
+  } else if (p.chute) p.chute = CHUTE.none;
   if (p.vault) {
     const previous = { x: p.x, y: p.y, z: p.z };
     const active = stepVault(p, p.vault, dt, ctx.solidAt);
@@ -244,15 +257,25 @@ export function stepMovement(p, dt, ctx) {
   // A pulse concussion drags the legs: 60% speed until the deadline passes.
   if (Number.isFinite(p.concussedUntil) && p.concussedUntil > ctx.now) speed *= CONCUSSED_SPEED_MULT;
   const accel = 1 - Math.exp(-(p.grounded ? ACCEL_GROUND : ACCEL_AIR) * dt);
-  p.vx += (wx * speed - p.vx) * accel;
-  p.vz += (wz * speed - p.vz) * accel;
+  if (!p.chute) {
+    p.vx += (wx * speed - p.vx) * accel;
+    p.vz += (wz * speed - p.vz) * accel;
+  }
 
   const onLadder = handsFree && !low && ladderHere;
   const ladderUp = onLadder && (kf.jump || (kf.f && !kf.b));
   const ladderDown = onLadder && !ladderUp && (kf.crouch || (kf.b && !kf.f));
   const ladderDirected = ladderUp || ladderDown;
 
-  if (ladderDirected) {
+  if (p.chute === CHUTE.open) {
+    const vel = { x: p.vx, y: p.vy, z: p.vz };
+    stepChuteVelocity(vel, movementYaw, wx, wz, dt);
+    p.vx = vel.x; p.vy = vel.y; p.vz = vel.z;
+    p.sprint = false;
+  } else if (p.chute === CHUTE.seat) {
+    // The ejection seat flies ballistic: no air control until the canopy opens.
+    p.vy = Math.max(TERMINAL_VY, p.vy - GRAVITY * dt);
+  } else if (ladderDirected) {
     p.vy = ladderUp ? LADDER_UP_SPEED : -LADDER_DOWN_SPEED;
     p.grounded = false;
     p.coyote = 0;
@@ -277,6 +300,7 @@ export function stepMovement(p, dt, ctx) {
   slideAxis(p, 'x', p.vx * dt, ctx.solidAt, ctx.mapMeta, canStepTerrain, ctx.vehicles);
   slideAxis(p, 'z', p.vz * dt, ctx.solidAt, ctx.mapMeta, canStepTerrain, ctx.vehicles);
   const dy = p.vy * dt;
+  const impactVy = p.vy, wasAirborne = !p.grounded;
   const ladderBypass = ladderUp
     || (ladderDown && ladderContact(ctx.mapMeta, p.x, p.y + dy, p.z));
   const hitY = ladderBypass ? false : slideAxis(p, 'y', dy, ctx.solidAt, null, false, ctx.vehicles);
@@ -296,6 +320,12 @@ export function stepMovement(p, dt, ctx) {
   } else {
     if (!ladderDirected && p.grounded) p.coyote = COYOTE_S;
     p.grounded = false;
+  }
+
+  if (p.grounded && wasAirborne && !ladderBypass) {
+    p.chute = CHUTE.none; p.chuteT = 0;
+    // Conquest fall damage: the mode decides from the downward impact speed.
+    if (ctx.airRules && impactVy < 0) ctx.onLand?.(p, -impactVy);
   }
 
   // Keep the authoritative trail used by shooter-side rewind.

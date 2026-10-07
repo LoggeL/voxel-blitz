@@ -1,11 +1,11 @@
-// Conquest v2 locks and countermeasures (spec F4): Engineer rocket ADS lock on
-// aircraft, the jet's AA missile lock, line of sight at 10 Hz blocked by smoke,
+// Conquest v2 locks and countermeasures (spec F4): the Engineer's AX-9 STINGER
+// ADS lock on aircraft (the RX-8 AT rocket is dumb-fire), the jet's AA missile lock, line of sight at 10 Hz blocked by smoke,
 // proportional-navigation homing on a vehicle id (never Chaos), flares, tank
 // smoke, the countermeasure event, row lk/st/cmr and the locker's progress.
 import assert from 'node:assert/strict';
 import { GameEngine } from '../server/game.js';
 import { WEAPON_IDS } from '../shared/combatmath.js';
-import { LOCK_RULES, COUNTERMEASURE_RULES, vehicleLocalPoint } from '../shared/vehicle-defs.js';
+import { LOCK_RULES, COUNTERMEASURE_RULES, STINGER_RULES, VEHICLE_DEFS, vehicleLocalPoint } from '../shared/vehicle-defs.js';
 import { VEHICLE_STATUS, decodeConquestPlayer } from '../shared/conquest-contract.js';
 import { SMOKE } from '../shared/smoke-rules.js';
 
@@ -44,17 +44,18 @@ const lookAt = (from, to) => {
 function pin(v, { x, y, z, vx = 0, vy = 0, vz = 0 }) {
   Object.assign(v, { x, y, z, vx, vy, vz, speed: Math.hypot(vx, vz), grounded: false, rotorSpeed: 1, pitch: 0, roll: 0 });
 }
-/** An Engineer holding the RX-8 down the sights. */
-function engineer(f, id, at) {
+/** An Engineer holding a launcher (the STINGER by default) down the sights. */
+function engineer(f, id, at, weapon = 'stinger') {
   const p = f.player(id, 'alpha', { x: at[0], y: 1, z: at[2] });
-  const rocket = WEAPON_IDS.indexOf('rocket');
-  if (Array.isArray(p.owned)) p.owned = [...p.owned, 'rocket'];
-  p.mag[rocket] = 1; p.reserve[rocket] = 4;
-  Object.assign(p, { weapon: rocket, deployT: 0, cooldown: 0 });
+  const slot = WEAPON_IDS.indexOf(weapon);
+  if (Array.isArray(p.owned)) p.owned = [...p.owned, weapon];
+  p.mag[slot] = 1; p.reserve[slot] = weapon === 'stinger' ? 2 : 4;
+  Object.assign(p, { weapon: slot, deployT: 0, cooldown: 0 });
   return p;
 }
+const STINGER = WEAPON_IDS.indexOf('stinger');
 
-// ------------------------------------- Engineer rocket: lk 1 -> 2 -> 3, homing hit on a crossing helicopter
+// ------------------------------------- Engineer STINGER: lk 1 -> 2 -> 3, homing hit on a crossing helicopter
 {
   const f = fixture([{ id: 'heli', type: 'helicopter', team: 'bravo', x: 300, y: 1, z: 200, yaw: 0 }]);
   const heli = f.vehicle('heli'), p = engineer(f, 'eng', [300, 1, 300]);
@@ -76,19 +77,22 @@ function engineer(f, id, at) {
   assert(startAt >= 0 && startAt <= 1, 'locking starts as soon as the sights are up');
   assert(lockedAt > startAt, 'the lock completes');
   const seconds = (lockedAt - startAt + 1) / 60;
-  assert(Math.abs(seconds - LOCK_RULES.rocket.seconds) < 0.05, `rocket lock takes 1.2 s (${seconds.toFixed(3)})`);
+  assert(Math.abs(seconds - LOCK_RULES.stinger.seconds) < 0.05, `STINGER lock takes ${LOCK_RULES.stinger.seconds} s (${seconds.toFixed(3)})`);
   assert(lk.slice(startAt, lockedAt).every(value => value === 1), 'lk stays 1 while locking');
   assert(progress.every((value, i) => i === 0 || value >= progress[i - 1]), 'lockProgress rises monotonically');
   assert.equal(p.lockProgress, 1);
   const self = f.frames.at(-1).players.find(r => r.id === 'eng');
   if (self.cq) assert.equal(decodeConquestPlayer(self).lockProgress, 1, 'cq[5] publishes the locker progress');
-  // Fire: the rocket homes on the vehicle id, never on Chaos rules.
+  // Fire: the missile homes on the vehicle id, never on Chaos rules.
   f.game.applyInput(p.id, { keys: {}, ...look(), wantAds: true, wantFire: true });
   pin(heli, path); f.game.step(TICK); path = { ...path, x: path.x + path.vx / 60 };
   const rocket = [...f.game.projectiles.active.values()].find(r => r.ownerId === 'eng');
-  assert(rocket, 'the rocket launches');
+  assert(rocket, 'the STINGER launches');
+  assert.equal(p.mag[STINGER], 0, 'the launch spends the missile');
   assert.equal(rocket.guidance?.targetId, 'heli'); assert.equal(rocket.chaosLevel, 0); assert.equal(rocket.chaosHoming, false);
-  assert.equal(f.events('projectileLaunch').find(e => e.pid === rocket.id).target, 'heli');
+  assert.equal(rocket.weaponKey, 'stinger', 'kills credit the STINGER');
+  const launch = f.events('projectileLaunch').find(e => e.pid === rocket.id);
+  assert.equal(launch.target, 'heli'); assert.equal(launch.vehicleWeapon, 'aaMissile', 'presented like the AA missile'); assert.equal(launch.g, 0);
   const hp = heli.hp;
   let inbound = false;
   for (let i = 0; i < 240 && f.game.projectiles.active.has(rocket.id); i++) {
@@ -96,11 +100,11 @@ function engineer(f, id, at) {
     pin(heli, path); f.game.step(TICK); path = { ...path, x: path.x + path.vx / 60 };
     inbound ||= f.row('heli').lk === 3;
   }
-  assert(inbound, 'a guided missile in flight sets lk 3');
-  assert(heli.hp < hp, 'proportional navigation brings the rocket onto the crossing helicopter');
+  assert(inbound, 'a guided missile in flight sets lk 3 (MISSILE INBOUND for the crew)');
+  assert(Math.abs(hp - heli.hp - STINGER_RULES.hullDamage.helicopter) < 1, `proportional navigation brings the STINGER onto the crossing helicopter (${hp - heli.hp})`);
   for (let i = 0; i < 8; i++) { pin(heli, path); f.game.step(TICK); }
   const hit = f.events('vehicle_hit').find(e => e.vehicleId === 'heli');
-  assert.equal(hit.cls, 'at'); assert.equal(hit.eff, 1);
+  assert.equal(hit.cls, 'aa'); assert.equal(hit.eff, 1);
   // Releasing ADS drops the lock and the progress.
   f.game.applyInput(p.id, { keys: {}, ...look(), wantAds: false });
   pin(heli, path); f.game.step(TICK); pin(heli, path); f.game.step(TICK);
@@ -114,7 +118,7 @@ function engineer(f, id, at) {
   const p = engineer(f, 'eng', [300, 1, 300]);
   const path = { x: 300, y: 32, z: 215 };
   const look = () => lookAt([p.eyeX, p.eyeY, p.eyeZ], [path.x, path.y + 1.6, path.z]);
-  for (let i = 0; i < 80; i++) { f.game.applyInput(p.id, { keys: {}, ...look(), wantAds: true }); pin(heli, path); f.game.step(TICK); }
+  for (let i = 0; i < 100; i++) { f.game.applyInput(p.id, { keys: {}, ...look(), wantAds: true }); pin(heli, path); f.game.step(TICK); }
   assert.equal(f.row('heli').lk, 2);
   assert.equal(f.row('heli').cmr, 100, 'flares are ready');
   f.game.applyInput(p.id, { keys: {}, ...look(), wantAds: true, wantFire: true }); pin(heli, path); f.game.step(TICK);
@@ -253,7 +257,7 @@ function engineer(f, id, at) {
   assert.equal(gp.lockProgress, 0, 'only the AA rails lock');
 }
 
-// ----------------- an Engineer in an open personal-weapons seat locks with the RX-8 too
+// ----------------- an Engineer in an open personal-weapons seat locks with the STINGER too
 {
   const f = fixture([{ id: 'heli', type: 'helicopter', team: 'bravo', x: 300, y: 1, z: 200, yaw: 0 },
     { id: 'jeep', type: 'jeep', team: 'alpha', x: 300, y: 1, z: 300, yaw: 0 }]);
@@ -262,7 +266,7 @@ function engineer(f, id, at) {
   const look = () => lookAt([p.eyeX, p.eyeY, p.eyeZ], [path.x, path.y + 1.6, path.z]);
   for (let i = 0; i < 100; i++) { f.game.applyInput(p.id, { keys: {}, ...look(), wantAds: true }); pin(heli, path); f.game.step(TICK); }
   assert.equal(p.vehicleSeatId, 'front-passenger');
-  assert.equal(p.lockProgress, 1, 'a seated Engineer completes the rocket lock');
+  assert.equal(p.lockProgress, 1, 'a seated Engineer completes the STINGER lock');
   assert.equal(f.row('heli').lk, 2);
   // Outside the seat's +-100 degree arc the personal weapon (and its seeker) is unavailable.
   const behind = { yaw: Math.PI, pitch: 0.2 };
@@ -287,4 +291,65 @@ function engineer(f, id, at) {
   }
 }
 
-console.log('Vehicle locks: rocket ADS lock 1.2 s with lk 1->2->3 and PN homing on a crossing target (never Chaos), flares decoy and cooldown, smoke breaks the 10 Hz line of sight, tank smoke fields, jet AA lock 1.5 s and proximity kill, cone/range/candidate rules passed');
+// ----------------------- no lock, no launch; the AT rocket never locks; the jet warning shows STINGER locks
+{
+  const f = fixture([{ id: 'heli', type: 'helicopter', team: 'bravo', x: 300, y: 1, z: 200, yaw: 0 }]);
+  const heli = f.vehicle('heli'), pilot = f.board(f.player('pilot', 'bravo'), 'heli', 'driver');
+  const p = engineer(f, 'eng', [300, 1, 300]);
+  const path = { x: 300, y: 30, z: 220 };
+  const look = () => lookAt([p.eyeX, p.eyeY, p.eyeZ], [path.x, path.y + 1.6, path.z]);
+  // Hip fire and an unfinished lock both refuse the trigger: nothing launches, the round stays.
+  f.game.applyInput(p.id, { keys: {}, ...look(), wantAds: false, wantFire: true }); pin(heli, path); f.game.step(TICK);
+  for (let i = 0; i < 20; i++) { f.game.applyInput(p.id, { keys: {}, ...look(), wantAds: true, wantFire: i % 2 === 0 }); pin(heli, path); f.game.step(TICK); }
+  assert(p.lockProgress > 0 && p.lockProgress < 1, 'still locking');
+  assert.equal(p.mag[STINGER], 1, 'an unlocked STINGER never fires');
+  assert.equal([...f.game.projectiles.active.values()].filter(r => r.ownerId === 'eng').length, 0);
+  // The pilot's row warns LOCKING then LOCKED for the STINGER seeker.
+  assert.equal(f.row('heli').lk, 1, 'LOCKING on the target row');
+  for (let i = 0; i < 90; i++) { f.game.applyInput(p.id, { keys: {}, ...look(), wantAds: true }); pin(heli, path); f.game.step(TICK); }
+  assert.equal(f.row('heli').lk, 2, 'LOCKED on the target row');
+  assert.equal(pilot.vehicleId, 'heli');
+  // The RX-8 AT rocket, down the sights on the same helicopter: no lock at all.
+  const g = fixture([{ id: 'heli', type: 'helicopter', team: 'bravo', x: 300, y: 1, z: 200, yaw: 0 }]);
+  const at = engineer(g, 'at', [300, 1, 300], 'rocket');
+  for (let i = 0; i < 100; i++) {
+    g.game.applyInput(at.id, { keys: {}, ...lookAt([at.eyeX, at.eyeY, at.eyeZ], [path.x, path.y + 1.6, path.z]), wantAds: true });
+    pin(g.vehicle('heli'), path); g.game.step(TICK);
+  }
+  assert.equal(at.lockProgress ?? 0, 0, 'the AT launcher is dumb-fire');
+  assert.equal(g.row('heli').lk ?? 0, 0);
+}
+
+// ------------------------------- STINGER hulls: 2 hits kill a helicopter or a transport, 3 a jet
+{
+  for (const [type, hits] of [['helicopter', 2], ['transport', 2], ['plane', 3]]) {
+    const f = fixture([{ id: 'air', type, team: 'bravo', x: 300, y: 1, z: 200, yaw: 0 }]);
+    const air = f.vehicle('air'), p = engineer(f, 'eng', [300, 1, 300]);
+    let n = 0;
+    while (air.hp > 0 && n < 6) {
+      pin(air, { x: 300, y: 40, z: 200 });
+      const center = f.game.vehicles.hullCenter(air), eye = [p.eyeX, p.eyeY, p.eyeZ];
+      const d = center.map((v, i) => v - eye[i]), l = Math.hypot(...d);
+      const missile = f.game.projectiles.launchStinger(p, f.game.contexts.projectiles, d.map(v => v / l), 'air');
+      assert(missile, `${type}: the STINGER launches on a lock`);
+      for (let i = 0; i < 240 && f.game.projectiles.active.has(missile.id); i++) { pin(air, { x: 300, y: 40, z: 200 }); f.game.step(TICK); }
+      air.lastDamagedAt = -Infinity;
+      n++;
+    }
+    assert.equal(n, hits, `${type} dies to ${hits} STINGER hits (${n}, ${VEHICLE_DEFS[type].hp} HP)`);
+  }
+  // Without a target (or on a dead hull) the projectile system refuses the launch.
+  const f = fixture([{ id: 'air', type: 'helicopter', team: 'bravo', x: 300, y: 1, z: 200, yaw: 0 }]);
+  const p = engineer(f, 'eng', [300, 1, 300]);
+  assert.equal(f.game.projectiles.launchStinger(p, f.game.contexts.projectiles, [0, 0, -1], null), null, 'no lock, no missile');
+  // A decoyed STINGER only splashes infantry: ground hulls never take its hull damage.
+  const g = fixture([{ id: 'tank', type: 'tank', team: 'bravo', x: 300, y: 1, z: 260, yaw: 0 }, { id: 'air', type: 'helicopter', team: 'bravo', x: 300, y: 1, z: 200, yaw: 0 }]);
+  const q = engineer(g, 'eng', [300, 1, 300]), tank = g.vehicle('tank');
+  pin(g.vehicle('air'), { x: 300, y: 40, z: 200 });
+  const missile = g.game.projectiles.launchStinger(q, g.game.contexts.projectiles, [0, 0, -1], 'air');
+  missile.guidance.targetId = null; // as if flares took it
+  for (let i = 0; i < 120 && g.game.projectiles.active.has(missile.id); i++) g.game.step(TICK);
+  assert.equal(tank.hp, VEHICLE_DEFS.tank.hp, 'a STINGER flying into a tank does nothing to it');
+}
+
+console.log('Vehicle locks: STINGER ADS lock with lk 1->2->3 and PN homing on a crossing target (never Chaos), no unlocked launch, AT rocket dumb-fire, 2/2/3 STINGER hits for helicopter/transport/jet, flares decoy and cooldown, smoke breaks the 10 Hz line of sight, tank smoke fields, jet AA lock 1.5 s and proximity kill, cone/range/candidate rules passed');

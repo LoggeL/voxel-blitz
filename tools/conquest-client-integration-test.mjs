@@ -63,7 +63,7 @@ intents.ws = { readyState: 1, send: frame => intentFrames.push(JSON.parse(frame)
 const deploy = { spawn: 'flag:A', kit: 'engineer', variant: 1 };
 assert.equal(intents.sendConquest({ deploy }), true);
 assert.deepEqual(intentFrames[0], { t: 'conquest', deploy });
-assert.deepEqual(parseConquestIntent(intentFrames[0]), { type: 'deploy', spawn: 'flag:A', kit: 'engineer', variant: 1 });
+assert.deepEqual(parseConquestIntent(intentFrames[0]), { type: 'deploy', spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0 });
 assert.equal(intents.sendConquest({ deploy: { spawn: 'hq' } }), false, 'a second deploy within 250 ms is held back');
 assert.equal(intents.sendConquest({ spot: 1 }), true, 'rate limits are per intent type');
 assert.deepEqual(parseConquestIntent(intentFrames[1]), { type: 'spot' });

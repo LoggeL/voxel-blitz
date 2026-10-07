@@ -278,6 +278,10 @@ export class ModeController {
   conquestIntent(player, intent) {
     return typeof this.policy.conquestIntent === 'function' && this.policy.conquestIntent(player, intent) === true;
   }
+  /** Conquest flies parachutes and applies fall damage (shared/parachute.js); other modes do not. */
+  airborneRules() { return typeof this.policy.fallDamage === 'function'; }
+  /** Landing hook from movement: damage dealt for a downward impact `speed` (m/s). */
+  fallDamage(player, speed) { return this.policy.fallDamage?.(player, speed) ?? 0; }
   /** VehicleSystem hook for vehicle_hit, vehicle_disabled, vehicle_repaired and vehicle_destroyed. */
   onVehicleEvent(kind, payload) { this.policy.onVehicleEvent?.(kind, payload); }
   /** WP3 bot director `{goalFor(player), deployFor(player)}`; null clears it. */

@@ -44,6 +44,8 @@ export function createSimulationContexts(engine) {
     ),
     launchRocket: (player, dir, source) => engine.projectiles.launchRocket(player, projectiles, dir, source),
     launchMgl: (player, dir) => engine.projectiles.launchMgl(player, projectiles, dir),
+    launchStinger: (player, dir, targetId) => engine.projectiles.launchStinger(player, projectiles, dir, targetId),
+    stingerTarget: (player) => engine.vehicles?.locks?.lockedTarget?.(player, 'stinger') ?? null,
     launchBolt: (player, dir, charge, source) => engine.projectiles.launchBolt(player, projectiles, dir, charge, false, source),
     launchGlaive: (player, dir) => engine.projectiles.launchGlaive(player, projectiles, dir),
     canThrowGlaive: (player) => engine.projectiles.canThrowGlaive(player),
@@ -77,6 +79,9 @@ export function createSimulationContexts(engine) {
     solidAt: combat.solidAt,
     fluidAt: engine.fluidAt,
     movementLocked: false,
+    // Conquest flies parachutes and ejection seats and applies fall damage.
+    get airRules() { return engine.mode?.airborneRules?.() === true; },
+    onLand: (entity, speed) => engine.mode?.fallDamage?.(entity, speed),
     onFall: (entity, reason) => {
       if (reason === 'invalid') engine.forceRespawn(entity);
       else engine.killPlayer(entity, null, 'world', false);

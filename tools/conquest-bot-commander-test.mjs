@@ -277,6 +277,43 @@ function fixture(n = 16) {
   bots.dispose();
 }
 
+// --- engineer gadgets: AT by default, a share of STINGERs once enemy aircraft fly ----------------
+{
+  const { game, bots, commander, replan, bodies } = fixture();
+  replan();
+  const engineers = bodies('alpha').filter(p => commander.kitFor(p) === 'engineer');
+  const others = bodies('alpha').filter(p => commander.kitFor(p) !== 'engineer');
+  assert(engineers.length >= 1, 'alpha has engineer bots');
+  assert(others.every(p => commander.gadgetFor(p) === 0), 'only engineers pick a gadget');
+  assert(engineers.every(p => commander.gadgetFor(p) === 0), 'no enemy aircraft in play: every engineer carries the AT launcher');
+  assert.equal(commander.deployFor(engineers[0]).gadget, 0, 'deployFor carries the gadget choice');
+  // An enemy helicopter is crewed: a share of the engineers switches to the STINGER on the next deploy.
+  const heli = [...game.vehicles.vehicles.values()].find(v => v.team === 'bravo' && v.type === 'helicopter');
+  const pilot = bodies('bravo').find(p => !p.vehicleId);
+  game.vehicles.release?.(pilot);
+  Object.assign(pilot, { x: heli.x, y: heli.y, z: heli.z });
+  assert(game.vehicles.enter(pilot, heli.id, 'driver') || heli.occupantId != null, 'an enemy pilot crews the helicopter');
+  game.now += 1500; // past the air-threat cache
+  const aa = engineers.filter(p => commander.gadgetFor(p) === 1);
+  assert(aa.length >= 1 && aa.length <= Math.max(1, Math.round(engineers.length * 0.4)), `one enemy aircraft: ${aa.length}/${engineers.length} AA engineers`);
+  assert.deepEqual(engineers.map(p => commander.gadgetFor(p)), engineers.map(p => commander.gadgetFor(p)), 'the split is stable');
+  const jet = [...game.vehicles.vehicles.values()].find(v => v.team === 'bravo' && v.type === 'plane');
+  jet.grounded = false;
+  game.now += 1500;
+  const aa2 = engineers.filter(p => commander.gadgetFor(p) === 1);
+  assert(aa2.length >= aa.length, 'more enemy aircraft, at least as many STINGERs');
+  // The choice reaches the authoritative loadout: an AA engineer bot respawns owning the STINGER.
+  const pick = aa[0];
+  // (Bot pilots come and go; hold the air threat so the redeploy sees it.)
+  commander.enemyAirThreat = () => 2;
+  game.killPlayer(pick, null, 'world', false);
+  for (let i = 0; i < 60 * 8 && pick.state !== 'alive'; i++) game.step(TICK_MS);
+  assert.deepEqual(game.mode.policy.kitFor(pick), { kit: 'engineer', variant: 0, gadget: 1 }, 'the deploy state holds the STINGER choice');
+  assert.equal(pick.state, 'alive', 'the AA engineer bot redeploys');
+  assert(pick.owned.includes('stinger') && !pick.owned.includes('rocket'), `the redeployed bot carries the STINGER (${pick.owned})`);
+  bots.dispose();
+}
+
 // --- cost: a full replan of both teams is cheap ------------------------------------
 {
   const { game, bots, commander, replan } = fixture();

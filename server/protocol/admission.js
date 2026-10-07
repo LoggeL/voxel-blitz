@@ -2,7 +2,7 @@ import { isTttRequest } from '../../shared/ttt.js';
 import { parseBastionPurchase } from '../../shared/bastion.js';
 import { parseChaosPurchase } from '../../shared/chaos.js';
 import { MAX_BOTS } from '../../shared/lobby-limits.js';
-import { KIT_IDS } from '../../shared/conquest-contract.js';
+import { KIT_IDS, KITS } from '../../shared/conquest-contract.js';
 import { SPAWN_CHOICE_PATTERN } from '../../shared/conquest.js';
 // Wire protocol constants and strict client-frame parsers. Pure data
 // functions only — no engine state or world access.
@@ -209,11 +209,13 @@ const SUPPORT_TYPES = Object.freeze(['revive', 'repair']);
 /**
  * Conquest intent frame `{t:'conquest', deploy | spot | support}` with exactly
  * one intent field:
- * - deploy {spawn, kit?, variant?}: spawn matches the strict spawn grammar,
- *   kit is a KIT_IDS id (default assault), variant is 0 or 1 (default 0);
+ * - deploy {spawn, kit?, variant?, gadget?}: spawn matches the strict spawn
+ *   grammar, kit is a KIT_IDS id (default assault), variant is 0 or 1
+ *   (default 0), gadget is 0 or an index into that kit's `gadgets` (default 0:
+ *   the Engineer's AT launcher; 1 is the STINGER);
  * - spot: 1 (or true);
  * - support {type: 'revive'|'repair', targetId: string <= 64}.
- * Returns `{type:'deploy', spawn, kit, variant}`, `{type:'spot'}`,
+ * Returns `{type:'deploy', spawn, kit, variant, gadget}`, `{type:'spot'}`,
  * `{type:'support', support, targetId}` or null.
  */
 export function parseConquestIntent(raw) {
@@ -230,9 +232,11 @@ export function parseConquestIntent(raw) {
     return { type: 'support', support: value.type, targetId: value.targetId };
   }
   if (!isRecord(value) || typeof value.spawn !== 'string') return null;
-  if (Object.keys(value).some(k => k !== 'spawn' && k !== 'kit' && k !== 'variant')) return null;
+  if (Object.keys(value).some(k => k !== 'spawn' && k !== 'kit' && k !== 'variant' && k !== 'gadget')) return null;
   if (!SPAWN_CHOICE_PATTERN.test(value.spawn)) return null;
   if (Object.hasOwn(value, 'kit') && !KIT_IDS.includes(value.kit)) return null;
   if (Object.hasOwn(value, 'variant') && value.variant !== 0 && value.variant !== 1) return null;
-  return { type: 'deploy', spawn: value.spawn, kit: value.kit ?? KIT_IDS[0], variant: value.variant ?? 0 };
+  const kit = value.kit ?? KIT_IDS[0];
+  if (Object.hasOwn(value, 'gadget') && value.gadget !== 0 && !(value.gadget === 1 && (KITS[kit].gadgets?.length ?? 0) > 1)) return null;
+  return { type: 'deploy', spawn: value.spawn, kit, variant: value.variant ?? 0, gadget: value.gadget ?? 0 };
 }

@@ -37,7 +37,7 @@ export const CONDITION_RULES = Object.freeze({
 
 /**
  * @typedef {Object} WeaponDef
- * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive'|'bubble'|'mgl')
+ * @property {string} id            stable key ('rifle'|'smg'|'shotgun'|'sniper'|'lmg'|'revolver'|'longarc'|'rocket'|'lance'|'knife'|'minigun'|'flamethrower'|'glaive'|'bubble'|'mgl'|'stinger')
  * @property {string} name          display name
  * @property {'auto'|'semi'|'pump'|'bolt'|'charge'|'melee'} mode trigger behavior; `charge` fires on
  *                                  trigger release and scales with the hold (see `charge`); `melee`
@@ -74,7 +74,7 @@ export const CONDITION_RULES = Object.freeze({
  * @property {object} handling      ergonomics, sway amplitude/rate, vertical/horizontal recoil
  * @property {string} sfx           bank key for the audio engine
  * @property {{reach:number,coneDeg:number,backstabMult:number,backstabDot:number}} [melee] melee profile: swing hits enemies within `reach` meters inside a `coneDeg` arc; damage multiplies by `backstabMult` when the swing direction aligns with the victim's facing beyond `backstabDot`
- * @property {'rocket'|'bolt'|'glaive'|'bubble'|'mgl'} [projectile]  when set, the shot launches an authoritative projectile instead of firing hitscan rays
+ * @property {'rocket'|'bolt'|'glaive'|'bubble'|'mgl'|'stinger'} [projectile]  when set, the shot launches an authoritative projectile instead of firing hitscan rays
  * @property {{ms:number,holdMaxMs:number,minDamageMult:number,damageExponent?:number}} [charge]  charge-fire profile
  * @property {number} [hitRadius] outer radius around a body reached by the rail corona
  * @property {number} [coreRadius] full-damage radius around a body inside the rail core
@@ -83,7 +83,7 @@ export const CONDITION_RULES = Object.freeze({
  *                              discs instead of reloading, so reloadTime/tacTime are unused
  */
 
-/** The fifteen-weapon roster. Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
+/** The weapon roster (fifteen free weapons plus kit-only gadgets). Slot order = scroll order. Tuned for TTK ~0.2–1.1 s. */
 export const WEAPONS = {
   rifle: {
     id: 'rifle', penetration: 55, name: 'VK-77 RAPTOR', mode: 'auto',
@@ -418,12 +418,47 @@ export const WEAPONS = {
     sfx: 'mgl',
     projectile: 'mgl',
   },
+  stinger: {
+    // AX-9 STINGER: Conquest Engineer anti-air gadget. Aim down the sights at an
+    // airborne enemy aircraft to build a lock (shared/vehicle-defs.js LOCK_RULES.stinger);
+    // the trigger only releases a missile once the lock is complete, and the missile
+    // homes on that hull (flares decoy it). It never hurts ground targets by design:
+    // the server refuses an unlocked launch. `gadgetOnly` keeps it out of every
+    // free-for-all roster; only a kit that lists it owns it.
+    id: 'stinger', name: 'AX-9 STINGER', mode: 'semi', gadgetOnly: true,
+    weightKg: 10.4,
+    rpm: 45, magSize: 1, spareMags: 2,
+    damage: [0, 0, 60], headMult: 1.0, pellets: 1, penetration: 0, // display only: missiles damage hulls
+    spreadDeg: { hip: 1.1, ads: 0.25 }, bloomDeg: 0, bloomMaxDeg: 0,
+    bloomRecover: 1, moveSpreadDeg: 1.4,
+    crouchSpreadMult: 0.8,
+    recoil: {
+      pitch: 2.6, pitchRamp: 0, maxPitchRamp: 0,
+      yaw: 0.6, yawPattern: [0.5, -0.4, 0.3, -0.5],
+      jitter: 0.1, resetMs: 1500, adsMult: 0.8, recovery: 0.5,
+    },
+    adsFov: 52, zoom: 1.5, adsTime: 0.38,
+    reloadTime: 3.4, tacTime: 3.4, deployTime: 0.95,
+    tracer: null,          // the missile mesh and its smoke trail replace a tracer
+    sfx: 'rocket',
+    projectile: 'stinger',
+  },
 };
 
 // Attach immutable handling profiles without duplicating the baseline recoil numbers.
 for (const [id, def] of Object.entries(WEAPONS)) WEAPONS[id] = withWeaponHandling(def);
 
-export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl'];
+export const WEAPON_IDS = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl', 'stinger'];
+
+/** Kit-only gadgets: never part of a free roster, a weapon wheel or a shop. */
+export const GADGET_ONLY_WEAPON_IDS = Object.freeze(WEAPON_IDS.filter(id => WEAPONS[id]?.gadgetOnly === true));
+/** True for a weapon id (or slot) that only a Conquest kit can issue. */
+export function isGadgetOnlyWeapon(weapon) {
+  const id = typeof weapon === 'string' ? weapon : Number.isInteger(weapon) ? WEAPON_IDS[weapon] : null;
+  return !!id && WEAPONS[id]?.gadgetOnly === true;
+}
+/** The roster a mode without kit loadouts offers (every weapon but kit-only gadgets). */
+export const FREE_WEAPON_IDS = Object.freeze(WEAPON_IDS.filter(id => !GADGET_ONLY_WEAPON_IDS.includes(id)));
 
 /** Charge profile with safe defaults for weapons that are not `charge` mode. */
 export function chargeProfile(def) {

@@ -10,6 +10,11 @@ import { SquadRoster } from './conquest/squads.js';
 import { ScoreLedger } from './conquest/score.js';
 import { BoundsSystem, RESTRICTED_WEAPON } from './conquest/bounds.js';
 import { createConquestRoles } from './conquest/roles.js';
+import { FALL_DAMAGE, fallDamage, waterDepthAt } from '../../shared/parachute.js';
+import { evHit } from '../protocol/events.js';
+
+/** Kill key of a fall death (kill feed "FELL"); see shared/conquest-contract.js DEATH_KEYS. */
+export const FALL_KILL_KEY = 'fall';
 
 /**
  * Battlefield-style Conquest: five flags with a majority-scaled control
@@ -133,7 +138,7 @@ export class ConquestPolicy extends TdmPolicy {
     state.deathHandled = false;
     // The roles package keeps the kit the body died with; mirror it so a kit
     // picked on the deploy screen while down does not linger.
-    this.deploy.onRevived(entity, this.roles.kitOf?.(entity) ?? null, this.roles.variantOf?.(entity) ?? 0);
+    this.deploy.onRevived(entity, this.roles.kitOf?.(entity) ?? null, this.roles.variantOf?.(entity) ?? 0, this.roles.gadgetOf?.(entity) ?? 0);
     this.bounds.clear(entity.id);
     return true;
   }
@@ -262,6 +267,34 @@ export class ConquestPolicy extends TdmPolicy {
   /** Kill points are paid by the score ledger. */
   killScoreDelta() { return 0; }
 
+  /**
+   * Fall damage on landing (movement `onLand`, shared/parachute.js): damage
+   * from the downward impact speed, none on deep water. A lethal fall within
+   * FALL_DAMAGE.creditMs of enemy damage credits that enemy; otherwise it is a
+   * self death. Both use the kill key `fall`. Returns the damage dealt.
+   */
+  fallDamage(player, speed) {
+    const entity = this._entity(player);
+    if (!entity || entity.state !== 'alive' || this.phase !== 'live' || entity.vehicleId) return 0;
+    const damage = fallDamage(speed);
+    if (!(damage > 0)) return 0;
+    if (waterDepthAt(this.engine?.fluidAt, entity.x, entity.y, entity.z) >= FALL_DAMAGE.waterDepth) return 0;
+    const lethal = entity.takeDamage(damage, false, null, FALL_KILL_KEY);
+    this.engine?.tickEvents?.push(evHit('', entity.id, damage, false, [entity.x, entity.y + 0.2, entity.z], entity.lastDamage));
+    if (lethal) {
+      const credited = this.score.lastAttacker(entity.id, FALL_DAMAGE.creditMs);
+      const killer = credited && this.isEnemy(credited, entity) ? credited : null;
+      if (typeof this.engine?.killPlayer === 'function') this.engine.killPlayer(entity, killer, FALL_KILL_KEY, false);
+      else this._kill(entity, FALL_KILL_KEY);
+    }
+    return damage;
+  }
+
+  /** No weapon fires under an open canopy or on the ejection seat. */
+  canFire(player) {
+    return !(this._entity(player)?.chute > 0) && super.canFire(player);
+  }
+
   canTimedRespawn(player) {
     const entity = this._entity(player);
     return this.canRespawn(entity) && this.deploy.ready(entity);
@@ -316,8 +349,8 @@ export class ConquestPolicy extends TdmPolicy {
   applyRespawnLoadout(player) {
     if (!super.applyRespawnLoadout(player)) return false;
     const entity = this._entity(player);
-    const { kit, variant } = this.deploy.kitOf(entity.id);
-    this.roles.applyLoadout(entity, kit, variant);
+    const { kit, variant, gadget } = this.deploy.kitOf(entity.id);
+    this.roles.applyLoadout(entity, kit, variant, gadget);
     return true;
   }
 
@@ -331,7 +364,7 @@ export class ConquestPolicy extends TdmPolicy {
 
   // --- intents and hooks ---------------------------------------------------
 
-  /** `{type:'deploy', spawn, kit, variant}` | `{type:'spot'}` | `{type:'support', support, targetId}`. */
+  /** `{type:'deploy', spawn, kit, variant, gadget}` | `{type:'spot'}` | `{type:'support', support, targetId}`. */
   conquestIntent(player, intent) {
     const entity = this._entity(player);
     if (!entity || !this._state(entity) || !intent || typeof intent !== 'object') return false;
@@ -367,7 +400,7 @@ export class ConquestPolicy extends TdmPolicy {
       flags: this.capture.flags,
       players: [...this._entities.values()].filter(p => !p.npcRole).map(p => ({
         id: String(p.id), team: this.teamFor(p), state: p.state, x: p.x, y: p.y, z: p.z,
-        vehicleId: typeof p.vehicleId === 'string' ? p.vehicleId : null, squad: this.squads.squadOf(p.id),
+        vehicleId: typeof p.vehicleId === 'string' ? p.vehicleId : null, squad: this.squads.squadOf(p.id), bot: !!p.bot,
       })),
       vehicles: this.engine?.vehicles?.vehicles ? [...this.engine.vehicles.vehicles.values()] : [],
     };

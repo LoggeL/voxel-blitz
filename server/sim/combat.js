@@ -86,7 +86,9 @@ export function canFire(p, fireEdge, ctx) {
   const semi = mode !== 'auto' && mode !== 'melee';
   return ctx.canFire(p) && !p.medkit?.active && !p.vault && !p.reloading && p.deployT <= 0 &&
     p.cooldown <= 0 && (mode === 'melee' || p.mag[p.weapon] > 0) &&
-    !(semi && p.triggerPrev && !fireEdge);
+    !(semi && p.triggerPrev && !fireEdge) &&
+    // The AX-9 STINGER only releases on a complete lock (VehicleLocks).
+    (p.def.projectile !== 'stinger' || !!ctx.stingerTarget?.(p));
 }
 
 /**
@@ -498,6 +500,12 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
   if (def.projectile === 'rocket') {
     // The rocket is its own authoritative entity from here on.
     if (typeof ctx.launchRocket === 'function') ctx.launchRocket(p, firstDir);
+    return;
+  }
+  if (def.projectile === 'stinger') {
+    // Guided from the tube on the locked hull; a refused launch keeps the missile.
+    const target = ctx.stingerTarget?.(p) ?? null;
+    if (!target || !ctx.launchStinger?.(p, [fwd.x, fwd.y, fwd.z], target)) p.mag[p.weapon]++;
     return;
   }
   if (def.projectile === 'mgl') {

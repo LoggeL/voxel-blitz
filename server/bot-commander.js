@@ -47,6 +47,13 @@ const STAGE_TIMEOUT_MS = 35000;
 const DEFEND_HOLD_MS = 20000;
 const KNOWLEDGE_MS = 8000;
 const KIT_MIX = Object.freeze(['assault', 'engineer', 'support', 'recon']);
+/**
+ * Engineer gadget mix: the share of a team's engineers that deploy with the
+ * STINGER (gadget 1) by the number of enemy aircraft in play (crewed or
+ * airborne). No enemy aircraft means every engineer carries the AT launcher.
+ */
+const AA_ENGINEER_SHARE = Object.freeze([0, 0.4, 0.6]);
+const AIR_THREAT_CACHE_MS = 1000;
 const opposite = team => (team === 'alpha' ? 'bravo' : 'alpha');
 const flat = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const wrap = a => Math.atan2(Math.sin(a), Math.cos(a));
@@ -509,9 +516,12 @@ export class BotCommander {
     const chosen = [];
     // A bot flying an aircraft keeps it until it lands, dies or the hull goes
     // down: nobody bails out of a jet in the air. It still counts against the budget.
+    // Only the pilot is protected: an airborne gunner without an order rides on
+    // until landing, so it must not push a seated tank driver out of the budget.
     for (const slot of slots) {
       const occupant = vehicleSeatOccupantId(slot.v, slot.seat);
-      if (occupant != null && this.isBot(occupant) && isAircraftType(slot.v.type) && slot.v.grounded === false) chosen.push(slot);
+      if (occupant != null && this.isBot(occupant) && isAircraftType(slot.v.type) && slot.v.grounded === false
+          && slot.seat === hullSeatIds(slot.v).driver) chosen.push(slot);
     }
     for (const slot of slots) {
       if (chosen.includes(slot)) continue;
@@ -675,6 +685,41 @@ export class BotCommander {
     return KIT_IDS.includes(kit) ? kit : 'assault';
   }
 
+  /** Enemy aircraft in play for `team` (crewed or airborne), cached for a second. */
+  enemyAirThreat(team) {
+    const now = this.game.now;
+    this._airThreat ??= new Map();
+    const cached = this._airThreat.get(team);
+    if (cached && now - cached.at < AIR_THREAT_CACHE_MS) return cached.count;
+    let count = 0;
+    for (const v of this.game.vehicles?.vehicles?.values?.() ?? []) {
+      if (!(v.hp > 0) || v.padInactive || !isAircraftType(v.type) || v.team == null || v.team === team) continue;
+      if (v.grounded === false || vehicleSeats(v).some(seat => vehicleSeatOccupantId(v, seat.id) != null)) count++;
+    }
+    this._airThreat.set(team, { at: now, count });
+    return count;
+  }
+
+  /**
+   * Gadget choice (spec: Engineer AT or STINGER). A stable share of the team's
+   * engineers, ranked by id hash, takes the STINGER while enemy aircraft are in
+   * play; the rest keep the AT launcher. Other kits have no choice (0).
+   */
+  gadgetFor(p) {
+    if (this.kitFor(p) !== 'engineer') return 0;
+    const team = this.teamOf(p);
+    const share = AA_ENGINEER_SHARE[Math.min(AA_ENGINEER_SHARE.length - 1, this.enemyAirThreat(team))];
+    if (!(share > 0)) return 0;
+    const engineers = [];
+    for (const o of this.game.entities.values()) {
+      if (o.bot && this.teamOf(o) === team && this.kitFor(o) === 'engineer') engineers.push(String(o.id));
+    }
+    if (!engineers.includes(String(p.id))) engineers.push(String(p.id));
+    engineers.sort((a, b) => stableHash(`${a}:aa`) - stableHash(`${b}:aa`) || (a < b ? -1 : 1));
+    const aa = Math.max(1, Math.round(engineers.length * share));
+    return engineers.indexOf(String(p.id)) < aa ? 1 : 0;
+  }
+
   /**
    * Primary variant: the generalist for the ranges Frontier is fought at
    * (rifle, SMG, LMG). Short-range or specialist alternatives (shotgun, MGL,
@@ -694,7 +739,7 @@ export class BotCommander {
     const p = this.game.entities.get(String(player?.id ?? player)) ?? player;
     const view = this.readView();
     if (!this.teams.get(this.teamOf(p))?.memberSquad) this.plan(this.game.now);
-    const kit = this.kitFor(p), variant = this.variantFor(p);
+    const kit = this.kitFor(p), variant = this.variantFor(p), gadget = this.gadgetFor(p);
     // A downed bot a medic is already running to waits for the revive.
     const body = downBody(this.game, p);
     if (body && this.claimedByOther(`revive:${p.id}`, key(p), this.game.now) && body.until > this.game.now + 300) return null;
@@ -702,7 +747,7 @@ export class BotCommander {
     const crew = this.crewFor(p.id);
     if (crew?.role === 'crew') {
       const exact = `vehicle:${crew.vehicleId}:${crew.seatId}`;
-      if (options.has(exact)) return { spawn: exact, kit, variant };
+      if (options.has(exact)) return { spawn: exact, kit, variant, gadget };
     }
     const target = this.objectivePoint(p) ?? view.bases?.[this.teamOf(p)];
     let best = { spawn: 'hq', score: Infinity };
@@ -719,7 +764,7 @@ export class BotCommander {
       const score = flat(point, target) + penalty;
       if (score < best.score) best = { spawn, score };
     }
-    return { spawn: best.spawn, kit, variant };
+    return { spawn: best.spawn, kit, variant, gadget };
   }
 
   deployChoices(p, view) {

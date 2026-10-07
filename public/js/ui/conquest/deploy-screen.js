@@ -1,6 +1,7 @@
 /**
  * Deploy screen while dead in Conquest: map with selectable spawns from the
- * shared deployOptions(), spawn list, kit picker with variant, killer card,
+ * shared deployOptions(), spawn list, kit picker with variant and gadget
+ * (Engineer: AT launcher or STINGER), killer card,
  * countdown to respawnAt and the Deploy button. The server holds the chosen
  * spawn and spawns the player once respawnAt passes, so a choice may be sent
  * during the countdown; any later change is re-sent.
@@ -54,7 +55,8 @@ export class DeployScreen {
     this.button.addEventListener('click', () => this.deploy());
 
     const kit = loadPref(KIT_PREF, 'assault');
-    this.selection = { spawn: 'hq', kit, variant: Number(loadPref(`${KIT_PREF}-variant`, '0')) === 1 ? 1 : 0 };
+    this.selection = { spawn: 'hq', kit, variant: Number(loadPref(`${KIT_PREF}-variant`, '0')) === 1 ? 1 : 0,
+      gadget: Number(loadPref(`${KIT_PREF}-gadget`, '0')) === 1 ? 1 : 0 };
     this.readied = false;
     this._resend = false;
     this.refused = null;
@@ -93,6 +95,7 @@ export class DeployScreen {
     this.selection = { ...this.selection, ...patch };
     if (patch.kit) savePref(KIT_PREF, patch.kit);
     if (patch.variant !== undefined) savePref(`${KIT_PREF}-variant`, String(patch.variant));
+    if (patch.gadget !== undefined) savePref(`${KIT_PREF}-gadget`, String(patch.gadget));
     this.refused = null;
     // Already readied: the next update re-sends the new choice from a fresh model.
     if (this.readied) this._resend = true;
@@ -128,7 +131,8 @@ export class DeployScreen {
    * the server never deploys a stale kit or spawn the screen no longer shows.
    */
   _send(choice) {
-    return this.onDeploy({ spawn: choice.spawn, kit: choice.kit, variant: choice.variant }) !== false;
+    const gadget = choice.gadget === undefined ? {} : { gadget: choice.gadget };
+    return this.onDeploy({ spawn: choice.spawn, kit: choice.kit, variant: choice.variant, ...gadget }) !== false;
   }
 
   update({ cq, self, players, vehicles, nowMs, mapItems = [], meta = null }) {
@@ -155,7 +159,7 @@ export class DeployScreen {
   _render(model) {
     this.teamLabel.textContent = `${model.teamName}${model.down ? ' · AWAITING REVIVE' : ''}`;
     this.root.dataset.team = model.team;
-    const spawnSig = JSON.stringify([model.selectedKey, this.selection.spawn, model.options.map(o => [o.spawn, o.ok, o.reason, o.label, o.detail, o.seats])]);
+    const spawnSig = JSON.stringify([model.selectedKey, this.selection.spawn, model.options.map(o => [o.spawn, o.ok, o.reason, o.label, o.detail, o.seats, o.takeoverNames])]);
     if (spawnSig !== this._spawnSig) {
       this._spawnSig = spawnSig;
       this.spawnList.textContent = '';
@@ -176,21 +180,27 @@ export class DeployScreen {
         el('small', '', text).textContent = option.ok ? option.detail : option.reasonText;
         b.disabled = !option.ok;
         b.addEventListener('click', () => this.select({ spawn: option.spawn }));
-        if (option.kind === 'vehicle' && option.ok && option.seats?.length > 1) {
+        // Free seats and seats a bot holds (TAKE: the bot is put out), in F-key order.
+        const takeover = option.takeoverNames || {};
+        const seatIds = option.kind === 'vehicle' && option.ok ? option.seatChoices || option.seats || [] : [];
+        if (seatIds.length > 1) {
           const seats = el('div', 'cq-spawn-seats', row);
-          for (const seatId of option.seats) {
+          for (const seatId of seatIds) {
             const chip = el('button', 'cq-spawn-seat', seats);
             chip.type = 'button';
-            chip.textContent = seatLabel(seatId);
+            const bot = takeover[seatId];
+            chip.textContent = bot ? `TAKE ${seatLabel(seatId)}` : seatLabel(seatId);
+            chip.classList.toggle('is-takeover', !!bot);
+            if (bot) chip.title = `Take the ${seatLabel(seatId)} seat from ${bot}`;
             const choice = `${option.spawn}:${seatId}`;
             chip.classList.toggle('is-selected', this.selection.spawn === choice);
-            chip.setAttribute('aria-label', `${option.label} ${seatLabel(seatId)} seat`);
+            chip.setAttribute('aria-label', bot ? `${option.label} take ${seatLabel(seatId)} seat from ${bot}` : `${option.label} ${seatLabel(seatId)} seat`);
             chip.addEventListener('click', () => this.select({ spawn: choice }));
           }
         }
       }
     }
-    const kitSig = JSON.stringify([model.kit, model.variant]);
+    const kitSig = JSON.stringify([model.kit, model.variant, model.gadget]);
     if (kitSig !== this._kitSig) {
       this._kitSig = kitSig;
       this.kits.textContent = '';
@@ -217,7 +227,25 @@ export class DeployScreen {
           v.setAttribute('aria-pressed', String(primary.selected));
           v.addEventListener('click', () => this.select({ kit: card.id, variant: primary.index }));
         }
-        el('div', 'cq-kit-gear', node).textContent = [card.gadget, ...card.grenades].filter(Boolean).join(' · ');
+        if (card.gadgets.length) {
+          // Gadget choice (Engineer): AT launcher or AA STINGER, same toggle as the primaries.
+          const gadgets = el('div', 'cq-kit-gadgets', node);
+          gadgets.setAttribute('role', 'radiogroup');
+          gadgets.setAttribute('aria-label', `${card.label} gadget`);
+          for (const gadget of card.gadgets) {
+            const g = el('button', 'cq-kit-gadget', gadgets);
+            g.type = 'button';
+            g.dataset.gadget = gadget.weapon;
+            g.classList.toggle('is-selected', gadget.selected);
+            g.setAttribute('role', 'radio');
+            g.setAttribute('aria-checked', String(gadget.selected));
+            g.title = gadget.hint;
+            el('span', 'cq-kit-gadget-role', g).textContent = gadget.role;
+            el('span', 'cq-kit-gadget-name', g).textContent = gadget.label;
+            g.addEventListener('click', () => this.select({ kit: card.id, gadget: gadget.index }));
+          }
+        }
+        el('div', 'cq-kit-gear', node).textContent = [card.gadgets.length ? null : card.gadget, ...card.grenades].filter(Boolean).join(' · ');
       }
     }
     const selected = model.options.find(o => o.spawn === model.selectedKey);

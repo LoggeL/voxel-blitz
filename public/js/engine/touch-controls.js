@@ -269,8 +269,11 @@ export class TouchControls {
       button.setAttribute('aria-hidden', hide ? 'true' : 'false');
     }
     if (this.dom.jump) {
-      this.dom.jump.textContent = next?.vehicleSeated ? 'BRAKE' : 'JUMP';
-      this.dom.jump.setAttribute('aria-label', next?.vehicleSeated ? 'Brake vehicle' : 'Jump');
+      // Conquest: JUMP opens a parachute in a long fall ('ready') and cuts an open one.
+      const [text, aria] = next?.vehicleSeated ? ['BRAKE', 'Brake vehicle'] : next?.chute === 'ready' ? ['CHUTE', 'Open parachute']
+        : next?.chute === 'open' ? ['CUT', 'Cut parachute'] : ['JUMP', 'Jump'];
+      if (this.dom.jump.textContent !== text) this.dom.jump.textContent = text;
+      this.dom.jump.setAttribute('aria-label', aria);
     }
     this.root?.classList.toggle('is-deploying', next?.deployOpen === true);
     this._paintDeploying();

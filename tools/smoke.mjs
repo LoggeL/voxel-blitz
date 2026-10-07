@@ -16,6 +16,7 @@ import { Client } from './lib/ws-client.mjs';
 
 import {
   CONDITION_RULES,
+  FREE_WEAPON_IDS,
   WEAPONS,
   WEAPON_IDS,
   computeRecoilKickDeg,
@@ -148,10 +149,12 @@ function runDirectContracts() {
   ok(stateEvents[0]?.kind === 'die' && stateEvents[1]?.kind === 'respawn',
     'embedded die and respawn events are dispatchable by kind');
 
-  const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl'];
-  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6, 3.8, 0.9, 11.8, 5.8, 3.1, 2.6, 5.6];
-  ok(JSON.stringify(WEAPON_IDS) === JSON.stringify(expectedWeaponIds),
-    'weapon roster exposes the exact fifteen-slot order');
+  // Fifteen free slots, then the kit-only Conquest STINGER (slot 16, never in a free roster).
+  const expectedWeaponIds = ['rifle', 'smg', 'shotgun', 'sniper', 'lmg', 'revolver', 'longarc', 'rocket', 'lance', 'knife', 'minigun', 'flamethrower', 'glaive', 'bubble', 'mgl', 'stinger'];
+  const expectedWeights = [3.4, 2.3, 3.6, 5.2, 8.4, 1.4, 4.1, 9.6, 3.8, 0.9, 11.8, 5.8, 3.1, 2.6, 5.6, 10.4];
+  ok(JSON.stringify(WEAPON_IDS) === JSON.stringify(expectedWeaponIds)
+    && JSON.stringify(FREE_WEAPON_IDS) === JSON.stringify(expectedWeaponIds.slice(0, 15)),
+    'weapon roster exposes the exact fifteen free slots plus the kit-only STINGER');
   const definitionsComplete = WEAPON_IDS.every((id, slot) => {
     const def = WEAPONS[id];
     return def?.id === id && typeof def.name === 'string' && def.name.length > 0
@@ -177,14 +180,14 @@ function runDirectContracts() {
       && Number.isFinite(def.recoil?.resetMs) && def.recoil.resetMs > 0
       && def.recoil.resetMs > 60000 / def.rpm
       && Number.isFinite(def.recoil?.adsMult) && def.recoil.adsMult > 0 && def.recoil.adsMult <= 1
-      && (def.mode === 'melee' || def.id === 'longarc' || def.id === 'lance' || def.id === 'glaive' || def.id === 'bubble' || def.id === 'mgl'
+      && (def.mode === 'melee' || def.id === 'longarc' || def.id === 'lance' || def.id === 'glaive' || def.id === 'bubble' || def.id === 'mgl' || def.id === 'stinger'
         ? def.tracer === null
         : (typeof def.tracer?.color === 'string' && Number.isFinite(def.tracer?.width)
           && Number.isFinite(def.tracer?.len)))
       && typeof def.sfx === 'string'
       && def.weightKg === expectedWeights[slot];
   });
-  ok(definitionsComplete, 'all fifteen weapon definitions carry the complete shared contract');
+  ok(definitionsComplete, 'all sixteen weapon definitions carry the complete shared contract');
   const recoilSignatures = WEAPON_IDS.map((id) => WEAPONS[id].recoil.yawPattern.join(','));
   const rifleKick0 = computeRecoilKickDeg(WEAPONS.rifle, 0, 0, 0.5);
   const rifleKick5 = computeRecoilKickDeg(WEAPONS.rifle, 5, 0, 0.5);
@@ -837,25 +840,30 @@ function runDirectContracts() {
   slotEngine.addBot('slots', 'Slots');
   const slotter = slotEngine.entities.get('slots');
   slotter.deployT = 0;
+  // 999 clamps to the last slot, the kit-only STINGER, which a free-for-all refuses.
   slotEngine.applyInput('slots', { ...tapInput, seq: 1, weapon: 999 });
+  slotEngine.step(TICK_MS);
+  const gadgetSlot = slotter.weapon;
+  slotter.deployT = 0;
+  slotEngine.applyInput('slots', { ...tapInput, seq: 2, weapon: FREE_WEAPON_IDS.length - 1 });
   slotEngine.step(TICK_MS);
   const highSlot = slotter.weapon;
   slotter.deployT = 0;
-  slotEngine.applyInput('slots', { ...tapInput, seq: 2, weapon: -999 });
+  slotEngine.applyInput('slots', { ...tapInput, seq: 3, weapon: -999 });
   slotEngine.step(TICK_MS);
-  ok(highSlot === WEAPON_IDS.length - 1 && slotter.weapon === 0,
-    'authoritative slot selection clamps dynamically across all eight weapons');
+  ok(gadgetSlot === 0 && highSlot === FREE_WEAPON_IDS.length - 1 && slotter.weapon === 0,
+    'authoritative slot selection clamps dynamically across the roster and refuses kit-only gadgets');
 
   const botEngine = new GameEngine();
-  const botManager = attachBots(botEngine, WEAPON_IDS.length);
+  const botManager = attachBots(botEngine, FREE_WEAPON_IDS.length);
   ok([...botEngine.entities.values()].every((player) => player.weapon === 0),
     'bots start on the default slot before authoritative loadout selection');
   // Isolate spawn loadouts from combat's empty-magazine weapon cycling.
   botEngine.mode.canFire = () => false;
   botEngine.step(TICK_MS);
   const botSlots = [...botEngine.entities.values()].map((player) => player.weapon).sort((a, b) => a - b);
-  ok(botSlots.length === WEAPON_IDS.length
-    && JSON.stringify(botSlots) === JSON.stringify(WEAPON_IDS.map((_, i) => i)),
+  ok(botSlots.length === FREE_WEAPON_IDS.length
+    && JSON.stringify(botSlots) === JSON.stringify(FREE_WEAPON_IDS.map((_, i) => i)),
     'authoritative bots deploy across distinct roster slots');
   botManager.dispose();
 
@@ -1062,8 +1070,9 @@ function runDirectContracts() {
     (event) => event.kind === 'respawn' && event.id === 'timed-respawn'
   );
   const respawnRow = respawnSnapshot?.players.find((row) => row.id === 'timed-respawn');
-  const freshMags = WEAPON_IDS.map((id) => WEAPONS[id].magSize);
-  const freshReserve = WEAPON_IDS.map((id) => (WEAPONS[id].spareRounds ?? WEAPONS[id].spareMags));
+  // Kit-only gadgets (the STINGER) spawn empty outside a Conquest kit.
+  const freshMags = WEAPON_IDS.map((id) => (WEAPONS[id].gadgetOnly ? 0 : WEAPONS[id].magSize));
+  const freshReserve = WEAPON_IDS.map((id) => (WEAPONS[id].gadgetOnly ? 0 : (WEAPONS[id].spareRounds ?? WEAPONS[id].spareMags)));
   ok(noEarlyRespawn
     && respawnEvent
     && respawnSnapshot.now >= respawnDueAt
@@ -1166,7 +1175,7 @@ function runDirectContracts() {
   })
     && funStartRow?.team === null
     && funStartRow.credits === 0
-    && exact(funStartRow.owned, WEAPON_IDS)
+    && exact(funStartRow.owned, FREE_WEAPON_IDS)
     && funStartRow.bomb === false
     && funStartRow.interaction === null
     && exact(funStartRow.mag, freshMags)
@@ -1191,7 +1200,7 @@ function runDirectContracts() {
     && funDueTick.events.filter(
       (event) => event.kind === 'respawn' && event.id === 'fun-player'
     ).length === 1
-    && exact(funDueRow.owned, WEAPON_IDS)
+    && exact(funDueRow.owned, FREE_WEAPON_IDS)
     && exact(funDueRow.mag, freshMags)
     && exact(funDueRow.reserve, freshReserve),
   'Fun respawns once at exactly 1500ms with a fresh full loadout');
@@ -1281,7 +1290,7 @@ function runDirectContracts() {
     })
     && tdmStartTick.players.every((row) =>
       row.credits === 0
-        && exact(row.owned, WEAPON_IDS)
+        && exact(row.owned, FREE_WEAPON_IDS)
         && row.bomb === false
         && row.interaction === null),
   'TDM balances alpha/bravo deterministically and publishes exact team match/player fields');

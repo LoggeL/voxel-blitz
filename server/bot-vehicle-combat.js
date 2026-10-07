@@ -21,13 +21,17 @@ import { ROCKET_RULES } from '../shared/rocket-rules.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { cancelCharge } from './sim/combat.js';
 import { armorMultiplier as sharedArmorMultiplier, infantryDamageClass } from '../shared/vehicle-armor.js';
-import { VEHICLE_DEFS } from '../shared/vehicle-defs.js';
+import { VEHICLE_DEFS, LOCK_RULES } from '../shared/vehicle-defs.js';
 
 const wrap = angle => Math.atan2(Math.sin(angle), Math.cos(angle));
 const HALF_FOV = 55 * Math.PI / 180;
 const TRACK_FOV = 65 * Math.PI / 180;
 const HALF_VERTICAL_FOV = 50 * Math.PI / 180;
 const RANGED_PRIORITY = ['rocket', 'lance', 'sniper', 'lmg', 'rifle', 'minigun', 'revolver', 'smg', 'shotgun'];
+/** The STINGER only answers airborne aircraft inside its lock range (it cannot fire unlocked). */
+export const STINGER_ENGAGE_RANGE = LOCK_RULES.stinger.range * 0.92;
+const stingerTarget = (target, distance) => target?.armor === 'air' && target.vehicle?.grounded !== true
+  && distance <= STINGER_ENGAGE_RANGE;
 const sightOrigin = p => [p.eyeX ?? p.x, p.eyeY, p.eyeZ ?? p.z];
 const delta = (a, b) => b.map((n, i) => n - a[i]);
 const clearRay = (solidAt, a, b) => {
@@ -157,9 +161,11 @@ function hostileHulls(game, p, ignoreId = null) {
  */
 export function pickBotThreat(game, p, br, {
   observer = p, effectFor = () => 1, omniRange = 0, sightRange, scan = true, now = game.now,
-  ignoreVehicleId = null, includeInfantry = true, includeHulls = true, exclude = null,
+  ignoreVehicleId = null, includeInfantry = true, includeHulls = true, exclude = null, airSightRange = null,
 } = {}) {
   const options = { omniRange, sightRange };
+  // An AA-armed bot watches the sky farther out (airborne aircraft only).
+  const airOptions = airSightRange ? { omniRange, sightRange: Math.max(airSightRange, sightRange ?? 0) } : options;
   const smoke = game.projectiles?.smoke;
   const heldId = br.enemyId;
   const shooterId = br.damageFrom && now - br.damageFrom.at < 3000 ? br.damageFrom.id : null;
@@ -194,7 +200,8 @@ export function pickBotThreat(game, p, br, {
     for (const { v, occupant } of hostileHulls(game, p, ignoreVehicleId)) {
       const id = `vehicle:${v.id}`;
       if ((!sweepAll && id !== heldId) || exclude?.(id)) continue;
-      const sighting = observeBotVehicle(observer, v, game.solidAt, smoke, now, tracked(id), br.difficulty, options);
+      const air = airOptions !== options && !v.grounded && (v.type === 'helicopter' || v.type === 'transport' || v.type === 'plane');
+      const sighting = observeBotVehicle(observer, v, game.solidAt, smoke, now, tracked(id), br.difficulty, air ? airOptions : options);
       if (sighting) consider(hullTarget(v, occupant), sighting, 'hull');
     }
   }
@@ -232,8 +239,12 @@ export function vehicleCombatWeapon(p, ownedSlots, distance) {
   return priority.find(slot => p.mag[slot] > 0) ?? priority.find(slot => p.reserve[slot] > 0) ?? null;
 }
 
-/** Weapons an infantry bot can bring to bear at this range: [{slot, cls}]. */
-function usableSlots(p, ownedSlots, distance) {
+/**
+ * Weapons an infantry bot can bring to bear at this range: [{slot, cls}].
+ * `target` (a hull target, or just its armour class) gates the STINGER to
+ * airborne aircraft in lock range.
+ */
+function usableSlots(p, ownedSlots, distance, target = null) {
   const out = [];
   for (const slot of ownedSlots) {
     const id = WEAPON_IDS[slot], def = WEAPONS[id];
@@ -241,16 +252,18 @@ function usableSlots(p, ownedSlots, distance) {
     if (Array.isArray(p.owned) && !p.owned.includes(id)) continue;
     if (!(p.mag[slot] > 0 || p.reserve[slot] > 0)) continue;
     if (def.projectile === 'rocket' && (distance < 10 || distance > 145)) continue;
-    if (def.projectile && def.projectile !== 'rocket' && def.projectile !== 'mgl') continue;
+    if (def.projectile === 'stinger' && !stingerTarget(target, distance)) continue;
+    if (def.projectile && def.projectile !== 'rocket' && def.projectile !== 'mgl' && def.projectile !== 'stinger') continue;
     out.push({ slot, id, cls: weaponDamageClass(id), loaded: p.mag[slot] > 0 });
   }
   return out;
 }
 
-/** Best armour effect any owned weapon has against an armour class at this range. */
-export function infantryArmorEffect(p, ownedSlots, armor, distance) {
+/** Best armour effect any owned weapon has against a hull target (or an armour class) at this range. */
+export function infantryArmorEffect(p, ownedSlots, armorOrTarget, distance) {
+  const target = typeof armorOrTarget === 'object' && armorOrTarget ? armorOrTarget : { armor: armorOrTarget };
   let best = 0;
-  for (const { cls } of usableSlots(p, ownedSlots, distance)) best = Math.max(best, armorMultiplier(cls, armor));
+  for (const { cls } of usableSlots(p, ownedSlots, distance, target)) best = Math.max(best, armorMultiplier(cls, target.armor));
   return best;
 }
 
@@ -258,7 +271,7 @@ export function infantryArmorEffect(p, ownedSlots, armor, distance) {
 export function bestWeaponFor(p, ownedSlots, target, distance) {
   if (target?.kind !== 'hull') return null;
   let best = null;
-  for (const option of usableSlots(p, ownedSlots, distance)) {
+  for (const option of usableSlots(p, ownedSlots, distance, target)) {
     const eff = armorMultiplier(option.cls, target.armor) * (option.loaded ? 1 : 0.85)
       * (option.slot === p.weapon ? 1.05 : 1);
     if (!best || eff > best.eff) best = { ...option, eff };

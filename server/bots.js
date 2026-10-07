@@ -43,7 +43,7 @@ import { MGL_RULES } from '../shared/mgl-rules.js';
 import { ConquestVehicleDriving } from './bot-vehicle-driving.js';
 import { BotCommander, createBotDirector } from './bot-commander.js';
 import { ConquestAircraftDriving } from './bot-aircraft.js';
-import { applyConquestVehicleCombat, applyMountedCombat, ballisticAim, bestWeaponFor, clearFlight, infantryArmorEffect, pickBotThreat, vehicleHullRules } from './bot-vehicle-combat.js';
+import { applyConquestVehicleCombat, applyMountedCombat, ballisticAim, bestWeaponFor, clearFlight, infantryArmorEffect, pickBotThreat, vehicleHullRules, STINGER_ENGAGE_RANGE } from './bot-vehicle-combat.js';
 import { CONQUEST_RULES } from '../shared/conquest-contract.js';
 import { KIT_ROLE_RULES } from '../shared/conquest-kits.js';
 import { TerrainWatch } from './bot-surface-nav.js';
@@ -93,7 +93,8 @@ const UNSTICK_MS = 450;           // jump/vault window after the stuck watchdog 
 const TERRAIN_POLL_MS = 250;      // surface graph and cover refresh from the changed-block log
 const FLANK_RANGE = 40;           // m: engineers work armour from the side at this stand-off
 const RELOAD_COVER_DIST = 45;     // m: a dry magazine this close to an enemy sends the bot to cover
-const ALL_WEAPON_SLOTS = Object.freeze(WEAPON_IDS.map((_, slot) => slot));
+// Free rosters never hold kit-only gadgets (the Conquest STINGER).
+const ALL_WEAPON_SLOTS = Object.freeze(WEAPON_IDS.map((_, slot) => slot).filter(slot => !WEAPONS[WEAPON_IDS[slot]]?.gadgetOnly));
 const PLANT_READY_DIST = 2.0;
 const DEFUSE_READY_DIST = 1.6;
 const RECOVER_READY_DIST = 0.8;
@@ -109,6 +110,7 @@ const GLAIVE_RETURN_FAR = 12;     // ... or once it is this far out with no disc
 const GLAIVE_RETURN_MIN_AGE_MS = 300; // never while a fresh disc is still leaving the hand
 const GLAIVE_LINEUP_COS = Math.cos(15 * Math.PI / 180);
 const BUBBLE_SLOT = WEAPON_IDS.indexOf('bubble');
+const STINGER_SLOT = WEAPON_IDS.indexOf('stinger');
 const BUBBLE_MAX_RANGE = 24;      // m: Soap Shots still connect (the lifetime pops them at ~27 m)
 const BUBBLE_DRAW_RANGE = 12;     // m: redraw the launcher / blow a Big Bubble inside this
 const BUBBLE_GROUP_DIST = 3.5;    // m: a second enemy this close to the target earns a Big Bubble
@@ -699,7 +701,7 @@ class BotManager {
       // the sidearm nor a melee tool.
       const primary = ownedSlots.find(slot => {
         const def = WEAPONS[WEAPON_IDS[slot]];
-        return def && def.mode !== 'melee' && def.projectile !== 'rocket' && WEAPON_IDS[slot] !== 'revolver';
+        return def && def.mode !== 'melee' && def.projectile !== 'rocket' && def.projectile !== 'stinger' && WEAPON_IDS[slot] !== 'revolver';
       });
       return primary ?? ownedSlots[0];
     }
@@ -723,10 +725,12 @@ class BotManager {
     // An idle bot off its turn keeps the last sweep's danger and waits a tick.
     const scan = !((this.tickIndex + br.index) % SCAN_EVERY);
     if (!scan && !br.enemyId) return null;
+    // An Engineer carrying a loaded STINGER scans the sky out to its lock range.
+    const stinger = STINGER_SLOT >= 0 && ownedSlots.includes(STINGER_SLOT) && (p.mag[STINGER_SLOT] > 0 || p.reserve[STINGER_SLOT] > 0);
     const result = pickBotThreat(this.game, p, br, {
-      scan, now,
+      scan, now, airSightRange: stinger ? STINGER_ENGAGE_RANGE : null,
       effectFor: (target, distance) => target.kind === 'hull'
-        ? infantryArmorEffect(p, ownedSlots, target.armor, distance) : 1,
+        ? infantryArmorEffect(p, ownedSlots, target, distance) : 1,
     });
     if (result?.target) { br.enemyId = result.target.id; br.sighting = result.sighting; br.enemyKind = result.kind; }
     else { br.enemyId = null; br.sighting = null; br.enemyKind = null; }
@@ -1230,9 +1234,11 @@ class BotManager {
       if (cq && inp.switchTo === undefined) {
         const dist = Math.hypot(enemyFlat, enemy.y - p.y);
         let wanted = hullTarget ? bestWeaponFor(p, ownedSlots, enemy, dist) : null;
-        if (!hullTarget && p.def.projectile === 'rocket' && dist < 30) {
+        // Launchers give way to a gun for infantry: the AT rocket up close, the STINGER always.
+        if (!hullTarget && (p.def.projectile === 'rocket' && dist < 30 || p.def.projectile === 'stinger')) {
           wanted = ownedSlots.find(s => s !== p.weapon && WEAPONS[WEAPON_IDS[s]]?.mode !== 'melee'
-            && WEAPONS[WEAPON_IDS[s]]?.projectile !== 'rocket' && (p.mag[s] > 0 || p.reserve[s] > 0)) ?? null;
+            && WEAPONS[WEAPON_IDS[s]]?.projectile !== 'rocket' && WEAPONS[WEAPON_IDS[s]]?.projectile !== 'stinger'
+            && (p.mag[s] > 0 || p.reserve[s] > 0)) ?? null;
         }
         if (wanted !== null && wanted !== p.weapon) { inp.switchTo = wanted; weaponPending = true; }
       }
@@ -1249,6 +1255,8 @@ class BotManager {
       const bubble = p.def.projectile === 'bubble';
       const mgl = p.def.projectile === 'mgl';
       const rocket = cq && p.def.projectile === 'rocket';
+      // STINGER: hold the seeker on the hull centre; the missile does the leading.
+      const stingerAim = cq && p.def.projectile === 'stinger';
       const mglFlat = mgl ? Math.max(0.35, Math.hypot(aimX - p.x, aimZ - p.z) - MGL_RULES.muzzleForward) : 0;
       const bubbleFlat = bubble ? Math.hypot(aimX - p.x, aimZ - p.z) : 0;
       // Only a Big Bubble actually being blown aims on the Big Bubble profile: a stale
@@ -1258,6 +1266,7 @@ class BotManager {
       const rocketAim = rocket ? ballisticAim(eye, br.sighting.aimPoint, enemy, { speed: ROCKET_RULES.speed,
         gravity: ROCKET_RULES.gravity, maxSeconds: ROCKET_RULES.lifetimeMs / 1000, leadSkill: 0.8 + 0.2 * br.skill }) : null;
       const lead = rocketAim ? [rocketAim.point[0] - aimX, rocketAim.point[2] - aimZ]
+        : stingerAim ? [0, 0]
         : glaive
           ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), glaiveRules.speedOut, br.skill)
           : mgl ? projectileLead(enemy, mglFlat, MGL_RULES.speed, br.skill)
@@ -1283,7 +1292,7 @@ class BotManager {
       const basePitch = br.aim.steer('pitch', p.pitch - recoil.prev.pitch, intendedPitch, pitchTurnRate, dtS);
       inp.yaw = wrapAngle(baseYaw + recoil.yaw);
       inp.pitch = Math.max(-1.5, Math.min(1.5, basePitch + recoil.pitch));
-      inp.wantAds = (flat > 28 && p.def.id === 'sniper') || (rocket && (enemy.armor === 'air' || flat > 20))
+      inp.wantAds = (flat > 28 && p.def.id === 'sniper') || (rocket && (enemy.armor === 'air' || flat > 20)) || stingerAim
         // Conquest ranges: aim down sights with any hitscan gun whose sight tightens the cone.
         || (cq && !melee && !p.def.projectile && flat > ADS_RANGE && p.def.spreadDeg?.ads < p.def.spreadDeg?.hip * 0.7);
 
@@ -1317,13 +1326,11 @@ class BotManager {
       canShoot = br.noticeProgress >= 1 && !weaponPending
         && Math.abs(wrapAngle(baseYaw - intendedYaw)) < aimTolerance
         && Math.abs(basePitch - intendedPitch) < aimTolerance
-        && (rocket ? clearFlight(this.game, p, enemy, eye, aimDir, aimDistance)
+        && (rocket || stingerAim ? clearFlight(this.game, p, enemy, eye, aimDir, aimDistance)
           : hullTarget ? clearFlight(this.game, p, enemy, eye, aimDir, aimDistance, { explosive: false })
             : (mgl || !raycastVoxels(this.solidAt, ...eye, ...aimDir, aimDistance)));
-      // An engineer's rocket waits for the air lock when the server offers one.
-      if (rocket && enemy.armor === 'air' && Number.isFinite(p.lockProgress)) {
-        canShoot &&= p.lockProgress >= (p.lockProgress > 1 ? 99 : 0.99);
-      }
+      // The STINGER only releases on a complete lock (the server refuses it otherwise).
+      if (stingerAim) canShoot &&= hullTarget && (p.lockProgress ?? 0) >= 0.99;
       if (cq && hullTarget && WEAPONS[WEAPON_IDS[p.weapon]] && bestWeaponFor(p, [p.weapon], enemy, aimDistance) === null) canShoot = false;
       // Call the contact out to the team once the crosshair is on it.
       if (cq && br.noticeProgress >= 1 && Math.abs(wrapAngle(baseYaw - intendedYaw)) < 0.12) this.callSpot(br, p, enemy, now, profile);

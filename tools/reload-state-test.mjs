@@ -189,8 +189,9 @@ console.log('RIPTIDE R: identified request, ack, timeout and switch clear passed
 // Exercise numbered requests with snapshots slower than rendering. Deploy can
 // outlast the entire predicted animation without losing the pending request.
 // RIPTIDE R is a disc return, never a reload: the client block above and
-// tools/glaive-test.mjs (authority) cover it.
-for (const id of WEAPON_IDS.filter(id => WEAPONS[id].mode !== 'melee' && !WEAPONS[id].glaive)) {
+// tools/glaive-test.mjs (authority) cover it. Kit-only gadgets (the Conquest
+// STINGER) cannot be drawn without a kit; tools/conquest-kits-test.mjs covers them.
+for (const id of WEAPON_IDS.filter(id => WEAPONS[id].mode !== 'melee' && !WEAPONS[id].glaive && !WEAPONS[id].gadgetOnly)) {
   for (const delay of [0, 5000]) {
     const slot = WEAPON_IDS.indexOf(id);
     const { state, calls, at } = client();

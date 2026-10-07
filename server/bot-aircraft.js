@@ -212,15 +212,34 @@ export function aircraftCombatIntent(game, br, p, v, state, now, dt, { airOnly =
   return { yaw: wrap(yaw + wander.yaw), pitch: pitch + wander.pitch, target, point, distance, fire, reachable, weapon };
 }
 
+/** Riders leave an airborne hull that has had no pilot this long. */
+export const BAIL_PILOTLESS_MS = 1500;
+
 /** Pilots fly; gunners and passengers sit in. Assignments come from the commander. */
 export class ConquestAircraftDriving {
   constructor(game, manager = null) {
     this.game = game; this.manager = manager;
-    this.drivers = new Map(); this.boarding = new Map(); this.reflex = new Map();
+    this.drivers = new Map(); this.boarding = new Map(); this.reflex = new Map(); this.pilotless = new Map();
   }
   get commander() { return this.manager?.commander ?? null; }
   release(id) { this.drivers.delete(id); this.boarding.delete(id); this.reflex.delete(id); }
-  clear() { this.drivers.clear(); this.boarding.clear(); this.reflex.clear(); }
+  clear() { this.drivers.clear(); this.boarding.clear(); this.reflex.clear(); this.pilotless.clear(); }
+  /**
+   * Riders bail out of an airborne hull that has had no pilot for
+   * BAIL_PILOTLESS_MS (a human pilot ejected or bailed). The server opens the
+   * bot's parachute on the way down (shared/parachute.js), so the jump never
+   * costs fall damage. Crews of a damaged aircraft stay aboard: a long canopy
+   * ride out of the fight costs more than a quick redeploy (action gate).
+   */
+  shouldBail(v, seat, now) {
+    if (v.grounded !== false) { this.pilotless.delete(v.id); return false; }
+    if (botVehicleDriver(v) != null) { this.pilotless.delete(v.id); return false; }
+    let state = this.pilotless.get(v.id);
+    // A stale record (nobody aboard looked for a while) starts over.
+    if (!state || now - state.seen > 500) this.pilotless.set(v.id, state = { since: now, seen: now });
+    state.seen = now;
+    return !seat.drives && now - state.since >= BAIL_PILOTLESS_MS;
+  }
   active() { return this.game.mode.mode === 'conquest' && this.game.mode.phase === 'live' && !!this.game.vehicles; }
 
   update(brains, now) {
@@ -274,6 +293,14 @@ export class ConquestAircraftDriving {
     const assignment = this.commander?.crewFor(p.id) ?? null;
     if (seat) {
       const mine = assignment?.vehicleId === v.id ? assignment : null;
+      if (this.shouldBail(v, seat, now)) {
+        botPassengerInput(inp);
+        inp.vehicleAction = { type: 'exit' };
+        this.release(br.id);
+        this.commander?.leaveTransit?.(v.id, p.id);
+        br.intendsMove = false;
+        return { vehicle: v, seatId: seat.id, weapon: false };
+      }
       if (seat.drives && !mine && v.grounded && horizontalSpeed(v) < 0.8 && v.type !== 'transport') {
         // Landed without a crew order (the commander gave the slot away): get out.
         botPassengerInput(inp);

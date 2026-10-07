@@ -266,7 +266,7 @@ const inRing = (p, flag) => Math.abs(Math.hypot(p.x - flag.x, p.z - flag.z) - 6)
   assert.equal(intent(game, a, 'hq', 'recon', 1), true);
   game.respawnPlayer(a, { x: a.x, y: a.y, z: a.z });
   assert.equal(policy.onRevive(a), true);
-  assert.deepEqual(policy.kitFor(a), { kit: 'assault', variant: 0 }, 'revived with the kit the body carried');
+  assert.deepEqual(policy.kitFor(a), { kit: 'assault', variant: 0, gadget: 0 }, 'revived with the kit the body carried');
 }
 
 // --- bots: director at respawnAt, frontline fallback ------------------------------------

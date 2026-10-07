@@ -14,6 +14,7 @@ import { AccountMenu } from './ui/account-menu.js';
 import { BASTION_ENEMIES, bastionRepairAvailable } from '../../shared/bastion.js';
 import { FrameRateController } from './engine/frame-rate.js';
 import { WEAPON_IDS, HITSCAN_REACH } from '../../shared/combatmath.js';
+import { decodeConquestPlayer } from '../../shared/conquest-contract.js';
 import { VAULT_SECONDS } from '../../shared/player-movement.js';
 import { deserializeWorld, serializeWorld, getBlock, getMapMeta, setBlock } from '../../shared/worlddata.js';
 import { Input } from './engine/input.js';
@@ -650,6 +651,8 @@ class Game {
     this.vehicleDestructionFX?.sync(snapshot.vehicles);
     if (this.player?.physics) {
       this.player.physics.vehicleColliders = Array.isArray(snapshot.vehicles) ? snapshot.vehicles : [];
+      // Conquest predicts the parachute and ejection seat (shared/parachute.js).
+      this.player.physics.airRules = match?.mode === 'conquest';
     }
     this.vehicleController?.sync({ self, vehicles: snapshot.vehicles, enabled: match?.mode === 'conquest' });
     this.conquestHud?.update({ match, mapMeta: this.mapMeta, self, players, vehicles: snapshot.vehicles, camera: this.camera,
@@ -749,7 +752,7 @@ class Game {
   isAuthoritativeFireAllowed(grenade = false, options = {}) {
     if (this.vehicleController?.active || !this.session.gameplayInputEnabled || !this.player.alive ||
         this.selfRow?.state !== 'alive' || this.weaponWheel.open || this.grenadePouch?.open ||
-        (this.player.physics.vault && !options.ignoreVault)) return false;
+        (this.player.physics.vault && !options.ignoreVault) || this.player.physics.chute > 0) return false;
     if (this.matchState?.mode === 'ttt') {
       const melee = grenade === 'melee' || (!grenade && this.weapon.def.mode === 'melee');
       return this.matchState.phase === 'live' || (this.matchState.phase === 'prep' && melee);
@@ -919,6 +922,8 @@ class Game {
     ctx.vehicleRole = ctx.vehicleSeated ? this.vehicleController.role : null;
     ctx.vehicleCanDrive = ctx.vehicleSeated && this.vehicleController.isDriver;
     ctx.vehicleCanFire = ctx.vehicleSeated && this.vehicleController.canFire;
+    // Conquest parachute: the JUMP button reads CHUTE (open) or CUT while it would toggle one.
+    ctx.chute = alive && !ctx.vehicleSeated ? this.player.physics.chutePrompt?.() ?? null : null;
     // Build mode keeps the fire chip: it places the blueprint instead of shooting.
     // Any seat with mounts (seatWeaponList) or a personal-weapon passenger seat can fire.
     ctx.canFire = ctx.vehicleSeated
@@ -1030,6 +1035,8 @@ class Game {
       cameraY: position.y,
       cameraZ: position.z,
       generation: this._loopGeneration,
+      // AX-9 STINGER: the server only releases on a complete lock (cq[5] = 100).
+      lockReady: (decodeConquestPlayer(this.selfRow)?.lockProgress ?? 0) >= 1,
     };
   }
 
@@ -1146,7 +1153,8 @@ class Game {
       }),
       });
     }
-    this.weapon.settleFrame(dt, { vaulting: !!this.player.physics.vault });
+    // No sights under a canopy either: the hands are on the risers.
+    this.weapon.settleFrame(dt, { vaulting: !!this.player.physics.vault || this.player.physics.chute > 0 });
     // Own footfalls: quiet, unpositioned, so the player knows how loud they are.
     const ownStep = this.footsteps.update(dt, {
       speed: this.player.speedXZ, grounded: !!this.player.physics.grounded,
@@ -1184,7 +1192,7 @@ class Game {
     }
     // Markers and reticles follow the camera every frame; snapshots only ingest.
     this.conquestHud?.refresh({ camera: this.camera, nowMs: (this.serverNow || 0) + Math.max(0, now - (this.smokeObservedAt || now)),
-      interactDown: !!this.player?.keys?.interact });
+      interactDown: !!this.player?.keys?.interact, chute: this.player?.alive ? this.player.physics.chutePrompt?.() ?? null : null });
     try {
       // Body velocity in the camera frame: +x strafing right, +z backing up. The rig uses
       // it for a lagged lateral lean so the carried gun swings against direction changes.
@@ -1201,6 +1209,8 @@ class Game {
         grounded: this.player.physics.grounded,
         swimming: !!this.player.physics.swimming,
         vaulting: !!this.player.physics.vault,
+        // Under a Conquest canopy or on the ejection seat the gun is stowed (no fire).
+        stowed: this.player.physics.chute > 0,
         vaultProgress: this.player.physics.vault ? this.player.physics.vault.elapsed / VAULT_SECONDS : 0,
         verticalVelocity: this.player.physics.vel.y,
         isSprinting: !this.player.wantAds && this.player.keys.sprint && this.player.speedXZ > 4.6,
@@ -1246,6 +1256,10 @@ class Game {
         || view?.players;
       this._presentedPlayers = presentedPlayers || null;
       if (presentedPlayers) this.roster.sync(presentedPlayers, dt, now, this.matchState?.mode === 'ttt');
+      // Conquest canopies and ejection seats ride the presented bodies (own body: predicted state).
+      this.vehicleFx?.parachutes.sync(this.playersCache, { selfId: this.myId, selfTeam: this.selfRow?.team ?? null, dt,
+        positionOf: id => this.roster.positionOf(id),
+        local: this.player.alive ? { pos: this.player.physics.pos, yaw: this.player.view.yaw, chute: this.player.physics.chute } : null });
       if (!dying) this.spectator?.update(presentedPlayers, dt, spectatorLook);
       this.roster.updateLabels(this.camera,
         (origin, direction, distance) => this.worldview.pickCameraRay(origin, direction, distance),
@@ -1487,6 +1501,7 @@ window.__vb = {
       frameRate: game.frameRate.snapshot,
       hp: player?.hp ?? 100,
       feet: pos && [pos.x, pos.y, pos.z].every(Number.isFinite) ? { x: pos.x, y: pos.y, z: pos.z } : null,
+      grounded: !!player?.physics?.grounded, chute: player?.physics?.chute ?? 0,
       vehicle: game.vehicleController?.vehicle ? { ...game.vehicleController.vehicle } : null,
       vehicleSeat: game.vehicleController?.active ? {
         id: game.vehicleController.seatId, role: game.vehicleController.role,

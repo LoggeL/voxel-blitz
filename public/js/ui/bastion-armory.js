@@ -23,7 +23,7 @@ export function buildBastionArmory(root, purchase, close, onSelectStructure = nu
   const fields = el('div','vb-bastion-loadout',panel);
   const selectors = {};
   for (const [key,label,values,names] of [
-    ['loadout','PRIMARY WEAPON',WEAPON_IDS.filter(id=>!['knife','revolver'].includes(id)),WEAPON_NAMES],
+    ['loadout','PRIMARY WEAPON',WEAPON_IDS.filter(id=>!['knife','revolver','stinger'].includes(id)),WEAPON_NAMES],
     ['throwable','OFFENSIVE THROWABLE',GRENADE_TYPE_IDS.filter(id=>id!=='smoke'),THROWABLE_NAMES],
   ]) {
     const wrap = el('label','vb-menu-field-group',fields);

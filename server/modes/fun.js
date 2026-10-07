@@ -1,4 +1,4 @@
-import { WEAPON_IDS } from '../../shared/combatmath.js';
+import { FREE_WEAPON_IDS, WEAPON_IDS } from '../../shared/combatmath.js';
 import { BasePolicy } from './base-policy.js';
 
 /** Free-for-all base for Fun, Duel, Chaos and TTT: everyone owns every weapon. */
@@ -107,7 +107,7 @@ export class FunPolicy extends BasePolicy {
     return {
       team: null,
       credits: 0,
-      owned: WEAPON_IDS.slice(),
+      owned: FREE_WEAPON_IDS.slice(),
       bomb: false,
       interaction: null,
       spawnProtected: this._spawnProtected(entity),
@@ -119,7 +119,7 @@ export class FunPolicy extends BasePolicy {
   _syncPlayer(entity) {
     entity.team = null;
     entity.credits = 0;
-    entity.owned = WEAPON_IDS.slice();
+    entity.owned = FREE_WEAPON_IDS.slice();
     entity.bomb = false;
     entity.interaction = null;
     entity.spawnProtected = this._spawnProtected(entity);

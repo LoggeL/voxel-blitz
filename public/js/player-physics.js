@@ -9,11 +9,15 @@ import { getBlock, ladderContact, isSolidBlock, FLUID_BLOCKS } from '../../share
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 import { slideContact, stepSlideRide } from '../../shared/slide-rules.js';
 import { slidePlayerVehicleAxis, constrainPlayerVehicleMotion } from '../../shared/player-vehicle-collision.js';
+import { CHUTE, EJECTION, chuteAvailable, stepChuteState, stepChuteVelocity } from '../../shared/parachute.js';
 
 const { walk: WALK, sprint: SPRINT, crouch: CROUCH, jump: JUMP_VEL,
   accelGround: GROUND_ACCEL, accelAir: AIR_ACCEL, gravity: GRAVITY } = PHYSICS;
 const { coyoteS: COYOTE_S, terminalVy: TERMINAL_VY, ladderUp: LADDER_UP_SPEED } = MOVEMENT_RULES;
 const LADDER_DOWN_SPEED = -MOVEMENT_RULES.ladderDown;
+/** After a predicted chute toggle, snapshots still carry the old state for about
+ * one round trip: they are not adopted for this long (seconds of prediction). */
+const CHUTE_ADOPT_HOLD_S = 0.6;
 
 export class PlayerPhysics {
   constructor(mapMeta = null) {
@@ -40,6 +44,11 @@ export class PlayerPhysics {
     this._solidAt = (x, y, z) => this.solid(x, y, z);
     this._fluidAt = (x, y, z) => FLUID_BLOCKS.has(getBlock(x, y, z));
     this.swimming = false;
+    // Conquest parachute / ejection seat (shared/parachute.js), predicted like the authority.
+    this.airRules = false;
+    this.chute = CHUTE.none;
+    this.chuteT = 0;
+    this._chuteHold = 0;
     // Live authoritative snapshot rows, refreshed by the match runtime.
     this.vehicleColliders = [];
     this.setMapMeta(mapMeta);
@@ -55,6 +64,28 @@ export class PlayerPhysics {
 
   solidBelow(x, y, z) {
     return solidBelow(this._solidAt, x, y, z);
+  }
+
+  /**
+   * Authoritative chute state from the self row (cq[7]). A fresh local toggle
+   * keeps its prediction for CHUTE_ADOPT_HOLD_S so the in-flight snapshots do
+   * not flip it back; server-side changes (ejection seat, landing) are adopted.
+   */
+  adoptChute(state) {
+    const next = state === CHUTE.open || state === CHUTE.seat ? state : CHUTE.none;
+    if (!this.airRules || this._chuteHold > 0 || next === this.chute) return false;
+    this.chute = next;
+    this.chuteT = next === CHUTE.seat ? EJECTION.seatSeconds * 0.8 : 0;
+    return true;
+  }
+
+  /** HUD prompt: 'ready' (Jump opens a chute), 'open' (Jump cuts it), 'seat' or null. */
+  chutePrompt() {
+    if (!this.airRules) return null;
+    if (this.chute === CHUTE.open) return 'open';
+    if (this.chute === CHUTE.seat) return 'seat';
+    if (this.grounded || this.swimming || this.vault || this.vel.y > -2) return null;
+    return chuteAvailable({ grounded: false, chute: this.chute, x: this.pos.x, y: this.pos.y, z: this.pos.z }, this._solidAt, this._fluidAt) ? 'ready' : null;
   }
 
   moveAxis(axis, amount, canStep = false) {
@@ -95,11 +126,14 @@ export class PlayerPhysics {
       if (!swimming) wantJump = false;
     }
     if (this.coyote > 0) this.coyote = Math.max(0, this.coyote - dt);
+    if (this._chuteHold > 0) this._chuteHold = Math.max(0, this._chuteHold - dt);
+    const chuteBefore = this.airRules ? this.chute : CHUTE.none;
 
     this.swimming = swimming;
     if (ride) {
       // On the slide rails: no collision, no jump, the tube sets the pace.
       this.vault = null;
+      this.chute = CHUTE.none;
       const previous = { ...this.pos };
       this.slide = stepSlideRide(this.pos, this.vel, ride, dt, wish);
       if (constrainPlayerVehicleMotion(this.pos, previous, this.vehicleColliders, stanceHeight(PHYSICS.height, this.proneT))) {
@@ -115,14 +149,24 @@ export class PlayerPhysics {
     if (swimming) speedTarget = Math.min(speedTarget, SWIM_RULES.speed);
     speedTarget *= this.speedScale;
     if (this.grounded) this.jumpGroundY = this.pos.y;
-    const deliberateGrab = !this.grounded && jumpPressed && !low;
-    if (!this.climbBlocked && !this.vault && swimming) {
+    const deliberateGrab = !this.grounded && jumpPressed && !low && !chuteBefore;
+    const handsFree = !this.climbBlocked && !chuteBefore;
+    if (handsFree && !this.vault && swimming) {
       this.vault = findSwimExit(this._solidAt, this.pos, wish, !!wantJump, this._crouching || low, yaw);
-    } else if (!this.climbBlocked && !this.vault && !swimming && canStartVault(this.grounded, this.grounded ? wantJump : deliberateGrab, climbAxis,
+    } else if (handsFree && !this.vault && !swimming && canStartVault(this.grounded, this.grounded ? wantJump : deliberateGrab, climbAxis,
         this._crouching || low, this.pos.y, this.jumpGroundY)) {
       this.vault = findVault(this._solidAt, this.pos, wish,
         deliberateGrab ? this.pos.y : this.jumpGroundY, yaw, deliberateGrab ? 0 : 1);
     }
+    if (this.airRules) {
+      // Same order as server/sim/movement.js: a ledge grab wins over the canopy.
+      const before = this.chute;
+      const next = stepChuteState({ chute: this.chute, chuteT: this.chuteT, grounded: this.grounded, vy: this.vel.y,
+        x: this.pos.x, y: this.pos.y, z: this.pos.z }, { jumpPressed: jumpPressed && !this.vault && !(this.coyote > 0),
+        blocked: !!this.vault || swimming, dt, solidAt: this._solidAt, fluidAt: this._fluidAt });
+      this.chute = next.chute; this.chuteT = next.chuteT;
+      if (this.chute !== before) this._chuteHold = CHUTE_ADOPT_HOLD_S;
+    } else this.chute = CHUTE.none;
     if (this.vault) {
       const previous = { ...this.pos };
       const active = stepVault(this.pos, this.vault, dt, this._solidAt);
@@ -133,7 +177,7 @@ export class PlayerPhysics {
       if (!active || hullBlocked) this.vault = null;
       return false;
     }
-    const onLadder = !this.climbBlocked && !low && onLadderNow;
+    const onLadder = handsFree && !low && onLadderNow;
     let ladderVy = 0;
     if (onLadder && (wantJump || climbAxis > 0)) ladderVy = LADDER_UP_SPEED;
     else if (onLadder && (this._crouching || climbAxis < 0)) ladderVy = LADDER_DOWN_SPEED;
@@ -141,17 +185,24 @@ export class PlayerPhysics {
 
     const accel = this.grounded ? GROUND_ACCEL : AIR_ACCEL;
     const blend = 1 - Math.exp(-accel * dt);
-    this.vel.x += (wish.x * speedTarget - this.vel.x) * blend;
-    this.vel.z += (wish.z * speedTarget - this.vel.z) * blend;
+    if (!this.chute) {
+      this.vel.x += (wish.x * speedTarget - this.vel.x) * blend;
+      this.vel.z += (wish.z * speedTarget - this.vel.z) * blend;
+    }
     let jumpAccepted = false;
 
-    if (!onLadder && !swimming && wantJump && (this.grounded || this.coyote > 0) && this.vel.y <= 0.01) {
+    if (!this.chute && !onLadder && !swimming && wantJump && (this.grounded || this.coyote > 0) && this.vel.y <= 0.01) {
       this.vel.y = JUMP_VEL;
       this.grounded = false;
       this.coyote = 0;
       jumpAccepted = true;
     }
-    if (ladderDirected) {
+    if (this.chute === CHUTE.open) {
+      stepChuteVelocity(this.vel, Number.isFinite(yaw) ? yaw : this.leanYaw, wish.x, wish.z, dt);
+    } else if (this.chute === CHUTE.seat) {
+      // The ejection seat flies ballistic until the canopy opens.
+      this.vel.y = Math.max(TERMINAL_VY, this.vel.y - GRAVITY * dt);
+    } else if (ladderDirected) {
       // A directed climb is never grounded and never banks coyote time.
       this.vel.y = ladderVy;
       this.grounded = false;
@@ -189,6 +240,7 @@ export class PlayerPhysics {
       if (this.grounded) this.coyote = COYOTE_S;
       this.grounded = false;
     }
+    if (this.grounded && this.chute) { this.chute = CHUTE.none; this.chuteT = 0; this._chuteHold = CHUTE_ADOPT_HOLD_S; }
 
     if (Math.abs(this.vel.x) < 0.001) this.vel.x = 0;
     if (Math.abs(this.vel.z) < 0.001) this.vel.z = 0;

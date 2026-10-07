@@ -44,7 +44,7 @@ import {
 } from '../../shared/grenade-rules.js';
 import { ROCKET_RULES, rocketLaunch, stepRocket } from '../../shared/rocket-rules.js';
 import { vehicleWeaponBlast } from '../../shared/weapon-aircraft-projectiles.js';
-import { VEHICLE_WEAPONS, CONQUEST_ROCKET_PROFILE, LOCK_RULES } from '../../shared/vehicle-defs.js';
+import { VEHICLE_WEAPONS, CONQUEST_ROCKET_PROFILE, STINGER_RULES } from '../../shared/vehicle-defs.js';
 import { infantryDamageClass } from '../../shared/vehicle-armor.js';
 import { nearestHullPoint, vehicleHullParts } from '../../shared/vehicle-collision.js';
 import { occupantShielded, occupantExposed, occupantHitPose, occupantBodyCenter, occupantDamageScale } from './vehicle-damage.js';
@@ -1074,16 +1074,11 @@ export class ProjectileSystem {
       ),
     };
     if (weaponKey) projectile.weaponKey = weaponKey;
-    // Conquest: the RX-8 is the Engineer's AT weapon (hull numbers at the AT class,
-    // softer infantry splash) and homes on an aircraft it locked (never Chaos).
+    // Conquest: the RX-8 is the Engineer's dumb-fire AT weapon (hull numbers at
+    // the AT class, softer infantry splash). Locks belong to the AX-9 STINGER.
     if (ctx.vehicles?.combatProfile === 'conquest') {
       Object.assign(projectile, { hullDirect: CONQUEST_ROCKET_PROFILE.hullDirect, hullSplash: CONQUEST_ROCKET_PROFILE.hullSplash,
         hullCls: CONQUEST_ROCKET_PROFILE.cls, infantrySplashScale: CONQUEST_ROCKET_PROFILE.infantrySplashScale });
-    }
-    const targetId = !secondary ? ctx.vehicles?.locks?.lockedTarget?.(player, 'rocket') ?? null : null;
-    if (targetId) {
-      const rules = LOCK_RULES.rocket;
-      projectile.guidance = { targetId, turnRate: rules.turnRate, navConstant: rules.navConstant, proximity: rules.proximity };
       projectile.chaosLevel = 0;
       projectile.chaosHoming = false;
     } else this._configureChaos(projectile);
@@ -1095,7 +1090,48 @@ export class ProjectileSystem {
       [projectile.x, projectile.y, projectile.z],
       [projectile.vx, projectile.vy, projectile.vz],
       lifetimeMs,
-    ), { chaos: projectile.chaosLevel || 0, ...(targetId ? { target: targetId } : {}) }));
+    ), { chaos: projectile.chaosLevel || 0 }));
+    return projectile;
+  }
+
+  /**
+   * AX-9 STINGER launch: only with a complete lock (`targetId`, checked by the
+   * caller through VehicleLocks.lockedTarget). The missile leaves the tube along
+   * the aim and homes on the hull by proportional navigation; flares hand it a
+   * decoy (VehicleLocks.breakLocks). It presents as the jet's AA missile (smoke
+   * trail, no gravity) but credits kills to `stinger`. Returns the projectile,
+   * or null when refused (no lock, no room), which keeps the round.
+   */
+  launchStinger(player, ctx, dir, targetId) {
+    const rules = STINGER_RULES;
+    const d = Array.isArray(dir) ? dir : [dir?.x, dir?.y, dir?.z];
+    if (!player || !ctx || !targetId || !d.every(Number.isFinite) || !this._hasRoom()) return null;
+    const target = ctx.vehicles?.vehicles?.get?.(targetId);
+    if (!target || !(target.hp > 0)) return null;
+    const length = Math.hypot(d[0], d[1], d[2]) || 1, unit = d.map(n => n / length);
+    const eye = [player.eyeX ?? player.x, player.eyeY ?? player.y + 1.6, player.eyeZ ?? player.z];
+    const origin = [eye[0] + unit[0] * rules.launchForward, eye[1] - 0.12 + unit[1] * rules.launchForward, eye[2] + unit[2] * rules.launchForward];
+    const id = `r${this._nextId++}`;
+    const projectile = {
+      id, type: 'rocket', eventType: 'rocket', vehicleId: player.vehicleId ?? null,
+      vehicleWeapon: rules.presentation, weaponKey: rules.key,
+      ownerId: String(player.id), owner: player,
+      x: origin[0], y: origin[1], z: origin[2],
+      vx: unit[0] * rules.speed, vy: unit[1] * rules.speed, vz: unit[2] * rules.speed,
+      gravity: rules.gravity,
+      launchedAt: ctx.now, explodeAt: ctx.now + rules.lifetimeMs,
+      stuck: false, hit: null, directVictim: null,
+      blastRules: vehicleWeaponBlast(rules), chaosLevel: 0, chaosHoming: false,
+      hullSplash: 0, hullCls: rules.cls, hullDamageByType: rules.hullDamage,
+      guidance: { targetId, turnRate: rules.turnRate, navConstant: rules.navConstant, proximity: rules.proximity },
+      raycast: (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
+        ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
+      ),
+    };
+    this.active.set(id, projectile);
+    ctx.pushEvent(Object.assign(evProjectileLaunch(player.id, id, 'rocket', origin,
+      [projectile.vx, projectile.vy, projectile.vz], rules.lifetimeMs),
+    { chaos: 0, vehicleWeapon: rules.presentation, weapon: rules.key, g: projectile.gravity, target: String(targetId) }));
     return projectile;
   }
 
@@ -1546,8 +1582,13 @@ export class ProjectileSystem {
       // profile, or the blast type; the zone follows the blast or impact point.
       const splashCls = projectile.hullCls ?? rules.splashCls ?? HULL_BLAST_CLASSES[projectile.type] ?? 'explosive';
       const directCls = projectile.hullCls ?? rules.cls ?? splashCls;
-      const splash = projectile.hullSplash ?? rules.damage, direct = projectile.hullDirect ?? rules.directDamage;
-      ctx.vehicles?.explosion(origin, rules.damageRadius, splash, owner, { cls: splashCls });
+      const splash = projectile.hullSplash ?? rules.damage;
+      // Per-airframe hull damage (the STINGER) applies to the fused hull only.
+      const directHull = projectile.hullDamageByType && projectile.directVehicleId
+        ? ctx.vehicles?.vehicles?.get?.(projectile.directVehicleId) : null;
+      const direct = projectile.hullDamageByType ? (directHull ? projectile.hullDamageByType[directHull.type] ?? 0 : 0)
+        : projectile.hullDirect ?? rules.directDamage;
+      if (splash > 0) ctx.vehicles?.explosion(origin, rules.damageRadius, splash, owner, { cls: splashCls });
       if (projectile.directVehicleId && Number.isFinite(direct) && direct > 0) {
         ctx.vehicles?.damage(projectile.directVehicleId, direct, owner, { cls: directCls, point: projectile.directPoint ?? origin });
       }

@@ -1,6 +1,7 @@
 import { CONQUEST_RULES, COUNTERMEASURES, seatWeaponList, vehicleMountOrder } from '../../../shared/conquest-contract.js';
 import { vehicleEnterDistance } from '../../../shared/vehicles.js';
 import { vehicleSeats, vehicleSeatDefinition, vehicleSeatOccupantId, vehicleHasFreeSeat } from '../../../shared/vehicle-seats.js';
+import { isBotId } from '../../../shared/conquest.js';
 import { isTypingTarget, matchesBinding } from '../keybindings.js';
 import { VehicleCamera } from './vehicle-camera.js';
 
@@ -22,6 +23,9 @@ export const SEAT_KEYS = Object.freeze(['F1', 'F2', 'F3', 'F4', 'F5']);
 /** Enter/exit is a tap: releasing T before this starts a support hold instead (repair). */
 export const INTERACT_TAP_MS = CONQUEST_RULES.repairHoldStartMs;
 const MAX_QUEUED_ACTIONS = 4;
+/** A seat a human may ask for: free, or held by a bot (the server puts the bot out or swaps it). */
+const seatTakeable = (row, seatId) => { const occupant = vehicleSeatOccupantId(row, seatId); return occupant == null || isBotId(occupant); };
+const hullTakeable = row => vehicleHasFreeSeat(row) || vehicleSeats(row.type ?? row.kind).some(seat => isBotId(vehicleSeatOccupantId(row, seat.id)));
 const nowMs = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
 /**
@@ -188,7 +192,7 @@ export class VehicleController {
     this.nearest = null;
     let distance = Infinity;
     if (this.enabled && !this.vehicle) for (const row of this.rows) {
-      if (row.hp <= 0 || row.wreck || !vehicleHasFreeSeat(row) || (row.team && row.team !== self.team)) continue;
+      if (row.hp <= 0 || row.wreck || !hullTakeable(row) || (row.team && row.team !== self.team)) continue;
       const d = Math.hypot(row.x - self.x, row.y - self.y, row.z - self.z);
       if (d <= vehicleEnterDistance(row.type ?? row.kind) && d < distance) { distance = d; this.nearest = row; }
     }
@@ -239,7 +243,7 @@ export class VehicleController {
     return false;
   }
 
-  /** F1..F5: switch to that seat (free seats only), or enter the nearby hull straight into it. */
+  /** F1..F5: switch to that seat (free or bot-held), or enter the nearby hull straight into it. */
   requestSeat(index) {
     if (!this.enabled) return false;
     const row = this.vehicle || this.nearest;
@@ -247,10 +251,10 @@ export class VehicleController {
     const seat = vehicleSeats(row.type ?? row.kind)[index];
     if (!seat) return false;
     if (this.vehicle) {
-      if (seat.id === this.seatId || vehicleSeatOccupantId(row, seat.id) != null) return false;
+      if (seat.id === this.seatId || !seatTakeable(row, seat.id)) return false;
       return this._queue({ type: 'seat', seatId: seat.id });
     }
-    if (vehicleSeatOccupantId(row, seat.id) != null) return false;
+    if (!seatTakeable(row, seat.id)) return false;
     return this._queue({ type: 'enter', vehicleId: row.id, seatId: seat.id });
   }
 

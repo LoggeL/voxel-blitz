@@ -8,7 +8,7 @@ import { fireOneShot } from '../server/sim/combat.js';
 import { WEAPON_IDS, WEAPONS } from '../shared/combatmath.js';
 import { chaosLevel } from '../shared/chaos.js';
 import { ARMOR_MATRIX, HEAVY_ZONE_MULTIPLIERS, armorMultiplier, armorEffective } from '../shared/vehicle-armor.js';
-import { VEHICLE_DEFS, VEHICLE_WEAPONS, VEHICLE_DAMAGE_RULES, vehicleLocalPoint, mountPose, seatWeaponList, vehicleMaxHp } from '../shared/vehicle-defs.js';
+import { VEHICLE_DEFS, VEHICLE_WEAPONS, VEHICLE_DAMAGE_RULES, CONQUEST_ROCKET_PROFILE, vehicleLocalPoint, mountPose, seatWeaponList, vehicleMaxHp } from '../shared/vehicle-defs.js';
 import { vehicleWeaponBlast } from '../shared/weapon-aircraft-projectiles.js';
 import { vehicleSeats } from '../shared/vehicle-seats.js';
 import { VEHICLE_STATUS, VEHICLE_TYPE_IDS, vehicleMountOrder } from '../shared/conquest-contract.js';
@@ -417,29 +417,63 @@ for (const type of VEHICLE_TYPE_IDS) {
   assert(gunner.hp < 100, 'an open cab lets the round reach exposed crew');
 }
 
-// ------------------------------- the Conquest RX-8: 220 direct + 60 splash at the AT class
+// ------------------------------- the Conquest RX-8 AT launcher: 320 direct + 60 splash at the AT class
 {
-  const f = fixture([spawn('t', 'tank', 'bravo', 100, 100), spawn('j', 'jeep', 'bravo', 160, 100)]);
+  const f = fixture([spawn('t', 'tank', 'bravo', 100, 100), spawn('j', 'jeep', 'bravo', 160, 100), spawn('h', 'helicopter', 'bravo', 220, 100)]);
   const engineer = f.player('engineer', 'alpha');
+  const P = CONQUEST_ROCKET_PROFILE;
   const fire = (vehicleId, local, standoff) => {
     const v = f.vehicle(vehicleId), target = vehicleLocalPoint(v, ...local), before = v.hp;
     Object.assign(engineer, { x: target[0] + standoff[0], y: 1, z: target[2] + standoff[1] });
     const eye = [engineer.eyeX, engineer.eyeY, engineer.eyeZ], d = target.map((n, i) => n - eye[i]), l = Math.hypot(...d);
     const rocket = f.game.projectiles.launchRocket(engineer, f.game.contexts.projectiles, { x: d[0] / l, y: d[1] / l, z: d[2] / l });
     assert(rocket, 'the rocket launches');
-    assert.deepEqual([rocket.hullDirect, rocket.hullSplash, rocket.hullCls, rocket.infantrySplashScale], [220, 60, 'at', 0.7]);
+    assert.deepEqual([rocket.hullDirect, rocket.hullSplash, rocket.hullCls, rocket.infantrySplashScale], [P.hullDirect, P.hullSplash, 'at', P.infantrySplashScale]);
+    assert.equal(rocket.guidance, undefined, 'the AT rocket is dumb-fire: it never homes');
     for (let i = 0; i < 120 && f.game.projectiles.active.has(rocket.id); i++) f.tick();
     v.lastDamagedAt = -Infinity;
     return before - v.hp;
   };
+  const hits = f.frames.length;
   const side = fire('t', [VEHICLE_DEFS.tank.collider.halfWidth, 1.2, 0], [12, 0]);
-  near(side, 280, 3, 'a side hit on the tank: 220 direct + 60 splash at AT x1.0');
-  f.vehicle('t').hp = 1000;
-  const rear = fire('t', [0, 1.2, VEHICLE_DEFS.tank.collider.halfLength], [0, 12]);
-  near(rear / side, 1.5, 0.03, 'the rear AT zone applies to the rocket');
+  near(side, P.hullDirect + P.hullSplash, 4, 'a side hit on the tank: 320 direct + 60 splash at AT x1.0');
+  f.tick(8); // the 100 ms vehicle_hit merge window closes
+  const hit = f.frames.slice(hits).flatMap(frame => frame.events).find(e => e.kind === 'vehicle_hit' && e.vehicleId === 't');
+  assert.deepEqual([hit.cls, hit.eff, hit.zone], ['at', 1, 'side'], 'vehicle_hit reports an effective AT side hit');
+  // Hits to kill a full tank: 4 from the front (x0.75), 3 on the side, 2 in the rear (x1.5).
+  const toKill = (local, standoff) => {
+    const tank = f.vehicle('t');
+    Object.assign(tank, { hp: 1000, disabled: false, burning: false });
+    let n = 0;
+    while (tank.hp > 0 && n < 8) { fire('t', local, standoff); n++; tank.burning = false; }
+    return n;
+  };
+  const front = toKill([0, 1.2, -VEHICLE_DEFS.tank.collider.halfLength], [0, -12]);
+  const sides = toKill([VEHICLE_DEFS.tank.collider.halfWidth, 1.2, 0], [12, 0]);
+  const rears = toKill([0, 1.2, VEHICLE_DEFS.tank.collider.halfLength], [0, 12]);
+  assert.deepEqual([front, sides, rears], [4, 3, 2], `AT hits to kill a full tank front/side/rear (${front}/${sides}/${rears})`);
+  // The first rear hit (>= 30 % of max HP) disables a fresh tank.
+  const fresh = fixture([spawn('t2', 'tank', 'bravo', 100, 100)]);
+  const eng2 = fresh.player('e2', 'alpha');
+  {
+    const v = fresh.vehicle('t2'), target = vehicleLocalPoint(v, 0, 1.2, VEHICLE_DEFS.tank.collider.halfLength);
+    Object.assign(eng2, { x: target[0], y: 1, z: target[2] + 12 });
+    const eye = [eng2.eyeX, eng2.eyeY, eng2.eyeZ], d = target.map((n, i) => n - eye[i]), l = Math.hypot(...d);
+    const rocket = fresh.game.projectiles.launchRocket(eng2, fresh.game.contexts.projectiles, { x: d[0] / l, y: d[1] / l, z: d[2] / l });
+    for (let i = 0; i < 120 && fresh.game.projectiles.active.has(rocket.id); i++) fresh.tick();
+    for (let i = 0; i < 8; i++) fresh.tick();
+    assert(v.disabled, 'one rear AT hit disables the tank');
+    assert(fresh.frames.flatMap(frame => frame.events).some(e => e.kind === 'vehicle_disabled' && e.vehicleId === 't2' && e.attacker === 'e2'),
+      'vehicle_disabled credits the engineer');
+  }
   const jeep = fire('j', [VEHICLE_DEFS.jeep.collider.halfWidth, 1, 0], [12, 0]);
-  near(jeep, 280, 3, 'a jeep takes the full AT profile');
-  metrics.rocketTankSide = Math.round(side); metrics.rocketTankRear = Math.round(rear);
+  near(jeep, VEHICLE_DEFS.jeep.hp, 1, 'one AT rocket destroys a jeep');
+  // A landed helicopter takes AT x0.8: three hits.
+  const heli = f.vehicle('h');
+  const heliHit = fire('h', [1.5, 1.2, 0], [12, 0]);
+  near(heliHit, (P.hullDirect + P.hullSplash) * 0.8, 6, 'AT vs air x0.8');
+  assert(heli.hp > 0 && Math.ceil(VEHICLE_DEFS.helicopter.hp / heliHit) === 3, 'a helicopter needs three AT hits');
+  metrics.rocketTankSide = Math.round(side); metrics.rocketTankFrontHits = front; metrics.rocketTankRearHits = rears;
 }
 
 // ------------------------------- infantry projectiles meet hulls, not just rockets

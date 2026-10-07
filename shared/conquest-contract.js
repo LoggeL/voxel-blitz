@@ -36,11 +36,16 @@ export const CONQUEST_RULES = Object.freeze({
 export const FLAG_STATES = Object.freeze(['idle', 'capturing', 'neutralizing', 'contested', 'restoring']);
 
 export const KIT_IDS = Object.freeze(['assault', 'engineer', 'support', 'recon']);
+/**
+ * `gadget` is the default gadget (gadgets[0]); `gadgets` lists the deploy-screen
+ * choices, picked by the deploy intent's `gadget` index (0 default). The
+ * Engineer carries the RX-8 AT launcher (0) or the AX-9 STINGER AA launcher (1).
+ */
 export const KITS = Object.freeze({
-  assault:  Object.freeze({ label: 'ASSAULT',  ability: 'revive',   primaries: Object.freeze(['rifle', 'mgl']),     gadget: null,     grenades: Object.freeze({ frag: 2, smoke: 1 }) }),
-  engineer: Object.freeze({ label: 'ENGINEER', ability: 'repair',   primaries: Object.freeze(['smg', 'shotgun']),   gadget: 'rocket', grenades: Object.freeze({ smoke: 1, frag: 1 }) }),
-  support:  Object.freeze({ label: 'SUPPORT',  ability: 'resupply', primaries: Object.freeze(['lmg', 'minigun']),   gadget: null,     grenades: Object.freeze({ frag: 2, molotov: 1 }) }),
-  recon:    Object.freeze({ label: 'RECON',    ability: 'spot',     primaries: Object.freeze(['sniper', 'longarc']), gadget: null,     grenades: Object.freeze({ limpet: 2, pulse: 1 }) }),
+  assault:  Object.freeze({ label: 'ASSAULT',  ability: 'revive',   primaries: Object.freeze(['rifle', 'mgl']),     gadget: null,     gadgets: Object.freeze([]), grenades: Object.freeze({ frag: 2, smoke: 1 }) }),
+  engineer: Object.freeze({ label: 'ENGINEER', ability: 'repair',   primaries: Object.freeze(['smg', 'shotgun']),   gadget: 'rocket', gadgets: Object.freeze(['rocket', 'stinger']), grenades: Object.freeze({ smoke: 1, frag: 1 }) }),
+  support:  Object.freeze({ label: 'SUPPORT',  ability: 'resupply', primaries: Object.freeze(['lmg', 'minigun']),   gadget: null,     gadgets: Object.freeze([]), grenades: Object.freeze({ frag: 2, molotov: 1 }) }),
+  recon:    Object.freeze({ label: 'RECON',    ability: 'spot',     primaries: Object.freeze(['sniper', 'longarc']), gadget: null,     gadgets: Object.freeze([]), grenades: Object.freeze({ limpet: 2, pulse: 1 }) }),
 });
 export const KIT_SIDEARM = 'revolver';
 
@@ -71,13 +76,22 @@ export const CONQUEST_EVENT_KINDS = Object.freeze([
   'vehicle_disabled',  // {vehicleId, attacker}
   'vehicle_repaired',  // {vehicleId, by, hp}
   'countermeasure',    // {vehicleId, cm:'flares'|'smoke'}  (kind is the event discriminator)
+  'ejection',          // {id, vehicleId, pos:[x,y,z], vel:[vx,vy,vz], yaw}  jet pilot left on the ejection seat
   // existing kinds kept: 'vehicle_destroyed' gains {type, attacker, assists:[ids], crewKilled}; 'shoot' gains {vehicleId, mount, vehicleWeapon, tracer}
 ]);
 export const REMOVED_EVENT_KINDS = Object.freeze(['flag_capture']);
+/**
+ * Conquest kill keys (`kill.w`) for deaths without a weapon: the restricted-area
+ * timer, a hull (run over, or crew of a hull an enemy destroyed), a fall
+ * (`fall`: killer is the enemy whose damage preceded the fall within
+ * FALL_DAMAGE.creditMs, else '' for a self death) and a crash (`crash`: crew
+ * of a hull wrecked by its own collision or fall, no killer).
+ */
+export const CONQUEST_DEATH_KEYS = Object.freeze(['restricted', 'vehicle', 'fall', 'crash']);
 
 /** Client -> server Conquest intent frame `{t:'conquest', ...}` (one field per frame is enough). */
 export const CONQUEST_INTENT_SHAPE = Object.freeze({
-  deploy: '{spawn:"hq"|"flag:A".."flag:E"|"squad:<playerId>"|"vehicle:<vehicleId>"|"vehicle:<vehicleId>:<seatId>", kit:KIT_ID, variant:0|1}',
+  deploy: '{spawn:"hq"|"flag:A".."flag:E"|"squad:<playerId>"|"vehicle:<vehicleId>"|"vehicle:<vehicleId>:<seatId>", kit:KIT_ID, variant:0|1, gadget?:0|1}',
   spot: '1',
   support: '{type:"revive"|"repair", targetId:string}',
 });
@@ -141,12 +155,13 @@ export const seatWeaponList = (type, seatId) => ((VEHICLE_TOPOLOGY[type] || []).
 export const VEHICLE_STATUS = Object.freeze({ engine: 1, disabled: 2, burning: 4, immobilized: 8, flares: 16, smoke: 32, grounded: 64, wreck: 128 });
 export const vehicleStatus = row => Object.fromEntries(Object.entries(VEHICLE_STATUS).map(([k, bit]) => [k, ((row?.st | 0) & bit) !== 0]));
 
-/** Player row field `cq` (Conquest only): [kitIndex(-1 none), squadId(0 none), down(0/1), spotted(0/1), restrictedDs (tenths of s left, 0 none), lockProgress(0..100), actionProgress(0..100)] */
+/** Player row field `cq` (Conquest only): [kitIndex(-1 none), squadId(0 none), down(0/1), spotted(0/1), restrictedDs (tenths of s left, 0 none), lockProgress(0..100), actionProgress(0..100), chute?]
+ * The optional 8th entry is the parachute state (shared/parachute.js CHUTE: 1 canopy open, 2 ejection seat), omitted at 0. */
 export const decodeConquestPlayer = row => {
   const cq = Array.isArray(row?.cq) ? row.cq : null;
   if (!cq) return null;
   return { kit: KIT_IDS[cq[0]] ?? null, squad: cq[1] | 0, down: cq[2] === 1, spotted: cq[3] === 1,
-    restrictedMs: (cq[4] | 0) * 100, lockProgress: (cq[5] | 0) / 100, actionProgress: (cq[6] | 0) / 100 };
+    restrictedMs: (cq[4] | 0) * 100, lockProgress: (cq[5] | 0) / 100, actionProgress: (cq[6] | 0) / 100, chute: cq[7] === 1 || cq[7] === 2 ? cq[7] : 0 };
 };
 /** Player row field `cqs` (Conquest only, per-player counters): [objectiveScore, vehiclesDestroyed, revives, captures] */
 export const decodeConquestStats = row => {

@@ -7,6 +7,7 @@ import { installFakeDom, isShown, textsDrawn } from './lib/conquest-ui-dom.mjs';
 import {
   CONQUEST_RULES, SCORE_LABELS, TEAM_DISPLAY, VEHICLE_TOPOLOGY, VEHICLE_WEAPON_META,
 } from '../shared/conquest-contract.js';
+import { LOCK_RULES } from '../shared/vehicle-defs.js';
 
 const dom = installFakeDom({ width: 1440, height: 900 });
 const { document } = dom;
@@ -39,8 +40,8 @@ const ok = () => { checks++; };
 /* ------------------------------------------------------------ fixtures */
 
 const REQUIRED = ['capturing', 'neutralizing', 'contested', 'defending', 'restoring', 'east-relative', 'out-of-bounds', 'revive',
-  'tank-driver', 'tank-commander', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'enter-jeep', 'big-map', 'deploy',
-  'deploy-refused', 'scoreboard', 'result'];
+  'tank-driver', 'tank-commander', 'heli-pilot', 'heli-gunner', 'transport-door', 'jet', 'stinger-lock', 'enter-jeep', 'big-map', 'deploy',
+  'deploy-refused', 'deploy-aa', 'scoreboard', 'result'];
 assert.deepEqual(fixtures.map(f => f.id), REQUIRED, 'every acceptance state has a fixture, in capture order'); ok();
 for (const f of fixtures) {
   assert.equal(f.match.mode, 'conquest');
@@ -244,7 +245,15 @@ const panelOf = f => state.vehiclePanelModel(seatedOf(f), { selfId: 'me', player
   const target = jetFix.vehicles.find(v => v.id === 'bravo-helicopter');
   const range = Math.hypot(target.x - jetFix.camera.x, target.y - jetFix.camera.y, target.z - jetFix.camera.z);
   const onFoot = state.lockerModel(jetFix.self, { projector: projectorFor(jetFix), vehicles: jetFix.vehicles, selfTeam: 'alpha', camera: jetFix.camera });
-  assert.equal(onFoot.targetId, range > 275 ? null : 'bravo-helicopter', `the engineer rocket's 250 m lock range decides (target at ${range.toFixed(0)} m)`);
+  assert.equal(onFoot.targetId, range > LOCK_RULES.stinger.range * 1.1 ? null : 'bravo-helicopter', `the STINGER's ${LOCK_RULES.stinger.range} m lock range decides (target at ${range.toFixed(0)} m)`);
+  // On foot with the STINGER: the seeker box and ring sit on the helicopter, LOCKING 65 %, then LOCKED.
+  const aaFix = byId('stinger-lock');
+  const aa = state.lockerModel(aaFix.self, { projector: projectorFor(aaFix), vehicles: aaFix.vehicles, selfTeam: 'alpha', camera: aaFix.camera });
+  assert.equal(aa.label, 'LOCKING 65%'); assert.equal(aa.targetId, 'bravo-helicopter', 'the STINGER seeker marks the enemy helicopter');
+  assert.ok(aa.box && Math.abs(aa.box.x - VIEW.width / 2) < 40 && Math.abs(aa.box.y - VIEW.height / 2) < 40, 'the box sits on the aircraft near the crosshair');
+  const locked = state.lockerModel({ ...aaFix.self, cq: aaFix.self.cq.map((v, i) => (i === 5 ? 100 : v)) }, { projector: projectorFor(aaFix),
+    vehicles: aaFix.vehicles, selfTeam: 'alpha', camera: aaFix.camera });
+  assert.equal(locked.label, 'LOCKED'); assert.equal(locked.locked, true);
   assert.equal(state.lockerModel(byId('capturing').self, {}), null, 'no locker box without cq[5]');
   ok();
 }
@@ -808,7 +817,7 @@ ok();
   const cqA = cqOf(deploy);
   screen.update({ cq: cqA, self: deploy.self, players: deploy.players, vehicles: deploy.vehicles, nowMs: FIXTURE_NOW });
   assert.equal(screen.deploy(), true); assert.equal(screen.readied, true);
-  assert.deepEqual(sent, [{ spawn: 'flag:A', kit: 'engineer', variant: 1 }]);
+  assert.deepEqual(sent, [{ spawn: 'flag:A', kit: 'engineer', variant: 1, gadget: 0 }]);
   const lostA = { ...deploy.match, conquest: { ...deploy.match.conquest,
     flags: deploy.match.conquest.flags.map(t => (t[0] === 'A' ? ['A', -100, 'bravo', 'idle', 0, 0] : t)) } };
   screen.update({ cq: state.readConquest(lostA, mapMeta), self: deploy.self, players: deploy.players, vehicles: deploy.vehicles, nowMs: FIXTURE_NOW });

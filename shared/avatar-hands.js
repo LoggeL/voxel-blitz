@@ -56,6 +56,10 @@ export const HANDS = {
     grip: { x: 0.041, y: -0.112, z: -0.332 },
     support: { x: -0.052, y: 0.006, z: -0.478, on: 'body' },
   },
+  stinger: {
+    grip: { x: 0.045, y: -0.03, z: -0.07 },                 // pistol grip under the gripstock.
+    support: { x: -0.06, y: 0.0, z: -0.36, on: 'body' },    // forward handle under the tube clamp.
+  },
   knife: {
     grip: { x: 0.020, y: -0.225, z: -0.035 },                // fist rides low: the baked glove
                                                             // cuff must stay under the 0.02 sight line.

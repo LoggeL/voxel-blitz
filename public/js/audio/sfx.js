@@ -44,6 +44,8 @@ import {
   sendEcho,
 } from './reports.js';
 
+/** Weapons that borrow another weapon's sound bank (no recorded assets of their own). */
+const SFX_ALIAS = Object.freeze({ stinger: 'rocket' });
 const engine = new AudioEngine();
 const cosmeticAudio = new CosmeticAudio(engine);
 let pool = null;
@@ -646,7 +648,9 @@ export const sfx = {
     return samples.load(manifest, fetchImpl);
   },
 
-  fire(key, options) {
+  fire(rawKey, options) {
+    // Kit gadgets without their own bank reuse a launcher's sounds (STINGER -> RX-8).
+    const key = SFX_ALIAS[rawKey] ?? rawKey;
     const deferred = copyOptions(options);
     if (key === 'flamethrower') {
       if (!engine.ensure()) return;
@@ -1053,7 +1057,8 @@ export const sfx = {
     });
   },
 
-  cycleClick(step, weapon) {
+  cycleClick(step, rawWeapon) {
+    const weapon = SFX_ALIAS[rawWeapon] ?? rawWeapon;
     run('cycle', () => {
       const output = pool.acquire(null, 0.24);
       cycleActionClick(output, primitives, weapon, step);
@@ -1108,7 +1113,8 @@ export const sfx = {
     });
   },
 
-  reloadClick(step, weapon) {
+  reloadClick(step, rawWeapon) {
+    const weapon = SFX_ALIAS[rawWeapon] ?? rawWeapon;
     run('reload', () => {
       const brightness = WEP_TONE[weapon] || 1;
       const output = pool.acquire(null, 0.45);
@@ -1359,7 +1365,8 @@ export const sfx = {
     });
   },
 
-  draw(weapon) {
+  draw(rawWeapon) {
+    const weapon = SFX_ALIAS[rawWeapon] ?? rawWeapon;
     run('draw', () => {
       const output = pool.acquire(null, (DRAW_LEN[weapon] || 0.11) + 0.3);
       if (samples.play(`weapons.${weapon}.draw`, output)) return;

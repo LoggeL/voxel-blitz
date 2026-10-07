@@ -22,7 +22,11 @@ export class WeaponWheelController {
     const context = this.getContext();
     const mode = context.match?.mode;
     const authoritative = Array.isArray(context.self?.owned) && usesOwnedLoadout(mode);
-    return WEAPON_IDS.map((id, slot) => {
+    // Kit-only gadgets (the STINGER) sit at the end of WEAPON_IDS and only appear
+    // when the authoritative kit owns them, so every listed index stays its slot.
+    const shown = WEAPON_IDS.filter(id => !WEAPONS[id].gadgetOnly || (authoritative && context.self.owned.includes(id)));
+    return shown.map((id) => {
+      const slot = WEAPON_IDS.indexOf(id);
       const locked = authoritative && !context.self.owned.includes(id) && !(mode === 'ttt' && id === 'knife');
       const ammo = context.weapon?.ammoOf(id);
       return {
@@ -30,7 +34,8 @@ export class WeaponWheelController {
         name: WEAPON_NAMES[id] || id.toUpperCase(),
         cls: WEAPON_CLASSES[id] || '',
         icon: weaponImagePath(id),
-        key: slot < 10 ? `[${(slot + 1) % 10}]` : '[WHEEL]',
+        // A kit gadget answers the launcher digit (WeaponState._gadgetSlotAlias).
+        key: WEAPONS[id].gadgetOnly ? `[${WEAPON_IDS.indexOf('rocket') + 1}]` : slot < 10 ? `[${(slot + 1) % 10}]` : '[WHEEL]',
         ammo: locked ? '—' : (WEAPONS[id].mode === 'melee' ? '∞' : `${ammo?.mag || 0} / ${context.match?.mode === 'gungame' ? '∞' : ammo?.reserve || 0}`),
         owned: !locked,
         current: context.weapon?.slot === slot,

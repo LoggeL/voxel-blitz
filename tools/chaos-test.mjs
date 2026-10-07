@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { GameEngine } from '../server/game.js';
 import { makeSnapshot } from '../server/protocol/snapshot.js';
 import { parseBuyFrame } from '../server/protocol/admission.js';
-import { WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
+import { FREE_WEAPON_IDS, WEAPONS, WEAPON_IDS } from '../shared/combatmath.js';
 import { GRENADE_TYPE_IDS } from '../shared/grenade-rules.js';
 import { FLAME_RULES } from '../shared/flame-rules.js';
 import { MOLOTOV_FIRE, molotovFireProfile } from '../shared/molotov-rules.js';
@@ -17,9 +17,10 @@ const SECONDARY_PROJECTILE_CAP = MAX_ACTIVE_PROJECTILES - PRIMARY_PROJECTILE_RES
 
 assert.equal(CHAOS_START_CREDITS, 600);
 assert.equal(CHAOS_KILL_CREDITS, 300);
-// Every selectable weapon and throwable must have a complete upgrade ladder.
-assert.deepEqual(Object.keys(CHAOS_UPGRADES).sort(), [...WEAPON_IDS, ...GRENADE_TYPE_IDS].sort());
-for (const id of WEAPON_IDS) {
+// Every selectable weapon and throwable must have a complete upgrade ladder
+// (kit-only gadgets such as the Conquest STINGER never reach Chaos).
+assert.deepEqual(Object.keys(CHAOS_UPGRADES).sort(), [...FREE_WEAPON_IDS, ...GRENADE_TYPE_IDS].sort());
+for (const id of FREE_WEAPON_IDS) {
   assert.deepEqual(parseChaosPurchase(`chaos:${id}:1`), { item: id, level: 1 });
   assert.equal(chaosWeaponDef({ chaosUpgrades: {} }, WEAPONS[id]), WEAPONS[id]);
 }
@@ -176,7 +177,7 @@ assert.equal(shot('flamethrower', 3, 10).blasts.length, 1);
 assert.equal(shot('flamethrower', 3, 10).rockets.length, 0);
 assert.equal(shot('minigun', 3, 9).bolts.length, 0);
 assert.equal(shot('minigun', 3, 10).bolts.length, 3);
-for (const id of WEAPON_IDS) assert.deepEqual(shot(id, 0, 6), { bolts: [], rockets: [], blasts: [], flames: [], events: [] });
+for (const id of FREE_WEAPON_IDS) assert.deepEqual(shot(id, 0, 6), { bolts: [], rockets: [], blasts: [], flames: [], events: [] });
 for (const [id, count] of [['rifle', 4], ['revolver', 2], ['lance', 4]]) {
   const p = { id: 'shooter', def: WEAPONS[id], chaosUpgrades: { [id]: 2 } };
   const targets = Array.from({ length: 6 }, (_, i) => ({ id: `t${i}`, state: 'alive', x: i + 1, eyeY: 10, z: 20, vy: 0, hp: 100, takeDamage(n) { this.hp -= n; return false; } }));

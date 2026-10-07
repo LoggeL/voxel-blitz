@@ -1,4 +1,4 @@
-import { WEAPON_IDS } from '../../shared/combatmath.js';
+import { FREE_WEAPON_IDS, WEAPON_IDS } from '../../shared/combatmath.js';
 import { TEAM_IDS } from '../../shared/modes.js';
 import { TeamPolicy, weaponId } from './base-policy.js';
 
@@ -177,7 +177,7 @@ export class TdmPolicy extends TeamPolicy {
     return {
       team: state?.team ?? null,
       credits: 0,
-      owned: WEAPON_IDS.slice(),
+      owned: FREE_WEAPON_IDS.slice(),
       bomb: false,
       interaction: null,
       spawnProtected: !!state && this._spawnProtected(entity),
@@ -212,7 +212,7 @@ export class TdmPolicy extends TeamPolicy {
   _syncPlayer(entity, state) {
     entity.team = state.team;
     entity.credits = 0;
-    entity.owned = WEAPON_IDS.slice();
+    entity.owned = FREE_WEAPON_IDS.slice();
     entity.bomb = false;
     entity.interaction = null;
     entity.spawnProtected = this._spawnProtected(entity);

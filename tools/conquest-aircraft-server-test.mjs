@@ -100,7 +100,10 @@ for (const type of ['helicopter','plane']) {
   assert.equal(p.vehicleId,null); assert.equal(v.occupantId,null); assert.equal(p.grounded,false);
   assert(p.y>89 && p.y<94,'airborne exit preserves real altitude');
   const startY=p.y,craftY=v.y; f.ticks(120);
-  assert(p.y<startY-8 && !p.grounded,'the ejected operator falls using ordinary player gravity');
+  if (type==='plane') {
+    // The jet pilot leaves on the ejection seat (shared/parachute.js): up, then the canopy opens.
+    assert(p.y>startY+5 && !p.grounded && p.chute===1,'the jet pilot rides the ejection seat up and then hangs under the canopy');
+  } else assert(p.y<startY-8 && !p.grounded,'the ejected operator falls using ordinary player gravity');
   assert(v.y<craftY-3, 'unsupported unoccupied aircraft lose altitude');
 }
 

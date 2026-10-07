@@ -67,6 +67,18 @@ export class ScoreLedger {
     this.contributions.set(key, list);
   }
 
+  /** The latest other player who damaged `victimId` within `windowMs`, or null (fall-death credit). */
+  lastAttacker(victimId, windowMs) {
+    const now = this.host.now();
+    const list = this.contributions.get(String(victimId)) || [];
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (now - list[i].at > windowMs) break;
+      const entity = this.host.entity(list[i].id);
+      if (entity) return entity;
+    }
+    return null;
+  }
+
   /** Award `SCORE_POINTS[reason] * scale` (rounded) to a player; returns the points paid. */
   award(playerId, reason, scale = 1) {
     const base = SCORE_POINTS[reason];

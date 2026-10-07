@@ -11,9 +11,10 @@ import {
   vehicleMountOrder, vehicleStatus,
 } from '../../../shared/conquest-contract.js';
 import {
-  decodeConquestMatch, deployOptions, deployViewFromSnapshot, oppositeTeam, parseSpawnChoice, resolveDeployChoice, teamSign,
+  decodeConquestMatch, deployOptions, deployViewFromSnapshot, isBotId, oppositeTeam, parseSpawnChoice, resolveDeployChoice, teamSign,
 } from '../../../shared/conquest.js';
 import * as vehicleDefs from '../../../shared/vehicle-defs.js';
+import { KIT_GADGET_LABELS } from '../../../shared/conquest-kits.js';
 import { WEAPON_NAMES } from './hud-support.js';
 import { relativeTeam, squadName, teamDisplayName } from './conquest/scoring.js';
 import {
@@ -489,15 +490,15 @@ export function pickAirTarget(row, dir, from, vehicles, selfTeam, range, cone = 
 /**
  * Locker box for our own lock attempt (cq[5]): progress is authoritative; the
  * box marks the enemy aircraft inside the server's lock cone and range for
- * the weapon in use (jet AA missile when flying the plane, else the engineer
- * rocket), with a little slack for the view moving between snapshots.
+ * the weapon in use (jet AA missile when flying the plane, else the Engineer's
+ * AX-9 STINGER), with a little slack for the view moving between snapshots.
  */
 export function lockerModel(self, { projector = null, vehicles = [], selfTeam = null, camera = null, seated = null, registry = vehicleDefs } = {}) {
   const progress = decodeConquestPlayer(self)?.lockProgress ?? 0;
   if (!(progress > 0)) return null;
   let target = null;
   if (projector && camera) {
-    const rules = registry?.LOCK_RULES?.[seated?.row?.type === 'plane' ? 'aaMissile' : 'rocket'] ?? { range: 400, cone: 15 * Math.PI / 180 };
+    const rules = registry?.LOCK_RULES?.[seated?.row?.type === 'plane' ? 'aaMissile' : 'stinger'] ?? { range: 400, cone: 15 * Math.PI / 180 };
     const dir = forwardFromAngles(camera.yaw, camera.pitch);
     const from = [camera.x, camera.y, camera.z];
     target = pickAirTarget({ id: seated?.row?.id ?? null }, dir, from, vehicles, selfTeam, rules.range * 1.1, rules.cone * 1.5);
@@ -766,7 +767,8 @@ export function killerCard(ev, selfId, players = []) {
   if (ev?.kind !== 'kill' || selfId == null || String(ev.victim) !== String(selfId)) return null;
   const key = typeof ev.w === 'string' ? ev.w : '';
   const weaponName = WEAPON_NAMES[key] || (key ? key.toUpperCase() : null);
-  const killerId = ev.killer == null ? null : String(ev.killer);
+  const killerId = ev.killer == null || ev.killer === '' ? null : String(ev.killer);
+  // World deaths (no killer: a fall, the restricted area) read as your own.
   const own = killerId === null || killerId === String(selfId);
   const killer = own ? null : (players || []).find(p => String(p?.id) === killerId) ?? null;
   const victim = (players || []).find(p => String(p?.id) === String(selfId)) ?? null;
@@ -784,13 +786,24 @@ export function killerCard(ev, selfId, players = []) {
 /* ------------------------------------------------------------------ deploy */
 
 const KIT_WEAPON_LABEL = id => WEAPON_NAMES[id] || String(id || '').toUpperCase();
-/** Kit cards for the picker; variant 0/1 selects the primary. */
-export function kitCards(selectedKit, variant = 0) {
+/** Gadget index valid for a kit: 1 only where the kit offers a second gadget. */
+export const kitGadgetIndex = (kit, gadget) => (gadget === 1 && (KITS[kit]?.gadgets?.length ?? 0) > 1 ? 1 : 0);
+/**
+ * Kit cards for the picker; variant 0/1 selects the primary and `gadget` 0/1
+ * the gadget of kits that offer a choice (the Engineer: AT launcher or STINGER).
+ * `gadget` on a card is the selected gadget's name (null for kits without one).
+ */
+export function kitCards(selectedKit, variant = 0, gadget = 0) {
   return KIT_IDS.map(id => {
     const kit = KITS[id];
+    const chosen = id === selectedKit ? kitGadgetIndex(id, gadget) : 0;
+    const gadgets = (kit.gadgets ?? []).length > 1 ? kit.gadgets.map((weapon, index) => ({ index, weapon,
+      role: KIT_GADGET_LABELS[weapon]?.role ?? '', hint: KIT_GADGET_LABELS[weapon]?.hint ?? '',
+      label: KIT_WEAPON_LABEL(weapon), selected: id === selectedKit && index === chosen })) : [];
+    const gadgetId = kit.gadgets?.[chosen] ?? kit.gadget;
     return { id, label: kit.label, ability: kit.ability.toUpperCase(), selected: id === selectedKit,
       primaries: kit.primaries.map((weapon, index) => ({ index, weapon, label: KIT_WEAPON_LABEL(weapon), selected: id === selectedKit && index === (variant | 0) })),
-      gadget: kit.gadget ? KIT_WEAPON_LABEL(kit.gadget) : null,
+      gadget: gadgetId ? KIT_WEAPON_LABEL(gadgetId) : null, gadgetId: gadgetId ?? null, gadgets,
       grenades: Object.entries(kit.grenades).map(([type, count]) => `${count}× ${type.toUpperCase()}`) };
   });
 }
@@ -808,13 +821,26 @@ export function deployModel({ cq, self, players = [], vehicles = [], nowMs = nul
   const options = deployOptions(view, { id: self.id, team, squad: info?.squad | 0 });
   const names = new Map((players || []).map(p => [String(p.id), p.name || String(p.id)]));
   const decorated = options.map(option => {
-    let label, detail;
+    let label, detail, takeoverNames = null;
     if (option.kind === 'hq') { label = `${teamDisplayName(team)} HQ`; detail = cq.bases?.[team]?.name || 'HEADQUARTERS'; }
     else if (option.kind === 'flag') { const f = cq.flags.find(fl => fl.id === option.id); label = `FLAG ${option.id}`; detail = f?.name?.toUpperCase() || ''; }
-    else if (option.kind === 'squad') { label = String(names.get(option.id) || 'SQUADMATE').toUpperCase(); detail = 'SQUADMATE'; }
-    else { label = VEHICLE_LABELS[option.type] || 'VEHICLE'; detail = option.seats?.length ? `${option.seats.length} FREE SEAT${option.seats.length === 1 ? '' : 'S'}` : 'FULL'; }
+    else if (option.kind === 'squad') {
+      label = String(names.get(option.id) || 'SQUADMATE').toUpperCase();
+      // A mate in an aircraft seats you in it (a free seat, else a bot's).
+      detail = option.vehicleId ? `IN ${VEHICLE_LABELS[option.type] || 'AIRCRAFT'} · ${SEAT_LABELS[option.seatId] || 'SEAT'}` : 'SQUADMATE';
+    }
+    else {
+      label = VEHICLE_LABELS[option.type] || 'VEHICLE';
+      // Seats a friendly bot holds can be taken: the bot is put out on deploy.
+      const hull = option.takeover ? (vehicles || []).find(v => String(v?.id) === option.id) : null;
+      for (const seatId of option.takeover || []) (takeoverNames ||= {})[seatId] = String(names.get(seatOccupant(hull, seatId)) || 'BOT').toUpperCase();
+      detail = option.seats?.length ? `${option.seats.length} FREE SEAT${option.seats.length === 1 ? '' : 'S'}`
+        : option.takeover?.length ? `TAKE SEAT · ${takeoverNames[option.takeover[0]]}` : 'FULL';
+    }
     const base = option.kind === 'hq' ? cq.bases?.[team] : null;
     return { ...option, label, detail, x: option.x ?? base?.x ?? null, z: option.z ?? base?.z ?? null,
+      ...(takeoverNames ? { takeoverNames, seatChoices: topology(option.type).map(seat => seat.id)
+        .filter(id => option.seats?.includes(id) || option.takeover.includes(id)) } : {}),
       reasonText: option.reason ? DEPLOY_REFUSED_TEXT[option.reason] || option.reason.toUpperCase() : '' };
   });
   const parsed = typeof selection?.spawn === 'string' ? parseSpawnChoice(selection.spawn) : null;
@@ -825,16 +851,18 @@ export function deployModel({ cq, self, players = [], vehicles = [], nowMs = nul
   const waitMs = respawnAt !== null && Number.isFinite(nowMs) ? Math.max(0, respawnAt - nowMs) : null;
   const kit = KIT_IDS.includes(selection?.kit) ? selection.kit : info?.kit && KIT_IDS.includes(info.kit) ? info.kit : 'assault';
   const variant = selection?.variant === 1 ? 1 : 0;
+  const gadget = kitGadgetIndex(kit, selection?.gadget);
   return {
     team, teamName: teamDisplayName(team), options: decorated, spawn, valid: resolved.ok, reason: resolved.reason,
     reasonText: resolved.ok ? '' : DEPLOY_REFUSED_TEXT[resolved.reason] || '',
-    seatId: resolved.seatId, kit, variant, kits: kitCards(kit, variant),
+    seatId: resolved.seatId, kit, variant, gadget, kits: kitCards(kit, variant, gadget),
     waitMs, ready: waitMs === 0 && resolved.ok, countdown: waitMs === null ? '' : waitMs > 0 ? `${(waitMs / 1000).toFixed(1)}` : '',
     timeoutMs: respawnAt !== null && Number.isFinite(nowMs) ? Math.max(0, respawnAt + CONQUEST_RULES.deployTimeoutMs - nowMs) : null,
     refused: refused ? { reason: refused, text: DEPLOY_REFUSED_TEXT[refused] || String(refused).toUpperCase() } : null,
     down: info?.down === true,
     selectedKey: resolved.option?.spawn ?? 'hq',
-    choice: { spawn, kit, variant },
+    // `gadget` only rides kits that offer a choice, so older servers and the other kits see the old shape.
+    choice: { spawn, kit, variant, ...((KITS[kit]?.gadgets?.length ?? 0) > 1 ? { gadget } : {}) },
   };
 }
 
@@ -883,7 +911,25 @@ export function interactModel({ self, players = [], vehicles = [], nearbyVehicle
       return { type: 'enter', targetId: String(near.id), seatId: free.id,
         label: `ENTER ${VEHICLE_LABELS[near.type] || 'VEHICLE'} · F${index + 1} ${SEAT_LABELS[free.id] || free.role.toUpperCase()}`, progress: 0, hold: false };
     }
+    // A full hull with a bot aboard: Interact takes the first bot seat (the server puts the bot out).
+    const held = topology(near.type).find(seat => isBotId(seatOccupant(near, seat.id)));
+    if (held) {
+      const index = topology(near.type).indexOf(held);
+      const bot = (players || []).find(p => String(p?.id) === seatOccupant(near, held.id));
+      return { type: 'enter', targetId: String(near.id), seatId: held.id, takeover: true,
+        label: `TAKE ${VEHICLE_LABELS[near.type] || 'VEHICLE'} · F${index + 1} ${SEAT_LABELS[held.id] || held.role.toUpperCase()} · ${String(bot?.name || 'BOT').toUpperCase()}`, progress: 0, hold: false };
+    }
   }
+  return null;
+}
+
+/**
+ * Parachute prompt from the predicted chute state (PlayerPhysics.chutePrompt):
+ * 'ready' (falling high enough: Jump opens it) or 'open' (Jump cuts it).
+ */
+export function chutePromptModel(state) {
+  if (state === 'ready') return { type: 'chute', binding: 'jump', label: 'OPEN PARACHUTE', progress: 0, hold: false };
+  if (state === 'open') return { type: 'chute', binding: 'jump', label: 'CUT PARACHUTE', progress: 0, hold: false };
   return null;
 }
 

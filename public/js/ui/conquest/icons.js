@@ -14,6 +14,12 @@ export const ICON_PATHS = Object.freeze({
   autocannon: 'M2 10h9v4H2zM11 11h9v2h-9zM20 10.3h2v3.4h-2zM4 14h3v3H4z',
   roadkill: 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm0 3.2a5.8 5.8 0 1 1 0 11.6 5.8 5.8 0 0 1 0-11.6zm0 3.3a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z',
   restricted: 'M3 9h18v6H3zM6 9l-3 6h3l3-6zM12 9l-3 6h3l3-6zM18 9l-3 6h3l3-6zM5 15h2v5H5zM17 15h2v5h-2z',
+  // A figure dropping onto a ledge line (fall damage).
+  fall: 'M13 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4zM9 7h6l2 4-1.6.8L14 9.6V13l2 4h-2.2L12 13.6 10.4 17H8.2l2-4V9.6l-1.4 2.2L7.2 11zM2 19h20v2H2zM19 4h2v7h2l-3 3-3-3h2z',
+  // A burst over a ground line (hull crash).
+  crash: 'M12 2l1.8 4.6 4.7-2-2 4.7L21 11l-4.5 1.8 2 4.7-4.7-2L12 20l-1.8-4.5-4.7 2 2-4.7L3 11l4.5-1.7-2-4.7 4.7 2zM2 21h20v2H2z',
+  // Parachute canopy over a load (HUD prompt).
+  chute: 'M12 3C6.5 3 2.5 6.6 2 11h20c-.5-4.4-4.5-8-10-8zM3 12l8 7v2h2v-2l8-7h-2.4L13 17.2V12h-2v5.2L5.4 12z',
   // Hulls (side profiles, facing right).
   jeep: 'M3 11l2-4h8l2 4h5a1 1 0 0 1 1 1v3h-2.2a2.5 2.5 0 0 0-4.6 0H9.8a2.5 2.5 0 0 0-4.6 0H3zM7 8.2L5.9 11H9V8.2zM10.5 8.2V11h3l-1.2-2.8zM7.5 14.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zM16.5 14.5a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z',
   tank: 'M7 8h7l1 2h7v1.6h-7.2L14 13H6zM2 13h19l-2 4.5H4zM5 14.6a1 1 0 1 0 0 .1zM8.5 14.5h1v1h-1zM12 14.5h1v1h-1zM15.5 14.5h1v1h-1z',
@@ -39,6 +45,7 @@ export const ICON_PATHS = Object.freeze({
 export const KILL_KEY_ICONS = Object.freeze({
   tankAP: 'shell', tankHE: 'shell', coaxMG: 'mg', hmg: 'mg', doorMinigun: 'mg', planeCannon: 'autocannon',
   chinCannon: 'autocannon', helicopterRocket: 'rocket', aaMissile: 'missile', vehicle: 'roadkill', restricted: 'restricted',
+  fall: 'fall', crash: 'crash',
 });
 
 /** A fresh inline SVG element for one glyph (DOM only). */

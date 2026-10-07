@@ -1,4 +1,4 @@
-import { WEAPON_IDS } from '../../shared/combatmath.js';
+import { FREE_WEAPON_IDS, WEAPON_IDS } from '../../shared/combatmath.js';
 import { isTrainingDummyId as isDummyId } from '../../shared/modes.js';
 import { BasePolicy } from './base-policy.js';
 import { TrainingCourse } from './training/course.js';
@@ -172,7 +172,7 @@ export class TrainingPolicy extends BasePolicy {
     return {
       team: null,
       credits: 0,
-      owned: WEAPON_IDS.slice(),
+      owned: FREE_WEAPON_IDS.slice(),
       bomb: false,
       interaction: null,
       spawnProtected: this._spawnProtected(entity),
@@ -190,7 +190,7 @@ export class TrainingPolicy extends BasePolicy {
     if (isDummyId(entity.id)) entity.spawnProtectedUntil = 0;
     entity.team = null;
     entity.credits = 0;
-    entity.owned = WEAPON_IDS.slice();
+    entity.owned = FREE_WEAPON_IDS.slice();
     entity.bomb = false;
     entity.interaction = null;
     entity.spawnProtected = this._spawnProtected(entity);

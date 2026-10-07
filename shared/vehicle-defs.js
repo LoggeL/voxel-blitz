@@ -44,9 +44,13 @@ export const VEHICLE_LIFECYCLE = freeze({
   plainCollisionSafeSpeed: 15,
 });
 
-/** Lock-on sources (spec F4 locks). Cones are full half-angles in radians. */
+/**
+ * Lock-on sources (spec F4 locks). Cones are full half-angles in radians. The
+ * Engineer's AX-9 STINGER is the only infantry locker; the RX-8 AT rocket is
+ * dumb-fire. Only airborne enemy aircraft can be locked.
+ */
 export const LOCK_RULES = freeze({
-  rocket: { range: 250, cone: 6 * Math.PI / 180, seconds: 1.2, turnRate: 1.6, navConstant: 4, proximity: 2 },
+  stinger: { range: 320, cone: 7 * Math.PI / 180, seconds: 1.4 },
   aaMissile: { range: 350, cone: 10 * Math.PI / 180, seconds: 1.5 },
   losIntervalMs: 100,
 });
@@ -87,8 +91,32 @@ export const VEHICLE_WEAPONS = freeze({
     turnRate: 2.4, navConstant: 4, proximity: 3 }),
 });
 
-/** Infantry RX-8 rocket in Conquest: hull numbers at the AT class, infantry splash scaled. */
-export const CONQUEST_ROCKET_PROFILE = freeze({ hullDirect: 220, hullSplash: 60, cls: 'at', infantrySplashScale: 0.7 });
+/**
+ * Infantry RX-8 rocket in Conquest: the Engineer's dumb-fire AT launcher. Hull
+ * numbers at the AT class (a direct hit adds `hullDirect` to the full
+ * `hullSplash`), so with the heavy facing zones a full tank takes 4 front hits
+ * (380 x 0.75 = 285), 3 on the side and 2 in the rear (570, and the first rear
+ * hit disables it). A jeep (light, 320 HP) dies to one hit, a helicopter
+ * (air x0.8 = 304) to three. Infantry splash is scaled by 0.7.
+ */
+export const CONQUEST_ROCKET_PROFILE = freeze({ hullDirect: 320, hullSplash: 60, cls: 'at', infantrySplashScale: 0.7 });
+
+/**
+ * AX-9 STINGER missile (Engineer AA gadget). Launched only with a complete
+ * lock; flies like the jet's AA missile (no gravity, proportional navigation,
+ * proximity fuse) and is decoyed by flares. Hull damage is per airframe type
+ * at the `aa` class: a helicopter or transport takes 2 hits, a jet 3. Ground
+ * hulls are never locked; a decoyed or expired missile only splashes infantry.
+ */
+export const STINGER_RULES = freeze({
+  key: 'stinger', label: 'AX-9 STINGER', kind: 'missile', cls: 'aa', presentation: 'aaMissile',
+  speed: 120, gravity: 0, lifetimeMs: 6000, launchForward: 0.9,
+  turnRate: 2.6, navConstant: 4, proximity: 3,
+  hullDamage: { helicopter: 360, transport: 330, plane: 170 },
+  // Infantry splash only (hulls take hullDamage on the fused target).
+  damage: 0, splash: 35, splashRadius: 3, splashCls: 'aa', knockback: 8,
+  terrainRadius: 0, terrainPower: 0, maxDestroyedBlocks: 0,
+});
 
 const seatHips = {
   jeep: { driver: [-0.4, 1.15, 0.13], gunner: [0, 1.55, 1.05], 'front-passenger': [0.4, 1.15, 0.13], 'rear-left': [-0.45, 1.205, 1.25] },

@@ -30,7 +30,7 @@ export const PHYSICAL_DAMAGE_CLASSES = Object.freeze(['collision']);
 /** Infantry weapon id -> damage class when its definition carries none. */
 export const INFANTRY_DAMAGE_CLASSES = Object.freeze({
   lmg: 'mg', minigun: 'mg',
-  rocket: 'at',
+  rocket: 'at', stinger: 'aa',
   mgl: 'explosive', frag: 'explosive', limpet: 'explosive', pulse: 'explosive', bubble: 'explosive',
   flamethrower: 'fire', molotov: 'fire',
 });

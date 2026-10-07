@@ -139,6 +139,56 @@ const run = (f, seconds, decide = null) => {
   assert.equal(f.hull.hp, hp);
   f.bots.dispose();
 }
+// --- the AA engineer: the STINGER is only for airborne aircraft ------------------------------
+{
+  const stinger = WEAPON_IDS.indexOf('stinger');
+  const t = fixture();
+  t.arm(['smg', 'stinger']);
+  const tankTarget = pickBotThreat(t.game, t.p, { ...t.br, enemyId: null, noticeProgress: 0 }, { includeInfantry: false,
+    effectFor: (target, d) => infantryArmorEffect(t.p, slots, target, d) });
+  assert.equal(tankTarget?.target ?? null, null, 'a STINGER engineer never takes on a tank');
+  assert.equal(bestWeaponFor(t.p, slots, { kind: 'hull', armor: 'heavy', vehicle: t.hull }, 40), null, 'no STINGER against armour');
+  const h = fixture({ enemyType: 'helicopter', enemySeat: 'driver' });
+  h.arm(['smg', 'stinger']);
+  const landed = { kind: 'hull', armor: 'air', vehicle: h.hull };
+  h.hull.grounded = true;
+  assert.equal(bestWeaponFor(h.p, slots, landed, 40), null, 'a landed helicopter cannot be locked, so no STINGER');
+  h.hull.grounded = false;
+  assert.equal(bestWeaponFor(h.p, slots, landed, 40), stinger, 'the STINGER answers an airborne helicopter');
+  assert.equal(bestWeaponFor(h.p, slots, landed, 400), null, 'beyond lock range the STINGER waits');
+}
+// --- integrated: an AA engineer bot locks and kills a human-flown helicopter with STINGERs ---
+{
+  const f = fixture({ managed: true, enemyType: 'helicopter', enemySeat: 'driver' });
+  const stinger = WEAPON_IDS.indexOf('stinger');
+  f.arm(['smg', 'stinger'], { stinger: 1, smg: 30 });
+  f.p.reserve[stinger] = 2;
+  const path = { x: 40, y: f.floor + 24, z: 6 };
+  const pin = () => Object.assign(f.hull, { ...path, vx: 6, vy: 0, vz: 0, grounded: false, rotorSpeed: 1, pitch: 0, roll: 0, yaw: 0 });
+  pin();
+  const hp = f.hull.hp;
+  let locked = false, launched = 0;
+  run(f, 14, () => {
+    pin(); path.x = 40 + Math.sin(f.game.now / 3000) * 10;
+    locked ||= (f.p.lockProgress ?? 0) >= 1;
+    launched = Math.max(launched, [...f.game.projectiles.active.values()].filter(r => r.weaponKey === 'stinger').length);
+  });
+  assert.equal(WEAPON_IDS[f.p.weapon] === 'stinger' || f.p.mag[stinger] + f.p.reserve[stinger] < 3, true, 'the STINGER was raised');
+  assert(locked, 'the bot holds the seeker on the helicopter until it locks');
+  assert(launched > 0 || f.hull.hp < hp, 'the bot fires the STINGER only once locked');
+  assert(!(f.hull.hp > 0), `two STINGER hits bring the helicopter down (${hp} -> ${f.hull.hp})`);
+  f.bots.dispose();
+}
+// --- integrated: an AT engineer bot leads a crossing tank -------------------------------------
+{
+  const f = fixture({ managed: true });
+  f.arm(['smg', 'rocket'], { rocket: 1, smg: 30 });
+  const hp = f.hull.hp;
+  let x = 22;
+  run(f, 12, () => { x = x > 58 ? 22 : x + 5 / 60; Object.assign(f.hull, { x, z: 15, yaw: -Math.PI / 2, speed: 5 }); });
+  assert(f.hull.hp < hp, 'the AT engineer leads a tank crossing at 5 m/s and hits it');
+  f.bots.dispose();
+}
 {
   // A friendly or empty hull in the lane holds the trigger.
   for (const team of ['alpha', 'bravo']) {
@@ -281,4 +331,4 @@ const run = (f, seconds, decide = null) => {
   bots.dispose();
 }
 
-console.log('Conquest bot vehicle combat: hull perception, armour-weighted threat picker, exposed crew, engineer AT fire, held rifle fire, mounted main gun, 360-degree check, threat-axis slew, blocked barrel, recognition, mount blacklist fallback, staggered idle scans, pintle HMG and spot calls passed.');
+console.log('Conquest bot vehicle combat: hull perception, armour-weighted threat picker, exposed crew, engineer AT fire (static and crossing), AA engineer STINGER lock and kill, held rifle fire, mounted main gun, 360-degree check, threat-axis slew, blocked barrel, recognition, mount blacklist fallback, staggered idle scans, pintle HMG and spot calls passed.');

@@ -17,6 +17,13 @@ export const KIT_MELEE = 'knife';
  */
 export const KIT_GADGET_AMMO = Object.freeze({
   rocket: Object.freeze({ mag: 1, reserve: 4 }),
+  stinger: Object.freeze({ mag: 1, reserve: 2 }),
+});
+
+/** Deploy-screen labels of the gadget choices (role first, then the launcher). */
+export const KIT_GADGET_LABELS = Object.freeze({
+  rocket: Object.freeze({ role: 'AT', name: 'RX-8 HAVOC', hint: 'DUMB-FIRE ANTI-TANK' }),
+  stinger: Object.freeze({ role: 'AA', name: 'AX-9 STINGER', hint: 'LOCK-ON ANTI-AIR' }),
 });
 
 /**
@@ -37,6 +44,8 @@ export const KIT_ROLE_RULES = Object.freeze({
   /** Support aura pulse interval and reach (m, 3D, self included). */
   resupplyIntervalMs: 4000,
   resupplyRadius: 8,
+  /** A mate in the aura gets one gadget round (AT rocket or STINGER) at most this often. */
+  gadgetResupplyMs: 12000,
   /** A `resupply` award per supporter and mate at most this often. */
   resupplyAwardCooldownMs: 15000,
   /** Spot attempts closer together than this are dropped before any ray is cast. */
@@ -74,16 +83,29 @@ export function normalizeVariant(value) {
   return value === 1 || value === '1' ? 1 : 0;
 }
 
+/** Gadget index into the kit's `gadgets` (0 when the kit has no such choice). */
+export function normalizeGadget(kit, value) {
+  const gadgets = KITS[normalizeKit(kit)].gadgets ?? [];
+  const index = value === 1 || value === '1' ? 1 : 0;
+  return index < gadgets.length ? index : 0;
+}
+
+/** Gadget weapon id of a kit and gadget index, or null for kits without one. */
+export function kitGadget(kit, gadget = 0) {
+  const def = KITS[normalizeKit(kit)];
+  return def.gadgets?.[normalizeGadget(kit, gadget)] ?? def.gadget ?? null;
+}
+
 /** `cq[0]` encoding: index into KIT_IDS, -1 for none. */
 export function kitIndex(value) {
   return KIT_IDS.indexOf(kitId(value));
 }
 
-/** Weapon ids of a kit and variant. */
-export function kitWeapons(kit, variant = 0) {
+/** Weapon ids of a kit, variant and gadget choice. */
+export function kitWeapons(kit, variant = 0, gadgetIndex = 0) {
   const def = KITS[normalizeKit(kit)];
   const primary = def.primaries[normalizeVariant(variant)] ?? def.primaries[0];
-  const gadget = def.gadget ?? null;
+  const gadget = kitGadget(kit, gadgetIndex);
   const owned = [...new Set([primary, gadget, KIT_SIDEARM, KIT_MELEE].filter(Boolean))];
   return { primary, gadget, sidearm: KIT_SIDEARM, melee: KIT_MELEE, owned };
 }
@@ -118,10 +140,11 @@ export function kitGrenades(kit) {
  * WEAPON_IDS and zero for every weapon the kit does not own; `grenades` by
  * GRENADE_TYPE_IDS; `weapon` is the primary's slot.
  */
-export function kitLoadout(kit, variant = 0) {
+export function kitLoadout(kit, variant = 0, gadget = 0) {
   const id = normalizeKit(kit);
   const v = normalizeVariant(variant);
-  const weapons = kitWeapons(id, v);
+  const g = normalizeGadget(id, gadget);
+  const weapons = kitWeapons(id, v, g);
   const mag = WEAPON_IDS.map(() => 0);
   const reserve = WEAPON_IDS.map(() => 0);
   for (const weapon of weapons.owned) {
@@ -133,6 +156,7 @@ export function kitLoadout(kit, variant = 0) {
   return {
     kit: id,
     variant: v,
+    gadgetIndex: g,
     ...weapons,
     weapon: WEAPON_SLOT.get(weapons.primary),
     mag,
@@ -142,8 +166,8 @@ export function kitLoadout(kit, variant = 0) {
 }
 
 /** Reserve caps for resupply, indexed by WEAPON_IDS (0 for weapons the kit lacks). */
-export function kitMaxReserve(kit, variant = 0) {
-  return kitLoadout(kit, variant).reserve;
+export function kitMaxReserve(kit, variant = 0, gadget = 0) {
+  return kitLoadout(kit, variant, gadget).reserve;
 }
 
 /** Grenade caps for resupply, indexed by GRENADE_TYPE_IDS. */
@@ -166,11 +190,21 @@ export function reserveUnitsPerMagazine(weapon) {
  * Apply one resupply pulse to an inventory in place: one primary magazine of
  * reserve and one grenade of the kit's types, both capped at the kit maximums.
  * The grenade goes to the kit type with the largest deficit (kit order breaks
- * ties). Returns what was given; `{reserve:0, grenade:null}` means nothing.
+ * ties). With `gadgetRound` the kit gadget (AT rocket or STINGER) also gets one
+ * round back toward its issued total (magazine plus reserve). Returns what was
+ * given; `{reserve:0, grenade:null, gadget:0}` means nothing.
  */
-export function applyResupply(inventory, kit, variant = 0) {
-  const loadout = kitLoadout(kit, variant);
-  const result = { reserve: 0, grenade: null };
+export function applyResupply(inventory, kit, variant = 0, gadget = 0, { gadgetRound = false } = {}) {
+  const loadout = kitLoadout(kit, variant, gadget);
+  const result = { reserve: 0, grenade: null, gadget: 0 };
+  if (gadgetRound && loadout.gadget && Array.isArray(inventory?.reserve) && Array.isArray(inventory?.mag)) {
+    const gslot = WEAPON_SLOT.get(loadout.gadget);
+    const held = Math.max(0, Math.trunc(Number(inventory.mag[gslot]) || 0)) + Math.max(0, Math.trunc(Number(inventory.reserve[gslot]) || 0));
+    if (held < loadout.mag[gslot] + loadout.reserve[gslot]) {
+      inventory.reserve[gslot] = Math.max(0, Math.trunc(Number(inventory.reserve[gslot]) || 0)) + 1;
+      result.gadget = 1;
+    }
+  }
   const slot = loadout.weapon;
   if (Array.isArray(inventory?.reserve)) {
     const current = Math.max(0, Math.trunc(Number(inventory.reserve[slot]) || 0));
@@ -198,7 +232,7 @@ export function applyResupply(inventory, kit, variant = 0) {
   return result;
 }
 
-/** Deploy-screen rows: id, label, ability and the two variant primaries. */
+/** Deploy-screen rows: id, label, ability, the two variant primaries and the gadget choices. */
 export const KIT_MENU = Object.freeze(KIT_IDS.map(id => Object.freeze({
   id,
   label: KITS[id].label,
@@ -207,5 +241,8 @@ export const KIT_MENU = Object.freeze(KIT_IDS.map(id => Object.freeze({
     primary, name: WEAPONS[primary]?.name ?? primary.toUpperCase(),
   }))),
   gadget: KITS[id].gadget,
+  gadgets: Object.freeze((KITS[id].gadgets ?? []).map(gadget => Object.freeze({
+    gadget, name: WEAPONS[gadget]?.name ?? gadget.toUpperCase(), ...KIT_GADGET_LABELS[gadget],
+  }))),
   grenades: Object.freeze({ ...KITS[id].grenades }),
 })));

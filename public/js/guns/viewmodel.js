@@ -843,16 +843,20 @@ export class ViewmodelRig {
     const dep = this._deployOffset();
     // Floating: the gun rides 5 cm lower with a slow lateral scull; ADS lifts it back.
     const swimCarry = this._swim * (1 - adsE);
+    // Stowed (Conquest parachute / ejection seat): the gun drops out of the
+    // frame muzzle-down, so the view reads "can't shoot" while the hands work the risers.
+    this._stow = (this._stow || 0) + ((ctx.stowed ? 1 : 0) - (this._stow || 0)) * (1 - Math.exp(-7 * elapsed));
+    const stow = this._smooth01(this._stow);
     const swimSway = Math.sin(this._now * 2.4) * 0.01 * swimCarry;
     const hip = T.hipOffset || HIP;
     this.content.position.set(
       hip.x + (T.adsOffset.x - hip.x) * adsE + nadeX + swingX + (dep.x || 0) - carry * 0.055 + (actionMotion.x || 0) + swimSway,
-      hip.y + (T.adsOffset.y - hip.y - (cur.attachmentSightOffset || 0)) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065 - swimCarry * 0.05,
-      hip.z + (T.adsOffset.z - hip.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0) + glaivePush
+      hip.y + (T.adsOffset.y - hip.y - (cur.attachmentSightOffset || 0)) * adsE + reloadDip + dep.y + nadeY + swingY - this._vaultDip * 0.55 - proneMotion * 0.12 - carry * 0.065 - swimCarry * 0.05 - stow * 0.34,
+      hip.z + (T.adsOffset.z - hip.z) * adsE + nadeZ + swingZ + (dep.z || 0) + carry * 0.045 + vaultBlend * 0.1 + (actionMotion.push || 0) + glaivePush + stow * 0.08
     );
-    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22,
+    this.content.rotation.set(dep.rx + reloadRock + nadeRx + swingRx - this._vaultDip * 0.65 - proneMotion * 0.22 - stow * 0.95,
       swingRy + (dep.ry || 0) + (actionMotion.yaw || 0) + (T.hipYaw || 0) * (1 - adsE),
-      swingRz + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0) + swimCarry * 0.06);
+      swingRz + (dep.rz || 0) + this._vaultDip * 0.18 + (actionMotion.roll || 0) + swimCarry * 0.06 + stow * 0.35);
     this.content.scale.setScalar(this._id === 'knife' ? this._swingPose.s || 1 : 1);   // narrow-screen pick framing
 
     /* arms: two-bone reach from each glove back to the player's own shoulders.

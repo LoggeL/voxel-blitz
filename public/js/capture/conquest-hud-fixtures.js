@@ -5,6 +5,7 @@
  * frozen FRONTIER_PLAN; nothing here is read by the live game.
  */
 import { FRONTIER_PLAN, KIT_IDS, VEHICLE_STATUS, vehicleMountOrder } from '../../../shared/conquest-contract.js';
+import { WEAPON_IDS } from '../../../shared/combatmath.js';
 import { encodeConquestFlag } from '../../../shared/conquest.js';
 
 export const FIXTURE_NOW = 2_000_000;
@@ -232,6 +233,19 @@ export function conquestHudFixtures() {
     out.push(state('jet', 'Jet · AA missile selected · lead pipper · locking 70 %', { self, players: roster(self), vehicles: [jet, target],
       match: baseMatch(), camera: cam(jetAt.x + Math.sin(yaw) * 17, 144.4, jetAt.z + Math.cos(yaw) * 17, yaw, -0.02) }));
   }
+  // 14b. Engineer on foot with the AX-9 STINGER down the sights: seeker ring on an enemy helicopter, 65 %.
+  {
+    const at = { x: C.x - 40, z: C.z + 60 };
+    const self = meAt(at.x, at.z, { cq: { squad: 1, kitId: 'engineer', lock: 65 }, weapon: WEAPON_IDS.indexOf('stinger'),
+      owned: ['smg', 'stinger', 'revolver', 'knife'] });
+    const enemy = { x: at.x + 30, z: at.z - 140 };
+    const target = vehicle('bravo-helicopter', 'helicopter', 'bravo', enemy.x, enemy.z, { y: 72, hp: 610, sp: 1, vx: 14, vy: 0, vz: 6,
+      seatOccupants: { driver: 'en2', gunner: null }, lk: 1 });
+    const yaw = yawTo(at, enemy);
+    const pitch = Math.atan2(72 + 1.5 - (GROUND + 1.6), Math.hypot(enemy.x - at.x, enemy.z - at.z));
+    out.push(state('stinger-lock', 'Engineer · AX-9 STINGER · LOCKING 65 % on a helicopter', { self, players: roster(self), vehicles: [target, spottedTank],
+      match: baseMatch(), camera: cam(at.x, GROUND + 1.6, at.z, yaw, pitch) }));
+  }
   // 15. Jeep near the player with a free gunner seat: enter prompt; squad dots and spotted enemies.
   {
     const self = meAt(B.x + 30, B.z - 40);
@@ -268,6 +282,13 @@ export function conquestHudFixtures() {
       match: deployMatch(), dead: true, killer: { name: 'Sato', weaponName: 'VK-77 RAPTOR', distance: 38, headshot: true },
       selection: { spawn: 'vehicle:alpha-tank:commander', kit: 'assault', variant: 0 },
       events: [{ kind: 'deploy_refused', id: 'me', reason: 'contested' }], camera: cam(C.x, 40, C.z, 0, -0.5) }));
+  }
+  // 18b. Deploy screen with the Engineer's AA gadget (AX-9 STINGER) picked.
+  {
+    const self = meAt(C.x, C.z, { hp: 0, state: 'dead', respawnAt: FIXTURE_NOW + 2400, cq: { squad: 1, kitId: 'engineer' } });
+    out.push(state('deploy-aa', 'Deploy · Engineer with the AA STINGER gadget', { self, players: deployRoster(self), vehicles: [tankRow, heliRow],
+      match: deployMatch(), dead: true, killer: { name: 'Rourke', weaponName: 'ROCKET POD', distance: 96 },
+      selection: { spawn: 'hq', kit: 'engineer', variant: 0, gadget: 1 }, camera: cam(C.x, 40, C.z, 0, -0.5) }));
   }
   // 19. Scoreboard (squads, objective, vehicles, revives).
   {

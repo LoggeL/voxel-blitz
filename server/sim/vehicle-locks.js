@@ -1,7 +1,7 @@
 /**
  * Lock-on and countermeasures. Two lockers exist: an Engineer aiming down the
- * sights of the RX-8 rocket at an airborne enemy aircraft, and a jet pilot
- * with the AA missile rails selected. Line of sight is re-checked at 10 Hz
+ * sights of the AX-9 STINGER at an airborne enemy aircraft (the RX-8 AT rocket
+ * is dumb-fire), and a jet pilot with the AA missile rails selected. Line of sight is re-checked at 10 Hz
  * per locker and smoke blocks it. Locked launches home by proportional
  * navigation on a vehicle id (never Chaos homing). Flares decoy and reset
  * locks; tank smoke lays three SmokeSystem fields and breaks locks.
@@ -40,12 +40,12 @@ export class VehicleLocks {
         if (choice?.weapon !== 'aaMissile') return null;
         return { source: 'aaMissile', eye: vehicleLocalPoint(v, 0, 1.4, -5), aim: vehicleDirection(v.yaw, v.pitch), vehicleId: v.id };
       }
-      // An Engineer in an open personal-weapons seat locks with the RX-8 like on foot.
+      // An Engineer in an open personal-weapons seat locks with the STINGER like on foot.
       if (!this.system.seatAllowsPersonalWeapons(p)) return null;
       rideId = v.id;
     }
-    if (p.def?.id !== 'rocket' || !p.ads || !this.system.canOperate(p)) return null;
-    return { source: 'rocket', eye: [p.eyeX ?? p.x, p.eyeY ?? p.y + 1.6, p.eyeZ ?? p.z], aim: fwd(p.yaw, p.pitch), vehicleId: rideId };
+    if (p.def?.projectile !== 'stinger' || !p.ads || !this.system.canOperate(p)) return null;
+    return { source: 'stinger', eye: [p.eyeX ?? p.x, p.eyeY ?? p.y + 1.6, p.eyeZ ?? p.z], aim: fwd(p.yaw, p.pitch), vehicleId: rideId };
   }
 
   /** A hull a source may lock: hostile, alive, airborne aircraft without active flares. */

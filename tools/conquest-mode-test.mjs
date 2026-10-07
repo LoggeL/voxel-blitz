@@ -313,7 +313,11 @@ const park = (players, team) => players.filter(p => p.team === team).forEach((p,
   // Round trip of every cq/cqs slot through the snapshot encoder.
   const probe = { ...players[0], conquest: { kit: 'recon', squad: 3, down: true, spotted: 1e15, restrictedMs: 4321, actionProgress: 0.456, stats: [350, 2, 4, 1] }, lockProgress: 0.734 };
   const row = makeSnapshot([probe], [], [], 1000, undefined).players[0];
-  assert.deepEqual(decodeConquestPlayer(row), { kit: 'recon', squad: 3, down: true, spotted: true, restrictedMs: 4400, lockProgress: 0.73, actionProgress: 0.46 });
+  assert.deepEqual(decodeConquestPlayer(row), { kit: 'recon', squad: 3, down: true, spotted: true, restrictedMs: 4400, lockProgress: 0.73, actionProgress: 0.46, chute: 0 });
+  assert.equal(row.cq.length, 7, 'a body without a canopy keeps seven cq entries');
+  // The parachute state (shared/parachute.js) rides as an optional 8th entry.
+  const chuted = makeSnapshot([{ ...probe, chute: 2 }], [], [], 1000, undefined).players[0];
+  assert.equal(chuted.cq.length, 8); assert.equal(decodeConquestPlayer(chuted).chute, 2, 'cq[7] carries the ejection seat / canopy state');
   assert.deepEqual(decodeConquestStats(row), { objective: 350, vehicles: 2, revives: 4, captures: 1 });
   const plain = makeSnapshot([{ ...players[0], conquest: undefined }], [], [], 1000, undefined).players[0];
   assert(!('cq' in plain) && !('cqs' in plain), 'non-Conquest rows carry no cq/cqs');
@@ -348,15 +352,21 @@ const park = (players, team) => players.filter(p => p.team === team).forEach((p,
 }
 
 // --- protocol parsers --------------------------------------------------------------
-assert.deepEqual(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'flag:C', kit: 'engineer', variant: 1 } }), { type: 'deploy', spawn: 'flag:C', kit: 'engineer', variant: 1 });
+assert.deepEqual(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'flag:C', kit: 'engineer', variant: 1 } }), { type: 'deploy', spawn: 'flag:C', kit: 'engineer', variant: 1, gadget: 0 },
+  'no gadget field: the engineer keeps the AT launcher (backward compatible)');
+assert.deepEqual(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'flag:C', kit: 'engineer', variant: 0, gadget: 1 } }), { type: 'deploy', spawn: 'flag:C', kit: 'engineer', variant: 0, gadget: 1 },
+  'the engineer may deploy with the STINGER');
+assert.equal(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'hq', kit: 'assault', gadget: 0 } }).gadget, 0);
 assert.deepEqual(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'vehicle:alpha-tank:commander', kit: 'recon', variant: 0 } }).spawn, 'vehicle:alpha-tank:commander');
-assert.deepEqual(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'squad:p3_abc123' } }), { type: 'deploy', spawn: 'squad:p3_abc123', kit: 'assault', variant: 0 });
+assert.deepEqual(parseConquestIntent({ t: 'conquest', deploy: { spawn: 'squad:p3_abc123' } }), { type: 'deploy', spawn: 'squad:p3_abc123', kit: 'assault', variant: 0, gadget: 0 });
 assert.deepEqual(parseConquestIntent({ t: 'conquest', spot: 1 }), { type: 'spot' });
 assert.deepEqual(parseConquestIntent({ t: 'conquest', support: { type: 'repair', targetId: 'alpha-tank' } }), { type: 'support', support: 'repair', targetId: 'alpha-tank' });
 for (const bad of [
   { t: 'conquest', deploy: { spawn: 'flag:F' } }, { t: 'conquest', deploy: { spawn: 'flag:a' } },
   { t: 'conquest', deploy: { spawn: 'hq', kit: 'medic' } }, { t: 'conquest', deploy: { spawn: 'hq', variant: 2 } },
   { t: 'conquest', deploy: { spawn: 'hq', extra: 1 } }, { t: 'conquest', deploy: { spawn: 'squad:' } },
+  { t: 'conquest', deploy: { spawn: 'hq', kit: 'engineer', gadget: 2 } }, { t: 'conquest', deploy: { spawn: 'hq', kit: 'engineer', gadget: '1' } },
+  { t: 'conquest', deploy: { spawn: 'hq', kit: 'assault', gadget: 1 } }, { t: 'conquest', deploy: { spawn: 'hq', gadget: 1 } },
   { t: 'conquest', deploy: { spawn: `squad:${'x'.repeat(65)}` } }, { t: 'conquest', deploy: { spawn: 'vehicle:a:b:c' } },
   { t: 'conquest', deploy: { spawn: 'hq ' } }, { t: 'conquest', spot: 2 }, { t: 'conquest', spot: 1, deploy: { spawn: 'hq' } },
   { t: 'conquest', support: { type: 'heal', targetId: 'x' } }, { t: 'conquest', support: { type: 'revive', targetId: 'x'.repeat(65) } },

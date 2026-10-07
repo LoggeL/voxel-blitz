@@ -680,6 +680,8 @@ export class GameEngine {
     victim.vx = 0;
     victim.vy = 0;
     victim.vz = 0;
+    victim.chute = 0;
+    victim.chuteT = 0;
     const modeContext = { weapon: weaponKey || '', headshot: !!headshot };
     const shotTraits = {
       announcer,
@@ -718,6 +720,8 @@ export class GameEngine {
     this.killAnnouncer.reset(entity);
     const next = spawn || this.nextSpawnFor(entity, entity.lastSpawnIndex);
     entity.applySpawn(next);
+    entity.chute = 0;
+    entity.chuteT = 0;
     // A fresh life never inherits discs, pickups or fabrications from the last one.
     this.projectiles.resetGlaive(entity, this.contexts.projectiles);
     entity.spawnProtectedUntil = protect ? this.now + SPAWN_PROTECTION_MS : 0;

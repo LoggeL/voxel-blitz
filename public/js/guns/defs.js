@@ -357,6 +357,31 @@ TIMERS.mgl = {
   kick: { stiffness: 175, damping: 19, yawWobble: 0.48 },
 };
 
+TIMERS.stinger = {
+  // AX-9 STINGER: long AA tube on a gripstock. No cycle; the "bolt" is the seeker
+  // arming switch and the "mag" is the coolant/battery unit the reload swaps.
+  rof: WEAPONS.stinger.rpm,
+  adsTime: WEAPONS.stinger.adsTime,
+  deployTime: WEAPONS.stinger.deployTime,
+  weightKg: WEAPONS.stinger.weightKg,
+  viewKick: { pitchDeg: WEAPONS.stinger.recoil.pitch, yawDeg: WEAPONS.stinger.recoil.yaw },
+  muzzle: [0, 0.075, -0.86],
+  portY: 0.1,
+  ejectRight: -0.03,
+  barrelLen: 0.24,        // breech ring -0.62 -> front cover.
+  heatLen: [0.6, 0.95],   // launch-motor scorch at the tube mouth.
+  boltTravel: 0.02,
+  rechargeDur: 0.25,
+  pumpMag: 0,
+  cycleBack: false,
+  cycleKind: null,
+  ejectOnFire: false,
+  triggerZ: -0.11,
+  magTimeline: { start: 0.2, home: 0.82, clickAt: 0.9, type: 'mag' },
+  adsOffset: { x: 0, y: -0.178, z: -0.5 },   // ring sight on the camera axis (STINGER_SIGHT_Y).
+  kick: { stiffness: 140, damping: 19, yawWobble: 0.5 },
+};
+
 /**
  * Walk / sprint / idle procedural-motion profile. Frequencies Hz, amplitudes meters, tilts radians.
  * figure-8: x = sin(pi*p), y = cos(2*pi*p) traces the classic lazy infinity loop.

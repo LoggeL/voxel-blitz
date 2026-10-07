@@ -80,10 +80,11 @@ export function shotRng(player) {
 /** Return independent ammunition arrays for a fresh life. */
 function freshLoadout() {
   return {
-    mag: WEAPON_IDS.map((key) => WEAPONS[key].magSize),
+    // Kit-only gadgets (the Conquest STINGER) start empty: only a kit issues them.
+    mag: WEAPON_IDS.map((key) => (WEAPONS[key].gadgetOnly ? 0 : WEAPONS[key].magSize)),
     // Kept as `reserve` on the wire for compatibility; each value is a count
     // of spare shells for tube weapons, or full spare magazines otherwise.
-    reserve: WEAPON_IDS.map((key) => (WEAPONS[key].spareRounds ?? WEAPONS[key].spareMags)),
+    reserve: WEAPON_IDS.map((key) => (WEAPONS[key].gadgetOnly ? 0 : (WEAPONS[key].spareRounds ?? WEAPONS[key].spareMags))),
   };
 }
 

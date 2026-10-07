@@ -1,4 +1,4 @@
-import { WEAPON_IDS } from '../../shared/combatmath.js';
+import { WEAPON_IDS, isGadgetOnlyWeapon } from '../../shared/combatmath.js';
 import { TEAM_IDS } from '../../shared/modes.js';
 
 const ALPHA = TEAM_IDS[0];
@@ -85,9 +85,10 @@ export class BasePolicy {
     return attacker == null || this.isEnemy(attacker, victim);
   }
 
-  /** Any real weapon; modes with loadouts narrow this. */
+  /** Any real weapon but kit-only gadgets; modes with loadouts narrow this. */
   canUseWeapon(_player, weapon) {
-    return weaponId(weapon) !== null;
+    const id = weaponId(weapon);
+    return id !== null && !isGadgetOnlyWeapon(id);
   }
 
   _entity(value) {

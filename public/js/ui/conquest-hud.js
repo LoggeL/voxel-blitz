@@ -7,7 +7,7 @@
  */
 import { bindingLabel, isTypingTarget, matchesBinding } from '../keybindings.js';
 import {
-  bannerForEvent, captureRingModel, conquestTouchFields, flagChipModels, flagMarkerModels, hullZoneFlash, interactModel, isAircraftType,
+  bannerForEvent, captureRingModel, chutePromptModel, conquestTouchFields, flagChipModels, flagMarkerModels, hullZoneFlash, interactModel, isAircraftType,
   killerCard, lockerModel, mapItems, matchEndBanner, nextFreeSeatIndex, readConquest, restrictedModel, reticleModel, scoreEntry,
   seatedVehicle, spreadEdgeMarkers, squadListModel, ticketModel, unitMarkerModels, vehicleHitMark, vehiclePanelModel,
 } from './conquest-hud-state.js';
@@ -229,9 +229,11 @@ export class ConquestHud {
    * frame so screen-space markers and reticles track the camera between
    * snapshots). Values still come only from the last authoritative snapshot.
    */
-  refresh({ camera = undefined, nowMs = undefined, viewport = undefined, interactHeld = undefined, interactDown = undefined } = {}) {
+  refresh({ camera = undefined, nowMs = undefined, viewport = undefined, interactHeld = undefined, interactDown = undefined, chute = undefined } = {}) {
     if (!this._lastArgs || !this.active) return;
     const args = { ...this._lastArgs };
+    // Predicted parachute prompt ('ready' / 'open', see chutePromptModel).
+    if (chute !== undefined) args.chute = chute;
     if (camera !== undefined) args.camera = camera;
     if (nowMs !== undefined) args.nowMs = nowMs;
     if (viewport !== undefined) args.viewport = viewport;
@@ -355,7 +357,7 @@ export class ConquestHud {
       projector ? unitMarkerModels({ self, players, vehicles, selfTeam, projector, insets }) : [],
     );
     this.restricted.update(restrictedModel(self, cq));
-    const prompt = interactModel({ self, players, vehicles, nearbyVehicle, seated });
+    const prompt = (!seated && chutePromptModel(args.chute)) || interactModel({ self, players, vehicles, nearbyVehicle, seated });
     this.interact.update(prompt, { heldMs: this._heldMs(vehicleController ?? this.vehicleController, interactHeld, clockNow(), interactDown), nowMs: now, touch });
     this.minimap.draw({ items, center: { x: self.x, z: self.z }, yaw, size: cq.size, meta: cq.meta, nowMs: now });
     this.bigMap.draw({ items, size: cq.size, meta: cq.meta, nowMs: now });
