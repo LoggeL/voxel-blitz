@@ -10,6 +10,7 @@ import { FRONTIER_SITES } from '../shared/world/frontier-layout.js';
 import { frontierForestPlan, FRONTIER_TREE_CAP } from '../shared/world/frontier-sites/forest.js';
 import { frontierWrecks, DRESSING_HEDGES, DRESSING_WALLS } from '../shared/world/frontier-sites/dressing.js';
 import { BUNKER_TRENCHES } from '../shared/world/frontier-sites/bunkers.js';
+import { FRONTIER_LOCATIONS } from '../shared/world/frontier-sites/locations.js';
 import { roadClearance } from '../shared/world/frontier-sites/plan.js';
 import { frontierTopY, FRONTIER_CROSSINGS, FRONTIER_CELL_KIND as KIND, frontierTerrain } from '../shared/world/frontier-terrain.js';
 import { createMapState, getMapMeta } from '../shared/world/templates.js';
@@ -265,5 +266,55 @@ assert.ok(feature('cover').filter(c => c.cover === 'hedge').length >= DRESSING_H
 assert.ok(feature('cover').filter(c => c.cover === 'stone wall').length >= DRESSING_WALLS.length * 2 && blocks.includes(COBBLE_WALL));
 assert.ok(feature('crater').length >= 12, 'scattered craters');
 
+// Places between the flags (2026-10-07 locations pass): each is published as
+// a named place row plus a landmark that tops out where published and rises
+// at least 15 m; its buildings stand more than 80 m from every flag (squads
+// stage 50-76 m out) and can be walked into from the nearest road; the quarry
+// floor can be walked out of.
+const placeRows = meta.landmarks.filter(l => l.kind === 'place');
+assert.deepEqual(placeRows.map(p => p.id), FRONTIER_LOCATIONS.map(l => l.id), 'every place is published');
+const roadPoints = meta.conquest.roads.flatMap(r => r.points.map(([x, y, z]) => ({ x, y, z })));
+let placeBuildings = 0;
+for (const loc of FRONTIER_LOCATIONS) {
+  assert.ok(placeRows.find(p => p.id === loc.id).name === loc.name, `${loc.id} carries its name`);
+  const mark = meta.landmarks.find(m => m.id === loc.landmark.id);
+  assert.ok(mark && mark.place === loc.id && mark.y === loc.landmark.y, `${loc.landmark.id} is published`);
+  let found = false;
+  for (let dz = -9; dz <= 9; dz++) for (let dx = -9; dx <= 9; dx++) {
+    if (solid(Math.floor(mark.x) + dx, mark.y, Math.floor(mark.z) + dz)) found = true;
+    assert.ok(!solid(Math.floor(mark.x) + dx, mark.y + 2, Math.floor(mark.z) + dz), `${mark.id} tops out at y${mark.y}`);
+  }
+  assert.ok(found, `${mark.id} top voxel at y${mark.y}`);
+  assert.ok(mark.y - frontierTopY(mark.x, mark.z) >= 15, `${mark.id} reads from afar (${mark.y})`);
+  const road = roadPoints.reduce((a, b) => (Math.hypot(b.x - loc.x, b.z - loc.z) < Math.hypot(a.x - loc.x, a.z - loc.z) ? b : a));
+  assert.ok(Math.hypot(road.x - loc.x, road.z - loc.z) <= 60, `${loc.id} lies by a road`);
+  const reached = reachFrom([road], loc.x, loc.z, 90);
+  for (const b of feature('building').filter(f => f.location === loc.id)) {
+    for (const f of FRONTIER_PLAN.flags) {
+      const nx = Math.max(b.minX, Math.min(b.maxX + 1, f.x)), nz = Math.max(b.minZ, Math.min(b.maxZ + 1, f.z));
+      assert.ok(Math.hypot(nx - f.x, nz - f.z) > 80, `${b.id ?? loc.id} stands more than 80 m from flag ${f.id}`);
+    }
+    if (!b.enterable || b.open) continue;
+    placeBuildings++;
+    let floorCells = 0, inside = 0;
+    for (let z = b.minZ + 1; z < b.maxZ; z++) for (let x = b.minX + 1; x < b.maxX; x++) {
+      if (solid(x, b.floorY + 1, z) || solid(x, b.floorY + 2, z) || !solid(x, b.floorY, z)) continue;
+      floorCells++;
+      if (reached.has(`${x},${b.floorY + 1},${z}`)) inside++;
+    }
+    assert.ok(floorCells > 0 && inside >= floorCells * 0.6, `${b.id} is walkable from the road (${inside}/${floorCells})`);
+  }
+  if (Number.isFinite(loc.floorY)) {
+    let floor = 0, out = 0;
+    for (let z = loc.footprint.minZ; z <= loc.footprint.maxZ; z++) for (let x = loc.footprint.minX; x <= loc.footprint.maxX; x++) {
+      if (!solid(x, loc.floorY, z) || solid(x, loc.floorY + 1, z) || solid(x, loc.floorY + 2, z)) continue;
+      floor++;
+      if (reached.has(`${x},${loc.floorY + 1},${z}`)) out++;
+    }
+    assert.ok(floor >= 150 && out >= floor * 0.9, `${loc.id} floor connects to the road (${out}/${floor})`);
+  }
+}
+assert.ok(placeBuildings >= 3, 'the places offer enterable buildings');
+
 console.log(`Frontier sites passed: ${FRONTIER_SITES.length} sites, ${plan.total} trees, ${wrecks.length} wrecks, `
-  + `${kit.features.length} features (${(performance.now() - started).toFixed(0)}ms)`);
+  + `${FRONTIER_LOCATIONS.length} places, ${kit.features.length} features (${(performance.now() - started).toFixed(0)}ms)`);

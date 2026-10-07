@@ -20,7 +20,8 @@ import {
   FRONTIER_ROAD_PLAN, FRONTIER_FIELDS, FRONTIER_CELL_KIND as KIND, insideCombatArea, polylineAt, valueNoise,
 } from '../frontier-terrain.js';
 import { mirroredKit, seededRandom } from './kit.js';
-import { roadClearance } from './plan.js';
+import { roadClearance, inRect } from './plan.js';
+import { LOCATION_KEEP_OUT } from './locations.js';
 
 const OPEN_TOPS = new Set([MEADOW, DRY_GRASS, DIRT, MUD, SCORCHED_EARTH, GRAVEL]);
 const GRASS_TOPS = new Set([MEADOW, DRY_GRASS]);
@@ -60,9 +61,16 @@ export function buildRoadside(kit) {
   const banks = [kit, mirroredKit(kit)];
   const rng = seededRandom(0x524f4144);
   const stats = { poles: 0, centreLine: 0, verge: 0, ruts: 0, shrubs: 0, fences: 0, sandbags: 0, scorch: 0, debris: 0 };
+  // The places between the flags are built after this pass and stay bare of
+  // it: a cell in a place footprint (either bank) is skipped when building
+  // but still counts as open for every placement decision, so the random
+  // sequence, and with it the dressing everywhere else, is the same as
+  // without the places.
+  const reserved = (x, z) => LOCATION_KEEP_OUT.some(r => inRect(r, x, z) || inRect(r, kit.SX - 1 - x, kit.SZ - 1 - z));
   const open = (x, z, tops = OPEN_TOPS, clear = 1.5) =>
     x < WEST_X && roadClearance(x + 0.5, z + 0.5) >= clear && banks.every(b => openOn(b, x, z, tops));
-  const paint = (x, z, m) => { for (const b of banks) b.paint(x, z, m); };
+  const paint = (x, z, m) => { if (!reserved(x, z)) for (const b of banks) b.paint(x, z, m); };
+  const banksAt = (x, z) => (reserved(x, z) ? [] : banks);
 
   // Paved axis: dashed centre line (paint only) and a worn gravel verge.
   const axis = FRONTIER_ROAD_PLAN.find(r => r.id === 'axis');
@@ -132,7 +140,7 @@ export function buildRoadside(kit) {
         const unique = [...new Set(cells.map(c => c.join(',')))].map(c => c.split(',').map(Number));
         if (unique.every(([dx, dz]) => open(cx + dx, cz + dz, OPEN_TOPS, 2.5))) {
           const tall = rng() < 0.5;
-          for (const b of banks) for (const [dx, dz] of unique) {
+          for (const [dx, dz] of unique) for (const b of banksAt(cx + dx, cz + dz)) {
             const g = b.top(cx + dx, cz + dz);
             b.box(cx + dx, g + 1, cz + dz, cx + dx, g + (tall && !dx && !dz ? 2 : 1), cz + dz, LEAVES);
           }
@@ -153,7 +161,7 @@ export function buildRoadside(kit) {
         let built = 0;
         unique.forEach(([x, z], k) => {
           if (!open(x, z, OPEN_TOPS, 2.5)) return;
-          for (const b of banks) {
+          for (const b of banksAt(x, z)) {
             const g = b.top(x, z);
             if (k % 3 === 0) b.box(x, g + 1, z, x, g + 2, z, TIMBER);
             else b.set(x, g + 2, z, PLANK);
@@ -174,7 +182,7 @@ export function buildRoadside(kit) {
         for (let a = -1.6; a <= 1.6; a += 0.4) cells.push([Math.round(cx + Math.cos(face + a) * 2), Math.round(cz + Math.sin(face + a) * 2)]);
         const unique = [...new Map(cells.map(c => [c.join(','), c])).values()];
         if (unique.every(([x, z]) => open(x, z, OPEN_TOPS, 2))) {
-          for (const b of banks) for (const [x, z] of unique) { const g = b.top(x, z); b.set(x, g + 1, z, BARRICADE); }
+          for (const [x, z] of unique) for (const b of banksAt(x, z)) { const g = b.top(x, z); b.set(x, g + 1, z, BARRICADE); }
           for (const b of banks) b.feature('cover', { cover: 'sandbags', x: cx, z: cz, height: 1 });
           stats.sandbags++;
         }
@@ -193,7 +201,7 @@ export function buildRoadside(kit) {
           const x = Math.floor(cx + (rng() - 0.5) * 6), z = Math.floor(cz + (rng() - 0.5) * 6);
           const m = [RUST, METAL, DUST_CRATE, PLANK][Math.floor(rng() * 4)];
           if (!open(x, z, OPEN_TOPS, 2)) continue;
-          for (const b of banks) b.set(x, b.top(x, z) + 1, z, m);
+          for (const b of banksAt(x, z)) b.set(x, b.top(x, z) + 1, z, m);
           stats.debris++;
         }
       }

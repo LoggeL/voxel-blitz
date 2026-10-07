@@ -1,6 +1,6 @@
 # Frontier v2 / Iron Valley
 
-Frontier is the Conquest battlefield: a 768 × 80 × 768 voxel river valley (47.2 M voxels). A river runs north to south through the middle, and the two HQ plateaus face each other across it, 624 m apart. The layout is point-symmetric about (384, 384). Five flag sites sit on the valley floor. Each site has a landmark that can be seen from both HQs.
+Frontier is the Conquest battlefield: a 768 × 80 × 768 voxel river valley (47.2 M voxels). A river runs north to south through the middle, and the two HQ plateaus face each other across it, 624 m apart. The layout is point-symmetric about (384, 384). Five flag sites sit on the valley floor. Each site has a landmark that can be seen from both HQs. Four named places between the flags (Kestrel Halt, Hollin Fuel Depot, Aldric Quarry, Signal Rock) carry landmarks of their own.
 
 The generator is pure and deterministic, with one constant seed:
 
@@ -58,6 +58,28 @@ The pipeline:
 | E Kessler Works (536, 520) | `works.js`: enterable smelter hall with furnaces, gantry and crane rail; conveyor; rail yard with wagons and sleeper stacks; coal heaps; pump house; boiler house; blast walls | smelter hall | two chimneys (y78), two boiler stacks (y70, y66), cooling tower (y65) |
 | HQ ×2 | `hq-airfield.js`: 312 m runway along z, 2 helipads, arched hangar with roundel (WEST blue, EAST red), control tower with ladder, fuel farm, motor pool, command bunker, AA pits | command bunker | hangar ridge (y50) |
 
+### Places between the flags (`locations.js`)
+
+Four non-objective locations fill the empty pockets between the flags. Their positions are point mirrors in pairs, so each team finds the same kind of ground at the same distance from its flags, while the themes differ (as A/E and B/D do). Each has a landmark that reads from 300 m, cover and an interior up close, and a gravel or concrete drive from the nearest road. They are built last among the set pieces, after the woodland (which keeps out of their footprints) and the roadside dressing. The roadside pass leaves their footprints bare but still treats those cells as open in every placement decision, so its random sequence, and the dressing everywhere else, is exactly what it is without the places (an earlier order shifted debris map-wide, and the changed routes sent a bot into a dead-end corner of the D trench in `large-map-navigation-test`).
+
+| Place (centre) | Between | What is there | Landmark (top y) |
+|---|---|---|---|
+| Kestrel Halt (258, 330) | A, C and the West HQ, east of the a-c road | single-track siding on a gravel ballast bed (x 218–290), a stone platform, a two-storey plaster station house (doors to the platform, the yard and the west lane), two boxcars with walk-through doors, a derailed boxcar on its side up the line, sleeper stacks, a buffer stop | timber grain elevator with a drive-through bay and a spout to the siding (y54) |
+| Hollin Fuel Depot (500, 432) | E, C and the East HQ, east of the e-c road | concrete forecourt with a pump canopy, a brick garage office with three doors, three squat fuel tanks inside a 2 m earth bund with three breaches, a pipe rack, a burnt-out tanker, sandbags | steel sign pylon with an orange board (y49) |
+| Aldric Quarry (270, 598) | B and bridge-south, north of the south loop | a pit dug into the slope: a y24 gravel floor, a y28 rock bench along the high west and north faces with a ramp onto it, banded stone faces, the floor ramping out to the natural ground on the open south and east sides; a crusher tower on steel legs, a feed conveyor from a hopper on the bench, a stacker conveyor to a gravel cone by the road, a dump truck, loose blocks, a site hut on the bench | crusher tower (y45) |
+| Signal Rock (470, 166) | D and bridge-north, south of the north loop | a lattice radio mast with two platforms on the rock knoll, a concrete relay bunker (three doors, a dish on the roof), a generator shed, sandbagged MG pits round the knoll, aerial poles | radio mast (y62) |
+
+Rules the places keep, tested in `tools/frontier-sites-test.mjs`:
+
+- Every building stands more than 80 m from every flag, so a squad staging point (50–76 m out) never lands on a roof.
+- Every enterable, closed building can be walked into from the nearest road, and every quarry floor cell connects to the road. No building has a single door, and the boxcars and the elevator bay are open through.
+- Each landmark tops out at its published y and rises at least 15 m above its ground.
+- They stay off the roads, fields, the river and the crossings, outside the runway corridors and clear of the HQ sight lines to the site landmarks (`frontier-terrain-test`).
+- A one-voxel plinth or kerb runs under every roof overhang (station house, relay bunker, pump canopy, crusher). A transport (3 × 7 m hull) checks only its touchdown spot, so without it a transport could set down beside a wall and then climb into the eaves (`conquest-bot-aircraft-test` drops a squad at (264, 344), next to the station house).
+- The quarry is dug below the planned terrain. Its props read the dug level (a kit view whose `top()` returns it), and the woodland and roadside dressing skip its footprint.
+
+The metadata publishes each place twice in `landmarks`: a row `{ id, kind: 'place', name, x, y, z }` (feet height; for map labels) and its landmark top `{ id, kind, place, x, y, z }`. The big map does not label places yet.
+
 Every flag has the following, and `tools/frontier-sites-test.mjs` verifies each item:
 
 - an enterable, roofed hard building that can be walked into from the flag's spawns (a 2.5D flood from the spawns reaches at least 60 % of the floor of every enterable building within 60 m of the flag);
@@ -70,9 +92,9 @@ Every flag has the following, and `tools/frontier-sites-test.mjs` verifies each 
 
 Map-wide content:
 
-- **Woodland (`forest.js`).** `frontierWoodDensity(x, z)` (terrain module, point-symmetric) combines 17 authored woods (`FRONTIER_WOODS`: Ashgrove/Blackwood, the Kestrel upland pinewood, the valley-rim woods, copses between the roads) with clumpy tree lines 2–26 m back from both river banks that open at every crossing. Trunks are placed on a 5.7 m jittered grid on the west half where the density allows and planted again through the point-mirrored kit, so the east half is an exact mirror (`plan.west` / `plan.east`). 1976 trees in total (cap 4200): mostly pines, oak and birch mixed in, more broadleaf along the banks; 44 burnt snags in the stand behind D; 224 bush clumps along the wood edges.
+- **Woodland (`forest.js`).** `frontierWoodDensity(x, z)` (terrain module, point-symmetric) combines 17 authored woods (`FRONTIER_WOODS`: Ashgrove/Blackwood, the Kestrel upland pinewood, the valley-rim woods, copses between the roads) with clumpy tree lines 2–26 m back from both river banks that open at every crossing. Trunks are placed on a 5.7 m jittered grid on the west half where the density allows and planted again through the point-mirrored kit, so the east half is an exact mirror (`plan.west` / `plan.east`). 1952 trees in total (cap 4200): mostly pines, oak and birch mixed in, more broadleaf along the banks; 44 burnt snags in the stand behind D; 224 bush clumps along the wood edges.
   - Trees are stacked square tiers (the classic voxel pine): square tiers merge into a few faces in the greedy meshers. A round crown cost about three times the faces; the distant shell budget (`tools/distant-voxel-shell-test.mjs`, < 170 000 quads) is what limits the tree count.
-  - Exclusions (pure, tested on both halves): road corridor + 3 m, 82 m around every flag (the bot commander stages squads and sets transports down 42–76 m out, which must not be canopy), pads, plateaus, the runway approach corridors (36 m either side of each runway line), fields, river, cliffs, every site footprint, lane and ambush point, the bunker trenches, wrecks and hulks, hedges and walls, 18 m round every crossing, the C bridgehead (58 m) and the meadow between ford-north and C, and every eye-to-landmark sight line from both HQs.
+  - Exclusions (pure, tested on both halves): road corridor + 3 m, 82 m around every flag (the bot commander stages squads and sets transports down 42–76 m out, which must not be canopy), pads, plateaus, the runway approach corridors (36 m either side of each runway line), fields, river, cliffs, every site footprint, lane and ambush point, the four places between the flags (+2 m), the bunker trenches, wrecks and hulks, hedges and walls, 18 m round every crossing, the C bridgehead (58 m) and the meadow between ford-north and C, and every eye-to-landmark sight line from both HQs.
   - Trees are planted after the sites and only fill air, so they never cut a wall.
 - **Dressing (`dressing.js`).**
   - 8 burning wrecks (published as smoke anchors in `conquest.dressing`; the client ambience smokes up to 8): tanks near C and D, trucks near C and B, a crashed helicopter by D, and a tank, a truck and a tank at ford-north, ford-south and bridge-south.
@@ -98,7 +120,7 @@ The metadata is frozen and terrain-derived, and it is built without allocating v
 - `spawnBounds: { minX: 24, maxX: 743, minZ: 24, maxZ: 743, minY: 20, maxY: 79 }`
 - `spawns.conquest`, which equals the base spawns
 - `ladders`: both tower ladders and the observation tower
-- `landmarks`: the flags plus the site landmark tops, each with `primary` set for the one per site that is checked from both HQs
+- `landmarks`: the flags, the four places (`kind: 'place'`, with a name) and the site and place landmark tops, each site top with `primary` set for the one per site that is checked from both HQs
 
 **`conquest`:**
 
@@ -152,9 +174,9 @@ The metadata is frozen and terrain-derived, and it is built without allocating v
 
 ## Budgets (2026-10-07, after the world content pass)
 
-- Server generation is about 0.54 s (terrain 0.30 s plus voxels 0.24 s; it was 0.49 s before the content pass). The budget is 1.5 s.
-- The run-length payload is 1,986,604 bytes (1,720,449 before the content pass), against a budget of 3.0 MB. The FNV-1a fingerprint is `189a6f60`, pinned in `tools/atlastest.mjs`.
-- The distant voxel shell (medium profile) draws 165 476 greedy quads against the 170 000 budget (151 414 before the content pass). Trees and bushes are about 51 000 of them; this budget, not the payload, caps the woodland.
+- Server generation is about 0.55 s (terrain 0.30 s plus voxels 0.25 s; the four places add about 3 ms; it was 0.49 s before the content pass). The budget is 1.5 s.
+- The run-length payload is 2,000,764 bytes (1,986,604 before the locations pass, 1,720,449 before the content pass), against a budget of 3.0 MB. The FNV-1a fingerprint is `557723ca`, pinned in `tools/atlastest.mjs`.
+- The distant voxel shell (medium profile) draws 166 611 greedy quads against the 170 000 budget (165 476 before the locations pass, 151 414 before the content pass). Trees and bushes are about 51 000 of them; this budget, not the payload, caps the woodland. The four places cost about 2 000 quads, of which about 650 come back from the trees their footprints displace.
 - Map memory: 47.2 MB of blocks, 1.2 MB of heights and about 6 MB of retained terrain arrays, against 52.4 MB of blocks and heights for the old 1024 × 48 × 1024 map. The terrain builder keeps its scratch arrays few and narrow (Int16 envelopes, no second relief buffer), because a process keeps freed typed-array pages resident.
 - Process RSS, head to head (generator plus template plus one match state, `node --expose-gc`): old generator +121.7 MiB, Frontier v2 +128–130 MiB, so +5–7 % against the +10 % limit. The scripts are `.conquest-work/wp4/review/rss-old.mjs` (the retired generator, from `.conquest-work/wp4/retired/`) and `.conquest-work/wp4/review/rss-new.mjs`.
 - The top surface:

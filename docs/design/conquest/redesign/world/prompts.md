@@ -160,3 +160,22 @@ What was tried and backed out:
 - Round tree crowns and denser woods: over the distant-shell quad budget (170 000). That budget is what limits the woodland.
 
 Captures after the look and content passes: `docs/design/conquest/redesign/captures/world/` (regenerated with `node tools/conquest-capture.mjs --only world`). The before state is the same folder at commit `f4bbd23`.
+
+## Locations pass: places between the flags (2026-10-07)
+
+After the content pass the valley still had empty pockets between the flags ("mehr Gebiete und Orte"). This pass adds four named places at the same map size. `locations-reference.jpg` (prompt in `locations.prompt.txt`, gpt-image-2 through the Codex image endpoint) is the design sheet: one panel per place. The layout facts are in [docs/maps/frontier.md](../../../../maps/frontier.md#places-between-the-flags-locationsjs); the code is `shared/world/frontier-sites/locations.js`.
+
+| Reference panel | Built as |
+|---|---|
+| Kestrel Halt: railway halt, station house, timber grain elevator, boxcars, one derailed | Siding on a ballast bed, stone platform, two-storey plaster station house, a 25 m timber grain elevator with a drive-through bay and spout, two boxcars with walk-through doors, a derailed boxcar on its side, sleeper stacks |
+| Hollin Fuel Depot: three tanks in earth berms, pump canopy, garage, tanker wreck, sign pylon | Concrete forecourt and pump canopy, brick garage office, three squat tanks inside an earth bund with three breaches, pipe rack, burnt-out tanker, a 20 m pylon with an orange board |
+| Aldric Quarry: stepped rock benches, crusher tower, conveyors, gravel cone, dump truck, hut | A pit dug into the slope south of St. Aldric: gravel floor, a rock bench on the high faces with a ramp, banded stone faces, crusher tower on legs, feed and stacker conveyors, gravel cone, dump truck, site hut |
+| Signal Rock: lattice mast with a red light on a rocky knoll, relay bunker with a dish, MG pits | Lattice mast (y62) with two platforms and a red light on the rock knoll, concrete relay bunker with a roof dish, generator shed, sandbagged MG pits |
+
+What intentionally differs:
+
+- **Quarry faces.** The reference cuts 15–20 m rock walls into a hill. The quarry sits on a gentle slope, so its faces are 4–9 m (natural ground to the y28 bench to the y24 floor). A deeper pit would need longer exit ramps and would lower the distant-shell floor around it.
+- **Tank bands, guy wires, lamp posts, fences.** Left out: each thin or banded detail costs distant-shell quads, and the 170 000-quad budget is nearly used (166 611 after this pass).
+- **Pairs, not copies.** Halt and depot, quarry and relay stand on point-mirrored positions, so each team has the same kind of ground at the same distance from its flags, but each place has its own theme.
+
+Captures: `node tools/render-map-scenes.mjs --map frontier --shot overview|vista` (the map images in `public/assets/maps/`).

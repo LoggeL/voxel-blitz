@@ -16,6 +16,7 @@ import { BUNKERS_SITE, OBSERVATION_TOWER, observationTowerLadder } from './bunke
 import { WORKS_SITE } from './works.js';
 import { HQ_LAYOUT, hqTowerLadder } from './hq-airfield.js';
 import { frontierWrecks } from './dressing.js';
+import { FRONTIER_LOCATIONS } from './locations.js';
 
 export { frontierSurfaceY };
 
@@ -221,8 +222,13 @@ function buildLandmarks(flags) {
   const hx = (hangar.minX + hangar.maxX + 1) / 2, hz = (hangar.minZ + hangar.maxZ + 1) / 2;
   tops.push({ id: 'west-hq-hangar', kind: 'hangar', x: hx, y: frontierTopY(hx, hz) + 14, z: hz });
   tops.push({ id: 'east-hq-hangar', kind: 'hangar', x: SX - hx, y: frontierTopY(SX - hx, SZ - hz) + 14, z: SZ - hz });
+  // The places between the flags: a named row (kind 'place', for map labels)
+  // and the landmark top that names its place.
+  const places = FRONTIER_LOCATIONS.map(l => ({ id: l.id, kind: 'place', name: l.name, ...feet(l.x, l.z), ...(Number.isFinite(l.floorY) ? { y: l.floorY + FEET } : {}) }));
+  for (const l of FRONTIER_LOCATIONS) tops.push({ id: l.landmark.id, kind: l.landmark.kind, place: l.id, x: l.landmark.x, y: l.landmark.y, z: l.landmark.z });
   return [
     ...flags.map(f => ({ id: f.id, kind: 'flag', name: f.name, x: f.x, y: f.y, z: f.z, radius: f.radius })),
+    ...places,
     ...tops,
   ];
 }

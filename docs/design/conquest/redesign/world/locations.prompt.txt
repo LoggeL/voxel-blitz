@@ -1,0 +1,13 @@
+Use case: stylized-concept. Asset type: environment design sheet for a browser voxel shooter (Battlefield-style Conquest map "Frontier", a war-torn river valley at golden hour).
+
+Four panels in a 2x2 grid, each a three-quarter aerial view from about 60 m away of one new non-objective location, all built from 1 m voxels with flat-shaded faces and crisp ambient occlusion, warm low sun from the west-south-west, olive meadows and golden dry grass, dark voxel pines:
+
+1. Top left, "Kestrel Halt": a small branch-line railway halt on a gentle slope. A straight single track on a gravel ballast bed with a low stone platform, a two-storey plaster station house with a stepped terracotta roof, a tall timber grain elevator with a gabled headhouse as the landmark, a train of three rusty boxcars where the last wagon has derailed and tipped onto its side, buffer stop, sleeper stacks, a hand-pumped water crane.
+
+2. Top right, "Hollin Fuel Depot": a roadside fuel depot beside a gravel road. Three squat round pale fuel tanks with rust bands inside earth blast berms, pipe racks between them, a concrete forecourt with a flat steel pump canopy, a small brick garage office, a burnt-out tanker truck, and a tall steel sign pylon as the landmark.
+
+3. Bottom left, "Aldric Quarry": a gravel quarry cut into a hillside. Stepped grey and brown rock benches with ramps, a flat gravel floor open toward a road, a tall corrugated-steel crusher tower on steel legs with an inclined conveyor rising to it and a second conveyor dropping onto a conical gravel heap, a rusty dump truck and a timber site hut.
+
+4. Bottom right, "Signal Rock": a military radio relay on a small rocky knoll. A tall slim steel lattice mast with two platforms and a red top light as the landmark, a squat concrete relay bunker with a dish on its roof, sandbagged machine-gun pits around the knoll, a generator shed and a gravel track up from the road.
+
+Each place reads clearly as a silhouette from far away and is dense with cover up close. War dressing: shell scorch marks, sandbags, a few crates. No text, no labels, no UI.

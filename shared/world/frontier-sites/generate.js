@@ -1,7 +1,7 @@
 // Frontier v2 generator: fills the 768 x 80 x 768 heightfield from
 // shared/world/frontier-terrain.js, then builds the battlefield dressing, the
-// five flag sites, the two HQ airfields, the woodland and the roadside
-// dressing on top of it.
+// five flag sites, the two HQ airfields, the four places between the flags,
+// the woodland and the roadside dressing on top of it.
 // Finally it re-opens every reserved cell (spawns, vehicle pads, roads) so no
 // set piece can ever block an authoritative spawn or route.
 
@@ -20,6 +20,7 @@ import { buildAirfields } from './hq-airfield.js';
 import { buildForests } from './forest.js';
 import { buildDressing } from './dressing.js';
 import { buildRoadside } from './roadside.js';
+import { buildLocations } from './locations.js';
 import { frontierReservedCells } from './layout.js';
 
 /** Fill terrain columns. Deep subsoil is single-material to keep runs low. */
@@ -68,10 +69,15 @@ export function generateFrontierV2Into(world, blocks, heights) {
   buildBunkers(kit);
   buildWorks(kit);
   buildAirfields(kit);
-  // Woodland after the set pieces: trunks and crowns only fill air.
+  // Woodland after the set pieces: trunks and crowns only fill air (and keep
+  // out of the places' footprints).
   buildForests(kit);
-  // Roadside dressing last among the set pieces: it only builds on ground no site claimed.
+  // Roadside dressing: it only builds on ground no site claimed.
   kit.roadside = buildRoadside(kit);
+  // The places between the flags (halt, depot, quarry, relay) come after the
+  // roadside pass, which keeps their footprints bare, so they never shift
+  // the roadside dressing elsewhere on the map.
+  buildLocations(kit);
   buildEntrances(kit);
   reopenRoads(kit);
   reopenReserved(kit, [...frontierReservedCells(), ...kit.reserved]);
