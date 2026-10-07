@@ -4,6 +4,10 @@ import { PLAYER_HALF } from '../../shared/combatmath.js';
 import { MOLOTOV_FIRE, molotovFireProfile } from '../../shared/molotov-rules.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { evHit } from '../protocol/events.js';
+import { occupantShielded, occupantHitPose, occupantDamageScale } from './vehicle-damage.js';
+import { hullFootprint, footprintsOverlap } from '../../shared/vehicle-collision.js';
+import { armorMultiplier } from '../../shared/vehicle-armor.js';
+import { vehicleDef } from '../../shared/vehicle-defs.js';
 
 const solid = (ctx, x, y, z) => ctx.getBlock(Math.floor(x), Math.floor(y), Math.floor(z)) !== AIR;
 
@@ -80,7 +84,9 @@ export class MolotovFireSystem {
     return field;
   }
 
-  _contact(field, victim, ctx) {
+  _contact(field, body, ctx) {
+    // Exposed crew burn at their crouched seat pose; sealed crew never reach here.
+    const victim = occupantHitPose(body);
     if (Math.hypot(victim.x - field.x, victim.z - field.z) > field.radius + PLAYER_HALF.x + MOLOTOV_FIRE.cellRadius) return false;
     const target = [victim.x, victim.y + 0.22, victim.z];
     for (const cell of field.cells) {
@@ -109,7 +115,7 @@ export class MolotovFireSystem {
     if (damageEnabled) for (const victim of (ctx.targets || ctx.entities).values()) {
       // A fire kill can end the round while this loop is still running.
       if (ctx.canAffectWorld?.() === false) { this.clear(); return; }
-      if (victim.state !== 'alive' || victim.spawnProtectedUntil > ctx.now) {
+      if (occupantShielded(victim) || victim.state !== 'alive' || victim.spawnProtectedUntil > ctx.now) {
         this.pending.delete(victim.id);
         continue;
       }
@@ -119,7 +125,7 @@ export class MolotovFireSystem {
         if (!self && !ctx.canDamage(field.owner, victim)) continue;
         const elapsed = Math.max(0, Math.min(ctx.now, field.expiresAt)
           - Math.max(ctx.now - dt * 1000, field.createdAt)) / 1000;
-        const dose = elapsed * field.damagePerSecond * (self ? MOLOTOV_FIRE.selfDamage : 1);
+        const dose = elapsed * field.damagePerSecond * (self ? MOLOTOV_FIRE.selfDamage : 1) * occupantDamageScale(victim);
         if (dose <= exposure || !this._contact(field, victim, ctx)) continue;
         contact = field;
         seconds = elapsed;
@@ -156,7 +162,28 @@ export class MolotovFireSystem {
       }
     }
     for (const id of this.pending.keys()) if (!ctx.entities.has(id)) this.pending.delete(id);
+    if (damageEnabled) this._burnHulls(dt, ctx);
     for (const [id, field] of this.active) if (field.expiresAt <= ctx.now) this.active.delete(id);
+  }
+
+  /** Light hulls parked in a fire field take the fire class dose (0.3 per s). */
+  _burnHulls(dt, ctx) {
+    const vehicles = ctx.vehicles;
+    if (!vehicles?.vehicles?.size || !this.active.size) return;
+    for (const v of vehicles.vehicles.values()) {
+      const def = vehicleDef(v);
+      if (!(v.hp > 0) || !def || !(armorMultiplier('fire', def.armor) > 0)) continue;
+      const hull = hullFootprint(v.type, v.x, v.z, v.yaw);
+      for (const field of this.active.values()) {
+        if (field.expiresAt <= ctx.now - dt * 1000 || Math.hypot(v.x - field.x, v.z - field.z) > field.radius + def.radius + 1) continue;
+        const cell = field.cells.find(c => c[1] >= v.y - 0.6 && c[1] <= v.y + 1.2
+          && footprintsOverlap(hull, hullFootprint('voxel', c[0], c[2], 0)));
+        if (!cell) continue;
+        const elapsed = Math.max(0, Math.min(ctx.now, field.expiresAt) - Math.max(ctx.now - dt * 1000, field.createdAt)) / 1000;
+        if (elapsed > 0) vehicles.damage(v.id, field.damagePerSecond * elapsed, field.owner, { cls: 'fire', origin: [cell[0], cell[1], cell[2]] });
+        break;
+      }
+    }
   }
 
   snapshot() {

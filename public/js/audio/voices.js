@@ -1,6 +1,22 @@
 // Bounded output graphs for positional, rapid-fire, and human voices.
+//
+// Priority (opts.priority, 0..3) decides who survives a full pool:
+//   3  battlefield anchors: explosions at range, tank cannon, hull destruction
+//   2  weapon reports and blasts
+//   1  sustained loops (engines, rotors, gun loops, fire)
+//   0  impacts, debris, ambience
+// The least important voice is evicted first; equal priorities stay FIFO.
+//
+// Range (opts.range): 'near' (default) rolls off to 170 m; 'far' keeps heavy
+// sources (explosions, tank fire, destruction booms) audible to 400 m. A
+// `lowpass` (Hz) inserts a filter for the distant, muffled "far layer".
 
-const MAX_POSITIONAL_VOICES = 16;
+export const MAX_POSITIONAL_VOICES = 24;
+export const VOICE_PRIORITY = Object.freeze({ ambient: 0, loop: 1, weapon: 2, anchor: 3 });
+export const VOICE_RANGES = Object.freeze({
+  near: Object.freeze({ refDistance: 7, maxDistance: 170, rolloffFactor: 1.05 }),
+  far: Object.freeze({ refDistance: 12, maxDistance: 400, rolloffFactor: 0.9 }),
+});
 const MAX_VOICES = 48;
 const MAX_HUMAN_VOICES = 4;
 const FIRE_LIMIT = { lmg: 6, revolver: 4 };
@@ -36,21 +52,24 @@ export class VoicePool {
     let panner = null;
     let lowpass = null;
     let last = output;
-    if (opts && opts.muffled) {
+    const cutoff = opts && Number.isFinite(opts.lowpass) && opts.lowpass > 0 ? opts.lowpass
+      : opts && opts.muffled ? 480 : 0;
+    if (cutoff) {
       lowpass = activeCtx.createBiquadFilter();
       lowpass.type = 'lowpass';
-      lowpass.frequency.value = 480;
+      lowpass.frequency.value = cutoff;
       lowpass.Q.value = 0.6;
       last.connect(lowpass);
       last = lowpass;
     }
     if (opts && Array.isArray(opts.pos) && activeCtx.createPanner) {
+      const range = VOICE_RANGES[opts.range] || VOICE_RANGES.near;
       panner = activeCtx.createPanner();
       panner.panningModel = 'HRTF';
       panner.distanceModel = 'inverse';
-      panner.refDistance = 7;
-      panner.maxDistance = 170;
-      panner.rolloffFactor = 1.05;
+      panner.refDistance = range.refDistance;
+      panner.maxDistance = range.maxDistance;
+      panner.rolloffFactor = range.rolloffFactor;
       this._movePanner(panner, opts.pos, activeCtx);
       last.connect(panner);
       panner.connect(this._engine.bus);
@@ -62,7 +81,7 @@ export class VoicePool {
       out: output,
       panner,
       lowpass,
-      priority: Math.max(0, Math.min(2, Number(opts?.priority) || 0)),
+      priority: Math.max(0, Math.min(3, Number(opts?.priority) || 0)),
       until: now + lifetime + 0.5,
       timer: null,
       cleanups: [],

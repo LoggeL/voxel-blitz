@@ -53,6 +53,7 @@ for (let y = 1; solid.length < 90; y++) {
     _pendingAuthoritativeSnapshots: [],
     _bootBlockDeltas: null,
     session: { phase: 'booting', baseFov: 75, handleDisconnect: () => { disconnects++; } },
+    camera: { far: 400, updateProjectionMatrix() {} },
     player: { setMapMeta() {}, setBaseFov() {}, respawn() {} },
     hud: { setMapMeta() {} },
     queueAuthoritativeSnapshot() { queued++; },

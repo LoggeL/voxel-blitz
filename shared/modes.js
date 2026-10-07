@@ -1,12 +1,15 @@
 // Fixed mode, team, map, Gun Game progression, and Search and Destroy economy contract.
-// This module is dependency-free so the browser and authoritative server share it directly.
+// Browser and authoritative server share it directly; its only import is the
+// dependency-free Conquest contract, whose rules MODE_RULES.conquest mirrors.
+import { CONQUEST_RULES } from './conquest-contract.js';
+
 export const DUEL_KILL_LIMITS = Object.freeze([5, 10, 15, 20, 30]);
 export const DEFAULT_DUEL_KILL_LIMIT = 5;
 
-export const MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training']);
+export const MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training', 'conquest']);
 export const DUEL_WEAPONS = Object.freeze(['rifle', 'shotgun', 'sniper', 'revolver', 'knife']);
 export const TEAM_IDS = Object.freeze(['alpha', 'bravo']);
-export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom']);
+export const MAP_IDS = Object.freeze(['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom', 'frontier']);
 
 export const DEFAULT_MODE_ID = MODE_IDS[0];
 export const DEFAULT_TEAM_ID = TEAM_IDS[0];
@@ -56,6 +59,7 @@ export const WEAPON_PRICES = Object.freeze({
 });
 
 export const MODE_RULES = Object.freeze({
+  conquest: Object.freeze({ teams: true, friendlyFire: false, ...CONQUEST_RULES }),
   ttt: Object.freeze({ teams: false, friendlyFire: true, respawnMs: Infinity, prepMs: 60000, liveMs: 300000 }),
   bastion: Object.freeze({ teams: true, friendlyFire: false, respawnMs: Infinity }),
   fun: Object.freeze({
@@ -107,6 +111,7 @@ const COMBAT_MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'sn
 const NO_BOMB_SITE_MODE_IDS = Object.freeze(['fun', 'ttt', 'duel', 'chaos', 'tdm', 'gungame']);
 
 export const MAP_MODE_COMPATIBILITY = Object.freeze({
+  frontier: Object.freeze(['conquest']),
   reactor: Object.freeze(['bastion']),
   foundry: COMBAT_MODE_IDS,
   harbor: COMBAT_MODE_IDS,
@@ -138,7 +143,7 @@ export function isTeamMode(value) {
 }
 
 /** Modes whose server-sent `owned` list is the authoritative weapon inventory. */
-export const OWNED_LOADOUT_MODES = Object.freeze(['ttt', 'bastion', 'snd', 'gungame', 'duel']);
+export const OWNED_LOADOUT_MODES = Object.freeze(['ttt', 'bastion', 'snd', 'gungame', 'duel', 'conquest']);
 
 export function usesOwnedLoadout(mode) {
   return OWNED_LOADOUT_MODES.includes(mode);

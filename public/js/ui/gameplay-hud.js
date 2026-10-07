@@ -797,6 +797,8 @@ export class GameplayHud {
     const sb = this.dom.sb;
     if (!sb) return;
     sb.style.display = on ? 'block' : 'none';
+    // Mode layers above #hud (Conquest markers, minimap, ring) step aside while it is held.
+    sb.classList.toggle('is-open', !!on);
   }
 
   setTelemetry(frameDt, stats, atMs, frameStats = null) {

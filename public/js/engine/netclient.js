@@ -30,7 +30,7 @@ import {
 
 const INTERP_SPAN = 65536;        // events-per-snapshot domain for composite ids
 const SEEN_SOFT_CAP = 8192;       // dedupe set size before pruning oldest half
-const RING_LEN = 32;
+export const RING_LEN = 32;
 export const CONNECTION_TIMEOUT_MS = 30_000;
 
 /** JSON-wire copy with every retained object/array made immutable. */
@@ -51,6 +51,38 @@ const now = () =>
   (typeof performance !== 'undefined' && performance.now)
     ? performance.now()
     : Date.now();
+
+/** Conquest intent fields, one per `{t:'conquest'}` frame, and their minimum send gaps. */
+const CONQUEST_INTENT_FIELDS = Object.freeze(['deploy', 'spot', 'support']);
+const CONQUEST_INTENT_GAP_MS = Object.freeze({ deploy: 250, spot: 500, support: 100 });
+/** Same limits as the server's parseVehicleAction (shared/conquest-contract.js VEHICLE_ACTION_TYPES). */
+const VEHICLE_ID_MAX = 64;
+const VEHICLE_SEAT_ID_MAX = 32;
+const VEHICLE_WEAPON_SLOTS = 4;
+
+const idString = (value, max) => typeof value === 'string' && value.length > 0 && value.length <= max;
+
+/**
+ * Whitelist one `input.vehicleAction` into the exact-key shape the server
+ * accepts: enter {vehicleId, seatId?} | exit | seat {seatId} | cm | weapon {index}.
+ * Anything else is dropped instead of being sent and refused.
+ */
+export function vehicleActionFrame(action) {
+  switch (action?.type) {
+    case 'exit': return { type: 'exit' };
+    case 'cm': return { type: 'cm' };
+    case 'enter': {
+      if (!idString(action.vehicleId, VEHICLE_ID_MAX)) return null;
+      const frame = { type: 'enter', vehicleId: action.vehicleId };
+      if (idString(action.seatId, VEHICLE_SEAT_ID_MAX)) frame.seatId = action.seatId;
+      return frame;
+    }
+    case 'seat': return idString(action.seatId, VEHICLE_SEAT_ID_MAX) ? { type: 'seat', seatId: action.seatId } : null;
+    case 'weapon': return Number.isInteger(action.index) && action.index >= 0 && action.index < VEHICLE_WEAPON_SLOTS
+      ? { type: 'weapon', index: action.index } : null;
+    default: return null;
+  }
+}
 
 /**
  * Drains every event living in snapshots whose `.now <= upTo`, in arrival
@@ -167,7 +199,7 @@ const PASSTHROUGH_FIELDS = [
   'breathReserve', 'breathExhausted', 'breathReleasedFor',
   'credits', 'owned', 'bomb', 'interaction', 'chaosUpgrades',
   'grenades', 'charge', 'minigun', 'impulse', 'disguised',
-  'npcRole', 'npcAttack', 'npcScale', 'npcVehicle', 'bastion', 'bastionUpgrades',
+  'vehicleId', 'vehicleSeatId', 'npcRole', 'npcAttack', 'npcScale', 'npcVehicle', 'bastion', 'bastionUpgrades',
 ];
 
 export class NetClient {
@@ -540,6 +572,20 @@ export class NetClient {
       cancelMedkit: !!input.cancelMedkit,
       viewAge: Math.round(this._timing.interpolationDelayMs + this._timing.rttMs),
     };
+    for (const field of ['vehicleThrottle', 'vehicleSteer', 'vehicleLift']) {
+      if (Number.isFinite(input[field])) msg[field] = Math.max(-1, Math.min(1, input[field]));
+    }
+    for (const field of ['vehiclePitchControl', 'vehicleRollControl', 'vehicleYawControl']) {
+      if (Object.hasOwn(input, field)) msg[field] = Number.isFinite(input[field])
+        ? Math.max(-1, Math.min(1, input[field])) : 0;
+    }
+    if (Number.isFinite(input.vehicleBrake)) msg.vehicleBrake = Math.max(0, Math.min(1, input.vehicleBrake));
+    for (const [field, limit] of [['vehicleControlId', 64], ['vehicleControlSeatId', 32]]) {
+      if (Object.hasOwn(input, field)) msg[field] = typeof input[field] === 'string'
+        && input[field].length > 0 && input[field].length <= limit ? input[field] : null;
+    }
+    const vehicleAction = vehicleActionFrame(input.vehicleAction);
+    if (vehicleAction) msg.vehicleAction = vehicleAction;
     if (input.quickMelee) {
       msg.quickMelee = true;
       if (Number.isFinite(input.meleeAim?.yaw) && Number.isFinite(input.meleeAim?.pitch)) {
@@ -559,6 +605,24 @@ export class NetClient {
     if (Number.isInteger(input.switchTo)) msg.switchTo = input.switchTo;
     if (Number.isFinite(input.viewYaw)) msg.viewYaw = input.viewYaw;
     return this._sendJson(msg);
+  }
+
+  /**
+   * Conquest intent frame `{t:'conquest', deploy | spot | support}` (spec 3.4).
+   * Exactly one intent per frame; the server's parseConquestIntent rejects the
+   * rest. Rate limits per intent: deploy 4/s, spot 2/s, support 10/s (the
+   * lobby enforces the same gaps).
+   */
+  sendConquest(fields) {
+    if (!fields || typeof fields !== 'object') return false;
+    const key = CONQUEST_INTENT_FIELDS.find(field => Object.hasOwn(fields, field));
+    if (!key) return false;
+    const at = now();
+    this._conquestSentAt ??= {};
+    if (at - (this._conquestSentAt[key] ?? -Infinity) < CONQUEST_INTENT_GAP_MS[key]) return false;
+    if (!this._sendJson({ t: 'conquest', [key]: fields[key] })) return false;
+    this._conquestSentAt[key] = at;
+    return true;
   }
 
   /** Send one JSON frame; true only when the open socket accepted it. */

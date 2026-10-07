@@ -23,11 +23,17 @@ export const KEYBINDING_ACTIONS = Object.freeze([
   ['weaponWheel', 'Weapon wheel (hold)', ['KeyK']], ['buy', 'Buy menu / armory', ['KeyB']],
   ['build', 'Build mode (Bastion)', ['KeyN']],
   ['scoreboard', 'Scoreboard (hold)', ['Tab']],
+  // Conquest. KeyY is the physical key printed Z on QWERTZ keyboards.
+  ['spot', 'Spot enemy (Conquest)', ['KeyY']], ['bigMap', 'Full map (Conquest)', ['KeyM']],
   ['previousWeapon', 'Previous weapon', []], ['nextWeapon', 'Next weapon', []],
   ...Array.from({ length: 10 }, (_, i) => [`slot${i + 1}`, `Weapon slot ${i + 1}`, [`Digit${(i + 1) % 10}`]]),
   ['spectatePrevious', 'Spectate previous player', ['ArrowLeft', 'KeyQ'], 'spectator'],
   ['spectateNext', 'Spectate next player', ['ArrowRight', 'KeyE'], 'spectator'],
   ['skipReplay', 'Skip killcam replay', ['Space'], 'replay'],
+  // Seated in a Conquest vehicle these replace prone / crouch / lean on the same keys.
+  ['vehicleCountermeasure', 'Vehicle countermeasure (flares / smoke)', ['KeyX'], 'vehicle'],
+  ['vehicleCamera', 'Vehicle free look (hold)', ['KeyC'], 'vehicle'],
+  ['vehicleWeaponNext', 'Next vehicle weapon', ['KeyQ'], 'vehicle'],
 ].map(([id, label, codes, context = 'gameplay']) => Object.freeze({ id, label, codes: Object.freeze(codes), context })));
 const ACTIONS = new Map(KEYBINDING_ACTIONS.map(action => [action.id, action]));
 const listeners = new Set();

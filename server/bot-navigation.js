@@ -1,14 +1,21 @@
 import { worldDimensions } from '../shared/world/dimensions.js';
 import { PHYSICS, boxCollides, solidBelow } from '../shared/player-movement.js';
 import { FLUID_BLOCKS } from '../shared/worlddata.js';
+import { surfaceNavigation } from './bot-surface-nav.js';
+
+// Two navigation models share this facade: the flat-floor grid of maps with a
+// navigationFloor (legacy large maps) and the 2.5D surface graph of maps that
+// declare navigation {mode:'surface'} (Frontier v2, see bot-surface-nav.js).
+// Every other map keeps straight-line steering.
+export { surfaceNavigation } from './bot-surface-nav.js';
 
 const GRIDS = new WeakMap();
 const CELL = 2;
 const DIRECTIONS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 const LOOKAHEAD = 12;
 const EPS = 1e-4;
-const pointAt = (graph, node) => ({ x: (node % graph.width) * CELL + 0.5,
-  y: graph.floor + 0.02, z: Math.floor(node / graph.width) * CELL + 0.5 });
+const pointAt = (graph, node) => ({ x: (node % graph.width) * graph.cell + 0.5,
+  y: graph.floor + 0.02, z: Math.floor(node / graph.width) * graph.cell + 0.5 });
 const distance = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 
 function intersectsExpandedVoxel(from, to, x, z) {
@@ -32,6 +39,8 @@ function intersectsExpandedVoxel(from, to, x, z) {
  * Ground sampling also excludes routes across removed floor tiles. */
 export function groundSegmentClear(world, from, to) {
   if (!from || !to || ![from.x, from.z, to.x, to.z].every(Number.isFinite)) return false;
+  const surface = surfaceNavigation(world);
+  if (surface) return surface.segmentWalkable(from, to);
   const floor = world.meta?.navigationFloor + 1;
   if (!Number.isFinite(floor)) return false;
   const minX = Math.floor(Math.min(from.x, to.x) - PHYSICS.halfW + EPS);
@@ -77,6 +86,8 @@ function refreshEdges(graph, node) {
 /** Shared bounded graph; only changed floor/body columns invalidate cells.
  * High crane lights and material changes outside navigation height do no work. */
 export function groundNavigation(world) {
+  const surface = surfaceNavigation(world);
+  if (surface) return surface;
   if (!Number.isFinite(world.meta?.navigationFloor)) return null;
   let graph = GRIDS.get(world);
   const revision = world.navigationRevision ?? 0;
@@ -85,8 +96,9 @@ export function groundNavigation(world) {
   if (graph) changed = world.navigationChangesSince?.(graph.revision);
   if (!graph) {
     const { sx, sz } = worldDimensions(world);
-    const width = Math.ceil(sx / CELL), depth = Math.ceil(sz / CELL);
-    graph = { world, width, depth, walk: new Uint8Array(width * depth), edges: new Uint8Array(width * depth),
+    const cell = Math.max(CELL, Math.min(16, Math.trunc(world.meta.navigationCell ?? (world.meta.id === 'frontier' ? 8 : CELL))));
+    const width = Math.ceil(sx / cell), depth = Math.ceil(sz / cell);
+    graph = { world, width, depth, cell, walk: new Uint8Array(width * depth), edges: new Uint8Array(width * depth),
       floor: world.meta.navigationFloor + 1, revision: -1, solid: (x, y, z) => world.getBlock(x, y, z) !== 0 };
     GRIDS.set(world, graph);
   }
@@ -96,7 +108,7 @@ export function groundNavigation(world) {
   } else {
     const affected = new Set();
     for (const { x, z } of changed) {
-      const cx = Math.floor(x / CELL), cz = Math.floor(z / CELL);
+      const cx = Math.floor(x / graph.cell), cz = Math.floor(z / graph.cell);
       for (let dz = -2; dz <= 2; dz++) for (let dx = -2; dx <= 2; dx++) {
         const nx = cx + dx, nz = cz + dz;
         if (nx >= 0 && nx < graph.width && nz >= 0 && nz < graph.depth) affected.add(nz * graph.width + nx);
@@ -110,7 +122,7 @@ export function groundNavigation(world) {
 }
 
 function closest(graph, point) {
-  const x = Math.round((point.x - 0.5) / CELL), z = Math.round((point.z - 0.5) / CELL);
+  const x = Math.round((point.x - 0.5) / graph.cell), z = Math.round((point.z - 0.5) / graph.cell);
   const candidates = [];
   for (let dz = -5; dz <= 5; dz++) for (let dx = -5; dx <= 5; dx++) {
     const nx = x + dx, nz = z + dz, node = nz * graph.width + nx;
@@ -123,9 +135,15 @@ function closest(graph, point) {
 
 /** Breadth-first route with valid swept edges and visible endpoint connectors. */
 export function groundRoute(world, from, to) {
+  const surface = surfaceNavigation(world);
+  if (surface) {
+    if (!from || !to) return [];
+    const route = surface.route(from, to);
+    return route.reached ? route.points : [];
+  }
   const graph = groundNavigation(world);
   if (!graph || !from || !to) return [];
-  if (groundSegmentClear(world, from, to)) return [{ x: to.x, y: graph.floor + 0.02, z: to.z }];
+  if (distance(from, to) <= 48 && groundSegmentClear(world, from, to)) return [{ x: to.x, y: graph.floor + 0.02, z: to.z }];
   const start = closest(graph, from), end = closest(graph, to);
   if (start < 0 || end < 0) return [];
   const parent = new Int32Array(graph.walk.length).fill(-1), queue = new Int32Array(parent.length);
@@ -150,6 +168,8 @@ export function groundRoute(world, from, to) {
 }
 
 export function navigationWaypoint(world, from, to, brain, now) {
+  const surface = surfaceNavigation(world);
+  if (surface) return surface.waypoint(from, to, brain, now);
   if (!Number.isFinite(world.meta?.navigationFloor) || !to) return to;
   const graph = groundNavigation(world);
   let route = brain.groundRoute;

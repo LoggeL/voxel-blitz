@@ -1,5 +1,5 @@
 import { weaponTurnProfile } from '../shared/weapon-handling.js';
-import { groundRoute, navigationWaypoint } from './bot-navigation.js';
+import { groundRoute, groundSegmentClear, navigationWaypoint, surfaceNavigation } from './bot-navigation.js';
 import { canHopObstacle } from './bot-locomotion.js';
 import { AimSteering } from './bot-aim.js';
 import { hearNoise } from './bot-hearing.js';
@@ -33,13 +33,22 @@ import { mulberry32 } from '../shared/noise.js';
 import { raycastVoxels } from '../shared/raycast.js';
 import { DUST2_NAV_FLOORS, dust2FloorsAt } from '../shared/world/dust2-layout.js';
 import { observeBotTarget, recognitionThreshold } from './bot-perception.js';
-import { botDifficulty, DEFAULT_BOT_DIFFICULTY, isBotDifficulty } from '../shared/bot-difficulty.js';
+import { botDifficulty, DEFAULT_BOT_DIFFICULTY, isBotDifficulty, BOT_AIRCRAFT_SIGHT_RANGE } from '../shared/bot-difficulty.js';
 import { BOT_PERSONALITIES, DEFAULT_BOT_PERSONALITY, isBotPersonality, rollBotPersonality } from '../shared/bot-personality.js';
 import { cancelCharge } from './sim/combat.js';
 import { wrapAngle } from './sim/player.js';
 import { glaiveDef } from './sim/projectiles.js';
 import { BUBBLE_RULES, bubbleFlight, bubbleProfile } from '../shared/bubble-rules.js';
 import { MGL_RULES } from '../shared/mgl-rules.js';
+import { ConquestVehicleDriving } from './bot-vehicle-driving.js';
+import { BotCommander, createBotDirector } from './bot-commander.js';
+import { ConquestAircraftDriving } from './bot-aircraft.js';
+import { applyConquestVehicleCombat, applyMountedCombat, ballisticAim, bestWeaponFor, clearFlight, infantryArmorEffect, pickBotThreat, vehicleHullRules } from './bot-vehicle-combat.js';
+import { CONQUEST_RULES } from '../shared/conquest-contract.js';
+import { KIT_ROLE_RULES } from '../shared/conquest-kits.js';
+import { TerrainWatch } from './bot-surface-nav.js';
+import { isAircraft } from '../shared/vehicles.js';
+import { ROCKET_RULES } from '../shared/rocket-rules.js';
 
 const TAU = Math.PI * 2;
 const PITCH_TURN_RATE = 4.0;      // rad/s vertical tracking cap
@@ -61,7 +70,29 @@ const STUCK_DIST = 0.35;          // less than this over the window == wedged
 const BOT_SEED = 0x00B0755;
 const DEFAULT_WEAPON_SLOT = WEAPON_IDS.indexOf(DEFAULT_WEAPON_ID);
 const BUY_PRIORITY = Object.freeze(['sniper', 'lmg', 'rocket', 'longarc', 'lance', 'glaive', 'rifle', 'shotgun', 'smg']);
+// Capturing a flag is not urgent: bots inside a zone keep hearing, retreating
+// and, above all, shooting while they hold it (Conquest P0).
 const URGENT_GOALS = new Set(['plant', 'recoverBomb', 'defuse']);
+const ADVANCE_FIGHT_DIST = 16;    // m: farther enemies are fought while still walking the route
+const CLOSE_IN_MAX = 75;          // m: attackers close infantry contacts nearer than this
+const CLOSE_IN_SLACK = 8;         // m beyond the personality's duel range before closing in
+// Held points: the director's defend/stage stances and the recon overwatch role.
+const HOLD_STANCES = new Set(['defend', 'overwatch', 'stage']);
+/** Bot-side stance of a director goal: its role (overwatch, support) when it has one. */
+const goalStance = goal => goal?.role ?? goal?.stance ?? null;
+const TRAVEL_LOOK_RANGE = 60;     // m: known contacts nearer than this turn a travelling bot's eyes
+const ADS_RANGE = 18;             // m: Conquest bots aim down sights beyond this
+const STOP_AND_POP_RANGE = 30;    // m: ranged bursts are fired standing
+const ZONE_EDGE = 0.72;           // fraction of the flag radius where zone strafing turns inward
+const LOOK_SWEEP = 70 * Math.PI / 180; // idle look-around half-width
+const DAMAGE_MEMORY_MS = 4000;    // how long the last damage direction draws the eye
+const HULL_EVADE_DIST = 38;       // m: an untouchable hull this close sends the bot to cover
+const SPOT_MIN_INTERVAL_MS = 1600;
+const SUPPORT_INTENT_MS = 150;    // revive/repair intents re-sent faster than the 350 ms staleness
+const UNSTICK_MS = 450;           // jump/vault window after the stuck watchdog fires
+const TERRAIN_POLL_MS = 250;      // surface graph and cover refresh from the changed-block log
+const FLANK_RANGE = 40;           // m: engineers work armour from the side at this stand-off
+const RELOAD_COVER_DIST = 45;     // m: a dry magazine this close to an enemy sends the bot to cover
 const ALL_WEAPON_SLOTS = Object.freeze(WEAPON_IDS.map((_, slot) => slot));
 const PLANT_READY_DIST = 2.0;
 const DEFUSE_READY_DIST = 1.6;
@@ -91,12 +122,24 @@ const MELEE_AIM_TOLERANCE = 0.3;  // rad: the 110-degree swing cone forgives loo
 const MELEE_REACH_SLACK = 0.1;    // m inside the server's centre-distance reach
 const MELEE_SWAP_DIST = 14;       // m: past this a pick holder draws any loaded gun it owns
 
+const enemyFlatEarly = (enemy, p) => Math.hypot(enemy.x - p.x, enemy.z - p.z);
+
 function dist3(ax, ay, az, bx, by, bz) {
   return Math.hypot(bx - ax, by - ay, bz - az);
 }
 
 function standable(world, x, z, preferredY = null) {
   x |= 0; z |= 0;
+  const surface = surfaceNavigation(world);
+  if (surface) {
+    // Heightfield maps: the dry floor nearest the preferred (or graph) height.
+    const ref = Number.isFinite(preferredY) ? Math.round(preferredY)
+      : surface.snap({ x: x + 0.5, z: z + 0.5 }, 1)?.y;
+    if (!Number.isFinite(ref)) return null;
+    const feet = surface.floorNear(x + 0.5, z + 0.5, Math.round(ref), 2, 4);
+    if (!Number.isFinite(feet) || FLUID_BLOCKS.has(world.getBlock(x, feet, z))) return null;
+    return { x: x + 0.5, y: feet + 0.02, z: z + 0.5 };
+  }
   if (world.mapId === 'dust2') {
     const floors = [...dust2FloorsAt(x, z)];
     if (preferredY !== null) floors.sort((a, b) => Math.abs(a + 1 - preferredY) - Math.abs(b + 1 - preferredY));
@@ -119,6 +162,8 @@ function standable(world, x, z, preferredY = null) {
 
 function randSpot(world, rng, from) {
   const { sx: SX, sz: SZ } = worldDimensions(world);
+  const surface = surfaceNavigation(world);
+  if (surface) return surface.randomSpot(from, rng) ?? { x: from.x, y: from.y, z: from.z };
   if (world.mapId === 'dust2') {
     const count = DUST2_NAV_FLOORS.length / 3;
     const start = Math.floor(rng() * count);
@@ -281,10 +326,34 @@ class BotManager {
     this.solidAt = this.game.solidAt;
     this.brains = [];
     this.tickIndex = 0;                 // staggers idle scans and listening across bots
+    this.vehicleDriving = new ConquestVehicleDriving(game, this);
+    this.aircraftDriving = new ConquestAircraftDriving(game, this);
+    // Heightfield maps: build the 2.5D surface graph from the world now (spec:
+    // at attach time, not inside the first tick). The change-log cursor lives
+    // with the cached graph, so a later manager on the same world resumes it.
+    const surface = surfaceNavigation(game.world);
+    if (surface && surface.watch?.game !== game) surface.watch = new TerrainWatch(game);
+    // Conquest: one commander for both teams, registered as the mode's bot director.
+    this.commander = null;
+    this.director = null;
+    this.attachCommander();
     this._unhook = game.registerTickHook((dt) => this.tick(dt * 1000));
     this.setCount(n | 0);
   }
+  /** Conquest only: build the commander and register it with the mode (spec 3.5). */
+  attachCommander() {
+    if (this.game.mode?.mode !== 'conquest' || this.commander) return;
+    this.commander = new BotCommander(this.game, this);
+    this.director = this.commander;
+    // Per-flag cover sets are precomputed at attach as well.
+    this.commander.prepare();
+    this.game.mode.setBotDirector?.(createBotDirector(this.commander));
+  }
+
   dispose() {
+    if (this.commander) { this.game.mode.setBotDirector?.(null); this.commander = null; this.director = null; }
+    this.vehicleDriving.clear();
+    this.aircraftDriving.clear();
     if (this._unhook) { this._unhook(); this._unhook = null; }
     for (const br of this.brains) this.game.removeClient(br.id);
     this.brains = [];
@@ -297,6 +366,8 @@ class BotManager {
     const spawnInfo = this.game.takeoverBot(brain.id, humanId, name);
     if (!spawnInfo) return null;
     brain.resetCombat();
+    this.vehicleDriving.release(brain.id);
+    this.aircraftDriving.release(brain.id);
     this.brains.pop();
     return spawnInfo;
   }
@@ -312,6 +383,8 @@ class BotManager {
     }
     while (this.brains.length > n) {
       const br = this.brains.pop();
+      this.vehicleDriving.release(br.id);
+      this.aircraftDriving.release(br.id);
       br.resetCombat();
       this.game.removeClient(br.id);
     }
@@ -325,6 +398,13 @@ class BotManager {
     const dtS = dtMs / 1000;
     const now = this.game.now;
     this.tickIndex++;
+    this.pollTerrain(now);
+    if (this.game.mode.mode === 'conquest') {
+      this.attachCommander();
+      if (this.game.mode.phase === 'live') this.commander?.update(now);
+    }
+    this.vehicleDriving.update(this.brains, now);
+    this.aircraftDriving.update(this.brains, now);
     for (let i = this.brains.length - 1; i >= 0; i--) {
       const br = this.brains[i];
       const p = this.game.entities.get(br.id);
@@ -332,6 +412,91 @@ class BotManager {
       this.watchStuck(br, p, now);
       this.game.applyInput(br.id, this.think(br, p, now, dtS));
     }
+  }
+
+  /**
+   * Craters and rebuilt voxels reach the 2.5D surface graph and the per-flag
+   * cover sets incrementally (4 Hz), never by a wholesale rebuild mid-match.
+   */
+  pollTerrain(now) {
+    const nav = surfaceNavigation(this.game.world);
+    if (!nav || now < (this.terrainPollAt ?? 0)) return;
+    this.terrainPollAt = now + TERRAIN_POLL_MS;
+    if (nav.watch?.game !== this.game) nav.watch = new TerrainWatch(this.game);
+    const columns = nav.watch.poll();
+    const { sx } = worldDimensions(this.game.world);
+    if (columns === null) {
+      // The log cannot locate the changes (world restore): every column may
+      // have changed. Rebuild the graph; cover sets refresh one flag at a time.
+      nav.build();
+      nav.revision++;
+      this.commander?.cover.markAllChanged();
+      return;
+    }
+    if (!columns.size) return;
+    nav.applyChanges(columns);
+    this.commander?.terrainChanged(columns, sx);
+  }
+
+  /**
+   * A firing point on a tank's flank: 40 m out, square to the side nearer the
+   * bot (side plate 1.0x, rear 1.5x versus front 0.75x), snapped to cover
+   * shielding the tank's bearing when the flag's cover set has one there.
+   */
+  flankPoint(br, p, tank, now) {
+    const cached = br.flank;
+    if (cached && cached.id === tank.id && now < cached.until) return cached.point;
+    const hull = this.game.vehicles?.vehicles.get(tank.vehicleId);
+    if (!hull) return null;
+    const toBot = Math.atan2(-(p.x - hull.x), -(p.z - hull.z));
+    const side = wrapAngle(toBot - hull.yaw) > 0 ? 1 : -1;
+    const yaw = hull.yaw + side * Math.PI * 0.55;
+    const raw = { x: hull.x - Math.sin(yaw) * FLANK_RANGE, y: p.y, z: hull.z - Math.cos(yaw) * FLANK_RANGE };
+    const covered = this.commander?.cover.coverNear(raw, Math.atan2(-(hull.x - raw.x), -(hull.z - raw.z)), String(p.id), now, 12);
+    const point = covered ? { x: covered.x, y: covered.y, z: covered.z }
+      : standable(this.game.world, raw.x, raw.z, p.y) ?? null;
+    if (covered) this.commander.cover.claim(covered, String(p.id), now, 4000);
+    br.flank = { id: tank.id, until: now + 2500, point };
+    return point;
+  }
+
+  /** Drop dance keys whose world direction has no walkable footing within 1.3 m. */
+  guardDanceKeys(p, inp) {
+    const sin = Math.sin(inp.yaw), cos = Math.cos(inp.yaw);
+    const step = (fx, fz) => groundSegmentClear(this.game.world, p, { x: p.x + fx * 1.3, y: p.y, z: p.z + fz * 1.3 });
+    const forward = [-sin, -cos], right = [cos, -sin];
+    if (inp.keys.f && !step(forward[0], forward[1])) inp.keys.f = false;
+    if (inp.keys.b && !step(-forward[0], -forward[1])) inp.keys.b = false;
+    if (inp.keys.r && !step(right[0], right[1])) { inp.keys.r = false; if (step(-right[0], -right[1])) inp.keys.l = true; }
+    else if (inp.keys.l && !step(-right[0], -right[1])) { inp.keys.l = false; if (step(right[0], right[1])) inp.keys.r = true; }
+  }
+
+  /**
+   * Whether the body's current (authoritative) view puts a target inside the
+   * server's spot cone: the cone widened by the target's angular radius, as
+   * the spotting system measures it. The intent casts from the view the body
+   * has now, not from the aim this tick's input is still turning toward.
+   */
+  spotInView(p, target) {
+    const hull = target?.kind === 'hull';
+    const ty = hull ? target.eyeY : target.y + 1.15;
+    const eyeY = p.eyeY ?? p.y + 1.6;
+    const dx = target.x - p.x, dy = ty - eyeY, dz = target.z - p.z, d = Math.hypot(dx, dy, dz);
+    if (!(d > 0.01)) return false;
+    const yaw = p.yaw, pitch = p.pitch || 0, cp = Math.cos(pitch);
+    const cos = (dx * -Math.sin(yaw) * cp + dy * Math.sin(pitch) + dz * -Math.cos(yaw) * cp) / d;
+    const radius = hull ? vehicleHullRules(target.type).radius : KIT_ROLE_RULES.spotPlayerRadius;
+    return Math.acos(Math.max(-1, Math.min(1, cos))) - Math.atan2(radius, d) <= CONQUEST_RULES.spotConeRad;
+  }
+
+  /** Call a recognised contact out to the team (spec F3 spotting), rate-limited. */
+  callSpot(br, p, target, now, profile) {
+    if (!target || now < (br.spotAt ?? 0) + SPOT_MIN_INTERVAL_MS) return;
+    if (br.spottedId === target.id && now < (br.spotAt ?? 0) + profile.spotMs) return;
+    // Only a call the spotting cone can confirm spends the rate limit.
+    if (!this.spotInView(p, target)) return;
+    br.spotAt = now; br.spottedId = target.id;
+    this.game.mode.conquestIntent?.(p, { type: 'spot' });
   }
 
   /** Reroute anything that intended to move but made no progress recently. */
@@ -355,13 +520,40 @@ class BotManager {
     if (!br.stuckSince) { br.stuckSince = now; return; }
     if (now - br.stuckSince >= STUCK_WINDOW_MS) {
       // Replan from the current position without restarting a failed hop.
-      br.roamTarget = randSpot(this.game.world, br.rng, p);
+      // Surface maps side-step a few metres around whatever pins the body (a
+      // hull, a wreck, a crater lip) instead of walking off to a random spot.
+      br.roamTarget = (surfaceNavigation(this.game.world) && this.sidestepSpot(br, p)) || randSpot(this.game.world, br.rng, p);
       br.roamDeadline = now + ROAM_TIMEOUT_MS;
       br.detourUntil = now + OBJECTIVE_DETOUR_MS;
       br.jumpCdUntil = now + JUMP_CD_MS;
       br.groundRoute = null;
+      // Surface maps: replan from where the body really is (craters change the
+      // graph under it) and try a jump/vault out of a lip the walk cannot step.
+      br.surfaceRoute = null; br.approachNav = null;
+      br.unstickUntil = now + UNSTICK_MS;
       br.stuckSince = now;
     }
+  }
+
+  /**
+   * A walkable spot 3-6 m to the side of a wedged bot, clear of hulls, on the
+   * side that keeps it heading toward its route; alternates sides on repeats.
+   */
+  sidestepSpot(br, p) {
+    const world = this.game.world;
+    const heading = br.surfaceRoute?.points?.[0] ?? br.roamTarget ?? null;
+    const base = heading ? Math.atan2(-(heading.x - p.x), -(heading.z - p.z)) : p.yaw;
+    br.sidestepFlip = !br.sidestepFlip;
+    const sides = br.sidestepFlip ? [1, -1] : [-1, 1];
+    const hulls = [...this.game.vehicles?.vehicles.values() ?? []].filter(v => v.hp > 0 || v.wreckAge != null);
+    for (const r of [4, 6, 3]) for (const side of sides) for (const turn of [Math.PI / 2, Math.PI / 3, Math.PI * 2 / 3]) {
+      const yaw = base + side * turn;
+      const spot = { x: p.x - Math.sin(yaw) * r, y: p.y, z: p.z - Math.cos(yaw) * r };
+      if (hulls.some(v => Math.hypot(v.x - spot.x, v.z - spot.z) < 3.5)) continue;
+      if (!groundSegmentClear(world, p, spot)) continue;
+      return { x: spot.x, y: p.y, z: spot.z };
+    }
+    return null;
   }
 
   /** Nearest visible enemy; a held target must pass every sight check again. */
@@ -370,7 +562,7 @@ class BotManager {
     const held = heldId ? this.game.entities.get(heldId) : null;
     const observe = target => observeBotTarget(p, target, this.solidAt,
       this.game.projectiles.smoke, this.game.now, target.id === heldId && br?.noticeProgress >= 1, br?.difficulty);
-    if (held && held.state === 'alive' && this.game.mode.isEnemy(p, held)) {
+    if (held && held.state === 'alive' && !held.vehicleId && this.game.mode.isEnemy(p, held)) {
       const sighting = observe(held);
       if (sighting) {
         br.sighting = sighting;
@@ -383,7 +575,7 @@ class BotManager {
     if (br && (this.tickIndex + br.index) % SCAN_EVERY) return null;
     let best = null, bestSighting = null, bestD = Infinity;
     for (const o of this.game.entities.values()) {
-      if (o === held || o.state !== 'alive' || !this.game.mode.isEnemy(p, o)) continue;
+      if (o === held || o.state !== 'alive' || o.vehicleId || !this.game.mode.isEnemy(p, o)) continue;
       const sighting = observe(o);
       if (sighting && sighting.distance < bestD) {
         best = o; bestSighting = sighting; bestD = sighting.distance;
@@ -470,6 +662,12 @@ class BotManager {
       const slots = owned.map((id) => WEAPON_IDS.indexOf(id)).filter((slot) => slot >= 0);
       return slots.length ? slots : [DEFAULT_WEAPON_SLOT];
     }
+    if (mode.mode === 'conquest') {
+      // Kits narrow the arsenal (WP8 roles set p.owned on every spawn).
+      if (!Array.isArray(p.owned)) return ALL_WEAPON_SLOTS;
+      const slots = p.owned.map(id => WEAPON_IDS.indexOf(id)).filter(slot => slot >= 0);
+      return slots.length ? slots : [DEFAULT_WEAPON_SLOT];
+    }
     if (mode.mode !== 'snd') return ALL_WEAPON_SLOTS;
 
     let snapshot = mode.playerSnapshot(p);
@@ -495,6 +693,15 @@ class BotManager {
 
   preferredSlot(br, ownedSlots) {
     if (this.game.mode.mode === 'gungame') return ownedSlots[0];
+    if (this.game.mode.mode === 'conquest') {
+      // The kit primary: the first owned gun that is neither the AT launcher,
+      // the sidearm nor a melee tool.
+      const primary = ownedSlots.find(slot => {
+        const def = WEAPONS[WEAPON_IDS[slot]];
+        return def && def.mode !== 'melee' && def.projectile !== 'rocket' && WEAPON_IDS[slot] !== 'revolver';
+      });
+      return primary ?? ownedSlots[0];
+    }
     if (this.game.mode.mode !== 'snd') return ownedSlots[br.index % ownedSlots.length];
     for (const id of BUY_PRIORITY) {
       const slot = WEAPON_IDS.indexOf(id);
@@ -503,12 +710,82 @@ class BotManager {
     return DEFAULT_WEAPON_SLOT;
   }
 
+  /** The objective for a bot: the Conquest director when attached, else the mode's own goal. */
+  goalFor(p) {
+    return this.director?.goalFor(p) ?? this.game.mode.botGoal(p);
+  }
+
+  /** Conquest: nearest visible threat over infantry, exposed crew and hulls, scored by danger and armour effect. */
+  pickThreat(p, br, ownedSlots, now) {
+    // A held target is re-checked every tick; full sweeps (five raycasts per
+    // candidate, infantry and hulls) take turns like pickTarget's idle scan.
+    // An idle bot off its turn keeps the last sweep's danger and waits a tick.
+    const scan = !((this.tickIndex + br.index) % SCAN_EVERY);
+    if (!scan && !br.enemyId) return null;
+    const result = pickBotThreat(this.game, p, br, {
+      scan, now,
+      effectFor: (target, distance) => target.kind === 'hull'
+        ? infantryArmorEffect(p, ownedSlots, target.armor, distance) : 1,
+    });
+    if (result?.target) { br.enemyId = result.target.id; br.sighting = result.sighting; br.enemyKind = result.kind; }
+    else { br.enemyId = null; br.sighting = null; br.enemyKind = null; }
+    br.danger = result?.danger ?? null;
+    return result?.target ?? null;
+  }
+
+  /** Remember where the last damage came from: the enemy whose aim points at this body. */
+  trackDamage(br, p, now) {
+    if (br.hpLives !== p.lives || !Number.isFinite(br.lastHp)) { br.hpLives = p.lives; br.lastHp = p.hp; return; }
+    if (p.hp < br.lastHp - 0.01) {
+      let best = null;
+      for (const o of this.game.entities.values()) {
+        if (o === p || o.state !== 'alive' || !this.game.mode.isEnemy(p, o)) continue;
+        const dx = p.x - o.x, dy = (p.y + 1.1) - (o.eyeY ?? o.y + 1.6), dz = p.z - o.z;
+        const d = Math.hypot(dx, dy, dz);
+        if (d > 320 || d < 0.01) continue;
+        const yaw = o.input?.yaw ?? o.yaw, pitch = o.input?.pitch ?? o.pitch ?? 0;
+        const fx = -Math.sin(yaw) * Math.cos(pitch), fy = Math.sin(pitch), fz = -Math.cos(yaw) * Math.cos(pitch);
+        const angle = Math.acos(Math.max(-1, Math.min(1, (fx * dx + fy * dy + fz * dz) / d)));
+        const recent = br.shotSeqHeard.get(o.id) !== o.shotSeq ? 0.6 : 1;
+        const score = angle * recent + d * 0.0006;
+        if (angle < 0.35 && (!best || score < best.score)) best = { o, score };
+      }
+      if (best) {
+        const o = best.o, hull = o.vehicleId && this.game.vehicles?.vehicles.get(o.vehicleId);
+        br.damageFrom = { id: o.vehicleId && hull ? `vehicle:${o.vehicleId}` : o.id, occupantId: o.id,
+          x: hull?.x ?? o.x, y: hull?.y ?? o.y, z: hull?.z ?? o.z, at: now };
+      } else br.damageFrom = { id: null, x: null, y: null, z: null, at: now, unknown: true };
+      br.hurtAt = now;
+    }
+    br.lastHp = p.hp;
+  }
+
+  /** Where an idle Conquest bot looks: fresh damage, then the director's threat axis with a sweep. */
+  idleLookYaw(br, p, goal, now, holding) {
+    const hurt = br.damageFrom && now - br.damageFrom.at < DAMAGE_MEMORY_MS && Number.isFinite(br.damageFrom.x);
+    if (hurt) return Math.atan2(-(br.damageFrom.x - p.x), -(br.damageFrom.z - p.z));
+    const heard = br.lastSeen?.position;
+    if (heard && Math.hypot(heard.x - p.x, heard.z - p.z) > 2) return Math.atan2(-(heard.x - p.x), -(heard.z - p.z));
+    // Contacts the team called out (spotted marks, teammates' sightings).
+    const known = this.commander?.knownThreat(p, holding ? botDifficulty(br.difficulty).sightRange : TRAVEL_LOOK_RANGE);
+    if (known) return wrapAngle(Math.atan2(-(known.x - p.x), -(known.z - p.z)) + Math.sin(now / 900 + br.strafePhase) * 0.12);
+    if (!holding) return null;
+    let axis = Number.isFinite(goal?.lookYaw) ? goal.lookYaw : null;
+    if (axis === null) {
+      const flag = goal?.target;
+      axis = flag && Math.hypot(flag.x - p.x, flag.z - p.z) > 3
+        ? Math.atan2(-(flag.x - p.x), -(flag.z - p.z)) : p.yaw;
+    }
+    return wrapAngle(axis + Math.sin(now / 1400 + br.strafePhase) * LOOK_SWEEP);
+  }
+
   think(br, p, now, dtS) {
     const profile = botDifficulty(br.difficulty);
     const pers = BOT_PERSONALITIES[br.personality] || BOT_PERSONALITIES[DEFAULT_BOT_PERSONALITY];
     const weaponTurnRate = weaponTurnProfile(p.def.handling).maxSpeed;
     const turnRate = Math.min(profile.turnRate, weaponTurnRate);
     const pitchTurnRate = Math.min(PITCH_TURN_RATE, weaponTurnRate);
+    const cq = this.game.mode.mode === 'conquest';
     // Respawn bookkeeping: a fresh life drops stale targeting/navigation.
     if (br.lastLives !== p.lives) {
       br.lastLives = p.lives;
@@ -519,6 +796,8 @@ class BotManager {
       br.groundRoute = null;
       br.retreatUntil = 0;
       br.stuckSince = 0;
+      br.damageFrom = null;
+      br.danger = null;
     }
 
     const inp = {
@@ -550,7 +829,7 @@ class BotManager {
       else inp.switchTo = preferred;
     }
 
-    const goal = this.game.mode.botGoal(p);
+    let goal = this.goalFor(p);
     if (goal.kind !== br.goalKind) {
       br.goalKind = goal.kind;
       br.detourUntil = 0;
@@ -560,25 +839,63 @@ class BotManager {
       br.resetCombat();
       return inp;
     }
+    if (cq) this.trackDamage(br, p, now);
 
-    const objective = goalPoint(goal);
+    const vehicleIntent = this.aircraftDriving.think(br, p, goal, now, dtS, inp)
+      ?? this.vehicleDriving.think(br, p, goal, now, dtS, inp);
+    if (vehicleIntent?.board) {
+      // Walking to an assigned seat is an ordinary objective: route, look and
+      // fight on the way, then ask for the seat inside enter reach.
+      const board = vehicleIntent.board;
+      if (board.enter && !inp.vehicleAction) inp.vehicleAction = board.enter;
+      goal = { kind: 'board', target: board.point, point: board.point, interact: false, arrive: board.arrive,
+        vehicleId: board.vehicleId, lookYaw: goal.lookYaw };
+    } else if (vehicleIntent) {
+      const v = vehicleIntent.vehicle;
+      if (v && vehicleIntent.weapon && inp.vehicleAction?.type !== 'exit') {
+        // Every seat that owns mounts fights: tank main gun and coax, the
+        // commander RWS, the jeep pintle, door guns and the chin gun.
+        const threatAxis = this.director?.threatAxis(p) ?? null;
+        const aircraft = isAircraft(v.type);
+        const engaged = v.type === 'tank' && vehicleIntent.seatId === 'driver'
+          ? applyConquestVehicleCombat(this.game, br, p, now, dtS, inp, ownedSlots, { tank: v, threatAxis })
+          : applyMountedCombat(this.game, br, p, v, vehicleIntent.seatId, now, dtS, inp,
+            { threatAxis, aircraft, sightRange: aircraft ? BOT_AIRCRAFT_SIGHT_RANGE : undefined });
+        if (engaged?.target && engaged.recognized) this.callSpot(br, p, engaged.target, now, profile);
+      } else { br.vehicleCombat = null; br.mounted = null; }
+      return inp;
+    }
+
+    const objective = (cq && goalPoint({ target: goal.point })) || goalPoint(goal);
     const objectiveFlatDist = objective ? Math.hypot(objective.x - p.x, objective.z - p.z) : Infinity;
     const objectiveDist = objective
       ? dist3(p.x, p.y, p.z, objective.x, objective.y, objective.z)
       : Infinity;
-    const objectiveArrived = !!objective && objectiveFlatDist <= goalArrivalDist(goal.kind);
+    const flag = cq && Number.isFinite(goal.target?.radius) ? goal.target : null;
+    const arriveDist = cq && Number.isFinite(goal.arrive) ? goal.arrive
+      : cq && flag && !goal.point ? Math.max(DEFEND_ARRIVE_DIST, flag.radius * 0.5)
+        : goalArrivalDist(goal.kind);
+    const objectiveArrived = !!objective && objectiveFlatDist <= arriveDist;
     const interactionReady = !!goal.interact && (
       (goal.kind === 'plant' && objectiveFlatDist <= PLANT_READY_DIST
         && Math.abs(objective.y - p.y) <= 1.5)
       || (goal.kind === 'defuse' && objectiveDist <= DEFUSE_READY_DIST)
     );
     inp.keys.interact = interactionReady;
+    // Assault revives and engineer repairs: walk in, then hold the support
+    // intent (re-sent well inside its staleness window) while in reach.
+    if (cq && goal.support && objective && objectiveFlatDist <= (goal.reach ?? 2) && Math.abs(objective.y - p.y) <= 2.5
+        && now >= (br.supportAt ?? 0)) {
+      br.supportAt = now + SUPPORT_INTENT_MS;
+      this.game.mode.conquestIntent?.(p, goal.support);
+    }
 
     const objectiveUrgent = !!objective && URGENT_GOALS.has(goal.kind);
     const combatAllowed = this.game.mode.canFire(p);
     const eye = eyeOf(p);
-    if (!combatAllowed) br.resetCombat();
-    const enemy = combatAllowed ? this.pickTarget(p, br) : null;
+    if (!combatAllowed) { br.resetCombat(); br.danger = null; }
+    const enemy = !combatAllowed ? null : cq ? this.pickThreat(p, br, ownedSlots, now) : this.pickTarget(p, br);
+    const hullTarget = enemy?.kind === 'hull';
 
     if (enemy) {
       if (br.noticeId !== enemy.id) {
@@ -599,7 +916,7 @@ class BotManager {
         br.noticeEvidence += observedSeconds * br.sighting.detectionRate;
         br.noticeProgress = Math.min(1, br.noticeEvidence / Math.max(1e-9, br.noticeThreshold));
       }
-      if (br.noticeProgress >= 1) {
+      if (br.noticeProgress >= 1 && !hullTarget) {
         br.lastSeen = { id: enemy.id, lives: enemy.lives, until: now + profile.searchMs,
           position: { x: enemy.x, y: enemy.y, z: enemy.z } };
       }
@@ -643,35 +960,54 @@ class BotManager {
     br.skill = Math.max(0.2, Math.min(profile.skillCeiling, br.skill + (enemy ? dtS * 0.09 : -dtS * 0.03)));
 
     // ----- panic retreat ---------------------------------------------------
-    if (enemy && !objectiveUrgent && p.hp <= RETREAT_HP * pers.retreatHp && now >= br.retreatReadyAt && !retreating) {
-      const dx = enemy.x - p.x, dz = enemy.z - p.z;
-      const pl = Math.hypot(dx, dz) || 1;
-      const px = -dz / pl, pz = dx / pl;                    // perpendicular
-      const cA = standable(this.game.world, (p.x + px * 8) | 0, (p.z + pz * 8) | 0, p.y);
-      const cB = standable(this.game.world, (p.x - px * 8) | 0, (p.z - pz * 8) | 0, p.y);
-      // Cover the enemy cannot see wins outright; distance breaks ties.
-      const hidden = (s) => {
-        const dx = s.x - enemy.x, dy = (s.y + 1.2) - enemy.eyeY, dz = s.z - enemy.z;
-        const len = Math.hypot(dx, dy, dz) || 1;
-        return !!raycastVoxels(this.solidAt, enemy.x, enemy.eyeY, enemy.z, dx / len, dy / len, dz / len, len);
-      };
-      const score = (s) => (s ? (hidden(s) ? 1000 : 0) + dist3(s.x, s.y, s.z, enemy.x, enemy.y, enemy.z) : -1);
-      br.roamTarget = score(cA) >= score(cB)
-        ? (cA || cB || randSpot(this.game.world, br.rng, p))
-        : (cB || cA || randSpot(this.game.world, br.rng, p));
+    // Conquest also backs off from a hull nothing in the loadout can hurt.
+    const evadeHull = cq && !enemy && br.danger?.sighting && br.danger.sighting.distance < HULL_EVADE_DIST
+      && (br.danger.target.type === 'tank' || br.danger.target.type === 'helicopter') ? br.danger.target : null;
+    // Low HP and a dry magazine (Conquest) both fall back to cover.
+    const dryNearEnemy = cq && enemy && !hullTarget && p.mag[p.weapon] === 0 && p.reserve[p.weapon] > 0
+      && enemyFlatEarly(enemy, p) < RELOAD_COVER_DIST;
+    const panicFrom = enemy && (p.hp <= RETREAT_HP * pers.retreatHp || dryNearEnemy) ? enemy : evadeHull;
+    if (panicFrom && !objectiveUrgent && now >= br.retreatReadyAt && !retreating) {
+      const cover = cq ? this.director?.coverFrom(p, panicFrom, goal) : null;
+      if (cover) {
+        br.roamTarget = cover;
+      } else {
+        const dx = panicFrom.x - p.x, dz = panicFrom.z - p.z;
+        const pl = Math.hypot(dx, dz) || 1;
+        const px = -dz / pl, pz = dx / pl;                    // perpendicular
+        const cA = standable(this.game.world, (p.x + px * 8) | 0, (p.z + pz * 8) | 0, p.y);
+        const cB = standable(this.game.world, (p.x - px * 8) | 0, (p.z - pz * 8) | 0, p.y);
+        // Cover the enemy cannot see wins outright; distance breaks ties.
+        const eyeY = panicFrom.eyeY ?? panicFrom.y + 1.6;
+        const hidden = (s) => {
+          const dx = s.x - panicFrom.x, dy = (s.y + 1.2) - eyeY, dz = s.z - panicFrom.z;
+          const len = Math.hypot(dx, dy, dz) || 1;
+          return !!raycastVoxels(this.solidAt, panicFrom.x, eyeY, panicFrom.z, dx / len, dy / len, dz / len, len);
+        };
+        const score = (s) => (s ? (hidden(s) ? 1000 : 0) + dist3(s.x, s.y, s.z, panicFrom.x, panicFrom.y, panicFrom.z) : -1);
+        br.roamTarget = score(cA) >= score(cB)
+          ? (cA || cB || randSpot(this.game.world, br.rng, p))
+          : (cB || cA || randSpot(this.game.world, br.rng, p));
+      }
       br.roamDeadline = now + RETREAT_MS;
       br.retreatUntil = now + RETREAT_MS;
       br.retreatReadyAt = now + RETREAT_MS + RETREAT_COOLDOWN_MS;
-      br.resetCombat();
+      br.groundRoute = null;
+      // Conquest keeps shooting while it falls back; other modes drop the fight.
+      if (!cq) br.resetCombat();
     }
-    if (now < br.retreatUntil) br.state = 'retreat';
+    if (now < br.retreatUntil) br.state = enemy && cq ? 'fight' : 'retreat';
     else if (br.state === 'retreat') br.state = 'roam';
+    const fallingBack = now < br.retreatUntil;
 
-    // Swimmers head for the nearest dry footing instead of treading water.
-    if (this.game.fluidAt(Math.floor(p.x), Math.floor(p.y + 0.55), Math.floor(p.z))) {
+    // Swimmers head for the nearest dry footing instead of treading water
+    // (Conquest also holds the swim-up stroke below).
+    const inFluid = this.game.fluidAt(Math.floor(p.x), Math.floor(p.y + 0.55), Math.floor(p.z));
+    if (inFluid) {
       const dry = nearestDry(this.game.world, p);
       if (dry) { br.roamTarget = dry; br.roamDeadline = now + 4000; }
     }
+    const swimming = cq && inFluid;
 
     // ----- navigation ------------------------------------------------------
     let takingDetour = !!objective && now < br.detourUntil;
@@ -680,13 +1016,16 @@ class BotManager {
       br.detourUntil = 0;
       takingDetour = false;
     }
+    if (cq && fallingBack) takingDetour = true;
 
     if ((!objective || takingDetour)
         && (!br.roamTarget
           || now >= br.roamDeadline
           || dist3(p.x, p.y, p.z, br.roamTarget.x, br.roamTarget.y, br.roamTarget.z) < ARRIVE_DIST)) {
-      br.roamTarget = randSpot(this.game.world, br.rng, p);
-      br.roamDeadline = now + ROAM_TIMEOUT_MS;
+      if (!(cq && fallingBack)) {
+        br.roamTarget = randSpot(this.game.world, br.rng, p);
+        br.roamDeadline = now + ROAM_TIMEOUT_MS;
+      }
     }
     const searching = br.state === 'search' && br.lastSeen && !objective;
     const nav = searching ? br.lastSeen.position
@@ -698,32 +1037,101 @@ class BotManager {
     let moveYaw = p.yaw;
     let moving = false;
     let sprint = false;
-    const combatMovement = br.state === 'fight' && enemy && !objectiveUrgent && !interactionReady;
+    const flagDist = flag ? Math.hypot(flag.x - p.x, flag.z - p.z) : Infinity;
+    const inZone = !!flag && goal.kind === 'capture' && flagDist <= flag.radius * 0.85
+      && Math.abs(p.y - flag.y) <= 8;
+    const enemyFlat = enemy ? Math.hypot(enemy.x - p.x, enemy.z - p.z) : Infinity;
+    // Conquest: an infantry contact beyond close-in range does not stop a bot
+    // on its way (it keeps running the route and calls the contact out); held
+    // points, zones and hulls are always fought.
+    const farContact = cq && !!enemy && !hullTarget && enemyFlat > CLOSE_IN_MAX && !!objective && !objectiveArrived
+      && !inZone && !(objectiveFlatDist < 30 && HOLD_STANCES.has(goalStance(goal)));
+    if (farContact && br.noticeProgress >= 1) this.callSpot(br, p, enemy, now, profile);
+    const combatAim = br.state === 'fight' && !!enemy && !interactionReady && !farContact;
+    // Conquest fights on the move: the trigger never waits for the legs.
+    // Conquest motion while the gun is up:
+    //  travel   walk the route on (falling back, or the contact is out of reach)
+    //  hold     stay on an arrived cover/overwatch/staging/support point and peek
+    //  zone     strafe inside the capture circle
+    //  approach close a far infantry contact along the surface route
+    //  combat   the duel dance (spacing, perpendicular strafe)
+    let cqMotion = null;
+    if (cq && combatAim && !objectiveUrgent) {
+      const holdPoint = objectiveArrived && (HOLD_STANCES.has(goalStance(goal)) || !!goal.support);
+      if (fallingBack) cqMotion = 'travel';
+      else if (hullTarget) cqMotion = 'combat';
+      else if (inZone) cqMotion = 'zone';
+      else if (holdPoint || (goal.support && objectiveFlatDist < 8)) cqMotion = 'hold';
+      else if (objective && !objectiveArrived && enemyFlat > CLOSE_IN_MAX) cqMotion = 'travel';
+      else if (enemyFlat > pers.far + CLOSE_IN_SLACK && goalStance(goal) !== 'defend') cqMotion = 'approach';
+      else if (objective && !objectiveArrived && enemyFlat > ADVANCE_FIGHT_DIST) cqMotion = 'travel';
+      else cqMotion = 'combat';
+    }
+    const combatMovement = cq ? cqMotion === 'combat' || cqMotion === 'zone'
+      : br.state === 'fight' && enemy && !objectiveUrgent && !interactionReady;
     // IRON PICK: no magazine, reach-limited — it closes in instead of spacing.
     const melee = p.def.mode === 'melee' && !!p.def.melee;
     // Engage on damage permission, not fire permission: TTT prep lets the knife
     // "fire" but nobody can be hurt, and a live swing would only mine the wall.
-    const meleeLive = melee && !!enemy && this.game.mode.canDamage(p, enemy);
+    const meleeLive = melee && !!enemy && !hullTarget && this.game.mode.canDamage(p, enemy);
+    const wet = (x, z) => this.game.fluidAt(Math.floor(x), Math.floor(p.y + 0.55), Math.floor(z));
 
-    if (combatMovement) {
+    if (combatMovement && cqMotion === 'zone') {
+      // Hold the flag: strafe across the line of fire, turning back inward
+      // before the circle's edge so the body keeps counting for the capture.
+      br.strafePhase += dtS * TAU * STRAFE_HZ * pers.strafeHz;
+      const side = Math.sin(br.strafePhase) > 0;
+      const dx = enemy.x - p.x, dz = enemy.z - p.z, d = Math.hypot(dx, dz) || 1;
+      let wx = (side ? -dz : dz) / d, wz = (side ? dx : -dx) / d;
+      if (flagDist > flag.radius * ZONE_EDGE) {
+        const ix = (flag.x - p.x) / (flagDist || 1), iz = (flag.z - p.z) / (flagDist || 1);
+        wx = wx * 0.35 + ix; wz = wz * 0.35 + iz;
+      }
+      // Strafe only into open, dry footing: try the wish, its mirror, then
+      // straight inward; a body boxed in on all sides holds still and shoots.
+      const len = Math.hypot(wx, wz) || 1;
+      wx /= len; wz /= len;
+      const routed = !!surfaceNavigation(this.game.world) || Number.isFinite(this.game.world.meta?.navigationFloor);
+      const open = (x, z) => !wet(p.x + x * 1.3, p.z + z * 1.3)
+        && (!routed || groundSegmentClear(this.game.world, p, { x: p.x + x * 1.3, y: p.y, z: p.z + z * 1.3 }));
+      const ix = (flag.x - p.x) / (flagDist || 1), iz = (flag.z - p.z) / (flagDist || 1);
+      const choice = [[wx, wz], [-wx, -wz], [ix, iz]].find(([x, z]) => open(x, z));
+      if (choice) {
+        if (choice[0] !== wx) br.strafePhase += Math.PI; // keep the new side for a while
+        br.moveWish = { x: choice[0], z: choice[1] };
+        moving = true;
+      }
+      inp.keys.crouch = br.crouchFight && d > 14;
+    } else if (combatMovement) {
       // Combat motion: spacing + perpendicular wobble.
       const dx = enemy.x - p.x, dz = enemy.z - p.z;
       const d = Math.hypot(dx, dz) || 1;
       moveYaw = Math.atan2(-dx, -dz);
       br.strafePhase += dtS * TAU * STRAFE_HZ * pers.strafeHz;
       const fx = -Math.sin(moveYaw), fz = -Math.cos(moveYaw);
-      const wet = (x, z) => this.game.fluidAt(Math.floor(x), Math.floor(p.y + 0.55), Math.floor(z));
       let side = Math.sin(br.strafePhase) > 0;
       // Never strafe into open water when the other side is dry.
       if (wet(p.x + fz * (side ? 1.3 : -1.3), p.z - fx * (side ? 1.3 : -1.3))
         && !wet(p.x - fz * (side ? 1.3 : -1.3), p.z + fx * (side ? 1.3 : -1.3))) side = !side;
       inp.keys.l = side;
       inp.keys.r = !side;
-      if (d > pers.far && !wet(p.x + fx * 1.5, p.z + fz * 1.5)) inp.keys.f = true;
-      else if (d < pers.near && !wet(p.x - fx * 1.5, p.z - fz * 1.5)) inp.keys.b = true;
+      // Anti-armour fire wants a stand-off band rather than a duel range.
+      const far = cq && hullTarget ? 60 : pers.far, near = cq && hullTarget ? 25 : pers.near;
+      if (d > far && !wet(p.x + fx * 1.5, p.z + fz * 1.5)) inp.keys.f = true;
+      else if (d < near && !wet(p.x - fx * 1.5, p.z - fz * 1.5)) inp.keys.b = true;
       inp.keys.crouch = br.crouchFight && d > 10;
       moving = true;
       sprint = false;
+      // Heavy armour: work round to its side plate at 25-60 m, to cover there when any.
+      if (cq && hullTarget && enemy.armor === 'heavy') {
+        const flank = this.flankPoint(br, p, enemy, now);
+        if (flank) {
+          const wp = navigationWaypoint(this.game.world, p, flank, br, now);
+          const wx = wp.x - p.x, wz = wp.z - p.z, wl = Math.hypot(wx, wz);
+          if (Math.hypot(flank.x - p.x, flank.z - p.z) > 2.5 && wl > 0.3) br.moveWish = { x: wx / wl, z: wz / wl };
+          else inp.keys.crouch = now < br.pauseUntil;
+        }
+      }
       if (melee) {
         // Run straight in (sprinting, so the hit knocks back), circle-strafe only
         // once inside the reach, and hop there so the swing falls as a crit (a
@@ -739,19 +1147,59 @@ class BotManager {
           br.critHopAt = now + MELEE_HOP_CD_MS / pers.hop;
         }
       }
+    } else if (cqMotion === 'travel') {
+      // Walk the route while the aim stays on the enemy: world-space wish.
+      const d = Math.hypot(ndx, ndz);
+      if (d > 0.35) { br.moveWish = { x: ndx / d, z: ndz / d }; moving = true; }
+    } else if (cqMotion === 'approach') {
+      // Close a far contact along the surface route (its own route cache, so
+      // the objective route survives), weaving a little while the aim holds.
+      br.approachNav ??= { index: br.index };
+      const wp = navigationWaypoint(this.game.world, p, { x: enemy.x, y: enemy.y, z: enemy.z }, br.approachNav, now);
+      let wx = wp.x - p.x, wz = wp.z - p.z;
+      const d = Math.hypot(wx, wz);
+      if (d > 0.35) {
+        br.strafePhase += dtS * TAU * STRAFE_HZ * pers.strafeHz * 0.5;
+        const weave = Math.sin(br.strafePhase) * 0.35;
+        wx /= d; wz /= d;
+        br.moveWish = { x: wx - wz * weave, z: wz + wx * weave };
+        moving = true;
+      }
+    } else if (cqMotion === 'hold') {
+      // Arrived on a held point: no legs, the peek logic below ducks between bursts.
+      moving = false;
     } else if (searching && navDist <= ARRIVE_DIST) {
       // Check around the remembered spot. Do not turn toward hidden movement.
       const scanYaw = Math.atan2(-ndx, -ndz) + Math.sin(now / 350 + br.strafePhase) * 0.9;
       inp.yaw = br.aim.steer('yaw', p.yaw, scanYaw, turnRate, dtS);
     } else if (!objectiveArrived || takingDetour) {
       moveYaw = Math.atan2(-ndx, -ndz);
-      // Turn before walking into a nearby graph corner. Sprinting toward a
-      // two-metre waypoint while still turning produces tight endless circles.
-      const turnError = Math.abs(wrapAngle(moveYaw - p.yaw));
-      inp.keys.f = turnError < 0.6 && Math.hypot(ndx, ndz) > 0.35;
-      moving = true;
-      sprint = Math.hypot(ndx, ndz) > 7 && turnError < 0.3 && !retreating && !searching;
-      inp.pitch = br.aim.steer('pitch', p.pitch, Math.atan2((waypoint.y + 1) - eye[1], navDist), pitchTurnRate, dtS);
+      // Conquest: near the objective the eyes already sweep its threat axis
+      // while the legs finish the walk, so contacts are seen before arrival.
+      const nearObjective = cq && !!flag && (inZone || objectiveFlatDist < 30 || flagDist < flag.radius + 15);
+      const lookYaw = cq ? this.idleLookYaw(br, p, goal, now, nearObjective) : null;
+      if (lookYaw !== null && Math.hypot(ndx, ndz) > 0.35) {
+        // Hurt on the move: face the shooter, keep walking the route.
+        const d = Math.hypot(ndx, ndz);
+        br.moveWish = { x: ndx / d, z: ndz / d };
+        inp.yaw = br.aim.steer('yaw', p.yaw, lookYaw, turnRate, dtS);
+        moving = true;
+      } else {
+        // Turn before walking into a nearby graph corner. Sprinting toward a
+        // two-metre waypoint while still turning produces tight endless circles.
+        const turnError = Math.abs(wrapAngle(moveYaw - p.yaw));
+        inp.keys.f = turnError < 0.6 && Math.hypot(ndx, ndz) > 0.35;
+        moving = true;
+        sprint = Math.hypot(ndx, ndz) > 7 && turnError < 0.3 && !retreating && !searching;
+        inp.pitch = br.aim.steer('pitch', p.pitch, Math.atan2((waypoint.y + 1) - eye[1], navDist), pitchTurnRate, dtS);
+      }
+    } else if (cq && !combatAim) {
+      // Holding the objective: look along the threat axis with a sweep.
+      const lookYaw = this.idleLookYaw(br, p, goal, now, true);
+      inp.yaw = br.aim.steer('yaw', p.yaw, lookYaw, turnRate, dtS);
+      inp.pitch = br.aim.steer('pitch', p.pitch, -0.03, pitchTurnRate, dtS);
+      // Waist-high cover: duck most of the time, rise to look over it.
+      inp.keys.crouch = !!goal.crouch && Math.sin(now / 1700 + br.strafePhase) < 0.35;
     }
     inp.keys.sprint = !!sprint;
 
@@ -771,8 +1219,22 @@ class BotManager {
     const recoil = br.aim.recoil(dtS, br.skill);
 
     let canShoot = false;
-    if (combatMovement) {
+    const fightNow = cq ? combatAim && !objectiveUrgent : combatMovement;
+    if (fightNow) {
       br.engagedMs += engageMsDelta;
+
+      // Conquest: bring the weapon that hurts this target (the rocket for
+      // armour), and put the rocket away again for close infantry.
+      let weaponPending = false;
+      if (cq && inp.switchTo === undefined) {
+        const dist = Math.hypot(enemyFlat, enemy.y - p.y);
+        let wanted = hullTarget ? bestWeaponFor(p, ownedSlots, enemy, dist) : null;
+        if (!hullTarget && p.def.projectile === 'rocket' && dist < 30) {
+          wanted = ownedSlots.find(s => s !== p.weapon && WEAPONS[WEAPON_IDS[s]]?.mode !== 'melee'
+            && WEAPONS[WEAPON_IDS[s]]?.projectile !== 'rocket' && (p.mag[s] > 0 || p.reserve[s] > 0)) ?? null;
+        }
+        if (wanted !== null && wanted !== p.weapon) { inp.switchTo = wanted; weaponPending = true; }
+      }
 
       // Aim at an actually exposed part of the current stance, led by the
       // target's horizontal motion in proportion to skill so the eased
@@ -785,23 +1247,27 @@ class BotManager {
       // under the target by the rise (low skill under-compensates, so misses float over).
       const bubble = p.def.projectile === 'bubble';
       const mgl = p.def.projectile === 'mgl';
+      const rocket = cq && p.def.projectile === 'rocket';
       const mglFlat = mgl ? Math.max(0.35, Math.hypot(aimX - p.x, aimZ - p.z) - MGL_RULES.muzzleForward) : 0;
       const bubbleFlat = bubble ? Math.hypot(aimX - p.x, aimZ - p.z) : 0;
       // Only a Big Bubble actually being blown aims on the Big Bubble profile: a stale
       // flag from the last hold must not null the flight (and so the shot) at 12.5-18 m.
       if (bubble && !p.charging) br.bubbleBig = false;
       const flight = bubble ? bubbleFlight(bubbleProfile(p.charging && br.bubbleBig ? 1 : 0), bubbleFlat) : null;
-      const lead = glaive
-        ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), glaiveRules.speedOut, br.skill)
-        : mgl ? projectileLead(enemy, mglFlat, MGL_RULES.speed, br.skill)
-        : flight ? (flight.t > 0 ? projectileLead(enemy, bubbleFlat, bubbleFlat / flight.t, br.skill) : [0, 0])
-        : [(enemy.vx || 0) * LEAD_S * br.skill, (enemy.vz || 0) * LEAD_S * br.skill];
-      const aim = [aimX + lead[0], aimY - (flight ? (flight.rise - BUBBLE_RULES.muzzleDrop) * br.skill : 0), aimZ + lead[1]];
+      const rocketAim = rocket ? ballisticAim(eye, br.sighting.aimPoint, enemy, { speed: ROCKET_RULES.speed,
+        gravity: ROCKET_RULES.gravity, maxSeconds: ROCKET_RULES.lifetimeMs / 1000, leadSkill: 0.8 + 0.2 * br.skill }) : null;
+      const lead = rocketAim ? [rocketAim.point[0] - aimX, rocketAim.point[2] - aimZ]
+        : glaive
+          ? projectileLead(enemy, dist3(eye[0], eye[1], eye[2], aimX, aimY, aimZ), glaiveRules.speedOut, br.skill)
+          : mgl ? projectileLead(enemy, mglFlat, MGL_RULES.speed, br.skill)
+            : flight ? (flight.t > 0 ? projectileLead(enemy, bubbleFlat, bubbleFlat / flight.t, br.skill) : [0, 0])
+              : [(enemy.vx || 0) * LEAD_S * br.skill, (enemy.vz || 0) * LEAD_S * br.skill];
+      const aim = [aimX + lead[0], (rocketAim ? rocketAim.point[1] : aimY) - (flight ? (flight.rise - BUBBLE_RULES.muzzleDrop) * br.skill : 0), aimZ + lead[1]];
       const yawT = Math.atan2(-(aim[0] - p.x), -(aim[2] - p.z));
       const flat = Math.hypot(aim[0] - p.x, aim[2] - p.z) || 1;
       const mglPitch = mgl ? mglAimPitch(Math.max(0.35, flat - MGL_RULES.muzzleForward),
         aim[1] - (eye[1] - MGL_RULES.muzzleDrop)) : null;
-      const pitchT = mgl && mglPitch !== null
+      const pitchT = rocketAim ? rocketAim.pitch : mgl && mglPitch !== null
         ? mglPitch : Math.atan2(aim[1] - eye[1], flat);
       const sigmaDeg = ((2.2 - 1.6 * br.skill) * errFactor + 0.3) * profile.aimError * pers.aimError;
       const sigmaRad = sigmaDeg * Math.PI / 180;
@@ -816,7 +1282,9 @@ class BotManager {
       const basePitch = br.aim.steer('pitch', p.pitch - recoil.prev.pitch, intendedPitch, pitchTurnRate, dtS);
       inp.yaw = wrapAngle(baseYaw + recoil.yaw);
       inp.pitch = Math.max(-1.5, Math.min(1.5, basePitch + recoil.pitch));
-      inp.wantAds = flat > 28 && p.def.id === 'sniper';
+      inp.wantAds = (flat > 28 && p.def.id === 'sniper') || (rocket && (enemy.armor === 'air' || flat > 20))
+        // Conquest ranges: aim down sights with any hitscan gun whose sight tightens the cone.
+        || (cq && !melee && !p.def.projectile && flat > ADS_RANGE && p.def.spreadDeg?.ads < p.def.spreadDeg?.hip * 0.7);
 
       // Ammo logistics mid-fight: reload, else cycle to any loaded slot. The
       // RIPTIDE reloads by catching: with a disc still in the air it waits.
@@ -826,7 +1294,7 @@ class BotManager {
           const gun = ownedSlots.find(s => s !== p.weapon && WEAPONS[WEAPON_IDS[s]].mode !== 'melee' && p.mag[s] > 0);
           if (gun !== undefined) inp.switchTo = gun;
         }
-      } else if (p.mag[p.weapon] === 0) {
+      } else if (p.mag[p.weapon] === 0 && !weaponPending) {
         if (p.reserve[p.weapon] > 0) inp.reload = true;
         else if (glaive && this.game.projectiles.glaiveInFlight(p) > 0) { /* catch pending */ }
         else {
@@ -844,12 +1312,20 @@ class BotManager {
       // wander and any uncorrected kick then land as misses, not hesitation.
       const aimDistance = Math.hypot(flat, aim[1] - eye[1]);
       const aimTolerance = melee ? MELEE_AIM_TOLERANCE : AIM_TOLERANCE;
-      canShoot = br.noticeProgress >= 1
+      const aimDir = [-Math.sin(inp.yaw) * Math.cos(inp.pitch), Math.sin(inp.pitch), -Math.cos(inp.yaw) * Math.cos(inp.pitch)];
+      canShoot = br.noticeProgress >= 1 && !weaponPending
         && Math.abs(wrapAngle(baseYaw - intendedYaw)) < aimTolerance
         && Math.abs(basePitch - intendedPitch) < aimTolerance
-        && (mgl || !raycastVoxels(this.solidAt, ...eye,
-          -Math.sin(inp.yaw) * Math.cos(inp.pitch), Math.sin(inp.pitch),
-          -Math.cos(inp.yaw) * Math.cos(inp.pitch), aimDistance));
+        && (rocket ? clearFlight(this.game, p, enemy, eye, aimDir, aimDistance)
+          : hullTarget ? clearFlight(this.game, p, enemy, eye, aimDir, aimDistance, { explosive: false })
+            : (mgl || !raycastVoxels(this.solidAt, ...eye, ...aimDir, aimDistance)));
+      // An engineer's rocket waits for the air lock when the server offers one.
+      if (rocket && enemy.armor === 'air' && Number.isFinite(p.lockProgress)) {
+        canShoot &&= p.lockProgress >= (p.lockProgress > 1 ? 99 : 0.99);
+      }
+      if (cq && hullTarget && WEAPONS[WEAPON_IDS[p.weapon]] && bestWeaponFor(p, [p.weapon], enemy, aimDistance) === null) canShoot = false;
+      // Call the contact out to the team once the crosshair is on it.
+      if (cq && br.noticeProgress >= 1 && Math.abs(wrapAngle(baseYaw - intendedYaw)) < 0.12) this.callSpot(br, p, enemy, now, profile);
       // The swing reaches the body centre (server meleeSwing); while a hop still
       // rises the pick waits for the fall, where the hit crits.
       if (melee) canShoot &&= dist3(eye[0], eye[1], eye[2], enemy.x, enemy.y + PLAYER_HALF.h, enemy.z)
@@ -918,6 +1394,14 @@ class BotManager {
           else { br.inBurst = false; br.pauseUntil = now + profile.burstPauseMs * pers.burstPause; }
         }
       }
+      // Stop and pop: a ranged burst is fired standing still (movement spread
+      // dwarfs the aimed cone), then the legs resume between bursts.
+      if (cq && br.inBurst && aimDistance > STOP_AND_POP_RANGE && cqMotion && cqMotion !== 'zone' && cqMotion !== 'hold') {
+        moving = false; br.moveWish = null;
+        inp.keys.f = inp.keys.b = inp.keys.l = inp.keys.r = false;
+        inp.keys.sprint = false;
+        inp.keys.crouch = br.crouchFight;
+      }
     } else {
       br.engagedMs = 0;
       br.aim.dropKick();
@@ -928,7 +1412,7 @@ class BotManager {
     if (GLAIVE_SLOT >= 0 && p.weapon !== GLAIVE_SLOT && p.mag[GLAIVE_SLOT] > 0
         && inp.switchTo === undefined && !br.spawnSwitchPending && now >= br.glaiveSwapAt
         && ownedSlots.includes(GLAIVE_SLOT) && this.preferredSlot(br, ownedSlots) === GLAIVE_SLOT) {
-      const d = combatMovement ? dist3(eye[0], eye[1], eye[2], enemy.x, enemy.eyeY - 0.35, enemy.z) : null;
+      const d = fightNow ? dist3(eye[0], eye[1], eye[2], enemy.x, enemy.eyeY - 0.35, enemy.z) : null;
       if (d === null || (d >= GLAIVE_MIN_RANGE && d <= glaiveReach(glaiveDef(p).glaive))) {
         inp.switchTo = GLAIVE_SLOT;
         br.glaiveSwapAt = now + GLAIVE_SWAP_CD_MS;
@@ -939,11 +1423,16 @@ class BotManager {
     if (BUBBLE_SLOT >= 0 && p.weapon !== BUBBLE_SLOT && p.mag[BUBBLE_SLOT] > 0
         && inp.switchTo === undefined && !br.spawnSwitchPending && now >= br.bubbleSwapAt
         && ownedSlots.includes(BUBBLE_SLOT) && this.preferredSlot(br, ownedSlots) === BUBBLE_SLOT) {
-      const d = combatMovement ? dist3(eye[0], eye[1], eye[2], enemy.x, enemy.eyeY - 0.35, enemy.z) : null;
+      const d = fightNow ? dist3(eye[0], eye[1], eye[2], enemy.x, enemy.eyeY - 0.35, enemy.z) : null;
       if (d === null || d <= BUBBLE_DRAW_RANGE) {
         inp.switchTo = BUBBLE_SLOT;
         br.bubbleSwapAt = now + BUBBLE_SWAP_CD_MS;
       }
+    }
+
+    // Waist-high cover: stand to shoot, duck between bursts and to reload.
+    if (cq && (goal.crouch || cqMotion === 'hold') && objectiveArrived && fightNow) {
+      inp.keys.crouch = !inp.wantFire && (now < br.pauseUntil || !!p.reloading || p.mag[p.weapon] === 0);
     }
 
     // Releasing an obscured charge would still shoot through cover. Discard
@@ -952,7 +1441,18 @@ class BotManager {
 
     // ----- shared locomotion steering ---------------------------------------
     if (moving) {
-      if (!combatMovement) inp.yaw = br.aim.steer('yaw', p.yaw, moveYaw, turnRate, dtS);
+      if (br.moveWish && cq && (cqMotion || (!combatMovement && inp.keys.f === false && !sprint))) {
+        // Decoupled legs: map the world-space wish onto keys relative to the aim.
+        const sin = Math.sin(inp.yaw), cos = Math.cos(inp.yaw);
+        const forward = -sin * br.moveWish.x - cos * br.moveWish.z;
+        const side = cos * br.moveWish.x - sin * br.moveWish.z;
+        inp.keys.f = forward > 0.38; inp.keys.b = forward < -0.38;
+        inp.keys.r = side > 0.38; inp.keys.l = side < -0.38;
+        inp.keys.sprint = false;
+      } else if (!combatMovement) inp.yaw = br.aim.steer('yaw', p.yaw, moveYaw, turnRate, dtS);
+      // The duel dance steers by keys, not by the route: on surface maps keep
+      // it off ledges, out of the river and away from walls it would grind into.
+      if (cq && cqMotion === 'combat' && surfaceNavigation(this.game.world)) this.guardDanceKeys(p, inp);
       // Ground routes go around cover. Legacy terrain routes may hop only
       // toward a supported, body-clear landing in the actual input direction.
       if (!Number.isFinite(this.game.world.meta?.navigationFloor)
@@ -963,8 +1463,14 @@ class BotManager {
     } else if (br.state === 'retreat') {
       inp.keys.crouch = true; // hold low at the cover spot
     }
+    br.moveWish = null;
+    if (cq && now < (br.unstickUntil ?? 0) && moving && p.grounded) { inp.keys.jump = true; inp.keys.crouch = false; }
+    // In water the jump key is the swim-up stroke: keep the head above the
+    // surface and climb out over the bank (never tread water into drowning).
+    if (swimming) inp.keys.jump = true;
 
     br.intendsMove = moving && (inp.keys.f || inp.keys.b || inp.keys.l || inp.keys.r);
+    br.motion = cqMotion ?? (moving ? (searching ? 'search' : 'walk') : 'idle');
 
     return inp;
   }

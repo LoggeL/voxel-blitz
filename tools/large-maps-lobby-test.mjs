@@ -40,6 +40,37 @@ try {
     await host.close();
     console.log(`${map} ${mode}: legacy-to-large map transfer and 16-vs-16 live admission passed.`);
   }
+  // Frontier v2 (Conquest only): the 768 x 80 x 768 run-length payload reaches
+  // the client byte-exact and a full 16-player match spawns on the HQ plateaus.
+  {
+    const host = new Client(port, 'frontier-conquest');
+    clients.push(host);
+    await host.connect({ t: 'create', name: host.name, map: 'foundry', gameMode: 'tdm', bots: 15 });
+    await host.waitForHandshake();
+    const mark = host.mark();
+    host.send({ t: 'configure', gameMode: 'conquest', map: 'frontier', bots: 15 });
+    const config = await host.waitForJsonFrame(m => m.t === 'lobbyConfig', 'frontier configuration', mark);
+    const binary = await host.waitForFrame(f => f.kind === 'binary', 'frontier bytes', config.seq);
+    const world = createMapState('frontier');
+    assert.equal(config.value.mapBytes, binary.value.byteLength);
+    assert.ok(binary.value.byteLength <= 3 * 1024 * 1024, `frontier payload ${binary.value.byteLength}`);
+    assert.deepEqual(new Uint8Array(binary.value), world.serializeWorld());
+    const readyMark = host.mark();
+    host.send({ t: 'ready', value: true });
+    await host.waitForJson(m => m.t === 'lobbyState' && m.members.some(p => p.id === host.id && p.ready), 'ready', readyMark);
+    host.send({ t: 'start' });
+    const tick = await host.waitForJson(m => m.t === 'tick' && m.players.length === 16, '16-player frontier match', readyMark);
+    assert.equal(tick.match.map, 'frontier');
+    assert.equal(tick.match.mode, 'conquest');
+    const area = world.meta.conquest.combatArea;
+    for (const p of tick.players) {
+      assert.ok(p.x >= area.minX && p.x < area.maxX && p.z >= area.minZ && p.z < area.maxZ, 'spawned inside the combat area');
+      assert.ok(p.y >= world.meta.spawnBounds.minY && p.y <= world.meta.spawnBounds.maxY, 'spawned at terrain height');
+      assert.equal(boxCollides((x, y, z) => world.getBlock(x, y, z) !== 0, p.x, p.y, p.z), false);
+    }
+    await host.close();
+    console.log(`frontier conquest: ${binary.value.byteLength}-byte valley transfer and 8-vs-8 live admission passed.`);
+  }
 } finally {
   await Promise.all(clients.map(client => client.close()));
   await stopServer(server);

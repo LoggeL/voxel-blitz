@@ -147,3 +147,43 @@ export function evGlaiveStock(id, fab, pickups, restored = null) {
   if (restored) event.restored = String(restored);
   return event;
 }
+
+/**
+ * Mounted shot: the ordinary shoot event plus the firing hull, mount id and
+ * vehicle weapon key. `w` is the weapon's presentation family. Hitscan mounts
+ * set `tracer` on every third round and publish one compact path for impact FX.
+ */
+export function evVehicleShoot(id, origin, dir, presentation, { vehicleId, mount, vehicleWeapon, tracer = false, side = null, end = null, hit = null } = {}) {
+  const event = Object.assign(evShoot(id, origin, dir, presentation, dir), {
+    vehicleId: String(vehicleId), mount: String(mount), vehicleWeapon: String(vehicleWeapon), tracer: !!tracer,
+  });
+  if (side != null) event.side = side ? 1 : 0;
+  if (Array.isArray(end) && end.length === 3) {
+    const segment = { o: event.o, end: end.map(value => round(value, D2)) };
+    if (hit) segment.hit = { x: hit.x | 0, y: hit.y | 0, z: hit.z | 0, nx: hit.nx | 0, ny: hit.ny | 0, nz: hit.nz | 0 };
+    event.paths = [[segment]];
+  }
+  return event;
+}
+
+/** Hull damage feedback, merged per attacker, hull and window (contract `vehicle_hit`). */
+export function evVehicleHit(vehicleId, attacker, dmg, zone, cls, eff, pos) {
+  return {
+    t: 'ev', kind: 'vehicle_hit', vehicleId: String(vehicleId), attacker: attacker == null ? null : String(attacker),
+    dmg: round(dmg, 1), zone: String(zone), cls: String(cls), eff: eff ? 1 : 0,
+    pos: [round(pos?.[0], D2), round(pos?.[1], D2), round(pos?.[2], D2)],
+  };
+}
+
+export function evVehicleDisabled(vehicleId, attacker) {
+  return { t: 'ev', kind: 'vehicle_disabled', vehicleId: String(vehicleId), attacker: attacker == null ? null : String(attacker) };
+}
+
+export function evVehicleRepaired(vehicleId, by, hp) {
+  return { t: 'ev', kind: 'vehicle_repaired', vehicleId: String(vehicleId), by: by == null ? null : String(by), hp: round(hp, 1) };
+}
+
+/** `kind` is taken by the event kind, so the countermeasure type travels as `cm` (flares|smoke). */
+export function evCountermeasure(vehicleId, kind) {
+  return { t: 'ev', kind: 'countermeasure', vehicleId: String(vehicleId), cm: String(kind) };
+}

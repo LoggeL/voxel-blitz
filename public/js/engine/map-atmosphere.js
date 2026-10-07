@@ -163,8 +163,77 @@ const SCENERY = {
     backdrop: { style: 'city', seed: 14, ground: 8.95, colors: ['#b8ad9a', '#9c8f80', '#8a9296'],
       height: [12, 34], gap: [110, 150], count: 20, groundColor: '#7f8a80', hills: ['#6f7d6a', '#65725f'], hillTop: '#7c9160', hillHeight: [10, 26] } },
 };
-export function mapAtmosphere(mapId) {
-  const palette = PALETTES[mapId] || {};
+/**
+ * Frontier weather moods (mapMeta.conquest.weather, capture override
+ * ?weather=). Every preset only changes uniform values and object visibility
+ * (sky dome, fog, lights, grade, ambience, backdrop tint): the same programs
+ * compile for all three, so the mood never touches a program key.
+ *   golden    late-afternoon sun from the west-south-west, warm haze, long shadows
+ *   mist      valley mist, hazy soft sun, denser fog
+ *   overcast  grey deck, no sun disc, flat light
+ * fogScale multiplies the render-distance profile's ground density and, unless
+ * airFogScale is given, its airborne density. Golden thins the ground haze so
+ * the flags' landmarks read across the valley; the air keeps the profile's.
+ */
+export const FRONTIER_WEATHER = Object.freeze(['golden', 'mist', 'overcast']);
+const FRONTIER_SCENERY = {
+  skybox: null, density: 0.002,
+  // Big, high puffs over the whole battlefield (sky.js), above every ridge.
+  clouds: Object.freeze({ y: 150, span: 620, scale: 2.6, count: 22 }),
+  // Horizon mountain ring beyond the map edge: ridged peaks with grass benches,
+  // rock above 70 m, melting into the haze at their foot.
+  backdrop: Object.freeze({ style: 'terrain', shape: 'peaks', seed: 21, ground: 34,
+    colors: ['#7a7364', '#6b6558', '#857c6b', '#625d52'], top: '#6f7d4f', top2: '#7f8656', rock: '#8f8a80', rockAbove: 72,
+    lip: 1.2, height: [36, 150], near: 40, rise: 70, depth: 420, scale: 120, band: 16, cell: 14, step: 5, maxRise: 0.55,
+    groundColor: '#6c7150', groundHaze: [0.2, 0.95], groundSkirt: 30, baseHaze: 0.42, hazeHeight: 70,
+    air: Object.freeze({ strength: 0.34, near: 120, far: 1100, fog: 0.35 }) }),
+};
+const FRONTIER_PRESETS = {
+  golden: { skyTop: '#5b84b4', skyHorizon: '#f1c999', fog: '#dcc3a0', skyHaze: 0.22,
+    horizonGlow: '#ff9a55', horizonGlowStrength: 0.3, cloud: '#ffe6cc',
+    skyLight: '#c4d0de', groundLight: '#7e6c52', sun: '#ffd09a', ambient: 0.7, sunlight: 1.75,
+    sunDir: [-62, 52, 38], sunDisc: 1.2, envIntensity: 0.42, fogScale: 0.65, airFogScale: 1,
+    grade: { highlightTint: [0.034, 0.015, -0.014], shadowTint: [-0.007, 0.001, 0.013], saturation: 1.07 },
+    light: { minSky: 0.42, shadow: 0.84 },
+    ambience: { kind: 'pollen', floor: 20, band: 46, color: '#ffe0a3', color2: '#fff4dc', density: 0.55, sunlit: 0.85 },
+    backdropHaze: '#e3c9a6' },
+  mist: { skyTop: '#8399ad', skyHorizon: '#d6dbdc', fog: '#c9d0d1', skyHaze: 0.75,
+    horizonGlow: '#ffd4a6', horizonGlowStrength: 0.08, cloud: '#e9ecec',
+    skyLight: '#d4dde4', groundLight: '#6d7266', sun: '#ffe9cc', ambient: 0.9, sunlight: 1.18,
+    sunDir: [-62, 52, 38], sunDisc: 0.45, envIntensity: 0.5, fogScale: 1.9,
+    grade: { highlightTint: [0.012, 0.01, 0.0], shadowTint: [-0.004, 0.002, 0.01], saturation: 0.96 },
+    light: { minSky: 0.48, shadow: 0.58 },
+    ambience: { kind: 'mist', floor: 21.5, band: 5, alpha: 0.07 },
+    backdropHaze: '#d3d8d8' },
+  overcast: { skyTop: '#86929b', skyHorizon: '#b9c1c5', fog: '#b5bcbf', skyHaze: 0.3,
+    overcast: 0.85, deckColor: '#a5aeb4', cloud: '#b0b8bd',
+    skyLight: '#cfd8dc', groundLight: '#5f6a60', sun: '#eef0ee', ambient: 0.94, sunlight: 0.92,
+    sunDir: [-30, 110, 30], sunDisc: 0, envIntensity: 0.5, fogScale: 1.3,
+    grade: { saturation: 0.93, shadowTint: [-0.003, 0.002, 0.008], highlightTint: [0.0, 0.004, 0.008] },
+    light: { minSky: 0.52, shadow: 0.38 },
+    ambience: { kind: 'sparse', floor: 20, band: 40 },
+    backdropHaze: '#b9c0c3' },
+};
+
+/** The weather a map shows: a capture override, else the authored mapMeta value, else golden. */
+export function resolveWeather(meta, override = null) {
+  const wanted = override ?? meta?.conquest?.weather ?? null;
+  return FRONTIER_WEATHER.includes(wanted) ? wanted : 'golden';
+}
+
+function frontierAtmosphere(weather) {
+  const preset = FRONTIER_PRESETS[FRONTIER_WEATHER.includes(weather) ? weather : 'golden'];
+  const { backdropHaze, ...rest } = preset;
+  return {
+    ...rest,
+    ...FRONTIER_SCENERY,
+    weather: FRONTIER_WEATHER.includes(weather) ? weather : 'golden',
+    backdrop: { ...FRONTIER_SCENERY.backdrop, hazeColor: backdropHaze, hazeTint: 0.55 },
+  };
+}
+
+export function mapAtmosphere(mapId, { weather = null } = {}) {
+  const palette = mapId === 'frontier' ? frontierAtmosphere(weather) : PALETTES[mapId] || {};
   return {
     ...DEFAULT,
     ...palette,

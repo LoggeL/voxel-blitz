@@ -47,13 +47,14 @@ try {
     assert.deepEqual(defaultKeybindings()[id], [], `${id} ships unbound`);
   }
   {
+    // Contexts are separate key spaces (gameplay, spectator, replay, vehicle):
+    // no key may repeat within one context.
     const seen = new Map();
-    for (const [id, codes] of Object.entries(defaultKeybindings())) {
-      for (const code of codes) {
-        const other = seen.get(code);
-        assert.ok(!other || id.startsWith('spectate') || id === 'skipReplay' || other.startsWith('spectate') || other === 'skipReplay',
-          `${code} is bound to both ${other} and ${id} by default`);
-        if (!other) seen.set(code, id);
+    for (const action of KEYBINDING_ACTIONS) {
+      for (const code of defaultKeybindings()[action.id]) {
+        const key = `${action.context}:${code}`;
+        assert.ok(!seen.has(key), `${code} is bound to both ${seen.get(key)} and ${action.id} by default in ${action.context}`);
+        seen.set(key, action.id);
       }
     }
   }

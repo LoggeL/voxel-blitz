@@ -43,6 +43,11 @@ import {
   stepGrenade,
 } from '../../shared/grenade-rules.js';
 import { ROCKET_RULES, rocketLaunch, stepRocket } from '../../shared/rocket-rules.js';
+import { vehicleWeaponBlast } from '../../shared/weapon-aircraft-projectiles.js';
+import { VEHICLE_WEAPONS, CONQUEST_ROCKET_PROFILE, LOCK_RULES } from '../../shared/vehicle-defs.js';
+import { infantryDamageClass } from '../../shared/vehicle-armor.js';
+import { nearestHullPoint, vehicleHullParts } from '../../shared/vehicle-collision.js';
+import { occupantShielded, occupantExposed, occupantHitPose, occupantBodyCenter, occupantDamageScale } from './vehicle-damage.js';
 import { MGL_RULES, mglLaunch, stepMgl } from '../../shared/mgl-rules.js';
 import { BOLT_RULES, boltLaunch, stepBolt } from '../../shared/bolt-rules.js';
 import {
@@ -87,6 +92,10 @@ const GLAIVE_ZONE_DEPTH = 0.8;
 export function glaiveDef(player) {
   return chaosWeaponDef(player, WEAPONS.glaive);
 }
+
+/** Damage class a blast deals to hulls when its rules carry none (shared/vehicle-armor.js). */
+const HULL_BLAST_CLASSES = Object.freeze({ rocket: 'at', mgl: 'explosive', frag: 'explosive', limpet: 'explosive',
+  pulse: 'explosive', bubble: 'explosive' });
 
 /** Blast profile per projectile type, read by tests and the explosion path alike. */
 export const PROJECTILE_RULES = Object.freeze({
@@ -143,6 +152,35 @@ const finitePoint = (x, y, z) =>
 
 function solid(ctx, x, y, z) {
   return ctx.getBlock(Math.floor(x), Math.floor(y), Math.floor(z)) !== AIR;
+}
+
+/** Grenade solidity: voxels plus every solid hull except the thrower's own seat. */
+function grenadeSolid(ctx, ignoreId = null) {
+  return (x, y, z) => solid(ctx, x, y, z) || !!ctx.vehicles?.hullContains?.(x, y, z, ignoreId);
+}
+
+/**
+ * Voxel DDA plus solid vehicle hulls (live hulls and fresh ground wrecks), so
+ * the shared integrators bounce or stop on a hull exactly like on a wall.
+ * `probe.ignoreId` is the launcher's own hull; `probe.hull` keeps the hull
+ * contact of the latest cast (null when a voxel or nothing was nearer).
+ */
+function hullRaycast(ctx, probe) {
+  const solidAt = ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR);
+  return (ox, oy, oz, dx, dy, dz, max) => {
+    const voxel = raycastVoxels(solidAt, ox, oy, oz, dx, dy, dz, max);
+    probe.hull = null;
+    const length = Math.hypot(dx, dy, dz);
+    if (!ctx.vehicles?.projectileHit || !(length > 0)) return voxel;
+    const hull = ctx.vehicles.projectileHit([ox, oy, oz], [dx / length, dy / length, dz / length],
+      voxel ? voxel.t : max, probe.ignoreId ?? null);
+    if (!hull) return voxel;
+    probe.hull = { id: hull.id, point: hull.point, live: !hull.wreck };
+    probe.first ??= probe.hull;
+    const [nx, ny, nz] = hull.normal;
+    return { x: Math.floor(hull.point[0]), y: Math.floor(hull.point[1]), z: Math.floor(hull.point[2]),
+      nx, ny, nz, t: hull.distance, vehicleId: hull.id };
+  };
 }
 
 function visibleTo(ctx, origin, target, endMargin = 0.18) {
@@ -245,6 +283,7 @@ export class ProjectileSystem {
         continue;
       }
       if (projectile.chaosHoming && !projectile.stuck) this._home(projectile, dt, ctx);
+      if (projectile.guidance) this._guide(projectile, stepSeconds * substeps, ctx);
       if (projectile.type === 'pulse' && projectile.chaosLevel >= 1 && !projectile.child) this._pull(projectile, dt, ctx);
       if (projectile.type === 'rocket') this._flyRocket(projectile, stepSeconds * substeps, ctx);
       else if (projectile.type === 'mgl') this._flyMgl(projectile, stepSeconds, substeps, ctx);
@@ -253,11 +292,12 @@ export class ProjectileSystem {
       else if (projectile.type === 'bubble') this._flyBubble(projectile, stepSeconds * substeps, ctx);
       else this._flyGrenade(projectile, stepSeconds, substeps, ctx);
       if (!this.active.has(projectile.id)) continue;
+      if (projectile.guidance && this._proximity(projectile, ctx)) continue;
       // Returning discs steer toward a live owner and seeking discs bend onto a
       // body, so remote presentation needs the same 100 ms correction stream that
       // Chaos projectiles already use. Bubbles never steer and the client runs the
       // same exact integrator, so launch and stick events carry the full state.
-      if (((projectile.chaosLevel && projectile.type !== 'bubble') || (projectile.type === 'glaive' && (projectile.phase === 'back' || projectile.seeking)))
+      if (((projectile.chaosLevel && projectile.type !== 'bubble') || projectile.guidance || (projectile.type === 'glaive' && (projectile.phase === 'back' || projectile.seeking)))
           && ctx.now >= (projectile.syncAt || 0)) {
         projectile.syncAt = ctx.now + GLAIVE_SYNC_MS;
         const update = evProjectileUpdate(projectile.id,
@@ -360,7 +400,16 @@ export class ProjectileSystem {
   _flyRocket(projectile, seconds, ctx) {
     const prev = { x: projectile.x, y: projectile.y, z: projectile.z };
     stepRocket(projectile, seconds, projectile.raycast);
+    const delta = [projectile.x - prev.x, projectile.y - prev.y, projectile.z - prev.z];
+    const distance = Math.hypot(...delta);
+    const hull = distance > 0 ? ctx.vehicles?.rayHit([prev.x, prev.y, prev.z], delta.map(v => v / distance), distance, projectile.vehicleId) : null;
     const contact = this._sweepVictim(prev, projectile, ROCKET_RULES.radius, ctx, projectile);
+    if (hull && hull.id !== projectile.vehicleId && (!contact || hull.distance <= Math.hypot(contact.x-prev.x, contact.y-prev.y, contact.z-prev.z))) {
+      [projectile.x, projectile.y, projectile.z] = [prev.x, prev.y, prev.z].map((v,i) => v + delta[i] * hull.distance / distance);
+      projectile.directVehicleId = hull.vehicle?.hp > 0 ? hull.id : null;
+      projectile.directPoint = [projectile.x, projectile.y, projectile.z];
+      return this.explode(projectile, ctx);
+    }
     if (contact) {
       projectile.x = contact.x; projectile.y = contact.y; projectile.z = contact.z;
       projectile.directVictim = contact.victim;
@@ -376,17 +425,28 @@ export class ProjectileSystem {
     for (let i = 0; i < substeps; i++) {
       const from = { x: projectile.x, y: projectile.y, z: projectile.z };
       const before = projectile.bouncesLeft;
+      if (projectile.hullProbe) projectile.hullProbe.first = null;
       stepMgl(projectile, stepSeconds, projectile.raycast);
       if (projectile.bouncesLeft !== before) {
         ctx.pushEvent(evProjectileUpdate(projectile.id,
           [projectile.x, projectile.y, projectile.z],
           [projectile.vx, projectile.vy, projectile.vz], projectile.bouncesLeft));
       }
+      // An unarmed round skips off a hull like any face; an armed one
+      // detonates on it as a direct hit, exactly like on an armed body contact.
+      const hull = armed ? projectile.hullProbe?.first : null;
       if (!armed) continue;
       const contact = this._sweepVictim(from, projectile, MGL_RULES.radius, ctx, projectile);
-      if (contact) {
+      const reach = point => Math.hypot(point[0] - from.x, point[1] - from.y, point[2] - from.z);
+      if (contact && !(hull && reach(hull.point) < reach([contact.x, contact.y, contact.z]))) {
         projectile.x = contact.x; projectile.y = contact.y; projectile.z = contact.z;
         projectile.directVictim = contact.victim;
+        return this.explode(projectile, ctx);
+      }
+      if (hull) {
+        [projectile.x, projectile.y, projectile.z] = hull.point;
+        projectile.directVehicleId = hull.live ? hull.id : null;
+        projectile.directPoint = [...hull.point];
         return this.explode(projectile, ctx);
       }
       if (projectile.hitSolid) return this.explode(projectile, ctx);
@@ -422,7 +482,8 @@ export class ProjectileSystem {
     }
     if (b.hit) {
       // Walls and ceilings only: a floor contact still pops, which keeps bubble jumps.
-      if (!b.child && (b.chaosLevel || 0) >= 2 && !(b.hit.ny > 0.5)) return this._clingBubble(b, ctx);
+      // A hull is no mount: the film pops on it instead of clinging.
+      if (!b.child && (b.chaosLevel || 0) >= 2 && !(b.hit.ny > 0.5) && !b.hullProbe?.hull) return this._clingBubble(b, ctx);
       return this.explode(b, ctx);
     }
     return false;
@@ -493,9 +554,31 @@ export class ProjectileSystem {
   _flyBolt(projectile, seconds, ctx) {
     stepBolt(projectile, seconds, projectile.raycast, {
       onTravel: (from, to) => {
-        const contact = this._sweepVictim(from, to, BOLT_RULES.radius, ctx, projectile, true);
+        let contact = this._sweepVictim(from, to, BOLT_RULES.radius, ctx, projectile, true);
         const length = Math.hypot(to.x-from.x, to.y-from.y, to.z-from.z);
         const dir = length > 0 ? {x:(to.x-from.x)/length,y:(to.y-from.y)/length,z:(to.z-from.z)/length} : null;
+        // Hulls stop bolts at their face like hitscan rounds. Only an open
+        // hull's own exposed crew can still be struck inside its boxes.
+        const hull = dir ? ctx.vehicles?.projectileHit?.([from.x, from.y, from.z], [dir.x, dir.y, dir.z], length, projectile.vehicleId ?? null) ?? null : null;
+        if (hull && (!contact || Math.hypot(contact.x-from.x, contact.y-from.y, contact.z-from.z) > hull.distance)) {
+          contact = null;
+          if (hull.open) {
+            const exit = { x: from.x + dir.x * hull.exit, y: from.y + dir.y * hull.exit, z: from.z + dir.z * hull.exit };
+            const crew = this._sweepVictim(from, exit, BOLT_RULES.radius, ctx, projectile, true);
+            if (crew && crew.victim.vehicleId === hull.id) contact = crew;
+          }
+          if (!contact) {
+            const mine = this.nearestClaymore([from.x,from.y,from.z], dir, hull.distance, 0, BOLT_RULES.radius);
+            if (mine) { this.explode(mine.mine, ctx); this._fizzleBolt(projectile, ctx); return true; }
+            [projectile.x, projectile.y, projectile.z] = hull.point;
+            applyNearMisses(collectNearMisses(projectile.owner, [from.x, from.y, from.z], hull.point, ctx), null, ctx);
+            const traveled = (projectile.traveled || 0) + hull.distance;
+            const damage = damageAtDistance(WEAPONS.longarc, traveled) * chargeDamageMult(WEAPONS.longarc, projectile.charge01);
+            ctx.vehicles.damage(hull.id, damage, projectile.owner, { cls: infantryDamageClass(WEAPONS.longarc), point: [...hull.point] });
+            this._fizzleBolt(projectile, ctx);
+            return true;
+          }
+        }
         const mine = dir && this.nearestClaymore([from.x,from.y,from.z],dir,
           contact ? Math.hypot(contact.x-from.x,contact.y-from.y,contact.z-from.z) : length, 0, BOLT_RULES.radius);
         if (mine) {
@@ -571,7 +654,8 @@ export class ProjectileSystem {
     if (!this.active.has(disc.id)) return true;
     if (disc.expired) return this._endGlaive(disc, ctx, 'expire');
     if (disc.caught) return this._endGlaive(disc, ctx, 'catch');
-    if (disc.hit) return this._endGlaive(disc, ctx, 'embed');
+    // A disc stopped by a hull cannot leave a pickup on it: it fabricates back.
+    if (disc.hit) return this._endGlaive(disc, ctx, disc.hullProbe?.hull ? 'expire' : 'embed');
     if (disc.flipped) this._publishGlaiveFlip(disc, ctx, disc.flipped);
     return false;
   }
@@ -850,7 +934,7 @@ export class ProjectileSystem {
   }
 
   _canContact(victim, projectile, ctx, ignoreOwner = false) {
-    if (victim.state !== 'alive') return false;
+    if (occupantShielded(victim) || victim.state !== 'alive') return false;
     if (victim === projectile.owner) {
       return !ignoreOwner && ctx.now - projectile.launchedAt >= OWNER_GRACE_MS;
     }
@@ -858,14 +942,27 @@ export class ProjectileSystem {
   }
 
   _sweepVictim(from, to, radius, ctx, projectile, ignoreOwner = false) {
-    return sweepPlayers(from, to, radius, ctx.targets || ctx.entities,
-      (victim) => this._canContact(victim, projectile, ctx, ignoreOwner));
+    const source = ctx.targets || ctx.entities;
+    // Exposed crew are swept at their crouched seat pose, exactly like hitscan.
+    const poses = new Map();
+    const bodies = { *values() {
+      for (const victim of source.values()) {
+        if (!occupantExposed(victim)) { yield victim; continue; }
+        const pose = occupantHitPose(victim);
+        poses.set(pose, victim);
+        yield pose;
+      }
+    } };
+    const contact = sweepPlayers(from, to, radius, bodies,
+      (body) => this._canContact(poses.get(body) ?? body, projectile, ctx, ignoreOwner));
+    if (contact && poses.has(contact.victim)) contact.victim = poses.get(contact.victim);
+    return contact;
   }
 
   _contactVictim(point, radius, ctx, projectile = point, ignoreOwner = false) {
     for (const victim of (ctx.targets || ctx.entities).values()) {
       if (!this._canContact(victim, projectile, ctx, ignoreOwner)) continue;
-      if (touchesPlayer(point, radius, victim)) return victim;
+      if (touchesPlayer(point, radius, occupantHitPose(victim))) return victim;
     }
     return null;
   }
@@ -896,7 +993,9 @@ export class ProjectileSystem {
       explodeAt: ctx.now + fuseMs,
       stuck: false,
       hitSolid: false,
-      isSolid: (x, y, z) => solid(ctx, x, y, z),
+      // Hulls are solid to a thrown grenade, except a passenger's own seat.
+      vehicleId: player.vehicleId ?? null,
+      isSolid: grenadeSolid(ctx, player.vehicleId ?? null),
     };
     player.grenades[index]--;
     player.spawnProtectedUntil = 0;
@@ -951,19 +1050,22 @@ export class ProjectileSystem {
    * `weaponKey` credits a Chaos side effect to the weapon that fired it;
    * `secondary` side effects leave the paid-launch reserve free.
    */
-  launchRocket(player, ctx, dir, { weaponKey = null, secondary = false } = {}) {
+  launchRocket(player, ctx, dir, { weaponKey = null, secondary = false, origin = null, vehicleId = player?.vehicleId ?? null } = {}) {
     if (!this._hasRoom(secondary)) return null;
-    const launch = rocketLaunch({ x: player.eyeX ?? player.x, y: player.eyeY, z: player.eyeZ ?? player.z, dir });
+    const launch = rocketLaunch({ x: origin?.[0] ?? player.eyeX ?? player.x, y: origin?.[1] ?? player.eyeY, z: origin?.[2] ?? player.eyeZ ?? player.z, dir });
+    const lifetimeMs = ROCKET_RULES.lifetimeMs;
     const id = `r${this._nextId++}`;
     const projectile = {
       id,
       type: 'rocket',
+      // A passenger's own hull never stops the rocket it fires.
+      vehicleId,
       ownerId: String(player.id),
       owner: player,
       x: launch.x, y: launch.y, z: launch.z,
       vx: launch.vx, vy: launch.vy, vz: launch.vz,
       launchedAt: ctx.now,
-      explodeAt: ctx.now + ROCKET_RULES.lifetimeMs,
+      explodeAt: ctx.now + lifetimeMs,
       stuck: false,
       hit: null,
       directVictim: null,
@@ -972,7 +1074,19 @@ export class ProjectileSystem {
       ),
     };
     if (weaponKey) projectile.weaponKey = weaponKey;
-    this._configureChaos(projectile);
+    // Conquest: the RX-8 is the Engineer's AT weapon (hull numbers at the AT class,
+    // softer infantry splash) and homes on an aircraft it locked (never Chaos).
+    if (ctx.vehicles?.combatProfile === 'conquest') {
+      Object.assign(projectile, { hullDirect: CONQUEST_ROCKET_PROFILE.hullDirect, hullSplash: CONQUEST_ROCKET_PROFILE.hullSplash,
+        hullCls: CONQUEST_ROCKET_PROFILE.cls, infantrySplashScale: CONQUEST_ROCKET_PROFILE.infantrySplashScale });
+    }
+    const targetId = !secondary ? ctx.vehicles?.locks?.lockedTarget?.(player, 'rocket') ?? null : null;
+    if (targetId) {
+      const rules = LOCK_RULES.rocket;
+      projectile.guidance = { targetId, turnRate: rules.turnRate, navConstant: rules.navConstant, proximity: rules.proximity };
+      projectile.chaosLevel = 0;
+      projectile.chaosHoming = false;
+    } else this._configureChaos(projectile);
     this.active.set(id, projectile);
     ctx.pushEvent(Object.assign(evProjectileLaunch(
       player.id,
@@ -980,9 +1094,104 @@ export class ProjectileSystem {
       'rocket',
       [projectile.x, projectile.y, projectile.z],
       [projectile.vx, projectile.vy, projectile.vz],
-      ROCKET_RULES.lifetimeMs,
-    ), { chaos: projectile.chaosLevel || 0 }));
+      lifetimeMs,
+    ), { chaos: projectile.chaosLevel || 0, ...(targetId ? { target: targetId } : {}) }));
     return projectile;
+  }
+
+  /**
+   * A mounted shell, rocket or missile leaves a vehicle muzzle. `weapon` is a
+   * VEHICLE_WEAPONS key; blast and flight come from that table (never Chaos).
+   * `targetId` (a locked hull) adds proportional-navigation guidance. The
+   * launch event type is the weapon's presentation family, plus `vehicleId`,
+   * `vehicleWeapon` and the shell gravity `g`.
+   */
+  launchVehicleProjectile(owner, { weapon, origin, dir, vehicleId = null, targetId = null } = {}, ctx) {
+    const rules = typeof weapon === 'string' && Object.hasOwn(VEHICLE_WEAPONS, weapon) ? VEHICLE_WEAPONS[weapon] : null;
+    if (!owner || !ctx || !rules || rules.kind === 'hitscan' || !Array.isArray(origin) || !Array.isArray(dir)
+      || origin.length !== 3 || dir.length !== 3 || ![...origin, ...dir].every(Number.isFinite)
+      || Math.abs(Math.hypot(...dir) - 1) > 0.001 || !this._hasRoom()) return null;
+    const id = `r${this._nextId++}`;
+    const projectile = {
+      id, type: 'rocket', eventType: rules.presentation, vehicleId, vehicleWeapon: weapon, weaponKey: weapon,
+      ownerId: String(owner.id), owner,
+      x: origin[0], y: origin[1], z: origin[2],
+      vx: dir[0] * rules.speed, vy: dir[1] * rules.speed, vz: dir[2] * rules.speed,
+      gravity: rules.gravity ?? 0,
+      launchedAt: ctx.now, explodeAt: ctx.now + rules.lifetimeMs,
+      stuck: false, hit: null, directVictim: null,
+      blastRules: vehicleWeaponBlast(rules), chaosLevel: 0, chaosHoming: false,
+      raycast: (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
+        ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
+      ),
+    };
+    if (targetId) projectile.guidance = { targetId, turnRate: rules.turnRate, navConstant: rules.navConstant, proximity: rules.proximity };
+    this.active.set(id, projectile);
+    ctx.pushEvent(Object.assign(evProjectileLaunch(owner.id, id, rules.presentation, origin,
+      [projectile.vx, projectile.vy, projectile.vz], rules.lifetimeMs),
+    { chaos: 0, vehicleId: String(vehicleId), vehicleWeapon: weapon, g: projectile.gravity, ...(targetId ? { target: targetId } : {}) }));
+    return projectile;
+  }
+
+  /** Proportional navigation toward a hull (or, after flares, the decoy cloud). */
+  _guide(projectile, dt, ctx) {
+    const g = projectile.guidance, speed = Math.hypot(projectile.vx, projectile.vy, projectile.vz);
+    if (!(speed > 0.1) || !(dt > 0)) return;
+    let target = null, velocity = [0, 0, 0];
+    if (g.targetId) {
+      const v = ctx.vehicles?.vehicles?.get(g.targetId);
+      if (!v || !(v.hp > 0)) g.targetId = null;
+      else { target = ctx.vehicles.hullCenter(v); velocity = [v.vx || 0, v.vy || 0, v.vz || 0]; }
+    }
+    if (!target && g.decoy) {
+      const d = g.decoy;
+      d.vy -= 3 * dt; d.x += d.vx * dt; d.y += d.vy * dt; d.z += d.vz * dt;
+      target = [d.x, d.y, d.z]; velocity = [d.vx, d.vy, d.vz];
+    }
+    if (!target) return;
+    const vm = [projectile.vx, projectile.vy, projectile.vz];
+    const r = [target[0] - projectile.x, target[1] - projectile.y, target[2] - projectile.z];
+    const rr = r[0] * r[0] + r[1] * r[1] + r[2] * r[2];
+    if (rr < 1e-6) return;
+    const vr = [velocity[0] - vm[0], velocity[1] - vm[1], velocity[2] - vm[2]];
+    const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const omega = cross(r, vr).map(n => n / rr);
+    const accel = cross(omega, vm).map(n => n * (g.navConstant ?? 4));
+    // Off-boresight launches also need a pursuit term to swing onto the line of sight.
+    const rl = Math.sqrt(rr), los = r.map(n => n / rl), heading = vm.map(n => n / speed);
+    const along = los[0] * heading[0] + los[1] * heading[1] + los[2] * heading[2];
+    const pursuit = los.map((n, i) => (n - heading[i] * along) * speed * 2);
+    let next = vm.map((n, i) => n + (accel[i] + pursuit[i]) * dt);
+    const length = Math.hypot(...next);
+    if (!(length > 0)) return;
+    next = next.map(n => n / length);
+    const cos = Math.max(-1, Math.min(1, next[0] * heading[0] + next[1] * heading[1] + next[2] * heading[2]));
+    const angle = Math.acos(cos), limit = (g.turnRate ?? 2) * dt;
+    if (angle > limit && angle > 1e-6) {
+      // Rotate the heading toward the commanded direction by at most the turn rate.
+      const t = limit / angle, mix = heading.map((n, i) => n * (1 - t) + next[i] * t), ml = Math.hypot(...mix);
+      next = mix.map(n => n / ml);
+    }
+    projectile.vx = next[0] * speed; projectile.vy = next[1] * speed; projectile.vz = next[2] * speed;
+  }
+
+  /** Proximity fuse against the guided target hull. */
+  _proximity(projectile, ctx) {
+    const g = projectile.guidance;
+    if (!g?.targetId || !(g.proximity > 0)) return false;
+    const v = ctx.vehicles?.vehicles?.get(g.targetId);
+    if (!v || !(v.hp > 0)) return false;
+    const point = [projectile.x, projectile.y, projectile.z];
+    for (const part of vehicleHullParts(v)) {
+      const nearest = nearestHullPoint(part, point);
+      if (Math.hypot(nearest[0] - point[0], nearest[1] - point[1], nearest[2] - point[2]) <= g.proximity) {
+        projectile.directVehicleId = v.id;
+        projectile.directPoint = nearest;
+        this.explode(projectile, ctx);
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Launch one armed-timed bouncing 40 mm round from the SKIPJACK. */
@@ -1001,10 +1210,10 @@ export class ProjectileSystem {
       armedAt: ctx.now + MGL_RULES.armMs,
       explodeAt: ctx.now + MGL_RULES.fuseMs,
       directVictim: null,
-      raycast: (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
-        ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
-      ),
+      vehicleId: player.vehicleId ?? null,
     };
+    projectile.hullProbe = { ignoreId: projectile.vehicleId, hull: null };
+    projectile.raycast = hullRaycast(ctx, projectile.hullProbe);
     this._configureChaos(projectile);
     if (projectile.chaosLevel >= 1) projectile.bouncesLeft += 2;
     if (projectile.chaosLevel >= 2) projectile.blastRules = {
@@ -1050,9 +1259,7 @@ export class ProjectileSystem {
     }
     if (owned >= BUBBLE_RULES.maxPerOwner && oldest) oldest.explodeAt = now;
     const charge = Math.max(0, Math.min(1, Number.isFinite(charge01) ? charge01 : 0));
-    const raycast = (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
-      ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
-    );
+    const hullProbe = { ignoreId: player.vehicleId ?? null, hull: null }, raycast = hullRaycast(ctx, hullProbe);
     const launch = bubbleLaunch({ x: player.eyeX ?? player.x, y: player.eyeY, z: player.eyeZ ?? player.z,
       dir, charge01: charge, raycast });
     const id = `u${this._nextId++}`;
@@ -1073,6 +1280,7 @@ export class ProjectileSystem {
       bulletHits: 0,
       blastRules: bubbleBlastRules(bubbleProfile(charge)),
       raycast,
+      hullProbe,
     };
     this._configureChaos(projectile);
     this.active.set(id, projectile);
@@ -1115,6 +1323,8 @@ export class ProjectileSystem {
       bounced: null,
       // Accumulated path length includes every reflection for damage falloff.
       traveled: 0,
+      // A passenger's own hull never stops the bolt it fires.
+      vehicleId: player.vehicleId ?? null,
       raycast: (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
         ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
       ),
@@ -1163,10 +1373,9 @@ export class ProjectileSystem {
       hitBack: new Set(),
       lastHitAt: new Map(),
       lastOutHitAt: -Infinity,
-      raycast: (ox, oy, oz, dx, dy, dz, max) => raycastVoxels(
-        ctx.solidAt || ((x, y, z) => ctx.getBlock(x, y, z) !== AIR), ox, oy, oz, dx, dy, dz, max,
-      ),
+      hullProbe: { ignoreId: player.vehicleId ?? null, hull: null },
     };
+    projectile.raycast = hullRaycast(ctx, projectile.hullProbe);
     this._configureChaos(projectile);
     this.active.set(id, projectile);
     ctx.pushEvent(Object.assign(evProjectileLaunch(
@@ -1249,7 +1458,7 @@ export class ProjectileSystem {
         vx: Math.cos(angle) * (count > 6 ? 10 : 7), vy: 8 + i % 3, vz: Math.sin(angle) * (count > 6 ? 10 : 7),
         launchedAt: ctx.now, explodeAt: ctx.now + (type === 'frag' ? 1500 : 700) + i * 65,
         chaosHoming: false,
-        isSolid: (x, y, z) => solid(ctx, x, y, z),
+        isSolid: grenadeSolid(ctx),
       };
       this.active.set(id, child);
       ctx.pushEvent(Object.assign(evProjectileLaunch(child.ownerId, id, type,
@@ -1312,13 +1521,15 @@ export class ProjectileSystem {
     const origin = [projectile.x, projectile.y, projectile.z];
     const owner = projectile.owner || ctx.entities.get(projectile.ownerId) || null;
     const ownerId = owner?.id == null ? projectile.ownerId : String(owner.id);
-    ctx.pushEvent(evProjectileExplode(
+    const explodeEvent = evProjectileExplode(
       ownerId,
       projectile.id,
-      projectile.type,
+      projectile.eventType || projectile.type,
       origin,
       rules.damageRadius,
-    ));
+    );
+    if (projectile.vehicleWeapon) explodeEvent.vehicleWeapon = projectile.vehicleWeapon;
+    ctx.pushEvent(explodeEvent);
     if (typeof ctx.canAffectWorld === 'function' && !ctx.canAffectWorld()) return true;
     if (projectile.type === 'smoke') {
       this.smoke.deploy(projectile, ctx);
@@ -1330,6 +1541,17 @@ export class ProjectileSystem {
     }
     const hitVictims = new Set();
     this._damagePlayers(owner, origin, rules, projectile, ctx, hitVictims);
+    if (ctx.grenadeDamage !== false || projectile.type === 'rocket' || projectile.type === 'mgl') {
+      // Hull classes come from the weapon (vehicle rounds), the Conquest rocket
+      // profile, or the blast type; the zone follows the blast or impact point.
+      const splashCls = projectile.hullCls ?? rules.splashCls ?? HULL_BLAST_CLASSES[projectile.type] ?? 'explosive';
+      const directCls = projectile.hullCls ?? rules.cls ?? splashCls;
+      const splash = projectile.hullSplash ?? rules.damage, direct = projectile.hullDirect ?? rules.directDamage;
+      ctx.vehicles?.explosion(origin, rules.damageRadius, splash, owner, { cls: splashCls });
+      if (projectile.directVehicleId && Number.isFinite(direct) && direct > 0) {
+        ctx.vehicles?.damage(projectile.directVehicleId, direct, owner, { cls: directCls, point: projectile.directPoint ?? origin });
+      }
+    }
     if (ctx.grenadeDamage !== false || projectile.type === 'rocket' || projectile.type === 'mgl'
       || projectile.type === 'pulse' || projectile.type === 'bubble') {
       suppressExplosion(owner, origin, rules.damageRadius, hitVictims, ctx);
@@ -1353,12 +1575,14 @@ export class ProjectileSystem {
     // Damage rules key on the blast type; kill credit goes to the source weapon.
     const weaponKey = projectile.weaponKey || projectile.type;
     for (const victim of (ctx.targets || ctx.entities).values()) {
-      if (victim.state !== 'alive') continue;
+      if (occupantShielded(victim) || victim.state !== 'alive') continue;
       if (Number.isFinite(victim.spawnProtectedUntil) &&
           victim.spawnProtectedUntil > ctx.now) continue;
       const isSelf = !!owner && victim.id === owner.id;
       if (!isSelf && !ctx.canDamage(owner, victim)) continue;
-      const target = [victim.x, victim.y + 1.05, victim.z];
+      // Exposed crew are a crouched body in their seat: centre, share and no shove.
+      const seated = !!victim.vehicleId;
+      const target = occupantBodyCenter(victim);
       const dx = target[0] - origin[0];
       const dy = target[1] - origin[1];
       const dz = target[2] - origin[2];
@@ -1368,8 +1592,9 @@ export class ProjectileSystem {
       const falloff = direct
         ? 1
         : Math.pow(1 - distance / rules.damageRadius, rules.damageFalloffExponent ?? 1.22);
-      let damage = rules.damage * falloff;
+      let damage = rules.damage * falloff * (projectile.infantrySplashScale ?? 1);
       if (direct && Number.isFinite(rules.directDamage)) damage += rules.directDamage;
+      damage *= occupantDamageScale(victim);
       // Soaked by an earlier bubble: this pop lands harder.
       if (projectile.type === 'bubble' && !isSelf && victim.soakedUntil > ctx.now) damage *= BUBBLE_RULES.soakedDamageMult;
       // NPC rockets retain the real flight/blast/terrain simulation, with a
@@ -1386,7 +1611,7 @@ export class ProjectileSystem {
         if (projectile.type === 'bubble' && rules.concussMs > 0 && !isSelf) hit.soak = Math.round(rules.concussMs);
         ctx.pushEvent(hit);
       }
-      const strength = victim.objective ? 0 : isSelf && Number.isFinite(rules.selfKnockback)
+      const strength = victim.objective || seated ? 0 : isSelf && Number.isFinite(rules.selfKnockback)
         ? rules.selfKnockback
         : rules.knockback;
       // Pressure falls off more gently than damage for displacement-focused blasts.

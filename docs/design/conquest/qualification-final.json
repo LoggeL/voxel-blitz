@@ -1,0 +1,39 @@
+{
+  "all50Passed": true,
+  "commands": 50,
+  "uniqueCommands": 50,
+  "sourceDigestBefore": "d517a586cc6163c3cd0a7e842d568cc29bd7be80d5117963b0c488b16dbd2aea",
+  "sourceDigestAfter": "d517a586cc6163c3cd0a7e842d568cc29bd7be80d5117963b0c488b16dbd2aea",
+  "codeDigestBefore": "887cf97b1233fa34348ba9c82086b7da5c13797ceb0dd9e759e32e5dfb4a318f",
+  "codeDigestAfter": "887cf97b1233fa34348ba9c82086b7da5c13797ceb0dd9e759e32e5dfb4a318f",
+  "changedDuringRun": [],
+  "codeChangedDuringRun": [],
+  "changedSinceFinalClientPass": [
+    "server/sim/vehicles.js",
+    "tools/conquest-flight-authority-test.mjs"
+  ],
+  "runtimeVehiclesSHA256": "dce5a290292c5eb45c9e3f6e2c428878431463ef99a8c213c998939fe03c7a43",
+  "flightAuthorityTestSHA256": "8652ae845213046a0e16f22b427426164a8aedeba5a9c2e3d3c121e4141820c3",
+  "botAircraft": {
+    "vehicles": 16,
+    "entered": 16,
+    "traveled": 16,
+    "terrainHits": 0,
+    "helicopters": 4,
+    "landed": 4,
+    "dismounted": 4,
+    "jets": 4,
+    "loitered": 4,
+    "minJetLongestLoiterSeconds": 14.183333333333618
+  },
+  "boundary120s": {
+    "handoffs": 13,
+    "seconds": 120,
+    "longestRecoverySeconds": 9.17
+  },
+  "atlasPassed": true,
+  "staticPassed": true,
+  "preloadModules": 177,
+  "ownedSourceChanges": [],
+  "scope": "Local Node plus temporary authoritative network tests; no browser, audio playback or deployment"
+}

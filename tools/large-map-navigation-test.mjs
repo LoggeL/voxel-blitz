@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { AIR, METAL, GROUND, createMapState } from '../shared/worlddata.js';
+import { AIR, METAL, GROUND, createMapState, getMapMeta } from '../shared/worlddata.js';
 import { createStateApi } from '../shared/world/state.js';
 import { boxCollides, solidBelow } from '../shared/player-movement.js';
 import { groundNavigation, groundRoute, groundSegmentClear, navigationWaypoint } from '../server/bot-navigation.js';
@@ -192,4 +192,70 @@ try {
   }
 } finally { Math.random = random; }
 console.log('bikini_bottom: legacy objective arrivals >= 9/11 on both sites, seeds 1-6.');
+
+// Frontier v2: 2.5D surface navigation on the real terrain. Everything is read
+// from mapMeta: every flag, flag spawn cell and HQ pad is reachable from both
+// HQs with a median route of at most 1.35x the straight line, and bots walk
+// there through the real movement pipeline (slopes, steps, bridges, water).
+{
+  const meta = getMapMeta('frontier');
+  assert.equal(meta.navigation?.mode, 'surface', 'Frontier navigates on the surface graph');
+  assert.equal(meta.navigationFloor, null, 'Frontier has no flat navigation floor');
+  const world = createMapState('frontier');
+  const nav = groundNavigation(world);
+  assert(nav && typeof nav.route === 'function', 'groundNavigation dispatches to the surface graph');
+  const flatDist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
+  const bases = meta.conquest.bases;
+  const targets = [];
+  for (const flag of meta.conquest.flags) targets.push(flag, ...flag.spawns);
+  for (const base of Object.values(bases)) targets.push(...base.spawns);
+  for (const pad of meta.conquest.vehicleSpawns) if (!pad.flag) targets.push({ x: pad.x, y: pad.y, z: pad.z });
+  const ratios = [];
+  for (const base of Object.values(bases)) {
+    for (const target of targets) {
+      const route = nav.route(base.spawns[0], target);
+      assert(route.reached, `frontier: (${target.x},${target.z}) is reachable from ${base.id} HQ`);
+      if (flatDist(base.spawns[0], target) > 60) ratios.push(route.length / flatDist(base.spawns[0], target));
+      let previous = base.spawns[0];
+      for (const waypoint of route.points.slice(0, -1)) {
+        assert(Math.abs(waypoint.y - previous.y) <= 4, 'route steps stay within the climb and drop limits');
+        previous = waypoint;
+      }
+    }
+  }
+  ratios.sort((a, b) => a - b);
+  const medianRatio = ratios[Math.floor(ratios.length / 2)];
+  assert(medianRatio <= 1.35, `frontier median route/straight <= 1.35 (${medianRatio.toFixed(3)})`);
+  console.log(`frontier: ${targets.length} targets reachable from both HQs, median route ratio ${medianRatio.toFixed(3)}`);
+
+  // Real walkers: 16 bots from both HQs to every flag, director off, fire off.
+  for (const flag of meta.conquest.flags) {
+    Math.random = mulberry32(4242);
+    const game = new GameEngine({ mode: 'conquest', world: createMapState('frontier'), mapMeta: meta, broadcast: () => {} });
+    const bots = attachBots(game, 16);
+    bots.attachCommander = () => {};
+    game.mode.setBotDirector?.(null);
+    bots.commander = null; bots.director = null;
+    game.vehicles.vehicles.clear();
+    game.mode.canFire = () => false;
+    const target = { x: flag.x, y: flag.y, z: flag.z };
+    game.mode.botGoal = () => ({ kind: 'capture', target, interact: false });
+    const arrived = new Set(), wet = new Set();
+    let ticks = 0;
+    for (; ticks < 2600 && arrived.size < 16; ticks++) {
+      game.step(50);
+      for (const brain of bots.brains) {
+        const p = game.entities.get(brain.id);
+        if (p.state !== 'alive') continue;
+        if (game.fluidAt(Math.floor(p.x), Math.floor(p.y + 1.35), Math.floor(p.z))) wet.add(brain.id);
+        if (flatDist(p, target) <= flag.radius && Math.abs(p.y - flag.y) <= 8) arrived.add(brain.id);
+      }
+    }
+    assert.equal(arrived.size, 16, `frontier flag ${flag.id}: every bot walks into the zone from its HQ (${arrived.size}/16 in ${(ticks / 20).toFixed(0)} s)`);
+    assert.equal(game.entities.size >= 16 && [...game.entities.values()].filter(p => p.bot && p.state !== 'alive').length, 0, `frontier flag ${flag.id}: nobody died on the way`);
+    console.log(`frontier flag ${flag.id}: 16/16 bots arrived in ${(ticks / 20).toFixed(0)} s (${wet.size} got their head wet)`);
+    bots.dispose(); game.stop();
+  }
+  Math.random = random;
+}
 console.log('LARGE MAP NAVIGATION: ALL OK');

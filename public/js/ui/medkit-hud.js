@@ -34,6 +34,8 @@ export class MedkitHud {
     this.inventory.hidden = !alive;
     this.hint.textContent = `STAY STILL · ${key} TO CANCEL`;
     this.inventory.textContent = remaining ? `${key} · MEDKIT ×1${hp >= 100 ? ' · FULL HEALTH' : ''}` : 'MEDKIT USED';
+    // Touch: no key to name and a 100 px HP card (styles/medkit.css shows this instead).
+    this.inventory.dataset.compact = remaining ? 'MEDKIT ×1' : 'MEDKIT USED';
     this.inventory.classList.toggle('is-spent', !remaining);
     this.root.hidden = !active;
     if (!active) return;

@@ -121,6 +121,108 @@ export class SpawnSelector {
     return !raycastVoxels(this.solidAt, ox, oy, oz, dx, dy, dz, dist - 0.1);
   }
 
+  /** Clear body box with a floor, inside the horizontal spawn bounds. Ignores authored floor heights. */
+  standable(point) {
+    const bounds = this.spawnBounds;
+    if (bounds && (point.x < bounds.minX || point.x > bounds.maxX
+      || point.z < bounds.minZ || point.z > bounds.maxZ)) return false;
+    const { sx: SX, sy: SY, sz: SZ } = this.dimensions;
+    if (point.x < 1 || point.z < 1 || point.x >= SX - 1 || point.z >= SZ - 1 || point.y < 1 || point.y > SY - 3) return false;
+    return !boxCollides(this.solidAt, point.x, point.y, point.z)
+      && solidBelow(this.solidAt, point.x, point.y, point.z);
+  }
+
+  _occupied(point, player) {
+    for (const entity of this.entities.values()) {
+      if (entity === player || entity.state !== 'alive') continue;
+      if (Math.hypot(point.x - entity.x, point.y - entity.y, point.z - entity.z) < 1.2) return true;
+    }
+    return false;
+  }
+
+  _markUsed(point) {
+    this.spawnUseTimes.set(spawnPointKey(point), this.now);
+    if (this.spawnUseTimes.size <= MAX_TRACKED_SPAWNS) return;
+    let oldestKey = null;
+    let oldestAt = Infinity;
+    for (const [key, usedAt] of this.spawnUseTimes) {
+      if (usedAt < oldestAt) { oldestKey = key; oldestAt = usedAt; }
+    }
+    if (oldestKey !== null) this.spawnUseTimes.delete(oldestKey);
+  }
+
+  /**
+   * Conquest flag cell. Cells an enemy within `losRange` can see are dropped;
+   * the rest prefer distance from the nearest `awayFrom` point (enemy-held
+   * flags or the enemy HQ), with jitter and a recent-use penalty for variety.
+   * Distance to enemy bodies is never maximised. Null when no cell is usable.
+   */
+  pickFlagCell(pool, player = null, { awayFrom = [], losRange = 40, variety = true, rng = Math.random } = {}) {
+    const enemies = [];
+    for (const entity of this.entities.values()) {
+      if (entity === player || entity.state !== 'alive') continue;
+      if (player && !this.isEnemy(player, entity)) continue;
+      enemies.push(entity);
+    }
+    let best = null;
+    let bestScore = -Infinity;
+    for (let i = 0; i < (pool?.length || 0); i++) {
+      const source = pool[i];
+      if (!source || ![source.x, source.y, source.z].every(Number.isFinite)) continue;
+      const cell = { x: source.x, y: source.y, z: source.z, index: Number.isFinite(source.index) ? Math.trunc(source.index) : i };
+      if (!this.standable(cell) || this.hazardous(cell) || this._occupied(cell, player)) continue;
+      let seen = false;
+      for (const enemy of enemies) {
+        if (Math.hypot(cell.x - enemy.x, cell.y - enemy.y, cell.z - enemy.z) > losRange) continue;
+        if (this.enemyHasSpawnLos(enemy, cell)) { seen = true; break; }
+      }
+      if (seen) continue;
+      let away = 0;
+      if (awayFrom.length) {
+        away = Infinity;
+        for (const point of awayFrom) away = Math.min(away, Math.hypot(cell.x - point.x, cell.z - point.z));
+      }
+      const usedAt = this.spawnUseTimes.get(spawnPointKey(cell));
+      const age = Number.isFinite(usedAt) ? Math.max(0, this.now - usedAt) : SPAWN_RECENT_MS;
+      const recentPenalty = age < SPAWN_RECENT_MS ? SPAWN_RECENT_PENALTY * (1 - age / SPAWN_RECENT_MS) : 0;
+      const score = away - recentPenalty + (variety ? rng() * 8 : 0);
+      if (score > bestScore) { best = cell; bestScore = score; }
+    }
+    if (best) this._markUsed(best);
+    return best ? { ...best } : null;
+  }
+
+  /**
+   * Squad spawn beside a squadmate: 12 ring positions ordered from directly
+   * behind the mate outward, 1-4 m away, each a free standable cell the mate
+   * could see (no wall between them). Null when every probe is blocked.
+   */
+  probeSquadCell(mate, { count = 12, minRadius = 1.5, maxRadius = 3.5, player = null } = {}) {
+    if (!mate || ![mate.x, mate.y, mate.z].every(Number.isFinite)) return null;
+    const yaw = Number.isFinite(mate.yaw) ? mate.yaw : 0;
+    // Forward is (-sin yaw, -cos yaw); behind is the opposite.
+    const back = Math.atan2(Math.sin(yaw), Math.cos(yaw));
+    const offsets = [0];
+    for (let k = 1; offsets.length < count; k++) { offsets.push(k); if (offsets.length < count) offsets.push(-k); }
+    const step = Math.PI / Math.max(1, Math.ceil(count / 2));
+    for (let i = 0; i < offsets.length; i++) {
+      const angle = back + offsets[i] * step;
+      const radius = i % 2 === 0 ? minRadius + (maxRadius - minRadius) * 0.35 : maxRadius;
+      const x = mate.x + Math.sin(angle) * radius;
+      const z = mate.z + Math.cos(angle) * radius;
+      for (const dy of [0, 1, -1]) {
+        const cell = { x, y: mate.y + dy, z };
+        if (!this.standable(cell) || this.hazardous(cell) || this._occupied(cell, player)) continue;
+        const eyeY = mate.y + EYE_HEIGHT * 0.5;
+        const dx = x - mate.x, dz = z - mate.z, dyy = cell.y + EYE_HEIGHT * 0.5 - eyeY;
+        const dist = Math.hypot(dx, dyy, dz);
+        if (dist > 0.2 && raycastVoxels(this.solidAt, mate.x, eyeY, mate.z, dx, dyy, dz, dist)) continue;
+        return { ...cell, index: -1 };
+      }
+    }
+    return null;
+  }
+
   pick(pool, player = null, excludeIndex = -1, { variety = false } = {}) {
     const { sx: SX, sy: SY, sz: SZ } = this.dimensions;
     let candidates = [];

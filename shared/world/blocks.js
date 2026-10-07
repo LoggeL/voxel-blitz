@@ -98,6 +98,24 @@ export const BB_ROCK = 92;
 export const BB_HULL = 93;
 export const BB_CHUM = 94;
 export const BB_ROAD = 95;
+// Frontier v2 valley: meadow and field tops, river mud, scorched crater
+// floors, gravel tracks, forest floor and foliage, and the village, farm and
+// works facades (shared/world/frontier-sites/).
+export const MEADOW = 96;
+export const DRY_GRASS = 97;
+export const FIELD_WHEAT = 98;
+export const MUD = 99;
+export const SCORCHED_EARTH = 100;
+export const GRAVEL = 101;
+export const PINE_NEEDLES = 102;
+export const PINE_LEAVES = 103;
+export const BIRCH_LOG = 104;
+export const WHITE_PLASTER = 105;
+export const TERRACOTTA_ROOF = 106;
+export const COBBLE_WALL = 107;
+export const TIMBER = 108;
+export const CORRUGATED_STEEL = 109;
+export const SOOT_BRICK = 110;
 
 /** Ghost block -> the solid material it imitates (shared by textures and balance). */
 export const MC_GHOST_SOLID = Object.freeze({
@@ -129,6 +147,15 @@ const MC_BALANCE = Object.freeze({
   [MC_CACTUS]: [40, 10, 16, 1], [MC_CHEST]: [90, 30, 40, 3], [MC_FURNACE]: [300, 90, 90, 6],
   [MC_CRAFTING]: [90, 30, 40, 3], [MC_TNT]: [60, 15, 20, 2],
 });
+const FRONTIER_BALANCE = Object.freeze({
+  //                 hp  hardness blast mining
+  [MEADOW]:          [100, 24, 20, 2], [DRY_GRASS]: [100, 24, 20, 2], [FIELD_WHEAT]: [90, 20, 18, 2],
+  [MUD]:             [90, 20, 22, 2], [SCORCHED_EARTH]: [110, 26, 24, 2], [GRAVEL]: [80, 20, 18, 2],
+  [PINE_NEEDLES]:    [100, 24, 20, 2], [PINE_LEAVES]: [10, 2, 8, 1], [BIRCH_LOG]: [120, 32, 42, 4],
+  [WHITE_PLASTER]:   [220, 60, 90, 6], [TERRACOTTA_ROOF]: [180, 50, 82, 5], [COBBLE_WALL]: [300, 85, 96, 6],
+  [TIMBER]:          [140, 32, 46, 4], [CORRUGATED_STEEL]: [300, 90, 70, 7], [SOOT_BRICK]: [240, 70, 84, 5],
+});
+const frontierTable = (column) => Object.fromEntries(Object.entries(FRONTIER_BALANCE).map(([type, row]) => [type, row[column]]));
 const mcTable = (column) => Object.fromEntries([
   ...Object.entries(MC_BALANCE).map(([type, row]) => [type, row[column]]),
   ...Object.entries(MC_GHOST_SOLID).map(([ghost, solid]) => [ghost, MC_BALANCE[solid][column]]),
@@ -154,6 +181,7 @@ export const BLOCK_HP = {
   [BARRICADE]: 480,
   [BB_SAND]: 70, [BB_CORAL]: 220, [BB_PINEAPPLE]: 120, [BB_PINE_LEAF]: 30, [BB_KELP]: 10,
   [BB_MOAI]: 320, [BB_ROCK]: 380, [BB_HULL]: 110, [BB_CHUM]: 420, [BB_ROAD]: 300,
+  ...frontierTable(0),
   ...mcTable(0),
 };
 
@@ -172,6 +200,7 @@ export const BLOCK_HARDNESS = Object.freeze({
   [BARRICADE]: 120,
   [BB_SAND]: 16, [BB_CORAL]: 65, [BB_PINEAPPLE]: 32, [BB_PINE_LEAF]: 8, [BB_KELP]: 4,
   [BB_MOAI]: 90, [BB_ROCK]: 100, [BB_HULL]: 30, [BB_CHUM]: 110, [BB_ROAD]: 85,
+  ...frontierTable(1),
   ...mcTable(1),
   [MC_WATER]: 8, [MC_LAVA]: 8, [MC_PORTAL]: 0,
 });
@@ -208,6 +237,8 @@ export const GRENADE_RESISTANCE = Object.freeze({
   [BB_SAND]: 16, [BB_CORAL]: 82, [BB_PINEAPPLE]: 42, [BB_PINE_LEAF]: 10, [BB_KELP]: 6,
   [BB_MOAI]: 110, [BB_ROCK]: 120, [BB_HULL]: 40, [BB_ROAD]: 112,
   [BB_CHUM]: 140,     // rockets (210) and frags (165) breach the bucket
+  // Grass-like ground (20-24) craters like GRASS; METAL stays infinite.
+  ...frontierTable(2),
   ...mcTable(2),
   [MC_WATER]: Infinity, [MC_LAVA]: Infinity, [MC_PORTAL]: Infinity,
 });
@@ -235,5 +266,6 @@ export const MINING_HITS = Object.freeze({
   [BARRICADE]: 6,
   [BB_SAND]: 2, [BB_CORAL]: 5, [BB_PINEAPPLE]: 4, [BB_PINE_LEAF]: 1, [BB_KELP]: 1,
   [BB_MOAI]: 7, [BB_ROCK]: 8, [BB_HULL]: 3, [BB_CHUM]: 8, [BB_ROAD]: 8,
+  ...frontierTable(3),
   ...mcTable(3),
 });

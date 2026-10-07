@@ -38,6 +38,39 @@ const get = (path, headers = {}, method = 'GET') => new Promise((resolve, reject
 });
 
 try {
+  for (const [name, mime, magic] of [
+    ['frontier.jpg', 'image/jpeg', Buffer.from([0xff, 0xd8, 0xff])],
+    ['frontier-overview.png', 'image/png', Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])],
+  ]) {
+    const original = readFileSync(new URL(`../public/assets/maps/${name}`, import.meta.url));
+    assert.deepEqual(original.subarray(0, magic.length), magic, `${name} is a raster map capture`);
+    const response = await get(`/assets/maps/${name}`);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('content-type'), mime);
+    assert.deepEqual(await response.arrayBuffer(), original, `${name} serves the saved capture bytes`);
+  }
+  assert.equal((await get('/assets/maps/frontier-overview.svg')).status, 404, 'removed placeholder is not served');
+  // Conquest v2: the static capture pages and the lazily loaded match-runtime modules
+  // (main.js reaches them through boot/match-runtime.js, so they sit outside the preload list).
+  for (const page of ['vehicle-capture.html', 'conquest-hud-capture.html']) {
+    const response = await get(`/${page}`);
+    assert.equal(response.status, 200, `${page} is served`);
+    assert.match(String(response.headers.get('content-type')), /^text\/html/, `${page} is HTML`);
+  }
+  for (const module of ['js/fx/particle-field.js', 'js/fx/presets.js', 'js/vehicles/vehicle-fx.js', 'js/engine/camera-shake.js',
+    'js/session/vehicle-camera.js', 'js/engine/conquest-ambience.js', 'js/engine/voxel-light-worker.js', 'js/audio/objective-cues.js',
+    'js/vehicles/voxel-model/mesher.js', 'js/capture/vehicle-capture.js', 'js/capture/conquest-hud-capture.js']) {
+    const response = await get(`/${module}`);
+    assert.equal(response.status, 200, `${module} is served`);
+    assert.equal(response.headers.get('content-type'), 'text/javascript; charset=utf-8', `${module} is a module`);
+  }
+  {
+    const runtime = readFileSync(new URL('../public/js/boot/match-runtime.js', import.meta.url), 'utf8');
+    for (const name of ['VehicleFx', 'ParticleField', 'particleCapacityForTier', 'CameraShake', 'ConquestAmbience',
+      'createObjectiveCues', 'VEHICLE_WARMUP_MATERIALS', 'WORLD_WARMUP_MATERIALS']) {
+      assert.match(runtime, new RegExp(`\\b${name}\\b`), `match runtime exports ${name}`);
+    }
+  }
   const beforeBurst = brotliJobs;
   const concurrent = await Promise.all(Array.from({ length: 12 }, () => get('/js/vendor/three.core.js', { 'accept-encoding': 'br' })));
   assert.equal(brotliJobs - beforeBurst, 1, 'simultaneous cold requests share one Brotli compression job');

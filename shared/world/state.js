@@ -33,8 +33,8 @@ export function createStateApi(
       y |= 0;
       z |= 0;
       if (y < 0) return BEDROCK;
-      if (y >= SY) return AIR;
       if (x < 0 || z < 0 || x >= SX || z >= SZ) return METAL;
+      if (y >= SY) return AIR;
       return blocks[idx(x, y, z)];
     },
 

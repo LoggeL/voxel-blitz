@@ -97,6 +97,7 @@ class Game {
     this._padScoreboard = false;
     this._deviceKey = '';
     this._touchContext = {};
+    this._inputVehicleSeatKey = '';
     this._loopGeneration = 0;
     this._rafId = 0;
     this._disposed = false;
@@ -143,6 +144,13 @@ class Game {
         onEnterLive: (payload) => this.bootLive(payload),
         onDisconnect: () => this.disposeLiveResources(),
         onGameplayEvent: (event) => {
+          // Conquest HUD (ticker, banners, kill feed, hitmarkers) and objective audio see every event first.
+          this.conquestHud?.handleEvent(event, this.myId);
+          this.objectiveCues?.handleEvent(event, this.selfRow?.team);
+          if (event.kind === 'vehicle_destroyed' || (event.kind === 'explosion' && event.type === 'vehicle')) {
+            this.vehicleDestructionFX?.handleEvent(event);
+            return;
+          }
           if (event.kind === 'bastion_clear') { this.effects?.clearCombatHazards(); return; }
           if (event.kind === 'trap') {
             // Innocents hear the effect only; the button and its user stay private.
@@ -159,7 +167,15 @@ class Game {
             return;
           }
           if (this.killcam?.active && ['shoot', 'hit', 'projectileLaunch', 'projectileUpdate', 'projectileStick',
-            'projectileExplode', 'blockDamage', 'block', 'mine'].includes(event.kind)) return;
+            'projectileExplode', 'blockDamage', 'block', 'mine'].includes(event.kind)) {
+            // Live missile trails keep flying in the shared scene: they still take
+            // homing corrections and end (trail and flight loop) at impact.
+            if (event.kind === 'projectileUpdate') this.vehicleFx?.correctMissile(event);
+            else if (event.kind === 'projectileExplode') this.vehicleFx?.endMissile(event.pid);
+            return;
+          }
+          if (event.kind === 'projectileUpdate') this.vehicleFx?.correctMissile(event);
+          else this.vehicleFx?.handleEvent(event, this.myId);
           if (event.kind === 'kill' && event.killer === this.myId && event.victim !== this.myId) this.bumpStattrak(event);
           // Own RIPTIDE stock (embedded discs, fabrication queue) feeds the fabricate gauge.
           if (event.kind === 'glaiveStock' && event.id === this.myId) this.weapon?.adoptGlaiveStock(event);
@@ -332,6 +348,10 @@ class Game {
       getBlock,
       getBlockDamage: (x, y, z) => net.getBlockDamage(x, y, z),
     }, this.mapMeta, { graphics, renderer: this.renderer });
+    this.camera.far = this.worldview.renderDistanceProfile?.cameraFar ?? 400;
+    this.camera.updateProjectionMatrix();
+    this._conquestGroundFogDensity = this.worldview.scene.fog.density;
+    this.worldview.setViewPosition(welcome.spawn);
     this.post.setGrade(this.worldview.palette.grade);
     await this.worldview.ready({ isActive, onProgress: showProgress,
       yieldControl: () => new Promise(resolve => requestAnimationFrame(() => setTimeout(resolve, 0))),
@@ -344,6 +364,38 @@ class Game {
     this.liveEffectsGroup = new rt.THREE.Group();
     this.liveAvatarsGroup = new rt.THREE.Group();
     this.worldview.scene.add(this.liveEffectsGroup, this.liveAvatarsGroup);
+    // Hulls fit their ground attitude from the voxel support; one shake bus serves
+    // the vehicle and the infantry camera.
+    this.vehicleView = new rt.VehicleView({ getBlock });
+    this.cameraShake = new rt.CameraShake({ reducedMotion: displaySettings().reducedMotion });
+    this.vehicleAudio = new rt.VehicleAudio(sfx);
+    this.worldview.scene.add(this.vehicleView.group);
+    if (welcome.gameMode === 'conquest') {
+      this.worldview.dynamicShadows?.addCasterRoot(this.vehicleView.group, { coarse: true });
+      this.worldview.addCharacterRoots(this.vehicleView.lightingRoot());
+      // One shared particle field (2 draws) for vehicle FX, destruction and the world ambience.
+      this.particleField = new rt.ParticleField({ scene: this.liveEffectsGroup, capacity: rt.particleCapacityForTier(graphics.tier) });
+      this.conquestAmbience = new rt.ConquestAmbience({ scene: this.worldview.scene, fx: this.particleField,
+        mapMeta: this.mapMeta, weather: this.worldview.weather || 'golden', getBlock });
+    }
+    this.vehicleController = new rt.VehicleController({ camera: this.camera,
+      raycast: (origin, direction, distance) => this.worldview.pickCameraRay(origin, direction, distance),
+      cameraShake: this.cameraShake, getBaseFov: () => this.session.baseFov,
+    });
+    this.conquestHud = new rt.ConquestHud(document.body, {
+      onInteract: () => this.session.gameplayInputEnabled && this.vehicleController?.queueInteract(),
+      onDeploy: (choice) => this.net?.sendConquest({ deploy: choice }),
+      onSpot: () => this.net?.sendConquest({ spot: 1 }),
+      onSupport: (intent) => this.net?.sendConquest({ support: intent }),
+      combatHud: this.hud.combat,
+      inputEnabled: () => this.session.gameplayInputEnabled,
+    });
+    // The Conquest deploy screen replaces the spectator overlay while dead.
+    this.hud.spectator.setSuppressed(welcome.gameMode === 'conquest');
+    if (welcome.gameMode === 'conquest') {
+      const audio = sfx.objectiveAudio?.();
+      this.objectiveCues = rt.createObjectiveCues({ audioContext: audio?.engine ?? null, announcer: audio?.announcer ?? null });
+    }
     this.worldview.dynamicShadows?.addCasterRoot(this.liveAvatarsGroup, { coarse: true });
     this.effects = new rt.Effects(this.liveEffectsGroup, this.camera, getBlock, {
       // RIPTIDE discs home on their owner: the local body or a presented remote avatar.
@@ -370,6 +422,12 @@ class Game {
         // The horns flare and the view leans toward the own disc as it turns home.
         this.rig?.glaiveReturn({ world: detail, all: false });
       },
+    });
+    if (welcome.gameMode === 'conquest') this.vehicleDestructionFX = new rt.VehicleDestructionFX(this.liveEffectsGroup, {
+      explosions: this.effects.projectiles.explosions, camera: this.camera, getBlock,
+      quality: graphics.tier,
+      getFragments: (id, options) => this.vehicleView?.destructionFragments(id, options),
+      fx: this.particleField, sfx, cameraShake: this.cameraShake,
     });
     this.worldview.scene.add(this.camera);
     this.ownBody = rt.makeFirstPersonBody();
@@ -414,6 +472,11 @@ class Game {
       else if (cue === 'throw') sfx.grenadeThrow(charge);
     };
     this.muzzleLights = new rt.MuzzleLights(this.worldview.scene);
+    // Mounted-weapon, hull-hit, countermeasure and locomotion FX; built before warm-up
+    // so its decal, sprite and particle programs compile with the scene.
+    if (welcome.gameMode === 'conquest') this.vehicleFx = new rt.VehicleFx({ fx: this.particleField, vehicleView: this.vehicleView,
+      sfx, cameraShake: this.cameraShake, getBlock, tracers: this.effects.tracers, muzzleLights: this.muzzleLights,
+      scene: this.liveEffectsGroup });
     this.roster = new rt.AvatarRoster({
       getBlock,
       scene: this.liveAvatarsGroup,
@@ -489,11 +552,16 @@ class Game {
     });
     this.runHud = new RunHud({ getMyId: () => this.myId });
 
+    // renderer.compile never runs scene.onBeforeRender: apply the Frontier far-fade
+    // defines to roots added after the WorldView before they are warmed.
+    this.worldview.syncFarFog();
     showStatus('warming up shaders…', 'ok');
     this.shaderWarmup = await rt.warmShaders({
       renderer: this.renderer, scene: this.worldview.scene, camera: this.camera,
       post: this.post, characterRoots: this.worldview.characterRoots || [],
       shadows: this.worldview.dynamicShadows,
+      expectMaterials: welcome.gameMode === 'conquest'
+        ? [...rt.VEHICLE_WARMUP_MATERIALS, ...(this.mapMeta?.id === 'frontier' ? rt.WORLD_WARMUP_MATERIALS : [])] : null,
     });
     if (!isActive()) return;
     if (!net.isOpen()) return this.session.handleDisconnect();
@@ -571,9 +639,21 @@ class Game {
     const previousMatch = this.matchState;
     this.matchState = match;
     this.worldview?.setMatch(match, Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : undefined);
+    // Conquest flags draw team-relative colours (own blue, enemy orange).
+    this.worldview?.setViewerTeam?.(self?.team ?? null);
     this.worldview?.tttTraps?.sync(self?.ttt?.traps || []);
     this.worldview?.setPowerups(snapshot.powerups);
     this.selfRow = self;
+    this.vehicleView?.sync(snapshot.vehicles, players, self, { events: snapshot.events, snapSeq: snapshot.snapSeq });
+    this.vehicleDestructionFX?.sync(snapshot.vehicles);
+    if (this.player?.physics) {
+      this.player.physics.vehicleColliders = Array.isArray(snapshot.vehicles) ? snapshot.vehicles : [];
+    }
+    this.vehicleController?.sync({ self, vehicles: snapshot.vehicles, enabled: match?.mode === 'conquest' });
+    this.conquestHud?.update({ match, mapMeta: this.mapMeta, self, players, vehicles: snapshot.vehicles, camera: this.camera,
+      nearbyVehicle: this.vehicleController?.nearest, vehicleController: this.vehicleController,
+      nowMs: Number.isFinite(snapshot.serverNow) ? snapshot.serverNow : undefined });
+    this.objectiveCues?.syncMatch(match, self?.team, self);
     if (match?.mode === 'ttt') this.tttControls ??= new this.rt.TttControls(this);
     this.tttControls?.sync(match,self,players);
     this.rig?.setCosmetics(self?.cosmetics);
@@ -650,7 +730,9 @@ class Game {
       sfx.playCosmetic(winner?.cosmetics?.sound, 'victory');
     } else if (previousMatch?.phase === 'post' && match?.phase !== 'post') sfx.stopCosmetics();
 
-
+    // Seat acknowledgements must clear held input before another player frame can
+    // interpret a mounted trigger or queued infantry action in its new context.
+    if (this.vehicleController) this.syncTouchContext();
   }
 
   respawnLocal(row) {
@@ -663,7 +745,7 @@ class Game {
   }
 
   isAuthoritativeFireAllowed(grenade = false, options = {}) {
-    if (!this.session.gameplayInputEnabled || !this.player.alive ||
+    if (this.vehicleController?.active || !this.session.gameplayInputEnabled || !this.player.alive ||
         this.selfRow?.state !== 'alive' || this.weaponWheel.open || this.grenadePouch?.open ||
         (this.player.physics.vault && !options.ignoreVault)) return false;
     if (this.matchState?.mode === 'ttt') {
@@ -822,15 +904,24 @@ class Game {
    * Cheap on unchanged frames because TouchControls diffs the visibility set.
    */
   syncTouchContext() {
-    if (!this.input.usesTouchControls()) return;
     const alive = this.player.alive && this.selfRow?.state === 'alive';
     const def = this.weapon?.def;
     const ammo = this.weapon && def ? this.weapon.ammoOf(def.id) : null;
     const owned = this.selfRow?.owned;
     const ctx = this._touchContext;
     ctx.alive = alive;
+    ctx.vehicleSeated = alive && !!this.vehicleController?.active;
+    ctx.vehicleType = ctx.vehicleSeated ? this.vehicleController.vehicle.type : null;
+    ctx.vehicleId = ctx.vehicleSeated ? this.vehicleController.vehicle.id : null;
+    ctx.vehicleSeatId = ctx.vehicleSeated ? this.vehicleController.seatId : null;
+    ctx.vehicleRole = ctx.vehicleSeated ? this.vehicleController.role : null;
+    ctx.vehicleCanDrive = ctx.vehicleSeated && this.vehicleController.isDriver;
+    ctx.vehicleCanFire = ctx.vehicleSeated && this.vehicleController.canFire;
     // Build mode keeps the fire chip: it places the blueprint instead of shooting.
-    ctx.canFire = this.isAuthoritativeFireAllowed() || !!this.build?.active;
+    // Any seat with mounts (seatWeaponList) or a personal-weapon passenger seat can fire.
+    ctx.canFire = ctx.vehicleSeated
+      ? this.session.gameplayInputEnabled && this.vehicleController.canFire
+      : this.isAuthoritativeFireAllowed() || !!this.build?.active;
     ctx.canReload = !!(ammo && def && ammo.mag < def.magSize && ammo.reserve > 0
       && !this.weapon.isReloading);
     ctx.canInteract = this.isAuthoritativeInteractAllowed();
@@ -851,7 +942,23 @@ class Game {
     ctx.grenadeReady = this.activeGrenadeIndex();
     ctx.grenadePowerIndex = this.input.getGrenadePowerIndex?.();
     ctx.pouchOpen = this.grenadePouch.open;
+    // Conquest MAP, SPOT, DEPLOY, SEAT and FLARES/SMOKE buttons. ctx persists, so the
+    // fallback lists every key: a missing one would keep a stale value.
+    Object.assign(ctx, this.conquestHud ? this.conquestHud.touchContextFields() : { conquest: false, deployOpen: false, deployValid: true,
+      deployLabel: 'DEPLOY', vehicleSeatCount: 0, vehicleCountermeasure: null, vehicleCountermeasureReady: false });
     this.input.setTouchContext(ctx);
+    const seatKey = ctx.vehicleSeated ? `${ctx.vehicleId}:${ctx.vehicleSeatId}` : '';
+    if (seatKey !== this._inputVehicleSeatKey) {
+      this._inputVehicleSeatKey = seatKey;
+      this._vehicleControlSample = null;
+      this._vehicleSendAt = 0;
+      this._seatReloadQueued = false;
+      // Reuse the local input gate to discard unsent fire/grenade/ADS latches.
+      // Restoring the current permission immediately accepts genuinely new input.
+      this.player.setGameplayInputEnabled(false);
+      this.weapon?.clearIntents();
+      this.player.setGameplayInputEnabled(this.session.gameplayInputEnabled && alive);
+    }
   }
 
   /**
@@ -933,6 +1040,7 @@ class Game {
     const dt = Math.min(0.05, frameDt);
     const now = nowMs();
     this.session.syncGameplayInput();
+    this.syncTouchContext();
     this.input.poll(now, dt);
     // Drain spectator motion before LocalPlayer consumes and discards dead-player look.
     const spectatorLook = this.spectator?.active ? this.input.consumeDelta() : null;
@@ -943,7 +1051,61 @@ class Game {
       this._padScoreboard = this.input.scoreboardHeld;
       this.hud.setScoreboard(this._padScoreboard);
     }
-    this.player.update(dt, now, {
+    if (!this.session.gameplayInputEnabled) this.vehicleController?.consumeAction();
+    // Pad Conquest controls: D-pad left taps enter or leave like T; the HUD maps
+    // seats, countermeasures, spot, full map and the deploy screen.
+    const pad = this.input.padButtons;
+    this.vehicleController?.padInteract({ held: !!pad?.held.interact, pressed: !!pad?.pressed.interact },
+      this.session.gameplayInputEnabled && !!pad);
+    this.conquestHud?.padInput({ pressed: pad?.pressed, blocked: !!this.hud.settingsOpen,
+      scoped: this.vehicleController?.active !== true && !!this.weapon?.scopeActive });
+    const seated = this.vehicleController?.active === true;
+    if (this.mapMeta?.id === 'frontier' && this.worldview?.scene.fog) {
+      const row = this.vehicleController?.vehicle;
+      const flying = seated && ['helicopter', 'transport', 'plane'].includes(row.type) && row.grounded === false;
+      const density = flying ? this.worldview.renderDistanceProfile.fogAirDensity : this._conquestGroundFogDensity;
+      this.worldview.scene.fog.density += (density - this.worldview.scene.fog.density) * (1 - Math.exp(-Math.max(0, dt) * 2));
+    }
+    if (seated) {
+      this.input.cancelGrenade?.('vehicle');
+      const seatKeys = this.session.gameplayInputEnabled ? this.input.getKeys() : {};
+      // Passengers with personal weapons reload their infantry gun: latch the one-shot R
+      // press until the next 20 Hz send, where the server sees it as a reload edge.
+      if (seatKeys.reload && this.vehicleController.seat?.personalWeapons) this._seatReloadQueued = true;
+      const controls = this.vehicleController.controls(seatKeys,
+        this.input.consumeDelta(), this.session.gameplayInputEnabled && this.input.wantFireHeld && this.matchState?.phase === 'live', dt);
+      const row = this.vehicleController.vehicle;
+      Object.assign(this.player.pos, { x: row.x, y: row.y, z: row.z });
+      Object.assign(this.player.physics.vel, { x: 0, y: 0, z: 0 });
+      this.player.view.yaw = controls.yaw; this.player.view.pitch = controls.pitch;
+      const axes = ['vehiclePitchControl', 'vehicleRollControl', 'vehicleYawControl'];
+      if (axes.some(field => Object.hasOwn(controls, field))) {
+        if (this._vehicleControlSample?.id !== row.id) this._vehicleControlSample = { id: row.id, duration: 0, totals: [0, 0, 0] };
+        const sample = this._vehicleControlSample;
+        sample.duration += dt;
+        axes.forEach((field, i) => { sample.totals[i] += (Number.isFinite(controls[field]) ? controls[field] : 0) * dt; });
+      } else this._vehicleControlSample = null;
+      if (now >= (this._vehicleSendAt || 0)) {
+        this._vehicleSendAt = now + 50;
+        const sampled = { ...controls };
+        if (this._vehicleControlSample?.duration > 0) {
+          const sample = this._vehicleControlSample;
+          axes.forEach((field, i) => { sampled[field] = sample.totals[i] / sample.duration; });
+          sample.duration = 0; sample.totals.fill(0);
+        }
+        const vehicleAction = this.session.gameplayInputEnabled ? this.vehicleController.consumeAction() : null;
+        if (vehicleAction?.type === 'exit') { sampled.wantFire = false; this._vehicleControlSample = null; }
+        this.net?.sendInput({ ...sampled, keys: {}, weapon: this.weapon.slot, vehicleAction,
+          reload: this._seatReloadQueued === true,
+          vehicleControlId: row.id, vehicleControlSeatId: this.vehicleController.seatId });
+        this._seatReloadQueued = false;
+      }
+      // Drain infantry one-shot actions so leaving a seat cannot replay them.
+      for (const method of ['consumeQuickMelee', 'consumeMedkit', 'consumeFireTap',
+        'consumeWeaponSwitch', 'consumeWeaponSlot', 'consumeLastWeaponRequest', 'consumeGrenadeThrow']) this.input[method]?.();
+    } else {
+      this._vehicleControlSample = null;
+      this.player.update(dt, now, {
       weapon: this.weapon,
       movementAllowed: () => this.isAuthoritativeMovementAllowed(),
       fireAllowed: () => this.isAuthoritativeFireAllowed(),
@@ -972,14 +1134,16 @@ class Game {
           return false;
         }
       },
-      sendInput: (input) => this.net?.sendInput(input) || false,
+      sendInput: (input) => this.net?.sendInput({ ...input,
+        vehicleAction: this.session.gameplayInputEnabled ? this.vehicleController?.consumeAction() : null }) || false,
       getNetworkWeaponState: () => ({
         slot: this.weapon.slot,
         // reloadIntent also carries a pending RIPTIDE return (R) until the server acks it.
         reloading: this.weapon.reloadIntent,
         reloadId: this.weapon.reloadId,
       }),
-    });
+      });
+    }
     this.weapon.settleFrame(dt, { vaulting: !!this.player.physics.vault });
     // Own footfalls: quiet, unpositioned, so the player knows how loud they are.
     const ownStep = this.footsteps.update(dt, {
@@ -989,7 +1153,7 @@ class Game {
     if (ownStep > 0 && !this.spectator?.active) sfx.footstep(ownStep * 0.3, {
       body: this.player.physics, surface: footstepSurfaceAt(getBlock, this.player.physics.pos),
     });
-    this.presentGrenadeHandling(now);
+    if (!seated) this.presentGrenadeHandling(now);
     const def = this.weapon.def;
     // Scope zoom steps (Z / R3) only while looking through the optic.
     const zoomSteps = this.input.consumeZoomStep();
@@ -1001,7 +1165,10 @@ class Game {
     const dying = deathMs !== null && deathMs < this.rt.DEATH_HEAD.introMs;
     this.player.deathCamMotion = displaySettings().reducedMotion ? 0.15 : 1;
     this.deathFade?.set(deathMs === null ? 0 : this.rt.deathFadeOpacity(deathMs), dying);
-    if (this.spectator?.active && !dying) {
+    this.cameraShake?.setReducedMotion(displaySettings().reducedMotion);
+    // The vehicle camera applies the shake bus itself; the infantry camera applies it below.
+    if (seated) this.vehicleController.updateCamera(dt, this.vehicleView?.presentedRow(this.vehicleController.vehicle?.id));
+    else if (this.spectator?.active && !dying) {
       if (this.camera.fov !== this.session.baseFov) {
         this.camera.fov = this.session.baseFov;
         this.camera.updateProjectionMatrix();
@@ -1011,7 +1178,11 @@ class Game {
       const blastShake = this.effects.currentShakeXY;
       this.camera.rotation.x += blastShake.y * (displaySettings().reducedMotion ? 0.15 : 1);
       this.camera.rotation.y += blastShake.x * (displaySettings().reducedMotion ? 0.15 : 1);
+      this.cameraShake?.apply(this.camera, dt);
     }
+    // Markers and reticles follow the camera every frame; snapshots only ingest.
+    this.conquestHud?.refresh({ camera: this.camera, nowMs: (this.serverNow || 0) + Math.max(0, now - (this.smokeObservedAt || now)),
+      interactDown: !!this.player?.keys?.interact });
     try {
       // Body velocity in the camera frame: +x strafing right, +z backing up. The rig uses
       // it for a lagged lateral lean so the carried gun swings against direction changes.
@@ -1051,7 +1222,13 @@ class Game {
         [flameDirection.x, flameDirection.y, flameDirection.z],
         [this.camera.position.x, this.camera.position.y, this.camera.position.z]);
       this.effects.update(dt, frameDt);
-      this.worldview.update(dt, this.camera);
+      this.vehicleView?.update(dt, this.camera);
+      this.vehicleFx?.update(dt, this.camera);
+      this.particleField?.update(dt, this.camera);
+      this.vehicleDestructionFX?.update(dt);
+      this.vehicleAudio?.update(this.net?.latestSnapshots?.at(-1)?.vehicles, this.camera.position, { self: this.selfRow });
+      this.conquestAmbience?.update(dt, this.camera);
+      this.worldview.update(dt, this.camera, { targetFps: this.frameRate.targetFps });
     } catch (error) { this.phaseError('fx/rig', error); }
     try {
       if (this.build) {
@@ -1080,12 +1257,12 @@ class Game {
     this.syncDeviceInfo(now);
     if (this.rig?.root) {
       this.rig.root.visible = this.rt.shouldShowViewmodel({
-        spectating: spectating || dying,
+        spectating: spectating || dying || seated,
         scopeActive: this.weapon?.scopeActive,
       });
     }
     // The headless body stays in shot while the head flies off it.
-    if (spectating && !dying && this.ownBody?.group) this.ownBody.group.visible = false;
+    if (((spectating && !dying) || seated) && this.ownBody?.group) this.ownBody.group.visible = false;
 
     const beamAim = this.weapon.def.id === 'lance'
       ? this.worldview.pickCameraRay(this.camera.position, fwdFromAngles(this.player.shotYaw, this.player.shotPitch), HITSCAN_REACH)
@@ -1166,16 +1343,19 @@ class Game {
     this._postFrame.scopeActive = !!this.weapon?.scopeActive;
     this.roster.updateMuzzleLights(this.muzzleLights,
       this.rig.root.visible ? this.rig.flashLight : null, this.camera);
+    // A tank cannon flash takes the remote muzzle-light slot for 90 ms.
+    this.vehicleFx?.applyMuzzleLight();
     const replaying = this.killcam?.update(frameDt, this.camera.aspect, this.session.baseFov);
     this.liveEffectsGroup.visible = !replaying;
     this.liveAvatarsGroup.visible = !replaying;
     this.worldview.powerups.group.visible = !replaying;
     // Character light probe, material patching and contact blobs (contact-shadows.js).
-    const characterFrame = this._characterFrame ||= { camera: null, dt: 0, roster: null, bodyPosition: null };
+    const characterFrame = this._characterFrame ||= { camera: null, dt: 0, roster: null, bodyPosition: null, vehicles: null };
     characterFrame.camera = replaying ? this.killcam.camera : this.camera;
     characterFrame.dt = frameDt;
     characterFrame.roster = replaying ? this.killcam.roster : this.roster;
     characterFrame.bodyPosition = !replaying && !spectating && this.player.alive ? this.player.pos : null;
+    characterFrame.vehicles = replaying ? null : this.vehicleView;
     this.worldview.presentCharacters?.(characterFrame);
     const renderStart = performance.now();
     if (renderFrame && replaying) {
@@ -1212,6 +1392,19 @@ class Game {
     this._pendingAuthoritativeSnapshots = [];
     this._bootBlockDeltas = null;
     this._lastConsumedSnapSeq = null;
+    this.vehicleController?.dispose(); this.vehicleController = null;
+    this.vehicleView?.dispose(); this.vehicleView = null;
+    this.vehicleDestructionFX?.dispose(); this.vehicleDestructionFX = null;
+    this.vehicleFx?.dispose(); this.vehicleFx = null;
+    this.conquestAmbience?.dispose(); this.conquestAmbience = null;
+    this.particleField?.dispose(); this.particleField = null;
+    this.cameraShake = null;
+    this.vehicleAudio?.dispose(); this.vehicleAudio = null;
+    this.conquestHud?.dispose(); this.conquestHud = null;
+    this.objectiveCues?.dispose(); this.objectiveCues = null;
+    this.hud.spectator?.setSuppressed(false);
+    this._vehicleSendAt = 0;
+    this._vehicleControlSample = null;
     this.feedback?.dispose();
     this.runHud?.dispose();
     this.tttControls?.dispose();this.tttControls=null;
@@ -1292,6 +1485,19 @@ window.__vb = {
       frameRate: game.frameRate.snapshot,
       hp: player?.hp ?? 100,
       feet: pos && [pos.x, pos.y, pos.z].every(Number.isFinite) ? { x: pos.x, y: pos.y, z: pos.z } : null,
+      vehicle: game.vehicleController?.vehicle ? { ...game.vehicleController.vehicle } : null,
+      vehicleSeat: game.vehicleController?.active ? {
+        id: game.vehicleController.seatId, role: game.vehicleController.role,
+        canDrive: game.vehicleController.isDriver, canFire: game.vehicleController.canFire,
+      } : null,
+      vehicles: game.net?.latestSnapshots?.at(-1)?.vehicles || [],
+      vehicleDestruction: game.vehicleDestructionFX?.stats || null,
+      vehicleDrivers: [...(game.vehicleView?.items?.values() || [])].filter(item => item.driver).map(item => ({
+        vehicleId: item.row?.id,
+        playerId: item.driver.playerId,
+        visible: item.driver.avatar.group.visible,
+      })),
+      players: snapshots.at(-1)?.players || [],
       crouching: !!player?.crouchBool,
       pitch: player?.view.pitch ?? 0,
       yaw: player?.view.yaw ?? 0,
@@ -1362,6 +1568,11 @@ window.__vb = {
       ping: Math.round(game.net?.ping || 0),
       avatars: game.roster?.size || 0,
       chunks: game.worldview?.chunkStore.stats || null,
+      renderDistance: game.worldview?.renderDistanceProfile ? {
+        cameraFar: game.camera?.far,
+        fogDensity: game.worldview.scene.fog?.density,
+        profile: game.worldview.renderDistanceProfile,
+      } : null,
       damagedBlocks: game.net?.blockDamage?.size || 0,
     };
   },

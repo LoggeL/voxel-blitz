@@ -6,11 +6,20 @@
 // cell owns a fixed vertex slot in its region, so a block delta that hides or
 // reveals a tuft rewrites that slot in place; only newly placed grass relays
 // out a region, at most one region per frame.
+//
+// Large worlds stream instead (`streaming: true`): one region per completed
+// 16 x 16 detail chunk within STREAM_RADIUS chunks of the view, built when the
+// chunk mesh lands (nearest first, two per frame) and released when the chunk
+// is evicted or falls out of reach, so tufts never cost a full-map scan, only
+// grow where detailed terrain is drawn and stay within (2r+1)^2 draws. A blade
+// is 0.22 m: past ~55 m it is below a pixel, so farther regions are wasted.
 
 import * as THREE from '../vendor/three.module.js';
 import { AIR, GRASS, MC_GRASS } from '../../../shared/worlddata.js';
+import * as WORLD_BLOCKS from '../../../shared/world/blocks.js';
 import { patchVoxelLitMaterial, createVoxelLightUniforms } from './voxel-light.js';
 import { displaySettings } from '../ui/display-settings.js';
+import { materialColor } from './distant-voxel-shell.js';
 
 export const TUFT_REGION = 64;
 export const TUFT_MAX_HEIGHT = 0.22;
@@ -21,7 +30,16 @@ const TUFTS_PER_BLOCK = 1.5;
 /** Tip sway in metres at full motion. */
 const SWAY_AMPLITUDE = 0.035;
 
-const GRASS_BLOCKS = new Set([GRASS, MC_GRASS]);
+/** Detail chunk edge for streamed regions (chunks.js CHUNK_X). */
+const STREAM_REGION = 16;
+/** Streamed regions built per frame. */
+const STREAM_BUILDS_PER_FRAME = 2;
+/** Chebyshev reach (in detail chunks) of streamed tufts around the view chunk. */
+export const TUFT_STREAM_RADIUS = 3;
+
+// Frontier's meadow, dry grass and wheat (WP4 blocks) once those ids exist.
+const LARGE_WORLD_GRASS = [WORLD_BLOCKS.MEADOW, WORLD_BLOCKS.DRY_GRASS, WORLD_BLOCKS.FIELD_WHEAT].filter(Number.isInteger);
+const GRASS_BLOCKS = new Set([GRASS, MC_GRASS, ...LARGE_WORLD_GRASS]);
 
 // Linear base tones taken from each grass top tile's average colour: the
 // blade roots melt into the tile, the tips catch a little more light.
@@ -29,6 +47,11 @@ const TONES = new Map([
   [GRASS, new THREE.Color().setRGB(78 / 255, 140 / 255, 47 / 255, THREE.SRGBColorSpace)],
   [MC_GRASS, new THREE.Color().setRGB(104 / 255, 158 / 255, 66 / 255, THREE.SRGBColorSpace)],
 ]);
+for (const id of LARGE_WORLD_GRASS) {
+  // The painter average is already linear; blades sit a little above the tile.
+  const [r, g, b] = materialColor(id, 2);
+  TONES.set(id, new THREE.Color(r / 255 * 1.05, g / 255 * 1.05, b / 255 * 1.05));
+}
 const ROOT_SHADE = 0.55;
 /** Sunlit, slightly yellowed tips (r, g, b gain over the base tone). */
 const TIP_GAIN = [1.5, 1.34, 1.05];
@@ -137,7 +160,7 @@ export class GrassTufts {
    *   density is the graphics tier's grassDensity (0 disables tufts entirely).
    */
   constructor(parent, getBlock, getBlockDamage, dimensions, {
-    density = 0, lightUniforms, receiveShadow = false,
+    density = 0, lightUniforms, receiveShadow = false, streaming = false,
   } = {}) {
     this.parent = parent;
     this.getBlock = getBlock;
@@ -147,16 +170,41 @@ export class GrassTufts {
     this.enabled = this.density > 0;
     this.perBlock = TUFTS_PER_BLOCK * this.density;
     this.receiveShadow = receiveShadow;
+    this.streaming = streaming === true;
     this.width = Math.ceil(dimensions.sx / TUFT_REGION);
     this.depth = Math.ceil(dimensions.sz / TUFT_REGION);
     this.regions = [];
+    this.streamed = new Map();     // detail chunk key -> region (streaming)
+    this.streamSignature = '';
     this.dirty = [];
     this.time = 0;
     this.group = new THREE.Group();
     this.group.name = 'grass-tufts';
     this.material = this.enabled ? createTuftMaterial(lightUniforms) : null;
     this.uniforms = this.material?.userData.tuftUniforms || null;
+    // Streamed regions appear as the player moves; a zero-draw mesh with the
+    // same attributes keeps the tuft program in the scene from the start, so
+    // shader warm-up links it before the first region ever exists.
+    this.warmMesh = this.enabled && this.streaming ? this.createWarmMesh() : null;
     parent.add(this.group);
+  }
+
+  createWarmMesh() {
+    const geometry = new THREE.BufferGeometry();
+    geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(9), 3));
+    geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(9), 3));
+    geometry.setAttribute('tuftSway', new THREE.BufferAttribute(new Float32Array(3), 1));
+    geometry.setIndex(new THREE.BufferAttribute(new Uint32Array([0, 1, 2]), 1));
+    geometry.setDrawRange(0, 0);
+    geometry.boundingSphere = new THREE.Sphere(new THREE.Vector3(), Infinity);
+    const mesh = new THREE.Mesh(geometry, this.material);
+    mesh.name = 'grass-tufts-warmup';
+    mesh.matrixAutoUpdate = false;
+    mesh.frustumCulled = false;
+    mesh.receiveShadow = this.receiveShadow;
+    mesh.userData.noShadow = true;
+    this.group.add(mesh);
+    return mesh;
   }
 
   cellIndex(x, y, z) {
@@ -164,6 +212,7 @@ export class GrassTufts {
   }
 
   regionOf(x, z) {
+    if (this.streaming) return this.streamed.get(`${(x / STREAM_REGION) | 0},${(z / STREAM_REGION) | 0}`);
     return this.regions[((z / TUFT_REGION) | 0) * this.width + ((x / TUFT_REGION) | 0)];
   }
 
@@ -176,7 +225,8 @@ export class GrassTufts {
 
   /** Scan the world once for grass blocks, then lay out every region. */
   build() {
-    if (!this.enabled) return this;
+    // Streaming worlds grow tufts per detail chunk instead (syncChunks).
+    if (!this.enabled || this.streaming) return this;
     const { sx: SX, sy: SY, sz: SZ } = this.dimensions;
     this.regions = [];
     for (let i = 0; i < this.width * this.depth; i++) {
@@ -201,10 +251,11 @@ export class GrassTufts {
    * cells, which have no slot yet, queue a relayout of the region.
    */
   applyBlockDelta(x, y, z, v) {
-    if (!this.enabled || this.regions.length === 0) return;
+    if (!this.enabled || (!this.streaming && this.regions.length === 0)) return;
     const { sx: SX, sy: SY, sz: SZ } = this.dimensions;
     if (x < 0 || z < 0 || x >= SX || z >= SZ || y < 0 || y >= SY) return;
     const region = this.regionOf(x, z);
+    if (!region) return;
     if (GRASS_BLOCKS.has(v)) region.cells.add(this.cellIndex(x, y, z));
     for (let yy = y; yy >= y - 1 && yy >= 0; yy--) {
       const index = this.cellIndex(x, yy, z);
@@ -318,6 +369,68 @@ export class GrassTufts {
     mesh.visible = region.tufts.size > 0;
     region.mesh = mesh;
     this.group.add(mesh);
+    // A real region now carries the program; the empty warm-up mesh can go quiet.
+    if (this.warmMesh && mesh.visible) this.warmMesh.visible = false;
+  }
+
+  /**
+   * Streaming: follow the completed detail chunks. New chunks get a region
+   * (nearest the view first, a bounded number per frame); evicted chunks drop
+   * theirs at once. Arena maps ignore this.
+   */
+  syncChunks(chunkStore, { budget = STREAM_BUILDS_PER_FRAME, radius = TUFT_STREAM_RADIUS } = {}) {
+    if (!this.enabled || !this.streaming) return;
+    const chunks = chunkStore.chunks;
+    const view = chunkStore.viewChunk;
+    const reach = (key) => {
+      if (!view) return 0;
+      const comma = key.indexOf(',');
+      return Math.max(Math.abs(Number(key.slice(0, comma)) - view.cx), Math.abs(Number(key.slice(comma + 1)) - view.cz));
+    };
+    for (const [key, region] of this.streamed) {
+      if (chunks.has(key) && reach(key) <= radius) continue;
+      this.releaseRegion(region);
+      this.streamed.delete(key);
+    }
+    const missing = [];
+    for (const key of chunks.keys()) if (!this.streamed.has(key) && reach(key) <= radius) missing.push(key);
+    if (!missing.length) return;
+    if (view) {
+      const distance = (key) => {
+        const comma = key.indexOf(',');
+        return (Number(key.slice(0, comma)) - view.cx) ** 2 + (Number(key.slice(comma + 1)) - view.cz) ** 2;
+      };
+      missing.sort((a, b) => distance(a) - distance(b));
+    }
+    for (let i = 0; i < missing.length && i < budget; i++) this.streamRegion(missing[i]);
+  }
+
+  /** Scan one detail chunk's columns for grass and lay out its region. */
+  streamRegion(key) {
+    const [cx, cz] = key.split(',').map(Number);
+    const { sx: SX, sy: SY, sz: SZ } = this.dimensions;
+    const region = { index: key, cells: new Set(), slots: new Map(), tufts: new Set(), mesh: null, queued: false };
+    for (let z = cz * STREAM_REGION; z < Math.min(SZ, (cz + 1) * STREAM_REGION); z++) {
+      for (let x = cx * STREAM_REGION; x < Math.min(SX, (cx + 1) * STREAM_REGION); x++) {
+        for (let y = 0; y < SY; y++) {
+          if (GRASS_BLOCKS.has(this.getBlock(x, y, z))) region.cells.add(this.cellIndex(x, y, z));
+        }
+      }
+    }
+    this.streamed.set(key, region);
+    this.rebuildRegion(region);
+    return region;
+  }
+
+  releaseRegion(region) {
+    if (region.mesh) {
+      this.group.remove(region.mesh);
+      region.mesh.geometry.dispose();
+      region.mesh = null;
+    }
+    region.queued = false;
+    const at = this.dirty.indexOf(region);
+    if (at >= 0) this.dirty.splice(at, 1);
   }
 
   /** Per frame: advance the sway clock and rebuild at most one dirty region. */
@@ -336,19 +449,21 @@ export class GrassTufts {
 
   get stats() {
     let meshes = 0, tufts = 0;
-    for (const region of this.regions) {
+    for (const region of this.streaming ? this.streamed.values() : this.regions) {
       if (region.mesh) meshes++;
       tufts += region.tufts.size;
     }
-    return { meshes, cells: tufts, queued: this.dirty.length };
+    return { meshes, cells: tufts, queued: this.dirty.length, regions: this.streaming ? this.streamed.size : this.regions.length };
   }
 
   dispose() {
-    for (const region of this.regions) {
+    if (this.warmMesh) { this.group.remove(this.warmMesh); this.warmMesh.geometry.dispose(); this.warmMesh = null; }
+    for (const region of [...this.regions, ...this.streamed.values()]) {
       if (region.mesh) region.mesh.geometry.dispose();
       region.mesh = null;
     }
     this.regions = [];
+    this.streamed.clear();
     this.dirty.length = 0;
     this.parent.remove(this.group);
     this.material?.dispose();

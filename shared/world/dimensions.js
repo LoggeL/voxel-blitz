@@ -6,10 +6,13 @@ export const LARGE_DIMENSIONS = Object.freeze({ sx: 192, sy: SY, sz: 144 });
 export const TALL_DIMENSIONS = Object.freeze({ sx: SX, sy: 88, sz: SZ });
 /** Leith Waterworld: the whole leisure centre and its foyer at 32 Source units per voxel. */
 export const WATERWORLD_DIMENSIONS = Object.freeze({ sx: 200, sy: 36, sz: 188 });
-export const KNOWN_DIMENSIONS = Object.freeze([DEFAULT_DIMENSIONS, LARGE_DIMENSIONS, TALL_DIMENSIONS, WATERWORLD_DIMENSIONS]);
+/** Frontier v2: the 768 x 80 x 768 river valley (FRONTIER_PLAN.dimensions). */
+export const FRONTIER_DIMENSIONS = Object.freeze({ sx: 768, sy: 80, sz: 768 });
+export const KNOWN_DIMENSIONS = Object.freeze([DEFAULT_DIMENSIONS, LARGE_DIMENSIONS, TALL_DIMENSIONS, WATERWORLD_DIMENSIONS, FRONTIER_DIMENSIONS]);
 
 /** Authored extents. Legacy maps keep their original voxel scale and footprint. */
 export function getMapDimensions(mapId) {
+  if (mapId === 'frontier') return FRONTIER_DIMENSIONS;
   if (mapId === 'harbor' || mapId === 'canyon' || mapId === 'causeway') return LARGE_DIMENSIONS;
   if (mapId === 'minecraft_b5') return TALL_DIMENSIONS;
   if (mapId === 'waterworld') return WATERWORLD_DIMENSIONS;

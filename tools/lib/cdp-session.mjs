@@ -153,6 +153,7 @@ export async function launchCdpSession(url, {
   headless = true,
   softwareRendering = true,
   autoplayPolicy = 'no-user-gesture-required',
+  extraArgs = [],
 } = {}) {
   const browser = await executableBrowser(explicitBrowser);
   const profileDir = await createBrowserProfile('voxel-blitz-cdp-');
@@ -169,6 +170,7 @@ export async function launchCdpSession(url, {
     `--user-data-dir=${profileDir}`,
     `--window-size=${width},${height}`,
     '--force-device-scale-factor=1',
+    ...extraArgs,
     url,
   ], { stdio: ['ignore', 'pipe', 'pipe'] });
   const closed = new Promise(resolve => child.once('close', resolve));

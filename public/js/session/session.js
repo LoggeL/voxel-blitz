@@ -4,6 +4,7 @@ import { NetClient } from '../engine/netclient.js';
 import { GameplayUiFlow } from './gameplay-ui.js';
 import { PregameFlow } from './pregame.js';
 import { musicVolume } from '../audio/music-volume.js';
+import { CONQUEST_EVENT_KINDS } from '../../../shared/conquest-contract.js';
 
 const DEFAULT_PERSIST = Object.freeze({
   name: 'vb-name',
@@ -22,6 +23,10 @@ const GAMEPLAY_EVENT_KINDS = Object.freeze([
   'projectileUpdate',
   'projectileStick',
   'projectileExplode',
+  'vehicle_destroyed',
+  // Conquest v2: flag_*, ticket_low, score, deploy_refused, revive, spot, vehicle_*, countermeasure.
+  ...CONQUEST_EVENT_KINDS,
+  'explosion',
   'glaiveStock',
   'respawn',
   'die',

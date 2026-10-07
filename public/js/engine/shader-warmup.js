@@ -24,6 +24,59 @@ export const SHADER_WARMUP_BUDGET_MS = 1500;
 /** character-light.js's program cache key (graphics-quality-test pins it). */
 export const CHARACTER_LIGHT_KEY = 'character-lit-v1';
 
+/**
+ * Conquest vehicle programs (WP6). VehicleView carries a hidden warm-up rig
+ * (voxel hull + instanced wheels, canopy glass, rotor blur, HP bar, charred
+ * fragment); VehicleFx and the ParticleField add the particle pools, decals
+ * and light sprites. All of them must be in the scene (or passed as
+ * `extraRoots`) before warmShaders runs, so the first shot, hit or
+ * destruction never compiles mid-match.
+ */
+export const VEHICLE_WARMUP_MATERIALS = Object.freeze([
+  'vehicle-warmup', 'vehicle-glass', 'rotor-blur', 'vehicle-hp-bar', 'vehicle-fragment',
+  'particle-field-alpha', 'particle-field-add', 'vehicle-track-decals', 'vehicle-hull-marks', 'vehicle-light-sprites',
+]);
+
+/**
+ * Frontier world programs (WP5): far terrain, distant voxel shell, horizon
+ * ring and the Conquest objectives. WorldView builds them before warm-up, so
+ * the scene compile links them; listing them makes a missing one visible.
+ */
+export const WORLD_WARMUP_MATERIALS = Object.freeze([
+  'far-terrain', 'distant-voxel-shell', 'backdrop',
+  'conquest-mast', 'conquest-cloth', 'conquest-beam', 'conquest-ring', 'conquest-label',
+]);
+
+/**
+ * Program identity of one drawable as three.js keys it: material type and
+ * cache key, defines, the instancing and vertex-colour switches and the
+ * blend mode. Two drawables with equal variants share one linked program.
+ */
+export function programVariant(object, material) {
+  if (!material) return null;
+  const key = typeof material.customProgramCacheKey === 'function' ? material.customProgramCacheKey() : '';
+  const defines = material.defines ? Object.keys(material.defines).sort().join(',') : '';
+  const shader = material.isShaderMaterial ? `${material.vertexShader?.length ?? 0}:${material.fragmentShader?.length ?? 0}` : '';
+  return [material.type, key, defines, shader, object?.isInstancedMesh ? 'inst' : '', object?.isInstancedMesh && object.instanceColor ? 'icol' : '',
+    material.vertexColors ? 'vcol' : '', material.transparent ? 'tr' : '', material.blending ?? '', material.fog === false ? 'nofog' : ''].join('|');
+}
+
+/** Every program variant and material name under `roots` (hidden objects included). */
+export function collectProgramVariants(...roots) {
+  const variants = new Set(), names = new Set();
+  for (const root of roots) {
+    root?.traverse?.((object) => {
+      const materials = Array.isArray(object.material) ? object.material : object.material ? [object.material] : [];
+      for (const material of materials) {
+        const variant = programVariant(object, material);
+        if (variant) variants.add(variant);
+        if (material.name) names.add(material.name);
+      }
+    });
+  }
+  return { variants, names };
+}
+
 function topAncestor(object) {
   let node = object;
   while (node.parent) node = node.parent;
@@ -40,11 +93,12 @@ function defaultNow() {
  * Returns { ms, programs, patched, linked, timedOut, skipped, failed }.
  */
 export async function warmShaders({
-  renderer, scene, camera, post = null, characterRoots = [], shadows = null,
-  budgetMs = SHADER_WARMUP_BUDGET_MS, now = defaultNow,
+  renderer, scene, camera, post = null, characterRoots = [], shadows = null, extraRoots = [],
+  expectMaterials = null, budgetMs = SHADER_WARMUP_BUDGET_MS, now = defaultNow,
 } = {}) {
   const started = now();
-  const result = { ms: 0, programs: 0, patched: 0, linked: 0, timedOut: false, skipped: false, failed: false };
+  const result = { ms: 0, programs: 0, patched: 0, linked: 0, timedOut: false, skipped: false, failed: false,
+    variants: 0, missing: [] };
   if (typeof renderer?.compileAsync !== 'function' || !scene || !camera) {
     result.skipped = true;
     return result;
@@ -61,6 +115,14 @@ export async function warmShaders({
     for (const root of characterRoots) {
       if (root && topAncestor(root) !== scene) pending.push(renderer.compileAsync(root, camera, scene));
     }
+    // Detached effect roots (capture pages, layers built off-scene) link against the scene's lights and fog.
+    for (const root of extraRoots) {
+      if (root && topAncestor(root) !== scene && !characterRoots.includes(root)) pending.push(renderer.compileAsync(root, camera, scene));
+    }
+    const seen = collectProgramVariants(scene, ...characterRoots, ...extraRoots);
+    result.variants = seen.variants.size;
+    if (Array.isArray(expectMaterials)) result.missing = expectMaterials.filter(name => !seen.names.has(name));
+    if (result.missing.length) console.warn('[vb] shader warm-up is missing', result.missing.join(', '));
     if (chain) {
       for (const { material, target } of chain.warmupPasses?.() || []) {
         chain.screen.material = material;

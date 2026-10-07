@@ -10,6 +10,7 @@ import { clamp01 } from './player.js';
 import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity, slidePlayerAxis, solidBelow, stepPlayerProne, canClimb, canStartVault, findVault, findSwimExit, stepVault } from '../../shared/player-movement.js';
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 import { slideContact, stepSlideRide } from '../../shared/slide-rules.js';
+import { slidePlayerVehicleAxis, constrainPlayerVehicleMotion } from '../../shared/player-vehicle-collision.js';
 
 // Shooter-side rewind reads up to maxViewAgeMs (450 ms) back; at 60 Hz that
 // needs 27 samples, so 32 keeps a full window plus headroom.
@@ -96,11 +97,13 @@ export function updateCondition(p, dt) {
   if (p.noPanic) p.panic = 0;
 }
 
-function slideAxis(player, axis, amount, solidAt, mapMeta = null, canStep = false) {
+function slideAxis(player, axis, amount, solidAt, mapMeta = null, canStep = false, vehicles = []) {
   const height = stanceHeight(PHYSICS.height, player.proneT);
-  const collided = canStep
+  const start = player[axis];
+  const terrainCollision = canStep
     ? slideTerrainAxis(player, axis, amount, solidAt, mapMeta, true, height)
     : slidePlayerAxis(player, axis, amount, solidAt, height);
+  const collided = slidePlayerVehicleAxis(player, axis, start, vehicles, height) || terrainCollision;
   if (collided) player[`v${axis}`] = 0;
   return collided;
 }
@@ -195,11 +198,16 @@ export function stepMovement(p, dt, ctx) {
   p.swimming = swimming;
   if (ride) {
     p.vault = null;
+    const previous = { x: p.x, y: p.y, z: p.z };
     const velocity = { x: p.vx, y: p.vy, z: p.vz };
     p.slide = stepSlideRide(p, velocity, ride, dt, { x: wx, z: wz });
     p.vx = velocity.x;
     p.vy = velocity.y;
     p.vz = velocity.z;
+    if (constrainPlayerVehicleMotion(p, previous, [...(ctx.vehicles || [])])) {
+      p.slide = null;
+      p.vx = p.vy = p.vz = 0;
+    }
     p.grounded = false;
     p.coyote = 0;
     p.sprint = false;
@@ -218,13 +226,15 @@ export function stepMovement(p, dt, ctx) {
       deliberateGrab ? p.y : p.jumpGroundY, movementYaw, deliberateGrab ? 0 : 1);
   }
   if (p.vault) {
+    const previous = { x: p.x, y: p.y, z: p.z };
     const active = stepVault(p, p.vault, dt, ctx.solidAt);
+    const hullBlocked = constrainPlayerVehicleMotion(p, previous, [...(ctx.vehicles || [])]);
     p.vx = p.vy = p.vz = 0;
     p.ads = false;
     p.adsT = Math.max(0, previousAdsT - adsStep);
     p.grounded = !active && solidBelow(ctx.solidAt, p.x, p.y, p.z);
     p.coyote = 0;
-    if (!active) p.vault = null;
+    if (!active || hullBlocked) p.vault = null;
     recordPose(p, ctx.now);
     return;
   }
@@ -264,14 +274,16 @@ export function stepMovement(p, dt, ctx) {
   // Downward travel bypasses only while its destination remains in-volume,
   // so the ordinary collision path catches the floor at the ladder foot.
   const canStepTerrain = p.grounded && !kf.jump && !p.vault && !ladderDirected && p.vy <= 0.01;
-  slideAxis(p, 'x', p.vx * dt, ctx.solidAt, ctx.mapMeta, canStepTerrain);
-  slideAxis(p, 'z', p.vz * dt, ctx.solidAt, ctx.mapMeta, canStepTerrain);
+  slideAxis(p, 'x', p.vx * dt, ctx.solidAt, ctx.mapMeta, canStepTerrain, ctx.vehicles);
+  slideAxis(p, 'z', p.vz * dt, ctx.solidAt, ctx.mapMeta, canStepTerrain, ctx.vehicles);
   const dy = p.vy * dt;
   const ladderBypass = ladderUp
     || (ladderDown && ladderContact(ctx.mapMeta, p.x, p.y + dy, p.z));
-  const hitY = ladderBypass ? false : slideAxis(p, 'y', dy, ctx.solidAt);
+  const hitY = ladderBypass ? false : slideAxis(p, 'y', dy, ctx.solidAt, null, false, ctx.vehicles);
   if (ladderBypass) {
+    const start = p.y;
     p.y += dy;
+    if (slidePlayerVehicleAxis(p, 'y', start, ctx.vehicles)) p.vy = 0;
     if (ladderUp && !ladderContact(ctx.mapMeta, p.x, p.y, p.z)) p.vy = 0;
   }
 

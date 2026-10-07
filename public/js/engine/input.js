@@ -134,6 +134,9 @@ export class Input {
     this._disposed = false;
     this._touchMode = shouldEnableTouchControls();
     this._touchControls = null;
+    this._vehicleSeatContext = null;
+    this._vehicleSeatKey = '';
+    this._padSeatTriggerBlocked = false;
     this._pauseHandler = null;
     this._accDX = 0;          // pending scaled look delta (radians)
     this._accDY = 0;
@@ -205,7 +208,7 @@ export class Input {
     };
     // Touch and keyboard holds survive the other device's release on hybrids.
     this._touchKeys = { forward: false, back: false, left: false, right: false,
-      jump: false, sprint: false, interact: false };
+      jump: false, sprint: false, interact: false, flightUp: false, flightDown: false, flightBrake: false };
 
     // Gamepad state lives beside the keyboard so both can be held at once.
     this._pad = new GamepadInput();
@@ -220,6 +223,8 @@ export class Input {
     this._padCrouchSince = 0;
     this._padSprintLatched = false;
     this._padScoreboard = false;
+    /** This frame's pad buttons ({held, pressed}) for mode HUDs; null without a readable pad. */
+    this._padButtons = null;
     this._lastPollAt = 0;
 
     // Pre-bound handlers so dispose() can remove them exactly.
@@ -249,7 +254,9 @@ export class Input {
   /* ----------------------------------------------------------- held intents */
 
   /** LMB / RT / touch fire held; reads false while the weapon wheel or grenade pouch is open. */
-  get wantFireHeld() { return !this._wheelOpen && !this._pouchOpen && !this._buildMode && (this._mouseFire || this._keyboardFire || this._touchFire || this._padFire); }
+  get wantFireHeld() { return !this._wheelOpen && !this._pouchOpen && !this._buildMode &&
+    (!this._vehicleSeatContext || this._vehicleSeatContext.canFire) &&
+    (this._mouseFire || this._keyboardFire || this._touchFire || this._padFire); }
 
   /** RMB / F / LT / touch ADS held or latched; reads false while the weapon wheel or pouch is open. */
   get wantAdsHeld() { return !this._wheelOpen && !this._pouchOpen && (this._mouseAds || this._keyboardAds || this._adsLatched || this._touchAds || this._padAds); }
@@ -260,6 +267,13 @@ export class Input {
 
   /** Back/Select on a pad holds the scoreboard, like Tab. */
   get scoreboardHeld() { return this._padScoreboard; }
+
+  /**
+   * Held buttons and press edges of the last poll, by PAD_BUTTONS action, for
+   * mode controls outside LocalPlayer (Conquest seats, spot, map, deploy).
+   * Null while no pad is connected or the page cannot read devices.
+   */
+  get padButtons() { return this._padButtons; }
 
   /**
    * Attaches all DOM listeners. Safe to call once; extra calls are ignored.
@@ -483,6 +497,26 @@ export class Input {
 
   /** Per-frame contextual visibility for the touch buttons; cheap when unchanged. */
   setTouchContext(context) {
+    const seated = context?.vehicleSeated === true;
+    const next = seated ? {
+      canDrive: context.vehicleCanDrive ?? (!context.vehicleRole || ['driver', 'pilot'].includes(context.vehicleRole)),
+      canFire: context.vehicleRole !== 'passenger' && (context.vehicleCanFire ?? context.canFire) === true,
+      role: context.vehicleRole,
+    } : null;
+    const key = seated ? `${context.vehicleType || ''}:${context.vehicleId || ''}:${context.vehicleSeatId || ''}` : '';
+    if (key !== this._vehicleSeatKey) {
+      // A pad reports held levels every poll, so clearing its cached value alone
+      // would revive a mounted trigger as infantry fire on the following frame.
+      this._padSeatTriggerBlocked ||= this._padFire;
+      this.clearTransient();
+    }
+    else if (this._vehicleSeatContext?.canFire && !next?.canFire) {
+      this._padSeatTriggerBlocked ||= this._padFire;
+      this._mouseFire = this._keyboardFire = this._touchFire = this._padFire = false;
+      this._fireTapQueued = false;
+    }
+    this._vehicleSeatKey = key;
+    this._vehicleSeatContext = next;
     this._touchControls?.setContext(context);
   }
 
@@ -609,7 +643,9 @@ export class Input {
     // The H tap/hold split is time based, so it resolves here even without a pad.
     this._updatePouchKeyHold(now);
     const frame = this._pad.poll(now);
+    this._padButtons = null;
     if (!frame) return null;
+    if (!frame.held.fire) this._padSeatTriggerBlocked = false;
     if (frame.connected === false) {
       // Losing a controller cancels holds. Synthetic releases must not throw a
       // grenade, equip a weapon, or latch crouch as though the user tapped it.
@@ -629,6 +665,7 @@ export class Input {
       this._clearPadState();
       return frame;
     }
+    this._padButtons = { held: frame.held, pressed: frame.pressed };
     if (!this._gameplayEnabled) {
       if (frame.pressed.pause) this._pauseHandler?.();
       this._clearPadState();
@@ -674,12 +711,12 @@ export class Input {
       pk.crouch = (frame.held.crouch && !this._padCrouchUnlatch) || this._padCrouchLatched;
     }
 
-    if (frame.pressed.fire && this._wheelOpen) this._wheelReleaseQueued = true;
-    if (frame.pressed.fire && !this._wheelOpen && !this._pouchOpen) {
+    if (frame.pressed.fire && !this._padSeatTriggerBlocked && this._wheelOpen) this._wheelReleaseQueued = true;
+    if (frame.pressed.fire && !this._padSeatTriggerBlocked && !this._wheelOpen && !this._pouchOpen) {
       if (this._buildMode) this._placeQueued = true;
       else this._fireTapQueued = true;
     }
-    this._padFire = frame.held.fire;
+    this._padFire = frame.held.fire && !this._padSeatTriggerBlocked;
     this._padAds = frame.held.ads;
     // X while a grenade is held puts the pin back; the swallowed press never reloads.
     if (frame.pressed.reload && this._grenadeHeld) this.cancelGrenade('pinBack');
@@ -817,6 +854,11 @@ export class Input {
       right: k.right || p.right || t.right,
       jump: k.jump || p.jump || t.jump,
       sprint: k.sprint || p.sprint || t.sprint,
+      flightUp: !!(k.jump || p.jump || t.flightUp),
+      flightDown: !!(k.sprint || this._padAds || t.flightDown),
+      flightBrake: !!(k.crouch || p.crouch || t.flightBrake),
+      flightYawLeft: !!k.leanLeft,
+      flightYawRight: !!k.leanRight,
       crouch: k.crouch || p.crouch,
       prone: !!k.prone,
       leanLeft: !!k.leanLeft,
@@ -824,6 +866,10 @@ export class Input {
       interact: k.interact || p.interact || t.interact,
       reload: this._reloadQueued,
     };
+    if (this._vehicleSeatContext && !this._vehicleSeatContext.canDrive) {
+      for (const name of ['forward', 'back', 'left', 'right', 'jump', 'sprint', 'crouch', 'prone',
+        'leanLeft', 'leanRight', 'flightUp', 'flightDown', 'flightBrake', 'flightYawLeft', 'flightYawRight']) out[name] = false;
+    }
     this._reloadQueued = false;
     return out;
   }
@@ -870,7 +916,7 @@ export class Input {
   consumeFireTap() {
     const q = this._fireTapQueued;
     this._fireTapQueued = false;
-    return q;
+    return q && (!this._vehicleSeatContext || this._vehicleSeatContext.canFire);
   }
 
   /**
@@ -1454,6 +1500,10 @@ export class Input {
   _onTouchMove({ x = 0, y = 0, magnitude = 0 } = {}) {
     if (!this._canReadDevices() || !this._gameplayEnabled) return;
     const keys = this._touchKeys;
+    if (this._vehicleSeatContext && !this._vehicleSeatContext.canDrive) {
+      keys.left = keys.right = keys.forward = keys.back = keys.sprint = false;
+      return;
+    }
     keys.left = x < -TOUCH_MOVE_THRESHOLD;
     keys.right = x > TOUCH_MOVE_THRESHOLD;
     keys.forward = y < -TOUCH_MOVE_THRESHOLD;
@@ -1463,6 +1513,7 @@ export class Input {
 
   _onTouchLook(dx, dy) {
     if (!this._canReadDevices() || (!this._gameplayEnabled && !this._spectatorEnabled) || this._wheelOpen || this._pouchOpen) return;
+    if (this._vehicleSeatContext?.role === 'passenger') return;
     const scale = this.sens * TOUCH_LOOK_SENSITIVITY_SCALE *
       this._options.touchSensitivity * (this._gameplayEnabled ? this._assistScale() : 1);
     this._accDX += (Number(dx) || 0) * scale;
@@ -1476,6 +1527,9 @@ export class Input {
   _onTouchHold(action, held, at = eventTime(null)) {
     const down = !!held;
     if ((!this._canReadDevices() || !this._gameplayEnabled || this._wheelOpen || (this._pouchOpen && action !== 'grenade')) && down) return false;
+    if (down && this._vehicleSeatContext &&
+        ((action === 'fire' && !this._vehicleSeatContext.canFire) ||
+         (['jump', 'flightUp', 'flightDown', 'flightBrake'].includes(action) && !this._vehicleSeatContext.canDrive))) return false;
     switch (action) {
       case 'grenade':
         // Press readies (a pouch pick first) and begins; lifting throws. PIN BACK pulses cancel.
@@ -1494,6 +1548,9 @@ export class Input {
         break;
       case 'ads': this._touchAds = down; break;
       case 'jump': this._touchKeys.jump = down; break;
+      case 'flightUp': this._touchKeys.flightUp = down; break;
+      case 'flightDown': this._touchKeys.flightDown = down; break;
+      case 'flightBrake': this._touchKeys.flightBrake = down; break;
       case 'interact': this._touchKeys.interact = down; break;
       default: break;
     }

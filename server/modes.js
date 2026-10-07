@@ -13,6 +13,7 @@ import {
   normalizeModeId,
 } from '../shared/modes.js';
 import { SndPolicy } from './modes/snd.js';
+import { ConquestPolicy } from './modes/conquest.js';
 import { TdmPolicy } from './modes/tdm.js';
 import { GunGamePolicy } from './modes/gungame.js';
 import { BastionPolicy } from './modes/bastion.js';
@@ -160,6 +161,8 @@ export class ModeController {
         engine.tickEvents.push({ t: 'ev', kind, at: engine.now, ...fields });
       },
       respawn: (entity, spawn, options) => engine.respawnPlayer(entity, spawn, options),
+      resetVehicles: () => engine.vehicles?.reset(),
+      vehicleFor: id => engine.vehicles?.vehicles.get(id),
       glaiveStock: (entity) => engine.projectiles.glaiveStock(entity),
       chooseSpawn: (pool, entity, excludeIndex) => {
         if (Array.isArray(pool) && pool.length) {
@@ -184,6 +187,7 @@ export class ModeController {
     else if (modeId === 'duel') this.policy = new DuelPolicy(context);
     else if (modeId === 'chaos') this.policy = new ChaosPolicy(context);
     else if (modeId === 'snd') this.policy = new SndPolicy(context);
+    else if (modeId === 'conquest') this.policy = new ConquestPolicy(context, engine);
     else if (modeId === 'tdm') this.policy = new TdmPolicy(context);
     else if (modeId === 'gungame') this.policy = new GunGamePolicy(context);
     else if (modeId === 'training') this.policy = new TrainingPolicy(context);
@@ -262,9 +266,21 @@ export class ModeController {
     this._syncContinuation();
     const match = this.policy.matchSnapshot();
     if (this.phase !== 'post') return match;
-    return { ...match, continuation: this.continuation.snapshot(), results: this.continuation.results };
+    const extras = typeof this.policy.resultExtras === 'function' ? row => this.policy.resultExtras(row.id) : null;
+    const results = extras ? this.continuation.results.map(row => ({ ...row, ...(extras(row) ?? {}) }))
+      : this.continuation.results;
+    return { ...match, continuation: this.continuation.snapshot(), results };
   }
   playerSnapshot(player) { return this.policy.playerSnapshot(player); }
+  /** Bots ask the registered director first; policies keep their own fallback. */
   botGoal(player) { return this.policy.botGoal(player); }
+  /** Conquest `{t:'conquest'}` intent (deploy, spot, support) parsed by parseConquestIntent. */
+  conquestIntent(player, intent) {
+    return typeof this.policy.conquestIntent === 'function' && this.policy.conquestIntent(player, intent) === true;
+  }
+  /** VehicleSystem hook for vehicle_hit, vehicle_disabled, vehicle_repaired and vehicle_destroyed. */
+  onVehicleEvent(kind, payload) { this.policy.onVehicleEvent?.(kind, payload); }
+  /** WP3 bot director `{goalFor(player), deployFor(player)}`; null clears it. */
+  setBotDirector(director) { return this.policy.setBotDirector?.(director) === true; }
   dispose() { return this.policy.dispose?.(); }
 }

@@ -1,14 +1,118 @@
-const shot = (map, id, position, target, fov = 75, mode = null) => Object.freeze({
+import { FRONTIER_PLAN } from './conquest-contract.js';
+import { frontierSurfaceY } from './world/frontier-terrain.js';
+import { getMapDimensions } from './world/dimensions.js';
+
+const shot = (map, id, position, target, fov = 75, mode = null, options = {}) => Object.freeze({
   map,
   id,
   position: Object.freeze(position),
   target: Object.freeze(target),
   fov,
   mode,
+  ...options,
 });
+
+const flag = (id) => FRONTIER_PLAN.flags.find((entry) => entry.id === id);
+const [A, B, C, D, E] = ['A', 'B', 'C', 'D', 'E'].map(flag);
+const HQ = FRONTIER_PLAN.hqs.alpha;
+
+/**
+ * Frontier v2 cameras, placed from FRONTIER_PLAN anchors: each end is
+ * [x, z, lift] and stands `lift` metres above the terrain surface
+ * (frontierSurfaceY), so the shots follow the authored relief. Positions are
+ * resolved on first read. `stage` parks a capture-only hull pose (a hovering
+ * helicopter, a jet in the air) for vehicle shots; `subject` frames a fleet
+ * spawn from mapMeta. resolveMapCaptureShot() re-resolves against the loaded
+ * world when that is not the planned one.
+ */
+const groundShot = (id, from, to, fov, options = {}) => {
+  let resolved = null;
+  const resolve = () => (resolved ??= resolveAnchors(from, to, frontierSurfaceY));
+  return Object.freeze({
+    map: 'frontier', id, fov, mode: 'conquest', anchor: Object.freeze({ from: Object.freeze(from), to: Object.freeze(to) }),
+    get position() { return resolve().position; },
+    get target() { return resolve().target; },
+    ...options,
+  });
+};
+
+function resolveAnchors(from, to, surfaceY) {
+  const at = ([x, z, lift]) => Object.freeze([x, surfaceY(x, z) + lift, z]);
+  return { position: at(from), target: at(to) };
+}
+
+const frontierOverview = () => {
+  const { sx, sz } = getMapDimensions('frontier');
+  return shot('frontier', 'overview', [sx / 2, 1200, sz / 2], [sx / 2, 0, sz / 2], 75, 'conquest',
+    { kind: 'orthographic', scale: Math.max(sx, sz) });
+};
+
+/** Frontier v2: the first sixty seconds, flag by flag, plus vehicles in the field. */
+const FRONTIER_SHOTS = [
+  // West HQ plateau edge looking down the valley: spire right, bridge ahead,
+  // the works chimneys far right, the north ridge left, mountains beyond.
+  groundShot('vista', [HQ.x + 74, HQ.z + 14, 9], [C.x, C.z - 6, 6], 64),
+  groundShot('farm', [A.x - 34, A.z + 40, 7], [A.x + 6, A.z - 4, 5], 70),
+  // Eye clear of the low cobble wall at the square's corner (inside it, the culled wall showed the sky).
+  groundShot('village-street', [B.x - 12, B.z + 15, 1.7], [B.x + 6, B.z - 12, 9], 78),
+  groundShot('bridge', [C.x - 30, C.z + 40, 4], [C.x + 4, C.z, 7], 70),
+  groundShot('trenches', [D.x - 18, D.z + 16, 1.6], [D.x + 6, D.z - 8, 1.2], 78),
+  // From the C approach (north-west): flag E ahead, the smelter hall and both
+  // chimneys behind it, the cooling tower at the right edge.
+  groundShot('works', [E.x - 46, E.z - 30, 10], [E.x + 18, E.z + 22, 18], 66),
+  // The west tank on its motor-pool pad, framed toward the Ashgrove forest.
+  groundShot('tank-forest', [HQ.x + 40, HQ.z + 150, 3.2], [HQ.x + 70, HQ.z + 200, 1], 60,
+    { subject: Object.freeze({ vehicle: 'alpha-tank', from: Object.freeze([-7, 3.2, 9]), to: Object.freeze([0, 1.4, 0]) }) }),
+  // A gunship hovering low over the river north of the iron bridge.
+  groundShot('heli-river', [C.x - 26, C.z - 70, 9], [C.x + 6, C.z - 92, 16], 62,
+    { stage: Object.freeze({ vehicle: 'alpha-helicopter', at: Object.freeze([C.x + 6, C.z - 92, 16]), yaw: 2.2 }) }),
+  // A jet banking over the valley, the HQ plateau behind it.
+  groundShot('jet-sky', [HQ.x + 150, HQ.z - 40, 70], [HQ.x + 190, HQ.z - 70, 82], 58,
+    { stage: Object.freeze({ vehicle: 'alpha-plane', at: Object.freeze([HQ.x + 190, HQ.z - 70, 82]), yaw: -2.1 }) }),
+  // Smoke over the burnt-out tank by the river west of C (mapMeta.conquest.dressing).
+  groundShot('wreck-column', [C.x - 50, C.z + 70, 6], [C.x - 14, C.z + 30, 14], 66,
+    { subject: Object.freeze({ landmark: 'wreck-tank-c-west', from: Object.freeze([-24, 6, 30]), to: Object.freeze([0, 10, 0]) }) }),
+];
+
+/** Frontier camera re-resolved against the loaded world (surface probe, mapMeta subjects). */
+export function resolveMapCaptureShot(entry, { surfaceY = null, meta = null } = {}) {
+  if (!entry?.anchor) return entry;
+  const ground = typeof surfaceY === 'function' ? surfaceY : frontierSurfaceY;
+  let { position, target } = resolveAnchors(entry.anchor.from, entry.anchor.to, ground);
+  const subject = entry.subject;
+  let focus = null;
+  if (subject?.vehicle) {
+    const spawn = meta?.conquest?.vehicleSpawns?.find((row) => row?.id === subject.vehicle);
+    if (spawn) focus = { x: spawn.x, y: spawn.y, z: spawn.z, yaw: Number(spawn.yaw) || 0 };
+  } else if (subject?.landmark) {
+    // Site landmarks (mapMeta.landmarks) and battlefield dressing such as the
+    // wreck props (mapMeta.conquest.dressing).
+    const pattern = new RegExp(subject.landmark, 'i');
+    const rows = [...(meta?.landmarks || []), ...(meta?.conquest?.dressing || [])];
+    const mark = rows.find((row) => row && pattern.test(`${row.id} ${row.kind ?? ''} ${row.name ?? ''}`)
+      && [row.x, row.y, row.z].every(Number.isFinite));
+    if (mark) focus = { x: mark.x, y: ground(mark.x, mark.z), z: mark.z, yaw: 0 };
+  }
+  if (focus) {
+    const turn = ([dx, dy, dz]) => {
+      const c = Math.cos(focus.yaw), s = Math.sin(focus.yaw);
+      return [focus.x + dx * c + dz * s, focus.y + dy, focus.z - dx * s + dz * c];
+    };
+    position = turn(subject.from); target = turn(subject.to);
+  }
+  let stage = entry.stage || null;
+  if (stage) {
+    const [x, z, lift] = stage.at;
+    stage = { ...stage, position: [x, ground(x, z) + lift, z] };
+  }
+  return { ...entry, position: Object.freeze(position), target: Object.freeze(target), stage };
+}
 
 /** Stable, collision-independent cameras for truthful map-design captures. */
 export const MAP_CAPTURE_SHOTS = Object.freeze([
+  ...FRONTIER_SHOTS,
+  // Square north-up frame over the whole authoritative extent.
+  frontierOverview(),
   shot('harbor', 'hero', [174, 80, 136], [94, 18, 68], 64),
   shot('harbor', 'cargo-lanes', [75, 19, 104], [98, 25, 61], 78),
   shot('harbor', 'freight-lightboxes', [65, 16.62, 61], [43, 23, 46], 76),

@@ -151,6 +151,13 @@ export function installSky(scene, palette = {}, dimensions = DEFAULT_DIMENSIONS,
   // Note: no flatShading flag needed - MeshBasicMaterial is unlit, so the blocky
   // faces already read flat.
 
+  // Large worlds lift, spread and scale the puffs (palette.clouds), so they
+  // drift over the whole battlefield above every ridge.
+  const cloudConfig = palette.clouds && typeof palette.clouds === 'object' ? palette.clouds : {};
+  const cloudCount = Number.isInteger(cloudConfig.count) ? cloudConfig.count : CLOUD_COUNT;
+  const cloudY = Number.isFinite(cloudConfig.y) ? cloudConfig.y : CLOUD_Y;
+  const cloudSpan = Number.isFinite(cloudConfig.span) ? cloudConfig.span : CLOUD_SPAN;
+  const cloudScale = Number.isFinite(cloudConfig.scale) ? cloudConfig.scale : 1;
   const rng = mulberry32(SEED ^ 0xC10D5EED);
   const clouds = [];
   // Low blocky puffs must never sit on the distant backdrop (map-backdrop.js,
@@ -159,15 +166,16 @@ export function installSky(scene, palette = {}, dimensions = DEFAULT_DIMENSIONS,
   // ring; per-puff material clones share one program, opacity is a uniform.
   const guard = scene.getObjectByName?.('map-backdrop')?.userData?.cloudGuard || null;
   const cloudMats = [];
-  for (let i = 0; i < CLOUD_COUNT; i++) {
+  for (let i = 0; i < cloudCount; i++) {
     const material = guard ? cloudMat.clone() : cloudMat;
     if (guard) cloudMats.push(material);
     const mesh = new THREE.Mesh(buildPuffGeometry(rng), material);
     mesh.position.set(
-      MAP_CX + (rng() - 0.5) * CLOUD_SPAN * 2,
-      CLOUD_Y + rng() * 6,
-      MAP_CZ + (rng() - 0.5) * CLOUD_SPAN * 2,
+      MAP_CX + (rng() - 0.5) * cloudSpan * 2,
+      cloudY + rng() * 6 * cloudScale,
+      MAP_CZ + (rng() - 0.5) * cloudSpan * 2,
     );
+    if (cloudScale !== 1) mesh.scale.set(cloudScale, cloudScale * 0.8, cloudScale);
     if (guard) mesh.onBeforeRender = guardCloud(mesh, material, guard);
     clouds.push(mesh);
     group.add(mesh);
@@ -199,9 +207,9 @@ export function installSky(scene, palette = {}, dimensions = DEFAULT_DIMENSIONS,
   } else finishLoading();
   const update = function update(dt) {
     if (disposed || !(dt > 0)) return;
-    const dx = CLOUD_SPEED * dt;
-    const maxX = MAP_CX + CLOUD_SPAN;
-    const span = CLOUD_SPAN * 2;
+    const dx = CLOUD_SPEED * cloudScale * dt;
+    const maxX = MAP_CX + cloudSpan;
+    const span = cloudSpan * 2;
     for (const c of clouds) {
       c.position.x += dx;
       if (c.position.x > maxX) c.position.x -= span;

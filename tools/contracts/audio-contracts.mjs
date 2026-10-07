@@ -475,8 +475,8 @@ export async function runAudioContracts(ok, installGlobals) {
         sfx.meleeHit({ kind: 'crit', pos: [-i, 0, i] });
       }
       ok(audio.nodes.filter((node) =>
-        node.kind === 'panner' && !node.disconnected).length <= 16,
-      'positional voice registry leaves at most sixteen live panner nodes');
+        node.kind === 'panner' && !node.disconnected).length <= 24,
+      'positional voice registry leaves at most twenty-four live panner nodes');
       ok(startedBy(() => sfx.deathFar()) >= 2,
         'distant-death procedural fallback renders without losing its echo path');
 

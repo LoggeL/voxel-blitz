@@ -82,7 +82,7 @@ export class AvatarRoster {
     if (this._disposed) return null;
     if (id === this._getMyId()) return null;
     const avatar = this._avatars.get(id);
-    if (!avatar?.alive) return null;
+    if (!avatar?.alive || avatar.seated) return null;
     try {
       const p = avatar.weaponModel?.getMuzzleWorldPosition?.(out);
       return p && Number.isFinite(p.x + p.y + p.z) ? p : null;
@@ -155,6 +155,8 @@ export class AvatarRoster {
       vz: avatar.group.position.z,
       hs: false,
     }, damageEvent);
+    avatar.group.visible = true;
+    avatar.seated = false;
     if (!beginAvatarDeath(avatar, now, impact)) return;
     this._pendingDeaths.delete(id);
     this._gore?.(impact, { lethal: true, local: false });
@@ -308,6 +310,21 @@ export class AvatarRoster {
 
       if (!avatar.alive) resetAvatarPose(avatar);
       avatar.alive = true;
+      avatar.seated = remote.vehicleId != null;
+      if (avatar.seated) {
+        // Keep a real operator for exit/death, but hide all attached geometry,
+        // tags and weapon effects while the vehicle presenter owns the seat.
+        avatar.group.position.set(remote.x, remote.y, remote.z);
+        avatar.group.rotation.set(0, remote.yaw, 0);
+        avatar.group.visible = false;
+        avatar.tag.visible = avatar.hpSpr.visible = false;
+        avatar.weaponModel.root.visible = false;
+        avatar.weaponModel.stopDeathEffects?.();
+        avatar.motionSeeded = false;
+        avatar.speedEst = 0;
+        avatar.burnAcc = 0;
+        continue;
+      }
       avatar.group.visible = true;
       avatar.group.rotation.set(0, remote.yaw, 0);
       avatar.group.scale.setScalar(avatar.bodyScale || 1);

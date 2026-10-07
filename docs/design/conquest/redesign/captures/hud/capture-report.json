@@ -1,0 +1,434 @@
+{
+  "generated": "2026-10-07T05:45:57.253Z",
+  "page": "public/conquest-hud-capture.html",
+  "sizes": {
+    "desktop": [
+      {
+        "id": "capturing",
+        "title": "Capturing C · 3 vs 1 · enemy bleeding",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-capturing.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "neutralizing",
+        "title": "Neutralizing D · 2 vs 0",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-neutralizing.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "contested",
+        "title": "Contested C · 2 vs 2",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-contested.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "defending",
+        "title": "Defending A · B under attack",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-defending.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "restoring",
+        "title": "Restoring B · own bleeding",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-restoring.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "east-relative",
+        "title": "Playing EAST · own side blue",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-east-relative.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "out-of-bounds",
+        "title": "Out of bounds · 7 s",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-out-of-bounds.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "revive",
+        "title": "Reviving a downed squadmate · 60 %",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-revive.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "tank-driver",
+        "title": "Tank driver · AP reloading · disabled",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-tank-driver.png",
+        "seated": "tank:driver",
+        "overlaps": []
+      },
+      {
+        "id": "tank-commander",
+        "title": "Tank commander · RWS hot",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-tank-commander.png",
+        "seated": "tank:commander",
+        "overlaps": []
+      },
+      {
+        "id": "heli-pilot",
+        "title": "Helicopter pilot · pods · LOCKING",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-heli-pilot.png",
+        "seated": "helicopter:driver",
+        "overlaps": []
+      },
+      {
+        "id": "heli-gunner",
+        "title": "Helicopter gunner · chin gimbal · LOCKED",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-heli-gunner.png",
+        "seated": "helicopter:gunner",
+        "overlaps": []
+      },
+      {
+        "id": "transport-door",
+        "title": "Transport door gun · arc limit · MISSILE",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-transport-door.png",
+        "seated": "transport:door-left",
+        "overlaps": []
+      },
+      {
+        "id": "jet",
+        "title": "Jet · AA missile selected · lead pipper · locking 70 %",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-jet.png",
+        "seated": "plane:driver",
+        "overlaps": []
+      },
+      {
+        "id": "enter-jeep",
+        "title": "Enter prompt · jeep gunner seat",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-enter-jeep.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "big-map",
+        "title": "Full map · flags, squad, team, spotted, vehicles",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-big-map.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy · valid spawns, countdown, kit picker",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-deploy.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-refused",
+        "title": "Deploy · refused (contested), revive window",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-deploy-refused.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "scoreboard",
+        "title": "Scoreboard · squads and Conquest columns",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-scoreboard.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result",
+        "title": "Result · ticket graph and MVPs",
+        "file": "docs/design/conquest/redesign/captures/hud/desktop-result.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "portrait": [
+      {
+        "id": "capturing",
+        "title": "Capturing C · 3 vs 1 · enemy bleeding",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-capturing.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "neutralizing",
+        "title": "Neutralizing D · 2 vs 0",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-neutralizing.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "contested",
+        "title": "Contested C · 2 vs 2",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-contested.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "defending",
+        "title": "Defending A · B under attack",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-defending.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "restoring",
+        "title": "Restoring B · own bleeding",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-restoring.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "east-relative",
+        "title": "Playing EAST · own side blue",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-east-relative.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "out-of-bounds",
+        "title": "Out of bounds · 7 s",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-out-of-bounds.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "revive",
+        "title": "Reviving a downed squadmate · 60 %",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-revive.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "tank-driver",
+        "title": "Tank driver · AP reloading · disabled",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-tank-driver.png",
+        "seated": "tank:driver",
+        "overlaps": []
+      },
+      {
+        "id": "tank-commander",
+        "title": "Tank commander · RWS hot",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-tank-commander.png",
+        "seated": "tank:commander",
+        "overlaps": []
+      },
+      {
+        "id": "heli-pilot",
+        "title": "Helicopter pilot · pods · LOCKING",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-heli-pilot.png",
+        "seated": "helicopter:driver",
+        "overlaps": []
+      },
+      {
+        "id": "heli-gunner",
+        "title": "Helicopter gunner · chin gimbal · LOCKED",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-heli-gunner.png",
+        "seated": "helicopter:gunner",
+        "overlaps": []
+      },
+      {
+        "id": "transport-door",
+        "title": "Transport door gun · arc limit · MISSILE",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-transport-door.png",
+        "seated": "transport:door-left",
+        "overlaps": []
+      },
+      {
+        "id": "jet",
+        "title": "Jet · AA missile selected · lead pipper · locking 70 %",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-jet.png",
+        "seated": "plane:driver",
+        "overlaps": []
+      },
+      {
+        "id": "enter-jeep",
+        "title": "Enter prompt · jeep gunner seat",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-enter-jeep.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "big-map",
+        "title": "Full map · flags, squad, team, spotted, vehicles",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-big-map.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy · valid spawns, countdown, kit picker",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-deploy.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-refused",
+        "title": "Deploy · refused (contested), revive window",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-deploy-refused.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "scoreboard",
+        "title": "Scoreboard · squads and Conquest columns",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-scoreboard.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result",
+        "title": "Result · ticket graph and MVPs",
+        "file": "docs/design/conquest/redesign/captures/hud/portrait-result.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ],
+    "landscape": [
+      {
+        "id": "capturing",
+        "title": "Capturing C · 3 vs 1 · enemy bleeding",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-capturing.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "neutralizing",
+        "title": "Neutralizing D · 2 vs 0",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-neutralizing.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "contested",
+        "title": "Contested C · 2 vs 2",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-contested.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "defending",
+        "title": "Defending A · B under attack",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-defending.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "restoring",
+        "title": "Restoring B · own bleeding",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-restoring.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "east-relative",
+        "title": "Playing EAST · own side blue",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-east-relative.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "out-of-bounds",
+        "title": "Out of bounds · 7 s",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-out-of-bounds.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "revive",
+        "title": "Reviving a downed squadmate · 60 %",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-revive.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "tank-driver",
+        "title": "Tank driver · AP reloading · disabled",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-tank-driver.png",
+        "seated": "tank:driver",
+        "overlaps": []
+      },
+      {
+        "id": "tank-commander",
+        "title": "Tank commander · RWS hot",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-tank-commander.png",
+        "seated": "tank:commander",
+        "overlaps": []
+      },
+      {
+        "id": "heli-pilot",
+        "title": "Helicopter pilot · pods · LOCKING",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-heli-pilot.png",
+        "seated": "helicopter:driver",
+        "overlaps": []
+      },
+      {
+        "id": "heli-gunner",
+        "title": "Helicopter gunner · chin gimbal · LOCKED",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-heli-gunner.png",
+        "seated": "helicopter:gunner",
+        "overlaps": []
+      },
+      {
+        "id": "transport-door",
+        "title": "Transport door gun · arc limit · MISSILE",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-transport-door.png",
+        "seated": "transport:door-left",
+        "overlaps": []
+      },
+      {
+        "id": "jet",
+        "title": "Jet · AA missile selected · lead pipper · locking 70 %",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-jet.png",
+        "seated": "plane:driver",
+        "overlaps": []
+      },
+      {
+        "id": "enter-jeep",
+        "title": "Enter prompt · jeep gunner seat",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-enter-jeep.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "big-map",
+        "title": "Full map · flags, squad, team, spotted, vehicles",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-big-map.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy",
+        "title": "Deploy · valid spawns, countdown, kit picker",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-deploy.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "deploy-refused",
+        "title": "Deploy · refused (contested), revive window",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-deploy-refused.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "scoreboard",
+        "title": "Scoreboard · squads and Conquest columns",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-scoreboard.png",
+        "seated": null,
+        "overlaps": []
+      },
+      {
+        "id": "result",
+        "title": "Result · ticket graph and MVPs",
+        "file": "docs/design/conquest/redesign/captures/hud/landscape-result.png",
+        "seated": null,
+        "overlaps": []
+      }
+    ]
+  },
+  "overlaps": [],
+  "errors": []
+}

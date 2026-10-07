@@ -19,6 +19,10 @@ import {
   BARRICADE,
   BB_SAND, BB_CORAL, BB_PINEAPPLE, BB_PINE_LEAF, BB_KELP, BB_MOAI, BB_ROCK, BB_HULL, BB_CHUM, BB_ROAD,
 } from '../../../shared/worlddata.js';
+import {
+  MEADOW, DRY_GRASS, FIELD_WHEAT, MUD, SCORCHED_EARTH, GRAVEL, PINE_NEEDLES, PINE_LEAVES,
+  BIRCH_LOG, WHITE_PLASTER, TERRACOTTA_ROOF, COBBLE_WALL, TIMBER, CORRUGATED_STEEL, SOOT_BRICK,
+} from '../../../shared/world/blocks.js';
 
 export const ATLAS_SIZE = 256;
 export const TILE_PX = 16;
@@ -53,6 +57,12 @@ export const TILE = {
   BB_MOAI: 89, BB_ROCK: 90, BB_HULL: 91, BB_CHUM: 92, BB_ROAD: 93,
   // Bikini Bottom's per-map GLASS remap: a clean pane with no diagonal streaks.
   BB_DOME_GLASS: 94,
+  // Frontier v2 valley grounds, forest, village, farm and works materials.
+  MEADOW_TOP: 95, MEADOW_SIDE: 96, DRY_GRASS_TOP: 97, DRY_GRASS_SIDE: 98,
+  FIELD_WHEAT_TOP: 99, FIELD_WHEAT_SIDE: 100, MUD: 101, SCORCHED_EARTH: 102, GRAVEL: 103,
+  PINE_NEEDLES: 104, PINE_LEAVES: 105, BIRCH_LOG_SIDE: 106, BIRCH_LOG_TOP: 107,
+  WHITE_PLASTER: 108, TERRACOTTA_ROOF: 109, COBBLE_WALL: 110, TIMBER: 111,
+  CORRUGATED_STEEL: 112, SOOT_BRICK: 113,
 };
 
 /** Deterministic integer wobble -> 0..k-1. The atlas' only "randomness". */
@@ -799,6 +809,204 @@ function bbDomeGlass(x, y) {
   return [clamp255(190 + dustGrain(x >> 2, y >> 2, 153, 5)), 228, 240, 120];
 }
 
+// ------------------------------------------------------- Frontier v2 valley
+// Warm late-summer palette: lush river meadow, sun-dried upland grass, ripe
+// wheat rows, wet river mud, gravel tracks and a needle-strewn forest floor.
+// Village, farm and works facades share the same low-sun warmth.
+
+/** Earth under every Frontier grass lip: browner and drier than DIRT. */
+function frontierSoil(x, y, salt) {
+  const m = mottle(x, y, salt);
+  const g = grain(x, y, salt + 1, 15) - 7;
+  let r = 112 + m * 10 + g, gr = 84 + m * 8 + g * 0.7, b = 58 + m * 5 + (g >> 1);
+  if (grain(x, y, salt + 2, 41) < 2) { r = 138; gr = 124; b = 104; }      // pebbles
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
+}
+
+function meadowTop(x, y) {
+  const m = mottle(x, y, 160);
+  const g = grain(x, y, 161, 17) - 8;
+  let r = 86 + m * 12 + (g >> 1), gr = 138 + m * 15 + g, b = 52 + m * 6 + (g >> 2);
+  if (grain(x, y, 162, 31) < 2) { r *= 0.78; gr *= 0.82; b *= 0.76; }        // clover shade
+  if (grain(x, y, 163, 47) === 0) { r = 226; gr = 214; b = 120; }             // buttercup
+  else if (grain(x, y, 164, 61) === 0) { r = 232; gr = 232; b = 220; }        // daisy
+  else if (grain(x, y, 165, 23) < 2) { r = 124; gr = 176; b = 82; }           // blade flecks
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
+}
+
+function meadowSide(x, y) {
+  const lip = 3 + grain(x, 0, 166, 3);
+  if (y < lip - 1) { const p = meadowTop(x, y); return [p[0] * 0.9 | 0, p[1] * 0.92 | 0, p[2] * 0.88 | 0, 255]; }
+  if (y < lip) return [62, 98, 40, 255];
+  return frontierSoil(x, y, 167);
+}
+
+function dryGrassTop(x, y) {
+  const m = mottle(x, y, 170);
+  const g = grain(x, y, 171, 15) - 7;
+  let r = 168 + m * 14 + g, gr = 150 + m * 12 + g, b = 84 + m * 8 + (g >> 1);
+  if (tileNoise(x, y, 4, 172) > 0.72) { r -= 34; gr -= 18; b -= 10; }         // greener tufts
+  if (grain(x, y, 173, 37) < 2) { r = 120; gr = 98; b = 62; }                 // bare soil
+  if (grain(x, y, 174, 29) < 2) { r = 206; gr = 190; b = 128; }               // bleached stalks
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
+}
+
+function dryGrassSide(x, y) {
+  const lip = 2 + grain(x, 0, 175, 3);
+  if (y < lip - 1) { const p = dryGrassTop(x, y); return [p[0] * 0.9 | 0, p[1] * 0.9 | 0, p[2] * 0.88 | 0, 255]; }
+  if (y < lip) return [118, 98, 56, 255];
+  return frontierSoil(x, y, 176);
+}
+
+/** Ripe wheat drills: furrows every 4px with ears catching the low sun. */
+function fieldWheatTop(x, y) {
+  const row = x & 3;
+  if (row === 0) return frontierSoil(x, y, 180);                              // furrow
+  const g = grain(x, y, 181, 13) - 6;
+  let r = 214 + g, gr = 178 + g, b = 92 + (g >> 1);
+  if (row === 1) { r -= 26; gr -= 26; b -= 16; }                               // stalk shade
+  if (((y + grain(x >> 2, 0, 182, 4)) & 3) === 0) { r += 18; gr += 14; b += 6; } // ears
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
+}
+
+function fieldWheatSide(x, y) {
+  if (y < 6) {
+    const g = grain(x, y, 183, 11) - 5;
+    const stalk = (x + (y >> 1)) & 1;
+    return dustColor(stalk ? [198, 162, 82] : [168, 132, 66], g);
+  }
+  if (y === 6) return [104, 86, 50, 255];
+  return frontierSoil(x, y, 184);
+}
+
+function mud(x, y) {
+  const m = mottle(x, y, 186);
+  const g = grain(x, y, 187, 11) - 5;
+  let r = 86 + m * 9 + g, gr = 68 + m * 7 + g, b = 50 + m * 5 + (g >> 1);
+  if (tileNoise(x, y, 4, 188) > 0.74) { r -= 16; gr -= 12; b -= 6; }           // wet hollow
+  if (tileNoise(x, y, 2, 189) > 0.9) { r += 34; gr += 32; b += 30; }           // sky glint
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
+}
+
+function scorchedEarth(x, y) {
+  const m = mottle(x, y, 190);
+  const g = grain(x, y, 191, 9) - 4;
+  let v = 46 + m * 10 + g;
+  let r = v + 6, gr = v + 2, b = v - 2;
+  if (grain(x, y, 192, 53) < 2) { r = 168; gr = 82; b = 34; }                 // embers
+  else if (grain(x, y, 193, 37) < 2) { r = 112; gr = 104; b = 96; }           // ash
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
+}
+
+/** Track gravel: rounded stones on fine grit, warmer than MC_GRAVEL. */
+function gravel(x, y) {
+  const cell = grain(x >> 1, y >> 1, 195, 7);
+  const g = grain(x, y, 196, 9) - 4;
+  let v = 134 + cell * 7 + g;
+  if (((x ^ y) & 3) === 0 && cell > 4) v -= 26;                                // stone shadow
+  return [clamp255(v + 8), clamp255(v + 2), clamp255(v - 8), 255];
+}
+
+function pineNeedles(x, y) {
+  const m = mottle(x, y, 198);
+  const g = grain(x, y, 199, 13) - 6;
+  let r = 112 + m * 12 + g, gr = 78 + m * 8 + g, b = 44 + m * 5;
+  const d = (x * 3 + y * 5 + grain(x >> 2, y >> 2, 200, 7)) % 7;
+  if (d === 0) { r += 30; gr += 22; b += 10; }                                 // fresh needles
+  if (grain(x, y, 201, 59) < 2) { r = 70; gr = 50; b = 32; }                   // cone
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
+}
+
+/** Dense conifer foliage: opaque, cool dark greens with needle highlights. */
+function pineLeaves(x, y) {
+  const cluster = (((x >> 1) * 11 ^ (y >> 1) * 19 ^ ((x - y + 16) >> 2) * 5) >>> 0) % 3;
+  const base = [[30, 66, 42], [38, 80, 50], [48, 94, 58]][cluster];
+  const shade = grain(x, y, 205, 13) - 6;
+  if (grain(x, y, 206, 17) < 2) return dustColor([18, 40, 28], 0);           // depth gaps
+  return dustColor(base, shade);
+}
+
+function birchSide(x, y) {
+  const g = grain(x, y, 208, 9) - 4;
+  let r = 222 + g, gr = 218 + g, b = 204 + g;
+  const band = (y + grain(x >> 2, 0, 209, 5)) % 7;
+  if (band === 0 && grain(x, y, 210, 3) < 2) { r = 46; gr = 44; b = 40; }      // lenticel dashes
+  if (grain(x, y, 211, 71) < 2) { r = 70; gr = 62; b = 54; }                   // knot
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
+}
+
+function birchTop(x, y) {
+  const d = Math.hypot(x - 7.5, y - 7.5);
+  if (d > 6.8) return dustColor([214, 210, 196], grain(x, y, 212, 7) - 3);
+  const ring = (d * 1.8) | 0;
+  return dustColor(ring & 1 ? [196, 168, 118] : [214, 188, 136], grain(x, y, 213, 5) - 2);
+}
+
+/** Lime-washed plaster over rubble: soft cream with faint trowel clouds. */
+function whitePlaster(x, y) {
+  const m = mottle(x, y, 215);
+  let r = 226 + m * 8, gr = 218 + m * 8, b = 198 + m * 7;
+  if (tileNoise(x, y, 4, 216) > 0.82) { r -= 22; gr -= 22; b -= 20; }          // weathering
+  if (grain(x, y, 217, 89) === 0) { r -= 40; gr -= 40; b -= 36; }              // chip
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
+}
+
+/** Overlapping clay pantiles in 4px courses, offset every other course. */
+function terracottaRoof(x, y) {
+  const course = y >> 2, ly = y & 3;
+  const tile = ((x + (course & 1) * 2) >> 2);
+  const tone = grain(tile, course, 219, 5) * 6;
+  let r = 178 + tone, gr = 86 + tone * 0.5, b = 52;
+  if (ly === 3) { r = 112; gr = 52; b = 34; }                                  // course shadow
+  else if (ly === 0) { r += 20; gr += 12; b += 8; }                            // tile lip
+  if (((x + (course & 1) * 2) & 3) === 0) { r -= 24; gr -= 14; b -= 8; }       // gap
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
+}
+
+/** Dry-laid field stone: irregular grey cobbles with dark joints. */
+function cobbleWall(x, y) {
+  const course = y >> 2;
+  const shift = grain(course, 0, 221, 4);
+  const jx = (x + shift) % 5 === 0 || (x + shift + course) % 7 === 0;
+  if ((y & 3) === 3 || jx) return dustColor([70, 68, 64], grain(x, y, 222, 7) - 3);
+  const stoneTone = grain((x + shift) >> 2, course, 223, 5) * 9;
+  const base = grain((x + shift) >> 2, course, 224, 3) === 0 ? [150, 138, 118] : [132, 132, 128];
+  return dustColor(base, stoneTone - 18 + grain(x, y, 225, 9) - 4 + ((y & 3) === 0 ? 10 : 0));
+}
+
+/** Heavy timber frame: vertical boards with deep grain and iron spikes. */
+function timber(x, y) {
+  const board = x >> 2;
+  const tone = grain(board, 0, 227, 7) * 5;
+  let r = 120 + tone, gr = 84 + tone * 0.8, b = 52 + tone * 0.4;
+  if ((x & 3) === 3) { r = 64; gr = 44; b = 28; }                              // board seam
+  else { const fiber = tileNoise(x * 4 + board, y, 4, 228) - 0.5; r += fiber * 26; gr += fiber * 18; }
+  if ((x & 3) === 1 && (y === 2 || y === 13)) { r = 72; gr = 74; b = 78; }      // spikes
+  return [clamp255(r), clamp255(gr), clamp255(b), 255];
+}
+
+/** Galvanised corrugated sheet with grey-blue ridges and drip streaks. */
+function corrugatedSteel(x, y) {
+  const ridge = x & 3;
+  let r = 138, gr = 146, b = 150;
+  if (ridge === 0) { r -= 40; gr -= 40; b -= 38; }
+  else if (ridge === 2) { r += 26; gr += 26; b += 26; }
+  const streak = tileNoise(x, y >> 2, 4, 230);
+  if (streak > 0.74) { r += 28; gr += 4; b -= 22; }                            // rust drip
+  const g = grain(x, y, 231, 9) - 4;
+  return [clamp255(r + g), clamp255(gr + g), clamp255(b + g), 255];
+}
+
+/** Smoke-stained engineering brick for the Kessler Works stacks and halls. */
+function sootBrick(x, y) {
+  const row = y >> 2;
+  const offset = (row & 1) * 4;
+  if ((y & 3) === 3 || ((x + offset) & 7) === 0) return dustColor([46, 40, 38], grain(x, y, 233, 5) - 2);
+  const brickTone = grain((x + offset) >> 3, row, 234, 5) * 6;
+  const soot = tileNoise(x, y, 8, 235) * 46;
+  return dustColor([132 - soot, 70 - soot * 0.5, 54 - soot * 0.4], brickTone - 12 + grain(x, y, 236, 7) - 3);
+}
+
 export const TILE_PAINTERS = Object.freeze({
   [TILE.AIR_DEBUG]: airDebug,
   [TILE.GRASS_TOP]: grassTop,
@@ -895,6 +1103,25 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.BB_CHUM]: bbChum,
   [TILE.BB_ROAD]: bbRoad,
   [TILE.BB_DOME_GLASS]: bbDomeGlass,
+  [TILE.MEADOW_TOP]: meadowTop,
+  [TILE.MEADOW_SIDE]: meadowSide,
+  [TILE.DRY_GRASS_TOP]: dryGrassTop,
+  [TILE.DRY_GRASS_SIDE]: dryGrassSide,
+  [TILE.FIELD_WHEAT_TOP]: fieldWheatTop,
+  [TILE.FIELD_WHEAT_SIDE]: fieldWheatSide,
+  [TILE.MUD]: mud,
+  [TILE.SCORCHED_EARTH]: scorchedEarth,
+  [TILE.GRAVEL]: gravel,
+  [TILE.PINE_NEEDLES]: pineNeedles,
+  [TILE.PINE_LEAVES]: pineLeaves,
+  [TILE.BIRCH_LOG_SIDE]: birchSide,
+  [TILE.BIRCH_LOG_TOP]: birchTop,
+  [TILE.WHITE_PLASTER]: whitePlaster,
+  [TILE.TERRACOTTA_ROOF]: terracottaRoof,
+  [TILE.COBBLE_WALL]: cobbleWall,
+  [TILE.TIMBER]: timber,
+  [TILE.CORRUGATED_STEEL]: corrugatedSteel,
+  [TILE.SOOT_BRICK]: sootBrick,
 });
 
 // ------------------------------------------------------------- face mapping
@@ -984,6 +1211,21 @@ export const DEFAULT_BLOCK_TILES = Object.freeze({
   [BB_HULL]: { all: TILE.BB_HULL },
   [BB_CHUM]: { all: TILE.BB_CHUM },
   [BB_ROAD]: { all: TILE.BB_ROAD },
+  [MEADOW]: { top: TILE.MEADOW_TOP, bottom: TILE.DIRT, side: TILE.MEADOW_SIDE },
+  [DRY_GRASS]: { top: TILE.DRY_GRASS_TOP, bottom: TILE.DIRT, side: TILE.DRY_GRASS_SIDE },
+  [FIELD_WHEAT]: { top: TILE.FIELD_WHEAT_TOP, bottom: TILE.DIRT, side: TILE.FIELD_WHEAT_SIDE },
+  [MUD]: { all: TILE.MUD },
+  [SCORCHED_EARTH]: { all: TILE.SCORCHED_EARTH },
+  [GRAVEL]: { all: TILE.GRAVEL },
+  [PINE_NEEDLES]: { top: TILE.PINE_NEEDLES, bottom: TILE.DIRT, side: TILE.DIRT },
+  [PINE_LEAVES]: { all: TILE.PINE_LEAVES },
+  [BIRCH_LOG]: { top: TILE.BIRCH_LOG_TOP, bottom: TILE.BIRCH_LOG_TOP, side: TILE.BIRCH_LOG_SIDE },
+  [WHITE_PLASTER]: { all: TILE.WHITE_PLASTER },
+  [TERRACOTTA_ROOF]: { all: TILE.TERRACOTTA_ROOF },
+  [COBBLE_WALL]: { all: TILE.COBBLE_WALL },
+  [TIMBER]: { top: TILE.WOOD_RINGS, bottom: TILE.WOOD_RINGS, side: TILE.TIMBER },
+  [CORRUGATED_STEEL]: { all: TILE.CORRUGATED_STEEL },
+  [SOOT_BRICK]: { all: TILE.SOOT_BRICK },
   ...MC_BLOCK_TILES,
   // Ghost blocks look exactly like the material they imitate.
   ...Object.fromEntries(Object.entries(MC_GHOST_SOLID).map(([ghost, solid]) => [ghost, MC_BLOCK_TILES[solid]])),
@@ -1017,6 +1259,12 @@ export const MAP_SURFACES = Object.freeze({
   // map authors no METAL inside the reef (tools/bikini-bottom-test.mjs).
   bikini_bottom: Object.freeze({
     remap: Object.freeze({ [TILE.METAL]: TILE.BB_ROCK, [TILE.GLASS]: TILE.BB_DOME_GLASS }), boundary: false, pilasterEvery: 0,
+  }),
+  // Frontier's valley palette: stray generic GRASS (hedge banks, yard lawns)
+  // reads as the same late-summer meadow as the generated terrain around it.
+  // The open perimeter is mountains, never a tall shell, so no boundary skin.
+  frontier: Object.freeze({
+    remap: Object.freeze({ [TILE.GRASS_TOP]: TILE.MEADOW_TOP, [TILE.GRASS_SIDE]: TILE.MEADOW_SIDE }), boundary: false, pilasterEvery: 0,
   }),
 });
 const NO_SURFACE = Object.freeze({ remap: null, boundary: false, pilasterEvery: 0 });
@@ -1073,6 +1321,11 @@ const NO_RING_DARKEN = new Set([
   TILE.FACADE_PANEL, TILE.FACADE_JOINT, TILE.FACADE_PILLAR, TILE.FACADE_BASE,
   // Cutout blades read as foliage; seafloor sand and road stay seamless like SAND/ASPHALT.
   TILE.BB_PINE_LEAF, TILE.BB_KELP, TILE.BB_SAND, TILE.BB_ROAD, TILE.BB_DOME_GLASS,
+  // Frontier ground and foliage are continuous fields, not masonry courses.
+  TILE.MEADOW_TOP, TILE.MEADOW_SIDE, TILE.DRY_GRASS_TOP, TILE.DRY_GRASS_SIDE, TILE.FIELD_WHEAT_TOP,
+  TILE.FIELD_WHEAT_SIDE, TILE.MUD, TILE.SCORCHED_EARTH, TILE.GRAVEL, TILE.PINE_NEEDLES, TILE.PINE_LEAVES,
+  TILE.BIRCH_LOG_SIDE, TILE.BIRCH_LOG_TOP, TILE.WHITE_PLASTER, TILE.TERRACOTTA_ROOF, TILE.COBBLE_WALL,
+  TILE.TIMBER, TILE.CORRUGATED_STEEL, TILE.SOOT_BRICK,
   ...Object.entries(TILE).filter(([name]) => name.startsWith('MC_')).map(([, slot]) => slot),
 ]);
 const RING_DARKEN = 0.9;

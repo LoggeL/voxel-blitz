@@ -27,9 +27,9 @@ try {
   assert.equal(ctx.currentTime, 0, 'all terrain debris arrives in the same audio frame');
   assert.equal(blast.disconnected, undefined, 'blast survives 80 block impacts in one snapshot');
   assert.equal(blastCleanups, 0, 'live blast source cleanup is not called');
-  assert.equal(pool._positional.length, 16, 'positional cap remains bounded');
-  assert.equal(pool._voices.length, 16, 'evicted debris also leaves the global pool');
-  assert.equal(pool._cleanupTimers.size, 16, 'evicted debris timers are canceled');
+  assert.equal(pool._positional.length, 24, 'positional cap remains bounded');
+  assert.equal(pool._voices.length, 24, 'evicted debris also leaves the global pool');
+  assert.equal(pool._cleanupTimers.size, 24, 'evicted debris timers are canceled');
 
   for (let i = 0; i < 100; i++) pool.acquire(null, 0.5);
   assert.equal(blast.disconnected, undefined, 'blast also survives global pool pressure');
@@ -38,7 +38,7 @@ try {
   pool.disposeAll();
   assert.equal(blastCleanups, 1, 'blast cleanup runs exactly once on disposal');
 
-  const important = Array.from({ length: 16 }, () => pool.acquire(at(2), 2.2));
+  const important = Array.from({ length: 24 }, () => pool.acquire(at(2), 2.2));
   const quiet = pool.acquire(at(), 0.5);
   let quietCleanups = 0;
   pool.addCleanup(quiet, () => { quietCleanups++; });
@@ -46,7 +46,7 @@ try {
     'a full important positional pool rejects lower-priority arrivals');
   assert.equal(quiet.disconnected, true, 'rejected incoming output is disconnected');
   assert.equal(quietCleanups, 1, 'late cleanup registration immediately releases rejected sources');
-  assert.equal(pool._positional.length, 16);
+  assert.equal(pool._positional.length, 24);
   const newBlast = pool.acquire(at(2), 2.2);
   assert.equal(important[0].disconnected, true, 'equal-priority blasts evict the oldest blast');
   assert.ok(important.slice(1).every((voice) => !voice.disconnected));
@@ -63,7 +63,7 @@ try {
   assert.equal(pool._voices.length, 48);
   pool.disposeAll();
 
-  const normal = Array.from({ length: 16 }, () => pool.acquire(at(), 0.5));
+  const normal = Array.from({ length: 24 }, () => pool.acquire(at(), 0.5));
   pool.acquire(at(), 0.5);
   assert.equal(normal[0].disconnected, true, 'ordinary positional voices retain FIFO');
   assert.ok(normal.slice(1).every((voice) => !voice.disconnected));

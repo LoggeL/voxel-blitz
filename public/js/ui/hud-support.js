@@ -4,6 +4,7 @@ import { ROCKET_RULES } from '../../../shared/rocket-rules.js';
 import { BOLT_RULES } from '../../../shared/bolt-rules.js';
 import { bubbleProfile } from '../../../shared/bubble-rules.js';
 import { MGL_RULES } from '../../../shared/mgl-rules.js';
+import { VEHICLE_WEAPON_META } from '../../../shared/conquest-contract.js';
 
 export const GLYPH = Object.freeze({
   rifle: 'R',
@@ -40,7 +41,15 @@ export const WEAPON_NAMES = Object.freeze({
   glaive: 'GV-4 RIPTIDE',
   bubble: 'SB-1 SUDSBLASTER',
   mgl: 'GL-3 SKIPJACK',
+  // Conquest kill keys: mounted vehicle weapons, roadkills and the restricted-area timer.
+  ...Object.fromEntries(Object.entries(VEHICLE_WEAPON_META).map(([key, meta]) => [key, meta.label])),
+  vehicle: 'ROADKILL',
+  restricted: 'RESTRICTED AREA',
 });
+
+/** Kill keys that have no weapon-slot art; the kill feed draws a vector icon for them. */
+export const VEHICLE_KILL_KEYS = Object.freeze([...Object.keys(VEHICLE_WEAPON_META), 'vehicle', 'restricted']);
+export const isVehicleKillKey = key => typeof key === 'string' && VEHICLE_KILL_KEYS.includes(key);
 
 export function weaponImagePath(weaponId) {
   const suffix = weaponId === 'minigun' || weaponId === 'flamethrower' ? '-illustrated' : '';
@@ -129,6 +138,7 @@ export function weaponCardStats(def) {
 
 export const MODE_LABELS = Object.freeze({
   bastion: 'BASTION · CO-OP PVE',
+  conquest: 'CONQUEST',
   duel: '1V1 DUEL',
   ttt: 'TROUBLE IN TERRORIST TOWN',
   chaos: 'CHAOS LAB',
@@ -140,6 +150,7 @@ export const MODE_LABELS = Object.freeze({
 });
 
 export const MAP_LABELS = Object.freeze({
+  frontier: 'FRONTIER · 768 × 768',
   harbor: 'HARBOR · LARGE',
   canyon: 'CANYON · LARGE',
   reactor: 'REACTOR 9',
@@ -158,6 +169,7 @@ export const MAP_LABELS = Object.freeze({
 });
 
 export const MAP_PREVIEWS = Object.freeze({
+  frontier: './assets/maps/frontier.jpg',
   harbor: './assets/maps/harbor.webp',
   canyon: './assets/maps/canyon.webp',
   reactor: './assets/maps/reactor-preview.webp',

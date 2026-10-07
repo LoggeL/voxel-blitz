@@ -10,7 +10,9 @@ import {
   clamp01,
   resolveKey,
   weaponImagePath,
+  isVehicleKillKey,
 } from './hud-support.js';
+import { KILL_KEY_ICONS, svgIcon } from './conquest/icons.js';
 import { DamageNumberPool } from './damage-numbers.js';
 import { BASTION_ENEMIES } from '../../../shared/bastion.js';
 import { DeathTreatment } from './death-treatment.js';
@@ -22,6 +24,9 @@ const HITMARK_MS = 210;
 const KILLMARK_MS = 520;
 
 const EMPTY = Object.freeze({});
+const VEHICLE_TYPE_LABELS = Object.freeze({ jeep: 'JEEP', tank: 'TANK', helicopter: 'ATTACK HELI', transport: 'TRANSPORT', plane: 'JET' });
+/** Armour hit confirmations: yellow when the hit did damage, a white spark when the armour shrugged it off. */
+const ARMOR_MARKS = Object.freeze({ armor: 'vb-armor-hit', spark: 'vb-armor-spark' });
 
 function nowDefault() {
   return typeof performance !== 'undefined' && typeof performance.now === 'function'
@@ -140,7 +145,11 @@ export class CombatHudController {
     const weaponKey = resolveKey(ev.w);
     const throwable = !!(weaponKey && THROWABLE_NAMES[weaponKey]);
     const weapon = el('span', `kf-weapon kf-weapon-${weaponKey || 'world'}`, row);
-    if (weaponKey && WEAPON_NAMES[weaponKey]) {
+    if (isVehicleKillKey(weaponKey)) {
+      // Mounted weapons, roadkills and the restricted-area timer have no slot art.
+      const icon = svgIcon(globalThis.document, KILL_KEY_ICONS[weaponKey], 'kf-vehicle-icon');
+      if (icon) weapon.appendChild(icon);
+    } else if (weaponKey && WEAPON_NAMES[weaponKey]) {
       const icon = el('img', 'kf-weapon-icon vb-weapon-art', weapon);
       icon.src = weaponImagePath(weaponKey);
       icon.dataset.weaponId = weaponKey;
@@ -172,6 +181,24 @@ export class CombatHudController {
     const victim = el('span', '', row);
     victim.textContent = this.nameFor(ev.victim);
 
+    this._appendFeedRow(row);
+  }
+
+  /** Conquest hull kill: "KILLER [type] DESTROYED TANK" from vehicle_destroyed. */
+  vehicleDestroyed(ev) {
+    if (!this.dom.kf || !ev || this._disposed) return;
+    const type = typeof ev.type === 'string' ? ev.type : 'vehicle';
+    const typeLabel = VEHICLE_TYPE_LABELS[type] || 'VEHICLE';
+    const row = el('div', `kf-row kf-vehicle-destroyed kf-vehicle-${type}`);
+    if (ev.attacker != null) el('b', '', row).textContent = this.nameFor(ev.attacker);
+    const weapon = el('span', 'kf-weapon kf-weapon-vehicle', row);
+    const icon = svgIcon(globalThis.document, VEHICLE_TYPE_LABELS[type] ? type : 'tank', 'kf-vehicle-icon');
+    if (icon) weapon.appendChild(icon);
+    el('span', 'kf-weapon-name', weapon).textContent = ev.attacker != null ? 'DESTROYED' : 'WRECKED';
+    el('span', 'kf-vehicle-type', row).textContent = typeLabel;
+    const crew = Math.max(0, Number(ev.crewKilled) | 0);
+    if (crew > 0) el('em', 'kf-marker', row).textContent = `+${crew} CREW`;
+    row.setAttribute('role', 'status');
     this._appendFeedRow(row);
   }
 
@@ -249,6 +276,7 @@ export class CombatHudController {
     if (!hm || this._disposed) return;
     const resolved = kind === true ? 'head' : (typeof kind === 'string' ? kind : 'body');
     const kill = resolved === 'kill' || resolved === 'killHead';
+    const armor = ARMOR_MARKS[resolved] || null;
     const hs = resolved === 'head' || resolved === 'killHead';
     // A kill mark is never downgraded by a trailing body-hit confirmation.
     if (this.hmTimer && this._hitmarkKind?.startsWith('kill') && !kill) return;
@@ -259,6 +287,7 @@ export class CombatHudController {
     hm.classList.toggle('vb-hs', hs);
     hm.classList.toggle('hs', hs);
     hm.classList.toggle('vb-kill', kill);
+    for (const [markKind, cls] of Object.entries(ARMOR_MARKS)) hm.classList.toggle(cls, armor !== null && markKind === resolved);
     this._hitmarkerNode = hm;
     this._hitmarkKind = resolved;
     this.hmTimer = this._setTimer(this._onHitmarkTimeout, kill ? KILLMARK_MS : HITMARK_MS);
@@ -266,7 +295,7 @@ export class CombatHudController {
 
   _finishHitmark() {
     const hm = this._hitmarkerNode || this.dom.hitmarker;
-    if (hm) hm.classList.remove('vb-show', 'show', 'pop', 'on', 'vb-hs', 'hs', 'vb-kill');
+    if (hm) hm.classList.remove('vb-show', 'show', 'pop', 'on', 'vb-hs', 'hs', 'vb-kill', ...Object.values(ARMOR_MARKS));
     this._hitmarkerNode = null;
     this._hitmarkKind = null;
     this.hmTimer = 0;

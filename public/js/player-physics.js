@@ -8,6 +8,7 @@ import { PHYSICS, MOVEMENT_RULES, SWIM_RULES, fluidContact, swimVerticalVelocity
 import { getBlock, ladderContact, isSolidBlock, FLUID_BLOCKS } from '../../shared/worlddata.js';
 import { slideTerrainAxis } from '../../shared/terrain-steps.js';
 import { slideContact, stepSlideRide } from '../../shared/slide-rules.js';
+import { slidePlayerVehicleAxis, constrainPlayerVehicleMotion } from '../../shared/player-vehicle-collision.js';
 
 const { walk: WALK, sprint: SPRINT, crouch: CROUCH, jump: JUMP_VEL,
   accelGround: GROUND_ACCEL, accelAir: AIR_ACCEL, gravity: GRAVITY } = PHYSICS;
@@ -39,6 +40,8 @@ export class PlayerPhysics {
     this._solidAt = (x, y, z) => this.solid(x, y, z);
     this._fluidAt = (x, y, z) => FLUID_BLOCKS.has(getBlock(x, y, z));
     this.swimming = false;
+    // Live authoritative snapshot rows, refreshed by the match runtime.
+    this.vehicleColliders = [];
     this.setMapMeta(mapMeta);
   }
 
@@ -56,9 +59,11 @@ export class PlayerPhysics {
 
   moveAxis(axis, amount, canStep = false) {
     const height = stanceHeight(PHYSICS.height, this.proneT);
-    const collided = canStep
+    const start = this.pos[axis];
+    const terrainCollision = canStep
       ? slideTerrainAxis(this.pos, axis, amount, this._solidAt, this.mapMeta, true, height)
       : slidePlayerAxis(this.pos, axis, amount, this._solidAt, height);
+    const collided = slidePlayerVehicleAxis(this.pos, axis, start, this.vehicleColliders, height) || terrainCollision;
     if (collided) this.vel[axis] = 0;
     return collided;
   }
@@ -95,7 +100,12 @@ export class PlayerPhysics {
     if (ride) {
       // On the slide rails: no collision, no jump, the tube sets the pace.
       this.vault = null;
+      const previous = { ...this.pos };
       this.slide = stepSlideRide(this.pos, this.vel, ride, dt, wish);
+      if (constrainPlayerVehicleMotion(this.pos, previous, this.vehicleColliders, stanceHeight(PHYSICS.height, this.proneT))) {
+        this.slide = null;
+        this.vel.x = this.vel.y = this.vel.z = 0;
+      }
       this.grounded = false;
       this.coyote = 0;
       this.jumpGroundY = null;
@@ -114,11 +124,13 @@ export class PlayerPhysics {
         deliberateGrab ? this.pos.y : this.jumpGroundY, yaw, deliberateGrab ? 0 : 1);
     }
     if (this.vault) {
+      const previous = { ...this.pos };
       const active = stepVault(this.pos, this.vault, dt, this._solidAt);
+      const hullBlocked = constrainPlayerVehicleMotion(this.pos, previous, this.vehicleColliders, stanceHeight(PHYSICS.height, this.proneT));
       this.vel.x = this.vel.y = this.vel.z = 0;
       this.grounded = !active && this.solidBelow(this.pos.x, this.pos.y, this.pos.z);
       this.coyote = 0;
-      if (!active) this.vault = null;
+      if (!active || hullBlocked) this.vault = null;
       return false;
     }
     const onLadder = !this.climbBlocked && !low && onLadderNow;
@@ -160,7 +172,9 @@ export class PlayerPhysics {
     const ladderBypass = ladderVy > 0
       || (ladderVy < 0 && ladderContact(this.mapMeta, this.pos.x, this.pos.y + this.vel.y * dt, this.pos.z));
     if (ladderBypass) {
+      const start = this.pos.y;
       this.pos.y += this.vel.y * dt;
+      if (slidePlayerVehicleAxis(this.pos, 'y', start, this.vehicleColliders, stanceHeight(PHYSICS.height, this.proneT))) this.vel.y = 0;
       if (ladderVy > 0 && !ladderContact(this.mapMeta, this.pos.x, this.pos.y, this.pos.z)) this.vel.y = 0;
     } else {
       hitY = this.moveAxis('y', this.vel.y * dt);

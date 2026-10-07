@@ -10,7 +10,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { staticHandler } from './static.js';
 import { LobbyManager } from './lobby.js';
 import { ServerDiagnostics } from './diagnostics.js';
-import { TICK_MS, parseAdmissionFrame, parseBuyFrame, sanitizeName } from './protocol/admission.js';
+import { TICK_MS, parseAdmissionFrame, parseBuyFrame, parseConquestIntent, sanitizeName } from './protocol/admission.js';
 
 const MAX_CONNECTIONS = 256;
 const MAX_MESSAGE_BYTES = 64 * 1024;
@@ -377,6 +377,10 @@ async function main() {
         }
         if (msg.t === 'buy') {
           manager.buy(meta, parseBuyFrame(msg));
+          return;
+        }
+        if (msg.t === 'conquest') {
+          manager.conquest(meta, parseConquestIntent(msg));
           return;
         }
         if (msg.t === 'chat') manager.chat(meta, msg.text);

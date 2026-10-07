@@ -1,11 +1,12 @@
 import { AIR, BEDROCK, METAL } from '../../../shared/world/blocks.js';
-import { MAP_HEADER_BYTES, validateSerializedWorld } from '../../../shared/world/serialize.js';
+import { deserializeBlocks } from '../../../shared/world/serialize.js';
 
 /** One terrain copy plus sparse, reversible changes per recorded snapshot. */
 export class KillcamTerrain {
   constructor(mapBytes, damage = [], time = -Infinity) {
-    this.dimensions = validateSerializedWorld(mapBytes);
-    this.blocks = mapBytes.slice(MAP_HEADER_BYTES);
+    const decoded = deserializeBlocks(mapBytes);
+    this.dimensions = decoded.dimensions;
+    this.blocks = decoded.blocks;
     this.damage = new Map();
     this.time = time;
     for (const row of damage) {

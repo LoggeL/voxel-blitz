@@ -31,8 +31,11 @@ import {
   wrapAngle,
 } from './sim/player.js';
 import { stepMovement, updateCondition, updateTimers } from './sim/movement.js';
-import { resolveWeaponIntent } from './sim/combat.js';
+import { resolveWeaponIntent, cancelCharge } from './sim/combat.js';
 import { SpawnSelector } from './sim/spawn.js';
+import { groundNavigation } from './bot-navigation.js';
+import { VehicleSystem } from './sim/vehicles.js';
+import { parseVehicleAction } from './protocol/admission.js';
 import { ProjectileSystem } from './sim/projectiles.js';
 import { createSimulationContexts } from './sim/context.js';
 import { CHAOS_CASH_RULES, TRAINING_AMMO_RULES } from '../shared/powerups.js';
@@ -56,6 +59,8 @@ const DROWN_GRACE_S = 8;
 const DROWN_DAMAGE = 6;
 const DROWN_INTERVAL_S = 0.5;
 const SPAWN_PROTECTION_MS = 1500;
+/** Vehicle actions that move a body between seats or out of a hull. */
+const SEAT_TRANSITIONS = new Set(['enter', 'exit', 'seat']);
 
 export class GameEngine {
   constructor(callbacks = {}) {
@@ -127,6 +132,8 @@ export class GameEngine {
       rng: callbacks.powerupRng, now: this.now,
       rules: CHAOS_CASH_RULES, types: ['cash'], prefix: 'cash',
     });
+    this.vehicles = new VehicleSystem(this);
+    this.vehicles?.reset(this.mode.mode === 'conquest' ? this.mapMeta?.conquest?.vehicleSpawns ?? [] : []);
     this.contexts = createSimulationContexts(this);
     this.spawnSelector = new SpawnSelector({
       entities: this.entities,
@@ -142,6 +149,7 @@ export class GameEngine {
 
   start(tickRateMs = TICK_MS) {
     if (this.running) return this;
+    if (this.mode.mode === 'conquest') groundNavigation(this.world);
     this.intervalMs = tickRateMs;
     this.running = true;
     let previous = performance.now();
@@ -196,6 +204,15 @@ export class GameEngine {
     }
 
     for (const player of this.combatants.values()) updateTimers(player, dt);
+    for (const player of this.combatants.values()) player.firing = false;
+    this.vehicles?.step(dt);
+    for (const player of this.combatants.values()) {
+      const pose = this.vehicles?.seatedPose(player);
+      if (!pose) continue;
+      Object.assign(player, pose, { vx: 0, vy: 0, vz: 0 });
+      // Personal-weapon seats aim the body with the occupant's own look.
+      if (this.vehicles.seatAllowsPersonalWeapons?.(player)) this.aimPersonalWeapon(player, dt);
+    }
     for (const player of this.combatants.values()) {
       if (player.state === 'alive') this.integrate(player, dt);
     }
@@ -207,8 +224,9 @@ export class GameEngine {
     this.flames.step(dt, combat);
     this.projectiles.step(dt, this.contexts.projectiles);
     for (const player of this.combatants.values()) {
-      player.firing = false;
-      if (player.state === 'alive') resolveWeaponIntent(player, dt, combat);
+      if (player.state === 'alive' && (!player.vehicleId || this.vehicles?.seatAllowsPersonalWeapons?.(player))) {
+        resolveWeaponIntent(player, dt, combat);
+      }
     }
     for (const player of this.combatants.values()) {
       updateMedkit(player, dt, this.mode.phase === 'live');
@@ -243,6 +261,7 @@ export class GameEngine {
       this.projectiles.smoke.snapshot(),
       this.projectiles.mineSnapshot(this.now),
       this.world.dimensions,
+      this.vehicles?.snapshot() ?? [],
     );
 
     this.tickBlocks.length = 0;
@@ -289,7 +308,8 @@ export class GameEngine {
 
   restoreWorld() {
     const { sx: SX, sz: SZ } = worldDimensions(this.world);
-    const pristine = createMapState(this.mapMeta.id);
+    // Copying a large map's pristine voxels is only worth it once something broke.
+    const pristine = this.changedBlocks.size ? createMapState(this.mapMeta.id) : null;
     for (const i of [...this.changedBlocks]) {
       const x = i % SX, z = Math.floor(i / SX) % SZ, y = Math.floor(i / (SX * SZ));
       const value = pristine.getBlock(x, y, z);
@@ -297,6 +317,7 @@ export class GameEngine {
       this.pushBlockDelta(x, y, z, value);
     }
     this.changedBlocks.clear();
+    this.vehicles?.reset(this.mode.mode === 'conquest' ? this.mapMeta?.conquest?.vehicleSpawns ?? [] : []);
     // Damage that never removed a voxel must also reset between runs.
     for (const row of this.blockDamage.values()) {
       this.tickBlockDamage.set(`${row.x},${row.y},${row.z}`, { ...row, progress: 0 });
@@ -312,6 +333,9 @@ export class GameEngine {
     if (!player?.bot || !pid || this.entities.has(pid)) return null;
     if (!this.mode.onPlayerTakeover(player, pid)) return null;
 
+    // A seated bot hands its seat over: releasing it would drop the body (and an
+    // aircraft's pilot) mid-air or leave it standing inside the hull collider.
+    this.vehicles?.renameOccupant(priorId, pid);
     this.entities.delete(priorId);
     this.discardPendingEventsFor(priorId);
     player.id = pid;
@@ -339,7 +363,7 @@ export class GameEngine {
   removeClient(id) {
     const pid = String(id);
     const player = this.entities.get(pid);
-    if (player) this.mode.onPlayerRemove(player);
+    if (player) { this.vehicles?.release(player); this.mode.onPlayerRemove(player); }
     this.projectiles.clearMines(pid);
     if (player) this.projectiles.resetGlaive(player, this.contexts.projectiles);
     this.entities.delete(pid);
@@ -365,6 +389,22 @@ export class GameEngine {
   applyInput(id, msg) {
     const player = this.entities.get(String(id));
     if (!player || !msg || typeof msg !== 'object') return;
+    // enter/exit/seat move the body; cm and weapon act on the hull in place.
+    const action = parseVehicleAction(msg.vehicleAction);
+    const acted = !!(action && this.mode.mode === 'conquest' && this.mode.phase === 'live'
+      && this.vehicles?.action(player, action));
+    const seatTransition = acted && SEAT_TRANSITIONS.has(action.type);
+    const mountedPacket = Object.hasOwn(msg,'vehicleControlId') || Object.hasOwn(msg,'vehicleControlSeatId');
+    const validMountedContext = typeof msg.vehicleControlId === 'string' && msg.vehicleControlId.length > 0 && msg.vehicleControlId.length <= 64
+      && typeof msg.vehicleControlSeatId === 'string' && msg.vehicleControlSeatId.length > 0 && msg.vehicleControlSeatId.length <= 32;
+    const staleMountedControls = mountedPacket && (!validMountedContext || msg.vehicleControlId !== player.vehicleId
+      || msg.vehicleControlSeatId !== player.vehicleSeatId || !this.vehicles?.seatFor(player));
+    // Open passenger seats keep infantry fire, reload, ADS and weapon swaps
+    // within the seat's arc; grenades and quick melee stay disabled in any seat.
+    const personalWeapons = !!player.vehicleId && !seatTransition && !staleMountedControls
+      && !!this.vehicles?.seatAllowsPersonalWeapons?.(player, Number.isFinite(msg.yaw) ? wrapAngle(msg.yaw) : undefined);
+    const suppressInfantry = ((!!player.vehicleId || mountedPacket) && !personalWeapons) || seatTransition;
+    const seatedPersonal = personalWeapons && !suppressInfantry;
     const previous = player.input;
     const keys = msg.keys || {};
     const input = {
@@ -382,6 +422,16 @@ export class GameEngine {
         leanRight: !!keys.leanR,
         interact: !!keys.interact,
       },
+      vehicleThrottle: Number.isFinite(msg.vehicleThrottle) ? Math.max(-1, Math.min(1, msg.vehicleThrottle)) : undefined,
+      vehicleSteer: Number.isFinite(msg.vehicleSteer) ? Math.max(-1, Math.min(1, msg.vehicleSteer)) : undefined,
+      vehicleLift: Number.isFinite(msg.vehicleLift) ? Math.max(-1, Math.min(1, msg.vehicleLift)) : undefined,
+      vehicleBrake: Number.isFinite(msg.vehicleBrake) ? Math.max(0, Math.min(1, msg.vehicleBrake)) : undefined,
+      vehicleControlId: validMountedContext ? msg.vehicleControlId : undefined,
+      vehicleControlSeatId: validMountedContext ? msg.vehicleControlSeatId : undefined,
+      // Present rate controls, including zero, suppress legacy angle aiming.
+      // A malformed explicit axis is neutral; omission keeps older clients.
+      ...Object.fromEntries(['vehiclePitchControl', 'vehicleRollControl', 'vehicleYawControl'].map(field =>
+        [field, Object.hasOwn(msg, field) ? Number.isFinite(msg[field]) ? Math.max(-1, Math.min(1, msg[field])) : 0 : undefined])),
       wantFire: !!msg.wantFire,
       quickMelee: !!msg.quickMelee,
       wantAds: !!msg.wantAds,
@@ -413,6 +463,24 @@ export class GameEngine {
     input.viewYaw = Number.isFinite(msg.viewYaw) ? wrapAngle(msg.viewYaw) : input.yaw;
     const requestedWeapon = msg.switchTo != null ? msg.switchTo : msg.weapon;
     if (Number.isFinite(requestedWeapon)) input.switchTo = clampWeaponSlot(requestedWeapon);
+    if (suppressInfantry) {
+      input.throwGrenade = input.grenadeHandling = input.quickMelee = input.reload = input.wantAds = false;
+      input.switchTo = undefined;
+    } else if (seatedPersonal) {
+      input.throwGrenade = input.grenadeHandling = input.quickMelee = false;
+    }
+    if (seatTransition || staleMountedControls) input.wantFire = false;
+    if (staleMountedControls) {
+      for (const axis of ['vehicleThrottle','vehicleSteer','vehicleLift','vehicleBrake','vehiclePitchControl','vehicleRollControl','vehicleYawControl']) input[axis] = 0;
+    }
+    if (seatTransition) {
+      // This packet still describes the previous controls. A fresh packet can
+      // request combat after the successful seat handoff.
+      cancelCharge(player);
+      player.ads = false; player.adsT = 0; player.mining = null;
+      player.triggerPrev = false; player.reloadPrev = false;
+      if (player.minigun) player.minigun.spin = 0;
+    }
     if (player.bastionRelease) {
       if (!input.wantFire && !input.throwGrenade && !input.grenadeHandling && !input.quickMelee) player.bastionRelease = false;
       input.wantFire = input.throwGrenade = input.grenadeHandling = input.quickMelee = false;
@@ -457,10 +525,39 @@ export class GameEngine {
     if (input.cancelMedkit || medkitMovement(input.keys) || medkitCombat(input, player.weapon)) {
       if (player.medkit.active || player.medkitRequest) interruptMedkit(player);
     }
+    if (suppressInfantry || seatedPersonal) {
+      if (suppressInfantry) { player.fireEdgeQueued = false; player.fireAimQueued = null; }
+      player.grenadeHandlingQueued = false; player.grenadeEdgeQueued = false; player.quickMeleeQueued = null;
+      player.grenadeChargeQueued = 0; player.grenadeTypeQueued = 0; player.grenadeCookQueued = 0; player.grenadeAimQueued = null;
+    }
     player.input = input;
   }
 
+  /** A personal-weapon passenger looks and aims with their own input, ADS included. */
+  aimPersonalWeapon(player, dt) {
+    const input = player.input;
+    if (!input) return;
+    player.yaw = input.yaw;
+    player.pitch = input.pitch;
+    player.ads = !!input.wantAds && player.deployT <= 0;
+    const adsStep = dt / Math.max(0.001, player.def.adsTime);
+    player.adsT = Math.max(0, Math.min(1, player.adsT + (player.ads ? adsStep : -adsStep)));
+  }
+
+  /** Conquest intent passthrough: {type:'deploy'|'spot'|'support', ...} from parseConquestIntent. */
+  conquestIntent(id, intent) {
+    const player = this.entities.get(String(id));
+    if (!player || !intent || typeof intent !== 'object') return false;
+    return !!this.mode.conquestIntent?.(player, intent);
+  }
+
+  /** Mark a hull spotted for `team` until `untilMs` (engine clock). */
+  spotVehicle(vehicleId, team, untilMs) {
+    return !!this.vehicles?.spot?.(vehicleId, team, untilMs);
+  }
+
   integrate(player, dt) {
+    if (player.vehicleId) return;
     const ctx = this.contexts.movement;
     ctx.solidAt = this.mode.mode === 'bastion' && !player.npcRole ? this.defenderSolidAt : this.solidAt;
     ctx.movementLocked = !this.mode.canMove(player);
@@ -550,6 +647,7 @@ export class GameEngine {
       victim.state = 'dead';
       return;
     }
+    this.vehicles?.release(victim);
     const damage = victim.hp <= 0 && victim.lastDamage?.lethal ? victim.lastDamage : null;
     // TTT deliberately carries no kill-reward metadata across hidden roles.
     const announcer = this.killAnnouncer.kill(victim, killer, this.now,
@@ -575,7 +673,7 @@ export class GameEngine {
     victim.vx = 0;
     victim.vy = 0;
     victim.vz = 0;
-    const modeContext = { weapon: weaponKey || '' };
+    const modeContext = { weapon: weaponKey || '', headshot: !!headshot };
     const shotTraits = {
       announcer,
       longRange: !!markers?.longRange,
@@ -609,6 +707,7 @@ export class GameEngine {
       ? player
       : this.entities.get(String(player));
     if (!entity) return false;
+    this.vehicles?.release(entity);
     this.killAnnouncer.reset(entity);
     const next = spawn || this.nextSpawnFor(entity, entity.lastSpawnIndex);
     entity.applySpawn(next);

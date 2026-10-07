@@ -108,6 +108,7 @@ export class PlayerEntity {
   applySpawn(spawn) {
     const { sx: SX, sz: SZ } = this.dimensions;
     this.x = spawn.x; this.y = spawn.y; this.z = spawn.z;
+    this.vehicleId = null; this.vehicleSeatId = null;
     this.vx = 0; this.vy = 0; this.vz = 0;
     const centerAim = aimAngles(
       [this.x, this.y, this.z],

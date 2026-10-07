@@ -35,6 +35,8 @@ import { clearReload, reloadIdentified, reloadRequestEdge } from './movement.js'
 import { raycastVoxels } from '../../shared/raycast.js';
 import { NETWORK_PRESENTATION } from '../../shared/networking.js';
 import { evShoot, evHit, evBlock } from '../protocol/events.js';
+import { occupantShielded, occupantHitPose, occupantDamageScale } from './vehicle-damage.js';
+import { infantryDamageClass } from '../../shared/vehicle-armor.js';
 import {
   clamp01,
   clampWeaponSlot,
@@ -273,10 +275,10 @@ function meleeSwing(p, ctx, def = p.def, aim = p, quick = false) {
   let bestDot = -Infinity;
   let bestDist = Infinity;
   for (const v of (ctx.targets || ctx.entities).values()) {
-    if (v === p || v.state !== 'alive') continue;
+    if (occupantShielded(v) || v === p || v.state !== 'alive') continue;
     if (!ctx.canDamage(p, v)) continue;
     const dx = v.x - oEye[0];
-    const dy = v.y + PLAYER_HALF.h - oEye[1];
+    const dy = occupantHitPose(v).y + PLAYER_HALF.h - oEye[1];
     const dz = v.z - oEye[2];
     const dist = Math.hypot(dx, dy, dz);
     if (dist > melee.reach + PLAYER_HALF.x) continue;
@@ -309,14 +311,14 @@ function meleeSwing(p, ctx, def = p.def, aim = p, quick = false) {
   const vFwd = fwdFromYawPitch(victim.yaw, victim.pitch);
   const backstab = vFwd.x * dirX + vFwd.y * dirY + vFwd.z * dirZ > melee.backstabDot;
   const hit = meleeHitProfile(def, p, { backstab, ladder: ladderContact(ctx.mapMeta, p.x, p.y, p.z) });
-  const dmg = meleeDamage(def, hit.mult);
+  const dmg = meleeDamage(def, hit.mult) * occupantDamageScale(victim);
   const lethal = victim.takeDamage(dmg, false, p, def.id);
   // `w`/`mk`/`q` let clients pick the pickaxe attack cue; fully armored hits keep
   // the lastDamage fields, from which the client derives the armor clank.
   ctx.pushEvent(Object.assign(evHit(p.id, victim.id, dmg, false, [victim.x, victim.eyeY, victim.z],
     victim.lastDamage), { w: 'knife', mk: hit.kind, q: quick ? 1 : 0 }));
   if (lethal) ctx.killPlayer(victim, p, def.id, false);
-  else applyMeleeKnockback(victim, aim.yaw, hit.knockback);
+  else if (!victim.vehicleId) applyMeleeKnockback(victim, aim.yaw, hit.knockback);
 }
 
 /** Accepted swings leave shared damage on the block until it is replaced. */
@@ -369,9 +371,10 @@ export function nearestVictim(shooter, o, d, limit, ctx, minT = 0, radius = 0, h
   let best = null, bestT = limit;
   const rewoundByShooter = !shooter.bot;
   for (const v of (ctx.targets || ctx.entities).values()) {
-    if (v === shooter || v.state !== 'alive' || hitVictims?.has(v)) continue;
+    if (occupantShielded(v) || v === shooter || v.state !== 'alive' || hitVictims?.has(v)) continue;
     if (!ctx.canDamage(shooter, v)) continue;
-    const pos = rewoundByShooter ? rewindVictim(v, ctx.now, shooter.input?.viewAge) : v;
+    // Seated crew ride their hull: no rewind, a crouched box under the seat hip.
+    const pos = v.vehicleId ? occupantHitPose(v) : rewoundByShooter ? rewindVictim(v, ctx.now, shooter.input?.viewAge) : v;
     const hit = rayPlayerHitboxes(o, d, pos, limit, { minT, radius, preferCore: true });
     // A corona contact whose closest approach is clipped by the segment end
     // (the wall this segment stops at) is not a real graze: it would spend the
@@ -539,10 +542,16 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
       const reach = shotReach - traveled;
       if (!(reach > 0) || damageScale < 0.001) break;
       const hit = raycastVoxels(ctx.solidAt, ...origin, d.x, d.y, d.z, reach);
-      const wallT = hit ? hit.t : reach;
+      // A passenger's own hull never stops their personal weapon.
+      const hull = ctx.vehicles?.rayHit(origin, [d.x, d.y, d.z], hit ? hit.t : reach, p.vehicleId ?? null);
+      const wallT = hull ? hull.distance : (hit ? hit.t : reach);
+      // Exposed crew sit inside their own hull's box: the round may reach them
+      // before it leaves that box. Nobody else is ever struck behind the hull.
+      const crewT = hull ? Math.max(hull.distance, Math.min(hull.exit ?? hull.distance, hit ? hit.t : reach)) : wallT;
       let minT = 0, stopped = false;
       for (;;) {
-        const tgt = nearestVictim(p, origin, d, wallT, ctx, minT, shotProfile.hitRadius, hitVictims);
+        let tgt = nearestVictim(p, origin, d, crewT, ctx, minT, shotProfile.hitRadius, hitVictims);
+        if (tgt && hull && tgt.t > hull.distance && tgt.victim.vehicleId !== hull.id) tgt = null;
         const mine = ctx.nearestClaymore?.(origin, d, tgt?.t ?? wallT, minT, shotProfile.hitRadius);
         // Bullets pop the bubbles they cross without stopping (no soap shield).
         ctx.popBubblesOnRay?.(p, origin, d, minT, mine ? mine.t : (tgt?.t ?? wallT), shotProfile.hitRadius);
@@ -558,7 +567,8 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
         const dist = traveled + tgt.t;
         const hs = !!tgt.coreHit && tgt.zone === 'head';
         const radialScale = shotProfile.hitRadius > 0 ? railDamageMult(shotProfile, tgt.radialDistance) : 1;
-        const dmg = combatDamage(Math.round(radialScale * damageAtDistance(def, dist) * (hs ? def.headMult : 1) * damageScale * 10) / 10);
+        const dmg = combatDamage(Math.round(radialScale * damageAtDistance(def, dist) * (hs ? def.headMult : 1) * damageScale
+          * occupantDamageScale(tgt.victim) * 10) / 10);
         const lethal = tgt.victim.takeDamage(dmg, hs, p, def.id);
         ctx.pushEvent(evHit(p.id, tgt.victim.id, dmg, hs, point, tgt.victim.lastDamage));
         if (lethal) ctx.killPlayer(tgt.victim, p, def.id, hs, {
@@ -577,6 +587,14 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
       }
       if (stopped) {
         collectNearMisses(p, origin, path[path.length - 1].end, ctx, nearMisses);
+        break;
+      }
+      if (hull) {
+        const point = origin.map((value, i) => value + d[['x', 'y', 'z'][i]] * hull.distance);
+        ctx.vehicles.damage(hull.id, damageAtDistance(def, traveled + hull.distance) * damageScale, p,
+          { cls: infantryDamageClass(def), point });
+        path.push({ o: origin, end: point });
+        collectNearMisses(p, origin, point, ctx, nearMisses);
         break;
       }
       // Keep empty-sky presentation finite without limiting the damage ray.
@@ -624,4 +642,54 @@ export function fireOneShot(p, ctx, charge = 1, aim = null) {
   // Presentation suppresses a flyby when this shot already supplies hit audio.
   if (shotHitVictims.size) shootEvent.hitVictims = [...shotHitVictims].map((victim) => victim.id);
   applyNearMisses(nearMisses, shotHitVictims, ctx);
+}
+
+/**
+ * One mounted hitscan round (coax, HMG, door gun, jet cannon), extracted from
+ * the infantry pellet loop. `dir` is an [x,y,z] unit vector; `weapon` is a
+ * VEHICLE_WEAPONS entry (damage, cls, range, headMult). Player victims are
+ * rewound for human shooters exactly like infantry fire; hulls are not.
+ * The firing hull (`vehicleId`) never stops its own round. Returns the end
+ * point, the voxel contact and what was hit, for the shoot event path.
+ */
+export function fireMountedRay(owner, origin, dir, weapon, ctx, { vehicleId = owner?.vehicleId ?? null } = {}) {
+  const d = { x: dir[0], y: dir[1], z: dir[2] }, reach = Number.isFinite(weapon.range) ? weapon.range : 300;
+  const hit = raycastVoxels(ctx.solidAt, ...origin, d.x, d.y, d.z, reach);
+  const wallT = hit ? hit.t : reach;
+  const hull = ctx.vehicles?.rayHit?.(origin, dir, wallT, vehicleId) ?? null;
+  const limit = hull ? Math.max(hull.distance, Math.min(hull.exit ?? hull.distance, wallT)) : wallT;
+  let target = nearestVictim(owner, origin, d, limit, ctx);
+  if (target && hull && target.t > hull.distance && target.victim.vehicleId !== hull.id) target = null;
+  const at = t => [origin[0] + d.x * t, origin[1] + d.y * t, origin[2] + d.z * t];
+  const nearMisses = new Map(), hitVictims = new Set();
+  let end, result;
+  if (target) {
+    end = at(target.t);
+    const headshot = !!target.coreHit && target.zone === 'head';
+    const damage = combatDamage(Math.round(weapon.damage * (headshot ? weapon.headMult ?? 1 : 1) * occupantDamageScale(target.victim) * 10) / 10);
+    const lethal = target.victim.takeDamage(damage, headshot, owner, weapon.key);
+    ctx.pushEvent(evHit(owner.id, target.victim.id, damage, headshot, end, target.victim.lastDamage));
+    if (lethal) ctx.killPlayer(target.victim, owner, weapon.key, headshot, { longRange: target.t >= LONG_RANGE_KILL_DISTANCE, noScope: false, dist: target.t });
+    hitVictims.add(target.victim);
+    result = { end, victimId: target.victim.id };
+  } else if (hull) {
+    end = at(hull.distance);
+    ctx.vehicles.damage(hull.id, weapon.damage, owner, { cls: weapon.cls, point: end });
+    result = { end, vehicleId: hull.id };
+  } else {
+    end = at(hit ? hit.t : Math.min(reach, 180));
+    result = { end };
+    if (hit) {
+      result.hit = { x: hit.x, y: hit.y, z: hit.z, nx: hit.nx, ny: hit.ny, nz: hit.nz };
+      if (hit.y > 0 && ctx.setBlock && ctx.blockHp) {
+        const type = ctx.getBlock(hit.x, hit.y, hit.z);
+        damageBlock(hit.x, hit.y, hit.z, type, weapon.damage, ctx);
+      }
+    }
+  }
+  if (ctx.entities) {
+    collectNearMisses(owner, origin, end, ctx, nearMisses);
+    applyNearMisses(nearMisses, hitVictims, ctx);
+  }
+  return result;
 }

@@ -6,6 +6,19 @@ export class SpectatorHud {
   constructor() {
     this.dom = {};
     this.onCycle = null;
+    this.suppressed = false;
+    this._state = {};
+  }
+
+  /**
+   * Conquest replaces this overlay with its deploy screen (ConquestHud): while
+   * suppressed the overlay stays hidden whatever the spectator camera reports.
+   */
+  setSuppressed(suppressed) {
+    const next = !!suppressed;
+    if (next === this.suppressed) return;
+    this.suppressed = next;
+    this.setState(this._state);
   }
 
   build(hud) {
@@ -40,9 +53,11 @@ export class SpectatorHud {
   }
 
   setState(state = {}) {
+    this._state = state;
     const dom = this.dom;
     if (!dom.root) return;
-    const active = state.active === true;
+    const active = state.active === true && !this.suppressed && state.suppressed !== true;
+    dom.root.dataset.suppressed = String(this.suppressed);
     dom.root.classList.toggle('hidden', !active);
     dom.root.classList.toggle('is-killcam', !!state.killCam);
     dom.respawn.textContent = String(state.respawnText || 'RESPAWNING');
@@ -66,5 +81,7 @@ export class SpectatorHud {
     this.dom.root?.remove();
     this.dom = {};
     this.onCycle = null;
+    this.suppressed = false;
+    this._state = {};
   }
 }

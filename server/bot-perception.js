@@ -7,20 +7,27 @@ const HALF_FOV = 55 * Math.PI / 180;
 const TRACK_HALF_FOV = 65 * Math.PI / 180;
 const HALF_VERTICAL_FOV = 50 * Math.PI / 180;
 
-/** Current visual evidence only. Hidden positions never enter combat memory. */
-export function observeBotTarget(observer, target, solidAt, smoke, now, tracking = false, difficulty = undefined) {
+/**
+ * Current visual evidence only. Hidden positions never enter combat memory.
+ * `options.sightRange` replaces the difficulty's range (aircraft see farther),
+ * and inside `options.omniRange` the field-of-view gate is skipped: a crew that
+ * checks all around its hull (tank 360 degree check) still needs line of sight.
+ */
+export function observeBotTarget(observer, target, solidAt, smoke, now, tracking = false, difficulty = undefined, options = null) {
   const profile = botDifficulty(difficulty);
   const origin = [observer.x, observer.eyeY, observer.z];
   const dx = target.x - origin[0], dz = target.z - origin[2];
   const flat = Math.hypot(dx, dz);
   const distance = Math.hypot(flat, target.eyeY - origin[1]);
-  const maxRange = profile.sightRange + (tracking ? 12 : 0);
+  const maxRange = (options?.sightRange ?? profile.sightRange) + (tracking ? 12 : 0);
   if (distance > maxRange) return null;
 
   const yaw = Math.atan2(-dx, -dz);
-  const offAxis = Math.abs(Math.atan2(Math.sin(yaw - observer.yaw), Math.cos(yaw - observer.yaw)));
+  const rawOffAxis = Math.abs(Math.atan2(Math.sin(yaw - observer.yaw), Math.cos(yaw - observer.yaw)));
   const halfFov = tracking ? TRACK_HALF_FOV : HALF_FOV;
-  if (flat > 0.01 && offAxis > halfFov) return null;
+  const omni = distance <= (options?.omniRange ?? 0);
+  if (flat > 0.01 && rawOffAxis > halfFov && !omni) return null;
+  const offAxis = Math.min(rawOffAxis, halfFov);
 
   // Sample actual combat volumes, including the rotated crouch/prone body.
   // Prefer the torso for aim; a head or shoulder peeking out still counts,
@@ -41,8 +48,8 @@ export function observeBotTarget(observer, target, solidAt, smoke, now, tracking
     const delta = point.map((v, axis) => v - origin[axis]);
     const length = Math.hypot(...delta);
     const pitch = Math.atan2(delta[1], Math.hypot(delta[0], delta[2]));
-    if (Math.abs(pitch - observer.pitch) > HALF_VERTICAL_FOV
-        || smoke.blocksSight(origin, point, now)
+    if ((!omni && Math.abs(pitch - observer.pitch) > HALF_VERTICAL_FOV)
+        || smoke?.blocksSight(origin, point, now)
         || raycastVoxels(solidAt, ...origin, ...delta, length)) continue;
     exposure += weight;
     aimPoint ||= point;

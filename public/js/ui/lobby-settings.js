@@ -1,7 +1,14 @@
 import { DEFAULT_TRAITOR_PERCENT, TTT_TRAITOR_PERCENTS } from '../../../shared/ttt.js';
 import { DUEL_KILL_LIMITS, DEFAULT_DUEL_KILL_LIMIT, DUEL_WEAPONS, MAP_IDS, MODE_IDS, MODE_RULES, isModeMapCompatible, mapForMode } from '../../../shared/modes.js';
 import { el, MAP_LABELS, MODE_LABELS, WEAPON_NAMES, savePref } from './hud-support.js';
+import { FRONTIER_PLAN, KIT_IDS, KITS, TEAM_DISPLAY } from '../../../shared/conquest-contract.js';
 import { MAX_BOTS, lobbyCapacity, modeAllowsBots } from '../../../shared/lobby-limits.js';
+
+/** Lobby summary of a Conquest match, read from the frozen plan so it never drifts from the map. */
+const CONQUEST_HINT = `${FRONTIER_PLAN.dimensions.sx} × ${FRONTIER_PLAN.dimensions.sz} battlefield · ${TEAM_DISPLAY.alpha} vs ${TEAM_DISPLAY.bravo} · `
+  + `${FRONTIER_PLAN.flags.length} flags · kits: ${KIT_IDS.map(id => KITS[id].label.toLowerCase()).join(', ')}. `
+  + 'Squads of four deploy on HQ, held flags, squadmates or vehicles. Drive jeeps and tanks, fly attack and transport helicopters and jets. '
+  + 'Hold three or more flags to bleed enemy tickets.';
 
 /** Host controls edit the authoritative waiting room, never a draft lobby. */
 export class LobbySettings {
@@ -102,7 +109,8 @@ export class LobbySettings {
     this.loadout.textContent = state.gameMode === 'duel'
       ? `BASE 1V1 WEAPON SET: ${DUEL_WEAPONS.map(id => WEAPON_NAMES[id] || id).join(' · ')}. No throwables.` : '';
     this.capacity.textContent = `${state.members?.length || 0} / ${limit} SLOTS · ${MAP_LABELS[state.map] || state.map}`;
-    this.hint.textContent = state.gameMode === 'bastion'
+    this.hint.textContent = state.gameMode === 'conquest'
+      ? `${CONQUEST_HINT}` : state.gameMode === 'bastion'
       ? `1–4 players defend ${MAP_LABELS[state.map] || state.map} stage by stage: build, hold, fall back, extract. No friendly bots.` : state.gameMode === 'duel'
       ? 'Share the invite link. Two players, no bots. Both players must be ready.' : isHost
       ? 'Smaller maps reduce bots. Joining friends replace bots when full. Changes reset readiness.'

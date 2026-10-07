@@ -35,6 +35,7 @@ Combat attacks deal 20% less damage than the original balance. A close rifle bod
 | Search and Destroy | Plant or defuse the bomb, buy your loadout and make each life count. |
 | Gun Game | Every kill advances your weapon. Finish the ladder to win. |
 | Bastion | Cooperative linear defense for 1–4 players on Reactor 9 or Causeway: staged objectives, buildable walls and sentries, eight enemy tiers including vehicles, and a timed extraction. |
+| Conquest | 8 vs 8 on Frontier: capture three flags, drain enemy tickets, drive jeeps or tanks, and fly helicopters or jets. |
 | Training | Respawning range targets and a timed four-stage Killhouse course. |
 
 ## Screenshots
@@ -50,7 +51,7 @@ Actual browser captures from the game. Arena shots use the built-in fixed-camera
 
 The Killhouse firing line. Practice here, then head into the timed course.
 
-Fifteen maps ship with the game: Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2, Minecraft B5, Waterworld, Bikini Bottom, Harbor, Canyon, Killhouse, Reactor 9 and Causeway. Harbor and Canyon cover 192 × 144 blocks, 2.25 times the area of the original arenas, with 16 spawn anchors per team and two S&D sites; Causeway shares those dimensions as a linear defense causeway. [Bastion](docs/pve-bastion.md) uses Reactor 9 and Causeway. Create a custom Bastion lobby, ready up and start; B opens supplies, N builds, E repairs the objective between waves. [Dust 2](docs/maps/dust2.md) brings Long A, Short/Catwalk, Mid Doors and B Tunnels to the destructible voxel world. Select it in a custom lobby for Fun, Chaos Lab, Team Deathmatch, Search and Destroy or Gun Game. [Minecraft B5](docs/maps/minecraft-b5.md) is a block-for-block replica of `ttt_minecraft_b5` with a swimmable ocean, working Nether portals and the Nether below the island. [Bikini Bottom](docs/maps/bikini-bottom.md) is an original undersea town inspired by the cartoon: the Krusty Krab (site A) faces the Chum Bucket (site B) across a boating school whose flume shoots riders into Goo Lagoon. [Waterworld](docs/maps/waterworld.md) replicates `ttt_waterworld`, the Leith Waterworld leisure pools with their flumes, changing rooms, traitor room teleport and glass foyer. See the [map compatibility table](docs/development.md#map-compatibility) for supported modes.
+Sixteen maps ship with the game: Foundry, Depot, Citadel, Solstice, Caldera, Nuketown, Dust 2, Minecraft B5, Waterworld, Bikini Bottom, Harbor, Canyon, Killhouse, Reactor 9, Causeway and Frontier. Frontier covers 1024 × 1024 blocks for Conquest, with three capture flags, Jeeps, Tanks, Helicopters, Jets, detailed airfields, rocky ridges, groves, industrial landmark detail and roadside cover. Harbor and Canyon cover 192 × 144 blocks, 2.25 times the area of the original arenas, with 16 spawn anchors per team and two S&D sites; Causeway shares those dimensions as a linear defense causeway. [Bastion](docs/pve-bastion.md) uses Reactor 9 and Causeway. Create a custom Bastion lobby, ready up and start; B opens supplies, N builds, E repairs the objective between waves. [Dust 2](docs/maps/dust2.md) brings Long A, Short/Catwalk, Mid Doors and B Tunnels to the destructible voxel world. Select it in a custom lobby for Fun, Chaos Lab, Team Deathmatch, Search and Destroy or Gun Game. [Minecraft B5](docs/maps/minecraft-b5.md) is a block-for-block replica of `ttt_minecraft_b5` with a swimmable ocean, working Nether portals and the Nether below the island. [Bikini Bottom](docs/maps/bikini-bottom.md) is an original undersea town inspired by the cartoon: the Krusty Krab (site A) faces the Chum Bucket (site B) across a boating school whose flume shoots riders into Goo Lagoon. [Waterworld](docs/maps/waterworld.md) replicates `ttt_waterworld`, the Leith Waterworld leisure pools with their flumes, changing rooms, traitor room teleport and glass foyer. See the [map compatibility table](docs/development.md#map-compatibility) for supported modes.
 
 ## Get started
 
@@ -69,7 +70,7 @@ For persistent hosting, use the [PostgreSQL container stack](docs/development.md
 
 For a match with friends, choose **Create Lobby**, share the invite link or QR code, then have everyone ready up. The host starts the match. Remote players need access to the same running server.
 
-In Team Deathmatch and Search and Destroy, the lobby host assigns humans and bots to Alpha or Bravo before starting. Asymmetric matches such as 2 vs 6 are supported, with a maximum of 16 per team. Assignments survive map changes and match launch; changing a team resets everyone's ready status. Humans joining a full live room replace a bot on its existing team.
+In Team Deathmatch, Search and Destroy and Conquest, the lobby host assigns humans and bots to Alpha or Bravo before starting. Asymmetric matches such as 2 vs 6 are supported, with a maximum of 16 per team within the map's total player limit. Conquest has 16 total slots and starts with balanced teams by default. Assignments survive map changes and match launch; changing a team resets everyone's ready status. Humans joining a full live room replace a bot on its existing team.
 
 The host can also choose **Easy**, **Normal** or **Hard** for each bot in the lobby. Difficulty affects awareness, reaction time, aiming and burst pauses. Choices survive map changes and reset readiness when edited. Bots can notice distant players in clear sight; small silhouettes and partial cover take longer to recognize.
 
@@ -112,8 +113,10 @@ These are the default keys. **Settings → Keyboard** lets you rebind 39 actions
 | `1–9`, `0` or scroll wheel | Switch weapons |
 | Hold `K`; hover a weapon and release, or move past the outer ring | Weapon wheel |
 | Hold and release `G` / press `H` | Throw / change throwable |
-| `T` / `B` | Objective interaction / S&D buy menu, Chaos Lab or Bastion supplies |
+| `T` / `B` | Objective interaction, or enter/exit a nearby Conquest vehicle / S&D buy menu, Chaos Lab or Bastion supplies |
 | `Tab` / `Escape` | Scoreboard / settings and pause menu |
+
+WASD drives Conquest ground vehicles, Space brakes, the mouse aims and left click fires a tank's cannon. Moving vehicles coast after the driver exits. Helicopters use W/S cyclic movement, Space/Shift climb/descent and Ctrl/C hover braking. Jets use W/S throttle and Space/Shift pitch assistance. In both aircraft, mouse movement controls pitch and bank, A/D banks and Q/E applies rudder or yaw pedals. Thrust, bank, airspeed and momentum govern flight. Left click fires mounted rockets or cannon; T enters or exits. Jeeps and Helicopters carry four people; Tanks have a driver and independent gunner. Each team has two of every vehicle, providing eight hulls and 22 seats. Destroyed vehicles break into model parts and leave a wreck until respawn. Aircraft touch controls provide UP, DOWN, FIRE and BRAKE. See [Conquest](docs/conquest.md) for flight and bot behavior.
 
 See the [full controls](docs/development.md#controls) for charge weapons, sniper zoom, ladders and spectator controls.
 

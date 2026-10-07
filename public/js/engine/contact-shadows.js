@@ -1,5 +1,6 @@
 // Blob contact shadows: one instanced, depth-tested quad per grounded body
-// (avatars, vehicles, the local player, pickups). The ground under each blob is
+// (avatars, the local player, pickups) and per vehicle wheel or track pair
+// (stretched along the hull's yaw). The ground under each blob is
 // found by scanning the voxel column below it; the blob fades with height
 // (quadratically over `reach`, so a full-strength avatar blob is gone by about
 // 2.5 m) and hides over fluids or when nothing solid lies within reach. One draw call on
@@ -11,7 +12,7 @@ import { AIR, FLUID_BLOCKS, MC_PORTAL } from '../../../shared/worlddata.js';
 import { prepareCharacterTree, setCharacterNearRoots, updateCharacterProbe } from './character-light.js';
 
 export const CONTACT_SHADOW = Object.freeze({
-  capacity: 64,
+  capacity: 96,        // 64 bodies plus ~2 blobs per hull for a 15-hull fleet
   reach: 3,            // column-scan depth and fade length; (1 - h/reach)^2 culls avatars near 2.5 m
   maxDistance: 72,     // blobs beyond this from the camera are skipped (fog eats them)
   lift: 0.018,         // metres above the ground face, on top of polygon offset
@@ -133,8 +134,12 @@ export class ContactShadows {
     return ground;
   }
 
-  /** Queue one blob; returns false when it was culled or the pool is full. */
-  add(x, y, z, radius = 0.45, strength = 0.5) {
+  /**
+   * Queue one blob; returns false when it was culled or the pool is full.
+   * `stretch` lengthens it along the local Z axis turned by `yaw` (a track
+   * pair or an axle reads as an elongated contact patch).
+   */
+  add(x, y, z, radius = 0.45, strength = 0.5, stretch = 1, yaw = 0) {
     const slot = this.count;
     if (slot >= CONTACT_SHADOW.capacity || !(radius > 0) || !(strength > 0)) return false;
     if (!Number.isFinite(x + y + z)) return false;
@@ -152,10 +157,12 @@ export class ContactShadows {
     if (alpha < 0.01) return false;
     // A body higher up casts a wider, fainter blob.
     const size = radius * 2 * (1 + lift * 0.6);
+    const length = size * (Number.isFinite(stretch) && stretch > 0 ? stretch : 1);
+    const c = Math.cos(yaw || 0), s = Math.sin(yaw || 0);
     const e = this._matrix.elements;
-    e[0] = size; e[1] = 0; e[2] = 0; e[3] = 0;
+    e[0] = size * c; e[1] = 0; e[2] = -size * s; e[3] = 0;
     e[4] = 0; e[5] = 1; e[6] = 0; e[7] = 0;
-    e[8] = 0; e[9] = 0; e[10] = size; e[11] = 0;
+    e[8] = length * s; e[9] = 0; e[10] = length * c; e[11] = 0;
     e[12] = x; e[13] = ground + CONTACT_SHADOW.lift; e[14] = z; e[15] = 1;
     this.mesh.setMatrixAt(slot, this._matrix);
     this._color.setRGB(alpha, alpha, alpha);
@@ -210,7 +217,7 @@ function addPickupBlobs(shadows, view, radius, strength) {
  * render: character materials under the registered roots are patched, the
  * camera light probe is fed and the contact blobs are rebuilt.
  *
- * frame: { camera, dt, roster, bodyPosition }
+ * frame: { camera, dt, roster, vehicles, bodyPosition }
  */
 export function presentCharacterFrame(worldview, frame) {
   const roots = worldview.characterRoots;
@@ -225,6 +232,7 @@ export function presentCharacterFrame(worldview, frame) {
   const body = frame.bodyPosition;
   if (body) shadows.add(body.x, body.y, body.z, 0.55, 0.45);
   frame.roster?.addContactShadows?.(shadows);
+  frame.vehicles?.addContactShadows?.(shadows);
   addPickupBlobs(shadows, worldview.powerups, 0.36, 0.38);
   addPickupBlobs(shadows, worldview.tttWeapons, 0.34, 0.34);
   addPickupBlobs(shadows, worldview.tttSupplies, 0.32, 0.34);

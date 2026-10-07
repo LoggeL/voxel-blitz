@@ -1,3 +1,4 @@
+import { createFrontierMetadata } from './frontier-layout.js';
 import { LARGE_SPAWN_ANCHORS, LARGE_SITES, LARGE_LANDMARKS } from './large-layout.js';
 import { worldDimensions } from './dimensions.js';
 import { AIR, GROUND, METAL, SX, SY, SZ, isSolidBlock } from './blocks.js';
@@ -339,7 +340,15 @@ function resolveSpawnPool(world, anchors, floorY = null) {
   return out;
 }
 
+// Shared identity contract, while Frontier's voxel template remains lazy.
+let frontierMetadata;
 export function createMapMetadata(id, world) {
+  if (id === 'frontier') {
+    if (!frontierMetadata) frontierMetadata = deepFreeze({
+      ...createFrontierMetadata(), modes: MAP_MODE_COMPATIBILITY.frontier,
+    });
+    return frontierMetadata;
+  }
   const anchors = MAP_SPAWN_ANCHORS[id];
   // Courtyard/training spawns stay below roofs; Dust II anchors carry NAV levels.
   const floorY = ['killhouse', 'reactor', 'depot', 'causeway'].includes(id) ? GROUND : null;

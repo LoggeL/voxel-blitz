@@ -14,6 +14,14 @@ export class SmokeSystem {
     this.active.set(field.id, field);
     return field;
   }
+  /** Place one field directly (tank smoke launchers). Same budget as grenades. */
+  deployField({ id, x, y, z, radius = SMOKE.radius, durationMs = SMOKE.durationMs }, now) {
+    if (typeof id !== 'string' || ![x, y, z, radius, durationMs, now].every(Number.isFinite) || radius <= 0 || durationMs <= 0) return null;
+    const field = { id, x, y, z, radius: Math.min(6, radius), createdAt: now, expiresAt: now + durationMs };
+    if (this.active.size >= SMOKE.maxFields) this.active.delete(this.active.keys().next().value);
+    this.active.set(field.id, field);
+    return field;
+  }
   step(ctx) {
     if (ctx.canAffectWorld?.() === false) { this.clear(); return; }
     for (const [id, field] of this.active) if (ctx.now >= field.expiresAt) this.active.delete(id);

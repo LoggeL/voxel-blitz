@@ -1,26 +1,32 @@
-// Voxel light volume: one RGBA8 cell per voxel, sampled per fragment.
+// Voxel light volume: one RGBA8 light cell per voxel (arena maps) or per
+// 2 x 2 x 2 / 4 x 4 x 4 voxels (large worlds), sampled per fragment.
 //   R  sky light 0..15   Minecraft-style flood: full down open columns, -1 per
-//                        step sideways, so roofs, galleries and tunnels darken
+//                        metre sideways, so roofs, galleries and tunnels darken
 //   G  sun visibility    a ray to the sun, swept once along sheared columns;
-//                        every roof, wall and tree casts a block-exact shadow
+//                        every roof, wall and tree casts a cell-exact shadow
 //   B  block light 0..15 glowstone, lava, portals and map lamps
 //   A  block light hue   palette coordinate of the brightest emitter
-// Everything is baked on the CPU at load and patched locally after block
-// deltas, then uploaded as a Data3DTexture. The GPU cost is one 3D texture
-// fetch per fragment on the materials that opt in; no light count, shadow map
-// or program key ever changes during a match.
+// Everything is baked at load (large worlds in a module worker, see
+// voxel-light-worker.js) and patched locally after block deltas, then uploaded
+// as a Data3DTexture; patches upload only the changed box. The cell size lives
+// in the voxelLightSize uniform (texture cells x cell = world extent), so the
+// GPU cost is one 3D texture fetch per fragment on the materials that opt in;
+// no light count, shadow map, define or program key ever changes in a match.
 
 import * as THREE from '../vendor/three.module.js';
 import {
   AIR, GLASS, LEAVES, MC_GLASS, MC_LEAVES, MC_WATER, MC_LAVA, MC_PORTAL,
   MC_GLOWSTONE, MC_GHOST_GLOWSTONE,
 } from '../../../shared/worlddata.js';
+import * as WORLD_BLOCKS from '../../../shared/world/blocks.js';
+import {
+  LIGHT_MAX, OPAQUE, CLEAR, FOLIAGE, WATER,
+  createLightState, rebuildSky, rebuildBlock, rebuildAllSun, sweepSunColumn, fillTexture, bakeLightState,
+} from './voxel-light-worker.js';
 
-export const LIGHT_MAX = 15;
-/** Horizontal reach of any light change; region rebuilds cover this radius. */
+export { LIGHT_MAX };
+/** Horizontal reach (in light cells) of any light change; region rebuilds cover this radius. */
 const REACH = LIGHT_MAX + 1;
-
-const OPAQUE = 0, CLEAR = 1, FOLIAGE = 2, WATER = 3;
 
 /** Palette coordinates for block-light hues (see voxelBlockColor in GLSL). */
 export const LIGHT_HUE = Object.freeze({ cyan: 0, warm: 0.33, amber: 0.45, lava: 0.66, portal: 1 });
@@ -32,41 +38,64 @@ const EMITTERS = new Map([
   [MC_PORTAL, { level: 11, hue: LIGHT_HUE.portal }],
 ]);
 
+// Frontier foliage (WP4 blocks) shades like leaves once those ids exist.
+const FOLIAGE_IDS = new Set([LEAVES, MC_LEAVES, WORLD_BLOCKS.PINE_LEAVES].filter(Number.isInteger));
+
 export function lightClass(id) {
   if (id === AIR || id === GLASS || id === MC_GLASS || id === MC_PORTAL) return CLEAR;
-  if (id === LEAVES || id === MC_LEAVES) return FOLIAGE;
+  if (FOLIAGE_IDS.has(id)) return FOLIAGE;
   if (id === MC_WATER) return WATER;
   return OPAQUE;
 }
+
+const CLASS_TABLE = new Uint8Array(256).map((_, id) => lightClass(id));
+const classOf = (id) => (id >= 0 && id < 256 ? CLASS_TABLE[id] : lightClass(id));
 
 /** Brightness of a sky level with the per-map floor, matching the shader. */
 export function skyBrightness(level, minSky = 0.5, base = 0.93) {
   return Math.max(minSky, Math.pow(base, LIGHT_MAX - Math.max(0, Math.min(LIGHT_MAX, level))));
 }
 
+/** Light cell size for a large world: 2 voxels, 4 on Low, grown until the GPU takes the volume. */
+export function largeWorldLightCell(dimensions, { tier = 'medium', max3DTextureSize = 2048 } = {}) {
+  let cell = tier === 'low' ? 4 : 2;
+  const limit = Math.max(64, max3DTextureSize | 0 || 256);
+  while (Math.ceil(Math.max(dimensions.sx, dimensions.sy, dimensions.sz) / cell) > limit) cell *= 2;
+  return cell;
+}
+
+const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+/** Cells of this edge and up classify by face coverage as well as by solid share. */
+const COVERAGE_CELL = 4;
+/** Share of a cell face that solid columns must cover for the cell to act as a barrier. */
+const COVERAGE_SHARE = 0.75;
+
 export class VoxelLightVolume {
   /**
    * @param getBlock live voxel getter (x,y,z)->id
    * @param {{sx:number,sy:number,sz:number}} dims map extents
-   * @param {{sunDir?:THREE.Vector3, emitters?:()=>Array<{x,y,z,level,hue}>}} options
+   * @param {{sunDir?:THREE.Vector3, emitters?:()=>Array<{x,y,z,level,hue}>, cell?:number,
+   *   renderer?:THREE.WebGLRenderer, worker?:boolean}} options cell is the light cell edge in
+   *   voxels (1 on arena maps); renderer enables sub-box texture uploads for patches.
    */
-  constructor(getBlock, dims, { sunDir = new THREE.Vector3(60, 90, 20).normalize(), emitters = () => [] } = {}) {
+  constructor(getBlock, dims, {
+    sunDir = new THREE.Vector3(60, 90, 20).normalize(), emitters = () => [], cell = 1, renderer = null, worker = true,
+  } = {}) {
+    if (!Number.isInteger(cell) || cell < 1) throw new RangeError('VoxelLightVolume cell must be a positive integer');
     this.getBlock = getBlock;
-    this.W = dims.sx; this.H = dims.sy; this.D = dims.sz;
+    this.dims = { sx: dims.sx, sy: dims.sy, sz: dims.sz };
+    this.cell = cell;
+    this.W = Math.ceil(dims.sx / cell); this.H = Math.ceil(dims.sy / cell); this.D = Math.ceil(dims.sz / cell);
     this.N = this.W * this.H * this.D;
     this.extraEmitters = emitters;
+    this.renderer = renderer;
+    this.useWorker = worker;
     const dir = sunDir.clone().normalize();
     // Guard against a sun at the horizon: the sweep walks one layer per step.
+    // The shear is a ratio, so it is the same in voxels and in light cells.
     this.shearX = dir.x / Math.max(dir.y, 0.35);
     this.shearZ = dir.z / Math.max(dir.y, 0.35);
-    this.cls = new Uint8Array(this.N);
-    this.sky = new Uint8Array(this.N);
-    this.sun = new Uint8Array(this.N);
-    this.block = new Uint8Array(this.N);
-    this.hue = new Uint8Array(this.N);
-    this.emitter = new Uint8Array(this.N);
-    // Cells can be re-queued as their level rises; twice the volume never wraps.
-    this.queue = new Int32Array(Math.max(4096, this.N * 2));
+    this.state = null;
     this.data = new Uint8Array(this.N * 4);
     this.texture = new THREE.Data3DTexture(this.data, this.W, this.H, this.D);
     this.texture.format = THREE.RGBAFormat;
@@ -80,237 +109,292 @@ export class VoxelLightVolume {
     this.sunColumns = new Set(); // sheared columns touched by deltas
     this.lastUpload = -Infinity;
     this.uploads = 0;
+    this.partialUploads = 0;
     this.built = false;
+    this.disposed = false;
+    this.buildMs = 0; this.classifyMs = 0; this.bakeMs = 0; this.bakeMode = null;
   }
+
+  /** World extent covered by the light cells (the voxelLightSize uniform). */
+  get extent() { return [this.W * this.cell, this.H * this.cell, this.D * this.cell]; }
 
   index(x, y, z) { return x + this.W * (y + this.H * z); }
 
-  /** Full bake. Returns elapsed milliseconds. */
-  build() {
-    const started = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const { W, H, D, cls, getBlock } = this;
-    for (let z = 0; z < D; z++) {
-      for (let y = 0; y < H; y++) {
-        let i = this.index(0, y, z);
-        for (let x = 0; x < W; x++, i++) cls[i] = lightClass(getBlock(x, y, z));
+  // ------------------------------------------------------------ classify
+  /**
+   * Class byte of one light cell from its voxels: light class in bits 0-1
+   * and, for a cell that is at least half solid but still holds air, the side
+   * of its air in bits 2-4 (see voxel-light-worker.js). Records voxel emitters.
+   */
+  classifyCell(cx, cy, cz, emitters) {
+    const { cell, getBlock } = this;
+    const { sx, sy, sz } = this.dims;
+    const i = cx + this.W * (cy + this.H * cz);
+    if (cell === 1) {
+      const id = getBlock(cx, cy, cz);
+      if (emitters) {
+        const emitter = EMITTERS.get(id);
+        if (emitter && classOf(id) !== WATER) emitters.set(i, emitter.level | (Math.round(emitter.hue * 255) << 8));
+        else emitters.delete(i);
+      }
+      return classOf(id);
+    }
+    const x0 = cx * cell, y0 = cy * cell, z0 = cz * cell;
+    const x1 = Math.min(sx, x0 + cell), y1 = Math.min(sy, y0 + cell), z1 = Math.min(sz, z0 + cell);
+    const half = (cell - 1) / 2;
+    let solid = 0, foliage = 0, water = 0, total = 0, ax = 0, ay = 0, az = 0;
+    let emitLevel = 0, emitHue = 0;
+    // Coarse cells (4+ voxels) also track which face columns hold any solid:
+    // a one-voxel roof or wall fills only a quarter of a 4-voxel cell but
+    // still covers its whole face, and must stop the sun like a solid cell.
+    const coverage = cell >= COVERAGE_CELL;
+    if (coverage) this.clearCoverage();
+    const { coverX, coverY, coverZ } = this;
+    for (let z = z0; z < z1; z++) for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const id = getBlock(x, y, z);
+      total++;
+      const c = classOf(id);
+      if (c === OPAQUE) {
+        solid++;
+        if (coverage) {
+          const lx = x - x0, ly = y - y0, lz = z - z0;
+          coverY[lx + lz * cell] = 1; coverX[ly + lz * cell] = 1; coverZ[lx + ly * cell] = 1;
+        }
+      } else {
+        if (c === FOLIAGE) foliage++;
+        else if (c === WATER) water++;
+        ax += x - x0 - half; ay += y - y0 - half; az += z - z0 - half;
+      }
+      if (emitters && id !== AIR) {
+        const emitter = EMITTERS.get(id);
+        if (emitter && emitter.level > emitLevel) { emitLevel = emitter.level; emitHue = emitter.hue; }
       }
     }
-    this.rebuildSky(0, W - 1, 0, D - 1);
-    this.rebuildBlock(0, W - 1, 0, D - 1);
-    this.rebuildAllSun();
-    this.fillTexture(0, W - 1, 0, H - 1, 0, D - 1);
-    this.texture.needsUpdate = true;
-    this.built = true;
-    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    this.buildMs = now - started;
+    if (emitters) {
+      if (emitLevel) emitters.set(i, emitLevel | (Math.round(emitHue * 255) << 8));
+      else emitters.delete(i);
+    }
+    let barrier = solid * 2 >= total;
+    if (!barrier && coverage && solid > 0) {
+      const w = x1 - x0, h = y1 - y0, d = z1 - z0;
+      const covered = (cover, a, b) => { let n = 0; for (let j = 0; j < b; j++) for (let i = 0; i < a; i++) n += cover[i + j * cell]; return n; };
+      barrier = covered(coverY, w, d) >= COVERAGE_SHARE * w * d
+        || covered(coverX, h, d) >= COVERAGE_SHARE * h * d
+        || covered(coverZ, w, h) >= COVERAGE_SHARE * w * h;
+    }
+    if (barrier) {
+      if (solid === total) return OPAQUE;
+      // The axis the air leans towards most is the cell's open side.
+      const bx = Math.abs(ax), by = Math.abs(ay), bz = Math.abs(az);
+      let side = 0;
+      if (by >= bx && by >= bz && by > 0) side = ay > 0 ? 3 : 4;
+      else if (bx >= bz && bx > 0) side = ax > 0 ? 1 : 2;
+      else if (bz > 0) side = az > 0 ? 5 : 6;
+      return OPAQUE | (side << 2);
+    }
+    if ((foliage + solid) * 2 >= total && foliage > 0) return FOLIAGE;
+    if (water * 2 >= total) return WATER;
+    return CLEAR;
+  }
+
+  clearCoverage() {
+    const size = this.cell * this.cell;
+    if (!this.coverY || this.coverY.length !== size) {
+      this.coverX = new Uint8Array(size); this.coverY = new Uint8Array(size); this.coverZ = new Uint8Array(size);
+    } else {
+      this.coverX.fill(0); this.coverY.fill(0); this.coverZ.fill(0);
+    }
+  }
+
+  /** Classify light-cell slabs [cz0, cz1); returns the number of cells written. */
+  classifyRows(cz0, cz1) {
+    const s = this.state;
+    const { W, H } = this;
+    for (let cz = cz0; cz < cz1; cz++) {
+      for (let cy = 0; cy < H; cy++) {
+        let i = W * (cy + H * cz);
+        for (let cx = 0; cx < W; cx++, i++) s.cls[i] = this.classifyCell(cx, cy, cz, s.emitters);
+      }
+    }
+    return (cz1 - cz0) * W * H;
+  }
+
+  ensureState() {
+    if (this.state) return this.state;
+    this.state = createLightState({
+      W: this.W, H: this.H, D: this.D, cell: this.cell, shearX: this.shearX, shearZ: this.shearZ, data: this.data,
+    });
+    return this.state;
+  }
+
+  /** Map lamps (voxel coordinates) as light-cell emitters. */
+  extraCells() {
+    const out = [];
+    for (const light of this.extraEmitters?.() || []) {
+      out.push({ x: Math.floor(light.x / this.cell), y: Math.floor(light.y / this.cell),
+        z: Math.floor(light.z / this.cell), level: light.level, hue: light.hue });
+    }
+    return out;
+  }
+
+  /** Full synchronous bake. Returns elapsed milliseconds. */
+  build() {
+    const started = now();
+    const s = this.ensureState();
+    this.classifyRows(0, this.D);
+    const classified = now();
+    s.extra = this.extraCells();
+    bakeLightState(s);
+    this.finishBuild(started, classified, 'main');
     return this.buildMs;
   }
 
-  // ------------------------------------------------------------------ sky
-  rebuildSky(x0, x1, z0, z1) {
-    const { W, H, cls, sky, queue } = this;
-    let head = 0, tail = 0;
-    // Columns: full sky straight down through clear cells, foliage and water dim it.
-    for (let z = z0; z <= z1; z++) {
-      for (let x = x0; x <= x1; x++) {
-        let level = LIGHT_MAX;
-        for (let y = H - 1; y >= 0; y--) {
-          const i = x + W * (y + H * z);
-          const c = cls[i];
-          if (c === OPAQUE) level = 0;
-          else if (c === FOLIAGE) level = Math.max(0, level - 2);
-          else if (c === WATER) level = Math.max(0, level - 1);
-          sky[i] = level;
-          if (level > 1) queue[tail++] = i;
-        }
-      }
-    }
-    // Light flowing in from outside the rebuilt region seeds the flood.
-    const seedEdge = (x, z) => {
-      if (x < 0 || z < 0 || x >= W || z >= this.D) return;
-      for (let y = 0; y < H; y++) {
-        const i = x + W * (y + H * z);
-        if (sky[i] > 1) queue[tail++] = i;
-      }
-    };
-    if (x0 > 0 || x1 < W - 1 || z0 > 0 || z1 < this.D - 1) {
-      for (let z = z0 - 1; z <= z1 + 1; z++) { seedEdge(x0 - 1, z); seedEdge(x1 + 1, z); }
-      for (let x = x0; x <= x1; x++) { seedEdge(x, z0 - 1); seedEdge(x, z1 + 1); }
-    }
-    this.flood(sky, null, queue, head, tail, x0, x1, z0, z1);
-  }
-
-  // ----------------------------------------------------------- block light
-  rebuildBlock(x0, x1, z0, z1) {
-    const { W, H, cls, block, hue, queue, getBlock } = this;
-    let tail = 0;
-    for (let z = z0; z <= z1; z++) {
-      for (let y = 0; y < H; y++) {
-        for (let x = x0; x <= x1; x++) {
-          const i = x + W * (y + H * z);
-          block[i] = 0;
-          this.emitter[i] = 0;
-          // Portals are see-through yet glow, so only water skips the lookup.
-          if (cls[i] === WATER) continue;
-          const emitter = EMITTERS.get(getBlock(x, y, z));
-          if (!emitter) continue;
-          this.emitter[i] = 1;
-          block[i] = emitter.level;
-          hue[i] = Math.round(emitter.hue * 255);
-          queue[tail++] = i;
-        }
-      }
-    }
-    for (const light of this.extraEmitters() || []) {
-      const { x, y, z } = light;
-      if (x < x0 || x > x1 || z < z0 || z > z1 || y < 0 || y >= H) continue;
-      const i = x + W * (y + H * z);
-      if (cls[i] === OPAQUE || light.level <= block[i]) continue;
-      block[i] = light.level;
-      hue[i] = Math.round(light.hue * 255);
-      queue[tail++] = i;
-    }
-    const seedEdge = (x, z) => {
-      if (x < 0 || z < 0 || x >= W || z >= this.D) return;
-      for (let y = 0; y < H; y++) {
-        const i = x + W * (y + H * z);
-        if (block[i] > 1) queue[tail++] = i;
-      }
-    };
-    if (x0 > 0 || x1 < W - 1 || z0 > 0 || z1 < this.D - 1) {
-      for (let z = z0 - 1; z <= z1 + 1; z++) { seedEdge(x0 - 1, z); seedEdge(x1 + 1, z); }
-      for (let x = x0; x <= x1; x++) { seedEdge(x, z0 - 1); seedEdge(x, z1 + 1); }
-    }
-    this.flood(block, hue, queue, 0, tail, x0, x1, z0, z1);
-  }
-
-  /** Breadth-first spread: each step into a clear neighbour costs one level. */
-  flood(level, hue, queue, head, tail, x0, x1, z0, z1) {
-    const { W, H, D, cls } = this;
-    const capacity = queue.length;
-    const push = (from, to, cost) => {
-      const c = cls[to];
-      if (c === OPAQUE) return;
-      const next = level[from] - cost - (c === FOLIAGE ? 1 : 0);
-      if (next <= level[to]) return;
-      level[to] = next;
-      if (hue) hue[to] = hue[from];
-      if (next > 1 && tail - head < capacity) { queue[tail % capacity] = to; tail++; }
-    };
-    while (head < tail) {
-      const i = queue[head % capacity]; head++;
-      if (level[i] <= 1) continue;
-      const x = i % W;
-      const y = ((i / W) | 0) % H;
-      const z = (i / (W * H)) | 0;
-      if (x > 0 && x - 1 >= x0) push(i, i - 1, 1);
-      if (x < W - 1 && x + 1 <= x1) push(i, i + 1, 1);
-      if (z > 0 && z - 1 >= z0) push(i, i - W * H, 1);
-      if (z < D - 1 && z + 1 <= z1) push(i, i + W * H, 1);
-      if (y > 0) push(i, i - W, 1);
-      if (y < H - 1) push(i, i + W, 1);
-    }
-  }
-
-  // ------------------------------------------------------------------ sun
-  /** Sheared column coordinate of a cell: every cell on one sun ray shares it. */
-  sunColumnOf(x, y, z) {
-    return [Math.round(x - this.shearX * y), Math.round(z - this.shearZ * y)];
-  }
-
-  rebuildAllSun() {
-    const { W, H, D } = this;
-    const uMin = Math.floor(Math.min(0, -this.shearX * (H - 1))) - 1;
-    const uMax = Math.ceil(Math.max(W - 1, W - 1 - this.shearX * (H - 1))) + 1;
-    const wMin = Math.floor(Math.min(0, -this.shearZ * (H - 1))) - 1;
-    const wMax = Math.ceil(Math.max(D - 1, D - 1 - this.shearZ * (H - 1))) + 1;
-    for (let w = wMin; w <= wMax; w++) for (let u = uMin; u <= uMax; u++) this.sweepSunColumn(u, w);
-  }
-
-  /** Walk one sun ray from the top of the map down, darkening behind occluders. */
-  sweepSunColumn(u, w) {
-    const { W, H, D, cls, sun, shearX, shearZ } = this;
-    let lit = 255;
-    for (let y = H - 1; y >= 0; y--) {
-      const x = Math.round(u + shearX * y);
-      const z = Math.round(w + shearZ * y);
-      if (x < 0 || z < 0 || x >= W || z >= D) continue;
-      const i = x + W * (y + H * z);
-      const c = cls[i];
-      if (c === OPAQUE) { sun[i] = 0; lit = 0; continue; }
-      sun[i] = lit;
-      if (c === FOLIAGE) lit = (lit * 0.45) | 0;
-      else if (c === WATER) lit = (lit * 0.8) | 0;
-    }
-  }
-
-  // ------------------------------------------------------------- texture
   /**
-   * Opaque cells take the brightest open neighbour, so linear filtering across
-   * a face never pulls light down towards a solid block's zero.
+   * Bake without blocking the page: classify in slabs between `yieldControl`
+   * calls, then flood and sweep in a module worker. Falls back to the main
+   * thread where workers are unavailable (Node, old browsers) or fail.
    */
-  fillTexture(x0, x1, y0, y1, z0, z1) {
-    const { W, H, D, cls, sky, sun, block, hue, data } = this;
-    x0 = Math.max(0, x0); z0 = Math.max(0, z0); y0 = Math.max(0, y0);
-    x1 = Math.min(W - 1, x1); z1 = Math.min(D - 1, z1); y1 = Math.min(H - 1, y1);
-    const stepY = W, stepZ = W * H;
-    for (let z = z0; z <= z1; z++) {
-      for (let y = y0; y <= y1; y++) {
-        let i = x0 + W * (y + H * z);
-        for (let x = x0; x <= x1; x++, i++) {
-          let s = sky[i], u = sun[i], b = block[i], h = hue[i];
-          if (cls[i] === OPAQUE) {
-            s = 0; u = 0;
-            const take = (j) => {
-              if (cls[j] === OPAQUE) return;
-              if (sky[j] > s) s = sky[j];
-              if (sun[j] > u) u = sun[j];
-              if (block[j] > b) { b = block[j]; h = hue[j]; }
-            };
-            if (x > 0) take(i - 1);
-            if (x < W - 1) take(i + 1);
-            if (y > 0) take(i - stepY);
-            if (y < H - 1) take(i + stepY);
-            if (z > 0) take(i - stepZ);
-            if (z < D - 1) take(i + stepZ);
-          }
-          const o = i * 4;
-          data[o] = s * 17;
-          data[o + 1] = u;
-          data[o + 2] = b * 17;
-          data[o + 3] = h;
-        }
+  async buildAsync({ yieldControl = null, isActive = () => true, sliceMs = 24 } = {}) {
+    const started = now();
+    const s = this.ensureState();
+    let slice = now();
+    for (let cz = 0; cz < this.D; cz++) {
+      this.classifyRows(cz, cz + 1);
+      if (yieldControl && now() - slice > sliceMs) {
+        await yieldControl();
+        if (!isActive() || this.disposed) return this.buildMs;
+        slice = now();
       }
     }
+    const classified = now();
+    s.extra = this.extraCells();
+    let mode = 'main';
+    if (this.useWorker && typeof Worker === 'function') {
+      try {
+        await this.bakeInWorker(s);
+        mode = 'worker';
+      } catch (error) {
+        console.warn('[vb] light bake worker failed; baking on the main thread', error);
+        if (this.disposed) return this.buildMs;
+        // The transferred arrays are gone with the worker: start the grid over.
+        this.state = null;
+        this.data = new Uint8Array(this.N * 4);
+        this.texture.image.data = this.data;
+        const retry = this.ensureState();
+        this.classifyRows(0, this.D);
+        retry.extra = this.extraCells();
+        bakeLightState(retry);
+      }
+    } else {
+      bakeLightState(s);
+    }
+    if (this.disposed) return this.buildMs;
+    this.finishBuild(started, classified, mode);
+    return this.buildMs;
+  }
+
+  bakeInWorker(s) {
+    return new Promise((resolve, reject) => {
+      let worker;
+      try {
+        worker = new Worker(new URL('./voxel-light-worker.js', import.meta.url), { type: 'module', name: 'voxel-light' });
+      } catch (error) { reject(error); return; }
+      const finish = (error, message) => {
+        worker.terminate();
+        if (error) { reject(error); return; }
+        // The arrays come back transferred; rebind them to the live state.
+        s.cls = message.cls; s.sky = message.sky; s.sun = message.sun; s.block = message.block; s.hue = message.hue;
+        s.data = message.data;
+        this.data = message.data;
+        this.texture.image.data = message.data;
+        this.workerMs = message.ms;
+        resolve();
+      };
+      worker.onmessage = (event) => {
+        if (event.data?.type === 'baked') finish(null, event.data);
+        else finish(new Error(event.data?.message || 'light bake failed'));
+      };
+      worker.onerror = (event) => { event.preventDefault?.(); finish(new Error(event.message || 'light worker error')); };
+      const state = { W: s.W, H: s.H, D: s.D, cell: s.cell, shearX: s.shearX, shearZ: s.shearZ,
+        cls: s.cls, data: s.data, emitters: [...s.emitters], extra: s.extra };
+      // Transfer the class grid and texture bytes: nothing is copied twice.
+      worker.postMessage({ type: 'bake', id: 1, state }, [s.cls.buffer, s.data.buffer]);
+      s.cls = null; s.data = null;
+    });
+  }
+
+  finishBuild(started, classified, mode) {
+    this.texture.needsUpdate = true;
+    this.built = true;
+    const done = now();
+    this.classifyMs = classified - started;
+    this.bakeMs = done - classified;
+    this.buildMs = done - started;
+    this.bakeMode = mode;
+    this.lateReplayed = this.replayLateCells();
   }
 
   // --------------------------------------------------------------- deltas
-  /** Record changed voxels; the rebuild runs in update() on a short cadence. */
+  /**
+   * Record changed voxels; the rebuild runs in update() on a short cadence.
+   * Deltas that land while a bake is still running (a live match keeps
+   * destroying blocks during the async large-world bake) are kept and
+   * replayed once the bake finishes: a cell classified before its change would
+   * otherwise keep stale light for the rest of the match.
+   */
   applyDeltas(deltas) {
-    if (!this.built) return;
+    if (this.disposed) return;
+    const { cell } = this;
+    const { sx, sy, sz } = this.dims;
+    const late = !this.built || !this.state;
     for (const d of deltas) {
       const { x, y, z } = d;
-      if (x < 0 || z < 0 || y < 0 || x >= this.W || z >= this.D || y >= this.H) continue;
-      const i = this.index(x, y, z);
-      const next = lightClass(this.getBlock(x, y, z));
-      const emitterChanged = EMITTERS.has(d.v) || this.emitter[i] === 1;
-      if (next === this.cls[i] && !emitterChanged) continue;
-      this.cls[i] = next;
-      const p = this.pending ||= { x0: x, x1: x, z0: z, z1: z };
-      p.x0 = Math.min(p.x0, x); p.x1 = Math.max(p.x1, x);
-      p.z0 = Math.min(p.z0, z); p.z1 = Math.max(p.z1, z);
-      const [u, w] = this.sunColumnOf(x, y, z);
-      this.sunColumns.add(`${u},${w}`);
+      if (x < 0 || z < 0 || y < 0 || x >= sx || z >= sz || y >= sy) continue;
+      const cx = Math.floor(x / cell), cy = Math.floor(y / cell), cz = Math.floor(z / cell);
+      if (late) (this.lateCells ||= new Set()).add(this.index(cx, cy, cz));
+      else this.reclassifyCell(cx, cy, cz, EMITTERS.has(d.v));
     }
+  }
+
+  /** Re-derive one light cell from the live voxels; queue its region and sun column when it changed. */
+  reclassifyCell(cx, cy, cz, emitterTouched = false) {
+    const s = this.state;
+    const i = this.index(cx, cy, cz);
+    const hadEmitter = s.emitters.has(i);
+    const previous = s.emitters.get(i);
+    const next = this.classifyCell(cx, cy, cz, s.emitters);
+    const emitterChanged = hadEmitter !== s.emitters.has(i) || previous !== s.emitters.get(i) || emitterTouched;
+    if (next === s.cls[i] && !emitterChanged) return false;
+    s.cls[i] = next;
+    this.markPending(cx, cz);
+    const u = Math.round(cx - this.shearX * cy), w = Math.round(cz - this.shearZ * cy);
+    this.sunColumns.add(`${u},${w}`);
+    return true;
+  }
+
+  /** Replay cells changed during the bake against the finished state (next update() patches them). */
+  replayLateCells() {
+    const late = this.lateCells;
+    this.lateCells = null;
+    if (!late?.size || !this.state) return 0;
+    const { W, H } = this;
+    let changed = 0;
+    for (const i of late) {
+      const cx = i % W, cy = ((i / W) | 0) % H, cz = (i / (W * H)) | 0;
+      if (this.reclassifyCell(cx, cy, cz)) changed++;
+    }
+    return changed;
+  }
+
+  markPending(cx, cz) {
+    const p = this.pending ||= { x0: cx, x1: cx, z0: cz, z1: cz };
+    p.x0 = Math.min(p.x0, cx); p.x1 = Math.max(p.x1, cx);
+    p.z0 = Math.min(p.z0, cz); p.z1 = Math.max(p.z1, cz);
   }
 
   /** Emitters outside the voxel data (map lamps) changed: rebuild their neighbourhood. */
   touchEmitters(cells) {
-    for (const { x, z } of cells) {
-      const p = this.pending ||= { x0: x, x1: x, z0: z, z1: z };
-      p.x0 = Math.min(p.x0, x); p.x1 = Math.max(p.x1, x);
-      p.z0 = Math.min(p.z0, z); p.z1 = Math.max(p.z1, z);
-    }
+    for (const { x, z } of cells) this.markPending(Math.floor(x / this.cell), Math.floor(z / this.cell));
   }
 
   /**
@@ -326,20 +410,23 @@ export class VoxelLightVolume {
   }
 
   flush() {
+    if (!this.state) { this.pending = null; this.sunColumns.clear(); return; }
+    const s = this.state;
     const { W, H, D } = this;
     let fx0 = W, fx1 = -1, fz0 = D, fz1 = -1;
     if (this.pending) {
       const { x0, x1, z0, z1 } = this.pending;
       const rx0 = Math.max(0, x0 - REACH), rx1 = Math.min(W - 1, x1 + REACH);
       const rz0 = Math.max(0, z0 - REACH), rz1 = Math.min(D - 1, z1 + REACH);
-      this.rebuildSky(rx0, rx1, rz0, rz1);
-      this.rebuildBlock(rx0, rx1, rz0, rz1);
+      s.extra = this.extraCells();
+      rebuildSky(s, rx0, rx1, rz0, rz1);
+      rebuildBlock(s, rx0, rx1, rz0, rz1);
       fx0 = rx0; fx1 = rx1; fz0 = rz0; fz1 = rz1;
       this.pending = null;
     }
     for (const key of this.sunColumns) {
       const [u, w] = key.split(',').map(Number);
-      this.sweepSunColumn(u, w);
+      sweepSunColumn(s, u, w);
       for (const y of [0, H - 1]) {
         const x = Math.round(u + this.shearX * y), z = Math.round(w + this.shearZ * y);
         fx0 = Math.min(fx0, x); fx1 = Math.max(fx1, x);
@@ -348,19 +435,56 @@ export class VoxelLightVolume {
     }
     this.sunColumns.clear();
     if (fx1 >= fx0 && fz1 >= fz0) {
-      this.fillTexture(fx0 - 1, fx1 + 1, 0, H - 1, fz0 - 1, fz1 + 1);
-      this.texture.needsUpdate = true;
+      const box = {
+        x0: Math.max(0, fx0 - 1), x1: Math.min(W - 1, fx1 + 1),
+        z0: Math.max(0, fz0 - 1), z1: Math.min(D - 1, fz1 + 1),
+      };
+      fillTexture(s, box.x0, box.x1, 0, H - 1, box.z0, box.z1);
+      this.upload(box);
       this.uploads++;
+    }
+  }
+
+  /**
+   * Upload a changed box: a sub-box copy once the texture lives on the GPU
+   * (a blast never re-sends the whole large-world volume), else a full upload.
+   */
+  upload(box) {
+    const renderer = this.renderer;
+    const texture = this.texture;
+    const live = renderer?.properties?.has?.(texture) && renderer.properties.get(texture)?.__version === texture.version;
+    const cells = (box.x1 - box.x0 + 1) * this.H * (box.z1 - box.z0 + 1);
+    if (!live || typeof renderer.copyTextureToTexture !== 'function' || cells * 2 > this.N) {
+      texture.needsUpdate = true;
+      return;
+    }
+    const w = box.x1 - box.x0 + 1, d = box.z1 - box.z0 + 1, H = this.H, W = this.W;
+    const patch = new Uint8Array(w * H * d * 4);
+    for (let z = 0; z < d; z++) for (let y = 0; y < H; y++) {
+      const from = ((box.x0) + W * (y + H * (box.z0 + z))) * 4;
+      patch.set(this.data.subarray(from, from + w * 4), (w * (y + H * z)) * 4);
+    }
+    const source = new THREE.Data3DTexture(patch, w, H, d);
+    source.format = texture.format; source.type = texture.type; source.unpackAlignment = 1;
+    try {
+      renderer.copyTextureToTexture(source, texture, null, new THREE.Vector3(box.x0, 0, box.z0));
+      this.partialUploads++;
+    } catch {
+      texture.needsUpdate = true;
+    } finally {
+      source.dispose();
     }
   }
 
   /** Trilinear CPU sample for props, avatars and the viewmodel: {sky,sun,block,hue} 0..1. */
   sample(x, y, z, out = { sky: 1, sun: 1, block: 0, hue: 0 }) {
     if (!this.built) { out.sky = 1; out.sun = 1; out.block = 0; out.hue = 0; return out; }
-    const { W, H, D, data } = this;
-    const fx = Math.max(0, Math.min(W - 1.001, x - 0.5));
-    const fy = Math.max(0, Math.min(H - 1.001, y - 0.5));
-    const fz = Math.max(0, Math.min(D - 1.001, z - 0.5));
+    const { W, H, D, data, cell } = this;
+    const fx = Math.max(0, Math.min(W - 1.001, x / cell - 0.5));
+    const fy = Math.max(0, Math.min(H - 1.001, y / cell - 0.5));
+    const fz = Math.max(0, Math.min(D - 1.001, z / cell - 0.5));
+    // Above the volume there is only open sky.
+    if (y >= H * cell) { out.sky = 1; out.sun = 1; out.block = 0; out.hue = 0; return out; }
     const x0 = fx | 0, y0 = fy | 0, z0 = fz | 0;
     const tx = fx - x0, ty = fy - y0, tz = fz - z0;
     let sky = 0, sun = 0, block = 0, hue = 0, hueWeight = 0;
@@ -376,9 +500,34 @@ export class VoxelLightVolume {
     return out;
   }
 
-  dispose() {
-    this.texture.dispose();
+  get stats() {
+    return { cell: this.cell, cells: [this.W, this.H, this.D], bytes: this.N * 4, built: this.built,
+      buildMs: this.buildMs, classifyMs: this.classifyMs, bakeMs: this.bakeMs, mode: this.bakeMode,
+      uploads: this.uploads, partialUploads: this.partialUploads, lateReplayed: this.lateReplayed || 0 };
   }
+
+  dispose() {
+    this.disposed = true;
+    this.texture.dispose();
+    this.state = null;
+  }
+}
+
+export class OutdoorLightVolume {
+  constructor() {
+    this.W = this.H = this.D = 1;
+    this.data = new Uint8Array([255, 255, 0, 0]);
+    this.texture = new THREE.Data3DTexture(this.data, 1, 1, 1);
+    this.texture.needsUpdate = true;
+    this.built = false;
+  }
+  build() { this.built = true; return 0; }
+  applyDeltas() {}
+  touchEmitters() {}
+  update() {}
+  flush() {}
+  sample(x, y, z, out = {}) { out.sky = out.sun = 1; out.block = out.hue = 0; return out; }
+  dispose() { this.texture.dispose(); }
 }
 
 // ------------------------------------------------------------------ shaders
@@ -415,7 +564,10 @@ export function bindVoxelLightVolume(uniforms, volume, {
   minSky = 0.5, falloff = 0.93, blockStrength = 1.6, shadow = 0.75, adaptation = true,
 } = {}) {
   uniforms.voxelLightMap.value = volume.texture;
-  uniforms.voxelLightSize.value.set(volume.W, volume.H, volume.D);
+  // Texture cells x cell size: the world extent the volume covers. A coarse
+  // large-world volume differs from an arena volume only in this uniform.
+  const [ex, ey, ez] = volume.extent || [volume.W, volume.H, volume.D];
+  uniforms.voxelLightSize.value.set(ex, ey, ez);
   uniforms.voxelLightParams.value.set(minSky, falloff, blockStrength, shadow);
   if (uniforms.voxelLightView) uniforms.voxelLightView.value = 0;
   uniforms._viewExposureMax = adaptation ? 0 : LDR_VIEW_EXPOSURE;

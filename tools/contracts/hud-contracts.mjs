@@ -607,11 +607,11 @@ export async function runHudContracts(ok, installGlobals) {
         const pouchHint = document.querySelector('.vb-grenade-pouch');
         const mouse = { touch: false, pointerKind: 'mouse', trackpadDetected: false, padActive: false };
         setKeybinding('grenade', 'KeyU');
-        setKeybinding('grenadeType', 'KeyY');
+        setKeybinding('grenadeType', 'KeyO');
         hud.setDeviceInfo(mouse);
         const keyboardLabels = grenadeKey.textContent === 'U'
-          && pouchKey.textContent === 'Y'
-          && pouchHint.title === 'Tap Y for the next grenade, hold for the pouch';
+          && pouchKey.textContent === 'O'
+          && pouchHint.title === 'Tap O for the next grenade, hold for the pouch';
         hud.setDeviceInfo({ ...mouse, padActive: true });
         setKeybinding('grenade', 'KeyI');
         const padLabels = grenadeKey.textContent === 'RB' && pouchKey.textContent === 'D▼';

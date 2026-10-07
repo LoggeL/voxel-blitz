@@ -1,6 +1,10 @@
 import { BOT_DIFFICULTIES, botDifficulty, DEFAULT_BOT_DIFFICULTY } from '../../../shared/bot-difficulty.js';
 import { MAX_TEAM_PLAYERS, hasLobbyTeams, lobbyCapacity } from '../../../shared/lobby-limits.js';
+import { TEAM_DISPLAY } from '../../../shared/conquest-contract.js';
 import { el, loadPref, savePref } from './hud-support.js';
+
+/** Conquest shows its teams as WEST/EAST so flag letters never read as teams. */
+const teamName = (team, gameMode) => (gameMode === 'conquest' && TEAM_DISPLAY[team]) || String(team).toUpperCase();
 
 /** Three presentations of the same authoritative roster; filters never affect the game. */
 export class LobbyRoster {
@@ -72,13 +76,13 @@ export class LobbyRoster {
     for (const member of members) if (member.team in teamCounts) teamCounts[member.team]++;
     const selfIsHost = state.selfId != null && String(state.selfId) === String(state.host);
     const limit = lobbyCapacity(state.gameMode, state.map);
-    this.count.textContent = `${members.length}/${limit} OPERATORS · ${ready}/${humans.length} READY${teams ? ` · ALPHA ${teamCounts.alpha} : ${teamCounts.bravo} BRAVO` : ''}`;
+    this.count.textContent = `${members.length}/${limit} OPERATORS · ${ready}/${humans.length} READY${teams ? ` · ${teamName('alpha', state.gameMode)} ${teamCounts.alpha} : ${teamCounts.bravo} ${teamName('bravo', state.gameMode)}` : ''}`;
     this.summary.textContent = `${humans.length} ${humans.length === 1 ? 'HUMAN' : 'HUMANS'} · ${counts.bots} BOTS · ${Math.max(0, limit - members.length)} OPEN SLOTS`;
     if (!teams && this.view === 'teams') this.view = 'overview';
     this.root.dataset.view = this.view;
     for (const [view, button] of Object.entries(this.viewButtons)) {
       button.disabled = view === 'teams' && !teams;
-      button.title = view === 'teams' && !teams ? 'Available in Team Deathmatch and Search & Destroy' : '';
+      button.title = view === 'teams' && !teams ? 'Available in Team Deathmatch, Search & Destroy and Conquest' : '';
       button.setAttribute('aria-pressed', String(view === this.view));
     }
     if (this.viewButtons.teams.disabled && document.activeElement === this.viewButtons.teams) {
@@ -112,7 +116,7 @@ export class LobbyRoster {
         for (const team of ['alpha', 'bravo']) {
           const group = el('section', 'vb-roster-team', this.list);
           group.dataset.team = team;
-          el('h4', '', group).textContent = `${team.toUpperCase()} · ${teamCounts[team]} OPERATORS`;
+          el('h4', '', group).textContent = `${teamName(team, state.gameMode)} · ${teamCounts[team]} OPERATORS`;
           const list = el('div', 'vb-roster-team-list', group);
           list.setAttribute('role', 'list');
           list.setAttribute('aria-label', `${team} operators`);
@@ -191,7 +195,7 @@ export class LobbyRoster {
         for (const team of ['alpha', 'bravo']) {
           const option = el('option', '', select);
           option.value = team;
-          option.textContent = team.toUpperCase();
+          option.textContent = teamName(team, state.gameMode);
           option.disabled = member.team !== team && teamCounts[team] >= MAX_TEAM_PLAYERS;
         }
         select.value = member.team || 'alpha';
@@ -200,7 +204,7 @@ export class LobbyRoster {
       } else {
         const label = el('span', 'vb-team-label', rightColumn);
         label.dataset.team = member.team || '';
-        label.textContent = member.team?.toUpperCase() || 'AUTO TEAM';
+        label.textContent = member.team ? teamName(member.team, state.gameMode) : 'AUTO TEAM';
       }
     }
     if (!isBot) {
@@ -225,7 +229,7 @@ export class LobbyRoster {
     if (teamSelection) {
       const team = el('span', 'vb-team-label', compact);
       team.dataset.team = member.team || '';
-      team.textContent = member.team?.toUpperCase() || 'AUTO TEAM';
+      team.textContent = member.team ? teamName(member.team, state.gameMode) : 'AUTO TEAM';
     }
     if (isBot) el('span', 'vb-compact-difficulty', compact).textContent = botDifficulty(member.difficulty).label;
     const status = el('span', `vb-compact-status ${isBot ? 'bot' : member.ready ? 'ready' : 'waiting'}`, compact);

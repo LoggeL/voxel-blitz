@@ -3,6 +3,12 @@ import { GUN_GAME_WEAPON_ORDER, isTeamMode, isTrainingDummyId, MODE_RULES } from
 import { WEAPONS } from '../../../shared/combatmath.js';
 import { gunLevel, MODE_TITLES, rankPlayers } from './mode-presentation.js';
 import { treeNode } from '../../../shared/career.js';
+import { TEAM_DISPLAY } from '../../../shared/conquest-contract.js';
+import { scoreboardRow } from './conquest/scoring.js';
+
+/** Conquest live columns: squad, score, kills, deaths, objective score, vehicles destroyed, revives. */
+const CONQUEST_COLUMNS = Object.freeze(['SQ', 'PLAYER', 'SCORE', 'K', 'D', 'OBJ', 'VEH', 'REV']);
+const COLUMN_LABELS = Object.freeze({ K: 'Kills', D: 'Deaths', SQ: 'Squad', OBJ: 'Objective score', VEH: 'Vehicles destroyed', REV: 'Revives' });
 
 /** Mode-specific tables, separate from the always-visible match summary. */
 export class Scoreboard {
@@ -34,8 +40,9 @@ export class Scoreboard {
         tttRole: match.phase === 'post' ? match.revealedRoles?.[p.id] : identified.get(String(p.id))?.role,
         tttPost: match.phase === 'post',
       } : p);
-    const signature = JSON.stringify([mode, match?.map, match?.scores, match?.attackers, selfId, match.continuation?.id,
-      roster.map((p) => [p.id, p.name, p.team, p.bot, p.kills, p.deaths, p.score, p.state, p.bomb, p.local, p.ping, p.tttRole, p.tttDead, p.tttPost, p.karma])]);
+    const signature = JSON.stringify([mode, match?.map, match?.scores, match?.conquest?.tickets, match?.attackers, selfId, match.continuation?.id,
+      roster.map((p) => [p.id, p.name, p.team, p.bot, p.kills, p.deaths, p.score, p.state, p.bomb, p.local, p.ping, p.tttRole, p.tttDead, p.tttPost, p.karma,
+        mode === 'conquest' ? [p.cq?.[1], p.squad, p.cqs] : null])]);
     if (signature === this.signature) {
       this.updateVotes(match.continuation);
       return;
@@ -50,15 +57,17 @@ export class Scoreboard {
     if (isTeamMode(mode)) {
       // Bastion is co-op: every human defends on alpha against unlisted NPCs.
       const squad = mode === 'bastion';
+      const selfTeam = roster.find(p => p.local === true || (selfId != null && String(p.id) === String(selfId)))?.team;
       for (const team of squad ? ['alpha'] : ['alpha', 'bravo']) {
         const section = el('section', `vb-scoreboard-team vb-sb-${team}`, this.body);
+        if (mode === 'conquest' && selfTeam) section.dataset.rel = team === selfTeam ? 'own' : 'enemy';
         const heading = el('h3', `vb-sb-team-heading vb-badge-${team}`, section);
         const role = mode === 'snd' ? (match.attackers === team ? 'ATTACK' : 'DEFEND') : '';
         const teamPlayers = ranked.filter((p) => p.team === team);
-        const label = squad ? 'SQUAD' : team.toUpperCase();
-        heading.textContent = this.resultPresentation || squad ? label : `${label} ${match?.scores?.[team] ?? 0}`;
+        const label = squad ? 'SQUAD' : mode === 'conquest' ? TEAM_DISPLAY[team] : team.toUpperCase();
+        heading.textContent = this.resultPresentation || squad ? label : `${label} ${(mode === 'conquest' ? match?.conquest?.tickets?.[team] : match?.scores?.[team]) ?? 0}`;
         el('span', '', heading).textContent = this.resultPresentation
-          ? this.playerCounts(teamPlayers) : role || (mode === 'tdm' ? `FIRST TO ${MODE_RULES.tdm.scoreLimit}` : '');
+          ? this.playerCounts(teamPlayers) : role || (mode === 'conquest' ? 'TICKETS' : mode === 'tdm' ? `FIRST TO ${MODE_RULES.tdm.scoreLimit}` : '');
         if (this.resultPresentation) this.resultGroup(section, teamPlayers, mode, selfId, label);
         else this.table(section, teamPlayers, mode, selfId);
       }
@@ -117,7 +126,8 @@ export class Scoreboard {
     const table = el('table', '', parent);
     const head = el('tr', '', el('thead', '', table));
     const columns = this.resultPresentation
-      ? [...(mode === 'ttt' ? [] : ['#']), 'PLAYER', ...(mode === 'gungame' ? ['WEAPON'] : mode === 'ttt' ? [] : ['K', 'D']), ...(mode === 'snd' ? ['STATUS'] : [])]
+      ? [...(mode === 'ttt' ? [] : ['#']), 'PLAYER', ...(mode === 'gungame' ? ['WEAPON'] : mode === 'ttt' ? [] : mode === 'conquest' ? ['SCORE', 'K', 'D', 'OBJ', 'VEH', 'REV'] : ['K', 'D']), ...(mode === 'snd' ? ['STATUS'] : [])]
+      : mode === 'conquest' ? [...CONQUEST_COLUMNS]
       : mode === 'training' ? ['PLAYER']
       : mode === 'gungame' ? ['#', 'PLAYER', 'WEAPON']
         : mode === 'snd' ? ['PLAYER', 'K', 'D', 'STATUS']
@@ -131,10 +141,22 @@ export class Scoreboard {
       const th = el('th', '', head);
       th.scope = 'col';
       th.textContent = column;
-      if (column === 'K' || column === 'D') th.setAttribute('aria-label', column === 'K' ? 'Kills' : 'Deaths');
+      if (COLUMN_LABELS[column]) th.setAttribute('aria-label', COLUMN_LABELS[column]);
     }
     const body = el('tbody', '', table);
+    const conquest = mode === 'conquest';
+    // Conquest groups each team by squad (squadless players last), best squad score first.
+    if (conquest && !this.resultPresentation) players = groupBySquad(players);
+    let lastSquad = null;
     for (const [index, player] of players.entries()) {
+      const stats = conquest ? scoreboardRow(player) : null;
+      if (conquest && !this.resultPresentation && stats.squad !== lastSquad) {
+        lastSquad = stats.squad;
+        const heading = el('tr', 'vb-sb-squad-row', body);
+        const cell = el('td', '', heading);
+        cell.colSpan = columns.length;
+        cell.textContent = stats.squad > 0 ? `SQUAD ${squadName(stats.squad)}` : 'NO SQUAD';
+      }
       const team = isTeamMode(mode) ? player.team : null;
       const self = player.local === true || (selfId != null && String(player.id) === String(selfId));
       const dead = (mode === 'snd' && player.state === 'dead') || (mode === 'ttt' && player.tttDead);
@@ -143,6 +165,11 @@ export class Scoreboard {
       if (this.resultPresentation) tr.dataset.bot = String(!!player.bot);
       // TTT rows are sorted by name, so a rank would read as a false placement.
       if (mode !== 'ttt' && (this.resultPresentation || (!isTeamMode(mode) && mode !== 'training'))) el('td', 'vb-sb-rank', tr).textContent = String(index + 1);
+      if (conquest && !this.resultPresentation) {
+        const squadCell = el('td', 'vb-sb-squad', tr);
+        squadCell.textContent = stats.squad > 0 ? squadName(stats.squad).slice(0, 1) : '—';
+        if (stats.kit) squadCell.title = stats.kit.toUpperCase();
+      }
       const name = el('td', 'vb-sb-name', tr);
       name.textContent = String(player.name || 'PLAYER');
       if (mode==='ttt' && player.tttRole) {
@@ -162,6 +189,10 @@ export class Scoreboard {
         const cell = el('td', 'vb-sb-progress', tr);
         el('strong', '', cell).textContent = `${level}/${GUN_GAME_WEAPON_ORDER.length}`;
         el('span', '', cell).textContent = WEAPONS[GUN_GAME_WEAPON_ORDER[level - 1]]?.name || '';
+      } else if (conquest) {
+        for (const value of [stats.score, stats.kills, stats.deaths, stats.objective, stats.vehicles, stats.revives]) {
+          el('td', 'vb-sb-number', tr).textContent = String(value);
+        }
       } else if (mode !== 'training' && mode !== 'ttt') {
         el('td', 'vb-sb-number', tr).textContent = String(player.kills | 0);
         el('td', 'vb-sb-number', tr).textContent = String(player.deaths | 0);
@@ -181,4 +212,22 @@ export class Scoreboard {
   }
 
   dispose() { this.root?.remove(); this.root = null; this.signature = ''; this.voteCells?.clear(); }
+}
+
+const SQUAD_NAMES = Object.freeze(['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'FOXTROT', 'GOLF', 'HOTEL']);
+/** Squad display name (squad ids are 1-based per team). */
+export const squadName = id => SQUAD_NAMES[(id | 0) - 1] || String(id | 0);
+
+/** Stable squad grouping: squads by total score, members in their ranked order, squadless last. */
+export function groupBySquad(players) {
+  const groups = new Map();
+  for (const player of players) {
+    const squad = scoreboardRow(player).squad;
+    if (!groups.has(squad)) groups.set(squad, []);
+    groups.get(squad).push(player);
+  }
+  const total = list => list.reduce((sum, p) => sum + (p.score | 0), 0);
+  return [...groups.entries()]
+    .sort(([a, listA], [b, listB]) => (a === 0) - (b === 0) || total(listB) - total(listA) || a - b)
+    .flatMap(([, list]) => list);
 }

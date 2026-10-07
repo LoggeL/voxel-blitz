@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { performance } from 'node:perf_hooks';
 import * as THREE from '../public/js/vendor/three.module.js';
 import { AIR, WOOD, GROUND, createMapState, deserializeWorld, getBlock, generateWorld } from '../shared/worlddata.js';
-import { LARGE_DIMENSIONS } from '../shared/world/dimensions.js';
+import { LARGE_DIMENSIONS, FRONTIER_DIMENSIONS } from '../shared/world/dimensions.js';
+import { frontierTopY } from '../shared/world/frontier-terrain.js';
 import { boxCollides, solidBelow } from '../shared/player-movement.js';
 import { groundRoute, groundNavigation, groundSegmentClear } from '../server/bot-navigation.js';
 import { GameEngine } from '../server/game.js';
@@ -113,5 +114,49 @@ for (const id of ['harbor', 'canyon']) {
   bots.dispose(); live.stop(); engine.stop();
   console.log(`${id}: 64 spawn-to-site routes, far-edge network/destruction/fire/mesh and 32-player simulation passed (${elapsed.toFixed(0)}ms / 120 ticks).`);
 }
+
+// Frontier v2: the 768 x 80 x 768 valley through the same transfer, client
+// singleton, block-delta, destruction, fire and chunk paths, at real terrain y.
+{
+  const world = createMapState('frontier');
+  assert.deepEqual(world.dimensions, FRONTIER_DIMENSIONS);
+  const { sx, sy, sz } = world.dimensions;
+  const bytes = world.serializeWorld();
+  assert.deepEqual([...bytes.slice(0, 4)], [86, 66, 2, 1]);
+  assert.ok(bytes.length <= 3 * 1024 * 1024);
+  assert.deepEqual(createMapState('frontier', bytes).serializeWorld(), bytes);
+  assert.throws(() => createMapState('harbor', bytes), /dim mismatch/);
+  assert.throws(() => createMapState('frontier', expectedLegacy), /dim mismatch/);
+  deserializeWorld(bytes);
+  const far = { x: 700, z: 700 };
+  const g = frontierTopY(far.x + 0.5, far.z + 0.5);
+  assert.equal(getBlock(far.x, g, far.z), world.getBlock(far.x, g, far.z), 'client singleton holds the far corner of the valley');
+  assert.notEqual(getBlock(far.x, g, far.z), AIR);
+  const point = { x: 740, y: g + 1, z: 600 };
+  point.y = frontierTopY(point.x + 0.5, point.z + 0.5) + 1;
+  const engine = new GameEngine({ world, mode: 'conquest', broadcast: () => {} });
+  const clientWorld = createMapState('frontier');
+  world.setBlock(point.x, point.y, point.z, WOOD);
+  engine.pushBlockDelta(point.x, point.y, point.z, WOOD);
+  assert.equal(engine.tickBlocks.at(-1).i, (point.y * sz + point.z) * sx + point.x, 'block index uses the 768-wide stride');
+  applySnapshotBlocks({ blocks: engine.tickBlocks }, clientWorld);
+  assert.equal(clientWorld.getBlock(point.x, point.y, point.z), WOOD);
+  engine.projectiles._destroyTerrain([point.x + 0.5, point.y + 0.5, point.z + 0.5],
+    { terrainRadius: 2, terrainPower: 1000, maxDestroyedBlocks: 10 }, engine.contexts.projectiles);
+  assert.equal(world.getBlock(point.x, point.y, point.z), AIR, 'blasts reach the valley edge');
+  const field = engine.projectiles.fire.ignite({ id: 'frontier-fire', ownerId: 'test', x: 600.5, y: frontierTopY(600.5, 600.5) + 1.04, z: 600.5 }, engine.contexts.projectiles);
+  assert.ok(field, 'molotov ignites on the valley floor');
+  const atlas = { texture: () => null, faceTile: () => 0, tileRect: () => [0, 0, 1, 1] };
+  const chunks = new ChunkStore(new THREE.Scene(), atlas, world.getBlock, () => 0, world.dimensions);
+  const last = [Math.floor((sx - 1) / 16), Math.floor((sz - 1) / 16)];
+  chunks.rebuildChunk(last[0], last[1]);
+  assert.ok(chunks.chunks.has(`${last[0]},${last[1]}`), 'outermost Frontier chunk is rendered');
+  chunks.dispose();
+  engine.restoreWorld();
+  engine.stop();
+  assert.ok(sy === 80);
+  console.log(`frontier: ${bytes.length}-byte transfer, far-edge network/destruction/fire/mesh passed.`);
+}
+
 generateWorld();
 assert.deepEqual(createMapState('foundry').serializeWorld(), expectedLegacy, 'legacy geometry is unchanged');

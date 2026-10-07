@@ -1,0 +1,151 @@
+{
+  "generator": "tools/synthesize-objective-announcer.mjs",
+  "method": "macOS say + ffmpeg radio band (offline, no cloud voice service)",
+  "format": "WAV PCM s16le mono 22050 Hz",
+  "clips": [
+    {
+      "id": "captured_A",
+      "text": "Objective Alpha captured.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 79532,
+      "sha256": "7eced05b98ee521d4e84341b1c9376f0e5d0eee6612672cf984d9c16bddb2774"
+    },
+    {
+      "id": "lost_A",
+      "text": "Objective Alpha lost.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 74250,
+      "sha256": "320e1299767021dd308e7e8de50665f2b1c0aa6805bb1993a040d6da6c3eb6d2"
+    },
+    {
+      "id": "under_attack_A",
+      "text": "Objective Alpha under attack.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 84154,
+      "sha256": "6e7024b05b9b2a46c275799cff599b6c2e70c4bb0cfed2ec248ced4b6da31ac3"
+    },
+    {
+      "id": "captured_B",
+      "text": "Objective Bravo captured.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 82744,
+      "sha256": "36fdfdb999cd70b0f0b091bcbc3da9cb7204d072f7f01018e86cdd89aac141ab"
+    },
+    {
+      "id": "lost_B",
+      "text": "Objective Bravo lost.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 77322,
+      "sha256": "8f03d0a6c65b8db60093a2b0e062d9bdaf93c876df7d81aae2fa7fe65bc5e8e4"
+    },
+    {
+      "id": "under_attack_B",
+      "text": "Objective Bravo under attack.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 88384,
+      "sha256": "dcb812e7d03e86d8b0163674f1d32466002c192001963a6bbb150896fdb0c4eb"
+    },
+    {
+      "id": "captured_C",
+      "text": "Objective Charlie captured.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 80542,
+      "sha256": "b37cfa3dd116a0db9120f08457314cd2b73b4e035b085dbccb8fa3abf55bf851"
+    },
+    {
+      "id": "lost_C",
+      "text": "Objective Charlie lost.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 75650,
+      "sha256": "33b5bae3711fe3b96bbaa433b6d0db806a2c426d0f5fc689589b5ccba5c399a9"
+    },
+    {
+      "id": "under_attack_C",
+      "text": "Objective Charlie under attack.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 86224,
+      "sha256": "9796fa077fe17489d4079af53029a452355c3c584a169a0e5f9bdebc449d0a98"
+    },
+    {
+      "id": "captured_D",
+      "text": "Objective Delta captured.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 79878,
+      "sha256": "040246625a966eb504b84175666d03535d19bf81db51c02a858b95affb362c69"
+    },
+    {
+      "id": "lost_D",
+      "text": "Objective Delta lost.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 75274,
+      "sha256": "9636d279eb14819137a52deef8aee03e7d7759aa30786ecec88a438f4a03db80"
+    },
+    {
+      "id": "under_attack_D",
+      "text": "Objective Delta under attack.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 84420,
+      "sha256": "b25efe3717d811e6d022338cdd48a15436d4fded8fc7694a8a80330933ea4652"
+    },
+    {
+      "id": "captured_E",
+      "text": "Objective Echo captured.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 75882,
+      "sha256": "3409b7d6a1bf7ec4fef7bbab01916115268d82bf20bcb3d5a450abec0df3a149"
+    },
+    {
+      "id": "lost_E",
+      "text": "Objective Echo lost.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 70540,
+      "sha256": "0e4f9f35da9670cc265a9387db0dc549a451f4d5f994f4f1b3cf73ef81267f27"
+    },
+    {
+      "id": "under_attack_E",
+      "text": "Objective Echo under attack.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 81758,
+      "sha256": "1973406c5248903efe7f3522684e9c4e7c639d633f4ca41569e3965577e67c0c"
+    },
+    {
+      "id": "tickets_low",
+      "text": "Reinforcements low.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 70634,
+      "sha256": "f7d3f2debae67e7198487a5ee7f54aac5d47aea7b6310294c413183156a86cf8"
+    },
+    {
+      "id": "victory",
+      "text": "Victory.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 39676,
+      "sha256": "cc046121ea3b3f6882f84bfc7c06974b5b1b7b03ef8459f792442c6c52f946c4"
+    },
+    {
+      "id": "defeat",
+      "text": "Defeat.",
+      "voice": "Daniel",
+      "rate": 190,
+      "bytes": 38138,
+      "sha256": "b3590d92ac8454158ec48dba857d6ba8351198cb9368080f618eb7fcf5452332"
+    }
+  ]
+}

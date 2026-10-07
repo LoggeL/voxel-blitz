@@ -166,7 +166,7 @@ try {
   // The type locks at the press: H, the previous key and quick keys are ignored mid-hold.
   {
     const input = make();
-    setKeybinding('grenadeSmoke', 'KeyY');
+    setKeybinding('grenadeSmoke', 'KeyO');
     setKeybinding('grenadePrevious', 'KeyU');
     input._onKeyDown(key('KeyG', 0));
     tapKey(input, 'KeyH', 100);
@@ -174,13 +174,13 @@ try {
     input.poll(200 + GRENADE_POUCH_HOLD_MS + 50);
     input._onKeyUp(key('KeyH', 600));
     tapKey(input, 'KeyU', 700);
-    tapKey(input, 'KeyY', 800);
+    tapKey(input, 'KeyO', 800);
     check(input.getGrenadeHoldType() === 0 && input.getGrenadeType() === 0 && !input.isGrenadePouchOpen()
       && input.selectGrenadeType(3) === false && input.cycleGrenadeType(1) === 0,
     'H, the pouch, previous and quick keys cannot change a held grenade');
     input._onKeyUp(key('KeyG', 900));
     check(input.consumeGrenadeThrow()?.type === 0, 'the release carries the type locked at the press');
-    tapKey(input, 'KeyY', 2000, 60);
+    tapKey(input, 'KeyO', 2000, 60);
     const quick = input.consumeGrenadeThrow();
     check(quick?.type === 4 && quick.charge === 0.6 && input.getGrenadeType() === 4,
       'a quick key readies its type and a tap quick-throws it');
@@ -188,11 +188,11 @@ try {
     check(input.getGrenadeType() === 3, 'the previous key readies the previous stocked type');
     input.setGrenadeCounts([1, 1, 1, 1, 0]);
     input.consumeGrenadeUiEvents();
-    input._onKeyDown(key('KeyY', 4000));
+    input._onKeyDown(key('KeyO', 4000));
     check(!input.isGrenadeCharging() && kinds(input).includes('denied:empty') && input.getGrenadeType() === 3,
       'a quick key for an empty type is refused with the dry click');
-    input._onKeyUp(key('KeyY', 4050));
-    input._onKeyDown(key('KeyY', 5000));
+    input._onKeyUp(key('KeyO', 4050));
+    input._onKeyDown(key('KeyO', 5000));
     input._onKeyDown(key('KeyG', 5010));
     input._onKeyUp(key('KeyG', 5100));
     check(input.isGrenadeCharging() === false && input.consumeGrenadeThrow()?.type === 3,

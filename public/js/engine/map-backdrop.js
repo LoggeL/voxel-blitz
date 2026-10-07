@@ -778,7 +778,12 @@ const AIR_FOG = /* glsl */ `
   float vbAir = backdropAir.x * smoothstep( backdropAir.y, backdropAir.z, vFogDepth );
   float vbHaze = 1.0 - ( 1.0 - vbAir ) * ( 1.0 - clamp( vBackdropFx.x, 0.0, 1.0 ) );
   float vbF = 1.0 - ( 1.0 - vbHaze ) * ( 1.0 - backdropAir.w * vbFog );
-  float vbFar = smoothstep( ${FAR_FADE_START.toFixed(1)}, ${FAR_FADE_END.toFixed(1)}, vFogDepth );
+  // Large worlds bind their own far fade (fog-chunk.js configureSceneFarFog).
+  #ifdef VB_FAR_FADE_START
+    float vbFar = smoothstep( VB_FAR_FADE_START, VB_FAR_FADE_END, vFogDepth );
+  #else
+    float vbFar = smoothstep( ${FAR_FADE_START.toFixed(1)}, ${FAR_FADE_END.toFixed(1)}, vFogDepth );
+  #endif
   // Air and ground haze may lean toward the map's dust tint; the far fade
   // still lands exactly on the fog colour so the skyline melts into the sky.
   vec3 vbTint = mix( fogColor, backdropHaze.rgb, backdropHaze.a * vbHaze / max( vbF, 1e-3 ) );
@@ -864,7 +869,7 @@ export function buildMapBackdrop(palette = {}, dimensions) {
         .replace('#include <common>', '#include <common>\nuniform vec4 backdropAir;\nuniform vec4 backdropHaze;\nuniform vec3 backdropFade;\nvarying vec2 vBackdropFx;')
         .replace('#include <fog_fragment>', AIR_FOG);
     };
-    material.customProgramCacheKey = () => 'backdrop-air-v4';
+    material.customProgramCacheKey = () => 'backdrop-air-v5';
   }
   material.name = 'backdrop';
   const mesh = new THREE.Mesh(geometry, material);

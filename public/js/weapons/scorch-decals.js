@@ -6,6 +6,28 @@
 import * as THREE from '../vendor/three.module.js';
 
 export const SCORCH_CAPACITY = 24;
+/** Large battlefields (Frontier) keep many more craters charred at once. */
+export const SCORCH_CAPACITY_LARGE = 256;
+const LARGE_POOL_MAPS = new Set(['frontier']);
+
+/** Active scorch pool size for a map. */
+export function scorchCapacityForMap(mapId) {
+  return LARGE_POOL_MAPS.has(mapId) ? SCORCH_CAPACITY_LARGE : SCORCH_CAPACITY;
+}
+
+// Pools built without an explicit capacity follow the loaded map: WorldView
+// calls configureScorchPool(mapId) and every live pool resizes in place. The
+// instance buffer is allocated at the large size once, so a resize never
+// changes a buffer, an attribute or a program.
+const managedPools = new Set();
+let mapPoolCapacity = SCORCH_CAPACITY;
+
+/** Select the scorch pool size for the map being loaded; returns it. */
+export function configureScorchPool(mapId) {
+  mapPoolCapacity = scorchCapacityForMap(mapId);
+  for (const pool of managedPools) pool.setCapacity(mapPoolCapacity);
+  return mapPoolCapacity;
+}
 const SCORCH_LIFE_S = 20;
 const SCORCH_HOLD_S = 5;
 /** The blast's own block damage lands after the flash; seat the mark behind it. */
@@ -105,10 +127,13 @@ export class ScorchDecals {
    * @param {THREE.Object3D} parent
    * @param {(x:number, y:number, z:number) => boolean} isSolid world-space solidity (floors itself)
    */
-  constructor(parent, isSolid, { capacity = SCORCH_CAPACITY } = {}) {
+  constructor(parent, isSolid, { capacity = null } = {}) {
     this.isSolid = isSolid;
-    this.capacity = capacity;
-    this.decals = Array.from({ length: capacity }, () => ({
+    const managed = !Number.isInteger(capacity) || capacity <= 0;
+    this.maxCapacity = managed ? Math.max(SCORCH_CAPACITY_LARGE, mapPoolCapacity) : capacity;
+    this.capacity = managed ? mapPoolCapacity : capacity;
+    if (managed) managedPools.add(this);
+    this.decals = Array.from({ length: this.maxCapacity }, () => ({
       active: false, seated: false, age: 0, check: 0,
       ox: 0, oy: 0, oz: 0, depth: 0, size: 0, strength: 0, angle: 0,
       x: 0, y: 0, z: 0, bx: 0, by: 0, bz: 0, seatSize: 0,
@@ -121,7 +146,7 @@ export class ScorchDecals {
 
     const geometry = new THREE.PlaneGeometry(1, 1);
     geometry.rotateX(-Math.PI / 2);
-    this.params = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3);
+    this.params = new THREE.InstancedBufferAttribute(new Float32Array(this.maxCapacity * 3), 3);
     this.params.setUsage(THREE.DynamicDrawUsage);
     geometry.setAttribute('scorch', this.params);
     this.material = new THREE.ShaderMaterial({
@@ -172,7 +197,7 @@ export class ScorchDecals {
     });
     // Set after the merge: UniformsUtils.merge would clone the texture.
     this.material.uniforms.scorchMap.value = createScorchTexture();
-    this.mesh = new THREE.InstancedMesh(geometry, this.material, capacity);
+    this.mesh = new THREE.InstancedMesh(geometry, this.material, this.maxCapacity);
     this.mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.mesh.count = 0;
     this.mesh.frustumCulled = false;
@@ -180,6 +205,16 @@ export class ScorchDecals {
     this.mesh.renderOrder = 1;
     this.mesh.name = 'explosion-scorch';
     parent.add(this.mesh);
+  }
+
+  /** Resize the active pool (bounded by the allocated instances); marks past the end go out. */
+  setCapacity(capacity) {
+    const next = Math.max(1, Math.min(this.maxCapacity, capacity | 0));
+    if (next === this.capacity) return this.capacity;
+    for (let i = next; i < this.maxCapacity; i++) this.decals[i].active = false;
+    this.capacity = next;
+    this.cursor %= next;
+    return next;
   }
 
   /** Queue a scorch under a blast at (x, y, z). `size` is the mark's diameter in metres. */
@@ -422,6 +457,7 @@ export class ScorchDecals {
   }
 
   dispose() {
+    managedPools.delete(this);
     this.clear();
     this.mesh.removeFromParent();
     // Frees the instanceMatrix GL buffer (three only drops it on the mesh's dispose event).

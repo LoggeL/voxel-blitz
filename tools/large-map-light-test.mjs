@@ -3,6 +3,7 @@ import { AIR, GLASS, createMapState } from '../shared/worlddata.js';
 import { LARGE_MAP_LIGHTS, lightFixtureGeometry } from '../shared/world/large-map-lights.js';
 import { buildMapLights } from '../public/js/engine/map-lights.js';
 import { buildMapSigns } from '../public/js/engine/map-signs.js';
+import { VoxelLightVolume } from '../public/js/engine/voxel-light.js';
 
 for (const id of ['harbor', 'canyon']) {
   const world = createMapState(id);
@@ -81,4 +82,45 @@ try {
 } finally {
   if (previousDocument === undefined) delete globalThis.document;
   else globalThis.document = previousDocument;
+}
+
+// Authored lamps feed the voxel light volume as block-light emitters, in the
+// per-voxel arena volume and in a coarse large-world volume alike (cell 2):
+// a lamp lights the air in front of it, and switching it off (broken stem)
+// darkens that air again after the emitter neighbourhood is patched.
+for (const id of ['harbor', 'canyon']) {
+  const world = createMapState(id);
+  const lights = buildMapLights(id, world.getBlock);
+  const cells = lights.emitters();
+  assert.ok(cells.length > 0, `${id} lamps emit block light`);
+  for (const cell of [1, 2]) {
+    const volume = new VoxelLightVolume(world.getBlock, world.dimensions, { cell, emitters: () => lights.emitters(), worker: false });
+    volume.build();
+    const lit = cells.filter(e => volume.sample(e.x + 0.5, e.y + 0.5, e.z + 0.5).block > 0.3).length;
+    assert.ok(lit >= cells.length * 0.9, `${id} cell ${cell}: ${lit}/${cells.length} lamp fronts are lit`);
+    // Switch one lamp off and patch its neighbourhood.
+    const light = LARGE_MAP_LIGHTS[id].find(entry => lightFixtureGeometry(entry).cells.every(([x, y, z, type]) => world.getBlock(x, y, z) === type));
+    const stem = lightFixtureGeometry(light).cells[0];
+    const before = lights.emitters();
+    world.setBlock(...stem.slice(0, 3), AIR);
+    lights.refresh();
+    const after = lights.emitters();
+    const gone = before.filter(e => !after.some(a => a.x === e.x && a.y === e.y && a.z === e.z));
+    assert.ok(gone.length > 0, `${id}: the broken lamp stops emitting`);
+    volume.applyDeltas([{ x: stem[0], y: stem[1], z: stem[2], v: AIR }]);
+    volume.touchEmitters(gone);
+    volume.flush();
+    const dark = gone.filter(e => {
+      const near = after.some(a => Math.hypot(a.x - e.x, a.y - e.y, a.z - e.z) < 18);
+      return !near && volume.sample(e.x + 0.5, e.y + 0.5, e.z + 0.5).block < 0.3;
+    }).length;
+    const isolated = gone.filter(e => !after.some(a => Math.hypot(a.x - e.x, a.y - e.y, a.z - e.z) < 18)).length;
+    assert.ok(isolated > 0, `${id}: the broken lamp has no lit neighbour lamp`);
+    assert.equal(dark, isolated, `${id} cell ${cell}: a dead lamp leaves no glow behind`);
+    world.setBlock(...stem);
+    lights.refresh();
+    volume.dispose();
+  }
+  lights.dispose();
+  console.log(`${id}: lamps light per-voxel and coarse (2-voxel) light volumes and go dark when broken.`);
 }

@@ -14,6 +14,7 @@ import { copyBlockDamage } from './block-damage.js';
 import { POWERUP_RULES, POWERUP_TYPES } from '../../shared/powerups.js';
 import { copySmokeFields } from '../../shared/smoke-rules.js';
 import { MOLOTOV_FIRE } from '../../shared/molotov-rules.js';
+import { KIT_IDS } from '../../shared/conquest-contract.js';
 
 const D2 = 100, D3 = 1000;
 
@@ -81,6 +82,35 @@ function wireCopy(value, seen = new WeakSet()) {
   return copy;
 }
 
+const percent = value => Math.round(Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0)) * 100);
+/** A flag that is either a boolean or an "until" timestamp. */
+const activeFlag = (value, nowMs) => value === true || (Number.isFinite(value) && value > nowMs) ? 1 : 0;
+
+/**
+ * Conquest player row `cq` (see decodeConquestPlayer): [kitIndex(-1 none),
+ * squadId, down, spotted, restricted tenths of a second, lockProgress 0..100,
+ * actionProgress 0..100]. Progress values arrive as 0..1 fractions.
+ */
+export function conquestPlayerRow(p, nowMs) {
+  const cq = p.conquest;
+  const restrictedMs = Number.isFinite(cq.restrictedMs) ? Math.max(0, cq.restrictedMs) : 0;
+  return [
+    KIT_IDS.indexOf(cq.kit),
+    Math.max(0, Math.trunc(cq.squad) || 0),
+    activeFlag(cq.down, nowMs),
+    activeFlag(cq.spotted, nowMs),
+    Math.min(9999, Math.ceil(restrictedMs / 100)),
+    percent(p.lockProgress),
+    percent(cq.actionProgress),
+  ];
+}
+
+/** Conquest per-player counters `cqs`: [objectiveScore, vehiclesDestroyed, revives, captures]. */
+export function conquestStatsRow(p) {
+  const stats = Array.isArray(p.conquest?.stats) ? p.conquest.stats : [];
+  return [0, 1, 2, 3].map(i => Math.max(0, Math.trunc(stats[i]) || 0));
+}
+
 function defaultMatchSnapshot() {
   return {
     mode: DEFAULT_MODE_ID,
@@ -102,18 +132,21 @@ function defaultMatchSnapshot() {
  * Player rows carry the exact contracted field set; positions are 2-decimal,
  * angles 3-decimal so payloads stay small and floats stay finite.
  */
-export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = undefined, blockDamage = [], powerups = [], fireFields = [], smokeFields = [], mines = [], dimensions = undefined) {
+export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = undefined, blockDamage = [], powerups = [], fireFields = [], smokeFields = [], mines = [], dimensions = undefined, vehicles = []) {
   const matchSnapshot = match === undefined
     ? defaultMatchSnapshot()
     : (isRecord(match) ? wireCopy(match) : defaultMatchSnapshot());
   return {
     t: 'tick',
+    vehicles: wireCopy(vehicles),
     mines: wireCopy(mines),
     smokeFields: copySmokeFields(smokeFields),
     now: round(nowMs, 1),
     match: matchSnapshot,
     players: (playersArr || []).map((p) => ({
       id: String(p.id),
+      vehicleId: typeof p.vehicleId === 'string' ? p.vehicleId : null,
+      vehicleSeatId: typeof p.vehicleId === 'string' && typeof p.vehicleSeatId === 'string' ? p.vehicleSeatId : null,
       name: String(p.name),
       cosmetics: normalizeCosmeticLoadout(p.cosmetics),
       x: round(p.x, D2),
@@ -182,6 +215,7 @@ export function makeSnapshot(playersArr, blockDeltas, eventsArr, nowMs, match = 
       owned: ownedWeapons(p.owned),
       ...(p.tttKarma ? { karma: Math.round(p.tttKarma.base) } : {}),
       ...(p.chaosUpgrades ? { chaosUpgrades: { ...p.chaosUpgrades } } : {}),
+      ...(isRecord(p.conquest) ? { cq: conquestPlayerRow(p, nowMs), cqs: conquestStatsRow(p) } : {}),
       ...(p.bastion ? { bastion: { ...p.bastion }, bastionUpgrades: { ...p.bastionUpgrades } } : {}),
       ...(p.npcRole ? { npcRole: p.npcRole, npcAttack: p.npcAttack,
         ...(Number.isFinite(p.bodyScale) && p.bodyScale !== 1 ? { npcScale: round(p.bodyScale, D3) } : {}),

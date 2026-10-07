@@ -49,10 +49,12 @@ export function rocketLaunch({ x, y, z, dir }) {
  * Advance one rocket `{x,y,z,vx,vy,vz}` by `dt` seconds. Rockets never bounce: the first
  * solid voxel along the swept segment stops them and reports `hit` `{x,y,z,t}` in world
  * coordinates (the point just before the contact). `raycast` is the shared DDA.
+ * Vehicle shells and missiles carry their own `gravity` (VEHICLE_WEAPON_META.gravity,
+ * also published as `g` on their projectileLaunch event); the RX-8 uses the default.
  */
 export function stepRocket(rocket, dt, raycast) {
   const step = Math.max(0, Number(dt) || 0);
-  rocket.vy -= ROCKET_RULES.gravity * step;
+  rocket.vy -= (Number.isFinite(rocket.gravity) ? rocket.gravity : ROCKET_RULES.gravity) * step;
   const dx = rocket.vx * step;
   const dy = rocket.vy * step;
   const dz = rocket.vz * step;

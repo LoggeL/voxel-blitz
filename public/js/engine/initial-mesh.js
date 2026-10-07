@@ -5,15 +5,15 @@ export async function buildInitialMesh(store, {
   yieldControl = () => new Promise(resolve => setTimeout(resolve, 0)),
   now = () => performance.now(),
 } = {}) {
-  const total = store.width * store.depth;
+  const rows = store.initialChunks ? store.initialChunks() : Array.from({ length: store.width * store.depth }, (_, i) => [i % store.width, Math.floor(i / store.width)]);
+  const total = rows.length;
   let done = 0;
   onProgress(done, total);
   // Let the preceding loading state reach the screen before doing heavy work.
   await yieldControl();
   if (!isActive()) return false;
   let batchStart = now();
-  for (let z = 0; z < store.depth; z++) {
-    for (let x = 0; x < store.width; x++) {
+  for (const [x, z] of rows) {
       if (!isActive()) return false;
       store.rebuildChunk(x, z);
       onProgress(++done, total);
@@ -21,7 +21,7 @@ export async function buildInitialMesh(store, {
         await yieldControl();
         batchStart = now();
       }
-    }
   }
+  if (store.loadQueue) store.loadQueue.length = 0;
   return isActive();
 }

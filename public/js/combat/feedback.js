@@ -177,12 +177,24 @@ export class CombatFeedback {
         // Extra Chaos jets are authoritative and have no local prediction.
         if (ev.chaosFlame) { this.effects.shoot(ev); break; }
         const local = ev.id === myId;
-        if (local) this.effects.confirmShot?.(ev);
-        if (!local) {
-          if (ev.w === 'knife') this.roster?.swingPickaxe?.(ev.id);
+        // Mounted vehicle weapons: VehicleFx owns the muzzle, tracer, impact
+        // and report at the mount anchor. Only the listener's flyby stays here.
+        const mounted = ev.vehicleId != null;
+        // A seated passenger's personal weapon has no local prediction (the
+        // vehicle camera replaces the viewmodel), so it presents like a remote shot.
+        const unpredicted = local && !mounted && this.getSelfRow?.()?.vehicleId != null;
+        if (local && !mounted && !unpredicted) this.effects.confirmShot?.(ev);
+        if (unpredicted) {
           this.effects.shoot(ev);
-          this.sfx.fire(ev.w, ev.w === 'flamethrower'
-            ? { pos: ev.o, shooterId: ev.id } : { pos: ev.o });
+          this.sfx.fire(ev.w, { pos: ev.o });
+        }
+        if (!local) {
+          if (!mounted) {
+            if (ev.w === 'knife') this.roster?.swingPickaxe?.(ev.id);
+            this.effects.shoot(ev);
+            this.sfx.fire(ev.w, ev.w === 'flamethrower'
+              ? { pos: ev.o, shooterId: ev.id } : { pos: ev.o });
+          }
           const definition = WEAPONS[ev.w];
           if (this.player?.alive && definition && !definition.flame &&
               !definition.projectile && definition.mode !== 'melee' &&

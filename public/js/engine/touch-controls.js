@@ -79,9 +79,23 @@ export function shouldEnableTouchControls({
 /** Every contextual button; the pause button is always available. */
 export const TOUCH_ACTIONS = Object.freeze([
   'fire', 'ads', 'jump', 'reload', 'interact', 'weapon', 'buy', 'medkit', 'build',
-  'grenade', 'pouch',
+  'grenade', 'pouch', 'flightUp', 'flightDown', 'flightBrake',
+  // Conquest: seat cycle and countermeasure while seated, full map and spot on foot or seated, deploy while dead.
+  'vehicleSeat', 'countermeasure', 'bigMap', 'spot', 'deploy',
 ]);
 const ACTION_BITS = Object.freeze(Object.fromEntries(TOUCH_ACTIONS.map((action, i) => [action, 1 << i])));
+/**
+ * Conquest buttons act on the Conquest HUD and the vehicle controller, not on
+ * Input (whose gameplay gate is closed while dead on the deploy screen). They
+ * go to `onConquest(action)` when given, else to a `vb-conquest-action`
+ * CustomEvent ({detail: {action}}) on the document's window, which ConquestHud
+ * listens for.
+ */
+export const CONQUEST_TOUCH_ACTIONS = Object.freeze(['vehicleSeat', 'countermeasure', 'bigMap', 'spot', 'deploy']);
+export const CONQUEST_TOUCH_EVENT = 'vb-conquest-action';
+const CONQUEST_ACTION_SET = new Set(CONQUEST_TOUCH_ACTIONS);
+const vehicleCanDrive = context => context.vehicleCanDrive ?? (!context.vehicleRole || ['driver', 'pilot'].includes(context.vehicleRole));
+const AIRCRAFT_TYPES = new Set(['helicopter', 'transport', 'plane']);
 
 /**
  * Which touch buttons a gameplay context earns. Null context (menu, dead, spectating)
@@ -90,8 +104,25 @@ const ACTION_BITS = Object.freeze(Object.fromEntries(TOUCH_ACTIONS.map((action, 
  * contract-testable without DOM.
  */
 function visibleTouchMask(context) {
+  // The Conquest deploy screen replaces every gameplay control with one DEPLOY button.
+  if (context?.deployOpen === true) return ACTION_BITS.deploy;
   if (!context || context.alive === false || context.wheelOpen || context.pouchOpen) return 0;
   let mask = ACTION_BITS.jump;
+  const conquest = context.conquest === true ? ACTION_BITS.bigMap | ACTION_BITS.spot : 0;
+  if (context.vehicleSeated) {
+    const drives = vehicleCanDrive(context);
+    mask = drives ? ACTION_BITS.jump : 0;
+    if (drives && AIRCRAFT_TYPES.has(context.vehicleType)) {
+      mask = ACTION_BITS.flightUp | ACTION_BITS.flightDown | ACTION_BITS.flightBrake;
+    }
+    // The seat's weapon list decides (vehicleCanFire); legacy contexts fall back to the hull type.
+    const canFire = context.vehicleCanFire ?? (['tank', 'helicopter', 'plane'].includes(context.vehicleType) ? context.canFire : false);
+    if (context.vehicleRole !== 'passenger' && canFire === true) mask |= ACTION_BITS.fire;
+    if (Number(context.vehicleSeatCount) > 1) mask |= ACTION_BITS.vehicleSeat;
+    if (drives && context.vehicleCountermeasure) mask |= ACTION_BITS.countermeasure;
+    return mask | conquest;
+  }
+  mask |= conquest;
   if (context.canFire !== false) {
     mask |= ACTION_BITS.fire | ACTION_BITS.ads;
   }
@@ -147,8 +178,10 @@ export class TouchControls {
     onHold = () => {},
     onPulse = () => {},
     onPause = () => {},
+    onConquest = null,
   } = {}) {
     this.document = documentRef;
+    this.onConquest = typeof onConquest === 'function' ? onConquest : null;
     this.onMove = onMove;
     this.onLook = onLook;
     this.onHold = onHold;
@@ -171,6 +204,7 @@ export class TouchControls {
     this._powerIndex = -1;
     this._lookTap = null;
     this._context = null;
+    this._seatKey = '';
     this._hidden = new Set();
     this._visibilityMask = null;
     this._paintedPowerIndex = undefined;
@@ -186,7 +220,19 @@ export class TouchControls {
    */
   setContext(context = null) {
     const next = context && typeof context === 'object' ? context : null;
-    const mask = this._spectating ? 0 : visibleTouchMask(next);
+    const seatKey = next?.vehicleSeated ? `${next.vehicleType || ''}:${next.vehicleId || ''}:${next.vehicleSeatId || ''}` : '';
+    if ((this._seatKey || '') !== seatKey) {
+      // Still-visible controls release when changing vehicles or seats.
+      for (const action of TOUCH_ACTIONS) this._releaseAction(action);
+      this._resetMove();
+      this.onMove?.({ x: 0, y: 0, magnitude: 0 });
+      this._lookPointer = null;
+      this._lookPoint = null;
+      this._lookTap = null;
+      this.dom.look?.classList.remove('is-engaged');
+    }
+    this._seatKey = seatKey;
+    const mask = this._spectating && next?.deployOpen !== true ? 0 : visibleTouchMask(next);
     const changed = [];
     if (mask !== this._visibilityMask) {
       for (const action of TOUCH_ACTIONS) {
@@ -203,6 +249,18 @@ export class TouchControls {
       this._visibilityMask = mask;
     }
     this._context = next;
+    const canMove = !next?.vehicleSeated || vehicleCanDrive(next);
+    if (!canMove && this._movePointer !== null) {
+      this._resetMove();
+      this.onMove?.({x:0,y:0,magnitude:0});
+    }
+    if (this.dom.move) {
+      this.dom.move.hidden = !canMove;
+      this.dom.move.setAttribute('aria-hidden', canMove ? 'false' : 'true');
+    }
+    const flying = next?.vehicleSeated && canMove && AIRCRAFT_TYPES.has(next.vehicleType);
+    this.root?.classList.toggle('is-aircraft', !!flying);
+    if (this.root) this.root.dataset.vehicleType = next?.vehicleSeated ? next.vehicleType || '' : '';
     for (const action of changed) {
       const button = this.dom[action];
       if (!button) continue;
@@ -210,6 +268,25 @@ export class TouchControls {
       button.classList.toggle('is-hidden', hide);
       button.setAttribute('aria-hidden', hide ? 'true' : 'false');
     }
+    if (this.dom.jump) {
+      this.dom.jump.textContent = next?.vehicleSeated ? 'BRAKE' : 'JUMP';
+      this.dom.jump.setAttribute('aria-label', next?.vehicleSeated ? 'Brake vehicle' : 'Jump');
+    }
+    this.root?.classList.toggle('is-deploying', next?.deployOpen === true);
+    this._paintDeploying();
+    if (this.dom.deploy) {
+      const label = typeof next?.deployLabel === 'string' && next.deployLabel ? next.deployLabel : 'DEPLOY';
+      if (this.dom.deploy.textContent !== label) this.dom.deploy.textContent = label;
+      this.dom.deploy.dataset.valid = String(next?.deployValid !== false);
+    }
+    if (this.dom.countermeasure) {
+      const smoke = next?.vehicleCountermeasure === 'smoke';
+      this.dom.countermeasure.textContent = smoke ? 'SMOKE' : 'FLARES';
+      this.dom.countermeasure.setAttribute('aria-label', smoke ? 'Fire smoke screen' : 'Release flares');
+      this.dom.countermeasure.dataset.ready = String(next?.vehicleCountermeasureReady !== false);
+    }
+    if (this.dom.flightUp) this.dom.flightUp.setAttribute('aria-label', next?.vehicleType === 'plane' ? 'Pitch aircraft up' : 'Climb helicopter');
+    if (this.dom.flightDown) this.dom.flightDown.setAttribute('aria-label', next?.vehicleType === 'plane' ? 'Pitch aircraft down' : 'Descend helicopter');
     this._paintGrenade(next);
     return changed;
   }
@@ -312,12 +389,20 @@ export class TouchControls {
     d.fire = this._button(root, 'fire', 'FIRE', 'Fire weapon; drag to aim while firing');
     d.ads = this._button(root, 'ads', 'AIM', 'Aim down sights (tap to toggle, hold to hold)');
     d.jump = this._button(root, 'jump', 'JUMP', 'Jump');
+    d.flightUp = this._button(root, 'flightUp', 'UP', 'Climb helicopter');
+    d.flightDown = this._button(root, 'flightDown', 'DOWN', 'Descend helicopter');
+    d.flightBrake = this._button(root, 'flightBrake', 'BRAKE', 'Brake aircraft');
     d.reload = this._button(root, 'reload', 'LOAD', 'Reload');
     d.medkit = this._button(root, 'medkit', 'HEAL', 'Use medkit or cancel healing');
     d.interact = this._button(root, 'interact', 'USE', 'Interact');
     d.weapon = this._button(root, 'weapon', '⇄', 'Next weapon');
     d.buy = this._button(root, 'buy', 'BUY', 'Open armory');
     d.build = this._button(root, 'build', 'BUILD', 'Cycle build blueprint (Bastion)');
+    d.vehicleSeat = this._button(root, 'vehicleSeat', 'SEAT', 'Switch to the next free seat');
+    d.countermeasure = this._button(root, 'countermeasure', 'FLARES', 'Release flares');
+    d.bigMap = this._button(root, 'bigMap', 'MAP', 'Open the battlefield map');
+    d.spot = this._button(root, 'spot', 'SPOT', 'Spot the enemy you are aiming at');
+    d.deploy = this._button(root, 'deploy', 'DEPLOY', 'Deploy at the selected spawn');
     d.grenade = this._button(root, 'grenade', '',
       'Throw ready grenade (tap to throw, hold to aim, lift to throw)');
     d.grenade.dataset.type = 'none';
@@ -353,6 +438,9 @@ export class TouchControls {
     this._bindHold(d.fire, 'fire', { look: true });
     this._bindHold(d.ads, 'ads', { toggle: true });
     this._bindHold(d.jump, 'jump');
+    this._bindHold(d.flightUp, 'flightUp');
+    this._bindHold(d.flightDown, 'flightDown');
+    this._bindHold(d.flightBrake, 'flightBrake');
     this._bindHold(d.interact, 'interact');
     this._bindPulse(d.reload, 'reload');
     this._bindPulse(d.medkit, 'medkit');
@@ -360,6 +448,7 @@ export class TouchControls {
     this._bindPulse(d.buy, 'buy');
     this._bindPulse(d.build, 'build');
     this._bindPulse(d.pouch, 'pouch');
+    for (const action of CONQUEST_TOUCH_ACTIONS) this._bindPulse(d[action], action);
     this._bindGrenade(d.grenade);
     d.grenadePowerChips.forEach((chip, i) => this._bindPowerChip(chip, i));
     this._bindPulse(d.pause, 'pause');
@@ -398,7 +487,8 @@ export class TouchControls {
     const zone = this.dom.move;
     const base = this.dom.moveBase;
     const update = (event) => {
-      if (!this.enabled || event.pointerId !== this._movePointer || !this._moveCenter) return;
+      if (!this.enabled || event.pointerId !== this._movePointer || !this._moveCenter ||
+          (this._context?.vehicleSeated && !vehicleCanDrive(this._context))) return;
       event.preventDefault();
       const vector = joystickVector(
         event.clientX - this._moveCenter.x,
@@ -419,7 +509,8 @@ export class TouchControls {
       this.onMove({ x: 0, y: 0, magnitude: 0 });
     };
     this._listen(zone, 'pointerdown', (event) => {
-      if (!this.enabled || this._spectating || this._movePointer !== null) return;
+      if (!this.enabled || this._spectating || this._movePointer !== null ||
+          (this._context?.vehicleSeated && !vehicleCanDrive(this._context))) return;
       event.preventDefault();
       this._movePointer = event.pointerId;
       this._capture(zone, event);
@@ -672,6 +763,7 @@ export class TouchControls {
       this._setPressed(button, action, false);
       if (!this.enabled || this._hidden.has(action) || event.type !== 'pointerup') return;
       if (action === 'pause') this.onPause();
+      else if (CONQUEST_ACTION_SET.has(action)) this._conquestAction(action);
       else this.onPulse(action);
     };
     this._listen(button, 'pointerup', release);
@@ -686,6 +778,25 @@ export class TouchControls {
     this.root?.classList.toggle('is-active', next);
     this.root?.setAttribute('aria-hidden', next ? 'false' : 'true');
     if (!next) this.reset(true);
+    this._paintDeploying();
+  }
+
+  /** Route one Conquest button press (see CONQUEST_TOUCH_ACTIONS). */
+  _conquestAction(action) {
+    if (this.onConquest) { this.onConquest(action); return; }
+    const target = this.document?.defaultView ?? (typeof window !== 'undefined' ? window : null);
+    const Event = target?.CustomEvent ?? globalThis.CustomEvent;
+    if (target?.dispatchEvent && typeof Event === 'function') target.dispatchEvent(new Event(CONQUEST_TOUCH_EVENT, { detail: { action } }));
+  }
+
+  /**
+   * `vb-touch-deploying` on the document while the touch DEPLOY button is
+   * usable, so the deploy screen hides its own button only when this one
+   * really stands in for it.
+   */
+  _paintDeploying() {
+    const on = !!this.root && this.enabled && this._context?.deployOpen === true && !this._hidden.has('deploy');
+    this.document?.documentElement?.classList?.toggle('vb-touch-deploying', on);
   }
 
   reset(notify = true) {
@@ -731,7 +842,7 @@ export class TouchControls {
     }
     this._listeners.length = 0;
     this.root?.remove();
-    this.document?.documentElement?.classList.remove('vb-touch-mode', 'vb-touch-spectating');
+    this.document?.documentElement?.classList.remove('vb-touch-mode', 'vb-touch-spectating', 'vb-touch-deploying');
     this.root = null;
     this.dom = {};
   }

@@ -1,3 +1,4 @@
+import { generateFrontierInto } from './flatmap-frontier.js';
 import { getMapDimensions } from './dimensions.js';
 import { generateHarborInto, generateCanyonInto } from './flatmap-large.js';
 import { generateNuketownInto } from './flatmap-nuketown.js';
@@ -12,7 +13,7 @@ import { generateSolsticeInto } from './flatmap-solstice.js';
 import { generateCalderaInto } from './flatmap-caldera.js';
 import { createMapMetadata } from './metadata.js';
 import {
-  MAP_HEADER_BYTES,
+  deserializeBlocks,
   rebuildHeights,
   validateSerializedWorld,
 } from './serialize.js';
@@ -43,7 +44,8 @@ function buildPristineTemplate(id) {
   const heights = new Int16Array(dimensions.sx * dimensions.sz);
   const world = createStateApi(blocks, heights, null, id);
 
-  if (id === 'harbor') generateHarborInto(world, blocks, heights);
+  if (id === 'frontier') generateFrontierInto(world, blocks, heights);
+  else if (id === 'harbor') generateHarborInto(world, blocks, heights);
   else if (id === 'canyon') generateCanyonInto(world, blocks, heights);
   else if (id === 'foundry') generateFoundryInto(world, blocks, heights);
   else if (id === 'depot') generateDepotInto(world, blocks, heights);
@@ -70,7 +72,15 @@ function buildPristineTemplate(id) {
 
 // Build authoritative private baselines at import. Every state receives fresh cells.
 const pristineTemplates = new Map();
-for (const id of MAP_IDS) pristineTemplates.set(id, buildPristineTemplate(id));
+for (const id of MAP_IDS) if (id !== 'frontier') pristineTemplates.set(id, buildPristineTemplate(id));
+function getTemplate(id) {
+  requireMapId(id);
+  if (!pristineTemplates.has(id)) pristineTemplates.set(id, buildPristineTemplate(id));
+  return pristineTemplates.get(id);
+}
+// Frontier metadata is static (terrain-derived, no voxels) and built on first use.
+let frontierMetadata = null;
+const frontierMeta = () => (frontierMetadata ??= createMapMetadata('frontier', { dimensions: getMapDimensions('frontier') }));
 
 const defaultTemplate = pristineTemplates.get('foundry');
 data.set(defaultTemplate.blocks);
@@ -100,7 +110,7 @@ export function serializeWorld() {
 
 export function deserializeWorld(buf) {
   const dimensions = validateSerializedWorld(buf);
-  data = buf.slice(MAP_HEADER_BYTES);
+  data = deserializeBlocks(buf).blocks;
   heightMap = new Int16Array(dimensions.sx * dimensions.sz);
   defaultWorld = createStateApi(data, heightMap, null, 'foundry', null, dimensions);
   defaultWorld.rebuildHeightMap();
@@ -121,11 +131,12 @@ export function generateWorld() {
 }
 
 export function getMapMeta(id) {
-  return pristineTemplates.get(requireMapId(id)).meta;
+  requireMapId(id);
+  return id === 'frontier' ? frontierMeta() : getTemplate(id).meta;
 }
 
 export function createMapState(id, serializedBytes) {
-  const template = pristineTemplates.get(requireMapId(id));
+  const template = getTemplate(id);
   const dimensions = getMapDimensions(id);
   let blocks;
   let heights;
@@ -134,8 +145,7 @@ export function createMapState(id, serializedBytes) {
     heights = template.heights.slice();
   } else {
     validateSerializedWorld(serializedBytes, dimensions);
-    blocks = new Uint8Array(template.blocks.length);
-    blocks.set(serializedBytes.subarray(MAP_HEADER_BYTES));
+    blocks = deserializeBlocks(serializedBytes, dimensions).blocks;
     heights = new Int16Array(dimensions.sx * dimensions.sz);
     rebuildHeights(blocks, heights, dimensions);
   }

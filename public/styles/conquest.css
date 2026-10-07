@@ -1,0 +1,533 @@
+/* Conquest HUD — design "Option 2 / Immersive command" (docs/design/conquest/redesign/hud/).
+   Team-relative colours: own blue, enemy orange, neutral grey. */
+.vb-conquest-hud {
+  --cq-own: #4cc3ff; --cq-own-dim: #0e3a52; --cq-enemy: #ff8a3d; --cq-enemy-dim: #55260a;
+  --cq-neutral: #d8d8d8; --cq-squad: #7ef29a; --cq-contested: #ffd166; --cq-danger: #ff4b4b;
+  --cq-panel: rgba(9, 15, 20, 0.86); --cq-panel-solid: #0b1319; --cq-line: rgba(140, 166, 186, 0.28);
+  --cq-text: #eef3f6; --cq-sub: #9fb0bd;
+  --cq-minimap: 184px;
+  position: fixed; inset: 0; z-index: calc(var(--z-menu, 100) - 9);
+  pointer-events: none; color: var(--cq-text); font-family: var(--font-ui, system-ui, sans-serif);
+}
+.vb-conquest-hud[hidden], .vb-conquest-hud [hidden] { display: none !important; }
+#hud[data-mode="conquest"] #match-header { display: none !important; }
+body[data-vehicle-seated="true"] :is(#ammo, #grenade-count, #weaponname, #pickaxe-meter, #charge-meter, #medkit-inventory, #medkit-progress, #grenade-readied, #grenade-aim) { display: none !important; }
+
+/* ---------------------------------------------------------------- top bar */
+.cq-top {
+  position: absolute; top: max(14px, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%);
+  display: grid; grid-template-columns: 196px auto 196px; align-items: center; gap: 14px;
+  padding: 8px 14px 9px; background: linear-gradient(180deg, rgba(12, 20, 27, 0.94), rgba(9, 15, 20, 0.86));
+  border: 1px solid var(--cq-line); border-radius: 6px; box-shadow: 0 4px 18px #0007, inset 0 1px 0 #ffffff0d;
+}
+.cq-team { display: grid; gap: 4px; }
+.cq-team-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.cq-team-name { font-size: 12px; font-weight: 700; letter-spacing: 1.6px; color: var(--cq-sub); }
+.cq-tickets { font-size: 26px; line-height: 1; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: 0.5px; }
+.cq-team-own .cq-tickets { color: var(--cq-own); }
+.cq-team-enemy .cq-tickets { color: var(--cq-enemy); }
+.cq-team-enemy .cq-team-head { flex-direction: row-reverse; }
+.cq-ticket-track { height: 6px; background: #ffffff14; border-radius: 3px; overflow: hidden; }
+.cq-ticket-fill { display: block; height: 100%; border-radius: 3px; transition: width 300ms linear; }
+.cq-team-own .cq-ticket-fill { background: linear-gradient(90deg, #1f8fc4, var(--cq-own)); box-shadow: 0 0 10px #4cc3ff66; }
+.cq-team-enemy .cq-ticket-track { transform: scaleX(-1); }
+.cq-team-enemy .cq-ticket-fill { background: linear-gradient(90deg, #c45a1f, var(--cq-enemy)); box-shadow: 0 0 10px #ff8a3d66; }
+.cq-bleed { min-height: 13px; font-size: 12px; font-weight: 800; letter-spacing: 0.6px; color: var(--cq-danger); }
+.cq-team-enemy .cq-bleed { text-align: right; }
+.cq-team[data-bleeding="true"] .cq-ticket-fill { animation: cq-bleed 1s ease-in-out infinite; }
+.cq-team[data-low="true"] .cq-tickets { text-shadow: 0 0 12px #ff4b4b88; }
+@keyframes cq-bleed { 50% { filter: brightness(1.45); } }
+.cq-center { display: grid; justify-items: center; gap: 4px; }
+.cq-chips { display: flex; gap: 12px; padding: 3px 4px 0; }
+.cq-clock { font-size: 13px; font-weight: 700; letter-spacing: 1px; color: var(--cq-sub); font-variant-numeric: tabular-nums; }
+.cq-clock[data-urgent="true"] { color: var(--cq-danger); }
+
+.cq-chip {
+  --chip: var(--cq-neutral); --lean: var(--cq-neutral);
+  position: relative; width: 28px; height: 28px; transform: rotate(45deg); overflow: hidden;
+  border: 2px solid var(--chip); background: #101a21; border-radius: 3px; box-shadow: 0 0 0 1px #0009;
+}
+.cq-chip[data-owner="own"] { --chip: var(--cq-own); }
+.cq-chip[data-owner="enemy"] { --chip: var(--cq-enemy); }
+.cq-chip[data-lean="own"] { --lean: var(--cq-own); }
+.cq-chip[data-lean="enemy"] { --lean: var(--cq-enemy); }
+.cq-chip-fill {
+  position: absolute; inset: 0; transform: rotate(-45deg) scale(1.5); transform-origin: 50% 50%;
+  background: linear-gradient(0deg, var(--lean) 0, var(--lean) calc(var(--fill, 0) * 100%), transparent calc(var(--fill, 0) * 100%));
+  opacity: 0.55;
+}
+.cq-chip[data-contested="true"] { border-color: var(--cq-contested); animation: cq-pulse 0.8s ease-in-out infinite; }
+.cq-chip[data-contested="true"] .cq-chip-fill { background: repeating-linear-gradient(45deg, #ffd16655 0 4px, transparent 4px 8px); opacity: 1; }
+.cq-chip-letter {
+  position: absolute; inset: 0; display: grid; place-items: center; transform: rotate(-45deg);
+  font-size: 15px; font-weight: 800; color: #fff; text-shadow: 0 1px 2px #000;
+}
+.cq-chip[data-moving="own"]::after, .cq-chip[data-moving="enemy"]::after {
+  content: ''; position: absolute; inset: -2px; border: 2px solid; border-color: inherit; animation: cq-ping 1.1s ease-out infinite;
+}
+.cq-chip[data-moving="enemy"]::after { border-color: var(--cq-enemy); }
+.cq-chip[data-moving="own"]::after { border-color: var(--cq-own); }
+@keyframes cq-pulse { 50% { box-shadow: 0 0 0 1px #0009, 0 0 12px var(--cq-contested); } }
+@keyframes cq-ping { from { opacity: 0.9; transform: scale(1); } to { opacity: 0; transform: scale(1.5); } }
+
+/* ---------------------------------------------------------------- banners */
+.cq-banner {
+  position: absolute; top: max(96px, calc(env(safe-area-inset-top) + 90px)); left: 50%; transform: translateX(-50%);
+  min-width: 340px; padding: 9px 26px 10px; text-align: center; border-radius: 4px;
+  background: linear-gradient(90deg, transparent, var(--cq-panel) 14%, var(--cq-panel) 86%, transparent);
+  border-top: 2px solid var(--tone, var(--cq-neutral)); border-bottom: 1px solid #ffffff14;
+}
+.cq-banner[data-tone="own"] { --tone: var(--cq-own); }
+.cq-banner[data-tone="enemy"] { --tone: var(--cq-enemy); }
+.cq-banner.is-in { animation: cq-banner-in 340ms cubic-bezier(.2, .9, .3, 1.2); }
+.cq-banner-title { font-size: 22px; font-weight: 800; letter-spacing: 2px; color: var(--tone, #fff); text-shadow: 0 2px 8px #000a; }
+.cq-banner-detail { margin-top: 1px; font-size: 12px; font-weight: 700; letter-spacing: 1.6px; color: var(--cq-sub); }
+.cq-banner[data-outcome="victory"] .cq-banner-title, .cq-banner[data-outcome="defeat"] .cq-banner-title, .cq-banner[data-outcome="draw"] .cq-banner-title { font-size: 40px; letter-spacing: 6px; }
+@keyframes cq-banner-in { from { opacity: 0; transform: translateX(-50%) scale(1.15); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
+
+/* ----------------------------------------------------------- capture ring */
+.cq-ring {
+  --tone: var(--cq-neutral); --lean: var(--cq-neutral);
+  position: absolute; left: 50%; top: calc(50% + 44px); transform: translateX(-50%);
+  display: grid; justify-items: center; gap: 2px; text-shadow: 0 1px 3px #000;
+}
+.cq-ring[data-tone="own"] { --tone: var(--cq-own); }
+.cq-ring[data-tone="enemy"] { --tone: var(--cq-enemy); }
+.cq-ring[data-tone="contested"] { --tone: var(--cq-contested); }
+.cq-ring[data-lean="own"] { --lean: var(--cq-own); }
+.cq-ring[data-lean="enemy"] { --lean: var(--cq-enemy); }
+.cq-ring-dial { position: relative; width: 64px; height: 64px; }
+.cq-ring-svg { width: 100%; height: 100%; overflow: visible; }
+.cq-ring-track { fill: #0b131aaa; stroke: #ffffff26; stroke-width: 5; }
+.cq-ring-arc { fill: none; stroke: var(--lean); stroke-width: 5; stroke-linecap: round; transition: stroke-dashoffset 120ms linear; filter: drop-shadow(0 0 4px var(--lean)); }
+.cq-ring[data-tone="contested"] .cq-ring-dial { animation: cq-ring-shake 0.5s ease-in-out infinite; }
+.cq-ring-letter { position: absolute; inset: 0; display: grid; place-items: center; font-size: 24px; font-weight: 800; color: var(--tone); }
+.cq-ring-label { font-size: 14px; font-weight: 800; letter-spacing: 2px; color: var(--tone); }
+.cq-ring-counts { display: flex; gap: 6px; align-items: baseline; font-size: 13px; font-weight: 800; }
+.cq-ring-own { color: var(--cq-own); } .cq-ring-enemy { color: var(--cq-enemy); }
+.cq-ring-vs { font-size: 10px; color: var(--cq-sub); letter-spacing: 1px; }
+@keyframes cq-ring-shake { 25% { transform: translateX(-1px); } 75% { transform: translateX(1px); } }
+/* The infantry RELOADING hint normally sits where the ring is: lift it above the crosshair while the ring shows. */
+body:has(.vb-conquest-hud:not([hidden]) .cq-ring:not([hidden])) #reload-hint { top: -58px; }
+
+/* ---------------------------------------------------------- score ticker */
+.cq-ticker { position: absolute; left: 50%; top: calc(50% + 160px); transform: translateX(-50%); display: grid; justify-items: center; gap: 2px; }
+.cq-ticker-total { font-size: 20px; font-weight: 800; color: #fff3c4; text-shadow: 0 1px 4px #000; }
+.cq-ticker-lines { display: grid; justify-items: center; gap: 1px; }
+.cq-ticker-line { display: flex; gap: 6px; align-items: baseline; font-size: 13px; font-weight: 700; letter-spacing: 1px; text-shadow: 0 1px 3px #000; animation: cq-tick-in 220ms ease-out; }
+.cq-ticker-line b { color: #ffe08a; font-size: 15px; }
+.cq-ticker-line span { color: #f2f4f6; }
+.cq-ticker-line.is-kill b { color: #fff; }
+@keyframes cq-tick-in { from { opacity: 0; transform: translateY(6px); } }
+
+/* --------------------------------------------------------- world markers */
+.cq-world { position: absolute; inset: 0; overflow: hidden; }
+.cq-flag-marker {
+  --tone: var(--cq-neutral); --lean: var(--cq-neutral);
+  position: absolute; left: 0; top: 0; width: 40px; height: 40px; margin: -20px 0 0 -20px; will-change: transform;
+  filter: drop-shadow(0 1px 2px #000c);
+}
+.cq-flag-marker[data-owner="own"] { --tone: var(--cq-own); }
+.cq-flag-marker[data-owner="enemy"] { --tone: var(--cq-enemy); }
+.cq-flag-marker[data-lean="own"] { --lean: var(--cq-own); }
+.cq-flag-marker[data-lean="enemy"] { --lean: var(--cq-enemy); }
+.cq-flag-marker-svg { position: absolute; inset: 0; overflow: visible; }
+.cq-flag-marker-diamond { fill: #0b1319d9; stroke: var(--tone); stroke-width: 2; }
+.cq-flag-marker-arc { fill: none; stroke: var(--lean); stroke-width: 3; stroke-linecap: round; }
+.cq-flag-marker[data-contested="true"] .cq-flag-marker-diamond { stroke: var(--cq-contested); animation: cq-marker-pulse 0.7s ease-in-out infinite; }
+.cq-flag-marker-letter { position: absolute; inset: 0; display: grid; place-items: center; font-size: 16px; font-weight: 800; color: var(--tone); }
+.cq-flag-marker-distance { position: absolute; top: 40px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: #e8eef2; white-space: nowrap; text-shadow: 0 1px 2px #000; }
+.cq-flag-marker-arrow { display: none; position: absolute; inset: -12px; }
+.cq-flag-marker[data-edge="true"] .cq-flag-marker-arrow { display: block; }
+.cq-flag-marker-arrow::before { content: ''; position: absolute; left: 50%; top: 0; margin-left: -6px; border: 6px solid transparent; border-bottom: 8px solid var(--tone); border-top: 0; }
+.cq-flag-marker[data-edge="true"] { opacity: 0.92; transform-origin: center; }
+.cq-flag-marker[data-near="true"] { opacity: 0.35; }
+@keyframes cq-marker-pulse { 50% { stroke-width: 4; } }
+.cq-unit-marker { position: absolute; left: 0; top: 0; will-change: transform; display: grid; justify-items: center; }
+.cq-unit-glyph { display: block; }
+.cq-unit-marker[data-align="start"] { justify-items: start; }
+.cq-unit-marker[data-align="end"] { justify-items: end; }
+.cq-unit-marker[data-align="start"] .cq-unit-glyph { translate: -50% 0; }
+.cq-unit-marker[data-align="end"] .cq-unit-glyph { translate: 50% 0; }
+.cq-unit-marker[data-kind="team"] .cq-unit-glyph { width: 7px; height: 7px; margin: -3px 0 0; border-radius: 50%; background: var(--cq-own); box-shadow: 0 0 0 1.5px #071016; }
+.cq-unit-marker[data-kind="squad"] .cq-unit-glyph { width: 9px; height: 9px; margin: -4px 0 0; border-radius: 50%; background: var(--cq-squad); box-shadow: 0 0 0 1.5px #071016; }
+.cq-unit-marker[data-kind="spotted"] .cq-unit-glyph { width: 11px; height: 11px; margin: -5px 0 0; transform: rotate(45deg); background: var(--cq-danger); box-shadow: 0 0 0 1.5px #1a0505, 0 0 8px #ff4b4b99; }
+.cq-unit-marker[data-kind="down"] .cq-unit-glyph, .cq-unit-marker[data-kind="spotted-vehicle"] .cq-unit-glyph { width: 22px; height: 22px; margin: -11px 0 0; }
+.cq-unit-marker[data-kind="down"] .cq-unit-glyph { color: #ff6b6b; filter: drop-shadow(0 0 3px #000); animation: cq-down 1s ease-in-out infinite; }
+.cq-unit-marker[data-kind="spotted-vehicle"] .cq-unit-glyph { color: var(--cq-danger); border: 1.5px solid var(--cq-danger); border-radius: 4px; background: #1a0505b0; padding: 2px; }
+.cq-unit-icon { width: 100%; height: 100%; display: block; }
+.cq-unit-label { margin-top: 2px; font-size: 10px; font-weight: 700; color: #f2f6f8; white-space: nowrap; text-shadow: 0 1px 2px #000, 0 0 3px #000; }
+.cq-unit-marker[data-kind="squad"] .cq-unit-label { color: var(--cq-squad); }
+.cq-unit-marker[data-kind="down"] .cq-unit-label { color: #ffb3b3; }
+.cq-unit-marker[data-kind="spotted-vehicle"] .cq-unit-label { color: #ffb0a8; }
+@keyframes cq-down { 50% { transform: scale(1.12); } }
+
+/* ---------------------------------------------------------------- minimap */
+.cq-minimap {
+  position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: 104px; width: var(--cq-minimap); height: var(--cq-minimap);
+  border-radius: 50%; pointer-events: auto; cursor: pointer;
+  box-shadow: 0 0 0 2px #0b1319, 0 0 0 4px #8aa2b455, 0 6px 18px #000a;
+}
+.cq-minimap-canvas { width: 100%; height: 100%; border-radius: 50%; display: block; }
+.cq-minimap-ring { position: absolute; inset: 0; pointer-events: none; }
+.cq-compass { position: absolute; left: 50%; top: 50%; width: 16px; height: 16px; margin: -8px 0 0 -8px; display: grid; place-items: center;
+  font-size: 10px; font-weight: 800; color: #d9e2e8; background: #0b1319; border-radius: 50%; box-shadow: 0 0 0 1px #8aa2b466; }
+.cq-compass-N { color: #ffd166; }
+.cq-map-hint { position: absolute; left: max(22px, env(safe-area-inset-left)); bottom: calc(104px + var(--cq-minimap) + 14px); width: var(--cq-minimap);
+  text-align: center; font-size: 10px; font-weight: 700; letter-spacing: 1px; color: #c4d0d8b0; text-shadow: 0 1px 2px #000; }
+.cq-spot-flash { position: absolute; left: 50%; top: calc(50% - 70px); transform: translateX(-50%); font-size: 13px; font-weight: 800; letter-spacing: 2px; color: var(--cq-danger); text-shadow: 0 1px 3px #000; }
+
+/* ------------------------------------------------------------- vehicle */
+.cq-vehicle {
+  position: absolute; right: max(22px, env(safe-area-inset-right)); bottom: 22px; width: 344px;
+  display: grid; gap: 7px; padding: 10px 12px 11px; background: var(--cq-panel); border: 1px solid var(--cq-line);
+  border-radius: 6px; box-shadow: 0 6px 18px #0008;
+}
+.cq-vehicle-seats { display: flex; flex-wrap: wrap; gap: 4px; }
+.cq-seat { display: inline-flex; align-items: center; gap: 4px; padding: 2px 6px 2px 2px; border-radius: 3px; background: #ffffff0d; font-size: 10px; font-weight: 700; letter-spacing: 0.6px; color: var(--cq-sub); }
+.cq-seat kbd, .cq-weapon-key, .cq-vehicle-cm-key, .cq-interact-key {
+  display: inline-grid; place-items: center; min-width: 20px; height: 17px; padding: 0 4px; border-radius: 3px;
+  background: #1c2a34; border: 1px solid #ffffff2a; color: #fff; font: 800 10px/1 var(--font-ui);
+}
+.cq-seat em { font-style: normal; color: var(--cq-sub); opacity: 0.8; }
+.cq-seat.is-you { background: #4cc3ff2a; color: #fff; }
+.cq-seat.is-you em { color: var(--cq-own); opacity: 1; }
+.cq-seat.is-free { opacity: 0.6; }
+.cq-vehicle-main { display: grid; grid-template-columns: 52px 1fr; gap: 10px; align-items: center; }
+.cq-hull { width: 52px; height: 78px; }
+.cq-hull-svg { width: 100%; height: 100%; overflow: visible; }
+.cq-hull-zone { fill: #4cc3ff22; transition: fill 160ms; }
+.cq-hull-outline { fill: none; stroke: #9fc6dd; stroke-width: 1.6; }
+.cq-hull-zone.is-hit { fill: #ffcf5c; transition: none; }
+.cq-hull-zone.is-spark { fill: #ffffffaa; transition: none; }
+.cq-vehicle[data-hp="damaged"] .cq-hull-zone { fill: #ffcf5c26; }
+.cq-vehicle[data-hp="critical"] .cq-hull-zone { fill: #ff4b4b33; }
+.cq-vehicle-stats { display: grid; gap: 5px; min-width: 0; }
+.cq-vehicle-title { display: flex; align-items: center; gap: 7px; }
+.cq-vehicle-icon { width: 22px; height: 22px; color: var(--cq-own); }
+.cq-vehicle-type-icon, .kf-vehicle-icon, .cq-kit-icon, .cq-spawn-icon, .cq-interact-icon { width: 100%; height: 100%; display: block; }
+.cq-vehicle-name { font-size: 16px; font-weight: 800; letter-spacing: 1.2px; }
+.cq-vehicle-role { margin-left: auto; font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--cq-own); }
+.cq-vehicle-hp { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.cq-vehicle-hp-track { height: 7px; border-radius: 3px; background: #ffffff14; overflow: hidden; }
+.cq-vehicle-hp-track i { display: block; height: 100%; background: linear-gradient(90deg, #3fbf6b, #7ef29a); transition: width 200ms; }
+.cq-vehicle[data-hp="damaged"] .cq-vehicle-hp-track i { background: linear-gradient(90deg, #d9921f, #ffcf5c); }
+.cq-vehicle[data-hp="critical"] .cq-vehicle-hp-track i { background: linear-gradient(90deg, #b8242a, #ff4b4b); animation: cq-bleed 0.6s infinite; }
+.cq-vehicle-hp-text { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.cq-vehicle-badges { display: flex; gap: 4px; flex-wrap: wrap; min-height: 0; }
+.cq-badge { padding: 1px 6px; border-radius: 2px; font-size: 10px; font-weight: 800; letter-spacing: 1px; }
+.cq-badge-danger { background: #ff4b4b; color: #1a0606; animation: cq-bleed 0.9s infinite; }
+.cq-badge-warn { background: #ffcf5c; color: #1d1404; }
+.cq-badge-info { background: #4cc3ff; color: #04131c; }
+.cq-vehicle-telemetry { font-size: 11px; font-weight: 700; letter-spacing: 0.8px; color: var(--cq-sub); font-variant-numeric: tabular-nums; }
+.cq-vehicle-weapons { display: grid; gap: 3px; }
+.cq-weapon { display: grid; grid-template-columns: 22px 1fr 80px 64px; align-items: center; gap: 8px; padding: 3px 6px; border-radius: 3px; font-size: 12px; font-weight: 700; color: var(--cq-sub); }
+.cq-weapon.is-selected { background: #ffffff12; color: #fff; box-shadow: inset 2px 0 0 var(--cq-own); }
+.cq-weapon-key:empty { visibility: hidden; }
+.cq-weapon-meter { height: 5px; border-radius: 3px; background: #ffffff14; overflow: hidden; }
+.cq-weapon-meter i { display: block; height: 100%; background: var(--cq-own); }
+.cq-weapon[data-state="hot"] .cq-weapon-meter i { background: #ffcf5c; }
+.cq-weapon[data-state="overheated"] .cq-weapon-meter i { background: var(--cq-danger); }
+.cq-weapon[data-state="reloading"] .cq-weapon-meter i { background: #ffcf5c; }
+.cq-weapon[data-state="ready"] .cq-weapon-meter i { background: #7ef29a; }
+.cq-weapon-ammo { text-align: right; font-variant-numeric: tabular-nums; }
+.cq-weapon[data-state="overheated"] .cq-weapon-ammo { color: var(--cq-danger); }
+.cq-vehicle-cm { display: grid; grid-template-columns: 1fr 70px auto; gap: 8px; align-items: center; font-size: 11px; font-weight: 800; letter-spacing: 1px; color: var(--cq-sub); }
+.cq-vehicle-cm-track { height: 5px; border-radius: 3px; background: #ffffff14; overflow: hidden; }
+.cq-vehicle-cm-pip { display: block; height: 100%; background: #9fb0bd; }
+.cq-vehicle-cm[data-ready="true"] { color: #7ef29a; }
+.cq-vehicle-cm[data-ready="true"] .cq-vehicle-cm-pip { background: #7ef29a; }
+
+/* ---------------------------------------------------- lock + restricted */
+.cq-lock { position: absolute; left: 50%; top: calc(50% - 128px); transform: translateX(-50%); padding: 5px 16px; border-radius: 3px;
+  font-size: 15px; font-weight: 800; letter-spacing: 2.4px; color: #fff; background: #8a1d1dd0; border: 1px solid #ff6b6b; }
+.cq-lock[data-state="1"] { background: #6b4a10d0; border-color: #ffcf5c; animation: cq-blink 0.5s steps(2) infinite; }
+.cq-lock[data-state="2"] { animation: cq-blink 0.25s steps(2) infinite; }
+.cq-lock[data-state="3"] { animation: cq-blink 0.12s steps(2) infinite; font-size: 18px; }
+.cq-lock-bearing { position: absolute; left: 50%; top: 50%; width: 170px; height: 170px; transform: translate(-50%, -50%); }
+.cq-lock-bearing i { position: absolute; left: 50%; top: 0; margin-left: -10px; border: 10px solid transparent; border-bottom: 16px solid var(--cq-danger); border-top: 0; filter: drop-shadow(0 0 4px #ff4b4b); }
+.cq-lock-bearing[data-state="1"] i { border-bottom-color: #ffcf5c; }
+@keyframes cq-blink { 50% { opacity: 0.45; } }
+.cq-restricted { position: absolute; left: 50%; top: 24%; transform: translateX(-50%); display: grid; justify-items: center; gap: 2px; padding: 12px 34px 14px;
+  width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; text-align: center;
+  background: radial-gradient(ellipse at center, #3a0b0bd8, #1a0505b0 70%, transparent); text-shadow: 0 2px 6px #000; }
+.cq-restricted-title { font-size: 18px; font-weight: 800; letter-spacing: 3px; color: #ffb1a8; }
+.cq-restricted-seconds { font-size: 64px; line-height: 1; font-weight: 800; color: #fff; font-variant-numeric: tabular-nums; animation: cq-blink calc(1s - var(--urgency, 0) * 0.6s) steps(2) infinite; }
+.cq-restricted-detail { font-size: 12px; font-weight: 700; letter-spacing: 2px; color: #ffd2cc; }
+
+/* ------------------------------------------------------------ interact */
+.cq-interact {
+  position: absolute; left: 50%; bottom: 140px; transform: translateX(-50%); display: flex; align-items: center; gap: 9px;
+  min-height: 44px; padding: 6px 14px 6px 8px; pointer-events: auto; cursor: pointer;
+  color: #fff; background: var(--cq-panel); border: 1px solid #ffcf5c99; border-radius: 4px; font: 800 13px/1 var(--font-ui); letter-spacing: 1px;
+}
+.cq-interact:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+.cq-interact-ringbox { position: relative; width: 34px; height: 34px; }
+.cq-interact-ring { width: 100%; height: 100%; }
+.cq-interact-track { fill: none; stroke: #ffffff22; stroke-width: 4; }
+.cq-interact-arc { fill: none; stroke: #7ef29a; stroke-width: 4; stroke-linecap: round; transition: stroke-dashoffset 100ms linear; }
+.cq-interact-glyph { position: absolute; inset: 8px; color: #ffcf5c; }
+.cq-interact[data-type="revive"] .cq-interact-glyph { color: #ff6b6b; }
+.cq-interact.is-active { border-color: #7ef29a; box-shadow: 0 0 14px #7ef29a55; }
+
+/* --------------------------------------------------------- reticles */
+.cq-reticles { position: absolute; inset: 0; width: 100%; height: 100%; }
+
+/* ------------------------------------------------------------- big map */
+.cq-bigmap { position: absolute; inset: 0; display: grid; place-items: center; background: #03070acc; pointer-events: auto; z-index: 5; }
+.cq-bigmap-panel { display: grid; gap: 8px; padding: 12px; background: var(--cq-panel-solid); border: 1px solid var(--cq-line); border-radius: 6px; box-shadow: 0 10px 40px #000c; }
+.cq-bigmap-head { display: flex; align-items: center; gap: 12px; }
+.cq-bigmap-head h2 { margin: 0; font-size: 18px; letter-spacing: 3px; }
+.cq-bigmap-hint { font-size: 11px; color: var(--cq-sub); }
+.cq-bigmap-close { margin-left: auto; width: 44px; height: 36px; border: 1px solid var(--cq-line); border-radius: 4px; background: #16222b; color: #fff; font: 700 16px var(--font-ui); cursor: pointer; }
+.cq-northmap { position: relative; aspect-ratio: 1; }
+.cq-bigmap-map { width: min(78vh, 82vw, 860px); }
+.cq-northmap-canvas { display: block; width: 100%; height: 100%; border-radius: 4px; box-shadow: inset 0 0 0 1px #ffffff1a; }
+.cq-bigmap-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 11px; font-weight: 700; letter-spacing: 1px; color: var(--cq-sub); }
+.cq-legend { display: inline-flex; align-items: center; gap: 5px; }
+.cq-legend i { width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+.cq-legend-own { --c: var(--cq-own); } .cq-legend-squad { --c: var(--cq-squad); } .cq-legend-enemy { --c: var(--cq-enemy); }
+.cq-legend-spotted { --c: var(--cq-danger); } .cq-legend-spotted i { border-radius: 1px; transform: rotate(45deg); }
+.cq-legend-neutral { --c: var(--cq-neutral); }
+
+/* -------------------------------------------------------------- deploy */
+.cq-deploy { position: absolute; inset: 0; display: grid; place-items: center; padding: max(12px, env(safe-area-inset-top)) 12px 12px;
+  background: radial-gradient(ellipse at center, #08131bd9, #020507f2); pointer-events: auto; z-index: 6; overflow: auto; }
+.cq-deploy-panel { width: min(1180px, 100%); display: grid; gap: 12px; }
+.cq-deploy-head { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.cq-deploy-titles { display: grid; }
+.cq-deploy-title { margin: 0; font-size: 34px; line-height: 1; letter-spacing: 6px; font-weight: 800; }
+.cq-deploy-team { font-size: 12px; font-weight: 800; letter-spacing: 2px; color: var(--cq-own); }
+.cq-deploy-killer { margin-left: auto; display: grid; grid-template-columns: auto auto; column-gap: 10px; align-items: baseline; padding: 8px 14px;
+  border-left: 3px solid var(--cq-enemy); background: #1b0f08d0; border-radius: 3px; }
+.cq-deploy-killer-title { font-size: 10px; font-weight: 800; letter-spacing: 2px; color: var(--cq-sub); }
+.cq-deploy-killer-name { font-size: 18px; font-weight: 800; color: var(--cq-enemy); letter-spacing: 1px; }
+.cq-deploy-killer-detail { grid-column: 1 / -1; font-size: 11px; font-weight: 700; letter-spacing: 1px; color: #e2c8b8; }
+.cq-deploy-body { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 14px; align-items: start; }
+.cq-deploy-mapcol { display: grid; grid-template-columns: minmax(260px, 520px) minmax(200px, 1fr); gap: 12px; align-items: start; }
+.cq-deploy-map { width: 100%; }
+.cq-deploy-map .cq-northmap-canvas { cursor: crosshair; }
+.cq-deploy-spawns { display: grid; gap: 5px; max-height: 520px; overflow: auto; }
+.cq-spawn-row { display: grid; gap: 3px; }
+.cq-spawn { display: grid; grid-template-columns: 30px 1fr; gap: 9px; align-items: center; min-height: 44px; padding: 6px 10px; text-align: left; cursor: pointer;
+  border: 1px solid var(--cq-line); border-radius: 4px; background: #0e1820e6; color: #fff; font: 700 13px/1.1 var(--font-ui); }
+.cq-spawn:hover:not(:disabled) { border-color: #4cc3ff88; }
+.cq-spawn.is-selected { border-color: #ffd166; background: #2b2410f0; box-shadow: inset 3px 0 0 #ffd166; }
+.cq-spawn:disabled { opacity: 0.5; cursor: not-allowed; }
+.cq-spawn-icon, .cq-spawn-letter { width: 26px; height: 26px; color: var(--cq-own); }
+.cq-spawn-letter { display: grid; place-items: center; width: 24px; height: 24px; border: 2px solid var(--cq-own); border-radius: 3px; font-size: 15px; font-weight: 800; }
+.cq-spawn-text { display: grid; gap: 2px; min-width: 0; }
+.cq-spawn-text small { font-size: 10px; letter-spacing: 1px; color: var(--cq-sub); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cq-spawn-seats { display: flex; flex-wrap: wrap; gap: 4px; padding-left: 40px; }
+.cq-spawn-seat { min-height: 30px; padding: 4px 8px; border: 1px solid var(--cq-line); border-radius: 3px; background: #0e1820; color: var(--cq-sub); font: 800 10px var(--font-ui); letter-spacing: 1px; cursor: pointer; }
+.cq-spawn-seat.is-selected { color: #101418; background: #ffd166; border-color: #ffd166; }
+.cq-deploy-side { display: grid; gap: 8px; }
+.cq-deploy-section { margin: 0; font-size: 12px; letter-spacing: 3px; color: var(--cq-sub); }
+.cq-deploy-kits { display: grid; gap: 6px; align-items: start; }
+.cq-kit { display: grid; gap: 6px; padding: 8px 10px; border: 1px solid var(--cq-line); border-radius: 4px; background: #0e1820e6; }
+.cq-kit.is-selected { border-color: var(--cq-own); background: #0f2533f0; box-shadow: inset 3px 0 0 var(--cq-own); }
+.cq-kit-pick { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: center; min-height: 36px; padding: 0; border: 0; background: none; color: #fff; text-align: left; cursor: pointer; font: inherit; }
+.cq-kit-icon { width: 28px; height: 28px; color: var(--cq-sub); }
+.cq-kit.is-selected .cq-kit-icon { color: var(--cq-own); }
+.cq-kit-name { display: grid; gap: 1px; }
+.cq-kit-name b { font-size: 15px; letter-spacing: 1.5px; }
+.cq-kit-name small { font-size: 10px; letter-spacing: 1.5px; color: var(--cq-sub); }
+.cq-kit-variants { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.cq-kit-variant { min-height: 32px; padding: 4px 6px; border: 1px solid var(--cq-line); border-radius: 3px; background: #0b141b; color: var(--cq-sub); font: 700 11px var(--font-ui); letter-spacing: 0.6px; cursor: pointer; }
+.cq-kit-variant.is-selected { color: #04131c; background: var(--cq-own); border-color: var(--cq-own); }
+.cq-kit-gear { font-size: 10px; letter-spacing: 1px; color: var(--cq-sub); }
+.cq-kit:not(.is-selected) .cq-kit-variants, .cq-kit:not(.is-selected) .cq-kit-gear { display: none; }
+.cq-deploy-foot { display: flex; align-items: center; gap: 14px; justify-content: flex-end; }
+.cq-deploy-status { margin-right: auto; font-size: 12px; font-weight: 800; letter-spacing: 1.4px; color: var(--cq-sub); }
+.cq-deploy-status[data-tone="warn"] { color: #ffb1a8; }
+.cq-deploy-button { min-width: 280px; min-height: 52px; padding: 10px 24px; border: 0; border-radius: 4px; cursor: pointer;
+  background: linear-gradient(180deg, #ffd166, #f0a83a); color: #1a1205; font: 800 17px var(--font-ui); letter-spacing: 2px; box-shadow: 0 4px 18px #f0a83a55; }
+.cq-deploy-button:disabled { background: #3a3f44; color: #9aa3aa; box-shadow: none; cursor: not-allowed; }
+.cq-deploy-button.is-ready { background: linear-gradient(180deg, #7ef29a, #3fbf6b); color: #062010; }
+
+/* ------------------------------------------------- kill feed + hitmarks */
+.kf-vehicle-icon { width: 26px; height: 18px; color: currentColor; }
+.kf-weapon-vehicle, .kf-weapon .kf-vehicle-icon { color: #ffd59a; }
+.kf-row.kf-vehicle-destroyed .kf-vehicle-type { font-weight: 800; letter-spacing: 0.6px; color: #ffcf9a; }
+#hitmarker.vb-armor-hit::before, #hitmarker.vb-armor-hit::after { background: #ffcf3a; box-shadow: 0 0 6px #ffcf3acc; width: 16px; height: 3px; }
+#hitmarker.vb-armor-spark::before, #hitmarker.vb-armor-spark::after { background: #ffffff; opacity: 0.75; width: 8px; height: 2px; }
+
+/* ------------------------------------------------------- touch buttons */
+.vb-touch-flightUp { --touch-row: calc(var(--touch-fire) + 12px); border-color: #e9b461aa; color: #ffe4b0; }
+.vb-touch-flightDown { --touch-column: calc(var(--touch-fire) + 12px); --touch-row: calc(var(--touch-fire) + 12px); border-color: #e9b461aa; color: #ffe4b0; }
+.vb-touch-flightBrake { --touch-column: calc(var(--touch-fire) + 12px); font-size: 9px; }
+.vb-touch-controls.is-left-handed :is(.vb-touch-flightUp, .vb-touch-flightDown, .vb-touch-flightBrake, .vb-touch-vehicleSeat, .vb-touch-countermeasure) { right: auto; left: calc(var(--touch-edge-x) + var(--touch-column)); }
+.vb-touch-controls.is-aircraft .vb-touch-move-zone.is-sprinting .vb-touch-stick-base { border-color: #ffffff55; }
+.vb-touch-controls.is-aircraft .vb-touch-move-zone.is-sprinting .vb-touch-stick-knob { border-color: #ffffff80; background: #ffffff55; }
+.vb-touch-vehicleSeat { --touch-row: calc(var(--touch-fire) + var(--touch-button) + 24px); width: 64px; border-radius: 8px; font-size: 10px; }
+.vb-touch-countermeasure { --touch-column: 76px; --touch-row: calc(var(--touch-fire) + var(--touch-button) + 24px); border-color: #ffcf5caa; color: #ffe6a8; font-size: 9px; }
+.vb-touch-bigMap, .vb-touch-spot {
+  right: auto; bottom: auto; left: calc(max(12px, env(safe-area-inset-left)) + 112px); top: calc(max(10px, env(safe-area-inset-top)) + 114px);
+  width: 44px; height: 44px; border-radius: 8px; font-size: 10px;
+}
+.vb-touch-spot { top: calc(max(10px, env(safe-area-inset-top)) + 166px); border-color: #ff8a8aaa; color: #ffd0d0; }
+.vb-touch-deploy { right: auto; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); width: min(320px, calc(100vw - 32px)); height: 54px; margin-left: calc(min(320px, calc(100vw - 32px)) / -2);
+  border-radius: 6px; border: 0; background: linear-gradient(180deg, #ffd166, #f0a83a); color: #1a1205; font: 800 16px var(--font-ui); letter-spacing: 2px; }
+.vb-touch-deploy[data-valid="false"] { background: #3a3f44; color: #9aa3aa; }
+.vb-touch-controls.is-deploying { z-index: calc(var(--z-menu, 100) - 7); }
+.vb-touch-controls.is-deploying :is(.vb-touch-look-zone, .vb-touch-move-zone) { display: none; }
+
+/* ------------------------------------------------------------- touch HUD */
+.vb-touch-mode .vb-conquest-hud { --cq-minimap: 104px; }
+/* Phones: one 44 px row between the pause button and the HP / ammo cards (top + 54 px), at most 262 px wide. */
+.vb-touch-mode .cq-top { top: max(10px, env(safe-area-inset-top)); grid-template-columns: 62px auto 62px; gap: 6px; padding: 4px 6px 4px; }
+.vb-touch-mode .cq-team { gap: 2px; }
+.vb-touch-mode .cq-team-name { font-size: 9px; letter-spacing: 0.4px; }
+.vb-touch-mode .cq-tickets { font-size: 17px; }
+.vb-touch-mode .cq-team-head { gap: 4px; }
+.vb-touch-mode .cq-ticket-track { height: 4px; }
+.vb-touch-mode .cq-bleed { font-size: 9px; line-height: 10px; min-height: 10px; letter-spacing: 0; }
+.vb-touch-mode .cq-center { gap: 2px; }
+.vb-touch-mode .cq-chips { gap: 4px; padding-top: 2px; }
+.vb-touch-mode .cq-chip { width: 18px; height: 18px; border-width: 1.5px; }
+.vb-touch-mode .cq-chip-letter { font-size: 11px; }
+.vb-touch-mode .cq-clock { font-size: 11px; }
+/* Portrait: the card row (HP, grenade, ammo) and the minimap fill the top 228 px, so banners sit just below them. */
+.vb-touch-mode .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 228px); min-width: 0; width: max-content; max-width: calc(100vw - 40px); padding: 6px 14px; }
+.vb-touch-mode .cq-banner-title { font-size: 15px; letter-spacing: 1px; }
+.vb-touch-mode .cq-banner-detail { font-size: 10px; }
+.vb-touch-mode .cq-minimap { top: calc(max(10px, env(safe-area-inset-top)) + 114px); bottom: auto; left: max(12px, env(safe-area-inset-left)); }
+.vb-touch-mode .cq-compass { width: 13px; height: 13px; margin: -6.5px 0 0 -6.5px; font-size: 8px; }
+.vb-touch-mode .cq-ring { top: calc(50% + 34px); }
+.vb-touch-mode .cq-ring-dial { width: 50px; height: 50px; }
+.vb-touch-mode .cq-ring-letter { font-size: 18px; }
+.vb-touch-mode .cq-ring-label { font-size: 11px; letter-spacing: 1px; }
+.vb-touch-mode .cq-ticker { top: calc(50% + 128px); }
+.vb-touch-mode .cq-ticker-line { font-size: 11px; }
+.vb-touch-mode .cq-vehicle {
+  top: calc(max(10px, env(safe-area-inset-top)) + 54px); bottom: auto; right: max(12px, env(safe-area-inset-right));
+  width: 196px; gap: 4px; padding: 6px 8px;
+}
+.vb-touch-mode .cq-vehicle-main { grid-template-columns: 30px 1fr; gap: 6px; }
+.vb-touch-mode .cq-hull { width: 30px; height: 44px; }
+.vb-touch-mode .cq-vehicle-name { font-size: 12px; }
+.vb-touch-mode .cq-vehicle-icon { width: 16px; height: 16px; }
+/* The seat strip already highlights the own seat; the name keeps one line. */
+.vb-touch-mode .cq-vehicle-role { display: none; }
+.vb-touch-mode .cq-vehicle-name { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: 0.6px; }
+.vb-touch-mode .cq-vehicle-telemetry, .vb-touch-mode .cq-vehicle-hp-text { font-size: 10px; }
+.vb-touch-mode .cq-seat { font-size: 8px; padding: 1px 4px 1px 1px; }
+.vb-touch-mode .cq-seat :is(kbd, em), .vb-touch-mode .cq-weapon-key, .vb-touch-mode .cq-vehicle-cm-key { display: none; }
+.vb-touch-mode .cq-seat.is-free { display: none; }
+.vb-touch-mode .cq-weapon { grid-template-columns: 1fr 34px 48px; gap: 5px; padding: 1px 4px; font-size: 10px; }
+.vb-touch-mode .cq-vehicle-cm { grid-template-columns: 1fr 40px; font-size: 9px; }
+.vb-touch-mode .cq-vehicle-badges .cq-badge { font-size: 8px; }
+.vb-touch-mode .cq-interact { bottom: auto; top: calc(50% + 120px); font-size: 11px; padding: 4px 10px 4px 6px; width: max-content; max-width: calc(100vw - 32px); box-sizing: border-box; }
+/* Phones have room under the ring for the ticker or the interact prompt, not both: the ticker steps above the crosshair. */
+.vb-touch-mode .vb-conquest-hud:has(.cq-interact:not([hidden])) .cq-ticker { top: auto; bottom: calc(50% + 70px); }
+.vb-touch-mode .cq-lock { top: calc(50% - 96px); font-size: 12px; }
+.vb-touch-mode .cq-lock-bearing { width: 130px; height: 130px; }
+.vb-touch-mode .cq-restricted { top: calc(50% - 168px); }
+.vb-touch-mode .cq-restricted-seconds { font-size: 44px; }
+/* The touch DEPLOY button (touch-controls) stands in for the panel button only while it is really usable. */
+.vb-touch-deploying .cq-deploy-button { display: none; }
+.vb-touch-deploying .cq-deploy { padding-bottom: 86px;
+  -webkit-mask-image: linear-gradient(180deg, #000 calc(100% - 96px), #0000 calc(100% - 72px)); mask-image: linear-gradient(180deg, #000 calc(100% - 96px), #0000 calc(100% - 72px)); }
+/* With the panel button replaced by the touch one, the status line (countdown, refusals) moves up under the header. */
+.vb-touch-deploying .cq-deploy-head { order: -2; }
+.vb-touch-deploying .cq-deploy-foot { order: -1; }
+.vb-touch-deploying .cq-deploy-status:empty { display: none; }
+/* The ticket bar would show through the deploy backdrop behind the title on phones. */
+.vb-touch-mode .vb-conquest-hud:has(.cq-deploy:not([hidden])) .cq-top { visibility: hidden; }
+/* The touch pause button stays above the deploy screen (top-left): the title starts right of it. */
+.vb-touch-mode .cq-deploy-titles { padding-left: 52px; min-height: 44px; align-content: center; }
+.vb-touch-mode .cq-bigmap-map { width: min(calc(100vh - 140px), calc(100vw - 48px)); }
+
+/* Desktop narrow and all phones: deploy stacks vertically. */
+@media (max-width: 1100px) {
+  .cq-deploy-body { grid-template-columns: 1fr; }
+  .cq-deploy-mapcol { grid-template-columns: minmax(0, 1fr) minmax(180px, 260px); }
+}
+@media (max-width: 700px) {
+  .cq-deploy { place-items: start center; }
+  .cq-deploy-panel { gap: 8px; }
+  .cq-deploy-title { font-size: 24px; letter-spacing: 4px; }
+  .cq-deploy-killer { margin-left: 0; width: 100%; padding: 6px 10px; justify-content: start; }
+  .cq-deploy-mapcol { grid-template-columns: 1fr; }
+  .cq-deploy-map { width: min(100%, 300px, 38vh); justify-self: center; }
+  .cq-deploy-spawns { grid-template-columns: 1fr 1fr; max-height: none; }
+  .cq-deploy-kits { grid-template-columns: 1fr 1fr; }
+  .cq-kit-variants { grid-template-columns: 1fr; }
+  .cq-deploy-button { min-width: 0; width: 100%; }
+  .cq-deploy-foot { flex-wrap: wrap; }
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  /* Phone landscape: the SEAT / FLARES row sits ~150 px above the bottom edge, so the
+     vehicle card moves up beside the top bar (which is centred and narrower than the gap). */
+  .vb-touch-mode .cq-vehicle { top: max(8px, env(safe-area-inset-top)); max-height: calc(100vh - 240px); overflow: hidden; }
+  .vb-touch-mode .cq-vehicle-main { grid-template-columns: 22px 1fr; }
+  .vb-touch-mode .cq-hull { width: 22px; height: 32px; }
+  .vb-touch-mode .cq-ring { top: calc(50% + 22px); }
+  .vb-touch-mode .cq-ticker { top: calc(50% + 30px); bottom: auto; left: calc(50% - 122px); }
+  .vb-touch-mode .vb-conquest-hud:has(.cq-interact:not([hidden])) .cq-ticker { top: calc(50% + 30px); bottom: auto; }
+  .vb-touch-mode .cq-interact { top: auto; bottom: 64px; }
+  .vb-touch-mode .cq-banner { top: calc(max(10px, env(safe-area-inset-top)) + 52px); max-width: calc(100vw - 460px); }
+  .vb-touch-mode .cq-restricted { top: 16%; }
+  .cq-deploy-body { grid-template-columns: minmax(0, 1fr) 280px; }
+  .cq-deploy-mapcol { grid-template-columns: 200px minmax(0, 1fr); }
+  .cq-deploy-head { gap: 10px; }
+  .cq-deploy-title { font-size: 20px; }
+  .cq-deploy-killer { padding: 4px 10px; margin-left: auto; width: auto; }
+  .cq-deploy-spawns { grid-template-columns: 1fr; }
+  .cq-deploy-kits { grid-template-columns: 1fr 1fr; }
+  .cq-kit { padding: 5px 6px; gap: 4px; }
+  .cq-kit-name b { font-size: 12px; }
+  .cq-kit-variants { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cq-chip, .cq-chip::after, .cq-ring-dial, .cq-banner.is-in, .cq-lock, .cq-restricted-seconds, .cq-unit-glyph, .cq-team .cq-ticket-fill { animation: none !important; }
+}
+
+/* --------------------------------------------- scoreboard + result (conquest) */
+.vb-mode-scoreboard[data-mode="conquest"] .vb-scoreboard-team[data-rel="own"] .vb-sb-team-heading { color: #4cc3ff; }
+.vb-mode-scoreboard[data-mode="conquest"] .vb-scoreboard-team[data-rel="enemy"] .vb-sb-team-heading { color: #ff8a3d; }
+/* The base board styles cells through #scoreboard (id specificity); these carry it too. */
+:is(#scoreboard, #match-result-scoreboard).vb-mode-scoreboard[data-mode="conquest"] .vb-sb-squad-row td { padding: 12px 8px 3px; text-align: left; font-size: 10px; font-weight: 800; letter-spacing: 2px; color: #7ef29a; border-bottom: 1px solid #7ef29a33; }
+:is(#scoreboard, #match-result-scoreboard).vb-mode-scoreboard[data-mode="conquest"] td.vb-sb-squad { width: 22px; text-align: center; font-weight: 800; color: #7ef29a; }
+:is(#scoreboard, #match-result-scoreboard).vb-mode-scoreboard[data-mode="conquest"] td.vb-sb-ping { white-space: nowrap; }
+/* Held Tab board: below the ticket bar, and the world layer (drawn above #hud) steps aside. */
+#scoreboard.vb-mode-scoreboard[data-mode="conquest"] {
+  top: calc(max(14px, env(safe-area-inset-top)) + 84px); transform: translateX(-50%);
+  max-height: calc(100dvh - max(14px, env(safe-area-inset-top)) - 98px);
+}
+.vb-touch-mode #scoreboard.vb-mode-scoreboard[data-mode="conquest"] {
+  top: calc(max(10px, env(safe-area-inset-top)) + 70px);
+  max-height: calc(100dvh - max(10px, env(safe-area-inset-top)) - 80px);
+}
+body:has(#scoreboard.is-open[data-mode="conquest"]) :is(.vb-conquest-hud :is(.cq-world, .cq-reticles, .cq-ring, .cq-ticker, .cq-minimap, .cq-vehicle, .cq-interact, .cq-map-hint, .cq-banner, .cq-lock, .cq-lock-bearing, .cq-restricted, .cq-spot-flash), .vb-touch-controls > :not(.vb-touch-pause)) { visibility: hidden; }
+/* Phone portrait board: drop the ping column and tighten cells so names stay on one line. */
+@media (max-width: 520px) {
+  #scoreboard.vb-mode-scoreboard[data-mode="conquest"] { min-width: 0; width: calc(100vw - 20px); max-width: none; padding: 12px 8px 14px; }
+  #scoreboard.vb-mode-scoreboard[data-mode="conquest"] :is(th, td) { padding-left: 4px; padding-right: 4px; letter-spacing: 0.06em; }
+  #scoreboard.vb-mode-scoreboard[data-mode="conquest"] td { font-size: 12px; }
+  #scoreboard.vb-mode-scoreboard[data-mode="conquest"] td.vb-sb-name { white-space: nowrap; }
+  #scoreboard.vb-mode-scoreboard[data-mode="conquest"] :is(th:last-child, td.vb-sb-ping) { display: none; }
+}
+/* The result screen replaces the live HUD: the world layer, banners and touch buttons (drawn above #hud) step aside. */
+body:has(#match-result-screen[data-mode="conquest"]:not(.hidden)) :is(.vb-conquest-hud, .vb-touch-controls > :not(.vb-touch-pause)) { visibility: hidden; }
+.vb-touch-mode .vb-match-result[data-mode="conquest"] .vb-match-result-eyebrow { padding-left: 50px; }
+.vb-match-result[data-mode="conquest"] .vb-result-alpha-score[data-rel="own"], .vb-match-result[data-mode="conquest"] .vb-result-bravo-score[data-rel="own"] { color: #4cc3ff; }
+.vb-match-result[data-mode="conquest"] .vb-result-alpha-score[data-rel="enemy"], .vb-match-result[data-mode="conquest"] .vb-result-bravo-score[data-rel="enemy"] { color: #ff8a3d; }
+.vb-result-conquest { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 340px); gap: 14px; margin: 4px 0 10px; }
+.vb-result-conquest[hidden] { display: none; }
+.vb-result-graph { margin: 0; padding: 8px 10px; background: #0b1319c0; border: 1px solid #8ca6ba33; border-radius: 4px; }
+.vb-result-graph[hidden] { display: none; }
+.vb-result-graph-title { font-size: 10px; font-weight: 800; letter-spacing: 2px; color: #9fb0bd; margin-bottom: 4px; }
+.vb-result-graph-svg { display: block; width: 100%; height: 110px; overflow: visible; }
+.vb-result-graph-grid { stroke: #ffffff14; stroke-width: 1; }
+.vb-result-graph-line { fill: none; stroke-width: 2.5; vector-effect: non-scaling-stroke; stroke-linejoin: round; }
+.vb-result-graph-line.is-own { stroke: #4cc3ff; }
+.vb-result-graph-line.is-enemy { stroke: #ff8a3d; }
+.vb-result-mvps { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; align-content: start; }
+.vb-result-mvp { display: grid; padding: 6px 9px; background: #0b1319c0; border-left: 3px solid #9fb0bd; border-radius: 3px; }
+.vb-result-mvp[data-rel="own"] { border-left-color: #4cc3ff; }
+.vb-result-mvp[data-rel="enemy"] { border-left-color: #ff8a3d; }
+.vb-result-mvp-title { font-size: 9px; font-weight: 800; letter-spacing: 2px; color: #ffd166; }
+.vb-result-mvp-name { font-size: 14px; letter-spacing: 0.6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vb-result-mvp-value { font-size: 10px; font-weight: 700; color: #9fb0bd; }
+@media (max-width: 700px) { .vb-result-conquest { grid-template-columns: 1fr; } .vb-result-graph-svg { height: 80px; } }

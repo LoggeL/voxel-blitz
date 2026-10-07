@@ -23,6 +23,7 @@ import {
   isModeMapCompatible, isTeamMode, mapForMode,
 } from '../shared/modes.js';
 import { raycastVoxels } from '../shared/raycast.js';
+import { CONQUEST_RULES } from '../shared/conquest-contract.js';
 import { WEAPON_IDS, PLAYER_HALF, EYE_HEIGHT } from '../shared/combatmath.js';
 import { BOLT_RULES, stepBolt } from '../shared/bolt-rules.js';
 import { MAP_CAPTURE_SHOTS } from '../shared/map-capture-shots.js';
@@ -206,8 +207,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
 
 // ---------------------------------------------- mode + map foundation contract
 {
-  ok(sameValue(MODE_IDS, ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training'])
-    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom'])
+  ok(sameValue(MODE_IDS, ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame', 'bastion', 'training', 'conquest'])
+    && sameValue(MAP_IDS, ['foundry', 'depot', 'citadel', 'solstice', 'caldera', 'nuketown', 'dust2', 'reactor', 'killhouse', 'harbor', 'canyon', 'minecraft_b5', 'waterworld', 'causeway', 'bikini_bottom', 'frontier'])
     && sameValue(TEAM_IDS, ['alpha', 'bravo'])
     && WORLD_MAP_IDS === MAP_IDS
     && deeplyFrozen(MODE_IDS) && deeplyFrozen(MAP_IDS) && deeplyFrozen(TEAM_IDS),
@@ -227,6 +228,8 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     'every S&D-compatible map exposes dedicated A/B marker render-validation shots');
 
   const expectedRules = {
+    // Conquest v2 rules are the frozen contract table (shared/conquest-contract.js).
+    conquest: { teams: true, friendlyFire: false, ...CONQUEST_RULES },
     ttt: { teams: false, friendlyFire: true, respawnMs: Infinity, prepMs: 60000, liveMs: 300000 },
     bastion: { teams: true, friendlyFire: false, respawnMs: Infinity },
     duel: { teams: false, friendlyFire: true, respawnMs: 1500, killLimit: 5 },
@@ -313,6 +316,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   'Search and Destroy prices and credit economy are exact immutable values');
 
   const expectedCompatibility = {
+    frontier: ['conquest'],
     harbor: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
     canyon: ['fun', 'ttt', 'duel', 'chaos', 'tdm', 'snd', 'gungame'],
     reactor: ['bastion'],
@@ -353,6 +357,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
   'shared normalizers preserve canonical ids and apply validated/default fallbacks');
 
   const expectedMapNames = {
+    frontier: 'Frontier',
     harbor: 'Harbor', canyon: 'Canyon',
     reactor: 'Reactor 9',
     foundry: 'Foundry',
@@ -369,6 +374,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     bikini_bottom: 'Bikini Bottom',
   };
   const expectedMapHashes = {
+    frontier: '84043d53',
     harbor: 'eeb64538', canyon: 'b8e254a7',
     reactor: 'b1104db3',
     foundry: 'db04cb71',
@@ -385,6 +391,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     bikini_bottom: 'c8eada2b',
   };
   const expectedSpawnCounts = {
+    frontier: { fun: 16, tdmAlpha: 8, tdmBravo: 8, sndAttackers: 8, sndDefenders: 8 },
     harbor: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
     canyon: { fun: 32, tdmAlpha: 16, tdmBravo: 16, sndAttackers: 16, sndDefenders: 16 },
     reactor: { fun: 4, tdmAlpha: 0, tdmBravo: 0, sndAttackers: 0, sndDefenders: 0 },
@@ -409,10 +416,16 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     const { sx: SX, sy: SY, sz: SZ } = roomA.dimensions;
     const bytes = roomA.serializeWorld();
     pristineBytes.set(mapId, bytes);
-    ok(bytes.length === 6 + SX * SY * SZ
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const exactHeader = mapId === 'frontier'
+      ? bytes.length === 1720449 && bytes[0] === 86 && bytes[1] === 66
+        && bytes[2] === 2 && bytes[3] === 1 && view.getUint16(4, true) === SX
+        && view.getUint16(6, true) === SZ && view.getUint16(8, true) === SY
+        && view.getUint32(10, true) === bytes.length - 14
+      : bytes.length === 6 + SX * SY * SZ
       && bytes[0] === 86 && bytes[1] === 66 && bytes[2] === 1
-      && bytes[3] === SX && bytes[4] === SZ && bytes[5] === SY
-      && fnv1a(bytes) === expectedMapHashes[mapId],
+      && bytes[3] === SX && bytes[4] === SZ && bytes[5] === SY;
+    ok(exactHeader && fnv1a(bytes) === expectedMapHashes[mapId],
     `${mapId} template keeps its exact VB header, length, and byte fingerprint`);
 
     const meta = getMapMeta(mapId);

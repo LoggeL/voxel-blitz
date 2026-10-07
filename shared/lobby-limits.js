@@ -6,6 +6,7 @@ export const MAX_BOTS = MAX_PLAYERS - 1;
 // Deliberate arena population limits, shared by admission and lobby controls.
 // Harbor and Canyon have the largest authored footprints (192 x 144 voxels).
 export const MAP_PLAYER_LIMITS = Object.freeze({
+  frontier: 16,
   depot: 8,
   nuketown: 12,
   solstice: 12,
@@ -34,5 +35,5 @@ export function modeAllowsBots(gameMode) {
 }
 
 export function hasLobbyTeams(gameMode) {
-  return gameMode === 'tdm' || gameMode === 'snd';
+  return gameMode === 'tdm' || gameMode === 'snd' || gameMode === 'conquest';
 }

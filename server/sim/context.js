@@ -15,6 +15,7 @@ export function createSimulationContexts(engine) {
   };
   const combat = {
     targets,
+    get vehicles() { return engine.vehicles; },
     get now() { return engine.now; },
     get entities() { return engine.combatants || engine.entities; },
     get blockHp() { return engine.blockHp; },
@@ -54,6 +55,7 @@ export function createSimulationContexts(engine) {
   };
   const projectiles = {
     targets,
+    get vehicles() { return engine.vehicles; },
     get dimensions() { return engine.world.dimensions; },
     get now() { return engine.now; },
     get entities() { return engine.combatants || engine.entities; },
@@ -61,7 +63,7 @@ export function createSimulationContexts(engine) {
     solidAt: combat.solidAt,
     getBlock: combat.getBlock,
     canAffectWorld: combat.canBurn,
-    canThrow: (player) => !player.vault && (engine.mode.canThrow?.(player) ?? engine.mode.canFire(player)),
+    canThrow: (player) => !player.vehicleId && !player.vault && (engine.mode.canThrow?.(player) ?? engine.mode.canFire(player)),
     canDamage: combat.canDamage,
     killPlayer: combat.killPlayer,
     pushEvent: combat.pushEvent,
@@ -69,6 +71,7 @@ export function createSimulationContexts(engine) {
     damageBlock: (x, y, z, type, damage) => damageBlock(x, y, z, type, damage, combat),
   };
   const movement = {
+    get vehicles() { return engine.vehicles?.vehicles?.values() ?? []; },
     get now() { return engine.now; },
     get mapMeta() { return engine.mapMeta; },
     solidAt: combat.solidAt,

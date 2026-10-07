@@ -5,6 +5,7 @@ import { FLAME_RULES, flamePanicFloor } from '../../shared/flame-rules.js';
 import { combatHitboxes, rayPlayerHitboxes } from '../../shared/player-hitboxes.js';
 import { raycastVoxels } from '../../shared/raycast.js';
 import { evHit } from '../protocol/events.js';
+import { occupantShielded, occupantHitPose, occupantDamageScale } from './vehicle-damage.js';
 
 // Expanded body volumes must never pull damage across cover. Find a real body
 // point inside the packet and require an unobstructed line from its launch eye.
@@ -44,22 +45,32 @@ export class FlameSystem {
         const travel = Math.min(0.5, remaining);
         const origin = packet.position, dir = packet.direction;
         const wall = raycastVoxels(ctx.solidAt, ...origin, dir.x, dir.y, dir.z, travel);
-        const limit = wall ? wall.t : travel;
+        // Hulls stop the stream; light hulls take the fire dose (armour matrix).
+        const hull = ctx.vehicles?.rayHit?.(origin, [dir.x, dir.y, dir.z], wall ? wall.t : travel, packet.owner?.vehicleId ?? null) ?? null;
+        // The stream ends at the hull face, but it still washes through an open
+        // cab: exposed crew inside that hull's box are reachable up to its exit.
+        const limit = hull ? Math.max(hull.distance, hull.exit ?? hull.distance) : wall ? wall.t : travel;
         const radius = FLAME_RULES.radius + (packet.distance + limit) * FLAME_RULES.radiusGrowth;
         let nearest = null;
         for (const victim of (ctx.targets || ctx.entities).values()) {
-          if (victim === packet.owner || victim.state !== 'alive' || !ctx.canDamage(packet.owner, victim)) continue;
+          if (occupantShielded(victim) || victim === packet.owner || victim.state !== 'alive' || !ctx.canDamage(packet.owner, victim)) continue;
           if (Math.hypot(victim.x - origin[0], victim.y - origin[1], victim.z - origin[2]) > 3 + radius + limit) continue;
-          const hit = rayPlayerHitboxes(origin, dir, victim, limit, { radius });
-          if (!hit || (nearest && hit.t >= nearest.t) || (wall && hit.t >= wall.t)) continue;
+          const pose = occupantHitPose(victim);
+          const hit = rayPlayerHitboxes(origin, dir, pose, limit, { radius });
+          if (!hit || (nearest && hit.t >= nearest.t) || (wall && hit.t >= wall.t)
+            || (hull && hit.t >= hull.distance && victim.vehicleId !== hull.id)) continue;
           const center = [origin[0] + dir.x * hit.t, origin[1] + dir.y * hit.t, origin[2] + dir.z * hit.t];
-          const point = visibleContact(center, victim, radius, packet.origin, ctx.solidAt);
+          const point = visibleContact(center, pose, radius, packet.origin, ctx.solidAt);
           if (point) nearest = { victim, point, t: hit.t };
         }
-        if (nearest) {
+        if (!nearest && hull) {
+          const point = [origin[0] + dir.x * hull.distance, origin[1] + dir.y * hull.distance, origin[2] + dir.z * hull.distance];
+          ctx.vehicles.damage(hull.id, damageAtDistance(WEAPONS.flamethrower, packet.distance + hull.distance), packet.owner, { cls: 'fire', point });
+          ended = true;
+        } else if (nearest) {
           const { victim, point, t } = nearest;
           const def = WEAPONS.flamethrower;
-          const damage = combatDamage(damageAtDistance(def, packet.distance + t));
+          const damage = combatDamage(damageAtDistance(def, packet.distance + t) * occupantDamageScale(victim));
           const lethal = victim.takeDamage(damage, false, packet.owner, 'flamethrower');
           ctx.pushEvent(evHit(packet.owner.id, victim.id, damage, false, point, victim.lastDamage));
           if (lethal) ctx.killPlayer(victim, packet.owner, def.id, false);
@@ -114,12 +125,16 @@ export function updateBurn(victim, dt, ctx) {
   const rules = WEAPONS.flamethrower.flame;
   const elapsed = Math.min(burn.remaining, Math.max(0, dt));
   burn.remaining = Math.max(0, burn.remaining - elapsed);
-  burn.elapsed += elapsed;
+  // A sealed-seat crew member keeps the fire's clock, without accumulating body
+  // damage to apply after exit. Hull destruction still owns lethal crew damage.
+  // Open seats burn like a body on foot, at the exposed-crew share.
+  const shielded = occupantShielded(victim);
+  burn.elapsed = shielded ? 0 : burn.elapsed + elapsed;
   victim.burning = burn.remaining;
   victim.panic = Math.max(victim.panic, flamePanicFloor(burn.remaining));
   // Half-second hit events keep damage feedback and network traffic bounded.
-  if (burn.elapsed >= 0.5 - 1e-9 || burn.remaining <= 0) {
-    const damage = combatDamage(rules.damagePerS * burn.elapsed);
+  if (!shielded && (burn.elapsed >= 0.5 - 1e-9 || burn.remaining <= 0)) {
+    const damage = combatDamage(rules.damagePerS * burn.elapsed * occupantDamageScale(victim));
     burn.elapsed = 0;
     const lethal = victim.takeDamage(damage, false, owner, source);
     ctx.pushEvent(evHit(owner ? owner.id : '', victim.id, damage, false,

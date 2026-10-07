@@ -734,6 +734,8 @@ export class ProjectileFX {
       bouncesLeft,
       launchBounceBudget: type === 'mgl' ? bouncesLeft : 0,
       chaos: event.chaos || 0,
+      // Vehicle shells fly the shared rocket integrator with their own gravity (server stepRocket).
+      ...(typeof event.vehicleWeapon === 'string' && Number.isFinite(Number(event.g)) ? { gravity: Number(event.g), vehicleShell: true } : {}),
       child: !!event.child,
       armAge: type === 'mgl' ? Math.max(0, Number(event.arm) || MGL_RULES.armMs) / 1000 : 0,
       local,
@@ -1349,12 +1351,12 @@ export class ProjectileFX {
       projectile.age += step;
       if (projectile.type === 'limpet') {
         this._poseMine(projectile.group, projectile, projectile.age >= projectile.armedAge);
-      } else if (projectile.type === 'rocket') {
+      } else if (projectile.type === 'rocket' || projectile.vehicleShell) {
         stepRocket(projectile, step, this.raycast);
         projectile.group.position.set(projectile.x, projectile.y, projectile.z);
         this._orientRocket(projectile);
         const flicker = 0.8 + Math.sin(projectile.age * 90) * 0.2;
-        projectile.group.userData.exhaust.scale.set(flicker, flicker, 0.8 + flicker * 0.4);
+        projectile.group.userData.exhaust?.scale.set(flicker, flicker, 0.8 + flicker * 0.4);
         if (this.onTrail && projectile.age - projectile.trailAt >= ROCKET_TRAIL_INTERVAL_S) {
           this._trailCandidates.push(projectile);
         }

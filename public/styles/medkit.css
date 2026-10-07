@@ -7,6 +7,9 @@
 .vb-medkit-progress small { display: block; margin-top: 7px; color: #bbd7c8; text-align: center; font-size: 10px; letter-spacing: .06em; }
 .vb-medkit-track { margin-top: 10px; height: 5px; background: #ffffff24; overflow: hidden; border-radius: 3px; }
 .vb-medkit-track i { display: block; height: 100%; background: #92ecc0; transition: width 80ms linear; }
+/* Touch: the 100 px HP card shows the short label (data-compact) on one line. */
+.vb-touch-mode .vb-medkit-inventory { margin-top: 5px; font-size: 0; line-height: 1.2; white-space: nowrap; overflow: hidden; }
+.vb-touch-mode .vb-medkit-inventory::after { content: attr(data-compact); font-size: 9px; letter-spacing: .02em; }
 .vb-touch-mode .vb-medkit-progress small { font-size: 0; }
 .vb-touch-mode .vb-medkit-progress small::after { content: 'STAY STILL · HEAL TO CANCEL'; font-size: 10px; }
 @media (prefers-reduced-motion: reduce) { .vb-medkit-track i { transition: none; } }

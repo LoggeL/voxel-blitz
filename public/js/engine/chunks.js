@@ -14,6 +14,7 @@ import {
   BB_PINE_LEAF, BB_KELP,
 } from '../../../shared/worlddata.js';
 import { createFluidMaterial } from './fluid-material.js';
+import { AdaptiveChunkRange } from './render-distance.js';
 import { DAMAGE_GRID, damageStage, damageCells } from './block-damage-geometry.js';
 import { TILE, mapSurface, BOUNDARY_SKIN } from './atlas.js';
 import {
@@ -81,6 +82,7 @@ const ROTATABLE = new Set([
   TILE.MC_CLAY, TILE.MC_NETHERRACK, TILE.MC_OBSIDIAN, TILE.MC_COBBLE, TILE.MC_MOSSY, TILE.MC_LEAVES,
   TILE.DUST_PLASTER, TILE.DUST_FLOOR, TILE.MC_CLOUD, TILE.MC_WOOL_WHITE, TILE.MC_WOOL_RED,
   TILE.ARMOR_CONCRETE,
+  TILE.MEADOW_TOP, TILE.DRY_GRASS_TOP, TILE.MUD, TILE.SCORCHED_EARTH, TILE.GRAVEL, TILE.PINE_NEEDLES,
 ]);
 /** Side tiles with lettering or handed detail keep their orientation. */
 const NO_MIRROR = new Set([
@@ -329,11 +331,18 @@ export class ChunkStore {
    * @param getBlockDamage optional live visual damage getter (x,y,z)->0..1
    */
   constructor(scene, atlas, getBlockFn, getBlockDamage = () => 0, dimensions = DEFAULT_DIMENSIONS, {
-    lightUniforms = createVoxelLightUniforms(), edgeShading = true, mapId = null,
+    lightUniforms = createVoxelLightUniforms(), edgeShading = true, mapId = null, streamRange = null,
   } = {}) {
     this.dimensions = dimensions;
     this.width = Math.ceil(dimensions.sx / CHUNK_X);
     this.depth = Math.ceil(dimensions.sz / CHUNK_Z);
+    this.streaming = this.width * this.depth > 512;
+    this.chunkRange = this.streaming && streamRange ? new AdaptiveChunkRange(streamRange) : null;
+    this.streamRadius = this.chunkRange?.radius ?? 6;
+    this.viewPosition = null;
+    this.viewChunk = null;
+    this.loadQueue = [];
+    this.wanted = new Set();
     this.scene = scene;
     this.atlas = atlas;
     this.getBlock = getBlockFn;
@@ -381,13 +390,60 @@ export class ChunkStore {
 
   chunkKey(cx, cz) { return cx + ',' + cz; }
 
-  /** Synchronous initial build of every chunk column. */
-  buildAll() {
-    for (let cz = 0; cz < this.depth; cz++) {
-      for (let cx = 0; cx < this.width; cx++) {
-        this.rebuildChunk(cx, cz);
+  /** Nearest-first bounded working set. Legacy arena maps retain all chunks. */
+  initialChunks() {
+    if (this.streaming) {
+      if (!this.viewChunk) this.setViewPosition({ x: this.dimensions.sx / 2, z: this.dimensions.sz / 2 });
+      return [...this.wanted].map(key => key.split(',').map(Number));
+    }
+    const rows = [];
+    for (let z = 0; z < this.depth; z++) for (let x = 0; x < this.width; x++) rows.push([x, z]);
+    return rows;
+  }
+
+  setViewPosition(position, { ensureNear = true } = {}) {
+    if (!this.streaming || !position || !Number.isFinite(position.x) || !Number.isFinite(position.z)) return;
+    this.viewPosition = { x: position.x, z: position.z };
+    const cx = Math.max(0, Math.min(this.width - 1, Math.floor(position.x / CHUNK_X)));
+    const cz = Math.max(0, Math.min(this.depth - 1, Math.floor(position.z / CHUNK_Z)));
+    if (this.viewChunk?.cx === cx && this.viewChunk?.cz === cz) return;
+    this.viewChunk = { cx, cz };
+    const rows = [];
+    for (let z = Math.max(0, cz - this.streamRadius); z <= Math.min(this.depth - 1, cz + this.streamRadius); z++) {
+      for (let x = Math.max(0, cx - this.streamRadius); x <= Math.min(this.width - 1, cx + this.streamRadius); x++) {
+        rows.push({ x, z, distance: (x - cx) ** 2 + (z - cz) ** 2 });
       }
     }
+    rows.sort((a, b) => a.distance - b.distance || a.z - b.z || a.x - b.x);
+    this.wanted = new Set(rows.map(row => this.chunkKey(row.x, row.z)));
+    for (const [key, rec] of this.chunks) {
+      if (!this.wanted.has(key)) { this.disposeRecord(rec); this.chunks.delete(key); }
+    }
+    this.dirtyQueue = this.dirtyQueue.filter(key => this.chunks.has(key));
+    this.queued = new Set(this.dirtyQueue);
+    // Guaranteed collision-near geometry, including on respawn/vehicle teleport.
+    if (ensureNear) for (const row of rows) {
+      if (Math.abs(row.x - cx) <= 1 && Math.abs(row.z - cz) <= 1 && !this.chunks.has(this.chunkKey(row.x, row.z))) {
+        this.rebuildChunk(row.x, row.z);
+      }
+    }
+    this.loadQueue = rows.filter(row => !this.chunks.has(this.chunkKey(row.x, row.z)));
+  }
+
+  updateStreamingRange(frameSeconds, { targetFps = 0 } = {}) {
+    if (!this.chunkRange) return;
+    const radius = this.chunkRange.update(frameSeconds, {
+      targetFps, pendingLoads: this.loadQueue.length, queued: this.dirtyQueue.length,
+    });
+    if (radius === this.streamRadius) return;
+    this.streamRadius = radius;
+    this.viewChunk = null;
+    if (this.viewPosition) this.setViewPosition(this.viewPosition, { ensureNear: false });
+  }
+
+  buildAll() {
+    for (const [cx, cz] of this.initialChunks()) this.rebuildChunk(cx, cz);
+    this.loadQueue.length = 0;
     return this;
   }
 
@@ -488,15 +544,32 @@ export class ChunkStore {
     this.dirtyQueue.push(key);
   }
 
-  /** Drain the rebuild queue up to MAX_REBUILDS_PER_FRAME entries per frame. */
+  /**
+   * Drain the rebuild queue up to MAX_REBUILDS_PER_FRAME entries per frame.
+   * Streaming worlds rebuild the edited chunks nearest the view first, then
+   * stream in pending loads (already queued nearest first). Recorded terrain
+   * flushes with Infinity before drawing a replay frame.
+   */
   update(maxRebuilds = MAX_REBUILDS_PER_FRAME) {
     let n = 0;
+    if (this.streaming && this.viewChunk && this.dirtyQueue.length > 1) {
+      const { cx, cz } = this.viewChunk;
+      const distance = (key) => {
+        const c = this.chunks.get(key);
+        return c ? (c.cx - cx) ** 2 + (c.cz - cz) ** 2 : Infinity;
+      };
+      this.dirtyQueue.sort((a, b) => distance(a) - distance(b));
+    }
     while (this.dirtyQueue.length > 0 && n < maxRebuilds) {
       const key = this.dirtyQueue.shift();
       this.queued.delete(key);
       const c = this.chunks.get(key);
       if (c !== undefined) this.rebuildChunk(c.cx, c.cz);
       n++;
+    }
+    while (this.loadQueue.length && n < maxRebuilds) {
+      const row = this.loadQueue.shift();
+      if (!this.chunks.has(this.chunkKey(row.x, row.z))) { this.rebuildChunk(row.x, row.z); n++; }
     }
     return n;
   }
@@ -505,6 +578,11 @@ export class ChunkStore {
     return {
       chunks: this.chunks.size,
       queued: this.dirtyQueue.length,
+      pendingLoads: this.loadQueue.length,
+      streaming: this.streaming,
+      maxChunks: this.streaming ? (2 * (this.chunkRange?.profile.maxRadius ?? this.streamRadius) + 1) ** 2 : this.width * this.depth,
+      detailRadius: this.streaming ? this.streamRadius * CHUNK_X : null,
+      wantedChunks: this.wanted.size,
       meshes: this.group.children.length,
     };
   }
@@ -512,6 +590,8 @@ export class ChunkStore {
   dispose() {
     for (const rec of this.chunks.values()) this.disposeRecord(rec);
     this.chunks.clear();
+    this.loadQueue.length = 0;
+    this.wanted.clear();
     this.dirtyQueue.length = 0;
     this.queued.clear();
     this.scene.remove(this.group);

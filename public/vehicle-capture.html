@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <link rel="icon" type="image/png" href="./assets/brand/favicon-32.png">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>VOXEL BLITZ Vehicle Capture</title>
+  <style>
+    html, body, #capture { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #a9c4dc; }
+    #capture { display: block; }
+    #label { position: fixed; left: 12px; bottom: 10px; font: 600 12px/1.3 system-ui, sans-serif; color: #10202c;
+      background: rgba(255, 255, 255, 0.6); padding: 4px 8px; border-radius: 3px; letter-spacing: 0.04em; }
+  </style>
+</head>
+<body>
+  <!-- Static, muted capture page: no audio, no network, deterministic scenes. -->
+  <canvas id="capture" aria-label="VOXEL BLITZ vehicle capture"></canvas>
+  <div id="label"></div>
+  <script type="module" src="./js/capture/vehicle-capture.js"></script>
+</body>
+</html>
