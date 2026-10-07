@@ -16,8 +16,9 @@ const SEAT_SHORT = Object.freeze({ driver: 'DRIVER', gunner: 'GUNNER', commander
 const seatLabel = id => SEAT_SHORT[id] || String(id).toUpperCase();
 
 export class DeployScreen {
-  constructor(parent, { onDeploy = () => {} } = {}) {
+  constructor(parent, { onDeploy = () => {}, onOpen = () => {} } = {}) {
     this.onDeploy = onDeploy;
+    this.onOpen = onOpen;
     this.root = el('section', 'cq-deploy', parent);
     this.root.hidden = true;
     this.root.setAttribute('aria-label', 'Deploy');
@@ -66,9 +67,12 @@ export class DeployScreen {
   setOpen(open, killerInfo = null) {
     const next = !!open;
     if (next && !this.open) { this.readied = false; this.refused = null; this._resend = false; }
+    const opening = next && !this.open;
     this.open = next;
     this.root.hidden = !next;
     if (next) this.setKiller(killerInfo);
+    // The screen is driven by the mouse: free a pointer lock left over from play.
+    if (opening) this.onOpen();
   }
 
   setKiller(info) {

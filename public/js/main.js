@@ -124,7 +124,8 @@ class Game {
     this._gameplay = Object.freeze({
       get running() { return game.running; },
       get alive() { return !!game.player?.alive; },
-      get spectating() { return game.spectator?.active === true && !game.killcam?.active; },
+      // The Conquest deploy screen owns the mouse while it is open.
+      get spectating() { return game.spectator?.active === true && !game.killcam?.active && !game.conquestHud?.deploy?.open; },
       get matchState() { return game.matchState; },
       get selfRow() { return game.selfRow; },
     });
@@ -385,6 +386,7 @@ class Game {
     this.conquestHud = new rt.ConquestHud(document.body, {
       onInteract: () => this.session.gameplayInputEnabled && this.vehicleController?.queueInteract(),
       onDeploy: (choice) => this.net?.sendConquest({ deploy: choice }),
+      onDeployOpen: () => this.input.exit(),
       onSpot: () => this.net?.sendConquest({ spot: 1 }),
       onSupport: (intent) => this.net?.sendConquest({ support: intent }),
       combatHud: this.hud.combat,

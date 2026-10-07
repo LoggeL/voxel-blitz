@@ -45,7 +45,7 @@ export const MAP_HINT_MS = 30000;
 
 export class ConquestHud {
   constructor(parent = globalThis.document?.body, {
-    onInteract = () => {}, onDeploy = () => {}, onSpot = () => {}, onSupport = () => {},
+    onInteract = () => {}, onDeploy = () => {}, onDeployOpen = () => {}, onSpot = () => {}, onSupport = () => {},
     combatHud = null, eventTarget = typeof window !== 'undefined' ? window : null, inputEnabled = () => true,
   } = {}) {
     // Keys for spot and the full map only act while gameplay input is live (not in menus).
@@ -71,7 +71,7 @@ export class ConquestHud {
     this.spotFlash.hidden = true;
     this.bigMapHint = el('div', 'cq-map-hint', this.root);
     this.bigMap = new BigMap(this.root);
-    this.deploy = new DeployScreen(this.root, { onDeploy });
+    this.deploy = new DeployScreen(this.root, { onDeploy, onOpen: onDeployOpen });
     this.dead = false;
     this.killerInfo = null;
     this.vehicleController = null;

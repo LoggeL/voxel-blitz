@@ -73,6 +73,19 @@ let groups = 0;
 
 /* --------------------------------------------------------- deploy screen */
 
+// Opening the screen frees the pointer once (a locked pointer hides the cursor).
+{
+  let opened = 0;
+  const screen = new DeployScreen(document.createElement('div'), { onOpen: () => opened++ });
+  screen.setOpen(true);
+  screen.setOpen(true);
+  assert.equal(opened, 1, 'onOpen fires on the closed -> open edge only');
+  screen.setOpen(false);
+  screen.setOpen(true);
+  assert.equal(opened, 2, 'reopening after the next death frees the pointer again');
+  groups++;
+}
+
 {
   const sent = [];
   const parent = document.createElement('div');
@@ -249,4 +262,4 @@ let groups = 0;
 }
 
 dom.restore();
-console.log(`Conquest deploy UI: ${groups} groups passed (shared deploy options, kit picker, refusals, killer card, touch DEPLOY, spectator hand-off)`);
+console.log(`Conquest deploy UI: ${groups} groups passed (shared deploy options, kit picker, refusals, killer card, touch DEPLOY, spectator hand-off, pointer release)`);
