@@ -49,6 +49,13 @@ uniform vec3 glowColor;
 uniform float glow;
 uniform float overcast;
 uniform vec3 deckColor;
+uniform float sunGlow;
+uniform float cloudCover;
+uniform vec3 cloudLit;
+uniform vec3 cloudShade;
+uniform float cloudTime;
+uniform vec3 midColor;
+uniform float midAt;
 varying vec3 vDir;
 float skyHash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float skyNoise(vec2 p) {
@@ -61,6 +68,11 @@ void main() {
   vec3 d = normalize(vDir);
   float h = pow(max(d.y, 0.0), 0.65);
   vec3 col = mix(horizonColor, topColor, h);
+  // Optional third stop (midAt 0 = off): a two-colour mix of a warm horizon
+  // and a blue zenith passes through dusty pink; a pale gold stop between
+  // them keeps a golden-hour sky gold below and blue-violet above.
+  if (midAt > 0.0) col = h < midAt ? mix(horizonColor, midColor, h / midAt)
+    : mix(midColor, topColor, smoothstep(0.0, 1.0, (h - midAt) / (1.0 - midAt)));
   if (panoramaReady) {
     vec2 uv = vec2(atan(d.z, d.x) / 6.28318530718 + 0.5,
       asin(clamp(d.y, -1.0, 1.0)) / 3.14159265359 + 0.5);
@@ -88,6 +100,39 @@ void main() {
   // and a warm band hugging the horizon (ash glow, dusk).
   col += glowColor * glow * exp(-abs(d.y) * 7.0);
   float sd = max(dot(d, sunDir), 0.0);
+  // Golden hour: a wide warm band, brightest under the sun's azimuth and
+  // climbing higher there (sunGlow 0 = off, so every other map is unchanged).
+  if (sunGlow > 0.0) {
+    vec2 flatD = d.xz / max(length(d.xz), 1e-4);
+    vec2 flatS = sunDir.xz / max(length(sunDir.xz), 1e-4);
+    float toward = 0.5 + 0.5 * dot(flatD, flatS);
+    col += glowColor * sunGlow * (0.3 + 0.7 * toward * toward) * exp(-max(d.y, 0.0) * 3.2);
+  }
+  // Scattered cloud layer (cloudCover 0 = off): a deck far overhead,
+  // thinning into streaks toward the horizon. The view direction is snapped
+  // to a ~0.4 degree grid first, so the clouds read as even sky pixels (the
+  // voxel look) at every elevation. Sun-side edges catch warm light; thick
+  // cores and the far side keep a cool violet shade.
+  if (cloudCover > 0.0 && d.y > 0.0) {
+    vec3 q = normalize(floor(d * 150.0 + 0.5) / 150.0);
+    vec2 p = q.xz / (max(q.y, 0.0) + 0.1) * vec2(0.9, 1.8) + vec2(cloudTime * 0.006, 0.0);
+    // Large coherent banks: mostly low-frequency shape, a little edge detail.
+    float n = skyNoise(p) * 0.68 + skyNoise(p * 2.1 + 5.3) * 0.22 + skyNoise(p * 5.3 - 2.1) * 0.1;
+    float edge = 0.7 - cloudCover * 0.25;
+    // Banks gather toward the horizon; the zenith stays mostly clear.
+    float c = smoothstep(edge, edge + 0.02, n) * smoothstep(0.03, 0.14, q.y) * (1.0 - 0.85 * smoothstep(0.4, 0.8, q.y));
+    vec2 flatD = d.xz / max(length(d.xz), 1e-4);
+    vec2 flatS = sunDir.xz / max(length(sunDir.xz), 1e-4);
+    float side = 0.5 + 0.5 * dot(flatD, flatS);
+    // Thin edges glow warm (lit undersides and rims), thick cores stay cool;
+    // the side facing the sun is lit through, the far side keeps its shade.
+    float core = smoothstep(edge + 0.04, edge + 0.16, n);
+    float lit = clamp((1.0 - core) * 0.7 + side * side * 0.45, 0.0, 1.0);
+    vec3 cloud = mix(cloudShade, cloudLit, lit);
+    cloud += cloudLit * pow(sd, 5.0) * 0.5;
+    cloud = mix(cloud, horizonColor, (1.0 - smoothstep(0.03, 0.3, q.y)) * 0.35);
+    col = mix(col, cloud, c * 0.9);
+  }
   // Soft warm disc (~1.8 deg) + two additive halo lobes. The disc core sits
   // above 1.0, so HDR tiers bloom it; overcast palettes set sunDisc to 0.
   col += vec3(1.00, 0.96, 0.86) * smoothstep(0.99930, 0.99976, sd) * 1.6 * sunDisc;
@@ -123,6 +168,13 @@ export function installSky(scene, palette = {}, dimensions = DEFAULT_DIMENSIONS,
         glow: { value: palette.horizonGlow ? palette.horizonGlowStrength ?? 0.2 : 0 },
         overcast: { value: palette.overcast ?? 0 },
         deckColor: { value: new THREE.Color(palette.deckColor || palette.cloud || '#ffffff') },
+        sunGlow: { value: palette.sunGlow ?? 0 },
+        cloudCover: { value: palette.cloudLayer?.cover ?? 0 },
+        cloudLit: { value: new THREE.Color(palette.cloudLayer?.lit || '#ffffff') },
+        cloudShade: { value: new THREE.Color(palette.cloudLayer?.shade || '#8890a0') },
+        cloudTime: { value: 0 },
+        midColor: { value: new THREE.Color(palette.skyMid || '#ffffff') },
+        midAt: { value: palette.skyMid ? palette.skyMidAt ?? 0.35 : 0 },
         panorama: { value: null },
         panoramaReady: { value: false },
       },
@@ -207,6 +259,7 @@ export function installSky(scene, palette = {}, dimensions = DEFAULT_DIMENSIONS,
   } else finishLoading();
   const update = function update(dt) {
     if (disposed || !(dt > 0)) return;
+    if (dome.material.uniforms.cloudCover.value > 0) dome.material.uniforms.cloudTime.value = (dome.material.uniforms.cloudTime.value + dt) % 36000;
     const dx = CLOUD_SPEED * cloudScale * dt;
     const maxX = MAP_CX + cloudSpan;
     const span = cloudSpan * 2;

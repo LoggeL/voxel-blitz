@@ -63,6 +63,8 @@ export const TILE = {
   PINE_NEEDLES: 104, PINE_LEAVES: 105, BIRCH_LOG_SIDE: 106, BIRCH_LOG_TOP: 107,
   WHITE_PLASTER: 108, TERRACOTTA_ROOF: 109, COBBLE_WALL: 110, TIMBER: 111,
   CORRUGATED_STEEL: 112, SOOT_BRICK: 113,
+  // Frontier's per-map LEAVES remap: olive broadleaf hedges, shrubs and crowns.
+  FRONTIER_LEAVES: 114,
 };
 
 /** Deterministic integer wobble -> 0..k-1. The atlas' only "randomness". */
@@ -826,28 +828,30 @@ function frontierSoil(x, y, salt) {
 function meadowTop(x, y) {
   const m = mottle(x, y, 160);
   const g = grain(x, y, 161, 17) - 8;
-  let r = 86 + m * 12 + (g >> 1), gr = 138 + m * 15 + g, b = 52 + m * 6 + (g >> 2);
-  if (grain(x, y, 162, 31) < 2) { r *= 0.78; gr *= 0.82; b *= 0.76; }        // clover shade
-  if (grain(x, y, 163, 47) === 0) { r = 226; gr = 214; b = 120; }             // buttercup
-  else if (grain(x, y, 164, 61) === 0) { r = 232; gr = 232; b = 220; }        // daisy
-  else if (grain(x, y, 165, 23) < 2) { r = 124; gr = 176; b = 82; }           // blade flecks
+  // Olive late-summer meadow (the redesign references): green only in the
+  // clover hollows, golden where the blades have dried.
+  let r = 116 + m * 12 + (g >> 1), gr = 126 + m * 13 + g, b = 56 + m * 6 + (g >> 2);
+  if (grain(x, y, 162, 31) < 2) { r *= 0.74; gr *= 0.82; b *= 0.72; }        // clover shade
+  if (grain(x, y, 163, 47) === 0) { r = 222; gr = 196; b = 104; }             // buttercup
+  else if (grain(x, y, 164, 61) === 0) { r = 226; gr = 220; b = 196; }        // daisy
+  else if (grain(x, y, 165, 23) < 2) { r = 160; gr = 150; b = 78; }           // dry blade flecks
   return [clamp255(r), clamp255(gr), clamp255(b), 255];
 }
 
 function meadowSide(x, y) {
   const lip = 3 + grain(x, 0, 166, 3);
   if (y < lip - 1) { const p = meadowTop(x, y); return [p[0] * 0.9 | 0, p[1] * 0.92 | 0, p[2] * 0.88 | 0, 255]; }
-  if (y < lip) return [62, 98, 40, 255];
+  if (y < lip) return [80, 88, 42, 255];
   return frontierSoil(x, y, 167);
 }
 
 function dryGrassTop(x, y) {
   const m = mottle(x, y, 170);
   const g = grain(x, y, 171, 15) - 7;
-  let r = 168 + m * 14 + g, gr = 150 + m * 12 + g, b = 84 + m * 8 + (g >> 1);
-  if (tileNoise(x, y, 4, 172) > 0.72) { r -= 34; gr -= 18; b -= 10; }         // greener tufts
-  if (grain(x, y, 173, 37) < 2) { r = 120; gr = 98; b = 62; }                 // bare soil
-  if (grain(x, y, 174, 29) < 2) { r = 206; gr = 190; b = 128; }               // bleached stalks
+  let r = 172 + m * 14 + g, gr = 150 + m * 12 + g, b = 80 + m * 8 + (g >> 1);
+  if (tileNoise(x, y, 4, 172) > 0.72) { r -= 40; gr -= 22; b -= 8; }          // olive tufts
+  if (grain(x, y, 173, 37) < 2) { r = 120; gr = 96; b = 58; }                 // bare soil
+  if (grain(x, y, 174, 29) < 2) { r = 216; gr = 188; b = 116; }               // bleached stalks
   return [clamp255(r), clamp255(gr), clamp255(b), 255];
 }
 
@@ -915,6 +919,16 @@ function pineNeedles(x, y) {
   if (d === 0) { r += 30; gr += 22; b += 10; }                                 // fresh needles
   if (grain(x, y, 201, 59) < 2) { r = 70; gr = 50; b = 32; }                   // cone
   return [clamp255(r), clamp255(gr), clamp255(b), 255];
+}
+
+/** Frontier broadleaf (LEAVES remap): the generic leaf cutouts in late-summer olive. */
+function frontierLeaves(x, y) {
+  const leaf = leaves(x, y);
+  if (!leaf[3]) return leaf;
+  const cluster = ((x >> 1) * 13 ^ (y >> 1) * 23 ^ ((x + y) >> 2) * 7) % 3;
+  const base = [[44, 60, 30], [58, 76, 36], [76, 92, 44]][cluster];
+  const shade = (leaf[0] - [42, 55, 70][cluster]);
+  return [clamp255(base[0] + shade), clamp255(base[1] + shade), clamp255(base[2] + (shade >> 1)), 255];
 }
 
 /** Dense conifer foliage: opaque, cool dark greens with needle highlights. */
@@ -1114,6 +1128,7 @@ export const TILE_PAINTERS = Object.freeze({
   [TILE.GRAVEL]: gravel,
   [TILE.PINE_NEEDLES]: pineNeedles,
   [TILE.PINE_LEAVES]: pineLeaves,
+  [TILE.FRONTIER_LEAVES]: frontierLeaves,
   [TILE.BIRCH_LOG_SIDE]: birchSide,
   [TILE.BIRCH_LOG_TOP]: birchTop,
   [TILE.WHITE_PLASTER]: whitePlaster,
@@ -1261,10 +1276,12 @@ export const MAP_SURFACES = Object.freeze({
     remap: Object.freeze({ [TILE.METAL]: TILE.BB_ROCK, [TILE.GLASS]: TILE.BB_DOME_GLASS }), boundary: false, pilasterEvery: 0,
   }),
   // Frontier's valley palette: stray generic GRASS (hedge banks, yard lawns)
-  // reads as the same late-summer meadow as the generated terrain around it.
+  // reads as the same late-summer meadow as the generated terrain around it,
+  // and generic LEAVES (hedges, shrubs, oak and birch crowns) turn olive.
   // The open perimeter is mountains, never a tall shell, so no boundary skin.
   frontier: Object.freeze({
-    remap: Object.freeze({ [TILE.GRASS_TOP]: TILE.MEADOW_TOP, [TILE.GRASS_SIDE]: TILE.MEADOW_SIDE }), boundary: false, pilasterEvery: 0,
+    remap: Object.freeze({ [TILE.GRASS_TOP]: TILE.MEADOW_TOP, [TILE.GRASS_SIDE]: TILE.MEADOW_SIDE, [TILE.LEAVES]: TILE.FRONTIER_LEAVES }),
+    boundary: false, pilasterEvery: 0,
   }),
 });
 const NO_SURFACE = Object.freeze({ remap: null, boundary: false, pilasterEvery: 0 });

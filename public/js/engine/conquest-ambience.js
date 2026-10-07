@@ -34,8 +34,8 @@ export const AMBIENCE_WIND = Object.freeze([Math.cos(CONQUEST_WIND_YAW), 0, -Mat
 // Linear RGB (ParticleField colours are linear; > 1 blooms on HDR tiers).
 const WEATHER = Object.freeze({
   golden: Object.freeze({
-    plume0: [0.2, 0.18, 0.165], plume1: [0.5, 0.46, 0.42],
-    smoke0: [0.06, 0.055, 0.05], smoke1: [0.24, 0.22, 0.2],
+    plume0: [0.12, 0.11, 0.1], plume1: [0.36, 0.33, 0.31],
+    smoke0: [0.025, 0.022, 0.02], smoke1: [0.11, 0.1, 0.095],
     flash: [6, 3.4, 1.3], flashSmoke: [0.3, 0.27, 0.24], flashes: 1, alpha: 1, wind: 1.6,
   }),
   mist: Object.freeze({
@@ -56,10 +56,12 @@ const WEATHER = Object.freeze({
  * 1.6 -> 7.5 m); velocity is the downwind drift added to every particle.
  */
 const RECIPES = Object.freeze({
-  // Kessler Works stacks: a dense plume that climbs ~60 m and leans downwind.
-  chimney: Object.freeze({ kind: 'smokeColumn', rate: 3.2, life: 1.45, scale: 1.55, alpha: 0.85, speed: 1, spread: 0.16, drift: 1 }),
-  // Burnt-out hulks: an oily black column and a few embers.
-  wreck: Object.freeze({ kind: 'smokeColumn', rate: 2.2, life: 1.15, scale: 1, alpha: 0.8, speed: 0.9, spread: 0.24, drift: 0.8 }),
+  // Kessler Works stacks: a broad plume that climbs ~70 m and leans downwind,
+  // wide enough (4 -> 18 m puffs) to read as a column from the far HQ.
+  chimney: Object.freeze({ kind: 'smokeColumn', rate: 2.6, life: 1.6, scale: 2.4, alpha: 1, speed: 1, spread: 0.14, drift: 1 }),
+  // Burnt-out hulks: an oily black column (4 -> 19 m puffs, readable at
+  // 300-600 m like the redesign references) and a few embers.
+  wreck: Object.freeze({ kind: 'smokeColumn', rate: 2, life: 1.5, scale: 2.5, alpha: 1.25, speed: 0.95, spread: 0.18, drift: 0.8 }),
   embers: Object.freeze({ kind: 'ember', rate: 1.4, life: 1, scale: 1.3, alpha: 1, speed: 0.8, spread: 0.7, drift: 0.4 }),
 });
 

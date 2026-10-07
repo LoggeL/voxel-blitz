@@ -7,8 +7,8 @@ import {
   DIRT, DUST_CRATE, ACCENT,
 } from '../blocks.js';
 import { FRONTIER_PLAN } from '../../conquest-contract.js';
-import { rect, pickSpawnCells } from './plan.js';
-import { plasterHouse, fieldWall, hedge, crateStack, oak } from './props.js';
+import { rect, pickSpawnCells, roadClearance } from './plan.js';
+import { plasterHouse, fieldWall, hedge, crateStack, oak, poplar, lineCells } from './props.js';
 import { seededRandom } from './kit.js';
 
 const FLAG = FRONTIER_PLAN.flags.find(f => f.id === 'B');
@@ -22,6 +22,33 @@ const HOUSES = [
   { r: rect(262, 494, 274, 503), axis: 'x', doors: ['s', 'n'] },
   { r: rect(292, 497, 301, 506), axis: 'x', doors: ['s'] },
   { r: rect(228, 506, 238, 516), axis: 'z', doors: ['e'], floors: 1 },
+];
+/**
+ * The hill village around the square: closed plaster houses on stone plinths
+ * stepping up the west rise and down the south slope toward Ashgrove, behind
+ * the square as seen from the river. The east and north approaches stay open
+ * so attackers from the fords can still reach the flag (a ring of closed
+ * houses there halved the flag turnover in conquest-action-test). Lots are
+ * dropped where a road or lane would come within 3 m (plan time, no voxels).
+ */
+const HILL_LOTS = [
+  [212, 500, 222, 509, 'z', 2], [206, 513, 216, 522, 'x', 2], [212, 527, 223, 536, 'z', 3], [204, 540, 213, 549, 'x', 1],
+  [220, 540, 230, 549, 'z', 2], [226, 560, 236, 569, 'x', 2], [241, 562, 250, 571, 'z', 2], [257, 562, 267, 570, 'x', 3],
+  [272, 563, 281, 572, 'z', 1], [286, 560, 295, 569, 'x', 2], [234, 578, 244, 586, 'z', 1], [252, 580, 262, 589, 'x', 2],
+  [268, 581, 276, 590, 'z', 1], [196, 526, 204, 535, 'z', 1], [286, 576, 294, 584, 'x', 1], [220, 590, 229, 598, 'z', 2],
+].map(([x0, z0, x1, z1, axis, floors]) => ({ r: rect(x0, z0, x1, z1), axis, floors }))
+  .filter(({ r }) => {
+    for (let x = r.minX - 1; x <= r.maxX + 1; x++) for (const z of [r.minZ - 1, r.maxZ + 1]) if (roadClearance(x + 0.5, z + 0.5) < 3) return false;
+    for (let z = r.minZ - 1; z <= r.maxZ + 1; z++) for (const x of [r.minX - 1, r.maxX + 1]) if (roadClearance(x + 0.5, z + 0.5) < 3) return false;
+    return true;
+  });
+/** Every hill lot (plain rectangles): the woodland keeps clear of them. */
+export const VILLAGE_LOTS = Object.freeze(HILL_LOTS.map(l => l.r));
+/** Stepped cobble lanes from the square up and down the hill. */
+const STREETS = [
+  [[240, 524.5], [218, 524.5], [200, 524.5]],
+  [[253, 556], [253, 576], [248, 592]],
+  [[226, 552], [282, 576]],
 ];
 const JEEP = { x: 256.5, z: 520.5, yaw: 0 };
 const WELL = { x: 278.5, z: 523.5 };
@@ -74,7 +101,11 @@ function church(kit) {
   // Bell tower and spire.
   const { minX: tx0, minZ: tz0, maxX: tx1, maxZ: tz1 } = TOWER;
   const belfry = 60;
-  kit.walls(tx0, tz0, tx1, tz1, y + 1, belfry, COBBLE_WALL);
+  // Lime-washed tower on a rubble base with stone quoins: the white shaft
+  // reads against the hillside from both HQs.
+  kit.walls(tx0, tz0, tx1, tz1, y + 1, belfry, WHITE_PLASTER);
+  kit.walls(tx0, tz0, tx1, tz1, y + 1, y + 4, COBBLE_WALL);
+  for (const [qx, qz] of [[tx0, tz0], [tx1, tz0], [tx0, tz1], [tx1, tz1]]) kit.box(qx, y + 5, qz, qx, belfry, qz, COBBLE_WALL);
   kit.box(tx0 + 1, y + 1, tz0 + 1, tx1 - 1, belfry, tz1 - 1, AIR);
   kit.box(tx1, y + 1, tz0 + 3, tx1, y + 4, tz1 - 3, AIR);              // tower arch into the nave
   kit.box(tx0, y + 1, tz0 + 3, tx0, y + 4, tz1 - 3, AIR);              // west door
@@ -105,6 +136,38 @@ function church(kit) {
   kit.box(top.x - 1, SPIRE_TOP_Y - 1, top.z, top.x + 1, SPIRE_TOP_Y - 1, top.z, METAL);
   kit.feature('landmark', { id: 'st-aldric-spire', x: top.x + 0.5, y: SPIRE_TOP_Y, z: top.z + 0.5 });
   kit.feature('hard-building', { flag: 'B', id: 'st-aldric-church', ...NAVE });
+}
+
+/** Closed houses on the hill lots, stepped cobble lanes, garden walls and cypresses. */
+function hillside(kit, rng) {
+  for (const points of STREETS) {
+    for (let i = 1; i < points.length; i++) {
+      for (const [x, z] of lineCells(points[i - 1][0], points[i - 1][1], points[i][0], points[i][1])) {
+        for (let dz = -1; dz <= 1; dz++) for (let dx = -1; dx <= 1; dx++) {
+          const cx = x + dx, cz = z + dz;
+          if (roadClearance(cx + 0.5, cz + 0.5) < 0.5 || kit.surface(cx, cz) !== kit.top(cx, cz)) continue;
+          kit.paint(cx, cz, MC_COBBLE);
+        }
+      }
+    }
+  }
+  const sides = ['n', 's', 'e', 'w'];
+  HILL_LOTS.forEach(({ r, axis, floors }, n) => {
+    const doors = axis === 'x' ? [sides[n % 2]] : [sides[2 + (n % 2)]];
+    plasterHouse(kit, r.minX, r.minZ, r.maxX, r.maxZ, { floors, axis, doors, closed: true });
+    // A walled garden plot on the downhill side of every other house.
+    if (n % 2) return;
+    const g = kit.top(r.minX, r.maxZ + 3), h = kit.top(r.maxX, r.maxZ + 3);
+    const downhillSouth = g + h <= kit.top(r.minX, r.minZ - 3) + kit.top(r.maxX, r.minZ - 3);
+    const z = downhillSouth ? r.maxZ + 4 : r.minZ - 4;
+    fieldWall(kit, [[r.minX - 1, z], [r.maxX + 1, z]], { height: 1 });
+  });
+  // Cypresses and fruit trees between the houses.
+  for (const [x, z] of [[218, 511], [226, 538], [238, 575], [266, 577], [300, 562], [282, 590], [210, 552]]) {
+    if (kit.surface(x, z) !== kit.top(x, z)) continue;
+    if (rng() < 0.6) poplar(kit, x, z, 9 + Math.floor(rng() * 3));
+    else oak(kit, x, z, 6 + Math.floor(rng() * 2), rng);
+  }
 }
 
 function square(kit) {
@@ -138,10 +201,11 @@ export function buildVillage(kit) {
   for (const lane of VILLAGE_SITE.lanes) kit.feature('lane', { flag: 'B', ...lane });
   church(kit);
   for (const h of HOUSES) plasterHouse(kit, h.r.minX, h.r.minZ, h.r.maxX, h.r.maxZ, { floors: h.floors ?? 2, axis: h.axis, doors: h.doors });
+  hillside(kit, rng);
   square(kit);
   // Kitchen gardens and yard trees behind the houses.
   for (const [x, z] of [[232, 524], [298, 548], [306, 500], [250, 546]]) oak(kit, x, z, 7, rng);
-  hedge(kit, [[222, 532], [240, 548]], { gapEvery: 0 });
+  hedge(kit, [[232, 552], [240, 556]], { gapEvery: 0 });
   kit.paintRect(253, 516, 260, 525, DIRT);
   // Churchyard: low wall and two stone crosses.
   fieldWall(kit, [[256, 554], [288, 556]], { height: 1 });

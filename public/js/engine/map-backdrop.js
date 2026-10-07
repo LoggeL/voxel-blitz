@@ -52,7 +52,7 @@ function hash(a, b, seed) {
 }
 
 class BackdropBuilder {
-  constructor({ sun, ambient = 0.5, direct = 0.55, hazeY0 = 0, hazeH = 30, hazeK = 0.8 }) {
+  constructor({ sun, ambient = 0.5, direct = 0.55, hazeY0 = 0, hazeH = 30, hazeK = 0.8, sunTint = null, skyTint = null }) {
     this.position = [];
     this.normal = [];
     this.color = [];
@@ -64,6 +64,12 @@ class BackdropBuilder {
     this.hazeY0 = hazeY0;
     this.hazeH = hazeH;
     this.hazeK = hazeK;
+    // Optional coloured light (cfg.light): warm sun on the lit faces, a cool
+    // sky fill in the shade. Without it the bake stays a neutral scalar.
+    this.sunTint = sunTint;
+    this.skyTint = skyTint;
+    // Extra per-cell haze (range depth layering, cfg.ranges), on top of the base haze.
+    this.extraHaze = 0;
   }
 
   /**
@@ -77,11 +83,19 @@ class BackdropBuilder {
     const dim = (1 - Math.min(1, nl * 1.6)) * 0.5 * (1 - Math.max(0, ny));
     const luma = c[0] * 0.2126 + c[1] * 0.7152 + c[2] * 0.0722;
     const d = 0.22 * dim;
+    if (this.sunTint) {
+      const fill = k * this.ambient * (0.62 + 0.38 * ny), key = k * this.direct * nl;
+      const t = (i) => fill * this.skyTint[i] + key * this.sunTint[i];
+      return [(c[0] + (luma - c[0]) * d) * t(0), (c[1] + (luma - c[1]) * d) * t(1), (c[2] + (luma - c[2]) * d) * t(2)];
+    }
     return [(c[0] + (luma - c[0]) * d) * s, (c[1] + (luma - c[1]) * d) * s, (c[2] + (luma - c[2]) * d) * s * (1 + 0.03 * dim)];
   }
 
   /** Ground haze: silhouettes melt into the horizon toward their base. */
-  hazeAt(y) { return this.hazeK * (1 - smooth(this.hazeY0, this.hazeY0 + this.hazeH, y)); }
+  hazeAt(y) {
+    const base = this.hazeK * (1 - smooth(this.hazeY0, this.hazeY0 + this.hazeH, y));
+    return this.extraHaze > 0 ? 1 - (1 - base) * (1 - this.extraHaze) : base;
+  }
 
   vertex(x, y, z, nx, ny, nz, c, haze, glow) {
     this.position.push(x, y, z);
@@ -258,6 +272,30 @@ function landforms(b, frame, cfg, palette) {
   const outer = near + depth;
   const [lo, hi] = cfg.height;
   const maxRise = cfg.maxRise ?? 0.2;
+  // risePow > 1 bends the height cap from a straight ramp into a curve over
+  // the ring depth: low foothills by the map edge, the tall range at the back.
+  const risePow = cfg.risePow ?? 1;
+  const capAt = (g) => (risePow === 1 ? maxRise * g : maxRise * outer * Math.pow(g / outer, risePow));
+  // `ranges` (Frontier): separate mountain ranges stacked in depth, each a
+  // band of the ring [near, far] m beyond the map edge with its own height,
+  // ridge scale, peak sharpness and baked haze, so foothills, mid ridges and
+  // the tall far peaks read as distinct silhouettes instead of one wall.
+  const ranges = Array.isArray(cfg.ranges) ? cfg.ranges.map((r, k) => ({
+    near: r.near, far: r.far, ramp: (r.far - r.near) * (r.ramp ?? 0.3), lo: r.height[0], hi: r.height[1],
+    scale: r.scale ?? scale, sharp: r.sharp ?? 2, haze: r.haze ?? 0, seed: seed + 101 * (k + 1),
+  })) : null;
+  const rangeHeight = (x, z, g, env) => {
+    let best = 0, haze = 0;
+    for (const r of ranges) {
+      const w = smooth(r.near, r.near + r.ramp, g) * (1 - smooth(r.far - r.ramp, r.far, g));
+      if (w <= 0) continue;
+      const ridge = 1 - Math.abs(fbm2(x / r.scale, z / r.scale, r.seed, 4));
+      const u = clamp01(0.5 + 0.7 * fbm2(x / (r.scale * 1.7), z / (r.scale * 1.7), r.seed + 3, 3));
+      const h = (r.lo + (r.hi - r.lo) * Math.pow(ridge, r.sharp) * (0.35 + 0.65 * u)) * w * env;
+      if (h > best) { best = h; haze = r.haze; }
+    }
+    return { h: Math.min(best, capAt(g)), haze };
+  };
   const scale = cfg.scale ?? 55;
   const shape = cfg.shape || 'hills';
   const y0 = cfg.ground;
@@ -270,6 +308,11 @@ function landforms(b, frame, cfg, palette) {
   const rock = cfg.rock ? lin(cfg.rock) : null;
   const sand = cfg.sand ? lin(cfg.sand) : null;
   const band = cfg.band ?? 4;
+  // Optional altitude zones (Frontier): `forest` { color, below } clothes the
+  // lower walls (m above ground, per-cell jitter), `snow` { color, above } caps
+  // the highest tops.
+  const forest = cfg.forest ? { c: lin(cfg.forest.color), below: cfg.forest.below ?? 40 } : null;
+  const snow = cfg.snow ? { c: lin(cfg.snow.color), above: cfg.snow.above ?? Infinity } : null;
   const lip = cfg.lip ?? 0;
   const jitter = cfg.jitter ?? 0.09;
 
@@ -317,6 +360,7 @@ function landforms(b, frame, cfg, palette) {
     if (g >= near && g <= outer) {
       const a = (Math.atan2(z - frame.cz, x - frame.cx) * 180 / Math.PI + 360) % 360;
       const env = smooth(near, near + rise, g) * (1 - smooth(outer - 35, outer, g)) * sectorMask(a, open);
+      if (env > 0 && ranges) return rangeHeight(x, z, g, env);
       if (env > 0) {
         const u = clamp01(0.5 + 0.7 * fbm2(x / scale, z / scale, seed, 4));
         let raw;
@@ -334,7 +378,7 @@ function landforms(b, frame, cfg, palette) {
         } else {
           raw = lo + (hi - lo) * smooth(0.12, 0.95, u);
         }
-        h = Math.min(raw * env, maxRise * g);
+        h = Math.min(raw * env, capAt(g));
       }
     }
     const v = volcanoH(x, z);
@@ -350,6 +394,7 @@ function landforms(b, frame, cfg, palette) {
   const gx0 = Math.floor(minX / cell), gz0 = Math.floor(minZ / cell);
   const nx = Math.ceil(maxX / cell) - gx0 + 1, nz = Math.ceil(maxZ / cell) - gz0 + 1;
   const H = new Float32Array(nx * nz);
+  const rangeHaze = ranges ? new Float32Array(nx * nz) : null;
   const info = new Array(nx * nz);
   for (let j = 0; j < nz; j++) {
     for (let i = 0; i < nx; i++) {
@@ -358,10 +403,37 @@ function landforms(b, frame, cfg, palette) {
       let h = Math.round(r.h / stepY) * stepY;
       if (h < stepY) h = shape === 'islands' && r.h > 0.5 ? stepY * 0.5 : 0;
       H[j * nx + i] = h;
+      if (rangeHaze) rangeHaze[j * nx + i] = r.haze || 0;
       if (r.volcano) info[j * nx + i] = r;
     }
   }
   const at = (i, j) => (i < 0 || j < 0 || i >= nx || j >= nz ? 0 : H[j * nx + i]);
+  // Ranges: limit the rise per cell (`slope` x cell) so peaks become stepped
+  // pyramids with lit and shaded flanks instead of thin pillars.
+  if (ranges && cfg.slope > 0) {
+    const rise = Math.max(stepY, cfg.slope * cell);
+    const G = new Float32Array(nx * nz);
+    for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) G[j * nx + i] = frame.gap((gx0 + i + 0.5) * cell, (gz0 + j + 0.5) * cell);
+    for (let pass = 0; pass < 12; pass++) {
+      let changed = 0;
+      for (let j = 0; j < nz; j++) {
+        for (let i = 0; i < nx; i++) {
+          const k = j * nx + i;
+          // Only neighbours on the map side bound a cell: the back of the
+          // ring may fall away sheer (it is never seen from inside the map).
+          const g = G[k];
+          let m = Infinity;
+          if (i + 1 < nx && G[k + 1] < g) m = Math.min(m, H[k + 1]);
+          if (i > 0 && G[k - 1] < g) m = Math.min(m, H[k - 1]);
+          if (j + 1 < nz && G[k + nx] < g) m = Math.min(m, H[k + nx]);
+          if (j > 0 && G[k - nx] < g) m = Math.min(m, H[k - nx]);
+          m += rise;
+          if (H[k] > m) { H[k] = Math.round(m / stepY) * stepY; changed++; }
+        }
+      }
+      if (!changed) break;
+    }
+  }
   // Clean-up passes: a lone one-cell spike standing far above all four
   // neighbours reads as a stray pillar, and island specks (a shore-height
   // cell with no real land beside it) read as floating foam or snow blocks.
@@ -398,6 +470,7 @@ function landforms(b, frame, cfg, palette) {
     for (let i = 0; i < nx; i++) {
       const h = H[j * nx + i];
       if (h <= 0) continue;
+      if (rangeHaze) b.extraHaze = rangeHaze[j * nx + i];
       const x0 = (gx0 + i) * cell, x1 = x0 + cell, z0 = (gz0 + j) * cell, z1 = z0 + cell;
       const yt = y0 + h;
       const cxw = x0 + cell / 2, czw = z0 + cell / 2;
@@ -408,6 +481,7 @@ function landforms(b, frame, cfg, palette) {
       // Top: cap colour, patchy blend to top2, rock above `rockAbove`, sand at the shore.
       let topC = mix(topA, topB, smooth(0.35, 0.65, 0.5 + 0.5 * fbm2(cxw / 31, czw / 31, seed + 5, 2)));
       if (rock && h >= (cfg.rockAbove ?? Infinity)) topC = rock;
+      if (snow && h >= snow.above * (0.92 + 0.16 * hash(i + gx0, j + gz0, seed + 13))) topC = snow.c;
       if (sand && h <= (cfg.sandBelow ?? 0)) topC = sand;
       if (inf?.volcano) topC = inf.crater ? null : mix(lin(cfg.crater || cfg.colors[0]), topC, 0.25);
       const lavaK = inf?.lava || 0;
@@ -453,6 +527,9 @@ function landforms(b, frame, cfg, palette) {
           }
           if (flow) return crust;
           if (lip > 0 && ya >= yt - lip - 0.01) return topC ? mul(topC, 0.92) : strata[0];
+          if (forest && mid - y0 < forest.below * (0.7 + 0.6 * hash(i + gx0, j + gz0, seed + 17))) {
+            return mul(forest.c, 1 + (hash(i * 4 + s, j, seed + 19) - 0.5) * 2 * jitter);
+          }
           const bandIdx = Math.floor((mid - y0 + sink - (((off % band) + band) % band)) / band) + Math.floor(off / band);
           const c = strata[((bandIdx % strata.length) + strata.length) % strata.length];
           const jj = 1 + (hash(i * 4 + s, bandIdx + 977 * j, seed + 3) - 0.5) * 2 * jitter;
@@ -477,6 +554,7 @@ function landforms(b, frame, cfg, palette) {
       }
     }
   }
+  b.extraHaze = 0;
 }
 
 /** Wall with an optional extra cut (the grass lip). */
@@ -827,6 +905,7 @@ export function buildMapBackdrop(palette = {}, dimensions) {
   const b = new BackdropBuilder({
     sun, ambient: cfg.ambient ?? 0.52, direct: cfg.direct ?? 0.6,
     hazeY0: (cfg.hazeGround ?? cfg.ground) - 2, hazeH: cfg.hazeHeight ?? top * 0.55, hazeK: lit ? 0 : cfg.baseHaze ?? 0.62,
+    sunTint: cfg.light?.sun ? lin(cfg.light.sun) : null, skyTint: cfg.light?.sky ? lin(cfg.light.sky) : null,
   });
 
   if (cfg.groundColor) {

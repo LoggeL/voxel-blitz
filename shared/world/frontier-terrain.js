@@ -12,7 +12,7 @@
 
 import { FRONTIER_PLAN } from '../conquest-contract.js';
 import {
-  ASPHALT, CONCRETE, DIRT, STONE, DUST_ROCK, MC_WATER, MC_CLAY, MC_COBBLE,
+  ASPHALT, CONCRETE, DIRT, STONE, DUST_ROCK, MC_WATER, MC_CLAY, MC_COBBLE, SAND,
   MEADOW, DRY_GRASS, FIELD_WHEAT, MUD, SCORCHED_EARTH, GRAVEL, PINE_NEEDLES,
 } from './blocks.js';
 
@@ -72,6 +72,45 @@ function ridged(x, z, octaves, salt) {
 
 // ------------------------------------------------------------- the river
 
+/**
+ * The river keeps the plan's 12 m channel at the five crossings and widens
+ * between them into a 24-30 m meandering river. `riverReach(z)` is 0 at a
+ * crossing and 1 on an open reach; the Iron Bridge keeps its narrows longer
+ * because its quays run 44 m up and down both banks.
+ */
+const NARROWS = Object.freeze({ 'iron-bridge': [46, 66] });
+export function riverReach(z) {
+  let w = 1;
+  for (const c of FRONTIER_PLAN.crossings) {
+    const [a, b] = NARROWS[c.id] ?? [20, 46];
+    w = Math.min(w, smoothstep(a, b, Math.abs(z - c.z)));
+  }
+  return w;
+}
+function riverHalfExact(z) {
+  return RIVER.width / 2 + 9 * riverReach(z) * (0.84 + 0.16 * Math.cos((z - SZ / 2) / 23));
+}
+/** riverHalfExact sampled at every cell centre z + 0.5 (exact there, linear between). */
+const HALF_ROWS = Float64Array.from({ length: SZ + 1 }, (_, zi) => riverHalfExact(zi + 0.5));
+/** Half width of the open water at continuous z (6 at every crossing). */
+export function riverHalfAt(z) {
+  const t = clamp(z - 0.5, 0, SZ), zi = Math.min(SZ - 1, Math.floor(t));
+  return lerp(HALF_ROWS[zi], HALF_ROWS[zi + 1], t - zi);
+}
+/**
+ * Meander of each reach north of the centre: [z0, z1, amplitude] (+ east).
+ * South reaches are the point mirror, so the valley stays fair.
+ */
+const MEANDER = [[0, 150, 9], [150, 270, -15], [270, 384, 13]];
+export function riverMeander(z) {
+  if (z > SZ / 2) return -riverMeander(SZ - z);
+  // sin^2 leaves every crossing square to the banks; the Iron Bridge quays
+  // keep the channel straight for 48 m either side of the deck.
+  const quays = smoothstep(48, 76, Math.abs(z - SZ / 2));
+  for (const [a, b, amp] of MEANDER) if (z >= a && z <= b) return amp * Math.sin(Math.PI * (z - a) / (b - a)) ** 2 * quays;
+  return 0;
+}
+
 /** Uniform Catmull-Rom through the plan's river points, densely sampled. */
 function riverCentreline() {
   const pts = RIVER.points;
@@ -94,9 +133,9 @@ function riverCentreline() {
     while (j < samples.length - 2 && samples[j + 1][1] < z) j++;
     const a = samples[j], b = samples[j + 1];
     const t = b[1] === a[1] ? 0 : clamp((z - a[1]) / (b[1] - a[1]), 0, 1);
-    xs[zi] = lerp(a[0], b[0], t);
-    slope[zi] = b[1] === a[1] ? 0 : (b[0] - a[0]) / (b[1] - a[1]);
+    xs[zi] = lerp(a[0], b[0], t) + riverMeander(z);
   }
+  for (let zi = 0; zi <= SZ; zi++) slope[zi] = (xs[Math.min(SZ, zi + 1)] - xs[Math.max(0, zi - 1)]) / (Math.min(SZ, zi + 1) - Math.max(0, zi - 1));
   return { xs, slope };
 }
 const RIVER_LINE = riverCentreline();
@@ -113,6 +152,20 @@ export function riverOffset(x, z) {
 const RIVER_HALF = RIVER.width / 2;
 const RIVER_BED = RIVER.surfaceY - RIVER.depth;              // 18
 const FORD_BED = RIVER.surfaceY - 1;                         // 20, one voxel of water
+
+/**
+ * Gravel and reed islands in the open reaches: z, offset across the river
+ * (+ east of the centreline), half length along z and half width across.
+ * Authored north of the centre; the south reaches carry the point mirror.
+ * None touches the centreline, so the main channel stays open water.
+ */
+const ISLANDS_NORTH = [
+  { z: 92, o: -7, len: 11, wid: 3.2 },
+  { z: 212, o: 7.5, len: 15, wid: 3.6 },
+  { z: 318, o: -6, len: 9, wid: 2.6 },
+];
+export const FRONTIER_ISLANDS = Object.freeze([...ISLANDS_NORTH, ...ISLANDS_NORTH.map(s => ({ ...s, z: SZ - s.z, o: -s.o }))]
+  .map(s => Object.freeze(s)));
 
 // --------------------------------------------------------- authored plan
 
@@ -183,6 +236,62 @@ export const FRONTIER_FORESTS = Object.freeze([
 ]);
 
 /**
+ * Woodland outlines on the west half (alpha frame). Each is point-mirrored
+ * onto the east half: Ashgrove/Blackwood, the Kestrel upland pinewood and its
+ * twin above Kessler Works, the copses between the roads and the slope woods
+ * along the valley rim. The riverbank tree lines are added by
+ * frontierWoodDensity() from the river itself.
+ */
+export const FRONTIER_WOODS = Object.freeze([
+  ASHGROVE,
+  { id: 'kestrel-upland', x: 126, z: 96, rx: 76, rz: 46, angle: 0.25 },
+  { id: 'north-reach', x: 334, z: 206, rx: 22, rz: 40, angle: 0.15 },
+  { id: 'hedge-copse', x: 286, z: 360, rx: 16, rz: 9, angle: 0.3 },
+  { id: 'axis-copse', x: 228, z: 434, rx: 28, rz: 13, angle: -0.5 },
+  { id: 'aldric-slope', x: 176, z: 540, rx: 22, rz: 30, angle: 0.2 },
+  { id: 'rim-north', x: 214, z: 64, rx: 60, rz: 20, angle: -0.1 },
+  { id: 'rim-north-east', x: 316, z: 50, rx: 40, rz: 16, angle: 0.1 },
+  { id: 'ford-wood', x: 326, z: 300, rx: 14, rz: 24, angle: 0.5 },
+  { id: 'south-reach', x: 346, z: 450, rx: 13, rz: 20, angle: -0.2 },
+  { id: 'axis-north-copse', x: 206, z: 350, rx: 20, rz: 10, angle: 0.3 },
+  { id: 'hq-west-slope', x: 172, z: 486, rx: 16, rz: 24, angle: 0.1 },
+  { id: 'upland-south', x: 120, z: 174, rx: 32, rz: 16, angle: 0.1 },
+  { id: 'axis-south-west', x: 180, z: 428, rx: 14, rz: 20, angle: 0.2 },
+  { id: 'b-c-wood', x: 282, z: 452, rx: 16, rz: 11, angle: -0.9 },
+  { id: 'kestrel-east', x: 296, z: 226, rx: 12, rz: 22, angle: 0.6 },
+  { id: 'north-meadow-wood', x: 268, z: 160, rx: 22, rz: 9, angle: 0.25 },
+].map(w => Object.freeze({ ...w })));
+
+/** Value noise read in the alpha frame, so mirrored cells get the same value. */
+function symNoise(x, z, salt) {
+  return x < SX / 2 ? valueNoise(x, z, salt) : valueNoise(SX - x, SZ - z, salt);
+}
+
+/**
+ * Woodland density 0..1 at a cell centre: the authored woods with soft,
+ * clumpy edges plus tree lines along both river banks that break up into
+ * stands and leave every crossing open. Point-symmetric by construction.
+ */
+export function frontierWoodDensity(x, z) {
+  if (x >= SX / 2) { x = SX - x; z = SZ - z; }
+  let d = 0;
+  for (const w of FRONTIER_WOODS) {
+    const weight = forestWeight(w, x, z);
+    if (weight > 0) d = Math.max(d, smoothstep(0, 0.22, weight));
+  }
+  const offset = riverOffset(x, z), dr = Math.abs(offset);
+  const fromBank = dr > 50 ? 99 : dr - riverHalfAt(z);
+  const band = fromBank < 26 ? 10 + 10 * (valueNoise(z / 37, offset > 0 ? 3 : 5, 431) + 1) / 2 : 0;
+  if (fromBank > 1.5 && fromBank < band + 6) {
+    let crossing = 1;
+    for (const c of FRONTIER_PLAN.crossings) crossing = Math.min(crossing, smoothstep(14, 26, Math.abs(z - c.z)));
+    const stands = smoothstep(-0.8, -0.45, valueNoise(z / 24, x / 24, 433));
+    d = Math.max(d, crossing * stands * smoothstep(1.5, 4, fromBank) * (1 - smoothstep(band, band + 6, fromBank)));
+  }
+  return d > 0 ? clamp(d * (0.7 + 0.45 * fbm(x / 38, z / 38, 2, 401)), 0, 1) : 0;
+}
+
+/**
  * Cultivated strips: wheat and ploughed land around Kestrel Farm and below
  * St. Aldric on the west bank, market gardens and fallow strips on the east.
  */
@@ -201,6 +310,11 @@ export const FRONTIER_FIELDS = Object.freeze([
   { x0: 600, z0: 196, x1: 660, z1: 236, rows: 'z', crop: 'wheat' },
   { x0: 444, z0: 610, x1: 520, z1: 664, rows: 'x', crop: 'wheat' },
   { x0: 548, z0: 420, x1: 600, z1: 470, rows: 'z', crop: 'wheat' },
+  // Golden strips on the open ground either side of the paved axis.
+  { x0: 286, z0: 398, x1: 318, z1: 416, rows: 'z', crop: 'wheat' },
+  { x0: 450, z0: 352, x1: 482, z1: 370, rows: 'z', crop: 'wheat' },
+  { x0: 150, z0: 324, x1: 184, z1: 360, rows: 'x', crop: 'wheat' },
+  { x0: 584, z0: 408, x1: 618, z1: 444, rows: 'x', crop: 'wheat' },
 ].map(f => Object.freeze(f)));
 
 /** Pre-carved shell craters: C's approaches, D's slopes and the open middle. */
@@ -208,7 +322,26 @@ export const FRONTIER_CRATERS = Object.freeze([
   [350, 352, 4], [362, 420, 3], [410, 344, 3], [420, 412, 4], [400, 330, 3], [368, 446, 3],
   [470, 214, 4], [520, 226, 3], [532, 280, 4], [474, 290, 3], [508, 300, 3], [556, 248, 3],
   [440, 300, 3], [330, 470, 3], [300, 230, 3], [470, 540, 3], [250, 456, 3], [520, 330, 3],
-].map(([x, z, r]) => Object.freeze({ x, z, r })));
+  // Shell scars along the river and across the open middle: authored west,
+  // mirrored east, kept 6 m off every road. They are scorched and churned but
+  // not dug out: extra pits along the approaches made bots go to ground
+  // instead of pushing the flags (conquest-action-test flag transitions).
+  ...[
+    [352, 300, 3], [340, 444, 3], [318, 266, 2.5], [300, 410, 3], [262, 378, 2.5], [356, 524, 3], [338, 606, 3],
+    [352, 172, 3], [286, 458, 2.5], [324, 236, 3], [282, 302, 2.5], [364, 248, 3], [312, 560, 2.5], [196, 360, 2.5],
+  ].filter(([x, z, r]) => roadEdgeDistance(x, z) - r >= 6).flatMap(([x, z, r]) => [[x, z, r, 1], [SX - x, SZ - z, r, 1]]),
+].map(([x, z, r, scorch = 0]) => Object.freeze(scorch ? { x, z, r, scorch: true } : { x, z, r })));
+
+/** Distance from (x, z) to the nearest planned road edge. */
+function roadEdgeDistance(x, z) {
+  let best = Infinity;
+  for (const road of FRONTIER_ROAD_PLAN) for (let i = 1; i < road.points.length; i++) {
+    const [ax, az] = road.points[i - 1], [bx, bz] = road.points[i], dx = bx - ax, dz = bz - az;
+    const t = clamp(((x - ax) * dx + (z - az) * dz) / (dx * dx + dz * dz), 0, 1);
+    best = Math.min(best, Math.hypot(x - ax - dx * t, z - az - dz * t) - road.width / 2);
+  }
+  return best;
+}
 
 /** Rocky outcrops inside the combat area: the only interior cliffs. */
 const OUTCROPS = [[140, 640, 12, 7], [118, 150, 10, 6], [300, 600, 9, 5]];
@@ -224,8 +357,9 @@ function inRoundedRect(x, z, r) {
 }
 
 export function forestWeight(forest, x, z) {
+  const dx = x - forest.x, dz = z - forest.z, reach = Math.max(forest.rx, forest.rz) * 1.25;
+  if (dx > reach || dx < -reach || dz > reach || dz < -reach) return -1;
   const c = Math.cos(forest.angle), s = Math.sin(forest.angle);
-  const dx = x - forest.x, dz = z - forest.z;
   const u = (dx * c + dz * s) / forest.rx, v = (-dx * s + dz * c) / forest.rz;
   const edge = 1 + 0.18 * valueNoise(x / 23, z / 23, 77);
   return 1 - Math.hypot(u, v) / edge;                        // > 0 inside
@@ -371,25 +505,45 @@ function buildTerrain() {
     }
   }
 
-  // 3. River: 12 m of water over an 18/19 bed; fords lift the bed to 20.
+  // 3. River: 12 m of water at the crossings widening to ~30 m on the open
+  // reaches, over an 18/19 bed (17 down the middle of a wide reach); fords
+  // lift the bed to 20. Gravel islands stand in the open reaches and the
+  // inside of every bend carries a gravel beach at water level.
   const fords = FRONTIER_CROSSINGS.filter(c => c.kind === 'ford');
-  for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) {
-    const i = z * SX + x, px = x + 0.5, pz = z + 0.5;
-    const dr = Math.abs(riverOffset(px, pz));
-    if (dr <= RIVER_HALF) {
-      const ford = fords.find(f => Math.abs(pz - f.z) <= f.width / 2);
-      water[i] = RIVER.surfaceY;
-      if (ford) { kind[i] = KIND.FORD; fixed[i] = 1; fixedY[i] = FORD_BED; raw[i] = FORD_BED; }
-      else { kind[i] = KIND.RIVER; fixed[i] = 0; raw[i] = dr < RIVER_HALF - 1.5 ? RIVER_BED : RIVER_BED + 1; }
-    } else {
-      const cap = RIVER.surfaceY + (dr - RIVER_HALF);
-      if (!fixed[i] && raw[i] > cap) raw[i] = cap;
-      // Fords keep gentle banks for wheels and boots alike.
-      for (const ford of fords) {
-        const along = Math.abs(pz - ford.z) - ford.width / 2;
-        if (along < 10) {
-          const gentle = FORD_BED + 1 + Math.max(0, dr - RIVER_HALF) / 2.5 + Math.max(0, along);
-          if (!fixed[i] && raw[i] > gentle) raw[i] = gentle;
+  const island = new Uint8Array(N);
+  for (let z = 0; z < SZ; z++) {
+    const pz = z + 0.5, half = riverHalfAt(pz), meander = riverMeander(pz);
+    const beach = 7 * Math.min(1, Math.abs(meander) / 9);
+    for (let x = 0; x < SX; x++) {
+      const i = z * SX + x, px = x + 0.5;
+      const offset = riverOffset(px, pz), dr = Math.abs(offset);
+      if (dr <= half) {
+        const ford = fords.find(f => Math.abs(pz - f.z) <= f.width / 2);
+        water[i] = RIVER.surfaceY;
+        if (ford) { kind[i] = KIND.FORD; fixed[i] = 1; fixedY[i] = FORD_BED; raw[i] = FORD_BED; continue; }
+        kind[i] = KIND.RIVER; fixed[i] = 0;
+        let bed = dr < half - 1.5 ? (half > 10 && dr < half * 0.45 ? RIVER_BED - 1 : RIVER_BED) : RIVER_BED + 1;
+        for (const s of FRONTIER_ISLANDS) {
+          const u = (pz - s.z) / s.len, v = (offset - s.o) / s.wid, q = u * u + v * v;
+          if (q >= 1 + 0.3 * symNoise(px / 3, pz / 3, 197)) continue;
+          island[i] = q < 0.4 ? 2 : 1;
+          bed = q < 0.4 ? RIVER.surfaceY + 1 : RIVER.surfaceY;
+          water[i] = 0;
+        }
+        raw[i] = bed;
+      } else {
+        // Banks climb one voxel per metre; a bend's inside keeps a low beach one
+        // voxel over the water (a beach flush with the surface trapped swimmers).
+        const inside = offset * meander < 0 ? beach : 0;
+        const cap = inside > 0.5 ? RIVER.surfaceY + 1 + Math.max(0, dr - half - inside) : RIVER.surfaceY + Math.max(0, dr - half);
+        if (!fixed[i] && raw[i] > cap) raw[i] = cap;
+        // Fords keep gentle banks for wheels and boots alike.
+        for (const ford of fords) {
+          const along = Math.abs(pz - ford.z) - ford.width / 2;
+          if (along < 10) {
+            const gentle = FORD_BED + 1 + Math.max(0, dr - half) / 2.5 + Math.max(0, along);
+            if (!fixed[i] && raw[i] > gentle) raw[i] = gentle;
+          }
         }
       }
     }
@@ -523,7 +677,7 @@ function buildTerrain() {
       const i = z * SX + x, d = Math.hypot(x + 0.5 - c.x, z + 0.5 - c.z);
       if (d > c.r + 1.5 || roadIndex[i] || !active[i] || kind[i] === KIND.FORD || kind[i] === KIND.CLIFF) continue;
       if (d <= c.r) {
-        const depth = kind[i] === KIND.PAD ? (d < c.r * 0.6 ? 1 : 0) : (d < c.r * 0.45 ? 2 : 1);
+        const depth = c.scorch ? 0 : kind[i] === KIND.PAD ? (d < c.r * 0.6 ? 1 : 0) : (d < c.r * 0.45 ? 2 : 1);
         heights[i] -= depth; crater[i] = d < c.r * 0.7 ? 2 : 1;
       } else crater[i] = Math.max(crater[i], 1);
     }
@@ -565,7 +719,9 @@ function buildTerrain() {
   const surface = new Uint8Array(N);
   // Area masks: 1..n forest index (burnt stands included), fields by index.
   const forestMask = new Uint8Array(N), fieldMask = new Uint8Array(N), padMask = new Uint8Array(N);
+  // Woodland floors come from frontierWoodDensity(); only the burnt stand is masked here.
   FRONTIER_FORESTS.forEach((f, n) => {
+    if (!f.burnt) return;
     const r = Math.max(f.rx, f.rz) * 1.2;
     for (let z = Math.max(0, Math.floor(f.z - r)); z <= Math.min(SZ - 1, Math.ceil(f.z + r)); z++)
       for (let x = Math.max(0, Math.floor(f.x - r)); x <= Math.min(SX - 1, Math.ceil(f.x + r)); x++)
@@ -579,6 +735,13 @@ function buildTerrain() {
       for (let x = Math.floor(p.x - p.radius); x <= Math.ceil(p.x + p.radius); x++)
         if (Math.hypot(x + 0.5 - p.x, z + 0.5 - p.z) <= p.radius) padMask[z * SX + x] = n + 1;
   });
+  // Woodland floor density on a 2 m lattice (point-symmetric: 768 is even).
+  const woodBlocks = new Float32Array((SX / 2) * (SZ / 2)).fill(-1);
+  const woodAt = (x, z) => {
+    const b = (z >> 1) * (SX / 2) + (x >> 1);
+    if (woodBlocks[b] < 0) woodBlocks[b] = frontierWoodDensity((x | 1), (z | 1));
+    return woodBlocks[b];
+  };
   const slopeAt = (x, z) => {
     const h = heights[z * SX + x];
     const step = j => (kind[j] === KIND.RIVER ? 0 : Math.abs(heights[j] - h));
@@ -588,7 +751,12 @@ function buildTerrain() {
   for (let z = 0; z < SZ; z++) for (let x = 0; x < SX; x++) {
     const i = z * SX + x, px = x + 0.5, pz = z + 0.5, h = heights[i];
     const k = kind[i];
-    if (k === KIND.RIVER) { surface[i] = MC_WATER; continue; }
+    if (k === KIND.RIVER) {
+      // Islands: gravel and sand rims around a grassy, reedy crown.
+      const n = valueNoise(px / 4, pz / 4, 199);
+      surface[i] = island[i] === 2 ? (n > 0.15 ? DRY_GRASS : MEADOW) : island[i] ? (n > 0 ? GRAVEL : SAND) : MC_WATER;
+      continue;
+    }
     if (k === KIND.BRIDGE) { surface[i] = CONCRETE; continue; }
     if (k === KIND.FORD || water[i]) { surface[i] = MC_WATER; continue; }
     if (roadIndex[i]) { surface[i] = roads[roadIndex[i] - 1].kind === 'paved' ? ASPHALT : GRAVEL; continue; }
@@ -597,22 +765,29 @@ function buildTerrain() {
     if (crater[i] === 2) { surface[i] = SCORCHED_EARTH; continue; }
     if (crater[i] === 1) { surface[i] = DIRT; continue; }
     if (k === KIND.PAD && padMask[i]) { surface[i] = padSurface(FRONTIER_PADS[padMask[i] - 1], px, pz); continue; }
-    const dr = Math.abs(riverOffset(px, pz));
-    if (dr <= RIVER_HALF + 3) { surface[i] = MUD; continue; }
-    if (dr <= RIVER_HALF + 6) { surface[i] = valueNoise(px / 5, pz / 5, 131) > 0.1 ? MC_CLAY : MUD; continue; }
+    const dr = Math.abs(riverOffset(px, pz)), half = riverHalfAt(pz);
+    if (h <= RIVER.surfaceY + 1 && dr <= half + 9) { surface[i] = valueNoise(px / 9, pz / 9, 133) > -0.1 ? GRAVEL : SAND; continue; }
+    if (dr <= half + 2) { surface[i] = valueNoise(px / 8, pz / 8, 135) > 0.25 ? MC_CLAY : MUD; continue; }
+    if (dr <= half + 6) {
+      const n = valueNoise(px / 10, pz / 10, 131);
+      surface[i] = n > 0.35 ? MC_CLAY : n > -0.2 ? MUD : MEADOW;
+      continue;
+    }
     if (!insideCombatArea(px, pz) || h >= 44) {
       // Restricted rim and mountains: bare rock, scree and windblown tufts.
       const n = valueNoise(px / 9, pz / 9, 137);
       surface[i] = n > 0.3 ? GRAVEL : n < -0.35 ? DUST_ROCK : n < -0.15 && h < 46 ? DRY_GRASS : STONE;
       continue;
     }
-    const forest = forestMask[i] ? FRONTIER_FORESTS[forestMask[i] - 1] : null;
-    if (forest && !forest.burnt) { surface[i] = PINE_NEEDLES; continue; }
-    if (forest) { surface[i] = valueNoise(px / 6, pz / 6, 149) > -0.2 ? SCORCHED_EARTH : DRY_GRASS; continue; }
+    if (forestMask[i]) { surface[i] = valueNoise(px / 6, pz / 6, 149) > -0.2 ? SCORCHED_EARTH : DRY_GRASS; continue; }
     const field = fieldMask[i] ? FRONTIER_FIELDS[fieldMask[i] - 1] : null;
     if (field) {
       const row = Math.floor((field.rows === 'x' ? pz - field.z0 : px - field.x0) / 6);
       surface[i] = field.crop === 'wheat' ? (row % 4 === 3 ? DIRT : FIELD_WHEAT) : (row % 2 ? DIRT : MUD);
+      continue;
+    }
+    if (k !== KIND.PLATEAU && woodAt(x, z) > 0.4) {
+      surface[i] = PINE_NEEDLES;
       continue;
     }
     if (k === KIND.PLATEAU) {

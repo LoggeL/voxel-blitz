@@ -228,30 +228,33 @@ for (const t of BUNKER_TRENCHES) {
 }
 assert.ok(blocks.includes(BARRICADE), 'sandbag lips');
 
-// Forests: Poisson scatter under the cap, clear of roads and flags, mirrored.
+// Woodland: under the cap, clear of roads and flags, point-mirrored.
 const plan = frontierForestPlan();
-assert.ok(plan.total <= FRONTIER_TREE_CAP && plan.total >= 600, `tree count ${plan.total}`);
-assert.equal(plan.ashgrove.length, plan.blackwood.length);
-for (const tree of [...plan.ashgrove, ...plan.blackwood, ...plan.burnt]) {
+assert.ok(plan.total <= FRONTIER_TREE_CAP && plan.total >= 1800, `tree count ${plan.total}`);
+assert.equal(plan.west.length, plan.east.length);
+assert.ok(plan.bushes.length >= 40, `bush clumps ${plan.bushes.length * 2}`);
+for (const tree of [...plan.west, ...plan.east, ...plan.burnt]) {
   assert.ok(roadClearance(tree.x + 0.5, tree.z + 0.5) >= 3, `tree ${tree.x},${tree.z} clear of the road corridor`);
   for (const f of FRONTIER_PLAN.flags) assert.ok(Math.hypot(tree.x + 0.5 - f.x, tree.z + 0.5 - f.z) >= f.radius, `tree ${tree.x},${tree.z} outside flag ${f.id}`);
 }
 let same = 0, total = 0;
-for (let n = 0; n < plan.ashgrove.length; n++) {
-  const a = plan.ashgrove[n], b = plan.blackwood[n];
+for (let n = 0; n < plan.west.length; n++) {
+  const a = plan.west[n], b = plan.east[n];
   assert.equal(b.x, dims.sx - 1 - a.x); assert.equal(b.z, dims.sz - 1 - a.z);
   const ga = frontierTopY(a.x + 0.5, a.z + 0.5), gb = frontierTopY(b.x + 0.5, b.z + 0.5);
   for (let k = 1; k <= a.height; k++) { total++; if (at(a.x, ga + k, a.z) === at(b.x, gb + k, b.z)) same++; }
 }
-assert.ok(same >= total * 0.97, `Blackwood mirrors Ashgrove (${same}/${total} trunk voxels)`);
+assert.ok(same >= total * 0.97, `the east woods mirror the west (${same}/${total} trunk voxels)`);
 
-// Dressing: 4-6 wrecks near C, D and B; hedgerows and walls between flags.
+// Dressing: 4-8 burning wrecks near C, D and B and at the river crossings
+// (the ambience smokes up to 8); hedgerows and walls between flags.
 const wrecks = frontierWrecks();
-assert.ok(wrecks.length >= 4 && wrecks.length <= 6);
+assert.ok(wrecks.length >= 4 && wrecks.length <= 8);
 for (const near of ['C', 'D', 'B']) assert.ok(wrecks.some(w => w.near === near), `a wreck near ${near}`);
 for (const w of wrecks) {
   const flag = FRONTIER_PLAN.flags.find(f => f.id === w.near);
-  assert.ok(Math.hypot(w.x - flag.x, w.z - flag.z) <= 75, `${w.id} stands near ${w.near}`);
+  const crossing = FRONTIER_PLAN.crossings.find(c => c.id === w.near);
+  assert.ok(flag ? Math.hypot(w.x - flag.x, w.z - flag.z) <= 75 : Math.hypot(w.x - crossing.x, w.z - crossing.z) <= 40, `${w.id} stands near ${w.near}`);
   const g = frontierTopY(w.x + 0.5, w.z + 0.5);
   assert.ok(solid(w.x, g + 1, w.z) || solid(w.x, g + 2, w.z), `${w.id} hulk is solid`);
   assert.ok(meta.conquest.dressing.some(d => d.id === w.id && d.y === w.y), `${w.id} is published for wreck smoke`);

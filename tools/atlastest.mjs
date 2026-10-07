@@ -374,7 +374,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     bikini_bottom: 'Bikini Bottom',
   };
   const expectedMapHashes = {
-    frontier: '84043d53',
+    frontier: '189a6f60',
     harbor: 'eeb64538', canyon: 'b8e254a7',
     reactor: 'b1104db3',
     foundry: 'db04cb71',
@@ -418,7 +418,7 @@ ok(DEFAULT_BLOCK_TILES[GLASS].all === TILE.GLASS, 'glass uniform');
     pristineBytes.set(mapId, bytes);
     const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
     const exactHeader = mapId === 'frontier'
-      ? bytes.length === 1720449 && bytes[0] === 86 && bytes[1] === 66
+      ? bytes.length === 1986604 && bytes[0] === 86 && bytes[1] === 66
         && bytes[2] === 2 && bytes[3] === 1 && view.getUint16(4, true) === SX
         && view.getUint16(6, true) === SZ && view.getUint16(8, true) === SY
         && view.getUint32(10, true) === bytes.length - 14

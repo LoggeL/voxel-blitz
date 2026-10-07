@@ -11,7 +11,7 @@ import { ConquestWorld } from './conquest-world.js';
 // state, so every mesh rebuild and raycast reads current blocks.
 
 import * as THREE from '../vendor/three.module.js';
-import { buildAtlas } from './atlas.js';
+import { buildAtlas, mapSurface } from './atlas.js';
 import { ChunkStore } from './chunks.js';
 import { FarTerrain } from './far-terrain.js';
 import { GrassTufts } from './grass-tufts.js';
@@ -235,6 +235,7 @@ export class WorldView {
       silhouetteStep: this.renderDistanceProfile.silhouetteStep,
       groundHeight: Number.isFinite(meta?.groundLevel) ? meta.groundLevel : null,
       lightUniforms: this.lightUniforms,
+      remap: mapSurface(meta?.id).remap,
     }) : null;
     this.grassTufts = new GrassTufts(this.scene, visualBlock, visualDamage, dimensions, {
       density: this.largeWorld ? graphics.grassDensity * LARGE_WORLD_TUFT_DENSITY : graphics.grassDensity,

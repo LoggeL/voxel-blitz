@@ -280,8 +280,8 @@ export function createFluidMaterial(kind, { map = null, tileRect = { u0: 0, v0: 
       flow: { value: new THREE.Vector2(...preset.flow) },
       time: { value: clock },
       sunDir: { value: SUN_DIR.clone() },
-      shallowColor: { value: new THREE.Color(preset.shallowColor) },
-      deepColor: { value: new THREE.Color(preset.deepColor) },
+      shallowColor: { value: new THREE.Color(kind === 'water' ? waterSky.shallowColor ?? preset.shallowColor : preset.shallowColor) },
+      deepColor: { value: new THREE.Color(kind === 'water' ? waterSky.deepColor ?? preset.deepColor : preset.deepColor) },
       glowColor: { value: new THREE.Color(preset.glowColor) },
       glow: { value: preset.glow },
       opacityMin: { value: preset.opacityMin },
@@ -290,8 +290,8 @@ export function createFluidMaterial(kind, { map = null, tileRect = { u0: 0, v0: 
       rippleScale: { value: preset.rippleScale },
       rippleStrength: { value: preset.rippleStrength },
       shininess: { value: preset.shininess },
-      specularStrength: { value: preset.specularStrength },
-      tileWeight: { value: preset.tileWeight },
+      specularStrength: { value: kind === 'water' ? waterSky.specular ?? preset.specularStrength : preset.specularStrength },
+      tileWeight: { value: kind === 'water' ? waterSky.tileWeight ?? preset.tileWeight : preset.tileWeight },
       ...(kind === 'water' ? {
         skyColor: { value: new THREE.Color(waterSky.skyColor ?? preset.skyColor) },
         horizonColor: { value: new THREE.Color(waterSky.horizonColor ?? preset.horizonColor) },
@@ -321,7 +321,9 @@ export function createFluidMaterial(kind, { map = null, tileRect = { u0: 0, v0: 
 /**
  * Point every live water surface (chunk buckets, the B5 far sea) at a map
  * palette: its sky colours for the fresnel reflection, `palette.water`
- * reflection and foam strengths and the foam light level (`foamLight`).
+ * reflection and foam strengths, the foam light level (`foamLight`) and,
+ * optionally, the body colours (`shallow`, `deep`), the pixel-art tile weight
+ * (`tile`) and the sun glint (`specular`); maps without them keep the preset.
  * Later water materials start from it too.
  */
 export function applyWaterPalette(palette = {}) {
@@ -332,6 +334,10 @@ export function applyWaterPalette(palette = {}) {
     reflection: Number.isFinite(water.reflection) ? water.reflection : PRESETS.water.reflection,
     foam: Number.isFinite(water.foam) ? water.foam : PRESETS.water.foamStrength,
     foamLight: Number.isFinite(water.foamLight) ? water.foamLight : PRESETS.water.foamLight,
+    shallowColor: water.shallow ?? PRESETS.water.shallowColor,
+    deepColor: water.deep ?? PRESETS.water.deepColor,
+    tileWeight: Number.isFinite(water.tile) ? water.tile : PRESETS.water.tileWeight,
+    specular: Number.isFinite(water.specular) ? water.specular : PRESETS.water.specularStrength,
   };
   for (const material of registry) {
     if (material.userData.fluid !== 'water') continue;
@@ -341,6 +347,10 @@ export function applyWaterPalette(palette = {}) {
     u.reflection.value = waterSky.reflection;
     u.foamStrength.value = waterSky.foam;
     u.foamLight.value = waterSky.foamLight;
+    u.shallowColor.value.set(waterSky.shallowColor);
+    u.deepColor.value.set(waterSky.deepColor);
+    u.tileWeight.value = waterSky.tileWeight;
+    u.specularStrength.value = waterSky.specular;
   }
   return waterSky;
 }

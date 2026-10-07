@@ -1,6 +1,6 @@
 // Frontier v2 generator: fills the 768 x 80 x 768 heightfield from
-// shared/world/frontier-terrain.js, then builds the five flag sites, the two
-// HQ airfields, the forests, the battlefield dressing and the roadside
+// shared/world/frontier-terrain.js, then builds the battlefield dressing, the
+// five flag sites, the two HQ airfields, the woodland and the roadside
 // dressing on top of it.
 // Finally it re-opens every reserved cell (spawns, vehicle pads, roads) so no
 // set piece can ever block an authoritative spawn or route.
@@ -42,7 +42,8 @@ export function fillFrontierTerrain(blocks, dimensions, terrain) {
         else if (k === KIND.RIVER || k === KIND.BRIDGE) m = MC_CLAY;
         else m = DIRT;
       } else if (y === top) {
-        if (k === KIND.RIVER || k === KIND.BRIDGE) m = top <= 18 ? MC_GRAVEL : MUD;
+        if (k === KIND.RIVER && !water[i]) m = surface[i];               // a gravel island
+        else if (k === KIND.RIVER || k === KIND.BRIDGE) m = top <= 18 ? MC_GRAVEL : MUD;
         else if (k === KIND.FORD) m = GRAVEL;
         else m = surface[i];
       } else if (water[i] && y <= water[i]) m = MC_WATER;
@@ -60,7 +61,6 @@ export function generateFrontierV2Into(world, blocks, heights) {
   const terrain = frontierTerrain();
   fillFrontierTerrain(blocks, dimensions, terrain);
   const kit = createSiteKit({ blocks, dimensions, terrain });
-  buildForests(kit);
   buildDressing(kit);
   buildFarm(kit);
   buildVillage(kit);
@@ -68,6 +68,8 @@ export function generateFrontierV2Into(world, blocks, heights) {
   buildBunkers(kit);
   buildWorks(kit);
   buildAirfields(kit);
+  // Woodland after the set pieces: trunks and crowns only fill air.
+  buildForests(kit);
   // Roadside dressing last among the set pieces: it only builds on ground no site claimed.
   kit.roadside = buildRoadside(kit);
   buildEntrances(kit);

@@ -165,9 +165,10 @@ const SCENERY = {
 };
 /**
  * Frontier weather moods (mapMeta.conquest.weather, capture override
- * ?weather=). Every preset only changes uniform values and object visibility
- * (sky dome, fog, lights, grade, ambience, backdrop tint): the same programs
- * compile for all three, so the mood never touches a program key.
+ * ?weather=). Every preset only changes uniform values, object visibility and
+ * the backdrop's baked vertex colours (sky dome, fog, lights, grade, ambience,
+ * water, mountain light and haze): the same programs compile for all three,
+ * so the mood never touches a program key.
  *   golden    late-afternoon sun from the west-south-west, warm haze, long shadows
  *   mist      valley mist, hazy soft sun, denser fog
  *   overcast  grey deck, no sun disc, flat light
@@ -178,41 +179,69 @@ const SCENERY = {
 export const FRONTIER_WEATHER = Object.freeze(['golden', 'mist', 'overcast']);
 const FRONTIER_SCENERY = {
   skybox: null, density: 0.002,
-  // Big, high puffs over the whole battlefield (sky.js), above every ridge.
-  clouds: Object.freeze({ y: 150, span: 620, scale: 2.6, count: 22 }),
-  // Horizon mountain ring beyond the map edge: ridged peaks with grass benches,
-  // rock above 70 m, melting into the haze at their foot.
+  // No blocky puffs: each mood paints its own pixel-snapped cloud layer in the
+  // sky dome (sky.js cloudLayer), or the overcast deck.
+  clouds: false,
+  // Horizon mountain ring beyond the map edge: ridged peaks with forested
+  // benches and bare rock above 96 m, tallest at the back of the ring, so the
+  // valley reads as closed by layered ranges that fade into the air.
   backdrop: Object.freeze({ style: 'terrain', shape: 'peaks', seed: 21, ground: 34,
-    colors: ['#7a7364', '#6b6558', '#857c6b', '#625d52'], top: '#6f7d4f', top2: '#7f8656', rock: '#8f8a80', rockAbove: 72,
-    lip: 1.2, height: [36, 150], near: 40, rise: 70, depth: 420, scale: 120, band: 16, cell: 14, step: 5, maxRise: 0.55,
-    groundColor: '#6c7150', groundHaze: [0.2, 0.95], groundSkirt: 30, baseHaze: 0.42, hazeHeight: 70,
-    air: Object.freeze({ strength: 0.34, near: 120, far: 1100, fog: 0.35 }) }),
+    colors: ['#6a5d53', '#655950', '#6f6157', '#615549'], top: '#3f5034', top2: '#4d5a39', rock: '#8a7b70', rockAbove: 96,
+    forest: Object.freeze({ color: '#3a5230', below: 120 }), snow: Object.freeze({ color: '#ece2d6', above: 205 }),
+    lip: 1.2, ambient: 0.36, direct: 0.95, height: [20, 310], near: 40, rise: 60, depth: 430, scale: 150, band: 20, cell: 14, step: 4,
+    maxRise: 0.85, risePow: 1.8, jitter: 0.06,
+    // Three ranges stacked in depth: rolling forested foothills, mid ridges,
+    // then tall sharp peaks that carry snow and the most baked haze.
+    ranges: Object.freeze([
+      Object.freeze({ near: 40, far: 190, height: [6, 70], scale: 60, sharp: 1.5, haze: 0 }),
+      Object.freeze({ near: 150, far: 320, height: [30, 210], scale: 100, sharp: 1.8, haze: 0.14 }),
+      Object.freeze({ near: 280, far: 470, height: [40, 520], scale: 150, sharp: 2.4, haze: 0.3 }),
+    ]),
+    slope: 1.1,
+    groundColor: '#5f6340', groundHaze: [0.15, 0.85], groundSkirt: 30, baseHaze: 0.2, hazeHeight: 25,
+    air: Object.freeze({ strength: 0.3, near: 600, far: 1400, fog: 0.2 }) }),
 };
+/**
+ * Weather presets on top of FRONTIER_SCENERY. Golden hour follows the
+ * redesign references (docs/design/conquest/redesign/world/): crisp, warm
+ * low sun, a readable mid-distance (thin ground haze), a blue-violet zenith
+ * over an orange horizon that burns under the sun, scattered lit clouds,
+ * cool aerial perspective on the mountain ring (backdropHaze) and a dark,
+ * deep river that mirrors the sky.
+ *   sunGlow     sky.js: horizon glow strength toward the sun's azimuth
+ *   cloudLayer  sky.js: { cover 0..1, lit, shade } pixel-snapped cloud deck
+ *   water       fluid-material.js applyWaterPalette: body colours and glint
+ */
 const FRONTIER_PRESETS = {
-  golden: { skyTop: '#5b84b4', skyHorizon: '#f1c999', fog: '#dcc3a0', skyHaze: 0.22,
-    horizonGlow: '#ff9a55', horizonGlowStrength: 0.3, cloud: '#ffe6cc',
-    skyLight: '#c4d0de', groundLight: '#7e6c52', sun: '#ffd09a', ambient: 0.7, sunlight: 1.75,
-    sunDir: [-62, 52, 38], sunDisc: 1.2, envIntensity: 0.42, fogScale: 0.65, airFogScale: 1,
-    grade: { highlightTint: [0.034, 0.015, -0.014], shadowTint: [-0.007, 0.001, 0.013], saturation: 1.07 },
+  golden: { skyTop: '#8e9ccf', skyHorizon: '#f7b062', skyMid: '#f6d6a0', skyMidAt: 0.3, fog: '#dcb88e', skyHaze: 0.12,
+    horizonGlow: '#ff9a40', horizonGlowStrength: 0.16, sunGlow: 0.35,
+    cloudLayer: { cover: 0.66, lit: '#ffd49a', shade: '#8f7488' }, cloud: '#ffd2a8',
+    skyLight: '#a3b3d8', groundLight: '#7a5d3c', sun: '#ffc888', ambient: 0.62, sunlight: 2.0,
+    sunDir: [-62, 52, 38], sunDisc: 1.4, envIntensity: 0.42, fogScale: 0.36, airFogScale: 1,
+    grade: { highlightTint: [0.04, 0.016, -0.02], shadowTint: [-0.01, -0.002, 0.02], saturation: 1.1, contrast: 1.06 },
     light: { minSky: 0.42, shadow: 0.84 },
     ambience: { kind: 'pollen', floor: 20, band: 46, color: '#ffe0a3', color2: '#fff4dc', density: 0.55, sunlit: 0.85 },
-    backdropHaze: '#e3c9a6' },
-  mist: { skyTop: '#8399ad', skyHorizon: '#d6dbdc', fog: '#c9d0d1', skyHaze: 0.75,
-    horizonGlow: '#ffd4a6', horizonGlowStrength: 0.08, cloud: '#e9ecec',
-    skyLight: '#d4dde4', groundLight: '#6d7266', sun: '#ffe9cc', ambient: 0.9, sunlight: 1.18,
-    sunDir: [-62, 52, 38], sunDisc: 0.45, envIntensity: 0.5, fogScale: 1.9,
-    grade: { highlightTint: [0.012, 0.01, 0.0], shadowTint: [-0.004, 0.002, 0.01], saturation: 0.96 },
+    water: { reflection: 0.7, shallow: '#2f4a55', deep: '#132a33', tile: 0.2, specular: 1.1 },
+    backdropHaze: '#9da0c8', backdropHazeTint: 0.85, backdropLight: { sun: '#ffd2a6', sky: '#9aa2c2' } },
+  mist: { skyTop: '#9aa4c6', skyHorizon: '#e6d6c6', skyMid: '#ece4dc', skyMidAt: 0.3, fog: '#d2d0d2', skyHaze: 0.45,
+    horizonGlow: '#ffc79a', horizonGlowStrength: 0.1, sunGlow: 0.12,
+    cloudLayer: { cover: 0.25, lit: '#f6eadc', shade: '#b8b8c8' }, cloud: '#e9ecec',
+    skyLight: '#d0d6e2', groundLight: '#6d7266', sun: '#ffe2c0', ambient: 0.88, sunlight: 1.25,
+    sunDir: [-62, 52, 38], sunDisc: 0.55, envIntensity: 0.5, fogScale: 1.5, airFogScale: 1.2,
+    grade: { highlightTint: [0.014, 0.01, 0.0], shadowTint: [-0.004, 0.002, 0.012], saturation: 1.0 },
     light: { minSky: 0.48, shadow: 0.58 },
     ambience: { kind: 'mist', floor: 21.5, band: 5, alpha: 0.07 },
-    backdropHaze: '#d3d8d8' },
-  overcast: { skyTop: '#86929b', skyHorizon: '#b9c1c5', fog: '#b5bcbf', skyHaze: 0.3,
-    overcast: 0.85, deckColor: '#a5aeb4', cloud: '#b0b8bd',
-    skyLight: '#cfd8dc', groundLight: '#5f6a60', sun: '#eef0ee', ambient: 0.94, sunlight: 0.92,
-    sunDir: [-30, 110, 30], sunDisc: 0, envIntensity: 0.5, fogScale: 1.3,
-    grade: { saturation: 0.93, shadowTint: [-0.003, 0.002, 0.008], highlightTint: [0.0, 0.004, 0.008] },
+    water: { reflection: 0.8, shallow: '#76878e', deep: '#33464f', tile: 0.25, specular: 0.5 },
+    backdropHaze: '#c3bfd0', backdropLight: { sun: '#f4dcc4', sky: '#bcbcd0' }, backdropAirFog: 0.6, backdropBaseHaze: 0.8, backdropHazeHeight: 90 },
+  overcast: { skyTop: '#6f7b88', skyHorizon: '#aab3bb', fog: '#a9b1b8', skyHaze: 0.3,
+    overcast: 0.88, deckColor: '#929ca6', cloud: '#b0b8bd',
+    skyLight: '#c6d0d8', groundLight: '#5c665c', sun: '#eef0ee', ambient: 0.92, sunlight: 0.95,
+    sunDir: [-30, 110, 30], sunDisc: 0, envIntensity: 0.5, fogScale: 0.75, airFogScale: 1,
+    grade: { saturation: 0.95, contrast: 1.04, shadowTint: [-0.003, 0.002, 0.01], highlightTint: [0.0, 0.004, 0.008] },
     light: { minSky: 0.52, shadow: 0.38 },
     ambience: { kind: 'sparse', floor: 20, band: 40 },
-    backdropHaze: '#b9c0c3' },
+    water: { reflection: 0.85, shallow: '#5b6c72', deep: '#26363d', tile: 0.25, specular: 0.25 },
+    backdropHaze: '#99a3ad', backdropLight: { sun: '#c8ccd0', sky: '#a8b2bc' }, backdropAirFog: 0.45, backdropBaseHaze: 0.65 },
 };
 
 /** The weather a map shows: a capture override, else the authored mapMeta value, else golden. */
@@ -223,12 +252,18 @@ export function resolveWeather(meta, override = null) {
 
 function frontierAtmosphere(weather) {
   const preset = FRONTIER_PRESETS[FRONTIER_WEATHER.includes(weather) ? weather : 'golden'];
-  const { backdropHaze, ...rest } = preset;
+  const { backdropHaze, backdropHazeTint = 0.55, backdropLight = null, backdropAirFog = null, backdropBaseHaze = null,
+    backdropHazeHeight = null, ...rest } = preset;
+  const base = FRONTIER_SCENERY.backdrop;
   return {
     ...rest,
     ...FRONTIER_SCENERY,
     weather: FRONTIER_WEATHER.includes(weather) ? weather : 'golden',
-    backdrop: { ...FRONTIER_SCENERY.backdrop, hazeColor: backdropHaze, hazeTint: 0.55 },
+    // Denser moods fog the mountain ring more, so it melts into the valley
+    // haze instead of standing sharp over a white band.
+    backdrop: { ...base, hazeColor: backdropHaze, hazeTint: backdropHazeTint, light: backdropLight,
+      air: backdropAirFog == null ? base.air : { ...base.air, fog: backdropAirFog },
+      baseHaze: backdropBaseHaze ?? base.baseHaze, hazeHeight: backdropHazeHeight ?? base.hazeHeight },
   };
 }
 

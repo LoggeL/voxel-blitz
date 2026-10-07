@@ -42,12 +42,13 @@ export class FarTerrain {
    *   lightUniforms: voxel light volume uniforms (sun shadows and sky on far ground).
    */
   constructor(scene, getBlock, dimensions, {
-    step = 16, silhouetteStep = null, groundHeight = null, surfaceHint = null, lightUniforms = null,
+    step = 16, silhouetteStep = null, groundHeight = null, surfaceHint = null, lightUniforms = null, remap = null,
   } = {}) {
     if (!Number.isInteger(step) || step <= 0 || 16 % step !== 0) throw new RangeError('FarTerrain step must divide a 16m detail chunk');
     this.scene = scene; this.getBlock = getBlock; this.dimensions = dimensions;
     this.step = step;
     this.groundHeight = groundHeight;
+    this.remap = remap;
     this.surfaceHint = typeof surfaceHint === 'function' ? surfaceHint : null;
     this.width = Math.ceil(dimensions.sx / this.step);
     this.depth = Math.ceil(dimensions.sz / this.step);
@@ -80,7 +81,7 @@ export class FarTerrain {
     // roofs into ramps; bulk terrain below the local ground stays out of it.
     this.silhouette = silhouetteStep != null ? new DistantVoxelShell(scene, getBlock, dimensions, {
       step: silhouetteStep, groundHeight: groundHeight ?? 0,
-      floor: this.shellFloor(silhouetteStep), lightUniforms,
+      floor: this.shellFloor(silhouetteStep), lightUniforms, remap,
     }) : null;
   }
 
@@ -191,7 +192,7 @@ export class FarTerrain {
       this.normals[offset + 2] = Math.round(nz / length * 127);
       // Painter colour of the surface block; slopes darken and lean to rock
       // grey, skirts sit in shade below the surface.
-      const rgb = s.id === AIR ? [139, 139, 122] : materialColor(s.id, 2);
+      const rgb = s.id === AIR ? [139, 139, 122] : materialColor(s.id, 2, this.remap);
       const slope = Math.min(1, Math.hypot(hx, hz) / (2 * step) / STEEP);
       const shade = (top ? 1 - 0.28 * slope : 0.62);
       const grey = (rgb[0] + rgb[1] + rgb[2]) / 3;

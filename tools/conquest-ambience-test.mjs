@@ -74,7 +74,8 @@ for (const spec of fx.added) {
   assert.ok(Math.abs(Math.atan2(-vz, vx) - CONQUEST_WIND_YAW) < 1e-9, 'smoke leans downwind like the flags');
 }
 const plumes = fx.added.filter(e => e.params.source === 'chimney');
-assert.ok(plumes.every(e => e.kind === 'smokeColumn' && e.pos[1] > 78), 'plumes leave the stack tops');
+assert.ok(plumes.length === sources.chimneys.length && plumes.every((e, i) => e.kind === 'smokeColumn' && e.pos[1] > sources.chimneys[i].y),
+  'plumes leave the stack tops');
 assert.ok(Math.abs(Math.hypot(AMBIENCE_WIND[0], AMBIENCE_WIND[2]) - 1) < 1e-9);
 
 // --- Two simulated minutes: salvos, particle budget, CPU ----------------------------------------

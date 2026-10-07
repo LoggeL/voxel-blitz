@@ -14,6 +14,9 @@ const FLAG = FRONTIER_PLAN.flags.find(f => f.id === 'E');
 const HALL = rect(544, 526, 574, 546);
 export const CHIMNEY_TOP_Y = FRONTIER_PLAN.heights.landmarkMax;
 const CHIMNEYS = [{ id: 'kessler-chimney-west', x: 552.5, z: 554.5 }, { id: 'kessler-chimney-east', x: 564.5, z: 554.5 }];
+/** Two shorter boiler-house stacks east of the hall (smoke anchors for the ambience). */
+const STACKS = [{ id: 'kessler-stack-north', x: 581.5, z: 530.5, top: 70 }, { id: 'kessler-stack-south', x: 581.5, z: 542.5, top: 66 }];
+const BOILER_HOUSE = rect(578, 520, 594, 525);
 const COOLING = { x: 508.5, z: 557.5, r: 9.5, rise: 35 };
 const JEEP = { x: 520.5, z: 532.5, yaw: Math.PI / 2 };
 const COAL = [{ x: 586, z: 560, r: 6, h: 4 }, { x: 596, z: 546, r: 5, h: 3 }];
@@ -21,6 +24,11 @@ const RAILS = [568, 574];
 const WAGONS = [rect(506, 566, 514, 570), rect(530, 566, 538, 570), rect(548, 572, 556, 576)];
 const YARD = rect(556, 502, 566, 510);
 const PUMP_HOUSE = rect(508, 523, 515, 530);
+/** Works ground the woodland keeps clear of: rail yard, coal, cooling tower, yard, stacks. */
+export const WORKS_KEEP_OUT = Object.freeze([
+  rect(466, 562, 610, 582), rect(578, 538, 604, 568), rect(496, 545, 521, 570), rect(544, 500, 568, 524),
+  rect(574, 520, 598, 542),
+]);
 
 export const WORKS_SITE = Object.freeze({
   flag: 'E', site: 'works', x: FLAG.x, z: FLAG.z,
@@ -30,6 +38,7 @@ export const WORKS_SITE = Object.freeze({
     Object.freeze({ id: CHIMNEYS[0].id, kind: 'chimney', x: CHIMNEYS[0].x, z: CHIMNEYS[0].z, y: CHIMNEY_TOP_Y, primary: true }),
     Object.freeze({ id: CHIMNEYS[1].id, kind: 'chimney', x: CHIMNEYS[1].x, z: CHIMNEYS[1].z, y: CHIMNEY_TOP_Y }),
     Object.freeze({ id: 'kessler-cooling-tower', kind: 'cooling tower', x: COOLING.x, z: COOLING.z, rise: COOLING.rise }),
+    ...STACKS.map(c => Object.freeze({ id: c.id, kind: 'chimney', x: c.x, z: c.z, y: c.top })),
   ]),
   vehicle: Object.freeze({ id: 'flag-E-jeep', type: 'jeep', team: 'bravo', ...JEEP }),
   lanes: Object.freeze([
@@ -42,7 +51,7 @@ export const WORKS_SITE = Object.freeze({
     Object.freeze({ x: 550.5, z: 511.5, faces: 'hq-east-e' }),
   ]),
   spawns: pickSpawnCells(FLAG.x, FLAG.z, {
-    exclude: [HALL, PUMP_HOUSE, rect(516, 528, 524, 536), YARD, rect(523, 494, 541, 499), ...CHIMNEYS.map(c => rect(c.x - 4, c.z - 4, c.x + 4, c.z + 4))],
+    exclude: [HALL, PUMP_HOUSE, BOILER_HOUSE, rect(516, 528, 524, 536), YARD, rect(523, 494, 541, 499), ...CHIMNEYS.map(c => rect(c.x - 4, c.z - 4, c.x + 4, c.z + 4))],
     radii: [8, 12, 16],
   }),
 });
@@ -95,6 +104,25 @@ function chimney(kit, c) {
   kit.feature('landmark', { id: c.id, x: c.x, y: CHIMNEY_TOP_Y, z: c.z });
 }
 
+/** Boiler-house stacks: banded brick on a concrete plinth, flues into a low boiler house. */
+function stacks(kit) {
+  const { minX: x0, minZ: z0, maxX: x1, maxZ: z1 } = BOILER_HOUSE;
+  const y = kit.maxTop(x0, z0, x1, z1);
+  kit.foundation(x0, z0, x1, z1, y, CONCRETE, BRICK);
+  kit.walls(x0, z0, x1, z1, y + 1, y + 5, BRICK);
+  kit.box(x0 + 1, y + 1, z0 + 1, x1 - 1, y + 5, z1 - 1, AIR);
+  kit.box(x0, y + 1, z0 + 1, x0, y + 3, z0 + 2, AIR);
+  kit.box(x0, y + 6, z0, x1, y + 6, z1, CORRUGATED_STEEL);
+  for (const c of STACKS) {
+    const g = kit.top(c.x, c.z);
+    kit.cylinder(c.x, c.z, 2.6, g + 1, g + 2, CONCRETE);
+    for (let yy = g + 3; yy <= c.top; yy++) kit.cylinder(c.x, c.z, 1.9 - (yy - g) * 0.006, yy, yy, (yy - g) % 9 < 1 ? PALE : BRICK, true);
+    kit.cylinder(c.x, c.z, 1.9, c.top, c.top, SOOT_BRICK, true);
+    kit.box(HALL.maxX + 1, g + 4, Math.floor(c.z), Math.floor(c.x) - 2, g + 4, Math.floor(c.z), RUST);   // flue from the hall
+    kit.feature('landmark', { id: c.id, x: c.x, y: c.top, z: c.z });
+  }
+}
+
 /** Hyperbolic shell with a waist at 70 % height and arched ground openings. */
 function coolingTower(kit) {
   const { x, z, r, rise } = COOLING, g = kit.top(x, z);
@@ -127,6 +155,14 @@ function railYard(kit) {
     else kit.box(w.minX + 1, y + 2, w.minZ, w.maxX - 1, y + 2, w.minZ, AIR);
     kit.feature('cover', { cover: 'wagon', x: (w.minX + w.maxX) / 2, z: (w.minZ + w.maxZ) / 2, height: 3 });
   });
+  // Sleeper stacks and spare rail along the north side of the embankment lane.
+  for (let x = 472; x <= 528; x += 7) {
+    const g = kit.top(x, 565);
+    if (roadClearance(x + 0.5, 565.5) < 2 || kit.solid(x, g + 1, 565) || kit.solid(x + 2, g + 1, 565)) continue;
+    kit.box(x, g + 1, 565, x + 2, g + 2, 566, TIMBER);
+    kit.box(x, g + 3, 565, x + 1, g + 3, 566, RUST);
+    kit.feature('cover', { cover: 'sleepers', x: x + 1.5, z: 566, height: 2 });
+  }
   // Buffer stop and a water crane.
   const g = kit.top(606, 568);
   kit.box(606, g + 1, 567, 607, g + 2, 571, TIMBER);
@@ -166,6 +202,7 @@ function pumpHouse(kit) {
 
 export function buildWorks(kit) {
   for (const c of CHIMNEYS) chimney(kit, c);
+  stacks(kit);
   smelterHall(kit);
   coolingTower(kit);
   railYard(kit);

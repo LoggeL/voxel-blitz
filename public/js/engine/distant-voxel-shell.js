@@ -17,9 +17,14 @@ const MAX_UPDATE_RANGES = 48;
 const NORMALS = [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]];
 const TILE_COLORS = new Map();
 
-/** Average the same material painter used by detailed chunks, in linear RGB (0..255). */
-export function materialColor(id, face) {
-  const tile = faceTile(id, face);
+/**
+ * Average the same material painter used by detailed chunks, in linear RGB (0..255).
+ * `remap` is the map's whole-tile remap (atlas.js mapSurface), so far LODs
+ * wear the same per-map palette as the detailed chunks.
+ */
+export function materialColor(id, face, remap = null) {
+  const base = faceTile(id, face);
+  const tile = remap?.[base] ?? base;
   if (TILE_COLORS.has(tile)) return TILE_COLORS.get(tile);
   const painter = TILE_PAINTERS[tile], color = new THREE.Color();
   const sum = [0, 0, 0];
@@ -57,7 +62,7 @@ export function materialColor(id, face) {
  * are not drawn, so their rebuild waits until the chunk streams out again.
  */
 export class DistantVoxelShell {
-  constructor(scene, getBlock, dimensions, { step = 2, groundHeight = 11, floor = null, lightUniforms = null } = {}) {
+  constructor(scene, getBlock, dimensions, { step = 2, groundHeight = 11, floor = null, lightUniforms = null, remap = null } = {}) {
     if (!Number.isInteger(step) || step < 1 || CHUNK_SIZE % step !== 0) {
       throw new RangeError('Distant voxel step must be a positive divisor of 16');
     }
@@ -68,6 +73,7 @@ export class DistantVoxelShell {
     }
     const started = performance.now();
     this.scene = scene; this.getBlock = getBlock; this.dimensions = dimensions;
+    this.remap = remap;
     // Every shell corner is an integer world coordinate. Unsigned shorts
     // preserve these exactly on Frontier and reduce cached and GPU positions;
     // Three converts non-normalized attributes to floating-point shader inputs.
@@ -204,7 +210,7 @@ export class DistantVoxelShell {
 
   emitQuad(positions, normals, colors, base, axis, u, v, slice, i, j, width, height, value) {
     const face = axis === 0 ? (value > 0 ? 0 : 1) : axis === 1 ? (value > 0 ? 2 : 3) : (value > 0 ? 4 : 5);
-    const normal = NORMALS[face], color = materialColor(Math.abs(value), face);
+    const normal = NORMALS[face], color = materialColor(Math.abs(value), face, this.remap);
     // Cyclic axes guarantee U x V is the positive normal; reverse negative
     // faces so ordinary FrontSide materials also work from below a bridge.
     const corners = value > 0 ? [[0, 0], [width, 0], [width, height], [0, height]]

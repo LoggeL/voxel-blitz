@@ -25,7 +25,12 @@ The pipeline:
    - Flag pads have a radius of flag radius + 12, a 20 m smoothstep falloff, and these levels: farm 27, village 33, bridge 25, bunkers 33, works 27.
    - The HQ plateaus are flat at y36: x 26–146 by z 200–568 for WEST, mirrored for EAST.
    - Each runway approach stays level for 90 m and then climbs at 1:5.
-3. **River.** The `FRONTIER_PLAN.river` spline is 12 m wide, with the bed at y18/19 and water at y19–21. The two fords lift the bed to y20 (one voxel of water) across 14 m and have gentle banks. After the clamp, water finds its level: any dry cell below y21 that touches the river (a ford bank or road shoulder graded down to the ford bed) is flooded too, so no water face ever stands over open ground.
+3. **River.** The `FRONTIER_PLAN.river` spline keeps its 12 m channel at the five crossings (`riverHalfAt(z)` is 6 there) and widens to 24–30 m on the open reaches between them (`riverReach(z)`: full width 46 m from a bridge or ford, 66 m from the Iron Bridge, whose quays run ±44 m). `riverMeander(z)` bends each reach (±9–15 m, `sin²` so every crossing stays square to the banks; zero within 48 m of the Iron Bridge); the south reaches are the point mirror of the north ones.
+   - The bed is y18/19 (y17 down the middle of a wide reach), water y19–21. The two fords lift the bed to y20 (one voxel of water) across 14 m and have gentle banks.
+   - Six gravel islands (`FRONTIER_ISLANDS`, three authored, three mirrored) stand off the centreline in the wide reaches: a y21 gravel/sand rim round a y22 grassy crown. They keep kind RIVER (not drivable) with no water above them.
+   - The inside of every bend carries a gravel/sand beach one voxel above the water (a beach flush with the surface trapped swimming bots); the rest of the bank climbs one voxel per metre as before.
+   - After the clamp, water finds its level: any dry cell below y21 that touches the river (a ford bank or road shoulder graded down to the ford bed) is flooded too, so no water face ever stands over open ground.
+   - Vehicles still cross only at the 3 bridges and 2 fords: the bed sits 2–4 voxels under every bank.
 4. **Roads.** Each road is graded by envelope relaxation between pins (decks, fords, pads, plateaus and earlier roads) to 2/3 of 1 voxel per 3 m. This keeps the rasterised cells at no more than 1 voxel per 3 m along the road and 1 voxel across it.
    - The paved axis runs HQ-W → C → HQ-E and is 10 m wide.
    - The gravel tracks are 7 m wide: HQ→A, HQ→B, A→C, B→C, A→D over ford-north, the north loop over bridge-north, and their EAST mirrors (E→B over ford-south, the south loop over bridge-south).
@@ -33,23 +38,24 @@ The pipeline:
 6. **Surfaces.**
    - MEADOW and DRY_GRASS by moisture.
    - FIELD_WHEAT and plough strips in 14 fields.
-   - MUD and MC_CLAY on the banks.
+   - MUD, MC_CLAY and patches of meadow on the banks; GRAVEL and SAND on the bend beaches and island rims.
    - GRAVEL tracks and hardstand.
    - STONE, DUST_ROCK and scree on slopes and in the mountains.
-   - PINE_NEEDLES under the forests.
+   - PINE_NEEDLES under the woods (`frontierWoodDensity() > 0.4`, sampled on a 2 m lattice), SCORCHED_EARTH and dry grass in the burnt stand.
    - Shell-churned MUD and SCORCHED_EARTH around C and D.
    - DIRT tracks and patches.
-   - Pre-carved craters.
+   - Pre-carved craters (18 dug bowls) and 22 shell scars (scorched and churned, not dug out).
+   - FIELD_WHEAT and plough strips in 18 fields (four golden strips either side of the paved axis were added in the 2026-10-07 content pass).
 
 ## Sites (`frontier-sites/`)
 
 | Flag | Site (module) | Hard point | Landmark (top y) |
 |---|---|---|---|
 | A Kestrel Farm (232, 248) | `farm.js`: timber barn with hay loft, field-stone barn, plaster farmhouse, haystacks, hedged lanes, wheat strips | stone barn | grain silo (y61), windmill (y54) |
-| B St. Aldric (272, 520) | `village.js`: two-storey plaster houses with stepped terracotta roofs, walled yards, alleys, cobbled square, well | church nave | church spire (y78) |
+| B St. Aldric (272, 520) | `village.js`: two-storey plaster houses with stepped terracotta roofs, walled yards, alleys, cobbled square, well; 16 closed hill houses (1–3 storeys, timber doors) on stone plinths up the west rise and down the south slope, stepped cobble lanes, walled garden plots, cypresses; white-plastered bell tower with stone quoins | church nave | church spire (y78) |
 | C Iron Bridge (384, 384) | `bridge.js`: bowstring truss over a CONCRETE deck on a METAL core, brick toll house, warehouse shell, ruins, quays, sandbagged bridgeheads | toll house | truss crown (y45), water tower (y50) |
 | D Ridge Bunkers (496, 248) | `bunkers.js`: zig-zag trenches 2 deep with duckboards, sandbag lips and timber revetments; 2 concrete pillboxes; tank traps; MG nests | west pillbox | observation tower (y59), radar dome (y43) |
-| E Kessler Works (536, 520) | `works.js`: enterable smelter hall with furnaces, gantry and crane rail; conveyor; rail yard with wagons; coal heaps; pump house; blast walls | smelter hall | two chimneys (y78), cooling tower (y65) |
+| E Kessler Works (536, 520) | `works.js`: enterable smelter hall with furnaces, gantry and crane rail; conveyor; rail yard with wagons and sleeper stacks; coal heaps; pump house; boiler house; blast walls | smelter hall | two chimneys (y78), two boiler stacks (y70, y66), cooling tower (y65) |
 | HQ ×2 | `hq-airfield.js`: 312 m runway along z, 2 helipads, arched hangar with roundel (WEST blue, EAST red), control tower with ladder, fuel farm, motor pool, command bunker, AA pits | command bunker | hangar ridge (y50) |
 
 Every flag has the following, and `tools/frontier-sites-test.mjs` verifies each item:
@@ -64,8 +70,18 @@ Every flag has the following, and `tools/frontier-sites-test.mjs` verifies each 
 
 Map-wide content:
 
-- **Forests (`forest.js`).** Ashgrove (south-west) and Blackwood (north-east) each hold 532 Poisson-disk trees: pine, oak and birch, at a minimum spacing of 4.6 m. Blackwood is built through the point-mirrored kit, so it is an exact voxel mirror of Ashgrove. The burnt stand behind D holds 39 snags. The total of 1103 trees is under the cap of 1800. No tree stands in a road corridor + 3 m, inside a flag radius, on a pad, plateau, river or cliff, or near the bunker works and wrecks.
-- **Dressing (`dressing.js`).** 5 wrecks: tanks near C and D, trucks near C and B, and a crashed helicopter by D. Hedgerows and dry-stone walls cross the open fields between the flags, authored for WEST and mirrored for EAST. There are 18 pre-carved craters.
+- **Woodland (`forest.js`).** `frontierWoodDensity(x, z)` (terrain module, point-symmetric) combines 17 authored woods (`FRONTIER_WOODS`: Ashgrove/Blackwood, the Kestrel upland pinewood, the valley-rim woods, copses between the roads) with clumpy tree lines 2–26 m back from both river banks that open at every crossing. Trunks are placed on a 5.7 m jittered grid on the west half where the density allows and planted again through the point-mirrored kit, so the east half is an exact mirror (`plan.west` / `plan.east`). 1976 trees in total (cap 4200): mostly pines, oak and birch mixed in, more broadleaf along the banks; 44 burnt snags in the stand behind D; 224 bush clumps along the wood edges.
+  - Trees are stacked square tiers (the classic voxel pine): square tiers merge into a few faces in the greedy meshers. A round crown cost about three times the faces; the distant shell budget (`tools/distant-voxel-shell-test.mjs`, < 170 000 quads) is what limits the tree count.
+  - Exclusions (pure, tested on both halves): road corridor + 3 m, 82 m around every flag (the bot commander stages squads and sets transports down 42–76 m out, which must not be canopy), pads, plateaus, the runway approach corridors (36 m either side of each runway line), fields, river, cliffs, every site footprint, lane and ambush point, the bunker trenches, wrecks and hulks, hedges and walls, 18 m round every crossing, the C bridgehead (58 m) and the meadow between ford-north and C, and every eye-to-landmark sight line from both HQs.
+  - Trees are planted after the sites and only fill air, so they never cut a wall.
+- **Dressing (`dressing.js`).**
+  - 8 burning wrecks (published as smoke anchors in `conquest.dressing`; the client ambience smokes up to 8): tanks near C and D, trucks near C and B, a crashed helicopter by D, and a tank, a truck and a tank at ford-north, ford-south and bridge-south.
+  - 8 cold burnt-out hulks (tanks and trucks) in the open middle, authored WEST and mirrored.
+  - 8 roofless ruined cottages with rubble spill (4 + mirrors).
+  - Czech hedgehogs on the banks beside bridge-north and ford-north (and their mirrors) and one-high sandbag lines on the bank tops.
+  - Reed beds (dry-grass tufts) along the beaches and island rims.
+  - Hedgerows and dry-stone walls cross the open fields between the flags, authored for WEST and mirrored for EAST.
+  - 18 pre-carved craters plus 22 mirrored shell scars kept 6 m off every road. The scars are not dug: extra pits on the approaches made bots go to ground instead of pushing flags (fewer flag transitions in `conquest-action-test`).
 - **Roadside (`roadside.js`).** Built after the sites, only on open ground that no site claimed, outside every flag zone and HQ (radius + 14 m), and only where the point-mirrored cell on the EAST bank is open too. The paved axis gets a dashed centre line, a worn gravel verge and 8 m telegraph poles on its north side. Along every road: tyre ruts cutting into the grass, shrub clumps, timber fence runs 4 m off the edge, and toward the front (x >= 236 on the WEST bank) scorch marks with scattered wreckage and one-high sandbag nests. Nothing stands within 1.5 m of a road edge, and nothing but the poles is taller than 2 voxels.
 - **Entrance steps.** Buildings on a slope stand on a level foundation at the highest ground of their footprint, so a downhill doorway can open several voxels above the ground. `buildEntrances` in `generate.js` finds every doorway cell (two clear voxels above the floor in the outer wall ring) of every enterable building and runs a flight of one-voxel steps straight out until it meets the ground. It never cuts through another structure, a road, the river or a ford. Without it the Kestrel stone barn (A) and the Kessler smelter hall (E), both hard points, could not be walked into.
 - **Cleanup pass.** After all set pieces and entrances are built, `generate.js` reopens 5 voxels of headroom over every road and ford cell. It then clears every reserved footprint: spawn cells, vehicle pads, the runway and the helipads.
@@ -134,16 +150,17 @@ The metadata is frozen and terrain-derived, and it is built without allocating v
 
 `FRONTIER_ROADS` (polylines of control points `[[x, z]]`), `FRONTIER_AIRFIELDS` and `FRONTIER_CONQUEST` are still exported. The last two are read-only views that resolve on first access, so importing the layout never builds the terrain. `FRONTIER_FLOOR` has been removed.
 
-## Budgets (2026-10-07, after the WP4 review)
+## Budgets (2026-10-07, after the world content pass)
 
-- Server generation is about 0.45 s (terrain 0.26 s plus voxels 0.17 s). The budget is 1.5 s.
-- The run-length payload is 1,720,449 bytes, against a budget of 3.0 MB. The FNV-1a fingerprint is `84043d53`, pinned in `tools/atlastest.mjs`.
+- Server generation is about 0.54 s (terrain 0.30 s plus voxels 0.24 s; it was 0.49 s before the content pass). The budget is 1.5 s.
+- The run-length payload is 1,986,604 bytes (1,720,449 before the content pass), against a budget of 3.0 MB. The FNV-1a fingerprint is `189a6f60`, pinned in `tools/atlastest.mjs`.
+- The distant voxel shell (medium profile) draws 165 476 greedy quads against the 170 000 budget (151 414 before the content pass). Trees and bushes are about 51 000 of them; this budget, not the payload, caps the woodland.
 - Map memory: 47.2 MB of blocks, 1.2 MB of heights and about 6 MB of retained terrain arrays, against 52.4 MB of blocks and heights for the old 1024 × 48 × 1024 map. The terrain builder keeps its scratch arrays few and narrow (Int16 envelopes, no second relief buffer), because a process keeps freed typed-array pages resident.
 - Process RSS, head to head (generator plus template plus one match state, `node --expose-gc`): old generator +121.7 MiB, Frontier v2 +128–130 MiB, so +5–7 % against the +10 % limit. The scripts are `.conquest-work/wp4/review/rss-old.mjs` (the retired generator, from `.conquest-work/wp4/retired/`) and `.conquest-work/wp4/review/rss-new.mjs`.
 - The top surface:
-  - DRY_GRASS 26.5 % is the largest share;
-  - 10 materials are above 2 %;
-  - the terrain height standard deviation is 6.3 inside the combat area.
+  - DRY_GRASS 21 % is the largest share;
+  - 12 materials are above 2 %;
+  - the terrain height standard deviation is 6.55 inside the combat area.
 
 ## Validation
 
@@ -165,8 +182,8 @@ node tools/atlastest.mjs                 # fingerprint and metadata invariants
 `public/assets/maps/frontier-overview.png` and `public/assets/maps/frontier.jpg` are renders of the game. Regenerate them with muted CDP captures, never with live match pages. Run the commands in the serialized capture phase:
 
 ```
-node tools/render-map-scenes.mjs --map frontier --shot overview --vehicles --out-dir .conquest-work/captures/wp4 --width 1024 --height 1161
-node tools/render-map-scenes.mjs --map frontier --shot vista --vehicles --out-dir .conquest-work/captures/wp4 --width 1440 --height 1037
+node tools/render-map-scenes.mjs --map frontier --shot overview --vehicles --out-dir .conquest-work/captures/wp4 --width 1024 --height 1024
+node tools/render-map-scenes.mjs --map frontier --shot vista --vehicles --out-dir .conquest-work/captures/wp4 --width 1440 --height 900
 sips -g pixelWidth -g pixelHeight .conquest-work/captures/wp4/frontier-overview.png   # must be 1024 x 1024
 cp .conquest-work/captures/wp4/frontier-overview.png public/assets/maps/frontier-overview.png
 sips -s format jpeg -s formatOptions 88 .conquest-work/captures/wp4/frontier-vista.png --out public/assets/maps/frontier.jpg
